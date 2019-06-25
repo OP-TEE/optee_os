@@ -31,6 +31,11 @@
 #include <tee/tee_cryp_pbkdf2.h>
 #endif
 
+enum cryp_state {
+	CRYP_STATE_INITIALIZED = 0,
+	CRYP_STATE_UNINITIALIZED
+};
+
 typedef void (*tee_cryp_ctx_finalize_func_t) (void *ctx, uint32_t algo);
 struct tee_cryp_state {
 	TAILQ_ENTRY(tee_cryp_state) link;
@@ -40,6 +45,7 @@ struct tee_cryp_state {
 	vaddr_t key2;
 	void *ctx;
 	tee_cryp_ctx_finalize_func_t ctx_finalize;
+	enum cryp_state state;
 };
 
 struct tee_cryp_obj_secret {
@@ -2056,6 +2062,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	TAILQ_INSERT_TAIL(&utc->cryp_states, cs, link);
 	cs->algo = algo;
 	cs->mode = mode;
+	cs->state = CRYP_STATE_UNINITIALIZED;
 
 	switch (TEE_ALG_GET_CLASS(algo)) {
 	case TEE_OPERATION_EXTENSION:
@@ -2179,6 +2186,8 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 		return TEE_ERROR_BAD_STATE;
 	}
 
+	cs_dst->state = cs_src->state;
+
 	return TEE_SUCCESS;
 }
 
@@ -2253,6 +2262,8 @@ TEE_Result syscall_hash_init(unsigned long state,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	cs->state = CRYP_STATE_INITIALIZED;
+
 	return TEE_SUCCESS;
 }
 
@@ -2285,6 +2296,9 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
@@ -2343,6 +2357,9 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
@@ -2453,6 +2470,8 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 		return res;
 
 	cs->ctx_finalize = crypto_cipher_final;
+	cs->state = CRYP_STATE_INITIALIZED;
+
 	return TEE_SUCCESS;
 }
 
@@ -2472,6 +2491,9 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	res = tee_mmu_check_access_rights(to_user_ta_ctx(sess->ctx),
 					  TEE_MEMORY_ACCESS_READ |
@@ -2987,6 +3009,8 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 		return res;
 
 	cs->ctx_finalize = (tee_cryp_ctx_finalize_func_t)crypto_authenc_final;
+	cs->state = CRYP_STATE_INITIALIZED;
+
 	return TEE_SUCCESS;
 }
 
@@ -3012,6 +3036,9 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
@@ -3040,6 +3067,9 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
@@ -3099,6 +3129,9 @@ TEE_Result syscall_authenc_enc_final(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	if (cs->mode != TEE_MODE_ENCRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -3183,6 +3216,9 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (cs->state != CRYP_STATE_INITIALIZED)
+		return TEE_ERROR_BAD_STATE;
 
 	if (cs->mode != TEE_MODE_DECRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
