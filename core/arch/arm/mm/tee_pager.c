@@ -1496,8 +1496,9 @@ void tee_pager_assign_uta_tables(struct user_ta_ctx *utc)
 
 void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 {
-	struct tee_pager_pmem *pmem;
-	struct tee_pager_area *area;
+	struct tee_pager_pmem *pmem = NULL;
+	struct tee_pager_area *area = NULL;
+	struct tee_pager_area_head *areas = NULL;
 	uint32_t exceptions = pager_lock_check_stack(SMALL_PAGE_SIZE);
 
 	if (!pgt->num_used_entries)
@@ -1510,9 +1511,12 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 	assert(!pgt->num_used_entries);
 
 out:
-	TAILQ_FOREACH(area, to_user_ta_ctx(pgt->ctx)->areas, link) {
-		if (area->pgt == pgt)
-			area->pgt = NULL;
+	areas = to_user_ta_ctx(pgt->ctx)->areas;
+	if (areas) {
+		TAILQ_FOREACH(area, areas, link) {
+			if (area->pgt == pgt)
+				area->pgt = NULL;
+		}
 	}
 
 	pager_unlock(exceptions);
