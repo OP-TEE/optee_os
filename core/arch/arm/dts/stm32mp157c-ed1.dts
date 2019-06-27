@@ -267,3 +267,8 @@
 	vdda1v1-supply = <&reg11>;
 	vdda1v8-supply = <&reg18>;
 };
+
+&rcc {
+	status = "okay";
+	secure-status = "disable";
+};
