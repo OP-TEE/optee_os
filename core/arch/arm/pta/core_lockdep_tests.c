@@ -125,6 +125,57 @@ static int self_test_lockdep2(void)
 	return 0;
 }
 
+static int self_test_lockdep3(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct lockdep_node_head graph;
+	struct lockdep_lock_head thread1;
+	struct lockdep_lock_head thread2;
+	int count = 1;
+
+	DMSG("");
+
+	TAILQ_INIT(&thread1);
+	TAILQ_INIT(&thread2);
+	TAILQ_INIT(&graph);
+
+	res = __lockdep_lock_tryacquire(&graph, &thread1, 1);
+	if (res)
+		return count;
+	count++;
+
+	res = __lockdep_lock_release(&thread1, 1);
+	if (res)
+		return count;
+	count++;
+
+	res = __lockdep_lock_tryacquire(&graph, &thread1, 1);
+	if (res)
+		return count;
+	count++;
+
+	res = __lockdep_lock_acquire(&graph, &thread2, 2);
+	if (res)
+		return count;
+	count++;
+
+	res = __lockdep_lock_acquire(&graph, &thread1, 2);
+	if (res)
+		return count;
+	count++;
+
+	/* Deadlock 1-2 */
+	res = __lockdep_lock_acquire(&graph, &thread2, 1);
+	if (!res)
+		return count;
+
+	lockdep_graph_delete(&graph);
+	lockdep_queue_delete(&thread1);
+	lockdep_queue_delete(&thread2);
+
+	return 0;
+}
+
 TEE_Result core_lockdep_tests(uint32_t nParamTypes __unused,
 			      TEE_Param pParams[TEE_NUM_PARAMS] __unused)
 
@@ -135,6 +186,9 @@ TEE_Result core_lockdep_tests(uint32_t nParamTypes __unused,
 	if (count)
 		goto out;
 	count = self_test_lockdep2();
+	if (count)
+		goto out;
+	count = self_test_lockdep3();
 	if (count)
 		goto out;
 out:

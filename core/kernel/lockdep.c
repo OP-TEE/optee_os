@@ -354,6 +354,34 @@ TEE_Result __lockdep_lock_acquire(struct lockdep_node_head *graph,
 	return TEE_SUCCESS;
 }
 
+/*
+ * Call this when it is known that the thread has been able to acquire the lock.
+ * Similar to __lockdep_lock_acquire(), but since the operation is non-blocking,
+ * no dependency to currently owned locks are created.
+ */
+TEE_Result __lockdep_lock_tryacquire(struct lockdep_node_head *graph,
+				     struct lockdep_lock_head *owned,
+				     uintptr_t id)
+{
+	struct lockdep_node *node = lockdep_add_to_graph(graph, id);
+
+	if (!node)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	struct lockdep_lock *lock = NULL;
+	vaddr_t *acq_stack = unw_get_kernel_stack();
+
+	lock = calloc(1, sizeof(*lock));
+	if (!lock)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	lock->node = node;
+	lock->call_stack = acq_stack;
+	TAILQ_INSERT_TAIL(owned, lock, link);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result __lockdep_lock_release(struct lockdep_lock_head *owned, uintptr_t id)
 {
 	struct lockdep_lock *lock = NULL;

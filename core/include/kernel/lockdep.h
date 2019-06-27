@@ -56,6 +56,9 @@ TAILQ_HEAD(lockdep_lock_head, lockdep_lock);
 TEE_Result __lockdep_lock_acquire(struct lockdep_node_head *graph,
 				  struct lockdep_lock_head *owned,
 				  uintptr_t id);
+TEE_Result __lockdep_lock_tryacquire(struct lockdep_node_head *graph,
+				     struct lockdep_lock_head *owned,
+				     uintptr_t id);
 TEE_Result __lockdep_lock_release(struct lockdep_lock_head *owned,
 				  uintptr_t id);
 
@@ -80,6 +83,25 @@ static inline void lockdep_lock_acquire(struct lockdep_node_head *graph,
 					uintptr_t id)
 {
 	TEE_Result res = __lockdep_lock_acquire(graph, owned, id);
+
+	if (res) {
+		EMSG("lockdep: error %#" PRIx32, res);
+		panic();
+	}
+}
+
+/*
+ * Non-blocking acquire lock @id, while already holding the locks in @owned.
+ * @owned represent the caller; there should be one instance per thread of
+ * execution. @graph is the directed acyclic graph (DAG) to be used for
+ * potential deadlock detection; use the same @graph for all the locks of the
+ * same type as lock @id.
+ */
+static inline void lockdep_lock_tryacquire(struct lockdep_node_head *graph,
+					   struct lockdep_lock_head *owned,
+					   uintptr_t id)
+{
+	TEE_Result res = __lockdep_lock_tryacquire(graph, owned, id);
 
 	if (res) {
 		EMSG("lockdep: error %#" PRIx32, res);
