@@ -37,6 +37,7 @@
  * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 #include "tomcrypt.h"
+#include <string_ext.h>
 
 /**
    @file zeromem.c
@@ -50,11 +51,8 @@
 */
 void zeromem(volatile void *out, size_t outlen)
 {
-   volatile char *mem = out;
    LTC_ARGCHKVD(out != NULL);
-   while (outlen-- > 0) {
-      *mem++ = 0;
-   }
+   memzero_explicit((void *)out, outlen);
 }
 
 /* $Source: /cvs/libtom/libtomcrypt/src/misc/zeromem.c,v $ */
