@@ -672,6 +672,9 @@ static void check_rcc_secure_configuration(void)
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 	bool have_error = false;
 
+	if (stm32mp_is_closed_device() && !secure)
+		panic();
+
 	for (id = 0; id < STM32MP1_SHRES_COUNT; id++) {
 		if  (shres_state[id] != SHRES_SECURE)
 			continue;

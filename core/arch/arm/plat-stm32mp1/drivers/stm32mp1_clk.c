@@ -1232,7 +1232,9 @@ static TEE_Result stm32mp1_clk_early_init(void)
 	if (_fdt_get_status(fdt, node) & DT_STATUS_OK_SEC) {
 		io_setbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 	} else {
-		io_clrbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
+		if (io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_TZEN)
+			panic("Refuse to release RCC[TZEN]");
+
 		IMSG("RCC is non-secure");
 	}
 
