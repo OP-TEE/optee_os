@@ -269,8 +269,6 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->base = BSEC_BASE;
 	cfg->upper_start = STM32MP1_UPPER_OTP_START;
 	cfg->max_id = STM32MP1_OTP_MAX_ID;
-	cfg->closed_device_id = DATA0_OTP;
-	cfg->closed_device_position = DATA0_OTP_SECURED_POS;
 }
 
 bool stm32mp_is_closed_device(void)
