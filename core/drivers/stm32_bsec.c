@@ -109,7 +109,6 @@ struct bsec_dev {
 	struct io_pa_va base;
 	unsigned int upper_base;
 	unsigned int max_id;
-	bool closed_device;
 };
 
 /* Only 1 instance of BSEC is expected per platform */
@@ -519,26 +518,18 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 	if (otp_id > otp_max_id())
 		return false;
 
-	return otp_id < bsec_dev.upper_base || !bsec_dev.closed_device;
+	return otp_id < bsec_dev.upper_base;
 }
 
 static TEE_Result initialize_bsec(void)
 {
-	struct stm32_bsec_static_cfg cfg = { 0 };
-	uint32_t otp = 0;
-	TEE_Result result = 0;
+	struct stm32_bsec_static_cfg cfg = { };
 
 	stm32mp_get_bsec_static_cfg(&cfg);
 
 	bsec_dev.base.pa = cfg.base;
 	bsec_dev.upper_base = cfg.upper_start;
 	bsec_dev.max_id = cfg.max_id;
-	bsec_dev.closed_device = true;
-
-	/* Disable closed device mode upon platform closed device OTP value */
-	result = stm32_bsec_shadow_read_otp(&otp, cfg.closed_device_id);
-	if (!result && !(otp & BIT(cfg.closed_device_position)))
-		bsec_dev.closed_device = false;
 
 	return TEE_SUCCESS;
 }
