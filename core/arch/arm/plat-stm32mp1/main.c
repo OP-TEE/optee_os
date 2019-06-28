@@ -273,6 +273,19 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->closed_device_position = DATA0_OTP_SECURED_POS;
 }
 
+bool stm32mp_is_closed_device(void)
+{
+	uint32_t otp = 0;
+	TEE_Result result = TEE_ERROR_GENERIC;
+
+	/* Non closed_device platform expects fuse well programmed to 0 */
+	result = stm32_bsec_shadow_read_otp(&otp, DATA0_OTP);
+	if (!result && !(otp & BIT(DATA0_OTP_SECURED_POS)))
+		return false;
+
+	return true;
+}
+
 uint32_t may_spin_lock(unsigned int *lock)
 {
 	if (!lock || !cpu_mmu_enabled())
