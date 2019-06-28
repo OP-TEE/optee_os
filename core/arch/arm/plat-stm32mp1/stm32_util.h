@@ -88,6 +88,11 @@ struct stm32_bsec_static_cfg {
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 /*
+ * Return true if platform is in closed_device mode
+ */
+bool stm32mp_is_closed_device(void);
+
+/*
  * Shared registers support: common lock for accessing SoC registers
  * shared between several drivers.
  */
