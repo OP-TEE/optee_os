@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2016-2018, STMicroelectronics
+ * Copyright (c) 2016-2020, STMicroelectronics
  * Copyright (c) 2018, Linaro Limited
  */
 #ifndef __STM32MP1_SMC_H__
 #define __STM32MP1_SMC_H__
+
+#include <sm/optee_smc.h>
 
 /*
  * SIP Functions
@@ -12,7 +14,13 @@
 #define STM32_SIP_SVC_VERSION_MAJOR	0x0
 #define STM32_SIP_SVC_VERSION_MINOR	0x1
 
-#define STM32_SIP_SVC_FUNCTION_COUNT	0x2
+#define STM32_SIP_SVC_FUNCTION_COUNT	0x3
+
+/* STM32 SIP service generic return codes */
+#define STM32_SIP_SVC_OK		0x0
+#define STM32_SIP_SVC_UNKNOWN_FUNCTION	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION
+#define STM32_SIP_SVC_FAILED		0xfffffffeU
+#define STM32_SIP_SVC_INVALID_PARAMS	0xfffffffdU
 
 /*
  * SMC function IDs for STM32 Service queries
@@ -62,6 +70,25 @@
  * Argument a1: (output) STM32 SIP service minor
  */
 #define STM32_SIP_SVC_FUNC_VERSION		0xff03
+
+/*
+ * SIP functions STM32_SIP_SVC_FUNC_BSEC
+ *
+ * Argument a0: (input) SMCCC function ID
+ *		(output) status return code
+ * Argument a1: (input) Service ID (STM32_SIP_BSEC_xxx)
+ * Argument a2: (input) OTP index
+ *		(output) OTP read value, if applicable
+ * Argument a3: (input) OTP value if applicable
+ */
+#define STM32_SIP_SVC_FUNC_BSEC			0x1003
+
+/* Service ID for function ID STM32_SIP_FUNC_BSEC */
+#define STM32_SIP_SVC_BSEC_READ_SHADOW		0x1
+#define STM32_SIP_SVC_BSEC_PROG_OTP		0x2
+#define STM32_SIP_SVC_BSEC_WRITE_SHADOW		0x3
+#define STM32_SIP_SVC_BSEC_READ_OTP		0x4
+#define STM32_SIP_SVC_BSEC_WRLOCK_OTP		0x5
 
 /*
  * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT0
