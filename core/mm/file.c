@@ -122,9 +122,32 @@ struct file *file_get_by_tag(const uint8_t *tag, unsigned int taglen)
 		return NULL;
 
 	mutex_lock(&file_mu);
-	f = file_get(file_find_tag_unlocked(tag, taglen));
-	if (f)
+
+	/*
+	 * If file is found and reference counter can be increased, we're done.
+	 * If file can't be found, it doesn't exist so it has to be added.
+	 * If it's found but reference counter is 0, the situation is
+	 * a bit complicated:
+	 * - file_put() is about to free the file as soon as it can obtain the
+	 *   mutex.
+	 * - Unless there's a mismatch between file_get() and file_put() only
+	 *   one thread calling file_put() is about to free the file.
+	 *
+	 * There's a window of opportunity where file_put() is called
+	 * (without a mutex being held, which is quite OK) while we're
+	 * holding the mutex here and are searching for the file and it's
+	 * found, but just after file_put() has decreased the reference
+	 * counter.
+	 *
+	 * To keep it simple we're adding a new file at the head (so new
+	 * searches finds this file instead of the old being freed) instead
+	 * of complicating file_put() by trying to rescue the file and
+	 * possibly hiding a case of mismatching file_put() and file_get().
+	 */
+	f = file_find_tag_unlocked(tag, taglen);
+	if (f && refcount_inc(&f->refc))
 		goto out;
+
 	f = calloc(1, sizeof(*f));
 	if (!f)
 		goto out;
@@ -133,7 +156,7 @@ struct file *file_get_by_tag(const uint8_t *tag, unsigned int taglen)
 	refcount_set(&f->refc, 1);
 	mutex_init(&f->mu);
 	SLIST_INIT(&f->slice_head);
-	TAILQ_INSERT_TAIL(&file_head, f, link);
+	TAILQ_INSERT_HEAD(&file_head, f, link);
 
 out:
 	mutex_unlock(&file_mu);
