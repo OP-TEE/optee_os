@@ -49,6 +49,9 @@ CFG_STM32_RNG ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
+# SiP/OEM service for non-secure world
+CFG_STM32_BSEC_SIP ?= y
+
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STATS ?= y

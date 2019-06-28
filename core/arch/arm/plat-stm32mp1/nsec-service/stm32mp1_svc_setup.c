@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stm32_util.h>
 
+#include "bsec_svc.h"
 #include "stm32mp1_smc.h"
 
 #define SM_NSEC_CTX_OFFSET(_reg)	(offsetof(struct sm_nsec_ctx, _reg) - \
@@ -31,6 +32,9 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		args->a1 = STM32_SIP_SVC_UID_1;
 		args->a2 = STM32_SIP_SVC_UID_2;
 		args->a3 = STM32_SIP_SVC_UID_3;
+		break;
+	case STM32_SIP_SVC_FUNC_BSEC:
+		args->a0 = bsec_main(args->a1, args->a2, args->a3, &args->a1);
 		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;
