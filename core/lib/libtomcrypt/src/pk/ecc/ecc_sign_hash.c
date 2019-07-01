@@ -67,7 +67,7 @@ int ecc_sign_hash_raw(const unsigned char *in,  unsigned long inlen,
                             prng_state *prng, int wprng, ecc_key *key)
 {
    ecc_key       pubkey;
-   void          *e, *p;
+   void          *e, *p, *b;
    int           err;
 
    LTC_ARGCHK(in  != NULL);
@@ -91,7 +91,7 @@ int ecc_sign_hash_raw(const unsigned char *in,  unsigned long inlen,
 
    /* get the hash and load it as a bignum into 'e' */
    /* init the bignums */
-   if ((err = mp_init_multi(&p, &e, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&p, &e, &b, NULL)) != CRYPT_OK) {
       return err;
    }
    if ((err = mp_read_radix(p, (char *)key->dp->order, 16)) != CRYPT_OK)                      { goto errnokey; }
@@ -109,12 +109,15 @@ int ecc_sign_hash_raw(const unsigned char *in,  unsigned long inlen,
       if (mp_iszero(r) == LTC_MP_YES) {
          ecc_free(&pubkey);
       } else { 
+	if ((err = rand_bn_range(b, p, prng, wprng)) != CRYPT_OK)         { goto error; } /* b = blinding value */
         /* find s = (e + xr)/k */
-        if ((err = mp_invmod(pubkey.k, p, pubkey.k)) != CRYPT_OK)            { goto error; } /* k = 1/k */
-        if ((err = mp_mulmod(key->k, r, p, s)) != CRYPT_OK)                  { goto error; } /* s = xr */
-        if ((err = mp_add(e, s, s)) != CRYPT_OK)                             { goto error; } /* s = e +  xr */
-        if ((err = mp_mod(s, p, s)) != CRYPT_OK)                             { goto error; } /* s = e +  xr */
-        if ((err = mp_mulmod(s, pubkey.k, p, s)) != CRYPT_OK)                { goto error; } /* s = (e + xr)/k */
+        if ((err = mp_mulmod(pubkey.k, b, p, pubkey.k)) != CRYPT_OK)      { goto error; } /* k = kb */
+        if ((err = mp_invmod(pubkey.k, p, pubkey.k)) != CRYPT_OK)         { goto error; } /* k = 1/kb */
+        if ((err = mp_mulmod(key->k, r, p, s)) != CRYPT_OK)               { goto error; } /* s = xr */
+        if ((err = mp_mulmod(pubkey.k, s, p, s)) != CRYPT_OK)             { goto error; } /* s = xr/kb */
+        if ((err = mp_mulmod(pubkey.k, e, p, e)) != CRYPT_OK)             { goto error; } /* e = e/kb */
+        if ((err = mp_add(e, s, s)) != CRYPT_OK)                          { goto error; } /* s = e/kb + xr/kb */
+        if ((err = mp_mulmod(s, b, p, s)) != CRYPT_OK)                    { goto error; } /* s = b(e/kb + xr/kb) = (e + xr)/k */
         ecc_free(&pubkey);
         if (mp_iszero(s) == LTC_MP_NO) {
            break;
@@ -128,7 +131,7 @@ int ecc_sign_hash_raw(const unsigned char *in,  unsigned long inlen,
 error:
    ecc_free(&pubkey);
 errnokey:
-   mp_clear_multi(p, e, NULL);
+   mp_clear_multi(p, e, b, NULL);
    return err;
 }
 
