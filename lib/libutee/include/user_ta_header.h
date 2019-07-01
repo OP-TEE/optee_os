@@ -36,10 +36,18 @@ struct ta_head {
 
 #if defined(CFG_TA_FTRACE_SUPPORT)
 #define FTRACE_RETFUNC_DEPTH		50
+union compat_ptr {
+	uint64_t ptr64;
+	struct {
+		uint32_t lo;
+		uint32_t hi;
+	} ptr32;
+};
+
 struct __ftrace_info {
-	uintptr_t buf_start;
-	uintptr_t buf_end;
-	uintptr_t ret_ptr;
+	union compat_ptr buf_start;
+	union compat_ptr buf_end;
+	union compat_ptr ret_ptr;
 };
 
 struct ftrace_buf {

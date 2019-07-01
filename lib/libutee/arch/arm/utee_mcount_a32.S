@@ -26,25 +26,36 @@
  */
 FUNC __gnu_mcount_nc, :
 	stmdb		sp!, {r0-r3, lr}
-	ldr		r0, [sp, #20]		/* lr of instrumented func */
 #ifdef CFG_TA_GPROF_SUPPORT
+	ldr		r0, [sp, #20]		/* lr of instrumented func */
 	mcount_adj_pc	r0, r0
 	mcount_adj_pc	r1, lr			/* instrumented func */
 	bl		__mcount_internal
+#endif
+#ifdef CFG_TA_FTRACE_SUPPORT
+	/* Get instrumented function's pc value */
+	ldr		r0, [sp, #16]
+	mcount_adj_pc	r0, r0
+	/* Get instrumented function's lr address pointer */
+	sub		r1, fp, #4
+	bl		ftrace_enter
 #endif
 	ldmia		sp!, {r0-r3, ip, lr}
 	bx		ip
 END_FUNC __gnu_mcount_nc
 
 #ifdef CFG_TA_FTRACE_SUPPORT
-/*
- * ftrace is not yet supported in 32bit mode. Currently this is just a
- * placeholder to avoid linking error.
- */
 FUNC __ftrace_return, :
-	push		{lr}
-	pop		{ip, lr}
-	bx		ip
+	/* save return value regs */
+	stmdb		sp!, {r0-r3}
+
+	/* get return address of parent func */
+	bl		ftrace_return
+	mov		lr, r0
+
+	/* restore return value regs */
+	ldmia		sp!, {r0-r3}
+	bx		lr
 END_FUNC __ftrace_return
 #endif
 

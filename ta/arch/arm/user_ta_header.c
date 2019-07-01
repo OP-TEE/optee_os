@@ -127,9 +127,15 @@ const size_t ta_num_props = sizeof(ta_props) / sizeof(ta_props[0]);
 
 #ifdef CFG_TA_FTRACE_SUPPORT
 struct __ftrace_info __ftrace_info = {
-	.buf_start = (uintptr_t)&__ftrace_buf_start,
-	.buf_end = (uintptr_t)__ftrace_buf_end,
-	.ret_ptr = (uintptr_t)&__ftrace_return,
+#ifdef __ILP32__
+	.buf_start.ptr32 = { .lo = (uint32_t)&__ftrace_buf_start },
+	.buf_end.ptr32 = { .lo = (uint32_t)__ftrace_buf_end },
+	.ret_ptr.ptr32 = { .lo = (uint32_t)&__ftrace_return },
+#else
+	.buf_start.ptr64 = (uint64_t)&__ftrace_buf_start,
+	.buf_end.ptr64 = (uint64_t)__ftrace_buf_end,
+	.ret_ptr.ptr64 = (uint64_t)&__ftrace_return,
+#endif
 };
 #endif
 
