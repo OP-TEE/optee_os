@@ -35,7 +35,8 @@ bool ftrace_init(void)
 
 	assert(elf && elf->is_main);
 
-	if (SUB_OVERFLOW(finfo->buf_end, finfo->buf_start, &fbuf_size))
+	if (SUB_OVERFLOW(finfo->buf_end.ptr64, finfo->buf_start.ptr64,
+			 &fbuf_size))
 		return false;
 
 	if (fbuf_size < MIN_FTRACE_BUF_SIZE) {
@@ -43,14 +44,14 @@ bool ftrace_init(void)
 		return false;
 	}
 
-	fbuf = (struct ftrace_buf *)finfo->buf_start;
+	fbuf = (struct ftrace_buf *)finfo->buf_start.ptr64;
 	fbuf->head_off = sizeof(struct ftrace_buf);
 	count = snprintk((char *)fbuf + fbuf->head_off, MAX_HEADER_STRLEN,
 			 "Function graph for TA: %pUl @ %lx\n",
 			 (void *)&elf->uuid, elf->load_addr);
 	assert(count < MAX_HEADER_STRLEN);
 
-	fbuf->ret_func_ptr = finfo->ret_ptr;
+	fbuf->ret_func_ptr = finfo->ret_ptr.ptr64;
 	fbuf->ret_idx = 0;
 	fbuf->lr_idx = 0;
 	fbuf->buf_off = fbuf->head_off + count;

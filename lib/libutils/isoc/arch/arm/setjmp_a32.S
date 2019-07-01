@@ -213,6 +213,18 @@ SYM (\name):
 	sfmea		f4, 4, [a1]
 #endif
 #endif		
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+	stmdb		sp!, { lr }
+	/*
+	 * As ftrace is supported in ARM mode only, so hardcode jmp_buf
+	 * offset used to save ftrace return index.
+	 */
+	add		a1, a1, #48
+	bl		ftrace_setjmp
+	ldmia		sp!, { lr }
+#endif
+
 	/* When setting up the jump buffer return 0.  */
 	mov		a1, #0
 
@@ -226,6 +238,17 @@ SYM (\name):
 
 	/* If we have stack extension code it ought to be handled here.  */
 	
+#ifdef CFG_TA_FTRACE_SUPPORT
+	stmdb		sp!, { a1, a2, lr }
+	/*
+	 * As ftrace is supported in ARM mode only, so hardcode jmp_buf
+	 * offset used to restore ftrace return stack.
+	 */
+	add		a1, a1, #92
+	bl		ftrace_longjmp
+	ldmia		sp!, { a1, a2, lr }
+#endif
+
 	/* Restore the registers, retrieving the state when setjmp() was called.  */
 #ifdef __thumb2__
 	ldmfd		a1!, { v1-v7, fp, ip, lr }

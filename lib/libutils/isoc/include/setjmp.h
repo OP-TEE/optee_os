@@ -38,8 +38,10 @@
 /*
  * All callee preserved registers:
  * v1 - v7, fp, ip, sp, lr, f4, f5, f6, f7
+ * One additional 32-bit value used in case ftrace
+ * is enabled to restore ftrace return stack.
  */
-#define _JBLEN 23
+#define _JBLEN 24
 #define _JBTYPE int
 #endif
 

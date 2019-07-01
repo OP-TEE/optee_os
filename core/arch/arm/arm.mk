@@ -89,7 +89,9 @@ platform-aflags-generic ?= -pipe
 
 arm32-platform-cflags-no-hard-float ?= -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
-arm32-platform-cflags-generic ?= -mthumb -mthumb-interwork \
+arm32-platform-cflags-generic-thumb ?= -mthumb -mthumb-interwork \
+			-fno-short-enums -fno-common -mno-unaligned-access
+arm32-platform-cflags-generic-arm ?= -marm -fno-omit-frame-pointer -mapcs \
 			-fno-short-enums -fno-common -mno-unaligned-access
 arm32-platform-aflags-no-hard-float ?=
 
@@ -138,7 +140,7 @@ core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
 ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
-core-platform-cflags += $(arm32-platform-cflags-generic)
+core-platform-cflags += $(arm32-platform-cflags-generic-thumb)
 core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
@@ -166,7 +168,16 @@ ta_arm32-platform-cflags += $(arm32-platform-cflags)
 ta_arm32-platform-cflags += $(platform-cflags-optimization)
 ta_arm32-platform-cflags += $(platform-cflags-debug-info)
 ta_arm32-platform-cflags += -fpic
-ta_arm32-platform-cflags += $(arm32-platform-cflags-generic)
+
+# Thumb mode doesn't support function graph tracing due to missing
+# frame pointer support required to trace function call chain. So
+# rather compile in ARM mode if function tracing is enabled.
+ifeq ($(CFG_TA_FTRACE_SUPPORT),y)
+ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-arm)
+else
+ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-thumb)
+endif
+
 ifeq ($(arm32-platform-hard-float-enabled),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
 else

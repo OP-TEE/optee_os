@@ -7,6 +7,16 @@ srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_ldivmod_a32.S
 srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_ldivmod.c
 srcs-$(CFG_ARM32_$(sm)) += arm32_aeabi_shift.c
 
+ifeq ($(CFG_ULIBS_MCOUNT),y)
+# We would not like to profile __aeabi functions as these provide
+# internal implementations for "/ %" operations. Also, "/ %" operations
+# could be used inside profiling code which could create an incorrect
+# cyclic behaviour.
+cflags-remove-arm32_aeabi_divmod.c-y += -pg
+cflags-remove-arm32_aeabi_ldivmod.c-y += -pg
+cflags-remove-arm32_aeabi_shift.c-y += -pg
+endif
+
 srcs-$(CFG_ARM32_$(sm)) += setjmp_a32.S
 srcs-$(CFG_ARM64_$(sm)) += setjmp_a64.S
 
