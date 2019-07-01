@@ -742,7 +742,7 @@ icache_inv_user_range:
 
 #else
 	mrs	x5, ttbr0_el1	/* this register must be preserved */
-	orr	x2, x2, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
+	orr	x2, x5, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
 	msr	ttbr0_el1, x2
 	isb
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
