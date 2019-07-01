@@ -9,7 +9,6 @@
  */
 #include "tomcrypt.h"
 
-#ifdef LTC_MDSA
 /**
   Generate a random number N with given bitlength (note: MSB can be 0)
 */
@@ -68,4 +67,3 @@ int rand_bn_range(void *N, void *limit, prng_state *prng, int wprng)
 
    return CRYPT_OK;
 }
-#endif
