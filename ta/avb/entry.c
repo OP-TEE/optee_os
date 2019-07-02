@@ -239,7 +239,12 @@ static TEE_Result write_lock_state(uint32_t pt,
 	if (count == sizeof(lock_state) && lock_state == wlock_state)
 		goto out;
 
-	res = create_rb_state(wlock_state, &h);
+	res = TEE_SeekObjectData(h, 0, TEE_DATA_SEEK_SET);
+	if (res)
+		goto out;
+
+	res = TEE_WriteObjectData(h, &wlock_state, sizeof(wlock_state));
+
 out:
 	TEE_CloseObject(h);
 	return res;

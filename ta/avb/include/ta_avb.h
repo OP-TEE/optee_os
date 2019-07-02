@@ -39,7 +39,7 @@
 /*
  * Sets the lock state of the device.
  *
- * If the lock state is changed all rollback slots will be reset to 0
+ * The rollback slots are preserved.
  *
  * in	params[0].value.a:	lock state
  */
