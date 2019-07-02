@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2019, Linaro Limited
@@ -45,25 +45,26 @@ def emit_load_segments(elffile, outf):
             load_size += segment['p_filesz']
             n = n + 1
 
-    outf.write('const uint8_t ldelf_data[%d]' % round_up(load_size, 4096))
-    outf.write(' __aligned(4096) = {\n')
+    outf.write(b'const uint8_t ldelf_data[%d]' % round_up(load_size, 4096))
+    outf.write(b' __aligned(4096) = {\n')
     i = 0
     for segment in elffile.iter_segments():
         if segment['p_type'] == 'PT_LOAD':
             data = segment.data()
             for n in range(segment['p_filesz']):
                 if i % 8 == 0:
-                    outf.write('\t')
-                outf.write('0x' + '{:02x}'.format(ord(data[n])) + ',')
+                    outf.write(b'\t')
+                outf.write(b'0x' + '{:02x}'.format(data[n]).encode('utf-8')
+                           + b',')
                 i = i + 1
                 if i % 8 == 0 or i == load_size:
-                    outf.write('\n')
+                    outf.write(b'\n')
                 else:
-                    outf.write(' ')
-    outf.write('};\n')
+                    outf.write(b' ')
+    outf.write(b'};\n')
 
-    outf.write('const unsigned int ldelf_code_size = %d;\n' % code_size)
-    outf.write('const unsigned int ldelf_data_size = %d;\n' % data_size)
+    outf.write(b'const unsigned int ldelf_code_size = %d;\n' % code_size)
+    outf.write(b'const unsigned int ldelf_data_size = %d;\n' % data_size)
 
 
 def get_args():
@@ -87,11 +88,11 @@ def main():
 
     elffile = ELFFile(inf)
 
-    outf.write('/* Automatically generated, do no edit */\n')
-    outf.write('#include <compiler.h>\n')
-    outf.write('#include <stdint.h>\n')
+    outf.write(b'/* Automatically generated, do no edit */\n')
+    outf.write(b'#include <compiler.h>\n')
+    outf.write(b'#include <stdint.h>\n')
     emit_load_segments(elffile, outf)
-    outf.write('const unsigned long ldelf_entry = %lu;\n' %
+    outf.write(b'const unsigned long ldelf_entry = %lu;\n' %
                elffile.header['e_entry'])
 
     inf.close()
