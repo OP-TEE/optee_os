@@ -29,15 +29,16 @@ void register_serial_console(struct serial_chip *chip);
  *
  * @fdt_out: Output DTB address where console directive is found
  * @offs_out: Output offset in the DTB where console directive is found
- * @path_out: Output string configuration of the console from in the DTB
- * @params_out: Output console parameters found from the DTB
+ * @path_out: Output string configuration of the console from the DTB.
+ * (*path_out) shall be freed using nex_free().
+ * @params_out: Output console parameters found from the DTB.
+ * (*params_out) shall be freed using nex_free().
  *
  * Return a TEE_Result compliant return value
  *
  */
 TEE_Result get_console_node_from_dt(void *fdt, int *offs_out,
-				    const char **path_out,
-				    const char **params_out);
+				    char **path_out, char **params_out);
 
 /*
  * Check if the /secure-chosen or /chosen node in the DT contains an
