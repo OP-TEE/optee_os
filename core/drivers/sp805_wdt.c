@@ -60,7 +60,7 @@ static void sp805_config(struct wdt_chip *chip, bool ping)
 	io_write32(base + WDT_LOCK_OFFSET, WDT_LOCK_KEY);
 
 	/* Flush posted writes. */
-	io_read32(base + WDT_LOCK_OFFSET);
+	(void)io_read32(base + WDT_LOCK_OFFSET);
 }
 
 static void sp805_ping(struct wdt_chip *chip)
@@ -82,7 +82,7 @@ static void sp805_disable(struct wdt_chip *chip)
 	io_write32(base + WDT_LOCK_OFFSET, WDT_LOCK_KEY);
 
 	/* Flush posted writes. */
-	io_read32(base + WDT_LOCK_OFFSET);
+	(void)io_read32(base + WDT_LOCK_OFFSET);
 }
 
 static enum itr_return wdt_itr_cb(struct itr_handler *h)
@@ -102,13 +102,20 @@ TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
 				      uint32_t itr_num, uint32_t itr_flags,
 				      sp805_itr_handler_func_t itr_handler)
 {
-	struct itr_handler *wdt_itr = &pd->chip.wdt_itr;
+	struct itr_handler *wdt_itr;
+
+	assert(!pd->chip.wdt_itr);
+
+	wdt_itr = malloc(sizeof(*wdt_itr));
+	if (!wdt_itr)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	wdt_itr->it = itr_num;
 	wdt_itr->flags = itr_flags;
 	wdt_itr->handler = wdt_itr_cb;
 	wdt_itr->data = &pd->chip;
 	pd->itr_handler = itr_handler;
+	pd->chip.wdt_itr = wdt_itr;
 
 	itr_add(wdt_itr);
 	itr_enable(wdt_itr->it);

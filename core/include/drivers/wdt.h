@@ -11,7 +11,7 @@
 
 struct wdt_chip {
 	const struct wdt_ops *ops;
-	struct itr_handler wdt_itr;
+	struct itr_handler *wdt_itr;
 };
 
 /*
