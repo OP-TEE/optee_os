@@ -1075,6 +1075,15 @@ void thread_init_per_cpu(void)
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
 
 	thread_init_vbar(get_excp_vect());
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+	/*
+	 * Enable accesses to frequency register and physical counter
+	 * register in EL0/PL0 required for timestamping during
+	 * function tracing.
+	 */
+	write_cntkctl(read_cntkctl() | CNTKCTL_PL0PCTEN);
+#endif
 }
 
 struct thread_specific_data *thread_get_tsd(void)

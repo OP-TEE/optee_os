@@ -44,6 +44,11 @@ UNWIND(	.cantunwind)
 	read_pmcr r2
 	stm	r0!, {r2}
 #endif
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+	read_cntkctl r2
+	stm	r0!, {r2}
+#endif
 	cps	#CPSR_MODE_MON
 	bx	lr
 UNWIND(	.fnend)
@@ -75,6 +80,11 @@ UNWIND(	.cantunwind)
 #ifdef CFG_SM_NO_CYCLE_COUNTING
 	ldm	r0!, {r2}
 	write_pmcr r2
+#endif
+
+#ifdef CFG_TA_FTRACE_SUPPORT
+	ldm	r0!, {r2}
+	write_cntkctl r2
 #endif
 	cps	#CPSR_MODE_MON
 	bx	lr

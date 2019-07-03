@@ -37,6 +37,10 @@ struct sm_unbanked_regs {
 #ifdef CFG_SM_NO_CYCLE_COUNTING
 	uint32_t pmcr;
 #endif
+#ifdef CFG_TA_FTRACE_SUPPORT
+	uint32_t cntkctl;
+	uint32_t pad;
+#endif
 };
 
 struct sm_nsec_ctx {
