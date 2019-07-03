@@ -42,10 +42,6 @@ SECTIONS {
 	.dynstr : { *(.dynstr) }
 	.hash : { *(.hash) }
 
-	/* Page align to allow dropping execute bit for RW data */
-	. = ALIGN(4096);
-
-	.got : { *(.got.plt) *(.got) }
 	__reloc_begin = .;
 	.rel.got : { *(.rel.got) }
 	.rela.got : { *(.rela.got) }
@@ -71,7 +67,11 @@ SECTIONS {
 	.rela.plt : { *(.rela.plt) }
 	__reloc_end = .;
 
+	/* Page align to allow dropping execute bit for RW data */
+	. = ALIGN(4096);
+
 	.dynamic : { *(.dynamic) }
+	.got : { *(.got.plt) *(.got) }
 
 	.data : { *(.data .data.* .gnu.linkonce.d.*) }
 	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
