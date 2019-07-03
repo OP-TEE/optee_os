@@ -128,7 +128,7 @@ $(foreach f, $(ta-mkfiles), \
 
 # Copy the .h files for TAs
 define copy-incdir
-sf := $(subst $1/, , $(shell find $1 -name "*.h"))
+sf := $(subst $1/, , $(shell find $1 -name "*.[hS]"))
 $$(foreach h, $$(sf), $$(eval $$(call copy-file, $1/$$(h), \
 	$$(patsubst %/,%,$$(subst /./,/,$2/$$(dir $$(h)))))))
 endef
@@ -143,6 +143,9 @@ $(foreach f, $(incfiles-extra-host), \
 
 # Copy the src files
 ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
+ifeq ($(ta-target),ta_arm32)
+ta-srcfiles += ta/arch/$(ARCH)/ta_entry_a32.S
+endif
 $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/src)))
 

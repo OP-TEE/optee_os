@@ -25,26 +25,27 @@ const char trace_ext_prefix[]  = "TA";
 /* exprted to user_ta_header.c, built within TA */
 struct utee_params;
 
+#ifdef ARM32
+#define _C_FUNCTION(name) name##_c
+#else
+#define _C_FUNCTION(name) name
+#endif /* ARM32 */
+
+/* From libutee */
 TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id);
 
-void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
-			   struct utee_params *up, unsigned long cmd_id);
+void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
+					unsigned long session_id,
+					struct utee_params *up,
+					unsigned long cmd_id);
 
-void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
-			   struct utee_params *up, unsigned long cmd_id)
+void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
+					unsigned long session_id,
+					struct utee_params *up,
+					unsigned long cmd_id)
 {
-	TEE_Result res = TEE_SUCCESS;
-
-#if defined(ARM32) && defined(CFG_UNWIND)
-	/*
-	 * This function is the bottom of the user call stack: mark it as such
-	 * so that the unwinding code won't try to go further down.
-	 */
-	asm(".cantunwind");
-#endif
-
-	res = __utee_entry(func, session_id, up, cmd_id);
+	TEE_Result res = __utee_entry(func, session_id, up, cmd_id);
 
 #if defined(CFG_TA_FTRACE_SUPPORT)
 	/*

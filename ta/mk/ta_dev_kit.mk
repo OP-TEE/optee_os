@@ -97,6 +97,10 @@ ifneq ($(user-ta-uuid),)
 # Build target is TA
 vpath %.c $(ta-dev-kit-dir$(sm))/src
 srcs += user_ta_header.c
+ifeq ($(sm),ta_arm32)
+vpath %.S $(ta-dev-kit-dir$(sm))/src
+srcs += ta_entry_a32.S
+endif
 endif
 
 include  $(ta-dev-kit-dir$(sm))/mk/gcc.mk
