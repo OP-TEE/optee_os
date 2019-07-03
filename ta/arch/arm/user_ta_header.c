@@ -25,26 +25,44 @@ const char trace_ext_prefix[]  = "TA";
 /* exprted to user_ta_header.c, built within TA */
 struct utee_params;
 
+#if defined(ARM32) && defined(CFG_UNWIND)
+/*
+ * This function is the bottom of the user call stack. Mark it as such so that
+ * the unwinding code won't try to go further down.
+ * We need an assembly wrapper to __ta_entry_c below because Clang does not
+ * accept asm(".cantunwind") in a C function:
+ *
+ *  user_ta_header.c:44:6: error: .fnstart must precede .cantunwind directive
+ *          asm(".cantunwind");
+ *              ^
+ */
+asm(".section	.text");
+asm(".thumb_func");
+asm(".global	__ta_entry");
+asm(".type	__ta_entry, %function");
+asm("__ta_entry:");
+asm(".fnstart");
+asm(".cantunwind");
+asm("		bl __ta_entry_c");
+asm("		nop");
+asm(".fnend");
+asm(".size	__ta_entry, .-__ta_entry");
+#define _C(name) name##_c
+#else
+#define _C(name) name
+#endif /* ARM32 && CFG_UNWIND */
+
+/* From libutee */
 TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id);
 
-void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
-			   struct utee_params *up, unsigned long cmd_id);
+void __noreturn _C(__ta_entry)(unsigned long func, unsigned long session_id,
+			       struct utee_params *up, unsigned long cmd_id);
 
-void __noreturn __ta_entry(unsigned long func, unsigned long session_id,
-			   struct utee_params *up, unsigned long cmd_id)
+void __noreturn _C(__ta_entry)(unsigned long func, unsigned long session_id,
+			       struct utee_params *up, unsigned long cmd_id)
 {
-	TEE_Result res = TEE_SUCCESS;
-
-#if defined(ARM32) && defined(CFG_UNWIND)
-	/*
-	 * This function is the bottom of the user call stack: mark it as such
-	 * so that the unwinding code won't try to go further down.
-	 */
-	asm(".cantunwind");
-#endif
-
-	res = __utee_entry(func, session_id, up, cmd_id);
+	TEE_Result res = __utee_entry(func, session_id, up, cmd_id);
 
 #if defined(CFG_TA_FTRACE_SUPPORT)
 	/*
