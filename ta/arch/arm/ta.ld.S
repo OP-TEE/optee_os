@@ -21,6 +21,7 @@ OUTPUT_ARCH(aarch64)
 
 SECTIONS {
 	.ta_head : {*(.ta_head)}
+	. += 1; /* Workaround ldelf: 'head->depr_entry != UINT64_MAX' failed */
 	.text : {
 		__text_start = .;
 		*(.text .text.*)
