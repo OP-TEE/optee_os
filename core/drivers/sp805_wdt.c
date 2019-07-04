@@ -106,7 +106,7 @@ TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
 
 	assert(!pd->chip.wdt_itr);
 
-	wdt_itr = malloc(sizeof(*wdt_itr));
+	wdt_itr = calloc(1, sizeof(*wdt_itr));
 	if (!wdt_itr)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
