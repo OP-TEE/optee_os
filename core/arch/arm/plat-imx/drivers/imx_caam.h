@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (C) 2019 Bryan O'Donoghue
+ * Copyright 2019 NXP
  *
  * Bryan O'Donoghue <bryan.odonoghue@linaro.org>
  */
@@ -30,7 +31,5 @@ struct imx_caam_ctrl {
 	uint32_t			scfgr;
 	struct imx_caam_job_ring	jr[CAAM_NUM_JOB_RINGS];
 };
-
-void init_caam(void);
 
 #endif /* __IMX_CAAM_H__ */
