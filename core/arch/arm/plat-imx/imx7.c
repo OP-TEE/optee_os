@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2019 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -9,7 +9,6 @@
 #include <console.h>
 #include <drivers/imx_uart.h>
 #include <drivers/tzc380.h>
-#include <imx_caam.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
@@ -62,7 +61,4 @@ void plat_cpu_reset_late(void)
 	for (addr = CSU_CSL_START; addr != CSU_CSL_END; addr += 4)
 		io_setbits32(core_mmu_get_va(addr, MEM_AREA_IO_SEC),
 			     CSU_SETTING_LOCK);
-
-	/* Set CAAM job-ring permissions to non-secure by default */
-	init_caam();
 }

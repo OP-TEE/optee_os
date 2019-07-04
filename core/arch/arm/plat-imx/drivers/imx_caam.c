@@ -1,21 +1,29 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2019 Bryan O'Donoghue
+ * Copyright 2019 NXP
  *
  * Bryan O'Donoghue <bryan.odonoghue@linaro.org>
  */
 
+#include <initcall.h>
 #include <io.h>
-#include <imx_caam.h>
-#include <kernel/generic_boot.h>
-#include <platform_config.h>
-#include <stdint.h>
+#include <mm/core_memprot.h>
 
-void init_caam(void)
+#include "imx_caam.h"
+
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CAAM_BASE, CORE_MMU_PGDIR_SIZE);
+
+static TEE_Result init_caam(void)
 {
-	struct imx_caam_ctrl *caam = (struct imx_caam_ctrl *)(vaddr_t)CAAM_BASE;
+	struct imx_caam_ctrl *caam;
 	uint32_t reg;
 	int i;
+
+	caam = (struct imx_caam_ctrl *)core_mmu_get_va(CAAM_BASE,
+						       MEM_AREA_IO_SEC);
+	if (!caam)
+		return TEE_ERROR_GENERIC;
 
 	/*
 	 * Set job-ring ownership to non-secure by default.
@@ -37,4 +45,8 @@ void init_caam(void)
 		reg |= JROWN_NS | JROWN_MID;
 		io_write32((vaddr_t)&caam->jr[i].jrmidr_ms, reg);
 	}
+
+	return TEE_SUCCESS;
 }
+
+driver_init(init_caam);
