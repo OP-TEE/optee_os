@@ -26,6 +26,8 @@ def round_up(n, m):
 
 def emit_load_segments(elffile, outf):
     load_size = 0
+    data_size = 0
+    next_rwseg_va = 0
     n = 0
     for segment in elffile.iter_segments():
         if segment['p_type'] == 'PT_LOAD':
@@ -34,14 +36,17 @@ def emit_load_segments(elffile, outf):
                     print('Expected first load segment to be read/execute')
                     sys.exit(1)
                 code_size = segment['p_filesz']
-            if n == 1:
+            else:
                 if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_W):
-                    print('Expected second load segment to be read/write')
+                    print('Expected load segment to be read/write')
                     sys.exit(1)
-                data_size = segment['p_filesz']
-            if n > 1:
-                print('Only expected two load segments')
-                sys.exit(1)
+                if next_rwseg_va and segment['p_vaddr'] != next_rwseg_va:
+                    print('Expected contiguous read/write segments')
+                    print(segment['p_vaddr'])
+                    print(next_rwseg_va)
+                    sys.exit(1)
+                data_size += segment['p_filesz']
+                next_rwseg_va = segment['p_vaddr'] + segment['p_filesz']
             load_size += segment['p_filesz']
             n = n + 1
 
