@@ -43,7 +43,6 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 	return SM_HANDLER_SMC_HANDLED;
 }
 
-/* Override default sm_platform_handler() with paltform specific function */
 enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
 {
 	struct smc_args *args = (void *)&ctx->nsec.r0;
