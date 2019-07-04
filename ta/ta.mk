@@ -50,6 +50,33 @@ aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 
+ifeq ($(ta-target),ta_arm32)
+arm32-user-sysreg-txt = lib/libutee/arch/arm/arm32_user_sysreg.txt
+arm32-user-sysregs-$(arm32-user-sysreg-txt)-h := arm32_user_sysreg.h
+arm32-user-sysregs += $(arm32-user-sysreg-txt)
+
+arm32-user-sysregs-out := $(out-dir)/include/generated
+
+define process-arm32-user-sysreg
+FORCE-GENSRC$(sm): $$(arm32-user-sysregs-out)/$$(arm32-user-sysregs-$(1)-h)
+cleanfiles := $$(cleanfiles) \
+		 $$(arm32-user-sysregs-out)/$$(arm32-user-sysregs-$(1)-h)
+
+$$(arm32-user-sysregs-out)/$$(arm32-user-sysregs-$(1)-h): \
+		$(1) scripts/arm32_sysreg.py
+	@$(cmd-echo-silent) '  GEN     $$@'
+	$(q)mkdir -p $$(dir $$@)
+	$(q)scripts/arm32_sysreg.py --guard __$$(arm32-user-sysregs-$(1)-h) \
+		< $$< > $$@
+
+endef #process-arm32-user-sysreg
+
+$(foreach sr, $(arm32-user-sysregs), \
+	 $(eval $(call process-arm32-user-sysreg,$(sr))))
+
+cppflags$(sm)	+= -I$(arm32-user-sysregs-out)
+endif
+
 base-prefix := $(sm)-
 
 libname = utils
@@ -97,6 +124,9 @@ incfiles-extra-host += $(conf-cmake-file)
 incfiles-extra-host += core/include/tee/tee_fs_key_manager.h
 incfiles-extra-host += core/include/tee/fs_htree.h
 incfiles-extra-host += core/include/signed_hdr.h
+ifeq ($(ta-target),ta_arm32)
+incfiles-extra-host += $(out-dir)/include/generated/arm32_user_sysreg.h
+endif
 
 #
 # Copy lib files and exported headers from each lib

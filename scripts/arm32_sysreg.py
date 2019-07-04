@@ -69,7 +69,7 @@ def gen_read64_func(reg_name, opc1, crm, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline uint64_t read_' + reg_name.lower() + '(void)')
+    print('static inline __noprof uint64_t read_' + reg_name.lower() + '(void)')
     print('{')
     print('\tuint64_t v;')
     print('')
@@ -84,7 +84,8 @@ def gen_write64_func(reg_name, opc1, crm, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline void write_' + reg_name.lower() + '(uint64_t v)')
+    print('static inline __noprof void write_' + reg_name.lower() +
+          '(uint64_t v)')
     print('{')
     print('\tasm volatile ("mcrr p15, ' + opc1 + ', %Q0, %R0, ' +
           crm + '"' + ' : : "r"  (v));')
@@ -95,7 +96,7 @@ def gen_read32_func(reg_name, crn, opc1, crm, opc2, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline uint32_t read_' + reg_name.lower() + '(void)')
+    print('static inline __noprof uint32_t read_' + reg_name.lower() + '(void)')
     print('{')
     print('\tuint32_t v;')
     print('')
@@ -110,7 +111,8 @@ def gen_write32_func(reg_name, crn, opc1, crm, opc2, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline void write_' + reg_name.lower() + '(uint32_t v)')
+    print('static inline __noprof void write_' + reg_name.lower() +
+          '(uint32_t v)')
     print('{')
     print('\tasm volatile ("mcr p15, ' + opc1 + ', %0, ' + crn + ', ' +
           crm + ', ' + opc2 + '"' + ' : : "r"  (v));')
@@ -225,6 +227,7 @@ def main():
         if args.guard is not None:
             print('#ifndef ' + args.guard.upper().replace('.', '_'))
             print('#define ' + args.guard.upper().replace('.', '_'))
+        print('#include <compiler.h>')
 
     line_number = 0
     for line in sys.stdin:
