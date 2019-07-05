@@ -51,6 +51,71 @@ bool dt_have_prop(const void *fdt, int offs, const char *propname)
 	return prop;
 }
 
+int dt_get_irq(void *fdt, int node)
+{
+	const uint32_t *int_prop = NULL;
+	int len_prop = 0;
+	int it_num = DT_INFO_INVALID_INTERRUPT;
+
+	/*
+	 * Interrupt property can be defined with at least 2x32 bits word
+	 *  - Type of interrupt
+	 *  - Interrupt Number
+	 */
+	int_prop = fdt_getprop(fdt, node, "interrupts", &len_prop);
+
+	if (!int_prop || len_prop < 2)
+		return it_num;
+
+	it_num = fdt32_to_cpu(int_prop[1]);
+
+	return it_num;
+}
+
+int dt_disable_status(void *fdt, int node)
+{
+	const char *prop = NULL;
+	int len = 0;
+
+	prop = fdt_getprop(fdt, node, "status", &len);
+	if (!prop) {
+		if (fdt_setprop_string(fdt, node, "status", "disabled"))
+			return -1;
+	} else {
+		/*
+		 * Status is there, modify it.
+		 * Ask to set "disabled" value to the property. The value
+		 * will be automatically truncated with "len" size by the
+		 * fdt_setprop_inplace function.
+		 * Setting a value different from "ok" or "okay" will disable
+		 * the property.
+		 * Setting a truncated value of "disabled" with the original
+		 * property "len" is preferred to not increase the DT size and
+		 * losing time in recalculating the overall DT offsets.
+		 * If original length of the status property is larger than
+		 * "disabled", the property will start with "disabled" and be
+		 * completed with the rest of the original property.
+		 */
+		if (fdt_setprop_inplace(fdt, node, "status", "disabled", len))
+			return -1;
+	}
+
+	return 0;
+}
+
+int dt_enable_secure_status(void *fdt, int node)
+{
+	if (dt_disable_status(fdt, node)) {
+		EMSG("Unable to disable Normal Status");
+		return -1;
+	}
+
+	if (fdt_setprop_string(fdt, node, "secure-status", "okay"))
+		return -1;
+
+	return 0;
+}
+
 int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 {
 	enum teecore_memtypes mtype;
