@@ -94,6 +94,52 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
 bool dt_have_prop(const void *fdt, int offs, const char *propname);
 
 /*
+ * Get the DT interrupt property of the @node. In the DT an interrupt
+ * is defined with 3x32 bits detailling the interrupt number and type
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to read
+ *
+ * Returns the interrupt number if value >= 0 otherwise (-1)
+ */
+int dt_get_irq(void *fdt, int node);
+
+/*
+ * Find a node compatible with the @compatible table starting from the
+ * @node input value. If found check its status value fit the given @status
+ * value. If yes return the offset of the node and overwrite the @node
+ * parameter with the node value found.
+ *
+ * @fdt reference to the Device Tree
+ * @status is the status flag of the node to found
+ * @node is the node offset to start in DTB and output the node found
+ *
+ * Returns the node offset reads in the DTB (reg property) if found, else
+ * returns 0 if node is not responding to the criteria
+ */
+paddr_t dt_node_offset_by_compatible_status(void *fdt, int status, int *node,
+		const char *compatible);
+/*
+ * Disable "status" field of prop
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to modify
+ *
+ * Returns 0 if success, -1 if failure
+ */
+int dt_disable_status(void *fdt, int node);
+
+/*
+ * Set "secure-status" field of prop to okay and disable the "status" field
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to modify
+ *
+ * @retval  0 if success, -1 if failure
+ */
+int dt_set_secure_status(void *fdt, int node);
+
+/*
  * FDT manipulation functions, not provided by <libfdt.h>
  */
 
