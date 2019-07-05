@@ -46,7 +46,7 @@
 #endif
 #define STACK_THREAD_SIZE	8192
 
-#ifdef CFG_CORE_SANITIZE_KADDRESS
+#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__)
 #define STACK_ABT_SIZE		3072
 #else
 #define STACK_ABT_SIZE		2048
