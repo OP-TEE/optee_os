@@ -534,6 +534,18 @@ void *get_external_dt(void)
 
 static void release_external_dt(void)
 {
+	int ret = 0;
+
+	if (!external_dt.blob)
+		return;
+
+	ret = fdt_pack(external_dt.blob);
+	if (ret < 0) {
+		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
+		     virt_to_phys(external_dt.blob), ret);
+		panic();
+	}
+
 	/* External DTB no more reached, reset pointer to invalid */
 	external_dt.blob = NULL;
 }
@@ -959,7 +971,6 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
-	int ret;
 
 	if (!dt->blob)
 		return;
@@ -977,13 +988,6 @@ static void update_external_dt(void)
 
 	if (mark_tzdram_as_reserved(dt))
 		panic("Failed to config secure memory");
-
-	ret = fdt_pack(dt->blob);
-	if (ret < 0) {
-		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
-		     virt_to_phys(dt->blob), ret);
-		panic();
-	}
 }
 #else /*CFG_DT*/
 void *get_external_dt(void)
