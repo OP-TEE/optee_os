@@ -48,7 +48,8 @@ comp-cflags-warns-3:= $(comp-cflags-warns-2) $(comp-cflags-warns-low)
 
 WARNS		?= 3
 
-comp-cflags$(sm)	+= $(comp-cflags-warns-$(WARNS))
+comp-cflags$(sm) += $(comp-cflags-warns-$(WARNS)) \
+			$(comp-cflags-warns-$(COMPILER_$(sm)))
 
 CHECK ?= sparse
 

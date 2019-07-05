@@ -34,6 +34,9 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 ifeq ($(CFG_ASAN_SHADOW_OFFSET),)
 $(error error: CFG_CORE_SANITIZE_KADDRESS not supported by platform (flavor))
 endif
+ifeq ($(COMPILER),clang)
+$(error error: CFG_CORE_SANITIZE_KADDRESS not supported with Clang)
+endif
 cflags_kasan	+= -fsanitize=kernel-address \
 		   -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET)\
 		   --param asan-stack=1 --param asan-globals=1 \
