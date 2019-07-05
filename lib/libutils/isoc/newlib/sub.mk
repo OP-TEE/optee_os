@@ -3,6 +3,7 @@ cflags-y += -Wno-parentheses
 cflags-remove-y += -Wcast-align
 
 srcs-y += abs.c
+srcs-y += bcmp.c
 srcs-y += memchr.c
 srcs-y += memcmp.c
 srcs-y += memcpy.c
