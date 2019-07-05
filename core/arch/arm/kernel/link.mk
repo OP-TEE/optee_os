@@ -160,6 +160,12 @@ $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 
 pageable_sections := .*_pageable
 init_sections := .*_init
+ifeq ($(CFG_ARM32_core)$(CFG_UNWIND),yy)
+	remove-.ARM.exidx := --remove-section=".ARM.exidx"
+	remove-.ARM.extab := --remove-section=".ARM.extab"
+	only-.ARM.exidx := --only-section=".ARM.exidx"
+	only-.ARM.extab := --only-section=".ARM.extab"
+endif
 cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 		$(link-out-dir)/tee-data_end.txt
@@ -167,6 +173,7 @@ $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
 	$(q)$(OBJCOPYcore) -O binary \
 		--remove-section="$(pageable_sections)" \
 		--remove-section="$(init_sections)" \
+		$(remove-.ARM.exidx) $(remove-.ARM.extab) \
 		--pad-to `cat $(link-out-dir)/tee-data_end.txt` \
 		$< $@
 
@@ -177,6 +184,7 @@ $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
 	$(q)$(OBJCOPYcore) -O binary \
 		--only-section="$(init_sections)" \
 		--only-section="$(pageable_sections)" \
+		$(only-.ARM.exidx) $(only-.ARM.extab) \
 		$< $@
 else
 $(link-out-dir)/tee-pageable.bin:

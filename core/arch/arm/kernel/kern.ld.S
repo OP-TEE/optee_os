@@ -159,6 +159,7 @@ SECTIONS
 	.rela.plt : { *(.rela.plt) }
 	.plt : { *(.plt) }
 
+#ifndef CFG_WITH_PAGER
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : {
 		__exidx_start = .;
@@ -171,7 +172,7 @@ SECTIONS
 		*(.ARM.extab*)
 		__extab_end = .;
 	}
-
+#endif
 	/* Start page aligned read-write memory */
 #ifdef CFG_CORE_RWDATA_NOEXEC
 	. = ALIGN(SMALL_PAGE_SIZE);
@@ -353,6 +354,23 @@ SECTIONS
 
 	/* vcore flat map stops here. No need to page align, rodata follows. */
 	__flatmap_init_ro_size = __init_end - __flatmap_init_ro_start;
+
+	/*
+	 * .ARM.exidx references .text_pageable so it has to go into
+	 * tee_pageable.bin. By having it here, the size of tee_pageable.bin is
+	 * a multiple of a page size as expected by scripts/gen_hashed_bin.py
+	 */
+	.ARM.exidx : {
+		__exidx_start = .;
+		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
+		__exidx_end = .;
+	}
+
+	.ARM.extab : {
+		__extab_start = .;
+		*(.ARM.extab*)
+		__extab_end = .;
+	}
 
 	.rodata_pageable : ALIGN(8) {
 #ifdef CFG_DT
