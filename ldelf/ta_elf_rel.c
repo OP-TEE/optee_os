@@ -342,8 +342,8 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 }
 #else /*ARM64*/
-static void e64_relocate(struct ta_elf *elf __unused,
-			 unsigned int rel_sidx __unused)
+static void __noreturn e64_relocate(struct ta_elf *elf __unused,
+				    unsigned int rel_sidx __unused)
 {
 	err(TEE_ERROR_NOT_SUPPORTED, "arm64 not supported");
 }
