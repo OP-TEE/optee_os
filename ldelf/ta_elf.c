@@ -15,6 +15,7 @@
 #include <string_ext.h>
 #include <string.h>
 #include <tee_api_types.h>
+#include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
 
@@ -676,79 +677,6 @@ static void map_segments(struct ta_elf *elf)
 	}
 }
 
-static int hex(char c)
-{
-	char lc = tolower(c);
-
-	if (isdigit(lc))
-		return lc - '0';
-	if (isxdigit(lc))
-		return lc - 'a' + 10;
-	return -1;
-}
-
-static uint32_t parse_hex(const char *s, size_t nchars, uint32_t *res)
-{
-	uint32_t v = 0;
-	size_t n;
-	int c;
-
-	for (n = 0; n < nchars; n++) {
-		c = hex(s[n]);
-		if (c == (char)-1) {
-			*res = TEE_ERROR_BAD_FORMAT;
-			goto out;
-		}
-		v = (v << 4) + c;
-	}
-	*res = TEE_SUCCESS;
-out:
-	return v;
-}
-
-/*
- * Convert a UUID string @s into a TEE_UUID @uuid
- * Expected format for @s is: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
- * 'x' being any hexadecimal digit (0-9a-fA-F)
- */
-static TEE_Result parse_uuid(const char *s, TEE_UUID *uuid)
-{
-	TEE_Result res = TEE_SUCCESS;
-	TEE_UUID u = { 0 };
-	const char *p = s;
-	size_t i;
-
-	if (strlen(p) != 36)
-		return TEE_ERROR_BAD_FORMAT;
-	if (p[8] != '-' || p[13] != '-' || p[18] != '-' || p[23] != '-')
-		return TEE_ERROR_BAD_FORMAT;
-
-	u.timeLow = parse_hex(p, 8, &res);
-	if (res)
-		goto out;
-	p += 9;
-	u.timeMid = parse_hex(p, 4, &res);
-	if (res)
-		goto out;
-	p += 5;
-	u.timeHiAndVersion = parse_hex(p, 4, &res);
-	if (res)
-		goto out;
-	p += 5;
-	for (i = 0; i < 8; i++) {
-		u.clockSeqAndNode[i] = parse_hex(p, 2, &res);
-		if (res)
-			goto out;
-		if (i == 1)
-			p += 3;
-		else
-			p += 2;
-	}
-	*uuid = u;
-out:
-	return res;
-}
-
 static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 				  vaddr_t addr, size_t memsz)
 {
@@ -783,7 +711,7 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag != DT_NEEDED)
 			continue;
-		parse_uuid(str_tab + val, &uuid);
+		tee_uuid_from_str(&uuid, str_tab + val);
 		queue_elf(&uuid);
 	}
 }
