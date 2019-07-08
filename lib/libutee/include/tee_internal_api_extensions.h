@@ -55,4 +55,11 @@ void *tee_map_zi(size_t len, uint32_t flags);
  */
 TEE_Result tee_unmap(void *buf, size_t len);
 
+/*
+ * Convert a UUID string @s into a TEE_UUID @uuid
+ * Expected format for @s is: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+ * 'x' being any hexadecimal digit (0-9a-fA-F)
+ */
+TEE_Result tee_uuid_from_str(TEE_UUID *uuid, const char *s);
+
 #endif
