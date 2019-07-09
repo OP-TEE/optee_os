@@ -11,8 +11,6 @@
 #include <kernel/thread.h>
 #include <tee_api_defines.h>
 
-	.section .text.arch_svc_asm
-
 #if 0
 struct sc_rec {
 	uint64_t x0;

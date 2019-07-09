@@ -5,8 +5,6 @@
 
 #include <asm.S>
 
-	.section .text.vfp_asm
-
 /* void vfp_save_extension_regs(struct vfp_reg regs[VFP_NUM_REGS]); */
 FUNC vfp_save_extension_regs , :
 	stp	q0, q1, [x0, #16 * 0]

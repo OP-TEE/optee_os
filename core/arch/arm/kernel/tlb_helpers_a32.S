@@ -8,8 +8,6 @@
 #include <asm.S>
 #include <kernel/unwind.h>
 
-	.section .text.ssvce
-
 /* void tlbi_all(void); */
 FUNC tlbi_all , :
 UNWIND(	.fnstart)

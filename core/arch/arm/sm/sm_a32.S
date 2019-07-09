@@ -18,8 +18,6 @@
 
 #define SM_CTX_SEC_END	(SM_CTX_SEC + SM_CTX_SEC_SIZE)
 
-	.section .text.sm_asm
-
 	.macro save_regs mode
 	cps	\mode
 	mrs	r2, spsr
