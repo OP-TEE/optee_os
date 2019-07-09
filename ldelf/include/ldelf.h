@@ -8,6 +8,7 @@
 
 #include <types_ext.h>
 #include <tee_api_types.h>
+#include <user_ta_header.h>
 
 /* Size of stack for TEE Core to allocate */
 #define LDELF_STACK_SIZE	(4096 * 2)
@@ -21,6 +22,7 @@
  * @stack_ptr:	  [out] TA stack pointer
  * @dump_entry:	  [out] Dump TA mappings and stack trace
  * @ftrace_entry: [out] Dump TA mappings and ftrace buffer
+ * @fbuf:         [out] ftrace buffer pointer
  */
 struct ldelf_arg {
 	TEE_UUID uuid;
@@ -30,6 +32,7 @@ struct ldelf_arg {
 	uint64_t stack_ptr;
 	uint64_t dump_entry;
 	uint64_t ftrace_entry;
+	struct ftrace_buf *fbuf;
 };
 
 #define DUMP_MAP_READ	BIT(0)

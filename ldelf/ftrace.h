@@ -7,11 +7,12 @@
 #define FTRACE_H
 
 #include <types_ext.h>
+#include <user_ta_header.h>
 
-bool ftrace_init(void);
+#ifdef CFG_TA_FTRACE_SUPPORT
+bool ftrace_init(struct ftrace_buf **fbuf_ptr);
 void ftrace_copy_buf(void *pctx, void (*copy_func)(void *pctx, void *b,
 						   size_t bl));
-#ifdef CFG_TA_FTRACE_SUPPORT
 void ftrace_map_lr(uint64_t *lr);
 #else
 static inline void ftrace_map_lr(uint64_t *lr __unused)

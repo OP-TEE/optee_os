@@ -8,7 +8,6 @@
 #include <sys/queue.h>
 #include <types_ext.h>
 #include <util.h>
-#include <user_ta_header.h>
 
 #include "ftrace.h"
 #include "ta_elf.h"
@@ -16,11 +15,11 @@
 #define MIN_FTRACE_BUF_SIZE	1024
 #define MAX_HEADER_STRLEN	128
 
-static struct __ftrace_info *finfo;
 static struct ftrace_buf *fbuf;
 
-bool ftrace_init(void)
+bool ftrace_init(struct ftrace_buf **fbuf_ptr)
 {
+	struct __ftrace_info *finfo = NULL;
 	struct ta_elf *elf = TAILQ_FIRST(&main_elf_queue);
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t val = 0;
@@ -57,6 +56,8 @@ bool ftrace_init(void)
 	fbuf->buf_off = fbuf->head_off + count;
 	fbuf->curr_size = 0;
 	fbuf->max_size = fbuf_size - sizeof(struct ftrace_buf) - count;
+
+	*fbuf_ptr = fbuf;
 
 	return true;
 }
