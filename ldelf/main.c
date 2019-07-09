@@ -143,7 +143,7 @@ void ldelf(struct ldelf_arg *arg)
 
 	arg->ftrace_entry = 0;
 #ifdef CFG_TA_FTRACE_SUPPORT
-	if (ftrace_init())
+	if (ftrace_init(&arg->fbuf))
 		arg->ftrace_entry = (vaddr_t)(void *)ftrace_dump;
 #endif
 
