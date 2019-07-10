@@ -1699,6 +1699,9 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	map->attr = core_mmu_type_to_attr(type);
 	map->pa = p;
 
+	/* Update TCR_EL1 with possiable maximum physical address change */
+	core_mmu_set_max_pa(map->pa + map->size);
+
 	set_region(&tbl_info, map);
 
 	/* Make sure the new entry is visible before continuing. */
