@@ -34,7 +34,9 @@
 #define DBG_TRACE_CIPHER BIT32(11) // Cipher trace
 #define DBG_DESC_CIPHER  BIT32(12) // Cipher dump descriptor
 #define DBG_BUF_CIPHER   BIT32(13) // Cipher dump Buffer
-
+#define DBG_TRACE_ECC    BIT32(14) // ECC trace
+#define DBG_DESC_ECC     BIT32(15) // ECC dump descriptor
+#define DBG_BUF_ECC      BIT32(16) // ECC dump Buffer
 
 /* HAL */
 #if (CFG_CAAM_DBG & DBG_TRACE_HAL)
@@ -131,6 +133,25 @@
 #define CIPHER_DUMPBUF(...)
 #endif
 
+/* ECC */
+#if (CFG_CAAM_DBG & DBG_TRACE_ECC)
+#define ECC_TRACE            DRV_TRACE
+#if (CFG_CAAM_DBG & DBG_DESC_ECC)
+#define ECC_DUMPDESC(desc)   {ECC_TRACE("ECC Descriptor"); \
+	DRV_DUMPDESC(desc); }
+#else
+#define ECC_DUMPDESC(desc)
+#endif
+#if (CFG_CAAM_DBG & DBG_BUF_ECC)
+#define ECC_DUMPBUF         DRV_DUMPBUF
+#else
+#define ECC_DUMPBUF(...)
+#endif
+#else
+#define ECC_TRACE(...)
+#define ECC_DUMPDESC(desc)
+#define ECC_DUMPBUF(...)
+#endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)
 #define DRV_TRACE(...)		trace_printf(__func__, __LINE__, \

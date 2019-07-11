@@ -17,6 +17,9 @@
 #endif
 
 /* Local includes */
+#ifdef CFG_CRYPTO_ACIPHER_HW
+#include "caam_acipher.h"
+#endif
 #ifdef CFG_CRYPTO_CIPHER_HW
 #include "caam_cipher.h"
 #endif
@@ -100,6 +103,17 @@ static TEE_Result crypto_driver_init(void)
 		goto exit_init;
 	}
 #endif // CFG_CRYPTO_CIPHER_HW
+
+#ifdef CFG_CRYPTO_ACIPHER_HW
+#ifdef CFG_CRYPTO_ECC_HW
+	/* Initialize the ECC Module */
+	retstatus = caam_ecc_init(jr_cfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+#endif
+#endif
 
 	/* Everything is OK, register the Power Management handler */
 	caam_pwr_init();

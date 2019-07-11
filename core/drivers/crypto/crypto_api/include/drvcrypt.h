@@ -25,6 +25,7 @@ enum drvcrypt_algo_id {
 	CRYPTO_HASH = 0,     ///< HASH driver
 	CRYPTO_HMAC,         ///< HMAC driver
 	CRYPTO_CIPHER,       ///< CIPHER driver
+	CRYPTO_ECC,          ///< Assymetric ECC driver
 	CRYPTO_MAX_ALGO      ///< Maximum number of algo supported
 };
 

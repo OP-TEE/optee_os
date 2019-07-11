@@ -19,6 +19,9 @@
 # DBG_TRACE_CIPHER BIT32(11) // Cipher trace
 # DBG_DESC_CIPHER  BIT32(12) // Cipher dump descriptor
 # DBG_BUF_CIPHER   BIT32(13) // Cipher dump Buffer
+# DBG_TRACE_ECC    BIT32(14) // ECC trace
+# DBG_DESC_ECC     BIT32(15) // ECC dump descriptor
+# DBG_BUF_ECC      BIT32(16) // ECC dump Buffer
 CFG_CAAM_DBG ?= 0x2
 
 #
@@ -66,8 +69,22 @@ $$(call force, CFG_CRYPTO_$$(_var)_HW, y)
 $$(call force, CFG_CRYPTO_DRV_$$(_var), y)
 endef
 
+# Return 'y' if at least one of the variable
+# CFG_CRYPTO_xxx_HW is 'y'
+cryphw-one-enabled = $(call cfg-one-enabled, \
+                        $(foreach v,$(1), CFG_CRYPTO_$(v)_HW))
+
+
 # Definition of the HW and Cryto Driver Algorithm supported by all i.MX
 $(eval $(call cryphw-enable-drv-hw, HASH))
 $(eval $(call cryphw-enable-drv-hw, CIPHER))
+$(eval $(call cryphw-enable-drv-hw, ECC))
+
+$(call force, CFG_CRYPTO_ACIPHER_HW, $(call cryphw-one-enabled, ECC))
+
+#
+# Enable Cryptographic Driver interface
+#
+CFG_CRYPTO_DRV_ACIPHER ?= $(CFG_CRYPTO_ACIPHER_HW)
 
 endif
