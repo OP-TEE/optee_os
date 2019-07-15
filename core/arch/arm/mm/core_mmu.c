@@ -520,7 +520,7 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 		     area_name, mem->addr, (uint64_t)mem->addr + mem->size);
 
 	/* Check memories do not intersect each other */
-	for (mem = start; mem < end - 1; mem++) {
+	for (mem = start; mem + 1 < end; mem++) {
 		for (mem2 = mem + 1; mem2 < end; mem2++) {
 			if (core_is_buffer_intersect(mem2->addr, mem2->size,
 						     mem->addr, mem->size)) {
