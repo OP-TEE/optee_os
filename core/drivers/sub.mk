@@ -32,3 +32,4 @@ srcs-$(CFG_BCM_SOTP) += bcm_sotp.c
 srcs-$(CFG_BCM_GPIO) += bcm_gpio.c
 
 subdirs-y += crypto
+subdirs-$(CFG_BNXT_FW) += bnxt
