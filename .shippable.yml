@@ -64,6 +64,8 @@ build:
     - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6qsabrelite
     - _make PLATFORM=imx-mx6qsabresd
+    - _make PLATFORM=imx-mx6qpsabreauto
+    - _make PLATFORM=imx-mx6qpsabresd
     - _make PLATFORM=imx-mx6dlsabresd
     - _make PLATFORM=imx-mx7dsabresd
     - _make PLATFORM=imx-imx8mmevk

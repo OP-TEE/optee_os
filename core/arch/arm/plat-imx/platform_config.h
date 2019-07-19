@@ -56,8 +56,8 @@
 
 /* For i.MX6 Quad SABRE Lite and Smart Device board */
 
-#elif defined(CFG_MX6Q) || defined(CFG_MX6D) || defined(CFG_MX6DL) || \
-	defined(CFG_MX6S)
+#elif defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
+	defined(CFG_MX6DL) || defined(CFG_MX6S)
 #include <config/imx6qdlsolo.h>
 #endif
 
