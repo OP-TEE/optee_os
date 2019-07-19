@@ -366,10 +366,20 @@ static TEE_Result tee_cryp_init(void)
 {
 	TEE_Result res = crypto_init();
 
+	/*
+	 * If there is a Cryptographic Driver, we need to
+	 * call the initialization function here before using
+	 * cryptographic operation during the boot
+	 * (e.g. HUK generation)
+	 */
+	if (res == TEE_SUCCESS)
+		res = crypto_driver_init();
+
 	if (res) {
 		EMSG("Failed to initialize crypto API: %#" PRIx32, res);
 		panic();
 	}
+
 	plat_rng_init();
 
 	return TEE_SUCCESS;

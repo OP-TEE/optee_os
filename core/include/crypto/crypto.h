@@ -26,6 +26,13 @@
 
 TEE_Result crypto_init(void);
 
+#ifdef CFG_CRYPTO_DRIVER
+TEE_Result crypto_driver_init(void);
+#else
+static inline TEE_Result crypto_driver_init(void)
+{ return TEE_SUCCESS; }
+#endif
+
 /* Message digest functions */
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo);
 TEE_Result crypto_hash_init(void *ctx, uint32_t algo);
