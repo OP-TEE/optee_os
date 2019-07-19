@@ -60,6 +60,7 @@ build:
     - _make PLATFORM=hikey CFG_ARM64_core=y
     - _make PLATFORM=mediatek-mt8173 CFG_ARM64_core=y
     - _make PLATFORM=imx-mx6ulevk
+    - _make PLATFORM=imx-mx6ul9x9evk
     - _make PLATFORM=imx-mx6ullevk
     - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6qsabrelite
