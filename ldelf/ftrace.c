@@ -44,7 +44,7 @@ bool ftrace_init(void)
 		return false;
 	}
 
-	fbuf = (struct ftrace_buf *)finfo->buf_start.ptr64;
+	fbuf = (struct ftrace_buf *)(vaddr_t)finfo->buf_start.ptr64;
 	fbuf->head_off = sizeof(struct ftrace_buf);
 	count = snprintk((char *)fbuf + fbuf->head_off, MAX_HEADER_STRLEN,
 			 "Function graph for TA: %pUl @ %lx\n",
