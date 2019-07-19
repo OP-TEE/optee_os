@@ -33,6 +33,8 @@ mx6dl-flavorlist = \
 
 mx6s-flavorlist = \
 	mx6shmbedge \
+	mx6solosabresd \
+	mx6solosabreauto \
 
 mx7-flavorlist = \
 	mx7dsabresd \
@@ -142,13 +144,13 @@ $(call force,CFG_TEE_CORE_NB_CORE,1)
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabresd mx6qsabresd mx6dlsabresd \
-	mx6dlsabrelite mx6dhmbedge mx6dlhmbedge))
+	mx6dlsabrelite mx6dhmbedge mx6dlhmbedge mx6solosabresd))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabreauto mx6qsabreauto \
-	mx6dlsabreauto))
+	mx6dlsabreauto mx6solosabreauto))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
 endif
