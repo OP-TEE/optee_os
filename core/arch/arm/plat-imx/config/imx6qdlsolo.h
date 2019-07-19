@@ -57,7 +57,7 @@
  * PL310 Auxiliary Control Register
  */
 #ifndef PL310_AUX_CTRL_INIT
-#if defined(CFG_MX6Q) || defined(CFG_MX6D)
+#if defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D)
 /*
  * Early BRESP enabled (bit30=1)
  * I/Dcache prefetch enabled (bit29:28=2b11)
