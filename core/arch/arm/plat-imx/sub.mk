@@ -22,6 +22,8 @@ endif
 
 srcs-$(CFG_MX7) += imx7.c a7_plat_init.S
 
+srcs-$(CFG_CRYPTO_DRV_HUK) += imx_huk.c
+
 subdirs-$(CFG_PSCI_ARM32) += pm
 
 subdirs-y += drivers

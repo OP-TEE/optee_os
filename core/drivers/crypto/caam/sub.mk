@@ -13,4 +13,5 @@ srcs-y += caam_desc.c
 subdirs-$(CFG_CRYPTO_HASH_HW) += hash
 subdirs-$(CFG_CRYPTO_CIPHER_HW) += cipher
 subdirs-$(CFG_CRYPTO_ACIPHER_HW) += acipher
+subdirs-$(CFG_CRYPTO_BLOB_HW) += blob
 

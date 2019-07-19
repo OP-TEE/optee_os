@@ -12,6 +12,7 @@
 #include <tee_api_types.h>
 
 #ifdef CFG_CRYPTO_DRIVER
+#include <crypto/crypto.h>
 /* Driver Crypto includes */
 #include <drvcrypt.h>
 #endif
@@ -26,6 +27,9 @@
 #include "caam_common.h"
 #ifdef CFG_CRYPTO_HASH_HW
 #include "caam_hash.h"
+#endif
+#ifdef CFG_CRYPTO_HUK_HW
+#include "caam_huk.h"
 #endif
 #include "caam_jr.h"
 #include "caam_pwr.h"
@@ -46,7 +50,11 @@
  * @retval  TEE_ERROR_GENERIC        Generic Error (driver init failure)
  * @retval  TEE_ERROR_NOT_SUPPORTED  Driver not supported
  */
+#ifndef CFG_CRYPTO_DRIVER
 static TEE_Result crypto_driver_init(void)
+#else
+TEE_Result crypto_driver_init(void)
+#endif
 {
 	TEE_Result       retresult = TEE_ERROR_GENERIC;
 	enum CAAM_Status retstatus;
@@ -115,6 +123,16 @@ static TEE_Result crypto_driver_init(void)
 #endif
 #endif
 
+#ifdef CFG_CRYPTO_HUK_HW
+	/* Initialize the HUK Module */
+	retstatus = caam_huk_init(jr_cfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+#endif // CFG_CRYPTO_HUK_HW
+
+
 	/* Everything is OK, register the Power Management handler */
 	caam_pwr_init();
 
@@ -133,7 +151,9 @@ exit_init:
 	return retresult;
 }
 
+#ifndef CFG_CRYPTO_DRIVER
 driver_init(crypto_driver_init);
+#endif
 
 /**
  * @brief   Crypto driver late initialization function to complete

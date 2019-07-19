@@ -13,6 +13,7 @@
 #include <tee_api_types.h>
 
 #ifdef CFG_CRYPTO_DRV_DBG
+#include <trace.h>
 #define CRYPTO_TRACE	DMSG
 #else
 #define CRYPTO_TRACE(...)
@@ -26,6 +27,7 @@ enum drvcrypt_algo_id {
 	CRYPTO_HMAC,         ///< HMAC driver
 	CRYPTO_CIPHER,       ///< CIPHER driver
 	CRYPTO_ECC,          ///< Assymetric ECC driver
+	CRYPTO_HUK,          ///< HUK driver
 	CRYPTO_MAX_ALGO      ///< Maximum number of algo supported
 };
 

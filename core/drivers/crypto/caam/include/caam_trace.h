@@ -37,6 +37,9 @@
 #define DBG_TRACE_ECC    BIT32(14) // ECC trace
 #define DBG_DESC_ECC     BIT32(15) // ECC dump descriptor
 #define DBG_BUF_ECC      BIT32(16) // ECC dump Buffer
+#define DBG_TRACE_BLOB   BIT32(17) // BLOB trace
+#define DBG_DESC_BLOB    BIT32(18) // BLOB dump descriptor
+#define DBG_BUF_BLOB     BIT32(19) // BLOB dump Buffer
 
 /* HAL */
 #if (CFG_CAAM_DBG & DBG_TRACE_HAL)
@@ -151,6 +154,26 @@
 #define ECC_TRACE(...)
 #define ECC_DUMPDESC(desc)
 #define ECC_DUMPBUF(...)
+#endif
+
+/* BLOB */
+#if (CFG_CAAM_DBG & DBG_TRACE_BLOB)
+#define BLOB_TRACE            DRV_TRACE
+#if (CFG_CAAM_DBG & DBG_DESC_BLOB)
+#define BLOB_DUMPDESC(desc)   {BLOB_TRACE("BLOB Descriptor"); \
+	DRV_DUMPDESC(desc); }
+#else
+#define BLOB_DUMPDESC(desc)
+#endif
+#if (CFG_CAAM_DBG & DBG_BUF_BLOB)
+#define BLOB_DUMPBUF         DRV_DUMPBUF
+#else
+#define BLOB_DUMPBUF(...)
+#endif
+#else
+#define BLOB_TRACE(...)
+#define BLOB_DUMPDESC(desc)
+#define BLOB_DUMPBUF(...)
 #endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)

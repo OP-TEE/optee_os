@@ -22,6 +22,9 @@
 # DBG_TRACE_ECC    BIT32(14) // ECC trace
 # DBG_DESC_ECC     BIT32(15) // ECC dump descriptor
 # DBG_BUF_ECC      BIT32(16) // ECC dump Buffer
+# DBG_TRACE_BLOB   BIT32(17) // BLOB trace
+# DBG_DESC_BLOB    BIT32(18) // BLOB dump descriptor
+# DBG_BUF_BLOB     BIT32(19) // BLOB dump Buffer
 CFG_CAAM_DBG ?= 0x2
 
 #
@@ -79,8 +82,10 @@ cryphw-one-enabled = $(call cfg-one-enabled, \
 $(eval $(call cryphw-enable-drv-hw, HASH))
 $(eval $(call cryphw-enable-drv-hw, CIPHER))
 $(eval $(call cryphw-enable-drv-hw, ECC))
+$(eval $(call cryphw-enable-drv-hw, HUK))
 
 $(call force, CFG_CRYPTO_ACIPHER_HW, $(call cryphw-one-enabled, ECC))
+$(call force, CFG_CRYPTO_BLOB_HW, $(call cryphw-one-enabled, HUK))
 
 #
 # Enable Cryptographic Driver interface
