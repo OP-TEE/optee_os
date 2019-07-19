@@ -26,6 +26,7 @@ mx6d-flavorlist = \
 	mx6dhmbedge \
 
 mx6dl-flavorlist = \
+	mx6dlsabreauto \
 	mx6dlsabresd \
 	mx6dlhmbedge \
 
@@ -145,7 +146,7 @@ CFG_DDR_SIZE ?= 0x40000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabreauto))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabreauto mx6dlsabreauto))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
 endif
