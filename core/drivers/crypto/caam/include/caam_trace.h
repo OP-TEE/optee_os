@@ -40,6 +40,9 @@
 #define DBG_TRACE_BLOB   BIT32(17) // BLOB trace
 #define DBG_DESC_BLOB    BIT32(18) // BLOB dump descriptor
 #define DBG_BUF_BLOB     BIT32(19) // BLOB dump Buffer
+#define DBG_TRACE_RSA    BIT32(20) // RSA trace
+#define DBG_DESC_RSA     BIT32(21) // RSA dump descriptor
+#define DBG_BUF_RSA      BIT32(22) // RSA dump Buffer
 
 /* HAL */
 #if (CFG_CAAM_DBG & DBG_TRACE_HAL)
@@ -174,6 +177,26 @@
 #define BLOB_TRACE(...)
 #define BLOB_DUMPDESC(desc)
 #define BLOB_DUMPBUF(...)
+#endif
+
+/* RSA */
+#if (CFG_CAAM_DBG & DBG_TRACE_RSA)
+#define RSA_TRACE            DRV_TRACE
+#if (CFG_CAAM_DBG & DBG_DESC_RSA)
+#define RSA_DUMPDESC(desc)   {RSA_TRACE("RSA Descriptor"); \
+	DRV_DUMPDESC(desc); }
+#else
+#define RSA_DUMPDESC(desc)
+#endif
+#if (CFG_CAAM_DBG & DBG_BUF_RSA)
+#define RSA_DUMPBUF         DRV_DUMPBUF
+#else
+#define RSA_DUMPBUF(...)
+#endif
+#else
+#define RSA_TRACE(...)
+#define RSA_DUMPDESC(desc)
+#define RSA_DUMPBUF(...)
 #endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)

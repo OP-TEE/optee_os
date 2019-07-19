@@ -9,6 +9,9 @@
 #ifndef __DESC_HELPER_H__
 #define __DESC_HELPER_H__
 
+/* Global includes */
+#include <trace.h>
+
 /* Local includes */
 #include "desc_defines.h"
 

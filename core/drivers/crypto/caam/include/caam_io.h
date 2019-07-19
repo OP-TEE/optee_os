@@ -66,10 +66,12 @@ static inline uint32_t get_le64(const void *p)
 /* CAAM is 32 Bits Big Endian */
 #define io_caam_read32(a)	TEE_U32_FROM_BIG_ENDIAN(io_read32(a))
 #define io_caam_write32(a, val) io_write32(a, TEE_U32_TO_BIG_ENDIAN(val))
+#define caam_read_val32(a)	get_be32(a)
 #else
 /* CAAM is 32 Bits Little Endian */
 #define io_caam_read32(a)	io_read32(a)
 #define io_caam_write32(a, val) io_write32(a, val)
+#define caam_read_val32(a)	get_le32(a)
 #endif
 
 

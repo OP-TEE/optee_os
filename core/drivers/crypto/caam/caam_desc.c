@@ -8,7 +8,6 @@
  */
 /* Global includes*/
 #include <types_ext.h>
-#include <trace.h>
 
 /* Local includes */
 #include "caam_io.h"

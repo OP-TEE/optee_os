@@ -113,9 +113,24 @@ TEE_Result crypto_driver_init(void)
 #endif // CFG_CRYPTO_CIPHER_HW
 
 #ifdef CFG_CRYPTO_ACIPHER_HW
+	/* Initialize the MATH Module */
+	retstatus = caam_math_init(jr_cfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
 #ifdef CFG_CRYPTO_ECC_HW
 	/* Initialize the ECC Module */
 	retstatus = caam_ecc_init(jr_cfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+#endif
+#ifdef CFG_CRYPTO_RSA_HW
+	/* Initialize the RSA Module */
+	retstatus = caam_rsa_init(jr_cfg.base);
 	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;

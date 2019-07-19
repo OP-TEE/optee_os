@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <crypto/crypto_impl.h>
 #include <malloc.h>
-#include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
 

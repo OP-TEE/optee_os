@@ -9,7 +9,6 @@
 /* Global includes */
 #include <crypto/crypto.h>
 #include <tee/tee_cryp_utl.h>
-#include <trace.h>
 #include <utee_defines.h>
 
 /* Driver Crypto includes */

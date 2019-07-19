@@ -25,6 +25,9 @@
 # DBG_TRACE_BLOB   BIT32(17) // BLOB trace
 # DBG_DESC_BLOB    BIT32(18) // BLOB dump descriptor
 # DBG_BUF_BLOB     BIT32(19) // BLOB dump Buffer
+# DBG_TRACE_RSA    BIT32(20) // RSA trace
+# DBG_DESC_RSA     BIT32(21) // RSA dump descriptor
+# DBG_BUF_RSA      BIT32(22) // RSA dump Buffer
 CFG_CAAM_DBG ?= 0x2
 
 #
@@ -83,8 +86,9 @@ $(eval $(call cryphw-enable-drv-hw, HASH))
 $(eval $(call cryphw-enable-drv-hw, CIPHER))
 $(eval $(call cryphw-enable-drv-hw, ECC))
 $(eval $(call cryphw-enable-drv-hw, HUK))
+$(eval $(call cryphw-enable-drv-hw, RSA))
 
-$(call force, CFG_CRYPTO_ACIPHER_HW, $(call cryphw-one-enabled, ECC))
+$(call force, CFG_CRYPTO_ACIPHER_HW, $(call cryphw-one-enabled, ECC RSA))
 $(call force, CFG_CRYPTO_BLOB_HW, $(call cryphw-one-enabled, HUK))
 
 #

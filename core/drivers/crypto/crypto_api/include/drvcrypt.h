@@ -11,12 +11,30 @@
 
 /* Global includes */
 #include <tee_api_types.h>
-
-#ifdef CFG_CRYPTO_DRV_DBG
 #include <trace.h>
+#include <util.h>
+
+/*
+ * Debug Macros function of Crypto Driver Debug Level setting
+ * The CFG_CRYPTO_DRV_DBG is a bit mask 32 bits value defined
+ * as followed:
+ */
+#define DRV_DBG_TRACE BIT32(0) // Driver trace
+#define DRV_DBG_BUF   BIT32(1) // Driver dump Buffer
+
+#if (CFG_CRYPTO_DRV_DBG & DRV_DBG_TRACE)
 #define CRYPTO_TRACE	DMSG
 #else
 #define CRYPTO_TRACE(...)
+#endif
+
+#if (CFG_CRYPTO_DRV_DBG & DRV_DBG_BUF)
+#define CRYPTO_DUMPBUF(title, buf, len) \
+					{CRYPTO_TRACE("%s @0x%"PRIxPTR": %d", \
+						title, (uintptr_t)buf, len); \
+					 dhex_dump(NULL, 0, 0, buf, len); }
+#else
+#define CRYPTO_DUMPBUF(...)
 #endif
 
 /**
@@ -26,8 +44,10 @@ enum drvcrypt_algo_id {
 	CRYPTO_HASH = 0,     ///< HASH driver
 	CRYPTO_HMAC,         ///< HMAC driver
 	CRYPTO_CIPHER,       ///< CIPHER driver
-	CRYPTO_ECC,          ///< Assymetric ECC driver
+	CRYPTO_ECC,          ///< Asymmetric ECC driver
+	CRYPTO_RSA,          ///< Asymmetric RSA driver
 	CRYPTO_HUK,          ///< HUK driver
+	CRYPTO_MATH,         ///< Mathematical driver
 	CRYPTO_MAX_ALGO      ///< Maximum number of algo supported
 };
 

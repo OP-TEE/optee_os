@@ -13,7 +13,6 @@
 /* Global includes */
 #include <crypto/crypto.h>
 #include <initcall.h>
-#include <trace.h>
 
 /* Driver Crypto includes */
 #include <drvcrypt.h>
