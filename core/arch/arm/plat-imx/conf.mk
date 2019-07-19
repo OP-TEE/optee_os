@@ -3,6 +3,7 @@ PLATFORM_FLAVOR ?= mx6ulevk
 # Get SoC associated with the PLATFORM_FLAVOR
 mx6ul-flavorlist = \
 	mx6ulevk \
+	mx6ul9x9evk \
 	mx6ulccimx6ulsbcpro \
 
 mx6ull-flavorlist = \
@@ -184,6 +185,11 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulccimx6ulsbcpro))
 CFG_DDR_SIZE ?= 0x10000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 CFG_UART_BASE ?= UART5_BASE
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ul9x9evk))
+CFG_DDR_SIZE ?= 0x10000000
+CFG_NS_ENTRY_ADDR ?= 0x80800000
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),imx8mqevk))
