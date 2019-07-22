@@ -66,20 +66,18 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
-	if (soc_is_imx7ds()) {
-		io_write32(va + SRC_GPR1_MX7 + core_idx * 8, val);
 
-		imx_gpcv2_set_core1_pup_by_software();
+#ifdef CFG_MX7
+	io_write32(va + SRC_GPR1_MX7 + core_idx * 8, val);
 
-		/* release secondary core */
-		val = io_read32(va + SRC_A7RCR1);
-		val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
-			      (core_idx - 1));
-		io_write32(va + SRC_A7RCR1, val);
+	imx_gpcv2_set_core1_pup_by_software();
 
-		return PSCI_RET_SUCCESS;
-	}
-
+	/* release secondary core */
+	val = io_read32(va + SRC_A7RCR1);
+	val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
+			(core_idx - 1));
+	io_write32(va + SRC_A7RCR1, val);
+#else
 	/* boot secondary cores from OP-TEE load address */
 	io_write32(va + SRC_GPR1 + core_idx * 8, val);
 
@@ -90,6 +88,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	io_write32(va + SRC_SCR, val);
 
 	imx_set_src_gpr(core_idx, 0);
+#endif /* CFG_MX7 */
 
 	return PSCI_RET_SUCCESS;
 }
