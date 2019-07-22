@@ -39,7 +39,5 @@ void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
 
 #ifdef CFG_TZC380
 void imx_configure_tzasc(void);
-#else
-static inline void imx_configure_tzasc(void) {}
 #endif /* CFG_TZC380 */
 #endif

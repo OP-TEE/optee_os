@@ -77,6 +77,7 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6qp-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6QP,y)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_TZC380,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6d-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6D,y)
@@ -306,10 +307,22 @@ CFG_PM_STUBS ?= y
 supported-ta-targets = ta_arm64
 endif
 
+CFG_TZC380 ?= y
+
+ifneq (,$(filter y, $(CFG_IMX8MM) $(CFG_IMX8MQ)))
+CFG_TZC_NSEC_START = 0x0
+CFG_TZC_SEC_START = CFG_TZDRAM_START - CFG_DRAM_BASE
+CFG_TZC_SHMEM_START = CFG_SHMEM_START - CFG_DRAM_BASE
+endif
+
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - 0x02000000 + $(CFG_DDR_SIZE))
 CFG_TZDRAM_SIZE ?= 0x01e00000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
+
+CFG_TZC_NSEC_START ?= CFG_DRAM_BASE
+CFG_TZC_SEC_START ?= CFG_TZDRAM_START
+CFG_TZC_SHMEM_START ?= CFG_SHMEM_START
 
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y

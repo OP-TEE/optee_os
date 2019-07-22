@@ -189,6 +189,8 @@ void plat_cpu_reset_late(void)
 #if defined(CFG_BOOT_SYNC_CPU)
 		psci_boot_allcpus()
 #endif
+#if defined(CFG_TZC380)
 		imx_configure_tzasc();
+#endif
 	}
 }
