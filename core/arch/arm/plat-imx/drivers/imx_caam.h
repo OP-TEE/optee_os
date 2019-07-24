@@ -9,13 +9,15 @@
 #ifndef __IMX_CAAM_H__
 #define __IMX_CAAM_H__
 
+#include <compiler.h>
 #include <imx-regs.h>
 #include <stdint.h>
+#include <types_ext.h>
 
 struct imx_caam_job_ring {
 	uint32_t			jrmidr_ms;
 	uint32_t			jrmidr_ls;
-};
+} __packed;
 
 #define CAAM_NUM_JOB_RINGS		4
 
@@ -39,6 +41,6 @@ struct imx_caam_ctrl {
 	uint32_t			res1;
 	uint32_t			scfgr;
 	struct imx_caam_job_ring	jr[CAAM_NUM_JOB_RINGS];
-};
+} __packed;
 
 #endif /* __IMX_CAAM_H__ */
