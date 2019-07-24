@@ -494,12 +494,13 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res)
 		return res;
 
-	if (!tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh))
-		return TEE_SUCCESS;
+	res = tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
 
-	res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
 	if (res)
 		rpmb_fs_ops.close(&ree_fs_rpmb_fh);
+
 	return res;
 }
 
@@ -524,9 +525,13 @@ static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
 #else /*!CFG_RPMB_FS*/
 static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
-	if (!tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh))
-		return TEE_SUCCESS;
-	return tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+	TEE_Result res;
+
+	res = tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+		return tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+
+	return res;
 }
 
 static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
