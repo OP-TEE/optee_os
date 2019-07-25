@@ -41,7 +41,11 @@
 #define STACK_ALIGNMENT			64
 #define CONSOLE_UART_BASE		(CFG_UART_BASE)
 
-#if defined(CFG_MX6SX)
+/* For i.MX6 Quad SABRE Lite and Smart Device board */
+#if defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
+	defined(CFG_MX6DL) || defined(CFG_MX6S)
+#include <config/imx6qdlsolo.h>
+#elif defined(CFG_MX6SX)
 #include <config/imx6sx.h>
 
 /* For i.MX 6UltraLite and 6ULL EVK board */
@@ -53,12 +57,6 @@
 #ifdef CFG_WITH_LPAE
 #error "LPAE not supported for now"
 #endif
-
-/* For i.MX6 Quad SABRE Lite and Smart Device board */
-
-#elif defined(CFG_MX6QP) || defined(CFG_MX6Q) || defined(CFG_MX6D) || \
-	defined(CFG_MX6DL) || defined(CFG_MX6S)
-#include <config/imx6qdlsolo.h>
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
