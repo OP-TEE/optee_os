@@ -32,13 +32,11 @@ static void uint_div_qr(unsigned numerator, unsigned denominator,
 unsigned __aeabi_uidivmod(unsigned numerator, unsigned denominator);
 
 unsigned __aeabi_uidiv(unsigned numerator, unsigned denominator);
-unsigned __aeabi_uimod(unsigned numerator, unsigned denominator);
 
 /* returns in R0 and R1 by tail calling an asm function */
 signed __aeabi_idivmod(signed numerator, signed denominator);
 
 signed __aeabi_idiv(signed numerator, signed denominator);
-signed __aeabi_imod(signed numerator, signed denominator);
 
 /*
  * __ste_idivmod_ret_t __aeabi_idivmod(signed numerator, signed denominator)
@@ -105,15 +103,6 @@ unsigned __aeabi_uidiv(unsigned numerator, unsigned denominator)
 	return qr.q;
 }
 
-unsigned __aeabi_uimod(unsigned numerator, unsigned denominator)
-{
-	struct qr qr = { .q_n = 0, .r_n = 0 };
-
-	uint_div_qr(numerator, denominator, &qr);
-
-	return qr.r;
-}
-
 unsigned __aeabi_uidivmod(unsigned numerator, unsigned denominator)
 {
 	struct qr qr = { .q_n = 0, .r_n = 0 };
@@ -140,41 +129,6 @@ signed __aeabi_idiv(signed numerator, signed denominator)
 	uint_div_qr(numerator, denominator, &qr);
 
 	return qr.q;
-}
-
-signed __aeabi_imod(signed numerator, signed denominator)
-{
-	signed s;
-	signed i;
-	signed j;
-	signed h;
-
-	struct qr qr = { .q_n = 0, .r_n = 0 };
-
-	/* in case modulo of a power of 2 */
-	for (i = 0, j = 0, h = 0, s = denominator; (s != 0) || (h > 1); i++) {
-		if (s & 1) {
-			j = i;
-			h++;
-		}
-		s = s >> 1;
-	}
-	if (h == 1)
-		return numerator >> j;
-
-	if (((numerator < 0) && (denominator > 0)) ||
-	    ((numerator > 0) && (denominator < 0)))
-		qr.q_n = 1;	/* quotient shall be negate */
-	if (numerator < 0) {
-		numerator = -numerator;
-		qr.r_n = 1;	/* remainder shall be negate */
-	}
-	if (denominator < 0)
-		denominator = -denominator;
-
-	uint_div_qr(numerator, denominator, &qr);
-
-	return qr.r;
 }
 
 signed __aeabi_idivmod(signed numerator, signed denominator)
