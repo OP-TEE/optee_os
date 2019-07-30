@@ -123,8 +123,8 @@ void ldelf(struct ldelf_arg *arg)
 	malloc_add_pool((void *)mpool_base, mpool_size);
 
 	/* Load the main binary and get a list of dependencies, if any. */
-	ta_elf_load_main(&arg->uuid, &arg->is_32bit, &arg->entry_func,
-			 &arg->stack_ptr, &arg->flags);
+	ta_elf_load_main(&arg->uuid, &arg->is_32bit, &arg->stack_ptr,
+			 &arg->flags);
 
 	/*
 	 * Load binaries, ta_elf_load() may add external libraries to the
@@ -138,6 +138,8 @@ void ldelf(struct ldelf_arg *arg)
 		ta_elf_relocate(elf);
 		ta_elf_finalize_mappings(elf);
 	}
+
+	ta_elf_finalize_load_main(&arg->entry_func);
 
 	arg->ftrace_entry = 0;
 #ifdef CFG_TA_FTRACE_SUPPORT
