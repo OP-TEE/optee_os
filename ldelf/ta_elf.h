@@ -65,6 +65,8 @@ struct ta_elf {
 
 	uint32_t handle;
 
+	struct ta_head *head;
+
 	TEE_UUID uuid;
 	TAILQ_ENTRY(ta_elf) link;
 };
@@ -76,8 +78,9 @@ typedef void (*print_func_t)(void *pctx, const char *fmt, va_list ap)
 
 extern struct ta_elf_queue main_elf_queue;
 
-void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit,
-		      uint64_t *entry, uint64_t *sp, uint32_t *ta_flags);
+void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
+		      uint32_t *ta_flags);
+void ta_elf_finalize_load_main(uint64_t *entry);
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
 void ta_elf_finalize_mappings(struct ta_elf *elf);
