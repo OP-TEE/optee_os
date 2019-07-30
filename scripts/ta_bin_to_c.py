@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017, Linaro Limited
@@ -79,7 +79,7 @@ def main():
     while i < size:
         if i % 8 == 0:
             f.write('\t\t')
-        f.write('0x' + '{:02x}'.format(ord(bytes[i])) + ',')
+        f.write(hex(bytes[i]) + ',')
         i = i + 1
         if i % 8 == 0 or i == size:
             f.write('\n')
