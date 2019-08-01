@@ -50,56 +50,67 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
 	return true;
 }
 
-TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val)
+static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
+				     vaddr_t *val, struct ta_elf *elf)
 {
-	uint32_t hash = elf_hash(name);
-	struct ta_elf *elf = NULL;
+	/*
+	 * Using uint32_t here for convenience because both Elf64_Word
+	 * and Elf32_Word are 32-bit types
+	 */
+	uint32_t *hashtab = elf->hashtab;
+	uint32_t nbuckets = hashtab[0];
+	uint32_t nchains = hashtab[1];
+	uint32_t *bucket = &hashtab[2];
+	uint32_t *chain = &bucket[nbuckets];
 	size_t n = 0;
 
-	TAILQ_FOREACH(elf, &main_elf_queue, link) {
-		/*
-		 * Using uint32_t here for convenience because both Elf64_Word
-		 * and Elf32_Word are 32-bit types
-		 */
-		uint32_t *hashtab = elf->hashtab;
-		uint32_t nbuckets = hashtab[0];
-		uint32_t nchains = hashtab[1];
-		uint32_t *bucket = &hashtab[2];
-		uint32_t *chain = &bucket[nbuckets];
+	if (elf->is_32bit) {
+		Elf32_Sym *sym = elf->dynsymtab;
 
-		if (elf->is_32bit) {
-			Elf32_Sym *sym = elf->dynsymtab;
+		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
+			assert(n < nchains);
+			if (__resolve_sym(elf,
+					  ELF32_ST_BIND(sym[n].st_info),
+					  sym[n].st_shndx,
+					  sym[n].st_name,
+					  sym[n].st_value, name, val))
+				return TEE_SUCCESS;
+		}
+	} else {
+		Elf64_Sym *sym = elf->dynsymtab;
 
-			for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-				assert(n < nchains);
-				if (__resolve_sym(elf,
-						  ELF32_ST_BIND(sym[n].st_info),
-						  sym[n].st_shndx,
-						  sym[n].st_name,
-						  sym[n].st_value, name, val))
-					return TEE_SUCCESS;
-			}
-		} else {
-			Elf64_Sym *sym = elf->dynsymtab;
-
-			for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-				assert(n < nchains);
-				if (__resolve_sym(elf,
-						  ELF64_ST_BIND(sym[n].st_info),
-						  sym[n].st_shndx,
-						  sym[n].st_name,
-						  sym[n].st_value, name, val))
-					return TEE_SUCCESS;
-			}
+		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
+			assert(n < nchains);
+			if (__resolve_sym(elf,
+					  ELF64_ST_BIND(sym[n].st_info),
+					  sym[n].st_shndx,
+					  sym[n].st_name,
+					  sym[n].st_value, name, val))
+				return TEE_SUCCESS;
 		}
 	}
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
+			      struct ta_elf *elf)
+{
+	uint32_t hash = elf_hash(name);
+
+	if (elf)
+		return resolve_sym_helper(hash, name, val, elf);
+
+	TAILQ_FOREACH(elf, &main_elf_queue, link)
+		if (!resolve_sym_helper(hash, name, val, elf))
+			return TEE_SUCCESS;
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 static void resolve_sym(const char *name, vaddr_t *val)
 {
-	TEE_Result res = ta_elf_resolve_sym(name, val);
+	TEE_Result res = ta_elf_resolve_sym(name, val, NULL);
 
 	if (res)
 		err(res, "Symbol %s not found", name);

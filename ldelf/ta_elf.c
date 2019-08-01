@@ -28,23 +28,43 @@ static vaddr_t ta_stack_size;
 
 struct ta_elf_queue main_elf_queue = TAILQ_HEAD_INITIALIZER(main_elf_queue);
 
-static struct ta_elf *queue_elf(const TEE_UUID *uuid)
+static struct ta_elf *queue_elf_helper(const TEE_UUID *uuid)
 {
-	struct ta_elf *elf = NULL;
+	struct ta_elf *elf = calloc(1, sizeof(*elf));
 
-	TAILQ_FOREACH(elf, &main_elf_queue, link)
-		if (!memcmp(uuid, &elf->uuid, sizeof(*uuid)))
-			return NULL;
-
-	elf = calloc(1, sizeof(*elf));
 	if (!elf)
-		err(TEE_ERROR_OUT_OF_MEMORY, "calloc");
+		return NULL;
 
 	TAILQ_INIT(&elf->segs);
 
 	elf->uuid = *uuid;
 	TAILQ_INSERT_TAIL(&main_elf_queue, elf, link);
 	return elf;
+}
+
+static struct ta_elf *queue_elf(const TEE_UUID *uuid)
+{
+	struct ta_elf *elf = ta_elf_find_elf(uuid);
+
+	if (elf)
+		return NULL;
+
+	elf = queue_elf_helper(uuid);
+	if (!elf)
+		err(TEE_ERROR_OUT_OF_MEMORY, "queue_elf_helper");
+
+	return elf;
+}
+
+struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid)
+{
+	struct ta_elf *elf = NULL;
+
+	TAILQ_FOREACH(elf, &main_elf_queue, link)
+		if (!memcmp(uuid, &elf->uuid, sizeof(*uuid)))
+			return elf;
+
+	return NULL;
 }
 
 static TEE_Result e32_parse_ehdr(struct ta_elf *elf, Elf32_Ehdr *ehdr)
@@ -1147,3 +1167,31 @@ void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc)
 	print_stack_arm64(&state, ta_stack, ta_stack_size);
 }
 #endif
+
+TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
+{
+	struct ta_elf *ta = TAILQ_FIRST(&main_elf_queue);
+	struct ta_elf *lib = ta_elf_find_elf(uuid);
+	struct ta_elf *elf = NULL;
+
+	if (lib)
+		return TEE_SUCCESS; /* Already mapped */
+
+	lib = queue_elf_helper(uuid);
+	if (!lib)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	for (elf = lib; elf; elf = TAILQ_NEXT(elf, link))
+		ta_elf_load_dependency(elf, ta->is_32bit);
+
+	for (elf = lib; elf; elf = TAILQ_NEXT(elf, link)) {
+		ta_elf_relocate(elf);
+		ta_elf_finalize_mappings(elf);
+	}
+
+	for (elf = lib; elf; elf = TAILQ_NEXT(elf, link))
+		DMSG("ELF (%pUl) at %#"PRIxVA,
+		     (void *)&elf->uuid, elf->load_addr);
+
+	return TEE_SUCCESS;
+}

@@ -254,6 +254,7 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	utc->ftrace_entry_func = arg->ftrace_entry;
 	sess->fbuf = arg->fbuf;
 #endif
+	utc->dl_entry_func = arg->dl_entry;
 
 out:
 	s = tee_ta_pop_current_session();

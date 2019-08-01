@@ -23,6 +23,7 @@
  * @dump_entry:	  [out] Dump TA mappings and stack trace
  * @ftrace_entry: [out] Dump TA mappings and ftrace buffer
  * @fbuf:         [out] ftrace buffer pointer
+ * @dl_entry:     [out] Dynamic linking interface (for libdl)
  */
 struct ldelf_arg {
 	TEE_UUID uuid;
@@ -32,6 +33,7 @@ struct ldelf_arg {
 	uint64_t stack_ptr;
 	uint64_t dump_entry;
 	uint64_t ftrace_entry;
+	uint64_t dl_entry;
 	struct ftrace_buf *fbuf;
 };
 
@@ -65,6 +67,38 @@ struct dump_entry_arg {
 		uint32_t flags;
 	} maps[];
 };
+
+/*
+ * struct dl_entry_arg - argument for ldelf_arg::dl_entry()
+ */
+struct dl_entry_arg {
+	uint32_t cmd;
+	TEE_Result ret;
+	union {
+		struct {
+			TEE_UUID uuid;	/* in */
+			uint32_t flags;	/* in */
+		} dlopen;
+		struct {
+			TEE_UUID uuid;	/* in */
+			vaddr_t val;	/* out */
+			char symbol[];	/* in */
+		} dlsym;
+	};
+};
+
+/*
+ * Values for dl_entry_arg::cmd
+ */
+#define LDELF_DL_ENTRY_DLOPEN	0
+#define LDELF_DL_ENTRY_DLSYM	1
+
+/*
+ * Values for dl_entry_arg::dlopen::flags
+ */
+#define RTLD_NOW	2
+#define RTLD_GLOBAL	0x100
+#define RTLD_NODELETE	0x1000
 
 /*
  * ldelf is loaded into memory by TEE Core. BSS is initialized and a
