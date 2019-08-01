@@ -767,8 +767,8 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	int i;
 	paddr_t pa;
 	uint64_t attr;
-	paddr_t block_size_on_next_lvl = L1_XLAT_ADDRESS_SHIFT -
-		tbl_info->level * XLAT_TABLE_ENTRIES_SHIFT;
+	paddr_t block_size_on_next_lvl = 1 << (L1_XLAT_ADDRESS_SHIFT -
+		tbl_info->level * XLAT_TABLE_ENTRIES_SHIFT);
 	struct mmu_partition *prtn;
 
 #ifdef CFG_VIRTUALIZATION
@@ -798,7 +798,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 		pa = *entry & OUTPUT_ADDRESS_MASK;
 		attr = *entry & ~(OUTPUT_ADDRESS_MASK | DESC_ENTRY_TYPE_MASK);
 		for (i = 0; i < XLAT_TABLE_ENTRIES; i++) {
-			new_table[i] = pa | attr | TABLE_DESC;
+			new_table[i] = pa | attr | BLOCK_DESC;
 			pa += block_size_on_next_lvl;
 		}
 	} else {
