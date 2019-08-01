@@ -48,6 +48,9 @@ ifeq ($(ta-target),ta_arm32)
 spec-srcs += $(ta-dev-kit-dir$(sm))/src/ta_entry_a32.S
 endif
 
-additional-compile-deps := $(ta_dev_kit-files) # TA dev kit should be built before in-tree TAs
+# Install TA headers before in-tree TAs can be compiled
+additional-compile-deps := $(ta_dev_kit-files-include)
 include mk/compile.mk
+# Install TA libraries before in-tree TAs can be linked
+additional-link-deps := $(ta_dev_kit-files-lib)
 include  ta/arch/$(ARCH)/link.mk
