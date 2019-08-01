@@ -72,6 +72,8 @@ ifeq ($(CFG_TA_MBEDTLS),y)
 libnames += mbedtls
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libmbedtls.a
 endif
+libnames += dl
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libdl.a
 
 # Pass config variable (CFG_) from conf.mk on the command line
 cppflags$(sm) += $(strip \
