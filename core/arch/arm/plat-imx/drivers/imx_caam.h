@@ -23,6 +23,15 @@ struct imx_caam_job_ring {
 #define JROWN_NS			BIT(3)
 #define JROWN_MID			0x01
 
+/* i.MX6 CAAM clocks bits  */
+#define CCM_CCGR0		0x0068
+#define CCM_CCGR6		0x0080
+
+#define CCM_CCGR0_CAAM_WRAPPER_IPG	SHIFT_U32(3, 12)
+#define CCM_CCGR0_CAAM_SECURE_MEM	SHIFT_U32(3, 8)
+#define CCM_CCGR0_CAAM_WRAPPER_ACLK	SHIFT_U32(3, 10)
+#define CCM_CCGR6_EMI_SLOW		SHIFT_U32(3, 10)
+
 /* A basic sub-set of the CAAM */
 struct imx_caam_ctrl {
 	uint32_t			res0;
