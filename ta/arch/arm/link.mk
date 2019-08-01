@@ -57,7 +57,8 @@ $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefi
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
 					  $(link-script-pp$(sm)) \
-					  $(ftracedep)
+					  $(ftracedep) \
+					  $(additional-link-deps)
 	@$(cmd-echo-silent) '  LD      $$@'
 	$(q)$(LD$(sm)) $(ldargs-$(user-ta-uuid).elf) -o $$@
 
@@ -80,3 +81,5 @@ $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 endef
 
 $(eval $(call gen-link-t))
+
+additional-link-deps :=

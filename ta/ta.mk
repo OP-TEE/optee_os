@@ -112,11 +112,12 @@ $2/$$(notdir $1): $1
 cleanfiles += $2/$$(notdir $1)
 ta_dev_kit: $2/$$(notdir $1)
 ta_dev_kit-files += $2/$$(notdir $1)
+ta_dev_kit-files-$3 += $2/$$(notdir $1)
 endef
 
 # Copy the .a files
 $(foreach f, $(libfiles), \
-	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/lib)))
+	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/lib,lib)))
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/cleandirs.mk \
@@ -130,10 +131,10 @@ $(foreach f, $(ta-mkfiles), \
 define copy-incdir
 sf := $(subst $1/, , $(shell find $1 -name "*.[hS]"))
 $$(foreach h, $$(sf), $$(eval $$(call copy-file, $1/$$(h), \
-	$$(patsubst %/,%,$$(subst /./,/,$2/$$(dir $$(h)))))))
+	$$(patsubst %/,%,$$(subst /./,/,$2/$$(dir $$(h)))),$3)))
 endef
 $(foreach d, $(incdirs$(sm)), \
-	$(eval $(call copy-incdir, $(d), $(out-dir)/export-$(sm)/include)))
+	$(eval $(call copy-incdir,$(d),$(out-dir)/export-$(sm)/include,include)))
 
 # Copy the .h files needed by host
 $(foreach d, $(incdirs-host), \
