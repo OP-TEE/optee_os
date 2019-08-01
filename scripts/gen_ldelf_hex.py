@@ -9,9 +9,24 @@ from __future__ import division
 
 import argparse
 import sys
-from elftools.elf.elffile import ELFFile
-from elftools.elf.sections import SymbolTableSection
-from elftools.elf.constants import P_FLAGS
+try:
+    from elftools.elf.elffile import ELFFile
+    from elftools.elf.sections import SymbolTableSection
+    from elftools.elf.constants import P_FLAGS
+except ImportError:
+    print("""
+***
+Can't find elftools module. Probably it is not installed on your system.
+You can install this module with
+
+$ apt install python3-pyelftools
+
+if you are using Ubuntu. Or try to search for "pyelftools" or "elftools" in
+your package manager if you are using some other distribution.
+***
+""")
+    raise
+
 import struct
 import re
 from collections import deque
