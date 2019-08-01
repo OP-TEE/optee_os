@@ -112,6 +112,12 @@ libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
 libl = $(mplib-for-utee) utils
 include mk/lib.mk
 
+libname = dl
+libdir = lib/libdl
+libuuid = be807bbd-81e1-4dc4-bd99-3d363f240ece
+libl = utee utils
+include mk/lib.mk
+
 base-prefix :=
 
 incdirs-host := $(filter-out lib/libutils%, $(incdirs$(sm)))
