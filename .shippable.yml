@@ -92,6 +92,7 @@ build:
     - _make PLATFORM=ls-ls1046ardb
     - _make PLATFORM=ls-ls1012ardb
     - _make PLATFORM=ls-ls1012afrwy
+    - _make PLATFORM=ls-ls1028ardb
     - _make PLATFORM=ls-ls1088ardb
     - _make PLATFORM=ls-ls2088ardb
     - _make PLATFORM=ls-lx2160ardb
