@@ -3,6 +3,7 @@
  * Copyright (c) 2018-2019, Linaro Limited
  */
 
+#include <assert.h>
 #include <crypto/crypto.h>
 #include <kernel/handle.h>
 #include <kernel/huk_subkey.h>
@@ -11,10 +12,12 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
+#include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
 #include <mm/tee_mmu.h>
 #include <pta_system.h>
+#include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <util.h>
@@ -600,6 +603,174 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 	return res;
 }
 
+/* ldelf has the same architecture/register width as the kernel */
+#ifdef ARM32
+static const bool is_arm32 = true;
+#else
+static const bool is_arm32;
+#endif
+
+static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
+				    uint32_t flags)
+{
+	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *arg = NULL;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+
+	assert(uuid);
+
+	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
+	arg = (struct dl_entry_arg *)usr_stack;
+
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)arg, sizeof(*arg));
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	memset(arg, 0, sizeof(*arg));
+	arg->cmd = LDELF_DL_ENTRY_DLOPEN;
+	arg->dlopen.uuid = *uuid;
+	arg->dlopen.flags = flags;
+
+	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+				     usr_stack, utc->dl_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	if (panicked) {
+		EMSG("ldelf dl_entry function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+	if (!res)
+		res = arg->ret;
+
+	return res;
+}
+
+static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
+				   const char *sym, size_t maxlen, vaddr_t *val)
+{
+	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *arg = NULL;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+	size_t len = strnlen(sym, maxlen);
+
+	if (len == maxlen)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
+	arg = (struct dl_entry_arg *)usr_stack;
+
+	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)arg,
+					  sizeof(*arg) + len + 1);
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	memset(arg, 0, sizeof(*arg));
+	arg->cmd = LDELF_DL_ENTRY_DLSYM;
+	arg->dlsym.uuid = *uuid;
+	memcpy(arg->dlsym.symbol, sym, len);
+	arg->dlsym.symbol[len + 1] = '\0';
+
+	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+				     usr_stack, utc->dl_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	if (panicked) {
+		EMSG("ldelf dl_entry function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+	if (!res) {
+		res = arg->ret;
+		if (!res)
+			*val = arg->dlsym.val;
+	}
+
+	return res;
+}
+
+static TEE_Result system_dlopen(struct tee_ta_session *cs, uint32_t param_types,
+				TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct tee_ta_session *s = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_UUID *uuid = NULL;
+	uint32_t flags = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	uuid = params[0].memref.buffer;
+	if (!uuid || params[0].memref.size != sizeof(*uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	flags = params[1].value.a;
+
+	utc = to_user_ta_ctx(cs->ctx);
+
+	s = tee_ta_pop_current_session();
+	res = call_ldelf_dlopen(utc, uuid, flags);
+	tee_ta_push_current_session(s);
+
+	return res;
+}
+
+static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
+			       TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_MEMREF_INPUT,
+					  TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE);
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct tee_ta_session *s = NULL;
+	struct user_ta_ctx *utc = NULL;
+	const char *sym = NULL;
+	TEE_UUID *uuid = NULL;
+	size_t maxlen = 0;
+	vaddr_t va = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	uuid = params[0].memref.buffer;
+	if (uuid && params[0].memref.size != sizeof(*uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	sym = params[1].memref.buffer;
+	if (!sym)
+		return TEE_ERROR_BAD_PARAMETERS;
+	maxlen = params[1].memref.size;
+
+	utc = to_user_ta_ctx(cs->ctx);
+
+	s = tee_ta_pop_current_session();
+	res = call_ldelf_dlsym(utc, uuid, sym, maxlen, &va);
+	tee_ta_push_current_session(s);
+
+	if (!res)
+		reg_pair_from_64(va, &params[2].value.a, &params[2].value.b);
+
+	return res;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -659,6 +830,10 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 		return system_set_prot(s, param_types, params);
 	case PTA_SYSTEM_REMAP:
 		return system_remap(s, param_types, params);
+	case PTA_SYSTEM_DLOPEN:
+		return system_dlopen(s, param_types, params);
+	case PTA_SYSTEM_DLSYM:
+		return system_dlsym(s, param_types, params);
 	default:
 		break;
 	}

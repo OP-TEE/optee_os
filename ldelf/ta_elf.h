@@ -7,6 +7,7 @@
 #define TA_ELF_H
 
 #include <ldelf.h>
+#include <stdarg.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -77,6 +78,7 @@ typedef void (*print_func_t)(void *pctx, const char *fmt, va_list ap)
 	__printf(2, 0);
 
 extern struct ta_elf_queue main_elf_queue;
+struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid);
 
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		      uint32_t *ta_flags);
@@ -99,6 +101,8 @@ static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 					  uint64_t pc __unused) { }
 #endif /*CFG_UNWIND*/
 
-TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val);
+TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
+			      struct ta_elf *elf);
+TEE_Result ta_elf_add_library(const TEE_UUID *uuid);
 
 #endif /*TA_ELF_H*/

@@ -48,6 +48,7 @@ struct user_ta_ctx {
 #ifdef CFG_TA_FTRACE_SUPPORT
 	uaddr_t ftrace_entry_func;
 #endif
+	uaddr_t dl_entry_func;
 	uaddr_t ldelf_stack_ptr;
 	bool is_32bit;
 	bool is_initializing;
