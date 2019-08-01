@@ -13,11 +13,16 @@
 #include <imx-regs.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
+#include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
+#include <tee/cache.h>
 
 #include "imx_caam.h"
+
+uint8_t stored_key[32] = { 0 };
+bool mkvb_retrieved;
 
 static void caam_enable_clocks(bool enable)
 {
@@ -51,6 +56,103 @@ static void caam_enable_clocks(bool enable)
 		io_write32(ccm_base + CCM_CCGR6, reg);
 	}
 
+}
+
+static void imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
+{
+	uint32_t reg_val = 0;
+	uint32_t timeout = 1000;
+
+	io_write32((vaddr_t)&ctrl->jrcfg[0].jrcr, 1);
+	do {
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[0].jrintr);
+		reg_val &= 0xc;
+	} while ((reg_val == 0x4) && --timeout);
+
+	io_write32((vaddr_t)&ctrl->jrcfg[0].jrcr, 1);
+	do {
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[0].jrintr);
+		reg_val &= 0xc;
+	} while ((reg_val & 0x1) && --timeout);
+}
+
+static void mkvb_init_jr(struct imx_mkvb *mkvb)
+{
+	struct imx_caam_ctrl *ctrl = mkvb->ctrl;
+
+	imx_caam_reset_jr(ctrl);
+	mkvb->njobs = 4;
+	io_write32((vaddr_t)&ctrl->jrstartr, 1);
+	io_write32((vaddr_t)&ctrl->jrcfg[0].irbar_ls,
+		   virt_to_phys(&mkvb->jr.inring));
+	io_write32((vaddr_t)&ctrl->jrcfg[0].irsr, mkvb->njobs);
+	io_write32((vaddr_t)&ctrl->jrcfg[0].orbar_ls,
+		   virt_to_phys(&mkvb->jr.outring));
+	io_write32((vaddr_t)&ctrl->jrcfg[0].orsr, mkvb->njobs);
+}
+
+static TEE_Result caam_get_mkvb(uint8_t *dest)
+{
+	struct imx_mkvb mkvb = { 0 };
+	TEE_Result ret = TEE_ERROR_SECURITY;
+	paddr_t desc_paddr = 0;
+	int counter = 0;
+
+	mkvb.ctrl = (struct imx_caam_ctrl *)
+		core_mmu_get_va(CAAM_BASE, MEM_AREA_IO_SEC);
+
+	caam_enable_clocks(true);
+	mkvb_init_jr(&mkvb);
+
+	mkvb.descriptor[0] = MKVB_DESC_HEADER;
+	mkvb.descriptor[1] = MKVB_DESC_SEQ_OUT;
+	mkvb.descriptor[2] = virt_to_phys(&mkvb.outbuf);
+	cache_operation(TEE_CACHEFLUSH, &mkvb.outbuf, MKVB_SIZE);
+	mkvb.descriptor[3] = MKVB_DESC_BLOB;
+	cache_operation(TEE_CACHEFLUSH, &mkvb.descriptor,
+			sizeof(mkvb.descriptor));
+
+	desc_paddr = virt_to_phys(&mkvb.descriptor);
+	memcpy(&mkvb.jr.inring, &desc_paddr, sizeof(desc_paddr));
+	cache_operation(TEE_CACHEFLUSH, &mkvb.jr,
+			sizeof(mkvb.jr.inring[0]));
+
+	/*  Tell CAAM that one job is available */
+	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[0].irjar, 1);
+
+	/*  Busy loop until job is completed */
+	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[0].orsfr) != 1) {
+		counter++;
+		if (counter > 10000)
+			break;
+	}
+
+	cache_operation(TEE_CACHEINVALIDATE, &mkvb.jr, sizeof(mkvb.jr));
+	cache_operation(TEE_CACHEINVALIDATE, &mkvb.outbuf, MKVB_SIZE);
+	DHEXDUMP(&mkvb.outbuf, MKVB_SIZE);
+
+	if (mkvb.jr.outring[0].status != 0)
+		goto out;
+
+	memcpy(dest, &mkvb.outbuf, MKVB_SIZE);
+	ret = TEE_SUCCESS;
+out:
+	io_write32((vaddr_t)&mkvb.ctrl->scfgr, PRIBLOB_11);
+	return ret;
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	int ret = TEE_ERROR_SECURITY;
+
+	if (!mkvb_retrieved) {
+		ret = caam_get_mkvb(stored_key);
+		if (ret)
+			return ret;
+		mkvb_retrieved = true;
+	}
+	memcpy(&hwkey->data, &stored_key, sizeof(hwkey->data));
+	return TEE_SUCCESS;
 }
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CAAM_BASE, CORE_MMU_PGDIR_SIZE);

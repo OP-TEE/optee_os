@@ -34,6 +34,14 @@ struct imx_caam_job_ring {
 #define CCM_CCGR0_CAAM_WRAPPER_ACLK	SHIFT_U32(3, 10)
 #define CCM_CCGR6_EMI_SLOW		SHIFT_U32(3, 10)
 
+/* Descriptor and MKVB Definitions */
+#define MKVB_SIZE			32
+#define MKVB_DESC_SEQ_OUT		0xf8000020
+#define MKVB_DESC_HEADER		0xb0800004
+#define MKVB_DESC_BLOB			0x870d0002
+
+/* PRIBLOB Bits */
+#define PRIBLOB_11			3
 /* jr configuration registers */
 struct imx_caam_jr_ctrl {
 	uint32_t	irbar;
@@ -82,5 +90,23 @@ struct imx_caam_ctrl {
 	uint8_t				padding2[4004];
 	struct imx_caam_jr_ctrl		jrcfg[CAAM_NUM_JOB_RINGS];
 } __packed;
+
+#define MKVB_CL_SIZE	64
+
+struct imx_mkvb {
+	struct {
+		struct {
+			uint32_t desc;
+		} inring[8];
+		struct {
+			uint32_t desc;
+			uint32_t status;
+		} __packed outring[4];
+	} __packed __aligned(MKVB_CL_SIZE) jr;
+	uint32_t descriptor[16] __aligned(MKVB_CL_SIZE);
+	char outbuf[MKVB_CL_SIZE] __aligned(MKVB_CL_SIZE);
+	size_t njobs;
+	struct imx_caam_ctrl *ctrl;
+};
 
 #endif /* __IMX_CAAM_H__ */
