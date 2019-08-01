@@ -21,8 +21,8 @@
 
 #include "imx_caam.h"
 
-uint8_t stored_key[32] = { 0 };
-bool mkvb_retrieved;
+static uint8_t stored_key[32] = { 0 };
+static bool mkvb_retrieved;
 
 static void caam_enable_clocks(bool enable)
 {
@@ -41,9 +41,9 @@ static void caam_enable_clocks(bool enable)
 	else
 		reg &= ~mask;
 
-	io_write32((ccm_base + CCM_CCGR0), reg);
+	io_write32(ccm_base + CCM_CCGR0, reg);
 
-	if ((soc_is_imx6dqp() || soc_is_imx6sdl() || soc_is_imx6dq())) {
+	if (soc_is_imx6dqp() || soc_is_imx6sdl() || soc_is_imx6dq()) {
 		/* EMI slow clk */
 		reg  = io_read32(ccm_base + CCM_CCGR6);
 		mask = CCM_CCGR6_EMI_SLOW;
@@ -124,7 +124,7 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[0].orsfr) != 1) {
 		counter++;
 		if (counter > 10000)
-			break;
+			goto out;
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, &mkvb.jr, sizeof(mkvb.jr));
