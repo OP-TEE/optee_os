@@ -16,4 +16,11 @@
 #define CAAM_BASE	0x30900000
 #define ANATOP_BASE	0x30360000
 
+#ifdef CFG_IMX8MQ
+#define DIGPROG_OFFSET	0x06c
+#endif
+#ifdef CFG_IMX8MM
+#define DIGPROG_OFFSET	0x800
+#endif
+
 #endif /* __IMX8M_H__ */
