@@ -35,9 +35,13 @@ static void imx_digproc(void)
 	/* Set the CPU type */
 	imx_cpu_type = CPU_TYPE(digprog);
 
+#ifdef CFG_MX7
+	imx_soc_revision = digprog & 0xFF;
+#else
 	/* Set the SOC revision: = (Major + 1)[11:4] | (Minor[3:0]) */
 	imx_soc_revision =
 		(SOC_REV_MAJOR(digprog) << 4) | SOC_REV_MINOR(digprog);
+#endif
 }
 
 static uint32_t imx_soc_rev_major(void)
