@@ -43,7 +43,7 @@ struct ldelf_arg {
 #define DUMP_MAP_LDELF	BIT(7)
 
 /*
- * struct dump_entry_arg - argument for ldelf_dump()
+ * struct dump_entry_arg - argument for ldelf_arg::dump_entry()
  */
 struct dump_entry_arg {
 	union {
