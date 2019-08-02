@@ -170,6 +170,7 @@ def main():
         if not key.has_private():
             logger.error('Provided key cannot be used for signing, ' +
                          'please use offline-signing mode.')
+            sys.exit(1)
         else:
             signer = PKCS1_v1_5.new(key)
             sig = signer.sign(h)
@@ -185,13 +186,14 @@ def main():
             with open(args.sigf, 'r') as sigfile:
                 sig = base64.b64decode(sigfile.read())
         except IOError:
-            if not os.path.exits(args.digf):
+            if not os.path.exists(args.digf):
                 generate_digest()
             logger.error('No signature file found. Please sign\n %s\n' +
                          'offline and place the signature at \n %s\n' +
                          'or pass a different location ' +
                          'using the --sig argument.\n',
                          args.digf, args.sigf)
+            sys.exit(1)
         else:
             verifier = PKCS1_v1_5.new(key)
             if verifier.verify(h, sig):
@@ -199,17 +201,16 @@ def main():
                 logger.info('Successfully applied signature.')
             else:
                 logger.error('Verification failed, ignoring given signature.')
+                sys.exit(1)
 
-    command_dict = {
+    # dispatch command
+    {
         'sign': sign_ta,
         'digest': generate_digest,
         'generate-digest': generate_digest,
         'stitch': stitch_ta,
         'stitch-ta': stitch_ta
-    }
-
-    fun = command_dict.get(args.command, 'sign_ta')
-    fun()
+    }.get(args.command, 'sign_ta')()
 
 
 if __name__ == "__main__":
