@@ -52,6 +52,9 @@ mx7s-flavorlist = \
 	mx7swarp7 \
 	mx7swarp7_mbl \
 
+mx7ulp-flavorlist = \
+	mx7ulpevk
+
 imx8mq-flavorlist = \
 	imx8mqevk
 
@@ -111,6 +114,12 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7d-flavorlist)))
 $(call force,CFG_MX7,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
 include core/arch/arm/cpu/cortex-a7.mk
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7ulp-flavorlist)))
+$(call force,CFG_MX7ULP,y)
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_TZC380,n)
+$(call force,CFG_CSU,n)
+include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mq-flavorlist)))
 $(call force,CFG_IMX8MQ,y)
 $(call force,CFG_ARM64_core,y)
@@ -160,6 +169,12 @@ CFG_DT_ADDR ?= 0x83100000
 CFG_BOOT_SECONDARY_REQUEST ?= n
 CFG_EXTERNAL_DTB_OVERLAY = y
 CFG_IMX_WDOG_EXT_RESET = y
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx7ulpevk))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_NS_ENTRY_ADDR ?= 0x60800000
+CFG_UART_BASE ?= UART4_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabresd mx6qsabresd mx6dlsabresd \
@@ -267,10 +282,16 @@ CFG_INIT_CNTVOFF ?= y
 CFG_DRAM_BASE ?= 0x80000000
 endif
 
-ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
+ifeq ($(filter y, $(CFG_MX7ULP)), y)
+CFG_INIT_CNTVOFF ?= y
+CFG_DRAM_BASE ?= 0x80000000
+$(call force,CFG_IMX_LPUART,y)
+$(call force,CFG_BOOT_SECONDARY_REQUEST,n)
+endif
+
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_IMX_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
@@ -280,9 +301,13 @@ CFG_DT ?= y
 CFG_PAGEABLE_ADDR ?= 0
 CFG_PSCI_ARM32 ?= y
 CFG_SECURE_TIME_SOURCE_REE ?= y
-CFG_CSU ?= y
 CFG_UART_BASE ?= UART1_BASE
 CFG_IMX_CAAM ?= y
+endif
+
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
+$(call force,CFG_IMX_UART,y)
+CFG_CSU ?= y
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)

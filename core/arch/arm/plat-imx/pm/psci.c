@@ -164,6 +164,7 @@ int psci_affinity_info(uint32_t affinity,
 
 void __noreturn psci_system_off(void)
 {
+#ifndef CFG_MX7ULP
 	vaddr_t snvs_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
 
 	io_write32(snvs_base + SNVS_LPCR_OFF,
@@ -171,6 +172,7 @@ void __noreturn psci_system_off(void)
 		   SNVS_LPCR_DP_EN_MASK |
 		   SNVS_LPCR_SRTC_ENV_MASK);
 	dsb();
+#endif
 
 	while (1)
 		;

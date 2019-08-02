@@ -34,10 +34,12 @@
 #include <registers/imx6.h>
 #elif defined(CFG_MX7)
 #include <registers/imx7.h>
+#elif defined(CFG_MX7ULP)
+#include <registers/imx7ulp.h>
 #elif defined(CFG_IMX8MQ) || defined(CFG_IMX8MM)
 #include <registers/imx8m.h>
 #else
-#error "CFG_MX6/7 or CFG_IMX8MQ/8MM is not defined"
+#error "CFG_MX6/7/7ULP or CFG_IMX8MQ/8MM is not defined"
 #endif
 
 #define IOMUXC_GPR4_OFFSET	0x10

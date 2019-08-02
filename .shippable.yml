@@ -77,6 +77,7 @@ build:
     - _make PLATFORM=imx-mx6dlsabresd
     - _make PLATFORM=imx-mx6dlsabreauto
     - _make PLATFORM=imx-mx7dsabresd
+    - _make PLATFORM=imx-mx7ulpevk
     - _make PLATFORM=imx-imx8mmevk
     - _make PLATFORM=imx-imx8mqevk
     - _make PLATFORM=k3-j721e

@@ -15,7 +15,7 @@ srcs-y += a9_plat_init.S
 srcs-$(CFG_SM_PLATFORM_HANDLER) += sm_platform_handler.c
 endif
 
-ifneq (,$(filter y, $(CFG_MX7) $(CFG_MX6UL) $(CFG_MX6ULL)))
+ifneq (,$(filter y, $(CFG_MX7) $(CFG_MX7ULP) $(CFG_MX6UL) $(CFG_MX6ULL)))
 srcs-y += a7_plat_init.S
 endif
 

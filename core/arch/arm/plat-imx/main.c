@@ -86,6 +86,10 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, ANATOP_BASE, CORE_MMU_PGDIR_SIZE);
 #ifdef GICD_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, 0x10000);
 #endif
+#ifdef AIPS0_BASE
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS0_BASE,
+			ROUNDUP(AIPS0_SIZE, CORE_MMU_PGDIR_SIZE));
+#endif
 #ifdef AIPS1_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS1_BASE,
 			ROUNDUP(AIPS1_SIZE, CORE_MMU_PGDIR_SIZE));
@@ -102,6 +106,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, AIPS3_BASE,
 register_phys_mem(MEM_AREA_TEE_COHERENT,
 		  ROUNDDOWN(IRAM_BASE, CORE_MMU_PGDIR_SIZE),
 		  CORE_MMU_PGDIR_SIZE);
+#endif
+#ifdef M4_AIPS_BASE
+register_phys_mem(MEM_AREA_IO_SEC, M4_AIPS_BASE, M4_AIPS_SIZE);
 #endif
 #ifdef IRAM_S_BASE
 register_phys_mem(MEM_AREA_TEE_COHERENT,
