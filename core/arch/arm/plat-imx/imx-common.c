@@ -13,34 +13,47 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
-static uint32_t imx_digproc(void)
+static int imx_cpu_type = -1;
+static int imx_soc_revision = -1;
+
+#define CPU_TYPE(reg)		((reg & 0x00FF0000) >> 16)
+#define SOC_REV_MAJOR(reg)	(((reg & 0x0000FF00) >> 8) + 1)
+#define SOC_REV_MINOR(reg)	(reg & 0x0000000F)
+
+static void imx_digproc(void)
 {
-	static uint32_t reg;
-	vaddr_t anatop_addr;
+	uint32_t digprog = 0;
+	vaddr_t __maybe_unused anatop_addr = 0;
 
-	if (!reg) {
-		anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
+	anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
 
-#if defined(CFG_MX7)
-		reg = io_read32(anatop_addr + OFFSET_DIGPROG_IMX7D);
-#elif defined(CFG_MX6SL)
-		reg = io_read32(anatop_addr + OFFSET_DIGPROG_IMX6SL);
-#else
-		reg = io_read32(anatop_addr + OFFSET_DIGPROG);
-#endif
-	}
+	if (!anatop_addr)
+		return;
 
-	return reg;
+	digprog = io_read32(anatop_addr + DIGPROG_OFFSET);
+
+	/* Set the CPU type */
+	imx_cpu_type = CPU_TYPE(digprog);
+
+	/* Set the SOC revision: = (Major + 1)[11:4] | (Minor[3:0]) */
+	imx_soc_revision =
+		(SOC_REV_MAJOR(digprog) << 4) | SOC_REV_MINOR(digprog);
 }
 
 static uint32_t imx_soc_rev_major(void)
 {
-	return ((imx_digproc() & 0xff00) >> 8) + 1;
+	if (imx_soc_revision < 0)
+		imx_digproc();
+
+	return imx_soc_revision >> 4;
 }
 
-uint32_t imx_soc_type(void)
+static uint32_t imx_soc_type(void)
 {
-	return (imx_digproc() >> 16) & 0xff;
+	if (imx_cpu_type < 0)
+		imx_digproc();
+
+	return imx_cpu_type;
 }
 
 bool soc_is_imx6sl(void)

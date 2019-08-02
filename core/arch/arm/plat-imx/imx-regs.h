@@ -66,10 +66,6 @@
 
 #define WCR_OFF				0
 
-#define OFFSET_DIGPROG			0x260
-#define OFFSET_DIGPROG_IMX6SL		0x280
-#define OFFSET_DIGPROG_IMX7D		0x800
-
 /* GPC V2 */
 #define GPC_PGC_C1			0x840
 #define GPC_PGC_C1_PUPSCR		0x844
