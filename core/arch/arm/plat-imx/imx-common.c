@@ -25,13 +25,16 @@ static void imx_digproc(void)
 	uint32_t digprog = 0;
 	vaddr_t __maybe_unused anatop_addr = 0;
 
+#ifdef CFG_MX7ULP
+	digprog = SOC_MX7ULP << 16;
+#else
 	anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
 
 	if (!anatop_addr)
 		return;
 
 	digprog = io_read32(anatop_addr + DIGPROG_OFFSET);
-
+#endif
 	/* Set the CPU type */
 	imx_cpu_type = CPU_TYPE(digprog);
 
@@ -114,3 +117,7 @@ bool soc_is_imx7ds(void)
 	return imx_soc_type() == SOC_MX7D;
 }
 
+bool soc_is_imx7ulp(void)
+{
+	return imx_soc_type() == SOC_MX7ULP;
+}
