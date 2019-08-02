@@ -64,6 +64,9 @@ register_phys_mem(MEM_AREA_RAM_SEC, BCM_DRAM0_SEC_BASE, BCM_DRAM0_SEC_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, CFG_BCM_ELOG_AP_UART_LOG_BASE,
 		  CFG_BCM_ELOG_AP_UART_LOG_SIZE);
 #endif
+#ifdef CFG_BCM_ELOG_BASE
+register_phys_mem(MEM_AREA_RAM_NSEC, CFG_BCM_ELOG_BASE, CFG_BCM_ELOG_SIZE);
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
