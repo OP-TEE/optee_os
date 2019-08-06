@@ -33,6 +33,7 @@
 
 #include <mm/generic_ram_layout.h>
 #include <imx-regs.h>
+#include <imx.h>
 
 #ifndef CFG_DDR_SIZE
 #error "CFG_DDR_SIZE not defined"

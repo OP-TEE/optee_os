@@ -115,6 +115,7 @@ R:	[@OP-TEE/plat-imx]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
 F:	core/arch/arm/plat-imx/registers
+F:	core/drivers/crypto/caam/
 
 Crypto driver interface
 R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
