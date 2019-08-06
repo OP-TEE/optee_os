@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright 2018-2019 NXP
+ *
+ * Brief   This driver interfaces TEE Cryptographic API crypto_*
+ */
+#include <crypto/crypto.h>
+#include <drvcrypt.h>
+#include <initcall.h>
+#include <trace.h>
+
+/*
+ * Pointers array to Cryptographic modules operation
+ */
+static void *crypt_algo[CRYPTO_MAX_ALGO] = { 0 };
+
+/*
+ * Cryptographic module registration
+ *
+ * @algo_id  Crypto index in the array
+ * @ops      Reference to the cryptographic module
+ */
+TEE_Result drvcrypt_register(enum drvcrypt_algo_id algo_id, void *ops)
+{
+	if (!crypt_algo[algo_id]) {
+		CRYPTO_TRACE("Registering module id %d with 0x%" PRIxPTR,
+			     algo_id, (uintptr_t)ops);
+		crypt_algo[algo_id] = ops;
+		return TEE_SUCCESS;
+	}
+
+	CRYPTO_TRACE("Fail to register module id %d with 0x%" PRIxPTR, algo_id,
+		     (uintptr_t)ops);
+	return TEE_ERROR_GENERIC;
+}
+
+/*
+ * Cryptographic module modify registration
+ *
+ * @algo_id  Crypto index in the array
+ * @ops      Reference to the cryptographic module
+ */
+void drvcrypt_register_change(enum drvcrypt_algo_id algo_id, void *ops)
+{
+	CRYPTO_TRACE("Change registered module id %d with 0x%" PRIxPTR, algo_id,
+		     (uintptr_t)ops);
+	crypt_algo[algo_id] = ops;
+}
+
+/*
+ * Returns the address of the crypto module structure
+ *
+ * @algo_id  Crypto index in the array
+ */
+void *drvcrypt_getmod(enum drvcrypt_algo_id algo_id)
+{
+	return crypt_algo[algo_id];
+}
