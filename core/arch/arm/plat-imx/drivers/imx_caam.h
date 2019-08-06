@@ -42,6 +42,10 @@ struct imx_caam_job_ring {
 
 /* PRIBLOB Bits */
 #define PRIBLOB_11			3
+
+/* PRIBLOB Bits */
+#define MKVB_JR				1
+
 /* jr configuration registers */
 struct imx_caam_jr_ctrl {
 	uint32_t	irbar;

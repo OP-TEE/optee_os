@@ -21,10 +21,10 @@
 
 #include "imx_caam.h"
 
-static uint8_t stored_key[32] = { 0 };
+static uint8_t stored_key[MKVB_SIZE] = { 0 };
 static bool mkvb_retrieved;
 
-static void caam_enable_clocks(bool enable)
+static void caam_enable_clocks(void)
 {
 	vaddr_t ccm_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC);
 	uint32_t reg = 0;
@@ -36,10 +36,7 @@ static void caam_enable_clocks(bool enable)
 		CCM_CCGR0_CAAM_WRAPPER_ACLK |
 		CCM_CCGR0_CAAM_SECURE_MEM;
 
-	if (enable)
-		reg |= mask;
-	else
-		reg &= ~mask;
+	reg |= mask;
 
 	io_write32(ccm_base + CCM_CCGR0, reg);
 
@@ -48,14 +45,10 @@ static void caam_enable_clocks(bool enable)
 		reg  = io_read32(ccm_base + CCM_CCGR6);
 		mask = CCM_CCGR6_EMI_SLOW;
 
-		if (enable)
-			reg |= mask;
-		else
-			reg &= ~mask;
+		reg |= mask;
 
 		io_write32(ccm_base + CCM_CCGR6, reg);
 	}
-
 }
 
 static void imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
@@ -82,13 +75,13 @@ static void mkvb_init_jr(struct imx_mkvb *mkvb)
 
 	imx_caam_reset_jr(ctrl);
 	mkvb->njobs = 4;
-	io_write32((vaddr_t)&ctrl->jrstartr, 1);
-	io_write32((vaddr_t)&ctrl->jrcfg[1].irbar_ls,
+	io_write32((vaddr_t)&ctrl->jrstartr, 2);
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].irbar_ls,
 		   virt_to_phys(&mkvb->jr.inring));
-	io_write32((vaddr_t)&ctrl->jrcfg[1].irsr, mkvb->njobs);
-	io_write32((vaddr_t)&ctrl->jrcfg[1].orbar_ls,
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].irsr, mkvb->njobs);
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].orbar_ls,
 		   virt_to_phys(&mkvb->jr.outring));
-	io_write32((vaddr_t)&ctrl->jrcfg[1].orsr, mkvb->njobs);
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].orsr, mkvb->njobs);
 }
 
 static TEE_Result caam_get_mkvb(uint8_t *dest)
@@ -101,7 +94,6 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 	mkvb.ctrl = (struct imx_caam_ctrl *)
 		core_mmu_get_va(CAAM_BASE, MEM_AREA_IO_SEC);
 
-	caam_enable_clocks(true);
 	mkvb_init_jr(&mkvb);
 
 	mkvb.descriptor[0] = MKVB_DESC_HEADER;
@@ -118,10 +110,10 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 			sizeof(mkvb.jr.inring[0]));
 
 	/*  Tell CAAM that one job is available */
-	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[1].irjar, 1);
+	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[MKVB_JR].irjar, 1);
 
 	/*  Busy loop until job is completed */
-	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[1].orsfr) != 1) {
+	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[MKVB_JR].orsfr) != 1) {
 		counter++;
 		if (counter > 10000)
 			goto out;
@@ -168,7 +160,7 @@ static TEE_Result init_caam(void)
 	if (!caam)
 		return TEE_ERROR_GENERIC;
 
-	caam_enable_clocks(true);
+	caam_enable_clocks();
 	/*
 	 * Set job-ring ownership to non-secure by default.
 	 * A Linux kernel that runs after OP-TEE will run in normal-world
