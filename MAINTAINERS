@@ -116,6 +116,13 @@ S:	Maintained
 F:	core/arch/arm/plat-imx/
 F:	core/arch/arm/plat-imx/registers
 
+Crypto driver interface
+R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
+R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
+R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
+S:	Maintained
+F:	core/drivers/crypto/
+
 NXP (Freescale) i.MX7 WaRP7
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org> [@bryanodonoghue]

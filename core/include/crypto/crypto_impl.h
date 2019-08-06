@@ -232,4 +232,15 @@ struct crypto_authenc_ops {
 
 TEE_Result crypto_aes_ccm_alloc_ctx(struct crypto_authenc_ctx **ctx);
 TEE_Result crypto_aes_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx);
+
+#ifdef CFG_CRYPTO_DRV_HASH
+TEE_Result drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx, uint32_t algo);
+#else
+static inline TEE_Result
+drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx __unused,
+			uint32_t algo __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/
