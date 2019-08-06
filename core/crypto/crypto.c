@@ -14,30 +14,39 @@
 
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_hash_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_MD5:
-		res = crypto_md5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA1:
-		res = crypto_sha1_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA224:
-		res = crypto_sha224_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA256:
-		res = crypto_sha256_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA384:
-		res = crypto_sha384_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA512:
-		res = crypto_sha512_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	/*
+	 * If a Cryptographic driver is supported, call first
+	 * the driver's allocation function. If return no success
+	 * call the SW defined library
+	 */
+	res = drvcrypt_hash_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_MD5:
+			res = crypto_md5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA1:
+			res = crypto_sha1_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA224:
+			res = crypto_sha224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA256:
+			res = crypto_sha256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA384:
+			res = crypto_sha384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA512:
+			res = crypto_sha512_alloc_ctx(&c);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (!res)
