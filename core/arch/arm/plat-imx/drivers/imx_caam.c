@@ -63,15 +63,15 @@ static void imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
 	uint32_t reg_val = 0;
 	uint32_t timeout = 1000;
 
-	io_write32((vaddr_t)&ctrl->jrcfg[0].jrcr, 1);
+	io_write32((vaddr_t)&ctrl->jrcfg[1].jrcr, 1);
 	do {
-		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[0].jrintr);
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[1].jrintr);
 		reg_val &= 0xc;
 	} while ((reg_val == 0x4) && --timeout);
 
-	io_write32((vaddr_t)&ctrl->jrcfg[0].jrcr, 1);
+	io_write32((vaddr_t)&ctrl->jrcfg[1].jrcr, 1);
 	do {
-		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[0].jrintr);
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[1].jrintr);
 		reg_val &= 0xc;
 	} while ((reg_val & 0x1) && --timeout);
 }
@@ -83,12 +83,12 @@ static void mkvb_init_jr(struct imx_mkvb *mkvb)
 	imx_caam_reset_jr(ctrl);
 	mkvb->njobs = 4;
 	io_write32((vaddr_t)&ctrl->jrstartr, 1);
-	io_write32((vaddr_t)&ctrl->jrcfg[0].irbar_ls,
+	io_write32((vaddr_t)&ctrl->jrcfg[1].irbar_ls,
 		   virt_to_phys(&mkvb->jr.inring));
-	io_write32((vaddr_t)&ctrl->jrcfg[0].irsr, mkvb->njobs);
-	io_write32((vaddr_t)&ctrl->jrcfg[0].orbar_ls,
+	io_write32((vaddr_t)&ctrl->jrcfg[1].irsr, mkvb->njobs);
+	io_write32((vaddr_t)&ctrl->jrcfg[1].orbar_ls,
 		   virt_to_phys(&mkvb->jr.outring));
-	io_write32((vaddr_t)&ctrl->jrcfg[0].orsr, mkvb->njobs);
+	io_write32((vaddr_t)&ctrl->jrcfg[1].orsr, mkvb->njobs);
 }
 
 static TEE_Result caam_get_mkvb(uint8_t *dest)
@@ -118,10 +118,10 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 			sizeof(mkvb.jr.inring[0]));
 
 	/*  Tell CAAM that one job is available */
-	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[0].irjar, 1);
+	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[1].irjar, 1);
 
 	/*  Busy loop until job is completed */
-	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[0].orsfr) != 1) {
+	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[1].orsfr) != 1) {
 		counter++;
 		if (counter > 10000)
 			goto out;
