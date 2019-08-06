@@ -43,8 +43,9 @@ struct imx_caam_job_ring {
 /* PRIBLOB Bits */
 #define PRIBLOB_11			3
 
-/* PRIBLOB Bits */
+/* JR Bits */
 #define MKVB_JR				1
+#define MKVB_JR1_START			2
 
 /* jr configuration registers */
 struct imx_caam_jr_ctrl {

@@ -51,7 +51,7 @@ static void caam_enable_clocks(void)
 	}
 }
 
-static void imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
+static TEE_Result imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
 {
 	uint32_t reg_val = 0;
 	uint32_t timeout = 1000;
@@ -62,26 +62,40 @@ static void imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
 		reg_val &= 0xc;
 	} while ((reg_val == 0x4) && --timeout);
 
+	if (!timeout)
+		return TEE_ERROR_SECURITY;
+
 	io_write32((vaddr_t)&ctrl->jrcfg[1].jrcr, 1);
 	do {
 		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[1].jrintr);
 		reg_val &= 0xc;
 	} while ((reg_val & 0x1) && --timeout);
+
+	if (!timeout)
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
 }
 
-static void mkvb_init_jr(struct imx_mkvb *mkvb)
+static TEE_Result mkvb_init_jr(struct imx_mkvb *mkvb)
 {
 	struct imx_caam_ctrl *ctrl = mkvb->ctrl;
+	TEE_Result ret;
 
-	imx_caam_reset_jr(ctrl);
+	ret = imx_caam_reset_jr(ctrl);
+	if (ret)
+		return ret;
+
 	mkvb->njobs = 4;
-	io_write32((vaddr_t)&ctrl->jrstartr, 2);
+	io_write32((vaddr_t)&ctrl->jrstartr, MKVB_JR1_START);
 	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].irbar_ls,
 		   virt_to_phys(&mkvb->jr.inring));
 	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].irsr, mkvb->njobs);
 	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].orbar_ls,
 		   virt_to_phys(&mkvb->jr.outring));
 	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].orsr, mkvb->njobs);
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result caam_get_mkvb(uint8_t *dest)
@@ -94,7 +108,9 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 	mkvb.ctrl = (struct imx_caam_ctrl *)
 		core_mmu_get_va(CAAM_BASE, MEM_AREA_IO_SEC);
 
-	mkvb_init_jr(&mkvb);
+	ret = mkvb_init_jr(&mkvb);
+	if (ret)
+		goto out;
 
 	mkvb.descriptor[0] = MKVB_DESC_HEADER;
 	mkvb.descriptor[1] = MKVB_DESC_SEQ_OUT;
@@ -109,10 +125,10 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 	cache_operation(TEE_CACHEFLUSH, &mkvb.jr,
 			sizeof(mkvb.jr.inring[0]));
 
-	/*  Tell CAAM that one job is available */
+	/* Tell CAAM that one job is available */
 	io_write32((vaddr_t)&mkvb.ctrl->jrcfg[MKVB_JR].irjar, 1);
 
-	/*  Busy loop until job is completed */
+	/* Busy loop until job is completed */
 	while (io_read32((vaddr_t)&mkvb.ctrl->jrcfg[MKVB_JR].orsfr) != 1) {
 		counter++;
 		if (counter > 10000)
