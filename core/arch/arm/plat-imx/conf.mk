@@ -82,6 +82,7 @@ $(call force,CFG_MX6,y)
 $(call force,CFG_MX6ULL,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_IMX_CAAM,n)
+$(call force,CFG_NXP_CAAM,n)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -113,6 +114,7 @@ $(call force,CFG_MX6,y)
 $(call force,CFG_MX6SLL,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_IMX_CAAM,n)
+$(call force,CFG_NXP_CAAM,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6sx-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6SX,y)
@@ -130,6 +132,7 @@ $(call force,CFG_MX7ULP,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_TZC380,n)
 $(call force,CFG_CSU,n)
+$(call force,CFG_NXP_CAAM,n)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mq-flavorlist)))
 $(call force,CFG_IMX8MQ,y)
@@ -156,12 +159,14 @@ $(call force,CFG_IMX_SNVS,n)
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 6
+$(call force,CFG_NXP_CAAM,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8qx-flavorlist)))
 $(call force,CFG_IMX8QX,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
+$(call force,CFG_NXP_CAAM,n)
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -334,7 +339,6 @@ ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_PM_STUBS,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 CFG_BOOT_SYNC_CPU ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= y
@@ -343,7 +347,6 @@ CFG_PAGEABLE_ADDR ?= 0
 CFG_PSCI_ARM32 ?= y
 CFG_SECURE_TIME_SOURCE_REE ?= y
 CFG_UART_BASE ?= UART1_BASE
-CFG_IMX_CAAM ?= y
 endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
@@ -380,3 +383,29 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 24
+
+# Almost all platforms include CAAM HW Modules, except the
+# ones forced to be disabled
+CFG_NXP_CAAM ?= y
+
+ifeq ($(CFG_NXP_CAAM),y)
+# As NXP CAAM Driver is enabled, disable the small local CAAM driver
+# used just to release Job Rings to Non-Secure world
+$(call force,CFG_IMX_CAAM,n)
+
+# If NXP CAAM Driver is supported, the Crypto Driver interfacing
+# it with generic crypto API can be enabled.
+CFG_CRYPTO_DRIVER ?= y
+# Crypto Driver Debug
+CFG_CRYPTO_DRIVER_DEBUG ?= n
+else
+$(call force,CFG_CRYPTO_DRIVER,n)
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
+CFG_IMX_CAAM ?= y
+endif
+endif
+
+# Cryptographic configuration
+include core/arch/arm/plat-imx/crypto_conf.mk

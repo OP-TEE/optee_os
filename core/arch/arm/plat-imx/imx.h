@@ -23,6 +23,7 @@
 #define SOC_MX8QX	0xE2
 #define SOC_MX8QM	0xE3
 
+#ifndef __ASSEMBLER__
 uint32_t imx_get_src_gpr(int cpu);
 void imx_set_src_gpr(int cpu, uint32_t val);
 bool soc_is_imx6(void);
@@ -44,6 +45,9 @@ void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
 #ifdef CFG_TZC380
 void imx_configure_tzasc(void);
 #else
-static inline void imx_configure_tzasc(void) {}
+static inline void imx_configure_tzasc(void)
+{
+}
 #endif /* CFG_TZC380 */
+#endif /* __ASSEMBLER__ */
 #endif
