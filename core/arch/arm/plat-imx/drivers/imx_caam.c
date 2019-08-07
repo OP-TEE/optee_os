@@ -56,18 +56,18 @@ static TEE_Result imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
 	uint32_t reg_val = 0;
 	uint32_t timeout = 1000;
 
-	io_write32((vaddr_t)&ctrl->jrcfg[1].jrcr, 1);
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].jrcr, 1);
 	do {
-		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[1].jrintr);
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[MKVB_JR].jrintr);
 		reg_val &= 0xc;
 	} while ((reg_val == 0x4) && --timeout);
 
 	if (!timeout)
 		return TEE_ERROR_SECURITY;
 
-	io_write32((vaddr_t)&ctrl->jrcfg[1].jrcr, 1);
+	io_write32((vaddr_t)&ctrl->jrcfg[MKVB_JR].jrcr, 1);
 	do {
-		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[1].jrintr);
+		reg_val = io_read32((vaddr_t)&ctrl->jrcfg[MKVB_JR].jrintr);
 		reg_val &= 0xc;
 	} while ((reg_val & 0x1) && --timeout);
 
