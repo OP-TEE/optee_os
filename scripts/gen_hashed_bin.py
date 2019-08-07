@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2014-2017, Linaro Limited
@@ -75,7 +75,7 @@ def append_hashes(outf, in_fname):
         elif len(page) == 0:
             break
         else:
-            print("Error: short read, got " + repr(len(page)))
+            print("Error: short read, got {}".format(len(page)))
             sys.exit(1)
 
     inf.close()
@@ -88,7 +88,7 @@ def int_parse(str):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--arch', required=True,
-                        choices=arch_id.keys(),
+                        choices=list(arch_id.keys()),
                         help='Architecture')
 
     parser.add_argument('--flags',
@@ -149,8 +149,8 @@ def main():
         hashlib.sha256().digest_size
 
     if paged_input_size % (4 * 1024) != 0:
-        print("Error: pageable size not a multiple of 4K:" +
-              repr(paged_input_size))
+        print("Error: pageable size not a multiple of 4K: {}".format(
+            paged_input_size))
         sys.exit(1)
 
     init_size = pager_input_size + \
