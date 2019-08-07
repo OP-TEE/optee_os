@@ -272,5 +272,17 @@ drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
-#endif
+#endif /* CFG_CRYPTO_DRV_HASH */
+
+#ifdef CFG_CRYPTO_DRV_CIPHER
+TEE_Result drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx,
+				     uint32_t algo);
+#else
+static inline TEE_Result
+drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx __unused,
+			  uint32_t algo __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* CFG_CRYPTO_DRV_CIPHER */
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/
