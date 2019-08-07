@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017, Linaro Limited
+ * Copyright 2020 NXP
  */
 
 #include <assert.h>
@@ -18,7 +19,7 @@ TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 	struct crypto_hash_ctx *c = NULL;
 
 	/*
-	 * Use default cryptographic implement if no matching
+	 * Use default cryptographic implementation if no matching
 	 * drvcrypt device.
 	 */
 	res = drvcrypt_hash_alloc_ctx(&c, algo);
@@ -94,48 +95,56 @@ TEE_Result crypto_hash_final(void *ctx, uint8_t *digest, size_t len)
 
 TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_cipher_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_AES_ECB_NOPAD:
-		res = crypto_aes_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_NOPAD:
-		res = crypto_aes_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTR:
-		res = crypto_aes_ctr_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTS:
-		res = crypto_aes_cts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_XTS:
-		res = crypto_aes_xts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_ECB_NOPAD:
-		res = crypto_des_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_ECB_NOPAD:
-		res = crypto_des3_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_NOPAD:
-		res = crypto_des_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_NOPAD:
-		res = crypto_des3_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_ECB_NOPAD:
-		res = crypto_sm4_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_CBC_NOPAD:
-		res = crypto_sm4_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_CTR:
-		res = crypto_sm4_ctr_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_cipher_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_AES_ECB_NOPAD:
+			res = crypto_aes_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_NOPAD:
+			res = crypto_aes_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTR:
+			res = crypto_aes_ctr_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTS:
+			res = crypto_aes_cts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_XTS:
+			res = crypto_aes_xts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_ECB_NOPAD:
+			res = crypto_des_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_ECB_NOPAD:
+			res = crypto_des3_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_NOPAD:
+			res = crypto_des_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_NOPAD:
+			res = crypto_des3_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_ECB_NOPAD:
+			res = crypto_sm4_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_CBC_NOPAD:
+			res = crypto_sm4_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_CTR:
+			res = crypto_sm4_ctr_alloc_ctx(&c);
+			break;
+		default:
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		}
 	}
 
 	if (!res)
