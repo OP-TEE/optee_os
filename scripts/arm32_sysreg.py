@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2018, Linaro Limited
 #
-from __future__ import print_function
+
 
 import argparse
 import sys
