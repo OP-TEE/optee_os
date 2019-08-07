@@ -17,6 +17,7 @@
 # DBG_RNG    BIT32(6)  // RNG trace
 # DBG_HASH   BIT32(7)  // Hash trace
 # DBG_RSA    BIT32(8)  // RSA trace
+# DBG_CIPHER BIT32(9)  // Cipher trace
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
@@ -63,6 +64,7 @@ cryphw-one-enabled = $(call cfg-one-enabled, \
 
 # Definition of the HW and Cryto Driver Algorithm supported by all i.MX
 $(eval $(call cryphw-enable-drv-hw, HASH))
+$(eval $(call cryphw-enable-drv-hw, CIPHER))
 
 ifneq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) \
 	$(CFG_MX6S) $(CFG_MX6SL) $(CFG_MX6SLL) $(CFG_MX6SX)), y)
