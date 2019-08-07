@@ -10,3 +10,4 @@ srcs-y += caam_rng.c
 srcs-y += caam_desc.c
 subdirs-$(CFG_NXP_CAAM_HASH_DRV) += hash
 subdirs-$(CFG_NXP_CAAM_ACIPHER_DRV) += acipher
+subdirs-$(CFG_NXP_CAAM_CIPHER_DRV) += cipher

@@ -34,6 +34,7 @@
 #define DBG_TRACE_RNG	 BIT32(6)  /* RNG trace */
 #define DBG_TRACE_HASH	 BIT32(7)  /* Hash trace */
 #define DBG_TRACE_RSA	 BIT32(8)  /* RSA trace */
+#define DBG_TRACE_CIPHER BIT32(9)  /* Cipher dump Buffer */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -148,6 +149,29 @@
 #define RSA_TRACE(...)
 #define RSA_DUMPDESC(desc)
 #define RSA_DUMPBUF(...)
+#endif
+
+/* Cipher */
+#if CAAM_DBG_TRACE(CIPHER)
+#define CIPHER_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(CIPHER)
+#define CIPHER_DUMPDESC(desc)                                                  \
+	do {                                                                   \
+		CIPHER_TRACE("CIPHER Descriptor");                             \
+		DRV_DUMPDESC(desc);                                            \
+	} while (0)
+#else
+#define CIPHER_DUMPDESC(desc)
+#endif
+#if CAAM_DBG_TRACE(CIPHER)
+#define CIPHER_DUMPBUF DRV_DUMPBUF
+#else
+#define CIPHER_DUMPBUF(...)
+#endif
+#else
+#define CIPHER_TRACE(...)
+#define CIPHER_DUMPDESC(desc)
+#define CIPHER_DUMPBUF(...)
 #endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)
