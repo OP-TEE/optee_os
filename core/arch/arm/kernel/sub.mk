@@ -28,6 +28,9 @@ srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 srcs-$(CFG_ARM32_core) += thread_a32.S
 srcs-$(CFG_ARM64_core) += thread_a64.S
 srcs-y += thread.c
+srcs-y += thread_optee_smc.c
+srcs-$(CFG_ARM32_core) += thread_optee_smc_a32.S
+srcs-$(CFG_ARM64_core) += thread_optee_smc_a64.S
 srcs-y += abort.c
 srcs-$(CFG_WITH_VFP) += vfp.c
 ifeq ($(CFG_WITH_VFP),y)

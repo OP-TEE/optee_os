@@ -79,7 +79,6 @@ struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
 	vaddr_t stack_va_end;
-	uint32_t hyp_clnt_id;
 	uint32_t flags;
 	struct core_mmu_user_map user_map;
 	bool have_user_map;
@@ -123,6 +122,7 @@ extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
 extern thread_smc_handler_t thread_std_smc_handler_ptr;
+extern thread_smc_handler_t thread_fast_smc_handler_ptr;
 extern thread_nintr_handler_t thread_nintr_handler_ptr;
 extern thread_pm_handler_t thread_cpu_on_handler_ptr;
 extern thread_pm_handler_t thread_cpu_off_handler_ptr;
@@ -204,11 +204,17 @@ void thread_set_irq_sp(vaddr_t sp);
 void thread_set_fiq_sp(vaddr_t sp);
 #endif /*ARM32*/
 
-/* Handles a fast SMC by dispatching it to the registered fast SMC handler */
-void thread_handle_fast_smc(struct thread_smc_args *args);
+/* Checks stack canaries */
+void thread_check_canaries(void);
 
-/* Handles a std SMC by dispatching it to the registered std SMC handler */
-void thread_handle_std_smc(struct thread_smc_args *args);
+void __thread_std_smc_entry(struct thread_smc_args *args);
+
+void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
+void thread_resume_from_rpc(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			    uint32_t a4, uint32_t a5);
+void thread_lock_global(void);
+void thread_unlock_global(void);
+
 
 /*
  * Suspends current thread and temorarily exits to non-secure world.
@@ -220,10 +226,17 @@ void thread_handle_std_smc(struct thread_smc_args *args);
 #define THREAD_RPC_NUM_ARGS     6
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
-/* Checks stack canaries */
-void thread_check_canaries(void);
+/*
+ * Called from assembly only, vector_fast_smc_entry(). Handles a fast SMC
+ * by dispatching it to the registered fast SMC handler.
+ */
+void thread_handle_fast_smc(struct thread_smc_args *args);
 
-void __thread_std_smc_entry(struct thread_smc_args *args);
+/*
+ * Called from assembly only, vector_std_smc_entry().  Handles a std SMC by
+ * dispatching it to the registered std SMC handler.
+ */
+void thread_handle_std_smc(struct thread_smc_args *args);
 
 #endif /*__ASSEMBLER__*/
 
