@@ -65,7 +65,7 @@ F:	core/arch/arm/plat-bcm/
 HiSilicon D02
 R:	Linaro <op-tee@linaro.org>
 S:	Maintained
-S:	core/arch/arm/plat-d02/
+F:	core/arch/arm/plat-d02/
 
 HiSilicon HiKey (Kirin 620), HiKey960 (Kirin 960)
 R:	Linaro <op-tee@linaro.org>
