@@ -533,11 +533,11 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	l->curr_thread = n;
 
-	if (is_user_mode(&threads[n].regs))
-		tee_ta_update_session_utime_resume();
-
 	if (threads[n].have_user_map)
 		core_mmu_set_user_map(&threads[n].user_map);
+
+	if (is_user_mode(&threads[n].regs))
+		tee_ta_update_session_utime_resume();
 
 	/*
 	 * Return from RPC to request service of a foreign interrupt must not
