@@ -29,6 +29,7 @@
 #include <tee/tee_svc_storage.h>
 #include <tee_api_types.h>
 #include <trace.h>
+#include <user_ta_header.h>
 #include <utee_types.h>
 #include <util.h>
 
@@ -876,12 +877,14 @@ struct tee_ta_session *tee_ta_get_calling_session(void)
 	return s;
 }
 
+#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
+
 #if defined(CFG_TA_GPROF_SUPPORT)
 void tee_ta_gprof_sample_pc(vaddr_t pc)
 {
-	struct tee_ta_session *s;
-	struct sample_buf *sbuf;
-	size_t idx;
+	struct tee_ta_session *s = NULL;
+	struct sample_buf *sbuf = NULL;
+	size_t idx = 0;
 
 	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
 		return;
@@ -895,23 +898,15 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 	sbuf->count++;
 }
 
-/*
- * Update user-mode CPU time for the current session
- * @suspend: true if session is being suspended (leaving user mode), false if
- * it is resumed (entering user mode)
- */
-static void tee_ta_update_session_utime(bool suspend)
+static void gprof_update_session_utime(bool suspend, struct tee_ta_session *s,
+				       uint64_t now)
 {
-	struct tee_ta_session *s;
-	struct sample_buf *sbuf;
-	uint64_t now;
+	struct sample_buf *sbuf = NULL;
 
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		return;
 	sbuf = s->sbuf;
 	if (!sbuf)
 		return;
-	now = read_cntpct();
+
 	if (suspend) {
 		assert(sbuf->usr_entered);
 		sbuf->usr += now - sbuf->usr_entered;
@@ -922,6 +917,50 @@ static void tee_ta_update_session_utime(bool suspend)
 			now++; /* 0 is reserved */
 		sbuf->usr_entered = now;
 	}
+}
+#endif
+
+#if defined(CFG_TA_FTRACE_SUPPORT)
+static void ftrace_update_session_utime(bool suspend, struct tee_ta_session *s,
+					uint64_t now)
+{
+	struct ftrace_buf *fbuf = NULL;
+	uint32_t i = 0;
+
+	fbuf = s->fbuf;
+	if (!fbuf)
+		return;
+
+	if (suspend) {
+		fbuf->suspend_time = now;
+	} else {
+		for (i = 0; i <= fbuf->ret_idx; i++)
+			fbuf->begin_time[i] += now - fbuf->suspend_time;
+	}
+}
+#endif
+
+/*
+ * Update user-mode CPU time for the current session
+ * @suspend: true if session is being suspended (leaving user mode), false if
+ * it is resumed (entering user mode)
+ */
+static void tee_ta_update_session_utime(bool suspend)
+{
+	struct tee_ta_session *s = NULL;
+	uint64_t now = 0;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		return;
+
+	now = read_cntpct();
+
+#if defined(CFG_TA_GPROF_SUPPORT)
+	gprof_update_session_utime(suspend, s, now);
+#endif
+#if defined(CFG_TA_FTRACE_SUPPORT)
+	ftrace_update_session_utime(suspend, s, now);
+#endif
 }
 
 void tee_ta_update_session_utime_suspend(void)

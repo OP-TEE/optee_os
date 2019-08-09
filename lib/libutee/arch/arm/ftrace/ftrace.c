@@ -10,10 +10,13 @@
  * profiled too.
  */
 
+#include <arm_user_sysreg.h>
 #include <setjmp.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
 #include "ftrace.h"
+
+#define DURATION_MAX_LEN		16
 
 static const char hex_str[] = "0123456789abcdef";
 
@@ -40,8 +43,11 @@ static size_t __noprof to_func_enter_fmt(char *buf, uint32_t ret_idx,
 	uint32_t addr_size = 2 * sizeof(unsigned long);
 	uint32_t i = 0;
 
-	for (i = 0; i < ret_idx; i++)
-		*str++ = ' ';
+	for (i = 0; i < (DURATION_MAX_LEN + ret_idx); i++)
+		if (i == (DURATION_MAX_LEN - 2))
+			*str++ = '|';
+		else
+			*str++ = ' ';
 
 	*str++ = '0';
 	*str++ = 'x';
@@ -69,7 +75,8 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 	if (!fbuf->buf_off || !fbuf->max_size)
 		return;
 
-	dump_size = fbuf->ret_idx + (2 * sizeof(unsigned long)) + 8;
+	dump_size = DURATION_MAX_LEN + fbuf->ret_idx +
+			(2 * sizeof(unsigned long)) + 8;
 
 	/*
 	 * Check if we have enough space in ftrace buffer. If not then just
@@ -85,6 +92,7 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 
 	if (fbuf->ret_idx < FTRACE_RETFUNC_DEPTH) {
 		fbuf->ret_stack[fbuf->ret_idx] = *lr;
+		fbuf->begin_time[fbuf->ret_idx] = read_cntpct();
 		fbuf->ret_idx++;
 	} else {
 		/*
@@ -97,11 +105,42 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 	*lr = (unsigned long)&__ftrace_return;
 }
 
+static void __noprof ftrace_duration(char *buf, uint64_t start, uint64_t end)
+{
+	uint32_t cntfrq = read_cntfrq();
+	uint64_t ticks = end - start;
+	uint32_t us = 0;
+	uint32_t ns = 0;
+	uint32_t i = 0;
+
+	ticks = ticks * 1000000000 / cntfrq;
+
+	us = (ticks % 1000000000) / 1000;
+	ns = ticks % 1000;
+
+	*buf-- = 's';
+	*buf-- = 'u';
+	*buf-- = ' ';
+
+	for (i = 0; i < 3; i++) {
+		*buf-- = hex_str[ns % 10];
+		ns /= 10;
+	}
+
+	*buf-- = '.';
+
+	while (us) {
+		*buf-- = hex_str[us % 10];
+		us /= 10;
+	}
+}
+
 unsigned long __noprof ftrace_return(void)
 {
 	struct ftrace_buf *fbuf = NULL;
 	size_t dump_size = 0;
 	char *curr_buf = NULL;
+	char *dur_loc = NULL;
 	uint32_t i = 0;
 
 	fbuf = &__ftrace_buf_start;
@@ -124,21 +163,33 @@ unsigned long __noprof ftrace_return(void)
 		*(curr_buf - 2) = '\n';
 		*(curr_buf - 1) = '\0';
 		fbuf->curr_size -= 1;
+
+		dur_loc = curr_buf - (fbuf->ret_idx +
+				      (2 * sizeof(unsigned long)) + 11);
+		ftrace_duration(dur_loc, fbuf->begin_time[fbuf->ret_idx],
+				read_cntpct());
 	} else {
-		dump_size = fbuf->ret_idx + 3;
+		dump_size = DURATION_MAX_LEN + fbuf->ret_idx + 3;
 		if ((fbuf->curr_size + dump_size) > fbuf->max_size)
 			fbuf_shift(fbuf, dump_size);
 
 		curr_buf = (char *)fbuf + fbuf->buf_off + fbuf->curr_size;
 
-		for (i = 0; i < fbuf->ret_idx; i++)
-			*curr_buf++ = ' ';
+		for (i = 0; i < (DURATION_MAX_LEN + fbuf->ret_idx); i++)
+			if (i == (DURATION_MAX_LEN - 2))
+				*curr_buf++ = '|';
+			else
+				*curr_buf++ = ' ';
 
 		*curr_buf++ = '}';
 		*curr_buf++ = '\n';
 		*curr_buf = '\0';
 
 		fbuf->curr_size += dump_size - 1;
+
+		dur_loc = curr_buf - fbuf->ret_idx - 6;
+		ftrace_duration(dur_loc, fbuf->begin_time[fbuf->ret_idx],
+				read_cntpct());
 	}
 
 	return fbuf->ret_stack[fbuf->ret_idx];
