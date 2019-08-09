@@ -71,8 +71,7 @@ $(lib-shlibstrippedfile): $(lib-shlibfile)
 
 $(lib-shlibtafile): $(lib-shlibstrippedfile) $(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  SIGN    $$@'
-	$$(q)$$(SIGN) --key $(TA_SIGN_KEY) --uuid $(libuuid) --version 0 \
-		--in $$< --out $$@
+	$$(q)$$(SIGN) --key $(TA_SIGN_KEY) --uuid $(libuuid) --in $$< --out $$@
 
 $(lib-libuuidln): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  LN      $$@'
