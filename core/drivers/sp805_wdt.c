@@ -43,7 +43,7 @@ static TEE_Result sp805_setload(struct wdt_chip *chip, unsigned long timeout)
 	return TEE_SUCCESS;
 }
 
-static void sp805_config(struct wdt_chip *chip, bool ping)
+static void sp805_config(struct wdt_chip *chip, bool enable)
 {
 	struct sp805_wdt_data *pd =
 		container_of(chip, struct sp805_wdt_data, chip);
@@ -53,7 +53,7 @@ static void sp805_config(struct wdt_chip *chip, bool ping)
 	io_write32(base + WDT_LOAD_OFFSET, pd->load_val);
 	io_write32(base + WDT_INTCLR_OFFSET, WDT_INT_CLR);
 
-	if (!ping)
+	if (enable)
 		io_write32(base + WDT_CONTROL_OFFSET,
 			   WDT_INT_EN | WDT_RESET_EN);
 
@@ -65,12 +65,12 @@ static void sp805_config(struct wdt_chip *chip, bool ping)
 
 static void sp805_ping(struct wdt_chip *chip)
 {
-	sp805_config(chip, true);
+	sp805_config(chip, false);
 }
 
 static void sp805_enable(struct wdt_chip *chip)
 {
-	sp805_config(chip, false);
+	sp805_config(chip, true);
 }
 
 static void sp805_disable(struct wdt_chip *chip)
