@@ -130,8 +130,10 @@ void itr_core_handler(void)
 
 void console_init(void)
 {
+#ifdef CONSOLE_UART_BASE
 	imx_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);
+#endif
 }
 
 void main_init_gic(void)
