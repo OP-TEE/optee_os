@@ -54,7 +54,7 @@ struct shdr {
 
 struct shdr_bootstrap_ta {
 	uint8_t uuid[sizeof(TEE_UUID)];
-	uint32_t version;
+	uint32_t ta_version;
 };
 
 /*

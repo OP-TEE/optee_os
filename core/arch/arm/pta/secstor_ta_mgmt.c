@@ -30,7 +30,7 @@ static TEE_Result check_install_conflict(const struct shdr_bootstrap_ta *bs_ta)
 		return res;
 
 	prop = tee_tadb_ta_get_property(ta);
-	if (prop->version > bs_ta->version)
+	if (prop->version > bs_ta->ta_version)
 		res = TEE_ERROR_ACCESS_CONFLICT;
 
 	tee_tadb_ta_close(ta);
@@ -96,7 +96,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	memset(&property, 0, sizeof(property));
 	COMPILE_TIME_ASSERT(sizeof(property.uuid) == sizeof(bs_ta.uuid));
 	tee_uuid_from_octets(&property.uuid, bs_ta.uuid);
-	property.version = bs_ta.version;
+	property.version = bs_ta.ta_version;
 	property.custom_size = 0;
 	property.bin_size = nw_size - offs;
 	DMSG("Installing %pUl", (void *)&property.uuid);
