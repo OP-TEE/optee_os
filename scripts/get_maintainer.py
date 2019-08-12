@@ -17,6 +17,7 @@ import tempfile
 DIFF_GIT_RE = re.compile(r'^diff --git a/(?P<path>.*) ')
 REVIEWED_RE = re.compile(r'^Reviewed-by: (?P<approver>.*>)')
 ACKED_RE = re.compile(r'^Acked-by: (?P<approver>.*>)')
+PATCH_START = re.compile(r'^From [0-9a-f]{40}')
 
 
 def get_args():
@@ -88,9 +89,41 @@ def parse_maintainers():
     return subsystems
 
 
+# If @patchset is a patchset files and contains 2 patches or more, write
+# individual patches to temporary files and return the paths.
+# Otherwise return [].
+def split_patchset(patchset):
+    psname = os.path.basename(patchset).replace('.', '_')
+    patchnum = 0
+    of = None
+    ret = []
+    f = None
+    try:
+        f = open(patchset, "r")
+    except OsError:
+        return []
+    for line in f:
+        match = re.search(PATCH_START, line)
+        if match:
+            # New patch found: create new file
+            patchnum += 1
+            prefix = "{}_{}_".format(patchnum, psname)
+            of = tempfile.NamedTemporaryFile(mode="w", prefix=prefix,
+                                             suffix=".patch",
+                                             delete=False)
+            ret.append(of.name)
+        if of:
+            of.write(line)
+    if len(ret) >= 2:
+        return ret
+    if len(ret) == 1:
+        os.remove(ret[0])
+    return []
+
+
 # If @path is a patch file, returns the paths touched by the patch as well
 # as the content of the review/ack tags
-def get_paths_from_patchset(patch):
+def get_paths_from_patch(patch):
     paths = []
     approvers = []
     try:
@@ -197,17 +230,27 @@ def main():
     args = get_args()
     all_subsystems = parse_maintainers()
     paths = []
+    arglist = []
     downloads = []
+    split_patches = []
 
     for pr in args.github_pr or []:
         downloads += [download(pr)]
 
     for arg in args.arg + downloads:
+        if os.path.exists(arg):
+            patches = split_patchset(arg)
+            if patches:
+                split_patches += patches
+                continue
+        arglist.append(arg)
+
+    for arg in arglist + split_patches:
         patch_paths = []
         approved_by = []
         if os.path.exists(arg):
-            # Try to parse as a patch or patch set
-            (patch_paths, approved_by) = get_paths_from_patchset(arg)
+            # Try to parse as a patch
+            (patch_paths, approved_by) = get_paths_from_patch(arg)
         if not patch_paths:
             # Not a patch, consider the path itself
             # as_posix() cleans the path a little bit (suppress leading ./ and
@@ -225,7 +268,7 @@ def main():
             if not approved:
                 paths += [path]
 
-    for f in downloads:
+    for f in downloads + split_patches:
         os.remove(f)
 
     if args.file:
