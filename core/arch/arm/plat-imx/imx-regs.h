@@ -36,7 +36,7 @@
 #include <registers/imx7.h>
 #elif defined(CFG_MX7ULP)
 #include <registers/imx7ulp.h>
-#elif defined(CFG_IMX8MQ) || defined(CFG_IMX8MM)
+#elif defined(CFG_IMX8MQ) || defined(CFG_IMX8MM) || defined(CFG_IMX8MN)
 #include <registers/imx8m.h>
 #elif defined(CFG_IMX8QX) || defined(CFG_IMX8QM)
 #include <registers/imx8q.h>
