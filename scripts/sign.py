@@ -39,12 +39,12 @@ def get_args(logger):
         '     digest      Generate loadable TA binary image digest' +
         ' for offline\n' +
         '                 signing. Takes arguments  --uuid, --ta-version,' +
-        ' --in and --dig.\n' +
+        ' --in, --key and --dig.\n' +
         '     stitch      Generate loadable signed TA binary image' +
         ' file from\n' +
         '                 TA raw image and its signature. Takes' +
         ' arguments\n' +
-        '                 --uuid, --in, --out, and --sig.\n\n' +
+        '                 --uuid, --in, --key, --out, and --sig.\n\n' +
         '   %(prog)s --help  show available commands and arguments\n\n',
         formatter_class=RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
@@ -81,7 +81,7 @@ def get_args(logger):
         '--dig', required=False, dest='digf',
         help='Name of digest output file, defaults to <UUID>.dig')
     parser.add_argument(
-        '--in', required=False, dest='inf',
+        '--in', required=True, dest='inf',
         help='Name of application input file, defaults to <UUID>.stripped.elf')
     parser.add_argument(
         '--out', required=False, dest='outf',
