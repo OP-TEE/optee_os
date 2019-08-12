@@ -34,12 +34,12 @@ def get_args(logger):
 
         '   command:\n' +
         '     sign        Generate signed loadable TA image file.\n' +
-        '                 Takes arguments --uuid, --in, --out' +
+        '                 Takes arguments --uuid, --ta-version, --in, --out' +
         ' and --key.\n' +
         '     digest      Generate loadable TA binary image digest' +
         ' for offline\n' +
-        '                 signing. Takes arguments  --uuid, --in and' +
-        ' --dig.\n' +
+        '                 signing. Takes arguments  --uuid, --ta-version,' +
+        ' --in and --dig.\n' +
         '     stitch      Generate loadable signed TA binary image' +
         ' file from\n' +
         '                 TA raw image and its signature. Takes' +
@@ -69,6 +69,11 @@ def get_args(logger):
                         type=uuid_parse, help='String UUID of the TA')
     parser.add_argument('--key', required=True,
                         help='Name of key file (PEM format)')
+    parser.add_argument(
+        '--ta-version', required=False, type=int_parse, default=0,
+        help='TA version stored as a 32-bit unsigned integer and used for\n' +
+        'rollback protection of TA install in the secure database.\n' +
+        'Defaults to 0.')
     parser.add_argument(
         '--sig', required=False, dest='sigf',
         help='Name of signature input file, defaults to <UUID>.sig')
@@ -142,10 +147,12 @@ def main():
     sig_len = ceil_div(key.size() + 1, 8)
     img_size = len(img)
 
-    hdr_version = 0      # SHDR_VERSION (always 0)
+    hdr_version = args.ta_version  # struct shdr_bootstrap_ta::ta_version
+
     magic = 0x4f545348   # SHDR_MAGIC
     img_type = 1         # SHDR_BOOTSTRAP_TA
     algo = 0x70004830    # TEE_ALG_RSASSA_PKCS1_V1_5_SHA256
+
     shdr = struct.pack('<IIIIHH',
                        magic, img_type, img_size, algo, digest_len, sig_len)
     shdr_uuid = args.uuid.bytes
