@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017-2018, STMicroelectronics
 #
+# SPDX-License-Identifier: BSD-2-Clause
+
 import argparse
 import struct
 import mmap
+
 
 header_size = 256
 hdr_magic_number = 0x324D5453  # magic ='S' 'T' 'M' 0x32
