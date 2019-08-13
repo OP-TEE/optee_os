@@ -89,7 +89,6 @@ void print_kernel_stack(int level);
 #ifdef ARM64
 static inline void print_stack_arm64(int level __unused,
 				     struct unwind_state_arm64 *state __unused,
-				     bool kernel_stack __unused,
 				     vaddr_t stack __unused,
 				     size_t stack_size __unused)
 {
