@@ -69,7 +69,8 @@ def gen_read64_func(reg_name, opc1, crm, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline __noprof uint64_t read_' + reg_name.lower() + '(void)')
+    print('static inline __noprof uint64_t read_' + reg_name.lower() +
+          '(void)')
     print('{')
     print('\tuint64_t v;')
     print('')
@@ -96,7 +97,8 @@ def gen_read32_func(reg_name, crn, opc1, crm, opc2, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline __noprof uint32_t read_' + reg_name.lower() + '(void)')
+    print('static inline __noprof uint32_t read_' + reg_name.lower() +
+          '(void)')
     print('{')
     print('\tuint32_t v;')
     print('')
