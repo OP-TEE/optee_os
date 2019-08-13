@@ -121,7 +121,6 @@ struct thread_ctx {
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
-extern thread_nintr_handler_t thread_nintr_handler_ptr;
 extern thread_pm_handler_t thread_cpu_on_handler_ptr;
 extern thread_pm_handler_t thread_cpu_off_handler_ptr;
 extern thread_pm_handler_t thread_cpu_suspend_handler_ptr;

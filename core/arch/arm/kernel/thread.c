@@ -114,7 +114,6 @@ const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
 KEEP_PAGER(stack_tmp_export);
 KEEP_PAGER(stack_tmp_stride);
 
-thread_nintr_handler_t thread_nintr_handler_ptr __nex_bss;
 thread_pm_handler_t thread_cpu_on_handler_ptr __nex_bss;
 thread_pm_handler_t thread_cpu_off_handler_ptr __nex_bss;
 thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_bss;
@@ -762,7 +761,6 @@ int thread_get_id(void)
 
 static void init_handlers(const struct thread_handlers *handlers)
 {
-	thread_nintr_handler_ptr = handlers->nintr;
 	thread_cpu_on_handler_ptr = handlers->cpu_on;
 	thread_cpu_off_handler_ptr = handlers->cpu_off;
 	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;

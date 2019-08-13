@@ -51,10 +51,7 @@
 #include <kernel/tee_common_otp.h>
 #include <mm/core_mmu.h>
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
@@ -86,11 +83,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
 }
 
 #ifdef CFG_ARM32_core

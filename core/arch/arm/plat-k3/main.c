@@ -10,6 +10,7 @@
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
 #include <kernel/generic_boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
@@ -47,13 +48,12 @@ void main_secondary_init_gic(void)
 	gic_cpu_init(&gic_data);
 }
 
-static void main_fiq(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }
 
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,

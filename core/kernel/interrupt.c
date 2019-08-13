@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2019, Linaro Limited
  */
 
 #include <kernel/interrupt.h>
+#include <kernel/panic.h>
 #include <trace.h>
 
 /*
@@ -77,4 +78,10 @@ void itr_raise_sgi(size_t it, uint8_t cpu_mask)
 void itr_set_affinity(size_t it, uint8_t cpu_mask)
 {
 	itr_chip->ops->set_affinity(itr_chip, it, cpu_mask);
+}
+
+/* This function is supposed to be overridden in platform specific code */
+void __weak __noreturn itr_core_handler(void)
+{
+	panic("Secure interrupt handler not defined");
 }

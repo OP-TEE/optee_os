@@ -212,21 +212,9 @@ struct thread_specific_data {
 #endif /*__ASSEMBLER__*/
 
 #ifndef __ASSEMBLER__
-typedef void (*thread_nintr_handler_t)(void);
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
 					     unsigned long a1);
 struct thread_handlers {
-	/*
-	 * fiq is called as a regular function and normal ARM Calling
-	 * Convention applies.
-	 *
-	 * This handler handles native interrupts which can't be preemted. This
-	 * handler is executed with a limited stack. This handler must not cause
-	 * any aborts or reenenable native interrupts which are temporarily
-	 * masked while executing this handler.
-	 */
-	thread_nintr_handler_t nintr;
-
 	/*
 	 * Power management handlers triggered from ARM Trusted Firmware.
 	 * Not used when using internal monitor.

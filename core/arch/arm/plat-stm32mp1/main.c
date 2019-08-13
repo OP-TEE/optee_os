@@ -8,11 +8,12 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/stm32_etzpc.h>
-#include <drivers/stm32_uart.h>
 #include <drivers/stm32mp1_etzpc.h>
+#include <drivers/stm32_uart.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
-#include <kernel/generic_boot.h>
 #include <kernel/dt.h>
+#include <kernel/generic_boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -21,8 +22,8 @@
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stm32_util.h>
-#include <tee/entry_std.h>
 #include <tee/entry_fast.h>
+#include <tee/entry_std.h>
 #include <trace.h>
 
 #ifdef CFG_WITH_NSEC_GPIOS
@@ -54,10 +55,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG1_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
@@ -181,7 +179,7 @@ service_init_late(init_console_from_dt);
  */
 static struct gic_data gic_data;
 
-static void main_fiq(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }

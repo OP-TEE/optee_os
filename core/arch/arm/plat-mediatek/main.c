@@ -14,13 +14,10 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
-static void main_fiq(void);
-
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
 
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
@@ -34,11 +31,6 @@ static struct serial8250_uart_data console_data;
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
 }
 
 void console_init(void)

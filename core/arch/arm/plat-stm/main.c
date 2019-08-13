@@ -9,16 +9,17 @@
 #include <drivers/stih_asc.h>
 #include <io.h>
 #include <kernel/generic_boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <kernel/tz_ssvce_pl310.h>
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <tee/entry_std.h>
 #include <tee/entry_fast.h>
+#include <tee/entry_std.h>
 #include <trace.h>
 #include <util.h>
 
@@ -35,8 +36,6 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 static struct gic_data gic_data;
 static struct stih_asc_pd console_data;
-
-static void main_fiq(void);
 
 #if defined(PLATFORM_FLAVOR_b2260)
 static bool ns_resources_ready(void)
@@ -61,7 +60,6 @@ uint32_t tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 #endif
 
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
@@ -176,7 +174,7 @@ void main_secondary_init_gic(void)
 	gic_cpu_init(&gic_data);
 }
 
-static void main_fiq(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }
