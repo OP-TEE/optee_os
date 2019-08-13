@@ -12,6 +12,7 @@
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/generic_boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -26,10 +27,7 @@
 #include <tee/entry_std.h>
 #include <trace.h>
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
@@ -105,7 +103,7 @@ void main_secondary_init_gic(void)
 
 #endif
 
-static void main_fiq(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }

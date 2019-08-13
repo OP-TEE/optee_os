@@ -7,6 +7,7 @@
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
 #include <kernel/generic_boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
@@ -16,10 +17,7 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 
-static void secure_intr_handler(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = secure_intr_handler,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
@@ -65,7 +63,7 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-static void secure_intr_handler(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2019, Linaro Limited
  */
 #ifndef __KERNEL_INTERRUPT_H
 #define __KERNEL_INTERRUPT_H
@@ -56,5 +56,12 @@ void itr_raise_sgi(size_t it, uint8_t cpu_mask);
  * according to the cpu_mask.
  */
 void itr_set_affinity(size_t it, uint8_t cpu_mask);
+
+/*
+ * __weak overridable function which is called when a secure interrupt is
+ * received. The default function calls panic() immediately, platforms which
+ * expects to receive secure interrupts should override this function.
+ */
+void itr_core_handler(void);
 
 #endif /*__KERNEL_INTERRUPT_H*/

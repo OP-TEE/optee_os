@@ -947,9 +947,7 @@ END_FUNC el0_sync_abort
 	stp	x30, x2, [sp, #ELX_NINTR_REC_LR]
 
 	bl	thread_check_canaries
-	adr	x16, thread_nintr_handler_ptr
-	ldr	x16, [x16]
-	blr	x16
+	bl	itr_core_handler
 
 	/*
 	 * Restore registers

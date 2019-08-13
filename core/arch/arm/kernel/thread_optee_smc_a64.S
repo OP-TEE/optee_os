@@ -46,9 +46,7 @@ END_FUNC vector_fast_smc_entry
 LOCAL_FUNC vector_fiq_entry , :
 	/* Secure Monitor received a FIQ and passed control to us. */
 	bl	thread_check_canaries
-	adr	x16, thread_nintr_handler_ptr
-	ldr	x16, [x16]
-	blr	x16
+	bl	itr_core_handler
 	ldr	x0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
 	b	.	/* SMC should not return */

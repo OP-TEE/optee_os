@@ -16,10 +16,7 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,
@@ -43,11 +40,6 @@ register_phys_mem(MEM_AREA_IO_SEC, SYS_CTRL_BASE, SYS_CTRL_SIZE);
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
 }
 
 void console_init(void)

@@ -47,13 +47,7 @@
 #include <tee/entry_std.h>
 #include <tz_matrix.h>
 
-static void main_fiq(void)
-{
-	panic();
-}
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
 	.cpu_suspend = pm_panic,

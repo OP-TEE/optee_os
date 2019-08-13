@@ -51,10 +51,7 @@ register_dynamic_shm(NSEC_DDR_2_BASE, NSEC_DDR_2_SIZE);
 register_dynamic_shm(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 #endif
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers __nex_data = {
-	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
@@ -68,11 +65,6 @@ static struct scif_uart_data console_data __nex_bss;
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
 }
 
 void console_init(void)

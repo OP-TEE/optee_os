@@ -37,15 +37,15 @@
 #include <arm.h>
 #include <console.h>
 #include <kernel/generic_boot.h>
-#include <kernel/pm_stubs.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
+#include <kernel/pm_stubs.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 #include <trace.h>
 
-static void main_fiq(void);
 static struct gic_data gic_data;
 static struct cdns_uart_data console_data;
 
@@ -62,7 +62,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			CORE_MMU_PGDIR_SIZE);
 
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
@@ -97,7 +96,7 @@ void main_init_gic(void)
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 }
 
-static void main_fiq(void)
+void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }

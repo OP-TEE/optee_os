@@ -24,10 +24,7 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
-static void main_fiq(void);
-
 static const struct thread_handlers handlers = {
-	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
@@ -60,11 +57,6 @@ register_dynamic_shm(DRAM2_BASE, DRAM2_SIZE_NSEC);
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
-}
-
-static void main_fiq(void)
-{
-	panic();
 }
 
 void console_init(void)
