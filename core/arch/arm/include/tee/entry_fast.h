@@ -23,7 +23,11 @@ void tee_entry_get_os_revision(struct thread_smc_args *args);
  */
 size_t tee_entry_generic_get_api_call_count(void);
 
-/* Fast call entry */
+/*
+ * Fast call entry, __weak, overridable. If overridden should call
+ * __tee_entry_fast() at the end in order to handle the standard functions.
+ */
 void tee_entry_fast(struct thread_smc_args *args);
+void __tee_entry_fast(struct thread_smc_args *args);
 
 #endif /* TEE_ENTRY_FAST_H */

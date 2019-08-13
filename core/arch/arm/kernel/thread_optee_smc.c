@@ -17,6 +17,7 @@
 #include <sm/sm.h>
 #include <string.h>
 #include <tee/entry_std.h>
+#include <tee/entry_fast.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_fs_rpc.h>
 
@@ -36,7 +37,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	}
 #endif
 
-	thread_fast_smc_handler_ptr(args);
+	tee_entry_fast(args);
 
 #ifdef CFG_VIRTUALIZATION
 	virt_unset_guest();

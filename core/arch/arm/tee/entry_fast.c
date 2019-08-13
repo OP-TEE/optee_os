@@ -174,7 +174,17 @@ static void tee_entry_vm_destroyed(struct thread_smc_args *args)
 }
 #endif
 
-void tee_entry_fast(struct thread_smc_args *args)
+/* Note: this function is weak to let platforms add special handling */
+void __weak tee_entry_fast(struct thread_smc_args *args)
+{
+	__tee_entry_fast(args);
+}
+
+/*
+ * If tee_entry_fast() is overridden, it's still supposed to call this
+ * function.
+ */
+void __tee_entry_fast(struct thread_smc_args *args)
 {
 	switch (args->a0) {
 
