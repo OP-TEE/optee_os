@@ -516,7 +516,7 @@ static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 	if (res != TEE_ERROR_SHORT_BUFFER)
 		return;
 
-	pl_sz = ROUNDUP(SMALL_PAGE_SIZE, blen + sizeof(TEE_UUID));
+	pl_sz = ROUNDUP(blen + sizeof(TEE_UUID), SMALL_PAGE_SIZE);
 
 	mobj = thread_rpc_alloc_payload(pl_sz);
 	if (!mobj) {
