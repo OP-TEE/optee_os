@@ -299,8 +299,7 @@ static TEE_Result get_open_session_meta(size_t num_params,
 	return TEE_SUCCESS;
 }
 
-static void entry_open_session(struct thread_smc_args *smc_args,
-			       struct optee_msg_arg *arg, uint32_t num_params)
+static void entry_open_session(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
@@ -346,11 +345,9 @@ out:
 		arg->session = 0;
 	arg->ret = res;
 	arg->ret_origin = err_orig;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
-static void entry_close_session(struct thread_smc_args *smc_args,
-			struct optee_msg_arg *arg, uint32_t num_params)
+static void entry_close_session(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
 	struct tee_ta_session *s;
@@ -368,11 +365,9 @@ static void entry_close_session(struct thread_smc_args *smc_args,
 out:
 	arg->ret = res;
 	arg->ret_origin = TEE_ORIGIN_TEE;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
-static void entry_invoke_command(struct thread_smc_args *smc_args,
-				 struct optee_msg_arg *arg, uint32_t num_params)
+static void entry_invoke_command(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
@@ -406,11 +401,9 @@ out:
 
 	arg->ret = res;
 	arg->ret_origin = err_orig;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
-static void entry_cancel(struct thread_smc_args *smc_args,
-			struct optee_msg_arg *arg, uint32_t num_params)
+static void entry_cancel(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res;
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
@@ -433,15 +426,12 @@ static void entry_cancel(struct thread_smc_args *smc_args,
 out:
 	arg->ret = res;
 	arg->ret_origin = err_orig;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
 #ifdef CFG_CORE_DYN_SHM
-static void register_shm(struct thread_smc_args *smc_args,
-			 struct optee_msg_arg *arg, uint32_t num_params)
+static void register_shm(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	arg->ret = TEE_ERROR_BAD_PARAMETERS;
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
 
 	if (num_params != 1 ||
 	    (arg->params[0].attr !=
@@ -460,8 +450,7 @@ static void register_shm(struct thread_smc_args *smc_args,
 	arg->ret = TEE_SUCCESS;
 }
 
-static void unregister_shm(struct thread_smc_args *smc_args,
-			   struct optee_msg_arg *arg, uint32_t num_params)
+static void unregister_shm(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	if (num_params == 1) {
 		uint64_t cookie = arg->params[0].u.rmem.shm_ref;
@@ -474,138 +463,57 @@ static void unregister_shm(struct thread_smc_args *smc_args,
 		arg->ret = TEE_ERROR_BAD_PARAMETERS;
 		arg->ret_origin = TEE_ORIGIN_TEE;
 	}
-
-	smc_args->a0 = OPTEE_SMC_RETURN_OK;
-}
-
-static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
-{
-	struct mobj *mobj;
-	struct optee_msg_arg *arg;
-	size_t args_size;
-
-	assert(!(parg & SMALL_PAGE_MASK));
-	/* mobj_mapped_shm_alloc checks if parg resides in nonsec ddr */
-	mobj = mobj_mapped_shm_alloc(&parg, 1, 0, 0);
-	if (!mobj)
-		return NULL;
-
-	arg = mobj_get_va(mobj, 0);
-	if (!arg)
-		goto err;
-
-	*num_params = READ_ONCE(arg->num_params);
-	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
-		goto err;
-
-	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
-	if (args_size > SMALL_PAGE_SIZE) {
-		EMSG("Command buffer spans across page boundary");
-		goto err;
-	}
-
-	return mobj;
-err:
-	mobj_free(mobj);
-	return NULL;
 }
 #endif /*CFG_CORE_DYN_SHM*/
-
-static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
-{
-	struct optee_msg_arg *arg;
-	size_t args_size;
-
-	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM);
-	if (!arg)
-		return NULL;
-
-	*num_params = READ_ONCE(arg->num_params);
-	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
-		return NULL;
-
-	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
-
-	return mobj_shm_alloc(parg, args_size, 0);
-}
 
 void nsec_sessions_list_head(struct tee_ta_session_head **open_sessions)
 {
 	*open_sessions = &tee_open_sessions;
 }
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak tee_entry_std(struct thread_smc_args *smc_args)
+/* Note: this function is weak to let platforms add special handling */
+uint32_t __weak tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 {
-	paddr_t parg = 0;
-	struct optee_msg_arg *arg = NULL;
-	uint32_t num_params = 0;
-	struct mobj *mobj = NULL;
+	return __tee_entry_std(arg, num_params);
+}
 
-	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
-		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
-		DMSG("Expected 0x%x", OPTEE_SMC_CALL_WITH_ARG);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
-		return;
-	}
-	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
-
-	/* Check if this region is in static shared space */
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg,
-			  sizeof(struct optee_msg_arg))) {
-		mobj = get_cmd_buffer(parg, &num_params);
-	}
-#ifdef CFG_CORE_DYN_SHM
-	else {
-		if (parg & SMALL_PAGE_MASK) {
-			smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-			return;
-		}
-		mobj = map_cmd_buffer(parg, &num_params);
-	}
-#endif
-
-	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
-		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-		mobj_free(mobj);
-		return;
-	}
-
-	arg = mobj_get_va(mobj, 0);
-	assert(arg && mobj_is_nonsec(mobj));
+/*
+ * If tee_entry_std() is overridden, it's still supposed to call this
+ * function.
+ */
+uint32_t __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
+{
+	uint32_t rv = OPTEE_SMC_RETURN_OK;
 
 	/* Enable foreign interrupts for STD calls */
 	thread_set_foreign_intr(true);
 	switch (arg->cmd) {
 	case OPTEE_MSG_CMD_OPEN_SESSION:
-		entry_open_session(smc_args, arg, num_params);
+		entry_open_session(arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_CLOSE_SESSION:
-		entry_close_session(smc_args, arg, num_params);
+		entry_close_session(arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_INVOKE_COMMAND:
-		entry_invoke_command(smc_args, arg, num_params);
+		entry_invoke_command(arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_CANCEL:
-		entry_cancel(smc_args, arg, num_params);
+		entry_cancel(arg, num_params);
 		break;
 #ifdef CFG_CORE_DYN_SHM
 	case OPTEE_MSG_CMD_REGISTER_SHM:
-		register_shm(smc_args, arg, num_params);
+		register_shm(arg, num_params);
 		break;
 	case OPTEE_MSG_CMD_UNREGISTER_SHM:
-		unregister_shm(smc_args, arg, num_params);
+		unregister_shm(arg, num_params);
 		break;
 #endif
 	default:
 		EMSG("Unknown cmd 0x%x", arg->cmd);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+		rv = OPTEE_SMC_RETURN_EBADCMD;
 	}
-	mobj_free(mobj);
+
+	return rv;
 }
 
 static TEE_Result default_mobj_init(void)

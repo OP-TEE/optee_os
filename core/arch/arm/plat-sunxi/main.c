@@ -99,7 +99,6 @@ static void main_fiq(void)
 }
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)

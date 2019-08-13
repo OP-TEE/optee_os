@@ -50,7 +50,6 @@ static void main_fiq(void);
 static void platform_tee_entry_fast(struct thread_smc_args *args);
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
 	.fast_smc = platform_tee_entry_fast,
 	.nintr = main_fiq,
 	.cpu_on = pm_panic,
