@@ -39,7 +39,6 @@ static struct stih_asc_pd console_data;
 static void main_fiq(void);
 
 #if defined(PLATFORM_FLAVOR_b2260)
-#define stm_tee_entry_std	tee_entry_std
 static bool ns_resources_ready(void)
 {
 	return true;
@@ -51,15 +50,17 @@ static bool ns_resources_ready(void)
 {
 	return !!boot_is_completed;
 }
-static void stm_tee_entry_std(struct thread_smc_args *smc_args)
+
+/* Overriding the default __weak tee_entry_std() */
+uint32_t tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	boot_is_completed = 1;
-	tee_entry_std(smc_args);
+
+	return __tee_entry_std(arg, num_params);
 }
 #endif
 
 static const struct thread_handlers handlers = {
-	.std_smc = stm_tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
 	.cpu_on = pm_panic,

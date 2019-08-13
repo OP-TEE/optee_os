@@ -62,7 +62,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			CORE_MMU_PGDIR_SIZE);
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
 #if defined(CFG_WITH_ARM_TRUSTED_FW)

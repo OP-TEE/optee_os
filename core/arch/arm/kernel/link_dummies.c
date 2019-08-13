@@ -17,11 +17,6 @@ tee_svc_handler(struct thread_svc_regs *regs __unused)
 {
 }
 
-void __section(".text.dummy.tee_entry_std")
-tee_entry_std(struct thread_smc_args *smc_args __unused)
-{
-}
-
 TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
 {
 	return TEE_SUCCESS;

@@ -20,7 +20,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
 
 static const struct thread_handlers handlers = {
-	.std_smc = tee_entry_std,
 	.fast_smc = tee_entry_fast,
 	.nintr = main_fiq,
 	.cpu_on = cpu_on_handler,
