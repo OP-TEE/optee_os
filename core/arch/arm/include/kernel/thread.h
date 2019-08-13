@@ -212,28 +212,10 @@ struct thread_specific_data {
 #endif /*__ASSEMBLER__*/
 
 #ifndef __ASSEMBLER__
-typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_nintr_handler_t)(void);
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
 					     unsigned long a1);
 struct thread_handlers {
-	/*
-	 * fastcall is called as a regular function and
-	 * normal ARM Calling Convention applies. Return values are passed
-	 * args->param{1-3} and forwarded into r0-r3 when returned to
-	 * non-secure world.
-	 *
-	 * fastcall handles fast calls which can't be preemted. This
-	 * handler is executed with a limited stack. This handler must not
-	 * cause any aborts or reenenable native interrupts which are
-	 * temporarily masked while executing this handler.
-	 *
-	 * TODO investigate if we should execute fastcalls and native interrupts
-	 * on different stacks allowing native interrupts to be enabled during
-	 * a fastcall.
-	 */
-	thread_smc_handler_t fast_smc;
-
 	/*
 	 * fiq is called as a regular function and normal ARM Calling
 	 * Convention applies.

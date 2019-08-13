@@ -47,10 +47,8 @@
 #include <tee/entry_std.h>
 
 static void main_fiq(void);
-static void platform_tee_entry_fast(struct thread_smc_args *args);
 
 static const struct thread_handlers handlers = {
-	.fast_smc = platform_tee_entry_fast,
 	.nintr = main_fiq,
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,
@@ -238,7 +236,8 @@ static uint32_t read_slcr(uint32_t addr, uint32_t *val)
 	return OPTEE_SMC_RETURN_EBADADDR;
 }
 
-static void platform_tee_entry_fast(struct thread_smc_args *args)
+/* Overriding the default __weak tee_entry_fast() */
+void tee_entry_fast(struct thread_smc_args *args)
 {
 	switch (args->a0) {
 	case ZYNQ7K_SMC_SLCR_WRITE:
@@ -248,7 +247,7 @@ static void platform_tee_entry_fast(struct thread_smc_args *args)
 		args->a0 = read_slcr(args->a1, &args->a2);
 		break;
 	default:
-		tee_entry_fast(args);
+		__tee_entry_fast(args);
 		break;
 	}
 }

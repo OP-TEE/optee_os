@@ -19,7 +19,6 @@
 static void secure_intr_handler(void);
 
 static const struct thread_handlers handlers = {
-	.fast_smc = tee_entry_fast,
 	.nintr = secure_intr_handler,
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
