@@ -226,51 +226,59 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 	TEE_Result res = TEE_SUCCESS;
 	struct crypto_mac_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_HMAC_MD5:
-		res = crypto_hmac_md5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA1:
-		res = crypto_hmac_sha1_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA224:
-		res = crypto_hmac_sha224_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA256:
-		res = crypto_hmac_sha256_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA384:
-		res = crypto_hmac_sha384_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA512:
-		res = crypto_hmac_sha512_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SM3:
-		res = crypto_hmac_sm3_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-		res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-		res = crypto_aes_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-		res = crypto_des_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-		res = crypto_des_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-		res = crypto_des3_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CMAC:
-		res = crypto_aes_cmac_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_mac_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_HMAC_MD5:
+			res = crypto_hmac_md5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA1:
+			res = crypto_hmac_sha1_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA224:
+			res = crypto_hmac_sha224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA256:
+			res = crypto_hmac_sha256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA384:
+			res = crypto_hmac_sha384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA512:
+			res = crypto_hmac_sha512_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SM3:
+			res = crypto_hmac_sm3_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_MAC_NOPAD:
+			res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_MAC_PKCS5:
+			res = crypto_aes_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_MAC_NOPAD:
+			res = crypto_des_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_MAC_PKCS5:
+			res = crypto_des_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_MAC_NOPAD:
+			res = crypto_des3_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_MAC_PKCS5:
+			res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CMAC:
+			res = crypto_aes_cmac_alloc_ctx(&c);
+			break;
+		default:
+			return TEE_ERROR_NOT_SUPPORTED;
+		}
 	}
 
 	if (!res)
