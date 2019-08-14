@@ -30,6 +30,9 @@ $(call force,CFG_BCM_GPIO,y)
 CFG_BNXT_FW ?= y
 endif
 
+CFG_BCM_ELOG_AP_UART_LOG_BASE ?= 0x8f110000
+CFG_BCM_ELOG_AP_UART_LOG_SIZE ?= 0x10000
+
 ifeq ($(DEBUG),1)
 platform-cflags += -gdwarf-2
 platform-aflags += -gdwarf-2
