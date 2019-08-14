@@ -23,6 +23,17 @@
 UNWIND( .fnstart)
         push    {r5-r7,lr}
 UNWIND( .save   {r5-r7,lr})
+#if defined(CFG_ULIBS_MCOUNT) && !defined(__LDELF__)
+	.if \scn != TEE_SCN_RETURN
+	mov	ip, sp
+	push	{r0-r4, fp, ip}
+	add	fp, ip, #16
+	push	{lr}
+	bl	__gnu_mcount_nc
+	pop	{r0-r4, fp, ip}
+	mov	sp, ip
+	.endif
+#endif
         mov     r7, #(\scn)
 	.if \num_args > TEE_SVC_MAX_ARGS
 	.error "Too many arguments for syscall"
