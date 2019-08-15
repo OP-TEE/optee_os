@@ -494,7 +494,8 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	struct tee_ta_ctx *ctx;
 	bool keep_alive;
 
-	DMSG("csess 0x%" PRIxVA " id %u", (vaddr_t)csess, csess->id);
+	DMSG("csess 0x%" PRIxVA " id %u",
+	     (vaddr_t)csess, csess ? csess->id : UINT_MAX);
 
 	if (!csess)
 		return TEE_ERROR_ITEM_NOT_FOUND;
