@@ -183,21 +183,9 @@ END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
-/*
- * r0-r2 are used to pass parameters to normal world
- * r0-r5 are used to pass return value back from normal world
- *
- * note that r3 is used to pass "resume information", that is, which
- * thread it is that should resume.
- *
- * Since the this function is following AAPCS we need to preserve r4-r5
- * which are otherwise modified when returning back from normal world.
- */
 UNWIND(	.fnstart)
-	push	{r4-r5, lr}
-UNWIND(	.save	{r4-r5, lr})
-	push	{r0}
-UNWIND(	.save	{r0})
+	push	{r0, lr}
+UNWIND(	.save	{r0, lr})
 
 	bl	thread_save_state
 	mov	r4, r0			/* Save original CPSR */
@@ -229,9 +217,9 @@ UNWIND(	.save	{r0})
 	 * IRQ and FIQ bits are restored to what they where when this
 	 * function was originally entered.
 	 */
-	pop	{r12}			/* Get pointer to rv[] */
-	stm	r12, {r0-r5}		/* Store r0-r5 into rv[] */
-	pop	{r4-r5, pc}
+	pop	{r12, lr}		/* Get pointer to rv[] */
+	stm	r12, {r0-r3}		/* Store r0-r3 into rv[] */
+	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_rpc
 KEEP_PAGER thread_rpc

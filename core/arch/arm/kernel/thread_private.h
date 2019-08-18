@@ -213,8 +213,8 @@ void thread_set_fiq_sp(vaddr_t sp);
 void thread_check_canaries(void);
 
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
-void thread_resume_from_rpc(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
-			    uint32_t a4, uint32_t a5);
+void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
+			    uint32_t a2, uint32_t a3);
 void thread_lock_global(void);
 void thread_unlock_global(void);
 
@@ -226,7 +226,7 @@ void thread_unlock_global(void);
  * The purpose of this function is to request services from non-secure
  * world.
  */
-#define THREAD_RPC_NUM_ARGS     6
+#define THREAD_RPC_NUM_ARGS     4
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 
 /*

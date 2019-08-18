@@ -435,9 +435,8 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 }
 
 #ifdef ARM32
-static void copy_a0_to_a5(struct thread_ctx_regs *regs, uint32_t a0,
-			  uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
-			  uint32_t a5)
+static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,
+			  uint32_t a1, uint32_t a2, uint32_t a3)
 {
 	/*
 	 * Update returned values from RPC, values will appear in
@@ -447,15 +446,12 @@ static void copy_a0_to_a5(struct thread_ctx_regs *regs, uint32_t a0,
 	regs->r1 = a1;
 	regs->r2 = a2;
 	regs->r3 = a3;
-	regs->r4 = a4;
-	regs->r5 = a5;
 }
 #endif /*ARM32*/
 
 #ifdef ARM64
-static void copy_a0_to_a5(struct thread_ctx_regs *regs, uint32_t a0,
-			  uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
-			  uint32_t a5)
+static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,
+			  uint32_t a1, uint32_t a2, uint32_t a3)
 {
 	/*
 	 * Update returned values from RPC, values will appear in
@@ -465,8 +461,6 @@ static void copy_a0_to_a5(struct thread_ctx_regs *regs, uint32_t a0,
 	regs->x[1] = a1;
 	regs->x[2] = a2;
 	regs->x[3] = a3;
-	regs->x[4] = a4;
-	regs->x[5] = a5;
 }
 #endif /*ARM64*/
 
@@ -494,10 +488,10 @@ static bool is_user_mode(struct thread_ctx_regs *regs)
 	return is_from_user((uint32_t)regs->cpsr);
 }
 
-void thread_resume_from_rpc(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
-			    uint32_t a4, uint32_t a5)
+void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
+			    uint32_t a2, uint32_t a3)
 {
-	size_t n = a3; /* thread id */
+	size_t n = thread_id;
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
@@ -528,7 +522,7 @@ void thread_resume_from_rpc(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 	 * get parameters from non-secure world.
 	 */
 	if (threads[n].flags & THREAD_FLAGS_COPY_ARGS_ON_RETURN) {
-		copy_a0_to_a5(&threads[n].regs, a0, a1, a2, a3, a4, a5);
+		copy_a0_to_a3(&threads[n].regs, a0, a1, a2, a3);
 		threads[n].flags &= ~THREAD_FLAGS_COPY_ARGS_ON_RETURN;
 	}
 
