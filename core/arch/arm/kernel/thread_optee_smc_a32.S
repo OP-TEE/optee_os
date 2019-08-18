@@ -161,17 +161,8 @@ KEEP_PAGER thread_vector_table
 FUNC thread_std_smc_entry , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	/* Pass r0-r7 in a struct thread_smc_args */
-	push	{r0-r7}
-	mov	r0, sp
 	bl	__thread_std_smc_entry
-	/*
-	 * Load the returned r0-r3 into preserved registers and skip the
-	 * "returned" r4-r7 since they will not be returned to normal
-	 * world.
-	 */
-	pop	{r4-r7}
-	add	sp, #(4 * 4)
+	mov	r4, r0	/* Save return value for later */
 
 	/* Disable interrupts before switching to temporary stack */
 	cpsid	aif
@@ -182,9 +173,9 @@ UNWIND(	.cantunwind)
 
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	mov	r1, r4
-	mov	r2, r5
-	mov	r3, r6
-	mov	r4, r7
+	mov	r2, #0
+	mov	r3, #0
+	mov	r4, #0
 	smc	#0
 	b	.	/* SMC should not return */
 UNWIND(	.fnend)
