@@ -67,7 +67,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 	 * thread_rpc().
 	 */
 	if (a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC) {
-		thread_resume_from_rpc(a0, a1, a2, a3, a4, a5);
+		thread_resume_from_rpc(a3, a1, a2, a4, a5);
 		rv = OPTEE_SMC_RETURN_ERESUME;
 	} else {
 		thread_alloc_and_run(a0, a1, a2, a3);
@@ -301,8 +301,10 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 
 	thread_rpc(rpc_args);
 
-	pa = reg_pair_to_64(rpc_args[1], rpc_args[2]);
-	co = reg_pair_to_64(rpc_args[4], rpc_args[5]);
+	/* Registers 1 and 2 passed from normal world */
+	pa = reg_pair_to_64(rpc_args[0], rpc_args[1]);
+	/* Registers 4 and 5 passed from normal world */
+	co = reg_pair_to_64(rpc_args[2], rpc_args[3]);
 
 	if (!ALIGNMENT_IS_OK(pa, struct optee_msg_arg))
 		goto err;

@@ -197,7 +197,7 @@ FUNC thread_rpc , :
 	 * function was originally entered.
 	 */
 	pop	x16, xzr	/* Get pointer to rv[] */
-	store_wregs x16, 0, 0, 5	/* Store w0-w5 into rv[] */
+	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
 END_FUNC thread_rpc
 KEEP_PAGER thread_rpc
