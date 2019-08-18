@@ -147,8 +147,16 @@ void thread_excp_vect_workaround(void);
 void thread_excp_vect_workaround_a15(void);
 void thread_excp_vect_end(void);
 
-/* Handles a stdcall, r0-r7 holds the parameters */
-void thread_std_smc_entry(void);
+/*
+ * Assembly function as the first function in a thread.  Handles a stdcall,
+ * a0-a3 holds the parameters. Hands over to __thread_std_smc_entry() when
+ * everything is set up and does some post processing once
+ * __thread_std_smc_entry() returns.
+ */
+void thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
+uint32_t __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+				uint32_t a3);
+
 
 /*
  * Resumes execution of currently active thread by restoring context and
@@ -203,8 +211,6 @@ void thread_set_fiq_sp(vaddr_t sp);
 
 /* Checks stack canaries */
 void thread_check_canaries(void);
-
-void __thread_std_smc_entry(struct thread_smc_args *args);
 
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
 void thread_resume_from_rpc(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,

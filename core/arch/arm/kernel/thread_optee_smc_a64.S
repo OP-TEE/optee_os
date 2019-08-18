@@ -133,21 +133,8 @@ END_FUNC thread_vector_table
 KEEP_PAGER thread_vector_table
 
 FUNC thread_std_smc_entry , :
-	/* pass x0-x7 in a struct thread_smc_args */
-	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
-	mov	x0, sp
-
-	/* Call the registered handler */
 	bl	__thread_std_smc_entry
-
-	/*
-	 * Load the returned x0-x3 into preserved registers and skip the
-	 * "returned" x4-x7 since they will not be returned to normal
-	 * world.
-	 */
-	load_xregs sp, THREAD_SMC_ARGS_X0, 20, 23
-	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+	mov	w20, w0	/* Save return value for later */
 
 	/* Mask all maskable exceptions before switching to temporary stack */
 	msr	daifset, #DAIFBIT_ALL
@@ -157,10 +144,10 @@ FUNC thread_std_smc_entry , :
 	bl	thread_state_free
 
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
-	mov	x1, x20
-	mov	x2, x21
-	mov	x3, x22
-	mov	x4, x23
+	mov	w1, w20
+	mov	x2, #0
+	mov	x3, #0
+	mov	x4, #0
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC thread_std_smc_entry

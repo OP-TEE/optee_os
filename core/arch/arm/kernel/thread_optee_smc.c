@@ -153,44 +153,44 @@ static struct mobj *map_cmd_buffer(paddr_t pargi __unused,
 }
 #endif /*CFG_CORE_DYN_SHM*/
 
-static void std_smc_entry(struct thread_smc_args *smc_args)
+static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+			      uint32_t a3 __unused)
 {
 	paddr_t parg = 0;
 	struct optee_msg_arg *arg = NULL;
 	uint32_t num_params = 0;
 	struct mobj *mobj = NULL;
+	uint32_t rv = 0;
 
-	if (smc_args->a0 != OPTEE_SMC_CALL_WITH_ARG) {
-		EMSG("Unknown SMC 0x%" PRIx64, (uint64_t)smc_args->a0);
+	if (a0 != OPTEE_SMC_CALL_WITH_ARG) {
+		EMSG("Unknown SMC 0x%"PRIx32, a0);
 		DMSG("Expected 0x%x", OPTEE_SMC_CALL_WITH_ARG);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
-		return;
+		return OPTEE_SMC_RETURN_EBADCMD;
 	}
-	parg = (uint64_t)smc_args->a1 << 32 | smc_args->a2;
+	parg = reg_pair_to_64(a1, a2);
 
 	/* Check if this region is in static shared space */
 	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg,
 			 sizeof(struct optee_msg_arg))) {
 		mobj = get_cmd_buffer(parg, &num_params);
 	} else {
-		if (parg & SMALL_PAGE_MASK) {
-			smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
-			return;
-		}
+		if (parg & SMALL_PAGE_MASK)
+			return OPTEE_SMC_RETURN_EBADADDR;
 		mobj = map_cmd_buffer(parg, &num_params);
 	}
 
 	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		smc_args->a0 = OPTEE_SMC_RETURN_EBADADDR;
 		mobj_free(mobj);
-		return;
+		return OPTEE_SMC_RETURN_EBADADDR;
 	}
 
 	arg = mobj_get_va(mobj, 0);
 	assert(arg && mobj_is_nonsec(mobj));
-	smc_args->a0 = tee_entry_std(arg, num_params);
+	rv = tee_entry_std(arg, num_params);
 	mobj_free(mobj);
+
+	return rv;
 }
 
 /*
@@ -199,14 +199,17 @@ static void std_smc_entry(struct thread_smc_args *smc_args)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak __thread_std_smc_entry(struct thread_smc_args *args)
+uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+				       uint32_t a3)
 {
+	uint32_t rv = 0;
+
 #ifdef CFG_VIRTUALIZATION
 	virt_on_stdcall();
 #endif
-	std_smc_entry(args);
+	rv = std_smc_entry(a0, a1, a2, a3);
 
-	if (args->a0 == OPTEE_SMC_RETURN_OK) {
+	if (rv == OPTEE_SMC_RETURN_OK) {
 		struct thread_ctx *thr = threads + thread_get_id();
 
 		tee_fs_rpc_cache_clear(&thr->tsd);
@@ -217,6 +220,8 @@ void __weak __thread_std_smc_entry(struct thread_smc_args *args)
 			thr->rpc_mobj = NULL;
 		}
 	}
+
+	return rv;
 }
 
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
