@@ -638,11 +638,13 @@ TEE_Result bnxt_load_fw(int chip_type)
 	uintptr_t dst = 0;
 	uintptr_t src = 0;
 	struct bnxt_images_info bnxt_src_image_info;
+	vaddr_t sec_mem_dest = (vaddr_t)phys_to_virt(BNXT_BUFFER_SEC_MEM,
+						     MEM_AREA_RAM_SEC);
 
 	memset(&bnxt_src_image_info, 0, sizeof(struct bnxt_images_info));
 
-	if (get_bnxt_images_info(&bnxt_src_image_info, chip_type)
-				 != BNXT_SUCCESS)
+	if (get_bnxt_images_info(&bnxt_src_image_info,
+				 chip_type, sec_mem_dest) != BNXT_SUCCESS)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	bnxt_kong_halt();

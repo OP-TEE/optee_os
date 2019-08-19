@@ -33,6 +33,10 @@ struct bnxt_images_info {
 	uint32_t bnxt_bspd_cfg_len;
 };
 
-int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type);
+/* Reserve 1K for BSPD data */
+#define BNXT_IMG_SECMEM_OFFSET	0x400
+
+int get_bnxt_images_info(struct bnxt_images_info *bnxt_info,
+			 int chip_type, vaddr_t ddr_dest);
 
 #endif

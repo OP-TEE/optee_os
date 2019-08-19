@@ -20,6 +20,9 @@
 
 #define BCM_NS3		1
 
+static void set_bnxt_images_info(struct bnxt_images_info *bnxt_info,
+				 int chip_type, vaddr_t src, vaddr_t dst);
+
 static struct bnxt_img_header {
 	uint32_t bnxt_fw_ns3_sig;
 	uint32_t bnxt_fw_ns3_size;
@@ -27,46 +30,90 @@ static struct bnxt_img_header {
 	uint32_t bnxt_ns3_cfg_size;
 } *img_header;
 
-int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type)
+static int verify_header(vaddr_t mem)
+{
+	img_header = (struct bnxt_img_header *)mem;
+
+	if (img_header->bnxt_fw_ns3_sig == BNXT_FW_NS3_IMAGE_SIG &&
+	    img_header->bnxt_ns3_cfg_sig == BNXT_NS3_CFG_IMAGE_SIG)
+		return BNXT_SUCCESS;
+	return BNXT_FAILURE;
+}
+
+static void set_bnxt_images_info(struct bnxt_images_info *bnxt_info,
+				 int chip_type, vaddr_t src, vaddr_t dst)
 {
 	uint32_t len = 0;
+	struct bnxt_img_header *dst_header = NULL;
 	uint32_t fw_image_offset = sizeof(struct bnxt_img_header);
-	vaddr_t flash_dev_vaddr =
-			(uintptr_t)((vaddr_t)phys_to_virt(QSPI_BNXT_IMG,
-							  MEM_AREA_IO_NSEC));
 
-	bnxt_info->bnxt_bspd_cfg_vaddr =
-			(uintptr_t)((vaddr_t)phys_to_virt(QSPI_BSPD_ADDR,
-							  MEM_AREA_IO_NSEC));
+	img_header = (struct bnxt_img_header *)src;
+	if (dst) {
+		dst_header = (struct bnxt_img_header *)dst;
+		memcpy(dst_header, img_header, sizeof(*img_header));
+		dst += sizeof(*img_header);
+
+		if (chip_type != BCM_NS3) {
+			dst_header->bnxt_fw_ns3_size = 0;
+			dst_header->bnxt_ns3_cfg_size = 0;
+		}
+	}
+
+	if (chip_type == BCM_NS3) {
+		len = img_header->bnxt_fw_ns3_size;
+		bnxt_info->bnxt_fw_vaddr = src + fw_image_offset;
+		bnxt_info->bnxt_fw_len = len;
+		if (dst) {
+			memcpy((void *)dst, (void *)(src + fw_image_offset),
+			       len);
+			dst += len;
+		}
+
+		fw_image_offset += len;
+
+		len = img_header->bnxt_ns3_cfg_size;
+		bnxt_info->bnxt_cfg_vaddr = src + fw_image_offset;
+		bnxt_info->bnxt_cfg_len = len;
+		if (dst) {
+			memcpy((void *)dst, (void *)(src + fw_image_offset),
+			       len);
+		}
+	}
+}
+
+int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type,
+			 vaddr_t ddr_dest)
+{
+	vaddr_t flash_dev_vaddr = 0;
 
 	bnxt_info->bnxt_bspd_cfg_len = BNXT_BSPD_CFG_LEN;
 
-	img_header = (struct bnxt_img_header *)flash_dev_vaddr;
+	/* First verify if images are on sec mem */
+	if (verify_header(ddr_dest + BNXT_IMG_SECMEM_OFFSET) == BNXT_SUCCESS) {
+		DMSG("Images found on sec memory");
 
-	if (img_header->bnxt_fw_ns3_sig != BNXT_FW_NS3_IMAGE_SIG) {
-		EMSG("Invalid Nitro bin");
-		return BNXT_FAILURE;
-	}
+		bnxt_info->bnxt_bspd_cfg_vaddr = ddr_dest;
 
-	len = img_header->bnxt_fw_ns3_size;
+		set_bnxt_images_info(bnxt_info, chip_type,
+				     ddr_dest + BNXT_IMG_SECMEM_OFFSET, 0);
+	} else {
+		flash_dev_vaddr = (vaddr_t)phys_to_virt(QSPI_BNXT_IMG,
+							MEM_AREA_IO_NSEC);
 
-	if (chip_type == BCM_NS3) {
-		bnxt_info->bnxt_fw_vaddr = flash_dev_vaddr + fw_image_offset;
-		bnxt_info->bnxt_fw_len = len;
-	}
+		if (verify_header(flash_dev_vaddr) != BNXT_SUCCESS) {
+			EMSG("failed to load fw images");
+			return BNXT_FAILURE;
+		}
 
-	fw_image_offset += len;
+		DMSG("Images loading from flash memory");
+		bnxt_info->bnxt_bspd_cfg_vaddr =
+				(vaddr_t)phys_to_virt(QSPI_BSPD_ADDR,
+						      MEM_AREA_IO_NSEC);
+		memcpy((void *)ddr_dest, (void *)bnxt_info->bnxt_bspd_cfg_vaddr,
+		       BNXT_BSPD_CFG_LEN);
 
-	if (img_header->bnxt_ns3_cfg_sig != BNXT_NS3_CFG_IMAGE_SIG) {
-		EMSG("Invalid Nitro config");
-		return BNXT_FAILURE;
-	}
-
-	len = img_header->bnxt_ns3_cfg_size;
-
-	if (chip_type == BCM_NS3) {
-		bnxt_info->bnxt_cfg_vaddr = flash_dev_vaddr + fw_image_offset;
-		bnxt_info->bnxt_cfg_len = len;
+		set_bnxt_images_info(bnxt_info, chip_type, flash_dev_vaddr,
+				     ddr_dest + BNXT_IMG_SECMEM_OFFSET);
 	}
 
 	return BNXT_SUCCESS;
