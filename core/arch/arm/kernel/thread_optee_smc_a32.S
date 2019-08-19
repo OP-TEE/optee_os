@@ -15,16 +15,16 @@
 LOCAL_FUNC vector_std_smc_entry , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	push	{r0-r7}
-	mov	r0, sp
+	push	{r4-r7}
 	bl	thread_handle_std_smc
+	add	sp, sp, #(4 * 4)
 	/*
 	 * Normally thread_handle_std_smc() should return via
 	 * thread_exit(), thread_rpc(), but if thread_handle_std_smc()
 	 * hasn't switched stack (error detected) it will do a normal "C"
 	 * return.
 	 */
-	pop	{r1-r8}
+	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */

@@ -239,7 +239,9 @@ void thread_handle_fast_smc(struct thread_smc_args *args);
  * Called from assembly only, vector_std_smc_entry().  Handles a std SMC by
  * dispatching it to the registered std SMC handler.
  */
-void thread_handle_std_smc(struct thread_smc_args *args);
+uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
+			       uint32_t a3, uint32_t a4, uint32_t a5,
+			       uint32_t a6, uint32_t a7);
 
 #endif /*__ASSEMBLER__*/
 

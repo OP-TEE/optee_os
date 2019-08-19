@@ -14,9 +14,6 @@
 #include <sm/teesmc_opteed_macros.h>
 
 LOCAL_FUNC vector_std_smc_entry , :
-	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
-	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
-	mov	x0, sp
 	bl	thread_handle_std_smc
 	/*
 	 * Normally thread_handle_std_smc() should return via
@@ -24,8 +21,7 @@ LOCAL_FUNC vector_std_smc_entry , :
 	 * hasn't switched stack (error detected) it will do a normal "C"
 	 * return.
 	 */
-	load_xregs sp, THREAD_SMC_ARGS_X0, 1, 8
-	add	sp, sp, #THREAD_SMC_ARGS_SIZE
+	mov	w1, w0
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */
