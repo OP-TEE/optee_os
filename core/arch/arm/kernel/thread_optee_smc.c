@@ -48,15 +48,17 @@ out:
 	assert(thread_get_exceptions() == THREAD_EXCP_ALL);
 }
 
-void thread_handle_std_smc(struct thread_smc_args *args)
+uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
+			       uint32_t a3, uint32_t a4, uint32_t a5,
+			       uint32_t a6 __unused, uint32_t a7 __maybe_unused)
 {
+	uint32_t rv = OPTEE_SMC_RETURN_OK;
+
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
-	if (!virt_set_guest(args->a7)) {
-		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
-		return;
-	}
+	if (!virt_set_guest(a7))
+		return OPTEE_SMC_RETURN_ENOTAVAIL;
 #endif
 
 	/*
@@ -64,18 +66,19 @@ void thread_handle_std_smc(struct thread_smc_args *args)
 	 * on error. Successful return is done via thread_exit() or
 	 * thread_rpc().
 	 */
-	if (args->a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC) {
-		thread_resume_from_rpc(args->a0, args->a1, args->a2, args->a3,
-				       args->a4, args->a5);
-		args->a0 = OPTEE_SMC_RETURN_ERESUME;
+	if (a0 == OPTEE_SMC_CALL_RETURN_FROM_RPC) {
+		thread_resume_from_rpc(a0, a1, a2, a3, a4, a5);
+		rv = OPTEE_SMC_RETURN_ERESUME;
 	} else {
-		thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3);
-		args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
+		thread_alloc_and_run(a0, a1, a2, a3);
+		rv = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 	}
 
 #ifdef CFG_VIRTUALIZATION
 	virt_unset_guest();
 #endif
+
+	return rv;
 }
 
 /**
