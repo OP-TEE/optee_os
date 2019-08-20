@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <util.h>
 
 #define TEE_GCM_TAG_MAX_LENGTH		16

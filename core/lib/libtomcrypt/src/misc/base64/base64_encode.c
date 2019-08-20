@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file base64_encode.c
@@ -48,21 +19,21 @@
 #if defined(LTC_BASE64) || defined (LTC_BASE64_URL)
 
 #if defined(LTC_BASE64)
-static const char *codes_base64 =
+static const char * const codes_base64 =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 #endif /* LTC_BASE64 */
 
 #if defined(LTC_BASE64_URL)
-static const char *codes_base64url =
+static const char * const codes_base64url =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 #endif /* LTC_BASE64_URL */
 
 static int _base64_encode_internal(const unsigned char *in,  unsigned long inlen,
-                                 unsigned char *out, unsigned long *outlen,
+                                 char *out, unsigned long *outlen,
                                  const char *codes, int pad)
 {
    unsigned long i, len2, leven;
-   unsigned char *p;
+   char *p;
 
    LTC_ARGCHK(in     != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -103,7 +74,7 @@ static int _base64_encode_internal(const unsigned char *in,  unsigned long inlen
    *p = '\0';
 
    /* return ok */
-   *outlen = p - out;
+   *outlen = (unsigned long)(p - out); /* the length without terminating NUL */
    return CRYPT_OK;
 }
 
@@ -117,7 +88,7 @@ static int _base64_encode_internal(const unsigned char *in,  unsigned long inlen
    @return CRYPT_OK if successful
 */
 int base64_encode(const unsigned char *in,  unsigned long inlen,
-                        unsigned char *out, unsigned long *outlen)
+                                 char *out, unsigned long *outlen)
 {
     return _base64_encode_internal(in, inlen, out, outlen, codes_base64, 1);
 }
@@ -134,15 +105,21 @@ int base64_encode(const unsigned char *in,  unsigned long inlen,
    @return CRYPT_OK if successful
 */
 int base64url_encode(const unsigned char *in,  unsigned long inlen,
-                           unsigned char *out, unsigned long *outlen)
+                                    char *out, unsigned long *outlen)
 {
     return _base64_encode_internal(in, inlen, out, outlen, codes_base64url, 0);
+}
+
+int base64url_strict_encode(const unsigned char *in,  unsigned long inlen,
+                                           char *out, unsigned long *outlen)
+{
+    return _base64_encode_internal(in, inlen, out, outlen, codes_base64url, 1);
 }
 #endif /* LTC_BASE64_URL */
 
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/misc/base64/base64_encode.c,v $ */
-/* $Revision: 1.7 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

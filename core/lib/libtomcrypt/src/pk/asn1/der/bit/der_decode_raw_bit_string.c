@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_decode_bit_string.c
@@ -47,6 +18,7 @@
 #ifdef LTC_DER
 
 #define SETBIT(v, n)    (v=((unsigned char)(v) | (1U << (unsigned char)(n))))
+#define CLRBIT(v, n)    (v=((unsigned char)(v) & ~(1U << (unsigned char)(n))))
 
 /**
   Store a BIT STRING
@@ -60,6 +32,7 @@ int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
                                 unsigned char *out, unsigned long *outlen)
 {
    unsigned long dlen, blen, x, y;
+   int err;
 
    LTC_ARGCHK(in     != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -75,31 +48,17 @@ int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
       return CRYPT_INVALID_PACKET;
    }
 
-    /* offset in the data */
-    x = 1;
+   /* offset in the data */
+   x = 1;
 
    /* get the length of the data */
-   if (in[x] & 0x80) {
-      /* long format get number of length bytes */
-      y = in[x++] & 0x7F;
-
-      /* invalid if 0 or > 2 */
-      if (y == 0 || y > 2) {
-         return CRYPT_INVALID_PACKET;
-      }
-
-      /* read the data len */
-      dlen = 0;
-      while (y--) {
-         dlen = (dlen << 8) | (unsigned long)in[x++];
-      }
-   } else {
-      /* short format */
-      dlen = in[x++] & 0x7F;
+   y = inlen - 1;
+   if ((err = der_decode_asn1_length(in + x, &y, &dlen)) != CRYPT_OK) {
+      return err;
    }
-
+   x += y;
    /* is the data len too long or too short? */
-   if ((dlen == 0) || (dlen + x > inlen)) {
+   if ((dlen == 0) || (dlen > (inlen - x))) {
        return CRYPT_INVALID_PACKET;
    }
 
@@ -114,12 +73,14 @@ int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
 
    /* decode/store the bits */
    for (y = 0; y < blen; y++) {
-       if (in[x] & (1 << (7 - (y & 7)))) {
-          SETBIT(out[y/8], 7-(y%8));
-       }
-       if ((y & 7) == 7) {
-          ++x;
-       }
+      if (in[x] & (1 << (7 - (y & 7)))) {
+         SETBIT(out[y/8], 7-(y%8));
+      } else {
+         CLRBIT(out[y/8], 7-(y%8));
+      }
+      if ((y & 7) == 7) {
+         ++x;
+      }
    }
 
    /* we done */
@@ -129,6 +90,6 @@ int der_decode_raw_bit_string(const unsigned char *in,  unsigned long inlen,
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file lrw_setiv.c
@@ -74,7 +45,7 @@ int lrw_setiv(const unsigned char *IV, unsigned long len, symmetric_LRW *lrw)
    XMEMCPY(lrw->IV, IV, 16);
 
    /* check if we have to actually do work */
-   if (cipher_descriptor[lrw->cipher].accel_lrw_encrypt != NULL && cipher_descriptor[lrw->cipher].accel_lrw_decrypt != NULL) {
+   if (cipher_descriptor[lrw->cipher]->accel_lrw_encrypt != NULL && cipher_descriptor[lrw->cipher]->accel_lrw_decrypt != NULL) {
        /* we have accelerators, let's bail since they don't use lrw->pad anyways */
        return CRYPT_OK;
    }
@@ -84,7 +55,7 @@ int lrw_setiv(const unsigned char *IV, unsigned long len, symmetric_LRW *lrw)
    for (x = 1; x < 16; x++) {
 #ifdef LTC_FAST
        for (y = 0; y < 16; y += sizeof(LTC_FAST_TYPE)) {
-           *((LTC_FAST_TYPE *)(T + y)) ^= *((LTC_FAST_TYPE *)(&lrw->PC[x][IV[x]][y]));
+           *(LTC_FAST_TYPE_PTR_CAST(T + y)) ^= *(LTC_FAST_TYPE_PTR_CAST(&lrw->PC[x][IV[x]][y]));
        }
 #else
        for (y = 0; y < 16; y++) {
@@ -93,8 +64,8 @@ int lrw_setiv(const unsigned char *IV, unsigned long len, symmetric_LRW *lrw)
 #endif
    }
    XMEMCPY(lrw->pad, T, 16);
-#else     
-   gcm_gf_mult(lrw->tweak, IV, lrw->pad); 
+#else
+   gcm_gf_mult(lrw->tweak, IV, lrw->pad);
 #endif
 
    return CRYPT_OK;
@@ -102,6 +73,6 @@ int lrw_setiv(const unsigned char *IV, unsigned long len, symmetric_LRW *lrw)
 
 
 #endif
-/* $Source: /cvs/libtom/libtomcrypt/src/modes/lrw/lrw_setiv.c,v $ */
-/* $Revision: 1.13 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

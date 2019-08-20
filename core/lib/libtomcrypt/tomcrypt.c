@@ -6,7 +6,7 @@
 #include <crypto/crypto.h>
 #include <tee_api_types.h>
 #include <tee_api_defines.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <tomcrypt_init.h>
 #include "tomcrypt_mp.h"
 #include <trace.h>
@@ -18,26 +18,26 @@
 
 #if defined(_CFG_CORE_LTC_ACIPHER)
 /* Random generator */
-static int prng_crypto_start(union Prng_state *prng __unused)
+static int prng_crypto_start(prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
 static int prng_crypto_add_entropy(const unsigned char *in __unused,
 				   unsigned long inlen __unused,
-				   union Prng_state *prng __unused)
+				   prng_state *prng __unused)
 {
 	/* No entropy is required */
 	return CRYPT_OK;
 }
 
-static int prng_crypto_ready(union Prng_state *prng __unused)
+static int prng_crypto_ready(prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
 static unsigned long prng_crypto_read(unsigned char *out, unsigned long outlen,
-				      union Prng_state *prng __unused)
+				      prng_state *prng __unused)
 {
 	if (crypto_rng_read(out, outlen))
 		return 0;
@@ -45,21 +45,21 @@ static unsigned long prng_crypto_read(unsigned char *out, unsigned long outlen,
 	return outlen;
 }
 
-static int prng_crypto_done(union Prng_state *prng __unused)
+static int prng_crypto_done(prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
 static int prng_crypto_export(unsigned char *out __unused,
 			      unsigned long *outlen __unused,
-			      union Prng_state *prng __unused)
+			      prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }
 
 static int prng_crypto_import(const unsigned char *in  __unused,
 			      unsigned long inlen __unused,
-			      union Prng_state *prng __unused)
+			      prng_state *prng __unused)
 {
 	return CRYPT_OK;
 }

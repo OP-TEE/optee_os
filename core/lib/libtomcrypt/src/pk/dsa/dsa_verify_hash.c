@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file dsa_verify_hash.c
@@ -45,6 +16,7 @@
 
 
 #ifdef LTC_MDSA
+
 /**
   Verify a DSA signature
   @param r        DSA "r" parameter
@@ -52,19 +24,18 @@
   @param hash     The hash that was signed
   @param hashlen  The length of the hash that was signed
   @param stat     [out] The result of the signature verification, 1==valid, 0==invalid
-  @param key      The corresponding public DH key
+  @param key      The corresponding public DSA key
   @return CRYPT_OK if successful (even if the signature is invalid)
 */
 int dsa_verify_hash_raw(         void   *r,          void   *s,
-                    const unsigned char *hash, unsigned long hashlen, 
-                                    int *stat,      dsa_key *key)
+                    const unsigned char *hash, unsigned long hashlen,
+                                    int *stat, const dsa_key *key)
 {
    void          *w, *v, *u1, *u2;
    int           err;
 
    LTC_ARGCHK(r    != NULL);
    LTC_ARGCHK(s    != NULL);
-   LTC_ARGCHK(hash != NULL);
    LTC_ARGCHK(stat != NULL);
    LTC_ARGCHK(key  != NULL);
 
@@ -77,21 +48,23 @@ int dsa_verify_hash_raw(         void   *r,          void   *s,
    }
 
    /* neither r or s can be null or >q*/
-   if (mp_iszero(r) == LTC_MP_YES || mp_iszero(s) == LTC_MP_YES || mp_cmp(r, key->q) != LTC_MP_LT || mp_cmp(s, key->q) != LTC_MP_LT) {
+   if (mp_cmp_d(r, 0) != LTC_MP_GT || mp_cmp_d(s, 0) != LTC_MP_GT || mp_cmp(r, key->q) != LTC_MP_LT || mp_cmp(s, key->q) != LTC_MP_LT) {
       err = CRYPT_INVALID_PACKET;
       goto error;
    }
-   
+
+   /* FIPS 186-4 4.7: use leftmost min(bitlen(q), bitlen(hash)) bits of 'hash' */
+   hashlen = MIN(hashlen, (unsigned long)(key->qord));
+
    /* w = 1/s mod q */
    if ((err = mp_invmod(s, key->q, w)) != CRYPT_OK)                                       { goto error; }
 
    /* u1 = m * w mod q */
    if ((err = mp_read_unsigned_bin(u1, (unsigned char *)hash, hashlen)) != CRYPT_OK)      { goto error; }
-
    if ((err = mp_mulmod(u1, w, key->q, u1)) != CRYPT_OK)                                  { goto error; }
 
    /* u2 = r*w mod q */
-   if ((err = mp_mulmod(r, w, key->q, u2)) != CRYPT_OK)                                   { goto error; } 
+   if ((err = mp_mulmod(r, w, key->q, u2)) != CRYPT_OK)                                   { goto error; }
 
    /* v = g^u1 * y^u2 mod p mod q */
    if ((err = mp_exptmod(key->g, u1, key->p, u1)) != CRYPT_OK)                            { goto error; }
@@ -117,25 +90,35 @@ error:
   @param hash     The hash that was signed
   @param hashlen  The length of the hash that was signed
   @param stat     [out] The result of the signature verification, 1==valid, 0==invalid
-  @param key      The corresponding public DH key
+  @param key      The corresponding public DSA key
   @return CRYPT_OK if successful (even if the signature is invalid)
 */
-int dsa_verify_hash(const unsigned char *sig, unsigned long siglen,
-                    const unsigned char *hash, unsigned long hashlen, 
-                    int *stat, dsa_key *key)
+int dsa_verify_hash(const unsigned char *sig,        unsigned long  siglen,
+                    const unsigned char *hash,       unsigned long  hashlen,
+                          int           *stat, const dsa_key       *key)
 {
    int    err;
    void   *r, *s;
+   ltc_asn1_list sig_seq[2];
+   unsigned long reallen = 0;
+
+   LTC_ARGCHK(stat != NULL);
+   *stat = 0; /* must be set before the first return */
 
    if ((err = mp_init_multi(&r, &s, NULL)) != CRYPT_OK) {
-      return CRYPT_MEM;
+      return err;
    }
 
-   /* decode the sequence */
-   if ((err = der_decode_sequence_multi(sig, siglen,
-                                  LTC_ASN1_INTEGER, 1UL, r, 
-                                  LTC_ASN1_INTEGER, 1UL, s, 
-                                  LTC_ASN1_EOL,     0UL, NULL)) != CRYPT_OK) {
+   LTC_SET_ASN1(sig_seq, 0, LTC_ASN1_INTEGER, r, 1UL);
+   LTC_SET_ASN1(sig_seq, 1, LTC_ASN1_INTEGER, s, 1UL);
+
+   err = der_decode_sequence_strict(sig, siglen, sig_seq, 2);
+   if (err != CRYPT_OK) {
+      goto LBL_ERR;
+   }
+
+   err = der_length_sequence(sig_seq, 2, &reallen);
+   if (err != CRYPT_OK || reallen != siglen) {
       goto LBL_ERR;
    }
 
@@ -150,6 +133,6 @@ LBL_ERR:
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_verify_hash.c,v $ */
-/* $Revision: 1.15 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

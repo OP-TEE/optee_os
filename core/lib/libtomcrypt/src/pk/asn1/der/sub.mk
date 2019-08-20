@@ -1,6 +1,9 @@
 subdirs-y += bit
 subdirs-y += boolean
 subdirs-y += choice
+subdirs-y += custom_type
+subdirs-y += general
+subdirs-y += generalizedtime
 subdirs-y += ia5
 subdirs-y += integer
 subdirs-y += object_identifier

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file dsa_export.c
@@ -53,9 +24,10 @@
   @param key    The key to export
   @return CRYPT_OK if successful
 */
-int dsa_export(unsigned char *out, unsigned long *outlen, int type, dsa_key *key)
+int dsa_export(unsigned char *out, unsigned long *outlen, int type, const dsa_key *key)
 {
    unsigned long zero=0;
+   unsigned char flags[1];
    int err, std;
 
    LTC_ARGCHK(out    != NULL);
@@ -65,13 +37,8 @@ int dsa_export(unsigned char *out, unsigned long *outlen, int type, dsa_key *key
    std = type & PK_STD;
    type &= ~PK_STD;
 
-   /* can we store the static header?  */
    if (type == PK_PRIVATE && key->type != PK_PRIVATE) {
       return CRYPT_PK_TYPE_MISMATCH;
-   }
-
-   if (type != PK_PUBLIC && type != PK_PRIVATE) {
-      return CRYPT_INVALID_ARG;
    }
 
    if (type == PK_PRIVATE) {
@@ -85,10 +52,8 @@ int dsa_export(unsigned char *out, unsigned long *outlen, int type, dsa_key *key
                                          LTC_ASN1_INTEGER,      1UL, key->x,
                                          LTC_ASN1_EOL,          0UL, NULL);
       }
-      else {
-          unsigned char flags[1];
-          flags[0] = 1;
-          return der_encode_sequence_multi(out, outlen,
+      flags[0] = 1;
+      return der_encode_sequence_multi(out, outlen,
                                          LTC_ASN1_BIT_STRING,   1UL, flags,
                                          LTC_ASN1_INTEGER,      1UL, key->g,
                                          LTC_ASN1_INTEGER,      1UL, key->p,
@@ -96,10 +61,11 @@ int dsa_export(unsigned char *out, unsigned long *outlen, int type, dsa_key *key
                                          LTC_ASN1_INTEGER,      1UL, key->y,
                                          LTC_ASN1_INTEGER,      1UL, key->x,
                                          LTC_ASN1_EOL,          0UL, NULL);
-      }
-   } else {
+   }
+
+   if (type == PK_PUBLIC) {
       if (std) {
-          unsigned long tmplen = (mp_count_bits(key->y) / 8) + 8;
+          unsigned long tmplen = (unsigned long)(mp_count_bits(key->y) / 8) + 8;
           unsigned char* tmp = XMALLOC(tmplen);
           ltc_asn1_list int_list[3];
 
@@ -116,7 +82,7 @@ int dsa_export(unsigned char *out, unsigned long *outlen, int type, dsa_key *key
           LTC_SET_ASN1(int_list, 1, LTC_ASN1_INTEGER, key->q, 1UL);
           LTC_SET_ASN1(int_list, 2, LTC_ASN1_INTEGER, key->g, 1UL);
 
-          err = der_encode_subject_public_key_info(out, outlen, PKA_DSA, tmp,
+          err = x509_encode_subject_public_key_info(out, outlen, PKA_DSA, tmp,
               tmplen, LTC_ASN1_SEQUENCE, int_list,
               sizeof(int_list) / sizeof(int_list[0]));
 
@@ -124,23 +90,22 @@ error:
           XFREE(tmp);
           return err;
       }
-      else {
-          unsigned char flags[1];
-          flags[0] = 0;
-          return der_encode_sequence_multi(out, outlen,
+      flags[0] = 0;
+      return der_encode_sequence_multi(out, outlen,
                                      LTC_ASN1_BIT_STRING,   1UL, flags,
                                      LTC_ASN1_INTEGER,      1UL, key->g,
                                      LTC_ASN1_INTEGER,      1UL, key->p,
                                      LTC_ASN1_INTEGER,      1UL, key->q,
                                      LTC_ASN1_INTEGER,      1UL, key->y,
                                      LTC_ASN1_EOL,          0UL, NULL);
-      }
    }
+
+   return CRYPT_INVALID_ARG;
 }
 
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_export.c,v $ */
-/* $Revision: 1.10 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

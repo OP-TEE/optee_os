@@ -7,7 +7,7 @@
 #include <kernel/panic.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 
 TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 				     void *enc_key, size_t enc_keylen,

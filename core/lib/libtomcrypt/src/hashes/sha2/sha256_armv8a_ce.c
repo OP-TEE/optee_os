@@ -38,7 +38,7 @@
  *
  * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include <tomcrypt_private.h>
 #include "tomcrypt_arm_neon.h"
 
 /**
@@ -68,9 +68,10 @@ const struct ltc_hash_descriptor sha256_desc =
 
 
 /* Implemented in assembly */
-int sha256_ce_transform(ulong32 *state, unsigned char *buf, int blocks);
+int sha256_ce_transform(ulong32 *state, const unsigned char *buf, int blocks);
 
-static int sha256_compress_nblocks(hash_state *md, unsigned char *buf, int blocks)
+static int sha256_compress_nblocks(hash_state *md, const unsigned char *buf,
+				   int blocks)
 {
     struct tomcrypt_arm_neon_state state;
 
@@ -80,7 +81,7 @@ static int sha256_compress_nblocks(hash_state *md, unsigned char *buf, int block
     return CRYPT_OK;
 }
 
-static int sha256_compress(hash_state *md, unsigned char *buf)
+static int sha256_compress(hash_state *md, const unsigned char *buf)
 {
    return sha256_compress_nblocks(md, buf, 1);
 }
@@ -174,12 +175,12 @@ int sha256_done(hash_state * md, unsigned char *out)
 /**
   Self-test the hash
   @return CRYPT_OK if successful, CRYPT_NOP if self-tests have been disabled
-*/  
+*/
 int  sha256_test(void)
 {
  #ifndef LTC_TEST
     return CRYPT_NOP;
- #else    
+ #else
   static const struct {
       const char *msg;
       unsigned char hash[32];
@@ -191,9 +192,9 @@ int  sha256_test(void)
         0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad }
     },
     { "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
-      { 0x24, 0x8d, 0x6a, 0x61, 0xd2, 0x06, 0x38, 0xb8, 
+      { 0x24, 0x8d, 0x6a, 0x61, 0xd2, 0x06, 0x38, 0xb8,
         0xe5, 0xc0, 0x26, 0x93, 0x0c, 0x3e, 0x60, 0x39,
-        0xa3, 0x3c, 0xe4, 0x59, 0x64, 0xff, 0x21, 0x67, 
+        0xa3, 0x3c, 0xe4, 0x59, 0x64, 0xff, 0x21, 0x67,
         0xf6, 0xec, 0xed, 0xd4, 0x19, 0xdb, 0x06, 0xc1 }
     },
   };

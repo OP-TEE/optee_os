@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,16 +6,14 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file sprng.c
    Secure PRNG, Tom St Denis
 */
-   
+
 /* A secure PRNG using the RNG functions.  Basically this is a
  * wrapper that allows you to use a secure RNG as a PRNG
  * in the various other functions.
@@ -67,7 +38,7 @@ const struct ltc_prng_descriptor sprng_desc =
   Start the PRNG
   @param prng     [out] The PRNG state to initialize
   @return CRYPT_OK if successful
-*/  
+*/
 int sprng_start(prng_state *prng)
 {
    LTC_UNUSED_PARAM(prng);
@@ -80,7 +51,7 @@ int sprng_start(prng_state *prng)
   @param inlen    Length of the data to add
   @param prng     PRNG state to update
   @return CRYPT_OK if successful
-*/  
+*/
 int sprng_add_entropy(const unsigned char *in, unsigned long inlen, prng_state *prng)
 {
    LTC_UNUSED_PARAM(in);
@@ -93,7 +64,7 @@ int sprng_add_entropy(const unsigned char *in, unsigned long inlen, prng_state *
   Make the PRNG ready to read from
   @param prng   The PRNG to make active
   @return CRYPT_OK if successful
-*/  
+*/
 int sprng_ready(prng_state *prng)
 {
    LTC_UNUSED_PARAM(prng);
@@ -106,7 +77,7 @@ int sprng_ready(prng_state *prng)
   @param outlen   Length of output
   @param prng     The active PRNG to read from
   @return Number of octets read
-*/  
+*/
 unsigned long sprng_read(unsigned char *out, unsigned long outlen, prng_state *prng)
 {
    LTC_ARGCHK(out != NULL);
@@ -118,7 +89,7 @@ unsigned long sprng_read(unsigned char *out, unsigned long outlen, prng_state *p
   Terminate the PRNG
   @param prng   The PRNG to terminate
   @return CRYPT_OK if successful
-*/  
+*/
 int sprng_done(prng_state *prng)
 {
    LTC_UNUSED_PARAM(prng);
@@ -131,7 +102,8 @@ int sprng_done(prng_state *prng)
   @param outlen    [in/out] Max size and resulting size of the state
   @param prng      The PRNG to export
   @return CRYPT_OK if successful
-*/  
+*/
+/* NOLINTNEXTLINE(readability-non-const-parameter) - silence clang-tidy warning */
 int sprng_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
 {
    LTC_ARGCHK(outlen != NULL);
@@ -141,14 +113,14 @@ int sprng_export(unsigned char *out, unsigned long *outlen, prng_state *prng)
    *outlen = 0;
    return CRYPT_OK;
 }
- 
+
 /**
   Import a PRNG state
   @param in       The PRNG state
   @param inlen    Size of the state
   @param prng     The PRNG to import
   @return CRYPT_OK if successful
-*/  
+*/
 int sprng_import(const unsigned char *in, unsigned long inlen, prng_state *prng)
 {
   LTC_UNUSED_PARAM(in);
@@ -160,17 +132,32 @@ int sprng_import(const unsigned char *in, unsigned long inlen, prng_state *prng)
 /**
   PRNG self-test
   @return CRYPT_OK if successful, CRYPT_NOP if self-testing has been disabled
-*/  
+*/
 int sprng_test(void)
 {
+#ifndef LTC_TEST
+   return CRYPT_NOP;
+#else
+   prng_state st;
+   unsigned char en[] = { 0x01, 0x02, 0x03, 0x04 };
+   unsigned char out[1000];
+   int err;
+
+   if ((err = sprng_start(&st)) != CRYPT_OK)                         return err;
+   if ((err = sprng_add_entropy(en, sizeof(en), &st)) != CRYPT_OK)   return err;
+   if ((err = sprng_ready(&st)) != CRYPT_OK)                         return err;
+   if (sprng_read(out, 500, &st) != 500)                             return CRYPT_ERROR_READPRNG; /* skip 500 bytes */
+   if ((err = sprng_done(&st)) != CRYPT_OK)                          return err;
+
    return CRYPT_OK;
+#endif
 }
 
 #endif
 
 
- 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/prngs/sprng.c,v $ */
-/* $Revision: 1.6 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

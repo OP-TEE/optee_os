@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,15 +6,13 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file dsa_decrypt_key.c
   DSA Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MDSA
 
@@ -55,12 +26,13 @@
   @return CRYPT_OK if successful
 */
 int dsa_decrypt_key(const unsigned char *in,  unsigned long  inlen,
-                          unsigned char *out, unsigned long *outlen, 
-                          dsa_key *key)
+                          unsigned char *out, unsigned long *outlen,
+                    const dsa_key       *key)
 {
    unsigned char  *skey, *expt;
    void           *g_pub;
-   unsigned long  x, y, hashOID[32];
+   unsigned long  x, y;
+   unsigned long  hashOID[32] = { 0 };
    int            hash, err;
    ltc_asn1_list  decode[3];
 
@@ -73,21 +45,21 @@ int dsa_decrypt_key(const unsigned char *in,  unsigned long  inlen,
    if (key->type != PK_PRIVATE) {
       return CRYPT_PK_NOT_PRIVATE;
    }
-   
+
    /* decode to find out hash */
    LTC_SET_ASN1(decode, 0, LTC_ASN1_OBJECT_IDENTIFIER, hashOID, sizeof(hashOID)/sizeof(hashOID[0]));
- 
-   if ((err = der_decode_sequence(in, inlen, decode, 1)) != CRYPT_OK) {
+   err = der_decode_sequence(in, inlen, decode, 1);
+   if (err != CRYPT_OK && err != CRYPT_INPUT_TOO_LONG) {
       return err;
    }
 
-   hash = find_hash_oid(hashOID, decode[0].size);                   
+   hash = find_hash_oid(hashOID, decode[0].size);
    if (hash_is_valid(hash) != CRYPT_OK) {
       return CRYPT_INVALID_PACKET;
    }
 
    /* we now have the hash! */
-   
+
    if ((err = mp_init(&g_pub)) != CRYPT_OK) {
       return err;
    }
@@ -105,7 +77,7 @@ int dsa_decrypt_key(const unsigned char *in,  unsigned long  inlen,
       mp_clear(g_pub);
       return CRYPT_MEM;
    }
-   
+
    LTC_SET_ASN1(decode, 1, LTC_ASN1_INTEGER,          g_pub,      1UL);
    LTC_SET_ASN1(decode, 2, LTC_ASN1_OCTET_STRING,      skey,      MAXBLOCKSIZE);
 
@@ -120,7 +92,8 @@ int dsa_decrypt_key(const unsigned char *in,  unsigned long  inlen,
       goto LBL_ERR;
    }
 
-   y = MIN(mp_unsigned_bin_size(key->p) + 1, MAXBLOCKSIZE);
+   y = mp_unsigned_bin_size(key->p) + 1;
+   y = MIN(y, MAXBLOCKSIZE);
    if ((err = hash_memory(hash, expt, x, expt, &y)) != CRYPT_OK) {
       goto LBL_ERR;
    }
@@ -153,7 +126,7 @@ LBL_ERR:
 
    XFREE(expt);
    XFREE(skey);
-  
+
    mp_clear(g_pub);
 
    return err;
@@ -161,6 +134,7 @@ LBL_ERR:
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_decrypt_key.c,v $ */
-/* $Revision: 1.11 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
+

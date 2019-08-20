@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,15 +6,13 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
-/** 
+/**
    @file s_ocb_done.c
    OCB implementation, internal helper, by Tom St Denis
 */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 #ifdef LTC_OCB_MODE
 
@@ -50,7 +21,7 @@
  * is we XOR the final ciphertext into the checksum so we have to xor it
  * before we CTR [decrypt] or after [encrypt]
  *
- * the names pt/ptlen/ct really just mean in/inlen/out but this is the way I wrote it... 
+ * the names pt/ptlen/ct really just mean in/inlen/out but this is the way I wrote it...
  */
 
 /**
@@ -79,7 +50,7 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
    if ((err = cipher_is_valid(ocb->cipher)) != CRYPT_OK) {
       return err;
    }
-   if (ocb->block_len != cipher_descriptor[ocb->cipher].block_length ||
+   if (ocb->block_len != cipher_descriptor[ocb->cipher]->block_length ||
        (int)ptlen > ocb->block_len || (int)ptlen < 0) {
       return CRYPT_INVALID_ARG;
    }
@@ -102,17 +73,17 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
    }
 
    /* compute X[m] = len(pt[m]) XOR Lr XOR Z[m] */
-   ocb_shift_xor(ocb, X); 
+   ocb_shift_xor(ocb, X);
    XMEMCPY(Z, X, ocb->block_len);
 
    X[ocb->block_len-1] ^= (ptlen*8)&255;
    X[ocb->block_len-2] ^= ((ptlen*8)>>8)&255;
    for (x = 0; x < ocb->block_len; x++) {
-       X[x] ^= ocb->Lr[x]; 
+       X[x] ^= ocb->Lr[x];
    }
 
    /* Y[m] = E(X[m])) */
-   if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(X, Y, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(X, Y, &ocb->key)) != CRYPT_OK) {
       goto error;
    }
 
@@ -121,7 +92,7 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
       /* xor C[m] into checksum */
       for (x = 0; x < (int)ptlen; x++) {
          ocb->checksum[x] ^= ct[x];
-      }  
+      }
    }
 
    /* C[m] = P[m] xor Y[m] */
@@ -130,7 +101,7 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
    }
 
    if (mode == 0) {
-      /* encrypt mode */    
+      /* encrypt mode */
       /* xor C[m] into checksum */
       for (x = 0; x < (int)ptlen; x++) {
           ocb->checksum[x] ^= ct[x];
@@ -141,12 +112,12 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
    for (x = 0; x < ocb->block_len; x++) {
        ocb->checksum[x] ^= Y[x] ^ Z[x];
    }
-   
+
    /* encrypt checksum, er... tag!! */
-   if ((err = cipher_descriptor[ocb->cipher].ecb_encrypt(ocb->checksum, X, &ocb->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[ocb->cipher]->ecb_encrypt(ocb->checksum, X, &ocb->key)) != CRYPT_OK) {
       goto error;
    }
-   cipher_descriptor[ocb->cipher].done(&ocb->key);
+   cipher_descriptor[ocb->cipher]->done(&ocb->key);
 
    /* now store it */
    for (x = 0; x < ocb->block_len && x < (int)*taglen; x++) {
@@ -160,7 +131,7 @@ int s_ocb_done(ocb_state *ocb, const unsigned char *pt, unsigned long ptlen,
    zeromem(Z, MAXBLOCKSIZE);
    zeromem(ocb, sizeof(*ocb));
 #endif
-error:   
+error:
    XFREE(X);
    XFREE(Y);
    XFREE(Z);
@@ -171,6 +142,6 @@ error:
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/encauth/ocb/s_ocb_done.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

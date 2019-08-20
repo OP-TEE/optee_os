@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,15 +6,13 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file dsa_encrypt_key.c
   DSA Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MDSA
 
@@ -52,20 +23,20 @@
   @param out        [out] The destination for the ciphertext
   @param outlen     [in/out] The max size and resulting size of the ciphertext
   @param prng       An active PRNG state
-  @param wprng      The index of the PRNG you wish to use 
-  @param hash       The index of the hash you want to use 
+  @param wprng      The index of the PRNG you wish to use
+  @param hash       The index of the hash you want to use
   @param key        The DSA key you want to encrypt to
   @return CRYPT_OK if successful
 */
 int dsa_encrypt_key(const unsigned char *in,   unsigned long inlen,
-                          unsigned char *out,  unsigned long *outlen, 
-                          prng_state *prng, int wprng, int hash, 
-                          dsa_key *key)
+                          unsigned char *out,  unsigned long *outlen,
+                          prng_state    *prng, int wprng, int hash,
+                    const dsa_key       *key)
 {
     unsigned char *expt, *skey;
     void          *g_pub, *g_priv;
     unsigned long  x, y;
-    int            err, qbits;
+    int            err;
 
     LTC_ARGCHK(in      != NULL);
     LTC_ARGCHK(out     != NULL);
@@ -89,7 +60,7 @@ int dsa_encrypt_key(const unsigned char *in,   unsigned long inlen,
     if ((err = mp_init_multi(&g_pub, &g_priv, NULL)) != CRYPT_OK) {
        return err;
     }
-   
+
     expt       = XMALLOC(mp_unsigned_bin_size(key->p) + 1);
     skey       = XMALLOC(MAXBLOCKSIZE);
     if (expt == NULL  || skey == NULL) {
@@ -102,21 +73,19 @@ int dsa_encrypt_key(const unsigned char *in,   unsigned long inlen,
        mp_clear_multi(g_pub, g_priv, NULL);
        return CRYPT_MEM;
     }
-    
-    /* make a random g_priv, g_pub = g^x pair */
-    qbits = mp_count_bits(key->q);
-    do {
-      if ((err = rand_bn_bits(g_priv, qbits, prng, wprng)) != CRYPT_OK) {
-        goto LBL_ERR;
-      }
-      /* private key x should be from range: 1 <= x <= q-1 (see FIPS 186-4 B.1.2) */
-    } while (mp_cmp_d(g_priv, 0) != LTC_MP_GT || mp_cmp(g_priv, key->q) != LTC_MP_LT);
+
+    /* make a random g_priv, g_pub = g^x pair
+       private key x should be in range: 1 <= x <= q-1 (see FIPS 186-4 B.1.2)
+     */
+    if ((err = rand_bn_upto(g_priv, key->q, prng, wprng)) != CRYPT_OK) {
+      goto LBL_ERR;
+    }
 
     /* compute y */
     if ((err = mp_exptmod(key->g, g_priv, key->p, g_pub)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    
+
     /* make random key */
     x        = mp_unsigned_bin_size(key->p) + 1;
     if ((err = dsa_shared_secret(g_priv, key->y, key, expt, &x)) != CRYPT_OK) {
@@ -127,7 +96,7 @@ int dsa_encrypt_key(const unsigned char *in,   unsigned long inlen,
     if ((err = hash_memory(hash, expt, x, skey, &y)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    
+
     /* Encrypt key */
     for (x = 0; x < inlen; x++) {
       skey[x] ^= in[x];
@@ -148,12 +117,13 @@ LBL_ERR:
 
     XFREE(skey);
     XFREE(expt);
-    
+
     mp_clear_multi(g_pub, g_priv, NULL);
     return err;
 }
 
 #endif
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_encrypt_key.c,v $ */
-/* $Revision: 1.9 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
+

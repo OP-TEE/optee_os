@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,21 +6,19 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
 /**
    @file gcm_process.c
    GCM implementation, process message data, by Tom St Denis
 */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 #ifdef LTC_GCM_MODE
 
-/** 
+/**
   Process plaintext/ciphertext through GCM
-  @param gcm       The GCM state 
+  @param gcm       The GCM state
   @param pt        The plaintext
   @param ptlen     The plaintext length (ciphertext length is the same)
   @param ct        The ciphertext
@@ -72,7 +43,7 @@ int gcm_process(gcm_state *gcm,
    if (gcm->buflen > 16 || gcm->buflen < 0) {
       return CRYPT_INVALID_ARG;
    }
- 
+
    if ((err = cipher_is_valid(gcm->cipher)) != CRYPT_OK) {
       return err;
    }
@@ -80,6 +51,11 @@ int gcm_process(gcm_state *gcm,
    /* 0xFFFFFFFE0 = ((2^39)-256)/8 */
    if (gcm->pttotlen / 8 + (ulong64)gcm->buflen + (ulong64)ptlen >= CONST64(0xFFFFFFFE0)) {
       return CRYPT_INVALID_ARG;
+   }
+
+   if (gcm->mode == LTC_GCM_MODE_IV) {
+      /* let's process the IV */
+      if ((err = gcm_add_aad(gcm, NULL, 0)) != CRYPT_OK) return err;
    }
 
    /* in AAD mode? */
@@ -110,12 +86,12 @@ int gcm_process(gcm_state *gcm,
    x = 0;
 #ifdef LTC_FAST
    if (gcm->buflen == 0) {
-      if (direction == GCM_ENCRYPT) { 
+      if (direction == GCM_ENCRYPT) {
          for (x = 0; x < (ptlen & ~15); x += 16) {
              /* ctr encrypt */
              for (y = 0; y < 16; y += sizeof(LTC_FAST_TYPE)) {
-                 *((LTC_FAST_TYPE*)(&ct[x + y])) = *((LTC_FAST_TYPE*)(&pt[x+y])) ^ *((LTC_FAST_TYPE*)(&gcm->buf[y]));
-                 *((LTC_FAST_TYPE*)(&gcm->X[y])) ^= *((LTC_FAST_TYPE*)(&ct[x+y]));
+                 *(LTC_FAST_TYPE_PTR_CAST(&ct[x + y])) = *(LTC_FAST_TYPE_PTR_CAST(&pt[x+y])) ^ *(LTC_FAST_TYPE_PTR_CAST(&gcm->buf[y]));
+                 *(LTC_FAST_TYPE_PTR_CAST(&gcm->X[y])) ^= *(LTC_FAST_TYPE_PTR_CAST(&ct[x+y]));
              }
              /* GMAC it */
              gcm->pttotlen += 128;
@@ -132,8 +108,8 @@ int gcm_process(gcm_state *gcm,
          for (x = 0; x < (ptlen & ~15); x += 16) {
              /* ctr encrypt */
              for (y = 0; y < 16; y += sizeof(LTC_FAST_TYPE)) {
-                 *((LTC_FAST_TYPE*)(&gcm->X[y])) ^= *((LTC_FAST_TYPE*)(&ct[x+y]));
-                 *((LTC_FAST_TYPE*)(&pt[x + y])) = *((LTC_FAST_TYPE*)(&ct[x+y])) ^ *((LTC_FAST_TYPE*)(&gcm->buf[y]));
+                 *(LTC_FAST_TYPE_PTR_CAST(&gcm->X[y])) ^= *(LTC_FAST_TYPE_PTR_CAST(&ct[x+y]));
+                 *(LTC_FAST_TYPE_PTR_CAST(&pt[x + y])) = *(LTC_FAST_TYPE_PTR_CAST(&ct[x+y])) ^ *(LTC_FAST_TYPE_PTR_CAST(&gcm->buf[y]));
              }
              /* GMAC it */
              gcm->pttotlen += 128;
@@ -146,16 +122,16 @@ int gcm_process(gcm_state *gcm,
                 return err;
              }
          }
-     }
+      }
    }
-#endif        
+#endif
 
    /* process text */
    for (; x < ptlen; x++) {
        if (gcm->buflen == 16) {
           gcm->pttotlen += 128;
           gcm_mult_h(gcm, gcm->X);
-          
+
           /* increment counter */
           for (y = 15; y >= 12; y--) {
               if (++gcm->Y[y] & 255) { break; }
@@ -167,12 +143,12 @@ int gcm_process(gcm_state *gcm,
        }
 
        if (direction == GCM_ENCRYPT) {
-          b = ct[x] = pt[x] ^ gcm->buf[gcm->buflen]; 
+          b = ct[x] = pt[x] ^ gcm->buf[gcm->buflen];
        } else {
           b = ct[x];
           pt[x] = ct[x] ^ gcm->buf[gcm->buflen];
        }
-       gcm->X[gcm->buflen++] ^= b;          
+       gcm->X[gcm->buflen++] ^= b;
    }
 
    return CRYPT_OK;
@@ -180,6 +156,6 @@ int gcm_process(gcm_state *gcm,
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_process.c,v $ */
-/* $Revision: 1.16 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

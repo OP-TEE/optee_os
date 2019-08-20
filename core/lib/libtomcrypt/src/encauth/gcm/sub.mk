@@ -11,4 +11,3 @@ srcs-y += gcm_mult_h.c
 endif
 srcs-y += gcm_process.c
 srcs-y += gcm_reset.c
-# srcs-y += gcm_test.c

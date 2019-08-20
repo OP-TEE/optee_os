@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,15 +6,13 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
 /**
    @file gcm_memory.c
    GCM implementation, process a packet, by Tom St Denis
 */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 #ifdef LTC_GCM_MODE
 
@@ -50,8 +21,8 @@
   @param cipher            Index of cipher to use
   @param key               The secret key
   @param keylen            The length of the secret key
-  @param IV                The initial vector 
-  @param IVlen             The length of the initial vector
+  @param IV                The initialization vector
+  @param IVlen             The length of the initialization vector
   @param adata             The additional authentication data (header)
   @param adatalen          The length of the adata
   @param pt                The plaintext
@@ -67,7 +38,7 @@ int gcm_memory(      int           cipher,
                const unsigned char *IV,     unsigned long IVlen,
                const unsigned char *adata,  unsigned long adatalen,
                      unsigned char *pt,     unsigned long ptlen,
-                     unsigned char *ct, 
+                     unsigned char *ct,
                      unsigned char *tag,    unsigned long *taglen,
                                int direction)
 {
@@ -78,10 +49,9 @@ int gcm_memory(      int           cipher,
     if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
        return err;
     }
- 
+
     if (cipher_descriptor[cipher]->accel_gcm_memory != NULL) {
-       return 
-         cipher_descriptor[cipher]->accel_gcm_memory
+       return cipher_descriptor[cipher]->accel_gcm_memory
                                           (key,   keylen,
                                            IV,    IVlen,
                                            adata, adatalen,
@@ -124,7 +94,24 @@ int gcm_memory(      int           cipher,
     if ((err = gcm_process(gcm, pt, ptlen, ct, direction)) != CRYPT_OK) {
        goto LTC_ERR;
     }
-    err = gcm_done(gcm, tag, taglen);
+    if (direction == GCM_ENCRYPT) {
+      if ((err = gcm_done(gcm, tag, taglen)) != CRYPT_OK) {
+         goto LTC_ERR;
+      }
+    }
+    else if (direction == GCM_DECRYPT) {
+       unsigned char buf[MAXBLOCKSIZE];
+       unsigned long buflen = sizeof(buf);
+       if ((err = gcm_done(gcm, buf, &buflen)) != CRYPT_OK) {
+          goto LTC_ERR;
+       }
+       if (buflen != *taglen || XMEM_NEQ(buf, tag, buflen) != 0) {
+          err = CRYPT_ERROR;
+       }
+    }
+    else {
+       err = CRYPT_INVALID_ARG;
+    }
 LTC_ERR:
     XFREE(orig);
     return err;
@@ -132,6 +119,6 @@ LTC_ERR:
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_memory.c,v $ */
-/* $Revision: 1.25 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

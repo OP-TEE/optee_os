@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,21 +6,19 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
-/** 
+/**
    @file pmac_init.c
-   PMAC implementation, initialize state, by Tom St Denis 
+   PMAC implementation, initialize state, by Tom St Denis
 */
 
 #ifdef LTC_PMAC
 
 static const struct {
     int           len;
-    unsigned char poly_div[MAXBLOCKSIZE], 
+    unsigned char poly_div[MAXBLOCKSIZE],
                   poly_mul[MAXBLOCKSIZE];
 } polys[] = {
 {
@@ -55,7 +26,7 @@ static const struct {
     { 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D },
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1B }
 }, {
-    16, 
+    16,
     { 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43 },
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -67,7 +38,7 @@ static const struct {
    Initialize a PMAC state
    @param pmac      The PMAC state to initialize
    @param cipher    The index of the desired cipher
-   @param key       The secret key 
+   @param key       The secret key
    @param keylen    The length of the secret key (octets)
    @return CRYPT_OK if successful
 */
@@ -85,9 +56,9 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
    }
 
    /* determine which polys to use */
-   pmac->block_len = cipher_descriptor[cipher].block_length;
+   pmac->block_len = cipher_descriptor[cipher]->block_length;
    for (poly = 0; poly < (int)(sizeof(polys)/sizeof(polys[0])); poly++) {
-       if (polys[poly].len == pmac->block_len) { 
+       if (polys[poly].len == pmac->block_len) {
           break;
        }
    }
@@ -106,10 +77,10 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
 
 
    /* schedule the key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, &pmac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, &pmac->key)) != CRYPT_OK) {
       return err;
    }
- 
+
    /* allocate L */
    L = XMALLOC(pmac->block_len);
    if (L == NULL) {
@@ -118,7 +89,7 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
 
    /* find L = E[0] */
    zeromem(L, pmac->block_len);
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(L, L, &pmac->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(L, L, &pmac->key)) != CRYPT_OK) {
       goto error;
    }
 
@@ -138,41 +109,41 @@ int pmac_init(pmac_state *pmac, int cipher, const unsigned char *key, unsigned l
        }
     }
 
-    /* find Lr = L / x */
-    m = L[pmac->block_len-1] & 1;
+   /* find Lr = L / x */
+   m = L[pmac->block_len-1] & 1;
 
-    /* shift right */
-    for (x = pmac->block_len - 1; x > 0; x--) {
-        pmac->Lr[x] = ((L[x] >> 1) | (L[x-1] << 7)) & 255;
-    }
-    pmac->Lr[0] = L[0] >> 1;
+   /* shift right */
+   for (x = pmac->block_len - 1; x > 0; x--) {
+      pmac->Lr[x] = ((L[x] >> 1) | (L[x-1] << 7)) & 255;
+   }
+   pmac->Lr[0] = L[0] >> 1;
 
-    if (m == 1) {
-       for (x = 0; x < pmac->block_len; x++) {
-           pmac->Lr[x] ^= polys[poly].poly_div[x];
-       }
-    }
+   if (m == 1) {
+      for (x = 0; x < pmac->block_len; x++) {
+         pmac->Lr[x] ^= polys[poly].poly_div[x];
+      }
+   }
 
-    /* zero buffer, counters, etc... */
-    pmac->block_index = 1;
-    pmac->cipher_idx  = cipher;
-    pmac->buflen      = 0;
-    zeromem(pmac->block,    sizeof(pmac->block));
-    zeromem(pmac->Li,       sizeof(pmac->Li));
-    zeromem(pmac->checksum, sizeof(pmac->checksum));
-    err = CRYPT_OK;
+   /* zero buffer, counters, etc... */
+   pmac->block_index = 1;
+   pmac->cipher_idx  = cipher;
+   pmac->buflen      = 0;
+   zeromem(pmac->block,    sizeof(pmac->block));
+   zeromem(pmac->Li,       sizeof(pmac->Li));
+   zeromem(pmac->checksum, sizeof(pmac->checksum));
+   err = CRYPT_OK;
 error:
 #ifdef LTC_CLEAN_STACK
-    zeromem(L, pmac->block_len);
+   zeromem(L, pmac->block_len);
 #endif
 
-    XFREE(L);
+   XFREE(L);
 
-    return err;
+   return err;
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/mac/pmac/pmac_init.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2006/12/28 01:27:23 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
