@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,16 +6,9 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
-/* Implements ECC over Z/pZ for curve y^2 = x^3 - 3x + b
- *
- * All curves taken from NIST recommendation paper of July 1999
- * Available at http://csrc.nist.gov/cryptval/dss.htm
- */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file ltc_ecc_projective_add_point.c
@@ -56,14 +22,15 @@
    @param P        The point to add
    @param Q        The point to add
    @param R        [out] The destination of the double
+   @param ma       ECC curve parameter a in montgomery form
    @param modulus  The modulus of the field the ECC curve is in
    @param mp       The "b" value from montgomery_setup()
    @return CRYPT_OK on success
 */
-int ltc_ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R, void *modulus, void *mp)
+int ltc_ecc_projective_add_point(const ecc_point *P, const ecc_point *Q, ecc_point *R, void *ma, void *modulus, void *mp)
 {
    void  *t1, *t2, *x, *y, *z;
-   int    err;
+   int    err, inf;
 
    LTC_ARGCHK(P       != NULL);
    LTC_ARGCHK(Q       != NULL);
@@ -75,14 +42,32 @@ int ltc_ecc_projective_add_point(ecc_point *P, ecc_point *Q, ecc_point *R, void 
       return err;
    }
 
-   /* should we dbl instead? */
-   if ((err = mp_sub(modulus, Q->y, t1)) != CRYPT_OK)                          { goto done; }
+   if ((err = ltc_ecc_is_point_at_infinity(P, modulus, &inf)) != CRYPT_OK) return err;
+   if (inf) {
+      /* P is point at infinity >> Result = Q */
+      err = ltc_ecc_copy_point(Q, R);
+      goto done;
+   }
 
-   if ( (mp_cmp(P->x, Q->x) == LTC_MP_EQ) &&
-        (Q->z != NULL && mp_cmp(P->z, Q->z) == LTC_MP_EQ) &&
-        (mp_cmp(P->y, Q->y) == LTC_MP_EQ || mp_cmp(P->y, t1) == LTC_MP_EQ)) {
-        mp_clear_multi(t1, t2, x, y, z, NULL);
-        return ltc_ecc_projective_dbl_point(P, R, modulus, mp);
+   if ((err = ltc_ecc_is_point_at_infinity(Q, modulus, &inf)) != CRYPT_OK) return err;
+   if (inf) {
+      /* Q is point at infinity >> Result = P */
+      err = ltc_ecc_copy_point(P, R);
+      goto done;
+   }
+
+   if ((mp_cmp(P->x, Q->x) == LTC_MP_EQ) && (mp_cmp(P->z, Q->z) == LTC_MP_EQ)) {
+      if (mp_cmp(P->y, Q->y) == LTC_MP_EQ) {
+         /* here P = Q >> Result = 2 * P (use doubling) */
+         mp_clear_multi(t1, t2, x, y, z, NULL);
+         return ltc_ecc_projective_dbl_point(P, R, ma, modulus, mp);
+      }
+      if ((err = mp_sub(modulus, Q->y, t1)) != CRYPT_OK)                       { goto done; }
+      if (mp_cmp(P->y, t1) == LTC_MP_EQ) {
+         /* here Q = -P >>> Result = the point at infinity */
+         err = ltc_ecc_set_point_xyz(1, 1, 0, R);
+         goto done;
+      }
    }
 
    if ((err = mp_copy(P->x, x)) != CRYPT_OK)                                   { goto done; }
@@ -218,6 +203,7 @@ done:
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/ecc/ltc_ecc_projective_add_point.c,v $ */
-/* $Revision: 1.16 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
+

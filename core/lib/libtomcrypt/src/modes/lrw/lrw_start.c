@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file lrw_start.c
@@ -47,9 +18,9 @@
 
 /**
   Initialize the LRW context
-  @param cipher        The cipher desired, must be a 128-bit block cipher 
+  @param cipher        The cipher desired, must be a 128-bit block cipher
   @param IV            The index value, must be 128-bits
-  @param key           The cipher key 
+  @param key           The cipher key
   @param keylen        The length of the cipher key in octets
   @param tweak         The tweak value (second key), must be 128-bits
   @param num_rounds    The number of rounds for the cipher (0 == default)
@@ -60,7 +31,7 @@ int lrw_start(               int   cipher,
               const unsigned char *IV,
               const unsigned char *key,       int keylen,
               const unsigned char *tweak,
-                             int  num_rounds, 
+                             int  num_rounds,
                    symmetric_LRW *lrw)
 {
    int           err;
@@ -69,10 +40,10 @@ int lrw_start(               int   cipher,
    int           x, y, z, t;
 #endif
 
-  LTC_ARGCHK(IV    != NULL);
-  LTC_ARGCHK(key   != NULL);
-  LTC_ARGCHK(tweak != NULL);
-  LTC_ARGCHK(lrw   != NULL);
+   LTC_ARGCHK(IV    != NULL);
+   LTC_ARGCHK(key   != NULL);
+   LTC_ARGCHK(tweak != NULL);
+   LTC_ARGCHK(lrw   != NULL);
 
 #ifdef LTC_FAST
    if (16 % sizeof(LTC_FAST_TYPE)) {
@@ -84,12 +55,12 @@ int lrw_start(               int   cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
    /* schedule key */
-   if ((err = cipher_descriptor[cipher].setup(key, keylen, num_rounds, &lrw->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &lrw->key)) != CRYPT_OK) {
       return err;
    }
    lrw->cipher = cipher;
@@ -116,8 +87,8 @@ int lrw_start(               int   cipher,
          }
          lrw->PC[x][y][0]  = gcm_shift_table[t<<1];
          lrw->PC[x][y][1] ^= gcm_shift_table[(t<<1)+1];
-     }
-  }
+      }
+   }
 #endif
 
    /* generate first pad */
@@ -126,6 +97,6 @@ int lrw_start(               int   cipher,
 
 
 #endif
-/* $Source: /cvs/libtom/libtomcrypt/src/modes/lrw/lrw_start.c,v $ */
-/* $Revision: 1.12 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

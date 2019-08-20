@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,23 +6,21 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
-/** 
+/**
   @file omac_process.c
-  LTC_OMAC1 support, process data, Tom St Denis
+  OMAC1 support, process data, Tom St Denis
 */
 
 
 #ifdef LTC_OMAC
 
-/** 
-   Process data through LTC_OMAC
-   @param omac     The LTC_OMAC state
-   @param in       The input data to send through LTC_OMAC
+/**
+   Process data through OMAC
+   @param omac     The OMAC state
+   @param in       The input data to send through OMAC
    @param inlen    The length of the input (octets)
    @return CRYPT_OK if successful
 */
@@ -70,23 +41,26 @@ int omac_process(omac_state *omac, const unsigned char *in, unsigned long inlen)
    }
 
 #ifdef LTC_FAST
-   unsigned long blklen = cipher_descriptor[omac->cipher_idx]->block_length;
-   if (omac->buflen == 0 && inlen > blklen) {
-      unsigned long y;
-      for (x = 0; x < (inlen - blklen); x += blklen) {
-          for (y = 0; y < blklen; y += sizeof(LTC_FAST_TYPE)) {
-              *((LTC_FAST_TYPE*)(&omac->prev[y])) ^= *((LTC_FAST_TYPE*)(&in[y]));
-          }
-          in += blklen;
-          if ((err = cipher_descriptor[omac->cipher_idx]->ecb_encrypt(omac->prev, omac->prev, &omac->key)) != CRYPT_OK) {
-             return err;
-          }
-      }
-      inlen -= x;
-    }
+   {
+     unsigned long blklen = cipher_descriptor[omac->cipher_idx]->block_length;
+
+     if (omac->buflen == 0 && inlen > blklen) {
+        unsigned long y;
+        for (x = 0; x < (inlen - blklen); x += blklen) {
+            for (y = 0; y < blklen; y += sizeof(LTC_FAST_TYPE)) {
+                *(LTC_FAST_TYPE_PTR_CAST(&omac->prev[y])) ^= *(LTC_FAST_TYPE_PTR_CAST(&in[y]));
+            }
+            in += blklen;
+            if ((err = cipher_descriptor[omac->cipher_idx]->ecb_encrypt(omac->prev, omac->prev, &omac->key)) != CRYPT_OK) {
+               return err;
+            }
+        }
+        inlen -= x;
+     }
+   }
 #endif
 
-   while (inlen != 0) { 
+   while (inlen != 0) {
        /* ok if the block is full we xor in prev, encrypt and replace prev */
        if (omac->buflen == omac->blklen) {
           for (x = 0; x < (unsigned long)omac->blklen; x++) {
@@ -112,6 +86,6 @@ int omac_process(omac_state *omac, const unsigned char *in, unsigned long inlen)
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/mac/omac/omac_process.c,v $ */
-/* $Revision: 1.13 $ */
-/* $Date: 2007/05/12 14:37:41 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_decode_utf8_string.c
@@ -59,6 +30,7 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
 {
    wchar_t       tmp;
    unsigned long x, y, z, len;
+   int err;
 
    LTC_ARGCHK(in     != NULL);
    LTC_ARGCHK(out    != NULL);
@@ -75,25 +47,14 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
    }
    x = 1;
 
-   /* decode the length */
-   if (in[x] & 0x80) {
-      /* valid # of bytes in length are 1,2,3 */
-      y = in[x] & 0x7F;
-      if ((y == 0) || (y > 3) || ((x + y) > inlen)) {
-         return CRYPT_INVALID_PACKET;
-      }
-
-      /* read the length in */
-      len = 0;
-      ++x;
-      while (y--) {
-         len = (len << 8) | in[x++];
-      }
-   } else {
-      len = in[x++] & 0x7F;
+   /* get the length of the data */
+   y = inlen - x;
+   if ((err = der_decode_asn1_length(in + x, &y, &len)) != CRYPT_OK) {
+      return err;
    }
+   x += y;
 
-   if (len + x > inlen) {
+   if (len > (inlen - x)) {
       return CRYPT_INVALID_PACKET;
    }
 
@@ -101,10 +62,10 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
    for (y = 0; x < inlen; ) {
       /* get first byte */
       tmp = in[x++];
- 
+
       /* count number of bytes */
       for (z = 0; (tmp & 0x80) && (z <= 4); z++, tmp = (tmp << 1) & 0xFF);
-      
+
       if (z > 4 || (x + (z - 1) > inlen)) {
          return CRYPT_INVALID_PACKET;
       }
@@ -121,19 +82,23 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
          tmp = (tmp << 6) | ((wchar_t)in[x++] & 0x3F);
       }
 
-      if (y > *outlen) {
-         *outlen = y;
-         return CRYPT_BUFFER_OVERFLOW;
+      if (y < *outlen) {
+         out[y] = tmp;
       }
-      out[y++] = tmp;
+      y++;
+   }
+   if (y > *outlen) {
+      err = CRYPT_BUFFER_OVERFLOW;
+   } else {
+      err = CRYPT_OK;
    }
    *outlen = y;
 
-   return CRYPT_OK;
+   return err;
 }
- 
+
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/utf8/der_decode_utf8_string.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

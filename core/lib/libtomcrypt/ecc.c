@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <trace.h>
 #include <utee_defines.h>
 
@@ -56,12 +56,20 @@ void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s)
 }
 
 /*
- * curve is part of TEE_ECC_CURVE_NIST_P192,...
- * algo is part of TEE_ALG_ECDSA_P192,..., and 0 if we do not have it
+ * For a given TEE @curve, return key size and LTC curve name. Also check that
+ * @algo is compatible with this curve.
+ * @curve: TEE_ECC_CURVE_NIST_P192, ...
+ * @algo: TEE_ALG_ECDSA_P192, ...
  */
-static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
-				  size_t *key_size_bytes, size_t *key_size_bits)
+static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
+				     size_t *key_size_bytes,
+				     size_t *key_size_bits,
+				     const char **curve_name)
 {
+	size_t size_bytes = 0;
+	size_t size_bits = 0;
+	const char *name = NULL;
+
 	/*
 	 * Excerpt of libtomcrypt documentation:
 	 * ecc_make_key(... key_size ...): The keysize is the size of the
@@ -78,50 +86,55 @@ static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 
 	switch (curve) {
 	case TEE_ECC_CURVE_NIST_P192:
-		*key_size_bits = 192;
-		*key_size_bytes = 24;
+		size_bits = 192;
+		size_bytes = 24;
+		name = "NISTP192";
 		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P192) &&
 		    (algo != TEE_ALG_ECDH_P192))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P224:
-		*key_size_bits = 224;
-		*key_size_bytes = 28;
+		size_bits = 224;
+		size_bytes = 28;
+		name = "NISTP224";
 		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P224) &&
 		    (algo != TEE_ALG_ECDH_P224))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P256:
-		*key_size_bits = 256;
-		*key_size_bytes = 32;
+		size_bits = 256;
+		size_bytes = 32;
+		name = "NISTP256";
 		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P256) &&
 		    (algo != TEE_ALG_ECDH_P256))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
-		*key_size_bits = 384;
-		*key_size_bytes = 48;
+		size_bits = 384;
+		size_bytes = 48;
+		name = "NISTP384";
 		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P384) &&
 		    (algo != TEE_ALG_ECDH_P384))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
-		*key_size_bits = 521;
-		/*
-		 * set 66 instead of 65 wrt to Libtomcrypt documentation as
-		 * if it the real key size
-		 */
-		*key_size_bytes = 66;
+		size_bits = 521;
+		size_bytes = 66;
+		name = "NISTP521";
 		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P521) &&
 		    (algo != TEE_ALG_ECDH_P521))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	default:
-		*key_size_bits = 0;
-		*key_size_bytes = 0;
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
+	if (key_size_bytes)
+		*key_size_bytes = size_bytes;
+	if (key_size_bits)
+		*key_size_bits = size_bits;
+	if (curve_name)
+		*curve_name = name;
 	return TEE_SUCCESS;
 }
 
@@ -133,7 +146,8 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 	size_t key_size_bytes = 0;
 	size_t key_size_bits = 0;
 
-	res = ecc_get_keysize(key->curve, 0, &key_size_bytes, &key_size_bits);
+	res = ecc_get_curve_info(key->curve, 0, &key_size_bytes, &key_size_bits,
+				 NULL);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -169,21 +183,20 @@ exit:
 	return res;
 }
 
-static TEE_Result ecc_compute_key_idx(ecc_key *ltc_key, size_t keysize)
+/* Note: this function clears the key before setting the curve */
+static TEE_Result ecc_set_curve_from_name(ecc_key *ltc_key,
+					  const char *curve_name)
 {
-	size_t x;
+	const ltc_ecc_curve *curve = NULL;
+	int ltc_res = 0;
 
-	for (x = 0; ((int)keysize > ltc_ecc_sets[x].size) &&
-		    (ltc_ecc_sets[x].size != 0);
-	     x++)
-		;
-	keysize = (size_t)ltc_ecc_sets[x].size;
+	ltc_res = ecc_find_curve(curve_name, &curve);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_NOT_SUPPORTED;
 
-	if ((keysize > ECC_MAXSIZE) || (ltc_ecc_sets[x].size == 0))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	ltc_key->idx = -1;
-	ltc_key->dp  = &ltc_ecc_sets[x];
+	ltc_res = ecc_set_curve(curve, ltc_key);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
@@ -197,20 +210,23 @@ static TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
 					       uint32_t algo,
 					       size_t *key_size_bytes)
 {
-	TEE_Result res;
-	size_t key_size_bits;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const char *name = NULL;
 
-	memset(ltc_key, 0, sizeof(*ltc_key));
-	ltc_key->type = PK_PRIVATE;
-	ltc_key->k = key->d;
-
-	/* compute the index of the ecc curve */
-	res = ecc_get_keysize(key->curve, algo,
-			      key_size_bytes, &key_size_bits);
-	if (res != TEE_SUCCESS)
+	res = ecc_get_curve_info(key->curve, algo, key_size_bytes, NULL, &name);
+	if (res)
 		return res;
 
-	return ecc_compute_key_idx(ltc_key, *key_size_bytes);
+	memset(ltc_key, 0, sizeof(*ltc_key));
+
+	res = ecc_set_curve_from_name(ltc_key, name);
+	if (res)
+		return res;
+
+	ltc_key->type = PK_PRIVATE;
+	mp_copy(key->d, ltc_key->k);
+
+	return TEE_SUCCESS;
 }
 
 /*
@@ -219,81 +235,68 @@ static TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
  */
 static TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 					      struct ecc_public_key *key,
-					      void *key_z,
 					      uint32_t algo,
 					      size_t *key_size_bytes)
 {
-	TEE_Result res;
-	size_t key_size_bits;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const char *name = NULL;
 	uint8_t one[1] = { 1 };
 
-
-	memset(ltc_key, 0, sizeof(*ltc_key));
-	ltc_key->type = PK_PUBLIC;
-	ltc_key->pubkey.x = key->x;
-	ltc_key->pubkey.y = key->y;
-	ltc_key->pubkey.z = key_z;
-	mp_read_unsigned_bin(ltc_key->pubkey.z, one, sizeof(one));
-
-	/* compute the index of the ecc curve */
-	res = ecc_get_keysize(key->curve, algo,
-			      key_size_bytes, &key_size_bits);
-	if (res != TEE_SUCCESS)
+	res = ecc_get_curve_info(key->curve, algo, key_size_bytes, NULL, &name);
+	if (res)
 		return res;
 
-	return ecc_compute_key_idx(ltc_key, *key_size_bytes);
+	memset(ltc_key, 0, sizeof(*ltc_key));
+
+	res = ecc_set_curve_from_name(ltc_key, name);
+	if (res)
+		return res;
+
+	ltc_key->type = PK_PUBLIC;
+
+	mp_copy(key->x, ltc_key->pubkey.x);
+	mp_copy(key->y, ltc_key->pubkey.y);
+	mp_read_unsigned_bin(ltc_key->pubkey.z, one, sizeof(one));
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
 				   const uint8_t *msg, size_t msg_len,
 				   uint8_t *sig, size_t *sig_len)
 {
-	TEE_Result res;
-	int ltc_res;
-	void *r, *s;
-	size_t key_size_bytes;
-	ecc_key ltc_key;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int ltc_res = 0;
+	size_t key_size_bytes = 0;
+	ecc_key ltc_key = { };
+	unsigned long ltc_sig_len = 0;
 
-	if (algo == 0) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+	if (algo == 0)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = ecc_populate_ltc_private_key(&ltc_key, key, algo,
 					   &key_size_bytes);
 	if (res != TEE_SUCCESS)
-		goto err;
+		return res;
 
 	if (*sig_len < 2 * key_size_bytes) {
 		*sig_len = 2 * key_size_bytes;
 		res = TEE_ERROR_SHORT_BUFFER;
-		goto err;
+		goto out;
 	}
 
-	ltc_res = mp_init_multi(&r, &s, NULL);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
-
-	ltc_res = ecc_sign_hash_raw(msg, msg_len, r, s,
+	ltc_sig_len = *sig_len;
+	ltc_res = ecc_sign_hash_rfc7518(msg, msg_len, sig, &ltc_sig_len,
 				    NULL, find_prng("prng_crypto"), &ltc_key);
-
 	if (ltc_res == CRYPT_OK) {
-		*sig_len = 2 * key_size_bytes;
-		memset(sig, 0, *sig_len);
-		mp_to_unsigned_bin(r, (uint8_t *)sig + *sig_len/2 -
-				   mp_unsigned_bin_size(r));
-		mp_to_unsigned_bin(s, (uint8_t *)sig + *sig_len -
-				   mp_unsigned_bin_size(s));
 		res = TEE_SUCCESS;
 	} else {
 		res = TEE_ERROR_GENERIC;
 	}
+	*sig_len = ltc_sig_len;
 
-	mp_clear_multi(r, s, NULL);
-
-err:
+out:
+	ecc_free(&ltc_key);
 	return res;
 }
 
@@ -301,24 +304,16 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 				     const uint8_t *msg, size_t msg_len,
 				     const uint8_t *sig, size_t sig_len)
 {
-	TEE_Result res;
-	int ltc_stat;
-	int ltc_res;
-	void *r;
-	void *s;
-	void *key_z;
-	size_t key_size_bytes;
-	ecc_key ltc_key;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int ltc_stat = 0;
+	int ltc_res = 0;
+	size_t key_size_bytes = 0;
+	ecc_key ltc_key = { };
 
 	if (algo == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ltc_res = mp_init_multi(&key_z, &r, &s, NULL);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = ecc_populate_ltc_public_key(&ltc_key, key, key_z, algo,
-					  &key_size_bytes);
+	res = ecc_populate_ltc_public_key(&ltc_key, key, algo, &key_size_bytes);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -328,13 +323,11 @@ TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
 		goto out;
 	}
 
-	mp_read_unsigned_bin(r, (uint8_t *)sig, sig_len/2);
-	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
-
-	ltc_res = ecc_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
+	ltc_res = ecc_verify_hash_rfc7518(sig, sig_len, msg, msg_len, &ltc_stat,
+					  &ltc_key);
 	res = convert_ltc_verify_status(ltc_res, ltc_stat);
 out:
-	mp_clear_multi(key_z, r, s, NULL);
+	ecc_free(&ltc_key);
 	return res;
 }
 
@@ -343,26 +336,21 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					    void *secret,
 					    unsigned long *secret_len)
 {
-	TEE_Result res;
-	int ltc_res;
-	ecc_key ltc_private_key;
-	ecc_key ltc_public_key;
-	size_t key_size_bytes;
-	void *key_z;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int ltc_res = 0;
+	ecc_key ltc_private_key = { };
+	ecc_key ltc_public_key = { };
+	size_t key_size_bytes = 0;
 
 	/* Check the curves are the same */
 	if (private_key->curve != public_key->curve)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ltc_res = mp_init_multi(&key_z, NULL);
-	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
 	res = ecc_populate_ltc_private_key(&ltc_private_key, private_key,
 					   0, &key_size_bytes);
 	if (res != TEE_SUCCESS)
 		goto out;
-	res = ecc_populate_ltc_public_key(&ltc_public_key, public_key, key_z,
+	res = ecc_populate_ltc_public_key(&ltc_public_key, public_key,
 					  0, &key_size_bytes);
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -375,6 +363,7 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 		res = TEE_ERROR_BAD_PARAMETERS;
 
 out:
-	mp_clear_multi(key_z, NULL);
+	ecc_free(&ltc_private_key);
+	ecc_free(&ltc_public_key);
 	return res;
 }

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,11 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
-#include <stdarg.h>
+#include "tomcrypt_private.h"
 
 
 /**
@@ -56,8 +26,8 @@
    @param type_of   LTC_ASN1_SEQUENCE or LTC_ASN1_SET/LTC_ASN1_SETOF
    @return CRYPT_OK on success
 */
-int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
-                           unsigned char *out,  unsigned long *outlen, int type_of)
+int der_encode_sequence_ex(const ltc_asn1_list *list, unsigned long inlen,
+                           unsigned char *out,        unsigned long *outlen, int type_of)
 {
    int           err;
    ltc_asn1_type type;
@@ -69,131 +39,8 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
    LTC_ARGCHK(outlen  != NULL);
 
    /* get size of output that will be required */
-   y = 0;
-   for (i = 0; i < inlen; i++) {
-       type = list[i].type;
-       size = list[i].size;
-       data = list[i].data;
-
-       if (type == LTC_ASN1_EOL) {
-          break;
-       }
-
-       switch (type) {
-            case LTC_ASN1_BOOLEAN:
-               if ((err = der_length_boolean(&x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_INTEGER:
-               if ((err = der_length_integer(data, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_SHORT_INTEGER:
-               if ((err = der_length_short_integer(*((unsigned long*)data), &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_BIT_STRING:
-           case LTC_ASN1_RAW_BIT_STRING:
-               if ((err = der_length_bit_string(size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_OCTET_STRING:
-               if ((err = der_length_octet_string(size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_NULL:
-               y += 2;
-               break;
-
-           case LTC_ASN1_OBJECT_IDENTIFIER:
-               if ((err = der_length_object_identifier(data, size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_IA5_STRING:
-               if ((err = der_length_ia5_string(data, size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_PRINTABLE_STRING:
-               if ((err = der_length_printable_string(data, size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_UTF8_STRING:
-               if ((err = der_length_utf8_string(data, size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_UTCTIME:
-               if ((err = der_length_utctime(data, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_SET:
-           case LTC_ASN1_SETOF:
-           case LTC_ASN1_SEQUENCE:
-               if ((err = der_length_sequence(data, size, &x)) != CRYPT_OK) {
-                  goto LBL_ERR;
-               }
-               y += x;
-               break;
-
-           case LTC_ASN1_CHOICE:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
-           case LTC_ASN1_EOL:
-           case LTC_ASN1_TELETEX_STRING:
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
-           default:
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
-       }
-   }
-
-   /* calc header size */
-   z = y;
-   if (y < 128) {
-      y += 2;
-   } else if (y < 256) {
-      /* 0x30 0x81 LL */
-      y += 3;
-   } else if (y < 65536UL) {
-      /* 0x30 0x82 LL LL */
-      y += 4;
-   } else if (y < 16777216UL) {
-      /* 0x30 0x83 LL LL LL */
-      y += 5;
-   } else {
-      err = CRYPT_INVALID_ARG;
-      goto LBL_ERR;
-   }
+   y = 0; z = 0;
+   if ((err = der_length_sequence_ex(list, inlen, &y, &z)) != CRYPT_OK) return CRYPT_INVALID_ARG;
 
    /* too big ? */
    if (*outlen < y) {
@@ -206,21 +53,11 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
    x = 0;
    out[x++] = (type_of == LTC_ASN1_SEQUENCE) ? 0x30 : 0x31;
 
-   if (z < 128) {
-      out[x++] = (unsigned char)z;
-   } else if (z < 256) {
-      out[x++] = 0x81;
-      out[x++] = (unsigned char)z;
-   } else if (z < 65536UL) {
-      out[x++] = 0x82;
-      out[x++] = (unsigned char)((z>>8UL)&255);
-      out[x++] = (unsigned char)(z&255);
-   } else if (z < 16777216UL) {
-      out[x++] = 0x83;
-      out[x++] = (unsigned char)((z>>16UL)&255);
-      out[x++] = (unsigned char)((z>>8UL)&255);
-      out[x++] = (unsigned char)(z&255);
+   y = *outlen - x;
+   if ((err = der_encode_asn1_length(z, &out[x], &y)) != CRYPT_OK) {
+      goto LBL_ERR;
    }
+   x += y;
 
    /* store data */
    *outlen -= x;
@@ -239,8 +76,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_boolean(*((int *)data), out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_INTEGER:
@@ -248,8 +83,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_integer(data, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_SHORT_INTEGER:
@@ -257,8 +90,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_short_integer(*((unsigned long*)data), out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_BIT_STRING:
@@ -266,8 +97,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_bit_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_RAW_BIT_STRING:
@@ -275,8 +104,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_raw_bit_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_OCTET_STRING:
@@ -284,14 +111,12 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_octet_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_NULL:
-               out[x++] = 0x05;
-               out[x++] = 0x00;
-               *outlen -= 2;
+               out[x] = 0x05;
+               out[x+1] = 0x00;
+               z = 2;
                break;
 
            case LTC_ASN1_OBJECT_IDENTIFIER:
@@ -299,8 +124,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_object_identifier(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_IA5_STRING:
@@ -308,8 +131,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_ia5_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_PRINTABLE_STRING:
@@ -317,8 +138,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_printable_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_UTF8_STRING:
@@ -326,8 +145,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_utf8_string(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_UTCTIME:
@@ -335,8 +152,13 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_utctime(data, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
+               break;
+
+           case LTC_ASN1_GENERALIZEDTIME:
+               z = *outlen;
+               if ((err = der_encode_generalizedtime(data, out + x, &z)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
                break;
 
            case LTC_ASN1_SET:
@@ -344,8 +166,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_set(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_SETOF:
@@ -353,8 +173,6 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_setof(data, size, out + x, &z)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
                break;
 
            case LTC_ASN1_SEQUENCE:
@@ -362,21 +180,25 @@ int der_encode_sequence_ex(ltc_asn1_list *list, unsigned long inlen,
                if ((err = der_encode_sequence_ex(data, size, out + x, &z, type)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
-               x       += z;
-               *outlen -= z;
+               break;
+
+           case LTC_ASN1_CUSTOM_TYPE:
+               z = *outlen;
+               if ((err = der_encode_custom_type(&list[i], out + x, &z)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
                break;
 
            case LTC_ASN1_CHOICE:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
            case LTC_ASN1_EOL:
            case LTC_ASN1_TELETEX_STRING:
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
            default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
        }
+
+       x       += z;
+       *outlen -= z;
    }
    *outlen = x;
    err = CRYPT_OK;
@@ -386,3 +208,7 @@ LBL_ERR:
 }
 
 #endif
+
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

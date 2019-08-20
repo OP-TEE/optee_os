@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_encode_setof.c
@@ -50,7 +21,7 @@ struct edge {
    unsigned long  size;
 };
 
-static int qsort_helper(const void *a, const void *b)
+static int _qsort_helper(const void *a, const void *b)
 {
    struct edge   *A = (struct edge *)a, *B = (struct edge *)b;
    int            r;
@@ -86,8 +57,8 @@ static int qsort_helper(const void *a, const void *b)
    @param outlen    [in/out] The size of the output
    @return CRYPT_OK on success
 */
-int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
-                     unsigned char *out,  unsigned long *outlen)
+int der_encode_setof(const ltc_asn1_list *list, unsigned long inlen,
+                     unsigned char *out,        unsigned long *outlen)
 {
    unsigned long  x, y, z;
    ptrdiff_t hdrlen;
@@ -122,16 +93,16 @@ int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
    }
 
    /* skip header */
-      ptr = buf + 1;
+   ptr = buf + 1;
 
-      /* now skip length data */
-      x = *ptr++;
-      if (x >= 0x80) {
-         ptr += (x & 0x7F);
-      }
+   /* now skip length data */
+   x = *ptr++;
+   if (x >= 0x80) {
+      ptr += (x & 0x7F);
+   }
 
-      /* get the size of the static header */
-      hdrlen = ptr - buf;
+   /* get the size of the static header */
+   hdrlen = ptr - buf;
 
 
    /* scan for edges */
@@ -162,13 +133,13 @@ int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
    }
 
    /* sort based on contents (using edges) */
-   XQSORT(edges, inlen, sizeof(*edges), &qsort_helper);
+   XQSORT(edges, inlen, sizeof(*edges), &_qsort_helper);
 
    /* copy static header */
    XMEMCPY(out, buf, hdrlen);
 
    /* copy+sort using edges+indecies to output from buffer */
-   for (y = hdrlen, x = 0; x < inlen; x++) {
+   for (y = (unsigned long)hdrlen, x = 0; x < inlen; x++) {
       XMEMCPY(out+y, edges[x].start, edges[x].size);
       y += edges[x].size;
    }
@@ -186,6 +157,6 @@ int der_encode_setof(ltc_asn1_list *list, unsigned long inlen,
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

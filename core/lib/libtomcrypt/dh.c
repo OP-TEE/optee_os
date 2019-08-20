@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <trace.h>
 #include <utee_defines.h>
 
@@ -39,13 +39,17 @@ err:
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 				     size_t xbits)
 {
-	TEE_Result res;
-	dh_key ltc_tmp_key;
-	int ltc_res;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	dh_key ltc_tmp_key = { };
+	int ltc_res = 0;
+
+	ltc_res = mp_init_multi(&ltc_tmp_key.base, &ltc_tmp_key.prime, NULL);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	/* Generate the DH key */
-	ltc_tmp_key.g = key->g;
-	ltc_tmp_key.p = key->p;
+	mp_copy(key->g, ltc_tmp_key.base);
+	mp_copy(key->p, ltc_tmp_key.prime);
 	ltc_res = dh_make_key(NULL, find_prng("prng_crypto"), q, xbits,
 			      &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
@@ -53,11 +57,10 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	} else {
 		ltc_mp.copy(ltc_tmp_key.y,  key->y);
 		ltc_mp.copy(ltc_tmp_key.x,  key->x);
-
-		/* Free the tempory key */
-		dh_free(&ltc_tmp_key);
 		res = TEE_SUCCESS;
 	}
+
+	dh_free(&ltc_tmp_key);
 	return res;
 }
 
@@ -66,14 +69,11 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 					   struct bignum *secret)
 {
 	int err;
-	dh_key pk = {
-		.type = PK_PRIVATE,
-		.g = private_key->g,
-		.p = private_key->p,
-		.y = private_key->y,
-		.x = private_key->x
-	};
 
-	err = dh_shared_secret(&pk, public_key, secret);
+	if (!private_key || !public_key || !secret)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	err = mp_exptmod(public_key, private_key->x, private_key->p, secret);
 	return ((err == CRYPT_OK) ? TEE_SUCCESS : TEE_ERROR_BAD_PARAMETERS);
+
 }

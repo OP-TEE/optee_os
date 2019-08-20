@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_length_sequence.c
@@ -52,8 +23,14 @@
    @param outlen [out] The length required in octets to store it
    @return CRYPT_OK on success
 */
-int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
+int der_length_sequence(const ltc_asn1_list *list, unsigned long inlen,
                         unsigned long *outlen)
+{
+   return der_length_sequence_ex(list, inlen, outlen, NULL);
+}
+
+int der_length_sequence_ex(const ltc_asn1_list *list, unsigned long inlen,
+                           unsigned long *outlen, unsigned long *payloadlen)
 {
    int           err;
    ltc_asn1_type type;
@@ -73,6 +50,9 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
        if (type == LTC_ASN1_EOL) {
           break;
        }
+
+       /* some items may be optional during import */
+       if (!list[i].used && list[i].optional) continue;
 
        switch (type) {
            case LTC_ASN1_BOOLEAN:
@@ -150,8 +130,22 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                y += x;
                break;
 
+           case LTC_ASN1_GENERALIZEDTIME:
+               if ((err = der_length_generalizedtime(data, &x)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
+
            case LTC_ASN1_UTF8_STRING:
                if ((err = der_length_utf8_string(data, size, &x)) != CRYPT_OK) {
+                  goto LBL_ERR;
+               }
+               y += x;
+               break;
+
+           case LTC_ASN1_CUSTOM_TYPE:
+               if ((err = der_length_custom_type(&list[i], &x, NULL)) != CRYPT_OK) {
                   goto LBL_ERR;
                }
                y += x;
@@ -166,38 +160,24 @@ int der_length_sequence(ltc_asn1_list *list, unsigned long inlen,
                y += x;
                break;
 
-
            case LTC_ASN1_CHOICE:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
            case LTC_ASN1_EOL:
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
            default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
        }
    }
 
-   /* calc header size */
-   if (y < 128) {
-      y += 2;
-   } else if (y < 256) {
-      /* 0x30 0x81 LL */
-      y += 3;
-   } else if (y < 65536UL) {
-      /* 0x30 0x82 LL LL */
-      y += 4;
-   } else if (y < 16777216UL) {
-      /* 0x30 0x83 LL LL LL */
-      y += 5;
-   } else {
-      err = CRYPT_INVALID_ARG;
+   if ((err = der_length_asn1_length(y, &x)) != CRYPT_OK) {
       goto LBL_ERR;
    }
 
+   if (payloadlen != NULL) {
+      *payloadlen = y;
+   }
+
    /* store size */
-   *outlen = y;
+   *outlen = y + x + 1;
    err     = CRYPT_OK;
 
 LBL_ERR:
@@ -206,6 +186,6 @@ LBL_ERR:
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

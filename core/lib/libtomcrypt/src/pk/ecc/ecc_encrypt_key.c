@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,40 +6,33 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
-/* Implements ECC over Z/pZ for curve y^2 = x^3 - 3x + b
- *
- * All curves taken from NIST recommendation paper of July 1999
- * Available at http://csrc.nist.gov/cryptval/dss.htm
- */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file ecc_encrypt_key.c
   ECC Crypto, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MECC
 
 /**
-  Encrypt a symmetric key with ECC 
+  Encrypt a symmetric key with ECC
   @param in         The symmetric key you want to encrypt
   @param inlen      The length of the key to encrypt (octets)
   @param out        [out] The destination for the ciphertext
   @param outlen     [in/out] The max size and resulting size of the ciphertext
   @param prng       An active PRNG state
-  @param wprng      The index of the PRNG you wish to use 
-  @param hash       The index of the hash you want to use 
+  @param wprng      The index of the PRNG you wish to use
+  @param hash       The index of the hash you want to use
   @param key        The ECC key you want to encrypt to
   @return CRYPT_OK if successful
 */
 int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
-                          unsigned char *out,  unsigned long *outlen, 
-                          prng_state *prng, int wprng, int hash, 
-                          ecc_key *key)
+                          unsigned char *out,  unsigned long *outlen,
+                          prng_state *prng, int wprng, int hash,
+                          const ecc_key *key)
 {
     unsigned char *pub_expt, *ecc_shared, *skey;
     ecc_key        pubkey;
@@ -78,23 +44,17 @@ int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
     LTC_ARGCHK(outlen  != NULL);
     LTC_ARGCHK(key     != NULL);
 
-    /* check that wprng/cipher/hash are not invalid */
-    if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
-       return err;
-    }
-
     if ((err = hash_is_valid(hash)) != CRYPT_OK) {
        return err;
     }
 
-    if (inlen > hash_descriptor[hash].hashsize) {
+    if (inlen > hash_descriptor[hash]->hashsize) {
        return CRYPT_INVALID_HASH;
     }
 
     /* make a random key and export the public copy */
-    if ((err = ecc_make_key_ex(prng, wprng, &pubkey, key->dp)) != CRYPT_OK) {
-       return err;
-    }
+    if ((err = ecc_copy_curve(key, &pubkey)) != CRYPT_OK) { return err; }
+    if ((err = ecc_generate_key(prng, wprng, &pubkey)) != CRYPT_OK) { return err; }
 
     pub_expt   = XMALLOC(ECC_BUF_SIZE);
     ecc_shared = XMALLOC(ECC_BUF_SIZE);
@@ -114,11 +74,18 @@ int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
     }
 
     pubkeysize = ECC_BUF_SIZE;
-    if ((err = ecc_export(pub_expt, &pubkeysize, PK_PUBLIC, &pubkey)) != CRYPT_OK) {
+    if (ltc_mp.sqrtmod_prime != NULL) {
+       /* PK_COMPRESSED requires sqrtmod_prime */
+       err = ecc_get_key(pub_expt, &pubkeysize, PK_PUBLIC|PK_COMPRESSED, &pubkey);
+    }
+    else {
+       err = ecc_get_key(pub_expt, &pubkeysize, PK_PUBLIC, &pubkey);
+    }
+    if (err != CRYPT_OK) {
        ecc_free(&pubkey);
        goto LBL_ERR;
     }
-    
+
     /* make random key */
     x        = ECC_BUF_SIZE;
     if ((err = ecc_shared_secret(&pubkey, key, ecc_shared, &x)) != CRYPT_OK) {
@@ -130,14 +97,14 @@ int ecc_encrypt_key(const unsigned char *in,   unsigned long inlen,
     if ((err = hash_memory(hash, ecc_shared, x, skey, &y)) != CRYPT_OK) {
        goto LBL_ERR;
     }
-    
+
     /* Encrypt key */
     for (x = 0; x < inlen; x++) {
       skey[x] ^= in[x];
     }
 
     err = der_encode_sequence_multi(out, outlen,
-                                    LTC_ASN1_OBJECT_IDENTIFIER,  hash_descriptor[hash].OIDlen,   hash_descriptor[hash].OID,
+                                    LTC_ASN1_OBJECT_IDENTIFIER,  hash_descriptor[hash]->OIDlen,   hash_descriptor[hash]->OID,
                                     LTC_ASN1_OCTET_STRING,       pubkeysize,                     pub_expt,
                                     LTC_ASN1_OCTET_STRING,       inlen,                          skey,
                                     LTC_ASN1_EOL,                0UL,                            NULL);
@@ -158,6 +125,7 @@ LBL_ERR:
 }
 
 #endif
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/ecc/ecc_encrypt_key.c,v $ */
-/* $Revision: 1.6 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
+

@@ -4,3 +4,4 @@ srcs-y += zeromem.c
 subdirs-y += base64
 subdirs-y += crypt
 subdirs-y += pkcs5
+subdirs-y += ssh

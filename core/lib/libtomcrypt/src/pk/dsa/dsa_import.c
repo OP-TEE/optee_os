@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file dsa_import.c
@@ -46,7 +17,7 @@
 #ifdef LTC_MDSA
 
 /**
-   Import a DSA key 
+   Import a DSA key
    @param in       The binary packet to import from
    @param inlen    The length of the binary packet
    @param key      [out] Where to store the imported key
@@ -54,8 +25,8 @@
 */
 int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
 {
-   int           err;
-   unsigned long zero = 0;
+   int           err, stat;
+   unsigned long zero = 0, len;
    unsigned char* tmpbuf = NULL;
    unsigned char flags[1];
 
@@ -69,11 +40,12 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
    }
 
    /* try to match the old libtomcrypt format */
-   if ((err = der_decode_sequence_multi(in, inlen,
-                                  LTC_ASN1_BIT_STRING, 1UL, flags,
-                                  LTC_ASN1_EOL, 0UL, NULL)) == CRYPT_OK) {
+   err = der_decode_sequence_multi(in, inlen, LTC_ASN1_BIT_STRING, 1UL, flags,
+                                              LTC_ASN1_EOL,        0UL, NULL);
+
+   if (err == CRYPT_OK || err == CRYPT_INPUT_TOO_LONG) {
        /* private key */
-       if (flags[0]) {
+       if (flags[0] == 1) {
            if ((err = der_decode_sequence_multi(in, inlen,
                                   LTC_ASN1_BIT_STRING,   1UL, flags,
                                   LTC_ASN1_INTEGER,      1UL, key->g,
@@ -88,7 +60,7 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
            goto LBL_OK;
        }
        /* public key */
-       else {
+       else if (flags[0] == 0) {
            if ((err = der_decode_sequence_multi(in, inlen,
                                       LTC_ASN1_BIT_STRING,   1UL, flags,
                                       LTC_ASN1_INTEGER,      1UL, key->g,
@@ -100,6 +72,10 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
            }
            key->type = PK_PUBLIC;
            goto LBL_OK;
+       }
+       else {
+          err = CRYPT_INVALID_PACKET;
+          goto LBL_ERR;
        }
    }
    /* get key type */
@@ -123,13 +99,14 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
 
       tmpbuf = XCALLOC(1, tmpbuf_len);
       if (tmpbuf == NULL) {
-          err = CRYPT_MEM;
-          goto LBL_ERR;
+         err = CRYPT_MEM;
+         goto LBL_ERR;
       }
 
-      err = der_decode_subject_public_key_info(in, inlen,
-        PKA_DSA, tmpbuf, &tmpbuf_len,
-        LTC_ASN1_SEQUENCE, params, 3);
+      len = 3;
+      err = x509_decode_subject_public_key_info(in, inlen, PKA_DSA,
+                                               tmpbuf, &tmpbuf_len,
+                                               LTC_ASN1_SEQUENCE, params, &len);
       if (err != CRYPT_OK) {
          XFREE(tmpbuf);
          goto LBL_ERR;
@@ -142,25 +119,36 @@ int dsa_import(const unsigned char *in, unsigned long inlen, dsa_key *key)
 
       XFREE(tmpbuf);
       key->type = PK_PUBLIC;
-  }
+   }
 
 LBL_OK:
-  key->qord = mp_unsigned_bin_size(key->q);
+   key->qord = mp_unsigned_bin_size(key->q);
 
-  if (key->qord >= LTC_MDSA_MAX_GROUP || key->qord <= 15 ||
-      (unsigned long)key->qord >= mp_unsigned_bin_size(key->p) || (mp_unsigned_bin_size(key->p) - key->qord) >= LTC_MDSA_DELTA) {
+   /* quick p, q, g validation, without primality testing */
+   if ((err = dsa_int_validate_pqg(key, &stat)) != CRYPT_OK) {
+      goto LBL_ERR;
+   }
+   if (stat == 0) {
+      err = CRYPT_INVALID_PACKET;
+      goto LBL_ERR;
+   }
+   /* validate x, y */
+   if ((err = dsa_int_validate_xy(key, &stat)) != CRYPT_OK) {
+      goto LBL_ERR;
+   }
+   if (stat == 0) {
       err = CRYPT_INVALID_PACKET;
       goto LBL_ERR;
    }
 
   return CRYPT_OK;
 LBL_ERR:
-   mp_clear_multi(key->p, key->g, key->q, key->x, key->y, NULL);
+   dsa_free(key);
    return err;
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_import.c,v $ */
-/* $Revision: 1.14 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

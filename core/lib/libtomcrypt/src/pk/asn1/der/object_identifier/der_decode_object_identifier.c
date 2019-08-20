@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_decode_object_identifier.c
@@ -56,6 +27,7 @@ int der_decode_object_identifier(const unsigned char *in,    unsigned long  inle
                                        unsigned long *words, unsigned long *outlen)
 {
    unsigned long x, y, t, len;
+   int err;
 
    LTC_ARGCHK(in     != NULL);
    LTC_ARGCHK(words  != NULL);
@@ -68,6 +40,7 @@ int der_decode_object_identifier(const unsigned char *in,    unsigned long  inle
 
    /* must be room for at least two words */
    if (*outlen < 2) {
+      *outlen = 2;
       return CRYPT_BUFFER_OVERFLOW;
    }
 
@@ -76,22 +49,15 @@ int der_decode_object_identifier(const unsigned char *in,    unsigned long  inle
    if ((in[x++] & 0x1F) != 0x06) {
       return CRYPT_INVALID_PACKET;
    }
-   
-   /* get the length */
-   if (in[x] < 128) {
-      len = in[x++]; 
-   } else {
-       if (in[x] < 0x81 || in[x] > 0x82) {
-          return CRYPT_INVALID_PACKET;
-       }
-       y   = in[x++] & 0x7F;
-       len = 0;
-       while (y--) {
-          len = (len << 8) | (unsigned long)in[x++];
-       }
-   }
 
-   if (len < 1 || (len + x) > inlen) {
+   /* get the length of the data */
+   y = inlen - x;
+   if ((err = der_decode_asn1_length(in + x, &y, &len)) != CRYPT_OK) {
+      return err;
+   }
+   x += y;
+
+   if ((len == 0) || (len > (inlen - x))) {
       return CRYPT_INVALID_PACKET;
    }
 
@@ -99,29 +65,41 @@ int der_decode_object_identifier(const unsigned char *in,    unsigned long  inle
    y = 0;
    t = 0;
    while (len--) {
-       t = (t << 7) | (in[x] & 0x7F);
-       if (!(in[x++] & 0x80)) {
-           /* store t */
-           if (y >= *outlen) {
-              return CRYPT_BUFFER_OVERFLOW;
-           }
-      if (y == 0) {
-         words[0] = t / 40;
-         words[1] = t % 40;
-         y = 2;
-      } else {
-              words[y++] = t;
+      t = (t << 7) | (in[x] & 0x7F);
+      if (!(in[x++] & 0x80)) {
+         /* store t */
+         if (y >= *outlen) {
+            y++;
+         } else {
+            if (y == 0) {
+               if (t <= 79) {
+                  words[0] = t / 40;
+                  words[1] = t % 40;
+               } else {
+                  words[0] = 2;
+                  words[1] = t - 80;
+               }
+               y = 2;
+            } else {
+               words[y++] = t;
+            }
+         }
+         t = 0;
       }
-           t          = 0;
-       }
    }
-       
+
+   if (y > *outlen) {
+      err =  CRYPT_BUFFER_OVERFLOW;
+   } else {
+      err =  CRYPT_OK;
+   }
+
    *outlen = y;
-   return CRYPT_OK;
+   return err;
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/object_identifier/der_decode_object_identifier.c,v $ */
-/* $Revision: 1.6 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

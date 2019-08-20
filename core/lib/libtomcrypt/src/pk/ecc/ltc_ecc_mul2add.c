@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,21 +6,14 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
 
-/* Implements ECC over Z/pZ for curve y^2 = x^3 - 3x + b
- *
- * All curves taken from NIST recommendation paper of July 1999
- * Available at http://csrc.nist.gov/cryptval/dss.htm
- */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file ltc_ecc_mul2add.c
   ECC Crypto, Shamir's Trick, Tom St Denis
-*/  
+*/
 
 #ifdef LTC_MECC
 
@@ -58,21 +24,24 @@
   @param kA       What to multiple A by
   @param B        Second point to multiply
   @param kB       What to multiple B by
-  @param C        [out] Destination point (can overlap with A or B
-  @param modulus  Modulus for curve 
+  @param C        [out] Destination point (can overlap with A or B)
+  @param ma       ECC curve parameter a in montgomery form
+  @param modulus  Modulus for curve
   @return CRYPT_OK on success
-*/ 
-int ltc_ecc_mul2add(ecc_point *A, void *kA,
-                    ecc_point *B, void *kB,
-                    ecc_point *C,
-                         void *modulus)
+*/
+int ltc_ecc_mul2add(const ecc_point *A, void *kA,
+                    const ecc_point *B, void *kB,
+                          ecc_point *C,
+                               void *ma,
+                               void *modulus)
 {
   ecc_point     *precomp[16];
-  unsigned       bitbufA, bitbufB, lenA, lenB, len, x, y, nA, nB, nibble;
+  unsigned       bitbufA, bitbufB, lenA, lenB, len, nA, nB, nibble;
+  unsigned       x, y;
   unsigned char *tA, *tB;
   int            err, first;
   void          *mp, *mu;
- 
+
   /* argchks */
   LTC_ARGCHK(A       != NULL);
   LTC_ARGCHK(B       != NULL);
@@ -121,16 +90,16 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
      }
   }
 
-   /* init montgomery reduction */
-   if ((err = mp_montgomery_setup(modulus, &mp)) != CRYPT_OK) {
+  /* init montgomery reduction */
+  if ((err = mp_montgomery_setup(modulus, &mp)) != CRYPT_OK) {
       goto ERR_P;
-   }
-   if ((err = mp_init(&mu)) != CRYPT_OK) {
+  }
+  if ((err = mp_init(&mu)) != CRYPT_OK) {
       goto ERR_MP;
-   }
-   if ((err = mp_montgomery_normalization(mu, modulus)) != CRYPT_OK) {
+  }
+  if ((err = mp_montgomery_normalization(mu, modulus)) != CRYPT_OK) {
       goto ERR_MU;
-   }
+  }
 
   /* copy ones ... */
   if ((err = mp_mulmod(A->x, mu, modulus, precomp[1]->x)) != CRYPT_OK)                                         { goto ERR_MU; }
@@ -142,19 +111,19 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
   if ((err = mp_mulmod(B->z, mu, modulus, precomp[1<<2]->z)) != CRYPT_OK)                                      { goto ERR_MU; }
 
   /* precomp [i,0](A + B) table */
-  if ((err = ltc_mp.ecc_ptdbl(precomp[1], precomp[2], modulus, mp)) != CRYPT_OK)                               { goto ERR_MU; }
-  if ((err = ltc_mp.ecc_ptadd(precomp[1], precomp[2], precomp[3], modulus, mp)) != CRYPT_OK)                   { goto ERR_MU; }
+  if ((err = ltc_mp.ecc_ptdbl(precomp[1], precomp[2], ma, modulus, mp)) != CRYPT_OK)                           { goto ERR_MU; }
+  if ((err = ltc_mp.ecc_ptadd(precomp[1], precomp[2], precomp[3], ma, modulus, mp)) != CRYPT_OK)               { goto ERR_MU; }
 
   /* precomp [0,i](A + B) table */
-  if ((err = ltc_mp.ecc_ptdbl(precomp[1<<2], precomp[2<<2], modulus, mp)) != CRYPT_OK)                         { goto ERR_MU; }
-  if ((err = ltc_mp.ecc_ptadd(precomp[1<<2], precomp[2<<2], precomp[3<<2], modulus, mp)) != CRYPT_OK)          { goto ERR_MU; }
+  if ((err = ltc_mp.ecc_ptdbl(precomp[1<<2], precomp[2<<2], ma, modulus, mp)) != CRYPT_OK)                     { goto ERR_MU; }
+  if ((err = ltc_mp.ecc_ptadd(precomp[1<<2], precomp[2<<2], precomp[3<<2], ma, modulus, mp)) != CRYPT_OK)      { goto ERR_MU; }
 
   /* precomp [i,j](A + B) table (i != 0, j != 0) */
   for (x = 1; x < 4; x++) {
      for (y = 1; y < 4; y++) {
-        if ((err = ltc_mp.ecc_ptadd(precomp[x], precomp[(y<<2)], precomp[x+(y<<2)], modulus, mp)) != CRYPT_OK) { goto ERR_MU; }
+        if ((err = ltc_mp.ecc_ptadd(precomp[x], precomp[(y<<2)], precomp[x+(y<<2)], ma, modulus, mp)) != CRYPT_OK) { goto ERR_MU; }
      }
-  }   
+  }
 
   nibble  = 3;
   first   = 1;
@@ -162,20 +131,21 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
   bitbufB = tB[0];
 
   /* for every byte of the multiplicands */
-  for (x = -1;; ) {
+  for (x = 0;; ) {
      /* grab a nibble */
      if (++nibble == 4) {
-        ++x; if (x == len) break;
+        if (x == len) break;
         bitbufA = tA[x];
         bitbufB = tB[x];
         nibble  = 0;
+        ++x;
      }
 
      /* extract two bits from both, shift/update */
      nA = (bitbufA >> 6) & 0x03;
      nB = (bitbufB >> 6) & 0x03;
-     bitbufA = (bitbufA << 2) & 0xFF;   
-     bitbufB = (bitbufB << 2) & 0xFF;   
+     bitbufA = (bitbufA << 2) & 0xFF;
+     bitbufB = (bitbufB << 2) & 0xFF;
 
      /* if both zero, if first, continue */
      if ((nA == 0) && (nB == 0) && (first == 1)) {
@@ -185,8 +155,8 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
      /* double twice, only if this isn't the first */
      if (first == 0) {
         /* double twice */
-        if ((err = ltc_mp.ecc_ptdbl(C, C, modulus, mp)) != CRYPT_OK)                  { goto ERR_MU; }
-        if ((err = ltc_mp.ecc_ptdbl(C, C, modulus, mp)) != CRYPT_OK)                  { goto ERR_MU; }
+        if ((err = ltc_mp.ecc_ptdbl(C, C, ma, modulus, mp)) != CRYPT_OK)              { goto ERR_MU; }
+        if ((err = ltc_mp.ecc_ptdbl(C, C, ma, modulus, mp)) != CRYPT_OK)              { goto ERR_MU; }
      }
 
      /* if not both zero */
@@ -194,12 +164,10 @@ int ltc_ecc_mul2add(ecc_point *A, void *kA,
         if (first == 1) {
            /* if first, copy from table */
            first = 0;
-           if ((err = mp_copy(precomp[nA + (nB<<2)]->x, C->x)) != CRYPT_OK)           { goto ERR_MU; }
-           if ((err = mp_copy(precomp[nA + (nB<<2)]->y, C->y)) != CRYPT_OK)           { goto ERR_MU; }
-           if ((err = mp_copy(precomp[nA + (nB<<2)]->z, C->z)) != CRYPT_OK)           { goto ERR_MU; }
+           if ((err = ltc_ecc_copy_point(precomp[nA + (nB<<2)], C)) != CRYPT_OK)      { goto ERR_MU; }
         } else {
            /* if not first, add from table */
-           if ((err = ltc_mp.ecc_ptadd(C, precomp[nA + (nB<<2)], C, modulus, mp)) != CRYPT_OK) { goto ERR_MU; }
+           if ((err = ltc_mp.ecc_ptadd(C, precomp[nA + (nB<<2)], C, ma, modulus, mp)) != CRYPT_OK) { goto ERR_MU; }
         }
      }
   }
@@ -230,6 +198,6 @@ ERR_T:
 #endif
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/ecc/ltc_ecc_mul2add.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2007/05/12 14:32:35 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

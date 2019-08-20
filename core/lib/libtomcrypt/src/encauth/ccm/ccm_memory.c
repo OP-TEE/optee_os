@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file ccm_memory.c
@@ -81,10 +52,6 @@ int ccm_memory(int cipher,
    symmetric_key *skey;
    int            err;
    unsigned long  len, L, x, y, z, CTRlen;
-#ifdef LTC_FAST
-   LTC_FAST_TYPE fastMask = -1; /* initialize fastMask at all zeroes */
-#endif
-   unsigned char mask = 0xff; /* initialize mask at all zeroes */
 
    if (uskey == NULL) {
       LTC_ARGCHK(key    != NULL);
@@ -110,24 +77,18 @@ int ccm_memory(int cipher,
    if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
       return err;
    }
-   if (cipher_descriptor[cipher].block_length != 16) {
+   if (cipher_descriptor[cipher]->block_length != 16) {
       return CRYPT_INVALID_CIPHER;
    }
 
-   /* make sure the taglen is even and <= 16 */
-   *taglen &= ~1;
-   if (*taglen > 16) {
-      *taglen = 16;
-   }
-
-   /* can't use < 4 */
-   if (*taglen < 4) {
+   /* make sure the taglen is valid */
+   if (*taglen < 4 || *taglen > 16 || (*taglen % 2) == 1) {
       return CRYPT_INVALID_ARG;
    }
 
    /* is there an accelerator? */
-   if (cipher_descriptor[cipher].accel_ccm_memory != NULL) {
-       return cipher_descriptor[cipher].accel_ccm_memory(
+   if (cipher_descriptor[cipher]->accel_ccm_memory != NULL) {
+       return cipher_descriptor[cipher]->accel_ccm_memory(
            key,    keylen,
            uskey,
            nonce,  noncelen,
@@ -163,16 +124,16 @@ int ccm_memory(int cipher,
       }
 
       /* initialize the cipher */
-      if ((err = cipher_descriptor[cipher].setup(key, keylen, 0, skey)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cipher]->setup(key, keylen, 0, skey)) != CRYPT_OK) {
          XFREE(skey);
          return err;
       }
    } else {
       skey = uskey;
    }
-   
+
    /* initialize buffer for pt */
-   if (direction == CCM_DECRYPT) {
+   if (direction == CCM_DECRYPT && ptlen > 0) {
       pt_work = XMALLOC(ptlen);
       if (pt_work == NULL) {
          goto error;
@@ -209,7 +170,7 @@ int ccm_memory(int cipher,
    }
 
    /* encrypt PAD */
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
        goto error;
    }
 
@@ -234,7 +195,7 @@ int ccm_memory(int cipher,
       for (y = 0; y < headerlen; y++) {
           if (x == 16) {
              /* full block so let's encrypt it */
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              x = 0;
@@ -243,7 +204,7 @@ int ccm_memory(int cipher,
       }
 
       /* remainder */
-      if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+      if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
          goto error;
       }
    }
@@ -278,16 +239,16 @@ int ccm_memory(int cipher,
                     ctr[z] = (ctr[z] + 1) & 255;
                     if (ctr[z]) break;
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
 
                 /* xor the PT against the pad first */
                 for (z = 0; z < 16; z += sizeof(LTC_FAST_TYPE)) {
-                    *((LTC_FAST_TYPE*)(&PAD[z]))  ^= *((LTC_FAST_TYPE*)(&pt[y+z]));
-                    *((LTC_FAST_TYPE*)(&ct[y+z])) = *((LTC_FAST_TYPE*)(&pt[y+z])) ^ *((LTC_FAST_TYPE*)(&CTRPAD[z]));
+                    *(LTC_FAST_TYPE_PTR_CAST(&PAD[z]))  ^= *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z]));
+                    *(LTC_FAST_TYPE_PTR_CAST(&ct[y+z])) = *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z])) ^ *(LTC_FAST_TYPE_PTR_CAST(&CTRPAD[z]));
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
              }
@@ -298,21 +259,21 @@ int ccm_memory(int cipher,
                     ctr[z] = (ctr[z] + 1) & 255;
                     if (ctr[z]) break;
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
 
                 /* xor the PT against the pad last */
                 for (z = 0; z < 16; z += sizeof(LTC_FAST_TYPE)) {
-                    *((LTC_FAST_TYPE*)(&pt[y+z])) = *((LTC_FAST_TYPE*)(&ct[y+z])) ^ *((LTC_FAST_TYPE*)(&CTRPAD[z]));
-                    *((LTC_FAST_TYPE*)(&PAD[z]))  ^= *((LTC_FAST_TYPE*)(&pt[y+z]));
+                    *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z])) = *(LTC_FAST_TYPE_PTR_CAST(&ct[y+z])) ^ *(LTC_FAST_TYPE_PTR_CAST(&CTRPAD[z]));
+                    *(LTC_FAST_TYPE_PTR_CAST(&PAD[z]))  ^= *(LTC_FAST_TYPE_PTR_CAST(&pt[y+z]));
                 }
-                if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+                if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                    goto error;
                 }
              }
-         }
-     }
+          }
+      }
 #endif
 
       for (; y < ptlen; y++) {
@@ -322,7 +283,7 @@ int ccm_memory(int cipher,
                  ctr[z] = (ctr[z] + 1) & 255;
                  if (ctr[z]) break;
              }
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              CTRlen = 0;
@@ -338,7 +299,7 @@ int ccm_memory(int cipher,
           }
 
           if (x == 16) {
-             if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+             if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
                 goto error;
              }
              x = 0;
@@ -347,7 +308,7 @@ int ccm_memory(int cipher,
       }
 
       if (x != 0) {
-         if ((err = cipher_descriptor[cipher].ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
+         if ((err = cipher_descriptor[cipher]->ecb_encrypt(PAD, PAD, skey)) != CRYPT_OK) {
             goto error;
          }
       }
@@ -357,12 +318,15 @@ int ccm_memory(int cipher,
    for (y = 15; y > 15 - L; y--) {
       ctr[y] = 0x00;
    }
-   if ((err = cipher_descriptor[cipher].ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->ecb_encrypt(ctr, CTRPAD, skey)) != CRYPT_OK) {
       goto error;
    }
 
    if (skey != uskey) {
-      cipher_descriptor[cipher].done(skey);
+      cipher_descriptor[cipher]->done(skey);
+#ifdef LTC_CLEAN_STACK
+      zeromem(skey,   sizeof(*skey));
+#endif
    }
 
    if (direction == CCM_ENCRYPT) {
@@ -387,28 +351,11 @@ int ccm_memory(int cipher,
 
       /* Zero the plaintext if the tag was invalid (in constant time) */
       if (ptlen > 0) {
-         y = 0;
-         mask *= 1 - err; /* mask = ( err ? 0 : 0xff ) */
-#ifdef LTC_FAST
-         fastMask *= 1 - err;
-         if (ptlen & ~15) {
-            for (; y < (ptlen & ~15); y += 16) {
-              for (z = 0; z < 16; z += sizeof(LTC_FAST_TYPE)) {
-                *((LTC_FAST_TYPE*)(&pt_real[y+z])) = *((LTC_FAST_TYPE*)(&pt[y+z])) & fastMask;
-              }
-            }
-         }
-#endif
-         for (; y < ptlen; y++) {
-            pt_real[y] = pt[y] & mask;
-         }
+         copy_or_zeromem(pt, pt_real, ptlen, err);
       }
    }
 
 #ifdef LTC_CLEAN_STACK
-   fastMask = 0;
-   mask = 0;
-   zeromem(skey,   sizeof(*skey));
    zeromem(PAD,    sizeof(PAD));
    zeromem(CTRPAD, sizeof(CTRPAD));
    if (pt_work != NULL) {
@@ -428,6 +375,6 @@ error:
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

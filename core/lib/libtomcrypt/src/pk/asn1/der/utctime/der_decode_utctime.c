@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_decode_utctime.c
@@ -45,7 +16,7 @@
 
 #ifdef LTC_DER
 
-static int char_to_int(unsigned char x)
+static int _char_to_int(unsigned char x)
 {
    switch (x)  {
       case '0': return 0;
@@ -58,14 +29,12 @@ static int char_to_int(unsigned char x)
       case '7': return 7;
       case '8': return 8;
       case '9': return 9;
-      default:
-          return 100;
+      default:  return 100;
    }
-   return 100;
 }
 
 #define DECODE_V(y, max) \
-   y  = char_to_int(buf[x])*10 + char_to_int(buf[x+1]); \
+   y  = _char_to_int(buf[x])*10 + _char_to_int(buf[x+1]); \
    if (y >= max) return CRYPT_INVALID_PACKET;           \
    x += 2;
 
@@ -79,7 +48,7 @@ static int char_to_int(unsigned char x)
 int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
                              ltc_utctime   *out)
 {
-   unsigned char buf[32];
+   unsigned char buf[32] = { 0 }; /* initialize as all zeroes */
    unsigned long x;
    int           y;
 
@@ -103,7 +72,7 @@ int der_decode_utctime(const unsigned char *in, unsigned long *inlen,
    *inlen = 2 + x;
 
 
-   /* possible encodings are 
+   /* possible encodings are
 YYMMDDhhmmZ
 YYMMDDhhmm+hh'mm'
 YYMMDDhhmm-hh'mm'
@@ -111,7 +80,7 @@ YYMMDDhhmmssZ
 YYMMDDhhmmss+hh'mm'
 YYMMDDhhmmss-hh'mm'
 
-    So let's do a trivial decode upto [including] mm 
+    So let's do a trivial decode upto [including] mm
    */
 
     x = 0;
@@ -127,7 +96,8 @@ YYMMDDhhmmss-hh'mm'
     /* now is it Z, +, - or 0-9 */
     if (buf[x] == 'Z') {
        return CRYPT_OK;
-    } else if (buf[x] == '+' || buf[x] == '-') {
+    }
+    if (buf[x] == '+' || buf[x] == '-') {
        out->off_dir = (buf[x++] == '+') ? 0 : 1;
        DECODE_V(out->off_hh, 24);
        DECODE_V(out->off_mm, 60);
@@ -140,18 +110,18 @@ YYMMDDhhmmss-hh'mm'
     /* now is it Z, +, - */
     if (buf[x] == 'Z') {
        return CRYPT_OK;
-    } else if (buf[x] == '+' || buf[x] == '-') {
+    }
+    if (buf[x] == '+' || buf[x] == '-') {
        out->off_dir = (buf[x++] == '+') ? 0 : 1;
        DECODE_V(out->off_hh, 24);
        DECODE_V(out->off_mm, 60);
        return CRYPT_OK;
-    } else {
-       return CRYPT_INVALID_PACKET;
     }
+    return CRYPT_INVALID_PACKET;
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/utctime/der_decode_utctime.c,v $ */
-/* $Revision: 1.9 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,32 +6,30 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file hmac_memory.c
-  LTC_HMAC support, process a block of memory, Tom St Denis/Dobes Vandermeer
+  HMAC support, process a block of memory, Tom St Denis/Dobes Vandermeer
 */
 
 #ifdef LTC_HMAC
 
 /**
-   LTC_HMAC a block of memory to produce the authentication tag
-   @param hash      The index of the hash to use 
-   @param key       The secret key 
+   HMAC a block of memory to produce the authentication tag
+   @param hash      The index of the hash to use
+   @param key       The secret key
    @param keylen    The length of the secret key (octets)
-   @param in        The data to LTC_HMAC
-   @param inlen     The length of the data to LTC_HMAC (octets)
+   @param in        The data to HMAC
+   @param inlen     The length of the data to HMAC (octets)
    @param out       [out] Destination of the authentication tag
    @param outlen    [in/out] Max size and resulting size of authentication tag
    @return CRYPT_OK if successful
 */
-int hmac_memory(int hash, 
+int hmac_memory(int hash,
                 const unsigned char *key,  unsigned long keylen,
-                const unsigned char *in,   unsigned long inlen, 
+                const unsigned char *in,   unsigned long inlen,
                       unsigned char *out,  unsigned long *outlen)
 {
     hmac_state *hmac;
@@ -66,7 +37,7 @@ int hmac_memory(int hash,
 
     LTC_ARGCHK(key    != NULL);
     LTC_ARGCHK(in     != NULL);
-    LTC_ARGCHK(out    != NULL); 
+    LTC_ARGCHK(out    != NULL);
     LTC_ARGCHK(outlen != NULL);
 
     /* make sure hash descriptor is valid */
@@ -105,12 +76,12 @@ LBL_ERR:
 #endif
 
    XFREE(hmac);
-   return err;   
+   return err;
 }
 
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/mac/hmac/hmac_memory.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2007/05/12 14:37:41 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

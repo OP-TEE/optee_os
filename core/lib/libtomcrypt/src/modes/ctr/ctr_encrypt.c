@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file ctr_encrypt.c
@@ -67,14 +38,14 @@ static void ctr_increment_counter(symmetric_CTR *ctr)
 }
 
 /**
-  CTR encrypt sub
+  CTR encrypt software implementation
   @param pt     Plaintext
   @param ct     [out] Ciphertext
   @param len    Length of plaintext (octets)
   @param ctr    CTR state
   @return CRYPT_OK if successful
 */
-static int ctr_encrypt_sub(const unsigned char *pt, unsigned char *ct, unsigned long len, symmetric_CTR *ctr)
+static int _ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, symmetric_CTR *ctr)
 {
    int err;
 
@@ -88,10 +59,10 @@ static int ctr_encrypt_sub(const unsigned char *pt, unsigned char *ct, unsigned 
         ctr->padlen = 0;
       }
 #ifdef LTC_FAST
-      if (ctr->padlen == 0 && len >= (unsigned long)ctr->blocklen) {
+      if ((ctr->padlen == 0) && (len >= (unsigned long)ctr->blocklen)) {
          for (x = 0; x < ctr->blocklen; x += sizeof(LTC_FAST_TYPE)) {
-            *((LTC_FAST_TYPE*)((unsigned char *)ct + x)) = *((LTC_FAST_TYPE*)((unsigned char *)pt + x)) ^
-                                                           *((LTC_FAST_TYPE*)((unsigned char *)ctr->pad + x));
+            *(LTC_FAST_TYPE_PTR_CAST((unsigned char *)ct + x)) = *(LTC_FAST_TYPE_PTR_CAST((unsigned char *)pt + x)) ^
+                                                           *(LTC_FAST_TYPE_PTR_CAST((unsigned char *)ctr->pad + x));
          }
        pt         += ctr->blocklen;
        ct         += ctr->blocklen;
@@ -133,8 +104,8 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
    }
 
    /* is blocklen/padlen valid? */
-   if (ctr->blocklen < 1 || ctr->blocklen > (int)sizeof(ctr->ctr) ||
-       ctr->padlen   < 0 || ctr->padlen   > (int)sizeof(ctr->pad)) {
+   if ((ctr->blocklen < 1) || (ctr->blocklen > (int)sizeof(ctr->ctr)) ||
+       (ctr->padlen   < 0) || (ctr->padlen   > (int)sizeof(ctr->pad))) {
       return CRYPT_INVALID_ARG;
    }
 
@@ -153,14 +124,14 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
        pt += (len / ctr->blocklen) * ctr->blocklen;
        ct += (len / ctr->blocklen) * ctr->blocklen;
        len %= ctr->blocklen;
-       /* counter was changed by accelerator so mark pad empty (will need updating in ctr_encrypt_sub()) */
+       /* counter was changed by accelerator so mark pad empty (will need updating in _ctr_encrypt()) */
        ctr->padlen = ctr->blocklen;
      }
 
      /* try to re-synchronize on a block boundary for maximum use of acceleration */
      incr = ctr->blocklen - ctr->padlen;
      if (len >= incr + (unsigned long)ctr->blocklen) {
-       if ((err = ctr_encrypt_sub(pt, ct, incr, ctr)) != CRYPT_OK) {
+       if ((err = _ctr_encrypt(pt, ct, incr, ctr)) != CRYPT_OK) {
          return err;
        }
        pt += incr;
@@ -170,11 +141,11 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
      }
    }
 
-   return ctr_encrypt_sub(pt, ct, len, ctr);
+   return _ctr_encrypt(pt, ct, len, ctr);
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_encrypt.c,v $ */
-/* $Revision: 1.22 $ */
-/* $Date: 2007/02/22 20:26:05 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_length_utf8_string.c
@@ -53,17 +24,39 @@ unsigned long der_utf8_charsize(const wchar_t c)
 {
    if (c <= 0x7F) {
       return 1;
-   } else if (c <= 0x7FF) {
-      return 2;
-   } else if (c <= 0xFFFF) {
-      return 3;
-   } else {
-      return 4;
    }
+   if (c <= 0x7FF) {
+      return 2;
+   }
+#if LTC_WCHAR_MAX == 0xFFFF
+   return 3;
+#else
+   if (c <= 0xFFFF) {
+      return 3;
+   }
+   return 4;
+#endif
 }
 
 /**
-  Gets length of DER encoding of UTF8 STRING 
+  Test whether the given code point is valid character
+  @param c   The UTF-8 character to test
+  @return    1 - valid, 0 - invalid
+*/
+int der_utf8_valid_char(const wchar_t c)
+{
+   LTC_UNUSED_PARAM(c);
+#if !defined(LTC_WCHAR_MAX) || LTC_WCHAR_MAX > 0xFFFF
+   if (c > 0x10FFFF) return 0;
+#endif
+#if LTC_WCHAR_MAX != 0xFFFF && LTC_WCHAR_MAX != 0xFFFFFFFF
+   if (c < 0) return 0;
+#endif
+   return 1;
+}
+
+/**
+  Gets length of DER encoding of UTF8 STRING
   @param in       The characters to measure the length of
   @param noctets  The number of octets in the string to encode
   @param outlen   [out] The length of the DER encoding for the given string
@@ -72,33 +65,21 @@ unsigned long der_utf8_charsize(const wchar_t c)
 int der_length_utf8_string(const wchar_t *in, unsigned long noctets, unsigned long *outlen)
 {
    unsigned long x, len;
+   int err;
 
    LTC_ARGCHK(in     != NULL);
    LTC_ARGCHK(outlen != NULL);
 
    len = 0;
    for (x = 0; x < noctets; x++) {
-      if (in[x] < 0 || in[x] > 0x10FFFF) {
-         return CRYPT_INVALID_ARG;
-      }
+      if (!der_utf8_valid_char(in[x])) return CRYPT_INVALID_ARG;
       len += der_utf8_charsize(in[x]);
    }
 
-   if (len < 128) {
-      /* 0C LL DD DD DD ... */
-      *outlen = 2 + len;
-   } else if (len < 256) {
-      /* 0C 81 LL DD DD DD ... */
-      *outlen = 3 + len;
-   } else if (len < 65536UL) {
-      /* 0C 82 LL LL DD DD DD ... */
-      *outlen = 4 + len;
-   } else if (len < 16777216UL) {
-      /* 0C 83 LL LL LL DD DD DD ... */
-      *outlen = 5 + len;
-   } else {
-      return CRYPT_INVALID_ARG;
+   if ((err = der_length_asn1_length(len, &x)) != CRYPT_OK) {
+      return err;
    }
+   *outlen = 1 + x + len;
 
    return CRYPT_OK;
 }
@@ -106,6 +87,6 @@ int der_length_utf8_string(const wchar_t *in, unsigned long noctets, unsigned lo
 #endif
 
 
-/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/utf8/der_length_utf8_string.c,v $ */
-/* $Revision: 1.6 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

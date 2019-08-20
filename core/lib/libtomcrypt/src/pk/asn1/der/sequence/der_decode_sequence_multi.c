@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 #include <stdarg.h>
 
 
@@ -51,27 +22,27 @@
   Decode a SEQUENCE type using a VA list
   @param in    Input buffer
   @param inlen Length of input in octets
-  @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
+  @param a1    Initialized argument list #1
+  @param a2    Initialized argument list #2 (copy of #1)
+  @param flags    c.f. enum ltc_der_seq
   @return CRYPT_OK on success
 */
-int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
+static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen, va_list a1, va_list a2, unsigned int flags)
 {
    int           err;
    ltc_asn1_type type;
    unsigned long size, x;
    void          *data;
-   va_list       args;
    ltc_asn1_list *list;
 
    LTC_ARGCHK(in    != NULL);
 
    /* get size of output that will be required */
-   va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = va_arg(args, ltc_asn1_type);
-       size = va_arg(args, unsigned long);
-       data = va_arg(args, void*);
+       type = (ltc_asn1_type)va_arg(a1, int);
+       size = va_arg(a1, unsigned long);
+       data = va_arg(a1, void*);
        LTC_UNUSED_PARAM(size);
        LTC_UNUSED_PARAM(data);
 
@@ -97,20 +68,16 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_CHOICE:
            case LTC_ASN1_RAW_BIT_STRING:
            case LTC_ASN1_TELETEX_STRING:
+           case LTC_ASN1_GENERALIZEDTIME:
                 ++x;
                 break;
 
            case LTC_ASN1_EOL:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
-               va_end(args);
-               return CRYPT_INVALID_ARG;
+           case LTC_ASN1_CUSTOM_TYPE:
            default:
-               va_end(args);
                return CRYPT_INVALID_ARG;
        }
    }
-   va_end(args);
 
    /* allocate structure for x elements */
    if (x == 0) {
@@ -123,12 +90,11 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    }
 
    /* fill in the structure */
-   va_start(args, inlen);
    x = 0;
    for (;;) {
-       type = va_arg(args, ltc_asn1_type);
-       size = va_arg(args, unsigned long);
-       data = va_arg(args, void*);
+       type = (ltc_asn1_type)va_arg(a2, int);
+       size = va_arg(a2, unsigned long);
+       data = va_arg(a2, void*);
 
        if (type == LTC_ASN1_EOL) {
           break;
@@ -152,30 +118,76 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
            case LTC_ASN1_CHOICE:
            case LTC_ASN1_RAW_BIT_STRING:
            case LTC_ASN1_TELETEX_STRING:
+           case LTC_ASN1_GENERALIZEDTIME:
                 LTC_SET_ASN1(list, x++, type, data, size);
                 break;
            /* coverity[dead_error_line] */
            case LTC_ASN1_EOL:
-           case LTC_ASN1_CONSTRUCTED:
-           case LTC_ASN1_CONTEXT_SPECIFIC:
-                break;
+           case LTC_ASN1_CUSTOM_TYPE:
            default:
-               va_end(args);
-               err = CRYPT_INVALID_ARG;
-               goto LBL_ERR;
+                break;
        }
    }
-   va_end(args);
 
-   err = der_decode_sequence(in, inlen, list, x);
-LBL_ERR:
+   err = der_decode_sequence_ex(in, inlen, list, x, flags);
    XFREE(list);
+   return err;
+}
+
+/**
+  Decode a SEQUENCE type using a VA list
+  @param in    Input buffer
+  @param inlen Length of input in octets
+  @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
+  @return CRYPT_OK on success
+*/
+int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
+{
+   va_list       a1, a2;
+   int err;
+
+   LTC_ARGCHK(in    != NULL);
+
+   va_start(a1, inlen);
+   va_start(a2, inlen);
+
+   err = _der_decode_sequence_va(in, inlen, a1, a2, LTC_DER_SEQ_SEQUENCE | LTC_DER_SEQ_RELAXED);
+
+   va_end(a2);
+   va_end(a1);
+
+   return err;
+}
+
+/**
+  Decode a SEQUENCE type using a VA list
+  @param in    Input buffer
+  @param inlen Length of input in octets
+  @param flags c.f. enum ltc_der_seq
+  @remark <...> is of the form <type, size, data> (int, unsigned long, void*)
+  @return CRYPT_OK on success
+*/
+int der_decode_sequence_multi_ex(const unsigned char *in, unsigned long inlen, unsigned int flags, ...)
+{
+   va_list       a1, a2;
+   int err;
+
+   LTC_ARGCHK(in    != NULL);
+
+   va_start(a1, flags);
+   va_start(a2, flags);
+
+   err = _der_decode_sequence_va(in, inlen, a1, a2, flags);
+
+   va_end(a2);
+   va_end(a1);
+
    return err;
 }
 
 #endif
 
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

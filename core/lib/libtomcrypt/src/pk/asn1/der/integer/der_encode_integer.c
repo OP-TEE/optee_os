@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
   @file der_encode_integer.c
@@ -55,8 +26,8 @@
   @return CRYPT_OK if successful
 */
 int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
-{  
-   unsigned long tmplen, y;
+{
+   unsigned long tmplen, y, len;
    int           err, leading_zero;
 
    LTC_ARGCHK(num    != NULL);
@@ -93,24 +64,11 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
 
    /* now store initial data */
    *out++ = 0x02;
-   if (y < 128) {
-      /* short form */
-      *out++ = (unsigned char)y;
-   } else if (y < 256) {
-      *out++ = 0x81;
-      *out++ = (unsigned char)y;
-   } else if (y < 65536UL) {
-      *out++ = 0x82;
-      *out++ = (unsigned char)((y>>8)&255);
-      *out++ = (unsigned char)y;
-   } else if (y < 16777216UL) {
-      *out++ = 0x83;
-      *out++ = (unsigned char)((y>>16)&255);
-      *out++ = (unsigned char)((y>>8)&255);
-      *out++ = (unsigned char)y;
-   } else {
-      return CRYPT_INVALID_ARG;
+   len = *outlen - 1;
+   if ((err = der_encode_asn1_length(y, out, &len)) != CRYPT_OK) {
+      return err;
    }
+   out += len;
 
    /* now store msbyte of zero if num is non-zero */
    if (leading_zero) {
@@ -125,7 +83,7 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
       }
    } else if (mp_iszero(num) != LTC_MP_YES) {
       void *tmp;
-         
+
       /* negative */
       if (mp_init(&tmp) != CRYPT_OK) {
          return CRYPT_MEM;
@@ -147,12 +105,12 @@ int der_encode_integer(void *num, unsigned char *out, unsigned long *outlen)
    }
 
    /* we good */
-   *outlen = tmplen; 
+   *outlen = tmplen;
    return CRYPT_OK;
 }
 
 #endif
 
-/* $Source$ */
-/* $Revision$ */
-/* $Date$ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

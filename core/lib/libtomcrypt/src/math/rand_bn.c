@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -5,10 +6,10 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
+#if defined(LTC_MDSA) || defined(LTC_MECC)
 /**
   Generate a random number N with given bitlength (note: MSB can be 0)
 */
@@ -51,19 +52,25 @@ cleanup:
 }
 
 /**
-  Generate a random number N in a range: 0 <= N < limit
+  Generate a random number N in a range: 1 <= N < limit
 */
-int rand_bn_range(void *N, void *limit, prng_state *prng, int wprng)
+int rand_bn_upto(void *N, void *limit, prng_state *prng, int wprng)
 {
-   int res;
+   int res, bits;
 
    LTC_ARGCHK(N != NULL);
    LTC_ARGCHK(limit != NULL);
 
+   bits = mp_count_bits(limit);
    do {
-     res = rand_bn_bits(N, mp_count_bits(limit), prng, wprng);
+     res = rand_bn_bits(N, bits, prng, wprng);
      if (res != CRYPT_OK) return res;
-   } while (mp_cmp(N, limit) != LTC_MP_LT);
+   } while (mp_cmp_d(N, 0) != LTC_MP_GT || mp_cmp(N, limit) != LTC_MP_LT);
 
    return CRYPT_OK;
 }
+#endif
+
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */

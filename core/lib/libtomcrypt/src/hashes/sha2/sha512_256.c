@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -13,7 +12,7 @@
    SHA512/256 hash included in sha512.c
 */
 
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 #if defined(LTC_SHA512_256) && defined(LTC_SHA512)
 

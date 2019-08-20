@@ -1,31 +1,4 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2001-2007, Tom St Denis
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 /* LibTomCrypt, modular cryptographic library -- Tom St Denis
  *
  * LibTomCrypt is a library that provides various cryptographic
@@ -33,10 +6,8 @@
  *
  * The library is free for all purposes without any express
  * guarantee it works.
- *
- * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include "tomcrypt_private.h"
 
 /**
    @file f8_start.c
@@ -49,8 +20,8 @@
 /**
    Initialize an F8 context
    @param cipher      The index of the cipher desired
-   @param IV          The initial vector
-   @param key         The secret key 
+   @param IV          The initialization vector
+   @param key         The secret key
    @param keylen      The length of the secret key (octets)
    @param salt_key    The salting key for the IV
    @param skeylen     The length of the salting key (octets)
@@ -58,8 +29,8 @@
    @param f8          The F8 state to initialize
    @return CRYPT_OK if successful
 */
-int f8_start(                int  cipher, const unsigned char *IV, 
-             const unsigned char *key,                    int  keylen, 
+int f8_start(                int  cipher, const unsigned char *IV,
+             const unsigned char *key,                    int  keylen,
              const unsigned char *salt_key,               int  skeylen,
                              int  num_rounds,   symmetric_F8  *f8)
 {
@@ -76,7 +47,7 @@ int f8_start(                int  cipher, const unsigned char *IV,
    }
 
 #ifdef LTC_FAST
-   if (cipher_descriptor[cipher].block_length % sizeof(LTC_FAST_TYPE)) {
+   if (cipher_descriptor[cipher]->block_length % sizeof(LTC_FAST_TYPE)) {
       return CRYPT_INVALID_ARG;
    }
 #endif
@@ -84,9 +55,9 @@ int f8_start(                int  cipher, const unsigned char *IV,
    /* copy details */
    f8->blockcnt = 0;
    f8->cipher   = cipher;
-   f8->blocklen = cipher_descriptor[cipher].block_length;
+   f8->blocklen = cipher_descriptor[cipher]->block_length;
    f8->padlen   = f8->blocklen;
-   
+
    /* now get key ^ salt_key [extend salt_ket with 0x55 as required to match length] */
    zeromem(tkey, sizeof(tkey));
    for (x = 0; x < keylen && x < (int)sizeof(tkey); x++) {
@@ -94,33 +65,33 @@ int f8_start(                int  cipher, const unsigned char *IV,
    }
    for (x = 0; x < skeylen && x < (int)sizeof(tkey); x++) {
        tkey[x] ^= salt_key[x];
-   }       
+   }
    for (; x < keylen && x < (int)sizeof(tkey); x++) {
        tkey[x] ^= 0x55;
    }
-   
+
    /* now encrypt with tkey[0..keylen-1] the IV and use that as the IV */
-   if ((err = cipher_descriptor[cipher].setup(tkey, keylen, num_rounds, &f8->key)) != CRYPT_OK) {
+   if ((err = cipher_descriptor[cipher]->setup(tkey, keylen, num_rounds, &f8->key)) != CRYPT_OK) {
       return err;
    }
-   
+
    /* encrypt IV */
-   if ((err = cipher_descriptor[f8->cipher].ecb_encrypt(IV, f8->MIV, &f8->key)) != CRYPT_OK) {
-      cipher_descriptor[f8->cipher].done(&f8->key);
+   if ((err = cipher_descriptor[f8->cipher]->ecb_encrypt(IV, f8->MIV, &f8->key)) != CRYPT_OK) {
+      cipher_descriptor[f8->cipher]->done(&f8->key);
       return err;
    }
    zeromem(tkey, sizeof(tkey));
    zeromem(f8->IV, sizeof(f8->IV));
-   
+
    /* terminate this cipher */
-   cipher_descriptor[f8->cipher].done(&f8->key);
-   
+   cipher_descriptor[f8->cipher]->done(&f8->key);
+
    /* init the cipher */
-   return cipher_descriptor[cipher].setup(key, keylen, num_rounds, &f8->key);
+   return cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &f8->key);
 }
 
 #endif
 
-/* $Source: /cvs/libtom/libtomcrypt/src/modes/f8/f8_start.c,v $ */
-/* $Revision: 1.8 $ */
-/* $Date: 2006/12/28 01:27:24 $ */
+/* ref:         $Format:%D$ */
+/* git commit:  $Format:%H$ */
+/* commit time: $Format:%ai$ */
