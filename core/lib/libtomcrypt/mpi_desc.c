@@ -9,7 +9,7 @@
 #include <mempool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <tomcrypt_mp.h>
 #include <util.h>
 
@@ -107,7 +107,7 @@ static int init_copy(void **a, void *b)
 }
 
 /* ---- trivial ---- */
-static int set_int(void *a, unsigned long b)
+static int set_int(void *a, ltc_mp_digit b)
 {
 	uint32_t b32 = b;
 
@@ -163,7 +163,7 @@ static int compare(void *a, void *b)
 	return LTC_MP_EQ;
 }
 
-static int compare_d(void *a, unsigned long b)
+static int compare_d(void *a, ltc_mp_digit b)
 {
 	unsigned long v = b;
 	unsigned int shift = 31;
@@ -275,7 +275,7 @@ static int add(void *a, void *b, void *c)
 	return CRYPT_OK;
 }
 
-static int addi(void *a, unsigned long b, void *c)
+static int addi(void *a, ltc_mp_digit b, void *c)
 {
 	uint32_t b32 = b;
 
@@ -297,7 +297,7 @@ static int sub(void *a, void *b, void *c)
 	return CRYPT_OK;
 }
 
-static int subi(void *a, unsigned long b, void *c)
+static int subi(void *a, ltc_mp_digit b, void *c)
 {
 	uint32_t b32 = b;
 
@@ -319,7 +319,7 @@ static int mul(void *a, void *b, void *c)
 	return CRYPT_OK;
 }
 
-static int muli(void *a, unsigned long b, void *c)
+static int muli(void *a, ltc_mp_digit b, void *c)
 {
 	if (b > (unsigned long) UINT32_MAX)
 		return CRYPT_INVALID_ARG;
@@ -361,7 +361,7 @@ static int div_2(void *a, void *b)
 }
 
 /* modi */
-static int modi(void *a, unsigned long b, unsigned long *c)
+static int modi(void *a, ltc_mp_digit b, ltc_mp_digit *c)
 {
 	mbedtls_mpi bn_b;
 	mbedtls_mpi bn_c;
@@ -647,7 +647,6 @@ ltc_math_descriptor ltc_mp = {
 	.gcd = &gcd,
 	.lcm = &lcm,
 
-	.mod = &mod,
 	.mulmod = &mulmod,
 	.sqrmod = &sqrmod,
 	.invmod = &invmod,

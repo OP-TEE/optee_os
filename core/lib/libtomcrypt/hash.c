@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <utee_defines.h>
 #include <util.h>
 

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt.h>
+#include <tomcrypt_private.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -18,7 +18,7 @@ struct ltc_xts_ctx {
 	int cipher_idx;
 	int (*update)(const unsigned char *src, unsigned long len,
 		      unsigned char *dst, unsigned char *tweak,
-		      symmetric_xts *xts);
+		      const symmetric_xts *xts);
 	symmetric_xts state;
 	uint8_t tweak[TEE_AES_BLOCK_SIZE];
 };

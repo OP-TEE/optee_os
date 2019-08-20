@@ -45,7 +45,7 @@
  * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
-#include "tomcrypt.h"
+#include <tomcrypt_private.h>
 #include "tomcrypt_arm_neon.h"
 
 typedef unsigned int u32;
@@ -180,7 +180,8 @@ int rijndael_keysize(int *keysize)
 }
 
 static int aes_ecb_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
-				   unsigned long blocks, symmetric_key *skey)
+				   unsigned long blocks,
+				   const symmetric_key *skey)
 {
 	struct tomcrypt_arm_neon_state state;
 	u8 *rk;
@@ -201,7 +202,8 @@ static int aes_ecb_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 }
 
 static int aes_ecb_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
-				   unsigned long blocks, symmetric_key *skey)
+				   unsigned long blocks,
+				   const symmetric_key *skey)
 {
 	struct tomcrypt_arm_neon_state state;
 	u8 *rk;
@@ -222,13 +224,13 @@ static int aes_ecb_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 }
 
 int rijndael_ecb_encrypt(const unsigned char *pt, unsigned char *ct,
-		    symmetric_key *skey)
+			 const symmetric_key *skey)
 {
 	return aes_ecb_encrypt_nblocks(pt, ct, 1, skey);
 }
 
 int rijndael_ecb_decrypt(const unsigned char *ct, unsigned char *pt,
-		    symmetric_key *skey)
+			 const symmetric_key *skey)
 {
 	return aes_ecb_decrypt_nblocks(ct, pt, 1, skey);
 }
@@ -309,7 +311,8 @@ static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 
 static int aes_xts_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 				   unsigned long blocks, unsigned char *tweak,
-				   symmetric_key *skey1, symmetric_key *skey2)
+				   const symmetric_key *skey1,
+				   const symmetric_key *skey2)
 {
 	struct tomcrypt_arm_neon_state state;
 	u8 *rk1, *rk2;
@@ -335,7 +338,8 @@ static int aes_xts_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 
 static int aes_xts_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 				   unsigned long blocks, unsigned char *tweak,
-				   symmetric_key *skey1, symmetric_key *skey2)
+				   const symmetric_key *skey1,
+				   const symmetric_key *skey2)
 {
 	struct tomcrypt_arm_neon_state state;
 	u8 *rk1, *rk2;

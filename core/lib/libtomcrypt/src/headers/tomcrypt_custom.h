@@ -41,7 +41,8 @@
  * c.f. mem_neq() API summary.
  */
 #ifndef XMEM_NEQ
-#define XMEM_NEQ  mem_neq
+#include <string_ext.h>
+#define XMEM_NEQ consttime_memcmp
 #endif
 #ifndef XSTRCMP
 #define XSTRCMP  strcmp

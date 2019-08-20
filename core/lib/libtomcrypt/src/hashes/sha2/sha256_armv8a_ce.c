@@ -38,7 +38,7 @@
  *
  * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
-#include "tomcrypt.h"
+#include <tomcrypt_private.h>
 #include "tomcrypt_arm_neon.h"
 
 /**
@@ -68,9 +68,10 @@ const struct ltc_hash_descriptor sha256_desc =
 
 
 /* Implemented in assembly */
-int sha256_ce_transform(ulong32 *state, unsigned char *buf, int blocks);
+int sha256_ce_transform(ulong32 *state, const unsigned char *buf, int blocks);
 
-static int sha256_compress_nblocks(hash_state *md, unsigned char *buf, int blocks)
+static int sha256_compress_nblocks(hash_state *md, const unsigned char *buf,
+				   int blocks)
 {
     struct tomcrypt_arm_neon_state state;
 
@@ -80,7 +81,7 @@ static int sha256_compress_nblocks(hash_state *md, unsigned char *buf, int block
     return CRYPT_OK;
 }
 
-static int sha256_compress(hash_state *md, unsigned char *buf)
+static int sha256_compress(hash_state *md, const unsigned char *buf)
 {
    return sha256_compress_nblocks(md, buf, 1);
 }
