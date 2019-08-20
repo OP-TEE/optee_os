@@ -67,19 +67,21 @@ const struct ltc_hash_descriptor sha256_desc =
 
 
 /* Implemented in assembly */
-int sha256_transform(ulong32 *state, unsigned char *buf);
+int sha256_ce_transform(ulong32 *state, unsigned char *buf, int blocks);
 
-static int sha256_compress(hash_state * md, unsigned char *buf)
+static int sha256_compress_nblocks(hash_state *md, unsigned char *buf, int blocks)
 {
     struct tomcrypt_arm_neon_state state;
 
     tomcrypt_arm_neon_enable(&state);
-    sha256_transform(md->sha256.state, buf);
+    sha256_ce_transform(md->sha256.state, buf, blocks);
     tomcrypt_arm_neon_disable(&state);
-#ifdef LTC_CLEAN_STACK
-    burn_stack(sizeof(ulong32) * 74);
-#endif
     return CRYPT_OK;
+}
+
+static int sha256_compress(hash_state *md, unsigned char *buf)
+{
+   return sha256_compress_nblocks(md, buf, 1);
 }
 
 /**
@@ -111,7 +113,7 @@ int sha256_init(hash_state * md)
    @param inlen  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-HASH_PROCESS(sha256_process, sha256_compress, sha256, 64)
+HASH_PROCESS_NBLOCKS(sha256_process, sha256_compress_nblocks, sha256, 64)
 
 /**
    Terminate the hash to get the digest
