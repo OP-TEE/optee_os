@@ -23,6 +23,7 @@ function _checkpatch() {
 				--ignore NOT_UNIFIED_DIFF \
 				--ignore CAMELCASE \
 				--ignore PREFER_KERNEL_TYPES \
+				--ignore CONCATENATED_STRING \
 				--no-tree \
 				--strict \
 				$typedefs_opt \
