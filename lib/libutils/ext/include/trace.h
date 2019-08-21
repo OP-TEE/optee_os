@@ -27,6 +27,7 @@ void trace_ext_puts(const char *str);
 int trace_ext_get_thread_id(void);
 void trace_set_level(int level);
 int trace_get_level(void);
+void plat_trace_ext_puts(const char *str);
 
 /* Internal functions used by the macros below */
 void trace_vprintf(const char *func, int line, int level, bool level_ok,

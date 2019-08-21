@@ -13,6 +13,10 @@ const char trace_ext_prefix[] = "TC";
 int trace_level __nex_data = TRACE_LEVEL;
 static unsigned int puts_lock __nex_bss = SPINLOCK_UNLOCK;
 
+void __weak plat_trace_ext_puts(const char *str __unused)
+{
+}
+
 void trace_ext_puts(const char *str)
 {
 	uint32_t itr_status = thread_mask_exceptions(THREAD_EXCP_ALL);
@@ -24,6 +28,8 @@ void trace_ext_puts(const char *str)
 		was_contended = true;
 		cpu_spin_lock_no_dldetect(&puts_lock);
 	}
+
+	plat_trace_ext_puts(str);
 
 	console_flush();
 
