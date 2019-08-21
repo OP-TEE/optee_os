@@ -1645,19 +1645,27 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
+	cookie = arg->params[0].u.tmem.shm_ref;
+
 	psize = READ_ONCE(arg->params[0].u.tmem.size);
+	/*
+	 * There are at least two cases why this is possible:
+	 * - bug in client implementation
+	 * - hypervisor was unable to translate buffer addresses
+	 *   and wants us to call thread_rpc_free()
+	 * In any case, we got buffer that is smaller than expected,
+	 * so we need to free it.
+	 */
 	if (psize < size)
-		return NULL;
+		goto err;
 
 	attr = READ_ONCE(arg->params[0].attr);
 	if (attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
-		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
 				      psize,
 				      cookie);
 	} else if (attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 			    OPTEE_MSG_ATTR_NONCONTIG)) {
-		cookie = arg->params[0].u.tmem.shm_ref;
 		mobj = msg_param_mobj_from_noncontig(
 			arg->params[0].u.tmem.buf_ptr,
 			psize,
@@ -1667,6 +1675,7 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 		return NULL;
 	}
 
+err:
 	if (!mobj) {
 		thread_rpc_free(bt, cookie, mobj);
 		return NULL;
