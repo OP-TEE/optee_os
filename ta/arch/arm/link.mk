@@ -38,7 +38,7 @@ link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
 ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd)
 
 
-link-script-cppflags-$(sm) := -DASM=1 \
+link-script-cppflags-$(sm) := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
 		$(nostdinc$(sm)) $(CPPFLAGS) \
 		$(addprefix -I,$(incdirs$(sm)) $(link-out-dir$(sm))) \

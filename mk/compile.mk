@@ -83,11 +83,11 @@ endif
 
 else ifeq ($$(filter %.S,$1),$1)
 comp-q-$2 := AS
-comp-flags-$2 = -DASM=1 $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
-				      $$(aflags-remove-$$(comp-sm-$2)) \
-				      $$(aflags-remove-$2), \
-			   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
-			   $$(aflags$$(comp-sm-$2)) $$(aflags-$2))
+comp-flags-$2 = $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
+			      $$(aflags-remove-$$(comp-sm-$2)) \
+			      $$(aflags-remove-$2), \
+		   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
+		   $$(aflags$$(comp-sm-$2)) $$(aflags-$2))
 
 else
 $$(error "Don't know what to do with $1")
