@@ -144,7 +144,13 @@ def main():
     h = SHA256.new()
 
     digest_len = h.digest_size
-    sig_len = ceil_div(key.size() + 1, 8)
+    try:
+        # This works in pycrypto
+        sig_len = ceil_div(key.size() + 1, 8)
+    except NotImplementedError:
+        # ... and this one - in pycryptodome
+        sig_len = key.size_in_bytes()
+
     img_size = len(img)
 
     hdr_version = args.ta_version  # struct shdr_bootstrap_ta::ta_version
@@ -181,6 +187,10 @@ def main():
         else:
             signer = PKCS1_v1_5.new(key)
             sig = signer.sign(h)
+            if len(sig) != sig_len:
+                raise Exception(("Actual signature length is not equal to ",
+                                 "the computed one: {} != {}").
+                                format(len(sig), sig_len))
             write_image_with_signature(sig)
             logger.info('Successfully signed application.')
 
