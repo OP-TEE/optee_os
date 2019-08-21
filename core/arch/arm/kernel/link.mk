@@ -22,7 +22,7 @@ link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
 		  $(link-ldadd) $(libgcccore)
 
-link-script-cppflags := -DASM=1 \
+link-script-cppflags := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
 		$(nostdinccore) $(CPPFLAGS) \
 		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
