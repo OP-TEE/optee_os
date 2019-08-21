@@ -33,7 +33,7 @@
 #ifndef KERNEL_UNWIND
 #define KERNEL_UNWIND
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <compiler.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -125,7 +125,7 @@ static inline void *unw_get_kernel_stack(void)
 }
 #endif /* CFG_UNWIND  */
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #ifdef CFG_UNWIND
 #define UNWIND(...)	__VA_ARGS__

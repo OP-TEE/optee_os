@@ -11,7 +11,7 @@
 #define ABORT_TYPE_DATA		2
 #define ABORT_TYPE_TA_PANIC	3 /* Dump stack on TA panic (not an abort) */
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 
 #include <compiler.h>
 #include <types_ext.h>
@@ -36,6 +36,6 @@ bool abort_is_user_exception(struct abort_info *ai);
 /* Called from a normal thread */
 void abort_print_current_ta(void);
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 #endif /*KERNEL_ABORT_H*/
 

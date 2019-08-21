@@ -10,7 +10,7 @@
 #define SPINLOCK_LOCK       1
 #define SPINLOCK_UNLOCK     0
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <assert.h>
 #include <compiler.h>
 #include <stdbool.h>
@@ -129,6 +129,6 @@ static inline void cpu_spin_unlock_xrestore(unsigned int *lock,
 	cpu_spin_unlock(lock);
 	thread_unmask_exceptions(exceptions);
 }
-#endif /* ASM */
+#endif /* __ASSEMBLER__ */
 
 #endif /* KERNEL_SPINLOCK_H */

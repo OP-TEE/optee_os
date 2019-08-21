@@ -7,7 +7,7 @@
 #ifndef THREAD_PRIVATE_H
 #define THREAD_PRIVATE_H
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
@@ -93,7 +93,7 @@ struct thread_ctx {
 	struct mobj *rpc_mobj;
 	struct thread_specific_data tsd;
 };
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #ifdef ARM64
 #ifdef CFG_WITH_VFP
@@ -118,7 +118,7 @@ struct thread_ctx {
 #define THREAD_CLF_IRQ				(1 << THREAD_CLF_IRQ_SHIFT)
 #define THREAD_CLF_FIQ				(1 << THREAD_CLF_FIQ_SHIFT)
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
@@ -225,6 +225,6 @@ void thread_check_canaries(void);
 
 void __thread_std_smc_entry(struct thread_smc_args *args);
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*THREAD_PRIVATE_H*/

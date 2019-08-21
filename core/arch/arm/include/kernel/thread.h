@@ -7,7 +7,7 @@
 #ifndef KERNEL_THREAD_H
 #define KERNEL_THREAD_H
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <arm.h>
 #include <types_ext.h>
 #include <compiler.h>
@@ -21,7 +21,7 @@
 
 #define THREAD_RPC_MAX_NUM_PARAMS	4
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 
 #ifdef ARM64
 /*
@@ -209,9 +209,9 @@ struct thread_specific_data {
 	struct thread_abort_regs abort_regs;
 };
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 typedef void (*thread_smc_handler_t)(struct thread_smc_args *args);
 typedef void (*thread_nintr_handler_t)(void);
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
@@ -674,6 +674,6 @@ struct mobj *thread_rpc_alloc_global_payload(size_t size);
  */
 void thread_rpc_free_global_payload(struct mobj *mobj);
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*KERNEL_THREAD_H*/

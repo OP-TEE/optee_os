@@ -9,7 +9,7 @@
 
 #include <arm.h>
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <types_ext.h>
 
 void tlbi_all(void);
@@ -41,6 +41,6 @@ static inline void tlbi_mva_asid(vaddr_t va, uint32_t asid)
 	dsb_ish();
 	isb();
 }
-#endif /*!ASM*/
+#endif /*!__ASSEMBLER__*/
 
 #endif /* TLB_HELPERS_H */

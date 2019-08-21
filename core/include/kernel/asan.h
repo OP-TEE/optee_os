@@ -13,7 +13,7 @@
 #define ASAN_BLOCK_SHIFT	3
 #define ASAN_BLOCK_MASK		(ASAN_BLOCK_SIZE - 1)
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <string.h>
 #include <types_ext.h>
 
@@ -54,5 +54,5 @@ static inline void *asan_memcpy_unchecked(void *__restrict s1,
 
 #endif
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 #endif /*__KERNEL_ASAN_H*/

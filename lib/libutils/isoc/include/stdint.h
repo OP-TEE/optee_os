@@ -34,7 +34,7 @@
 #error Neither __ILP32__ nor __LP64__ is defined
 #endif
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 
 /* 7.18.1.1 Exact-width interger types */
 #ifndef __int8_t_defined
@@ -93,7 +93,7 @@ typedef unsigned long uintptr_t;
 typedef int64_t intmax_t;
 typedef uint64_t uintmax_t;
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 /*
  * 7.18.2 Limits of specified-width integer types
@@ -185,7 +185,7 @@ typedef uint64_t uintmax_t;
 #define UINT64_C(v)	v ## UL
 #endif
 
-#ifdef ASM
+#ifdef __ASSEMBLER__
 #define UINTPTR_C(v) v
 #else
 #define UINTPTR_C(v) v ## LU

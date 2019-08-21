@@ -93,7 +93,7 @@
  */
 #define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 /**
  * struct optee_msg_param_tmem - temporary memory reference parameter
  * @buf_ptr:	Address of the buffer
@@ -210,7 +210,7 @@ struct optee_msg_arg {
 	((OPTEE_MSG_NONCONTIG_PAGE_SIZE - sizeof(struct optee_msg_arg)) / \
 	 sizeof(struct optee_msg_param))
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 /*****************************************************************************
  * Part 2 - requests from normal world

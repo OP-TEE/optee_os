@@ -533,7 +533,7 @@
 #define RCC_MP_IWDGFZSETR_IWDG1			BIT(0)
 #define RCC_MP_IWDGFZSETR_IWDG2			BIT(1)
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 vaddr_t stm32_rcc_base(void);
 
 static inline bool stm32_rcc_is_secure(void)
@@ -545,6 +545,6 @@ static inline bool stm32_rcc_is_mckprot(void)
 {
 	return io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
 }
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*__STM32MP1_RCC_H__*/
