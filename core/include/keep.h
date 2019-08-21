@@ -5,7 +5,7 @@
 #ifndef KEEP_H
 #define KEEP_H
 
-#ifdef ASM
+#ifdef __ASSEMBLER__
 
 	.macro KEEP_PAGER sym
 	.pushsection __keep_meta_vars_pager
@@ -43,6 +43,6 @@
 #define __KEEP_INIT1(sym, file_id)	__KEEP_INIT2(sym, file_id)
 #define KEEP_INIT(sym)			__KEEP_INIT1(sym, __FILE_ID__)
 
-#endif /* ASM */
+#endif /* __ASSEMBLER__ */
 
 #endif /*KEEP_H*/

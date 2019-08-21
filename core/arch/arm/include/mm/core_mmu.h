@@ -6,7 +6,7 @@
 #ifndef CORE_MMU_H
 #define CORE_MMU_H
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/user_ta.h>
@@ -82,7 +82,7 @@
 #define STACK_ALIGNMENT			(sizeof(long) * 2)
 #endif
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 /*
  * Memory area type:
  * MEM_AREA_END:      Reserved, marks the end of a table of mapping areas.
@@ -628,6 +628,6 @@ void core_mmu_set_default_prtn(void);
 void core_mmu_init_virtualization(void);
 #endif
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */

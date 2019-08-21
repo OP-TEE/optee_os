@@ -161,7 +161,7 @@
 #define IDPFR1_GENTIMER_SHIFT        16
 #define IDPFR1_GENTIMER_MASK         (0xF << IDPFR1_GENTIMER_SHIFT)
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <generated/arm32_sysreg.h>
 #ifdef CFG_ARM_GICV3
 #include <generated/arm32_gicv3_sysreg.h>
@@ -274,6 +274,6 @@ static __always_inline uint32_t read_r7(void)
 	return val;
 }
 
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*ARM32_H*/

@@ -37,7 +37,7 @@
  * ELF definitions that are independent of architecture or word size.
  */
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 /*
  * Note header.  The ".note" section contains an array of notes.  Each
  * begins with this header, aligned to a word boundary.  Immediately
@@ -63,7 +63,7 @@ typedef struct {
 	uint32_t	gh_maskwords;	/* #maskwords used in bloom filter. */
 	uint32_t	gh_shift2;	/* Bloom filter shift count. */
 } Elf_GNU_Hash_Header;
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 /* Indexes into the e_ident array.  Keep synced with
    http://www.sco.com/developers/gabi/latest/ch4.eheader.html */

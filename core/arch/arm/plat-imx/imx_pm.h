@@ -17,7 +17,7 @@
 #define SUSPEND_OCRAM_OFFSET		0x0
 #define LOWPOWER_IDLE_OCRAM_OFFSET	0x1000
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #include <sm/sm.h>
 
 /* The structure is used for suspend and low power idle */

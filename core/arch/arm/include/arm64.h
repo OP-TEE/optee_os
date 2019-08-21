@@ -194,7 +194,7 @@
 #define TLBI_ASID_SHIFT		48
 #define TLBI_ASID_MASK		0xff
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 static inline void isb(void)
 {
 	asm volatile ("isb");
@@ -343,7 +343,7 @@ DEFINE_REG_WRITE_FUNC_(icc_eoir0, uint32_t, S3_0_c12_c8_1)
 DEFINE_REG_WRITE_FUNC_(icc_eoir1, uint32_t, S3_0_c12_c12_1)
 DEFINE_REG_WRITE_FUNC_(icc_igrpen0, uint32_t, S3_0_C12_C12_6)
 DEFINE_REG_WRITE_FUNC_(icc_igrpen1, uint32_t, S3_0_C12_C12_7)
-#endif /*ASM*/
+#endif /*__ASSEMBLER__*/
 
 #endif /*ARM64_H*/
 

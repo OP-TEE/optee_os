@@ -16,7 +16,7 @@
 #define SIZE_2G	UINTPTR_C(0x80000000)
 
 #ifndef MAX
-#ifndef ASM
+#ifndef __ASSEMBLER__
 #define MAX(a, b) \
 	(__extension__({ __typeof__(a) _a = (a); \
 	   __typeof__(b) _b = (b); \
@@ -42,7 +42,7 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 /* Round up the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
 			  ~((__typeof__(v))(size) - 1))
@@ -81,7 +81,7 @@
 
 #define MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 
-#ifdef ASM
+#ifdef __ASSEMBLER__
 #define BIT32(nr)		(1 << (nr))
 #define BIT64(nr)		(1 << (nr))
 #define SHIFT_U32(v, shift)	((v) << (shift))
@@ -125,7 +125,7 @@
 		_a > _b ? 1 : _a < _b ? -1 : 0; \
 	}))
 
-#ifndef ASM
+#ifndef __ASSEMBLER__
 static inline uint64_t reg_pair_to_64(uint32_t reg0, uint32_t reg1)
 {
 	return (uint64_t)reg0 << 32 | reg1;
