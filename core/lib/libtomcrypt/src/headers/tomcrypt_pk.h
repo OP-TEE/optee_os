@@ -151,7 +151,7 @@ int dh_set_pg_groupsize(int groupsize, dh_key *key);
 
 int dh_set_key(const unsigned char *in, unsigned long inlen, int type, dh_key *key);
 int dh_generate_key(prng_state *prng, int wprng, dh_key *key);
-
+int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key); /* OP-TEE */
 int dh_shared_secret(const dh_key  *private_key, const dh_key  *public_key,
                      unsigned char *out,         unsigned long *outlen);
 
