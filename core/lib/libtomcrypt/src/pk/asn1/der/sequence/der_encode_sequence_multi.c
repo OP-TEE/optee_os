@@ -75,6 +75,7 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_CUSTOM_TYPE:
            case LTC_ASN1_EOL:
            case LTC_ASN1_TELETEX_STRING:
+           default:
                va_end(args);
                return CRYPT_INVALID_ARG;
        }
@@ -127,6 +128,7 @@ int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
            case LTC_ASN1_CUSTOM_TYPE:
            case LTC_ASN1_EOL:
            case LTC_ASN1_TELETEX_STRING:
+           default:
                va_end(args);
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;

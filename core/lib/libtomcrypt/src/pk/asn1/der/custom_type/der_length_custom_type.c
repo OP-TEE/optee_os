@@ -175,6 +175,7 @@ int der_length_custom_type(const ltc_asn1_list *root, unsigned long *outlen, uns
 
            case LTC_ASN1_CHOICE:
            case LTC_ASN1_EOL:
+           default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
        }

@@ -376,6 +376,7 @@ int der_decode_custom_type_ex(const unsigned char *in,   unsigned long  inlen,
                break;
 
            case LTC_ASN1_EOL:
+           default:
                err = CRYPT_INVALID_ARG;
                goto LBL_ERR;
        }

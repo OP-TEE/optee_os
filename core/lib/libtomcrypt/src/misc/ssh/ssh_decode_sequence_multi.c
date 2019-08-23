@@ -76,6 +76,7 @@ int ssh_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
             break;
 
          case LTC_SSHDATA_EOL:
+         default:
             /* Should never get here */
             err = CRYPT_INVALID_ARG;
             goto error;
@@ -144,6 +145,7 @@ int ssh_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
             break;
 
          case LTC_SSHDATA_EOL:
+         default:
             /* Should never get here */
             err = CRYPT_INVALID_ARG;
             goto error;

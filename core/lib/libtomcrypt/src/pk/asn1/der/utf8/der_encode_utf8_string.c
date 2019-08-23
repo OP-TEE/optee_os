@@ -70,6 +70,7 @@ int der_encode_utf8_string(const wchar_t *in,  unsigned long inlen,
 #if !defined(LTC_WCHAR_MAX) || LTC_WCHAR_MAX > 0xFFFF
           case 4: out[x++] = 0xF0 | ((in[y] >> 18) & 0x07); out[x++] = 0x80 | ((in[y] >> 12) & 0x3F); out[x++] = 0x80 | ((in[y] >> 6) & 0x3F); out[x++] = 0x80 | (in[y] & 0x3F); break;
 #endif
+          default: break;
        }
    }
 
