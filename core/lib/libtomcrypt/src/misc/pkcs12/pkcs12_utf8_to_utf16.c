@@ -40,6 +40,7 @@ int pkcs12_utf8_to_utf16(const unsigned char *in,  unsigned long  inlen,
          case 1: ch += *in++; ch <<= 6;
          /* FALLTHROUGH */
          case 0: ch += *in++;
+         default: break;
       }
       ch -= offset[extra];
       if (ch > 0xFFFF) goto ERROR;
