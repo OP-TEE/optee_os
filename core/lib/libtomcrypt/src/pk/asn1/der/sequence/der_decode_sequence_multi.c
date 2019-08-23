@@ -74,6 +74,7 @@ static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen,
 
            case LTC_ASN1_EOL:
            case LTC_ASN1_CUSTOM_TYPE:
+           default:
                return CRYPT_INVALID_ARG;
        }
    }
@@ -123,6 +124,7 @@ static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen,
            /* coverity[dead_error_line] */
            case LTC_ASN1_EOL:
            case LTC_ASN1_CUSTOM_TYPE:
+           default:
                 break;
        }
    }
