@@ -111,6 +111,7 @@ arm64-platform-cflags-generic ?= -mstrict-align
 ifeq ($(DEBUG),1)
 # For backwards compatibility
 $(call force,CFG_CC_OPTIMIZE_FOR_SIZE,n)
+$(call force,CFG_CRYPTO_SIZE_OPTIMIZATION,n)
 $(call force,CFG_DEBUG_INFO,y)
 endif
 
