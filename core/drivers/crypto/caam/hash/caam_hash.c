@@ -19,6 +19,8 @@
 #include <string.h>
 #include <utee_defines.h>
 
+static const struct crypto_hash_ops hash_ops;
+
 /*
  * Hash Algorithm definition
  */
@@ -88,10 +90,19 @@ static const struct hashalg hash_alg[] = {
  * Full hashing data SW context
  */
 struct hashdata {
-	uint32_t *descriptor;       /* Job descriptor */
-	struct caamblock blockbuf;  /* Temporary Block buffer */
-	struct caambuf ctx;         /* Hash Context used by the CAAM */
-	const struct hashalg *alg;  /* Reference to the algo constants */
+	uint32_t *descriptor; /* Job descriptor */
+	struct caamblock blockbuf; /* Temporary Block buffer */
+	struct caambuf ctx; /* Hash Context used by the CAAM */
+	const struct hashalg *alg; /* Reference to the algo constants */
+};
+
+/*
+ * Format the HASH context to keep the reference to the
+ * operation driver
+ */
+struct crypto_hash {
+	struct crypto_hash_ctx hash_ctx; /* Crypto Hash API context */
+	struct hashdata *ctx; /* Hash Context */
 };
 
 /*
@@ -100,6 +111,18 @@ struct hashdata {
  * to call the function returning the HW capacity.
  */
 static uint8_t caam_hash_limit;
+
+/*
+ * Returns the reference to the driver context
+ *
+ * @ctx  API Context
+ */
+static struct crypto_hash *to_hash_ctx(struct crypto_hash_ctx *ctx)
+{
+	assert(ctx && ctx->ops == &hash_ops);
+
+	return container_of(ctx, struct crypto_hash, hash_ctx);
+}
 
 /*
  * Free the internal hashing data context
@@ -169,49 +192,18 @@ exit_alloc:
  *
  * @ctx    [in/out] Caller context variable
  */
-static void do_free(void *ctx)
+static void do_free(struct crypto_hash_ctx *ctx)
 {
-	HASH_TRACE("Free Context (0x%" PRIxPTR ")", (uintptr_t)ctx);
+	struct crypto_hash *hash = to_hash_ctx(ctx);
 
-	if (ctx) {
-		do_free_intern(ctx);
-		caam_free(ctx);
-	}
-}
+	HASH_TRACE("Free Context (0x%" PRIxPTR ")", (uintptr_t)hash->ctx);
 
-/*
- * Allocate the internal hashing data context
- *
- * @hash_id  Algorithm ID of the context (TEE_MAIN_ALGO_xxx)
- * @ctx      [out] Caller context variable
- */
-static TEE_Result do_allocate(void **ctx, uint8_t hash_id)
-{
-	struct hashdata *hashdata = NULL;
-	uint8_t algo = (hash_id - TEE_MAIN_ALGO_MD5);
-
-	HASH_TRACE("Allocate Context (0x%" PRIxPTR ") algo %d", (uintptr_t)ctx,
-		   algo);
-
-	if (hash_id > caam_hash_limit)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	if (algo > ARRAY_SIZE(hash_alg))
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	hashdata = caam_alloc(sizeof(struct hashdata));
-	if (!hashdata) {
-		HASH_TRACE("Allocation Hash data error");
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (hash->ctx) {
+		do_free_intern(hash->ctx);
+		caam_free(hash->ctx);
 	}
 
-	HASH_TRACE("Allocated Context (0x%" PRIxPTR ")", (uintptr_t)hashdata);
-
-	hashdata->alg = &hash_alg[algo];
-
-	*ctx = hashdata;
-
-	return TEE_SUCCESS;
+	free(hash);
 }
 
 /*
@@ -219,11 +211,14 @@ static TEE_Result do_allocate(void **ctx, uint8_t hash_id)
  *
  * @ctx   Operation Software context
  */
-static TEE_Result do_init(void *ctx)
+static TEE_Result do_init(struct crypto_hash_ctx *ctx)
 {
-	struct hashdata *hashdata = ctx;
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+	struct hashdata *hashdata = hash->ctx;
 
-	HASH_TRACE("Hash Init (0x%" PRIxPTR ")", (uintptr_t)ctx);
+	HASH_TRACE("Hash Init (0x%" PRIxPTR ")", (uintptr_t)hashdata);
+	if (!hashdata)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Initialize the block buffer */
 	hashdata->blockbuf.filled = 0;
@@ -241,13 +236,15 @@ static TEE_Result do_init(void *ctx)
  * @data  Data to hash
  * @len   Data length
  */
-static TEE_Result do_update(void *ctx, const uint8_t *data, size_t len)
+static TEE_Result do_update(struct crypto_hash_ctx *ctx, const uint8_t *data,
+			    size_t len)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum CAAM_Status retstatus = CAAM_FAILURE;
 
-	struct hashdata *hashdata = ctx;
-	const struct hashalg *alg = hashdata->alg;
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+	struct hashdata *hashdata = hash->ctx;
+	const struct hashalg *alg = NULL;
 
 	struct caam_jobctx jobctx = { 0 };
 	uint32_t *desc = NULL;
@@ -260,7 +257,12 @@ static TEE_Result do_update(void *ctx, const uint8_t *data, size_t len)
 	size_t inlen = 0;
 	paddr_t paddr_data = 0;
 
-	HASH_TRACE("Hash Update (0x%" PRIxPTR ")", (uintptr_t)ctx);
+	HASH_TRACE("Hash Update (0x%" PRIxPTR ")", (uintptr_t)hashdata);
+
+	if ((!data && len) || !hashdata)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	alg = hashdata->alg;
 
 	if (data) {
 		paddr_data = virt_to_phys((void *)data);
@@ -392,13 +394,15 @@ exit_update:
  * @len     Digest buffer length
  * @digest  [out] Hash digest buffer
  */
-static TEE_Result do_final(void *ctx, uint8_t *digest, size_t len)
+static TEE_Result do_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
+			   size_t len)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum CAAM_Status retstatus = CAAM_FAILURE;
 
-	struct hashdata *hashdata = ctx;
-	const struct hashalg *alg = hashdata->alg;
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+	struct hashdata *hashdata = hash->ctx;
+	const struct hashalg *alg = NULL;
 
 	struct caam_jobctx jobctx = { 0 };
 	uint32_t *desc = NULL;
@@ -406,7 +410,12 @@ static TEE_Result do_final(void *ctx, uint8_t *digest, size_t len)
 	int realloc = 0;
 	struct caambuf digest_align = { 0 };
 
-	HASH_TRACE("Hash Final (0x%" PRIxPTR ")", (uintptr_t)ctx);
+	HASH_TRACE("Hash Final (0x%" PRIxPTR ")", (uintptr_t)hashdata);
+
+	if (!digest || !len || !hashdata)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	alg = hashdata->alg;
 
 	if (!hashdata->ctx.data) {
 		retstatus = do_allocate_intern(hashdata);
@@ -519,20 +528,26 @@ exit_final:
  * @src_ctx  Reference the context source
  * @dst_ctx  [out] Reference the context destination
  */
-static void do_copy_state(void *dst_ctx, void *src_ctx)
+static void do_copy_state(struct crypto_hash_ctx *dst_ctx,
+			  struct crypto_hash_ctx *src_ctx)
 {
 	enum CAAM_Status retstatus = CAAM_FAILURE;
 
-	struct hashdata *dst = dst_ctx;
-	struct hashdata *src = src_ctx;
+	struct crypto_hash *hash_src = to_hash_ctx(src_ctx);
+	struct crypto_hash *hash_dst = to_hash_ctx(dst_ctx);
+	struct hashdata *dst = hash_dst->ctx;
+	struct hashdata *src = hash_src->ctx;
 
 	HASH_TRACE("Copy State context (0x%" PRIxPTR ") to (0x%" PRIxPTR ")",
-		   (uintptr_t)src_ctx, (uintptr_t)dst_ctx);
+		   (uintptr_t)src, (uintptr_t)dst);
+
+	if (!dst || !src)
+		return;
 
 	dst->alg = src->alg;
 
 	if (!dst->ctx.data) {
-		retstatus = do_allocate_intern(dst_ctx);
+		retstatus = do_allocate_intern(dst);
 		if (retstatus != CAAM_NO_ERROR)
 			return;
 	}
@@ -552,14 +567,60 @@ static void do_copy_state(void *dst_ctx, void *src_ctx)
 /*
  * Registration of the HASH Driver
  */
-static struct drvcrypt_hash driver_hash = {
-	.alloc_ctx = &do_allocate,
-	.free_ctx = &do_free,
+static const struct crypto_hash_ops hash_ops = {
 	.init = &do_init,
 	.update = &do_update,
 	.final = &do_final,
+	.free_ctx = &do_free,
 	.copy_state = &do_copy_state,
 };
+
+/*
+ * Allocate the internal hashing data context
+ *
+ * @hash_id  Algorithm ID of the context (TEE_MAIN_ALGO_xxx)
+ * @ctx      [out] Caller context variable
+ */
+static TEE_Result caam_hash_allocate(struct crypto_hash_ctx **ctx,
+				     uint8_t hash_id)
+{
+	struct crypto_hash *hash = NULL;
+	struct hashdata *hashdata = NULL;
+	uint8_t algo = (hash_id - TEE_MAIN_ALGO_MD5);
+
+	HASH_TRACE("Allocate Context (0x%" PRIxPTR ") algo %d", (uintptr_t)ctx,
+		   algo);
+
+	*ctx = NULL;
+
+	if (hash_id > caam_hash_limit)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	if (algo > ARRAY_SIZE(hash_alg))
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	hash = calloc(1, sizeof(*hash));
+	if (!hash)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	hashdata = caam_alloc(sizeof(struct hashdata));
+	if (!hashdata) {
+		HASH_TRACE("Allocation Hash data error");
+		free(hash);
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	HASH_TRACE("Allocated Context (0x%" PRIxPTR ")", (uintptr_t)hashdata);
+
+	hashdata->alg = &hash_alg[algo];
+
+	hash->hash_ctx.ops = &hash_ops;
+	hash->ctx = hashdata;
+
+	*ctx = &hash->hash_ctx;
+
+	return TEE_SUCCESS;
+}
 
 /*
  * Initialize the Hash module
@@ -573,7 +634,8 @@ enum CAAM_Status caam_hash_init(vaddr_t ctrl_addr)
 	caam_hash_limit = caam_hal_ctrl_hash_limit(ctrl_addr);
 
 	if (caam_hash_limit != UINT8_MAX) {
-		if (drvcrypt_register(CRYPTO_HASH, &driver_hash) == TEE_SUCCESS)
+		if (drvcrypt_register(CRYPTO_HASH, &caam_hash_allocate) ==
+		    TEE_SUCCESS)
 			retstatus = CAAM_NO_ERROR;
 	}
 

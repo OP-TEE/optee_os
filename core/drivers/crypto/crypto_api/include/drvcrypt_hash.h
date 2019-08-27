@@ -7,24 +7,13 @@
 #ifndef __DRVCRYPT_HASH_H__
 #define __DRVCRYPT_HASH_H__
 
+#include <crypto/crypto_impl.h>
 #include <tee_api_types.h>
 
 /*
- * Crypto Library Hash driver operations
+ * Crypto Library Hash driver allocation function prototype
  */
-struct drvcrypt_hash {
-	/* Allocates of the Software context */
-	TEE_Result (*alloc_ctx)(void **ctx, uint8_t hash_id);
-	/* Free of the Software context */
-	void (*free_ctx)(void *ctx);
-	/* Initialize the hashing operation */
-	TEE_Result (*init)(void *ctx);
-	/* Update the hashing operation */
-	TEE_Result (*update)(void *ctx, const uint8_t *data, size_t len);
-	/* Finalize the hashing operation */
-	TEE_Result (*final)(void *ctx, uint8_t *digest, size_t len);
-	/* Copy Hash context */
-	void (*copy_state)(void *dst_ctx, void *src_ctx);
-};
+typedef TEE_Result (*hw_hash_allocate)(struct crypto_hash_ctx **ctx,
+				       uint8_t hash_id);
 
 #endif /* __DRVCRYPT_HASH_H__ */

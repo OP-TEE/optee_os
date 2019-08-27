@@ -8,6 +8,7 @@
 #define __DRVCRYPT_H__
 
 #include <tee_api_types.h>
+#include <trace.h>
 
 #ifdef CFG_CRYPTO_DRIVER_DEBUG
 #define CRYPTO_TRACE	DMSG
