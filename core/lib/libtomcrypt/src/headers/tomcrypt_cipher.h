@@ -430,7 +430,7 @@ extern const struct ltc_cipher_descriptor {
        @param skey    The scheduled key context
        @return CRYPT_OK if successful
    */
-   int (*accel_ecb_encrypt)(const unsigned char *pt, unsigned char *ct, unsigned long blocks, symmetric_key *skey);
+   int (*accel_ecb_encrypt)(const unsigned char *pt, unsigned char *ct, unsigned long blocks, const symmetric_key *skey);
 
    /** Accelerated ECB decryption
        @param pt      Plaintext
@@ -439,7 +439,7 @@ extern const struct ltc_cipher_descriptor {
        @param skey    The scheduled key context
        @return CRYPT_OK if successful
    */
-   int (*accel_ecb_decrypt)(const unsigned char *ct, unsigned char *pt, unsigned long blocks, symmetric_key *skey);
+   int (*accel_ecb_decrypt)(const unsigned char *ct, unsigned char *pt, unsigned long blocks, const symmetric_key *skey);
 
    /** Accelerated CBC encryption
        @param pt      Plaintext
