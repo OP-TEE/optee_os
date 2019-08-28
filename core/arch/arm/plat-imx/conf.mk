@@ -14,6 +14,7 @@ mx6q-flavorlist = \
 	mx6qsabreauto \
 	mx6qsabresd \
 	mx6qhmbedge \
+	mx6qapalis \
 
 mx6qp-flavorlist = \
 	mx6qpsabreauto \
@@ -32,6 +33,7 @@ mx6sx-flavorlist = \
 
 mx6d-flavorlist = \
 	mx6dhmbedge \
+	mx6dapalis \
 
 mx6dl-flavorlist = \
 	mx6dlsabreauto \
@@ -178,7 +180,8 @@ CFG_UART_BASE ?= UART4_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabresd mx6qsabresd mx6dlsabresd \
-	mx6dlsabrelite mx6dhmbedge mx6dlhmbedge mx6solosabresd))
+	mx6dlsabrelite mx6dhmbedge mx6dlhmbedge mx6solosabresd \
+	mx6dapalis mx6qapalis))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
 endif
