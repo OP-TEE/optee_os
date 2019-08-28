@@ -1,4 +1,7 @@
 CFG_CRYPTO ?= y
+# Select small code size in the crypto library if applicable (for instance
+# LibTomCrypt has -DLTC_SMALL_CODE)
+# Note: the compiler flag -Os is not set here but by CFG_CC_OPTIMIZE_FOR_SIZE
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 
 ifeq (y,$(CFG_CRYPTO))

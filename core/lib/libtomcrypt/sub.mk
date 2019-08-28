@@ -1,6 +1,5 @@
 cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 cppflags-lib-y += -DLTC_RSA_CRT_HARDENING -DLTC_RSA_BLINDING -DLTC_CLEAN_STACK
-cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
 
 global-incdirs-y += include
 
