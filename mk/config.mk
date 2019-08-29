@@ -357,6 +357,12 @@ CFG_TA_GPROF_SUPPORT ?= n
 # defined in tee-supplicant)
 CFG_TA_FTRACE_SUPPORT ?= n
 
+# Function tracing: unit to be used when displaying durations
+#  0: always display durations in microseconds
+# >0: if duration is greater or equal to the specified value (in microseconds),
+#     display it in milliseconds
+CFG_FTRACE_US_MS ?= 10000
+
 # Enable to compile user TA libraries with profiling (-pg).
 # Depends on CFG_TA_GPROF_SUPPORT or CFG_TA_FTRACE_SUPPORT.
 CFG_ULIBS_MCOUNT ?= n
