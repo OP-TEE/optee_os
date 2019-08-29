@@ -360,8 +360,10 @@ CFG_TA_FTRACE_SUPPORT ?= n
 # Enable to compile user TA libraries with profiling (-pg).
 # Depends on CFG_TA_GPROF_SUPPORT or CFG_TA_FTRACE_SUPPORT.
 CFG_ULIBS_MCOUNT ?= n
+# Profiling/tracing of syscall wrapper (utee_*)
+CFG_SYSCALL_WRAPPERS_MCOUNT ?= $(CFG_ULIBS_MCOUNT)
 
-ifeq ($(CFG_ULIBS_MCOUNT),y)
+ifeq (y,$(filter y,$(CFG_ULIBS_MCOUNT) $(CFG_SYSCALL_WRAPPERS_MCOUNT)))
 ifeq (,$(filter y,$(CFG_TA_GPROF_SUPPORT) $(CFG_TA_FTRACE_SUPPORT)))
 $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif

@@ -14,7 +14,7 @@
 	.if \num_args > TEE_SVC_MAX_ARGS || \num_args > 8
 	.error "Too many arguments for syscall"
 	.endif
-#if defined(CFG_ULIBS_MCOUNT) && !defined(__LDELF__)
+#if defined(CFG_SYSCALL_WRAPPERS_MCOUNT) && !defined(__LDELF__)
 	.if \scn != TEE_SCN_RETURN
 	stp	x29, x30, [sp, #-80]!
 	mov	x29, sp
