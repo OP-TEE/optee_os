@@ -12,6 +12,8 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
+.arch_extension sec
+
 LOCAL_FUNC vector_std_smc_entry , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
