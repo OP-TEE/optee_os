@@ -11,6 +11,7 @@
  */
 
 #include <arm_user_sysreg.h>
+#include <assert.h>
 #include <setjmp.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
@@ -107,31 +108,56 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 
 static void __noprof ftrace_duration(char *buf, uint64_t start, uint64_t end)
 {
+	uint32_t max_us = CFG_FTRACE_US_MS;
 	uint32_t cntfrq = read_cntfrq();
 	uint64_t ticks = end - start;
+	uint32_t ms = 0;
 	uint32_t us = 0;
 	uint32_t ns = 0;
-	uint32_t i = 0;
+	uint32_t frac = 0;
+	uint32_t in = 0;
+	char unit = 'u';
+	int i = 0;
 
 	ticks = ticks * 1000000000 / cntfrq;
-
-	us = (ticks % 1000000000) / 1000;
+	us = ticks / 1000;
 	ns = ticks % 1000;
 
+	if (max_us && us >= max_us) {
+		/* Display value in milliseconds */
+		unit = 'm';
+		ms = us / 1000;
+		us = us % 1000;
+		frac = us;
+		in = ms;
+	} else {
+		/* Display value in microseconds */
+		frac = ns;
+		in = us;
+	}
+
 	*buf-- = 's';
-	*buf-- = 'u';
+	*buf-- = unit;
 	*buf-- = ' ';
 
+	COMPILE_TIME_ASSERT(DURATION_MAX_LEN == 16);
+	if (in > 999999) {
+		/* Not enough space to print the value */
+		for (i = 0; i < 10; i++)
+			*buf-- = '-';
+		return;
+	}
+
 	for (i = 0; i < 3; i++) {
-		*buf-- = hex_str[ns % 10];
-		ns /= 10;
+		*buf-- = hex_str[frac % 10];
+		frac /= 10;
 	}
 
 	*buf-- = '.';
 
-	while (us) {
-		*buf-- = hex_str[us % 10];
-		us /= 10;
+	while (in) {
+		*buf-- = hex_str[in % 10];
+		in /= 10;
 	}
 }
 
