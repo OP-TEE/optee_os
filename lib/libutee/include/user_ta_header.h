@@ -56,7 +56,6 @@ struct ftrace_buf {
 	uint32_t ret_idx;	/* Return stack index */
 	uint32_t lr_idx;	/* lr index used for stack unwinding */
 	uint64_t begin_time[FTRACE_RETFUNC_DEPTH]; /* Timestamp */
-	uint64_t suspend_time;	/* Suspend timestamp */
 	uint32_t curr_size;	/* Size of ftrace buffer */
 	uint32_t max_size;	/* Max allowed size of ftrace buffer */
 	uint32_t head_off;	/* Ftrace buffer header offset */

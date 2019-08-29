@@ -53,7 +53,6 @@ bool ftrace_init(struct ftrace_buf **fbuf_ptr)
 	fbuf->ret_func_ptr = finfo->ret_ptr.ptr64;
 	fbuf->ret_idx = 0;
 	fbuf->lr_idx = 0;
-	fbuf->suspend_time = 0;
 	fbuf->buf_off = fbuf->head_off + count;
 	fbuf->curr_size = 0;
 	fbuf->max_size = fbuf_size - sizeof(struct ftrace_buf) - count;

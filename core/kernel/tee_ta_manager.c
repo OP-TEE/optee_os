@@ -921,26 +921,6 @@ static void gprof_update_session_utime(bool suspend, struct tee_ta_session *s,
 }
 #endif
 
-#if defined(CFG_TA_FTRACE_SUPPORT)
-static void ftrace_update_session_utime(bool suspend, struct tee_ta_session *s,
-					uint64_t now)
-{
-	struct ftrace_buf *fbuf = NULL;
-	uint32_t i = 0;
-
-	fbuf = s->fbuf;
-	if (!fbuf)
-		return;
-
-	if (suspend) {
-		fbuf->suspend_time = now;
-	} else {
-		for (i = 0; i <= fbuf->ret_idx; i++)
-			fbuf->begin_time[i] += now - fbuf->suspend_time;
-	}
-}
-#endif
-
 /*
  * Update user-mode CPU time for the current session
  * @suspend: true if session is being suspended (leaving user mode), false if
@@ -958,9 +938,6 @@ static void tee_ta_update_session_utime(bool suspend)
 
 #if defined(CFG_TA_GPROF_SUPPORT)
 	gprof_update_session_utime(suspend, s, now);
-#endif
-#if defined(CFG_TA_FTRACE_SUPPORT)
-	ftrace_update_session_utime(suspend, s, now);
 #endif
 }
 
