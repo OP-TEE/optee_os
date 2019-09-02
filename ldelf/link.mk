@@ -37,8 +37,8 @@ $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) \
 			$(link-script-pp-makefiles$(sm))
 	@$(cmd-echo-silent) '  CPP     $$@'
 	$(q)mkdir -p $$(dir $$@)
-	$(q)$(CPP$(sm)) -Wp,-P,-MT,$$@,-MD,$(link-script-dep$(sm)) \
-		$(link-script-cppflags-$(sm)) $$< > $$@
+	$(q)$(CPP$(sm)) -P -MT $$@ -MD -MF $(link-script-dep$(sm)) \
+		$(link-script-cppflags-$(sm)) $$< -o $$@
 
 $(link-out-dir$(sm))/ldelf.elf: $(objs) $(libdeps) $(link-script-pp$(sm))
 	@$(cmd-echo-silent) '  LD      $$@'

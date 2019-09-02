@@ -101,8 +101,8 @@ cleanfiles += $(link-script-pp) $(link-script-dep)
 $(link-script-pp): $(link-script) $(link-script-extra-deps)
 	@$(cmd-echo-silent) '  CPP     $@'
 	@mkdir -p $(dir $@)
-	$(q)$(CPPcore) -Wp,-P,-MT,$@,-MD,$(link-script-dep) \
-		$(link-script-cppflags) $< > $@
+	$(q)$(CPPcore) -P -MT $@ -MD -MF $(link-script-dep) \
+		$(link-script-cppflags) $< -o $@
 
 define update-buildcount
 	@$(cmd-echo-silent) '  UPD     $(1)'
