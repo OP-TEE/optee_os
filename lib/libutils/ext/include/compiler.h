@@ -54,8 +54,8 @@
 #define __nex_bss		__section(".nex_bss")
 #define __nex_data		__section(".nex_data")
 #else  /* CFG_VIRTUALIZATION */
-#define __nex_bss		__bss
-#define __nex_data		__data
+#define __nex_bss
+#define __nex_data
 #endif	/* CFG_VIRTUALIZATION */
 #define __noprof	__attribute__((no_instrument_function))
 
