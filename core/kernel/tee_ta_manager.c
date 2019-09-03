@@ -878,8 +878,6 @@ struct tee_ta_session *tee_ta_get_calling_session(void)
 	return s;
 }
 
-#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
-
 #if defined(CFG_TA_GPROF_SUPPORT)
 void tee_ta_gprof_sample_pc(vaddr_t pc)
 {
@@ -919,27 +917,6 @@ static void gprof_update_session_utime(bool suspend, struct tee_ta_session *s,
 		sbuf->usr_entered = now;
 	}
 }
-#endif
-
-#if defined(CFG_TA_FTRACE_SUPPORT)
-static void ftrace_update_session_utime(bool suspend, struct tee_ta_session *s,
-					uint64_t now)
-{
-	struct ftrace_buf *fbuf = NULL;
-	uint32_t i = 0;
-
-	fbuf = s->fbuf;
-	if (!fbuf)
-		return;
-
-	if (suspend) {
-		fbuf->suspend_time = now;
-	} else {
-		for (i = 0; i <= fbuf->ret_idx; i++)
-			fbuf->begin_time[i] += now - fbuf->suspend_time;
-	}
-}
-#endif
 
 /*
  * Update user-mode CPU time for the current session
@@ -956,12 +933,7 @@ static void tee_ta_update_session_utime(bool suspend)
 
 	now = read_cntpct();
 
-#if defined(CFG_TA_GPROF_SUPPORT)
 	gprof_update_session_utime(suspend, s, now);
-#endif
-#if defined(CFG_TA_FTRACE_SUPPORT)
-	ftrace_update_session_utime(suspend, s, now);
-#endif
 }
 
 void tee_ta_update_session_utime_suspend(void)
@@ -972,5 +944,41 @@ void tee_ta_update_session_utime_suspend(void)
 void tee_ta_update_session_utime_resume(void)
 {
 	tee_ta_update_session_utime(false);
+}
+#endif
+
+#if defined(CFG_TA_FTRACE_SUPPORT)
+static void ftrace_update_times(bool suspend)
+{
+	struct tee_ta_session *s = NULL;
+	struct ftrace_buf *fbuf = NULL;
+	uint64_t now = 0;
+	uint32_t i = 0;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		return;
+
+	now = read_cntpct();
+
+	fbuf = s->fbuf;
+	if (!fbuf)
+		return;
+
+	if (suspend) {
+		fbuf->suspend_time = now;
+	} else {
+		for (i = 0; i <= fbuf->ret_idx; i++)
+			fbuf->begin_time[i] += now - fbuf->suspend_time;
+	}
+}
+
+void tee_ta_ftrace_update_times_suspend(void)
+{
+	ftrace_update_times(true);
+}
+
+void tee_ta_ftrace_update_times_resume(void)
+{
+	ftrace_update_times(false);
 }
 #endif
