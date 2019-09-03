@@ -511,8 +511,11 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 
 	l->curr_thread = n;
 
-	if (threads[n].have_user_map)
+	if (threads[n].have_user_map) {
 		core_mmu_set_user_map(&threads[n].user_map);
+		if (threads[n].flags & THREAD_FLAGS_EXIT_ON_FOREIGN_INTR)
+			tee_ta_ftrace_update_times_resume();
+	}
 
 	if (is_user_mode(&threads[n].regs))
 		tee_ta_update_session_utime_resume();
@@ -527,6 +530,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	}
 
 	thread_lazy_save_ns_vfp();
+
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
 	panic();
@@ -676,6 +680,8 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	threads[ct].have_user_map = core_mmu_user_mapping_is_active();
 	if (threads[ct].have_user_map) {
+		if (threads[ct].flags & THREAD_FLAGS_EXIT_ON_FOREIGN_INTR)
+			tee_ta_ftrace_update_times_suspend();
 		core_mmu_get_user_map(&threads[ct].user_map);
 		core_mmu_set_user_map(NULL);
 	}
