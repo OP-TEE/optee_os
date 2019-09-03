@@ -100,7 +100,7 @@ def split_patchset(patchset):
     f = None
     try:
         f = open(patchset, "r")
-    except OsError:
+    except OSError:
         return []
     for line in f:
         match = re.search(PATCH_START, line)
