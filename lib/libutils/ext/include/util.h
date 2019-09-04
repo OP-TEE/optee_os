@@ -47,6 +47,14 @@
 #define ROUNDUP(v, size) (((v) + ((__typeof__(v))(size) - 1)) & \
 			  ~((__typeof__(v))(size) - 1))
 
+#define ROUNDUP_OVERFLOW(v, size, res) (__extension__({ \
+	typeof(*(res)) __roundup_tmp = 0; \
+	typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
+	\
+	ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
+		(void)(*(res) = __roundup_tmp & ~__roundup_mask), 0; \
+}))
+
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 
