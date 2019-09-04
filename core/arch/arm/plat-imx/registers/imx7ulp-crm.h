@@ -2,8 +2,8 @@
 /*
  * Copyright 2017-2019 NXP
  */
-#ifndef __MX7ULP_CRM_H__
-#define __MX7ULP_CRM_H__
+#ifndef __IMX7ULP_CRM_H__
+#define __IMX7ULP_CRM_H__
 
 #include <util.h>
 
@@ -14,4 +14,4 @@
 
 #define PCC_CAAM		0x90
 
-#endif /* __MX7ULP_CRM_H__ */
+#endif /* __IMX7ULP_CRM_H__ */

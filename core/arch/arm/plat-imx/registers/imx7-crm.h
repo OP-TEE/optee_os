@@ -3,8 +3,8 @@
  * Copyright 2017-2019 NXP
  */
 
-#ifndef __MX7_CRM_REGS_H__
-#define __MX7_CRM_REGS_H__
+#ifndef __IMX7_CRM_H__
+#define __IMX7_CRM_H__
 
 /*
  * GPRx Registers
@@ -108,4 +108,4 @@
  */
 #define CCM_CLOCK_DOMAIN_CAAM		36
 
-#endif
+#endif /* __IMX7_CRM_H__ */
