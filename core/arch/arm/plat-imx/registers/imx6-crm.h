@@ -2,8 +2,8 @@
 /*
  * Copyright 2017-2019 NXP
  */
-#ifndef __MX6_CRM_REGS_H__
-#define __MX6_CRM_REGS_H__
+#ifndef __IMX6_CRM_H__
+#define __IMX6_CRM_H__
 
 #define CCM_CCR			0x0000
 #define CCM_CCDR		0x0004
@@ -855,4 +855,4 @@
 #define BM_CCM_ANALOG_PLL_ARM_DIV_SELECT	\
 			SHIFT_U32(0x7F, BS_CCM_ANALOG_PLL_DIV_SELECT)
 
-#endif /* __MX6_CRM_REGS_H__ */
+#endif /* __IMX6_CRM_H__ */
