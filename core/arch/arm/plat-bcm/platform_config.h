@@ -34,6 +34,12 @@
 
 #define SOTP_BASE		0x68b50000
 
+/* Secure Watch Dog */
+#define SEC_WDT_BASE		0x68B30000
+#define SEC_WDT_END		(SEC_WDT_BASE + 0x1000)
+#define SEC_WDT_CLK_HZ		12500000
+#define SEC_WDT_INTR		192
+
 #define BNXT_BASE		0x60800000
 
 #define QSPI_MEM_BASE		0x70000000
