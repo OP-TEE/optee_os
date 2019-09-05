@@ -15,6 +15,9 @@
 #if defined(__KERNEL__)
 #include <arm.h>
 #include <kernel/panic.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <mm/core_mmu.h>
 #else
 #include <arm_user_sysreg.h>
 #include <setjmp.h>
@@ -29,7 +32,28 @@ static const char hex_str[] = "0123456789abcdef";
 static __noprof struct ftrace_buf *get_fbuf(void)
 {
 #if defined(__KERNEL__)
-	return NULL;
+	int ct = thread_get_id_may_fail();
+	struct tee_ta_session *s = NULL;
+	struct thread_specific_data *tsd = NULL;
+
+	if (ct == -1)
+		return NULL;
+
+	if (!(core_mmu_user_va_range_is_defined() &&
+	      core_mmu_user_mapping_is_active()))
+		return NULL;
+
+	tsd = thread_get_tsd();
+	s = TAILQ_FIRST(&tsd->sess_stack);
+
+	if (!s || tsd->ctx != s->ctx)
+		return NULL;
+
+	if (s->fbuf && s->fbuf->syscall_trace_enabled &&
+	    !s->fbuf->syscall_trace_suspended)
+		return s->fbuf;
+	else
+		return NULL;
 #else
 	return &__ftrace_buf_start;
 #endif

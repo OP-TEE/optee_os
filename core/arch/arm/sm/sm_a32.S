@@ -45,7 +45,7 @@ UNWIND(	.cantunwind)
 	stm	r0!, {r2}
 #endif
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	read_cntkctl r2
 	stm	r0!, {r2}
 #endif
@@ -82,7 +82,7 @@ UNWIND(	.cantunwind)
 	write_pmcr r2
 #endif
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	ldm	r0!, {r2}
 	write_cntkctl r2
 #endif

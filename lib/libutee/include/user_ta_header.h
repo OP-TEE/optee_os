@@ -34,7 +34,7 @@ struct ta_head {
 	uint64_t depr_entry;
 };
 
-#if defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_FTRACE_SUPPORT)
 #define FTRACE_RETFUNC_DEPTH		50
 union compat_ptr {
 	uint64_t ptr64;
@@ -61,6 +61,8 @@ struct ftrace_buf {
 	uint32_t max_size;	/* Max allowed size of ftrace buffer */
 	uint32_t head_off;	/* Ftrace buffer header offset */
 	uint32_t buf_off;	/* Ftrace buffer offset */
+	bool syscall_trace_enabled; /* Some syscalls are never traced */
+	bool syscall_trace_suspended; /* By foreign interrupt or RPC */
 };
 
 /* Defined by the linker script */

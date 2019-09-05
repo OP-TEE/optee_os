@@ -149,7 +149,11 @@ core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
 ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+core-platform-cflags += $(arm32-platform-cflags-generic-arm)
+else
 core-platform-cflags += $(arm32-platform-cflags-generic-thumb)
+endif
 core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
@@ -181,7 +185,7 @@ ta_arm32-platform-cflags += -fpic
 # Thumb mode doesn't support function graph tracing due to missing
 # frame pointer support required to trace function call chain. So
 # rather compile in ARM mode if function tracing is enabled.
-ifeq ($(CFG_TA_FTRACE_SUPPORT),y)
+ifeq ($(CFG_FTRACE_SUPPORT),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-arm)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-thumb)

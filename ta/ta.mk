@@ -35,7 +35,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_MPI
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
 ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
-ta-mk-file-export-vars-$(sm) += CFG_TA_FTRACE_SUPPORT
+ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
 

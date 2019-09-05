@@ -483,6 +483,38 @@ static bool is_from_user(uint32_t cpsr)
 }
 #endif
 
+#ifdef CFG_SYSCALL_FTRACE
+static void __noprof ftrace_suspend(void)
+{
+	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+
+	if (!s)
+		return;
+
+	if (s->fbuf)
+		s->fbuf->syscall_trace_suspended = true;
+}
+
+static void __noprof ftrace_resume(void)
+{
+	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+
+	if (!s)
+		return;
+
+	if (s->fbuf)
+		s->fbuf->syscall_trace_suspended = false;
+}
+#else
+static void __noprof ftrace_suspend(void)
+{
+}
+
+static void __noprof ftrace_resume(void)
+{
+}
+#endif
+
 static bool is_user_mode(struct thread_ctx_regs *regs)
 {
 	return is_from_user((uint32_t)regs->cpsr);
@@ -530,6 +562,9 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	}
 
 	thread_lazy_save_ns_vfp();
+
+	if (threads[n].have_user_map)
+		ftrace_resume();
 
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
@@ -658,6 +693,9 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	int ct = l->curr_thread;
 
 	assert(ct != -1);
+
+	if (core_mmu_user_mapping_is_active())
+		ftrace_suspend();
 
 	thread_check_canaries();
 
@@ -972,7 +1010,7 @@ void thread_init_per_cpu(void)
 
 	thread_init_vbar(get_excp_vect());
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	/*
 	 * Enable accesses to frequency register and physical counter
 	 * register in EL0/PL0 required for timestamping during

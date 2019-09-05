@@ -57,6 +57,8 @@ bool ftrace_init(struct ftrace_buf **fbuf_ptr)
 	fbuf->buf_off = fbuf->head_off + count;
 	fbuf->curr_size = 0;
 	fbuf->max_size = fbuf_size - sizeof(struct ftrace_buf) - count;
+	fbuf->syscall_trace_enabled = false;
+	fbuf->syscall_trace_suspended = false;
 
 	*fbuf_ptr = fbuf;
 

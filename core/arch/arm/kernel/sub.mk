@@ -61,3 +61,18 @@ srcs-$(CFG_VIRTUALIZATION) += virtualization.c
 srcs-y += link_dummies.c
 
 asm-defines-y += asm-defines.c
+
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+# We would not like to profile thread.c file as it provide common APIs
+# that are needed for ftrace framework to trace syscalls. So profiling
+# this file could create an incorrect cyclic behaviour.
+cflags-remove-thread.c-y += -pg
+cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
+# Tracing abort dump files corrupts the stack trace. So exclude them
+# from profiling.
+cflags-remove-abort.c-y += -pg
+ifeq ($(CFG_UNWIND),y)
+cflags-remove-unwind_arm32.c-y += -pg
+cflags-remove-unwind_arm64.c-$(CFG_ARM64_core) += -pg
+endif
+endif

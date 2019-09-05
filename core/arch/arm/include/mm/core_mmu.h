@@ -303,7 +303,7 @@ struct core_mmu_user_map {
 #ifdef CFG_WITH_LPAE
 bool core_mmu_user_va_range_is_defined(void);
 #else
-static inline bool core_mmu_user_va_range_is_defined(void)
+static inline bool __noprof core_mmu_user_va_range_is_defined(void)
 {
 	return true;
 }
