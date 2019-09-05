@@ -21,34 +21,21 @@
 
 #include "imx_caam.h"
 
-static uint8_t stored_key[MKVB_SIZE] = { 0 };
+static uint8_t stored_key[MKVB_SIZE];
 static bool mkvb_retrieved;
 
 static void caam_enable_clocks(void)
 {
 	vaddr_t ccm_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC);
-	uint32_t reg = 0;
-	uint32_t mask = 0;
 
-	reg = io_read32(ccm_base + CCM_CCGR0);
+	io_setbits32(ccm_base + CCM_CCGR0,
+		     CCM_CCGR0_CAAM_WRAPPER_IPG  |
+		     CCM_CCGR0_CAAM_WRAPPER_ACLK |
+		     CCM_CCGR0_CAAM_SECURE_MEM);
 
-	mask = CCM_CCGR0_CAAM_WRAPPER_IPG  |
-		CCM_CCGR0_CAAM_WRAPPER_ACLK |
-		CCM_CCGR0_CAAM_SECURE_MEM;
-
-	reg |= mask;
-
-	io_write32(ccm_base + CCM_CCGR0, reg);
-
-	if (soc_is_imx6dqp() || soc_is_imx6sdl() || soc_is_imx6dq()) {
-		/* EMI slow clk */
-		reg  = io_read32(ccm_base + CCM_CCGR6);
-		mask = CCM_CCGR6_EMI_SLOW;
-
-		reg |= mask;
-
-		io_write32(ccm_base + CCM_CCGR6, reg);
-	}
+	if (soc_is_imx6dqp() || soc_is_imx6sdl() || soc_is_imx6dq())
+		io_setbits32(ccm_base + CCM_CCGR6,
+			     CCM_CCGR6_EMI_SLOW);
 }
 
 static TEE_Result imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
@@ -80,7 +67,7 @@ static TEE_Result imx_caam_reset_jr(struct imx_caam_ctrl *ctrl)
 static TEE_Result mkvb_init_jr(struct imx_mkvb *mkvb)
 {
 	struct imx_caam_ctrl *ctrl = mkvb->ctrl;
-	TEE_Result ret;
+	TEE_Result ret = TEE_ERROR_SECURITY;
 
 	ret = imx_caam_reset_jr(ctrl);
 	if (ret)
@@ -140,6 +127,7 @@ static TEE_Result caam_get_mkvb(uint8_t *dest)
 	DHEXDUMP(&mkvb.outbuf, MKVB_SIZE);
 
 	if (mkvb.jr.outring[0].status != 0)
+		ret = TEE_ERROR_SECURITY;
 		goto out;
 
 	memcpy(dest, &mkvb.outbuf, MKVB_SIZE);
