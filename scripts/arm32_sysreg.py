@@ -125,7 +125,7 @@ def gen_write32_dummy_func(reg_name, crn, opc1, crm, opc2, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline void write_' + reg_name.lower() + '(void)')
+    print('static inline __noprof void write_' + reg_name.lower() + '(void)')
     print('{')
     print('\t/* Register ignored */')
     print('\tasm volatile ("mcr p15, ' + opc1 + ', r0, ' + crn + ', ' +

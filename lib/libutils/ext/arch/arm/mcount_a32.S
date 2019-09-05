@@ -5,7 +5,7 @@
 
 #include <asm.S>
 
-#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_FTRACE_SUPPORT)
 
 /*
  * Convert return address to call site address by subtracting the size of the
@@ -32,7 +32,7 @@ FUNC __gnu_mcount_nc, :
 	mcount_adj_pc	r1, lr			/* instrumented func */
 	bl		__mcount_internal
 #endif
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	/* Get instrumented function's pc value */
 	ldr		r0, [sp, #16]
 	mcount_adj_pc	r0, r0
@@ -44,7 +44,7 @@ FUNC __gnu_mcount_nc, :
 	bx		ip
 END_FUNC __gnu_mcount_nc
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 FUNC __ftrace_return, :
 	/* save return value regs */
 	stmdb		sp!, {r0-r3}
@@ -59,4 +59,4 @@ FUNC __ftrace_return, :
 END_FUNC __ftrace_return
 #endif
 
-#endif /* CFG_TA_GPROF_SUPPORT || CFG_TA_FTRACE_SUPPORT */
+#endif /* CFG_TA_GPROF_SUPPORT || CFG_FTRACE_SUPPORT */

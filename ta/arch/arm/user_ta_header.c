@@ -47,7 +47,7 @@ void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
 {
 	TEE_Result res = __utee_entry(func, session_id, up, cmd_id);
 
-#if defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_FTRACE_SUPPORT)
 	/*
 	 * __ta_entry is the first TA API called from TEE core. As it being
 	 * __noreturn API, we need to call ftrace_return in this API just
@@ -126,7 +126,7 @@ const struct user_ta_property ta_props[] = {
 
 const size_t ta_num_props = sizeof(ta_props) / sizeof(ta_props[0]);
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 struct __ftrace_info __ftrace_info = {
 #ifdef __ILP32__
 	.buf_start.ptr32 = { .lo = (uint32_t)&__ftrace_buf_start },

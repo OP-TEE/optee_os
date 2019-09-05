@@ -5,7 +5,7 @@
 
 #include <asm.S>
 
-#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_FTRACE_SUPPORT)
 
 /*
  * Convert return address to call site address by subtracting the size of one
@@ -47,7 +47,7 @@ FUNC _mcount, :
 	adjust_pc	x1, x30
 	bl		__mcount_internal
 #endif
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	get_pc		x0
 	get_lr_addr	x1
 	bl		ftrace_enter
@@ -56,7 +56,7 @@ FUNC _mcount, :
 	ret
 END_FUNC _mcount
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 FUNC __ftrace_return, :
 	/* Save return value regs */
 	sub		sp, sp, #64
@@ -80,4 +80,4 @@ FUNC __ftrace_return, :
 END_FUNC __ftrace_return
 #endif
 
-#endif /* CFG_TA_GPROF_SUPPORT || CFG_TA_FTRACE_SUPPORT */
+#endif /* CFG_TA_GPROF_SUPPORT || CFG_FTRACE_SUPPORT */

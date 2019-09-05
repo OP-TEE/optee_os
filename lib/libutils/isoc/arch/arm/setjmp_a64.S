@@ -51,7 +51,7 @@ setjmp:
 #define REG_ONE(REG1, OFFS)		str REG1, [x0, OFFS]
 	GPR_LAYOUT
 	FPR_LAYOUT
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	stp	x29, x30, [sp, #-16]!
 	mov	x29, sp
 	add	x0, x0, #104
@@ -70,7 +70,7 @@ setjmp:
 longjmp:
 #define REG_PAIR(REG1, REG2, OFFS)	ldp REG1, REG2, [x0, OFFS]
 #define REG_ONE(REG1, OFFS)		ldr REG1, [x0, OFFS]
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	stp	x0, x1, [sp, #-16]!
 	stp	x29, x30, [sp, #-16]!
 	mov	x29, sp

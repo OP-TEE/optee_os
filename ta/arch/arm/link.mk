@@ -23,7 +23,7 @@ link-ldflags += -z max-page-size=4096 # OP-TEE always uses 4K alignment
 link-ldflags += --as-needed # Do not add dependency on unused shlib
 link-ldflags += $(link-ldflags$(sm))
 
-ifeq ($(CFG_TA_FTRACE_SUPPORT),y)
+ifeq ($(CFG_FTRACE_SUPPORT),y)
 $(link-out-dir$(sm))/dyn_list:
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)mkdir -p $(dir $@)

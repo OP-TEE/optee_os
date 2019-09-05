@@ -45,7 +45,7 @@ SLIST_HEAD(load_seg_head, load_seg);
 struct user_ta_ctx {
 	uaddr_t entry_func;
 	uaddr_t dump_entry_func;
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	uaddr_t ftrace_entry_func;
 #endif
 	uaddr_t dl_entry_func;

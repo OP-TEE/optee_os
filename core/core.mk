@@ -43,6 +43,9 @@ cflags_kasan	+= -fsanitize=kernel-address \
 		   --param asan-instrumentation-with-call-threshold=0
 cflags$(sm)	+= $(cflags_kasan)
 endif
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+cflags$(sm)	+= -pg
+endif
 aflags$(sm)	+= $(core-platform-aflags)
 
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_CORE_LOG_LEVEL)

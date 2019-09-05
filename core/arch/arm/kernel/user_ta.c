@@ -250,7 +250,7 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	utc->stack_ptr = arg->stack_ptr;
 	utc->ctx.flags = arg->flags;
 	utc->dump_entry_func = arg->dump_entry;
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	utc->ftrace_entry_func = arg->ftrace_entry;
 	sess->fbuf = arg->fbuf;
 #endif
@@ -455,7 +455,7 @@ static void user_ta_dump_state(struct tee_ta_ctx *ctx)
 	dump_state_no_ldelf_dbg(utc);
 }
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
 {
 	uaddr_t usr_stack = utc->ldelf_stack_ptr;
@@ -557,7 +557,7 @@ out_unmap_pl:
 out_free_pl:
 	thread_rpc_free_payload(mobj);
 }
-#endif /*CFG_TA_FTRACE_SUPPORT*/
+#endif /*CFG_FTRACE_SUPPORT*/
 
 static void free_utc(struct user_ta_ctx *utc)
 {
@@ -599,7 +599,7 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
 	.dump_state = user_ta_dump_state,
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	.dump_ftrace = user_ta_dump_ftrace,
 #endif
 	.destroy = user_ta_ctx_destroy,

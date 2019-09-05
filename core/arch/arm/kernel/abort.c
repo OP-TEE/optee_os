@@ -257,8 +257,12 @@ void abort_print_current_ta(void)
 
 	s->ctx->ops->dump_state(s->ctx);
 
-	if (s->ctx->ops->dump_ftrace)
+#if defined(CFG_FTRACE_SUPPORT)
+	if (s->ctx->ops->dump_ftrace) {
+		s->fbuf = NULL;
 		s->ctx->ops->dump_ftrace(s->ctx);
+	}
+#endif
 }
 
 static void save_abort_info_in_tsd(struct abort_info *ai)

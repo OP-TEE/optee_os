@@ -132,6 +132,49 @@ static void trace_syscall(size_t num __unused)
 }
 #endif
 
+#ifdef CFG_SYSCALL_FTRACE
+static void __noprof ftrace_syscall_enter(size_t num)
+{
+	struct tee_ta_session *s = NULL;
+
+	/*
+	 * Syscalls related to inter-TA communication can't be traced in the
+	 * caller TA's ftrace buffer as it involves context switching to callee
+	 * TA's context. Moreover, user can enable ftrace for callee TA to dump
+	 * function trace in corresponding ftrace buffer.
+	 */
+	if (num == TEE_SCN_OPEN_TA_SESSION || num == TEE_SCN_CLOSE_TA_SESSION ||
+	    num == TEE_SCN_INVOKE_TA_COMMAND)
+		return;
+
+	s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	if (!s)
+		return;
+
+	if (s->fbuf)
+		s->fbuf->syscall_trace_enabled = true;
+}
+
+static void __noprof ftrace_syscall_leave(void)
+{
+	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+
+	if (!s)
+		return;
+
+	if (s->fbuf)
+		s->fbuf->syscall_trace_enabled = false;
+}
+#else
+static void __noprof ftrace_syscall_enter(size_t num __unused)
+{
+}
+
+static void __noprof ftrace_syscall_leave(void)
+{
+}
+#endif
+
 #ifdef ARM32
 static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 		size_t *max_args)
@@ -211,7 +254,11 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 	else
 		scf = tee_svc_syscall_table[scn].fn;
 
+	ftrace_syscall_enter(scn);
+
 	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+
+	ftrace_syscall_leave();
 
 	if (scn != TEE_SCN_RETURN) {
 		/* We're about to switch back to user mode */

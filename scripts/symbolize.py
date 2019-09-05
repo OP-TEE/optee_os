@@ -177,7 +177,11 @@ class Symbolizer(object):
                     elf_idx = r[2]
                     if elf_idx is not None:
                         return self._elfs[int(elf_idx)][1]
-            return None
+            # In case address is not found in TA ELF file, fallback to tee.elf
+            # especially to symbolize mixed (user-space and kernel) addresses
+            # which is true when syscall ftrace is enabled along with TA
+            # ftrace.
+            return '0x0'
         else:
             # tee.elf
             return '0x0'

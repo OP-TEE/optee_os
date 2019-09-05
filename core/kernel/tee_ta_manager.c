@@ -277,9 +277,10 @@ static void tee_ta_unlink_session(struct tee_ta_session *s,
 static void destroy_session(struct tee_ta_session *s,
 			    struct tee_ta_session_head *open_sessions)
 {
-#if defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_FTRACE_SUPPORT)
 	if (s->ctx && s->ctx->ops->dump_ftrace) {
 		tee_ta_push_current_session(s);
+		s->fbuf = NULL;
 		s->ctx->ops->dump_ftrace(s->ctx);
 		tee_ta_pop_current_session();
 	}
@@ -947,7 +948,7 @@ void tee_ta_update_session_utime_resume(void)
 }
 #endif
 
-#if defined(CFG_TA_FTRACE_SUPPORT)
+#if defined(CFG_FTRACE_SUPPORT)
 static void ftrace_update_times(bool suspend)
 {
 	struct tee_ta_session *s = NULL;
