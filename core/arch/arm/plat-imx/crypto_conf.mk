@@ -32,13 +32,6 @@ $(call force, CFG_JR_INT,137)  # Default JR IT Number (105 + 32) = 137
 # Configuration of the Crypto Driver
 #
 ifeq ($(CFG_CRYPTO_DRIVER), y)
-#
-# Define this variable if the system is able to manage the
-# DTB Modification
-#
-ifeq ($(CFG_DT), y)
-CFG_CAAM_DT ?= y
-endif
 
 #
 # Definition of all HW accelerations for all i.MX

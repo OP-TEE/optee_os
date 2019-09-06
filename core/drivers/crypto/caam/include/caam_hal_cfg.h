@@ -23,8 +23,51 @@ enum CAAM_Status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg);
 /*
  * Setup the Non-Secure Job Ring
  *
- * @ctrl_base   Virtual CAAM Controller Base address
+ * @jrcfg   Job Ring configuration
  */
-void caam_hal_cfg_setup_nsjobring(vaddr_t ctrl_base);
+void caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg);
+
+#ifdef CFG_DT
+/*
+ * Returns the Job Ring configuration to be used by the TEE
+ *
+ * @fdt         Device Tree handle
+ * @ctrl_base   [out] CAAM Controller base address
+ */
+void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base);
+
+/*
+ * Returns the Job Ring configuration to be used by the TEE
+ *
+ * @fdt     Device Tree handle
+ * @jrcfg   [out] Job Ring configuration
+ */
+void caam_hal_cfg_get_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg);
+
+/*
+ * Disable the Job Ring used for the Secure environment into the DTB
+ *
+ * @fdt     Device Tree handle
+ * @jrcfg   Job Ring configuration
+ */
+void caam_hal_cfg_disable_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg);
+#else
+static inline void caam_hal_cfg_get_ctrl_dt(void *fdt __unused,
+					    vaddr_t *ctrl_base __unused)
+{
+}
+
+static inline void
+caam_hal_cfg_get_jobring_dt(void *fdt __unused,
+			    struct caam_jrcfg *jrcfg __unused)
+{
+}
+
+static inline void
+caam_hal_cfg_disable_jobring_dt(void *fdt __unused,
+				struct caam_jrcfg *jrcfg __unused)
+{
+}
+#endif /* CFG_DT */
 
 #endif /* __CAAM_HAL_CFG_H__ */

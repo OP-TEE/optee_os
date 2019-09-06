@@ -73,7 +73,7 @@ exit_init:
 	 * JR0 is freed to be Non-Secure
 	 */
 	if (jrcfg.base)
-		caam_hal_cfg_setup_nsjobring(jrcfg.base);
+		caam_hal_cfg_setup_nsjobring(&jrcfg);
 
 	if (retresult != TEE_SUCCESS) {
 		EMSG("CAAM Driver initialization (0x%x)", retresult);

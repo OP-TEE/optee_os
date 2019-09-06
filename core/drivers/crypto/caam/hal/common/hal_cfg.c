@@ -10,6 +10,7 @@
 #include <caam_jr.h>
 #include <caam_hal_ctrl.h>
 #include <mm/core_memprot.h>
+#include <kernel/generic_boot.h>
 #include <registers/jr_regs.h>
 
 /*
@@ -21,60 +22,94 @@ enum CAAM_Status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 {
 	enum CAAM_Status retstatus = CAAM_FAILURE;
 	vaddr_t ctrl_base = 0;
+	void *fdt = NULL;
 
-	ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE, MEM_AREA_IO_SEC);
-	if (!ctrl_base) {
-		if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, CAAM_BASE,
-					  CORE_MMU_PGDIR_SIZE)) {
-			EMSG("Unable to map CAAM Registers");
-			goto exit_get_conf;
-		}
+	fdt = get_dt();
 
-		ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE, MEM_AREA_IO_SEC);
+	/*
+	 * First get the CAAM Controller base address from the DTB,
+	 * if DTB present and if the CAAM Controller defined in it.
+	 */
+	if (fdt) {
+		caam_hal_cfg_get_ctrl_dt(fdt, &ctrl_base);
 	}
 
 	if (!ctrl_base) {
-		EMSG("Unable to get the CAAM Base address");
-		goto exit_get_conf;
+		ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE, MEM_AREA_IO_SEC);
+		if (!ctrl_base) {
+			if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, CAAM_BASE,
+						  CORE_MMU_PGDIR_SIZE)) {
+				EMSG("Unable to map CAAM Registers");
+				goto exit_get_conf;
+			}
+
+			ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE,
+							  MEM_AREA_IO_SEC);
+		}
+
+		if (!ctrl_base) {
+			EMSG("Unable to get the CAAM Base address");
+			goto exit_get_conf;
+		}
 	}
 
 	jrcfg->base = ctrl_base;
-	jrcfg->offset = (CFG_JR_INDEX + 1) * JRX_BLOCK_SIZE;
+
+	/*
+	 * Next get the Job Ring reserved for the Secure environment
+	 * into the DTB. If nothing reserved use the default hard coded
+	 * value.
+	 */
+	if (fdt) {
+		caam_hal_cfg_get_jobring_dt(fdt, jrcfg);
+	}
+
+	if (!jrcfg->offset) {
+		jrcfg->offset = (CFG_JR_INDEX + 1) * JRX_BLOCK_SIZE;
+		jrcfg->it_num = CFG_JR_INT;
+
+#ifdef CFG_CRYPTO_DRIVER
+		if (fdt) {
+			/* Ensure Secure Job Ring is secure only into DTB */
+			caam_hal_cfg_disable_jobring_dt(fdt, jrcfg);
+		}
+#endif
+	}
+
 	jrcfg->nb_jobs = NB_JOBS_QUEUE;
-	/* Add index of the first SPI interrupt */
-	jrcfg->it_num = CFG_JR_INT;
 
 	retstatus = CAAM_NO_ERROR;
 
 exit_get_conf:
-	HAL_TRACE("HAL CFG Get Job Ring returned (0x%x)\n", retstatus);
+	HAL_TRACE("HAL CFG Get CAAM config ret (0x%x)\n", retstatus);
 	return retstatus;
 }
 
 /*
  * Setup the Non-Secure Job Ring
  *
- * @ctrl_base   Virtual CAAM Controller Base address
+ * @jrcfg   Job Ring configuration
  */
-void caam_hal_cfg_setup_nsjobring(vaddr_t ctrl_base)
+void caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg)
 {
 	enum CAAM_Status status = CAAM_FAILURE;
 	paddr_t jr_offset = 0;
 	uint8_t jrnum = 0;
 
-	for (jrnum = caam_hal_ctrl_jrnum(ctrl_base); jrnum; jrnum--) {
+	for (jrnum = caam_hal_ctrl_jrnum(jrcfg->base); jrnum; jrnum--) {
+		jr_offset = jrnum * JRX_BLOCK_SIZE;
+
 #ifdef CFG_CRYPTO_DRIVER
 		/*
 		 * When the Cryptographic driver is enabled, keep the
 		 * Secure Job Ring don't release it.
 		 */
-		if (jrnum == (CFG_JR_INDEX + 1))
+		if (jr_offset == jrcfg->offset)
 			continue;
 #endif
-		jr_offset = jrnum * JRX_BLOCK_SIZE;
-		status = caam_hal_jr_setowner(ctrl_base, jr_offset,
+		status = caam_hal_jr_setowner(jrcfg->base, jr_offset,
 					      JROWN_ARM_NS);
 		if (status == CAAM_NO_ERROR)
-			caam_hal_jr_prepare_backup(ctrl_base, jr_offset);
+			caam_hal_jr_prepare_backup(jrcfg->base, jr_offset);
 	}
 }
