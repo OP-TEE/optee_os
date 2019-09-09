@@ -42,6 +42,11 @@ SECTIONS {
 	.dynstr : { *(.dynstr) }
 	.hash : { *(.hash) }
 
+	/*
+	 * Relocation sections may be aligned on 4 or 8 bytes. With ALIGN(8)
+	 * we avoid any padding between __reloc_begin and the first relocation.
+	 */
+	. = ALIGN(8);
 	__reloc_begin = .;
 	.rel.got : { *(.rel.got) }
 	.rela.got : { *(.rela.got) }
