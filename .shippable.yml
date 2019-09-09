@@ -4,12 +4,13 @@ build:
   cache_dir_list:
     - /root/.ccache
   pre_ci_boot:
-    image_name: jforissier/optee_os_ci
+    image_name: jforissier/optee_os_ci_clangbuilt
     image_tag: latest
     pull: true
     options: "-e HOME=/root"
   ci:
     - export LC_ALL=C
+    - export PATH=/usr/local/bin:$PATH  # clang
     - export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
     - export CFG_DEBUG_INFO=n; export CCACHE_UNIFY=true
@@ -18,6 +19,7 @@ build:
     - ccache -z
 
     - _make
+    - _make COMPILER=clang
     - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPTIMIZE_FOR_SIZE=n CFG_DEBUG_INFO=y
     - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_CC_OPTIMIZE_FOR_SIZE=y CFG_DEBUG_INFO=n
     - _make CFG_TEE_CORE_LOG_LEVEL=0
@@ -46,6 +48,7 @@ build:
     - _make CFG_SECURE_DATA_PATH=y
     - _make CFG_REE_FS_TA_BUFFERED=n
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y COMPILER=clang
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_ULIBS_MCOUNT=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_VIRTUALIZATION=y
@@ -114,7 +117,9 @@ build:
     - _make PLATFORM=rpi3
     - _make PLATFORM=rpi3 CFG_ARM64_core=y
     - _make PLATFORM=hikey-hikey960
+    - _make PLATFORM=hikey-hikey960 COMPILER=clang
     - _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y
+    - _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y COMPILER=clang
     - _make PLATFORM=hikey-hikey960 CFG_SECURE_DATA_PATH=n
     - _make PLATFORM=poplar
     - _make PLATFORM=poplar CFG_ARM64_core=y
