@@ -203,6 +203,7 @@ static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
 	return -1;
 }
 
+__noreturn
 static inline void _fdt_fill_device_info(void *fdt __unused,
 					 struct dt_node_info *info __unused,
 					 int node __unused)
