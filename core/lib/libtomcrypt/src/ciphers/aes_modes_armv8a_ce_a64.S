@@ -234,7 +234,7 @@ ENTRY(ce_aes_sub)
 	dup		v1.4s, w0
 	movi		v0.16b, #0
 	aese		v0.16b, v1.16b
-	umov		w0, v0.4s[0]
+	umov		w0, v0.s[0]
 	ret
 ENDPROC(ce_aes_sub)
 
