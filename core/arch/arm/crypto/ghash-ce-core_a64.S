@@ -10,6 +10,7 @@
 #define ENTRY(func) \
 	.global func ; \
 	.type func , %function ; \
+	.balign 4 ; \
 	func :
 
 #define ENDPROC(func) \
