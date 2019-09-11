@@ -391,17 +391,12 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 
 	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto out;
+		goto exit;
 	}
 
 	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (!object) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		goto exit;
 	}
 
 	res = utee_storage_obj_open(storageID, objectID, objectIDLen, flags,
@@ -409,7 +404,7 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle)(uintptr_t)obj;
 
-out:
+exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_ACCESS_CONFLICT &&
@@ -418,7 +413,7 @@ out:
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
-	if (res != TEE_SUCCESS && object)
+	if (res != TEE_SUCCESS)
 		*object = TEE_HANDLE_NULL;
 
 	return res;
@@ -436,38 +431,35 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 
 	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto err;
+		goto exit;
 	}
 
 	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
+		goto exit;
 	}
 
 	res = utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				      (unsigned long)attributes, initialData,
 				      initialDataLen, &obj);
-	if (res == TEE_SUCCESS) {
-		if (object)
-			*object = (TEE_ObjectHandle)(uintptr_t)obj;
-		else
-			res = utee_cryp_obj_close(obj);
-		if (res == TEE_SUCCESS)
-			goto out;
-	}
-err:
-	if (object)
+
+	if (res == TEE_SUCCESS)
+		*object = (TEE_ObjectHandle)(uintptr_t)obj;
+
+exit:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_ACCESS_CONFLICT &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_STORAGE_NO_SPACE &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
+
+	if (res != TEE_SUCCESS)
 		*object = TEE_HANDLE_NULL;
-	if (res == TEE_ERROR_ITEM_NOT_FOUND ||
-	    res == TEE_ERROR_ACCESS_CONFLICT ||
-	    res == TEE_ERROR_OUT_OF_MEMORY ||
-	    res == TEE_ERROR_STORAGE_NO_SPACE ||
-	    res == TEE_ERROR_CORRUPT_OBJECT ||
-	    res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
-		return res;
-	TEE_Panic(res);
-out:
-	return TEE_SUCCESS;
+
+	return res;
 }
 
 /*
