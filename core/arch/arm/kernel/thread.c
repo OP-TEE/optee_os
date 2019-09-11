@@ -441,10 +441,7 @@ static void thread_alloc_and_run(struct thread_smc_args *args)
 
 	threads[n].flags = 0;
 	init_regs(threads + n, args);
-
-	/* Save Hypervisor Client ID */
-	threads[n].hyp_clnt_id = args->a7;
-
+	
 	thread_lazy_save_ns_vfp();
 	thread_resume(&threads[n].regs);
 }
@@ -517,9 +514,7 @@ static void thread_resume_from_rpc(struct thread_smc_args *args)
 
 	lock_global();
 
-	if (n < CFG_NUM_THREADS &&
-	    threads[n].state == THREAD_STATE_SUSPENDED &&
-	    args->a7 == threads[n].hyp_clnt_id)
+	if (n < CFG_NUM_THREADS && threads[n].state == THREAD_STATE_SUSPENDED)
 		threads[n].state = THREAD_STATE_ACTIVE;
 	else
 		rv = OPTEE_SMC_RETURN_ERESUME;
