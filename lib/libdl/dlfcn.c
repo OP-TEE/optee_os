@@ -21,11 +21,13 @@ static TEE_Result invoke_system_pta(uint32_t cmd_id, uint32_t param_types,
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (sess == TEE_HANDLE_NULL) {
-		res = TEE_OpenTASession(&core_uuid, 0, 0, NULL, &sess, NULL);
+		res = TEE_OpenTASession(&core_uuid, TEE_TIMEOUT_INFINITE,
+					0, NULL, &sess, NULL);
 		if (res)
 			return res;
 	}
-	return TEE_InvokeTACommand(sess, 0, cmd_id, param_types, params, NULL);
+	return TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE,
+				   cmd_id, param_types, params, NULL);
 }
 
 struct dl_handle {

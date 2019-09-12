@@ -18,14 +18,16 @@ static TEE_Result invoke_socket_pta(uint32_t cmd_id, uint32_t param_types,
 	static const TEE_UUID socket_uuid = PTA_SOCKET_UUID;
 
 	if (sess == TEE_HANDLE_NULL) {
-		TEE_Result res = TEE_OpenTASession(&socket_uuid, 0, 0, NULL,
-						   &sess, NULL);
+		TEE_Result res = TEE_OpenTASession(&socket_uuid,
+						   TEE_TIMEOUT_INFINITE,
+						   0, NULL, &sess, NULL);
 
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
-	return TEE_InvokeTACommand(sess, 0, cmd_id, param_types, params, NULL);
+	return TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE, cmd_id,
+				   param_types, params, NULL);
 }
 
 TEE_Result __tee_socket_pta_open(TEE_ipSocket_ipVersion ip_vers,
