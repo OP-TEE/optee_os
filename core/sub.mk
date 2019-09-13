@@ -1,8 +1,9 @@
+subdirs-y += crypto
+subdirs-y += drivers
 subdirs-y += kernel
 subdirs-y += mm
-subdirs-y += crypto
+subdirs-y += pta
 subdirs-y += tee
-subdirs-y += drivers
 
 ifeq ($(CFG_WITH_USER_TA),y)
 gensrcs-y += ta_pub_key
