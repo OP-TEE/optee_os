@@ -39,8 +39,8 @@ srcs-y += tee_fs_key_manager.c
 srcs-y += tee_obj.c
 srcs-y += tee_pobj.c
 srcs-y += tee_time_generic.c
-
 srcs-$(CFG_SECSTOR_TA) += tadb.c
+srcs-$(CFG_GP_SOCKETS) += socket.c
 
 endif #CFG_WITH_USER_TA,y
 
