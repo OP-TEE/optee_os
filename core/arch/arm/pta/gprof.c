@@ -3,7 +3,6 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
-#include <arm.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
