@@ -11,7 +11,7 @@
 #include <types_ext.h>
 #include <util.h>
 
-#include "core_self_tests.h"
+#include "misc.h"
 
 /*
  * The smallest blocks size that can hold two struct

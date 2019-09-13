@@ -8,7 +8,8 @@
 #include <trace.h>
 #include <kernel/panic.h>
 #include <util.h>
-#include "core_self_tests.h"
+
+#include "misc.h"
 
 /*
  * Enable expect LOG macro to enable/disable self tests traces.

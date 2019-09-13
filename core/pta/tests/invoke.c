@@ -15,7 +15,7 @@
 #include <trace.h>
 #include <types_ext.h>
 
-#include "core_self_tests.h"
+#include "misc.h"
 
 #define TA_NAME		"invoke_tests.pta"
 
