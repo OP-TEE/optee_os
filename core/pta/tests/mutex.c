@@ -4,10 +4,11 @@
  */
 
 #include <atomic.h>
-#include "core_self_tests.h"
 #include <kernel/mutex.h>
 #include <pta_invoke_tests.h>
 #include <trace.h>
+
+#include "misc.h"
 
 static uint32_t before_lock_readers;
 static uint32_t before_lock_writers;

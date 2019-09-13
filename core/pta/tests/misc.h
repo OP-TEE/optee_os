@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef CORE_SELF_TESTS_H
-#define CORE_SELF_TESTS_H
+#ifndef CORE_PTA_TESTS_MISC_H
+#define CORE_PTA_TESTS_MISC_H
 
 #include <compiler.h>
 #include <tee_api_types.h>
@@ -31,4 +31,4 @@ static inline TEE_Result core_lockdep_tests(
 }
 #endif
 
-#endif /*CORE_SELF_TESTS_H*/
+#endif /*CORE_PTA_TESTS_MISC_H*/

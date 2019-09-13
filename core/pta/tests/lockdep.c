@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <kernel/lockdep.h>
 
-#include "core_self_tests.h"
+#include "misc.h"
 
 static int self_test_lockdep1(void)
 {

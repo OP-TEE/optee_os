@@ -1,1 +1,1 @@
-subdirs-y += tests
+subdirs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += tests
