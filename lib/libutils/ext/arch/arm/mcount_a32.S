@@ -26,7 +26,7 @@
  */
 FUNC __gnu_mcount_nc, :
 	stmdb		sp!, {r0-r3, lr}
-#ifdef CFG_TA_GPROF_SUPPORT
+#if defined(CFG_TA_GPROF_SUPPORT) && !defined(__KERNEL__)
 	ldr		r0, [sp, #20]		/* lr of instrumented func */
 	mcount_adj_pc	r0, r0
 	mcount_adj_pc	r1, lr			/* instrumented func */

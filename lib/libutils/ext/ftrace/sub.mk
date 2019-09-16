@@ -1,5 +1,5 @@
 cppflags-y += -I$(sub-dir)/../../..
 
-ifeq ($(filter $(sm), core ldelf),) # TA
+ifneq ($(sm),ldelf) # TA, core
 srcs-$(CFG_TA_FTRACE_SUPPORT) += ftrace.c
 endif

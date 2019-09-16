@@ -10,16 +10,30 @@
  * profiled too.
  */
 
-#include <arm_user_sysreg.h>
 #include <assert.h>
-#include <setjmp.h>
 #include <user_ta_header.h>
+#if defined(__KERNEL__)
+#include <arm.h>
+#include <kernel/panic.h>
+#else
+#include <arm_user_sysreg.h>
+#include <setjmp.h>
 #include <utee_syscalls.h>
+#endif
 #include "ftrace.h"
 
 #define DURATION_MAX_LEN		16
 
 static const char hex_str[] = "0123456789abcdef";
+
+static __noprof struct ftrace_buf *get_fbuf(void)
+{
+#if defined(__KERNEL__)
+	return NULL;
+#else
+	return &__ftrace_buf_start;
+#endif
+}
 
 /*
  * This API shifts/moves ftrace buffer to create space for new dump
@@ -71,9 +85,9 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 	struct ftrace_buf *fbuf = NULL;
 	size_t dump_size = 0;
 
-	fbuf = &__ftrace_buf_start;
+	fbuf = get_fbuf();
 
-	if (!fbuf->buf_off || !fbuf->max_size)
+	if (!fbuf || !fbuf->buf_off || !fbuf->max_size)
 		return;
 
 	dump_size = DURATION_MAX_LEN + fbuf->ret_idx +
@@ -100,7 +114,11 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 		 * This scenario isn't expected as function call depth
 		 * shouldn't be more than FTRACE_RETFUNC_DEPTH.
 		 */
+#if defined(__KERNEL__)
+		panic();
+#else
 		utee_panic(0);
+#endif
 	}
 
 	*lr = (unsigned long)&__ftrace_return;
@@ -169,10 +187,10 @@ unsigned long __noprof ftrace_return(void)
 	char *dur_loc = NULL;
 	uint32_t i = 0;
 
-	fbuf = &__ftrace_buf_start;
+	fbuf = get_fbuf();
 
 	/* Check for valid return index */
-	if (fbuf->ret_idx && (fbuf->ret_idx <= FTRACE_RETFUNC_DEPTH))
+	if (fbuf && fbuf->ret_idx && fbuf->ret_idx <= FTRACE_RETFUNC_DEPTH)
 		fbuf->ret_idx--;
 	else
 		return 0;
@@ -221,6 +239,7 @@ unsigned long __noprof ftrace_return(void)
 	return fbuf->ret_stack[fbuf->ret_idx];
 }
 
+#if !defined(__KERNEL__)
 void __noprof ftrace_longjmp(unsigned int *ret_idx)
 {
 	while (__ftrace_buf_start.ret_idx > *ret_idx)
@@ -231,3 +250,4 @@ void __noprof ftrace_setjmp(unsigned int *ret_idx)
 {
 	*ret_idx = __ftrace_buf_start.ret_idx;
 }
+#endif
