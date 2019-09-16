@@ -42,7 +42,7 @@
 FUNC _mcount, :
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
-#ifdef CFG_TA_GPROF_SUPPORT
+#if defined(CFG_TA_GPROF_SUPPORT) && !defined(__KERNEL__)
 	adjust_pc	x0, x0
 	adjust_pc	x1, x30
 	bl		__mcount_internal
