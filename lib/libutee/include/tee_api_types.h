@@ -26,8 +26,6 @@ typedef struct {
 	uint8_t clockSeqAndNode[8];
 } TEE_UUID;
 
-typedef TEE_UUID REE_UUID;
-
 /*
  * The TEE_Identity structure defines the full identity of a Client:
  * - login is one of the TEE_LOGIN_XXX constants
@@ -59,19 +57,11 @@ typedef union {
 	} value;
 } TEE_Param;
 
-typedef TEE_Param REE_Param;
-
 /*
  * The type of opaque handles on TA Session. These handles are returned by
  * the function TEE_OpenTASession.
  */
 typedef struct __TEE_TASessionHandle *TEE_TASessionHandle;
-
-/*
- * The type of opaque handles on TA Session. These handles are returned by
- * the function TEE_OpenREESession.
- */
-typedef struct __TEE_REESessionHandle *TEE_REESessionHandle;
 
 /*
  * The type of opaque handles on property sets or enumerators. These

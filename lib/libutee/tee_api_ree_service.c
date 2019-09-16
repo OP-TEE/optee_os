@@ -1,31 +1,46 @@
-// SPDX-License-Identifier: BSD-2-Clause
+/* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (C) 2019 Intel Corporation All Rights Reserved
  */
 
 #include <tee_api_types.h>
+#include <tee_api_types_extensions.h>
 #include <tee_api.h>
-#include <pta_generic.h>
+#include <tee_api_extensions.h>
+#include <pta_ree_service.h>
 #include <string.h>
 
-
-struct __TEE_REESessionHandle {
+struct __ree_session_handle {
 	uint64_t handle;
 	TEE_TASessionHandle session;
 };
 
-TEE_Result TEE_OpenREESession(REE_UUID *destination,
+/**
+ * TEE_OpenREESession() - open the REE session
+ * The API finds the REE service (either Message Queue or Dynamic Library
+ * based) based on the @destination UUID. There are 2 commands issued to
+ * tee-supplicant.
+ *
+ * o One is via TEE_OpenTASession(), where tee-supplicant establish
+ *   communication channel with the REE service
+ *
+ * o Second is via TEE_InvokeTACommand(), where tee-supplicant uses the
+ *   established communication mechanism to inform REE service that TA
+ *   is from now will be requesting its service. REE service in response
+ *   to that can initialize itself for handling the requests.
+ */
+TEE_Result TEE_OpenREESession(TEE_UUID *destination,
 			uint32_t cancellationRequestTimeout,
 			uint32_t paramTypes,
-			REE_Param params[REE_NUM_PARAMS],
-			TEE_REESessionHandle *ree_session,
+			TEE_Param params[TEE_NUM_PARAMS],
+			ree_session_handle *ree_session,
 			uint32_t *returnOrigin)
 {
 	TEE_Param *pparams, iparam = {0};
 	TEE_UUID pta_generic = PTA_GENERIC_UUID;
 	TEE_Result result = TEE_SUCCESS;
-	TEE_REESessionHandle rsess;
-	TEE_Param init_params[REE_NUM_PARAMS];
+	ree_session_handle rsess;
+	TEE_Param init_params[TEE_NUM_PARAMS];
 	uint32_t init_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_VALUE_OUTPUT,
 						TEE_PARAM_TYPE_NONE,
@@ -49,7 +64,7 @@ TEE_Result TEE_OpenREESession(REE_UUID *destination,
 	/* Construct the init parameters */
 	memset(init_params, 0, sizeof(init_params));
 	init_params[0].memref.buffer = destination;
-	init_params[0].memref.size = sizeof(REE_UUID);
+	init_params[0].memref.size = sizeof(TEE_UUID);
 	result = TEE_InvokeTACommand(rsess->session, 0, OPTEE_MRC_GENERIC_OPEN,
 				init_param_types, init_params, returnOrigin);
 	if (result != TEE_SUCCESS) {
@@ -86,7 +101,7 @@ err:
 	return result;
 }
 
-void TEE_CloseREESession(TEE_REESessionHandle ree_session)
+void TEE_CloseREESession(ree_session_handle ree_session)
 {
 	TEE_Result result;
 	TEE_Param param;
@@ -109,7 +124,7 @@ void TEE_CloseREESession(TEE_REESessionHandle ree_session)
 	TEE_CloseTASession(ree_session->session);
 }
 
-TEE_Result TEE_InvokeREECommand(TEE_REESessionHandle ree_session,
+TEE_Result TEE_InvokeREECommand(ree_session_handle ree_session,
 		uint32_t cancellationRequestTimeout,
 		uint32_t commandID, uint32_t paramTypes,
 		TEE_Param params[TEE_NUM_PARAMS],

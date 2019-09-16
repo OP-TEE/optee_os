@@ -445,7 +445,6 @@
 
 /* Not specified in the standard */
 #define TEE_NUM_PARAMS  4
-#define REE_NUM_PARAMS  TEE_NUM_PARAMS
 
 /* TEE Arithmetical APIs */
 

@@ -3,7 +3,7 @@ srcs-$(CFG_ARM32_core) += arch_svc_a32.S
 srcs-$(CFG_ARM64_core) += arch_svc_a64.S
 srcs-$(CFG_CACHE_API) += svc_cache.c
 srcs-y += arch_svc.c
-srcs-y += pta_generic.c
+srcs-y += pta_ree_service.c
 else
 srcs-y += svc_dummy.c
 endif

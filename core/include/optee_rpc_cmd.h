@@ -155,13 +155,18 @@
  */
 
 /*
+ * We can only send 4 parameters to the Normal World via RPC. Since, for
+ * custom REE service, we need to send command information to REE service.
+ * So, sending this command information consumes 1 parameter, and it is
+ * always sent as using params[0]
+ *
  * The first parameter is reserved and filled as
  *
- * [in]     param[0].u.value.a	cmd
+ * [in]     param[0].u.value.a	Command for REE service
  * [in]     param[0].u.value.b	TA instance id
  * [out]    param[0].u.value.c	REE service handle
  */
-#define OPTEE_RPC_CMD_GENERIC		30
+#define OPTEE_RPC_CMD_REE_SERVICE		30
 
 /*
  * Definition of protocol for command OPTEE_RPC_CMD_FS

@@ -6,7 +6,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/msg_param.h>
 #include <optee_rpc_cmd.h>
-#include <pta_generic.h>
+#include <pta_ree_service.h>
 #include <string.h>
 #include <tee/tee_fs_rpc.h>
 
@@ -15,45 +15,73 @@ static uint32_t get_instance_id(struct tee_ta_session *sess)
 	return sess->ctx->ops->get_instance_id(sess->ctx);
 }
 
+/**
+ * is_param_memref() - return true if parameter is memory reference
+ */
 static inline bool is_param_memref(uint32_t param_types, uint32_t idx)
 {
 	uint32_t ptype = TEE_PARAM_TYPE_GET(param_types, idx);
 
-	if ((ptype == TEE_PARAM_TYPE_MEMREF_INPUT) ||
-			(ptype == TEE_PARAM_TYPE_MEMREF_OUTPUT) ||
-			(ptype == TEE_PARAM_TYPE_MEMREF_INOUT))
+	switch (ptype) {
+	case TEE_PARAM_TYPE_MEMREF_INPUT:
+	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+	case TEE_PARAM_TYPE_MEMREF_INOUT:
 		return true;
+
+	default:
+		break;
+	}
+
 	return false;
 }
 
+/**
+ * is_param_out() - return true if parameter can be filled by REE (output)
+ */
 static inline bool is_param_out(uint32_t param_types, uint32_t idx)
 {
 	uint32_t ptype = TEE_PARAM_TYPE_GET(param_types, idx);
 
-	if ((ptype == TEE_PARAM_TYPE_VALUE_OUTPUT) ||
-			(ptype == TEE_PARAM_TYPE_VALUE_INOUT) ||
-			(ptype == TEE_PARAM_TYPE_MEMREF_OUTPUT) ||
-			(ptype == TEE_PARAM_TYPE_MEMREF_INOUT))
+	switch  (ptype) {
+	case TEE_PARAM_TYPE_VALUE_OUTPUT:
+	case TEE_PARAM_TYPE_VALUE_INOUT:
+	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+	case TEE_PARAM_TYPE_MEMREF_INOUT:
 		return true;
+
+	default:
+		break;
+	}
+
 	return false;
 }
 
+/**
+ * is_param_value() - returns true if parameter is value
+ */
 static inline bool is_param_value(uint32_t param_types, uint32_t idx)
 {
 	uint32_t ptype = TEE_PARAM_TYPE_GET(param_types, idx);
-	if (ptype == TEE_PARAM_TYPE_VALUE_INPUT ||
-			ptype == TEE_PARAM_TYPE_VALUE_OUTPUT ||
-			ptype == TEE_PARAM_TYPE_VALUE_INOUT)
+
+	switch (ptype) {
+	case TEE_PARAM_TYPE_VALUE_INPUT:
+	case TEE_PARAM_TYPE_VALUE_OUTPUT:
+	case TEE_PARAM_TYPE_VALUE_INOUT:
 		return true;
+
+	default:
+		break;
+	}
 
 	return false;
 }
 
+/**
+ * is_param_none() - if the parameter has nothing to send/receive to REE
+ */
 static inline bool is_param_none(uint32_t param_types, uint32_t idx)
 {
-	if (TEE_PARAM_TYPE_GET(param_types, idx) == TEE_PARAM_TYPE_NONE)
-		return true;
-	return false;
+	return (TEE_PARAM_TYPE_GET(param_types, idx) == TEE_PARAM_TYPE_NONE);
 }
 
 static void *alloc_transient_shm(size_t size, struct mobj **mobj)
@@ -154,7 +182,7 @@ static TEE_Result find_ree_service(void *sess_ctx, uint32_t param_types,
 
 	tpm[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
 
-	res = thread_rpc_cmd(OPTEE_RPC_CMD_GENERIC, 3, tpm);
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_REE_SERVICE, 3, tpm);
 	if (res == TEE_SUCCESS)
 		params[1].value.a = tpm[2].u.value.a;
 
@@ -165,7 +193,7 @@ static TEE_Result find_ree_service(void *sess_ctx, uint32_t param_types,
  * Trusted Application Entry Points
  */
 
-static TEE_Result pta_generic_open_session(uint32_t param_types __unused,
+static TEE_Result pta_ree_service_open_session(uint32_t param_types __unused,
 		TEE_Param params[TEE_NUM_PARAMS] __unused,
 		void **sess_ctx)
 {
@@ -181,12 +209,16 @@ static TEE_Result pta_generic_open_session(uint32_t param_types __unused,
 	return TEE_SUCCESS;
 }
 
-static void pta_generic_close_session(void *sess_ctx __unused)
+/**
+ * pta_ree_service_close_session() - close the session of calling TA
+ * TODO: Seems like okay to do, but, a discussion is required.
+ */
+static void pta_ree_service_close_session(void *sess_ctx __unused)
 {
 	return;
 }
 
-static TEE_Result pta_generic_invoke_command(void *sess_ctx,
+static TEE_Result pta_ree_service_invoke_command(void *sess_ctx,
 					uint32_t cmd_id, uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -225,7 +257,7 @@ static TEE_Result pta_generic_invoke_command(void *sess_ctx,
 		if (is_param_memref(param_types, i)) {
 			va[idx] = prepare_memref_params(&params[i],
 					TEE_PARAM_TYPE_GET(param_types, i),
-					cache_allocated ? false: true,
+					cache_allocated ? false : true,
 					&mobj[idx], &tpm[i]);
 			if (!va[idx]) {
 				res = TEE_ERROR_OUT_OF_MEMORY;
@@ -249,7 +281,7 @@ static TEE_Result pta_generic_invoke_command(void *sess_ctx,
 		}
 	}
 
-	res = thread_rpc_cmd(OPTEE_RPC_CMD_GENERIC,
+	res = thread_rpc_cmd(OPTEE_RPC_CMD_REE_SERVICE,
 				msg_params_count, tpm);
 	if (res != TEE_SUCCESS)
 		goto err;
@@ -282,6 +314,6 @@ err:
 
 pseudo_ta_register(.uuid = PTA_GENERIC_UUID, .name = "generic",
 		.flags = PTA_DEFAULT_FLAGS | TA_FLAG_CONCURRENT,
-		.open_session_entry_point = pta_generic_open_session,
-		.close_session_entry_point = pta_generic_close_session,
-		.invoke_command_entry_point = pta_generic_invoke_command);
+		.open_session_entry_point = pta_ree_service_open_session,
+		.close_session_entry_point = pta_ree_service_close_session,
+		.invoke_command_entry_point = pta_ree_service_invoke_command);
