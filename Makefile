@@ -69,6 +69,7 @@ cmd-echo-silent := true
 endif
 endif
 
+SCRIPTS_DIR := scripts
 
 include core/core.mk
 
