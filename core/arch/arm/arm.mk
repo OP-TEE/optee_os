@@ -207,6 +207,8 @@ ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-aflags
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE ?= arm-linux-gnueabihf-_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE_ta_arm32 ?= $$(CROSS_COMPILE32)_nl_
+ta-mk-file-export-add-ta_arm32 += COMPILER ?= gcc_nl_
+ta-mk-file-export-add-ta_arm32 += COMPILER_ta_arm32 ?= $$(COMPILER)_nl_
 endif
 
 ifneq ($(filter ta_arm64,$(ta-targets)),)
@@ -235,6 +237,8 @@ ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-aflags
 
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_nl_
+ta-mk-file-export-add-ta_arm64 += COMPILER ?= gcc_nl_
+ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
 endif
 
 # Set cross compiler prefix for each submodule

@@ -105,7 +105,8 @@ srcs += ta_entry_a32.S
 endif
 endif
 
-include  $(ta-dev-kit-dir$(sm))/mk/gcc.mk
+SCRIPTS_DIR := $(ta-dev-kit-dir)/scripts
+include  $(ta-dev-kit-dir$(sm))/mk/$(COMPILER_$(sm)).mk
 include  $(ta-dev-kit-dir$(sm))/mk/compile.mk
 
 ifneq ($(user-ta-uuid),)
