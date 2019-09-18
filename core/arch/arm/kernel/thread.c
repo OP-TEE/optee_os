@@ -619,9 +619,6 @@ void thread_state_free(void)
 	threads[ct].flags = 0;
 	l->curr_thread = -1;
 
-#ifdef CFG_VIRTUALIZATION
-	virt_unset_guest();
-#endif
 	thread_unlock_global();
 }
 
