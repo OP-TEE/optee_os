@@ -23,5 +23,4 @@ srcs-y += tee_api_arith_mpa.c
 endif
 endif #ifneq ($(sm),ldelf)
 
-
 subdirs-y += arch/$(ARCH)

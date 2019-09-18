@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (C) 2019 Intel Corporation All Rights Reserved
  */
 
 #ifndef __OPTEE_RPC_CMD_H
@@ -151,7 +152,7 @@
 /* Generic REE Service commands */
 
 /*
- * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_GENERIC
+ * Define protocol for messages with .cmd == OPTEE_MSG_RPC_CMD_REE_SERVICE
  */
 
 /*
