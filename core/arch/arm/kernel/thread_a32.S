@@ -262,11 +262,11 @@ KEEP_PAGER thread_init_vbar
  */
 
 /*
- * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
- *               unsigned long a2, unsigned long a3, unsigned long user_sp,
- *               unsigned long user_func, unsigned long spsr,
- *               uint32_t *exit_status0, uint32_t *exit_status1)
+ * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
+ *				     uint32_t *exit_status0,
+ *				     uint32_t *exit_status1);
  *
+ * This function depends on being called with exceptions masked.
  */
 FUNC __thread_enter_user_mode , :
 UNWIND(	.fnstart)
@@ -281,23 +281,22 @@ UNWIND(	.cantunwind)
 	 */
 	push    {r4-r12,lr}
 
-	ldr     r4, [sp, #(10 * 0x4)]   /* user stack pointer */
-	ldr     r5, [sp, #(11 * 0x4)]   /* user function */
-	ldr     r6, [sp, #(12 * 0x4)]   /* spsr */
-
 	/*
 	 * Save old user sp and set new user sp.
 	 */
 	cps	#CPSR_MODE_SYS
-	mov	r7, sp
-	mov     sp, r4
+	mov	r4, sp
+	ldr	sp, [r0, #THREAD_CTX_REGS_USR_SP]
 	cps	#CPSR_MODE_SVC
-	push	{r7,r8}
+
+	push	{r1, r2, r4, r5}
 
 	/* Prepare user mode entry via eret_to_user_mode */
-	cpsid	aif
-	msr     spsr_fsxc, r6
-	mov	lr, r5
+	ldr	lr, [r0, #THREAD_CTX_REGS_PC]
+	ldr	r4, [r0, #THREAD_CTX_REGS_CPSR]
+	msr     spsr_fsxc, r4
+
+	ldm	r0, {r0-r12}
 
 	b	eret_to_user_mode
 UNWIND(	.fnend)
@@ -311,18 +310,18 @@ END_FUNC __thread_enter_user_mode
 FUNC thread_unwind_user_mode , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	ldr     ip, [sp, #(15 * 0x4)]   /* &ctx->panicked */
-	str	r1, [ip]
-	ldr     ip, [sp, #(16 * 0x4)]   /* &ctx->panic_code */
-	str	r2, [ip]
+	/* Match push {r1, r2, r4, r5} in thread_enter_user_mode() */
+	pop	{r4-r7}
+	str	r1, [r4]
+	str	r2, [r5]
 
 	/* Restore old user sp */
-	pop	{r4,r7}
 	cps	#CPSR_MODE_SYS
-	mov	sp, r4
+	mov	sp, r6
 	cps	#CPSR_MODE_SVC
 
-	pop     {r4-r12,pc}	/* Match the push in thread_enter_user_mode()*/
+	/* Match push {r4-r12,lr} in thread_enter_user_mode() */
+	pop     {r4-r12,pc}
 UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
 
