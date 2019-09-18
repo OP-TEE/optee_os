@@ -97,6 +97,11 @@
  * space application
  */
 #define OPTEE_RPC_SHM_TYPE_GLOBAL	2
+/*
+ * Memory shared with the non-secure user space application that owns the
+ * current session
+ */
+#define OPTEE_MSG_RPC_SHM_TYPE_HOST	3
 
 /*
  * Free shared memory previously allocated with OPTEE_RPC_CMD_SHM_ALLOC
@@ -326,5 +331,10 @@
 #define OPTEE_RPC_SOCKET_IOCTL	5
 
 /* End of definition of protocol for command OPTEE_RPC_CMD_SOCKET */
+
+/*
+ * Request a generic service from the host application.
+ */
+#define OPTEE_MSG_RPC_CMD_GENERIC	8
 
 #endif /*__OPTEE_RPC_CMD_H*/

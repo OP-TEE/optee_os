@@ -562,6 +562,22 @@ struct mobj *thread_rpc_alloc_payload(size_t size);
  */
 void thread_rpc_free_payload(struct mobj *mobj);
 
+/**
+ * Allocates data for host application payload buffers.
+ *
+ * @size:	size in bytes of payload buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_host_payload(size_t size);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_host_payload()
+ *
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_host_payload(struct mobj *mobj);
 
 struct thread_param_memref {
 	size_t offs;
