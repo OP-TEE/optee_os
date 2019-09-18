@@ -21,7 +21,7 @@
 #endif
 #define __weak		__attribute__((weak))
 #ifndef __noreturn
-#define __noreturn	__attribute__((noreturn))
+#define __noreturn	__attribute__((__noreturn__))
 #endif
 #define __pure		__attribute__((pure))
 #define __aligned(x)	__attribute__((aligned(x)))
