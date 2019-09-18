@@ -57,8 +57,10 @@ struct thread_ctx_regs {
 
 #ifdef ARM64
 struct thread_user_mode_rec {
+	uint64_t ctx_regs_ptr;
 	uint64_t exit_status0_ptr;
 	uint64_t exit_status1_ptr;
+	uint64_t pad;
 	uint64_t x[31 - 19]; /* x19..x30 */
 };
 #endif /*ARM64*/
@@ -168,10 +170,9 @@ uint32_t __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
  */
 void thread_resume(struct thread_ctx_regs *regs);
 
-uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long user_sp,
-		unsigned long user_func, unsigned long spsr,
-		uint32_t *exit_status0, uint32_t *exit_status1);
+uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
+				  uint32_t *exit_status0,
+				  uint32_t *exit_status1);
 
 /*
  * Private functions made available for thread_asm.S

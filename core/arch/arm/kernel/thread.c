@@ -1238,12 +1238,49 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
 }
 #endif
 
+static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
+			 unsigned long a1, unsigned long a2, unsigned long a3,
+			 unsigned long user_sp, unsigned long entry_func,
+			 uint32_t spsr)
+{
+	/*
+	 * First clear all registers to avoid leaking information from
+	 * other TAs or even the Core itself.
+	 */
+	*regs = (struct thread_ctx_regs){ };
+#ifdef ARM32
+	regs->r0 = a0;
+	regs->r1 = a1;
+	regs->r2 = a2;
+	regs->r3 = a3;
+	regs->usr_sp = user_sp;
+	regs->pc = entry_func;
+	regs->cpsr = spsr;
+#endif
+#ifdef ARM64
+	regs->x[0] = a0;
+	regs->x[1] = a1;
+	regs->x[2] = a2;
+	regs->x[3] = a3;
+	regs->sp = user_sp;
+	regs->pc = entry_func;
+	regs->cpsr = spsr;
+	regs->x[13] = user_sp;	/* Used when running TA in Aarch32 */
+	regs->sp = user_sp;	/* Used when running TA in Aarch64 */
+	/* Set frame pointer (user stack can't be unwound past this point) */
+	regs->x[29] = 0;
+#endif
+}
+
 uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 		unsigned long a2, unsigned long a3, unsigned long user_sp,
 		unsigned long entry_func, bool is_32bit,
 		uint32_t *exit_status0, uint32_t *exit_status1)
 {
-	uint32_t spsr;
+	uint32_t spsr = 0;
+	uint32_t exceptions = 0;
+	uint32_t rc = 0;
+	struct thread_ctx_regs *regs = NULL;
 
 	tee_ta_update_session_utime_resume();
 
@@ -1252,8 +1289,19 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 		*exit_status1 = 0xbadbadba;
 		return 0;
 	}
-	return __thread_enter_user_mode(a0, a1, a2, a3, user_sp, entry_func,
-					spsr, exit_status0, exit_status1);
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	/*
+	 * We're using the per thread location of saved context registers
+	 * for temporary storage. Now that exceptions are masked they will
+	 * not be used for any thing else until they are eventually
+	 * unmasked when user mode has been entered.
+	 */
+	regs = thread_get_ctx_regs();
+	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, spsr);
+	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
+	thread_unmask_exceptions(exceptions);
+	return rc;
 }
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
