@@ -50,3 +50,20 @@ recipe-embedded_secure_dtb = scripts/bin_to_c.py \
 				--out $(core-embed-fdt-c)
 $(eval $(call gen-dtb-file,$(core-embed-fdt-dts),$(core-embed-fdt-dtb)))
 endif
+
+ifeq ($(CFG_SHOW_CONF_ON_BOOT),y)
+conf-mk-xz-base64 := $(sub-dir-out)/conf.mk.xz.base64
+cleanfiles += $(conf-mk-xz-base64)
+
+$(conf-mk-xz-base64): $(conf-mk-file)
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)tail +3 $< | xz | base64 -w 100 >$@
+
+gensrcs-y += conf_str
+produce-conf_str = conf.mk.xz.base64.c
+depends-conf_str = $(conf-mk-xz-base64)
+recipe-conf_str = scripts/bin_to_c.py --text --bin $(conf-mk-xz-base64) \
+			--out $(sub-dir-out)/conf.mk.xz.base64.c \
+			--vname conf_str
+cleanfiles += $(sub-dir-out)/conf.mk.xz.base64.c
+endif

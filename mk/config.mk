@@ -494,3 +494,7 @@ endif
 
 # Enables backwards compatible derivation of RPMB and SSK keys
 CFG_CORE_HUK_SUBKEY_COMPAT ?= y
+
+# Compress and encode conf.mk into the TEE core, and show the encoded string on
+# boot (with severity TRACE_INFO).
+CFG_SHOW_CONF_ON_BOOT ?= n
