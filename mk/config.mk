@@ -369,6 +369,10 @@ CFG_ULIBS_MCOUNT ?= n
 # Profiling/tracing of syscall wrapper (utee_*)
 CFG_SYSCALL_WRAPPERS_MCOUNT ?= $(CFG_ULIBS_MCOUNT)
 
+# Enable Generic RPC's to allow TA's to request services from their host
+# application running in the rich OS on a per-session basis.
+CFG_GENERIC_RPC ?= y
+
 ifeq (y,$(filter y,$(CFG_ULIBS_MCOUNT) $(CFG_SYSCALL_WRAPPERS_MCOUNT)))
 ifeq (,$(filter y,$(CFG_TA_GPROF_SUPPORT) $(CFG_TA_FTRACE_SUPPORT)))
 $(error Cannot instrument user libraries if user mode profiling is disabled)
