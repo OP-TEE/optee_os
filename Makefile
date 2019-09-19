@@ -14,6 +14,10 @@ SHELL = /bin/bash
 # (we include many *.cmd and *.d files).
 unexport MAKEFILE_LIST
 
+# Automatically delete corrupt targets (file updated but recipe exits with a
+# nonzero status). Useful since a few recipes use shell redirection.
+.DELETE_ON_ERROR:
+
 include mk/checkconf.mk
 
 .PHONY: all
