@@ -152,10 +152,51 @@ cleanfiles += $(link-out-dir)/tee.elf $(link-out-dir)/tee.map
 cleanfiles += $(link-out-dir)/version.o
 cleanfiles += $(link-out-dir)/.buildcount
 cleanfiles += $(link-out-dir)/.tee.elf.cmd
-$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK)
-	@echo "old-link-objs := $(link-objs)" >$(link-out-dir)/.tee.elf.cmd
+
+ifeq ($(CFG_CORE_SYMS),y)
+
+cleanfiles += $(link-out-dir)/syms_data.0.c
+$(link-out-dir)/syms_data.0.c: $(link-out-dir)/tee.0.elf scripts/gen_syms.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)$(NMcore) -v --format=posix $(link-out-dir)/tee.0.elf | scripts/gen_syms.py > $@
+
+cleanfiles += $(link-out-dir)/syms_data.1.c
+$(link-out-dir)/syms_data.1.c: $(link-out-dir)/tee.1.elf scripts/gen_syms.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)$(NMcore) -v --format=posix $(link-out-dir)/tee.1.elf | scripts/gen_syms.py > $@
+
+objs :=
+srcs :=
+gen-srcs := $(link-out-dir)/syms_data.0.c $(link-out-dir)/syms_data.1.c
+spec-srcs :=
+asm-defines-files :=
+include mk/compile.mk
+
+cleanfiles += $(link-out-dir)/tee.0.elf
+$(link-out-dir)/tee.0.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK)
+	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/.tee.elf.cmd'
+	$(q)echo "old-link-objs := $(link-objs)" >$(link-out-dir)/.tee.elf.cmd
 	@$(cmd-echo-silent) '  LD      $@'
 	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
+
+cleanfiles += $(link-out-dir)/tee.1.elf
+$(link-out-dir)/tee.1.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK) $(link-out-dir)/syms_data.0.o
+	@$(cmd-echo-silent) '  LD      $@'
+	$(q)$(LDcore) $(ldargs-tee.elf) $(link-out-dir)/syms_data.0.o -o $@
+
+$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK) $(link-out-dir)/syms_data.1.o
+	@$(cmd-echo-silent) '  LD      $@'
+	$(q)$(LDcore) $(ldargs-tee.elf) $(link-out-dir)/syms_data.1.o -o $@
+
+else  # !CFG_CORE_SYMS
+
+$(link-out-dir)/tee.elf: $(link-objs) $(libdeps) $(link-script-pp) $(FORCE_LINK)
+	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/.tee.elf.cmd'
+	$(q)echo "old-link-objs := $(link-objs)" >$(link-out-dir)/.tee.elf.cmd
+	@$(cmd-echo-silent) '  LD      $@'
+	$(q)$(LDcore) $(ldargs-tee.elf) -o $@
+
+endif
 
 all: $(link-out-dir)/tee.dmp
 cleanfiles += $(link-out-dir)/tee.dmp
