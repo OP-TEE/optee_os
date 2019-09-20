@@ -127,7 +127,7 @@ static TEE_Result rpc_postprocess_param(struct thread_param *rpc_msg_param,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result rpc_execute(uint32_t param_types,
+static TEE_Result rpc_execute(uint32_t cmd_id, uint32_t param_types,
 			      TEE_Param params[TEE_NUM_PARAMS])
 {
 	TEE_Result res;
@@ -180,8 +180,8 @@ static TEE_Result rpc_execute(uint32_t param_types,
 	}
 
 	/* Send RPC message to the host */
-	res = thread_rpc_cmd(OPTEE_MSG_RPC_CMD_GENERIC,
-		ARRAY_SIZE(rpc_msg_params), rpc_msg_params);
+	res = thread_rpc_cmd(cmd_id, ARRAY_SIZE(rpc_msg_params),
+		rpc_msg_params);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -206,9 +206,9 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
-	switch (cmd_id) {
+	switch (PTA_GRPC_GET_CMD_ID(cmd_id)) {
 	case PTA_GRPC_EXECUTE:
-		return rpc_execute(param_types, params);
+		return rpc_execute(cmd_id, param_types, params);
 	default:
 		break;
 	}

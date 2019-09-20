@@ -332,9 +332,4 @@
 
 /* End of definition of protocol for command OPTEE_RPC_CMD_SOCKET */
 
-/*
- * Request a generic service from the host application.
- */
-#define OPTEE_MSG_RPC_CMD_GENERIC	8
-
 #endif /*__OPTEE_RPC_CMD_H*/
