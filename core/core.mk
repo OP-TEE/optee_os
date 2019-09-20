@@ -13,7 +13,7 @@ include core/arch/$(ARCH)/$(ARCH).mk
 PLATFORM_$(PLATFORM) := y
 PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-$(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA)
+$(eval $(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA))
 include core/crypto.mk
 
 # Setup compiler for this sub module
