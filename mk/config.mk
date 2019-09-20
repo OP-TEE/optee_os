@@ -498,3 +498,10 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# Adds symbols information in OP-TEE binary (incompatible with pager)
+ifeq ($(CFG_WITH_PAGER),y)
+$(call force,CFG_CORE_SYMS,n)
+else
+CFG_CORE_SYMS ?= $(CFG_TEE_CORE_DEBUG)
+endif

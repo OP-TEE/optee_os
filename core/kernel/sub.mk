@@ -16,3 +16,4 @@ srcs-$(CFG_CORE_SANITIZE_UNDEFINED) += ubsan.c
 srcs-y += scattered_array.c
 srcs-y += huk_subkey.c
 srcs-$(CFG_SHOW_CONF_ON_BOOT) += show_conf.c
+srcs-$(CFG_CORE_SYMS) += symbols.c
