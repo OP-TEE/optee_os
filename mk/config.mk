@@ -232,7 +232,7 @@ CFG_REE_FS_TA ?= y
 #   valid.
 # - If disabled: hash the binaries as they are being processed and verify the
 #   signature as a last step.
-CFG_REE_FS_TA_BUFFERED ?= $(CFG_REE_FS_TA)
+CFG_REE_FS_TA_BUFFERED ?= n
 $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 
 # Support for loading user TAs from a special section in the TEE binary.
