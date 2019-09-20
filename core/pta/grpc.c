@@ -69,7 +69,7 @@ static TEE_Result rpc_preprocess_param(struct thread_param *rpc_msg_param,
 			param->memref.size);
 		break;
 	default:
-		break;
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	/* Perform copies into shared memory, if necessary */
@@ -102,8 +102,12 @@ static TEE_Result rpc_postprocess_param(struct thread_param *rpc_msg_param,
 		return TEE_ERROR_BAD_PARAMETERS;
 	case TEE_PARAM_TYPE_VALUE_OUTPUT:
 	case TEE_PARAM_TYPE_VALUE_INOUT:
-		param->value.a = rpc_msg_param->u.value.a;
-		param->value.b = rpc_msg_param->u.value.b;
+		if (rpc_msg_param->u.value.a > UINT32_MAX ||
+		    rpc_msg_param->u.value.b > UINT32_MAX)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		param->value.a = (uint32_t)rpc_msg_param->u.value.a;
+		param->value.b = (uint32_t)rpc_msg_param->u.value.b;
 		break;
 	case TEE_PARAM_TYPE_MEMREF_INPUT:
 		return TEE_ERROR_BAD_PARAMETERS;
