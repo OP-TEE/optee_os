@@ -98,8 +98,6 @@ static TEE_Result rpc_postprocess_param(struct thread_param *rpc_msg_param,
 					TEE_Param *param)
 {
 	switch (param_type) {
-	case TEE_PARAM_TYPE_VALUE_INPUT:
-		return TEE_ERROR_BAD_PARAMETERS;
 	case TEE_PARAM_TYPE_VALUE_OUTPUT:
 	case TEE_PARAM_TYPE_VALUE_INOUT:
 		if (rpc_msg_param->u.value.a > UINT32_MAX ||
@@ -109,8 +107,6 @@ static TEE_Result rpc_postprocess_param(struct thread_param *rpc_msg_param,
 		param->value.a = (uint32_t)rpc_msg_param->u.value.a;
 		param->value.b = (uint32_t)rpc_msg_param->u.value.b;
 		break;
-	case TEE_PARAM_TYPE_MEMREF_INPUT:
-		return TEE_ERROR_BAD_PARAMETERS;
 	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 	case TEE_PARAM_TYPE_MEMREF_INOUT:
 		if (!mobj_va ||
