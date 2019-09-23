@@ -36,6 +36,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/unwind.h>
 #include <string.h>
+#include <symbols.h>
 #include <tee_api_types.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
@@ -430,6 +431,25 @@ TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset)
 }
 
 #if (TRACE_LEVEL > 0)
+#ifdef CFG_CORE_SYMS
+
+void print_stack_arm32(int level, struct unwind_state_arm32 *state,
+		       vaddr_t exidx, size_t exidx_sz,
+		       vaddr_t stack, size_t stack_size)
+{
+	char symbol[64] = {};
+
+	trace_printf_helper_raw(level, true, "Call stack:");
+	do {
+		syms_format_name_w_offset(state->registers[PC], symbol,
+					  sizeof(symbol) - 1);
+		symbol[sizeof(symbol) - 1] = 0;
+		trace_printf_helper_raw(level, true, " 0x%08" PRIx32 " %s",
+					state->registers[PC], symbol);
+	} while (unwind_stack_arm32(state, exidx, exidx_sz, stack, stack_size));
+}
+
+#else  /* CFG_CORE_SYMS */
 
 void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 		       vaddr_t exidx, size_t exidx_sz,
@@ -441,6 +461,8 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 					state->registers[PC]);
 	} while (unwind_stack_arm32(state, exidx, exidx_sz, stack, stack_size));
 }
+
+#endif	/* CFG_CORE_SYMS */
 
 #endif
 

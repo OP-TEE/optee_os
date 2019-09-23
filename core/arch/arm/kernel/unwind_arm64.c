@@ -34,6 +34,7 @@
 #include <kernel/unwind.h>
 #include <kernel/tee_misc.h>
 #include <string.h>
+#include <symbols.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <util.h>
@@ -65,6 +66,25 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 }
 
 #if (TRACE_LEVEL > 0)
+#ifdef CFG_CORE_SYMS
+
+void print_stack_arm64(int level, struct unwind_state_arm64 *state,
+		       vaddr_t stack, size_t stack_size)
+{
+	char symbol[64] = {};
+
+	trace_printf_helper_raw(level, true, "Call stack:");
+
+	do {
+		syms_format_name_w_offset(state->pc, symbol,
+					  sizeof(symbol) - 1);
+		symbol[sizeof(symbol) - 1] = 0;
+		trace_printf_helper_raw(level, true, " 0x%016" PRIx64 " %s",
+					state->pc, symbol);
+	} while (unwind_stack_arm64(state, stack, stack_size));
+}
+
+#else  /* CFG_CORE_SYMS */
 
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
@@ -76,6 +96,8 @@ void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 					state->pc);
 	} while (unwind_stack_arm64(state, stack, stack_size));
 }
+
+#endif	/* CFG_CORE_SYMS */
 
 void print_kernel_stack(int level)
 {
