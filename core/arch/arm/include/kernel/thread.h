@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2019, Microsoft Corporation
  */
 
 #ifndef KERNEL_THREAD_H

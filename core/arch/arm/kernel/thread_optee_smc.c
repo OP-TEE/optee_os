@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2019, Microsoft Corporation
  */
 
 #include <assert.h>

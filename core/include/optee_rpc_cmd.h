@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2019, Microsoft Corporation
  */
 
 #ifndef __OPTEE_RPC_CMD_H
