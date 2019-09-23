@@ -28,7 +28,7 @@
  * This means "send a generic RPC request to my host application with function
  * ID 3."
  * 
- * The reason for using 0xF is that the entire value is passed to the REE. When
+ * The reason for using 0x1 is that the entire value is passed to the REE. When
  * the REE sees an RPC request, if can determine that it is a generic RPC
  * request by examining the upper four bits while the bottom ones are used for
  * data transfer. This way, it is not necessary to reserve one of the four
