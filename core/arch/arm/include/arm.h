@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2019, Arm Limited. All rights reserved.
  */
 #ifndef ARM_H
 #define ARM_H
@@ -28,9 +29,21 @@
 #define CORTEX_A75_PART_NUM		0xD0A
 
 /* MPIDR definitions */
-#define MPIDR_CPU_MASK		0xff
-#define MPIDR_CLUSTER_SHIFT	8
-#define MPIDR_CLUSTER_MASK	(0xff << MPIDR_CLUSTER_SHIFT)
+#define MPIDR_AFFINITY_BITS	8
+#define MPIDR_AFFLVL_MASK	0xff
+#define MPIDR_AFF0_SHIFT	0
+#define MPIDR_AFF0_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF0_SHIFT)
+#define MPIDR_AFF1_SHIFT	8
+#define MPIDR_AFF1_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF1_SHIFT)
+#define MPIDR_AFF2_SHIFT	16
+#define MPIDR_AFF2_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF2_SHIFT)
+
+#define MPIDR_MT_SHIFT		24
+#define MPIDR_MT_MASK		BIT(MPIDR_MT_SHIFT)
+
+#define MPIDR_CPU_MASK		MPIDR_AFF0_MASK
+#define MPIDR_CLUSTER_SHIFT	MPIDR_AFF1_SHIFT
+#define MPIDR_CLUSTER_MASK	MPIDR_AFF1_MASK
 
 /* CLIDR definitions */
 #define CLIDR_LOUIS_SHIFT	21
