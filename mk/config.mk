@@ -430,6 +430,12 @@ CFG_DEVICE_ENUM_PTA ?= y
 # Default is 2**(2) = 4 cores per cluster.
 CFG_CORE_CLUSTER_SHIFT ?= 2
 
+# Define the number of threads per core used in calculating processing
+# element's position. The core number is shifted by this value and added to
+# the thread ID, so its value represents log2(threads/core).
+# Default is 2**(0) = 1 threads per core.
+CFG_THREAD_CORE_SHIFT ?= 0
+
 # Enable support for dynamic shared memory (shared memory anywhere in
 # non-secure memory).
 CFG_CORE_DYN_SHM ?= y

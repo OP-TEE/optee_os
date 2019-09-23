@@ -21,10 +21,25 @@ END_FUNC __get_core_pos
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
 FUNC get_core_pos_mpidr , :
 UNWIND(	.fnstart)
-	/* Calculate CorePos = (ClusterId * (cores/cluster)) + CoreId */
-	and	r1, r0, #MPIDR_CPU_MASK
-	and	r0, r0, #MPIDR_CLUSTER_MASK
-	add	r0, r1, r0, LSR #(MPIDR_CLUSTER_SHIFT - CFG_CORE_CLUSTER_SHIFT)
+	mov	r3, r0
+
+	/*
+	 * Check for MT bit in MPIDR. If not set, shift MPIDR to left to make it
+	 * look as if in a multi-threaded implementation
+	 */
+	tst	r0, #MPIDR_MT_MASK
+	lsleq	r3, r0, #MPIDR_AFFINITY_BITS
+
+	/* Extract individual affinity fields from MPIDR */
+	ubfx	r0, r3, #MPIDR_AFF0_SHIFT, #MPIDR_AFFINITY_BITS
+	ubfx	r1, r3, #MPIDR_AFF1_SHIFT, #MPIDR_AFFINITY_BITS
+	ubfx	r2, r3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
+
+	/* Calculate CorePos =
+		((ClusterId * (cores/cluster)) + CoreId) * (threads/core) + ThreadId */
+	add	r1, r1, r2, LSL #(CFG_CORE_CLUSTER_SHIFT)
+	add	r0, r0, r1, LSL #(CFG_THREAD_CORE_SHIFT)
+
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC get_core_pos_mpidr
