@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import termios
 
 CALL_STACK_RE = re.compile('Call stack:')
 # This gets the address from lines looking like this:
@@ -479,9 +480,17 @@ def main():
         args.dirs = []
     symbolizer = Symbolizer(sys.stdout, args.dirs, args.strip_path)
 
-    for line in sys.stdin:
-        symbolizer.write(line)
-    symbolizer.flush()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    new = termios.tcgetattr(fd)
+    new[3] = new[3] & ~termios.ECHO  # lflags
+    try:
+        termios.tcsetattr(fd, termios.TCSADRAIN, new)
+        for line in sys.stdin:
+            symbolizer.write(line)
+    finally:
+        symbolizer.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 if __name__ == "__main__":
