@@ -101,7 +101,7 @@
  * Memory shared with the non-secure user space application that owns the
  * current session
  */
-#define OPTEE_MSG_RPC_SHM_TYPE_HOST	3
+#define OPTEE_RPC_SHM_TYPE_HOST 	3
 
 /*
  * Free shared memory previously allocated with OPTEE_RPC_CMD_SHM_ALLOC

@@ -604,10 +604,10 @@ void thread_rpc_free_global_payload(struct mobj *mobj)
 
 struct mobj *thread_rpc_alloc_host_payload(size_t size)
 {
-	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_APPL);
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_HOST);
 }
 
 void thread_rpc_free_host_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj), mobj);
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_HOST, mobj_get_cookie(mobj), mobj);
 }
