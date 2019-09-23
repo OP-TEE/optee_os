@@ -28,8 +28,10 @@ FUNC get_core_pos_mpidr , :
 	ubfx	x1, x3, #MPIDR_AFF1_SHIFT, #MPIDR_AFFINITY_BITS
 	ubfx	x2, x3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
 
-	/* Calculate CorePos =
-		((ClusterId * (cores/cluster)) + CoreId) * (threads/core) + ThreadId */
+	/*
+	 * Calculate CorePos =
+	 * ((ClusterId * (cores/cluster)) + CoreId) * (threads/core) + ThreadId
+	 */
 	add	x1, x1, x2, LSL #(CFG_CORE_CLUSTER_SHIFT)
 	add	x0, x0, x1, LSL #(CFG_THREAD_CORE_SHIFT)
 

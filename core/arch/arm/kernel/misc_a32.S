@@ -35,8 +35,10 @@ UNWIND(	.fnstart)
 	ubfx	r1, r3, #MPIDR_AFF1_SHIFT, #MPIDR_AFFINITY_BITS
 	ubfx	r2, r3, #MPIDR_AFF2_SHIFT, #MPIDR_AFFINITY_BITS
 
-	/* Calculate CorePos =
-		((ClusterId * (cores/cluster)) + CoreId) * (threads/core) + ThreadId */
+	/*
+	 * Calculate CorePos =
+	 * ((ClusterId * (cores/cluster)) + CoreId) * (threads/core) + ThreadId
+	 */
 	add	r1, r1, r2, LSL #(CFG_CORE_CLUSTER_SHIFT)
 	add	r0, r0, r1, LSL #(CFG_THREAD_CORE_SHIFT)
 
