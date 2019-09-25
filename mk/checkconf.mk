@@ -95,12 +95,12 @@ define cfg-cmake-set
 		  set($1 $($1))_nl_))
 endef
 
-# Returns 'y' if at least one variable is 'y', empty otherwise
+# Returns 'y' if at least one variable is 'y', 'n' otherwise
 # Example:
 # FOO_OR_BAR := $(call cfg-one-enabled, FOO BAR)
-cfg-one-enabled = $(if $(filter y, $(foreach var,$(1),$($(var)))),y,)
+cfg-one-enabled = $(if $(filter y, $(foreach var,$(1),$($(var)))),y,n)
 
-# Returns 'y' if all variables are 'y', empty otherwise
+# Returns 'y' if all variables are 'y', 'n' otherwise
 # Example:
 # FOO_AND_BAR := $(call cfg-all-enabled, FOO BAR)
 cfg-all-enabled =                                                             \
@@ -108,6 +108,7 @@ cfg-all-enabled =                                                             \
         $(if $(1),                                                            \
             $(if $(filter y,$($(firstword $(1)))),                            \
                 $(call cfg-all-enabled,$(filter-out $(firstword $(1)),$(1))), \
+		n                                                             \
              ),                                                               \
             y                                                                 \
          )                                                                    \
