@@ -14,6 +14,7 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
+#include <symbols.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 
@@ -123,6 +124,37 @@ static __maybe_unused const char *fault_to_str(uint32_t abort_type,
 	}
 }
 
+#ifdef CFG_CORE_SYMS
+/*
+ * Helper function that returns formated symbol name (if any) from a static
+ * storage. This is to ease up printing of symbols.
+ *
+ * Do not try to call this function multiple times for the same format
+ * string. I.e. do NOT do this:
+ * EMSG("%s %s", get_sym_name(v1, c), get_sym_name(v2, c));
+ */
+static __maybe_unused const char *get_sym_name(vaddr_t va, size_t core_pos)
+{
+	/* In case we'll have abort on several cores at the same time */
+	static char sym_name[CFG_TEE_CORE_NB_CORE][64] = {};
+	int ret = 0;
+
+	sym_name[core_pos][0] = ' ';
+	ret = syms_format_name_w_offset(va, sym_name[core_pos] + 1,
+					sizeof(sym_name[core_pos]) - 1);
+	if (!ret)
+		sym_name[core_pos][0] = '\0';
+
+	return sym_name[core_pos];
+}
+#else  /* CFG_CORE_SYMS */
+static __maybe_unused const char *get_sym_name(vaddr_t va __unused,
+					       size_t core_pos __unused)
+{
+	return "";
+}
+#endif	/* CFG_CORE_SYMS */
+
 static __maybe_unused void
 __print_abort_info(struct abort_info *ai __maybe_unused,
 		   const char *ctx __maybe_unused)
@@ -151,8 +183,9 @@ __print_abort_info(struct abort_info *ai __maybe_unused,
 #endif /*ARM64*/
 
 	EMSG_RAW("");
-	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s",
+	EMSG_RAW("%s %s-abort at address 0x%" PRIxVA "%s%s",
 		ctx, abort_type_to_str(ai->abort_type), ai->va,
+		get_sym_name(ai->va, core_pos),
 		fault_to_str(ai->abort_type, ai->fault_descr));
 #ifdef ARM32
 	EMSG_RAW(" fsr 0x%08x  ttbr0 0x%08x  ttbr1 0x%08x  cidr 0x%X",
