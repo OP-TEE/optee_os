@@ -117,14 +117,14 @@ _cfg-all-enabled =                                                             \
 # Disable a configuration variable if some dependency is disabled
 # Example:
 # $(eval $(call cfg-depends-all,FOO,BAR BAZ))
-# Will clear FOO if it is initially 'y' and BAR or BAZ are not 'y'
+# Will set FOO to 'n' if it is initially 'y' and BAR or BAZ are not 'y'
 cfg-depends-all =                                                           \
     $(strip                                                                 \
         $(if $(filter y, $($(1))),                                          \
             $(if $(filter y,$(call cfg-all-enabled,$(2))),                  \
                 ,                                                           \
                 $(warning Warning: Disabling $(1) [requires $(strip $(2))]) \
-                    override $(1) :=                                        \
+                    override $(1) := n                                      \
              )                                                              \
          )                                                                  \
      )
@@ -132,14 +132,14 @@ cfg-depends-all =                                                           \
 # Disable a configuration variable if all dependencies are disabled
 # Example:
 # $(eval $(call cfg-depends-one,FOO,BAR BAZ))
-# Will clear FOO if it is initially 'y' and both BAR and BAZ are not 'y'
+# Will set FOO to 'n' if it is initially 'y' and both BAR and BAZ are not 'y'
 cfg-depends-one =                                                                    \
     $(strip                                                                          \
         $(if $(filter y, $($(1))),                                                   \
             $(if $(filter y,$(call cfg-one-enabled,$(2))),                           \
                 ,                                                                    \
                 $(warning Warning: Disabling $(1) [requires (one of) $(strip $(2))]) \
-                    override $(1) :=                                                 \
+                    override $(1) := n                                               \
              )                                                                       \
          )                                                                           \
      )
