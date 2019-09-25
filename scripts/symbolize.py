@@ -18,7 +18,8 @@ CALL_STACK_RE = re.compile('Call stack:')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
 STACK_ADDR_RE = re.compile(
-    r'[UEIDFM]/(TC|LD):(\?*|[0-9]*) [0-9]* +(?P<addr>0x[0-9a-f]+)')
+    r'[UEIDFM]/(TC|LD):(\?*|[0-9]*) [0-9]* +(?P<addr>0x[0-9a-f]+)'
+    '(?P<sym> <.+>)?')
 ABORT_ADDR_RE = re.compile(r'-abort at address (?P<addr>0x[0-9a-f]+)')
 REGION_RE = re.compile(r'region +[0-9]+: va (?P<addr>0x[0-9a-f]+) '
                        r'pa 0x[0-9a-f]+ size (?P<size>0x[0-9a-f]+)'
@@ -373,14 +374,15 @@ class Symbolizer(object):
             match = re.search(STACK_ADDR_RE, line)
             if match:
                 addr = match.group('addr')
-                pre = match.start('addr')
-                post = match.end('addr')
-                self._out.write(line[:pre])
-                self._out.write(addr)
+                if match.start('sym') != -1:
+                    div = match.end('sym')
+                else:
+                    div = match.end('addr')
+                self._out.write(line[:div])
                 res = self.resolve(addr)
                 res = self.pretty_print_path(res)
                 self._out.write(' ' + res)
-                self._out.write(line[post:])
+                self._out.write(line[div:])
                 return
             else:
                 self.reset()
