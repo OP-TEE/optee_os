@@ -100,17 +100,18 @@ endef
 # FOO_OR_BAR := $(call cfg-one-enabled, FOO BAR)
 cfg-one-enabled = $(if $(filter y, $(foreach var,$(1),$($(var)))),y,)
 
-# Returns 'y' if all variables are 'y', empty otherwise
+# Returns 'y' if all variables are 'y', 'n' otherwise
 # Example:
 # FOO_AND_BAR := $(call cfg-all-enabled, FOO BAR)
-cfg-all-enabled =                                                             \
-    $(strip                                                                   \
-        $(if $(1),                                                            \
-            $(if $(filter y,$($(firstword $(1)))),                            \
-                $(call cfg-all-enabled,$(filter-out $(firstword $(1)),$(1))), \
-             ),                                                               \
-            y                                                                 \
-         )                                                                    \
+cfg-all-enabled = $(if $(strip $(1)),$(if $(call _cfg-all-enabled,$(1)),y,n),n)
+_cfg-all-enabled =                                                             \
+    $(strip                                                                    \
+        $(if $(1),                                                             \
+            $(if $(filter y,$($(firstword $(1)))),                             \
+                $(call _cfg-all-enabled,$(filter-out $(firstword $(1)),$(1))), \
+             ),                                                                \
+            y                                                                  \
+         )                                                                     \
      )
 
 # Disable a configuration variable if some dependency is disabled
@@ -120,7 +121,7 @@ cfg-all-enabled =                                                             \
 cfg-depends-all =                                                           \
     $(strip                                                                 \
         $(if $(filter y, $($(1))),                                          \
-            $(if $(call cfg-all-enabled,$(2)),                              \
+            $(if $(filter y,$(call cfg-all-enabled,$(2))),                  \
                 ,                                                           \
                 $(warning Warning: Disabling $(1) [requires $(strip $(2))]) \
                     override $(1) :=                                        \
