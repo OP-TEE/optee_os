@@ -481,16 +481,20 @@ def main():
     symbolizer = Symbolizer(sys.stdout, args.dirs, args.strip_path)
 
     fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    new = termios.tcgetattr(fd)
-    new[3] = new[3] & ~termios.ECHO  # lflags
+    isatty = os.isatty(fd)
+    if isatty:
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ECHO  # lflags
     try:
-        termios.tcsetattr(fd, termios.TCSADRAIN, new)
+        if isatty:
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
         for line in sys.stdin:
             symbolizer.write(line)
     finally:
         symbolizer.flush()
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        if isatty:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 if __name__ == "__main__":
