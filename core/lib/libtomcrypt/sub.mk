@@ -135,7 +135,7 @@ srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
 srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_AES) += aes.c
 
-ifdef _CFG_CORE_LTC_ACIPHER
+ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 ifeq ($(_CFG_CORE_LTC_MPI),y)
 srcs-y += mpi_desc.c
 else
