@@ -19,8 +19,11 @@ CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 CFG_WITH_STACK_CANARIES ?= y
 
-# Override 64 kB default in mk/config.mk with 192 kB
+ifneq ($(CFG_WITH_PAGER),y)
+# To pass VTS in AOSP builds. This size is too big when pager is enabled
+# (too many page faults which slows down execution a lot)
 CFG_CORE_HEAP_SIZE ?= 196608
+endif
 
 ifeq ($(PLATFORM_FLAVOR),hikey)
 CFG_PL061 ?= y
