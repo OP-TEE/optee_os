@@ -7,7 +7,6 @@
 #include <bitstring.h>
 #include <crypto/crypto.h>
 #include <kernel/mutex.h>
-#include <kernel/refcount.h>
 #include <kernel/thread.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
@@ -68,7 +67,7 @@ struct tee_tadb_ta_read {
 
 static const char tadb_obj_id[] = "ta.db";
 static struct tee_tadb_dir *tadb_db;
-static struct refcount tadb_db_refc;
+static unsigned int tadb_db_refc;
 static struct mutex tadb_mutex = MUTEX_INITIALIZER;
 
 static void file_num_to_str(char *buf, size_t blen, uint32_t file_number)
@@ -219,52 +218,35 @@ static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
 
 static TEE_Result tee_tadb_open(struct tee_tadb_dir **db)
 {
-	if (!refcount_inc(&tadb_db_refc)) {
-		TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
-		mutex_lock(&tadb_mutex);
-		if (!tadb_db) {
-			res = tadb_open(&tadb_db);
-			if (!res)
-				refcount_set(&tadb_db_refc, 1);
-		} else {
-			/*
-			 * This case is handling the small window where the
-			 * reference counter was decreased to 0 but before
-			 * the mutex was acquired by tadb_put() this thread
-			 * acquired the mutex instead.
-			 *
-			 * Since tadb_db isn't NULL it's enough to increase
-			 * the reference counter. If the value of the
-			 * counter is 0 refcount_inc() will fail and we'll
-			 * have to set it directly with refcount_set()
-			 * instead.
-			 */
-			if (!refcount_inc(&tadb_db_refc))
-				refcount_set(&tadb_db_refc, 1);
-			res = TEE_SUCCESS;
-		}
-		mutex_unlock(&tadb_mutex);
+	mutex_lock(&tadb_mutex);
+	if (!tadb_db_refc) {
+		assert(!tadb_db);
+		res = tadb_open(&tadb_db);
 		if (res)
-			return res;
+			goto err;
 	}
-
+	tadb_db_refc++;
 	*db = tadb_db;
-	return TEE_SUCCESS;
+err:
+	mutex_unlock(&tadb_mutex);
+	return res;
 }
 
 static void tadb_put(struct tee_tadb_dir *db)
 {
-	if (refcount_dec(&tadb_db_refc)) {
-		mutex_lock(&tadb_mutex);
-		if (!refcount_val(&tadb_db_refc) && tadb_db) {
-			db->ops->close(&db->fh);
-			free(db->files);
-			free(db);
-			tadb_db = NULL;
-		}
-		mutex_unlock(&tadb_mutex);
+	assert(db == tadb_db);
+	mutex_lock(&tadb_mutex);
+	assert(tadb_db_refc);
+	tadb_db_refc--;
+	if (!tadb_db_refc) {
+		db->ops->close(&db->fh);
+		free(db->files);
+		free(db);
+		tadb_db = NULL;
 	}
+	mutex_unlock(&tadb_mutex);
 }
 
 static void tee_tadb_close(struct tee_tadb_dir *db)
