@@ -118,4 +118,25 @@ int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size);
 enum caam_status caam_cpy_block_src(struct caamblock *block,
 				    struct caambuf *src, size_t offset);
 
+/*
+ * Return the number of Physical Areas used by the buffer @buf.
+ * If @pabufs is not NULL, function fills it with the Physical Areas used
+ * to map the buffer @buf.
+ *
+ * @buf         Data buffer to analyze
+ * @pabufs[out] If not NULL, list the Physical Areas of the @buf
+ *
+ * Returns:
+ * Number of physical area used
+ * (-1) if error
+ */
+int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **pabufs);
+
+/*
+ * Return if the buffer @buf is cacheable or not
+ *
+ * @buf  Buffer address
+ * @size Buffer size
+ */
+bool caam_mem_is_cached_buf(void *buf, size_t size);
 #endif /* __CAAM_UTILS_MEM_H__ */
