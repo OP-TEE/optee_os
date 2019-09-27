@@ -28,6 +28,7 @@
 #define DBG_TRACE_HASH   BIT32(8)  /* Hash trace */
 #define DBG_DESC_HASH    BIT32(9)  /* Hash dump descriptor */
 #define DBG_BUF_HASH     BIT32(10) /* Hash dump Buffer */
+#define DBG_TRACE_SGT    BIT32(11) /* Scatter Gather trace */
 
 /* HAL */
 #if (CFG_CAAM_DBG & DBG_TRACE_HAL)
@@ -48,6 +49,13 @@
 #define MEM_TRACE DRV_TRACE
 #else
 #define MEM_TRACE(...)
+#endif
+
+/* Scatter Gether Table */
+#if (CFG_CAAM_DBG & DBG_TRACE_SGT)
+#define SGT_TRACE DRV_TRACE
+#else
+#define SGT_TRACE(...)
 #endif
 
 /* Power */

@@ -16,6 +16,7 @@
 # DBG_TRACE_HASH BIT32(8)  // Hash trace
 # DBG_DESC_HASH  BIT32(9)  // Hash dump descriptor
 # DBG_BUF_HASH   BIT32(10) // Hash dump Buffer
+# DBG_TRACE_SGT  BIT32(11) // Scatter Gather trace
 CFG_CAAM_DBG ?= 0x2
 
 #

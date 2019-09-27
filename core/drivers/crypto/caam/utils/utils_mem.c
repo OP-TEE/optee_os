@@ -76,8 +76,8 @@ struct __packed mem_info {
 	uint8_t type;
 };
 
-#define MEM_INFO_SIZE	ROUNDUP(sizeof(struct mem_info), sizeof(void *))
-#define OF_MEM_INFO(p)	(struct mem_info *)((uint8_t *)(p) - MEM_INFO_SIZE)
+#define MEM_INFO_SIZE  ROUNDUP(sizeof(struct mem_info), sizeof(void *))
+#define OF_MEM_INFO(p) (struct mem_info *)((uint8_t *)(p) - MEM_INFO_SIZE)
 
 /*
  * Allocate an area of given size in bytes. Add the memory allocator
@@ -354,26 +354,22 @@ enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data)
 	return CAAM_NO_ERROR;
 }
 
-static bool caam_mem_is_cached_buf(void *buf, size_t size)
+bool caam_mem_is_cached_buf(void *buf, size_t size)
 {
 	enum teecore_memtypes mtype = MEM_AREA_MAXTYPE;
 	bool is_cached = false;
-	struct user_ta_ctx *utc = NULL;
 
 	/*
 	 * First check if the buffer is a known memory area mapped
 	 * with a type listed in the teecore_memtypes enum.
+	 * If not mapped, this is a User Area and so assume
+	 * it cacheable
 	 */
 	mtype = core_mmu_get_type_by_pa(virt_to_phys(buf));
-	if (mtype == MEM_AREA_MAXTYPE) {
-		/* User Area, check if cacheable */
-		utc = to_user_ta_ctx(tee_mmu_get_ctx());
-		if (tee_mmu_user_get_cache_attr(utc, buf) ==
-		    TEE_MATTR_CACHE_CACHED)
-			is_cached = true;
-	} else {
+	if (mtype == MEM_AREA_MAXTYPE)
+		is_cached = true;
+	else
 		is_cached = core_vbuf_is(CORE_MEM_CACHED, buf, size);
-	}
 
 	return is_cached;
 }
@@ -441,4 +437,88 @@ enum caam_status caam_cpy_block_src(struct caamblock *block,
 
 end_cpy:
 	return ret;
+}
+
+int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
+{
+	int nb_pa_area = 0;
+	size_t len = 0;
+	size_t len_tohandle = 0;
+	vaddr_t va = 0;
+	vaddr_t next_va = 0;
+	paddr_t pa = 0;
+	paddr_t next_pa = 0;
+	struct caambuf *pabufs = NULL;
+
+	MEM_TRACE("Get PA Areas of %p-%zu (out %p)", buf->data, buf->length,
+		  out_pabufs);
+
+	if (out_pabufs) {
+		/*
+		 * Caller asked for the extracted contiguous
+		 * physical areas.
+		 * Allocate maximum possible small pages
+		 */
+		if (buf->length > SMALL_PAGE_SIZE) {
+			nb_pa_area = buf->length / SMALL_PAGE_SIZE + 1;
+			if (buf->length % SMALL_PAGE_SIZE)
+				nb_pa_area++;
+		} else {
+			nb_pa_area = 2;
+		}
+
+		pabufs = caam_calloc(nb_pa_area * sizeof(*pabufs));
+		if (!pabufs)
+			return -1;
+
+		MEM_TRACE("Allocate max %d Physical Areas", nb_pa_area);
+	}
+
+	/*
+	 * Go thru all the VA space to extract the contiguous
+	 * physical areas
+	 */
+	va = (vaddr_t)buf->data;
+	pa = virt_to_phys((void *)va);
+
+	nb_pa_area = 0;
+	if (pabufs) {
+		pabufs[nb_pa_area].data = (uint8_t *)va;
+		pabufs[nb_pa_area].paddr = pa;
+		pabufs[nb_pa_area].length = 0;
+		pabufs[nb_pa_area].nocache = buf->nocache;
+		MEM_TRACE("Add %d PA 0x%" PRIxPA " VA 0x%" PRIxVA, nb_pa_area,
+			  pa, va);
+	}
+
+	for (len = buf->length; len; len -= len_tohandle) {
+		len_tohandle =
+			MIN(SMALL_PAGE_SIZE - (va & SMALL_PAGE_MASK), len);
+		next_va = va + len_tohandle;
+		next_pa = virt_to_phys((void *)next_va);
+
+		if (pabufs)
+			pabufs[nb_pa_area].length += len_tohandle;
+
+		if (next_pa != (pa + len_tohandle)) {
+			nb_pa_area++;
+			if (pabufs) {
+				pabufs[nb_pa_area].data = (uint8_t *)next_va;
+				pabufs[nb_pa_area].paddr = next_pa;
+				pabufs[nb_pa_area].length = 0;
+				pabufs[nb_pa_area].nocache = buf->nocache;
+			}
+			MEM_TRACE("Add %d PA 0x%" PRIxPA " VA 0x%" PRIxVA,
+				  nb_pa_area, next_pa, next_va);
+		}
+
+		va = next_va;
+		pa = next_pa;
+	}
+
+	if (out_pabufs)
+		*out_pabufs = pabufs;
+
+	MEM_TRACE("Nb Physical Area %d", nb_pa_area + 1);
+	return nb_pa_area + 1;
 }
