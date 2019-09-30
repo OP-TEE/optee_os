@@ -137,11 +137,20 @@ static inline void dump_desc(uint32_t *desc)
 
 /*
  * FIFO Load to register dst class cla with action act.
- * Pointer is a Scatter/Gatter Table
+ * Pointer is a Scatter/Gather Table
  */
 #define FIFO_LD_SGT(cla, dst, act, len)                                        \
 	(CMD_FIFO_LOAD_TYPE | CMD_CLASS(cla) | CMD_SGT |                       \
 	 FIFO_LOAD_INPUT(dst) | FIFO_LOAD_ACTION(act) | FIFO_LOAD_LENGTH(len))
+
+/*
+ * FIFO Load to register dst class cla with action act.
+ * Pointer is a Scatter/Gather Table
+ * The length is externally defined
+ */
+#define FIFO_LD_SGT_EXT(cla, dst, act)                                         \
+	(CMD_FIFO_LOAD_TYPE | CMD_CLASS(cla) | CMD_SGT | FIFO_LOAD_EXT |       \
+	 FIFO_LOAD_INPUT(dst) | FIFO_LOAD_ACTION(act))
 
 /*
  * FIFO Load to register dst class cla with action act.
@@ -166,6 +175,14 @@ static inline void dump_desc(uint32_t *desc)
 	(CMD_STORE_TYPE | CMD_CLASS(cla) | STORE_SRC(src) | STORE_LENGTH(len))
 
 /*
+ * Store value of length len from register src of class cla
+ * Pointer is a Scatter/Gather Table
+ */
+#define ST_SGT_NOIMM(cla, src, len)                                            \
+	(CMD_STORE_TYPE | CMD_CLASS(cla) | CMD_SGT | STORE_SRC(src) |          \
+	 STORE_LENGTH(len))
+
+/*
  * Store value of length len from register src of class cla starting
  * at register offset off
  */
@@ -184,15 +201,24 @@ static inline void dump_desc(uint32_t *desc)
  * The length is externally defined
  */
 #define FIFO_ST_EXT(src)                                                       \
-	(CMD_FIFO_STORE_TYPE | FIFO_LOAD_EXT | FIFO_STORE_OUTPUT(src))
+	(CMD_FIFO_STORE_TYPE | FIFO_STORE_EXT | FIFO_STORE_OUTPUT(src))
 
 /*
  * FIFO Store from register src of length len.
- * Pointer is a Scatter/Gatter Table
+ * Pointer is a Scatter/Gather Table
  */
 #define FIFO_ST_SGT(src, len)                                                  \
 	(CMD_FIFO_STORE_TYPE | CMD_SGT | FIFO_STORE_OUTPUT(src) |              \
 	 FIFO_STORE_LENGTH(len))
+
+/*
+ * FIFO Store from register src.
+ * Pointer is a Scatter/Gather Table
+ * The length is externally defined
+ */
+#define FIFO_ST_SGT_EXT(src)                                                   \
+	(CMD_FIFO_STORE_TYPE | CMD_SGT | FIFO_STORE_EXT |                      \
+	 FIFO_STORE_OUTPUT(src))
 
 /*
  * RNG State Handle instantation operation for sh ID
