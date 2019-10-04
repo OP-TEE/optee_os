@@ -167,16 +167,18 @@ def emit_data(symbols, tok_table):
 
     print("const uint8_t syms_names[] = {")
     for s in symbols:
-        print("\t" + ",".join(map(lambda x: str(x), s.name_b)) + ",")
+        print("\t" + ",".join(map(lambda x: str(x), s.name_b)) + ", // " +
+              s.name)
     print("};")
 
     name_off = 0
     print("const struct syms_table syms_table[] = {")
     for s in symbols:
-        print("\t{{{off}, {name_off}, {name_len}}},".
+        print("\t{{{off}, {name_off}, {name_len}}}, // {name}".
               format(off=s.addr - offset,
                      name_off=name_off,
-                     name_len=len(s.name)))
+                     name_len=len(s.name),
+                     name=s.name))
         name_off += len(s.name_b)
     print("};")
 
