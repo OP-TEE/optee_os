@@ -3,11 +3,6 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include <types_ext.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <arm.h>
 #include <assert.h>
 #include <kernel/mutex.h>
@@ -18,17 +13,22 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/tee_time.h>
 #include <kernel/thread.h>
+#include <kernel/user_mode_ctx.h>
 #include <kernel/user_ta.h>
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_mmu.h>
-#include <tee/entry_std.h>
-#include <tee/tee_svc_cryp.h>
-#include <tee/tee_obj.h>
-#include <tee/tee_svc_storage.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <tee_api_types.h>
+#include <tee/entry_std.h>
+#include <tee/tee_obj.h>
+#include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc_storage.h>
 #include <trace.h>
+#include <types_ext.h>
 #include <user_ta_header.h>
 #include <utee_types.h>
 #include <util.h>
@@ -831,12 +831,9 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	if (tsd->ctx != ctx)
 		tee_mmu_set_ctx(ctx);
 	/*
-	 * If ctx->mmu == NULL we must not have user mapping active,
-	 * if ctx->mmu != NULL we must have user mapping active.
+	 * If current context is of user mode, then it has to be active too.
 	 */
-	if (((is_user_ta_ctx(ctx) ?
-			to_user_ta_ctx(ctx)->vm_info : NULL) == NULL) ==
-					core_mmu_user_mapping_is_active())
+	if (is_user_mode_ctx(ctx) != core_mmu_user_mapping_is_active())
 		panic("unexpected active mapping");
 }
 
@@ -897,7 +894,7 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
 	if (idx < sbuf->nsamples) {
 		utc = to_user_ta_ctx(s->ctx);
-		res = tee_mmu_check_access_rights(utc,
+		res = tee_mmu_check_access_rights(&utc->uctx,
 						  TEE_MEMORY_ACCESS_READ |
 						  TEE_MEMORY_ACCESS_WRITE |
 						  TEE_MEMORY_ACCESS_ANY_OWNER,

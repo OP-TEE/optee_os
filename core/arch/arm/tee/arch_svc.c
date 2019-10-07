@@ -303,7 +303,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 	if (tee_ta_get_current_session(&s))
 		panic("No current session");
 
-	if (tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
+	if (tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,
 					(uaddr_t)regs->r1,
@@ -393,7 +393,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 
 	utc = to_user_ta_ctx(s->ctx);
 
-	if (tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+	if (tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,
 					(uaddr_t)regs->x1,
 					utc->is_32bit ?

@@ -28,10 +28,10 @@ TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op)
 	 * TAs are allowed to operate cache maintenance on TA memref parameters
 	 * only, not on the TA private memory.
 	 */
-	if (tee_mmu_is_vbuf_intersect_ta_private(utc, va, len))
+	if (tee_mmu_is_vbuf_intersect_um_private(&utc->uctx, va, len))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
 					  (uaddr_t)va, len);
 	if (res != TEE_SUCCESS)
