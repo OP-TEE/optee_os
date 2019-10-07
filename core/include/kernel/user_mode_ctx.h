@@ -21,4 +21,7 @@ static inline struct user_mode_ctx *to_user_mode_ctx(struct tee_ta_ctx *ctx)
 	assert(is_user_mode_ctx(ctx));
 	return container_of(ctx, struct user_mode_ctx, ctx);
 }
+
+void user_mode_ctx_print_mappings(struct user_mode_ctx *umctx);
+
 #endif /*__KERNEL_USER_MODE_CTX_H*/
