@@ -17,6 +17,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/core_memprot.h>
 #include <mm/fobj.h>
 #include <mm/tee_mm.h>
@@ -418,7 +419,7 @@ static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
 #if defined(CFG_PAGED_USER_TA)
 	assert(area->pgt);
 	if (area->pgt->ctx) {
-		uint32_t asid = to_user_ta_ctx(area->pgt->ctx)->vm_info->asid;
+		uint32_t asid = to_user_mode_ctx(area->pgt->ctx)->vm_info.asid;
 
 		tlbi_mva_asid(va, asid);
 		return;
@@ -583,9 +584,9 @@ static struct tee_pager_area *find_uta_area(vaddr_t va)
 {
 	struct tee_ta_ctx *ctx = thread_get_tsd()->ctx;
 
-	if (!is_user_ta_ctx(ctx))
+	if (!is_user_mode_ctx(ctx))
 		return NULL;
-	return find_area(to_user_ta_ctx(ctx)->areas, va);
+	return find_area(to_user_mode_ctx(ctx)->areas, va);
 }
 #else
 static struct tee_pager_area *find_uta_area(vaddr_t va __unused)
@@ -692,25 +693,25 @@ static void free_area(struct tee_pager_area *area)
 	free(area);
 }
 
-static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-				     struct fobj *fobj, uint32_t prot)
+static TEE_Result pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
+				    struct fobj *fobj, uint32_t prot)
 {
 	struct tee_pager_area *area;
 	vaddr_t b = base;
 	size_t fobj_pgoffs = 0;
 	size_t s = fobj->num_pages * SMALL_PAGE_SIZE;
 
-	if (!utc->areas) {
-		utc->areas = malloc(sizeof(*utc->areas));
-		if (!utc->areas)
+	if (!uctx->areas) {
+		uctx->areas = malloc(sizeof(*uctx->areas));
+		if (!uctx->areas)
 			return TEE_ERROR_OUT_OF_MEMORY;
-		TAILQ_INIT(utc->areas);
+		TAILQ_INIT(uctx->areas);
 	}
 
 	while (s) {
 		size_t s2;
 
-		if (find_area(utc->areas, b))
+		if (find_area(uctx->areas, b))
 			return TEE_ERROR_BAD_PARAMETERS;
 
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
@@ -726,7 +727,7 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 		area->size = s2;
 		area->flags = prot;
 
-		TAILQ_INSERT_TAIL(utc->areas, area, link);
+		TAILQ_INSERT_TAIL(uctx->areas, area, link);
 		TAILQ_INSERT_TAIL(&fobj->areas, area, fobj_link);
 		b += s2;
 		s -= s2;
@@ -736,35 +737,35 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-			    struct fobj *fobj, uint32_t prot)
+TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
+				 struct fobj *fobj, uint32_t prot)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct tee_pager_area *area = NULL;
 	struct core_mmu_table_info dir_info = { NULL };
 
-	if (&utc->ctx != tsd->ctx) {
+	if (&uctx->ctx != tsd->ctx) {
 		/*
 		 * Changes are to an utc that isn't active. Just add the
 		 * areas page tables will be dealt with later.
 		 */
-		return pager_add_uta_area(utc, base, fobj, prot);
+		return pager_add_um_area(uctx, base, fobj, prot);
 	}
 
 	/*
 	 * Assign page tables before adding areas to be able to tell which
 	 * are newly added and should be removed in case of failure.
 	 */
-	tee_pager_assign_uta_tables(utc);
-	res = pager_add_uta_area(utc, base, fobj, prot);
+	tee_pager_assign_um_tables(uctx);
+	res = pager_add_um_area(uctx, base, fobj, prot);
 	if (res) {
 		struct tee_pager_area *next_a;
 
 		/* Remove all added areas */
-		TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+		TAILQ_FOREACH_SAFE(area, uctx->areas, link, next_a) {
 			if (!area->pgt) {
-				unlink_area(utc->areas, area);
+				unlink_area(uctx->areas, area);
 				free_area(area);
 			}
 		}
@@ -775,9 +776,9 @@ TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	 * Assign page tables to the new areas and make sure that the page
 	 * tables are registered in the upper table.
 	 */
-	tee_pager_assign_uta_tables(utc);
+	tee_pager_assign_um_tables(uctx);
 	core_mmu_get_user_pgdir(&dir_info);
-	TAILQ_FOREACH(area, utc->areas, link) {
+	TAILQ_FOREACH(area, uctx->areas, link) {
 		paddr_t pa;
 		size_t idx;
 		uint32_t attr;
@@ -845,36 +846,36 @@ static void rem_area(struct tee_pager_area_head *area_head,
 }
 KEEP_PAGER(rem_area);
 
-void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
-			      size_t size)
+void tee_pager_rem_um_region(struct user_mode_ctx *uctx, vaddr_t base,
+			     size_t size)
 {
 	struct tee_pager_area *area;
 	struct tee_pager_area *next_a;
 	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
 
-	TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+	TAILQ_FOREACH_SAFE(area, uctx->areas, link, next_a) {
 		if (core_is_buffer_inside(area->base, area->size, base, s))
-			rem_area(utc->areas, area);
+			rem_area(uctx->areas, area);
 	}
-	tlbi_asid(utc->vm_info->asid);
+	tlbi_asid(uctx->vm_info.asid);
 }
 
-void tee_pager_rem_uta_areas(struct user_ta_ctx *utc)
+void tee_pager_rem_um_areas(struct user_mode_ctx *uctx)
 {
-	struct tee_pager_area *area;
+	struct tee_pager_area *area = NULL;
 
-	if (!utc->areas)
+	if (!uctx->areas)
 		return;
 
 	while (true) {
-		area = TAILQ_FIRST(utc->areas);
+		area = TAILQ_FIRST(uctx->areas);
 		if (!area)
 			break;
-		unlink_area(utc->areas, area);
+		unlink_area(uctx->areas, area);
 		free_area(area);
 	}
 
-	free(utc->areas);
+	free(uctx->areas);
 }
 
 static bool __maybe_unused same_context(struct tee_pager_pmem *pmem)
@@ -891,14 +892,14 @@ static bool __maybe_unused same_context(struct tee_pager_pmem *pmem)
 	return false;
 }
 
-bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
-				 size_t size, uint32_t flags)
+bool tee_pager_set_um_area_attr(struct user_mode_ctx *uctx, vaddr_t base,
+				size_t size, uint32_t flags)
 {
 	bool ret = false;
 	vaddr_t b = base;
 	size_t s = size;
 	size_t s2 = 0;
-	struct tee_pager_area *area = find_area(utc->areas, b);
+	struct tee_pager_area *area = find_area(uctx->areas, b);
 	uint32_t exceptions = 0;
 	struct tee_pager_pmem *pmem = NULL;
 	uint32_t a = 0;
@@ -978,7 +979,8 @@ out:
 	pager_unlock(exceptions);
 	return ret;
 }
-KEEP_PAGER(tee_pager_set_uta_area_attr);
+
+KEEP_PAGER(tee_pager_set_um_area_attr);
 #endif /*CFG_PAGED_USER_TA*/
 
 void tee_pager_invalidate_fobj(struct fobj *fobj)
@@ -1525,16 +1527,16 @@ static struct pgt *find_pgt(struct pgt *pgt, vaddr_t va)
 	return p;
 }
 
-void tee_pager_assign_uta_tables(struct user_ta_ctx *utc)
+void tee_pager_assign_um_tables(struct user_mode_ctx *uctx)
 {
 	struct tee_pager_area *area = NULL;
 	struct pgt *pgt = NULL;
 
-	if (!utc->areas)
+	if (!uctx->areas)
 		return;
 
 	pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
-	TAILQ_FOREACH(area, utc->areas, link) {
+	TAILQ_FOREACH(area, uctx->areas, link) {
 		if (!area->pgt)
 			area->pgt = find_pgt(pgt, area->base);
 		else
@@ -1561,7 +1563,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 	assert(!pgt->num_used_entries);
 
 out:
-	areas = to_user_ta_ctx(pgt->ctx)->areas;
+	areas = to_user_ta_ctx(pgt->ctx)->uctx.areas;
 	if (areas) {
 		TAILQ_FOREACH(area, areas, link) {
 			if (area->pgt == pgt)

@@ -666,7 +666,7 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 	core_mmu_set_info_table(pgd_info, 2, va_range_base, tbl);
 }
 
-void core_mmu_create_user_map(struct user_ta_ctx *utc,
+void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 			      struct core_mmu_user_map *map)
 {
 	struct core_mmu_table_info dir_info;
@@ -675,9 +675,9 @@ void core_mmu_create_user_map(struct user_ta_ctx *utc,
 
 	core_mmu_get_user_pgdir(&dir_info);
 	memset(dir_info.table, 0, PGT_SIZE);
-	core_mmu_populate_user_map(&dir_info, utc);
+	core_mmu_populate_user_map(&dir_info, uctx);
 	map->user_map = virt_to_phys(dir_info.table) | TABLE_DESC;
-	map->asid = utc->vm_info->asid;
+	map->asid = uctx->vm_info.asid;
 }
 
 bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,

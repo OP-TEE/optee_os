@@ -100,7 +100,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	 */
 	access_flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER |
 		       TEE_MEMORY_ACCESS_SECURE;
-	res = tee_mmu_check_access_rights(utc, access_flags,
+	res = tee_mmu_check_access_rights(&utc->uctx, access_flags,
 					  (uaddr_t)params[1].memref.buffer,
 					  params[1].memref.size);
 	if (res != TEE_SUCCESS)
@@ -167,7 +167,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	fobj_put(f);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = vm_map_pad(utc, &va, num_bytes, prot, vm_flags,
+	res = vm_map_pad(&utc->uctx, &va, num_bytes, prot, vm_flags,
 			 mobj, 0, pad_begin, pad_end);
 	mobj_put(mobj);
 	if (!res)
@@ -190,7 +190,7 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 	if (params[0].value.b)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return vm_unmap(to_user_ta_ctx(s->ctx),
+	return vm_unmap(&to_user_ta_ctx(s->ctx)->uctx,
 			reg_pair_to_64(params[1].value.a, params[1].value.b),
 			ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE));
 }
@@ -427,7 +427,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
 				 prot, VM_FLAG_READONLY,
 				 mobj, 0, pad_begin, pad_end);
 		mobj_put(mobj);
@@ -453,7 +453,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
 				 pad_begin, pad_end);
 		mobj_put(mobj);
@@ -462,7 +462,8 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(utc, va, num_pages * SMALL_PAGE_SIZE, prot);
+		res = vm_set_prot(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE,
+				  prot);
 		if (res)
 			goto err_unmap_va;
 
@@ -485,7 +486,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (vm_unmap(utc, va, num_pages * SMALL_PAGE_SIZE))
+	if (vm_unmap(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE))
 		panic();
 
 	/*
@@ -555,7 +556,7 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b),
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
 
-	res = vm_get_flags(utc, va, sz, &vm_flags);
+	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
 	if (res)
 		return res;
 
@@ -568,7 +569,7 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	    (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	return vm_set_prot(utc, va, sz, prot);
+	return vm_set_prot(&utc->uctx, va, sz, prot);
 }
 
 static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
@@ -595,7 +596,8 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 	pad_begin = params[3].value.a;
 	pad_end = params[3].value.b;
 
-	res = vm_remap(utc, &new_va, old_va, num_bytes, pad_begin, pad_end);
+	res = vm_remap(&utc->uctx, &new_va, old_va, num_bytes, pad_begin,
+		       pad_end);
 	if (!res)
 		reg_pair_from_64(new_va, &params[2].value.a,
 				 &params[2].value.b);
@@ -624,7 +626,8 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
 					  (uaddr_t)arg, sizeof(*arg));
@@ -668,11 +671,11 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_WRITE |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg,
-					  sizeof(*arg) + len + 1);
+					  (uaddr_t)arg, sizeof(*arg) + len + 1);
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;

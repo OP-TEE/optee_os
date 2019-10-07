@@ -491,19 +491,19 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
 }
 
-void core_mmu_create_user_map(struct user_ta_ctx *utc,
+void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 			      struct core_mmu_user_map *map)
 {
-	struct core_mmu_table_info dir_info;
+	struct core_mmu_table_info dir_info = { };
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
 	core_mmu_get_user_pgdir(&dir_info);
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
-	core_mmu_populate_user_map(&dir_info, utc);
+	core_mmu_populate_user_map(&dir_info, uctx);
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa(get_prtn()) |
 		     TEE_MMU_DEFAULT_ATTRS;
-	map->ctxid = utc->vm_info->asid;
+	map->ctxid = uctx->vm_info.asid;
 }
 
 bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,

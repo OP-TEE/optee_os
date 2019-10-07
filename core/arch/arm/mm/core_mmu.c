@@ -12,14 +12,15 @@
 #include <kernel/generic_boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
-#include <kernel/virtualization.h>
 #include <kernel/spinlock.h>
-#include <kernel/tlb_helpers.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/tlb_helpers.h>
 #include <kernel/tz_ssvce_pl310.h>
+#include <kernel/user_mode_ctx.h>
+#include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -1768,30 +1769,29 @@ void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 }
 
 void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
-				struct user_ta_ctx *utc)
+				struct user_mode_ctx *uctx)
 {
-	struct core_mmu_table_info pg_info;
+	struct core_mmu_table_info pg_info = { };
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
-	struct pgt *pgt;
-	struct vm_region *r;
-	struct vm_region *r_last;
+	struct pgt *pgt = NULL;
+	struct vm_region *r = NULL;
+	struct vm_region *r_last = NULL;
 
 	/* Find the first and last valid entry */
-	r = TAILQ_FIRST(&utc->vm_info->regions);
+	r = TAILQ_FIRST(&uctx->vm_info.regions);
 	if (!r)
 		return; /* Nothing to map */
-	r_last = TAILQ_LAST(&utc->vm_info->regions, vm_region_head);
+	r_last = TAILQ_LAST(&uctx->vm_info.regions, vm_region_head);
 
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, &utc->ctx, r->va,
-		  r_last->va + r_last->size - 1);
+	pgt_alloc(pgt_cache, &uctx->ctx, r->va, r_last->va + r_last->size - 1);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
 
-	TAILQ_FOREACH(r, &utc->vm_info->regions, link)
+	TAILQ_FOREACH(r, &uctx->vm_info.regions, link)
 		set_pg_region(dir_info, r, &pgt, &pg_info);
 }
 
@@ -1973,7 +1973,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			}
 
 			res = tee_mmu_user_va2pa_helper(
-				to_user_ta_ctx(tee_mmu_get_ctx()), va, &p);
+				to_user_mode_ctx(tee_mmu_get_ctx()), va, &p);
 			if (res == TEE_SUCCESS && pa != p)
 				panic("bad pa");
 			if (res != TEE_SUCCESS && pa)
@@ -2071,7 +2071,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
 
-	res = tee_mmu_user_pa2va_helper(to_user_ta_ctx(tee_mmu_get_ctx()),
+	res = tee_mmu_user_pa2va_helper(to_user_mode_ctx(tee_mmu_get_ctx()),
 					pa, &va);
 	if (res != TEE_SUCCESS)
 		return NULL;
