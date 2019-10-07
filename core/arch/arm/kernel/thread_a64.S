@@ -630,7 +630,7 @@ LOCAL_FUNC el0_svc , :
 #endif
 
 	/* Call the handler */
-	bl	tee_svc_handler
+	bl	thread_svc_handler
 
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
