@@ -16,6 +16,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/user_mode_ctx.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
 #include <ldelf.h>
@@ -303,23 +304,7 @@ static void user_ta_enter_close_session(struct tee_ta_session *s)
 
 static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
 {
-	struct vm_region *r;
-	char flags[7] = { '\0', };
-	size_t n = 0;
-
-	TAILQ_FOREACH(r, &utc->uctx.vm_info.regions, link) {
-		paddr_t pa = 0;
-
-		if (r->mobj)
-			mobj_get_pa(r->mobj, r->offset, 0, &pa);
-
-		mattr_perm_to_str(flags, sizeof(flags), r->attr);
-		EMSG_RAW(" region %2zu: va 0x%0*" PRIxVA " pa 0x%0*" PRIxPA
-			 " size 0x%06zx flags %s",
-			 n, PRIxVA_WIDTH, r->va, PRIxPA_WIDTH, pa, r->size,
-			 flags);
-		n++;
-	}
+	user_mode_ctx_print_mappings(&utc->uctx);
 }
 
 static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
