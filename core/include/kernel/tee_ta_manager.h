@@ -49,6 +49,7 @@ struct tee_ta_param {
 struct tee_ta_ctx;
 struct user_ta_ctx;
 struct pseudo_ta_ctx;
+struct thread_svc_regs;
 
 struct tee_ta_ops {
 	TEE_Result (*enter_open_session)(struct tee_ta_session *s,
@@ -60,6 +61,7 @@ struct tee_ta_ops {
 	void (*dump_ftrace)(struct tee_ta_ctx *ctx);
 	void (*destroy)(struct tee_ta_ctx *ctx);
 	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
+	bool (*handle_svc)(struct thread_svc_regs *regs);
 };
 
 #if defined(CFG_TA_GPROF_SUPPORT)

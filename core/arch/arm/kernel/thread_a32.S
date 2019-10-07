@@ -241,7 +241,7 @@ KEEP_PAGER thread_init_vbar
  * user TA calls utee_return, user TA calls utee_panic or through an abort.
  *
  * Calls to utee_return or utee_panic are handled as:
- * thread_svc_handler() -> tee_svc_handler() ->	tee_svc_do_call() which
+ * __thread_svc_handler() -> thread_svc_handler() ->tee_svc_do_call() which
  * calls syscall_return() or syscall_panic().
  *
  * These function calls returns normally except thread_svc_handler() which
@@ -529,13 +529,13 @@ FUNC thread_excp_vect , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
-	b	thread_und_handler	/* Undefined instruction	*/
-	b	thread_svc_handler	/* System call			*/
-	b	thread_pabort_handler	/* Prefetch abort		*/
-	b	thread_dabort_handler	/* Data abort			*/
+	b	__thread_und_handler	/* Undefined instruction	*/
+	b	__thread_svc_handler	/* System call			*/
+	b	__thread_pabort_handler	/* Prefetch abort		*/
+	b	__thread_dabort_handler	/* Data abort			*/
 	b	.			/* Reserved			*/
-	b	thread_irq_handler	/* IRQ				*/
-	b	thread_fiq_handler	/* FIQ				*/
+	b	__thread_irq_handler	/* IRQ				*/
+	b	__thread_fiq_handler	/* FIQ				*/
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 	.macro vector_prologue_spectre
 		/*
@@ -603,24 +603,24 @@ thread_excp_vect_workaround:
 	nop
 
 	read_tpidrprw r0
-	b	thread_fiq_handler	/* FIQ				*/
+	b	__thread_fiq_handler	/* FIQ				*/
 	read_tpidrprw r0
-	b	thread_irq_handler	/* IRQ				*/
+	b	__thread_irq_handler	/* IRQ				*/
 	read_tpidrprw r0
 	b	.			/* Reserved			*/
 	read_tpidrprw r0
-	b	thread_dabort_handler	/* Data abort			*/
+	b	__thread_dabort_handler	/* Data abort			*/
 	read_tpidrprw r0
-	b	thread_pabort_handler	/* Prefetch abort		*/
+	b	__thread_pabort_handler	/* Prefetch abort		*/
 	read_tpidrprw r0
-	b	thread_svc_handler	/* System call			*/
+	b	__thread_svc_handler	/* System call			*/
 	read_tpidrprw r0
-	b	thread_und_handler	/* Undefined instruction	*/
+	b	__thread_und_handler	/* Undefined instruction	*/
 	read_tpidrprw r0
 	b	.			/* Reset			*/
 #endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
-thread_und_handler:
+__thread_und_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
@@ -629,24 +629,24 @@ thread_und_handler:
 	subne	lr, lr, #2
 	subeq	lr, lr, #4
 	mov	r0, #ABORT_TYPE_UNDEF
-	b	thread_abort_common
+	b	__thread_abort_common
 
-thread_dabort_handler:
+__thread_dabort_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #8
 	mov	r0, #ABORT_TYPE_DATA
-	b	thread_abort_common
+	b	__thread_abort_common
 
-thread_pabort_handler:
+__thread_pabort_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #4
 	mov	r0, #ABORT_TYPE_PREFETCH
 
-thread_abort_common:
+__thread_abort_common:
 	/*
 	 * At this label:
 	 * cpsr is in mode undef or abort
@@ -733,7 +733,7 @@ thread_abort_common:
 	b	eret_to_user_mode
 	/* end thread_abort_common */
 
-thread_svc_handler:
+__thread_svc_handler:
 	cpsid	aif
 
 	maybe_restore_mapping
@@ -742,7 +742,7 @@ thread_svc_handler:
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
-	bl	tee_svc_handler
+	bl	thread_svc_handler
 	cpsid	aif	/* In case something was unmasked */
 	pop	{r0}
 	msr	spsr_fsxc, r0
@@ -752,7 +752,7 @@ thread_svc_handler:
 	b	eret_to_user_mode
 	/* end thread_svc_handler */
 
-thread_fiq_handler:
+__thread_fiq_handler:
 #if defined(CFG_ARM_GICV3)
 	foreign_intr_handler	fiq
 #else
@@ -760,7 +760,7 @@ thread_fiq_handler:
 #endif
 	/* end thread_fiq_handler */
 
-thread_irq_handler:
+__thread_irq_handler:
 #if defined(CFG_ARM_GICV3)
 	native_intr_handler	irq
 #else

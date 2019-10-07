@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <ta_pub_key.h>
+#include <tee/arch_svc.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_cryp.h>
@@ -600,6 +601,7 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
 #endif
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
+	.handle_svc = user_ta_handle_svc,
 };
 
 /*

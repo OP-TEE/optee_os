@@ -13,7 +13,7 @@
 #include "thread_private.h"
 
 void __section(".text.dummy.tee_svc_handler")
-tee_svc_handler(struct thread_svc_regs *regs __unused)
+thread_svc_handler(struct thread_svc_regs *regs __unused)
 {
 }
 

@@ -1329,3 +1329,56 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 	*sz = sizeof(thread_user_kdata_page);
 }
 #endif
+
+static void setup_unwind_user_mode(struct thread_svc_regs *regs)
+{
+#ifdef ARM32
+	regs->lr = (uintptr_t)thread_unwind_user_mode;
+	regs->spsr = read_cpsr();
+#endif
+#ifdef ARM64
+	regs->elr = (uintptr_t)thread_unwind_user_mode;
+	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
+	regs->spsr |= read_daif();
+	/*
+	 * Regs is the value of stack pointer before calling the SVC
+	 * handler.  By the addition matches for the reserved space at the
+	 * beginning of el0_sync_svc(). This prepares the stack when
+	 * returning to thread_unwind_user_mode instead of a normal
+	 * exception return.
+	 */
+	regs->sp_el0 = (uint64_t)(regs + 1);
+#endif
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak thread_svc_handler(struct thread_svc_regs *regs)
+{
+	struct tee_ta_session *sess = NULL;
+	uint32_t state = 0;
+
+	/* Enable native interrupts */
+	state = thread_get_exceptions();
+	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
+
+	thread_user_save_vfp();
+
+	/* TA has just entered kernel mode */
+	tee_ta_update_session_utime_suspend();
+
+	/* Restore foreign interrupts which are disabled on exception entry */
+	thread_restore_foreign_intr();
+
+	tee_ta_get_current_session(&sess);
+	assert(sess && sess->ctx->ops && sess->ctx->ops->handle_svc);
+	if (sess->ctx->ops->handle_svc(regs)) {
+		/* We're about to switch back to user mode */
+		tee_ta_update_session_utime_resume();
+	} else {
+		/* We're returning from __thread_enter_user_mode() */
+		setup_unwind_user_mode(regs);
+	}
+}

@@ -213,31 +213,14 @@ static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
 }
 #endif /*ARM64*/
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak tee_svc_handler(struct thread_svc_regs *regs)
+bool user_ta_handle_svc(struct thread_svc_regs *regs)
 {
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
-	uint32_t state;
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
 				(TEE_SCN_MAX + 1));
-
-	/* Enable native interupts */
-	state = thread_get_exceptions();
-	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
-
-	thread_user_save_vfp();
-
-	/* TA has just entered kernel mode */
-	tee_ta_update_session_utime_suspend();
-
-	/* Restore foreign interrupts which are disabled on exception entry */
-	thread_restore_foreign_intr();
 
 	get_scn_max_args(regs, &scn, &max_args);
 
@@ -246,7 +229,7 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
 		set_svc_retval(regs, TEE_ERROR_GENERIC);
-		return;
+		return true; /* return to user mode */
 	}
 
 	if (scn > TEE_SCN_MAX)
@@ -260,10 +243,11 @@ void __weak tee_svc_handler(struct thread_svc_regs *regs)
 
 	ftrace_syscall_leave();
 
-	if (scn != TEE_SCN_RETURN) {
-		/* We're about to switch back to user mode */
-		tee_ta_update_session_utime_resume();
-	}
+	/*
+	 * Return true if we're to return to user mode,
+	 * thread_svc_handler() will take care of the rest.
+	 */
+	return scn != TEE_SCN_RETURN && scn != TEE_SCN_PANIC;
 }
 
 #define TA32_CONTEXT_MAX_SIZE		(14 * sizeof(uint32_t))
@@ -328,23 +312,8 @@ static void save_panic_stack(struct thread_svc_regs *regs __unused)
 	tsd->abort_type = ABORT_TYPE_TA_PANIC;
 }
 #endif
-
-uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
-{
-	if (panic) {
-		TAMSG_RAW("");
-		TAMSG_RAW("TA panicked with code 0x%" PRIx32, panic_code);
-		save_panic_stack(regs);
-	}
-
-	regs->r1 = panic;
-	regs->r2 = panic_code;
-	regs->lr = (uintptr_t)thread_unwind_user_mode;
-	regs->spsr = read_cpsr();
-	return ret;
-}
 #endif /*ARM32*/
+
 #ifdef ARM64
 #ifdef CFG_UNWIND
 /* Get register values pushed onto the stack by utee_panic() (32-bit TA) */
@@ -422,9 +391,11 @@ static void save_panic_stack(struct thread_svc_regs *regs __unused)
 	tsd->abort_type = ABORT_TYPE_TA_PANIC;
 }
 #endif /* CFG_UNWIND */
+#endif /*ARM64*/
 
 uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-			uint32_t panic_code, struct thread_svc_regs *regs)
+				   uint32_t panic_code,
+				   struct thread_svc_regs *regs)
 {
 	if (panic) {
 		TAMSG_RAW("");
@@ -432,19 +403,14 @@ uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
 		save_panic_stack(regs);
 	}
 
+#ifdef ARM32
+	regs->r1 = panic;
+	regs->r2 = panic_code;
+#endif
+#ifdef ARM64
 	regs->x1 = panic;
 	regs->x2 = panic_code;
-	regs->elr = (uintptr_t)thread_unwind_user_mode;
-	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
-	regs->spsr |= read_daif();
-	/*
-	 * Regs is the value of stack pointer before calling the SVC
-	 * handler.  By the addition matches for the reserved space at the
-	 * beginning of el0_sync_svc(). This prepares the stack when
-	 * returning to thread_unwind_user_mode instead of a normal
-	 * exception return.
-	 */
-	regs->sp_el0 = (uint64_t)(regs + 1);
+#endif
+
 	return ret;
 }
-#endif /*ARM64*/
