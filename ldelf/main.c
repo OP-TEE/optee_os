@@ -19,7 +19,7 @@
 #include "sys.h"
 #include "ta_elf.h"
 
-static size_t mpool_size = 2 * SMALL_PAGE_SIZE;
+static size_t mpool_size = 3 * SMALL_PAGE_SIZE;
 static vaddr_t mpool_base;
 
 static void __printf(2, 0) print_to_console(void *pctx __unused,
