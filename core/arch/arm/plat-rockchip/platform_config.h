@@ -44,11 +44,6 @@
 #error "Unknown platform flavor"
 #endif
 
-#define CONSOLE_UART_BASE	UART2_BASE
-#define CONSOLE_UART_SIZE	UART2_SIZE
-#define CONSOLE_BAUDRATE	1500000
-#define CONSOLE_UART_CLK_IN_HZ	24000000
-
 #ifdef CFG_WITH_LPAE
 #define MAX_XLAT_TABLES		5
 #endif

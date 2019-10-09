@@ -18,11 +18,14 @@
 #include <tee/entry_fast.h>
 
 static struct gic_data gic_data;
-static struct serial8250_uart_data console_data;
+
+#if defined(CFG_EARLY_CONSOLE)
+static struct serial8250_uart_data early_console_data;
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
+			CFG_EARLY_CONSOLE_BASE, CFG_EARLY_CONSOLE_SIZE);
+#endif
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
-			CONSOLE_UART_SIZE);
 
 static const struct thread_handlers handlers = {
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -74,7 +77,17 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 
 void console_init(void)
 {
-	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
-			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
-	register_serial_console(&console_data.chip);
+#if defined(CFG_EARLY_CONSOLE)
+	/*
+	 * Console devices can vary a lot between devices and
+	 * OP-TEE will switch to the DT-based real console later,
+	 * based on DT-devices and the systems chosen node.
+	 * So early console is only needed for early debugging.
+	 */
+	serial8250_uart_init(&early_console_data,
+			     CFG_EARLY_CONSOLE_BASE,
+			     CFG_EARLY_CONSOLE_CLK_IN_HZ,
+			     CFG_EARLY_CONSOLE_BAUDRATE);
+	register_serial_console(&early_console_data.chip);
+#endif
 }
