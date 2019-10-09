@@ -33,6 +33,10 @@ struct dram_data {
 
 static struct dram_data dram_d;
 
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CRU_BASE, CRU_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GRF_BASE, GRF_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, ISRAM_BASE, ISRAM_SIZE);
+
 static const uint32_t clks_gating_table[CRU_CLKGATE_CON_CNT] = {
 	/* gate: 0-3 */
 	0xefb8,

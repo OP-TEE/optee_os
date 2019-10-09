@@ -11,34 +11,41 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
+#define SIZE_K(n)		((n) * 1024)
+#define SIZE_M(n)		((n) * 1024 * 1024)
+
 #if defined(PLATFORM_FLAVOR_rk322x)
 
 #define GIC_BASE		0x32010000
-#define GICC_OFFSET		0x2000
-#define GICD_OFFSET		0x1000
-
-#define GICC_BASE		(GIC_BASE + GICC_OFFSET)
-#define GICD_BASE		(GIC_BASE + GICD_OFFSET)
+#define GIC_SIZE		SIZE_K(64)
+#define GICD_BASE		(GIC_BASE + 0x1000)
+#define GICC_BASE		(GIC_BASE + 0x2000)
 
 #define SGRF_BASE		0x10140000
+#define SGRF_SIZE		SIZE_K(64)
+
 #define DDRSGRF_BASE		0x10150000
+#define DDRSGRF_SIZE		SIZE_K(64)
+
 #define GRF_BASE		0x11000000
+#define GRF_SIZE		SIZE_K(64)
+
 #define UART2_BASE		0x11030000
-#define CRU_BASE		0x110E0000
+#define UART2_SIZE		SIZE_K(64)
+
+#define CRU_BASE		0x110e0000
+#define CRU_SIZE		SIZE_K(64)
 
 /* Internal SRAM */
 #define ISRAM_BASE		0x10080000
-#define ISRAM_SIZE		0x8000
-
-/* Periph IO */
-#define PERIPH_BASE		0x10100000
-#define PERIPH_SIZE		0x22000000
+#define ISRAM_SIZE		SIZE_K(8)
 
 #else
 #error "Unknown platform flavor"
 #endif
 
 #define CONSOLE_UART_BASE	UART2_BASE
+#define CONSOLE_UART_SIZE	UART2_SIZE
 #define CONSOLE_BAUDRATE	1500000
 #define CONSOLE_UART_CLK_IN_HZ	24000000
 

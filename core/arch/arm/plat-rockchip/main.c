@@ -19,8 +19,9 @@
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
 
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, PERIPH_BASE, PERIPH_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, ISRAM_BASE, ISRAM_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
+			CONSOLE_UART_SIZE);
 
 static const struct thread_handlers handlers = {
 	.cpu_on = pm_do_nothing,
