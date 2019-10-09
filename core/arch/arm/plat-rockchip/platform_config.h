@@ -6,6 +6,8 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <mm/generic_ram_layout.h>
+
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
@@ -39,33 +41,6 @@
 #define CONSOLE_UART_BASE	UART2_BASE
 #define CONSOLE_BAUDRATE	1500000
 #define CONSOLE_UART_CLK_IN_HZ	24000000
-
-/*
- * Rockchip memory map
- *
- * +---------------------------+
- * |        | TEE_RAM |  1 MiB |
- * + TZDRAM +------------------+
- * |        | TA_RAM  |  1 MiB |
- * +--------+---------+--------+
- * | SHMEM  |         |  1 MiB |
- * +---------------------------+
- */
-#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_VA_SIZE		(1024 * 1024)
-#define TEE_RAM_SIZE		TEE_RAM_VA_SIZE
-
-#define TA_RAM_START		(TEE_RAM_START + TEE_RAM_SIZE)
-#define TA_RAM_SIZE		(1024 * 1024)
-#define TEE_SHMEM_START		(TA_RAM_START + TA_RAM_SIZE)
-#define TEE_SHMEM_SIZE		(1024 * 1024)
-
-/* Location of trusted dram */
-#define TZDRAM_BASE		0x68400000
-#define TZDRAM_SIZE		(TEE_RAM_SIZE + TA_RAM_SIZE)
-
-#define TEE_LOAD_ADDR		TZDRAM_BASE
 
 #ifdef CFG_WITH_LPAE
 #define MAX_XLAT_TABLES		5

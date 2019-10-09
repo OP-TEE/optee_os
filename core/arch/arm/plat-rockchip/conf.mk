@@ -3,6 +3,11 @@ PLATFORM_FLAVOR ?= rk322x
 ifeq ($(PLATFORM_FLAVOR),rk322x)
 include ./core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_TEE_CORE_NB_CORE,4)
+
+CFG_TZDRAM_START ?= 0x68400000
+CFG_TZDRAM_SIZE ?= 0x00200000
+CFG_SHMEM_START ?= 0x68600000
+CFG_SHMEM_SIZE ?= 0x00100000
 endif
 
 $(call force,CFG_GENERIC_BOOT,y)
