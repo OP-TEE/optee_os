@@ -418,7 +418,8 @@ void core_free_mmu_prtn(struct mmu_partition *prtn)
 
 void core_mmu_set_prtn(struct mmu_partition *prtn)
 {
-	uint64_t ttbr;
+	uint64_t ttbr = 0;
+
 	/*
 	 * We are changing mappings for current CPU,
 	 * so make sure that we will not be rescheduled
@@ -427,9 +428,14 @@ void core_mmu_set_prtn(struct mmu_partition *prtn)
 
 	current_prtn[get_core_pos()] = prtn;
 
-	ttbr = virt_to_phys(prtn->l1_tables[0][get_core_pos()]);
+	ttbr = virt_to_phys(prtn->l1_tables[0][get_core_pos()]) |
+		((uint64_t)prtn->asid << TTBR_ASID_SHIFT);
 
-	write_ttbr0_el1(ttbr | ((paddr_t)prtn->asid << TTBR_ASID_SHIFT));
+#ifdef ARM32
+	write_ttbr0_64bit(ttbr);
+#else
+	write_ttbr0_el1(ttbr);
+#endif
 	isb();
 	tlbi_all();
 }
