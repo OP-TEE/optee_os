@@ -127,7 +127,7 @@ static struct tee_mmap_region *prepare_memory_map(paddr_t tee_data,
 	DMSG("New map (%08lx):",  (vaddr_t)(VCORE_UNPG_RW_PA));
 
 	for (i = 0; i < entries; i++)
-		DMSG("T: %-16s rsz: %08x, pa: %08lx, va: %08lx, sz: %08lx attr: %x",
+		DMSG("T: %-16s rsz: %08x, pa: %08lx, va: %08lx, sz: %08zx attr: %x",
 		     teecore_memtype_name(map[i].type),
 		     map[i].region_size, map[i].pa, map[i].va,
 		     map[i].size, map[i].attr);
