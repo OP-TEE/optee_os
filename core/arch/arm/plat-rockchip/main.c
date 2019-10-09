@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2019, Theobroma Systems Design und Consulting GmbH
  */
 
 #include <console.h>
@@ -34,15 +35,20 @@ static const struct thread_handlers handlers = {
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
+	vaddr_t gicc_base = 0;
+	vaddr_t gicd_base = 0;
 
-	gicc_base = (vaddr_t)phys_to_virt_io(GICC_BASE);
-	gicd_base = (vaddr_t)phys_to_virt_io(GICD_BASE);
+#if !defined(CFG_ARM_GICV3)
+	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC);
+	if (!gicc_base)
+		panic();
+#endif
 
-	if (!gicc_base || !gicd_base)
+	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC);
+	if (!gicd_base)
 		panic();
 
+	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);
 }
