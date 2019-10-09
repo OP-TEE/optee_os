@@ -25,12 +25,21 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			CONSOLE_UART_SIZE);
 
 static const struct thread_handlers handlers = {
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_do_nothing,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
 	.cpu_resume = pm_do_nothing,
 	.system_off = pm_do_nothing,
 	.system_reset = pm_do_nothing,
+#endif
 };
 
 void main_init_gic(void)
