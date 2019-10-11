@@ -6,36 +6,39 @@
 #include <initcall.h>
 #include <io.h>
 #include <mm/core_memprot.h>
+#include <platform.h>
 #include <platform_config.h>
 #include <stdint.h>
 
-#if defined(PLATFORM_FLAVOR_rk322x)
+int __weak platform_secure_init(void)
+{
+	return 0;
+}
 
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, SGRF_BASE, SGRF_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, DDRSGRF_BASE, DDRSGRF_SIZE);
+int __weak platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
+{
+	MSG("Not protecting region %d: 0x%lx-0x%lx\n", rgn, st, st + sz);
 
-#define SGRF_SOC_CON(n)		((n) * 4)
-#define DDR_SGRF_DDR_CON(n)	((n) * 4)
-#define DDR_RGN0_NS		BIT32(30)
-#define SLAVE_ALL_NS		0xffff0000
+	return 0;
+}
 
 static TEE_Result platform_init(void)
 {
-	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE);
-	vaddr_t ddrsgrf_base = (vaddr_t)phys_to_virt_io(DDRSGRF_BASE);
+	int ret = 0;
 
-	/* Set rgn0 non-secure */
-	io_write32(ddrsgrf_base + DDR_SGRF_DDR_CON(0), DDR_RGN0_NS);
+	platform_secure_init();
 
-	/* Initialize all slave non-secure */
-	io_write32(sgrf_base + SGRF_SOC_CON(7), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(8), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(9), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(10), SLAVE_ALL_NS);
+	/*
+	 * Rockchip SoCs can protect multiple memory regions (mostly 8).
+	 * Region 0 is assigned for Trusted-Firmware memory, so use
+	 * regions 1 for OP-TEE memory, which leaves on all known SoCs
+	 * at least 6 more regions available for other purposes.
+	 */
+	ret = platform_secure_ddr_region(1, CFG_TZDRAM_START, CFG_TZDRAM_SIZE);
+	if (ret < 0)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
-
-#endif
 
 service_init(platform_init);
