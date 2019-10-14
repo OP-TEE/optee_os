@@ -682,7 +682,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->cmd = LDELF_DL_ENTRY_DLSYM;
 	arg->dlsym.uuid = *uuid;
 	memcpy(arg->dlsym.symbol, sym, len);
-	arg->dlsym.symbol[len + 1] = '\0';
+	arg->dlsym.symbol[len] = '\0';
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, utc->dl_entry_func,
