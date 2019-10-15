@@ -169,8 +169,13 @@
 #define TTB_L1_MASK		(~(L1_ALIGNMENT - 1))
 
 #ifndef MAX_XLAT_TABLES
-#define MAX_XLAT_TABLES		4
+#ifdef CFG_CORE_ASLR
+#	define XLAT_TABLE_ASLR_EXTRA 1
+#else
+#	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
+#define MAX_XLAT_TABLES		(4 + XLAT_TABLE_ASLR_EXTRA)
+#endif /*!MAX_XLAT_TABLES*/
 
 enum desc_type {
 	DESC_TYPE_PAGE_TABLE,
