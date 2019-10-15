@@ -85,6 +85,15 @@ SECTIONS
 
 	.text : {
 		KEEP(*(.text._start))
+		__identity_map_init_start = .;
+		*(.identity_map .identity_map.* \
+			/*
+			 * The one below is needed because it's a weak
+			 * symbol that may be overridden by platform
+			 * specific code.
+			 */
+		  .text.get_core_pos_mpidr)
+		__identity_map_init_end = .;
 		KEEP(*(.text.init .text.plat_cpu_reset_early \
 		       .text.reset .text.reset_primary .text.unhandled_cpu \
 		       .text.__assert_flat_mapped_range))
