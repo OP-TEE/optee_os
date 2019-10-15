@@ -500,12 +500,14 @@ shadow_stack_access_ok:
 	bl	arm_cl2_cleaninvbyway
 #endif
 
+#ifndef CFG_VIRTUALIZATION
 	/*
 	 * Clear current thread id now to allow the thread to be reused on
 	 * next entry. Matches the thread_init_boot_thread() in
 	 * generic_boot.c.
 	 */
 	bl 	thread_clr_boot_thread
+#endif
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Pass the vector address returned from main_init */
