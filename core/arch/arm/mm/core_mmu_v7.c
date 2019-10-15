@@ -769,46 +769,29 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	core_init_mmu_prtn(&default_partition, mm);
 }
 
-void core_init_mmu_regs(void)
+void core_init_mmu_regs(struct core_mmu_config *cfg)
 {
-	uint32_t prrr;
-	uint32_t nmrr;
-	paddr_t ttb_pa = core_mmu_get_main_ttb_pa(&default_partition);
+	cfg->ttbr = core_mmu_get_main_ttb_pa(&default_partition) |
+		    TEE_MMU_DEFAULT_ATTRS;
 
-	/* Enable Access flag (simplified access permissions) and TEX remap */
-	write_sctlr(read_sctlr() | SCTLR_AFE | SCTLR_TRE);
+	cfg->prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR;
+	cfg->nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR;
 
-	prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR;
-	nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR;
-
-	prrr |= PRRR_NS1 | PRRR_DS1;
-
-	write_prrr(prrr);
-	write_nmrr(nmrr);
-
+	cfg->prrr |= PRRR_NS1 | PRRR_DS1;
 
 	/*
 	 * Program Domain access control register with two domains:
 	 * domain 0: teecore
 	 * domain 1: TA
 	 */
-	write_dacr(DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
-		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
-
-	/*
-	 * The value of CONTEXTIDR is initially undefined, set it 0 since
-	 * we don't have a user mode context to activate yet.
-	 */
-	write_contextidr(0);
+	cfg->dacr = DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
+		    DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT);
 
 	/*
 	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses
 	 * defined by TEE_MMU_TTBCR_N_VALUE.
 	 */
-	write_ttbcr(TTBCR_N_VALUE);
-
-	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
-	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
+	cfg->ttbcr = TTBCR_N_VALUE;
 }
 KEEP_PAGER(core_init_mmu_regs);
 

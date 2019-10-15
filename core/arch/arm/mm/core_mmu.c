@@ -1088,7 +1088,7 @@ static void check_mem_map(struct tee_mmap_region *map)
  *
  * If an error happened: core_init_mmu_map is expected to panic.
  */
-void core_init_mmu_map(void)
+void core_init_mmu_map(struct core_mmu_config *cfg)
 {
 	check_sec_nsec_mem_config();
 
@@ -1098,6 +1098,7 @@ void core_init_mmu_map(void)
 	check_mem_map(static_memory_map);
 	core_init_mmu(static_memory_map);
 	dump_xlat_table(0x0, 1);
+	core_init_mmu_regs(cfg);
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)

@@ -6,6 +6,7 @@
 #include <arm32_macros.S>
 #include <arm.h>
 #include <asm.S>
+#include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
@@ -162,26 +163,6 @@ END_FUNC reset_vect_table
 		orr	r0, r0, #SCTLR_RR
 #endif
 		write_sctlr r0
-	.endm
-
-	/*
-	 * enable_branch_prediction : manually enable branch prediction
-	 *
-	 * This macro targets only ARMv7 architecture and hence conditionned
-	 * by configuration directive CFG_ENABLE_SCTLR_Z. For recent
-	 * architectures, the program flow prediction is automatically enable
-	 * upon MMU enablement.
-	 */
-	.macro enable_branch_prediction
-#if defined(CFG_ENABLE_SCTLR_Z)
-		read_sctlr r0
-		/* Some ARMv7 architectures need btac flush with post synchro */
-		write_bpiall
-		dsb
-		isb
-		orr	r0, r0, #SCTLR_Z
-		write_sctlr r0
-#endif
 	.endm
 
 	/*
@@ -459,13 +440,13 @@ shadow_stack_access_ok:
 	bl	arm_cl2_enable
 #endif
 
+	ldr	r0, =boot_mmu_config
 	bl	core_init_mmu_map
-	bl	core_init_mmu_regs
-	bl	cpu_mmu_enable
-	bl	cpu_mmu_enable_icache
-	bl	cpu_mmu_enable_dcache
 
-	enable_branch_prediction
+	bl	__get_core_pos
+	bl	enable_mmu
+	/* Virtual addresses may have changed, reinitialize console */
+	bl	console_init
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
@@ -531,6 +512,109 @@ UNWIND(	.fnstart)
 UNWIND(	.fnend)
 END_FUNC unhandled_cpu
 
+/*
+ * void enable_mmu(unsigned long core_pos);
+ */
+LOCAL_FUNC enable_mmu , :
+	/* r0 = core pos */
+	adr	r1, boot_mmu_config
+
+#ifdef CFG_WITH_LPAE
+	ldm	r1!, {r2, r3}
+	/*
+	 * r2 = ttbcr
+	 * r3 = mair0
+	 */
+	write_ttbcr r2
+	write_mair0 r3
+
+	ldm	r1!, {r2, r3}
+	/*
+	 * r2 = ttbr0_base
+	 * r3 = ttbr0_core_offset
+	 */
+
+	/*
+	 * ttbr0_el1 = ttbr0_base + ttbr0_core_offset * core_pos
+	 */
+	mla	r1, r0, r3, r2
+	write_ttbr0 r1
+	mov	r1, #0
+	write_ttbr1 r1
+#else
+	ldm	r1!, {r2, r3}
+	/*
+	 * r2 = prrr
+	 * r3 = nmrr
+	 */
+	write_prrr r2
+	write_nmrr r3
+
+	ldm	r1!, {r2, r3}
+	/*
+	 * r2 = dacr
+	 * r3 = ttbcr
+	 */
+	write_dacr r2
+	write_ttbcr r3
+
+	ldm	r1!, {r2}
+	/* r2 = ttbr */
+	write_ttbr0 r2
+	write_ttbr1 r2
+
+	mov	r1, #0
+	write_contextidr r1
+#endif
+	isb
+
+	/* Invalidate TLB */
+	write_tlbiall
+
+	/*
+	 * Make sure translation table writes have drained into memory and
+	 * the TLB invalidation is complete.
+	 */
+	dsb	sy
+	isb
+
+	read_sctlr r0
+	orr	r0, r0, #SCTLR_M
+#ifndef CFG_WITH_LPAE
+	/* Enable Access flag (simplified access permissions) and TEX remap */
+	orr	r0, r0, #(SCTLR_AFE | SCTLR_TRE)
+#endif
+	write_sctlr r0
+	isb
+
+	/* Invalidate instruction cache and branch predictor */
+	write_iciallu
+	write_bpiall
+	isb
+
+	read_sctlr r0
+	/* Enable I and D cache */
+	orr	r0, r0, #SCTLR_I
+	orr	r0, r0, #SCTLR_C
+#if defined(CFG_ENABLE_SCTLR_Z)
+	/*
+	 * This is only needed on ARMv7 architecture and hence conditionned
+	 * by configuration directive CFG_ENABLE_SCTLR_Z. For recent
+	 * architectures, the program flow prediction is automatically
+	 * enabled upon MMU enablement.
+	 */
+	orr	r0, r0, #SCTLR_Z
+#endif
+	write_sctlr r0
+	isb
+
+	bx	lr
+END_FUNC enable_mmu
+
+DATA boot_mmu_config , : /* struct core_mmu_config */
+	.skip	CORE_MMU_CONFIG_SIZE
+END_DATA boot_mmu_config
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , :
 UNWIND(	.fnstart)
@@ -548,12 +632,8 @@ UNWIND(	.cantunwind)
 	mov	r4, lr
 	set_sp
 
-	bl	core_init_mmu_regs
-	bl	cpu_mmu_enable
-	bl	cpu_mmu_enable_icache
-	bl	cpu_mmu_enable_dcache
-
-	enable_branch_prediction
+	bl	__get_core_pos
+	bl	enable_mmu
 
 	mov	r0, r4
 	mov	r1, r5
@@ -584,12 +664,8 @@ UNWIND(	.cantunwind)
 	bl	dcache_op_level1
 #endif
 
-	bl	core_init_mmu_regs
-	bl	cpu_mmu_enable
-	bl	cpu_mmu_enable_icache
-	bl	cpu_mmu_enable_dcache
-
-	enable_branch_prediction
+	bl	__get_core_pos
+	bl	enable_mmu
 
 	cpu_is_ready
 
