@@ -12,7 +12,7 @@
 
 
 /* size_t __get_core_pos(void); */
-FUNC __get_core_pos , :
+FUNC __get_core_pos , : , .identity_map
 UNWIND(	.fnstart)
 	read_mpidr r0
 	b get_core_pos_mpidr

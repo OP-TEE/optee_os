@@ -9,7 +9,7 @@
 #include <platform_config.h>
 
 /* size_t __get_core_pos(void); */
-FUNC __get_core_pos , :
+FUNC __get_core_pos , : , .identity_map
 	mrs	x0, mpidr_el1
 	b get_core_pos_mpidr
 END_FUNC __get_core_pos

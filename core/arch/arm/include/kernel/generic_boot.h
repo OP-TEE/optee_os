@@ -9,6 +9,7 @@
 #include <types_ext.h>
 
 extern uint8_t embedded_secure_dtb[];
+extern const struct core_mmu_config boot_mmu_config;
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);

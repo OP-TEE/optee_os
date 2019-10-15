@@ -10,6 +10,9 @@ link-script-dep = $(link-out-dir)/.kern.ld.d
 AWK	 = awk
 
 link-ldflags  = $(LDFLAGS)
+ifeq ($(CFG_CORE_ASLR),y)
+link-ldflags += -pie -z notext
+endif
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
