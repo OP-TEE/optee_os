@@ -529,30 +529,26 @@ bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
 }
 
 #ifdef ARM32
-void core_init_mmu_regs(void)
+void core_init_mmu_regs(struct core_mmu_config *cfg)
 {
-	uint32_t ttbcr = TTBCR_EAE;
-	uint32_t mair;
-	paddr_t ttbr0;
+	uint32_t ttbcr = 0;
+	uint32_t mair = 0;
 
-	ttbr0 = virt_to_phys(l1_xlation_table[0][get_core_pos()]);
+	cfg->ttbr0_base = virt_to_phys(l1_xlation_table[0][0]);
+	cfg->ttbr0_core_offset = sizeof(l1_xlation_table[0][0]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
-	write_mair0(mair);
+	cfg->mair0 = mair;
 
+	ttbcr = TTBCR_EAE;
 	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_IRGN0_SHIFT;
 	ttbcr |= TTBCR_XRGNX_WBWA << TTBCR_ORGN0_SHIFT;
 	ttbcr |= TTBCR_SHX_ISH << TTBCR_SH0_SHIFT;
-
-	/* Disable the use of TTBR1 */
-	ttbcr |= TTBCR_EPD1;
+	ttbcr |= TTBCR_EPD1;	/* Disable the use of TTBR1 */
 
 	/* TTBCR.A1 = 0 => ASID is stored in TTBR0 */
-
-	write_ttbcr(ttbcr);
-	write_ttbr0_64bit(ttbr0);
-	write_ttbr1_64bit(0);
+	cfg->ttbcr = ttbcr;
 }
 #endif /*ARM32*/
 
@@ -586,18 +582,18 @@ static unsigned int calc_physical_addr_size_bits(uint64_t max_addr)
 	return TCR_PS_BITS_4GB;
 }
 
-void core_init_mmu_regs(void)
+void core_init_mmu_regs(struct core_mmu_config *cfg)
 {
-	uint64_t mair;
-	uint64_t tcr;
-	paddr_t ttbr0;
 	uint64_t ips = calc_physical_addr_size_bits(max_pa);
+	uint64_t mair = 0;
+	uint64_t tcr = 0;
 
-	ttbr0 = virt_to_phys(l1_xlation_table[0][get_core_pos()]);
+	cfg->ttbr0_el1_base = virt_to_phys(l1_xlation_table[0][0]);
+	cfg->ttbr0_core_offset = sizeof(l1_xlation_table[0][0]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
-	write_mair_el1(mair);
+	cfg->mair_el1 = mair;
 
 	tcr = TCR_RES1;
 	tcr |= TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT;
@@ -613,10 +609,7 @@ void core_init_mmu_regs(void)
 	 * TCR.A1 = 0 => ASID is stored in TTBR0
 	 * TCR.AS = 0 => Same ASID size as in Aarch32/ARMv7
 	 */
-
-	write_tcr_el1(tcr);
-	write_ttbr0_el1(ttbr0);
-	write_ttbr1_el1(0);
+	cfg->tcr_el1 = tcr;
 }
 
 void core_mmu_set_max_pa(paddr_t pa)
@@ -641,8 +634,6 @@ void core_mmu_set_max_pa(paddr_t pa)
 	tlbi_all();
 }
 #endif /*ARM64*/
-
-KEEP_PAGER(core_init_mmu_regs);
 
 void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		unsigned level, vaddr_t va_base, void *table)

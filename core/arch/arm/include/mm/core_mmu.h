@@ -267,8 +267,31 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 #endif
 
-void core_init_mmu_map(void);
-void core_init_mmu_regs(void);
+/*
+ * Assembly code in enable_mmu() depends on the layout of this struct.
+ */
+struct core_mmu_config {
+#if defined(ARM64)
+	uint64_t tcr_el1;
+	uint64_t mair_el1;
+	uint64_t ttbr0_el1_base;
+	uint64_t ttbr0_core_offset;
+#elif defined(CFG_WITH_LPAE)
+	uint32_t ttbcr;
+	uint32_t mair0;
+	uint32_t ttbr0_base;
+	uint32_t ttbr0_core_offset;
+#else
+	uint32_t prrr;
+	uint32_t nmrr;
+	uint32_t dacr;
+	uint32_t ttbcr;
+	uint32_t ttbr;
+#endif
+};
+
+void core_init_mmu_map(struct core_mmu_config *cfg);
+void core_init_mmu_regs(struct core_mmu_config *cfg);
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr);
 

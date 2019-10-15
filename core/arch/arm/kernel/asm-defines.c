@@ -92,4 +92,6 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_ABT_STACK_VA_END,
 		offsetof(struct thread_core_local, abt_stack_va_end));
 
+	/* struct core_mmu_config */
+	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
 }

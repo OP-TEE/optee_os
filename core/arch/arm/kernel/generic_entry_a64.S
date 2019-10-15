@@ -8,6 +8,7 @@
 #include <arm64_macros.S>
 #include <arm.h>
 #include <asm.S>
+#include <generated/asm-defines.h>
 #include <keep.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
@@ -137,11 +138,13 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
+	adr	x0, boot_mmu_config
 	bl	core_init_mmu_map
-	bl	core_init_mmu_regs
-	bl	cpu_mmu_enable
-	bl	cpu_mmu_enable_icache
-	bl	cpu_mmu_enable_dcache
+
+	bl	__get_core_pos
+	bl	enable_mmu
+	/* Virtual addresses may have changed, reinitialize console */
+	bl	console_init
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
@@ -183,6 +186,63 @@ clear_nex_bss:
 END_FUNC _start
 KEEP_INIT _start
 
+/*
+ * void enable_mmu(unsigned long core_pos);
+ */
+LOCAL_FUNC enable_mmu , :
+	adr	x1, boot_mmu_config
+	load_xregs x1, 0, 2, 5
+	/*
+	 * x0 = core_pos
+	 * x2 = tcr_el1
+	 * x3 = mair_el1
+	 * x4 = ttbr0_el1_base
+	 * x5 = ttbr0_core_offset
+	 */
+	msr	tcr_el1, x2
+	msr	mair_el1, x3
+
+	/*
+	 * ttbr0_el1 = ttbr0_el1_base + ttbr0_core_offset * core_pos
+	 */
+	madd	x1, x5, x0, x4
+	msr	ttbr0_el1, x1
+	msr	ttbr1_el1, xzr
+	isb
+
+	/* Invalidate TLB */
+	tlbi	vmalle1
+
+	/*
+	 * Make sure translation table writes have drained into memory and
+	 * the TLB invalidation is complete.
+	 */
+	dsb	sy
+	isb
+
+	/* Enable the MMU */
+	mrs	x1, sctlr_el1
+	orr	x1, x1, #SCTLR_M
+	msr	sctlr_el1, x1
+	isb
+
+	/* Invalidate instruction cache and branch predictor */
+	ic	iallu
+	isb
+
+	/* Enable I and D cache */
+	mrs	x1, sctlr_el1
+	orr	x1, x1, #SCTLR_I
+	orr	x1, x1, #SCTLR_C
+	msr	sctlr_el1, x1
+	isb
+
+	ret
+END_FUNC enable_mmu
+
+DATA boot_mmu_config , : /* struct core_mmu_config */
+	.skip	CORE_MMU_CONFIG_SIZE
+END_DATA boot_mmu_config
 
 FUNC cpu_on_handler , :
 	mov	x19, x0
@@ -202,10 +262,8 @@ FUNC cpu_on_handler , :
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
 
-	bl	core_init_mmu_regs
-	bl	cpu_mmu_enable
-	bl	cpu_mmu_enable_icache
-	bl	cpu_mmu_enable_dcache
+	bl	__get_core_pos
+	bl	enable_mmu
 
 	mov	x0, x19
 	mov	x1, x20
