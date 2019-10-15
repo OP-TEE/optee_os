@@ -53,4 +53,6 @@ void *get_embedded_dt(void);
 /* Returns external DTB if present, otherwise NULL */
 void *get_external_dt(void);
 
+unsigned long get_aslr_seed(void *fdt);
+
 #endif /* KERNEL_GENERIC_BOOT_H */
