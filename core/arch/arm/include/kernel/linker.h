@@ -35,6 +35,9 @@ extern const uint8_t __extab_end[];
 #define VCORE_INIT_RX_SZ	((size_t)__vcore_init_rx_size)
 #define VCORE_INIT_RO_PA	((unsigned long)__vcore_init_ro_start)
 #define VCORE_INIT_RO_SZ	((size_t)__vcore_init_ro_size)
+
+#define VCORE_START_VA		((vaddr_t)__text_start)
+
 extern const uint8_t __vcore_unpg_rx_start[];
 extern const uint8_t __vcore_unpg_rx_size[];
 extern const uint8_t __vcore_unpg_ro_start[];
