@@ -601,7 +601,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	if (!new_table)
 		return false;
 
-	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
+	new_table_desc = SECTION_PT_PT | virt_to_phys(new_table);
 
 	if (!secure)
 		new_table_desc |= SECTION_PT_NOTSECURE;
