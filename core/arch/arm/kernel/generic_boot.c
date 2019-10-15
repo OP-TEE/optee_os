@@ -1202,3 +1202,39 @@ struct ns_entry_context *generic_boot_core_hpen(void)
 #endif
 }
 #endif
+
+#if defined(CFG_CORE_ASLR)
+#if defined(CFG_DT)
+unsigned long __weak get_aslr_seed(void *fdt)
+{
+	int rc = fdt_check_header(fdt);
+	const uint64_t *seed = NULL;
+	int offs = 0;
+	int len = 0;
+
+	if (rc) {
+		DMSG("Bad fdt: %d", rc);
+		return 0;
+	}
+
+	offs =  fdt_path_offset(fdt, "/secure-chosen");
+	if (offs < 0) {
+		DMSG("Cannot find /secure-chosen");
+		return 0;
+	}
+	seed = fdt_getprop(fdt, offs, "kaslr-seed", &len);
+	if (!seed || len != sizeof(*seed)) {
+		DMSG("Cannot find valid kaslr-seed");
+		return 0;
+	}
+
+	return fdt64_to_cpu(*seed);
+}
+#else /*!CFG_DT*/
+unsigned long __weak get_aslr_seed(void *fdt __unused)
+{
+	DMSG("Warning: no ASLR seed");
+	return 0;
+}
+#endif /*!CFG_DT*/
+#endif /*CFG_CORE_ASLR*/
