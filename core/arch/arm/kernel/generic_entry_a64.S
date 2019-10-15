@@ -8,6 +8,7 @@
 #include <arm64_macros.S>
 #include <arm.h>
 #include <asm.S>
+#include <elf_common.h>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <sm/optee_smc.h>
@@ -118,6 +119,21 @@ clear_nex_bss:
 	b.lt	clear_nex_bss
 #endif
 
+#ifdef CFG_CORE_ASLR
+	/*
+	 * The code is supposed to be linked against the address where
+	 * binary was loaded (0 load offset). However, since AArch64 uses
+	 * relocations of the new Rela type, relocations has to be
+	 * processed to guarantee that all updated locations holds the
+	 * correct value.
+	 *
+	 * N.b, it seems that some toolchains already provides expected
+	 * values at the target locations.
+	 */
+	mov	x0, #0
+	bl	relocate
+#endif
+
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
@@ -138,13 +154,36 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
-	adr	x0, boot_mmu_config
+#ifdef CFG_CORE_ASLR
+	mov	x0, x20
+	bl	get_aslr_seed
+#else
+	mov	x0, #0
+#endif
+
+	adr	x1, boot_mmu_config
 	bl	core_init_mmu_map
+
+#ifdef CFG_CORE_ASLR
+	/*
+	 * Process relocation information again updating for the new
+	 * offset. We're doing this now before MMU is enabled as some of
+	 * the memory will become write protected.
+	 */
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	bl	relocate
+#endif
 
 	bl	__get_core_pos
 	bl	enable_mmu
-	/* Virtual addresses may have changed, reinitialize console */
+#ifdef CFG_CORE_ASLR
+	/*
+	 * Reinitialize console, since register_serial_console() has
+	 * previously registered a PA and with ASLR the VA is different
+	 * from the PA.
+	 */
 	bl	console_init
+#endif
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
@@ -178,26 +217,72 @@ clear_nex_bss:
 	bl 	thread_clr_boot_thread
 #endif
 
-	/* Pass the vector address returned from main_init */
-	mov	x1, x19
+	/*
+	 * Pass the vector address returned from main_init
+	 * Compensate for the load offset since cpu_on_handler() is
+	 * called with MMU off.
+	 */
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	sub	x1, x19, x0
 	mov	x0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC _start
 KEEP_INIT _start
 
+#ifdef CFG_CORE_ASLR
+LOCAL_FUNC relocate , :
+	/* x0 holds load offset */
+	ldr	x1, =__rela_start
+	ldr	x2, =__rela_end
+
+	b	2f
+	/* Loop over the relocations (Elf64_Rela) and process all entries */
+1:	ldp	x3, x4, [x1], #16	/* x3 = r_offset, x4 = r_info */
+	ldr	x5, [x1], #8		/* x5 = r_addend */
+	/*
+	 * We're only expecting R_AARCH64_NONE and R_AARCH64_RELATIVE
+	 * relocations.
+	 */
+	cmp	w4, #R_AARCH64_NONE
+	b.eq	2f			/* Skip R_AARCH64_NONE */
+	cmp	w4, #R_AARCH64_RELATIVE
+	b.ne	.
+	/*
+	 * Update the pointer at r_offset + load_offset with r_addend +
+	 * load_offset.
+	 */
+	add	x5, x5, x0
+	/*
+	 * Note that we're skipping the load_offset for the address to
+	 * update, this is because that memory isn't mapped at that address
+	 * yet.
+	 */
+	str	x5, [x3]
+2:	cmp	x1, x2
+	b.ne	1b
+	ret
+END_FUNC relocate
+#endif
+
 /*
  * void enable_mmu(unsigned long core_pos);
+ *
+ * This function depends on being mapped with in the identity map where
+ * physical address and virtual address is the same. After MMU has been
+ * enabled the instruction pointer will be updated to execute as the new
+ * offset instead. Stack pointers and the return address are updated.
  */
-LOCAL_FUNC enable_mmu , :
+LOCAL_FUNC enable_mmu , : , .identity_map
 	adr	x1, boot_mmu_config
-	load_xregs x1, 0, 2, 5
+	load_xregs x1, 0, 2, 6
 	/*
 	 * x0 = core_pos
 	 * x2 = tcr_el1
 	 * x3 = mair_el1
 	 * x4 = ttbr0_el1_base
 	 * x5 = ttbr0_core_offset
+	 * x6 = load_offset
 	 */
 	msr	tcr_el1, x2
 	msr	mair_el1, x3
@@ -226,6 +311,12 @@ LOCAL_FUNC enable_mmu , :
 	msr	sctlr_el1, x1
 	isb
 
+	/* Update vbar */
+	mrs	x1, vbar_el1
+	add	x1, x1, x6
+	msr	vbar_el1, x1
+	isb
+
 	/* Invalidate instruction cache and branch predictor */
 	ic	iallu
 	isb
@@ -236,6 +327,13 @@ LOCAL_FUNC enable_mmu , :
 	orr	x1, x1, #SCTLR_C
 	msr	sctlr_el1, x1
 	isb
+
+	/* Adjust stack pointers and return address */
+	msr	spsel, #1
+	add	sp, sp, x6
+	msr	spsel, #0
+	add	sp, sp, x6
+	add	x30, x30, x6
 
 	ret
 END_FUNC enable_mmu
@@ -256,14 +354,14 @@ FUNC cpu_on_handler , :
 	set_sctlr_el1
 	isb
 
-	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
-	set_sp
-
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
 
 	bl	__get_core_pos
 	bl	enable_mmu
+
+	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
+	set_sp
 
 	mov	x0, x19
 	mov	x1, x20
@@ -289,9 +387,9 @@ END_FUNC unhandled_cpu
 	  .endif
 	.endm
 
-	.section .text.reset_vect_table
+	.section .identity_map
 	.align	11
-LOCAL_FUNC reset_vect_table , :
+LOCAL_FUNC reset_vect_table , :, .identity_map
 	/* -----------------------------------------------------
 	 * Current EL with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------

@@ -51,8 +51,11 @@ unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
 #endif
 
-static struct tee_mmap_region
-	static_memory_map[CFG_MMAP_REGIONS + 1] __nex_bss;
+static struct tee_mmap_region static_memory_map[CFG_MMAP_REGIONS
+#ifdef CFG_CORE_ASLR
+						+ 1
+#endif
+						+ 1] __nex_bss;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -1018,8 +1021,63 @@ static int cmp_init_mem_map(const void *a, const void *b)
 	return rc;
 }
 
-static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
+static unsigned int get_va_width(void)
 {
+#ifdef ARM64
+	return 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
+#else
+	return 32;
+#endif
+}
+
+static bool mem_map_add_id_map(struct tee_mmap_region *memory_map,
+			       size_t num_elems, size_t *last,
+			       vaddr_t id_map_start, vaddr_t id_map_end)
+{
+	struct tee_mmap_region *map = NULL;
+	vaddr_t start = ROUNDDOWN(id_map_start, SMALL_PAGE_SIZE);
+	vaddr_t end = ROUNDUP(id_map_end, SMALL_PAGE_SIZE);
+	size_t len = end - start;
+
+	if (*last >= num_elems - 1) {
+		EMSG("Out of entries (%zu) in memory map", num_elems);
+		panic();
+	}
+
+	for (map = memory_map; !core_mmap_is_end_of_table(map); map++)
+		if (core_is_buffer_intersect(map->va, map->size, start, len))
+			return false;
+
+	*map = (struct tee_mmap_region){
+		.type = MEM_AREA_IDENTITY_MAP_RX,
+		/*
+		 * Could use CORE_MMU_PGDIR_SIZE to potentially save a
+		 * translation table, at the increased risk of clashes with
+		 * the rest of the memory map.
+		 */
+		.region_size = SMALL_PAGE_SIZE,
+		.pa = start,
+		.va = start,
+		.size = len,
+		.attr = core_mmu_type_to_attr(MEM_AREA_IDENTITY_MAP_RX),
+	};
+
+	(*last)++;
+
+	return true;
+}
+
+static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
+				  size_t num_elems, unsigned long seed)
+{
+	/*
+	 * @id_map_start and @id_map_end describes a physical memory range
+	 * that must be mapped Read-Only eXecutable at identical virtual
+	 * addresses.
+	 */
+	vaddr_t id_map_start = (vaddr_t)__identity_map_init_start;
+	vaddr_t id_map_end = (vaddr_t)__identity_map_init_end;
+	unsigned long offs = 0;
 	size_t last = 0;
 
 	last = collect_mem_ranges(memory_map, num_elems);
@@ -1033,13 +1091,42 @@ static void init_mem_map(struct tee_mmap_region *memory_map, size_t num_elems)
 	      cmp_init_mem_map);
 
 	add_pager_vaspace(memory_map, num_elems, &last);
+	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
+		vaddr_t base_addr = TEE_RAM_START + seed;
+		const unsigned int va_width = get_va_width();
+		const vaddr_t va_mask = GENMASK_64(va_width - 1,
+						   SMALL_PAGE_SHIFT);
+		vaddr_t ba = base_addr;
+		size_t n = 0;
+
+		for (n = 0; n < 3; n++) {
+			if (n)
+				ba = base_addr ^ BIT64(va_width - n);
+			ba &= va_mask;
+			if (assign_mem_va(ba, memory_map) &&
+			    mem_map_add_id_map(memory_map, num_elems, &last,
+					       id_map_start, id_map_end)) {
+				offs = ba - TEE_RAM_START;
+				DMSG("Mapping core at %#"PRIxVA" offs %#lx",
+				     ba, offs);
+				goto out;
+			} else {
+				DMSG("Failed to map core at %#"PRIxVA, ba);
+			}
+		}
+		EMSG("Failed to map core with seed %#lx", seed);
+	}
+
 	if (!assign_mem_va(TEE_RAM_START, memory_map))
 		panic();
 
+out:
 	qsort(memory_map, last, sizeof(struct tee_mmap_region),
 	      cmp_mmap_by_lower_va);
 
 	dump_mmap_table(memory_map);
+
+	return offs;
 }
 
 static void check_mem_map(struct tee_mmap_region *map)
@@ -1082,24 +1169,60 @@ static void check_mem_map(struct tee_mmap_region *map)
 	}
 }
 
+static struct tee_mmap_region *get_tmp_mmap(void)
+{
+	struct tee_mmap_region *tmp_mmap = (void *)__heap1_start;
+
+#ifdef CFG_WITH_PAGER
+	if (__heap1_end - __heap1_start < (ptrdiff_t)sizeof(static_memory_map))
+		tmp_mmap = (void *)__heap2_start;
+#endif
+
+	memset(tmp_mmap, 0, sizeof(static_memory_map));
+
+	return tmp_mmap;
+}
+
 /*
- * core_init_mmu_map - init tee core default memory mapping
+ * core_init_mmu_map() - init tee core default memory mapping
  *
- * This routine sets the static default TEE core mapping.
+ * This routine sets the static default TEE core mapping. If @seed is > 0
+ * and configured with CFG_CORE_ASLR it will map tee core at a location
+ * based on the seed and return the offset from the link address.
  *
  * If an error happened: core_init_mmu_map is expected to panic.
  */
-void core_init_mmu_map(struct core_mmu_config *cfg)
+void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
+	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
+	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
+	struct tee_mmap_region *tmp_mmap = get_tmp_mmap();
+	unsigned long offs = 0;
+
 	check_sec_nsec_mem_config();
 
-	COMPILE_TIME_ASSERT(CFG_MMAP_REGIONS >= 13);
-	init_mem_map(static_memory_map, ARRAY_SIZE(static_memory_map));
+	/*
+	 * Add a entry covering the translation tables which will be
+	 * involved in some virt_to_phys() and phys_to_virt() conversions.
+	 */
+	static_memory_map[0] = (struct tee_mmap_region){
+		.type = MEM_AREA_TEE_RAM,
+		.region_size = SMALL_PAGE_SIZE,
+		.pa = start,
+		.va = start,
+		.size = len,
+		.attr = core_mmu_type_to_attr(MEM_AREA_IDENTITY_MAP_RX),
+	};
 
-	check_mem_map(static_memory_map);
-	core_init_mmu(static_memory_map);
+	COMPILE_TIME_ASSERT(CFG_MMAP_REGIONS >= 13);
+	offs = init_mem_map(tmp_mmap, ARRAY_SIZE(static_memory_map), seed);
+
+	check_mem_map(tmp_mmap);
+	core_init_mmu(tmp_mmap);
 	dump_xlat_table(0x0, 1);
 	core_init_mmu_regs(cfg);
+	cfg->load_offset = offs;
+	memcpy(static_memory_map, tmp_mmap, sizeof(static_memory_map));
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
@@ -1859,7 +1982,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	}
 #ifdef CFG_WITH_PAGER
 	if (is_unpaged(va)) {
-		if (v != pa)
+		if (v - boot_mmu_config.load_offset != pa)
 			panic("issue in linear address space");
 		return;
 	}
@@ -1958,7 +2081,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
 	if (pa >= TEE_LOAD_ADDR && pa < get_linear_map_end())
-		return (void *)(vaddr_t)pa;
+		return (void *)(vaddr_t)(pa + boot_mmu_config.load_offset);
 	return tee_pager_phys_to_virt(pa);
 }
 #else

@@ -1095,6 +1095,10 @@ static void init_primary_helper(unsigned long pageable_part,
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
+#ifdef CFG_CORE_ASLR
+	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
+	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
+#endif
 
 	main_init_gic();
 	init_vfp_nsec();

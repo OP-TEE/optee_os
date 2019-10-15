@@ -6,6 +6,7 @@
 #include <arm32_macros.S>
 #include <arm.h>
 #include <asm.S>
+#include <elf_common.h>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
@@ -440,13 +441,37 @@ shadow_stack_access_ok:
 	bl	arm_cl2_enable
 #endif
 
-	ldr	r0, =boot_mmu_config
+#ifdef CFG_CORE_ASLR
+	mov	r0, r6
+	bl	get_aslr_seed
+#else
+	mov	r0, #0
+#endif
+
+	ldr	r1, =boot_mmu_config
 	bl	core_init_mmu_map
+
+#ifdef CFG_CORE_ASLR
+	/*
+	 * Process relocation information for updating with the new offset.
+	 * We're doing this now before MMU is enabled as some of the memory
+	 * will become write protected.
+	 */
+	ldr	r0, =boot_mmu_config
+	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	bl	relocate
+#endif
 
 	bl	__get_core_pos
 	bl	enable_mmu
-	/* Virtual addresses may have changed, reinitialize console */
+#ifdef CFG_CORE_ASLR
+	/*
+	 * Reinitialize console, since register_serial_console() has
+	 * previously registered a PA and with ASLR the VA is different
+	 * from the PA.
+	 */
 	bl	console_init
+#endif
 
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
@@ -489,8 +514,10 @@ shadow_stack_access_ok:
 	bl 	thread_clr_boot_thread
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
+	ldr	r0, =boot_mmu_config
+	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
 	/* Pass the vector address returned from main_init */
-	mov	r1, r4
+	sub	r1, r4, r0
 #else
 	/* realy standard bootarg #1 and #2 to non secure entry */
 	mov	r4, #0
@@ -512,10 +539,48 @@ UNWIND(	.fnstart)
 UNWIND(	.fnend)
 END_FUNC unhandled_cpu
 
+#ifdef CFG_CORE_ASLR
+LOCAL_FUNC relocate , :
+	push	{r4-r5}
+	/* r0 holds load offset */
+	ldr	r1, =__rel_start
+	ldr	r2, =__rel_end
+
+	b	2f
+	/* Loop over the relocations (Elf32_Rel) and process all entries */
+1:	ldmia	r1!, {r4-r5}		/* r4 = r_offset, r5 = r_info */
+	/* We're only expecting R_ARM_RELATIVE relocations. */
+	cmp	r5, #R_ARM_RELATIVE
+	bne	.
+
+	/*
+	 * Update the pointer at r_offset + load_offset.
+	 *
+	 * Note that we're skipping the load_offset for the address to
+	 * update, this is because that memory isn't mapped at that address
+	 * yet.
+	 */
+	ldr	r12, [r4]
+	add	r12, r12, r0
+	str	r12, [r4]
+
+2:	cmp	r1, r2
+	bne	1b
+
+	pop	{r4-r5}
+	bx	lr
+END_FUNC relocate
+#endif
+
 /*
  * void enable_mmu(unsigned long core_pos);
+ *
+ * This function depends on being mapped with in the identity map where
+ * physical address and virtual address is the same. After MMU has been
+ * enabled the instruction pointer will be updated to execute as the new
+ * offset instead. Stack pointers and the return address are updated.
  */
-LOCAL_FUNC enable_mmu , :
+LOCAL_FUNC enable_mmu , : , .identity_map
 	/* r0 = core pos */
 	adr	r1, boot_mmu_config
 
@@ -537,10 +602,10 @@ LOCAL_FUNC enable_mmu , :
 	/*
 	 * ttbr0_el1 = ttbr0_base + ttbr0_core_offset * core_pos
 	 */
-	mla	r1, r0, r3, r2
-	write_ttbr0 r1
-	mov	r1, #0
-	write_ttbr1 r1
+	mla	r12, r0, r3, r2
+	write_ttbr0 r12
+	mov	r12, #0
+	write_ttbr1 r12
 #else
 	ldm	r1!, {r2, r3}
 	/*
@@ -563,9 +628,11 @@ LOCAL_FUNC enable_mmu , :
 	write_ttbr0 r2
 	write_ttbr1 r2
 
-	mov	r1, #0
-	write_contextidr r1
+	mov	r2, #0
+	write_contextidr r2
 #endif
+	ldm	r1!, {r2}
+	/* r2 = load_offset (always 0 if CFG_CORE_ASLR=n) */
 	isb
 
 	/* Invalidate TLB */
@@ -585,6 +652,12 @@ LOCAL_FUNC enable_mmu , :
 	orr	r0, r0, #(SCTLR_AFE | SCTLR_TRE)
 #endif
 	write_sctlr r0
+	isb
+
+	/* Update vbar */
+	read_vbar r1
+	add	r1, r1, r2
+	write_vbar r1
 	isb
 
 	/* Invalidate instruction cache and branch predictor */
@@ -608,6 +681,10 @@ LOCAL_FUNC enable_mmu , :
 	write_sctlr r0
 	isb
 
+	/* Adjust stack pointer and return address */
+	add	sp, sp, r2
+	add	lr, lr, r2
+
 	bx	lr
 END_FUNC enable_mmu
 
@@ -630,10 +707,11 @@ UNWIND(	.cantunwind)
 	write_vbar r0
 
 	mov	r4, lr
-	set_sp
 
 	bl	__get_core_pos
 	bl	enable_mmu
+
+	set_sp
 
 	mov	r0, r4
 	mov	r1, r5

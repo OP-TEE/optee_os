@@ -13,7 +13,28 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
-LOCAL_FUNC vector_std_smc_entry , :
+/*
+ * If ASLR is configured the identity mapped code may be mapped at two
+ * locations, the identity location where virtual and physical address is
+ * the same and at the runtime selected location to which OP-TEE has been
+ * relocated.  Code executing at a location different compared to the
+ * runtime selected location works OK as long as it doesn't do relative
+ * addressing outside the identity mapped range. To allow relative
+ * addressing this macro jumps to the runtime selected location.
+ *
+ * Note that the identity mapped range and the runtime selected range can
+ * only differ if ASLR is configured.
+ */
+	.macro readjust_pc
+#ifdef CFG_CORE_ASLR
+	ldr	x16, =1111f
+	br	x16
+1111:
+#endif
+	.endm
+
+LOCAL_FUNC vector_std_smc_entry , : , .identity_map
+	readjust_pc
 	bl	thread_handle_std_smc
 	/*
 	 * Normally thread_handle_std_smc() should return via
@@ -27,7 +48,8 @@ LOCAL_FUNC vector_std_smc_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_std_smc_entry
 
-LOCAL_FUNC vector_fast_smc_entry , :
+LOCAL_FUNC vector_fast_smc_entry , : , .identity_map
+	readjust_pc
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
 	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
 	mov	x0, sp
@@ -39,7 +61,8 @@ LOCAL_FUNC vector_fast_smc_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_fast_smc_entry
 
-LOCAL_FUNC vector_fiq_entry , :
+LOCAL_FUNC vector_fiq_entry , : , .identity_map
+	readjust_pc
 	/* Secure Monitor received a FIQ and passed control to us. */
 	bl	thread_check_canaries
 	bl	itr_core_handler
@@ -48,9 +71,11 @@ LOCAL_FUNC vector_fiq_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_fiq_entry
 
-LOCAL_FUNC vector_cpu_on_entry , :
+LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
 	adr	x16, thread_cpu_on_handler_ptr
 	ldr	x16, [x16]
+	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	sub	x16, x16, x17
 	blr	x16
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_ON_DONE
@@ -58,7 +83,8 @@ LOCAL_FUNC vector_cpu_on_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_on_entry
 
-LOCAL_FUNC vector_cpu_off_entry , :
+LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
+	readjust_pc
 	adr	x16, thread_cpu_off_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
@@ -68,7 +94,8 @@ LOCAL_FUNC vector_cpu_off_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_off_entry
 
-LOCAL_FUNC vector_cpu_suspend_entry , :
+LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
+	readjust_pc
 	adr	x16, thread_cpu_suspend_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
@@ -78,7 +105,8 @@ LOCAL_FUNC vector_cpu_suspend_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_suspend_entry
 
-LOCAL_FUNC vector_cpu_resume_entry , :
+LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
+	readjust_pc
 	adr	x16, thread_cpu_resume_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
@@ -88,7 +116,8 @@ LOCAL_FUNC vector_cpu_resume_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_cpu_resume_entry
 
-LOCAL_FUNC vector_system_off_entry , :
+LOCAL_FUNC vector_system_off_entry , : , .identity_map
+	readjust_pc
 	adr	x16, thread_system_off_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
@@ -98,7 +127,8 @@ LOCAL_FUNC vector_system_off_entry , :
 	b	.	/* SMC should not return */
 END_FUNC vector_system_off_entry
 
-LOCAL_FUNC vector_system_reset_entry , :
+LOCAL_FUNC vector_system_reset_entry , : , .identity_map
+	readjust_pc
 	adr	x16, thread_system_reset_handler_ptr
 	ldr	x16, [x16]
 	blr	x16
@@ -115,7 +145,7 @@ END_FUNC vector_system_reset_entry
  * Note that ARM-TF depends on the layout of this vector table, any change
  * in layout has to be synced with ARM-TF.
  */
-FUNC thread_vector_table , :
+FUNC thread_vector_table , : , .identity_map
 	b	vector_std_smc_entry
 	b	vector_fast_smc_entry
 	b	vector_cpu_on_entry

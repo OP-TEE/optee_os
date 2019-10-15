@@ -222,6 +222,13 @@ CFG_TA_ASLR ?= n
 CFG_TA_ASLR_MIN_OFFSET_PAGES ?= 0
 CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 128
 
+# Address Space Layout Randomization for TEE Core
+#
+# When this flag is enabled, the early init code will introduce a random
+# offset when mapping TEE Core. ASLR makes the exploitation of memory
+# corruption vulnerabilities more difficult.
+CFG_CORE_ASLR ?= n
+
 # Load user TAs from the REE filesystem via tee-supplicant
 CFG_REE_FS_TA ?= y
 
@@ -267,6 +274,9 @@ endif
 
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
+ifeq ($(CFG_WITH_PAGER)-$(CFG_CORE_ASLR),y-y)
+$(error CFG_WITH_PAGER and CFG_CORE_ASLR are currently incompatible)
+endif
 
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will

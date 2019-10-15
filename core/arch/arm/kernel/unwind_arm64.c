@@ -30,10 +30,11 @@
  */
 
 #include <arm.h>
-#include <kernel/thread.h>
-#include <kernel/unwind.h>
+#include <kernel/linker.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/thread.h>
+#include <kernel/unwind.h>
 #include <string.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
@@ -109,6 +110,8 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
+	trace_printf_helper_raw(level, true, "Load address @ %#"PRIxVA,
+				VCORE_START_VA);
 	trace_printf_helper_raw(level, true, "Call stack:");
 
 	do {

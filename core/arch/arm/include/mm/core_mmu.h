@@ -279,21 +279,24 @@ struct core_mmu_config {
 	uint64_t mair_el1;
 	uint64_t ttbr0_el1_base;
 	uint64_t ttbr0_core_offset;
+	uint64_t load_offset;
 #elif defined(CFG_WITH_LPAE)
 	uint32_t ttbcr;
 	uint32_t mair0;
 	uint32_t ttbr0_base;
 	uint32_t ttbr0_core_offset;
+	uint32_t load_offset;
 #else
 	uint32_t prrr;
 	uint32_t nmrr;
 	uint32_t dacr;
 	uint32_t ttbcr;
 	uint32_t ttbr;
+	uint32_t load_offset;
 #endif
 };
 
-void core_init_mmu_map(struct core_mmu_config *cfg);
+void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr);
