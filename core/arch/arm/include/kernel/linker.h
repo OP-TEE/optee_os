@@ -54,6 +54,9 @@ extern const uint8_t __vcore_init_ro_size[];
 extern const uint8_t __text_start[];
 extern const uint8_t __end[];
 
+extern const uint8_t __identity_map_init_start[];
+extern const uint8_t __identity_map_init_end[];
+
 extern uint8_t __data_start[];
 extern const uint8_t __data_end[];
 extern const uint8_t __rodata_start[];
