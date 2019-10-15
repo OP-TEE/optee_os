@@ -3,8 +3,12 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-	.macro FUNC name colon
+	.macro FUNC name colon section=default
+	.ifc	\section\(),default
 	.section .text.\name
+	.else
+	.section \section , "ax" , %progbits
+	.endif
 	.global \name
 	.type \name , %function
 	.balign 4
@@ -17,8 +21,12 @@
 	\name \colon
 	.endm
 
-	.macro LOCAL_FUNC name colon
+	.macro LOCAL_FUNC name colon section=default
+	.ifc	\section\(),default
 	.section .text.\name
+	.else
+	.section \section , "ax" , %progbits
+	.endif
 	.type \name , %function
 	.balign 4
 	\name \colon
