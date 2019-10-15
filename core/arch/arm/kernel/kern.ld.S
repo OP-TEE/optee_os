@@ -162,6 +162,8 @@ SECTIONS
 	ASSERT(__rela_end == __rela_start, "Relocation entries not expected")
 #endif
 
+	.got : { *(.got.plt) *(.got) }
+	.dynamic : { *(.dynamic) }
 	.plt : { *(.plt) }
 
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
@@ -249,8 +251,6 @@ SECTIONS
 		KEEP(*(.dtors .dtors.* .fini_array .fini_array.*))
 		__dtor_end = .;
 	}
-	.got : { *(.got.plt) *(.got) }
-	.dynamic : { *(.dynamic) }
 
 	/* unintialized data */
 	.bss : {
