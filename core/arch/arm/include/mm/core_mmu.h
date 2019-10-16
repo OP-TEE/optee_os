@@ -19,8 +19,8 @@
 
 /* A small page is the smallest unit of memory that can be mapped */
 #define SMALL_PAGE_SHIFT	12
-#define SMALL_PAGE_MASK		0x00000fff
-#define SMALL_PAGE_SIZE		0x00001000
+#define SMALL_PAGE_MASK		(SMALL_PAGE_SIZE - 1)
+#define SMALL_PAGE_SIZE		BIT(SMALL_PAGE_SHIFT)
 
 /*
  * PGDIR is the translation table above the translation table that holds
@@ -33,17 +33,17 @@
 #define CORE_MMU_PGDIR_SHIFT	20
 #define CORE_MMU_PGDIR_LEVEL	2
 #endif
-#define CORE_MMU_PGDIR_SIZE		(1 << CORE_MMU_PGDIR_SHIFT)
+#define CORE_MMU_PGDIR_SIZE		BIT(CORE_MMU_PGDIR_SHIFT)
 #define CORE_MMU_PGDIR_MASK		(CORE_MMU_PGDIR_SIZE - 1)
 
 /* TA user space code, data, stack and heap are mapped using this granularity */
 #define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
-#define CORE_MMU_USER_CODE_SIZE		(1 << CORE_MMU_USER_CODE_SHIFT)
+#define CORE_MMU_USER_CODE_SIZE		BIT(CORE_MMU_USER_CODE_SHIFT)
 #define CORE_MMU_USER_CODE_MASK		(CORE_MMU_USER_CODE_SIZE - 1)
 
 /* TA user space parameters are mapped using this granularity */
 #define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
-#define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
+#define CORE_MMU_USER_PARAM_SIZE	BIT(CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
 
 /*
