@@ -145,7 +145,8 @@
 	\
 	__intofs_b < 1 ? \
 		__intofs_a < 1 ? \
-			((INTMAX_MAX + __intofs_b >= __intofs_a) ? \
+			((INTMAX_MAX + __intofs_b_signed >= \
+			  __intofs_a_signed) ? \
 				__INTOF_ASSIGN((c), __intofs_a_signed - \
 						    __intofs_b_signed) : 1) \
 		: \
@@ -155,7 +156,8 @@
 						    __intofs_b) : 1) \
 	: \
 		__intofs_a < 1 ? \
-			(((INTMAX_MIN + __intofs_b <= __intofs_a)) ? \
+			(((intmax_t)(INTMAX_MIN + __intofs_b) <= \
+			  __intofs_a_signed) ? \
 				__INTOF_ASSIGN((c), \
 					(intmax_t)(__intofs_a_signed - \
 						   __intofs_b_unsigned)) : 1) \
