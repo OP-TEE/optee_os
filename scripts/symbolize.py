@@ -15,6 +15,7 @@ import sys
 import termios
 
 CALL_STACK_RE = re.compile('Call stack:')
+TEE_LOAD_ADDR_RE = re.compile(r'Load address @ (?P<load_addr>0x[0-9a-f]+)')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
 STACK_ADDR_RE = re.compile(
@@ -161,7 +162,11 @@ class Symbolizer(object):
         cmd = self.arch_prefix('addr2line')
         if not cmd:
             return
-        self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
+        args = [cmd]
+        if elf_name == 'tee.elf' and self._tee_load_addr != '0x0':
+            args += ['-j.text']
+        args += ['-f', '-p', '-e', elf]
+        self._addr2line = self.my_Popen(args)
         self._addr2line_elf_name = elf_name
 
     # If addr falls into a region that maps a TA ELF file, return the load
@@ -184,14 +189,14 @@ class Symbolizer(object):
             return '0x0'
         else:
             # tee.elf
-            return '0x0'
+            return self._tee_load_addr
 
     def elf_for_addr(self, addr):
+        if not self._regions:
+            return 'tee.elf'
         l_addr = self.elf_load_addr(addr)
         if l_addr is None:
             return None
-        if l_addr is '0x0':
-            return 'tee.elf'
         for k in self._elfs:
             e = self._elfs[k]
             if int(e[1], 16) == int(l_addr, 16):
@@ -364,6 +369,7 @@ class Symbolizer(object):
         self._sections = {}  # {elf_name: [[name, addr, size], ...], ...}
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
+        self._tee_load_addr = 0x0
         self._func_graph_found = False
         self._func_graph_skip_line = True
 
@@ -426,6 +432,9 @@ class Symbolizer(object):
             self._elfs[i] = [match.group('uuid'), match.group('load_addr'),
                              line]
             return
+        match = re.search(TEE_LOAD_ADDR_RE, line)
+        if match:
+            self._tee_load_addr = match.group('load_addr')
         match = re.search(CALL_STACK_RE, line)
         if match:
             self._call_stack_found = True
