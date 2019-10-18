@@ -27,10 +27,6 @@ your package manager if you are using some other distribution.
 """)
     raise
 
-import struct
-import re
-from collections import deque
-
 
 def round_up(n, m):
     if n == 0:
