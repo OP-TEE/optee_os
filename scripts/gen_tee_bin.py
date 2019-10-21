@@ -15,7 +15,10 @@ import hashlib
 try:
     from elftools.elf.elffile import ELFFile
     from elftools.elf.constants import SH_FLAGS
+    from elftools.elf.enums import ENUM_RELOC_TYPE_ARM
+    from elftools.elf.enums import ENUM_RELOC_TYPE_AARCH64
     from elftools.elf.sections import SymbolTableSection
+    from elftools.elf.relocation import RelocationSection
 
 except ImportError:
     print("""
@@ -117,10 +120,48 @@ def get_pager_bin(elffile):
     if tee_pager_bin is None:
         pad_to = get_symbol(elffile, '__data_end')['st_value']
         dump_names = re.compile(
-            r'^\.(text|rodata|got|data|ARM\.exidx|ARM\.extab|rel|rela)$')
+            r'^\.(text|rodata|got|data|ARM\.exidx|ARM\.extab)$')
         tee_pager_bin = get_sections(elffile, pad_to, dump_names)
 
     return tee_pager_bin
+
+
+def get_reloc_bin(elffile):
+    if get_arch_id(elffile) == 0:
+        exp_rel_type = ENUM_RELOC_TYPE_ARM['R_ARM_RELATIVE']
+    else:
+        exp_rel_type = ENUM_RELOC_TYPE_AARCH64['R_AARCH64_RELATIVE']
+
+    link_address = get_symbol(elffile, '__text_start')['st_value']
+
+    addrs = []
+    for section in elffile.iter_sections():
+        if not isinstance(section, RelocationSection):
+            continue
+        for rel in section.iter_relocations():
+            if rel['r_info_type'] == 0:
+                continue
+            if rel['r_info_type'] != exp_rel_type:
+                eprint("Unexpected relocation type 0x%x" %
+                       rel['r_info_type'])
+                sys.exit(1)
+            addrs.append(rel['r_offset'] - link_address)
+
+    addrs.sort()
+    data = bytearray()
+    for a in addrs:
+        data += struct.pack('<I', a)
+
+    # Relocations has been reduced to only become the relative type with
+    # addend at the address (r_offset) of relocation, that is, increase by
+    # load_offset. The addresses (r_offset) are also sorted. The format is
+    # then:
+    # uint32_t: relocation #1
+    # uint32_t: relocation #2
+    # ...
+    # uint32_t: relocation #n
+
+    return data
 
 
 def get_hashes_bin(elffile):
@@ -142,29 +183,40 @@ def get_embdata_bin(elffile):
     global tee_embdata_bin
     if tee_embdata_bin is None:
         hashes_bin = get_hashes_bin(elffile)
+        reloc_bin = get_reloc_bin(elffile)
 
-        num_entries = 1
+        num_entries = 2
         hash_offs = 2 * 4 + num_entries * (2 * 4)
         hash_pad = round_up(len(hashes_bin), 8) - len(hashes_bin)
-        total_len = hash_offs + len(hashes_bin) + hash_pad
+        reloc_offs = hash_offs + len(hashes_bin) + hash_pad
+        reloc_pad = round_up(len(reloc_bin), 8) - len(reloc_bin)
+        total_len = reloc_offs + len(reloc_bin) + reloc_pad
 
-        tee_embdata_bin = struct.pack('<IIII', total_len, num_entries,
-                                      hash_offs, len(hashes_bin))
+        tee_embdata_bin = struct.pack('<IIIIII', total_len, num_entries,
+                                      hash_offs, len(hashes_bin),
+                                      reloc_offs, len(reloc_bin))
         tee_embdata_bin += hashes_bin + bytearray(hash_pad)
+        tee_embdata_bin += reloc_bin + bytearray(reloc_pad)
 
     # The embedded data region is designed to be easy to extend when
     # needed, it's formatted as:
-    # +--------------------------------------------------------+
-    # | uint32_t: Length of entire area including this field   |
-    # +--------------------------------------------------------+
-    # | uint32_t: Number of entries "1"                        |
-    # +--------------------------------------------------------+
-    # | uint32_t: Offset of hashes from beginning of table     |
-    # +--------------------------------------------------------+
-    # | uint32_t: Length of hashes                             |
-    # +--------------------------------------------------------+
-    # | Data of hashes + eventual padding                      |
-    # +--------------------------------------------------------+
+    # +---------------------------------------------------------+
+    # | uint32_t: Length of entire area including this field    |
+    # +---------------------------------------------------------+
+    # | uint32_t: Number of entries "2"                         |
+    # +---------------------------------------------------------+
+    # | uint32_t: Offset of hashes from beginning of table      |
+    # +---------------------------------------------------------+
+    # | uint32_t: Length of hashes                              |
+    # +---------------------------------------------------------+
+    # | uint32_t: Offset of relocations from beginning of table |
+    # +---------------------------------------------------------+
+    # | uint32_t: Length of relocations                         |
+    # +---------------------------------------------------------+
+    # | Data of hashes + eventual padding                       |
+    # +---------------------------------------------------------+
+    # | Data of relocations + eventual padding                  |
+    # +---------------------------------------------------------+
 
     return tee_embdata_bin
 

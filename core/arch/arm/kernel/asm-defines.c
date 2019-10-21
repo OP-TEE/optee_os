@@ -103,4 +103,8 @@ DEFINES
 	       offsetof(struct boot_embdata, hashes_offset));
 	DEFINE(BOOT_EMBDATA_HASHES_LEN,
 	       offsetof(struct boot_embdata, hashes_len));
+	DEFINE(BOOT_EMBDATA_RELOC_OFFSET,
+	       offsetof(struct boot_embdata, reloc_offset));
+	DEFINE(BOOT_EMBDATA_RELOC_LEN,
+	       offsetof(struct boot_embdata, reloc_len));
 }

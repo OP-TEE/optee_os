@@ -101,8 +101,8 @@ copy_init:
 	/*
 	 * The binary is built as:
 	 * [Core, rodata and data] : In correct location
-	 * [struct boot_embdata + data] : Should be moved to __end, first
-	 * uint32_t tells the length of the data.
+	 * [struct boot_embdata + data] : Should be saved before
+	 * initializing pager, first uint32_t tells the length of the data
 	 */
 	adr	x0, __end		/* dst */
 	adr	x1, __data_end		/* src */
@@ -143,21 +143,6 @@ clear_nex_bss:
 	str	xzr, [x0], #8
 	cmp	x0, x1
 	b.lt	clear_nex_bss
-#endif
-
-#ifdef CFG_CORE_ASLR
-	/*
-	 * The code is supposed to be linked against the address where
-	 * binary was loaded (0 load offset). However, since AArch64 uses
-	 * relocations of the new Rela type, relocations has to be
-	 * processed to guarantee that all updated locations holds the
-	 * correct value.
-	 *
-	 * N.b, it seems that some toolchains already provides expected
-	 * values at the target locations.
-	 */
-	mov	x0, #0
-	bl	relocate
 #endif
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
@@ -252,34 +237,34 @@ END_DATA cached_mem_end
 #ifdef CFG_CORE_ASLR
 LOCAL_FUNC relocate , :
 	/* x0 holds load offset */
-	ldr	x1, =__rela_start
-	ldr	x2, =__rela_end
+	adr	x4, __end
+	ldp	w2, w3, [x4, #BOOT_EMBDATA_RELOC_OFFSET]
+
+	mov_imm	x1, TEE_RAM_START
+	add	x2, x2, x4	/* start of relocations */
+	add	x3, x3, x2	/* end of relocations */
+
+	/*
+	 * Relocations are not formatted as Rela64, instead they are in a
+	 * compressed format created by get_reloc_bin() in
+	 * scripts/gen_tee_bin.py
+	 *
+	 * All the R_AARCH64_RELATIVE relocations are translated into a
+	 * list list of 32-bit offsets from TEE_RAM_START. At each address
+	 * a 64-bit value pointed out which increased with the load offset.
+	 */
 
 	b	2f
-	/* Loop over the relocations (Elf64_Rela) and process all entries */
-1:	ldp	x3, x4, [x1], #16	/* x3 = r_offset, x4 = r_info */
-	ldr	x5, [x1], #8		/* x5 = r_addend */
-	/*
-	 * We're only expecting R_AARCH64_NONE and R_AARCH64_RELATIVE
-	 * relocations.
-	 */
-	cmp	w4, #R_AARCH64_NONE
-	b.eq	2f			/* Skip R_AARCH64_NONE */
-	cmp	w4, #R_AARCH64_RELATIVE
-	b.ne	.
-	/*
-	 * Update the pointer at r_offset + load_offset with r_addend +
-	 * load_offset.
-	 */
+	/* Loop over the relocation addresses and process all entries */
+1:	ldr	w4, [x2], #4
+	add	x4, x4, x1
+	ldr	x5, [x4]
 	add	x5, x5, x0
-	/*
-	 * Note that we're skipping the load_offset for the address to
-	 * update, this is because that memory isn't mapped at that address
-	 * yet.
-	 */
-	str	x5, [x3]
-2:	cmp	x1, x2
+	str	x5, [x4]
+
+2:	cmp	x2, x3
 	b.ne	1b
+
 	ret
 END_FUNC relocate
 #endif
