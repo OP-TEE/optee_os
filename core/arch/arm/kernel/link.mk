@@ -166,95 +166,43 @@ $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  OBJDUMP $@'
 	$(q)$(OBJDUMPcore) -l -x -d $< > $@
 
-pageable_sections := .*_pageable
-init_sections := .*_init
+all: $(link-out-dir)/tee-pager.bin
 cleanfiles += $(link-out-dir)/tee-pager.bin
-$(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf \
-		$(link-out-dir)/tee-data_end.txt
-	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)$(OBJCOPYcore) -O binary \
-		--remove-section="$(pageable_sections)" \
-		--remove-section="$(init_sections)" \
-		--pad-to `cat $(link-out-dir)/tee-data_end.txt` \
-		$< $@
+$(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)scripts/gen_tee_bin.py --input $< --out_tee_pager_bin $@
 
+all: $(link-out-dir)/tee-pageable.bin
 cleanfiles += $(link-out-dir)/tee-pageable.bin
-ifeq ($(CFG_WITH_PAGER),y)
-$(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf
-	@$(cmd-echo-silent) '  OBJCOPY $@'
-	$(q)$(OBJCOPYcore) -O binary \
-		--only-section="$(init_sections)" \
-		--only-section="$(pageable_sections)" \
-		$< $@
-else
-$(link-out-dir)/tee-pageable.bin:
-	@$(cmd-echo-silent) '  TOUCH   $@'
-	$(q)touch $@
-endif
-
-cleanfiles += $(link-out-dir)/tee-data_end.txt
-$(link-out-dir)/tee-data_end.txt: $(link-out-dir)/tee.elf
+$(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
-	@echo -n 0x > $@
-	$(q)$(NMcore) $< | grep __data_end | sed 's/ .*$$//' >> $@
-
-cleanfiles += $(link-out-dir)/tee-init_size.txt
-$(link-out-dir)/tee-init_size.txt: $(link-out-dir)/tee.elf
-	@$(cmd-echo-silent) '  GEN     $@'
-	@echo -n 0x > $@
-	$(q)$(NMcore) $< | grep __init_size | sed 's/ .*$$//' >> $@
-
-cleanfiles += $(link-out-dir)/tee-init_load_addr.txt
-$(link-out-dir)/tee-init_load_addr.txt: $(link-out-dir)/tee.elf
-	@$(cmd-echo-silent) '  GEN     $@'
-	@echo -n 0x > $@
-	$(q)$(NMcore) $< | grep ' _start' | sed 's/ .*$$//' >> $@
-
-cleanfiles += $(link-out-dir)/tee-init_mem_usage.txt
-$(link-out-dir)/tee-init_mem_usage.txt: $(link-out-dir)/tee.elf
-	@$(cmd-echo-silent) '  GEN     $@'
-	@echo -n 0x > $@
-	$(q)$(NMcore) $< | grep ' __init_mem_usage' | sed 's/ .*$$//' >> $@
-
-gen_hash_bin_deps :=	$(link-out-dir)/tee-pager.bin \
-			$(link-out-dir)/tee-pageable.bin \
-			$(link-out-dir)/tee-init_size.txt \
-			$(link-out-dir)/tee-init_load_addr.txt \
-			$(link-out-dir)/tee-init_mem_usage.txt \
-			./scripts/gen_hashed_bin.py
-
-define gen_hash_bin_cmd
-	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)load_addr=`cat $(link-out-dir)/tee-init_load_addr.txt` && \
-	./scripts/gen_hashed_bin.py \
-		--arch $(if $(filter y,$(CFG_ARM64_core)),arm64,arm32) \
-		--init_size `cat $(link-out-dir)/tee-init_size.txt` \
-		--init_load_addr_hi $$(($$load_addr >> 32 & 0xffffffff)) \
-		--init_load_addr_lo $$(($$load_addr & 0xffffffff)) \
-		--init_mem_usage `cat $(link-out-dir)/tee-init_mem_usage.txt` \
-		--tee_pager_bin $(link-out-dir)/tee-pager.bin \
-		--tee_pageable_bin $(link-out-dir)/tee-pageable.bin
-endef
+	$(q)scripts/gen_tee_bin.py --input $< --out_tee_pageable_bin $@
 
 all: $(link-out-dir)/tee.bin
 cleanfiles += $(link-out-dir)/tee.bin
-$(link-out-dir)/tee.bin: $(gen_hash_bin_deps)
-	$(gen_hash_bin_cmd) --out $@
+$(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)scripts/gen_tee_bin.py --input $< --out_tee_bin $@
 
 all: $(link-out-dir)/tee-header_v2.bin
 cleanfiles += $(link-out-dir)/tee-header_v2.bin
-$(link-out-dir)/tee-header_v2.bin: $(gen_hash_bin_deps)
-	$(gen_hash_bin_cmd) --out_header_v2 $@
+$(link-out-dir)/tee-header_v2.bin: $(link-out-dir)/tee.elf \
+				   scripts/gen_tee_bin.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)scripts/gen_tee_bin.py --input $< --out_header_v2 $@
 
 all: $(link-out-dir)/tee-pager_v2.bin
 cleanfiles += $(link-out-dir)/tee-pager_v2.bin
-$(link-out-dir)/tee-pager_v2.bin: $(gen_hash_bin_deps)
-	$(gen_hash_bin_cmd) --out_pager_v2 $@
+$(link-out-dir)/tee-pager_v2.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)scripts/gen_tee_bin.py --input $< --out_pager_v2 $@
 
 all: $(link-out-dir)/tee-pageable_v2.bin
 cleanfiles += $(link-out-dir)/tee-pageable_v2.bin
-$(link-out-dir)/tee-pageable_v2.bin: $(gen_hash_bin_deps)
-	$(gen_hash_bin_cmd) --out_pageable_v2 $@
+$(link-out-dir)/tee-pageable_v2.bin: $(link-out-dir)/tee.elf \
+				     scripts/gen_tee_bin.py
+	@$(cmd-echo-silent) '  GEN     $@'
+	$(q)scripts/gen_tee_bin.py --input $< --out_pageable_v2 $@
 
 all: $(link-out-dir)/tee.symb_sizes
 cleanfiles += $(link-out-dir)/tee.symb_sizes
