@@ -331,20 +331,27 @@ static void init_vcore(tee_mm_pool_t *mm_vcore)
 static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
-	size_t init_size = (size_t)__init_size;
+	size_t init_size = (size_t)(__init_end - __init_start);
 	size_t pageable_start = (size_t)__pageable_start;
 	size_t pageable_end = (size_t)__pageable_end;
 	size_t pageable_size = pageable_end - pageable_start;
 	size_t tzsram_end = TZSRAM_BASE + TZSRAM_SIZE;
 	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	const void *tmp_hashes = NULL;
 	tee_mm_entry_t *mm = NULL;
 	struct fobj *fobj = NULL;
 	uint8_t *paged_store = NULL;
 	uint8_t *hashes = NULL;
 
 	assert(pageable_size % SMALL_PAGE_SIZE == 0);
-	assert(hash_size == (size_t)__tmp_hashes_size);
+	assert(embdata->total_len >= embdata->hashes_offset +
+				     embdata->hashes_len);
+	assert(hash_size == embdata->hashes_len);
+
+	tmp_hashes = __init_end + embdata->hashes_offset;
+
 
 	/*
 	 * This needs to be initialized early to support address lookup
@@ -361,7 +368,7 @@ static void init_runtime(unsigned long pageable_part)
 	IMSG_RAW("\n");
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	assert(hashes);
-	asan_memcpy_unchecked(hashes, __tmp_hashes_start, hash_size);
+	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure

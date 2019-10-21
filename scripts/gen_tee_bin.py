@@ -35,10 +35,28 @@ small_page_size = 4 * 1024
 elffile_symbols = None
 tee_pageable_bin = None
 tee_pager_bin = None
+tee_embdata_bin = None
 
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+
+def round_up(n, m):
+    if n == 0:
+        return 0
+    else:
+        return (((n - 1) // m) + 1) * m
+
+
+def get_arch_id(elffile):
+    e_machine = elffile.header['e_machine']
+    if e_machine == 'EM_ARM':
+        return 0
+    if e_machine == 'EM_AARCH64':
+        return 1
+    eprint('Unknown e_machine "%s"' % e_machine)
+    sys.exit(1)
 
 
 def get_symbol(elffile, name):
@@ -59,14 +77,13 @@ def get_symbol(elffile, name):
         sys.exit(1)
 
 
-def get_sections(elffile, pad_to, skip_names, dump_names):
+def get_sections(elffile, pad_to, dump_names):
     last_end = 0
     bin_data = bytearray()
 
     for section in elffile.iter_sections():
         if (section['sh_type'] == 'SHT_NOBITS' or
                 not (section['sh_flags'] & SH_FLAGS.SHF_ALLOC) or
-                skip_names.match(section.name) or
                 not dump_names.match(section.name)):
             continue
 
@@ -90,10 +107,8 @@ def get_pageable_bin(elffile):
     global tee_pageable_bin
     if tee_pageable_bin is None:
         pad_to = 0
-        skip_names = re.compile(r'^$')
         dump_names = re.compile(r'^\..*_(pageable|init)$')
-        tee_pageable_bin = get_sections(elffile, pad_to, skip_names,
-                                        dump_names)
+        tee_pageable_bin = get_sections(elffile, pad_to, dump_names)
     return tee_pageable_bin
 
 
@@ -101,11 +116,57 @@ def get_pager_bin(elffile):
     global tee_pager_bin
     if tee_pager_bin is None:
         pad_to = get_symbol(elffile, '__data_end')['st_value']
-        skip_names = re.compile(r'^\..*_(pageable|init)$')
-        dump_names = re.compile(r'')
-        tee_pager_bin = get_sections(elffile, pad_to, skip_names, dump_names)
+        dump_names = re.compile(
+            r'^\.(text|rodata|got|data|ARM\.exidx|ARM\.extab|rel|rela)$')
+        tee_pager_bin = get_sections(elffile, pad_to, dump_names)
 
     return tee_pager_bin
+
+
+def get_hashes_bin(elffile):
+    pageable_bin = get_pageable_bin(elffile)
+    if len(pageable_bin) % small_page_size != 0:
+        eprint("pageable size not a multiple of 4K: "
+               "{}".format(paged_area_size))
+        sys.exit(1)
+
+    data = bytearray()
+    for n in range(0, len(pageable_bin), small_page_size):
+        page = pageable_bin[n:n + small_page_size]
+        data += hashlib.sha256(page).digest()
+
+    return data
+
+
+def get_embdata_bin(elffile):
+    global tee_embdata_bin
+    if tee_embdata_bin is None:
+        hashes_bin = get_hashes_bin(elffile)
+
+        num_entries = 1
+        hash_offs = 2 * 4 + num_entries * (2 * 4)
+        hash_pad = round_up(len(hashes_bin), 8) - len(hashes_bin)
+        total_len = hash_offs + len(hashes_bin) + hash_pad
+
+        tee_embdata_bin = struct.pack('<IIII', total_len, num_entries,
+                                      hash_offs, len(hashes_bin))
+        tee_embdata_bin += hashes_bin + bytearray(hash_pad)
+
+    # The embedded data region is designed to be easy to extend when
+    # needed, it's formatted as:
+    # +--------------------------------------------------------+
+    # | uint32_t: Length of entire area including this field   |
+    # +--------------------------------------------------------+
+    # | uint32_t: Number of entries "1"                        |
+    # +--------------------------------------------------------+
+    # | uint32_t: Offset of hashes from beginning of table     |
+    # +--------------------------------------------------------+
+    # | uint32_t: Length of hashes                             |
+    # +--------------------------------------------------------+
+    # | Data of hashes + eventual padding                      |
+    # +--------------------------------------------------------+
+
+    return tee_embdata_bin
 
 
 def output_pager_bin(elffile, outf):
@@ -114,16 +175,6 @@ def output_pager_bin(elffile, outf):
 
 def output_pageable_bin(elffile, outf):
     outf.write(get_pageable_bin(elffile))
-
-
-def get_arch_id(elffile):
-    e_machine = elffile.header['e_machine']
-    if e_machine == 'EM_ARM':
-        return 0
-    if e_machine == 'EM_AARCH64':
-        return 1
-    eprint('Unknown e_machine "%s"' % e_machine)
-    sys.exit(1)
 
 
 def get_init_load_addr(elffile):
@@ -137,22 +188,19 @@ def output_header_v1(elffile, outf):
     arch_id = get_arch_id(elffile)
     pager_bin = get_pager_bin(elffile)
     pageable_bin = get_pageable_bin(elffile)
-    init_mem_usage = get_symbol(elffile, '__init_mem_usage')['st_value']
+    embdata_bin = get_embdata_bin(elffile)
     init_load_addr = get_init_load_addr(elffile)
     init_bin_size = get_symbol(elffile, '__init_size')['st_value']
     pager_bin_size = len(pager_bin)
     paged_area_size = len(pageable_bin)
-    hash_size = (paged_area_size // small_page_size *
-                 hashlib.sha256().digest_size)
+
+    init_mem_usage = (get_symbol(elffile, '__init_end')['st_value'] -
+                      get_symbol(elffile, '__text_start')['st_value'] +
+                      len(embdata_bin))
 
     init_size = (pager_bin_size + min(init_bin_size, paged_area_size) +
-                 hash_size)
+                 len(embdata_bin))
     paged_size = paged_area_size - min(init_bin_size, paged_area_size)
-
-    if paged_area_size % small_page_size != 0:
-        eprint("pageable size not a multiple of 4K: "
-               "{}".format(paged_area_size))
-        sys.exit(1)
 
     magic = 0x4554504f  # 'OPTE'
     version = 1
@@ -162,9 +210,7 @@ def output_header_v1(elffile, outf):
                            init_mem_usage, paged_size))
     outf.write(pager_bin)
     outf.write(pageable_bin[:init_bin_size])
-    for n in range(0, len(pageable_bin), small_page_size):
-        page = pageable_bin[n:n + small_page_size]
-        outf.write(hashlib.sha256(page).digest())
+    outf.write(embdata_bin)
     outf.write(pageable_bin[init_bin_size:])
 
 
@@ -174,16 +220,10 @@ def output_header_v2(elffile, outf):
     init_bin_size = get_symbol(elffile, '__init_size')['st_value']
     pager_bin_size = len(get_pager_bin(elffile))
     paged_area_size = len(get_pageable_bin(elffile))
-    hash_size = (paged_area_size // small_page_size *
-                 hashlib.sha256().digest_size)
-
-    if paged_area_size % small_page_size != 0:
-        eprint("pageable size not a multiple of 4K: "
-               "{}".format(paged_area_size))
-        sys.exit(1)
+    embdata_bin_size = len(get_embdata_bin(elffile))
 
     init_size = (pager_bin_size + min(init_bin_size, paged_area_size) +
-                 hash_size)
+                 embdata_bin_size)
     paged_size = paged_area_size - min(init_bin_size, paged_area_size)
 
     magic = 0x4554504f  # 'OPTE'
@@ -200,18 +240,13 @@ def output_header_v2(elffile, outf):
 
 def output_pager_v2(elffile, outf):
     init_bin_size = get_symbol(elffile, '__init_size')['st_value']
+    pager_bin = get_pager_bin(elffile)
     pageable_bin = get_pageable_bin(elffile)
+    embdata_bin = get_embdata_bin(elffile)
 
-    if len(pageable_bin) % small_page_size != 0:
-        eprint("pageable size not a multiple of 4K: "
-               "{}".format(paged_area_size))
-        sys.exit(1)
-
-    outf.write(get_pager_bin(elffile))
+    outf.write(pager_bin)
     outf.write(pageable_bin[:init_bin_size])
-    for n in range(0, len(pageable_bin), small_page_size):
-        page = pageable_bin[n:n + small_page_size]
-        outf.write(hashlib.sha256(page).digest())
+    outf.write(embdata_bin)
 
 
 def output_pageable_v2(elffile, outf):

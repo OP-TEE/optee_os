@@ -63,7 +63,7 @@ END_FUNC __assert_flat_mapped_range
 
 	/* panic if mmu is enable and vaddr != paddr (scratch lr) */
 	.macro assert_flat_mapped_range va, line
-		ldr	r0, =(\va)
+		ldr	r0, \va
 		ldr	r1, =\line
 		bl	__assert_flat_mapped_range
 	.endm
@@ -283,12 +283,12 @@ KEEP_INIT _start
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 		assert_flat_mapped_range (\vbase), (\line)
 		bl	pl310_base
-		ldr	r1, =(\vbase)
-		ldr	r2, =(\vend)
+		ldr	r1, \vbase
+		ldr	r2, \vend
 		bl	arm_cl2_invbypa
 #endif
-		ldr	r0, =(\vbase)
-		ldr	r1, =(\vend)
+		ldr	r0, \vbase
+		ldr	r1, \vend
 		sub	r1, r1, r0
 		bl	dcache_inv_range
 	.endm
@@ -296,31 +296,30 @@ KEEP_INIT _start
 	.macro __flush_cache_vrange vbase, vend, line
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 		assert_flat_mapped_range (\vbase), (\line)
-		ldr	r0, =(\vbase)
-		ldr	r1, =(\vend)
+		ldr	r0, \vbase
+		ldr	r1, \vend
 		sub	r1, r1, r0
 		bl	dcache_clean_range
 		bl	pl310_base
-		ldr	r1, =(\vbase)
-		ldr	r2, =(\vend)
+		ldr	r1, \vbase
+		ldr	r2, \vend
 		bl	arm_cl2_cleaninvbypa
 #endif
-		ldr	r0, =(\vbase)
-		ldr	r1, =(\vend)
+		ldr	r0, \vbase
+		ldr	r1, \vend
 		sub	r1, r1, r0
 		bl	dcache_cleaninv_range
 	.endm
 
 #define inval_cache_vrange(vbase, vend) \
-		__inval_cache_vrange (vbase), ((vend) - 1), __LINE__
+		__inval_cache_vrange vbase, vend, __LINE__
 
 #define flush_cache_vrange(vbase, vend) \
-		__flush_cache_vrange (vbase), ((vend) - 1), __LINE__
+		__flush_cache_vrange vbase, vend, __LINE__
 
 #ifdef CFG_BOOT_SYNC_CPU
 #define flush_cpu_semaphores \
-		flush_cache_vrange(sem_cpu_sync, \
-				   (sem_cpu_sync + (CFG_TEE_CORE_NB_CORE << 2)))
+		flush_cache_vrange(sem_cpu_sync_start, sem_cpu_sync_end)
 #else
 #define flush_cpu_semaphores
 #endif
@@ -339,17 +338,42 @@ UNWIND(	.cantunwind)
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
 	 * [Init code and rodata] : Should be copied to __init_start
-	 * [Hashes] : Should be saved before initializing pager
-	 *
+	 * [struct boot_embdata + data] : Should be saved before
+	 * initializing pager, first uint32_t tells the length of the data
 	 */
 	ldr	r0, =__init_start	/* dst */
 	ldr	r1, =__data_end 	/* src */
-	ldr	r2, =__tmp_hashes_end	/* dst limit */
+	ldr	r2, =__init_end
+	sub	r2, r2, r0		/* init len */
+	ldr	r12, [r1, r2]		/* length of hashes etc */
+	add	r2, r2, r12		/* length of init and hashes etc */
 	/* Copy backwards (as memmove) in case we're overlapping */
-	sub	r2, r2, r0		/* len */
+	add	r0, r0, r2		/* __init_start + len */
+	add	r1, r1, r2		/* __data_end + len */
+	str	r1, cached_mem_end
+	ldr	r2, =__init_start
+copy_init:
+	ldmdb	r1!, {r3, r8-r12}
+	stmdb	r0!, {r3, r8-r12}
+	cmp	r0, r2
+	bgt	copy_init
+#else
+	/*
+	 * The binary is built as:
+	 * [Core, rodata and data] : In correct location
+	 * [struct boot_embdata + data] : Should be moved to __end, first
+	 * uint32_t tells the length of the struct + data
+	 */
+	ldr	r0, =__end		/* dst */
+	ldr	r1, =__data_end		/* src */
+	ldr	r2, [r1]		/* struct boot_embdata::total_len */
+	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	ldr	r2, =__init_start
+	adr	r3, cached_mem_end
+	str	r1, [r3]
+	ldr	r2, =__end
+
 copy_init:
 	ldmdb	r1!, {r3, r8-r12}
 	stmdb	r0!, {r3, r8-r12}
@@ -429,11 +453,7 @@ shadow_stack_access_ok:
 	 * invalidate memory not used by OP-TEE since we may invalidate
 	 * entries used by for instance ARM Trusted Firmware.
 	 */
-#ifdef CFG_WITH_PAGER
-	inval_cache_vrange(__text_start, __tmp_hashes_end)
-#else
-	inval_cache_vrange(__text_start, __end)
-#endif
+	inval_cache_vrange(cached_mem_start, cached_mem_end)
 
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 	/* Enable PL310 if not yet enabled */
@@ -484,11 +504,7 @@ shadow_stack_access_ok:
 	 * they have turned on their D-cache, clean and invalidate the
 	 * D-cache before exiting to normal world.
 	 */
-#ifdef CFG_WITH_PAGER
-	flush_cache_vrange(__text_start, __init_end)
-#else
-	flush_cache_vrange(__text_start, __end)
-#endif
+	flush_cache_vrange(cached_mem_start, cached_mem_end)
 
 	/* release secondary boot cores and sync with them */
 	cpu_is_ready
@@ -531,6 +547,24 @@ shadow_stack_access_ok:
 	b	.	/* SMC should not return */
 UNWIND(	.fnend)
 END_FUNC reset_primary
+
+#ifdef CFG_BOOT_SYNC_CPU
+LOCAL_DATA sem_cpu_sync_start , :
+	.word	sem_cpu_sync
+END_DATA sem_cpu_sync_start
+
+LOCAL_DATA sem_cpu_sync_end , :
+	.word	sem_cpu_sync + (CFG_TEE_CORE_NB_CORE << 2)
+END_DATA sem_cpu_sync_end
+#endif
+
+LOCAL_DATA cached_mem_start , :
+	.word	__text_start
+END_DATA cached_mem_start
+
+LOCAL_DATA cached_mem_end , :
+	.skip	4
+END_DATA cached_mem_end
 
 LOCAL_FUNC unhandled_cpu , :
 UNWIND(	.fnstart)

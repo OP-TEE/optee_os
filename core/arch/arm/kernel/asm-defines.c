@@ -4,6 +4,7 @@
  */
 
 #include <gen-asm-defines.h>
+#include <kernel/generic_boot.h>
 #include <kernel/thread.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
@@ -96,4 +97,10 @@ DEFINES
 	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
 	DEFINE(CORE_MMU_CONFIG_LOAD_OFFSET,
 	       offsetof(struct core_mmu_config, load_offset));
+
+	/* struct boot_embdata */
+	DEFINE(BOOT_EMBDATA_HASHES_OFFSET,
+	       offsetof(struct boot_embdata, hashes_offset));
+	DEFINE(BOOT_EMBDATA_HASHES_LEN,
+	       offsetof(struct boot_embdata, hashes_len));
 }

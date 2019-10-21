@@ -77,17 +77,43 @@ FUNC _start , :
 	 * The binary is built as:
 	 * [Pager code, rodata and data] : In correct location
 	 * [Init code and rodata] : Should be copied to __init_start
-	 * [Hashes] : Should be saved before initializing pager
-	 *
+	 * [struct boot_embdata + data] : Should be saved before
+	 * initializing pager, first uint32_t tells the length of the data
 	 */
 	adr	x0, __init_start	/* dst */
 	adr	x1, __data_end		/* src */
-	adr	x2, __tmp_hashes_end	/* dst limit */
+	adr	x2, __init_end
+	sub	x2, x2, x0		/* init len */
+	ldr	w4, [x1, x2]		/* length of hashes etc */
+	add	x2, x2, x4		/* length of init and hashes etc */
 	/* Copy backwards (as memmove) in case we're overlapping */
-	sub	x2, x2, x0		/* len */
-	add	x0, x0, x2		/* __init_start + len = __init_end */
+	add	x0, x0, x2		/* __init_start + len */
 	add	x1, x1, x2		/* __data_end + len */
+	adr	x3, cached_mem_end
+	str	x1, [x3]
 	adr	x2, __init_start
+copy_init:
+	ldp	x3, x4, [x1, #-16]!
+	stp	x3, x4, [x0, #-16]!
+	cmp	x0, x2
+	b.gt	copy_init
+#else
+	/*
+	 * The binary is built as:
+	 * [Core, rodata and data] : In correct location
+	 * [struct boot_embdata + data] : Should be moved to __end, first
+	 * uint32_t tells the length of the data.
+	 */
+	adr	x0, __end		/* dst */
+	adr	x1, __data_end		/* src */
+	ldr	w2, [x1]		/* struct boot_embdata::total_len */
+	/* Copy backwards (as memmove) in case we're overlapping */
+	add	x0, x0, x2
+	add	x1, x1, x2
+	adr	x3, cached_mem_end
+	str	x1, [x3]
+	adr	x2, __end
+
 copy_init:
 	ldp	x3, x4, [x1, #-16]!
 	stp	x3, x4, [x0, #-16]!
@@ -141,13 +167,7 @@ clear_nex_bss:
 	msr	daifclr, #DAIFBIT_ABT
 
 	adr_l	x0, __text_start
-#ifdef CFG_WITH_PAGER
-	adrp	x1, __tmp_hashes_end
-	add	x1, x1, :lo12:__tmp_hashes_end
-#else
-	adrp	x1, __end
-	add	x1, x1, :lo12:__end
-#endif
+	ldr	x1, cached_mem_end
 	sub	x1, x1, x0
 	bl	dcache_inv_range
 
@@ -197,13 +217,7 @@ clear_nex_bss:
 	 */
 	mov	x19, x0
 	adr_l	x0, __text_start
-#ifdef CFG_WITH_PAGER
-	adrp	x1, __tmp_hashes_end
-	add	x1, x1, :lo12:__tmp_hashes_end
-#else
-	adrp	x1, __end
-	add	x1, x1, :lo12:__end
-#endif
+	ldr	x1, cached_mem_end
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
@@ -229,6 +243,11 @@ clear_nex_bss:
 	b	.	/* SMC should not return */
 END_FUNC _start
 KEEP_INIT _start
+
+	.balign	8
+LOCAL_DATA cached_mem_end , :
+	.skip	8
+END_DATA cached_mem_end
 
 #ifdef CFG_CORE_ASLR
 LOCAL_FUNC relocate , :
