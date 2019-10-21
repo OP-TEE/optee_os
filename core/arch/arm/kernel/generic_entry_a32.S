@@ -577,28 +577,32 @@ END_FUNC unhandled_cpu
 LOCAL_FUNC relocate , :
 	push	{r4-r5}
 	/* r0 holds load offset */
-	ldr	r1, =__rel_start
-	ldr	r2, =__rel_end
+	ldr	r4, =__end
+	ldr	r2, [r4, #BOOT_EMBDATA_RELOC_OFFSET]
+	ldr	r3, [r4, #BOOT_EMBDATA_RELOC_LEN]
 
-	b	2f
-	/* Loop over the relocations (Elf32_Rel) and process all entries */
-1:	ldmia	r1!, {r4-r5}		/* r4 = r_offset, r5 = r_info */
-	/* We're only expecting R_ARM_RELATIVE relocations. */
-	cmp	r5, #R_ARM_RELATIVE
-	bne	.
+	mov_imm	r1, TEE_RAM_START
+	add	r2, r2, r4	/* start of relocations */
+	add	r3, r3, r2	/* end of relocations */
 
 	/*
-	 * Update the pointer at r_offset + load_offset.
+	 * Relocations are not formatted as Rel32, instead they are in a
+	 * compressed format created by get_reloc_bin() in
+	 * scripts/gen_tee_bin.py
 	 *
-	 * Note that we're skipping the load_offset for the address to
-	 * update, this is because that memory isn't mapped at that address
-	 * yet.
+	 * All the R_ARM_RELATIVE relocations are translated into a list
+	 * list of 32-bit offsets from TEE_RAM_START. At each address a
+	 * 32-bit value pointed out which increased with the load offset.
 	 */
-	ldr	r12, [r4]
-	add	r12, r12, r0
-	str	r12, [r4]
 
-2:	cmp	r1, r2
+	b	2f
+	/* Loop over the relocation addresses and process all entries */
+1:	ldr	r4, [r2], #4
+	ldr	r5, [r4, r1]
+	add	r5, r5, r0
+	str	r5, [r4, r1]
+
+2:	cmp	r2, r3
 	bne	1b
 
 	pop	{r4-r5}

@@ -143,28 +143,7 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-	.hash : { *(.hash) }
-	.dynsym : { *(.dynsym) }
-	.dynstr : { *(.dynstr) }
-
-	.rel : {
-		__rel_start = .;
-		*(.rel.*)
-		__rel_end = .;
-	}
-	.rela : {
-		__rela_start = .;
-		*(.rela.*)
-		__rela_end = .;
-	}
-#ifndef CFG_CORE_ASLR
-	ASSERT(__rel_end == __rel_start, "Relocation entries not expected")
-	ASSERT(__rela_end == __rela_start, "Relocation entries not expected")
-#endif
-
-
 	.got : { *(.got.plt) *(.got) }
-	.dynamic : { *(.dynamic) }
 	.plt : { *(.plt) }
 
 	.ctors : ALIGN(8) {
@@ -427,6 +406,27 @@ SECTIONS
 
 #ifndef CFG_WITH_PAGER
 	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
+#endif
+
+	/*
+	 * These regions will not become a normal part of the dumped
+	 * binary, instead some are interpreted by the dump script and
+	 * converted into suitable format for OP-TEE itself to use.
+	 */
+	.dynamic : { *(.dynamic) }
+	.hash : { *(.hash) }
+	.dynsym : { *(.dynsym) }
+	.dynstr : { *(.dynstr) }
+
+	.rel : {
+		*(.rel.*)
+	}
+	.rela : {
+		*(.rela.*)
+	}
+#ifndef CFG_CORE_ASLR
+	ASSERT(SIZEOF(.rel) == 0, "Relocation entries not expected")
+	ASSERT(SIZEOF(.rela) == 0, "Relocation entries not expected")
 #endif
 
 	/DISCARD/ : {

@@ -11,10 +11,12 @@
 /*
  * struct boot_embdata - Embedded boot data
  * @total_len: Total length of the embedded boot data
- * @num_blobs: Number of blobs in the embedded boot data, always 1 even if
+ * @num_blobs: Number of blobs in the embedded boot data, always 2 even if
  *	       one blob is empty
  * @hashes_offset: Offset of hashes from start of this struct
  * @hashes_len: Length of hashes
+ * @reloc_offset: Offset of reloc from start of this struct
+ * @reloc_len: Length of reloc
  *
  * This struct is initialized by scripts/gen_tee_bin.py and must be kept
  * in sync with that script. The struct and the following data is loaded
@@ -33,6 +35,8 @@ struct boot_embdata {
 	uint32_t num_blobs;
 	uint32_t hashes_offset;
 	uint32_t hashes_len;
+	uint32_t reloc_offset;
+	uint32_t reloc_len;
 };
 
 extern uint8_t embedded_secure_dtb[];
