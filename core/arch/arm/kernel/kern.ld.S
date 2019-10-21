@@ -162,6 +162,7 @@ SECTIONS
 	ASSERT(__rela_end == __rela_start, "Relocation entries not expected")
 #endif
 
+
 	.got : { *(.got.plt) *(.got) }
 	.dynamic : { *(.dynamic) }
 	.plt : { *(.plt) }
@@ -388,23 +389,10 @@ SECTIONS
 	__pageable_start = __init_start;
 	__pageable_end = __pageable_part_end;
 
-	/*
-	 * Assign a safe spot to store the hashes of the pages before
-	 * heap is initialized.
-	 */
-	__tmp_hashes_start = __init_end;
-	__tmp_hashes_size = ((__pageable_end - __pageable_start) /
-				SMALL_PAGE_SIZE) * 32;
-	__tmp_hashes_end = __tmp_hashes_start + __tmp_hashes_size;
-
-	__init_mem_usage = __tmp_hashes_end - TEE_TEXT_VA_START;
-
 	ASSERT(TEE_LOAD_ADDR >= TEE_RAM_START,
 		"Load address before start of physical memory")
 	ASSERT(TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
-	ASSERT(__tmp_hashes_end < (TEE_RAM_VA_START + TEE_RAM_PH_SIZE),
-		"OP-TEE can't fit init part into available physical memory")
 	ASSERT((TEE_RAM_VA_START + TEE_RAM_PH_SIZE - __init_end) >
 		SMALL_PAGE_SIZE, "Too few free pages to initialize paging")
 
@@ -426,7 +414,6 @@ SECTIONS
 
 #ifndef CFG_WITH_PAGER
 	__init_size = __data_end - TEE_TEXT_VA_START;
-	__init_mem_usage = __end - TEE_TEXT_VA_START;
 #endif
 	/*
 	 * Guard against moving the location counter backwards in the assignment

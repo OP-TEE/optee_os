@@ -68,9 +68,7 @@ extern const uint8_t __nozi_end[];
 extern const uint8_t __nozi_stack_start[];
 extern const uint8_t __nozi_stack_end[];
 extern const uint8_t __init_start[];
-extern const uint8_t __init_size[];
-extern const uint8_t __tmp_hashes_start[];
-extern const uint8_t __tmp_hashes_size[];
+extern const uint8_t __init_end[];
 
 extern uint8_t __heap1_start[];
 extern const uint8_t __heap1_end[];

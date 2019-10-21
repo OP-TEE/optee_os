@@ -8,6 +8,33 @@
 #include <initcall.h>
 #include <types_ext.h>
 
+/*
+ * struct boot_embdata - Embedded boot data
+ * @total_len: Total length of the embedded boot data
+ * @num_blobs: Number of blobs in the embedded boot data, always 1 even if
+ *	       one blob is empty
+ * @hashes_offset: Offset of hashes from start of this struct
+ * @hashes_len: Length of hashes
+ *
+ * This struct is initialized by scripts/gen_tee_bin.py and must be kept
+ * in sync with that script. The struct and the following data is loaded
+ * at different addresses at boot depending on CFG_WITH_PAGER.
+ *
+ * If configured with CFG_WITH_PAGER=y the struct with data is following
+ * init part, this is together with the init part moved by the primary CPU
+ * so it ends up at __init_end. Whatever need to be saved for later need to
+ * be copied to a safe location in init_runtime().
+ *
+ * If configured with CFG_WITH_PAGER=n following the struct with data is
+ * __data_end, this is moved by the primary CPU so it ends up at __end.
+ */
+struct boot_embdata {
+	uint32_t total_len;
+	uint32_t num_blobs;
+	uint32_t hashes_offset;
+	uint32_t hashes_len;
+};
+
 extern uint8_t embedded_secure_dtb[];
 extern const struct core_mmu_config boot_mmu_config;
 
