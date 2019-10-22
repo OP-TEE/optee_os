@@ -66,6 +66,12 @@ L:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com>
 S:	Maintained
 F:	core/arch/arm/plat-bcm/
 
+Function Graph Tracer (ftrace) support
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+S:	Maintained
+F:	ldelf/ftrace.c
+F:	lib/libutils/ext/ftrace/
+
 HiSilicon D02
 R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
