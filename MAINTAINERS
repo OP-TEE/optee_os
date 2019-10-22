@@ -160,6 +160,7 @@ S:	Maintained
 F:	core/arch/arm/plat-rockchip/
 
 Socionext DeveloperBox (Synquacer SC2A11)
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-synquacer/
