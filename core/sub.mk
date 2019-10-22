@@ -67,3 +67,9 @@ recipe-conf_str = scripts/bin_to_c.py --text --bin $(conf-mk-xz-base64) \
 			--vname conf_str
 cleanfiles += $(sub-dir-out)/conf.mk.xz.base64.c
 endif
+
+gensrcs-$(CFG_RESTRICT_TA_DL) += dl_policy
+produce-dl_policy = dl_policy.c
+depends-dl_policy = $(CFG_DL_POLICY_FILE) scripts/gen_dl_policy.py $(conf-file)
+recipe-dl_policy = $(CPP$(sm)) $(cppflags$(sm)) $(CFG_DL_POLICY_FILE) | \
+			scripts/gen_dl_policy.py -o $(sub-dir-out)/dl_policy.c

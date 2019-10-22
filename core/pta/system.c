@@ -4,7 +4,9 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <crypto/crypto.h>
+#include <dl_policy.h>
 #include <kernel/handle.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/misc.h>
@@ -208,6 +210,60 @@ static void ta_bin_close(void *ptr)
 	free(binh);
 }
 
+#ifdef CFG_RESTRICT_TA_DL
+
+static bool is_null_uuid(const TEE_UUID *uuid)
+{
+	const TEE_UUID null_uuid = { 0 };
+
+	return !memcmp(uuid, &null_uuid, sizeof(*uuid));
+}
+
+static bool uuid_match(const TEE_UUID *uuid, const TEE_UUID *match)
+{
+	const TEE_UUID any = ANY_UUID;
+
+	if (!memcmp(match, &any, sizeof(*match)))
+		return true;
+	return !memcmp(match, uuid, sizeof(*match));
+}
+
+/*
+ * ELF loading policy for user TAs:
+ * Allow when @caller == @to_load, otherwise find the first entry in
+ * dl_policies[] that matches @to_load and see if @caller matches one entry
+ * in the allowed list. Allow access only if such an entry is found.
+ */
+static bool check_dl_policy(TEE_UUID *caller, TEE_UUID *to_load)
+{
+	struct dl_policy *policy = NULL;
+	const TEE_UUID *allowed = NULL;
+
+	if (!memcmp(caller, to_load, sizeof(*caller))) {
+		/* Typically: ldelf loading the TA for which it was invoked */
+		return true;
+	}
+	for (policy = &dl_policies[0]; !is_null_uuid(&policy->lib_uuid);
+	     policy++) {
+		if (!uuid_match(to_load, &policy->lib_uuid))
+			continue;
+		for (allowed = policy->allowed_tas;
+		     allowed && !is_null_uuid(allowed);
+		     allowed++) {
+			if (uuid_match(caller, allowed))
+				return true;
+		}
+	}
+	return false;
+}
+#else
+static bool check_dl_policy(TEE_UUID *caller __unused,
+			    TEE_UUID *to_load __unused)
+{
+	return true;
+}
+#endif
+
 static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 					uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
@@ -222,6 +278,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s = tee_ta_get_calling_session();
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -229,6 +286,18 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	uuid = params[0].memref.buffer;
+
+	if (s && is_user_ta_ctx(s->ctx)) {
+		/*
+		 * Called from a user TA. Check if caller is allowed to open the
+		 * requested binary.
+		 */
+		if (!check_dl_policy(&s->ctx->uuid, uuid)) {
+			EMSG("TA %pUl: open ELF %pUl denied by policy",
+			     (void *)&s->ctx->uuid, (void *)uuid);
+			return TEE_ERROR_ACCESS_DENIED;
+		}
+	}
 
 	binh = calloc(1, sizeof(*binh));
 	if (!binh)
