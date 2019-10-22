@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/handle.h>
 #include <kernel/huk_subkey.h>
@@ -13,6 +14,7 @@
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
 #include <ldelf.h>
+#include <load_policy.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
 #include <mm/tee_mmu.h>
@@ -208,6 +210,102 @@ static void ta_bin_close(void *ptr)
 	free(binh);
 }
 
+#ifdef CFG_RESTRICT_TA_LOAD
+
+static bool is_null_uuid(const TEE_UUID *uuid)
+{
+	const TEE_UUID null_uuid = { 0 };
+
+	return !memcmp(uuid, &null_uuid, sizeof(*uuid));
+}
+
+static bool uuid_match(const TEE_UUID *uuid, const TEE_UUID *match)
+{
+	const TEE_UUID any = ANY_UUID;
+
+	if (!memcmp(match, &any, sizeof(*match)))
+		return true;
+	return !memcmp(match, uuid, sizeof(*match));
+}
+
+/*
+ * ELF loading policy for user TAs:
+ * Find the first entry in load_policies[] that matches @caller. If not found,
+ * reject. Otherwise, see if @to_load matches @caller or one entry
+ * in the allowed list. Allow access only in this case.
+ */
+static bool check_load_policy(TEE_UUID *caller, TEE_UUID *to_load)
+{
+	const struct load_policy *policy = NULL;
+	const TEE_UUID *allowed = NULL;
+
+	for (policy = &load_policies[0]; !is_null_uuid(&policy->ta_uuid);
+	     policy++) {
+		if (!uuid_match(caller, &policy->ta_uuid))
+			continue;
+		if (!memcmp(caller, to_load, sizeof(*caller))) {
+			/*
+			 * Typically: ldelf loading the TA for which it was
+			 * invoked.
+			 */
+			return true;
+		}
+		for (allowed = policy->allowed_libs;
+		     allowed && !is_null_uuid(allowed);
+		     allowed++) {
+			if (uuid_match(to_load, allowed))
+				return true;
+		}
+	}
+	return false;
+}
+
+static bool check_tag(TEE_UUID *uuid, uint8_t *tag, size_t tag_len)
+{
+	const struct load_policy *policy = NULL;
+
+	for (policy = &load_policies[0]; !is_null_uuid(&policy->ta_uuid);
+	     policy++) {
+		if (memcmp(uuid, &policy->ta_uuid, sizeof(*uuid)))
+			continue;
+		if (!policy->tag || !policy->tag_len)
+			return true;
+		if (tag_len != policy->tag_len)
+			return false;
+		return !memcmp(tag, policy->tag, tag_len);
+	}
+	return true;
+}
+#else
+static bool check_load_policy(TEE_UUID *caller __unused,
+			      TEE_UUID *to_load __unused)
+{
+	return true;
+}
+
+static bool check_tag(TEE_UUID *uuid __unused, uint8_t *tag __unused,
+		      size_t tag_len __unused)
+{
+	return true;
+}
+#endif
+
+static void debug_print_tag(uint8_t *tag, size_t tag_len)
+{
+	char *p = NULL;
+	char hex[64];
+	size_t i = 0;
+
+	if (tag_len > 32)
+		return;
+	p = hex;
+	for (i = 0; i < tag_len; i++) {
+		snprintf(p, 3, "%02x", tag[i]);
+		p += 2;
+	}
+	DMSG("Tag: %s", hex);
+}
+
 static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 					uint32_t param_types,
 					TEE_Param params[TEE_NUM_PARAMS])
@@ -222,6 +320,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
+	struct tee_ta_session *s = tee_ta_get_calling_session();
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -229,6 +328,18 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	uuid = params[0].memref.buffer;
+
+	if (s && is_user_ta_ctx(s->ctx)) {
+		/*
+		 * Called from a user TA. Check if caller is allowed to open the
+		 * requested binary.
+		 */
+		if (!check_load_policy(&s->ctx->uuid, uuid)) {
+			EMSG("TA %pUl: open ELF %pUl denied by policy",
+			     (void *)&s->ctx->uuid, (void *)uuid);
+			return TEE_ERROR_ACCESS_DENIED;
+		}
+	}
 
 	binh = calloc(1, sizeof(*binh));
 	if (!binh)
@@ -253,6 +364,13 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 	res = binh->op->get_tag(binh->h, tag, &tag_len);
 	if (res)
 		goto err;
+	debug_print_tag(tag, tag_len);
+	if (!check_tag(uuid, tag, tag_len)) {
+		EMSG("TA %pUl: open ELF %pUl denied due to tag mismatch",
+		     (void *)&s->ctx->uuid, (void *)uuid);
+		res = TEE_ERROR_ACCESS_DENIED;
+		goto err;
+	}
 	binh->f = file_get_by_tag(tag, tag_len);
 	if (!binh->f)
 		goto err_oom;

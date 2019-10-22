@@ -511,3 +511,8 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# Restricts which TAs can be loaded and which dynamic libraries they may use.
+CFG_RESTRICT_TA_LOAD ?= y
+CFG_LOAD_POLICY_FILE ?= core/pta/load_policy.ini
+CFG_XTEST ?= y

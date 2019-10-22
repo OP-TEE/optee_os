@@ -67,3 +67,9 @@ recipe-conf_str = scripts/bin_to_c.py --text --bin $(conf-mk-xz-base64) \
 			--vname conf_str
 cleanfiles += $(sub-dir-out)/conf.mk.xz.base64.c
 endif
+
+gensrcs-$(CFG_RESTRICT_TA_LOAD) += load_policy
+produce-load_policy = load_policy.c
+depends-load_policy = $(CFG_LOAD_POLICY_FILE) scripts/gen_load_policy.py $(conf-file)
+recipe-load_policy = $(CPP$(sm)) $(cppflags$(sm)) $(CFG_LOAD_POLICY_FILE) | \
+			scripts/gen_load_policy.py -o $(sub-dir-out)/load_policy.c
