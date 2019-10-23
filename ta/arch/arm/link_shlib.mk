@@ -3,7 +3,7 @@ $(error SHLIBUUID not set)
 endif
 link-out-dir = $(out-dir)
 
-SIGN ?= $(TA_DEV_KIT_DIR)/scripts/sign.py
+SIGN ?= $(TA_DEV_KIT_DIR)/scripts/sign_encrypt.py
 TA_SIGN_KEY ?= $(TA_DEV_KIT_DIR)/keys/default_ta.pem
 
 all: $(link-out-dir)/$(shlibname).so $(link-out-dir)/$(shlibname).dmp \
