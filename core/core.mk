@@ -73,6 +73,7 @@ $(conf-file): $(conf-mk-file)
 
 cleanfiles += $(conf-file)
 cleanfiles += $(conf-mk-file)
+cleanfiles += $(conf-cmake-file)
 
 $(conf-file): FORCE
 	$(call check-conf-h)
