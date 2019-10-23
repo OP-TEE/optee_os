@@ -8,6 +8,7 @@ ldelf: $(link-out-dir$(sm))/ldelf.elf
 all: ldelf
 
 cleanfiles += $(link-out-dir$(sm))/ldelf.dmp
+cleanfiles += $(link-out-dir$(sm))/ldelf.map
 cleanfiles += $(link-out-dir$(sm))/ldelf.elf
 cleanfiles += $(link-script-pp$(sm)) $(link-script-dep$(sm))
 
