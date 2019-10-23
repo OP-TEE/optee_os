@@ -2,8 +2,19 @@ link-script$(sm) = $(ta-dev-kit-dir$(sm))/src/ta.ld.S
 link-script-pp$(sm) = $(link-out-dir$(sm))/ta.lds
 link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 
-SIGN ?= $(ta-dev-kit-dir$(sm))/scripts/sign.py
+SIGN_ENC ?= $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
+
+ifeq ($(CFG_ENCRYPT_TA),y)
+# Default TA encryption key is a dummy key derived from default
+# hardware unique key (an array of 16 zero bytes) to demonstrate
+# usage of REE-FS TAs encryption feature.
+#
+# Note that a user of this TA encryption feature needs to provide
+# encryption key and its handling corresponding to their security
+# requirements.
+TA_ENC_KEY ?= 'b64d239b1f3c7d3b06506229cd8ff7c8af2bb4db2168621ac62c84948468c4f4'
+endif
 
 all: $(link-out-dir$(sm))/$(user-ta-uuid).dmp \
 	$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
@@ -72,12 +83,17 @@ $(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf: \
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
 	$(q)$(OBJCOPY$(sm)) --strip-unneeded $$< $$@
 
+cmd-echo$(user-ta-uuid) := SIGN   #
+ifeq ($(CFG_ENCRYPT_TA),y)
+crypt-args$(user-ta-uuid) := --enc-key $(TA_ENC_KEY)
+cmd-echo$(user-ta-uuid) := SIGNENC
+endif
 $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY)
-	@$(cmd-echo-silent) '  SIGN    $$@'
-	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(user-ta-uuid) \
-		--in $$< --out $$@
+	@$(cmd-echo-silent) '  $$(cmd-echo$(user-ta-uuid)) $$@'
+	$(q)$(SIGN_ENC) --key $(TA_SIGN_KEY) $$(crypt-args$(user-ta-uuid)) \
+		--uuid $(user-ta-uuid) --in $$< --out $$@
 endef
 
 $(eval $(call gen-link-t))
