@@ -66,6 +66,7 @@ define process-subdir-gensrcs-helper
 # $5 y if $2 must be generated before $(sm) starts building (e.g., .h file)
 
 gen-srcs			+= $2
+cleanfiles			+= $2
 oname				:= $3
 
 FORCE-GENSRC$(sm): $(if $(filter y,$5),$2,)
