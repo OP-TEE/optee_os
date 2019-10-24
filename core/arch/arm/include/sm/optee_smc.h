@@ -269,14 +269,14 @@
 #define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	(1 << 0)
 /* Secure world can communicate via previously unregistered shared memory */
 #define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	(1 << 1)
-/* Secure world is built with virtualization support */
-#define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	(1 << 2)
-
 /*
  * Secure world supports commands "register/unregister shared memory",
  * secure world accepts command buffers located in any parts of non-secure RAM
  */
 #define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		(1 << 2)
+/* Secure world is built with virtualization support */
+#define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	(1 << 3)
+
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
