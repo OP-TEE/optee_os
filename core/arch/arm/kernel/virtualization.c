@@ -261,9 +261,12 @@ uint32_t virt_guest_created(uint16_t guest_id)
 	}
 
 	set_current_prtn(prtn);
+	core_mmu_set_prtn(prtn->mmu_prtn);
 
-	/* Initialize threads */
-	thread_init_threads();
+	/* Init threads and runtime */
+	thread_init_boot_thread();
+	init_tee_runtime();
+	thread_clr_boot_thread();
 
 	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 	LIST_INSERT_HEAD(&prtn_list, prtn, link);
@@ -353,21 +356,6 @@ void virt_unset_guest(void)
 	core_mmu_set_default_prtn();
 	if (refcount_dec(&prtn->refc))
 		panic();
-}
-
-void virt_on_stdcall(void)
-{
-	struct guest_partition *prtn = get_current_prtn();
-
-	/* Initialize runtime on first std call */
-	if (!prtn->runtime_initialized) {
-		mutex_lock(&prtn->mutex);
-		if (!prtn->runtime_initialized) {
-			init_tee_runtime();
-			prtn->runtime_initialized = true;
-		}
-		mutex_unlock(&prtn->mutex);
-	}
 }
 
 struct tee_mmap_region *virt_get_memory_map(void)

@@ -57,14 +57,6 @@ bool virt_set_guest(uint16_t guest_id);
  */
 void virt_unset_guest(void);
 
-/**
- * virt_on_stdcall() - std call hook
- *
- * This hook is called on every std call, but really is needed
- * only once: to initialize TEE runtime for current guest VM
- */
-void virt_on_stdcall(void);
-
 /*
  * Next function are needed because virtualization subsystem manages
  * memory in own way. There is no one static memory map, instead
