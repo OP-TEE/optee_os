@@ -166,6 +166,17 @@ SECTIONS
 	.dynamic : { *(.dynamic) }
 	.plt : { *(.plt) }
 
+	.ctors : ALIGN(8) {
+		__ctor_list = .;
+		KEEP(*(.ctors .ctors.* .init_array .init_array.*))
+		__ctor_end = .;
+	}
+	.dtors : ALIGN(8) {
+		__dtor_list = .;
+		KEEP(*(.dtors .dtors.* .fini_array .fini_array.*))
+		__dtor_end = .;
+	}
+
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : {
 		__exidx_start = .;
@@ -239,17 +250,6 @@ SECTIONS
 		__data_start = .;
 		*(.data .data.* .gnu.linkonce.d.*)
 		. = ALIGN(8);
-	}
-
-	.ctors : ALIGN(8) {
-		__ctor_list = .;
-		KEEP(*(.ctors .ctors.* .init_array .init_array.*))
-		__ctor_end = .;
-	}
-	.dtors : ALIGN(8) {
-		__dtor_list = .;
-		KEEP(*(.dtors .dtors.* .fini_array .fini_array.*))
-		__dtor_end = .;
 	}
 
 	/* unintialized data */
