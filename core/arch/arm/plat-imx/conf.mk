@@ -386,7 +386,7 @@ CFG_MMAP_REGIONS ?= 24
 
 # Almost all platforms include CAAM HW Modules, except the
 # ones forced to be disabled
-CFG_NXP_CAAM ?= y
+CFG_NXP_CAAM ?= n
 
 ifeq ($(CFG_NXP_CAAM),y)
 # As NXP CAAM Driver is enabled, disable the small local CAAM driver
