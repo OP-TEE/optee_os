@@ -33,7 +33,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
-static struct pl011_data console_data;
+static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 #if defined(PLATFORM_FLAVOR_hikey)
