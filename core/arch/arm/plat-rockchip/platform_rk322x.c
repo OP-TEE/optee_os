@@ -16,7 +16,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, DDRSGRF_BASE, DDRSGRF_SIZE);
 #define SGRF_SOC_CON(n)		((n) * 4)
 #define DDR_SGRF_DDR_CON(n)	((n) * 4)
 #define DDR_RGN0_NS		BIT32(30)
-#define SLAVE_ALL_NS		0xffff0000
+#define SLAVE_ALL_NS		GENMASK_32(31, 16)
 
 int platform_secure_init(void)
 {
