@@ -173,6 +173,18 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	int ret;
 	paddr_t original_data_pa;
 
+    /*
+     * Make sure that values of those symbols are stored in the
+     * accessible area. There is issue with GCC 8.x, when it emit code
+     * that store value of, say, __data_start in .data section.
+     * Then this section is being remapped in the code below,
+     * which leads to crash.
+     */
+    static void *const bss_start __nex_data = (void *)(VCORE_UNPG_RW_PA);
+    static const size_t bss_sz __nex_data = VCORE_UNPG_RW_SZ;
+    static uint8_t *const orig_data_start __nex_data = __data_start;
+    static const uint8_t *orig_data_end __nex_data = __data_end;
+
 	prtn->tee_ram = tee_mm_alloc(&virt_mapper_pool, VCORE_UNPG_RW_SZ);
 	if (!prtn->tee_ram) {
 		EMSG("Can't allocate memory for TEE runtime context");
@@ -221,12 +233,12 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	core_mmu_set_prtn(prtn->mmu_prtn);
 
 	/* clear .bss */
-	memset((void *)(VCORE_UNPG_RW_PA), 0, VCORE_UNPG_RW_SZ);
+	memset(bss_start, 0, bss_sz);
 
 	/* copy .data section from R/O original */
-	memcpy(__data_start,
+	memcpy(orig_data_start,
 	       phys_to_virt(original_data_pa, MEM_AREA_SEC_RAM_OVERALL),
-	       __data_end - __data_start);
+	       orig_data_end - orig_data_start);
 
 	return 0;
 
