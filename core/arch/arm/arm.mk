@@ -96,6 +96,8 @@ arm32-platform-cppflags += -DARM32=1 -D__ILP32__=1
 platform-cflags-generic ?= -ffunction-sections -fdata-sections -pipe
 platform-aflags-generic ?= -pipe
 
+arm32-platform-aflags += -marm
+
 arm32-platform-cflags-no-hard-float ?= -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
 arm32-platform-cflags-generic-thumb ?= -mthumb \
