@@ -94,16 +94,19 @@ static TEE_Result cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
 				 TEE_OperationMode mode, bool last_block,
 				 const uint8_t *data, size_t len, uint8_t *dst)
 {
-	TEE_Result res;
-	int nb_blocks, len_last_block, block_size = 16;
-	uint8_t tmp_block[64], tmp2_block[64];
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t  tmp2_block[64] = { 0 };
+	uint8_t tmp_block[64] = { 0 };
+	int len_last_block = 0;
+	int block_size = 16;
+	int nb_blocks = 0;
 
 	if (!last_block)
 		return tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
-					     mode, last_block, data, len, dst);
+					    mode, last_block, data, len, dst);
 
 	/* Compute the last block length and check constraints */
-	nb_blocks = ((len + block_size - 1) / block_size);
+	nb_blocks = (len + block_size - 1) / block_size;
 	if (nb_blocks < 2)
 		return TEE_ERROR_BAD_STATE;
 	len_last_block = len % block_size;
