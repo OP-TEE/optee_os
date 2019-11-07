@@ -78,6 +78,8 @@
 
 #if defined(CFG_MX6UL) || defined(CFG_MX6ULL)
 #define GICC_OFFSET			0x2000
+#define UART6_BASE			0x021FC000
+#define UART7_BASE			0x02018000
 /* No CAAM on i.MX6ULL */
 #define CAAM_BASE			0x02140000
 #else
