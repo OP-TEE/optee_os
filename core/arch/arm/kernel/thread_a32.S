@@ -560,13 +560,14 @@ UNWIND(	.cantunwind)
 		add	sp, sp, #1	/* 3:011 Data abort		*/
 		add	sp, sp, #1	/* 2:010 Reserved		*/
 		add	sp, sp, #1	/* 1:001 IRQ			*/
-		write_tpidrprw r0	/* 0:000 FIQ			*/
+		cpsid   aif		/* 0:000 FIQ			*/
 	.endm
 
         .align	5
 	.global thread_excp_vect_workaround_a15
 thread_excp_vect_workaround_a15:
 	vector_prologue_spectre
+	write_tpidrprw r0
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0
 	bne	1f
@@ -589,6 +590,7 @@ thread_excp_vect_workaround_a15:
 	.global thread_excp_vect_workaround
 thread_excp_vect_workaround:
 	vector_prologue_spectre
+	write_tpidrprw r0
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0
 	bne	1f
