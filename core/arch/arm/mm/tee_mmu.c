@@ -307,46 +307,213 @@ err_free_reg:
 	return res;
 }
 
-static TEE_Result find_exact_vm_region(struct vm_info *vm_info, vaddr_t va,
-				       size_t len, struct vm_region **r_ret)
+static struct vm_region *find_vm_region(struct vm_info *vm_info, vaddr_t va)
 {
 	struct vm_region *r = NULL;
 
-	TAILQ_FOREACH(r, &vm_info->regions, link) {
-		if (core_is_buffer_intersect(r->va, r->size, va, len)) {
-			if (r->va != va || r->size != len)
-				return TEE_ERROR_BAD_PARAMETERS;
+	TAILQ_FOREACH(r, &vm_info->regions, link)
+		if (va >= r->va && va < r->va + r->size)
+			return r;
 
-			*r_ret = r;
-			return TEE_SUCCESS;
-		}
+	return NULL;
+}
+
+static bool va_range_is_contiguous(struct vm_region *r0, vaddr_t va,
+				   size_t len,
+				   bool (*cmp_regs)(const struct vm_region *r0,
+						    const struct vm_region *r,
+						    const struct vm_region *rn))
+{
+	struct vm_region *r = r0;
+
+	while (true) {
+		struct vm_region *r_next = TAILQ_NEXT(r, link);
+		vaddr_t r_end_va = r->va + r->size;
+
+		if (r_end_va >= va + len)
+			return true;
+		if (!r_next)
+			return false;
+		if (r_end_va != r_next->va)
+			return false;
+		if (cmp_regs && !cmp_regs(r0, r, r_next))
+			return false;
+		r = r_next;
+	}
+}
+
+static TEE_Result split_vm_region(struct user_mode_ctx *uctx,
+				  struct vm_region *r, vaddr_t va)
+{
+	struct vm_region *r2 = NULL;
+	size_t diff = va - r->va;
+
+	assert(diff && diff < r->size);
+
+	r2 = calloc(1, sizeof(*r2));
+	if (!r2)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	if (mobj_is_paged(r->mobj)) {
+		TEE_Result res = tee_pager_split_um_region(uctx, va);
+
+		if (res)
+			return res;
 	}
 
-	return TEE_ERROR_ITEM_NOT_FOUND;
+	r2->mobj = mobj_get(r->mobj);
+	r2->offset = r->offset + diff;
+	r2->va = va;
+	r2->size = r->size - diff;
+	r2->attr = r->attr;
+	r2->flags = r->flags;
+
+	r->size = diff;
+
+	TAILQ_INSERT_AFTER(&uctx->vm_info.regions, r, r2, link);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result split_vm_range(struct user_mode_ctx *uctx, vaddr_t va,
+				 size_t len,
+				 bool (*cmp_regs)(const struct vm_region *r0,
+						  const struct vm_region *r,
+						  const struct vm_region *rn),
+				 struct vm_region **r0_ret)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r = NULL;
+
+	if ((va | len) & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Find first vm_region in range and check that the entire range is
+	 * contiguous.
+	 */
+	r = find_vm_region(&uctx->vm_info, va);
+	if (!r || !va_range_is_contiguous(r, va, len, cmp_regs))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * If needed split regions so that va and len covers only complete
+	 * regions.
+	 */
+	if (va != r->va) {
+		res = split_vm_region(uctx, r, va);
+		if (res)
+			return res;
+		r = TAILQ_NEXT(r, link);
+	}
+
+	*r0_ret = r;
+	r = find_vm_region(&uctx->vm_info, va + len - 1);
+	if (!r)
+		return TEE_ERROR_BAD_PARAMETERS;
+	if (va + len != r->va + r->size) {
+		res = split_vm_region(uctx, r, va + len);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void merge_vm_range(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
+{
+	struct vm_region *r_next = NULL;
+	struct vm_region *r = NULL;
+
+	tee_pager_merge_um_region(uctx, va, len);
+
+	for (r = TAILQ_FIRST(&uctx->vm_info.regions);; r = r_next) {
+		r_next = TAILQ_NEXT(r, link);
+		if (!r_next)
+			return;
+
+		/* Try merging with the region just before va */
+		if (r->va + r->size < va)
+			continue;
+
+		/*
+		 * If r->va is well past our range we're done.
+		 * Note that if it's just the page after our range we'll
+		 * try to merge.
+		 */
+		if (r->va > va + len)
+			return;
+
+		if (r->va + r->size != r_next->va)
+			continue;
+		if (r->mobj != r_next->mobj ||
+		    r->flags != r_next->flags ||
+		    r->attr != r_next->attr)
+			continue;
+		if (r->offset + r->size != r_next->offset)
+			continue;
+
+		TAILQ_REMOVE(&uctx->vm_info.regions, r_next, link);
+		r->size += r_next->size;
+		mobj_put(r_next->mobj);
+		free(r_next);
+		r_next = r;
+	}
+}
+
+static bool cmp_region_for_remap(const struct vm_region *r0,
+				 const struct vm_region *r,
+				 const struct vm_region *rn)
+{
+	/*
+	 * All the essentionals has to match for remap to make sense. The
+	 * essentials are, mobj/fobj, attr, flags and the offset should be
+	 * contiguous.
+	 *
+	 * Note that vm_remap() depends on mobj/fobj to be the same.
+	 */
+	return r0->flags == r->flags && r0->attr == r->attr &&
+	       r0->mobj == r->mobj && rn->offset == r->offset + r->size;
 }
 
 TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		    size_t len, size_t pad_begin, size_t pad_end)
 {
+	struct vm_region_head regs = TAILQ_HEAD_INITIALIZER(regs);
 	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r0 = NULL;
 	struct vm_region *r = NULL;
+	struct vm_region *r_next = NULL;
+	struct vm_region *r_last = NULL;
+	struct vm_region *r_first = NULL;
 	struct fobj *fobj = NULL;
+	vaddr_t next_va = 0;
 
 	assert(thread_get_tsd()->ctx == &uctx->ctx);
 
-	res = find_exact_vm_region(&uctx->vm_info, old_va, len, &r);
+	if (!len || ((len | old_va) & SMALL_PAGE_MASK))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = split_vm_range(uctx, old_va, len, cmp_region_for_remap, &r0);
 	if (res)
 		return res;
 
-	if (mobj_is_paged(r->mobj)) {
-		fobj = mobj_get_fobj(r->mobj);
+	if (mobj_is_paged(r0->mobj)) {
+		fobj = mobj_get_fobj(r0->mobj);
 		if (!fobj)
-			return TEE_ERROR_GENERIC;
-		tee_pager_rem_um_region(uctx, r->va, r->size);
+			panic();
 	}
-	maybe_free_pgt(uctx, r);
 
-	TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
+	for (r = r0; r; r = r_next) {
+		if (r->va + r->size > old_va + len)
+			break;
+		r_next = TAILQ_NEXT(r, link);
+		if (fobj)
+			tee_pager_rem_um_region(uctx, r->va, r->size);
+		maybe_free_pgt(uctx, r);
+		TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
+		TAILQ_INSERT_TAIL(&regs, r, link);
+	}
 
 	/*
 	 * Synchronize change to translation tables. Even though the pager
@@ -354,98 +521,162 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	 */
 	tee_mmu_set_ctx(&uctx->ctx);
 
-	r->va = *new_va;
-	res = umap_add_region(&uctx->vm_info, r, pad_begin, pad_end);
-	if (res)
-		goto err_restore_map;
+	r_first = TAILQ_FIRST(&regs);
+	while (!TAILQ_EMPTY(&regs)) {
+		r = TAILQ_FIRST(&regs);
+		TAILQ_REMOVE(&regs, r, link);
+		if (r_last) {
+			r->va = r_last->va + r_last->size;
+			res = umap_add_region(&uctx->vm_info, r, 0, 0);
+		} else {
+			r->va = *new_va;
+			res = umap_add_region(&uctx->vm_info, r, pad_begin,
+					      pad_end + len - r->size);
+		}
+		if (!res)
+			r_last = r;
+		if (!res)
+			res = alloc_pgt(uctx);
+		if (fobj && !res)
+			res = tee_pager_add_um_area(uctx, r->va, fobj, r->attr);
 
-	res = alloc_pgt(uctx);
-	if (res)
-		goto err_restore_map_rem_reg;
+		if (res) {
+			/*
+			 * Something went wrong move all the recently added
+			 * regions back to regs for later reinsertion at
+			 * the original spot.
+			 */
+			struct vm_region *r_tmp = NULL;
 
-	if (fobj) {
-		res = tee_pager_add_um_area(uctx, r->va, fobj, r->attr);
-		if (res)
-			goto err_restore_map_rem_reg;
-		fobj_put(fobj);
+			if (r != r_last) {
+				/*
+				 * umap_add_region() failed, move r back to
+				 * regs before all the rest are moved back.
+				 */
+				TAILQ_INSERT_HEAD(&regs, r, link);
+			}
+			for (r = r_first; r_last && r != r_last; r = r_next) {
+				r_next = TAILQ_NEXT(r, link);
+				TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
+				if (r_tmp)
+					TAILQ_INSERT_AFTER(&regs, r_tmp, r,
+							   link);
+				else
+					TAILQ_INSERT_HEAD(&regs, r, link);
+				r_tmp = r;
+			}
+
+			goto err_restore_map;
+		}
 	}
 
+	fobj_put(fobj);
+
 	tee_mmu_set_ctx(&uctx->ctx);
-	*new_va = r->va;
+	*new_va = r_first->va;
 
 	return TEE_SUCCESS;
 
-err_restore_map_rem_reg:
-	TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
 err_restore_map:
-	r->va = old_va;
-	if (umap_add_region(&uctx->vm_info, r, 0, 0))
-		panic("Cannot restore mapping");
-	if (alloc_pgt(uctx))
-		panic("Cannot restore mapping");
-	if (fobj) {
-		if (tee_pager_add_um_area(uctx, r->va, fobj, r->attr))
+	next_va = old_va;
+	while (!TAILQ_EMPTY(&regs)) {
+		r = TAILQ_FIRST(&regs);
+		TAILQ_REMOVE(&regs, r, link);
+		r->va = next_va;
+		next_va += r->size;
+		if (umap_add_region(&uctx->vm_info, r, 0, 0))
 			panic("Cannot restore mapping");
-		fobj_put(fobj);
+		if (alloc_pgt(uctx))
+			panic("Cannot restore mapping");
+		if (fobj && tee_pager_add_um_area(uctx, r->va, fobj, r->attr))
+			panic("Cannot restore mapping");
 	}
-
+	fobj_put(fobj);
 	tee_mmu_set_ctx(&uctx->ctx);
 
 	return res;
 }
 
+static bool cmp_region_for_get_flags(const struct vm_region *r0,
+				     const struct vm_region *r,
+				     const struct vm_region *rn __unused)
+{
+	return r0->flags == r->flags;
+}
+
 TEE_Result vm_get_flags(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 			uint32_t *flags)
 {
-	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
 
-	res = find_exact_vm_region(&uctx->vm_info, va, len, &r);
-	if (!res)
-		*flags = r->flags;
+	if (!len || ((len | va) & SMALL_PAGE_MASK))
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	return res;
+	r = find_vm_region(&uctx->vm_info, va);
+	if (!r)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!va_range_is_contiguous(r, va, len, cmp_region_for_get_flags))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*flags = r->flags;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		       uint32_t prot)
 {
 	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *r0 = NULL;
 	struct vm_region *r = NULL;
 	bool was_writeable = false;
+	bool need_sync = false;
 
 	assert(thread_get_tsd()->ctx == &uctx->ctx);
 
-	if (prot & ~TEE_MATTR_PROT_MASK)
+	if (prot & ~TEE_MATTR_PROT_MASK || !len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	/*
-	 * To keep thing simple: specified va and len have to match exactly
-	 * with an already registered region.
-	 */
-	res = find_exact_vm_region(&uctx->vm_info, va, len, &r);
+	res = split_vm_range(uctx, va, len, NULL, &r0);
 	if (res)
 		return res;
 
-	if ((r->attr & TEE_MATTR_PROT_MASK) == prot)
-		return TEE_SUCCESS;
+	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
+		if (r->va + r->size > va + len)
+			break;
+		if (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))
+			was_writeable = true;
 
-	was_writeable = r->attr & (TEE_MATTR_UW | TEE_MATTR_PW);
+		if (!mobj_is_paged(r->mobj))
+			need_sync = true;
 
-	r->attr &= ~TEE_MATTR_PROT_MASK;
-	r->attr |= prot;
+		r->attr &= ~TEE_MATTR_PROT_MASK;
+		r->attr |= prot;
+	}
 
-	if (mobj_is_paged(r->mobj)) {
-		if (!tee_pager_set_um_area_attr(uctx, va, len, prot))
-			return TEE_ERROR_GENERIC;
-	} else if ((prot & TEE_MATTR_UX) && was_writeable) {
+	if (need_sync) {
 		/* Synchronize changes to translation tables */
 		tee_mmu_set_ctx(&uctx->ctx);
-
-		cache_op_inner(DCACHE_AREA_CLEAN,
-			       (void *)va, len);
-		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
 	}
+
+	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
+		if (r->va + r->size > va + len)
+			break;
+		if (mobj_is_paged(r->mobj)) {
+			if (!tee_pager_set_um_area_attr(uctx, r->va, r->size,
+							prot))
+				panic();
+		} else if (was_writeable) {
+			cache_op_inner(DCACHE_AREA_CLEAN, (void *)r->va,
+				       r->size);
+		}
+
+	}
+	if (need_sync && was_writeable)
+		cache_op_inner(ICACHE_INVALIDATE, NULL, 0);
+
+	merge_vm_range(uctx, va, len);
 
 	return TEE_SUCCESS;
 }
@@ -461,22 +692,27 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
+	struct vm_region *r_next = NULL;
 
 	assert(thread_get_tsd()->ctx == &uctx->ctx);
 
-	/*
-	 * To keep thing simple: specified va and len has to match exactly
-	 * with an already registered region.
-	 */
-	res = find_exact_vm_region(&uctx->vm_info, va,
-				   ROUNDUP(len, SMALL_PAGE_SIZE), &r);
+	if (!len || ((len | va) & SMALL_PAGE_MASK))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = split_vm_range(uctx, va, len, NULL, &r);
 	if (res)
 		return res;
 
-	if (mobj_is_paged(r->mobj))
-		tee_pager_rem_um_region(uctx, r->va, r->size);
-	maybe_free_pgt(uctx, r);
-	umap_remove_region(&uctx->vm_info, r);
+	while (true) {
+		r_next = TAILQ_NEXT(r, link);
+		if (mobj_is_paged(r->mobj))
+			tee_pager_rem_um_region(uctx, r->va, r->size);
+		maybe_free_pgt(uctx, r);
+		umap_remove_region(&uctx->vm_info, r);
+		if (!r_next || r->va + r->size == va + len)
+			break;
+		r = r_next;
+	}
 
 	/*
 	 * Synchronize change to translation tables. Even though the pager

@@ -500,16 +500,21 @@ static void *pager_add_alias_page(paddr_t pa)
 	return (void *)core_mmu_idx2va(ti, idx);
 }
 
-static void area_insert_tail(struct tee_pager_area *area)
+static void area_insert(struct tee_pager_area_head *head,
+			struct tee_pager_area *area,
+			struct tee_pager_area *a_prev)
 {
 	uint32_t exceptions = pager_lock_check_stack(8);
 
-	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
+	if (a_prev)
+		TAILQ_INSERT_AFTER(head, a_prev, area, link);
+	else
+		TAILQ_INSERT_HEAD(head, area, link);
 	TAILQ_INSERT_TAIL(&area->fobj->areas, area, fobj_link);
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(area_insert_tail);
+KEEP_PAGER(area_insert);
 
 void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 			     struct fobj *fobj)
@@ -556,7 +561,7 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 		area->base = b;
 		area->size = s2;
 		area->flags = flags;
-		area_insert_tail(area);
+		area_insert(&tee_pager_area_head, area, NULL);
 
 		b += s2;
 		s -= s2;
@@ -696,7 +701,8 @@ static void free_area(struct tee_pager_area *area)
 static TEE_Result pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 				    struct fobj *fobj, uint32_t prot)
 {
-	struct tee_pager_area *area;
+	struct tee_pager_area *a_prev = NULL;
+	struct tee_pager_area *area = NULL;
 	vaddr_t b = base;
 	size_t fobj_pgoffs = 0;
 	size_t s = fobj->num_pages * SMALL_PAGE_SIZE;
@@ -708,11 +714,19 @@ static TEE_Result pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 		TAILQ_INIT(uctx->areas);
 	}
 
+	area = TAILQ_FIRST(uctx->areas);
+	while (area) {
+		if (core_is_buffer_intersect(b, s, area->base,
+					     area->size))
+			return TEE_ERROR_BAD_PARAMETERS;
+		if (b < area->base)
+			break;
+		a_prev = area;
+		area = TAILQ_NEXT(area, link);
+	}
+
 	while (s) {
 		size_t s2;
-
-		if (find_area(uctx->areas, b))
-			return TEE_ERROR_BAD_PARAMETERS;
 
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
 		area = calloc(1, sizeof(*area));
@@ -727,8 +741,9 @@ static TEE_Result pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 		area->size = s2;
 		area->flags = prot;
 
-		TAILQ_INSERT_TAIL(uctx->areas, area, link);
-		TAILQ_INSERT_TAIL(&fobj->areas, area, fobj_link);
+		area_insert(uctx->areas, area, a_prev);
+
+		a_prev = area;
 		b += s2;
 		s -= s2;
 		fobj_pgoffs += s2 / SMALL_PAGE_SIZE;
@@ -807,6 +822,107 @@ TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 	}
 
 	return TEE_SUCCESS;
+}
+
+static void split_area(struct tee_pager_area_head *area_head,
+		       struct tee_pager_area *area, struct tee_pager_area *a2,
+		       vaddr_t va)
+{
+	uint32_t exceptions = pager_lock_check_stack(64);
+	size_t diff = va - area->base;
+
+	a2->fobj = fobj_get(area->fobj);
+	a2->fobj_pgoffs = area->fobj_pgoffs + diff / SMALL_PAGE_SIZE;
+	a2->type = area->type;
+	a2->flags = area->flags;
+	a2->base = va;
+	a2->size = area->size - diff;
+	a2->pgt = area->pgt;
+	area->size = diff;
+
+	TAILQ_INSERT_AFTER(area_head, area, a2, link);
+	TAILQ_INSERT_AFTER(&area->fobj->areas, area, a2, fobj_link);
+
+	pager_unlock(exceptions);
+}
+KEEP_PAGER(split_area);
+
+TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va)
+{
+	struct tee_pager_area *area = NULL;
+	struct tee_pager_area *a2 = NULL;
+
+	if (va & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	TAILQ_FOREACH(area, uctx->areas, link) {
+		if (va == area->base || va == area->base + area->size)
+			return TEE_SUCCESS;
+		if (va > area->base && va < area->base + area->size) {
+			a2 = calloc(1, sizeof(*a2));
+			if (!a2)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			split_area(uctx->areas, area, a2, va);
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void merge_area_with_next(struct tee_pager_area_head *area_head,
+				 struct tee_pager_area *a,
+				 struct tee_pager_area *a_next)
+{
+	uint32_t exceptions = pager_lock_check_stack(64);
+
+	TAILQ_REMOVE(area_head, a_next, link);
+	TAILQ_REMOVE(&a_next->fobj->areas, a_next, fobj_link);
+	a->size += a_next->size;
+
+	pager_unlock(exceptions);
+}
+KEEP_PAGER(merge_area_with_next);
+
+void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
+			       size_t len)
+{
+	struct tee_pager_area *a_next = NULL;
+	struct tee_pager_area *a = NULL;
+
+	if ((va | len) & SMALL_PAGE_MASK)
+		return;
+
+	for (a = TAILQ_FIRST(uctx->areas);; a = a_next) {
+		a_next = TAILQ_NEXT(a, link);
+		if (!a_next)
+			return;
+
+		/* Try merging with the area just before va */
+		if (a->base + a->size < va)
+			continue;
+
+		/*
+		 * If a->base is well past our range we're done.
+		 * Note that if it's just the page after our range we'll
+		 * try to merge.
+		 */
+		if (a->base > va + len)
+			return;
+
+		if (a->base + a->size != a_next->base)
+			continue;
+		if (a->fobj != a_next->fobj || a->type != a_next->type ||
+		    a->flags != a_next->flags || a->pgt != a_next->pgt)
+			continue;
+		if (a->fobj_pgoffs + a->size / SMALL_PAGE_SIZE !=
+		    a_next->fobj_pgoffs)
+			continue;
+
+		merge_area_with_next(uctx->areas, a, a_next);
+		free_area(a_next);
+		a_next = a;
+	}
 }
 
 static void rem_area(struct tee_pager_area_head *area_head,
