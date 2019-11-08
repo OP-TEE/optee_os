@@ -152,6 +152,28 @@ static inline void tee_pager_rem_um_region(struct user_mode_ctx *uctx __unused,
 }
 #endif
 
+#ifdef CFG_PAGED_USER_TA
+TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va);
+#else
+static inline TEE_Result
+tee_pager_split_um_region(struct user_mode_ctx *uctx __unused,
+			  vaddr_t va __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+#endif
+#ifdef CFG_PAGED_USER_TA
+void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
+			       size_t len);
+#else
+static inline void
+tee_pager_merge_um_region(struct user_mode_ctx *uctx __unused,
+			  vaddr_t va __unused, size_t len __unused)
+{
+}
+#endif
+
 /*
  * tee_pager_rem_uma_areas() - Remove all user ta areas
  * @uctx:	user mode context
