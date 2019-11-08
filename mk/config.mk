@@ -348,6 +348,11 @@ CFG_CORE_NEX_HEAP_SIZE ?= 16384
 # instrumented with GCC's -pg flag and will output profiling information
 # in gmon.out format to /tmp/gmon-<ta_uuid>.out (path is defined in
 # tee-supplicant)
+# Note: this does not work well with shared libraries at the moment for a
+# couple of reasons:
+# 1. The profiling code assumes a unique executable section in the TA VA space.
+# 2. The code used to detect at run time if the TA is intrumented assumes that
+# the TA is linked statically.
 CFG_TA_GPROF_SUPPORT ?= n
 
 # TA function tracing.
@@ -393,15 +398,6 @@ endif
 CFG_ULIBS_SHARED ?= n
 
 ifeq (yy,$(CFG_TA_GPROF_SUPPORT)$(CFG_ULIBS_SHARED))
-# FIXME:
-# TA profiling with gprof does not work well with shared libraries (not limited
-# to CFG_ULIBS_SHARED=y actually), because the total .text size is not known at
-# link time. The symptom is an error trace when the TA starts (and no gprof
-# output is produced):
-#  E/TA: __utee_gprof_init:159 gprof: could not allocate profiling buffer
-# The allocation of the profiling buffer should probably be done at runtime
-# via a new syscall/PTA call instead of having it pre-allocated in .bss by the
-# linker.
 $(error CFG_TA_GPROF_SUPPORT and CFG_ULIBS_SHARED are currently incompatible)
 endif
 

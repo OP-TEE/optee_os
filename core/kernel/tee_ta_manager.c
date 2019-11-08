@@ -883,7 +883,9 @@ struct tee_ta_session *tee_ta_get_calling_session(void)
 void tee_ta_gprof_sample_pc(vaddr_t pc)
 {
 	struct tee_ta_session *s = NULL;
+	struct user_ta_ctx *utc = NULL;
 	struct sample_buf *sbuf = NULL;
+	TEE_Result res = 0;
 	size_t idx = 0;
 
 	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
@@ -893,8 +895,18 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 		return; /* PC sampling is not enabled */
 
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
-	if (idx < sbuf->nsamples)
+	if (idx < sbuf->nsamples) {
+		utc = to_user_ta_ctx(s->ctx);
+		res = tee_mmu_check_access_rights(utc,
+						  TEE_MEMORY_ACCESS_READ |
+						  TEE_MEMORY_ACCESS_WRITE |
+						  TEE_MEMORY_ACCESS_ANY_OWNER,
+						  (uaddr_t)&sbuf->samples[idx],
+						  sizeof(*sbuf->samples));
+		if (res != TEE_SUCCESS)
+			return;
 		sbuf->samples[idx]++;
+	}
 	sbuf->count++;
 }
 
