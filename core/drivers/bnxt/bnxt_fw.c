@@ -5,6 +5,7 @@
 
 #include <crc32.h>
 #include <drivers/bcm/bnxt.h>
+#include <mm/core_mmu.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -647,6 +648,7 @@ TEE_Result bnxt_load_fw(int chip_type)
 				 chip_type, sec_mem_dest) != BNXT_SUCCESS)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
+	bnxt_handshake_clear();
 	bnxt_kong_halt();
 	bnxt_chimp_halt();
 
@@ -673,8 +675,21 @@ TEE_Result bnxt_load_fw(int chip_type)
 	/* Load bnxt firmware and fastboot */
 	bnxt_load(bnxt_src_image_info.bnxt_fw_vaddr);
 
-	/* Wait for handshke */
-	bnxt_wait_handshake();
+	return TEE_SUCCESS;
+}
+
+TEE_Result bnxt_copy_crash_dump(uint8_t *d, uint32_t offset, uint32_t len)
+{
+	void *s = NULL;
+
+	if (offset + len > BNXT_CRASH_LEN)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	s = phys_to_virt(BNXT_CRASH_SEC_MEM + offset, MEM_AREA_RAM_SEC);
+
+	cache_op_inner(DCACHE_AREA_INVALIDATE, s, len);
+
+	memcpy(d, s, len);
 
 	return TEE_SUCCESS;
 }

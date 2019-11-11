@@ -18,11 +18,14 @@ uint32_t bnxt_write32_multiple(uintptr_t dst,
 			       uintptr_t src,
 			       uint32_t num_entries,
 			       int src_4byte_increment);
+void bnxt_handshake_clear(void);
 void bnxt_chimp_halt(void);
 void bnxt_kong_halt(void);
 int bnxt_fastboot(uintptr_t addr);
-int bnxt_wait_handshake(void);
+uint32_t bnxt_wait_handshake(uint32_t timeout);
+uint32_t bnxt_health_status(void);
 TEE_Result bnxt_load_fw(int chip_type);
+TEE_Result bnxt_copy_crash_dump(uint8_t *d, uint32_t offset, uint32_t len);
 
 struct bnxt_images_info {
 	vaddr_t bnxt_fw_vaddr;
