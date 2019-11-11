@@ -173,6 +173,7 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 	moph->cattr = cattr;
 	moph->mobj.size = size;
 	moph->mobj.ops = &mobj_phys_ops;
+	refcount_set(&moph->mobj.refc, 1);
 	moph->pa = pa;
 	moph->va = (vaddr_t)va;
 
@@ -292,6 +293,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 	m->parent_mobj = mobj_parent;
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_mm_ops;
+	refcount_set(&m->mobj.refc, 1);
 
 	return &m->mobj;
 }
@@ -397,6 +399,7 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie)
 
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_shm_ops;
+	refcount_set(&m->mobj.refc, 1);
 	m->pa = pa;
 	m->cookie = cookie;
 
@@ -487,6 +490,7 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_seccpy_shm_ops;
+	refcount_set(&m->mobj.refc, 1);
 
 	if (tee_mmu_add_rwmem(utc, &m->mobj, &va) != TEE_SUCCESS)
 		goto bad;
@@ -531,6 +535,7 @@ struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file)
 		return NULL;
 
 	m->mobj.ops = &mobj_with_fobj_ops;
+	refcount_set(&m->mobj.refc, 1);
 	m->mobj.size = fobj->num_pages * SMALL_PAGE_SIZE;
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 	m->fobj = fobj_get(fobj);

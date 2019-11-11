@@ -37,10 +37,11 @@ struct mobj_reg_shm {
 	uint64_t cookie;
 	tee_mm_entry_t *mm;
 	paddr_t page_offset;
-	struct refcount refcount;
 	struct refcount mapcount;
 	int num_pages;
 	bool guarded;
+	bool releasing;
+	bool release_frees;
 	paddr_t pages[];
 };
 
@@ -135,7 +136,34 @@ static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm)
 
 static void mobj_reg_shm_free(struct mobj *mobj)
 {
-	mobj_reg_shm_put(mobj);
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
+	uint32_t exceptions = 0;
+
+	if (r->guarded && !r->releasing) {
+		/*
+		 * Guarded registersted shared memory can't be released
+		 * by cookie, only by mobj_put(). However, unguarded
+		 * registered shared memory can also be freed by mobj_put()
+		 * unless mobj_reg_shm_release_by_cookie() is waiting for
+		 * the mobj to be released.
+		 */
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		reg_shm_free_helper(r);
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	} else {
+		/*
+		 * We've reached the point where an unguarded reg shm can
+		 * be released by cookie. Notify eventual waiters.
+		 */
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		r->release_frees = true;
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+		mutex_lock(&shm_mu);
+		if (shm_release_waiters)
+			condvar_broadcast(&shm_cv);
+		mutex_unlock(&shm_mu);
+	}
 }
 
 static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
@@ -209,12 +237,12 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	mobj_reg_shm->mobj.ops = &mobj_reg_shm_ops;
 	mobj_reg_shm->mobj.size = num_pages * SMALL_PAGE_SIZE;
 	mobj_reg_shm->mobj.phys_granule = SMALL_PAGE_SIZE;
+	refcount_set(&mobj_reg_shm->mobj.refc, 1);
 	mobj_reg_shm->cookie = cookie;
 	mobj_reg_shm->guarded = true;
 	mobj_reg_shm->num_pages = num_pages;
 	mobj_reg_shm->page_offset = page_offset;
 	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
-	refcount_set(&mobj_reg_shm->refcount, 1);
 
 	/* Ensure loaded references match format and security constraints */
 	for (i = 0; i < num_pages; i++) {
@@ -261,85 +289,60 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
 
-	if (r) {
-		/*
-		 * Counter is supposed to be larger than 0, if it isn't
-		 * we're in trouble.
-		 */
-		if (!refcount_inc(&r->refcount))
-			panic();
-	}
-
 	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	if (!r)
+		return NULL;
 
-	if (r)
-		return &r->mobj;
-
-	return NULL;
-}
-
-void mobj_reg_shm_put(struct mobj *mobj)
-{
-	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-
-	/*
-	 * A put is supposed to match a get or the initial alloc, once
-	 * we're at zero there's no more user and the original allocator is
-	 * done too.
-	 */
-	if (refcount_dec(&r->refcount))
-		reg_shm_free_helper(r);
-
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-
-	/*
-	 * Note that we're reading this mutex protected variable without the
-	 * mutex acquired. This isn't a problem since an eventually missed
-	 * waiter who is waiting for this MOBJ will try again before hanging
-	 * in condvar_wait().
-	 */
-	if (shm_release_waiters) {
-		mutex_lock(&shm_mu);
-		condvar_broadcast(&shm_cv);
-		mutex_unlock(&shm_mu);
-	}
-}
-
-static TEE_Result try_release_reg_shm(uint64_t cookie)
-{
-	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
-	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
-
-	if (!r || r->guarded)
-		goto out;
-
-	res = TEE_ERROR_BUSY;
-	if (refcount_val(&r->refcount) == 1) {
-		reg_shm_free_helper(r);
-		res = TEE_SUCCESS;
-	}
-out:
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
-
-	return res;
+	return mobj_get(&r->mobj);
 }
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 {
-	TEE_Result res = try_release_reg_shm(cookie);
+	uint32_t exceptions = 0;
+	struct mobj_reg_shm *r = NULL;
 
-	if (res != TEE_ERROR_BUSY)
-		return res;
+	/*
+	 * Try to find r and see can be released by this function, if so
+	 * call mobj_put(). Otherwise this function is called either by
+	 * wrong cookie and perhaps a second time, regardless return
+	 * TEE_ERROR_BAD_PARAMETERS.
+	 */
+	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	r = reg_shm_find_unlocked(cookie);
+	if (!r || r->guarded || r->releasing)
+		r = NULL;
+	else
+		r->releasing = true;
 
+	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+	if (!r)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mobj_put(&r->mobj);
+
+	/*
+	 * We've established that this function can release the cookie.
+	 * Now we wait until mobj_reg_shm_free() is called by the last
+	 * mobj_put() needed to free this mobj. Note that the call to
+	 * mobj_put() above could very well be that call.
+	 *
+	 * Once mobj_reg_shm_free() is called it will set r->release_frees
+	 * to true and we can free the mobj here.
+	 */
 	mutex_lock(&shm_mu);
 	shm_release_waiters++;
 	assert(shm_release_waiters);
 
 	while (true) {
-		res = try_release_reg_shm(cookie);
-		if (res != TEE_ERROR_BUSY)
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		if (r->release_frees) {
+			reg_shm_free_helper(r);
+			r = NULL;
+		}
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+
+		if (!r)
 			break;
 		condvar_wait(&shm_cv, &shm_mu);
 	}
@@ -348,7 +351,7 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	shm_release_waiters--;
 	mutex_unlock(&shm_mu);
 
-	return res;
+	return TEE_SUCCESS;
 }
 
 TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
@@ -423,7 +426,7 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 		return NULL;
 
 	if (mobj_reg_shm_inc_map(mobj)) {
-		mobj_free(mobj);
+		mobj_put(mobj);
 		return NULL;
 	}
 

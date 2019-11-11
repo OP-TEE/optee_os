@@ -145,7 +145,7 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 
 	return mobj;
 err:
-	mobj_free(mobj);
+	mobj_put(mobj);
 	return NULL;
 }
 #else
@@ -184,14 +184,14 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		mobj_free(mobj);
+		mobj_put(mobj);
 		return OPTEE_SMC_RETURN_EBADADDR;
 	}
 
 	arg = mobj_get_va(mobj, 0);
 	assert(arg && mobj_is_nonsec(mobj));
 	rv = tee_entry_std(arg, num_params);
-	mobj_free(mobj);
+	mobj_put(mobj);
 
 	return rv;
 }
@@ -218,7 +218,7 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		tee_fs_rpc_cache_clear(&thr->tsd);
 		if (!thread_prealloc_rpc_cache) {
 			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
-			mobj_free(thr->rpc_mobj);
+			mobj_put(thr->rpc_mobj);
 			thr->rpc_arg = 0;
 			thr->rpc_mobj = NULL;
 		}
@@ -246,7 +246,7 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		if (threads[n].rpc_arg) {
 			*cookie = mobj_get_cookie(threads[n].rpc_mobj);
-			mobj_free(threads[n].rpc_mobj);
+			mobj_put(threads[n].rpc_mobj);
 			threads[n].rpc_arg = NULL;
 			goto out;
 		}
@@ -323,7 +323,7 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 	return mobj;
 err:
 	thread_rpc_free_arg(co);
-	mobj_free(mobj);
+	mobj_put(mobj);
 	return NULL;
 }
 
@@ -510,7 +510,7 @@ static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 	uint32_t ret = get_rpc_arg(OPTEE_RPC_CMD_SHM_FREE, 1, &param,
 				   &arg, &carg);
 
-	mobj_free(mobj);
+	mobj_put(mobj);
 
 	if (!ret) {
 		reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);

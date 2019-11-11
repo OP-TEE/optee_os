@@ -653,9 +653,8 @@ static TEE_Result alloc_and_map_ldelf_fobj(struct user_ta_ctx *utc, size_t sz,
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = vm_map(utc, va, num_pgs * SMALL_PAGE_SIZE,
-		     prot, VM_FLAG_LDELF | VM_FLAG_EXCLUSIVE_MOBJ, mobj, 0);
-	if (res)
-		mobj_free(mobj);
+		     prot, VM_FLAG_LDELF, mobj, 0);
+	mobj_put(mobj);
 
 	return res;
 }

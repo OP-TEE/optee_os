@@ -137,10 +137,10 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE);
 	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
-	uint32_t vm_flags = VM_FLAG_EXCLUSIVE_MOBJ;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct mobj *mobj = NULL;
 	uint32_t pad_begin = 0;
+	uint32_t vm_flags = 0;
 	struct fobj *f = NULL;
 	uint32_t pad_end = 0;
 	size_t num_bytes = 0;
@@ -169,9 +169,8 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = vm_map_pad(utc, &va, num_bytes, prot, vm_flags,
 			 mobj, 0, pad_begin, pad_end);
-	if (res)
-		mobj_free(mobj);
-	else
+	mobj_put(mobj);
+	if (!res)
 		reg_pair_from_64(va, &params[1].value.a, &params[1].value.b);
 
 	return res;
@@ -428,15 +427,16 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE, prot,
-				 VM_FLAG_READONLY | VM_FLAG_EXCLUSIVE_MOBJ,
+		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE,
+				 prot, VM_FLAG_READONLY,
 				 mobj, 0, pad_begin, pad_end);
+		mobj_put(mobj);
 		if (res)
 			goto err;
 	} else {
 		struct fobj *f = fobj_ta_mem_alloc(num_pages);
 		struct file *file = NULL;
-		uint32_t vm_flags = VM_FLAG_EXCLUSIVE_MOBJ;
+		uint32_t vm_flags = 0;
 
 		if (!f) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
@@ -456,6 +456,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		res = vm_map_pad(utc, &va, num_pages * SMALL_PAGE_SIZE,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
 				 pad_begin, pad_end);
+		mobj_put(mobj);
 		if (res)
 			goto err;
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
@@ -494,7 +495,6 @@ err_unmap_va:
 	tee_mmu_set_ctx(s->ctx);
 
 err:
-	mobj_free(mobj);
 	if (file_is_locked)
 		file_unlock(binh->f);
 
