@@ -800,7 +800,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 				       usr_param);
 
 function_exit:
-	mobj_free_wipe(mobj_param);
+	mobj_put_wipe(mobj_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_to_user(ta_sess, &s->id, sizeof(s->id));
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
@@ -891,7 +891,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 function_exit:
 	tee_ta_put_session(called_sess);
-	mobj_free_wipe(mobj_param);
+	mobj_put_wipe(mobj_param);
 	if (ret_orig)
 		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;

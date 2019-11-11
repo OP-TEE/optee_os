@@ -93,7 +93,7 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 			if (page & SMALL_PAGE_MASK)
 				goto out;
 
-			mobj_free(mobj);
+			mobj_put(mobj);
 			mobj = mobj_mapped_shm_alloc(&page, 1, 0, 0);
 			if (!mobj)
 				goto out;
@@ -108,7 +108,7 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 
 	ret = true;
 out:
-	mobj_free(mobj);
+	mobj_put(mobj);
 	return ret;
 }
 

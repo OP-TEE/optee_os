@@ -19,6 +19,7 @@ struct mobj {
 	const struct mobj_ops *ops;
 	size_t size;
 	size_t phys_granule;
+	struct refcount refc;
 };
 
 struct mobj_ops {
@@ -73,19 +74,48 @@ static inline bool mobj_matches(struct mobj *mobj, enum buf_is_attr attr)
 	return false;
 }
 
-static inline void mobj_free(struct mobj *mobj)
+/**
+ * mobj_get() - get a MOBJ
+ * @mobj:	Pointer to a MOBJ or NULL
+ *
+ * Increases reference counter of the @mobj
+ *
+ * Returns @mobj with reference counter increased or NULL if @mobj was NULL
+ */
+static inline struct mobj *mobj_get(struct mobj *mobj)
 {
-	if (mobj && mobj->ops && mobj->ops->free)
+	if (mobj && !refcount_inc(&mobj->refc))
+		panic();
+
+	return mobj;
+}
+
+/**
+ * mobj_put() - put a MOBJ
+ * @mobj:	Pointer to a MOBJ or NULL
+ *
+ * Decreases reference counter of the @mobj and frees it if the counter
+ * reaches 0.
+ */
+static inline void mobj_put(struct mobj *mobj)
+{
+	if (mobj && refcount_dec(&mobj->refc))
 		mobj->ops->free(mobj);
 }
 
-static inline void mobj_free_wipe(struct mobj *mobj)
+/**
+ * mobj_put_wipe() - wipe and put a MOBJ
+ * @mobj:	Pointer to a MOBJ or NULL
+ *
+ * Clears the memory represented by the mobj and then puts it.
+ */
+static inline void mobj_put_wipe(struct mobj *mobj)
 {
 	void *buf = mobj_get_va(mobj, 0);
 
 	if (buf)
 		memzero_explicit(buf, mobj->size);
-	mobj_free(mobj);
+	mobj_put(mobj);
 }
 
 static inline uint64_t mobj_get_cookie(struct mobj *mobj)
@@ -148,15 +178,6 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
  * Returns a valid pointer on success or NULL on failure.
  */
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie);
-
-/**
- * mobj_reg_shm_put() - put a MOBJ
- * @mobj:	Pointer to a registered shared memory MOBJ
- *
- * Decreases reference counter of the @mobj and frees it if the counter
- * reaches 0.
- */
-void mobj_reg_shm_put(struct mobj *mobj);
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
 

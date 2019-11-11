@@ -53,7 +53,7 @@ static bool __maybe_unused param_mem_from_mobj(struct param_mem *mem,
 	if (!core_is_buffer_inside(pa, MAX(sz, 1UL), b, mobj->size))
 		return false;
 
-	mem->mobj = mobj;
+	mem->mobj = mobj_get(mobj);
 	mem->offs = pa - b;
 	mem->size = sz;
 	return true;
@@ -207,16 +207,13 @@ static void cleanup_shm_refs(const uint64_t *saved_attr,
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
-			if (saved_attr[n] & OPTEE_MSG_ATTR_NONCONTIG)
-				mobj_free(param->u[n].mem.mobj);
-			break;
 #ifdef CFG_CORE_DYN_SHM
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_RMEM_INOUT:
-			mobj_reg_shm_put(param->u[n].mem.mobj);
-			break;
 #endif
+			mobj_put(param->u[n].mem.mobj);
+			break;
 		default:
 			break;
 		}
