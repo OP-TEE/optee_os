@@ -26,13 +26,21 @@
 #define BNXT_REG_CTRL_FSTBOOT_PTR_REG		0x8
 #define BNXT_ERROR_MASK				0xf0000000
 #define BNXT_CTRL_ADDR(x)			(BNXT_REG_CTRL_BASE + (x))
-#define BNXT_HANDSHAKE_TIMEOUT_MS		10000
+#define BNXT_HANDSHAKE_TIMEOUT_MS		1000
 
 #define KONG_REG_CTRL_MODE_REG			0x03900000
 #define KONG_REG_CTRL_MODE_CPUHALT_N_BIT	0
 
 #define BNXT_STICKY_BYTE_POR			0x04030088
 #define BNXT_STICKY_BYTE_POR_MHB_BIT		4
+
+#define BNXT_HEALTH_CHECK_REG			0x03100008
+
+enum bnxt_handshake_sts {
+	BNXT_HANDSHAKE_SUCCESS = 0,
+	BNXT_HANDSHAKE_WAIT_ERROR,
+	BNXT_HANDSHAKE_WAIT_TIMEOUT
+};
 
 static vaddr_t bnxt_access_window_virt_addr;
 static vaddr_t bnxt_indirect_dest_addr;
@@ -102,6 +110,14 @@ static void bnxt_write_ctrl(uint32_t offset, uint32_t value)
 	bnxt_write(BNXT_CTRL_ADDR(offset), value);
 }
 
+void bnxt_handshake_clear(void)
+{
+	uint32_t value = bnxt_read(BNXT_REG_ECO_RESERVED);
+
+	value = value & ~BIT(BNXT_FLASH_ACCESS_DONE_BIT);
+	bnxt_write(BNXT_REG_ECO_RESERVED, value);
+}
+
 static int bnxt_handshake_done(void)
 {
 	uint32_t value = 0;
@@ -112,31 +128,45 @@ static int bnxt_handshake_done(void)
 	return value != 0;
 }
 
-int bnxt_wait_handshake(void)
+uint32_t bnxt_wait_handshake(uint32_t max_timeout)
 {
-	uint32_t timeout = BNXT_HANDSHAKE_TIMEOUT_MS;
+	int ret = 0;
 	uint32_t status = 0;
+	uint32_t timeout = 0;
+
+	/* If no timeout given we go with max timeout */
+	if (max_timeout == 0)
+		max_timeout = BNXT_HANDSHAKE_TIMEOUT_MS;
+
+	timeout = max_timeout;
 
 	DMSG("Waiting for ChiMP handshake...");
 	do {
-		if (bnxt_handshake_done())
+		if (bnxt_handshake_done()) {
+			ret = BNXT_HANDSHAKE_SUCCESS;
 			break;
+		}
 		/* No need to wait if ChiMP reported an error */
 		status = bnxt_read_ctrl(BNXT_REG_CTRL_BPE_STAT_REG);
 		if (status & BNXT_ERROR_MASK) {
-			DMSG("ChiMP error 0x%x. Wait aborted", status);
+			EMSG("ChiMP error 0x%x. Wait aborted", status);
+			ret = BNXT_HANDSHAKE_WAIT_ERROR;
 			break;
 		}
 		mdelay(1);
 	} while (--timeout);
 
 	if (!bnxt_handshake_done()) {
-		if (timeout == 0)
-			DMSG("Timeout waiting for ChiMP handshake");
+		if (timeout == 0) {
+			ret = BNXT_HANDSHAKE_WAIT_TIMEOUT;
+			EMSG("Timeout waiting for ChiMP handshake");
+		}
 	} else {
-		DMSG("Got handshake from ChiMP!");
+		ret = BNXT_HANDSHAKE_SUCCESS;
+		DMSG("ChiMP handshake successful");
 	}
-	return bnxt_handshake_done();
+
+	return ret;
 }
 
 void bnxt_chimp_halt(void)
@@ -175,6 +205,11 @@ int bnxt_fastboot(uintptr_t addr)
 	bnxt_write_ctrl(BNXT_REG_CTRL_BPE_MODE_REG, value);
 
 	return 0;
+}
+
+uint32_t bnxt_health_status(void)
+{
+	return bnxt_read(BNXT_HEALTH_CHECK_REG);
 }
 
 static TEE_Result bnxt_init(void)
