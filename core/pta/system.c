@@ -183,6 +183,11 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t vm_flags = 0;
+	vaddr_t va = 0;
+	size_t sz = 0;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -190,9 +195,16 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 	if (params[0].value.b)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return vm_unmap(&to_user_ta_ctx(s->ctx)->uctx,
-			reg_pair_to_64(params[1].value.a, params[1].value.b),
-			ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE));
+	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
+	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
+
+	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
+	if (res)
+		return res;
+	if (vm_flags & VM_FLAG_PERMANENT)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return vm_unmap(&to_user_ta_ctx(s->ctx)->uctx, va, sz);
 }
 
 static void ta_bin_close(void *ptr)
@@ -559,6 +571,8 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
 	if (res)
 		return res;
+	if (vm_flags & VM_FLAG_PERMANENT)
+		return TEE_ERROR_ACCESS_DENIED;
 
 	/*
 	 * If the segment is a mapping of a part of a file (vm_flags &
@@ -583,6 +597,7 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t num_bytes = 0;
 	uint32_t pad_begin = 0;
+	uint32_t vm_flags = 0;
 	uint32_t pad_end = 0;
 	vaddr_t old_va = 0;
 	vaddr_t new_va = 0;
@@ -595,6 +610,12 @@ static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
 	new_va = reg_pair_to_64(params[2].value.a, params[2].value.b);
 	pad_begin = params[3].value.a;
 	pad_end = params[3].value.b;
+
+	res = vm_get_flags(&utc->uctx, old_va, num_bytes, &vm_flags);
+	if (res)
+		return res;
+	if (vm_flags & VM_FLAG_PERMANENT)
+		return TEE_ERROR_ACCESS_DENIED;
 
 	res = vm_remap(&utc->uctx, &new_va, old_va, num_bytes, pad_begin,
 		       pad_end);
