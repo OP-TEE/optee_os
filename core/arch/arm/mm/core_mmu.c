@@ -1140,6 +1140,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_TEE_RAM_RO:
 		case MEM_AREA_TEE_RAM_RW:
 		case MEM_AREA_NEX_RAM_RW:
+		case MEM_AREA_IDENTITY_MAP_RX:
 			if (!pbuf_is_inside(secure_only, m->pa, m->size))
 				panic("TEE_RAM can't fit in secure_only");
 			break;
