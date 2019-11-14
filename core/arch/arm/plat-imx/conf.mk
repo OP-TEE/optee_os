@@ -57,20 +57,20 @@ mx7s-flavorlist = \
 mx7ulp-flavorlist = \
 	mx7ulpevk
 
-imx8mq-flavorlist = \
-	imx8mqevk
+mx8mq-flavorlist = \
+	mx8mqevk
 
-imx8mm-flavorlist = \
-	imx8mmevk
+mx8mm-flavorlist = \
+	mx8mmevk
 
-imx8mn-flavorlist = \
-	imx8mnevk
+mx8mn-flavorlist = \
+	mx8mnevk
 
-imx8qm-flavorlist = \
-	imx8qmmek \
+mx8qm-flavorlist = \
+	mx8qmmek \
 
-imx8qx-flavorlist = \
-	imx8qxpmek \
+mx8qx-flavorlist = \
+	mx8qxpmek \
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -134,34 +134,34 @@ $(call force,CFG_TZC380,n)
 $(call force,CFG_CSU,n)
 $(call force,CFG_NXP_CAAM,n)
 include core/arch/arm/cpu/cortex-a7.mk
-else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mq-flavorlist)))
-$(call force,CFG_IMX8MQ,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mq-flavorlist)))
+$(call force,CFG_MX8MQ,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
-else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mm-flavorlist)))
-$(call force,CFG_IMX8MM,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mm-flavorlist)))
+$(call force,CFG_MX8MM,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
-else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8mn-flavorlist)))
-$(call force,CFG_IMX8MN,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mn-flavorlist)))
+$(call force,CFG_MX8MN,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
-else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8qm-flavorlist)))
-$(call force,CFG_IMX8QM,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qm-flavorlist)))
+$(call force,CFG_MX8QM,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_IMX_SNVS,n)
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 6
 $(call force,CFG_NXP_CAAM,n)
-else ifneq (,$(filter $(PLATFORM_FLAVOR),$(imx8qx-flavorlist)))
-$(call force,CFG_IMX8QX,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qx-flavorlist)))
+$(call force,CFG_MX8QX,y)
 $(call force,CFG_ARM64_core,y)
 CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x40000000
@@ -282,22 +282,22 @@ CFG_DDR_SIZE ?= 0x10000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),imx8mqevk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mqevk))
 CFG_DDR_SIZE ?= 0xc0000000
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),imx8mmevk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mmevk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),imx8mnevk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mnevk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),imx8qxpmek imx8qmmek))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8qxpmek mx8qmmek))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART0_BASE
 endif
