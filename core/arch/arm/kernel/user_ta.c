@@ -118,7 +118,7 @@ static void update_from_utee_param(struct tee_ta_param *p,
 static void clear_vfp_state(struct user_ta_ctx *utc __unused)
 {
 #ifdef CFG_WITH_VFP
-	thread_user_clear_vfp(&utc->vfp);
+	thread_user_clear_vfp(&utc->uctx.vfp);
 #endif
 }
 

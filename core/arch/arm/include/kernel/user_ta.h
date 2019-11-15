@@ -58,9 +58,6 @@ struct user_ta_ctx {
 	struct tee_storage_enum_head storage_enums;
 	vaddr_t stack_ptr;
 	void *ta_time_offs;
-#if defined(CFG_WITH_VFP)
-	struct thread_user_vfp_state vfp;
-#endif
 	struct user_mode_ctx uctx;
 };
 
