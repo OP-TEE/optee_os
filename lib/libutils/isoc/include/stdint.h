@@ -187,8 +187,10 @@ typedef uint64_t uintmax_t;
 
 #ifdef __ASSEMBLER__
 #define UINTPTR_C(v) v
+#define UL(x) x
 #else
 #define UINTPTR_C(v) v ## LU
+#define UL(x) x##UL
 #endif
 
 /* 7.18.4.2 Macros for greatest-width integer constants */
