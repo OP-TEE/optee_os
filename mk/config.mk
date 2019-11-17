@@ -329,6 +329,8 @@ CFG_DT ?= n
 CFG_DTB_MAX_SIZE ?= 0x10000
 
 # Device Tree Overlay support.
+#
+# option a)
 # This define enables support for an OP-TEE provided DTB overlay.
 # One of two modes is supported in this case:
 # 1. Append OP-TEE nodes to an existing DTB overlay located at CFG_DT_ADDR or
@@ -337,6 +339,21 @@ CFG_DTB_MAX_SIZE ?= 0x10000
 # A subsequent boot stage must then merge the generated overlay DTB into a main
 # DTB using the standard fdt_overlay_apply() method.
 CFG_EXTERNAL_DTB_OVERLAY ?= n
+#
+# option b)
+# This define enables support for an OP-TEE provided DTB overlay as well as
+# extending a device tree that must be passed as an input parameter.
+# This define is not compatible with CFG_EXTERNAL_DTB_OVERLAY nor
+# CFG_DT_ADDR and a build error should trigger if either of those are enabled
+ifneq ($(strip $(CFG_OVERLAY_ADDR)),)
+ifeq ($(CFG_EXTERNAL_DTB_OVERLAY),y)
+$(error Cannot implement OVERLAY_ADDR and EXTERNAL_DTB_OVERLAY)
+else
+ifneq ($(strip $(CFG_DT_ADDR)),)
+$(error Cannot implement OVERLAY_ADDR and CFG_DT_ADDR)
+endif
+endif
+endif
 
 # Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
