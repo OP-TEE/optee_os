@@ -45,3 +45,4 @@ srcs-$(CFG_GP_SOCKETS) += socket.c
 endif #CFG_WITH_USER_TA,y
 
 srcs-y += uuid.c
+srcs-y += tee_ta_enc_manager.c
