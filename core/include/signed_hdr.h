@@ -53,6 +53,11 @@ struct shdr {
 #define SHDR_GET_HASH(x)	(uint8_t *)(((struct shdr *)(x)) + 1)
 #define SHDR_GET_SIG(x)		(SHDR_GET_HASH(x) + (x)->hash_size)
 
+/**
+ * struct shdr_bootstrap_ta - bootstrap TA subheader
+ * @uuid:	UUID of the TA
+ * @ta_version:	Version of the TA
+ */
 struct shdr_bootstrap_ta {
 	uint8_t uuid[sizeof(TEE_UUID)];
 	uint32_t ta_version;
