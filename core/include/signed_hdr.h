@@ -12,6 +12,7 @@
 enum shdr_img_type {
 	SHDR_TA = 0,
 	SHDR_BOOTSTRAP_TA = 1,
+	SHDR_ENCRYPTED_TA = 2,
 };
 
 #define SHDR_MAGIC	0x4f545348
@@ -56,6 +57,49 @@ struct shdr_bootstrap_ta {
 	uint8_t uuid[sizeof(TEE_UUID)];
 	uint32_t ta_version;
 };
+
+/**
+ * struct shdr_encrypted_ta - encrypted TA header
+ * @enc_algo:	authenticated encyption algorithm, defined by symmetric key
+ *		algorithms TEE_ALG_* from TEE Internal API
+ *		specification
+ * @flags:	authenticated encyption flags
+ * @iv_size:	size of the initialization vector
+ * @tag_size:	size of the authentication tag
+ * @iv:		initialization vector
+ * @tag:	authentication tag
+ */
+struct shdr_encrypted_ta {
+	uint32_t enc_algo;
+	uint32_t flags;
+	uint16_t iv_size;
+	uint16_t tag_size;
+	/*
+	 * Commented out element used to visualize the layout dynamic part
+	 * of the struct.
+	 *
+	 * iv is accessed through the macro SHDR_ENC_GET_IV and
+	 * tag is accessed through the macro SHDR_ENC_GET_TAG
+	 *
+	 * uint8_t iv[iv_size];
+	 * uint8_t tag[tag_size];
+	 */
+};
+
+#define SHDR_ENC_KEY_TYPE_MASK	0x1
+
+enum shdr_enc_key_type {
+	SHDR_ENC_KEY_DEV_SPECIFIC = 0,
+	SHDR_ENC_KEY_CLASS_WIDE = 1,
+};
+
+#define SHDR_ENC_GET_SIZE(x)	({ typeof(x) _x = (x); \
+				   (sizeof(struct shdr_encrypted_ta) + \
+				   _x->iv_size + _x->tag_size); })
+#define SHDR_ENC_GET_IV(x)	((uint8_t *) \
+				 (((struct shdr_encrypted_ta *)(x)) + 1))
+#define SHDR_ENC_GET_TAG(x)	({ typeof(x) _x = (x); \
+				   (SHDR_ENC_GET_IV(_x) + _x->iv_size); })
 
 /*
  * Allocates a struct shdr large enough to hold the entire header,
