@@ -34,6 +34,14 @@ struct tee_tadb_dir {
 	bitstr_t *files;
 };
 
+/*
+ * struct tadb_entry - TA database entry
+ * @prop:	 properties of TA
+ * @file_number: encrypted TA is stored in <file_number>.ta
+ * @iv:		 Initialization vector of the authentication crypto
+ * @tag:	 Tag used to validate the authentication encrypted TA
+ * @key:	 Key used to decrypt the TA
+ */
 struct tadb_entry {
 	struct tee_tadb_property prop;
 	uint32_t file_number;
