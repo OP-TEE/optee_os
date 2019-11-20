@@ -175,12 +175,9 @@ void main_secondary_init_gic(void)
 #endif
 
 #ifdef ARM32
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
 	assert(!cpu_mmu_enabled());
-
-	if (get_core_pos())
-		return;
 
 	tzpc_init();
 }

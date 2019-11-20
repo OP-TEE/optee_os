@@ -64,7 +64,7 @@ const struct thread_handlers *generic_boot_get_handlers(void);
 
 /* weak routines eventually overridden by platform */
 void plat_cpu_reset_early(void);
-void plat_cpu_reset_late(void);
+void plat_primary_init_early(void);
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 
