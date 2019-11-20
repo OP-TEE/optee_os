@@ -619,10 +619,9 @@ TEE_Result tee_tadb_ta_delete(const TEE_UUID *uuid)
 TEE_Result tee_tadb_ta_open(const TEE_UUID *uuid,
 			    struct tee_tadb_ta_read **ta_ret)
 {
-	TEE_Result res;
-	size_t idx;
-	struct tee_tadb_ta_read *ta;
-	static struct tadb_entry last_entry;
+	TEE_Result res = TEE_SUCCESS;
+	size_t idx = 0;
+	struct tee_tadb_ta_read *ta = NULL;
 
 	if (is_null_uuid(uuid))
 		return TEE_ERROR_GENERIC;
@@ -631,19 +630,15 @@ TEE_Result tee_tadb_ta_open(const TEE_UUID *uuid,
 	if (!ta)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if (!memcmp(uuid, &last_entry.prop.uuid, sizeof(*uuid))) {
-		ta->entry = last_entry;
-	} else {
-		res = tee_tadb_open(&ta->db);
-		if (res)
-			goto err_free; /* Mustn't all tadb_put() */
+	res = tee_tadb_open(&ta->db);
+	if (res)
+		goto err_free; /* Mustn't call tadb_put() */
 
-		mutex_read_lock(&tadb_mutex);
-		res = find_ent(ta->db, uuid, &idx, &ta->entry);
-		mutex_read_unlock(&tadb_mutex);
-		if (res)
-			goto err;
-	}
+	mutex_read_lock(&tadb_mutex);
+	res = find_ent(ta->db, uuid, &idx, &ta->entry);
+	mutex_read_unlock(&tadb_mutex);
+	if (res)
+		goto err;
 
 	res = ta_operation_open(OPTEE_RPC_FS_OPEN, ta->entry.file_number,
 				&ta->fd);
