@@ -77,9 +77,9 @@ END_FUNC plat_cpu_reset_early
 KEEP_PAGER plat_cpu_reset_early
 .weak plat_cpu_reset_early
 
-	.section .text.reset_vect_table
+	.section .identity_map, "ax"
 	.align 5
-LOCAL_FUNC reset_vect_table , :
+LOCAL_FUNC reset_vect_table , : , .identity_map
 	b	.
 	b	.	/* Undef */
 	b	.	/* Syscall */
@@ -264,12 +264,34 @@ KEEP_INIT _start
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		ldr	r1, =stack_tmp_stride
-		ldr	r1, [r1]
+
+		/*
+		 * stack_tmp_stride and stack_tmp_stride_rel are the
+		 * equivalent of:
+		 * extern const u32 stack_tmp_stride;
+		 * u32 stack_tmp_stride_rel = (u32)&stack_tmp_stride -
+		 *			      (u32)&stack_tmp_stride_rel 
+		 *
+		 * To load the value of stack_tmp_stride we do the equivalent
+		 * of:
+		 * *(u32 *)(stack_tmp_stride + (u32)&stack_tmp_stride_rel)
+		 */
+		adr	r3, stack_tmp_stride_rel
+		ldr	r1, [r3]
+		ldr	r1, [r1, r3]
+
+		/* Same pattern as for stack_tmp_stride above */
+		adr	r3, stack_tmp_export_rel
+		ldr	r2, [r3]
+		ldr	r2, [r2, r3]
+
+		/*
+		 * r0 is core pos
+		 * r1 is value of stack_tmp_stride
+		 * r2 is value of stack_tmp_export
+		 */
 		mul	r1, r0, r1
-		ldr	r0, =stack_tmp_export
-		ldr	r0, [r0]
-		add	sp, r1, r0
+		add	sp, r1, r2
 	.endm
 
 	/*
@@ -324,7 +346,7 @@ KEEP_INIT _start
 #define flush_cpu_semaphores
 #endif
 
-LOCAL_FUNC reset_primary , :, .identity_map
+LOCAL_FUNC reset_primary , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
@@ -726,12 +748,20 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	bx	lr
 END_FUNC enable_mmu
 
+LOCAL_DATA stack_tmp_export_rel , :
+	.word	stack_tmp_export - stack_tmp_export_rel
+END_DATA stack_tmp_export_rel
+
+LOCAL_DATA stack_tmp_stride_rel , :
+	.word	stack_tmp_stride - stack_tmp_stride_rel
+END_DATA stack_tmp_stride_rel
+
 DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
 END_DATA boot_mmu_config
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-FUNC cpu_on_handler , :
+FUNC cpu_on_handler , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov	r4, r0
@@ -741,7 +771,7 @@ UNWIND(	.cantunwind)
 	set_sctlr
 	isb
 
-	ldr	r0, =reset_vect_table
+	adr	r0, reset_vect_table
 	write_vbar r0
 
 	mov	r4, lr
@@ -765,12 +795,23 @@ KEEP_PAGER cpu_on_handler
 LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	ldr	r0, =reset_vect_table
+	adr	r0, reset_vect_table
 	write_vbar r0
 
 	wait_primary
 
 	set_sp
+#ifdef CFG_CORE_ASLR
+	/*
+	 * stack_tmp_export which is used as base when initializing sp has
+	 * been relocated to the new offset. Since MMU isn't enabled on
+	 * this CPU yet we need to restore the corresponding physical
+	 * address.
+	 */
+	adr	r0, boot_mmu_config
+	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	sub	sp, sp, r0
+#endif
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
