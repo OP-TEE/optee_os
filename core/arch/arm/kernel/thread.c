@@ -104,9 +104,11 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
-const void *stack_tmp_export = (uint8_t *)stack_tmp + sizeof(stack_tmp[0]) -
-			       (STACK_TMP_OFFS + STACK_CANARY_SIZE / 2);
-const uint32_t stack_tmp_stride = sizeof(stack_tmp[0]);
+const void *stack_tmp_export __section(".identity_map.stack_tmp_export") =
+	(uint8_t *)stack_tmp + sizeof(stack_tmp[0]) -
+	(STACK_TMP_OFFS + STACK_CANARY_SIZE / 2);
+const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
+	sizeof(stack_tmp[0]);
 
 /*
  * These stack setup info are required by secondary boot cores before they
