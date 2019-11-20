@@ -69,43 +69,41 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 	return &handlers;
 }
 
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
-	if (!get_core_pos()) {
-		/* primary core */
+	/* primary core */
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-		/* set secondary entry address and release core */
-		io_write32(SECONDARY_ENTRY_DROP, TEE_LOAD_ADDR);
-		dsb();
-		sev();
+	/* set secondary entry address and release core */
+	io_write32(SECONDARY_ENTRY_DROP, TEE_LOAD_ADDR);
+	dsb();
+	sev();
 #endif
 
-		/* SCU config */
-		io_write32(SCU_BASE + SCU_INV_SEC, SCU_INV_CTRL_INIT);
-		io_write32(SCU_BASE + SCU_SAC, SCU_SAC_CTRL_INIT);
-		io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_CTRL_INIT);
+	/* SCU config */
+	io_write32(SCU_BASE + SCU_INV_SEC, SCU_INV_CTRL_INIT);
+	io_write32(SCU_BASE + SCU_SAC, SCU_SAC_CTRL_INIT);
+	io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_CTRL_INIT);
 
-		/* SCU enable */
-		io_setbits32(SCU_BASE + SCU_CTRL, 0x1);
+	/* SCU enable */
+	io_setbits32(SCU_BASE + SCU_CTRL, 0x1);
 
-		/* NS Access control */
-		io_write32(SECURITY2_SDIO0, ACCESS_BITS_ALL);
-		io_write32(SECURITY3_SDIO1, ACCESS_BITS_ALL);
-		io_write32(SECURITY4_QSPI, ACCESS_BITS_ALL);
-		io_write32(SECURITY6_APB_SLAVES, ACCESS_BITS_ALL);
+	/* NS Access control */
+	io_write32(SECURITY2_SDIO0, ACCESS_BITS_ALL);
+	io_write32(SECURITY3_SDIO1, ACCESS_BITS_ALL);
+	io_write32(SECURITY4_QSPI, ACCESS_BITS_ALL);
+	io_write32(SECURITY6_APB_SLAVES, ACCESS_BITS_ALL);
 
-		io_write32(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK);
+	io_write32(SLCR_UNLOCK_MAGIC, SLCR_UNLOCK);
 
-		io_write32(SLCR_TZ_DDR_RAM, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_DMA_NS, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_DMA_IRQ_NS, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_DMA_PERIPH_NS, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_GEM, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_SDIO, ACCESS_BITS_ALL);
-		io_write32(SLCR_TZ_USB, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_DDR_RAM, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_DMA_NS, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_DMA_IRQ_NS, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_DMA_PERIPH_NS, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_GEM, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_SDIO, ACCESS_BITS_ALL);
+	io_write32(SLCR_TZ_USB, ACCESS_BITS_ALL);
 
-		io_write32(SLCR_LOCK, SLCR_LOCK_MAGIC);
-	}
+	io_write32(SLCR_LOCK, SLCR_LOCK_MAGIC);
 }
 
 void console_init(void)

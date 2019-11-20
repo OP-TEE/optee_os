@@ -187,13 +187,11 @@ static void psci_boot_allcpus(void)
 }
 #endif
 
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
-	if (!get_core_pos()) {
-		/* primary core */
+	/* primary core */
 #if defined(CFG_BOOT_SYNC_CPU)
-		psci_boot_allcpus()
+	psci_boot_allcpus()
 #endif
-		imx_configure_tzasc();
-	}
+	imx_configure_tzasc();
 }

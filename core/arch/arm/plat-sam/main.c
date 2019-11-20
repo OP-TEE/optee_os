@@ -381,7 +381,7 @@ static int matrix_init(void)
 					      ARRAY_SIZE(security_ps_peri_id));
 }
 
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
 	matrix_init();
 }

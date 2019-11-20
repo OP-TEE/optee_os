@@ -325,7 +325,7 @@ KEEP_INIT _start
 #define flush_cpu_semaphores
 #endif
 
-LOCAL_FUNC reset_primary , :
+LOCAL_FUNC reset_primary , :, .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
@@ -413,7 +413,7 @@ shadow_stack_access_ok:
 	set_sp
 
 	/* complete ARM secure MP common configuration */
-	bl	plat_cpu_reset_late
+	bl	plat_primary_init_early
 
 	/* Enable Console */
 	bl	console_init
@@ -724,7 +724,7 @@ KEEP_PAGER cpu_on_handler
 
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
-LOCAL_FUNC reset_secondary , :
+LOCAL_FUNC reset_secondary , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	ldr	r0, =reset_vect_table
@@ -733,8 +733,6 @@ UNWIND(	.cantunwind)
 	wait_primary
 
 	set_sp
-
-	bl	plat_cpu_reset_late
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */

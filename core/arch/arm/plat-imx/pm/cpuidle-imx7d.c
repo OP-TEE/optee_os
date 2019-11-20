@@ -208,7 +208,8 @@ int imx7d_lowpower_idle(uint32_t power_state __unused,
 		 * TODO: Call the Wakeup Late function to restore some
 		 * HW configuration (e.g. TZASC)
 		 */
-		plat_cpu_reset_late();
+		if (!get_core_pos())
+			plat_primary_init_early();
 
 		main_init_gic();
 		gic_inited = 1;

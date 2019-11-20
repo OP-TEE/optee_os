@@ -88,10 +88,10 @@ static uint32_t cntfrq;
 #endif
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void plat_cpu_reset_late(void)
+__weak void plat_primary_init_early(void)
 {
 }
-KEEP_PAGER(plat_cpu_reset_late);
+KEEP_PAGER(plat_primary_init_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)
