@@ -338,6 +338,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	ret
 END_FUNC enable_mmu
 
+	.balign	8
 DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
 END_DATA boot_mmu_config
