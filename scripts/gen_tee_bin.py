@@ -64,20 +64,32 @@ def get_arch_id(elffile):
 
 def get_symbol(elffile, name):
     global elffile_symbols
+    global lsyms_def
     if elffile_symbols is None:
         elffile_symbols = dict()
+        lsyms_def = dict()
         symbol_tables = [s for s in elffile.iter_sections()
                          if isinstance(s, SymbolTableSection)]
         for section in symbol_tables:
             for symbol in section.iter_symbols():
                 if symbol['st_info']['bind'] == 'STB_GLOBAL':
                     elffile_symbols[symbol.name] = symbol
+                elif symbol['st_info']['bind'] == 'STB_LOCAL':
+                    if symbol.name not in elffile_symbols.keys():
+                        elffile_symbols[symbol.name] = symbol
+                        if symbol.name not in lsyms_def.keys():
+                            lsyms_def[symbol.name] = 1
+                        else:
+                            lsyms_def[symbol.name] += 1
 
-    try:
-        return elffile_symbols[name]
-    except (KeyError):
+    if name in lsyms_def.keys() and lsyms_def[name] > 1:
+        eprint("Multiple definitions of local symbol %s" % name)
+        sys.exit(1)
+    if name not in elffile_symbols.keys():
         eprint("Cannot find symbol %s" % name)
         sys.exit(1)
+
+    return elffile_symbols[name]
 
 
 def get_sections(elffile, pad_to, dump_names):
