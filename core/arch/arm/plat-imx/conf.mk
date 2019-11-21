@@ -8,6 +8,7 @@ mx6ul-flavorlist = \
 
 mx6ull-flavorlist = \
 	mx6ullevk \
+	mx6ulzevk \
 
 mx6q-flavorlist = \
 	mx6qsabrelite \
@@ -268,7 +269,7 @@ CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk mx6ulzevk))
 CFG_DDR_SIZE ?= 0x20000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 endif
