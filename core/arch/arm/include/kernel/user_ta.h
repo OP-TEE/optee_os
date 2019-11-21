@@ -35,7 +35,6 @@ SLIST_HEAD(load_seg_head, load_seg);
  * @objects:		List of storage objects opened by this TA
  * @storage_enums:	List of storage enumerators opened by this TA
  * @stack_ptr:		Stack pointer
- * @load_addr:		ELF load addr (from TA address space)
  * @vm_info:		Virtual memory map of this context
  * @ta_time_offs:	Time reference used by the TA
  * @areas:		Memory areas registered by pager
@@ -57,7 +56,6 @@ struct user_ta_ctx {
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
 	vaddr_t stack_ptr;
-	vaddr_t load_addr;
 	struct vm_info *vm_info;
 	void *ta_time_offs;
 	struct tee_pager_area_head *areas;
