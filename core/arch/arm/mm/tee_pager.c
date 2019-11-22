@@ -133,14 +133,14 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 #define TBL_SHIFT	SMALL_PAGE_SHIFT
 
 #define EFFECTIVE_VA_SIZE \
-	(ROUNDUP(TEE_RAM_VA_START + TEE_RAM_VA_SIZE, \
-		 CORE_MMU_PGDIR_SIZE) - \
-	 ROUNDDOWN(TEE_RAM_VA_START, CORE_MMU_PGDIR_SIZE))
+	(ROUNDUP(VCORE_START_VA + TEE_RAM_VA_SIZE, CORE_MMU_PGDIR_SIZE) - \
+	 ROUNDDOWN(VCORE_START_VA, CORE_MMU_PGDIR_SIZE))
 
 static struct pager_table {
 	struct pgt pgt;
 	struct core_mmu_table_info tbl_info;
-} pager_tables[EFFECTIVE_VA_SIZE / CORE_MMU_PGDIR_SIZE];
+} *pager_tables;
+static unsigned int num_pager_tables;
 
 static unsigned pager_spinlock = SPINLOCK_UNLOCK;
 
@@ -248,7 +248,7 @@ void *tee_pager_phys_to_virt(paddr_t pa)
 		}
 
 		n++;
-		if (n >= ARRAY_SIZE(pager_tables))
+		if (n >= num_pager_tables)
 			return NULL;
 		idx = 0;
 	}
@@ -293,9 +293,12 @@ static struct pager_table *find_pager_table_may_fail(vaddr_t va)
 	size_t n;
 	const vaddr_t mask = CORE_MMU_PGDIR_MASK;
 
+	if (!pager_tables)
+		return NULL;
+
 	n = ((va & ~mask) - pager_tables[0].tbl_info.va_base) >>
 	    CORE_MMU_PGDIR_SHIFT;
-	if (n >= ARRAY_SIZE(pager_tables))
+	if (n >= num_pager_tables)
 		return NULL;
 
 	assert(va >= pager_tables[n].tbl_info.va_base &&
@@ -351,7 +354,7 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	/* Clear all mapping in the alias area */
 	pt = find_pager_table(smem);
 	idx = core_mmu_va2idx(&pt->tbl_info, smem);
-	while (pt <= (pager_tables + ARRAY_SIZE(pager_tables) - 1)) {
+	while (pt <= (pager_tables + num_pager_tables - 1)) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pt->tbl_info, idx);
 			if (v >= (smem + nbytes))
@@ -455,13 +458,18 @@ static void pmem_unmap(struct tee_pager_pmem *pmem, struct pgt *only_this_pgt)
 
 void tee_pager_early_init(void)
 {
-	size_t n;
+	size_t n = 0;
+
+	num_pager_tables = EFFECTIVE_VA_SIZE / CORE_MMU_PGDIR_SIZE;
+	pager_tables = calloc(num_pager_tables, sizeof(*pager_tables));
+	if (!pager_tables)
+		panic("Cannot allocate pager_tables");
 
 	/*
 	 * Note that this depends on add_pager_vaspace() adding vaspace
 	 * after end of memory.
 	 */
-	for (n = 0; n < ARRAY_SIZE(pager_tables); n++) {
+	for (n = 0; n < num_pager_tables; n++) {
 		if (!core_mmu_find_table(NULL, TEE_RAM_VA_START +
 					 n * CORE_MMU_PGDIR_SIZE, UINT_MAX,
 					 &pager_tables[n].tbl_info))

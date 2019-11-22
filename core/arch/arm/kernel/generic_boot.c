@@ -352,17 +352,16 @@ static void init_runtime(unsigned long pageable_part)
 
 	tmp_hashes = __init_end + embdata->hashes_offset;
 
+	init_asan();
+
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	/*
 	 * This needs to be initialized early to support address lookup
 	 * in MEM_AREA_TEE_RAM
 	 */
 	tee_pager_early_init();
-
-	init_asan();
-
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	hashes = malloc(hash_size);
 	IMSG_RAW("\n");
