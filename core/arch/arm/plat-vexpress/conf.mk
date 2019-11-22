@@ -88,7 +88,6 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
-CFG_TA_ASLR ?= y
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
