@@ -599,12 +599,16 @@ END_FUNC unhandled_cpu
 LOCAL_FUNC relocate , :
 	push	{r4-r5}
 	/* r0 holds load offset */
-	ldr	r4, =__end
-	ldr	r2, [r4, #BOOT_EMBDATA_RELOC_OFFSET]
-	ldr	r3, [r4, #BOOT_EMBDATA_RELOC_LEN]
+#ifdef CFG_WITH_PAGER
+	ldr	r12, =__init_end
+#else
+	ldr	r12, =__end
+#endif
+	ldr	r2, [r12, #BOOT_EMBDATA_RELOC_OFFSET]
+	ldr	r3, [r12, #BOOT_EMBDATA_RELOC_LEN]
 
 	mov_imm	r1, TEE_RAM_START
-	add	r2, r2, r4	/* start of relocations */
+	add	r2, r2, r12	/* start of relocations */
 	add	r3, r3, r2	/* end of relocations */
 
 	/*
@@ -617,9 +621,22 @@ LOCAL_FUNC relocate , :
 	 * 32-bit value pointed out which increased with the load offset.
 	 */
 
+#ifdef CFG_WITH_PAGER
+	/*
+	 * With pager enabled we can only relocate the pager and init
+	 * parts, the rest has to be done when a page is populated.
+	 */
+	sub	r12, r12, r1
+#endif
+
 	b	2f
 	/* Loop over the relocation addresses and process all entries */
 1:	ldr	r4, [r2], #4
+#ifdef CFG_WITH_PAGER
+	/* Skip too large addresses */
+	cmp	r4, r12
+	bge	2f
+#endif
 	ldr	r5, [r4, r1]
 	add	r5, r5, r0
 	str	r5, [r4, r1]

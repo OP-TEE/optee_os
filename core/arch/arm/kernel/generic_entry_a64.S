@@ -237,11 +237,15 @@ END_DATA cached_mem_end
 #ifdef CFG_CORE_ASLR
 LOCAL_FUNC relocate , :
 	/* x0 holds load offset */
-	adr	x4, __end
-	ldp	w2, w3, [x4, #BOOT_EMBDATA_RELOC_OFFSET]
+#ifdef CFG_WITH_PAGER
+	adr	x6, __init_end
+#else
+	adr	x6, __end
+#endif
+	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
 	mov_imm	x1, TEE_RAM_START
-	add	x2, x2, x4	/* start of relocations */
+	add	x2, x2, x6	/* start of relocations */
 	add	x3, x3, x2	/* end of relocations */
 
 	/*
@@ -254,9 +258,22 @@ LOCAL_FUNC relocate , :
 	 * a 64-bit value pointed out which increased with the load offset.
 	 */
 
+#ifdef CFG_WITH_PAGER
+	/*
+	 * With pager enabled we can only relocate the pager and init
+	 * parts, the rest has to be done when a page is populated.
+	 */
+	sub	x6, x6, x1
+#endif
+
 	b	2f
 	/* Loop over the relocation addresses and process all entries */
 1:	ldr	w4, [x2], #4
+#ifdef CFG_WITH_PAGER
+	/* Skip too large addresses */
+	cmp	x4, x6
+	b.ge	2f
+#endif
 	add	x4, x4, x1
 	ldr	x5, [x4]
 	add	x5, x5, x0

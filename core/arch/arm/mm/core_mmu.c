@@ -2179,7 +2179,7 @@ bool is_unpaged(void *va)
 {
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= TEE_TEXT_VA_START && v < get_linear_map_end();
+	return v >= VCORE_START_VA && v < get_linear_map_end();
 }
 #else
 bool is_unpaged(void *va __unused)
