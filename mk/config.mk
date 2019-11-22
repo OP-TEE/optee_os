@@ -274,9 +274,6 @@ endif
 
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
-ifeq ($(CFG_WITH_PAGER)-$(CFG_CORE_ASLR),y-y)
-$(error CFG_WITH_PAGER and CFG_CORE_ASLR are currently incompatible)
-endif
 
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will

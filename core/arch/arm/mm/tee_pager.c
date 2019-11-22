@@ -11,6 +11,7 @@
 #include <kernel/abort.h>
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
@@ -470,7 +471,7 @@ void tee_pager_early_init(void)
 	 * after end of memory.
 	 */
 	for (n = 0; n < num_pager_tables; n++) {
-		if (!core_mmu_find_table(NULL, TEE_RAM_VA_START +
+		if (!core_mmu_find_table(NULL, VCORE_START_VA +
 					 n * CORE_MMU_PGDIR_SIZE, UINT_MAX,
 					 &pager_tables[n].tbl_info))
 			panic("can't find mmu tables");

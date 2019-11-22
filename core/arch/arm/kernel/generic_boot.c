@@ -314,8 +314,8 @@ static void print_pager_pool_size(void)
 
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
-	const vaddr_t begin = TEE_RAM_VA_START;
-	vaddr_t end = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
+	const vaddr_t begin = VCORE_START_VA;
+	vaddr_t end = begin + TEE_RAM_VA_SIZE;
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/* Carve out asan memory, flat maped after core memory */
@@ -326,6 +326,59 @@ static void init_vcore(tee_mm_pool_t *mm_vcore)
 	if (!tee_mm_init(mm_vcore, begin, end, SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
 		panic("tee_mm_vcore init failed");
+}
+
+/*
+ * With CFG_CORE_ASLR=y the init part is relocated very early during boot.
+ * The init part is also paged just as the rest of the normal paged code, with
+ * the difference that it's preloaded during boot. When the backing store
+ * is configured the entire paged binary is copied in place and then also
+ * the init part. Since the init part has been relocated (references to
+ * addresses updated to compensate for the new load address) this has to be
+ * undone for the hashes of those pages to match with the original binary.
+ *
+ * If CFG_CORE_ASLR=n, nothing needs to be done as the code/ro pages are
+ * unchanged.
+ */
+static void undo_init_relocation(uint8_t *paged_store __maybe_unused)
+{
+#ifdef CFG_CORE_ASLR
+	unsigned long *ptr = NULL;
+	const uint32_t *reloc = NULL;
+	const uint32_t *reloc_end = NULL;
+	unsigned long offs = boot_mmu_config.load_offset;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_RAM_START;
+	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_RAM_START;
+
+	reloc = (const void *)((vaddr_t)embdata + embdata->reloc_offset);
+	reloc_end = reloc + embdata->reloc_len / sizeof(*reloc);
+
+	for (; reloc < reloc_end; reloc++) {
+		if (*reloc < addr_start)
+			continue;
+		if (*reloc >= addr_end)
+			break;
+		ptr = (void *)(paged_store + *reloc - addr_start);
+		*ptr -= offs;
+	}
+#endif
+}
+
+static struct fobj *ro_paged_alloc(tee_mm_entry_t *mm, void *hashes,
+				   void *store)
+{
+	const unsigned int num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE;
+#ifdef CFG_CORE_ASLR
+	unsigned int reloc_offs = (vaddr_t)__pageable_start - VCORE_START_VA;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	const void *reloc = __init_end + embdata->reloc_offset;
+
+	return fobj_ro_reloc_paged_alloc(num_pages, hashes, reloc_offs,
+					 reloc, embdata->reloc_len, store);
+#else
+	return fobj_ro_paged_alloc(num_pages, hashes, store);
+#endif
 }
 
 static void init_runtime(unsigned long pageable_part)
@@ -391,6 +444,11 @@ static void init_runtime(unsigned long pageable_part)
 			     core_mmu_get_type_by_pa(pageable_part)),
 		__pageable_part_end - __pageable_part_start);
 	asan_memcpy_unchecked(paged_store, __init_start, init_size);
+	/*
+	 * Undo eventual relocation for the init part so the hash checks
+	 * can pass.
+	 */
+	undo_init_relocation(paged_store);
 
 	/* Check that hashes of what's in pageable area is OK */
 	DMSG("Checking hashes of pageable area");
@@ -446,8 +504,7 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
 	assert(mm);
-	fobj = fobj_ro_paged_alloc(tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE,
-				   hashes, paged_store);
+	fobj = ro_paged_alloc(mm, hashes, paged_store);
 	assert(fobj);
 	tee_pager_add_core_area(tee_mm_get_smem(mm), PAGER_AREA_TYPE_RO, fobj);
 	fobj_put(fobj);
