@@ -788,7 +788,7 @@ static void dump_xlat_table(vaddr_t va __unused, int level __unused)
  * Reserves virtual memory space for pager usage.
  *
  * From the start of the first memory used by the link script +
- * TEE_RAM_VA_SIZE should be covered, eitehr with a direct mapping or empty
+ * TEE_RAM_VA_SIZE should be covered, either with a direct mapping or empty
  * mapping for pager usage. This adds translation tables as needed for the
  * pager to operate.
  */
@@ -916,9 +916,16 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++)
 		map->va = 0;
 
-	/* TEE RAM regions are always aligned with region_size */
+	/*
+	 * TEE RAM regions are always aligned with region_size.
+	 *
+	 * Note that MEM_AREA_PAGER_VASPACE also counts as TEE RAM here
+	 * since it handles virtual memory which covers the part of the ELF
+	 * that cannot fit directly into memory.
+	 */
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
-		if (map_is_tee_ram(map)) {
+		if (map_is_tee_ram(map) ||
+		    map->type == MEM_AREA_PAGER_VASPACE) {
 			assert(!(va & (map->region_size - 1)));
 			assert(!(map->size & (map->region_size - 1)));
 			map->va = va;
