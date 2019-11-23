@@ -62,6 +62,16 @@ def get_arch_id(elffile):
     sys.exit(1)
 
 
+def get_name(obj):
+    # Symbol or section .name might be a byte array or a string, we want a
+    # string
+    try:
+        name = obj.name.decode()
+    except (UnicodeDecodeError, AttributeError):
+        name = obj.name
+    return name
+
+
 def get_symbol(elffile, name):
     global elffile_symbols
     global lsyms_def
@@ -72,15 +82,16 @@ def get_symbol(elffile, name):
                          if isinstance(s, SymbolTableSection)]
         for section in symbol_tables:
             for symbol in section.iter_symbols():
+                symbol_name = get_name(symbol)
                 if symbol['st_info']['bind'] == 'STB_GLOBAL':
-                    elffile_symbols[symbol.name] = symbol
+                    elffile_symbols[symbol_name] = symbol
                 elif symbol['st_info']['bind'] == 'STB_LOCAL':
-                    if symbol.name not in elffile_symbols.keys():
-                        elffile_symbols[symbol.name] = symbol
-                        if symbol.name not in lsyms_def.keys():
-                            lsyms_def[symbol.name] = 1
+                    if symbol_name not in elffile_symbols.keys():
+                        elffile_symbols[symbol_name] = symbol
+                        if symbol_name not in lsyms_def.keys():
+                            lsyms_def[symbol_name] = 1
                         else:
-                            lsyms_def[symbol.name] += 1
+                            lsyms_def[symbol_name] += 1
 
     if name in lsyms_def.keys() and lsyms_def[name] > 1:
         eprint("Multiple definitions of local symbol %s" % name)
@@ -97,9 +108,10 @@ def get_sections(elffile, pad_to, dump_names):
     bin_data = bytearray()
 
     for section in elffile.iter_sections():
+        section_name = get_name(section)
         if (section['sh_type'] == 'SHT_NOBITS' or
                 not (section['sh_flags'] & SH_FLAGS.SHF_ALLOC) or
-                not dump_names.match(section.name)):
+                not dump_names.match(section_name)):
             continue
 
         if last_end == 0:
