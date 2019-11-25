@@ -24,6 +24,11 @@
 
 #define IPROC_GPIO_SHIFT(pin)		((pin) % NGPIOS_PER_BANK)
 
+#define GPIO_BANK_CNT			5
+#define SEC_GPIO_SIZE			0x4
+#define IPROC_GPIO_SEC_CFG_REG(pin) \
+	(((GPIO_BANK_CNT - 1) - GPIO_BANK(pin)) * SEC_GPIO_SIZE)
+
 static SLIST_HEAD(, bcm_gpio_chip) gclist = SLIST_HEAD_INITIALIZER(gclist);
 
 struct bcm_gpio_chip *bcm_gpio_pin_to_chip(unsigned int pin)
@@ -145,6 +150,18 @@ static const struct gpio_ops bcm_gpio_ops = {
 	.set_interrupt = iproc_gpio_set_itr,
 };
 KEEP_PAGER(bcm_gpio_ops);
+
+void iproc_gpio_set_secure(int gpiopin)
+{
+	vaddr_t regaddr = 0;
+	unsigned int shift = IPROC_GPIO_SHIFT(gpiopin);
+	vaddr_t baseaddr = (vaddr_t)phys_to_virt(CHIP_SECURE_GPIO_CONTROL0_BASE,
+						 MEM_AREA_IO_SEC);
+
+	regaddr = baseaddr + IPROC_GPIO_SEC_CFG_REG(gpiopin);
+
+	io_clrbits32(regaddr, BIT(shift));
+}
 
 static void iproc_gpio_init(struct bcm_gpio_chip *gc, unsigned int paddr,
 			    unsigned int gpio_base, unsigned int ngpios)

@@ -26,6 +26,8 @@ struct bcm_gpio_chip {
 	SLIST_ENTRY(bcm_gpio_chip) link;
 };
 
-/* returns bcm_gpio_chip handle for a GPIO pin */
+/* Returns bcm_gpio_chip handle for a GPIO pin */
 struct bcm_gpio_chip *bcm_gpio_pin_to_chip(unsigned int pin);
+/* Set gpiopin as secure */
+void iproc_gpio_set_secure(int gpiopin);
 #endif	/* BCM_GPIO_H */
