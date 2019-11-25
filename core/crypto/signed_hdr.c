@@ -76,7 +76,7 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (res)
 		goto out;
 
-	res = crypto_acipher_rsassa_verify(shdr->algo, &key, -1,
+	res = crypto_acipher_rsassa_verify(shdr->algo, &key, shdr->hash_size,
 					   SHDR_GET_HASH(shdr), shdr->hash_size,
 					   SHDR_GET_SIG(shdr), shdr->sig_size);
 out:
