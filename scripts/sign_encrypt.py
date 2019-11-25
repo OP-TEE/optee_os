@@ -128,10 +128,10 @@ def get_args(logger):
 
 
 def main():
-    from Crypto.Signature import PKCS1_v1_5
-    from Crypto.Hash import SHA256
-    from Crypto.PublicKey import RSA
-    from Crypto.Util.number import ceil_div
+    from Cryptodome.Signature import pss
+    from Cryptodome.Hash import SHA256
+    from Cryptodome.PublicKey import RSA
+    from Cryptodome.Util.number import ceil_div
     import base64
     import logging
     import os
@@ -167,7 +167,7 @@ def main():
         img_type = 2         # SHDR_ENCRYPTED_TA
     else:
         img_type = 1         # SHDR_BOOTSTRAP_TA
-    algo = 0x70004830    # TEE_ALG_RSASSA_PKCS1_V1_5_SHA256
+    algo = 0x70414930    # TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256
 
     shdr = struct.pack('<IIIIHH',
                        magic, img_type, img_size, algo, digest_len, sig_len)
@@ -215,7 +215,7 @@ def main():
                          'please use offline-signing mode.')
             sys.exit(1)
         else:
-            signer = PKCS1_v1_5.new(key)
+            signer = pss.new(key)
             sig = signer.sign(h)
             if len(sig) != sig_len:
                 raise Exception(("Actual signature length is not equal to ",
@@ -242,7 +242,7 @@ def main():
                          args.digf, args.sigf)
             sys.exit(1)
         else:
-            verifier = PKCS1_v1_5.new(key)
+            verifier = pss.new(key)
             if verifier.verify(h, sig):
                 write_image_with_signature(sig)
                 logger.info('Successfully applied signature.')
