@@ -131,7 +131,6 @@ def main():
     from Cryptodome.Signature import pss
     from Cryptodome.Hash import SHA256
     from Cryptodome.PublicKey import RSA
-    from Cryptodome.Util.number import ceil_div
     import base64
     import logging
     import os
@@ -151,12 +150,7 @@ def main():
     h = SHA256.new()
 
     digest_len = h.digest_size
-    try:
-        # This works in pycrypto
-        sig_len = ceil_div(key.size() + 1, 8)
-    except NotImplementedError:
-        # ... and this one - in pycryptodome
-        sig_len = key.size_in_bytes()
+    sig_len = key.size_in_bytes()
 
     img_size = len(img)
 
