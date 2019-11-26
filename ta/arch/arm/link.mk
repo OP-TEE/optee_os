@@ -93,7 +93,8 @@ $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  $$(cmd-echo$(user-ta-uuid)) $$@'
 	$(q)$(SIGN_ENC) --key $(TA_SIGN_KEY) $$(crypt-args$(user-ta-uuid)) \
-		--uuid $(user-ta-uuid) --in $$< --out $$@
+		--uuid $(user-ta-uuid) --ta-version $(user-ta-version) \
+		--in $$< --out $$@
 endef
 
 $(eval $(call gen-link-t))
