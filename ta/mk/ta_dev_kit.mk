@@ -20,6 +20,7 @@ link-out-dir := $(out-dir)	# backward compat
 link-out-dir$(sm) := $(out-dir)
 
 user-ta-uuid := $(BINARY)
+user-ta-version := $(if $(CFG_TA_VERSION),$(CFG_TA_VERSION),0)
 user-ta-ldadd := $(LDADD)
 libname := $(LIBNAME)
 shlibname := $(SHLIBNAME)
