@@ -186,17 +186,15 @@ class Symbolizer(object):
             # especially to symbolize mixed (user-space and kernel) addresses
             # which is true when syscall ftrace is enabled along with TA
             # ftrace.
-            return '0x0'
+            return self._tee_load_addr
         else:
             # tee.elf
             return self._tee_load_addr
 
     def elf_for_addr(self, addr):
-        if not self._regions:
-            return 'tee.elf'
         l_addr = self.elf_load_addr(addr)
-        if l_addr is None:
-            return None
+        if l_addr == self._tee_load_addr:
+            return 'tee.elf'
         for k in self._elfs:
             e = self._elfs[k]
             if int(e[1], 16) == int(l_addr, 16):
@@ -369,7 +367,7 @@ class Symbolizer(object):
         self._sections = {}  # {elf_name: [[name, addr, size], ...], ...}
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
-        self._tee_load_addr = 0x0
+        self._tee_load_addr = '0x0'
         self._func_graph_found = False
         self._func_graph_skip_line = True
 
