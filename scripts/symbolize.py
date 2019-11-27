@@ -15,7 +15,7 @@ import sys
 import termios
 
 CALL_STACK_RE = re.compile('Call stack:')
-TEE_LOAD_ADDR_RE = re.compile(r'Load address @ (?P<load_addr>0x[0-9a-f]+)')
+TEE_LOAD_ADDR_RE = re.compile(r'TEE load address @ (?P<load_addr>0x[0-9a-f]+)')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
 STACK_ADDR_RE = re.compile(
