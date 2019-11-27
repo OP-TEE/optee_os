@@ -110,7 +110,7 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
-	trace_printf_helper_raw(level, true, "Load address @ %#"PRIxVA,
+	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
 				VCORE_START_VA);
 	trace_printf_helper_raw(level, true, "Call stack:");
 

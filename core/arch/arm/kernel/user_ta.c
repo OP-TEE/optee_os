@@ -12,6 +12,7 @@
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/panic.h>
+#include <kernel/linker.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
@@ -510,14 +511,16 @@ static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 	uint8_t *ubuf = NULL;
 	void *buf = NULL;
 	size_t pl_sz = 0;
-	size_t blen = 0;
+	size_t blen = 0, ld_addr_len = 0;
 	vaddr_t va = 0;
 
 	res = dump_ftrace(utc, NULL, &blen);
 	if (res != TEE_ERROR_SHORT_BUFFER)
 		return;
 
-	pl_sz = ROUNDUP(blen + sizeof(TEE_UUID), SMALL_PAGE_SIZE);
+#define LOAD_ADDR_DUMP_SIZE	64
+	pl_sz = ROUNDUP(blen + sizeof(TEE_UUID) + LOAD_ADDR_DUMP_SIZE,
+			SMALL_PAGE_SIZE);
 
 	mobj = thread_rpc_alloc_payload(pl_sz);
 	if (!mobj) {
@@ -537,6 +540,11 @@ static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 	memcpy(ubuf, &ctx->uuid, sizeof(TEE_UUID));
 	ubuf += sizeof(TEE_UUID);
 
+	ld_addr_len = snprintk((char *)ubuf, LOAD_ADDR_DUMP_SIZE,
+			       "TEE load address @ %#"PRIxVA"\n",
+			       VCORE_START_VA);
+	ubuf += ld_addr_len;
+
 	res = dump_ftrace(utc, ubuf, &blen);
 	if (res) {
 		EMSG("Ftrace dump failed: %#"PRIx32, res);
@@ -545,7 +553,8 @@ static void user_ta_dump_ftrace(struct tee_ta_ctx *ctx)
 
 	params[0] = THREAD_PARAM_VALUE(INOUT, 0, 0, 0);
 	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(TEE_UUID));
-	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID), blen);
+	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(TEE_UUID),
+					blen + ld_addr_len);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_FTRACE, 3, params);
 	if (res)
