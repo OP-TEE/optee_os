@@ -65,8 +65,8 @@
 #define BCM_DRAM0_NS_SIZE      0xae00000
 #define BCM_DRAM1_NS_BASE      0x90000000
 #define BCM_DRAM1_NS_SIZE      0x70000000
-#define BCM_DRAM2_NS_BASE      0x880400000
-#define BCM_DRAM2_NS_SIZE      0x17fbfffff
+#define BCM_DRAM2_NS_BASE      0x880100000
+#define BCM_DRAM2_NS_SIZE      0x17ff00000
 
 /* Secure DDR ranges */
 #define BCM_DRAM0_SEC_BASE     0x8ae00000
