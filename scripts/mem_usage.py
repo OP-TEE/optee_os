@@ -88,6 +88,16 @@ def main():
     args = get_args()
     env = os.environ.copy()
     env['LC_ALL'] = 'C'
+    readelf = subprocess.Popen(str.split(readelf_cmd()) + ['-s',
+                                                           args.tee_elf],
+                               stdout=subprocess.PIPE, env=env,
+                               universal_newlines=True)
+    for line in iter(readelf.stdout.readline, ''):
+        words = line.split()
+        if len(words) == 8 and words[7] == '_end_of_ram':
+            end_of_ram = int(words[1], 16)
+            break
+    readelf.terminate()
     readelf = subprocess.Popen(str.split(readelf_cmd()) + ['-S', '-W',
                                                            args.tee_elf],
                                stdout=subprocess.PIPE, env=env,
@@ -112,12 +122,16 @@ def main():
                     flags == 'AL'):
                 sects.append({'name': name, 'addr': addr,
                               'offs': offs, 'size': size})
+    first_addr = None
     for sect in sects:
         if sect['addr'] != 0:
-            first_addr = sect['addr']
-            break
-    last_addr = sects[-1]['addr']
-    last_size = sects[-1]['size']
+            addr = sect['addr']
+            if not first_addr:
+                first_addr = addr
+            if int(addr, 16) >= end_of_ram:
+                break
+            last_addr = addr
+            last_size = sect['size']
 
     ram_usage = int(last_addr, 16) + int(last_size, 16) - int(first_addr, 16)
     print_sect('RAM Usage', int(first_addr, 16), ram_usage, True, True)
@@ -129,6 +143,8 @@ def main():
         addr = int(sect['addr'], 16)
         size = int(sect['size'], 16)
 
+        if addr >= end_of_ram:
+            break
         if last_addr != 0 and addr != last_addr + last_size:
             print_sect('*hole*', last_addr + last_size,
                        addr - (last_addr + last_size))
