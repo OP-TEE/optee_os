@@ -1,34 +1,42 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2017 NXP
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (C) 2020 Pengutronix
+ * Rouven Czerwinski <entwicklung@pengutronix.de>
  */
 #ifndef __DRIVERS_IMX_SNVS_H
 #define __DRIVERS_IMX_SNVS_H
 
 #include <tee_api_types.h>
 
-TEE_Result snvs_srtc_enable(void);
+#define SNVS_HPSR	0x14
+
+#define HPSR_SSM_ST_MASK			GENMASK_32(11, 8)
+#define HPSR_SSM_ST_SHIFT			8
+
+#define SNVS_HPSR_SYS_SECURITY_BAD BIT(14)
+#define SNVS_HPSR_SYS_SECURITY_CLOSED BIT(13)
+#define SNVS_HPSR_SYS_SECURITY_OPEN BIT(12)
+
+enum snvs_ssm_mode {
+	SNVS_SSM_MODE_INIT,
+	SNVS_SSM_MODE_HARD_FAIL,
+	SNVS_SSM_MODE_SOFT_FAIL = 3,
+	SNVS_SSM_MODE_INIT_INTERMEDIATE = 8,
+	SNVS_SSM_MODE_CHECK,
+	SNVS_SSM_MODE_NON_SECURE = 11,
+	SNVS_SSM_MODE_TRUSTED = 13,
+	SNVS_SSM_MODE_SECURE,
+};
+
+enum snvs_security_cfg {
+	SNVS_SECURITY_CFG_FAB,
+	SNVS_SECURITY_CFG_OPEN,
+	SNVS_SECURITY_CFG_CLOSED,
+	SNVS_SECURITY_CFG_FIELD_RETURN,
+};
+
+enum snvs_ssm_mode snvs_get_ssm_mode(void);
+
+enum snvs_security_cfg snvs_get_security_cfg(void);
 
 #endif /* __DRIVERS_IMX_SNVS_H */
