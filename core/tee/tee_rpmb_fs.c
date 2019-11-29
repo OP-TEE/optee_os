@@ -1020,6 +1020,11 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id)
 {
 	TEE_Result res;
 
+	if (!plat_rpmb_key_is_ready) {
+		DMSG("RPMB INIT: platform indicates RPMB key is not ready");
+		return TEE_ERROR_BAD_STATE;
+	}
+
 	DMSG("RPMB INIT: Writing Key value:");
 	DHEXDUMP(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
 
@@ -2614,4 +2619,9 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 	}
 
 	return res;
+}
+
+bool __weak plat_rpmb_key_is_ready(void)
+{
+	return true;
 }
