@@ -547,3 +547,7 @@ CFG_SHOW_CONF_ON_BOOT ?= n
 # to a TA, so a TPM Service could use it to extend any measurement
 # taken before the service was up and running.
 CFG_CORE_TPM_EVENT_LOG ?= n
+
+# When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
+# Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+CFG_SCMI_MSG_DRIVERS ?= n
