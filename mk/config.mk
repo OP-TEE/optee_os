@@ -517,3 +517,13 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
+# Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+# CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
+# CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
+# CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
+CFG_SCMI_MSG_DRIVERS ?= n
+CFG_SCMI_MSG_CLOCK ?= n
+CFG_SCMI_MSG_RESET_DOMAIN ?= n
+CFG_SCMI_MSG_SMT ?= n
