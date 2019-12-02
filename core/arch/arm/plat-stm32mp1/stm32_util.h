@@ -61,6 +61,9 @@ void stm32_clock_disable(unsigned long id);
 unsigned long stm32_clock_get_rate(unsigned long id);
 bool stm32_clock_is_enabled(unsigned long id);
 
+/* Return true if @clock_id is shared by secure and non-secure worlds */
+bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
+
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
  * @id: Target peripheral ID, ID used in reset DT bindings
