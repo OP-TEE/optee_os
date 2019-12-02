@@ -568,6 +568,75 @@ bool stm32mp_clock_is_non_secure(unsigned long clock_id)
 	return !stm32mp_periph_is_secure(shres_id);
 }
 
+bool stm32mp_nsec_can_access_clock(unsigned long clock_id)
+{
+	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
+
+	/* Oscillators and PLLs are visible from non-secure world */
+	COMPILE_TIME_ASSERT(CK_HSE == 0 &&
+			    (CK_HSE + 1) == CK_CSI &&
+			    (CK_HSE + 2) == CK_LSI &&
+			    (CK_HSE + 3) == CK_LSE &&
+			    (CK_HSE + 4) == CK_HSI &&
+			    (CK_HSE + 5) == CK_HSE_DIV2 &&
+			    (PLL1_P + 1) == PLL1_Q &&
+			    (PLL1_P + 2) == PLL1_R &&
+			    (PLL1_P + 3) == PLL2_P &&
+			    (PLL1_P + 4) == PLL2_Q &&
+			    (PLL1_P + 5) == PLL2_R &&
+			    (PLL1_P + 6) == PLL3_P &&
+			    (PLL1_P + 7) == PLL3_Q &&
+			    (PLL1_P + 8) == PLL3_R);
+
+	if (clock_id <= CK_HSE_DIV2 ||
+	    (clock_id >= PLL1_P && clock_id <= PLL3_R))
+		return true;
+
+	switch (clock_id) {
+	case RTCAPB:
+	case CK_MPU:
+	case CK_AXI:
+	case BSEC:
+		return true;
+	case GPIOZ:
+		return !stm32mp_gpio_bank_is_secure(GPIO_BANK_Z);
+	case SPI6_K:
+		shres_id = STM32MP1_SHRES_SPI6;
+		break;
+	case I2C4_K:
+		shres_id = STM32MP1_SHRES_I2C4;
+		break;
+	case I2C6_K:
+		shres_id = STM32MP1_SHRES_I2C6;
+		break;
+	case USART1_K:
+		shres_id = STM32MP1_SHRES_USART1;
+		break;
+	case IWDG1:
+		shres_id = STM32MP1_SHRES_IWDG1;
+		break;
+	case CRYP1:
+		shres_id = STM32MP1_SHRES_CRYP1;
+		break;
+	case HASH1:
+		shres_id = STM32MP1_SHRES_HASH1;
+		break;
+	case RNG1_K:
+		shres_id = STM32MP1_SHRES_RNG1;
+		break;
+	case RTC:
+		shres_id = STM32MP1_SHRES_RTC;
+		break;
+	case CK_MCU:
+		shres_id = STM32MP1_SHRES_MCU;
+		break;
+	default:
+		return false;
+	}
+
+	return !stm32mp_periph_is_secure(shres_id);
+}
+
 bool stm32mp_nsec_can_access_reset(unsigned int reset_id)
 {
 	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
