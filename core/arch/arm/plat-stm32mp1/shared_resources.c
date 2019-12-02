@@ -8,6 +8,7 @@
 #include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
+#include <dt-bindings/reset/stm32mp1-resets.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
@@ -602,6 +603,47 @@ bool stm32mp_clock_is_non_secure(unsigned long clock_id)
 		break;
 	default:
 		return true;
+	}
+
+	return !stm32mp_periph_is_secure(shres_id);
+}
+
+bool stm32mp_nsec_can_access_reset(unsigned int reset_id)
+{
+	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
+
+	switch (reset_id) {
+	case GPIOZ_R:
+		return stm32mp_gpio_bank_is_non_secure(GPIO_BANK_Z);
+	case SPI6_R:
+		shres_id = STM32MP1_SHRES_SPI6;
+		break;
+	case I2C4_R:
+		shres_id = STM32MP1_SHRES_I2C4;
+		break;
+	case I2C6_R:
+		shres_id = STM32MP1_SHRES_I2C6;
+		break;
+	case USART1_R:
+		shres_id = STM32MP1_SHRES_USART1;
+		break;
+	case CRYP1_R:
+		shres_id = STM32MP1_SHRES_CRYP1;
+		break;
+	case HASH1_R:
+		shres_id = STM32MP1_SHRES_HASH1;
+		break;
+	case RNG1_R:
+		shres_id = STM32MP1_SHRES_RNG1;
+		break;
+	case MDMA_R:
+		shres_id = STM32MP1_SHRES_MDMA;
+		break;
+	case MCU_R:
+		shres_id = STM32MP1_SHRES_MCU;
+		break;
+	default:
+		return false;
 	}
 
 	return !stm32mp_periph_is_secure(shres_id);
