@@ -9,6 +9,7 @@
 #include <trace.h>
 
 #include "base.h"
+#include "clock.h"
 #include "common.h"
 
 void scmi_status_response(struct scmi_msg *msg, int32_t status)
@@ -41,6 +42,11 @@ void scmi_process_message(struct scmi_msg *msg)
 	case SCMI_PROTOCOL_ID_BASE:
 		handler = scmi_msg_get_base_handler(msg);
 		break;
+#ifdef CFG_SCMI_MSG_CLOCK
+	case SCMI_PROTOCOL_ID_CLOCK:
+		handler = scmi_msg_get_clock_handler(msg);
+		break;
+#endif
 	default:
 		break;
 	}
