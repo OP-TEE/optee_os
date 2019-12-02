@@ -68,6 +68,9 @@ bool stm32_clock_is_enabled(unsigned long id);
 void stm32_reset_assert(unsigned int id);
 void stm32_reset_deassert(unsigned int id);
 
+/* Return true if and only if @reset_id relates to a non-secure peripheral */
+bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
+
 /*
  * Structure and API function for BSEC driver to get some platform data.
  *
