@@ -9,6 +9,7 @@
 #include <trace.h>
 
 #include "base.h"
+#include "clock.h"
 #include "common.h"
 
 scmi_msg_handler_t scmi_get_msg_handler(unsigned int message_id,
@@ -55,6 +56,13 @@ void scmi_process_message(struct scmi_msg *msg)
 				      scmi_base_payload_size_table,
 				      scmi_base_handler_count);
 		return;
+#ifdef CFG_SCMI_MSG_CLOCK
+	case SCMI_PROTOCOL_ID_CLOCK:
+		scmi_call_msg_handler(msg, scmi_clock_handler_table,
+				      scmi_clock_payload_size_table,
+				      scmi_clock_handler_count);
+		return;
+#endif
 	default:
 		scmi_status_response(msg, SCMI_NOT_SUPPORTED);
 		return;

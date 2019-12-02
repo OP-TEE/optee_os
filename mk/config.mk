@@ -520,4 +520,6 @@ CFG_SHOW_CONF_ON_BOOT ?= n
 
 # When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
 # Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+# CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
 CFG_SCMI_MSG_DRIVERS ?= n
+CFG_SCMI_MSG_CLOCK ?= n
