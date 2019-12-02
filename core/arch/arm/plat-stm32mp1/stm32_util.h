@@ -79,6 +79,9 @@ static inline void stm32_reset_release(unsigned int id)
 	(void)stm32_reset_deassert_to(id, 0);
 }
 
+/* Return true if and only if @reset_id relates to a non-secure peripheral */
+bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
+
 /*
  * Structure and API function for BSEC driver to get some platform data.
  *
