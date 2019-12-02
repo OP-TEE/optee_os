@@ -14,6 +14,7 @@
 
 #include "base.h"
 #include "clock.h"
+#include "reset_domain.h"
 
 #define SCMI_VERSION			0x20000
 #define SCMI_IMPL_VERSION		0
@@ -103,6 +104,15 @@ scmi_msg_handler_t scmi_msg_get_base_handler(struct scmi_msg *msg);
  * Return a function handler for the message or NULL
  */
 scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg);
+#endif
+
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+/*
+ * scmi_msg_get_rd_handler - Return a handler for a reset domain message
+ * @msg - message to process
+ * Return a function handler for the message or NULL
+ */
+scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg);
 #endif
 
 /*
