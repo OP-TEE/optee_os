@@ -14,6 +14,7 @@
 
 #include "base.h"
 #include "clock.h"
+#include "reset_domain.h"
 
 #define SCMI_VERSION			0x20000
 #define SCMI_IMPL_VERSION		0
@@ -86,6 +87,11 @@ extern const size_t scmi_base_handler_count;
 extern const scmi_msg_handler_t scmi_clock_handler_table[];
 extern const size_t scmi_clock_payload_size_table[];
 extern const size_t scmi_clock_handler_count;
+#endif
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+extern const scmi_msg_handler_t scmi_rd_handler_table[];
+extern const size_t scmi_rd_payload_size_table[];
+extern const size_t scmi_rd_handler_count;
 #endif
 
 /*

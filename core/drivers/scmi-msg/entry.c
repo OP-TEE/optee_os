@@ -11,6 +11,7 @@
 #include "base.h"
 #include "clock.h"
 #include "common.h"
+#include "reset_domain.h"
 
 scmi_msg_handler_t scmi_get_msg_handler(unsigned int message_id,
 					const scmi_msg_handler_t *handler_table,
@@ -61,6 +62,13 @@ void scmi_process_message(struct scmi_msg *msg)
 		scmi_call_msg_handler(msg, scmi_clock_handler_table,
 				      scmi_clock_payload_size_table,
 				      scmi_clock_handler_count);
+		return;
+#endif
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+	case SCMI_PROTOCOL_ID_RESET_DOMAIN:
+		scmi_call_msg_handler(msg, scmi_rd_handler_table,
+				      scmi_rd_payload_size_table,
+				      scmi_rd_handler_count);
 		return;
 #endif
 	default:

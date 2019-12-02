@@ -23,6 +23,13 @@
 	.weak plat_scmi_clock_set_state
 #endif
 
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+	.weak plat_scmi_rd_count
+	.weak plat_scmi_rd_get_name
+	.weak plat_scmi_rd_autonomous
+	.weak plat_scmi_rd_set_state
+#endif
+
 /* Unique weak function for unsupported handlers returning SCMI_NOT_SUPPORTED */
 FUNC scmi_weak_not_supported , :
 
@@ -32,6 +39,10 @@ plat_scmi_clock_get_state:
 plat_scmi_clock_set_state:
 plat_scmi_clock_rates_array:
 plat_scmi_clock_rates_by_step:
+#endif
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+plat_scmi_rd_autonomous:
+plat_scmi_rd_set_state:
 #endif
 
 UNWIND(	.fnstart)
@@ -47,6 +58,10 @@ FUNC scmi_server_weak_null , :
 plat_scmi_clock_count:
 plat_scmi_clock_get_name:
 plat_scmi_clock_get_current_rate:
+#endif
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+plat_scmi_rd_count:
+plat_scmi_rd_get_name:
 #endif
 
 UNWIND(	.fnstart)
