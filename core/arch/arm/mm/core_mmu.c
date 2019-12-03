@@ -1743,6 +1743,73 @@ err:
 	return ret;
 }
 
+TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
+					 size_t num_pages,
+					 enum teecore_memtypes memtype)
+{
+	struct core_mmu_table_info tbl_info = { };
+	struct tee_mmap_region *mm = NULL;
+	unsigned int idx = 0;
+	uint32_t old_attr = 0;
+	uint32_t exceptions = 0;
+	vaddr_t vaddr = vstart;
+	paddr_t paddr = pstart;
+	size_t i = 0;
+	bool secure = false;
+
+	assert(!(core_mmu_type_to_attr(memtype) & TEE_MATTR_PX));
+
+	secure = core_mmu_type_to_attr(memtype) & TEE_MATTR_SECURE;
+
+	if ((vaddr | paddr) & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	exceptions = mmu_lock();
+
+	mm = find_map_by_va((void *)vaddr);
+	if (!mm || !va_is_in_map(mm, vaddr + num_pages * SMALL_PAGE_SIZE - 1))
+		panic("VA does not belong to any known mm region");
+
+	if (!core_mmu_is_dynamic_vaspace(mm))
+		panic("Trying to map into static region");
+
+	for (i = 0; i < num_pages; i++) {
+		while (true) {
+			if (!core_mmu_find_table(NULL, vaddr, UINT_MAX,
+						 &tbl_info))
+				panic("Can't find pagetable for vaddr ");
+
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
+			if (tbl_info.shift == SMALL_PAGE_SHIFT)
+				break;
+
+			/* This is supertable. Need to divide it. */
+			if (!core_mmu_entry_to_finer_grained(&tbl_info, idx,
+							     secure))
+				panic("Failed to spread pgdir on small tables");
+		}
+
+		core_mmu_get_entry(&tbl_info, idx, NULL, &old_attr);
+		if (old_attr)
+			panic("Page is already mapped");
+
+		core_mmu_set_entry(&tbl_info, idx, paddr,
+				   core_mmu_type_to_attr(memtype));
+		paddr += SMALL_PAGE_SIZE;
+		vaddr += SMALL_PAGE_SIZE;
+	}
+
+	/*
+	 * Make sure all the changes to translation tables are visible
+	 * before returning. TLB doesn't need to be invalidated as we are
+	 * guaranteed that there's no valid mapping in this range.
+	 */
+	dsb_ishst();
+	mmu_unlock(exceptions);
+
+	return TEE_SUCCESS;
+}
+
 void core_mmu_unmap_pages(vaddr_t vstart, size_t num_pages)
 {
 	struct core_mmu_table_info tbl_info;
