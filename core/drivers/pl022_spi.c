@@ -150,7 +150,7 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 		return SPI_ERR_CFG;
 	}
 
-	if (wdat)
+	if (wdat) {
 		while (i < num_pkts) {
 			if (io_read8(pd->base + SSPSR) & SSPSR_TNF) {
 				/* tx 1 packet */
@@ -163,6 +163,16 @@ static enum spi_result pl022_txrx8(struct spi_chip *chip, uint8_t *wdat,
 					rdat[j++] = io_read8(pd->base + SSPDR);
 				}
 		}
+
+		/* Wait until tx fifo is empty */
+		while (io_read32(pd->base + SSPSR) & SSPSR_BSY) {
+			if (rdat)
+				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
+					/* rx 1 packet */
+					rdat[j++] = io_read8(pd->base + SSPDR);
+				}
+		}
+	}
 
 	/* Capture remaining rdat not read above */
 	if (rdat) {
@@ -195,7 +205,7 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 		return SPI_ERR_CFG;
 	}
 
-	if (wdat)
+	if (wdat) {
 		while (i < num_pkts) {
 			if (io_read8(pd->base + SSPSR) & SSPSR_TNF) {
 				/* tx 1 packet */
@@ -208,6 +218,16 @@ static enum spi_result pl022_txrx16(struct spi_chip *chip, uint16_t *wdat,
 					rdat[j++] = io_read16(pd->base + SSPDR);
 				}
 		}
+
+		/* Wait until tx fifo is empty */
+		while (io_read32(pd->base + SSPSR) & SSPSR_BSY) {
+			if (rdat)
+				if (io_read8(pd->base + SSPSR) & SSPSR_RNE) {
+					/* rx 1 packet */
+					rdat[j++] = io_read16(pd->base + SSPDR);
+				}
+		}
+	}
 
 	/* Capture remaining rdat not read above */
 	if (rdat) {
