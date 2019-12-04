@@ -412,6 +412,9 @@
 /* State Handle */
 #define ALGO_RNG_SH(sh)		SHIFT_U32((sh) & 0x3, 4)
 
+/* Prediction Resistance */
+#define ALGO_RNG_PR BIT32(1)
+
 /* State */
 #define AS_RNG_GENERATE		0x0
 #define AS_RNG_INSTANTIATE	0x1
