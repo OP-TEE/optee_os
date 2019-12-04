@@ -1113,6 +1113,19 @@ static void tee_pager_hide_pages(void)
 	}
 }
 
+static unsigned int __maybe_unused
+num_areas_with_pmem(struct tee_pager_pmem *pmem)
+{
+	struct tee_pager_area *a = NULL;
+	unsigned int num_matches = 0;
+
+	TAILQ_FOREACH(a, &pmem->fobj->areas, fobj_link)
+		if (pmem_is_covered_by_area(pmem, a))
+			num_matches++;
+
+	return num_matches;
+}
+
 /*
  * Find mapped pmem, hide and move to pageble pmem.
  * Return false if page was not mapped, and true if page was mapped.
@@ -1130,12 +1143,11 @@ static bool tee_pager_release_one_phys(struct tee_pager_area *area,
 			continue;
 
 		/*
-		 * Locked pages may not be shared, these two asserts checks
-		 * that there's only a signed area recorded with this pmem.
+		 * Locked pages may not be shared. We're asserting that the
+		 * number of areas using this pmem is one and only one as
+		 * we're about to unmap it.
 		 */
-		assert(TAILQ_FIRST(&pmem->fobj->areas) == area);
-		assert(TAILQ_LAST(&pmem->fobj->areas,
-				  tee_pager_area_head) == area);
+		assert(num_areas_with_pmem(pmem) == 1);
 
 		tblidx = pmem_get_area_tblidx(pmem, area);
 		area_set_entry(area, tblidx, 0, 0);
