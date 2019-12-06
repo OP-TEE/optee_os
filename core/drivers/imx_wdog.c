@@ -44,6 +44,24 @@
 static bool ext_reset;
 static vaddr_t wdog_base;
 
+#ifdef CFG_MX7ULP
+static void imx_wdt_reinit(void)
+{
+	uint32_t val;
+
+	/* unlock the wdog for reconfiguration */
+	io_write32(wdog_base + WDOG_CNT, UNLOCK_SEQ0);
+	io_write32(wdog_base + WDOG_CNT, UNLOCK_SEQ1);
+
+	/* set an initial timeout value in TOVAL */
+	io_write32(wdog_base + WDOG_TOVAL, 1000);
+
+	/* enable 32bit command sequence and reconfigure */
+	val = (1 << 13) | (1 << 8) | (1 << 5);
+	io_write32(wdog_base + WDOG_CS, val);
+}
+#endif
+
 void imx_wdog_restart(void)
 {
 	uint32_t val;
@@ -54,6 +72,9 @@ void imx_wdog_restart(void)
 	}
 
 #ifdef CFG_MX7ULP
+	/* make sure the wdt is in the ready state */
+	imx_wdt_reinit();
+
 	val = io_read32(wdog_base + WDOG_CS);
 
 	io_write32(wdog_base + WDOG_CNT, UNLOCK);
