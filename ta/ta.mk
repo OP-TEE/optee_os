@@ -38,6 +38,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
 ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
+ta-mk-file-export-vars-$(sm) += CFG_TA_LIBSM
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -117,6 +118,14 @@ libdir = lib/libdl
 libuuid = be807bbd-81e1-4dc4-bd99-3d363f240ece
 libl = utee utils
 include mk/lib.mk
+
+ifeq ($(CFG_TA_LIBSM),y)
+libname = sm
+libdir = lib/libsm
+libuuid = b124dfd6-302c-4d9a-acec-fac35ec9b1b8
+libl = mbedtls  # SM2 algorithm depends on libmbedtls
+include mk/lib.mk
+endif
 
 base-prefix :=
 

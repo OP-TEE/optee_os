@@ -517,3 +517,8 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# User space library implementing the SM2/SM3/SM4 Chinese algorithms
+# SM2 depends on MbedTLS
+CFG_TA_LIBSM ?= $(CFG_TA_MBEDTLS)
+$(eval $(call cfg-depends-all,CFG_TA_LIBSM,CFG_TA_MBEDTLS))
