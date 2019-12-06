@@ -65,6 +65,7 @@ cryphw-one-enabled = $(call cfg-one-enabled, \
 # Definition of the HW and Cryto Driver Algorithm supported by all i.MX
 $(eval $(call cryphw-enable-drv-hw, HASH))
 $(eval $(call cryphw-enable-drv-hw, CIPHER))
+$(eval $(call cryphw-enable-drv-hw, HMAC))
 
 ifneq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) \
 	$(CFG_MX6S) $(CFG_MX6SL) $(CFG_MX6SLL) $(CFG_MX6SX)), y)
@@ -79,6 +80,7 @@ CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
 endif
 
 $(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA))
+$(call force, CFG_CRYPTO_DRV_MAC, $(call cryphw-one-enabled, HMAC))
 
 #
 # Enable Cryptographic Driver interface
