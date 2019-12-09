@@ -178,9 +178,9 @@ $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)scripts/gen_tee_bin.py --input $< --out_tee_pageable_bin $@
 
+all: $(link-out-dir)/tee.bin
 cleanfiles += $(link-out-dir)/tee.bin
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
-	@echo Warning: $@ is deprecated
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)scripts/gen_tee_bin.py --input $< --out_tee_bin $@
 
