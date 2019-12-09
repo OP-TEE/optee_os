@@ -75,8 +75,6 @@ END_FUNC plat_cpu_reset_early
 LOCAL_FUNC resume_springboard , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	mov	r3, r5
-
 	/* Setup tmp stack */
 	bl	__get_core_pos
 	cmp	r0, #CFG_TEE_CORE_NB_CORE
@@ -100,10 +98,10 @@ unhandled_cpu:
 	bl	sm_pm_cpu_do_resume
 
 after_resume:
-	mov	r4, r3
 	bl	thread_init_per_cpu
 
-	mov	r0, r4
+	/* r5 contains the non-secure entry address (ARMv7 bootarg #0) */
+	mov	r0, r5
 	bl	init_sec_mon
 
 	bl	main_init_gic
