@@ -27,6 +27,7 @@
 #include <sm/psci.h>
 #include <sm/tee_mon.h>
 #include <stdio.h>
+#include <string.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
@@ -101,6 +102,12 @@ __weak void main_init_gic(void)
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_secondary_init_gic(void)
 {
+}
+
+__weak const char *main_get_optee_exclusive_node_name(unsigned int i)
+{
+	(void)i;
+	return NULL;
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -753,6 +760,82 @@ static int config_psci(struct dt_descriptor *dt __unused)
 }
 #endif /*CFG_PSCI_ARM32*/
 
+static int add_descriptor_node(struct dt_descriptor *dt, const char *driver)
+{
+	unsigned int i, j;
+	char root_name[80]; /* size chosen as per other cases in this file */
+	char buffer[512];
+	char *item[10];
+	char *root;
+	int offs;
+
+	/* strok will modify the buffer */
+	strncpy(buffer, driver, sizeof(buffer));
+
+	root = strtok(buffer, "/");
+	if (!root)
+		return -1;
+
+	/* iterate trough the path name getting pointers to each node */
+	for (i = 0; i < ARRAY_SIZE(item); i++) {
+		item[i] = strtok(NULL, "/");
+		if (!item[i])
+			break;
+	}
+
+	if (i >= ARRAY_SIZE(item))
+		return -1;
+
+	if (fdt_path_offset(dt->blob, driver) >= 0)
+		return 0;
+
+	/* add the root node name */
+	snprintf(root_name, 80, "/%s", root);
+	offs = fdt_path_offset(dt->blob, root_name);
+	if (offs < 0) {
+		offs = add_dt_path_subnode(dt, "/", root);
+		if (offs < 0)
+			return -1;
+	}
+
+	for (j = 0; j < i; j++) {
+		offs = fdt_add_subnode(dt->blob, offs, item[j]);
+		if (offs < 0)
+			return -1;
+	}
+
+	return offs;
+}
+
+static int reserve_platform_drivers_dt_nodes(struct dt_descriptor *dt)
+{
+	const char *driver;
+	unsigned int i = 0;
+	int offs;
+
+	for (;;) {
+		driver = main_get_optee_exclusive_node_name(i);
+		if (!driver)
+			break;
+
+		offs = add_descriptor_node(dt, driver);
+		if (offs < 0)
+			return -1;
+		i++;
+
+		if (!offs)
+			continue;
+
+		if (fdt_setprop_string(dt->blob, offs, "status", "disabled"))
+			return -1;
+
+		if (fdt_setprop_string(dt->blob, offs, "secure-status", "okay"))
+			return -1;
+	}
+
+	return 0;
+}
+
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
 {
 	if (cell_size == 1) {
@@ -987,6 +1070,9 @@ static void update_external_dt(void)
 
 	if (config_psci(dt))
 		panic("Failed to config PSCI");
+
+	if (reserve_platform_drivers_dt_nodes(dt))
+		panic("Failed to reserve drivers for OP-TEE exclusive access");
 
 #ifdef CFG_CORE_RESERVED_SHM
 	if (mark_static_shm_as_reserved(dt))
