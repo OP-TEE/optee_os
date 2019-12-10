@@ -334,6 +334,7 @@ SECTIONS
 	__rodata_init_end = .;
 
 	__init_end = ROUNDUP(__rodata_init_end, SMALL_PAGE_SIZE);
+	__get_tee_init_end = __init_end;
 	__init_size = __init_end - __init_start;
 
 	/* vcore flat map stops here. No need to page align, rodata follows. */
@@ -406,6 +407,7 @@ SECTIONS
 
 #ifndef CFG_WITH_PAGER
 	__flatmap_unpg_rw_size = _end_of_ram - __flatmap_unpg_rw_start;
+	__get_tee_init_end = .;
 #endif
 
 	/*
