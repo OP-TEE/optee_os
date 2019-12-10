@@ -270,7 +270,7 @@ def output_header_v1(elffile, outf):
     pager_bin_size = len(pager_bin)
     paged_area_size = len(pageable_bin)
 
-    init_mem_usage = (get_symbol(elffile, '__init_end')['st_value'] -
+    init_mem_usage = (get_symbol(elffile, '__get_tee_init_end')['st_value'] -
                       get_symbol(elffile, '__text_start')['st_value'] +
                       len(embdata_bin))
 
