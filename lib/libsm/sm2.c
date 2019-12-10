@@ -3,24 +3,26 @@
  * Copyright (c) 2019 Huawei Technologies Co., Ltd
  */
 /*
- *  sm2_signature.c
  *  mbedtlsSM2
  *
  *  Created by mac on 2018/4/18.
- *  Copyright © 2018年 mac. All rights reserved.
+ *  Copyright 2018 mac. All rights reserved.
  */
 
+#include <assert.h>
 #include <mbedtls/bignum.h>
 #include <mbedtls/ecp.h>
 #include <sm2.h>
 #include <string.h>
 #include <tee_internal_api.h>
+#include <util.h>
 
 #define BN2BIN_SIZE 512
 uint8_t bn2binbuffer[BN2BIN_SIZE];
 
 static void append_bin(struct sm2_hash *h, size_t size)
 {
+	assert(h->position + size <= ARRAY_SIZE(bn2binbuffer));
 	memcpy(h->buffer + h->position, &bn2binbuffer[BN2BIN_SIZE - size],
 	       size);
 	h->position += size;
@@ -28,6 +30,7 @@ static void append_bin(struct sm2_hash *h, size_t size)
 
 static void append_str(struct sm2_hash *h, uint8_t *buf, size_t size)
 {
+	assert(h->position + size <= ARRAY_SIZE(bn2binbuffer));
 	memcpy(h->buffer + h->position, buf, size);
 	h->position += size;
 }
@@ -58,7 +61,10 @@ static int hash256(uint8_t *in, size_t size, uint8_t *out)
 	return ret;
 }
 
-/* Return random number @a < @b */
+/*
+ * Generates a random number @a such that @a < @b.
+ * Returns an Mbed TLS status code.
+ */
 static int random_num(mbedtls_mpi *a, size_t bytes, mbedtls_mpi *b)
 {
 	uint8_t *rnd = NULL;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 1019 Huawei Technologies Co., Ltd
+ * Copyright (c) 2019 Huawei Technologies Co., Ltd
  */
 #ifndef LIBSM_SM4_H
 #define LIBSM_SM4_H

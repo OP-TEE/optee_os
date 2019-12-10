@@ -75,17 +75,17 @@ static void sm3_process(struct sm3_context *ctx, const uint8_t data[64])
 	GET_UINT32_BE(W[14], data, 56);
 	GET_UINT32_BE(W[15], data, 60);
 
-#define FF0(x, y, z) ((x) ^ (y) ^ (z))
-#define FF1(x, y, z) (((x) & (y)) | ((x) & (z)) | ((y) & (z)))
+#define FF0(x, y, z)	((x) ^ (y) ^ (z))
+#define FF1(x, y, z)	(((x) & (y)) | ((x) & (z)) | ((y) & (z)))
 
-#define GG0(x, y, z) ((x) ^ (y) ^ (z))
-#define GG1(x, y, z) (((x) & (y)) | ((~(x)) & (z)))
+#define GG0(x, y, z)	((x) ^ (y) ^ (z))
+#define GG1(x, y, z)	(((x) & (y)) | ((~(x)) & (z)))
 
-#define SHL(x, n)  (((x) & 0xFFFFFFFF) << (n))
-#define ROTL(x, n) (SHL((x), n) | ((x) >> (32 - n)))
+#define SHL(x, n)	(((x) & 0xFFFFFFFF) << (n))
+#define ROTL(x, n)	(SHL((x), (n)) | ((x) >> (32 - (n))))
 
-#define P0(x) ((x) ^ ROTL((x), 9) ^ ROTL((x), 17))
-#define P1(x) ((x) ^ ROTL((x), 15) ^ ROTL((x), 23))
+#define P0(x)	((x) ^ ROTL((x), 9) ^ ROTL((x), 17))
+#define P1(x)	((x) ^ ROTL((x), 15) ^ ROTL((x), 23))
 
 	for (j = 16; j < 68; j++) {
 		/*
@@ -158,7 +158,7 @@ void sm3_update(struct sm3_context *ctx, const uint8_t *input, size_t ilen)
 	size_t fill;
 	size_t left;
 
-	if (ilen <= 0)
+	if (!ilen)
 		return;
 
 	left = ctx->total[0] & 0x3F;

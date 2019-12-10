@@ -3,11 +3,10 @@
  * Copyright (c) 2019 Huawei Technologies Co., Ltd
  */
 /*
- *  sm2_signature.h
  *  mbedtlsSM2
  *
  *  Created by mac on 2018/4/18.
- *  Copyright © 2018年 mac. All rights reserved.
+ *  Copyright 2018 mac. All rights reserved.
  */
 
 #ifndef LIBSM_SM2_H
@@ -15,8 +14,8 @@
 
 #include <mbedtls/ecp.h>
 
-#define MAX_POINT_BYTE_LENGTH 64
-#define HASH_BYTE_LENGTH 32
+#define MAX_POINT_BYTE_LENGTH	64
+#define HASH_BYTE_LENGTH	32
 
 struct sm2_sign_ctx {
 	uint8_t *message;

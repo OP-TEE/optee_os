@@ -31,10 +31,10 @@
 	(b)[(i) + 3] = (uint8_t)((n));		\
 }
 
-#define  SHL(x, n) (((x) & 0xFFFFFFFF) << (n))
-#define ROTL(x, n) (SHL((x), n) | ((x) >> (32 - n)))
+#define SHL(x, n)	(((x) & 0xFFFFFFFF) << (n))
+#define ROTL(x, n)	(SHL((x), (n)) | ((x) >> (32 - (n))))
 
-#define SWAP(a, b) { uint32_t t = a; a = b; b = t; t = 0; }
+#define SWAP(a, b)	{ uint32_t t = a; a = b; b = t; t = 0; }
 
 /*
  * Expanded SM4 S-boxes
@@ -79,7 +79,7 @@ static const uint32_t FK[4] = {
 	0xa3b1bac6, 0x56aa3350, 0x677d9197, 0xb27022dc
 };
 
-/* fixed parameter */
+/* Fixed parameter */
 static const uint32_t CK[32] = {
 	0x00070e15, 0x1c232a31, 0x383f464d, 0x545b6269,
 	0x70777e85, 0x8c939aa1, 0xa8afb6bd, 0xc4cbd2d9,
