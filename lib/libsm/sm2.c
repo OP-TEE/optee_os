@@ -39,11 +39,13 @@ static size_t byte_length(size_t bit_length)
 
 static int hash256(uint8_t *in, size_t size, uint8_t *out)
 {
-	size_t out_size = size;
+	uint32_t out_size = size;
 	TEE_OperationHandle op = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int ret = 0;
 
+	if (size > out_size)
+		return MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
 	res = TEE_AllocateOperation(&op, TEE_ALG_SHA256, TEE_MODE_DIGEST, 0);
 	if (res)
 		return MBEDTLS_ERR_MPI_ALLOC_FAILED;
