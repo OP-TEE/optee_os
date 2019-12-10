@@ -518,7 +518,10 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
 
+# EXPERIMENTAL
 # User space library implementing the SM2/SM3/SM4 Chinese algorithms
-# SM2 depends on MbedTLS
+# (note that SM2 depends on MbedTLS).
+# This may become deprecated once the GP TEE Internal Core API supports
+# these algorithms, which is expected to happen in version 1.3.
 CFG_TA_LIBSM ?= $(CFG_TA_MBEDTLS)
 $(eval $(call cfg-depends-all,CFG_TA_LIBSM,CFG_TA_MBEDTLS))
