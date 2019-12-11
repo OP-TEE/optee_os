@@ -34,7 +34,7 @@ build:
     - _make CFG_CRYPTO_{H,C,CBC_}MAC=n
     - _make CFG_CRYPTO_{G,C}CM=n
     - _make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512,512_256}}=n
-    - _make CFG_WITH_PAGER=y
+    - _make CFG_WITH_PAGER=y out/core/tee{,-pager,-pageable}.bin
     - _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
     - _make CFG_WITH_LPAE=y CFG_CORE_ASLR=y
@@ -94,7 +94,7 @@ build:
     - _make PLATFORM=k3-j721e CFG_ARM64_core=y
     - _make PLATFORM=k3-am65x
     - _make PLATFORM=k3-am65x CFG_ARM64_core=y
-    - _make PLATFORM=ti-dra7xx
+    - _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
     - _make PLATFORM=ti-am57xx
     - _make PLATFORM=ti-am43xx
     - _make PLATFORM=sprd-sc9860
