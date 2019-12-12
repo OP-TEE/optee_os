@@ -354,7 +354,7 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	return TEE_SUCCESS;
 }
 
-TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
+TEE_Result mobj_inc_map(struct mobj *mobj)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
@@ -391,7 +391,7 @@ out:
 	return res;
 }
 
-TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
+TEE_Result mobj_dec_map(struct mobj *mobj)
 {
 	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
 
@@ -425,7 +425,7 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 	if (!mobj)
 		return NULL;
 
-	if (mobj_reg_shm_inc_map(mobj)) {
+	if (mobj_inc_map(mobj)) {
 		mobj_put(mobj);
 		return NULL;
 	}
