@@ -22,6 +22,7 @@
 #define TEE_MAIN_ALGO_DES        0x11
 #define TEE_MAIN_ALGO_DES2       0x12
 #define TEE_MAIN_ALGO_DES3       0x13
+#define TEE_MAIN_ALGO_SM4        0x14 /* Not in v1.2, extrapolated */
 #define TEE_MAIN_ALGO_RSA        0x30
 #define TEE_MAIN_ALGO_DSA        0x31
 #define TEE_MAIN_ALGO_DH         0x32
@@ -80,6 +81,7 @@
 
 #define TEE_AES_BLOCK_SIZE  16UL
 #define TEE_DES_BLOCK_SIZE  8UL
+#define TEE_SM4_BLOCK_SIZE  16UL
 
 #define TEE_AES_MAX_KEY_SIZE    32UL
 

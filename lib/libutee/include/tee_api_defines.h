@@ -135,6 +135,9 @@
 #define TEE_ALG_DES3_CBC_NOPAD                  0x10000113
 #define TEE_ALG_DES3_CBC_MAC_NOPAD              0x30000113
 #define TEE_ALG_DES3_CBC_MAC_PKCS5              0x30000513
+#define TEE_ALG_SM4_ECB_NOPAD                   0x10000014
+#define TEE_ALG_SM4_CBC_NOPAD                   0x10000114
+#define TEE_ALG_SM4_CTR                         0x10000214
 #define TEE_ALG_RSASSA_PKCS1_V1_5_MD5           0x70001830
 #define TEE_ALG_RSASSA_PKCS1_V1_5_SHA1          0x70002830
 #define TEE_ALG_RSASSA_PKCS1_V1_5_SHA224        0x70003830
@@ -197,6 +200,7 @@
 #define TEE_TYPE_AES                        0xA0000010
 #define TEE_TYPE_DES                        0xA0000011
 #define TEE_TYPE_DES3                       0xA0000013
+#define TEE_TYPE_SM4                        0xA0000014
 #define TEE_TYPE_HMAC_MD5                   0xA0000001
 #define TEE_TYPE_HMAC_SHA1                  0xA0000002
 #define TEE_TYPE_HMAC_SHA224                0xA0000003

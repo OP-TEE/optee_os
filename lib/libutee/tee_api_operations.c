@@ -117,8 +117,13 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_ECB_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_SM4_ECB_NOPAD:
+	case TEE_ALG_SM4_CBC_NOPAD:
+	case TEE_ALG_SM4_CTR:
 		if (TEE_ALG_GET_MAIN_ALG(algorithm) == TEE_MAIN_ALGO_AES)
 			block_size = TEE_AES_BLOCK_SIZE;
+		else if (TEE_ALG_GET_MAIN_ALG(algorithm) == TEE_MAIN_ALGO_SM4)
+			block_size = TEE_SM4_BLOCK_SIZE;
 		else
 			block_size = TEE_DES_BLOCK_SIZE;
 		/* FALLTHROUGH */
@@ -1066,7 +1071,9 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	    operation->info.algorithm == TEE_ALG_DES_ECB_NOPAD ||
 	    operation->info.algorithm == TEE_ALG_DES_CBC_NOPAD ||
 	    operation->info.algorithm == TEE_ALG_DES3_ECB_NOPAD ||
-	    operation->info.algorithm == TEE_ALG_DES3_CBC_NOPAD) {
+	    operation->info.algorithm == TEE_ALG_DES3_CBC_NOPAD ||
+	    operation->info.algorithm == TEE_ALG_SM4_ECB_NOPAD ||
+	    operation->info.algorithm == TEE_ALG_SM4_CBC_NOPAD) {
 		if (((operation->buffer_offs + srcLen) % operation->block_size)
 		    != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
