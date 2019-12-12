@@ -195,6 +195,24 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc, cipher)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc, cipher)
 #endif
 
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_ECB)
+TEE_Result crypto_sm4_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ecb, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_CBC)
+TEE_Result crypto_sm4_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_cbc, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_CTR)
+TEE_Result crypto_sm4_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ctr, cipher)
+#endif
+
 /*
  * The crypto context used by the crypto_authen_*() functions below is
  * defined by struct crypto_authenc_ctx.

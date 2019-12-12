@@ -122,6 +122,15 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 	case TEE_ALG_DES3_CBC_NOPAD:
 		res = crypto_des3_cbc_alloc_ctx(&c);
 		break;
+	case TEE_ALG_SM4_ECB_NOPAD:
+		res = crypto_sm4_ecb_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SM4_CBC_NOPAD:
+		res = crypto_sm4_cbc_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SM4_CTR:
+		res = crypto_sm4_ctr_alloc_ctx(&c);
+		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
@@ -191,6 +200,9 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 	case TEE_MAIN_ALGO_DES:
 	case TEE_MAIN_ALGO_DES3:
 		*size = TEE_DES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	case TEE_MAIN_ALGO_SM4:
+		*size = TEE_SM4_BLOCK_SIZE;
 		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;

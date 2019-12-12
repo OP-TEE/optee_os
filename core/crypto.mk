@@ -9,6 +9,7 @@ ifeq (y,$(CFG_CRYPTO))
 # Ciphers
 CFG_CRYPTO_AES ?= y
 CFG_CRYPTO_DES ?= y
+CFG_CRYPTO_SM4 ?= y
 
 # Cipher block modes
 CFG_CRYPTO_ECB ?= y
