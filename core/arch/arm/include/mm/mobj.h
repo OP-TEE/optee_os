@@ -182,7 +182,7 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie);
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
 
 /**
- * mobj_reg_shm_inc_map() - increase map count
+ * mobj_inc_map() - increase map count
  * @mobj:	pointer to a registered shared memory MOBJ
  *
  * Maps the MOBJ if it isn't mapped already and increaes the map count
@@ -191,10 +191,10 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie);
  *
  * Returns TEE_SUCCESS on success or an error code on failure
  */
-TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj);
+TEE_Result mobj_inc_map(struct mobj *mobj);
 
 /**
- * mobj_reg_shm_dec_map() - decrease map count
+ * mobj_dec_map() - decrease map count
  * @mobj:	pointer to a registered shared memory MOBJ
  *
  * Decreases the map count and also unmaps the MOBJ if the map count
@@ -203,7 +203,7 @@ TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj);
  *
  * Returns TEE_SUCCESS on success or an error code on failure
  */
-TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj);
+TEE_Result mobj_dec_map(struct mobj *mobj);
 
 /**
  * mobj_reg_shm_unguard() - unguards a reg_shm
@@ -223,12 +223,12 @@ void mobj_reg_shm_unguard(struct mobj *mobj);
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
 #else
-static inline TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj __unused)
+static inline TEE_Result mobj_inc_map(struct mobj *mobj __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj __unused)
+static inline TEE_Result mobj_dec_map(struct mobj *mobj __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
