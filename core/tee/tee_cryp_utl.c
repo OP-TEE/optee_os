@@ -45,6 +45,10 @@ TEE_Result tee_hash_get_digest_size(uint32_t algo, size_t *size)
 	case TEE_ALG_HMAC_SHA512:
 		*size = TEE_SHA512_HASH_SIZE;
 		break;
+	case TEE_ALG_SM3:
+	case TEE_ALG_HMAC_SM3:
+		*size = TEE_SM3_HASH_SIZE;
+		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
@@ -89,6 +93,7 @@ TEE_Result tee_mac_get_digest_size(uint32_t algo, size_t *size)
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SM3:
 		return tee_hash_get_digest_size(algo, size);
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:

@@ -430,6 +430,9 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_HMAC_SHA512, 8, 256, 1024,
 		1024 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_HMAC_SM3, 8, 80, 1024,
+		512 / 8 + sizeof(struct tee_cryp_obj_secret),
+		tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_GENERIC_SECRET, 8, 0, 4096,
 		4096 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
@@ -1825,6 +1828,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	case TEE_TYPE_HMAC_SHA256:
 	case TEE_TYPE_HMAC_SHA384:
 	case TEE_TYPE_HMAC_SHA512:
+	case TEE_TYPE_HMAC_SM3:
 	case TEE_TYPE_GENERIC_SECRET:
 		byte_size = key_size / 8;
 
@@ -1969,6 +1973,9 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		break;
 	case TEE_MAIN_ALGO_SHA512:
 		req_key_type = TEE_TYPE_HMAC_SHA512;
+		break;
+	case TEE_MAIN_ALGO_SM3:
+		req_key_type = TEE_TYPE_HMAC_SM3;
 		break;
 	case TEE_MAIN_ALGO_AES:
 		req_key_type = TEE_TYPE_AES;

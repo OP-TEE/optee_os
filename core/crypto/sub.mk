@@ -20,6 +20,11 @@ endif
 ifneq ($(CFG_CRYPTO_CTS_FROM_CRYPTOLIB),y)
 srcs-$(CFG_CRYPTO_CTS) += aes-cts.c
 endif
+ifeq ($(CFG_CRYPTO_SM3),y)
+srcs-y += sm3.c
+srcs-y += sm3-hash.c
+srcs-$(CFG_CRYPTO_HMAC) += sm3-hmac.c
+endif
 ifeq ($(CFG_CRYPTO_SM4),y)
 srcs-y += sm4.c
 srcs-$(CFG_CRYPTO_ECB) += sm4-ecb.c

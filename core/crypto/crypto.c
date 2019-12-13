@@ -43,6 +43,9 @@ TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 		case TEE_ALG_SHA512:
 			res = crypto_sha512_alloc_ctx(&c);
 			break;
+		case TEE_ALG_SM3:
+			res = crypto_sm3_alloc_ctx(&c);
+			break;
 		default:
 			break;
 		}
@@ -232,6 +235,9 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 		break;
 	case TEE_ALG_HMAC_SHA512:
 		res = crypto_hmac_sha512_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SM3:
+		res = crypto_hmac_sm3_alloc_ctx(&c);
 		break;
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 		res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
