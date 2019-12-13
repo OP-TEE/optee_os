@@ -226,6 +226,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_SHA256:
 	case TEE_ALG_SHA384:
 	case TEE_ALG_SHA512:
+	case TEE_ALG_SM3:
 		if (mode != TEE_MODE_DIGEST)
 			return TEE_ERROR_NOT_SUPPORTED;
 		/* v1.1: flags always set for digest operations */
@@ -246,6 +247,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SM3:
 		if (mode != TEE_MODE_MAC)
 			return TEE_ERROR_NOT_SUPPORTED;
 		req_key_usage = TEE_USAGE_MAC;

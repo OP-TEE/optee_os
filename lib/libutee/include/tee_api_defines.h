@@ -174,6 +174,7 @@
 #define TEE_ALG_HMAC_SHA256                     0x30000004
 #define TEE_ALG_HMAC_SHA384                     0x30000005
 #define TEE_ALG_HMAC_SHA512                     0x30000006
+#define TEE_ALG_HMAC_SM3                        0x30000007
 /*
  * Fix GP Internal Core API v1.1
  *     "Table 6-12:  Structure of Algorithm Identifier"
@@ -194,6 +195,7 @@
 #define TEE_ALG_ECDH_P256                       0x80003042
 #define TEE_ALG_ECDH_P384                       0x80004042
 #define TEE_ALG_ECDH_P521                       0x80005042
+#define TEE_ALG_SM3                             0x50000007
 
 /* Object Types */
 
@@ -207,6 +209,7 @@
 #define TEE_TYPE_HMAC_SHA256                0xA0000004
 #define TEE_TYPE_HMAC_SHA384                0xA0000005
 #define TEE_TYPE_HMAC_SHA512                0xA0000006
+#define TEE_TYPE_HMAC_SM3                   0xA0000007 /* Not in spec */
 #define TEE_TYPE_RSA_PUBLIC_KEY             0xA0000030
 #define TEE_TYPE_RSA_KEYPAIR                0xA1000030
 #define TEE_TYPE_DSA_PUBLIC_KEY             0xA0000031

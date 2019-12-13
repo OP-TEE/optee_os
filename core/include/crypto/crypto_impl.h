@@ -68,6 +68,12 @@ TEE_Result crypto_sha512_alloc_ctx(struct crypto_hash_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha512, hash)
 #endif
 
+#if defined(CFG_CRYPTO_SM3)
+TEE_Result crypto_sm3_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm3, hash)
+#endif
+
 /*
  * The crypto context used by the crypto_mac_*() functions is defined by
  * struct crypto_mac_ctx.
@@ -102,6 +108,12 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha224, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha256, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha384, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
+#endif
+
+#if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_HMAC)
+TEE_Result crypto_hmac_sm3_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sm3, mac)
 #endif
 
 #if defined(CFG_CRYPTO_CBC_MAC)
