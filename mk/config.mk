@@ -522,6 +522,8 @@ CFG_SHOW_CONF_ON_BOOT ?= n
 # Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
 # CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
 # CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
+# CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
 CFG_SCMI_MSG_DRIVERS ?= n
 CFG_SCMI_MSG_CLOCK ?= n
 CFG_SCMI_MSG_RESET_DOMAIN ?= n
+CFG_SCMI_MSG_SMT ?= n
