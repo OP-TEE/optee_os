@@ -37,6 +37,45 @@ struct scmi_msg_channel {
 	const char *agent_name;
 };
 
+/*
+ * Initialize SMT memory buffer, called by platform at init for each
+ * agent channel using the SMT header format.
+ * This function depends on CFG_SCMI_MSG_SMT.
+ *
+ * @chan: Pointer to the channel shared memory to be initialized
+ */
+void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan);
+
+/*
+ * Process SMT formatted message in a fastcall SMC cexecution ontext.
+ * Called by platform on SMC entry. When returning, output message is
+ * available in shared memory for agent to read the response.
+ * This function depends on CFG_SCMI_MSG_SMT_FASTCALL_ENTRY.
+ *
+ * @agent_id: SCMI agent ID the SMT belongs to
+ */
+void scmi_smt_fastcall_smc_entry(unsigned int agent_id);
+
+/*
+ * Process SMT formatted message in a secure interrupt execution context.
+ * Called by platform interrupt handler. When returning, output message is
+ * available in shared memory for agent to read the response.
+ * This function depends on CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY.
+ *
+ * @agent_id: SCMI agent ID the SMT belongs to
+ */
+void scmi_smt_interrupt_entry(unsigned int agent_id);
+
+/*
+ * Process SMT formatted message in a TEE thread execution context.
+ * When returning, output message is available in shared memory for
+ * agent to read the response.
+ * This function depends on CFG_SCMI_MSG_SMT_THREAD_ENTRY.
+ *
+ * @agent_id: SCMI agent ID the SMT belongs to
+ */
+void scmi_smt_threaded_entry(unsigned int agent_id);
+
 /* Platform callback functions */
 
 /*
