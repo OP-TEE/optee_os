@@ -82,8 +82,7 @@ static void scmi_clock_rate_get(struct scmi_msg *msg)
 	rate = plat_scmi_clock_get_current_rate(msg->agent_id,
 						in_args->clock_id);
 
-	return_values.rate[0] = (uint32_t)rate;
-	return_values.rate[1] = (uint32_t)((uint64_t)rate >> 32);
+	reg_pair_from_64(rate, return_values.rate + 1, return_values.rate);
 
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
@@ -91,11 +90,12 @@ static void scmi_clock_rate_get(struct scmi_msg *msg)
 static void scmi_clock_rate_set(struct scmi_msg *msg)
 {
 	const struct scmi_clock_rate_set_a2p *in_args = (void *)msg->in;
+	uint64_t rate_64 = 0;
 	unsigned long rate = 0;
 	int32_t status = 0;
 
-	rate = (unsigned long)reg_pair_to_64(in_args->rate[1],
-					     in_args->rate[0]);
+	reg_pair_to_64(&rate_64, in_args->rate + 1, in_args->rate);
+	rate = rate_64;
 
 	status = plat_scmi_clock_set_current_rate(msg->agent_id,
 						  in_args->clock_id,

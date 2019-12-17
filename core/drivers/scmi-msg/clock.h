@@ -31,30 +31,30 @@ enum scmi_clock_command_id {
 	((((_max_pending) << 16) & SCMI_CLOCK_MAX_PENDING_TRANSITIONS_MASK) | \
 	 (((_clk_count) & SCMI_CLOCK_CLOCK_COUNT_MASK)))
 
-struct __packed scmi_clock_attributes_a2p {
+struct scmi_clock_attributes_a2p {
 	uint32_t clock_id;
-};
+} __packed;
 
 #define SCMI_CLOCK_NAME_LENGTH_MAX	16
 
-struct __packed scmi_clock_attributes_p2a {
+struct scmi_clock_attributes_p2a {
 	int32_t status;
 	uint32_t attributes;
 	char clock_name[SCMI_CLOCK_NAME_LENGTH_MAX];
-};
+} __packed;
 
 /*
  * Clock Rate Get
  */
 
-struct __packed scmi_clock_rate_get_a2p {
+struct scmi_clock_rate_get_a2p {
 	uint32_t clock_id;
-};
+} __packed;
 
-struct __packed scmi_clock_rate_get_p2a {
+struct scmi_clock_rate_get_p2a {
 	int32_t status;
 	uint32_t rate[2];
-};
+} __packed;
 
 /*
  * Clock Rate Set
@@ -78,15 +78,15 @@ struct __packed scmi_clock_rate_get_p2a {
 #define SCMI_CLOCK_RATE_SET_ROUND_AUTO_MASK \
 		BIT(SCMI_CLOCK_RATE_SET_ROUND_AUTO_POS)
 
-struct __packed scmi_clock_rate_set_a2p {
+struct scmi_clock_rate_set_a2p {
 	uint32_t flags;
 	uint32_t clock_id;
 	uint32_t rate[2];
-};
+} __packed;
 
-struct __packed scmi_clock_rate_set_p2a {
+struct scmi_clock_rate_set_p2a {
 	int32_t status;
-};
+} __packed;
 
 /*
  * Clock Config Set
@@ -97,14 +97,14 @@ struct __packed scmi_clock_rate_set_p2a {
 #define SCMI_CLOCK_CONFIG_SET_ENABLE_MASK \
 	(0x1 << SCMI_CLOCK_CONFIG_SET_ENABLE_POS)
 
-struct __packed scmi_clock_config_set_a2p {
+struct scmi_clock_config_set_a2p {
 	uint32_t clock_id;
 	uint32_t attributes;
-};
+} __packed;
 
-struct __packed scmi_clock_config_set_p2a {
+struct scmi_clock_config_set_p2a {
 	int32_t status;
-};
+} __packed;
 
 /*
  * Clock Describe Rates
@@ -130,20 +130,20 @@ struct __packed scmi_clock_config_set_p2a {
 		 SCMI_CLOCK_DESCRIBE_RATES_FORMAT_MASK) \
 	)
 
-struct __packed scmi_clock_rate {
+struct scmi_clock_rate {
 	uint32_t low;
 	uint32_t high;
-};
+} __packed;
 
-struct __packed scmi_clock_describe_rates_a2p {
+struct scmi_clock_describe_rates_a2p {
 	uint32_t clock_id;
 	uint32_t rate_index;
-};
+} __packed;
 
-struct __packed scmi_clock_describe_rates_p2a {
+struct scmi_clock_describe_rates_p2a {
 	int32_t status;
 	uint32_t num_rates_flags;
 	struct scmi_clock_rate rates[];
-};
+} __packed;
 
 #endif /* SCMI_MSG_CLOCK_H */
