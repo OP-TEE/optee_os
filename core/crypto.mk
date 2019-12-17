@@ -37,7 +37,14 @@ CFG_CRYPTO_SM3 ?= y
 CFG_CRYPTO_DSA ?= y
 CFG_CRYPTO_RSA ?= y
 CFG_CRYPTO_DH ?= y
+# ECC includes ECDSA and ECDH
 CFG_CRYPTO_ECC ?= y
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
+CFG_CRYPTO_SM2_PKE ?= y
+endif
+ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_PKE),mbedtls-y)
+$(error Error: CFG_CRYPTO_SM2_PKE=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
+endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -128,6 +135,8 @@ $(eval $(call cryp-dep-one, GCM, AES))
 $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 # If no DES cipher mode is left, disable DES
 $(eval $(call cryp-dep-one, DES, ECB CBC))
+# SM2 is Elliptic Curve Cryptography, it uses some generic ECC functions
+$(eval $(call cryp-dep-one, SM2_PKE, ECC))
 
 ###############################################################
 # libtomcrypt (LTC) specifics, phase #1
@@ -158,6 +167,7 @@ core-ltc-vars += AES_ARM64_CE AES_ARM32_CE
 core-ltc-vars += SHA1_ARM32_CE SHA1_ARM64_CE
 core-ltc-vars += SHA256_ARM32_CE SHA256_ARM64_CE
 core-ltc-vars += SIZE_OPTIMIZATION
+core-ltc-vars += SM2_PKE
 # Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
 $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
