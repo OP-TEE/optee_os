@@ -9,6 +9,7 @@ srcs-y += ecc_shared_secret.c
 srcs-y += ecc_sign_hash.c
 srcs-y += ecc_ssh_ecdsa_encode_name.c
 srcs-y += ecc_verify_hash.c
+srcs-y += ltc_ecc_is_point.c
 srcs-y += ltc_ecc_is_point_at_infinity.c
 srcs-y += ltc_ecc_map.c
 srcs-y += ltc_ecc_mulmod.c
