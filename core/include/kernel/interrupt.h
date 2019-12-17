@@ -7,8 +7,10 @@
 
 #include <types_ext.h>
 #include <sys/queue.h>
+#include <util.h>
 
-#define ITRF_TRIGGER_LEVEL	(1 << 0)
+#define ITRF_TRIGGER_LEVEL	BIT(0)
+#define ITRF_SHARED			BIT(1)
 
 struct itr_chip {
 	const struct itr_ops *ops;
