@@ -161,6 +161,7 @@
 #define TEE_ALG_DSA_SHA1                        0x70002131
 #define TEE_ALG_DSA_SHA224                      0x70003131
 #define TEE_ALG_DSA_SHA256                      0x70004131
+#define TEE_ALG_SM2_DSA_SM3                     0x70006045
 #define TEE_ALG_DH_DERIVE_SHARED_SECRET         0x80000032
 #define TEE_ALG_MD5                             0x50000001
 #define TEE_ALG_SHA1                            0x50000002
@@ -221,6 +222,8 @@
 #define TEE_TYPE_ECDSA_KEYPAIR              0xA1000041
 #define TEE_TYPE_ECDH_PUBLIC_KEY            0xA0000042
 #define TEE_TYPE_ECDH_KEYPAIR               0xA1000042
+#define TEE_TYPE_SM2_DSA_PUBLIC_KEY         0xA0000045
+#define TEE_TYPE_SM2_DSA_KEYPAIR            0xA1000045
 #define TEE_TYPE_SM2_PKE_PUBLIC_KEY         0xA0000047
 #define TEE_TYPE_SM2_PKE_KEYPAIR            0xA1000047
 #define TEE_TYPE_GENERIC_SECRET             0xA0000000

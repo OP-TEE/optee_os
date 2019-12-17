@@ -487,6 +487,14 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 		sizeof(struct ecc_keypair),
 		tee_cryp_obj_ecc_keypair_attrs),
 
+	PROP(TEE_TYPE_SM2_DSA_PUBLIC_KEY, 1, 256, 256,
+	     sizeof(struct ecc_public_key),
+	     tee_cryp_obj_ecc_pub_key_attrs),
+
+	PROP(TEE_TYPE_SM2_DSA_KEYPAIR, 1, 256, 256,
+	     sizeof(struct ecc_keypair),
+	     tee_cryp_obj_ecc_keypair_attrs),
+
 	PROP(TEE_TYPE_SM2_PKE_PUBLIC_KEY, 1, 256, 256,
 	     sizeof(struct ecc_public_key),
 	     tee_cryp_obj_ecc_pub_key_attrs),
@@ -1145,6 +1153,9 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 		} else if (o->info.objectType == TEE_TYPE_ECDH_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_ECDH_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
+		} else if (o->info.objectType == TEE_TYPE_SM2_DSA_PUBLIC_KEY) {
+			if (src->info.objectType != TEE_TYPE_SM2_DSA_KEYPAIR)
+				return TEE_ERROR_BAD_PARAMETERS;
 		} else if (o->info.objectType == TEE_TYPE_SM2_PKE_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_SM2_PKE_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
@@ -1236,12 +1247,14 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		break;
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
 		res = crypto_acipher_alloc_ecc_public_key(o->attr,
 							  max_key_size);
 		break;
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		res = crypto_acipher_alloc_ecc_keypair(o->attr, max_key_size);
 		break;
@@ -2032,6 +2045,12 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 			req_key_type = TEE_TYPE_SM2_PKE_PUBLIC_KEY;
 		else
 			req_key_type = TEE_TYPE_SM2_PKE_KEYPAIR;
+		break;
+	case TEE_MAIN_ALGO_SM2_DSA_SM3:
+		if (mode == TEE_MODE_VERIFY)
+			req_key_type = TEE_TYPE_SM2_DSA_PUBLIC_KEY;
+		else
+			req_key_type = TEE_TYPE_SM2_DSA_KEYPAIR;
 		break;
 #if defined(CFG_CRYPTO_HKDF)
 	case TEE_MAIN_ALGO_HKDF:
@@ -3505,6 +3524,10 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);
 		break;
+	case TEE_ALG_SM2_DSA_SM3:
+		res = crypto_acipher_sm2_dsa_sign(cs->algo, o->attr, src_data,
+						  src_len, dst_data, &dlen);
+		break;
 
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -3626,6 +3649,11 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	case TEE_MAIN_ALGO_ECDSA:
 		res = crypto_acipher_ecc_verify(cs->algo, o->attr, data,
 						data_len, sig, sig_len);
+		break;
+
+	case TEE_MAIN_ALGO_SM2_DSA_SM3:
+		res = crypto_acipher_sm2_dsa_verify(cs->algo, o->attr, data,
+						    data_len, sig, sig_len);
 		break;
 
 	default:
