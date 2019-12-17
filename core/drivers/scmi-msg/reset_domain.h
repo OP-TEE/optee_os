@@ -40,10 +40,10 @@ enum scmi_reset_domain_response_id {
 
 #define SCMI_RESET_DOMAIN_COUNT_MASK		GENMASK_32(15, 0)
 
-struct __packed scmi_reset_domain_protocol_attributes_p2a {
+struct scmi_reset_domain_protocol_attributes_p2a {
 	int32_t status;
 	uint32_t attributes;
-};
+} __packed;
 
 /* Value for scmi_reset_domain_attributes_p2a:flags */
 #define SCMI_RESET_DOMAIN_ATTR_ASYNC		BIT(31)
@@ -56,16 +56,16 @@ struct __packed scmi_reset_domain_protocol_attributes_p2a {
 /* Macro for scmi_reset_domain_attributes_p2a:name */
 #define SCMI_RESET_DOMAIN_ATTR_NAME_SZ		16
 
-struct __packed scmi_reset_domain_attributes_a2p {
+struct scmi_reset_domain_attributes_a2p {
 	uint32_t domain_id;
-};
+} __packed;
 
-struct __packed scmi_reset_domain_attributes_p2a {
+struct scmi_reset_domain_attributes_p2a {
 	int32_t status;
 	uint32_t flags;
 	uint32_t latency;
 	uint8_t name[SCMI_RESET_DOMAIN_ATTR_NAME_SZ];
-};
+} __packed;
 
 /*
  * RESET
@@ -76,15 +76,15 @@ struct __packed scmi_reset_domain_attributes_p2a {
 #define SCMI_RESET_DOMAIN_EXPLICIT		BIT(1)
 #define SCMI_RESET_DOMAIN_AUTO			BIT(0)
 
-struct __packed scmi_reset_domain_request_a2p {
+struct scmi_reset_domain_request_a2p {
 	uint32_t domain_id;
 	uint32_t flags;
 	uint32_t reset_state;
-};
+} __packed;
 
-struct __packed scmi_reset_domain_request_p2a {
+struct scmi_reset_domain_request_p2a {
 	int32_t status;
-};
+} __packed;
 
 /*
  * RESET_NOTIFY
@@ -93,31 +93,31 @@ struct __packed scmi_reset_domain_request_p2a {
 /* Values for scmi_reset_notify_p2a:flags */
 #define SCMI_RESET_DOMAIN_DO_NOTIFY		BIT(0)
 
-struct __packed scmi_reset_domain_notify_a2p {
+struct scmi_reset_domain_notify_a2p {
 	uint32_t domain_id;
 	uint32_t notify_enable;
-};
+} __packed;
 
-struct __packed scmi_reset_domain_notify_p2a {
+struct scmi_reset_domain_notify_p2a {
 	int32_t status;
-};
+} __packed;
 
 /*
  * RESET_COMPLETE
  */
 
-struct __packed scmi_reset_domain_complete_p2a {
+struct scmi_reset_domain_complete_p2a {
 	int32_t status;
 	uint32_t domain_id;
-};
+} __packed;
 
 /*
  * RESET_ISSUED
  */
 
-struct __packed scmi_reset_domain_issued_p2a {
+struct scmi_reset_domain_issued_p2a {
 	uint32_t domain_id;
 	uint32_t reset_state;
-};
+} __packed;
 
 #endif /* SCMI_MSG_RESET_DOMAIN_H */
