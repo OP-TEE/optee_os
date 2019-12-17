@@ -144,23 +144,7 @@ static const char __maybe_unused *shres2str_id_tbl[STM32MP1_SHRES_COUNT] = {
 	[STM32MP1_SHRES_I2C6] = "I2C6",
 	[STM32MP1_SHRES_RTC] = "RTC",
 	[STM32MP1_SHRES_MCU] = "MCU",
-	[STM32MP1_SHRES_HSI] = "HSI",
-	[STM32MP1_SHRES_LSI] = "LSI",
-	[STM32MP1_SHRES_HSE] = "HSE",
-	[STM32MP1_SHRES_LSE] = "LSE",
-	[STM32MP1_SHRES_CSI] = "CSI",
-	[STM32MP1_SHRES_PLL1] = "PLL1",
-	[STM32MP1_SHRES_PLL1_P] = "PLL1_P",
-	[STM32MP1_SHRES_PLL1_Q] = "PLL1_Q",
-	[STM32MP1_SHRES_PLL1_R] = "PLL1_R",
-	[STM32MP1_SHRES_PLL2] = "PLL2",
-	[STM32MP1_SHRES_PLL2_P] = "PLL2_P",
-	[STM32MP1_SHRES_PLL2_Q] = "PLL2_Q",
-	[STM32MP1_SHRES_PLL2_R] = "PLL2_R",
 	[STM32MP1_SHRES_PLL3] = "PLL3",
-	[STM32MP1_SHRES_PLL3_P] = "PLL3_P",
-	[STM32MP1_SHRES_PLL3_Q] = "PLL3_Q",
-	[STM32MP1_SHRES_PLL3_R] = "PLL3_R",
 	[STM32MP1_SHRES_MDMA] = "MDMA",
 };
 
@@ -296,30 +280,6 @@ static void register_periph(enum stm32mp_shres id, enum shres_state state)
 			break;
 		case STM32MP1_SHRES_RTC:
 			stm32mp_register_clock_parents_secure(RTC);
-			break;
-		case STM32MP1_SHRES_PLL1_P:
-		case STM32MP1_SHRES_PLL1_Q:
-		case STM32MP1_SHRES_PLL1_R:
-			register_periph(STM32MP1_SHRES_PLL1, SHRES_SECURE);
-			break;
-		case STM32MP1_SHRES_PLL1:
-			stm32mp_register_clock_parents_secure(PLL1);
-			break;
-		case STM32MP1_SHRES_PLL2_P:
-		case STM32MP1_SHRES_PLL2_Q:
-		case STM32MP1_SHRES_PLL2_R:
-			register_periph(STM32MP1_SHRES_PLL2, SHRES_SECURE);
-			break;
-		case STM32MP1_SHRES_PLL2:
-			stm32mp_register_clock_parents_secure(PLL2);
-			break;
-		case STM32MP1_SHRES_PLL3_P:
-		case STM32MP1_SHRES_PLL3_Q:
-		case STM32MP1_SHRES_PLL3_R:
-			register_periph(STM32MP1_SHRES_PLL3, SHRES_SECURE);
-			break;
-		case STM32MP1_SHRES_PLL3:
-			stm32mp_register_clock_parents_secure(PLL3);
 			break;
 		default:
 			/* No expected resource dependency */
@@ -654,9 +614,6 @@ static bool mckprot_resource(enum stm32mp_shres id)
 	switch (id) {
 	case STM32MP1_SHRES_MCU:
 	case STM32MP1_SHRES_PLL3:
-	case STM32MP1_SHRES_PLL3_P:
-	case STM32MP1_SHRES_PLL3_Q:
-	case STM32MP1_SHRES_PLL3_R:
 		return true;
 	default:
 		return false;
