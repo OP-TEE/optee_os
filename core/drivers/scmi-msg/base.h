@@ -42,18 +42,18 @@ enum scmi_base_message_id {
 /*
  * BASE_DISCOVER_VENDOR
  */
-struct __packed scmi_base_discover_vendor_p2a {
+struct scmi_base_discover_vendor_p2a {
 	int32_t status;
 	char vendor_identifier[SCMI_DEFAULT_STRING_LENGTH];
-};
+} __packed;
 
 /*
  * BASE_DISCOVER_SUB_VENDOR
  */
-struct __packed scmi_base_discover_sub_vendor_p2a {
+struct scmi_base_discover_sub_vendor_p2a {
 	int32_t status;
 	char sub_vendor_identifier[SCMI_DEFAULT_STRING_LENGTH];
-};
+} __packed;
 
 /*
  * BASE_DISCOVER_IMPLEMENTATION_VERSION
@@ -63,14 +63,14 @@ struct __packed scmi_base_discover_sub_vendor_p2a {
 /*
  * BASE_DISCOVER_LIST_PROTOCOLS
  */
-struct __packed scmi_base_discover_list_protocols_a2p {
+struct scmi_base_discover_list_protocols_a2p {
 	uint32_t skip;
-};
+} __packed;
 
-struct __packed scmi_base_discover_list_protocols_p2a {
+struct scmi_base_discover_list_protocols_p2a {
 	int32_t status;
 	uint32_t num_protocols;
 	uint32_t protocols[];
-};
+} __packed;
 
 #endif /* SCMI_MSG_BASE_H */

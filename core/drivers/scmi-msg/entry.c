@@ -13,14 +13,36 @@
 #include "common.h"
 #include "reset_domain.h"
 
+void scmi_status_response(struct scmi_msg *msg, int32_t status)
+{
+	assert(msg->out && msg->out_size >= sizeof(int32_t));
+
+	memcpy(msg->out, &status, sizeof(int32_t));
+	msg->out_size_out = sizeof(int32_t);
+}
+
+void scmi_write_response(struct scmi_msg *msg, void *payload, size_t size)
+{
+	/*
+	 * Output payload shall be at least the size of the status
+	 * Output buffer shall be at least be the size of the status
+	 * Output paylaod shall fit in output buffer
+	 **/
+	assert(payload && size >= sizeof(int32_t) && size <= msg->out_size &&
+	       msg->out && msg->out_size >= sizeof(int32_t));
+
+	memcpy(msg->out, payload, size);
+	msg->out_size_out = size;
+}
+
 scmi_msg_handler_t scmi_get_msg_handler(unsigned int message_id,
 					const scmi_msg_handler_t *handler_table,
 					size_t elt_count)
 {
-	/* Cast discards const qualifier to ease code readibility */
-	scmi_msg_handler_t *min = (scmi_msg_handler_t *)handler_table;
-	scmi_msg_handler_t *max = min + elt_count;
-	scmi_msg_handler_t *ptr = min + message_id;
+	const scmi_msg_handler_t *min = handler_table;
+	const scmi_msg_handler_t *max = min + elt_count;
+	/* Cast discards const qualifier to conform with load_no_speculate_fail() */
+	scmi_msg_handler_t *ptr = (scmi_msg_handler_t *)min + message_id;
 
 	return load_no_speculate_fail(ptr, min, max, NULL);
 }

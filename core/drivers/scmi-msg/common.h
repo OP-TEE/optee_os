@@ -136,20 +136,7 @@ void scmi_process_message(struct scmi_msg *msg);
  * @payload: Output message payload
  * @size: Byte size of output message payload
  */
-static inline void scmi_write_response(struct scmi_msg *msg,
-				       void *payload, size_t size)
-{
-	/*
-	 * Output payload shall be at least the size of the status
-	 * Output buffer shall be at least be the size of the status
-	 * Output paylaod shall fit in output buffer
-	 **/
-	assert(payload && size >= sizeof(int32_t) && size <= msg->out_size &&
-	       msg->out && msg->out_size >= sizeof(int32_t));
-
-	memcpy(msg->out, payload, size);
-	msg->out_size_out = size;
-}
+void scmi_write_response(struct scmi_msg *msg, void *payload, size_t size);
 
 /*
  * Write status only SCMI response payload to output message shared memory
@@ -157,12 +144,5 @@ static inline void scmi_write_response(struct scmi_msg *msg,
  * @msg: SCMI message context
  * @status: SCMI status value returned to caller
  */
-static inline void scmi_status_response(struct scmi_msg *msg,
-					int32_t status)
-{
-	assert(msg->out && msg->out_size >= sizeof(int32_t));
-
-	memcpy(msg->out, &status, sizeof(int32_t));
-	msg->out_size_out = sizeof(int32_t);
-}
+void scmi_status_response(struct scmi_msg *msg, int32_t status);
 #endif /* SCMI_MSG_COMMON_H */
