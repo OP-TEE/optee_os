@@ -8,39 +8,39 @@ import struct
 def main():
     with open("../out/arm/core/tee.bin", "rb") as f:
         data = f.read(4)
-        magic = struct.unpack('<I', data)
+        magic = struct.unpack('<I', data)[0]
         print("Magic: \t\t0x{:08x}".format(magic))
 
         data = f.read(1)
-        version = struct.unpack('<B', data)
+        version = struct.unpack('<B', data)[0]
         print("Version: \t0x{:02x}".format(version))
 
         data = f.read(1)
-        arch_id = struct.unpack('<B', data)
+        arch_id = struct.unpack('<B', data)[0]
         print("ArchID: \t0x{:02x}".format(arch_id))
 
         data = f.read(2)
-        flags = struct.unpack('<H', data)
+        flags = struct.unpack('<H', data)[0]
         print("Arch Flags: \t0x{:04x}".format(arch_id))
 
         data = f.read(4)
-        init_size = struct.unpack('<I', data)
+        init_size = struct.unpack('<I', data)[0]
         print("Init size: \t0x{:04x}".format(init_size))
 
         data = f.read(4)
-        laddr_h = struct.unpack('<I', data)
+        laddr_h = struct.unpack('<I', data)[0]
         print("Load addr high:\t0x{:04x}".format(laddr_h))
 
         data = f.read(4)
-        laddr_l = struct.unpack('<I', data)
+        laddr_l = struct.unpack('<I', data)[0]
         print("Load addr low: \t0x{:04x}".format(laddr_l))
 
         data = f.read(4)
-        mem_usage = struct.unpack('<I', data)
+        mem_usage = struct.unpack('<I', data)[0]
         print("Mem usage: \t0x{:04x}".format(mem_usage))
 
         data = f.read(4)
-        pgd_size = struct.unpack('<I', data)
+        pgd_size = struct.unpack('<I', data)[0]
         print("Pages size: \t0x{:04x}".format(pgd_size))
 
 
