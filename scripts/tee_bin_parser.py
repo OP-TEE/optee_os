@@ -3,10 +3,23 @@
 #
 # Copyright (c) 2016, Linaro Limited
 import struct
+import argparse
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--input', required=False,  dest='inf',
+                        default='../out/arm/core/tee.bin',
+                        help='The input tee.bin')
+
+    return parser.parse_args()
 
 
 def main():
-    with open("../out/arm/core/tee.bin", "rb") as f:
+    args = get_args()
+
+    with open(args.inf, "rb") as f:
         data = f.read(4)
         magic = struct.unpack('<I', data)[0]
         print("Magic: \t\t0x{:08x}".format(magic))
