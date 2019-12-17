@@ -15,6 +15,7 @@ srcs-y += snprintf.c
 srcs-y += stack_check.c
 srcs-y += strdup.c
 srcs-y += strndup.c
+srcs-y += strtok.c
 srcs-y += tolower.c
 srcs-y += isalpha.c
 srcs-y += isspace.c
