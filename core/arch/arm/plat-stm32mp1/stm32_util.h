@@ -64,9 +64,20 @@ bool stm32_clock_is_enabled(unsigned long id);
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
  * @id: Target peripheral ID, ID used in reset DT bindings
+ * @to_us: Timeout out in microsecond, or 0 if not waiting signal state
  */
-void stm32_reset_assert(unsigned int id);
-void stm32_reset_deassert(unsigned int id);
+TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
+TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
+
+static inline void stm32_reset_set(unsigned int id)
+{
+	(void)stm32_reset_assert(id, 0);
+}
+
+static inline void stm32_reset_release(unsigned int id)
+{
+	(void)stm32_reset_deassert(id, 0);
+}
 
 /*
  * Structure and API function for BSEC driver to get some platform data.
