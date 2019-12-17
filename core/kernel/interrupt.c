@@ -6,6 +6,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <trace.h>
+#include <assert.h>
 
 /*
  * NOTE!
@@ -23,34 +24,35 @@ void itr_init(struct itr_chip *chip)
 	itr_chip = chip;
 }
 
-static struct itr_handler *find_handler(size_t it)
-{
-	struct itr_handler *h;
-
-	SLIST_FOREACH(h, &handlers, link)
-		if (h->it == it)
-			return h;
-	return NULL;
-}
-
 void itr_handle(size_t it)
 {
-	struct itr_handler *h = find_handler(it);
+	struct itr_handler *h = NULL;
+	bool was_handled = false;
 
-	if (!h) {
-		EMSG("Disabling unhandled interrupt %zu", it);
-		itr_chip->ops->disable(itr_chip, it);
-		return;
+	SLIST_FOREACH(h, &handlers, link) {
+		if (h->it == it) {
+			if (h->handler(h) == ITRR_HANDLED)
+				was_handled = true;
+			else if (!(h->flags & ITRF_SHARED))
+				break;
+		}
 	}
 
-	if (h->handler(h) != ITRR_HANDLED) {
-		EMSG("Disabling interrupt %zu not handled by handler", it);
+	if (!was_handled) {
+		EMSG("Disabling unhandled interrupt %zu", it);
 		itr_chip->ops->disable(itr_chip, it);
 	}
 }
 
 void itr_add(struct itr_handler *h)
 {
+	struct itr_handler __maybe_unused *hdl = NULL;
+
+	SLIST_FOREACH(hdl, &handlers, link)
+		if (hdl->it == h->it)
+			assert((hdl->flags & ITRF_SHARED) &&
+			       (h->flags & ITRF_SHARED));
+
 	itr_chip->ops->add(itr_chip, h->it, h->flags);
 	SLIST_INSERT_HEAD(&handlers, h, link);
 }
