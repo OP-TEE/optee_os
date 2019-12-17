@@ -1053,71 +1053,45 @@ static int get_parent_id_parent(unsigned int parent_id)
 	return -1;
 }
 
+/* We are only interested in knowing if PLL3 shall be secure or not */
 static void secure_parent_clocks(unsigned long parent_id)
 {
 	int grandparent_id = 0;
 
 	switch (parent_id) {
-	/* Secure only the parents for these clocks */
 	case _ACLK:
 	case _HCLK2:
 	case _HCLK6:
 	case _PCLK4:
 	case _PCLK5:
+		/* Intermediate clock mux or clock, go deeper in clock tree */
 		break;
-	/* PLLs */
-	case _PLL1_P:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_P);
-		break;
-	case _PLL1_Q:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_Q);
-		break;
-	case _PLL1_R:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL1_R);
-		break;
-
-	case _PLL2_P:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_P);
-		break;
-	case _PLL2_Q:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_Q);
-		break;
-	case _PLL2_R:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL2_R);
-		break;
-
-	case _PLL3_P:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_P);
-		break;
-	case _PLL3_Q:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_Q);
-		break;
-	case _PLL3_R:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3_R);
-		break;
-
-	/* Source clocks */
 	case _HSI:
 	case _HSI_KER:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_HSI);
-		break;
 	case _LSI:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_LSI);
-		break;
 	case _CSI:
 	case _CSI_KER:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_CSI);
-		break;
 	case _HSE:
 	case _HSE_KER:
 	case _HSE_KER_DIV2:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_HSE);
-		break;
 	case _LSE:
-		stm32mp_register_secure_periph(STM32MP1_SHRES_LSE);
-		break;
-
+	case _PLL1_P:
+	case _PLL1_Q:
+	case _PLL1_R:
+	case _PLL2_P:
+	case _PLL2_Q:
+	case _PLL2_R:
+		/* Always secure clocks, no need to go further */
+		return;
+	case _PLL3_P:
+	case _PLL3_Q:
+	case _PLL3_R:
+		/* PLL3 is a shared resource, registered and don't go further */
+		stm32mp_register_secure_periph(STM32MP1_SHRES_PLL3);
+		return;
 	default:
+		DMSG("Cannot lookup parent clock %s",
+		     stm32mp1_clk_parent_name[parent_id]);
 		panic();
 	}
 
@@ -1128,26 +1102,7 @@ static void secure_parent_clocks(unsigned long parent_id)
 
 void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 {
-	int parent_id = 0;
-
-	switch (clock_id) {
-	case PLL1:
-		parent_id = get_parent_id_parent(_PLL1_P);
-		break;
-	case PLL2:
-		parent_id = get_parent_id_parent(_PLL2_P);
-		break;
-	case PLL3:
-		parent_id = get_parent_id_parent(_PLL3_P);
-		break;
-	case PLL4:
-		EMSG("PLL4 cannot be secure");
-		panic();
-	default:
-		/* Others are expected gateable clock */
-		parent_id = stm32mp1_clk_get_parent(clock_id);
-		break;
-	}
+	int parent_id = stm32mp1_clk_get_parent(clock_id);
 
 	if (parent_id < 0) {
 		DMSG("No parent for clock %lu", clock_id);
