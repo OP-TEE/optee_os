@@ -133,6 +133,8 @@
 		_a > _b ? 1 : _a < _b ? -1 : 0; \
 	}))
 
+#define SPECULATION_SAFE_VALUE(v) __compiler_speculation_safe_value(v)
+
 #ifndef __ASSEMBLER__
 static inline uint64_t reg_pair_to_64(uint32_t reg0, uint32_t reg1)
 {

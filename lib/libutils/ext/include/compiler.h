@@ -73,6 +73,9 @@
 #if __GCC_VERSION >= 50100 && !defined(__CHECKER__)
 #define __HAVE_BUILTIN_OVERFLOW 1
 #endif
+#if __GCC_VERSION >= 90000 && !defined(__CHECKER__)
+#define __HAVE_BUILTIN_SPECULATION_SAFE_VALUE 1
+#endif
 
 #ifdef __HAVE_BUILTIN_OVERFLOW
 #define __compiler_add_overflow(a, b, res) \
@@ -245,5 +248,26 @@
 #define __compiler_atomic_load(p) __atomic_load_n((p), __ATOMIC_RELAXED)
 #define __compiler_atomic_store(p, val) \
 	__atomic_store_n((p), (val), __ATOMIC_RELAXED)
+
+#ifdef __HAVE_BUILTIN_SPECULATION_SAFE_VALUE
+#define __compiler_speculation_safe_value(v) __builtin_speculation_safe_value(v)
+#else
+
+#if defined(ARM32) || defined(ARM64)
+/*
+ * With compiler support this can be done more optimized, but as a fallback
+ * these instructions:
+ * isb
+ * dsb sy
+ * guarantees ([1]) that there will be no speculation crossing this point.
+ * Link [1]: https://github.com/ARM-software/arm-trusted-firmware/commit/9edd89127928708b9f4dd36bd3c5d16b62d27cb5
+ */
+#define __compiler_speculation_safe_value(v) \
+	(__extension__({ asm volatile( "isb\n\tdsb sy"); (v); }))
+#else
+#define __compiler_speculation_safe_value(v) error_architecture_not_supported(v)
+#endif
+
+#endif /*!__HAVE_BUILTIN_SPECULATION_SAFE_VALUE*/
 
 #endif /*COMPILER_H*/
