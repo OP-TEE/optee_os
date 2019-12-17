@@ -691,3 +691,23 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /*!CFG_CRYPTO_ECC*/
+
+#if !defined(CFG_CRYPTO_SM2_PKE)
+TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key __unused,
+					  const uint8_t *src __unused,
+					  size_t src_len __unused,
+					  uint8_t *dst __unused,
+					  size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key __unused,
+					  const uint8_t *src __unused,
+					  size_t src_len __unused,
+					  uint8_t *dst __unused,
+					  size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* !CFG_CRYPTO_SM2_PKE */

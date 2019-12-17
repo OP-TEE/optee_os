@@ -238,6 +238,12 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					    struct ecc_public_key *public_key,
 					    void *secret,
 					    unsigned long *secret_len);
+TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
+					  const uint8_t *src, size_t src_len,
+					  uint8_t *dst, size_t *dst_len);
+TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
+					  const uint8_t *src, size_t src_len,
+					  uint8_t *dst, size_t *dst_len);
 
 /*
  * Verifies a SHA-256 hash, doesn't require crypto_init() to be called in

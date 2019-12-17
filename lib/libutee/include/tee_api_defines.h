@@ -20,6 +20,7 @@
 #define TEE_ERROR_CORRUPT_OBJECT_2        0xF0100002
 #define TEE_ERROR_STORAGE_NOT_AVAILABLE   0xF0100003
 #define TEE_ERROR_STORAGE_NOT_AVAILABLE_2 0xF0100004
+#define TEE_ERROR_CIPHERTEXT_INVALID      0xF0100006
 #define TEE_ERROR_GENERIC                 0xFFFF0000
 #define TEE_ERROR_ACCESS_DENIED           0xFFFF0001
 #define TEE_ERROR_CANCEL                  0xFFFF0002
@@ -195,6 +196,7 @@
 #define TEE_ALG_ECDH_P256                       0x80003042
 #define TEE_ALG_ECDH_P384                       0x80004042
 #define TEE_ALG_ECDH_P521                       0x80005042
+#define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_SM3                             0x50000007
 
 /* Object Types */
@@ -219,6 +221,8 @@
 #define TEE_TYPE_ECDSA_KEYPAIR              0xA1000041
 #define TEE_TYPE_ECDH_PUBLIC_KEY            0xA0000042
 #define TEE_TYPE_ECDH_KEYPAIR               0xA1000042
+#define TEE_TYPE_SM2_PKE_PUBLIC_KEY         0xA0000047
+#define TEE_TYPE_SM2_PKE_KEYPAIR            0xA1000047
 #define TEE_TYPE_GENERIC_SECRET             0xA0000000
 #define TEE_TYPE_CORRUPTED_OBJECT           0xA00000BE
 #define TEE_TYPE_DATA                       0xA00000BF
@@ -261,6 +265,7 @@
 #define TEE_ECC_CURVE_NIST_P256             0x00000003
 #define TEE_ECC_CURVE_NIST_P384             0x00000004
 #define TEE_ECC_CURVE_NIST_P521             0x00000005
+#define TEE_ECC_CURVE_SM2                   0x00000300
 
 
 /* Panicked Functions Identification */
