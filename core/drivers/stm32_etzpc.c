@@ -345,5 +345,5 @@ static TEE_Result init_etzpc_from_dt(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(init_etzpc_from_dt);
+service_init(init_etzpc_from_dt);
 #endif /*CFG_DT*/
