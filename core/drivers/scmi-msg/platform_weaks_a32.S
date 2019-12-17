@@ -31,7 +31,7 @@
 #endif
 
 /* Unique weak function for unsupported handlers returning SCMI_NOT_SUPPORTED */
-FUNC scmi_weak_not_supported , :
+FUNC plat_scmi_weak_not_supported , :
 
 #ifdef CFG_SCMI_MSG_CLOCK
 plat_scmi_clock_set_current_rate:
@@ -49,10 +49,10 @@ UNWIND(	.fnstart)
 	ldr	r0, =SCMI_NOT_SUPPORTED
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC scmi_weak_not_supported
+END_FUNC plat_scmi_weak_not_supported
 
 /* Unique weak function for unsupported platform handlers returning 0 */
-FUNC scmi_server_weak_null , :
+FUNC plat_scmi_weak_null , :
 
 #ifdef CFG_SCMI_MSG_CLOCK
 plat_scmi_clock_count:
@@ -65,7 +65,7 @@ plat_scmi_rd_get_name:
 #endif
 
 UNWIND(	.fnstart)
-	ldr	r0, =0
+	mov	r0, #0
 	bx	lr
 UNWIND(	.fnend)
-END_FUNC scmi_server_weak_null
+END_FUNC plat_scmi_weak_null
