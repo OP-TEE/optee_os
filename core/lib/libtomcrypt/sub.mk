@@ -107,6 +107,10 @@ ifeq ($(_CFG_CORE_LTC_ECC),y)
    # ECC 521 bits is the max supported key size
    cppflags-lib-y += -DLTC_MAX_ECC=521
 endif
+ifeq ($(_CFG_CORE_LTC_SM2_PKE),y)
+   # SM2 PKE needs the SM2 curve
+   cppflags-lib-y += -DLTC_ECC_SM2
+endif
 
 cppflags-lib-y += -DLTC_NO_PKCS
 
@@ -134,6 +138,7 @@ srcs-$(_CFG_CORE_LTC_ECC) += ecc.c
 srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
 srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_AES) += aes.c
+srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 
 ifdef _CFG_CORE_LTC_ACIPHER
 ifeq ($(_CFG_CORE_LTC_MPI),y)
