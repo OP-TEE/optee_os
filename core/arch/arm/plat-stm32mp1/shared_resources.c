@@ -160,6 +160,7 @@ static const char __maybe_unused *shres2str_id_tbl[STM32MP1_SHRES_COUNT] = {
 	[STM32MP1_SHRES_PLL3_P] = "PLL3_P",
 	[STM32MP1_SHRES_PLL3_Q] = "PLL3_Q",
 	[STM32MP1_SHRES_PLL3_R] = "PLL3_R",
+	[STM32MP1_SHRES_MDMA] = "MDMA",
 };
 
 static __maybe_unused const char *shres2str_id(enum stm32mp_shres id)
