@@ -6,6 +6,7 @@
 #define UTEE_DEFINES_H
 
 #include <compiler.h>
+#include <tee_api_defines.h>
 #include <types_ext.h>
 
 /*
@@ -29,6 +30,7 @@
 #define TEE_MAIN_ALGO_DH         0x32
 #define TEE_MAIN_ALGO_ECDSA      0x41
 #define TEE_MAIN_ALGO_ECDH       0x42
+#define TEE_MAIN_ALGO_SM2_PKE    0x45 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */
@@ -45,12 +47,16 @@
 #define TEE_CHAIN_MODE_GCM              0x8
 #define TEE_CHAIN_MODE_PKCS1_PSS_MGF1   0x9	/* ??? */
 
-	/* Bits [31:28] */
-#define TEE_ALG_GET_CLASS(algo)         (((algo) >> 28) & 0xF)
 
-#define TEE_ALG_GET_KEY_TYPE(algo, with_private_key) \
-        (TEE_ALG_GET_MAIN_ALG(algo) | \
-            ((with_private_key) ? 0xA1000000 : 0xA0000000))
+static inline uint32_t _tee_alg_get_class(uint32_t algo)
+{
+	if (algo == TEE_ALG_SM2_PKE)
+		return TEE_OPERATION_ASYMMETRIC_CIPHER;
+
+	return (algo >> 28) & 0xF; /* Bits [31:28] */
+}
+
+#define TEE_ALG_GET_CLASS(algo) _tee_alg_get_class(algo)
 
 	/* Bits [7:0] */
 #define TEE_ALG_GET_MAIN_ALG(algo)      ((algo) & 0xFF)
@@ -63,6 +69,28 @@
 
 	/* Bits [23:20] */
 #define TEE_ALG_GET_INTERNAL_HASH(algo) (((algo) >> 20) & 0x7)
+
+static inline uint32_t _tee_alg_get_key_type(uint32_t algo, bool with_priv)
+{
+	uint32_t key_type = 0xA0000000;
+
+	switch (algo) {
+	case TEE_ALG_SM2_PKE:
+		key_type |= 0x47;
+		break;
+	default:
+		key_type |= TEE_ALG_GET_MAIN_ALG(algo);
+		break;
+	}
+
+	if (with_priv)
+		key_type |= 0x01000000;
+
+	return key_type;
+}
+
+#define TEE_ALG_GET_KEY_TYPE(algo, with_private_key) \
+	_tee_alg_get_key_type(algo, with_private_key)
 
 	/* Return hash algorithm based on main hash */
 #define TEE_ALG_HASH_ALGO(main_hash) \

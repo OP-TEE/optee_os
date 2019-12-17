@@ -486,6 +486,14 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_ECDH_KEYPAIR, 1, 192, 521,
 		sizeof(struct ecc_keypair),
 		tee_cryp_obj_ecc_keypair_attrs),
+
+	PROP(TEE_TYPE_SM2_PKE_PUBLIC_KEY, 1, 256, 256,
+	     sizeof(struct ecc_public_key),
+	     tee_cryp_obj_ecc_pub_key_attrs),
+
+	PROP(TEE_TYPE_SM2_PKE_KEYPAIR, 1, 256, 256,
+	     sizeof(struct ecc_keypair),
+	     tee_cryp_obj_ecc_keypair_attrs),
 };
 
 struct attr_ops {
@@ -1137,6 +1145,9 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 		} else if (o->info.objectType == TEE_TYPE_ECDH_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_ECDH_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
+		} else if (o->info.objectType == TEE_TYPE_SM2_PKE_PUBLIC_KEY) {
+			if (src->info.objectType != TEE_TYPE_SM2_PKE_KEYPAIR)
+				return TEE_ERROR_BAD_PARAMETERS;
 		} else {
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -1225,11 +1236,13 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		break;
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
 		res = crypto_acipher_alloc_ecc_public_key(o->attr,
 							  max_key_size);
 		break;
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		res = crypto_acipher_alloc_ecc_keypair(o->attr, max_key_size);
 		break;
 	default:
@@ -1479,6 +1492,9 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
 		*key_size = 521;
+		break;
+	case TEE_ECC_CURVE_SM2:
+		*key_size = 256;
 		break;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -1880,6 +1896,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		res = tee_svc_obj_generate_key_ecc(o, type_props, key_size,
 						  params, param_count);
 		if (res != TEE_SUCCESS)
@@ -2009,6 +2026,12 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		break;
 	case TEE_MAIN_ALGO_ECDH:
 		req_key_type = TEE_TYPE_ECDH_KEYPAIR;
+		break;
+	case TEE_MAIN_ALGO_SM2_PKE:
+		if (mode == TEE_MODE_ENCRYPT)
+			req_key_type = TEE_TYPE_SM2_PKE_PUBLIC_KEY;
+		else
+			req_key_type = TEE_TYPE_SM2_PKE_KEYPAIR;
 		break;
 #if defined(CFG_CRYPTO_HKDF)
 	case TEE_MAIN_ALGO_HKDF:
@@ -3398,6 +3421,20 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			 * We will panic because "the mode is not compatible
 			 * with the function"
 			 */
+			res = TEE_ERROR_GENERIC;
+		}
+		break;
+
+	case TEE_ALG_SM2_PKE:
+		if (cs->mode == TEE_MODE_ENCRYPT) {
+			res = crypto_acipher_sm2_pke_encrypt(o->attr, src_data,
+							     src_len, dst_data,
+							     &dlen);
+		} else if (cs->mode == TEE_MODE_DECRYPT) {
+			res = crypto_acipher_sm2_pke_decrypt(o->attr, src_data,
+							     src_len, dst_data,
+							     &dlen);
+		} else {
 			res = TEE_ERROR_GENERIC;
 		}
 		break;
