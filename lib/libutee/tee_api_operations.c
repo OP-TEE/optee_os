@@ -85,6 +85,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDH_P256:
 	case TEE_ALG_SM2_PKE:
+	case TEE_ALG_SM2_DSA_SM3:
 		if (maxKeySize != 256)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
@@ -160,6 +161,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDSA_P384:
 	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_SM2_DSA_SM3:
 		if (mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_SIGN;

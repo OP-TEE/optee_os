@@ -711,3 +711,25 @@ TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /* !CFG_CRYPTO_SM2_PKE */
+
+#if !defined(CFG_CRYPTO_SM2_DSA)
+TEE_Result crypto_acipher_sm2_dsa_sign(uint32_t algo __unused,
+				       struct ecc_keypair *key __unused,
+				       const uint8_t *msg __unused,
+				       size_t msg_len __unused,
+				       uint8_t *sig __unused,
+				       size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo __unused,
+					 struct ecc_public_key *key __unused,
+					 const uint8_t *msg __unused,
+					 size_t msg_len __unused,
+					 const uint8_t *sig __unused,
+					 size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* !CFG_CRYPTO_SM2_DSA */
