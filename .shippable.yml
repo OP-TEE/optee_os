@@ -26,6 +26,7 @@ build:
     - _make CFG_TEE_CORE_MALLOC_DEBUG=y
     - _make CFG_CORE_SANITIZE_UNDEFINED=y
     - _make CFG_CORE_SANITIZE_KADDRESS=y
+    - _make CFG_CORE_MBEDTLS_MPI=n
     - _make CFG_LOCKDEP=y
     - _make CFG_CRYPTO=n
     - _make CFG_CRYPTO_{AES,DES}=n
