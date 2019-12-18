@@ -9,7 +9,6 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <kernel/panic.h>
-#include <mbedtls/md.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
