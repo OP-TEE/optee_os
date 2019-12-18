@@ -466,11 +466,15 @@ extern const struct ltc_cipher_descriptor {
        @param ct      Ciphertext
        @param blocks  The number of complete blocks to process
        @param IV      The initial value (input/output)
+       @param IV_size The initial value size identifier. Following is mode
+                      specific identifier mapping:
+                      - LE mode (normal): 0: NULL, ..., 8: 8 bytes, ..., 16: 16 bytes
+                      - BE mode (reverse): 0: 16 bytes, ..., 8: 8 bytes, ..., 16: NULL
        @param mode    little or big endian counter (mode=0 or mode=1)
        @param skey    The scheduled key context
        @return CRYPT_OK if successful
    */
-   int (*accel_ctr_encrypt)(const unsigned char *pt, unsigned char *ct, unsigned long blocks, unsigned char *IV, int mode, symmetric_key *skey);
+   int (*accel_ctr_encrypt)(const unsigned char *pt, unsigned char *ct, unsigned long blocks, unsigned char *IV, int IV_size, int mode, symmetric_key *skey);
 
    /** Accelerated LRW
        @param pt      Plaintext
