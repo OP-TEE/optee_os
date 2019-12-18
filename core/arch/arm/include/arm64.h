@@ -337,6 +337,8 @@ DEFINE_U64_REG_READWRITE_FUNCS(tcr_el1)
 DEFINE_U64_REG_READ_FUNC(esr_el1)
 DEFINE_U64_REG_READ_FUNC(far_el1)
 DEFINE_U64_REG_READ_FUNC(mpidr_el1)
+/* Alias for reading this register to avoid ifdefs in code */
+#define read_mpidr() read_mpidr_el1()
 DEFINE_U64_REG_READ_FUNC(midr_el1)
 /* Alias for reading this register to avoid ifdefs in code */
 #define read_midr() read_midr_el1()
