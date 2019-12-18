@@ -124,7 +124,8 @@ static void trace_syscall(size_t num)
 {
 	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
 		return;
-	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+	FMSG("syscall #%zu (%s)", num,
+	     tee_svc_syscall_table[SPECULATION_SAFE_VALUE(num)].name);
 }
 #else
 static void trace_syscall(size_t num __unused)
@@ -235,7 +236,7 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 	if (scn > TEE_SCN_MAX)
 		scf = (syscall_t)syscall_not_supported;
 	else
-		scf = tee_svc_syscall_table[scn].fn;
+		scf = tee_svc_syscall_table[SPECULATION_SAFE_VALUE(scn)].fn;
 
 	ftrace_syscall_enter(scn);
 
