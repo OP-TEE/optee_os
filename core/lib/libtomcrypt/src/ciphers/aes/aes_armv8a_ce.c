@@ -63,7 +63,7 @@ void ce_aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
 			int blocks, u8 iv[]);
 void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-			int blocks, u8 ctr[], int first);
+			int blocks, u8 ctr[], int ctrlen, int first);
 void ce_aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
 			int blocks, u8 const rk2[], u8 iv[]);
 void ce_aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
@@ -283,7 +283,7 @@ static int aes_cbc_decrypt_nblocks(const unsigned char *ct, unsigned char *pt,
 
 static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 				   unsigned long blocks, unsigned char *IV,
-				   int mode, symmetric_key *skey)
+				   int IV_size, int mode, symmetric_key *skey)
 {
 	struct tomcrypt_arm_neon_state state;
 	u8 *rk;
@@ -299,11 +299,17 @@ static int aes_ctr_encrypt_nblocks(const unsigned char *pt, unsigned char *ct,
 		return CRYPT_ERROR;
 	}
 
+	/* In big endian mode IV_size=0 -> 128 bits and IV_size=8 -> 64 bits */
+	if ((IV_size != 0) && (IV_size != 8)) {
+		/* Accelerated algorithm supports only 64 or 128 bits IV */
+		return CRYPT_ERROR;
+	}
+
 	Nr = skey->rijndael.Nr;
 	rk = (u8 *)skey->rijndael.eK;
 
 	tomcrypt_arm_neon_enable(&state);
-	ce_aes_ctr_encrypt(ct, pt, rk, Nr, blocks, IV, 1);
+	ce_aes_ctr_encrypt(ct, pt, rk, Nr, blocks, IV, IV_size, 1);
 	tomcrypt_arm_neon_disable(&state);
 
 	return CRYPT_OK;

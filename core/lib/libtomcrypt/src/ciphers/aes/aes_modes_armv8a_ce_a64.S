@@ -413,14 +413,15 @@ ENDPROC(ce_aes_cbc_decrypt)
 
 	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 ctr[], int first)
+	 *		   int blocks, u8 ctr[], int ctrlen, int first)
 	 */
 
 ENTRY(ce_aes_ctr_encrypt)
 	stp             x29, x30, [sp, #-16]!
 	mov             x29, sp
 
-	enc_prepare     w3, x2, x6
+	enc_prepare     w3, x2, x7
+	mov             x9, x6                  /* save ctrlen */
 	ld1             {v4.16b}, [x5]
 
 	umov            x6, v4.d[1]             /* keep swabbed ctr in reg */
@@ -466,6 +467,7 @@ ENTRY(ce_aes_ctr_encrypt)
 	adds            x6, x6, #1              /* increment BE ctr */
 	rev             x7, x6
 	ins             v4.d[1], x7
+	cbnz            x9, .Lctrcarrydone      /* ignore overflow */
 	bcs             .Lctrcarry              /* overflow? */
 
 .Lctrcarrydone:

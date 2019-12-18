@@ -118,7 +118,8 @@ int ctr_encrypt(const unsigned char *pt, unsigned char *ct, unsigned long len, s
    if (cipher_descriptor[ctr->cipher]->accel_ctr_encrypt != NULL ) {
      /* handle acceleration only if not in the middle of a block, accelerator is present and length is >= a block size */
      if ((ctr->padlen == 0 || ctr->padlen == ctr->blocklen) && len >= (unsigned long)ctr->blocklen) {
-       if ((err = cipher_descriptor[ctr->cipher]->accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr, ctr->mode, &ctr->key)) != CRYPT_OK) {
+       if ((err = cipher_descriptor[ctr->cipher]->accel_ctr_encrypt(pt, ct, len/ctr->blocklen, ctr->ctr,
+           ctr->ctrlen, ctr->mode, &ctr->key)) != CRYPT_OK) {
          return err;
        }
        pt += (len / ctr->blocklen) * ctr->blocklen;
