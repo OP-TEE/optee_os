@@ -1206,15 +1206,19 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	DMSG("Secondary CPU Switching to normal world boot");
 }
 
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-struct thread_vector_table *
-generic_boot_init_primary(unsigned long pageable_part, unsigned long u __unused,
-			  unsigned long fdt)
+void generic_boot_init_primary(unsigned long pageable_part,
+			       unsigned long nsec_entry __maybe_unused,
+			       unsigned long fdt)
 {
-	init_primary_helper(pageable_part, PADDR_INVALID, fdt);
-	return &thread_vector_table;
+	unsigned long e = PADDR_INVALID;
+
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
+	e = nsec_entry;
+#endif
+	init_primary_helper(pageable_part, e, fdt);
 }
 
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 unsigned long generic_boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 				     unsigned long a1 __unused)
 {
@@ -1223,12 +1227,6 @@ unsigned long generic_boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 	return 0;
 }
 #else
-void generic_boot_init_primary(unsigned long pageable_part,
-			       unsigned long nsec_entry, unsigned long fdt)
-{
-	init_primary_helper(pageable_part, nsec_entry, fdt);
-}
-
 void generic_boot_init_secondary(unsigned long nsec_entry)
 {
 	init_secondary_helper(nsec_entry);

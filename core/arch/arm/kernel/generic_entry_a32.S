@@ -518,7 +518,6 @@ shadow_stack_access_ok:
 	mov	r1, r5		/* ns-entry address */
 	mov	r2, r6		/* DT address */
 	bl	generic_boot_init_primary
-	mov	r4, r0		/* save entry test vector */
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
@@ -553,8 +552,9 @@ shadow_stack_access_ok:
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	ldr	r0, =boot_mmu_config
 	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r1, =thread_vector_table
 	/* Pass the vector address returned from main_init */
-	sub	r1, r4, r0
+	sub	r1, r1, r0
 #else
 	/* realy standard bootarg #1 and #2 to non secure entry */
 	mov	r4, #0

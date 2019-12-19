@@ -42,15 +42,13 @@ struct boot_embdata {
 extern uint8_t embedded_secure_dtb[];
 extern const struct core_mmu_config boot_mmu_config;
 
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);
-struct thread_vector_table *
-generic_boot_init_primary(unsigned long pageable_part, unsigned long unused,
-			  unsigned long fdt);
-unsigned long generic_boot_cpu_on_handler(unsigned long a0, unsigned long a1);
-#else
+/* @nsec_entry is unused if using CFG_WITH_ARM_TRUSTED_FW */
 void generic_boot_init_primary(unsigned long pageable_part,
 			       unsigned long nsec_entry, unsigned long fdt);
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);
+unsigned long generic_boot_cpu_on_handler(unsigned long a0, unsigned long a1);
+#else
 void generic_boot_init_secondary(unsigned long nsec_entry);
 #endif
 
