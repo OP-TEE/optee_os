@@ -485,8 +485,7 @@ ENTRY(ce_aes_ctr_encrypt)
 
 .Lctrtailblock:
 	st1             {v0.16b}, [x0]
-	ldp             x29, x30, [sp], #16
-	ret
+	b		.Lctrout
 
 .Lctrcarry:
 	umov            x7, v4.d[0]             /* load upper word of ctr  */
