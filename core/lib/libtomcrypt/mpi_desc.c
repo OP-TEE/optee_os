@@ -428,6 +428,26 @@ static int mod(void *a, void *b, void *c)
 	return CRYPT_OK;
 }
 
+static int addmod(void *a, void *b, void *c, void *d)
+{
+	int res = add(a, b, d);
+
+	if (res)
+		return res;
+
+	return mod(d, c, d);
+}
+
+static int submod(void *a, void *b, void *c, void *d)
+{
+	int res = sub(a, b, d);
+
+	if (res)
+		return res;
+
+	return mod(d, c, d);
+}
+
 static int mulmod(void *a, void *b, void *c, void *d)
 {
 	int res;
@@ -681,6 +701,8 @@ ltc_math_descriptor ltc_mp = {
 	.rsa_keygen = &rsa_make_key,
 	.rsa_me = &rsa_exptmod,
 #endif
+	.addmod = addmod,
+	.submod = submod,
 	.rand = &mpa_rand,
 
 };
