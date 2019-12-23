@@ -23,6 +23,13 @@
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
 
+	.macro return_from_exception
+		eret
+		/* Guard against speculation past ERET */
+		dsb nsh
+		isb
+	.endm
+
 	.macro b_if_spsr_is_el0 reg, label
 		tbnz	\reg, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT), \label
 		tst	\reg, #(SPSR_64_MODE_EL_MASK << SPSR_64_MODE_EL_SHIFT)
@@ -41,7 +48,7 @@ FUNC thread_resume , :
 
 	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
-	eret
+	return_from_exception
 
 1:	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
@@ -495,7 +502,7 @@ eret_to_el0:
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 
-	eret
+	return_from_exception
 
 	/*
 	 * void icache_inv_user_range(void *addr, size_t size);
@@ -659,7 +666,7 @@ LOCAL_FUNC el0_svc , :
 	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
 
-	eret
+	return_from_exception
 
 1:	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
@@ -748,7 +755,7 @@ LOCAL_FUNC el1_sync_abort , :
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
 	/* Return from exception */
-	eret
+	return_from_exception
 END_FUNC el1_sync_abort
 
 	/* sp_el0 in x3 */
@@ -826,7 +833,7 @@ LOCAL_FUNC el0_sync_abort , :
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
-	eret
+	return_from_exception
 1:	b	eret_to_el0
 END_FUNC el0_sync_abort
 
@@ -979,7 +986,7 @@ END_FUNC el0_sync_abort
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
-	eret
+	return_from_exception
 1:	b	eret_to_el0
 .endm
 
