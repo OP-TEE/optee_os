@@ -13,7 +13,7 @@ build:
     - export PATH=/usr/local/bin:$PATH  # clang
     - export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
-    - export CFG_DEBUG_INFO=n; export CCACHE_UNIFY=true
+    - export CFG_DEBUG_INFO=n
     - export CFG_WERROR=y
     - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z; }
     - ccache -z
