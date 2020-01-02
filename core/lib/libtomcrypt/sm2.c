@@ -450,10 +450,8 @@ static TEE_Result sm2_point_to_bytes(uint8_t *buf, size_t *size,
  * Encryption algorithm
  */
 TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
-					  const uint8_t *src __unused,
-					  size_t src_len,
-					  uint8_t *dst __unused,
-					  size_t *dst_len)
+					  const uint8_t *src, size_t src_len,
+					  uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	ecc_key ltc_key = { };
