@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2020 NXP
+ * Copyright 2019-2020 NXP
  *
  * MAC interface calling the HW crypto driver.
  */
@@ -27,4 +27,13 @@ static inline TEE_Result drvcrypt_register_hmac(drvcrypt_mac_allocate allocate)
 	return drvcrypt_register(CRYPTO_HMAC, (void *)allocate);
 }
 
+/*
+ * Register a CMAC processing driver in the crypto API
+ *
+ * @allocate - Callback for driver context allocation in the crypto layer
+ */
+static inline TEE_Result drvcrypt_register_cmac(drvcrypt_mac_allocate allocate)
+{
+	return drvcrypt_register(CRYPTO_CMAC, (void *)allocate);
+}
 #endif /* __DRVCRYPT_MAC_H__ */
