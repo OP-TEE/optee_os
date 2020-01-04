@@ -8,7 +8,6 @@
 #include <string.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
-#include <tomcrypt_private.h>
 #include <trace.h>
 #include <utee_defines.h>
 
