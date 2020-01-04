@@ -3,8 +3,13 @@
  * Copyright (c) 2014-2019, Linaro Limited
  */
 
+#ifndef ACIPHER_HELPERS_H
+#define ACIPHER_HELPERS_H
+
 #include <crypto/crypto.h>
 #include <tee_api_defines.h>
+#include <tee_api_types.h>
+#include <tomcrypt_private.h>
 #include <types_ext.h>
 
 static inline bool bn_alloc_max(struct bignum **s)
@@ -28,3 +33,14 @@ static inline TEE_Result convert_ltc_verify_status(int ltc_res, int ltc_stat)
 		return TEE_ERROR_GENERIC;
 	}
 }
+
+#ifdef CFG_CRYPTOLIB_NAME_tomcrypt
+TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
+					struct ecc_keypair *key,
+					uint32_t algo, size_t *key_size_bytes);
+TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
+				       struct ecc_public_key *key,
+				       uint32_t algo, size_t *key_size_bytes);
+#endif
+
+#endif /* ACIPHER_HELPERS_H */
