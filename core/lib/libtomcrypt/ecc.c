@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
-#include <tomcrypt_private.h>
 #include <trace.h>
 #include <utee_defines.h>
 
@@ -205,10 +204,9 @@ static TEE_Result ecc_set_curve_from_name(ecc_key *ltc_key,
  * Given a keypair "key", populate the Libtomcrypt private key "ltc_key"
  * It also returns the key size, in bytes
  */
-static TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
-					       struct ecc_keypair *key,
-					       uint32_t algo,
-					       size_t *key_size_bytes)
+TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
+					struct ecc_keypair *key,
+					uint32_t algo, size_t *key_size_bytes)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const char *name = NULL;
@@ -233,10 +231,9 @@ static TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
  * Given a public "key", populate the Libtomcrypt public key "ltc_key"
  * It also returns the key size, in bytes
  */
-static TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
-					      struct ecc_public_key *key,
-					      uint32_t algo,
-					      size_t *key_size_bytes)
+TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
+				       struct ecc_public_key *key,
+				       uint32_t algo, size_t *key_size_bytes)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const char *name = NULL;
