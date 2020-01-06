@@ -339,7 +339,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_ECC_CURVE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
 	.ops_index = ATTR_OPS_INDEX_VALUE,
 	RAW_DATA(struct ecc_public_key, curve)
 	},
@@ -500,6 +500,14 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	     tee_cryp_obj_ecc_pub_key_attrs),
 
 	PROP(TEE_TYPE_SM2_PKE_KEYPAIR, 1, 256, 256,
+	     sizeof(struct ecc_keypair),
+	     tee_cryp_obj_ecc_keypair_attrs),
+
+	PROP(TEE_TYPE_SM2_KEP_PUBLIC_KEY, 1, 256, 256,
+	     sizeof(struct ecc_public_key),
+	     tee_cryp_obj_ecc_pub_key_attrs),
+
+	PROP(TEE_TYPE_SM2_KEP_KEYPAIR, 1, 256, 256,
 	     sizeof(struct ecc_keypair),
 	     tee_cryp_obj_ecc_keypair_attrs),
 };
@@ -1159,6 +1167,9 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 		} else if (o->info.objectType == TEE_TYPE_SM2_PKE_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_SM2_PKE_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
+		} else if (o->info.objectType == TEE_TYPE_SM2_KEP_PUBLIC_KEY) {
+			if (src->info.objectType != TEE_TYPE_SM2_KEP_KEYPAIR)
+				return TEE_ERROR_BAD_PARAMETERS;
 		} else {
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -1249,6 +1260,7 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
 	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
 		res = crypto_acipher_alloc_ecc_public_key(o->attr,
 							  max_key_size);
 		break;
@@ -1256,6 +1268,7 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_ECDH_KEYPAIR:
 	case TEE_TYPE_SM2_DSA_KEYPAIR:
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
 		res = crypto_acipher_alloc_ecc_keypair(o->attr, max_key_size);
 		break;
 	default:
@@ -2052,6 +2065,12 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		else
 			req_key_type = TEE_TYPE_SM2_DSA_KEYPAIR;
 		break;
+#if defined(CFG_CRYPTO_SM2_KEP)
+	case TEE_MAIN_ALGO_SM2_KEP:
+		req_key_type = TEE_TYPE_SM2_KEP_KEYPAIR;
+		req_key_type2 = TEE_TYPE_SM2_KEP_PUBLIC_KEY;
+		break;
+#endif
 #if defined(CFG_CRYPTO_HKDF)
 	case TEE_MAIN_ALGO_HKDF:
 		req_key_type = TEE_TYPE_HKDF_IKM;
@@ -2174,8 +2193,13 @@ rsassa_na1: __maybe_unused
 			res = TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_OPERATION_KEY_DERIVATION:
-		if (key1 == 0 || key2 != 0)
-			res = TEE_ERROR_BAD_PARAMETERS;
+		if (algo == TEE_ALG_SM2_KEP) {
+			if (key1 == 0 || key2 == 0)
+				res = TEE_ERROR_BAD_PARAMETERS;
+		} else {
+			if (key1 == 0 || key2 != 0)
+				res = TEE_ERROR_BAD_PARAMETERS;
+		}
 		break;
 	default:
 		res = TEE_ERROR_NOT_SUPPORTED;
@@ -2756,6 +2780,110 @@ static TEE_Result get_pbkdf2_params(const TEE_Attribute *params,
 }
 #endif
 
+#if defined(CFG_CRYPTO_SM2_KEP)
+static TEE_Result get_sm2_kep_params(const TEE_Attribute *params,
+				     uint32_t param_count,
+				     struct ecc_public_key *peer_key,
+				     struct ecc_public_key *peer_eph_key,
+				     struct sm2_kep_parms *kep_parms)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t n;
+	enum {
+		IS_INITIATOR,
+		PEER_KEY_X,
+		PEER_KEY_Y,
+		PEER_EPH_KEY_X,
+		PEER_EPH_KEY_Y,
+		INITIATOR_ID,
+		RESPONDER_ID,
+	};
+	uint8_t mandatory = BIT(IS_INITIATOR) | BIT(PEER_KEY_X) |
+		BIT(PEER_KEY_Y) | BIT(PEER_EPH_KEY_X) | BIT(PEER_EPH_KEY_Y) |
+		BIT(INITIATOR_ID) | BIT(RESPONDER_ID);
+	uint8_t found = 0;
+
+	res = crypto_acipher_alloc_ecc_public_key(peer_key, 256);
+	if (res)
+		goto out;
+
+	res = crypto_acipher_alloc_ecc_public_key(peer_eph_key, 256);
+	if (res)
+		goto out;
+
+	peer_key->curve = TEE_ECC_CURVE_SM2;
+	peer_eph_key->curve = TEE_ECC_CURVE_SM2;
+
+	for (n = 0; n < param_count; n++) {
+		const TEE_Attribute *p = &params[n];
+
+		switch (p->attributeID) {
+		case TEE_ATTR_SM2_KEP_USER:
+			kep_parms->is_initiator = !p->content.value.a;
+			found |= BIT(IS_INITIATOR);
+			break;
+		case TEE_ATTR_ECC_PUBLIC_VALUE_X:
+			crypto_bignum_bin2bn(p->content.ref.buffer,
+					     p->content.ref.length,
+					     peer_key->x);
+			found |= BIT(PEER_KEY_X);
+			break;
+		case TEE_ATTR_ECC_PUBLIC_VALUE_Y:
+			crypto_bignum_bin2bn(p->content.ref.buffer,
+					     p->content.ref.length,
+					     peer_key->y);
+			found |= BIT(PEER_KEY_Y);
+			break;
+		case TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X:
+			crypto_bignum_bin2bn(p->content.ref.buffer,
+					     p->content.ref.length,
+					     peer_eph_key->x);
+			found |= BIT(PEER_EPH_KEY_X);
+			break;
+		case TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y:
+			crypto_bignum_bin2bn(p->content.ref.buffer,
+					     p->content.ref.length,
+					     peer_eph_key->y);
+			found |= BIT(PEER_EPH_KEY_Y);
+			break;
+		case TEE_ATTR_SM2_ID_INITIATOR:
+			kep_parms->initiator_id = p->content.ref.buffer;
+			kep_parms->initiator_id_len = p->content.ref.length;
+			found |= BIT(INITIATOR_ID);
+			break;
+		case TEE_ATTR_SM2_ID_RESPONDER:
+			kep_parms->responder_id = p->content.ref.buffer;
+			kep_parms->responder_id_len = p->content.ref.length;
+			found |= BIT(RESPONDER_ID);
+			break;
+		case TEE_ATTR_SM2_KEP_CONFIRMATION_IN:
+			kep_parms->conf_in = p->content.ref.buffer;
+			kep_parms->conf_in_len = p->content.ref.length;
+			break;
+		case TEE_ATTR_SM2_KEP_CONFIRMATION_OUT:
+			kep_parms->conf_out = p->content.ref.buffer;
+			kep_parms->conf_out_len = p->content.ref.length;
+			break;
+		default:
+			/* Unexpected attribute */
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+	}
+
+	if ((found & mandatory) != mandatory) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	return TEE_SUCCESS;
+out:
+	crypto_acipher_free_ecc_public_key(peer_key);
+	crypto_acipher_free_ecc_public_key(peer_eph_key);
+	return res;
+}
+#endif
+
 TEE_Result syscall_cryp_derive_key(unsigned long state,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count, unsigned long derived_key)
@@ -2993,6 +3121,42 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
 			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
 		}
+	}
+#endif
+#if defined(CFG_CRYPTO_SM2_KEP)
+	else if (cs->algo == TEE_ALG_SM2_KEP) {
+		struct ecc_public_key peer_eph_key = { };
+		struct ecc_public_key peer_key = { };
+		struct sm2_kep_parms kep_parms = {
+			.out = (uint8_t *)(sk + 1),
+			.out_len = so->info.maxKeySize,
+		};
+		struct tee_obj *ko2 = NULL;
+
+		res = tee_obj_get(utc, cs->key2, &ko2);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		res = get_sm2_kep_params(params, param_count, &peer_key,
+					 &peer_eph_key, &kep_parms);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		/*
+		 * key1 is our private keypair, key2 is our ephemeral public key
+		 */
+		res = crypto_acipher_sm2_kep_derive(ko->attr, /* key1 */
+						    ko2->attr, /* key2 */
+						    &peer_key, &peer_eph_key,
+						    &kep_parms);
+
+		if (res == TEE_SUCCESS) {
+			sk->key_size = kep_parms.out_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+		crypto_acipher_free_ecc_public_key(&peer_key);
+		crypto_acipher_free_ecc_public_key(&peer_eph_key);
 	}
 #endif
 	else

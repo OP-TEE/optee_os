@@ -31,6 +31,7 @@
 #define TEE_MAIN_ALGO_ECDSA      0x41
 #define TEE_MAIN_ALGO_ECDH       0x42
 #define TEE_MAIN_ALGO_SM2_DSA_SM3 0x45 /* Not in v1.2 spec */
+#define TEE_MAIN_ALGO_SM2_KEP    0x46 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_SM2_PKE    0x47 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
@@ -53,6 +54,8 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 {
 	if (algo == TEE_ALG_SM2_PKE)
 		return TEE_OPERATION_ASYMMETRIC_CIPHER;
+	if (algo == TEE_ALG_SM2_KEP)
+		return TEE_OPERATION_KEY_DERIVATION;
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }
@@ -64,6 +67,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 	switch (algo) {
 	case TEE_ALG_SM2_PKE:
 		return TEE_MAIN_ALGO_SM2_PKE;
+	case TEE_ALG_SM2_KEP:
+		return TEE_MAIN_ALGO_SM2_KEP;
 	default:
 		break;
 	}
