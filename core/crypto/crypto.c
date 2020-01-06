@@ -733,3 +733,16 @@ TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /* !CFG_CRYPTO_SM2_DSA */
+#if !defined(CFG_CRYPTO_SM2_KEP)
+TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key __unused,
+					 struct ecc_keypair *my_eph_key
+								__unused,
+					 struct ecc_public_key *peer_key
+								__unused,
+					 struct ecc_public_key *peer_eph_key
+								__unused,
+					 struct sm2_kep_parms *p __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif

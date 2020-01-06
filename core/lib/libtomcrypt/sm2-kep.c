@@ -440,4 +440,3 @@ out:
 	ecc_free(&ltc_my_key);
 	return res;
 }
-

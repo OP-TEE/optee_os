@@ -129,7 +129,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 		size_bytes = 32;
 		name = "SM2";
 		if ((algo != 0) && (algo != TEE_ALG_SM2_PKE) &&
-		    (algo != TEE_ALG_SM2_DSA_SM3))
+		    (algo != TEE_ALG_SM2_DSA_SM3) &&
+		    (algo != TEE_ALG_SM2_KEP))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	default:

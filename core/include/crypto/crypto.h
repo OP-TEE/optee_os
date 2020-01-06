@@ -252,6 +252,26 @@ TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo,
 					 const uint8_t *msg, size_t msg_len,
 					 const uint8_t *sig, size_t sig_len);
 
+struct sm2_kep_parms {
+	uint8_t *out;
+	size_t out_len;
+	bool is_initiator;
+	const uint8_t *initiator_id;
+	size_t initiator_id_len;
+	const uint8_t *responder_id;
+	size_t responder_id_len;
+	const uint8_t *conf_in;
+	size_t conf_in_len;
+	uint8_t *conf_out;
+	size_t conf_out_len;
+};
+
+TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key,
+					 struct ecc_keypair *my_eph_key,
+					 struct ecc_public_key *peer_key,
+					 struct ecc_public_key *peer_eph_key,
+					 struct sm2_kep_parms *p);
+
 /*
  * Verifies a SHA-256 hash, doesn't require crypto_init() to be called in
  * advance and has as few dependencies as possible.

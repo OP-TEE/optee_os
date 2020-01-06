@@ -163,6 +163,7 @@
 #define TEE_ALG_DSA_SHA256                      0x70004131
 #define TEE_ALG_SM2_DSA_SM3                     0x70006045
 #define TEE_ALG_DH_DERIVE_SHARED_SECRET         0x80000032
+#define TEE_ALG_SM2_KEP                         0x60000045
 #define TEE_ALG_MD5                             0x50000001
 #define TEE_ALG_SHA1                            0x50000002
 #define TEE_ALG_SHA224                          0x50000003
@@ -224,6 +225,8 @@
 #define TEE_TYPE_ECDH_KEYPAIR               0xA1000042
 #define TEE_TYPE_SM2_DSA_PUBLIC_KEY         0xA0000045
 #define TEE_TYPE_SM2_DSA_KEYPAIR            0xA1000045
+#define TEE_TYPE_SM2_KEP_PUBLIC_KEY         0xA0000046
+#define TEE_TYPE_SM2_KEP_KEYPAIR            0xA1000046
 #define TEE_TYPE_SM2_PKE_PUBLIC_KEY         0xA0000047
 #define TEE_TYPE_SM2_PKE_KEYPAIR            0xA1000047
 #define TEE_TYPE_GENERIC_SECRET             0xA0000000
@@ -258,6 +261,13 @@
 #define TEE_ATTR_ECC_PUBLIC_VALUE_Y         0xD0000241
 #define TEE_ATTR_ECC_PRIVATE_VALUE          0xC0000341
 #define TEE_ATTR_ECC_CURVE                  0xF0000441
+#define TEE_ATTR_SM2_ID_INITIATOR           0xD0000446
+#define TEE_ATTR_SM2_ID_RESPONDER           0xD0000546
+#define TEE_ATTR_SM2_KEP_USER               0xF0000646
+#define TEE_ATTR_SM2_KEP_CONFIRMATION_IN    0xD0000746
+#define TEE_ATTR_SM2_KEP_CONFIRMATION_OUT   0xD0000846
+#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000946 /* Missing in 1.2.1 */
+#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000A46 /* Missing in 1.2.1 */
 
 #define TEE_ATTR_BIT_PROTECTED		(1 << 28)
 #define TEE_ATTR_BIT_VALUE		(1 << 29)
