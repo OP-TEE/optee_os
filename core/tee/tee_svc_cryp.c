@@ -499,6 +499,12 @@ struct attr_ops {
 	TEE_Result (*from_obj)(void *attr, void *src_attr);
 	void (*free)(void *attr);
 	void (*clear)(void *attr);
+	TEE_Result (*from_user_rsec)(void *attr, const void *buffer, size_t size);
+	TEE_Result (*to_binary_rsec)(void *attr, void *data, size_t data_len,
+			    size_t *offs);
+	bool (*from_binary_rsec)(void *attr, const void *data, size_t data_len,
+			    size_t *offs);
+	TEE_Result (*from_obj_rsec)(void *attr, void *src_attr);
 };
 
 static TEE_Result op_u32_to_binary_helper(uint32_t v, uint8_t *data,
@@ -631,6 +637,29 @@ static void op_attr_secret_value_clear(void *attr)
 
 	key->key_size = 0;
 	memset(key + 1, 0, key->alloc_size);
+}
+
+static TEE_Result op_attr_bignum_from_user_rsec(void *attr, const void *buffer,
+					   size_t size)
+{
+	/* We can create new crypto API crypto_attr_bignum_from_user_rsec */
+}
+
+static TEE_Result op_attr_bignum_to_binary_rsec(void *attr, void *data,
+					   size_t data_len, size_t *offs)
+{
+	/* We can create new crypto API crypto_attr_bignum_to_binary_rsec */
+}
+
+static bool op_attr_bignum_from_binary_rsec(void *attr, const void *data,
+				       size_t data_len, size_t *offs)
+{
+	/* We can create new crypto API crypto_attr_bignum_from_binary_rsec */
+}
+
+static TEE_Result op_attr_bignum_from_obj_rsec(void *attr, void *src_attr)
+{
+	/* We can create new crypto API crypto_attr_bignum_from_obj_rsec */
 }
 
 static TEE_Result op_attr_bignum_from_user(void *attr, const void *buffer,
@@ -816,6 +845,10 @@ static const struct attr_ops attr_ops[] = {
 		.from_obj = op_attr_secret_value_from_obj,
 		.free = op_attr_secret_value_clear, /* not a typo */
 		.clear = op_attr_secret_value_clear,
+		.from_user_rsec = NULL,
+		.to_binary_rsec = NULL,
+		.from_binary_rsec = NULL,
+		.from_obj_rsec = NULL,
 	},
 	[ATTR_OPS_INDEX_BIGNUM] = {
 		.from_user = op_attr_bignum_from_user,
@@ -825,6 +858,10 @@ static const struct attr_ops attr_ops[] = {
 		.from_obj = op_attr_bignum_from_obj,
 		.free = op_attr_bignum_free,
 		.clear = op_attr_bignum_clear,
+		.from_user_rsec = op_attr_bignum_from_user_rsec,
+		.to_binary_rsec = op_attr_bignum_to_binary_rsec,
+		.from_binary_rsec = op_attr_bignum_from_binary_rsec,
+		.from_obj_rsec = op_attr_bignum_from_obj_rsec,
 	},
 	[ATTR_OPS_INDEX_VALUE] = {
 		.from_user = op_attr_value_from_user,
@@ -834,6 +871,10 @@ static const struct attr_ops attr_ops[] = {
 		.from_obj = op_attr_value_from_obj,
 		.free = op_attr_value_clear, /* not a typo */
 		.clear = op_attr_value_clear,
+		.from_user_rsec = NULL,
+		.to_binary_rsec = NULL,
+		.from_binary_rsec = NULL,
+		.from_obj_rsec = NULL,
 	},
 };
 
@@ -1670,7 +1711,16 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 		return res;
 	if (!get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
 		crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key->e);
-	res = crypto_acipher_gen_rsa_key(key, key_size);
+
+	/* Based on Object Usage, if the private components can be extracted or not,
+	  * will be generating the keys.
+	  * If private components are not extractable we will generate Runtime Secure
+	  * Keys otherwise simple RSA Keys */
+	if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE))
+		res = crypto_acipher_gen_rsa_key_rsec(key, key_size);
+	else
+		res = crypto_acipher_gen_rsa_key(key, key_size);
+
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3386,13 +3436,25 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			res = crypto_acipher_rsanopad_encrypt(o->attr, src_data,
+			if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE)) {
+				res = crypto_acipher_rsanopad_encrypt_rsec(o->attr, src_data,
+				      src_len, dst_data,
+				      &dlen);
+			} else {
+				res = crypto_acipher_rsanopad_encrypt(o->attr, src_data,
 							      src_len, dst_data,
 							      &dlen);
+			}
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			res = crypto_acipher_rsanopad_decrypt(o->attr, src_data,
-							      src_len, dst_data,
-							      &dlen);
+			if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE)) {
+				res = crypto_acipher_rsanopad_decrypt_rsec(o->attr, src_data,
+					      src_len, dst_data,
+					      &dlen);
+			} else {
+				res = crypto_acipher_rsanopad_decrypt(o->attr, src_data,
+					      src_len, dst_data,
+					      &dlen);
+			}
 		} else {
 			/*
 			 * We will panic because "the mode is not compatible
@@ -3417,14 +3479,26 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
-			res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
+			if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE)) {
+				res = crypto_acipher_rsaes_encrypt_rsec(o->attr, src_data,
+				      src_len, dst_data,
+				      &dlen);
+			} else {
+				res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
 							   label, label_len,
 							   src_data, src_len,
 							   dst_data, &dlen);
+			}
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
-			res = crypto_acipher_rsaes_decrypt(
-					cs->algo, o->attr, label, label_len,
-					src_data, src_len, dst_data, &dlen);
+			if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE)) {
+				res = crypto_acipher_rsaes_decrypt_rsec(o->attr, src_data,
+				      src_len, dst_data,
+				      &dlen);
+			} else {
+				res = crypto_acipher_rsaes_decrypt(
+						cs->algo, o->attr, label, label_len,
+						src_data, src_len, dst_data, &dlen);
+			}
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -3449,9 +3523,15 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			break;
 		}
 		salt_len = pkcs1_get_salt_len(params, num_params, src_len);
-		res = crypto_acipher_rsassa_sign(cs->algo, o->attr, salt_len,
+		if (!(o->info.objectUsage & TEE_USAGE_EXTRACTABLE)) {
+				res = crypto_acipher_rsassa_sign_rsec(o->attr, src_data,
+				      src_len, dst_data,
+				      &dlen);
+		} else {
+				res = crypto_acipher_rsassa_sign(cs->algo, o->attr, salt_len,
 						 src_data, src_len, dst_data,
 						 &dlen);
+		}
 		break;
 
 	case TEE_ALG_DSA_SHA1:
