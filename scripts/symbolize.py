@@ -162,12 +162,7 @@ class Symbolizer(object):
         cmd = self.arch_prefix('addr2line')
         if not cmd:
             return
-        args = [cmd]
-        if elf_name == 'tee.elf' and self._tee_load_addr != '0x0':
-            args += ['-j.text']
-        args += ['-f', '-p', '-e', elf]
-        self._addr2line = self.my_Popen(args)
-        self._addr2line_elf_name = elf_name
+        self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
 
     # If addr falls into a region that maps a TA ELF file, return the load
     # address of that file.
@@ -214,6 +209,9 @@ class Symbolizer(object):
         self.spawn_addr2line(self.elf_for_addr(addr))
         if not reladdr or not self._addr2line:
             return '???'
+        if self.elf_for_addr(addr) == 'tee.elf':
+            reladdr = '0x{:x}'.format(int(reladdr, 16) +
+                                      int(self.first_vma('tee.elf'), 16))
         try:
             print(reladdr, file=self._addr2line.stdin)
             ret = self._addr2line.stdout.readline().rstrip('\n')
@@ -329,6 +327,10 @@ class Symbolizer(object):
                 if 'ALLOC' in line:
                     self._sections[elf_name].append([name, int(vma, 16),
                                                      int(size, 16)])
+
+    def first_vma(self, elf_name):
+        self.read_sections(elf_name)
+        return '0x{:x}'.format(self._sections[elf_name][0][1])
 
     def overlaps(self, section, addr, size):
         sec_addr = section[1]
