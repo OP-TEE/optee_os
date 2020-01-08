@@ -91,7 +91,7 @@ S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Hisilicon Hi3519AV100 family
-R:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
+R:	Jerome Forissier <jerome.@forissier.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
@@ -208,7 +208,7 @@ F:	core/arch/arm/kernel/virtualization.c
 THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
-M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
+M:	Jerome Forissier <jerome@forissier.org> [@jforissier]
 M:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
 R:	Victor Chong <victor.chong@linaro.org> [@vchong]
