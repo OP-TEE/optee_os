@@ -166,7 +166,7 @@ S:	Maintained
 F:	core/arch/arm/plat-synquacer/
 
 Spreadtrum SC9860
-R:	Aijun Sun <aijun.sun@spreadtrum.com>
+R:	Aijun Sun <aijun.sun@unisoc.com>
 R:	[@OP-TEE/plat-sprd]
 S:	Maintained
 F:	core/arch/arm/plat-sprd/
