@@ -125,6 +125,7 @@ A3:
 	mp_to_unsigned_bin(s, sig + 32);
 	*sig_len = 64;
 out:
+	ecc_free(&ltc_key);
 	ltc_ecc_del_point(x1y1p);
 	mp_clear_multi(k, e, r, s, tmp, NULL);
 	return res;
@@ -241,6 +242,7 @@ TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo,
 out:
 	mp_montgomery_free(mp);
 	ltc_ecc_del_point(x1y1p);
+	ecc_free(&ltc_key);
 	mp_clear_multi(rprime, sprime, t, mu, ma, eprime, R, NULL);
 	return res;
 }
