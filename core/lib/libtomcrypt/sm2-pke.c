@@ -21,49 +21,31 @@ sm2_uncompressed_bytes_to_point(ecc_point *p, const ltc_ecc_dp *dp,
 				size_t *consumed)
 {
 	uint8_t *ptr = (uint8_t *)x1y1;
-	TEE_Result res = TEE_SUCCESS;
 	uint8_t one[] = { 1 };
 	int ltc_res = 0;
-	void *x1 = NULL;
-	void *y1 = NULL;
 
 	if (max_size < (size_t)(2 * dp->size))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ltc_res = mp_init_multi(&x1, &y1, &p->z, NULL);
+	ltc_res = mp_read_unsigned_bin(p->x, ptr, dp->size);
 	if (ltc_res != CRYPT_OK)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	ltc_res = mp_read_unsigned_bin(x1, ptr, dp->size);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	ptr += dp->size;
 
-	ltc_res = mp_read_unsigned_bin(y1, ptr, dp->size);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+	ltc_res = mp_read_unsigned_bin(p->y, ptr, dp->size);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	ltc_res = ltc_ecc_is_point(dp, x1, y1);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+	ltc_res = ltc_ecc_is_point(dp, p->x, p->y);
+	if (ltc_res != CRYPT_OK)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	p->x = x1;
-	p->y = y1;
 	mp_read_unsigned_bin(p->z, one, sizeof(one));
 
 	*consumed = 2 * dp->size + 1; /* PC */
 
 	return TEE_SUCCESS;
-err:
-	mp_clear_multi(x1, y1, p->z, NULL);
-	return res;
 }
 
 /*
@@ -359,6 +341,7 @@ out:
 	ltc_ecc_del_point(S);
 	ltc_ecc_del_point(C1);
 	mp_clear_multi(h, NULL);
+	ecc_free(&ltc_key);
 	return res;
 }
 
@@ -567,6 +550,7 @@ out:
 	ltc_ecc_del_point(x2y2p);
 	ltc_ecc_del_point(S);
 	ltc_ecc_del_point(C1);
+	ecc_free(&ltc_key);
 	mp_clear_multi(k, h, NULL);
 	return res;
 }
