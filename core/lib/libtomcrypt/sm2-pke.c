@@ -467,6 +467,10 @@ TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
 		ltc_res = ltc_ecc_is_point_at_infinity(&ltc_key.pubkey,
 						       ltc_key.dp.prime, &inf);
 	}
+	if (ltc_res != CRYPT_OK) {
+		res = TEE_ERROR_BAD_STATE;
+		goto out;
+	}
 	if (inf) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
