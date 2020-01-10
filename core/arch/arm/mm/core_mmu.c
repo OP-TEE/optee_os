@@ -1277,9 +1277,11 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 	case CORE_MEM_TA_RAM:
 		return core_is_buffer_inside(pbuf, len, TA_RAM_START,
 							TA_RAM_SIZE);
+#ifdef CFG_CORE_RESERVED_SHM
 	case CORE_MEM_NSEC_SHM:
 		return core_is_buffer_inside(pbuf, len, TEE_SHMEM_START,
 							TEE_SHMEM_SIZE);
+#endif
 	case CORE_MEM_SDP_MEM:
 		return pbuf_is_sdp_mem(pbuf, len);
 	case CORE_MEM_CACHED:
