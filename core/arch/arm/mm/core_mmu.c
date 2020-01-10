@@ -377,7 +377,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
 #endif
 
-	for (map = static_memory_map; core_mmap_is_end_of_table(map); map++) {
+	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
 		if (map->type == MEM_AREA_NSEC_SHM)
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
 		else if (map->type != MEM_AREA_EXT_DT)
