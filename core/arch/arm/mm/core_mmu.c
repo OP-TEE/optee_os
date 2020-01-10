@@ -301,6 +301,7 @@ static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 		*mem = m;
 	} else if (pa == m[n].addr) {
 		m[n].addr += size;
+		m[n].size -= size;
 	} else if ((pa + size) == (m[n].addr + m[n].size)) {
 		m[n].size -= size;
 	} else {
