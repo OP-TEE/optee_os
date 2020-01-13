@@ -154,7 +154,7 @@ clear_nex_bss:
 	adr_l	x0, __text_start
 	ldr	x1, cached_mem_end
 	sub	x1, x1, x0
-	bl	dcache_inv_range
+	bl	dcache_cleaninv_range
 
 	/* Enable Console */
 	bl	console_init
