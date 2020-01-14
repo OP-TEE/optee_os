@@ -107,7 +107,7 @@ ifeq ($(_CFG_CORE_LTC_ECC),y)
    # ECC 521 bits is the max supported key size
    cppflags-lib-y += -DLTC_MAX_ECC=521
 endif
-ifeq ($(filter y,$(_CFG_CORE_LTC_SM2_DSA_SM3) $(_CFG_CORE_LTC_SM2_PKE)),y)
+ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
    cppflags-lib-y += -DLTC_ECC_SM2
 endif
 
