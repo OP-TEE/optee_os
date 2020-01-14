@@ -52,6 +52,7 @@ CFG_SHMEM_START  ?= 0x83000000
 CFG_SHMEM_SIZE   ?= 0x00200000
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
 endif
 
 ifeq ($(PLATFORM_FLAVOR),juno)
@@ -62,6 +63,7 @@ CFG_SHMEM_START  ?= 0xfee00000
 CFG_SHMEM_SIZE   ?= 0x00200000
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
 CFG_CRYPTO_WITH_CE ?= y
 endif
 

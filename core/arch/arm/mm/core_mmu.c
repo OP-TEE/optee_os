@@ -353,7 +353,6 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	size_t num_elems = nelems;
 	struct tee_mmap_region *map = static_memory_map;
 	const struct core_mmu_phys_mem __maybe_unused *pmem;
-	paddr_t pa;
 
 	assert(!discovered_nsec_ddr_start);
 	assert(m && num_elems);
@@ -387,9 +386,9 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	discovered_nsec_ddr_start = m;
 	discovered_nsec_ddr_nelems = num_elems;
 
-	if (ADD_OVERFLOW(m[num_elems - 1].addr, m[num_elems - 1].size - 1, &pa))
+	if (!core_mmu_check_end_pa(m[num_elems - 1].addr,
+				   m[num_elems - 1].size - 1))
 		panic();
-	core_mmu_set_max_pa(pa);
 }
 
 static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,
@@ -1881,6 +1880,9 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (!len)
 		return true;
 
+	if (!core_mmu_check_end_pa(addr, len))
+		return false;
+
 	/* Check if the memory is already mapped */
 	map = find_map_by_type_and_pa(type, addr);
 	if (map && pbuf_inside_map_area(addr, len, map))
@@ -1934,9 +1936,6 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	map->region_size = granule;
 	map->attr = core_mmu_type_to_attr(type);
 	map->pa = p;
-
-	/* Update TCR_EL1 with possiable maximum physical address change */
-	core_mmu_set_max_pa(map->pa + map->size);
 
 	set_region(&tbl_info, map);
 

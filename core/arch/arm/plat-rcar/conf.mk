@@ -8,6 +8,7 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_SCIF,y)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
 
 ifeq ($(PLATFORM_FLAVOR),salvator_h3)
 $(call force,CFG_TEE_CORE_NB_CORE,8)
