@@ -139,6 +139,7 @@ srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_AES) += aes.c
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
+srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2_kdf.c
 
 ifdef _CFG_CORE_LTC_ACIPHER
 ifeq ($(_CFG_CORE_LTC_MPI),y)
