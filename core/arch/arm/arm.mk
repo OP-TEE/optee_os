@@ -10,6 +10,13 @@ CFG_RESERVED_VASPACE_SIZE ?= (1024 * 1024 * 10)
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64
+# TCR_EL1.IPS needs to be initialized according to the largest physical
+# address that we need to map.
+# Physical address size
+# 32 bits, 4GB.
+# 36 bits, 64GB.
+# (etc.)
+CFG_CORE_ARM64_PA_BITS ?= 32
 else
 ifeq ($(CFG_ARM32_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
