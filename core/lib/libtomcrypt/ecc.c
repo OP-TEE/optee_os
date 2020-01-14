@@ -223,6 +223,9 @@ TEE_Result ecc_populate_ltc_private_key(ecc_key *ltc_key,
 
 	ltc_key->type = PK_PRIVATE;
 	mp_copy(key->d, ltc_key->k);
+	mp_copy(key->x, ltc_key->pubkey.x);
+	mp_copy(key->y, ltc_key->pubkey.y);
+	mp_set_int(ltc_key->pubkey.z, 1);
 
 	return TEE_SUCCESS;
 }
