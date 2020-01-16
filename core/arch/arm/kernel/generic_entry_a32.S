@@ -372,7 +372,7 @@ UNWIND(	.cantunwind)
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2		/* __init_start + len */
 	add	r1, r1, r2		/* __data_end + len */
-	str	r1, cached_mem_end
+	str	r0, cached_mem_end
 	ldr	r2, =__init_start
 copy_init:
 	ldmdb	r1!, {r3, r8-r12}
@@ -392,8 +392,7 @@ copy_init:
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	adr	r3, cached_mem_end
-	str	r1, [r3]
+	str	r0, cached_mem_end
 	ldr	r2, =__end
 
 copy_init:
