@@ -90,7 +90,7 @@ FUNC _start , :
 	add	x0, x0, x2		/* __init_start + len */
 	add	x1, x1, x2		/* __data_end + len */
 	adr	x3, cached_mem_end
-	str	x1, [x3]
+	str	x0, [x3]
 	adr	x2, __init_start
 copy_init:
 	ldp	x3, x4, [x1, #-16]!
@@ -101,8 +101,8 @@ copy_init:
 	/*
 	 * The binary is built as:
 	 * [Core, rodata and data] : In correct location
-	 * [struct boot_embdata + data] : Should be saved before
-	 * initializing pager, first uint32_t tells the length of the data
+	 * [struct boot_embdata + data] : Should be moved to __end, first
+	 * uint32_t tells the length of the struct + data
 	 */
 	adr	x0, __end		/* dst */
 	adr	x1, __data_end		/* src */
@@ -111,7 +111,7 @@ copy_init:
 	add	x0, x0, x2
 	add	x1, x1, x2
 	adr	x3, cached_mem_end
-	str	x1, [x3]
+	str	x0, [x3]
 	adr	x2, __end
 
 copy_init:
@@ -151,6 +151,12 @@ clear_nex_bss:
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
 
+	/*
+	 * Invalidate dcache for all memory used during initialization to
+	 * avoid nasty surprices when the cache is turned on. We must not
+	 * invalidate memory not used by OP-TEE since we may invalidate
+	 * entries used by for instance ARM Trusted Firmware.
+	 */
 	adr_l	x0, __text_start
 	ldr	x1, cached_mem_end
 	sub	x1, x1, x0
