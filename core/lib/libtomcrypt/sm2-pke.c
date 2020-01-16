@@ -15,6 +15,9 @@
 
 #include "acipher_helpers.h"
 
+/* SM2 uses 256 bit unsigned integers in big endian format */
+#define SM2_INT_SIZE_BYTES 32
+
 static TEE_Result
 sm2_uncompressed_bytes_to_point(ecc_point *p, const ltc_ecc_dp *dp,
 				const uint8_t *x1y1, size_t max_size,
@@ -24,16 +27,16 @@ sm2_uncompressed_bytes_to_point(ecc_point *p, const ltc_ecc_dp *dp,
 	uint8_t one[] = { 1 };
 	int ltc_res = 0;
 
-	if (max_size < (size_t)(2 * dp->size))
+	if (max_size < (size_t)(2 * SM2_INT_SIZE_BYTES))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ltc_res = mp_read_unsigned_bin(p->x, ptr, dp->size);
+	ltc_res = mp_read_unsigned_bin(p->x, ptr, SM2_INT_SIZE_BYTES);
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	ptr += dp->size;
+	ptr += SM2_INT_SIZE_BYTES;
 
-	ltc_res = mp_read_unsigned_bin(p->y, ptr, dp->size);
+	ltc_res = mp_read_unsigned_bin(p->y, ptr, SM2_INT_SIZE_BYTES);
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -43,7 +46,7 @@ sm2_uncompressed_bytes_to_point(ecc_point *p, const ltc_ecc_dp *dp,
 
 	mp_read_unsigned_bin(p->z, one, sizeof(one));
 
-	*consumed = 2 * dp->size + 1; /* PC */
+	*consumed = 2 * SM2_INT_SIZE_BYTES + 1; /* PC */
 
 	return TEE_SUCCESS;
 }
@@ -255,14 +258,15 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 		goto out;
 	}
 
-	if (mp_unsigned_bin_size(x2y2p->x) != 32 ||
-	    mp_unsigned_bin_size(x2y2p->y) != 32) {
+	if (mp_unsigned_bin_size(x2y2p->x) > SM2_INT_SIZE_BYTES ||
+	    mp_unsigned_bin_size(x2y2p->y) > SM2_INT_SIZE_BYTES) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
 	}
 
-	mp_to_unsigned_bin(x2y2p->x, x2y2);
-	mp_to_unsigned_bin(x2y2p->y, x2y2 + 32);
+	mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
+	mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
+			    SM2_INT_SIZE_BYTES);
 
 	/* Step B4: t = KDF(x2 || y2, klen) */
 
@@ -311,7 +315,7 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 	res = crypto_hash_init(ctx);
 	if (res)
 		goto out;
-	res = crypto_hash_update(ctx, x2y2, 32);
+	res = crypto_hash_update(ctx, x2y2, SM2_INT_SIZE_BYTES);
 	if (res)
 		goto out;
 	res = crypto_hash_update(ctx, dst, out_len);
@@ -322,7 +326,8 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 		if (res)
 			goto out;
 	}
-	res = crypto_hash_update(ctx, x2y2 + 32, 32);
+	res = crypto_hash_update(ctx, x2y2 + SM2_INT_SIZE_BYTES,
+				 SM2_INT_SIZE_BYTES);
 	if (res)
 		goto out;
 	res = crypto_hash_final(ctx, u, sizeof(u));
@@ -354,15 +359,19 @@ static TEE_Result sm2_point_to_bytes(uint8_t *buf, size_t *size,
 {
 	size_t xsize = mp_unsigned_bin_size(p->x);
 	size_t ysize = mp_unsigned_bin_size(p->y);
+	size_t sz = 2 * SM2_INT_SIZE_BYTES + 1;
 
-	if (*size < xsize + ysize + 1)
+	if (xsize > SM2_INT_SIZE_BYTES || ysize > SM2_INT_SIZE_BYTES ||
+	    *size < sz)
 		return TEE_ERROR_BAD_STATE;
 
+	memset(buf, 0, sz);
 	buf[0] = 0x04;  /* Uncompressed form indicator */
-	mp_to_unsigned_bin(p->x, buf + 1);
-	mp_to_unsigned_bin(p->y, buf + 1 + xsize);
+	mp_to_unsigned_bin2(p->x, buf + 1, SM2_INT_SIZE_BYTES);
+	mp_to_unsigned_bin2(p->y, buf + 1 + SM2_INT_SIZE_BYTES,
+			    SM2_INT_SIZE_BYTES);
 
-	*size = xsize + ysize + 1;
+	*size = sz;
 
 	return TEE_SUCCESS;
 }
@@ -474,14 +483,15 @@ TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
 		goto out;
 	}
 
-	if (mp_unsigned_bin_size(x2y2p->x) != 32 ||
-	    mp_unsigned_bin_size(x2y2p->y) != 32) {
+	if (mp_unsigned_bin_size(x2y2p->x) > SM2_INT_SIZE_BYTES ||
+	    mp_unsigned_bin_size(x2y2p->y) > SM2_INT_SIZE_BYTES) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
 	}
 
-	mp_to_unsigned_bin(x2y2p->x, x2y2);
-	mp_to_unsigned_bin(x2y2p->y, x2y2 + 32);
+	mp_to_unsigned_bin2(x2y2p->x, x2y2, SM2_INT_SIZE_BYTES);
+	mp_to_unsigned_bin2(x2y2p->y, x2y2 + SM2_INT_SIZE_BYTES,
+			    SM2_INT_SIZE_BYTES);
 
 	/* Step A5: compute t = KDF(x2 || y2, klen) */
 
@@ -530,13 +540,14 @@ TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
         res = crypto_hash_init(ctx);
         if (res)
                 goto out;
-        res = crypto_hash_update(ctx, x2y2, 32);
+        res = crypto_hash_update(ctx, x2y2, SM2_INT_SIZE_BYTES);
         if (res)
                 goto out;
         res = crypto_hash_update(ctx, src, src_len);
         if (res)
                 goto out;
-        res = crypto_hash_update(ctx, x2y2 + 32, 32);
+        res = crypto_hash_update(ctx, x2y2 + SM2_INT_SIZE_BYTES,
+				 SM2_INT_SIZE_BYTES);
         if (res)
                 goto out;
         res = crypto_hash_final(ctx, dst + C1_len + src_len, TEE_SM3_HASH_SIZE);
