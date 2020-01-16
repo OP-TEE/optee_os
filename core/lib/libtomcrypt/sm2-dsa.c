@@ -12,6 +12,9 @@
 
 #include "acipher_helpers.h"
 
+/* SM2 uses 256 bit unsigned integers in big endian format */
+#define SM2_INT_SIZE_BYTES 32
+
 /*
  * GM/T 0003.1‒2012 Part1 2 Section 6.1
  */
@@ -30,7 +33,7 @@ TEE_Result crypto_acipher_sm2_dsa_sign(uint32_t algo,
 	void *s = NULL;
 	void *tmp = NULL;
 
-	if (*sig_len < 64) {
+	if (*sig_len < 2 * SM2_INT_SIZE_BYTES) {
 		*sig_len = 64;
 		return TEE_ERROR_SHORT_BUFFER;
 	}
@@ -120,10 +123,10 @@ A3:
 
 	/* Step A7: convert (r, s) to binary for output */
 
-	memset(sig, 0, 64);
-	mp_to_unsigned_bin(r, sig);
-	mp_to_unsigned_bin(s, sig + 32);
-	*sig_len = 64;
+	*sig_len = 2 * SM2_INT_SIZE_BYTES;
+	memset(sig, 0, *sig_len);
+	mp_to_unsigned_bin2(r, sig, SM2_INT_SIZE_BYTES);
+	mp_to_unsigned_bin2(s, sig + SM2_INT_SIZE_BYTES, SM2_INT_SIZE_BYTES);
 out:
 	ecc_free(&ltc_key);
 	ltc_ecc_del_point(x1y1p);
