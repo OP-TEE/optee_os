@@ -43,4 +43,11 @@ TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 				       uint32_t algo, size_t *key_size_bytes);
 #endif
 
+/* Write bignum to fixed size buffer in big endian order */
+#define mp_to_unsigned_bin2(a, b, c) \
+        do { \
+                void *_a = (a); \
+                mp_to_unsigned_bin(_a, (b) + (c) - mp_unsigned_bin_size(_a)); \
+        } while(0)
+
 #endif /* ACIPHER_HELPERS_H */
