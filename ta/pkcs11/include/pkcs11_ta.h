@@ -6,8 +6,17 @@
 #ifndef PKCS11_TA_H
 #define PKCS11_TA_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #define PKCS11_TA_UUID { 0xfd02c9da, 0x306c, 0x48c7, \
 			 { 0xa4, 0x9c, 0xbb, 0xd8, 0x27, 0xae, 0x86, 0xee } }
+
+/* Attribute specific values */
+#define PKCS11_UNAVAILABLE_INFORMATION		UINT32_C(0xFFFFFFFF)
+#define PKCS11_UNDEFINED_ID			PKCS11_UNAVAILABLE_INFORMATION
+#define PKCS11_FALSE				false
+#define PKCS11_TRUE				true
 
 /*
  * Note on PKCS#11 TA commands ABI
