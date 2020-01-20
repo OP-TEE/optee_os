@@ -42,7 +42,7 @@ void TA_CloseSessionEntryPoint(void *session __unused)
  *
  * Return a PKCS11_CKR_* value
  */
-static TEE_Result entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
+static uint32_t entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 {
 	const uint32_t ver[] = {
 		PKCS11_TA_VERSION_MAJOR,
@@ -52,24 +52,40 @@ static TEE_Result entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 	size_t size = 0;
 
 	if (ctrl || in)
-		return TEE_ERROR_BAD_PARAMETERS;
+		return PKCS11_BAD_PARAM;
 
 	if (!out)
-		return TEE_SUCCESS;
+		return PKCS11_OK;
 
 	size = out->memref.size;
 	out->memref.size = sizeof(ver);
 
 	if (size < sizeof(ver))
-		return TEE_ERROR_SHORT_BUFFER;
+		return PKCS11_SHORT_BUFFER;
+
+	if (!ALIGNMENT_IS_OK(out->memref.buffer, uint32_t))
+		return PKCS11_BAD_PARAM;
 
 	TEE_MemMove(out->memref.buffer, ver, sizeof(ver));
 
-	return PKCS11_CKR_OK;
+	return PKCS11_OK;
+}
+
+static bool ctrl_stores_output_status(uint32_t ptypes, TEE_Param *ctrl)
+{
+	return TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT &&
+	       ALIGNMENT_IS_OK(ctrl->memref.buffer, uint32_t) &&
+	       ctrl->memref.size >= sizeof(uint32_t);
 }
 
 /*
  * Entry point for PKCS11 TA commands
+ *
+ * Param#0 ctrl, is none or an output or in/out buffer. The input data are
+ * arguments of the to invoked command while the output data is used to send
+ * back to the client a PKCS11 finer status ID than the GPD TEE result codes.
+ * When doing so, TEE result code maybe set to TEE_SUCCESS in which case
+ * client shall check the status ID from the parameter #0 output buffer.
  */
 TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 				      uint32_t ptypes,
@@ -146,14 +162,20 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	/* Currently no output data stored in output param#0 */
-	if (TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT)
-		ctrl->memref.size = 0;
+	if (ctrl_stores_output_status(ptypes, ctrl)) {
+		TEE_MemMove(ctrl->memref.buffer, &rc, sizeof(uint32_t));
+		ctrl->memref.size = sizeof(uint32_t);
 
-	res = pkcs2tee_error(rc);
+		res = pkcs2tee_noerr(rc);
 
-	DMSG("%s rc 0x%08"PRIx32"/%s, TEE rc %"PRIx32,
-	     id2str_ta_cmd(cmd), rc, id2str_rc(rc), res);
+		DMSG("%s rc 0x%08"PRIx32"/%s",
+		     id2str_ta_cmd(cmd), rc, id2str_rc(rc));
+	} else {
+		res = pkcs2tee_error(rc);
+
+		DMSG("%s rc 0x%08"PRIx32"/%s, TEE rc %"PRIx32,
+		     id2str_ta_cmd(cmd), rc, id2str_rc(rc), res);
+	}
 
 	return res;
 }
