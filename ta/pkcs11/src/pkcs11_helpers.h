@@ -53,6 +53,22 @@ bool key_type_is_symm_key(uint32_t key_type_id);
 /* Return true if the key type @attribute_id relates to a asymmetric key */
 bool key_type_is_asymm_key(uint32_t key_type_id);
 
+/* Return true if @id identifies a valid mechanism ID */
+bool mechanism_is_valid(uint32_t mechaism_id);
+
+/* Return true if @id identifies a supported mechanism */
+bool mechanism_is_supported(uint32_t mechanism_id);
+
+/*
+ * Get the list the the supported mechanism
+ *
+ * @array - Output buffer filled with supported mechanism IDs
+ * @array_count - Number of 32bit cells in output buffer
+ *
+ * Return number of supported mechanism. Output buffer is filled if well sized.
+ */
+size_t get_supported_mechanisms(uint32_t *array, size_t array_count);
+
 /*
  * Convert PKCS11 TA return code into a GPD TEE result ID when matching.
  * If not, return a TEE success (_noerr) or a generic error (_error).
@@ -73,5 +89,6 @@ const char *id2str_boolprop(uint32_t id);
 const char *id2str_class(uint32_t id);
 const char *id2str_type(uint32_t id, uint32_t class);
 const char *id2str_key_type(uint32_t id);
+const char *id2str_mechanism_type(uint32_t id);
 #endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 #endif /*PKCS11_HELPERS_H*/
