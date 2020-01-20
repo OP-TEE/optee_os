@@ -159,6 +159,7 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_GET_OBJECT_SIZE),
 	PKCS11_ID(PKCS11_CMD_GET_ATTRIBUTE_VALUE),
 	PKCS11_ID(PKCS11_CMD_SET_ATTRIBUTE_VALUE),
+	PKCS11_ID(PKCS11_CMD_GENERATE_KEY),
 };
 
 static const struct any_id __maybe_unused string_rc[] = {

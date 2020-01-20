@@ -405,6 +405,21 @@ enum pkcs11_ta_cmd {
 	 * C_SetAttributeValue().
 	 */
 	PKCS11_CMD_SET_ATTRIBUTE_VALUE = 26,
+
+	/*
+	 * PKCS11_CMD_GENERATE_KEY - Generate symmetric key or domain parameters
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_GenerateKey().
+	 */
+	PKCS11_CMD_GENERATE_KEY = 27,
 };
 
 /*
