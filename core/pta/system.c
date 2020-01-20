@@ -21,6 +21,7 @@
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <util.h>
+#include <kernel/tpm.h>
 
 #define MAX_ENTROPY_IN			32u
 
@@ -795,6 +796,26 @@ static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
 	return res;
 }
 
+static TEE_Result system_get_tpm_event_log(uint32_t param_types,
+					   TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	size_t size = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	size = params[0].memref.size;
+	res = tpm_get_event_log(params[0].memref.buffer, &size);
+	params[0].memref.size = size;
+
+	return res;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -858,6 +879,8 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 		return system_dlopen(s, param_types, params);
 	case PTA_SYSTEM_DLSYM:
 		return system_dlsym(s, param_types, params);
+	case PTA_SYSTEM_GET_TPM_EVENT_LOG:
+		return system_get_tpm_event_log(param_types, params);
 	default:
 		break;
 	}

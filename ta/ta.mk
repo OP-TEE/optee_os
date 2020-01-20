@@ -38,6 +38,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
 ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
+ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
