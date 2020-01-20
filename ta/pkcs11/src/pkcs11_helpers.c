@@ -12,6 +12,76 @@
 
 static const char __maybe_unused unknown[] = "<unknown-identifier>";
 
+struct attr_size {
+	uint32_t id;
+	uint32_t size;
+#if CFG_TEE_TA_LOG_LEVEL > 0
+	const char *string;
+#endif
+};
+
+#if CFG_TEE_TA_LOG_LEVEL > 0
+#define PKCS11_ID_SZ(_id, _sz)	{ .id = (_id), .size = (_sz), .string = #_id }
+#else
+#define PKCS11_ID_SZ(_id, _sz)	{ .id = (_id), .size = (_sz) }
+#endif
+
+static const struct attr_size pkcs11_attribute_ids[] = {
+	PKCS11_ID_SZ(PKCS11_CKA_CLASS, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_KEY_TYPE, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_VALUE, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_VALUE_LEN, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_LABEL, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_WRAP_TEMPLATE, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_UNWRAP_TEMPLATE, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_DERIVE_TEMPLATE, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_START_DATE, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_END_DATE, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_OBJECT_ID, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_APPLICATION, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_MECHANISM_TYPE, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_ID, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_ALLOWED_MECHANISMS, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_EC_POINT, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_EC_PARAMS, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_MODULUS, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_MODULUS_BITS, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_PUBLIC_EXPONENT, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_PRIVATE_EXPONENT, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_PRIME_1, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_PRIME_2, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_EXPONENT_1, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_EXPONENT_2, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_COEFFICIENT, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_SUBJECT, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_PUBLIC_KEY_INFO, 0),
+	/* Below are boolean attributes */
+	PKCS11_ID_SZ(PKCS11_CKA_TOKEN, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_PRIVATE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_TRUSTED, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_SENSITIVE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_ENCRYPT, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_DECRYPT, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_WRAP, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_UNWRAP, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_SIGN, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_SIGN_RECOVER, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_VERIFY, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_VERIFY_RECOVER, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_DERIVE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_EXTRACTABLE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_LOCAL, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_NEVER_EXTRACTABLE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_ALWAYS_SENSITIVE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_MODIFIABLE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_COPYABLE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_DESTROYABLE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_ALWAYS_AUTHENTICATE, 1),
+	PKCS11_ID_SZ(PKCS11_CKA_WRAP_WITH_TRUSTED, 1),
+	/* Specific PKCS11 TA internal attribute ID */
+	PKCS11_ID_SZ(PKCS11_CKA_UNDEFINED_ID, 0),
+};
+
 struct any_id {
 	uint32_t id;
 #if CFG_TEE_TA_LOG_LEVEL > 0
@@ -255,7 +325,67 @@ uint32_t tee2pkcs_error(TEE_Result res)
 	}
 }
 
+/*
+ * Helper functions to analyse SKS identifiers
+ */
+
+bool valid_pkcs11_attribute_id(uint32_t attribute_id, uint32_t size)
+{
+	enum pkcs11_attr_id id = attribute_id;
+	size_t n = 0;
+
+	/* Check size matches if provided */
+	for (n = 0; n < ARRAY_SIZE(pkcs11_attribute_ids); n++)
+		if (id == pkcs11_attribute_ids[n].id)
+			return !pkcs11_attribute_ids[n].size ||
+			       size == pkcs11_attribute_ids[n].size;
+
+	return false;
+}
+
+size_t pkcs11_attr_is_class(uint32_t attribute_id)
+{
+	enum pkcs11_attr_id id = attribute_id;
+
+	if (id == PKCS11_CKA_CLASS)
+		return sizeof(uint32_t);
+	else
+		return 0;
+}
+
+size_t pkcs11_attr_is_type(uint32_t attribute_id)
+{
+	enum pkcs11_attr_id id = attribute_id;
+
+	switch (id) {
+	case PKCS11_CKA_KEY_TYPE:
+	case PKCS11_CKA_MECHANISM_TYPE:
+		return sizeof(uint32_t);
+	default:
+		return 0;
+	}
+}
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
+/*
+ * Convert a PKCS11 ID into its label string
+ */
+const char *id2str_attr(uint32_t id)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(pkcs11_attribute_ids); n++) {
+		if (id != pkcs11_attribute_ids[n].id)
+			continue;
+
+		/* Skip PKCS11_ prefix */
+		return (char *)pkcs11_attribute_ids[n].string +
+		       strlen("SKS_CKA_");
+	}
+
+	return unknown;
+}
+
 const char *id2str_rc(uint32_t id)
 {
 	return ID2STR(id, string_rc, "PKCS11_CKR_");
@@ -264,6 +394,14 @@ const char *id2str_rc(uint32_t id)
 const char *id2str_ta_cmd(uint32_t id)
 {
 	return ID2STR(id, string_ta_cmd, NULL);
+}
+
+const char *id2str_boolprop(uint32_t id)
+{
+	if (id < 64)
+		return id2str_attr(id);
+
+	return unknown;
 }
 
 const char *id2str_proc_flag(uint32_t id)

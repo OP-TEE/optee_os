@@ -21,6 +21,27 @@
 #define PKCS11_NOT_IMPLEMENTED		PKCS11_RV_NOT_IMPLEMENTED
 
 /*
+ * Return true if and only if attribute ID with companion attribute value
+ * size do match a valid attribute identifier.
+ *
+ * @attribute_id - Target PKCS11 attribute ID
+ * @size - Byte size of the attribute value, 0 if non-constant size
+ */
+bool valid_pkcs11_attribute_id(uint32_t attribute_id, uint32_t size);
+
+/*
+ * Return class attribute byte size if @attribute_id is the ID of a class
+ * attribute or 0 if not.
+ */
+size_t pkcs11_attr_is_class(uint32_t attribute_id);
+
+/*
+ * Return type attribute byte size if @attribute_id is the ID of a type
+ * attribute or 0 if not.
+ */
+size_t pkcs11_attr_is_type(uint32_t attribute_id);
+
+/*
  * Convert PKCS11 TA return code into a GPD TEE result ID when matching.
  * If not, return a TEE success (_noerr) or a generic error (_error).
  */
@@ -35,5 +56,7 @@ const char *id2str_rc(uint32_t id);
 const char *id2str_proc_flag(uint32_t id);
 const char *id2str_slot_flag(uint32_t id);
 const char *id2str_token_flag(uint32_t id);
+const char *id2str_attr(uint32_t id);
+const char *id2str_boolprop(uint32_t id);
 #endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 #endif /*PKCS11_HELPERS_H*/
