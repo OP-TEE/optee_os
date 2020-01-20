@@ -182,4 +182,11 @@
  */
 #define PTA_SYSTEM_DLSYM                11
 
+/*
+ * Retrieves a copy of the TPM Event log held in secure memory.
+ *
+ * [out]    memref[0]: Pointer to the buffer where to store the event log.
+ */
+#define PTA_SYSTEM_GET_TPM_EVENT_LOG	12
+
 #endif /* __PTA_SYSTEM_H */

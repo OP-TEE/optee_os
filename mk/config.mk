@@ -514,3 +514,8 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# Enables support for passing a TPM Event Log stored in secure memory
+# to a TA, so a TPM Service could use it to extend any measurement
+# taken before the service was up and running.
+CFG_CORE_TPM_EVENT_LOG ?= n

@@ -35,6 +35,14 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
+ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
+# NOTE: Below values for the TPM event log are implementation
+# dependent and used mostly for debugging purposes.
+# Care must be taken to properly configure them if used.
+CFG_TPM_LOG_BASE_ADDR ?= 0x402c951
+CFG_TPM_MAX_LOG_SIZE ?= 0x200
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_LPAE,y)
 else
