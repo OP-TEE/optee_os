@@ -7,6 +7,7 @@
 #include <pkcs11_ta.h>
 #include <tee_internal_api.h>
 #include <tee_internal_api_extensions.h>
+#include <util.h>
 
 #include "pkcs11_helpers.h"
 
@@ -39,7 +40,7 @@ void TA_CloseSessionEntryPoint(void *session __unused)
  * @in - param memref[1] or NULL: expected NULL
  * @out - param memref[2] or NULL
  *
- * Return a TEE_Result value
+ * Return a PKCS11_CKR_* value
  */
 static TEE_Result entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 {
@@ -64,7 +65,7 @@ static TEE_Result entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
 
 	TEE_MemMove(out->memref.buffer, ver, sizeof(ver));
 
-	return TEE_SUCCESS;
+	return PKCS11_CKR_OK;
 }
 
 /*
@@ -79,6 +80,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	TEE_Param __maybe_unused *p2_in = NULL;
 	TEE_Param *p2_out = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t rc = 0;
 
 	/* Param#0: none or in-out buffer with serialized arguments */
 	switch (TEE_PARAM_TYPE_GET(ptypes, 0)) {
@@ -136,7 +138,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 
 	switch (cmd) {
 	case PKCS11_CMD_PING:
-		res = entry_ping(ctrl, p1_in, p2_out);
+		rc = entry_ping(ctrl, p1_in, p2_out);
 		break;
 
 	default:
@@ -147,6 +149,11 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	/* Currently no output data stored in output param#0 */
 	if (TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT)
 		ctrl->memref.size = 0;
+
+	res = pkcs2tee_error(rc);
+
+	DMSG("%s rc 0x%08"PRIx32"/%s, TEE rc %"PRIx32,
+	     id2str_ta_cmd(cmd), rc, id2str_rc(rc), res);
 
 	return res;
 }
