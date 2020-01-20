@@ -50,17 +50,19 @@
  * Param#3 is currently unused and reserved for evolution of the API.
  */
 
-/*
- * PKCS11_CMD_PING		Acknowledge TA presence and return version info
- *
- * Optinal invocation parameter (if none, command simply returns with success)
- * [out]        memref[2] = [
- *                      32bit version major value,
- *                      32bit version minor value
- *                      32bit version patch value
- *              ]
- */
-#define PKCS11_CMD_PING				0
+enum pkcs11_ta_cmd {
+	/*
+	 * PKCS11_CMD_PING		Ack TA presence and return version info
+	 *
+	 * Optinal invocation parameter
+	 * [out] memref[2] = [
+	 *              32bit version major value,
+	 *              32bit version minor value
+	 *              32bit version patch value
+	 *       ]
+	 */
+	PKCS11_CMD_PING = 0,
+};
 
 /*
  * Command return codes

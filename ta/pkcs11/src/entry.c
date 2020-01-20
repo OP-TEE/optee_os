@@ -91,6 +91,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 				      uint32_t ptypes,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
+	enum pkcs11_ta_cmd command = cmd;
 	TEE_Param *ctrl = NULL;
 	TEE_Param *p1_in = NULL;
 	TEE_Param __maybe_unused *p2_in = NULL;
@@ -152,7 +153,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	     p2_out ? p2_out->memref.buffer :
 		      (p2_in ? p2_in->memref.buffer : NULL));
 
-	switch (cmd) {
+	switch (command) {
 	case PKCS11_CMD_PING:
 		rc = entry_ping(ctrl, p1_in, p2_out);
 		break;
