@@ -54,18 +54,20 @@
  * Param#3 is currently unused and reserved for evolution of the API.
  */
 
-/*
- * PKCS11_CMD_PING		Acknowledge TA presence and return version info
- *
- * [in]         memref[0] = 32bit, unused, must be 0
- * [out]        memref[0] = 32bit return code, enum pkcs11_rc
- * [out]        memref[2] = [
- *                      32bit version major value,
- *                      32bit version minor value
- *                      32bit version patch value
- *              ]
- */
-#define PKCS11_CMD_PING				0
+enum pkcs11_ta_cmd {
+	/*
+	 * PKCS11_CMD_PING		Ack TA presence and return version info
+	 *
+	 * [in]  memref[0] = 32bit, unused, must be 0
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = [
+	 *              32bit version major value,
+	 *              32bit version minor value
+	 *              32bit version patch value
+	 *       ]
+	 */
+	PKCS11_CMD_PING = 0,
+};
 
 /*
  * Command return codes
