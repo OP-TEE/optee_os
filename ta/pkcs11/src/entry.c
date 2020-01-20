@@ -3,6 +3,7 @@
  * Copyright (c) 2018-2020, Linaro Limited
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include <pkcs11_ta.h>
 #include <tee_internal_api.h>
@@ -36,109 +37,108 @@ void TA_CloseSessionEntryPoint(void *session __unused)
 /*
  * Entry point for invocation command PKCS11_CMD_PING
  *
- * @ctrl - param memref[0] or NULL: expected NULL
- * @in - param memref[1] or NULL: expected NULL
- * @out - param memref[2] or NULL
- *
- * Return a PKCS11_CKR_* value
+ * Return a PKCS11_CKR_* value which is also loaded into the output param#0
  */
-static TEE_Result entry_ping(TEE_Param *ctrl, TEE_Param *in, TEE_Param *out)
+static uint32_t entry_ping(uint32_t ptypes, TEE_Param *params)
 {
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *out = &params[2];
 	const uint32_t ver[] = {
 		PKCS11_TA_VERSION_MAJOR,
 		PKCS11_TA_VERSION_MINOR,
 		PKCS11_TA_VERSION_PATCH,
 	};
-	size_t size = 0;
 
-	if (ctrl || in)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (!out)
-		return TEE_SUCCESS;
-
-	size = out->memref.size;
-	out->memref.size = sizeof(ver);
-
-	if (size < sizeof(ver))
-		return TEE_ERROR_SHORT_BUFFER;
+	if (ptypes != exp_pt ||
+	    params[0].memref.size != TEE_PARAM0_SIZE_MIN ||
+	    out->memref.size != sizeof(ver))
+		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	TEE_MemMove(out->memref.buffer, ver, sizeof(ver));
 
 	return PKCS11_CKR_OK;
 }
 
+static bool __maybe_unused param_is_none(uint32_t ptypes, unsigned int index)
+{
+	return TEE_PARAM_TYPE_GET(ptypes, index) ==
+	       TEE_PARAM_TYPE_NONE;
+}
+
+static bool __maybe_unused param_is_memref(uint32_t ptypes, unsigned int index)
+{
+	switch (TEE_PARAM_TYPE_GET(ptypes, index)) {
+	case TEE_PARAM_TYPE_MEMREF_INPUT:
+	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+	case TEE_PARAM_TYPE_MEMREF_INOUT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool __maybe_unused param_is_input(uint32_t ptypes, unsigned int index)
+{
+	return TEE_PARAM_TYPE_GET(ptypes, index) ==
+	       TEE_PARAM_TYPE_MEMREF_INPUT;
+}
+
+static bool __maybe_unused param_is_output(uint32_t ptypes, unsigned int index)
+{
+	return TEE_PARAM_TYPE_GET(ptypes, index) ==
+	       TEE_PARAM_TYPE_MEMREF_OUTPUT;
+}
+
 /*
  * Entry point for PKCS11 TA commands
+ *
+ * Param#0 (ctrl) is an output or an in/out buffer. Input data are serialized
+ * arguments for the invoked command while the output data is used to send
+ * back to the client a PKCS11 finer status ID than the GPD TEE result codes
+ * Client shall check the status ID from the parameter #0 output buffer together
+ * with the GPD TEE result code.
  */
 TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 				      uint32_t ptypes,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
-	TEE_Param *ctrl = NULL;
-	TEE_Param *p1_in = NULL;
-	TEE_Param __maybe_unused *p2_in = NULL;
-	TEE_Param *p2_out = NULL;
-	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t rc = 0;
 
-	/* Param#0: none or in-out buffer with serialized arguments */
+	/* All command handlers will check only against 4 parameters */
+	COMPILE_TIME_ASSERT(TEE_NUM_PARAMS == 4);
+
+	/*
+	 * Param#0 must be either an output or an inout memref as used to
+	 * store the output return value for the invoked command.
+	 */
 	switch (TEE_PARAM_TYPE_GET(ptypes, 0)) {
-	case TEE_PARAM_TYPE_NONE:
-		break;
-	case TEE_PARAM_TYPE_MEMREF_INOUT:
-		ctrl = &params[0];
-		break;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	/* Param#1: none or input data buffer */
-	switch (TEE_PARAM_TYPE_GET(ptypes, 1)) {
-	case TEE_PARAM_TYPE_NONE:
-		break;
-	case TEE_PARAM_TYPE_MEMREF_INPUT:
-		p1_in = &params[1];
-		break;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	/* Param#2: none or input data buffer */
-	switch (TEE_PARAM_TYPE_GET(ptypes, 2)) {
-	case TEE_PARAM_TYPE_NONE:
-		break;
-	case TEE_PARAM_TYPE_MEMREF_INPUT:
-		p2_in = &params[2];
-		break;
 	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
-		p2_out = &params[2];
+	case TEE_PARAM_TYPE_MEMREF_INOUT:
+		if (params[0].memref.size < sizeof(uint32_t))
+			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* Param#3: currently unused */
-	switch (TEE_PARAM_TYPE_GET(ptypes, 3)) {
-	case TEE_PARAM_TYPE_NONE:
-		break;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	DMSG("%s ctrl %"PRIu32"@%p, %s %"PRIu32"@%p, %s %"PRIu32"@%p",
+	DMSG("%s p#0 %"PRIu32"@%p, p#1 %s %"PRIu32"@%p, p#2 %s %"PRIu32"@%p",
 	     id2str_ta_cmd(cmd),
-	     ctrl ? ctrl->memref.size : 0, ctrl ? ctrl->memref.buffer : 0,
-	     p1_in ? "in" : "---", p1_in ? p1_in->memref.size : 0,
-	     p1_in ? p1_in->memref.buffer : NULL,
-	     p2_out ? "out" : (p2_in ? "in" : "---"),
-	     p2_out ? p2_out->memref.size : (p2_in ? p2_in->memref.size : 0),
-	     p2_out ? p2_out->memref.buffer :
-		      (p2_in ? p2_in->memref.buffer : NULL));
+	     params[0].memref.size, params[0].memref.buffer,
+	     param_is_input(ptypes, 1) ? "in" :
+	     param_is_output(ptypes, 1) ? "out" : "---",
+	     param_is_memref(ptypes, 1) ? params[1].memref.size : 0,
+	     param_is_memref(ptypes, 1) ? params[1].memref.buffer : NULL,
+	     param_is_input(ptypes, 2) ? "in" :
+	     param_is_output(ptypes, 2) ? "out" : "---",
+	     param_is_memref(ptypes, 2) ? params[2].memref.size : 0,
+	     param_is_memref(ptypes, 2) ? params[2].memref.buffer : NULL);
 
 	switch (cmd) {
 	case PKCS11_CMD_PING:
-		rc = entry_ping(ctrl, p1_in, p2_out);
+		rc = entry_ping(ptypes, params);
 		break;
 
 	default:
@@ -146,14 +146,13 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	/* Currently no output data stored in output param#0 */
-	if (TEE_PARAM_TYPE_GET(ptypes, 0) == TEE_PARAM_TYPE_MEMREF_INOUT)
-		ctrl->memref.size = 0;
+	DMSG("%s rc 0x%08"PRIx32"/%s", id2str_ta_cmd(cmd), rc, id2str_rc(rc));
 
-	res = pkcs2tee_error(rc);
+	TEE_MemMove(params[0].memref.buffer, &rc, sizeof(rc));
+	params[0].memref.size = sizeof(rc);
 
-	DMSG("%s rc 0x%08"PRIx32"/%s, TEE rc %"PRIx32,
-	     id2str_ta_cmd(cmd), rc, id2str_rc(rc), res);
-
-	return res;
+	if (rc == PKCS11_CKR_BUFFER_TOO_SMALL)
+		return TEE_ERROR_SHORT_BUFFER;
+	else
+		return TEE_SUCCESS;
 }
