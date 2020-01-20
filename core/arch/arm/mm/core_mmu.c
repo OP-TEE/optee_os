@@ -381,7 +381,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	for (map = static_memory_map; core_mmap_is_end_of_table(map); map++) {
 		if (map->type == MEM_AREA_NSEC_SHM)
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
-		else
+		else if (map->type != MEM_AREA_EXT_DT)
 			check_phys_mem_is_outside(m, num_elems, map);
 	}
 
@@ -664,6 +664,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
+	case MEM_AREA_EXT_DT:
 	case MEM_AREA_IO_NSEC:
 		return attr | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_IO_SEC:
@@ -1166,6 +1167,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_TEE_ASAN:
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
+		case MEM_AREA_EXT_DT:
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
