@@ -196,6 +196,86 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_Logout().
 	 */
 	PKCS11_CMD_LOGOUT = 10,
+
+	/*
+	 * PKCS11_CMD_OPEN_RO_SESSION - Open read-only session
+	 *
+	 * [in]  memref[0] = 32bit slot ID
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit session handle
+	 *
+	 * This command relates to the PKCS#11 API function C_OpenSession()
+	 * for a read-only session.
+	 */
+	PKCS11_CMD_OPEN_RO_SESSION = 11,
+
+	/*
+	 * PKCS11_CMD_OPEN_RW_SESSION - Open read/write session
+	 *
+	 * [in]  memref[0] = 32bit slot
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit session handle
+	 *
+	 * This command relates to the PKCS#11 API function C_OpenSession()
+	 * for a read/write session.
+	 */
+	PKCS11_CMD_OPEN_RW_SESSION = 12,
+
+	/*
+	 * PKCS11_CMD_CLOSE_SESSION - Close an opened session
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_CloseSession().
+	 */
+	PKCS11_CMD_CLOSE_SESSION = 13,
+
+	/*
+	 * PKCS11_CMD_SESSION_INFO - Get Cryptoki information on a session
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = (struct pkcs11_ck_session_info)info
+	 *
+	 * This command relates to the PKCS#11 API function C_GetSessionInfo().
+	 */
+	PKCS11_CMD_SESSION_INFO = 14,
+
+	/*
+	 * PKCS11_CMD_CLOSE_ALL_SESSIONS - Close all client sessions
+	 *
+	 * [in]  memref[0] = 32bit slot
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_CloseAllSessions().
+	 */
+	PKCS11_CMD_CLOSE_ALL_SESSIONS = 15,
+
+	/*
+	 * PKCS11_CMD_GET_SESSION_STATE - Retrieve session state
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = byte array containing session state binary blob
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GetOperationState().
+	 */
+	PKCS11_CMD_GET_SESSION_STATE = 16,
+
+	/*
+	 * PKCS11_CMD_SET_SESSION_STATE - Restore session state
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [in]  memref[1] = byte array containing session state binary blob
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_SetOperationState().
+	 */
+	PKCS11_CMD_SET_SESSION_STATE = 17,
 };
 
 /*
@@ -369,5 +449,15 @@ struct pkcs11_mechanism_info {
 #define PKCS11_CKU_SO			0x0
 #define PKCS11_CKU_USER			0x1
 #define PKCS11_CKU_CONTEXT_SPECIFIC	0x2
+
+/*
+ * Agruments for command PKCS11_CMD_SESSION_INFO
+ */
+struct pkcs11_session_info {
+	uint32_t slot_id;
+	uint32_t state;
+	uint32_t flags;
+	uint32_t error_code;
+};
 
 #endif /*PKCS11_TA_H*/
