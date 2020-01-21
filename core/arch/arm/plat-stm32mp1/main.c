@@ -55,6 +55,17 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG1_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
+#if DDR_BASE < CFG_TZDRAM_START
+register_dynamic_shm(DDR_BASE, CFG_TZDRAM_START - DDR_BASE);
+#endif
+
+#define DRAM_END		(DDR_BASE + CFG_DRAM_SIZE)
+#define TZDRAM_END		(CFG_TZDRAM_START + CFG_TZDRAM_SIZE)
+
+#if DRAM_END > TZDRAM_END
+register_dynamic_shm(TZDRAM_END, DRAM_END - TZDRAM_END);
+#endif
+
 static const struct thread_handlers handlers = {
 	.cpu_on = pm_panic,
 	.cpu_off = pm_panic,

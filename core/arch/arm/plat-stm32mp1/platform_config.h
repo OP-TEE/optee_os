@@ -15,6 +15,7 @@
 #define BSEC_BASE			0x5c005000
 #define ETZPC_BASE			0x5c007000
 #define CRYP1_BASE			0x54001000
+#define DDR_BASE			0xc0000000ul
 #define GIC_BASE			0xa0021000ul
 #define GPIOA_BASE			0x50002000
 #define GPIOB_BASE			0x50003000
