@@ -38,7 +38,6 @@ struct mobj_reg_shm {
 	tee_mm_entry_t *mm;
 	paddr_t page_offset;
 	struct refcount mapcount;
-	int num_pages;
 	bool guarded;
 	bool releasing;
 	bool release_frees;
@@ -115,20 +114,21 @@ static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
 
 static void reg_shm_unmap_helper(struct mobj_reg_shm *r)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
-
-	if (r->mm) {
-		core_mmu_unmap_pages(tee_mm_get_smem(r->mm), r->num_pages);
-		tee_mm_free(r->mm);
-		r->mm = NULL;
-	}
-
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+	assert(r->mm->pool->shift == SMALL_PAGE_SHIFT);
+	core_mmu_unmap_pages(tee_mm_get_smem(r->mm), r->mm->size);
+	tee_mm_free(r->mm);
+	r->mm = NULL;
 }
 
 static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm)
 {
-	reg_shm_unmap_helper(mobj_reg_shm);
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	if (mobj_reg_shm->mm)
+		reg_shm_unmap_helper(mobj_reg_shm);
+
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+
 	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm, mobj_reg_shm, next);
 	free(mobj_reg_shm);
 }
@@ -239,7 +239,6 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 	refcount_set(&mobj_reg_shm->mobj.refc, 1);
 	mobj_reg_shm->cookie = cookie;
 	mobj_reg_shm->guarded = true;
-	mobj_reg_shm->num_pages = num_pages;
 	mobj_reg_shm->page_offset = page_offset;
 	memcpy(mobj_reg_shm->pages, pages, sizeof(*pages) * num_pages);
 
@@ -357,6 +356,7 @@ TEE_Result mobj_inc_map(struct mobj *mobj)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
+	size_t sz = 0;
 
 	if (!r)
 		return TEE_ERROR_GENERIC;
@@ -369,14 +369,15 @@ TEE_Result mobj_inc_map(struct mobj *mobj)
 	if (refcount_val(&r->mapcount))
 		goto out;
 
-	r->mm = tee_mm_alloc(&tee_mm_shm, SMALL_PAGE_SIZE * r->num_pages);
+	sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
+	r->mm = tee_mm_alloc(&tee_mm_shm, sz);
 	if (!r->mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
 	res = core_mmu_map_pages(tee_mm_get_smem(r->mm), r->pages,
-				 r->num_pages, MEM_AREA_NSEC_SHM);
+				 sz / SMALL_PAGE_SIZE, MEM_AREA_NSEC_SHM);
 	if (res) {
 		tee_mm_free(r->mm);
 		r->mm = NULL;
@@ -393,6 +394,7 @@ out:
 TEE_Result mobj_dec_map(struct mobj *mobj)
 {
 	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
+	uint32_t exceptions = 0;
 
 	if (!r)
 		return TEE_ERROR_GENERIC;
@@ -400,13 +402,10 @@ TEE_Result mobj_dec_map(struct mobj *mobj)
 	if (!refcount_dec(&r->mapcount))
 		return TEE_SUCCESS;
 
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
 
-	if (refcount_val(&r->mapcount)) {
-		core_mmu_unmap_pages(tee_mm_get_smem(r->mm), r->num_pages);
-		tee_mm_free(r->mm);
-		r->mm = NULL;
-	}
+	if (refcount_val(&r->mapcount))
+		reg_shm_unmap_helper(r);
 
 	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
 
