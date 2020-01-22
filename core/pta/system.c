@@ -795,6 +795,138 @@ static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
 	return res;
 }
 
+static TEE_Result system_is_algo_supported(uint32_t param_types,
+					   TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					  TEE_PARAM_TYPE_VALUE_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	TEE_Result st = TEE_ERROR_NOT_SUPPORTED;
+	uint32_t element = 0;
+	uint32_t alg = 0;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	alg = params[0].value.a;
+	element = params[0].value.b;
+
+	switch (alg) {
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTR:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_XTS:
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_AES_CMAC:
+	case TEE_ALG_AES_CCM:
+	case TEE_ALG_AES_GCM:
+	case TEE_ALG_DES_ECB_NOPAD:
+	case TEE_ALG_DES_CBC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_ECB_NOPAD:
+	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+	case TEE_ALG_RSAES_PKCS1_V1_5:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_RSA_NOPAD:
+	case TEE_ALG_DSA_SHA1:
+	case TEE_ALG_DSA_SHA224:
+	case TEE_ALG_DSA_SHA256:
+	case TEE_ALG_DH_DERIVE_SHARED_SECRET:
+	case TEE_ALG_MD5:
+	case TEE_ALG_SHA1:
+	case TEE_ALG_SHA224:
+	case TEE_ALG_SHA256:
+	case TEE_ALG_SHA384:
+	case TEE_ALG_SHA512:
+	case TEE_ALG_MD5SHA1:
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+#ifdef CFG_CRYPTO_SM3
+	case TEE_ALG_SM3:
+	case TEE_ALG_HMAC_SM3:
+#endif
+#ifdef CFG_CRYPTO_SM4
+	case TEE_ALG_SM4_ECB_NOPAD:
+	case TEE_ALG_SM4_CBC_NOPAD:
+	case TEE_ALG_SM4_CTR:
+#endif
+		if (element == TEE_CRYPTO_ELEMENT_NONE)
+			st = TEE_SUCCESS;
+		break;
+
+	case TEE_ALG_ECDSA_P192:
+	case TEE_ALG_ECDSA_P224:
+	case TEE_ALG_ECDSA_P256:
+	case TEE_ALG_ECDSA_P384:
+	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDH_P192:
+	case TEE_ALG_ECDH_P224:
+	case TEE_ALG_ECDH_P256:
+	case TEE_ALG_ECDH_P384:
+	case TEE_ALG_ECDH_P521:
+		switch (element) {
+		case TEE_ECC_CURVE_NIST_P192:
+		case TEE_ECC_CURVE_NIST_P224:
+		case TEE_ECC_CURVE_NIST_P256:
+		case TEE_ECC_CURVE_NIST_P384:
+		case TEE_ECC_CURVE_NIST_P521:
+			st = TEE_SUCCESS;
+		default:
+			break;
+		}
+		break;
+
+#ifdef CFG_CRYPTO_SM2_DSA
+	case TEE_ALG_SM2_DSA_SM3:
+#endif
+#ifdef CFG_CRYPTO_SM2_KEP
+	case TEE_ALG_SM2_KEP:
+#endif
+#ifdef CFG_CRYPTO_SM2_PKE
+	case TEE_ALG_SM2_PKE:
+#endif
+#if defined(CFG_CRYPTO_SM2_DSA) || defined(CFG_CRYPTO_SM2_PKE) || \
+	defined(CFG_CRYPTO_SM2_KEP)
+		if (element == TEE_ECC_CURVE_SM2)
+			st = TEE_SUCCESS;
+		break;
+#endif
+
+	default:
+		break;
+	}
+
+	params[1].value.a = st;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -858,6 +990,8 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 		return system_dlopen(s, param_types, params);
 	case PTA_SYSTEM_DLSYM:
 		return system_dlsym(s, param_types, params);
+	case PTA_SYSTEM_IS_ALGO_SUPPORTED:
+		return system_is_algo_supported(param_types, params);
 	default:
 		break;
 	}

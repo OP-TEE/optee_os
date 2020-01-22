@@ -182,4 +182,14 @@
  */
 #define PTA_SYSTEM_DLSYM                11
 
+/*
+ * Check if a cryptographic algorithm is supported by the TEE core
+ *
+ * [in]     value[0].a: algId
+ * [in]     value[0].b: element
+ * [out]    value[1].a: TEE_SUCCESS or TEE_ERROR_NOT_SUPPORTED
+ *
+ * Used by: TEE_IsAlgorithmSupported()
+ */
+#define PTA_SYSTEM_IS_ALGO_SUPPORTED    12
 #endif /* __PTA_SYSTEM_H */

@@ -273,6 +273,7 @@
 #define TEE_ATTR_BIT_VALUE		(1 << 29)
 
 /* List of Supported ECC Curves */
+#define TEE_CRYPTO_ELEMENT_NONE             0x00000000
 #define TEE_ECC_CURVE_NIST_P192             0x00000001
 #define TEE_ECC_CURVE_NIST_P224             0x00000002
 #define TEE_ECC_CURVE_NIST_P256             0x00000003
