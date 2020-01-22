@@ -144,9 +144,10 @@ $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 # If no DES cipher mode is left, disable DES
 $(eval $(call cryp-dep-one, DES, ECB CBC))
 # SM2 is Elliptic Curve Cryptography, it uses some generic ECC functions
-$(eval $(call cryp-dep-one, SM2_PKE, ECC))
-$(eval $(call cryp-dep-one, SM2_DSA, ECC))
-$(eval $(call cryp-dep-one, SM2_KEP, ECC))
+# All SM2 algorithms also use the SM3 hash
+$(eval $(call cryp-dep-all, SM2_PKE, ECC SM3))
+$(eval $(call cryp-dep-all, SM2_DSA, ECC SM3))
+$(eval $(call cryp-dep-all, SM2_KEP, ECC SM3))
 
 ###############################################################
 # libtomcrypt (LTC) specifics, phase #1
