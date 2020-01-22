@@ -182,7 +182,7 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 		ltc_res = ltc_ecc_is_point_at_infinity(C1, ltc_key.dp.prime,
 						       &inf);
 	}
-	if (inf) {
+	if (ltc_res != CRYPT_OK || inf) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
 	}
