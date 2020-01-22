@@ -76,3 +76,23 @@ TEE_Result tee_unmap(void *buf, size_t len)
 
 	return res;
 }
+
+TEE_Result TEE_IsAlgorithmSupported(uint32_t algId, uint32_t element)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_VALUE_OUTPUT,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+
+	params[0].value.a = algId;
+	params[0].value.b = element;
+
+	res = invoke_system_pta(PTA_SYSTEM_IS_ALGO_SUPPORTED, param_types,
+				params);
+	if (res)
+		return res;
+
+	return params[1].value.a;
+}
