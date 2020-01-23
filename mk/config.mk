@@ -394,7 +394,7 @@ $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif
 
-# Build libutee, libutils, libmpa/libmbedtls as shared libraries.
+# Build libutee, libutils, libmbedtls as shared libraries.
 # - Static libraries are still generated when this is enabled, but TAs will use
 # the shared libraries unless explicitly linked with the -static flag.
 # - Shared libraries are made of two files: for example, libutee is
@@ -471,8 +471,10 @@ CFG_TA_BIGNUM_MAX_BITS ?= 2048
 # Set this to a lower value to reduce the memory footprint.
 CFG_CORE_BIGNUM_MAX_BITS ?= 4096
 
-# Compiles mbedTLS for TA usage
-CFG_TA_MBEDTLS ?= y
+# Not used since libmpa was removed. Force the values to catch build scripts
+# that would set = n.
+$(call force,CFG_TA_MBEDTLS_MPI,y)
+$(call force,CFG_TA_MBEDTLS,y)
 
 # Compile the TA library mbedTLS with self test functions, the functions
 # need to be called to test anything
@@ -493,8 +495,11 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 # without ASN.1 around the hash.
 ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_RSASSA_NA1 ?= y
-CFG_CORE_MBEDTLS_MPI ?= y
 endif
+
+# Not used since libmpa was removed. Force the value to catch build scripts
+# that would set = n.
+$(call force,CFG_CORE_MBEDTLS_MPI,y)
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.

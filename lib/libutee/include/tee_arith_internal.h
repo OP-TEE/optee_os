@@ -57,10 +57,4 @@
  */
 TEE_MATHAPI_EXPORT void _TEE_MathAPI_Init(void);
 
-/* this function generate a syscall to teecore for random number
- * generation, this is supplied to libmpa. Thus libmpa linked with user
- * TA can use this function to get random number.
- */
-TEE_Result get_rng_array(void *buf, size_t blen);
-
 #endif
