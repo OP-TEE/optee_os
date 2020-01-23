@@ -812,74 +812,174 @@ static TEE_Result system_is_algo_supported(uint32_t param_types,
 	alg = params[0].value.a;
 	element = params[0].value.b;
 
+	if (alg == TEE_ALG_ILLEGAL_VALUE)
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	switch (alg) {
+#ifdef CFG_CRYPTO_AES
+#ifdef CFG_CRYPTO_ECB
 	case TEE_ALG_AES_ECB_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CBC
 	case TEE_ALG_AES_CBC_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CTR
 	case TEE_ALG_AES_CTR:
+#endif
+#ifdef CFG_CRYPTO_CTS
 	case TEE_ALG_AES_CTS:
+#endif
+#ifdef CFG_CRYPTO_XTS
 	case TEE_ALG_AES_XTS:
+#endif
+#ifdef CFG_CRYPTO_CBC_MAC
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 	case TEE_ALG_AES_CBC_MAC_PKCS5:
+#endif
+#ifdef CFG_CRYPTO_CMAC
 	case TEE_ALG_AES_CMAC:
+#endif
+#ifdef CFG_CRYPTO_CCM
 	case TEE_ALG_AES_CCM:
+#endif
+#ifdef CFG_CRYPTO_GCM
 	case TEE_ALG_AES_GCM:
+#endif
+#endif /* CFG_CRYPTO_AES */
+#ifdef CFG_CRYPTO_DES
+#ifdef CFG_CRYPTO_ECB
 	case TEE_ALG_DES_ECB_NOPAD:
+	case TEE_ALG_DES3_ECB_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CBC
 	case TEE_ALG_DES_CBC_NOPAD:
+	case TEE_ALG_DES3_CBC_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CBC_MAC
 	case TEE_ALG_DES_CBC_MAC_NOPAD:
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
-	case TEE_ALG_DES3_ECB_NOPAD:
-	case TEE_ALG_DES3_CBC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+#endif
+#endif /* CFG_CRYPTO_DES */
+#ifdef CFG_CRYPTO_RSA
+#ifdef CFG_CRYPTO_MD5
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+#endif
+#ifdef CFG_CRYPTO_SHA1
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
-	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
-	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
-	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
-	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
-	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
-	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
-	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
-	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-	case TEE_ALG_RSAES_PKCS1_V1_5:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
+#endif
+#ifdef CFG_CRYPTO_SHA224
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
+#endif
+#ifdef CFG_CRYPTO_SHA256
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
+#endif
+#ifdef CFG_CRYPTO_SHA384
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
+#endif
+#ifdef CFG_CRYPTO_SHA512
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+#endif
+#if defined(CFG_CRYPTO_MD5) && defined(CFG_CRYPTO_SHA1)
+	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5SHA1:
+#endif
+	case TEE_ALG_RSAES_PKCS1_V1_5:
 	case TEE_ALG_RSA_NOPAD:
+#endif /* CFG_CRYPTO_RSA */
+#ifdef CFG_CRYPTO_DSA
+#ifdef CFG_CRYPTO_SHA1
 	case TEE_ALG_DSA_SHA1:
+#endif
+#ifdef CFG_CRYPTO_SHA224
 	case TEE_ALG_DSA_SHA224:
+#endif
+#ifdef CFG_CRYPTO_SHA256
 	case TEE_ALG_DSA_SHA256:
+#endif
+#endif /* CFG_CRYPTO_DSA */
+#ifdef CFG_CRYPTO_DH
 	case TEE_ALG_DH_DERIVE_SHARED_SECRET:
+#endif
+#ifdef CFG_CRYPTO_MD5
 	case TEE_ALG_MD5:
+#endif
+#ifdef CFG_CRYPTO_SHA1
 	case TEE_ALG_SHA1:
+#endif
+#ifdef CFG_CRYPTO_SHA224
 	case TEE_ALG_SHA224:
+#endif
+#ifdef CFG_CRYPTO_SHA256
 	case TEE_ALG_SHA256:
+#endif
+#ifdef CFG_CRYPTO_SHA384
 	case TEE_ALG_SHA384:
+#endif
+#ifdef CFG_CRYPTO_SHA512
 	case TEE_ALG_SHA512:
+#endif
+#if defined(CFG_CRYPTO_MD5) && defined(CFG_CRYPTO_SHA1)
 	case TEE_ALG_MD5SHA1:
+#endif
+#ifdef CFG_CRYPTO_HMAC
+#ifdef CFG_CRYPTO_MD5
 	case TEE_ALG_HMAC_MD5:
+#endif
+#ifdef CFG_CRYPTO_SHA1
 	case TEE_ALG_HMAC_SHA1:
+#endif
+#ifdef CFG_CRYPTO_SHA224
 	case TEE_ALG_HMAC_SHA224:
+#endif
+#ifdef CFG_CRYPTO_SHA256
 	case TEE_ALG_HMAC_SHA256:
+#endif
+#ifdef CFG_CRYPTO_SHA384
 	case TEE_ALG_HMAC_SHA384:
+#endif
+#ifdef CFG_CRYPTO_SHA512
 	case TEE_ALG_HMAC_SHA512:
+#endif
 #ifdef CFG_CRYPTO_SM3
-	case TEE_ALG_SM3:
 	case TEE_ALG_HMAC_SM3:
 #endif
+#endif /* CFG_CRYPTO_HMAC */
+#ifdef CFG_CRYPTO_SM3
+	case TEE_ALG_SM3:
+#endif
 #ifdef CFG_CRYPTO_SM4
+#ifdef CFG_CRYPTO_ECB
 	case TEE_ALG_SM4_ECB_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CBC
 	case TEE_ALG_SM4_CBC_NOPAD:
+#endif
+#ifdef CFG_CRYPTO_CTR
 	case TEE_ALG_SM4_CTR:
 #endif
+#endif /* CFG_CRYPTO_SM4 */
+	case TEE_ALG_ILLEGAL_VALUE: /* this value to prevent empty case list */
 		if (element == TEE_CRYPTO_ELEMENT_NONE)
 			st = TEE_SUCCESS;
 		break;
 
+	default:
+		break;
+	}
+
+	switch(alg) {
+#ifdef CFG_CRYPTO_DESO_ECC
 	case TEE_ALG_ECDSA_P192:
 	case TEE_ALG_ECDSA_P224:
 	case TEE_ALG_ECDSA_P256:
@@ -901,7 +1001,7 @@ static TEE_Result system_is_algo_supported(uint32_t param_types,
 			break;
 		}
 		break;
-
+#endif /* CFG_CRYPTO_ECC */
 #ifdef CFG_CRYPTO_SM2_DSA
 	case TEE_ALG_SM2_DSA_SM3:
 #endif
@@ -911,12 +1011,10 @@ static TEE_Result system_is_algo_supported(uint32_t param_types,
 #ifdef CFG_CRYPTO_SM2_PKE
 	case TEE_ALG_SM2_PKE:
 #endif
-#if defined(CFG_CRYPTO_SM2_DSA) || defined(CFG_CRYPTO_SM2_PKE) || \
-	defined(CFG_CRYPTO_SM2_KEP)
+	case TEE_ALG_ILLEGAL_VALUE: /* this value to prevent empty case list */
 		if (element == TEE_ECC_CURVE_SM2)
 			st = TEE_SUCCESS;
 		break;
-#endif
 
 	default:
 		break;

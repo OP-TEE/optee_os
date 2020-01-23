@@ -200,6 +200,7 @@
 #define TEE_ALG_ECDH_P521                       0x80005042
 #define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_SM3                             0x50000007
+#define TEE_ALG_ILLEGAL_VALUE                   0xEFFFFFFF
 
 /* Object Types */
 
