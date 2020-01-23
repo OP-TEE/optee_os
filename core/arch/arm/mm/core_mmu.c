@@ -1202,7 +1202,12 @@ static struct tee_mmap_region *get_tmp_mmap(void)
  */
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
+#ifndef CFG_VIRTUALIZATION
 	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
+#else
+	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
+				  SMALL_PAGE_SIZE);
+#endif
 	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
 	struct tee_mmap_region *tmp_mmap = get_tmp_mmap();
 	unsigned long offs = 0;
