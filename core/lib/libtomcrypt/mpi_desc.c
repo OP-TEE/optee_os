@@ -618,7 +618,7 @@ static int isprime(void *a, int b __unused, int *c)
 	return CRYPT_OK;
 }
 
-static int mpa_rand(void *a, int size)
+static int mpi_rand(void *a, int size)
 {
 	if (mbedtls_mpi_fill_random(a, size, rng_read, NULL))
 		return CRYPT_MEM;
@@ -703,7 +703,7 @@ ltc_math_descriptor ltc_mp = {
 #endif
 	.addmod = addmod,
 	.submod = submod,
-	.rand = &mpa_rand,
+	.rand = &mpi_rand,
 
 };
 

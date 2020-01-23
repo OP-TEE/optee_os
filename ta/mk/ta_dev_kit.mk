@@ -63,10 +63,6 @@ endif
 libdirs += $(ta-dev-kit-dir$(sm))/lib
 libnames += utils
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutils.a
-ifneq ($(CFG_TA_MBEDTLS_MPI),y)
-libnames += mpa
-libdeps += $(ta-dev-kit-dir$(sm))/lib/libmpa.a
-endif
 libnames += utee
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutee.a
 ifeq ($(CFG_TA_MBEDTLS),y)

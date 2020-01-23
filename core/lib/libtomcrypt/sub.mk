@@ -143,14 +143,7 @@ srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
 srcs-$(if $(filter y,$(_CFG_CORE_LTC_SM2_PKE) $(_CFG_CORE_LTC_SM2_KEP),y),y) += sm2_kdf.c
 
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
-ifeq ($(_CFG_CORE_LTC_MPI),y)
 srcs-y += mpi_desc.c
-else
-srcs-y += mpa_desc.c
-# Get mpa.h which normally is an internal .h file
-cppflags-mpa_desc.c-y += -Ilib/libmpa
-cflags-mpa_desc.c-y += -Wno-unused-parameter
-endif
 endif
 
 srcs-y += tomcrypt.c
