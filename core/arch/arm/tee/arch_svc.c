@@ -14,6 +14,7 @@
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu.h>
 #include <string.h>
+#include <speculation_barrier.h>
 #include <tee/tee_svc.h>
 #include <tee/arch_svc.h>
 #include <tee/tee_svc_cryp.h>
@@ -213,14 +214,26 @@ static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
 }
 #endif /*ARM64*/
 
+static syscall_t get_syscall_func(size_t num)
+{
+	/* Cast away const */
+	struct syscall_entry *sc_table = (void *)tee_svc_syscall_table;
+
+	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
+			    (TEE_SCN_MAX + 1));
+
+	if (num > TEE_SCN_MAX)
+		return (syscall_t)syscall_not_supported;
+
+	return load_no_speculate(&sc_table[num].fn, &sc_table[0].fn,
+				 &sc_table[TEE_SCN_MAX].fn + 1);
+}
+
 bool user_ta_handle_svc(struct thread_svc_regs *regs)
 {
 	size_t scn;
 	size_t max_args;
 	syscall_t scf;
-
-	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
-				(TEE_SCN_MAX + 1));
 
 	get_scn_max_args(regs, &scn, &max_args);
 
@@ -232,10 +245,7 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 		return true; /* return to user mode */
 	}
 
-	if (scn > TEE_SCN_MAX)
-		scf = (syscall_t)syscall_not_supported;
-	else
-		scf = tee_svc_syscall_table[scn].fn;
+	scf = get_syscall_func(scn);
 
 	ftrace_syscall_enter(scn);
 
