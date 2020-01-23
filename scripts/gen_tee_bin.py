@@ -144,7 +144,7 @@ def get_pager_bin(elffile):
     if tee_pager_bin is None:
         pad_to = get_symbol(elffile, '__data_end')['st_value']
         dump_names = re.compile(
-            r'^\.(text|rodata|got|data|ARM\.exidx|ARM\.extab)$')
+            r'^\.(text|nex_data|rodata|got|data|ARM\.exidx|ARM\.extab)$')
         tee_pager_bin = get_sections(elffile, pad_to, dump_names)
 
     return tee_pager_bin
