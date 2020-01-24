@@ -2,10 +2,10 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
+#include <config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
-
 #include <tee_api.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_internal_api_extensions.h>
@@ -1828,4 +1828,241 @@ int rand(void)
 	 * highest bit set.
 	 */
 	return rc & RAND_MAX;
+}
+
+TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
+{
+	if (IS_ENABLED(CFG_CRYPTO_AES)) {
+		if (IS_ENABLED(CFG_CRYPTO_ECB)) {
+			if (alg == TEE_ALG_AES_ECB_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CBC)) {
+			if (alg == TEE_ALG_AES_CBC_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CTR)) {
+			if (alg == TEE_ALG_AES_CTR)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CTS)) {
+			if (alg == TEE_ALG_AES_CTS)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_XTS)) {
+			if (alg == TEE_ALG_AES_XTS)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CBC_MAC)) {
+			if (alg == TEE_ALG_AES_CBC_MAC_NOPAD ||
+			    alg == TEE_ALG_AES_CBC_MAC_PKCS5)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CMAC)) {
+			if (alg == TEE_ALG_AES_CMAC)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CCM)) {
+			if (alg == TEE_ALG_AES_CCM)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_GCM)) {
+			if (alg == TEE_ALG_AES_GCM)
+				goto check_element_none;
+		}
+	}
+	if (IS_ENABLED(CFG_CRYPTO_DES)) {
+		if (IS_ENABLED(CFG_CRYPTO_ECB)) {
+			if (alg == TEE_ALG_DES_ECB_NOPAD ||
+			    alg == TEE_ALG_DES3_ECB_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CBC)) {
+			if (alg == TEE_ALG_DES_CBC_NOPAD ||
+			    alg == TEE_ALG_DES3_CBC_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CBC_MAC)) {
+			if (alg == TEE_ALG_DES_CBC_MAC_NOPAD ||
+			    alg == TEE_ALG_DES_CBC_MAC_PKCS5 ||
+			    alg == TEE_ALG_DES3_CBC_MAC_NOPAD ||
+			    alg == TEE_ALG_DES3_CBC_MAC_PKCS5)
+				goto check_element_none;
+		}
+	}
+	if (IS_ENABLED(CFG_CRYPTO_MD5)) {
+		if (alg == TEE_ALG_MD5)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA1)) {
+		if (alg == TEE_ALG_SHA1)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA224)) {
+		if (alg == TEE_ALG_SHA224)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA256)) {
+		if (alg == TEE_ALG_SHA256)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA384)) {
+		if (alg == TEE_ALG_SHA384)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA512)) {
+		if (alg == TEE_ALG_SHA512)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_MD5) && IS_ENABLED(CFG_CRYPTO_SHA1)) {
+		if (alg == TEE_ALG_MD5SHA1)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_HMAC)) {
+		if (IS_ENABLED(CFG_CRYPTO_MD5)) {
+			if (alg == TEE_ALG_HMAC_MD5)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA1)) {
+			if (alg == TEE_ALG_HMAC_SHA1)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA224)) {
+			if (alg == TEE_ALG_HMAC_SHA224)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA256)) {
+			if (alg == TEE_ALG_HMAC_SHA256)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA384)) {
+			if (alg == TEE_ALG_HMAC_SHA384)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA512)) {
+			if (alg == TEE_ALG_HMAC_SHA512)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SM3)) {
+			if (alg == TEE_ALG_HMAC_SM3)
+				goto check_element_none;
+		}
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SM3)) {
+		if (alg == TEE_ALG_SM3)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SM4)) {
+		if (IS_ENABLED(CFG_CRYPTO_ECB)) {
+			if (alg == TEE_ALG_SM4_ECB_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CBC)) {
+			if (alg == TEE_ALG_SM4_CBC_NOPAD)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_CTR)) {
+			if (alg == TEE_ALG_SM4_CTR)
+				goto check_element_none;
+		}
+	}
+	if (IS_ENABLED(CFG_CRYPTO_RSA)) {
+		if (IS_ENABLED(CFG_CRYPTO_MD5)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_MD5)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA1)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_SHA1 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_MD5) && IS_ENABLED(CFG_CRYPTO_SHA1)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_MD5SHA1)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA224)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_SHA224 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA256)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_SHA256 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA384)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_SHA384 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA512)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_SHA512 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_RSASSA_NA1)) {
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5)
+				goto check_element_none;
+		}
+		if (alg == TEE_ALG_RSA_NOPAD)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_DSA)) {
+		if (IS_ENABLED(CFG_CRYPTO_SHA1)) {
+			if (alg == TEE_ALG_DSA_SHA1)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA224)) {
+			if (alg == TEE_ALG_DSA_SHA224)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA256)) {
+			if (alg == TEE_ALG_DSA_SHA256)
+				goto check_element_none;
+		}
+	}
+	if (IS_ENABLED(CFG_CRYPTO_DH)) {
+		if (alg == TEE_ALG_DH_DERIVE_SHARED_SECRET)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_ECC)) {
+		if ((alg == TEE_ALG_ECDH_P192 || alg == TEE_ALG_ECDSA_P192) &&
+		    element == TEE_ECC_CURVE_NIST_P192)
+			return TEE_SUCCESS;
+		if ((alg == TEE_ALG_ECDH_P224 || alg == TEE_ALG_ECDSA_P224) &&
+		    element == TEE_ECC_CURVE_NIST_P224)
+			return TEE_SUCCESS;
+		if ((alg == TEE_ALG_ECDH_P256 || alg == TEE_ALG_ECDSA_P256) &&
+		    element == TEE_ECC_CURVE_NIST_P256)
+			return TEE_SUCCESS;
+		if ((alg == TEE_ALG_ECDH_P384 || alg == TEE_ALG_ECDSA_P384) &&
+		    element == TEE_ECC_CURVE_NIST_P384)
+			return TEE_SUCCESS;
+		if ((alg == TEE_ALG_ECDH_P521 || alg == TEE_ALG_ECDSA_P521) &&
+		    element == TEE_ECC_CURVE_NIST_P521)
+			return TEE_SUCCESS;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SM2_DSA)) {
+		if (alg == TEE_ALG_SM2_DSA_SM3 && element == TEE_ECC_CURVE_SM2)
+			return TEE_SUCCESS;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SM2_KEP)) {
+		if (alg == TEE_ALG_SM2_KEP && element == TEE_ECC_CURVE_SM2)
+			return TEE_SUCCESS;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SM2_PKE)) {
+		if (alg == TEE_ALG_SM2_PKE && element == TEE_ECC_CURVE_SM2)
+			return TEE_SUCCESS;
+	}
+
+	return TEE_ERROR_NOT_SUPPORTED;
+check_element_none:
+	if (element == TEE_CRYPTO_ELEMENT_NONE)
+		return TEE_SUCCESS;
+	return TEE_ERROR_NOT_SUPPORTED;
 }
