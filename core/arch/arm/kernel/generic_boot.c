@@ -6,6 +6,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <console.h>
 #include <crypto/crypto.h>
 #include <inttypes.h>
@@ -839,12 +840,17 @@ static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 		offs = 0;
 	}
 
-	len_size = fdt_size_cells(dt->blob, offs);
-	if (len_size < 0)
-		return -1;
-	addr_size = fdt_address_cells(dt->blob, offs);
-	if (addr_size < 0)
-		return -1;
+	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
+		len_size = sizeof(paddr_t) / sizeof(uint32_t);
+		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+	} else {
+		len_size = fdt_size_cells(dt->blob, offs);
+		if (len_size < 0)
+			return -1;
+		addr_size = fdt_address_cells(dt->blob, offs);
+		if (addr_size < 0)
+			return -1;
+	}
 
 	if (!found) {
 		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
