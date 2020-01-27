@@ -54,6 +54,11 @@ R:	Amit Singh Tomar <amittomer25@gmail.com> [@Amit-Radur]
 S:	Maintained
 F:	core/arch/arm/plat-sunxi/
 
+AmLogic AXG (A113D)
+R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
+S:	Maintained
+F:	core/arch/arm/plat-amlogic/
+
 Atmel ATSAMA5D2-XULT
 R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
 R:	[@OP-TEE/plat-sam]
