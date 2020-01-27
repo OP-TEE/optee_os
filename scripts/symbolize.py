@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017, Linaro Limited
@@ -6,13 +6,16 @@
 
 
 import argparse
+import errno
 import glob
 import os
 import re
 import subprocess
 import sys
+import termios
 
 CALL_STACK_RE = re.compile('Call stack:')
+TEE_LOAD_ADDR_RE = re.compile(r'TEE load address @ (?P<load_addr>0x[0-9a-f]+)')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
 STACK_ADDR_RE = re.compile(
@@ -103,11 +106,12 @@ class Symbolizer(object):
     def my_Popen(self, cmd):
         try:
             return subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE)
+                                    stdout=subprocess.PIPE, text=True,
+                                    bufsize=1)
         except OSError as e:
-            if e.errno == os.errno.ENOENT:
-                print >> sys.stderr, "*** Error:", cmd[0] + \
-                    ": command not found"
+            if e.errno == errno.ENOENT:
+                print("*** Error:{}: command not found".format(cmd[0]),
+                      file=sys.stderr)
                 sys.exit(1)
 
     def get_elf(self, elf_or_uuid):
@@ -133,9 +137,9 @@ class Symbolizer(object):
                              stdout=subprocess.PIPE)
         output = p.stdout.readlines()
         p.terminate()
-        if 'ARM aarch64,' in output[0]:
+        if b'ARM aarch64,' in output[0]:
             self._arch = 'aarch64-linux-gnu-'
-        elif 'ARM,' in output[0]:
+        elif b'ARM,' in output[0]:
             self._arch = 'arm-linux-gnueabihf-'
 
     def arch_prefix(self, cmd):
@@ -159,7 +163,6 @@ class Symbolizer(object):
         if not cmd:
             return
         self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
-        self._addr2line_elf_name = elf_name
 
     # If addr falls into a region that maps a TA ELF file, return the load
     # address of that file.
@@ -174,16 +177,18 @@ class Symbolizer(object):
                     elf_idx = r[2]
                     if elf_idx is not None:
                         return self._elfs[int(elf_idx)][1]
-            return None
+            # In case address is not found in TA ELF file, fallback to tee.elf
+            # especially to symbolize mixed (user-space and kernel) addresses
+            # which is true when syscall ftrace is enabled along with TA
+            # ftrace.
+            return self._tee_load_addr
         else:
             # tee.elf
-            return '0x0'
+            return self._tee_load_addr
 
     def elf_for_addr(self, addr):
         l_addr = self.elf_load_addr(addr)
-        if l_addr is None:
-            return None
-        if l_addr is '0x0':
+        if l_addr == self._tee_load_addr:
             return 'tee.elf'
         for k in self._elfs:
             e = self._elfs[k]
@@ -204,8 +209,11 @@ class Symbolizer(object):
         self.spawn_addr2line(self.elf_for_addr(addr))
         if not reladdr or not self._addr2line:
             return '???'
+        if self.elf_for_addr(addr) == 'tee.elf':
+            reladdr = '0x{:x}'.format(int(reladdr, 16) +
+                                      int(self.first_vma('tee.elf'), 16))
         try:
-            print >> self._addr2line.stdin, reladdr
+            print(reladdr, file=self._addr2line.stdin)
             ret = self._addr2line.stdout.readline().rstrip('\n')
         except IOError:
             ret = '!!!'
@@ -320,6 +328,10 @@ class Symbolizer(object):
                     self._sections[elf_name].append([name, int(vma, 16),
                                                      int(size, 16)])
 
+    def first_vma(self, elf_name):
+        self.read_sections(elf_name)
+        return '0x{:x}'.format(self._sections[elf_name][0][1])
+
     def overlaps(self, section, addr, size):
         sec_addr = section[1]
         sec_size = section[2]
@@ -357,6 +369,7 @@ class Symbolizer(object):
         self._sections = {}  # {elf_name: [[name, addr, size], ...], ...}
         self._regions = []   # [[addr, size, elf_idx, saved line], ...]
         self._elfs = {0: ["tee.elf", 0]}  # {idx: [uuid, load_addr], ...}
+        self._tee_load_addr = '0x0'
         self._func_graph_found = False
         self._func_graph_skip_line = True
 
@@ -419,6 +432,9 @@ class Symbolizer(object):
             self._elfs[i] = [match.group('uuid'), match.group('load_addr'),
                              line]
             return
+        match = re.search(TEE_LOAD_ADDR_RE, line)
+        if match:
+            self._tee_load_addr = match.group('load_addr')
         match = re.search(CALL_STACK_RE, line)
         if match:
             self._call_stack_found = True
@@ -477,9 +493,21 @@ def main():
         args.dirs = []
     symbolizer = Symbolizer(sys.stdout, args.dirs, args.strip_path)
 
-    for line in sys.stdin:
-        symbolizer.write(line)
-    symbolizer.flush()
+    fd = sys.stdin.fileno()
+    isatty = os.isatty(fd)
+    if isatty:
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ECHO  # lflags
+    try:
+        if isatty:
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
+        for line in sys.stdin:
+            symbolizer.write(line)
+    finally:
+        symbolizer.flush()
+        if isatty:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 if __name__ == "__main__":

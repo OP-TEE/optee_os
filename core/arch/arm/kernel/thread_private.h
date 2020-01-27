@@ -21,44 +21,12 @@ enum thread_state {
 	THREAD_STATE_ACTIVE,
 };
 
-#ifdef ARM32
-struct thread_ctx_regs {
-	uint32_t r0;
-	uint32_t r1;
-	uint32_t r2;
-	uint32_t r3;
-	uint32_t r4;
-	uint32_t r5;
-	uint32_t r6;
-	uint32_t r7;
-	uint32_t r8;
-	uint32_t r9;
-	uint32_t r10;
-	uint32_t r11;
-	uint32_t r12;
-	uint32_t usr_sp;
-	uint32_t usr_lr;
-	uint32_t svc_spsr;
-	uint32_t svc_sp;
-	uint32_t svc_lr;
-	uint32_t pc;
-	uint32_t cpsr;
-};
-#endif /*ARM32*/
-
-#ifdef ARM64
-struct thread_ctx_regs {
-	uint64_t sp;
-	uint64_t pc;
-	uint64_t cpsr;
-	uint64_t x[31];
-};
-#endif /*ARM64*/
-
 #ifdef ARM64
 struct thread_user_mode_rec {
+	uint64_t ctx_regs_ptr;
 	uint64_t exit_status0_ptr;
 	uint64_t exit_status1_ptr;
+	uint64_t pad;
 	uint64_t x[31 - 19]; /* x19..x30 */
 };
 #endif /*ARM64*/
@@ -168,10 +136,9 @@ uint32_t __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
  */
 void thread_resume(struct thread_ctx_regs *regs);
 
-uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long user_sp,
-		unsigned long user_func, unsigned long spsr,
-		uint32_t *exit_status0, uint32_t *exit_status1);
+uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
+				  uint32_t *exit_status0,
+				  uint32_t *exit_status1);
 
 /*
  * Private functions made available for thread_asm.S
@@ -242,6 +209,9 @@ void thread_handle_fast_smc(struct thread_smc_args *args);
 uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 			       uint32_t a3, uint32_t a4, uint32_t a5,
 			       uint32_t a6, uint32_t a7);
+
+/* Called from assembly only. Handles a SVC from user mode. */
+void thread_svc_handler(struct thread_svc_regs *regs);
 
 #endif /*__ASSEMBLER__*/
 

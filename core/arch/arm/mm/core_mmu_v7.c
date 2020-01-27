@@ -169,8 +169,13 @@
 #define TTB_L1_MASK		(~(L1_ALIGNMENT - 1))
 
 #ifndef MAX_XLAT_TABLES
-#define MAX_XLAT_TABLES		4
+#ifdef CFG_CORE_ASLR
+#	define XLAT_TABLE_ASLR_EXTRA 1
+#else
+#	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
+#define MAX_XLAT_TABLES		(4 + XLAT_TABLE_ASLR_EXTRA)
+#endif /*!MAX_XLAT_TABLES*/
 
 enum desc_type {
 	DESC_TYPE_PAGE_TABLE,
@@ -486,19 +491,19 @@ void core_mmu_get_user_pgdir(struct core_mmu_table_info *pgd_info)
 	pgd_info->num_entries = NUM_UL1_ENTRIES;
 }
 
-void core_mmu_create_user_map(struct user_ta_ctx *utc,
+void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 			      struct core_mmu_user_map *map)
 {
-	struct core_mmu_table_info dir_info;
+	struct core_mmu_table_info dir_info = { };
 
 	COMPILE_TIME_ASSERT(L2_TBL_SIZE == PGT_SIZE);
 
 	core_mmu_get_user_pgdir(&dir_info);
 	memset(dir_info.table, 0, dir_info.num_entries * sizeof(uint32_t));
-	core_mmu_populate_user_map(&dir_info, utc);
+	core_mmu_populate_user_map(&dir_info, uctx);
 	map->ttbr0 = core_mmu_get_ul1_ttb_pa(get_prtn()) |
 		     TEE_MMU_DEFAULT_ATTRS;
-	map->ctxid = utc->vm_info->asid;
+	map->ctxid = uctx->vm_info.asid;
 }
 
 bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
@@ -601,7 +606,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	if (!new_table)
 		return false;
 
-	new_table_desc = SECTION_PT_PT | (uint32_t)new_table;
+	new_table_desc = SECTION_PT_PT | virt_to_phys(new_table);
 
 	if (!secure)
 		new_table_desc |= SECTION_PT_NOTSECURE;
@@ -769,46 +774,29 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	core_init_mmu_prtn(&default_partition, mm);
 }
 
-void core_init_mmu_regs(void)
+void core_init_mmu_regs(struct core_mmu_config *cfg)
 {
-	uint32_t prrr;
-	uint32_t nmrr;
-	paddr_t ttb_pa = core_mmu_get_main_ttb_pa(&default_partition);
+	cfg->ttbr = core_mmu_get_main_ttb_pa(&default_partition) |
+		    TEE_MMU_DEFAULT_ATTRS;
 
-	/* Enable Access flag (simplified access permissions) and TEX remap */
-	write_sctlr(read_sctlr() | SCTLR_AFE | SCTLR_TRE);
+	cfg->prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR;
+	cfg->nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR;
 
-	prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR;
-	nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR;
-
-	prrr |= PRRR_NS1 | PRRR_DS1;
-
-	write_prrr(prrr);
-	write_nmrr(nmrr);
-
+	cfg->prrr |= PRRR_NS1 | PRRR_DS1;
 
 	/*
 	 * Program Domain access control register with two domains:
 	 * domain 0: teecore
 	 * domain 1: TA
 	 */
-	write_dacr(DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
-		   DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT));
-
-	/*
-	 * The value of CONTEXTIDR is initially undefined, set it 0 since
-	 * we don't have a user mode context to activate yet.
-	 */
-	write_contextidr(0);
+	cfg->dacr = DACR_DOMAIN(0, DACR_DOMAIN_PERM_CLIENT) |
+		    DACR_DOMAIN(1, DACR_DOMAIN_PERM_CLIENT);
 
 	/*
 	 * Enable lookups using TTBR0 and TTBR1 with the split of addresses
 	 * defined by TEE_MMU_TTBCR_N_VALUE.
 	 */
-	write_ttbcr(TTBCR_N_VALUE);
-
-	write_ttbr0(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
-	write_ttbr1(ttb_pa | TEE_MMU_DEFAULT_ATTRS);
+	cfg->ttbcr = TTBCR_N_VALUE;
 }
 KEEP_PAGER(core_init_mmu_regs);
 

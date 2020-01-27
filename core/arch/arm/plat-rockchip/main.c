@@ -1,29 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (C) 2019, Theobroma Systems Design und Consulting GmbH
  */
 
 #include <console.h>
@@ -40,31 +18,49 @@
 #include <tee/entry_fast.h>
 
 static struct gic_data gic_data;
-static struct serial8250_uart_data console_data;
 
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, PERIPH_BASE, PERIPH_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, ISRAM_BASE, ISRAM_SIZE);
+#if defined(CFG_EARLY_CONSOLE)
+static struct serial8250_uart_data early_console_data;
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
+			CFG_EARLY_CONSOLE_BASE, CFG_EARLY_CONSOLE_SIZE);
+#endif
+
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 static const struct thread_handlers handlers = {
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	.cpu_on = cpu_on_handler,
+	.cpu_off = pm_do_nothing,
+	.cpu_suspend = pm_do_nothing,
+	.cpu_resume = pm_do_nothing,
+	.system_off = pm_do_nothing,
+	.system_reset = pm_do_nothing,
+#else
 	.cpu_on = pm_do_nothing,
 	.cpu_off = pm_do_nothing,
 	.cpu_suspend = pm_do_nothing,
 	.cpu_resume = pm_do_nothing,
 	.system_off = pm_do_nothing,
 	.system_reset = pm_do_nothing,
+#endif
 };
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
+	vaddr_t gicc_base = 0;
+	vaddr_t gicd_base = 0;
 
-	gicc_base = (vaddr_t)phys_to_virt_io(GICC_BASE);
-	gicd_base = (vaddr_t)phys_to_virt_io(GICD_BASE);
+#if !defined(CFG_ARM_GICV3)
+	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC);
+	if (!gicc_base)
+		panic();
+#endif
 
-	if (!gicc_base || !gicd_base)
+	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC);
+	if (!gicd_base)
 		panic();
 
+	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);
 }
@@ -81,7 +77,17 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 
 void console_init(void)
 {
-	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
-			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
-	register_serial_console(&console_data.chip);
+#if defined(CFG_EARLY_CONSOLE)
+	/*
+	 * Console devices can vary a lot between devices and
+	 * OP-TEE will switch to the DT-based real console later,
+	 * based on DT-devices and the systems chosen node.
+	 * So early console is only needed for early debugging.
+	 */
+	serial8250_uart_init(&early_console_data,
+			     CFG_EARLY_CONSOLE_BASE,
+			     CFG_EARLY_CONSOLE_CLK_IN_HZ,
+			     CFG_EARLY_CONSOLE_BAUDRATE);
+	register_serial_console(&early_console_data.chip);
+#endif
 }

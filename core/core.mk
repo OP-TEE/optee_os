@@ -13,7 +13,7 @@ include core/arch/$(ARCH)/$(ARCH).mk
 PLATFORM_$(PLATFORM) := y
 PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 
-$(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA)
+$(eval $(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA))
 include core/crypto.mk
 
 # Setup compiler for this sub module
@@ -34,11 +34,17 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 ifeq ($(CFG_ASAN_SHADOW_OFFSET),)
 $(error error: CFG_CORE_SANITIZE_KADDRESS not supported by platform (flavor))
 endif
+ifeq ($(COMPILER),clang)
+$(error error: CFG_CORE_SANITIZE_KADDRESS not supported with Clang)
+endif
 cflags_kasan	+= -fsanitize=kernel-address \
 		   -fasan-shadow-offset=$(CFG_ASAN_SHADOW_OFFSET)\
 		   --param asan-stack=1 --param asan-globals=1 \
 		   --param asan-instrumentation-with-call-threshold=0
 cflags$(sm)	+= $(cflags_kasan)
+endif
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+cflags$(sm)	+= -pg
 endif
 aflags$(sm)	+= $(core-platform-aflags)
 
@@ -67,6 +73,7 @@ $(conf-file): $(conf-mk-file)
 
 cleanfiles += $(conf-file)
 cleanfiles += $(conf-mk-file)
+cleanfiles += $(conf-cmake-file)
 
 $(conf-file): FORCE
 	$(call check-conf-h)

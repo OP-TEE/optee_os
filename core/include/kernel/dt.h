@@ -23,6 +23,8 @@
 #define DT_INFO_INVALID_REG		((paddr_t)-1)
 #define DT_INFO_INVALID_CLOCK		-1
 #define DT_INFO_INVALID_RESET		-1
+#define DT_INFO_INVALID_INTERRUPT	-1
+
 /*
  * @status: Bit mask for DT_STATUS_*
  * @reg: Device register physical base address or DT_INFO_INVALID_REG
@@ -92,6 +94,38 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
  * Returns true on success or false if no propname.
  */
 bool dt_have_prop(const void *fdt, int offs, const char *propname);
+
+/*
+ * Get the DT interrupt property of the @node. In the DT an interrupt
+ * is defined with at least 2x32 bits detailling the interrupt number and type.
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to read
+ *
+ * Returns the interrupt number if value >= 0
+ * otherwise DT_INFO_INVALID_INTERRUPT
+ */
+int dt_get_irq(void *fdt, int node);
+
+/*
+ * Modify or add "status" property to "disabled"
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to modify
+ *
+ * Returns 0 on success or -1 on failure
+ */
+int dt_disable_status(void *fdt, int node);
+
+/*
+ * Force secure-status = "okay" and status="disabled" for the target node.
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to modify
+ *
+ * Returns 0 on success or -1 on failure
+ */
+int dt_enable_secure_status(void *fdt, int node);
 
 /*
  * FDT manipulation functions, not provided by <libfdt.h>
@@ -169,6 +203,7 @@ static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
 	return -1;
 }
 
+__noreturn
 static inline void _fdt_fill_device_info(void *fdt __unused,
 					 struct dt_node_info *info __unused,
 					 int node __unused)

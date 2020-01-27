@@ -35,6 +35,9 @@ extern const uint8_t __extab_end[];
 #define VCORE_INIT_RX_SZ	((size_t)__vcore_init_rx_size)
 #define VCORE_INIT_RO_PA	((unsigned long)__vcore_init_ro_start)
 #define VCORE_INIT_RO_SZ	((size_t)__vcore_init_ro_size)
+
+#define VCORE_START_VA		((vaddr_t)__text_start)
+
 extern const uint8_t __vcore_unpg_rx_start[];
 extern const uint8_t __vcore_unpg_rx_size[];
 extern const uint8_t __vcore_unpg_ro_start[];
@@ -51,6 +54,9 @@ extern const uint8_t __vcore_init_ro_size[];
 extern const uint8_t __text_start[];
 extern const uint8_t __end[];
 
+extern const uint8_t __identity_map_init_start[];
+extern const uint8_t __identity_map_init_end[];
+
 extern uint8_t __data_start[];
 extern const uint8_t __data_end[];
 extern const uint8_t __rodata_start[];
@@ -62,9 +68,7 @@ extern const uint8_t __nozi_end[];
 extern const uint8_t __nozi_stack_start[];
 extern const uint8_t __nozi_stack_end[];
 extern const uint8_t __init_start[];
-extern const uint8_t __init_size[];
-extern const uint8_t __tmp_hashes_start[];
-extern const uint8_t __tmp_hashes_size[];
+extern const uint8_t __init_end[];
 
 extern uint8_t __heap1_start[];
 extern const uint8_t __heap1_end[];

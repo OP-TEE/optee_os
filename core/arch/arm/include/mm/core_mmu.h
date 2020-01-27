@@ -19,8 +19,8 @@
 
 /* A small page is the smallest unit of memory that can be mapped */
 #define SMALL_PAGE_SHIFT	12
-#define SMALL_PAGE_MASK		0x00000fff
-#define SMALL_PAGE_SIZE		0x00001000
+#define SMALL_PAGE_SIZE		BIT(SMALL_PAGE_SHIFT)
+#define SMALL_PAGE_MASK		((paddr_t)SMALL_PAGE_SIZE - 1)
 
 /*
  * PGDIR is the translation table above the translation table that holds
@@ -33,18 +33,18 @@
 #define CORE_MMU_PGDIR_SHIFT	20
 #define CORE_MMU_PGDIR_LEVEL	2
 #endif
-#define CORE_MMU_PGDIR_SIZE		(1 << CORE_MMU_PGDIR_SHIFT)
-#define CORE_MMU_PGDIR_MASK		(CORE_MMU_PGDIR_SIZE - 1)
+#define CORE_MMU_PGDIR_SIZE		BIT(CORE_MMU_PGDIR_SHIFT)
+#define CORE_MMU_PGDIR_MASK		((paddr_t)CORE_MMU_PGDIR_SIZE - 1)
 
 /* TA user space code, data, stack and heap are mapped using this granularity */
 #define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
-#define CORE_MMU_USER_CODE_SIZE		(1 << CORE_MMU_USER_CODE_SHIFT)
-#define CORE_MMU_USER_CODE_MASK		(CORE_MMU_USER_CODE_SIZE - 1)
+#define CORE_MMU_USER_CODE_SIZE		BIT(CORE_MMU_USER_CODE_SHIFT)
+#define CORE_MMU_USER_CODE_MASK		((paddr_t)CORE_MMU_USER_CODE_SIZE - 1)
 
 /* TA user space parameters are mapped using this granularity */
 #define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
-#define CORE_MMU_USER_PARAM_SIZE	(1 << CORE_MMU_USER_PARAM_SHIFT)
-#define CORE_MMU_USER_PARAM_MASK	(CORE_MMU_USER_PARAM_SIZE - 1)
+#define CORE_MMU_USER_PARAM_SIZE	BIT(CORE_MMU_USER_PARAM_SHIFT)
+#define CORE_MMU_USER_PARAM_MASK	((paddr_t)CORE_MMU_USER_PARAM_SIZE - 1)
 
 /*
  * CORE_MMU_L1_TBL_OFFSET is used when switching to/from reduced kernel
@@ -93,12 +93,14 @@
  * MEM_AREA_NEX_RAM_RW: nexus private r/w/non-executable memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
+ * MEM_AREA_IDENTITY_MAP_RX: core identity mapped r/o executable memory (secure)
  * MEM_AREA_TA_RAM:   Secure RAM where teecore loads/exec TA instances.
  * MEM_AREA_NSEC_SHM: NonSecure shared RAM between NSec and TEE.
  * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
  * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
+ * MEM_AREA_EXT_DT:   Memory loads external device tree
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TA_VASPACE: TA va space, only used with phys_to_virt()
@@ -115,12 +117,14 @@ enum teecore_memtypes {
 	MEM_AREA_NEX_RAM_RW,
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TEE_ASAN,
+	MEM_AREA_IDENTITY_MAP_RX,
 	MEM_AREA_TA_RAM,
 	MEM_AREA_NSEC_SHM,
 	MEM_AREA_RAM_NSEC,
 	MEM_AREA_RAM_SEC,
 	MEM_AREA_IO_NSEC,
 	MEM_AREA_IO_SEC,
+	MEM_AREA_EXT_DT,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_SHM_VASPACE,
 	MEM_AREA_TA_VASPACE,
@@ -141,6 +145,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TEE_RAM_RW] = "TEE_RAM_RW",
 		[MEM_AREA_NEX_RAM_RW] = "NEX_RAM_RW",
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
+		[MEM_AREA_IDENTITY_MAP_RX] = "IDENTITY_MAP_RX",
 		[MEM_AREA_TEE_COHERENT] = "TEE_COHERENT",
 		[MEM_AREA_TA_RAM] = "TA_RAM",
 		[MEM_AREA_NSEC_SHM] = "NSEC_SHM",
@@ -148,6 +153,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_RAM_SEC] = "RAM_SEC",
 		[MEM_AREA_IO_NSEC] = "IO_NSEC",
 		[MEM_AREA_IO_SEC] = "IO_SEC",
+		[MEM_AREA_EXT_DT] = "EXT_DT",
 		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
 		[MEM_AREA_SHM_VASPACE] = "SHM_VASPACE",
 		[MEM_AREA_TA_VASPACE] = "TA_VASPACE",
@@ -267,8 +273,34 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 #endif
 
-void core_init_mmu_map(void);
-void core_init_mmu_regs(void);
+/*
+ * Assembly code in enable_mmu() depends on the layout of this struct.
+ */
+struct core_mmu_config {
+#if defined(ARM64)
+	uint64_t tcr_el1;
+	uint64_t mair_el1;
+	uint64_t ttbr0_el1_base;
+	uint64_t ttbr0_core_offset;
+	uint64_t load_offset;
+#elif defined(CFG_WITH_LPAE)
+	uint32_t ttbcr;
+	uint32_t mair0;
+	uint32_t ttbr0_base;
+	uint32_t ttbr0_core_offset;
+	uint32_t load_offset;
+#else
+	uint32_t prrr;
+	uint32_t nmrr;
+	uint32_t dacr;
+	uint32_t ttbcr;
+	uint32_t ttbr;
+	uint32_t load_offset;
+#endif
+};
+
+void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
+void core_init_mmu_regs(struct core_mmu_config *cfg);
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr);
 
@@ -303,7 +335,7 @@ struct core_mmu_user_map {
 #ifdef CFG_WITH_LPAE
 bool core_mmu_user_va_range_is_defined(void);
 #else
-static inline bool core_mmu_user_va_range_is_defined(void)
+static inline bool __noprof core_mmu_user_va_range_is_defined(void)
 {
 	return true;
 }
@@ -367,11 +399,11 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr);
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t);
 
 /*
- * core_mmu_create_user_map() - Create user space mapping
- * @utc:	Pointer to user TA context
+ * core_mmu_create_user_map() - Create user mode mapping
+ * @uctx:	Pointer to user mode context
  * @map:	MMU configuration to use when activating this VA space
  */
-void core_mmu_create_user_map(struct user_ta_ctx *utc,
+void core_mmu_create_user_map(struct user_mode_ctx *uctx,
 			      struct core_mmu_user_map *map);
 /*
  * core_mmu_get_user_map() - Reads current MMU configuration for user VA space
@@ -510,10 +542,30 @@ static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
  * @pages:	Array of page addresses
  * @num_pages:	Number of pages
  * @memtype:	Type of memmory to be mapped
+ *
+ * Note: This function asserts that pages are not mapped executeable for
+ * kernel (privileged) mode.
+ *
  * @returns:	TEE_SUCCESS on success, TEE_ERROR_XXX on error
  */
 TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 			      enum teecore_memtypes memtype);
+
+/*
+ * core_mmu_map_contiguous_pages() - map range of pages at given virtual address
+ * @vstart:	Virtual address where mapping begins
+ * @pstart:	Physical address of the first page
+ * @num_pages:	Number of pages
+ * @memtype:	Type of memmory to be mapped
+ *
+ * Note: This function asserts that pages are not mapped executeable for
+ * kernel (privileged) mode.
+ *
+ * @returns:	TEE_SUCCESS on success, TEE_ERROR_XXX on error
+ */
+TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
+					 size_t num_pages,
+					 enum teecore_memtypes memtype);
 
 /*
  * core_mmu_unmap_pages() - remove mapping at given virtual address

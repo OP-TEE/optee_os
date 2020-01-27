@@ -35,7 +35,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_MPI
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
 ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
-ta-mk-file-export-vars-$(sm) += CFG_TA_FTRACE_SUPPORT
+ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
 
@@ -156,7 +156,7 @@ $(foreach f, $(libfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/lib,lib)))
 
 # Copy .mk files
-ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/cleandirs.mk \
+ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
 	ta/arch/$(ARCH)/link.mk ta/arch/$(ARCH)/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 
@@ -192,7 +192,7 @@ $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 
 # Copy the scripts
-ta-scripts = scripts/sign.py scripts/symbolize.py
+ta-scripts = scripts/sign_encrypt.py scripts/symbolize.py
 $(foreach f, $(ta-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/scripts)))
 

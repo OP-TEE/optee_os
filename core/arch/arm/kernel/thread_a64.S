@@ -23,6 +23,13 @@
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
 
+	.macro return_from_exception
+		eret
+		/* Guard against speculation past ERET */
+		dsb nsh
+		isb
+	.endm
+
 	.macro b_if_spsr_is_el0 reg, label
 		tbnz	\reg, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT), \label
 		tst	\reg, #(SPSR_64_MODE_EL_MASK << SPSR_64_MODE_EL_SHIFT)
@@ -41,7 +48,7 @@ FUNC thread_resume , :
 
 	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
-	eret
+	return_from_exception
 
 1:	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
@@ -63,27 +70,24 @@ END_FUNC thread_init_vbar
 KEEP_PAGER thread_init_vbar
 
 /*
- * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
- *               unsigned long a2, unsigned long a3, unsigned long user_sp,
- *               unsigned long user_func, unsigned long spsr,
- *               uint32_t *exit_status0, uint32_t *exit_status1)
+ * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
+ *				     uint32_t *exit_status0,
+ *				     uint32_t *exit_status1);
  *
+ * This function depends on being called with exceptions masked.
  */
 FUNC __thread_enter_user_mode , :
-	ldr	x8, [sp]
 	/*
 	 * Create the and fill in the struct thread_user_mode_rec
 	 */
 	sub	sp, sp, #THREAD_USER_MODE_REC_SIZE
-	store_xregs sp, THREAD_USER_MODE_REC_EXIT_STATUS0_PTR, 7, 8
+	store_xregs sp, THREAD_USER_MODE_REC_CTX_REGS_PTR, 0, 2
 	store_xregs sp, THREAD_USER_MODE_REC_X19, 19, 30
 
 	/*
-	 * Switch to SP_EL1
-	 * Disable exceptions
 	 * Save kern sp in x19
+	 * Switch to SP_EL1
 	 */
-	msr	daifset, #DAIFBIT_ALL
 	mov	x19, sp
 	msr	spsel, #1
 
@@ -101,17 +105,22 @@ FUNC __thread_enter_user_mode , :
 	/*
 	 * Initialize SPSR, ELR_EL1, and SP_EL0 to enter user mode
 	 */
-	msr	spsr_el1, x6
-	/* Set user sp */
-	mov	x13, x4		/* Used when running TA in Aarch32 */
-	msr	sp_el0, x4	/* Used when running TA in Aarch64 */
-	/* Set user function */
-	msr	elr_el1, x5
-	/* Set frame pointer (user stack can't be unwound past this point) */
-	mov x29, #0
+	load_xregs x0, THREAD_CTX_REGS_SP, 1, 3
+	msr	sp_el0, x1
+	msr	elr_el1, x2
+	msr	spsr_el1, x3
+
+	/*
+	 * Save the values for x0 and x1 in struct thread_core_local to be
+	 * restored later just before the eret.
+	 */
+	load_xregs x0, THREAD_CTX_REGS_X0, 1, 2
+	store_xregs sp, THREAD_CORE_LOCAL_X0, 1, 2
+
+	/* Load the rest of the general purpose registers */
+	load_xregs x0, THREAD_CTX_REGS_X2, 2, 30
 
 	/* Jump into user mode */
-	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 	b eret_to_el0
 END_FUNC __thread_enter_user_mode
 KEEP_PAGER __thread_enter_user_mode
@@ -123,9 +132,11 @@ KEEP_PAGER __thread_enter_user_mode
  */
 FUNC thread_unwind_user_mode , :
 	/* Store the exit status */
-	ldp	x3, x4, [sp, #THREAD_USER_MODE_REC_EXIT_STATUS0_PTR]
-	str	w1, [x3]
-	str	w2, [x4]
+	load_xregs sp, THREAD_USER_MODE_REC_CTX_REGS_PTR, 3, 5
+	str	w1, [x4]
+	str	w2, [x5]
+	/* Save x19..x30 */
+	store_xregs x3, THREAD_CTX_REGS_X19, 19, 30
 	/* Restore x19..x30 */
 	load_xregs sp, THREAD_USER_MODE_REC_X19, 19, 30
 	add	sp, sp, #THREAD_USER_MODE_REC_SIZE
@@ -491,7 +502,7 @@ eret_to_el0:
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 
-	eret
+	return_from_exception
 
 	/*
 	 * void icache_inv_user_range(void *addr, size_t size);
@@ -626,7 +637,7 @@ LOCAL_FUNC el0_svc , :
 #endif
 
 	/* Call the handler */
-	bl	tee_svc_handler
+	bl	thread_svc_handler
 
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
@@ -655,7 +666,7 @@ LOCAL_FUNC el0_svc , :
 	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
 
-	eret
+	return_from_exception
 
 1:	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
@@ -744,7 +755,7 @@ LOCAL_FUNC el1_sync_abort , :
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
 	/* Return from exception */
-	eret
+	return_from_exception
 END_FUNC el1_sync_abort
 
 	/* sp_el0 in x3 */
@@ -822,7 +833,7 @@ LOCAL_FUNC el0_sync_abort , :
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
-	eret
+	return_from_exception
 1:	b	eret_to_el0
 END_FUNC el0_sync_abort
 
@@ -975,7 +986,7 @@ END_FUNC el0_sync_abort
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 
 	/* Return from exception */
-	eret
+	return_from_exception
 1:	b	eret_to_el0
 .endm
 

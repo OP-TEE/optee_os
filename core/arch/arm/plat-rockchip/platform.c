@@ -1,61 +1,44 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <initcall.h>
 #include <io.h>
 #include <mm/core_memprot.h>
+#include <platform.h>
 #include <platform_config.h>
 #include <stdint.h>
 
-#if defined(PLATFORM_FLAVOR_rk322x)
+int __weak platform_secure_init(void)
+{
+	return 0;
+}
 
-#define SGRF_SOC_CON(n)		((n) * 4)
-#define DDR_SGRF_DDR_CON(n)	((n) * 4)
-#define DDR_RGN0_NS		BIT32(30)
-#define SLAVE_ALL_NS		0xffff0000
+int __weak platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
+{
+	MSG("Not protecting region %d: 0x%lx-0x%lx\n", rgn, st, st + sz);
+
+	return 0;
+}
 
 static TEE_Result platform_init(void)
 {
-	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE);
-	vaddr_t ddrsgrf_base = (vaddr_t)phys_to_virt_io(DDRSGRF_BASE);
+	int ret = 0;
 
-	/* Set rgn0 non-secure */
-	io_write32(ddrsgrf_base + DDR_SGRF_DDR_CON(0), DDR_RGN0_NS);
+	platform_secure_init();
 
-	/* Initialize all slave non-secure */
-	io_write32(sgrf_base + SGRF_SOC_CON(7), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(8), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(9), SLAVE_ALL_NS);
-	io_write32(sgrf_base + SGRF_SOC_CON(10), SLAVE_ALL_NS);
+	/*
+	 * Rockchip SoCs can protect multiple memory regions (mostly 8).
+	 * Region 0 is assigned for Trusted-Firmware memory, so use
+	 * regions 1 for OP-TEE memory, which leaves on all known SoCs
+	 * at least 6 more regions available for other purposes.
+	 */
+	ret = platform_secure_ddr_region(1, CFG_TZDRAM_START, CFG_TZDRAM_SIZE);
+	if (ret < 0)
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
-
-#endif
 
 service_init(platform_init);

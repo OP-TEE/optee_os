@@ -63,11 +63,13 @@ define process-subdir-gensrcs-helper
 # $2 full path and name of generated source file
 # $3 full path and name of object file compiled from source file
 # $4 full path to out directory
+# $5 y if $2 must be generated before $(sm) starts building (e.g., .h file)
 
 gen-srcs			+= $2
+cleanfiles			+= $2
 oname				:= $3
 
-FORCE-GENSRC$(sm): $2
+FORCE-GENSRC$(sm): $(if $(filter y,$5),$2,)
 
 $$(addprefix $4,$$(produce-additional-$1)): $2
 
@@ -105,7 +107,7 @@ oname				:=
 endef #process-subdir-gensrcs-helper
 
 define process-subdir-gensrcs-y
-$$(eval $$(call process-subdir-gensrcs-helper,$1,$(sub-dir-out)/$$(produce-$1),$(sub-dir-out)/$(basename $(produce-$1)).o,$(sub-dir-out)))
+$$(eval $$(call process-subdir-gensrcs-helper,$1,$(sub-dir-out)/$$(produce-$1),$(sub-dir-out)/$(basename $(produce-$1)).o,$(sub-dir-out),$(force-gensrc-$1)))
 endef #process-subdir-gensrcs-y
 
 define process-subdir-asm-defines-y

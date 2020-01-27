@@ -498,7 +498,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 				      struct tee_ta_param *p,
 				      struct utee_params *up)
 {
-	size_t n;
+	size_t n = 0;
 	uint32_t types = up->types;
 
 	p->types = types;
@@ -517,7 +517,8 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 			p->u[n].mem.mobj = &mobj_virt;
 			p->u[n].mem.offs = a;
 			p->u[n].mem.size = b;
-			if (tee_mmu_check_access_rights(utc, flags, a, b))
+			if (tee_mmu_check_access_rights(&utc->uctx, flags, a,
+							b))
 				return TEE_ERROR_ACCESS_DENIED;
 			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
@@ -567,23 +568,26 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				     size_t tmp_buf_size[TEE_NUM_PARAMS],
 				     struct mobj **mobj_tmp)
 {
-	size_t n;
-	TEE_Result res;
-	size_t req_mem = 0;
-	size_t s;
-	uint8_t *dst = 0;
-	bool ta_private_memref[TEE_NUM_PARAMS];
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
-	void *va;
-	size_t dst_offs;
+	bool ta_private_memref[TEE_NUM_PARAMS] = { false, };
+	TEE_Result res = TEE_SUCCESS;
+	size_t dst_offs = 0;
+	size_t req_mem = 0;
+	uint8_t *dst = 0;
+	void *va = NULL;
+	size_t n = 0;
+	size_t s = 0;
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
 		memset(param, 0, sizeof(*param));
 	} else {
-		res = tee_mmu_check_access_rights(utc,
-			TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER,
-			(uaddr_t)callee_params, sizeof(struct utee_params));
+		uint32_t flags = TEE_MEMORY_ACCESS_READ |
+				 TEE_MEMORY_ACCESS_ANY_OWNER;
+
+		res = tee_mmu_check_access_rights(&utc->uctx, flags,
+						  (uaddr_t)callee_params,
+						  sizeof(struct utee_params));
 		if (res != TEE_SUCCESS)
 			return res;
 		res = utee_param_to_param(utc, param, callee_params);
@@ -614,7 +618,8 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				break;
 			}
 			/* uTA cannot expose its private memory */
-			if (tee_mmu_is_vbuf_inside_ta_private(utc, va, s)) {
+			if (tee_mmu_is_vbuf_inside_um_private(&utc->uctx, va,
+							      s)) {
 
 				s = ROUNDUP(s, sizeof(uint32_t));
 				if (ADD_OVERFLOW(req_mem, s, &req_mem))
@@ -623,7 +628,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 				break;
 			}
 
-			res = tee_mmu_vbuf_to_mobj_offs(utc, va, s,
+			res = tee_mmu_vbuf_to_mobj_offs(&utc->uctx, va, s,
 							&param->u[n].mem.mobj,
 							&param->u[n].mem.offs);
 			if (res != TEE_SUCCESS)
@@ -792,7 +797,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 
 	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);
-	tee_mmu_set_ctx(&utc->ctx);
+	tee_mmu_set_ctx(&utc->uctx.ctx);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -800,7 +805,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 				       usr_param);
 
 function_exit:
-	mobj_free_wipe(mobj_param);
+	mobj_put_wipe(mobj_param);
 	if (res == TEE_SUCCESS)
 		tee_svc_copy_to_user(ta_sess, &s->id, sizeof(s->id));
 	tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
@@ -891,7 +896,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 
 function_exit:
 	tee_ta_put_session(called_sess);
-	mobj_free_wipe(mobj_param);
+	mobj_put_wipe(mobj_param);
 	if (ret_orig)
 		tee_svc_copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
 	return res;
@@ -900,30 +905,30 @@ function_exit:
 TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 				       size_t len)
 {
-	TEE_Result res;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
 	res = tee_ta_get_current_session(&s);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	return tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx), flags,
+	return tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx, flags,
 					   (uaddr_t)buf, len);
 }
 
 TEE_Result tee_svc_copy_from_user(void *kaddr, const void *uaddr, size_t len)
 {
-	TEE_Result res;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
 	res = tee_ta_get_current_session(&s);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
-					TEE_MEMORY_ACCESS_READ |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t)uaddr, len);
+	res = tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
+					  TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)uaddr, len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -933,17 +938,17 @@ TEE_Result tee_svc_copy_from_user(void *kaddr, const void *uaddr, size_t len)
 
 TEE_Result tee_svc_copy_to_user(void *uaddr, const void *kaddr, size_t len)
 {
-	TEE_Result res;
-	struct tee_ta_session *s;
+	struct tee_ta_session *s = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
 	res = tee_ta_get_current_session(&s);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(to_user_ta_ctx(s->ctx),
-					TEE_MEMORY_ACCESS_WRITE |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t)uaddr, len);
+	res = tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)uaddr, len);
 	if (res != TEE_SUCCESS)
 		return res;
 

@@ -93,7 +93,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	return PSCI_RET_SUCCESS;
 }
 
-int psci_cpu_off(void)
+int __noreturn psci_cpu_off(void)
 {
 	uint32_t core_id;
 
@@ -109,8 +109,6 @@ int psci_cpu_off(void)
 
 	while (true)
 		wfi();
-
-	return PSCI_RET_INTERNAL_FAILURE;
 }
 
 int psci_affinity_info(uint32_t affinity,
@@ -235,7 +233,7 @@ int psci_cpu_suspend(uint32_t power_state,
 	return ret;
 }
 
-void psci_system_reset(void)
+void __noreturn psci_system_reset(void)
 {
 	imx_wdog_restart();
 }

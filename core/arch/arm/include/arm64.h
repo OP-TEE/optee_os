@@ -215,6 +215,16 @@ static inline void dsb_ishst(void)
 	asm volatile ("dsb ishst");
 }
 
+static inline void sev(void)
+{
+	asm volatile ("sev");
+}
+
+static inline void wfe(void)
+{
+	asm volatile ("wfe");
+}
+
 static inline void write_at_s1e1r(uint64_t va)
 {
 	asm volatile ("at	S1E1R, %0" : : "r" (va));
@@ -304,6 +314,7 @@ DEFINE_U32_REG_READWRITE_FUNCS(daif)
 DEFINE_U32_REG_READWRITE_FUNCS(fpcr)
 DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
 
+DEFINE_U32_REG_READ_FUNC(ctr_el0)
 DEFINE_U32_REG_READ_FUNC(contextidr_el1)
 DEFINE_U32_REG_READ_FUNC(sctlr_el1)
 

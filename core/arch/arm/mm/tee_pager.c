@@ -11,12 +11,14 @@
 #include <kernel/abort.h>
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/core_memprot.h>
 #include <mm/fobj.h>
 #include <mm/tee_mm.h>
@@ -132,14 +134,14 @@ void tee_pager_get_stats(struct tee_pager_stats *stats)
 #define TBL_SHIFT	SMALL_PAGE_SHIFT
 
 #define EFFECTIVE_VA_SIZE \
-	(ROUNDUP(TEE_RAM_VA_START + TEE_RAM_VA_SIZE, \
-		 CORE_MMU_PGDIR_SIZE) - \
-	 ROUNDDOWN(TEE_RAM_VA_START, CORE_MMU_PGDIR_SIZE))
+	(ROUNDUP(VCORE_START_VA + TEE_RAM_VA_SIZE, CORE_MMU_PGDIR_SIZE) - \
+	 ROUNDDOWN(VCORE_START_VA, CORE_MMU_PGDIR_SIZE))
 
 static struct pager_table {
 	struct pgt pgt;
 	struct core_mmu_table_info tbl_info;
-} pager_tables[EFFECTIVE_VA_SIZE / CORE_MMU_PGDIR_SIZE];
+} *pager_tables;
+static unsigned int num_pager_tables;
 
 static unsigned pager_spinlock = SPINLOCK_UNLOCK;
 
@@ -247,7 +249,7 @@ void *tee_pager_phys_to_virt(paddr_t pa)
 		}
 
 		n++;
-		if (n >= ARRAY_SIZE(pager_tables))
+		if (n >= num_pager_tables)
 			return NULL;
 		idx = 0;
 	}
@@ -292,9 +294,12 @@ static struct pager_table *find_pager_table_may_fail(vaddr_t va)
 	size_t n;
 	const vaddr_t mask = CORE_MMU_PGDIR_MASK;
 
+	if (!pager_tables)
+		return NULL;
+
 	n = ((va & ~mask) - pager_tables[0].tbl_info.va_base) >>
 	    CORE_MMU_PGDIR_SHIFT;
-	if (n >= ARRAY_SIZE(pager_tables))
+	if (n >= num_pager_tables)
 		return NULL;
 
 	assert(va >= pager_tables[n].tbl_info.va_base &&
@@ -350,7 +355,7 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	/* Clear all mapping in the alias area */
 	pt = find_pager_table(smem);
 	idx = core_mmu_va2idx(&pt->tbl_info, smem);
-	while (pt <= (pager_tables + ARRAY_SIZE(pager_tables) - 1)) {
+	while (pt <= (pager_tables + num_pager_tables - 1)) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pt->tbl_info, idx);
 			if (v >= (smem + nbytes))
@@ -418,7 +423,7 @@ static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
 #if defined(CFG_PAGED_USER_TA)
 	assert(area->pgt);
 	if (area->pgt->ctx) {
-		uint32_t asid = to_user_ta_ctx(area->pgt->ctx)->vm_info->asid;
+		uint32_t asid = to_user_mode_ctx(area->pgt->ctx)->vm_info.asid;
 
 		tlbi_mva_asid(va, asid);
 		return;
@@ -454,14 +459,19 @@ static void pmem_unmap(struct tee_pager_pmem *pmem, struct pgt *only_this_pgt)
 
 void tee_pager_early_init(void)
 {
-	size_t n;
+	size_t n = 0;
+
+	num_pager_tables = EFFECTIVE_VA_SIZE / CORE_MMU_PGDIR_SIZE;
+	pager_tables = calloc(num_pager_tables, sizeof(*pager_tables));
+	if (!pager_tables)
+		panic("Cannot allocate pager_tables");
 
 	/*
 	 * Note that this depends on add_pager_vaspace() adding vaspace
 	 * after end of memory.
 	 */
-	for (n = 0; n < ARRAY_SIZE(pager_tables); n++) {
-		if (!core_mmu_find_table(NULL, TEE_RAM_VA_START +
+	for (n = 0; n < num_pager_tables; n++) {
+		if (!core_mmu_find_table(NULL, VCORE_START_VA +
 					 n * CORE_MMU_PGDIR_SIZE, UINT_MAX,
 					 &pager_tables[n].tbl_info))
 			panic("can't find mmu tables");
@@ -499,16 +509,21 @@ static void *pager_add_alias_page(paddr_t pa)
 	return (void *)core_mmu_idx2va(ti, idx);
 }
 
-static void area_insert_tail(struct tee_pager_area *area)
+static void area_insert(struct tee_pager_area_head *head,
+			struct tee_pager_area *area,
+			struct tee_pager_area *a_prev)
 {
 	uint32_t exceptions = pager_lock_check_stack(8);
 
-	TAILQ_INSERT_TAIL(&tee_pager_area_head, area, link);
+	if (a_prev)
+		TAILQ_INSERT_AFTER(head, a_prev, area, link);
+	else
+		TAILQ_INSERT_HEAD(head, area, link);
 	TAILQ_INSERT_TAIL(&area->fobj->areas, area, fobj_link);
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(area_insert_tail);
+KEEP_PAGER(area_insert);
 
 void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 			     struct fobj *fobj)
@@ -555,7 +570,7 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 		area->base = b;
 		area->size = s2;
 		area->flags = flags;
-		area_insert_tail(area);
+		area_insert(&tee_pager_area_head, area, NULL);
 
 		b += s2;
 		s -= s2;
@@ -583,9 +598,9 @@ static struct tee_pager_area *find_uta_area(vaddr_t va)
 {
 	struct tee_ta_ctx *ctx = thread_get_tsd()->ctx;
 
-	if (!is_user_ta_ctx(ctx))
+	if (!is_user_mode_ctx(ctx))
 		return NULL;
-	return find_area(to_user_ta_ctx(ctx)->areas, va);
+	return find_area(to_user_mode_ctx(ctx)->areas, va);
 }
 #else
 static struct tee_pager_area *find_uta_area(vaddr_t va __unused)
@@ -692,26 +707,35 @@ static void free_area(struct tee_pager_area *area)
 	free(area);
 }
 
-static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-				     struct fobj *fobj, uint32_t prot)
+static TEE_Result pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
+				    struct fobj *fobj, uint32_t prot)
 {
-	struct tee_pager_area *area;
+	struct tee_pager_area *a_prev = NULL;
+	struct tee_pager_area *area = NULL;
 	vaddr_t b = base;
 	size_t fobj_pgoffs = 0;
 	size_t s = fobj->num_pages * SMALL_PAGE_SIZE;
 
-	if (!utc->areas) {
-		utc->areas = malloc(sizeof(*utc->areas));
-		if (!utc->areas)
+	if (!uctx->areas) {
+		uctx->areas = malloc(sizeof(*uctx->areas));
+		if (!uctx->areas)
 			return TEE_ERROR_OUT_OF_MEMORY;
-		TAILQ_INIT(utc->areas);
+		TAILQ_INIT(uctx->areas);
+	}
+
+	area = TAILQ_FIRST(uctx->areas);
+	while (area) {
+		if (core_is_buffer_intersect(b, s, area->base,
+					     area->size))
+			return TEE_ERROR_BAD_PARAMETERS;
+		if (b < area->base)
+			break;
+		a_prev = area;
+		area = TAILQ_NEXT(area, link);
 	}
 
 	while (s) {
 		size_t s2;
-
-		if (find_area(utc->areas, b))
-			return TEE_ERROR_BAD_PARAMETERS;
 
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
 		area = calloc(1, sizeof(*area));
@@ -726,8 +750,9 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 		area->size = s2;
 		area->flags = prot;
 
-		TAILQ_INSERT_TAIL(utc->areas, area, link);
-		TAILQ_INSERT_TAIL(&fobj->areas, area, fobj_link);
+		area_insert(uctx->areas, area, a_prev);
+
+		a_prev = area;
 		b += s2;
 		s -= s2;
 		fobj_pgoffs += s2 / SMALL_PAGE_SIZE;
@@ -736,35 +761,35 @@ static TEE_Result pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-			    struct fobj *fobj, uint32_t prot)
+TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
+				 struct fobj *fobj, uint32_t prot)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct tee_pager_area *area = NULL;
 	struct core_mmu_table_info dir_info = { NULL };
 
-	if (&utc->ctx != tsd->ctx) {
+	if (&uctx->ctx != tsd->ctx) {
 		/*
 		 * Changes are to an utc that isn't active. Just add the
 		 * areas page tables will be dealt with later.
 		 */
-		return pager_add_uta_area(utc, base, fobj, prot);
+		return pager_add_um_area(uctx, base, fobj, prot);
 	}
 
 	/*
 	 * Assign page tables before adding areas to be able to tell which
 	 * are newly added and should be removed in case of failure.
 	 */
-	tee_pager_assign_uta_tables(utc);
-	res = pager_add_uta_area(utc, base, fobj, prot);
+	tee_pager_assign_um_tables(uctx);
+	res = pager_add_um_area(uctx, base, fobj, prot);
 	if (res) {
 		struct tee_pager_area *next_a;
 
 		/* Remove all added areas */
-		TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+		TAILQ_FOREACH_SAFE(area, uctx->areas, link, next_a) {
 			if (!area->pgt) {
-				unlink_area(utc->areas, area);
+				unlink_area(uctx->areas, area);
 				free_area(area);
 			}
 		}
@@ -775,9 +800,9 @@ TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	 * Assign page tables to the new areas and make sure that the page
 	 * tables are registered in the upper table.
 	 */
-	tee_pager_assign_uta_tables(utc);
+	tee_pager_assign_um_tables(uctx);
 	core_mmu_get_user_pgdir(&dir_info);
-	TAILQ_FOREACH(area, utc->areas, link) {
+	TAILQ_FOREACH(area, uctx->areas, link) {
 		paddr_t pa;
 		size_t idx;
 		uint32_t attr;
@@ -806,6 +831,107 @@ TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
 	}
 
 	return TEE_SUCCESS;
+}
+
+static void split_area(struct tee_pager_area_head *area_head,
+		       struct tee_pager_area *area, struct tee_pager_area *a2,
+		       vaddr_t va)
+{
+	uint32_t exceptions = pager_lock_check_stack(64);
+	size_t diff = va - area->base;
+
+	a2->fobj = fobj_get(area->fobj);
+	a2->fobj_pgoffs = area->fobj_pgoffs + diff / SMALL_PAGE_SIZE;
+	a2->type = area->type;
+	a2->flags = area->flags;
+	a2->base = va;
+	a2->size = area->size - diff;
+	a2->pgt = area->pgt;
+	area->size = diff;
+
+	TAILQ_INSERT_AFTER(area_head, area, a2, link);
+	TAILQ_INSERT_AFTER(&area->fobj->areas, area, a2, fobj_link);
+
+	pager_unlock(exceptions);
+}
+KEEP_PAGER(split_area);
+
+TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va)
+{
+	struct tee_pager_area *area = NULL;
+	struct tee_pager_area *a2 = NULL;
+
+	if (va & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	TAILQ_FOREACH(area, uctx->areas, link) {
+		if (va == area->base || va == area->base + area->size)
+			return TEE_SUCCESS;
+		if (va > area->base && va < area->base + area->size) {
+			a2 = calloc(1, sizeof(*a2));
+			if (!a2)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			split_area(uctx->areas, area, a2, va);
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void merge_area_with_next(struct tee_pager_area_head *area_head,
+				 struct tee_pager_area *a,
+				 struct tee_pager_area *a_next)
+{
+	uint32_t exceptions = pager_lock_check_stack(64);
+
+	TAILQ_REMOVE(area_head, a_next, link);
+	TAILQ_REMOVE(&a_next->fobj->areas, a_next, fobj_link);
+	a->size += a_next->size;
+
+	pager_unlock(exceptions);
+}
+KEEP_PAGER(merge_area_with_next);
+
+void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
+			       size_t len)
+{
+	struct tee_pager_area *a_next = NULL;
+	struct tee_pager_area *a = NULL;
+
+	if ((va | len) & SMALL_PAGE_MASK)
+		return;
+
+	for (a = TAILQ_FIRST(uctx->areas);; a = a_next) {
+		a_next = TAILQ_NEXT(a, link);
+		if (!a_next)
+			return;
+
+		/* Try merging with the area just before va */
+		if (a->base + a->size < va)
+			continue;
+
+		/*
+		 * If a->base is well past our range we're done.
+		 * Note that if it's just the page after our range we'll
+		 * try to merge.
+		 */
+		if (a->base > va + len)
+			return;
+
+		if (a->base + a->size != a_next->base)
+			continue;
+		if (a->fobj != a_next->fobj || a->type != a_next->type ||
+		    a->flags != a_next->flags || a->pgt != a_next->pgt)
+			continue;
+		if (a->fobj_pgoffs + a->size / SMALL_PAGE_SIZE !=
+		    a_next->fobj_pgoffs)
+			continue;
+
+		merge_area_with_next(uctx->areas, a, a_next);
+		free_area(a_next);
+		a_next = a;
+	}
 }
 
 static void rem_area(struct tee_pager_area_head *area_head,
@@ -845,36 +971,36 @@ static void rem_area(struct tee_pager_area_head *area_head,
 }
 KEEP_PAGER(rem_area);
 
-void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
-			      size_t size)
+void tee_pager_rem_um_region(struct user_mode_ctx *uctx, vaddr_t base,
+			     size_t size)
 {
 	struct tee_pager_area *area;
 	struct tee_pager_area *next_a;
 	size_t s = ROUNDUP(size, SMALL_PAGE_SIZE);
 
-	TAILQ_FOREACH_SAFE(area, utc->areas, link, next_a) {
+	TAILQ_FOREACH_SAFE(area, uctx->areas, link, next_a) {
 		if (core_is_buffer_inside(area->base, area->size, base, s))
-			rem_area(utc->areas, area);
+			rem_area(uctx->areas, area);
 	}
-	tlbi_asid(utc->vm_info->asid);
+	tlbi_asid(uctx->vm_info.asid);
 }
 
-void tee_pager_rem_uta_areas(struct user_ta_ctx *utc)
+void tee_pager_rem_um_areas(struct user_mode_ctx *uctx)
 {
-	struct tee_pager_area *area;
+	struct tee_pager_area *area = NULL;
 
-	if (!utc->areas)
+	if (!uctx->areas)
 		return;
 
 	while (true) {
-		area = TAILQ_FIRST(utc->areas);
+		area = TAILQ_FIRST(uctx->areas);
 		if (!area)
 			break;
-		unlink_area(utc->areas, area);
+		unlink_area(uctx->areas, area);
 		free_area(area);
 	}
 
-	free(utc->areas);
+	free(uctx->areas);
 }
 
 static bool __maybe_unused same_context(struct tee_pager_pmem *pmem)
@@ -891,14 +1017,14 @@ static bool __maybe_unused same_context(struct tee_pager_pmem *pmem)
 	return false;
 }
 
-bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
-				 size_t size, uint32_t flags)
+bool tee_pager_set_um_area_attr(struct user_mode_ctx *uctx, vaddr_t base,
+				size_t size, uint32_t flags)
 {
 	bool ret = false;
 	vaddr_t b = base;
 	size_t s = size;
 	size_t s2 = 0;
-	struct tee_pager_area *area = find_area(utc->areas, b);
+	struct tee_pager_area *area = find_area(uctx->areas, b);
 	uint32_t exceptions = 0;
 	struct tee_pager_pmem *pmem = NULL;
 	uint32_t a = 0;
@@ -978,7 +1104,8 @@ out:
 	pager_unlock(exceptions);
 	return ret;
 }
-KEEP_PAGER(tee_pager_set_uta_area_attr);
+
+KEEP_PAGER(tee_pager_set_um_area_attr);
 #endif /*CFG_PAGED_USER_TA*/
 
 void tee_pager_invalidate_fobj(struct fobj *fobj)
@@ -1105,6 +1232,19 @@ static void tee_pager_hide_pages(void)
 	}
 }
 
+static unsigned int __maybe_unused
+num_areas_with_pmem(struct tee_pager_pmem *pmem)
+{
+	struct tee_pager_area *a = NULL;
+	unsigned int num_matches = 0;
+
+	TAILQ_FOREACH(a, &pmem->fobj->areas, fobj_link)
+		if (pmem_is_covered_by_area(pmem, a))
+			num_matches++;
+
+	return num_matches;
+}
+
 /*
  * Find mapped pmem, hide and move to pageble pmem.
  * Return false if page was not mapped, and true if page was mapped.
@@ -1122,12 +1262,11 @@ static bool tee_pager_release_one_phys(struct tee_pager_area *area,
 			continue;
 
 		/*
-		 * Locked pages may not be shared, these two asserts checks
-		 * that there's only a signed area recorded with this pmem.
+		 * Locked pages may not be shared. We're asserting that the
+		 * number of areas using this pmem is one and only one as
+		 * we're about to unmap it.
 		 */
-		assert(TAILQ_FIRST(&pmem->fobj->areas) == area);
-		assert(TAILQ_LAST(&pmem->fobj->areas,
-				  tee_pager_area_head) == area);
+		assert(num_areas_with_pmem(pmem) == 1);
 
 		tblidx = pmem_get_area_tblidx(pmem, area);
 		area_set_entry(area, tblidx, 0, 0);
@@ -1525,16 +1664,16 @@ static struct pgt *find_pgt(struct pgt *pgt, vaddr_t va)
 	return p;
 }
 
-void tee_pager_assign_uta_tables(struct user_ta_ctx *utc)
+void tee_pager_assign_um_tables(struct user_mode_ctx *uctx)
 {
 	struct tee_pager_area *area = NULL;
 	struct pgt *pgt = NULL;
 
-	if (!utc->areas)
+	if (!uctx->areas)
 		return;
 
 	pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
-	TAILQ_FOREACH(area, utc->areas, link) {
+	TAILQ_FOREACH(area, uctx->areas, link) {
 		if (!area->pgt)
 			area->pgt = find_pgt(pgt, area->base);
 		else
@@ -1561,7 +1700,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 	assert(!pgt->num_used_entries);
 
 out:
-	areas = to_user_ta_ctx(pgt->ctx)->areas;
+	areas = to_user_ta_ctx(pgt->ctx)->uctx.areas;
 	if (areas) {
 		TAILQ_FOREACH(area, areas, link) {
 			if (area->pgt == pgt)

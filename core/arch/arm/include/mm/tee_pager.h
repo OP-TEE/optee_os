@@ -95,32 +95,33 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 			     struct fobj *fobj);
 
 /*
- * tee_pager_add_uta_area() - Adds a pageable user ta area
- * @utc:	user ta context of the area
+ * tee_pager_add_um_area() - Adds a pageable user ta area
+ * @uctx:	user mode context of the area
  * @base:	base of covered memory area
  * @fobj:	fobj of the store backing the memory area
  *
  * The mapping is created suitable to initialize the memory content while
  * loading the TA. Once the TA is properly loaded the areas should be
- * finalized with tee_pager_set_uta_area_attr() to get more strict settings.
+ * finalized with tee_pager_set_um_area_attr() to get more strict settings.
  *
  * Return TEE_SUCCESS on success, anything else if the area can't be added
  */
 #ifdef CFG_PAGED_USER_TA
-TEE_Result tee_pager_add_uta_area(struct user_ta_ctx *utc, vaddr_t base,
-				  struct fobj *fobj, uint32_t prot);
+TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
+				 struct fobj *fobj, uint32_t prot);
 #else
 static inline TEE_Result
-tee_pager_add_uta_area(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
-		       struct fobj *fobj __unused, uint32_t prot __unused)
+tee_pager_add_um_area(struct user_mode_ctx *uctx __unused,
+		      vaddr_t base __unused, struct fobj *fobj __unused,
+		      uint32_t prot __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
 
 /*
- * tee_pager_set_uta_area_attr() - Set attributes of a initialized memory area
- * @utc:	user ta context of the area
+ * tee_pager_set_um_area_attr() - Set attributes of a initialized memory area
+ * @uctx:	user mode context of the area
  * @base:	base of covered memory area
  * @size:	size of covered memory area
  * @flags:	TEE_MATTR_U* flags describing permissions of the area
@@ -128,54 +129,77 @@ tee_pager_add_uta_area(struct user_ta_ctx *utc __unused, vaddr_t base __unused,
  * Return true on success of false if the area can't be updated
  */
 #ifdef CFG_PAGED_USER_TA
-bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc, vaddr_t base,
-				 size_t size, uint32_t flags);
+bool tee_pager_set_um_area_attr(struct user_mode_ctx *uctx, vaddr_t base,
+				size_t size, uint32_t flags);
 #else
-static inline bool tee_pager_set_uta_area_attr(struct user_ta_ctx *utc __unused,
-					       vaddr_t base __unused,
-					       size_t size __unused,
-					       uint32_t flags __unused)
+static inline bool
+tee_pager_set_um_area_attr(struct user_mode_ctx *uctx __unused,
+			   vaddr_t base __unused, size_t size __unused,
+			   uint32_t flags __unused)
 {
 	return false;
 }
 #endif
 
 #ifdef CFG_PAGED_USER_TA
-void tee_pager_rem_uta_region(struct user_ta_ctx *utc, vaddr_t base,
-			      size_t size);
+void tee_pager_rem_um_region(struct user_mode_ctx *uctx, vaddr_t base,
+			     size_t size);
 #else
-static inline void tee_pager_rem_uta_region(struct user_ta_ctx *utc __unused,
-					    vaddr_t base __unused,
-					    size_t size __unused)
+static inline void tee_pager_rem_um_region(struct user_mode_ctx *uctx __unused,
+					   vaddr_t base __unused,
+					   size_t size __unused)
+{
+}
+#endif
+
+#ifdef CFG_PAGED_USER_TA
+TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va);
+#else
+static inline TEE_Result
+tee_pager_split_um_region(struct user_mode_ctx *uctx __unused,
+			  vaddr_t va __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+#endif
+#ifdef CFG_PAGED_USER_TA
+void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
+			       size_t len);
+#else
+static inline void
+tee_pager_merge_um_region(struct user_mode_ctx *uctx __unused,
+			  vaddr_t va __unused, size_t len __unused)
 {
 }
 #endif
 
 /*
- * tee_pager_rem_uta_areas() - Remove all user ta areas
- * @utc:	user ta context
+ * tee_pager_rem_uma_areas() - Remove all user ta areas
+ * @uctx:	user mode context
  *
- * This function is called when a user ta context is teared down.
+ * This function is called when a user mode context is teared down.
  */
 #ifdef CFG_PAGED_USER_TA
-void tee_pager_rem_uta_areas(struct user_ta_ctx *utc);
+void tee_pager_rem_um_areas(struct user_mode_ctx *uctx);
 #else
-static inline void tee_pager_rem_uta_areas(struct user_ta_ctx *utc __unused)
+static inline void tee_pager_rem_um_areas(struct user_mode_ctx *uctx __unused)
 {
 }
 #endif
 
 /*
- * tee_pager_assign_uta_tables() - Assigns translation table to a user ta
- * @utc:	user ta context
+ * tee_pager_assign_um_tables() - Assigns translation table to a user ta
+ * @uctx:	user mode context
  *
  * This function is called to assign translation tables for the pageable
  * areas of a user TA.
  */
 #ifdef CFG_PAGED_USER_TA
-void tee_pager_assign_uta_tables(struct user_ta_ctx *utc);
+void tee_pager_assign_um_tables(struct user_mode_ctx *uctx);
 #else
-static inline void tee_pager_assign_uta_tables(struct user_ta_ctx *utc __unused)
+static inline void
+tee_pager_assign_um_tables(struct user_mode_ctx *uctx __unused)
 {
 }
 #endif

@@ -6,6 +6,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <console.h>
 #include <crypto/crypto.h>
 #include <inttypes.h>
@@ -88,10 +89,10 @@ static uint32_t cntfrq;
 #endif
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void plat_cpu_reset_late(void)
+__weak void plat_primary_init_early(void)
 {
 }
-KEEP_PAGER(plat_cpu_reset_late);
+KEEP_PAGER(plat_primary_init_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)
@@ -314,8 +315,8 @@ static void print_pager_pool_size(void)
 
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
-	const vaddr_t begin = TEE_RAM_VA_START;
-	vaddr_t end = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
+	const vaddr_t begin = VCORE_START_VA;
+	vaddr_t end = begin + TEE_RAM_VA_SIZE;
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/* Carve out asan memory, flat maped after core memory */
@@ -328,23 +329,87 @@ static void init_vcore(tee_mm_pool_t *mm_vcore)
 		panic("tee_mm_vcore init failed");
 }
 
+/*
+ * With CFG_CORE_ASLR=y the init part is relocated very early during boot.
+ * The init part is also paged just as the rest of the normal paged code, with
+ * the difference that it's preloaded during boot. When the backing store
+ * is configured the entire paged binary is copied in place and then also
+ * the init part. Since the init part has been relocated (references to
+ * addresses updated to compensate for the new load address) this has to be
+ * undone for the hashes of those pages to match with the original binary.
+ *
+ * If CFG_CORE_ASLR=n, nothing needs to be done as the code/ro pages are
+ * unchanged.
+ */
+static void undo_init_relocation(uint8_t *paged_store __maybe_unused)
+{
+#ifdef CFG_CORE_ASLR
+	unsigned long *ptr = NULL;
+	const uint32_t *reloc = NULL;
+	const uint32_t *reloc_end = NULL;
+	unsigned long offs = boot_mmu_config.load_offset;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_RAM_START;
+	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_RAM_START;
+
+	reloc = (const void *)((vaddr_t)embdata + embdata->reloc_offset);
+	reloc_end = reloc + embdata->reloc_len / sizeof(*reloc);
+
+	for (; reloc < reloc_end; reloc++) {
+		if (*reloc < addr_start)
+			continue;
+		if (*reloc >= addr_end)
+			break;
+		ptr = (void *)(paged_store + *reloc - addr_start);
+		*ptr -= offs;
+	}
+#endif
+}
+
+static struct fobj *ro_paged_alloc(tee_mm_entry_t *mm, void *hashes,
+				   void *store)
+{
+	const unsigned int num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE;
+#ifdef CFG_CORE_ASLR
+	unsigned int reloc_offs = (vaddr_t)__pageable_start - VCORE_START_VA;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	const void *reloc = __init_end + embdata->reloc_offset;
+
+	return fobj_ro_reloc_paged_alloc(num_pages, hashes, reloc_offs,
+					 reloc, embdata->reloc_len, store);
+#else
+	return fobj_ro_paged_alloc(num_pages, hashes, store);
+#endif
+}
+
 static void init_runtime(unsigned long pageable_part)
 {
 	size_t n;
-	size_t init_size = (size_t)__init_size;
+	size_t init_size = (size_t)(__init_end - __init_start);
 	size_t pageable_start = (size_t)__pageable_start;
 	size_t pageable_end = (size_t)__pageable_end;
 	size_t pageable_size = pageable_end - pageable_start;
 	size_t tzsram_end = TZSRAM_BASE + TZSRAM_SIZE;
 	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
+	const struct boot_embdata *embdata = (const void *)__init_end;
+	const void *tmp_hashes = NULL;
 	tee_mm_entry_t *mm = NULL;
 	struct fobj *fobj = NULL;
 	uint8_t *paged_store = NULL;
 	uint8_t *hashes = NULL;
 
 	assert(pageable_size % SMALL_PAGE_SIZE == 0);
-	assert(hash_size == (size_t)__tmp_hashes_size);
+	assert(embdata->total_len >= embdata->hashes_offset +
+				     embdata->hashes_len);
+	assert(hash_size == embdata->hashes_len);
+
+	tmp_hashes = __init_end + embdata->hashes_offset;
+
+	init_asan();
+
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
 
 	/*
 	 * This needs to be initialized early to support address lookup
@@ -352,16 +417,11 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	tee_pager_early_init();
 
-	init_asan();
-
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
-	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
-
 	hashes = malloc(hash_size);
 	IMSG_RAW("\n");
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
 	assert(hashes);
-	asan_memcpy_unchecked(hashes, __tmp_hashes_start, hash_size);
+	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
@@ -385,6 +445,11 @@ static void init_runtime(unsigned long pageable_part)
 			     core_mmu_get_type_by_pa(pageable_part)),
 		__pageable_part_end - __pageable_part_start);
 	asan_memcpy_unchecked(paged_store, __init_start, init_size);
+	/*
+	 * Undo eventual relocation for the init part so the hash checks
+	 * can pass.
+	 */
+	undo_init_relocation(paged_store);
 
 	/* Check that hashes of what's in pageable area is OK */
 	DMSG("Checking hashes of pageable area");
@@ -440,8 +505,7 @@ static void init_runtime(unsigned long pageable_part)
 	mm = tee_mm_alloc2(&tee_mm_vcore, (vaddr_t)__pageable_start,
 			   pageable_size);
 	assert(mm);
-	fobj = fobj_ro_paged_alloc(tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE,
-				   hashes, paged_store);
+	fobj = ro_paged_alloc(mm, hashes, paged_store);
 	assert(fobj);
 	tee_pager_add_core_area(tee_mm_get_smem(mm), PAGER_AREA_TYPE_RO, fobj);
 	fobj_put(fobj);
@@ -534,6 +598,18 @@ void *get_external_dt(void)
 
 static void release_external_dt(void)
 {
+	int ret = 0;
+
+	if (!external_dt.blob)
+		return;
+
+	ret = fdt_pack(external_dt.blob);
+	if (ret < 0) {
+		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
+		     virt_to_phys(external_dt.blob), ret);
+		panic();
+	}
+
 	/* External DTB no more reached, reset pointer to invalid */
 	external_dt.blob = NULL;
 }
@@ -764,12 +840,17 @@ static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 		offs = 0;
 	}
 
-	len_size = fdt_size_cells(dt->blob, offs);
-	if (len_size < 0)
-		return -1;
-	addr_size = fdt_address_cells(dt->blob, offs);
-	if (addr_size < 0)
-		return -1;
+	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
+		len_size = sizeof(paddr_t) / sizeof(uint32_t);
+		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+	} else {
+		len_size = fdt_size_cells(dt->blob, offs);
+		if (len_size < 0)
+			return -1;
+		addr_size = fdt_address_cells(dt->blob, offs);
+		if (addr_size < 0)
+			return -1;
+	}
 
 	if (!found) {
 		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
@@ -924,10 +1005,10 @@ static void init_external_dt(unsigned long phys_dt)
 		return;
 	}
 
-	if (!core_mmu_add_mapping(MEM_AREA_IO_NSEC, phys_dt, CFG_DTB_MAX_SIZE))
+	if (!core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE))
 		panic("Failed to map external DTB");
 
-	fdt = phys_to_virt(phys_dt, MEM_AREA_IO_NSEC);
+	fdt = phys_to_virt(phys_dt, MEM_AREA_EXT_DT);
 	if (!fdt)
 		panic();
 
@@ -959,7 +1040,6 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
-	int ret;
 
 	if (!dt->blob)
 		return;
@@ -977,13 +1057,6 @@ static void update_external_dt(void)
 
 	if (mark_tzdram_as_reserved(dt))
 		panic("Failed to config secure memory");
-
-	ret = fdt_pack(dt->blob);
-	if (ret < 0) {
-		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
-		     virt_to_phys(dt->blob), ret);
-		panic();
-	}
 }
 #else /*CFG_DT*/
 void *get_external_dt(void)
@@ -1091,6 +1164,10 @@ static void init_primary_helper(unsigned long pageable_part,
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
+#ifdef CFG_CORE_ASLR
+	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
+	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
+#endif
 
 	main_init_gic();
 	init_vfp_nsec();
@@ -1198,3 +1275,39 @@ struct ns_entry_context *generic_boot_core_hpen(void)
 #endif
 }
 #endif
+
+#if defined(CFG_CORE_ASLR)
+#if defined(CFG_DT)
+unsigned long __weak get_aslr_seed(void *fdt)
+{
+	int rc = fdt_check_header(fdt);
+	const uint64_t *seed = NULL;
+	int offs = 0;
+	int len = 0;
+
+	if (rc) {
+		DMSG("Bad fdt: %d", rc);
+		return 0;
+	}
+
+	offs =  fdt_path_offset(fdt, "/secure-chosen");
+	if (offs < 0) {
+		DMSG("Cannot find /secure-chosen");
+		return 0;
+	}
+	seed = fdt_getprop(fdt, offs, "kaslr-seed", &len);
+	if (!seed || len != sizeof(*seed)) {
+		DMSG("Cannot find valid kaslr-seed");
+		return 0;
+	}
+
+	return fdt64_to_cpu(*seed);
+}
+#else /*!CFG_DT*/
+unsigned long __weak get_aslr_seed(void *fdt __unused)
+{
+	DMSG("Warning: no ASLR seed");
+	return 0;
+}
+#endif /*!CFG_DT*/
+#endif /*CFG_CORE_ASLR*/

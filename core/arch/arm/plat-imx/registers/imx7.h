@@ -5,6 +5,8 @@
 #ifndef __IMX7_H__
 #define __IMX7_H__
 
+#include <registers/imx7-crm.h>
+
 #define GIC_BASE		0x31000000
 #define GIC_SIZE		0x8000
 #define GICC_OFFSET		0x2000

@@ -23,7 +23,7 @@
 UNWIND( .fnstart)
         push    {r5-r7,lr}
 UNWIND( .save   {r5-r7,lr})
-#if defined(CFG_ULIBS_MCOUNT) && !defined(__LDELF__)
+#if defined(CFG_SYSCALL_WRAPPERS_MCOUNT) && !defined(__LDELF__)
 	.if \scn != TEE_SCN_RETURN
 	mov	ip, sp
 	push	{r0-r4, fp, ip}

@@ -401,39 +401,38 @@ static TEE_Result calc_node_hash(struct htree_node *node,
 				 uint8_t *digest)
 {
 	TEE_Result res;
-	uint32_t alg = TEE_FS_HTREE_HASH_ALG;
 	uint8_t *ndata = (uint8_t *)&node->node + sizeof(node->node.hash);
 	size_t nsize = sizeof(node->node) - sizeof(node->node.hash);
 
-	res = crypto_hash_init(ctx, alg);
+	res = crypto_hash_init(ctx);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_hash_update(ctx, alg, ndata, nsize);
+	res = crypto_hash_update(ctx, ndata, nsize);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (meta) {
-		res = crypto_hash_update(ctx, alg, (void *)meta, sizeof(*meta));
+		res = crypto_hash_update(ctx, (void *)meta, sizeof(*meta));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
 	if (node->child[0]) {
-		res = crypto_hash_update(ctx, alg, node->child[0]->node.hash,
+		res = crypto_hash_update(ctx, node->child[0]->node.hash,
 					 sizeof(node->child[0]->node.hash));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
 	if (node->child[1]) {
-		res = crypto_hash_update(ctx, alg, node->child[1]->node.hash,
+		res = crypto_hash_update(ctx, node->child[1]->node.hash,
 					 sizeof(node->child[1]->node.hash));
 		if (res != TEE_SUCCESS)
 			return res;
 	}
 
-	return crypto_hash_final(ctx, alg, digest, TEE_FS_HTREE_HASH_SIZE);
+	return crypto_hash_final(ctx, digest, TEE_FS_HTREE_HASH_SIZE);
 }
 
 static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
@@ -464,34 +463,31 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = crypto_authenc_init(ctx, alg, mode, ht->fek,
-				  TEE_FS_HTREE_FEK_SIZE, iv,
+	res = crypto_authenc_init(ctx, mode, ht->fek, TEE_FS_HTREE_FEK_SIZE, iv,
 				  TEE_FS_HTREE_IV_SIZE, TEE_FS_HTREE_TAG_SIZE,
 				  aad_len, payload_len);
 	if (res != TEE_SUCCESS)
 		goto err_free;
 
 	if (!ni) {
-		res = crypto_authenc_update_aad(ctx, alg, mode,
-						ht->root.node.hash,
+		res = crypto_authenc_update_aad(ctx, mode, ht->root.node.hash,
 						TEE_FS_HTREE_FEK_SIZE);
 		if (res != TEE_SUCCESS)
 			goto err;
 
-		res = crypto_authenc_update_aad(ctx, alg, mode,
+		res = crypto_authenc_update_aad(ctx, mode,
 						(void *)&ht->head.counter,
 						sizeof(ht->head.counter));
 		if (res != TEE_SUCCESS)
 			goto err;
 	}
 
-	res = crypto_authenc_update_aad(ctx, alg, mode, ht->head.enc_fek,
+	res = crypto_authenc_update_aad(ctx, mode, ht->head.enc_fek,
 					TEE_FS_HTREE_FEK_SIZE);
 	if (res != TEE_SUCCESS)
 		goto err;
 
-	res = crypto_authenc_update_aad(ctx, alg, mode, iv,
-					TEE_FS_HTREE_IV_SIZE);
+	res = crypto_authenc_update_aad(ctx, mode, iv, TEE_FS_HTREE_IV_SIZE);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -499,9 +495,9 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 
 	return TEE_SUCCESS;
 err:
-	crypto_authenc_final(ctx, alg);
+	crypto_authenc_final(ctx);
 err_free:
-	crypto_authenc_free_ctx(ctx, alg);
+	crypto_authenc_free_ctx(ctx);
 	return res;
 }
 
@@ -512,11 +508,10 @@ static TEE_Result authenc_decrypt_final(void *ctx, const uint8_t *tag,
 	TEE_Result res;
 	size_t out_size = len;
 
-	res = crypto_authenc_dec_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG, crypt,
-				       len, plain, &out_size, tag,
+	res = crypto_authenc_dec_final(ctx, crypt, len, plain, &out_size, tag,
 				       TEE_FS_HTREE_TAG_SIZE);
-	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
-	crypto_authenc_free_ctx(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
+	crypto_authenc_final(ctx);
+	crypto_authenc_free_ctx(ctx);
 
 	if (res == TEE_SUCCESS && out_size != len)
 		return TEE_ERROR_GENERIC;
@@ -534,11 +529,10 @@ static TEE_Result authenc_encrypt_final(void *ctx, uint8_t *tag,
 	size_t out_size = len;
 	size_t out_tag_size = TEE_FS_HTREE_TAG_SIZE;
 
-	res = crypto_authenc_enc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG, plain,
-				       len, crypt, &out_size, tag,
+	res = crypto_authenc_enc_final(ctx, plain, len, crypt, &out_size, tag,
 				       &out_tag_size);
-	crypto_authenc_final(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
-	crypto_authenc_free_ctx(ctx, TEE_FS_HTREE_AUTH_ENC_ALG);
+	crypto_authenc_final(ctx);
+	crypto_authenc_free_ctx(ctx);
 
 	if (res == TEE_SUCCESS &&
 	    (out_size != len || out_tag_size != TEE_FS_HTREE_TAG_SIZE))
@@ -593,7 +587,7 @@ static TEE_Result verify_tree(struct tee_fs_htree *ht)
 		return res;
 
 	res = htree_traverse_post_order(ht, verify_node, ctx);
-	crypto_hash_free_ctx(ctx, TEE_FS_HTREE_HASH_ALG);
+	crypto_hash_free_ctx(ctx);
 
 	return res;
 }
@@ -612,7 +606,7 @@ static TEE_Result init_root_node(struct tee_fs_htree *ht)
 
 	res = calc_node_hash(&ht->root, &ht->imeta.meta, ctx,
 			     ht->root.node.hash);
-	crypto_hash_free_ctx(ctx, TEE_FS_HTREE_HASH_ALG);
+	crypto_hash_free_ctx(ctx);
 
 	return res;
 }
@@ -794,7 +788,7 @@ TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht_arg,
 	if (hash)
 		memcpy(hash, ht->root.node.hash, sizeof(ht->root.node.hash));
 out:
-	crypto_hash_free_ctx(ctx, TEE_FS_HTREE_HASH_ALG);
+	crypto_hash_free_ctx(ctx);
 	if (res != TEE_SUCCESS)
 		tee_fs_htree_close(ht_arg);
 	return res;

@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_mode_ctx_struct.h>
 #include <kernel/thread.h>
 #include <mm/file.h>
 #include <mm/tee_mm.h>
@@ -35,7 +36,6 @@ SLIST_HEAD(load_seg_head, load_seg);
  * @objects:		List of storage objects opened by this TA
  * @storage_enums:	List of storage enumerators opened by this TA
  * @stack_ptr:		Stack pointer
- * @load_addr:		ELF load addr (from TA address space)
  * @vm_info:		Virtual memory map of this context
  * @ta_time_offs:	Time reference used by the TA
  * @areas:		Memory areas registered by pager
@@ -45,7 +45,7 @@ SLIST_HEAD(load_seg_head, load_seg);
 struct user_ta_ctx {
 	uaddr_t entry_func;
 	uaddr_t dump_entry_func;
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	uaddr_t ftrace_entry_func;
 #endif
 	uaddr_t dl_entry_func;
@@ -57,15 +57,8 @@ struct user_ta_ctx {
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
 	vaddr_t stack_ptr;
-	vaddr_t load_addr;
-	struct vm_info *vm_info;
 	void *ta_time_offs;
-	struct tee_pager_area_head *areas;
-#if defined(CFG_WITH_VFP)
-	struct thread_user_vfp_state vfp;
-#endif
-	struct tee_ta_ctx ctx;
-
+	struct user_mode_ctx uctx;
 };
 
 #ifdef CFG_WITH_USER_TA
@@ -80,7 +73,7 @@ static inline bool is_user_ta_ctx(struct tee_ta_ctx *ctx __unused)
 static inline struct user_ta_ctx *to_user_ta_ctx(struct tee_ta_ctx *ctx)
 {
 	assert(is_user_ta_ctx(ctx));
-	return container_of(ctx, struct user_ta_ctx, ctx);
+	return container_of(ctx, struct user_ta_ctx, uctx.ctx);
 }
 
 struct user_ta_store_ops;

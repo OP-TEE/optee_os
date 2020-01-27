@@ -127,17 +127,11 @@ void arm_cl2_config(vaddr_t pl310)
 	arm_cl2_invbyway(pl310);
 }
 
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
 	int i;
 
 	assert(!cpu_mmu_enabled());
-
-	/* Allow NSec to Imprecise abort */
-	write_scr(SCR_AW);
-
-	if (get_core_pos())
-		return;
 
 	io_write32(SCU_BASE + SCU_SAC, SCU_SAC_INIT);
 	io_write32(SCU_BASE + SCU_NSAC, SCU_NSAC_INIT);

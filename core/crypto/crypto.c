@@ -14,30 +14,41 @@
 
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_hash_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_MD5:
-		res = crypto_md5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA1:
-		res = crypto_sha1_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA224:
-		res = crypto_sha224_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA256:
-		res = crypto_sha256_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA384:
-		res = crypto_sha384_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SHA512:
-		res = crypto_sha512_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	/*
+	 * Use default cryptographic implement if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_hash_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_MD5:
+			res = crypto_md5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA1:
+			res = crypto_sha1_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA224:
+			res = crypto_sha224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA256:
+			res = crypto_sha256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA384:
+			res = crypto_sha384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA512:
+			res = crypto_sha512_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM3:
+			res = crypto_sm3_alloc_ctx(&c);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (!res)
@@ -55,31 +66,28 @@ static const struct crypto_hash_ops *hash_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_hash_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_hash_free_ctx(void *ctx)
 {
 	if (ctx)
 		hash_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_hash_copy_state(void *dst_ctx, void *src_ctx,
-			    uint32_t algo __unused)
+void crypto_hash_copy_state(void *dst_ctx, void *src_ctx)
 {
 	hash_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_hash_init(void *ctx, uint32_t algo __unused)
+TEE_Result crypto_hash_init(void *ctx)
 {
 	return hash_ops(ctx)->init(ctx);
 }
 
-TEE_Result crypto_hash_update(void *ctx, uint32_t algo __unused,
-			      const uint8_t *data, size_t len)
+TEE_Result crypto_hash_update(void *ctx, const uint8_t *data, size_t len)
 {
 	return hash_ops(ctx)->update(ctx, data, len);
 }
 
-TEE_Result crypto_hash_final(void *ctx, uint32_t algo __unused,
-			     uint8_t *digest, size_t len)
+TEE_Result crypto_hash_final(void *ctx, uint8_t *digest, size_t len)
 {
 	return hash_ops(ctx)->final(ctx, digest, len);
 }
@@ -117,6 +125,15 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 	case TEE_ALG_DES3_CBC_NOPAD:
 		res = crypto_des3_cbc_alloc_ctx(&c);
 		break;
+	case TEE_ALG_SM4_ECB_NOPAD:
+		res = crypto_sm4_ecb_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SM4_CBC_NOPAD:
+		res = crypto_sm4_cbc_alloc_ctx(&c);
+		break;
+	case TEE_ALG_SM4_CTR:
+		res = crypto_sm4_ctr_alloc_ctx(&c);
+		break;
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
@@ -136,22 +153,21 @@ static const struct crypto_cipher_ops *cipher_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_cipher_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_cipher_free_ctx(void *ctx)
 {
 	if (ctx)
 		cipher_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx,
-			      uint32_t algo __unused)
+void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	cipher_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
-			      TEE_OperationMode mode, const uint8_t *key1,
-			      size_t key1_len, const uint8_t *key2,
-			      size_t key2_len, const uint8_t *iv, size_t iv_len)
+TEE_Result crypto_cipher_init(void *ctx, TEE_OperationMode mode,
+			      const uint8_t *key1, size_t key1_len,
+			      const uint8_t *key2, size_t key2_len,
+			      const uint8_t *iv, size_t iv_len)
 {
 	if (mode != TEE_MODE_DECRYPT && mode != TEE_MODE_ENCRYPT)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -160,15 +176,14 @@ TEE_Result crypto_cipher_init(void *ctx __unused, uint32_t algo __unused,
 				     iv, iv_len);
 }
 
-TEE_Result crypto_cipher_update(void *ctx, uint32_t algo __unused,
-				TEE_OperationMode mode __unused,
+TEE_Result crypto_cipher_update(void *ctx, TEE_OperationMode mode __unused,
 				bool last_block, const uint8_t *data,
 				size_t len, uint8_t *dst)
 {
 	return cipher_ops(ctx)->update(ctx, last_block, data, len, dst);
 }
 
-void crypto_cipher_final(void *ctx, uint32_t algo __unused)
+void crypto_cipher_final(void *ctx)
 {
 	cipher_ops(ctx)->final(ctx);
 }
@@ -188,6 +203,9 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 	case TEE_MAIN_ALGO_DES:
 	case TEE_MAIN_ALGO_DES3:
 		*size = TEE_DES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	case TEE_MAIN_ALGO_SM4:
+		*size = TEE_SM4_BLOCK_SIZE;
 		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -217,6 +235,9 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 		break;
 	case TEE_ALG_HMAC_SHA512:
 		res = crypto_hmac_sha512_alloc_ctx(&c);
+		break;
+	case TEE_ALG_HMAC_SM3:
+		res = crypto_hmac_sm3_alloc_ctx(&c);
 		break;
 	case TEE_ALG_AES_CBC_MAC_NOPAD:
 		res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
@@ -258,25 +279,23 @@ static const struct crypto_mac_ops *mac_ops(void *ctx)
 	return c->ops;
 }
 
-void crypto_mac_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_mac_free_ctx(void *ctx)
 {
 	if (ctx)
 		mac_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_mac_copy_state(void *dst_ctx, void *src_ctx, uint32_t algo __unused)
+void crypto_mac_copy_state(void *dst_ctx, void *src_ctx)
 {
 	mac_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
 
-TEE_Result crypto_mac_init(void *ctx, uint32_t algo __unused,
-			   const uint8_t *key, size_t len)
+TEE_Result crypto_mac_init(void *ctx, const uint8_t *key, size_t len)
 {
 	return mac_ops(ctx)->init(ctx, key, len);
 }
 
-TEE_Result crypto_mac_update(void *ctx, uint32_t algo __unused,
-			     const uint8_t *data, size_t len)
+TEE_Result crypto_mac_update(void *ctx, const uint8_t *data, size_t len)
 {
 	if (!len)
 		return TEE_SUCCESS;
@@ -284,8 +303,7 @@ TEE_Result crypto_mac_update(void *ctx, uint32_t algo __unused,
 	return mac_ops(ctx)->update(ctx, data, len);
 }
 
-TEE_Result crypto_mac_final(void *ctx, uint32_t algo __unused,
-			    uint8_t *digest, size_t digest_len)
+TEE_Result crypto_mac_final(void *ctx, uint8_t *digest, size_t digest_len)
 {
 	return mac_ops(ctx)->final(ctx, digest, digest_len);
 }
@@ -325,8 +343,7 @@ static const struct crypto_authenc_ops *ae_ops(void *ctx)
 	return c->ops;
 }
 
-TEE_Result crypto_authenc_init(void *ctx, uint32_t algo __unused,
-			       TEE_OperationMode mode,
+TEE_Result crypto_authenc_init(void *ctx, TEE_OperationMode mode,
 			       const uint8_t *key, size_t key_len,
 			       const uint8_t *nonce, size_t nonce_len,
 			       size_t tag_len, size_t aad_len,
@@ -336,16 +353,14 @@ TEE_Result crypto_authenc_init(void *ctx, uint32_t algo __unused,
 				 tag_len, aad_len, payload_len);
 }
 
-TEE_Result crypto_authenc_update_aad(void *ctx, uint32_t algo __unused,
-				     TEE_OperationMode mode __unused,
+TEE_Result crypto_authenc_update_aad(void *ctx, TEE_OperationMode mode __unused,
 				     const uint8_t *data, size_t len)
 {
 	return ae_ops(ctx)->update_aad(ctx, data, len);
 }
 
 
-TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo __unused,
-					 TEE_OperationMode mode,
+TEE_Result crypto_authenc_update_payload(void *ctx, TEE_OperationMode mode,
 					 const uint8_t *src_data,
 					 size_t src_len, uint8_t *dst_data,
 					 size_t *dst_len)
@@ -358,10 +373,10 @@ TEE_Result crypto_authenc_update_payload(void *ctx, uint32_t algo __unused,
 					   dst_data);
 }
 
-TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo __unused,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    uint8_t *dst_tag, size_t *dst_tag_len)
+TEE_Result crypto_authenc_enc_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, uint8_t *dst_tag,
+				    size_t *dst_tag_len)
 {
 	if (*dst_len < src_len)
 		return TEE_ERROR_SHORT_BUFFER;
@@ -371,10 +386,10 @@ TEE_Result crypto_authenc_enc_final(void *ctx, uint32_t algo __unused,
 				      dst_tag, dst_tag_len);
 }
 
-TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo __unused,
-				    const uint8_t *src_data, size_t src_len,
-				    uint8_t *dst_data, size_t *dst_len,
-				    const uint8_t *tag, size_t tag_len)
+TEE_Result crypto_authenc_dec_final(void *ctx, const uint8_t *src_data,
+				    size_t src_len, uint8_t *dst_data,
+				    size_t *dst_len, const uint8_t *tag,
+				    size_t tag_len)
 {
 	if (*dst_len < src_len)
 		return TEE_ERROR_SHORT_BUFFER;
@@ -384,19 +399,18 @@ TEE_Result crypto_authenc_dec_final(void *ctx, uint32_t algo __unused,
 				      tag_len);
 }
 
-void crypto_authenc_final(void *ctx, uint32_t algo __unused)
+void crypto_authenc_final(void *ctx)
 {
 	ae_ops(ctx)->final(ctx);
 }
 
-void crypto_authenc_free_ctx(void *ctx, uint32_t algo __unused)
+void crypto_authenc_free_ctx(void *ctx)
 {
 	if (ctx)
 		ae_ops(ctx)->free_ctx(ctx);
 }
 
-void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx,
-			       uint32_t algo __unused)
+void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx)
 {
 	ae_ops(dst_ctx)->copy_state(dst_ctx, src_ctx);
 }
@@ -677,3 +691,58 @@ crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /*!CFG_CRYPTO_ECC*/
+
+#if !defined(CFG_CRYPTO_SM2_PKE)
+TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key __unused,
+					  const uint8_t *src __unused,
+					  size_t src_len __unused,
+					  uint8_t *dst __unused,
+					  size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key __unused,
+					  const uint8_t *src __unused,
+					  size_t src_len __unused,
+					  uint8_t *dst __unused,
+					  size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* !CFG_CRYPTO_SM2_PKE */
+
+#if !defined(CFG_CRYPTO_SM2_DSA)
+TEE_Result crypto_acipher_sm2_dsa_sign(uint32_t algo __unused,
+				       struct ecc_keypair *key __unused,
+				       const uint8_t *msg __unused,
+				       size_t msg_len __unused,
+				       uint8_t *sig __unused,
+				       size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo __unused,
+					 struct ecc_public_key *key __unused,
+					 const uint8_t *msg __unused,
+					 size_t msg_len __unused,
+					 const uint8_t *sig __unused,
+					 size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* !CFG_CRYPTO_SM2_DSA */
+#if !defined(CFG_CRYPTO_SM2_KEP)
+TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key __unused,
+					 struct ecc_keypair *my_eph_key
+								__unused,
+					 struct ecc_public_key *peer_key
+								__unused,
+					 struct ecc_public_key *peer_eph_key
+								__unused,
+					 struct sm2_kep_parms *p __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif

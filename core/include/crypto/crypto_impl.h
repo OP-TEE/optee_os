@@ -68,6 +68,12 @@ TEE_Result crypto_sha512_alloc_ctx(struct crypto_hash_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha512, hash)
 #endif
 
+#if defined(CFG_CRYPTO_SM3)
+TEE_Result crypto_sm3_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm3, hash)
+#endif
+
 /*
  * The crypto context used by the crypto_mac_*() functions is defined by
  * struct crypto_mac_ctx.
@@ -102,6 +108,12 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha224, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha256, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha384, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
+#endif
+
+#if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_HMAC)
+TEE_Result crypto_hmac_sm3_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sm3, mac)
 #endif
 
 #if defined(CFG_CRYPTO_CBC_MAC)
@@ -195,6 +207,24 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des_cbc, cipher)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc, cipher)
 #endif
 
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_ECB)
+TEE_Result crypto_sm4_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ecb, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_CBC)
+TEE_Result crypto_sm4_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_cbc, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_CTR)
+TEE_Result crypto_sm4_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ctr, cipher)
+#endif
+
 /*
  * The crypto context used by the crypto_authen_*() functions below is
  * defined by struct crypto_authenc_ctx.
@@ -232,4 +262,15 @@ struct crypto_authenc_ops {
 
 TEE_Result crypto_aes_ccm_alloc_ctx(struct crypto_authenc_ctx **ctx);
 TEE_Result crypto_aes_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx);
+
+#ifdef CFG_CRYPTO_DRV_HASH
+TEE_Result drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx, uint32_t algo);
+#else
+static inline TEE_Result
+drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx __unused,
+			uint32_t algo __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/

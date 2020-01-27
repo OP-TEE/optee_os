@@ -29,69 +29,77 @@
 #include <arm32.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/thread.h>
 #include <kernel/tz_ssvce_def.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <platform_config.h>
+#include <sm/optee_smc.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
 #include <mm/core_memprot.h>
+#include <trace.h>
+
 #include "api_monitor_index_a9.h"
 
 uint32_t suspend_regs[16];
 
-enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
+static enum sm_handler_ret ti_sip_handler(struct thread_smc_args *smc_args)
 {
-	if (ctx->nsec.r12 == 0x200)
-		return SM_HANDLER_PENDING_SMC;
+	uint16_t sip_func = OPTEE_SMC_FUNC_NUM(smc_args->a0);
 
-	switch (ctx->nsec.r12) {
-	case 0x0:
-		switch (ctx->nsec.r0) {
-		case SECURE_SVC_PM_LATE_SUSPEND:
-			sm_pm_cpu_do_suspend(suspend_regs);
-			cache_op_inner(DCACHE_AREA_CLEAN,
-				       suspend_regs,
-				       sizeof(suspend_regs));
-			cache_op_outer(DCACHE_AREA_CLEAN,
-				       virt_to_phys(suspend_regs),
-				       sizeof(suspend_regs));
-			ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
-			break;
-		default:
-			ctx->nsec.r0 = API_HAL_RET_VALUE_SERVICE_UNKNWON;
-			break;
-		}
+	switch (sip_func) {
+	case SECURE_SVC_PM_LATE_SUSPEND:
+		sm_pm_cpu_do_suspend(suspend_regs);
+		cache_op_inner(DCACHE_AREA_CLEAN, suspend_regs,
+			       sizeof(suspend_regs));
+		cache_op_outer(DCACHE_AREA_CLEAN, virt_to_phys(suspend_regs),
+			       sizeof(suspend_regs));
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETDEBUG_INDEX:
-		io_write32(pl310_base() + PL310_DEBUG_CTRL, ctx->nsec.r0);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		io_write32(pl310_base() + PL310_DEBUG_CTRL, smc_args->a1);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_CLEANINVBYPA_INDEX:
-		arm_cl2_cleaninvbypa(pl310_base(), ctx->nsec.r0,
-				     ctx->nsec.r0 + ctx->nsec.r1);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		arm_cl2_cleaninvbypa(pl310_base(), smc_args->a1,
+				     smc_args->a1 + smc_args->a2);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETCONTROL_INDEX:
-		io_write32(pl310_base() + PL310_CTRL, ctx->nsec.r0);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		io_write32(pl310_base() + PL310_CTRL, smc_args->a1);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETAUXILIARYCONTROL_INDEX:
-		io_write32(pl310_base() + PL310_AUX_CTRL, ctx->nsec.r0);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		io_write32(pl310_base() + PL310_AUX_CTRL, smc_args->a1);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETLATENCY_INDEX:
-		io_write32(pl310_base() + PL310_TAG_RAM_CTRL, ctx->nsec.r0);
-		io_write32(pl310_base() + PL310_DATA_RAM_CTRL, ctx->nsec.r1);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		io_write32(pl310_base() + PL310_TAG_RAM_CTRL, smc_args->a1);
+		io_write32(pl310_base() + PL310_DATA_RAM_CTRL, smc_args->a2);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	case API_MONITOR_L2CACHE_SETPREFETCHCONTROL_INDEX:
-		io_write32(pl310_base() + PL310_PREFETCH_CTRL, ctx->nsec.r0);
-		ctx->nsec.r0 = API_HAL_RET_VALUE_OK;
+		io_write32(pl310_base() + PL310_PREFETCH_CTRL, smc_args->a1);
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	default:
-		ctx->nsec.r0 = API_HAL_RET_VALUE_SERVICE_UNKNWON;
+		EMSG("Invalid SIP function code: 0x%04"PRIx16, sip_func);
+		smc_args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 		break;
 	}
 
 	return SM_HANDLER_SMC_HANDLED;
+}
+
+enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
+{
+	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
+	uint16_t smc_owner = OPTEE_SMC_OWNER_NUM(*nsec_r0);
+
+	switch (smc_owner) {
+	case OPTEE_SMC_OWNER_SIP:
+		return ti_sip_handler((struct thread_smc_args *)nsec_r0);
+	default:
+		return SM_HANDLER_PENDING_SMC;
+	}
 }

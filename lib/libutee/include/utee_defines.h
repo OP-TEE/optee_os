@@ -6,6 +6,7 @@
 #define UTEE_DEFINES_H
 
 #include <compiler.h>
+#include <tee_api_defines.h>
 #include <types_ext.h>
 
 /*
@@ -18,15 +19,20 @@
 #define TEE_MAIN_ALGO_SHA256     0x04
 #define TEE_MAIN_ALGO_SHA384     0x05
 #define TEE_MAIN_ALGO_SHA512     0x06
+#define TEE_MAIN_ALGO_SM3        0x07
 #define TEE_MAIN_ALGO_AES        0x10
 #define TEE_MAIN_ALGO_DES        0x11
 #define TEE_MAIN_ALGO_DES2       0x12
 #define TEE_MAIN_ALGO_DES3       0x13
+#define TEE_MAIN_ALGO_SM4        0x14 /* Not in v1.2, extrapolated */
 #define TEE_MAIN_ALGO_RSA        0x30
 #define TEE_MAIN_ALGO_DSA        0x31
 #define TEE_MAIN_ALGO_DH         0x32
 #define TEE_MAIN_ALGO_ECDSA      0x41
 #define TEE_MAIN_ALGO_ECDH       0x42
+#define TEE_MAIN_ALGO_SM2_DSA_SM3 0x45 /* Not in v1.2 spec */
+#define TEE_MAIN_ALGO_SM2_KEP    0x46 /* Not in v1.2 spec */
+#define TEE_MAIN_ALGO_SM2_PKE    0x47 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */
@@ -43,28 +49,83 @@
 #define TEE_CHAIN_MODE_GCM              0x8
 #define TEE_CHAIN_MODE_PKCS1_PSS_MGF1   0x9	/* ??? */
 
-	/* Bits [31:28] */
-#define TEE_ALG_GET_CLASS(algo)         (((algo) >> 28) & 0xF)
 
-#define TEE_ALG_GET_KEY_TYPE(algo, with_private_key) \
-        (TEE_ALG_GET_MAIN_ALG(algo) | \
-            ((with_private_key) ? 0xA1000000 : 0xA0000000))
+static inline uint32_t __tee_alg_get_class(uint32_t algo)
+{
+	if (algo == TEE_ALG_SM2_PKE)
+		return TEE_OPERATION_ASYMMETRIC_CIPHER;
+	if (algo == TEE_ALG_SM2_KEP)
+		return TEE_OPERATION_KEY_DERIVATION;
 
-	/* Bits [7:0] */
-#define TEE_ALG_GET_MAIN_ALG(algo)      ((algo) & 0xFF)
+	return (algo >> 28) & 0xF; /* Bits [31:28] */
+}
+
+#define TEE_ALG_GET_CLASS(algo) __tee_alg_get_class(algo)
+
+static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
+{
+	switch (algo) {
+	case TEE_ALG_SM2_PKE:
+		return TEE_MAIN_ALGO_SM2_PKE;
+	case TEE_ALG_SM2_KEP:
+		return TEE_MAIN_ALGO_SM2_KEP;
+	default:
+		break;
+	}
+
+	return algo & 0xff;
+}
+
+#define TEE_ALG_GET_MAIN_ALG(algo) __tee_alg_get_main_alg(algo)
 
 	/* Bits [11:8] */
 #define TEE_ALG_GET_CHAIN_MODE(algo)    (((algo) >> 8) & 0xF)
 
+/*
+ * Value not defined in the GP spec, and not used as bits 15-12 of any TEE_ALG*
+ * value. TEE_ALG_SM2_DSA_SM3 has value 0x6 for bits 15-12 which would yield the
+ * SHA512 digest if we were to apply the bit masks that were valid up to the TEE
+ * Internal Core API v1.1.
+ */
+#define __TEE_MAIN_HASH_SM3 0x7
+
+static inline uint32_t __tee_alg_get_digest_hash(uint32_t algo)
+{
+	if (algo == TEE_ALG_SM2_DSA_SM3)
+		return __TEE_MAIN_HASH_SM3;
+
 	/* Bits [15:12] */
-#define TEE_ALG_GET_DIGEST_HASH(algo)   (((algo) >> 12) & 0xF)
+	return (algo >> 12) & 0xF;
+}
+
+#define TEE_ALG_GET_DIGEST_HASH(algo) __tee_alg_get_digest_hash(algo)
 
 	/* Bits [23:20] */
 #define TEE_ALG_GET_INTERNAL_HASH(algo) (((algo) >> 20) & 0x7)
 
+static inline uint32_t __tee_alg_get_key_type(uint32_t algo, bool with_priv)
+{
+	uint32_t key_type = 0xA0000000 |  TEE_ALG_GET_MAIN_ALG(algo);
+
+	if (with_priv)
+		key_type |= 0x01000000;
+
+	return key_type;
+}
+
+#define TEE_ALG_GET_KEY_TYPE(algo, with_private_key) \
+	__tee_alg_get_key_type(algo, with_private_key)
+
+static inline uint32_t __tee_alg_hash_algo(uint32_t main_hash)
+{
+	if (main_hash == __TEE_MAIN_HASH_SM3)
+		return TEE_ALG_SM3;
+
+	return (TEE_OPERATION_DIGEST << 28) | main_hash;
+}
+
 	/* Return hash algorithm based on main hash */
-#define TEE_ALG_HASH_ALGO(main_hash) \
-        (TEE_OPERATION_DIGEST << 28 | (main_hash))
+#define TEE_ALG_HASH_ALGO(main_hash) __tee_alg_hash_algo(main_hash)
 
 	/* Extract internal hash and return hash algorithm */
 #define TEE_INTERNAL_HASH_TO_ALGO(algo) \
@@ -80,6 +141,7 @@
 
 #define TEE_AES_BLOCK_SIZE  16UL
 #define TEE_DES_BLOCK_SIZE  8UL
+#define TEE_SM4_BLOCK_SIZE  16UL
 
 #define TEE_AES_MAX_KEY_SIZE    32UL
 
@@ -90,6 +152,7 @@ typedef enum {
 	TEE_SHA1_HASH_SIZE = 20,
 	TEE_SHA224_HASH_SIZE = 28,
 	TEE_SHA256_HASH_SIZE = 32,
+	TEE_SM3_HASH_SIZE = 32,
 	TEE_SHA384_HASH_SIZE = 48,
 	TEE_SHA512_HASH_SIZE = 64,
 	TEE_MD5SHA1_HASH_SIZE = (TEE_MD5_HASH_SIZE + TEE_SHA1_HASH_SIZE),

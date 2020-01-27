@@ -10,3 +10,4 @@ srcs-y += consttime_memcmp.c
 srcs-y += memzero_explicit.c
 
 subdirs-$(arch_arm) += arch/$(ARCH)
+subdirs-y += ftrace

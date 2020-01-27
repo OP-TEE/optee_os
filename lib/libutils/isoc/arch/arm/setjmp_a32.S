@@ -216,7 +216,7 @@ SYM (\name):
 #endif
 #endif		
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	stmdb		sp!, { lr }
 	/*
 	 * As ftrace is supported in ARM mode only, so hardcode jmp_buf
@@ -240,7 +240,7 @@ SYM (\name):
 
 	/* If we have stack extension code it ought to be handled here.  */
 	
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	stmdb		sp!, { a1, a2, lr }
 	/*
 	 * As ftrace is supported in ARM mode only, so hardcode jmp_buf

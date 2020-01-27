@@ -7,6 +7,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <stdlib.h>
+#include <string.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <util.h>
@@ -55,13 +56,134 @@ static TEE_Result cts_init(struct crypto_cipher_ctx *ctx,
 
 	c->mode = mode;
 
-	res = crypto_cipher_init(c->ecb, TEE_ALG_AES_ECB_NOPAD, mode, key1,
-				 key1_len, key2, key2_len, iv, iv_len);
+	res = crypto_cipher_init(c->ecb, mode, key1, key1_len, key2, key2_len,
+				 iv, iv_len);
 	if (res)
 		return res;
 
-	return crypto_cipher_init(c->cbc, TEE_ALG_AES_CBC_NOPAD, mode, key1,
-				  key1_len, key2, key2_len, iv, iv_len);
+	return crypto_cipher_init(c->cbc, mode, key1, key1_len, key2, key2_len,
+				  iv, iv_len);
+}
+
+/*
+ * From http://en.wikipedia.org/wiki/Ciphertext_stealing
+ * CBC ciphertext stealing encryption using a standard
+ * CBC interface:
+ *	1. Pad the last partial plaintext block with 0.
+ *	2. Encrypt the whole padded plaintext using the
+ *	   standard CBC mode.
+ *	3. Swap the last two ciphertext blocks.
+ *	4. Truncate the ciphertext to the length of the
+ *	   original plaintext.
+ *
+ * CBC ciphertext stealing decryption using a standard
+ * CBC interface
+ *	1. Dn = Decrypt (K, Cn-1). Decrypt the second to last
+ *	   ciphertext block.
+ *	2. Cn = Cn || Tail (Dn, B-M). Pad the ciphertext to the
+ *	   nearest multiple of the block size using the last
+ *	   B-M bits of block cipher decryption of the
+ *	   second-to-last ciphertext block.
+ *	3. Swap the last two ciphertext blocks.
+ *	4. Decrypt the (modified) ciphertext using the standard
+ *	   CBC mode.
+ *	5. Truncate the plaintext to the length of the original
+ *	   ciphertext.
+ */
+static TEE_Result cbc_cts_update(void *cbc_ctx, void *ecb_ctx,
+				 TEE_OperationMode mode, bool last_block,
+				 const uint8_t *data, size_t len, uint8_t *dst)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t  tmp2_block[64] = { 0 };
+	uint8_t tmp_block[64] = { 0 };
+	int len_last_block = 0;
+	int block_size = 16;
+	int nb_blocks = 0;
+
+	if (!last_block)
+		return tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
+					    mode, last_block, data, len, dst);
+
+	/* Compute the last block length and check constraints */
+	nb_blocks = (len + block_size - 1) / block_size;
+	if (nb_blocks < 2)
+		return TEE_ERROR_BAD_STATE;
+	len_last_block = len % block_size;
+	if (len_last_block == 0)
+		len_last_block = block_size;
+
+	if (mode == TEE_MODE_ENCRYPT) {
+		memcpy(tmp_block,
+		       data + ((nb_blocks - 1) * block_size),
+		       len_last_block);
+		memset(tmp_block + len_last_block,
+		       0,
+		       block_size - len_last_block);
+
+		res = tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
+					   mode, 0, data,
+					   (nb_blocks - 1) * block_size, dst);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		memcpy(dst + (nb_blocks - 1) * block_size,
+		       dst + (nb_blocks - 2) * block_size,
+		       len_last_block);
+
+		res = tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
+					   mode, 0, tmp_block, block_size,
+					   dst + (nb_blocks - 2) * block_size);
+		if (res != TEE_SUCCESS)
+			return res;
+	} else {
+		/* 1. Decrypt the second to last ciphertext block */
+		res = tee_do_cipher_update(ecb_ctx, TEE_ALG_AES_ECB_NOPAD,
+					   mode, 0,
+					   data + (nb_blocks - 2) * block_size,
+					   block_size, tmp2_block);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		/* 2. Cn = Cn || Tail (Dn, B-M) */
+		memcpy(tmp_block, data + ((nb_blocks - 1) * block_size),
+		       len_last_block);
+		memcpy(tmp_block + len_last_block, tmp2_block + len_last_block,
+		       block_size - len_last_block);
+
+		/* 3. Swap the last two ciphertext blocks */
+		/* done by passing the correct buffers in step 4. */
+
+		/* 4. Decrypt the (modified) ciphertext */
+		if (nb_blocks > 2) {
+			res = tee_do_cipher_update(cbc_ctx,
+						   TEE_ALG_AES_CBC_NOPAD, mode,
+						   0, data,
+						   (nb_blocks - 2) *
+						   block_size, dst);
+			if (res != TEE_SUCCESS)
+				return res;
+		}
+
+		res = tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
+					   mode, 0, tmp_block, block_size,
+					   dst +
+					   ((nb_blocks - 2) * block_size));
+		if (res != TEE_SUCCESS)
+			return res;
+
+		res = tee_do_cipher_update(cbc_ctx, TEE_ALG_AES_CBC_NOPAD,
+					   mode, 0, data +
+					   ((nb_blocks - 2) * block_size),
+					   block_size, tmp_block);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		/* 5. Truncate the plaintext */
+		memcpy(dst + (nb_blocks - 1) * block_size, tmp_block,
+		       len_last_block);
+	}
+	return TEE_SUCCESS;
 }
 
 static TEE_Result cts_update(struct crypto_cipher_ctx *ctx, bool last_block,
@@ -69,24 +191,24 @@ static TEE_Result cts_update(struct crypto_cipher_ctx *ctx, bool last_block,
 {
 	struct cts_ctx *c = to_cts_ctx(ctx);
 
-	return tee_aes_cbc_cts_update(c->cbc, c->ecb, c->mode, last_block,
-				      data, len, dst);
+	return cbc_cts_update(c->cbc, c->ecb, c->mode, last_block, data, len,
+			      dst);
 }
 
 static void cts_final(struct crypto_cipher_ctx *ctx)
 {
 	struct cts_ctx *c = to_cts_ctx(ctx);
 
-	crypto_cipher_final(c->cbc, TEE_ALG_AES_CBC_NOPAD);
-	crypto_cipher_final(c->ecb, TEE_ALG_AES_ECB_NOPAD);
+	crypto_cipher_final(c->cbc);
+	crypto_cipher_final(c->ecb);
 }
 
 static void cts_free_ctx(struct crypto_cipher_ctx *ctx)
 {
 	struct cts_ctx *c = to_cts_ctx(ctx);
 
-	crypto_cipher_free_ctx(c->cbc, TEE_ALG_AES_CBC_NOPAD);
-	crypto_cipher_free_ctx(c->ecb, TEE_ALG_AES_ECB_NOPAD);
+	crypto_cipher_free_ctx(c->cbc);
+	crypto_cipher_free_ctx(c->ecb);
 	free(c);
 }
 
@@ -96,8 +218,8 @@ static void cts_copy_state(struct crypto_cipher_ctx *dst_ctx,
 	struct cts_ctx *src = to_cts_ctx(src_ctx);
 	struct cts_ctx *dst = to_cts_ctx(dst_ctx);
 
-	crypto_cipher_copy_state(dst->cbc, src->cbc, TEE_ALG_AES_CBC_NOPAD);
-	crypto_cipher_copy_state(dst->ecb, src->ecb, TEE_ALG_AES_ECB_NOPAD);
+	crypto_cipher_copy_state(dst->cbc, src->cbc);
+	crypto_cipher_copy_state(dst->ecb, src->ecb);
 }
 
 static const struct crypto_cipher_ops cts_ops = {
@@ -128,7 +250,7 @@ TEE_Result crypto_aes_cts_alloc_ctx(struct crypto_cipher_ctx **ctx)
 
 	return TEE_SUCCESS;
 err:
-	crypto_cipher_free_ctx(c->ecb, TEE_ALG_AES_ECB_NOPAD);
+	crypto_cipher_free_ctx(c->ecb);
 	free(c);
 
 	return res;

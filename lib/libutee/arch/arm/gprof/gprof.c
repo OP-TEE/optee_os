@@ -67,6 +67,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <tee_api_private.h>
+#include <tee_internal_api_extensions.h>
 #include <trace.h>
 #include <user_ta_header.h>
 #include <utee_types.h>
@@ -74,20 +75,39 @@
 #include "gmon_out.h"
 #include "gprof_pta.h"
 
-/* Defined by the linker script */
-extern uint8_t __gprof_buf_end[];
-extern uint8_t __gprof_buf_start[];
+static void *gprof_buf;
+static size_t gprof_buf_len;
+
+#if defined(ARM32)
+#define MCOUNT_SYM __gnu_mcount_nc
+#elif defined(ARM64)
+#define MCOUNT_SYM _mcount
+#endif
+
+static void dummy(void) {}
+void (*MCOUNT_SYM)(void) __weak = dummy;
 
 static bool ta_instrumented(void)
 {
-	return (__gprof_buf_end != __gprof_buf_start);
+	/*
+	 * Return true if the mcount function is called somewhere (and therefore
+	 * profiling should be initialized).
+	 * Since gprof is not supported with shared libraries, checking if
+	 * mcount is called is the same as checking if it is present in the
+	 * TA binary, because the function would be eliminated at link time if
+	 * not used.
+	 */
+	return dummy != MCOUNT_SYM;
 }
+
+#undef MCOUNT_SYM
 
 static void *gprof_alloc(size_t len)
 {
-	if (len > (size_t)(__gprof_buf_end - __gprof_buf_start))
-		return NULL;
-	return __gprof_buf_start;
+	assert(!gprof_buf);
+	gprof_buf = tee_map_zi(len, TEE_MEMORY_ACCESS_ANY_OWNER);
+	gprof_buf_len = len;
+	return gprof_buf;
 }
 
 static struct gmonparam _gmonparam = { GMON_PROF_OFF };
@@ -293,6 +313,12 @@ void __utee_gprof_fini(void)
 	_gprof_write_call_graph();
 
 	__pta_gprof_fini();
+
+	if (gprof_buf) {
+		res = tee_unmap(gprof_buf, gprof_buf_len);
+		assert(!res);
+		gprof_buf = NULL;
+	}
 }
 
 /*

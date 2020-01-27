@@ -86,44 +86,42 @@ const struct thread_handlers *generic_boot_get_handlers(void)
 }
 
 #ifdef CFG_ARM32_core
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
 	vaddr_t addr;
 
-	if (!get_core_pos()) {
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-		/* set secondary entry address */
-		io_write32(DCFG_BASE + DCFG_SCRATCHRW1,
-			   __compiler_bswap32(TEE_LOAD_ADDR));
+	/* set secondary entry address */
+	io_write32(DCFG_BASE + DCFG_SCRATCHRW1,
+		   __compiler_bswap32(TEE_LOAD_ADDR));
 
-		/* release secondary cores */
-		io_write32(DCFG_BASE + DCFG_CCSR_BRR /* cpu1 */,
-			   __compiler_bswap32(0x1 << 1));
-		dsb();
-		sev();
+	/* release secondary cores */
+	io_write32(DCFG_BASE + DCFG_CCSR_BRR /* cpu1 */,
+		   __compiler_bswap32(0x1 << 1));
+	dsb();
+	sev();
 #endif
 
-		/* configure CSU */
+	/* configure CSU */
 
-		/* first grant all peripherals */
-		for (addr = CSU_BASE + CSU_CSL_START;
-			 addr != CSU_BASE + CSU_CSL_END;
-			 addr += 4)
-			io_write32(addr, __compiler_bswap32(CSU_ACCESS_ALL));
+	/* first grant all peripherals */
+	for (addr = CSU_BASE + CSU_CSL_START;
+		 addr != CSU_BASE + CSU_CSL_END;
+		 addr += 4)
+		io_write32(addr, __compiler_bswap32(CSU_ACCESS_ALL));
 
-		/* restrict key preipherals from NS */
-		io_write32(CSU_BASE + CSU_CSL30,
-			   __compiler_bswap32(CSU_ACCESS_SEC_ONLY));
-		io_write32(CSU_BASE + CSU_CSL37,
-			   __compiler_bswap32(CSU_ACCESS_SEC_ONLY));
+	/* restrict key preipherals from NS */
+	io_write32(CSU_BASE + CSU_CSL30,
+		   __compiler_bswap32(CSU_ACCESS_SEC_ONLY));
+	io_write32(CSU_BASE + CSU_CSL37,
+		   __compiler_bswap32(CSU_ACCESS_SEC_ONLY));
 
-		/* lock the settings */
-		for (addr = CSU_BASE + CSU_CSL_START;
-		     addr != CSU_BASE + CSU_CSL_END;
-		     addr += 4)
-			io_setbits32(addr,
-				     __compiler_bswap32(CSU_SETTING_LOCK));
-	}
+	/* lock the settings */
+	for (addr = CSU_BASE + CSU_CSL_START;
+	     addr != CSU_BASE + CSU_CSL_END;
+	     addr += 4)
+		io_setbits32(addr,
+			     __compiler_bswap32(CSU_SETTING_LOCK));
 }
 #endif
 

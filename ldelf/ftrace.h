@@ -9,7 +9,7 @@
 #include <types_ext.h>
 #include <user_ta_header.h>
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 bool ftrace_init(struct ftrace_buf **fbuf_ptr);
 void ftrace_copy_buf(void *pctx, void (*copy_func)(void *pctx, void *b,
 						   size_t bl));

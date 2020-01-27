@@ -130,8 +130,10 @@ void itr_core_handler(void)
 
 void console_init(void)
 {
+#ifdef CONSOLE_UART_BASE
 	imx_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);
+#endif
 }
 
 void main_init_gic(void)
@@ -185,13 +187,11 @@ static void psci_boot_allcpus(void)
 }
 #endif
 
-void plat_cpu_reset_late(void)
+void plat_primary_init_early(void)
 {
-	if (!get_core_pos()) {
-		/* primary core */
+	/* primary core */
 #if defined(CFG_BOOT_SYNC_CPU)
-		psci_boot_allcpus()
+	psci_boot_allcpus()
 #endif
-		imx_configure_tzasc();
-	}
+	imx_configure_tzasc();
 }

@@ -343,26 +343,25 @@ static TEE_Result tee_rpmb_mac_calc(uint8_t *mac, uint32_t macsize,
 	if (res)
 		return res;
 
-	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, key, keysize);
+	res = crypto_mac_init(ctx, key, keysize);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	for (i = 0; i < blkcnt; i++) {
-		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256,
-					datafrms[i].data,
+		res = crypto_mac_update(ctx, datafrms[i].data,
 					RPMB_MAC_PROTECT_DATA_SIZE);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
 	}
 
-	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, mac, macsize);
+	res = crypto_mac_final(ctx, mac, macsize);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	res = TEE_SUCCESS;
 
 func_exit:
-	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }
 
@@ -655,8 +654,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 	if (res)
 		goto func_exit;
 
-	res = crypto_mac_init(ctx, TEE_ALG_HMAC_SHA256, rpmb_ctx->key,
-			      RPMB_KEY_MAC_SIZE);
+	res = crypto_mac_init(ctx, rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
@@ -676,7 +674,7 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 		 */
 		memcpy(&localfrm, &datafrm[i], RPMB_DATA_FRAME_SIZE);
 
-		res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256, localfrm.data,
+		res = crypto_mac_update(ctx, localfrm.data,
 					RPMB_MAC_PROTECT_DATA_SIZE);
 		if (res != TEE_SUCCESS)
 			goto func_exit;
@@ -709,20 +707,18 @@ static TEE_Result tee_rpmb_data_cpy_mac_calc(struct rpmb_data_frame *datafrm,
 		goto func_exit;
 
 	/* Update MAC against the last block */
-	res = crypto_mac_update(ctx, TEE_ALG_HMAC_SHA256, lastfrm->data,
-				RPMB_MAC_PROTECT_DATA_SIZE);
+	res = crypto_mac_update(ctx, lastfrm->data, RPMB_MAC_PROTECT_DATA_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
-	res = crypto_mac_final(ctx, TEE_ALG_HMAC_SHA256, rawdata->key_mac,
-			       RPMB_KEY_MAC_SIZE);
+	res = crypto_mac_final(ctx, rawdata->key_mac, RPMB_KEY_MAC_SIZE);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
 
 	res = TEE_SUCCESS;
 
 func_exit:
-	crypto_mac_free_ctx(ctx, TEE_ALG_HMAC_SHA256);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }
 

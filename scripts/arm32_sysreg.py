@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2018, Linaro Limited
 #
-from __future__ import print_function
+
 
 import argparse
 import sys
@@ -125,7 +125,7 @@ def gen_write32_dummy_func(reg_name, crn, opc1, crm, opc2, descr):
     print('')
     if len(descr):
         print('/* ' + descr + ' */')
-    print('static inline void write_' + reg_name.lower() + '(void)')
+    print('static inline __noprof void write_' + reg_name.lower() + '(void)')
     print('{')
     print('\t/* Register ignored */')
     print('\tasm volatile ("mcr p15, ' + opc1 + ', r0, ' + crn + ', ' +

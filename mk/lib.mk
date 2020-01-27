@@ -43,7 +43,7 @@ libdirs 	:= $(out-dir)/$(base-prefix)$(libdir) $(libdirs)
 libnames	:= $(libname) $(libnames)
 libdeps		:= $(lib-libfile) $(libdeps)
 
-SIGN = scripts/sign.py
+SIGN = scripts/sign_encrypt.py
 TA_SIGN_KEY ?= keys/default_ta.pem
 
 define process-lib

@@ -56,6 +56,10 @@ END_FUNC arm_cl2_enable
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)
 
+	/* CPSR.A can be modified in any security state. */
+	mov_imm	r0, SCR_AW
+	write_scr r0
+
 	mov_imm r0, CPU_SCTLR_INIT
 	write_sctlr r0
 

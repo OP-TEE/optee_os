@@ -19,7 +19,7 @@
 #include "sys.h"
 #include "ta_elf.h"
 
-static size_t mpool_size = 2 * SMALL_PAGE_SIZE;
+static size_t mpool_size = 3 * SMALL_PAGE_SIZE;
 static vaddr_t mpool_base;
 
 static void __printf(2, 0) print_to_console(void *pctx __unused,
@@ -49,7 +49,7 @@ static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 	sys_return_cleanup();
 }
 
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 struct print_buf_ctx {
 	char *buf;
 	size_t blen;
@@ -159,7 +159,7 @@ void ldelf(struct ldelf_arg *arg)
 	ta_elf_finalize_load_main(&arg->entry_func);
 
 	arg->ftrace_entry = 0;
-#ifdef CFG_TA_FTRACE_SUPPORT
+#ifdef CFG_FTRACE_SUPPORT
 	if (ftrace_init(&arg->fbuf))
 		arg->ftrace_entry = (vaddr_t)(void *)ftrace_dump;
 #endif

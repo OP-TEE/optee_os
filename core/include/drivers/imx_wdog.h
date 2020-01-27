@@ -28,6 +28,8 @@
 #ifndef __IMX_WDOG_H
 #define __IMX_WDOG_H
 
+#include <compiler.h>
+
 /* i.MX6/7D */
 #define WDT_WCR		0x00
 #define WDT_WCR_WDA	BIT(5)
@@ -60,5 +62,5 @@
 #define WDOG_CS_UPDATE		BIT(5)
 
 /* Exposed for psci reset */
-void imx_wdog_restart(void);
+void __noreturn imx_wdog_restart(void);
 #endif

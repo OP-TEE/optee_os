@@ -10,6 +10,7 @@
 #define ENTRY(func) \
 	.global func ; \
 	.type func , %function ; \
+	.balign 4 ; \
 	func :
 
 #define ENDPROC(func) \
@@ -474,6 +475,6 @@ ENTRY(pmull_gcm_aes_sub)
 	dup	v1.4s, w0
 	movi	v0.16b, #0
 	aese	v0.16b, v1.16b
-	umov	w0, v0.4s[0]
+	umov	w0, v0.s[0]
 	ret
 ENDPROC(pmull_gcm_aes_sub)

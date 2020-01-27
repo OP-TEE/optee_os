@@ -1,7 +1,39 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017, 2019, Linaro Limited
  */
+
+/*
+ * Security properties of REE-FS TAs
+ * =================================
+ *
+ * Authentication only
+ * -------------------
+ *
+ * Required security properties:
+ * 1. Authentication and non-repudiation of a TA to Service Provider (SP).
+ * 2. Integrity of a TA.
+ *
+ * To satisfy (1) and (2), SP needs to sign TA and OP-TEE core needs to verify
+ * the signature using SP public key with computed hash of the TA.
+ *
+ * Authentication along with Confidentiality
+ * -----------------------------------------
+ *
+ * Required security properties:
+ * 1. Authentication and non-repudiation of a TA to Service Provider (SP).
+ * 2. Confidentiality of a TA.
+ * 3. Integrity of an encrypted TA blob.
+ *
+ * To satisfy (1), SP needs to sign plain TA and OP-TEE core needs to verify the
+ * signature using SP public key with computed hash of the TA.
+ *
+ * To satisfy (2) and (3), SP needs to do authenticated encryption of TA and
+ * OP-TEE core needs to do authenticated decryption of TA to retrieve its
+ * contents. Here encryption provides the confidentiality of TA and MAC tag
+ * provides the integrity of encrypted TA blob.
+ */
+
 #include <assert.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
@@ -14,7 +46,11 @@
 #include <signed_hdr.h>
 #include <stdlib.h>
 #include <string.h>
+#include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
+#include <tee/tee_pobj.h>
+#include <tee/tee_svc_storage.h>
+#include <tee/tee_ta_enc_manager.h>
 #include <tee/uuid.h>
 #include <utee_defines.h>
 
@@ -25,8 +61,18 @@ struct ree_fs_ta_handle {
 	size_t offs;
 	struct shdr *shdr; /* Verified secure copy of @nw_ta's signed header */
 	void *hash_ctx;
-	uint32_t hash_algo;
+	void *enc_ctx;
+	struct shdr_bootstrap_ta *bs_hdr;
+	struct shdr_encrypted_ta *ehdr;
 };
+
+struct ta_ver_db_hdr {
+	uint32_t db_version;
+	uint32_t nb_entries;
+};
+
+static const char ta_ver_db_obj_id[] = "ta_ver.db";
+static struct mutex ta_ver_db_mutex = MUTEX_INITIALIZER;
 
 /*
  * Load a TA via RPC with UUID defined by input param @uuid. The virtual
@@ -85,11 +131,12 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
-	uint32_t hash_algo = 0;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
 	TEE_Result res;
 	size_t offs;
+	struct shdr_bootstrap_ta *bs_hdr = NULL;
+	struct shdr_encrypted_ta *ehdr = NULL;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
@@ -111,7 +158,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	res = shdr_verify_signature(shdr);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA) {
+	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA &&
+	    shdr->img_type != SHDR_ENCRYPTED_TA) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
 	}
@@ -120,29 +168,34 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	 * Initialize a hash context and run the algorithm over the signed
 	 * header (less the final file hash and its signature of course)
 	 */
-	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
-	res = crypto_hash_alloc_ctx(&hash_ctx, hash_algo);
+	res = crypto_hash_alloc_ctx(&hash_ctx,
+				    TEE_DIGEST_HASH_TO_ALGO(shdr->algo));
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	res = crypto_hash_init(hash_ctx, hash_algo);
+	res = crypto_hash_init(hash_ctx);
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
-	res = crypto_hash_update(hash_ctx, hash_algo, (uint8_t *)shdr,
-				     sizeof(*shdr));
+	res = crypto_hash_update(hash_ctx, (uint8_t *)shdr, sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
 	offs = SHDR_GET_SIZE(shdr);
 
-	if (shdr->img_type == SHDR_BOOTSTRAP_TA) {
+	if (shdr->img_type == SHDR_BOOTSTRAP_TA ||
+	    shdr->img_type == SHDR_ENCRYPTED_TA) {
 		TEE_UUID bs_uuid;
-		struct shdr_bootstrap_ta bs_hdr;
 
 		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr)) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
 
-		memcpy(&bs_hdr, ((uint8_t *)ta + offs), sizeof(bs_hdr));
+		bs_hdr = malloc(sizeof(*bs_hdr));
+		if (!bs_hdr) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto error_free_hash;
+		}
+
+		memcpy(bs_hdr, (uint8_t *)ta + offs, sizeof(*bs_hdr));
 
 		/*
 		 * There's a check later that the UUID embedded inside the
@@ -150,17 +203,50 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		 * the expected uuid of the TA we check it a bit earlier
 		 * here.
 		 */
-		tee_uuid_from_octets(&bs_uuid, bs_hdr.uuid);
+		tee_uuid_from_octets(&bs_uuid, bs_hdr->uuid);
 		if (memcmp(&bs_uuid, uuid, sizeof(TEE_UUID))) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
 
-		res = crypto_hash_update(hash_ctx, hash_algo,
-					 (uint8_t *)&bs_hdr, sizeof(bs_hdr));
+		res = crypto_hash_update(hash_ctx, (uint8_t *)bs_hdr,
+					 sizeof(*bs_hdr));
 		if (res != TEE_SUCCESS)
 			goto error_free_hash;
-		offs += sizeof(bs_hdr);
+		offs += sizeof(*bs_hdr);
+		handle->bs_hdr = bs_hdr;
+	}
+
+	if (shdr->img_type == SHDR_ENCRYPTED_TA) {
+		struct shdr_encrypted_ta img_ehdr;
+
+		if (ta_size < SHDR_GET_SIZE(shdr) +
+		    sizeof(struct shdr_bootstrap_ta) + sizeof(img_ehdr)) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_hash;
+		}
+
+		memcpy(&img_ehdr, ((uint8_t *)ta + offs), sizeof(img_ehdr));
+
+		ehdr = malloc(SHDR_ENC_GET_SIZE(&img_ehdr));
+		if (!ehdr)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		memcpy(ehdr, ((uint8_t *)ta + offs),
+		       SHDR_ENC_GET_SIZE(&img_ehdr));
+
+		res = crypto_hash_update(hash_ctx, (uint8_t *)ehdr,
+					 SHDR_ENC_GET_SIZE(ehdr));
+		if (res != TEE_SUCCESS)
+			goto error_free_hash;
+
+		res = tee_ta_decrypt_init(&handle->enc_ctx, ehdr,
+					  shdr->img_size);
+		if (res != TEE_SUCCESS)
+			goto error_free_hash;
+
+		offs += SHDR_ENC_GET_SIZE(ehdr);
+		handle->ehdr = ehdr;
 	}
 
 	if (ta_size != offs + shdr->img_size) {
@@ -171,7 +257,6 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	handle->nw_ta = ta;
 	handle->nw_ta_size = ta_size;
 	handle->offs = offs;
-	handle->hash_algo = hash_algo;
 	handle->hash_ctx = hash_ctx;
 	handle->shdr = shdr;
 	handle->mobj = mobj;
@@ -179,10 +264,12 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 
 error_free_hash:
-	crypto_hash_free_ctx(hash_ctx, hash_algo);
+	crypto_hash_free_ctx(hash_ctx);
 error_free_payload:
 	thread_rpc_free_payload(mobj);
 error:
+	free(ehdr);
+	free(bs_hdr);
 	shdr_free(shdr);
 	free(handle);
 	return res;
@@ -221,8 +308,7 @@ static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 	digest = malloc(h->shdr->hash_size);
 	if (!digest)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = crypto_hash_final(h->hash_ctx, h->hash_algo, digest,
-				h->shdr->hash_size);
+	res = crypto_hash_final(h->hash_ctx, digest, h->shdr->hash_size);
 	if (res != TEE_SUCCESS) {
 		res = TEE_ERROR_SECURITY;
 		goto out;
@@ -231,6 +317,96 @@ static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 		res = TEE_ERROR_SECURITY;
 out:
 	free(digest);
+	return res;
+}
+
+static TEE_Result check_update_version(struct shdr_bootstrap_ta *hdr)
+{
+	struct shdr_bootstrap_ta hdr_entry = {0};
+	const struct tee_file_operations *ops = NULL;
+	struct tee_file_handle *fh = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	bool entry_found = false;
+	size_t len = 0;
+	unsigned int i = 0;
+	struct ta_ver_db_hdr db_hdr = {0};
+	struct tee_pobj pobj = {
+		.obj_id = (void *)ta_ver_db_obj_id,
+		.obj_id_len = sizeof(ta_ver_db_obj_id)
+	};
+
+	mutex_lock(&ta_ver_db_mutex);
+	ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
+
+	res = ops->open(&pobj, NULL, &fh);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
+
+	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, 0, &fh);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		len = sizeof(db_hdr);
+
+		res = ops->read(fh, 0, &db_hdr, &len);
+		if (res != TEE_SUCCESS) {
+			goto out;
+		} else if (len != sizeof(db_hdr)) {
+			res = TEE_ERROR_BAD_STATE;
+			goto out;
+		}
+	}
+
+	for (i = 0; i < db_hdr.nb_entries; i++) {
+		len = sizeof(hdr_entry);
+
+		res = ops->read(fh, sizeof(db_hdr) + (i * len), &hdr_entry,
+				&len);
+		if (res != TEE_SUCCESS) {
+			goto out;
+		} else if (len != sizeof(hdr_entry)) {
+			res = TEE_ERROR_BAD_STATE;
+			goto out;
+		}
+
+		if (!memcmp(hdr->uuid, hdr_entry.uuid, sizeof(TEE_UUID))) {
+			entry_found = true;
+			break;
+		}
+	}
+
+	if (entry_found) {
+		if (hdr_entry.ta_version > hdr->ta_version) {
+			res = TEE_ERROR_ACCESS_CONFLICT;
+			goto out;
+		} else if (hdr_entry.ta_version < hdr->ta_version) {
+			len = sizeof(*hdr);
+			res = ops->write(fh, sizeof(db_hdr) + (i * len), hdr,
+					 len);
+			if (res != TEE_SUCCESS)
+				goto out;
+		}
+	} else {
+		len = sizeof(*hdr);
+		res = ops->write(fh, sizeof(db_hdr) + (db_hdr.nb_entries * len),
+				 hdr, len);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		db_hdr.nb_entries++;
+		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		if (res != TEE_SUCCESS)
+			goto out;
+	}
+
+out:
+	ops->close(&fh);
+	mutex_unlock(&ta_ver_db_mutex);
 	return res;
 }
 
@@ -245,20 +421,75 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 
 	if (handle->offs + len > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
-	if (data) {
+
+	if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
+		if (data) {
+			dst = data; /* Hash secure buffer */
+			res = tee_ta_decrypt_update(handle->enc_ctx, dst, src,
+						    len);
+			if (res != TEE_SUCCESS)
+				return TEE_ERROR_SECURITY;
+		} else {
+			size_t num_bytes = 0;
+			size_t b_size = MIN(1024U, len);
+			uint8_t *b = malloc(b_size);
+
+			if (!b)
+				return TEE_ERROR_OUT_OF_MEMORY;
+
+			dst = NULL;
+			while (num_bytes < len) {
+				size_t n = MIN(b_size, len - num_bytes);
+
+				res = tee_ta_decrypt_update(handle->enc_ctx, b,
+							    src + num_bytes, n);
+				if (res)
+					break;
+				num_bytes += n;
+
+				res = crypto_hash_update(handle->hash_ctx, b,
+							 n);
+				if (res)
+					break;
+			}
+
+			free(b);
+			if (res != TEE_SUCCESS)
+				return TEE_ERROR_SECURITY;
+		}
+	} else if (data) {
 		dst = data; /* Hash secure buffer (shm might be modified) */
 		memcpy(dst, src, len);
 	}
-	res = crypto_hash_update(handle->hash_ctx, handle->hash_algo, dst, len);
-	if (res != TEE_SUCCESS)
-		return TEE_ERROR_SECURITY;
+
+	if (dst) {
+		res = crypto_hash_update(handle->hash_ctx, dst, len);
+		if (res != TEE_SUCCESS)
+			return TEE_ERROR_SECURITY;
+	}
+
 	handle->offs += len;
 	if (handle->offs == handle->nw_ta_size) {
+		if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
+			/*
+			 * Last read: time to finalize authenticated
+			 * decryption.
+			 */
+			res = tee_ta_decrypt_final(handle->enc_ctx,
+						   handle->ehdr, NULL, NULL, 0);
+			if (res != TEE_SUCCESS)
+				return TEE_ERROR_SECURITY;
+		}
 		/*
 		 * Last read: time to check if our digest matches the expected
 		 * one (from the signed header)
 		 */
 		res = check_digest(handle);
+		if (res != TEE_SUCCESS)
+			return res;
+
+		if (handle->bs_hdr)
+			res = check_update_version(handle->bs_hdr);
 	}
 	return res;
 }
@@ -270,8 +501,10 @@ static void ree_fs_ta_close(struct user_ta_store_handle *h)
 	if (!handle)
 		return;
 	thread_rpc_free_payload(handle->mobj);
-	crypto_hash_free_ctx(handle->hash_ctx, handle->hash_algo);
+	crypto_hash_free_ctx(handle->hash_ctx);
 	free(handle->shdr);
+	free(handle->ehdr);
+	free(handle->bs_hdr);
 	free(handle);
 }
 

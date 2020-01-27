@@ -435,6 +435,8 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 		       vaddr_t exidx, size_t exidx_sz,
 		       vaddr_t stack, size_t stack_size)
 {
+	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
+				VCORE_START_VA);
 	trace_printf_helper_raw(level, true, "Call stack:");
 	do {
 		trace_printf_helper_raw(level, true, " 0x%08" PRIx32,

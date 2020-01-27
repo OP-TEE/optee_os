@@ -6,6 +6,8 @@
 #ifndef __IMX7ULP_H__
 #define __IMX7ULP_H__
 
+#include <registers/imx7ulp-crm.h>
+
 #define GIC_BASE		0x40020000
 #define GIC_SIZE		0x8000
 #define GICC_OFFSET		0x2000

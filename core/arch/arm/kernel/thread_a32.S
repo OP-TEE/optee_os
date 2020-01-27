@@ -241,7 +241,7 @@ KEEP_PAGER thread_init_vbar
  * user TA calls utee_return, user TA calls utee_panic or through an abort.
  *
  * Calls to utee_return or utee_panic are handled as:
- * thread_svc_handler() -> tee_svc_handler() ->	tee_svc_do_call() which
+ * __thread_svc_handler() -> thread_svc_handler() ->tee_svc_do_call() which
  * calls syscall_return() or syscall_panic().
  *
  * These function calls returns normally except thread_svc_handler() which
@@ -262,11 +262,11 @@ KEEP_PAGER thread_init_vbar
  */
 
 /*
- * uint32_t __thread_enter_user_mode(unsigned long a0, unsigned long a1,
- *               unsigned long a2, unsigned long a3, unsigned long user_sp,
- *               unsigned long user_func, unsigned long spsr,
- *               uint32_t *exit_status0, uint32_t *exit_status1)
+ * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
+ *				     uint32_t *exit_status0,
+ *				     uint32_t *exit_status1);
  *
+ * This function depends on being called with exceptions masked.
  */
 FUNC __thread_enter_user_mode , :
 UNWIND(	.fnstart)
@@ -281,23 +281,22 @@ UNWIND(	.cantunwind)
 	 */
 	push    {r4-r12,lr}
 
-	ldr     r4, [sp, #(10 * 0x4)]   /* user stack pointer */
-	ldr     r5, [sp, #(11 * 0x4)]   /* user function */
-	ldr     r6, [sp, #(12 * 0x4)]   /* spsr */
-
 	/*
 	 * Save old user sp and set new user sp.
 	 */
 	cps	#CPSR_MODE_SYS
-	mov	r7, sp
-	mov     sp, r4
+	mov	r4, sp
+	ldr	sp, [r0, #THREAD_CTX_REGS_USR_SP]
 	cps	#CPSR_MODE_SVC
-	push	{r7,r8}
+
+	push	{r1, r2, r4, r5}
 
 	/* Prepare user mode entry via eret_to_user_mode */
-	cpsid	aif
-	msr     spsr_fsxc, r6
-	mov	lr, r5
+	ldr	lr, [r0, #THREAD_CTX_REGS_PC]
+	ldr	r4, [r0, #THREAD_CTX_REGS_CPSR]
+	msr     spsr_fsxc, r4
+
+	ldm	r0, {r0-r12}
 
 	b	eret_to_user_mode
 UNWIND(	.fnend)
@@ -311,18 +310,18 @@ END_FUNC __thread_enter_user_mode
 FUNC thread_unwind_user_mode , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	ldr     ip, [sp, #(15 * 0x4)]   /* &ctx->panicked */
-	str	r1, [ip]
-	ldr     ip, [sp, #(16 * 0x4)]   /* &ctx->panic_code */
-	str	r2, [ip]
+	/* Match push {r1, r2, r4, r5} in thread_enter_user_mode() */
+	pop	{r4-r7}
+	str	r1, [r4]
+	str	r2, [r5]
 
 	/* Restore old user sp */
-	pop	{r4,r7}
 	cps	#CPSR_MODE_SYS
-	mov	sp, r4
+	mov	sp, r6
 	cps	#CPSR_MODE_SVC
 
-	pop     {r4-r12,pc}	/* Match the push in thread_enter_user_mode()*/
+	/* Match push {r4-r12,lr} in thread_enter_user_mode() */
+	pop     {r4-r12,pc}
 UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
 
@@ -530,13 +529,13 @@ FUNC thread_excp_vect , :
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
-	b	thread_und_handler	/* Undefined instruction	*/
-	b	thread_svc_handler	/* System call			*/
-	b	thread_pabort_handler	/* Prefetch abort		*/
-	b	thread_dabort_handler	/* Data abort			*/
+	b	__thread_und_handler	/* Undefined instruction	*/
+	b	__thread_svc_handler	/* System call			*/
+	b	__thread_pabort_handler	/* Prefetch abort		*/
+	b	__thread_dabort_handler	/* Data abort			*/
 	b	.			/* Reserved			*/
-	b	thread_irq_handler	/* IRQ				*/
-	b	thread_fiq_handler	/* FIQ				*/
+	b	__thread_irq_handler	/* IRQ				*/
+	b	__thread_fiq_handler	/* FIQ				*/
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 	.macro vector_prologue_spectre
 		/*
@@ -560,13 +559,14 @@ UNWIND(	.cantunwind)
 		add	sp, sp, #1	/* 3:011 Data abort		*/
 		add	sp, sp, #1	/* 2:010 Reserved		*/
 		add	sp, sp, #1	/* 1:001 IRQ			*/
-		write_tpidrprw r0	/* 0:000 FIQ			*/
+		cpsid   aif		/* 0:000 FIQ			*/
 	.endm
 
         .align	5
 	.global thread_excp_vect_workaround_a15
 thread_excp_vect_workaround_a15:
 	vector_prologue_spectre
+	write_tpidrprw r0
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0
 	bne	1f
@@ -589,6 +589,7 @@ thread_excp_vect_workaround_a15:
 	.global thread_excp_vect_workaround
 thread_excp_vect_workaround:
 	vector_prologue_spectre
+	write_tpidrprw r0
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0
 	bne	1f
@@ -602,24 +603,24 @@ thread_excp_vect_workaround:
 	nop
 
 	read_tpidrprw r0
-	b	thread_fiq_handler	/* FIQ				*/
+	b	__thread_fiq_handler	/* FIQ				*/
 	read_tpidrprw r0
-	b	thread_irq_handler	/* IRQ				*/
+	b	__thread_irq_handler	/* IRQ				*/
 	read_tpidrprw r0
 	b	.			/* Reserved			*/
 	read_tpidrprw r0
-	b	thread_dabort_handler	/* Data abort			*/
+	b	__thread_dabort_handler	/* Data abort			*/
 	read_tpidrprw r0
-	b	thread_pabort_handler	/* Prefetch abort		*/
+	b	__thread_pabort_handler	/* Prefetch abort		*/
 	read_tpidrprw r0
-	b	thread_svc_handler	/* System call			*/
+	b	__thread_svc_handler	/* System call			*/
 	read_tpidrprw r0
-	b	thread_und_handler	/* Undefined instruction	*/
+	b	__thread_und_handler	/* Undefined instruction	*/
 	read_tpidrprw r0
 	b	.			/* Reset			*/
 #endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
-thread_und_handler:
+__thread_und_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
@@ -628,24 +629,24 @@ thread_und_handler:
 	subne	lr, lr, #2
 	subeq	lr, lr, #4
 	mov	r0, #ABORT_TYPE_UNDEF
-	b	thread_abort_common
+	b	__thread_abort_common
 
-thread_dabort_handler:
+__thread_dabort_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #8
 	mov	r0, #ABORT_TYPE_DATA
-	b	thread_abort_common
+	b	__thread_abort_common
 
-thread_pabort_handler:
+__thread_pabort_handler:
 	cpsid	aif
 	maybe_restore_mapping
 	strd	r0, r1, [sp, #THREAD_CORE_LOCAL_R0]
 	sub	lr, lr, #4
 	mov	r0, #ABORT_TYPE_PREFETCH
 
-thread_abort_common:
+__thread_abort_common:
 	/*
 	 * At this label:
 	 * cpsr is in mode undef or abort
@@ -732,7 +733,7 @@ thread_abort_common:
 	b	eret_to_user_mode
 	/* end thread_abort_common */
 
-thread_svc_handler:
+__thread_svc_handler:
 	cpsid	aif
 
 	maybe_restore_mapping
@@ -741,7 +742,7 @@ thread_svc_handler:
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
-	bl	tee_svc_handler
+	bl	thread_svc_handler
 	cpsid	aif	/* In case something was unmasked */
 	pop	{r0}
 	msr	spsr_fsxc, r0
@@ -751,7 +752,7 @@ thread_svc_handler:
 	b	eret_to_user_mode
 	/* end thread_svc_handler */
 
-thread_fiq_handler:
+__thread_fiq_handler:
 #if defined(CFG_ARM_GICV3)
 	foreign_intr_handler	fiq
 #else
@@ -759,7 +760,7 @@ thread_fiq_handler:
 #endif
 	/* end thread_fiq_handler */
 
-thread_irq_handler:
+__thread_irq_handler:
 #if defined(CFG_ARM_GICV3)
 	native_intr_handler	irq
 #else

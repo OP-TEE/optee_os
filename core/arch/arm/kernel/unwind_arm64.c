@@ -30,12 +30,15 @@
  */
 
 #include <arm.h>
+#include <kernel/linker.h>
+#include <kernel/tee_misc.h>
+#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
-#include <kernel/tee_misc.h>
 #include <string.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
+#include <user_ta_header.h>
 #include <util.h>
 
 #include "unwind_private.h"
@@ -44,6 +47,41 @@ static void copy_in_reg(uint64_t *reg, vaddr_t addr)
 {
 	memcpy(reg, (void *)addr, sizeof(*reg));
 }
+
+#ifdef CFG_SYSCALL_FTRACE
+static void ftrace_core_map_lr(uint64_t *lr)
+{
+	struct ftrace_buf *fbuf = NULL;
+	struct tee_ta_session *s = NULL;
+
+	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
+		return;
+
+	if (!s->fbuf)
+		return;
+
+	fbuf = s->fbuf;
+
+	/*
+	 * Function tracer inserts return hook (addr: &__ftrace_return)
+	 * via modifying lr values in the stack frames. And during aborts,
+	 * stack trace picks these modified lr values which needs to be
+	 * replaced with original lr value. So here we use the ftrace return
+	 * stack to retrieve original lr value but we need to first check if
+	 * it has actually been modified or not in case TA is profiled
+	 * partially.
+	 */
+	if ((*lr == (uint64_t)&__ftrace_return) &&
+	    fbuf->lr_idx < fbuf->ret_idx) {
+		fbuf->lr_idx++;
+		*lr = fbuf->ret_stack[fbuf->ret_idx - fbuf->lr_idx];
+	}
+}
+#else
+static void ftrace_core_map_lr(uint64_t *lr __unused)
+{
+}
+#endif
 
 bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 			vaddr_t stack, size_t stack_size)
@@ -59,6 +97,9 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 	copy_in_reg(&frame->fp, fp);
 	/* LR (X30) */
 	copy_in_reg(&frame->pc, fp + 8);
+
+	ftrace_core_map_lr(&frame->pc);
+
 	frame->pc -= 4;
 
 	return true;
@@ -69,6 +110,8 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
+	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
+				VCORE_START_VA);
 	trace_printf_helper_raw(level, true, "Call stack:");
 
 	do {

@@ -10,7 +10,7 @@
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/unwind.h>
-#include <kernel/user_ta.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
@@ -257,8 +257,12 @@ void abort_print_current_ta(void)
 
 	s->ctx->ops->dump_state(s->ctx);
 
-	if (s->ctx->ops->dump_ftrace)
+#if defined(CFG_FTRACE_SUPPORT)
+	if (s->ctx->ops->dump_ftrace) {
+		s->fbuf = NULL;
 		s->ctx->ops->dump_ftrace(s->ctx);
+	}
+#endif
 }
 
 static void save_abort_info_in_tsd(struct abort_info *ai)
@@ -373,7 +377,7 @@ static void handle_user_ta_vfp(void)
 	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
 		panic();
 
-	thread_user_enable_vfp(&to_user_ta_ctx(s->ctx)->vfp);
+	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
 }
 #endif /*CFG_WITH_VFP*/
 

@@ -44,21 +44,21 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 	 * Therefore, salt is the HMAC key in the formula from section 2.2:
 	 * "PRK = HMAC-Hash(salt, IKM)"
 	 */
-	res = crypto_mac_init(ctx, hmac_algo, salt, salt_len);
+	res = crypto_mac_init(ctx, salt, salt_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_mac_update(ctx, hmac_algo, ikm, ikm_len);
+	res = crypto_mac_update(ctx, ikm, ikm_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = crypto_mac_final(ctx, hmac_algo, prk, *prk_len);
+	res = crypto_mac_final(ctx, prk, *prk_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
 	res = tee_hash_get_digest_size(hash_algo, prk_len);
 out:
-	crypto_mac_free_ctx(ctx, hmac_algo);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }
 
@@ -115,19 +115,19 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	for (i = 1; i <= n; i++) {
 		uint8_t c = i;
 
-		res = crypto_mac_init(ctx, hmac_algo, prk, prk_len);
+		res = crypto_mac_init(ctx, prk, prk_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_mac_update(ctx, hmac_algo, tn, tn_len);
+		res = crypto_mac_update(ctx, tn, tn_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_mac_update(ctx, hmac_algo, info, info_len);
+		res = crypto_mac_update(ctx, info, info_len);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_mac_update(ctx, hmac_algo, &c, 1);
+		res = crypto_mac_update(ctx, &c, 1);
 		if (res != TEE_SUCCESS)
 			goto out;
-		res = crypto_mac_final(ctx, hmac_algo, tn, sizeof(tn));
+		res = crypto_mac_final(ctx, tn, sizeof(tn));
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -137,7 +137,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	}
 
 out:
-	crypto_mac_free_ctx(ctx, hmac_algo);
+	crypto_mac_free_ctx(ctx);
 	return res;
 }
 

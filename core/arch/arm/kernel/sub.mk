@@ -13,9 +13,7 @@ srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 srcs-$(CFG_ARM64_core) += timer_a64.c
 
-srcs-$(CFG_ARM32_core) += proc_a32.S
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S
-srcs-$(CFG_ARM64_core) += proc_a64.S
 srcs-$(CFG_ARM64_core) += spin_lock_a64.S
 srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
 srcs-$(CFG_ARM32_core) += tlb_helpers_a32.S
@@ -44,7 +42,6 @@ srcs-y += mutex.c
 srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
 srcs-$(CFG_PM_STUBS) += pm_stubs.c
-cflags-pm_stubs.c-y += -Wno-suggest-attribute=noreturn
 
 srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
 ifeq ($(CFG_GENERIC_BOOT),y)
@@ -62,3 +59,18 @@ srcs-$(CFG_VIRTUALIZATION) += virtualization.c
 srcs-y += link_dummies.c
 
 asm-defines-y += asm-defines.c
+
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+# We would not like to profile thread.c file as it provide common APIs
+# that are needed for ftrace framework to trace syscalls. So profiling
+# this file could create an incorrect cyclic behaviour.
+cflags-remove-thread.c-y += -pg
+cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
+# Tracing abort dump files corrupts the stack trace. So exclude them
+# from profiling.
+cflags-remove-abort.c-y += -pg
+ifeq ($(CFG_UNWIND),y)
+cflags-remove-unwind_arm32.c-y += -pg
+cflags-remove-unwind_arm64.c-$(CFG_ARM64_core) += -pg
+endif
+endif

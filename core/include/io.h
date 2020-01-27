@@ -94,6 +94,26 @@ static inline void put_be16(void *p, uint16_t val)
 	*(uint16_t *)p = TEE_U16_TO_BIG_ENDIAN(val);
 }
 
+static inline void put_le32(const void *p, uint32_t val)
+{
+	 *(uint32_t *)p = val;
+}
+
+static inline uint32_t get_le32(const void *p)
+{
+	return *(const uint32_t *)p;
+}
+
+static inline void put_le64(const void *p, uint64_t val)
+{
+	 *(uint64_t *)p = val;
+}
+
+static inline uint64_t get_le64(const void *p)
+{
+	return *(const uint64_t *)p;
+}
+
 /*
  * Set and clear bits helpers.
  *

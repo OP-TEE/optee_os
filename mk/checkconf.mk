@@ -95,35 +95,36 @@ define cfg-cmake-set
 		  set($1 $($1))_nl_))
 endef
 
-# Returns 'y' if at least one variable is 'y', empty otherwise
+# Returns 'y' if at least one variable is 'y', 'n' otherwise
 # Example:
 # FOO_OR_BAR := $(call cfg-one-enabled, FOO BAR)
-cfg-one-enabled = $(if $(filter y, $(foreach var,$(1),$($(var)))),y,)
+cfg-one-enabled = $(if $(filter y, $(foreach var,$(1),$($(var)))),y,n)
 
-# Returns 'y' if all variables are 'y', empty otherwise
+# Returns 'y' if all variables are 'y', 'n' otherwise
 # Example:
 # FOO_AND_BAR := $(call cfg-all-enabled, FOO BAR)
-cfg-all-enabled =                                                             \
-    $(strip                                                                   \
-        $(if $(1),                                                            \
-            $(if $(filter y,$($(firstword $(1)))),                            \
-                $(call cfg-all-enabled,$(filter-out $(firstword $(1)),$(1))), \
-             ),                                                               \
-            y                                                                 \
-         )                                                                    \
+cfg-all-enabled = $(if $(strip $(1)),$(if $(call _cfg-all-enabled,$(1)),y,n),n)
+_cfg-all-enabled =                                                             \
+    $(strip                                                                    \
+        $(if $(1),                                                             \
+            $(if $(filter y,$($(firstword $(1)))),                             \
+                $(call _cfg-all-enabled,$(filter-out $(firstword $(1)),$(1))), \
+             ),                                                                \
+            y                                                                  \
+         )                                                                     \
      )
 
 # Disable a configuration variable if some dependency is disabled
 # Example:
 # $(eval $(call cfg-depends-all,FOO,BAR BAZ))
-# Will clear FOO if it is initially 'y' and BAR or BAZ are not 'y'
+# Will set FOO to 'n' if it is initially 'y' and BAR or BAZ are not 'y'
 cfg-depends-all =                                                           \
     $(strip                                                                 \
         $(if $(filter y, $($(1))),                                          \
-            $(if $(call cfg-all-enabled,$(2)),                              \
+            $(if $(filter y,$(call cfg-all-enabled,$(2))),                  \
                 ,                                                           \
                 $(warning Warning: Disabling $(1) [requires $(strip $(2))]) \
-                    override $(1) :=                                        \
+                    override $(1) := n                                      \
              )                                                              \
          )                                                                  \
      )
@@ -131,14 +132,14 @@ cfg-depends-all =                                                           \
 # Disable a configuration variable if all dependencies are disabled
 # Example:
 # $(eval $(call cfg-depends-one,FOO,BAR BAZ))
-# Will clear FOO if it is initially 'y' and both BAR and BAZ are not 'y'
+# Will set FOO to 'n' if it is initially 'y' and both BAR and BAZ are not 'y'
 cfg-depends-one =                                                                    \
     $(strip                                                                          \
         $(if $(filter y, $($(1))),                                                   \
-            $(if $(call cfg-one-enabled,$(2)),                                       \
+            $(if $(filter y,$(call cfg-one-enabled,$(2))),                           \
                 ,                                                                    \
                 $(warning Warning: Disabling $(1) [requires (one of) $(strip $(2))]) \
-                    override $(1) :=                                                 \
+                    override $(1) := n                                               \
              )                                                                       \
          )                                                                           \
      )

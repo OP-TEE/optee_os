@@ -253,17 +253,17 @@ exit:
 }
 
 TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
-			size_t object_id_len, unsigned long flags,
-			uint32_t *obj)
+				    size_t object_id_len, unsigned long flags,
+				    uint32_t *obj)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o = NULL;
-	char *file = NULL;
-	struct tee_pobj *po = NULL;
-	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
+	struct tee_ta_session *sess = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_pobj *po = NULL;
+	struct tee_obj *o = NULL;
+	char *file = NULL;
 
 	if (!fops) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -280,7 +280,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto err;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_mmu_check_access_rights(utc,
+	res = tee_mmu_check_access_rights(&utc->uctx,
 					  TEE_MEMORY_ACCESS_READ,
 					  (uaddr_t) object_id,
 					  object_id_len);
@@ -400,14 +400,14 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 			unsigned long attr, void *data, size_t len,
 			uint32_t *obj)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o = NULL;
-	struct tee_obj *attr_o = NULL;
-	struct tee_pobj *po = NULL;
-	struct user_ta_ctx *utc;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
+	struct tee_ta_session *sess = NULL;
+	struct user_ta_ctx *utc = NULL;
+	struct tee_obj *attr_o = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_pobj *po = NULL;
+	struct tee_obj *o = NULL;
 
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -420,10 +420,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_mmu_check_access_rights(utc,
-					  TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t) object_id,
-					  object_id_len);
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+					  (uaddr_t)object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -435,10 +433,11 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	/* check rights of the provided buffer */
 	if (len) {
 		if (data) {
-			res = tee_mmu_check_access_rights(utc,
-						  TEE_MEMORY_ACCESS_READ |
-						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (uaddr_t) data, len);
+			uint32_t f = TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER;
+
+			res = tee_mmu_check_access_rights(&utc->uctx, f,
+							  (uaddr_t)data, len);
 
 			if (res != TEE_SUCCESS)
 				goto err;
@@ -527,16 +526,16 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 }
 
 TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
-			size_t object_id_len)
+				      size_t object_id_len)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
+	const struct tee_file_operations *fops = NULL;
+	struct tee_ta_session *sess = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
+	struct tee_obj *o = NULL;
 	char *new_file = NULL;
 	char *old_file = NULL;
-	struct user_ta_ctx *utc;
-	const struct tee_file_operations *fops;
 
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -565,9 +564,8 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		goto exit;
 	}
 
-	res = tee_mmu_check_access_rights(utc,
-					TEE_MEMORY_ACCESS_READ,
-					(uaddr_t) object_id, object_id_len);
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+					  (uaddr_t)object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -722,13 +720,13 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 			TEE_ObjectInfo *info, void *obj_id, uint64_t *len)
 {
-	struct tee_storage_enum *e;
-	struct tee_fs_dirent *d;
+	struct tee_ta_session *sess = NULL;
+	struct tee_storage_enum *e = NULL;
+	struct tee_fs_dirent *d = NULL;
+	struct user_ta_ctx *utc = NULL;
 	TEE_Result res = TEE_SUCCESS;
-	struct tee_ta_session *sess;
 	struct tee_obj *o = NULL;
-	uint64_t l;
-	struct user_ta_ctx *utc;
+	uint64_t l = 0;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -741,19 +739,19 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		goto exit;
 
 	/* check rights of the provided buffers */
-	res = tee_mmu_check_access_rights(utc,
-					TEE_MEMORY_ACCESS_WRITE |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t) info,
-					sizeof(TEE_ObjectInfo));
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)info,
+					  sizeof(TEE_ObjectInfo));
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_mmu_check_access_rights(utc,
-					TEE_MEMORY_ACCESS_WRITE |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t) obj_id,
-					TEE_OBJECT_ID_MAX_LEN);
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)obj_id,
+					  TEE_OBJECT_ID_MAX_LEN);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -809,15 +807,15 @@ exit:
 }
 
 TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
-			uint64_t *count)
+				    uint64_t *count)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-	uint64_t u_count;
-	struct user_ta_ctx *utc;
-	size_t bytes;
+	struct tee_ta_session *sess = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
+	uint64_t u_count = 0;
 	size_t pos_tmp = 0;
+	size_t bytes = 0;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -845,10 +843,10 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(utc,
-					TEE_MEMORY_ACCESS_WRITE |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t) data, len);
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_WRITE |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -876,10 +874,10 @@ exit:
 
 TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-	struct user_ta_ctx *utc;
+	struct tee_ta_session *sess = NULL;
+	struct user_ta_ctx *utc = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 	size_t pos_tmp = 0;
 
 	res = tee_ta_get_current_session(&sess);
@@ -908,10 +906,10 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(utc,
-					TEE_MEMORY_ACCESS_READ |
-					TEE_MEMORY_ACCESS_ANY_OWNER,
-					(uaddr_t) data, len);
+	res = tee_mmu_check_access_rights(&utc->uctx,
+					  TEE_MEMORY_ACCESS_READ |
+					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

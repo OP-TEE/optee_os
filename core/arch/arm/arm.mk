@@ -10,6 +10,13 @@ CFG_RESERVED_VASPACE_SIZE ?= (1024 * 1024 * 10)
 ifeq ($(CFG_ARM64_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64
+# TCR_EL1.IPS needs to be initialized according to the largest physical
+# address that we need to map.
+# Physical address size
+# 32 bits, 4GB.
+# 36 bits, 64GB.
+# (etc.)
+CFG_CORE_ARM64_PA_BITS ?= 32
 else
 ifeq ($(CFG_ARM32_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
@@ -84,7 +91,7 @@ endif
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel crypto mm tee pta) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)
 
 ifneq ($(CFG_WITH_ARM_TRUSTED_FW),y)
 core-platform-subdirs += $(arch-dir)/sm
@@ -95,6 +102,8 @@ arm32-platform-cppflags += -DARM32=1 -D__ILP32__=1
 
 platform-cflags-generic ?= -ffunction-sections -fdata-sections -pipe
 platform-aflags-generic ?= -pipe
+
+arm32-platform-aflags += -marm
 
 arm32-platform-cflags-no-hard-float ?= -mfloat-abi=soft
 arm32-platform-cflags-hard-float ?= -mfloat-abi=hard -funsafe-math-optimizations
@@ -134,6 +143,10 @@ core-platform-cflags += $(platform-cflags-debug-info)
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
 
+ifeq ($(CFG_CORE_ASLR),y)
+core-platform-cflags += -fpie
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 arch-bits-core := 64
 core-platform-cppflags += $(arm64-platform-cppflags)
@@ -149,7 +162,11 @@ core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
 ifeq ($(CFG_UNWIND),y)
 core-platform-cflags += -funwind-tables
 endif
+ifeq ($(CFG_SYSCALL_FTRACE),y)
+core-platform-cflags += $(arm32-platform-cflags-generic-arm)
+else
 core-platform-cflags += $(arm32-platform-cflags-generic-thumb)
+endif
 core-platform-aflags += $(core_arm32-platform-aflags)
 core-platform-aflags += $(arm32-platform-aflags)
 endif
@@ -181,7 +198,7 @@ ta_arm32-platform-cflags += -fpic
 # Thumb mode doesn't support function graph tracing due to missing
 # frame pointer support required to trace function call chain. So
 # rather compile in ARM mode if function tracing is enabled.
-ifeq ($(CFG_TA_FTRACE_SUPPORT),y)
+ifeq ($(CFG_FTRACE_SUPPORT),y)
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-arm)
 else
 ta_arm32-platform-cflags += $(arm32-platform-cflags-generic-thumb)
@@ -207,6 +224,8 @@ ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-aflags
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE ?= arm-linux-gnueabihf-_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE_ta_arm32 ?= $$(CROSS_COMPILE32)_nl_
+ta-mk-file-export-add-ta_arm32 += COMPILER ?= gcc_nl_
+ta-mk-file-export-add-ta_arm32 += COMPILER_ta_arm32 ?= $$(COMPILER)_nl_
 endif
 
 ifneq ($(filter ta_arm64,$(ta-targets)),)
@@ -235,6 +254,8 @@ ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-aflags
 
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_nl_
+ta-mk-file-export-add-ta_arm64 += COMPILER ?= gcc_nl_
+ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
 endif
 
 # Set cross compiler prefix for each submodule

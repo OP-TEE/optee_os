@@ -17,6 +17,15 @@ objs		:=
 # Disable all builtin rules
 .SUFFIXES:
 
+__cc-option = $(if $(shell $(CC$(sm)) $(1) -c -x c /dev/null -o /dev/null 2>&1 >/dev/null),$(2),$(1))
+_cc-opt-cached-var-name = cached-cc-option$(subst =,~,$(strip $(1)))$(subst $(empty) $(empty),,$(CC$(sm)))
+define _cc-option
+$(eval _cached := $(call _cc-opt-cached-var-name,$1))
+$(eval $(_cached) := $(if $(filter $(origin $(_cached)),undefined),$(call __cc-option,$(1),$(2)),$($(_cached))))
+$($(_cached))
+endef
+cc-option = $(strip $(call _cc-option,$(1),$(2)))
+
 comp-cflags$(sm) = -std=gnu99
 comp-aflags$(sm) =
 comp-cppflags$(sm) =
@@ -48,7 +57,8 @@ comp-cflags-warns-3:= $(comp-cflags-warns-2) $(comp-cflags-warns-low)
 
 WARNS		?= 3
 
-comp-cflags$(sm)	+= $(comp-cflags-warns-$(WARNS))
+comp-cflags$(sm) += $(comp-cflags-warns-$(WARNS)) \
+			$(comp-cflags-warns-$(COMPILER_$(sm)))
 
 CHECK ?= sparse
 

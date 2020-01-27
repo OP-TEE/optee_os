@@ -13,7 +13,7 @@
 
 size_t __get_core_pos(void);
 
-static inline size_t get_core_pos(void)
+static inline size_t __noprof get_core_pos(void)
 {
 	/*
 	 * Foreign interrupts must be disabled before playing with current

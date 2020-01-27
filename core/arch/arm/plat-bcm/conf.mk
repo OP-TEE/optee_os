@@ -27,7 +27,15 @@ $(call force,CFG_SP805_WDT,y)
 $(call force,CFG_BCM_HWRNG,y)
 $(call force,CFG_BCM_SOTP,y)
 $(call force,CFG_BCM_GPIO,y)
+CFG_BNXT_FW ?= y
+CFG_BCM_ELOG_DUMP ?= y
 endif
+
+CFG_BCM_ELOG_AP_UART_LOG_BASE ?= 0x8f110000
+CFG_BCM_ELOG_AP_UART_LOG_SIZE ?= 0x10000
+
+CFG_BCM_ELOG_BASE ?= 0x8f120000
+CFG_BCM_ELOG_SIZE ?= 0x100000
 
 ifeq ($(DEBUG),1)
 platform-cflags += -gdwarf-2

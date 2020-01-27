@@ -10,7 +10,8 @@ MAINTAINER file for the description of section entries [1].
 Note that OP-TEE development mainly occurs on GitHub [2] so this file should be
 used a bit differently compared to the Linux MAINTAINERS file:
 
-1. A GitHub account may be given in square brackets after an e-mail address.
+1. GitHub accounts or team names may be given in square brackets, starting with
+an @ sign. For example, [@jbech-linaro] or [@OP-TEE/linaro].
 
 2. Patches should generally be submitted as GitHub pull requests (more details
 in documentation/github.md). Therefore, please do NOT send patches to the
@@ -32,12 +33,14 @@ basis (R:).
 ----------
 
 ARM Foundation FVP
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+R:	[@OP-TEE/plat-vexpress]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
 ARM Juno
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+R:	[@OP-TEE/plat-vexpress]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
@@ -53,6 +56,7 @@ F:	core/arch/arm/plat-sunxi/
 
 Atmel ATSAMA5D2-XULT
 R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
+R:	[@OP-TEE/plat-sam]
 S:	Maintained
 F:	core/arch/arm/plat-sam/
 
@@ -62,29 +66,38 @@ L:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com>
 S:	Maintained
 F:	core/arch/arm/plat-bcm/
 
+Function Graph Tracer (ftrace) support
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+S:	Maintained
+F:	ldelf/ftrace.c
+F:	lib/libutils/ext/ftrace/
+
 HiSilicon D02
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-d02/
 
 HiSilicon HiKey (Kirin 620), HiKey960 (Kirin 960)
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+R:	[@OP-TEE/plat-hikey]
 S:	Maintained
 F:	core/arch/arm/plat-hikey/
 
 HiSilicon Poplar (Hi3798C V200)
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 R:	Igor Opaniuk <igor.opaniuk@gmail.com> [@igoropaniuk]
+R:	[@OP-TEE/plat-poplar]
 S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Hisilicon Hi3519AV100 family
-R:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
+R:	Jerome Forissier <jerome.@forissier.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
 Marvell Armada 70x0, Armada 80x0, Armada 3700
 R:	Tao Lu <taolu@marvell.com> [@taovcu]
+R:	[@OP-TEE/plat-ls]
 S:	Maintained
 F:	core/arch/arm/plat-marvell/
 
@@ -95,13 +108,27 @@ F:	core/arch/arm/plat-mediatek/
 NXP LS1021A, LS1043A-RDB, LS1046A-RDB, LS1012A-RDB, LS1012A-FRWY, LS1028A-RDB, LS1088A-RDB, LS2088A-RDB, LX2160A-RDB
 R:	Pankaj Gupta <pankaj.gupta@nxp.com> [@pangupta]
 R:	Sahil Malhotra <sahil.malhotra@nxp.com> [@sahilnxp]
+R:	[@OP-TEE/plat-ls]
 S:	Maintained
 F:	core/arch/arm/plat-ls/
 
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
+R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
+R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
+R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
+R:	[@OP-TEE/plat-imx]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
+F:	core/arch/arm/plat-imx/registers
+F:	core/drivers/crypto/caam/
+
+Crypto driver interface
+R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
+R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
+R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
+S:	Maintained
+F:	core/drivers/crypto/
 
 NXP (Freescale) i.MX7 WaRP7
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
@@ -110,37 +137,43 @@ S:	Maintained
 F:	core/arch/arm/plat-imx/conf.mk
 
 QEMU (32 and 64 bits)
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
 Raspberry Pi3
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+R:	[@OP-TEE/rpi3]
 S:	Maintained
 F:	core/arch/arm/plat-rpi3/
 
 Renesas RCAR
 R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
+R:	[@OP-TEE/plat-rcar]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
 
 Rockchip RK322X
 R:	Rockchip <op-tee@rock-chips.com>
+R:	[@OP-TEE/plat-rockchip]
 S:	Maintained
 F:	core/arch/arm/plat-rockchip/
 
 Socionext DeveloperBox (Synquacer SC2A11)
-R:	Linaro <op-tee@linaro.org>
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-synquacer/
 
 Spreadtrum SC9860
-R:	Aijun Sun <aijun.sun@spreadtrum.com>
+R:	Aijun Sun <aijun.sun@unisoc.com>
+R:	[@OP-TEE/plat-sprd]
 S:	Maintained
 F:	core/arch/arm/plat-sprd/
 
 STMicroelectronics b2260-h410, b2120-h310/h410
-R:	Linaro <op-tee@linaro.org>
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+R:	[@OP-TEE/plat-stm]
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
@@ -151,6 +184,7 @@ F:	core/arch/arm/plat-stm32mp1/
 
 Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x, J721E
 R:	Andrew F. Davis <afd@ti.com>
+R:	[@OP-TEE/plat-ti]
 S:	Maintained
 F:	core/arch/arm/plat-ti/
 F:	core/arch/arm/plat-k3/
@@ -158,6 +192,7 @@ F:	core/arch/arm/plat-k3/
 Xilinx Zynq 7000 ZC702 Board
 R:	Yan Yan <yan.yan@windriver.com>
 R:	Feng Yu <Yu.Feng@windriver.com>
+R:	[@OP-TEE/plat-zynq7k]
 S:	Maintained
 F:	core/arch/arm/plat-zynq7k/
 
@@ -173,8 +208,8 @@ F:	core/arch/arm/kernel/virtualization.c
 THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
-M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
-M:	Linaro <op-tee@linaro.org>
+M:	Jerome Forissier <jerome@forissier.org> [@jforissier]
+M:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
 R:	Victor Chong <victor.chong@linaro.org> [@vchong]
 L:	tee-dev@lists.linaro.org

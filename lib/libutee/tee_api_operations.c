@@ -46,7 +46,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	if (!operation)
 		TEE_Panic(0);
 
-	if (algorithm == TEE_ALG_AES_XTS)
+	if (algorithm == TEE_ALG_AES_XTS || algorithm == TEE_ALG_SM2_KEP)
 		handle_state = TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
 
 	/* Check algorithm max key size */
@@ -84,7 +84,15 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDH_P256:
+	case TEE_ALG_SM2_PKE:
+	case TEE_ALG_SM2_DSA_SM3:
 		if (maxKeySize != 256)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
+	case TEE_ALG_SM2_KEP:
+		/* Two 256-bit keys */
+		if (maxKeySize != 512)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
@@ -117,8 +125,13 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DES_CBC_NOPAD:
 	case TEE_ALG_DES3_ECB_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_SM4_ECB_NOPAD:
+	case TEE_ALG_SM4_CBC_NOPAD:
+	case TEE_ALG_SM4_CTR:
 		if (TEE_ALG_GET_MAIN_ALG(algorithm) == TEE_MAIN_ALGO_AES)
 			block_size = TEE_AES_BLOCK_SIZE;
+		else if (TEE_ALG_GET_MAIN_ALG(algorithm) == TEE_MAIN_ALGO_SM4)
+			block_size = TEE_SM4_BLOCK_SIZE;
 		else
 			block_size = TEE_DES_BLOCK_SIZE;
 		/* FALLTHROUGH */
@@ -154,6 +167,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDSA_P384:
 	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_SM2_DSA_SM3:
 		if (mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_SIGN;
@@ -170,6 +184,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
+	case TEE_ALG_SM2_PKE:
 		if (mode == TEE_MODE_ENCRYPT) {
 			req_key_usage = TEE_USAGE_ENCRYPT;
 		} else if (mode == TEE_MODE_DECRYPT) {
@@ -209,6 +224,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_CONCAT_KDF_SHA384_DERIVE_KEY:
 	case TEE_ALG_CONCAT_KDF_SHA512_DERIVE_KEY:
 	case TEE_ALG_PBKDF2_HMAC_SHA1_DERIVE_KEY:
+	case TEE_ALG_SM2_KEP:
 		if (mode != TEE_MODE_DERIVE)
 			return TEE_ERROR_NOT_SUPPORTED;
 		with_private_key = true;
@@ -221,6 +237,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_SHA256:
 	case TEE_ALG_SHA384:
 	case TEE_ALG_SHA512:
+	case TEE_ALG_SM3:
 		if (mode != TEE_MODE_DIGEST)
 			return TEE_ERROR_NOT_SUPPORTED;
 		/* v1.1: flags always set for digest operations */
@@ -241,6 +258,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SM3:
 		if (mode != TEE_MODE_MAC)
 			return TEE_ERROR_NOT_SUPPORTED;
 		req_key_usage = TEE_USAGE_MAC;
@@ -612,7 +630,7 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	/* Two keys flag expected (TEE_ALG_AES_XTS only) */
+	/* Two keys flag expected (TEE_ALG_AES_XTS and TEE_ALG_SM2_KEP only) */
 	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) ==
 	    0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -647,11 +665,10 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	}
 
 	/*
-	 * AES-XTS (the only multi key algorithm supported, requires the
-	 * keys to be of equal size.
+	 * All the multi key algorithm currently supported requires the keys to
+	 * be of equal size.
 	 */
-	if (operation->info.algorithm == TEE_ALG_AES_XTS &&
-	    key_info1.keySize != key_info2.keySize) {
+	if (key_info1.keySize != key_info2.keySize) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 
@@ -675,7 +692,6 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	res = TEE_CopyObjectAttributes1(operation->key1, key1);
 	if (res != TEE_SUCCESS)
 		goto out;
-
 	res = TEE_CopyObjectAttributes1(operation->key2, key2);
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT)
@@ -1066,7 +1082,9 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	    operation->info.algorithm == TEE_ALG_DES_ECB_NOPAD ||
 	    operation->info.algorithm == TEE_ALG_DES_CBC_NOPAD ||
 	    operation->info.algorithm == TEE_ALG_DES3_ECB_NOPAD ||
-	    operation->info.algorithm == TEE_ALG_DES3_CBC_NOPAD) {
+	    operation->info.algorithm == TEE_ALG_DES3_CBC_NOPAD ||
+	    operation->info.algorithm == TEE_ALG_SM4_ECB_NOPAD ||
+	    operation->info.algorithm == TEE_ALG_SM4_CBC_NOPAD) {
 		if (((operation->buffer_offs + srcLen) % operation->block_size)
 		    != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;

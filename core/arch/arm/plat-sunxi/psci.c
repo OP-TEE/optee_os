@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <compiler.h>
 #include <console.h>
 #include <io.h>
 #include <stdint.h>
@@ -128,7 +129,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	return PSCI_RET_SUCCESS;
 }
 
-int psci_cpu_off(void)
+int __noreturn psci_cpu_off(void)
 {
 	uint32_t core_id;
 	vaddr_t base = (vaddr_t)phys_to_virt(SUNXI_PRCM_BASE, MEM_AREA_IO_SEC);
@@ -156,7 +157,5 @@ int psci_cpu_off(void)
 
 	while (true)
 		wfi();
-
-	return PSCI_RET_INTERNAL_FAILURE;
 }
 #endif

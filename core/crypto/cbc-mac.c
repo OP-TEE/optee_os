@@ -50,8 +50,8 @@ static TEE_Result crypto_cbc_mac_init(struct crypto_mac_ctx *ctx,
 	mc->is_computed = false;
 
 	/* IV should be zero and mc->block happens to be zero at this stage */
-	return crypto_cipher_init(mc->cbc_ctx, mc->cbc_algo, TEE_MODE_ENCRYPT,
-				  key, len, NULL, 0, mc->block, mc->block_len);
+	return crypto_cipher_init(mc->cbc_ctx, TEE_MODE_ENCRYPT, key, len,
+				  NULL, 0, mc->block, mc->block_len);
 }
 
 static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
@@ -67,9 +67,9 @@ static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 		memcpy(mc->block + mc->current_block_len, data, pad_len);
 		data += pad_len;
 		len -= pad_len;
-		res = crypto_cipher_update(mc->cbc_ctx, mc->cbc_algo,
-					   TEE_MODE_ENCRYPT, false, mc->block,
-					   mc->block_len, mc->digest);
+		res = crypto_cipher_update(mc->cbc_ctx, TEE_MODE_ENCRYPT,
+					   false, mc->block, mc->block_len,
+					   mc->digest);
 		if (res)
 			return res;
 		mc->is_computed = 1;
@@ -77,9 +77,9 @@ static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 	}
 
 	while (len >= mc->block_len) {
-		res = crypto_cipher_update(mc->cbc_ctx, mc->cbc_algo,
-					   TEE_MODE_ENCRYPT, false, data,
-					   mc->block_len, mc->digest);
+		res = crypto_cipher_update(mc->cbc_ctx, TEE_MODE_ENCRYPT,
+					   false, data, mc->block_len,
+					   mc->digest);
 		if (res)
 			return res;
 		mc->is_computed = 1;
@@ -119,7 +119,7 @@ static TEE_Result crypto_cbc_mac_final(struct crypto_mac_ctx *ctx,
 		return TEE_ERROR_BAD_STATE;
 
 	memcpy(digest, mc->digest, MIN(digest_len, mc->block_len));
-	crypto_cipher_final(mc->cbc_ctx, mc->cbc_algo);
+	crypto_cipher_final(mc->cbc_ctx);
 
 	return TEE_SUCCESS;
 }
@@ -128,7 +128,7 @@ static void crypto_cbc_mac_free_ctx(struct crypto_mac_ctx *ctx)
 {
 	struct crypto_cbc_mac_ctx *mc = to_cbc_mac_ctx(ctx);
 
-	crypto_cipher_free_ctx(mc->cbc_ctx, mc->cbc_algo);
+	crypto_cipher_free_ctx(mc->cbc_ctx);
 	free(mc);
 }
 
@@ -142,7 +142,7 @@ static void crypto_cbc_mac_copy_state(struct crypto_mac_ctx *dst_ctx,
 	assert(dst->pkcs5_pad == src->pkcs5_pad);
 	assert(dst->cbc_algo == src->cbc_algo);
 
-	crypto_cipher_copy_state(dst->cbc_ctx, src->cbc_ctx, src->cbc_algo);
+	crypto_cipher_copy_state(dst->cbc_ctx, src->cbc_ctx);
 	memcpy(dst->block, src->block, sizeof(dst->block));
 	memcpy(dst->digest, src->digest, sizeof(dst->digest));
 	dst->current_block_len = src->current_block_len;
@@ -175,7 +175,7 @@ static TEE_Result crypto_cbc_mac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (!ctx) {
-		crypto_cipher_free_ctx(cbc_ctx, cbc_algo);
+		crypto_cipher_free_ctx(cbc_ctx);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 

@@ -9,6 +9,7 @@ ifeq (y,$(CFG_CRYPTO))
 # Ciphers
 CFG_CRYPTO_AES ?= y
 CFG_CRYPTO_DES ?= y
+CFG_CRYPTO_SM4 ?= y
 
 # Cipher block modes
 CFG_CRYPTO_ECB ?= y
@@ -30,12 +31,28 @@ CFG_CRYPTO_SHA256 ?= y
 CFG_CRYPTO_SHA384 ?= y
 CFG_CRYPTO_SHA512 ?= y
 CFG_CRYPTO_SHA512_256 ?= y
+CFG_CRYPTO_SM3 ?= y
 
 # Asymmetric ciphers
 CFG_CRYPTO_DSA ?= y
 CFG_CRYPTO_RSA ?= y
 CFG_CRYPTO_DH ?= y
+# ECC includes ECDSA and ECDH
 CFG_CRYPTO_ECC ?= y
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
+CFG_CRYPTO_SM2_PKE ?= y
+CFG_CRYPTO_SM2_DSA ?= y
+CFG_CRYPTO_SM2_KEP ?= y
+endif
+ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_PKE),mbedtls-y)
+$(error Error: CFG_CRYPTO_SM2_PKE=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
+endif
+ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_DSA),mbedtls-y)
+$(error Error: CFG_CRYPTO_SM2_DSA=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
+endif
+ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_KEP),mbedtls-y)
+$(error Error: CFG_CRYPTO_SM2_KEP=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
+endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -126,6 +143,10 @@ $(eval $(call cryp-dep-one, GCM, AES))
 $(eval $(call cryp-dep-one, AES, ECB CBC CTR CTS XTS))
 # If no DES cipher mode is left, disable DES
 $(eval $(call cryp-dep-one, DES, ECB CBC))
+# SM2 is Elliptic Curve Cryptography, it uses some generic ECC functions
+$(eval $(call cryp-dep-one, SM2_PKE, ECC))
+$(eval $(call cryp-dep-one, SM2_DSA, ECC))
+$(eval $(call cryp-dep-one, SM2_KEP, ECC))
 
 ###############################################################
 # libtomcrypt (LTC) specifics, phase #1
@@ -156,6 +177,9 @@ core-ltc-vars += AES_ARM64_CE AES_ARM32_CE
 core-ltc-vars += SHA1_ARM32_CE SHA1_ARM64_CE
 core-ltc-vars += SHA256_ARM32_CE SHA256_ARM64_CE
 core-ltc-vars += SIZE_OPTIMIZATION
+core-ltc-vars += SM2_PKE
+core-ltc-vars += SM2_DSA
+core-ltc-vars += SM2_KEP
 # Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
 $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
@@ -195,7 +219,7 @@ ltc-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),_CFG_CORE_LTC_$(v)))
 _CFG_CORE_LTC_ACIPHER := $(call ltc-one-enabled, RSA DSA DH ECC)
 _CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES) \
 					  $(_CFG_CORE_LTC_AES_DESC)), \
-			       $(call ltc-one-enabled, CCM GCM))
+			       $(filter y,$(call ltc-one-enabled, CCM GCM)))
 _CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES AES_DESC DES)
 _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
 					      SHA512)
