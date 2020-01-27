@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
@@ -2142,13 +2143,6 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	cs->state = CRYP_STATE_UNINITIALIZED;
 
 	switch (TEE_ALG_GET_CLASS(algo)) {
-	case TEE_OPERATION_EXTENSION:
-#ifdef CFG_CRYPTO_RSASSA_NA1
-		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
-			goto rsassa_na1;
-#endif
-		res = TEE_ERROR_NOT_SUPPORTED;
-		break;
 	case TEE_OPERATION_CIPHER:
 		if ((algo == TEE_ALG_AES_XTS && (key1 == 0 || key2 == 0)) ||
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
@@ -2188,7 +2182,11 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
 	case TEE_OPERATION_ASYMMETRIC_SIGNATURE:
-rsassa_na1: __maybe_unused
+		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5 &&
+		    !IS_ENABLED(CFG_CRYPTO_RSASSA_NA1)) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			break;
+		}
 		if (key1 == 0 || key2 != 0)
 			res = TEE_ERROR_BAD_PARAMETERS;
 		break;

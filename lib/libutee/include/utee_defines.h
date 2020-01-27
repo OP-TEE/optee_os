@@ -7,6 +7,7 @@
 
 #include <compiler.h>
 #include <tee_api_defines.h>
+#include <tee_api_defines_extensions.h>
 #include <types_ext.h>
 
 /*
@@ -56,6 +57,8 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 		return TEE_OPERATION_ASYMMETRIC_CIPHER;
 	if (algo == TEE_ALG_SM2_KEP)
 		return TEE_OPERATION_KEY_DERIVATION;
+	if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
+		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }
