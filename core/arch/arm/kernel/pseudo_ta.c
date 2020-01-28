@@ -86,6 +86,10 @@ static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 				va = mobj_get_va(mem->mobj, mem->offs);
 				if (!va)
 					return TEE_ERROR_BAD_PARAMETERS;
+				if (mem->size &&
+				    !mobj_get_va(mem->mobj,
+						 mem->offs + mem->size - 1))
+					return TEE_ERROR_BAD_PARAMETERS;
 			}
 
 			tee_param[n].memref.buffer = va;
