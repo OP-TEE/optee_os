@@ -48,7 +48,7 @@ build:
     - _make CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
     - _make CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
     - _make CFG_SECURE_DATA_PATH=y
-    - _make CFG_REE_FS_TA_BUFFERED=n
+    - _make CFG_REE_FS_TA_BUFFERED=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_CORE_ASLR=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y COMPILER=clang
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
