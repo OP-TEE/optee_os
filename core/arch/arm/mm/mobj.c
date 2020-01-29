@@ -44,7 +44,7 @@ static void *mobj_phys_get_va(struct mobj *mobj, size_t offset)
 {
 	struct mobj_phys *moph = to_mobj_phys(mobj);
 
-	if (!moph->va)
+	if (!moph->va || offset >= mobj->size)
 		return NULL;
 
 	return (void *)(moph->va + offset);
