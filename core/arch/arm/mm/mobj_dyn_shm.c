@@ -105,7 +105,7 @@ static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
 {
 	struct mobj_reg_shm *mrs = to_mobj_reg_shm(mobj);
 
-	if (!mrs->mm)
+	if (!mrs->mm || offst >= mobj->size)
 		return NULL;
 
 	return (void *)(vaddr_t)(tee_mm_get_smem(mrs->mm) + offst +
