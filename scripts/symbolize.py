@@ -106,7 +106,8 @@ class Symbolizer(object):
     def my_Popen(self, cmd):
         try:
             return subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE, text=True,
+                                    stdout=subprocess.PIPE,
+                                    universal_newlines=True,
                                     bufsize=1)
         except OSError as e:
             if e.errno == errno.ENOENT:
