@@ -182,6 +182,14 @@ clear_nex_bss:
 	 * the memory will become write protected.
 	 */
 	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	/*
+	 * Update cached_mem_end address with load offset since it was
+	 * calculated before relocation.
+	 */
+	adr	x5, cached_mem_end
+	ldr	x6, [x5]
+	add	x6, x6, x0
+	str	x6, [x5]
 	bl	relocate
 #endif
 
