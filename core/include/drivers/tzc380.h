@@ -202,12 +202,6 @@ enum tzc_action {
 #define TZC_ATTR_REGION_ENABLE	0x1
 #define TZC_ATTR_REGION_DISABLE	0x0
 
-#ifdef CFG_WITH_LPAE
-#define TZC380_POW	48
-#else
-#define TZC380_POW	34
-#endif
-
 void tzc_init(vaddr_t base);
 void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr);
 void tzc_region_enable(uint8_t region);

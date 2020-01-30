@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2020 NXP
  * All rights reserved.
  *
  * Peng Fan <peng.fan@nxp.com>
@@ -228,7 +228,17 @@ int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
 	uint64_t lsize = size;
 	uint32_t mask = 0;
 	int i = 0;
-	uint8_t pow = TZC380_POW;
+	uint8_t pow = 0;
+
+	assert(tzc.base);
+
+	/*
+	 * TZC380 RM
+	 * For region_attributes_<n> registers, region_size:
+	 * Note: The AXI address width, that is AXI_ADDRESS_MSB+1, controls the
+	 * upper limit value of the field.
+	 */
+	pow = tzc.addr_width;
 
 	while (lsize != 0 && pow > 15) {
 		region_size = 1ULL << pow;
