@@ -501,6 +501,13 @@ shadow_stack_access_ok:
 	 */
 	ldr	r0, =boot_mmu_config
 	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	/*
+	 * Update cached_mem_end address with load offset since it was
+	 * calculated before relocation.
+	 */
+	ldr	r4, cached_mem_end
+	add	r4, r4, r0
+	str	r4, cached_mem_end
 	bl	relocate
 #endif
 
