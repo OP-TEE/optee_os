@@ -257,6 +257,7 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
+#if defined(CFG_CORE_DYN_SHM) || defined(CFG_SECURE_DATA_PATH)
 static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 				const struct core_mmu_phys_mem *start,
 				const struct core_mmu_phys_mem *end)
@@ -270,6 +271,7 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 
 	return false;
 }
+#endif
 
 #ifdef CFG_CORE_DYN_SHM
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
