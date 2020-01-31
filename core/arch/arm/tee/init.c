@@ -49,7 +49,7 @@ TEE_Result __weak init_teecore(void)
 	is_first = 0;
 
 #ifdef CFG_WITH_USER_TA
-	tee_svc_uref_base = TEE_TEXT_VA_START;
+	tee_svc_uref_base = VCORE_START_VA;
 #endif
 
 #ifdef CFG_CORE_RESERVED_SHM
