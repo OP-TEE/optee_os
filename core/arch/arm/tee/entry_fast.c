@@ -62,7 +62,7 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 
 static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
-	bool dyn_shm_en = false;
+	bool dyn_shm_en __maybe_unused = false;
 
 	/*
 	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
