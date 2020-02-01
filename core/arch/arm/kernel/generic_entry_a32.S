@@ -152,6 +152,7 @@ END_FUNC reset_vect_table
 		bic	r0, r0, #(SCTLR_M | SCTLR_C)
 		bic	r0, r0, #SCTLR_I
 		bic	r0, r0, #SCTLR_TE
+		orr	r0, r0, #SCTLR_SPAN
 #if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 		orr	r0, r0, #SCTLR_A
 #else

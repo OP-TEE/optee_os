@@ -43,6 +43,7 @@
 		mrs	x0, sctlr_el1
 		orr	x0, x0, #SCTLR_I
 		orr	x0, x0, #SCTLR_SA
+		orr	x0, x0, #SCTLR_SPAN
 #if defined(CFG_CORE_RWDATA_NOEXEC)
 		orr	x0, x0, #SCTLR_WXN
 #endif
