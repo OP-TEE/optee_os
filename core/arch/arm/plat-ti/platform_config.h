@@ -44,6 +44,9 @@
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
 
+#define WUGEN_MPU_BASE  0x48281000
+#define WUGEN_MPU_SIZE  0x1000
+
 #define SECRAM_BASE     0x40200000
 #define SECRAM_SIZE     0x00100000
 
