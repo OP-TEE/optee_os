@@ -17,4 +17,9 @@
 #define TA_STACK_SIZE			(4 * 1024)
 #define TA_DATA_SIZE			(16 * 1024)
 
+#define TA_DESCRIPTION			"PKCS#11 trusted application"
+#define TA_VERSION			TO_STR(PKCS11_TA_VERSION_MAJOR) "." \
+					TO_STR(PKCS11_TA_VERSION_MINOR) "." \
+					TO_STR(PKCS11_TA_VERSION_PATCH)
+
 #endif /*USER_TA_HEADER_DEFINES_H*/
