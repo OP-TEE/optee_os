@@ -33,6 +33,7 @@
 #define DBG_TRACE_JR	 BIT32(5)  /* Job Ring trace */
 #define DBG_TRACE_RNG	 BIT32(6)  /* RNG trace */
 #define DBG_TRACE_HASH	 BIT32(7)  /* Hash trace */
+#define DBG_TRACE_RSA	 BIT32(8)  /* RSA trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -126,6 +127,29 @@
 #define HASH_DUMPBUF(...)
 #endif
 
+/* RSA */
+#if CAAM_DBG_TRACE(RSA)
+#define RSA_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(RSA)
+#define RSA_DUMPDESC(desc)                                                     \
+	do {                                                                   \
+		RSA_TRACE("RSA Descriptor");                                   \
+		DRV_DUMPDESC(desc);                                            \
+	} while (0)
+#else
+#define RSA_DUMPDESC(desc)
+#endif
+#if CAAM_DBG_BUF(RSA)
+#define RSA_DUMPBUF DRV_DUMPBUF
+#else
+#define RSA_DUMPBUF(...)
+#endif
+#else
+#define RSA_TRACE(...)
+#define RSA_DUMPDESC(desc)
+#define RSA_DUMPBUF(...)
+#endif
+
 #if (TRACE_LEVEL >= TRACE_DEBUG)
 #define DRV_TRACE(...)                                                         \
 	trace_printf(__func__, __LINE__, TRACE_DEBUG, true, __VA_ARGS__)
@@ -136,8 +160,7 @@
 		__typeof__(buf) _buf = (buf);                                  \
 		__typeof__(len) _len = (len);                                  \
 									       \
-		DRV_TRACE("%s @0x%" PRIxPTR ": %zu", title, (uintptr_t)_buf,   \
-			  _len);                                               \
+		DRV_TRACE("%s @%p : %zu", title, _buf, _len);                  \
 		dhex_dump(NULL, 0, 0, _buf, _len);                             \
 	} while (0)
 

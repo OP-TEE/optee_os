@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   CAAM Descriptor defines.
  */
@@ -604,11 +604,15 @@
  * Descriptor Protocol Data Block
  */
 /* RSA Encryption */
+#define PDB_RSA_ENC_SGT_F	SHIFT_U32(1, 31)
+#define PDB_RSA_ENC_SGT_G	SHIFT_U32(1, 30)
 #define PDB_RSA_ENC_E_SIZE(len)	SHIFT_U32((len) & 0xFFF, 12)
 #define PDB_RSA_ENC_N_SIZE(len)	SHIFT_U32((len) & 0xFFF, 0)
 #define PDB_RSA_ENC_F_SIZE(len)	SHIFT_U32((len) & 0xFFF, 0)
 
 /* RSA Decryption */
+#define PDB_RSA_DEC_SGT_G	SHIFT_U32(1, 31)
+#define PDB_RSA_DEC_SGT_F	SHIFT_U32(1, 30)
 #define PDB_RSA_DEC_D_SIZE(len)	SHIFT_U32((len) & 0xFFF, 12)
 #define PDB_RSA_DEC_N_SIZE(len)	SHIFT_U32((len) & 0xFFF, 0)
 #define PDB_RSA_DEC_Q_SIZE(len)	SHIFT_U32((len) & 0xFFF, 12)

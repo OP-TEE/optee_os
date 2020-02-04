@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   CAAM Job Ring Status definition header.
  */
@@ -27,4 +27,11 @@
 #define JRSTA_CCB_ERRID_HW        SHIFT_U32(0xB, 0)
 #define JRSTA_DECO_ERRID_FORMAT   SHIFT_U32(0x88, 0)
 
+/* Return the Halt User status else 0 if not a Jump Halt User */
+#define JRSTA_GET_HALT_USER(status)                                            \
+	(__extension__({                                                       \
+		__typeof__(status) _status = (status);                         \
+		JRSTA_SRC_GET(_status) == JRSTA_SRC(JMP_HALT_USER) ?           \
+			_status & UINT8_MAX :                                  \
+			0; }))
 #endif /* __CAAM_JR_STATUS_H__ */
