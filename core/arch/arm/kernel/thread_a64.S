@@ -65,6 +65,21 @@ FUNC thread_smc , :
 	ret
 END_FUNC thread_smc
 
+/* void thread_smccc(struct thread_smc_args *arg_res) */
+FUNC thread_smccc , :
+	push	x0, xzr
+	mov	x8, x0
+	load_xregs x8, 0, 0, 7
+#ifdef CFG_CORE_SEL2_SPMC
+	hvc	#0
+#else
+	smc	#0
+#endif
+	pop	x8, xzr
+	store_xregs x8, 0, 0, 7
+	ret
+END_FUNC thread_smccc
+
 FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
