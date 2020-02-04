@@ -876,4 +876,41 @@ enum pkcs11_attr_id {
 	PKCS11_CKA_UNDEFINED_ID				= PKCS11_UNDEFINED_ID,
 };
 
+/*
+ * Valid values for attribute PKCS11_CKA_CLASS
+ * PKCS11_CKO_<x> corresponds to cryptoki CKO_<x>.
+ */
+enum pkcs11_class_id {
+	PKCS11_CKO_SECRET_KEY				= 0x000,
+	PKCS11_CKO_PUBLIC_KEY				= 0x001,
+	PKCS11_CKO_PRIVATE_KEY				= 0x002,
+	PKCS11_CKO_OTP_KEY				= 0x003,
+	PKCS11_CKO_CERTIFICATE				= 0x004,
+	PKCS11_CKO_DATA					= 0x005,
+	PKCS11_CKO_DOMAIN_PARAMETERS			= 0x006,
+	PKCS11_CKO_HW_FEATURE				= 0x007,
+	PKCS11_CKO_MECHANISM				= 0x008,
+	PKCS11_CKO_UNDEFINED_ID				= PKCS11_UNDEFINED_ID,
+};
+
+/*
+ * Valid values for attribute PKCS11_CKA_KEY_TYPE
+ * PKCS11_CKK_<x> corresponds to cryptoki CKK_<x> related to symmetric keys
+ */
+enum pkcs11_key_type {
+	PKCS11_CKK_AES					= 0x000,
+	PKCS11_CKK_GENERIC_SECRET			= 0x001,
+	PKCS11_CKK_MD5_HMAC				= 0x002,
+	PKCS11_CKK_SHA_1_HMAC				= 0x003,
+	PKCS11_CKK_SHA224_HMAC				= 0x004,
+	PKCS11_CKK_SHA256_HMAC				= 0x005,
+	PKCS11_CKK_SHA384_HMAC				= 0x006,
+	PKCS11_CKK_SHA512_HMAC				= 0x007,
+	PKCS11_CKK_EC					= 0x008,
+	PKCS11_CKK_RSA					= 0x009,
+	PKCS11_CKK_DSA					= 0x00a,
+	PKCS11_CKK_DH					= 0x00b,
+	PKCS11_CKK_UNDEFINED_ID				= PKCS11_UNDEFINED_ID,
+};
+
 #endif /*PKCS11_TA_H*/

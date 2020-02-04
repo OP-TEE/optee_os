@@ -41,6 +41,18 @@ size_t pkcs11_attr_is_class(uint32_t attribute_id);
  */
 size_t pkcs11_attr_is_type(uint32_t attribute_id);
 
+/* Return true if the object class is related to a type-on-class */
+bool pkcs11_class_has_type(uint32_t class_id);
+
+/* Return true if the object class relates to a key */
+bool pkcs11_attr_class_is_key(uint32_t class_id);
+
+/* Return true if the key type @attribute_id relates to a symmetric key */
+bool key_type_is_symm_key(uint32_t key_type_id);
+
+/* Return true if the key type @attribute_id relates to a asymmetric key */
+bool key_type_is_asymm_key(uint32_t key_type_id);
+
 /*
  * Convert PKCS11 TA return code into a GPD TEE result ID when matching.
  * If not, return a TEE success (_noerr) or a generic error (_error).
@@ -58,5 +70,8 @@ const char *id2str_slot_flag(uint32_t id);
 const char *id2str_token_flag(uint32_t id);
 const char *id2str_attr(uint32_t id);
 const char *id2str_boolprop(uint32_t id);
+const char *id2str_class(uint32_t id);
+const char *id2str_type(uint32_t id, uint32_t class);
+const char *id2str_key_type(uint32_t id);
 #endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 #endif /*PKCS11_HELPERS_H*/

@@ -277,6 +277,33 @@ static const struct any_id __maybe_unused string_proc_flags[] = {
 	PKCS11_ID(PKCS11_CKFM_EC_COMPRESS),
 };
 
+static const struct any_id __maybe_unused string_class[] = {
+	PKCS11_ID(PKCS11_CKO_SECRET_KEY),
+	PKCS11_ID(PKCS11_CKO_PUBLIC_KEY),
+	PKCS11_ID(PKCS11_CKO_PRIVATE_KEY),
+	PKCS11_ID(PKCS11_CKO_OTP_KEY),
+	PKCS11_ID(PKCS11_CKO_CERTIFICATE),
+	PKCS11_ID(PKCS11_CKO_DATA),
+	PKCS11_ID(PKCS11_CKO_DOMAIN_PARAMETERS),
+	PKCS11_ID(PKCS11_CKO_HW_FEATURE),
+	PKCS11_ID(PKCS11_CKO_MECHANISM),
+	PKCS11_ID(PKCS11_CKO_UNDEFINED_ID)
+};
+
+static const struct any_id __maybe_unused string_key_type[] = {
+	PKCS11_ID(PKCS11_CKK_AES),
+	PKCS11_ID(PKCS11_CKK_GENERIC_SECRET),
+	PKCS11_ID(PKCS11_CKK_MD5_HMAC),
+	PKCS11_ID(PKCS11_CKK_SHA_1_HMAC),
+	PKCS11_ID(PKCS11_CKK_SHA224_HMAC),
+	PKCS11_ID(PKCS11_CKK_SHA256_HMAC),
+	PKCS11_ID(PKCS11_CKK_SHA384_HMAC),
+	PKCS11_ID(PKCS11_CKK_SHA512_HMAC),
+	PKCS11_ID(PKCS11_CKK_EC),
+	PKCS11_ID(PKCS11_CKK_RSA),
+	PKCS11_ID(PKCS11_CKK_UNDEFINED_ID)
+};
+
 /*
  * Conversion between PKCS11 TA and GPD TEE return codes
  */
@@ -385,6 +412,33 @@ size_t pkcs11_attr_is_type(uint32_t attribute_id)
 	}
 }
 
+bool pkcs11_class_has_type(uint32_t class)
+{
+	switch (class) {
+	case PKCS11_CKO_CERTIFICATE:
+	case PKCS11_CKO_PUBLIC_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_MECHANISM:
+	case PKCS11_CKO_HW_FEATURE:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+bool pkcs11_attr_class_is_key(uint32_t class)
+{
+	switch (class) {
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_PUBLIC_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
 /*
  * Convert a PKCS11 ID into its label string
@@ -436,5 +490,30 @@ const char *id2str_slot_flag(uint32_t id)
 const char *id2str_token_flag(uint32_t id)
 {
 	return ID2STR(id, string_token_flags, "PKCS11_CKFT_");
+}
+
+const char *id2str_class(uint32_t id)
+{
+	return ID2STR(id, string_class, "PKCS11_CKO_");
+}
+
+const char *id2str_type(uint32_t id, uint32_t class)
+{
+	enum pkcs11_class_id class_id = class;
+	enum pkcs11_key_type key_type = id;
+
+	switch (class_id) {
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_PUBLIC_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
+		return id2str_key_type(key_type);
+	default:
+		return unknown;
+	}
+}
+
+const char *id2str_key_type(uint32_t id)
+{
+	return ID2STR(id, string_key_type, "PKCS11_CKK_");
 }
 #endif /*CFG_TEE_TA_LOG_LEVEL*/
