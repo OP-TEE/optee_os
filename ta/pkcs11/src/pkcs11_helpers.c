@@ -62,6 +62,36 @@ static const char *id2str(uint32_t id, const struct any_id *table,
  */
 static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_PING),
+	PKCS11_ID(PKCS11_CMD_SLOT_LIST),
+	PKCS11_ID(PKCS11_CMD_SLOT_INFO),
+	PKCS11_ID(PKCS11_CMD_TOKEN_INFO),
+};
+
+static const struct any_id __maybe_unused string_slot_flags[] = {
+	PKCS11_ID(PKCS11_CKFS_TOKEN_PRESENT),
+	PKCS11_ID(PKCS11_CKFS_REMOVABLE_DEVICE),
+	PKCS11_ID(PKCS11_CKFS_HW_SLOT),
+};
+
+static const struct any_id __maybe_unused string_token_flags[] = {
+	PKCS11_ID(PKCS11_CKFT_RNG),
+	PKCS11_ID(PKCS11_CKFT_WRITE_PROTECTED),
+	PKCS11_ID(PKCS11_CKFT_LOGIN_REQUIRED),
+	PKCS11_ID(PKCS11_CKFT_USER_PIN_INITIALIZED),
+	PKCS11_ID(PKCS11_CKFT_RESTORE_KEY_NOT_NEEDED),
+	PKCS11_ID(PKCS11_CKFT_CLOCK_ON_TOKEN),
+	PKCS11_ID(PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH),
+	PKCS11_ID(PKCS11_CKFT_DUAL_CRYPTO_OPERATIONS),
+	PKCS11_ID(PKCS11_CKFT_TOKEN_INITIALIZED),
+	PKCS11_ID(PKCS11_CKFT_USER_PIN_COUNT_LOW),
+	PKCS11_ID(PKCS11_CKFT_USER_PIN_FINAL_TRY),
+	PKCS11_ID(PKCS11_CKFT_USER_PIN_LOCKED),
+	PKCS11_ID(PKCS11_CKFT_USER_PIN_TO_BE_CHANGED),
+	PKCS11_ID(PKCS11_CKFT_SO_PIN_COUNT_LOW),
+	PKCS11_ID(PKCS11_CKFT_SO_PIN_FINAL_TRY),
+	PKCS11_ID(PKCS11_CKFT_SO_PIN_LOCKED),
+	PKCS11_ID(PKCS11_CKFT_SO_PIN_TO_BE_CHANGED),
+	PKCS11_ID(PKCS11_CKFT_ERROR_STATE),
 };
 
 static const struct any_id __maybe_unused string_rc[] = {
@@ -121,5 +151,15 @@ const char *id2str_rc(uint32_t id)
 const char *id2str_ta_cmd(uint32_t id)
 {
 	return ID2STR(id, string_ta_cmd, NULL);
+}
+
+const char *id2str_slot_flag(uint32_t id)
+{
+	return ID2STR(id, string_slot_flags, "PKCS11_CKFS_");
+}
+
+const char *id2str_token_flag(uint32_t id)
+{
+	return ID2STR(id, string_token_flags, "PKCS11_CKFT_");
 }
 #endif /*CFG_TEE_TA_LOG_LEVEL*/
