@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   Hash interface calling the HW crypto driver.
  */
@@ -8,6 +8,7 @@
 #define __DRVCRYPT_HASH_H__
 
 #include <crypto/crypto_impl.h>
+#include <drvcrypt.h>
 #include <tee_api_types.h>
 
 /*
