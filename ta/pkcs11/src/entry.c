@@ -11,14 +11,16 @@
 #include <util.h>
 
 #include "pkcs11_helpers.h"
+#include "pkcs11_token.h"
 
 TEE_Result TA_CreateEntryPoint(void)
 {
-	return TEE_SUCCESS;
+	return pkcs11_init();
 }
 
 void TA_DestroyEntryPoint(void)
 {
+	pkcs11_deinit();
 }
 
 TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
