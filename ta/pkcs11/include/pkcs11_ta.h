@@ -67,6 +67,70 @@ enum pkcs11_ta_cmd {
 	 *       ]
 	 */
 	PKCS11_CMD_PING = 0,
+
+	/*
+	 * PKCS11_CMD_SLOT_LIST - Get the table of the valid slot IDs
+	 *
+	 * [in]  memref[0] = 32bit, unused, must be 0
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit array slot_ids[slot counts]
+	 *
+	 * The TA instance may represent several PKCS#11 slots and
+	 * associated tokens. This commadn reports the IDs of embedded tokens.
+	 * This command relates the PKCS#11 API function C_GetSlotList().
+	 */
+	PKCS11_CMD_SLOT_LIST = 1,
+
+	/*
+	 * PKCS11_CMD_SLOT_INFO - Get cryptoki structured slot information
+	 *
+	 * [in]	 memref[0] = 32bit slot ID
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = (struct pkcs11_slot_info)info
+	 *
+	 * The TA instance may represent several PKCS#11 slots/tokens.
+	 * This command relates the PKCS#11 API function C_GetSlotInfo().
+	 */
+	PKCS11_CMD_SLOT_INFO = 2,
+
+	/*
+	 * PKCS11_CMD_TOKEN_INFO - Get cryptoki structured token information
+	 *
+	 * [in]	 memref[0] = 32bit slot ID
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = (struct pkcs11_token_info)info
+	 *
+	 * The TA instance may represent several PKCS#11 slots/tokens.
+	 * This command relates the PKCS#11 API function C_GetTokenInfo().
+	 */
+	PKCS11_CMD_TOKEN_INFO = 3,
+
+	/*
+	 * PKCS11_CMD_MECHANISM_IDS - Get list of the supported mechanisms
+	 *
+	 * [in]	 memref[0] = 32bit slot ID
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit array mechanism IDs
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GetMechanismList().
+	 */
+	PKCS11_CMD_MECHANISM_IDS = 4,
+
+	/*
+	 * PKCS11_CMD_MECHANISM_INFO - Get information on a specific mechanism
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit slot ID,
+	 *              32bit mechanism ID
+	 *       ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = (struct pkcs11_mechanism_info)info
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GetMechanismInfo().
+	 */
+	PKCS11_CMD_MECHANISM_INFO = 5,
 };
 
 /*
@@ -141,4 +205,80 @@ enum pkcs11_rc {
 	PKCS11_RV_NOT_FOUND			= 0x80000000,
 	PKCS11_RV_NOT_IMPLEMENTED		= 0x80000001,
 };
+
+/*
+ * Arguments for PKCS11_CMD_SLOT_INFO
+ */
+#define PKCS11_SLOT_DESC_SIZE			64
+#define PKCS11_SLOT_MANUFACTURER_SIZE		32
+#define PKCS11_SLOT_VERSION_SIZE		2
+
+struct pkcs11_slot_info {
+	uint8_t slot_description[PKCS11_SLOT_DESC_SIZE];
+	uint8_t manufacturer_id[PKCS11_SLOT_MANUFACTURER_SIZE];
+	uint32_t flags;
+	uint8_t hardware_version[PKCS11_SLOT_VERSION_SIZE];
+	uint8_t firmware_version[PKCS11_SLOT_VERSION_SIZE];
+};
+
+/*
+ * Values for pkcs11_slot_info::flags.
+ * PKCS11_CKFS_<x> reflects CryptoKi client API slot flags CKF_<x>.
+ */
+#define PKCS11_CKFS_TOKEN_PRESENT		(1U << 0)
+#define PKCS11_CKFS_REMOVABLE_DEVICE		(1U << 1)
+#define PKCS11_CKFS_HW_SLOT			(1U << 2)
+
+/*
+ * Arguments for PKCS11_CMD_TOKEN_INFO
+ */
+#define PKCS11_TOKEN_LABEL_SIZE			32
+#define PKCS11_TOKEN_MANUFACTURER_SIZE		32
+#define PKCS11_TOKEN_MODEL_SIZE			16
+#define PKCS11_TOKEN_SERIALNUM_SIZE		16
+
+struct pkcs11_token_info {
+	uint8_t label[PKCS11_TOKEN_LABEL_SIZE];
+	uint8_t manufacturer_id[PKCS11_TOKEN_MANUFACTURER_SIZE];
+	uint8_t model[PKCS11_TOKEN_MODEL_SIZE];
+	uint8_t serial_number[PKCS11_TOKEN_SERIALNUM_SIZE];
+	uint32_t flags;
+	uint32_t max_session_count;
+	uint32_t session_count;
+	uint32_t max_rw_session_count;
+	uint32_t rw_session_count;
+	uint32_t max_pin_len;
+	uint32_t min_pin_len;
+	uint32_t total_public_memory;
+	uint32_t free_public_memory;
+	uint32_t total_private_memory;
+	uint32_t free_private_memory;
+	uint8_t hardware_version[2];
+	uint8_t firmware_version[2];
+	uint8_t utc_time[16];
+};
+
+/*
+ * Values for pkcs11_token_info::flags.
+ * PKCS11_CKFT_<x> reflects CryptoKi client API token flags CKF_<x>.
+ */
+#define PKCS11_CKFT_RNG					(1U << 0)
+#define PKCS11_CKFT_WRITE_PROTECTED			(1U << 1)
+#define PKCS11_CKFT_LOGIN_REQUIRED			(1U << 2)
+#define PKCS11_CKFT_USER_PIN_INITIALIZED		(1U << 3)
+#define PKCS11_CKFT_RESTORE_KEY_NOT_NEEDED		(1U << 4)
+#define PKCS11_CKFT_CLOCK_ON_TOKEN			(1U << 5)
+#define PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH	(1U << 6)
+#define PKCS11_CKFT_DUAL_CRYPTO_OPERATIONS		(1U << 7)
+#define PKCS11_CKFT_TOKEN_INITIALIZED			(1U << 8)
+#define PKCS11_CKFT_USER_PIN_COUNT_LOW			(1U << 9)
+#define PKCS11_CKFT_USER_PIN_FINAL_TRY			(1U << 10)
+#define PKCS11_CKFT_USER_PIN_LOCKED			(1U << 11)
+#define PKCS11_CKFT_USER_PIN_TO_BE_CHANGED		(1U << 12)
+#define PKCS11_CKFT_SO_PIN_COUNT_LOW			(1U << 13)
+#define PKCS11_CKFT_SO_PIN_FINAL_TRY			(1U << 14)
+#define PKCS11_CKFT_SO_PIN_LOCKED			(1U << 15)
+#define PKCS11_CKFT_SO_PIN_TO_BE_CHANGED		(1U << 16)
+#define PKCS11_CKFT_ERROR_STATE				(1U << 17)
+
 #endif /*PKCS11_TA_H*/
