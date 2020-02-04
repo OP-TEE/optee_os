@@ -522,3 +522,23 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 	MEM_TRACE("Nb Physical Area %d", nb_pa_area + 1);
 	return nb_pa_area + 1;
 }
+
+void caam_mem_cpy_ltrim_buf(struct caambuf *dst, struct caambuf *src)
+{
+	size_t offset = 0;
+	size_t cpy_size = 0;
+
+	/* Calculate the offset to start the copy */
+	while (!src->data[offset] && offset < src->length)
+		offset++;
+
+	if (offset >= src->length)
+		offset = src->length - 1;
+
+	cpy_size = MIN(dst->length, (src->length - offset));
+	MEM_TRACE("Copy %zu of src %zu bytes (offset = %zu)", cpy_size,
+		  src->length, offset);
+	memcpy(dst->data, &src->data[offset], cpy_size);
+
+	dst->length = cpy_size;
+}

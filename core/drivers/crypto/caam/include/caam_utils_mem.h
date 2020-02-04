@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -139,4 +139,14 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **pabufs);
  * @size Buffer size
  */
 bool caam_mem_is_cached_buf(void *buf, size_t size);
+
+/*
+ * Copy source data into the destination buffer removing non-significant
+ * first zeros (left zeros).
+ * If all source @src buffer is zero, left only one zero in the destination.
+ *
+ * @dst    [out] Destination buffer
+ * @src    Source to copy
+ */
+void caam_mem_cpy_ltrim_buf(struct caambuf *dst, struct caambuf *src);
 #endif /* __CAAM_UTILS_MEM_H__ */

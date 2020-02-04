@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2020 NXP
  *
  * Brief   CAAM Global Controller.
  */
+#include <caam_acipher.h>
 #include <caam_common.h>
 #include <caam_hal_cfg.h>
 #include <caam_hal_clk.h>
@@ -52,6 +53,20 @@ static TEE_Result crypto_driver_init(void)
 
 	/* Initialize the Hash Module */
 	retstatus = caam_hash_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the MATH Module */
+	retstatus = caam_math_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the RSA Module */
+	retstatus = caam_rsa_init(jrcfg.base);
 	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;

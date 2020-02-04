@@ -16,6 +16,7 @@
 # DBG_JR     BIT32(5)  // Job Ring trace
 # DBG_RNG    BIT32(6)  // RNG trace
 # DBG_HASH   BIT32(7)  // Hash trace
+# DBG_RSA    BIT32(8)  // RSA trace
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
@@ -55,7 +56,31 @@ $$(call force, CFG_NXP_CAAM_$$(_var)_DRV, y)
 $$(call force, CFG_CRYPTO_DRV_$$(_var), y)
 endef
 
+# Return 'y' if at least one of the variable
+# CFG_CRYPTO_xxx_HW is 'y'
+cryphw-one-enabled = $(call cfg-one-enabled, \
+                        $(foreach v,$(1), CFG_NXP_CAAM_$(v)_DRV))
+
 # Definition of the HW and Cryto Driver Algorithm supported by all i.MX
 $(eval $(call cryphw-enable-drv-hw, HASH))
+
+ifneq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) \
+	$(CFG_MX6S) $(CFG_MX6SL) $(CFG_MX6SLL) $(CFG_MX6SX)), y)
+$(eval $(call cryphw-enable-drv-hw, RSA))
+
+# Define the RSA Private Key Format used by the CAAM
+#   Format #1: (n, d)
+#   Format #2: (p, q, d)
+#   Format #3: (p, q, dp, dq, qp)
+CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
+
+endif
+
+$(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA))
+
+#
+# Enable Cryptographic Driver interface
+#
+CFG_CRYPTO_DRV_ACIPHER ?= $(CFG_NXP_CAAM_ACIPHER_DRV)
 
 endif
