@@ -210,6 +210,22 @@ FUNC thread_smc , :
 	bx	lr
 END_FUNC thread_smc
 
+/* void thread_smccc(struct thread_smc_args *arg_res) */
+FUNC thread_smccc , :
+	push	{r4-r7}
+	push	{r0, lr}
+	ldm	r0, {r0-r7}
+#ifdef CFG_CORE_SEL2_SPMC
+	hvc	#0
+#else
+	smc	#0
+#endif
+	pop	{r12, lr}
+	stm	r12, {r0-r7}
+	pop	{r4-r7}
+	bx	lr
+END_FUNC thread_smccc
+
 FUNC thread_init_vbar , :
 	/* Set vector (VBAR) */
 	write_vbar r0
