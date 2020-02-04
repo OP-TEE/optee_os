@@ -67,6 +67,11 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_TOKEN_INFO),
 	PKCS11_ID(PKCS11_CMD_MECHANISM_IDS),
 	PKCS11_ID(PKCS11_CMD_MECHANISM_INFO),
+	PKCS11_ID(PKCS11_CMD_INIT_TOKEN),
+	PKCS11_ID(PKCS11_CMD_INIT_PIN),
+	PKCS11_ID(PKCS11_CMD_SET_PIN),
+	PKCS11_ID(PKCS11_CMD_LOGIN),
+	PKCS11_ID(PKCS11_CMD_LOGOUT),
 };
 
 static const struct any_id __maybe_unused string_rc[] = {

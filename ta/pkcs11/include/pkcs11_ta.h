@@ -124,6 +124,78 @@ enum pkcs11_ta_cmd {
 	 * C_GetMechanismInfo().
 	 */
 	PKCS11_CMD_MECHANISM_INFO = 5,
+
+	/*
+	 * PKCS11_CMD_INIT_TOKEN - Initialize PKCS#11 token
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit slot ID,
+	 *              32bit PIN length,
+	 *              byte array label[32]
+	 *              byte array PIN[PIN length],
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_InitToken().
+	 */
+	PKCS11_CMD_INIT_TOKEN = 6,
+
+	/*
+	 * PKCS11_CMD_INIT_PIN - Initialize user PIN
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit PIN byte size,
+	 *              byte array: PIN data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_InitPIN().
+	 */
+	PKCS11_CMD_INIT_PIN = 7,
+
+	/*
+	 * PKCS11_CMD_SET_PIN - Change user PIN
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit old PIN byte size,
+	 *              32bit new PIN byte size,
+	 *              byte array: PIN data,
+	 *              byte array: new PIN data,
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_SetPIN().
+	 */
+	PKCS11_CMD_SET_PIN = 8,
+
+	/*
+	 * PKCS11_CMD_LOGIN - Initialize user PIN
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit user identifier,
+	 *              32bit PIN byte size,
+	 *              byte array: PIN data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_Login().
+	 */
+	PKCS11_CMD_LOGIN = 9,
+
+	/*
+	 * PKCS11_CMD_LOGOUT - Log out from token
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_Logout().
+	 */
+	PKCS11_CMD_LOGOUT = 10,
 };
 
 /*
@@ -290,5 +362,12 @@ struct pkcs11_mechanism_info {
 #define PKCS11_CKFM_EC_NAMEDCURVE		(1U << 23)
 #define PKCS11_CKFM_EC_UNCOMPRESS		(1U << 24)
 #define PKCS11_CKFM_EC_COMPRESS			(1U << 25)
+
+/*
+ * Values for user identifier parameter in PKCS11_CMD_LOGIN
+ */
+#define PKCS11_CKU_SO			0x0
+#define PKCS11_CKU_USER			0x1
+#define PKCS11_CKU_CONTEXT_SPECIFIC	0x2
 
 #endif /*PKCS11_TA_H*/
