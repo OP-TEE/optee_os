@@ -152,6 +152,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	case PKCS11_CMD_TOKEN_INFO:
 		rc = entry_ck_token_info(ptypes, params);
 		break;
+	case PKCS11_CMD_MECHANISM_IDS:
+		rc = entry_ck_token_mecha_ids(ptypes, params);
+		break;
 
 	default:
 		EMSG("Command 0x%"PRIx32" is not supported", cmd);

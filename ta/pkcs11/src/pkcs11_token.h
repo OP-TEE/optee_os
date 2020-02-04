@@ -92,5 +92,6 @@ void close_persistent_db(struct ck_token *token);
 uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
