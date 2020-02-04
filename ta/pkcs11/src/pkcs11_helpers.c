@@ -176,6 +176,7 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_VERIFY_FINAL),
 	PKCS11_ID(PKCS11_CMD_SIGN_ONESHOT),
 	PKCS11_ID(PKCS11_CMD_VERIFY_ONESHOT),
+	PKCS11_ID(PKCS11_CMD_DERIVE_KEY),
 };
 
 static const struct any_id __maybe_unused string_rc[] = {
