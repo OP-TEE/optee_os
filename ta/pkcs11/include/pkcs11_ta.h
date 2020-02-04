@@ -420,6 +420,136 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_GenerateKey().
 	 */
 	PKCS11_CMD_GENERATE_KEY = 27,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_INIT - Initialize enryption processing
+	 * PKCS11_CMD_DECRYPT_INIT - Initialize decryption processing
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle of the key,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * These commands relate to the PKCS#11 API functions C_EncryptInit()
+	 * and C_DecryptInit().
+	 */
+	PKCS11_CMD_ENCRYPT_INIT = 28,
+	PKCS11_CMD_DECRYPT_INIT = 29,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_UPDATE - Update encryption processing
+	 * PKCS11_CMD_DECRYPT_UPDATE - Update decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_EncryptUpdate()
+	 * and C_DecryptUpdate().
+	 */
+	PKCS11_CMD_ENCRYPT_UPDATE = 30,
+	PKCS11_CMD_DECRYPT_UPDATE = 31,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_FINAL - Finalize encryption processing
+	 * PKCS11_CMD_DECRYPT_FINAL - Finalize decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_EncryptFinal()
+	 * and C_DecryptFinal().
+	 */
+	PKCS11_CMD_ENCRYPT_FINAL = 32,
+	PKCS11_CMD_DECRYPT_FINAL = 33,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_ONESHOT - Update and finalize encryption
+	 * PKCS11_CMD_DECRYPT_ONESHOT - Update and finalize decryption
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_Encrypt()
+	 * and C_Decrypt().
+	 */
+	PKCS11_CMD_ENCRYPT_ONESHOT = 34,
+	PKCS11_CMD_DECRYPT_ONESHOT = 35,
+
+	/*
+	 * PKCS11_CMD_SIGN_INIT - Initialize a signature computation
+	 * PKCS11_CMD_VERIFY_INIT - Initialize a signature verification
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit key handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * These commands relate to the PKCS#11 API functions C_SignInit()
+	 * and C_VerifyInit().
+	 */
+	PKCS11_CMD_SIGN_INIT = 36,
+	PKCS11_CMD_VERIFY_INIT = 37,
+
+	/*
+	 * PKCS11_CMD_SIGN_UPDATE - Update a signature computation processing
+	 * PKCS11_CMD_VERIFY_UPDATE - Update a signature verification processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * These commands relate to the PKCS#11 API functions C_SignUpdate()
+	 * and C_VerifyUpdate().
+	 */
+	PKCS11_CMD_SIGN_UPDATE = 38,
+	PKCS11_CMD_VERIFY_UPDATE = 39,
+
+	/*
+	 * PKCS11_CMD_SIGN_FINAL - Finalize a signature computation
+	 * PKCS11_CMD_VERIFY_FINAL - Finalize a signature verification
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_SignFinal()
+	 * and C_VerifyFinal().
+	 */
+	PKCS11_CMD_SIGN_FINAL = 40,
+	PKCS11_CMD_VERIFY_FINAL = 41,
+
+	/*
+	 * PKCS11_CMD_SIGN_ONESHOT - Update and finalize a signature computation
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = byte array: generated signature
+	 *
+	 * This command relates to the PKCS#11 API function C_Sign().
+	 */
+	PKCS11_CMD_SIGN_ONESHOT = 42,
+
+	/*
+	 * PKCS11_CMD_VERIFY_ONESHOT - Update and finalize a signature verify
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [in]  memref[1] = input data to be processed
+	 * [in]  memref[2] = input signature to be processed
+	 *
+	 * This command relates to the PKCS#11 API function C_Verify().
+	 */
+	PKCS11_CMD_VERIFY_ONESHOT = 43,
 };
 
 /*
