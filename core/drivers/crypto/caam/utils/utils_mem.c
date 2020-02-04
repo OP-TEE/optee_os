@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -62,7 +62,7 @@ static uint32_t read_cacheline_size(void)
 #define MEM_TYPE_ZEROED	BIT(0) /* Buffer filled with 0's */
 #define MEM_TYPE_ALIGN	BIT(1) /* Address and size aligned on a cache line */
 
-#if (CFG_CAAM_DBG & DBG_TRACE_MEM)
+#if CAAM_DBG_TRACE(MEM)
 #define DEBUG_INFO_SIZE
 #endif
 
