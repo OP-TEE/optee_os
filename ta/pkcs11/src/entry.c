@@ -77,10 +77,11 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	TEE_Param *p2_out = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	/* Param#0: none or in-out buffer with serialized arguments */
+	/* Param#0: none or output or in-out buffer with serialized arguments */
 	switch (TEE_PARAM_TYPE_GET(ptypes, 0)) {
 	case TEE_PARAM_TYPE_NONE:
 		break;
+	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 	case TEE_PARAM_TYPE_MEMREF_INOUT:
 		ctrl = &params[0];
 		break;
@@ -99,7 +100,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* Param#2: none or input data buffer */
+	/* Param#2: none or input/output/in-out data buffer */
 	switch (TEE_PARAM_TYPE_GET(ptypes, 2)) {
 	case TEE_PARAM_TYPE_NONE:
 		break;
@@ -107,6 +108,10 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 		p2_in = &params[2];
 		break;
 	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		p2_out = &params[2];
+		break;
+	case TEE_PARAM_TYPE_MEMREF_INOUT:
+		p2_in = &params[2];
 		p2_out = &params[2];
 		break;
 	default:
