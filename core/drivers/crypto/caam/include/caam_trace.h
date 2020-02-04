@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  *
  * Brief   CAAM driver trace include file.
  *         Definition of the internal driver trace macros.
@@ -12,63 +12,67 @@
 #include <trace.h>
 #include <util.h>
 
+#define CAAM_DBG_TRACE(var) (CFG_DBG_CAAM_TRACE & DBG_TRACE_##var)
+#define CAAM_DBG_DESC(var)  (CFG_DBG_CAAM_DESC & DBG_TRACE_##var)
+#define CAAM_DBG_BUF(var)   (CFG_DBG_CAAM_BUF & DBG_TRACE_##var)
+
 /*
  * Debug Macros function of CAAM Debug Level setting
- * The CFG_CAAM_DBG is a bit mask 32 bits value defined
- * as followed:
+ * CFG_DBG_CAAM_TRACE  Module print trace
+ * CFG_DBG_CAAM_DESC   Module descriptor dump
+ * CFG_DBG_CAAM_BUF    Module buffer dump
+ *
+ * A module is represented with the same bit in each configuration value.
+ * Module Bit definition is as follow:
  */
-#define DBG_TRACE_HAL    BIT32(0)  /* HAL trace */
-#define DBG_TRACE_CTRL   BIT32(1)  /* Controller trace */
-#define DBG_TRACE_MEM    BIT32(2)  /* Memory utility trace */
-#define DBG_TRACE_PWR    BIT32(3)  /* Power trace */
-#define DBG_TRACE_JR     BIT32(4)  /* Job Ring trace */
-#define DBG_DESC_JR      BIT32(5)  /* Job Ring dump descriptor */
-#define DBG_TRACE_RNG    BIT32(6)  /* RNG trace */
-#define DBG_DESC_RNG     BIT32(7)  /* RNG dump descriptor */
-#define DBG_TRACE_HASH   BIT32(8)  /* Hash trace */
-#define DBG_DESC_HASH    BIT32(9)  /* Hash dump descriptor */
-#define DBG_BUF_HASH     BIT32(10) /* Hash dump Buffer */
-#define DBG_TRACE_SGT    BIT32(11) /* Scatter Gather trace */
+#define DBG_TRACE_HAL	 BIT32(0)  /* HAL trace */
+#define DBG_TRACE_CTRL	 BIT32(1)  /* Controller trace */
+#define DBG_TRACE_MEM	 BIT32(2)  /* Memory utility trace */
+#define DBG_TRACE_SGT	 BIT32(3)  /* Scatter Gather trace */
+#define DBG_TRACE_PWR	 BIT32(4)  /* Power trace */
+#define DBG_TRACE_JR	 BIT32(5)  /* Job Ring trace */
+#define DBG_TRACE_RNG	 BIT32(6)  /* RNG trace */
+#define DBG_TRACE_HASH	 BIT32(7)  /* Hash trace */
 
 /* HAL */
-#if (CFG_CAAM_DBG & DBG_TRACE_HAL)
+#if CAAM_DBG_TRACE(HAL)
 #define HAL_TRACE DRV_TRACE
 #else
 #define HAL_TRACE(...)
 #endif
 
 /* Controller */
-#if (CFG_CAAM_DBG & DBG_TRACE_CTRL)
+#if CAAM_DBG_TRACE(CTRL)
 #define CTRL_TRACE DRV_TRACE
 #else
 #define CTRL_TRACE(...)
 #endif
 
 /* Memory Utility */
-#if (CFG_CAAM_DBG & DBG_TRACE_MEM)
+#if CAAM_DBG_TRACE(MEM)
 #define MEM_TRACE DRV_TRACE
 #else
 #define MEM_TRACE(...)
 #endif
 
 /* Scatter Gether Table */
-#if (CFG_CAAM_DBG & DBG_TRACE_SGT)
+#if CAAM_DBG_TRACE(SGT)
 #define SGT_TRACE DRV_TRACE
 #else
 #define SGT_TRACE(...)
 #endif
 
 /* Power */
-#if (CFG_CAAM_DBG & DBG_TRACE_PWR)
+#if CAAM_DBG_TRACE(PWR)
 #define PWR_TRACE DRV_TRACE
 #else
 #define PWR_TRACE(...)
 #endif
 
 /* Job Ring */
-#if (CFG_CAAM_DBG & DBG_TRACE_JR)
+#if CAAM_DBG_TRACE(JR)
 #define JR_TRACE DRV_TRACE
-#if (CFG_CAAM_DBG & DBG_DESC_JR)
+#if CAAM_DBG_DESC(JR)
 #define JR_DUMPDESC(desc)                                                      \
 	do {                                                                   \
 		JR_TRACE("Descriptor");                                        \
@@ -83,9 +87,9 @@
 #endif
 
 /* RNG */
-#if (CFG_CAAM_DBG & DBG_TRACE_RNG)
+#if CAAM_DBG_TRACE(RNG)
 #define RNG_TRACE DRV_TRACE
-#if (CFG_CAAM_DBG & DBG_DESC_RNG)
+#if CAAM_DBG_DESC(RNG)
 #define RNG_DUMPDESC(desc)                                                     \
 	do {                                                                   \
 		RNG_TRACE("RNG Descriptor");                                   \
@@ -100,9 +104,9 @@
 #endif
 
 /* Hash */
-#if (CFG_CAAM_DBG & DBG_TRACE_HASH)
+#if CAAM_DBG_TRACE(HASH)
 #define HASH_TRACE DRV_TRACE
-#if (CFG_CAAM_DBG & DBG_DESC_HASH)
+#if CAAM_DBG_DESC(HASH)
 #define HASH_DUMPDESC(desc)                                                    \
 	do {                                                                   \
 		HASH_TRACE("HASH Descriptor");                                 \
@@ -111,7 +115,7 @@
 #else
 #define HASH_DUMPDESC(desc)
 #endif
-#if (CFG_CAAM_DBG & DBG_BUF_HASH)
+#if CAAM_DBG_BUF(HASH)
 #define HASH_DUMPBUF DRV_DUMPBUF
 #else
 #define HASH_DUMPBUF(...)
