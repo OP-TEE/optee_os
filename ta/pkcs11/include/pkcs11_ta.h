@@ -566,6 +566,26 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_DeriveKey().
 	 */
 	PKCS11_CMD_DERIVE_KEY = 44,
+
+	/*
+	 * PKCS11_CMD_GENERATE_KEY_PAIR - Generate an asymmetric key pair
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)pubkey_attribs + attributes,
+	 *              (struct pkcs11_object_head)privkeyattribs + attributes,
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = [
+	 *              32bit public key handle,
+	 *              32bit prive key handle
+	 *       ]
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GenerateKeyPair().
+	 */
+	PKCS11_CMD_GENERATE_KEY_PAIR = 45,
 };
 
 /*
