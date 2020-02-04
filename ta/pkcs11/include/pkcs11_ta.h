@@ -276,6 +276,135 @@ enum pkcs11_ta_cmd {
 	 * C_SetOperationState().
 	 */
 	PKCS11_CMD_SET_SESSION_STATE = 17,
+
+	/*
+	 * PKCS11_CMD_IMPORT_OBJECT - Import a raw object
+	 *
+	 * [in]	 memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_CreateObject().
+	 */
+	PKCS11_CMD_IMPORT_OBJECT = 18,
+
+	/*
+	 * PKCS11_CMD_COPY_OBJECT - Duplicate an object
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data,
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_CopyObject().
+	 */
+	PKCS11_CMD_COPY_OBJECT = 19,
+
+	/*
+	 * PKCS11_CMD_DESTROY_OBJECT - Destroy an object
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_DestroyObject().
+	 */
+	PKCS11_CMD_DESTROY_OBJECT = 20,
+
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS_INIT - Initialize an object search
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjectsInit().
+	 */
+	PKCS11_CMD_FIND_OBJECTS_INIT = 21,
+
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS - Get handles of matching objects
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit array object_handle_array[N]
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjects().
+	 * The size of object_handle_array depends on the size of the output
+	 * buffer provided by the client.
+	 */
+	PKCS11_CMD_FIND_OBJECTS = 22,
+
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS_FINAL - Finalize current objects search
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjectsFinal().
+	 */
+	PKCS11_CMD_FIND_OBJECTS_FINAL = 23,
+
+	/*
+	 * PKCS11_CMD_GET_OBJECT_SIZE - Get byte size used by object in the TEE
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = 32bit object_byte_size
+	 *
+	 * This command relates to the PKCS#11 API function C_GetObjectSize().
+	 */
+	PKCS11_CMD_GET_OBJECT_SIZE = 24,
+
+	/*
+	 * PKCS11_CMD_GET_ATTRIBUTE_VALUE - Get the value of object attribute(s)
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 * [out] memref[2] = (struct pkcs11_object_head)attribs + attribs data
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GetAttributeValue().
+	 *
+	 * Caller provides an attribute template as 3rd argument in memref[0]
+	 * (referred here as attribs + attributes data). Upon successful
+	 * completion, the TA returns the provided template filled with
+	 * expected data through output argument memref[2] (referred here
+	 * again as attribs + attributes data).
+	 */
+	PKCS11_CMD_GET_ATTRIBUTE_VALUE = 25,
+
+	/*
+	 * PKCS11_CMD_SET_ATTRIBUTE_VALUE - Set value for object attribute(s)
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *       ]
+	 * [out] memref[0] = 32bit fine grain return code
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_SetAttributeValue().
+	 */
+	PKCS11_CMD_SET_ATTRIBUTE_VALUE = 26,
 };
 
 /*
@@ -458,6 +587,45 @@ struct pkcs11_session_info {
 	uint32_t state;
 	uint32_t flags;
 	uint32_t error_code;
+};
+
+/*
+ * Agruments for all commands manipulating object attributes, as
+ * PKCS11_CMD_IMPORT_OBJECT.
+ */
+
+/*
+ * pkcs11_object_head - Header of object whose data are serialized in memory
+ *
+ * An object is made of several attributes. Attributes are stored one next to
+ * the other with byte alignment as a serialized byte arrays. Appended
+ * attributes byte arrays are prepend with this header structure that
+ * defines the number of attribute items and the overall byte size of byte
+ * array field pkcs11_object_head::attrs.
+ *
+ * @attrs_size - byte size of whole byte array attrs[]
+ * @attrs_count - number of attribute items stored in attrs[]
+ * @attrs - then starts the attributes data
+ */
+struct pkcs11_object_head {
+	uint32_t attrs_size;
+	uint32_t attrs_count;
+	uint8_t attrs[];
+};
+
+/*
+ * Attribute reference in the TA ABI. Each attribute starts with a header
+ * structure followed by the attribute value. The attribute byte size is
+ * defined in the attribute header.
+ *
+ * @id - the 32bit identificator of the attribute, see PKCS11_CKA_<x>
+ * @size - the 32bit value attribute byte size
+ * @data - then starts the attribute value
+ */
+struct pkcs11_attribute_head {
+	uint32_t id;
+	uint32_t size;
+	uint8_t data[];
 };
 
 #endif /*PKCS11_TA_H*/
