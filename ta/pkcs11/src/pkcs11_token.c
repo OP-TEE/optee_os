@@ -230,3 +230,70 @@ uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 
 	return PKCS11_CKR_OK;
 }
+
+static void dmsg_print_supported_mechanism(unsigned int token_id __maybe_unused,
+					   uint32_t *array __maybe_unused,
+					   size_t count __maybe_unused)
+{
+	size_t __maybe_unused n = 0;
+
+	if (TRACE_LEVEL < TRACE_DEBUG)
+		return;
+
+	for (n = 0; n < count; n++)
+		DMSG("PKCS11 token %"PRIu32": mechanism 0x%04"PRIx32": %s",
+		     token_id, array[n], id2str_mechanism(array[n]));
+}
+
+uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = &params[0];
+	TEE_Param *out = &params[2];
+	uint32_t rv = 0;
+	struct serialargs ctrlargs = { };
+	uint32_t token_id = 0;
+	struct ck_token __maybe_unused *token = NULL;
+	size_t count = 0;
+	uint32_t *array = NULL;
+
+	if (ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rv)
+		return rv;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	token = get_token(token_id);
+	if (!token)
+		return PKCS11_CKR_SLOT_ID_INVALID;
+
+	count = out->memref.size / sizeof(*array);
+	array = tee_malloc_mechanism_list(&count);
+
+	if (out->memref.size < count * sizeof(*array)) {
+		assert(!array);
+		out->memref.size = count * sizeof(*array);
+		return PKCS11_CKR_BUFFER_TOO_SMALL;
+	}
+
+	if (!array)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	dmsg_print_supported_mechanism(token_id, array, count);
+
+	out->memref.size = count * sizeof(*array);
+	TEE_MemMove(out->memref.buffer, array, out->memref.size);
+
+	TEE_Free(array);
+
+	return rv;
+}
