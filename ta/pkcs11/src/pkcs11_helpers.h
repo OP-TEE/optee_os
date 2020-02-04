@@ -32,5 +32,8 @@ uint32_t tee2pkcs_error(TEE_Result res);
 /* Id-to-string conversions only for trace support */
 const char *id2str_ta_cmd(uint32_t id);
 const char *id2str_rc(uint32_t id);
-#endif
+const char *id2str_proc_flag(uint32_t id);
+const char *id2str_slot_flag(uint32_t id);
+const char *id2str_token_flag(uint32_t id);
+#endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 #endif /*PKCS11_HELPERS_H*/
