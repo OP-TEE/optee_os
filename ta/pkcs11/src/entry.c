@@ -143,6 +143,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 		rc = entry_ping(ptypes, params);
 		break;
 
+	case PKCS11_CMD_SLOT_LIST:
+		rc = entry_ck_slot_list(ptypes, params);
+		break;
 	default:
 		EMSG("Command 0x%"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

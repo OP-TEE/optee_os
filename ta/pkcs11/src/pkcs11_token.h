@@ -73,4 +73,7 @@ unsigned int get_token_id(struct ck_token *token);
 struct ck_token *init_persistent_db(unsigned int token_id);
 void close_persistent_db(struct ck_token *token);
 
+/* Entry point for the TA commands */
+uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
+
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
