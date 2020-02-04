@@ -32,10 +32,10 @@ struct any_id {
 #define ID2STR(id, table, prefix)	\
 	id2str(id, table, ARRAY_SIZE(table), prefix)
 
+#if CFG_TEE_TA_LOG_LEVEL > 0
 /* Convert a PKCS11 ID into its label string */
-static const char __maybe_unused *id2str(uint32_t id,
-					 const struct any_id *table,
-					 size_t count, const char *prefix)
+static const char *id2str(uint32_t id, const struct any_id *table,
+			  size_t count, const char *prefix)
 {
 	size_t n = 0;
 	const char *str = NULL;
@@ -55,6 +55,7 @@ static const char __maybe_unused *id2str(uint32_t id,
 
 	return unknown;
 }
+#endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 
 /*
  * TA command IDs: used only as ID/string conversion for debug trace support

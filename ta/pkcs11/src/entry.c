@@ -6,6 +6,9 @@
 #include <compiler.h>
 #include <pkcs11_ta.h>
 #include <tee_internal_api.h>
+#include <tee_internal_api_extensions.h>
+
+#include "pkcs11_helpers.h"
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -120,6 +123,16 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+
+	DMSG("%s ctrl %"PRIu32"@%p, %s %"PRIu32"@%p, %s %"PRIu32"@%p",
+	     id2str_ta_cmd(cmd),
+	     ctrl ? ctrl->memref.size : 0, ctrl ? ctrl->memref.buffer : 0,
+	     p1_in ? "in" : "---", p1_in ? p1_in->memref.size : 0,
+	     p1_in ? p1_in->memref.buffer : NULL,
+	     p2_out ? "out" : (p2_in ? "in" : "---"),
+	     p2_out ? p2_out->memref.size : (p2_in ? p2_in->memref.size : 0),
+	     p2_out ? p2_out->memref.buffer :
+		      (p2_in ? p2_in->memref.buffer : NULL));
 
 	switch (cmd) {
 	case PKCS11_CMD_PING:
