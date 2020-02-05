@@ -109,7 +109,7 @@ exit_init:
 	return retresult;
 }
 
-driver_init(crypto_driver_init);
+early_init(crypto_driver_init);
 
 /* Crypto driver late initialization to complete on-going CAAM operations */
 static TEE_Result init_caam_late(void)
@@ -126,4 +126,4 @@ static TEE_Result init_caam_late(void)
 	return TEE_SUCCESS;
 }
 
-driver_init_late(init_caam_late);
+early_init_late(init_caam_late);
