@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017 NXP
+ * Copyright 2017-2021 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
 
 #include <arm.h>
-#include <arm32.h>
 #include <io.h>
 #include <imx.h>
 #include <mm/core_mmu.h>
