@@ -331,7 +331,7 @@ void tzc_dump_state(void)
 	uint32_t n;
 	uint32_t temp_32reg, temp_32reg_h;
 
-	DMSG("enter");
+	DMSG("TZC380 configuration:");
 	DMSG("security_inversion_en %x",
 	     io_read32(tzc.base + SECURITY_INV_EN_OFF));
 	for (n = 0; n <= REGION_MAX; n++) {
@@ -349,6 +349,11 @@ void tzc_dump_state(void)
 		DMSG("region size: %x", (temp_32reg & TZC_REGION_SIZE_MASK) >>
 				TZC_REGION_SIZE_SHIFT);
 	}
+	DMSG("Lockdown select: %"PRIx32,
+	     io_read32(tzc.base + LOCKDOWN_SELECT_OFF));
+	DMSG("Lockdown range: %"PRIx32,
+	     io_read32(tzc.base + LOCKDOWN_RANGE_OFF));
+	DMSG("Action register: %"PRIx32, tzc_get_action());
 	DMSG("exit");
 }
 
