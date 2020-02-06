@@ -1054,9 +1054,9 @@ static void init_primary_helper(unsigned long pageable_part,
 	init_vfp_sec();
 	init_runtime(pageable_part);
 
-#ifndef CFG_VIRTUALIZATION
-	thread_init_boot_thread();
-#endif
+	if (!IS_ENABLED(CFG_VRTUALIZATION))
+		thread_init_boot_thread();
+
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
@@ -1069,21 +1069,22 @@ static void init_primary_helper(unsigned long pageable_part,
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
-#ifdef CFG_CORE_ASLR
-	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
-	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
-#endif
+	if (IS_ENABLED(CFG_CORE_ASLR))
+		DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
+		     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
 
 	main_init_gic();
 	init_vfp_nsec();
-#ifndef CFG_VIRTUALIZATION
-	init_tee_runtime();
-#endif
+
+	if (!IS_ENABLED(CFG_VRTUALIZATION))
+		init_tee_runtime();
+
 	release_external_dt();
-#ifdef CFG_VIRTUALIZATION
-	IMSG("Initializing virtualization support");
-	core_mmu_init_virtualization();
-#endif
+
+	if (!IS_ENABLED(CFG_VRTUALIZATION)) {
+		IMSG("Initializing virtualization support");
+		core_mmu_init_virtualization();
+	}
 	DMSG("Primary CPU switching to normal world boot");
 }
 

@@ -678,6 +678,10 @@ void core_mmu_set_prtn(struct mmu_partition *prtn);
 void core_mmu_set_default_prtn(void);
 
 void core_mmu_init_virtualization(void);
+#else
+static inline void core_mmu_init_virtualization(void)
+{
+}
 #endif
 
 #endif /*__ASSEMBLER__*/
