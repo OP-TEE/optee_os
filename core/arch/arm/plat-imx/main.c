@@ -193,5 +193,4 @@ void plat_primary_init_early(void)
 #if defined(CFG_BOOT_SYNC_CPU)
 	psci_boot_allcpus()
 #endif
-	imx_configure_tzasc();
 }
