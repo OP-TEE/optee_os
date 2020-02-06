@@ -32,6 +32,7 @@
 #define __DRIVERS_TZC380_H
 
 #include <stdint.h>
+#include <tee_api_types.h>
 #include <trace_levels.h>
 #include <types_ext.h>
 #include <util.h>
@@ -202,6 +203,10 @@ enum tzc_action {
 #define TZC_ATTR_REGION_ENABLE	0x1
 #define TZC_ATTR_REGION_DISABLE	0x0
 
+#define LOCKDOWN_RANGE_ENABLE		BIT(31)
+
+#define LOCKDOWN_SELECT_RANGE_ENABLE	BIT(0)
+
 void tzc_init(vaddr_t base);
 void tzc_configure_region(uint8_t region, vaddr_t region_base, uint32_t attr);
 void tzc_region_enable(uint8_t region);
@@ -212,6 +217,7 @@ void tzc_fail_dump(void);
 void tzc_int_clear(void);
 int tzc_auto_configure(vaddr_t addr, vaddr_t rsize, uint32_t attr,
 		       uint8_t region);
+TEE_Result tzc_regions_lockdown(void);
 
 #if TRACE_LEVEL >= TRACE_DEBUG
 void tzc_dump_state(void);

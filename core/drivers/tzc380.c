@@ -288,6 +288,31 @@ int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
 	return lregion;
 }
 
+/*
+ * `region_lockdown` is used to lockdown the TZC380 configuration to prevent
+ * unintended overwrites of the configuration. Returns TEE_ERROR_SECURITY in
+ * case the lockdown fails.
+ */
+TEE_Result tzc_regions_lockdown(void)
+{
+	uint32_t val = 0;
+	uint32_t check = 0;
+
+	val = LOCKDOWN_RANGE_ENABLE | tzc.num_regions;
+	io_write32(tzc.base + LOCKDOWN_RANGE_OFF, val);
+	check = io_read32(tzc.base + LOCKDOWN_RANGE_OFF);
+	if (check != val)
+		return TEE_ERROR_SECURITY;
+
+	val = LOCKDOWN_SELECT_RANGE_ENABLE;
+	io_write32(tzc.base + LOCKDOWN_SELECT_OFF, val);
+	check = io_read32(tzc.base + LOCKDOWN_SELECT_OFF);
+	if (check != val)
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
+}
+
 #if TRACE_LEVEL >= TRACE_DEBUG
 
 static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
