@@ -390,7 +390,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	discovered_nsec_ddr_nelems = num_elems;
 
 	if (!core_mmu_check_end_pa(m[num_elems - 1].addr,
-				   m[num_elems - 1].size - 1))
+				   m[num_elems - 1].size))
 		panic();
 }
 

@@ -39,7 +39,7 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 {
 	paddr_t end_pa = 0;
 
-	if (ADD_OVERFLOW(pa, len, &end_pa))
+	if (ADD_OVERFLOW(pa, len - 1, &end_pa))
 		return false;
 	return core_mmu_check_max_pa(end_pa);
 }
