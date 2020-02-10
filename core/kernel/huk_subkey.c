@@ -59,7 +59,7 @@ TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 			     uint8_t *subkey, size_t subkey_len)
 {
 	void *ctx = NULL;
-	struct tee_hw_unique_key huk = { };
+	struct tee_hw_unique_key huk = { 0 };
 	TEE_Result res = TEE_SUCCESS;
 
 	if (subkey_len > HUK_SUBKEY_MAX_LEN)
