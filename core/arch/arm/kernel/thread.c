@@ -1210,7 +1210,7 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
 	if (!is_32bit)
 		return false;
 
-	s = read_spsr();
+	s = read_cpsr();
 	s &= ~(CPSR_MODE_MASK | CPSR_T | CPSR_IT_MASK1 | CPSR_IT_MASK2);
 	s |= CPSR_MODE_USR;
 	if (entry_func & 1)
@@ -1284,6 +1284,7 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 
 	tee_ta_update_session_utime_resume();
 
+	/* Derive SPSR from current CPSR/PSTATE readout. */
 	if (!get_spsr(is_32bit, entry_func, &spsr)) {
 		*exit_status0 = 1; /* panic */
 		*exit_status1 = 0xbadbadba;
