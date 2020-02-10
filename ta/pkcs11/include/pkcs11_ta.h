@@ -33,11 +33,16 @@
  * Param#0 is used for the so-called control arguments of the invoked command
  * and for providing a PKCS#11 compliant status code for the request command.
  * Param#0 is an in/out memory reference (aka memref[0]). The input buffer
- * stores the command arguments serialized inside. The output buffer will
- * store the 32bit TA return code for the command. Client shall get this
- * return code and override the GPD TEE Client API legacy TEE_Result value.
+ * stores serialized arguments for the command. The output buffer store the
+ * 32bit TA return code for the command. As a consequence, param#0 shall
+ * always be an input/output memory reference of at least 32bit, more if
+ * the command expects more input arguments.
  *
- * Param#1 is used for input data arguments of the invoked command.
+ * When the TA returns with TEE_SUCCESS result, client shall always get the
+ * 32bit value stored in param#0 output buffer and use the value as TA
+ * return code for the invoked command.
+ *
+ * Param#1 can be used for input data arguments of the invoked command.
  * It is unused or is a input memory reference, aka memref[1].
  * Evolution of the API may use memref[1] for output data as well.
  *
@@ -52,7 +57,8 @@
 /*
  * PKCS11_CMD_PING		Acknowledge TA presence and return version info
  *
- * Optinal invocation parameter (if none, command simply returns with success)
+ * [in]         memref[0] = 32bit, unused, must be 0
+ * [out]        memref[0] = 32bit return code, enum pkcs11_rc
  * [out]        memref[2] = [
  *                      32bit version major value,
  *                      32bit version minor value
