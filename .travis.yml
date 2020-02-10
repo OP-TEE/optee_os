@@ -4,7 +4,7 @@ notifications:
   - email: true
 
 git:
-  depth: 1000000
+  depth: false
 
 before_script:
   - export OPTEE_OS=$PWD
