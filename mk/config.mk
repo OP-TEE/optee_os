@@ -369,6 +369,10 @@ CFG_TA_GPROF_SUPPORT ?= n
 # defined in tee-supplicant)
 CFG_FTRACE_SUPPORT ?= n
 
+# Size of the function tracing buffer in bytes. The memory size required to
+# map the TA is increased by this value compared to when ftrace is disabled.
+CFG_FTRACE_BUF_SIZE ?= 2048
+
 # Function tracing: unit to be used when displaying durations
 #  0: always display durations in microseconds
 # >0: if duration is greater or equal to the specified value (in microseconds),
