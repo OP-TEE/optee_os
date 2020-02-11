@@ -1469,6 +1469,7 @@ func_exit:
 
 static TEE_Result get_fat_start_address(uint32_t *addr);
 
+#if (TRACE_LEVEL >= TRACE_FLOW)
 static void dump_fat(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -1516,6 +1517,11 @@ static void dump_fat(void)
 out:
 	free(fat_entries);
 }
+#else
+static void dump_fat(void)
+{
+}
+#endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)
 static void dump_fh(struct rpmb_file_handle *fh)
