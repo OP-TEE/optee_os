@@ -9,10 +9,6 @@ OUTPUT_ARCH(aarch64)
 #define MCOUNT_SYM _mcount
 #endif
 
-#ifndef CFG_FTRACE_BUF_SIZE
-#define CFG_FTRACE_BUF_SIZE 2048
-#endif
-
 SECTIONS {
 	.ta_head : {*(.ta_head)}
 	.text : {
