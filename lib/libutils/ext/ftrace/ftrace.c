@@ -59,11 +59,13 @@ static __noprof struct ftrace_buf *get_fbuf(void)
 #endif
 }
 
+#if defined(_CFG_FTRACE_BUF_WHEN_FULL_shift)
+
 /*
  * This API shifts/moves ftrace buffer to create space for new dump
  * in case the buffer size falls short of actual dump.
  */
-static void __noprof fbuf_shift(struct ftrace_buf *fbuf, size_t size)
+static bool __noprof fbuf_make_room(struct ftrace_buf *fbuf, size_t size)
 {
 	char *dst = (char *)fbuf + fbuf->buf_off;
 	const char *src = (char *)fbuf + fbuf->buf_off + size;
@@ -73,7 +75,35 @@ static void __noprof fbuf_shift(struct ftrace_buf *fbuf, size_t size)
 
 	for (n = 0; n < fbuf->curr_size; n++)
 		dst[n] = src[n];
+
+	return true;
 }
+
+#elif defined(_CFG_FTRACE_BUF_WHEN_FULL_wrap)
+
+/* Makes room in the trace buffer by discarding the previously recorded data. */
+static bool __noprof fbuf_make_room(struct ftrace_buf *fbuf,
+				    size_t size)
+{
+	if (fbuf->buf_off + size > fbuf->max_size)
+		return false;
+
+	fbuf->curr_size = 0;
+
+	return true;
+}
+
+#elif defined(_CFG_FTRACE_BUF_WHEN_FULL_stop)
+
+static bool __noprof fbuf_make_room(struct ftrace_buf *fbuf __unused,
+				    size_t size __unused)
+{
+	return false;
+}
+
+#else
+#error CFG_FTRACE_BUF_WHEN_FULL value not supported
+#endif
 
 static size_t __noprof to_func_enter_fmt(char *buf, uint32_t ret_idx,
 					 unsigned long pc)
@@ -108,6 +138,7 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 {
 	struct ftrace_buf *fbuf = NULL;
 	size_t dump_size = 0;
+	bool full = false;
 
 	fbuf = get_fbuf();
 
@@ -118,16 +149,19 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 			(2 * sizeof(unsigned long)) + 8;
 
 	/*
-	 * Check if we have enough space in ftrace buffer. If not then just
-	 * remove oldest dump under the assumption that its the least
-	 * interesting data.
+	 * Check if we have enough space in ftrace buffer. If not then try to
+	 * make room.
 	 */
-	if ((fbuf->curr_size + dump_size) > fbuf->max_size)
-		fbuf_shift(fbuf, dump_size);
+	full = (fbuf->curr_size + dump_size) > fbuf->max_size;
+	if (full)
+		full = !fbuf_make_room(fbuf, dump_size);
 
-	fbuf->curr_size += to_func_enter_fmt((char *)fbuf + fbuf->buf_off +
-					     fbuf->curr_size, fbuf->ret_idx,
-					     pc);
+	if (!full)
+		fbuf->curr_size += to_func_enter_fmt((char *)fbuf +
+						     fbuf->buf_off +
+						     fbuf->curr_size,
+						     fbuf->ret_idx,
+						     pc);
 
 	if (fbuf->ret_idx < FTRACE_RETFUNC_DEPTH) {
 		fbuf->ret_stack[fbuf->ret_idx] = *lr;
@@ -237,27 +271,34 @@ unsigned long __noprof ftrace_return(void)
 		ftrace_duration(dur_loc, fbuf->begin_time[fbuf->ret_idx],
 				read_cntpct());
 	} else {
+		bool full = false;
+
 		dump_size = DURATION_MAX_LEN + fbuf->ret_idx + 3;
-		if ((fbuf->curr_size + dump_size) > fbuf->max_size)
-			fbuf_shift(fbuf, dump_size);
+		full = (fbuf->curr_size + dump_size) > fbuf->max_size;
+		if (full)
+			full = !fbuf_make_room(fbuf, dump_size);
 
-		curr_buf = (char *)fbuf + fbuf->buf_off + fbuf->curr_size;
+		if (!full) {
+			curr_buf = (char *)fbuf + fbuf->buf_off +
+				   fbuf->curr_size;
 
-		for (i = 0; i < (DURATION_MAX_LEN + fbuf->ret_idx); i++)
-			if (i == (DURATION_MAX_LEN - 2))
-				*curr_buf++ = '|';
-			else
-				*curr_buf++ = ' ';
+			for (i = 0; i < (DURATION_MAX_LEN + fbuf->ret_idx); i++)
+				if (i == (DURATION_MAX_LEN - 2))
+					*curr_buf++ = '|';
+				else
+					*curr_buf++ = ' ';
 
-		*curr_buf++ = '}';
-		*curr_buf++ = '\n';
-		*curr_buf = '\0';
+			*curr_buf++ = '}';
+			*curr_buf++ = '\n';
+			*curr_buf = '\0';
 
-		fbuf->curr_size += dump_size - 1;
+			fbuf->curr_size += dump_size - 1;
 
-		dur_loc = curr_buf - fbuf->ret_idx - 6;
-		ftrace_duration(dur_loc, fbuf->begin_time[fbuf->ret_idx],
-				read_cntpct());
+			dur_loc = curr_buf - fbuf->ret_idx - 6;
+			ftrace_duration(dur_loc,
+					fbuf->begin_time[fbuf->ret_idx],
+					read_cntpct());
+		}
 	}
 
 	return fbuf->ret_stack[fbuf->ret_idx];

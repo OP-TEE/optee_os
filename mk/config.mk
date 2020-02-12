@@ -373,6 +373,16 @@ CFG_FTRACE_SUPPORT ?= n
 # map the TA is increased by this value compared to when ftrace is disabled.
 CFG_FTRACE_BUF_SIZE ?= 2048
 
+# How to make room when the function tracing buffer is full?
+# 'shift': shift the previously stored data by the amount needed in order
+#    to always keep the latest logs (slower, especially with big buffer sizes)
+# 'wrap': discard the previous data and start at the beginning of the buffer
+#    again (fast, but can result in a mostly empty buffer)
+# 'stop': stop logging new data
+CFG_FTRACE_BUF_WHEN_FULL ?= shift
+$(call cfg-check-value,FTRACE_BUF_WHEN_FULL,shift stop wrap)
+$(call force,_CFG_FTRACE_BUF_WHEN_FULL_$(CFG_FTRACE_BUF_WHEN_FULL),y)
+
 # Function tracing: unit to be used when displaying durations
 #  0: always display durations in microseconds
 # >0: if duration is greater or equal to the specified value (in microseconds),
