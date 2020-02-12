@@ -125,17 +125,11 @@ class Symbolizer(object):
             if elf:
                 return elf[0]
 
-    def set_arch(self):
-        if self._arch:
-            return
+    def set_arch(self, elf):
         self._arch = os.getenv('CROSS_COMPILE')
         if self._arch:
             return
-        elf = self.get_elf(self._elfs[0][0])
-        if elf is None:
-            return
-        p = subprocess.Popen(['file', self.get_elf(self._elfs[0][0])],
-                             stdout=subprocess.PIPE)
+        p = subprocess.Popen(['file', elf], stdout=subprocess.PIPE)
         output = p.stdout.readlines()
         p.terminate()
         if b'ARM aarch64,' in output[0]:
@@ -143,8 +137,8 @@ class Symbolizer(object):
         elif b'ARM,' in output[0]:
             self._arch = 'arm-linux-gnueabihf-'
 
-    def arch_prefix(self, cmd):
-        self.set_arch()
+    def arch_prefix(self, cmd, elf):
+        self.set_arch(elf)
         if self._arch is None:
             return ''
         return self._arch + cmd
@@ -160,7 +154,7 @@ class Symbolizer(object):
         elf = self.get_elf(elf_name)
         if not elf:
             return
-        cmd = self.arch_prefix('addr2line')
+        cmd = self.arch_prefix('addr2line', elf)
         if not cmd:
             return
         self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
@@ -229,7 +223,7 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('nm')
+        cmd = self.arch_prefix('nm', elf)
         if not reladdr or not elf or not cmd:
             return ''
         ireladdr = int(reladdr, 16)
@@ -270,7 +264,7 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('objdump')
+        cmd = self.arch_prefix('objdump', elf)
         if not reladdr or not elf or not cmd:
             return ''
         iaddr = int(reladdr, 16)
@@ -317,7 +311,7 @@ class Symbolizer(object):
         if elf_name in self._sections:
             return
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('objdump')
+        cmd = self.arch_prefix('objdump', elf)
         if not elf or not cmd:
             return
         self._sections[elf_name] = []
