@@ -141,6 +141,19 @@ CFG_RPMB_FS ?= n
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
 
+# This config variable determines the number of entries read in from RPMB at
+# once whenever a function traverses the RPMB FS. Increasing the default value
+# has the following consequences:
+# - More memory required on heap. A single FAT entry currently has a size of
+#   256 bytes.
+# - Potentially significant speed-ups for RPMB I/O. Depending on how many
+#   entries a function needs to traverse, the number of time-consuming RPMB
+#   read-in operations can be reduced.
+# Chosing a proper value is both platform- (available memory) and use-case-
+# dependent (potential number of FAT fs entries), so overwrite in platform
+# config files
+CFG_RPMB_FS_RD_ENTRIES ?= 8
+
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
 # !!! Security warning !!!
