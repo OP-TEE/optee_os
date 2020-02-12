@@ -67,6 +67,7 @@
 #define GIC_BASE			0x01400000
 #define GICC_OFFSET			0x2000
 #define GICD_OFFSET			0x1000
+#define CAAM_BASE			0x01700000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1088ardb)
