@@ -164,6 +164,7 @@ class Symbolizer(object):
         if not cmd:
             return
         self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
+        self._addr2line_elf_name = elf_name
 
     # If addr falls into a region that maps a TA ELF file, return the load
     # address of that file.
