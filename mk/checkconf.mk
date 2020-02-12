@@ -164,6 +164,14 @@ cfg-enable-all-depends =                                                        
         )                                                                                  \
      )
 
+# Check if a configuration variable has an acceptable value
+# Example:
+# $(call cfg-check-value,FOO,foo bar)
+# Will do nothing if $(CFG_FOO) is either foo or bar, and error out otherwise.
+cfg-check-value =                                                          \
+    $(if $(filter-out $(2),$(CFG_$(1))),                                   \
+        $(error CFG_$(1) is set to '$(CFG_$(1))', valid values are: $(2)))
+
 # Set a variable or error out if it was previously set to a different value
 # The reason message (3rd parameter) is optional
 # Example:
