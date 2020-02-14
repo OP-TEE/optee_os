@@ -104,5 +104,6 @@ static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
 			      struct ta_elf *elf);
 TEE_Result ta_elf_add_library(const TEE_UUID *uuid);
+TEE_Result ta_elf_set_init_fini_info(bool is_32bit);
 
 #endif /*TA_ELF_H*/

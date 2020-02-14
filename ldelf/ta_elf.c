@@ -913,8 +913,13 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 void ta_elf_finalize_load_main(uint64_t *entry)
 {
 	struct ta_elf *elf = TAILQ_FIRST(&main_elf_queue);
+	TEE_Result res = TEE_SUCCESS;
 
 	assert(elf->is_main);
+
+	res = ta_elf_set_init_fini_info(elf->is_32bit);
+	if (res)
+		err(res, "ta_elf_set_init_fini_info");
 
 	if (elf->is_legacy)
 		*entry = elf->head->depr_entry;
@@ -1193,5 +1198,213 @@ TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
 		DMSG("ELF (%pUl) at %#"PRIxVA,
 		     (void *)&elf->uuid, elf->load_addr);
 
+	return ta_elf_set_init_fini_info(ta->is_32bit);
+}
+
+/* Get address/size of .init_array and .fini_array from the dynamic segment */
+static void get_init_fini_array(struct ta_elf *elf, unsigned int type,
+				vaddr_t addr, size_t memsz, vaddr_t *init,
+				size_t *init_cnt, vaddr_t *fini,
+				size_t *fini_cnt)
+{
+	size_t addrsz = 0;
+	size_t dyn_entsize = 0;
+	size_t num_dyns = 0;
+	size_t n = 0;
+	unsigned int tag = 0;
+	size_t val = 0;
+
+	assert(type == PT_DYNAMIC);
+
+	if (elf->is_32bit) {
+		dyn_entsize = sizeof(Elf32_Dyn);
+		addrsz = 4;
+	} else {
+		dyn_entsize = sizeof(Elf64_Dyn);
+		addrsz = 8;
+	}
+
+	assert(!(memsz % dyn_entsize));
+	num_dyns = memsz / dyn_entsize;
+
+	for (n = 0; n < num_dyns; n++) {
+		read_dyn(elf, addr, n, &tag, &val);
+		if (tag == DT_INIT_ARRAY)
+			*init = val + elf->load_addr;
+		else if (tag == DT_FINI_ARRAY)
+			*fini = val + elf->load_addr;
+		else if (tag == DT_INIT_ARRAYSZ)
+			*init_cnt = val / addrsz;
+		else if (tag == DT_FINI_ARRAYSZ)
+			*fini_cnt = val / addrsz;
+	}
+}
+
+/* Get address/size of .init_array and .fini_array in @elf (if present) */
+static void elf_get_init_fini_array(struct ta_elf *elf, vaddr_t *init,
+				    size_t *init_cnt, vaddr_t *fini,
+				    size_t *fini_cnt)
+{
+	size_t n = 0;
+
+	if (elf->is_32bit) {
+		Elf32_Phdr *phdr = elf->phdr;
+
+		for (n = 0; n < elf->e_phnum; n++) {
+			if (phdr[n].p_type == PT_DYNAMIC) {
+				get_init_fini_array(elf, phdr[n].p_type,
+						    phdr[n].p_vaddr,
+						    phdr[n].p_memsz,
+						    init, init_cnt, fini,
+						    fini_cnt);
+				return;
+			}
+		}
+	} else {
+		Elf64_Phdr *phdr = elf->phdr;
+
+		for (n = 0; n < elf->e_phnum; n++) {
+			if (phdr[n].p_type == PT_DYNAMIC) {
+				get_init_fini_array(elf, phdr[n].p_type,
+						    phdr[n].p_vaddr,
+						    phdr[n].p_memsz,
+						    init, init_cnt, fini,
+						    fini_cnt);
+				return;
+			}
+		}
+	}
+}
+
+static TEE_Result realloc_ifs(vaddr_t va, size_t cnt, bool is_32bit)
+{
+	struct __init_fini_info32 *info32 = (struct __init_fini_info32 *)va;
+	struct __init_fini_info *info = (struct __init_fini_info *)va;
+	struct __init_fini32 *ifs32 = NULL;
+	struct __init_fini *ifs = NULL;
+	size_t prev_cnt = 0;
+	void *ptr = NULL;
+
+	if (is_32bit) {
+		ptr = (void *)(vaddr_t)info32->ifs;
+		ptr = realloc(ptr, cnt * sizeof(struct __init_fini32));
+		if (!ptr)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		ifs32 = ptr;
+		prev_cnt = info32->size;
+		if (cnt > prev_cnt)
+			memset(ifs32 + prev_cnt, 0,
+			       (cnt - prev_cnt) * sizeof(*ifs32));
+		info32->ifs = (uint32_t)(vaddr_t)ifs32;
+		info32->size = cnt;
+	} else {
+		ptr = realloc(info->ifs, cnt * sizeof(struct __init_fini));
+		if (!ptr)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		ifs = ptr;
+		prev_cnt = info->size;
+		if (cnt > prev_cnt)
+			memset(ifs + prev_cnt, 0,
+			       (cnt - prev_cnt) * sizeof(*ifs));
+		info->ifs = ifs;
+		info->size = cnt;
+	}
+
 	return TEE_SUCCESS;
+}
+
+static void fill_ifs(vaddr_t va, size_t idx, struct ta_elf *elf, bool is_32bit)
+{
+	struct __init_fini_info32 *info32 = (struct __init_fini_info32 *)va;
+	struct __init_fini_info *info = (struct __init_fini_info *)va;
+	struct __init_fini32 *ifs32 = NULL;
+	struct __init_fini *ifs = NULL;
+	size_t init_cnt = 0;
+	size_t fini_cnt = 0;
+	vaddr_t init = 0;
+	vaddr_t fini = 0;
+
+	if (is_32bit) {
+		assert(idx < info32->size);
+		ifs32 = &((struct __init_fini32 *)(vaddr_t)info32->ifs)[idx];
+
+		if (ifs32->flags & __IFS_VALID)
+			return;
+
+		elf_get_init_fini_array(elf, &init, &init_cnt, &fini,
+					&fini_cnt);
+
+		ifs32->init = (uint32_t)init;
+		ifs32->init_size = init_cnt;
+
+		ifs32->fini = (uint32_t)fini;
+		ifs32->fini_size = fini_cnt;
+
+		ifs32->flags |= __IFS_VALID;
+	} else {
+		assert(idx < info->size);
+		ifs = &info->ifs[idx];
+
+		if (ifs->flags & __IFS_VALID)
+			return;
+
+		elf_get_init_fini_array(elf, &init, &init_cnt, &fini,
+					&fini_cnt);
+
+		ifs->init = (void (**)(void))init;
+		ifs->init_size = init_cnt;
+
+		ifs->fini = (void (**)(void))fini;
+		ifs->fini_size = fini_cnt;
+
+		ifs->flags |= __IFS_VALID;
+	}
+}
+
+/*
+ * Set or update __init_fini_info in the TA with information from the ELF
+ * queue
+ */
+TEE_Result ta_elf_set_init_fini_info(bool is_32bit)
+{
+	struct __init_fini_info *info = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	struct ta_elf *elf = NULL;
+	vaddr_t info_va = 0;
+	size_t cnt = 0;
+
+	res = ta_elf_resolve_sym("__init_fini_info", &info_va, NULL);
+	if (res) {
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* Older TA */
+			return TEE_SUCCESS;
+		}
+		return res;
+	}
+	assert(info_va);
+
+	info = (struct __init_fini_info *)info_va;
+	if (info->reserved)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	TAILQ_FOREACH(elf, &main_elf_queue, link)
+		cnt++;
+
+	/* Queue has at least one file (main) */
+	assert(cnt);
+
+	res = realloc_ifs(info_va, cnt, is_32bit);
+	if (res)
+		goto err;
+
+	cnt = 0;
+	TAILQ_FOREACH(elf, &main_elf_queue, link) {
+		fill_ifs(info_va, cnt, elf, is_32bit);
+		cnt++;
+	}
+
+	return TEE_SUCCESS;
+err:
+	free(info);
+	return res;
 }

@@ -34,6 +34,42 @@ extern struct ta_head ta_head;
 
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
+struct __init_fini_info __init_fini_info;
+
+void __utee_call_elf_init_fn(void)
+{
+	size_t n = __init_fini_info.size;
+	size_t i = 0;
+	size_t j = 0;
+
+	for (i = 1; i <= n; i++) {
+		/* Reverse order: dependencies first */
+		struct __init_fini *ifs = &__init_fini_info.ifs[n - i];
+
+		if (!(ifs->flags & __IFS_INIT_HAS_RUN))
+			for (j = 0; j < ifs->init_size; j++)
+				ifs->init[j]();
+
+		ifs->flags |= __IFS_INIT_HAS_RUN;
+	}
+}
+
+void __utee_call_elf_fini_fn(void)
+{
+	size_t n = __init_fini_info.size;
+	size_t i = 0;
+	size_t j = 0;
+
+	for (i = 0; i < n; i++) {
+		struct __init_fini *ifs = &__init_fini_info.ifs[i];
+
+		if (!(ifs->flags & __IFS_FINI_HAS_RUN))
+			for (j = 1; j <= ifs->fini_size; j++)
+				ifs->fini[ifs->fini_size - j]();
+
+		ifs->flags |= __IFS_FINI_HAS_RUN;
+	}
+}
 
 static TEE_Result init_instance(void)
 {
@@ -41,6 +77,7 @@ static TEE_Result init_instance(void)
 	__utee_gprof_init();
 	malloc_add_pool(ta_heap, ta_heap_size);
 	_TEE_MathAPI_Init();
+	__utee_call_elf_init_fn();
 	return TA_CreateEntryPoint();
 }
 
@@ -48,6 +85,7 @@ static void uninit_instance(void)
 {
 	__utee_gprof_fini();
 	TA_DestroyEntryPoint();
+	__utee_call_elf_fini_fn();
 }
 
 static void ta_header_save_params(uint32_t param_types,
