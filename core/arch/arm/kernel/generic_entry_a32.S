@@ -687,9 +687,9 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	 * ttbr0_el1 = ttbr0_base + ttbr0_core_offset * core_pos
 	 */
 	mla	r12, r0, r3, r2
-	write_ttbr0 r12
-	mov	r12, #0
-	write_ttbr1 r12
+	mov	r0, #0
+	write_ttbr0_64bit r12, r0
+	write_ttbr1_64bit r0, r0
 #else
 	ldm	r1!, {r2, r3}
 	/*
