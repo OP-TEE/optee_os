@@ -505,9 +505,10 @@ shadow_stack_access_ok:
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
 	 */
-	ldr	r4, cached_mem_end
-	add	r4, r4, r0
-	str	r4, cached_mem_end
+	ldr	r2, cached_mem_end
+	add	r2, r2, r0
+	str	r2, cached_mem_end
+
 	bl	relocate
 #endif
 
