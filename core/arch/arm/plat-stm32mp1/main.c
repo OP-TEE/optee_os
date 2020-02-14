@@ -129,7 +129,6 @@ void console_init(void)
 	};
 
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(uarts) > CFG_STM32_EARLY_CONSOLE_UART);
-	assert(!cpu_mmu_enabled());
 
 	if (!uarts[CFG_STM32_EARLY_CONSOLE_UART].pa)
 		return;
