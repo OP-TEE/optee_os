@@ -10,6 +10,7 @@
 #include <string.h>
 #include <tee_api.h>
 #include <tee_internal_api_extensions.h>
+#include <user_ta_header.h>
 
 static TEE_TASessionHandle sess = TEE_HANDLE_NULL;
 static size_t hcount;
@@ -63,6 +64,8 @@ void *dlopen(const char *filename, int flags)
 		res = invoke_system_pta(PTA_SYSTEM_DLOPEN, param_types, params);
 		if (res)
 			goto err;
+
+		__utee_call_elf_init_fn();
 	}
 
 	hcount++;
