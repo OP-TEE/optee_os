@@ -114,3 +114,62 @@ uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)
 
 	return PKCS11_CKR_OK;
 }
+
+uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = &params[0];
+	TEE_Param *out = &params[2];
+	uint32_t rv = 0;
+	struct serialargs ctrlargs = { };
+	uint32_t token_id = 0;
+	struct ck_token *token = NULL;
+	struct pkcs11_slot_info info = {
+		.slot_description = PKCS11_SLOT_DESCRIPTION,
+		.manufacturer_id = PKCS11_SLOT_MANUFACTURER,
+		.flags = PKCS11_CKFS_TOKEN_PRESENT,
+		.hardware_version = PKCS11_SLOT_HW_VERSION,
+		.firmware_version = PKCS11_SLOT_FW_VERSION,
+	};
+	int n = 0;
+
+	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_DESCRIPTION) <=
+			    sizeof(info.slot_description));
+	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_MANUFACTURER) <=
+			    sizeof(info.manufacturer_id));
+
+	if (ptypes != exp_pt || out->memref.size != sizeof(info))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rv)
+		return rv;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	token = get_token(token_id);
+	if (!token)
+		return PKCS11_CKR_SLOT_ID_INVALID;
+
+	/* Pad string identifiers with blank characters */
+	n = strnlen((char *)info.slot_description,
+		    sizeof(info.slot_description));
+	TEE_MemFill(&info.slot_description[n], ' ',
+		    sizeof(info.slot_description) - n);
+
+	n = strnlen((char *)info.manufacturer_id,
+		    sizeof(info.manufacturer_id));
+	TEE_MemFill(&info.manufacturer_id[n], ' ',
+		    sizeof(info.manufacturer_id) - n);
+
+	out->memref.size = sizeof(info);
+	TEE_MemMove(out->memref.buffer, &info, out->memref.size);
+
+	return PKCS11_CKR_OK;
+}
