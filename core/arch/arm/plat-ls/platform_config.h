@@ -65,8 +65,8 @@
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
 #define GIC_BASE			0x01400000
-#define GICC_OFFSET			0x2000
-#define GICD_OFFSET			0x1000
+#define GICC_OFFSET			0x20000
+#define GICD_OFFSET			0x10000
 #define CAAM_BASE			0x01700000
 #endif
 
