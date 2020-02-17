@@ -9,6 +9,13 @@
 #include <tee_api_types.h>
 #include <tee_internal_api.h>
 
+/* Hard coded description */
+#define PKCS11_SLOT_DESCRIPTION		"OP-TEE PKCS11 TA"
+#define PKCS11_SLOT_MANUFACTURER	"Linaro"
+#define PKCS11_SLOT_HW_VERSION		{ 0, 0 }
+#define PKCS11_SLOT_FW_VERSION		{ PKCS11_TA_VERSION_MAJOR, \
+					  PKCS11_TA_VERSION_MINOR }
+
 enum pkcs11_token_state {
 	PKCS11_TOKEN_RESET = 0,
 	PKCS11_TOKEN_READ_WRITE,
@@ -75,5 +82,6 @@ void close_persistent_db(struct ck_token *token);
 
 /* Entry point for the TA commands */
 uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
