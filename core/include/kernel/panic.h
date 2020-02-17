@@ -12,7 +12,7 @@
 #if defined(CFG_TEE_CORE_DEBUG)
 #define __panic(str)	__do_panic(__FILE__, __LINE__, __func__, str)
 #else
-#define __panic(str)	__do_panic((void *)0, 0, (void *)0, (void *)0)
+#define __panic(str)	__do_panic((void *)0, 0, (void *)0, str)
 #endif
 
 void __do_panic(const char *file, const int line, const char *func,
