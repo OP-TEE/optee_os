@@ -297,3 +297,67 @@ uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 
 	return rv;
 }
+
+static void supported_mechanism_key_size(uint32_t proc_id,
+					 uint32_t *max_key_size,
+					 uint32_t *min_key_size)
+{
+	switch (proc_id) {
+	/* Will be filled once TA supports mechanisms */
+	default:
+		*min_key_size = 0;
+		*max_key_size = 0;
+		break;
+	}
+}
+
+uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = &params[0];
+	TEE_Param *out = &params[2];
+	uint32_t rv = 0;
+	struct serialargs ctrlargs = { };
+	uint32_t token_id = 0;
+	uint32_t type = 0;
+	struct ck_token *token = NULL;
+	struct pkcs11_mechanism_info info = { };
+
+	if (ptypes != exp_pt || out->memref.size != sizeof(info))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rv = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
+	if (rv)
+		return rv;
+
+	rv = serialargs_get(&ctrlargs, &type, sizeof(uint32_t));
+	if (rv)
+		return rv;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	token = get_token(token_id);
+	if (!token)
+		return PKCS11_CKR_SLOT_ID_INVALID;
+
+	if (!mechanism_is_valid(type))
+		return PKCS11_CKR_MECHANISM_INVALID;
+
+	info.flags = mechanism_supported_flags(type);
+
+	supported_mechanism_key_size(type, &info.min_key_size,
+				     &info.max_key_size);
+
+	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
+
+	DMSG("PKCS11 token %"PRIu32": mechanism 0x%"PRIx32" info",
+	     token_id, type);
+
+	return PKCS11_CKR_OK;
+}
