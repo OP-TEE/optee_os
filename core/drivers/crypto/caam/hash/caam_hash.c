@@ -562,7 +562,7 @@ static TEE_Result do_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
 					alg->size_digest);
 
 		if (realloc)
-			memcpy(digest, digest_align.data, len);
+			memcpy(digest, digest_align.data, alg->size_digest);
 
 		HASH_DUMPBUF("Digest", digest_align.data,
 			     (size_t)alg->size_digest);
