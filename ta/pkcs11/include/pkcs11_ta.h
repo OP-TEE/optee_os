@@ -122,7 +122,7 @@ enum pkcs11_ta_cmd {
 	 *
 	 * [in]  memref[0] = [
 	 *              32bit slot ID,
-	 *              32bit mechanism ID
+	 *              32bit mechanism ID (PKCS11_CKM_*)
 	 *       ]
 	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
 	 * [out] memref[2] = (struct pkcs11_mechanism_info)info
@@ -289,4 +289,45 @@ enum pkcs11_user_type {
 	PKCS11_CKU_CONTEXT_SPECIFIC = 0x002,
 };
 
+/*
+ * Arguments for PKCS11_CMD_MECHANISM_INFO
+ */
+
+struct pkcs11_mechanism_info {
+	uint32_t min_key_size;
+	uint32_t max_key_size;
+	uint32_t flags;
+};
+
+/*
+ * Values for pkcs11_mechanism_info::flags.
+ * PKCS11_CKFM_<x> reflects CryptoKi client API mechanism flags CKF_<x>.
+ */
+#define PKCS11_CKFM_HW				(1U << 0)
+#define PKCS11_CKFM_ENCRYPT			(1U << 8)
+#define PKCS11_CKFM_DECRYPT			(1U << 9)
+#define PKCS11_CKFM_DIGEST			(1U << 10)
+#define PKCS11_CKFM_SIGN			(1U << 11)
+#define PKCS11_CKFM_SIGN_RECOVER		(1U << 12)
+#define PKCS11_CKFM_VERIFY			(1U << 13)
+#define PKCS11_CKFM_VERIFY_RECOVER		(1U << 14)
+#define PKCS11_CKFM_GENERATE			(1U << 15)
+#define PKCS11_CKFM_GENERATE_KEY_PAIR		(1U << 16)
+#define PKCS11_CKFM_WRAP			(1U << 17)
+#define PKCS11_CKFM_UNWRAP			(1U << 18)
+#define PKCS11_CKFM_DERIVE			(1U << 19)
+#define PKCS11_CKFM_EC_F_P			(1U << 20)
+#define PKCS11_CKFM_EC_F_2M			(1U << 21)
+#define PKCS11_CKFM_EC_ECPARAMETERS		(1U << 22)
+#define PKCS11_CKFM_EC_NAMEDCURVE		(1U << 23)
+#define PKCS11_CKFM_EC_UNCOMPRESS		(1U << 24)
+#define PKCS11_CKFM_EC_COMPRESS			(1U << 25)
+
+/*
+ * Valid values for mechanism IDs
+ * PKCS11_CKM_<x> reflects CryptoKi client API mechanism IDs CKM_<x>.
+ */
+enum pkcs11_mechanism_id {
+	PKCS11_CKM_AES_ECB			= 0x01081,
+};
 #endif /*PKCS11_TA_H*/
