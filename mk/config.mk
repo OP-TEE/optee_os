@@ -382,10 +382,6 @@ CFG_TA_GPROF_SUPPORT ?= n
 # defined in tee-supplicant)
 CFG_FTRACE_SUPPORT ?= n
 
-# Size of the function tracing buffer in bytes. The memory size required to
-# map the TA is increased by this value compared to when ftrace is disabled.
-CFG_FTRACE_BUF_SIZE ?= 2048
-
 # How to make room when the function tracing buffer is full?
 # 'shift': shift the previously stored data by the amount needed in order
 #    to always keep the latest logs (slower, especially with big buffer sizes)
