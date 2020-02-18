@@ -50,7 +50,7 @@ void imx_configure_tzasc(void)
 			     TZC_ATTR_SP_S_RW, region);
 		region = tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
 			     TZC_ATTR_SP_ALL, region);
-		DMSG("Action register: %xl", tzc_get_action());
+		tzc_dump_state();
 		if (tzc_regions_lockdown() != TEE_SUCCESS)
 			panic("Region lockdown failed!");
 	}
