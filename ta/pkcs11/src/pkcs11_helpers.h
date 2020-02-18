@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <token_capabilities.h>
+
 /*
  * TEE invocation parameter#0 is an in/out buffer of at least 32bit
  * to store the TA PKCS#11 compliant return value.
@@ -21,5 +23,9 @@ const char *id2str_ta_cmd(uint32_t id);
 const char *id2str_rc(uint32_t id);
 const char *id2str_slot_flag(uint32_t id);
 const char *id2str_token_flag(uint32_t id);
+static inline const char *id2str_mechanism(enum pkcs11_mechanism_id id)
+{
+	return mechanism_string_id(id);
+}
 #endif /* CFG_TEE_TA_LOG_LEVEL > 0 */
 #endif /*PKCS11_HELPERS_H*/
