@@ -11,7 +11,6 @@
 #include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
-#include "utee_misc.h"
 #include <tee_arith_internal.h>
 #include <malloc.h>
 #include "tee_api_private.h"
