@@ -129,7 +129,7 @@ class Symbolizer(object):
         self._arch = os.getenv('CROSS_COMPILE')
         if self._arch:
             return
-        p = subprocess.Popen(['file', elf], stdout=subprocess.PIPE)
+        p = subprocess.Popen(['file', '-L', elf], stdout=subprocess.PIPE)
         output = p.stdout.readlines()
         p.terminate()
         if b'ARM aarch64,' in output[0]:
