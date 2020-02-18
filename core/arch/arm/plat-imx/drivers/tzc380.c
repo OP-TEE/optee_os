@@ -10,6 +10,7 @@
 #include <drivers/tzc380.h>
 #include <imx-regs.h>
 #include <imx.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/generic_ram_layout.h>
 
@@ -50,5 +51,7 @@ void imx_configure_tzasc(void)
 		region = tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
 			     TZC_ATTR_SP_ALL, region);
 		DMSG("Action register: %xl", tzc_get_action());
+		if (tzc_regions_lockdown() != TEE_SUCCESS)
+			panic("Region lockdown failed!");
 	}
 }
