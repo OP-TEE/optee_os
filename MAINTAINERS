@@ -96,7 +96,7 @@ S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Hisilicon Hi3519AV100 family
-R:	Jerome Forissier <jerome.@forissier.org> [@jforissier]
+R:	Jerome Forissier <jerome@forissier.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
