@@ -46,7 +46,20 @@ def get_args():
                         help='Github pull request ID. The script will '
                         'download the patchset from Github to a temporary '
                         'file and process it.')
+    parser.add_argument('-r', '--release-to', action='store_true',
+                        help='show all the recipients to be used in release '
+                        'announcement emails (i.e., maintainers and reviewers)'
+                        'and exit.')
     return parser.parse_args()
+
+
+def check_cwd():
+    cwd = os.getcwd()
+    parent = os.path.dirname(os.path.realpath(__file__)) + "/../"
+    if (os.path.realpath(cwd) != os.path.realpath(parent)):
+        print("Error: this script must be run from the top-level of the "
+              "optee_os tree")
+        exit(1)
 
 
 # Parse MAINTAINERS and return a dictionary of subsystems such as:
@@ -54,12 +67,7 @@ def get_args():
 #                     'F': [ 'path1', 'path2' ]}, ...}
 def parse_maintainers():
     subsystems = {}
-    cwd = os.getcwd()
-    parent = os.path.dirname(os.path.realpath(__file__)) + "/../"
-    if (os.path.realpath(cwd) != os.path.realpath(parent)):
-        print("Error: this script must be run from the top-level of the "
-              "optee_os tree")
-        exit(1)
+    check_cwd()
     with open("MAINTAINERS", "r") as f:
         start_found = False
         ss = {}
@@ -224,10 +232,23 @@ def download(pr):
     return f.name
 
 
+def show_release_to():
+    check_cwd()
+    with open("MAINTAINERS", "r") as f:
+        emails = sorted(set(re.findall(r'[RM]:\t(.*[\w]*<[\w\.-]+@[\w\.-]+>)',
+                                       f.read())))
+    print(*emails, sep=', ')
+
+
 def main():
     global args
 
     args = get_args()
+
+    if args.release_to:
+        show_release_to()
+        return
+
     all_subsystems = parse_maintainers()
     paths = []
     arglist = []
