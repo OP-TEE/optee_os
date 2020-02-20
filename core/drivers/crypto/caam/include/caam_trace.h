@@ -35,6 +35,7 @@
 #define DBG_TRACE_HASH	 BIT32(7)  /* Hash trace */
 #define DBG_TRACE_RSA	 BIT32(8)  /* RSA trace */
 #define DBG_TRACE_CIPHER BIT32(9)  /* Cipher dump Buffer */
+#define DBG_TRACE_BLOB   BIT32(10) /* BLOB trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -192,6 +193,29 @@
 #define DRV_TRACE(...)
 #define DRV_DUMPDESC(...)
 #define DRV_DUMPBUF(...)
+#endif
+
+/* BLOB */
+#if CAAM_DBG_TRACE(BLOB)
+#define BLOB_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(BLOB)
+#define BLOB_DUMPDESC(desc)                                                    \
+	do {                                                                   \
+		BLOB_TRACE("BLOB Descriptor");                                 \
+		DRV_DUMPDESC(desc);                                            \
+	} while (0)
+#else
+#define BLOB_DUMPDESC(desc)
+#endif
+#if CAAM_DBG_BUF(BLOB)
+#define BLOB_DUMPBUF DRV_DUMPBUF
+#else
+#define BLOB_DUMPBUF(...)
+#endif
+#else
+#define BLOB_TRACE(...)
+#define BLOB_DUMPDESC(desc)
+#define BLOB_DUMPBUF(...)
 #endif
 
 #endif /* CAAM_TRACE_H__ */
