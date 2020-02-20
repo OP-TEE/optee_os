@@ -12,6 +12,7 @@
 #include <caam_hal_ctrl.h>
 #include <caam_hash.h>
 #include <caam_jr.h>
+#include <caam_blob.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
 #include <caam_utils_mem.h>
@@ -82,6 +83,13 @@ static TEE_Result crypto_driver_init(void)
 
 	/* Initialize the HMAC Module */
 	retstatus = caam_hmac_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the BLOB Module */
+	retstatus = caam_blob_mkvb_init(jrcfg.base);
 	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;
