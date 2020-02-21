@@ -151,15 +151,22 @@ static uint32_t bsec_status(void)
 	return io_read32(bsec_base() + BSEC_OTP_STATUS_OFF);
 }
 
-static TEE_Result check_no_error(uint32_t otp_id)
+/*
+ * Check that BSEC interface does not report an error
+ * @otp_id : OTP number
+ * @check_disturbed: check only error (false) or all sources (true)
+ * Return a TEE_Result compliant value
+ */
+static TEE_Result check_no_error(uint32_t otp_id, bool check_disturbed)
 {
 	uint32_t bit = BIT(otp_id & BSEC_OTP_MASK);
 	uint32_t bank = otp_bank_offset(otp_id);
 
-	if (io_read32(bsec_base() + BSEC_DISTURBED_OFF + bank) & bit)
+	if (io_read32(bsec_base() + BSEC_ERROR_OFF + bank) & bit)
 		return TEE_ERROR_GENERIC;
 
-	if (io_read32(bsec_base() + BSEC_ERROR_OFF + bank) & bit)
+	if (check_disturbed &&
+	    io_read32(bsec_base() + BSEC_DISTURBED_OFF + bank) & bit)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
@@ -237,7 +244,7 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 	if (bsec_status() & BSEC_MODE_BUSY_MASK)
 		result = TEE_ERROR_GENERIC;
 	else
-		result = check_no_error(otp_id);
+		result = check_no_error(otp_id, true /* check-disturbed */);
 
 	power_down_safmem();
 
@@ -248,22 +255,13 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 
 TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 {
-	TEE_Result result = 0;
-	uint32_t exceptions = 0;
-
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	exceptions = bsec_lock();
 
 	*value = io_read32(bsec_base() + BSEC_OTP_DATA_OFF +
 			   (otp_id * sizeof(uint32_t)));
 
-	result = check_no_error(otp_id);
-
-	bsec_unlock(exceptions);
-
-	return result;
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_shadow_read_otp(uint32_t *otp_value, uint32_t otp_id)
@@ -302,11 +300,9 @@ TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id)
 
 	io_write32(otp_data_base + (otp_id * sizeof(uint32_t)), value);
 
-	result = check_no_error(otp_id);
-
 	bsec_unlock(exceptions);
 
-	return result;
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
@@ -344,7 +340,7 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 	if (bsec_status() & (BSEC_MODE_BUSY_MASK | BSEC_MODE_PROGFAIL_MASK))
 		result = TEE_ERROR_GENERIC;
 	else
-		result = check_no_error(otp_id);
+		result = check_no_error(otp_id, true /* check-disturbed */);
 
 	power_down_safmem();
 
@@ -392,7 +388,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 	if (bsec_status() & (BSEC_MODE_BUSY_MASK | BSEC_MODE_PROGFAIL_MASK))
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
-		result = check_no_error(otp_id);
+		result = check_no_error(otp_id, false /* not-disturbed */);
 
 	power_down_safmem();
 
