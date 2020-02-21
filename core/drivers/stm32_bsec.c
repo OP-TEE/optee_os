@@ -281,6 +281,7 @@ TEE_Result stm32_bsec_shadow_read_otp(uint32_t *otp_value, uint32_t otp_id)
 	return result;
 }
 
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id)
 {
 	TEE_Result result = 0;
@@ -348,6 +349,7 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 
 	return result;
 }
+#endif /*CFG_STM32_BSEC_WRITE*/
 
 TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 {
@@ -397,6 +399,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 	return result;
 }
 
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
@@ -414,6 +417,7 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 
 	return result;
 }
+#endif /*CFG_STM32_BSEC_WRITE*/
 
 uint32_t stm32_bsec_read_debug_conf(void)
 {

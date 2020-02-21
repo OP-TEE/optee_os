@@ -6,6 +6,7 @@
 #ifndef __STM32_BSEC_H
 #define __STM32_BSEC_H
 
+#include <compiler.h>
 #include <stdint.h>
 #include <tee_api.h>
 
@@ -38,7 +39,15 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id);
  * @otp_id: OTP number
  * Return a TEE_Result compliant return value
  */
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id);
+#else
+static inline TEE_Result stm32_bsec_write_otp(uint32_t value __unused,
+					      uint32_t otp_id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /*
  * Program a bit in SAFMEM without BSEC data refresh
@@ -46,7 +55,15 @@ TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id);
  * @otp_id: OTP number.
  * Return a TEE_Result compliant return value
  */
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id);
+#else
+static inline TEE_Result stm32_bsec_program_otp(uint32_t value __unused,
+						uint32_t otp_id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /*
  * Permanent lock of OTP in SAFMEM
@@ -60,7 +77,14 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id);
  * @value: Value to write
  * Return a TEE_Result compliant return value
  */
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
+#else
+static inline TEE_Result stm32_bsec_write_debug_conf(uint32_t value __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /* Return debug configuration read from BSEC */
 uint32_t stm32_bsec_read_debug_conf(void);
