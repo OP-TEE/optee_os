@@ -98,7 +98,7 @@
  */
 #define BSEC_LOCK_UPPER_OTP		0x00
 #define BSEC_LOCK_DEBUG			0x02
-#define BSEC_LOCK_PROGRAM		0x03
+#define BSEC_LOCK_PROGRAM		0x04
 
 /* Timeout when polling on status */
 #define BSEC_TIMEOUT_US			1000
