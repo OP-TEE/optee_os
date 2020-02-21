@@ -1171,9 +1171,14 @@ static const char *stm32mp_osc_node_label[NB_OSC] = {
 
 static unsigned int clk_freq_prop(void *fdt, int node)
 {
+	const fdt32_t *cuint = NULL;
 	int ret = 0;
-	const fdt32_t *cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);
 
+	/* Disabled clocks report null rate */
+	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+		return 0;
+
+	cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);
 	if (!cuint)
 		panic();
 
