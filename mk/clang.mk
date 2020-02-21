@@ -24,19 +24,7 @@ endif
 AR$(sm)		:= $(ccache-cmd)llvm-ar
 NM$(sm)		:= llvm-nm
 OBJCOPY$(sm)	:= llvm-objcopy
-
-# llvm-objdump:
-# - Does not support mixed 32-bit ARM and Thumb instructions
-# - Has a poorer output than the binutils version (static functions not shown,
-#   for instance).
-# Rely on the GNU binutils version instead (if available).
-binutils-objdump = $(CROSS_COMPILE_$(sm))objdump
-ifneq (,$(filter GNU,$(shell $(binutils-objdump) -v 2>&1)))
-OBJDUMP$(sm)	:= $(binutils-objdump)
-else
-OBJDUMP$(sm)	:= echo "Warning: binutils objdump not found, file will be empty" >&2; true
-endif
-
+OBJDUMP$(sm)	:= llvm-objdump
 READELF$(sm)	:= llvm-readelf
 
 nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
