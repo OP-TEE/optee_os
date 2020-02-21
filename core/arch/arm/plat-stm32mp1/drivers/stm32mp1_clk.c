@@ -330,8 +330,6 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 #endif
 	_CLK_SC_SELEC(RCC_MP_APB4ENSETR, 8, DDRPERFM, _UNKNOWN_SEL),
 	_CLK_SC_SELEC(RCC_MP_APB4ENSETR, 15, IWDG2, _UNKNOWN_SEL),
-	_CLK_SC_SELEC(RCC_MP_APB4ENSETR, 16, USBPHY_K, _USBPHY_SEL),
-	_CLK_SC_SELEC(RCC_MP_AHB2ENSETR, 8, USBO_K, _USBO_SEL),
 	_CLK_SELEC(RCC_DBGCFGR, 8, CK_DBG, _UNKNOWN_SEL),
 	_CLK_SC_FIXED(RCC_MP_APB1ENSETR, 6, TIM12_K, _PCLK1),
 	_CLK_SC_FIXED(RCC_MP_APB2ENSETR, 2, TIM15_K, _PCLK2),
@@ -376,14 +374,6 @@ static const uint8_t mcuss_parents[] = {
 	_HSI, _HSE, _CSI, _PLL3_P
 };
 
-static const uint8_t usbphy_parents[] = {
-	_HSE_KER, _PLL4_R, _HSE_KER_DIV2
-};
-
-static const uint8_t usbo_parents[] = {
-	_PLL4_R, _USB_PHY_48
-};
-
 static const uint8_t rtc_parents[] = {
 	_UNKNOWN_ID, _LSE, _LSI, _HSE
 };
@@ -403,8 +393,6 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_UART78_SEL, RCC_UART78CKSELR, 0, 0x7, uart234578_parents),
 	_CLK_PARENT(_AXISS_SEL, RCC_ASSCKSELR, 0, 0x3, axiss_parents),
 	_CLK_PARENT(_MCUSS_SEL, RCC_MSSCKSELR, 0, 0x3, mcuss_parents),
-	_CLK_PARENT(_USBPHY_SEL, RCC_USBCKSELR, 0, 0x3, usbphy_parents),
-	_CLK_PARENT(_USBO_SEL, RCC_USBCKSELR, 4, 0x1, usbo_parents),
 };
 
 /* PLLNCFGR2 register divider by output */
