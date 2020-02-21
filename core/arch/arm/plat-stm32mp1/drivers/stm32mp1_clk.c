@@ -358,6 +358,7 @@ static const uint8_t rng1_parents[] = {
 };
 
 /* Parents for (some) non-secure clocks */
+#ifdef CFG_WITH_NSEC_UARTS
 static const uint8_t uart6_parents[] = {
 	_PCLK2, _PLL4_Q, _HSI_KER, _CSI_KER, _HSE_KER
 };
@@ -365,6 +366,7 @@ static const uint8_t uart6_parents[] = {
 static const uint8_t uart234578_parents[] = {
 	_PCLK1, _PLL4_Q, _HSI_KER, _CSI_KER, _HSE_KER
 };
+#endif
 
 static const uint8_t axiss_parents[] = {
 	_HSI, _HSE, _PLL2_P
@@ -387,10 +389,12 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_RNG1_SEL, RCC_RNG1CKSELR, 0, 0x3, rng1_parents),
 	_CLK_PARENT(_RTC_SEL, RCC_BDCR, 0, 0x3, rtc_parents),
 	/* Always non-secure clocks (maybe used in some way in secure world) */
+#ifdef CFG_WITH_NSEC_UARTS
 	_CLK_PARENT(_UART6_SEL, RCC_UART6CKSELR, 0, 0x7, uart6_parents),
 	_CLK_PARENT(_UART24_SEL, RCC_UART24CKSELR, 0, 0x7, uart234578_parents),
 	_CLK_PARENT(_UART35_SEL, RCC_UART35CKSELR, 0, 0x7, uart234578_parents),
 	_CLK_PARENT(_UART78_SEL, RCC_UART78CKSELR, 0, 0x7, uart234578_parents),
+#endif
 	_CLK_PARENT(_AXISS_SEL, RCC_ASSCKSELR, 0, 0x3, axiss_parents),
 	_CLK_PARENT(_MCUSS_SEL, RCC_MSSCKSELR, 0, 0x3, mcuss_parents),
 };
