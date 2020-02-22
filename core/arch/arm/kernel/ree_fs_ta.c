@@ -184,7 +184,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	    shdr->img_type == SHDR_ENCRYPTED_TA) {
 		TEE_UUID bs_uuid;
 
-		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr)) {
+		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(*bs_hdr)) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
