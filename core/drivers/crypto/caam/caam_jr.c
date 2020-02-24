@@ -629,9 +629,6 @@ enum caam_status caam_jr_flush(void)
 void caam_jr_resume(uint32_t pm_hint)
 {
 	if (pm_hint == PM_HINT_CONTEXT_STATE) {
-#if !(defined(CFG_MX6DL) || defined(CFG_MX6D) || defined(CFG_MX6Q) ||          \
-	defined(CFG_MX6QP))
-
 #ifndef CFG_NXP_CAAM_RUNTIME_JR
 		/*
 		 * In case the CAAM is not used the JR used to
@@ -661,7 +658,6 @@ void caam_jr_resume(uint32_t pm_hint)
 		caam_hal_jr_setowner(jr_privdata->ctrladdr,
 				     jr_privdata->jroffset, JROWN_ARM_NS);
 #endif /* CFG_NXP_CAAM_RUNTIME_JR */
-#endif /* !(CFG_MX6DL || CFG_MX6D || CFG_MX6Q || CFG_MX6QP) */
 	} else {
 		caam_hal_jr_resume(jr_privdata->baseaddr);
 	}
