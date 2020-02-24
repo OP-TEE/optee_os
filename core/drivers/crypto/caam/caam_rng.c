@@ -16,6 +16,7 @@
 #include <mm/core_memprot.h>
 #include <rng_support.h>
 #include <tee/cache.h>
+#include <tee/tee_cryp_utl.h>
 #include <string.h>
 
 /*
@@ -568,5 +569,9 @@ uint8_t hw_get_random_byte(void)
 		panic();
 
 	return data;
+}
+
+void plat_rng_init(void)
+{
 }
 #endif
