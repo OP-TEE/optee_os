@@ -1204,8 +1204,11 @@ static struct tee_mmap_region *get_tmp_mmap(void)
  * based on the seed and return the offset from the link address.
  *
  * If an error happened: core_init_mmu_map is expected to panic.
+ *
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
  */
-void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
+void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
 #ifndef CFG_VIRTUALIZATION
 	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
