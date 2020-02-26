@@ -20,8 +20,13 @@ link-ldflags += --gc-sections
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(libdeps)
-link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
-			  $(objs))
+link-objs := $(filter-out \
+	       $(out-dir)/core/arch/arm/kernel/link_dummies_paged.o \
+	       $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+	       $(objs))
+link-objs-init := $(filter-out \
+		    $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+		    $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
 		  $(link-ldadd) $(libgcccore)
 
@@ -73,7 +78,8 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
 init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
-init-ldadd := $(objs) $(link-out-dir)/version.o  $(link-ldadd) $(libgcccore)
+init-ldadd := $(link-objs-init) $(link-out-dir)/version.o  $(link-ldadd) \
+	      $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
 $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 	$(call gen-version-o)

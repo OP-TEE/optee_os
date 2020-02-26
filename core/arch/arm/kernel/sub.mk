@@ -56,7 +56,8 @@ endif
 
 srcs-$(CFG_VIRTUALIZATION) += virtualization.c
 
-srcs-y += link_dummies.c
+srcs-y += link_dummies_paged.c
+srcs-y += link_dummies_init.c
 
 asm-defines-y += asm-defines.c
 
