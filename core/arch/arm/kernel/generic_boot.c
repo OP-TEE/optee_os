@@ -1208,9 +1208,13 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	DMSG("Secondary CPU Switching to normal world boot");
 }
 
-void generic_boot_init_primary(unsigned long pageable_part,
-			       unsigned long nsec_entry __maybe_unused,
-			       unsigned long fdt)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak generic_boot_init_primary(unsigned long pageable_part,
+				      unsigned long nsec_entry __maybe_unused,
+				      unsigned long fdt)
 {
 	unsigned long e = PADDR_INVALID;
 

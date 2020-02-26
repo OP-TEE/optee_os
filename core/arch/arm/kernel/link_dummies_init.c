@@ -17,3 +17,10 @@ core_init_mmu_map(unsigned long seed __unused,
 		  struct core_mmu_config *cfg __unused)
 {
 }
+
+void __section(".text.dummy.generic_boot_init_primary")
+generic_boot_init_primary(unsigned long pageable_part __unused,
+			  unsigned long nsec_entry __unused,
+			  unsigned long fdt __unused)
+{
+}
