@@ -176,7 +176,7 @@ END_FUNC thread_unwind_user_mode
 	1:
 
 		/* Point to the vector into the full mapping */
-		adr	x0, thread_user_kcode_offset
+		adr_l	x0, thread_user_kcode_offset
 		ldr	x0, [x0]
 		mrs	x1, vbar_el1
 		add	x1, x1, x0
@@ -188,7 +188,7 @@ END_FUNC thread_unwind_user_mode
 		 * Update the SP with thread_user_kdata_sp_offset as
 		 * described in init_user_kcode().
 		 */
-		adr	x0, thread_user_kdata_sp_offset
+		adr_l	x0, thread_user_kdata_sp_offset
 		ldr	x0, [x0]
 		add	sp, sp, x0
 #endif
@@ -454,7 +454,7 @@ eret_to_el0:
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	/* Point to the vector into the reduced mapping */
-	adr	x0, thread_user_kcode_offset
+	adr_l	x0, thread_user_kcode_offset
 	ldr	x0, [x0]
 	mrs	x1, vbar_el1
 	sub	x1, x1, x0
@@ -463,7 +463,7 @@ eret_to_el0:
 
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 	/* Store the SP offset in tpidr_el1 to be used below to update SP */
-	adr	x1, thread_user_kdata_sp_offset
+	adr_l	x1, thread_user_kdata_sp_offset
 	ldr	x1, [x1]
 	msr	tpidr_el1, x1
 #endif
@@ -520,7 +520,7 @@ icache_inv_user_range:
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	/* Point to the vector into the reduced mapping */
-	adr	x2, thread_user_kcode_offset
+	adr_l	x2, thread_user_kcode_offset
 	ldr	x2, [x2]
 	mrs	x4, vbar_el1	/* this register must be preserved */
 	sub	x3, x4, x2
