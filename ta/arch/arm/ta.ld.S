@@ -33,6 +33,7 @@ SECTIONS {
 		*(.gnu.linkonce.r.*)
 		*(.rodata .rodata.*)
 	}
+	.ARM.extab : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
         .ctors : { *(.ctors) }
