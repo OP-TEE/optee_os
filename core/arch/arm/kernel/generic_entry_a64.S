@@ -105,15 +105,15 @@ copy_init:
 	 * [struct boot_embdata + data] : Should be moved to __end, first
 	 * uint32_t tells the length of the struct + data
 	 */
-	adr	x0, __end		/* dst */
-	adr	x1, __data_end		/* src */
+	adr_l	x0, __end		/* dst */
+	adr_l	x1, __data_end		/* src */
 	ldr	w2, [x1]		/* struct boot_embdata::total_len */
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	x0, x0, x2
 	add	x1, x1, x2
 	adr	x3, cached_mem_end
 	str	x0, [x3]
-	adr	x2, __end
+	adr_l	x2, __end
 
 copy_init:
 	ldp	x3, x4, [x1, #-16]!
@@ -253,9 +253,9 @@ END_DATA cached_mem_end
 LOCAL_FUNC relocate , :
 	/* x0 holds load offset */
 #ifdef CFG_WITH_PAGER
-	adr	x6, __init_end
+	adr_l	x6, __init_end
 #else
-	adr	x6, __end
+	adr_l	x6, __end
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
