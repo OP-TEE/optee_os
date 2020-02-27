@@ -297,6 +297,10 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 	if (tee_ta_get_current_session(&s))
 		panic("No current session");
 
+	tsd->abort_type = ABORT_TYPE_TA_PANIC;
+	tsd->abort_descr = 0;
+	tsd->abort_va = 0;
+
 	if (tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,
@@ -307,10 +311,6 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 				(uaddr_t)regs->r1);
 		return;
 	}
-
-	tsd->abort_type = ABORT_TYPE_TA_PANIC;
-	tsd->abort_descr = 0;
-	tsd->abort_va = 0;
 
 	save_panic_regs_a32_ta(tsd, (uint32_t *)regs->r1);
 }
