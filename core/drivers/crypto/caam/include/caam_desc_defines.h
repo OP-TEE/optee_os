@@ -404,6 +404,8 @@
  */
 /* Secure Key */
 #define ALGO_RNG_SK		BIT32(12)
+/* Prediction Resistance */
+#define ALGO_RNG_PR		BIT32(1)
 
 /* State Handle */
 #define ALGO_RNG_SH(sh)		SHIFT_U32((sh) & 0x3, 4)
