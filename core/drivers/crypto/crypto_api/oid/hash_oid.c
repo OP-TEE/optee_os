@@ -7,6 +7,7 @@
 
 /* Driver Crypto includes */
 #include <drvcrypt_asn1_oid.h>
+#include <utee_defines.h>
 
 /*
  * Hash OID values
