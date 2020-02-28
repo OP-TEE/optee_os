@@ -221,7 +221,7 @@ static inline void dump_desc(uint32_t *desc)
  */
 #define RNG_SH_INST(sh)                                                        \
 	(CMD_OP_TYPE | OP_TYPE(CLASS1) | OP_ALGO(RNG) | ALGO_RNG_SH(sh) |      \
-	 ALGO_AS(RNG_INSTANTIATE))
+	 ALGO_AS(RNG_INSTANTIATE) | ALGO_RNG_PR)
 
 /*
  * RNG Generates Secure Keys
@@ -234,7 +234,8 @@ static inline void dump_desc(uint32_t *desc)
  * RNG Generates Data
  */
 #define RNG_GEN_DATA                                                           \
-	(CMD_OP_TYPE | OP_TYPE(CLASS1) | OP_ALGO(RNG) | ALGO_AS(RNG_GENERATE))
+	(CMD_OP_TYPE | OP_TYPE(CLASS1) | OP_ALGO(RNG) | ALGO_AS(RNG_GENERATE) |\
+	ALGO_RNG_PR)
 
 /*
  * Hash Init Operation of algorithm algo
