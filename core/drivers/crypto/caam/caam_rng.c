@@ -121,7 +121,6 @@ static void do_free(void)
 	}
 }
 
-#ifdef CFG_NXP_CAAM_RNG_DRV
 /*
  * RNG data generation job ring callback completion
  *
@@ -346,7 +345,6 @@ static enum caam_status caam_rng_init_data(void)
 
 	return retstatus;
 }
-#endif /* CFG_NXP_CAAM_RNG_DRV */
 
 /*
  * Prepares the instantiation descriptor
@@ -541,16 +539,38 @@ enum caam_status caam_rng_init(vaddr_t ctrl_addr)
 		retstatus = caam_rng_instantiation();
 	}
 
-#ifdef CFG_NXP_CAAM_RNG_DRV
 	if (retstatus == CAAM_NO_ERROR)
 		retstatus = caam_rng_init_data();
-#endif
 
 	if (retstatus != CAAM_NO_ERROR)
 		do_free();
 
 	return retstatus;
 }
+
+#define RNG_SEED_LEN	64
+
+#ifndef CFG_NXP_CAAM_RNG_DRV
+void plat_rng_init(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t buf[RNG_SEED_LEN] = { };
+
+	res = do_rng_read((uint8_t *)&buf, RNG_SEED_LEN);
+
+	if (res) {
+		EMSG("Failed to read RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(&buf, sizeof(buf));
+
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
+}
+#endif
 
 #ifdef CFG_NXP_CAAM_RNG_DRV
 TEE_Result crypto_rng_read(void *buf, size_t blen)
