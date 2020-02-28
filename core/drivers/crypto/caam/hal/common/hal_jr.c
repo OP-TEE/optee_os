@@ -13,6 +13,7 @@
 #include <registers/ctrl_regs.h>
 #include <registers/jr_regs.h>
 
+#ifdef CFG_NXP_CAAM_RUNTIME_JR
 /*
  * List of common JR registers to save/restore
  */
@@ -23,6 +24,7 @@ static const struct reglist jr_backup[] = {
 	BACKUP_REG(JRX_ORSR, 1, 0, 0),
 	BACKUP_REG(JRX_JRCFGR_LS, 1, 0, 0),
 };
+#endif /* CFG_NXP_CAAM_RUNTIME_JR */
 
 enum caam_status caam_hal_jr_reset(vaddr_t baseaddr)
 {
