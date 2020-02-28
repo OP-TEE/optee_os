@@ -22,6 +22,7 @@
 #define SOC_MX7ULP	0xE1
 #define SOC_MX8QX	0xE2
 #define SOC_MX8QM	0xE3
+#define SOC_MX8DXL	0xE4
 #define SOC_MX8M	0x82
 
 #ifndef __ASSEMBLER__

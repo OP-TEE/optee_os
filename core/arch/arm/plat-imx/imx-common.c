@@ -62,6 +62,8 @@ uint32_t imx_get_digprog(void)
 		imx_digprog = SOC_MX8QX << 16;
 	else if (IS_ENABLED(CFG_MX8QM))
 		imx_digprog = SOC_MX8QM << 16;
+	else if (IS_ENABLED(CFG_MX8DXL))
+		imx_digprog = SOC_MX8DXL << 16;
 
 	return imx_digprog;
 }
