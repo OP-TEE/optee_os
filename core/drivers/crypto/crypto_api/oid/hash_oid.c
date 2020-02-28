@@ -29,7 +29,7 @@ const struct drvcrypt_oid drvcrypt_hash_oid[] = {
 	{ DRVCRYPT_OID_ID_SHA512, DRVCRYPT_OID_LEN(DRVCRYPT_OID_ID_SHA512) },
 };
 
-struct drvcrypt_oid *drvcrypt_get_alg_hash_oid(uint32_t algo)
+const struct drvcrypt_oid *drvcrypt_get_alg_hash_oid(uint32_t algo)
 {
 	uint32_t main_alg = TEE_ALG_GET_MAIN_ALG(algo);
 

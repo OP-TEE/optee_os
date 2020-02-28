@@ -146,6 +146,6 @@ extern const struct drvcrypt_oid drvcrypt_hash_oid[];
  *
  * @algo	Hash algorithm identifier
  */
-struct drvcrypt_oid *drvcrypt_get_alg_hash_oid(uint32_t algo);
+const struct drvcrypt_oid *drvcrypt_get_alg_hash_oid(uint32_t algo);
 
 #endif /* __ASN1_OID_H__ */
