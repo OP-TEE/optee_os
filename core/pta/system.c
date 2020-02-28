@@ -852,6 +852,11 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	struct tee_ta_session *s = tee_ta_get_calling_session();
+	bool ta_initializing = false;
+
+	if (s && is_user_ta_ctx(s->ctx)) {
+		ta_initializing = to_user_ta_ctx(s->ctx)->is_initializing;
+	}
 
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:
@@ -863,12 +868,20 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 	case PTA_SYSTEM_UNMAP:
 		return system_unmap(s, param_types, params);
 	case PTA_SYSTEM_OPEN_TA_BINARY:
+		if (!ta_initializing)
+			return TEE_ERROR_ACCESS_DENIED;
 		return system_open_ta_binary(sess_ctx, param_types, params);
 	case PTA_SYSTEM_CLOSE_TA_BINARY:
+		if (!ta_initializing)
+			return TEE_ERROR_ACCESS_DENIED;
 		return system_close_ta_binary(sess_ctx, param_types, params);
 	case PTA_SYSTEM_MAP_TA_BINARY:
+		if (!ta_initializing)
+			return TEE_ERROR_ACCESS_DENIED;
 		return system_map_ta_binary(sess_ctx, s, param_types, params);
 	case PTA_SYSTEM_COPY_FROM_TA_BINARY:
+		if (!ta_initializing)
+			return TEE_ERROR_ACCESS_DENIED;
 		return system_copy_from_ta_binary(sess_ctx, param_types,
 						  params);
 	case PTA_SYSTEM_SET_PROT:
