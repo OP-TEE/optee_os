@@ -63,7 +63,7 @@ struct ck_token {
 TEE_Result pkcs11_init(void);
 void pkcs11_deinit(void);
 
-/* Return token instance from token identifier */
+/* Speculation safe lookup of token instance from token identifier */
 struct ck_token *get_token(unsigned int token_id);
 
 /* Return token identified from token instance address */

@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <confine_array_index.h>
 #include <pkcs11_ta.h>
 #include <string.h>
 #include <string_ext.h>
@@ -26,13 +27,12 @@
 /* Static allocation of tokens runtime instances (reset to 0 at load) */
 struct ck_token ck_token[TOKEN_COUNT];
 
-/* Static allocation of tokens runtime instances */
 struct ck_token *get_token(unsigned int token_id)
 {
-	if (token_id > TOKEN_COUNT)
-		return NULL;
+	if (token_id < TOKEN_COUNT)
+		return &ck_token[confine_array_index(token_id, TOKEN_COUNT)];
 
-	return &ck_token[token_id];
+	return NULL;
 }
 
 unsigned int get_token_id(struct ck_token *token)
