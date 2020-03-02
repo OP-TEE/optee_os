@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <pkcs11_ta.h>
+#include <speculation_barrier.h>
 #include <string.h>
 #include <string_ext.h>
 #include <sys/queue.h>
@@ -25,13 +26,12 @@
 /* Static allocation of tokens runtime instances (reset to 0 at load) */
 struct ck_token ck_token[TOKEN_COUNT];
 
-/* Static allocation of tokens runtime instances */
 struct ck_token *get_token(unsigned int token_id)
 {
-	if (token_id > TOKEN_COUNT)
-		return NULL;
-
-	return &ck_token[token_id];
+	return load_no_speculate_fail(&ck_token[token_id].self,
+				      &ck_token[0].self,
+				      &ck_token[TOKEN_COUNT].self,
+				      NULL);
 }
 
 unsigned int get_token_id(struct ck_token *token)
@@ -51,6 +51,7 @@ static TEE_Result pkcs11_token_init(struct ck_token *token)
 		return res;
 
 	if (token->state == PKCS11_TOKEN_RESET) {
+		token->self = token;
 		/* As per PKCS#11 spec, token resets to read/write state */
 		token->state = PKCS11_TOKEN_READ_WRITE;
 		token->session_count = 0;

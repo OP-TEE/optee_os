@@ -46,12 +46,14 @@ struct token_persistent_main {
 /*
  * Runtime state of the token, complies with pkcs11
  *
+ * @self - Instance address for speculation safe lookup of token from its index
  * @state - Pkcs11 login is public, user, SO or custom
  * @session_count - Counter for opened Pkcs11 sessions
  * @rw_session_count - Count for opened Pkcs11 read/write sessions
  * @db_main - Volatile copy of the persistent main database
  */
 struct ck_token {
+	struct ck_token *self;
 	enum pkcs11_token_state state;
 	uint32_t session_count;
 	uint32_t rw_session_count;
@@ -63,7 +65,7 @@ struct ck_token {
 TEE_Result pkcs11_init(void);
 void pkcs11_deinit(void);
 
-/* Return token instance from token identifier */
+/* Speculation safe lookup of token instance from token identifier */
 struct ck_token *get_token(unsigned int token_id);
 
 /* Return token identified from token instance address */
