@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright (c) 2020 Linaro Limited */
 // Copyright 2019 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -82,6 +83,39 @@ static inline size_t confine_array_index(size_t index, size_t size) {
   return safe_index;
 }
 #endif
+#ifdef __arm__
+static inline size_t confine_array_index(size_t index, size_t size)
+{
+	size_t safe_index = 0;
+
+	/*
+	 * For the ARMv7/AArch32 case we're basing the select and barrier
+	 * code on __load_no_speculate1() in <speculation_barrier.h> as we
+	 * lack the csel instruction.
+	 */
+
+#ifdef __thumb2__
+      asm volatile (
+	".syntax unified\n"
+	"cmp	%1, %2\n" /* %1 holds the unsanitized index */
+	"it	cs\n"
+	"movcs	%1, #0\n"
+	".inst.n 0xf3af\t@ CSDB\n"
+	".inst.n 0x8014\t@ CSDB"
+	: "=r" (safe_index) : "r" (index), "r" (size) : "cc");
+#else
+      asm volatile (
+	".syntax unified\n"
+	"cmp	%1, %2\n" /* %1 holds the unsanitized index */
+	"movcs	%1, #0\n"
+	".inst	0xe320f014\t@ CSDB"
+	: "=r" (safe_index) : "r" (index), "r" (size) : "cc");
+#endif
+
+	return safe_index;
+}
+#endif /* __arm__ */
+
 #ifdef __x86_64__
 static inline size_t confine_array_index(size_t index, size_t size) {
   size_t safe_index = 0;
