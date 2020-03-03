@@ -8,12 +8,22 @@
 #include <caam_hal_cfg.h>
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
+#include <config.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <stdio.h>
+
+#if defined(CFG_MX8M)
+#define DTB_JR_PATH "/soc@0/bus@30800000/crypto@30900000/jr"
+#elif defined(CFG_MX8QM) || defined(CFG_MX8QXP) || defined(CFG_MX8DXL)
+#define DTB_JR_PATH "/bus@31400000/crypto@31400000/jr"
+#else
+#define DTB_JR_PATH ""
+#endif
 
 static const char *dt_caam_match_table = {
 	"fsl,sec-v4.0",
@@ -132,6 +142,23 @@ void caam_hal_cfg_disable_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg)
 			if (dt_enable_secure_status(fdt, node))
 				panic();
 			break;
+		}
+	}
+
+	if (node == -FDT_ERR_NOTFOUND && IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
+		char target[64] = { };
+		int ret = 0;
+
+		ret = snprintf(target, sizeof(target), DTB_JR_PATH "@%lx",
+			       jrcfg->offset);
+		if (ret < 0 || (size_t)ret >= sizeof(target)) {
+			EMSG("Cannot build JR DT overlay path");
+			return;
+		}
+
+		if (dt_overlay_disable_node(target)) {
+			EMSG("Cannot apply JR DT overlay");
+			return;
 		}
 	}
 }
