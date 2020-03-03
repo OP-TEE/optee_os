@@ -17,10 +17,9 @@ void close_persistent_db(struct ck_token *token __unused)
 {
 }
 
-static void init_pin_keys(struct ck_token *token, unsigned int uid)
+static void init_pin_keys(unsigned int token_id, unsigned int uid)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	unsigned int token_id = get_token_id(token);
 	TEE_ObjectHandle key_hdl = TEE_HANDLE_NULL;
 	char file[32] = { 0 };
 
@@ -68,27 +67,24 @@ static void init_pin_keys(struct ck_token *token, unsigned int uid)
 }
 
 /*
- * Return the token instance, either initialized from reset or initialized
- * from the token persistent state if found.
+ * Initialize token instance either from reset or from its persistent state
+ * if found.
  */
-struct ck_token *init_persistent_db(unsigned int token_id)
+TEE_Result init_persistent_db(struct ck_token *token)
 {
-	struct ck_token *token = get_token(token_id);
+	unsigned int token_id = get_token_id(token);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	char db_file[32] = { 0 };
 	TEE_ObjectHandle db_hdl = TEE_HANDLE_NULL;
 	struct token_persistent_main *db_main = NULL;
 	int n = 0;
 
-	if (!token)
-		return NULL;
-
 	for (n = 0; n < PKCS11_MAX_USERS; n++)
-		init_pin_keys(token, n);
+		init_pin_keys(token_id, n);
 
 	db_main = TEE_Malloc(sizeof(*db_main), TEE_MALLOC_FILL_ZERO);
 	if (!db_main)
-		goto error;
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	if (snprintf(db_file, 32, "token.db.%1d", token_id) >= 32)
 		TEE_Panic(0);
@@ -126,23 +122,18 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 						 TEE_HANDLE_NULL,
 						 db_main, sizeof(*db_main),
 						 &db_hdl);
-		if (res) {
+		if (res)
 			EMSG("Failed to create db: %"PRIx32, res);
-			goto error;
-		}
-	} else {
-		goto error;
 	}
 
-	token->db_main = db_main;
-	TEE_CloseObject(db_hdl);
 
-	return token;
+	if (res == TEE_SUCCESS)
+		token->db_main = db_main;
+	else
+		TEE_Free(db_main);
 
-error:
-	TEE_Free(db_main);
 	if (db_hdl != TEE_HANDLE_NULL)
 		TEE_CloseObject(db_hdl);
 
-	return NULL;
+	return res;
 }

@@ -42,12 +42,13 @@ unsigned int get_token_id(struct ck_token *token)
 	return id;
 }
 
-static TEE_Result pkcs11_token_init(unsigned int id)
+static TEE_Result pkcs11_token_init(struct ck_token *token)
 {
-	struct ck_token *token = init_persistent_db(id);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (!token)
-		return TEE_ERROR_SECURITY;
+	res = init_persistent_db(token);
+	if (res)
+		return res;
 
 	if (token->state == PKCS11_TOKEN_RESET) {
 		/* As per PKCS#11 spec, token resets to read/write state */
@@ -65,7 +66,7 @@ TEE_Result pkcs11_init(void)
 	TEE_Result ret = TEE_ERROR_GENERIC;
 
 	for (id = 0; id < TOKEN_COUNT; id++) {
-		ret = pkcs11_token_init(id);
+		ret = pkcs11_token_init(&ck_token[id]);
 		if (ret)
 			return ret;
 	}
@@ -78,5 +79,5 @@ void pkcs11_deinit(void)
 	unsigned int id = 0;
 
 	for (id = 0; id < TOKEN_COUNT; id++)
-		close_persistent_db(get_token(id));
+		close_persistent_db(&ck_token[id]);
 }

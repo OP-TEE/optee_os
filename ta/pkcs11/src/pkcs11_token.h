@@ -70,7 +70,7 @@ struct ck_token *get_token(unsigned int token_id);
 unsigned int get_token_id(struct ck_token *token);
 
 /* Access to persistent database */
-struct ck_token *init_persistent_db(unsigned int token_id);
+TEE_Result init_persistent_db(struct ck_token *token);
 void close_persistent_db(struct ck_token *token);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
