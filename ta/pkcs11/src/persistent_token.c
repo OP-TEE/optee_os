@@ -23,10 +23,12 @@ static void init_pin_keys(struct ck_token *token, unsigned int uid)
 	unsigned int token_id = get_token_id(token);
 	TEE_ObjectHandle key_hdl = TEE_HANDLE_NULL;
 	char file[32] = { 0 };
+	int n = 0;
 
 	assert(token_id < 10 && uid < 10);
 
-	if (snprintf(file, 32, "token.db.%1d-pin%1d", token_id, uid) >= 32)
+	n = snprintf(file, sizeof(file), "token.db.%1d-pin%1d", token_id, uid);
+	if (n < 0 || (size_t)n >= sizeof(file))
 		TEE_Panic(0);
 
 	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
@@ -90,7 +92,8 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 	if (!db_main)
 		goto error;
 
-	if (snprintf(db_file, 32, "token.db.%1d", token_id) >= 32)
+	n = snprintf(db_file, sizeof(db_file), "token.db.%1d", token_id);
+	if (n < 0 || (size_t)n >= sizeof(db_file))
 		TEE_Panic(0);
 
 	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
