@@ -29,8 +29,8 @@ static void call_initcalls(void)
 		TEE_Result ret;
 		ret = (*call)();
 		if (ret != TEE_SUCCESS) {
-			EMSG("Initial call 0x%08" PRIxVA " failed",
-			     (vaddr_t)call);
+			EMSG("Initcall __text_start + 0x%08" PRIxVA
+			     " failed", (vaddr_t)call - VCORE_START_VA);
 		}
 	}
 }
