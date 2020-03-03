@@ -671,6 +671,42 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 
 	return fdt_create_empty_tree(dt->blob, dt_size);
 }
+
+int dt_overlay_disable_node(char *target)
+{
+	char frag[32] = { };
+	int offs = 0;
+	int ret = 0;
+	struct dt_descriptor *dt = &external_dt;
+
+	offs = fdt_path_offset(dt->blob, "/");
+	if (offs < 0)
+		return offs;
+
+	ret = snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	if (ret < 0 || (size_t)ret >= sizeof(frag))
+		return -1;
+
+	offs = fdt_add_subnode(dt->blob, offs, frag);
+	if (offs < 0)
+		return offs;
+
+	dt->frag_id += 1;
+
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", target);
+	if (ret < 0)
+		return ret;
+
+	offs = fdt_add_subnode(dt->blob, offs, "__overlay__");
+	if (offs < 0)
+		return offs;
+
+	offs = fdt_setprop_string(dt->blob, offs, "status", "disabled");
+	if (offs < 0)
+		return offs;
+
+	return 0;
+}
 #else
 static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
 {
@@ -679,6 +715,11 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
 
 static int init_dt_overlay(struct dt_descriptor *dt __unused,
 			   int dt_size __unused)
+{
+	return 0;
+}
+
+int dt_overlay_disable_node(char *target __unused)
 {
 	return 0;
 }
