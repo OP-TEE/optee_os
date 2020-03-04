@@ -192,8 +192,39 @@ static void save_hashtab_from_segment(struct ta_elf *elf, unsigned int type,
 	}
 }
 
+static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
+			  size_t num_chains)
+{
+	/*
+	 * Starting from 2 as the first two words are mandatory and hold
+	 * num_buckets and num_chains. So this function is called twice,
+	 * first to see that there's indeed room for num_buckets and
+	 * num_chains and then to see that all of it fits.
+	 * See http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#hash
+	 */
+	size_t num_words = 2;
+	vaddr_t max_addr = 0;
+	size_t sz = 0;
+
+	if ((vaddr_t)ptr < elf->load_addr)
+		err(TEE_ERROR_GENERIC, "Hashtab %p out of range", ptr);
+
+	if (!ALIGNMENT_IS_OK(ptr, uint32_t))
+		err(TEE_ERROR_GENERIC, "Bad alignment of hashtab %p", ptr);
+
+	if (ADD_OVERFLOW(num_words, num_buckets, &num_words) ||
+	    ADD_OVERFLOW(num_words, num_chains, &num_words) ||
+	    MUL_OVERFLOW(num_words, sizeof(uint32_t), &sz) ||
+	    ADD_OVERFLOW((vaddr_t)ptr, sz, &max_addr))
+		err(TEE_ERROR_GENERIC, "Hashtab overflow");
+
+	if (max_addr > elf->max_addr)
+		err(TEE_ERROR_GENERIC, "Hashtab %p out of range", ptr);
+}
+
 static void save_hashtab(struct ta_elf *elf)
 {
+	uint32_t *hashtab = NULL;
 	size_t n = 0;
 
 	if (elf->is_32bit) {
@@ -211,7 +242,10 @@ static void save_hashtab(struct ta_elf *elf)
 						  phdr[n].p_vaddr,
 						  phdr[n].p_memsz);
 	}
-	assert(elf->hashtab);
+
+	check_hashtab(elf, elf->hashtab, 0, 0);
+	hashtab = elf->hashtab;
+	check_hashtab(elf, elf->hashtab, hashtab[0], hashtab[1]);
 }
 
 static void e32_save_symtab(struct ta_elf *elf, size_t tab_idx)
