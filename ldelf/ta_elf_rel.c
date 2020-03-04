@@ -69,7 +69,9 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 		Elf32_Sym *sym = elf->dynsymtab;
 
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			assert(n < nchains);
+			if (n >= nchains)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Index out of range");
 			if (__resolve_sym(elf,
 					  ELF32_ST_BIND(sym[n].st_info),
 					  sym[n].st_shndx,
@@ -81,7 +83,9 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 		Elf64_Sym *sym = elf->dynsymtab;
 
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			assert(n < nchains);
+			if (n >= nchains)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Index out of range");
 			if (__resolve_sym(elf,
 					  ELF64_ST_BIND(sym[n].st_info),
 					  sym[n].st_shndx,
