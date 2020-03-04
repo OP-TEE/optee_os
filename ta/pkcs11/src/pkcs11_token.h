@@ -16,6 +16,13 @@
 #define PKCS11_SLOT_FW_VERSION		{ PKCS11_TA_VERSION_MAJOR, \
 					  PKCS11_TA_VERSION_MINOR }
 
+#define PKCS11_TOKEN_LABEL		"OP-TEE PKCS#11 TA token"
+#define PKCS11_TOKEN_MANUFACTURER	PKCS11_SLOT_MANUFACTURER
+#define PKCS11_TOKEN_MODEL		"OP-TEE TA"
+#define PKCS11_TOKEN_SERIAL_NUMBER	"0000000000000000"
+#define PKCS11_TOKEN_HW_VERSION		PKCS11_SLOT_HW_VERSION
+#define PKCS11_TOKEN_FW_VERSION		PKCS11_SLOT_FW_VERSION
+
 enum pkcs11_token_state {
 	PKCS11_TOKEN_RESET = 0,
 	PKCS11_TOKEN_READ_WRITE,
@@ -23,7 +30,8 @@ enum pkcs11_token_state {
 };
 
 #define PKCS11_MAX_USERS		2
-#define PKCS11_TOKEN_PIN_SIZE		128
+#define PKCS11_TOKEN_PIN_SIZE_MAX	128
+#define PKCS11_TOKEN_PIN_SIZE_MIN	10
 
 /*
  * Persistent state of the token
@@ -44,10 +52,10 @@ struct token_persistent_main {
 	uint32_t flags;
 	uint32_t so_pin_count;
 	uint32_t so_pin_size;
-	uint8_t so_pin[PKCS11_TOKEN_PIN_SIZE];
+	uint8_t so_pin[PKCS11_TOKEN_PIN_SIZE_MAX];
 	uint32_t user_pin_count;
 	uint32_t user_pin_size;
-	uint8_t user_pin[PKCS11_TOKEN_PIN_SIZE];
+	uint8_t user_pin[PKCS11_TOKEN_PIN_SIZE_MAX];
 };
 
 /*
@@ -83,5 +91,6 @@ void close_persistent_db(struct ck_token *token);
 /* Entry point for the TA commands */
 uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
