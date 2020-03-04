@@ -341,6 +341,7 @@ static void init_elf(struct ta_elf *elf)
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t va = 0;
 	uint32_t flags = PTA_SYSTEM_MAP_FLAG_SHAREABLE;
+	size_t sz = 0;
 
 	res = sys_open_ta_bin(&elf->uuid, &elf->handle);
 	if (res)
@@ -371,7 +372,11 @@ static void init_elf(struct ta_elf *elf)
 	if (res)
 		err(res, "Cannot parse ELF");
 
-	if (elf->e_phoff + elf->e_phnum * elf->e_phentsize > SMALL_PAGE_SIZE)
+	if (MUL_OVERFLOW(elf->e_phnum, elf->e_phentsize, &sz) ||
+	    ADD_OVERFLOW(sz, elf->e_phoff, &sz))
+		err(TEE_ERROR_BAD_FORMAT, "Program headers size overflow");
+
+	if (sz > SMALL_PAGE_SIZE)
 		err(TEE_ERROR_NOT_SUPPORTED, "Cannot read program headers");
 
 	elf->phdr = (void *)(va + elf->e_phoff);
