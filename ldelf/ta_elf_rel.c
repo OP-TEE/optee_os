@@ -131,10 +131,12 @@ static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
 	size_t name_idx = 0;
 
 	sym_idx = ELF32_R_SYM(rel->r_info);
-	assert(sym_idx < num_syms);
+	if (sym_idx >= num_syms)
+		err(TEE_ERROR_GENERIC, "Symbol index out of range");
 
 	name_idx = sym_tab[sym_idx].st_name;
-	assert(name_idx < str_tab_size);
+	if (name_idx >= str_tab_size)
+		err(TEE_ERROR_GENERIC, "Name index out of range");
 	name = str_tab + name_idx;
 
 	resolve_sym(name, &val);
@@ -161,7 +163,8 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	if (sym_tab_idx) {
 		size_t str_tab_idx = 0;
 
-		assert(sym_tab_idx < elf->e_shnum);
+		if (sym_tab_idx >= elf->e_shnum)
+			err(TEE_ERROR_GENERIC, "Symtab index out of range");
 
 		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf32_Sym));
 
@@ -169,7 +172,8 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
 				 shdr[sym_tab_idx].sh_size, &sh_end))
 			err(TEE_ERROR_SECURITY, "Overflow");
-		assert(sh_end < (elf->max_addr - elf->load_addr));
+		if (sh_end >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_GENERIC, "Symbol table out of range");
 
 		sym_tab = (Elf32_Sym *)(elf->load_addr +
 					shdr[sym_tab_idx].sh_addr);
@@ -182,7 +186,9 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
 					 shdr[str_tab_idx].sh_size, &sh_end))
 				err(TEE_ERROR_SECURITY, "Overflow");
-			assert(sh_end < (elf->max_addr - elf->load_addr));
+			if (sh_end >= (elf->max_addr - elf->load_addr))
+				err(TEE_ERROR_GENERIC,
+				    "String table out of range");
 
 			str_tab = (const char *)(elf->load_addr +
 						 shdr[str_tab_idx].sh_addr);
@@ -191,27 +197,30 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 
 	/* Check the address is inside TA memory */
-	assert(shdr[rel_sidx].sh_addr < (elf->max_addr - elf->load_addr));
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr,
+			 shdr[rel_sidx].sh_size, &sh_end))
+		err(TEE_ERROR_SECURITY, "Overflow");
+	if (sh_end >= (elf->max_addr - elf->load_addr))
+		err(TEE_ERROR_GENERIC, "Relocation table out of range");
 	rel = (Elf32_Rel *)(elf->load_addr + shdr[rel_sidx].sh_addr);
 
-	/* Check the address is inside TA memory */
-	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
-			 &sh_end))
-		err(TEE_ERROR_SECURITY, "Overflow");
-	assert(sh_end < (elf->max_addr - elf->load_addr));
 	rel_end = rel + shdr[rel_sidx].sh_size / sizeof(Elf32_Rel);
 	for (; rel < rel_end; rel++) {
 		Elf32_Addr *where = NULL;
 		size_t sym_idx = 0;
 
 		/* Check the address is inside TA memory */
-		assert(rel->r_offset < (elf->max_addr - elf->load_addr));
+		if (rel->r_offset >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_GENERIC,
+			    "Relocation offset out of range");
 		where = (Elf32_Addr *)(elf->load_addr + rel->r_offset);
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_ARM_ABS32:
 			sym_idx = ELF32_R_SYM(rel->r_info);
-			assert(sym_idx < num_syms);
+			if (sym_idx >= num_syms)
+				err(TEE_ERROR_GENERIC,
+				    "Symbol index out of range");
 			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
 				/* Symbol is external */
 				e32_process_dyn_rel(sym_tab, num_syms, str_tab,
@@ -223,7 +232,9 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			break;
 		case R_ARM_REL32:
 			sym_idx = ELF32_R_SYM(rel->r_info);
-			assert(sym_idx < num_syms);
+			if (sym_idx >= num_syms)
+				err(TEE_ERROR_GENERIC,
+				    "Symbol index out of range");
 			*where += sym_tab[sym_idx].st_value - rel->r_offset;
 			break;
 		case R_ARM_RELATIVE:
@@ -252,10 +263,12 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	size_t name_idx = 0;
 
 	sym_idx = ELF64_R_SYM(rela->r_info);
-	assert(sym_idx < num_syms);
+	if (sym_idx >= num_syms)
+		err(TEE_ERROR_GENERIC, "Symbol index out of range");
 
 	name_idx = sym_tab[sym_idx].st_name;
-	assert(name_idx < str_tab_size);
+	if (name_idx >= str_tab_size)
+		err(TEE_ERROR_GENERIC, "Name index out of range");
 	name = str_tab + name_idx;
 
 	resolve_sym(name, &val);
@@ -282,7 +295,8 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	if (sym_tab_idx) {
 		size_t str_tab_idx = 0;
 
-		assert(sym_tab_idx < elf->e_shnum);
+		if (sym_tab_idx >= elf->e_shnum)
+			err(TEE_ERROR_GENERIC, "Symtab index out of range");
 
 		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf64_Sym));
 
@@ -290,7 +304,8 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		if (ADD_OVERFLOW(shdr[sym_tab_idx].sh_addr,
 				 shdr[sym_tab_idx].sh_size, &sh_end))
 			err(TEE_ERROR_SECURITY, "Overflow");
-		assert(sh_end < (elf->max_addr - elf->load_addr));
+		if (sh_end >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_GENERIC, "Symbol table out of range");
 
 		sym_tab = (Elf64_Sym *)(elf->load_addr +
 					shdr[sym_tab_idx].sh_addr);
@@ -303,7 +318,9 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
 					 shdr[str_tab_idx].sh_size, &sh_end))
 				err(TEE_ERROR_SECURITY, "Overflow");
-			assert(sh_end < (elf->max_addr - elf->load_addr));
+			if (sh_end >= (elf->max_addr - elf->load_addr))
+				err(TEE_ERROR_GENERIC,
+				    "String table out of range");
 
 			str_tab = (const char *)(elf->load_addr +
 						 shdr[str_tab_idx].sh_addr);
@@ -312,28 +329,31 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 
 	/* Check the address is inside TA memory */
-	assert(shdr[rel_sidx].sh_addr < (elf->max_addr - elf->load_addr));
+	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr,
+			 shdr[rel_sidx].sh_size, &sh_end))
+		err(TEE_ERROR_SECURITY, "Overflow");
+	if (sh_end >= (elf->max_addr - elf->load_addr))
+		err(TEE_ERROR_GENERIC, "Relocation table out of range");
 	rela = (Elf64_Rela *)(elf->load_addr + shdr[rel_sidx].sh_addr);
 
-	/* Check the address is inside TA memory */
-	if (ADD_OVERFLOW(shdr[rel_sidx].sh_addr, shdr[rel_sidx].sh_size,
-			 &sh_end))
-		err(TEE_ERROR_SECURITY, "Overflow");
-	assert(sh_end < (elf->max_addr - elf->load_addr));
 	rela_end = rela + shdr[rel_sidx].sh_size / sizeof(Elf64_Rela);
 	for (; rela < rela_end; rela++) {
 		Elf64_Addr *where = NULL;
 		size_t sym_idx = 0;
 
 		/* Check the address is inside TA memory */
-		assert(rela->r_offset < (elf->max_addr - elf->load_addr));
+		if (rela->r_offset >= (elf->max_addr - elf->load_addr))
+			err(TEE_ERROR_GENERIC,
+			    "Relocation offset out of range");
 
 		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
 		case R_AARCH64_ABS64:
 			sym_idx = ELF64_R_SYM(rela->r_info);
-			assert(sym_idx < num_syms);
+			if (sym_idx >= num_syms)
+				err(TEE_ERROR_GENERIC,
+				    "Symbol index out of range");
 			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
 				/* Symbol is external */
 				e64_process_dyn_rela(sym_tab, num_syms, str_tab,
