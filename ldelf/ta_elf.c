@@ -800,6 +800,7 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 	size_t val = 0;
 	TEE_UUID uuid = { };
 	char *str_tab = NULL;
+	size_t str_tab_sz = 0;
 
 	if (type != PT_DYNAMIC)
 		return;
@@ -814,18 +815,22 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 	assert(!(memsz % dyn_entsize));
 	num_dyns = memsz / dyn_entsize;
 
-	for (n = 0; n < num_dyns; n++) {
+	for (n = 0; n < num_dyns && !(str_tab && str_tab_sz); n++) {
 		read_dyn(elf, addr, n, &tag, &val);
-		if (tag == DT_STRTAB) {
+		if (tag == DT_STRTAB)
 			str_tab = (char *)(val + elf->load_addr);
-			break;
-		}
+		else if (tag == DT_STRSZ)
+			str_tab_sz = val;
 	}
+	check_range(elf, "Strtab", str_tab, str_tab_sz);
 
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag != DT_NEEDED)
 			continue;
+		if (val >= str_tab_sz)
+			err(TEE_ERROR_GENERIC,
+			    "Offset into strtab out of range");
 		tee_uuid_from_str(&uuid, str_tab + val);
 		queue_elf(&uuid);
 	}
