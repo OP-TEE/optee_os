@@ -815,8 +815,11 @@ static void add_dependencies(struct ta_elf *elf)
 static void copy_section_headers(struct ta_elf *elf)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t sz = elf->e_shnum * elf->e_shentsize;
+	size_t sz = 0;
 	size_t offs = 0;
+
+	if (MUL_OVERFLOW(elf->e_shnum, elf->e_shentsize, &sz))
+		err(TEE_ERROR_BAD_FORMAT, "Shdr size overflow");
 
 	elf->shdr = malloc(sz);
 	if (!elf->shdr)
