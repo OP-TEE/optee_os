@@ -192,6 +192,22 @@ static void save_hashtab_from_segment(struct ta_elf *elf, unsigned int type,
 	}
 }
 
+static void check_range(struct ta_elf *elf, const char *name, const void *ptr,
+			size_t sz)
+{
+	size_t max_addr = 0;
+
+	if ((vaddr_t)ptr < elf->load_addr)
+		err(TEE_ERROR_GENERIC, "%s %p out of range", name, ptr);
+
+	if (ADD_OVERFLOW((vaddr_t)ptr, sz, &max_addr))
+		err(TEE_ERROR_GENERIC, "%s range overflow", name);
+
+	if (max_addr > elf->max_addr)
+		err(TEE_ERROR_GENERIC,
+		    "%s %p..%#zx out of range", name, ptr, max_addr);
+}
+
 static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
 			  size_t num_chains)
 {
@@ -203,23 +219,17 @@ static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
 	 * See http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#hash
 	 */
 	size_t num_words = 2;
-	vaddr_t max_addr = 0;
 	size_t sz = 0;
-
-	if ((vaddr_t)ptr < elf->load_addr)
-		err(TEE_ERROR_GENERIC, "Hashtab %p out of range", ptr);
 
 	if (!ALIGNMENT_IS_OK(ptr, uint32_t))
 		err(TEE_ERROR_GENERIC, "Bad alignment of hashtab %p", ptr);
 
 	if (ADD_OVERFLOW(num_words, num_buckets, &num_words) ||
 	    ADD_OVERFLOW(num_words, num_chains, &num_words) ||
-	    MUL_OVERFLOW(num_words, sizeof(uint32_t), &sz) ||
-	    ADD_OVERFLOW((vaddr_t)ptr, sz, &max_addr))
+	    MUL_OVERFLOW(num_words, sizeof(uint32_t), &sz))
 		err(TEE_ERROR_GENERIC, "Hashtab overflow");
 
-	if (max_addr > elf->max_addr)
-		err(TEE_ERROR_GENERIC, "Hashtab %p out of range", ptr);
+	check_range(elf, "Hashtab", ptr, sz);
 }
 
 static void save_hashtab(struct ta_elf *elf)
@@ -254,10 +264,21 @@ static void e32_save_symtab(struct ta_elf *elf, size_t tab_idx)
 	size_t str_idx = shdr[tab_idx].sh_link;
 
 	elf->dynsymtab = (void *)(shdr[tab_idx].sh_addr + elf->load_addr);
-	assert(!(shdr[tab_idx].sh_size % sizeof(Elf32_Sym)));
+	if (!ALIGNMENT_IS_OK(elf->dynsymtab, Elf32_Sym))
+		err(TEE_ERROR_GENERIC, "Bad alignment of dynsymtab %p",
+		    elf->dynsymtab);
+	check_range(elf, "Dynsymtab", elf->dynsymtab, shdr[tab_idx].sh_size);
+
+	if (shdr[tab_idx].sh_size % sizeof(Elf32_Sym))
+		err(TEE_ERROR_GENERIC,
+		    "Size of dynsymtab not an even multiple of Elf32_Sym");
 	elf->num_dynsyms = shdr[tab_idx].sh_size / sizeof(Elf32_Sym);
 
+	if (str_idx >= elf->e_shnum)
+		err(TEE_ERROR_GENERIC, "Dynstr section index out of range");
 	elf->dynstr = (void *)(shdr[str_idx].sh_addr + elf->load_addr);
+	check_range(elf, "Dynstr", elf->dynstr, shdr[str_idx].sh_size);
+
 	elf->dynstr_size = shdr[str_idx].sh_size;
 }
 
@@ -268,10 +289,22 @@ static void e64_save_symtab(struct ta_elf *elf, size_t tab_idx)
 
 	elf->dynsymtab = (void *)(vaddr_t)(shdr[tab_idx].sh_addr +
 					   elf->load_addr);
-	assert(!(shdr[tab_idx].sh_size % sizeof(Elf64_Sym)));
+
+	if (!ALIGNMENT_IS_OK(elf->dynsymtab, Elf64_Sym))
+		err(TEE_ERROR_GENERIC, "Bad alignment of dynsymtab %p",
+		    elf->dynsymtab);
+	check_range(elf, "Dynsymtab", elf->dynsymtab, shdr[tab_idx].sh_size);
+
+	if (shdr[tab_idx].sh_size % sizeof(Elf64_Sym))
+		err(TEE_ERROR_GENERIC,
+		    "Size of dynsymtab not an even multiple of Elf64_Sym");
 	elf->num_dynsyms = shdr[tab_idx].sh_size / sizeof(Elf64_Sym);
 
+	if (str_idx >= elf->e_shnum)
+		err(TEE_ERROR_GENERIC, "Dynstr section index out of range");
 	elf->dynstr = (void *)(vaddr_t)(shdr[str_idx].sh_addr + elf->load_addr);
+	check_range(elf, "Dynstr", elf->dynstr, shdr[str_idx].sh_size);
+
 	elf->dynstr_size = shdr[str_idx].sh_size;
 }
 
