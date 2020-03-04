@@ -18,6 +18,7 @@
 #include <tee_internal_api_extensions.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
+#include <util.h>
 
 #include "sys.h"
 #include "ta_elf.h"
@@ -126,6 +127,24 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf __unused,
 }
 #endif /*ARM64*/
 
+static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
+				vaddr_t addr, size_t memsz)
+{
+	vaddr_t max_addr = 0;
+
+	if (ADD_OVERFLOW(addr, memsz, &max_addr))
+		err(TEE_ERROR_BAD_FORMAT, "Program header %#x overflow", type);
+
+	/*
+	 * elf->load_addr and elf->max_addr are both using the
+	 * final virtual addresses, while this program header is
+	 * relative to 0.
+	 */
+	if (max_addr > elf->max_addr - elf->load_addr)
+		err(TEE_ERROR_BAD_FORMAT, "Program header %#x out of bounds",
+		    type);
+}
+
 static void read_dyn(struct ta_elf *elf, vaddr_t addr,
 		     size_t idx, unsigned int *tag, size_t *val)
 {
@@ -153,6 +172,8 @@ static void save_hashtab_from_segment(struct ta_elf *elf, unsigned int type,
 
 	if (type != PT_DYNAMIC)
 		return;
+
+	check_phdr_in_range(elf, type, addr, memsz);
 
 	if (elf->is_32bit)
 		dyn_entsize = sizeof(Elf32_Dyn);
@@ -711,6 +732,8 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 	if (type != PT_DYNAMIC)
 		return;
 
+	check_phdr_in_range(elf, type, addr, memsz);
+
 	if (elf->is_32bit)
 		dyn_entsize = sizeof(Elf32_Dyn);
 	else
@@ -1215,6 +1238,8 @@ static void get_init_fini_array(struct ta_elf *elf, unsigned int type,
 	size_t val = 0;
 
 	assert(type == PT_DYNAMIC);
+
+	check_phdr_in_range(elf, type, addr, memsz);
 
 	if (elf->is_32bit) {
 		dyn_entsize = sizeof(Elf32_Dyn);
