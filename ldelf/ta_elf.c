@@ -400,6 +400,9 @@ static void add_segment(struct ta_elf *elf, size_t offset, size_t vaddr,
 	if (!seg)
 		err(TEE_ERROR_OUT_OF_MEMORY, "calloc");
 
+	if (memsz < filesz)
+		err(TEE_ERROR_BAD_FORMAT, "Memsz smaller than filesz");
+
 	seg->offset = offset;
 	seg->vaddr = vaddr;
 	seg->filesz = filesz;
@@ -733,6 +736,9 @@ static void populate_segments(struct ta_elf *elf)
 				if (res)
 					err(res, "sys_copy_from_ta_bin");
 			} else {
+				if (filesz != memsz)
+					err(TEE_ERROR_BAD_FORMAT,
+					    "Filesz and memsz mismatch");
 				res = sys_map_ta_bin(&va, filesz, flags,
 						     elf->handle, offset,
 						     pad_begin, pad_end);
@@ -747,7 +753,7 @@ static void populate_segments(struct ta_elf *elf)
 
 			if (!elf->load_addr)
 				elf->load_addr = va;
-			elf->max_addr = roundup(va + filesz);
+			elf->max_addr = roundup(va + memsz);
 			elf->max_offs += filesz;
 		}
 	}
