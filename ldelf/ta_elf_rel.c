@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <confine_array_index.h>
 #include <elf32.h>
 #include <elf64.h>
 #include <elf_common.h>
@@ -84,6 +85,13 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 			if (n >= nchains || n >= elf->num_dynsyms)
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Index out of range");
+			/*
+			 * We're loading values from sym[] which later
+			 * will be used to load something.
+			 * => Spectre V1 pattern, need to cap the index
+			 * against speculation.
+			 */
+			n = confine_array_index(n, elf->num_dynsyms);
 			if (__resolve_sym(elf,
 					  ELF32_ST_BIND(sym[n].st_info),
 					  ELF32_ST_TYPE(sym[n].st_info),
@@ -99,6 +107,13 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 			if (n >= nchains || n >= elf->num_dynsyms)
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Index out of range");
+			/*
+			 * We're loading values from sym[] which later
+			 * will be used to load something.
+			 * => Spectre V1 pattern, need to cap the index
+			 * against speculation.
+			 */
+			n = confine_array_index(n, elf->num_dynsyms);
 			if (__resolve_sym(elf,
 					  ELF64_ST_BIND(sym[n].st_info),
 					  ELF64_ST_TYPE(sym[n].st_info),
@@ -147,6 +162,7 @@ static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
 	sym_idx = ELF32_R_SYM(rel->r_info);
 	if (sym_idx >= num_syms)
 		err(TEE_ERROR_GENERIC, "Symbol index out of range");
+	sym_idx = confine_array_index(sym_idx, num_syms);
 
 	name_idx = sym_tab[sym_idx].st_name;
 	if (name_idx >= str_tab_size)
@@ -179,6 +195,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		if (sym_tab_idx >= elf->e_shnum)
 			err(TEE_ERROR_GENERIC, "Symtab index out of range");
+		sym_tab_idx = confine_array_index(sym_tab_idx, elf->e_shnum);
 
 		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf32_Sym));
 
@@ -196,6 +213,12 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		str_tab_idx = shdr[sym_tab_idx].sh_link;
 		if (str_tab_idx) {
+			if (str_tab_idx >= elf->e_shnum)
+				err(TEE_ERROR_GENERIC,
+				    "Strtab index out of range");
+			str_tab_idx = confine_array_index(str_tab_idx,
+							  elf->e_shnum);
+
 			/* Check the address is inside ELF memory */
 			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
 					 shdr[str_tab_idx].sh_size, &sh_end))
@@ -279,6 +302,7 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	sym_idx = ELF64_R_SYM(rela->r_info);
 	if (sym_idx >= num_syms)
 		err(TEE_ERROR_GENERIC, "Symbol index out of range");
+	sym_idx = confine_array_index(sym_idx, num_syms);
 
 	name_idx = sym_tab[sym_idx].st_name;
 	if (name_idx >= str_tab_size)
@@ -311,6 +335,7 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		if (sym_tab_idx >= elf->e_shnum)
 			err(TEE_ERROR_GENERIC, "Symtab index out of range");
+		sym_tab_idx = confine_array_index(sym_tab_idx, elf->e_shnum);
 
 		assert(shdr[sym_tab_idx].sh_entsize == sizeof(Elf64_Sym));
 
@@ -328,6 +353,12 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		str_tab_idx = shdr[sym_tab_idx].sh_link;
 		if (str_tab_idx) {
+			if (str_tab_idx >= elf->e_shnum)
+				err(TEE_ERROR_GENERIC,
+				    "Strtab index out of range");
+			str_tab_idx = confine_array_index(str_tab_idx,
+							  elf->e_shnum);
+
 			/* Check the address is inside ELF memory */
 			if (ADD_OVERFLOW(shdr[str_tab_idx].sh_addr,
 					 shdr[str_tab_idx].sh_size, &sh_end))
@@ -368,6 +399,7 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			if (sym_idx >= num_syms)
 				err(TEE_ERROR_GENERIC,
 				    "Symbol index out of range");
+			sym_idx = confine_array_index(sym_idx, num_syms);
 			if (sym_tab[sym_idx].st_shndx == SHN_UNDEF) {
 				/* Symbol is external */
 				e64_process_dyn_rela(sym_tab, num_syms, str_tab,
