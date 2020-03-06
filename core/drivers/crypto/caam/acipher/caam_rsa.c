@@ -73,6 +73,10 @@ struct caam_rsa_keypair {
 	struct caambuf qp; /* Private [qp = 1/q mod p] */
 };
 
+#define RSA_PRIVATE_KEY_FORMAT_1 1
+#define RSA_PRIVATE_KEY_FORMAT_2 2
+#define RSA_PRIVATE_KEY_FORMAT_3 3
+
 /* CAAM Era version */
 static uint8_t caam_era;
 
@@ -87,12 +91,12 @@ static void do_keypair_free(struct caam_rsa_keypair *key)
 	caam_free_buf(&key->n);
 	caam_free_buf(&key->d);
 
-	if (key->format > 1 && key->p.data) {
+	if (key->format > RSA_PRIVATE_KEY_FORMAT_1 && key->p.data) {
 		key->p.length += key->q.length;
 		caam_free_buf(&key->p);
 	}
 
-	if (key->format > 2 && key->dp.data) {
+	if (key->format > RSA_PRIVATE_KEY_FORMAT_2 && key->dp.data) {
 		key->dp.length += key->dq.length + key->qp.length;
 		caam_free_buf(&key->dp);
 	}
@@ -222,7 +226,7 @@ static enum caam_status do_keypair_conv_f3(struct caam_rsa_keypair *outkey,
 			outkey->dp.length + outkey->dq.length +
 				outkey->qp.length);
 
-	outkey->format = 3;
+	outkey->format = RSA_PRIVATE_KEY_FORMAT_3;
 
 	return CAAM_NO_ERROR;
 }
@@ -270,9 +274,9 @@ static enum caam_status do_keypair_conv_f2(struct caam_rsa_keypair *outkey,
 	/* Push fields value to the physical memory */
 	cache_operation(TEE_CACHECLEAN, outkey->p.data, size_p + size_q);
 
-	outkey->format = 2;
+	outkey->format = RSA_PRIVATE_KEY_FORMAT_2;
 
-	if (CFG_NXP_CAAM_RSA_KEY_FORMAT > 2) {
+	if (CFG_NXP_CAAM_RSA_KEY_FORMAT > RSA_PRIVATE_KEY_FORMAT_2) {
 		retstatus = do_keypair_conv_f3(outkey, inkey);
 		RSA_TRACE("do_keypair_conv_f3 returned 0x%" PRIx32, retstatus);
 	}
@@ -313,9 +317,9 @@ static enum caam_status do_keypair_conv(struct caam_rsa_keypair *outkey,
 	crypto_bignum_bn2bin(inkey->d, outkey->d.data);
 	cache_operation(TEE_CACHECLEAN, outkey->d.data, outkey->d.length);
 
-	outkey->format = 1;
+	outkey->format = RSA_PRIVATE_KEY_FORMAT_1;
 
-	if (CFG_NXP_CAAM_RSA_KEY_FORMAT > 1) {
+	if (CFG_NXP_CAAM_RSA_KEY_FORMAT > RSA_PRIVATE_KEY_FORMAT_1) {
 		retstatus = do_keypair_conv_f2(outkey, inkey);
 		RSA_TRACE("do_keypair_conv_f2 returned 0x%" PRIx32, retstatus);
 	}
@@ -490,7 +494,7 @@ static TEE_Result gen_keypair_get_f2(struct rsa_keypair *key,
 
 	ret = crypto_bignum_bin2bn(genkey->q.data, genkey->q.length, key->q);
 
-	if (ret == TEE_SUCCESS && genkey->format > 2)
+	if (ret == TEE_SUCCESS && genkey->format > RSA_PRIVATE_KEY_FORMAT_2)
 		ret = gen_keypair_get_f3(key, genkey);
 
 	return ret;
@@ -565,7 +569,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 	genkey.n.length = size_n;
 	genkey.n.paddr = genkey.d.paddr + size_d;
 
-	if (genkey.format > 2) {
+	if (genkey.format > RSA_PRIVATE_KEY_FORMAT_2) {
 		/* Allocate dp, dq and qp in one buffer */
 		retstatus = caam_calloc_align_buf(&genkey.dp,
 						  ((key_size / 8) / 2) * 3);
@@ -616,7 +620,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 	caam_desc_add_ptr(desc, genkey.d.paddr + sizeof(uint32_t));
 	caam_desc_add_ptr(desc, genkey.d.paddr);
 
-	if (genkey.format > 2) {
+	if (genkey.format > RSA_PRIVATE_KEY_FORMAT_2) {
 		caam_desc_add_ptr(desc, genkey.dp.paddr);
 		caam_desc_add_ptr(desc, genkey.dq.paddr);
 		caam_desc_add_ptr(desc, genkey.qp.paddr);
@@ -664,7 +668,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 		if (ret != TEE_SUCCESS)
 			goto exit_gen_keypair;
 
-		if (genkey.format > 1)
+		if (genkey.format > RSA_PRIVATE_KEY_FORMAT_1)
 			ret = gen_keypair_get_f2(key, &genkey);
 	} else {
 		RSA_TRACE("CAAM Status 0x%08" PRIx32, jobctx.status);
@@ -1394,7 +1398,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 
 	/* Allocate the job descriptor function of the Private key format */
 	switch (key.format) {
-	case 1:
+	case RSA_PRIVATE_KEY_FORMAT_1:
 		desc = caam_calloc_desc(MAX_DESC_DEC_1);
 		if (!desc) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -1402,9 +1406,9 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 		}
 		break;
 
-	case 2:
-	case 3:
-		if (key.format == 2)
+	case RSA_PRIVATE_KEY_FORMAT_2:
+	case RSA_PRIVATE_KEY_FORMAT_3:
+		if (key.format == RSA_PRIVATE_KEY_FORMAT_2)
 			desc = caam_calloc_desc(MAX_DESC_DEC_2);
 		else
 			desc = caam_calloc_desc(MAX_DESC_DEC_3);
@@ -1434,7 +1438,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 
 	/* Build the descriptor function of the Private Key format */
 	switch (key.format) {
-	case 1:
+	case RSA_PRIVATE_KEY_FORMAT_1:
 		caam_desc_add_word(desc,
 				   PDB_RSA_DEC_D_SIZE(key.d.length) |
 					   PDB_RSA_DEC_N_SIZE(key.n.length) |
@@ -1446,7 +1450,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 
 		break;
 
-	case 2:
+	case RSA_PRIVATE_KEY_FORMAT_2:
 		caam_desc_add_word(desc,
 				   PDB_RSA_DEC_D_SIZE(key.d.length) |
 					   PDB_RSA_DEC_N_SIZE(key.n.length) |
@@ -1463,7 +1467,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 					   PDB_RSA_DEC_P_SIZE(key.p.length));
 		break;
 
-	case 3:
+	case RSA_PRIVATE_KEY_FORMAT_3:
 		caam_desc_add_word(desc, PDB_RSA_DEC_N_SIZE(key.n.length) |
 						 pdb_sgt_flags);
 		caam_desc_add_ptr(desc, paddr_cipher);
