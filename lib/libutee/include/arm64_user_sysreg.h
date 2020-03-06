@@ -12,19 +12,21 @@
  * Templates for register read/write functions based on mrs/msr
  */
 
-#define DEFINE_REG_READ_FUNC_(reg, type, asmreg)	\
-static inline __noprof type read_##reg(void)		\
-{							\
-	type val;					\
-							\
-	asm volatile("mrs %0, " #asmreg : "=r" (val));	\
-	return val;					\
+#define DEFINE_REG_READ_FUNC_(reg, type, asmreg)		\
+static inline __noprof type read_##reg(void)			\
+{								\
+	uint64_t val64 = 0;					\
+								\
+	asm volatile("mrs %0, " #asmreg : "=r" (val64));	\
+	return val64;						\
 }
 
 #define DEFINE_REG_WRITE_FUNC_(reg, type, asmreg)		\
 static inline __noprof void write_##reg(type val)		\
 {								\
-	asm volatile("msr " #asmreg ", %0" : : "r" (val));	\
+	uint64_t val64 = val;					\
+								\
+	asm volatile("msr " #asmreg ", %0" : : "r" (val64));	\
 }
 
 /* ARM Generic timer functions */
