@@ -740,13 +740,14 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	 * EM Length = (modBits - 1) / 8
 	 * if (modBits - 1) is not divisible by 8, one more byte is needed
 	 */
+	modBits--;
 	EM.length = ROUNDUP(modBits, 8) / 8;
 
 	EM.data = malloc(EM.length);
 	if (!EM.data)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	CRYPTO_TRACE("modBits = %zu, hence EM Length = %zu", modBits,
+	CRYPTO_TRACE("modBits = %zu, hence EM Length = %zu", modBits + 1,
 		     EM.length);
 
 	/* Encode the Message */
@@ -811,9 +812,7 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	 * if (modBits - 1) is not divisible by 8, one more byte is needed
 	 */
 	modBits--;
-	EM.length = modBits / 8;
-	if (modBits % 8)
-		EM.length++;
+	EM.length = ROUNDUP(modBits, 8) / 8;
 
 	EM.data = malloc(EM.length);
 	if (!EM.data)
