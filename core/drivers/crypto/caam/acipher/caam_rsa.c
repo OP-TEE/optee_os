@@ -222,7 +222,7 @@ static enum caam_status do_keypair_conv_f3(struct caam_rsa_keypair *outkey,
 			outkey->dp.length + outkey->dq.length +
 				outkey->qp.length);
 
-	outkey->format = 2;
+	outkey->format = 3;
 
 	return CAAM_NO_ERROR;
 }
