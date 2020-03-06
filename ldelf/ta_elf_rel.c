@@ -31,23 +31,35 @@ static uint32_t elf_hash(const char *name)
 	return h;
 }
 
-static bool __resolve_sym(struct ta_elf *elf, unsigned int bind,
-			  size_t st_shndx, size_t st_name, size_t st_value,
-			  const char *name, vaddr_t *val)
+static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
+			  unsigned int st_type, size_t st_shndx,
+			  size_t st_name, size_t st_value, const char *name,
+			  vaddr_t *val)
 {
-	if (bind != STB_GLOBAL)
+	if (st_bind != STB_GLOBAL)
 		return false;
 	if (st_shndx == SHN_UNDEF || st_shndx == SHN_XINDEX)
 		return false;
 	if (!st_name)
 		return false;
 	if (st_name > elf->dynstr_size)
-		err(TEE_ERROR_BAD_FORMAT, "Symbol out of range");
+		err(TEE_ERROR_BAD_FORMAT, "Symbol name out of range");
 
 	if (strcmp(name, elf->dynstr + st_name))
 		return false;
 
-	*val = st_value + elf->load_addr;
+	if (st_value > (elf->max_addr - elf->load_addr))
+		err(TEE_ERROR_BAD_FORMAT, "Symbol location out of range");
+
+	switch (st_type) {
+	case STT_OBJECT:
+	case STT_FUNC:
+		*val = st_value + elf->load_addr;
+		break;
+	default:
+		err(TEE_ERROR_NOT_SUPPORTED, "Symbol type not supported");
+	}
+
 	return true;
 }
 
@@ -74,6 +86,7 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 				    "Index out of range");
 			if (__resolve_sym(elf,
 					  ELF32_ST_BIND(sym[n].st_info),
+					  ELF32_ST_TYPE(sym[n].st_info),
 					  sym[n].st_shndx,
 					  sym[n].st_name,
 					  sym[n].st_value, name, val))
@@ -88,6 +101,7 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 				    "Index out of range");
 			if (__resolve_sym(elf,
 					  ELF64_ST_BIND(sym[n].st_info),
+					  ELF64_ST_TYPE(sym[n].st_info),
 					  sym[n].st_shndx,
 					  sym[n].st_name,
 					  sym[n].st_value, name, val))
