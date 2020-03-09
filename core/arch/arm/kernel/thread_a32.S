@@ -375,9 +375,9 @@ END_FUNC thread_unwind_user_mode
 		write_contextidr r0
 		isb
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		read_ttbr1 r0
-		sub	r0, r0, #CORE_MMU_L1_TBL_OFFSET
-		write_ttbr1 r0
+		read_ttbcr r0
+		bic	r0, r0, #TTBCR_PD1
+		write_ttbcr r0
 		isb
 #endif
 
@@ -806,9 +806,9 @@ eret_to_user_mode:
 	isb
 #else /*!CFG_WITH_LPAE*/
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	read_ttbr1 r0
-	add	r0, r0, #CORE_MMU_L1_TBL_OFFSET
-	write_ttbr1 r0
+	read_ttbcr r0
+	orr	r0, r0, #TTBCR_PD1
+	write_ttbcr r0
 	isb
 #endif
 	read_contextidr r0
@@ -866,9 +866,9 @@ icache_inv_user_range:
 	isb
 #else /*!CFG_WITH_LPAE*/
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	read_ttbr1 r6		/* This register must be preserved */
-	add	r2, r6, #CORE_MMU_L1_TBL_OFFSET
-	write_ttbr1 r2
+	read_ttbcr r6	/* This register must be preserved */
+	orr	r2, r6, #TTBCR_PD1
+	write_ttbcr r2
 	isb
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 	read_contextidr r7	/* This register must be preserved */
@@ -909,7 +909,7 @@ icache_inv_user_range:
 	write_contextidr r7
 	isb
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	write_ttbr1 r6
+	write_ttbcr r6
 	isb
 #endif
 #endif /*!CFG_WITH_LPAE*/
