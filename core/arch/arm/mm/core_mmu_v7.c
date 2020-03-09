@@ -190,8 +190,7 @@ enum desc_type {
  * Main MMU L1 table for teecore
  *
  * With CFG_CORE_UNMAP_CORE_AT_EL0, one table to be used while in kernel
- * mode and one to be used while in user mode. These are not static as the
- * symbols are accessed directly from assembly.
+ * mode and one to be used while in user mode.
  */
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 #define NUM_L1_TABLES	2
@@ -203,7 +202,7 @@ typedef uint32_t l1_xlat_tbl_t[NUM_L1_ENTRIES];
 typedef uint32_t l2_xlat_tbl_t[NUM_L2_ENTRIES];
 typedef uint32_t ul1_xlat_tbl_t[NUM_UL1_ENTRIES];
 
-l1_xlat_tbl_t main_mmu_l1_ttb[NUM_L1_TABLES]
+static l1_xlat_tbl_t main_mmu_l1_ttb[NUM_L1_TABLES]
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
 /* L2 MMU tables */

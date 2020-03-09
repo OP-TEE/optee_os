@@ -185,8 +185,7 @@
  * MMU L1 table, one for each core
  *
  * With CFG_CORE_UNMAP_CORE_AT_EL0, each core has one table to be used
- * while in kernel mode and one to be used while in user mode. These are
- * not static as the symbols are accessed directly from assembly.
+ * while in kernel mode and one to be used while in user mode.
  */
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 #define NUM_L1_TABLES	2
@@ -197,7 +196,7 @@
 typedef uint64_t l1_xlat_tbls_t[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES];
 typedef uint64_t xlat_tbl_t[XLAT_TABLE_ENTRIES];
 
-l1_xlat_tbls_t l1_xlation_table[NUM_L1_TABLES]
+static l1_xlat_tbls_t l1_xlation_table[NUM_L1_TABLES]
 	__aligned(NUM_L1_ENTRIES * XLAT_ENTRY_SIZE) __section(".nozi.mmu.l1");
 
 static xlat_tbl_t xlat_tables[MAX_XLAT_TABLES]
