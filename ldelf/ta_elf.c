@@ -222,14 +222,14 @@ static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
 	size_t sz = 0;
 
 	if (!ALIGNMENT_IS_OK(ptr, uint32_t))
-		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of hashtab %p", ptr);
+		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of DT_HASH %p", ptr);
 
 	if (ADD_OVERFLOW(num_words, num_buckets, &num_words) ||
 	    ADD_OVERFLOW(num_words, num_chains, &num_words) ||
 	    MUL_OVERFLOW(num_words, sizeof(uint32_t), &sz))
-		err(TEE_ERROR_BAD_FORMAT, "Hashtab overflow");
+		err(TEE_ERROR_BAD_FORMAT, "DT_HASH overflow");
 
-	check_range(elf, "Hashtab", ptr, sz);
+	check_range(elf, "DT_HASH", ptr, sz);
 }
 
 static void save_hashtab(struct ta_elf *elf)
@@ -291,19 +291,21 @@ static void e64_save_symtab(struct ta_elf *elf, size_t tab_idx)
 					   elf->load_addr);
 
 	if (!ALIGNMENT_IS_OK(elf->dynsymtab, Elf64_Sym))
-		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of dynsymtab %p",
+		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of .dynsym/DYNSYM %p",
 		    elf->dynsymtab);
-	check_range(elf, "Dynsymtab", elf->dynsymtab, shdr[tab_idx].sh_size);
+	check_range(elf, ".dynsym/DYNSYM", elf->dynsymtab,
+		    shdr[tab_idx].sh_size);
 
 	if (shdr[tab_idx].sh_size % sizeof(Elf64_Sym))
 		err(TEE_ERROR_BAD_FORMAT,
-		    "Size of dynsymtab not an even multiple of Elf64_Sym");
+		    "Size of .dynsym/DYNSYM not an even multiple of Elf64_Sym");
 	elf->num_dynsyms = shdr[tab_idx].sh_size / sizeof(Elf64_Sym);
 
 	if (str_idx >= elf->e_shnum)
-		err(TEE_ERROR_BAD_FORMAT, "Dynstr section index out of range");
+		err(TEE_ERROR_BAD_FORMAT,
+		    ".dynstr/STRTAB section index out of range");
 	elf->dynstr = (void *)(vaddr_t)(shdr[str_idx].sh_addr + elf->load_addr);
-	check_range(elf, "Dynstr", elf->dynstr, shdr[str_idx].sh_size);
+	check_range(elf, ".dynstr/STRTAB", elf->dynstr, shdr[str_idx].sh_size);
 
 	elf->dynstr_size = shdr[str_idx].sh_size;
 }
@@ -828,7 +830,7 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 		else if (tag == DT_STRSZ)
 			str_tab_sz = val;
 	}
-	check_range(elf, "Strtab", str_tab, str_tab_sz);
+	check_range(elf, ".dynstr/STRTAB", str_tab, str_tab_sz);
 
 	for (n = 0; n < num_dyns; n++) {
 		read_dyn(elf, addr, n, &tag, &val);
@@ -836,7 +838,7 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 			continue;
 		if (val >= str_tab_sz)
 			err(TEE_ERROR_BAD_FORMAT,
-			    "Offset into strtab out of range");
+			    "Offset into .dynstr/STRTAB out of range");
 		tee_uuid_from_str(&uuid, str_tab + val);
 		queue_elf(&uuid);
 	}
@@ -868,7 +870,7 @@ static void copy_section_headers(struct ta_elf *elf)
 	size_t offs = 0;
 
 	if (MUL_OVERFLOW(elf->e_shnum, elf->e_shentsize, &sz))
-		err(TEE_ERROR_BAD_FORMAT, "Shdr size overflow");
+		err(TEE_ERROR_BAD_FORMAT, "Section headers size overflow");
 
 	elf->shdr = malloc(sz);
 	if (!elf->shdr)
