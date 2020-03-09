@@ -8,7 +8,6 @@
 #include <arm64_macros.S>
 #include <arm.h>
 #include <asm.S>
-#include <elf_common.h>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <sm/optee_smc.h>
