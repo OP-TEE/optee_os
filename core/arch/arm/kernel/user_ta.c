@@ -8,7 +8,6 @@
 #include <compiler.h>
 #include <crypto/crypto.h>
 #include <ctype.h>
-#include <elf_common.h>
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/panic.h>
