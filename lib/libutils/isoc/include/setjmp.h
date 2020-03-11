@@ -34,6 +34,8 @@
 #ifndef __SETJMP_H
 #define __SETJMP_H
 
+#include <compiler.h>
+
 #if defined(ARM32)
 /*
  * All callee preserved registers:
@@ -54,7 +56,7 @@
 typedef	_JBTYPE jmp_buf[_JBLEN];
 #endif
 
-void longjmp(jmp_buf env, int val);
+void __noreturn longjmp(jmp_buf env, int val);
 int setjmp(jmp_buf env);
 
 #ifdef CFG_FTRACE_SUPPORT
