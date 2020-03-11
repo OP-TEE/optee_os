@@ -131,6 +131,52 @@ enum pkcs11_ta_cmd {
 	 * C_GetMechanismInfo().
 	 */
 	PKCS11_CMD_MECHANISM_INFO = 5,
+
+	/*
+	 * PKCS11_CMD_OPEN_SESSION - Open a session
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit slot ID,
+	 *              32bit session flags,
+	 *       ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit session handle
+	 *
+	 * This command relates to the PKCS#11 API function C_OpenSession().
+	 */
+	PKCS11_CMD_OPEN_SESSION = 6,
+
+	/*
+	 * PKCS11_CMD_CLOSE_SESSION - Close an opened session
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_CloseSession().
+	 */
+	PKCS11_CMD_CLOSE_SESSION = 7,
+
+	/*
+	 * PKCS11_CMD_CLOSE_ALL_SESSIONS - Close all client sessions on token
+	 *
+	 * [in]	 memref[0] = 32bit slot ID
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_CloseAllSessions().
+	 */
+	PKCS11_CMD_CLOSE_ALL_SESSIONS = 8,
+
+	/*
+	 * PKCS11_CMD_SESSION_INFO - Get Cryptoki information on a session
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = (struct pkcs11_session_info)info
+	 *
+	 * This command relates to the PKCS#11 API function C_GetSessionInfo().
+	 */
+	PKCS11_CMD_SESSION_INFO = 9,
 };
 
 /*
@@ -287,6 +333,34 @@ enum pkcs11_user_type {
 	PKCS11_CKU_SO = 0x000,
 	PKCS11_CKU_USER = 0x001,
 	PKCS11_CKU_CONTEXT_SPECIFIC = 0x002,
+};
+
+/*
+ * Values for 32bit session flags argument to PKCS11_CMD_OPEN_SESSION
+ * and pkcs11_session_info::flags.
+ * PKCS11_CKFSS_<x> reflects CryptoKi client API session flags CKF_<x>.
+ */
+#define PKCS11_CKFSS_RW_SESSION				(1U << 1)
+#define PKCS11_CKFSS_SERIAL_SESSION			(1U << 2)
+
+/*
+ * Arguments for PKCS11_CMD_SESSION_INFO
+ */
+
+struct pkcs11_session_info {
+	uint32_t slot_id;
+	uint32_t state;
+	uint32_t flags;
+	uint32_t device_error;
+};
+
+/* Valid values for pkcs11_session_info::state */
+enum pkcs11_session_state {
+	PKCS11_CKS_RO_PUBLIC_SESSION = 0,
+	PKCS11_CKS_RO_USER_FUNCTIONS = 1,
+	PKCS11_CKS_RW_PUBLIC_SESSION = 2,
+	PKCS11_CKS_RW_USER_FUNCTIONS = 3,
+	PKCS11_CKS_RW_SO_FUNCTIONS = 4,
 };
 
 /*
