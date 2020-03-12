@@ -23,6 +23,9 @@ const char *id2str_ta_cmd(uint32_t id);
 const char *id2str_rc(uint32_t id);
 const char *id2str_slot_flag(uint32_t id);
 const char *id2str_token_flag(uint32_t id);
+const char *id2str_session_flag(uint32_t id);
+const char *id2str_session_state(uint32_t id);
+
 static inline const char *id2str_mechanism(enum pkcs11_mechanism_id id)
 {
 	return mechanism_string_id(id);

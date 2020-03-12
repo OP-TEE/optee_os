@@ -65,6 +65,12 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_SLOT_LIST),
 	PKCS11_ID(PKCS11_CMD_SLOT_INFO),
 	PKCS11_ID(PKCS11_CMD_TOKEN_INFO),
+	PKCS11_ID(PKCS11_CMD_MECHANISM_IDS),
+	PKCS11_ID(PKCS11_CMD_MECHANISM_INFO),
+	PKCS11_ID(PKCS11_CMD_OPEN_SESSION),
+	PKCS11_ID(PKCS11_CMD_SESSION_INFO),
+	PKCS11_ID(PKCS11_CMD_CLOSE_SESSION),
+	PKCS11_ID(PKCS11_CMD_CLOSE_ALL_SESSIONS),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
@@ -92,6 +98,19 @@ static const struct any_id __maybe_unused string_token_flags[] = {
 	PKCS11_ID(PKCS11_CKFT_SO_PIN_LOCKED),
 	PKCS11_ID(PKCS11_CKFT_SO_PIN_TO_BE_CHANGED),
 	PKCS11_ID(PKCS11_CKFT_ERROR_STATE),
+};
+
+static const struct any_id __maybe_unused string_session_flags[] = {
+	PKCS11_ID(PKCS11_CKFSS_RW_SESSION),
+	PKCS11_ID(PKCS11_CKFSS_SERIAL_SESSION),
+};
+
+static const struct any_id __maybe_unused string_session_state[] = {
+	PKCS11_ID(PKCS11_CKS_RO_PUBLIC_SESSION),
+	PKCS11_ID(PKCS11_CKS_RO_USER_FUNCTIONS),
+	PKCS11_ID(PKCS11_CKS_RW_PUBLIC_SESSION),
+	PKCS11_ID(PKCS11_CKS_RW_USER_FUNCTIONS),
+	PKCS11_ID(PKCS11_CKS_RW_SO_FUNCTIONS),
 };
 
 static const struct any_id __maybe_unused string_rc[] = {
@@ -161,5 +180,15 @@ const char *id2str_slot_flag(uint32_t id)
 const char *id2str_token_flag(uint32_t id)
 {
 	return ID2STR(id, string_token_flags, "PKCS11_CKFT_");
+}
+
+const char *id2str_session_flag(uint32_t id)
+{
+	return ID2STR(id, string_session_flags, "PKCS11_CKFSS_");
+}
+
+const char *id2str_session_state(uint32_t id)
+{
+	return ID2STR(id, string_session_state, "PKCS11_CKS_");
 }
 #endif /*CFG_TEE_TA_LOG_LEVEL*/
