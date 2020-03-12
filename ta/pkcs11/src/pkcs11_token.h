@@ -119,11 +119,52 @@ struct pkcs11_client *tee_session2client(void *tee_session);
 struct pkcs11_client *register_client(void);
 void unregister_client(struct pkcs11_client *client);
 
+struct pkcs11_session *pkcs11_handle2session(uint32_t handle,
+					     struct pkcs11_client *client);
+
+static inline bool pkcs11_session_is_read_write(struct pkcs11_session *session)
+{
+	return session->state == PKCS11_CKS_RW_PUBLIC_SESSION ||
+	       session->state == PKCS11_CKS_RW_USER_FUNCTIONS ||
+	       session->state == PKCS11_CKS_RW_SO_FUNCTIONS;
+}
+
+static inline bool pkcs11_session_is_public(struct pkcs11_session *session)
+{
+	return session->state == PKCS11_CKS_RO_PUBLIC_SESSION ||
+	       session->state == PKCS11_CKS_RW_PUBLIC_SESSION;
+}
+
+static inline bool pkcs11_session_is_user(struct pkcs11_session *session)
+{
+	return session->state == PKCS11_CKS_RO_USER_FUNCTIONS ||
+	       session->state == PKCS11_CKS_RW_USER_FUNCTIONS;
+}
+
+static inline bool pkcs11_session_is_so(struct pkcs11_session *session)
+{
+	return session->state == PKCS11_CKS_RW_SO_FUNCTIONS;
+}
+
+static inline
+struct ck_token *pkcs11_session2token(struct pkcs11_session *session)
+{
+	return session->token;
+}
+
 /* Entry point for the TA commands */
 uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_open_session(struct pkcs11_client *client,
+			       uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_close_session(struct pkcs11_client *client,
+				uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_close_all_sessions(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_session_info(struct pkcs11_client *client,
+			       uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
