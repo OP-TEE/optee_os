@@ -24,8 +24,23 @@
 #define TOKEN_COUNT		CFG_PKCS11_TA_TOKEN_COUNT
 #endif
 
+/*
+ * Structure tracking client applications
+ *
+ * @link - chained list of registered client applications
+ * @sessions - list of the PKCS11 sessions opened by the client application
+ */
+struct pkcs11_client {
+	TAILQ_ENTRY(pkcs11_client) link;
+	struct session_list session_list;
+	struct handle_db session_handle_db;
+};
+
 /* Static allocation of tokens runtime instances (reset to 0 at load) */
 struct ck_token ck_token[TOKEN_COUNT];
+
+static struct client_list pkcs11_client_list =
+	TAILQ_HEAD_INITIALIZER(pkcs11_client_list);
 
 struct ck_token *get_token(unsigned int token_id)
 {
@@ -41,6 +56,44 @@ unsigned int get_token_id(struct ck_token *token)
 
 	assert(id >= 0 && id < TOKEN_COUNT);
 	return id;
+}
+
+struct pkcs11_client *tee_session2client(void *tee_session)
+{
+	struct pkcs11_client *client = NULL;
+
+	TAILQ_FOREACH(client, &pkcs11_client_list, link)
+		if (client == tee_session)
+			break;
+
+	return client;
+}
+
+struct pkcs11_client *register_client(void)
+{
+	struct pkcs11_client *client = NULL;
+
+	client = TEE_Malloc(sizeof(*client), TEE_MALLOC_FILL_ZERO);
+	if (!client)
+		return NULL;
+
+	TAILQ_INSERT_HEAD(&pkcs11_client_list, client, link);
+	TAILQ_INIT(&client->session_list);
+	handle_db_init(&client->session_handle_db);
+
+	return client;
+}
+
+void unregister_client(struct pkcs11_client *client)
+{
+	if (!client) {
+		EMSG("Invalid TEE session handle");
+		return;
+	}
+
+	TAILQ_REMOVE(&pkcs11_client_list, client, link);
+	handle_db_destroy(&client->session_handle_db);
+	TEE_Free(client);
 }
 
 static TEE_Result pkcs11_token_init(unsigned int id)
@@ -68,7 +121,7 @@ TEE_Result pkcs11_init(void)
 	for (id = 0; id < TOKEN_COUNT; id++) {
 		ret = pkcs11_token_init(id);
 		if (ret)
-			return ret;
+			break;
 	}
 
 	return ret;

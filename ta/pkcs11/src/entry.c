@@ -25,15 +25,23 @@ void TA_DestroyEntryPoint(void)
 
 TEE_Result TA_OpenSessionEntryPoint(uint32_t __unused param_types,
 				    TEE_Param __unused params[4],
-				    void **session)
+				    void **tee_session)
 {
-	*session = NULL;
+	struct pkcs11_client *client = register_client();
+
+	if (!client)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*tee_session = client;
 
 	return TEE_SUCCESS;
 }
 
-void TA_CloseSessionEntryPoint(void *session __unused)
+void TA_CloseSessionEntryPoint(void *tee_session)
 {
+	struct pkcs11_client *client = tee_session2client(tee_session);
+
+	unregister_client(client);
 }
 
 /*
@@ -103,11 +111,15 @@ static bool __maybe_unused param_is_output(uint32_t ptypes, unsigned int index)
  * Client shall check the status ID from the parameter #0 output buffer together
  * with the GPD TEE result code.
  */
-TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
+TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 				      uint32_t ptypes,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct pkcs11_client *client = tee_session2client(tee_session);
 	uint32_t rc = 0;
+
+	if (!client)
+		return TEE_ERROR_SECURITY;
 
 	/* All command handlers will check only against 4 parameters */
 	COMPILE_TIME_ASSERT(TEE_NUM_PARAMS == 4);
