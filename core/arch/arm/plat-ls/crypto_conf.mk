@@ -32,6 +32,8 @@ $(call force, CFG_CAAM_SGT_ALIGN,4)
 # Enable the BLOB module used for the hardware unique key
 CFG_NXP_CAAM_BLOB_DRV ?= y
 
+$(call force, CFG_CAAM_SIZE_ALIGN,1)
+
 #
 # CAAM Job Ring configuration
 #  - Normal boot settings
