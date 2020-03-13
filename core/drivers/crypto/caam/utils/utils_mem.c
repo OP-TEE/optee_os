@@ -46,6 +46,10 @@ static void *mem_alloc(size_t size, uint8_t type)
 	if (type & MEM_TYPE_ALIGN) {
 		size_t cacheline_size = dcache_get_line_size();
 
+		if (ROUNDUP_OVERFLOW(alloc_size, CFG_CAAM_SIZE_ALIGN,
+				     &alloc_size))
+			return NULL;
+
 		if (ROUNDUP_OVERFLOW(alloc_size, cacheline_size, &alloc_size))
 			return NULL;
 

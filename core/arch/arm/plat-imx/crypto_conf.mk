@@ -37,10 +37,12 @@ CFG_CAAM_SGT_ALIGN ?= 1
 CFG_NXP_CAAM_SGT_V1 ?= y
 
 ifeq ($(filter y, $(CFG_MX8QM) $(CFG_MX8QX)),y)
+$(call force, CFG_CAAM_SIZE_ALIGN,4)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
 $(call force,CFG_JR_INDEX,3)
 $(call force,CFG_JR_INT,486)
 else
+$(call force, CFG_CAAM_SIZE_ALIGN,1)
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
 $(call force, CFG_JR_INDEX,0)
 $(call force, CFG_JR_INT,137)
