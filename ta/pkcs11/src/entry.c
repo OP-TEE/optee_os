@@ -119,7 +119,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session __unused, uint32_t cmd,
 	switch (TEE_PARAM_TYPE_GET(ptypes, 0)) {
 	case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 	case TEE_PARAM_TYPE_MEMREF_INOUT:
-		if (params[0].memref.size < sizeof(uint32_t))
+		if (params[0].memref.size < sizeof(rc))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	default:
