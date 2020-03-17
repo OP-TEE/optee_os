@@ -154,6 +154,26 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # config files
 CFG_RPMB_FS_RD_ENTRIES ?= 8
 
+# Enables caching of FAT FS entries when set to a value greater than zero.
+# When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
+# entries. The cache is populated when FAT FS entries are initially read in.
+# When traversing the FAT FS entries, we read from the cache instead of reading
+# in the entries from RPMB storage. Consequently, when a FAT FS entry is
+# written, the cache is updated. In scenarios where an estimate of the number
+# of FAT FS entries can be made, the cache may be specifically tailored to
+# store all entries. The caching can improve RPMB I/O at the cost
+# of additional memory.
+# Without caching, we temporarily require
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# while traversing the FAT FS (e.g. in read_fat).
+# For example 8*256 bytes = 2kB while in read_fat.
+# With caching, we constantly require up to
+# CFG_RPMB_FS_CACHE_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# depending on how many elements are in the cache, and additional temporary
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# in case the cache is too small to hold all elements when traversing.
+CFG_RPMB_FS_CACHE_ENTRIES ?= 0
+
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
 # !!! Security warning !!!
