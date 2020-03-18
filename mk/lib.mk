@@ -62,8 +62,8 @@ ifeq ($(CFG_ULIBS_SHARED),y)
 $(lib-shlibfile): $(objs) $(lib-needed-so-files)
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
-	$$(q)$$(LD$(sm)) $(lib-ldflags) $(lib-Ll-args) -shared \
-		-z max-page-size=4096 --soname=$(libuuid) -o $$@ $$^
+	$$(q)$$(LD$(sm)) $(lib-ldflags) -shared -z max-page-size=4096 \
+		--soname=$(libuuid) -o $$@ $$(filter-out %.so,$$^) $(lib-Ll-args)
 
 $(lib-shlibstrippedfile): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
