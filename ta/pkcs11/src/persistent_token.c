@@ -85,8 +85,10 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 	if (!token)
 		return NULL;
 
-	for (n = 0; n < PKCS11_MAX_USERS; n++)
-		init_pin_keys(token, n);
+	init_pin_keys(token, PKCS11_CKU_SO);
+	init_pin_keys(token, PKCS11_CKU_USER);
+	COMPILE_TIME_ASSERT(PKCS11_CKU_SO == 0 && PKCS11_CKU_USER == 1 &&
+			    PKCS11_MAX_USERS >= 2);
 
 	db_main = TEE_Malloc(sizeof(*db_main), TEE_MALLOC_FILL_ZERO);
 	if (!db_main)

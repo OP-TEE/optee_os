@@ -281,4 +281,11 @@ struct pkcs11_token_info {
 #define PKCS11_CKFT_SO_PIN_TO_BE_CHANGED		(1U << 16)
 #define PKCS11_CKFT_ERROR_STATE				(1U << 17)
 
+/* Values for user identity */
+enum pkcs11_user_type {
+	PKCS11_CKU_SO = 0x000,
+	PKCS11_CKU_USER = 0x001,
+	PKCS11_CKU_CONTEXT_SPECIFIC = 0x002,
+};
+
 #endif /*PKCS11_TA_H*/
