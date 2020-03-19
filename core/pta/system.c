@@ -23,8 +23,6 @@
 #include <util.h>
 #include <kernel/tpm.h>
 
-#define MAX_ENTROPY_IN			32u
-
 struct bin_handle {
 	const struct user_ta_store_ops *op;
 	struct user_ta_store_handle *h;
@@ -56,11 +54,8 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 	entropy_input = params[0].memref.buffer;
 	entropy_sz = params[0].memref.size;
 
-	/* Fortuna PRNG requires seed <= 32 bytes */
-	if (!entropy_sz)
+	if (!entropy_sz || !entropy_input)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	entropy_sz = MIN(entropy_sz, MAX_ENTROPY_IN);
 
 	crypto_rng_add_event(CRYPTO_RNG_SRC_NONSECURE, &system_pnum,
 			     entropy_input, entropy_sz);
