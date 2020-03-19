@@ -266,6 +266,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 	h = handle_get(&ctx->db, binh);
 	if (h < 0)
 		goto err_oom;
+	params[0].value.a = h;
 
 	return TEE_SUCCESS;
 err_oom:
