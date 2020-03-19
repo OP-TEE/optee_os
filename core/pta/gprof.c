@@ -82,6 +82,11 @@ static TEE_Result gprof_start_pc_sampling(struct tee_ta_session *s,
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (s->sbuf) {
+		DMSG("PC sampling already started");
+		return TEE_ERROR_BAD_STATE;
+	}
+
 	buf = (uaddr_t)params[0].memref.buffer;
 	len = params[0].memref.size;
 	offset = params[1].value.a;
