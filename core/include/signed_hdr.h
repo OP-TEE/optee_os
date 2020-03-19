@@ -6,8 +6,9 @@
 #define SIGNED_HDR_H
 
 #include <inttypes.h>
-#include <tee_api_types.h>
 #include <stdlib.h>
+#include <tee_api_types.h>
+#include <util.h>
 
 enum shdr_img_type {
 	SHDR_TA = 0,
@@ -48,8 +49,18 @@ struct shdr {
 	 */
 };
 
-#define SHDR_GET_SIZE(x)	(sizeof(struct shdr) + (x)->hash_size + \
-				 (x)->sig_size)
+static inline size_t shdr_get_size(const struct shdr *shdr)
+{
+	size_t s = sizeof(*shdr);
+
+	if (ADD_OVERFLOW(s, shdr->hash_size, &s) ||
+	    ADD_OVERFLOW(s, shdr->sig_size, &s))
+		return 0;
+
+	return s;
+}
+
+#define SHDR_GET_SIZE(x)	shdr_get_size((x))
 #define SHDR_GET_HASH(x)	(uint8_t *)(((struct shdr *)(x)) + 1)
 #define SHDR_GET_SIG(x)		(SHDR_GET_HASH(x) + (x)->hash_size)
 
