@@ -388,8 +388,12 @@ static TEE_Result split_vm_range(struct user_mode_ctx *uctx, vaddr_t va,
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
+	vaddr_t end_va = 0;
 
 	if ((va | len) & SMALL_PAGE_MASK)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (ADD_OVERFLOW(va, len, &end_va))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/*
@@ -415,8 +419,8 @@ static TEE_Result split_vm_range(struct user_mode_ctx *uctx, vaddr_t va,
 	r = find_vm_region(&uctx->vm_info, va + len - 1);
 	if (!r)
 		return TEE_ERROR_BAD_PARAMETERS;
-	if (va + len != r->va + r->size) {
-		res = split_vm_region(uctx, r, va + len);
+	if (end_va != r->va + r->size) {
+		res = split_vm_region(uctx, r, end_va);
 		if (res)
 			return res;
 	}
