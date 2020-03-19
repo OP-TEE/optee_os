@@ -325,12 +325,16 @@ static bool va_range_is_contiguous(struct vm_region *r0, vaddr_t va,
 						    const struct vm_region *rn))
 {
 	struct vm_region *r = r0;
+	vaddr_t end_va = 0;
+
+	if (ADD_OVERFLOW(va, len, &end_va))
+		return false;
 
 	while (true) {
 		struct vm_region *r_next = TAILQ_NEXT(r, link);
 		vaddr_t r_end_va = r->va + r->size;
 
-		if (r_end_va >= va + len)
+		if (r_end_va >= end_va)
 			return true;
 		if (!r_next)
 			return false;
