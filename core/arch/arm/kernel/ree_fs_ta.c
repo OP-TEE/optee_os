@@ -416,10 +416,12 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
 
 	uint8_t *src = (uint8_t *)handle->nw_ta + handle->offs;
+	size_t next_offs = 0;
 	uint8_t *dst = src;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
-	if (handle->offs + len > handle->nw_ta_size)
+	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
+	    next_offs > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
@@ -468,7 +470,7 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 			return TEE_ERROR_SECURITY;
 	}
 
-	handle->offs += len;
+	handle->offs = next_offs;
 	if (handle->offs == handle->nw_ta_size) {
 		if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
 			/*
