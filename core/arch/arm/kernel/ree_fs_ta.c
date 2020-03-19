@@ -610,12 +610,15 @@ static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
 	uint8_t *src = handle->buf + handle->offs;
+	size_t next_offs = 0;
 
-	if (handle->offs + len > handle->ta_size)
+	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
+	    next_offs > handle->ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (data)
 		memcpy(data, src, len);
-	handle->offs += len;
+	handle->offs = next_offs;
 	return TEE_SUCCESS;
 }
 
