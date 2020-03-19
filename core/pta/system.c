@@ -183,6 +183,7 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t vm_flags = 0;
+	vaddr_t end_va = 0;
 	vaddr_t va = 0;
 	size_t sz = 0;
 
@@ -194,6 +195,15 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
+
+	/*
+	 * The vm_get_flags() and vm_unmap() are supposed to detect or
+	 * handle overflow directly or indirectly. However, this function
+	 * an API function so an extra guard here is in order. If nothing
+	 * else to make it easier to review the code.
+	 */
+	if (ADD_OVERFLOW(va, sz, &end_va))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
 	if (res)
