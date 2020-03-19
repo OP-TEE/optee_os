@@ -568,7 +568,7 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	if (flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
 
-	va = reg_pair_to_64(params[1].value.a, params[1].value.b),
+	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
 
 	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
