@@ -353,6 +353,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
 	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	struct bin_handle *binh = NULL;
+	uint32_t num_rounded_bytes = 0;
 	TEE_Result res = TEE_SUCCESS;
 	struct file_slice *fs = NULL;
 	bool file_is_locked = false;
@@ -401,7 +402,9 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		prot |= TEE_MATTR_UX;
 
 	offs_pages = offs_bytes >> SMALL_PAGE_SHIFT;
-	num_pages = ROUNDUP(num_bytes, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	if (ROUNDUP_OVERFLOW(num_bytes, SMALL_PAGE_SIZE, &num_rounded_bytes))
+		return TEE_ERROR_BAD_PARAMETERS;
+	num_pages = num_rounded_bytes / SMALL_PAGE_SIZE;
 
 	if (!file_trylock(binh->f)) {
 		/*
@@ -435,7 +438,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 prot, VM_FLAG_READONLY,
 				 mobj, 0, pad_begin, pad_end);
 		mobj_put(mobj);
@@ -461,7 +464,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
 				 pad_begin, pad_end);
 		mobj_put(mobj);
@@ -470,7 +473,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_set_prot(&utc->uctx, va, num_rounded_bytes,
 				  prot);
 		if (res)
 			goto err_unmap_va;
@@ -494,7 +497,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (vm_unmap(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE))
+	if (vm_unmap(&utc->uctx, va, num_rounded_bytes))
 		panic();
 
 	/*
