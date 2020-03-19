@@ -898,8 +898,11 @@ void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
 {
 	struct tee_pager_area *a_next = NULL;
 	struct tee_pager_area *a = NULL;
+	vaddr_t end_va = 0;
 
 	if ((va | len) & SMALL_PAGE_MASK)
+		return;
+	if (ADD_OVERFLOW(va, len, &end_va))
 		return;
 
 	for (a = TAILQ_FIRST(uctx->areas);; a = a_next) {
@@ -916,7 +919,7 @@ void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
 		 * Note that if it's just the page after our range we'll
 		 * try to merge.
 		 */
-		if (a->base > va + len)
+		if (a->base > end_va)
 			return;
 
 		if (a->base + a->size != a_next->base)
