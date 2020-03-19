@@ -155,8 +155,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	pad_begin = params[2].value.a;
 	pad_end = params[2].value.b;
 
-	f = fobj_ta_mem_alloc(ROUNDUP(num_bytes, SMALL_PAGE_SIZE) /
-			      SMALL_PAGE_SIZE);
+	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	mobj = mobj_with_fobj_alloc(f, NULL);
