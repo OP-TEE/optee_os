@@ -10,6 +10,7 @@
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/tpm.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
 #include <ldelf.h>
@@ -17,11 +18,12 @@
 #include <mm/fobj.h>
 #include <mm/tee_mmu.h>
 #include <pta_system.h>
+#include <stdlib_ext.h>
+#include <stdlib.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <util.h>
-#include <kernel/tpm.h>
 
 struct bin_handle {
 	const struct user_ta_store_ops *op;
@@ -119,7 +121,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	res = huk_subkey_derive(HUK_SUBKEY_UNIQUE_TA, data, data_len,
 				params[1].memref.buffer,
 				params[1].memref.size);
-	free(data);
+	free_wipe(data);
 
 	return res;
 }
