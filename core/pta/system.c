@@ -309,10 +309,14 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 			       size_t offs_bytes, size_t num_bytes)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t l =  num_bytes;
+	size_t next_offs = 0;
 
 	if (offs_bytes < binh->offs_bytes)
 		return TEE_ERROR_BAD_STATE;
+
+	if (ADD_OVERFLOW(offs_bytes, num_bytes, &next_offs))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (offs_bytes > binh->offs_bytes) {
 		res = binh->op->read(binh->h, NULL,
 				     offs_bytes - binh->offs_bytes);
@@ -321,19 +325,19 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 		binh->offs_bytes = offs_bytes;
 	}
 
-	if (binh->offs_bytes + l > binh->size_bytes) {
+	if (next_offs > binh->size_bytes) {
 		size_t rb = binh->size_bytes - binh->offs_bytes;
 
 		res = binh->op->read(binh->h, (void *)va, rb);
 		if (res)
 			return res;
-		memset((uint8_t *)va + rb, 0, l - rb);
+		memset((uint8_t *)va + rb, 0, num_bytes - rb);
 		binh->offs_bytes = binh->size_bytes;
 	} else {
-		res = binh->op->read(binh->h, (void *)va, l);
+		res = binh->op->read(binh->h, (void *)va, num_bytes);
 		if (res)
 			return res;
-		binh->offs_bytes += l;
+		binh->offs_bytes = next_offs;
 	}
 
 	return TEE_SUCCESS;
