@@ -432,6 +432,10 @@ static void merge_vm_range(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 {
 	struct vm_region *r_next = NULL;
 	struct vm_region *r = NULL;
+	vaddr_t end_va = 0;
+
+	if (ADD_OVERFLOW(va, len, &end_va))
+		return;
 
 	tee_pager_merge_um_region(uctx, va, len);
 
@@ -449,7 +453,7 @@ static void merge_vm_range(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 		 * Note that if it's just the page after our range we'll
 		 * try to merge.
 		 */
-		if (r->va > va + len)
+		if (r->va > end_va)
 			return;
 
 		if (r->va + r->size != r_next->va)
