@@ -139,12 +139,14 @@ static TEE_Result read_uncompressed(struct user_ta_store_handle *h, void *data,
 				    size_t len)
 {
 	uint8_t *src = (uint8_t *)h->early_ta->ta + h->offs;
+	size_t next_offs = 0;
 
-	if (h->offs + len > h->early_ta->size)
+	if (ADD_OVERFLOW(h->offs, len, &next_offs) ||
+	    next_offs > h->early_ta->size)
 		return TEE_ERROR_BAD_PARAMETERS;
 	if (data)
 		memcpy(data, src, len);
-	h->offs += len;
+	h->offs = next_offs;
 
 	return TEE_SUCCESS;
 }
