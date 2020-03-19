@@ -680,9 +680,11 @@ TEE_Result bnxt_load_fw(int chip_type)
 
 TEE_Result bnxt_copy_crash_dump(uint8_t *d, uint32_t offset, uint32_t len)
 {
+	size_t crash_len = 0;
 	void *s = NULL;
 
-	if (offset + len > BNXT_CRASH_LEN)
+	if (ADD_OVERFLOW(offset, len, &crash_len) ||
+	    crash_len > BNXT_CRASH_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	s = phys_to_virt(BNXT_CRASH_SEC_MEM + offset, MEM_AREA_RAM_SEC);
