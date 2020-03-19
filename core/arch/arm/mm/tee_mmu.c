@@ -705,11 +705,18 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *r = NULL;
 	struct vm_region *r_next = NULL;
-	size_t l = ROUNDUP(len, SMALL_PAGE_SIZE);
+	size_t end_va = 0;
+	size_t l = 0;
 
 	assert(thread_get_tsd()->ctx == &uctx->ctx);
 
+	if (ROUNDUP_OVERFLOW(len, SMALL_PAGE_SIZE, &l))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (!l || (va & SMALL_PAGE_MASK))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (ADD_OVERFLOW(va, l, &end_va))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = split_vm_range(uctx, va, l, NULL, &r);
@@ -722,7 +729,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 			tee_pager_rem_um_region(uctx, r->va, r->size);
 		maybe_free_pgt(uctx, r);
 		umap_remove_region(&uctx->vm_info, r);
-		if (!r_next || r->va + r->size == va + l)
+		if (!r_next || r->va + r->size == end_va)
 			break;
 		r = r_next;
 	}
