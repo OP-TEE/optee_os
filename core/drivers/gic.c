@@ -306,8 +306,6 @@ static void gic_it_set_pending(struct gic_data *gd, size_t it)
 
 	/* Should be Peripheral Interrupt */
 	assert(it >= NUM_SGI);
-	/* Assigned to group0 */
-	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Raise the interrupt */
 	io_write32(gd->gicd_base + GICD_ISPENDR(idx), mask);
