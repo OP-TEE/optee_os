@@ -89,4 +89,11 @@
 #define TEE_MEMORY_ACCESS_NONSECURE          0x10000000
 #define TEE_MEMORY_ACCESS_SECURE             0x20000000
 
+/*
+ * Implementation-specific login types
+ */
+
+/* Private login method for REE kernel clients */
+#define TEE_LOGIN_REE_KERNEL		0x80000000
+
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */
