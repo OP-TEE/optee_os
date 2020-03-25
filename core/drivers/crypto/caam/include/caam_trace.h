@@ -165,7 +165,7 @@
 #else
 #define CIPHER_DUMPDESC(desc)
 #endif
-#if CAAM_DBG_TRACE(CIPHER)
+#if CAAM_DBG_BUF(CIPHER)
 #define CIPHER_DUMPBUF DRV_DUMPBUF
 #else
 #define CIPHER_DUMPBUF(...)

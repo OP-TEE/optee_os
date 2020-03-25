@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021 NXP
  *
  * CAAM hash/HMAC local header.
  */
@@ -18,6 +18,7 @@ struct hashctx {
 	struct caambuf ctx;	   /* Hash context used by the CAAM */
 	const struct hashalg *alg; /* Reference to the algo constants */
 	struct caambuf key;	   /* HMAC split key */
+	bool initialized;	   /* Context initialization flag */
 };
 
 /*
