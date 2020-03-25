@@ -583,6 +583,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		memset(param, 0, sizeof(*param));
 	} else {
 		uint32_t flags = TEE_MEMORY_ACCESS_READ |
+				 TEE_MEMORY_ACCESS_WRITE |
 				 TEE_MEMORY_ACCESS_ANY_OWNER;
 
 		res = tee_mmu_check_access_rights(&utc->uctx, flags,
