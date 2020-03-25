@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019, 2021 NXP
  *
  *         Implementation of Hashing functions.
  */
 #include <caam_hal_ctrl.h>
 #include <caam_hash.h>
 #include <caam_jr.h>
+#include <caam_utils_dmaobj.h>
 #include <caam_utils_mem.h>
-#include <caam_utils_sgt.h>
 #include <caam_utils_status.h>
 #include <drvcrypt.h>
 #include <drvcrypt_hash.h>
@@ -368,13 +368,98 @@ TEE_Result caam_hash_hmac_init(struct hashctx *ctx)
 	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	/* Initialize the block buffer */
 	ctx->blockbuf.filled = 0;
+	ctx->blockbuf.max = ctx->alg->size_block;
 
 	/* Ensure Context length is 0 */
 	ctx->ctx.length = 0;
 
 	/* Initialize the HMAC Key */
 	ctx->key.length = 0;
+
+	ctx->initialized = true;
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * Build and run the CAAM Hash descriptor to update (or start) the
+ * data digest.
+ *
+ * @ctx    [in/out] Caller context variable
+ * @src    Input data to digest
+ */
+static TEE_Result do_update_hash(struct hashctx *ctx, struct caamdmaobj *src)
+{
+	enum caam_status retstatus = CAAM_FAILURE;
+	const struct hashalg *alg = ctx->alg;
+	struct caam_jobctx jobctx = { };
+	uint32_t *desc = ctx->descriptor;
+
+	caam_desc_init(desc);
+	caam_desc_add_word(desc, DESC_HEADER(0));
+
+	/* There are blocks to hash - Create the Descriptor */
+	if (ctx->ctx.length) {
+		HASH_TRACE("Update Operation");
+		/* Algo Operation - Update */
+		caam_desc_add_word(desc, HASH_UPDATE(alg->type));
+		/* Running context to restore */
+		caam_desc_add_word(desc,
+				   LD_NOIMM(CLASS_2, REG_CTX, ctx->ctx.length));
+		caam_desc_add_ptr(desc, ctx->ctx.paddr);
+	} else {
+		HASH_TRACE("Init Operation");
+
+		/* Check if there is a key to load it */
+		if (ctx->key.length) {
+			do_desc_load_key(desc, &ctx->key);
+
+			/* Algo Operation - HMAC Init */
+			caam_desc_add_word(desc, HMAC_INIT_PRECOMP(alg->type));
+		} else {
+			/* Algo Operation - Init */
+			caam_desc_add_word(desc, HASH_INIT(alg->type));
+		}
+		ctx->ctx.length = alg->size_ctx;
+	}
+
+	if (ctx->blockbuf.filled) {
+		caam_desc_add_word(desc, FIFO_LD(CLASS_2, MSG, NOACTION,
+						 ctx->blockbuf.filled));
+		caam_desc_add_ptr(desc, ctx->blockbuf.buf.paddr);
+		cache_operation(TEE_CACHECLEAN, ctx->blockbuf.buf.data,
+				ctx->blockbuf.filled);
+	}
+
+	caam_desc_fifo_load(desc, src, CLASS_2, MSG, LAST_C2);
+	caam_dmaobj_cache_push(src);
+
+	ctx->blockbuf.filled = 0;
+
+	if (ctx->ctx.length) {
+		/* Save the running context */
+		caam_desc_add_word(desc,
+				   ST_NOIMM(CLASS_2, REG_CTX, ctx->ctx.length));
+		caam_desc_add_ptr(desc, ctx->ctx.paddr);
+
+		/* Ensure Context register data are not in cache */
+		cache_operation(TEE_CACHEINVALIDATE, ctx->ctx.data,
+				ctx->ctx.length);
+	}
+
+	HASH_DUMPDESC(desc);
+
+	jobctx.desc = desc;
+	retstatus = caam_jr_enqueue(&jobctx, NULL);
+
+	if (retstatus != CAAM_NO_ERROR) {
+		HASH_TRACE("CAAM Status 0x%08" PRIx32, jobctx.status);
+		return job_status_to_tee_result(jobctx.status);
+	}
+
+	HASH_DUMPBUF("CTX", ctx->ctx.data, ctx->ctx.length);
 
 	return TEE_SUCCESS;
 }
@@ -385,15 +470,13 @@ TEE_Result caam_hash_hmac_update(struct hashctx *ctx, const uint8_t *data,
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
 	const struct hashalg *alg = NULL;
-	uint32_t alg_type = 0;
-	struct caam_jobctx jobctx = {};
-	uint32_t *desc = NULL;
 	size_t fullsize = 0;
 	size_t size_topost = 0;
 	size_t size_todo = 0;
+	size_t size_done = 0;
 	size_t size_inmade = 0;
-	struct caamsgtbuf src_sgt = { .sgt_type = false };
-	struct caambuf indata = { .data = (uint8_t *)data, .length = len };
+	struct caamdmaobj src = { };
+	size_t offset = 0;
 
 	HASH_TRACE("Hash/HMAC Update (%p) %p - %zu", ctx, data, len);
 
@@ -401,167 +484,85 @@ TEE_Result caam_hash_hmac_update(struct hashctx *ctx, const uint8_t *data,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	alg = ctx->alg;
-	alg_type = alg->type;
-
-	if (data) {
-		indata.paddr = virt_to_phys((void *)data);
-		if (!indata.paddr) {
-			HASH_TRACE("Bad input data virtual address");
-			return TEE_ERROR_BAD_PARAMETERS;
-		}
-
-		if (!caam_mem_is_cached_buf(indata.data, indata.length))
-			indata.nocache = 1;
-	}
 
 	if (!ctx->ctx.data)
 		return TEE_ERROR_GENERIC;
 
-	HASH_TRACE("Update Type 0x%" PRIX32 " - Input @%p-%zu", alg_type,
-		   indata.data, indata.length);
+	HASH_TRACE("Update Type 0x%" PRIX32 " - Input @%p-%zu", alg->type, data,
+		   len);
 
 	/* Calculate the total data to be handled */
-	fullsize = ctx->blockbuf.filled + indata.length;
+	fullsize = ctx->blockbuf.filled + len;
 	size_topost = fullsize % alg->size_block;
 	size_todo = fullsize - size_topost;
-	size_inmade = indata.length - size_topost;
+	size_inmade = len - size_topost;
 	HASH_TRACE("FullSize %zu - posted %zu - todo %zu", fullsize,
 		   size_topost, size_todo);
 
-	if (size_todo) {
-		desc = ctx->descriptor;
-		caam_desc_init(desc);
-		caam_desc_add_word(desc, DESC_HEADER(0));
-
-		/* There are blocks to hash - Create the Descriptor */
-		if (ctx->ctx.length) {
-			HASH_TRACE("Update Operation");
-			/* Algo Operation - Update */
-			caam_desc_add_word(desc, HASH_UPDATE(alg_type));
-			/* Running context to restore */
-			caam_desc_add_word(desc, LD_NOIMM(CLASS_2, REG_CTX,
-							  ctx->ctx.length));
-			caam_desc_add_ptr(desc, ctx->ctx.paddr);
-		} else {
-			HASH_TRACE("Init Operation");
-
-			/* Check if there is a key to load it */
-			if (ctx->key.length) {
-				do_desc_load_key(desc, &ctx->key);
-
-				/* Algo Operation - HMAC Init */
-				caam_desc_add_word(desc,
-						   HMAC_INIT_PRECOMP(alg_type));
-			} else {
-				/* Algo Operation - Init */
-				caam_desc_add_word(desc, HASH_INIT(alg_type));
-			}
-			ctx->ctx.length = alg->size_ctx;
-		}
-
-		/* Set the exact size of input data to use */
-		indata.length = size_inmade;
-
-		if (ctx->blockbuf.filled)
-			retstatus = caam_sgt_build_block_data(&src_sgt,
-							      &ctx->blockbuf,
-							      &indata);
-		else
-			retstatus = caam_sgt_build_block_data(&src_sgt, NULL,
-							      &indata);
-
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_GENERIC;
-			goto out;
-		}
-
-		if (src_sgt.sgt_type) {
-			if (src_sgt.length > FIFO_LOAD_MAX) {
-				caam_desc_add_word(desc,
-						   FIFO_LD_SGT_EXT(CLASS_2, MSG,
-								   LAST_C2));
-				caam_desc_add_ptr(desc,
-						  virt_to_phys(src_sgt.sgt));
-				caam_desc_add_word(desc, src_sgt.length);
-			} else {
-				caam_desc_add_word(desc,
-						   FIFO_LD_SGT(CLASS_2, MSG,
-							       LAST_C2,
-							       src_sgt.length));
-				caam_desc_add_ptr(desc,
-						  virt_to_phys(src_sgt.sgt));
-			}
-			caam_sgt_cache_op(TEE_CACHECLEAN, &src_sgt);
-		} else {
-			if (src_sgt.length > FIFO_LOAD_MAX) {
-				caam_desc_add_word(desc,
-						   FIFO_LD_EXT(CLASS_2, MSG,
-							       LAST_C2));
-				caam_desc_add_ptr(desc, src_sgt.buf->paddr);
-				caam_desc_add_word(desc, src_sgt.length);
-			} else {
-				caam_desc_add_word(desc,
-						   FIFO_LD(CLASS_2, MSG,
-							   LAST_C2,
-							   src_sgt.length));
-				caam_desc_add_ptr(desc, src_sgt.buf->paddr);
-			}
-
-			if (!src_sgt.buf->nocache)
-				cache_operation(TEE_CACHECLEAN,
-						src_sgt.buf->data,
-						src_sgt.length);
-		}
-
-		ctx->blockbuf.filled = 0;
-
-		/* Save the running context */
-		caam_desc_add_word(desc,
-				   ST_NOIMM(CLASS_2, REG_CTX, ctx->ctx.length));
-		caam_desc_add_ptr(desc, ctx->ctx.paddr);
-
-		HASH_DUMPDESC(desc);
-
-		/* Ensure Context register data are not in cache */
-		cache_operation(TEE_CACHEINVALIDATE, ctx->ctx.data,
-				ctx->ctx.length);
-
-		jobctx.desc = desc;
-		retstatus = caam_jr_enqueue(&jobctx, NULL);
-
-		if (retstatus == CAAM_NO_ERROR) {
-			ret = TEE_SUCCESS;
-			HASH_DUMPBUF("CTX", ctx->ctx.data, ctx->ctx.length);
-		} else {
-			HASH_TRACE("CAAM Status 0x%08" PRIx32, jobctx.status);
-			ret = job_status_to_tee_result(jobctx.status);
-		}
-	} else {
+	if (!size_todo) {
 		ret = TEE_SUCCESS;
 
-		if (size_topost) {
-			/* All input data must be saved */
+		/* All input data must be saved */
+		if (size_topost)
 			size_inmade = 0;
-		}
+
+		goto save_posted;
 	}
 
-	if (size_topost && data) {
+	ret = caam_dmaobj_init_input(&src, data, size_inmade);
+	if (ret)
+		goto exit_update;
+
+	ret = caam_dmaobj_prepare(&src, NULL, alg->size_block);
+	if (ret)
+		goto exit_update;
+
+	size_todo = size_inmade;
+
+	for (offset = 0; offset < size_inmade;
+	     offset += size_done, size_todo -= size_done) {
+		size_done = size_todo;
+		HASH_TRACE("Do input %zu bytes, offset %zu", size_done, offset);
+
+		ret = caam_dmaobj_sgtbuf_build(&src, &size_done, offset,
+					       alg->size_block);
+		if (ret)
+			goto exit_update;
+
 		/*
-		 * Set the full data size of the input buffer.
-		 * indata.length has been changed when creating the SGT
-		 * object.
+		 * Need to re-adjust the length of the data if the
+		 * posted data block is not empty and the SGT/Buffer
+		 * is part of the full input data to do.
 		 */
-		indata.length = len;
-		HASH_TRACE("Posted %zu of input len %zu made %zu", size_topost,
-			   indata.length, size_inmade);
-		ret = caam_cpy_block_src(&ctx->blockbuf, &indata, size_inmade);
+		if (ctx->blockbuf.filled && size_done < size_todo) {
+			size_done -= ctx->blockbuf.filled;
+			src.sgtbuf.length = size_done;
+		}
+
+		ret = do_update_hash(ctx, &src);
+		if (ret)
+			goto exit_update;
 	}
 
-out:
-	if (src_sgt.sgt_type)
-		caam_sgtbuf_free(&src_sgt);
+save_posted:
+	if (size_topost && data) {
+		struct caambuf srcdata = {
+			.data = (uint8_t *)data,
+			.length = len,
+		};
 
-	if (ret != TEE_SUCCESS)
+		HASH_TRACE("Posted %zu of input len %zu made %zu", size_topost,
+			   len, size_inmade);
+
+		retstatus = caam_cpy_block_src(&ctx->blockbuf, &srcdata,
+					       size_inmade);
+		ret = caam_status_to_tee_result(retstatus);
+	}
+
+exit_update:
+	caam_dmaobj_free(&src);
+
+	if (ret)
 		do_free_intern(ctx);
 
 	return ret;
@@ -575,9 +576,7 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	const struct hashalg *alg = NULL;
 	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
-	bool realloc = false;
-	struct caambuf digest_align = { };
-	struct caamsgtbuf sgtdigest = { .sgt_type = false };
+	struct caamdmaobj dig = { };
 
 	HASH_TRACE("Hash/HMAC Final (%p)", ctx);
 
@@ -589,39 +588,11 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	if (!ctx->ctx.data)
 		return TEE_ERROR_GENERIC;
 
-	if (alg->size_digest > len) {
-		HASH_TRACE("Digest buffer size %" PRId8 " too short (%zu)",
-			   alg->size_digest, len);
+	ret = caam_dmaobj_output_sgtbuf(&dig, digest, len, alg->size_digest);
+	if (ret)
+		goto out;
 
-		retstatus = caam_alloc_align_buf(&digest_align,
-						 alg->size_digest);
-		if (retstatus != CAAM_NO_ERROR) {
-			HASH_TRACE("Digest reallocation error");
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-		realloc = true;
-	} else {
-		retstatus = caam_set_or_alloc_align_buf(digest, &digest_align,
-							len, &realloc);
-
-		if (retstatus != CAAM_NO_ERROR) {
-			HASH_TRACE("Digest reallocation error");
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-
-		retstatus = caam_sgt_build_block_data(&sgtdigest, NULL,
-						      &digest_align);
-
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
-		}
-	}
-
-	HASH_TRACE("Final Type 0x%" PRIX32 " - Digest @%p-%zu", alg->type,
-		   digest_align.data, len);
+	HASH_TRACE("Final Type 0x%" PRIX32 " - Digest %zu", alg->type, len);
 
 	desc = ctx->descriptor;
 	caam_desc_init(desc);
@@ -666,27 +637,15 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	caam_desc_add_ptr(desc, ctx->blockbuf.buf.paddr);
 	caam_desc_add_word(desc, ctx->blockbuf.filled);
 
-	cache_operation(TEE_CACHECLEAN, ctx->blockbuf.buf.data,
-			ctx->blockbuf.filled);
+	if (ctx->blockbuf.filled)
+		cache_operation(TEE_CACHECLEAN, ctx->blockbuf.buf.data,
+				ctx->blockbuf.filled);
 
 	ctx->blockbuf.filled = 0;
 
 	/* Save the final digest */
-	if (sgtdigest.sgt_type) {
-		caam_desc_add_word(desc, ST_SGT_NOIMM(CLASS_2, REG_CTX,
-						      alg->size_digest));
-		caam_desc_add_ptr(desc, virt_to_phys(sgtdigest.sgt));
-
-		caam_sgt_cache_op(TEE_CACHEFLUSH, &sgtdigest);
-	} else {
-		caam_desc_add_word(desc, ST_NOIMM(CLASS_2, REG_CTX,
-						  alg->size_digest));
-		caam_desc_add_ptr(desc, digest_align.paddr);
-
-		if (digest_align.nocache == 0)
-			cache_operation(TEE_CACHEFLUSH, digest_align.data,
-					alg->size_digest);
-	}
+	caam_desc_store(desc, &dig, CLASS_2, REG_CTX);
+	caam_dmaobj_cache_push(&dig);
 
 	HASH_DUMPDESC(desc);
 
@@ -694,16 +653,9 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 	if (retstatus == CAAM_NO_ERROR) {
-		/* Ensure that hash data are correct in cache */
-		if (digest_align.nocache == 0)
-			cache_operation(TEE_CACHEINVALIDATE, digest_align.data,
-					alg->size_digest);
+		caam_dmaobj_copy_to_orig(&dig);
 
-		if (realloc)
-			memcpy(digest, digest_align.data, len);
-
-		HASH_DUMPBUF("Digest", digest_align.data,
-			     (size_t)alg->size_digest);
+		HASH_DUMPBUF("Digest", digest, (size_t)alg->size_digest);
 
 		ret = TEE_SUCCESS;
 	} else {
@@ -712,11 +664,7 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	}
 
 out:
-	if (realloc)
-		caam_free_buf(&digest_align);
-
-	if (sgtdigest.sgt_type)
-		caam_sgtbuf_free(&sgtdigest);
+	caam_dmaobj_free(&dig);
 
 	return ret;
 }
@@ -727,11 +675,18 @@ void caam_hash_hmac_copy_state(struct hashctx *dst, struct hashctx *src)
 
 	assert(dst && src);
 
+	if (!dst->initialized && caam_hash_hmac_init(dst))
+		panic();
+
 	dst->alg = src->alg;
 
-	memcpy(dst->ctx.data, src->ctx.data, src->ctx.length);
-	dst->ctx.length = src->ctx.length;
-	cache_operation(TEE_CACHECLEAN, dst->ctx.data, dst->ctx.length);
+	if (src->ctx.length) {
+		cache_operation(TEE_CACHEINVALIDATE, src->ctx.data,
+				src->ctx.length);
+		memcpy(dst->ctx.data, src->ctx.data, src->ctx.length);
+		dst->ctx.length = src->ctx.length;
+		cache_operation(TEE_CACHECLEAN, dst->ctx.data, dst->ctx.length);
+	}
 
 	if (src->blockbuf.filled) {
 		struct caambuf srcdata = {
@@ -742,8 +697,10 @@ void caam_hash_hmac_copy_state(struct hashctx *dst, struct hashctx *src)
 		caam_cpy_block_src(&dst->blockbuf, &srcdata, 0);
 	}
 
-	if (src->key.data)
+	if (src->key.data) {
 		memcpy(dst->key.data, src->key.data, src->key.length);
+		dst->key.length = src->key.length;
+	}
 }
 
 enum caam_status caam_hash_init(vaddr_t ctrl_addr)
