@@ -10,23 +10,26 @@
 #include <tee_internal_api.h>
 #include <types_ext.h>
 #include <util.h>
+#include "tee_api_private.h"
 
 static TEE_Result invoke_system_pta(uint32_t cmd_id, uint32_t param_types,
 				    TEE_Param params[TEE_NUM_PARAMS])
 {
-	static TEE_TASessionHandle sess = TEE_HANDLE_NULL;
 	static const TEE_UUID uuid = PTA_SYSTEM_UUID;
 
-	if (sess == TEE_HANDLE_NULL) {
+	if (__tee_api_system_session == TEE_HANDLE_NULL) {
 		TEE_Result res = TEE_OpenTASession(&uuid, TEE_TIMEOUT_INFINITE,
-						   0, NULL, &sess, NULL);
+						   0, NULL,
+						   &__tee_api_system_session,
+						   NULL);
 
 		if (res)
 			return res;
 	}
 
-	return TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE, cmd_id,
-				   param_types, params, NULL);
+	return TEE_InvokeTACommand(__tee_api_system_session,
+				   TEE_TIMEOUT_INFINITE, cmd_id, param_types,
+				   params, NULL);
 }
 
 void *tee_map_zi(size_t len, uint32_t flags)

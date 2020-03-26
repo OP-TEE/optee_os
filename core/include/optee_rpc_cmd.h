@@ -97,6 +97,12 @@
  * space application
  */
 #define OPTEE_RPC_SHM_TYPE_GLOBAL	2
+/*
+ * Memory shared with the non-secure application that is the client of the TA
+ * that requests shared memory of this type; the client could be running in
+ * non-secure user-mode or in non-secure kernel-mode
+ */
+#define OPTEE_RPC_SHM_TYPE_CLIENT_APP	3
 
 /*
  * Free shared memory previously allocated with OPTEE_RPC_CMD_SHM_ALLOC
@@ -174,6 +180,18 @@
 
 /* I2C master control flags */
 #define OPTEE_RPC_I2C_FLAGS_TEN_BIT	BIT(0)
+
+/*
+ * Send an OCALL to the Client Application
+ *
+ * [in]     value[0].a	    CA Command ID (i.e., OCALL# for the CA to execute)
+ * [out]    value[0].b	    OCALL return value
+ * [out]    value[0].c	    OCALL return value origin
+ * [in]     value[1].a	    UUID of TA whence OCALL originated (HI bits)
+ * [out]    value[1].b	    UUID of TA whence OCALL originated (LO bits)
+ * [in/out] any[2..5].*	    OCALL parameters as specified by the TA, if any
+ */
+#define OPTEE_RPC_CMD_OCALL		22
 
 /*
  * Definition of protocol for command OPTEE_RPC_CMD_FS

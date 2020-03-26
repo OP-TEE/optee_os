@@ -626,3 +626,14 @@ void thread_rpc_free_global_payload(struct mobj *mobj)
 	thread_rpc_free(OPTEE_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
 			mobj);
 }
+
+struct mobj *thread_rpc_alloc_client_app_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_CLIENT_APP);
+}
+
+void thread_rpc_free_client_app_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_CLIENT_APP, mobj_get_cookie(mobj),
+			mobj);
+}

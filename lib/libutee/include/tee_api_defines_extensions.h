@@ -102,4 +102,11 @@
 /* Private login method for REE kernel clients */
 #define TEE_LOGIN_REE_KERNEL		0x80000000
 
+/*
+ * Implementation-specific origin code constants
+ */
+
+/* The error code originated from the TA's Client Application (CA) */
+#define TEE_ORIGIN_CLIENT_APP		0xF0000001
+
 #endif /* TEE_API_DEFINES_EXTENSIONS_H */

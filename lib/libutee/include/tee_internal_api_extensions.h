@@ -36,6 +36,17 @@ TEE_Result TEE_CacheFlush(char *buf, size_t len);
 TEE_Result TEE_CacheInvalidate(char *buf, size_t len);
 
 /*
+ * Send an OCALL to the Client Application
+ *
+ * The semantics are identical to TEEC_InvokeCommand but in the opposite
+ * direction.
+ */
+TEE_Result TEE_InvokeCACommand(uint32_t cancellationRequestTimeout,
+			       uint32_t commandID, uint32_t paramTypes,
+			       TEE_Param params[TEE_NUM_PARAMS],
+			       uint32_t *returnOrigin);
+
+/*
  * tee_map_zi() - Map zero initialized memory
  * @len:	Number of bytes
  * @flags:	0 or TEE_MEMORY_ACCESS_ANY_OWNER to allow sharing with other TAs
