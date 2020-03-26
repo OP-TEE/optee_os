@@ -97,6 +97,12 @@
  * space application
  */
 #define OPTEE_RPC_SHM_TYPE_GLOBAL	2
+/*
+ * Memory shared with the non-secure application that is the client of the TA
+ * that requests shared memory of this type; the client could be running in
+ * non-secure user-mode or in non-secure kernel-mode
+ */
+#define OPTEE_RPC_SHM_TYPE_CLIENT_APP	3
 
 /*
  * Free shared memory previously allocated with OPTEE_RPC_CMD_SHM_ALLOC

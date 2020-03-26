@@ -740,6 +740,24 @@ struct mobj *thread_rpc_alloc_global_payload(size_t size);
  */
 void thread_rpc_free_global_payload(struct mobj *mobj);
 
+/**
+ * Request that the Client Application allocate shared memory for OCALL payload
+ * buffers.
+ *
+ * @size:	size in bytes of payload buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_client_app_payload(size_t size);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_client_app_payload()
+ *
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_client_app_payload(struct mobj *mobj);
+
 /*
  * enum thread_shm_type - type of non-secure shared memory
  * @THREAD_SHM_TYPE_APPLICATION - user space application shared memory

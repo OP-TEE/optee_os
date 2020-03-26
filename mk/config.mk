@@ -662,7 +662,13 @@ CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
 
 # CFG_CORE_OCALL=y enables support for OCALLs, allowing core to return
 # from an session or command invocation with an Ocall RPC context.
+# CFG_USER_TA_OCALL=y enables TAs to invoke commands on their CA. User TA
+# OCALLs are implemented in the System PTA that is a prerequisite.
 CFG_CORE_OCALL ?= n
+CFG_USER_OCALL ?= $(CFG_CORE_OCALL)
+ifeq ($(CFG_USER_OCALL),y)
+$(call force,CFG_SYSTEM_PTA,y,Mandated by CFG_USER_OCALL)
+endif
 ifeq ($(CFG_CORE_SEL1_SPMC)-$(CFG_CORE_OCALL),y-y)
 $(error "SPMC at SEL-1 does not comply with CFG_CORE_OCALL=y")
 endif
