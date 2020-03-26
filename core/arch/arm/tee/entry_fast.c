@@ -92,6 +92,9 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
 #endif
 	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
+#if defined(CFG_CORE_OCALL)
+	args->a1 |= OPTEE_SMC_SEC_CAP_OCALL;
+#endif
 
 #if defined(CFG_CORE_DYN_SHM)
 	dyn_shm_en = core_mmu_nsec_ddr_is_defined();

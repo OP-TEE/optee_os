@@ -652,3 +652,10 @@ CFG_COMPAT_GP10_DES ?= y
 
 # Defines a limit for many levels TAs may call each others.
 CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
+
+# CFG_CORE_OCALL=y enables support for OCALLs, allowing core to return
+# from an session or command invocation with an Ocall RPC context.
+CFG_CORE_OCALL ?= n
+ifeq ($(CFG_CORE_SEL1_SPMC)-$(CFG_CORE_OCALL),y-y)
+$(error "SPMC at SEL-1 does not comply with CFG_CORE_OCALL=y")
+endif
