@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -10,6 +10,13 @@
 #define __CAAM_UTILS_MEM_H__
 
 #include <caam_common.h>
+
+/*
+ * Allocate normal memory.
+ *
+ * @size  size in bytes of the memory to allocate
+ */
+void *caam_alloc(size_t size);
 
 /*
  * Allocate normal memory and initialize it to 0's.
@@ -55,6 +62,14 @@ void caam_free_desc(uint32_t **ptr);
 enum caam_status caam_calloc_buf(struct caambuf *buf, size_t size);
 
 /*
+ * Allocate internal driver buffer.
+ *
+ * @buf   [out] buffer allocated
+ * @size  size in bytes of the memory to allocate
+ */
+enum caam_status caam_alloc_buf(struct caambuf *buf, size_t size);
+
+/*
  * Allocate internal driver buffer aligned with a cache line and initialize
  * if with 0's.
  *
@@ -77,32 +92,6 @@ enum caam_status caam_alloc_align_buf(struct caambuf *buf, size_t size);
  * @buf   Driver buffer to free
  */
 void caam_free_buf(struct caambuf *buf);
-
-/*
- * Free data of type struct caamsgtbuf
- *
- * @data    Data object to free
- */
-void caam_sgtbuf_free(struct caamsgtbuf *data);
-
-/*
- * Allocate data of type struct caamsgtbuf
- *
- * @data    [out] Data object allocated
- */
-enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data);
-
-/*
- * Initialize struct caambuf with buffer reference, eventually
- * reallocating the buffer if not matching cache line alignment.
- *
- * @orig    Buffer origin
- * @dst     [out] CAAM Buffer object with origin or reallocated buffer
- * @size    Size in bytes of the buffer
- * @realloc [out] true if buffer has been reallocated
- */
-enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
-					     size_t size, bool *realloc);
 
 /*
  * Copy source data into the block buffer. Allocate block buffer if
@@ -146,4 +135,5 @@ bool caam_mem_is_cached_buf(void *buf, size_t size);
  * @src    Source to copy
  */
 void caam_mem_cpy_ltrim_buf(struct caambuf *dst, struct caambuf *src);
+
 #endif /* __CAAM_UTILS_MEM_H__ */
