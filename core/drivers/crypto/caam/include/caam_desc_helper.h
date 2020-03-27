@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Brief   CAAM Descriptor interface.
  */
@@ -9,6 +9,7 @@
 
 #include <caam_desc_defines.h>
 #include <caam_jr.h>
+#include <caam_utils_dmaobj.h>
 #include <trace.h>
 
 /*
@@ -21,6 +22,19 @@ void caam_desc_init(uint32_t *desc);
 void caam_desc_update_hdr(uint32_t *desc, uint32_t word);
 void caam_desc_add_ptr(uint32_t *desc, paddr_t ptr);
 void caam_desc_add_word(uint32_t *desc, uint32_t word);
+void caam_desc_add_dmaobj(uint32_t *desc, struct caamdmaobj *data,
+			  uint32_t pre_operation);
+
+#define caam_desc_fifo_load(desc, data, cla, dst, act)                         \
+	caam_desc_add_dmaobj(desc, data, FIFO_LD(cla, dst, act, 0))
+#define caam_desc_load_key(desc, data, cla, dst)                               \
+	caam_desc_add_dmaobj(desc, data, LD_KEY_PLAIN(cla, dst, 0))
+#define caam_desc_store(desc, data, cla, src)                                  \
+	caam_desc_add_dmaobj(desc, data, ST_NOIMM(cla, src, 0))
+#define caam_desc_fifo_store(desc, data, src)                                  \
+	caam_desc_add_dmaobj(desc, data, FIFO_ST(src, 0))
+#define caam_desc_seq_out(desc, data)                                          \
+	caam_desc_add_dmaobj(desc, data, SEQ_OUT_PTR(0))
 
 /* Push/Pop descriptor rings queue */
 void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr);
