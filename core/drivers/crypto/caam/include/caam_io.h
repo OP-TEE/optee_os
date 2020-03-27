@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019 NXP
+ * Copyright 2019, 2021 NXP
  *
  * Brief   Specific Macro used to read/write value with a specific
  *         format (BE/LE, 32/64 bits) to be updated for future platform
@@ -28,6 +28,9 @@
 /* Little Endian 32 bits Value access */
 #define caam_read_val32(a)	get_le32(a)
 #define caam_write_val32(a, v)	put_le32(a, v)
+
+#define caam_read_val64(a)     get_le64(a)
+#define caam_write_val64(a, v) put_le64(a, v)
 #endif
 
 #endif /* __CAAM_IO_H__ */

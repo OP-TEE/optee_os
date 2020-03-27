@@ -9,41 +9,29 @@
 #include <caam_common.h>
 #include <caam_trace.h>
 #include <caam_utils_mem.h>
+#include <io.h>
 #include <kernel/cache_helpers.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 
-/*
- * CAAM Descriptor address alignment
- */
-#ifdef ARM64
-#define DESC_START_ALIGN	(64 / 8)
-#else
-#define DESC_START_ALIGN	(32 / 8)
-#endif
-
-/*
- * Check if pointer p is aligned with align
- */
-#define IS_PTR_ALIGN(p, align)	(((uintptr_t)(p) & ((align) - 1)) == 0)
-
-/*
- * Check if size is aligned with align
- */
-#define IS_SIZE_ALIGN(size, align)                                             \
-	({                                                                     \
-		__typeof__(size) _size = (size);                               \
-		__typeof__(size) _sizeup = 0;                                  \
-									       \
-		_sizeup = ROUNDUP(_size, align);                               \
-		(_sizeup == _size) ? 1 : 0;                                    \
-	})
-
+#define MEM_TYPE_NORMAL 0      /* Normal allocation */
 #define MEM_TYPE_ZEROED	BIT(0) /* Buffer filled with 0's */
 #define MEM_TYPE_ALIGN	BIT(1) /* Address and size aligned on a cache line */
 
 /*
- * Allocate an area of given size in bytes
+ * Read the first byte at the given @addr to ensure that
+ * virtual page is mapped before getting its physical address.
+ *
+ * @addr: address to read
+ */
+static inline void touch_page(vaddr_t addr)
+{
+	io_read8(addr);
+}
+
+/*
+ * Allocate an area of given size in bytes. Add the memory allocator
+ * information in the newly allocated area.
  *
  * @size   Size in bytes to allocate
  * @type   Type of area to allocate (refer to MEM_TYPE_*)
@@ -117,6 +105,11 @@ static enum caam_status mem_alloc_buf(struct caambuf *buf, size_t size,
 	return CAAM_NO_ERROR;
 }
 
+void *caam_alloc(size_t size)
+{
+	return mem_alloc(size, MEM_TYPE_NORMAL);
+}
+
 void *caam_calloc(size_t size)
 {
 	return mem_alloc(size, MEM_TYPE_ZEROED);
@@ -142,6 +135,11 @@ void caam_free_desc(uint32_t **ptr)
 {
 	mem_free(*ptr);
 	*ptr = NULL;
+}
+
+enum caam_status caam_alloc_buf(struct caambuf *buf, size_t size)
+{
+	return mem_alloc_buf(buf, size, MEM_TYPE_NORMAL);
 }
 
 enum caam_status caam_calloc_buf(struct caambuf *buf, size_t size)
@@ -173,41 +171,6 @@ void caam_free_buf(struct caambuf *buf)
 	}
 }
 
-void caam_sgtbuf_free(struct caamsgtbuf *data)
-{
-	if (data->sgt_type)
-		caam_free(data->sgt);
-	else
-		caam_free(data->buf);
-
-	data->sgt = NULL;
-	data->buf = NULL;
-}
-
-enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data)
-{
-	if (!data)
-		return CAAM_BAD_PARAM;
-
-	if (data->sgt_type) {
-		data->sgt =
-			caam_calloc(data->number * (sizeof(struct caamsgt) +
-						    sizeof(struct caambuf)));
-		data->buf = (void *)(((uint8_t *)data->sgt) +
-				     (data->number * sizeof(struct caamsgt)));
-	} else {
-		data->buf = caam_calloc(data->number * sizeof(struct caambuf));
-		data->sgt = NULL;
-	}
-
-	if (!data->buf || (!data->sgt && data->sgt_type)) {
-		caam_sgtbuf_free(data);
-		return CAAM_OUT_MEMORY;
-	}
-
-	return CAAM_NO_ERROR;
-}
-
 bool caam_mem_is_cached_buf(void *buf, size_t size)
 {
 	enum teecore_memtypes mtype = MEM_AREA_MAXTYPE;
@@ -226,43 +189,6 @@ bool caam_mem_is_cached_buf(void *buf, size_t size)
 		is_cached = core_vbuf_is(CORE_MEM_CACHED, buf, size);
 
 	return is_cached;
-}
-
-enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
-					     size_t size, bool *realloc)
-{
-	uint32_t cacheline_size = 0;
-	enum caam_status retstatus = CAAM_FAILURE;
-
-	if (caam_mem_is_cached_buf(orig, size)) {
-		/*
-		 * Check if either orig pointer or size are aligned on the
-		 * cache line size.
-		 * If not, reallocate a buffer aligned on cache line.
-		 */
-		cacheline_size = dcache_get_line_size();
-		if (!IS_PTR_ALIGN(orig, cacheline_size) ||
-		    !IS_SIZE_ALIGN(size, cacheline_size)) {
-			retstatus = caam_alloc_align_buf(dst, size);
-			if (retstatus == CAAM_NO_ERROR)
-				*realloc = true;
-
-			return retstatus;
-		}
-		dst->nocache = 0;
-	} else {
-		dst->nocache = 1;
-	}
-
-	dst->data = orig;
-	dst->paddr = virt_to_phys(dst->data);
-	if (!dst->paddr)
-		return CAAM_OUT_MEMORY;
-
-	dst->length = size;
-
-	*realloc = false;
-	return CAAM_NO_ERROR;
 }
 
 enum caam_status caam_cpy_block_src(struct caamblock *block,
@@ -341,6 +267,8 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 	 */
 	va = (vaddr_t)buf->data;
 	pa = virt_to_phys((void *)va);
+	if (!pa)
+		return -1;
 
 	nb_pa_area = 0;
 	if (pabufs) {
@@ -356,10 +284,20 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 		len_tohandle =
 			MIN(SMALL_PAGE_SIZE - (va & SMALL_PAGE_MASK), len);
 		next_va = va + len_tohandle;
-		next_pa = virt_to_phys((void *)next_va);
-
 		if (pabufs)
 			pabufs[nb_pa_area].length += len_tohandle;
+
+		/*
+		 * Reaches the end of buffer, exits here because
+		 * the next virtual address is out of scope.
+		 */
+		if (len == len_tohandle)
+			break;
+
+		touch_page(next_va);
+		next_pa = virt_to_phys((void *)next_va);
+		if (!next_pa)
+			return -1;
 
 		if (next_pa != (pa + len_tohandle)) {
 			nb_pa_area++;

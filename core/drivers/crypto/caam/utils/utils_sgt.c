@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019, 2021 NXP
  *
  * Brief   Scatter-Gatter Table management utilities.
  */
@@ -11,85 +11,46 @@
 #include <caam_trace.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <string.h>
 #include <tee/cache.h>
 #include <util.h>
 
-#define ENTRY_LEN(len)	((len) & GENMASK_32(29, 0))
-#define BS_ENTRY_EXT	BIT32(31)
-#define BS_ENTRY_FINAL	BIT32(30)
+void caam_sgt_cache_op(enum utee_cache_operation op, struct caamsgtbuf *insgt,
+		       size_t length)
+{
+	unsigned int idx = 0;
+	size_t op_size = 0;
+	size_t rem_length = length;
 
-void caam_sgt_cache_op(enum utee_cache_operation op, struct caamsgtbuf *insgt)
+	cache_operation(TEE_CACHECLEAN, (void *)insgt->sgt,
+			ROUNDUP(insgt->number, CFG_CAAM_SGT_ALIGN) *
+				sizeof(union caamsgt));
+
+	SGT_TRACE("SGT @%p %d entries", insgt, insgt->number);
+	for (idx = 0; idx < insgt->number && rem_length; idx++) {
+		op_size = MIN(rem_length, insgt->buf[idx].length);
+		if (!insgt->buf[idx].nocache)
+			cache_operation(op, (void *)insgt->buf[idx].data,
+					op_size);
+		rem_length -= op_size;
+	}
+}
+
+void caam_sgt_fill_table(struct caamsgtbuf *sgt)
 {
 	unsigned int idx = 0;
 
-	cache_operation(TEE_CACHECLEAN, (void *)insgt->sgt,
-			insgt->number * sizeof(struct caamsgt));
-	for (idx = 0; idx < insgt->number; idx++) {
-		if (!insgt->buf[idx].nocache)
-			cache_operation(op, (void *)insgt->buf[idx].data,
-					insgt->buf[idx].length);
+	SGT_TRACE("Create %d SGT entries", sgt->number);
+
+	for (idx = 0; idx < sgt->number - 1; idx++) {
+		CAAM_SGT_ENTRY(&sgt->sgt[idx], sgt->buf[idx].paddr,
+			       sgt->buf[idx].length);
+		sgt_entry_trace(idx, sgt);
 	}
-}
 
-void caam_sgt_set_entry(struct caamsgt *sgt, paddr_t paddr, size_t len,
-			unsigned int offset, bool final_e, bool ext_e)
-{
-	unsigned int len_f_e = 0;
-
-	caam_write_val32(&sgt->ptr_ls, paddr);
-#ifdef CFG_CAAM_64BIT
-	caam_write_val32(&sgt->ptr_ms, paddr >> 32);
-#else
-	caam_write_val32(&sgt->ptr_ms, 0);
-#endif
-
-	len_f_e = ENTRY_LEN(len);
-	if (final_e)
-		len_f_e |= BS_ENTRY_FINAL;
-	else if (ext_e)
-		len_f_e |= BS_ENTRY_EXT;
-
-	caam_write_val32(&sgt->len_f_e, len_f_e);
-	caam_write_val32(&sgt->offset, offset);
-}
-
-static void caam_sgt_fill_table(struct caambuf *buf, struct caamsgtbuf *sgt,
-				int start_idx, int nb_pa)
-{
-	int idx = 0;
-
-	SGT_TRACE("Create %d SGT entries", nb_pa);
-
-	for (idx = 0; idx < nb_pa; idx++) {
-		sgt->buf[idx + start_idx].data = buf[idx].data;
-		sgt->buf[idx + start_idx].length = buf[idx].length;
-		sgt->buf[idx + start_idx].paddr = buf[idx].paddr;
-		sgt->buf[idx + start_idx].nocache = buf[idx].nocache;
-		sgt->length += buf[idx].length;
-		if (idx < nb_pa - 1)
-			CAAM_SGT_ENTRY(&sgt->sgt[idx + start_idx],
-				       sgt->buf[idx + start_idx].paddr,
-				       sgt->buf[idx + start_idx].length);
-		else
-			CAAM_SGT_ENTRY_FINAL(&sgt->sgt[idx + start_idx],
-					     sgt->buf[idx + start_idx].paddr,
-					     sgt->buf[idx + start_idx].length);
-
-		SGT_TRACE("SGT[%d]->data   = %p", idx + start_idx,
-			  sgt->buf[idx + start_idx].data);
-		SGT_TRACE("SGT[%d]->length = %zu", idx + start_idx,
-			  sgt->buf[idx + start_idx].length);
-		SGT_TRACE("SGT[%d]->paddr  = 0x%" PRIxPA, idx + start_idx,
-			  sgt->buf[idx + start_idx].paddr);
-		SGT_TRACE("SGT[%d]->ptr_ms   = %" PRIx32, idx + start_idx,
-			  sgt->sgt[idx + start_idx].ptr_ms);
-		SGT_TRACE("SGT[%d]->ptr_ls   = %" PRIx32, idx + start_idx,
-			  sgt->sgt[idx + start_idx].ptr_ls);
-		SGT_TRACE("SGT[%d]->len_f_e  = %" PRIx32, idx + start_idx,
-			  sgt->sgt[idx + start_idx].len_f_e);
-		SGT_TRACE("SGT[%d]->offset   = %" PRIx32, idx + start_idx,
-			  sgt->sgt[idx + start_idx].offset);
-	}
+	CAAM_SGT_ENTRY_FINAL(&sgt->sgt[idx], sgt->buf[idx].paddr,
+			     sgt->buf[idx].length);
+	sgt_entry_trace(idx, sgt);
 }
 
 enum caam_status caam_sgt_build_block_data(struct caamsgtbuf *sgtbuf,
@@ -175,4 +136,106 @@ exit_build_block:
 		caam_free(pabufs);
 
 	return retstatus;
+}
+
+enum caam_status caam_sgt_derive(struct caamsgtbuf *sgt,
+				 const struct caamsgtbuf *from, size_t offset,
+				 size_t length)
+{
+	enum caam_status retstatus = CAAM_FAILURE;
+	unsigned int idx = 0;
+	unsigned int st_idx = 0;
+	size_t off = offset;
+	size_t rlength = length;
+
+	SGT_TRACE("Derive from %p - offset %zu, %d SGT entries", from, offset,
+		  from->number);
+
+	if (from->length - offset < length) {
+		SGT_TRACE("From SGT/Buffer too short (%zu)", from->length);
+		return CAAM_SHORT_BUFFER;
+	}
+
+	for (; idx < from->number && off >= from->buf[idx].length; idx++)
+		off -= from->buf[idx].length;
+
+	st_idx = idx;
+	sgt->number = 1;
+	rlength -= MIN(rlength, from->buf[idx].length - off);
+
+	for (idx++; idx < from->number && rlength; idx++) {
+		rlength -= MIN(rlength, from->buf[idx].length);
+		sgt->number++;
+	}
+
+	sgt->sgt_type = (sgt->number > 1) ? true : false;
+
+	/* Allocate a new SGT/Buffer object */
+	retstatus = caam_sgtbuf_alloc(sgt);
+	SGT_TRACE("Allocate %d SGT entries ret 0x%" PRIx32, sgt->number,
+		  retstatus);
+	if (retstatus != CAAM_NO_ERROR)
+		return retstatus;
+
+	memcpy(sgt->buf, &from->buf[st_idx], sgt->number * sizeof(*sgt->buf));
+
+	if (sgt->sgt_type) {
+		memcpy(sgt->sgt, &from->sgt[st_idx],
+		       sgt->number * sizeof(*sgt->sgt));
+
+		/* Set the offset of the first sgt entry */
+		sgt_entry_offset(sgt->sgt, off);
+
+		/*
+		 * Push the SGT Table into memory now because
+		 * derived objects are not pushed.
+		 */
+		cache_operation(TEE_CACHECLEAN, sgt->sgt,
+				sgt->number * sizeof(*sgt->sgt));
+
+		sgt->paddr = virt_to_phys(sgt->sgt);
+	} else {
+		sgt->paddr = sgt->buf->paddr + off;
+	}
+
+	sgt->length = length;
+
+	return CAAM_NO_ERROR;
+}
+
+void caam_sgtbuf_free(struct caamsgtbuf *data)
+{
+	if (data->sgt_type)
+		caam_free(data->sgt);
+	else
+		caam_free(data->buf);
+
+	data->sgt = NULL;
+	data->buf = NULL;
+}
+
+enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data)
+{
+	unsigned int nb_sgt = 0;
+
+	if (!data || !data->number)
+		return CAAM_BAD_PARAM;
+
+	if (data->sgt_type) {
+		nb_sgt = ROUNDUP(data->number, CFG_CAAM_SGT_ALIGN);
+		data->sgt = caam_calloc(nb_sgt * (sizeof(union caamsgt) +
+						  sizeof(struct caambuf)));
+		data->buf = (void *)(((uint8_t *)data->sgt) +
+				     (nb_sgt * sizeof(union caamsgt)));
+	} else {
+		data->buf = caam_calloc(data->number * sizeof(struct caambuf));
+		data->sgt = NULL;
+	}
+
+	if (!data->buf || (!data->sgt && data->sgt_type)) {
+		caam_sgtbuf_free(data);
+		return CAAM_OUT_MEMORY;
+	}
+
+	return CAAM_NO_ERROR;
 }

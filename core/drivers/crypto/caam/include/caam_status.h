@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019, 2021 NXP
  *
  * Brief   CAAM driver internal status definition
  */
@@ -16,6 +16,7 @@ enum caam_status {
 	CAAM_FAILURE,        /* General failure */
 	CAAM_OUT_MEMORY,     /* Out of memory */
 	CAAM_BAD_PARAM,      /* Bad parameters */
+	CAAM_SHORT_BUFFER,   /* Buffer is too short */
 	CAAM_BUSY,           /* Operation is not possible, system busy */
 	CAAM_PENDING,        /* Operation is pending */
 	CAAM_TIMEOUT,        /* Operation timeout */
