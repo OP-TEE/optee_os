@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Implementation of Hashing functions.
  */
 #include <caam_hal_ctrl.h>
 #include <caam_hash.h>
 #include <caam_jr.h>
+#include <caam_utils_dmaobj.h>
 #include <caam_utils_mem.h>
-#include <caam_utils_sgt.h>
 #include <caam_utils_status.h>
 #include <drvcrypt.h>
 #include <drvcrypt_mac.h>
@@ -63,24 +63,23 @@ static struct crypto_mac *to_mac_ctx(struct crypto_mac_ctx *ctx)
  * @inkey   Key to be reduced
  * @outkey  [out] key resulting
  */
-static enum caam_status do_reduce_key(const struct hashalg *alg,
-				      struct caambuf *inkey,
-				      struct caamsgtbuf *outkey)
+static enum caam_status do_reduce_key(struct caamdmaobj *reduce_key,
+				      const struct hashalg *alg,
+				      const uint8_t *inkey, size_t len)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct caamsgtbuf key_sgt = { .sgt_type = false };
-	struct caam_jobctx jobctx = { };
+	struct caamdmaobj key = {};
+	struct caam_jobctx jobctx = {};
 	uint32_t *desc = NULL;
 
-	retstatus = caam_sgt_build_block_data(&key_sgt, NULL, inkey);
-	if (retstatus != CAAM_NO_ERROR)
-		goto out;
+	if (caam_dmaobj_input_sgtbuf(&key, inkey, len))
+		return CAAM_OUT_MEMORY;
 
 	/* Allocate the job descriptor */
 	desc = caam_calloc_desc(KEY_REDUCE_DESC_ENTRIES);
 	if (!desc) {
 		retstatus = CAAM_OUT_MEMORY;
-		goto out;
+		goto end;
 	}
 
 	caam_desc_init(desc);
@@ -88,36 +87,12 @@ static enum caam_status do_reduce_key(const struct hashalg *alg,
 	caam_desc_add_word(desc, HASH_INITFINAL(alg->type));
 
 	/* Load the input key */
-	if (key_sgt.sgt_type) {
-		caam_desc_add_word(desc,
-				   FIFO_LD_SGT_EXT(CLASS_2, MSG, LAST_C2));
-		caam_desc_add_ptr(desc, virt_to_phys(key_sgt.sgt));
-		caam_desc_add_word(desc, key_sgt.length);
-
-		caam_sgt_cache_op(TEE_CACHECLEAN, &key_sgt);
-	} else {
-		caam_desc_add_word(desc, FIFO_LD_EXT(CLASS_2, MSG, LAST_C2));
-		caam_desc_add_ptr(desc, key_sgt.buf->paddr);
-		caam_desc_add_word(desc, key_sgt.length);
-
-		cache_operation(TEE_CACHECLEAN, key_sgt.buf->data,
-				key_sgt.length);
-	}
-
+	caam_desc_fifo_load(desc, &key, CLASS_2, MSG, LAST_C2);
 	/* Store key reduced */
-	if (outkey->sgt_type) {
-		caam_desc_add_word(desc, ST_SGT_NOIMM(CLASS_2, REG_CTX,
-						      outkey->length));
-		caam_desc_add_ptr(desc, virt_to_phys(outkey->sgt));
-		caam_sgt_cache_op(TEE_CACHEFLUSH, outkey);
-	} else {
-		caam_desc_add_word(desc,
-				   ST_NOIMM(CLASS_2, REG_CTX, outkey->length));
-		caam_desc_add_ptr(desc, outkey->buf->paddr);
+	caam_desc_store(desc, reduce_key, CLASS_2, REG_CTX);
 
-		cache_operation(TEE_CACHEFLUSH, outkey->buf->data,
-				outkey->length);
-	}
+	caam_dmaobj_cache_push(&key);
+	caam_dmaobj_cache_push(reduce_key);
 
 	HASH_DUMPDESC(desc);
 
@@ -129,10 +104,8 @@ static enum caam_status do_reduce_key(const struct hashalg *alg,
 		retstatus = CAAM_FAILURE;
 	}
 
-out:
-	if (key_sgt.sgt_type)
-		caam_sgtbuf_free(&key_sgt);
-
+end:
+	caam_dmaobj_free(&key);
 	caam_free_desc(&desc);
 
 	return retstatus;
@@ -147,7 +120,7 @@ out:
  * @key   Input key to compute
  * @len   Key length
  */
-static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
+static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *inkey,
 			       size_t len)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
@@ -155,10 +128,8 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 	struct crypto_mac *mac = to_mac_ctx(ctx);
 	struct hashctx *hmac_ctx = mac->ctx;
 	const struct hashalg *alg = hmac_ctx->alg;
-	struct caambuf inkey = { };
-	struct caamsgtbuf key_sgt = { .sgt_type = false };
-	struct caambuf hashkey = { };
-	struct caam_jobctx jobctx = { };
+	struct caamdmaobj reduce_key = {};
+	struct caam_jobctx jobctx = {};
 	uint32_t *desc = NULL;
 
 	/* First initialize the context */
@@ -168,19 +139,11 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 
 	HASH_TRACE("split key length %zu", len);
 
-	inkey.data = (uint8_t *)key;
-	inkey.length = len;
-	inkey.paddr = virt_to_phys(inkey.data);
-	if (!inkey.paddr) {
-		ret = TEE_ERROR_GENERIC;
-		goto out;
-	}
-
 	/* Allocate the job descriptor */
 	desc = caam_calloc_desc(KEY_COMPUTE_DESC_ENTRIES);
 	if (!desc) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
+		goto exit_split_key;
 	}
 
 	hmac_ctx->key.length = alg->size_key;
@@ -188,48 +151,27 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 	if (len > alg->size_block) {
 		HASH_TRACE("Input key must be reduced");
 
-		retstatus = caam_calloc_align_buf(&hashkey, alg->size_digest);
-		if (retstatus != CAAM_NO_ERROR) {
+		ret = caam_dmaobj_output_sgtbuf(&reduce_key, NULL, 0,
+						alg->size_digest);
+		if (ret) {
 			HASH_TRACE("Reduced Key allocation error");
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+			goto exit_split_key;
 		}
 
-		retstatus = caam_sgt_build_block_data(&key_sgt, NULL, &hashkey);
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_GENERIC;
-			goto out;
-		}
-
-		retstatus = do_reduce_key(alg, &inkey, &key_sgt);
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_GENERIC;
-			goto out;
-		}
+		retstatus = do_reduce_key(&reduce_key, alg, inkey, len);
+		if (retstatus != CAAM_NO_ERROR)
+			goto exit_split_key;
 	} else {
 		/* Key size is correct use directly the input key */
-		retstatus = caam_sgt_build_block_data(&key_sgt, NULL, &inkey);
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_GENERIC;
-			goto out;
-		}
+		ret = caam_dmaobj_input_sgtbuf(&reduce_key, inkey, len);
+		if (ret)
+			goto exit_split_key;
 	}
 
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	/* Load either input key or the reduced input key into key register */
-	if (key_sgt.sgt_type) {
-		caam_desc_add_word(desc, LD_KEY_SGT_PLAIN(CLASS_2, REG,
-							  key_sgt.length));
-		caam_desc_add_ptr(desc, virt_to_phys(key_sgt.sgt));
-		caam_sgt_cache_op(TEE_CACHECLEAN, &key_sgt);
-	} else {
-		caam_desc_add_word(desc,
-				   LD_KEY_PLAIN(CLASS_2, REG, key_sgt.length));
-		caam_desc_add_ptr(desc, key_sgt.buf->paddr);
-		cache_operation(TEE_CACHECLEAN, key_sgt.buf->data,
-				key_sgt.length);
-	}
+	caam_desc_load_key(desc, &reduce_key, CLASS_2, REG);
 	/* Split the key */
 	caam_desc_add_word(desc, HMAC_INIT_DECRYPT(alg->type));
 	caam_desc_add_word(desc, FIFO_LD_IMM(CLASS_2, MSG, LAST_C2, 0));
@@ -239,6 +181,7 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 	caam_desc_add_ptr(desc, hmac_ctx->key.paddr);
 	HASH_DUMPDESC(desc);
 
+	caam_dmaobj_cache_push(&reduce_key);
 	cache_operation(TEE_CACHEFLUSH, hmac_ctx->key.data,
 			hmac_ctx->key.length);
 
@@ -255,11 +198,8 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *key,
 		ret = job_status_to_tee_result(jobctx.status);
 	}
 
-out:
-	if (key_sgt.sgt_type)
-		caam_sgtbuf_free(&key_sgt);
-
-	caam_free_buf(&hashkey);
+exit_split_key:
+	caam_dmaobj_free(&reduce_key);
 	caam_free_desc(&desc);
 
 	return ret;
