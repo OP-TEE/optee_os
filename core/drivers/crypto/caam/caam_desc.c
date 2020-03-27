@@ -109,3 +109,56 @@ uint32_t caam_read_jobstatus(struct caam_outring_entry *out)
 {
 	return caam_read_val32(&out->status);
 }
+
+void caam_desc_add_dmaobj(uint32_t *desc, struct caamdmaobj *data,
+			  unsigned int pre_op)
+{
+	uint32_t operation = pre_op;
+	size_t op_length = 0;
+	uint32_t op_ext_length = 0;
+
+	if (data->sgtbuf.sgt_type)
+		operation |= CMD_SGT;
+
+	/* Check the operation length to set extension length or not */
+	switch (GET_CMD_TYPE(pre_op)) {
+	case CMD_FIFO_LOAD_TYPE:
+		op_length = FIFO_LOAD_LENGTH(data->sgtbuf.length);
+		op_ext_length = FIFO_LOAD_EXT;
+		break;
+
+	case CMD_STORE_TYPE:
+		/* Note: there is extension length for the STORE command */
+		op_length = STORE_LENGTH(data->sgtbuf.length);
+		break;
+
+	case CMD_FIFO_STORE_TYPE:
+		op_length = FIFO_STORE_LENGTH(data->sgtbuf.length);
+		op_ext_length = FIFO_STORE_EXT;
+		break;
+
+	case CMD_KEY_TYPE:
+		/* Note: there is extension length for the KEY command */
+		op_length = KEY_LENGTH(data->sgtbuf.length);
+		break;
+
+	case CMD_SEQ_OUT_TYPE:
+		op_length = SEQ_LENGTH(data->sgtbuf.length);
+		op_ext_length = SEQ_EXT;
+		break;
+
+	default:
+		break;
+	}
+
+	if (op_length == data->sgtbuf.length)
+		operation |= op_length;
+	else
+		operation |= op_ext_length;
+
+	caam_desc_add_word(desc, operation);
+	caam_desc_add_ptr(desc, data->sgtbuf.paddr);
+
+	if (op_length != data->sgtbuf.length)
+		caam_desc_add_word(desc, data->sgtbuf.length);
+}
