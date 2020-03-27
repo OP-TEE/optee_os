@@ -19,6 +19,8 @@
 # DBG_RSA    BIT32(8)  // RSA trace
 # DBG_CIPHER BIT32(9)  // Cipher trace
 # DBG_BLOB   BIT32(10) // BLOB trace
+# DBG_DMAOBJ BIT32(11) // DMA Object Trace
+
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
