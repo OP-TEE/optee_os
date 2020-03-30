@@ -206,6 +206,17 @@ endif
 # libtomcrypt (LTC) specifics, phase #2
 ###############################################################
 
+_CFG_CORE_LTC_SHA256_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA256_DESC \
+						     _CFG_CORE_LTC_SHA224 \
+						     _CFG_CORE_LTC_SHA256)
+_CFG_CORE_LTC_SHA384_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA384_DESC \
+						     _CFG_CORE_LTC_SHA384)
+_CFG_CORE_LTC_SHA512_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA512_DESC \
+						     _CFG_CORE_LTC_SHA512_256 \
+						     _CFG_CORE_LTC_SHA512)
+_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_AES_DESC \
+						  _CFG_CORE_LTC_AES)
+
 # Assign system variables
 _CFG_CORE_LTC_CE := $(CFG_CRYPTO_WITH_CE)
 _CFG_CORE_LTC_VFP := $(CFG_WITH_VFP)
@@ -217,10 +228,9 @@ _CFG_CORE_LTC_HWSUPP_PMULL := $(CFG_HWSUPP_PMULL)
 # Assign aggregated variables
 ltc-one-enabled = $(call cfg-one-enabled,$(foreach v,$(1),_CFG_CORE_LTC_$(v)))
 _CFG_CORE_LTC_ACIPHER := $(call ltc-one-enabled, RSA DSA DH ECC)
-_CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES) \
-					  $(_CFG_CORE_LTC_AES_DESC)), \
+_CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES_DESC)), \
 			       $(filter y,$(call ltc-one-enabled, CCM GCM)))
-_CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES AES_DESC DES)
+_CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES_DESC DES)
 _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
 					      SHA512)
 _CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
