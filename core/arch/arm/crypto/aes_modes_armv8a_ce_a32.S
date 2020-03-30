@@ -517,3 +517,15 @@ FUNC ce_aes_invert , :
 	vst1.8		{q0}, [r0]
 	bx		lr
 END_FUNC ce_aes_invert
+
+	/*
+	 * void ce_aes_xor_block(uint8_t out[], uint8_t const op1[],
+	 *			 uint8_t const op2[]);
+	 */
+FUNC ce_aes_xor_block , :
+	vld1.8		{q0}, [r1]
+	vld1.8		{q1}, [r2]
+	veor		q0, q0, q1
+	vst1.8		{q0}, [r0]
+	bx		lr
+END_FUNC ce_aes_xor_block
