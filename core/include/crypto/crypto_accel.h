@@ -40,4 +40,6 @@ void crypto_accel_aes_xts_dec(void *out, const void *in, const void *key1,
 			      unsigned int block_count, const void *key2,
 			      void *tweak);
 
+void crypto_accel_sha1_compress(uint32_t state[5], const void *src,
+				unsigned int block_count);
 #endif /*__CRYPTO_CRYPTO_ACCEL_H*/
