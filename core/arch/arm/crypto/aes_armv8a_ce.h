@@ -27,5 +27,6 @@ void ce_aes_xts_encrypt(uint8_t out[], uint8_t const in[], uint8_t const rk1[],
 void ce_aes_xts_decrypt(uint8_t out[], uint8_t const in[], uint8_t const rk1[],
 			int rounds, int blocks, uint8_t const rk2[],
 			uint8_t iv[]);
+void ce_aes_xor_block(uint8_t out[], uint8_t const op1[], uint8_t const op2[]);
 
 #endif /*__AES_ARMV8_CE_H*/

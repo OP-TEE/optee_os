@@ -648,3 +648,15 @@ FUNC ce_aes_xts_decrypt , :
 	st1		{v4.16b}, [x6], #16
 	ret
 END_FUNC ce_aes_xts_decrypt
+
+	/*
+	 * void ce_aes_xor_block(uint8_t out[], uint8_t const op1[],
+	 *			 uint8_t const op2[]);
+	 */
+FUNC ce_aes_xor_block , :
+	ld1	{v0.16b}, [x1]
+	ld1	{v1.16b}, [x2]
+	eor	v0.16b, v0.16b, v1.16b
+	st1	{v0.16b}, [x0]
+	ret
+END_FUNC ce_aes_xor_block
