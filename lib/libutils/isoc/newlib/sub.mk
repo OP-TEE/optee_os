@@ -7,6 +7,7 @@ srcs-y += bcmp.c
 srcs-y += memchr.c
 srcs-y += memcmp.c
 srcs-y += memcpy.c
+cflags-memcpy.c-y += -O2
 srcs-y += memmove.c
 srcs-y += memset.c
 srcs-y += strchr.c
