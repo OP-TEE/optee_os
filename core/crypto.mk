@@ -172,6 +172,7 @@ core-ltc-vars += SM2_KEP
 # Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
 $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
+_CFG_CORE_LTC_AES_ACCEL := $(CFG_CORE_CRYPTO_AES_ACCEL)
 endif
 
 ###############################################################
