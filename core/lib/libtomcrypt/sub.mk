@@ -38,12 +38,6 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA1),y)
 	cppflags-lib-y += -DLTC_SHA1
 endif
-ifeq ($(_CFG_CORE_LTC_SHA1_ARM32_CE),y)
-	cppflags-lib-y += -DLTC_SHA1_ARM32_CE
-endif
-ifeq ($(_CFG_CORE_LTC_SHA1_ARM64_CE),y)
-	cppflags-lib-y += -DLTC_SHA1_ARM64_CE
-endif
 ifeq ($(_CFG_CORE_LTC_SHA224),y)
 	cppflags-lib-y += -DLTC_SHA224
 endif
