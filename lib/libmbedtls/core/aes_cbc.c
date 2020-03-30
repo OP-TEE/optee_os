@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <crypto/crypto_accel.h>
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <mbedtls/aes.h>
@@ -118,3 +119,22 @@ TEE_Result crypto_aes_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
 
 	return TEE_SUCCESS;
 }
+
+#if defined(MBEDTLS_AES_ALT)
+int mbedtls_aes_crypt_cbc(mbedtls_aes_context *ctx, int mode, size_t length,
+			  unsigned char iv[16], const unsigned char *input,
+			  unsigned char *output)
+{
+	if (length % 16)
+		return MBEDTLS_ERR_AES_INVALID_INPUT_LENGTH;
+
+	if (mode == MBEDTLS_AES_ENCRYPT)
+		crypto_accel_aes_cbc_enc(output, input, ctx->key,
+					 ctx->round_count, length / 16, iv);
+	else
+		crypto_accel_aes_cbc_dec(output, input, ctx->key,
+					 ctx->round_count, length / 16, iv);
+
+	return 0;
+}
+#endif /*MBEDTLS_AES_ALT*/
