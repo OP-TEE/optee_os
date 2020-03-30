@@ -196,6 +196,10 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_RSA_NOPAD:
+		if (!IS_ENABLED(CFG_CRYPTO_RSA_NOPAD_SIGNATURE) &&
+		    (mode == TEE_MODE_VERIFY || mode == TEE_MODE_SIGN))
+			return TEE_ERROR_NOT_SUPPORTED;
+
 		if (mode == TEE_MODE_ENCRYPT) {
 			req_key_usage = TEE_USAGE_ENCRYPT | TEE_USAGE_VERIFY;
 		} else if (mode == TEE_MODE_DECRYPT) {

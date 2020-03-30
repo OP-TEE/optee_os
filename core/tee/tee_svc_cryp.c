@@ -3589,11 +3589,20 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
-		if (cs->mode == TEE_MODE_ENCRYPT) {
+		if (!IS_ENABLED(CFG_CRYPTO_RSA_NOPAD_SIGNATURE) &&
+		    (cs->mode == TEE_MODE_VERIFY ||
+		     cs->mode == TEE_MODE_SIGN)) {
+			res = TEE_ERROR_GENERIC;
+			break;
+		}
+
+		if (cs->mode == TEE_MODE_ENCRYPT ||
+		    cs->mode == TEE_MODE_VERIFY) {
 			res = crypto_acipher_rsanopad_encrypt(o->attr, src_data,
 							      src_len, dst_data,
 							      &dlen);
-		} else if (cs->mode == TEE_MODE_DECRYPT) {
+		} else if (cs->mode == TEE_MODE_DECRYPT ||
+			   cs->mode == TEE_MODE_SIGN) {
 			res = crypto_acipher_rsanopad_decrypt(o->attr, src_data,
 							      src_len, dst_data,
 							      &dlen);

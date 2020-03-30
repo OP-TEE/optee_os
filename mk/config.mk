@@ -547,3 +547,6 @@ CFG_SHOW_CONF_ON_BOOT ?= n
 # to a TA, so a TPM Service could use it to extend any measurement
 # taken before the service was up and running.
 CFG_CORE_TPM_EVENT_LOG ?= n
+
+# Enable TEE_ALG_RSA_NOPAD_SIGNATURE for sign/verify without padding
+CFG_CRYPTO_RSA_NOPAD_SIGNATURE ?= y
