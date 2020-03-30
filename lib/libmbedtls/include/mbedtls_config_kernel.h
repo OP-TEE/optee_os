@@ -23,6 +23,9 @@
 #if defined(CFG_CRYPTO_SHA1)
 #define MBEDTLS_SHA1_C
 #define MBEDTLS_MD_C
+#if defined(CFG_CORE_CRYPTO_SHA1_ACCEL)
+#define MBEDTLS_SHA1_PROCESS_ALT
+#endif
 #endif
 
 #if defined(CFG_CRYPTO_SHA224) || defined(CFG_CRYPTO_SHA256)
