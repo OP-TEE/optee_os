@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
+#include <assert.h>
 #include <crypto/crypto_accel.h>
 #include <crypto/crypto.h>
 #include <crypto/ghash-ce-core.h>
@@ -29,23 +30,36 @@ static void put_be_block(void *dst, const void *src)
 	put_be64((uint8_t *)dst + 8, s[0]);
 }
 
+static void ghash_reflect(uint64_t h[2], const uint64_t k[2])
+{
+	uint64_t b = get_be64(k);
+	uint64_t a = get_be64(k + 1);
+
+	h[0] = (a << 1) | (b >> 63);
+	h[1] = (b << 1) | (a >> 63);
+	if (b >> 63)
+		h[1] ^= 0xc200000000000000UL;
+}
+
 void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 			      const struct internal_aes_gcm_key *enc_key)
 {
-	uint64_t k[2];
-	uint64_t a;
-	uint64_t b;
+	uint64_t k[2] = { 0 };
+	uint64_t h[2] = { 0 };
 
 	crypto_aes_enc_block(enc_key->data, sizeof(enc_key->data),
 			     enc_key->rounds, state->ctr, k);
 
-	/* Store hash key in little endian and multiply by 'x' */
-	b = get_be64(k);
-	a = get_be64(k + 1);
-	state->ghash_key.k[0] = (a << 1) | (b >> 63);
-	state->ghash_key.k[1] = (b << 1) | (a >> 63);
-	if (b >> 63)
-		state->ghash_key.k[1] ^= 0xc200000000000000UL;
+	ghash_reflect(state->ghash_key.h, k);
+
+	internal_aes_gcm_gfmul(k, k, h);
+	ghash_reflect(state->ghash_key.h2, h);
+
+	internal_aes_gcm_gfmul(k, h, h);
+	ghash_reflect(state->ghash_key.h3, h);
+
+	internal_aes_gcm_gfmul(k, h, h);
+	ghash_reflect(state->ghash_key.h4, h);
 }
 
 void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
@@ -78,33 +92,83 @@ TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 }
 
 #ifdef ARM64
+static void update_payload_2block(struct internal_aes_gcm_state *state,
+				  const struct internal_aes_gcm_key *ek,
+				  TEE_OperationMode mode, const void *src,
+				  size_t num_blocks, void *dst)
+{
+	uint32_t vfp_state;
+	uint64_t dg[2];
+
+	assert(num_blocks && !(num_blocks % 2));
+
+	get_be_block(dg, state->hash_state);
+
+	vfp_state = thread_kernel_enable_vfp();
+
+	if (mode == TEE_MODE_ENCRYPT) {
+		uint8_t ks[sizeof(state->buf_cryp) * 2] = { 0 };
+
+		/*
+		 * ks holds the encrypted counters of the next two blocks.
+		 * pmull_gcm_encrypt() uses this to encrypt the first two
+		 * blocks. When pmull_gcm_encrypt() returns is ks updated
+		 * with the encrypted counters of the next two blocks. As
+		 * we're only keeping one of these blocks we throw away
+		 * block number two consequently decreases the counter by
+		 * one.
+		 */
+		memcpy(ks, state->buf_cryp, sizeof(state->buf_cryp));
+
+		pmull_gcm_load_round_keys(ek->data, ek->rounds);
+		pmull_gcm_encrypt_block(ks + sizeof(state->buf_cryp),
+					(uint8_t *)state->ctr, ek->rounds);
+		internal_aes_gcm_inc_ctr(state);
+		pmull_gcm_encrypt(num_blocks, dg, dst, src, &state->ghash_key,
+				  state->ctr, NULL, ek->rounds, ks);
+		memcpy(state->buf_cryp, ks, TEE_AES_BLOCK_SIZE);
+		internal_aes_gcm_dec_ctr(state);
+	} else {
+		pmull_gcm_decrypt(num_blocks, dg, dst, src, &state->ghash_key,
+				  state->ctr, ek->data, ek->rounds);
+	}
+
+	thread_kernel_disable_vfp(vfp_state);
+
+	put_be_block(state->hash_state, dg);
+}
+
+/* Overriding the __weak function */
 void
 internal_aes_gcm_update_payload_blocks(struct internal_aes_gcm_state *state,
 				       const struct internal_aes_gcm_key *ek,
 				       TEE_OperationMode mode, const void *src,
 				       size_t num_blocks, void *dst)
 {
-	uint32_t vfp_state;
-	uint64_t dg[2];
-	uint64_t ctr[2];
+	size_t nb = ROUNDDOWN(num_blocks, 2);
 
-	get_be_block(dg, state->hash_state);
-	get_be_block(ctr, state->ctr);
+	/*
+	 * pmull_gcm_encrypt() and pmull_gcm_decrypt() can only handle
+	 * blocks in multiples of two.
+	 */
+	if (nb)
+		update_payload_2block(state, ek, mode, src, nb, dst);
 
-	vfp_state = thread_kernel_enable_vfp();
+	if (nb != num_blocks) {
+		/* There's a final block */
+		const void *s = (const uint8_t *)src + nb * TEE_AES_BLOCK_SIZE;
+		void *d = (uint8_t *)dst + nb * TEE_AES_BLOCK_SIZE;
+		uint64_t tmp[2] = { 0 };
 
-	pmull_gcm_load_round_keys(ek->data, ek->rounds);
+		if (!ALIGNMENT_IS_OK(s, uint64_t)) {
+			memcpy(tmp, s, sizeof(tmp));
+			s = tmp;
+		}
 
-	if (mode == TEE_MODE_ENCRYPT)
-		pmull_gcm_encrypt(num_blocks, dg, dst, src, &state->ghash_key,
-				  ctr, ek->rounds, state->buf_cryp);
-	else
-		pmull_gcm_decrypt(num_blocks, dg, dst, src, &state->ghash_key,
-				  ctr, ek->rounds);
-
-	thread_kernel_disable_vfp(vfp_state);
-
-	put_be_block(state->ctr, ctr);
-	put_be_block(state->hash_state, dg);
+		if (mode == TEE_MODE_ENCRYPT)
+			internal_aes_gcm_encrypt_block(state, ek, s, d);
+		else
+			internal_aes_gcm_decrypt_block(state, ek, s, d);
+	}
 }
 #endif /*ARM64*/

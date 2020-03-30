@@ -343,12 +343,24 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 
 void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state)
 {
-	uint64_t c;
+	uint64_t c = 0;
 
 	c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[1]) + 1;
 	state->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
 	if (!c) {
 		c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[0]) + 1;
+		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
+	}
+}
+
+void internal_aes_gcm_dec_ctr(struct internal_aes_gcm_state *state)
+{
+	uint64_t c = 0;
+
+	c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[1]) - 1;
+	state->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
+	if (c == UINT64_MAX) {
+		c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[0]) - 1;
 		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
 	}
 }
