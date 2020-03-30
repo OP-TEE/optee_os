@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017-2020, Linaro Limited
  */
 
 #include <assert.h>
@@ -13,8 +13,6 @@
 #include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
-
-#include "aes-gcm-private.h"
 
 static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 {
@@ -503,4 +501,73 @@ static const struct crypto_authenc_ops aes_gcm_ops = {
 	.free_ctx = aes_gcm_free_ctx,
 	.copy_state = aes_gcm_copy_state,
 };
+
+/*
+ * internal_aes_gcm_gfmul() is based on ghash_gfmul() from
+ * https://github.com/openbsd/src/blob/master/sys/crypto/gmac.c
+ */
+void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
+			    uint64_t product[2])
+{
+	uint64_t y[2] = { 0 };
+	uint64_t z[2] = { 0 };
+	const uint8_t *x = (const uint8_t *)X;
+	uint32_t mul = 0;
+	size_t n = 0;
+
+	y[0] = TEE_U64_FROM_BIG_ENDIAN(Y[0]);
+	y[1] = TEE_U64_FROM_BIG_ENDIAN(Y[1]);
+
+	for (n = 0; n < TEE_AES_BLOCK_SIZE * 8; n++) {
+		/* update Z */
+		if (x[n >> 3] & (1 << (~n & 7)))
+			internal_aes_gcm_xor_block(z, y);
+
+		/* update Y */
+		mul = y[1] & 1;
+		y[1] = (y[0] << 63) | (y[1] >> 1);
+		y[0] = (y[0] >> 1) ^ (0xe100000000000000 * mul);
+	}
+
+	product[0] = TEE_U64_TO_BIG_ENDIAN(z[0]);
+	product[1] = TEE_U64_TO_BIG_ENDIAN(z[1]);
+}
+
+void __weak internal_aes_gcm_update_payload_block_aligned(
+				struct internal_aes_gcm_state *state,
+				const struct internal_aes_gcm_key *ek,
+				TEE_OperationMode m, const void *src,
+				size_t num_blocks, void *dst)
+{
+	size_t n;
+	const uint8_t *s = src;
+	uint8_t *d = dst;
+	void *ctr = state->ctr;
+	void *buf_cryp = state->buf_cryp;
+
+	assert(!state->buf_pos && num_blocks &&
+	       internal_aes_gcm_ptr_is_block_aligned(s) &&
+	       internal_aes_gcm_ptr_is_block_aligned(d));
+
+	for (n = 0; n < num_blocks; n++) {
+		if (m == TEE_MODE_ENCRYPT) {
+			internal_aes_gcm_xor_block(buf_cryp, s);
+			internal_aes_gcm_ghash_update(state, buf_cryp, NULL, 0);
+			memcpy(d, buf_cryp, sizeof(state->buf_cryp));
+
+			internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
+			internal_aes_gcm_inc_ctr(state);
+		} else {
+			internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
+
+			internal_aes_gcm_xor_block(buf_cryp, s);
+			internal_aes_gcm_ghash_update(state, s, NULL, 0);
+			memcpy(d, buf_cryp, sizeof(state->buf_cryp));
+
+			internal_aes_gcm_inc_ctr(state);
+		}
+		s += TEE_AES_BLOCK_SIZE;
+		d += TEE_AES_BLOCK_SIZE;
+	}
+}
 #endif /*!CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
