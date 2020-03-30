@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file dhm.h
  *
@@ -46,6 +45,7 @@
  */
 /*
  *  Copyright (C) 2006-2018, Arm Limited (or its affiliates), All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -66,11 +66,11 @@
 #define MBEDTLS_DHM_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
-#include "bignum.h"
+#include "mbedtls/bignum.h"
 
 /*
  * DHM Error codes
@@ -298,7 +298,6 @@ int mbedtls_dhm_calc_secret( mbedtls_dhm_context *ctx,
 void mbedtls_dhm_free( mbedtls_dhm_context *ctx );
 
 #if defined(MBEDTLS_ASN1_PARSE_C)
-/** \ingroup x509_module */
 /**
  * \brief             This function parses DHM parameters in PEM or DER format.
  *
@@ -317,7 +316,6 @@ int mbedtls_dhm_parse_dhm( mbedtls_dhm_context *dhm, const unsigned char *dhmin,
                            size_t dhminlen );
 
 #if defined(MBEDTLS_FS_IO)
-/** \ingroup x509_module */
 /**
  * \brief          This function loads and parses DHM parameters from a file.
  *

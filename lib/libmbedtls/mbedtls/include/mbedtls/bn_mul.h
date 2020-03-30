@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file bn_mul.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -39,12 +39,12 @@
 #define MBEDTLS_BN_MUL_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#include "bignum.h"
+#include "mbedtls/bignum.h"
 
 #if defined(MBEDTLS_HAVE_ASM)
 
@@ -197,6 +197,30 @@
     );
 
 #endif /* AMD64 */
+
+#if defined(__aarch64__)
+
+#define MULADDC_INIT                \
+    asm(
+
+#define MULADDC_CORE                \
+        "ldr x4, [%2], #8   \n\t"   \
+        "ldr x5, [%1]       \n\t"   \
+        "mul x6, x4, %3     \n\t"   \
+        "umulh x7, x4, %3   \n\t"   \
+        "adds x5, x5, x6    \n\t"   \
+        "adc x7, x7, xzr    \n\t"   \
+        "adds x5, x5, %0    \n\t"   \
+        "adc %0, x7, xzr    \n\t"   \
+        "str x5, [%1], #8   \n\t"
+
+#define MULADDC_STOP                        \
+         : "+r" (c),  "+r" (d), "+r" (s)    \
+         : "r" (b)                          \
+         : "x4", "x5", "x6", "x7", "cc"     \
+    );
+
+#endif /* Aarch64 */
 
 #if defined(__mc68020__) || defined(__mcpu32__)
 

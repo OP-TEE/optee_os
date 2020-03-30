@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file cipher_wrap.c
  *
@@ -7,6 +6,7 @@
  * \author Adriaan de Jong <dejong@fox-it.com>
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -29,11 +29,10 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#include <string.h>
-
 #if defined(MBEDTLS_CIPHER_C)
 
 #include "mbedtls/cipher_internal.h"
+#include "mbedtls/error.h"
 
 #if defined(MBEDTLS_CHACHAPOLY_C)
 #include "mbedtls/chachapoly.h"
@@ -75,6 +74,10 @@
 #include "mbedtls/ccm.h"
 #endif
 
+#if defined(MBEDTLS_NIST_KW_C)
+#include "mbedtls/nist_kw.h"
+#endif
+
 #if defined(MBEDTLS_CIPHER_NULL_CIPHER)
 #include <string.h>
 #endif
@@ -99,11 +102,6 @@ static void *gcm_ctx_alloc( void )
     return( ctx );
 }
 
-static void gcm_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_gcm_context ) );
-}
-
 static void gcm_ctx_free( void *ctx )
 {
     mbedtls_gcm_free( ctx );
@@ -121,11 +119,6 @@ static void *ccm_ctx_alloc( void )
         mbedtls_ccm_init( (mbedtls_ccm_context *) ctx );
 
     return( ctx );
-}
-
-static void ccm_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_ccm_context ) );
 }
 
 static void ccm_ctx_free( void *ctx )
@@ -232,11 +225,6 @@ static void * aes_ctx_alloc( void )
     return( aes );
 }
 
-static void aes_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_aes_context ) );
-}
-
 static void aes_ctx_free( void *ctx )
 {
     mbedtls_aes_free( (mbedtls_aes_context *) ctx );
@@ -267,7 +255,6 @@ static const mbedtls_cipher_base_t aes_info = {
     aes_setkey_enc_wrap,
     aes_setkey_dec_wrap,
     aes_ctx_alloc,
-    aes_ctx_clone,
     aes_ctx_free
 };
 
@@ -562,7 +549,6 @@ static const mbedtls_cipher_base_t gcm_aes_info = {
     gcm_aes_setkey_wrap,
     gcm_aes_setkey_wrap,
     gcm_ctx_alloc,
-    gcm_ctx_clone,
     gcm_ctx_free,
 };
 
@@ -632,7 +618,6 @@ static const mbedtls_cipher_base_t ccm_aes_info = {
     ccm_aes_setkey_wrap,
     ccm_aes_setkey_wrap,
     ccm_ctx_alloc,
-    ccm_ctx_clone,
     ccm_ctx_free,
 };
 
@@ -736,11 +721,6 @@ static void * camellia_ctx_alloc( void )
     return( ctx );
 }
 
-static void camellia_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_camellia_context ) );
-}
-
 static void camellia_ctx_free( void *ctx )
 {
     mbedtls_camellia_free( (mbedtls_camellia_context *) ctx );
@@ -771,7 +751,6 @@ static const mbedtls_cipher_base_t camellia_info = {
     camellia_setkey_enc_wrap,
     camellia_setkey_dec_wrap,
     camellia_ctx_alloc,
-    camellia_ctx_clone,
     camellia_ctx_free
 };
 
@@ -945,7 +924,6 @@ static const mbedtls_cipher_base_t gcm_camellia_info = {
     gcm_camellia_setkey_wrap,
     gcm_camellia_setkey_wrap,
     gcm_ctx_alloc,
-    gcm_ctx_clone,
     gcm_ctx_free,
 };
 
@@ -1015,7 +993,6 @@ static const mbedtls_cipher_base_t ccm_camellia_info = {
     ccm_camellia_setkey_wrap,
     ccm_camellia_setkey_wrap,
     ccm_ctx_alloc,
-    ccm_ctx_clone,
     ccm_ctx_free,
 };
 
@@ -1525,11 +1502,6 @@ static void * des_ctx_alloc( void )
     return( des );
 }
 
-static void des_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_des_context ) );
-}
-
 static void des_ctx_free( void *ctx )
 {
     mbedtls_des_free( (mbedtls_des_context *) ctx );
@@ -1547,11 +1519,6 @@ static void * des3_ctx_alloc( void )
     mbedtls_des3_init( des3 );
 
     return( des3 );
-}
-
-static void des3_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_des3_context ) );
 }
 
 static void des3_ctx_free( void *ctx )
@@ -1584,7 +1551,6 @@ static const mbedtls_cipher_base_t des_info = {
     des_setkey_enc_wrap,
     des_setkey_dec_wrap,
     des_ctx_alloc,
-    des_ctx_clone,
     des_ctx_free
 };
 
@@ -1636,7 +1602,6 @@ static const mbedtls_cipher_base_t des_ede_info = {
     des3_set2key_enc_wrap,
     des3_set2key_dec_wrap,
     des3_ctx_alloc,
-    des3_ctx_clone,
     des3_ctx_free
 };
 
@@ -1688,7 +1653,6 @@ static const mbedtls_cipher_base_t des_ede3_info = {
     des3_set3key_enc_wrap,
     des3_set3key_dec_wrap,
     des3_ctx_alloc,
-    des3_ctx_clone,
     des3_ctx_free
 };
 
@@ -1774,11 +1738,6 @@ static void * blowfish_ctx_alloc( void )
     return( ctx );
 }
 
-static void blowfish_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_blowfish_context ) );
-}
-
 static void blowfish_ctx_free( void *ctx )
 {
     mbedtls_blowfish_free( (mbedtls_blowfish_context *) ctx );
@@ -1809,7 +1768,6 @@ static const mbedtls_cipher_base_t blowfish_info = {
     blowfish_setkey_wrap,
     blowfish_setkey_wrap,
     blowfish_ctx_alloc,
-    blowfish_ctx_clone,
     blowfish_ctx_free
 };
 
@@ -1896,11 +1854,6 @@ static void * arc4_ctx_alloc( void )
     return( ctx );
 }
 
-static void arc4_ctx_clone( void *dst, const void *src )
-{
-    memcpy( dst, src, sizeof( mbedtls_arc4_context ) );
-}
-
 static void arc4_ctx_free( void *ctx )
 {
     mbedtls_arc4_free( (mbedtls_arc4_context *) ctx );
@@ -1931,7 +1884,6 @@ static const mbedtls_cipher_base_t arc4_base_info = {
     arc4_setkey_wrap,
     arc4_setkey_wrap,
     arc4_ctx_alloc,
-    arc4_ctx_clone,
     arc4_ctx_free
 };
 
@@ -1965,7 +1917,7 @@ static int chacha20_stream_wrap( void *ctx,  size_t length,
                                  const unsigned char *input,
                                  unsigned char *output )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 
     ret = mbedtls_chacha20_update( ctx, length, input, output );
     if( ret == MBEDTLS_ERR_CHACHA20_BAD_INPUT_DATA )
@@ -2128,12 +2080,6 @@ static void * null_ctx_alloc( void )
     return( (void *) 1 );
 }
 
-static void null_ctx_clone( void *dst, const void *src )
-{
-    ((void) dst);
-    ((void) src);
-}
-
 static void null_ctx_free( void *ctx )
 {
     ((void) ctx);
@@ -2163,7 +2109,6 @@ static const mbedtls_cipher_base_t null_base_info = {
     null_setkey,
     null_setkey,
     null_ctx_alloc,
-    null_ctx_clone,
     null_ctx_free
 };
 
@@ -2178,6 +2123,131 @@ static const mbedtls_cipher_info_t null_cipher_info = {
     &null_base_info
 };
 #endif /* defined(MBEDTLS_CIPHER_NULL_CIPHER) */
+
+#if defined(MBEDTLS_NIST_KW_C)
+static void *kw_ctx_alloc( void )
+{
+    void *ctx = mbedtls_calloc( 1, sizeof( mbedtls_nist_kw_context ) );
+
+    if( ctx != NULL )
+        mbedtls_nist_kw_init( (mbedtls_nist_kw_context *) ctx );
+
+    return( ctx );
+}
+
+static void kw_ctx_free( void *ctx )
+{
+    mbedtls_nist_kw_free( ctx );
+    mbedtls_free( ctx );
+}
+
+static int kw_aes_setkey_wrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+    return mbedtls_nist_kw_setkey( (mbedtls_nist_kw_context *) ctx,
+                                   MBEDTLS_CIPHER_ID_AES, key, key_bitlen, 1 );
+}
+
+static int kw_aes_setkey_unwrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+   return mbedtls_nist_kw_setkey( (mbedtls_nist_kw_context *) ctx,
+                                  MBEDTLS_CIPHER_ID_AES, key, key_bitlen, 0 );
+}
+
+static const mbedtls_cipher_base_t kw_aes_info = {
+    MBEDTLS_CIPHER_ID_AES,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    kw_aes_setkey_wrap,
+    kw_aes_setkey_unwrap,
+    kw_ctx_alloc,
+    kw_ctx_free,
+};
+
+static const mbedtls_cipher_info_t aes_128_nist_kw_info = {
+    MBEDTLS_CIPHER_AES_128_KW,
+    MBEDTLS_MODE_KW,
+    128,
+    "AES-128-KW",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+
+static const mbedtls_cipher_info_t aes_192_nist_kw_info = {
+    MBEDTLS_CIPHER_AES_192_KW,
+    MBEDTLS_MODE_KW,
+    192,
+    "AES-192-KW",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+
+static const mbedtls_cipher_info_t aes_256_nist_kw_info = {
+    MBEDTLS_CIPHER_AES_256_KW,
+    MBEDTLS_MODE_KW,
+    256,
+    "AES-256-KW",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+
+static const mbedtls_cipher_info_t aes_128_nist_kwp_info = {
+    MBEDTLS_CIPHER_AES_128_KWP,
+    MBEDTLS_MODE_KWP,
+    128,
+    "AES-128-KWP",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+
+static const mbedtls_cipher_info_t aes_192_nist_kwp_info = {
+    MBEDTLS_CIPHER_AES_192_KWP,
+    MBEDTLS_MODE_KWP,
+    192,
+    "AES-192-KWP",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+
+static const mbedtls_cipher_info_t aes_256_nist_kwp_info = {
+    MBEDTLS_CIPHER_AES_256_KWP,
+    MBEDTLS_MODE_KWP,
+    256,
+    "AES-256-KWP",
+    0,
+    0,
+    16,
+    &kw_aes_info
+};
+#endif /* MBEDTLS_NIST_KW_C */
 
 const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
 {
@@ -2319,6 +2389,15 @@ const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
     { MBEDTLS_CIPHER_CHACHA20_POLY1305,    &chachapoly_info },
 #endif
 
+#if defined(MBEDTLS_NIST_KW_C)
+    { MBEDTLS_CIPHER_AES_128_KW,          &aes_128_nist_kw_info },
+    { MBEDTLS_CIPHER_AES_192_KW,          &aes_192_nist_kw_info },
+    { MBEDTLS_CIPHER_AES_256_KW,          &aes_256_nist_kw_info },
+    { MBEDTLS_CIPHER_AES_128_KWP,         &aes_128_nist_kwp_info },
+    { MBEDTLS_CIPHER_AES_192_KWP,         &aes_192_nist_kwp_info },
+    { MBEDTLS_CIPHER_AES_256_KWP,         &aes_256_nist_kwp_info },
+#endif
+
 #if defined(MBEDTLS_CIPHER_NULL_CIPHER)
     { MBEDTLS_CIPHER_NULL,                 &null_cipher_info },
 #endif /* MBEDTLS_CIPHER_NULL_CIPHER */
@@ -2326,7 +2405,8 @@ const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
     { MBEDTLS_CIPHER_NONE, NULL }
 };
 
-#define NUM_CIPHERS sizeof mbedtls_cipher_definitions / sizeof mbedtls_cipher_definitions[0]
+#define NUM_CIPHERS ( sizeof(mbedtls_cipher_definitions) /      \
+                      sizeof(mbedtls_cipher_definitions[0]) )
 int mbedtls_cipher_supported[NUM_CIPHERS];
 
 #endif /* MBEDTLS_CIPHER_C */

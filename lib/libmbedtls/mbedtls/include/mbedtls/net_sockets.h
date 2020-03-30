@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file net_sockets.h
  *
@@ -22,6 +21,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -41,12 +41,12 @@
 #define MBEDTLS_NET_SOCKETS_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#include "ssl.h"
+#include "mbedtls/ssl.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -256,6 +256,13 @@ int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len );
  */
 int mbedtls_net_recv_timeout( void *ctx, unsigned char *buf, size_t len,
                       uint32_t timeout );
+
+/**
+ * \brief          Closes down the connection and free associated data
+ *
+ * \param ctx      The context to close
+ */
+void mbedtls_net_close( mbedtls_net_context *ctx );
 
 /**
  * \brief          Gracefully shutdown the connection and free associated data

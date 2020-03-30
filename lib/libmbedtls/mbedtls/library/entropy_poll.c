@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  Platform-specific and custom entropy polling functions
  *
  *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -36,6 +36,7 @@
 
 #include "mbedtls/entropy.h"
 #include "mbedtls/entropy_poll.h"
+#include "mbedtls/error.h"
 
 #if defined(MBEDTLS_TIMING_C)
 #include "mbedtls/timing.h"
@@ -121,7 +122,7 @@ int mbedtls_platform_entropy_poll( void *data,
 {
     FILE *file;
     size_t read_len;
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     ((void) data);
 
 #if defined(HAVE_GETRANDOM)

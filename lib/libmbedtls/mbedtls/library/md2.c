@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  RFC 1115/1319 compliant MD2 implementation
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -35,6 +35,7 @@
 
 #include "mbedtls/md2.h"
 #include "mbedtls/platform_util.h"
+#include "mbedtls/error.h"
 
 #include <string.h>
 
@@ -170,7 +171,7 @@ int mbedtls_md2_update_ret( mbedtls_md2_context *ctx,
                             const unsigned char *input,
                             size_t ilen )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     size_t fill;
 
     while( ilen > 0 )
@@ -212,7 +213,7 @@ void mbedtls_md2_update( mbedtls_md2_context *ctx,
 int mbedtls_md2_finish_ret( mbedtls_md2_context *ctx,
                             unsigned char output[16] )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     size_t i;
     unsigned char x;
 
@@ -250,7 +251,7 @@ int mbedtls_md2_ret( const unsigned char *input,
                      size_t ilen,
                      unsigned char output[16] )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     mbedtls_md2_context ctx;
 
     mbedtls_md2_init( &ctx );

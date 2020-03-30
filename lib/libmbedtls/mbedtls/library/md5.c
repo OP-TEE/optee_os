@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  RFC 1321 compliant MD5 implementation
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -34,6 +34,7 @@
 
 #include "mbedtls/md5.h"
 #include "mbedtls/platform_util.h"
+#include "mbedtls/error.h"
 
 #include <string.h>
 
@@ -259,7 +260,7 @@ int mbedtls_md5_update_ret( mbedtls_md5_context *ctx,
                             const unsigned char *input,
                             size_t ilen )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     size_t fill;
     uint32_t left;
 
@@ -318,7 +319,7 @@ void mbedtls_md5_update( mbedtls_md5_context *ctx,
 int mbedtls_md5_finish_ret( mbedtls_md5_context *ctx,
                             unsigned char output[16] )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     uint32_t used;
     uint32_t high, low;
 
@@ -386,7 +387,7 @@ int mbedtls_md5_ret( const unsigned char *input,
                      size_t ilen,
                      unsigned char output[16] )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     mbedtls_md5_context ctx;
 
     mbedtls_md5_init( &ctx );
