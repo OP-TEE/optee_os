@@ -42,6 +42,9 @@
 #if defined(CFG_CRYPTO_AES)
 #define MBEDTLS_AES_C
 #define MBEDTLS_AES_ROM_TABLES
+#if defined(CFG_CORE_CRYPTO_AES_ACCEL)
+#define MBEDTLS_AES_ALT
+#endif
 #endif
 
 #if defined(CFG_CRYPTO_DES)
