@@ -79,6 +79,7 @@ build:
     - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6qsabrelite
     - _make PLATFORM=imx-mx6qsabresd
+    - _make PLATFORM=imx-mx6qsabresd CFG_RPMB_FS=y
     - _make PLATFORM=imx-mx6qsabreauto
     - _make PLATFORM=imx-mx6qsabreauto CFG_NXP_CAAM=y
     - _make PLATFORM=imx-mx6qpsabreauto
