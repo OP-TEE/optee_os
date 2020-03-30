@@ -84,10 +84,6 @@ TEE_Result internal_aes_gcm_dec(const struct internal_aes_gcm_key *enc_key,
 				const void *src, size_t len, void *dst,
 				const void *tag, size_t tag_len);
 
-TEE_Result
-internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
-				struct internal_aes_gcm_key *enc_key);
-
 void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
 			    uint64_t product[2]);
 
