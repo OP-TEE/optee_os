@@ -10,6 +10,6 @@ ifeq ($(_CFG_CORE_LTC_AES_ARM32_CE),y)
 srcs-y += aes_armv8a_ce.c
 srcs-y += aes_modes_armv8a_ce_a32.S
 else
-srcs-y += aes.c
+srcs-$(_CFG_CORE_LTC_AES_DESC) += aes.c
 endif
 endif
