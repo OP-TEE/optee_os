@@ -173,7 +173,6 @@ ifeq ($(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB),y)
 core-ltc-vars += GCM
 endif
 core-ltc-vars += RSA DSA DH ECC
-core-ltc-vars += AES_ARM64_CE AES_ARM32_CE
 core-ltc-vars += SHA1_ARM32_CE SHA1_ARM64_CE
 core-ltc-vars += SHA256_ARM32_CE SHA256_ARM64_CE
 core-ltc-vars += SIZE_OPTIMIZATION
