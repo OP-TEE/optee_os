@@ -82,11 +82,11 @@ void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
 }
 
 #ifdef ARM64
-void internal_aes_gcm_update_payload_block_aligned(
-				struct internal_aes_gcm_state *state,
-				const struct internal_aes_gcm_key *ek,
-				TEE_OperationMode mode, const void *src,
-				size_t num_blocks, void *dst)
+void
+internal_aes_gcm_update_payload_blocks(struct internal_aes_gcm_state *state,
+				       const struct internal_aes_gcm_key *ek,
+				       TEE_OperationMode mode, const void *src,
+				       size_t num_blocks, void *dst)
 {
 	uint32_t vfp_state;
 	uint64_t dg[2];

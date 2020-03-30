@@ -7,8 +7,10 @@
 #ifndef __CRYPTO_INTERNAL_AES_GCM_H
 #define __CRYPTO_INTERNAL_AES_GCM_H
 
+#include <assert.h>
 #include <tee_api_types.h>
 #include <utee_defines.h>
+#include <util.h>
 
 #ifdef CFG_CRYPTO_WITH_CE
 #include <crypto/ghash-ce-core.h>
@@ -93,6 +95,9 @@ static inline void internal_aes_gcm_xor_block(void *dst, const void *src)
 	uint64_t *d = dst;
 	const uint64_t *s = src;
 
+	assert(ALIGNMENT_IS_OK(dst, uint64_t));
+	assert(ALIGNMENT_IS_OK(src, uint64_t));
+
 	d[0] ^= s[0];
 	d[1] ^= s[1];
 }
@@ -126,10 +131,10 @@ void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *enc_key,
  * Internal weak function that can be overridden with hardware specific
  * implementation.
  */
-void internal_aes_gcm_update_payload_block_aligned(
-				struct internal_aes_gcm_state *state,
-				const struct internal_aes_gcm_key *enc_key,
-				TEE_OperationMode mode, const void *src,
-				size_t num_blocks, void *dst);
+void
+internal_aes_gcm_update_payload_blocks(struct internal_aes_gcm_state *state,
+				       const struct internal_aes_gcm_key *ek,
+				       TEE_OperationMode mode, const void *src,
+				       size_t num_blocks, void *dst);
 
 #endif /*__CRYPTO_INTERNAL_AES_GCM_H*/
