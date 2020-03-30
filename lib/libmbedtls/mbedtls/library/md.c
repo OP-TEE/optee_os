@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file mbedtls_md.c
  *
@@ -7,6 +6,7 @@
  * \author Adriaan de Jong <dejong@fox-it.com>
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -208,9 +208,6 @@ int mbedtls_md_clone( mbedtls_md_context_t *dst,
     }
 
     dst->md_info->clone_func( dst->md_ctx, src->md_ctx );
-
-    if( dst->hmac_ctx != NULL && src->hmac_ctx != NULL )
-        memcpy( dst->hmac_ctx, src->hmac_ctx, 2 * src->md_info->block_size );
 
     return( 0 );
 }

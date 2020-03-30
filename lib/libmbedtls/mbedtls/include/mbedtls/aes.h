@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file aes.h
  *
@@ -22,6 +21,7 @@
  */
 
 /*  Copyright (C) 2006-2018, Arm Limited (or its affiliates), All Rights Reserved.
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -655,6 +655,8 @@ MBEDTLS_DEPRECATED void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
 #undef MBEDTLS_DEPRECATED
 #endif /* !MBEDTLS_DEPRECATED_REMOVED */
 
+
+#if defined(MBEDTLS_SELF_TEST)
 /**
  * \brief          Checkup routine.
  *
@@ -662,6 +664,8 @@ MBEDTLS_DEPRECATED void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
  * \return         \c 1 on failure.
  */
 int mbedtls_aes_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

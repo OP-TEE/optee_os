@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file cipher_internal.h
  *
@@ -8,6 +7,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -102,9 +102,6 @@ struct mbedtls_cipher_base_t
 
     /** Allocate a new context */
     void * (*ctx_alloc_func)( void );
-
-    /** Clone context **/
-    void (*ctx_clone_func)( void *dst, const void *src );
 
     /** Free the given context */
     void (*ctx_free_func)( void *ctx );

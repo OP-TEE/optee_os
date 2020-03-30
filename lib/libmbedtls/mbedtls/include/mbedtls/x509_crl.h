@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file x509_crl.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -111,7 +111,7 @@ int mbedtls_x509_crl_parse_der( mbedtls_x509_crl *chain,
 /**
  * \brief          Parse one or more CRLs and append them to the chained list
  *
- * \note           Mutliple CRLs are accepted only if using PEM format
+ * \note           Multiple CRLs are accepted only if using PEM format
  *
  * \param chain    points to the start of the chain
  * \param buf      buffer holding the CRL data in PEM or DER format
@@ -126,7 +126,7 @@ int mbedtls_x509_crl_parse( mbedtls_x509_crl *chain, const unsigned char *buf, s
 /**
  * \brief          Load one or more CRLs and append them to the chained list
  *
- * \note           Mutliple CRLs are accepted only if using PEM format
+ * \note           Multiple CRLs are accepted only if using PEM format
  *
  * \param chain    points to the start of the chain
  * \param path     filename to read the CRLs from (in PEM or DER encoding)

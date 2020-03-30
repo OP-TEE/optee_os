@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  NIST SP800-38C compliant CCM implementation
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -134,11 +134,17 @@ void mbedtls_ccm_free( mbedtls_ccm_context *ctx )
  * This avoids allocating one more 16 bytes buffer while allowing src == dst.
  */
 #define CTR_CRYPT( dst, src, len  )                                            \
-    if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, ctr, 16, b, &olen ) ) != 0 )  \
-        return( ret );                                                         \
-                                                                               \
-    for( i = 0; i < len; i++ )                                                 \
-        dst[i] = src[i] ^ b[i];
+    do                                                                  \
+    {                                                                   \
+        if( ( ret = mbedtls_cipher_update( &ctx->cipher_ctx, ctr,       \
+                                           16, b, &olen ) ) != 0 )      \
+        {                                                               \
+            return( ret );                                              \
+        }                                                               \
+                                                                        \
+        for( i = 0; i < (len); i++ )                                    \
+            (dst)[i] = (src)[i] ^ b[i];                                 \
+    } while( 0 )
 
 /*
  * Authenticated encryption or decryption

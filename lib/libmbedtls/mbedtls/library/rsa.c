@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  The RSA public-key cryptosystem
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -249,6 +249,9 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
 {
     int ret = 0;
     int have_N, have_P, have_Q, have_D, have_E;
+#if !defined(MBEDTLS_RSA_NO_CRT)
+    int have_DP, have_DQ, have_QP;
+#endif
     int n_missing, pq_missing, d_missing, is_pub, is_priv;
 
     RSA_VALIDATE_RET( ctx != NULL );
@@ -258,6 +261,12 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
     have_Q = ( mbedtls_mpi_cmp_int( &ctx->Q, 0 ) != 0 );
     have_D = ( mbedtls_mpi_cmp_int( &ctx->D, 0 ) != 0 );
     have_E = ( mbedtls_mpi_cmp_int( &ctx->E, 0 ) != 0 );
+
+#if !defined(MBEDTLS_RSA_NO_CRT)
+    have_DP = ( mbedtls_mpi_cmp_int( &ctx->DP, 0 ) != 0 );
+    have_DQ = ( mbedtls_mpi_cmp_int( &ctx->DQ, 0 ) != 0 );
+    have_QP = ( mbedtls_mpi_cmp_int( &ctx->QP, 0 ) != 0 );
+#endif
 
     /*
      * Check whether provided parameters are enough
@@ -324,7 +333,7 @@ int mbedtls_rsa_complete( mbedtls_rsa_context *ctx )
      */
 
 #if !defined(MBEDTLS_RSA_NO_CRT)
-    if( is_priv )
+    if( is_priv && ! ( have_DP && have_DQ && have_QP ) )
     {
         ret = mbedtls_rsa_deduce_crt( &ctx->P,  &ctx->Q,  &ctx->D,
                                       &ctx->DP, &ctx->DQ, &ctx->QP );
@@ -1361,14 +1370,9 @@ int mbedtls_rsa_rsaes_oaep_decrypt( mbedtls_rsa_context *ctx,
     /*
      * RSA operation
      */
-    if( ctx->P.n == 0 )
-        ret = ( mode == MBEDTLS_RSA_PUBLIC )
-              ? mbedtls_rsa_public(  ctx, input, buf )
-              : mbedtls_rsa_private( ctx, NULL, NULL, input, buf );
-    else
-        ret = ( mode == MBEDTLS_RSA_PUBLIC )
-              ? mbedtls_rsa_public(  ctx, input, buf )
-              : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );
+    ret = ( mode == MBEDTLS_RSA_PUBLIC )
+          ? mbedtls_rsa_public(  ctx, input, buf )
+          : mbedtls_rsa_private( ctx, f_rng, p_rng, input, buf );
 
     if( ret != 0 )
         goto cleanup;
@@ -1872,14 +1876,9 @@ exit:
     if( ret != 0 )
         return( ret );
 
-    if( ctx->P.n == 0)
-        return( ( mode == MBEDTLS_RSA_PUBLIC )
-                ? mbedtls_rsa_public(  ctx, sig, sig )
-                : mbedtls_rsa_private( ctx, NULL, NULL, sig, sig ) );
-    else
-        return( ( mode == MBEDTLS_RSA_PUBLIC )
-                ? mbedtls_rsa_public(  ctx, sig, sig )
-                : mbedtls_rsa_private( ctx, f_rng, p_rng, sig, sig ) );
+    return( ( mode == MBEDTLS_RSA_PUBLIC )
+            ? mbedtls_rsa_public(  ctx, sig, sig )
+            : mbedtls_rsa_private( ctx, f_rng, p_rng, sig, sig ) );
 }
 #endif /* MBEDTLS_PKCS1_V21 */
 
