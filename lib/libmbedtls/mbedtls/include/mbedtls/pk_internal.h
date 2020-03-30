@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file pk_internal.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -26,12 +26,12 @@
 #define MBEDTLS_PK_WRAP_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#include "pk.h"
+#include "mbedtls/pk.h"
 
 struct mbedtls_pk_info_t
 {
@@ -133,6 +133,10 @@ extern const mbedtls_pk_info_t mbedtls_ecdsa_info;
 
 #if defined(MBEDTLS_PK_RSA_ALT_SUPPORT)
 extern const mbedtls_pk_info_t mbedtls_rsa_alt_info;
+#endif
+
+#if defined(MBEDTLS_USE_PSA_CRYPTO)
+extern const mbedtls_pk_info_t mbedtls_pk_opaque_info;
 #endif
 
 #endif /* MBEDTLS_PK_WRAP_H */

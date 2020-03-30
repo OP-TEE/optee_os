@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file bignum.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 #define MBEDTLS_BIGNUM_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
@@ -129,7 +129,8 @@
         defined(__ppc64__) || defined(__powerpc64__)  || \
         defined(__ia64__)  || defined(__alpha__)      || \
         ( defined(__sparc__) && defined(__arch64__) ) || \
-        defined(__s390x__) || defined(__mips64) )
+        defined(__s390x__) || defined(__mips64)       || \
+        defined(__aarch64__) )
         #if !defined(MBEDTLS_HAVE_INT64)
             #define MBEDTLS_HAVE_INT64
         #endif /* MBEDTLS_HAVE_INT64 */
@@ -184,14 +185,11 @@ extern "C" {
  */
 typedef struct mbedtls_mpi
 {
-    short s;            /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
-    short use_mempool;
+    int s;              /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
     size_t n;           /*!<  total # of limbs  */
     mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
-
-extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize an MPI context.
@@ -202,7 +200,6 @@ extern void *mbedtls_mpi_mempool;
  * \param X         The MPI context to initialize. This must not be \c NULL.
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
-void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
 
 /**
  * \brief          This function frees the components of an MPI context.
@@ -499,8 +496,24 @@ int mbedtls_mpi_read_binary( mbedtls_mpi *X, const unsigned char *buf,
                              size_t buflen );
 
 /**
- * \brief          Export an MPI into unsigned big endian binary data
- *                 of fixed size.
+ * \brief          Import X from unsigned binary data, little endian
+ *
+ * \param X        The destination MPI. This must point to an initialized MPI.
+ * \param buf      The input buffer. This must be a readable buffer of length
+ *                 \p buflen Bytes.
+ * \param buflen   The length of the input buffer \p p in Bytes.
+ *
+ * \return         \c 0 if successful.
+ * \return         #MBEDTLS_ERR_MPI_ALLOC_FAILED if memory allocation failed.
+ * \return         Another negative error code on different kinds of failure.
+ */
+int mbedtls_mpi_read_binary_le( mbedtls_mpi *X,
+                                const unsigned char *buf, size_t buflen );
+
+/**
+ * \brief          Export X into unsigned binary data, big endian.
+ *                 Always fills the whole buffer, which will start with zeros
+ *                 if the number is smaller.
  *
  * \param X        The source MPI. This must point to an initialized MPI.
  * \param buf      The output buffer. This must be a writable buffer of length
@@ -514,6 +527,24 @@ int mbedtls_mpi_read_binary( mbedtls_mpi *X, const unsigned char *buf,
  */
 int mbedtls_mpi_write_binary( const mbedtls_mpi *X, unsigned char *buf,
                               size_t buflen );
+
+/**
+ * \brief          Export X into unsigned binary data, little endian.
+ *                 Always fills the whole buffer, which will end with zeros
+ *                 if the number is smaller.
+ *
+ * \param X        The source MPI. This must point to an initialized MPI.
+ * \param buf      The output buffer. This must be a writable buffer of length
+ *                 \p buflen Bytes.
+ * \param buflen   The size of the output buffer \p buf in Bytes.
+ *
+ * \return         \c 0 if successful.
+ * \return         #MBEDTLS_ERR_MPI_BUFFER_TOO_SMALL if \p buf isn't
+ *                 large enough to hold the value of \p X.
+ * \return         Another negative error code on different kinds of failure.
+ */
+int mbedtls_mpi_write_binary_le( const mbedtls_mpi *X,
+                                 unsigned char *buf, size_t buflen );
 
 /**
  * \brief          Perform a left-shift on an MPI: X <<= count
@@ -969,40 +1000,6 @@ typedef enum {
 int mbedtls_mpi_gen_prime( mbedtls_mpi *X, size_t nbits, int flags,
                    int (*f_rng)(void *, unsigned char *, size_t),
                    void *p_rng );
-
-/**
- * \brief          Montgomery initialization
- *
- * \param mm       The -1/m mod N result
- * \param N        The modulus
- */
-void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
-
-/**
- * \brief          Montgomery multiplication: A = A * B * R^-1 mod N
- * \A              Parameter and result
- * \B              Parameter
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B,
-			 const mbedtls_mpi *N, mbedtls_mpi_uint mm,
-                         const mbedtls_mpi *T );
-
-/**
- * \brief          Montgomery reduction: A = A * R^-1 mod N
- * \A              Parameter and result
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
-			 mbedtls_mpi_uint mm, const mbedtls_mpi *T );
 
 #if defined(MBEDTLS_SELF_TEST)
 

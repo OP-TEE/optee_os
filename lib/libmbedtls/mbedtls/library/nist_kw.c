@@ -1,9 +1,9 @@
-/*  SPDX-License-Identifier: Apache-2.0 */
 /*
  *  Implementation of NIST SP 800-38F key wrapping, supporting KW and KWP modes
  *  only
  *
  *  Copyright (C) 2018, Arm Limited (or its affiliates), All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 
 #include "mbedtls/nist_kw.h"
 #include "mbedtls/platform_util.h"
+#include "mbedtls/error.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -116,7 +117,7 @@ int mbedtls_nist_kw_setkey( mbedtls_nist_kw_context *ctx,
                             unsigned int keybits,
                             const int is_wrap )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     const mbedtls_cipher_info_t *cipher_info;
 
     cipher_info = mbedtls_cipher_info_from_values( cipher,

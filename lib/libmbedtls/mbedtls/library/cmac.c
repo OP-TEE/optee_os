@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file cmac.c
  *
  * \brief NIST SP800-38B compliant CMAC implementation for AES and 3DES
  *
  *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -50,8 +50,10 @@
 
 #include "mbedtls/cmac.h"
 #include "mbedtls/platform_util.h"
+#include "mbedtls/error.h"
 
 #include <string.h>
+
 
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
@@ -135,7 +137,7 @@ static int cmac_multiply_by_u( unsigned char *output,
 static int cmac_generate_subkeys( mbedtls_cipher_context_t *ctx,
                                   unsigned char* K1, unsigned char* K2 )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     unsigned char L[MBEDTLS_CIPHER_BLKSIZE_MAX];
     size_t olen, block_size;
 
@@ -198,26 +200,11 @@ static void cmac_pad( unsigned char padded_block[MBEDTLS_CIPHER_BLKSIZE_MAX],
     }
 }
 
-int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx)
-{
-    mbedtls_cmac_context_t *cmac_ctx;
-
-    /* Allocated and initialise in the cipher context memory for the CMAC
-     * context */
-    cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
-    if( cmac_ctx == NULL )
-        return( MBEDTLS_ERR_CIPHER_ALLOC_FAILED );
-
-    ctx->cmac_ctx = cmac_ctx;
-
-    mbedtls_platform_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
-    return 0;
-}
-
 int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
                                 const unsigned char *key, size_t keybits )
 {
     mbedtls_cipher_type_t type;
+    mbedtls_cmac_context_t *cmac_ctx;
     int retval;
 
     if( ctx == NULL || ctx->cipher_info == NULL || key == NULL )
@@ -240,11 +227,17 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
             return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
     }
 
-    /* Check if cmac ctx had been allocated by mbedtls_cipher_cmac_setup() */
-    if( ctx->cmac_ctx != NULL )
-        return 0;
+    /* Allocated and initialise in the cipher context memory for the CMAC
+     * context */
+    cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
+    if( cmac_ctx == NULL )
+        return( MBEDTLS_ERR_CIPHER_ALLOC_FAILED );
 
-    return mbedtls_cipher_cmac_setup( ctx );
+    ctx->cmac_ctx = cmac_ctx;
+
+    mbedtls_platform_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
+
+    return 0;
 }
 
 int mbedtls_cipher_cmac_update( mbedtls_cipher_context_t *ctx,
@@ -323,7 +316,7 @@ int mbedtls_cipher_cmac_finish( mbedtls_cipher_context_t *ctx,
     unsigned char K1[MBEDTLS_CIPHER_BLKSIZE_MAX];
     unsigned char K2[MBEDTLS_CIPHER_BLKSIZE_MAX];
     unsigned char M_last[MBEDTLS_CIPHER_BLKSIZE_MAX];
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     size_t olen, block_size;
 
     if( ctx == NULL || ctx->cipher_info == NULL || ctx->cmac_ctx == NULL ||
@@ -401,7 +394,7 @@ int mbedtls_cipher_cmac( const mbedtls_cipher_info_t *cipher_info,
                          unsigned char *output )
 {
     mbedtls_cipher_context_t ctx;
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 
     if( cipher_info == NULL || key == NULL || input == NULL || output == NULL )
         return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
@@ -435,7 +428,7 @@ int mbedtls_aes_cmac_prf_128( const unsigned char *key, size_t key_length,
                               const unsigned char *input, size_t in_len,
                               unsigned char *output )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     const mbedtls_cipher_info_t *cipher_info;
     unsigned char zero_key[MBEDTLS_AES_BLOCK_SIZE];
     unsigned char int_key[MBEDTLS_AES_BLOCK_SIZE];
@@ -902,7 +895,7 @@ exit:
 static int test_aes128_cmac_prf( int verbose )
 {
     int i;
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     unsigned char output[MBEDTLS_AES_BLOCK_SIZE];
 
     for( i = 0; i < NB_PRF_TESTS; i++ )
@@ -929,7 +922,7 @@ static int test_aes128_cmac_prf( int verbose )
 
 int mbedtls_cmac_self_test( int verbose )
 {
-    int ret;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 
 #if defined(MBEDTLS_AES_C)
     /* AES-128 */
