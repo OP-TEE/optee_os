@@ -5,7 +5,7 @@
 #include <drivers/imx_snvs.h>
 #include <tee/tee_fs.h>
 
-bool plat_rpmb_ready(void)
+bool plat_rpmb_key_is_ready(void)
 {
 	enum snvs_ssm_mode mode = SNVS_SSM_MODE_INIT;
 	enum snvs_security_cfg security = SNVS_SECURITY_CFG_OPEN;
