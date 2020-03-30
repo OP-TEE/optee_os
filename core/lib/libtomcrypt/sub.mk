@@ -125,6 +125,7 @@ srcs-$(_CFG_CORE_LTC_ECC) += ecc.c
 srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
 srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_AES) += aes.c
+srcs-$(_CFG_CORE_LTC_AES_ACCEL) += aes_accel.c
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
