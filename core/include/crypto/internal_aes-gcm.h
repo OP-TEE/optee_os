@@ -70,6 +70,7 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 				      const void *tag, size_t tag_len);
 
 void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state);
+void internal_aes_gcm_dec_ctr(struct internal_aes_gcm_state *state);
 
 TEE_Result internal_aes_gcm_enc(const struct internal_aes_gcm_key *enc_key,
 				const void *nonce, size_t nonce_len,
