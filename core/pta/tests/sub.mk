@@ -5,3 +5,4 @@ srcs-$(CFG_LOCKDEP) += lockdep.c
 srcs-y += misc.c
 cflags-misc.c-y += -fno-builtin
 srcs-y += mutex.c
+srcs-y += aes_perf.c

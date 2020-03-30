@@ -73,5 +73,28 @@
  */
 #define PTA_INVOKE_TESTS_CMD_LOCKDEP		8
 
+/*
+ * These values should match the ones in
+ * optee_test/ta/aes_perf/include/ta_aes_perf.h
+ */
+#define PTA_INVOKE_TESTS_AES_ECB		0
+#define PTA_INVOKE_TESTS_AES_CBC		1
+#define PTA_INVOKE_TESTS_AES_CTR		2
+#define PTA_INVOKE_TESTS_AES_XTS		3
+#define PTA_INVOKE_TESTS_AES_GCM		4
+
+/*
+ * AES performance tests
+ *
+ * [in]     value[0].a	Top 16 bits Decrypt, low 16 bits key size in bytes
+ * [in]     value[0].b	AES mode, one of
+ *			PTA_INVOKE_TESTS_AES_{ECB_NOPAD,CBC_NOPAD,CTR,XTS,GCM}
+ * [in]     value[1].a	repetition count
+ * [in]     value[1].b	unit size
+ * [in]     memref[2]	In buffer
+ * [in]     memref[3]	Out buffer
+ */
+#define PTA_INVOKE_TEST_CMD_AES_PERF		9
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 
