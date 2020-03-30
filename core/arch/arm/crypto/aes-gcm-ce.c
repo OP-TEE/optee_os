@@ -4,6 +4,7 @@
  */
 
 #include <crypto/crypto_accel.h>
+#include <crypto/crypto.h>
 #include <crypto/ghash-ce-core.h>
 #include <crypto/internal_aes-gcm.h>
 #include <io.h>
@@ -35,7 +36,8 @@ void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 	uint64_t a;
 	uint64_t b;
 
-	internal_aes_gcm_encrypt_block(enc_key, state->ctr, k);
+	crypto_aes_enc_block(enc_key->data, sizeof(enc_key->data),
+			     enc_key->rounds, state->ctr, k);
 
 	/* Store hash key in little endian and multiply by 'x' */
 	b = get_be64(k);
@@ -73,12 +75,6 @@ TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 	return crypto_accel_aes_expand_keys(key, key_len, enc_key->data, NULL,
 					    sizeof(enc_key->data),
 					    &enc_key->rounds);
-}
-
-void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
-				    const void *src, void *dst)
-{
-	crypto_accel_aes_ecb_enc(dst, src, ek->data, ek->rounds, 1);
 }
 
 #ifdef ARM64

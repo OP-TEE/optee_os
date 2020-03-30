@@ -19,6 +19,7 @@
  *  limitations under the License.
  */
 
+#include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <kernel/panic.h>
@@ -53,7 +54,7 @@ void internal_aes_gcm_ghash_gen_tbl(struct internal_ghash_key *ghash_key,
 	unsigned char h[16];
 
 	memset(h, 0, 16);
-	internal_aes_gcm_encrypt_block(ek, h, h);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, h, h);
 
 	vh = get_be64(h);
 	vl = get_be64(h + 8);
