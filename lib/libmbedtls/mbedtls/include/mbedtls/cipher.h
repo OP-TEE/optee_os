@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file cipher.h
  *
@@ -10,6 +9,7 @@
  */
 /*
  *  Copyright (C) 2006-2018, Arm Limited (or its affiliates), All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 #endif
 
 #include <stddef.h>
-#include "mbedtls/platform_util.h"
+#include "platform_util.h"
 
 #if defined(MBEDTLS_GCM_C) || defined(MBEDTLS_CCM_C) || defined(MBEDTLS_CHACHAPOLY_C)
 #define MBEDTLS_CIPHER_MODE_AEAD
@@ -394,20 +394,6 @@ void mbedtls_cipher_init( mbedtls_cipher_context_t *ctx );
  */
 void mbedtls_cipher_free( mbedtls_cipher_context_t *ctx );
 
-/**
- * \brief           Clone the state of an cipher context
- *
- * \note            The two contexts must have been setup to the same type
- *                  (cloning from AES to DES make no sense).
- *
- * \param dst       The destination context
- * \param src       The context to be cloned
- *
- * \return          \c 0 on success,
- *                  \c MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure.
- */
-int mbedtls_cipher_clone( mbedtls_cipher_context_t *dst,
-                          const mbedtls_cipher_context_t *src );
 
 /**
  * \brief               This function initializes and fills the cipher-context
@@ -429,17 +415,6 @@ int mbedtls_cipher_clone( mbedtls_cipher_context_t *dst,
  */
 int mbedtls_cipher_setup( mbedtls_cipher_context_t *ctx,
                           const mbedtls_cipher_info_t *cipher_info );
-
-/**
- * \brief               setup the cipher info structure.
- *
- * \param ctx           cipher's context. Must have been initialised.
- * \param cipher_info   cipher to use.
- *
- * \return              0 on success,
- *                      MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure
- */
-int mbedtls_cipher_setup_info( mbedtls_cipher_context_t *ctx, const mbedtls_cipher_info_t *cipher_info );
 
 /**
  * \brief        This function returns the block size of the given cipher.

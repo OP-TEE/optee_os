@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file ssl_ticket.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -23,6 +23,12 @@
  */
 #ifndef MBEDTLS_SSL_TICKET_H
 #define MBEDTLS_SSL_TICKET_H
+
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
 
 /*
  * This implementation of the session ticket callbacks includes key
@@ -111,14 +117,14 @@ int mbedtls_ssl_ticket_setup( mbedtls_ssl_ticket_context *ctx,
 /**
  * \brief           Implementation of the ticket write callback
  *
- * \note            See \c mbedlts_ssl_ticket_write_t for description
+ * \note            See \c mbedtls_ssl_ticket_write_t for description
  */
 mbedtls_ssl_ticket_write_t mbedtls_ssl_ticket_write;
 
 /**
  * \brief           Implementation of the ticket parse callback
  *
- * \note            See \c mbedlts_ssl_ticket_parse_t for description
+ * \note            See \c mbedtls_ssl_ticket_parse_t for description
  */
 mbedtls_ssl_ticket_parse_t mbedtls_ssl_ticket_parse;
 

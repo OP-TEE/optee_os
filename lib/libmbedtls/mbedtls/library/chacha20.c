@@ -1,4 +1,3 @@
-/*  SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file chacha20.c
  *
@@ -7,6 +6,7 @@
  * \author Daniel King <damaki.gh@gmail.com>
  *
  *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -60,14 +60,14 @@
     MBEDTLS_INTERNAL_VALIDATE( cond )
 
 #define BYTES_TO_U32_LE( data, offset )                           \
-    ( (uint32_t) data[offset]                                     \
-          | (uint32_t) ( (uint32_t) data[( offset ) + 1] << 8 )   \
-          | (uint32_t) ( (uint32_t) data[( offset ) + 2] << 16 )  \
-          | (uint32_t) ( (uint32_t) data[( offset ) + 3] << 24 )  \
+    ( (uint32_t) (data)[offset]                                   \
+      | (uint32_t) ( (uint32_t) (data)[( offset ) + 1] << 8 )     \
+      | (uint32_t) ( (uint32_t) (data)[( offset ) + 2] << 16 )    \
+      | (uint32_t) ( (uint32_t) (data)[( offset ) + 3] << 24 )    \
     )
 
 #define ROTL32( value, amount ) \
-        ( (uint32_t) ( value << amount ) | ( value >> ( 32 - amount ) ) )
+    ( (uint32_t) ( (value) << (amount) ) | ( (value) >> ( 32 - (amount) ) ) )
 
 #define CHACHA20_CTR_INDEX ( 12U )
 

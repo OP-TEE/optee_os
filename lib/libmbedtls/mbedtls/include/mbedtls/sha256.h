@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file sha256.h
  *
@@ -9,6 +8,7 @@
  */
 /*
  *  Copyright (C) 2006-2018, Arm Limited (or its affiliates), All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -278,6 +278,8 @@ MBEDTLS_DEPRECATED void mbedtls_sha256( const unsigned char *input,
 #undef MBEDTLS_DEPRECATED
 #endif /* !MBEDTLS_DEPRECATED_REMOVED */
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          The SHA-224 and SHA-256 checkup routine.
  *
@@ -285,6 +287,8 @@ MBEDTLS_DEPRECATED void mbedtls_sha256( const unsigned char *input,
  * \return         \c 1 on failure.
  */
 int mbedtls_sha256_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

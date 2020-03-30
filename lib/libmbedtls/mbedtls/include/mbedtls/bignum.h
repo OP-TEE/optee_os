@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file bignum.h
  *
@@ -6,6 +5,7 @@
  */
 /*
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -46,7 +46,12 @@
 #define MBEDTLS_ERR_MPI_NOT_ACCEPTABLE                    -0x000E  /**< The input arguments are not acceptable. */
 #define MBEDTLS_ERR_MPI_ALLOC_FAILED                      -0x0010  /**< Memory allocation failed. */
 
-#define MBEDTLS_MPI_CHK(f) do { if( ( ret = f ) != 0 ) goto cleanup; } while( 0 )
+#define MBEDTLS_MPI_CHK(f)       \
+    do                           \
+    {                            \
+        if( ( ret = (f) ) != 0 ) \
+            goto cleanup;        \
+    } while( 0 )
 
 /*
  * Maximum size MPIs are allowed to grow to in number of limbs.
@@ -179,14 +184,11 @@ extern "C" {
  */
 typedef struct mbedtls_mpi
 {
-    short s;              /*!<  integer sign      */
-    short use_mempool;
+    int s;              /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
     size_t n;           /*!<  total # of limbs  */
     mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
-
-extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize an MPI context.
@@ -197,7 +199,6 @@ extern void *mbedtls_mpi_mempool;
  * \param X         The MPI context to initialize. This must not be \c NULL.
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
-void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
 
 /**
  * \brief          This function frees the components of an MPI context.
@@ -557,6 +558,24 @@ int mbedtls_mpi_cmp_abs( const mbedtls_mpi *X, const mbedtls_mpi *Y );
  * \return         \c 0 if \p X is equal to \p Y.
  */
 int mbedtls_mpi_cmp_mpi( const mbedtls_mpi *X, const mbedtls_mpi *Y );
+
+/**
+ * \brief          Check if an MPI is less than the other in constant time.
+ *
+ * \param X        The left-hand MPI. This must point to an initialized MPI
+ *                 with the same allocated length as Y.
+ * \param Y        The right-hand MPI. This must point to an initialized MPI
+ *                 with the same allocated length as X.
+ * \param ret      The result of the comparison:
+ *                 \c 1 if \p X is less than \p Y.
+ *                 \c 0 if \p X is greater than or equal to \p Y.
+ *
+ * \return         0 on success.
+ * \return         MBEDTLS_ERR_MPI_BAD_INPUT_DATA if the allocated length of
+ *                 the two input MPIs is not the same.
+ */
+int mbedtls_mpi_lt_mpi_ct( const mbedtls_mpi *X, const mbedtls_mpi *Y,
+        unsigned *ret );
 
 /**
  * \brief          Compare an MPI with an integer.
@@ -947,40 +966,7 @@ int mbedtls_mpi_gen_prime( mbedtls_mpi *X, size_t nbits, int flags,
                    int (*f_rng)(void *, unsigned char *, size_t),
                    void *p_rng );
 
-
-/**
- * \brief          Montgomery initialization
- *
- * \param mm       The -1/m mod N result
- * \param N        The modulus
- */
-void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
-
-/**
- * \brief          Montgomery multiplication: A = A * B * R^-1 mod N
- * \A              Parameter and result
- * \B              Parameter
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B,
-			 const mbedtls_mpi *N, mbedtls_mpi_uint mm,
-                         const mbedtls_mpi *T );
-
-/**
- * \brief          Montgomery reduction: A = A * R^-1 mod N
- * \A              Parameter and result
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
-			 mbedtls_mpi_uint mm, const mbedtls_mpi *T );
+#if defined(MBEDTLS_SELF_TEST)
 
 /**
  * \brief          Checkup routine
@@ -988,6 +974,8 @@ int mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
  * \return         0 if successful, or 1 if the test failed
  */
 int mbedtls_mpi_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

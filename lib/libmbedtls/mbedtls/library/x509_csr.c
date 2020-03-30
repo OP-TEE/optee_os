@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  X.509 Certificate Signing Request (CSR) parsing
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -279,15 +279,24 @@ int mbedtls_x509_csr_parse( mbedtls_x509_csr *csr, const unsigned char *buf, siz
     {
         mbedtls_pem_init( &pem );
         ret = mbedtls_pem_read_buffer( &pem,
-                               "-----BEGIN CERTIFICATE REQUEST-----",
-                               "-----END CERTIFICATE REQUEST-----",
-                               buf, NULL, 0, &use_len );
+                                       "-----BEGIN CERTIFICATE REQUEST-----",
+                                       "-----END CERTIFICATE REQUEST-----",
+                                       buf, NULL, 0, &use_len );
+        if( ret == MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT )
+        {
+            ret = mbedtls_pem_read_buffer( &pem,
+                                           "-----BEGIN NEW CERTIFICATE REQUEST-----",
+                                           "-----END NEW CERTIFICATE REQUEST-----",
+                                           buf, NULL, 0, &use_len );
+        }
 
         if( ret == 0 )
+        {
             /*
              * Was PEM encoded, parse the result
              */
             ret = mbedtls_x509_csr_parse_der( csr, pem.buf, pem.buflen );
+        }
 
         mbedtls_pem_free( &pem );
         if( ret != MBEDTLS_ERR_PEM_NO_HEADER_FOOTER_PRESENT )
