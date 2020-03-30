@@ -8,7 +8,7 @@ cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 
 cppflags-lib-y += -DLTC_NO_CIPHERS
 
-ifneq (,$(filter y,$(_CFG_CORE_LTC_AES) $(_CFG_CORE_LTC_AES_DESC)))
+ifeq ($(_CFG_CORE_LTC_AES_DESC),y)
 	cppflags-lib-y += -DLTC_RIJNDAEL
 endif
 ifeq ($(_CFG_CORE_LTC_DES),y)
@@ -47,7 +47,7 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA224),y)
 	cppflags-lib-y += -DLTC_SHA224
 endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA256) $(_CFG_CORE_LTC_SHA256_DESC))) 
+ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
 	cppflags-lib-y += -DLTC_SHA256
 endif
 ifeq ($(_CFG_CORE_LTC_SHA256_ARM32_CE),y)
@@ -56,10 +56,10 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA256_ARM64_CE),y)
 	cppflags-lib-y += -DLTC_SHA256_ARM64_CE
 endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA384) $(_CFG_CORE_LTC_SHA384_DESC)))
+ifeq ($(_CFG_CORE_LTC_SHA384_DESC),y)
 	cppflags-lib-y += -DLTC_SHA384
 endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA512) $(_CFG_CORE_LTC_SHA512_DESC)))
+ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
 	cppflags-lib-y += -DLTC_SHA512
 endif
 ifeq ($(_CFG_CORE_LTC_SHA512_256),y)
