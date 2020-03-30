@@ -47,12 +47,3 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 		ghash_update_block(state,
 				   (uint8_t *)data + n * TEE_AES_BLOCK_SIZE);
 }
-
-TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
-					   struct internal_aes_gcm_key *ek)
-{
-	size_t ek_len = sizeof(ek->data);
-
-	return crypto_aes_expand_enc_key(key, key_len, ek->data, ek_len,
-					&ek->rounds);
-}

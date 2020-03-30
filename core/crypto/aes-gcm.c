@@ -126,13 +126,15 @@ TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
 				 size_t key_len, const void *nonce,
 				 size_t nonce_len, size_t tag_len)
 {
-	TEE_Result res = internal_aes_gcm_expand_enc_key(key, key_len,
-							 &ctx->key);
+	TEE_Result res = TEE_SUCCESS;
+	struct internal_aes_gcm_key *ek = &ctx->key;
+
+	res = crypto_aes_expand_enc_key(key, key_len, ek->data,
+					sizeof(ek->data), &ek->rounds);
 	if (res)
 		return res;
 
-	return __gcm_init(&ctx->state, &ctx->key, mode, nonce, nonce_len,
-			  tag_len);
+	return __gcm_init(&ctx->state, ek, mode, nonce, nonce_len, tag_len);
 }
 
 static TEE_Result __gcm_update_aad(struct internal_aes_gcm_state *state,

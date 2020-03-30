@@ -83,14 +83,6 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 	put_be_block(state->hash_state, dg);
 }
 
-TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
-					   struct internal_aes_gcm_key *enc_key)
-{
-	return crypto_accel_aes_expand_keys(key, key_len, enc_key->data, NULL,
-					    sizeof(enc_key->data),
-					    &enc_key->rounds);
-}
-
 #ifdef ARM64
 static void update_payload_2block(struct internal_aes_gcm_state *state,
 				  const struct internal_aes_gcm_key *ek,
