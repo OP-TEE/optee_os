@@ -17,7 +17,8 @@ ENTRY(_ldelf_start)
 SECTIONS {
 	.text : {
 		__text_start = .;
-		*(.text._ldelf_start .text .text.*)
+		*(.text._ldelf_start)
+		*(.text .text.*)
 		*(.stub)
 		*(.glue_7)
 		*(.glue_7t)
