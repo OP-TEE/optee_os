@@ -533,9 +533,9 @@ void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
 	product[1] = TEE_U64_TO_BIG_ENDIAN(z[1]);
 }
 
-static void encrypt_block(struct internal_aes_gcm_state *state,
-			  const struct internal_aes_gcm_key *ek,
-			  const void *src, void *dst)
+void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *enc_key,
+				    const uint64_t src[2], uint64_t dst[2])
 {
 	void *buf_cryp = state->buf_cryp;
 	void *ctr = state->ctr;
@@ -544,8 +544,8 @@ static void encrypt_block(struct internal_aes_gcm_state *state,
 	internal_aes_gcm_ghash_update(state, buf_cryp, NULL, 0);
 	memcpy(dst, buf_cryp, sizeof(state->buf_cryp));
 
-	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, ctr,
-			     buf_cryp);
+	crypto_aes_enc_block(enc_key->data, sizeof(enc_key->data),
+			     enc_key->rounds, ctr, buf_cryp);
 	internal_aes_gcm_inc_ctr(state);
 }
 
@@ -556,29 +556,32 @@ static void encrypt_pl(struct internal_aes_gcm_state *state,
 	size_t n = 0;
 
 	if (ALIGNMENT_IS_OK(src, uint64_t)) {
-		for (n = 0; n < num_blocks; n++)
-			encrypt_block(state, ek, src + n * TEE_AES_BLOCK_SIZE,
-				      dst + n * TEE_AES_BLOCK_SIZE);
+		for (n = 0; n < num_blocks; n++) {
+			const void *s = src + n * TEE_AES_BLOCK_SIZE;
+			void *d = dst + n * TEE_AES_BLOCK_SIZE;
+
+			internal_aes_gcm_encrypt_block(state, ek, s, d);
+		}
 	} else {
 		for (n = 0; n < num_blocks; n++) {
 			uint64_t tmp[2] = { 0 };
+			void *d = dst + n * TEE_AES_BLOCK_SIZE;
 
 			memcpy(tmp, src + n * TEE_AES_BLOCK_SIZE, sizeof(tmp));
-			encrypt_block(state, ek, tmp,
-				      dst + n * TEE_AES_BLOCK_SIZE);
+			internal_aes_gcm_encrypt_block(state, ek, tmp, d);
 		}
 	}
 }
 
-static void decrypt_block(struct internal_aes_gcm_state *state,
-			  const struct internal_aes_gcm_key *ek,
-			  const void *src, void *dst)
+void internal_aes_gcm_decrypt_block(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *enc_key,
+				    const uint64_t src[2], uint64_t dst[2])
 {
 	void *buf_cryp = state->buf_cryp;
 	void *ctr = state->ctr;
 
-	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, ctr,
-			     buf_cryp);
+	crypto_aes_enc_block(enc_key->data, sizeof(enc_key->data),
+			     enc_key->rounds, ctr, buf_cryp);
 	internal_aes_gcm_inc_ctr(state);
 
 	internal_aes_gcm_xor_block(buf_cryp, src);
@@ -593,16 +596,19 @@ static void decrypt_pl(struct internal_aes_gcm_state *state,
 	size_t n = 0;
 
 	if (ALIGNMENT_IS_OK(src, uint64_t)) {
-		for (n = 0; n < num_blocks; n++)
-			decrypt_block(state, ek, src + n * TEE_AES_BLOCK_SIZE,
-				      dst + n * TEE_AES_BLOCK_SIZE);
+		for (n = 0; n < num_blocks; n++) {
+			const void *s = src + n * TEE_AES_BLOCK_SIZE;
+			void *d = dst + n * TEE_AES_BLOCK_SIZE;
+
+			internal_aes_gcm_decrypt_block(state, ek, s, d);
+		}
 	} else {
 		for (n = 0; n < num_blocks; n++) {
 			uint64_t tmp[2] = { 0 };
+			void *d = dst + n * TEE_AES_BLOCK_SIZE;
 
 			memcpy(tmp, src + n * TEE_AES_BLOCK_SIZE, sizeof(tmp));
-			decrypt_block(state, ek, tmp,
-				      dst + n * TEE_AES_BLOCK_SIZE);
+			internal_aes_gcm_decrypt_block(state, ek, tmp, d);
 		}
 	}
 }
