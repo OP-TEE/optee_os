@@ -90,6 +90,13 @@ internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
 			    uint64_t product[2]);
 
+void internal_aes_gcm_encrypt_block(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *enc_key,
+				    const uint64_t src[2], uint64_t dst[2]);
+void internal_aes_gcm_decrypt_block(struct internal_aes_gcm_state *state,
+				    const struct internal_aes_gcm_key *enc_key,
+				    const uint64_t src[2], uint64_t dst[2]);
+
 static inline void internal_aes_gcm_xor_block(void *dst, const void *src)
 {
 	uint64_t *d = dst;
