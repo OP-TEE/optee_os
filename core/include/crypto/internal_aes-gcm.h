@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017-2020, Linaro Limited
  *
  */
 
@@ -9,6 +9,19 @@
 
 #include <tee_api_types.h>
 #include <utee_defines.h>
+
+#ifdef CFG_CRYPTO_WITH_CE
+#include <crypto/ghash-ce-core.h>
+#else
+struct internal_ghash_key {
+#ifdef CFG_AES_GCM_TABLE_BASED
+	uint64_t HL[16];
+	uint64_t HH[16];
+#else
+	uint64_t hash_subkey[2];
+#endif
+};
+#endif
 
 struct internal_aes_gcm_key {
 	/* AES (CTR) encryption key and number of rounds */
@@ -19,12 +32,7 @@ struct internal_aes_gcm_key {
 struct internal_aes_gcm_state {
 	uint64_t ctr[2];
 
-#ifdef CFG_AES_GCM_TABLE_BASED
-	uint64_t HL[16];
-	uint64_t HH[16];
-#else
-	uint8_t hash_subkey[TEE_AES_BLOCK_SIZE];
-#endif
+	struct internal_ghash_key ghash_key;
 	uint8_t hash_state[TEE_AES_BLOCK_SIZE];
 
 	uint8_t buf_tag[TEE_AES_BLOCK_SIZE];
@@ -77,9 +85,33 @@ TEE_Result
 internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,
 				struct internal_aes_gcm_key *enc_key);
 
+void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
+			    uint64_t product[2]);
+
+static inline void internal_aes_gcm_xor_block(void *dst, const void *src)
+{
+	uint64_t *d = dst;
+	const uint64_t *s = src;
+
+	d[0] ^= s[0];
+	d[1] ^= s[1];
+}
+
+static inline bool internal_aes_gcm_ptr_is_block_aligned(const void *p)
+{
+	return !((vaddr_t)p & (TEE_AES_BLOCK_SIZE - 1));
+}
+
+#ifdef CFG_AES_GCM_TABLE_BASED
+void internal_aes_gcm_ghash_gen_tbl(struct internal_ghash_key *ghash_key,
+				    const struct internal_aes_gcm_key *enc_key);
+void internal_aes_gcm_ghash_mult_tbl(struct internal_ghash_key *ghash_key,
+				     const unsigned char x[16],
+				     unsigned char output[16]);
+#endif
+
 /*
- * Internal weak functions that can be overridden with hardware specific
- * implementations.
+ * Must be implemented in core/arch/arm/crypto/ if CFG_CRYPTO_WITH_CE=y
  */
 void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 			      const struct internal_aes_gcm_key *enc_key);
@@ -87,15 +119,17 @@ void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 				   const void *head, const void *data,
 				   size_t num_blocks);
+void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *enc_key,
+				    const void *src, void *dst);
 
+/*
+ * Internal weak function that can be overridden with hardware specific
+ * implementation.
+ */
 void internal_aes_gcm_update_payload_block_aligned(
 				struct internal_aes_gcm_state *state,
 				const struct internal_aes_gcm_key *enc_key,
 				TEE_OperationMode mode, const void *src,
 				size_t num_blocks, void *dst);
 
-
-
-void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *enc_key,
-				    const void *src, void *dst);
 #endif /*__CRYPTO_INTERNAL_AES_GCM_H*/
