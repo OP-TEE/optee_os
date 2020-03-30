@@ -124,9 +124,6 @@ void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 				   const void *head, const void *data,
 				   size_t num_blocks);
-void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *enc_key,
-				    const void *src, void *dst);
-
 /*
  * Internal weak function that can be overridden with hardware specific
  * implementation.

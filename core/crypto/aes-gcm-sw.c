@@ -16,8 +16,8 @@ void internal_aes_gcm_set_key(struct internal_aes_gcm_state *state,
 #ifdef CFG_AES_GCM_TABLE_BASED
 	internal_aes_gcm_ghash_gen_tbl(&state->ghash_key, ek);
 #else
-	internal_aes_gcm_encrypt_block(ek, state->ctr,
-				       state->ghash_key.hash_subkey);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds,
+			     state->ctr, state->ghash_key.hash_subkey);
 #endif
 }
 
@@ -46,14 +46,6 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 	for (n = 0; n < num_blocks; n++)
 		ghash_update_block(state,
 				   (uint8_t *)data + n * TEE_AES_BLOCK_SIZE);
-}
-
-void internal_aes_gcm_encrypt_block(const struct internal_aes_gcm_key *ek,
-				    const void *src, void *dst)
-{
-	size_t ek_len = sizeof(ek->data);
-
-	crypto_aes_enc_block(ek->data, ek_len, ek->rounds, src, dst);
 }
 
 TEE_Result internal_aes_gcm_expand_enc_key(const void *key, size_t key_len,

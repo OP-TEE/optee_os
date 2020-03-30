@@ -4,8 +4,9 @@
  */
 
 #include <assert.h>
-#include <crypto/internal_aes-gcm.h>
+#include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
+#include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <string_ext.h>
 #include <string.h>
@@ -91,7 +92,8 @@ static TEE_Result __gcm_init(struct internal_aes_gcm_state *state,
 		memset(state->hash_state, 0, sizeof(state->hash_state));
 	}
 
-	internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_tag);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds,
+			     state->ctr, state->buf_tag);
 	internal_aes_gcm_inc_ctr(state);
 	if (mode == TEE_MODE_ENCRYPT) {
 		/*
@@ -111,7 +113,8 @@ static TEE_Result __gcm_init(struct internal_aes_gcm_state *state,
 		 * accelerated routines it's more convenient to always have
 		 * this optimization activated.
 		 */
-		internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_cryp);
+		crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds,
+				     state->ctr, state->buf_cryp);
 		internal_aes_gcm_inc_ctr(state);
 	}
 
@@ -206,10 +209,10 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 		if (state->buf_pos || l < TEE_AES_BLOCK_SIZE) {
 			n = MIN(TEE_AES_BLOCK_SIZE - state->buf_pos, l);
 
-			if (!state->buf_pos && mode == TEE_MODE_DECRYPT) {
-				internal_aes_gcm_encrypt_block(ek, state->ctr,
-							       state->buf_cryp);
-			}
+			if (!state->buf_pos && mode == TEE_MODE_DECRYPT)
+				crypto_aes_enc_block(ek->data, sizeof(ek->data),
+						     ek->rounds, state->ctr,
+						     state->buf_cryp);
 
 			xor_buf(state->buf_cryp + state->buf_pos, s, n);
 			memcpy(d, state->buf_cryp + state->buf_pos, n);
@@ -232,8 +235,9 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 			l -= n;
 
 			if (mode == TEE_MODE_ENCRYPT)
-				internal_aes_gcm_encrypt_block(ek, state->ctr,
-							       state->buf_cryp);
+				crypto_aes_enc_block(ek->data, sizeof(ek->data),
+						     ek->rounds, state->ctr,
+						     state->buf_cryp);
 			internal_aes_gcm_inc_ctr(state);
 		} else {
 			n = l / TEE_AES_BLOCK_SIZE;
@@ -540,7 +544,8 @@ static void encrypt_block(struct internal_aes_gcm_state *state,
 	internal_aes_gcm_ghash_update(state, buf_cryp, NULL, 0);
 	memcpy(dst, buf_cryp, sizeof(state->buf_cryp));
 
-	internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, ctr,
+			     buf_cryp);
 	internal_aes_gcm_inc_ctr(state);
 }
 
@@ -572,7 +577,8 @@ static void decrypt_block(struct internal_aes_gcm_state *state,
 	void *buf_cryp = state->buf_cryp;
 	void *ctr = state->ctr;
 
-	internal_aes_gcm_encrypt_block(ek, ctr, buf_cryp);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, ctr,
+			     buf_cryp);
 	internal_aes_gcm_inc_ctr(state);
 
 	internal_aes_gcm_xor_block(buf_cryp, src);
