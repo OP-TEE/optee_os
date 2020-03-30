@@ -82,16 +82,17 @@ $(call force,CFG_AES_GCM_TABLE_BASED,n,conflicts with CFG_CRYPTO_WITH_CE)
 CFG_HWSUPP_PMULT_64 ?= y
 
 ifeq ($(CFG_ARM32_core),y)
-CFG_CRYPTO_AES_ARM32_CE ?= $(CFG_CRYPTO_AES)
 CFG_CRYPTO_SHA1_ARM32_CE ?= $(CFG_CRYPTO_SHA1)
 CFG_CRYPTO_SHA256_ARM32_CE ?= $(CFG_CRYPTO_SHA256)
 endif
 
 ifeq ($(CFG_ARM64_core),y)
-CFG_CRYPTO_AES_ARM64_CE ?= $(CFG_CRYPTO_AES)
 CFG_CRYPTO_SHA1_ARM64_CE ?= $(CFG_CRYPTO_SHA1)
 CFG_CRYPTO_SHA256_ARM64_CE ?= $(CFG_CRYPTO_SHA256)
 endif
+
+CFG_CRYPTO_AES_ARM_CE ?= $(CFG_CRYPTO_AES)
+CFG_CORE_CRYPTO_AES_ACCEL ?= $(CFG_CRYPTO_AES_ARM_CE)
 
 else #CFG_CRYPTO_WITH_CE
 
@@ -114,8 +115,8 @@ endif
 ifeq ($(CFG_CRYPTO_SHA1_ARM64_CE),y)
 $(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_SHA1_ARM64_CE)
 endif
-ifeq ($(CFG_CRYPTO_AES_ARM64_CE),y)
-$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM64_CE)
+ifeq ($(CFG_CRYPTO_AES_ARM_CE),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM_CE)
 endif
 
 cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
