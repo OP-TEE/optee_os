@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * CAAM Cipher Local header.
  */
 #ifndef __LOCAL_H__
 #define __LOCAL_H__
 
+#include <caam_utils_dmaobj.h>
 #include <drvcrypt.h>
 #include <drvcrypt_cipher.h>
 
@@ -79,12 +80,11 @@ enum caam_cipher_block {
  * @encrypt  Encrypt or decrypt direction
  * @src      Source data to encrypt/decrypt
  * @dst      [out] Destination data encrypted/decrypted
- * @blocks   Additionnal data block to handle (input/output)
  */
 enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 				   uint8_t keyid, bool encrypt,
-				   struct caambuf *src, struct caambuf *dst,
-				   enum caam_cipher_block blocks);
+				   struct caamdmaobj *src,
+				   struct caamdmaobj *dst);
 
 /*
  * Update of the cipher operation in xts mode.
