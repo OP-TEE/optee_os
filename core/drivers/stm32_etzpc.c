@@ -261,7 +261,7 @@ static void init_pm(struct etzpc_instance *dev)
 			dev->periph_cfg[n] |= PERIPH_PM_LOCK_BIT;
 	}
 
-	for (n = 0; n < dev->num_ahb_sec; n++) {
+	for (n = 0; n < dev->num_tzma; n++) {
 		dev->tzma_cfg[n] = (uint8_t)etzpc_get_tzma(n);
 		if (etzpc_get_lock_tzma(n))
 			dev->tzma_cfg[n] |= TZMA_PM_LOCK_BIT;
