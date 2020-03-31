@@ -88,8 +88,8 @@ enum stm32mp1_parent_sel {
 	_UART24_SEL,
 	_UART35_SEL,
 	_UART78_SEL,
-	_ASS_SEL,
-	_MSS_SEL,
+	_AXISS_SEL,
+	_MCUSS_SEL,
 	_USBPHY_SEL,
 	_USBO_SEL,
 	_PARENT_SEL_NB,
@@ -363,12 +363,12 @@ static const uint8_t uart234578_parents[] = {
 	_PCLK1, _PLL4_Q, _HSI_KER, _CSI_KER, _HSE_KER
 };
 
-static const uint8_t ass_parents[] = {
-	_HSI, _HSE, _PLL2
+static const uint8_t axiss_parents[] = {
+	_HSI, _HSE, _PLL2_P
 };
 
-static const uint8_t mss_parents[] = {
-	_HSI, _HSE, _CSI, _PLL3
+static const uint8_t mcuss_parents[] = {
+	_HSI, _HSE, _CSI, _PLL3_P
 };
 
 static const uint8_t usbphy_parents[] = {
@@ -391,8 +391,8 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_UART24_SEL, RCC_UART24CKSELR, 0, 0x7, uart234578_parents),
 	_CLK_PARENT(_UART35_SEL, RCC_UART35CKSELR, 0, 0x7, uart234578_parents),
 	_CLK_PARENT(_UART78_SEL, RCC_UART78CKSELR, 0, 0x7, uart234578_parents),
-	_CLK_PARENT(_ASS_SEL, RCC_ASSCKSELR, 0, 0x3, ass_parents),
-	_CLK_PARENT(_MSS_SEL, RCC_MSSCKSELR, 0, 0x3, mss_parents),
+	_CLK_PARENT(_AXISS_SEL, RCC_ASSCKSELR, 0, 0x3, axiss_parents),
+	_CLK_PARENT(_MCUSS_SEL, RCC_MSSCKSELR, 0, 0x3, mcuss_parents),
 	_CLK_PARENT(_USBPHY_SEL, RCC_USBCKSELR, 0, 0x3, usbphy_parents),
 	_CLK_PARENT(_USBO_SEL, RCC_USBCKSELR, 4, 0x1, usbo_parents),
 };
@@ -992,7 +992,7 @@ static int get_parent_id_parent(unsigned int parent_id)
 	case _ACLK:
 	case _PCLK4:
 	case _PCLK5:
-		s = _ASS_SEL;
+		s = _AXISS_SEL;
 		break;
 	case _PLL1_P:
 	case _PLL1_Q:
