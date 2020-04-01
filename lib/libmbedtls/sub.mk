@@ -15,6 +15,7 @@ SRCS_CRYPTO += blowfish.c
 SRCS_CRYPTO += camellia.c
 SRCS_CRYPTO += ccm.c
 SRCS_CRYPTO += chacha20.c
+SRCS_CRYPTO += chachapoly.c
 SRCS_CRYPTO += cipher.c
 SRCS_CRYPTO += cipher_wrap.c
 SRCS_CRYPTO += cmac.c
