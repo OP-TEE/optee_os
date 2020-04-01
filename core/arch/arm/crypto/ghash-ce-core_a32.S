@@ -172,11 +172,11 @@
 	ldr		ip, [sp]
 	teq		ip, #0
 	beq		0f
-	vld1.64		{T1}, [ip]
+	vld1.8		{T1}, [ip]
 	teq		r0, #0
 	b		1f
 
-0:	vld1.64		{T1}, [r2]!
+0:	vld1.8		{T1}, [r2]!
 	subs		r0, r0, #1
 
 1:	/* multiply XL by SHASH in GF(2^128) */
