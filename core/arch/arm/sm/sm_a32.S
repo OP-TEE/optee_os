@@ -254,7 +254,6 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC sm_fiq_entry
 
-	.section .text.sm_vect_table
         .align	5
 LOCAL_FUNC sm_vect_table , :
 UNWIND(	.fnstart)

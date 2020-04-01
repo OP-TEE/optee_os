@@ -208,7 +208,6 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 #define INV_INSN	0
-	.section .text.thread_excp_vect
 	.align	11, INV_INSN
 FUNC thread_excp_vect , :
 	/* -----------------------------------------------------

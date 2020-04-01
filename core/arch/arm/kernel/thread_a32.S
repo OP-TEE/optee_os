@@ -523,7 +523,6 @@ END_FUNC thread_unwind_user_mode
 	b	thread_foreign_intr_exit
 .endm
 
-	.section .text.thread_excp_vect
         .align	5
 FUNC thread_excp_vect , :
 UNWIND(	.fnstart)
