@@ -24,9 +24,6 @@ struct __TEE_OperationHandle {
 	size_t block_size;	/* Block size of cipher */
 	size_t buffer_offs;	/* Offset in buffer */
 	uint32_t state;		/* Handle to state in TEE Core */
-	uint32_t ae_tag_len;	/*
-				 * tag_len in bytes for AE operation else unused
-				 */
 };
 
 /* Cryptographic Operations API - Generic Operation Functions */
@@ -1328,8 +1325,7 @@ TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	operation->ae_tag_len = tagLen / 8;
-	operation->info.digestLength = operation->ae_tag_len;
+	operation->info.digestLength = tagLen / 8;
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 
 out:
@@ -1488,8 +1484,8 @@ TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 		res = TEE_ERROR_SHORT_BUFFER;
 	}
 
-	if (*tagLen < operation->ae_tag_len) {
-		*tagLen = operation->ae_tag_len;
+	if (*tagLen < operation->info.digestLength) {
+		*tagLen = operation->info.digestLength;
 		res = TEE_ERROR_SHORT_BUFFER;
 	}
 
@@ -1602,7 +1598,7 @@ TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 		goto out;
 
 	/* Supplied tagLen should match what we initiated with */
-	if (tagLen != operation->ae_tag_len)
+	if (tagLen != operation->info.digestLength)
 		res = TEE_ERROR_MAC_INVALID;
 
 	acc_dlen += tmp_dlen;
