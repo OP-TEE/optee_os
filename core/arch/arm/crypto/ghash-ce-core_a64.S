@@ -221,10 +221,10 @@
 
 	/* do the head block first, if supplied */
 	cbz		x4, 0f
-	ld1		{T1.2d}, [x4]
+	ld1		{T1.16b}, [x4]
 	b		1f
 
-0:	ld1		{T1.2d}, [x2], #16
+0:	ld1		{T1.16b}, [x2], #16
 	sub		w0, w0, #1
 
 1:	/* multiply XL by SHASH in GF(2^128) */
