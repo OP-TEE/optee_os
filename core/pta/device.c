@@ -8,6 +8,9 @@
  * UUIDs which can act as TEE bus devices.
  */
 
+#include <config.h>
+#include <kernel/linker.h>
+#include <kernel/early_ta.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
 #include <pta_device.h>
@@ -44,6 +47,25 @@ static TEE_Result get_devices(uint32_t types,
 				res = TEE_ERROR_SHORT_BUFFER;
 			} else {
 				tee_uuid_to_octets(uuid_octet, &ta->uuid);
+				memcpy(device_uuid, uuid_octet,
+				       sizeof(TEE_UUID));
+				device_uuid++;
+				ip_size -= sizeof(TEE_UUID);
+			}
+			op_size += sizeof(TEE_UUID);
+		}
+	}
+
+	if (IS_ENABLED(CFG_EARLY_TA)) {
+		const struct early_ta *eta = NULL;
+
+		for_each_early_ta(eta) {
+			if (!(eta->flags & TA_FLAG_DEVICE_ENUM))
+				continue;
+			if (ip_size < sizeof(TEE_UUID)) {
+				res = TEE_ERROR_SHORT_BUFFER;
+			} else {
+				tee_uuid_to_octets(uuid_octet, &eta->uuid);
 				memcpy(device_uuid, uuid_octet,
 				       sizeof(TEE_UUID));
 				device_uuid++;
