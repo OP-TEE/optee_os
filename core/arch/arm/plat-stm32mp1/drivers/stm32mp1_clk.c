@@ -97,6 +97,56 @@ enum stm32mp1_parent_sel {
 	_UNKNOWN_SEL = 0xff,
 };
 
+static const uint8_t parent_id_clock_id[_PARENT_NB] = {
+	[_HSE] = CK_HSE,
+	[_HSI] = CK_HSI,
+	[_CSI] = CK_CSI,
+	[_LSE] = CK_LSE,
+	[_LSI] = CK_LSI,
+	[_I2S_CKIN] = _UNKNOWN_ID,
+	[_USB_PHY_48] = _UNKNOWN_ID,
+	[_HSI_KER] = CK_HSI,
+	[_HSE_KER] = CK_HSE,
+	[_HSE_KER_DIV2] = CK_HSE_DIV2,
+	[_CSI_KER] = CK_CSI,
+	[_PLL1_P] = PLL1_P,
+	[_PLL1_Q] = PLL1_Q,
+	[_PLL1_R] = PLL1_R,
+	[_PLL2_P] = PLL2_P,
+	[_PLL2_Q] = PLL2_Q,
+	[_PLL2_R] = PLL2_R,
+	[_PLL3_P] = PLL3_P,
+	[_PLL3_Q] = PLL3_Q,
+	[_PLL3_R] = PLL3_R,
+	[_PLL4_P] = PLL4_P,
+	[_PLL4_Q] = PLL4_Q,
+	[_PLL4_R] = PLL4_R,
+	[_ACLK] = CK_AXI,
+	[_PCLK1] = CK_AXI,
+	[_PCLK2] = CK_AXI,
+	[_PCLK3] = CK_AXI,
+	[_PCLK4] = CK_AXI,
+	[_PCLK5] = CK_AXI,
+	[_HCLK6] = CK_AXI,
+	[_HCLK2] = CK_AXI,
+	[_CK_PER] = CK_PER,
+	[_CK_MPU] = CK_MPU,
+	[_CK_MCU] = CK_MCU,
+};
+
+static enum stm32mp1_parent_id clock_id2parent_id(unsigned long id)
+{
+	size_t n = 0;
+
+	COMPILE_TIME_ASSERT(STM32MP1_LAST_CLK < _UNKNOWN_ID);
+
+	for (n = 0; n < ARRAY_SIZE(parent_id_clock_id); n++)
+		if (parent_id_clock_id[n] == id)
+			return (enum stm32mp1_parent_id)n;
+
+	return _UNKNOWN_ID;
+}
+
 /* Identifiers for PLLs and their configuration resources */
 enum stm32mp1_pll_id {
 	_PLL1,
@@ -254,19 +304,6 @@ struct stm32mp1_clk_pll {
 		.refclk[2] = (_p3),				\
 		.refclk[3] = (_p4),				\
 	}
-
-static const uint8_t stm32mp1_clks[][2] = {
-	{ CK_PER, _CK_PER },
-	{ CK_MPU, _CK_MPU },
-	{ CK_AXI, _ACLK },
-	{ CK_MCU, _CK_MCU },
-	{ CK_HSE, _HSE },
-	{ CK_CSI, _CSI },
-	{ CK_LSI, _LSI },
-	{ CK_LSE, _LSE },
-	{ CK_HSI, _HSI },
-	{ CK_HSE_DIV2, _HSE_KER_DIV2 },
-};
 
 #define NB_GATES	ARRAY_SIZE(stm32mp1_clk_gate)
 
@@ -540,16 +577,16 @@ static enum stm32mp1_parent_id stm32mp1_clk_get_fixed_parent(int i)
 static int stm32mp1_clk_get_parent(unsigned long id)
 {
 	const struct stm32mp1_clk_sel *sel = NULL;
-	unsigned int j = 0;
+	enum stm32mp1_parent_id parent_id = 0;
 	uint32_t p_sel = 0;
 	int i = 0;
 	enum stm32mp1_parent_id p = _UNKNOWN_ID;
 	enum stm32mp1_parent_sel s = _UNKNOWN_SEL;
 	vaddr_t rcc_base = stm32_rcc_base();
 
-	for (j = 0U; j < ARRAY_SIZE(stm32mp1_clks); j++)
-		if (stm32mp1_clks[j][0] == id)
-			return (int)stm32mp1_clks[j][1];
+	parent_id = clock_id2parent_id(id);
+	if (parent_id != _UNKNOWN_ID)
+		return (int)parent_id;
 
 	i = stm32mp1_clk_get_gated_id(id);
 	if (i < 0)
