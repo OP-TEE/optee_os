@@ -6,15 +6,7 @@
  */
 
 #include <arm64_macros.S>
-
-#define ENTRY(func) \
-	.global func ; \
-	.type func , %function ; \
-	.balign 4 ; \
-	func :
-
-#define ENDPROC(func) \
-	.size func , .-func
+#include <asm.S>
 
 #define CPU_LE(x...)	x
 
@@ -267,15 +259,13 @@ CPU_LE(	rev64		T1.16b, T1.16b	)
 	 * void pmull_ghash_update(int blocks, u64 dg[], const char *src,
 	 *			   struct ghash_key const *k, const char *head)
 	 */
-	.section .text.pmull_ghash_update_p64
-ENTRY(pmull_ghash_update_p64)
+FUNC pmull_ghash_update_p64 , :
 	__pmull_ghash	p64
-ENDPROC(pmull_ghash_update_p64)
+END_FUNC pmull_ghash_update_p64
 
-	.section .text.pmull_ghash_update_p8
-ENTRY(pmull_ghash_update_p8)
+FUNC pmull_ghash_update_p8 , :
 	__pmull_ghash	p8
-ENDPROC(pmull_ghash_update_p8)
+END_FUNC pmull_ghash_update_p8
 
 	KS		.req	v8
 	CTR		.req	v9
@@ -431,39 +421,36 @@ CPU_LE(	rev64		CTR.16b, CTR.16b)
 	 *			  const u8 src[], struct ghash_key const *k,
 	 *			  u64 ctr[2], int rounds, u8 ks[])
 	 */
-	.section .text.pmull_gcm_encrypt
-ENTRY(pmull_gcm_encrypt)
+FUNC pmull_gcm_encrypt , :
 	pmull_gcm_do_crypt	1
-ENDPROC(pmull_gcm_encrypt)
+END_FUNC pmull_gcm_encrypt
 
 	/*
 	 * void pmull_gcm_decrypt(int blocks, u64 dg[], u8 dst[],
 	 *			  const u8 src[], struct ghash_key const *k,
 	 *			  u64 ctr[2], int rounds)
 	 */
-	.section .text.pmull_gcm_decrypt
-ENTRY(pmull_gcm_decrypt)
+FUNC pmull_gcm_decrypt , :
 	pmull_gcm_do_crypt	0
-ENDPROC(pmull_gcm_decrypt)
+END_FUNC pmull_gcm_decrypt
 
 	/*
 	 * void pmull_gcm_encrypt_block(u8 dst[], u8 src[], int rounds)
 	 */
-	.section .text.pmull_gcm_encrypt_block
-ENTRY(pmull_gcm_encrypt_block)
+FUNC pmull_gcm_encrypt_block , :
 	ld1		{v0.16b}, [x1]
 	enc_block	v0, w2
 	st1		{v0.16b}, [x0]
 	ret
-ENDPROC(pmull_gcm_encrypt_block)
+END_FUNC pmull_gcm_encrypt_block
 
 	/*
 	 * pmull_gcm_load_round_keys(uint64_t rk[2], int rounds)
 	 */
-ENTRY(pmull_gcm_load_round_keys)
+FUNC pmull_gcm_load_round_keys , :
 	load_round_keys	w1, x0
 	ret
-ENDPROC(pmull_gcm_load_round_keys)
+END_FUNC pmull_gcm_load_round_keys
 
 	/*
 	 * uint32_t pmull_gcm_aes_sub(uint32_t input)
@@ -471,10 +458,10 @@ ENDPROC(pmull_gcm_load_round_keys)
 	 * use the aese instruction to perform the AES sbox substitution
 	 * on each byte in 'input'
 	 */
-ENTRY(pmull_gcm_aes_sub)
+FUNC pmull_gcm_aes_sub , :
 	dup	v1.4s, w0
 	movi	v0.16b, #0
 	aese	v0.16b, v1.16b
 	umov	w0, v0.s[0]
 	ret
-ENDPROC(pmull_gcm_aes_sub)
+END_FUNC pmull_gcm_aes_sub
