@@ -881,10 +881,44 @@ static bool __clk_is_enabled(struct stm32mp1_clk_gate const *gate)
 	return io_read32(base + gate->offset) & BIT(gate->bit);
 }
 
+static bool clock_is_always_on(unsigned long id)
+{
+	COMPILE_TIME_ASSERT(CK_HSE == 0 &&
+			    (CK_HSE + 1) == CK_CSI &&
+			    (CK_HSE + 2) == CK_LSI &&
+			    (CK_HSE + 3) == CK_LSE &&
+			    (CK_HSE + 4) == CK_HSI &&
+			    (CK_HSE + 5) == CK_HSE_DIV2 &&
+			    (PLL1_P + 1) == PLL1_Q &&
+			    (PLL1_P + 2) == PLL1_R &&
+			    (PLL1_P + 3) == PLL2_P &&
+			    (PLL1_P + 4) == PLL2_Q &&
+			    (PLL1_P + 5) == PLL2_R &&
+			    (PLL1_P + 6) == PLL3_P &&
+			    (PLL1_P + 7) == PLL3_Q &&
+			    (PLL1_P + 8) == PLL3_R);
+
+	if (id <= CK_HSE_DIV2 || (id >= PLL1_P && id <= PLL3_R))
+		return true;
+
+	switch (id) {
+	case CK_AXI:
+	case CK_MPU:
+	case CK_MCU:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool stm32_clock_is_enabled(unsigned long id)
 {
-	int i = stm32mp1_clk_get_gated_id(id);
+	int i = 0;
 
+	if (clock_is_always_on(id))
+		return true;
+
+	i = stm32mp1_clk_get_gated_id(id);
 	if (i < 0)
 		return false;
 
@@ -893,9 +927,13 @@ bool stm32_clock_is_enabled(unsigned long id)
 
 void stm32_clock_enable(unsigned long id)
 {
-	int i = stm32mp1_clk_get_gated_id(id);
+	int i = 0;
 	uint32_t exceptions = 0;
 
+	if (clock_is_always_on(id))
+		return;
+
+	i = stm32mp1_clk_get_gated_id(id);
 	if (i < 0) {
 		DMSG("Invalid clock %lu: %d", id, i);
 		panic();
@@ -913,9 +951,13 @@ void stm32_clock_enable(unsigned long id)
 
 void stm32_clock_disable(unsigned long id)
 {
-	int i = stm32mp1_clk_get_gated_id(id);
+	int i = 0;
 	uint32_t exceptions = 0;
 
+	if (clock_is_always_on(id))
+		return;
+
+	i = stm32mp1_clk_get_gated_id(id);
 	if (i < 0) {
 		DMSG("Invalid clock %lu: %d", id, i);
 		panic();
