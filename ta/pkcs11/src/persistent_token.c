@@ -183,7 +183,6 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		if (res)
 			TEE_Panic(0);
 
-		/* 2 files: persistent state + persistent object references */
 		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
 						 file, sizeof(file),
 						 TEE_DATA_FLAG_ACCESS_READ |
