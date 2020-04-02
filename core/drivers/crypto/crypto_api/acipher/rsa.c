@@ -204,8 +204,8 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 			rsa_data.rsa_id = DRVCRYPT_RSA_OAEP;
 			rsa_data.hash_algo = TEE_INTERNAL_HASH_TO_ALGO(algo);
 
-			ret = tee_hash_get_digest_size(rsa_data.hash_algo,
-						       &rsa_data.digest_size);
+			ret = tee_alg_get_digest_size(rsa_data.hash_algo,
+						      &rsa_data.digest_size);
 			if (ret != TEE_SUCCESS)
 				return ret;
 
@@ -281,8 +281,8 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			rsa_data.hash_algo = TEE_INTERNAL_HASH_TO_ALGO(algo);
 
 			/* Message length <= (modulus_size - 2 * hLength - 2) */
-			ret = tee_hash_get_digest_size(rsa_data.hash_algo,
-						       &rsa_data.digest_size);
+			ret = tee_alg_get_digest_size(rsa_data.hash_algo,
+						      &rsa_data.digest_size);
 			if (ret != TEE_SUCCESS)
 				return ret;
 
@@ -330,8 +330,8 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		rsa_ssa.hash_algo = TEE_DIGEST_HASH_TO_ALGO(algo);
 
 		/* Check if the message length is digest hash size */
-		ret = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-					       &rsa_ssa.digest_size);
+		ret = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+					      &rsa_ssa.digest_size);
 		if (ret != TEE_SUCCESS)
 			return ret;
 
@@ -405,8 +405,8 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		rsa_ssa.hash_algo = TEE_DIGEST_HASH_TO_ALGO(algo);
 
 		/* Check if the message length is digest hash size */
-		ret = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-					       &rsa_ssa.digest_size);
+		ret = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+					      &rsa_ssa.digest_size);
 		if (ret != TEE_SUCCESS)
 			return ret;
 

@@ -2442,7 +2442,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
-		res = tee_hash_get_digest_size(cs->algo, &hash_size);
+		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (hlen < hash_size) {
@@ -2462,7 +2462,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		break;
 
 	case TEE_OPERATION_MAC:
-		res = tee_mac_get_digest_size(cs->algo, &hash_size);
+		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (hlen < hash_size) {
@@ -3774,7 +3774,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	case TEE_MAIN_ALGO_RSA:
 		if (cs->algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 			hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-			res = tee_hash_get_digest_size(hash_algo, &hash_size);
+			res = tee_alg_get_digest_size(hash_algo, &hash_size);
 			if (res != TEE_SUCCESS)
 				break;
 			if (data_len != hash_size) {
@@ -3791,7 +3791,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 
 	case TEE_MAIN_ALGO_DSA:
 		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-		res = tee_hash_get_digest_size(hash_algo, &hash_size);
+		res = tee_alg_get_digest_size(hash_algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			break;
 		/*
