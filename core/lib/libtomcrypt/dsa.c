@@ -122,8 +122,8 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 		goto err;
 	}
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
+	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				      &hash_size);
 	if (res != TEE_SUCCESS)
 		goto err;
 	if (mp_unsigned_bin_size(ltc_key.q) < hash_size)
