@@ -535,8 +535,8 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		goto err;
 	}
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
+	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				      &hash_size);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -606,8 +606,8 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	rsa.E = *(mbedtls_mpi *)key->e;
 	rsa.N = *(mbedtls_mpi *)key->n;
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
+	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				      &hash_size);
 	if (res != TEE_SUCCESS)
 		goto err;
 

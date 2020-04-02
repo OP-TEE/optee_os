@@ -29,7 +29,7 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 		 * zeros
 		 */
 		salt = zero_salt;
-		res = tee_hash_get_digest_size(hash_algo, &salt_len);
+		res = tee_alg_get_digest_size(hash_algo, &salt_len);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
@@ -56,7 +56,7 @@ static TEE_Result hkdf_extract(uint32_t hash_id, const uint8_t *ikm,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_hash_get_digest_size(hash_algo, prk_len);
+	res = tee_alg_get_digest_size(hash_algo, prk_len);
 out:
 	crypto_mac_free_ctx(ctx);
 	return res;
@@ -73,7 +73,7 @@ static TEE_Result hkdf_expand(uint32_t hash_id, const uint8_t *prk,
 	uint32_t hash_algo = TEE_ALG_HASH_ALGO(hash_id);
 	uint32_t hmac_algo = TEE_ALG_HMAC_ALGO(hash_id);
 
-	res = tee_hash_get_digest_size(hash_algo, &hash_len);
+	res = tee_alg_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 

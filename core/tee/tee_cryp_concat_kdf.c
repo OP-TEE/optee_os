@@ -28,7 +28,7 @@ TEE_Result tee_cryp_concat_kdf(uint32_t hash_id, const uint8_t *shared_secret,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_hash_get_digest_size(hash_algo, &hash_len);
+	res = tee_alg_get_digest_size(hash_algo, &hash_len);
 	if (res != TEE_SUCCESS)
 		goto out;
 
