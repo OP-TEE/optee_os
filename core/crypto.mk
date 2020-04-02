@@ -174,6 +174,7 @@ $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
 _CFG_CORE_LTC_AES_ACCEL := $(CFG_CORE_CRYPTO_AES_ACCEL)
 _CFG_CORE_LTC_SHA1_ACCEL := $(CFG_CORE_CRYPTO_SHA1_ACCEL)
+_CFG_CORE_LTC_SHA256_ACCEL := $(CFG_CORE_CRYPTO_SHA256_ACCEL)
 endif
 
 ###############################################################
