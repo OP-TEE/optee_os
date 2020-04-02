@@ -13,8 +13,8 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
-#include "pkcs11_token.h"
 #include "pkcs11_helpers.h"
+#include "pkcs11_token.h"
 #include "serializer.h"
 
 /* Provide 3 slots/tokens, ID is token index */

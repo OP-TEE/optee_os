@@ -6,8 +6,8 @@
 #ifndef PKCS11_TA_SERIALIZER_H
 #define PKCS11_TA_SERIALIZER_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 /*
  * Util routines for serializes unformated arguments in a client memref
