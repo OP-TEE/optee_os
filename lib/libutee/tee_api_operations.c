@@ -279,6 +279,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		op->info.operationClass = TEE_OPERATION_ASYMMETRIC_SIGNATURE;
 #endif
 	op->info.mode = mode;
+	op->info.digestLength = TEE_ALG_GET_DIGEST_SIZE(algorithm);
 	op->info.maxKeySize = maxKeySize;
 	op->info.requiredKeyUsage = req_key_usage;
 	op->info.handleState = handle_state;
@@ -1328,6 +1329,7 @@ TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 		goto out;
 
 	operation->ae_tag_len = tagLen / 8;
+	operation->info.digestLength = operation->ae_tag_len;
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 
 out:
