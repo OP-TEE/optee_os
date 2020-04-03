@@ -8,6 +8,7 @@
 #define __CAAM_DESC_HELPER_H__
 
 #include <caam_desc_defines.h>
+#include <caam_jr.h>
 #include <trace.h>
 
 /*
@@ -22,15 +23,10 @@ void caam_desc_add_ptr(uint32_t *desc, paddr_t ptr);
 void caam_desc_add_word(uint32_t *desc, uint32_t word);
 
 /* Push/Pop descriptor rings queue */
-#ifdef CFG_CAAM_64BIT
-void caam_desc_push(uint64_t *in_entry, paddr_t paddr);
-paddr_t caam_desc_pop(uint64_t *out_entry);
-#else
-void caam_desc_push(uint32_t *in_entry, paddr_t paddr);
-paddr_t caam_desc_pop(uint32_t *out_entry);
-#endif /* CFG_CAAM_64BIT */
+void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr);
+paddr_t caam_desc_pop(struct caam_outring_entry *out_entry);
 
-uint32_t caam_read_jobstatus(uint32_t *addr);
+uint32_t caam_read_jobstatus(struct caam_outring_entry *out);
 
 /* Debug print function to dump a Descriptor in hex */
 static inline void dump_desc(uint32_t *desc)
