@@ -215,7 +215,7 @@ enum caam_status caam_hal_jr_flush(vaddr_t baseaddr)
 		caam_udelay(10);
 		val = io_caam_read32(baseaddr + JRX_JRINTR);
 		val &= BM_JRX_JRINTR_HALT;
-	} while ((val == JRINTR_HALT_DONE) && --timeout);
+	} while ((val == JRINTR_HALT_ONGOING) && --timeout);
 
 	if (!timeout)
 		return CAAM_BUSY;
