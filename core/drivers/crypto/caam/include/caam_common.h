@@ -73,11 +73,19 @@ struct caamdefkey {
  * Scatter/Gather Table type for input and output data
  */
 struct caamsgt {
+#if defined(CFG_CAAM_64BIT) && defined(CFG_CAAM_LITTLE_ENDIAN)
+	/* Word 0 */
+	uint32_t ptr_ls;   /* Address pointer (LS 32 bits) */
+
+	/* Word 1 */
+	uint32_t ptr_ms;   /* Address pointer (MS 8 LSBs) */
+#else
 	/* Word 0 */
 	uint32_t ptr_ms;   /* Address pointer (MS 8 LSBs) */
 
 	/* Word 1 */
 	uint32_t ptr_ls;   /* Address pointer (LS 32 bits) */
+#endif
 
 	/* Word 2 */
 	uint32_t len_f_e;  /* Length 30bits + 1bit Final + 1bit Extension) */
