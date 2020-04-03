@@ -76,13 +76,23 @@ void caam_hal_jr_config(vaddr_t baseaddr, uint8_t nbjobs, uint64_t inrings,
 	uint32_t value = 0;
 
 	/* Setup the JR input queue */
+#if defined(CFG_CAAM_64BIT) && defined(CFG_CAAM_LITTLE_ENDIAN)
+	io_caam_write32(baseaddr + JRX_IRBAR, inrings);
+	io_caam_write32(baseaddr + JRX_IRBAR + 4, inrings >> 32);
+#else
 	io_caam_write32(baseaddr + JRX_IRBAR, inrings >> 32);
 	io_caam_write32(baseaddr + JRX_IRBAR + 4, inrings);
+#endif
 	io_caam_write32(baseaddr + JRX_IRSR, nbjobs);
 
 	/* Setup the JR output queue */
+#if defined(CFG_CAAM_64BIT) && defined(CFG_CAAM_LITTLE_ENDIAN)
+	io_caam_write32(baseaddr + JRX_ORBAR, outrings);
+	io_caam_write32(baseaddr + JRX_ORBAR + 4, outrings >> 32);
+#else
 	io_caam_write32(baseaddr + JRX_ORBAR, outrings >> 32);
 	io_caam_write32(baseaddr + JRX_ORBAR + 4, outrings);
+#endif
 	io_caam_write32(baseaddr + JRX_ORSR, nbjobs);
 
 	/* Disable the JR interrupt */
