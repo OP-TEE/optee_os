@@ -17,7 +17,11 @@
 /*
  * Definition of the number of CAAM Jobs to manage in JR queues
  */
+#if defined(CFG_NB_JOBS_QUEUE)
+#define NB_JOBS_QUEUE	CFG_NB_JOBS_QUEUE
+#else
 #define NB_JOBS_QUEUE 10
+#endif
 
 /*
  * Flag Job Ring Owner is Secure
