@@ -69,37 +69,36 @@ void caam_desc_add_ptr(uint32_t *desc, paddr_t ptr)
 }
 
 #ifdef CFG_CAAM_64BIT
-void caam_desc_push(uint64_t *in_entry, paddr_t paddr)
+void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr)
 {
 #ifdef CFG_CAAM_BIG_ENDIAN
-	put_be64(in_entry, paddr);
+	put_be64(&in_entry->desc, paddr);
 #else
-	put_le64(in_entry, paddr);
+	put_le64(&in_entry->desc, paddr);
 #endif /* CFG_CAAM_BIG_ENDIAN */
 }
 
-paddr_t caam_desc_pop(uint64_t *out_entry)
+paddr_t caam_desc_pop(struct caam_outring_entry *out_entry)
 {
-	const uint32_t *a32 = (const uint32_t *)out_entry;
 #ifdef CFG_CAAM_BIG_ENDIAN
-	return SHIFT_U64(get_be32(&a32[0]), 32) | get_be32(&a32[1]);
+	return get_be64(&out_entry->desc);
 #else
-	return SHIFT_U64(get_be32(&a32[1]), 32) | get_be32(&a32[0]);
+	return get_le64(&out_entry->desc);
 #endif /* CFG_CAAM_BIG_ENDIAN */
 }
 #else /* CFG_CAAM_64BIT */
-void caam_desc_push(uint32_t *in_entry, paddr_t paddr)
+void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr)
 {
-	caam_write_val32(in_entry, paddr);
+	caam_write_val32(&in_entry->desc, paddr);
 }
 
-paddr_t caam_desc_pop(uint32_t *out_entry)
+paddr_t caam_desc_pop(struct caam_outring_entry *out_entry)
 {
-	return caam_read_val32(out_entry);
+	return caam_read_val32(&out_entry->desc);
 }
 #endif /* CFG_CAAM_64BIT */
 
-uint32_t caam_read_jobstatus(uint32_t *addr)
+uint32_t caam_read_jobstatus(struct caam_outring_entry *out)
 {
-	return caam_read_val32(addr);
+	return caam_read_val32(&out->status);
 }
