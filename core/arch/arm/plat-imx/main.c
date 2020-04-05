@@ -119,6 +119,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 #endif
 
 register_dynamic_shm(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
+#if defined(CFG_NSEC_DDR_1_BASE) && defined(CFG_NSEC_DDR_1_SIZE)
+register_dynamic_shm(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
+#endif
 
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
