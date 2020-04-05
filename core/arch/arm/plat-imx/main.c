@@ -47,9 +47,9 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 
-static struct gic_data gic_data;
+static struct gic_data gic_data __nex_bss;
 
-static const struct thread_handlers handlers = {
+static const struct thread_handlers handlers __nex_data = {
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	.cpu_on = cpu_on_handler,
 	.cpu_off = pm_do_nothing,
@@ -67,7 +67,7 @@ static const struct thread_handlers handlers = {
 #endif
 };
 
-static struct imx_uart_data console_data;
+static struct imx_uart_data console_data __nex_bss;
 
 #ifdef CONSOLE_UART_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
