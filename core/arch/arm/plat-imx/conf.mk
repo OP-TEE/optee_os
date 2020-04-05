@@ -307,6 +307,9 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8qxpmek mx8qmmek))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART0_BASE
+CFG_NSEC_DDR_1_BASE ?= 0x880000000UL
+CFG_NSEC_DDR_1_SIZE  ?= 0x380000000UL
+CFG_CORE_ARM64_PA_BITS ?= 40
 endif
 
 # i.MX6 Solo/SL/SoloX/DualLite/Dual/Quad specific config
