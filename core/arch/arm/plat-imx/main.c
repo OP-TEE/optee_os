@@ -118,6 +118,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			CORE_MMU_PGDIR_SIZE);
 #endif
 
+register_dynamic_shm(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
+
 const struct thread_handlers *generic_boot_get_handlers(void)
 {
 	return &handlers;
