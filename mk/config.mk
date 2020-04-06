@@ -291,10 +291,12 @@ CFG_WITH_PAGER ?= n
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will
 # cause a panic as soon as the invalid locking condition is detected. If
-# CFG_UNWIND is enabled, the algorithm records the call stacks when locks are
-# taken, and prints them when a potential deadlock is found.
+# CFG_UNWIND and CFG_LOCKDEP_RECORD_STACK are both enabled, the algorithm
+# records the call stacks when locks are taken, and prints them when a
+# potential deadlock is found.
 # Expect a significant performance impact when enabling this.
 CFG_LOCKDEP ?= n
+CFG_LOCKDEP_RECORD_STACK ?= y
 
 # BestFit algorithm in bget reduces the fragmentation of the heap when running
 # with the pager enabled or lockdep
