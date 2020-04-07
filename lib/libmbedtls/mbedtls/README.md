@@ -35,7 +35,7 @@ In order to run the tests, enter:
 
     make check
 
-The tests need Perl to be built and run. If you don't have Perl installed, you can skip building the tests with:
+The tests need Python to be built and Perl to be run. If you don't have one of them installed, you can skip building the tests with:
 
     make no_test
 
@@ -47,7 +47,7 @@ In order to build for a Windows platform, you should use `WINDOWS_BUILD=1` if th
 
 Setting the variable `SHARED` in your environment will build shared libraries in addition to the static libraries. Setting `DEBUG` gives you a debug build. You can override `CFLAGS` and `LDFLAGS` by setting them in your environment or on the make command line; compiler warning options may be overridden separately using `WARNING_CFLAGS`. Some directory-specific options (for example, `-I` directives) are still preserved.
 
-Please note that setting `CFLAGS` overrides its default value of `-O2` and setting `WARNING_CFLAGS` overrides its default value (starting with `-Wall -W`), so if you just want to add some warning options to the default ones, you can do so by setting `CFLAGS=-O2 -Werror` for example. Setting `WARNING_CFLAGS` is useful when you want to get rid of its default content (for example because your compiler doesn't accept `-Wall` as an option). Directory-specific options cannot be overriden from the command line.
+Please note that setting `CFLAGS` overrides its default value of `-O2` and setting `WARNING_CFLAGS` overrides its default value (starting with `-Wall -W`), so if you just want to add some warning options to the default ones, you can do so by setting `CFLAGS=-O2 -Werror` for example. Setting `WARNING_CFLAGS` is useful when you want to get rid of its default content (for example because your compiler doesn't accept `-Wall` as an option). Directory-specific options cannot be overridden from the command line.
 
 Depending on your platform, you might run into some issues. Please check the Makefiles in `library/`, `programs/` and `tests/` for options to manually add or remove for specific platforms. You can also check [the Mbed TLS Knowledge Base](https://tls.mbed.org/kb) for articles on your platform or issue.
 
@@ -65,7 +65,7 @@ In order to run the tests, enter:
 
     make test
 
-The test suites need Perl to be built. If you don't have Perl installed, you'll want to disable the test suites with:
+The test suites need Python to be built and Perl to be executed. If you don't have one of these installed, you'll want to disable the test suites with:
 
     cmake -DENABLE_TESTING=Off /path/to/mbedtls_source
 
@@ -133,7 +133,7 @@ on the build mode as seen above), it's merely prepended to it.
 
 The build files for Microsoft Visual Studio are generated for Visual Studio 2010.
 
-The solution file `mbedTLS.sln` contains all the basic projects needed to build the library and all the programs. The files in tests are not generated and compiled, as these need a perl environment as well. However, the selftest program in `programs/test/` is still available.
+The solution file `mbedTLS.sln` contains all the basic projects needed to build the library and all the programs. The files in tests are not generated and compiled, as these need Python and perl environments as well. However, the selftest program in `programs/test/` is still available.
 
 Example programs
 ----------------
@@ -143,7 +143,7 @@ We've included example programs for a lot of different features and uses in [`pr
 Tests
 -----
 
-Mbed TLS includes an elaborate test suite in `tests/` that initially requires Perl to generate the tests files (e.g. `test\_suite\_mpi.c`). These files are generated from a `function file` (e.g. `suites/test\_suite\_mpi.function`) and a `data file` (e.g. `suites/test\_suite\_mpi.data`). The `function file` contains the test functions. The `data file` contains the test cases, specified as parameters that will be passed to the test function.
+Mbed TLS includes an elaborate test suite in `tests/` that initially requires Python to generate the tests files (e.g. `test\_suite\_mpi.c`). These files are generated from a `function file` (e.g. `suites/test\_suite\_mpi.function`) and a `data file` (e.g. `suites/test\_suite\_mpi.data`). The `function file` contains the test functions. The `data file` contains the test cases, specified as parameters that will be passed to the test function.
 
 For machines with a Unix shell and OpenSSL (and optionally GnuTLS) installed, additional test scripts are available:
 
