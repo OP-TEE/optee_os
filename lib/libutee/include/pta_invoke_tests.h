@@ -96,5 +96,12 @@
  */
 #define PTA_INVOKE_TEST_CMD_AES_PERF		9
 
+/*
+ * NULL memory reference parameter
+ *
+ * [in/out] memref[0]	NULL memory reference of size zero
+ */
+#define PTA_INVOKE_TESTS_CMD_MEMREF_NULL	10
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 
