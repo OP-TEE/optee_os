@@ -5,6 +5,7 @@
  */
 
 #include <boot_api.h>
+#include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/stm32_etzpc.h>
@@ -211,24 +212,21 @@ void main_secondary_init_gic(void)
 	stm32mp_register_online_cpu();
 }
 
-#ifndef CFG_EMBED_DTB
 static TEE_Result init_stm32mp1_drivers(void)
 {
 	/* Without secure DTB support, some drivers must be inited */
-	stm32_etzpc_init(ETZPC_BASE);
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		stm32_etzpc_init(ETZPC_BASE);
 
-	return TEE_SUCCESS;
-}
-driver_init(init_stm32mp1_drivers);
-#endif /*!CFG_EMBED_DTB*/
-
-/* Platform initializations once all drivers are ready */
-static TEE_Result init_late_stm32mp1_drivers(void)
-{
 	/* Secure internal memories for the platform, once ETZPC is ready */
 	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
 	etzpc_lock_tzma(0);
-	etzpc_configure_tzma(1, ETZPC_TZMA_ALL_SECURE);
+
+	COMPILE_TIME_ASSERT(((SYSRAM_BASE + SYSRAM_SIZE) <= CFG_TZSRAM_START) ||
+			    ((SYSRAM_BASE <= CFG_TZSRAM_START) &&
+			     (SYSRAM_SEC_SIZE >= CFG_TZSRAM_SIZE)));
+
+	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
 
 	/* Static secure DECPROT configuration */
@@ -254,7 +252,7 @@ static TEE_Result init_late_stm32mp1_drivers(void)
 
 	return TEE_SUCCESS;
 }
-driver_init_late(init_late_stm32mp1_drivers);
+service_init_late(init_stm32mp1_drivers);
 
 vaddr_t get_gicc_base(void)
 {
