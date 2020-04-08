@@ -65,6 +65,26 @@ struct scmi_msg_channel *plat_scmi_get_channel(unsigned int agent_id)
 	return &scmi_channel[agent_id];
 }
 
+#define RESET_CELL(_scmi_id, _id, _name) \
+	[_scmi_id] = { \
+		.reset_id = _id, \
+		.name = _name, \
+	}
+
+struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
+	RESET_CELL(RST_SCMI0_SPI6, SPI6_R, "spi6"),
+	RESET_CELL(RST_SCMI0_I2C4, I2C4_R, "i2c4"),
+	RESET_CELL(RST_SCMI0_I2C6, I2C6_R, "i2c6"),
+	RESET_CELL(RST_SCMI0_USART1, USART1_R, "usart1"),
+	RESET_CELL(RST_SCMI0_STGEN, STGEN_R, "stgen"),
+	RESET_CELL(RST_SCMI0_GPIOZ, GPIOZ_R, "gpioz"),
+	RESET_CELL(RST_SCMI0_CRYP1, CRYP1_R, "cryp1"),
+	RESET_CELL(RST_SCMI0_HASH1, HASH1_R, "hash1"),
+	RESET_CELL(RST_SCMI0_RNG1, RNG1_R, "rng1"),
+	RESET_CELL(RST_SCMI0_MDMA, MDMA_R, "mdma"),
+	RESET_CELL(RST_SCMI0_MCU, MCU_R, "mcu"),
+};
+
 struct scmi_agent_resources {
 	struct stm32_scmi_clk *clock;
 	size_t clock_count;
@@ -77,9 +97,19 @@ struct scmi_agent_resources {
 };
 
 const struct scmi_agent_resources agent_resources[] = {
-	[0] = { },
+	[0] = {
+		.rd = stm32_scmi0_reset_domain,
+		.rd_count = ARRAY_SIZE(stm32_scmi0_reset_domain),
+	},
 	[1] = { },
 };
+
+static const struct scmi_agent_resources *find_resource(unsigned int agent_id)
+{
+	assert(agent_id < ARRAY_SIZE(agent_resources));
+
+	return &agent_resources[agent_id];
+}
 
 static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
 {
@@ -127,8 +157,9 @@ const char *plat_scmi_sub_vendor_name(void)
 	return sub_vendor;
 }
 
-/* Currently supporting only SCMI Base protocol */
+/* Currently supporting Reset Domains */
 static const uint8_t plat_protocol_list[] = {
+	SCMI_PROTOCOL_ID_RESET_DOMAIN,
 	0 /* Null termination */
 };
 
@@ -150,11 +181,98 @@ const uint8_t *plat_scmi_protocol_list(unsigned int agent_id __unused)
 }
 
 /*
+ * Platform SCMI reset domains
+ */
+static struct stm32_scmi_rd *find_rd(unsigned int agent_id,
+				     unsigned int scmi_id)
+{
+	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	size_t n = 0;
+
+	if (resource) {
+		for (n = 0; n < resource->rd_count; n++)
+			if (n == scmi_id)
+				return &resource->rd[n];
+	}
+
+	return NULL;
+}
+
+const char *plat_scmi_rd_get_name(unsigned int agent_id, unsigned int scmi_id)
+{
+	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+
+	if (!rd)
+		return NULL;
+
+	return rd->name;
+}
+
+size_t plat_scmi_rd_count(unsigned int agent_id)
+{
+	const struct scmi_agent_resources *resource = find_resource(agent_id);
+
+	if (!resource)
+		return 0;
+
+	return resource->rd_count;
+}
+
+int32_t plat_scmi_rd_autonomous(unsigned int agent_id, unsigned int scmi_id,
+				uint32_t state)
+{
+	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+
+	if (!rd)
+		return SCMI_NOT_FOUND;
+
+	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+		return SCMI_DENIED;
+
+	/* Supports only reset with context loss */
+	if (state)
+		return SCMI_NOT_SUPPORTED;
+
+	DMSG("SCMI reset %u cycle", scmi_id);
+
+	if (stm32_reset_assert(rd->reset_id, TIMEOUT_US_1MS))
+		return SCMI_HARDWARE_ERROR;
+
+	if (stm32_reset_deassert(rd->reset_id, TIMEOUT_US_1MS))
+		return SCMI_HARDWARE_ERROR;
+
+	return SCMI_SUCCESS;
+}
+
+int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
+			       bool assert_not_deassert)
+{
+	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+
+	if (!rd)
+		return SCMI_NOT_FOUND;
+
+	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+		return SCMI_DENIED;
+
+	if (assert_not_deassert) {
+		DMSG("SCMI reset %u set", scmi_id);
+		stm32_reset_set(rd->reset_id);
+	} else {
+		DMSG("SCMI reset %u release", scmi_id);
+		stm32_reset_release(rd->reset_id);
+	}
+
+	return SCMI_SUCCESS;
+}
+
+/*
  * Initialize platform SCMI resources
  */
 static TEE_Result stm32mp1_init_scmi_server(void)
 {
 	size_t i = 0;
+	size_t j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(scmi_channel); i++) {
 		struct scmi_msg_channel *chan = &scmi_channel[i];
@@ -165,6 +283,18 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 		assert(chan->shm_addr.va);
 
 		scmi_smt_init_agent_channel(chan);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(agent_resources); i++) {
+		const struct scmi_agent_resources *res = &agent_resources[i];
+
+		for (j = 0; j < res->rd_count; j++) {
+			struct stm32_scmi_rd *rd = &res->rd[j];
+
+			if (!rd->name ||
+			    strlen(rd->name) >= SCMI_RD_NAME_SIZE)
+				panic("SCMI reset domain name invalid");
+		}
 	}
 
 	return TEE_SUCCESS;
