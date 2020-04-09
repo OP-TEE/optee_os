@@ -10,6 +10,7 @@
 #include <tee_api_types.h>
 
 struct early_ta {
+	uint32_t flags;
 	TEE_UUID uuid;
 	uint32_t size;
 	uint32_t uncompressed_size; /* 0: not compressed */
