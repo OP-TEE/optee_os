@@ -1116,3 +1116,206 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 
 	return set_pin(session, pin, pin_size, PKCS11_CKU_USER);
 }
+
+static void session_login_user(struct pkcs11_session *session)
+{
+	struct pkcs11_client *client = session->client;
+	struct pkcs11_session *sess = NULL;
+
+	TAILQ_FOREACH(sess, &client->session_list, link) {
+		if (sess->token != session->token)
+			continue;
+
+		if (pkcs11_session_is_read_write(sess))
+			sess->state = PKCS11_CKS_RW_USER_FUNCTIONS;
+		else
+			sess->state = PKCS11_CKS_RO_USER_FUNCTIONS;
+	}
+}
+
+static void session_login_so(struct pkcs11_session *session)
+{
+	struct pkcs11_client *client = session->client;
+	struct pkcs11_session *sess = NULL;
+
+	TAILQ_FOREACH(sess, &client->session_list, link) {
+		if (sess->token != session->token)
+			continue;
+
+		if (pkcs11_session_is_read_write(sess))
+			sess->state = PKCS11_CKS_RW_SO_FUNCTIONS;
+		else
+			TEE_Panic(0);
+	}
+}
+
+static void session_logout(struct pkcs11_session *session)
+{
+	struct pkcs11_client *client = session->client;
+	struct pkcs11_session *sess = NULL;
+
+	TAILQ_FOREACH(sess, &client->session_list, link) {
+		if (sess->token != session->token)
+			continue;
+
+		if (pkcs11_session_is_read_write(sess))
+			sess->state = PKCS11_CKS_RW_PUBLIC_SESSION;
+		else
+			sess->state = PKCS11_CKS_RO_PUBLIC_SESSION;
+	}
+}
+
+uint32_t entry_ck_login(struct pkcs11_client *client,
+			uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_session *sess = NULL;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	uint32_t session_handle = 0;
+	TEE_Param *ctrl = params;
+	uint32_t user_type = 0;
+	uint32_t pin_size = 0;
+	void *pin = NULL;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &user_type, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &pin_size, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_ptr(&ctrlargs, &pin, pin_size);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	session = pkcs11_handle2session(session_handle, client);
+	if (!session)
+		return PKCS11_CKR_SESSION_HANDLE_INVALID;
+
+	switch (user_type) {
+	case PKCS11_CKU_SO:
+		if (pkcs11_session_is_so(session))
+			return PKCS11_CKR_USER_ALREADY_LOGGED_IN;
+
+		if (pkcs11_session_is_user(session))
+			return PKCS11_CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+
+		TAILQ_FOREACH(sess, &client->session_list, link)
+			if (sess->token == session->token &&
+			    !pkcs11_session_is_read_write(sess))
+				return PKCS11_CKR_SESSION_READ_ONLY_EXISTS;
+
+		/*
+		 * This is the point where we could check if another client
+		 * has another user or SO logged in.
+		 *
+		 * The spec says:
+		 * CKR_USER_TOO_MANY_TYPES: An attempt was made to have
+		 * more distinct users simultaneously logged into the token
+		 * than the token and/or library permits. For example, if
+		 * some application has an open SO session, and another
+		 * application attempts to log the normal user into a
+		 * session, the attempt may return this error. It is not
+		 * required to, however. Only if the simultaneous distinct
+		 * users cannot be supported does C_Login have to return
+		 * this value. Note that this error code generalizes to
+		 * true multi-user tokens.
+		 *
+		 * So it's permitted to have another user or SO logged in
+		 * from another client.
+		 */
+
+		rc = check_so_pin(session, pin, pin_size);
+		if (!rc)
+			session_login_so(session);
+
+		break;
+
+	case PKCS11_CKU_USER:
+		if (pkcs11_session_is_so(session))
+			return PKCS11_CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+
+		if (pkcs11_session_is_user(session))
+			return PKCS11_CKR_USER_ALREADY_LOGGED_IN;
+
+		/*
+		 * This is the point where we could check if another client
+		 * has another user or SO logged in.
+		 * See comment on CKR_USER_TOO_MANY_TYPES above.
+		 */
+
+		rc = check_user_pin(session, pin, pin_size);
+		if (!rc)
+			session_login_user(session);
+
+		break;
+
+	case PKCS11_CKU_CONTEXT_SPECIFIC:
+		return PKCS11_CKR_OPERATION_NOT_INITIALIZED;
+
+	default:
+		return PKCS11_CKR_USER_TYPE_INVALID;
+	}
+
+	if (!rc)
+		IMSG("PKCS11 session %"PRIu32": login", session_handle);
+
+	return rc;
+}
+
+uint32_t entry_ck_logout(struct pkcs11_client *client,
+			 uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	struct pkcs11_session *session = NULL;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	uint32_t session_handle = 0;
+	TEE_Param *ctrl = params;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	session = pkcs11_handle2session(session_handle, client);
+	if (!session)
+		return PKCS11_CKR_SESSION_HANDLE_INVALID;
+
+	if (pkcs11_session_is_public(session))
+		return PKCS11_CKR_USER_NOT_LOGGED_IN;
+
+	session_logout(session);
+
+	IMSG("PKCS11 session %"PRIu32": logout", session_handle);
+
+	return PKCS11_CKR_OK;
+}
