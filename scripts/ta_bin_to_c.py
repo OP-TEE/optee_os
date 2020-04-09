@@ -6,8 +6,10 @@
 
 import argparse
 import array
+from elftools.elf.elffile import ELFFile
 import os
 import re
+import struct
 import uuid
 import zlib
 
@@ -37,6 +39,25 @@ def get_args():
 
     return parser.parse_args()
 
+def get_name(obj):
+    # Symbol or section .name might be a byte array or a string, we want a
+    # string
+    try:
+        name = obj.name.decode()
+    except (UnicodeDecodeError, AttributeError):
+        name = obj.name
+    return name
+
+def ta_get_flags(ta_f):
+
+    with open(ta_f, 'rb') as f:
+        elffile = ELFFile(f)
+
+        for s in elffile.iter_sections():
+            if get_name(s) == '.ta_head':
+                return struct.unpack('<16x4xI', s.data()[:24])[0]
+
+        raise Exception('.ta_head section not found')
 
 def main():
 
@@ -59,6 +80,7 @@ def main():
     f.write('__extension__ const struct early_ta __early_ta_' +
             ta_uuid.hex +
             '\n__early_ta __aligned(__alignof__(struct early_ta)) = {\n')
+    f.write('\t.flags = 0x{:04x},\n'.format(ta_get_flags(args.ta)))
     f.write('\t.uuid = {\n')
     f.write('\t\t.timeLow = 0x{:08x},\n'.format(ta_uuid.time_low))
     f.write('\t\t.timeMid = 0x{:04x},\n'.format(ta_uuid.time_mid))
