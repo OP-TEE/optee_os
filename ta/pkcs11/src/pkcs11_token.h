@@ -8,6 +8,7 @@
 #include <sys/queue.h>
 #include <tee_api_types.h>
 #include <tee_internal_api.h>
+#include <utee_defines.h>
 
 #include "handle.h"
 
@@ -47,22 +48,22 @@ struct pkcs11_client;
  * @label - pkcs11 formatted token label, set by client
  * @flags - pkcs11 token flags
  * @so_pin_count - counter on security officer login failure
- * @so_pin_size - byte size of the provisioned SO PIN
- * @so_pin - stores the SO PIN
+ * @so_pin_salt - stores salt in hash of SO PIN, 0 if not set
+ * @so_pin_hash - stores hash of SO PIN
  * @user_pin_count - counter on user login failure
- * @user_pin_size - byte size of the provisioned user PIN
- * @user_pin - stores the user PIN
+ * @user_pin_salt - stores salt in hash of user PIN, 0 if not set
+ * @user_pin_hash - stores hash of user PIN
  */
 struct token_persistent_main {
 	uint32_t version;
 	uint8_t label[PKCS11_TOKEN_LABEL_SIZE];
 	uint32_t flags;
 	uint32_t so_pin_count;
-	uint32_t so_pin_size;
-	uint8_t so_pin[PKCS11_TOKEN_PIN_SIZE_MAX];
+	uint32_t so_pin_salt;
+	uint8_t so_pin_hash[TEE_MAX_HASH_SIZE];
 	uint32_t user_pin_count;
-	uint32_t user_pin_size;
-	uint8_t user_pin[PKCS11_TOKEN_PIN_SIZE_MAX];
+	uint32_t user_pin_salt;
+	uint8_t user_pin_hash[TEE_MAX_HASH_SIZE];
 };
 
 /*
