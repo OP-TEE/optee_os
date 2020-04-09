@@ -112,6 +112,13 @@ unsigned int get_token_id(struct ck_token *token);
 struct ck_token *init_persistent_db(unsigned int token_id);
 void close_persistent_db(struct ck_token *token);
 
+enum pkcs11_rc hash_pin(enum pkcs11_user_type user, const uint8_t *pin,
+			size_t pin_size, uint32_t *salt,
+			uint8_t hash[TEE_MAX_HASH_SIZE]);
+enum pkcs11_rc verify_pin(enum pkcs11_user_type user, const uint8_t *pin,
+			  size_t pin_size, uint32_t salt,
+			  const uint8_t hash[TEE_MAX_HASH_SIZE]);
+
 /*
  * Pkcs11 session support
  */
