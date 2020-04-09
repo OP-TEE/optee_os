@@ -192,6 +192,20 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_InitToken().
 	 */
 	PKCS11_CMD_INIT_TOKEN = 10,
+
+	/*
+	 * PKCS11_CMD_INIT_PIN - Initialize user PIN
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit PIN byte size,
+	 *              byte array: PIN data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_InitPIN().
+	 */
+	PKCS11_CMD_INIT_PIN = 11,
 };
 
 /*
