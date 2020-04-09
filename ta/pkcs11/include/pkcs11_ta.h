@@ -222,6 +222,33 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_SetPIN().
 	 */
 	PKCS11_CMD_SET_PIN = 12,
+
+	/*
+	 * PKCS11_CMD_LOGIN - Initialize user PIN
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit user identifier, enum pkcs11_user_type
+	 *              32bit PIN byte size,
+	 *              byte array: PIN data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_Login().
+	 */
+	PKCS11_CMD_LOGIN = 13,
+
+	/*
+	 * PKCS11_CMD_LOGOUT - Log out from token
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_Logout().
+	 */
+	PKCS11_CMD_LOGOUT = 14,
 };
 
 /*
