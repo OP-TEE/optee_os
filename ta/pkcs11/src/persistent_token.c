@@ -73,6 +73,26 @@ static TEE_Result open_pin_file(struct ck_token *token,
 					0, out_hdl);
 }
 
+void update_persistent_db(struct ck_token *token)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_ObjectHandle db_hdl = TEE_HANDLE_NULL;
+
+	res = open_db_file(token, &db_hdl);
+	if (res) {
+		EMSG("Failed to open token persistent db: %#"PRIx32, res);
+		TEE_Panic(0);
+	}
+	res = TEE_WriteObjectData(db_hdl, token->db_main,
+				  sizeof(*token->db_main));
+	if (res) {
+		EMSG("Failed to write to token persistent db: %#"PRIx32, res);
+		TEE_Panic(0);
+	}
+
+	TEE_CloseObject(db_hdl);
+}
+
 static enum pkcs11_rc do_hash(uint32_t user, const uint8_t *pin,
 			      size_t pin_size, uint32_t salt,
 			      uint8_t hash[TEE_MAX_HASH_SIZE])
