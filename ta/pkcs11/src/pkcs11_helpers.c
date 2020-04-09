@@ -161,6 +161,33 @@ static const struct any_id __maybe_unused string_rc[] = {
 	PKCS11_ID(PKCS11_RV_NOT_IMPLEMENTED),
 };
 
+/*
+ * Conversion between PKCS11 TA and GPD TEE return codes
+ */
+enum pkcs11_rc tee2pkcs_error(TEE_Result res)
+{
+	switch (res) {
+	case TEE_SUCCESS:
+		return PKCS11_CKR_OK;
+
+	case TEE_ERROR_BAD_PARAMETERS:
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	case TEE_ERROR_OUT_OF_MEMORY:
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	case TEE_ERROR_SHORT_BUFFER:
+		return PKCS11_CKR_BUFFER_TOO_SMALL;
+
+	case TEE_ERROR_MAC_INVALID:
+	case TEE_ERROR_SIGNATURE_INVALID:
+		return PKCS11_CKR_SIGNATURE_INVALID;
+
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+}
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
 const char *id2str_rc(uint32_t id)
 {
