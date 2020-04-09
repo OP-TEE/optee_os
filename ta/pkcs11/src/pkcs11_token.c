@@ -701,3 +701,125 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 
 	return PKCS11_CKR_OK;
 }
+
+uint32_t entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	char label[PKCS11_TOKEN_LABEL_SIZE] = { 0 };
+	struct pkcs11_client *client = NULL;
+	struct pkcs11_session *sess = NULL;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	struct ck_token *token = NULL;
+	TEE_Param *ctrl = params;
+	uint32_t token_id = 0;
+	uint32_t pin_size = 0;
+	void *pin = NULL;
+
+	if (ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &pin_size, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &label, PKCS11_TOKEN_LABEL_SIZE);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_ptr(&ctrlargs, &pin, pin_size);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	token = get_token(token_id);
+	if (!token)
+		return PKCS11_CKR_SLOT_ID_INVALID;
+
+	if (token->db_main->flags & PKCS11_CKFT_SO_PIN_LOCKED) {
+		IMSG("Token %"PRIu32": SO PIN locked", token_id);
+		return PKCS11_CKR_PIN_LOCKED;
+	}
+
+	/* Check there's no open session on this token */
+	TAILQ_FOREACH(client, &pkcs11_client_list, link)
+		TAILQ_FOREACH(sess, &client->session_list, link)
+			if (sess->token == token)
+				return PKCS11_CKR_SESSION_EXISTS;
+
+	if (!token->db_main->so_pin_salt) {
+		/*
+		 * The spec doesn't permit returning
+		 * PKCS11_CKR_PIN_LEN_RANGE for this function, take another
+		 * error code.
+		 */
+		if (pin_size < PKCS11_TOKEN_PIN_SIZE_MIN ||
+		    pin_size > PKCS11_TOKEN_PIN_SIZE_MAX)
+			return PKCS11_CKR_ARGUMENTS_BAD;
+
+		rc = hash_pin(PKCS11_CKU_SO, pin, pin_size,
+			      &token->db_main->so_pin_salt,
+			      token->db_main->so_pin_hash);
+		if (rc)
+			return rc;
+
+		update_persistent_db(token);
+
+		goto inited;
+	}
+
+	rc = verify_pin(PKCS11_CKU_SO, pin, pin_size,
+			token->db_main->so_pin_salt,
+			token->db_main->so_pin_hash);
+	if (rc) {
+		unsigned int pin_count = 0;
+
+		if (rc != PKCS11_CKR_PIN_INCORRECT)
+			return rc;
+
+		token->db_main->flags |= PKCS11_CKFT_SO_PIN_COUNT_LOW;
+		token->db_main->so_pin_count++;
+
+		pin_count = token->db_main->so_pin_count;
+		if (pin_count == PKCS11_TOKEN_SO_PIN_COUNT_MAX - 1)
+			token->db_main->flags |= PKCS11_CKFT_SO_PIN_FINAL_TRY;
+		if (pin_count == PKCS11_TOKEN_SO_PIN_COUNT_MAX)
+			token->db_main->flags |= PKCS11_CKFT_SO_PIN_LOCKED;
+
+		update_persistent_db(token);
+
+		return PKCS11_CKR_PIN_INCORRECT;
+	}
+
+	token->db_main->flags &= ~(PKCS11_CKFT_SO_PIN_COUNT_LOW |
+				   PKCS11_CKFT_SO_PIN_FINAL_TRY);
+	token->db_main->so_pin_count = 0;
+
+inited:
+	TEE_MemMove(token->db_main->label, label, PKCS11_TOKEN_LABEL_SIZE);
+	token->db_main->flags |= PKCS11_CKFT_TOKEN_INITIALIZED;
+	/* Reset user PIN */
+	token->db_main->user_pin_salt = 0;
+	token->db_main->flags &= ~(PKCS11_CKFT_USER_PIN_INITIALIZED |
+				   PKCS11_CKFT_USER_PIN_COUNT_LOW |
+				   PKCS11_CKFT_USER_PIN_FINAL_TRY |
+				   PKCS11_CKFT_USER_PIN_LOCKED |
+				   PKCS11_CKFT_USER_PIN_TO_BE_CHANGED);
+
+	update_persistent_db(token);
+
+	IMSG("PKCS11 token %"PRIu32": initialized", token_id);
+
+	return PKCS11_CKR_OK;
+}

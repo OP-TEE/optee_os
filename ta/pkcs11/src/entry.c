@@ -184,6 +184,10 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		rc = entry_ck_session_info(client, ptypes, params);
 		break;
 
+	case PKCS11_CMD_INIT_TOKEN:
+		rc = entry_ck_token_initialize(ptypes, params);
+		break;
+
 	default:
 		EMSG("Command 0x%"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
