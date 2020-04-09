@@ -17,6 +17,9 @@
  */
 #define TEE_PARAM0_SIZE_MIN		sizeof(uint32_t)
 
+/* GPD TEE to PKCS11 status conversion */
+enum pkcs11_rc tee2pkcs_error(TEE_Result res);
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
 /* Id-to-string conversions only for trace support */
 const char *id2str_ta_cmd(uint32_t id);
