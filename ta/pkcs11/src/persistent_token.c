@@ -73,6 +73,64 @@ static TEE_Result open_pin_file(struct ck_token *token,
 					0, out_hdl);
 }
 
+static enum pkcs11_rc do_hash(uint32_t user, const uint8_t *pin,
+			      size_t pin_size, uint32_t salt,
+			      uint8_t hash[TEE_MAX_HASH_SIZE])
+{
+	TEE_Result res = TEE_SUCCESS;
+	TEE_OperationHandle oh = TEE_HANDLE_NULL;
+	uint32_t sz = TEE_MAX_HASH_SIZE;
+
+	res = TEE_AllocateOperation(&oh, TEE_ALG_SHA256, TEE_MODE_DIGEST, 0);
+	if (res)
+		return tee2pkcs_error(res);
+
+	TEE_DigestUpdate(oh, &user, sizeof(user));
+	TEE_DigestUpdate(oh, &salt, sizeof(salt));
+	res = TEE_DigestDoFinal(oh, pin, pin_size, hash, &sz);
+	TEE_FreeOperation(oh);
+
+	if (res)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	memset(hash + sz, 0, TEE_MAX_HASH_SIZE - sz);
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc hash_pin(enum pkcs11_user_type user, const uint8_t *pin,
+			size_t pin_size, uint32_t *salt,
+			uint8_t hash[TEE_MAX_HASH_SIZE])
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	uint32_t s = 0;
+
+	TEE_GenerateRandom(&s, sizeof(s));
+	if (!s)
+		s++;
+
+	rc = do_hash(user, pin, pin_size, s, hash);
+	if (!rc)
+		*salt = s;
+	return rc;
+}
+
+enum pkcs11_rc verify_pin(enum pkcs11_user_type user, const uint8_t *pin,
+			  size_t pin_size, uint32_t salt,
+			  const uint8_t hash[TEE_MAX_HASH_SIZE])
+{
+	uint8_t tmp_hash[TEE_MAX_HASH_SIZE] = { 0 };
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	rc = do_hash(user, pin, pin_size, salt, tmp_hash);
+	if (rc)
+		return rc;
+
+	if (buf_compare_ct(tmp_hash, hash, TEE_MAX_HASH_SIZE))
+		rc = PKCS11_CKR_PIN_INCORRECT;
+
+	return rc;
+}
+
 static void init_pin_keys(struct ck_token *token, enum pkcs11_user_type user)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
