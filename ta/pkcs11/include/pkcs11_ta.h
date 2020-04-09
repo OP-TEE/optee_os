@@ -206,6 +206,22 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_InitPIN().
 	 */
 	PKCS11_CMD_INIT_PIN = 11,
+
+	/*
+	 * PKCS11_CMD_SET_PIN - Change user PIN
+	 *
+	 * [in]	 memref[0] = [
+	 *              32bit session handle,
+	 *              32bit old PIN byte size,
+	 *              32bit new PIN byte size,
+	 *              byte array: PIN data,
+	 *              byte array: new PIN data,
+	 *       ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_SetPIN().
+	 */
+	PKCS11_CMD_SET_PIN = 12,
 };
 
 /*

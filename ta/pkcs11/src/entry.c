@@ -190,6 +190,9 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 	case PKCS11_CMD_INIT_PIN:
 		rc = entry_ck_init_pin(client, ptypes, params);
 		break;
+	case PKCS11_CMD_SET_PIN:
+		rc = entry_ck_set_pin(client, ptypes, params);
+		break;
 
 	default:
 		EMSG("Command 0x%"PRIx32" is not supported", cmd);

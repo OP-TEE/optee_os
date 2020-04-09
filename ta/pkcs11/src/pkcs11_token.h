@@ -41,6 +41,7 @@ struct pkcs11_client;
 #define PKCS11_TOKEN_PIN_SIZE_MAX	128
 #define PKCS11_TOKEN_PIN_SIZE_MIN	10
 #define PKCS11_TOKEN_SO_PIN_COUNT_MAX	7
+#define PKCS11_TOKEN_USER_PIN_COUNT_MAX	7
 
 /*
  * Persistent state of the token
@@ -179,5 +180,7 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 uint32_t entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params);
 uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 			   uint32_t ptypes, TEE_Param *params);
+uint32_t entry_ck_set_pin(struct pkcs11_client *client,
+			  uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
