@@ -177,6 +177,21 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_GetSessionInfo().
 	 */
 	PKCS11_CMD_SESSION_INFO = 9,
+
+	/*
+	 * PKCS11_CMD_INIT_TOKEN - Initialize PKCS#11 token
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit slot ID,
+	 *              32bit PIN length,
+	 *              byte array label[32]
+	 *              byte array PIN[PIN length],
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_InitToken().
+	 */
+	PKCS11_CMD_INIT_TOKEN = 10,
 };
 
 /*
