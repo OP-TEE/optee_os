@@ -909,6 +909,14 @@ static void assign_mem_granularity(struct tee_mmap_region *memory_map)
 	}
 }
 
+static unsigned int get_va_width(void)
+{
+	if (IS_ENABLED(ARM64))
+		return 64 - __builtin_ctzll(CFG_LPAE_ADDR_SPACE_SIZE);
+	else
+		return 32;
+}
+
 static bool assign_mem_va(vaddr_t tee_ram_va,
 			  struct tee_mmap_region *memory_map)
 {
@@ -934,6 +942,8 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 			assert(!(map->size & (map->region_size - 1)));
 			map->va = va;
 			if (ADD_OVERFLOW(va, map->size, &va))
+				return false;
+			if (IS_ENABLED(ARM64) && va >= BIT64(get_va_width()))
 				return false;
 		}
 	}
@@ -1006,6 +1016,8 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 			map->va = va;
 			if (ADD_OVERFLOW(va, map->size, &va))
 				return false;
+			if (IS_ENABLED(ARM64) && va >= BIT64(get_va_width()))
+				return false;
 		}
 	}
 
@@ -1030,15 +1042,6 @@ static int cmp_init_mem_map(const void *a, const void *b)
 		rc = CMP_TRILEAN(map_is_secure(mm_a), map_is_secure(mm_b));
 
 	return rc;
-}
-
-static unsigned int get_va_width(void)
-{
-#ifdef ARM64
-	return 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
-#else
-	return 32;
-#endif
 }
 
 static bool mem_map_add_id_map(struct tee_mmap_region *memory_map,
