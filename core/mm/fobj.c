@@ -48,7 +48,9 @@ void fobj_generate_authenc_key(void)
 
 	if (crypto_rng_read(key, sizeof(key)) != TEE_SUCCESS)
 		panic("failed to generate random");
-	if (internal_aes_gcm_expand_enc_key(key, sizeof(key), &rwp_ae_key))
+	if (crypto_aes_expand_enc_key(key, sizeof(key), rwp_ae_key.data,
+				      sizeof(rwp_ae_key.data),
+				      &rwp_ae_key.rounds))
 		panic("failed to expand key");
 }
 

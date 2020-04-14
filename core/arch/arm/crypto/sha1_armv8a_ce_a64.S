@@ -1,24 +1,13 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014-2015, Linaro Limited
+ * Copyright (c) 2014-2020, Linaro Limited
+ * Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
- /*
-  * SHA-1 secure hash using ARMv8 Crypto Extensions
-  *
-  * Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
-  */
+ /* SHA-1 secure hash using ARMv8 Crypto Extensions */
 
+#include <asm.S>
 
-#define ENTRY(func) \
-	.global func ; \
-	.type func , %function ; \
-	func :
-
-#define ENDPROC(func) \
-	.size func , .-func
-
-	.text
 	.arch		armv8-a+crypto
 
 	k0		.req	v0
@@ -66,16 +55,9 @@
 	.endm
 
 	/*
-	 * The SHA1 round constants
-	 */
-	.align		4
-.Lsha1_rcon:
-	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
-
-	/*
 	 * void sha1_ce_transform(u32 state[5], u8 const *src, int blocks)
 	 */
-ENTRY(sha1_ce_transform)
+FUNC sha1_ce_transform , :
 	/* load round constants */
 	adr		x6, .Lsha1_rcon
 	ld1r		{k0.4s}, [x6], #4
@@ -133,4 +115,9 @@ ENTRY(sha1_ce_transform)
 3:	st1		{dgav.4s}, [x0]
 	str		dgb, [x0, #16]
 	ret
-ENDPROC(sha1_ce_transform)
+
+	/* The SHA1 round constants */
+	.align		4
+.Lsha1_rcon:
+	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
+END_FUNC sha1_ce_transform

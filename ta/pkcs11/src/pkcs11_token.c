@@ -13,8 +13,8 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
-#include "pkcs11_token.h"
 #include "pkcs11_helpers.h"
+#include "pkcs11_token.h"
 #include "serializer.h"
 
 /* Provide 3 slots/tokens, ID is token index */
@@ -349,7 +349,10 @@ uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 	if (out->memref.size < count * sizeof(*array)) {
 		assert(!array);
 		out->memref.size = count * sizeof(*array);
-		return PKCS11_CKR_BUFFER_TOO_SMALL;
+		if (out->memref.buffer)
+			return PKCS11_CKR_BUFFER_TOO_SMALL;
+		else
+			return PKCS11_CKR_OK;
 	}
 
 	if (!array)

@@ -1,4 +1,4 @@
-SHELL = /bin/bash
+SHELL = bash
 
 # It can happen that a makefile calls us, which contains an 'export' directive
 # or the '.EXPORT_ALL_VARIABLES:' special target. In this case, all the make

@@ -38,15 +38,10 @@
  *
  * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
+#include <crypto/crypto_accel.h>
 #include <tomcrypt_private.h>
-#include "tomcrypt_arm_neon.h"
 
-/**
-  @file sha256_arm32_ce.c
-  LTC_SHA256_ARM32_CE
-*/
-
-#if defined(LTC_SHA256_ARM32_CE) || defined(LTC_SHA256_ARM64_CE)
+#ifdef LTC_SHA256
 
 const struct ltc_hash_descriptor sha256_desc =
 {
@@ -73,11 +68,11 @@ int sha256_ce_transform(ulong32 *state, const unsigned char *buf, int blocks);
 static int sha256_compress_nblocks(hash_state *md, const unsigned char *buf,
 				   int blocks)
 {
-    struct tomcrypt_arm_neon_state state;
+   void *state = md->sha1.state;
 
-    tomcrypt_arm_neon_enable(&state);
-    sha256_ce_transform(md->sha256.state, buf, blocks);
-    tomcrypt_arm_neon_disable(&state);
+   COMPILE_TIME_ASSERT(sizeof(md->sha1.state[0]) == sizeof(uint32_t));
+
+    crypto_accel_sha256_compress(state, buf, blocks);
     return CRYPT_OK;
 }
 
@@ -215,4 +210,4 @@ int  sha256_test(void)
  #endif
 }
 
-#endif
+#endif /*LTC_SHA256*/

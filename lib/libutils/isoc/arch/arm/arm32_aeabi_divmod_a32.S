@@ -19,7 +19,6 @@
  * signed ret_idivmod_values(signed quot, signed rem);
  * return quotient and remaining the EABI way (regs r0,r1)
  */
-.section .text.ret_idivmod_values
 FUNC ret_idivmod_values , :
 LOCAL_UNWIND(.fnstart)
         bx lr
@@ -30,7 +29,6 @@ END_FUNC ret_idivmod_values
  * unsigned ret_uidivmod_values(unsigned quot, unsigned rem);
  * return quotient and remaining the EABI way (regs r0,r1)
  */
-.section .text.ret_uidivmod_values
 FUNC ret_uidivmod_values , :
 LOCAL_UNWIND(.fnstart)
         bx      lr

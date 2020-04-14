@@ -61,7 +61,6 @@ struct pkcs11_mechachism_modes {
 static const struct pkcs11_mechachism_modes pkcs11_modes[] = {
 	MECHANISM(PKCS11_CKM_AES_ECB,
 		  PKCS11_CKFM_ENCRYPT | PKCS11_CKFM_DECRYPT |
-		  PKCS11_CKFM_DERIVE |
 		  PKCS11_CKFM_WRAP | PKCS11_CKFM_UNWRAP,
 		  ANY_PART),
 };

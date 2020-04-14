@@ -73,11 +73,10 @@ static TEE_Result open_pin_file(struct ck_token *token,
 					0, out_hdl);
 }
 
-static void init_pin_keys(struct ck_token *token, unsigned int uid)
+static void init_pin_keys(struct ck_token *token, enum pkcs11_user_type user)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	TEE_ObjectHandle key_hdl = TEE_HANDLE_NULL;
-	enum pkcs11_user_type user = uid;
 
 	res = open_pin_file(token, user, &key_hdl);
 
@@ -184,7 +183,6 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		if (res)
 			TEE_Panic(0);
 
-		/* 2 files: persistent state + persistent object references */
 		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
 						 file, sizeof(file),
 						 TEE_DATA_FLAG_ACCESS_READ |

@@ -29,7 +29,7 @@ struct sha512_state {
 };
 #endif
 
-#if defined(LTC_SHA256) || defined(LTC_SHA256_ARM32_CE)
+#if defined(LTC_SHA256)
 struct sha256_state {
     ulong64 length;
     ulong32 state[8], curlen;
@@ -37,7 +37,7 @@ struct sha256_state {
 };
 #endif
 
-#if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE)
+#if defined(LTC_SHA1)
 struct sha1_state {
     ulong64 length;
     ulong32 state[5], curlen;
@@ -162,10 +162,10 @@ typedef union Hash_state {
 #ifdef LTC_SHA512
     struct sha512_state sha512;
 #endif
-#if defined(LTC_SHA256) || defined(LTC_SHA256_ARM32_CE)
+#if defined(LTC_SHA256)
     struct sha256_state sha256;
 #endif
-#if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE)
+#if defined(LTC_SHA1)
     struct sha1_state   sha1;
 #endif
 #ifdef LTC_MD5
@@ -350,7 +350,7 @@ int sha512_224_test(void);
 extern const struct ltc_hash_descriptor sha512_224_desc;
 #endif
 
-#if defined(LTC_SHA256) || defined(LTC_SHA256_ARM32_CE)
+#if defined(LTC_SHA256)
 int sha256_init(hash_state * md);
 int sha256_process(hash_state * md, const unsigned char *in, unsigned long inlen);
 int sha256_done(hash_state * md, unsigned char *out);
@@ -369,7 +369,7 @@ extern const struct ltc_hash_descriptor sha224_desc;
 #endif
 #endif
 
-#if defined(LTC_SHA1) || defined(LTC_SHA1_ARM32_CE)
+#if defined(LTC_SHA1)
 int sha1_init(hash_state * md);
 int sha1_process(hash_state * md, const unsigned char *in, unsigned long inlen);
 int sha1_done(hash_state * md, unsigned char *out);

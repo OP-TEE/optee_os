@@ -18,7 +18,6 @@
 /*
  * __value_in_regs lldiv_t __aeabi_ldivmod( long long n, long long d)
  */
-.section .text.__aeabi_ldivmod
 FUNC __aeabi_ldivmod , :
 LOCAL_UNWIND(.fnstart)
 	push	{ip, lr}
@@ -36,7 +35,6 @@ END_FUNC __aeabi_ldivmod
  * __value_in_regs ulldiv_t __aeabi_uldivmod(
  *		unsigned long long n, unsigned long long d)
  */
-.section .text.__aeabi_uldivmod
 FUNC __aeabi_uldivmod , :
 LOCAL_UNWIND(.fnstart)
 	push	{ip, lr}

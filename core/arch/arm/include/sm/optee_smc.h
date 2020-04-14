@@ -276,7 +276,8 @@
 #define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		(1 << 2)
 /* Secure world is built with virtualization support */
 #define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	(1 << 3)
-
+/* Secure world supports Shared Memory with a NULL reference */
+#define OPTEE_SMC_SEC_CAP_MEMREF_NULL		(1 << 4)
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \

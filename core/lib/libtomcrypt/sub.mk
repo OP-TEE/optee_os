@@ -8,7 +8,7 @@ cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 
 cppflags-lib-y += -DLTC_NO_CIPHERS
 
-ifneq (,$(filter y,$(_CFG_CORE_LTC_AES) $(_CFG_CORE_LTC_AES_DESC)))
+ifeq ($(_CFG_CORE_LTC_AES_DESC),y)
 	cppflags-lib-y += -DLTC_RIJNDAEL
 endif
 ifeq ($(_CFG_CORE_LTC_DES),y)
@@ -38,28 +38,16 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA1),y)
 	cppflags-lib-y += -DLTC_SHA1
 endif
-ifeq ($(_CFG_CORE_LTC_SHA1_ARM32_CE),y)
-	cppflags-lib-y += -DLTC_SHA1_ARM32_CE
-endif
-ifeq ($(_CFG_CORE_LTC_SHA1_ARM64_CE),y)
-	cppflags-lib-y += -DLTC_SHA1_ARM64_CE
-endif
 ifeq ($(_CFG_CORE_LTC_SHA224),y)
 	cppflags-lib-y += -DLTC_SHA224
 endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA256) $(_CFG_CORE_LTC_SHA256_DESC))) 
+ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
 	cppflags-lib-y += -DLTC_SHA256
 endif
-ifeq ($(_CFG_CORE_LTC_SHA256_ARM32_CE),y)
-	cppflags-lib-y += -DLTC_SHA256_ARM32_CE
-endif
-ifeq ($(_CFG_CORE_LTC_SHA256_ARM64_CE),y)
-	cppflags-lib-y += -DLTC_SHA256_ARM64_CE
-endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA384) $(_CFG_CORE_LTC_SHA384_DESC)))
+ifeq ($(_CFG_CORE_LTC_SHA384_DESC),y)
 	cppflags-lib-y += -DLTC_SHA384
 endif
-ifneq (,$(filter y,$(_CFG_CORE_LTC_SHA512) $(_CFG_CORE_LTC_SHA512_DESC)))
+ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
 	cppflags-lib-y += -DLTC_SHA512
 endif
 ifeq ($(_CFG_CORE_LTC_SHA512_256),y)
@@ -137,6 +125,11 @@ srcs-$(_CFG_CORE_LTC_ECC) += ecc.c
 srcs-$(_CFG_CORE_LTC_RSA) += rsa.c
 srcs-$(_CFG_CORE_LTC_DH) += dh.c
 srcs-$(_CFG_CORE_LTC_AES) += aes.c
+srcs-$(_CFG_CORE_LTC_AES_ACCEL) += aes_accel.c
+srcs-$(_CFG_CORE_LTC_SHA1_ACCEL) += sha1_accel.c
+ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
+srcs-$(_CFG_CORE_LTC_SHA256_ACCEL) += sha256_accel.c
+endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c

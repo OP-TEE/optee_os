@@ -473,96 +473,70 @@ bool stm32mp_gpio_bank_is_secure(unsigned int bank)
 	return secure > 0 && secure == get_gpioz_nbpin();
 }
 
-bool stm32mp_clock_is_shareable(unsigned long clock_id)
-{
-	switch (clock_id) {
-	case GPIOZ:
-		/* GPIOZ clocking may be shared */
-		return get_gpioz_nbpin() > 0;
-	case RTCAPB:
-		/* RTCAPB clock is shared: non-secure backup registers */
-		return true;
-	default:
-		return false;
-	}
-}
-
-bool stm32mp_clock_is_shared(unsigned long clock_id)
-{
-	lock_registering();
-
-	switch (clock_id) {
-	case GPIOZ:
-		/* GPIOZ clocking may be shared */
-		if (get_gpioz_nbpin() > 0)
-			return stm32mp_gpio_bank_is_shared(GPIO_BANK_Z);
-		else
-			return false;
-	case RTCAPB:
-		/* RTCAPB clock must be shared: non-secure backup registers */
-		return true;
-	default:
-		return false;
-	}
-}
-
-bool stm32mp_clock_is_non_secure(unsigned long clock_id)
+bool stm32mp_nsec_can_access_clock(unsigned long clock_id)
 {
 	enum stm32mp_shres shres_id = STM32MP1_SHRES_COUNT;
 
-	lock_registering();
+	/* Oscillators and PLLs are visible from non-secure world */
+	COMPILE_TIME_ASSERT(CK_HSE == 0 &&
+			    (CK_HSE + 1) == CK_CSI &&
+			    (CK_HSE + 2) == CK_LSI &&
+			    (CK_HSE + 3) == CK_LSE &&
+			    (CK_HSE + 4) == CK_HSI &&
+			    (CK_HSE + 5) == CK_HSE_DIV2 &&
+			    (PLL1_P + 1) == PLL1_Q &&
+			    (PLL1_P + 2) == PLL1_R &&
+			    (PLL1_P + 3) == PLL2_P &&
+			    (PLL1_P + 4) == PLL2_Q &&
+			    (PLL1_P + 5) == PLL2_R &&
+			    (PLL1_P + 6) == PLL3_P &&
+			    (PLL1_P + 7) == PLL3_Q &&
+			    (PLL1_P + 8) == PLL3_R);
 
-	if (stm32mp_clock_is_shared(clock_id))
-		return false;
+	if (clock_id <= CK_HSE_DIV2 ||
+	    (clock_id >= PLL1_P && clock_id <= PLL3_R))
+		return true;
 
 	switch (clock_id) {
+	case RTCAPB:
+	case CK_MPU:
+	case CK_AXI:
 	case BSEC:
-	case BKPSRAM:
-	case TZPC:
-	case TZC1:
-	case TZC2:
-	case STGEN_K:
-	case DDRC1:
-	case DDRC1LP:
-	case DDRC2:
-	case DDRC2LP:
-	case DDRPHYC:
-	case DDRPHYCLP:
-	case DDRCAPB:
-	case DDRCAPBLP:
-	case AXIDCG:
-	case DDRPHYCAPB:
-	case DDRPHYCAPBLP:
-		return false;
-	case IWDG1:
-		shres_id = STM32MP1_SHRES_IWDG1;
-		break;
-	case USART1_K:
-		shres_id = STM32MP1_SHRES_USART1;
-		break;
+		return true;
+	case GPIOZ:
+		return !stm32mp_gpio_bank_is_secure(GPIO_BANK_Z);
 	case SPI6_K:
 		shres_id = STM32MP1_SHRES_SPI6;
 		break;
 	case I2C4_K:
 		shres_id = STM32MP1_SHRES_I2C4;
 		break;
-	case RNG1_K:
-		shres_id = STM32MP1_SHRES_RNG1;
+	case I2C6_K:
+		shres_id = STM32MP1_SHRES_I2C6;
 		break;
-	case HASH1:
-		shres_id = STM32MP1_SHRES_HASH1;
+	case USART1_K:
+		shres_id = STM32MP1_SHRES_USART1;
+		break;
+	case IWDG1:
+		shres_id = STM32MP1_SHRES_IWDG1;
 		break;
 	case CRYP1:
 		shres_id = STM32MP1_SHRES_CRYP1;
 		break;
-	case I2C6_K:
-		shres_id = STM32MP1_SHRES_I2C6;
+	case HASH1:
+		shres_id = STM32MP1_SHRES_HASH1;
+		break;
+	case RNG1_K:
+		shres_id = STM32MP1_SHRES_RNG1;
 		break;
 	case RTC:
 		shres_id = STM32MP1_SHRES_RTC;
 		break;
+	case CK_MCU:
+		shres_id = STM32MP1_SHRES_MCU;
+		break;
 	default:
-		return true;
+		return false;
 	}
 
 	return !stm32mp_periph_is_secure(shres_id);

@@ -1,17 +1,14 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016, Linaro Limited
- */
-
-/*
- * aes-ce-core.S - AES in CBC/CTR/XTS mode using ARMv8 Crypto Extensions
- *
+ * Copyright (c) 2016, 2020 Linaro Limited
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
+ *
+ * aes-ce-core.S - AES in CBC/CTR/XTS mode using ARMv8 Crypto Extensions
  */
 
-	.text
+#include <asm.S>
+
 	.fpu		crypto-neon-fp-armv8
-	.align		3
 
 	.macro		enc_round, state, key
 	aese.8		\state, \key
@@ -111,8 +108,9 @@
 	.endm
 
 	/*
-	 * Internal, non-AAPCS compliant functions that implement the core AES
-	 * transforms. These should preserve all registers except q0 - q2 and ip
+	 * Internal, non-AAPCS compliant functions that implement the core
+	 * AES transforms. These should preserve all registers except q0 -
+	 * q2 and ip.
 	 * Arguments:
 	 *   q0        : first in/output block
 	 *   q1        : second in/output block (_3x version only)
@@ -123,6 +121,7 @@
 	 *   r2        : address of round key array
 	 *   r3        : number of rounds
 	 */
+	.section	.text.ce_aes_helpers
 	.align		6
 aes_encrypt:
 	add		ip, r2, #32		@ 3rd round key
@@ -151,14 +150,11 @@ aes_decrypt_3x:
 	.endm
 
 	/*
-	 * aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks)
-	 * aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks)
+	 * void ce_aes_ecb_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   int first)
 	 */
-	.global		ce_aes_ecb_encrypt
-	.type		ce_aes_ecb_encrypt, %function
-ce_aes_ecb_encrypt:
+FUNC ce_aes_ecb_encrypt , :
 	push		{r4, lr}
 	ldr		r4, [sp, #8]
 	prepare_key	r2, r3
@@ -182,10 +178,14 @@ ce_aes_ecb_encrypt:
 	bne		.Lecbencloop
 .Lecbencout:
 	pop		{r4, pc}
+END_FUNC ce_aes_ecb_encrypt
 
-	.global		ce_aes_ecb_decrypt
-	.type		ce_aes_ecb_decrypt, %function
-ce_aes_ecb_decrypt:
+	/*
+	 * void ce_aes_ecb_decrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   int first)
+	 */
+FUNC ce_aes_ecb_decrypt , :
 	push		{r4, lr}
 	ldr		r4, [sp, #8]
 	prepare_key	r2, r3
@@ -209,16 +209,14 @@ ce_aes_ecb_decrypt:
 	bne		.Lecbdecloop
 .Lecbdecout:
 	pop		{r4, pc}
+END_FUNC ce_aes_ecb_decrypt
 
 	/*
-	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[])
-	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[])
+	 * void ce_aes_cbc_encrypt(uint8_t out[], uint8_t const in[],
+	 * 			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t iv[])
 	 */
-	.global		ce_aes_cbc_encrypt
-	.type		ce_aes_cbc_encrypt, %function
-ce_aes_cbc_encrypt:
+FUNC ce_aes_cbc_encrypt , :
 	push		{r4-r6, lr}
 	ldrd		r4, r5, [sp, #16]
 	vld1.8		{q0}, [r5]
@@ -232,10 +230,14 @@ ce_aes_cbc_encrypt:
 	bne		.Lcbcencloop
 	vst1.8		{q0}, [r5]
 	pop		{r4-r6, pc}
+END_FUNC ce_aes_cbc_encrypt
 
-	.global		ce_aes_cbc_decrypt
-	.type		ce_aes_cbc_decrypt, %function
-ce_aes_cbc_decrypt:
+	/*
+	 * void ce_aes_cbc_decrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t iv[])
+	 */
+FUNC ce_aes_cbc_decrypt , :
 	push		{r4-r6, lr}
 	ldrd		r4, r5, [sp, #16]
 	vld1.8		{q6}, [r5]		@ keep iv in q6
@@ -271,14 +273,14 @@ ce_aes_cbc_decrypt:
 .Lcbcdecout:
 	vst1.8		{q6}, [r5]		@ keep iv in q6
 	pop		{r4-r6, pc}
+END_FUNC ce_aes_cbc_decrypt
 
 	/*
-	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 ctr[])
+	 * void ce_aes_ctr_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t ctr[], int first)
 	 */
-	.global		ce_aes_ctr_encrypt
-	.type		ce_aes_ctr_encrypt, %function
-ce_aes_ctr_encrypt:
+FUNC ce_aes_ctr_encrypt , :
 	push		{r4-r6, lr}
 	ldrd		r4, r5, [sp, #16]
 	vld1.8		{q6}, [r5]		@ load ctr
@@ -349,12 +351,15 @@ ce_aes_ctr_encrypt:
 0:	teq		r4, #0
 	beq		.Lctrout
 	b		.Lctrloop
+END_FUNC ce_aes_ctr_encrypt
 
 	/*
-	 * aes_xts_encrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[])
-	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 iv[], u8 const rk2[])
+	 * void ce_aes_xts_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk1[], int rounds, int blocks,
+	 *			   uint8_t const rk2[], uint8_t iv[])
+	 * void ce_aes_xts_decrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk1[], int rounds, int blocks,
+	 *			   uint8_t const rk2[], uint8_t iv[]);
 	 */
 
 	.macro		next_tweak, out, in, const, tmp
@@ -365,13 +370,7 @@ ce_aes_ctr_encrypt:
 	veor		\out, \out, \tmp
 	.endm
 
-	.align		3
-.Lxts_mul_x:
-	.quad		1, 0x87
-
-	.global		ce_aes_xts_init
-	.type		ce_aes_xts_init, %function
-ce_aes_xts_init:
+LOCAL_FUNC ce_aes_xts_init , :
 	vldr		d14, .Lxts_mul_x
 	vldr		d15, .Lxts_mul_x + 8
 
@@ -386,9 +385,12 @@ ce_aes_xts_init:
 	add		ip, r6, #32		@ 3rd round key of key 2
 	b		.Laes_encrypt_tweak	@ tail call
 
-	.global		ce_aes_xts_encrypt
-	.type		ce_aes_xts_encrypt, %function
-ce_aes_xts_encrypt:
+	.align		3
+.Lxts_mul_x:
+	.quad		1, 0x87
+END_FUNC ce_aes_xts_init
+
+FUNC ce_aes_xts_encrypt , :
 	push		{r4-r6, lr}
 
 	bl		ce_aes_xts_init		@ run shared prologue
@@ -437,10 +439,9 @@ ce_aes_xts_encrypt:
 	next_tweak	q3, q3, q7, q6
 	vst1.8		{q3}, [r5]
 	pop		{r4-r6, pc}
+END_FUNC ce_aes_xts_encrypt
 
-	.global		ce_aes_xts_decrypt
-	.type		ce_aes_xts_decrypt, %function
-ce_aes_xts_decrypt:
+FUNC ce_aes_xts_decrypt , :
 	push		{r4-r6, lr}
 
 	bl		ce_aes_xts_init		@ run shared prologue
@@ -490,29 +491,41 @@ ce_aes_xts_decrypt:
 	next_tweak	q3, q3, q7, q6
 	vst1.8		{q3}, [r5]
 	pop		{r4-r6, pc}
+END_FUNC ce_aes_xts_decrypt
 
 	/*
 	 * u32 ce_aes_sub(u32 input) - use the aese instruction to perform the
 	 *                             AES sbox substitution on each byte in
 	 *                             'input'
 	 */
-	.global		ce_aes_sub
-	.type		ce_aes_sub, %function
-ce_aes_sub:
+FUNC ce_aes_sub , :
 	vdup.32		q1, r0
 	veor		q0, q0, q0
 	aese.8		q0, q1
 	vmov		r0, s0
 	bx		lr
+END_FUNC ce_aes_sub
 
 	/*
-	 * void ce_aes_invert(u8 *dst, u8 *src) - perform the Inverse MixColumns
-	 *                                        operation on round key *src
+	 * void ce_aes_invert(void *dst, const void *src)
+	 *
+	 * perform the Inverse MixColumns operation on round key in
 	 */
-	.global		ce_aes_invert
-	.type		ce_aes_invert, %function
-ce_aes_invert:
+FUNC ce_aes_invert , :
 	vld1.8		{q0}, [r1]
 	aesimc.8	q0, q0
 	vst1.8		{q0}, [r0]
 	bx		lr
+END_FUNC ce_aes_invert
+
+	/*
+	 * void ce_aes_xor_block(uint8_t out[], uint8_t const op1[],
+	 *			 uint8_t const op2[]);
+	 */
+FUNC ce_aes_xor_block , :
+	vld1.8		{q0}, [r1]
+	vld1.8		{q1}, [r2]
+	veor		q0, q0, q1
+	vst1.8		{q0}, [r0]
+	bx		lr
+END_FUNC ce_aes_xor_block

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015, Linaro Limited
- * All rights reserved.
+ * Copyright (c) 2015, 2020, Linaro Limited
  * Copyright (c) 2001-2007, Tom St Denis
  * All rights reserved.
  *
@@ -38,16 +37,13 @@
  *
  * Tom St Denis, tomstdenis@gmail.com, http://libtom.org
  */
+#include <crypto/crypto_accel.h>
 #include <tomcrypt_private.h>
-#include "tomcrypt_arm_neon.h"
-
 /**
   @file sha1.c
   LTC_SHA1 code by Tom St Denis
 */
 
-
-#if defined(LTC_SHA1_ARM32_CE) || defined(LTC_SHA1_ARM64_CE)
 
 const struct ltc_hash_descriptor sha1_desc =
 {
@@ -67,21 +63,14 @@ const struct ltc_hash_descriptor sha1_desc =
     NULL
 };
 
-
-/* Implemented in assembly */
-void sha1_ce_transform(ulong32 *state, const unsigned char *src, int blocks);
-
 static int sha1_compress_nblocks(hash_state *md, const unsigned char *buf,
 				 int blocks)
 {
-   struct tomcrypt_arm_neon_state state;
+   void *state = md->sha1.state;
 
-   /* sha1_ce_transform() assumes this */
-   COMPILE_TIME_ASSERT(sizeof(md->sha1.state[0]) == 4);
+   COMPILE_TIME_ASSERT(sizeof(md->sha1.state[0]) == sizeof(uint32_t));
 
-   tomcrypt_arm_neon_enable(&state);
-   sha1_ce_transform(md->sha1.state, buf, blocks);
-   tomcrypt_arm_neon_disable(&state);
+   crypto_accel_sha1_compress(state, buf, blocks);
    return CRYPT_OK;
 }
 
@@ -211,5 +200,3 @@ int  sha1_test(void)
   return CRYPT_OK;
   #endif
 }
-
-#endif

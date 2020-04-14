@@ -6,15 +6,7 @@
  */
 
 #include <arm32_macros.S>
-
-#define ENTRY(func) \
-	.global func ; \
-	.type func , %function ; \
-	.balign 4 ; \
-	func :
-
-#define ENDPROC(func) \
-	.size func , .-func
+#include <asm.S>
 
 #define CPU_LE(x...)	x
 
@@ -180,11 +172,11 @@
 	ldr		ip, [sp]
 	teq		ip, #0
 	beq		0f
-	vld1.64		{T1}, [ip]
+	vld1.8		{T1}, [ip]
 	teq		r0, #0
 	b		1f
 
-0:	vld1.64		{T1}, [r2]!
+0:	vld1.8		{T1}, [r2]!
 	subs		r0, r0, #1
 
 1:	/* multiply XL by SHASH in GF(2^128) */
@@ -218,8 +210,7 @@
 	 * void pmull_ghash_update(int blocks, u64 dg[], const char *src,
 	 *			   struct ghash_key const *k, const char *head)
 	 */
-	.section .text.pmull_ghash_update_p64
-ENTRY(pmull_ghash_update_p64)
+FUNC pmull_ghash_update_p64 , :
 	vld1.64		{SHASH}, [r3]
 	veor		SHASH2_p64, SHASH_L, SHASH_H
 
@@ -227,10 +218,9 @@ ENTRY(pmull_ghash_update_p64)
 	vshl.u64	MASK, MASK, #57
 
 	ghash_update	p64
-ENDPROC(pmull_ghash_update_p64)
+END_FUNC pmull_ghash_update_p64
 
-	.section .text.pmull_ghash_update_p8
-ENTRY(pmull_ghash_update_p8)
+FUNC pmull_ghash_update_p8 , :
 	vld1.64		{SHASH}, [r3]
 	veor		SHASH2_p8, SHASH_L, SHASH_H
 
@@ -248,4 +238,4 @@ ENTRY(pmull_ghash_update_p8)
 	vmov.i64	k48, #0xffffffffffff
 
 	ghash_update	p8
-ENDPROC(pmull_ghash_update_p8)
+END_FUNC pmull_ghash_update_p8

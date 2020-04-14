@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014-2015, Linaro Limited
+ * Copyright (c) 2014-2020, Linaro Limited
  */
 
 /* SHA-1 secure hash using ARMv8 Crypto Extensions */
 
-	.text
+#include <asm.S>
+
 	.fpu		crypto-neon-fp-armv8
 
 	k0		.req	q0
@@ -47,16 +48,8 @@
 	sha1su1.32	q\s0, q\s3
 	.endm
 
-	.align		4
-.Lsha1_rcon:
-	.word		0x5a827999, 0x5a827999, 0x5a827999, 0x5a827999
-	.word		0x6ed9eba1, 0x6ed9eba1, 0x6ed9eba1, 0x6ed9eba1
-	.word		0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc
-	.word		0xca62c1d6, 0xca62c1d6, 0xca62c1d6, 0xca62c1d6
 
-	.global		sha1_ce_transform
-	.type		sha1_ce_transform, %function
-sha1_ce_transform:
+FUNC sha1_ce_transform , :
 	/* load round constants */
 	adr		r3, .Lsha1_rcon
 	vld1.32		{k0-k1}, [r3]!
@@ -111,3 +104,11 @@ sha1_ce_transform:
 	vst1.32		{dga}, [r0]
 	vstr		dgbs, [r0, #16]
 	bx		lr
+
+	.align		4
+.Lsha1_rcon:
+	.word		0x5a827999, 0x5a827999, 0x5a827999, 0x5a827999
+	.word		0x6ed9eba1, 0x6ed9eba1, 0x6ed9eba1, 0x6ed9eba1
+	.word		0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc, 0x8f1bbcdc
+	.word		0xca62c1d6, 0xca62c1d6, 0xca62c1d6, 0xca62c1d6
+END_FUNC sha1_ce_transform

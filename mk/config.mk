@@ -291,10 +291,12 @@ CFG_WITH_PAGER ?= n
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will
 # cause a panic as soon as the invalid locking condition is detected. If
-# CFG_UNWIND is enabled, the algorithm records the call stacks when locks are
-# taken, and prints them when a potential deadlock is found.
+# CFG_UNWIND and CFG_LOCKDEP_RECORD_STACK are both enabled, the algorithm
+# records the call stacks when locks are taken, and prints them when a
+# potential deadlock is found.
 # Expect a significant performance impact when enabling this.
 CFG_LOCKDEP ?= n
+CFG_LOCKDEP_RECORD_STACK ?= y
 
 # BestFit algorithm in bget reduces the fragmentation of the heap when running
 # with the pager enabled or lockdep
@@ -547,3 +549,13 @@ CFG_SHOW_CONF_ON_BOOT ?= n
 # to a TA, so a TPM Service could use it to extend any measurement
 # taken before the service was up and running.
 CFG_CORE_TPM_EVENT_LOG ?= n
+
+# When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
+# Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+# CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
+# CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
+# CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
+CFG_SCMI_MSG_DRIVERS ?= n
+CFG_SCMI_MSG_CLOCK ?= n
+CFG_SCMI_MSG_RESET_DOMAIN ?= n
+CFG_SCMI_MSG_SMT ?= n

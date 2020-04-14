@@ -1,27 +1,17 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015, Linaro Limited
- */
-
-/*
+ * Copyright (c) 2015, 2020 Linaro Limited
+ * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
+ *
  * - AES cipher for ARMv8 with Crypto Extensions
  * - Chaining mode wrappers for AES
- *
- * Copyright (C) 2013 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
-
-#define ENTRY(func) \
-	.global func ; \
-	.type func , %function ; \
-	func :
-
-#define ENDPROC(func) \
-	.size func , .-func
+#include <asm.S>
 
 	.arch		armv8-a+crypto
 
-	/* preload all round keys */
+	/* Preload all round keys */
 	.macro		load_round_keys, rounds, rk
 	cmp		\rounds, #12
 	blo		2222f		/* 128 bits */
@@ -33,17 +23,17 @@
 	ld1		{v29.16b-v31.16b}, [\rk]
 	.endm
 
-	/* prepare for encryption with key in rk[] */
+	/* Prepare for encryption with key in rk[] */
 	.macro		enc_prepare, rounds, rk, ignore
 	load_round_keys	\rounds, \rk
 	.endm
 
-	/* prepare for encryption (again) but with new key in rk[] */
+	/* Prepare for encryption (again) but with new key in rk[] */
 	.macro		enc_switch_key, rounds, rk, ignore
 	load_round_keys	\rounds, \rk
 	.endm
 
-	/* prepare for decryption with key in rk[] */
+	/* Prepare for decryption with key in rk[] */
 	.macro		dec_prepare, rounds, rk, ignore
 	load_round_keys	\rounds, \rk
 	.endm
@@ -63,7 +53,7 @@
 	.endif
 	.endm
 
-	/* up to 4 interleaved encryption rounds with the same round key */
+	/* Up to 4 interleaved encryption rounds with the same round key */
 	.macro		round_Nx, enc, k, i0, i1, i2, i3
 	.ifc		\enc, e
 	do_enc_Nx	e, mc, \k, \i0, \i1, \i2, \i3
@@ -72,7 +62,7 @@
 	.endif
 	.endm
 
-	/* up to 4 interleaved final rounds */
+	/* Up to 4 interleaved final rounds */
 	.macro		fin_round_Nx, de, k, k2, i0, i1, i2, i3
 	aes\de		\i0\().16b, \k\().16b
 	.ifnb		\i1
@@ -92,7 +82,7 @@
 	.endif
 	.endm
 
-	/* up to 4 interleaved blocks */
+	/* Up to 4 interleaved blocks */
 	.macro		do_block_Nx, enc, rounds, i0, i1, i2, i3
 	cmp		\rounds, #12
 	blo		2222f		/* 128 bits */
@@ -132,9 +122,6 @@
 	.endm
 
 
-	.text
-	.align		4
-
 /*
  * There are several ways to instantiate this code:
  * - no interleave, all inline
@@ -161,27 +148,27 @@
 
 #if INTERLEAVE == 2
 
-aes_encrypt_block2x:
+LOCAL_FUNC aes_encrypt_block2x , :
 	encrypt_block2x	v0, v1, w3, x2, x6, w7
 	ret
-ENDPROC(aes_encrypt_block2x)
+END_FUNC aes_encrypt_block2x
 
-aes_decrypt_block2x:
+LOCAL_FUNC aes_decrypt_block2x , :
 	decrypt_block2x	v0, v1, w3, x2, x6, w7
 	ret
-ENDPROC(aes_decrypt_block2x)
+END_FUNC aes_decrypt_block2x
 
 #elif INTERLEAVE == 4
 
-aes_encrypt_block4x:
+LOCAL_FUNC aes_encrypt_block4x , :
 	encrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
 	ret
-ENDPROC(aes_encrypt_block4x)
+END_FUNC aes_encrypt_block4x
 
-aes_decrypt_block4x:
+LOCAL_FUNC aes_decrypt_block4x , :
 	decrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
 	ret
-ENDPROC(aes_decrypt_block4x)
+END_FUNC aes_decrypt_block4x
 
 #else
 #error INTERLEAVE should equal 2 or 4
@@ -225,37 +212,33 @@ ENDPROC(aes_decrypt_block4x)
 
 #endif
 
-
 	/*
 	 * uint32_t ce_aes_sub(uint32_t in) - use the aese instruction to
 	 * perform the AES sbox substitution on each byte in 'input'
 	 */
-ENTRY(ce_aes_sub)
+FUNC ce_aes_sub , :
 	dup		v1.4s, w0
 	movi		v0.16b, #0
 	aese		v0.16b, v1.16b
 	umov		w0, v0.s[0]
 	ret
-ENDPROC(ce_aes_sub)
+END_FUNC ce_aes_sub
 
 	/*
-	 * void ce_aes_invert(void *dst, void *src)
+	 * void ce_aes_invert(void *dst, const void *src);
 	 */
-ENTRY(ce_aes_invert)
+FUNC ce_aes_invert , :
 	ld1		{v0.16b}, [x1]
 	aesimc		v1.16b, v0.16b
 	st1		{v1.16b}, [x0]
 	ret
-ENDPROC(ce_aes_invert)
+END_FUNC ce_aes_invert
 
 	/*
 	 * ce_aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[],
 	 *                    int rounds, int blocks, int first)
-	 * ce_aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[],
-	 *                    int rounds, int blocks, int first)
 	 */
-
-ENTRY(ce_aes_ecb_encrypt)
+FUNC ce_aes_ecb_encrypt , :
 	FRAME_PUSH
 	cbz		w5, .LecbencloopNx
 
@@ -288,10 +271,13 @@ ENTRY(ce_aes_ecb_encrypt)
 .Lecbencout:
 	FRAME_POP
 	ret
-ENDPROC(ce_aes_ecb_encrypt)
+END_FUNC ce_aes_ecb_encrypt
 
-
-ENTRY(ce_aes_ecb_decrypt)
+	/*
+	 * ce_aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[],
+	 *                    int rounds, int blocks, int first)
+	 */
+FUNC ce_aes_ecb_decrypt , :
 	FRAME_PUSH
 	cbz		w5, .LecbdecloopNx
 
@@ -324,17 +310,14 @@ ENTRY(ce_aes_ecb_decrypt)
 .Lecbdecout:
 	FRAME_POP
 	ret
-ENDPROC(ce_aes_ecb_decrypt)
-
+END_FUNC ce_aes_ecb_decrypt
 
 	/*
-	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[])
-	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[])
+	 * void ce_aes_cbc_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t iv[])
 	 */
-
-ENTRY(ce_aes_cbc_encrypt)
+FUNC ce_aes_cbc_encrypt , :
 	ld1		{v4.16b}, [x5]			/* get iv */
 	enc_prepare	w3, x2, x6
 
@@ -366,10 +349,14 @@ ENTRY(ce_aes_cbc_encrypt)
 .Lcbcencout:
 	st1		{v4.16b}, [x5]			/* return iv */
 	ret
-ENDPROC(ce_aes_cbc_encrypt)
+END_FUNC ce_aes_cbc_encrypt
 
-
-ENTRY(ce_aes_cbc_decrypt)
+	/*
+	 * void ce_aes_cbc_decrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t iv[])
+	 */
+FUNC ce_aes_cbc_decrypt , :
 	stp		x29, x30, [sp, #-16]!
 	mov		x29, sp
 
@@ -408,15 +395,15 @@ ENTRY(ce_aes_cbc_decrypt)
 	st1		{v7.16b}, [x5]			/* return iv */
 	ldp		x29, x30, [sp], #16
 	ret
-ENDPROC(ce_aes_cbc_decrypt)
+END_FUNC ce_aes_cbc_decrypt
 
 
 	/*
-	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 ctr[], int first)
+	 * void ce_aes_ctr_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk[], int rounds, int blocks,
+	 *			   uint8_t ctr[], int first)
 	 */
-
-ENTRY(ce_aes_ctr_encrypt)
+FUNC ce_aes_ctr_encrypt , :
 	stp             x29, x30, [sp, #-16]!
 	mov             x29, sp
 
@@ -493,16 +480,8 @@ ENTRY(ce_aes_ctr_encrypt)
 	rev             x7, x7
 	ins             v4.d[0], x7
 	b               .Lctrcarrydone
-ENDPROC(ce_aes_ctr_encrypt)
-	.ltorg
+END_FUNC ce_aes_ctr_encrypt
 
-
-	/*
-	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 const rk2[], u8 iv[])
-	 * aes_xts_decrypt(u8 out[], u8 const in[], u8 const rk1[], int rounds,
-	 *		   int blocks, u8 const rk2[], u8 iv[])
-	 */
 
 	.macro		next_tweak, out, in, const, tmp
 	sshr		\tmp\().2d,  \in\().2d,   #63
@@ -512,10 +491,12 @@ ENDPROC(ce_aes_ctr_encrypt)
 	eor		\out\().16b, \out\().16b, \tmp\().16b
 	.endm
 
-.Lxts_mul_x:
-	.word		1, 0, 0x87, 0
-
-ENTRY(ce_aes_xts_encrypt)
+	/*
+	 * void ce_aes_xts_encrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk1[], int rounds, int blocks,
+	 *			   uint8_t const rk2[], uint8_t iv[])
+	 */
+FUNC ce_aes_xts_encrypt , :
 	FRAME_PUSH
 
 	ld1		{v4.16b}, [x6]
@@ -585,10 +566,18 @@ ENTRY(ce_aes_xts_encrypt)
 	st1		{v4.16b}, [x6], #16
 	FRAME_POP
 	ret
-ENDPROC(ce_aes_xts_encrypt)
 
+	.align		4
+.Lxts_mul_x:
+	.word		1, 0, 0x87, 0
+END_FUNC ce_aes_xts_encrypt
 
-ENTRY(ce_aes_xts_decrypt)
+	/*
+	 * void ce_aes_xts_decrypt(uint8_t out[], uint8_t const in[],
+	 *			   uint8_t const rk1[], int rounds, int blocks,
+	 *			   uint8_t const rk2[], uint8_t iv[])
+	 */
+FUNC ce_aes_xts_decrypt , :
 	FRAME_PUSH
 
 	ld1		{v4.16b}, [x6]
@@ -658,4 +647,16 @@ ENTRY(ce_aes_xts_decrypt)
 	next_tweak	v4, v4, v7, v8
 	st1		{v4.16b}, [x6], #16
 	ret
-ENDPROC(ce_aes_xts_decrypt)
+END_FUNC ce_aes_xts_decrypt
+
+	/*
+	 * void ce_aes_xor_block(uint8_t out[], uint8_t const op1[],
+	 *			 uint8_t const op2[]);
+	 */
+FUNC ce_aes_xor_block , :
+	ld1	{v0.16b}, [x1]
+	ld1	{v1.16b}, [x2]
+	eor	v0.16b, v0.16b, v1.16b
+	st1	{v0.16b}, [x0]
+	ret
+END_FUNC ce_aes_xor_block

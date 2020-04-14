@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017-2020, Linaro Limited
  */
 
 #include <assert.h>
-#include <crypto/internal_aes-gcm.h>
+#include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
+#include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <string_ext.h>
 #include <string.h>
@@ -13,8 +14,6 @@
 #include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
-
-#include "aes-gcm-private.h"
 
 static void xor_buf(uint8_t *dst, const uint8_t *src, size_t len)
 {
@@ -93,7 +92,8 @@ static TEE_Result __gcm_init(struct internal_aes_gcm_state *state,
 		memset(state->hash_state, 0, sizeof(state->hash_state));
 	}
 
-	internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_tag);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds,
+			     state->ctr, state->buf_tag);
 	internal_aes_gcm_inc_ctr(state);
 	if (mode == TEE_MODE_ENCRYPT) {
 		/*
@@ -113,7 +113,8 @@ static TEE_Result __gcm_init(struct internal_aes_gcm_state *state,
 		 * accelerated routines it's more convenient to always have
 		 * this optimization activated.
 		 */
-		internal_aes_gcm_encrypt_block(ek, state->ctr, state->buf_cryp);
+		crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds,
+				     state->ctr, state->buf_cryp);
 		internal_aes_gcm_inc_ctr(state);
 	}
 
@@ -125,13 +126,15 @@ TEE_Result internal_aes_gcm_init(struct internal_aes_gcm_ctx *ctx,
 				 size_t key_len, const void *nonce,
 				 size_t nonce_len, size_t tag_len)
 {
-	TEE_Result res = internal_aes_gcm_expand_enc_key(key, key_len,
-							 &ctx->key);
+	TEE_Result res = TEE_SUCCESS;
+	struct internal_aes_gcm_key *ek = &ctx->key;
+
+	res = crypto_aes_expand_enc_key(key, key_len, ek->data,
+					sizeof(ek->data), &ek->rounds);
 	if (res)
 		return res;
 
-	return __gcm_init(&ctx->state, &ctx->key, mode, nonce, nonce_len,
-			  tag_len);
+	return __gcm_init(&ctx->state, ek, mode, nonce, nonce_len, tag_len);
 }
 
 static TEE_Result __gcm_update_aad(struct internal_aes_gcm_state *state,
@@ -205,16 +208,13 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 	state->payload_bytes += len;
 
 	while (l) {
-		if (state->buf_pos ||
-		    !internal_aes_gcm_ptr_is_block_aligned(s) ||
-		    !internal_aes_gcm_ptr_is_block_aligned(d) ||
-		    l < TEE_AES_BLOCK_SIZE) {
+		if (state->buf_pos || l < TEE_AES_BLOCK_SIZE) {
 			n = MIN(TEE_AES_BLOCK_SIZE - state->buf_pos, l);
 
-			if (!state->buf_pos && mode == TEE_MODE_DECRYPT) {
-				internal_aes_gcm_encrypt_block(ek, state->ctr,
-							       state->buf_cryp);
-			}
+			if (!state->buf_pos && mode == TEE_MODE_DECRYPT)
+				crypto_aes_enc_block(ek->data, sizeof(ek->data),
+						     ek->rounds, state->ctr,
+						     state->buf_cryp);
 
 			xor_buf(state->buf_cryp + state->buf_pos, s, n);
 			memcpy(d, state->buf_cryp + state->buf_pos, n);
@@ -237,14 +237,14 @@ __gcm_update_payload(struct internal_aes_gcm_state *state,
 			l -= n;
 
 			if (mode == TEE_MODE_ENCRYPT)
-				internal_aes_gcm_encrypt_block(ek, state->ctr,
-							       state->buf_cryp);
+				crypto_aes_enc_block(ek->data, sizeof(ek->data),
+						     ek->rounds, state->ctr,
+						     state->buf_cryp);
 			internal_aes_gcm_inc_ctr(state);
 		} else {
 			n = l / TEE_AES_BLOCK_SIZE;
-			internal_aes_gcm_update_payload_block_aligned(state, ek,
-								      mode,
-								      s, n, d);
+			internal_aes_gcm_update_payload_blocks(state, ek, mode,
+							       s, n, d);
 			s += n * TEE_AES_BLOCK_SIZE;
 			d += n * TEE_AES_BLOCK_SIZE;
 			l -= n * TEE_AES_BLOCK_SIZE;
@@ -345,12 +345,24 @@ TEE_Result internal_aes_gcm_dec_final(struct internal_aes_gcm_ctx *ctx,
 
 void internal_aes_gcm_inc_ctr(struct internal_aes_gcm_state *state)
 {
-	uint64_t c;
+	uint64_t c = 0;
 
 	c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[1]) + 1;
 	state->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
 	if (!c) {
 		c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[0]) + 1;
+		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
+	}
+}
+
+void internal_aes_gcm_dec_ctr(struct internal_aes_gcm_state *state)
+{
+	uint64_t c = 0;
+
+	c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[1]) - 1;
+	state->ctr[1] = TEE_U64_TO_BIG_ENDIAN(c);
+	if (c == UINT64_MAX) {
+		c = TEE_U64_FROM_BIG_ENDIAN(state->ctr[0]) - 1;
 		state->ctr[0] = TEE_U64_TO_BIG_ENDIAN(c);
 	}
 }
@@ -503,4 +515,35 @@ static const struct crypto_authenc_ops aes_gcm_ops = {
 	.free_ctx = aes_gcm_free_ctx,
 	.copy_state = aes_gcm_copy_state,
 };
+
+/*
+ * internal_aes_gcm_gfmul() is based on ghash_gfmul() from
+ * https://github.com/openbsd/src/blob/master/sys/crypto/gmac.c
+ */
+void internal_aes_gcm_gfmul(const uint64_t X[2], const uint64_t Y[2],
+			    uint64_t product[2])
+{
+	uint64_t y[2] = { 0 };
+	uint64_t z[2] = { 0 };
+	const uint8_t *x = (const uint8_t *)X;
+	uint32_t mul = 0;
+	size_t n = 0;
+
+	y[0] = TEE_U64_FROM_BIG_ENDIAN(Y[0]);
+	y[1] = TEE_U64_FROM_BIG_ENDIAN(Y[1]);
+
+	for (n = 0; n < TEE_AES_BLOCK_SIZE * 8; n++) {
+		/* update Z */
+		if (x[n >> 3] & (1 << (~n & 7)))
+			internal_aes_gcm_xor_block(z, y);
+
+		/* update Y */
+		mul = y[1] & 1;
+		y[1] = (y[0] << 63) | (y[1] >> 1);
+		y[0] = (y[0] >> 1) ^ (0xe100000000000000 * mul);
+	}
+
+	product[0] = TEE_U64_TO_BIG_ENDIAN(z[0]);
+	product[1] = TEE_U64_TO_BIG_ENDIAN(z[1]);
+}
 #endif /*!CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB*/
