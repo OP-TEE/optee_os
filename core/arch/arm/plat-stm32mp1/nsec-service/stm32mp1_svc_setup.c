@@ -9,10 +9,6 @@
 
 #include "stm32mp1_smc.h"
 
-#define SM_NSEC_CTX_OFFSET(_reg)	(offsetof(struct sm_nsec_ctx, _reg) - \
-					 offsetof(struct sm_nsec_ctx, r0))
-#define SMC_ARGS_OFFSET(_reg)		offsetof(struct thread_smc_args, _reg)
-
 static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 				       struct thread_smc_args *args)
 {
