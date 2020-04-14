@@ -12,7 +12,7 @@
 #define STM32_SIP_SVC_VERSION_MAJOR	0x0
 #define STM32_SIP_SVC_VERSION_MINOR	0x1
 
-#define STM32_SIP_SVC_FUNCTION_COUNT	0x0
+#define STM32_SIP_SVC_FUNCTION_COUNT	0x2
 
 /*
  * SMC function IDs for STM32 Service queries
