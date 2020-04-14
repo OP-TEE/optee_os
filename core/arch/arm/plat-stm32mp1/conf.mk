@@ -13,6 +13,9 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_PSCI_ARM32,y)
+$(call force,CFG_SCMI_MSG_DRIVERS,y)
+$(call force,CFG_SCMI_MSG_SMT,y)
+$(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
@@ -56,6 +59,12 @@ CFG_STM32_UART ?= y
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STATS ?= y
+
+# Default disable some support for pager memory size constraint
+CFG_TEE_CORE_DEBUG ?= n
+CFG_UNWIND ?= n
+CFG_LOCKDEP ?= n
+CFG_CORE_ASLR ?= n
 
 # Non-secure UART and GPIO/pinctrl for the output console
 CFG_WITH_NSEC_GPIOS ?= y

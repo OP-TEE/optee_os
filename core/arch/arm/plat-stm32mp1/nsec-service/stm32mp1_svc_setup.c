@@ -4,6 +4,7 @@
  */
 
 #include <kernel/thread.h>
+#include <drivers/scmi-msg.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 
@@ -25,6 +26,12 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		args->a1 = STM32_SIP_SVC_UID_1;
 		args->a2 = STM32_SIP_SVC_UID_2;
 		args->a3 = STM32_SIP_SVC_UID_3;
+		break;
+	case STM32_SIP_SVC_FUNC_SCMI_AGENT0:
+		scmi_smt_fastcall_smc_entry(0);
+		break;
+	case STM32_SIP_SVC_FUNC_SCMI_AGENT1:
+		scmi_smt_fastcall_smc_entry(1);
 		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;
