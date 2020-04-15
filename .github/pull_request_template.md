@@ -3,7 +3,7 @@
     look at the list below and tick them off before submitting the pull request.
 
     1. Read our contribution guidelines:
-         https://optee.readthedocs.io/general/contribute.html
+         https://optee.readthedocs.io/en/latest/general/contribute.html
 
     2. Read the contribution section in Notice.md and pay extra attention to the
        "Developer Certificate of Origin" in the contribution guidelines.
