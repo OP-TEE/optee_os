@@ -1725,9 +1725,15 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 
 static TEE_Result tee_svc_obj_generate_key_dsa(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
+
+	/* Copy the present attributes into the obj before starting */
+	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
+					     param_count);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	res = crypto_acipher_gen_dsa_key(o->attr, key_size);
 	if (res != TEE_SUCCESS)
@@ -1909,7 +1915,8 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 		break;
 
 	case TEE_TYPE_DSA_KEYPAIR:
-		res = tee_svc_obj_generate_key_dsa(o, type_props, key_size);
+		res = tee_svc_obj_generate_key_dsa(o, type_props, key_size,
+						   params, param_count);
 		if (res != TEE_SUCCESS)
 			goto out;
 		break;
