@@ -45,34 +45,6 @@ static TEE_Result open_db_file(struct ck_token *token,
 					out_hdl);
 }
 
-static TEE_Result get_pin_file_name(struct ck_token *token,
-				    enum pkcs11_user_type user,
-				    char *name, size_t size)
-{
-	int n = snprintf(name, size,
-			 "token.db.%u-pin%d", get_token_id(token), user);
-
-	if (n < 0 || (size_t)n >= size)
-		return TEE_ERROR_SECURITY;
-	else
-		return TEE_SUCCESS;
-}
-
-static TEE_Result open_pin_file(struct ck_token *token,
-				enum pkcs11_user_type user,
-				TEE_ObjectHandle *out_hdl)
-{
-	char file[PERSISTENT_OBJECT_ID_LEN] = { };
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	res = get_pin_file_name(token, user, file, sizeof(file));
-	if (res)
-		return res;
-
-	return TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE, file, sizeof(file),
-					0, out_hdl);
-}
-
 void update_persistent_db(struct ck_token *token)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -151,56 +123,6 @@ enum pkcs11_rc verify_pin(enum pkcs11_user_type user, const uint8_t *pin,
 	return rc;
 }
 
-static void init_pin_keys(struct ck_token *token, enum pkcs11_user_type user)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	TEE_ObjectHandle key_hdl = TEE_HANDLE_NULL;
-
-	res = open_pin_file(token, user, &key_hdl);
-
-	if (res == TEE_SUCCESS)
-		DMSG("PIN key found");
-
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		TEE_Attribute attr = { };
-		TEE_ObjectHandle hdl = TEE_HANDLE_NULL;
-		uint8_t pin_key[16] = { };
-		char file[PERSISTENT_OBJECT_ID_LEN] = { };
-
-		TEE_MemFill(&attr, 0, sizeof(attr));
-
-		TEE_GenerateRandom(pin_key, sizeof(pin_key));
-		TEE_InitRefAttribute(&attr, TEE_ATTR_SECRET_VALUE,
-				     pin_key, sizeof(pin_key));
-
-		res = TEE_AllocateTransientObject(TEE_TYPE_AES, 128, &hdl);
-		if (res)
-			TEE_Panic(0);
-
-		res = TEE_PopulateTransientObject(hdl, &attr, 1);
-		if (res)
-			TEE_Panic(0);
-
-		res = get_pin_file_name(token, user, file, sizeof(file));
-		if (res)
-			TEE_Panic(0);
-
-		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
-						 file, sizeof(file), 0, hdl,
-						 pin_key, sizeof(pin_key),
-						 &key_hdl);
-		TEE_CloseObject(hdl);
-
-		if (res == TEE_SUCCESS)
-			DMSG("Token %u: PIN key created", get_token_id(token));
-	}
-
-	if (res)
-		TEE_Panic(res);
-
-	TEE_CloseObject(key_hdl);
-}
-
 /*
  * Release resources relate to persistent database
  */
@@ -222,11 +144,6 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 
 	if (!token)
 		return NULL;
-
-	init_pin_keys(token, PKCS11_CKU_SO);
-	init_pin_keys(token, PKCS11_CKU_USER);
-	COMPILE_TIME_ASSERT(PKCS11_CKU_SO == 0 && PKCS11_CKU_USER == 1 &&
-			    PKCS11_MAX_USERS >= 2);
 
 	db_main = TEE_Malloc(sizeof(*db_main), TEE_MALLOC_FILL_ZERO);
 	if (!db_main)
