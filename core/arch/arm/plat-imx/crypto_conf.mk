@@ -18,9 +18,13 @@
 # DBG_HASH   BIT32(7)  // Hash trace
 # DBG_RSA    BIT32(8)  // RSA trace
 # DBG_CIPHER BIT32(9)  // Cipher trace
+# DBG_BLOB   BIT32(10) // BLOB trace
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
+
+# Enable the BLOB module used for the hardware unique key
+CFG_NXP_CAAM_BLOB_DRV ?= y
 
 #
 # CAAM Job Ring configuration
