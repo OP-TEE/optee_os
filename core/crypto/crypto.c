@@ -667,7 +667,8 @@ void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s __unused)
 {
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused,
+				      size_t key_size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

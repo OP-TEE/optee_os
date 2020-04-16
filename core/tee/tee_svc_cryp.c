@@ -1779,8 +1779,7 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 
 static TEE_Result tee_svc_obj_generate_key_ecc(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size __unused,
-	const TEE_Attribute *params, uint32_t param_count)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct ecc_keypair *tee_ecc_key;
@@ -1793,7 +1792,7 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 
 	tee_ecc_key = (struct ecc_keypair *)o->attr;
 
-	res = crypto_acipher_gen_ecc_key(tee_ecc_key);
+	res = crypto_acipher_gen_ecc_key(tee_ecc_key, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
