@@ -190,7 +190,7 @@ void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s);
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size);
 TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size);
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
-				     size_t xbits);
+				     size_t xbits, size_t key_size);
 TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key);
 
 TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,

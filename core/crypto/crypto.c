@@ -634,7 +634,8 @@ TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
 
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key __unused,
 				     struct bignum *q __unused,
-				     size_t xbits __unused)
+				     size_t xbits __unused,
+				     size_t key_size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

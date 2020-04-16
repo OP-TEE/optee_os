@@ -1747,8 +1747,7 @@ static TEE_Result tee_svc_obj_generate_key_dsa(
 
 static TEE_Result tee_svc_obj_generate_key_dh(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size __unused,
-	const TEE_Attribute *params, uint32_t param_count)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct dh_keypair *tee_dh_key;
@@ -1767,7 +1766,7 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 		dh_q = tee_dh_key->q;
 	if (get_attribute(o, type_props, TEE_ATTR_DH_X_BITS))
 		dh_xbits = tee_dh_key->xbits;
-	res = crypto_acipher_gen_dh_key(tee_dh_key, dh_q, dh_xbits);
+	res = crypto_acipher_gen_dh_key(tee_dh_key, dh_q, dh_xbits, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
