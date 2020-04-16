@@ -36,11 +36,14 @@ err:
 }
 
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
-				     size_t xbits)
+				     size_t xbits, size_t key_size)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	dh_key ltc_tmp_key = { };
 	int ltc_res = 0;
+
+	if (key_size != 8 * mp_unsigned_bin_size(key->p))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	ltc_res = mp_init_multi(&ltc_tmp_key.base, &ltc_tmp_key.prime, NULL);
 	if (ltc_res != CRYPT_OK)
