@@ -146,7 +146,7 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key, size_t key_size)
 {
 	TEE_Result res;
 	ecc_key ltc_tmp_key;
@@ -158,6 +158,9 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 				 NULL);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (key_size != key_size_bits)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Generate the ECC key */
 	ltc_res = ecc_make_key(NULL, find_prng("prng_crypto"),
