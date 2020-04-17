@@ -38,7 +38,6 @@ SRCS_CRYPTO += md.c
 SRCS_CRYPTO += md2.c
 SRCS_CRYPTO += md4.c
 SRCS_CRYPTO += md5.c
-SRCS_CRYPTO += md_wrap.c
 SRCS_CRYPTO += memory_buffer_alloc.c
 SRCS_CRYPTO += nist_kw.c
 SRCS_CRYPTO += oid.c
