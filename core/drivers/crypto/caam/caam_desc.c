@@ -80,10 +80,12 @@ void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr)
 
 paddr_t caam_desc_pop(struct caam_outring_entry *out_entry)
 {
+	const uint32_t *a32 = (const uint32_t *)(&out_entry->desc);
+
 #ifdef CFG_CAAM_BIG_ENDIAN
-	return get_be64(&out_entry->desc);
+	return SHIFT_U64(get_be32(&a32[0]), 32) | get_be32(&a32[1]);
 #else
-	return get_le64(&out_entry->desc);
+	return SHIFT_U64(a32[1], 32) | a32[0];
 #endif /* CFG_CAAM_BIG_ENDIAN */
 }
 #else /* CFG_CAAM_64BIT */
