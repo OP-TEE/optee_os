@@ -5,6 +5,7 @@
  * Brief   CAAM Random Number Generator Hardware Abstration Layer.
  *         Implementation of primitives to access HW.
  */
+#include <caam_hal_ctrl.h>
 #include <caam_hal_rng.h>
 #include <caam_io.h>
 #include <caam_status.h>
@@ -13,15 +14,23 @@
 
 bool caam_hal_rng_instantiated(vaddr_t baseaddr)
 {
-	uint32_t chavid_ls = 0;
+	uint32_t vid = 0;
 	uint32_t nb_sh = 0;
 	uint32_t status = 0;
 
-	chavid_ls = io_caam_read32(baseaddr + CHAVID_LS);
 
 	/* RNG version < 4 and RNG state handle is already instantiated */
-	if (GET_CHAVID_LS_RNGVID(chavid_ls) < 4)
-		return true;
+	if (caam_hal_ctrl_era(baseaddr) < 10) {
+		vid = io_caam_read32(baseaddr + CHAVID_LS);
+
+		if (GET_CHAVID_LS_RNGVID(vid) < 4)
+			return true;
+	} else {
+		vid = io_caam_read32(baseaddr + RNG_VERSION);
+
+		if (GET_RNG_VERSION_VID(vid) < 4)
+			return true;
+	}
 
 	/* Get the Number of State Handles */
 	nb_sh = caam_hal_rng_get_nb_sh(baseaddr);
