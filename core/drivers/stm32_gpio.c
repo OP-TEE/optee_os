@@ -167,22 +167,22 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 /* Panic if GPIO bank information from platform do not match DTB description */
 static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 {
-	int pinctrl_subnode = 0;
+	int subnode = 0;
 
-	fdt_for_each_subnode(pinctrl_subnode, fdt, pinctrl_node) {
+	fdt_for_each_subnode(subnode, fdt, pinctrl_node) {
 		const fdt32_t *cuint = NULL;
 
-		if (fdt_getprop(fdt, pinctrl_subnode,
-				"gpio-controller", NULL) == NULL)
+		if (!fdt_getprop(fdt, subnode, "gpio-controller", NULL))
 			continue;
 
 		/* Check bank register offset matches platform assumptions */
-		cuint = fdt_getprop(fdt, pinctrl_subnode, "reg", NULL);
+		cuint = _fdt_get_secure_prop(fdt, subnode, "reg", NULL);
+		assert(cuint);
 		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
 			continue;
 
 		/* Check bank clock matches platform assumptions */
-		cuint = fdt_getprop(fdt, pinctrl_subnode, "clocks", NULL);
+		cuint = _fdt_get_secure_prop(fdt, subnode, "clocks", NULL);
 		if (!cuint)
 			panic();
 		cuint++;
@@ -190,7 +190,7 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 			panic();
 
 		/* Check controller is enabled */
-		if (_fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
+		if (_fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
 			panic();
 
 		return;
