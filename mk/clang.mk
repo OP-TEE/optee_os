@@ -33,7 +33,10 @@ nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 comp-cflags-warns-clang := -Wno-language-extension-token \
 			 -Wno-gnu-zero-variadic-macro-arguments
 
-libgcc$(sm)  	:=
+# Note, the currently used compiler runtime library may be libgcc.a or
+# libclang_rt.builtins.*.a depending on the compiler build-time configuration.
+libgcc$(sm)  	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) $(comp-cflags$(sm)) \
+			-print-libgcc-file-name 2> /dev/null)
 
 # Define these to something to discover accidental use
 CC		:= false
