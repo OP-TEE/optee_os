@@ -15,7 +15,6 @@ import zlib
 
 
 def get_args():
-
     parser = argparse.ArgumentParser(
         description='Converts a Trusted '
         'Application ELF file into a C source file, ready for '
@@ -39,6 +38,7 @@ def get_args():
 
     return parser.parse_args()
 
+
 def get_name(obj):
     # Symbol or section .name might be a byte array or a string, we want a
     # string
@@ -48,8 +48,8 @@ def get_name(obj):
         name = obj.name
     return name
 
-def ta_get_flags(ta_f):
 
+def ta_get_flags(ta_f):
     with open(ta_f, 'rb') as f:
         elffile = ELFFile(f)
 
@@ -59,8 +59,8 @@ def ta_get_flags(ta_f):
 
         raise Exception('.ta_head section not found')
 
-def main():
 
+def main():
     args = get_args()
 
     ta_uuid = uuid.UUID(re.sub(r'\..*', '', os.path.basename(args.ta)))
