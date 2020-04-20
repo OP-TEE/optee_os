@@ -110,6 +110,7 @@
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ECDH_C
+#define MBEDTLS_ECDH_LEGACY_CONTEXT
 #endif
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
