@@ -201,11 +201,11 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		break;
 
 	default:
-		EMSG("Command 0x%"PRIx32" is not supported", cmd);
+		EMSG("Command %#"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	DMSG("%s rc 0x%08"PRIx32"/%s", id2str_ta_cmd(cmd), rc, id2str_rc(rc));
+	DMSG("%s rc %#"PRIx32"/%s", id2str_ta_cmd(cmd), rc, id2str_rc(rc));
 
 	TEE_MemMove(params[0].memref.buffer, &rc, sizeof(rc));
 	params[0].memref.size = sizeof(rc);
