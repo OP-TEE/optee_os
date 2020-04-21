@@ -470,6 +470,40 @@ struct pkcs11_mechanism_info {
 #define PKCS11_CKFM_EC_COMPRESS			(1U << 25)
 
 /*
+ * pkcs11_object_head - Header of object whose data are serialized in memory
+ *
+ * An object is made of several attributes. Attributes are stored one next to
+ * the other with byte alignment as a serialized byte array. The byte array
+ * of serialized attributes is prepended with the size of the attrs[] array
+ * in bytes and the number of attributes in the array, yielding the struct
+ * pkcs11_object_head.
+ *
+ * @attrs_size - byte size of whole byte array attrs[]
+ * @attrs_count - number of attribute items stored in attrs[]
+ * @attrs - then starts the attributes data
+ */
+struct pkcs11_object_head {
+	uint32_t attrs_size;
+	uint32_t attrs_count;
+	uint8_t attrs[];
+};
+
+/*
+ * Attribute reference in the TA ABI. Each attribute starts with a header
+ * structure followed by the attribute value. The attribute byte size is
+ * defined in the attribute header.
+ *
+ * @id - the 32bit identifier of the attribute, see PKCS11_CKA_<x>
+ * @size - the 32bit value attribute byte size
+ * @data - then starts the attribute value
+ */
+struct pkcs11_attribute_head {
+	uint32_t id;
+	uint32_t size;
+	uint8_t data[];
+};
+
+/*
  * Valid values for mechanism IDs
  * PKCS11_CKM_<x> reflects CryptoKi client API mechanism IDs CKM_<x>.
  */
