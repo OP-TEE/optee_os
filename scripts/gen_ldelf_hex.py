@@ -37,7 +37,9 @@ def round_up(n, m):
 
 def emit_load_segments(elffile, outf):
     load_size = 0
+    code_size = 0
     data_size = 0
+    next_rseg_va = 0
     next_rwseg_va = 0
     n = 0
     for segment in elffile.iter_segments():
@@ -48,16 +50,25 @@ def emit_load_segments(elffile, outf):
                     sys.exit(1)
                 code_size = segment['p_filesz']
             else:
-                if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_W):
-                    print('Expected load segment to be read/write')
-                    sys.exit(1)
-                if next_rwseg_va and segment['p_vaddr'] != next_rwseg_va:
-                    print('Expected contiguous read/write segments')
-                    print(segment['p_vaddr'])
-                    print(next_rwseg_va)
-                    sys.exit(1)
-                data_size += segment['p_filesz']
-                next_rwseg_va = segment['p_vaddr'] + segment['p_filesz']
+                if segment['p_flags'] & P_FLAGS.PF_W != P_FLAGS.PF_W:
+                    # A subsequent non-writable segment may be placed in the
+                    # "code" area (mapped RX)
+                    if data_size != 0:
+                        # Already met RW data: error
+                        print(f'Expected writable load segment (n={n})')
+                        sys.exit(1)
+                    else:
+                        if next_rseg_va and segment['p_vaddr'] != next_rseg_va:
+                            print(f'Expected contiguous load segments (n={n})')
+                            sys.exit(1)
+                        code_size += segment['p_filesz']
+                        next_rseg_va = segment['p_vaddr'] + segment['p_filesz']
+                else:
+                    if next_rwseg_va and segment['p_vaddr'] != next_rwseg_va:
+                        print(f'Expected contiguous load segments (n={n})')
+                        sys.exit(1)
+                    data_size += segment['p_filesz']
+                    next_rwseg_va = segment['p_vaddr'] + segment['p_filesz']
             load_size += segment['p_filesz']
             n = n + 1
 
