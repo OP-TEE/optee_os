@@ -661,5 +661,8 @@ enum pkcs11_key_type {
  */
 enum pkcs11_mechanism_id {
 	PKCS11_CKM_AES_ECB			= 0x01081,
+	/* PKCS11 added IDs for operation no related to a CK mechanism ID */
+	PKCS11_PROCESSING_IMPORT		= 0x80000000,
+	PKCS11_CKM_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
 #endif /*PKCS11_TA_H*/
