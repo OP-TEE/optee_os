@@ -112,3 +112,24 @@ enum pkcs11_rc serialargs_get_session_from_handle(struct serialargs *args,
 
 	return PKCS11_CKR_OK;
 }
+
+enum pkcs11_rc serialize(char **bstart, size_t *blen, void *data, size_t len)
+{
+	char *buf = NULL;
+	size_t nlen = 0;
+
+	if (ADD_OVERFLOW(*blen, len, &nlen))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	buf = TEE_Realloc(*bstart, nlen);
+	if (!buf)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	TEE_MemMove(buf + *blen, data, len);
+
+	*blen = nlen;
+	*bstart = buf;
+
+	return PKCS11_CKR_OK;
+}
+
