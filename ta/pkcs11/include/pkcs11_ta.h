@@ -249,6 +249,35 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_Logout().
 	 */
 	PKCS11_CMD_LOGOUT = 14,
+
+	/*
+	 * PKCS11_CMD_CREATE_OBJECT - Create a raw client assembled object in
+	 *			      the session or token
+	 *
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_CreateObject().
+	 */
+	PKCS11_CMD_CREATE_OBJECT = 15,
+
+	/*
+	 * PKCS11_CMD_DESTROY_OBJECT - Destroy an object
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_DestroyObject().
+	 */
+	PKCS11_CMD_DESTROY_OBJECT = 16,
 };
 
 /*
