@@ -7,7 +7,9 @@ clang-target	:= $(patsubst %-,%,$(notdir $(lastword $(CROSS_COMPILE_$(sm)))))
 ccache-cmd	:= $(if $(findstring ccache,$(CROSS_COMPILE_$(sm))),$(firstword $(CROSS_COMPILE_$(sm))) ,)
 
 CC$(sm)		:= $(ccache-cmd)clang --target=$(clang-target)
-CPP$(sm)	:= $(ccache-cmd)clang-cpp --target=$(clang-target)
+# Due to the absence of clang-cpp in AOSP's prebuilt version of clang,
+# use the equivalent command of 'clang -E'
+CPP$(sm)	:= $(ccache-cmd)clang --target=$(clang-target) -E
 LD$(sm)		:= $(ccache-cmd)ld.lld
 
 ifeq ($(sm)-$(CFG_WITH_PAGER),core-y)
