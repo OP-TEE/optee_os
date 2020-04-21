@@ -37,4 +37,10 @@ bool serialargs_remaining_bytes(struct serialargs *args);
 enum pkcs11_rc serialargs_get_session_from_handle(struct serialargs *args,
 						  struct pkcs11_client *client,
 						  struct pkcs11_session **sess);
+
+/**
+ * serialize - Append data into a serialized buffer
+ */
+enum pkcs11_rc serialize(char **bstart, size_t *blen, void *data, size_t len);
+
 #endif /*PKCS11_TA_SERIALIZER_H*/
