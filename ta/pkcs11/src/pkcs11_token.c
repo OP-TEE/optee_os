@@ -200,7 +200,6 @@ uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	uint32_t rv = 0;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
-	struct ck_token *token = NULL;
 	struct pkcs11_slot_info info = {
 		.slot_description = PKCS11_SLOT_DESCRIPTION,
 		.manufacturer_id = PKCS11_SLOT_MANUFACTURER,
@@ -226,8 +225,7 @@ uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	token = get_token(token_id);
-	if (!token)
+	if (!get_token(token_id))
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
 	pad_str(info.slot_description, sizeof(info.slot_description));
