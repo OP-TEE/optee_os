@@ -229,27 +229,6 @@ static TEE_Result init_stm32mp1_drivers(void)
 	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
 
-	/* Static secure DECPROT configuration */
-	etzpc_configure_decprot(STM32MP1_ETZPC_STGENC_ID, ETZPC_DECPROT_S_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_BKPSRAM_ID, ETZPC_DECPROT_S_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_IWDG1_ID, ETZPC_DECPROT_S_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_DDRCTRL_ID, ETZPC_DECPROT_S_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_DDRPHYC_ID, ETZPC_DECPROT_S_RW);
-	etzpc_lock_decprot(STM32MP1_ETZPC_STGENC_ID);
-	etzpc_lock_decprot(STM32MP1_ETZPC_BKPSRAM_ID);
-	etzpc_lock_decprot(STM32MP1_ETZPC_IWDG1_ID);
-	etzpc_lock_decprot(STM32MP1_ETZPC_DDRCTRL_ID);
-	etzpc_lock_decprot(STM32MP1_ETZPC_DDRPHYC_ID);
-	/* Static non-secure DECPROT configuration */
-	etzpc_configure_decprot(STM32MP1_ETZPC_I2C4_ID, ETZPC_DECPROT_NS_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_RNG1_ID, ETZPC_DECPROT_NS_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_HASH1_ID, ETZPC_DECPROT_NS_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_CRYP1_ID, ETZPC_DECPROT_NS_RW);
-	/* Release few resource to the non-secure world */
-	etzpc_configure_decprot(STM32MP1_ETZPC_USART1_ID, ETZPC_DECPROT_NS_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_SPI6_ID, ETZPC_DECPROT_NS_RW);
-	etzpc_configure_decprot(STM32MP1_ETZPC_I2C6_ID, ETZPC_DECPROT_NS_RW);
-
 	return TEE_SUCCESS;
 }
 service_init_late(init_stm32mp1_drivers);
