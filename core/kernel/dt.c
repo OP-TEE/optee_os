@@ -63,7 +63,7 @@ int dt_get_irq(void *fdt, int node)
 	 *  - Type of interrupt
 	 *  - Interrupt Number
 	 */
-	int_prop = fdt_getprop(fdt, node, "interrupts", &len_prop);
+	int_prop = _fdt_get_secure_prop(fdt, node, "interrupts", &len_prop);
 
 	if (!int_prop || len_prop < 2)
 		return it_num;
@@ -202,7 +202,7 @@ paddr_t _fdt_reg_base_address(const void *fdt, int offs)
 	if (parent < 0)
 		return DT_INFO_INVALID_REG;
 
-	reg = fdt_getprop(fdt, offs, "reg", &len);
+	reg = _fdt_get_secure_prop(fdt, offs, "reg", &len);
 	if (!reg)
 		return DT_INFO_INVALID_REG;
 
@@ -225,7 +225,7 @@ ssize_t _fdt_reg_size(const void *fdt, int offs)
 	if (parent < 0)
 		return DT_INFO_INVALID_REG;
 
-	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
+	reg = (const uint32_t *)_fdt_get_secure_prop(fdt, offs, "reg", &len);
 	if (!reg)
 		return -1;
 
@@ -294,13 +294,13 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 
 	dinfo.reg = _fdt_reg_base_address(fdt, offs);
 
-	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
+	cuint = _fdt_get_secure_prop(fdt, offs, "clocks", NULL);
 	if (cuint) {
 		cuint++;
 		dinfo.clock = (int)fdt32_to_cpu(*cuint);
 	}
 
-	cuint = fdt_getprop(fdt, offs, "resets", NULL);
+	cuint = _fdt_get_secure_prop(fdt, offs, "resets", NULL);
 	if (cuint) {
 		cuint++;
 		dinfo.reset = (int)fdt32_to_cpu(*cuint);
