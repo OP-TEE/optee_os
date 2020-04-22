@@ -6,6 +6,10 @@
 #ifndef TOKEN_CAPABILITIES_H
 #define TOKEN_CAPABILITIES_H
 
+#include <pkcs11_ta.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 bool mechanism_flags_complies_pkcs11(uint32_t mechanism_type, uint32_t flags);
 
 bool mechanism_is_valid(enum pkcs11_mechanism_id id);
