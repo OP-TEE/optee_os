@@ -9,6 +9,7 @@
 #include <tee_internal_api.h>
 #include <trace.h>
 
+#include "pkcs11_token.h"
 #include "serializer.h"
 
 /*
@@ -88,4 +89,25 @@ uint32_t serialargs_get_ptr(struct serialargs *args, void **out, size_t size)
 bool serialargs_remaining_bytes(struct serialargs *args)
 {
 	return args->next < args->start + args->size;
+}
+
+enum pkcs11_rc serialargs_get_session_from_handle(struct serialargs *args,
+						  struct pkcs11_client *client,
+						  struct pkcs11_session **sess)
+{
+	uint32_t rv = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t session_handle = 0;
+	struct pkcs11_session *session = NULL;
+
+	rv = serialargs_get(args, &session_handle, sizeof(uint32_t));
+	if (rv)
+		return rv;
+
+	session = pkcs11_handle2session(session_handle, client);
+	if (!session)
+		return PKCS11_CKR_SESSION_HANDLE_INVALID;
+
+	*sess = session;
+
+	return PKCS11_CKR_OK;
 }
