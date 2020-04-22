@@ -161,6 +161,20 @@ int _fdt_get_status(const void *fdt, int offs);
  */
 void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int node);
 
+/*
+ * fdt_get_secure_prop - like fdt_getprop for a the secure world
+ * @fdt: pointer to the device tree blob
+ * @nodeoffset: offset of the node whose property to find
+ * @name: name of the property to find
+ * @lenp: pointer to an integer variable (will be overwritten) or NULL
+ *
+ * Attempts to get property "secure-"@name and fallback to property @name
+ * if not found. Length of name shall be is expect 24 chars max excluding
+ * null termination unless what this function panics.
+ */
+const void *_fdt_get_secure_prop(const void *fdt, int nodeoffset,
+				 const char *name, int *lenp);
+
 #else /* !CFG_DT */
 
 static inline const struct dt_driver *__dt_driver_start(void)
@@ -209,6 +223,14 @@ static inline void _fdt_fill_device_info(void *fdt __unused,
 					 int node __unused)
 {
 	panic();
+}
+
+static inline const void *_fdt_get_secure_prop(const void *fdt __unused,
+					       int nodeoffset __unused,
+					       const char *name __unused,
+					       int *lenp __unused)
+{
+	return NULL;
 }
 #endif /* !CFG_DT */
 

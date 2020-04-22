@@ -9,6 +9,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <stdio.h>
 #include <string.h>
 #include <trace.h>
 
@@ -308,4 +309,24 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 	dinfo.status = _fdt_get_status(fdt, offs);
 
 	*info = dinfo;
+}
+
+const void *_fdt_get_secure_prop(const void *fdt, int nodeoffset,
+				 const char *name, int *lenp)
+{
+	const fdt32_t *cuint;
+	char sec_prop[32] = { 0 };
+	int rc = 0;
+
+	rc = snprintf(sec_prop, sizeof(sec_prop), "secure-%s", name);
+	if (rc < 0 || (size_t) rc >= sizeof(sec_prop)) {
+		DMSG("Property name \"%s\"too long, panicking!", name);
+		panic();
+	}
+
+	cuint = fdt_getprop(fdt, nodeoffset, sec_prop, lenp);
+	if (!cuint)
+		cuint = fdt_getprop(fdt, nodeoffset, name, lenp);
+
+	return cuint;
 }
