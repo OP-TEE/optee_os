@@ -593,7 +593,6 @@ uint32_t entry_ck_close_session(struct pkcs11_client *client,
 	TEE_Param *ctrl = &params[0];
 	uint32_t rv = 0;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	struct pkcs11_session *session = NULL;
 
 	if (!client || ptypes != exp_pt)
@@ -601,16 +600,12 @@ uint32_t entry_ck_close_session(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rv = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rv)
 		return rv;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	close_ck_session(session);
 
@@ -668,7 +663,6 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 	TEE_Param *out = &params[2];
 	uint32_t rv = 0;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	struct pkcs11_session *session = NULL;
 	struct pkcs11_session_info info = {
 		.flags = PKCS11_CKFSS_SERIAL_SESSION,
@@ -679,16 +673,12 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rv = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rv)
 		return rv;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	info.slot_id = get_token_id(session->token);
 	info.state = session->state;
@@ -890,7 +880,6 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 	uint32_t pin_size = 0;
 	void *pin = NULL;
@@ -900,7 +889,7 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -915,16 +904,12 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (!pkcs11_session_is_so(session))
 		return PKCS11_CKR_USER_NOT_LOGGED_IN;
 
 	assert(session->token->db_main->flags & PKCS11_CKFT_TOKEN_INITIALIZED);
 
-	IMSG("PKCS11 session %"PRIu32": init PIN", session_handle);
+	IMSG("PKCS11 session %"PRIu32": init PIN", session->handle);
 
 	return set_pin(session, pin, pin_size, PKCS11_CKU_USER);
 }
@@ -1048,7 +1033,6 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	uint32_t old_pin_size = 0;
 	TEE_Param *ctrl = params;
 	uint32_t pin_size = 0;
@@ -1060,7 +1044,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -1083,10 +1067,6 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (!pkcs11_session_is_read_write(session))
 		return PKCS11_CKR_SESSION_READ_ONLY;
 
@@ -1099,7 +1079,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 		if (rc)
 			return rc;
 
-		IMSG("PKCS11 session %"PRIu32": set PIN", session_handle);
+		IMSG("PKCS11 session %"PRIu32": set PIN", session->handle);
 
 		return set_pin(session, pin, pin_size, PKCS11_CKU_SO);
 	}
@@ -1112,7 +1092,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	if (rc)
 		return rc;
 
-	IMSG("PKCS11 session %"PRIu32": set PIN", session_handle);
+	IMSG("PKCS11 session %"PRIu32": set PIN", session->handle);
 
 	return set_pin(session, pin, pin_size, PKCS11_CKU_USER);
 }
@@ -1176,7 +1156,6 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 	struct pkcs11_session *sess = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 	uint32_t user_type = 0;
 	uint32_t pin_size = 0;
@@ -1187,7 +1166,7 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -1205,10 +1184,6 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	switch (user_type) {
 	case PKCS11_CKU_SO:
@@ -1276,7 +1251,7 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 	}
 
 	if (!rc)
-		IMSG("PKCS11 session %"PRIu32": login", session_handle);
+		IMSG("PKCS11 session %"PRIu32": login", session->handle);
 
 	return rc;
 }
@@ -1291,7 +1266,6 @@ uint32_t entry_ck_logout(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 
 	if (!client || ptypes != exp_pt)
@@ -1299,23 +1273,19 @@ uint32_t entry_ck_logout(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (pkcs11_session_is_public(session))
 		return PKCS11_CKR_USER_NOT_LOGGED_IN;
 
 	session_logout(session);
 
-	IMSG("PKCS11 session %"PRIu32": logout", session_handle);
+	IMSG("PKCS11 session %"PRIu32": logout", session->handle);
 
 	return PKCS11_CKR_OK;
 }
