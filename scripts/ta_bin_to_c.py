@@ -13,7 +13,6 @@ import zlib
 
 
 def get_args():
-
     parser = argparse.ArgumentParser(
         description='Converts a Trusted '
         'Application ELF file into a C source file, ready for '
@@ -39,7 +38,6 @@ def get_args():
 
 
 def main():
-
     args = get_args()
 
     ta_uuid = uuid.UUID(re.sub(r'\..*', '', os.path.basename(args.ta)))
