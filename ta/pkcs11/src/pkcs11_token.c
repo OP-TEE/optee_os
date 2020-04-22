@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <confine_array_index.h>
 #include <pkcs11_ta.h>
+#include <printk.h>
 #include <string.h>
 #include <string_ext.h>
 #include <sys/queue.h>
@@ -189,6 +190,29 @@ static void pad_str(uint8_t *str, size_t size)
 	TEE_MemFill(str + n, ' ', size - n);
 }
 
+static void set_token_description(struct pkcs11_slot_info *info)
+{
+	char desc[sizeof(info->slot_description) + 1] = { 0 };
+	TEE_UUID dev_id = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int n = 0;
+
+	res = TEE_GetPropertyAsUUID(TEE_PROPSET_TEE_IMPLEMENTATION,
+				    "gpd.tee.deviceID", &dev_id);
+	if (res == TEE_SUCCESS) {
+		n = snprintk(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - TEE UUID %pUl", (void *)&dev_id);
+	} else {
+		n = snprintf(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - No TEE UUID");
+	}
+	if (n < 0 || n >= (int)sizeof(desc))
+		TEE_Panic(0);
+
+	TEE_MemMove(info->slot_description, desc, n);
+	pad_str(info->slot_description, sizeof(info->slot_description));
+}
+
 uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
@@ -228,7 +252,8 @@ uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	if (!get_token(token_id))
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	pad_str(info.slot_description, sizeof(info.slot_description));
+	set_token_description(&info);
+
 	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
 
 	out->memref.size = sizeof(info);
