@@ -6,6 +6,7 @@
 #ifndef PKCS11_TA_SERIALIZER_H
 #define PKCS11_TA_SERIALIZER_H
 
+#include <pkcs11_ta.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -23,12 +24,13 @@ struct serialargs {
 
 void serialargs_init(struct serialargs *args, void *in, size_t size);
 
-uint32_t serialargs_get(struct serialargs *args, void *out, size_t sz);
+enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t sz);
 
-uint32_t serialargs_get_ptr(struct serialargs *args, void **out, size_t size);
+enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
+				  size_t size);
 
-uint32_t serialargs_alloc_and_get(struct serialargs *args,
-				  void **out, size_t size);
+enum pkcs11_rc serialargs_alloc_and_get(struct serialargs *args,
+					void **out, size_t size);
 
 bool serialargs_remaining_bytes(struct serialargs *args);
 
