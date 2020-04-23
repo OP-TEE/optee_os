@@ -22,7 +22,7 @@ void serialargs_init(struct serialargs *args, void *in, size_t size)
 	args->size = size;
 }
 
-uint32_t serialargs_get(struct serialargs *args, void *out, size_t size)
+enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t size)
 {
 	if (args->next + size > args->start + args->size) {
 		EMSG("arg too short: full %zd, remain %zd, expect %zd",
@@ -37,8 +37,8 @@ uint32_t serialargs_get(struct serialargs *args, void *out, size_t size)
 	return PKCS11_CKR_OK;
 }
 
-uint32_t serialargs_alloc_and_get(struct serialargs *args,
-				  void **out, size_t size)
+enum pkcs11_rc serialargs_alloc_and_get(struct serialargs *args,
+					void **out, size_t size)
 {
 	void *ptr = NULL;
 
@@ -65,7 +65,8 @@ uint32_t serialargs_alloc_and_get(struct serialargs *args,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t serialargs_get_ptr(struct serialargs *args, void **out, size_t size)
+enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
+				  size_t size)
 {
 	void *ptr = args->next;
 

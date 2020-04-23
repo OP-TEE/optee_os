@@ -163,27 +163,27 @@ struct ck_token *pkcs11_session2token(struct pkcs11_session *session)
 }
 
 /* Entry point for the TA commands */
-uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_open_session(struct pkcs11_client *client,
-			       uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_close_session(struct pkcs11_client *client,
-				uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_close_all_sessions(struct pkcs11_client *client,
+enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_token_info(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 				     uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_session_info(struct pkcs11_client *client,
+enum pkcs11_rc entry_ck_close_session(struct pkcs11_client *client,
+				      uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_close_all_sessions(struct pkcs11_client *client,
+					   uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_session_info(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_init_pin(struct pkcs11_client *client,
+				 uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_set_pin(struct pkcs11_client *client,
+				uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_login(struct pkcs11_client *client,
+			      uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_logout(struct pkcs11_client *client,
 			       uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_init_pin(struct pkcs11_client *client,
-			   uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_set_pin(struct pkcs11_client *client,
-			  uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_login(struct pkcs11_client *client,
-			uint32_t ptypes, TEE_Param *params);
-uint32_t entry_ck_logout(struct pkcs11_client *client,
-			 uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
