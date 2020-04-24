@@ -59,6 +59,13 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 
+#if defined(PLATFORM_FLAVOR_lx2160ardb)
+register_ddr(CFG_DRAM0_BASE, (CFG_TZDRAM_START - CFG_DRAM0_BASE));
+#ifdef CFG_DRAM1_BASE
+register_ddr(CFG_DRAM1_BASE, CFG_DRAM1_SIZE);
+#endif
+#endif
+
 #ifdef CFG_ARM32_core
 void plat_primary_init_early(void)
 {

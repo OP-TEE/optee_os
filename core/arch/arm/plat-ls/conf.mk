@@ -91,9 +91,12 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force,CFG_TEE_CORE_NB_CORE,16)
 $(call force,CFG_DRAM0_SIZE,0x80000000)
+$(call force,CFG_DRAM1_BASE,0x2080000000)
+$(call force,CFG_DRAM1_SIZE,0x1F80000000)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_PL011,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,48)
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
