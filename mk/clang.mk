@@ -12,17 +12,6 @@ CC$(sm)		:= $(ccache-cmd)clang --target=$(clang-target)
 CPP$(sm)	:= $(ccache-cmd)clang --target=$(clang-target) -E
 LD$(sm)		:= $(ccache-cmd)ld.lld
 
-ifeq ($(sm)-$(CFG_WITH_PAGER),core-y)
-# Workaround an issue with all_objs.o and unpaged.o when CFG_WITH_PAGER=y:
-# ld.ldd merges .text.* sections into .text, even though the linker script does
-# not tell to do so. --relocatable would avoid that, but is not compatible with
-# --gc-sections. A trivial patch to ld.lld can fix the issue (in
-# lld/ELF/Writer.cpp, change elf::getOutputSectionName() to always return
-# s->name) so perhaps a new command line option could be proposed upstream?
-# Anyway, use GNU.ld for the moment.
-LDcore		:= $(CROSS_COMPILE_$(sm))ld
-endif
-
 AR$(sm)		:= $(ccache-cmd)llvm-ar
 NM$(sm)		:= llvm-nm
 OBJCOPY$(sm)	:= llvm-objcopy
