@@ -40,6 +40,11 @@ comp-cflags-warns-clang := -Wno-language-extension-token \
 libgcc$(sm)  	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) $(comp-cflags$(sm)) \
 			-print-libgcc-file-name 2> /dev/null)
 
+# Core ASLR relies on the executable being ready to run from its preferred load
+# address, because some symbols are used before the MMU is enabled and the
+# relocations are applied.
+ldflag-apply-dynamic-relocs := --apply-dynamic-relocs
+
 # Define these to something to discover accidental use
 CC		:= false
 CPP		:= false
