@@ -11,7 +11,7 @@ AWK	 = awk
 
 link-ldflags  = $(LDFLAGS)
 ifeq ($(CFG_CORE_ASLR),y)
-link-ldflags += -pie -z notext -z norelro
+link-ldflags += -pie -z notext -z norelro $(ldflag-apply-dynamic-relocs)
 endif
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
