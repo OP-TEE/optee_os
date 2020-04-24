@@ -423,7 +423,7 @@ END_FUNC unhandled_cpu
 	  .endif
 	.endm
 
-	.section .identity_map
+	.section .identity_map, "ax", %progbits
 	.align	11
 LOCAL_FUNC reset_vect_table , :, .identity_map
 	/* -----------------------------------------------------
