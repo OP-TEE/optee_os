@@ -99,7 +99,15 @@ static inline size_t confine_array_index(size_t index, size_t size)
 	".syntax unified\n"
 	"cmp	%0, %1\n"
 	"it	cs\n"
+#ifdef __clang__
+#pragma clang diagnostic push
+	/* Avoid 'deprecated instruction in IT block [-Werror,-Winline-asm]' */
+#pragma clang diagnostic ignored "-Winline-asm"
+#endif
 	"movcs	%0, #0\n"
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 	".inst.n 0xf3af\t@ CSDB\n"
 	".inst.n 0x8014\t@ CSDB"
 	: "+r" (ret_val) : "r" (size) : "cc");
