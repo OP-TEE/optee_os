@@ -27,7 +27,7 @@ struct scmi_msg_channel;
  * @shm_size: Byte size of the shared memory for the SCMI channel
  * @busy: True when channel is busy, flase when channel is free
  * @threaded: True is executed in a threaded context, false otherwise
- * @agent_name: Optional agent name, SCMI protocol exposes 16 bytes max
+ * @agent_name: Agent name, SCMI protocol exposes 16 bytes max, or NULL
  */
 struct scmi_msg_channel {
 	struct io_pa_va shm_addr;
@@ -47,7 +47,7 @@ struct scmi_msg_channel {
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan);
 
 /*
- * Process SMT formatted message in a fastcall SMC cexecution ontext.
+ * Process SMT formatted message in a fastcall SMC execution context.
  * Called by platform on SMC entry. When returning, output message is
  * available in shared memory for agent to read the response.
  * This function depends on CFG_SCMI_MSG_SMT_FASTCALL_ENTRY.
