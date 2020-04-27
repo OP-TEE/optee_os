@@ -142,7 +142,7 @@ static void reset_request(struct scmi_msg *msg)
 	}
 
 	if (in_args->domain_id >= plat_scmi_rd_count(msg->agent_id)) {
-		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
+		scmi_status_response(msg, SCMI_NOT_FOUND);
 		return;
 	}
 
