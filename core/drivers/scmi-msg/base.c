@@ -11,7 +11,6 @@
 #include <trace.h>
 #include <util.h>
 
-#include "base.h"
 #include "common.h"
 
 static bool message_id_is_supported(unsigned int message_id);
