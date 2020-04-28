@@ -345,6 +345,7 @@ static const uint16_t ldo3_voltage_table[] = {
 	3300,
 	3300,
 	3300,
+	500,	/* VOUT2/2 (Sink/source mode) */
 	0xFFFF, /* VREFDDR */
 };
 
