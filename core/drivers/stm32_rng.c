@@ -34,7 +34,7 @@
 #define RNG_SR_CEIS		BIT(5)
 #define RNG_SR_SEIS		BIT(6)
 
-#define RNG_TIMEOUT_US		1000
+#define RNG_TIMEOUT_US		10000
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
