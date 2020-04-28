@@ -5,7 +5,10 @@
 
 #include <arm.h>
 #include <boot_api.h>
+#include <console.h>
+#include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_rcc.h>
+#include <drivers/stpmic1.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
@@ -19,6 +22,8 @@
 #include <sm/psci.h>
 #include <stm32_util.h>
 #include <trace.h>
+
+#define CONSOLE_FLUSH_DELAY_MS		10
 
 /*
  * SMP boot support and access to the mailbox
@@ -204,6 +209,25 @@ int psci_cpu_off(void)
 }
 #endif
 
+/* Override default psci_system_off() with platform specific sequence */
+void __noreturn psci_system_off(void)
+{
+	DMSG("core %u", get_core_pos());
+
+	if (TRACE_LEVEL >= TRACE_DEBUG) {
+		console_flush();
+		mdelay(CONSOLE_FLUSH_DELAY_MS);
+	}
+
+	if (stm32mp_with_pmic()) {
+		stm32mp_get_pmic();
+		stpmic1_switch_off();
+		udelay(100);
+	}
+
+	panic();
+}
+
 /* Override default psci_system_reset() with platform specific sequence */
 void __noreturn psci_system_reset(void)
 {
@@ -227,6 +251,10 @@ int psci_features(uint32_t psci_fid)
 	case PSCI_CPU_ON:
 	case PSCI_CPU_OFF:
 		if (CFG_TEE_CORE_NB_CORE > 1)
+			return PSCI_RET_SUCCESS;
+		return PSCI_RET_NOT_SUPPORTED;
+	case PSCI_SYSTEM_OFF:
+		if (stm32mp_with_pmic())
 			return PSCI_RET_SUCCESS;
 		return PSCI_RET_NOT_SUPPORTED;
 	default:
