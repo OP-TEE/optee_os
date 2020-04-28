@@ -204,11 +204,24 @@ int psci_cpu_off(void)
 }
 #endif
 
+/* Override default psci_system_reset() with platform specific sequence */
+void __noreturn psci_system_reset(void)
+{
+	vaddr_t rcc_base = stm32_rcc_base();
+
+	DMSG("core %u", get_core_pos());
+
+	io_write32(rcc_base + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
+	udelay(100);
+	panic();
+}
+
 /* Override default psci_cpu_on() with platform supported features */
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
 	case PSCI_PSCI_FEATURES:
+	case PSCI_SYSTEM_RESET:
 	case PSCI_VERSION:
 		return PSCI_RET_SUCCESS;
 	case PSCI_CPU_ON:
