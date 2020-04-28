@@ -210,10 +210,12 @@ int psci_features(uint32_t psci_fid)
 	switch (psci_fid) {
 	case PSCI_PSCI_FEATURES:
 	case PSCI_VERSION:
-#if CFG_TEE_CORE_NB_CORE > 1
-	case PSCI_CPU_ON:
-#endif
 		return PSCI_RET_SUCCESS;
+	case PSCI_CPU_ON:
+	case PSCI_CPU_OFF:
+		if (CFG_TEE_CORE_NB_CORE > 1)
+			return PSCI_RET_SUCCESS;
+		return PSCI_RET_NOT_SUPPORTED;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
 	}
