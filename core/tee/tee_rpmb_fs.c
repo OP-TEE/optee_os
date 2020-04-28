@@ -2048,7 +2048,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		 * Look for an entry, matching filenames. (read, rm,
 		 * rename and stat.). Only store first filename match.
 		 */
-		if (fh->filename && (!strcmp(fh->filename, fe->filename)) &&
+		if ((!strcmp(fh->filename, fe->filename)) &&
 		    (fe->flags & FILE_IS_ACTIVE) && !entry_found) {
 			entry_found = true;
 			fh->rpmb_fat_address = fat_address;
@@ -2131,7 +2131,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 		}
 	}
 
-	if (fh->filename && !fh->rpmb_fat_address)
+	if (!fh->rpmb_fat_address)
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 
 out:
