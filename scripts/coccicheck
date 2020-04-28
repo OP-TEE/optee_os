@@ -1,0 +1,132 @@
+#!/bin/bash
+
+DIR="`pwd`"
+OPTIONS=" --dir . "
+TIMESTAMP="`date -R | sed 's/^.\{5\}//' | sed 's/.\{6\}$//' | tr ' ' '_'`"
+
+###########################################################################################
+# Check if spatch is installed
+
+SPATCH="`which ${SPATCH:=spatch}`"
+if [ ! -x "$SPATCH" ]; then
+    echo 'spatch is required to run this script, exiting.'
+    exit 1
+fi
+
+###########################################################################################
+# Help section
+
+if [[ $H -ge 1 ]]; then
+    echo "coccicheck help section"
+    echo "This target allows the execution of *.cocci scripts using the coccinelle semantic patch engine"
+    echo "More information about semantic patching is available at"
+    echo "http://coccinelle.lip6.fr/"
+    echo -e "\n Options \n"
+    echo -e "\t COCCIFILE=<path/to/script.cocci> : specify a single .cocci script"
+    echo -e "\t D=1 : Outputs a debug log, default is /tmp/debug_cocci_\$TIMESTAMP"
+    echo -e "\t DEBUG_FILE=<path/to/file>: specify a different debug file"
+    echo -e "\t EXTERNAL_COCCI=<path/to/external/patchesdir/.> : specify a dir containing .cocci scripts"
+    echo -e "\t MODALITY=<name> : only for external .cocci scripts, specify the virtual mode (-D option)"
+    echo -e "\t V=1 : Verbose mode"
+
+    echo -e "\n Usage: \n"
+    echo -e "\t- Execute all local .cocci scripts on optee-os"
+    echo -e "\t\t make coccicheck [V=1]"
+    echo -e "\t- Execute a single .cocci script "
+    echo -e "\t\t make coccicheck COCCIFILE=<relative/path/to/script.cocci> [V=1]"
+    echo -e "\t- Execute a subset of external .cocci scripts"
+    echo -e "\t\t make coccicheck EXTERNAL_COCCI=<path/to/external/patchesdir/.> [MODALITY=<name>] [V=1]"
+    
+    exit 0
+fi
+
+###########################################################################################
+# Variable init + checks
+
+if [ -z $MODALITY ] ; then
+    MODALITY=report
+fi
+VIRTUAL="-D $MODALITY"
+
+# if USE_SUBSET == 1, an external set of .cocci scripts is executed
+if [[ -v EXTERNAL_COCCI && -d $EXTERNAL_COCCI ]] ; then 
+    USE_SUBSET=1
+
+elif [[ -f $EXTERNAL_COCCI ]] ; then
+    USE_SUBSET=1
+fi
+
+# if USE_COCCIFILE == 1, only the specified .cocci script is executed
+if [[ -v COCCIFILE && -f $COCCIFILE && $USE_SUBSET -ne 1 ]] ; then
+    USE_COCCIFILE=1
+
+elif [[ -v COCCIFILE && -f $COCCIFILE && $USE_SUBSET -eq 1 ]]; then
+    echo "Warining: both EXTERNAL_COCCI and COCCIFILE have been specified."
+    echo "Only .cocci files in $EXTERNAL_COCCI will be executed"
+fi
+
+if [ -e $DEBUG_FILE ] ; then
+    DEBUG_FILE="/tmp/debug_cocci_"$TIMESTAMP
+fi
+
+if [[ $D -eq 1 ]] ; then
+    echo "Debug mode is active, debug file is:"
+    echo $DEBUG_FILE
+    echo -e "\n"
+else
+    DEBUG_FILE="/dev/null"
+fi
+
+if [[ $V -eq "" ]]; then
+    V=0
+fi
+
+###########################################################################################
+# Functions
+
+run_cmd() {
+	if [ $V -ne 0 ] ; then
+		echo "Running semantic patch: $@"
+	fi
+	echo $@ >>$DEBUG_FILE
+	$@ 2>>$DEBUG_FILE
+    
+	err=$?
+	if [[ $err -ne 0 ]]; then
+		echo "coccicheck failed"
+		exit $err
+	fi
+}
+
+coccinelle () {
+    COCCI="$1"
+    run_cmd $SPATCH $VIRTUAL $FLAGS --cocci-file $COCCI $OPTIONS || exit 1 
+}
+
+###########################################################################################
+# Execution possibilities
+
+if [[ $USE_SUBSET -eq 1 ]] ; then
+    # external patches: make <target name> EXTERNAL_COCCI=path/to/external/patchesdir/.  [V=1]
+
+    echo "Using specified subset of semantic pathces"
+    for f in `find ${EXTERNAL_COCCI} -name '*.cocci' -type f | sort`; do
+        coccinelle $f
+    done
+
+elif [[ $USE_COCCIFILE -eq 1 ]] ; then
+    # to launch a single spatch: make <target name> COCCIFILE=relative/path/to/script.cocci [V=1]
+    VIRTUAL=""
+    echo "Using specified semantic patch"
+    coccinelle ${COCCIFILE}
+
+elif [ "$COCCI" = "" ] ; then
+    # to launch the full subset of op-tee semantic patches: make <target name> [V=1]
+    VIRTUAL=""
+    echo "Searching for local semantic patches"
+    for f in `find scripts/coccinelle/ -name '*.cocci' -type f | sort`; do
+        coccinelle $f
+    done
+else
+    coccinelle $COCCI
+fi
