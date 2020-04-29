@@ -147,6 +147,7 @@
 #define OCP_LIMIT_HIGH_POS		3
 #define SWIN_SWOUT_ENABLED_POS		2
 #define USBSW_OTG_SWITCH_ENABLED_POS	1
+#define BOOST_ENABLED_POS		0
 
 /*
  * Bind SPMIC1 device driver with a specific I2C bus instance
