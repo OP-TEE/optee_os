@@ -732,6 +732,11 @@ int stpmic1_bo_pull_down_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
 
+	if (!regul->pull_down_reg) {
+		DMSG("No pull down for regu %s", name);
+		panic();
+	}
+
 	cfg->pd_reg = regul->pull_down_reg;
 	cfg->pd_value = BIT(regul->pull_down_pos);
 	cfg->pd_mask = LDO_BUCK_PULL_DOWN_MASK << regul->pull_down_pos;
@@ -741,6 +746,8 @@ int stpmic1_bo_pull_down_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
 
 int stpmic1_bo_pull_down_unpg(struct stpmic1_bo_cfg *cfg)
 {
+	assert(cfg->pd_reg);
+
 	return stpmic1_register_update(cfg->pd_reg, cfg->pd_value,
 				       cfg->pd_mask);
 }
@@ -748,6 +755,11 @@ int stpmic1_bo_pull_down_unpg(struct stpmic1_bo_cfg *cfg)
 int stpmic1_bo_mask_reset_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
+
+	if (!regul->mask_reset_reg) {
+		DMSG("No reset mask for regu %s", name);
+		panic();
+	}
 
 	cfg->mrst_reg = regul->mask_reset_reg;
 	cfg->mrst_value = BIT(regul->mask_reset_pos);
@@ -758,6 +770,8 @@ int stpmic1_bo_mask_reset_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
 
 int stpmic1_bo_mask_reset_unpg(struct stpmic1_bo_cfg *cfg)
 {
+	assert(cfg->mrst_reg);
+
 	return stpmic1_register_update(cfg->mrst_reg, cfg->mrst_value,
 				       cfg->mrst_mask);
 }
@@ -822,6 +836,8 @@ int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg)
 	uint8_t val = 0;
 	int status = 0;
 
+	assert(cfg->lp_reg);
+
 	status = stpmic1_register_read(cfg->ctrl_reg, &val);
 	if (!status)
 		status = stpmic1_register_write(cfg->lp_reg, val);
@@ -842,7 +858,8 @@ int stpmic1_lp_reg_on_off(const char *name, uint8_t enable)
 
 int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable)
 {
-	assert(enable == 0 || enable == 1);
+	assert(cfg->lp_reg && (enable == 0 || enable == 1));
+
 	return stpmic1_register_update(cfg->lp_reg, enable,
 				       LDO_BUCK_ENABLE_MASK);
 }
@@ -851,6 +868,8 @@ int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
 
+	assert(regul->low_power_reg && (hplp == 0 || hplp == 1));
+
 	return stpmic1_register_update(regul->low_power_reg,
 				       hplp << LDO_BUCK_HPLP_POS,
 				       BIT(LDO_BUCK_HPLP_POS));
@@ -858,7 +877,7 @@ int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
 
 int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg, unsigned int mode)
 {
-	assert(mode == 0 || mode == 1);
+	assert(cfg->lp_reg && (mode == 0 || mode == 1));
 	return stpmic1_register_update(cfg->lp_reg,
 				       mode << LDO_BUCK_HPLP_POS,
 				       BIT(LDO_BUCK_HPLP_POS));
@@ -899,6 +918,8 @@ int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
 
 int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg)
 {
+	assert(cfg->lp_reg);
+
 	return stpmic1_register_update(cfg->lp_reg, cfg->value,	cfg->mask);
 }
 
