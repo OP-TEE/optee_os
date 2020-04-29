@@ -15,6 +15,11 @@
 #include <string.h>
 #include "sm_private.h"
 
+enum sm_handler_ret __weak sm_platform_handler(struct sm_ctx *ctx __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
+}
+
 static void smc_arch_handler(struct thread_smc_args *args)
 {
 	uint32_t smc_fid = args->a0;
@@ -62,10 +67,9 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
 
-#ifdef CFG_SM_PLATFORM_HANDLER
-	if (sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
+	if (IS_ENABLED(CFG_SM_PLATFORM_HANDLER) &&
+	    sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
 		return SM_EXIT_TO_NON_SECURE;
-#endif
 
 	switch (OPTEE_SMC_OWNER_NUM(args->a0)) {
 	case OPTEE_SMC_OWNER_STANDARD:
