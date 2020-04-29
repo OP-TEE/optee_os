@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <trace.h>
+#include <util.h>
 
 struct regul_struct {
 	const char *dt_node_name;
@@ -795,16 +796,16 @@ int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
 	const struct regul_struct *regul = get_regulator_data(name);
 
 	return stpmic1_register_update(regul->low_power_reg,
-				       hplp << LDO_BUCK_HPLP_SHIFT,
-				       LDO_BUCK_HPLP_ENABLE_MASK);
+				       hplp << LDO_BUCK_HPLP_POS,
+				       BIT(LDO_BUCK_HPLP_POS));
 }
 
 int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg, unsigned int mode)
 {
 	assert(mode == 0 || mode == 1);
 	return stpmic1_register_update(cfg->lp_reg,
-				       mode << LDO_BUCK_HPLP_SHIFT,
-				       LDO_BUCK_HPLP_ENABLE_MASK);
+				       mode << LDO_BUCK_HPLP_POS,
+				       BIT(LDO_BUCK_HPLP_POS));
 }
 
 int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts)
