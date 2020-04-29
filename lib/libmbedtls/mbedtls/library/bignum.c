@@ -206,14 +206,14 @@ int mbedtls_mpi_shrink( mbedtls_mpi *X, size_t nblimbs )
 
     if( X->use_mempool )
     {
-        p = mempool_alloc( mbedtls_mpi_mempool, nblimbs * ciL );
+        p = mempool_alloc( mbedtls_mpi_mempool, i * ciL );
         if( p == NULL )
             return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
-        memset( p, 0, nblimbs * ciL );
+        memset( p, 0, i * ciL );
     }
     else
     {
-        p = (mbedtls_mpi_uint*)mbedtls_calloc( nblimbs, ciL );
+        p = (mbedtls_mpi_uint*)mbedtls_calloc( i, ciL );
         if( p == NULL )
             return( MBEDTLS_ERR_MPI_ALLOC_FAILED );
     }
