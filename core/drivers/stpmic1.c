@@ -421,6 +421,10 @@ static const uint16_t vref_ddr_voltage_table[] = {
 	3300,
 };
 
+static const uint16_t fixed_5v_voltage_table[] = {
+	5000,
+};
+
 /* Table of Regulators in PMIC SoC */
 static const struct regul_struct regulators_table[] = {
 	{
@@ -543,12 +547,24 @@ static const struct regul_struct regulators_table[] = {
 	},
 	{
 		.dt_node_name = "boost",
+		.voltage_table	= fixed_5v_voltage_table,
+		.voltage_table_size = ARRAY_SIZE(fixed_5v_voltage_table),
+		.control_reg	= USB_CONTROL_REG,
+		.enable_pos	= BOOST_ENABLED_POS,
 	},
 	{
-		.dt_node_name = "pwr_sw1",
+		.dt_node_name	= "pwr_sw1",
+		.voltage_table	= fixed_5v_voltage_table,
+		.voltage_table_size = ARRAY_SIZE(fixed_5v_voltage_table),
+		.control_reg	= USB_CONTROL_REG,
+		.enable_pos	= USBSW_OTG_SWITCH_ENABLED_POS,
 	},
 	{
-		.dt_node_name = "pwr_sw2",
+		.dt_node_name	= "pwr_sw2",
+		.voltage_table	= fixed_5v_voltage_table,
+		.voltage_table_size = ARRAY_SIZE(fixed_5v_voltage_table),
+		.control_reg	= USB_CONTROL_REG,
+		.enable_pos	= SWIN_SWOUT_ENABLED_POS,
 	},
 };
 
@@ -640,6 +656,11 @@ int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts)
 int stpmic1_regulator_mask_reset_set(const char *name)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
+
+	if (regul->control_reg == USB_CONTROL_REG) {
+		DMSG("No reset for USB control");
+		return -1;
+	}
 
 	return stpmic1_register_update(regul->mask_reset_reg,
 				       BIT(regul->mask_reset_pos),
