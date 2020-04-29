@@ -267,6 +267,11 @@ bool stm32mp_is_closed_device(void)
 	return true;
 }
 
+bool __weak stm32mp_with_pmic(void)
+{
+	return false;
+}
+
 uint32_t may_spin_lock(unsigned int *lock)
 {
 	if (!lock || !cpu_mmu_enabled())
