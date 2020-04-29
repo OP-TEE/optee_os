@@ -208,7 +208,7 @@ int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts);
  */
 struct stpmic1_bo_cfg {
 	uint8_t ctrl_reg;
-	uint8_t value;
+	uint8_t min_value;
 	uint8_t enable_pos;
 	uint8_t mask;
 	uint8_t pd_reg;
@@ -228,7 +228,7 @@ struct stpmic1_lp_cfg {
 
 int stpmic1_bo_enable_cfg(const char *name, struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg);
-int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
+int stpmic1_bo_voltage_cfg(const char *name, uint16_t min_millivolt,
 			   struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_voltage_unpg(struct stpmic1_bo_cfg *cfg);
 

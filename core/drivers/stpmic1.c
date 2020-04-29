@@ -694,10 +694,10 @@ int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg)
 }
 
 /* Returns 1 if no configuration are expected applied at runtime, 0 otherwise */
-int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
+int stpmic1_bo_voltage_cfg(const char *name, uint16_t min_millivolt,
 			   struct stpmic1_bo_cfg *cfg)
 {
-	uint8_t voltage_index = voltage_to_index(name, millivolts);
+	uint8_t min_index = voltage_to_index(name, min_millivolt);
 	const struct regul_struct *regul = get_regulator_data(name);
 	uint8_t mask = 0;
 
@@ -706,7 +706,7 @@ int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
 		return 1;
 
 	cfg->ctrl_reg = regul->control_reg;
-	cfg->value = voltage_index << LDO_BUCK_VOLTAGE_SHIFT;
+	cfg->min_value = min_index << LDO_BUCK_VOLTAGE_SHIFT;
 	cfg->mask = mask;
 
 	return 0;
@@ -714,7 +714,18 @@ int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
 
 int stpmic1_bo_voltage_unpg(struct stpmic1_bo_cfg *cfg)
 {
-	return stpmic1_register_update(cfg->ctrl_reg, cfg->value, cfg->mask);
+	uint8_t value = 0;
+
+	assert(cfg->ctrl_reg);
+
+	if (stpmic1_register_read(cfg->ctrl_reg, &value))
+		return -1;
+
+	if (value & cfg->mask >= cfg->min_value)
+		return 0;
+
+	return stpmic1_register_update(cfg->ctrl_reg, cfg->min_value,
+				       cfg->mask);
 }
 
 int stpmic1_bo_pull_down_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
