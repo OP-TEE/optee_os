@@ -668,6 +668,16 @@ int stpmic1_regulator_mask_reset_set(const char *name)
 				       regul->mask_reset_pos);
 }
 
+int stpmic1_bo_enable_cfg(const char *name, struct stpmic1_bo_cfg *cfg)
+{
+	const struct regul_struct *regul = get_regulator_data(name);
+
+	cfg->ctrl_reg = regul->control_reg;
+	cfg->enable_pos = regul->enable_pos;
+
+	return 0;
+}
+
 int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg)
 {
 	return stpmic1_register_update(cfg->ctrl_reg,
