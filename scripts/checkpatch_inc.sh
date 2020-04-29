@@ -24,6 +24,7 @@ function _checkpatch() {
 				--ignore CAMELCASE \
 				--ignore PREFER_KERNEL_TYPES \
 				--ignore CONCATENATED_STRING \
+				--ignore USLEEP_RANGE \
 				--no-tree \
 				--strict \
 				$typedefs_opt \
