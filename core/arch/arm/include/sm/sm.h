@@ -118,13 +118,11 @@ enum sm_handler_ret {
 	SM_HANDLER_PENDING_SMC,
 };
 
-#ifdef CFG_SM_PLATFORM_HANDLER
 /*
  * Returns whether SMC was handled from platform handler in secure monitor
  * or if it shall reach OP-TEE core .
  */
 enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx);
-#endif
 
 void sm_save_unbanked_regs(struct sm_unbanked_regs *regs);
 void sm_restore_unbanked_regs(struct sm_unbanked_regs *regs);
