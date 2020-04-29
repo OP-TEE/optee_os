@@ -239,6 +239,7 @@ int stpmic1_bo_pull_down_unpg(struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_mask_reset_cfg(const char *name, struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_mask_reset_unpg(struct stpmic1_bo_cfg *cfg);
 
+bool stpmic1_regu_has_lp_cfg(const char *name);
 int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable);

@@ -778,6 +778,9 @@ int stpmic1_lp_copy_reg(const char *name)
 	uint8_t val = 0;
 	int status = 0;
 
+	if (!regul->low_power_reg)
+		return -1;
+
 	status = stpmic1_register_read(regul->control_reg, &val);
 	if (status)
 		return status;
@@ -785,9 +788,17 @@ int stpmic1_lp_copy_reg(const char *name)
 	return stpmic1_register_write(regul->low_power_reg, val);
 }
 
+bool stpmic1_regu_has_lp_cfg(const char *name)
+{
+	return get_regulator_data(name)->low_power_reg;
+}
+
 int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
+
+	if (!regul->low_power_reg)
+		return -1;
 
 	cfg->ctrl_reg = regul->control_reg;
 	cfg->lp_reg = regul->low_power_reg;
@@ -810,6 +821,9 @@ int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg)
 int stpmic1_lp_reg_on_off(const char *name, uint8_t enable)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
+
+	if (!regul->low_power_reg)
+		return -1;
 
 	return stpmic1_register_update(regul->low_power_reg, enable,
 				       LDO_BUCK_ENABLE_MASK);
