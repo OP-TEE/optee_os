@@ -226,6 +226,7 @@ struct stpmic1_lp_cfg {
 	uint8_t mask;
 };
 
+int stpmic1_bo_enable_cfg(const char *name, struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_enable_unpg(struct stpmic1_bo_cfg *cfg);
 int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
 			   struct stpmic1_bo_cfg *cfg);
