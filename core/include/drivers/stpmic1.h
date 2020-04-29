@@ -88,7 +88,8 @@
 #define LDO_VOLTAGE_MASK		0x7CU
 #define BUCK_VOLTAGE_MASK		0xFCU
 #define LDO_BUCK_VOLTAGE_SHIFT		2
-#define LDO_BUCK_ENABLE_MASK		0x01U
+#define LDO_BUCK_ENABLE_POS		0
+#define LDO_BUCK_ENABLE_MASK		BIT(LDO_BUCK_ENABLE_POS)
 #define LDO_BUCK_HPLP_ENABLE_MASK	0x02U
 #define LDO_BUCK_HPLP_SHIFT		1
 #define LDO_BUCK_RANK_MASK		0x01U
@@ -207,6 +208,7 @@ int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts);
 struct stpmic1_bo_cfg {
 	uint8_t ctrl_reg;
 	uint8_t value;
+	uint8_t enable_pos;
 	uint8_t mask;
 	uint8_t pd_reg;
 	uint8_t pd_value;
