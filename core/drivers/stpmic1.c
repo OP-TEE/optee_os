@@ -634,18 +634,26 @@ bool stpmic1_is_regulator_enabled(const char *name)
 	return val & BIT(regul->enable_pos);
 }
 
+/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
+static uint8_t find_plat_mask(const char *name)
+{
+	if (!strncmp(name, "buck", 4))
+		return BUCK_VOLTAGE_MASK;
+
+	if (!strncmp(name, "ldo", 3) && strcmp(name, "ldo4"))
+		return LDO_VOLTAGE_MASK;
+
+	return 0;
+}
+
 int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts)
 {
 	uint8_t voltage_index = voltage_to_index(name, millivolts);
 	const struct regul_struct *regul = get_regulator_data(name);
 	uint8_t mask = 0;
 
-	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
-	if (!strcmp(name, "buck"))
-		mask = BUCK_VOLTAGE_MASK;
-	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
-		mask = LDO_VOLTAGE_MASK;
-	else
+	mask = find_plat_mask(name);
+	if (!mask)
 		return 0;
 
 	return stpmic1_register_update(regul->control_reg,
@@ -693,12 +701,8 @@ int stpmic1_bo_voltage_cfg(const char *name, uint16_t millivolts,
 	const struct regul_struct *regul = get_regulator_data(name);
 	uint8_t mask = 0;
 
-	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
-	if (!strcmp(name, "buck"))
-		mask = BUCK_VOLTAGE_MASK;
-	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
-		mask = LDO_VOLTAGE_MASK;
-	else
+	mask = find_plat_mask(name);
+	if (!mask)
 		return 1;
 
 	cfg->ctrl_reg = regul->control_reg;
@@ -753,12 +757,8 @@ int stpmic1_regulator_voltage_get(const char *name)
 	uint8_t value = 0;
 	uint8_t mask = 0;
 
-	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
-	if (!strcmp(name, "buck"))
-		mask = BUCK_VOLTAGE_MASK;
-	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
-		mask = LDO_VOLTAGE_MASK;
-	else
+	mask = find_plat_mask(name);
+	if (!mask)
 		return 0;
 
 	if (stpmic1_register_read(regul->control_reg, &value))
@@ -859,12 +859,8 @@ int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts)
 	const struct regul_struct *regul = get_regulator_data(name);
 	uint8_t mask = 0;
 
-	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
-	if (!strcmp(name, "buck"))
-		mask = BUCK_VOLTAGE_MASK;
-	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
-		mask = LDO_VOLTAGE_MASK;
-	else
+	mask = find_plat_mask(name);
+	if (!mask)
 		return 0;
 
 	return stpmic1_register_update(regul->low_power_reg, voltage_index << 2,
@@ -879,12 +875,8 @@ int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
 	uint8_t voltage_index = voltage_to_index(name, millivolts);
 	uint8_t mask = 0;
 
-	/* Voltage can be set for buck<N> or ldo<N> (except ldo4) regulators */
-	if (!strcmp(name, "buck"))
-		mask = BUCK_VOLTAGE_MASK;
-	else if (!strcmp(name, "ldo") && strcmp(name, "ldo4"))
-		mask = LDO_VOLTAGE_MASK;
-	else
+	mask = find_plat_mask(name);
+	if (!mask)
 		return 1;
 
 	assert(cfg->lp_reg == get_regulator_data(name)->low_power_reg);
