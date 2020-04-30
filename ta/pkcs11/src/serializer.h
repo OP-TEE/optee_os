@@ -22,6 +22,9 @@ struct serialargs {
 	size_t size;
 };
 
+struct pkcs11_client;
+struct pkcs11_session;
+
 /*
  * serialargs_init() - Initialize with a new input buffer
  * @args:	serializing state
@@ -63,6 +66,29 @@ static inline enum pkcs11_rc serialargs_get_u32(struct serialargs *args,
  */
 enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
 				  size_t size);
+
+/*
+ * serialargs_alloc_get_one_attribute() - allocate and extract one attribute
+ * @args:	serializing state
+ * @out:	Pointer to the allocated and extracted attribute in *@out
+ *
+ * Returns PKCS11_CKR_OK on success or an error code from enum pkcs11_rc on
+ * failure.
+ */
+enum pkcs11_rc
+serialargs_alloc_get_one_attribute(struct serialargs *args,
+				   struct pkcs11_attribute_head **out);
+
+/*
+ * serialargs_alloc_get_attributes() - allocate and extract an object
+ * @args:	serializing state
+ * @out:	Pointer to the allocated and extracted object in *@out
+ *
+ * Returns PKCS11_CKR_OK on success or an error code from enum pkcs11_rc on
+ * failure.
+ */
+enum pkcs11_rc serialargs_alloc_get_attributes(struct serialargs *args,
+					       struct pkcs11_object_head **out);
 
 /*
  * serialargs_alloc_and_get() - allocate and extract data
