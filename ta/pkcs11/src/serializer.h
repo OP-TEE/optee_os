@@ -22,12 +22,22 @@ struct serialargs {
 	size_t size;
 };
 
+struct pkcs11_client;
+struct pkcs11_session;
+
 void serialargs_init(struct serialargs *args, void *in, size_t size);
 
 enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t sz);
 
 enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
 				  size_t size);
+
+enum pkcs11_rc
+serialargs_alloc_get_one_attribute(struct serialargs *args,
+				   struct pkcs11_attribute_head **out);
+
+enum pkcs11_rc serialargs_alloc_get_attributes(struct serialargs *args,
+					       struct pkcs11_object_head **out);
 
 enum pkcs11_rc serialargs_alloc_and_get(struct serialargs *args,
 					void **out, size_t size);
