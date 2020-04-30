@@ -6,8 +6,10 @@
 #include <pkcs11_ta.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <tee_internal_api_extensions.h>
 #include <tee_internal_api.h>
 #include <trace.h>
+#include <util.h>
 
 #include "pkcs11_token.h"
 #include "serializer.h"
@@ -24,15 +26,47 @@ void serialargs_init(struct serialargs *args, void *in, size_t size)
 
 enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t size)
 {
-	if (args->next + size > args->start + args->size) {
-		EMSG("arg too short: full %zd, remain %zd, expect %zd",
-		     args->size, args->size - (args->next - args->start), size);
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	void *src = NULL;
+
+	rc = serialargs_get_ptr(args, &src, size);
+	if (!rc)
+		TEE_MemMove(out, src, size);
+
+	return rc;
+}
+
+static enum pkcs11_rc alloc_and_get(struct serialargs *args, char *orig_next,
+				    const void *buf0, size_t buf0_sz,
+				    void **out, size_t size)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	uint8_t *ptr = NULL;
+	void *src = NULL;
+	size_t sz = 0;
+
+	if (ADD_OVERFLOW(buf0_sz, size, &sz))
 		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!sz) {
+		*out = NULL;
+		return PKCS11_CKR_OK;
 	}
 
-	TEE_MemMove(out, args->next, size);
+	rc = serialargs_get_ptr(args, &src, size);
+	if (rc)
+		return rc;
 
-	args->next += size;
+	ptr = TEE_Malloc(sz, TEE_MALLOC_FILL_ZERO);
+	if (!ptr) {
+		args->next = orig_next;
+		return PKCS11_CKR_DEVICE_MEMORY;
+	}
+
+	TEE_MemMove(ptr, buf0, buf0_sz);
+	TEE_MemMove(ptr + buf0_sz, src, size);
+
+	*out = ptr;
 
 	return PKCS11_CKR_OK;
 }
@@ -40,24 +74,28 @@ enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t size)
 enum pkcs11_rc serialargs_alloc_and_get(struct serialargs *args,
 					void **out, size_t size)
 {
-	void *ptr = NULL;
+	return alloc_and_get(args, args->next, NULL, 0, out, size);
+}
+
+enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
+				  size_t size)
+{
+	void *ptr = args->next;
+	vaddr_t next_end = 0;
+
+	if (ADD_OVERFLOW((vaddr_t)args->next, size, &next_end))
+		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	if (!size) {
 		*out = NULL;
 		return PKCS11_CKR_OK;
 	}
 
-	if (args->next + size > args->start + args->size) {
+	if ((char *)next_end > args->start + args->size) {
 		EMSG("arg too short: full %zd, remain %zd, expect %zd",
 		     args->size, args->size - (args->next - args->start), size);
 		return PKCS11_CKR_ARGUMENTS_BAD;
 	}
-
-	ptr = TEE_Malloc(size, TEE_MALLOC_FILL_ZERO);
-	if (!ptr)
-		return PKCS11_CKR_DEVICE_MEMORY;
-
-	TEE_MemMove(ptr, args->next, size);
 
 	args->next += size;
 	*out = ptr;
@@ -65,24 +103,46 @@ enum pkcs11_rc serialargs_alloc_and_get(struct serialargs *args,
 	return PKCS11_CKR_OK;
 }
 
-enum pkcs11_rc serialargs_get_ptr(struct serialargs *args, void **out,
-				  size_t size)
+enum pkcs11_rc
+serialargs_alloc_get_one_attribute(struct serialargs *args,
+				   struct pkcs11_attribute_head **out)
 {
-	void *ptr = args->next;
+	struct pkcs11_attribute_head head = { };
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	char *orig_next = args->next;
+	void *p = NULL;
 
-	if (!size) {
-		*out = NULL;
-		return PKCS11_CKR_OK;
-	}
+	rc = serialargs_get(args, &head, sizeof(head));
+	if (rc)
+		return rc;
 
-	if (args->next + size > args->start + args->size) {
-		EMSG("arg too short: full %zd, remain %zd, expect %zd",
-		     args->size, args->size - (args->next - args->start), size);
-		return PKCS11_CKR_ARGUMENTS_BAD;
-	}
+	rc = alloc_and_get(args, orig_next, &head, sizeof(head), &p, head.size);
+	if (rc)
+		return rc;
 
-	args->next += size;
-	*out = ptr;
+	*out = p;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc serialargs_alloc_get_attributes(struct serialargs *args,
+					       struct pkcs11_object_head **out)
+{
+	struct pkcs11_object_head attr = { };
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	char *orig_next = args->next;
+	void *p = NULL;
+
+	rc = serialargs_get(args, &attr, sizeof(attr));
+	if (rc)
+		return rc;
+
+	rc = alloc_and_get(args, orig_next, &attr, sizeof(attr), &p,
+			   attr.attrs_size);
+	if (rc)
+		return rc;
+
+	*out = p;
 
 	return PKCS11_CKR_OK;
 }
