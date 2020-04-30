@@ -721,7 +721,7 @@ int stpmic1_bo_voltage_unpg(struct stpmic1_bo_cfg *cfg)
 	if (stpmic1_register_read(cfg->ctrl_reg, &value))
 		return -1;
 
-	if (value & cfg->mask >= cfg->min_value)
+	if ((value & cfg->mask) >= cfg->min_value)
 		return 0;
 
 	return stpmic1_register_update(cfg->ctrl_reg, cfg->min_value,
