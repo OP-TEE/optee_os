@@ -1286,6 +1286,24 @@ static void get_osc_freq_from_dt(void *fdt)
 	}
 }
 
+static void enable_static_secure_clocks(void)
+{
+	unsigned int idx = 0;
+	static const unsigned long secure_enable[] = {
+		DDRC1, DDRC1LP, DDRC2, DDRC2LP, DDRPHYC, DDRPHYCLP, DDRCAPB,
+		AXIDCG, DDRPHYCAPB, DDRPHYCAPBLP, TZPC, TZC1, TZC2, STGEN_K,
+		BSEC,
+	};
+
+	for (idx = 0; idx < ARRAY_SIZE(secure_enable); idx++) {
+		stm32_clock_enable(secure_enable[idx]);
+		stm32mp_register_clock_parents_secure(secure_enable[idx]);
+	}
+
+	if (CFG_TEE_CORE_NB_CORE > 1)
+		stm32_clock_enable(RTCAPB);
+}
+
 static TEE_Result stm32mp1_clk_early_init(void)
 {
 	void *fdt = NULL;
@@ -1347,6 +1365,8 @@ static TEE_Result stm32mp1_clk_early_init(void)
 
 	if (ignored != 0)
 		IMSG("DT clock tree configurations were ignored");
+
+	enable_static_secure_clocks();
 
 	return TEE_SUCCESS;
 }
