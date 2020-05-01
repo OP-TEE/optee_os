@@ -568,6 +568,15 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 		return -1;
 	}
 
+	/*
+	 * If the timing has already been computed, and the frequency is the
+	 * same as when it was computed, then use the saved timing.
+	 */
+	if (clock_src == hi2c->saved_frequency) {
+		*timing = hi2c->saved_timing;
+		return 0;
+	}
+
 	do {
 		rc = i2c_compute_timing(init, clock_src, timing);
 		if (rc) {
@@ -593,6 +602,9 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 	     init->rise_time, init->fall_time);
 	DMSG("I2C Analog Filter(%s), DNF(%i)",
 	     init->analog_filter ? "On" : "Off", init->digital_filter_coef);
+
+	hi2c->saved_timing = *timing;
+	hi2c->saved_frequency = clock_src;
 
 	return 0;
 }
