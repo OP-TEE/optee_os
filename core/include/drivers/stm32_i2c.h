@@ -111,6 +111,8 @@ struct i2c_cfg {
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
  * @sec_cfg: I2C regsiters configuration storage
+ * @saved_timing: Saved timing value if already computed
+ * @saved_frequency: Saved frequency value if already computed
  * @pinctrl: PINCTRLs configuration for the I2C PINs
  * @pinctrl_count: Number of PINCTRLs elements
  */
@@ -120,6 +122,8 @@ struct i2c_handle_s {
 	unsigned long clock;
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
+	uint32_t saved_timing;
+	unsigned long saved_frequency;
 	struct i2c_cfg sec_cfg;
 	struct stm32_pinctrl *pinctrl;
 	size_t pinctrl_count;
