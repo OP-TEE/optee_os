@@ -1,9 +1,33 @@
-PLATFORM_FLAVOR ?= stm32mp157
+# 1GB and 512MB DDR targets do not locate secure DDR at the same place.
+flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
+flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
+flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
+flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
 
-# 1GB and 512MB DDR target do not locate secure DDR at the same place.
-#
-flavorlist-1G = stm32mp157c-ev1.dts stm32mp157c-ed1.dts
-flavorlist-512M = stm32mp157c-dk2.dts
+flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2)
+
+flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
+
+flavorlist-cryp-1G = $(flavor_dts_file-157C_ED1) \
+		     $(flavor_dts_file-157C_EV1)
+
+flavorlist-no_cryp = $(flavorlist-no_cryp-512M)
+
+flavorlist-512M = $(flavorlist-cryp-512M) \
+		  $(flavorlist-no_cryp-512M)
+
+flavorlist-1G = $(flavorlist-cryp-1G)
+
+ifneq ($(PLATFORM_FLAVOR),)
+ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
+$(error Invalid platform flavor $(PLATFORM_FLAVOR))
+endif
+CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
+$(call force,CFG_STM32_CRYP,n)
+endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
