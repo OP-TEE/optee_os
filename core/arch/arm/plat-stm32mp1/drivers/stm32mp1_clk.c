@@ -483,8 +483,8 @@ static const uint8_t stm32mp1_mcu_div[16] = {
 };
 
 /* div = /1 /2 /4 /8 /16 : same divider for PMU and APBX */
-#define stm32mp1_mpu_div stm32mp1_mpu_apbx_div
-#define stm32mp1_apbx_div stm32mp1_mpu_apbx_div
+#define stm32mp1_mpu_div	stm32mp1_mpu_apbx_div
+#define stm32mp1_apbx_div	stm32mp1_mpu_apbx_div
 static const uint8_t stm32mp1_mpu_apbx_div[8] = {
 	0, 1, 2, 3, 4, 4, 4, 4
 };
@@ -706,7 +706,6 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 static unsigned long get_clock_rate(int p)
 {
 	uint32_t reg = 0;
-	uint32_t clkdiv = 0;
 	unsigned long clock = 0;
 	vaddr_t rcc_base = stm32_rcc_base();
 
@@ -725,12 +724,12 @@ static unsigned long get_clock_rate(int p)
 			clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P);
 			break;
 		case RCC_MPCKSELR_PLL_MPUDIV:
-			clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P);
-
 			reg = io_read32(rcc_base + RCC_MPCKDIVR);
-			clkdiv = reg & RCC_MPUDIV_MASK;
-			if (clkdiv)
-				clock /= stm32mp1_mpu_div[clkdiv];
+			if (reg & RCC_MPUDIV_MASK)
+				clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P) >>
+					stm32mp1_mpu_div[reg & RCC_MPUDIV_MASK];
+			else
+				clock = 0;
 			break;
 		default:
 			break;
