@@ -83,11 +83,15 @@ CFG_STM32_RNG ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 CFG_STPMIC1 ?= y
+CFG_TZC400 ?= y
 
 ifeq ($(CFG_STPMIC1),y)
 $(call force,CFG_STM32_I2C,y)
 $(call force,CFG_STM32_GPIO,y)
 endif
+
+# Platform specific configuration
+CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
