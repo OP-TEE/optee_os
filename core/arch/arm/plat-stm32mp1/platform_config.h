@@ -39,6 +39,7 @@
 #define RNG1_BASE			0x54003000
 #define RTC_BASE			0x5c004000
 #define SPI6_BASE			0x5c001000
+#define SYSCFG_BASE			0x50020000
 #define SYSRAM_BASE			0x2ffc0000
 #define TAMP_BASE			0x5c00a000
 #define UART1_BASE			0x5c000000

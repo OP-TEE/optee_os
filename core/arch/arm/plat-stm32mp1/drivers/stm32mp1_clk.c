@@ -380,6 +380,7 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 #ifdef CFG_WITH_NSEC_UARTS
 	_CLK_SC_SELEC(N_S, RCC_MP_APB2ENSETR, 13, USART6_K, _UART6_SEL),
 #endif
+	_CLK_SC_FIXED(N_S, RCC_MP_APB3ENSETR, 11, SYSCFG, _UNKNOWN_ID),
 	_CLK_SC_SELEC(N_S, RCC_MP_APB4ENSETR, 8, DDRPERFM, _UNKNOWN_SEL),
 	_CLK_SC_SELEC(N_S, RCC_MP_APB4ENSETR, 15, IWDG2, _UNKNOWN_SEL),
 
@@ -1224,8 +1225,6 @@ void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 }
 
 #ifdef CFG_EMBED_DTB
-#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
-
 static const char *stm32mp_osc_node_label[NB_OSC] = {
 	[_LSI] = "clk-lsi",
 	[_LSE] = "clk-lse",
