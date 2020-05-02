@@ -390,6 +390,73 @@ void tzc_disable_filters(void)
 		tzc_set_gate_keeper(tzc.base, filter, 0);
 }
 
+static bool __maybe_unused write_not_read(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_DIRECTION_WRITE;
+}
+
+static bool __maybe_unused nonsecure_not_secure(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_NONSECURE;
+}
+
+static bool __maybe_unused priv_not_unpriv(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_PRIVILEGED;
+}
+
+static void dump_fail_filter(unsigned int filter)
+{
+	uint64_t __maybe_unused addr = 0;
+	uint32_t status = io_read32(tzc.base + INT_STATUS);
+
+	if (!(status & BIT(filter + INT_STATUS_OVERLAP_SHIFT)) &&
+	    !(status & BIT(filter + INT_STATUS_OVERRUN_SHIFT)) &&
+	    !(status & BIT(filter + INT_STATUS_STATUS_SHIFT)))
+		return;
+
+	if (status & BIT(filter + INT_STATUS_OVERLAP_SHIFT))
+		EMSG("Overlap violation on filter %u", filter);
+
+	if (status & BIT(filter + INT_STATUS_OVERRUN_SHIFT))
+		EMSG("Overrun violation on filter %u", filter);
+
+	if (status & BIT(filter + INT_STATUS_STATUS_SHIFT))
+		EMSG("Permission violation on filter %u", filter);
+
+	addr = reg_pair_to_64(io_read32(tzc.base + FAIL_ADDRESS_HIGH(filter)),
+			      io_read32(tzc.base + FAIL_ADDRESS_LOW(filter)));
+
+	EMSG("Violation @0x%"PRIx64", %ssecure %sprivileged %s, AXI ID %"PRIx32,
+	     addr,
+	     nonsecure_not_secure(filter) ? "non-" : "",
+	     priv_not_unpriv(filter) ? "" : "un",
+	     write_not_read(filter) ? "write" : "read",
+	     io_read32(tzc.base + FAIL_ID(filter)));
+}
+
+/*
+ * Dump info when TZC400 catches an unallowed access with TZC
+ * interrupt enabled.
+ */
+void tzc_fail_dump(void)
+{
+	unsigned int filter = 0;
+
+	for (filter = 0; filter < tzc.num_filters; filter++)
+		dump_fail_filter(filter);
+}
+
+void tzc_int_clear(void)
+{
+	assert(tzc.base);
+
+	io_setbits32(tzc.base + INT_CLEAR, GENMASK_32(tzc.num_filters - 1, 0));
+}
+
 #if TRACE_LEVEL >= TRACE_DEBUG
 
 #define	REGION_MAX		8
