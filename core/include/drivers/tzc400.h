@@ -61,6 +61,7 @@
 #include <stdint.h>
 #include <types_ext.h>
 #include <trace_levels.h>
+#include <tee_api_types.h>
 
 #define TZC400_REG_SIZE		0x1000
 
@@ -216,12 +217,20 @@ enum tzc_region_attributes {
 	TZC_REGION_S_RDWR = (TZC_REGION_S_RD | TZC_REGION_S_WR)
 };
 
+struct tzc_region_config {
+	uint32_t filters;
+	vaddr_t base;
+	vaddr_t top;
+	enum tzc_region_attributes sec_attr;
+	uint32_t ns_device_access;
+};
 
 void tzc_init(vaddr_t base);
 void tzc_configure_region(uint32_t filters, uint8_t region,
 			  vaddr_t region_base, vaddr_t region_top,
 			  enum tzc_region_attributes sec_attr,
 			  uint32_t ns_device_access);
+TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg);
 void tzc_enable_filters(void);
 void tzc_disable_filters(void);
 void tzc_set_action(enum tzc_action action);
