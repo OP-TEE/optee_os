@@ -229,10 +229,7 @@ struct tzc_region_config {
 };
 
 void tzc_init(vaddr_t base);
-void tzc_configure_region(uint32_t filters, uint8_t region,
-			  vaddr_t region_base, vaddr_t region_top,
-			  enum tzc_region_attributes sec_attr,
-			  uint32_t ns_device_access);
+void tzc_configure_region(uint8_t region, const struct tzc_region_config *cfg);
 TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg);
 void tzc_enable_filters(void);
 void tzc_disable_filters(void);

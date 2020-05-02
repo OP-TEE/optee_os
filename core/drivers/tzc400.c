@@ -262,17 +262,12 @@ static uint32_t addr_high(vaddr_t addr __unused)
  * this cannot be changed. It is, however, possible to change some region 0
  * permissions.
  */
-void tzc_configure_region(uint32_t filters,
-			  uint8_t  region,
-			  vaddr_t  region_base,
-			  vaddr_t  region_top,
-			  enum tzc_region_attributes sec_attr,
-			  uint32_t ns_device_access)
+void tzc_configure_region(uint8_t region, const struct tzc_region_config *cfg)
 {
-	assert(tzc.base);
+	assert(tzc.base && cfg);
 
 	/* Do range checks on filters and regions. */
-	assert(((filters >> tzc.num_filters) == 0) &&
+	assert(((cfg->filters >> tzc.num_filters) == 0) &&
 	       (region < tzc.num_regions));
 
 	/*
@@ -280,38 +275,35 @@ void tzc_configure_region(uint32_t filters,
 	 * the max and expected case.
 	 */
 #if (UINTPTR_MAX == UINT64_MAX)
-	assert(((region_top <= (UINT64_MAX >> (64 - tzc.addr_width))) &&
-		(region_base < region_top)));
+	assert(((cfg->top <= (UINT64_MAX >> (64 - tzc.addr_width))) &&
+		(cfg->base < cfg->top)));
 #endif
 	/* region_base and (region_top + 1) must be 4KB aligned */
-	assert(((region_base | (region_top + 1)) & (4096 - 1)) == 0);
+	assert(((cfg->base | (cfg->top + 1)) & (4096 - 1)) == 0);
 
-	assert(sec_attr <= TZC_REGION_S_RDWR);
+	assert(cfg->sec_attr <= TZC_REGION_S_RDWR);
 
 	/*
 	 * Inputs look ok, start programming registers.
 	 * All the address registers are 32 bits wide and have a LOW and HIGH
 	 * component used to construct a up to a 64bit address.
 	 */
-	tzc_write_region_base_low(tzc.base, region,
-				  addr_low(region_base));
-	tzc_write_region_base_high(tzc.base, region,
-				   addr_high(region_base));
+	tzc_write_region_base_low(tzc.base, region, addr_low(cfg->base));
+	tzc_write_region_base_high(tzc.base, region, addr_high(cfg->base));
 
-	tzc_write_region_top_low(tzc.base, region,
-				addr_low(region_top));
-	tzc_write_region_top_high(tzc.base, region,
-				addr_high(region_top));
+	tzc_write_region_top_low(tzc.base, region, addr_low(cfg->top));
+	tzc_write_region_top_high(tzc.base, region, addr_high(cfg->top));
 
 	/* Assign the region to a filter and set secure attributes */
 	tzc_write_region_attributes(tzc.base, region,
-		(sec_attr << REG_ATTR_SEC_SHIFT) | filters);
+				    (cfg->sec_attr << REG_ATTR_SEC_SHIFT) |
+				    cfg->filters);
 
 	/*
 	 * Specify which non-secure devices have permission to access this
 	 * region.
 	 */
-	tzc_write_region_id_access(tzc.base, region, ns_device_access);
+	tzc_write_region_id_access(tzc.base, region, cfg->ns_device_access);
 }
 
 TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg)
