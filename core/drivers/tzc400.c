@@ -404,14 +404,13 @@ void tzc_dump_state(void)
 {
 	uint32_t n;
 	uint32_t temp_32reg, temp_32reg_h;
+	unsigned int filter = 0;
 
-	DMSG("enter");
 	for (n = 0; n <= REGION_MAX; n++) {
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		if (!(temp_32reg & REG_ATTR_F_EN_MASK))
 			continue;
 
-		DMSG("\n");
 		DMSG("region %d", n);
 		temp_32reg = tzc_read_region_base_low(tzc.base, n);
 		temp_32reg_h = tzc_read_region_base_high(tzc.base, n);
@@ -422,16 +421,11 @@ void tzc_dump_state(void)
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		DMSG("secure rw: %s",
 		     tzc_attr_msg[temp_32reg >> REG_ATTR_SEC_SHIFT]);
-		if (temp_32reg & (1 << 0))
-			DMSG("filter 0 enable");
-		if (temp_32reg & (1 << 1))
-			DMSG("filter 1 enable");
-		if (temp_32reg & (1 << 2))
-			DMSG("filter 2 enable");
-		if (temp_32reg & (1 << 3))
-			DMSG("filter 3 enable");
+
+		for (filter = 0; filter < tzc.num_filters; filter++)
+			if (temp_32reg & BIT(filter))
+				DMSG("filter %u enable", filter);
 	}
-	DMSG("exit");
 }
 
 #endif /* CFG_TRACE_LEVEL >= TRACE_DEBUG */
