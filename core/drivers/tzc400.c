@@ -99,10 +99,20 @@ static void tzc_write_action(vaddr_t base, enum tzc_action action)
 	io_write32(base + ACTION_OFF, action);
 }
 
+static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_base_low(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
 	io_write32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
@@ -111,10 +121,20 @@ static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
 	io_write32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region), val);
 }
 
+static uint32_t tzc_read_region_top_low(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_top_low(vaddr_t base, uint32_t region,
 				     uint32_t val)
 {
 	io_write32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_top_high(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_top_high(vaddr_t base, uint32_t region,
@@ -123,10 +143,20 @@ static void tzc_write_region_top_high(vaddr_t base, uint32_t region,
 	io_write32(base + REGION_TOP_HIGH_OFF +	REGION_NUM_OFF(region), val);
 }
 
+static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_attributes(vaddr_t base, uint32_t region,
 					uint32_t val)
 {
 	io_write32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_id_access(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_ID_ACCESS_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_id_access(vaddr_t base, uint32_t region,
@@ -284,6 +314,26 @@ void tzc_configure_region(uint32_t filters,
 	tzc_write_region_id_access(tzc.base, region, ns_device_access);
 }
 
+TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg)
+{
+	uint32_t val32 = 0;
+
+	if (region >= tzc.num_regions)
+		return TEE_ERROR_GENERIC;
+
+	cfg->base = reg_pair_to_64(tzc_read_region_base_high(tzc.base, region),
+				   tzc_read_region_base_low(tzc.base, region));
+	cfg->top = reg_pair_to_64(tzc_read_region_top_high(tzc.base, region),
+				  tzc_read_region_top_low(tzc.base, region));
+
+	cfg->ns_device_access = tzc_read_region_id_access(tzc.base, region);
+
+	val32 = tzc_read_region_attributes(tzc.base, region);
+	cfg->sec_attr = val32 >> REG_ATTR_SEC_SHIFT;
+	cfg->filters = val32 & REG_ATTR_F_EN_MASK;
+
+	return TEE_SUCCESS;
+}
 
 void tzc_set_action(enum tzc_action action)
 {
@@ -341,31 +391,6 @@ void tzc_disable_filters(void)
 }
 
 #if TRACE_LEVEL >= TRACE_DEBUG
-
-static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_top_low(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_top_high(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
-}
 
 #define	REGION_MAX		8
 static const __maybe_unused char * const tzc_attr_msg[] = {
