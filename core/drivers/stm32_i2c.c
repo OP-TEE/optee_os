@@ -343,11 +343,11 @@ static void restore_cfg(struct i2c_handle_s *hi2c, struct i2c_cfg *cfg)
 
 static void __maybe_unused dump_cfg(struct i2c_cfg *cfg __maybe_unused)
 {
-	DMSG("CR1:  0x%" PRIx32, cfg->cr1);
-	DMSG("CR2:  0x%" PRIx32, cfg->cr2);
-	DMSG("OAR1: 0x%" PRIx32, cfg->oar1);
-	DMSG("OAR2: 0x%" PRIx32, cfg->oar2);
-	DMSG("TIM:  0x%" PRIx32, cfg->timingr);
+	DMSG("CR1:  %#"PRIx32, cfg->cr1);
+	DMSG("CR2:  %#"PRIx32, cfg->cr2);
+	DMSG("OAR1: %#"PRIx32, cfg->oar1);
+	DMSG("OAR2: %#"PRIx32, cfg->oar2);
+	DMSG("TIM:  %#"PRIx32, cfg->timingr);
 }
 
 static void __maybe_unused dump_i2c(struct i2c_handle_s *hi2c)
@@ -356,11 +356,11 @@ static void __maybe_unused dump_i2c(struct i2c_handle_s *hi2c)
 
 	stm32_clock_enable(hi2c->clock);
 
-	DMSG("CR1:  0x%" PRIx32, io_read32(base + I2C_CR1));
-	DMSG("CR2:  0x%" PRIx32, io_read32(base + I2C_CR2));
-	DMSG("OAR1: 0x%" PRIx32, io_read32(base + I2C_OAR1));
-	DMSG("OAR2: 0x%" PRIx32, io_read32(base + I2C_OAR2));
-	DMSG("TIM:  0x%" PRIx32, io_read32(base + I2C_TIMINGR));
+	DMSG("CR1:  %#"PRIx32, io_read32(base + I2C_CR1));
+	DMSG("CR2:  %#"PRIx32, io_read32(base + I2C_CR2));
+	DMSG("OAR1: %#"PRIx32, io_read32(base + I2C_OAR1));
+	DMSG("OAR2: %#"PRIx32, io_read32(base + I2C_OAR2));
+	DMSG("TIM:  %#"PRIx32, io_read32(base + I2C_TIMINGR));
 
 	stm32_clock_disable(hi2c->clock);
 }
@@ -401,7 +401,7 @@ static int i2c_compute_timing(struct stm32_i2c_init_s *init,
 
 	specs = get_specs(init->bus_rate);
 	if (!specs) {
-		EMSG("I2C speed out of bound: %"PRId32"Hz", init->bus_rate);
+		DMSG("I2C speed out of bound: %"PRId32"Hz", init->bus_rate);
 		return -1;
 	}
 
@@ -411,14 +411,14 @@ static int i2c_compute_timing(struct stm32_i2c_init_s *init,
 
 	if (init->rise_time > specs->rise_max ||
 	    init->fall_time > specs->fall_max) {
-		EMSG(" I2C timings out of bound: Rise{%d > %d}/Fall{%d > %d}",
+		DMSG("I2C rise{%"PRId32">%"PRId32"}/fall{%"PRId32">%"PRId32"}",
 		     init->rise_time, specs->rise_max,
 		     init->fall_time, specs->fall_max);
 		return -1;
 	}
 
 	if (init->digital_filter_coef > STM32_I2C_DIGITAL_FILTER_MAX) {
-		EMSG("DNF out of bound %d/%d",
+		DMSG("DNF out of bound %"PRId8"/%d",
 		     init->digital_filter_coef, STM32_I2C_DIGITAL_FILTER_MAX);
 		return -1;
 	}
@@ -473,7 +473,7 @@ static int i2c_compute_timing(struct stm32_i2c_init_s *init,
 	}
 
 	if (p_prev == I2C_TIMINGR_PRESC_MAX) {
-		EMSG(" I2C no Prescaler solution");
+		DMSG("I2C no Prescaler solution");
 		return -1;
 	}
 
@@ -529,7 +529,7 @@ static int i2c_compute_timing(struct stm32_i2c_init_s *init,
 	}
 
 	if (s < 0) {
-		EMSG(" I2C no solution at all");
+		DMSG("I2C no solution at all");
 		return -1;
 	}
 
@@ -540,11 +540,11 @@ static int i2c_compute_timing(struct stm32_i2c_init_s *init,
 		   I2C_SET_TIMINGR_SCLH(solutions[s].sclh) |
 		   I2C_SET_TIMINGR_SCLL(solutions[s].scll);
 
-	DMSG("I2C TIMINGR (PRESC/SCLDEL/SDADEL): %i/%i/%i",
-		s, solutions[s].scldel, solutions[s].sdadel);
-	DMSG("I2C TIMINGR (SCLH/SCLL): %i/%i",
-		solutions[s].sclh, solutions[s].scll);
-	DMSG("I2C TIMINGR: 0x%x", *timing);
+	DMSG("I2C TIMINGR (PRESC/SCLDEL/SDADEL): %i/%"PRIu8"/%"PRIu8,
+	     s, solutions[s].scldel, solutions[s].sdadel);
+	DMSG("I2C TIMINGR (SCLH/SCLL): %"PRIu8"/%"PRIu8,
+	     solutions[s].sclh, solutions[s].scll);
+	DMSG("I2C TIMINGR: 0x%"PRIx32, *timing);
 
 	return 0;
 }
@@ -599,7 +599,7 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 
 	clock_src = stm32_clock_get_rate(hi2c->clock);
 	if (!clock_src) {
-		EMSG("Null I2C clock rate");
+		DMSG("Null I2C clock rate");
 		return -1;
 	}
 
@@ -615,7 +615,7 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 	do {
 		rc = i2c_compute_timing(init, clock_src, timing);
 		if (rc) {
-			EMSG("Failed to compute I2C timings");
+			DMSG("Failed to compute I2C timings");
 			if (init->bus_rate > I2C_STANDARD_RATE) {
 				init->bus_rate = get_lower_rate(init->bus_rate);
 				IMSG("Downgrade I2C speed to %"PRIu32"Hz)",
@@ -627,15 +627,15 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 	} while (rc);
 
 	if (rc) {
-		EMSG("Impossible to compute I2C timings");
+		DMSG("Impossible to compute I2C timings");
 		return rc;
 	}
 
 	DMSG("I2C Freq(%"PRIu32"Hz), Clk Source(%lu)",
 	     init->bus_rate, clock_src);
-	DMSG("I2C Rise(%i) and Fall(%i) Time",
+	DMSG("I2C Rise(%"PRId32") and Fall(%"PRId32") Time",
 	     init->rise_time, init->fall_time);
-	DMSG("I2C Analog Filter(%s), DNF(%i)",
+	DMSG("I2C Analog Filter(%s), DNF(%"PRIu8")",
 	     init->analog_filter ? "On" : "Off", init->digital_filter_coef);
 
 	hi2c->saved_timing = *timing;
@@ -817,7 +817,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 
 	rc = i2c_config_analog_filter(hi2c, init_data->analog_filter);
 	if (rc)
-		EMSG("I2C analog filter error %d", rc);
+		DMSG("I2C analog filter error %d", rc);
 
 	stm32_clock_disable(hi2c->clock);
 
