@@ -10,6 +10,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "object.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
 
@@ -198,6 +199,13 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		break;
 	case PKCS11_CMD_LOGOUT:
 		rc = entry_ck_logout(client, ptypes, params);
+		break;
+
+	case PKCS11_CMD_IMPORT_OBJECT:
+		rc = entry_import_object(client, ptypes, params);
+		break;
+	case PKCS11_CMD_DESTROY_OBJECT:
+		rc = entry_destroy_object(client, ptypes, params);
 		break;
 
 	default:
