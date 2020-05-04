@@ -584,6 +584,9 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 	session->token = token;
 	session->client = client;
 
+	LIST_INIT(&session->object_list);
+	handle_db_init(&session->object_handle_db);
+
 	set_session_state(client, session, readonly);
 
 	TAILQ_INSERT_HEAD(&client->session_list, session, link);
@@ -602,8 +605,14 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 
 static void close_ck_session(struct pkcs11_session *session)
 {
+	/* No need to put object handles, the whole database is destroyed */
+	while (!LIST_EMPTY(&session->object_list))
+		destroy_object(session,
+			       LIST_FIRST(&session->object_list), true);
+
 	TAILQ_REMOVE(&session->client->session_list, session, link);
 	handle_put(&session->client->session_handle_db, session->handle);
+	handle_db_destroy(&session->object_handle_db);
 
 	session->token->session_count--;
 	if (pkcs11_session_is_read_write(session))

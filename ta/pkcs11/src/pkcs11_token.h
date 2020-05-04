@@ -11,6 +11,8 @@
 #include <utee_defines.h>
 
 #include "handle.h"
+#include "object.h"
+#include "pkcs11_attributes.h"
 
 /* Hard coded description */
 #define PKCS11_SLOT_DESCRIPTION		"OP-TEE PKCS11 TA"
@@ -73,12 +75,14 @@ struct token_persistent_main {
  * @state - Pkcs11 login is public, user, SO or custom
  * @session_count - Counter for opened Pkcs11 sessions
  * @rw_session_count - Count for opened Pkcs11 read/write sessions
+ * @object_list - List of the object owned by the token
  * @db_main - Volatile copy of the persistent main database
  */
 struct ck_token {
 	enum pkcs11_token_state state;
 	uint32_t session_count;
 	uint32_t rw_session_count;
+	struct object_list object_list;
 	/* Copy in RAM of the persistent database */
 	struct token_persistent_main *db_main;
 };
@@ -90,6 +94,8 @@ struct ck_token {
  * @client - Client the session belongs to
  * @token - Token this session belongs to
  * @handle - Identifier of the session published to the client
+ * @object_list - Entry of the session objects list
+ * @object_handle_db - Database for object handles published by the session
  * @state - R/W SO, R/W user, RO user, R/W public, RO public.
  */
 struct pkcs11_session {
@@ -97,6 +103,8 @@ struct pkcs11_session {
 	struct pkcs11_client *client;
 	struct ck_token *token;
 	uint32_t handle;
+	struct object_list object_list;
+	struct handle_db object_handle_db;
 	enum pkcs11_session_state state;
 };
 
@@ -154,6 +162,12 @@ static inline bool pkcs11_session_is_user(struct pkcs11_session *session)
 static inline bool pkcs11_session_is_so(struct pkcs11_session *session)
 {
 	return session->state == PKCS11_CKS_RW_SO_FUNCTIONS;
+}
+
+static inline
+struct object_list *pkcs11_get_session_objects(struct pkcs11_session *session)
+{
+	return &session->object_list;
 }
 
 static inline
