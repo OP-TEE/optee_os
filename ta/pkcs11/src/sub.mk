@@ -1,6 +1,7 @@
 srcs-y += attributes.c
 srcs-y += entry.c
 srcs-y += handle.c
+srcs-y += object.c
 srcs-y += persistent_token.c
 srcs-y += pkcs11_attributes.c
 srcs-y += pkcs11_helpers.c
