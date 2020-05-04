@@ -40,6 +40,13 @@ static struct object_list *get_session_objects(void *session)
 	return pkcs11_get_session_objects(ck_session);
 }
 
+static struct ck_token *get_session_token(void *session)
+{
+	struct pkcs11_session *ck_session = session;
+
+	return pkcs11_session2token(ck_session);
+}
+
 /* Release resources of a non-persistent object */
 static void cleanup_volatile_obj_ref(struct pkcs11_object *obj)
 {
@@ -58,11 +65,31 @@ static void cleanup_volatile_obj_ref(struct pkcs11_object *obj)
 }
 
 /* Release resources of a persistent object including volatile resources */
-static void cleanup_persistent_object(struct pkcs11_object *obj __unused,
-				      struct ck_token *token __unused)
+static void cleanup_persistent_object(struct pkcs11_object *obj,
+				      struct ck_token *token)
 {
-	EMSG("Persistent object not yet supported, panic!");
-	TEE_Panic(0);
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!obj)
+		return;
+
+	/* Open handle with write properties to destroy the object */
+	if (obj->attribs_hdl != TEE_HANDLE_NULL)
+		TEE_CloseObject(obj->attribs_hdl);
+
+	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+				       obj->uuid, sizeof(TEE_UUID),
+				       TEE_DATA_FLAG_ACCESS_WRITE_META,
+				       &obj->attribs_hdl);
+	if (!res)
+		TEE_CloseAndDeletePersistentObject1(obj->attribs_hdl);
+
+	obj->attribs_hdl = TEE_HANDLE_NULL;
+	destroy_object_uuid(token, obj);
+
+	LIST_REMOVE(obj, link);
+
+	cleanup_volatile_obj_ref(obj);
 }
 
 /*
@@ -105,8 +132,15 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 
 	/* Destroy target object (persistent or not) */
 	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
-		EMSG("Persistent object not yet supported, panic!");
-		TEE_Panic(0);
+		assert(obj->uuid);
+		/* Try twice otherwise panic! */
+		if (unregister_persistent_object(session->token, obj->uuid) &&
+		    unregister_persistent_object(session->token, obj->uuid))
+			TEE_Panic(0);
+
+		handle_put(&session->object_handle_db,
+			   pkcs11_object2handle(obj, session));
+		cleanup_persistent_object(obj, session->token);
 	} else {
 		handle_put(&session->object_handle_db,
 			   pkcs11_object2handle(obj, session));
@@ -125,6 +159,17 @@ static struct pkcs11_object *create_obj_instance(struct obj_attrs *head)
 	obj->key_handle = TEE_HANDLE_NULL;
 	obj->attribs_hdl = TEE_HANDLE_NULL;
 	obj->attributes = head;
+
+	return obj;
+}
+
+struct pkcs11_object *create_token_object(struct obj_attrs *head,
+					  TEE_UUID *uuid)
+{
+	struct pkcs11_object *obj = create_obj_instance(head);
+
+	if (obj)
+		obj->uuid = uuid;
 
 	return obj;
 }
@@ -165,8 +210,41 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 	}
 
 	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
-		EMSG("Persistent object not yet supported, panic!");
-		TEE_Panic(0);
+		TEE_Result res = TEE_SUCCESS;
+
+		/*
+		 * Get an ID for the persistent object
+		 * Create the file
+		 * Register the object in the persistent database
+		 * (move the full sequence to persisent_db.c?)
+		 */
+		size_t size = sizeof(struct obj_attrs) +
+			      obj->attributes->attrs_size;
+		uint32_t tee_obj_flags = TEE_DATA_FLAG_ACCESS_READ |
+					 TEE_DATA_FLAG_ACCESS_WRITE |
+					 TEE_DATA_FLAG_ACCESS_WRITE_META;
+
+		rc = create_object_uuid(get_session_token(session), obj);
+		if (rc)
+			goto err;
+
+		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
+						 obj->uuid, sizeof(TEE_UUID),
+						 tee_obj_flags,
+						 TEE_HANDLE_NULL,
+						 obj->attributes, size,
+						 &obj->attribs_hdl);
+		if (res) {
+			rc = tee2pkcs_error(res);
+			goto err;
+		}
+
+		rc = register_persistent_object(get_session_token(session),
+						obj->uuid);
+		if (rc)
+			goto err;
+
+		LIST_INSERT_HEAD(&session->token->object_list, obj, link);
 	} else {
 		rc = PKCS11_CKR_OK;
 		LIST_INSERT_HEAD(get_session_objects(session), obj, link);
