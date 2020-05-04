@@ -70,6 +70,17 @@ struct token_persistent_main {
 };
 
 /*
+ * Persistent objects in the token
+ *
+ * @count - number of object stored in the token
+ * @uudis - start of object references/UUIDs (@count items)
+ */
+struct token_persistent_objs {
+	uint32_t count;
+	TEE_UUID uuids[];
+};
+
+/*
  * Runtime state of the token, complies with pkcs11
  *
  * @state - Pkcs11 login is public, user, SO or custom
@@ -77,6 +88,7 @@ struct token_persistent_main {
  * @rw_session_count - Count for opened Pkcs11 read/write sessions
  * @object_list - List of the object owned by the token
  * @db_main - Volatile copy of the persistent main database
+ * @db_objs - Volatile copy of the persistent object database
  */
 struct ck_token {
 	enum pkcs11_token_state state;
@@ -85,6 +97,7 @@ struct ck_token {
 	struct object_list object_list;
 	/* Copy in RAM of the persistent database */
 	struct token_persistent_main *db_main;
+	struct token_persistent_objs *db_objs;
 };
 
 /*
@@ -129,6 +142,17 @@ enum pkcs11_rc hash_pin(enum pkcs11_user_type user, const uint8_t *pin,
 enum pkcs11_rc verify_pin(enum pkcs11_user_type user, const uint8_t *pin,
 			  size_t pin_size, uint32_t salt,
 			  const uint8_t hash[TEE_MAX_HASH_SIZE]);
+
+/* Token persistent objects */
+enum pkcs11_rc create_object_uuid(struct ck_token *token,
+				  struct pkcs11_object *obj);
+void destroy_object_uuid(struct ck_token *token, struct pkcs11_object *obj);
+enum pkcs11_rc unregister_persistent_object(struct ck_token *token,
+					    TEE_UUID *uuid);
+enum pkcs11_rc register_persistent_object(struct ck_token *token,
+					  TEE_UUID *uuid);
+enum pkcs11_rc get_persistent_objects_list(struct ck_token *token,
+					   TEE_UUID *array, size_t *size);
 
 /*
  * Pkcs11 session support
