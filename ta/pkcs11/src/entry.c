@@ -55,7 +55,7 @@ static enum pkcs11_rc entry_ping(uint32_t ptypes, TEE_Param *params)
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *out = &params[2];
+	TEE_Param *out = params + 2;
 	const uint32_t ver[] = {
 		PKCS11_TA_VERSION_MAJOR,
 		PKCS11_TA_VERSION_MINOR,
