@@ -416,7 +416,7 @@ UNWIND(	.fnstart)
 
 	bx	lr
 END_FUNC sm_init
-KEEP_PAGER sm_init
+DECLARE_KEEP_PAGER sm_init
 
 
 /* struct sm_nsec_ctx *sm_get_nsec_ctx(void); */

@@ -275,7 +275,7 @@ void __asan_register_globals(struct asan_global *globals, size_t size)
 		asan_tag_access((void *)globals[n].beg,
 				(void *)(globals[n].beg + globals[n].size));
 }
-KEEP_INIT(__asan_register_globals);
+DECLARE_KEEP_INIT(__asan_register_globals);
 
 void __asan_unregister_globals(struct asan_global *globals, size_t size);
 void __asan_unregister_globals(struct asan_global *globals __unused,

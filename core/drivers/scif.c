@@ -77,7 +77,7 @@ static const struct serial_ops scif_uart_ops = {
 	.flush = scif_uart_flush,
 	.putc = scif_uart_putc,
 };
-KEEP_PAGER(scif_uart_ops);
+DECLARE_KEEP_PAGER(scif_uart_ops);
 
 void scif_uart_init(struct scif_uart_data *pd, paddr_t base)
 {

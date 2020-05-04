@@ -241,7 +241,7 @@ clear_nex_bss:
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC _start
-KEEP_INIT _start
+DECLARE_KEEP_INIT _start
 
 	.balign	8
 LOCAL_DATA cached_mem_end , :
@@ -404,7 +404,7 @@ FUNC cpu_on_handler , :
 	mov	x30, x21
 	b	generic_boot_cpu_on_handler
 END_FUNC cpu_on_handler
-KEEP_PAGER cpu_on_handler
+DECLARE_KEEP_PAGER cpu_on_handler
 
 LOCAL_FUNC unhandled_cpu , :
 	wfi

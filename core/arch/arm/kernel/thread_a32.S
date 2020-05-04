@@ -225,7 +225,7 @@ UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_init_vbar
-KEEP_PAGER thread_init_vbar
+DECLARE_KEEP_PAGER thread_init_vbar
 
 /*
  * Below are low level routines handling entry and return from user mode.

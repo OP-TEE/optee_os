@@ -132,7 +132,7 @@ static const struct serial_ops pl011_ops = {
 	.have_rx_data = pl011_have_rx_data,
 	.putc = pl011_putc,
 };
-KEEP_PAGER(pl011_ops);
+DECLARE_KEEP_PAGER(pl011_ops);
 
 void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 		uint32_t baud_rate)

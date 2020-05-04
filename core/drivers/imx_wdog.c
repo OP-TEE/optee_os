@@ -86,7 +86,7 @@ void imx_wdog_restart(void)
 	while (1)
 		;
 }
-KEEP_PAGER(imx_wdog_restart);
+DECLARE_KEEP_PAGER(imx_wdog_restart);
 
 #if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)

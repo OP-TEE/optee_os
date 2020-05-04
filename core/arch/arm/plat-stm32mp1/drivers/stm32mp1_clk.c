@@ -385,7 +385,7 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 
 	_CLK_SELEC(N_S, RCC_DBGCFGR, 8, CK_DBG, _UNKNOWN_SEL),
 };
-KEEP_PAGER(stm32mp1_clk_gate);
+DECLARE_KEEP_PAGER(stm32mp1_clk_gate);
 
 /* Parents for secure aware clocks in the xxxSELR value ordering */
 static const uint8_t stgen_parents[] = {

@@ -73,7 +73,7 @@ UNWIND(	.fnstart)
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
-KEEP_PAGER plat_cpu_reset_early
+DECLARE_KEEP_PAGER plat_cpu_reset_early
 .weak plat_cpu_reset_early
 
 	.section .identity_map, "ax"
@@ -253,7 +253,7 @@ UNWIND(	.cantunwind)
 #endif
 UNWIND(	.fnend)
 END_FUNC _start
-KEEP_INIT _start
+DECLARE_KEEP_INIT _start
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
@@ -812,7 +812,7 @@ UNWIND(	.cantunwind)
 	bx	r6
 UNWIND(	.fnend)
 END_FUNC cpu_on_handler
-KEEP_PAGER cpu_on_handler
+DECLARE_KEEP_PAGER cpu_on_handler
 
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
@@ -870,5 +870,5 @@ UNWIND(	.cantunwind)
 	b	.	/* SMC should not return */
 UNWIND(	.fnend)
 END_FUNC reset_secondary
-KEEP_PAGER reset_secondary
+DECLARE_KEEP_PAGER reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */
