@@ -67,7 +67,7 @@ FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
-KEEP_PAGER thread_init_vbar
+DECLARE_KEEP_PAGER thread_init_vbar
 
 /*
  * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
@@ -123,7 +123,7 @@ FUNC __thread_enter_user_mode , :
 	/* Jump into user mode */
 	b eret_to_el0
 END_FUNC __thread_enter_user_mode
-KEEP_PAGER __thread_enter_user_mode
+DECLARE_KEEP_PAGER __thread_enter_user_mode
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,

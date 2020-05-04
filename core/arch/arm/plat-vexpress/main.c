@@ -142,7 +142,7 @@ static struct itr_handler console_itr = {
 	.flags = ITRF_TRIGGER_LEVEL,
 	.handler = console_itr_cb,
 };
-KEEP_PAGER(console_itr);
+DECLARE_KEEP_PAGER(console_itr);
 
 static TEE_Result init_console_itr(void)
 {

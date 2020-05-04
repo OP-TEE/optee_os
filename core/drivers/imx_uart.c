@@ -127,7 +127,7 @@ static const struct serial_ops imx_uart_ops = {
 	.getchar = imx_uart_getchar,
 	.putc = imx_uart_putc,
 };
-KEEP_PAGER(imx_uart_ops);
+DECLARE_KEEP_PAGER(imx_uart_ops);
 
 void imx_uart_init(struct imx_uart_data *pd, paddr_t base)
 {

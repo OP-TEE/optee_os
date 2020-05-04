@@ -96,7 +96,7 @@ static enum itr_return wdt_itr_cb(struct itr_handler *h)
 
 	return ITRR_HANDLED;
 }
-KEEP_PAGER(wdt_itr_cb);
+DECLARE_KEEP_PAGER(wdt_itr_cb);
 
 TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
 				      uint32_t itr_num, uint32_t itr_flags,
@@ -129,7 +129,7 @@ static const struct wdt_ops sp805_wdt_ops = {
 	.ping = sp805_ping,
 	.set_timeout = sp805_setload,
 };
-KEEP_PAGER(sp805_wdt_ops);
+DECLARE_KEEP_PAGER(sp805_wdt_ops);
 
 TEE_Result sp805_wdt_init(struct sp805_wdt_data *pd, paddr_t base,
 		    uint32_t clk_rate, uint32_t timeout)

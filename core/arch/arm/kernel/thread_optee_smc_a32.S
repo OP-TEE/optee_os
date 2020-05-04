@@ -204,7 +204,7 @@ UNWIND(	.cantunwind)
 	b	vector_system_reset_entry
 UNWIND(	.fnend)
 END_FUNC thread_vector_table
-KEEP_PAGER thread_vector_table
+DECLARE_KEEP_PAGER thread_vector_table
 
 FUNC thread_std_smc_entry , :
 UNWIND(	.fnstart)
@@ -270,7 +270,7 @@ UNWIND(	.save	{r0, lr})
 	bx	lr
 UNWIND(	.fnend)
 END_FUNC thread_rpc
-KEEP_PAGER thread_rpc
+DECLARE_KEEP_PAGER thread_rpc
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)

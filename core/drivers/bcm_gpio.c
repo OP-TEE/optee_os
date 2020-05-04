@@ -149,7 +149,7 @@ static const struct gpio_ops bcm_gpio_ops = {
 	.get_interrupt = iproc_gpio_get_itr,
 	.set_interrupt = iproc_gpio_set_itr,
 };
-KEEP_PAGER(bcm_gpio_ops);
+DECLARE_KEEP_PAGER(bcm_gpio_ops);
 
 void iproc_gpio_set_secure(int gpiopin)
 {

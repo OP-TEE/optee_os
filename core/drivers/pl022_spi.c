@@ -499,7 +499,7 @@ static const struct spi_ops pl022_ops = {
 	.txrx16 = pl022_txrx16,
 	.end = pl022_end,
 };
-KEEP_PAGER(pl022_ops);
+DECLARE_KEEP_PAGER(pl022_ops);
 
 void pl022_init(struct pl022_data *pd)
 {

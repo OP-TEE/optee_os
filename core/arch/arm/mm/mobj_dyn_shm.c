@@ -92,7 +92,7 @@ static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_reg_shm_get_pa);
+DECLARE_KEEP_PAGER(mobj_reg_shm_get_pa);
 
 static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
 					 size_t granule __maybe_unused)

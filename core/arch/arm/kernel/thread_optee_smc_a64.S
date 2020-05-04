@@ -156,7 +156,7 @@ FUNC thread_vector_table , : , .identity_map
 	b	vector_system_off_entry
 	b	vector_system_reset_entry
 END_FUNC thread_vector_table
-KEEP_PAGER thread_vector_table
+DECLARE_KEEP_PAGER thread_vector_table
 
 FUNC thread_std_smc_entry , :
 	bl	__thread_std_smc_entry
@@ -230,7 +230,7 @@ FUNC thread_rpc , :
 	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
 END_FUNC thread_rpc
-KEEP_PAGER thread_rpc
+DECLARE_KEEP_PAGER thread_rpc
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)

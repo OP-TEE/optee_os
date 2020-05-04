@@ -76,7 +76,7 @@ static const struct serial_ops ns16550_ops = {
 	.flush = ns16550_flush,
 	.putc = ns16550_putc,
 };
-KEEP_PAGER(ns16550_ops);
+DECLARE_KEEP_PAGER(ns16550_ops);
 
 void ns16550_init(struct ns16550_data *pd, paddr_t base)
 {

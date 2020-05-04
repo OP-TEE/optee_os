@@ -151,7 +151,7 @@ static TEE_Result rwp_load_page(struct fobj *fobj, unsigned int page_idx,
 				    NULL, 0, src, SMALL_PAGE_SIZE, va,
 				    state->tag, sizeof(state->tag));
 }
-KEEP_PAGER(rwp_load_page);
+DECLARE_KEEP_PAGER(rwp_load_page);
 
 static TEE_Result rwp_save_page(struct fobj *fobj, unsigned int page_idx,
 				const void *va)
@@ -192,7 +192,7 @@ static TEE_Result rwp_save_page(struct fobj *fobj, unsigned int page_idx,
 				    NULL, 0, va, SMALL_PAGE_SIZE, dst,
 				    state->tag, &tag_len);
 }
-KEEP_PAGER(rwp_save_page);
+DECLARE_KEEP_PAGER(rwp_save_page);
 
 static const struct fobj_ops ops_rw_paged __rodata_unpaged = {
 	.free = rwp_free,
@@ -272,7 +272,7 @@ static TEE_Result rop_load_page(struct fobj *fobj, unsigned int page_idx,
 {
 	return rop_load_page_helper(to_rop(fobj), page_idx, va);
 }
-KEEP_PAGER(rop_load_page);
+DECLARE_KEEP_PAGER(rop_load_page);
 
 static TEE_Result rop_save_page(struct fobj *fobj __unused,
 				unsigned int page_idx __unused,
@@ -280,7 +280,7 @@ static TEE_Result rop_save_page(struct fobj *fobj __unused,
 {
 	return TEE_ERROR_GENERIC;
 }
-KEEP_PAGER(rop_save_page);
+DECLARE_KEEP_PAGER(rop_save_page);
 
 static const struct fobj_ops ops_ro_paged __rodata_unpaged = {
 	.free = rop_free,
@@ -452,7 +452,7 @@ static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(rrp_load_page);
+DECLARE_KEEP_PAGER(rrp_load_page);
 
 static const struct fobj_ops ops_ro_reloc_paged __rodata_unpaged = {
 	.free = rrp_free,
@@ -497,7 +497,7 @@ static TEE_Result lop_load_page(struct fobj *fobj __maybe_unused,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(lop_load_page);
+DECLARE_KEEP_PAGER(lop_load_page);
 
 static TEE_Result lop_save_page(struct fobj *fobj __unused,
 				unsigned int page_idx __unused,
@@ -505,7 +505,7 @@ static TEE_Result lop_save_page(struct fobj *fobj __unused,
 {
 	return TEE_ERROR_GENERIC;
 }
-KEEP_PAGER(lop_save_page);
+DECLARE_KEEP_PAGER(lop_save_page);
 
 static const struct fobj_ops ops_locked_paged __rodata_unpaged = {
 	.free = lop_free,

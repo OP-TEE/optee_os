@@ -71,7 +71,7 @@ static TEE_Result mobj_phys_get_pa(struct mobj *mobj, size_t offs,
 	*pa = p;
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_phys_get_pa);
+DECLARE_KEEP_PAGER(mobj_phys_get_pa);
 
 static TEE_Result mobj_phys_get_cattr(struct mobj *mobj, uint32_t *cattr)
 {
@@ -236,7 +236,7 @@ static TEE_Result mobj_mm_get_pa(struct mobj *mobj, size_t offs,
 	return mobj_get_pa(to_mobj_mm(mobj)->parent_mobj,
 			   mobj_mm_offs(mobj, offs), granule, pa);
 }
-KEEP_PAGER(mobj_mm_get_pa);
+DECLARE_KEEP_PAGER(mobj_mm_get_pa);
 
 static size_t mobj_mm_get_phys_offs(struct mobj *mobj, size_t granule)
 {
@@ -346,7 +346,7 @@ static TEE_Result mobj_shm_get_pa(struct mobj *mobj, size_t offs,
 	*pa = p;
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_shm_get_pa);
+DECLARE_KEEP_PAGER(mobj_shm_get_pa);
 
 static size_t mobj_shm_get_phys_offs(struct mobj *mobj, size_t granule)
 {
@@ -614,7 +614,7 @@ static TEE_Result mobj_with_fobj_get_pa(struct mobj *mobj, size_t offs,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_with_fobj_get_pa);
+DECLARE_KEEP_PAGER(mobj_with_fobj_get_pa);
 
 static const struct mobj_ops mobj_with_fobj_ops __rodata_unpaged = {
 	.matches = mobj_with_fobj_matches,

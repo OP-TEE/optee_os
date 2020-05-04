@@ -777,7 +777,7 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	 */
 	cfg->ttbcr = TTBCR_N_VALUE;
 }
-KEEP_PAGER(core_init_mmu_regs);
+DECLARE_KEEP_PAGER(core_init_mmu_regs);
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {

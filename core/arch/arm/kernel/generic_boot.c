@@ -73,7 +73,7 @@ static uint32_t spin_table[CFG_TEE_CORE_NB_CORE];
  * When 1, it has started
  */
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
-KEEP_PAGER(sem_cpu_sync);
+DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
 #ifdef CFG_DT
@@ -93,7 +93,7 @@ static uint32_t cntfrq;
 __weak void plat_primary_init_early(void)
 {
 }
-KEEP_PAGER(plat_primary_init_early);
+DECLARE_KEEP_PAGER(plat_primary_init_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
 __weak void main_init_gic(void)
@@ -1185,7 +1185,7 @@ static void init_primary_helper(unsigned long pageable_part,
 }
 
 /* What this function is using is needed each time another CPU is started */
-KEEP_PAGER(generic_boot_get_handlers);
+DECLARE_KEEP_PAGER(generic_boot_get_handlers);
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {

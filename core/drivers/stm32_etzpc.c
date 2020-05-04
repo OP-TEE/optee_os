@@ -244,7 +244,7 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(etzpc_pm);
+DECLARE_KEEP_PAGER(etzpc_pm);
 
 static void init_pm(struct etzpc_instance *dev)
 {

@@ -59,7 +59,7 @@ static const struct serial_ops imx_lpuart_ops = {
 	.getchar = imx_lpuart_getchar,
 	.putc = imx_lpuart_putc,
 };
-KEEP_PAGER(imx_lpuart_ops);
+DECLARE_KEEP_PAGER(imx_lpuart_ops);
 
 void imx_uart_init(struct imx_uart_data *pd, paddr_t base)
 {

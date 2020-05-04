@@ -523,7 +523,7 @@ static void area_insert(struct tee_pager_area_head *head,
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(area_insert);
+DECLARE_KEEP_PAGER(area_insert);
 
 void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 			     struct fobj *fobj)
@@ -699,7 +699,7 @@ static void unlink_area(struct tee_pager_area_head *area_head,
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(unlink_area);
+DECLARE_KEEP_PAGER(unlink_area);
 
 static void free_area(struct tee_pager_area *area)
 {
@@ -854,7 +854,7 @@ static void split_area(struct tee_pager_area_head *area_head,
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(split_area);
+DECLARE_KEEP_PAGER(split_area);
 
 TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va)
 {
@@ -891,7 +891,7 @@ static void merge_area_with_next(struct tee_pager_area_head *area_head,
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(merge_area_with_next);
+DECLARE_KEEP_PAGER(merge_area_with_next);
 
 void tee_pager_merge_um_region(struct user_mode_ctx *uctx, vaddr_t va,
 			       size_t len)
@@ -972,7 +972,7 @@ static void rem_area(struct tee_pager_area_head *area_head,
 
 	free_area(area);
 }
-KEEP_PAGER(rem_area);
+DECLARE_KEEP_PAGER(rem_area);
 
 void tee_pager_rem_um_region(struct user_mode_ctx *uctx, vaddr_t base,
 			     size_t size)
@@ -1108,7 +1108,7 @@ out:
 	return ret;
 }
 
-KEEP_PAGER(tee_pager_set_um_area_attr);
+DECLARE_KEEP_PAGER(tee_pager_set_um_area_attr);
 #endif /*CFG_PAGED_USER_TA*/
 
 void tee_pager_invalidate_fobj(struct fobj *fobj)
@@ -1127,7 +1127,7 @@ void tee_pager_invalidate_fobj(struct fobj *fobj)
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(tee_pager_invalidate_fobj);
+DECLARE_KEEP_PAGER(tee_pager_invalidate_fobj);
 
 static struct tee_pager_pmem *pmem_find(struct tee_pager_area *area,
 					unsigned int tblidx)
@@ -1713,7 +1713,7 @@ out:
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(tee_pager_pgt_save_and_release_entries);
+DECLARE_KEEP_PAGER(tee_pager_pgt_save_and_release_entries);
 #endif /*CFG_PAGED_USER_TA*/
 
 void tee_pager_release_phys(void *addr, size_t size)
@@ -1742,7 +1742,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 
 	pager_unlock(exceptions);
 }
-KEEP_PAGER(tee_pager_release_phys);
+DECLARE_KEEP_PAGER(tee_pager_release_phys);
 
 void *tee_pager_alloc(size_t size)
 {

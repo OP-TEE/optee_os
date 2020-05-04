@@ -114,8 +114,8 @@ const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
  * These stack setup info are required by secondary boot cores before they
  * each locally enable the pager (the mmu). Hence kept in pager sections.
  */
-KEEP_PAGER(stack_tmp_export);
-KEEP_PAGER(stack_tmp_stride);
+DECLARE_KEEP_PAGER(stack_tmp_export);
+DECLARE_KEEP_PAGER(stack_tmp_stride);
 
 thread_pm_handler_t thread_cpu_on_handler_ptr __nex_bss;
 thread_pm_handler_t thread_cpu_off_handler_ptr __nex_bss;

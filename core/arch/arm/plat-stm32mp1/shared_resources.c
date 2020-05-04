@@ -696,7 +696,7 @@ static TEE_Result gpioz_pm(enum pm_op op, uint32_t pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(gpioz_pm);
+DECLARE_KEEP_PAGER(gpioz_pm);
 
 static TEE_Result stm32mp1_init_final_shres(void)
 {
