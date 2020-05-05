@@ -65,7 +65,7 @@ def emit_load_segments(elffile, outf):
                 w_found = True
         else:
             if w_found:
-                print(f'RO load segment found after RW one(s) (m={n})')
+                print('RO load segment found after RW one(s) (m={})'.format(n))
                 sys.exit(1)
         if prev_segment:
             if pad > 31:
@@ -73,8 +73,8 @@ def emit_load_segments(elffile, outf):
                 # efficiency. 31 is an arbitrary, "sounds reasonable" value
                 # which might need to be adjusted -- who knows what the
                 # compiler/linker can do.
-                print(f'Warning: suspiciously large padding ({pad}) after '
-                      f'load segment {n-1}, please check')
+                print('Warning: suspiciously large padding ({}) after load '
+                      'segment {}, please check'.format(pad, n-1))
             pad_size.append(pad)
         prev_segment = segment
         n = n + 1
