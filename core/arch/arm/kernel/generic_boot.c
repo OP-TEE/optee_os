@@ -1138,8 +1138,8 @@ void init_tee_runtime(void)
 		panic();
 }
 
-static void init_primary_helper(unsigned long pageable_part,
-				unsigned long nsec_entry, unsigned long fdt)
+static void generic_init_primary(unsigned long pageable_part,
+				 unsigned long nsec_entry)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -1159,6 +1159,14 @@ static void init_primary_helper(unsigned long pageable_part,
 	thread_init_primary(generic_boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak paged_init_primary(unsigned long fdt)
+{
 	init_external_dt(fdt);
 	tpm_map_log_area(get_external_dt());
 	discover_nsec_memory();
@@ -1210,7 +1218,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 /*
  * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
+ * the unpaged area so that it lies in the init area.
  */
 void __weak generic_boot_init_primary(unsigned long pageable_part,
 				      unsigned long nsec_entry __maybe_unused,
@@ -1221,7 +1229,9 @@ void __weak generic_boot_init_primary(unsigned long pageable_part,
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	e = nsec_entry;
 #endif
-	init_primary_helper(pageable_part, e, fdt);
+
+	generic_init_primary(pageable_part, e);
+	paged_init_primary(fdt);
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
