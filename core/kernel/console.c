@@ -127,7 +127,7 @@ void configure_console_from_dt(void)
 	void *fdt;
 	int offs;
 
-	fdt = get_external_dt();
+	fdt = get_dt();
 	if (get_console_node_from_dt(fdt, &offs, &uart, &parms))
 		return;
 
