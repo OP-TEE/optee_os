@@ -21,9 +21,15 @@
 #define PTA_NAME "device.pta"
 
 static void add_ta(uint32_t flags, const TEE_UUID *uuid, uint8_t *buf,
-		   uint32_t blen, uint32_t *pos)
+		   uint32_t blen, uint32_t *pos, uint32_t rflags)
 {
-	if (flags & TA_FLAG_DEVICE_ENUM) {
+	if ((flags & TA_FLAG_DEVICE_ENUM) &&
+	    (flags & TA_FLAG_DEVICE_ENUM_SUPP)) {
+		EMSG(PTA_NAME ": skipping TA %pUl, inconsistent flags", uuid);
+		return;
+	}
+
+	if (flags & rflags) {
 		if (*pos + sizeof(*uuid) <= blen)
 			tee_uuid_to_octets(buf + *pos, uuid);
 
@@ -32,7 +38,8 @@ static void add_ta(uint32_t flags, const TEE_UUID *uuid, uint8_t *buf,
 }
 
 static TEE_Result get_devices(uint32_t types,
-			      TEE_Param params[TEE_NUM_PARAMS])
+			      TEE_Param params[TEE_NUM_PARAMS],
+			      uint32_t rflags)
 {
 	const struct pseudo_ta_head *ta = NULL;
 	const struct early_ta *eta = NULL;
@@ -53,11 +60,12 @@ static TEE_Result get_devices(uint32_t types,
 	blen = params[0].memref.size;
 
 	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head)
-		add_ta(ta->flags, &ta->uuid, buf, blen, &pos);
+		add_ta(ta->flags, &ta->uuid, buf, blen, &pos, rflags);
 
 	if (IS_ENABLED(CFG_EARLY_TA))
 		for_each_early_ta(eta)
-			add_ta(eta->flags, &eta->uuid, buf, blen, &pos);
+			add_ta(eta->flags, &eta->uuid, buf, blen, &pos,
+			       rflags);
 
 	params[0].memref.size = pos;
 	if (pos > blen)
@@ -72,7 +80,11 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 {
 	switch (nCommandID) {
 	case PTA_CMD_GET_DEVICES:
-		return get_devices(nParamTypes, pParams);
+		return get_devices(nParamTypes, pParams,
+				   TA_FLAG_DEVICE_ENUM);
+	case PTA_CMD_GET_DEVICES_SUPP:
+		return get_devices(nParamTypes, pParams,
+				   TA_FLAG_DEVICE_ENUM_SUPP);
 	default:
 		break;
 	}
