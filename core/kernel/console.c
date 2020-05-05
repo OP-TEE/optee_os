@@ -126,10 +126,30 @@ void configure_console_from_dt(void)
 	char *parms = NULL;
 	void *fdt;
 	int offs;
+	bool embedded_dt = 1;
+	TEE_Result rc = TEE_ERROR_GENERIC;
 
-	fdt = get_external_dt();
-	if (get_console_node_from_dt(fdt, &offs, &uart, &parms))
-		return;
+	fdt = get_embedded_dt();
+	if (!fdt) {
+		fdt = get_external_dt();
+		if (fdt)
+			embedded_dt = 0;
+		else
+			return;
+	}
+
+	rc = get_console_node_from_dt(fdt, &offs, &uart, &parms);
+	if (rc) {
+		if (embedded_dt == 1) {
+			fdt = get_external_dt();
+			if (get_console_node_from_dt(fdt, &offs, &uart,
+							&parms)) {
+				return;
+			}
+		} else {
+			return;
+		}
+	}
 
 	dt_drv = dt_find_compatible_driver(fdt, offs);
 	if (!dt_drv)
