@@ -104,9 +104,9 @@ struct i2c_cfg {
  * @clock: clock ID
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
- * @sec_cfg: I2C regsiters configuration storage
  * @saved_timing: Saved timing value if already computed
  * @saved_frequency: Saved frequency value if already computed
+ * @sec_cfg: I2C registers configuration storage
  * @pinctrl: PINCTRLs configuration for the I2C PINs
  * @pinctrl_count: Number of PINCTRLs elements
  */
