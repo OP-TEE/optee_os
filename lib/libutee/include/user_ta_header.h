@@ -23,9 +23,16 @@
 	 * (pseudo-TAs only).
 	 */
 #define TA_FLAG_CONCURRENT		(1 << 8)
-#define TA_FLAG_DEVICE_ENUM		(1 << 9) /* device enumeration */
+	/*
+	 * Device enumeration is done in two stages by the normal world, first
+	 * before the tee-supplicant has started and then once more when the
+	 * tee-supplicant is started. The flags below control if the TA should
+	 * be reported in the first or second or case.
+	 */
+#define TA_FLAG_DEVICE_ENUM		(1 << 9)  /* without tee-supplicant */
+#define TA_FLAG_DEVICE_ENUM_SUPP	(1 << 10) /* with tee-supplicant */
 
-#define TA_FLAGS_MASK			GENMASK_32(9, 0)
+#define TA_FLAGS_MASK			GENMASK_32(10, 0)
 
 struct ta_head {
 	TEE_UUID uuid;

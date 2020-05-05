@@ -23,6 +23,7 @@
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
  * TEE_ERROR_SHORT_BUFFER - Output buffer size less than required
  */
-#define PTA_CMD_GET_DEVICES		0x0
+#define PTA_CMD_GET_DEVICES		0x0 /* before tee-supplicant run */
+#define PTA_CMD_GET_DEVICES_SUPP	0x1 /* after tee-supplicant run */
 
 #endif /* __PTA_DEVICE_H */
