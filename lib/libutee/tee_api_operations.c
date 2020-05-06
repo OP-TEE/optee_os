@@ -1326,6 +1326,7 @@ TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 		goto out;
 
 	operation->info.digestLength = tagLen / 8;
+	operation->buffer_offs = 0;
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 
 out:
