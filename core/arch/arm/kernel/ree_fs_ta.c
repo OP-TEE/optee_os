@@ -229,8 +229,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		memcpy(&img_ehdr, ((uint8_t *)ta + offs), sizeof(img_ehdr));
 
 		ehdr = malloc(SHDR_ENC_GET_SIZE(&img_ehdr));
-		if (!ehdr)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (!ehdr) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto error_free_hash;
+		}
 
 		memcpy(ehdr, ((uint8_t *)ta + offs),
 		       SHDR_ENC_GET_SIZE(&img_ehdr));
