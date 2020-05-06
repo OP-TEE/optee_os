@@ -371,8 +371,10 @@ static TEE_Result split_vm_region(struct user_mode_ctx *uctx,
 	if (mobj_is_paged(r->mobj)) {
 		TEE_Result res = tee_pager_split_um_region(uctx, va);
 
-		if (res)
+		if (res) {
+			free(r2);
 			return res;
+		}
 	}
 
 	r2->mobj = mobj_get(r->mobj);
