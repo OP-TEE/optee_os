@@ -532,8 +532,11 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 	uint32_t flags = 0;
 	size_t fobj_pgoffs = 0;
 	vaddr_t b = base;
-	size_t s = fobj->num_pages * SMALL_PAGE_SIZE;
+	size_t s = 0;
 	size_t s2 = 0;
+
+	assert(fobj);
+	s = fobj->num_pages * SMALL_PAGE_SIZE;
 
 	DMSG("0x%" PRIxPTR " - 0x%" PRIxPTR " : type %d", base, base + s, type);
 
@@ -553,9 +556,6 @@ void tee_pager_add_core_area(vaddr_t base, enum tee_pager_area_type type,
 	default:
 		panic();
 	}
-
-	if (!fobj)
-		panic();
 
 	while (s) {
 		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
