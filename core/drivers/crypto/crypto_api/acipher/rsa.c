@@ -102,7 +102,8 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 		CRYPTO_TRACE("Parameters error (key @%p)\n"
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @0%p size %zu bytes)",
-			     key, msg, *msg_len, cipher, cipher_len);
+			     key, msg, msg_len ? *msg_len : 0,
+			     cipher, cipher_len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -140,7 +141,8 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 		CRYPTO_TRACE("Parameters error (key @%p)\n"
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @%p size %zu bytes)",
-			     key, msg, msg_len, cipher, *cipher_len);
+			     key, msg, msg_len,
+			     cipher, cipher_len ? *cipher_len : 0);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -190,8 +192,8 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @%p size %zu bytes)\n"
 			     "(label @%p size %zu bytes)",
-			     key, msg, *msg_len, cipher, cipher_len, label,
-			     label_len);
+			     key, msg, msg_len ? *msg_len : 0,
+			     cipher, cipher_len, label, label_len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -250,8 +252,9 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @%p size %zu bytes)\n"
 			     "(label @%p size %zu bytes)",
-			     key, msg, msg_len, cipher, *cipher_len, label,
-			     label_len);
+			     key, msg, msg_len,
+			     cipher, cipher_len ? *cipher_len : 0,
+			     label, label_len);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
