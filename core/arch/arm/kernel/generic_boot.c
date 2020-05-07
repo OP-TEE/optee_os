@@ -1017,15 +1017,14 @@ static void init_external_dt(unsigned long phys_dt)
 
 	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
-		EMSG("Device Tree Overlay init fail @ 0x%" PRIxPA ": error %d",
-		     phys_dt, ret);
+		EMSG("Device Tree Overlay init fail @ %#lx: error %d", phys_dt,
+		     ret);
 		panic();
 	}
 
 	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
-		EMSG("Invalid Device Tree at 0x%" PRIxPA ": error %d",
-		     phys_dt, ret);
+		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
 		panic();
 	}
 
