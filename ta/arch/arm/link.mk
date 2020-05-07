@@ -49,7 +49,7 @@ cleanfiles += $(link-out-dir$(sm))/dyn_list
 
 link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
 link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd)
+ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
 
 link-script-cppflags-$(sm) := \
