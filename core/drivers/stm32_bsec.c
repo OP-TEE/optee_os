@@ -4,9 +4,11 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <drivers/stm32_bsec.h>
 #include <io.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/spinlock.h>
 #include <limits.h>
@@ -17,6 +19,10 @@
 #include <tee_api_defines.h>
 #include <types_ext.h>
 #include <util.h>
+
+#ifdef CFG_DT
+#include <libfdt.h>
+#endif
 
 #define BSEC_OTP_MASK			GENMASK_32(4, 0)
 #define BSEC_OTP_BANK_SHIFT		5
@@ -105,10 +111,13 @@
 /* Timeout when polling on status */
 #define BSEC_TIMEOUT_US			1000
 
+#define BITS_PER_WORD		(CHAR_BIT * sizeof(uint32_t))
+
 struct bsec_dev {
 	struct io_pa_va base;
 	unsigned int upper_base;
 	unsigned int max_id;
+	uint32_t *nsec_access;
 };
 
 /* Only 1 instance of BSEC is expected per platform */
@@ -513,13 +522,130 @@ TEE_Result stm32_bsec_otp_lock(uint32_t service)
 	return TEE_SUCCESS;
 }
 
+static size_t nsec_access_array_size(void)
+{
+	size_t upper_count = otp_max_id() - bsec_dev.upper_base + 1;
+
+	return ROUNDUP(upper_count, BITS_PER_WORD) / BITS_PER_WORD;
+}
+
+static bool nsec_access_granted(unsigned int index)
+{
+	uint32_t *array = bsec_dev.nsec_access;
+
+	return array &&
+	       (index / BITS_PER_WORD) < nsec_access_array_size() &&
+	       array[index / BITS_PER_WORD] & BIT(index % BITS_PER_WORD);
+}
+
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 {
-	if (otp_id > otp_max_id())
-		return false;
-
-	return otp_id < bsec_dev.upper_base;
+	return otp_id < bsec_dev.upper_base ||
+	       nsec_access_granted(otp_id - bsec_dev.upper_base);
 }
+
+#ifdef CFG_DT
+static void enable_nsec_access(unsigned int otp_id)
+{
+	unsigned int idx = (otp_id - bsec_dev.upper_base) / BITS_PER_WORD;
+
+	if (otp_id < bsec_dev.upper_base)
+		return;
+
+	if (otp_id > otp_max_id() || stm32_bsec_shadow_register(otp_id))
+		panic();
+
+	bsec_dev.nsec_access[idx] |= BIT(otp_id % BITS_PER_WORD);
+}
+
+static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
+{
+	int bsec_subnode = 0;
+
+	bsec_dev.nsec_access = calloc(nsec_access_array_size(),
+				      sizeof(*bsec_dev.nsec_access));
+	if (!bsec_dev.nsec_access)
+		panic();
+
+	fdt_for_each_subnode(bsec_subnode, fdt, bsec_node) {
+		const fdt32_t *cuint = NULL;
+		unsigned int otp_id = 0;
+		unsigned int i = 0;
+		size_t size = 0;
+		uint32_t offset = 0;
+		uint32_t length = 0;
+
+		cuint = fdt_getprop(fdt, bsec_subnode, "reg", NULL);
+		assert(cuint);
+
+		offset = fdt32_to_cpu(*cuint);
+		cuint++;
+		length = fdt32_to_cpu(*cuint);
+
+		otp_id = offset / sizeof(uint32_t);
+
+		if (otp_id < STM32MP1_UPPER_OTP_START) {
+			unsigned int otp_end = ROUNDUP(offset + length,
+						       sizeof(uint32_t)) /
+					       sizeof(uint32_t);
+
+			if (otp_end > STM32MP1_UPPER_OTP_START) {
+				/*
+				 * OTP crosses Lower/Upper boundary, consider
+				 * only the upper part.
+				 */
+				otp_id = STM32MP1_UPPER_OTP_START;
+				length -= (STM32MP1_UPPER_OTP_START *
+					   sizeof(uint32_t)) - offset;
+				offset = STM32MP1_UPPER_OTP_START *
+					 sizeof(uint32_t);
+
+				DMSG("OTP crosses Lower/Upper boundary");
+			} else {
+				continue;
+			}
+		}
+
+		if (!fdt_getprop(fdt, bsec_subnode, "st,non-secure-otp", NULL))
+			continue;
+
+		if ((offset % sizeof(uint32_t)) || (length % sizeof(uint32_t)))
+			panic("Unaligned non-secure OTP");
+
+		size = length / sizeof(uint32_t);
+
+		if (otp_id + size > STM32MP1_OTP_MAX_ID)
+			panic("OTP range oversized");
+
+		for (i = otp_id; i < otp_id + size; i++)
+			enable_nsec_access(i);
+	}
+}
+
+static void initialize_bsec_from_dt(void)
+{
+	void *fdt = NULL;
+	int node = 0;
+	struct dt_node_info bsec_info = { };
+
+	fdt = get_embedded_dt();
+	node = fdt_node_offset_by_compatible(fdt, 0, "st,stm32mp15-bsec");
+	if (node < 0)
+		panic();
+
+	_fdt_fill_device_info(fdt, &bsec_info, node);
+
+	if (bsec_info.reg != bsec_dev.base.pa ||
+	    !(bsec_info.status & DT_STATUS_OK_SEC))
+		panic();
+
+	bsec_dt_otp_nsec_access(fdt, node);
+}
+#else
+static void initialize_bsec_from_dt(void)
+{
+}
+#endif /*CFG_DT*/
 
 static TEE_Result initialize_bsec(void)
 {
@@ -530,6 +656,9 @@ static TEE_Result initialize_bsec(void)
 	bsec_dev.base.pa = cfg.base;
 	bsec_dev.upper_base = cfg.upper_start;
 	bsec_dev.max_id = cfg.max_id;
+
+	if (IS_ENABLED(CFG_EMBED_DTB))
+		initialize_bsec_from_dt();
 
 	return TEE_SUCCESS;
 }
