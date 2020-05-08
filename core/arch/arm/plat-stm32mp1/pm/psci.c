@@ -20,6 +20,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
+#include <sm/std_smc.h>
 #include <stm32_util.h>
 #include <trace.h>
 
@@ -244,6 +245,7 @@ void __noreturn psci_system_reset(void)
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case ARM_SMCCC_VERSION:
 	case PSCI_PSCI_FEATURES:
 	case PSCI_SYSTEM_RESET:
 	case PSCI_VERSION:
