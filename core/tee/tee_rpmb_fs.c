@@ -1803,7 +1803,7 @@ post_read_in:
 #if (TRACE_LEVEL >= TRACE_FLOW)
 static void dump_fat(void)
 {
-	TEE_RESULT res;
+	TEE_Result res = TEE_ERROR_SECURITY;
 	struct rpmb_fat_entry *fe = NULL;
 
 	if (fat_entry_dir_init())
