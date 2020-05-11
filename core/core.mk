@@ -128,11 +128,9 @@ include mk/lib.mk
 
 base-prefix :=
 
-ifeq ($(CFG_DT),y)
 libname = fdt
 libdir = core/lib/libfdt
 include mk/lib.mk
-endif
 
 ifeq ($(CFG_ZLIB),y)
 libname = zlib

@@ -18,6 +18,8 @@
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/tpm.h>
+#include <libfdt.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -31,7 +33,6 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <kernel/tpm.h>
 
 #include <platform_config.h>
 
@@ -41,10 +42,6 @@
 
 #if defined(CFG_WITH_VFP)
 #include <kernel/vfp.h>
-#endif
-
-#if defined(CFG_DT)
-#include <libfdt.h>
 #endif
 
 /*

@@ -11,6 +11,7 @@
 #include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <limits.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -19,10 +20,6 @@
 #include <tee_api_defines.h>
 #include <types_ext.h>
 #include <util.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 #define BSEC_OTP_MASK			GENMASK_32(4, 0)
 #define BSEC_OTP_BANK_SHIFT		5

@@ -13,15 +13,12 @@
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 #define GPIO_PIN_MAX		15
 

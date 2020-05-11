@@ -6,18 +6,15 @@
 #include <assert.h>
 #include <drivers/stm32_rng.h>
 #include <io.h>
-#include <kernel/dt.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stm32_util.h>
 #include <string.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 #define DT_RNG_COMPAT		"st,stm32-rng"
 #define RNG_CR			0x00U

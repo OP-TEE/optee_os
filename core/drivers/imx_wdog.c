@@ -34,11 +34,9 @@
 #include <kernel/dt.h>
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
-#ifdef CFG_DT
 #include <libfdt.h>
-#endif
-#include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <util.h>
 
 static bool ext_reset;
