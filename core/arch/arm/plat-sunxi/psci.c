@@ -44,6 +44,7 @@
 #include <sm/tee_mon.h>
 #include <sm/optee_smc.h>
 #include <sm/psci.h>
+#include <sm/std_smc.h>
 #include <arm32.h>
 
 #define REG_CPUCFG_RES0             (0x0000)
@@ -57,11 +58,11 @@
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case ARM_SMCCC_VERSION:
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 	case PSCI_CPU_ON:
-		return 0;
 #endif
-
+		return PSCI_RET_SUCCESS;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
 	}
