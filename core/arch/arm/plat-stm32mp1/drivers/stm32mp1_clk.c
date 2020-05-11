@@ -13,15 +13,12 @@
 #include <kernel/generic_boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <platform_config.h>
-#include <stm32_util.h>
 #include <stdio.h>
+#include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 /* Identifiers for root oscillators */
 enum stm32mp_osc_id {

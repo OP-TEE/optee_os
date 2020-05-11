@@ -3,14 +3,12 @@
  * Copyright (c) 2020, ARM Limited. All rights reserved.
  */
 
-#include <mm/core_memprot.h>
-#include <kernel/tpm.h>
 #include <compiler.h>
-#include <string.h>
-#ifdef CFG_DT
 #include <kernel/dt.h>
+#include <kernel/tpm.h>
 #include <libfdt.h>
-#endif
+#include <mm/core_memprot.h>
+#include <string.h>
 
 static void *tpm_log_addr;
 static size_t tpm_log_size;

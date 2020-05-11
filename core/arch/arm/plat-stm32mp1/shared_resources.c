@@ -16,15 +16,12 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
-#include <stm32_util.h>
 #include <stdbool.h>
+#include <stm32_util.h>
 #include <string.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 /*
  * Once one starts to get the resource registering state, one cannot register
