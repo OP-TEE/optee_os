@@ -18,6 +18,7 @@
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/psci.h>
+#include <sm/std_smc.h>
 #include <stdint.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
@@ -233,6 +234,7 @@ uint32_t psci_version(void)
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case ARM_SMCCC_VERSION:
 	case PSCI_PSCI_FEATURES:
 	case PSCI_VERSION:
 	case PSCI_CPU_ON:
