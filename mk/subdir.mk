@@ -117,7 +117,7 @@ endef #process-subdir-asm-defines-y
 define process-subdir
 sub-dir := $1
 ifeq ($1,.)
-sub-dir-out := $(out-dir)/$(base-prefix)
+sub-dir-out := $(patsubst %/,%,$(out-dir)/$(base-prefix))
 else
 sub-dir-out := $(out-dir)/$(base-prefix)$1
 endif
