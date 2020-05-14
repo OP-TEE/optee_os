@@ -30,9 +30,11 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		break;
 	case STM32_SIP_SVC_FUNC_SCMI_AGENT0:
 		scmi_smt_fastcall_smc_entry(0);
+		args->a0 = STM32_SIP_SVC_OK;
 		break;
 	case STM32_SIP_SVC_FUNC_SCMI_AGENT1:
 		scmi_smt_fastcall_smc_entry(1);
+		args->a0 = STM32_SIP_SVC_OK;
 		break;
 	case STM32_SIP_SVC_FUNC_BSEC:
 		bsec_main(args);
