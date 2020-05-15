@@ -345,7 +345,7 @@ TEE_Result crypto_rng_read(void *buf, size_t len);
 /*
  * crypto_aes_expand_enc_key() - Expand an AES key
  * @key:	AES key buffer
- * @key_len:	Size of the the @key buffer in bytes
+ * @key_len:	Size of the @key buffer in bytes
  * @enc_key:	Expanded AES encryption key buffer
  * @enc_keylen: Size of the @enc_key buffer in bytes
  * @rounds:	Number of rounds to be used during encryption
