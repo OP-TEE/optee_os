@@ -320,7 +320,7 @@ void thread_set_foreign_intr(bool enable);
 void thread_restore_foreign_intr(void);
 
 /*
- * Defines the bits for the exception mask used the the
+ * Defines the bits for the exception mask used by the
  * thread_*_exceptions() functions below.
  * These definitions are compatible with both ARM32 and ARM64.
  */
