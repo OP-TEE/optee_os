@@ -11,7 +11,7 @@
 
 /*
  * Mask Generation function. Use a Hash operation
- * to generate an output @mask from a input @seed
+ * to generate an output @mask from an input @seed
  *
  * @mgf_data  [in/out] MGF data
  */
