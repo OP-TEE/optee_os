@@ -141,8 +141,8 @@ END_FUNC reset_vect_table
 	 * - Disable data and instruction cache.
 	 * - MMU is expected off and exceptions trapped in ARM mode.
 	 * - Enable or disable alignment checks upon platform configuration.
-	 * - Optinally enable write-implies-execute-never.
-	 * - Optinally enable round robin strategy for cache replacement.
+	 * - Optionally enable write-implies-execute-never.
+	 * - Optionally enable round robin strategy for cache replacement.
 	 *
 	 * Clobbers r0.
 	 */
