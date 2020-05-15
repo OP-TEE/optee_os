@@ -43,13 +43,13 @@
  * return code for the invoked command.
  *
  * Param#1 can be used for input data arguments of the invoked command.
- * It is unused or is a input memory reference, aka memref[1].
+ * It is unused or is an input memory reference, aka memref[1].
  * Evolution of the API may use memref[1] for output data as well.
  *
  * Param#2 is mostly used for output data arguments of the invoked command
  * and for output handles generated from invoked commands.
  * Few commands uses it for a secondary input data buffer argument.
- * It is unused or is a input/output/in-out memory reference, aka memref[2].
+ * It is unused or is an input/output/in-out memory reference, aka memref[2].
  *
  * Param#3 is currently unused and reserved for evolution of the API.
  */
