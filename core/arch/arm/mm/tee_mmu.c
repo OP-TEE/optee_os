@@ -1048,7 +1048,7 @@ bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
 		if (r->flags & VM_FLAGS_NONPRIV)
 			continue;
-		if (core_is_buffer_inside(va, size, r->va, r->size))
+		if (core_is_buffer_inside((vaddr_t)va, size, r->va, r->size))
 			return true;
 	}
 
@@ -1064,7 +1064,7 @@ bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
 		if (r->attr & VM_FLAGS_NONPRIV)
 			continue;
-		if (core_is_buffer_intersect(va, size, r->va, r->size))
+		if (core_is_buffer_intersect((vaddr_t)va, size, r->va, r->size))
 			return true;
 	}
 
@@ -1080,7 +1080,7 @@ TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_mode_ctx *uctx,
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
 		if (!r->mobj)
 			continue;
-		if (core_is_buffer_inside(va, size, r->va, r->size)) {
+		if (core_is_buffer_inside((vaddr_t)va, size, r->va, r->size)) {
 			size_t poffs;
 
 			poffs = mobj_get_phys_offs(r->mobj,
@@ -1100,7 +1100,8 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_mode_ctx *uctx,
 	struct vm_region *region = NULL;
 
 	TAILQ_FOREACH(region, &uctx->vm_info.regions, link) {
-		if (!core_is_buffer_inside(ua, 1, region->va, region->size))
+		if (!core_is_buffer_inside((vaddr_t)ua, 1, region->va,
+					   region->size))
 			continue;
 
 		if (pa) {
