@@ -183,7 +183,7 @@ static void psci_boot_allcpus(void)
 	io_write32(src_base + SRC_GPR1 + 16, pa);
 	io_write32(src_base + SRC_GPR1 + 24, pa);
 
-	io_write32(src_base + SRC_SCR, BM_SRC_SCR_CPU_ENABLE_ALL);
+	io_write32(src_base + SRC_SCR, SRC_SCR_CPU_ENABLE_ALL);
 }
 #endif
 
@@ -191,6 +191,6 @@ void plat_primary_init_early(void)
 {
 	/* primary core */
 #if defined(CFG_BOOT_SYNC_CPU)
-	psci_boot_allcpus()
+	psci_boot_allcpus();
 #endif
 }
