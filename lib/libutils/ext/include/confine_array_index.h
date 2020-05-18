@@ -76,7 +76,7 @@ static inline size_t confine_array_index(size_t index, size_t size) {
   asm(
     "cmp %1, %2\n"  // %1 holds the unsanitized index
     "csel %0, %1, xzr, lo\n"  // Select index or zero based on carry (%1 within range)
-    "csdb\n"
+    "hint #20\n" // csdb
   : "=r"(safe_index)
   : "r"(index), "r"(size)
   : "cc");
