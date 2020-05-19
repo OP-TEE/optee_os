@@ -128,7 +128,7 @@ arm32-platform-aflags-no-hard-float ?=
 
 arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
 arm64-platform-cflags-hard-float ?=
-arm64-platform-cflags-generic ?= -mstrict-align
+arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-atomics,)
 
 ifeq ($(DEBUG),1)
 # For backwards compatibility
