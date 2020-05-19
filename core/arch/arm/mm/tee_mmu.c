@@ -715,6 +715,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	struct vm_region *r = NULL;
 	struct vm_region *r_next = NULL;
 	size_t end_va = 0;
+	size_t unmap_end_va = 0;
 	size_t l = 0;
 
 	assert(thread_get_tsd()->ctx == &uctx->ctx);
@@ -734,11 +735,12 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 
 	while (true) {
 		r_next = TAILQ_NEXT(r, link);
+		unmap_end_va = r->va + r->size;
 		if (mobj_is_paged(r->mobj))
 			tee_pager_rem_um_region(uctx, r->va, r->size);
 		maybe_free_pgt(uctx, r);
 		umap_remove_region(&uctx->vm_info, r);
-		if (!r_next || r->va + r->size == end_va)
+		if (!r_next || unmap_end_va == end_va)
 			break;
 		r = r_next;
 	}
