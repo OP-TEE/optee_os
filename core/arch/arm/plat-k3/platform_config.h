@@ -10,11 +10,8 @@
 #include <mm/generic_ram_layout.h>
 
 #define UART0_BASE      0x02800000
-#define UART1_BASE      0x02810000
-#define UART2_BASE      0x02820000
 
-/* UART0 */
-#define CONSOLE_UART_BASE       UART0_BASE
+#define CONSOLE_UART_BASE       (UART0_BASE + CFG_CONSOLE_UART * 0x10000)
 #define CONSOLE_BAUDRATE        115200
 #define CONSOLE_UART_CLK_IN_HZ  48000000
 
