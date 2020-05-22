@@ -6,6 +6,9 @@ notifications:
 git:
   depth: false
 
+before_install:
+  - sudo apt-get -y install codespell
+
 before_script:
   - export OPTEE_OS=$PWD
 
