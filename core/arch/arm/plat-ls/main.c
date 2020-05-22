@@ -133,8 +133,13 @@ void main_init_gic(void)
 	if (!gicc_base || !gicd_base)
 		panic();
 
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+	/* On ARMv8, GIC configuration is initialized in ARM-TF */
+	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
+#else
 	/* Initialize GIC */
 	gic_init(&gic_data, gicc_base, gicd_base);
+#endif
 	itr_init(&gic_data.chip);
 }
 
