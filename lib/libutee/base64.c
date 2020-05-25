@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (c) 2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include "base64.h"
@@ -71,11 +72,13 @@ static bool get_idx(char ch, uint8_t *idx)
 
 bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 {
+	bool ret = false;
 	size_t n;
 	uint8_t idx;
 	uint8_t *b = buf;
 	size_t m = 0;
 	size_t s = 0;
+	uint8_t byte = 0;
 
 	for (n = 0; n < size && data[n] != '\0'; n++) {
 		if (data[n] == '=')
@@ -84,38 +87,28 @@ bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 		if (!get_idx(data[n], &idx))
 			continue;
 
-		if (m >= *blen)
-			b = NULL;
-
 		switch (s) {
 		case 0:
-			if (b)
-				b[m] = idx << 2;
+			byte = idx << 2;
 			s++;
 			break;
 		case 1:
-			if (b)
-				b[m] |= idx >> 4;
+			if (b && m < *blen)
+				b[m] = byte | (idx >> 4);
 			m++;
-			if (m >= *blen)
-				b = NULL;
-			if (b)
-				b[m] = (idx & 0xf) << 4;
+			byte = (idx & 0xf) << 4;
 			s++;
 			break;
 		case 2:
-			if (b)
-				b[m] |= idx >> 2;
+			if (b && m < *blen)
+				b[m] = byte | (idx >> 2);
 			m++;
-			if (m >= *blen)
-				b = NULL;
-			if (b)
-				b[m] = (idx & 0x3) << 6;
+			byte = (idx & 0x3) << 6;
 			s++;
 			break;
 		case 3:
-			if (b)
-				b[m] |= idx;
+			if (b && m < *blen)
+				b[m] = byte | idx;
 			m++;
 			s = 0;
 			break;
@@ -123,10 +116,13 @@ bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 			return false;	/* "Can't happen" */
 		}
 	}
-	/* We don't detect if input was bad, but that's OK with the spec. */
+
+	/*
+	 * We don't detect if input was bad, but that's OK with the spec.
+	 * We expect that each fully extracted byte is stored in output buffer.
+	 */
+	ret = (!m && !*blen) || (b && (m <= *blen));
 	*blen = m;
-	if (b)
-		return true;
-	else
-		return false;
+
+	return ret;
 }
