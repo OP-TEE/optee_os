@@ -1,3 +1,16 @@
+# Setup compiler for the core module
+ifeq ($(CFG_ARM64_core),y)
+arch-bits-core := 64
+else
+arch-bits-core := 32
+endif
+CROSS_COMPILE_core := $(CROSS_COMPILE$(arch-bits-core))
+COMPILER_core := $(COMPILER)
+include mk/$(COMPILER_core).mk
+
+# Defines the cc-option macro using the compiler set for the core module
+include mk/cc-option.mk
+
 CFG_LTC_OPTEE_THREAD ?= y
 # Size of emulated TrustZone protected SRAM, 448 kB.
 # Only applicable when paging is enabled.
@@ -148,14 +161,12 @@ core-platform-cflags += -fpie
 endif
 
 ifeq ($(CFG_ARM64_core),y)
-arch-bits-core := 64
 core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-cflags += $(arm64-platform-cflags-generic)
 core-platform-cflags += $(arm64-platform-cflags-no-hard-float)
 core-platform-aflags += $(arm64-platform-aflags)
 else
-arch-bits-core := 32
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
@@ -258,8 +269,8 @@ ta-mk-file-export-add-ta_arm64 += COMPILER ?= gcc_nl_
 ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
 endif
 
-# Set cross compiler prefix for each submodule
-$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+# Set cross compiler prefix for each TA target
+$(foreach sm, $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
 
 arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
 arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h
