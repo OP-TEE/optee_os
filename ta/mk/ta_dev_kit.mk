@@ -89,6 +89,9 @@ clean:
 	@$(cmd-echo-silent) '  CLEAN   $(O)'
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
 
+include  $(ta-dev-kit-dir$(sm))/mk/$(COMPILER_$(sm)).mk
+include  $(ta-dev-kit-dir$(sm))/mk/cc-option.mk
+
 subdirs = .
 include  $(ta-dev-kit-dir$(sm))/mk/subdir.mk
 
@@ -103,7 +106,6 @@ endif
 endif
 
 SCRIPTS_DIR := $(ta-dev-kit-dir)/scripts
-include  $(ta-dev-kit-dir$(sm))/mk/$(COMPILER_$(sm)).mk
 include  $(ta-dev-kit-dir$(sm))/mk/compile.mk
 
 ifneq ($(user-ta-uuid),)
