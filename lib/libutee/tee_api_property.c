@@ -343,7 +343,7 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	enum user_ta_prop_type type;
 
-	if (!value || !value_len) {
+	if (!value_len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
