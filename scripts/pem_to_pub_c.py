@@ -21,8 +21,8 @@ def get_args():
 
 def main():
     import array
-    from Crypto.PublicKey import RSA
-    from Crypto.Util.number import long_to_bytes
+    from Cryptodome.PublicKey import RSA
+    from Cryptodome.Util.number import long_to_bytes
 
     args = get_args()
 
