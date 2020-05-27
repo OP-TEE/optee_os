@@ -15,7 +15,7 @@ size_t base64_enc_len(size_t size)
 
 bool base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
 {
-	size_t n;
+	size_t n = 0;
 	size_t boffs = 0;
 	const unsigned char *d = data;
 
@@ -59,7 +59,7 @@ bool base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
 
 static bool get_idx(char ch, uint8_t *idx)
 {
-	size_t n;
+	size_t n = 0;
 
 	for (n = 0; base64_table[n] != '\0'; n++) {
 		if (ch == base64_table[n]) {
@@ -73,8 +73,8 @@ static bool get_idx(char ch, uint8_t *idx)
 bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 {
 	bool ret = false;
-	size_t n;
-	uint8_t idx;
+	size_t n = 0;
+	uint8_t idx = 0;
 	uint8_t *b = buf;
 	size_t m = 0;
 	size_t s = 0;
