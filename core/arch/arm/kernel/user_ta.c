@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <ctype.h>
 #include <initcall.h>
@@ -657,6 +658,12 @@ static TEE_Result alloc_and_map_ldelf_fobj(struct user_ta_ctx *utc, size_t sz,
 	return res;
 }
 
+static void gdb_helper(const vaddr_t ldelf_addr, const TEE_UUID uuid)
+{
+	(void)ldelf_addr;
+	(void)uuid;
+}
+
 /*
  * This function may leave a few mappings behind on error, but that's taken
  * care of by tee_ta_init_user_ta_session() since the entire context is
@@ -702,6 +709,9 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 		return res;
 
 	DMSG("ldelf load address %#"PRIxVA, code_addr);
+
+	if (IS_ENABLED(CFG_GDB_HELPERS))
+		gdb_helper(code_addr, utc->uctx.ctx.uuid);
 
 	return TEE_SUCCESS;
 }
