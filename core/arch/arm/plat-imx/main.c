@@ -176,26 +176,3 @@ void main_secondary_init_gic(void)
 	gic_cpu_init(&gic_data);
 }
 #endif
-
-#if defined(CFG_BOOT_SYNC_CPU)
-static void psci_boot_allcpus(void)
-{
-	vaddr_t src_base = core_mmu_get_va(SRC_BASE, MEM_AREA_TEE_COHERENT);
-	uint32_t pa = virt_to_phys((void *)TEE_TEXT_VA_START);
-
-	/* set secondary entry address and release core */
-	io_write32(src_base + SRC_GPR1 + 8, pa);
-	io_write32(src_base + SRC_GPR1 + 16, pa);
-	io_write32(src_base + SRC_GPR1 + 24, pa);
-
-	io_write32(src_base + SRC_SCR, BM_SRC_SCR_CPU_ENABLE_ALL);
-}
-#endif
-
-void plat_primary_init_early(void)
-{
-	/* primary core */
-#if defined(CFG_BOOT_SYNC_CPU)
-	psci_boot_allcpus()
-#endif
-}
