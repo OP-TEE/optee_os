@@ -350,7 +350,6 @@ $(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_PM_STUBS,y)
 
-CFG_BOOT_SYNC_CPU ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_DT ?= y
 CFG_PAGEABLE_ADDR ?= 0
