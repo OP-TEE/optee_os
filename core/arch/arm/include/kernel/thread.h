@@ -235,12 +235,16 @@ struct thread_specific_data {
 	void *rpc_fs_payload;
 	struct mobj *rpc_fs_payload_mobj;
 	size_t rpc_fs_payload_size;
+#ifdef CFG_CORE_FFA
+	uint32_t rpc_target_info;
+#endif
 
 	uint32_t abort_type;
 	uint32_t abort_descr;
 	vaddr_t abort_va;
 	unsigned int abort_core;
 	struct thread_abort_regs abort_regs;
+
 };
 
 #endif /*__ASSEMBLER__*/

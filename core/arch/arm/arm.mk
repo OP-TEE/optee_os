@@ -85,6 +85,14 @@ ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
 endif
 
+# SPMC configuration "S-EL1 SPMC" where SPM Core is implemented at S-EL1,
+# that is, OP-TEE.
+# Note that this is an experimental feature, ABIs etc may have incompatible
+# changes
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+$(call force,CFG_CORE_FFA,y)
+endif
+
 # Unmaps all kernel mode code except the code needed to take exceptions
 # from user space and restore kernel mode mapping again. This gives more
 # strict control over what is accessible while in user mode.

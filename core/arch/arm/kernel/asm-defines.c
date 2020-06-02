@@ -92,6 +92,13 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_X2, offsetof(struct thread_core_local, x[2]));
 #endif /*ARM64*/
 
+	/* struct thread_ctx */
+	DEFINE(THREAD_CTX_SIZE, sizeof(struct thread_ctx));
+#ifdef CFG_CORE_FFA
+	DEFINE(THREAD_CTX_TSD_RPC_TARGET_INFO,
+	       offsetof(struct thread_ctx, tsd.rpc_target_info))
+#endif
+
 	/* struct thread_core_local */
 	DEFINE(THREAD_CORE_LOCAL_TMP_STACK_VA_END,
 		offsetof(struct thread_core_local, tmp_stack_va_end));
