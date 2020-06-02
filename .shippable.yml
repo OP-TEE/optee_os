@@ -54,6 +54,7 @@ build:
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_VIRTUALIZATION=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y
     - _make PLATFORM=stm-b2260
     - _make PLATFORM=stm-cannes
     - _make PLATFORM=stm32mp1

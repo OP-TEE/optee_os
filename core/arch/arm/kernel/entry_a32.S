@@ -560,6 +560,18 @@ shadow_stack_access_ok:
 	 */
 	bl 	thread_clr_boot_thread
 
+#ifdef CFG_CORE_FFA
+	ldr	r0, =cpu_on_handler
+	/*
+	 * Compensate for the load offset since cpu_on_handler() is
+	 * called with MMU off.
+	 */
+	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	sub	r0, r0, r1
+	bl	ffa_secondary_cpu_boot_req
+	b	thread_ffa_msg_wait
+#else /* CFG_CORE_FFA */
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	ldr	r0, =boot_mmu_config
 	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
@@ -577,6 +589,7 @@ shadow_stack_access_ok:
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
 	b	.	/* SMC should not return */
+#endif /* CFG_CORE_FFA */
 UNWIND(	.fnend)
 END_FUNC reset_primary
 
@@ -811,8 +824,11 @@ UNWIND(	.cantunwind)
 	mov	r0, r4
 	mov	r1, r5
 	bl	boot_cpu_on_handler
-
+#ifdef CFG_CORE_FFA
+	b	thread_ffa_msg_wait
+#else
 	bx	r6
+#endif
 UNWIND(	.fnend)
 END_FUNC cpu_on_handler
 DECLARE_KEEP_PAGER cpu_on_handler

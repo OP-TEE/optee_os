@@ -194,7 +194,28 @@ void thread_unlock_global(void);
  * world.
  */
 #define THREAD_RPC_NUM_ARGS     4
+#ifdef CFG_CORE_FFA
+struct thread_rpc_arg {
+	union {
+		struct {
+			uint32_t w1;
+			uint32_t w4;
+			uint32_t w5;
+			uint32_t w6;
+		} call;
+		struct {
+			uint32_t w4;
+			uint32_t w5;
+			uint32_t w6;
+		} ret;
+		uint32_t pad[THREAD_RPC_NUM_ARGS];
+	};
+};
+
+void thread_rpc(struct thread_rpc_arg *rpc_arg);
+#else
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+#endif
 
 /*
  * Called from assembly only, vector_fast_smc_entry(). Handles a fast SMC
