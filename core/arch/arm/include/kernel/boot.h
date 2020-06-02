@@ -88,4 +88,6 @@ void *get_external_dt(void);
 
 unsigned long get_aslr_seed(void *fdt);
 
+void ffa_secondary_cpu_boot_req(vaddr_t secondary_ep, uint64_t cookie);
+
 #endif /* __KERNEL_BOOT_H */
