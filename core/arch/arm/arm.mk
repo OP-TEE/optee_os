@@ -79,7 +79,7 @@ ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 endif
 # 'y' to set the Alignment Check Enable bit in SCTLR/SCTLR_EL1, 'n' to clear it
-CFG_SCTLR_ALIGNMENT_CHECK ?= y
+CFG_SCTLR_ALIGNMENT_CHECK ?= n
 
 ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
