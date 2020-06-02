@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2017, Linaro Limited
+ * Copyright (c) 2015-2020, Linaro Limited
  */
 #ifndef _OPTEE_MSG_H
 #define _OPTEE_MSG_H
@@ -25,6 +25,9 @@
 #define OPTEE_MSG_ATTR_TYPE_RMEM_INPUT		0x5
 #define OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT		0x6
 #define OPTEE_MSG_ATTR_TYPE_RMEM_INOUT		0x7
+#define OPTEE_MSG_ATTR_TYPE_FMEM_INPUT		OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
+#define OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT		OPTEE_MSG_ATTR_TYPE_RMEM_OUTPUT
+#define OPTEE_MSG_ATTR_TYPE_FMEM_INOUT		OPTEE_MSG_ATTR_TYPE_RMEM_INOUT
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INPUT		0x9
 #define OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT		0xa
 #define OPTEE_MSG_ATTR_TYPE_TMEM_INOUT		0xb
@@ -49,8 +52,8 @@
  * Every entry in buffer should point to a 4k page beginning (12 least
  * significant bits must be equal to zero).
  *
- * 12 least significant of optee_msg_param.u.tmem.buf_ptr should hold page
- * offset of user buffer.
+ * 12 least significant bits of optee_msg_param.u.tmem.buf_ptr should hold
+ * page offset of user buffer.
  *
  * So, entries should be placed like members of this structure:
  *
@@ -126,10 +129,26 @@ struct optee_msg_param_rmem {
 };
 
 /**
- * struct optee_msg_param_value - values
- * @a: first value
- * @b: second value
- * @c: third value
+ * struct optee_msg_param_fmem - FF-A memory reference parameter
+ * @offs_lower:	   Lower bits of offset into shared memory reference
+ * @offs_upper:	   Upper bits of offset into shared memory reference
+ * @internal_offs: Internal offset into the first page of shared memory
+ *		   reference
+ * @size:	   Size of the buffer
+ * @global_id:	   Global identifier of the shared memory
+ */
+struct optee_msg_param_fmem {
+	uint32_t offs_low;
+	uint16_t offs_high;
+	uint16_t internal_offs;
+	uint64_t size;
+	uint64_t global_id;
+};
+
+/**
+ * struct optee_msg_param_value - opaque value parameter
+ *
+ * Value parameters are passed unchecked between normal and secure world.
  */
 struct optee_msg_param_value {
 	uint64_t a;
@@ -138,15 +157,18 @@ struct optee_msg_param_value {
 };
 
 /**
- * struct optee_msg_param - parameter
- * @attr: attributes
- * @memref: a memory reference
- * @value: a value
+ * struct optee_msg_param - parameter used together with struct optee_msg_arg
+ * @attr:	attributes
+ * @tmem:	parameter by temporary memory reference
+ * @rmem:	parameter by registered memory reference
+ * @fmem:	parameter by FF-A registered memory reference
+ * @value:	parameter by opaque value
  *
  * @attr & OPTEE_MSG_ATTR_TYPE_MASK indicates if tmem, rmem or value is used in
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
- * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates tmem and
- * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates rmem.
+ * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
+ * OPTEE_MSG_ATTR_TYPE_RMEM_* or the alias PTEE_MSG_ATTR_TYPE_FMEM_* indicates
+ * @rmem or @fmem depending on the conduit.
  * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
  */
 struct optee_msg_param {
@@ -154,6 +176,7 @@ struct optee_msg_param {
 	union {
 		struct optee_msg_param_tmem tmem;
 		struct optee_msg_param_rmem rmem;
+		struct optee_msg_param_fmem fmem;
 		struct optee_msg_param_value value;
 	} u;
 };
