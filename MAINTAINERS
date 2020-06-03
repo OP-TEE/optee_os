@@ -120,7 +120,7 @@ MediaTek MT8173 EVB
 S:	Orphan
 F:	core/arch/arm/plat-mediatek/
 
-NXP LS1021A, LS1043A-RDB, LS1046A-RDB, LS1012A-RDB, LS1012A-FRWY, LS1028A-RDB, LS1088A-RDB, LS2088A-RDB, LX2160A-RDB
+NXP LS1021A, LS1043A-RDB, LS1046A-RDB, LS1012A-RDB, LS1012A-FRWY, LS1028A-RDB, LS1088A-RDB, LS2088A-RDB, LX2160A-RDB, LX2160A-QDS
 R:	Pankaj Gupta <pankaj.gupta@nxp.com> [@pangupta]
 R:	Sahil Malhotra <sahil.malhotra@nxp.com> [@sahilnxp]
 R:	[@OP-TEE/plat-ls]
