@@ -168,7 +168,8 @@ void init_canaries(void)
 
 static void dbg_print_canaries(void)
 {
-#ifdef CFG_WITH_STACK_CANARIES && (TRACE_LEVEL >= TRACE_DEBUG)
+#if defined(CFG_WITH_STACK_CANARIES) && !defined(CFG_CORE_CHECK_STACKS) && \
+	(TRACE_LEVEL >= TRACE_DEBUG)
 	size_t n;
 #define PRINT_CANARY(name)						\
 	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
@@ -189,14 +190,29 @@ static void dbg_print_canaries(void)
 
 #define CANARY_DIED(stack, loc, n) \
 	do { \
+		recursion = true; \
 		EMSG_RAW("Dead canary at %s of '%s[%zu]'", #loc, #stack, n); \
 		panic(); \
 	} while (0)
 
-void thread_check_canaries(void)
+void __noprof thread_check_canaries(void)
 {
 #ifdef CFG_WITH_STACK_CANARIES
+	static bool recursion;
 	size_t n;
+
+	if (recursion) {
+		/*
+		 * CANARY_DIED() has been called already. When
+		 * CFG_CORE_CHECK_STACKS is enabled, we are likely to be
+		 * returning from an instrumented function that has just
+		 * smashed the stack. In this case we don't want functions that
+		 * process the error (console print, panic) to land here again,
+		 * so we must cut recursion and let them proceed as much as
+		 * possible (with an overflowed stack).
+		 */
+		return;
+	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
 		if (GET_START_CANARY(stack_tmp, n) != START_CANARY_VALUE)
@@ -223,6 +239,21 @@ void thread_check_canaries(void)
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
 
+#ifdef CFG_CORE_CHECK_STACKS
+void __cyg_profile_func_enter(void *this_fn, void *call_site);
+void __noprof __cyg_profile_func_enter(void *this_fn __unused,
+				       void *call_site __unused)
+{
+}
+
+void __cyg_profile_func_exit(void *this_fn, void *call_site);
+void __noprof __cyg_profile_func_exit(void *this_fn __unused,
+				      void *call_site __unused)
+{
+	thread_check_canaries();
+}
+#endif /* CFG_CORE_CHECK_STACKS */
+
 void thread_lock_global(void)
 {
 	cpu_spin_lock(&thread_global_lock);
@@ -234,7 +265,7 @@ void thread_unlock_global(void)
 }
 
 #ifdef ARM32
-uint32_t thread_get_exceptions(void)
+__noprof uint32_t thread_get_exceptions(void)
 {
 	uint32_t cpsr = read_cpsr();
 
@@ -256,7 +287,7 @@ void thread_set_exceptions(uint32_t exceptions)
 #endif /*ARM32*/
 
 #ifdef ARM64
-uint32_t thread_get_exceptions(void)
+__noprof uint32_t thread_get_exceptions(void)
 {
 	uint32_t daif = read_daif();
 
@@ -291,7 +322,7 @@ void thread_unmask_exceptions(uint32_t state)
 }
 
 
-struct thread_core_local *thread_get_core_local(void)
+__noprof struct thread_core_local *thread_get_core_local(void)
 {
 	uint32_t cpu_id = get_core_pos();
 
