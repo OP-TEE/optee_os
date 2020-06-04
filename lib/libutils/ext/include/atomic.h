@@ -33,7 +33,7 @@ static inline unsigned int atomic_load_uint(unsigned int *p)
 	return __compiler_atomic_load(p);
 }
 
-static inline unsigned int atomic_load_u32(unsigned int *p)
+static inline uint32_t atomic_load_u32(const uint32_t *p)
 {
 	return __compiler_atomic_load(p);
 }
