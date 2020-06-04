@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <compiler.h>
 #include <kernel/spinlock.h>
 #include "thread_private.h"
 
@@ -23,7 +24,7 @@ void spinlock_count_decr(void)
 	l->locked_count--;
 }
 
-bool have_spinlock(void)
+bool __nostackcheck have_spinlock(void)
 {
 	struct thread_core_local *l;
 

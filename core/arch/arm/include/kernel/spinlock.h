@@ -20,14 +20,14 @@
 void spinlock_count_incr(void);
 void spinlock_count_decr(void);
 bool have_spinlock(void);
-static inline void assert_have_no_spinlock(void)
+static inline void __nostackcheck assert_have_no_spinlock(void)
 {
 	assert(!have_spinlock());
 }
 #else
 static inline void spinlock_count_incr(void) { }
 static inline void spinlock_count_decr(void) { }
-static inline void assert_have_no_spinlock(void) { }
+static inline void __nostackcheck assert_have_no_spinlock(void) { }
 #endif
 
 void __cpu_spin_lock(unsigned int *lock);
