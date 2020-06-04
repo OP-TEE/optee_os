@@ -16,7 +16,6 @@ endif
 
 CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 
 ifeq ($(PLATFORM_FLAVOR),hikey)
 CFG_PL061 ?= y

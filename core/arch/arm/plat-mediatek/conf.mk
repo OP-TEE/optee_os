@@ -19,8 +19,6 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-CFG_WITH_STACK_CANARIES ?= y
-
 ifeq ($(PLATFORM_FLAVOR),mt8173)
 # 2**1 = 2 cores per cluster
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)

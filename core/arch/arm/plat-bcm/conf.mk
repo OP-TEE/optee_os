@@ -40,3 +40,5 @@ ifeq ($(DEBUG),1)
 platform-cflags += -gdwarf-2
 platform-aflags += -gdwarf-2
 endif
+
+CFG_WITH_STACK_CANARIES ?= n

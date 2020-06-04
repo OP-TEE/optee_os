@@ -10,5 +10,3 @@ $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_AT91_MATRIX,y)
-
-CFG_WITH_STACK_CANARIES ?= y

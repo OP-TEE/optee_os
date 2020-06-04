@@ -3,7 +3,6 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,16)
 CFG_NUM_THREADS ?= 16
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
 # Overrides default in mk/config.mk with 96 kB
 CFG_CORE_HEAP_SIZE ?= 98304

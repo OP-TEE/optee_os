@@ -17,5 +17,3 @@ $(call force,CFG_AMLOGIC_UART,y)
 $(call force,CFG_WITH_PAGER,n)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_LPAE,y)
-
-CFG_WITH_STACK_CANARIES ?= y

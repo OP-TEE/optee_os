@@ -41,5 +41,3 @@ supported-ta-targets = ta_arm64
 else
 $(call force,CFG_ARM32_core,y)
 endif
-
-CFG_WITH_STACK_CANARIES ?= y
