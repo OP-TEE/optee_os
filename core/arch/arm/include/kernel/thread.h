@@ -48,6 +48,9 @@ struct thread_core_local {
 #ifdef CFG_TEE_CORE_DEBUG
 	unsigned int locked_count; /* Number of spinlocks held */
 #endif
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+	bool stackcheck_recursion;
+#endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_vector_table {
@@ -241,7 +244,9 @@ struct thread_specific_data {
 	vaddr_t abort_va;
 	unsigned int abort_core;
 	struct thread_abort_regs abort_regs;
-
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+	bool stackcheck_recursion;
+#endif
 };
 
 #ifdef CFG_WITH_ARM_TRUSTED_FW
@@ -367,7 +372,7 @@ uint32_t thread_mask_exceptions(uint32_t exceptions);
 void thread_unmask_exceptions(uint32_t state);
 
 
-static inline bool thread_foreign_intr_disabled(void)
+static inline bool __nostackcheck thread_foreign_intr_disabled(void)
 {
 	return !!(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 }
@@ -558,10 +563,26 @@ vaddr_t thread_stack_start(void);
 size_t thread_stack_size(void);
 
 /*
- * Returns the start and end addresses of the current stack (thread, temporary
- * or abort stack).
+ * Returns the start (top, lowest address) and end (bottom, highest address) of
+ * the current stack (thread, temporary or abort stack).
+ * When CFG_CORE_DEBUG_CHECK_STACKS=y, the @hard parameter tells if the hard or
+ * soft limits are queried. The difference between soft and hard is that for the
+ * latter, the stack start includes some additional space to let any function
+ * overflow the soft limit and still be able to print a stack dump in this case.
  */
-void get_stack_limits(vaddr_t *start, vaddr_t *end);
+bool get_stack_limits(vaddr_t *start, vaddr_t *end, bool hard);
+
+static inline bool __nostackcheck get_stack_soft_limits(vaddr_t *start,
+							vaddr_t *end)
+{
+	return get_stack_limits(start, end, false);
+}
+
+static inline bool __nostackcheck get_stack_hard_limits(vaddr_t *start,
+							vaddr_t *end)
+{
+	return get_stack_limits(start, end, true);
+}
 
 bool thread_is_in_normal_mode(void);
 

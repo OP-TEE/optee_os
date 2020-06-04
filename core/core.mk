@@ -40,6 +40,13 @@ cflags_kasan	+= -fsanitize=kernel-address \
 		   --param asan-instrumentation-with-call-threshold=0
 cflags$(sm)	+= $(cflags_kasan)
 endif
+ifeq ($(CFG_CORE_DEBUG_CHECK_STACKS),y)
+finstrument-functions := $(call cc-option,-finstrument-functions)
+ifeq (,$(finstrument-functions))
+$(error -finstrument-functions not supported)
+endif
+cflags$(sm) += $(finstrument-functions)
+endif
 ifeq ($(CFG_SYSCALL_FTRACE),y)
 cflags$(sm)	+= -pg
 endif

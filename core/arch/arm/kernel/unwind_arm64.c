@@ -129,7 +129,7 @@ void print_kernel_stack(int level)
 	state.pc = read_pc();
 	state.fp = read_fp();
 
-	get_stack_limits(&stack_start, &stack_end);
+	get_stack_hard_limits(&stack_start, &stack_end);
 	print_stack_arm64(level, &state, stack_start, stack_end - stack_start);
 }
 
