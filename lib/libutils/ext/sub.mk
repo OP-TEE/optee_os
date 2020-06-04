@@ -8,6 +8,7 @@ srcs-y += mempool.c
 srcs-y += nex_strdup.c
 srcs-y += consttime_memcmp.c
 srcs-y += memzero_explicit.c
+srcs-y += fault_mitigation.c
 
 subdirs-y += arch/$(ARCH)
 subdirs-y += ftrace
