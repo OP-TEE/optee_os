@@ -18,7 +18,6 @@ endif
 
 CFG_NUM_THREADS ?= 4
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 # Overrides default in mk/config.mk with 96 kB
 CFG_CORE_HEAP_SIZE ?= 98304
 

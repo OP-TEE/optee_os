@@ -334,6 +334,9 @@ CFG_CORE_SANITIZE_UNDEFINED ?= n
 # default
 CFG_CORE_SANITIZE_KADDRESS ?= n
 
+# Add stack guards before/after stacks and periodically check them
+CFG_WITH_STACK_CANARIES ?= y
+
 # Device Tree support
 #
 # When CFG_DT is enabled core embeds the FDT library (libfdt) allowing
