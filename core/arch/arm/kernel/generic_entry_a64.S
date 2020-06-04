@@ -36,6 +36,7 @@
 		msr	spsel, #1
 		mov	sp, x0
 		msr	spsel, #0
+		bl	init_canaries
 	.endm
 
 	.macro set_sctlr_el1

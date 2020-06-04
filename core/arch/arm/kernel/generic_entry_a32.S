@@ -292,6 +292,8 @@ DECLARE_KEEP_INIT _start
 		 */
 		mul	r1, r0, r1
 		add	sp, r1, r2
+
+		bl	init_canaries
 	.endm
 
 	/*

@@ -265,6 +265,9 @@ void thread_init_per_cpu(void);
 
 struct thread_core_local *thread_get_core_local(void);
 
+/* Write stack guard values at the start and end of all stacks. */
+void init_canaries(void);
+
 /*
  * Sets the stacks to be used by the different threads. Use THREAD_ID_0 for
  * first stack, THREAD_ID_0 + 1 for the next and so on.

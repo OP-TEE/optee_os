@@ -145,7 +145,7 @@ static uint8_t thread_user_kdata_page[
 
 static unsigned int thread_global_lock __nex_bss = SPINLOCK_UNLOCK;
 
-static void init_canaries(void)
+void init_canaries(void)
 {
 #ifdef CFG_WITH_STACK_CANARIES
 	size_t n;
@@ -156,15 +156,33 @@ static void init_canaries(void)
 									\
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
-		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
-			#name, n, (void *)(end_canary - 1));		\
-		DMSG("watch *%p", (void *)end_canary);			\
 	}
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
 #if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
 	INIT_CANARY(stack_thread);
+#endif
+#endif/*CFG_WITH_STACK_CANARIES*/
+}
+
+static void dbg_print_canaries(void)
+{
+#ifdef CFG_WITH_STACK_CANARIES && (TRACE_LEVEL >= TRACE_DEBUG)
+	size_t n;
+#define PRINT_CANARY(name)						\
+	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
+		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
+									\
+		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
+			#name, n, (void *)(end_canary - 1));		\
+		DMSG("watch *%p", (void *)end_canary);			\
+	}
+
+	PRINT_CANARY(stack_tmp);
+	PRINT_CANARY(stack_abt);
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
+	PRINT_CANARY(stack_thread);
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
@@ -907,10 +925,7 @@ void thread_init_threads(void)
 void thread_init_primary(const struct thread_handlers *handlers)
 {
 	init_handlers(handlers);
-
-	/* Initialize canaries around the stacks */
-	init_canaries();
-
+	dbg_print_canaries();
 	init_user_kcode();
 }
 
