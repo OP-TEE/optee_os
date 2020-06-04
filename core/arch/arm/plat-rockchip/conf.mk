@@ -7,7 +7,6 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_8250_UART,y)
 
 CFG_DT ?= y
-CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y
 CFG_NUM_THREADS ?= 4
 

@@ -136,7 +136,6 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 endif
 
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
-CFG_WITH_STACK_CANARIES ?= y
 
 # NXP CAAM support is not enabled by default and can be enabled
 # on the command line
