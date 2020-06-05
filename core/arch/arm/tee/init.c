@@ -49,9 +49,6 @@ TEE_Result __weak init_teecore(void)
 		return TEE_SUCCESS;
 	is_first = 0;
 
-	/* time initialization */
-	time_source_init();
-
 	/* call pre-define initcall routines */
 	call_initcalls();
 
