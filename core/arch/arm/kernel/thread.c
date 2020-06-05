@@ -892,7 +892,7 @@ static void init_user_kcode(void)
 
 void thread_init_threads(void)
 {
-	size_t n;
+	size_t n = 0;
 
 	init_thread_stacks();
 	pgt_init();
@@ -903,6 +903,11 @@ void thread_init_threads(void)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 		SLIST_INIT(&threads[n].tsd.pgt_cache);
 	}
+}
+
+void thread_clr_thread_core_local(void)
+{
+	size_t n = 0;
 
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
 		thread_core_local[n].curr_thread = -1;
