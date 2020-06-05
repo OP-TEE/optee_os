@@ -123,9 +123,6 @@ struct tee_ta_ctx *tee_mmu_get_ctx(void);
 
 /* init some allocation pools */
 void teecore_init_ta_ram(void);
-#ifdef CFG_CORE_RESERVED_SHM
-void teecore_init_pub_ram(void);
-#endif
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_mode_ctx *uctx, void *va);
 #endif /*TEE_MMU_H*/

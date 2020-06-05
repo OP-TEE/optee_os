@@ -49,11 +49,6 @@ TEE_Result __weak init_teecore(void)
 		return TEE_SUCCESS;
 	is_first = 0;
 
-#ifdef CFG_CORE_RESERVED_SHM
-	/* init support for future mapping of TAs */
-	teecore_init_pub_ram();
-#endif
-
 	/* time initialization */
 	time_source_init();
 

@@ -6,6 +6,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_common.h>
@@ -1313,7 +1314,7 @@ void teecore_init_ta_ram(void)
 }
 
 #ifdef CFG_CORE_RESERVED_SHM
-void teecore_init_pub_ram(void)
+static TEE_Result teecore_init_pub_ram(void)
 {
 	vaddr_t s;
 	vaddr_t e;
@@ -1337,7 +1338,10 @@ void teecore_init_pub_ram(void)
 
 	default_nsec_shm_paddr = virt_to_phys((void *)s);
 	default_nsec_shm_size = e - s;
+
+	return TEE_SUCCESS;
 }
+early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_mode_ctx *uctx, void *va)
