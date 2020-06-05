@@ -1146,6 +1146,13 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	primary_save_cntfrq();
 	init_vfp_sec();
+	/*
+	 * Pager: init_runtime() calls thread_kernel_enable_vfp() so we must
+	 * set a current thread right now to avoid a chicken-and-egg problem
+	 * (thread_init_boot_thread() sets the current thread but needs
+	 * things set by init_runtime()).
+	 */
+	thread_get_core_local()->curr_thread = 0;
 	init_runtime(pageable_part);
 
 #ifndef CFG_VIRTUALIZATION

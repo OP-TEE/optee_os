@@ -280,6 +280,9 @@ bool thread_init_stack(uint32_t stack_id, vaddr_t sp);
  */
 void thread_init_threads(void);
 
+/* Set thread_core_local::curr_thread = -1 for all CPUs */
+void thread_clr_thread_core_local(void);
+
 /*
  * Initializes a thread to be used during boot
  */
