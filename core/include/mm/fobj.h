@@ -191,18 +191,4 @@ static inline void fobj_put(struct fobj *fobj)
 		fobj->ops->free(fobj);
 }
 
-#ifdef CFG_WITH_PAGER
-/*
- * fobj_generate_authenc_key() - Generate authentication key
- *
- * Generates the authentication key used in all fobjs allocated with
- * fobj_rw_paged_alloc().
- */
-void fobj_generate_authenc_key(void);
-#else
-static inline void fobj_generate_authenc_key(void)
-{
-}
-#endif
-
 #endif /*__MM_FOBJ_H*/
