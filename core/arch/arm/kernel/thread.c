@@ -174,13 +174,13 @@ static void dbg_print_canaries(void)
 {
 #if defined(CFG_WITH_STACK_CANARIES) && !defined(CFG_CORE_CHECK_STACKS) && \
 	(TRACE_LEVEL >= TRACE_DEBUG)
-	size_t n;
+	size_t n = 0;
 #define PRINT_CANARY(name)						\
 	for (n = 0; n < ARRAY_SIZE(name); n++) {			\
 		uint32_t *end_canary = &GET_END_CANARY(name, n);	\
 									\
 		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
-			#name, n, (void *)(end_canary - 1));		\
+		     #name, n, (void *)(end_canary - 1));		\
 		DMSG("watch *%p", (void *)end_canary);			\
 	}
 
