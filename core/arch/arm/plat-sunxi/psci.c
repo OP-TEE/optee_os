@@ -41,7 +41,6 @@
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
-#include <sm/tee_mon.h>
 #include <sm/optee_smc.h>
 #include <sm/psci.h>
 #include <arm32.h>

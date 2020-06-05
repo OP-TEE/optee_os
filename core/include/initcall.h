@@ -40,5 +40,6 @@ struct initcall {
 #define driver_init(fn)			__define_initcall(5, fn)
 #define driver_init_late(fn)		__define_initcall(6, fn)
 
+void call_initcalls(void);
 
 #endif

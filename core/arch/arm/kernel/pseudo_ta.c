@@ -10,7 +10,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
-#include <sm/tee_mon.h>
 #include <stdlib.h>
 #include <string.h>
 #include <trace.h>

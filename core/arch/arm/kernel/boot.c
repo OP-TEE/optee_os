@@ -9,6 +9,7 @@
 #include <config.h>
 #include <console.h>
 #include <crypto/crypto.h>
+#include <initcall.h>
 #include <inttypes.h>
 #include <keep.h>
 #include <kernel/asan.h>
@@ -28,7 +29,6 @@
 #include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
-#include <sm/tee_mon.h>
 #include <stdio.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -1130,8 +1130,7 @@ void init_tee_runtime(void)
 	/* Pager initializes TA RAM early */
 	teecore_init_ta_ram();
 #endif
-	if (init_teecore() != TEE_SUCCESS)
-		panic();
+	call_initcalls();
 }
 
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)

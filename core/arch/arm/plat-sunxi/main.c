@@ -43,7 +43,6 @@
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
-#include <sm/tee_mon.h>
 #include <sm/optee_smc.h>
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
