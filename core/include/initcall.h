@@ -8,15 +8,30 @@
 
 #include <scattered_array.h>
 #include <tee_api_types.h>
+#include <trace.h>
 
-typedef TEE_Result (*initcall_t)(void);
+struct initcall {
+	TEE_Result (*func)(void);
+#if TRACE_LEVEL >= TRACE_DEBUG
+	int level;
+	const char *func_name;
+#endif
+};
 
-#define __define_initcall(level, fn) \
-	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(initcall, level, initcall_t) = \
-		(fn)
+#if TRACE_LEVEL >= TRACE_DEBUG
+#define __define_initcall(lvl, fn) \
+	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(initcall, lvl, \
+					       struct initcall) = \
+		{ .func = (fn), .level = (lvl), .func_name = #fn, }
+#else
+#define __define_initcall(lvl, fn) \
+	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(initcall, lvl, \
+					       struct initcall) = \
+		{ .func = (fn), }
+#endif
 
-#define initcall_begin	SCATTERED_ARRAY_BEGIN(initcall, initcall_t)
-#define initcall_end	SCATTERED_ARRAY_END(initcall, initcall_t)
+#define initcall_begin	SCATTERED_ARRAY_BEGIN(initcall, struct initcall)
+#define initcall_end	SCATTERED_ARRAY_END(initcall, struct initcall)
 
 #define early_init(fn)			__define_initcall(1, fn)
 #define early_init_late(fn)		__define_initcall(2, fn)

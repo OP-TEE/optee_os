@@ -23,11 +23,12 @@
 
 static void call_initcalls(void)
 {
-	const initcall_t *call;
+	const struct initcall *call = NULL;
+	TEE_Result ret = TEE_SUCCESS;
 
 	for (call = initcall_begin; call < initcall_end; call++) {
-		TEE_Result ret;
-		ret = (*call)();
+		DMSG("level %d %s()", call->level, call->func_name);
+		ret = call->func();
 		if (ret != TEE_SUCCESS) {
 			EMSG("Initcall __text_start + 0x%08" PRIxVA
 			     " failed", (vaddr_t)call - VCORE_START_VA);
