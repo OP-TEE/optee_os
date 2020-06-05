@@ -594,12 +594,12 @@ void *get_external_dt(void)
 	return external_dt.blob;
 }
 
-static void release_external_dt(void)
+static TEE_Result release_external_dt(void)
 {
 	int ret = 0;
 
 	if (!external_dt.blob)
-		return;
+		return TEE_SUCCESS;
 
 	ret = fdt_pack(external_dt.blob);
 	if (ret < 0) {
@@ -610,7 +610,10 @@ static void release_external_dt(void)
 
 	/* External DTB no more reached, reset pointer to invalid */
 	external_dt.blob = NULL;
+
+	return TEE_SUCCESS;
 }
+boot_final(release_external_dt);
 
 #ifdef CFG_EXTERNAL_DTB_OVERLAY
 static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
@@ -1061,10 +1064,6 @@ void *get_external_dt(void)
 	return NULL;
 }
 
-static void release_external_dt(void)
-{
-}
-
 static void init_external_dt(unsigned long phys_dt __unused)
 {
 }
@@ -1178,7 +1177,6 @@ void __weak paged_init_primary(unsigned long fdt)
 #ifndef CFG_VIRTUALIZATION
 	init_tee_runtime();
 #endif
-	release_external_dt();
 #ifdef CFG_VIRTUALIZATION
 	IMSG("Initializing virtualization support");
 	core_mmu_init_virtualization();
