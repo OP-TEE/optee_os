@@ -1183,6 +1183,7 @@ void __weak paged_init_primary(unsigned long fdt)
 	IMSG("Initializing virtualization support");
 	core_mmu_init_virtualization();
 #endif
+	call_finalcalls();
 	DMSG("Primary CPU switching to normal world boot");
 }
 

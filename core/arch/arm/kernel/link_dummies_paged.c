@@ -16,6 +16,10 @@ void __section(".text.dummy.call_initcalls") call_initcalls(void)
 {
 }
 
+void __section(".text.dummy.call_finalcalls") call_finalcalls(void)
+{
+}
+
 void __section(".text.dummy.paged_init_primary")
 paged_init_primary(unsigned long fdt __unused)
 {
