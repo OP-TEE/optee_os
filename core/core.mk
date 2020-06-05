@@ -43,8 +43,7 @@ endif
 ifeq ($(CFG_CORE_CHECK_STACKS),y)
 finstrument-functions := $(call cc-option,-finstrument-functions)
 ifeq (,$(finstrument-functions))
-$(warning -finstrument-functions not supported, disabling CFG_CORE_CHECK_STACKS)
-override CFG_CORE_CHECK_STACKS := n
+$(error -finstrument-functions not supported)
 endif
 cflags$(sm) += $(finstrument-functions)
 endif
