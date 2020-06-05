@@ -52,12 +52,6 @@ TEE_Result __weak init_teecore(void)
 	/* call pre-define initcall routines */
 	call_initcalls();
 
-	/*
-	 * Now that RNG is initialized generate the key needed for r/w
-	 * paging.
-	 */
-	fobj_generate_authenc_key();
-
 	IMSG("Initialized");
 	return TEE_SUCCESS;
 }

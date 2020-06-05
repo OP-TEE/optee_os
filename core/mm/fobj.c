@@ -5,6 +5,7 @@
 
 #include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
+#include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
@@ -42,7 +43,13 @@ static const struct fobj_ops ops_rw_paged;
 
 static struct internal_aes_gcm_key rwp_ae_key;
 
-void fobj_generate_authenc_key(void)
+/*
+ * fobj_generate_authenc_key() - Generate authentication key
+ *
+ * Generates the authentication key used in all fobjs allocated with
+ * fobj_rw_paged_alloc().
+ */
+static TEE_Result fobj_generate_authenc_key(void)
 {
 	uint8_t key[RWP_AE_KEY_BITS / 8] = { 0 };
 
@@ -52,7 +59,10 @@ void fobj_generate_authenc_key(void)
 				      sizeof(rwp_ae_key.data),
 				      &rwp_ae_key.rounds))
 		panic("failed to expand key");
+
+	return TEE_SUCCESS;
 }
+driver_init_late(fobj_generate_authenc_key);
 
 static void fobj_init(struct fobj *fobj, const struct fobj_ops *ops,
 		      unsigned int num_pages)
