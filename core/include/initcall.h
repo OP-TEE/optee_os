@@ -24,6 +24,7 @@ typedef TEE_Result (*initcall_t)(void);
 #define service_init_late(fn)		__define_initcall(4, fn)
 #define driver_init(fn)			__define_initcall(5, fn)
 #define driver_init_late(fn)		__define_initcall(6, fn)
+#define early_boot_final(fn)		__define_initcall(7, fn)
 
 
 #endif
