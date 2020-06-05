@@ -269,7 +269,7 @@ void thread_unlock_global(void)
 }
 
 #ifdef ARM32
-__noprof uint32_t thread_get_exceptions(void)
+uint32_t __noprof thread_get_exceptions(void)
 {
 	uint32_t cpsr = read_cpsr();
 
@@ -291,7 +291,7 @@ void thread_set_exceptions(uint32_t exceptions)
 #endif /*ARM32*/
 
 #ifdef ARM64
-__noprof uint32_t thread_get_exceptions(void)
+uint32_t __noprof thread_get_exceptions(void)
 {
 	uint32_t daif = read_daif();
 
@@ -326,7 +326,7 @@ void thread_unmask_exceptions(uint32_t state)
 }
 
 
-__noprof struct thread_core_local *thread_get_core_local(void)
+struct thread_core_local * __noprof thread_get_core_local(void)
 {
 	uint32_t cpu_id = get_core_pos();
 
