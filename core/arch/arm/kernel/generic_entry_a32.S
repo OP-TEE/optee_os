@@ -292,8 +292,6 @@ DECLARE_KEEP_INIT _start
 		 */
 		mul	r1, r0, r1
 		add	sp, r1, r2
-
-		bl	init_canaries
 	.endm
 
 	/*
@@ -458,6 +456,8 @@ shadow_stack_access_ok:
 #endif
 
 	set_sp
+
+	bl	init_canaries
 
 	/* complete ARM secure MP common configuration */
 	bl	plat_primary_init_early

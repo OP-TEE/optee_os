@@ -36,7 +36,6 @@
 		msr	spsel, #1
 		mov	sp, x0
 		msr	spsel, #0
-		bl	init_canaries
 	.endm
 
 	.macro set_sctlr_el1
@@ -148,6 +147,8 @@ clear_nex_bss:
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
+
+	bl	init_canaries
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
