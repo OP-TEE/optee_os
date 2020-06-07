@@ -32,7 +32,6 @@ endif
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PM_STUBS,y)
