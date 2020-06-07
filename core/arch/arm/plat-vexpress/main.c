@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -15,7 +15,6 @@
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -23,27 +22,7 @@
 #include <sm/psci.h>
 #include <stdint.h>
 #include <string.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 #include <trace.h>
-
-static const struct thread_handlers handlers = {
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-#else
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-#endif
-};
 
 static struct gic_data gic_data __nex_bss;
 static struct pl011_data console_data __nex_bss;
@@ -61,11 +40,6 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 #ifdef DRAM1_BASE
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 #ifdef GIC_BASE
 

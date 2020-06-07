@@ -13,7 +13,6 @@
 #include <kernel/misc.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
@@ -22,8 +21,6 @@
 #include <sm/sm.h>
 #include <stdint.h>
 #include <string.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 #include <trace.h>
 
 #define PLAT_HW_UNIQUE_KEY_LENGTH 32
@@ -62,20 +59,6 @@ void main_secondary_init_gic(void)
 void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
-}
-
-static const struct thread_handlers handlers = {
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
 }
 
 struct plat_nsec_ctx {

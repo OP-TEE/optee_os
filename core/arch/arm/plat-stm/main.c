@@ -12,7 +12,6 @@
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -58,20 +57,6 @@ uint32_t tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 	return __tee_entry_std(arg, num_params);
 }
 #endif
-
-static const struct thread_handlers handlers = {
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 void console_init(void)
 {

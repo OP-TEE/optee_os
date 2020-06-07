@@ -243,24 +243,22 @@ struct thread_specific_data {
 
 };
 
-#endif /*__ASSEMBLER__*/
+#ifdef CFG_WITH_ARM_TRUSTED_FW
+/*
+ * These five functions have a __weak default implementation which does
+ * nothing. Platforms are expected to override them if needed.
+ */
+unsigned long thread_cpu_off_handler(unsigned long a0, unsigned long a1);
+unsigned long thread_cpu_suspend_handler(unsigned long a0, unsigned long a1);
+unsigned long thread_cpu_resume_handler(unsigned long a0, unsigned long a1);
+unsigned long thread_system_off_handler(unsigned long a0, unsigned long a1);
+unsigned long thread_system_reset_handler(unsigned long a0, unsigned long a1);
+#endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
-#ifndef __ASSEMBLER__
 typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
 					     unsigned long a1);
-struct thread_handlers {
-	/*
-	 * Power management handlers triggered from ARM Trusted Firmware.
-	 * Not used when using internal monitor.
-	 */
-	thread_pm_handler_t cpu_on;
-	thread_pm_handler_t cpu_off;
-	thread_pm_handler_t cpu_suspend;
-	thread_pm_handler_t cpu_resume;
-	thread_pm_handler_t system_off;
-	thread_pm_handler_t system_reset;
-};
-void thread_init_primary(const struct thread_handlers *handlers);
+
+void thread_init_primary(void);
 void thread_init_per_cpu(void);
 
 struct thread_core_local *thread_get_core_local(void);

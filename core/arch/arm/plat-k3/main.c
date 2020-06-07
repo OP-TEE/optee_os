@@ -12,13 +12,10 @@
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
@@ -51,20 +48,6 @@ void main_secondary_init_gic(void)
 void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
-}
-
-static const struct thread_handlers handlers = {
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-};
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
 }
 
 void console_init(void)

@@ -61,8 +61,6 @@ void main_secondary_init_gic(void);
 void init_sec_mon(unsigned long nsec_entry);
 void init_tee_runtime(void);
 
-const struct thread_handlers *boot_get_handlers(void);
-
 /* weak routines eventually overridden by platform */
 void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);

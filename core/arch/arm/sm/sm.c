@@ -90,9 +90,9 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 
 	memcpy(&ctx->sec.r0, args, sizeof(*args));
 	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.fast_smc_entry;
+		ctx->sec.mon_lr = (uint32_t)vector_fast_smc_entry;
 	else
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.std_smc_entry;
+		ctx->sec.mon_lr = (uint32_t)vector_std_smc_entry;
 
 	return SM_EXIT_TO_SECURE;
 }

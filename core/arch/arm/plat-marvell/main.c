@@ -39,24 +39,12 @@
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <string.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
-
-static const struct thread_handlers handlers = {
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-};
 
 static struct gic_data gic_data;
 #if defined(PLATFORM_FLAVOR_armada7k8k)
@@ -64,11 +52,6 @@ static struct serial8250_uart_data console_data;
 #elif defined(PLATFORM_FLAVOR_armada3700)
 static struct mvebu_uart_data console_data;
 #endif
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);

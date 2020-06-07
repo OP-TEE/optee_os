@@ -96,13 +96,6 @@ struct thread_ctx {
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
-extern thread_pm_handler_t thread_cpu_on_handler_ptr;
-extern thread_pm_handler_t thread_cpu_off_handler_ptr;
-extern thread_pm_handler_t thread_cpu_suspend_handler_ptr;
-extern thread_pm_handler_t thread_cpu_resume_handler_ptr;
-extern thread_pm_handler_t thread_system_off_handler_ptr;
-extern thread_pm_handler_t thread_system_reset_handler_ptr;
-
 
 /*
  * During boot note the part of code and data that needs to be mapped while
