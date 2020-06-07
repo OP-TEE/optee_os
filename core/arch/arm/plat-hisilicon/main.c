@@ -6,7 +6,7 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/pl011.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
@@ -37,7 +37,7 @@ register_phys_mem(MEM_AREA_IO_SEC, CPU_CRG_BASE, CPU_CRG_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, SYS_CTRL_BASE, SYS_CTRL_SIZE);
 #endif
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

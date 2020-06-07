@@ -43,9 +43,9 @@ srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
 srcs-$(CFG_PM_STUBS) += pm_stubs.c
 
-srcs-y += generic_boot.c
-srcs-$(CFG_ARM32_core) += generic_entry_a32.S
-srcs-$(CFG_ARM64_core) += generic_entry_a64.S
+srcs-y += boot.c
+srcs-$(CFG_ARM32_core) += entry_a32.S
+srcs-$(CFG_ARM64_core) += entry_a64.S
 
 ifeq ($(CFG_UNWIND),y)
 srcs-y += unwind_arm32.c

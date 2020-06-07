@@ -4,7 +4,7 @@
  */
 
 #include <console.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
@@ -23,7 +23,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_do_nothing,
 };
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

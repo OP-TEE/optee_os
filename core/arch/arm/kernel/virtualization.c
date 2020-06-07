@@ -3,7 +3,7 @@
 
 #include <compiler.h>
 #include <platform_config.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/mutex.h>
 #include <kernel/misc.h>

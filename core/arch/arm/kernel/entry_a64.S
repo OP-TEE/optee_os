@@ -207,7 +207,7 @@ clear_nex_bss:
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
 	mov	x2, x20		/* DT address */
-	bl	generic_boot_init_primary
+	bl	boot_init_primary
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
@@ -223,7 +223,7 @@ clear_nex_bss:
 	/*
 	 * Clear current thread id now to allow the thread to be reused on
 	 * next entry. Matches the thread_init_boot_thread in
-	 * generic_boot.c.
+	 * boot.c.
 	 */
 #ifndef CFG_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
@@ -402,7 +402,7 @@ FUNC cpu_on_handler , :
 	mov	x0, x19
 	mov	x1, x20
 	mov	x30, x21
-	b	generic_boot_cpu_on_handler
+	b	boot_cpu_on_handler
 END_FUNC cpu_on_handler
 DECLARE_KEEP_PAGER cpu_on_handler
 

@@ -5,7 +5,7 @@
 
 #include <console.h>
 #include <drivers/hi16xx_uart.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
@@ -29,7 +29,7 @@ static struct hi16xx_uart_data console_data;
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			HI16XX_UART_REG_SIZE);
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

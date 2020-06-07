@@ -35,7 +35,7 @@
 #include <drivers/mvebu_uart.h>
 #endif
 #include <keep.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -65,7 +65,7 @@ static struct serial8250_uart_data console_data;
 static struct mvebu_uart_data console_data;
 #endif
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

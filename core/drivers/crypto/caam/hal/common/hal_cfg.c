@@ -9,7 +9,7 @@
 #include <caam_hal_ctrl.h>
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <registers/jr_regs.h>
 

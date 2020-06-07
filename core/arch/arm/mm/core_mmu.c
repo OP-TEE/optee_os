@@ -9,7 +9,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>

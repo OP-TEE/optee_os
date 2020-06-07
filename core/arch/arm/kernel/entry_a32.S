@@ -525,7 +525,7 @@ shadow_stack_access_ok:
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	mov	r2, r6		/* DT address */
-	bl	generic_boot_init_primary
+	bl	boot_init_primary
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
@@ -553,7 +553,7 @@ shadow_stack_access_ok:
 	/*
 	 * Clear current thread id now to allow the thread to be reused on
 	 * next entry. Matches the thread_init_boot_thread() in
-	 * generic_boot.c.
+	 * boot.c.
 	 */
 	bl 	thread_clr_boot_thread
 
@@ -807,7 +807,7 @@ UNWIND(	.cantunwind)
 
 	mov	r0, r4
 	mov	r1, r5
-	bl	generic_boot_cpu_on_handler
+	bl	boot_cpu_on_handler
 
 	bx	r6
 UNWIND(	.fnend)
@@ -850,16 +850,16 @@ UNWIND(	.cantunwind)
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/*
-	 * generic_boot_core_hpen return value (r0) is address of
+	 * boot_core_hpen() return value (r0) is address of
 	 * ns entry context structure
 	 */
-	bl	generic_boot_core_hpen
+	bl	boot_core_hpen
 	ldm	r0, {r0, r6}
 #else
 	mov	r0, r5		/* ns-entry address */
 	mov	r6, #0
 #endif
-	bl	generic_boot_init_secondary
+	bl	boot_init_secondary
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	mov	r1, r6

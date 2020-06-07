@@ -8,7 +8,7 @@
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
@@ -49,7 +49,7 @@ static const struct thread_handlers handlers = {
 
 static struct serial8250_uart_data console_data;
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

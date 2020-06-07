@@ -10,7 +10,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>

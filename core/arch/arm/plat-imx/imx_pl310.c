@@ -7,7 +7,7 @@
 
 #include <arm32.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/tz_ssvce_def.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>

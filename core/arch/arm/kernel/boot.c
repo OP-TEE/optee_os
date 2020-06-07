@@ -12,7 +12,7 @@
 #include <inttypes.h>
 #include <keep.h>
 #include <kernel/asan.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -1134,8 +1134,7 @@ void init_tee_runtime(void)
 		panic();
 }
 
-static void generic_init_primary(unsigned long pageable_part,
-				 unsigned long nsec_entry)
+static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 {
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
@@ -1152,7 +1151,7 @@ static void generic_init_primary(unsigned long pageable_part,
 #ifndef CFG_VIRTUALIZATION
 	thread_init_boot_thread();
 #endif
-	thread_init_primary(generic_boot_get_handlers());
+	thread_init_primary(boot_get_handlers());
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 }
@@ -1189,7 +1188,7 @@ void __weak paged_init_primary(unsigned long fdt)
 }
 
 /* What this function is using is needed each time another CPU is started */
-DECLARE_KEEP_PAGER(generic_boot_get_handlers);
+DECLARE_KEEP_PAGER(boot_get_handlers);
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {
@@ -1216,9 +1215,9 @@ static void init_secondary_helper(unsigned long nsec_entry)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area so that it lies in the init area.
  */
-void __weak generic_boot_init_primary(unsigned long pageable_part,
-				      unsigned long nsec_entry __maybe_unused,
-				      unsigned long fdt)
+void __weak boot_init_primary(unsigned long pageable_part,
+			      unsigned long nsec_entry __maybe_unused,
+			      unsigned long fdt)
 {
 	unsigned long e = PADDR_INVALID;
 
@@ -1226,35 +1225,35 @@ void __weak generic_boot_init_primary(unsigned long pageable_part,
 	e = nsec_entry;
 #endif
 
-	generic_init_primary(pageable_part, e);
+	init_primary(pageable_part, e);
 	paged_init_primary(fdt);
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
-unsigned long generic_boot_cpu_on_handler(unsigned long a0 __maybe_unused,
-				     unsigned long a1 __unused)
+unsigned long boot_cpu_on_handler(unsigned long a0 __maybe_unused,
+				  unsigned long a1 __unused)
 {
 	DMSG("cpu %zu: a0 0x%lx", get_core_pos(), a0);
 	init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
 #else
-void generic_boot_init_secondary(unsigned long nsec_entry)
+void boot_init_secondary(unsigned long nsec_entry)
 {
 	init_secondary_helper(nsec_entry);
 }
 #endif
 
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-void generic_boot_set_core_ns_entry(size_t core_idx, uintptr_t entry,
-				    uintptr_t context_id)
+void boot_set_core_ns_entry(size_t core_idx, uintptr_t entry,
+			    uintptr_t context_id)
 {
 	ns_entry_contexts[core_idx].entry_point = entry;
 	ns_entry_contexts[core_idx].context_id = context_id;
 	dsb_ishst();
 }
 
-int generic_boot_core_release(size_t core_idx, paddr_t entry)
+int boot_core_release(size_t core_idx, paddr_t entry)
 {
 	if (!core_idx || core_idx >= CFG_TEE_CORE_NB_CORE)
 		return -1;
@@ -1272,7 +1271,7 @@ int generic_boot_core_release(size_t core_idx, paddr_t entry)
  * spin until secondary boot request, then returns with
  * the secondary core entry address.
  */
-struct ns_entry_context *generic_boot_core_hpen(void)
+struct ns_entry_context *boot_core_hpen(void)
 {
 #ifdef CFG_PSCI_ARM32
 	return &ns_entry_contexts[get_core_pos()];

@@ -7,7 +7,7 @@
 #include <tee/entry_fast.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/virtualization.h>
 #include <kernel/misc.h>
@@ -132,7 +132,7 @@ static void tee_entry_enable_shm_cache(struct thread_smc_args *args)
 static void tee_entry_boot_secondary(struct thread_smc_args *args)
 {
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-	if (!generic_boot_core_release(args->a1, (paddr_t)(args->a3)))
+	if (!boot_core_release(args->a1, (paddr_t)(args->a3)))
 		args->a0 = OPTEE_SMC_RETURN_OK;
 	else
 		args->a0 = OPTEE_SMC_RETURN_EBADCMD;

@@ -32,7 +32,7 @@
 #include <console.h>
 #include <io.h>
 #include <stdint.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -84,7 +84,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		return PSCI_RET_INVALID_PARAMETERS;
 
 	/* set secondary cores' NS entry addresses */
-	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
+	boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 
