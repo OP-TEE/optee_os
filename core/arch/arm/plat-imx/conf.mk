@@ -346,7 +346,6 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
 endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_PM_STUBS,y)
 
@@ -375,7 +374,6 @@ ifeq ($(CFG_ARM64_core),y)
 # arm-v8 platforms
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_ARM_GICV3,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)

@@ -11,7 +11,6 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_SPRD_UART,y)
 $(call force,CFG_PM_STUBS,y)

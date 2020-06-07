@@ -9,7 +9,6 @@ $(call force,CFG_TEE_CORE_NB_CORE,2)
 # Hi3519av100 has got two clusters, one core per cluster
 $(call force,CFG_CORE_CLUSTER_SHIFT,0)
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)

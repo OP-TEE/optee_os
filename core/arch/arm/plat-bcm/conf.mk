@@ -3,7 +3,6 @@ PLATFORM_FLAVOR ?= ns3
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_TEE_CORE_DEBUG,n)
 $(call force,CFG_GIC,y)
 

@@ -8,7 +8,6 @@ CFG_WITH_SOFTWARE_PRNG ?= n
 # Overrides default in mk/config.mk with 96 kB
 CFG_CORE_HEAP_SIZE ?= 98304
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HI16XX_UART,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)

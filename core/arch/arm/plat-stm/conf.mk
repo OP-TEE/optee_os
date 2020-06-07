@@ -7,7 +7,6 @@ $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_CACHE_API,y)
 $(call force,CFG_PM_STUBS,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_WITH_LPAE,n)
 $(call force,CFG_GIC,y)
 

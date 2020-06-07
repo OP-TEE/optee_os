@@ -2,7 +2,6 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
