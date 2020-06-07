@@ -5,34 +5,16 @@
 
 #include <console.h>
 #include <drivers/hi16xx_uart.h>
-#include <kernel/boot.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
-
-static const struct thread_handlers handlers = {
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-};
 
 static struct hi16xx_uart_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			HI16XX_UART_REG_SIZE);
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 void console_init(void)
 {

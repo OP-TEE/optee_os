@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2018, Linaro Limited
+ * Copyright (c) 2015-2020, Linaro Limited
  */
 
 #include <arm.h>
@@ -17,6 +17,7 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/pm_stubs.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/tpm.h>
@@ -1156,7 +1157,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 #ifndef CFG_VIRTUALIZATION
 	thread_init_boot_thread();
 #endif
-	thread_init_primary(boot_get_handlers());
+	thread_init_primary();
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
 }
@@ -1192,9 +1193,6 @@ void __weak paged_init_primary(unsigned long fdt)
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
 }
-
-/* What this function is using is needed each time another CPU is started */
-DECLARE_KEEP_PAGER(boot_get_handlers);
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {

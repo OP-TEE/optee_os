@@ -23,9 +23,6 @@ DEFINES
 	DEFINE(SM_CTX_NSEC, offsetof(struct sm_ctx, nsec));
 	DEFINE(SM_CTX_SEC, offsetof(struct sm_ctx, sec));
 
-	DEFINE(THREAD_VECTOR_TABLE_FIQ_ENTRY,
-	       offsetof(struct thread_vector_table, fiq_entry));
-
 	DEFINE(THREAD_SVC_REG_R0, offsetof(struct thread_svc_regs, r0));
 	DEFINE(THREAD_SVC_REG_R5, offsetof(struct thread_svc_regs, r5));
 	DEFINE(THREAD_SVC_REG_R6, offsetof(struct thread_svc_regs, r6));

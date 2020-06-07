@@ -11,6 +11,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -121,12 +122,21 @@ const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
 DECLARE_KEEP_PAGER(stack_tmp_export);
 DECLARE_KEEP_PAGER(stack_tmp_stride);
 
-thread_pm_handler_t thread_cpu_on_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_off_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_resume_handler_ptr __nex_bss;
-thread_pm_handler_t thread_system_off_handler_ptr __nex_bss;
-thread_pm_handler_t thread_system_reset_handler_ptr __nex_bss;
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
+const thread_pm_handler_t thread_cpu_on_handler_ptr __nex_data =
+	cpu_on_handler;
+const thread_pm_handler_t thread_cpu_off_handler_ptr __nex_data =
+	thread_cpu_off_handler;
+const thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_data =
+	thread_cpu_suspend_handler;
+const thread_pm_handler_t thread_cpu_resume_handler_ptr __nex_data =
+	thread_cpu_resume_handler;
+const thread_pm_handler_t thread_system_off_handler_ptr __nex_data =
+	thread_system_off_handler;
+const thread_pm_handler_t thread_system_reset_handler_ptr __nex_data =
+	thread_system_reset_handler;
+#endif
+
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 static vaddr_t thread_user_kcode_va __nex_bss;
@@ -857,16 +867,6 @@ short int thread_get_id(void)
 	return ct;
 }
 
-static void init_handlers(const struct thread_handlers *handlers)
-{
-	thread_cpu_on_handler_ptr = handlers->cpu_on;
-	thread_cpu_off_handler_ptr = handlers->cpu_off;
-	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
-	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
-	thread_system_off_handler_ptr = handlers->system_off;
-	thread_system_reset_handler_ptr = handlers->system_reset;
-}
-
 #ifdef CFG_WITH_PAGER
 static void init_thread_stacks(void)
 {
@@ -967,17 +967,15 @@ void thread_clr_thread_core_local(void)
 	thread_core_local[0].flags |= THREAD_CLF_TMP;
 }
 
-void thread_init_primary(const struct thread_handlers *handlers)
+void thread_init_primary(void)
 {
-	init_handlers(handlers);
-
 	/* Initialize canaries around the stacks */
 	init_canaries();
 
 	init_user_kcode();
 }
 
-static void init_sec_mon(size_t pos __maybe_unused)
+static void init_sec_mon_stack(size_t pos __maybe_unused)
 {
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
@@ -1069,7 +1067,7 @@ void thread_init_per_cpu(void)
 	size_t pos = get_core_pos();
 	struct thread_core_local *l = thread_get_core_local();
 
-	init_sec_mon(pos);
+	init_sec_mon_stack(pos);
 
 	set_tmp_stack(l, GET_STACK(stack_tmp[pos]) - STACK_TMP_OFFS);
 	set_abt_stack(l, GET_STACK(stack_abt[pos]));
@@ -1531,3 +1529,44 @@ void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache)
 		cache->size = 0;
 	}
 }
+
+#ifdef CFG_WITH_ARM_TRUSTED_FW
+/*
+ * These five functions are __weak to allow platforms to override them if
+ * needed.
+ */
+unsigned long __weak thread_cpu_off_handler(unsigned long a0 __unused,
+					    unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_off_handler);
+
+unsigned long __weak thread_cpu_suspend_handler(unsigned long a0 __unused,
+						unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_suspend_handler);
+
+unsigned long __weak thread_cpu_resume_handler(unsigned long a0 __unused,
+					       unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_resume_handler);
+
+unsigned long __weak thread_system_off_handler(unsigned long a0 __unused,
+					       unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_system_off_handler);
+
+unsigned long __weak thread_system_reset_handler(unsigned long a0 __unused,
+						 unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_system_reset_handler);
+#endif /*CFG_WITH_ARM_TRUSTED_FW*/

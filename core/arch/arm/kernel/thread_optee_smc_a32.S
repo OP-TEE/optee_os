@@ -35,7 +35,7 @@
 #endif
 	.endm
 
-LOCAL_FUNC vector_std_smc_entry , : , .identity_map
+FUNC vector_std_smc_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
@@ -55,7 +55,7 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC vector_std_smc_entry
 
-LOCAL_FUNC vector_fast_smc_entry , : , .identity_map
+FUNC vector_fast_smc_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
@@ -69,7 +69,7 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC vector_fast_smc_entry
 
-LOCAL_FUNC vector_fiq_entry , : , .identity_map
+FUNC vector_fiq_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
@@ -82,6 +82,7 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC vector_fiq_entry
 
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
@@ -205,6 +206,7 @@ UNWIND(	.cantunwind)
 UNWIND(	.fnend)
 END_FUNC thread_vector_table
 DECLARE_KEEP_PAGER thread_vector_table
+#endif /*if defined(CFG_WITH_ARM_TRUSTED_FW)*/
 
 FUNC thread_std_smc_entry , :
 UNWIND(	.fnstart)

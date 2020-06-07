@@ -241,7 +241,7 @@ UNWIND(	.cantunwind)
 	stm	r0!, {r8-r12}
 
 	/* Set FIQ entry */
-	ldr	r0, =(thread_vector_table + THREAD_VECTOR_TABLE_FIQ_ENTRY)
+	ldr	r0, =vector_fiq_entry
 	str	r0, [sp, #(SM_CTX_SEC + SM_SEC_CTX_MON_LR)]
 
 	/* Restore secure context */

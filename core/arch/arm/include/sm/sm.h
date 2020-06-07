@@ -100,8 +100,6 @@ struct sm_ctx {
  */
 #define SM_STACK_TMP_RESERVE_SIZE	sizeof(struct sm_ctx)
 
-
-
 /* Returns storage location of non-secure context for current CPU */
 struct sm_nsec_ctx *sm_get_nsec_ctx(void);
 
@@ -126,6 +124,17 @@ enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx);
 
 void sm_save_unbanked_regs(struct sm_unbanked_regs *regs);
 void sm_restore_unbanked_regs(struct sm_unbanked_regs *regs);
+
+/*
+ * These function return to secure monitor by SMC instead of a normal
+ * function return.
+ */
+void vector_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			  uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
+void vector_fast_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			   uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
+void vector_fiq_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+		      uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
 
 #endif /*!__ASSEMBLER__*/
 

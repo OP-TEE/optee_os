@@ -36,7 +36,6 @@
 #include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
@@ -44,16 +43,6 @@
 #include <platform_smc.h>
 #include <stdint.h>
 #include <tee/entry_fast.h>
-#include <tee/entry_std.h>
-
-static const struct thread_handlers handlers = {
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
 
 static struct gic_data gic_data;
 static struct cdns_uart_data console_data;
@@ -63,11 +52,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SLCR_BASE, CORE_MMU_PGDIR_SIZE);
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 void plat_primary_init_early(void)
 {

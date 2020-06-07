@@ -12,19 +12,16 @@
 #include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32_uart.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
-#include <kernel/dt.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stm32_util.h>
-#include <tee/entry_fast.h>
-#include <tee/entry_std.h>
 #include <trace.h>
 
 #ifdef CFG_WITH_NSEC_GPIOS
@@ -68,20 +65,6 @@ register_dynamic_shm(DDR_BASE, CFG_TZDRAM_START - DDR_BASE);
 #if DRAM_END > TZDRAM_END
 register_dynamic_shm(TZDRAM_END, DRAM_END - TZDRAM_END);
 #endif
-
-static const struct thread_handlers handlers = {
-	.cpu_on = pm_panic,
-	.cpu_off = pm_panic,
-	.cpu_suspend = pm_panic,
-	.cpu_resume = pm_panic,
-	.system_off = pm_panic,
-	.system_reset = pm_panic,
-};
-
-const struct thread_handlers *boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
