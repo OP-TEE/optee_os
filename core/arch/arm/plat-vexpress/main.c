@@ -11,7 +11,7 @@
 #include <drivers/tzc400.h>
 #include <initcall.h>
 #include <keep.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -62,7 +62,7 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }
@@ -216,7 +216,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	}
 	core_is_released[pos] = true;
 
-	generic_boot_set_core_ns_entry(pos, entry, context_id);
+	boot_set_core_ns_entry(pos, entry, context_id);
 	release_secondary_early_hpen(pos);
 
 	return PSCI_RET_SUCCESS;

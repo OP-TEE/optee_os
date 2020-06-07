@@ -13,7 +13,7 @@
 #include <drivers/stm32_uart.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <kernel/dt.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -78,7 +78,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

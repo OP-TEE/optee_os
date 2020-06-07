@@ -3,7 +3,7 @@
  * Copyright (c) 2017, Linaro Limited
  */
 #include <compiler.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <kernel/wait_queue.h>
 #include <sm/tee_mon.h>

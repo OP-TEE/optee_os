@@ -8,7 +8,7 @@
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>

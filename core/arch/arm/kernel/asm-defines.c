@@ -4,7 +4,7 @@
  */
 
 #include <gen-asm-defines.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <sm/pm.h>
 #include <sm/sm.h>

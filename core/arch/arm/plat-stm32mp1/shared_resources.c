@@ -12,7 +12,7 @@
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <kernel/spinlock.h>

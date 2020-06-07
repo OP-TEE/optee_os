@@ -27,7 +27,7 @@
  */
 
 #include <console.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/core_memprot.h>
@@ -62,7 +62,7 @@ static const struct thread_handlers handlers __nex_data = {
 
 static struct scif_uart_data console_data __nex_bss;
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

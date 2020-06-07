@@ -12,7 +12,7 @@
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -177,7 +177,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	unlock_state_access(exceptions);
 
 	if (rc == PSCI_RET_SUCCESS) {
-		generic_boot_set_core_ns_entry(pos, entry, context_id);
+		boot_set_core_ns_entry(pos, entry, context_id);
 		release_secondary_early_hpen(pos);
 	}
 

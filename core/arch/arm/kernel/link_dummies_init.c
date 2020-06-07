@@ -3,7 +3,7 @@
  * Copyright (c) 2020, Linaro Limited
  */
 #include <compiler.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <mm/core_mmu.h>
 
 unsigned long __section(".text.dummy.get_aslr_seed")
@@ -18,9 +18,9 @@ core_init_mmu_map(unsigned long seed __unused,
 {
 }
 
-void __section(".text.dummy.generic_boot_init_primary")
-generic_boot_init_primary(unsigned long pageable_part __unused,
-			  unsigned long nsec_entry __unused,
-			  unsigned long fdt __unused)
+void __section(".text.dummy.boot_init_primary")
+boot_init_primary(unsigned long pageable_part __unused,
+		  unsigned long nsec_entry __unused,
+		  unsigned long fdt __unused)
 {
 }

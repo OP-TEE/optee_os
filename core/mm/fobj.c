@@ -5,7 +5,7 @@
 
 #include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

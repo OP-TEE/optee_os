@@ -30,7 +30,7 @@
 #include <console.h>
 #include <drivers/atmel_uart.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -56,7 +56,7 @@ static const struct thread_handlers handlers = {
 	.system_reset = pm_panic,
 };
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

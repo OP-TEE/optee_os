@@ -8,7 +8,7 @@
 #ifdef CFG_PL061
 #include <drivers/pl061_gpio.h>
 #endif
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
@@ -33,7 +33,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 /* for dynamic shared memory */
 register_dynamic_shm(DRAM0_BASE_NSEC, DRAM0_SIZE_NSEC);
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

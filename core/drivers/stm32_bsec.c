@@ -9,7 +9,7 @@
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <limits.h>

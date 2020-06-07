@@ -14,7 +14,7 @@
 #endif
 #include <initcall.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
@@ -54,7 +54,7 @@ register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE_NSEC);
 register_dynamic_shm(DRAM2_BASE, DRAM2_SIZE_NSEC);
 #endif
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

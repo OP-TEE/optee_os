@@ -27,7 +27,7 @@
  */
 
 #include <drivers/gic.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/pm_stubs.h>
@@ -60,7 +60,7 @@ static const struct thread_handlers handlers = {
 
 static struct gic_data gic_data;
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }

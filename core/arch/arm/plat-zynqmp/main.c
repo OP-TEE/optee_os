@@ -36,7 +36,7 @@
 
 #include <arm.h>
 #include <console.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/pm_stubs.h>
@@ -79,7 +79,7 @@ static const struct thread_handlers handlers = {
 #endif
 };
 
-const struct thread_handlers *generic_boot_get_handlers(void)
+const struct thread_handlers *boot_get_handlers(void)
 {
 	return &handlers;
 }
