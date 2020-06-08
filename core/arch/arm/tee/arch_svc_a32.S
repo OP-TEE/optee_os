@@ -14,7 +14,7 @@
 /*
  * uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
  *
- * Called from tee_svc_handler()
+ * Called from user_ta_handle_svc()
  */
 FUNC tee_svc_do_call , :
 UNWIND(	.fnstart)
@@ -32,7 +32,7 @@ UNWIND(	.cantunwind)
 	 * r5 holds the address of the first word
 	 * r6 holds the number of words
 	 *
-	 * tee_svc_handler() who calls this function has already checked
+	 * user_ta_handle_svc() who calls this function has already checked
 	 * that we don't copy too much data.
 	 */
 	cmp     r6, #0

@@ -8,15 +8,9 @@
 #include <kernel/wait_queue.h>
 #include <sm/tee_mon.h>
 #include <tee_api_types.h>
-#include <tee/arch_svc.h>
 #include <tee/entry_std.h>
 
 #include "thread_private.h"
-
-void __section(".text.dummy.tee_svc_handler")
-thread_svc_handler(struct thread_svc_regs *regs __unused)
-{
-}
 
 TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
 {
