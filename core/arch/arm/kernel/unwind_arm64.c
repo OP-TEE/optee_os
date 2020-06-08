@@ -122,15 +122,15 @@ void print_stack_arm64(int level, struct unwind_state_arm64 *state,
 
 void print_kernel_stack(int level)
 {
-	struct unwind_state_arm64 state;
-	uaddr_t stack = thread_stack_start();
-	size_t stack_size = thread_stack_size();
+	struct unwind_state_arm64 state = {};
+	vaddr_t stack_start = 0;
+	vaddr_t stack_end = 0;
 
-	memset(&state, 0, sizeof(state));
 	state.pc = read_pc();
 	state.fp = read_fp();
 
-	print_stack_arm64(level, &state, stack, stack_size);
+	get_stack_limits(&stack_start, &stack_end);
+	print_stack_arm64(level, &state, stack_start, stack_end - stack_start);
 }
 
 #endif

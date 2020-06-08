@@ -557,6 +557,12 @@ vaddr_t thread_stack_start(void);
 /* Returns the stack size for the current thread */
 size_t thread_stack_size(void);
 
+/*
+ * Returns the start and end addresses of the current stack (thread, temporary
+ * or abort stack).
+ */
+void get_stack_limits(vaddr_t *start, vaddr_t *end);
+
 bool thread_is_in_normal_mode(void);
 
 /*
