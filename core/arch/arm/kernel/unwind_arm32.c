@@ -450,13 +450,12 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 
 void print_kernel_stack(int level)
 {
-	struct unwind_state_arm32 state;
+	struct unwind_state_arm32 state = {};
 	uaddr_t exidx = (vaddr_t)__exidx_start;
 	size_t exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
-	vaddr_t stack = thread_stack_start();
-	size_t stack_size = thread_stack_size();
+	vaddr_t stack_start = 0;
+	vaddr_t stack_end = 0;
 
-	memset(&state, 0, sizeof(state));
 	/* r7: Thumb-style frame pointer */
 	state.registers[7] = read_r7();
 	/* r11: ARM-style frame pointer */
@@ -465,7 +464,9 @@ void print_kernel_stack(int level)
 	state.registers[LR] = read_lr();
 	state.registers[PC] = (uint32_t)print_kernel_stack;
 
-	print_stack_arm32(level, &state, exidx, exidx_sz, stack, stack_size);
+	get_stack_limits(&stack_start, &stack_end);
+	print_stack_arm32(level, &state, exidx, exidx_sz, stack_start,
+			  stack_end - stack_start);
 }
 
 #endif
