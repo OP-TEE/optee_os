@@ -28,7 +28,7 @@ struct sc_rec {
 /*
  * uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
  *
- * Called from tee_svc_handler()
+ * Called from user_ta_handle_svc()
  */
 FUNC tee_svc_do_call , :
 	sub	sp, sp, #SC_REC_SIZE
