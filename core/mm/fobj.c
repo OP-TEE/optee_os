@@ -521,7 +521,7 @@ struct fobj_sec_mem {
 	struct fobj fobj;
 };
 
-static struct fobj_ops ops_sec_mem;
+static const struct fobj_ops ops_sec_mem;
 
 struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 {
@@ -582,7 +582,7 @@ static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
 	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
 }
 
-static struct fobj_ops ops_sec_mem __rodata_unpaged = {
+static const struct fobj_ops ops_sec_mem __rodata_unpaged = {
 	.free = sec_mem_free,
 	.get_pa = sec_mem_get_pa,
 };
