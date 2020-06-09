@@ -535,7 +535,7 @@ struct pkcs11_attribute_head {
 };
 
 /*
- * Attribute identification IDs
+ * Attribute identification IDs as of v2.40 excluding deprecated IDs.
  * Valid values for struct pkcs11_attribute_head::id
  * PKCS11_CKA_<x> reflects CryptoKi client API attribute IDs CKA_<x>.
  */
@@ -668,6 +668,7 @@ enum pkcs11_class_id {
 /*
  * Valid values for attribute PKCS11_CKA_KEY_TYPE
  * PKCS11_CKK_<x> reflects CryptoKi client API key type IDs CKK_<x>.
+ * Note that this is only a subset of the PKCS#11 specification.
  */
 enum pkcs11_key_type {
 	PKCS11_CKK_RSA				= 0x000,
