@@ -502,10 +502,12 @@ struct pkcs11_mechanism_info {
  * pkcs11_object_head - Header of object whose data are serialized in memory
  *
  * An object is made of several attributes. Attributes are stored one next to
- * the other with byte alignment as a serialized byte arrays. Appended
- * attributes byte arrays are prepend with this header structure that
- * defines the number of attribute items and the overall byte size of byte
- * array field pkcs11_object_head::attrs.
+ * the other with byte alignment as a serialized byte array. The byte array
+ * of serialized attributes is prepended with the size of the attrs[] array
+ * in bytes and the number of attributes in the array, yielding the struct
+ * pkcs11_object_head. Appended attributes byte arrays are prepend with
+ * this header structure that defines the number of attribute items and the
+ * overall byte size of byte array field pkcs11_object_head::attrs.
  *
  * @attrs_size - byte size of whole byte array attrs[]
  * @attrs_count - number of attribute items stored in attrs[]
