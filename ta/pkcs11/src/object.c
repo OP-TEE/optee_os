@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
+#include <assert.h>
 #include <inttypes.h>
 #include <string_ext.h>
 #include <tee_internal_api.h>
