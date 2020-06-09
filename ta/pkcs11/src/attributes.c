@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
+#include <assert.h>
 #include <compiler.h>
 #include <pkcs11_ta.h>
 #include <stddef.h>
