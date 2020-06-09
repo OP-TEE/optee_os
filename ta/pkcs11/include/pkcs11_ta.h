@@ -690,10 +690,14 @@ enum pkcs11_key_type {
 /*
  * Valid values for mechanism IDs
  * PKCS11_CKM_<x> reflects CryptoKi client API mechanism IDs CKM_<x>.
+ * Note that this will be extended as needed.
  */
 enum pkcs11_mechanism_id {
 	PKCS11_CKM_AES_ECB			= 0x01081,
-	/* PKCS11 added IDs for operation no related to a CK mechanism ID */
+	/*
+	 * Vendor extensions below.
+	 * PKCS11 added IDs for operation not related to a CK mechanism ID
+	 */
 	PKCS11_PROCESSING_IMPORT		= 0x80000000,
 	PKCS11_CKM_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
