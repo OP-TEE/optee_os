@@ -251,8 +251,8 @@ enum pkcs11_ta_cmd {
 	PKCS11_CMD_LOGOUT = 14,
 
 	/*
-	 * PKCS11_CMD_IMPORT_OBJECT - Import a raw object in the session or
-	 *			      token
+	 * PKCS11_CMD_IMPORT_OBJECT - Import a raw client assmebled object in
+	 *			      the session or token
 	 *
 	 *
 	 * [in]  memref[0] = [
