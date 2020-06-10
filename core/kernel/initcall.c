@@ -25,8 +25,6 @@ void __weak call_initcalls(void)
 			     " failed", (vaddr_t)call - VCORE_START_VA);
 		}
 	}
-
-	IMSG("Initialized");
 }
 
 /*
@@ -46,6 +44,4 @@ void __weak call_finalcalls(void)
 			     " failed", (vaddr_t)call - VCORE_START_VA);
 		}
 	}
-
-	IMSG("Done");
 }

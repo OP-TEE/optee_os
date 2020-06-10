@@ -1174,6 +1174,7 @@ void __weak paged_init_primary(unsigned long fdt)
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
+	IMSG("Primary CPU initializing");
 #ifdef CFG_CORE_ASLR
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
@@ -1189,7 +1190,7 @@ void __weak paged_init_primary(unsigned long fdt)
 	core_mmu_init_virtualization();
 #endif
 	call_finalcalls();
-	DMSG("Primary CPU switching to normal world boot");
+	IMSG("Primary CPU switching to normal world boot");
 }
 
 /* What this function is using is needed each time another CPU is started */
@@ -1197,6 +1198,8 @@ DECLARE_KEEP_PAGER(boot_get_handlers);
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {
+	IMSG("Secondary CPU %zu initalizing", get_core_pos());
+
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
@@ -1213,7 +1216,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	init_vfp_sec();
 	init_vfp_nsec();
 
-	DMSG("Secondary CPU Switching to normal world boot");
+	IMSG("Secondary CPU %zu switching to normal world boot", get_core_pos());
 }
 
 /*
@@ -1238,7 +1241,6 @@ void __weak boot_init_primary(unsigned long pageable_part,
 unsigned long boot_cpu_on_handler(unsigned long a0 __maybe_unused,
 				  unsigned long a1 __unused)
 {
-	DMSG("cpu %zu: a0 0x%lx", get_core_pos(), a0);
 	init_secondary_helper(PADDR_INVALID);
 	return 0;
 }
