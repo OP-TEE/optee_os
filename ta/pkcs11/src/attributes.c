@@ -50,7 +50,7 @@ enum pkcs11_rc add_attribute(struct obj_attrs **head, uint32_t attribute,
 	if (rc)
 		return rc;
 
-	/* Alloced buffer is always 64byte align, safe for us */
+	/* Alloced buffer is always well aligned */
 	head = (void *)bstart;
 	(*head)->attrs_size += 2 * sizeof(uint32_t) + size;
 	(*head)->attrs_count++;
