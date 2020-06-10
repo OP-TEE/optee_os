@@ -505,7 +505,7 @@ struct pkcs11_mechanism_info {
  * the other with byte alignment as a serialized byte array. The byte array
  * of serialized attributes is prepended with the size of the attrs[] array
  * in bytes and the number of attributes in the array, yielding the struct
- * pkcs11_object_head. Appended attributes byte arrays are prepend with
+ * pkcs11_object_head. Appended attributes byte arrays are wrapped with
  * this header structure that defines the number of attribute items and the
  * overall byte size of byte array field pkcs11_object_head::attrs.
  *
