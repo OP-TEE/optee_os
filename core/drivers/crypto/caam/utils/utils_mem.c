@@ -417,6 +417,9 @@ enum caam_status caam_cpy_block_src(struct caamblock *block,
 	enum caam_status ret = CAAM_FAILURE;
 	size_t cpy_size = 0;
 
+	if (!src->data)
+		return CAAM_FAILURE;
+
 	/* Check if the temporary buffer is allocated, else allocate it */
 	if (!block->buf.data) {
 		ret = caam_alloc_align_buf(&block->buf, block->max);
