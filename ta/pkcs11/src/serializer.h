@@ -44,6 +44,20 @@ void serialargs_init(struct serialargs *args, void *in, size_t size);
 enum pkcs11_rc serialargs_get(struct serialargs *args, void *out, size_t sz);
 
 /*
+ * serialargs_get_u32() - copy out a uint32_t and advance
+ * @args:	serializing state
+ * @out:	output buffer
+ * @sz:		number of bytes to copy to output buffer
+ *
+ * Returns PKCS11_CKR_OK on success or PKCS11_CKR_ARGUMENTS_BAD on failure.
+ */
+static inline enum pkcs11_rc serialargs_get_u32(struct serialargs *args,
+						uint32_t *out)
+{
+	return serialargs_get(args, out, sizeof(*out));
+}
+
+/*
  * serialargs_get_ptr() - get a pointer to a chunk of data and advance
  * @args:	serializing state
  * @out:	Pointer to the data retrieved in *@out
