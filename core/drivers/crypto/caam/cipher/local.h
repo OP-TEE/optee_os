@@ -53,6 +53,10 @@ struct cipherdata {
 	struct caambuf ctx;          /* CAAM Context Register */
 	struct caamblock blockbuf;   /* Temporary Block buffer */
 	const struct cipheralg *alg; /* Reference to the algo constants */
+
+	/* Additionnal Data for the MAC */
+	unsigned int mode; /* MAC TEE_CHAIN_MODE* */
+	size_t countdata;  /* MAC Number of input data */
 };
 
 /*
