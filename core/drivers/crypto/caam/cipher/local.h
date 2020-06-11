@@ -56,6 +56,16 @@ struct cipherdata {
 };
 
 /*
+ * Cipher additionnal data block
+ */
+enum caam_cipher_block {
+	CIPHER_BLOCK_NONE = 0,
+	CIPHER_BLOCK_IN,
+	CIPHER_BLOCK_OUT,
+	CIPHER_BLOCK_BOTH,
+};
+
+/*
  * Update of the cipher operation of complete block except
  * if last block. Last block can be partial block.
  *
@@ -65,12 +75,12 @@ struct cipherdata {
  * @encrypt  Encrypt or decrypt direction
  * @src      Source data to encrypt/decrypt
  * @dst      [out] Destination data encrypted/decrypted
- * @blockbuf Saved block during previous streaming update
+ * @blocks   Additionnal data block to handle (input/output)
  */
 enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 				   uint8_t keyid, bool encrypt,
 				   struct caambuf *src, struct caambuf *dst,
-				   bool blockbuf);
+				   enum caam_cipher_block blocks);
 
 /*
  * Update of the cipher operation in xts mode.
