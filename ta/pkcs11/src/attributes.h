@@ -187,18 +187,36 @@ static inline enum pkcs11_class_id get_class(struct obj_attrs *head)
 }
 
 /*
- * get_type() - Get the key type of an object
+ * get_key_type() - Get the key type of an object
  * @head:	Pointer to serialized attributes
  *
  * Returns the key type of an object on success or returns
  * PKCS11_CKK_UNDEFINED_ID on error.
  */
-static inline enum pkcs11_key_type get_type(struct obj_attrs *head)
+static inline enum pkcs11_key_type get_key_type(struct obj_attrs *head)
 {
 	uint32_t type;
 	uint32_t size = sizeof(type);
 
 	if (get_attribute(head, PKCS11_CKA_KEY_TYPE, &type, &size))
+		return PKCS11_CKK_UNDEFINED_ID;
+
+	return type;
+}
+
+/*
+ * get_mechanism_type() - Get the mechanism type of an object
+ * @head:	Pointer to serialized attributes
+ *
+ * Returns the mechanism type of an object on success or returns
+ * PKCS11_CKM_UNDEFINED_ID on error.
+ */
+static inline enum pkcs11_mechanism_id get_mechanism_type(struct obj_attrs *head)
+{
+	uint32_t type;
+	uint32_t size = sizeof(type);
+
+	if (get_attribute(head, PKCS11_CKA_MECHANISM_TYPE, &type, &size))
 		return PKCS11_CKK_UNDEFINED_ID;
 
 	return type;
