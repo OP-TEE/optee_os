@@ -575,7 +575,7 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	const struct hashalg *alg = NULL;
 	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf digest_align = { };
 	struct caamsgtbuf sgtdigest = { .sgt_type = false };
 
@@ -593,19 +593,19 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 		HASH_TRACE("Digest buffer size %" PRId8 " too short (%zu)",
 			   alg->size_digest, len);
 
-		retstatus =
-			caam_alloc_align_buf(&digest_align, alg->size_digest);
+		retstatus = caam_alloc_align_buf(&digest_align,
+						 alg->size_digest);
 		if (retstatus != CAAM_NO_ERROR) {
 			HASH_TRACE("Digest reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
-		realloc = 1;
+		realloc = true;
 	} else {
-		realloc =
-			caam_set_or_alloc_align_buf(digest, &digest_align, len);
+		retstatus = caam_set_or_alloc_align_buf(digest, &digest_align,
+							len, &realloc);
 
-		if (realloc == -1) {
+		if (retstatus != CAAM_NO_ERROR) {
 			HASH_TRACE("Digest reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
@@ -712,7 +712,7 @@ TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
 	}
 
 out:
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&digest_align);
 
 	if (sgtdigest.sgt_type)
