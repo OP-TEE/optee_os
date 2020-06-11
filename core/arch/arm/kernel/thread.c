@@ -297,6 +297,11 @@ struct thread_core_local *thread_get_core_local(void)
 	return get_core_local(pos);
 }
 
+void thread_core_local_set_tmp_stack_flag(void)
+{
+	thread_get_core_local()->flags |= THREAD_CLF_TMP;
+}
+
 static void thread_lazy_save_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
@@ -442,6 +447,8 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 	init_regs(threads + n, a0, a1, a2, a3);
 
 	thread_lazy_save_ns_vfp();
+
+	l->flags &= ~THREAD_CLF_TMP;
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
 	panic();
@@ -579,6 +586,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	if (threads[n].have_user_map)
 		ftrace_resume();
 
+	l->flags &= ~THREAD_CLF_TMP;
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
 	panic();
@@ -587,6 +595,12 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 void *thread_get_tmp_sp(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
+
+	/*
+	 * Called from assembly when switching to the temporary stack, so flags
+	 * need updating
+	 */
+	l->flags |= THREAD_CLF_TMP;
 
 	return (void *)l->tmp_stack_va_end;
 }
