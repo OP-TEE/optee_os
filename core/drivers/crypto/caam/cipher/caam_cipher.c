@@ -344,13 +344,9 @@ exit_cipher_block:
  */
 static const struct cipheralg *get_cipheralgo(uint32_t algo)
 {
-	unsigned int algo_id = 0;
-	unsigned int algo_md = 0;
+	unsigned int algo_id = TEE_ALG_GET_MAIN_ALG(algo);
+	unsigned int algo_md = TEE_ALG_GET_CHAIN_MODE(algo);
 	const struct cipheralg *ca = NULL;
-
-	/* Extract the algorithms fields */
-	algo_id = TEE_ALG_GET_MAIN_ALG(algo);
-	algo_md = TEE_ALG_GET_CHAIN_MODE(algo);
 
 	CIPHER_TRACE("Algo id:%" PRId32 " md:%" PRId32, algo_id, algo_md);
 
@@ -705,8 +701,6 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 	/* Calculate the total data to be handled */
 	fullSize = ctx->blockbuf.filled + dupdate->src.length;
-	size_topost = fullSize % ctx->alg->size_block;
-
 	if (fullSize < ctx->alg->size_block) {
 		size_topost = dupdate->src.length;
 	} else {
