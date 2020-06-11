@@ -89,4 +89,26 @@ enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
  */
 TEE_Result caam_cipher_update_xts(struct drvcrypt_cipher_update *dupdate);
 
+/*
+ * Initialization of the cipher operation
+ *
+ * @dinit  Data initialization object
+ */
+TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit);
+
+/*
+ * Free software context
+ *
+ * @ctx    Caller context variable
+ */
+void caam_cipher_free(void *ctx);
+
+/*
+ * Copy software Context
+ *
+ * @dst_ctx  [out] Reference the context destination
+ * @src_ctx  Reference the context source
+ */
+void caam_cipher_copy_state(void *dst_ctx, void *src_ctx);
+
 #endif /* __LOCAL_H__ */

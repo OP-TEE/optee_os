@@ -461,12 +461,7 @@ static void do_free_intern(struct cipherdata *ctx)
 	}
 }
 
-/*
- * Free the SW Cipher data context
- *
- * @ctx    Caller context variable or NULL
- */
-static void do_free(void *ctx)
+void caam_cipher_free(void *ctx)
 {
 	CIPHER_TRACE("Free Context (%p)", ctx);
 
@@ -476,13 +471,7 @@ static void do_free(void *ctx)
 	}
 }
 
-/*
- * Copy Software Cipher Context
- *
- * @dst_ctx  [out] Reference the context destination
- * @src_ctx  Reference the context source
- */
-static void do_copy_state(void *dst_ctx, void *src_ctx)
+void caam_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct cipherdata *dst = dst_ctx;
 	struct cipherdata *src = src_ctx;
@@ -533,12 +522,7 @@ static void do_copy_state(void *dst_ctx, void *src_ctx)
 	}
 }
 
-/*
- * Initialization of the cipher operation
- *
- * @dinit  Data initialization object
- */
-static TEE_Result do_init(struct drvcrypt_cipher_init *dinit)
+TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 {
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
 	enum caam_status retstatus = CAAM_FAILURE;
@@ -1022,12 +1006,12 @@ static void do_final(void *ctx __unused)
  * Registration of the Cipher Driver
  */
 static struct drvcrypt_cipher driver_cipher = {
-	.alloc_ctx = &do_allocate,
-	.free_ctx = &do_free,
-	.init = &do_init,
-	.update = &do_update,
-	.final = &do_final,
-	.copy_state = &do_copy_state,
+	.alloc_ctx = do_allocate,
+	.free_ctx = caam_cipher_free,
+	.init = caam_cipher_initialize,
+	.update = do_update,
+	.final = do_final,
+	.copy_state = caam_cipher_copy_state,
 };
 
 /*
