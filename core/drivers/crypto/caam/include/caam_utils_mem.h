@@ -96,16 +96,13 @@ enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data);
  * Initialize struct caambuf with buffer reference, eventually
  * reallocating the buffer if not matching cache line alignment.
  *
- * @orig  Buffer origin
- * @dst   [out] CAAM Buffer object with origin or reallocated buffer
- * @size  Size in bytes of the buffer
- *
- * Returns:
- * 0    if destination is the same as origin
- * 1    if reallocation of the buffer
- * (-1) if allocation error
+ * @orig    Buffer origin
+ * @dst     [out] CAAM Buffer object with origin or reallocated buffer
+ * @size    Size in bytes of the buffer
+ * @realloc [out] true if buffer has been reallocated
  */
-int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size);
+enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
+					     size_t size, bool *realloc);
 
 /*
  * Copy source data into the block buffer. Allocate block buffer if

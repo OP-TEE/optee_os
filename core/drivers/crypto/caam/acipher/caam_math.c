@@ -31,7 +31,7 @@ static TEE_Result do_xor_mod_n(struct drvcrypt_mod_op *data)
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf res_align = { };
 	struct caamsgtbuf sgtres = { .sgt_type = false };
 	struct caambuf data_a = { .data = data->a.data,
@@ -71,9 +71,9 @@ static TEE_Result do_xor_mod_n(struct drvcrypt_mod_op *data)
 	 * ReAllocate the result buffer with a maximum size
 	 * of the Key Modulus's size (N) if not cache aligned
 	 */
-	realloc = caam_set_or_alloc_align_buf(data->result.data, &res_align,
-					      data->result.length);
-	if (realloc == -1) {
+	retstatus = caam_set_or_alloc_align_buf(data->result.data, &res_align,
+						data->result.length, &realloc);
+	if (retstatus != CAAM_NO_ERROR) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
@@ -182,7 +182,7 @@ static TEE_Result do_xor_mod_n(struct drvcrypt_mod_op *data)
 out:
 	caam_free_desc(&desc);
 
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&res_align);
 
 	if (sgtdata_a.sgt_type)

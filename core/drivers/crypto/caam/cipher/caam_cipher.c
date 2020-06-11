@@ -695,15 +695,15 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 	size_t size_topost = 0;
 	size_t size_todo = 0;
 	size_t size_indone = 0;
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf dst_align = { };
 
 	CIPHER_TRACE("Length=%zu - %s", dupdate->src.length,
 		     ctx->encrypt ? "Encrypt" : "Decrypt");
 
-	realloc = caam_set_or_alloc_align_buf(dupdate->dst.data, &dst_align,
-					      dupdate->dst.length);
-	if (realloc == -1) {
+	retstatus = caam_set_or_alloc_align_buf(dupdate->dst.data, &dst_align,
+						dupdate->dst.length, &realloc);
+	if (retstatus != CAAM_NO_ERROR) {
 		CIPHER_TRACE("Destination buffer reallocation error");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -837,7 +837,7 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 	ret = TEE_SUCCESS;
 
 out:
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&dst_align);
 
 	return ret;
@@ -856,7 +856,7 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 	struct cipherdata *ctx = dupdate->ctx;
 	struct caambuf srcbuf = { };
 	struct caambuf dstbuf = { };
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf dst_align = { };
 	unsigned int nb_buf = 0;
 	size_t offset = 0;
@@ -891,12 +891,13 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
-		realloc = 1;
+		realloc = true;
 	} else {
-		realloc = caam_set_or_alloc_align_buf(dupdate->dst.data,
-						      &dst_align,
-						      dupdate->dst.length);
-		if (realloc == -1) {
+		retstatus = caam_set_or_alloc_align_buf(dupdate->dst.data,
+							&dst_align,
+							dupdate->dst.length,
+							&realloc);
+		if (retstatus != CAAM_NO_ERROR) {
 			CIPHER_TRACE("Destination buffer reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
