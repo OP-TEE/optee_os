@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * CAAM Cipher Local header.
  */
@@ -9,6 +9,15 @@
 
 #include <drvcrypt.h>
 #include <drvcrypt_cipher.h>
+
+/*
+ * Definition of the maximum number of CAAM Job descriptor entries
+ */
+#ifdef CFG_CAAM_64BIT
+#define MAX_DESC_ENTRIES 22
+#else
+#define MAX_DESC_ENTRIES 16
+#endif
 
 /*
  * Definition of flags tagging which key(s) is required

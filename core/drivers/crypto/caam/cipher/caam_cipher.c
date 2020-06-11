@@ -19,15 +19,6 @@
 #include "local.h"
 
 /*
- * Maximum job ring descriptor entries
- */
-#ifdef CFG_CAAM_64BIT
-#define MAX_DESC_ENTRIES 22
-#else
-#define MAX_DESC_ENTRIES 16
-#endif
-
-/*
  * Max Cipher Buffer to encrypt/decrypt at each operation
  */
 #define MAX_CIPHER_BUFFER (8 * 1024)
