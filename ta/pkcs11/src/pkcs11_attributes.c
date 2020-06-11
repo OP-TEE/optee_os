@@ -329,7 +329,7 @@ static enum pkcs11_rc create_genkey_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	type = get_type(temp);
+	type = get_key_type(temp);
 	if (type == PKCS11_CKK_UNDEFINED_ID) {
 		EMSG("Key type attribute not found");
 
@@ -361,7 +361,7 @@ static enum pkcs11_rc create_symm_key_attributes(struct obj_attrs **out,
 
 	assert(get_class(*out) == PKCS11_CKO_SECRET_KEY);
 
-	switch (get_type(*out)) {
+	switch (get_key_type(*out)) {
 	case PKCS11_CKK_GENERIC_SECRET:
 	case PKCS11_CKK_AES:
 	case PKCS11_CKK_MD5_HMAC:
@@ -373,7 +373,7 @@ static enum pkcs11_rc create_symm_key_attributes(struct obj_attrs **out,
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
-		     get_type(*out), id2str_key_type(get_type(*out)));
+		     get_key_type(*out), id2str_key_type(get_key_type(*out)));
 
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
@@ -436,7 +436,7 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	switch (get_type(*out)) {
+	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
 		mandated = pkcs11_rsa_public_key_mandated;
 		optional = pkcs11_rsa_public_key_optional;
@@ -451,7 +451,7 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
-		     get_type(*out), id2str_key_type(get_type(*out)));
+		     get_key_type(*out), id2str_key_type(get_key_type(*out)));
 
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
@@ -495,7 +495,7 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	switch (get_type(*out)) {
+	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
 		optional = pkcs11_rsa_private_key_optional;
 		optional_count = ARRAY_SIZE(pkcs11_rsa_private_key_optional);
@@ -508,7 +508,7 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
-		     get_type(*out), id2str_key_type(get_type(*out)));
+		     get_key_type(*out), id2str_key_type(get_key_type(*out)));
 
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
@@ -569,7 +569,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 
 	/* If class/type not defined, match from mechanism */
 	if (get_class(temp) == PKCS11_UNDEFINED_ID &&
-	    get_type(temp) == PKCS11_UNDEFINED_ID) {
+	    get_key_type(temp) == PKCS11_UNDEFINED_ID) {
 		EMSG("Unable to define class/type from mechanism");
 		rc = PKCS11_CKR_TEMPLATE_INCOMPLETE;
 		goto out;

@@ -29,12 +29,12 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs)
 	case PKCS11_CKO_DATA:
 		return true;
 	case PKCS11_CKO_SECRET_KEY:
-		return key_type_is_symm_key(get_type(attrs));
+		return key_type_is_symm_key(get_key_type(attrs));
 	case PKCS11_CKO_MECHANISM:
-		return mechanism_is_valid(get_type(attrs));
+		return mechanism_is_valid(get_mechanism_type(attrs));
 	case PKCS11_CKO_PUBLIC_KEY:
 	case PKCS11_CKO_PRIVATE_KEY:
-		return key_type_is_asymm_key(get_type(attrs));
+		return key_type_is_asymm_key(get_key_type(attrs));
 	case PKCS11_CKO_OTP_KEY:
 	case PKCS11_CKO_CERTIFICATE:
 	case PKCS11_CKO_DOMAIN_PARAMETERS:
