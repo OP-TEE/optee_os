@@ -217,7 +217,7 @@ static inline enum pkcs11_mechanism_id get_mechanism_type(struct obj_attrs *head
 	uint32_t size = sizeof(type);
 
 	if (get_attribute(head, PKCS11_CKA_MECHANISM_TYPE, &type, &size))
-		return PKCS11_CKK_UNDEFINED_ID;
+		return PKCS11_CKM_UNDEFINED_ID;
 
 	return type;
 }
