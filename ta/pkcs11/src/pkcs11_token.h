@@ -72,8 +72,8 @@ struct token_persistent_main {
 /*
  * Persistent objects in the token
  *
- * @count - number of object stored in the token
- * @uudis - start of object references/UUIDs (@count items)
+ * @count - number of objects stored in the token
+ * @uudis - array of object references/UUIDs (@count items)
  */
 struct token_persistent_objs {
 	uint32_t count;
@@ -86,7 +86,7 @@ struct token_persistent_objs {
  * @state - Pkcs11 login is public, user, SO or custom
  * @session_count - Counter for opened Pkcs11 sessions
  * @rw_session_count - Count for opened Pkcs11 read/write sessions
- * @object_list - List of the object owned by the token
+ * @object_list - List of the objects owned by the token
  * @db_main - Volatile copy of the persistent main database
  * @db_objs - Volatile copy of the persistent object database
  */
