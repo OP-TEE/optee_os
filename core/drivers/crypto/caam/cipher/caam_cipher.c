@@ -166,7 +166,8 @@ static enum caam_status do_check_keysize(const struct caamdefkey *def,
 enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 				   uint8_t keyid, bool encrypt,
 				   struct caambuf *indata,
-				   struct caambuf *outdata, bool blockbuf)
+				   struct caambuf *outdata,
+				   enum caam_cipher_block blocks)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caam_jobctx jobctx = { };
@@ -214,7 +215,7 @@ enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 	 * If Source data is a User Data buffer mapped on multiple pages
 	 * create a Scatter/Gather table.
 	 */
-	if (blockbuf)
+	if (blocks == CIPHER_BLOCK_IN || blocks == CIPHER_BLOCK_BOTH)
 		retstatus = caam_sgt_build_block_data(&src_sgt, &ctx->blockbuf,
 						      indata);
 	else
@@ -264,7 +265,7 @@ enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 	 * If Output data is a User Data buffer mapped on multiple pages
 	 * create a Scatter/Gather table.
 	 */
-	if (blockbuf)
+	if (blocks == CIPHER_BLOCK_OUT || blocks == CIPHER_BLOCK_BOTH)
 		retstatus = caam_sgt_build_block_data(&dst_sgt, &ctx->blockbuf,
 						      outdata);
 	else
@@ -757,7 +758,8 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 			retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
 						      ctx->encrypt, &srcbuf,
-						      &dstbuf, true);
+						      &dstbuf,
+						      CIPHER_BLOCK_BOTH);
 
 			ctx->blockbuf.filled = 0;
 		} else {
@@ -771,9 +773,10 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 			dstbuf.paddr = dst_align.paddr;
 			dstbuf.nocache = dst_align.nocache;
 
-			retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
-						      ctx->encrypt, &srcbuf,
-						      &dstbuf, false);
+			retstatus =
+				caam_cipher_block(ctx, true, NEED_KEY1,
+						  ctx->encrypt, &srcbuf,
+						  &dstbuf, CIPHER_BLOCK_NONE);
 		}
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -816,7 +819,7 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 		retstatus = caam_cipher_block(ctx, false, NEED_KEY1,
 					      ctx->encrypt, &srcbuf, &dstbuf,
-					      false);
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus != CAAM_NO_ERROR) {
 			ret = TEE_ERROR_GENERIC;
@@ -935,9 +938,9 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 
 		CIPHER_TRACE("Do nb_buf=%u, offset %zu", nb_buf, offset);
 
-		retstatus =
-			caam_cipher_block(ctx, true, NEED_KEY1, ctx->encrypt,
-					  &srcbuf, &dstbuf, false);
+		retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
+					      ctx->encrypt, &srcbuf, &dstbuf,
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus != CAAM_NO_ERROR) {
 			ret = TEE_ERROR_GENERIC;
@@ -967,7 +970,7 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 
 		retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
 					      ctx->encrypt, &srcbuf, &dstbuf,
-					      false);
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus == CAAM_NO_ERROR) {
 			if (!dstbuf.nocache)
