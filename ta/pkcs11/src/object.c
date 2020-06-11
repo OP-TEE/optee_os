@@ -48,7 +48,7 @@ static struct ck_token *get_session_token(void *session)
 	return pkcs11_session2token(ck_session);
 }
 
-/* Release non-persistent resources of an object */
+/* Release resources of a non-persistent object */
 static void cleanup_volatile_obj_ref(struct pkcs11_object *obj)
 {
 	if (!obj)
@@ -82,13 +82,9 @@ static void cleanup_persistent_object(struct pkcs11_object *obj,
 				       obj->uuid, sizeof(TEE_UUID),
 				       TEE_DATA_FLAG_ACCESS_WRITE_META,
 				       &obj->attribs_hdl);
-	assert(!res);
-	if (res)
-		goto out;
+	if (!res)
+		TEE_CloseAndDeletePersistentObject1(obj->attribs_hdl);
 
-	TEE_CloseAndDeletePersistentObject1(obj->attribs_hdl);
-
-out:
 	obj->attribs_hdl = TEE_HANDLE_NULL;
 	destroy_object_uuid(token, obj);
 
@@ -113,7 +109,7 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		MSG_RAW("[destroy] obj uuid %pUl", (void *)obj->uuid);
 #endif
 
-	/* Remove from session list only if was published */
+	/* Remove from session list only if it was published */
 	if (obj->link.le_next || obj->link.le_prev)
 		LIST_REMOVE(obj, link);
 
@@ -134,9 +130,9 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		    unregister_persistent_object(session->token, obj->uuid))
 			TEE_Panic(0);
 
-		cleanup_persistent_object(obj, session->token);
 		handle_put(&session->object_handle_db,
 			   pkcs11_object2handle(obj, session));
+		cleanup_persistent_object(obj, session->token);
 	} else {
 		handle_put(&session->object_handle_db,
 			   pkcs11_object2handle(obj, session));
@@ -333,7 +329,7 @@ enum pkcs11_rc entry_import_object(struct pkcs11_client *client,
 
 	/*
 	 * At this stage the object is almost created: all its attributes are
-	 * referenced in @head, including the key value and are assume
+	 * referenced in @head, including the key value and are assumed
 	 * reliable. Now need to register it and get a handle for it.
 	 */
 	rc = create_object(session, head, &obj_handle);
@@ -341,10 +337,11 @@ enum pkcs11_rc entry_import_object(struct pkcs11_client *client,
 		goto out;
 
 	/*
-	 * Now obj_handle (through the related struct pkcs11_object instance)
-	 * owns the serialised buffer that holds the object attributes.
-	 * We reset attrs->buffer to NULL as serializer object is no more
-	 * the attributes buffer owner.
+	 * Now obj_handle (through the related struct pkcs11_object
+	 * instance) owns the serialised buffer that holds the object
+	 * attributes. We clear reference in head to NULL as the serializer
+	 * object is now referred from obj_handle. This allows smooth pass
+	 * through free at function exit.
 	 */
 	head = NULL;
 
@@ -381,11 +378,11 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_u32(&ctrlargs, &session_handle);
 	if (rc)
 		return rc;
 
-	rc = serialargs_get(&ctrlargs, &object_handle, sizeof(uint32_t));
+	rc = serialargs_get_u32(&ctrlargs, &object_handle);
 	if (rc)
 		return rc;
 

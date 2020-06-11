@@ -15,12 +15,12 @@ struct pkcs11_client;
 struct pkcs11_session;
 
 /*
- * link: object are referenced in a list
+ * link: objects are referenced in a double-linked list
  * attributes: pointer to the serialized object attributes
  * key_handle: GPD TEE object handle if used in an operation
  * key_type: GPD TEE key type (shortcut used for processing)
  * uuid: object UUID in the persistent database if a persistent object, or NULL
- * attribs_hdl: GPD TEE attribute handles if persistent object
+ * attribs_hdl: GPD TEE attributes handles if persistent object
  */
 struct pkcs11_object {
 	LIST_ENTRY(pkcs11_object) link;
