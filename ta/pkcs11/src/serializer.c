@@ -177,12 +177,14 @@ enum pkcs11_rc serialargs_get_session_from_handle(struct serialargs *args,
  * serialize - serialize input data in buffer
  *
  * Serialize data in provided buffer.
- * Insure 64byte alignment of appended data in the buffer.
  */
 enum pkcs11_rc serialize(char **bstart, size_t *blen, void *data, size_t len)
 {
 	char *buf = NULL;
-	size_t nlen = *blen + len;
+	size_t nlen = 0;
+
+	if (ADD_OVERFLOW(*blen, len, &nlen))
+		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	buf = TEE_Realloc(*bstart, nlen);
 	if (!buf)
