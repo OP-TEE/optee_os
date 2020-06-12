@@ -206,7 +206,7 @@ static enum pkcs11_rc sanitize_boolprops(struct obj_attrs **dst, void *src,
 
 static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 				       struct pkcs11_attribute_head *cli_ref,
-				       char *cur)
+				       char *data)
 {
 	struct obj_attrs *obj2 = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
@@ -236,34 +236,34 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 		return rc;
 
 	/* Build a new serial object while sanitizing the attributes list */
-	rc = sanitize_client_object(&obj2, cur + sizeof(*cli_ref),
-				    cli_ref->size);
+	rc = sanitize_client_object(&obj2, data, cli_ref->size);
 	if (rc)
-		return rc;
+		goto out;
 
-	return add_attribute(dst, cli_ref->id, obj2,
-			     sizeof(struct obj_attrs) + obj2->attrs_size);
+	rc = add_attribute(dst, cli_ref->id, obj2,
+			   sizeof(*obj2) + obj2->attrs_size);
+out:
+	TEE_Free(obj2);
+	return rc;
 }
 
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 				      size_t size)
 {
+	struct pkcs11_attribute_head cli_ref = { };
 	struct pkcs11_object_head head = { };
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
-	char *cur = NULL;
-	char *end = NULL;
-	size_t next = 0;
+	size_t pos = sizeof(head);
 	size_t sz_from_hdr = 0;
+	void *data = NULL;
 
-	TEE_MemFill(&head, 0, sizeof(head));
-
-	if (size < sizeof(struct pkcs11_object_head))
+	if (size < sizeof(head))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	TEE_MemMove(&head, src, sizeof(struct pkcs11_object_head));
+	TEE_MemMove(&head, src, sizeof(head));
 
-	if (ADD_OVERFLOW(sizeof(struct pkcs11_object_head), head.attrs_size,
-			 &sz_from_hdr) || size < sz_from_hdr)
+	if (ADD_OVERFLOW(sizeof(head), head.attrs_size, &sz_from_hdr) ||
+	    size < sz_from_hdr)
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	rc = init_attributes_head(dst);
@@ -272,52 +272,39 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 
 	rc = sanitize_class_and_type(dst, src, sz_from_hdr);
 	if (rc)
-		goto bail;
+		return rc;
 
 	rc = sanitize_boolprops(dst, src, sz_from_hdr);
 	if (rc)
-		goto bail;
+		return rc;
 
-	cur = (char *)src + sizeof(struct pkcs11_object_head);
-	end = cur + head.attrs_size;
-
-	for (; cur < end; cur += next) {
-		struct pkcs11_attribute_head cli_ref;
-
-		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
-		next = sizeof(cli_ref) + cli_ref.size;
+	while (pos != sz_from_hdr) {
+		rc = read_attr_advance(src, sz_from_hdr, &pos, &cli_ref, &data);
+		if (rc)
+			return rc;
 
 		if (cli_ref.id == PKCS11_CKA_CLASS ||
 		    pkcs11_attr_is_type(cli_ref.id) ||
 		    pkcs11_attr_is_boolean(cli_ref.id))
 			continue;
 
-		rc = sanitize_indirect_attr(dst, &cli_ref, cur);
+		rc = sanitize_indirect_attr(dst, &cli_ref, data);
 		if (rc == PKCS11_CKR_OK)
 			continue;
 		if (rc != PKCS11_RV_NOT_FOUND)
-			goto bail;
+			return rc;
 
 		if (!valid_pkcs11_attribute_id(cli_ref.id, cli_ref.size)) {
 			EMSG("Invalid attribute id %#"PRIx32, cli_ref.id);
 			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
-			goto bail;
+			return rc;
 		}
 
-		rc = add_attribute(dst, cli_ref.id, cur + sizeof(cli_ref),
-				   cli_ref.size);
+		rc = add_attribute(dst, cli_ref.id, data, cli_ref.size);
 		if (rc)
-			goto bail;
+			return rc;
 	}
 
-	/* sanity */
-	if (cur != end) {
-		EMSG("Unexpected alignment issue");
-		rc = PKCS11_CKR_FUNCTION_FAILED;
-		goto bail;
-	}
-
-bail:
 	return rc;
 }
 
