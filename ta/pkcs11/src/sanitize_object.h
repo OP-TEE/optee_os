@@ -28,8 +28,8 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs);
  * attribute list with a consistent format and identified attribute IDs.
  *
  * @head points to a blob starting with a pkcs11 attribute header.
- * @head may pointer to an unaligned address.
- * This function allocates, fill and returns a serialized attribute list
+ * @head may point to an unaligned address.
+ * This function allocates, fills and returns a serialized attribute list
  * into a serializer container.
  */
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *head,

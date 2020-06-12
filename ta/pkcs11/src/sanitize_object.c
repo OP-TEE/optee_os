@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
+#include <bitstring.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,6 @@
  * Functions to generate a serialized object.
  * References are pointers to struct serializer.
  */
-#define PKCS11_ID(id)			case id:
 
 bool sanitize_consistent_class_and_type(struct obj_attrs *attrs)
 {
@@ -46,45 +46,52 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs)
 	return false;
 }
 
-/* Sanitize class/type in a client attribute list */
-static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src)
+static enum pkcs11_rc read_attr_advance(void *buf, size_t blen, size_t *pos,
+					struct pkcs11_attribute_head *attr,
+					void **data)
 {
-	struct pkcs11_object_head head = { };
-	char *cur = NULL;
-	char *end = NULL;
-	size_t len = 0;
-	uint32_t class_found = 0;
-	uint32_t type_found = 0;
+	uint8_t *b = buf;
+	size_t data_pos = 0;
+	size_t next_pos = 0;
+
+	if (ADD_OVERFLOW(*pos, sizeof(*attr), &data_pos) || data_pos > blen)
+		return PKCS11_CKR_FUNCTION_FAILED;
+	TEE_MemMove(attr, b + *pos, sizeof(*attr));
+
+	if (ADD_OVERFLOW(data_pos, attr->size, &next_pos) || next_pos > blen)
+		return PKCS11_CKR_FUNCTION_FAILED;
+
+	*data = b + data_pos;
+	*pos = next_pos;
+
+	return PKCS11_CKR_OK;
+}
+
+/* Sanitize class/type in a client attribute list */
+static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src,
+					      size_t src_size)
+{
+	uint32_t class_found = PKCS11_CKO_UNDEFINED_ID;
+	size_t pos = sizeof(struct pkcs11_object_head);
 	struct pkcs11_attribute_head cli_ref = { };
-	uint32_t rc = PKCS11_CKR_OK;
-	size_t src_size = 0;
+	uint32_t type_found = PKCS11_UNDEFINED_ID;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	void *data = NULL;
 
-	TEE_MemMove(&head, src, sizeof(head));
-	TEE_MemFill(&cli_ref, 0, sizeof(cli_ref));
-
-	src_size = sizeof(struct pkcs11_object_head) + head.attrs_size;
-
-	class_found = PKCS11_CKO_UNDEFINED_ID;
-	type_found = PKCS11_CKK_UNDEFINED_ID;
-
-	cur = (char *)src + sizeof(struct pkcs11_object_head);
-	end = cur + head.attrs_size;
-
-	for (; cur < end; cur += len) {
-		/* Structure aligned copy of client reference in the object */
-		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
-		len = sizeof(cli_ref) + cli_ref.size;
+	while (pos != src_size) {
+		rc = read_attr_advance(src, src_size, &pos, &cli_ref, &data);
+		if (rc)
+			goto err;
 
 		if (cli_ref.id == PKCS11_CKA_CLASS) {
-			uint32_t class;
+			uint32_t class = 0;
 
 			if (cli_ref.size != sizeof(class)) {
 				rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 				goto err;
 			}
 
-			TEE_MemMove(&class, cur + sizeof(cli_ref),
-				    cli_ref.size);
+			TEE_MemMove(&class, data, sizeof(class));
 
 			if (class_found != PKCS11_CKO_UNDEFINED_ID &&
 			    class_found != class) {
@@ -101,12 +108,12 @@ static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src)
 		if (pkcs11_attr_is_type(cli_ref.id)) {
 			uint32_t type = 0;
 
-			if (cli_ref.size != pkcs11_attr_is_type(cli_ref.id)) {
+			if (cli_ref.size != sizeof(type)) {
 				rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 				goto err;
 			}
 
-			TEE_MemMove(&type, cur + sizeof(cli_ref), cli_ref.size);
+			TEE_MemMove(&type, data, sizeof(type));
 
 			if (type_found != PKCS11_CKK_UNDEFINED_ID &&
 			    type_found != type) {
@@ -119,23 +126,16 @@ static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src)
 		}
 	}
 
-	/* Sanity */
-	if (cur != end) {
-		EMSG("Unexpected alignment issue");
-		rc = PKCS11_CKR_FUNCTION_FAILED;
-		goto err;
-	}
-
 	if (class_found != PKCS11_CKO_UNDEFINED_ID) {
 		rc = add_attribute(dst, PKCS11_CKA_CLASS,
-				   &class_found, sizeof(uint32_t));
+				   &class_found, sizeof(class_found));
 		if (rc)
 			goto err;
 	}
 
-	if (type_found != PKCS11_CKK_UNDEFINED_ID) {
+	if (type_found != PKCS11_UNDEFINED_ID) {
 		rc = add_attribute(dst, PKCS11_CKA_KEY_TYPE,
-				   &type_found, sizeof(uint32_t));
+				   &type_found, sizeof(class_found));
 	}
 
 	return PKCS11_CKR_OK;
@@ -146,91 +146,64 @@ err:
 	return rc;
 }
 
-static enum pkcs11_rc sanitize_boolprop(struct obj_attrs **dst,
-					struct pkcs11_attribute_head *cli_ref,
-					char *cur, uint32_t *boolprop_base,
-					uint32_t *sanity)
+static enum pkcs11_rc sanitize_boolprops(struct obj_attrs **dst, void *src,
+					 size_t src_size)
 {
-	int shift = 0;
-	uint32_t mask = 0;
-	uint32_t value = 0;
-	uint32_t *boolprop_ptr = NULL;
-	uint32_t *sanity_ptr = NULL;
+	bitstr_t bit_decl(seen_attrs, PKCS11_BOOLPROPS_MAX_COUNT) = { 0 };
+	bitstr_t bit_decl(boolprops, PKCS11_BOOLPROPS_MAX_COUNT) = { 0 };
+	size_t pos = sizeof(struct pkcs11_object_head);
+	struct pkcs11_attribute_head cli_ref = { };
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	bool value = false;
+	void *data = NULL;
+	int idx = 0;
 
-	/* Get the boolean property shift position and value */
-	shift = pkcs11_attr2boolprop_shift(cli_ref->id);
-	if (shift < 0)
-		return PKCS11_RV_NOT_FOUND;
+	/*
+	 * We're keeping track of seen boolean attributes in the bitstring
+	 * seen_attrs. The bitstring boolprops holds the recorded value
+	 * once seen_attrs has been updated.
+	 */
 
-	if (shift >= PKCS11_BOOLPROPS_MAX_COUNT)
-		return PKCS11_CKR_FUNCTION_FAILED;
-
-	mask = 1 << (shift % 32);
-	if ((*(uint8_t *)(cur + sizeof(*cli_ref))) == PKCS11_TRUE)
-		value = mask;
-	else
-		value = 0;
-
-	/* Locate the current config value for the boolean property */
-	boolprop_ptr = boolprop_base + (shift / 32);
-	sanity_ptr = sanity + (shift / 32);
-
-	/* Error if already set to a different boolean value */
-	if (*sanity_ptr & mask && value != (*boolprop_ptr & mask))
-		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
-
-	if (value)
-		*boolprop_ptr |= mask;
-	else
-		*boolprop_ptr &= ~mask;
-
-	/* Store the attribute inside the serialized data */
-	if (!(*sanity_ptr & mask)) {
-		enum pkcs11_rc rc = PKCS11_CKR_OK;
-		uint8_t pkcs11_bool = !!value;
-
-		rc = add_attribute(dst, cli_ref->id, &pkcs11_bool,
-				   sizeof(uint8_t));
+	while (pos != src_size) {
+		rc = read_attr_advance(src, src_size, &pos, &cli_ref, &data);
 		if (rc)
 			return rc;
-	}
 
-	*sanity_ptr |= mask;
+		idx = pkcs11_attr2boolprop_shift(cli_ref.id);
+		if (idx < 0)
+			continue; /* skipping non-boolean attributes */
+
+		if (idx >= PKCS11_BOOLPROPS_MAX_COUNT ||
+		    cli_ref.size != sizeof(uint8_t))
+			return PKCS11_CKR_FUNCTION_FAILED;
+
+		value = *(uint8_t *)data;
+
+		/*
+		 * If this attribute has already been seen, check that it
+		 * still holds the same value as last time.
+		 */
+		if (bit_test(seen_attrs, idx) &&
+		    value != (bool)bit_test(boolprops, idx))
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+		if (value)
+			bit_set(boolprops, idx);
+
+		if (!bit_test(seen_attrs, idx)) {
+			uint8_t pkcs11_bool = value;
+
+			rc = add_attribute(dst, cli_ref.id, &pkcs11_bool,
+					   sizeof(pkcs11_bool));
+			if (rc)
+				return rc;
+		}
+		bit_set(seen_attrs, idx);
+	}
 
 	return PKCS11_CKR_OK;
 }
 
-static enum pkcs11_rc sanitize_boolprops(struct obj_attrs **dst, void *src)
-{
-	struct pkcs11_object_head head = { };
-	char *cur = NULL;
-	char *end = NULL;
-	size_t len = 0;
-	struct pkcs11_attribute_head cli_ref = { };
-	uint32_t sanity[PKCS11_BOOLPROPS_MAX_COUNT] = { 0 };
-	uint32_t boolprops[PKCS11_BOOLPROPS_MAX_COUNT] = { 0 };
-	enum pkcs11_rc rc = PKCS11_CKR_OK;
-
-	TEE_MemMove(&head, src, sizeof(head));
-	TEE_MemFill(&cli_ref, 0, sizeof(cli_ref));
-
-	cur = (char *)src + sizeof(struct pkcs11_object_head);
-	end = cur + head.attrs_size;
-
-	for (; cur < end; cur += len) {
-		/* Structure aligned copy of the cli_ref in the object */
-		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
-		len = sizeof(cli_ref) + cli_ref.size;
-
-		rc = sanitize_boolprop(dst, &cli_ref, cur, boolprops, sanity);
-		if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
-			return rc;
-	}
-
-	return PKCS11_CKR_OK;
-}
-
-/* Counterpart of serialize_indirect_attribute() */
 static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 				       struct pkcs11_attribute_head *cli_ref,
 				       char *cur)
@@ -243,8 +216,8 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 		return PKCS11_CKR_GENERAL_ERROR;
 
 	/*
-	 * Serialized attributes: current applicable only the key templates
-	 * which are tables of attributes.
+	 * Serialized attributes: current applicable only to the key
+	 * templates which are tables of attributes.
 	 */
 	switch (cli_ref->id) {
 	case PKCS11_CKA_WRAP_TEMPLATE:
@@ -280,6 +253,7 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 	char *cur = NULL;
 	char *end = NULL;
 	size_t next = 0;
+	size_t sz_from_hdr = 0;
 
 	TEE_MemFill(&head, 0, sizeof(head));
 
@@ -288,18 +262,19 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 
 	TEE_MemMove(&head, src, sizeof(struct pkcs11_object_head));
 
-	if (size < (sizeof(struct pkcs11_object_head) + head.attrs_size))
+	if (ADD_OVERFLOW(sizeof(struct pkcs11_object_head), head.attrs_size,
+			 &sz_from_hdr) || size < sz_from_hdr)
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	rc = init_attributes_head(dst);
 	if (rc)
 		return rc;
 
-	rc = sanitize_class_and_type(dst, src);
+	rc = sanitize_class_and_type(dst, src, sz_from_hdr);
 	if (rc)
 		goto bail;
 
-	rc = sanitize_boolprops(dst, src);
+	rc = sanitize_boolprops(dst, src, sz_from_hdr);
 	if (rc)
 		goto bail;
 
