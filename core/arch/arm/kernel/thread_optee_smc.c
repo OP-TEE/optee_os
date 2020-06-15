@@ -587,6 +587,16 @@ struct mobj *thread_rpc_alloc_payload(size_t size)
 	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_APPL);
 }
 
+struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_KERNEL);
+}
+
+void thread_rpc_free_kernel_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL, mobj_get_cookie(mobj), mobj);
+}
+
 void thread_rpc_free_payload(struct mobj *mobj)
 {
 	thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),

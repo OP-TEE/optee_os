@@ -611,6 +611,22 @@ struct mobj *thread_rpc_alloc_payload(size_t size);
  */
 void thread_rpc_free_payload(struct mobj *mobj);
 
+/**
+ * Allocate data for payload buffers only shared with the non-secure kernel
+ *
+ * @size:	size in bytes of payload buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_kernel_payload(size_t size);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_kernel_payload()
+ *
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_kernel_payload(struct mobj *mobj);
 
 struct thread_param_memref {
 	size_t offs;
