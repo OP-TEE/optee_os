@@ -149,6 +149,28 @@
 #define OPTEE_RPC_CMD_BENCH_REG		20
 
 /*
+ * Issue master requests (read and write operations) to an I2C chip.
+ *
+ * [in]     value[0].a	    Transfer mode (OPTEE_MSG_RPC_CMD_I2C_TRANSFER_*)
+ * [in]     value[0].b	    The I2C bus (a.k.a adapter).
+ *				16 bit field.
+ * [in]     value[0].c	    The I2C chip (a.k.a address).
+ *				16 bit field (either 7 or 10 bit effective).
+ * [in]     value[1].a	    The I2C master control flags (ie, 10 bit address).
+ *				16 bit field.
+ * [in/out] memref[2]	    Buffer used for data transfers.
+ * [out]    value[3].a	    Number of bytes transferred by the REE.
+ */
+#define OPTEE_RPC_CMD_I2C_TRANSFER	21
+
+/* I2C master transfer modes */
+#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD	0
+#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR	1
+
+/* I2C master control flags */
+#define OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT	BIT(0)
+
+/*
  * Definition of protocol for command OPTEE_RPC_CMD_FS
  */
 
