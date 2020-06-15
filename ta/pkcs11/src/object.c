@@ -109,7 +109,16 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		MSG_RAW("[destroy] obj uuid %pUl", (void *)obj->uuid);
 #endif
 
-	/* Remove from session list only if it was published */
+	/*
+	 * Remove from session list only if it was published.
+	 *
+	 * This depends on obj->link.le_prev always pointing on the
+	 * link.le_next element in the previous object in the list even if
+	 * there's only a single object in the list. In the first object in
+	 * the list obj->link.le_prev instead points to lh_first in the
+	 * list head. If list implementation is changed we need to revisit
+	 * this.
+	 */
 	if (obj->link.le_next || obj->link.le_prev)
 		LIST_REMOVE(obj, link);
 
