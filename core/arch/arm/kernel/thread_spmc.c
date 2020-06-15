@@ -1046,13 +1046,13 @@ void thread_rpc_free_payload(struct mobj *mobj)
 			mobj_get_cookie(mobj), mobj);
 }
 
-static struct mobj *thread_rpc_alloc_arg(size_t size)
+struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
 {
 	return thread_rpc_alloc(size,
 				OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_KERN_SHM);
 }
 
-static void thread_rpc_free_arg(struct mobj *mobj)
+void thread_rpc_free_kernel_payload(struct mobj *mobj)
 {
 	thread_rpc_free(OPTEE_FFA_YIELDING_CALL_RETURN_FREE_KERN_SHM,
 			mobj_get_cookie(mobj), mobj);
@@ -1071,14 +1071,14 @@ static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!arg) {
-		struct mobj *mobj = thread_rpc_alloc_arg(sz);
+		struct mobj *mobj = thread_rpc_alloc_kernel_payload(sz);
 
 		if (!mobj)
 			return TEE_ERROR_OUT_OF_MEMORY;
 
 		arg = mobj_get_va(mobj, 0);
 		if (!arg) {
-			thread_rpc_free_arg(mobj);
+			thread_rpc_free_kernel_payload(mobj);
 			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 
