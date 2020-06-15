@@ -6,6 +6,7 @@ srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
 srcs-y += pseudo_ta.c
 srcs-y += tee_time.c
+srcs-y += rpc_io_i2c.c
 srcs-y += otp_stubs.c
 srcs-y += delay.c
 

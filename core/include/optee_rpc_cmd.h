@@ -149,6 +149,18 @@
 #define OPTEE_RPC_CMD_BENCH_REG		20
 
 /*
+ * Transfer data in/out via I2C in master mode with a 7-bit address
+ *
+ * [in]     value[0].a	    Transfer mode (check enum rpc_i2c_mode for modes)
+ * [in]     value[0].b	    The I2C bus (a.k.a adapter)
+ * [in]     value[0].c	    The I2C chip to transfer from/to (a.k.a address)
+ *
+ * [in/out] memref[1]	    Buffer used to transfer the data
+ * [out]    value[2].a	    Number of bytes transferred by the actual driver
+ */
+#define OPTEE_RPC_CMD_I2C_TRANSFER	21
+
+/*
  * Definition of protocol for command OPTEE_RPC_CMD_FS
  */
 
