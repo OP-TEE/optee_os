@@ -83,7 +83,7 @@ static void sm3_process(struct sm3_context *ctx, const uint8_t data[64])
 #define GG1(x, y, z)	(((x) & (y)) | ((~(x)) & (z)))
 
 #define SHL(x, n)	((x) << (n))
-#define ROTL(x, n)	(SHL((x), (n)) | ((x) >> (32 - (n))))
+#define ROTL(x, n)	(SHL((x), (n) & 0x1F) | ((x) >> (32 - ((n) & 0x1F))))
 
 #define P0(x)	((x) ^ ROTL((x), 9) ^ ROTL((x), 17))
 #define P1(x)	((x) ^ ROTL((x), 15) ^ ROTL((x), 23))
