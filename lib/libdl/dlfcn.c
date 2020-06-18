@@ -20,15 +20,16 @@ static TEE_Result invoke_system_pta(uint32_t cmd_id, uint32_t param_types,
 {
 	const TEE_UUID core_uuid = PTA_SYSTEM_UUID;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t oe = 0;
 
 	if (sess == TEE_HANDLE_NULL) {
 		res = TEE_OpenTASession(&core_uuid, TEE_TIMEOUT_INFINITE,
-					0, NULL, &sess, NULL);
+					0, NULL, &sess, &oe);
 		if (res)
 			return res;
 	}
 	return TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE,
-				   cmd_id, param_types, params, NULL);
+				   cmd_id, param_types, params, &oe);
 }
 
 struct dl_handle {
