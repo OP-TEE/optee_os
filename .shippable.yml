@@ -15,7 +15,16 @@ build:
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
     - export CFG_DEBUG_INFO=n
     - export CFG_WERROR=y
-    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z; }
+    - export START=$(date +%s)
+    - export PROJ=$ORG_NAME-$REPO_NAME
+    - export SCP_OPT="-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+    - function download_secondary_cache() { ssh $SCP_OPT -p 50122 shippable@shippable-cache.forissier.org "cat ccache-$PROJ.tar.gz" | tar zx -C /root || echo Nevermind; }
+    - function upload_secondary_cache() { if [ ! -e .uploaded ]; then echo Uploading cache && tar c -C /root .ccache | gzip -1 | ssh $SCP_OPT -p 50122 shippable@shippable-cache.forissier.org "cat >ccache-$PROJ.tar.gz" && touch .uploaded || echo Nevermind; fi; }
+    - function check_upload_secondary_cache() { NOW=$(date +%s); if [ $(expr $NOW - $START) -gt 3000 ]; then upload_secondary_cache; fi; }
+    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z && check_upload_secondary_cache; }
+
+    - download_secondary_cache
     - ccache -z
 
     - _make
@@ -143,3 +152,5 @@ build:
     - _make PLATFORM=bcm-ns3 CFG_ARM64_core=y
     - _make PLATFORM=hisilicon-hi3519av100_demo
     - _make PLATFORM=amlogic
+
+    - upload_secondary_cache
