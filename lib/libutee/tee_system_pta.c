@@ -15,17 +15,18 @@ static TEE_Result invoke_system_pta(uint32_t cmd_id, uint32_t param_types,
 {
 	static TEE_TASessionHandle sess = TEE_HANDLE_NULL;
 	static const TEE_UUID uuid = PTA_SYSTEM_UUID;
+	uint32_t eo = 0;
 
 	if (sess == TEE_HANDLE_NULL) {
 		TEE_Result res = TEE_OpenTASession(&uuid, TEE_TIMEOUT_INFINITE,
-						   0, NULL, &sess, NULL);
+						   0, NULL, &sess, &eo);
 
 		if (res)
 			return res;
 	}
 
 	return TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE, cmd_id,
-				   param_types, params, NULL);
+				   param_types, params, &eo);
 }
 
 void *tee_map_zi(size_t len, uint32_t flags)
