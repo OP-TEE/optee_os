@@ -153,6 +153,12 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 	size_t tmp_len = 0;
 	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
 
+	if (paramTypes)
+		__utee_check_inout_annotation(params,
+					      sizeof(TEE_Param) *
+					      TEE_NUM_PARAMS);
+	__utee_check_out_annotation(session, sizeof(*session));
+
 	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
 	if (res)
 		goto out;
@@ -201,6 +207,14 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 	void *tmp_buf = NULL;
 	size_t tmp_len = 0;
 	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
+
+	if (paramTypes)
+		__utee_check_inout_annotation(params,
+					      sizeof(TEE_Param) *
+					      TEE_NUM_PARAMS);
+	if (returnOrigin)
+		__utee_check_out_annotation(returnOrigin,
+					    sizeof(*returnOrigin));
 
 	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
 	if (res)

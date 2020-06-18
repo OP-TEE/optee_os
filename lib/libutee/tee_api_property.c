@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017-2020, Linaro Limited
  */
 #include <printk.h>
 #include <stdio.h>
@@ -17,8 +17,9 @@
 #include <utee_syscalls.h>
 #include <util.h>
 
-#include "string_ext.h"
 #include "base64.h"
+#include "string_ext.h"
+#include "tee_api_private.h"
 
 #define PROP_STR_MAX    80
 
@@ -123,6 +124,13 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 	return TEE_SUCCESS;
 }
 
+static bool is_propset_pseudo_handle(TEE_PropSetHandle h)
+{
+	return h == TEE_PROPSET_CURRENT_TA ||
+	       h == TEE_PROPSET_CURRENT_CLIENT ||
+	       h == TEE_PROPSET_TEE_IMPLEMENTATION;
+}
+
 static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 				       enum user_ta_prop_type *type,
 				       void *buf, uint32_t *len)
@@ -133,8 +141,7 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 	uint32_t prop_type;
 	uint32_t index;
 
-	if (h == TEE_PROPSET_CURRENT_TA || h == TEE_PROPSET_CURRENT_CLIENT ||
-	    h == TEE_PROPSET_TEE_IMPLEMENTATION) {
+	if (is_propset_pseudo_handle(h)) {
 		size_t n;
 
 		res = propset_get(h, &eps, &eps_len);
@@ -193,10 +200,9 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 	bool bool_val;
 	TEE_Identity *p_identity_val;
 
-	if (!value || !value_len) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_outstring_annotation(value, value_len);
 
 	tmp_len = *value_len;
 	if (tmp_len < sizeof(TEE_Identity))
@@ -288,10 +294,10 @@ TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	enum user_ta_prop_type type;
 	uint32_t bool_len = sizeof(bool);
-	if (value == NULL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_out_annotation(value, sizeof(*value));
 
 	type = USER_TA_PROP_TYPE_BOOL;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
@@ -317,10 +323,9 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t uint32_len = sizeof(uint32_t);
 
-	if (!value) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_out_annotation(value, sizeof(*value));
 
 	type = USER_TA_PROP_TYPE_U32;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
@@ -328,7 +333,6 @@ TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 	if (type != USER_TA_PROP_TYPE_U32)
 		res = TEE_ERROR_BAD_FORMAT;
 
-out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_BAD_FORMAT)
@@ -344,10 +348,9 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	enum user_ta_prop_type type;
 
-	if (!value_len) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_outbuf_annotation(value, value_len);
 
 	type = USER_TA_PROP_TYPE_BINARY_BLOCK;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
@@ -355,7 +358,6 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	if (type != USER_TA_PROP_TYPE_BINARY_BLOCK)
 		res = TEE_ERROR_BAD_FORMAT;
 
-out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_BAD_FORMAT &&
@@ -372,10 +374,9 @@ TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t uuid_len = sizeof(TEE_UUID);
 
-	if (!value) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_out_annotation(value, sizeof(*value));
 
 	type = USER_TA_PROP_TYPE_UUID;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
@@ -383,7 +384,6 @@ TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 	if (type != USER_TA_PROP_TYPE_UUID)
 		res = TEE_ERROR_BAD_FORMAT;
 
-out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_BAD_FORMAT)
@@ -399,10 +399,9 @@ TEE_Result TEE_GetPropertyAsIdentity(TEE_PropSetHandle propsetOrEnumerator,
 	enum user_ta_prop_type type;
 	uint32_t identity_len = sizeof(TEE_Identity);
 
-	if (!value) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (is_propset_pseudo_handle(propsetOrEnumerator))
+		__utee_check_instring_annotation(name);
+	__utee_check_out_annotation(value, sizeof(*value));
 
 	type = USER_TA_PROP_TYPE_IDENTITY;
 	res = propget_get_property(propsetOrEnumerator, name, &type,
@@ -410,7 +409,6 @@ TEE_Result TEE_GetPropertyAsIdentity(TEE_PropSetHandle propsetOrEnumerator,
 	if (type != USER_TA_PROP_TYPE_IDENTITY)
 		res = TEE_ERROR_BAD_FORMAT;
 
-out:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_BAD_FORMAT)
@@ -424,10 +422,7 @@ TEE_Result TEE_AllocatePropertyEnumerator(TEE_PropSetHandle *enumerator)
 	TEE_Result res;
 	struct prop_enumerator *pe;
 
-	if (!enumerator) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto err;
-	}
+	__utee_check_out_annotation(enumerator, sizeof(*enumerator));
 
 	pe = TEE_Malloc(sizeof(struct prop_enumerator),
 			TEE_USER_MEM_HINT_NO_FILL_ZERO);
@@ -485,10 +480,11 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 	const char *str;
 	size_t bufferlen;
 
-	if (!pe || !name || !name_len) {
+	if (!pe) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
+	__utee_check_outstring_annotation(name, name_len);
 
 	bufferlen = *name_len;
 	res = propset_get(pe->prop_set, &eps, &eps_len);

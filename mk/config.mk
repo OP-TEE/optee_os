@@ -602,3 +602,9 @@ endif
 ifeq ($(CFG_WITH_SECURE_PARTITION),y)
 $(call force,CFG_ZLIB,y)
 endif
+
+# When enabled checks that buffers passed to the GP Internal Core API
+# comply with the rules added as annotations as part of the definition of
+# the API. For example preventing buffers in non-secure shared memory when
+# not allowed.
+CFG_TA_STRICT_ANNOTATION_CHECKS ?= y
