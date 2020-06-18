@@ -115,6 +115,8 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 	TEE_ObjectInfo info;
 	uint64_t sz;
 
+	__utee_check_inout_annotation(size, sizeof(*size));
+
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -149,6 +151,11 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 	TEE_ObjectInfo info;
 	uint32_t buf[2];
 	uint64_t size = sizeof(buf);
+
+	if (a)
+		__utee_check_out_annotation(a, sizeof(*a));
+	if (b)
+		__utee_check_out_annotation(b, sizeof(*b));
 
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
@@ -203,6 +210,8 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 {
 	TEE_Result res;
 	uint32_t obj;
+
+	__utee_check_out_annotation(object, sizeof(*object));
 
 	res = _utee_cryp_obj_alloc(objectType, maxKeySize, &obj);
 
@@ -265,6 +274,8 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 	TEE_ObjectInfo info;
 	struct utee_attribute ua[attrCount];
 
+	__utee_check_attr_in_annotation(attrs, attrCount);
+
 	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
@@ -287,8 +298,8 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			  const void *buffer, uint32_t length)
 {
-	if (attr == NULL)
-		TEE_Panic(0);
+	__utee_check_out_annotation(attr, sizeof(*attr));
+
 	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
 		TEE_Panic(0);
 	attr->attributeID = attributeID;
@@ -299,8 +310,8 @@ void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b)
 {
-	if (attr == NULL)
-		TEE_Panic(0);
+	__utee_check_out_annotation(attr, sizeof(*attr));
+
 	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
 		TEE_Panic(0);
 	attr->attributeID = attributeID;
@@ -371,6 +382,8 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 	TEE_Result res;
 	struct utee_attribute ua[paramCount];
 
+	__utee_check_attr_in_annotation(params, paramCount);
+
 	__utee_from_attr(ua, params, paramCount);
 	res = _utee_cryp_obj_generate_key((unsigned long)object, keySize,
 					  ua, paramCount);
@@ -392,11 +405,6 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 
 	if (!objectID) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto exit;
-	}
-
-	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
-		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
 
@@ -435,10 +443,7 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 		goto exit;
 	}
 
-	if (objectIDLen > TEE_OBJECT_ID_MAX_LEN) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto exit;
-	}
+	__utee_check_out_annotation(object, sizeof(*object));
 
 	res = _utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				       (unsigned long)attributes, initialData,
@@ -509,16 +514,6 @@ TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 		goto out;
 	}
 
-	if (!newObjectID) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (newObjectIDLen > TEE_OBJECT_ID_MAX_LEN) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
 	res = _utee_storage_obj_rename((unsigned long)object, newObjectID,
 				       newObjectIDLen);
 
@@ -538,8 +533,8 @@ TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 	TEE_Result res;
 	uint32_t oe;
 
-	if (!objectEnumerator)
-		return TEE_ERROR_BAD_PARAMETERS;
+	__utee_check_out_annotation(objectEnumerator,
+				    sizeof(*objectEnumerator));
 
 	res = _utee_storage_alloc_enum(&oe);
 
@@ -608,12 +603,11 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 	TEE_ObjectInfo local_info;
 	TEE_ObjectInfo *pt_info;
 
-	if (!objectID) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	if (objectInfo)
+		__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
+	__utee_check_out_annotation(objectIDLen, sizeof(*objectIDLen));
 
-	if (!objectIDLen) {
+	if (!objectID) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -649,6 +643,7 @@ TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
+	__utee_check_out_annotation(count, sizeof(*count));
 
 	cnt64 = *count;
 	res = _utee_storage_obj_read((unsigned long)object, buffer, size,
