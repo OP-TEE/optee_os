@@ -21,3 +21,4 @@ srcs-$(CFG_SHOW_CONF_ON_BOOT) += show_conf.c
 srcs-y += user_mode_ctx.c
 srcs-$(CFG_CORE_TPM_EVENT_LOG) += tpm.c
 srcs-y += initcall.c
+srcs-y += user_access.c

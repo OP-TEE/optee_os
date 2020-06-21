@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Linaro Limited
  */
 
 #include <kernel/mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_access.h>
 #include <mm/tee_mmu.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
@@ -322,7 +324,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto oclose;
 	}
 
-	res = tee_svc_copy_kaddr_to_uref(obj, o);
+	res = copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -475,8 +477,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	o->pobj = po;
 
 	if (attr != TEE_HANDLE_NULL) {
-		res = tee_obj_get(utc, tee_svc_uref_to_vaddr(attr),
-				  &attr_o);
+		res = tee_obj_get(utc, uref_to_vaddr(attr), &attr_o);
 		if (res != TEE_SUCCESS)
 			goto err;
 		/* The supplied handle must be one of an initialized object */
@@ -494,7 +495,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	po = NULL; /* o owns it from now on */
 	tee_obj_add(utc, o);
 
-	res = tee_svc_copy_kaddr_to_uref(obj, o);
+	res = copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
@@ -532,7 +533,7 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_obj_get(utc, tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(utc, uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -568,7 +569,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_obj_get(utc, tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(utc, uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -639,7 +640,7 @@ TEE_Result syscall_storage_alloc_enum(uint32_t *obj_enum)
 	e->fops = NULL;
 	TAILQ_INSERT_TAIL(&utc->storage_enums, e, link);
 
-	return tee_svc_copy_kaddr_to_uref(obj_enum, e);
+	return copy_kaddr_to_uref(obj_enum, e);
 }
 
 TEE_Result syscall_storage_free_enum(unsigned long obj_enum)
@@ -655,7 +656,7 @@ TEE_Result syscall_storage_free_enum(unsigned long obj_enum)
 	utc = to_user_ta_ctx(sess->ctx);
 
 	res = tee_svc_storage_get_enum(utc,
-			tee_svc_uref_to_vaddr(obj_enum), &e);
+			uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -673,7 +674,7 @@ TEE_Result syscall_storage_reset_enum(unsigned long obj_enum)
 		return res;
 
 	res = tee_svc_storage_get_enum(to_user_ta_ctx(sess->ctx),
-			tee_svc_uref_to_vaddr(obj_enum), &e);
+				       uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -701,7 +702,7 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 		return res;
 
 	res = tee_svc_storage_get_enum(to_user_ta_ctx(sess->ctx),
-			tee_svc_uref_to_vaddr(obj_enum), &e);
+				       uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -734,8 +735,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		goto exit;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_storage_get_enum(utc,
-			tee_svc_uref_to_vaddr(obj_enum), &e);
+	res = tee_svc_storage_get_enum(utc, uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -787,7 +787,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
 
 	l = o->pobj->obj_id_len;
-	res = tee_svc_copy_to_user(len, &l, sizeof(*len));
+	res = copy_to_user(len, &l, sizeof(*len));
 
 exit:
 	if (o) {
@@ -814,7 +814,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 		goto exit;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_obj_get(utc, tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(utc, uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -859,7 +859,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	o->info.dataPosition += bytes;
 
 	u_count = bytes;
-	res = tee_svc_copy_to_user(count, &u_count, sizeof(*count));
+	res = copy_to_user(count, &u_count, sizeof(*count));
 exit:
 	return res;
 }
@@ -877,7 +877,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 		goto exit;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_obj_get(utc, tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(utc, uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -933,8 +933,7 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -991,8 +990,7 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 

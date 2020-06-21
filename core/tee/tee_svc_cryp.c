@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Linaro Limited
  */
 
 #include <assert.h>
@@ -8,11 +9,13 @@
 #include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_access.h>
 #include <mm/tee_mmu.h>
 #include <stdlib_ext.h>
 #include <string_ext.h>
 #include <string.h>
 #include <sys/queue.h>
+#include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
@@ -21,7 +24,6 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <tee_api_defines_extensions.h>
 #if defined(CFG_CRYPTO_HKDF)
 #include <tee/tee_cryp_hkdf.h>
 #endif
@@ -580,19 +582,19 @@ static TEE_Result op_attr_secret_value_to_user(void *attr,
 	uint64_t s;
 	uint64_t key_size;
 
-	res = tee_svc_copy_from_user(&s, size, sizeof(s));
+	res = copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	key_size = key->key_size;
-	res = tee_svc_copy_to_user(size, &key_size, sizeof(key_size));
+	res = copy_to_user(size, &key_size, sizeof(key_size));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (s < key->key_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	return tee_svc_copy_to_user(buffer, key + 1, key->key_size);
+	return copy_to_user(buffer, key + 1, key->key_size);
 }
 
 static TEE_Result op_attr_secret_value_to_binary(void *attr, void *data,
@@ -675,12 +677,12 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	uint64_t req_size = 0;
 	uint64_t s = 0;
 
-	res = tee_svc_copy_from_user(&s, size, sizeof(s));
+	res = copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	req_size = crypto_bignum_num_bytes(*bn);
-	res = tee_svc_copy_to_user(size, &req_size, sizeof(req_size));
+	res = copy_to_user(size, &req_size, sizeof(req_size));
 	if (res != TEE_SUCCESS)
 		return res;
 	if (!req_size)
@@ -790,14 +792,14 @@ static TEE_Result op_attr_value_to_user(void *attr,
 	uint32_t value[2] = { *v };
 	uint64_t req_size = sizeof(value);
 
-	res = tee_svc_copy_from_user(&s, size, sizeof(s));
+	res = copy_from_user(&s, size, sizeof(s));
 	if (res != TEE_SUCCESS)
 		return res;
 
 	if (s < req_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
-	return tee_svc_copy_to_user(buffer, value, req_size);
+	return copy_to_user(buffer, value, req_size);
 }
 
 static TEE_Result op_attr_value_to_binary(void *attr, void *data,
@@ -865,7 +867,7 @@ static const struct attr_ops attr_ops[] = {
 static TEE_Result get_user_u64_as_size_t(size_t *dst, uint64_t *src)
 {
 	uint64_t d = 0;
-	TEE_Result res = tee_svc_copy_from_user(&d, src, sizeof(d));
+	TEE_Result res = copy_from_user(&d, src, sizeof(d));
 
 	/*
 	 * On 32-bit systems a size_t can't hold a uint64_t so we need to
@@ -881,7 +883,7 @@ static TEE_Result put_user_u64(uint64_t *dst, size_t value)
 {
 	uint64_t v = value;
 
-	return tee_svc_copy_to_user(dst, &v, sizeof(v));
+	return copy_to_user(dst, &v, sizeof(v));
 }
 
 TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
@@ -895,11 +897,11 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 		goto exit;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+			  uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_svc_copy_to_user(info, &o->info, sizeof(o->info));
+	res = copy_to_user(info, &o->info, sizeof(o->info));
 
 exit:
 	return res;
@@ -916,8 +918,7 @@ TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -992,8 +993,7 @@ TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
@@ -1318,7 +1318,7 @@ TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
 
 	tee_obj_add(to_user_ta_ctx(sess->ctx), o);
 
-	res = tee_svc_copy_kaddr_to_uref(obj, o);
+	res = copy_kaddr_to_uref(obj, o);
 	if (res != TEE_SUCCESS)
 		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
 	return res;
@@ -1334,8 +1334,7 @@ TEE_Result syscall_cryp_obj_close(unsigned long obj)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1360,8 +1359,7 @@ TEE_Result syscall_cryp_obj_reset(unsigned long obj)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1614,8 +1612,7 @@ TEE_Result syscall_cryp_obj_populate(unsigned long obj,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1671,12 +1668,12 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 		return res;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(dst), &dst_o);
+			  uref_to_vaddr(dst), &dst_o);
 	if (res != TEE_SUCCESS)
 		return res;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(src), &src_o);
+			  uref_to_vaddr(src), &src_o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1820,8 +1817,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
-			  tee_svc_uref_to_vaddr(obj), &o);
+	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2119,7 +2115,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	utc = to_user_ta_ctx(sess->ctx);
 
 	if (key1 != 0) {
-		res = tee_obj_get(utc, tee_svc_uref_to_vaddr(key1), &o1);
+		res = tee_obj_get(utc, uref_to_vaddr(key1), &o1);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (o1->busy)
@@ -2129,7 +2125,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 			return res;
 	}
 	if (key2 != 0) {
-		res = tee_obj_get(utc, tee_svc_uref_to_vaddr(key2), &o2);
+		res = tee_obj_get(utc, uref_to_vaddr(key2), &o2);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (o2->busy)
@@ -2211,7 +2207,7 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_svc_copy_kaddr_to_uref(state, cs);
+	res = copy_kaddr_to_uref(state, cs);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -2242,11 +2238,11 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(dst), &cs_dst);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(dst), &cs_dst);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(src), &cs_src);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(src), &cs_src);
 	if (res != TEE_SUCCESS)
 		return res;
 	if (cs_dst->algo != cs_src->algo || cs_dst->mode != cs_src->mode)
@@ -2292,7 +2288,7 @@ TEE_Result syscall_cryp_state_free(unsigned long state)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 	cryp_state_free(to_user_ta_ctx(sess->ctx), cs);
@@ -2311,7 +2307,7 @@ TEE_Result syscall_hash_init(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2376,7 +2372,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2438,7 +2434,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2511,7 +2507,7 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2570,7 +2566,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2906,7 +2902,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2927,7 +2923,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_obj_get(utc, tee_svc_uref_to_vaddr(derived_key), &so);
+	res = tee_obj_get(utc, uref_to_vaddr(derived_key), &so);
 	if (res != TEE_SUCCESS)
 		goto out;
 
@@ -3214,7 +3210,7 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3256,7 +3252,7 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3288,7 +3284,7 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3353,7 +3349,7 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 
 	uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3443,7 +3439,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 
 	uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3549,7 +3545,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3734,7 +3730,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		return res;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = tee_svc_cryp_get_state(sess, tee_svc_uref_to_vaddr(state), &cs);
+	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
 
