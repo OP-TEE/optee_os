@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2017 Linaro Limited
+ * Copyright (c) 2015-2020 Linaro Limited
  */
 
 #include <assert.h>
@@ -10,11 +10,12 @@
 #include <ctype.h>
 #include <initcall.h>
 #include <keep.h>
-#include <kernel/panic.h>
 #include <kernel/linker.h>
+#include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
@@ -148,7 +149,7 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	usr_params = (struct utee_params *)usr_stack;
 	init_utee_param(usr_params, param, param_va);
 
-	res = thread_enter_user_mode(func, tee_svc_kaddr_to_uref(session),
+	res = thread_enter_user_mode(func, kaddr_to_uref(session),
 				     (vaddr_t)usr_params, cmd, usr_stack,
 				     utc->entry_func, utc->is_32bit,
 				     &utc->uctx.ctx.panicked,
@@ -612,7 +613,6 @@ static struct tee_ta_ops const *_user_ta_ops;
 static TEE_Result init_user_ta(void)
 {
 	_user_ta_ops = &user_ta_ops;
-	tee_svc_uref_base = VCORE_START_VA;
 
 	return TEE_SUCCESS;
 }

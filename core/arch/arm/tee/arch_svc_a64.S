@@ -73,7 +73,7 @@ FUNC tee_svc_do_call , :
 	mov	x0, sp
 	mov	x1, x5
 	add	x2, xzr, x6, lsl #2
-	bl	tee_svc_copy_from_user
+	bl	copy_from_user
 	/* If copy failed return the error */
 	cmp	x0, #0
 	bne	.Lret
