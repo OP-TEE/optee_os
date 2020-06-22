@@ -11,16 +11,26 @@
 #include <types_ext.h>
 
 #ifdef CFG_WITH_USER_TA
+TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len);
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len);
 #else
+static inline TEE_Result copy_from_user_private(void *kaddr __unused,
+						const void *uaddr __unused,
+						size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static inline TEE_Result copy_from_user(void *kaddr __unused,
 					const void *uaddr __unused,
 					size_t len __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
+
 #endif
 
+TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len);
 TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr);

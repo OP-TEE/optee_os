@@ -12,57 +12,67 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
-static TEE_Result check_user_access(const struct user_mode_ctx *uctx,
-				    uint32_t flags, vaddr_t va, size_t len)
+static TEE_Result check_access(uint32_t flags, vaddr_t va, size_t len)
 {
-	return tee_mmu_check_access_rights(uctx, flags, va, len);
+	struct tee_ta_session *s = NULL;
+	TEE_Result res = tee_ta_get_current_session(&s);
+
+	if (res)
+		return res;
+
+	return tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
+					   flags, va, len);
 }
 
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)
 {
-	struct tee_ta_session *s = NULL;
-	TEE_Result res = TEE_SUCCESS;
+	uint32_t flags = TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER;
+	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
 
-	res = tee_ta_get_current_session(&s);
-	if (res != TEE_SUCCESS)
-		return res;
+	if (!res)
+		memcpy(kaddr, uaddr, len);
 
-	res = check_user_access(&to_user_ta_ctx(s->ctx)->uctx,
-				TEE_MEMORY_ACCESS_READ |
-				TEE_MEMORY_ACCESS_ANY_OWNER,
-				(vaddr_t)uaddr, len);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	memcpy(kaddr, uaddr, len);
-	return TEE_SUCCESS;
+	return res;
 }
 
 TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
 {
-	struct tee_ta_session *s = NULL;
-	TEE_Result res = TEE_SUCCESS;
+	uint32_t flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER;
+	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
 
-	res = tee_ta_get_current_session(&s);
-	if (res != TEE_SUCCESS)
-		return res;
+	if (!res)
+		memcpy(uaddr, kaddr, len);
 
-	res = check_user_access(&to_user_ta_ctx(s->ctx)->uctx,
-				TEE_MEMORY_ACCESS_WRITE |
-				TEE_MEMORY_ACCESS_ANY_OWNER,
-				(vaddr_t)uaddr, len);
-	if (res != TEE_SUCCESS)
-		return res;
+	return res;
+}
 
-	memcpy(uaddr, kaddr, len);
-	return TEE_SUCCESS;
+TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
+{
+	uint32_t flags = TEE_MEMORY_ACCESS_READ;
+	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+
+	if (!res)
+		memcpy(kaddr, uaddr, len);
+
+	return res;
+}
+
+TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
+{
+	uint32_t flags = TEE_MEMORY_ACCESS_WRITE;
+	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+
+	if (!res)
+		memcpy(uaddr, kaddr, len);
+
+	return res;
 }
 
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
 	uint32_t ref = kaddr_to_uref(kaddr);
 
-	return copy_to_user(uref, &ref, sizeof(ref));
+	return copy_to_user_private(uref, &ref, sizeof(ref));
 }
 
 uint32_t kaddr_to_uref(void *kaddr)
