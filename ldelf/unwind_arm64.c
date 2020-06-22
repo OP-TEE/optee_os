@@ -61,6 +61,8 @@ static bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 	/* FP to previous frame (X29) */
 	if (!copy_in_reg(&frame->fp, fp))
 		return false;
+	if (!frame->fp)
+		return false;
 	/* LR (X30) */
 	if (!copy_in_reg(&frame->pc, fp + 8))
 		return false;
