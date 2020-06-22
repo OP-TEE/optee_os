@@ -311,6 +311,8 @@ class Symbolizer(object):
         if elf_name in self._sections:
             return
         elf = self.get_elf(elf_name)
+        if not elf:
+            return
         cmd = self.arch_prefix('objdump', elf)
         if not elf or not cmd:
             return
