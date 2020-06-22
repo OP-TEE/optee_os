@@ -61,7 +61,7 @@
  */
 #define VM_FLAGS_NONPRIV		(VM_FLAG_EPHEMERAL | \
 					 VM_FLAG_PERMANENT | \
-					 VM_FLAG_SHAREABLE | VM_FLAG_LDELF)
+					 VM_FLAG_SHAREABLE)
 
 struct tee_mmap_region {
 	unsigned int type; /* enum teecore_memtypes */
