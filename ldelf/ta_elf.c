@@ -615,7 +615,7 @@ static size_t get_pad_begin(void)
 	COMPILE_TIME_ASSERT(CFG_TA_ASLR_MIN_OFFSET_PAGES <
 			    CFG_TA_ASLR_MAX_OFFSET_PAGES);
 	if (max > min) {
-		res = utee_cryp_random_number_generate(&rnd32, sizeof(rnd32));
+		res = _utee_cryp_random_number_generate(&rnd32, sizeof(rnd32));
 		if (res) {
 			DMSG("Random read failed: %#"PRIx32, res);
 			return min * SMALL_PAGE_SIZE;

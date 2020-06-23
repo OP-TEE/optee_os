@@ -755,7 +755,7 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 
 static int rng_read(void *ignored __unused, unsigned char *buf, size_t blen)
 {
-	if (utee_cryp_random_number_generate(buf, blen))
+	if (_utee_cryp_random_number_generate(buf, blen))
 		return MBEDTLS_ERR_MPI_FILE_IO_ERROR;
 	return 0;
 }

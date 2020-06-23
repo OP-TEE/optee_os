@@ -53,7 +53,7 @@ UNWIND( .fnend)
 	END_FUNC \name
         .endm
 
-	FUNC utee_panic, :
+	FUNC _utee_panic, :
 UNWIND( .fnstart)
 	push	{r0-r11, lr}
 UNWIND(	.save	{r0-r11, lr})
@@ -64,6 +64,6 @@ UNWIND(	.save	{lr})
 	bl	__utee_panic
 	/* Not reached */
 UNWIND( .fnend)
-	END_FUNC utee_panic
+	END_FUNC _utee_panic
 
 #include "utee_syscalls_asm.S"

@@ -24,7 +24,7 @@ void __panic(const char *file __maybe_unused, const int line __maybe_unused,
 			 file ? file : "?", file ? line : 0,
 			 func ? "<" : "", func ? func : "", func ? ">" : "");
 
-	utee_panic(1);
+	_utee_panic(1);
 	/*NOTREACHED*/
 	while (true)
 		;
@@ -33,12 +33,12 @@ void __panic(const char *file __maybe_unused, const int line __maybe_unused,
 void sys_return_cleanup(void)
 {
 	if (sess) {
-		if (utee_close_ta_session(sess))
+		if (_utee_close_ta_session(sess))
 			panic();
 		sess = 0;
 	}
 
-	utee_return(0);
+	_utee_return(0);
 	/*NOTREACHED*/
 	while (true)
 		;
@@ -52,14 +52,14 @@ static TEE_Result invoke_sys_ta(uint32_t cmdid, struct utee_params *params)
 	if (!sess) {
 		uint32_t s = 0;
 
-		res = utee_open_ta_session(&(const TEE_UUID)PTA_SYSTEM_UUID,
-					   0, NULL, &s, &ret_orig);
+		res = _utee_open_ta_session(&(const TEE_UUID)PTA_SYSTEM_UUID,
+					    0, NULL, &s, &ret_orig);
 		if (res)
 			return res;
 		sess = s;
 	}
 
-	return utee_invoke_ta_command(sess, 0, cmdid, params, &ret_orig);
+	return _utee_invoke_ta_command(sess, 0, cmdid, params, &ret_orig);
 }
 
 TEE_Result sys_map_zi(size_t num_bytes, uint32_t flags, vaddr_t *va,

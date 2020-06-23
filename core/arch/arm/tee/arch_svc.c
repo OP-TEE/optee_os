@@ -265,7 +265,7 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 
 #ifdef ARM32
 #ifdef CFG_UNWIND
-/* Get register values pushed onto the stack by utee_panic() */
+/* Get register values pushed onto the stack by _utee_panic() */
 static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
 				  uint32_t *pushed)
 {
@@ -326,7 +326,7 @@ static void save_panic_stack(struct thread_svc_regs *regs __unused)
 
 #ifdef ARM64
 #ifdef CFG_UNWIND
-/* Get register values pushed onto the stack by utee_panic() (32-bit TA) */
+/* Get register values pushed onto the stack by _utee_panic() (32-bit TA) */
 static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
 				   uint32_t *pushed)
 {
@@ -350,7 +350,7 @@ static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
 	};
 }
 
-/* Get register values pushed onto the stack by utee_panic() (64-bit TA) */
+/* Get register values pushed onto the stack by _utee_panic() (64-bit TA) */
 static void save_panic_regs_a64_ta(struct thread_specific_data *tsd,
 				   uint64_t *pushed)
 {
