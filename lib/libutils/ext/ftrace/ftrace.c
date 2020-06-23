@@ -175,7 +175,7 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 #if defined(__KERNEL__)
 		panic();
 #else
-		utee_panic(0);
+		_utee_panic(0);
 #endif
 	}
 
