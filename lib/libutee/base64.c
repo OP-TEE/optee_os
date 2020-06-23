@@ -8,18 +8,18 @@
 static const char base64_table[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-size_t base64_enc_len(size_t size)
+size_t _base64_enc_len(size_t size)
 {
 	return 4 * ((size + 2) / 3) + 1;
 }
 
-bool base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
+bool _base64_enc(const void *data, size_t dlen, char *buf, size_t *blen)
 {
 	size_t n = 0;
 	size_t boffs = 0;
 	const unsigned char *d = data;
 
-	n = base64_enc_len(dlen);
+	n = _base64_enc_len(dlen);
 	if (*blen < n) {
 		*blen = n;
 		return false;
@@ -70,7 +70,7 @@ static bool get_idx(char ch, uint8_t *idx)
 	return false;
 }
 
-bool base64_dec(const char *data, size_t size, void *buf, size_t *blen)
+bool _base64_dec(const char *data, size_t size, void *buf, size_t *blen)
 {
 	bool ret = false;
 	size_t n = 0;
