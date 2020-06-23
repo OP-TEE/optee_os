@@ -583,5 +583,5 @@ CFG_SCMI_MSG_CLOCK ?= n
 CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
 
-# Enable helper function used when running GDB.
+# Enable helper functions used when running GDB.
 CFG_GDB_HELPERS ?= n

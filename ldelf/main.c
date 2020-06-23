@@ -120,11 +120,16 @@ static void __noreturn dl_entry(struct dl_entry_arg *arg)
 	sys_return_cleanup();
 }
 
-static void gdb_ldelf_helper(const vaddr_t ta_load_addr,
-			     const TEE_UUID *uuid)
+/*
+ * Since we only need the symbols when breaking on the function in gdb and
+ * since there is nothing to do otherwise in this function, we have to force
+ * it to always use the O0 optimization level. If not, then the symbols would
+ * be removed when compiling for other optimization levels than 0.
+ */
+__attribute__((optimize("O0")))
+static void gdb_ldelf_helper(const vaddr_t ta_load_addr __unused,
+			     const TEE_UUID *uuid __unused)
 {
-	(void)ta_load_addr;
-	(void)uuid;
 }
 
 /*
