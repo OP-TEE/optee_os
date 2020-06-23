@@ -99,7 +99,7 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 		 * string
 		 */
 		l = *len;
-		if (!base64_dec(ep->value, strlen(ep->value), buf, &l) &&
+		if (!_base64_dec(ep->value, strlen(ep->value), buf, &l) &&
 		    l <= *len)
 			return TEE_ERROR_GENERIC;
 		if (*len < l) {
@@ -217,7 +217,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				 * with the size of the of the base64 encoded
 				 * see base64_enc() function
 				 */
-				tmp_len = base64_enc_len(tmp_len);
+				tmp_len = _base64_enc_len(tmp_len);
 			}
 			*value_len = tmp_len;
 		}
@@ -252,7 +252,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 	case USER_TA_PROP_TYPE_BINARY_BLOCK:
 		l = *value_len;	/* l includes the zero-termination */
-		if (!base64_enc(tmp_buf, tmp_len, value, &l) &&
+		if (!_base64_enc(tmp_buf, tmp_len, value, &l) &&
 		    l <= *value_len) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
