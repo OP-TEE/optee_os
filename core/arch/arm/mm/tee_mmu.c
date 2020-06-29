@@ -837,13 +837,15 @@ static TEE_Result param_mem_to_user_va(struct user_mode_ctx *uctx,
 			continue;
 		if (mem->mobj != region->mobj)
 			continue;
-		if (mem->offs < region->offset)
-			continue;
-		if (mem->offs >= (region->offset + region->size))
-			continue;
+
 		phys_offs = mobj_get_phys_offs(mem->mobj,
 					       CORE_MMU_USER_PARAM_SIZE);
-		va = region->va + mem->offs + phys_offs - region->offset;
+		phys_offs += mem->offs;
+		if (phys_offs < region->offset)
+			continue;
+		if (phys_offs >= (region->offset  - region->size))
+			continue;
+		va = region->va + phys_offs - region->offset;
 		*user_va = (void *)va;
 		return TEE_SUCCESS;
 	}
