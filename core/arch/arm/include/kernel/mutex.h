@@ -7,18 +7,26 @@
 
 #include <types_ext.h>
 #include <sys/queue.h>
+#include <kernel/refcount.h>
 #include <kernel/wait_queue.h>
 
 struct mutex {
 	unsigned spin_lock;	/* used when operating on this struct */
 	struct wait_queue wq;
 	short state;		/* -1: write, 0: unlocked, > 0: readers */
+	bool recursive;
+	int owner;			/* valid when recursive == true */
+	struct refcount lock_count;	/* valid when recursive == true */
 };
 #define MUTEX_INITIALIZER { .wq = WAIT_QUEUE_INITIALIZER }
+#define RECURSIVE_MUTEX_INITIALIZER { .wq = WAIT_QUEUE_INITIALIZER, \
+				      .recursive = true, \
+				      .owner = THREAD_ID_INVALID }
 
 TAILQ_HEAD(mutex_head, mutex);
 
 void mutex_init(struct mutex *m);
+void mutex_init_recursive(struct mutex *m);
 void mutex_destroy(struct mutex *m);
 
 #ifdef CFG_MUTEX_DEBUG

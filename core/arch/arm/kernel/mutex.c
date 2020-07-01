@@ -5,6 +5,7 @@
 
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <trace.h>
@@ -16,11 +17,22 @@ void mutex_init(struct mutex *m)
 	*m = (struct mutex)MUTEX_INITIALIZER;
 }
 
+void mutex_init_recursive(struct mutex *m)
+{
+	*m = (struct mutex)RECURSIVE_MUTEX_INITIALIZER;
+}
+
 static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
 	assert(thread_is_in_normal_mode());
+
+	if (m->recursive && atomic_load_int(&m->owner) == thread_get_id()) {
+		if (!refcount_inc(&m->lock_count))
+			panic();
+		return;
+	}
 
 	mutex_lock_check(m);
 
@@ -45,6 +57,10 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 			wq_wait_init(&m->wq, &wqe, false /* wait_read */);
 		} else {
 			m->state = -1; /* write locked */
+			if (m->recursive) {
+				m->owner = thread_get_id();
+				refcount_set(&m->lock_count, 1);
+			}
 		}
 
 		cpu_spin_unlock_xrestore(&m->spin_lock, old_itr_status);
@@ -66,6 +82,20 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
+
+	if (m->recursive) {
+		if (refcount_dec(&m->lock_count)) {
+			/*
+			 * Do an atomic store to match the atomic load in
+			 * __mutex_lock() and __mutex_trylock().
+			 */
+			atomic_store_int(&m->owner, THREAD_ID_INVALID);
+			/* Proceed with unlock below */
+		} else {
+			/* The mutex is still write locked by this thread */
+			return;
+		}
+	}
 
 	mutex_unlock_check(m);
 
@@ -89,6 +119,12 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 
 	assert_have_no_spinlock();
 	assert(thread_get_id_may_fail() != -1);
+
+	if (m->recursive && atomic_load_int(&m->owner) == thread_get_id()) {
+		if (!refcount_inc(&m->lock_count))
+			panic();
+		return true;
+	}
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
