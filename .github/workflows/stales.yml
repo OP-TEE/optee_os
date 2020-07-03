@@ -1,5 +1,4 @@
-name: 'Close stale issues and pull requests'
-description: 'Close issues and pull requests with no recent activity'
+name: 'Close stale issues and pull requests with no recent activity'
 on:
   schedule:
   - cron: "15 00 * * *"
