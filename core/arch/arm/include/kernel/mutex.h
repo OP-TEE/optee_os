@@ -5,10 +5,10 @@
 #ifndef KERNEL_MUTEX_H
 #define KERNEL_MUTEX_H
 
-#include <types_ext.h>
-#include <sys/queue.h>
 #include <kernel/refcount.h>
 #include <kernel/wait_queue.h>
+#include <sys/queue.h>
+#include <types_ext.h>
 
 struct mutex {
 	unsigned spin_lock;	/* used when operating on this struct */

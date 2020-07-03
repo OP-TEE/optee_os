@@ -58,6 +58,7 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 		} else {
 			m->state = -1; /* write locked */
 			if (m->recursive) {
+				assert(m->owner == THREAD_ID_INVALID);
 				m->owner = thread_get_id();
 				refcount_set(&m->lock_count, 1);
 			}
