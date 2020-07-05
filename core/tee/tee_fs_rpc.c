@@ -381,7 +381,7 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 		.id = id, .num_params = 2, .params = {
 			[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READDIR,
 						 d->nw_dir, 0),
-			[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, max_name_len),
+			[1] = THREAD_PARAM_MEMREF(OUT, mobj, 0, max_name_len),
 		}
 	};
 
