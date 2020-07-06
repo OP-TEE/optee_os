@@ -63,7 +63,7 @@ const struct csu_setting csu_setting_imx7ds[] = {
 };
 
 /* Set all masters to non-secure except the Cortex-A7 */
-const struct csu_sa_setting csu_sa_imx6ul = { 0x10554550, 0x20CC8CC2 };
+const struct csu_sa_setting csu_sa_imx6ul = { 0x10554550, 0x20aa8aa2 };
 
 const struct csu_config csu_imx6 = { NULL, csu_setting_imx6 };
 const struct csu_config csu_imx6ul = { &csu_sa_imx6ul, csu_setting_imx6ul };
@@ -116,7 +116,7 @@ static TEE_Result csu_init(void)
 
 	if (csu_config->sa) {
 		io_write32(csu_base + CSU_SA, csu_config->sa->access_value);
-		io_write32(csu_base + CSU_SA, csu_config->sa->lock_value);
+		io_setbits32(csu_base + CSU_SA, csu_config->sa->lock_value);
 	}
 
 	return TEE_SUCCESS;
