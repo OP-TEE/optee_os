@@ -60,7 +60,7 @@ def main():
         if args.text and i != size - 1 and bytes[i] == b'\0':
             print('Error: null byte encountered in text file')
             sys.exit(1)
-        f.write('0x' + '{:02x}'.format(bytes[i]) + ',')
+        f.write(hex(bytes[i]) + ',')
         i = i + 1
         if i % 8 == 0 or i == size:
             f.write('\n')
