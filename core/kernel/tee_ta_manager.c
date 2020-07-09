@@ -39,7 +39,7 @@ struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
-static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
+static short int tee_ta_single_instance_thread = THREAD_ID_INVALID;
 static size_t tee_ta_single_instance_count;
 #endif
 

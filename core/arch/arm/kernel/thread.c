@@ -834,23 +834,25 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
-int thread_get_id_may_fail(void)
+short int thread_get_id_may_fail(void)
 {
 	/*
 	 * thread_get_core_local() requires foreign interrupts to be disabled
 	 */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
+	short int ct = l->curr_thread;
 
 	thread_unmask_exceptions(exceptions);
 	return ct;
 }
 
-int thread_get_id(void)
+short int thread_get_id(void)
 {
-	int ct = thread_get_id_may_fail();
+	short int ct = thread_get_id_may_fail();
 
+	/* Thread ID has to fit in a short int */
+	COMPILE_TIME_ASSERT(CFG_NUM_THREADS <= SHRT_MAX);
 	assert(ct >= 0 && ct < CFG_NUM_THREADS);
 	return ct;
 }
