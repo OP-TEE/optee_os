@@ -16,7 +16,7 @@
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
-		ldr	w\tmp0, [\core_local, \
+		ldrh	w\tmp0, [\core_local, \
 				#THREAD_CORE_LOCAL_CURR_THREAD]
 		ldr	x\res, =threads
 		mov	x\tmp1, #THREAD_CTX_SIZE

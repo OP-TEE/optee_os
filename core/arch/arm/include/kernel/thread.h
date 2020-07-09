@@ -42,7 +42,7 @@ struct thread_core_local {
 	uint64_t x[4];
 #endif
 	vaddr_t tmp_stack_va_end;
-	int curr_thread;
+	short int curr_thread;
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;
 #ifdef CFG_TEE_CORE_DEBUG
@@ -299,12 +299,12 @@ void thread_clr_boot_thread(void);
 /*
  * Returns current thread id.
  */
-int thread_get_id(void);
+short int thread_get_id(void);
 
 /*
  * Returns current thread id, return -1 on failure.
  */
-int thread_get_id_may_fail(void);
+short int thread_get_id_may_fail(void);
 
 /* Returns Thread Specific Data (TSD) pointer. */
 struct thread_specific_data *thread_get_tsd(void);

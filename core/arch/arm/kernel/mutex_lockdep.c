@@ -36,7 +36,7 @@ void mutex_lockdep_init(void)
 
 void mutex_lock_check(struct mutex *m)
 {
-	int thread = thread_get_id();
+	short int thread = thread_get_id();
 	uint32_t exceptions = 0;
 
 	exceptions = cpu_spin_lock_xsave(&graph_lock);
@@ -46,7 +46,7 @@ void mutex_lock_check(struct mutex *m)
 
 void mutex_trylock_check(struct mutex *m)
 {
-	int thread = thread_get_id();
+	short int thread = thread_get_id();
 	uint32_t exceptions = 0;
 
 	exceptions = cpu_spin_lock_xsave(&graph_lock);
@@ -56,7 +56,7 @@ void mutex_trylock_check(struct mutex *m)
 
 void mutex_unlock_check(struct mutex *m)
 {
-	int thread = thread_get_id();
+	short int thread = thread_get_id();
 	uint32_t exceptions = 0;
 
 	exceptions = cpu_spin_lock_xsave(&graph_lock);
