@@ -19,7 +19,7 @@ void mutex_init(struct mutex *m)
 static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	mutex_lock_check(m);
@@ -65,7 +65,7 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 	uint32_t old_itr_status;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	mutex_unlock_check(m);
 
@@ -88,7 +88,7 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 	bool can_lock_write;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
@@ -110,7 +110,7 @@ static void __mutex_read_unlock(struct mutex *m, const char *fname, int lineno)
 	short new_state;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
@@ -129,7 +129,7 @@ static void __mutex_read_unlock(struct mutex *m, const char *fname, int lineno)
 static void __mutex_read_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	while (true) {
@@ -175,7 +175,7 @@ static bool __mutex_read_trylock(struct mutex *m, const char *fname __unused,
 	bool can_lock;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
