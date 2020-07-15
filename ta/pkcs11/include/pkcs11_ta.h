@@ -699,7 +699,14 @@ enum pkcs11_key_type {
  * Note that this will be extended as needed.
  */
 enum pkcs11_mechanism_id {
+	PKCS11_CKM_AES_KEY_GEN			= 0x01080,
 	PKCS11_CKM_AES_ECB			= 0x01081,
+	PKCS11_CKM_AES_CBC			= 0x01082,
+	PKCS11_CKM_AES_CTR			= 0x01086,
+	PKCS11_CKM_AES_CTS			= 0x01089,
+	PKCS11_CKM_AES_CBC_PAD			= 0x01085,
+	PKCS11_CKM_AES_ECB_ENCRYPT_DATA		= 0x01104,
+	PKCS11_CKM_AES_CBC_ENCRYPT_DATA		= 0x01105,
 	/*
 	 * Vendor extensions below.
 	 * PKCS11 added IDs for operation not related to a CK mechanism ID
