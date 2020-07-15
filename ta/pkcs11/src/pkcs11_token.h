@@ -101,6 +101,48 @@ struct ck_token {
 };
 
 /*
+ * A session can enter a processing state (encrypt, decrypt, digest, ...)
+ * only from the initialized state. A session must return the initialized
+ * state (from a processing finalization request) before entering another
+ * processing state.
+ */
+enum pkcs11_proc_state {
+	PKCS11_SESSION_READY = 0,		/* No active processing */
+	PKCS11_SESSION_ENCRYPTING,
+	PKCS11_SESSION_DECRYPTING,
+	PKCS11_SESSION_DIGESTING,
+	PKCS11_SESSION_DIGESTING_ENCRYPTING,	/* case C_DigestEncryptUpdate */
+	PKCS11_SESSION_DECRYPTING_DIGESTING,	/* case C_DecryptDigestUpdate */
+	PKCS11_SESSION_SIGNING,
+	PKCS11_SESSION_SIGNING_ENCRYPTING,	/* case C_SignEncryptUpdate */
+	PKCS11_SESSION_VERIFYING,
+	PKCS11_SESSION_DECRYPTING_VERIFYING,	/* case C_DecryptVerifyUpdate */
+	PKCS11_SESSION_SIGNING_RECOVER,
+	PKCS11_SESSION_VERIFYING_RECOVER,
+};
+
+/*
+ * Context of the active processing in the session
+ *
+ * @state - ongoing active processing function or ready state
+ * @mecha_type - mechanism type of the active processing
+ * @always_authen - true if user need to login before each use
+ * @relogged - true once client logged since last operation update
+ * @updated - true once an active operation is updated
+ * @tee_op_handle - handle on active crypto operation or TEE_HANDLE_NULL
+ * @extra_ctx - context for the active processing
+ */
+struct active_processing {
+	enum pkcs11_proc_state state;
+	uint32_t mecha_type;
+	bool always_authen;
+	bool relogged;
+	bool updated;
+	TEE_OperationHandle tee_op_handle;
+	void *extra_ctx;
+};
+
+/*
  * Structure tracking the PKCS#11 sessions
  *
  * @link - List of the session belonging to a client
@@ -110,15 +152,17 @@ struct ck_token {
  * @object_list - Entry of the session objects list
  * @object_handle_db - Database for object handles published by the session
  * @state - R/W SO, R/W user, RO user, R/W public, RO public.
+ * @processing - Reference to initialized processing context if any
  */
 struct pkcs11_session {
 	TAILQ_ENTRY(pkcs11_session) link;
 	struct pkcs11_client *client;
 	struct ck_token *token;
-	uint32_t handle;
+	enum pkcs11_mechanism_id handle;
 	struct object_list object_list;
 	struct handle_db object_handle_db;
 	enum pkcs11_session_state state;
+	struct active_processing *processing;
 };
 
 /* Initialize static token instance(s) from default/persistent database */
@@ -163,6 +207,16 @@ void unregister_client(struct pkcs11_client *client);
 
 struct pkcs11_session *pkcs11_handle2session(uint32_t handle,
 					     struct pkcs11_client *client);
+
+static inline bool session_is_active(struct pkcs11_session *session)
+{
+	return session->processing;
+}
+
+enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
+				    enum processing_func function,
+				    struct pkcs11_object *obj1,
+				    struct pkcs11_object *obj2);
 
 static inline bool pkcs11_session_is_read_write(struct pkcs11_session *session)
 {
