@@ -13,6 +13,7 @@
 #include "object.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -206,6 +207,45 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		break;
 	case PKCS11_CMD_DESTROY_OBJECT:
 		rc = entry_destroy_object(client, ptypes, params);
+		break;
+
+	case PKCS11_CMD_ENCRYPT_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT);
+		break;
+	case PKCS11_CMD_DECRYPT_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT);
+		break;
+	case PKCS11_CMD_ENCRYPT_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_DECRYPT_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_ENCRYPT_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_DECRYPT_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_ENCRYPT_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
+	case PKCS11_CMD_DECRYPT_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_FINAL);
 		break;
 
 	default:

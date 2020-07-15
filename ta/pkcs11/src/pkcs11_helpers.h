@@ -9,7 +9,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <pkcs11_attributes.h>
 #include <token_capabilities.h>
+
+struct pkcs11_object;
 
 /*
  * TEE invocation parameter#0 is an in/out buffer of at least 32bit
@@ -49,6 +52,14 @@ bool key_type_is_asymm_key(uint32_t key_type_id);
 
 /* Boolprop flag shift position if @attribute_id is boolean, else -1 */
 int pkcs11_attr2boolprop_shift(uint32_t attribute_id);
+
+/* Convert PKCS11 TA function ID into a TEE crypto operation mode */
+void pkcs2tee_mode(uint32_t *tee_id, enum processing_func function);
+
+/* Load TEE operation attributes from a PKCS11 object, return false on error */
+bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
+			struct pkcs11_object *obj,
+			enum pkcs11_attr_id pkcs11_id);
 
 /* Return true if attribute is a boolean, false otherwise */
 static inline bool pkcs11_attr_is_boolean(enum pkcs11_attr_id id)

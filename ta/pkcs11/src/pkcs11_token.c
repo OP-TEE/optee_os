@@ -14,6 +14,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "attributes.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
 #include "serializer.h"
@@ -148,6 +149,63 @@ void pkcs11_deinit(void)
 
 	for (id = 0; id < TOKEN_COUNT; id++)
 		close_persistent_db(get_token(id));
+}
+
+/*
+ * Currently no support for dual operations.
+ */
+enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
+				    enum processing_func function,
+				    struct pkcs11_object *obj1,
+				    struct pkcs11_object *obj2)
+{
+	enum pkcs11_proc_state state = PKCS11_SESSION_READY;
+	struct active_processing *proc = NULL;
+
+	if (session->processing)
+		return PKCS11_CKR_OPERATION_ACTIVE;
+
+	switch (function) {
+	case PKCS11_FUNCTION_ENCRYPT:
+		state = PKCS11_SESSION_ENCRYPTING;
+		break;
+	case PKCS11_FUNCTION_DECRYPT:
+		state = PKCS11_SESSION_DECRYPTING;
+		break;
+	case PKCS11_FUNCTION_SIGN:
+		state = PKCS11_SESSION_SIGNING;
+		break;
+	case PKCS11_FUNCTION_VERIFY:
+		state = PKCS11_SESSION_VERIFYING;
+		break;
+	case PKCS11_FUNCTION_DIGEST:
+		state = PKCS11_SESSION_DIGESTING;
+		break;
+	case PKCS11_FUNCTION_DERIVE:
+		state = PKCS11_SESSION_READY;
+		break;
+	default:
+		TEE_Panic(function);
+		return -1;
+	}
+
+	proc = TEE_Malloc(sizeof(*proc), TEE_MALLOC_FILL_ZERO);
+	if (!proc)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	/* Boolean are default to false and pointers to NULL */
+	proc->state = state;
+	proc->tee_op_handle = TEE_HANDLE_NULL;
+
+	if (obj1 && get_bool(obj1->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
+		proc->always_authen = true;
+
+	if (obj2 && get_bool(obj2->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
+		proc->always_authen = true;
+
+	session->processing = proc;
+
+	return PKCS11_CKR_OK;
 }
 
 enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)

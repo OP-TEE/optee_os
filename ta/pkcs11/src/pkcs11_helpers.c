@@ -9,6 +9,7 @@
 #include <util.h>
 
 #include "attributes.h"
+#include "object.h"
 #include "pkcs11_attributes.h"
 #include "pkcs11_helpers.h"
 
@@ -152,6 +153,14 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_LOGOUT),
 	PKCS11_ID(PKCS11_CMD_CREATE_OBJECT),
 	PKCS11_ID(PKCS11_CMD_DESTROY_OBJECT),
+	PKCS11_ID(PKCS11_CMD_ENCRYPT_INIT),
+	PKCS11_ID(PKCS11_CMD_DECRYPT_INIT),
+	PKCS11_ID(PKCS11_CMD_ENCRYPT_UPDATE),
+	PKCS11_ID(PKCS11_CMD_DECRYPT_UPDATE),
+	PKCS11_ID(PKCS11_CMD_ENCRYPT_FINAL),
+	PKCS11_ID(PKCS11_CMD_DECRYPT_FINAL),
+	PKCS11_ID(PKCS11_CMD_ENCRYPT_ONESHOT),
+	PKCS11_ID(PKCS11_CMD_DECRYPT_ONESHOT),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
@@ -438,6 +447,46 @@ int pkcs11_attr2boolprop_shift(uint32_t attr)
 			return (int)pos;
 
 	return -1;
+}
+
+/* Initialize a TEE attribute for a target PKCS11 TA attribute in an object */
+bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
+			struct pkcs11_object *obj,
+			enum pkcs11_attr_id pkcs11_id)
+{
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+
+	if (get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size))
+		return false;
+
+	TEE_InitRefAttribute(tee_ref, tee_id, a_ptr, a_size);
+
+	return true;
+}
+
+/* Easy conversion between PKCS11 TA function of TEE crypto mode */
+void pkcs2tee_mode(uint32_t *tee_id, enum processing_func function)
+{
+	switch (function) {
+	case PKCS11_FUNCTION_ENCRYPT:
+		*tee_id = TEE_MODE_ENCRYPT;
+		break;
+	case PKCS11_FUNCTION_DECRYPT:
+		*tee_id = TEE_MODE_DECRYPT;
+		break;
+	case PKCS11_FUNCTION_SIGN:
+		*tee_id = TEE_MODE_SIGN;
+		break;
+	case PKCS11_FUNCTION_VERIFY:
+		*tee_id = TEE_MODE_VERIFY;
+		break;
+	case PKCS11_FUNCTION_DERIVE:
+		*tee_id = TEE_MODE_DERIVE;
+		break;
+	default:
+		TEE_Panic(function);
+	}
 }
 
 #if CFG_TEE_TA_LOG_LEVEL > 0
