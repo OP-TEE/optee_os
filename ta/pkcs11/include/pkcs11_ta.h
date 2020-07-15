@@ -278,6 +278,69 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_DestroyObject().
 	 */
 	PKCS11_CMD_DESTROY_OBJECT = 16,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_INIT - Initialize encryption processing
+	 * PKCS11_CMD_DECRYPT_INIT - Initialize decryption processing
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle of the key,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptInit() and C_DecryptInit().
+	 */
+	PKCS11_CMD_ENCRYPT_INIT = 17,
+	PKCS11_CMD_DECRYPT_INIT = 18,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_UPDATE - Update encryption processing
+	 * PKCS11_CMD_DECRYPT_UPDATE - Update decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptUpdate() and C_DecryptUpdate().
+	 */
+	PKCS11_CMD_ENCRYPT_UPDATE = 19,
+	PKCS11_CMD_DECRYPT_UPDATE = 20,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_FINAL - Finalize encryption processing
+	 * PKCS11_CMD_DECRYPT_FINAL - Finalize decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptFinal() and C_DecryptFinal().
+	 */
+	PKCS11_CMD_ENCRYPT_FINAL = 21,
+	PKCS11_CMD_DECRYPT_FINAL = 22,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_ONESHOT - Update and finalize encryption
+	 *				processing
+	 * PKCS11_CMD_DECRYPT_ONESHOT - Update and finalize decryption
+	 *				processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_Encrypt and
+	 * C_Decrypt.
+	 */
+	PKCS11_CMD_ENCRYPT_ONESHOT = 23,
+	PKCS11_CMD_DECRYPT_ONESHOT = 24,
 };
 
 /*
