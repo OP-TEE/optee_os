@@ -7,6 +7,7 @@
 #define __KERNEL_CACHE_HELPERS_H
 
 #ifndef __ASSEMBLER__
+#include <arm.h>
 #include <types_ext.h>
 #endif
 
@@ -31,6 +32,17 @@ void dcache_op_all(unsigned long op_type);
 void dcache_op_level1(unsigned long op_type);
 void dcache_op_level2(unsigned long op_type);
 void dcache_op_level3(unsigned long op_type);
+
+/*
+ * Get system cache line size from ARM system configuration registers.
+ */
+static inline unsigned int dcache_get_line_size(void)
+{
+	uint32_t value = read_ctr();
+
+	return CTR_WORD_SIZE <<
+		((value >> CTR_DMINLINE_SHIFT) & CTR_DMINLINE_MASK);
+}
 #endif /*!__ASSEMBLER__*/
 
 #endif /*__KERNEL_CACHE_HELPERS_H*/
