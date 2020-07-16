@@ -317,6 +317,7 @@ DEFINE_U32_REG_READWRITE_FUNCS(fpcr)
 DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
 
 DEFINE_U32_REG_READ_FUNC(ctr_el0)
+#define read_ctr() read_ctr_el0()
 DEFINE_U32_REG_READ_FUNC(contextidr_el1)
 DEFINE_U32_REG_READ_FUNC(sctlr_el1)
 
