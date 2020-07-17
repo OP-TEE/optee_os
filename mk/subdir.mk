@@ -144,6 +144,7 @@ cppflags-y :=
 cppflags-lib-y :=
 aflags-y :=
 cflags-remove-y :=
+aflags-remove-y :=
 subdirs-y :=
 global-incdirs-y :=
 incdirs-lib-y :=
