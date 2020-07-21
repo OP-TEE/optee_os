@@ -423,6 +423,8 @@ out:
 			fdp->dfh.idx = -1;
 		*fh = (struct tee_file_handle *)fdp;
 	} else {
+		if (res == TEE_ERROR_SECURITY)
+			DMSG("Secure storage corruption detected");
 		if (fdp->fd != -1)
 			tee_fs_rpc_close(OPTEE_RPC_CMD_FS, fdp->fd);
 		if (create)
