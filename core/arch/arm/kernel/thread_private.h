@@ -43,6 +43,12 @@ struct thread_vfp_state {
 
 #endif /*CFG_WITH_VFP*/
 
+struct thread_shm_cache {
+	struct mobj *mobj;
+	size_t size;
+	enum thread_shm_type type;
+};
+
 struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
@@ -58,6 +64,7 @@ struct thread_ctx {
 #endif
 	void *rpc_arg;
 	struct mobj *rpc_mobj;
+	struct thread_shm_cache shm_cache;
 	struct thread_specific_data tsd;
 };
 #endif /*__ASSEMBLER__*/
@@ -234,6 +241,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 /* Called from assembly only. Handles a SVC from user mode. */
 void thread_svc_handler(struct thread_svc_regs *regs);
 
+/* Frees the cache of allocated FS RPC memory */
+void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache);
 #endif /*__ASSEMBLER__*/
-
 #endif /*THREAD_PRIVATE_H*/
