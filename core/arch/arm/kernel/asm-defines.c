@@ -74,6 +74,8 @@ DEFINES
 	DEFINE(THREAD_CTX_REGS_X2, offsetof(struct thread_ctx_regs, x[2]));
 	DEFINE(THREAD_CTX_REGS_X4, offsetof(struct thread_ctx_regs, x[4]));
 	DEFINE(THREAD_CTX_REGS_X19, offsetof(struct thread_ctx_regs, x[19]));
+	DEFINE(THREAD_CTX_REGS_TPIDR_EL0, offsetof(struct thread_ctx_regs,
+						   tpidr_el0));
 
 	/* struct thread_user_mode_rec */
 	DEFINE(THREAD_USER_MODE_REC_CTX_REGS_PTR,
