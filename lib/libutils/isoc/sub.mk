@@ -11,6 +11,7 @@ srcs-y += isxdigit.c
 srcs-y += qsort.c
 cflags-qsort.c-y += -Wno-inline
 cflags-remove-qsort.c-y += -Wcast-align
+srcs-y += sprintf.c
 srcs-y += snprintf.c
 srcs-y += stack_check.c
 srcs-y += strdup.c
