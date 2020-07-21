@@ -59,6 +59,9 @@ struct ta_elf {
 	/* DT_HASH hash table for faster resolution of external symbols */
 	void *hashtab;
 
+	/* DT_SONAME */
+	char *soname;
+
 	struct segment_head segs;
 
 	vaddr_t exidx_start;
@@ -117,5 +120,6 @@ TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
 			      struct ta_elf **found_elf, struct ta_elf *elf);
 TEE_Result ta_elf_add_library(const TEE_UUID *uuid);
 TEE_Result ta_elf_set_init_fini_info(bool is_32bit);
+TEE_Result ta_elf_set_elf_phdr_info(bool is_32bit);
 
 #endif /*TA_ELF_H*/

@@ -421,7 +421,7 @@ static void e64_process_tls_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	vaddr_t symval = 0;
 
 	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name);
-	ta_elf_resolve_sym(name, &symval, &mod, NULL, NULL);
+	resolve_sym(name, &symval, &mod);
 	*where = symval + mod->tls_tcb_offs + rela->r_addend;
 }
 

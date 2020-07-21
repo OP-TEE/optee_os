@@ -127,6 +127,31 @@ struct __init_fini_info32 {
 void __utee_call_elf_init_fn(void);
 void __utee_call_elf_fini_fn(void);
 
+void __utee_tcb_init(void);
+
+/*
+ * Information about the ELF objects loaded by the application
+ */
+
+struct __elf_phdr_info {
+	uint32_t reserved;
+	uint16_t count;
+	uint8_t reserved2;
+	char zero;
+	struct dl_phdr_info *dlpi; /* @count entries */
+};
+
+/* 32-bit variant for a 64-bit ldelf to access a 32-bit TA */
+struct __elf_phdr_info32 {
+	uint32_t reserved;
+	uint16_t count;
+	uint8_t reserved2;
+	char zero;
+	uint32_t dlpi;
+};
+
+extern struct __elf_phdr_info __elf_phdr_info;
+
 #define TA_PROP_STR_SINGLE_INSTANCE	"gpd.ta.singleInstance"
 #define TA_PROP_STR_MULTI_SESSION	"gpd.ta.multiSession"
 #define TA_PROP_STR_KEEP_ALIVE		"gpd.ta.instanceKeepAlive"
