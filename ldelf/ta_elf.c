@@ -451,11 +451,16 @@ static void parse_load_segments(struct ta_elf *elf)
 		Elf64_Phdr *phdr = elf->phdr;
 
 		for (n = 0; n < elf->e_phnum; n++)
-			if (phdr[n].p_type == PT_LOAD)
+			if (phdr[n].p_type == PT_LOAD) {
 				add_segment(elf, phdr[n].p_offset,
 					    phdr[n].p_vaddr, phdr[n].p_filesz,
 					    phdr[n].p_memsz, phdr[n].p_flags,
 					    phdr[n].p_align);
+			} else if (phdr[n].p_type == PT_TLS) {
+				elf->tls_start = phdr[n].p_vaddr;
+				elf->tls_filesz = phdr[n].p_filesz;
+				elf->tls_memsz = phdr[n].p_memsz;
+			}
 	}
 }
 
@@ -959,6 +964,27 @@ static void clean_elf_load_main(struct ta_elf *elf)
 	TAILQ_INIT(&elf->segs);
 }
 
+#ifdef ARM64
+/*
+ * Allocates an offset in the TA's Thread Control Block for the TLS segment of
+ * the @elf module.
+ */
+#define TCB_HEAD_SIZE (2 * sizeof(long))
+static void set_tls_offset(struct ta_elf *elf)
+{
+	static size_t next_offs = TCB_HEAD_SIZE;
+
+	if (!elf->tls_start)
+		return;
+
+	/* Module has a TLS segment */
+	elf->tls_tcb_offs = next_offs;
+	next_offs += elf->tls_memsz;
+}
+#else
+static void set_tls_offset(struct ta_elf *elf __unused) {}
+#endif
+
 static void load_main(struct ta_elf *elf)
 {
 	init_elf(elf);
@@ -968,6 +994,7 @@ static void load_main(struct ta_elf *elf)
 	copy_section_headers(elf);
 	save_symtab(elf);
 	close_handle(elf);
+	set_tls_offset(elf);
 
 	elf->head = (struct ta_head *)elf->load_addr;
 	if (elf->head->depr_entry != UINT64_MAX) {
@@ -1071,6 +1098,7 @@ void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
 	copy_section_headers(elf);
 	save_symtab(elf);
 	close_handle(elf);
+	set_tls_offset(elf);
 }
 
 void ta_elf_finalize_mappings(struct ta_elf *elf)
