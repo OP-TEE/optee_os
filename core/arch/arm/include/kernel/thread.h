@@ -225,6 +225,7 @@ struct thread_ctx_regs {
 	uint64_t pc;
 	uint64_t cpsr;
 	uint64_t x[31];
+	uint64_t tpidr_el0;
 };
 #endif /*ARM64*/
 
