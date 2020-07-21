@@ -6,6 +6,7 @@ CHECKPATCH_IGNORE=$(echo \
 		core/include/gen-asm-defines.h \
 		core/lib/lib{fdt,tomcrypt} core/lib/zlib \
 		lib/libutils lib/libmbedtls \
+		lib/libutee/include/elf.h \
 		core/arch/arm/include/arm{32,64}.h \
 		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h \
 		core/arch/arm/dts)
