@@ -1145,9 +1145,9 @@ void ta_elf_finalize_load_main(uint64_t *entry)
 
 	assert(elf->is_main);
 
-	res = ta_elf_set_init_fini_info(elf->is_32bit);
+	res = ta_elf_set_init_fini_info_compat(elf->is_32bit);
 	if (res)
-		err(res, "ta_elf_set_init_fini_info");
+		err(res, "ta_elf_set_init_fini_info_compat");
 	res = ta_elf_set_elf_phdr_info(elf->is_32bit);
 	if (res)
 		err(res, "ta_elf_set_elf_phdr_info");
@@ -1431,7 +1431,7 @@ TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
 		DMSG("ELF (%pUl) at %#"PRIxVA,
 		     (void *)&elf->uuid, elf->load_addr);
 
-	res = ta_elf_set_init_fini_info(ta->is_32bit);
+	res = ta_elf_set_init_fini_info_compat(ta->is_32bit);
 	if (res)
 		return res;
 
@@ -1514,6 +1514,51 @@ static void elf_get_init_fini_array(struct ta_elf *elf, vaddr_t *init,
 		}
 	}
 }
+
+/*
+ * Deprecated by __elf_phdr_info below. Kept for compatibility.
+ *
+ * Pointers to ELF initialization and finalization functions are extracted by
+ * ldelf and stored on the TA heap, then exported to the TA via the global
+ * symbol __init_fini_info. libutee in OP-TEE 3.9.0 uses this mechanism.
+ */
+
+struct __init_fini {
+	uint32_t flags;
+	uint16_t init_size;
+	uint16_t fini_size;
+
+	void (**init)(void); /* @init_size entries */
+	void (**fini)(void); /* @fini_size entries */
+};
+
+#define __IFS_VALID            BIT(0)
+#define __IFS_INIT_HAS_RUN     BIT(1)
+#define __IFS_FINI_HAS_RUN     BIT(2)
+
+struct __init_fini_info {
+	uint32_t reserved;
+	uint16_t size;
+	uint16_t pad;
+	struct __init_fini *ifs; /* @size entries */
+};
+
+/* 32-bit variants for a 64-bit ldelf to access a 32-bit TA */
+
+struct __init_fini32 {
+	uint32_t flags;
+	uint16_t init_size;
+	uint16_t fini_size;
+	uint32_t init;
+	uint32_t fini;
+};
+
+struct __init_fini_info32 {
+	uint32_t reserved;
+	uint16_t size;
+	uint16_t pad;
+	uint32_t ifs;
+};
 
 static TEE_Result realloc_ifs(vaddr_t va, size_t cnt, bool is_32bit)
 {
@@ -1604,7 +1649,7 @@ static void fill_ifs(vaddr_t va, size_t idx, struct ta_elf *elf, bool is_32bit)
  * Set or update __init_fini_info in the TA with information from the ELF
  * queue
  */
-TEE_Result ta_elf_set_init_fini_info(bool is_32bit)
+TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit)
 {
 	struct __init_fini_info *info = NULL;
 	TEE_Result res = TEE_SUCCESS;
@@ -1615,7 +1660,10 @@ TEE_Result ta_elf_set_init_fini_info(bool is_32bit)
 	res = ta_elf_resolve_sym("__init_fini_info", &info_va, NULL, NULL);
 	if (res) {
 		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-			/* Older TA */
+			/*
+			 * Not an error, only TAs linked against libutee from
+			 * OP-TEE 3.9.0 have this symbol.
+			 */
 			return TEE_SUCCESS;
 		}
 		return res;
