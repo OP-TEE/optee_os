@@ -65,7 +65,16 @@ struct ta_elf {
 	size_t exidx_size;
 
 	/* Thread Local Storage */
+
 	size_t tls_mod_id;
+	/* PT_TLS segment */
+	vaddr_t tls_start;
+	size_t tls_filesz; /* Covers the .tdata section */
+	size_t tls_memsz; /* Covers the .tdata and .tbss sections */
+#ifdef ARM64
+	/* Offset of the copy of the TLS block in the TLS area of the TCB */
+	size_t tls_tcb_offs;
+#endif
 
 	uint32_t handle;
 
