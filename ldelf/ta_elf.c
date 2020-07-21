@@ -29,6 +29,19 @@ static vaddr_t ta_stack_size;
 
 struct ta_elf_queue main_elf_queue = TAILQ_HEAD_INITIALIZER(main_elf_queue);
 
+/*
+ * Main application is always ID 1, shared libraries with TLS take IDs 2 and
+ * above
+ */
+static void assign_tls_mod_id(struct ta_elf *elf)
+{
+	static size_t last_tls_mod_id = 1;
+
+	if (elf->is_main)
+		assert(last_tls_mod_id == 1); /* Main always comes first */
+	elf->tls_mod_id = last_tls_mod_id++;
+}
+
 static struct ta_elf *queue_elf_helper(const TEE_UUID *uuid)
 {
 	struct ta_elf *elf = calloc(1, sizeof(*elf));
@@ -431,6 +444,8 @@ static void parse_load_segments(struct ta_elf *elf)
 			} else if (phdr[n].p_type == PT_ARM_EXIDX) {
 				elf->exidx_start = phdr[n].p_vaddr;
 				elf->exidx_size = phdr[n].p_filesz;
+			} else if (phdr[n].p_type == PT_TLS) {
+				assign_tls_mod_id(elf);
 			}
 	} else {
 		Elf64_Phdr *phdr = elf->phdr;
@@ -1486,7 +1501,7 @@ TEE_Result ta_elf_set_init_fini_info(bool is_32bit)
 	vaddr_t info_va = 0;
 	size_t cnt = 0;
 
-	res = ta_elf_resolve_sym("__init_fini_info", &info_va, NULL);
+	res = ta_elf_resolve_sym("__init_fini_info", &info_va, NULL, NULL);
 	if (res) {
 		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 			/* Older TA */

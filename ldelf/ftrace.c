@@ -26,7 +26,7 @@ bool ftrace_init(struct ftrace_buf **fbuf_ptr)
 	int count = 0;
 	size_t fbuf_size = 0;
 
-	res = ta_elf_resolve_sym("__ftrace_info", &val, NULL);
+	res = ta_elf_resolve_sym("__ftrace_info", &val, NULL, NULL);
 	if (res)
 		return false;
 

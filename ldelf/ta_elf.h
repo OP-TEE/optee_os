@@ -64,6 +64,9 @@ struct ta_elf {
 	vaddr_t exidx_start;
 	size_t exidx_size;
 
+	/* Thread Local Storage */
+	size_t tls_mod_id;
+
 	uint32_t handle;
 
 	struct ta_head *head;
@@ -102,7 +105,7 @@ static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 #endif /*CFG_UNWIND*/
 
 TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
-			      struct ta_elf *elf);
+			      struct ta_elf **found_elf, struct ta_elf *elf);
 TEE_Result ta_elf_add_library(const TEE_UUID *uuid);
 TEE_Result ta_elf_set_init_fini_info(bool is_32bit);
 
