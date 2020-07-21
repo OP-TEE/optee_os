@@ -648,6 +648,34 @@ TEE_Result vm_get_flags(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 	return TEE_SUCCESS;
 }
 
+static bool cmp_region_for_get_prot(const struct vm_region *r0,
+				    const struct vm_region *r,
+				    const struct vm_region *rn __unused)
+{
+	return (r0->attr & TEE_MATTR_PROT_MASK) ==
+	       (r->attr & TEE_MATTR_PROT_MASK);
+}
+
+TEE_Result vm_get_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
+		       uint16_t *prot)
+{
+	struct vm_region *r = NULL;
+
+	if (!len || ((len | va) & SMALL_PAGE_MASK))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	r = find_vm_region(&uctx->vm_info, va);
+	if (!r)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!va_range_is_contiguous(r, va, len, cmp_region_for_get_prot))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*prot = r->attr & TEE_MATTR_PROT_MASK;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		       uint32_t prot)
 {
