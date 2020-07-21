@@ -24,4 +24,20 @@ int vsnprintf (char *str, size_t size, const char *fmt, va_list ap)
 int puts(const char *str);
 int putchar(int c);
 
+#ifndef __KERNEL__
+
+extern FILE *stdout;
+extern FILE *stderr;
+
+/*
+ * The functions below send their output synchronously to the secure console.
+ * They treat stdout and stderr the same, and will abort if stream is not one or
+ * the other.
+ */
+
+int fputc(int c, FILE *stream);
+int fputs(const char *s, FILE *stream);
+size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+#endif
+
 #endif /*STDIO_H*/
