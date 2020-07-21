@@ -48,7 +48,13 @@ dynlistdep = $(link-out-dir$(sm))/dyn_list
 cleanfiles += $(link-out-dir$(sm))/dyn_list
 
 link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
-link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
+link-ldadd += --start-group
+link-ldadd += $(addprefix -l,$(libnames))
+ifneq (,$(filter %.cpp,$(srcs)))
+link-ldflags += --eh-frame-hdr
+link-ldadd += $(libstdc++$(sm)) $(libgcc_eh$(sm))
+endif
+link-ldadd += --end-group
 ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
 
