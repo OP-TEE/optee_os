@@ -39,6 +39,7 @@ $(link-out-dir$(sm))/dyn_list:
 	$(q)mkdir -p $(dir $@)
 	$(q)echo "{" >$@
 	$(q)echo "__init_fini_info;" >>$@
+	$(q)echo "__elf_phdr_info;" >>$@
 ifeq ($(CFG_FTRACE_SUPPORT),y)
 	$(q)echo "__ftrace_info;" >>$@
 endif

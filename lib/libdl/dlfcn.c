@@ -65,6 +65,7 @@ void *dlopen(const char *filename, int flags)
 		if (res)
 			goto err;
 
+		__utee_tcb_init();
 		__utee_call_elf_init_fn();
 	}
 

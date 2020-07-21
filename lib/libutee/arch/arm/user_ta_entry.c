@@ -34,6 +34,7 @@ extern struct ta_head ta_head;
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
 struct __init_fini_info __init_fini_info;
+struct __elf_phdr_info __elf_phdr_info;
 
 void __utee_call_elf_init_fn(void)
 {
@@ -76,6 +77,7 @@ static TEE_Result init_instance(void)
 	__utee_gprof_init();
 	malloc_add_pool(ta_heap, ta_heap_size);
 	_TEE_MathAPI_Init();
+	__utee_tcb_init();
 	__utee_call_elf_init_fn();
 	return TA_CreateEntryPoint();
 }
