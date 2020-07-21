@@ -52,6 +52,9 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 TEE_Result vm_get_flags(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 			uint32_t *flags);
 
+TEE_Result vm_get_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
+		       uint16_t *prot);
+
 TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		       uint32_t prot);
 
