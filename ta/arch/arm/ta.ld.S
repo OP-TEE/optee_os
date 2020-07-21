@@ -28,7 +28,11 @@ SECTIONS {
 	}
         .plt : { *(.plt) }
 
-	.eh_frame : { *(.eh_frame) }
+	.eh_frame_hdr : {
+		*(.eh_frame_hdr)
+		*(.eh_frame_entry .eh_frame_entry.*)
+	}
+	.eh_frame : { KEEP(*(.eh_frame)) *(.eh_frame.*) }
 	.gcc_except_table : { *(.gcc_except_table .gcc_except_table.*) }
 	.rodata : {
 		*(.gnu.linkonce.r.*)
