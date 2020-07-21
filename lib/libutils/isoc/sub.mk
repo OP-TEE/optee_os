@@ -28,5 +28,13 @@ srcs-y += isprint.c
 srcs-y += ispunct.c
 srcs-y += toupper.c
 
+ifneq (,$(filter ta_%,$(sm)))
+srcs-y += fp.c
+srcs-y += fputc.c
+srcs-y += fputs.c
+srcs-y += fwrite.c
+srcs-y += write.c
+endif
+
 subdirs-y += newlib
 subdirs-$(arch_arm) += arch/$(ARCH)
