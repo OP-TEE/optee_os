@@ -80,50 +80,6 @@ unsigned long ftrace_return(void);
 void __ftrace_return(void);
 #endif
 
-/*
- * Pointers to ELF initialization and finalization functions are extracted by
- * ldelf and stored on the TA heap. They can be accessed via the TA global
- * variable __init_fini_info::ifs, but the functions are meant to called via
- * __utee_call_elf_init_fn() and __utee_call_elf_fini_fn().
- */
-
-struct __init_fini {
-	uint32_t flags;
-	uint16_t init_size;
-	uint16_t fini_size;
-
-	void (**init)(void); /* @init_size entries */
-	void (**fini)(void); /* @fini_size entries */
-};
-
-#define __IFS_VALID		BIT(0)
-#define __IFS_INIT_HAS_RUN	BIT(1)
-#define __IFS_FINI_HAS_RUN	BIT(2)
-
-struct __init_fini_info {
-	uint32_t reserved;
-	uint16_t size;
-	uint16_t pad;
-	struct __init_fini *ifs; /* @size entries */
-};
-
-/* 32-bit variants for a 64-bit ldelf to access a 32-bit TA */
-
-struct __init_fini32 {
-	uint32_t flags;
-	uint16_t init_size;
-	uint16_t fini_size;
-	uint32_t init;
-	uint32_t fini;
-};
-
-struct __init_fini_info32 {
-	uint32_t reserved;
-	uint16_t size;
-	uint16_t pad;
-	uint32_t ifs;
-};
-
 void __utee_call_elf_init_fn(void);
 void __utee_call_elf_fini_fn(void);
 
