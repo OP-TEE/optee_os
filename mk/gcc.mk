@@ -1,5 +1,6 @@
 
 CC$(sm)		:= $(CROSS_COMPILE_$(sm))gcc
+CXX$(sm)	:= $(CROSS_COMPILE_$(sm))g++
 CPP$(sm)	:= $(CROSS_COMPILE_$(sm))cpp
 LD$(sm)		:= $(CROSS_COMPILE_$(sm))ld.bfd
 AR$(sm)		:= $(CROSS_COMPILE_$(sm))ar
@@ -14,9 +15,14 @@ nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 # Get location of libgcc from gcc
 libgcc$(sm)  	:= $(shell $(CC$(sm)) $(CFLAGS$(arch-bits-$(sm))) \
 			-print-libgcc-file-name 2> /dev/null)
+libstdc++$(sm)	:= $(shell $(CXX$(sm)) $(CXXFLAGS$(arch-bits-$(sm))) $(comp-cxxflags$(sm)) \
+			-print-file-name=libstdc++.a 2> /dev/null)
+libgcc_eh$(sm)	:= $(shell $(CXX$(sm)) $(CXXFLAGS$(arch-bits-$(sm))) $(comp-cxxflags$(sm)) \
+			-print-file-name=libgcc_eh.a 2> /dev/null)
 
 # Define these to something to discover accidental use
 CC		:= false
+CXX		:= false
 CPP		:= false
 LD		:= false
 AR		:= false

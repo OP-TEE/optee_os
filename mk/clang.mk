@@ -7,6 +7,7 @@ clang-target	:= $(patsubst %-,%,$(notdir $(lastword $(CROSS_COMPILE_$(sm)))))
 ccache-cmd	:= $(if $(findstring ccache,$(CROSS_COMPILE_$(sm))),$(firstword $(CROSS_COMPILE_$(sm))) ,)
 
 CC$(sm)		:= $(ccache-cmd)clang --target=$(clang-target)
+CXX$(sm)	:= false # Untested yet
 # Due to the absence of clang-cpp in AOSP's prebuilt version of clang,
 # use the equivalent command of 'clang -E'
 CPP$(sm)	:= $(ccache-cmd)clang --target=$(clang-target) -E
@@ -36,6 +37,7 @@ ldflag-apply-dynamic-relocs := --apply-dynamic-relocs
 
 # Define these to something to discover accidental use
 CC		:= false
+CXX		:= false
 CPP		:= false
 LD		:= false
 AR		:= false

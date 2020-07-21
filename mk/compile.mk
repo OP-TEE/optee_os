@@ -69,7 +69,8 @@ comp-lib-$2	:= $(libname)-$(sm)
 cleanfiles := $$(cleanfiles) $$(comp-dep-$2) $$(comp-cmd-file-$2) $2
 
 ifeq ($$(filter %.c,$1),$1)
-comp-q-$2 := CC
+comp-q-$2 := CC # one trailing space
+comp-compiler-$2 := $$(CC$(sm))
 comp-flags-$2 = $$(filter-out $$(CFLAGS_REMOVE) $$(cflags-remove) \
 			      $$(cflags-remove-$$(comp-sm-$2)) \
 			      $$(cflags-remove-$2), \
@@ -83,12 +84,22 @@ echo-check-cmd-$2 = $(cmd-echo) $$(subst \",\\\",$$(check-cmd-$2))
 endif
 
 else ifeq ($$(filter %.S,$1),$1)
-comp-q-$2 := AS
+comp-q-$2 := AS # one trailing space
+comp-compiler-$2 := $$(CC$(sm))
 comp-flags-$2 = $$(filter-out $$(AFLAGS_REMOVE) $$(aflags-remove) \
 			      $$(aflags-remove-$$(comp-sm-$2)) \
 			      $$(aflags-remove-$2), \
 		   $$(AFLAGS) $$(comp-aflags$$(comp-sm-$2)) \
 		   $$(aflags$$(comp-sm-$2)) $$(aflags-$2))
+
+else ifeq ($$(filter %.cpp,$1),$1)
+comp-q-$2 := CXX
+comp-compiler-$2 := $$(CXX$(sm))
+comp-flags-$2 = $$(filter-out $$(CXXFLAGS_REMOVE) $$(cxxflags-remove) \
+			      $$(cxxflags-remove-$$(comp-sm-$2)) \
+			      $$(cxxflags-remove-$2), \
+		   $$(CXXFLAGS) $$(comp-cxxflags$$(comp-sm-$2)) \
+		   $$(cxxflags$$(comp-sm-$2)) $$(cxxflags-$2))
 
 else
 $$(error "Don't know what to do with $1")
@@ -108,7 +119,7 @@ comp-cppflags-$2 = $$(filter-out $$(CPPFLAGS_REMOVE) $$(cppflags-remove) \
 comp-flags-$2 += -MD -MF $$(comp-dep-$2) -MT $$@
 comp-flags-$2 += $$(comp-cppflags-$2)
 
-comp-cmd-$2 = $$(CC$(sm)) $$(comp-flags-$2) -c $$< -o $$@
+comp-cmd-$2 = $$(comp-compiler-$2) $$(comp-flags-$2) -c $$< -o $$@
 comp-objcpy-cmd-$2 = $$(OBJCOPY$(sm)) \
 	--rename-section .rodata=.rodata.$1 \
 	--rename-section .rodata.str1.1=.rodata.str1.1.$1 \
@@ -134,7 +145,7 @@ $2: $1 FORCE-GENSRC$(sm)
 		$$(echo-check-$2) '  CHECK   $$<' ;\
 		$$(echo-check-cmd-$2) ;\
 		$$(check-cmd-$2) ;\
-		$(cmd-echo-silent) '  $$(comp-q-$2)      $$@' ;\
+		$(cmd-echo-silent) '  $$(comp-q-$2)     $$@' ;\
 		$(cmd-echo) $$(subst \",\\\",$$(comp-cmd-$2)) ;\
 		$$(comp-cmd-$2) ;\
 		$(cmd-echo) $$(comp-objcpy-cmd-$2) ;\

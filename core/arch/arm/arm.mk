@@ -235,10 +235,13 @@ ta_arm32-platform-aflags += $(platform-aflags-generic)
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
+ta_arm32-platform-cxxflags += -fpic
+
 ta-mk-file-export-vars-ta_arm32 += CFG_ARM32_ta_arm32
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cppflags
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cflags
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-aflags
+ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cxxflags
 
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE ?= arm-linux-gnueabihf-_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
@@ -267,10 +270,13 @@ ta_arm64-platform-aflags += $(platform-aflags-generic)
 ta_arm64-platform-aflags += $(platform-aflags-debug-info)
 ta_arm64-platform-aflags += $(arm64-platform-aflags)
 
+ta_arm64-platform-cxxflags += -fpic
+
 ta-mk-file-export-vars-ta_arm64 += CFG_ARM64_ta_arm64
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cppflags
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cflags
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-aflags
+ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cxxflags
 
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_nl_
