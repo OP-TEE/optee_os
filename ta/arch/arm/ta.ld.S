@@ -35,7 +35,9 @@ SECTIONS {
 	}
 	.ARM.extab : { *(.ARM.extab* .gnu.linkonce.armextab.*) }
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
+	PROVIDE_HIDDEN(__exidx_start = .);
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
+	PROVIDE_HIDDEN(__exidx_end = .);
         .ctors : { *(.ctors) }
         .dtors : { *(.dtors) }
 	.dynsym : { *(.dynsym) }
