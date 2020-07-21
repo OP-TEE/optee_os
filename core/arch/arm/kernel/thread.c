@@ -1446,3 +1446,88 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 		setup_unwind_user_mode(regs);
 	}
 }
+
+static struct mobj *alloc_shm(enum thread_shm_type shm_type, size_t size)
+{
+	switch (shm_type) {
+	case THREAD_SHM_TYPE_APPLICATION:
+		return thread_rpc_alloc_payload(size);
+	case THREAD_SHM_TYPE_KERNEL_PRIVATE:
+		return thread_rpc_alloc_kernel_payload(size);
+	case THREAD_SHM_TYPE_GLOBAL:
+		return thread_rpc_alloc_global_payload(size);
+	default:
+		return NULL;
+	}
+}
+
+void *thread_rpc_shm_cache_alloc(enum thread_shm_type shm_type, size_t size,
+				 struct mobj **mobj)
+{
+	struct thread_shm_cache *cache = &threads[thread_get_id()].shm_cache;
+	size_t sz = size;
+	paddr_t p = 0;
+	void *va = NULL;
+
+	if (!size)
+		return NULL;
+
+	/*
+	 * Always allocate in page chunks as normal world allocates payload
+	 * memory as complete pages.
+	 */
+	sz = ROUNDUP(size, SMALL_PAGE_SIZE);
+
+	if (cache->type != shm_type || sz > cache->size) {
+		thread_rpc_shm_cache_clear(cache);
+
+		cache->mobj = alloc_shm(shm_type, sz);
+		if (!cache->mobj)
+			return NULL;
+
+		if (mobj_get_pa(cache->mobj, 0, 0, &p))
+			goto err;
+
+		if (!ALIGNMENT_IS_OK(p, uint64_t))
+			goto err;
+
+		va = mobj_get_va(cache->mobj, 0);
+		if (!va)
+			goto err;
+
+		cache->size = sz;
+		cache->type = shm_type;
+	} else {
+		va = mobj_get_va(cache->mobj, 0);
+		if (!va)
+			goto err;
+	}
+	*mobj = cache->mobj;
+
+	return va;
+err:
+	thread_rpc_shm_cache_clear(cache);
+	return NULL;
+}
+
+void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache)
+{
+	if (cache->mobj) {
+		switch (cache->type) {
+		case THREAD_SHM_TYPE_APPLICATION:
+			thread_rpc_free_payload(cache->mobj);
+			break;
+		case THREAD_SHM_TYPE_KERNEL_PRIVATE:
+			thread_rpc_free_kernel_payload(cache->mobj);
+			break;
+		case THREAD_SHM_TYPE_GLOBAL:
+			thread_rpc_free_global_payload(cache->mobj);
+			break;
+		default:
+			assert(0); /* "can't happen" */
+			break;
+		}
+		cache->mobj = NULL;
+		cache->size = 0;
+	}
+}

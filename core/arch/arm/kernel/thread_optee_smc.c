@@ -217,7 +217,7 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 	if (rv == OPTEE_SMC_RETURN_OK) {
 		struct thread_ctx *thr = threads + thread_get_id();
 
-		tee_fs_rpc_cache_clear(&thr->tsd);
+		thread_rpc_shm_cache_clear(&thr->shm_cache);
 		if (!thread_prealloc_rpc_cache) {
 			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
 			mobj_put(thr->rpc_mobj);

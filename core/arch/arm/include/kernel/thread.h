@@ -232,13 +232,9 @@ struct thread_specific_data {
 	TAILQ_HEAD(, tee_ta_session) sess_stack;
 	struct tee_ta_ctx *ctx;
 	struct pgt_cache pgt_cache;
-	void *rpc_fs_payload;
-	struct mobj *rpc_fs_payload_mobj;
-	size_t rpc_fs_payload_size;
 #ifdef CFG_CORE_FFA
 	uint32_t rpc_target_info;
 #endif
-
 	uint32_t abort_type;
 	uint32_t abort_descr;
 	vaddr_t abort_va;
@@ -705,6 +701,25 @@ struct mobj *thread_rpc_alloc_global_payload(size_t size);
  */
 void thread_rpc_free_global_payload(struct mobj *mobj);
 
+/*
+ * enum thread_shm_type - type of non-secure shared memory
+ * @THREAD_SHM_TYPE_APPLICATION - user space application shared memory
+ * @THREAD_SHM_TYPE_KERNEL_PRIVATE - kernel private shared memory
+ * @THREAD_SHM_TYPE_GLOBAL - user space and kernel shared memory
+ */
+enum thread_shm_type {
+	THREAD_SHM_TYPE_APPLICATION,
+	THREAD_SHM_TYPE_KERNEL_PRIVATE,
+	THREAD_SHM_TYPE_GLOBAL,
+};
+
+/*
+ * Returns a pointer to the cached FS RPC memory. Each thread has a unique
+ * cache. The pointer is guaranteed to point to a large enough area or to
+ * be NULL.
+ */
+void *thread_rpc_shm_cache_alloc(enum thread_shm_type shm_type,
+				 size_t size, struct mobj **mobj);
 #endif /*__ASSEMBLER__*/
 
 #endif /*KERNEL_THREAD_H*/
