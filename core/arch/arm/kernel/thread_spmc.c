@@ -1167,3 +1167,19 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 
 	return get_rpc_arg_res(arg, num_params, params);
 }
+
+struct mobj *thread_rpc_alloc_global_payload(size_t size __unused)
+{
+	return NULL;
+}
+
+void thread_rpc_free_global_payload(struct mobj *mobj __unused)
+{
+	/*
+	 * "can't happen" since thread_rpc_alloc_global_payload() always
+	 * returns NULL.
+	 */
+	volatile bool cant_happen __maybe_unused = true;
+
+	assert(!cant_happen);
+}
