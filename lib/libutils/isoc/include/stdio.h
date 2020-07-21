@@ -12,6 +12,10 @@ typedef struct _FILE FILE;
 
 int printf(const char *fmt, ...)
                     __attribute__ ((__format__ (__printf__, 1, 2)));
+/* sprintf() is unsafe and should not be used. Prefer snprintf(). */
+int sprintf(char *str, const char *fmt, ...)
+                    __attribute__ ((__format__ (__printf__, 2, 3)))
+                    __attribute__ ((deprecated));
 int snprintf(char *str, size_t size, const char *fmt, ...)
                     __attribute__ ((__format__ (__printf__, 3, 4)));
 int vsnprintf (char *str, size_t size, const char *fmt, va_list ap)

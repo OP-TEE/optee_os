@@ -22,5 +22,7 @@ int vsnprintk(char *str, size_t size, const char *fmt, va_list ap)
 
 int __vsnprintf(char *str, size_t size, const char *fmt, va_list ap,
 		bool ext) __attribute__((__format__(__printf__, 3, 0)));
+int __vsprintf(char *bf, const char *fmt, va_list ap)
+			__attribute__((__format__(__printf__, 2, 0)));
 
 #endif /* PRINTK_H */
