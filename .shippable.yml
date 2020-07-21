@@ -61,6 +61,7 @@ build:
     - _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_VIRTUALIZATION=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
+    - dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
     - _make PLATFORM=stm-b2260
     - _make PLATFORM=stm-cannes
     - _make PLATFORM=stm32mp1
