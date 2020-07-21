@@ -900,6 +900,8 @@ static uint32_t yielding_call_with_arg(uint64_t cookie)
 
 	rv = tee_entry_std(arg, num_params);
 
+	thread_rpc_shm_cache_clear(&threads[thread_get_id()].shm_cache);
+
 out_dec_map:
 	mobj_dec_map(mobj);
 out_put_mobj:
