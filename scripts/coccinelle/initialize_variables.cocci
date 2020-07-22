@@ -1,3 +1,8 @@
+/**
+* SPDX-License-Identifier: BSD-2-Clause
+*
+*/
+
 /************************************************************************************
 * This semantic patch matches all occurrencies of variable declaration without 
 * initialization and then initializes them accordingly to their type.

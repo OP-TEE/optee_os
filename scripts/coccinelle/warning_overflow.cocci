@@ -1,3 +1,8 @@
+/**
+* SPDX-License-Identifier: BSD-2-Clause
+*
+*/
+
 /************************************************************************************
  * This semantic patch signals possible cases of overflow.
  * Currently we are only looking for the following construct:

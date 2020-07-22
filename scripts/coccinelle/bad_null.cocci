@@ -1,3 +1,8 @@
+/**
+* SPDX-License-Identifier: BSD-2-Clause
+*
+*/
+
 /************************************************************************************
  * This semantic patch is responsible of replacing "foo *= NULL" expressions, into 
  * the equivalent contracted form.
