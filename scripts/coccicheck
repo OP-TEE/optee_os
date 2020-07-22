@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
 DIR="`pwd`"
 OPTIONS=" --dir . "
 TIMESTAMP="`date -R | sed 's/^.\{5\}//' | sed 's/.\{6\}$//' | tr ' ' '_'`"
@@ -31,11 +34,11 @@ if [[ $H -ge 1 ]]; then
 
     echo -e "\n Usage: \n"
     echo -e "\t- Execute all local .cocci scripts on optee-os"
-    echo -e "\t\t make coccicheck [V=1]"
+    echo -e "\t\t make coccicheck [V=1] [USE_SUBTREE=<path/to/subdir>]"
     echo -e "\t- Execute a single .cocci script "
-    echo -e "\t\t make coccicheck COCCIFILE=<relative/path/to/script.cocci> [V=1]"
+    echo -e "\t\t make coccicheck COCCIFILE=<relative/path/to/script.cocci> [V=1] [USE_SUBTREE=<path/to/subdir>]"
     echo -e "\t- Execute a subset of external .cocci scripts"
-    echo -e "\t\t make coccicheck EXTERNAL_COCCI=<path/to/external/patchesdir/.> [MODALITY=<name>] [V=1]"
+    echo -e "\t\t make coccicheck EXTERNAL_COCCI=<path/to/external/patchesdir/.> [MODALITY=<name>] [V=1] [USE_SUBTREE=<path/to/subdir>]"
     
     exit 0
 fi
@@ -57,12 +60,18 @@ elif [[ -f $EXTERNAL_COCCI ]] ; then
 fi
 
 # if USE_COCCIFILE == 1, only the specified .cocci script is executed
-if [[ -v COCCIFILE && -f $COCCIFILE && $USE_SUBSET -ne 1 ]] ; then
+if [[ -v COCCIFILE && -f $COCCIFILE && $USE_SUBSET -ne 1 ]]; then
     USE_COCCIFILE=1
 
 elif [[ -v COCCIFILE && -f $COCCIFILE && $USE_SUBSET -eq 1 ]]; then
     echo "Warining: both EXTERNAL_COCCI and COCCIFILE have been specified."
     echo "Only .cocci files in $EXTERNAL_COCCI will be executed"
+fi
+
+# if USE_SUBTREE != "", run the semantic patches on the specified subdir, instead from the whole tree
+if [[ -d USE_SUBTREE ]]; then
+    OPTIONS=" --dir ./$USE_SUBTREE "
+    echo "Running coccicheck on $USE_SUBTREE"
 fi
 
 if [ -e $DEBUG_FILE ] ; then
