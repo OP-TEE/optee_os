@@ -67,7 +67,7 @@ $$(arm32-user-sysregs-out)/$$(arm32-user-sysregs-$(1)-h): \
 		$(1) scripts/arm32_sysreg.py
 	@$(cmd-echo-silent) '  GEN     $$@'
 	$(q)mkdir -p $$(dir $$@)
-	$(q)scripts/arm32_sysreg.py --guard __$$(arm32-user-sysregs-$(1)-h) \
+	$(q)$(PYTHON3) scripts/arm32_sysreg.py --guard __$$(arm32-user-sysregs-$(1)-h) \
 		< $$< > $$@
 
 endef #process-arm32-user-sysreg
