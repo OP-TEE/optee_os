@@ -369,8 +369,13 @@ bool unwind_stack_arm32(struct unwind_state_arm32 *state, vaddr_t exidx,
 	/* The pc value is correct and will be overwritten, save it */
 	state->start_pc = state->registers[PC];
 
-	/* Find the item to run */
-	index = find_index(state->start_pc, exidx, exidx_sz);
+	/*
+	 * Find the item to run. Subtract 2 from PC to make sure that we're
+	 * still inside the calling function in case a __no_return function
+	 * (typically panic()) is called unconditionally and may cause LR and
+	 * thus this PC to point into the next and entirely unrelated function.
+	 */
+	index = find_index(state->start_pc - 2, exidx, exidx_sz);
 
 	finished = false;
 	if (index->insn != EXIDX_CANTUNWIND) {
@@ -462,7 +467,13 @@ void print_kernel_stack(int level)
 	state.registers[FP] = read_fp();
 	state.registers[SP] = read_sp();
 	state.registers[LR] = read_lr();
-	state.registers[PC] = (uint32_t)print_kernel_stack;
+
+	/*
+	 * Add 4 to make sure that we have an address well inside this function.
+	 * This is needed because we're subtracting 2 from PC when calling
+	 * find_index() above. See a comment there for more details.
+	 */
+	state.registers[PC] = (uint32_t)print_kernel_stack + 4;
 
 	get_stack_limits(&stack_start, &stack_end);
 	print_stack_arm32(level, &state, exidx, exidx_sz, stack_start,
@@ -494,7 +505,13 @@ vaddr_t *unw_get_kernel_stack(void)
 	state.registers[FP] = read_fp();
 	state.registers[SP] = read_sp();
 	state.registers[LR] = read_lr();
-	state.registers[PC] = (uint32_t)unw_get_kernel_stack;
+
+	/*
+	 * Add 4 to make sure that we have an address well inside this function.
+	 * This is needed because we're subtracting 2 from PC when calling
+	 * find_index() above. See a comment there for more details.
+	 */
+	state.registers[PC] = (uint32_t)unw_get_kernel_stack + 4;
 
 	while (unwind_stack_arm32(&state, exidx, exidx_sz, stack, stack_size)) {
 		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
