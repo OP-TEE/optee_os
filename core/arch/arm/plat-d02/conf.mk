@@ -8,7 +8,6 @@ CFG_WITH_SOFTWARE_PRNG ?= n
 CFG_CORE_HEAP_SIZE ?= 98304
 
 $(call force,CFG_HI16XX_UART,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)

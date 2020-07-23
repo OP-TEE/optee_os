@@ -353,7 +353,6 @@ endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 $(call force,CFG_GIC,y)
-$(call force,CFG_PM_STUBS,y)
 
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_DT ?= y
@@ -386,7 +385,6 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
 CFG_CRYPTO_WITH_CE ?= y
-CFG_PM_STUBS ?= y
 
 supported-ta-targets = ta_arm64
 endif

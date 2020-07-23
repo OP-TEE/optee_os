@@ -9,7 +9,6 @@ CFG_SHMEM_START ?= 0xbfe00000
 CFG_SHMEM_SIZE ?= 0x00200000
 
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 

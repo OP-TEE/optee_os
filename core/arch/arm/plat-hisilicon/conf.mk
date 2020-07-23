@@ -10,7 +10,6 @@ $(call force,CFG_TEE_CORE_NB_CORE,2)
 $(call force,CFG_CORE_CLUSTER_SHIFT,0)
 
 $(call force,CFG_PL011,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_PSCI_ARM32,y)

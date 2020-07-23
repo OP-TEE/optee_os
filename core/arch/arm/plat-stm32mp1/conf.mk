@@ -34,7 +34,6 @@ include core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y)
 $(call force,CFG_SCMI_MSG_CLOCK,y)

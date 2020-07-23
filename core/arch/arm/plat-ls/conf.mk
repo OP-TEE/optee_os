@@ -3,7 +3,6 @@ PLATFORM_FLAVOR ?= ls1021atwr
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_16550_UART,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_LS,y)
 
 $(call force,CFG_DRAM0_BASE,0x80000000)
