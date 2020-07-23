@@ -86,30 +86,12 @@ END_FUNC vector_fiq_entry
 LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
-	/*
-	 * We're executing from physical address here while the binary may
-	 * have been relocated to a different virtual address. In order to
-	 * still read the expected physical memory we must use purely
-	 * relative addressing.
-	 */
-	adr	r0, .cpu_on_handler_ptr_rel
-	ldr	r1, .cpu_on_handler_ptr_rel
-	ldr	lr, [r0, r1]
-	adr	r2, .boot_mmu_config_rel
-	ldr	r3, .boot_mmu_config_rel
-	add	r12, r2, r3
-	ldr	r12, [r12, #CORE_MMU_CONFIG_LOAD_OFFSET]
-	sub	lr, lr, r12
-	blx	lr
+	bl	cpu_on_handler
 	/* When cpu_on_handler() returns mmu is enabled */
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_ON_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-.cpu_on_handler_ptr_rel:
-	.word thread_cpu_on_handler_ptr - .cpu_on_handler_ptr_rel
-.boot_mmu_config_rel:
-	.word boot_mmu_config - .boot_mmu_config_rel
 UNWIND(	.fnend)
 END_FUNC vector_cpu_on_entry
 
@@ -117,9 +99,7 @@ LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
-	ldr	lr, =thread_cpu_off_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_cpu_off_handler
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
@@ -131,9 +111,7 @@ LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
-	ldr	lr, =thread_cpu_suspend_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_cpu_suspend_handler
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
@@ -145,9 +123,7 @@ LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
-	ldr	lr, =thread_cpu_resume_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_cpu_resume_handler
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0
@@ -159,9 +135,7 @@ LOCAL_FUNC vector_system_off_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
-	ldr	lr, =thread_system_off_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_system_off_handler
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE
 	smc	#0
@@ -173,9 +147,7 @@ LOCAL_FUNC vector_system_reset_entry , : , .identity_map
 UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
-	ldr	lr, =thread_system_reset_handler_ptr
-	ldr	lr, [lr]
-	blx	lr
+	bl	thread_system_reset_handler
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE
 	smc	#0

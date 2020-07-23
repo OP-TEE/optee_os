@@ -122,22 +122,6 @@ const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
 DECLARE_KEEP_PAGER(stack_tmp_export);
 DECLARE_KEEP_PAGER(stack_tmp_stride);
 
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-const thread_pm_handler_t thread_cpu_on_handler_ptr __nex_data =
-	cpu_on_handler;
-const thread_pm_handler_t thread_cpu_off_handler_ptr __nex_data =
-	thread_cpu_off_handler;
-const thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_data =
-	thread_cpu_suspend_handler;
-const thread_pm_handler_t thread_cpu_resume_handler_ptr __nex_data =
-	thread_cpu_resume_handler;
-const thread_pm_handler_t thread_system_off_handler_ptr __nex_data =
-	thread_system_off_handler;
-const thread_pm_handler_t thread_system_reset_handler_ptr __nex_data =
-	thread_system_reset_handler;
-#endif
-
-
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 static vaddr_t thread_user_kcode_va __nex_bss;
 long thread_user_kcode_offset __nex_bss;

@@ -255,9 +255,6 @@ unsigned long thread_system_off_handler(unsigned long a0, unsigned long a1);
 unsigned long thread_system_reset_handler(unsigned long a0, unsigned long a1);
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
-typedef unsigned long (*thread_pm_handler_t)(unsigned long a0,
-					     unsigned long a1);
-
 void thread_init_primary(void);
 void thread_init_per_cpu(void);
 
