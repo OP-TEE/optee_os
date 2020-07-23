@@ -2,7 +2,6 @@ PLATFORM_FLAVOR ?= bpi_zero
 
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_PM_STUBS,y)
 
 ifeq ($(PLATFORM_FLAVOR),bpi_zero)
 include core/arch/arm/cpu/cortex-a7.mk

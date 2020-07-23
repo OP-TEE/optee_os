@@ -17,7 +17,6 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/tpm.h>

@@ -31,7 +31,6 @@ endif
 
 $(call force,CFG_GIC,y)
 $(call force,CFG_PL011,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)

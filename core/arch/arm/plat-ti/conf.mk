@@ -37,7 +37,6 @@ endif #am43xx
 
 $(call force,CFG_8250_UART,y)
 $(call force,CFG_ARM32_core,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_GIC,y)
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)

@@ -8,7 +8,6 @@
 #include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
