@@ -342,7 +342,10 @@ static bool unwind_tab(struct unwind_state_arm32 *state,
 	 * The program counter was not updated, load it from the link register.
 	 */
 	if (state->registers[PC] == 0) {
-		state->registers[PC] = state->registers[LR];
+		/*
+		 * We substracts 2 here in consideration of thumb instruction.
+		 */
+		state->registers[PC] = state->registers[LR] - 2;
 
 		/*
 		 * If the program counter changed, flag it in the update mask.
