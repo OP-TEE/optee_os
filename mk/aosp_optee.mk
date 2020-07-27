@@ -8,6 +8,7 @@
 ##    OPTEE_PLATFORM                                    ##
 ##    OPTEE_PLATFORM_FLAVOR                             ##
 ##    OPTEE_EXTRA_FLAGS (optional)                      ##
+##    OPTEE_EXTRA_TA_FLAGS (optional)                   ##
 ## And BUILD_OPTEE_MK needs to be defined in optee*.mk  ##
 ## to point to this file                                ##
 ##                                                      ##
@@ -126,7 +127,8 @@ $(TA_TMP_FILE): $(OPTEE_BIN)
 	@echo "Start building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(ABS_OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
 		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
-		$(CROSS_COMPILE_LINE)
+		$(CROSS_COMPILE_LINE) \
+		$(OPTEE_EXTRA_TA_FLAGS)
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 
 include $(BUILD_PREBUILT)
