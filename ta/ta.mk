@@ -190,6 +190,7 @@ define mk-file-export
 .PHONY: $(conf-mk-file-export)
 $(conf-mk-file-export):
 	@$$(cmd-echo-silent) '  CHK    ' $$@
+	$(q)mkdir -p $$(dir $$@)
 	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@.tmp
 	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@.tmp
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \
