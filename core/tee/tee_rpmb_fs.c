@@ -1806,6 +1806,9 @@ static void dump_fat(void)
 	TEE_Result res = TEE_ERROR_SECURITY;
 	struct rpmb_fat_entry *fe = NULL;
 
+	if (!fs_par)
+		return;
+
 	if (fat_entry_dir_init())
 		return;
 
