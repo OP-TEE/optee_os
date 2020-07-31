@@ -385,7 +385,15 @@ class Symbolizer(object):
                 post = match.end('addr')
                 self._out.write(line[:pre])
                 self._out.write(addr)
-                res = self.resolve(addr)
+                # The call stack contains return addresses (LR/ELR values).
+                # Heuristic: subtract 2 to obtain the call site of the function
+                # or the location of the exception. This value works for A64,
+                # A32 as well as Thumb.
+                pc = 0
+                lr = int(addr, 16)
+                if lr:
+                    pc = lr - 2
+                res = self.resolve('0x{:x}'.format(pc))
                 res = self.pretty_print_path(res)
                 self._out.write(' ' + res)
                 self._out.write(line[post:])
