@@ -404,8 +404,13 @@ static bool unwind_stack_arm32(struct unwind_state_arm32 *state,
 	/* The pc value is correct and will be overwritten, save it */
 	state->start_pc = state->registers[PC];
 
-	/* Find the item to run */
-	index = find_index(state->start_pc);
+	/*
+	 * Find the item to run. Subtract 2 from PC to make sure that we're
+	 * still inside the calling function in case a __no_return function
+	 * (typically panic()) is called unconditionally and may cause LR and
+	 * thus this PC to point into the next and entirely unrelated function.
+	 */
+	index = find_index(state->start_pc - 2);
 	if (!index)
 		return false;
 
