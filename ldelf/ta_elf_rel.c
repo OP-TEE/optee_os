@@ -53,6 +53,7 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
 		err(TEE_ERROR_BAD_FORMAT, "Symbol location out of range");
 
 	switch (st_type) {
+	case STT_NOTYPE:
 	case STT_OBJECT:
 	case STT_FUNC:
 		*val = st_value + elf->load_addr;
