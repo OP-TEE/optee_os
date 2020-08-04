@@ -1195,7 +1195,6 @@ void __weak paged_init_primary(unsigned long fdt)
 
 static void init_secondary_helper(unsigned long nsec_entry)
 {
-	thread_core_local_set_tmp_stack_flag();
 	IMSG("Secondary CPU %zu initializing", get_core_pos());
 
 	/*

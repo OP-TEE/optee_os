@@ -903,6 +903,7 @@ END_FUNC el0_sync_abort
 	msr	spsel, #1
 	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	orr	w1, w1, #THREAD_CLF_TMP
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	msr	spsel, #0
 

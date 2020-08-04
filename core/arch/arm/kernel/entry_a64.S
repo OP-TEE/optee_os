@@ -148,8 +148,7 @@ clear_nex_bss:
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
-	/* curr_thread needs to be -1 until threads are properly initialized */
-	bl	thread_clr_thread_core_local
+	bl	thread_init_thread_core_local
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT

@@ -505,6 +505,21 @@ END_FUNC thread_unwind_user_mode
 	write_iciallu
 #endif
 
+	/*
+	 * Use SP_abt to update core local flags.
+	 * flags = (flags << THREAD_CLF_SAVED_SHIFT) | THREAD_CLF_TMP;
+	 */
+	cps     #CPSR_MODE_ABT
+	ldr     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	lsl     r1, r1, #THREAD_CLF_SAVED_SHIFT
+	orr     r1, r1, #THREAD_CLF_TMP
+	str     r1, [sp, #THREAD_CORE_LOCAL_FLAGS]
+	.ifc    \mode\(),fiq
+	cps     #CPSR_MODE_FIQ
+	.else
+	cps     #CPSR_MODE_IRQ
+	.endif
+
 	mov	r0, #THREAD_FLAGS_EXIT_ON_FOREIGN_INTR
 	mrs	r1, spsr
 	pop	{r2}

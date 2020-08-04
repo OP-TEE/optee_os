@@ -457,8 +457,7 @@ shadow_stack_access_ok:
 
 	set_sp
 
-	/* curr_thread needs to be -1 until threads are properly initialized */
-	bl	thread_clr_thread_core_local
+	bl	thread_init_thread_core_local
 
 	/* complete ARM secure MP common configuration */
 	bl	plat_primary_init_early
