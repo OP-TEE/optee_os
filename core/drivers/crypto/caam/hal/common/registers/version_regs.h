@@ -9,15 +9,25 @@
 
 #include <util.h>
 
-/* CAAM Version ID */
-#define CAAMVID_MS                      0x0BF8
-#define BM_CAAMVID_MS_MAJ_REV           SHIFT_U32(0xFF, 8)
-#define GET_CAAMVID_MS_MAJ_REV(val)     (((val) & BM_CAAMVID_MS_MAJ_REV) >> 8)
-
 /* Compile Time Parameters */
 #define CTPR_MS                         0x0FA8
 #define BM_CTPR_MS_RNG_I                SHIFT_U32(0x7, 8)
 #define GET_CTPR_MS_RNG_I(val)          (((val) & BM_CTPR_MS_RNG_I) >> 8)
+
+#define CTPR_LS				0x0FAC
+#define BM_CTPR_LS_SPLIT_KEY		BIT(14)
+#define GET_CTPR_LS_SPLIT_KEY(val)	(((val) & BM_CTPR_LS_SPLIT_KEY) >> 14)
+
+/* Secure Memory Version ID */
+#define SMVID_MS			0x0FD8
+#define BM_SMVID_MS_MAX_NPAG		SHIFT_U32(0x3FF, 16)
+#define GET_SMVID_MS_MAX_NPAG(val)	(((val) & BM_SMVID_MS_MAX_NPAG) >> 16)
+#define BM_SMVID_MS_NPRT		SHIFT_U32(0xF, 12)
+#define GET_SMVID_MS_NPRT(val)		(((val) & BM_SMVID_MS_NPRT) >> 12)
+
+#define SMVID_LS			0x0FDC
+#define BM_SMVID_LS_PSIZ		SHIFT_U32(0x7, 16)
+#define GET_SMVID_LS_PSIZ(val)		(((val) & BM_SMVID_LS_PSIZ) >> 16)
 
 /* CHA Cluster Block Version ID */
 #define CCBVID                          0x0FE4
