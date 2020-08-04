@@ -73,9 +73,9 @@ uint8_t caam_hal_ctrl_hash_limit(vaddr_t baseaddr)
 
 bool caam_hal_ctrl_splitkey_support(vaddr_t baseaddr)
 {
-	uint32_t val = io_caam_read32(baseaddr + CAAMVID_MS);
+	uint32_t val = io_caam_read32(baseaddr + CTPR_LS);
 
-	return GET_CAAMVID_MS_MAJ_REV(val) >= 3;
+	return GET_CTPR_LS_SPLIT_KEY(val);
 }
 
 uint8_t caam_hal_ctrl_pknum(vaddr_t baseaddr)
