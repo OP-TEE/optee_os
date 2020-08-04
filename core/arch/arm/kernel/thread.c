@@ -291,11 +291,6 @@ struct thread_core_local *thread_get_core_local(void)
 	return get_core_local(pos);
 }
 
-void thread_core_local_set_tmp_stack_flag(void)
-{
-	thread_get_core_local()->flags |= THREAD_CLF_TMP;
-}
-
 static void thread_lazy_save_ns_vfp(void)
 {
 #ifdef CFG_WITH_VFP
@@ -409,7 +404,6 @@ void thread_clr_boot_thread(void)
 	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
 	l->curr_thread = -1;
-	l->flags &= ~THREAD_CLF_TMP;
 }
 
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
@@ -942,13 +936,15 @@ void thread_init_threads(void)
 	}
 }
 
-void thread_clr_thread_core_local(void)
+void thread_init_thread_core_local(void)
 {
 	size_t n = 0;
+	struct thread_core_local *tcl = thread_core_local;
 
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		thread_core_local[n].curr_thread = -1;
-	thread_core_local[0].flags |= THREAD_CLF_TMP;
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		tcl[n].curr_thread = -1;
+		tcl[n].flags = THREAD_CLF_TMP;
+	}
 }
 
 void thread_init_primary(void)

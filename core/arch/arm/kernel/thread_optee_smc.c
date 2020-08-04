@@ -28,7 +28,6 @@ static unsigned int thread_rpc_pnum;
 
 void thread_handle_fast_smc(struct thread_smc_args *args)
 {
-	thread_core_local_set_tmp_stack_flag();
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
@@ -55,7 +54,6 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 {
 	uint32_t rv = OPTEE_SMC_RETURN_OK;
 
-	thread_core_local_set_tmp_stack_flag();
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
