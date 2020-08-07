@@ -236,6 +236,7 @@ ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
 ta_arm32-platform-cxxflags += -fpic
+ta_arm32-platform-cxxflags += $(arm32-platform-cxxflags)
 
 ta-mk-file-export-vars-ta_arm32 += CFG_ARM32_ta_arm32
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cppflags
