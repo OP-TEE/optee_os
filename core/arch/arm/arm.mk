@@ -238,6 +238,12 @@ ta_arm32-platform-aflags += $(arm32-platform-aflags)
 ta_arm32-platform-cxxflags += -fpic
 ta_arm32-platform-cxxflags += $(arm32-platform-cxxflags)
 
+ifeq ($(arm32-platform-hard-float-enabled),y)
+ta_arm32-platform-cxxflags += $(arm32-platform-cflags-hard-float)
+else
+ta_arm32-platform-cxxflags += $(arm32-platform-cflags-no-hard-float)
+endif
+
 ta-mk-file-export-vars-ta_arm32 += CFG_ARM32_ta_arm32
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cppflags
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cflags
