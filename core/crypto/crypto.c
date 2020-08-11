@@ -521,6 +521,10 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s __unused)
 {
 }
 
+void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s __unused)
+{
+}
+
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key __unused,
 				      size_t key_size __unused)
 {

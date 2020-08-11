@@ -81,9 +81,25 @@ struct caam_rsa_keypair {
 static uint8_t caam_era;
 
 /*
- * Free local RSA keypair
+ * Free RSA keypair
  *
  * @key  RSA keypair
+ */
+static void do_free_keypair(struct rsa_keypair *key)
+{
+	crypto_bignum_free(key->e);
+	crypto_bignum_free(key->d);
+	crypto_bignum_free(key->n);
+	crypto_bignum_free(key->p);
+	crypto_bignum_free(key->q);
+	crypto_bignum_free(key->qp);
+	crypto_bignum_free(key->dp);
+}
+
+/*
+ * Free local caam RSA keypair
+ *
+ * @key  caam RSA keypair
  */
 static void do_keypair_free(struct caam_rsa_keypair *key)
 {
@@ -1651,6 +1667,7 @@ static const struct drvcrypt_rsa driver_rsa = {
 	.alloc_keypair = &do_allocate_keypair,
 	.alloc_publickey = &do_allocate_publickey,
 	.free_publickey = &do_free_publickey,
+	.free_keypair = &do_free_keypair,
 	.gen_keypair = &do_gen_keypair,
 	.encrypt = &do_encrypt,
 	.decrypt = &do_decrypt,
