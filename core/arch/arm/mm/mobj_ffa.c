@@ -45,14 +45,6 @@ static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 	return container_of(mobj, struct mobj_ffa, mobj);
 }
 
-static struct mobj_ffa *to_mobj_ffa_may_fail(struct mobj *mobj)
-{
-	if (mobj && mobj->ops != &mobj_ffa_ops)
-		return NULL;
-
-	return container_of(mobj, struct mobj_ffa, mobj);
-}
-
 static size_t shm_size(size_t num_pages)
 {
 	size_t s = 0;
@@ -474,24 +466,11 @@ static uint64_t ffa_get_cookie(struct mobj *mobj)
 	return to_mobj_ffa(mobj)->cookie;
 }
 
-static const struct mobj_ops mobj_ffa_ops __rodata_unpaged = {
-	.get_pa = ffa_get_pa,
-	.get_phys_offs = ffa_get_phys_offs,
-	.get_va = ffa_get_va,
-	.get_cattr = ffa_get_cattr,
-	.matches = ffa_matches,
-	.free = ffa_inactivate,
-	.get_cookie = ffa_get_cookie,
-};
-
-TEE_Result mobj_inc_map(struct mobj *mobj)
+static TEE_Result ffa_inc_map(struct mobj *mobj)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t exceptions = 0;
-	struct mobj_ffa *mf = to_mobj_ffa_may_fail(mobj);
-
-	if (!mf)
-		return TEE_ERROR_GENERIC;
+	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 
 	if (refcount_inc(&mf->mapcount))
 		return TEE_SUCCESS;
@@ -522,13 +501,10 @@ out:
 	return res;
 }
 
-TEE_Result mobj_dec_map(struct mobj *mobj)
+static TEE_Result ffa_dec_map(struct mobj *mobj)
 {
-	struct mobj_ffa *mf = to_mobj_ffa_may_fail(mobj);
+	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 	uint32_t exceptions = 0;
-
-	if (!mf)
-		return TEE_ERROR_GENERIC;
 
 	if (!refcount_dec(&mf->mapcount))
 		return TEE_SUCCESS;
@@ -557,5 +533,17 @@ static TEE_Result mapped_shm_init(void)
 	     pool_start, pool_end);
 	return TEE_SUCCESS;
 }
+
+static const struct mobj_ops mobj_ffa_ops __rodata_unpaged = {
+	.get_pa = ffa_get_pa,
+	.get_phys_offs = ffa_get_phys_offs,
+	.get_va = ffa_get_va,
+	.get_cattr = ffa_get_cattr,
+	.matches = ffa_matches,
+	.free = ffa_inactivate,
+	.get_cookie = ffa_get_cookie,
+	.inc_map = ffa_inc_map,
+	.dec_map = ffa_dec_map,
+};
 
 service_init(mapped_shm_init);
