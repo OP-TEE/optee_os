@@ -68,6 +68,19 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *key)
 	}
 }
 
+void crypto_acipher_free_rsa_keypair(struct rsa_keypair *key)
+{
+	struct drvcrypt_rsa *rsa = NULL;
+
+	if (key) {
+		rsa = drvcrypt_get_ops(CRYPTO_RSA);
+		if (rsa) {
+			CRYPTO_TRACE("RSA Keypair free");
+			rsa->free_keypair(key);
+		}
+	}
+}
+
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t size_bits)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;

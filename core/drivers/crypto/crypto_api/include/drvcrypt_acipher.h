@@ -83,6 +83,8 @@ struct drvcrypt_rsa {
 				      size_t size_bits);
 	/* Free RSA public key */
 	void (*free_publickey)(struct rsa_public_key *key);
+	/* Free RSA keypair */
+	void (*free_keypair)(struct rsa_keypair *key);
 	/* Generates the RSA keypair */
 	TEE_Result (*gen_keypair)(struct rsa_keypair *key, size_t size_bits);
 
