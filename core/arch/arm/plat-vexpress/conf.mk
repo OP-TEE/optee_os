@@ -12,8 +12,14 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
 # Workaround 808870: Unconditional VLDM instructions might cause an
 # alignment fault even though the address is aligned
+# Either hard float must be disabled for AArch32 or strict alignment checks
+# must be disabled
+ifeq ($(CFG_SCTLR_ALIGNMENT_CHECK),y)
 $(call force,CFG_TA_ARM32_NO_HARD_FLOAT_SUPPORT,y)
+else
+$(call force,CFG_SCTLR_ALIGNMENT_CHECK,n)
 endif
+endif #juno
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 endif
