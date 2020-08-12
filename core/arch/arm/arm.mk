@@ -237,6 +237,8 @@ ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
 ta_arm32-platform-cxxflags += -fpic
 ta_arm32-platform-cxxflags += $(arm32-platform-cxxflags)
+ta_arm32-platform-cxxflags += $(platform-cflags-optimization)
+ta_arm32-platform-cxxflags += $(platform-cflags-debug-info)
 
 ifeq ($(arm32-platform-hard-float-enabled),y)
 ta_arm32-platform-cxxflags += $(arm32-platform-cflags-hard-float)
@@ -278,6 +280,8 @@ ta_arm64-platform-aflags += $(platform-aflags-debug-info)
 ta_arm64-platform-aflags += $(arm64-platform-aflags)
 
 ta_arm64-platform-cxxflags += -fpic
+ta_arm64-platform-cxxflags += $(platform-cflags-optimization)
+ta_arm64-platform-cxxflags += $(platform-cflags-debug-info)
 
 ta-mk-file-export-vars-ta_arm64 += CFG_ARM64_ta_arm64
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cppflags
