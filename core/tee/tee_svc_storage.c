@@ -463,6 +463,11 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 				  &attr_o);
 		if (res != TEE_SUCCESS)
 			goto err;
+		/* The supplied handle must be one of an initialized object */
+		if (!(attr_o->info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED)) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto err;
+		}
 	}
 
 	res = tee_svc_storage_init_file(o, attr_o, data, len);
