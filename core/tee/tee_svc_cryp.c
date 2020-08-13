@@ -1299,9 +1299,6 @@ TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 
-	if (obj_type == TEE_TYPE_DATA)
-		return TEE_ERROR_NOT_SUPPORTED;
-
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
