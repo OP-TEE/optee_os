@@ -612,3 +612,7 @@ endif
 # the API. For example preventing buffers in non-secure shared memory when
 # not allowed.
 CFG_TA_STRICT_ANNOTATION_CHECKS ?= y
+
+# When enabled accepts the DES key sizes excluding parity bits as in
+# the GP Internal API Specification v1.0
+CFG_COMPAT_GP10_DES ?= y

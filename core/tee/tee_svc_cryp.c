@@ -402,21 +402,14 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_AES, 64, 128, 256,	/* valid sizes 128, 192, 256 */
 		256 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
-	PROP(TEE_TYPE_DES, 56, 56, 56,
-		/*
-		* Valid size 56 without parity, note that we still allocate
-		* for 64 bits since the key is supplied with parity.
-		*/
-		64 / 8 + sizeof(struct tee_cryp_obj_secret),
-		tee_cryp_obj_secret_value_attrs),
-	PROP(TEE_TYPE_DES3, 56, 112, 168,
-		/*
-		* Valid sizes 112, 168 without parity, note that we still
-		* allocate for with space for the parity since the key is
-		* supplied with parity.
-		*/
-		192 / 8 + sizeof(struct tee_cryp_obj_secret),
-		tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_DES, 64, 64, 64,
+	     /* Valid size 64 with parity */
+	     64 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_DES3, 64, 128, 192,
+	     /* Valid sizes 128, 192 with parity */
+	     192 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_SM4, 128, 128, 128,
 		128 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
@@ -1206,6 +1199,36 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 	return TEE_SUCCESS;
 }
 
+static bool is_gp_legacy_des_key_size(TEE_ObjectType type, size_t sz)
+{
+	return IS_ENABLED(CFG_COMPAT_GP10_DES) &&
+	       ((type == TEE_TYPE_DES && sz == 56) ||
+		(type == TEE_TYPE_DES3 && (sz == 112 || sz == 168)));
+}
+
+static TEE_Result check_key_size(const struct tee_cryp_obj_type_props *props,
+				 size_t key_size)
+{
+	size_t sz = key_size;
+
+	/*
+	 * In GP Internal API Specification 1.0 the partity bits aren't
+	 * counted when telling the size of the key in bits so add them
+	 * here if missing.
+	 */
+	if (is_gp_legacy_des_key_size(props->obj_type, sz))
+		sz += sz / 7;
+
+	if (sz % props->quanta != 0)
+		return TEE_ERROR_NOT_SUPPORTED;
+	if (sz < props->min_size)
+		return TEE_ERROR_NOT_SUPPORTED;
+	if (sz > props->max_size)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 			    size_t max_key_size)
 {
@@ -1230,13 +1253,10 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		if (!type_props)
 			return TEE_ERROR_NOT_SUPPORTED;
 
-		/* Check that maxKeySize follows restrictions */
-		if (max_key_size % type_props->quanta != 0)
-			return TEE_ERROR_NOT_SUPPORTED;
-		if (max_key_size < type_props->min_size)
-			return TEE_ERROR_NOT_SUPPORTED;
-		if (max_key_size > type_props->max_size)
-			return TEE_ERROR_NOT_SUPPORTED;
+		/* Check that max_key_size follows restrictions */
+		res = check_key_size(type_props, max_key_size);
+		if (res)
+			return res;
 
 		o->attr = calloc(1, type_props->alloc_size);
 		if (!o->attr)
@@ -1602,12 +1622,11 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 					return res;
 			} else {
 				TEE_ObjectType obj_type = o->info.objectType;
+				size_t sz = o->info.maxKeySize;
 
 				obj_size = attrs[n].content.ref.length * 8;
-
-				/* Drop the parity bits DES keys */
-				if (obj_type == TEE_TYPE_DES ||
-				    obj_type == TEE_TYPE_DES3)
+				/* Drop the parity bits for legacy objects */
+				if (is_gp_legacy_des_key_size(obj_type, sz))
 					obj_size -= obj_size / 8;
 			}
 			if (obj_size > o->info.maxKeySize)
@@ -1626,16 +1645,15 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		}
 	}
 
-	/*
-	 * We have to do it like this because the parity bits aren't counted
-	 * when telling the size of the key in bits.
-	 */
-	if (o->info.objectType == TEE_TYPE_DES ||
-	    o->info.objectType == TEE_TYPE_DES3)
-		obj_size -= obj_size / 8; /* Exclude parity in size of key */
-
 	o->have_attrs = have_attrs;
 	o->info.keySize = obj_size;
+	/*
+	 * In GP Internal API Specification 1.0 the partity bits aren't
+	 * counted when telling the size of the key in bits so remove the
+	 * parity bits here.
+	 */
+	if (is_gp_legacy_des_key_size(o->info.objectType, o->info.maxKeySize))
+		o->info.keySize -= o->info.keySize / 8;
 
 	return TEE_SUCCESS;
 }
@@ -1915,13 +1933,10 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	if (!type_props)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	/* Check that maxKeySize follows restrictions */
-	if (key_size % type_props->quanta != 0)
-		return TEE_ERROR_NOT_SUPPORTED;
-	if (key_size < type_props->min_size)
-		return TEE_ERROR_NOT_SUPPORTED;
-	if (key_size > type_props->max_size)
-		return TEE_ERROR_NOT_SUPPORTED;
+	/* Check that key_size follows restrictions */
+	res = check_key_size(type_props, key_size);
+	if (res)
+		return res;
 
 	size_t alloc_size = 0;
 
@@ -1957,13 +1972,11 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 		byte_size = key_size / 8;
 
 		/*
-		 * We have to do it like this because the parity bits aren't
-		 * counted when telling the size of the key in bits.
+		 * In GP Internal API Specification 1.0 the partity bits
+		 * aren't counted when telling the size of the key in bits.
 		 */
-		if (o->info.objectType == TEE_TYPE_DES ||
-		    o->info.objectType == TEE_TYPE_DES3) {
+		if (is_gp_legacy_des_key_size(o->info.objectType, key_size))
 			byte_size = (key_size + key_size / 7) / 8;
-		}
 
 		key = (struct tee_cryp_obj_secret *)o->attr;
 		if (byte_size > key->alloc_size) {
