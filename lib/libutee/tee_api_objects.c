@@ -492,7 +492,7 @@ TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object)
 	TEE_Result res;
 
 	if (object == TEE_HANDLE_NULL)
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
+		return TEE_SUCCESS;
 
 	res = _utee_storage_obj_del((unsigned long)object);
 
