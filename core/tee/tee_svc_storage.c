@@ -256,6 +256,11 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 				    size_t object_id_len, unsigned long flags,
 				    uint32_t *obj)
 {
+	const unsigned long valid_flags = TEE_DATA_FLAG_ACCESS_READ |
+					  TEE_DATA_FLAG_ACCESS_WRITE |
+					  TEE_DATA_FLAG_ACCESS_WRITE_META |
+					  TEE_DATA_FLAG_SHARE_READ |
+					  TEE_DATA_FLAG_SHARE_WRITE;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
 	struct tee_ta_session *sess = NULL;
@@ -264,6 +269,9 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	struct tee_pobj *po = NULL;
 	struct tee_obj *o = NULL;
 	char *file = NULL;
+
+	if (flags & ~valid_flags)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!fops) {
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -299,9 +307,8 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
-	o->info.handleFlags =
-	    TEE_HANDLE_FLAG_PERSISTENT | TEE_HANDLE_FLAG_INITIALIZED;
-	o->flags = flags;
+	o->info.handleFlags = TEE_HANDLE_FLAG_PERSISTENT |
+			      TEE_HANDLE_FLAG_INITIALIZED | flags;
 	o->pobj = po;
 	tee_obj_add(utc, o);
 
@@ -336,7 +343,7 @@ exit:
 	return res;
 }
 
-static TEE_Result tee_svc_storage_init_file(struct tee_obj *o,
+static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 					    struct tee_obj *attr_o, void *data,
 					    uint32_t len)
 {
@@ -384,9 +391,8 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o,
 	head.objectType = o->info.objectType;
 	head.have_attrs = o->have_attrs;
 
-	res = fops->create(o->pobj, !!(o->flags & TEE_DATA_FLAG_OVERWRITE),
-			   &head, sizeof(head), attr, attr_size, data, len,
-			   &o->fh);
+	res = fops->create(o->pobj, overwrite, &head, sizeof(head), attr,
+			   attr_size, data, len, &o->fh);
 
 	if (!res)
 		o->info.dataSize = len;
@@ -400,6 +406,12 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 			unsigned long attr, void *data, size_t len,
 			uint32_t *obj)
 {
+	const unsigned long valid_flags = TEE_DATA_FLAG_ACCESS_READ |
+					  TEE_DATA_FLAG_ACCESS_WRITE |
+					  TEE_DATA_FLAG_ACCESS_WRITE_META |
+					  TEE_DATA_FLAG_SHARE_READ |
+					  TEE_DATA_FLAG_SHARE_WRITE |
+					  TEE_DATA_FLAG_OVERWRITE;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
 	struct tee_ta_session *sess = NULL;
@@ -408,6 +420,9 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 	struct tee_obj *o = NULL;
+
+	if (flags & ~valid_flags)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!fops)
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -453,9 +468,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 	}
 
-	o->info.handleFlags =
-	    TEE_HANDLE_FLAG_PERSISTENT | TEE_HANDLE_FLAG_INITIALIZED;
-	o->flags = flags;
+	o->info.handleFlags = TEE_HANDLE_FLAG_PERSISTENT |
+			      TEE_HANDLE_FLAG_INITIALIZED | flags;
 	o->pobj = po;
 
 	if (attr != TEE_HANDLE_NULL) {
@@ -470,7 +484,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		}
 	}
 
-	res = tee_svc_storage_init_file(o, attr_o, data, len);
+	res = tee_svc_storage_init_file(o, flags & TEE_DATA_FLAG_OVERWRITE,
+					attr_o, data, len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -518,7 +533,7 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	if (!(o->flags & TEE_DATA_FLAG_ACCESS_WRITE_META))
+	if (!(o->info.handleFlags & TEE_DATA_FLAG_ACCESS_WRITE_META))
 		return TEE_ERROR_ACCESS_CONFLICT;
 
 	if (o->pobj == NULL || o->pobj->obj_id == NULL)
@@ -559,7 +574,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		goto exit;
 	}
 
-	if (!(o->flags & TEE_DATA_FLAG_ACCESS_WRITE_META)) {
+	if (!(o->info.handleFlags & TEE_DATA_FLAG_ACCESS_WRITE_META)) {
 		res = TEE_ERROR_BAD_STATE;
 		goto exit;
 	}
@@ -774,7 +789,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
-	o->flags = TEE_DATA_FLAG_SHARE_READ;
+	o->info.handleFlags = TEE_DATA_FLAG_SHARE_READ;
 
 	o->pobj = calloc(1, sizeof(struct tee_pobj));
 	if (!o->pobj) {
@@ -836,7 +851,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 		goto exit;
 	}
 
-	if (!(o->flags & TEE_DATA_FLAG_ACCESS_READ)) {
+	if (!(o->info.handleFlags & TEE_DATA_FLAG_ACCESS_READ)) {
 		res = TEE_ERROR_ACCESS_CONFLICT;
 		goto exit;
 	}
@@ -899,7 +914,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 		goto exit;
 	}
 
-	if (!(o->flags & TEE_DATA_FLAG_ACCESS_WRITE)) {
+	if (!(o->info.handleFlags & TEE_DATA_FLAG_ACCESS_WRITE)) {
 		res = TEE_ERROR_ACCESS_CONFLICT;
 		goto exit;
 	}
@@ -956,7 +971,7 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		goto exit;
 	}
 
-	if (!(o->flags & TEE_DATA_FLAG_ACCESS_WRITE)) {
+	if (!(o->info.handleFlags & TEE_DATA_FLAG_ACCESS_WRITE)) {
 		res = TEE_ERROR_ACCESS_CONFLICT;
 		goto exit;
 	}
