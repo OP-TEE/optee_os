@@ -50,10 +50,10 @@ TEE_Result rpc_io_i2c_transfer(struct rpc_i2c_request *req, size_t *len)
 	 * Reporting more bytes than supplied or requested from the I2C chip is
 	 * an REE error
 	 */
-	if (p[2].u.value.a > req->buffer_len)
+	if (p[3].u.value.a > req->buffer_len)
 		return TEE_ERROR_EXCESS_DATA;
 
-	*len = p[2].u.value.a;
+	*len = p[3].u.value.a;
 
 	if (req->mode == RPC_I2C_MODE_READ)
 		memcpy(req->buffer, va, *len);
