@@ -1153,9 +1153,17 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	thread_get_core_local()->curr_thread = 0;
 	init_runtime(pageable_part);
 
-#ifndef CFG_VIRTUALIZATION
-	thread_init_boot_thread();
-#endif
+	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+		/*
+		 * Virtualization: We can't initialize threads right now because
+		 * threads belong to "tee" part and will be initialized
+		 * separately per each new virtual guest. So, we'll clear
+		 * "curr_thread" and call it done.
+		 */
+		thread_get_core_local()->curr_thread = -1;
+	} else {
+		thread_init_boot_thread();
+	}
 	thread_init_primary();
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
