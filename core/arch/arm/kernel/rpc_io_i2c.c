@@ -28,7 +28,8 @@ TEE_Result rpc_io_i2c_transfer(struct rpc_i2c_request *req, size_t *len)
 	if (!len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_KERNEL_PRIVATE,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_I2C,
+					THREAD_SHM_TYPE_KERNEL_PRIVATE,
 					req->buffer_len, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;

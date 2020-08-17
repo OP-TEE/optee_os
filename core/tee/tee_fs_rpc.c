@@ -35,7 +35,8 @@ static TEE_Result operation_open(uint32_t id, unsigned int cmd,
 	TEE_Result res;
 	void *va;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -77,7 +78,8 @@ static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 	TEE_Result res;
 	void *va;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -136,7 +138,8 @@ TEE_Result tee_fs_rpc_read_init(struct tee_fs_rpc_operation *op,
 	if (offset < 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					data_len, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -174,7 +177,8 @@ TEE_Result tee_fs_rpc_write_init(struct tee_fs_rpc_operation *op,
 	if (offset < 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					data_len, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -215,7 +219,8 @@ TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po)
 	struct mobj *mobj;
 	void *va;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -242,7 +247,8 @@ TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 	struct mobj *mobj;
 	void *va;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -270,7 +276,8 @@ TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
 	char *va;
 	bool temp;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX * 2, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -321,7 +328,8 @@ TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
 	if (!dir)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					TEE_FS_NAME_MAX, &mobj);
 	if (!va) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
@@ -381,7 +389,8 @@ TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
 	if (!d)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	va = thread_rpc_shm_cache_alloc(THREAD_SHM_TYPE_APPLICATION,
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
 					max_name_len, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;

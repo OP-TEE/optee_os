@@ -1560,15 +1560,61 @@ static struct mobj *alloc_shm(enum thread_shm_type shm_type, size_t size)
 	}
 }
 
-void *thread_rpc_shm_cache_alloc(enum thread_shm_type shm_type, size_t size,
-				 struct mobj **mobj)
+static void clear_shm_cache_entry(struct thread_shm_cache_entry *ce)
+{
+	if (ce->mobj) {
+		switch (ce->type) {
+		case THREAD_SHM_TYPE_APPLICATION:
+			thread_rpc_free_payload(ce->mobj);
+			break;
+		case THREAD_SHM_TYPE_KERNEL_PRIVATE:
+			thread_rpc_free_kernel_payload(ce->mobj);
+			break;
+		case THREAD_SHM_TYPE_GLOBAL:
+			thread_rpc_free_global_payload(ce->mobj);
+			break;
+		default:
+			assert(0); /* "can't happen" */
+			break;
+		}
+	}
+	ce->mobj = NULL;
+	ce->size = 0;
+}
+
+static struct thread_shm_cache_entry *
+get_shm_cache_entry(enum thread_shm_cache_user user)
 {
 	struct thread_shm_cache *cache = &threads[thread_get_id()].shm_cache;
+	struct thread_shm_cache_entry *ce = NULL;
+
+	SLIST_FOREACH(ce, cache, link)
+		if (ce->user == user)
+			return ce;
+
+	ce = calloc(1, sizeof(*ce));
+	if (ce) {
+		ce->user = user;
+		SLIST_INSERT_HEAD(cache, ce, link);
+	}
+
+	return ce;
+}
+
+void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
+				 enum thread_shm_type shm_type,
+				 size_t size, struct mobj **mobj)
+{
+	struct thread_shm_cache_entry *ce = NULL;
 	size_t sz = size;
 	paddr_t p = 0;
 	void *va = NULL;
 
 	if (!size)
+		return NULL;
+
+	ce = get_shm_cache_entry(user);
+	if (!ce)
 		return NULL;
 
 	/*
@@ -1577,57 +1623,48 @@ void *thread_rpc_shm_cache_alloc(enum thread_shm_type shm_type, size_t size,
 	 */
 	sz = ROUNDUP(size, SMALL_PAGE_SIZE);
 
-	if (cache->type != shm_type || sz > cache->size) {
-		thread_rpc_shm_cache_clear(cache);
+	if (ce->type != shm_type || sz > ce->size) {
+		clear_shm_cache_entry(ce);
 
-		cache->mobj = alloc_shm(shm_type, sz);
-		if (!cache->mobj)
+		ce->mobj = alloc_shm(shm_type, sz);
+		if (!ce->mobj)
 			return NULL;
 
-		if (mobj_get_pa(cache->mobj, 0, 0, &p))
+		if (mobj_get_pa(ce->mobj, 0, 0, &p))
 			goto err;
 
 		if (!ALIGNMENT_IS_OK(p, uint64_t))
 			goto err;
 
-		va = mobj_get_va(cache->mobj, 0);
+		va = mobj_get_va(ce->mobj, 0);
 		if (!va)
 			goto err;
 
-		cache->size = sz;
-		cache->type = shm_type;
+		ce->size = sz;
+		ce->type = shm_type;
 	} else {
-		va = mobj_get_va(cache->mobj, 0);
+		va = mobj_get_va(ce->mobj, 0);
 		if (!va)
 			goto err;
 	}
-	*mobj = cache->mobj;
+	*mobj = ce->mobj;
 
 	return va;
 err:
-	thread_rpc_shm_cache_clear(cache);
+	clear_shm_cache_entry(ce);
 	return NULL;
 }
 
 void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache)
 {
-	if (cache->mobj) {
-		switch (cache->type) {
-		case THREAD_SHM_TYPE_APPLICATION:
-			thread_rpc_free_payload(cache->mobj);
+	while (true) {
+		struct thread_shm_cache_entry *ce = SLIST_FIRST(cache);
+
+		if (!ce)
 			break;
-		case THREAD_SHM_TYPE_KERNEL_PRIVATE:
-			thread_rpc_free_kernel_payload(cache->mobj);
-			break;
-		case THREAD_SHM_TYPE_GLOBAL:
-			thread_rpc_free_global_payload(cache->mobj);
-			break;
-		default:
-			assert(0); /* "can't happen" */
-			break;
-		}
-		cache->mobj = NULL;
-		cache->size = 0;
+		SLIST_REMOVE_HEAD(cache, link);
+		clear_shm_cache_entry(ce);
+		free(ce);
 	}
 }
 
