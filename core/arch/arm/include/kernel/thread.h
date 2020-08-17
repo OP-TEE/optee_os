@@ -733,11 +733,27 @@ enum thread_shm_type {
 };
 
 /*
- * Returns a pointer to the cached FS RPC memory. Each thread has a unique
- * cache. The pointer is guaranteed to point to a large enough area or to
- * be NULL.
+ * enum thread_shm_cache_user - user of a cache allocation
+ * @THREAD_SHM_CACHE_USER_SOCKET - socket communication
+ * @THREAD_SHM_CACHE_USER_FS - filesystem access
+ * @THREAD_SHM_CACHE_USER_I2C - I2C communication
+ *
+ * To ensure that each user of the shared memory cache doesn't interfere
+ * with each other a unique ID per user is used.
  */
-void *thread_rpc_shm_cache_alloc(enum thread_shm_type shm_type,
+enum thread_shm_cache_user {
+	THREAD_SHM_CACHE_USER_SOCKET,
+	THREAD_SHM_CACHE_USER_FS,
+	THREAD_SHM_CACHE_USER_I2C,
+};
+
+/*
+ * Returns a pointer to the cached RPC memory. Each thread and @user tuple
+ * has a unique cache. The pointer is guaranteed to point to a large enough
+ * area or to be NULL.
+ */
+void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
+				 enum thread_shm_type shm_type,
 				 size_t size, struct mobj **mobj);
 #endif /*__ASSEMBLER__*/
 

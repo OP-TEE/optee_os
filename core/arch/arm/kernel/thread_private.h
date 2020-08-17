@@ -43,11 +43,15 @@ struct thread_vfp_state {
 
 #endif /*CFG_WITH_VFP*/
 
-struct thread_shm_cache {
+struct thread_shm_cache_entry {
 	struct mobj *mobj;
 	size_t size;
 	enum thread_shm_type type;
+	enum thread_shm_cache_user user;
+	SLIST_ENTRY(thread_shm_cache_entry) link;
 };
+
+SLIST_HEAD(thread_shm_cache, thread_shm_cache_entry);
 
 struct thread_ctx {
 	struct thread_ctx_regs regs;
