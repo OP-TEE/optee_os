@@ -80,6 +80,10 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	}
 
 	if (*obj) {
+		if (usage == TEE_POBJ_USAGE_ENUM) {
+			(*obj)->refcnt++;
+			goto out;
+		}
 		if (temporary != (*obj)->temporary) {
 			res = TEE_ERROR_ACCESS_CONFLICT;
 			goto out;

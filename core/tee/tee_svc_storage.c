@@ -686,28 +686,6 @@ TEE_Result syscall_storage_reset_enum(unsigned long obj_enum)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_svc_storage_set_enum(struct tee_fs_dirent *d,
-			const struct tee_file_operations *fops,
-			struct tee_obj *o)
-{
-	o->info.handleFlags =
-	    TEE_HANDLE_FLAG_PERSISTENT | TEE_HANDLE_FLAG_INITIALIZED;
-	o->info.objectUsage = TEE_USAGE_DEFAULT;
-
-	if (d->oidlen > TEE_OBJECT_ID_MAX_LEN)
-		return TEE_ERROR_CORRUPT_OBJECT;
-
-	o->pobj->obj_id = malloc(d->oidlen);
-	if (!o->pobj->obj_id)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	memcpy(o->pobj->obj_id, d->oid, d->oidlen);
-	o->pobj->obj_id_len = d->oidlen;
-	o->pobj->fops = fops;
-
-	return TEE_SUCCESS;
-}
-
 TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 				      unsigned long storage_id)
 {
@@ -791,18 +769,14 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
-	o->info.handleFlags = TEE_DATA_FLAG_SHARE_READ;
 
-	o->pobj = calloc(1, sizeof(struct tee_pobj));
-	if (!o->pobj) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
+	res = tee_pobj_get(&sess->ctx->uuid, d->oid, d->oidlen, 0,
+			   TEE_POBJ_USAGE_ENUM, e->fops, &o->pobj);
+	if (res)
 		goto exit;
-	}
 
-	o->pobj->uuid = sess->ctx->uuid;
-	res = tee_svc_storage_set_enum(d, e->fops, o);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	o->info.handleFlags = o->pobj->flags | TEE_HANDLE_FLAG_PERSISTENT |
+			      TEE_HANDLE_FLAG_INITIALIZED;
 
 	res = tee_svc_storage_read_head(o);
 	if (res != TEE_SUCCESS)
@@ -816,12 +790,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 
 exit:
 	if (o) {
-		if (o->pobj) {
-			if (o->pobj->fops)
-				o->pobj->fops->close(&o->fh);
-			free(o->pobj->obj_id);
-		}
-		free(o->pobj);
+		tee_pobj_release(o->pobj);
 		tee_obj_free(o);
 	}
 
