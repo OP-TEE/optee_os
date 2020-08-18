@@ -27,6 +27,7 @@ enum tee_pobj_usage {
 	TEE_POBJ_USAGE_OPEN,
 	TEE_POBJ_USAGE_RENAME,
 	TEE_POBJ_USAGE_CREATE,
+	TEE_POBJ_USAGE_ENUM,
 };
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
