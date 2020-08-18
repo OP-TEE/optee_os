@@ -1691,12 +1691,46 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_pub_rsa_key(struct bignum *e)
+{
+	size_t n = crypto_bignum_num_bytes(e);
+	uint8_t bin_key[256 / 8] = { 0 };
+
+	/*
+	 * NIST SP800-56B requires public RSA key to be an odd integer in
+	 * the range 65537 <= e < 2^256.
+	 */
+
+	if (n > sizeof(bin_key) || n < 3)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	crypto_bignum_bn2bin(e, bin_key);
+
+	if (!(bin_key[0] & 1)) /* key must be odd */
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (n == 3) {
+		uint32_t key = 0;
+
+		for (n = 0; n < 3; n++) {
+			key <<= 8;
+			key |= bin_key[n];
+		}
+
+		if (key < 65537)
+			return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* key is larger than 65537 */
+	return TEE_SUCCESS;
+}
+
 static TEE_Result tee_svc_obj_generate_key_rsa(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
 	uint32_t key_size,
 	const TEE_Attribute *params, uint32_t param_count)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	struct rsa_keypair *key = o->attr;
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(65537);
 
@@ -1705,8 +1739,13 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 					     param_count);
 	if (res != TEE_SUCCESS)
 		return res;
-	if (!get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT))
+	if (get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT)) {
+		res = check_pub_rsa_key(key->e);
+		if (res)
+			return res;
+	} else {
 		crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key->e);
+	}
 	res = crypto_acipher_gen_rsa_key(key, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
