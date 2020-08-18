@@ -58,12 +58,13 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 }
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
-			uint32_t flags, bool temporary,
+			uint32_t flags, enum tee_pobj_usage usage,
 			const struct tee_file_operations *fops,
 			struct tee_pobj **obj)
 {
-	struct tee_pobj *o;
-	TEE_Result res;
+	bool temporary = (usage == TEE_POBJ_USAGE_CREATE);
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_pobj *o = NULL;
 
 	*obj = NULL;
 

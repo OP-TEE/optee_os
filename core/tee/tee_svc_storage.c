@@ -296,7 +296,8 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto err;
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
-			   object_id_len, flags, false, fops, &po);
+			   object_id_len, flags, TEE_POBJ_USAGE_OPEN, fops,
+			   &po);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -441,7 +442,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		goto err;
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
-			   object_id_len, flags, true, fops, &po);
+			   object_id_len, flags, TEE_POBJ_USAGE_CREATE,
+			   fops, &po);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -588,7 +590,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	fops = o->pobj->fops;
 	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, TEE_DATA_FLAG_ACCESS_WRITE_META,
-			   false, fops, &po);
+			   TEE_POBJ_USAGE_RENAME, fops, &po);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
