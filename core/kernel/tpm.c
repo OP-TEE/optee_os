@@ -70,7 +70,7 @@ static void get_tpm_phys_params(void *fdt __maybe_unused,
 #ifdef CFG_DT
 	int node = 0;
 	const char *dt_tpm_match_table = {
-		"arm,nt_fw",
+		"arm,tpm_event_log",
 	};
 
 	if (!fdt) {
