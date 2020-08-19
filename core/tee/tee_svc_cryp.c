@@ -125,7 +125,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct rsa_keypair, e)
 	},
@@ -372,7 +372,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_ECC_CURVE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR |
+		 TEE_TYPE_ATTR_GEN_KEY_REQ,
 	.ops_index = ATTR_OPS_INDEX_VALUE,
 	RAW_DATA(struct ecc_keypair, curve)
 	},
@@ -1426,16 +1427,16 @@ static TEE_Result tee_svc_cryp_check_attr(enum attr_usage usage,
 					  const TEE_Attribute *attrs,
 					  uint32_t attr_count)
 {
-	uint32_t required_flag;
-	uint32_t opt_flag;
-	bool all_opt_needed;
+	uint32_t required_flag = 0;
+	uint32_t opt_flag = 0;
+	bool all_opt_needed = false;
 	uint32_t req_attrs = 0;
 	uint32_t opt_grp_attrs = 0;
 	uint32_t attrs_found = 0;
-	size_t n;
-	uint32_t bit;
-	uint32_t flags;
-	int idx;
+	size_t n = 0;
+	uint32_t bit = 0;
+	uint32_t flags = 0;
+	int idx = 0;
 
 	if (usage == ATTR_USAGE_POPULATE) {
 		required_flag = TEE_TYPE_ATTR_REQUIRED;
@@ -1478,6 +1479,13 @@ static TEE_Result tee_svc_cryp_check_attr(enum attr_usage usage,
 
 		/* attribute not repeated */
 		if ((attrs_found & bit) != 0)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		/*
+		 * Attribute not defined in current object type for this
+		 * usage.
+		 */
+		if (!(bit & (req_attrs | opt_grp_attrs)))
 			return TEE_ERROR_ITEM_NOT_FOUND;
 
 		attrs_found |= bit;
