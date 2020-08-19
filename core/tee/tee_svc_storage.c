@@ -493,6 +493,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	if (res != TEE_SUCCESS)
 		goto oclose;
 
+	tee_pobj_create_final(o->pobj);
 	return TEE_SUCCESS;
 
 oclose:
