@@ -5,6 +5,7 @@
  */
 
 #include <assert.h>
+#include <bitstring.h>
 #include <compiler.h>
 #include <config.h>
 #include <crypto/crypto.h>
@@ -63,12 +64,13 @@ struct tee_cryp_obj_secret {
 	 */
 };
 
-#define TEE_TYPE_ATTR_OPTIONAL       0x0
-#define TEE_TYPE_ATTR_REQUIRED       0x1
-#define TEE_TYPE_ATTR_OPTIONAL_GROUP 0x2
-#define TEE_TYPE_ATTR_SIZE_INDICATOR 0x4
-#define TEE_TYPE_ATTR_GEN_KEY_OPT    0x8
-#define TEE_TYPE_ATTR_GEN_KEY_REQ    0x10
+#define TEE_TYPE_ATTR_OPTIONAL		BIT(0)
+#define TEE_TYPE_ATTR_REQUIRED		BIT(1)
+#define TEE_TYPE_ATTR_OPTIONAL_GROUP	BIT(2)
+#define TEE_TYPE_ATTR_SIZE_INDICATOR	BIT(3)
+#define TEE_TYPE_ATTR_GEN_KEY_OPT	BIT(4)
+#define TEE_TYPE_ATTR_GEN_KEY_REQ	BIT(5)
+#define TEE_TYPE_ATTR_BIGNUM_MAXBITS	BIT(6)
 
     /* Handle storing of generic secret keys of varying lengths */
 #define ATTR_OPS_INDEX_SECRET     0
@@ -176,7 +178,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_DSA_PRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_public_key, p)
 	},
@@ -190,14 +192,14 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_BASE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_public_key, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PUBLIC_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_public_key, y)
 	},
@@ -206,7 +208,8 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_DSA_PRIME,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, p)
 	},
@@ -221,21 +224,22 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 
 	{
 	.attr_id = TEE_ATTR_DSA_BASE,
-	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
+		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PRIVATE_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PUBLIC_VALUE,
-	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
 	RAW_DATA(struct dsa_keypair, y)
 	},
@@ -1533,19 +1537,28 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 	return TEE_SUCCESS;
 }
 
+static size_t get_used_bits(const TEE_Attribute *a)
+{
+	int nbits = a->content.ref.length * 8;
+	int v = 0;
+
+	bit_ffs(a->content.ref.buffer, nbits, &v);
+	return nbits - v;
+}
+
 static TEE_Result tee_svc_cryp_obj_populate_type(
 		struct tee_obj *o,
 		const struct tee_cryp_obj_type_props *type_props,
 		const TEE_Attribute *attrs,
 		uint32_t attr_count)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t have_attrs = 0;
 	size_t obj_size = 0;
-	size_t n;
-	int idx;
-	const struct attr_ops *ops;
-	void *attr;
+	size_t n = 0;
+	int idx = 0;
+	const struct attr_ops *ops = NULL;
+	void *attr = NULL;
 
 	for (n = 0; n < attr_count; n++) {
 		idx = tee_svc_cryp_obj_find_type_attr_idx(
@@ -1569,11 +1582,15 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 			return res;
 
 		/*
-		 * First attr_idx signifies the attribute that gives the size
-		 * of the object
+		 * The attribute that gives the size of the object is
+		 * flagged with TEE_TYPE_ATTR_SIZE_INDICATOR.
 		 */
 		if (type_props->type_attrs[idx].flags &
 		    TEE_TYPE_ATTR_SIZE_INDICATOR) {
+			/* There should be only one */
+			if (obj_size)
+				return TEE_ERROR_BAD_STATE;
+
 			/*
 			 * For ECDSA/ECDH we need to translate curve into
 			 * object size
@@ -1586,7 +1603,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 			} else {
 				TEE_ObjectType obj_type = o->info.objectType;
 
-				obj_size += (attrs[n].content.ref.length * 8);
+				obj_size = attrs[n].content.ref.length * 8;
 
 				/* Drop the parity bits DES keys */
 				if (obj_type == TEE_TYPE_DES ||
@@ -1594,6 +1611,17 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 					obj_size -= obj_size / 8;
 			}
 			if (obj_size > o->info.maxKeySize)
+				return TEE_ERROR_BAD_STATE;
+		}
+
+		/*
+		 * Bignum attributes limited by the number of bits in
+		 * o->info.keySize are flagged with
+		 * TEE_TYPE_ATTR_BIGNUM_MAXBITS.
+		 */
+		if (type_props->type_attrs[idx].flags &
+		    TEE_TYPE_ATTR_BIGNUM_MAXBITS) {
+			if (get_used_bits(attrs + n) > o->info.maxKeySize)
 				return TEE_ERROR_BAD_STATE;
 		}
 	}
