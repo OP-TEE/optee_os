@@ -1585,6 +1585,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 				    obj_type == TEE_TYPE_DES3)
 					obj_size -= obj_size / 8;
 			}
+			if (obj_size > o->info.maxKeySize)
+				return TEE_ERROR_BAD_STATE;
 		}
 	}
 
