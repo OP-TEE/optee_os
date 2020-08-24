@@ -150,5 +150,6 @@ build:
     - _make PLATFORM=bcm-ns3 CFG_ARM64_core=y
     - _make PLATFORM=hisilicon-hi3519av100_demo
     - _make PLATFORM=amlogic
+    - _make PLATFORM=rzn1
 
     - upload_cache
