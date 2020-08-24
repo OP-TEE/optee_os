@@ -120,7 +120,8 @@ __weak void init_sec_mon(unsigned long nsec_entry)
 	nsec_ctx = sm_get_nsec_ctx();
 	nsec_ctx->mon_lr = nsec_entry;
 	nsec_ctx->mon_spsr = CPSR_MODE_SVC | CPSR_I;
-
+	if (nsec_entry & 1)
+		nsec_ctx->mon_spsr |= CPSR_T;
 }
 #endif
 
