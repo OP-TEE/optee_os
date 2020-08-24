@@ -163,6 +163,12 @@ R:	[@OP-TEE/plat-rcar]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
 
+Renesas RZ/N1
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+S:	Maintained
+F:	core/arch/arm/plat-rzn1/
+
 Rockchip RK322X
 R:	Rockchip <op-tee@rock-chips.com>
 R:	[@OP-TEE/plat-rockchip]
