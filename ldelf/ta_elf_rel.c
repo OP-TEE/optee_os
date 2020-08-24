@@ -412,17 +412,56 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	*where = val;
 }
 
-static void e64_process_tls_rela(const Elf64_Sym *sym_tab, size_t num_syms,
-				 const char *str_tab, size_t str_tab_size,
-				 Elf64_Rela *rela, Elf64_Addr *where)
+static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
+				       size_t num_syms, const char *str_tab,
+				       size_t str_tab_size, Elf64_Rela *rela,
+				       Elf64_Addr *where, struct ta_elf *elf)
 {
 	struct ta_elf *mod = NULL;
 	const char *name = NULL;
+	size_t sym_idx = 0;
 	vaddr_t symval = 0;
 
-	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name);
-	resolve_sym(name, &symval, &mod);
+	sym_idx = ELF64_R_SYM(rela->r_info);
+	if (sym_idx) {
+		e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela,
+				 &name);
+		resolve_sym(name, &symval, &mod);
+	} else {
+		mod = elf;
+	}
 	*where = symval + mod->tls_tcb_offs + rela->r_addend;
+}
+
+struct tlsdesc {
+	long (*resolver)(struct tlsdesc *td);
+	long value;
+};
+
+/* Helper function written in assembly due to the calling convention */
+long tlsdesc_resolve(struct tlsdesc *td);
+
+static void e64_process_tlsdesc_rela(const Elf64_Sym *sym_tab, size_t num_syms,
+				     const char *str_tab, size_t str_tab_size,
+				     Elf64_Rela *rela, Elf64_Addr *where,
+				     struct ta_elf *elf)
+{
+	/*
+	 * @where points to a pair of 64-bit words in the GOT or PLT which is
+	 * mapped to a struct tlsdesc:
+	 *
+	 * - resolver() must return the offset of the thread-local variable
+	 *   relative to TPIDR_EL0.
+	 * - value is implementation-dependent. The TLS_TPREL handling code is
+	 *   re-used to get the desired offset so that tlsdesc_resolve() just
+	 *   needs to return this value.
+	 *
+	 * Both the TA and ldelf are AArch64 so it is OK to point to a function
+	 * in ldelf.
+	 */
+	*where = (Elf64_Addr)tlsdesc_resolve;
+	e64_process_tls_tprel_rela(sym_tab, num_syms, str_tab, str_tab_size,
+				   rela, where + 1, elf);
 }
 
 static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
@@ -530,8 +569,14 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 					     str_tab_size, rela, where);
 			break;
 		case R_AARCH64_TLS_TPREL:
-			e64_process_tls_rela(sym_tab, num_syms, str_tab,
-					     str_tab_size, rela, where);
+			e64_process_tls_tprel_rela(sym_tab, num_syms, str_tab,
+						   str_tab_size, rela, where,
+						   elf);
+			break;
+		case R_AARCH64_TLSDESC:
+			e64_process_tlsdesc_rela(sym_tab, num_syms, str_tab,
+						 str_tab_size, rela, where,
+						 elf);
 			break;
 		default:
 			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %zd",

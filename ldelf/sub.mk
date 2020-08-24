@@ -1,6 +1,7 @@
 global-incdirs-y += include
 srcs-$(CFG_ARM32_$(sm)) += start_a32.S
 srcs-$(CFG_ARM64_$(sm)) += start_a64.S
+srcs-$(CFG_ARM64_$(sm)) += tlsdesc_rel_a64.S
 srcs-y += dl.c
 srcs-y += main.c
 srcs-y += sys.c

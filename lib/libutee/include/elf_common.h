@@ -657,6 +657,7 @@ typedef struct {
 #define	R_AARCH64_JUMP_SLOT	1026	/* Set GOT entry to code address. */
 #define	R_AARCH64_RELATIVE	1027	/* Add load address of shared object. */
 #define	R_AARCH64_TLS_TPREL	1030	/* Offset of the TLS block in the TCB */
+#define	R_AARCH64_TLSDESC	1031	/* TLS descriptor to be filled */
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
