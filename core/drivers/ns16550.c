@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017, 2020, Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@
  */
 
 #include <drivers/ns16550.h>
-#include <io.h>
 #include <keep.h>
 #include <util.h>
 
@@ -46,30 +45,27 @@
 /* uart status register bits */
 #define UART_LSR_THRE	0x20 /* Transmit-hold-register empty */
 
-static vaddr_t chip_to_base(struct serial_chip *chip)
+static void ns16550_flush(struct serial_chip *chip)
 {
 	struct ns16550_data *pd =
 		container_of(chip, struct ns16550_data, chip);
+	vaddr_t base = io_pa_or_va(&pd->base);
 
-	return io_pa_or_va(&pd->base);
-}
-
-static void ns16550_flush(struct serial_chip *chip)
-{
-	vaddr_t base = chip_to_base(chip);
-
-	while ((io_read8(base + UART_LSR) & UART_LSR_THRE) == 0)
+	while ((serial_in(base + (UART_LSR << pd->reg_shift), pd->io_width) &
+		UART_LSR_THRE) == 0)
 		;
 }
 
 static void ns16550_putc(struct serial_chip *chip, int ch)
 {
-	vaddr_t base = chip_to_base(chip);
+	struct ns16550_data *pd =
+		container_of(chip, struct ns16550_data, chip);
+	vaddr_t base = io_pa_or_va(&pd->base);
 
 	ns16550_flush(chip);
 
 	/* write out charset to Transmit-hold-register */
-	io_write8(base + UART_THR, ch);
+	serial_out(base + (UART_THR << pd->reg_shift), pd->io_width, ch);
 }
 
 static const struct serial_ops ns16550_ops = {
@@ -78,9 +74,12 @@ static const struct serial_ops ns16550_ops = {
 };
 DECLARE_KEEP_PAGER(ns16550_ops);
 
-void ns16550_init(struct ns16550_data *pd, paddr_t base)
+void ns16550_init(struct ns16550_data *pd, paddr_t base, uint8_t io_width,
+		  uint8_t reg_shift)
 {
 	pd->base.pa = base;
+	pd->io_width = io_width;
+	pd->reg_shift = reg_shift;
 	pd->chip.ops = &ns16550_ops;
 
 	/*
