@@ -5,7 +5,7 @@
  * Brief   CAAM Clock functions.
  */
 #include <caam_hal_clk.h>
-#include <caam_io.h>
+#include <io.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
@@ -15,7 +15,7 @@ void caam_hal_clk_enable(bool enable)
 						  PCC_CAAM + sizeof(uint32_t));
 
 	if (enable)
-		io_caam_write32(pcc2_base + PCC_CAAM, PCC_ENABLE_CLOCK);
+		io_write32(pcc2_base + PCC_CAAM, PCC_ENABLE_CLOCK);
 	else
-		io_caam_write32(pcc2_base + PCC_CAAM, PCC_DISABLE_CLOCK);
+		io_write32(pcc2_base + PCC_CAAM, PCC_DISABLE_CLOCK);
 }

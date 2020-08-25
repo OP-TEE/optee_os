@@ -5,7 +5,7 @@
  * Brief   CAAM Clock functions.
  */
 #include <caam_hal_clk.h>
-#include <caam_io.h>
+#include <io.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
@@ -16,7 +16,7 @@ void caam_hal_clk_enable(bool enable)
 	uint32_t reg = 0;
 	uint32_t mask = 0;
 
-	reg = io_caam_read32(ccm_base + CCM_CCGR0);
+	reg = io_read32(ccm_base + CCM_CCGR0);
 
 	mask = BM_CCM_CCGR0_CAAM_WRAPPER_IPG | BM_CCM_CCGR0_CAAM_WRAPPER_ACLK |
 	       BM_CCM_CCGR0_CAAM_SECURE_MEM;
@@ -26,11 +26,11 @@ void caam_hal_clk_enable(bool enable)
 	else
 		reg &= ~mask;
 
-	io_caam_write32(ccm_base + CCM_CCGR0, reg);
+	io_write32(ccm_base + CCM_CCGR0, reg);
 
 	if (!soc_is_imx6ul()) {
 		/* EMI slow clk */
-		reg = io_caam_read32(ccm_base + CCM_CCGR6);
+		reg = io_read32(ccm_base + CCM_CCGR6);
 		mask = BM_CCM_CCGR6_EMI_SLOW;
 
 		if (enable)
@@ -38,6 +38,6 @@ void caam_hal_clk_enable(bool enable)
 		else
 			reg &= ~mask;
 
-		io_caam_write32(ccm_base + CCM_CCGR6, reg);
+		io_write32(ccm_base + CCM_CCGR6, reg);
 	}
 }
