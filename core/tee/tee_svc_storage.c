@@ -19,6 +19,11 @@
 #include <tee/tee_svc_storage.h>
 #include <trace.h>
 
+#if defined(CFG_NXP_SE05X_SVC)
+/* this is a hack, should be a generic crypto api accessible via storage */
+extern void se050_delete_persistent_key(unsigned char *data, size_t len);
+#endif
+
 const struct tee_file_operations *tee_svc_storage_file_ops(uint32_t storage_id)
 {
 
@@ -526,7 +531,10 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 	struct user_ta_ctx *utc;
-
+#if defined(CFG_NXP_SE05X_SVC)
+	uint8_t data[2048];
+	size_t len;
+#endif
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -542,6 +550,12 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	if (o->pobj == NULL || o->pobj->obj_id == NULL)
 		return TEE_ERROR_BAD_STATE;
 
+#if defined(CFG_NXP_SE05X_SVC)
+	len = o->info.dataSize > sizeof(data) ? sizeof(data) : len;
+	res = o->pobj->fops->read(o->fh, o->info.dataPosition, data, &len);
+	if (res == TEE_SUCCESS)
+		se050_delete_persistent_key(data, len);
+#endif
 	res = o->pobj->fops->remove(o->pobj);
 	tee_obj_close(utc, o);
 
