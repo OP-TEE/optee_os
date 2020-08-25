@@ -99,6 +99,28 @@ libname = utils
 libdir = lib/libutils
 include mk/lib.mk
 
+ifeq ($(CFG_CORE_SE05X), y)
+CFG_CORE_SE05X_I2C_BUS ?= 0x2
+CFG_CORE_SE05X_BAUDRATE ?= 3400000
+CFG_CORE_SE05X_INIT_NVM ?= n
+CFG_CORE_SE05X_SCP03_PROVISION ?= n
+CFG_CORE_SE05X_SCP03_EARLY ?= y
+CFG_CORE_SE05X_DISPLAY_INFO ?= y
+CFG_CORE_SE05X_OEFID ?= n
+CFG_STACK_THREAD_EXTRA ?= 8192
+CFG_STACK_TMP_EXTRA ?= 8192
+$(call force, CFG_CRYPTO_RSASSA_NA1, n, not supported by se050)
+$(call force, CFG_NXP_SE05X_SVC, y)
+$(call force, CFG_NXP_SE05X_HMAC_DRV, y)
+# if the platform already implements an RNG driver, it must be
+# disabled or it will conflict with the one provided by the SE05X
+# library
+$(call force, CFG_NXP_SE05X_RNG_DRV, y)
+libname = nxpse050
+libdir = lib/libnxpse050
+include mk/lib.mk
+endif
+
 # CFG_CRYPTOLIB_NAME must not be changed beyond this line
 CFG_CRYPTOLIB_NAME_$(CFG_CRYPTOLIB_NAME) := y
 

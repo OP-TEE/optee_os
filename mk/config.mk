@@ -550,10 +550,18 @@ CFG_TA_MBEDTLS_SELF_TEST ?= y
 CFG_CRYPTOLIB_NAME ?= tomcrypt
 CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 
+# Library stack to support communication with NXP's SE050 Middleware
+CFG_CORE_SE05X ?= n
+
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
 # without ASN.1 around the hash.
 ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
+ifneq ($(CFG_CORE_SE05X), y)
 CFG_CRYPTO_RSASSA_NA1 ?= y
+else
+CFG_WITH_SOFTWARE_PRNG = n
+endif
+CFG_CORE_MBEDTLS_MPI ?= y
 endif
 
 # Not used since libmpa was removed. Force the value to catch build scripts
