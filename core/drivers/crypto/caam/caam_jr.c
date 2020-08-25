@@ -244,6 +244,7 @@ static uint32_t do_jr_dequeue(uint32_t wait_job_ids)
 					 caller->job_id, (vaddr_t)jobctx);
 				/* Clear the Entry Descriptor DMA */
 				caller->pdesc = 0;
+				caller->jobctx = NULL;
 				caller->job_id = JR_JOB_FREE;
 				found = true;
 				JR_TRACE("Free space #%" PRId16
@@ -394,6 +395,8 @@ void caam_jr_cancel(uint32_t job_id)
 {
 	unsigned int idx = 0;
 
+	cpu_spin_lock(&jr_privdata->callers_lock);
+
 	JR_TRACE("Job cancel 0x%" PRIx32, job_id);
 	for (idx = 0; idx < jr_privdata->nb_jobs; idx++) {
 		/*
@@ -403,10 +406,13 @@ void caam_jr_cancel(uint32_t job_id)
 		if (jr_privdata->callers[idx].job_id == job_id) {
 			/* Clear the Entry Descriptor */
 			jr_privdata->callers[idx].pdesc = 0;
+			jr_privdata->callers[idx].jobctx = NULL;
 			jr_privdata->callers[idx].job_id = JR_JOB_FREE;
 			return;
 		}
 	}
+
+	cpu_spin_unlock(&jr_privdata->callers_lock);
 }
 
 enum caam_status caam_jr_dequeue(uint32_t job_ids, unsigned int timeout_ms)
@@ -593,12 +599,36 @@ end_init:
 
 enum caam_status caam_jr_halt(void)
 {
-	return caam_hal_jr_halt(jr_privdata->baseaddr);
+	enum caam_status retstatus = CAAM_FAILURE;
+	__maybe_unused uint32_t job_complete = 0;
+
+	retstatus = caam_hal_jr_halt(jr_privdata->baseaddr);
+
+	/*
+	 * All jobs in the input queue have been done, call the
+	 * dequeue function to complete them.
+	 */
+	job_complete = do_jr_dequeue(UINT32_MAX);
+	JR_TRACE("Completion of jobs mask 0x%" PRIx32, job_complete);
+
+	return retstatus;
 }
 
 enum caam_status caam_jr_flush(void)
 {
-	return caam_hal_jr_flush(jr_privdata->baseaddr);
+	enum caam_status retstatus = CAAM_FAILURE;
+	__maybe_unused uint32_t job_complete = 0;
+
+	retstatus = caam_hal_jr_flush(jr_privdata->baseaddr);
+
+	/*
+	 * All jobs in the input queue have been done, call the
+	 * dequeue function to complete them.
+	 */
+	job_complete = do_jr_dequeue(UINT32_MAX);
+	JR_TRACE("Completion of jobs mask 0x%" PRIx32, job_complete);
+
+	return retstatus;
 }
 
 void caam_jr_resume(uint32_t pm_hint)
