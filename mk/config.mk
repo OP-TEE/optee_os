@@ -348,6 +348,10 @@ CFG_WITH_STACK_CANARIES ?= y
 # stack limits on entry and panic immediately if it is out of range.
 CFG_CORE_DEBUG_CHECK_STACKS ?= n
 
+# Use when the default stack allocations are not sufficient.
+CFG_STACK_THREAD_EXTRA ?= 0
+CFG_STACK_TMP_EXTRA ?= 0
+
 # Device Tree support
 #
 # When CFG_DT is enabled core embeds the FDT library (libfdt) allowing
