@@ -85,6 +85,9 @@ void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx);
 TEE_Result crypto_enable_scp03(unsigned int rotate_keys);
 #endif
 
+/* Informs crypto that the data in the buffer will be removed from storage */
+void crypto_storage_obj_del(uint8_t *data, size_t len);
+
 /* Implementation-defined big numbers */
 
 /*
