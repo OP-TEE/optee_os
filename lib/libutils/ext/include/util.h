@@ -40,7 +40,9 @@
 #define MAX_UNSAFE(a, b)	(((a) > (b)) ? (a) : (b))
 #define MIN_UNSAFE(a, b)	(((a) < (b)) ? (a) : (b))
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 #ifndef __ASSEMBLER__
 /* Round up the even multiple of size, size has to be a multiple of 2 */
