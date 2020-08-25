@@ -389,4 +389,4 @@ static TEE_Result i2c_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(i2c_init);
+early_init(i2c_init);
