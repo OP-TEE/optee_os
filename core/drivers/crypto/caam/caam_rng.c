@@ -237,6 +237,9 @@ static enum caam_status do_check_data(void)
 	case DATA_OK:
 		return CAAM_NO_ERROR;
 
+	case DATA_FAILURE:
+		return CAAM_FAILURE;
+
 	default:
 		/* Wait until one of the data buffer completes */
 		do {
