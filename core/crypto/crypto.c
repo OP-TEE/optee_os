@@ -769,3 +769,7 @@ TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif
+
+__weak void crypto_storage_obj_del(uint8_t *data __unused, size_t len __unused)
+{
+}

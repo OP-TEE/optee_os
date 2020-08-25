@@ -4,6 +4,8 @@
  * Copyright (c) 2020, Linaro Limited
  */
 
+#include <config.h>
+#include <crypto/crypto.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -527,6 +529,8 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	struct tee_ta_session *sess;
 	struct tee_obj *o;
 	struct user_ta_ctx *utc;
+	uint8_t *data;
+	size_t len;
 
 	res = tee_ta_get_current_session(&sess);
 	if (res != TEE_SUCCESS)
@@ -542,6 +546,19 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 
 	if (o->pobj == NULL || o->pobj->obj_id == NULL)
 		return TEE_ERROR_BAD_STATE;
+
+	if (IS_ENABLED(CFG_NXP_SE05X)) {
+		len = o->info.dataSize;
+		data = calloc(1, len);
+		if (!data)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		res = o->pobj->fops->read(o->fh, o->info.dataPosition,
+					  data, &len);
+		if (res == TEE_SUCCESS)
+			crypto_storage_obj_del(data, len);
+		free(data);
+	}
 
 	res = o->pobj->fops->remove(o->pobj);
 	tee_obj_close(utc, o);
