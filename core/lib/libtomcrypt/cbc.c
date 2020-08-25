@@ -128,11 +128,12 @@ TEE_Result crypto_aes_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx)
 #endif
 
 #if defined(_CFG_CORE_LTC_DES)
+#if !defined(CFG_CORE_SE05X)
 TEE_Result crypto_des_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx)
 {
 	return ltc_cbc_alloc_ctx(ctx, find_cipher("des"), false);
 }
-
+#endif
 TEE_Result crypto_des3_cbc_alloc_ctx(struct crypto_cipher_ctx **ctx)
 {
 	return ltc_cbc_alloc_ctx(ctx, find_cipher("3des"), true);
