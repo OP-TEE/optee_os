@@ -114,6 +114,17 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 #define STACK_CHECK_EXTRA	0
 #endif
 
+/*
+ * Extra space can be added to the TMP and THREAD stacks when the defaults are
+ * not sufficient for certain configurations
+ */
+#ifndef CFG_STACK_TMP_EXTRA
+#define CFG_STACK_TMP_EXTRA	0
+#endif
+#ifndef CFG_STACK_THREAD_EXTRA
+#define CFG_STACK_THREAD_EXTRA	0
+#endif
+
 #define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
 linkage uint32_t name[num_stacks] \
 		[ROUNDUP(stack_size + STACK_CANARY_SIZE + STACK_CHECK_EXTRA, \
@@ -123,10 +134,12 @@ linkage uint32_t name[num_stacks] \
 
 #define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
 
-DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, static);
+DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE,
+	      STACK_TMP_SIZE + CFG_STACK_TMP_EXTRA, static);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
+DECLARE_STACK(stack_thread, CFG_NUM_THREADS,
+	      STACK_THREAD_SIZE + CFG_STACK_THREAD_EXTRA, static);
 #endif
 
 #define GET_STACK_TOP_HARD(stack, n) \
