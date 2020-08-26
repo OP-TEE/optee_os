@@ -123,7 +123,7 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 #ifdef TRACE_SYSCALLS
 static void trace_syscall(size_t num)
 {
-	if (num == TEE_SCN_RETURN || num > TEE_SCN_MAX)
+	if (num == TEE_SCN_RETURN || num == TEE_SCN_LOG || num > TEE_SCN_MAX)
 		return;
 	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
 }
