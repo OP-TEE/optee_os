@@ -457,19 +457,6 @@ enum pkcs11_rc entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 	return rc;
 }
 
-static void supported_mechanism_key_size(uint32_t proc_id,
-					 uint32_t *max_key_size,
-					 uint32_t *min_key_size)
-{
-	switch (proc_id) {
-	/* Will be filled once TA supports mechanisms */
-	default:
-		*min_key_size = 0;
-		*max_key_size = 0;
-		break;
-	}
-}
-
 enum pkcs11_rc entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
@@ -510,8 +497,8 @@ enum pkcs11_rc entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 
 	info.flags = mechanism_supported_flags(type);
 
-	supported_mechanism_key_size(type, &info.min_key_size,
-				     &info.max_key_size);
+	mechanism_supported_key_sizes(type, &info.min_key_size,
+				      &info.max_key_size);
 
 	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
 
