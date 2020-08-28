@@ -84,8 +84,12 @@ void get_attribute_ptrs(struct obj_attrs *head, uint32_t attribute,
 		if (!max_found)
 			continue;	/* only count matching attributes */
 
-		if (attr)
-			*attr_ptr++ = cur + sizeof(pkcs11_ref);
+		if (attr) {
+			if (pkcs11_ref.size)
+				*attr_ptr++ = cur + sizeof(pkcs11_ref);
+			else
+				*attr_ptr++ = NULL;
+		}
 
 		if (attr_size)
 			*attr_size_ptr++ = pkcs11_ref.size;
