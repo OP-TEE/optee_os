@@ -410,7 +410,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 						 db_main, sizeof(*db_main),
 						 &db_hdl);
 		if (res) {
-			EMSG("Failed to create db: %"PRIx32, res);
+			EMSG("Failed to create db: %#"PRIx32, res);
 			goto error;
 		}
 

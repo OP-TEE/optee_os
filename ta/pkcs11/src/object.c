@@ -279,7 +279,6 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	struct obj_attrs *head = NULL;
 	struct pkcs11_object_head *template = NULL;
-	uint32_t session_handle = 0;
 	size_t template_size = 0;
 	uint32_t obj_handle = 0;
 
@@ -293,7 +292,7 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -303,12 +302,6 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 
 	if (serialargs_remaining_bytes(&ctrlargs)) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
-		goto out;
-	}
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session) {
-		rc = PKCS11_CKR_SESSION_HANDLE_INVALID;
 		goto out;
 	}
 
@@ -383,14 +376,13 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 	uint32_t object_handle = 0;
 	struct pkcs11_session *session = NULL;
 	struct pkcs11_object *object = NULL;
-	uint32_t session_handle = 0;
 
 	if (!client || ptypes != exp_pt)
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get_u32(&ctrlargs, &session_handle);
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -400,10 +392,6 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	object = pkcs11_handle2object(object_handle, session);
 	if (!object)
