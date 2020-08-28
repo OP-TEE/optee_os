@@ -67,7 +67,7 @@ struct obj_attrs {
  *
  * Retrieved pointer can be freed from a simple TEE_Free(reference).
  *
- * Return a PKCS11_OK on success or a PKCS11 return code.
+ * Return PKCS11_CKR_OK on success or a PKCS11 return code.
  */
 enum pkcs11_rc init_attributes_head(struct obj_attrs **head);
 
@@ -80,7 +80,7 @@ enum pkcs11_rc init_attributes_head(struct obj_attrs **head);
  * @data:	Opaque data of attribute
  * @size:	Size of data
  *
- * Return a PKCS11_OK on success or a PKCS11 return code.
+ * Return PKCS11_CKR_OK on success or a PKCS11 return code.
  */
 enum pkcs11_rc add_attribute(struct obj_attrs **head, uint32_t attribute,
 			     void *data, size_t size);
@@ -119,11 +119,12 @@ void get_attribute_ptrs(struct obj_attrs *head, uint32_t attribute,
  * If attr_size != NULL, return in *attr_size attribute value size.
  * If attr != NULL, return in *attr the address of the attribute value.
  *
- * Return a PKCS11_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
+ * Return PKCS11_CKR_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
  * code.
  */
 enum pkcs11_rc get_attribute_ptr(struct obj_attrs *head, uint32_t attribute,
 				 void **attr_ptr, uint32_t *attr_size);
+
 /*
  * get_attribute() - Copy out the attribute of a given ID
  * @head:	Pointer to serialized attributes
@@ -137,7 +138,7 @@ enum pkcs11_rc get_attribute_ptr(struct obj_attrs *head, uint32_t attribute,
  * If attr != NULL and attr_size is NULL or gives expected buffer size,
  * copy attribute value into attr.
  *
- * Return a PKCS11_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
+ * Return PKCS11_CKR_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
  * code.
  */
 enum pkcs11_rc get_attribute(struct obj_attrs *head, uint32_t attribute,
@@ -153,7 +154,7 @@ enum pkcs11_rc get_attribute(struct obj_attrs *head, uint32_t attribute,
  * If the retreived attribute doesn't have a 4 byte sized value
  * PKCS11_CKR_GENERAL_ERROR is returned.
  *
- * Return a PKCS11_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
+ * Return PKCS11_CKR_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
  * code.
  */
 
