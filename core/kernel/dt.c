@@ -222,7 +222,7 @@ ssize_t _fdt_reg_size(const void *fdt, int offs)
 
 	parent = fdt_parent_offset(fdt, offs);
 	if (parent < 0)
-		return DT_INFO_INVALID_REG;
+		return DT_INFO_INVALID_REG_SIZE;
 
 	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)

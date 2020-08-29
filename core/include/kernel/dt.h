@@ -21,6 +21,7 @@
 #define DT_STATUS_OK_SEC		BIT(1)
 
 #define DT_INFO_INVALID_REG		((paddr_t)-1)
+#define DT_INFO_INVALID_REG_SIZE	((ssize_t)-1)
 #define DT_INFO_INVALID_CLOCK		-1
 #define DT_INFO_INVALID_RESET		-1
 #define DT_INFO_INVALID_INTERRUPT	-1
