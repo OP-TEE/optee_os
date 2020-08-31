@@ -14,14 +14,10 @@
 
 static TEE_Result check_access(uint32_t flags, vaddr_t va, size_t len)
 {
-	struct tee_ta_session *s = NULL;
-	TEE_Result res = tee_ta_get_current_session(&s);
+	struct ts_session *s = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
-	if (res)
-		return res;
-
-	return tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
-					   flags, va, len);
+	return tee_mmu_check_access_rights(&utc->uctx, flags, va, len);
 }
 
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)

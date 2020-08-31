@@ -11,18 +11,14 @@
 
 TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct user_ta_ctx *utc;
+	struct ts_session *s = ts_get_current_session();
+	struct user_ta_ctx *utc = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	if ((sess->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
+	if ((s->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	utc = to_user_ta_ctx(sess->ctx);
+	utc = to_user_ta_ctx(s->ctx);
 
 	/*
 	 * TAs are allowed to operate cache maintenance on TA memref parameters

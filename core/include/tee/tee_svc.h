@@ -5,6 +5,7 @@
 #ifndef TEE_SVC_H
 #define TEE_SVC_H
 
+#include <kernel/ts_manager.h>
 #include <stdint.h>
 #include <types_ext.h>
 #include <tee_api_types.h>
@@ -20,7 +21,7 @@ struct tee_props {
 	const uint32_t prop_type;
 
 	/* either get_prop_func or both data and len */
-	TEE_Result (*get_prop_func)(struct tee_ta_session *sess,
+	TEE_Result (*get_prop_func)(struct ts_session *sess,
 				    void *buf, size_t *blen);
 	const void *data;
 	const size_t len;

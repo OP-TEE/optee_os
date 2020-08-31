@@ -33,7 +33,7 @@ static __noprof struct ftrace_buf *get_fbuf(void)
 {
 #if defined(__KERNEL__)
 	short int ct = thread_get_id_may_fail();
-	struct tee_ta_session *s = NULL;
+	struct ts_session *s = NULL;
 	struct thread_specific_data *tsd = NULL;
 
 	if (ct == -1)

@@ -236,10 +236,7 @@ void abort_print_current_ta(void)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct abort_info ai = { };
-	struct tee_ta_session *s = NULL;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		panic();
+	struct ts_session *s = ts_get_current_session();
 
 	ai.abort_type = tsd->abort_type;
 	ai.fault_descr = tsd->abort_descr;
@@ -367,10 +364,7 @@ static void handle_user_mode_panic(struct abort_info *ai)
 #ifdef CFG_WITH_VFP
 static void handle_user_mode_vfp(void)
 {
-	struct tee_ta_session *s;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		panic();
+	struct ts_session *s = ts_get_current_session();
 
 	thread_user_enable_vfp(&to_user_mode_ctx(s->ctx)->vfp);
 }

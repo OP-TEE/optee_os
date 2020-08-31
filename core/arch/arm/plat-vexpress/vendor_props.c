@@ -25,7 +25,7 @@
  * Note that this code assumes an endorsement seed
  * size == device ID size for convenience.
  */
-static TEE_Result get_prop_endorsement(struct tee_ta_session *sess,
+static TEE_Result get_prop_endorsement(struct ts_session *sess,
 				       void *buf, size_t *blen)
 {
 	TEE_Result res;

@@ -515,7 +515,7 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 
 struct attr_ops {
 	TEE_Result (*from_user)(void *attr, const void *buffer, size_t size);
-	TEE_Result (*to_user)(void *attr, struct tee_ta_session *sess,
+	TEE_Result (*to_user)(void *attr, struct ts_session *sess,
 			      void *buffer, uint64_t *size);
 	TEE_Result (*to_binary)(void *attr, void *data, size_t data_len,
 			    size_t *offs);
@@ -572,8 +572,8 @@ static TEE_Result op_attr_secret_value_from_user(void *attr, const void *buffer,
 }
 
 static TEE_Result op_attr_secret_value_to_user(void *attr,
-			struct tee_ta_session *sess __unused,
-			void *buffer, uint64_t *size)
+					       struct ts_session *sess __unused,
+					       void *buffer, uint64_t *size)
 {
 	TEE_Result res;
 	struct tee_cryp_obj_secret *key = attr;
@@ -667,7 +667,7 @@ static TEE_Result op_attr_bignum_from_user(void *attr, const void *buffer,
 }
 
 static TEE_Result op_attr_bignum_to_user(void *attr,
-					 struct tee_ta_session *sess,
+					 struct ts_session *sess,
 					 void *buffer, uint64_t *size)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -781,7 +781,7 @@ static TEE_Result op_attr_value_from_user(void *attr, const void *buffer,
 }
 
 static TEE_Result op_attr_value_to_user(void *attr,
-					struct tee_ta_session *sess __unused,
+					struct ts_session *sess __unused,
 					void *buffer, uint64_t *size)
 {
 	TEE_Result res;
@@ -886,13 +886,9 @@ static TEE_Result put_user_u64(uint64_t *dst, size_t value)
 
 TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
 			  uref_to_vaddr(obj), &o);
@@ -908,13 +904,9 @@ exit:
 TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
 			unsigned long usage)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -979,17 +971,13 @@ static uint32_t get_attribute(const struct tee_obj *o,
 TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 			void *buffer, uint64_t *size)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-	const struct tee_cryp_obj_type_props *type_props;
-	int idx;
-	const struct attr_ops *ops;
-	void *attr;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
+	const struct tee_cryp_obj_type_props *type_props = NULL;
+	int idx = 0;
+	const struct attr_ops *ops = NULL;
+	void *attr = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1320,13 +1308,10 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
 			unsigned long max_key_size, uint32_t *obj)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	o = tee_obj_alloc();
 	if (!o)
@@ -1348,13 +1333,9 @@ TEE_Result syscall_cryp_obj_alloc(unsigned long obj_type,
 
 TEE_Result syscall_cryp_obj_close(unsigned long obj)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1373,13 +1354,9 @@ TEE_Result syscall_cryp_obj_close(unsigned long obj)
 
 TEE_Result syscall_cryp_obj_reset(unsigned long obj)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1662,15 +1639,11 @@ TEE_Result syscall_cryp_obj_populate(unsigned long obj,
 			struct utee_attribute *usr_attrs,
 			unsigned long attr_count)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *o;
-	const struct tee_cryp_obj_type_props *type_props;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *o = NULL;
+	const struct tee_cryp_obj_type_props *type_props = NULL;
 	TEE_Attribute *attrs = NULL;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1718,14 +1691,10 @@ out:
 
 TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	struct tee_obj *dst_o;
-	struct tee_obj *src_o;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_obj *dst_o = NULL;
+	struct tee_obj *src_o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx),
 			  uref_to_vaddr(dst), &dst_o);
@@ -1904,17 +1873,13 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count)
 {
-	TEE_Result res;
-	struct tee_ta_session *sess;
-	const struct tee_cryp_obj_type_props *type_props;
-	struct tee_obj *o;
-	struct tee_cryp_obj_secret *key;
-	size_t byte_size;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	const struct tee_cryp_obj_type_props *type_props = NULL;
+	struct tee_obj *o = NULL;
+	struct tee_cryp_obj_secret *key = NULL;
+	size_t byte_size = 0;
 	TEE_Attribute *params = NULL;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -2038,7 +2003,7 @@ out:
 	return res;
 }
 
-static TEE_Result tee_svc_cryp_get_state(struct tee_ta_session *sess,
+static TEE_Result tee_svc_cryp_get_state(struct ts_session *sess,
 					 vaddr_t state_id,
 					 struct tee_cryp_state **state)
 {
@@ -2196,17 +2161,12 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 			unsigned long key1, unsigned long key2,
 			uint32_t *state)
 {
-	TEE_Result res;
-	struct tee_cryp_state *cs;
-	struct tee_ta_session *sess;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_cryp_state *cs = NULL;
 	struct tee_obj *o1 = NULL;
 	struct tee_obj *o2 = NULL;
-	struct user_ta_ctx *utc;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-	utc = to_user_ta_ctx(sess->ctx);
 
 	if (key1 != 0) {
 		res = tee_obj_get(utc, uref_to_vaddr(key1), &o1);
@@ -2323,14 +2283,10 @@ out:
 
 TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 {
-	TEE_Result res;
-	struct tee_cryp_state *cs_dst;
-	struct tee_cryp_state *cs_src;
-	struct tee_ta_session *sess;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_cryp_state *cs_dst = NULL;
+	struct tee_cryp_state *cs_src = NULL;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(dst), &cs_dst);
 	if (res != TEE_SUCCESS)
@@ -2374,13 +2330,9 @@ void tee_svc_cryp_free_states(struct user_ta_ctx *utc)
 
 TEE_Result syscall_cryp_state_free(unsigned long state)
 {
-	TEE_Result res;
-	struct tee_cryp_state *cs;
-	struct tee_ta_session *sess;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_cryp_state *cs = NULL;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -2393,13 +2345,9 @@ TEE_Result syscall_hash_init(unsigned long state,
 			     const void *iv __maybe_unused,
 			     size_t iv_len __maybe_unused)
 {
-	TEE_Result res;
-	struct tee_cryp_state *cs;
-	struct tee_ta_session *sess;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct ts_session *sess = ts_get_current_session();
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_cryp_state *cs = NULL;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -2443,7 +2391,7 @@ TEE_Result syscall_hash_init(unsigned long state,
 TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 			size_t chunk_size)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
@@ -2454,10 +2402,6 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	/* Zero length hash is valid, but nothing we need to do. */
 	if (!chunk_size)
 		return TEE_SUCCESS;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 					  TEE_MEMORY_ACCESS_READ |
@@ -2494,7 +2438,7 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 			size_t chunk_size, void *hash, uint64_t *hash_len)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res2 = TEE_SUCCESS;
 	TEE_Result res = TEE_SUCCESS;
@@ -2504,10 +2448,6 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	/* No data, but size provided isn't valid parameters. */
 	if (!chunk && chunk_size)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 					  TEE_MEMORY_ACCESS_READ |
@@ -2589,17 +2529,12 @@ out:
 TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 			size_t iv_len)
 {
+	struct ts_session *sess = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	struct tee_cryp_obj_secret *key1 = NULL;
-	struct tee_ta_session *sess = NULL;
 	struct tee_cryp_state *cs = NULL;
-	struct user_ta_ctx *utc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-	utc = to_user_ta_ctx(sess->ctx);
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -2651,14 +2586,10 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 			bool last_block, const void *src, size_t src_len,
 			void *dst, uint64_t *dst_len)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	size_t dlen = 0;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -2981,26 +2912,20 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count, unsigned long derived_key)
 {
+	struct ts_session *sess = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	TEE_Result res = TEE_ERROR_NOT_SUPPORTED;
-	struct tee_ta_session *sess;
-	struct tee_obj *ko;
-	struct tee_obj *so;
-	struct tee_cryp_state *cs;
-	struct tee_cryp_obj_secret *sk;
-	const struct tee_cryp_obj_type_props *type_props;
+	struct tee_obj *ko = NULL;
+	struct tee_obj *so = NULL;
+	struct tee_cryp_state *cs = NULL;
+	struct tee_cryp_obj_secret *sk = NULL;
+	const struct tee_cryp_obj_type_props *type_props = NULL;
 	TEE_Attribute *params = NULL;
-	struct user_ta_ctx *utc;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-	utc = to_user_ta_ctx(sess->ctx);
+	size_t alloc_size = 0;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	size_t alloc_size = 0;
 
 	if (MUL_OVERFLOW(sizeof(TEE_Attribute), param_count, &alloc_size))
 		return TEE_ERROR_OVERFLOW;
@@ -3262,12 +3187,8 @@ out:
 
 TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
 	TEE_Result res = TEE_SUCCESS;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 					  TEE_MEMORY_ACCESS_WRITE,
@@ -3286,15 +3207,11 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 				size_t nonce_len, size_t tag_len,
 				size_t aad_len, size_t payload_len)
 {
+	struct ts_session *sess = ts_get_current_session();
 	struct tee_cryp_obj_secret *key = NULL;
-	struct tee_ta_session *sess = NULL;
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 					  TEE_MEMORY_ACCESS_READ |
@@ -3329,13 +3246,9 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 TEE_Result syscall_authenc_update_aad(unsigned long state,
 				      const void *aad_data, size_t aad_data_len)
 {
+	struct ts_session *sess = ts_get_current_session();
 	TEE_Result res = TEE_SUCCESS;
-	struct tee_cryp_state *cs;
-	struct tee_ta_session *sess;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
+	struct tee_cryp_state *cs = NULL;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 					  TEE_MEMORY_ACCESS_READ |
@@ -3368,14 +3281,10 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 					  size_t src_len, void *dst_data,
 					  uint64_t *dst_len)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	size_t dlen = 0;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3429,18 +3338,12 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 				     uint64_t *dst_len, void *tag,
 				     uint64_t *tag_len)
 {
-	struct tee_ta_session *sess = NULL;
-	struct user_mode_ctx *uctx = NULL;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	size_t dlen = 0;
 	size_t tlen = 0;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3520,17 +3423,11 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 			const void *src_data, size_t src_len, void *dst_data,
 			uint64_t *dst_len, const void *tag, size_t tag_len)
 {
-	struct tee_ta_session *sess = NULL;
-	struct user_mode_ctx *uctx = NULL;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	size_t dlen = 0;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
-	uctx = &to_user_ta_ctx(sess->ctx)->uctx;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3619,22 +3516,17 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			size_t num_params, const void *src_data, size_t src_len,
 			void *dst_data, uint64_t *dst_len)
 {
-	TEE_Result res;
-	struct tee_cryp_state *cs;
-	struct tee_ta_session *sess;
-	size_t dlen;
-	struct tee_obj *o;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_cryp_state *cs = NULL;
+	size_t dlen = 0;
+	struct tee_obj *o = NULL;
 	void *label = NULL;
 	size_t label_len = 0;
-	size_t n;
-	int salt_len;
+	size_t n = 0;
+	int salt_len = 0;
 	TEE_Attribute *params = NULL;
-	struct user_ta_ctx *utc;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-	utc = to_user_ta_ctx(sess->ctx);
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3806,20 +3698,15 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 			size_t num_params, const void *data, size_t data_len,
 			const void *sig, size_t sig_len)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	struct tee_cryp_state *cs = NULL;
-	struct user_ta_ctx *utc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Attribute *params = NULL;
 	struct tee_obj *o = NULL;
 	size_t hash_size = 0;
 	uint32_t hash_algo = 0;
 	int salt_len = 0;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-	utc = to_user_ta_ctx(sess->ctx);
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)

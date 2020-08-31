@@ -616,23 +616,17 @@ static bool is_from_user(uint32_t cpsr)
 #ifdef CFG_SYSCALL_FTRACE
 static void __noprof ftrace_suspend(void)
 {
-	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
 
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_suspended = true;
 }
 
 static void __noprof ftrace_resume(void)
 {
-	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
 
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_suspended = false;
 }
 #else
@@ -1533,7 +1527,7 @@ static void setup_unwind_user_mode(struct thread_svc_regs *regs)
  */
 void __weak thread_svc_handler(struct thread_svc_regs *regs)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	uint32_t state = 0;
 
 	/* Enable native interrupts */
@@ -1548,7 +1542,7 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	tee_ta_get_current_session(&sess);
+	sess = ts_get_current_session();
 	assert(sess && sess->ctx->ops && sess->ctx->ops->handle_svc);
 	if (sess->ctx->ops->handle_svc(regs)) {
 		/* We're about to switch back to user mode */
