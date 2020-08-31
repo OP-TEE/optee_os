@@ -233,7 +233,7 @@ struct thread_ctx_regs {
 #endif /*ARM64*/
 
 struct thread_specific_data {
-	TAILQ_HEAD(, tee_ta_session) sess_stack;
+	TAILQ_HEAD(, ts_session) sess_stack;
 	struct tee_ta_ctx *ctx;
 	struct pgt_cache pgt_cache;
 #ifdef CFG_CORE_FFA

@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <kernel/ts_manager.h>
 #include <string.h>
 #include <tee/fs_htree.h>
 #include <tee/tee_fs_rpc.h>
@@ -253,19 +254,14 @@ out:
 static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 				     size_t w_unsync_begin, size_t w_unsync_num)
 {
-	TEE_Result res;
+	struct ts_session *sess = ts_get_current_session();
+	const TEE_UUID *uuid = &sess->ctx->uuid;
+	TEE_Result res = TEE_SUCCESS;
 	struct tee_fs_htree *ht = NULL;
 	size_t salt = 23;
-	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
-	const TEE_UUID *uuid;
-	struct tee_ta_session *sess;
+	uint8_t hash[TEE_FS_HTREE_HASH_SIZE] = { 0 };
 
 	assert((w_unsync_begin + w_unsync_num) <= num_blocks);
-
-	res = tee_ta_get_current_session(&sess);
-	if (res)
-		return res;
-	uuid = &sess->ctx->uuid;
 
 	aux->data_len = 0;
 	memset(aux->data, 0xce, aux->data_alloced);
@@ -558,18 +554,13 @@ out:
 
 static TEE_Result test_corrupt(size_t num_blocks)
 {
-	TEE_Result res;
+	struct ts_session *sess = ts_get_current_session();
+	const TEE_UUID *uuid = &sess->ctx->uuid;
+	TEE_Result res = TEE_SUCCESS;
 	struct tee_fs_htree *ht = NULL;
-	struct tee_ta_session *sess;
-	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
-	const TEE_UUID *uuid;
-	struct test_aux *aux;
-	size_t n;
-
-	res = tee_ta_get_current_session(&sess);
-	if (res)
-		return res;
-	uuid = &sess->ctx->uuid;
+	uint8_t hash[TEE_FS_HTREE_HASH_SIZE] = { 0 };
+	struct test_aux *aux = NULL;
+	size_t n = 0;
 
 	aux = aux_alloc(num_blocks);
 	if (!aux) {

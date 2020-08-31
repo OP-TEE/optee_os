@@ -277,15 +277,15 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 	spc->is_initializing = true;
 
 	mutex_lock(&tee_ta_mutex);
-	sess->ctx = &spc->uctx.ctx;
+	sess->ts_sess.ctx = &spc->uctx.ctx;
 	mutex_unlock(&tee_ta_mutex);
 
-	tee_ta_push_current_session(sess);
+	ts_push_current_session(&sess->ts_sess);
 	res = load_stmm(spc);
-	tee_ta_pop_current_session();
+	ts_pop_current_session();
 	tee_mmu_set_ctx(NULL);
 	if (res) {
-		sess->ctx = NULL;
+		sess->ts_sess.ctx = NULL;
 		spc->uctx.ctx.ops->destroy(&spc->uctx.ctx);
 
 		return res;
@@ -303,7 +303,7 @@ static TEE_Result stmm_enter_open_session(struct tee_ta_session *s,
 					  struct tee_ta_param *param,
 					  TEE_ErrorOrigin *eo)
 {
-	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct sec_part_ctx *spc = to_sec_part_ctx(s->ts_sess.ctx);
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
@@ -326,7 +326,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct tee_ta_session *s,
 					struct tee_ta_param *param,
 					TEE_ErrorOrigin *eo __unused)
 {
-	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct sec_part_ctx *spc = to_sec_part_ctx(s->ts_sess.ctx);
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Result __maybe_unused tmp_res = TEE_SUCCESS;
 	unsigned int ns_buf_size = 0;
@@ -370,7 +370,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct tee_ta_session *s,
 	spc->regs.x[6] = 0;
 	spc->regs.x[7] = 0;
 
-	tee_ta_push_current_session(s);
+	ts_push_current_session(&s->ts_sess);
 
 	memcpy((void *)spc->ns_comm_buf_addr, va, ns_buf_size);
 
@@ -386,7 +386,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct tee_ta_session *s,
 	memcpy(va, (void *)spc->ns_comm_buf_addr, ns_buf_size);
 
 out_session:
-	tee_ta_pop_current_session();
+	ts_pop_current_session();
 out_va:
 	tmp_res = mobj_dec_map(mem->mobj);
 	assert(!tmp_res);
@@ -420,7 +420,7 @@ static void sec_part_ctx_destroy(struct tee_ta_ctx *ctx)
 static uint32_t sp_svc_get_mem_attr(vaddr_t va)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	struct sec_part_ctx *spc = NULL;
 	uint16_t attrs = 0;
 	uint16_t perm = 0;
@@ -428,10 +428,7 @@ static uint32_t sp_svc_get_mem_attr(vaddr_t va)
 	if (!va)
 		goto err;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		goto err;
-
+	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
 
 	res = vm_get_prot(&spc->uctx, va, SMALL_PAGE_SIZE, &attrs);
@@ -454,7 +451,7 @@ err:
 static int sp_svc_set_mem_attr(vaddr_t va, unsigned int nr_pages, uint32_t perm)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	struct sec_part_ctx *spc = NULL;
 	size_t sz = 0;
 	uint32_t prot = 0;
@@ -465,10 +462,7 @@ static int sp_svc_set_mem_attr(vaddr_t va, unsigned int nr_pages, uint32_t perm)
 	if (perm & ~SP_MEM_ATTR_ALL)
 		return SP_RET_INVALID_PARAM;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return SP_RET_DENIED;
-
+	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
 
 	if ((perm & SP_MEM_ATTR_ACCESS_MASK) == SP_MEM_ATTR_ACCESS_RO)
@@ -490,12 +484,9 @@ static bool return_helper(bool panic, uint32_t panic_code,
 			  struct thread_svc_regs *svc_regs)
 {
 	if (!panic) {
-		struct tee_ta_session *sess = NULL;
-		struct sec_part_ctx *spc = NULL;
+		struct ts_session *sess = ts_get_current_session();
+		struct sec_part_ctx *spc = to_sec_part_ctx(sess->ctx);
 		size_t n = 0;
-
-		tee_ta_get_current_session(&sess);
-		spc = to_sec_part_ctx(sess->ctx);
 
 		/* Save the return values from StMM */
 		for (n = 0; n <= 7; n++)
@@ -546,7 +537,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 {
 	const struct tee_file_operations *fops = NULL;
 	TEE_Result res = TEE_ERROR_BAD_STATE;
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
 	struct sec_part_ctx *spc = NULL;
 	struct tee_pobj *po = NULL;
@@ -560,10 +551,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 	if (obj_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
+	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
 	res = tee_mmu_check_access_rights(&spc->uctx,
 					  TEE_MEMORY_ACCESS_WRITE |
@@ -609,7 +597,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 
 {
 	const struct tee_file_operations *fops = NULL;
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
 	struct sec_part_ctx *spc = NULL;
 	TEE_Result res = TEE_SUCCESS;
@@ -622,10 +610,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	if (obj_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_ta_get_current_session(&sess);
-	if (res != TEE_SUCCESS)
-		return res;
-
+	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
 	res = tee_mmu_check_access_rights(&spc->uctx,
 					  TEE_MEMORY_ACCESS_READ |

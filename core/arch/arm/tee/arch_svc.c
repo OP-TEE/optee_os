@@ -136,7 +136,7 @@ static void trace_syscall(size_t num __unused)
 #ifdef CFG_SYSCALL_FTRACE
 static void __noprof ftrace_syscall_enter(size_t num)
 {
-	struct tee_ta_session *s = NULL;
+	struct ts_session *s = NULL;
 
 	/*
 	 * Syscalls related to inter-TA communication can't be traced in the
@@ -149,21 +149,15 @@ static void __noprof ftrace_syscall_enter(size_t num)
 		return;
 
 	s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_enabled = true;
 }
 
 static void __noprof ftrace_syscall_leave(void)
 {
-	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
 
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_enabled = false;
 }
 #else
@@ -292,16 +286,14 @@ static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
 static void save_panic_stack(struct thread_svc_regs *regs)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
-	struct tee_ta_session *s;
-
-	if (tee_ta_get_current_session(&s))
-		panic("No current session");
+	struct ts_session *s = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
 	tsd->abort_type = ABORT_TYPE_USER_MODE_PANIC;
 	tsd->abort_descr = 0;
 	tsd->abort_va = 0;
 
-	if (tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx,
+	if (tee_mmu_check_access_rights(&utc->uctx,
 					TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,
 					(uaddr_t)regs->r1,
@@ -364,13 +356,8 @@ static void save_panic_regs_a64_ta(struct thread_specific_data *tsd,
 static void save_panic_stack(struct thread_svc_regs *regs)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
-	struct tee_ta_session *s = NULL;
-	struct user_ta_ctx *utc = NULL;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		panic();
-
-	utc = to_user_ta_ctx(s->ctx);
+	struct ts_session *s = ts_get_current_session();
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
 	if (tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
 					TEE_MEMORY_ACCESS_WRITE,

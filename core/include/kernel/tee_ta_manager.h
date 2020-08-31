@@ -9,9 +9,9 @@
 
 #include <kernel/mutex.h>
 #include <kernel/tee_common.h>
+#include <kernel/ts_manager.h>
 #include <mm/tee_mmu_types.h>
 #include <sys/queue.h>
-#include <tee_api_types.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
@@ -94,9 +94,8 @@ struct tee_ta_ctx {
 
 struct tee_ta_session {
 	TAILQ_ENTRY(tee_ta_session) link;
-	TAILQ_ENTRY(tee_ta_session) link_tsd;
+	struct ts_session ts_sess;
 	uint32_t id;		/* Session handle (0 is invalid) */
-	struct tee_ta_ctx *ctx;	/* TA context */
 	TEE_Identity clnt_id;	/* Identify of client */
 	bool cancel;		/* True if TA invocation is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
@@ -107,12 +106,6 @@ struct tee_ta_session {
 	struct condvar lock_cv;	/* CV used to wait for lock */
 	short int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
-#if defined(CFG_TA_GPROF_SUPPORT)
-	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
-#endif
-#if defined(CFG_FTRACE_SUPPORT)
-	struct ftrace_buf *fbuf; /* ftrace buffer */
-#endif
 };
 
 /* Registered contexts */
@@ -152,12 +145,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *sess,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id);
 
-TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess);
 
-void tee_ta_push_current_session(struct tee_ta_session *sess);
-struct tee_ta_session *tee_ta_pop_current_session(void);
-
-struct tee_ta_session *tee_ta_get_calling_session(void);
 
 struct tee_ta_session *tee_ta_find_session(uint32_t id,
 			struct tee_ta_session_head *open_sessions);
@@ -183,5 +171,11 @@ void tee_ta_ftrace_update_times_resume(void);
 static inline void tee_ta_ftrace_update_times_suspend(void) {}
 static inline void tee_ta_ftrace_update_times_resume(void) {}
 #endif
+
+static inline struct tee_ta_session * __noprof
+to_ta_session(struct ts_session *sess)
+{
+	return container_of(sess, struct tee_ta_session, ts_sess);
+}
 
 #endif
