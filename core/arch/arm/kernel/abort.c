@@ -19,8 +19,8 @@
 #include "thread_private.h"
 
 enum fault_type {
-	FAULT_TYPE_USER_TA_PANIC,
-	FAULT_TYPE_USER_TA_VFP,
+	FAULT_TYPE_USER_MODE_PANIC,
+	FAULT_TYPE_USER_MODE_VFP,
 	FAULT_TYPE_PAGEABLE,
 	FAULT_TYPE_IGNORE,
 };
@@ -247,8 +247,8 @@ void abort_print_current_ta(void)
 	ai.pc = tsd->abort_regs.elr;
 	ai.regs = &tsd->abort_regs;
 
-	if (ai.abort_type != ABORT_TYPE_TA_PANIC)
-		__print_abort_info(&ai, "User TA");
+	if (ai.abort_type != ABORT_TYPE_USER_MODE_PANIC)
+		__print_abort_info(&ai, "User mode");
 
 	s->ctx->ops->dump_state(s->ctx);
 
@@ -322,7 +322,7 @@ static void set_abort_info(uint32_t abort_type __unused,
 #endif /*ARM64*/
 
 #ifdef ARM32
-static void handle_user_ta_panic(struct abort_info *ai)
+static void handle_user_mode_panic(struct abort_info *ai)
 {
 	/*
 	 * It was a user exception, stop user execution and return
@@ -344,7 +344,7 @@ static void handle_user_ta_panic(struct abort_info *ai)
 #endif /*ARM32*/
 
 #ifdef ARM64
-static void handle_user_ta_panic(struct abort_info *ai)
+static void handle_user_mode_panic(struct abort_info *ai)
 {
 	uint32_t daif;
 
@@ -365,7 +365,7 @@ static void handle_user_ta_panic(struct abort_info *ai)
 #endif /*ARM64*/
 
 #ifdef CFG_WITH_VFP
-static void handle_user_ta_vfp(void)
+static void handle_user_mode_vfp(void)
 {
 	struct tee_ta_session *s;
 
@@ -446,9 +446,9 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 {
 	if (abort_is_user_exception(ai)) {
 		if (is_vfp_fault(ai))
-			return FAULT_TYPE_USER_TA_VFP;
+			return FAULT_TYPE_USER_MODE_VFP;
 #ifndef CFG_WITH_PAGER
-		return FAULT_TYPE_USER_TA_PANIC;
+		return FAULT_TYPE_USER_MODE_PANIC;
 #endif
 	}
 
@@ -459,7 +459,7 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 
 	if (ai->abort_type == ABORT_TYPE_UNDEF) {
 		if (abort_is_user_exception(ai))
-			return FAULT_TYPE_USER_TA_PANIC;
+			return FAULT_TYPE_USER_MODE_PANIC;
 		abort_print_error(ai);
 		panic("[abort] undefined abort (trap CPU)");
 	}
@@ -467,14 +467,14 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 	switch (core_mmu_get_fault_type(ai->fault_descr)) {
 	case CORE_MMU_FAULT_ALIGNMENT:
 		if (abort_is_user_exception(ai))
-			return FAULT_TYPE_USER_TA_PANIC;
+			return FAULT_TYPE_USER_MODE_PANIC;
 		abort_print_error(ai);
 		panic("[abort] alignement fault!  (trap CPU)");
 		break;
 
 	case CORE_MMU_FAULT_ACCESS_BIT:
 		if (abort_is_user_exception(ai))
-			return FAULT_TYPE_USER_TA_PANIC;
+			return FAULT_TYPE_USER_MODE_PANIC;
 		abort_print_error(ai);
 		panic("[abort] access bit fault!  (trap CPU)");
 		break;
@@ -515,15 +515,15 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 	switch (get_fault_type(&ai)) {
 	case FAULT_TYPE_IGNORE:
 		break;
-	case FAULT_TYPE_USER_TA_PANIC:
+	case FAULT_TYPE_USER_MODE_PANIC:
 		DMSG("[abort] abort in User mode (TA will panic)");
 		save_abort_info_in_tsd(&ai);
 		vfp_disable();
-		handle_user_ta_panic(&ai);
+		handle_user_mode_panic(&ai);
 		break;
 #ifdef CFG_WITH_VFP
-	case FAULT_TYPE_USER_TA_VFP:
-		handle_user_ta_vfp();
+	case FAULT_TYPE_USER_MODE_VFP:
+		handle_user_mode_vfp();
 		break;
 #endif
 	case FAULT_TYPE_PAGEABLE:
@@ -543,7 +543,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 			DMSG("[abort] abort in User mode (TA will panic)");
 			save_abort_info_in_tsd(&ai);
 			vfp_disable();
-			handle_user_ta_panic(&ai);
+			handle_user_mode_panic(&ai);
 		}
 		break;
 	}
