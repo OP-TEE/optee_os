@@ -26,6 +26,11 @@ struct ts_session {
 #endif
 };
 
+enum ts_gprof_status {
+	TS_GPROF_SUSPEND,
+	TS_GPROF_RESUME,
+};
+
 struct thread_svc_regs;
 struct ts_ops {
 	TEE_Result (*enter_open_session)(struct ts_session *s);
@@ -36,6 +41,9 @@ struct ts_ops {
 	void (*destroy)(struct ts_ctx *ctx);
 	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
 	bool (*handle_svc)(struct thread_svc_regs *regs);
+#ifdef CFG_TA_GPROF_SUPPORT
+	void (*gprof_set_status)(enum ts_gprof_status status);
+#endif
 };
 
 struct ts_session *ts_get_current_session(void);
