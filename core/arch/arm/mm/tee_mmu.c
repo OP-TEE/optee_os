@@ -150,12 +150,12 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 
 #ifdef CFG_PAGED_USER_TA
 	tsd = thread_get_tsd();
-	if (&uctx->ctx == tsd->ctx) {
+	if (&uctx->ctx.ts_ctx == tsd->ctx) {
 		/*
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&tsd->pgt_cache, &uctx->ctx, b, e - 1);
+		pgt_alloc(&tsd->pgt_cache, &uctx->ctx.ts_ctx, b, e - 1);
 	}
 #endif
 
@@ -184,10 +184,11 @@ static void maybe_free_pgt(struct user_mode_ctx *uctx, struct vm_region *r)
 		return;
 
 	tsd = thread_get_tsd();
-	if (&uctx->ctx == tsd->ctx)
+	if (&uctx->ctx.ts_ctx == tsd->ctx)
 		pgt_cache = &tsd->pgt_cache;
 
-	pgt_flush_ctx_range(pgt_cache, &uctx->ctx, r->va, r->va + r->size);
+	pgt_flush_ctx_range(pgt_cache, &uctx->ctx.ts_ctx, r->va,
+			    r->va + r->size);
 }
 
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
@@ -309,8 +310,8 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 	 * If the context currently is active set it again to update
 	 * the mapping.
 	 */
-	if (thread_get_tsd()->ctx == &uctx->ctx)
-		tee_mmu_set_ctx(&uctx->ctx);
+	if (thread_get_tsd()->ctx == &uctx->ctx.ts_ctx)
+		tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 
 	*va = reg->va;
 
@@ -520,7 +521,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	struct fobj *fobj = NULL;
 	vaddr_t next_va = 0;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == &uctx->ctx.ts_ctx);
 
 	if (!len || ((len | old_va) & SMALL_PAGE_MASK))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -550,7 +551,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(&uctx->ctx);
+	tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 
 	r_first = TAILQ_FIRST(&regs);
 	while (!TAILQ_EMPTY(&regs)) {
@@ -603,7 +604,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 
 	fobj_put(fobj);
 
-	tee_mmu_set_ctx(&uctx->ctx);
+	tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 	*new_va = r_first->va;
 
 	return TEE_SUCCESS;
@@ -623,7 +624,7 @@ err_restore_map:
 			panic("Cannot restore mapping");
 	}
 	fobj_put(fobj);
-	tee_mmu_set_ctx(&uctx->ctx);
+	tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 
 	return res;
 }
@@ -692,7 +693,7 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 	bool was_writeable = false;
 	bool need_sync = false;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == &uctx->ctx.ts_ctx);
 
 	if (prot & ~TEE_MATTR_PROT_MASK || !len)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -716,7 +717,7 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 
 	if (need_sync) {
 		/* Synchronize changes to translation tables */
-		tee_mmu_set_ctx(&uctx->ctx);
+		tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 	}
 
 	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
@@ -756,7 +757,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	size_t unmap_end_va = 0;
 	size_t l = 0;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == &uctx->ctx.ts_ctx);
 
 	if (ROUNDUP_OVERFLOW(len, SMALL_PAGE_SIZE, &l))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -787,7 +788,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(&uctx->ctx);
+	tee_mmu_set_ctx(&uctx->ctx.ts_ctx);
 
 	return TEE_SUCCESS;
 }
@@ -1287,7 +1288,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
 	return TEE_SUCCESS;
 }
 
-void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
+void tee_mmu_set_ctx(struct ts_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
@@ -1313,7 +1314,7 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	tsd->ctx = ctx;
 }
 
-struct tee_ta_ctx *tee_mmu_get_ctx(void)
+struct ts_ctx *tee_mmu_get_ctx(void)
 {
 	return thread_get_tsd()->ctx;
 }

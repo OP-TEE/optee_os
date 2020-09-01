@@ -8,10 +8,16 @@
 #define __KERNEL_TS_MANAGER_H
 
 #include <sys/queue.h>
+#include <tee_api_types.h>
+
+struct ts_ctx {
+	TEE_UUID uuid;
+	const struct tee_ta_ops *ops;
+};
 
 struct ts_session {
 	TAILQ_ENTRY(ts_session) link_tsd;
-	struct tee_ta_ctx *ctx;	/* TA context */
+	struct ts_ctx *ctx;	/* Generic TS context */
 #if defined(CFG_TA_GPROF_SUPPORT)
 	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
 #endif

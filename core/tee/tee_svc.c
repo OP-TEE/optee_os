@@ -797,7 +797,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 
 	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);
-	tee_mmu_set_ctx(&utc->uctx.ctx);
+	tee_mmu_set_ctx(&utc->uctx.ctx.ts_ctx);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
