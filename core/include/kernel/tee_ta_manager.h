@@ -81,6 +81,8 @@ struct tee_ta_session {
 	struct ts_session ts_sess;
 	uint32_t id;		/* Session handle (0 is invalid) */
 	TEE_Identity clnt_id;	/* Identify of client */
+	struct tee_ta_param *param;
+	TEE_ErrorOrigin err_origin;
 	bool cancel;		/* True if TA invocation is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
 	TEE_Time cancel_time;	/* Time when to cancel the TA invocation */

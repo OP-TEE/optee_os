@@ -299,33 +299,31 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stmm_enter_open_session(struct ts_session *s,
-					  struct tee_ta_param *param,
-					  TEE_ErrorOrigin *eo)
+static TEE_Result stmm_enter_open_session(struct ts_session *s)
 {
 	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct tee_ta_session *ta_sess = to_ta_session(s);
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
 
-	if (param->types != exp_pt)
+	if (ta_sess->param->types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (spc->is_initializing) {
 		/* StMM is initialized in sec_part_init_session() */
-		*eo = TEE_ORIGIN_TEE;
+		ta_sess->err_origin = TEE_ORIGIN_TEE;
 		return TEE_ERROR_BAD_STATE;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd,
-					struct tee_ta_param *param,
-					TEE_ErrorOrigin *eo __unused)
+static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 {
 	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct tee_ta_session *ta_sess = to_ta_session(s);
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Result __maybe_unused tmp_res = TEE_SUCCESS;
 	unsigned int ns_buf_size = 0;
@@ -339,10 +337,10 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd,
 	if (cmd != PTA_STMM_CMD_COMMUNICATE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (param->types != exp_pt)
+	if (ta_sess->param->types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	mem = &param->u[0].mem;
+	mem = &ta_sess->param->u[0].mem;
 	ns_buf_size = mem->size;
 	if (ns_buf_size > spc->ns_comm_buf_size) {
 		mem->size = spc->ns_comm_buf_size;
@@ -380,7 +378,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd,
 	 * Copy the SPM response from secure partition back to the non-secure
 	 * buffer of the client that called us.
 	 */
-	param->u[1].val.a = spc->regs.x[4];
+	ta_sess->param->u[1].val.a = spc->regs.x[4];
 
 	memcpy(va, (void *)spc->ns_comm_buf_addr, ns_buf_size);
 

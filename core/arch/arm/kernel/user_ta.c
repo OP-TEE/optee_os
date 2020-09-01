@@ -144,16 +144,14 @@ static void dec_recursion(void)
 	tsd->syscall_recursion--;
 }
 
-static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
-				struct ts_session *session,
-				enum utee_entry_func func, uint32_t cmd,
-				struct tee_ta_param *param)
+static TEE_Result user_ta_enter(struct ts_session *session,
+				enum utee_entry_func func, uint32_t cmd)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct utee_params *usr_params = NULL;
 	uaddr_t usr_stack = 0;
 	struct user_ta_ctx *utc = to_user_ta_ctx(session->ctx);
-	TEE_ErrorOrigin serr = TEE_ORIGIN_TEE;
+	struct tee_ta_session *ta_sess = to_ta_session(session);
 	struct ts_session *ts_sess __maybe_unused = NULL;
 	void *param_va[TEE_NUM_PARAMS] = { NULL };
 
@@ -162,11 +160,12 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out_clr_cancel;
 	}
-
-	/* Map user space memory */
-	res = tee_mmu_map_param(&utc->uctx, param, param_va);
-	if (res != TEE_SUCCESS)
-		goto out;
+	if (ta_sess->param) {
+		/* Map user space memory */
+		res = tee_mmu_map_param(&utc->uctx, ta_sess->param, param_va);
+		if (res != TEE_SUCCESS)
+			goto out;
+	}
 
 	/* Switch to user ctx */
 	ts_push_current_session(session);
@@ -175,7 +174,10 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	usr_stack = utc->stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
-	init_utee_param(usr_params, param, param_va);
+	if (ta_sess->param)
+		init_utee_param(usr_params, ta_sess->param, param_va);
+	else
+		memset(usr_params, 0, sizeof(*usr_params));
 
 	res = thread_enter_user_mode(func, kaddr_to_uref(session),
 				     (vaddr_t)usr_params, cmd, usr_stack,
@@ -184,28 +186,31 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 				     &utc->uctx.ctx.panic_code);
 
 	clear_vfp_state(utc);
-	/*
-	 * According to GP spec the origin should allways be set to the
-	 * TA after TA execution
-	 */
-	serr = TEE_ORIGIN_TRUSTED_APP;
 
 	if (utc->uctx.ctx.panicked) {
 		abort_print_current_ta();
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x",
 		     utc->uctx.ctx.panic_code);
-		serr = TEE_ORIGIN_TEE;
 		res = TEE_ERROR_TARGET_DEAD;
+	} else {
+		/*
+		 * According to GP spec the origin should allways be set to
+		 * the TA after TA execution
+		 */
+		ta_sess->err_origin = TEE_ORIGIN_TRUSTED_APP;
 	}
 
-	/* Copy out value results */
-	update_from_utee_param(param, usr_params);
+	if (ta_sess->param) {
+		/* Copy out value results */
+		update_from_utee_param(ta_sess->param, usr_params);
 
-	/*
-	 * Clear out the parameter mappings added with tee_mmu_map_param()
-	 * above.
-	 */
-	tee_mmu_clean_param(&utc->uctx);
+		/*
+		 * Clear out the parameter mappings added with
+		 * tee_mmu_map_param() above.
+		 */
+		tee_mmu_clean_param(&utc->uctx);
+	}
+
 
 	ts_sess = ts_pop_current_session();
 	assert(ts_sess == session);
@@ -218,13 +223,7 @@ out_clr_cancel:
 	 * time the TA will be invoked will be with a new operation and should
 	 * not have an old cancellation pending.
 	 */
-	to_ta_session(session)->cancel = false;
-
-	/*
-	 * Can't update *err until now since it may point to an address
-	 * mapped for the user mode TA.
-	 */
-	*err = serr;
+	ta_sess->cancel = false;
 
 	return res;
 }
@@ -286,29 +285,21 @@ static TEE_Result init_with_ldelf(struct ts_session *sess __maybe_unused,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result user_ta_enter_open_session(struct ts_session *s,
-					     struct tee_ta_param *param,
-					     TEE_ErrorOrigin *eo)
+static TEE_Result user_ta_enter_open_session(struct ts_session *s)
 {
-	return user_ta_enter(eo, s, UTEE_ENTRY_FUNC_OPEN_SESSION, 0, param);
+	return user_ta_enter(s, UTEE_ENTRY_FUNC_OPEN_SESSION, 0);
 }
 
-static TEE_Result user_ta_enter_invoke_cmd(struct ts_session *s, uint32_t cmd,
-					   struct tee_ta_param *param,
-					   TEE_ErrorOrigin *eo)
+static TEE_Result user_ta_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 {
-	return user_ta_enter(eo, s, UTEE_ENTRY_FUNC_INVOKE_COMMAND, cmd, param);
+	return user_ta_enter(s, UTEE_ENTRY_FUNC_INVOKE_COMMAND, cmd);
 }
 
 static void user_ta_enter_close_session(struct ts_session *s)
 {
 	/* Only if the TA was fully initialized by ldelf */
-	if (!to_user_ta_ctx(s->ctx)->is_initializing) {
-		TEE_ErrorOrigin eo = TEE_ORIGIN_TEE;
-		struct tee_ta_param param = { };
-
-		user_ta_enter(&eo, s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0, &param);
-	}
+	if (!to_user_ta_ctx(s->ctx)->is_initializing)
+		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
 }
 
 static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
