@@ -843,7 +843,7 @@ static TEE_Result param_mem_to_user_va(struct user_mode_ctx *uctx,
 		phys_offs += mem->offs;
 		if (phys_offs < region->offset)
 			continue;
-		if (phys_offs >= (region->offset  - region->size))
+		if (phys_offs >= (region->offset + region->size))
 			continue;
 		va = region->va + phys_offs - region->offset;
 		*user_va = (void *)va;
