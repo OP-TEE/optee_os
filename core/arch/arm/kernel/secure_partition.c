@@ -742,7 +742,7 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	}
 }
 
-const struct tee_ta_ops secure_partition_ops __rodata_unpaged = {
+const struct ts_ops secure_partition_ops __rodata_unpaged = {
 	.enter_open_session = stmm_enter_open_session,
 	.enter_invoke_cmd = stmm_enter_invoke_cmd,
 	.enter_close_session = stmm_enter_close_session,
