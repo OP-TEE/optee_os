@@ -1516,6 +1516,15 @@ static void setup_unwind_user_mode(struct thread_svc_regs *regs)
 #endif
 }
 
+static void gprof_set_status(struct ts_session *s __maybe_unused,
+			     enum ts_gprof_status status __maybe_unused)
+{
+#ifdef CFG_TA_GPROF_SUPPORT
+	if (s->ctx->ops->gprof_set_status)
+		s->ctx->ops->gprof_set_status(status);
+#endif
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
@@ -1531,17 +1540,20 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 
 	thread_user_save_vfp();
 
-	/* TA has just entered kernel mode */
-	tee_ta_update_session_utime_suspend();
+	sess = ts_get_current_session();
+	/*
+	 * User mode service has just entered kernel mode, suspend gprof
+	 * collection until we're about to switch back again.
+	 */
+	gprof_set_status(sess, TS_GPROF_SUSPEND);
 
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	sess = ts_get_current_session();
 	assert(sess && sess->ctx->ops && sess->ctx->ops->handle_svc);
 	if (sess->ctx->ops->handle_svc(regs)) {
 		/* We're about to switch back to user mode */
-		tee_ta_update_session_utime_resume();
+		gprof_set_status(sess, TS_GPROF_RESUME);
 	} else {
 		/* We're returning from __thread_enter_user_mode() */
 		setup_unwind_user_mode(regs);

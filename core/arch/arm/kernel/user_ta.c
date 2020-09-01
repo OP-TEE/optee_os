@@ -555,6 +555,16 @@ out_free_pl:
 }
 #endif /*CFG_FTRACE_SUPPORT*/
 
+#ifdef CFG_TA_GPROF_SUPPORT
+static void user_ta_gprof_set_status(enum ts_gprof_status status)
+{
+	if (status == TS_GPROF_SUSPEND)
+		tee_ta_update_session_utime_suspend();
+	else
+		tee_ta_update_session_utime_resume();
+}
+#endif /*CFG_TA_GPROF_SUPPORT*/
+
 static void free_utc(struct user_ta_ctx *utc)
 {
 	tee_pager_rem_um_areas(&utc->uctx);
@@ -601,6 +611,9 @@ static const struct ts_ops user_ta_ops __rodata_unpaged = {
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
 	.handle_svc = user_ta_handle_svc,
+#ifdef CFG_TA_GPROF_SUPPORT
+	.gprof_set_status = user_ta_gprof_set_status,
+#endif
 };
 
 /*
