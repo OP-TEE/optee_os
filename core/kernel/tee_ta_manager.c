@@ -718,9 +718,9 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	s->clnt_id = *clnt_id;
 
 	if (tee_ta_try_set_busy(ctx)) {
+		s->param = param;
 		set_invoke_timeout(s, cancel_req_to);
-		res = ctx->ts_ctx.ops->enter_open_session(&s->ts_sess, param,
-							  err);
+		res = ctx->ts_ctx.ops->enter_open_session(&s->ts_sess);
 		tee_ta_clear_busy(ctx);
 	} else {
 		/* Deadlock avoided */
@@ -729,6 +729,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	}
 
 	panicked = ctx->panicked;
+	s->param = NULL;
 
 	tee_ta_put_session(s);
 	if (panicked || (res != TEE_SUCCESS))
@@ -740,6 +741,8 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	 */
 	if (panicked || was_busy)
 		*err = TEE_ORIGIN_TEE;
+	else
+		*err = s->err_origin;
 
 	if (res != TEE_SUCCESS)
 		EMSG("Failed. Return error 0x%x", res);
@@ -778,10 +781,11 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	tee_ta_set_busy(ta_ctx);
 
+	sess->param = param;
 	set_invoke_timeout(sess, cancel_req_to);
-	res = ta_ctx->ts_ctx.ops->enter_invoke_cmd(&sess->ts_sess, cmd, param,
-						   err);
+	res = ta_ctx->ts_ctx.ops->enter_invoke_cmd(&sess->ts_sess, cmd);
 
+	sess->param = NULL;
 	tee_ta_clear_busy(ta_ctx);
 
 	if (ta_ctx->panicked) {
@@ -789,6 +793,8 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
+
+	*err = sess->err_origin;
 
 	/* Short buffer is not an effective error case */
 	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
