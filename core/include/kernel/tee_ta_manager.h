@@ -7,6 +7,7 @@
 #ifndef TEE_TA_MANAGER_H
 #define TEE_TA_MANAGER_H
 
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_common.h>
 #include <kernel/ts_manager.h>
@@ -172,14 +173,18 @@ static inline void tee_ta_ftrace_update_times_suspend(void) {}
 static inline void tee_ta_ftrace_update_times_resume(void) {}
 #endif
 
+bool is_ta_ctx(struct ts_ctx *ctx);
+
 static inline struct tee_ta_session * __noprof
 to_ta_session(struct ts_session *sess)
 {
+	assert(is_ta_ctx(sess->ctx));
 	return container_of(sess, struct tee_ta_session, ts_sess);
 }
 
 static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
 {
+	assert(is_ta_ctx(ctx));
 	return container_of(ctx, struct tee_ta_ctx, ts_ctx);
 }
 #endif
