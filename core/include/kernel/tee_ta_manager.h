@@ -46,21 +46,22 @@ struct tee_ta_param {
 	} u[TEE_NUM_PARAMS];
 };
 
-struct tee_ta_ctx;
 struct user_ta_ctx;
-struct pseudo_ta_ctx;
 struct thread_svc_regs;
+struct ts_session;
 
 struct tee_ta_ops {
-	TEE_Result (*enter_open_session)(struct tee_ta_session *s,
-			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
-	TEE_Result (*enter_invoke_cmd)(struct tee_ta_session *s, uint32_t cmd,
-			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
-	void (*enter_close_session)(struct tee_ta_session *s);
-	void (*dump_state)(struct tee_ta_ctx *ctx);
-	void (*dump_ftrace)(struct tee_ta_ctx *ctx);
-	void (*destroy)(struct tee_ta_ctx *ctx);
-	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
+	TEE_Result (*enter_open_session)(struct ts_session *s,
+					 struct tee_ta_param *param,
+					 TEE_ErrorOrigin *eo);
+	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd,
+				       struct tee_ta_param *param,
+				       TEE_ErrorOrigin *eo);
+	void (*enter_close_session)(struct ts_session *s);
+	void (*dump_state)(struct ts_ctx *ctx);
+	void (*dump_ftrace)(struct ts_ctx *ctx);
+	void (*destroy)(struct ts_ctx *ctx);
+	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
 	bool (*handle_svc)(struct thread_svc_regs *regs);
 };
 
@@ -80,10 +81,9 @@ struct sample_buf {
 
 /* Context of a loaded TA */
 struct tee_ta_ctx {
-	TEE_UUID uuid;
-	const struct tee_ta_ops *ops;
 	uint32_t flags;		/* TA_FLAGS from TA header */
 	TAILQ_ENTRY(tee_ta_ctx) link;
+	struct ts_ctx ts_ctx;
 	uint32_t panicked;	/* True if TA has panicked, written from asm */
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
@@ -178,4 +178,8 @@ to_ta_session(struct ts_session *sess)
 	return container_of(sess, struct tee_ta_session, ts_sess);
 }
 
+static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
+{
+	return container_of(ctx, struct tee_ta_ctx, ts_ctx);
+}
 #endif

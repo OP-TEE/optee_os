@@ -134,16 +134,16 @@ struct sec_part_ctx {
 
 extern const struct tee_ta_ops secure_partition_ops;
 
-static inline bool is_sp_ctx(struct tee_ta_ctx *ctx __maybe_unused)
+static inline bool is_sp_ctx(struct ts_ctx *ctx __maybe_unused)
 {
 	return IS_ENABLED(CFG_WITH_SECURE_PARTITION) &&
 	       ctx && ctx->ops == &secure_partition_ops;
 }
 
-static inline struct sec_part_ctx *to_sec_part_ctx(struct tee_ta_ctx *ctx)
+static inline struct sec_part_ctx *to_sec_part_ctx(struct ts_ctx *ctx)
 {
 	assert(is_sp_ctx(ctx));
-	return container_of(ctx, struct sec_part_ctx, uctx.ctx);
+	return container_of(ctx, struct sec_part_ctx, uctx.ctx.ts_ctx);
 }
 
 #ifdef CFG_WITH_SECURE_PARTITION

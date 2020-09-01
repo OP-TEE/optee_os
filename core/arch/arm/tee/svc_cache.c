@@ -15,7 +15,7 @@ TEE_Result syscall_cache_operation(void *va, size_t len, unsigned long op)
 	struct user_ta_ctx *utc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
-	if ((s->ctx->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
+	if ((to_ta_ctx(s->ctx)->flags & TA_FLAG_CACHE_MAINTENANCE) == 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	utc = to_user_ta_ctx(s->ctx);

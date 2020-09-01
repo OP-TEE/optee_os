@@ -7,6 +7,7 @@
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/ts_manager.h>
 #include <kernel/thread.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
@@ -14,7 +15,7 @@
 
 static void update_current_ctx(struct thread_specific_data *tsd)
 {
-	struct tee_ta_ctx *ctx = NULL;
+	struct ts_ctx *ctx = NULL;
 	struct ts_session *s = TAILQ_FIRST(&tsd->sess_stack);
 
 	if (s) {

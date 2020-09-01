@@ -596,7 +596,7 @@ static struct tee_pager_area *find_area(struct tee_pager_area_head *areas,
 #ifdef CFG_PAGED_USER_TA
 static struct tee_pager_area *find_uta_area(vaddr_t va)
 {
-	struct tee_ta_ctx *ctx = thread_get_tsd()->ctx;
+	struct ts_ctx *ctx = thread_get_tsd()->ctx;
 
 	if (!is_user_mode_ctx(ctx))
 		return NULL;
@@ -769,7 +769,7 @@ TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 	struct tee_pager_area *area = NULL;
 	struct core_mmu_table_info dir_info = { NULL };
 
-	if (&uctx->ctx != tsd->ctx) {
+	if (&uctx->ctx.ts_ctx != tsd->ctx) {
 		/*
 		 * Changes are to an utc that isn't active. Just add the
 		 * areas page tables will be dealt with later.

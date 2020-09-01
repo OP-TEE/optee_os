@@ -430,7 +430,7 @@ static void *mobj_seccpy_shm_get_va(struct mobj *mobj, size_t offs)
 {
 	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
 
-	if (&m->utc->uctx.ctx != thread_get_tsd()->ctx)
+	if (&m->utc->uctx.ctx.ts_ctx != thread_get_tsd()->ctx)
 		return NULL;
 
 	if (offs >= mobj->size)
