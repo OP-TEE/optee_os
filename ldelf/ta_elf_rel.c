@@ -334,6 +334,13 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		where = (Elf32_Addr *)(elf->load_addr + rel->r_offset);
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
+		case R_ARM_NONE:
+			/*
+			 * One would expect linker prevents such useless entry
+			 * in the relocation table. We still handle this type
+			 * here in case such entries exist.
+			 */
+			break;
 		case R_ARM_ABS32:
 			sym_idx = ELF32_R_SYM(rel->r_info);
 			if (sym_idx >= num_syms)
