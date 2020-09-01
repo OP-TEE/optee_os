@@ -48,23 +48,6 @@ struct tee_ta_param {
 };
 
 struct user_ta_ctx;
-struct thread_svc_regs;
-struct ts_session;
-
-struct tee_ta_ops {
-	TEE_Result (*enter_open_session)(struct ts_session *s,
-					 struct tee_ta_param *param,
-					 TEE_ErrorOrigin *eo);
-	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd,
-				       struct tee_ta_param *param,
-				       TEE_ErrorOrigin *eo);
-	void (*enter_close_session)(struct ts_session *s);
-	void (*dump_state)(struct ts_ctx *ctx);
-	void (*dump_ftrace)(struct ts_ctx *ctx);
-	void (*destroy)(struct ts_ctx *ctx);
-	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
-	bool (*handle_svc)(struct thread_svc_regs *regs);
-};
 
 #if defined(CFG_TA_GPROF_SUPPORT)
 struct sample_buf {

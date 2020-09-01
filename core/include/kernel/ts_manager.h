@@ -12,7 +12,7 @@
 
 struct ts_ctx {
 	TEE_UUID uuid;
-	const struct tee_ta_ops *ops;
+	const struct ts_ops *ops;
 };
 
 struct ts_session {
@@ -24,6 +24,23 @@ struct ts_session {
 #if defined(CFG_FTRACE_SUPPORT)
 	struct ftrace_buf *fbuf; /* ftrace buffer */
 #endif
+};
+
+struct tee_ta_param;
+struct thread_svc_regs;
+struct ts_ops {
+	TEE_Result (*enter_open_session)(struct ts_session *s,
+					 struct tee_ta_param *param,
+					 TEE_ErrorOrigin *eo);
+	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd,
+				       struct tee_ta_param *param,
+				       TEE_ErrorOrigin *eo);
+	void (*enter_close_session)(struct ts_session *s);
+	void (*dump_state)(struct ts_ctx *ctx);
+	void (*dump_ftrace)(struct ts_ctx *ctx);
+	void (*destroy)(struct ts_ctx *ctx);
+	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
+	bool (*handle_svc)(struct thread_svc_regs *regs);
 };
 
 struct ts_session *ts_get_current_session(void);

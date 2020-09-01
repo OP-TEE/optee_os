@@ -231,7 +231,7 @@ static void pseudo_ta_destroy(struct ts_ctx *ctx)
 	free(to_pseudo_ta_ctx(ctx));
 }
 
-static const struct tee_ta_ops pseudo_ta_ops = {
+static const struct ts_ops pseudo_ta_ops = {
 	.enter_open_session = pseudo_ta_enter_open_session,
 	.enter_invoke_cmd = pseudo_ta_enter_invoke_cmd,
 	.enter_close_session = pseudo_ta_enter_close_session,

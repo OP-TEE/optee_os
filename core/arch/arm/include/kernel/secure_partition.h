@@ -132,7 +132,7 @@ struct sec_part_ctx {
 	bool is_initializing;
 };
 
-extern const struct tee_ta_ops secure_partition_ops;
+extern const struct ts_ops secure_partition_ops;
 
 static inline bool is_sp_ctx(struct ts_ctx *ctx __maybe_unused)
 {

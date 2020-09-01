@@ -599,7 +599,7 @@ static uint32_t user_ta_get_instance_id(struct ts_ctx *ctx)
 	return to_user_ta_ctx(ctx)->uctx.vm_info.asid;
 }
 
-static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
+static const struct ts_ops user_ta_ops __rodata_unpaged = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
@@ -616,7 +616,7 @@ static const struct tee_ta_ops user_ta_ops __rodata_unpaged = {
  * Break unpaged attribute dependency propagation to user_ta_ops structure
  * content thanks to a runtime initialization of the ops reference.
  */
-static struct tee_ta_ops const *_user_ta_ops;
+static const struct ts_ops *_user_ta_ops;
 
 static TEE_Result init_user_ta(void)
 {
