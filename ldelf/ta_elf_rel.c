@@ -552,6 +552,13 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
+		case R_AARCH64_NONE:
+			/*
+			 * One would expect linker prevents such useless entry
+			 * in the relocation table. We still handle this type
+			 * here in case such entries exist.
+			 */
+			break;
 		case R_AARCH64_ABS64:
 			sym_idx = ELF64_R_SYM(rela->r_info);
 			if (sym_idx >= num_syms)
