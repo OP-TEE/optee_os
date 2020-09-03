@@ -8,11 +8,14 @@
 
 static inline void *unw_grow(void *p, size_t *cur_size, size_t new_size)
 {
+	size_t rounded_size = 0;
+	void *tmp = NULL;
+
 	if (*cur_size >= new_size)
 		return p;
 
-	size_t rounded_size = ROUNDUP(new_size, 16 * sizeof(vaddr_t));
-	void *tmp = realloc(p, rounded_size);
+	rounded_size = ROUNDUP(new_size, 16 * sizeof(vaddr_t));
+	tmp = realloc(p, rounded_size);
 
 	if (tmp)
 		*cur_size = rounded_size;
