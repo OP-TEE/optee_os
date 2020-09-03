@@ -4,7 +4,6 @@
  */
 
 #include <asm.S>
-#include <kernel/unwind.h>
 
 	.fpu	neon
 

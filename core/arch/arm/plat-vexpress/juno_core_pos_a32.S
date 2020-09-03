@@ -6,7 +6,6 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <kernel/unwind.h>
 
 /* For Juno number the two A57s as 4 to 5 and A53s as 0 to 3 */
 FUNC get_core_pos_mpidr , :

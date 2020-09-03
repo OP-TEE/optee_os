@@ -40,7 +40,6 @@
 #include <arm32_macros_cortex_a9.S>
 #include <asm.S>
 #include <kernel/tz_ssvce_def.h>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 #define ZYNQ_SLCR_L2C_RAM	0xF8000A1C

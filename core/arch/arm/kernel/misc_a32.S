@@ -7,7 +7,6 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 

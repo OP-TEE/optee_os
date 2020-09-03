@@ -6,7 +6,6 @@
 #include <asm.S>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 #define PL310_LOCKDOWN_NBREGS	8

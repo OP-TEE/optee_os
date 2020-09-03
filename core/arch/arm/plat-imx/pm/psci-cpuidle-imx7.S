@@ -3,7 +3,6 @@
  * Copyright 2018 NXP
  */
 
-#include <kernel/unwind.h>
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>

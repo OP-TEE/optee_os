@@ -12,7 +12,6 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread_defs.h>
-#include <kernel/unwind.h>
 #include <optee_ffa.h>
 
 FUNC thread_ffa_msg_wait , :

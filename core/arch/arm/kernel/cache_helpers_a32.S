@@ -9,7 +9,6 @@
 #include <arm32_macros.S>
 #include <asm.S>
 #include <kernel/cache_helpers.h>
-#include <kernel/unwind.h>
 
 /*
  * Cache line size helpers

@@ -7,12 +7,6 @@
 #include <tee_syscall_numbers.h>
 #include <asm.S>
 
-#if defined(CFG_UNWIND)
-#define UNWIND(...)	__VA_ARGS__
-#else
-#define UNWIND(...)
-#endif
-
         .section .text
         .balign 4
         .code 32
