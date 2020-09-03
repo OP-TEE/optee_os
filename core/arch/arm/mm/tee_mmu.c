@@ -48,13 +48,13 @@
 static vaddr_t select_va_in_range(const struct vm_region *prev_reg,
 				  const struct vm_region *next_reg,
 				  const struct vm_region *reg,
-				  size_t pad_begin, size_t pad_end)
+				  size_t pad_begin, size_t pad_end,
+				  size_t granul)
 {
 	const uint32_t f = VM_FLAG_EPHEMERAL | VM_FLAG_PERMANENT |
 			    VM_FLAG_SHAREABLE;
 	vaddr_t begin_va = 0;
 	vaddr_t end_va = 0;
-	size_t granul = 0;
 	size_t pad = 0;
 
 	/*
@@ -67,7 +67,6 @@ static vaddr_t select_va_in_range(const struct vm_region *prev_reg,
 	else
 		pad = 0;
 
-	granul = SMALL_PAGE_SIZE;
 #ifndef CFG_WITH_LPAE
 	if ((prev_reg->attr & TEE_MATTR_SECURE) !=
 	    (reg->attr & TEE_MATTR_SECURE))
@@ -91,7 +90,6 @@ static vaddr_t select_va_in_range(const struct vm_region *prev_reg,
 	else
 		pad = 0;
 
-	granul = SMALL_PAGE_SIZE;
 #ifndef CFG_WITH_LPAE
 	if ((next_reg->attr & TEE_MATTR_SECURE) !=
 	    (reg->attr & TEE_MATTR_SECURE))
@@ -193,7 +191,8 @@ static void maybe_free_pgt(struct user_mode_ctx *uctx, struct vm_region *r)
 }
 
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
-				  size_t pad_begin, size_t pad_end)
+				  size_t pad_begin, size_t pad_end,
+				  size_t align)
 {
 	struct vm_region dummy_first_reg = { };
 	struct vm_region dummy_last_reg = { };
@@ -201,6 +200,7 @@ static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 	struct vm_region *prev_r = NULL;
 	vaddr_t va_range_base = 0;
 	size_t va_range_size = 0;
+	size_t granul;
 	vaddr_t va = 0;
 	size_t offs_plus_size = 0;
 
@@ -218,9 +218,14 @@ static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 	if (offs_plus_size > ROUNDUP(reg->mobj->size, SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	granul = MAX(align, SMALL_PAGE_SIZE);
+	if (!IS_POWER_OF_TWO(granul))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	prev_r = &dummy_first_reg;
 	TAILQ_FOREACH(r, &vmi->regions, link) {
-		va = select_va_in_range(prev_r, r, reg, pad_begin, pad_end);
+		va = select_va_in_range(prev_r, r, reg, pad_begin, pad_end,
+					granul);
 		if (va) {
 			reg->va = va;
 			TAILQ_INSERT_BEFORE(r, reg, link);
@@ -232,7 +237,8 @@ static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 	r = TAILQ_LAST(&vmi->regions, vm_region_head);
 	if (!r)
 		r = &dummy_first_reg;
-	va = select_va_in_range(r, &dummy_last_reg, reg, pad_begin, pad_end);
+	va = select_va_in_range(r, &dummy_last_reg, reg, pad_begin, pad_end,
+				granul);
 	if (va) {
 		reg->va = va;
 		TAILQ_INSERT_TAIL(&vmi->regions, reg, link);
@@ -244,7 +250,8 @@ static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 
 TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 		      uint32_t prot, uint32_t flags, struct mobj *mobj,
-		      size_t offs, size_t pad_begin, size_t pad_end)
+		      size_t offs, size_t pad_begin, size_t pad_end,
+		      size_t align)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct vm_region *reg = NULL;
@@ -276,7 +283,7 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 	reg->attr = attr | prot;
 	reg->flags = flags;
 
-	res = umap_add_region(&uctx->vm_info, reg, pad_begin, pad_end);
+	res = umap_add_region(&uctx->vm_info, reg, pad_begin, pad_end, align);
 	if (res)
 		goto err_free_reg;
 
@@ -551,11 +558,11 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		TAILQ_REMOVE(&regs, r, link);
 		if (r_last) {
 			r->va = r_last->va + r_last->size;
-			res = umap_add_region(&uctx->vm_info, r, 0, 0);
+			res = umap_add_region(&uctx->vm_info, r, 0, 0, 0);
 		} else {
 			r->va = *new_va;
 			res = umap_add_region(&uctx->vm_info, r, pad_begin,
-					      pad_end + len - r->size);
+					      pad_end + len - r->size, 0);
 		}
 		if (!res)
 			r_last = r;
@@ -608,7 +615,7 @@ err_restore_map:
 		TAILQ_REMOVE(&regs, r, link);
 		r->va = next_va;
 		next_va += r->size;
-		if (umap_add_region(&uctx->vm_info, r, 0, 0))
+		if (umap_add_region(&uctx->vm_info, r, 0, 0, 0))
 			panic("Cannot restore mapping");
 		if (alloc_pgt(uctx))
 			panic("Cannot restore mapping");
@@ -1000,7 +1007,7 @@ TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 	else
 		reg->attr = 0;
 
-	res = umap_add_region(&uctx->vm_info, reg, 0, 0);
+	res = umap_add_region(&uctx->vm_info, reg, 0, 0, 0);
 	if (res) {
 		free(reg);
 		return res;
