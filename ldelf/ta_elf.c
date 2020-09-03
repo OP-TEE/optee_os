@@ -17,13 +17,13 @@
 #include <string.h>
 #include <tee_api_types.h>
 #include <tee_internal_api_extensions.h>
+#include <unw/unwind.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
 #include <util.h>
 
 #include "sys.h"
 #include "ta_elf.h"
-#include "unwind.h"
 
 /*
  * Layout of a 32-bit struct dl_phdr_info for a 64-bit ldelf to access a 32-bit
@@ -1389,6 +1389,32 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 }
 
 #ifdef CFG_UNWIND
+/* Called by libunw */
+bool find_exidx(vaddr_t addr, vaddr_t *idx_start, vaddr_t *idx_end)
+{
+	struct segment *seg = NULL;
+	struct ta_elf *elf = NULL;
+	vaddr_t a = 0;
+
+	TAILQ_FOREACH(elf, &main_elf_queue, link) {
+		if (addr < elf->load_addr)
+			continue;
+		a = addr - elf->load_addr;
+		TAILQ_FOREACH(seg, &elf->segs, link) {
+			if (a < seg->vaddr)
+				continue;
+			if (a - seg->vaddr < seg->filesz) {
+				*idx_start = elf->exidx_start + elf->load_addr;
+				*idx_end = elf->exidx_start + elf->load_addr +
+					   elf->exidx_size;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void ta_elf_stack_trace_a32(uint32_t regs[16])
 {
 	struct unwind_state_arm32 state = { };

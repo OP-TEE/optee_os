@@ -7,6 +7,4 @@ srcs-y += main.c
 srcs-y += sys.c
 srcs-y += ta_elf.c
 srcs-y += ta_elf_rel.c
-srcs-$(CFG_UNWIND) += unwind_arm32.c
-srcs-$(CFG_UNWIND) += unwind_arm64.c
 srcs-$(CFG_FTRACE_SUPPORT) += ftrace.c
