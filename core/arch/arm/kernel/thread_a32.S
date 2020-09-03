@@ -28,52 +28,43 @@
 	.endm
 
 FUNC thread_set_abt_sp , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_ABT
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_set_abt_sp
 
 FUNC thread_set_und_sp , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_UND
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_set_und_sp
 
 FUNC thread_set_irq_sp , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_IRQ
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_set_irq_sp
 
 FUNC thread_set_fiq_sp , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mrs	r1, cpsr
 	cps	#CPSR_MODE_FIQ
 	mov	sp, r0
 	msr	cpsr, r1
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_set_fiq_sp
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	add	r12, r0, #(13 * 4)	/* Restore registers r0-r12 later */
 
@@ -101,7 +92,6 @@ UNWIND(	.cantunwind)
 	ldm	r0, {r0-r12}
 	movsne	pc, lr
 	b	eret_to_user_mode
-UNWIND(	.fnend)
 END_FUNC thread_resume
 
 /*
@@ -109,7 +99,6 @@ END_FUNC thread_resume
  * the banked r8-r12 registers, returns original CPSR.
  */
 LOCAL_FUNC thread_save_state_fiq , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov	r9, lr
 
@@ -151,7 +140,6 @@ UNWIND(	.cantunwind)
 
 	mov	r0, r8			/* Return original CPSR */
 	bx	r9
-UNWIND(	.fnend)
 END_FUNC thread_save_state_fiq
 
 /*
@@ -159,7 +147,6 @@ END_FUNC thread_save_state_fiq
  * CPSR.
  */
 FUNC thread_save_state , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{r12, lr}
 	/*
@@ -203,7 +190,6 @@ UNWIND(	.cantunwind)
 
 	mov	r0, r5			/* Return original CPSR */
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_save_state
 
 /*
@@ -211,18 +197,14 @@ END_FUNC thread_save_state
  *			    unsigned long a2, unsigned long a3)
  */
 FUNC thread_smc , :
-UNWIND(	.fnstart)
 	smc	#0
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_smc
 
 FUNC thread_init_vbar , :
-UNWIND(	.fnstart)
 	/* Set vector (VBAR) */
 	write_vbar r0
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_init_vbar
 DECLARE_KEEP_PAGER thread_init_vbar
 
@@ -268,7 +250,6 @@ DECLARE_KEEP_PAGER thread_init_vbar
  * This function depends on being called with exceptions masked.
  */
 FUNC __thread_enter_user_mode , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/*
 	 * Save all registers to allow syscall_return() to resume execution
@@ -298,7 +279,6 @@ UNWIND(	.cantunwind)
 	ldm	r0, {r0-r12}
 
 	b	eret_to_user_mode
-UNWIND(	.fnend)
 END_FUNC __thread_enter_user_mode
 
 /*
@@ -307,7 +287,6 @@ END_FUNC __thread_enter_user_mode
  * See description in thread.h
  */
 FUNC thread_unwind_user_mode , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* Match push {r1, r2, r4, r5} in thread_enter_user_mode() */
 	pop	{r4-r7}
@@ -321,7 +300,6 @@ UNWIND(	.cantunwind)
 
 	/* Match push {r4-r12,lr} in thread_enter_user_mode() */
 	pop     {r4-r12,pc}
-UNWIND(	.fnend)
 END_FUNC thread_unwind_user_mode
 
 	.macro maybe_restore_mapping
@@ -539,7 +517,6 @@ END_FUNC thread_unwind_user_mode
 
         .align	5
 FUNC thread_excp_vect , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
 	b	__thread_und_handler	/* Undefined instruction	*/
@@ -948,7 +925,6 @@ icache_inv_user_range:
 	 * thread_excp_vect_end label.
 	 */
 	.pool
-UNWIND(	.fnend)
 	.global thread_excp_vect_end
 thread_excp_vect_end:
 END_FUNC thread_excp_vect

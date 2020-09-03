@@ -552,7 +552,6 @@
 .extern iram_tlb_phys_addr
 
 FUNC imx7d_low_power_idle, :
-UNWIND( .fnstart)
 	push	{r0 - r12}
 
 	/* get necessary info from pm_info */
@@ -727,8 +726,6 @@ wakeup_skip_lpi_flow:
 
 	/* Restore registers */
 	bx	lr
-
-UNWIND( .fnend)
 END_FUNC imx7d_low_power_idle
 
 /*
@@ -736,7 +733,6 @@ END_FUNC imx7d_low_power_idle
  * This maybe changed in future.
  */
 FUNC v7_cpu_resume, :
-UNWIND( .fnstart)
 	mov     r0, #0	@ ; write the cache size selection register to be
 	write_csselr r0	@ ; sure we address the data cache
 	isb		@ ; isb to sync the change to the cachesizeid reg
@@ -766,5 +762,4 @@ _inv_nextline:
 	blx plat_cpu_reset_early
 
 	b	sm_pm_cpu_resume
-UNWIND( .fnend)
 END_FUNC v7_cpu_resume

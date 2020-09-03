@@ -35,7 +35,6 @@
 	.endm
 
 FUNC vector_std_smc_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	push	{r4-r7}
@@ -51,11 +50,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_std_smc_entry
 
 FUNC vector_fast_smc_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	push	{r0-r7}
@@ -65,11 +62,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_fast_smc_entry
 
 FUNC vector_fiq_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
  	/* Secure Monitor received a FIQ and passed control to us. */
@@ -78,12 +73,10 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_fiq_entry
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	bl	cpu_on_handler
 	/* When cpu_on_handler() returns mmu is enabled */
@@ -91,11 +84,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_ON_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_cpu_on_entry
 
 LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	bl	thread_cpu_off_handler
@@ -103,11 +94,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_cpu_off_entry
 
 LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	bl	thread_cpu_suspend_handler
@@ -115,11 +104,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_cpu_suspend_entry
 
 LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	bl	thread_cpu_resume_handler
@@ -127,11 +114,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_cpu_resume_entry
 
 LOCAL_FUNC vector_system_off_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	bl	thread_system_off_handler
@@ -139,11 +124,9 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_system_off_entry
 
 LOCAL_FUNC vector_system_reset_entry , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	readjust_pc
 	bl	thread_system_reset_handler
@@ -151,7 +134,6 @@ UNWIND(	.cantunwind)
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC vector_system_reset_entry
 
 /*
@@ -163,7 +145,6 @@ END_FUNC vector_system_reset_entry
  * in layout has to be synced with ARM-TF.
  */
 FUNC thread_vector_table , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	b	vector_std_smc_entry
 	b	vector_fast_smc_entry
@@ -174,13 +155,11 @@ UNWIND(	.cantunwind)
 	b	vector_fiq_entry
 	b	vector_system_off_entry
 	b	vector_system_reset_entry
-UNWIND(	.fnend)
 END_FUNC thread_vector_table
 DECLARE_KEEP_PAGER thread_vector_table
 #endif /*if defined(CFG_WITH_ARM_TRUSTED_FW)*/
 
 FUNC thread_std_smc_entry , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	bl	__thread_std_smc_entry
 	mov	r4, r0	/* Save return value for later */
@@ -199,12 +178,10 @@ UNWIND(	.cantunwind)
 	mov	r4, #0
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
-UNWIND(	.fnstart)
 	push	{r0, lr}
 UNWIND(	.save	{r0, lr})
 
@@ -241,7 +218,6 @@ UNWIND(	.save	{r0, lr})
 	pop	{r12, lr}		/* Get pointer to rv[] */
 	stm	r12, {r0-r3}		/* Store r0-r3 into rv[] */
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_rpc
 DECLARE_KEEP_PAGER thread_rpc
 

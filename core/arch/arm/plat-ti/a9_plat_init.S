@@ -57,7 +57,6 @@ booted:
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
 	/* Check if we are resuming */
 	ldr	r3, =booted
 	ldr	r2, [r3]
@@ -68,11 +67,9 @@ UNWIND(	.fnstart)
 	bxeq	lr
 	/* Otherwise we are resuming */
 	b	resume_springboard
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 
 LOCAL_FUNC resume_springboard , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	/* Setup tmp stack */
 	bl	__get_core_pos
@@ -112,5 +109,4 @@ after_resume:
 	mov	r4, #0
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC resume_springboard

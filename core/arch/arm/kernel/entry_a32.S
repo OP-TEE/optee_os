@@ -33,7 +33,6 @@ panic_boot_file:
  * void assert_flat_mapped_range(uint32_t vaddr, uint32_t line)
  */
 LOCAL_FUNC __assert_flat_mapped_range , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{ r4-r6, lr }
 	mov	r4, r0
@@ -56,7 +55,6 @@ UNWIND(	.cantunwind)
 	bl	__do_panic
 	b	.		/* should NOT return */
 1:	pop	{ r4-r6, pc }
-UNWIND(	.fnend)
 END_FUNC __assert_flat_mapped_range
 
 	/* panic if mmu is enable and vaddr != paddr (scratch lr) */
@@ -68,9 +66,7 @@ END_FUNC __assert_flat_mapped_range
 #endif /* CFG_PL310 */
 
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 DECLARE_KEEP_PAGER plat_cpu_reset_early
 .weak plat_cpu_reset_early
@@ -221,7 +217,6 @@ END_FUNC reset_vect_table
 	.endm
 
 FUNC _start , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
 	bootargs_entry
@@ -250,7 +245,6 @@ UNWIND(	.cantunwind)
 	beq	reset_primary
 	b	reset_secondary
 #endif
-UNWIND(	.fnend)
 END_FUNC _start
 DECLARE_KEEP_INIT _start
 
@@ -346,7 +340,6 @@ DECLARE_KEEP_INIT _start
 #endif
 
 LOCAL_FUNC reset_primary , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
 	/* preserve r4-r7: bootargs */
@@ -588,7 +581,6 @@ shadow_stack_access_ok:
 	smc	#0
 	b	.	/* SMC should not return */
 #endif /* CFG_CORE_FFA */
-UNWIND(	.fnend)
 END_FUNC reset_primary
 
 #ifdef CFG_BOOT_SYNC_CPU
@@ -610,10 +602,8 @@ LOCAL_DATA cached_mem_end , :
 END_DATA cached_mem_end
 
 LOCAL_FUNC unhandled_cpu , :
-UNWIND(	.fnstart)
 	wfi
 	b	unhandled_cpu
-UNWIND(	.fnend)
 END_FUNC unhandled_cpu
 
 #ifdef CFG_CORE_ASLR
@@ -800,7 +790,6 @@ END_DATA boot_mmu_config
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov	r4, r0
 	mov	r5, r1
@@ -827,14 +816,12 @@ UNWIND(	.cantunwind)
 #else
 	bx	r6
 #endif
-UNWIND(	.fnend)
 END_FUNC cpu_on_handler
 DECLARE_KEEP_PAGER cpu_on_handler
 
 #else /* defined(CFG_WITH_ARM_TRUSTED_FW) */
 
 LOCAL_FUNC reset_secondary , : , .identity_map
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	adr	r0, reset_vect_table
 	write_vbar r0
@@ -885,7 +872,6 @@ UNWIND(	.cantunwind)
 	mov	r4, #0
 	smc	#0
 	b	.	/* SMC should not return */
-UNWIND(	.fnend)
 END_FUNC reset_secondary
 DECLARE_KEEP_PAGER reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */

@@ -9,7 +9,6 @@
  * __value_in_regs lldiv_t __aeabi_ldivmod( long long n, long long d)
  */
 FUNC __aeabi_ldivmod , :
-UNWIND(	.fnstart)
 	push	{ip, lr}
 UNWIND(	.save {ip, lr})
 	push	{r0-r3}
@@ -18,7 +17,6 @@ UNWIND(	.save {r0-r3})
 	bl	__l_divmod
 	pop	{r0-r3}
 	pop	{ip, pc}
-UNWIND(	.fnend)
 END_FUNC __aeabi_ldivmod
 
 /*
@@ -26,7 +24,6 @@ END_FUNC __aeabi_ldivmod
  *		unsigned long long n, unsigned long long d)
  */
 FUNC __aeabi_uldivmod , :
-UNWIND(	.fnstart)
 	push	{ip, lr}
 UNWIND(	.save {ip, lr})
 	push	{r0-r3}
@@ -35,5 +32,4 @@ UNWIND(	.save {r0-r3})
 	bl	__ul_divmod
 	pop	{r0-r3}
 	pop	{ip, pc}
-UNWIND(	.fnend)
 END_FUNC __aeabi_uldivmod

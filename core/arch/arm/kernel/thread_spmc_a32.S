@@ -48,7 +48,6 @@ LOCAL_FUNC ffa_msg_send_direct_resp , :
 END_FUNC ffa_msg_send_direct_resp
 
 FUNC thread_std_smc_entry , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 
 	ror	r4, r0, #16 /* Save target info with src and dst swapped */
@@ -69,12 +68,10 @@ UNWIND(	.cantunwind)
 	mov	r6, #FFA_PARAM_MBZ		/* Unused parameter */
 	mov	r7, #FFA_PARAM_MBZ		/* Unused parameter */
 	b	ffa_msg_send_direct_resp
-UNWIND(	.fnend)
 END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(struct thread_rpc_arg *rpc_arg) */
 FUNC thread_rpc , :
-UNWIND(	.fnstart)
 	push	{r0, lr}
 UNWIND(	.save	{r0, lr})
 
@@ -112,7 +109,6 @@ UNWIND(	.save	{r0, lr})
 	pop	{r12, lr}		/* Get pointer to rv[] */
 	stm	r12, {r0-r3}		/* Store r0-r3 into rv[] */
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC thread_rpc
 DECLARE_KEEP_PAGER thread_rpc
 

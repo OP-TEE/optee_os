@@ -16,7 +16,6 @@
  * Called from user_ta_handle_svc()
  */
 FUNC tee_svc_do_call , :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{r5-r9, lr}
 	mov	r7, sp
@@ -56,7 +55,6 @@ UNWIND(	.cantunwind)
 .Lret:
 	mov	sp, r7
 	pop	{r5-r9, pc}
-UNWIND(	.fnend)
 END_FUNC tee_svc_do_call
 
 /*
@@ -86,12 +84,10 @@ END_FUNC tee_svc_do_call
  * tee_svc_unwind_enter_user_mode().
  */
 FUNC syscall_sys_return , :
-UNWIND(	.fnstart)
 	mov	r1, #0	/* panic = false */
 	mov	r2, #0	/* panic_code = 0 */
 	mov	r3, r8	/* pointer to struct thread_svc_regs */
 	b	tee_svc_sys_return_helper
-UNWIND(	.fnend)
 END_FUNC syscall_sys_return
 
 /*
@@ -103,11 +99,9 @@ END_FUNC syscall_sys_return
  * thread_svc_handler() in r8.
  */
 FUNC syscall_panic , :
-UNWIND(	.fnstart)
 	mov	r1, #1	/* panic = true */
 	mov	r2, r0	/* panic_code = 0 */
 	mov	r3, r8	/* pointer to struct thread_svc_regs */
 	ldr	r0, =TEE_ERROR_TARGET_DEAD
 	b	tee_svc_sys_return_helper
-UNWIND(	.fnend)
 END_FUNC syscall_panic

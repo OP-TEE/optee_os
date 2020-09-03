@@ -33,7 +33,6 @@
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
 	/*
 	 * Write the CPU Extended Control Register
 	 * Set the SMPEN bit, this Cortex-A53 core's register
@@ -82,5 +81,4 @@ UNWIND(	.fnstart)
 	str	r1, [r0]
 out:
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
