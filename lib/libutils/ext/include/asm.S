@@ -3,6 +3,12 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#if defined(CFG_UNWIND)
+#define UNWIND(...) __VA_ARGS__
+#else
+#define UNWIND(...)
+#endif
+
 	.macro FUNC name colon section=default
 	.ifc	\section\(),default
 	.section .text.\name

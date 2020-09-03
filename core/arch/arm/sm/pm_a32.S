@@ -12,7 +12,6 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 .section .text

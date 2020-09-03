@@ -16,7 +16,6 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 #include <asm.S>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 .section .text

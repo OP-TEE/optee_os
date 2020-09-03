@@ -34,7 +34,6 @@
  */
 
 #include <asm.S>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>

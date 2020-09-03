@@ -13,7 +13,6 @@
 #include <arm.h>
 #include <arm32_macros.S>
 #include <asm.S>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 #define CCI_BASE		0x04528000

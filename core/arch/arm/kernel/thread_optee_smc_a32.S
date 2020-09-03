@@ -8,7 +8,6 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread_defs.h>
-#include <kernel/unwind.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>

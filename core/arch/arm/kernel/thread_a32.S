@@ -12,7 +12,6 @@
 #include <kernel/abort.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/thread_defs.h>
-#include <kernel/unwind.h>
 #include <mm/core_mmu.h>
 
 #include "thread_private.h"

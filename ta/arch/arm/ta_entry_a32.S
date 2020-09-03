@@ -5,12 +5,6 @@
 
 #include <asm.S>
 
-#if defined(CFG_UNWIND)
-#define UNWIND(...) __VA_ARGS__
-#else
-#define UNWIND(...)
-#endif
-
 /*
  * This function is the bottom of the user call stack. Mark it as such so that
  * the unwinding code won't try to go further down.

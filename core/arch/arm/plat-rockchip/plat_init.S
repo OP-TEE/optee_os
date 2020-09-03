@@ -6,7 +6,6 @@
 #include <asm.S>
 #include <arm.h>
 #include <arm32_macros.S>
-#include <kernel/unwind.h>
 
 FUNC plat_cpu_reset_early , :
 UNWIND(	.fnstart)

@@ -9,7 +9,6 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
-#include <kernel/unwind.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <sm/teesmc_opteed.h>

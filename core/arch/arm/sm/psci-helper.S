@@ -7,7 +7,6 @@
 #include <arm32_macros.S>
 #include <asm.S>
 #include <kernel/cache_helpers.h>
-#include <kernel/unwind.h>
 
 FUNC psci_disable_smp, :
 UNWIND(	.fnstart)

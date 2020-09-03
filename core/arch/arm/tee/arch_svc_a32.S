@@ -8,7 +8,6 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <kernel/thread.h>
-#include <kernel/unwind.h>
 #include <tee_api_defines.h>
 
 /*

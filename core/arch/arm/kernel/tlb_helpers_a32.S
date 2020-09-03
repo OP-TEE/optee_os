@@ -6,7 +6,6 @@
 
 #include <arm32_macros.S>
 #include <asm.S>
-#include <kernel/unwind.h>
 
 /* void tlbi_all(void); */
 FUNC tlbi_all , :

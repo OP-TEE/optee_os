@@ -6,7 +6,6 @@
 #include <arm32.h>
 #include <arm32_macros.S>
 #include <asm.S>
-#include <kernel/unwind.h>
 
 .section .text
 .balign 4

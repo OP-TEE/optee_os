@@ -34,7 +34,6 @@
 
 #include <asm.S>
 #include <kernel/spinlock.h>
-#include <kernel/unwind.h>
 
 /* void __cpu_spin_lock(unsigned int *lock) */
 FUNC __cpu_spin_lock , :
