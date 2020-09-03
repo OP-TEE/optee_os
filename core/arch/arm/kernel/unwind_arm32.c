@@ -436,15 +436,15 @@ TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset)
 
 #if (TRACE_LEVEL > 0)
 
-void print_stack_arm32(int level, struct unwind_state_arm32 *state,
+void print_stack_arm32(struct unwind_state_arm32 *state,
 		       vaddr_t exidx, size_t exidx_sz,
 		       vaddr_t stack, size_t stack_size)
 {
-	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
-				VCORE_START_VA);
-	trace_printf_helper_raw(level, true, "Call stack:");
+	trace_printf_helper_raw(TRACE_ERROR, true,
+				"TEE load address @ %#"PRIxVA, VCORE_START_VA);
+	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
 	do {
-		trace_printf_helper_raw(level, true, " 0x%08" PRIx32,
+		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%08" PRIx32,
 					state->registers[PC]);
 	} while (unwind_stack_arm32(state, exidx, exidx_sz, stack, stack_size));
 }
@@ -453,7 +453,7 @@ void print_stack_arm32(int level, struct unwind_state_arm32 *state,
 
 #if defined(ARM32) && (TRACE_LEVEL > 0)
 
-void print_kernel_stack(int level)
+void print_kernel_stack(void)
 {
 	struct unwind_state_arm32 state = {};
 	uaddr_t exidx = (vaddr_t)__exidx_start;
@@ -476,7 +476,7 @@ void print_kernel_stack(int level)
 	state.registers[PC] = (uint32_t)print_kernel_stack + 4;
 
 	get_stack_hard_limits(&stack_start, &stack_end);
-	print_stack_arm32(level, &state, exidx, exidx_sz, stack_start,
+	print_stack_arm32(&state, exidx, exidx_sz, stack_start,
 			  stack_end - stack_start);
 }
 
