@@ -107,20 +107,20 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 
 #if (TRACE_LEVEL > 0)
 
-void print_stack_arm64(int level, struct unwind_state_arm64 *state,
+void print_stack_arm64(struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
-	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
-				VCORE_START_VA);
-	trace_printf_helper_raw(level, true, "Call stack:");
+	trace_printf_helper_raw(TRACE_ERROR, true,
+				"TEE load address @ %#"PRIxVA, VCORE_START_VA);
+	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
 
 	do {
-		trace_printf_helper_raw(level, true, " 0x%016" PRIx64,
+		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%016" PRIx64,
 					state->pc);
 	} while (unwind_stack_arm64(state, stack, stack_size));
 }
 
-void print_kernel_stack(int level)
+void print_kernel_stack(void)
 {
 	struct unwind_state_arm64 state = {};
 	vaddr_t stack_start = 0;
@@ -130,7 +130,7 @@ void print_kernel_stack(int level)
 	state.fp = read_fp();
 
 	get_stack_hard_limits(&stack_start, &stack_end);
-	print_stack_arm64(level, &state, stack_start, stack_end - stack_start);
+	print_stack_arm64(&state, stack_start, stack_end - stack_start);
 }
 
 #endif

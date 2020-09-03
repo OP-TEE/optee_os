@@ -68,8 +68,8 @@ static void __print_stack_unwind(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(TRACE_ERROR, &state, exidx, exidx_sz,
-			  thread_stack_start(), thread_stack_size());
+	print_stack_arm32(&state, exidx, exidx_sz, thread_stack_start(),
+			  thread_stack_size());
 }
 #endif /* ARM32 */
 
@@ -82,8 +82,7 @@ static void __print_stack_unwind(struct abort_info *ai)
 		.fp = ai->regs->x29,
 	};
 
-	print_stack_arm64(TRACE_ERROR, &state, thread_stack_start(),
-			  thread_stack_size());
+	print_stack_arm64(&state, thread_stack_start(), thread_stack_size());
 }
 #endif /*ARM64*/
 

@@ -148,38 +148,4 @@ void dhex_dump(const char *function, int line, int level,
 	trace_printf(__func__, __LINE__, TRACE_ERROR, true, __VA_ARGS__)
 
 #endif /* TRACE_LEVEL */
-
-#if defined(__KERNEL__) && defined(CFG_UNWIND)
-#include <kernel/unwind.h>
-#define _PRINT_STACK
-#endif
-
-#if defined(_PRINT_STACK) && (TRACE_LEVEL >= TRACE_ERROR)
-#define EPRINT_STACK() print_kernel_stack(TRACE_ERROR)
-#else
-#define EPRINT_STACK() (void)0
-#endif
-
-#if defined(_PRINT_STACK) && (TRACE_LEVEL >= TRACE_INFO)
-#define IPRINT_STACK() print_kernel_stack(TRACE_INFO)
-#else
-#define IPRINT_STACK() (void)0
-#endif
-
-#if defined(_PRINT_STACK) && (TRACE_LEVEL >= TRACE_DEBUG)
-#define DPRINT_STACK() print_kernel_stack(TRACE_DEBUG)
-#else
-#define DPRINT_STACK() (void)0
-#endif
-
-#if defined(_PRINT_STACK) && (TRACE_LEVEL >= TRACE_FLOW)
-#define FPRINT_STACK() print_kernel_stack(TRACE_FLOW)
-#else
-#define FPRINT_STACK() (void)0
-#endif
-
-#if defined(__KERNEL__) && defined(CFG_UNWIND)
-#undef _PRINT_STACK
-#endif
-
 #endif /* TRACE_H */
