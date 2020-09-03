@@ -165,7 +165,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = vm_map_pad(&utc->uctx, &va, num_bytes, prot, vm_flags,
-			 mobj, 0, pad_begin, pad_end);
+			 mobj, 0, pad_begin, pad_end, 0);
 	mobj_put(mobj);
 	if (!res)
 		reg_pair_from_64(va, &params[1].value.a, &params[1].value.b);
@@ -456,7 +456,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		}
 		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 prot, VM_FLAG_READONLY,
-				 mobj, 0, pad_begin, pad_end);
+				 mobj, 0, pad_begin, pad_end, 0);
 		mobj_put(mobj);
 		if (res)
 			goto err;
@@ -482,7 +482,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		}
 		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
-				 pad_begin, pad_end);
+				 pad_begin, pad_end, 0);
 		mobj_put(mobj);
 		if (res)
 			goto err;
