@@ -107,16 +107,9 @@ static inline void print_kernel_stack(void)
 #endif /* defined(CFG_UNWIND) && (TRACE_LEVEL > 0) */
 
 #ifdef CFG_UNWIND
-TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset);
 /* Get current call stack as an array allocated on the heap */
 vaddr_t *unw_get_kernel_stack(void);
 #else
-static inline TEE_Result relocate_exidx(void *exidx __unused,
-					size_t exidx_sz __unused,
-					int32_t offset __unused)
-{
-	return TEE_ERROR_NOT_SUPPORTED;
-}
 static inline void *unw_get_kernel_stack(void)
 {
 	return NULL;

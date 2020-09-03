@@ -399,41 +399,6 @@ bool unwind_stack_arm32(struct unwind_state_arm32 *state, vaddr_t exidx,
 	return !finished;
 }
 
-static uint32_t offset_prel31(uint32_t addr, int32_t offset)
-{
-	return (addr + offset) & 0x7FFFFFFFUL;
-}
-
-TEE_Result relocate_exidx(void *exidx, size_t exidx_sz, int32_t offset)
-{
-	size_t num_items = exidx_sz / sizeof(struct unwind_idx);
-	struct unwind_idx *start = (struct unwind_idx *)exidx;
-	size_t n;
-
-	for (n = 0; n < num_items; n++) {
-		struct unwind_idx *item = &start[n];
-
-		if (item->offset & BIT32(31))
-			return TEE_ERROR_BAD_FORMAT;
-
-		/* Offset to the start of the function has to be adjusted */
-		item->offset = offset_prel31(item->offset, offset);
-
-		if (item->insn == EXIDX_CANTUNWIND)
-			continue;
-		if (item->insn & BIT32(31)) {
-			/* insn is a table entry itself */
-			continue;
-		}
-		/*
-		 * insn is an offset to an entry in .ARM.extab so it has to be
-		 * adjusted
-		 */
-		item->insn = offset_prel31(item->insn, offset);
-	}
-	return TEE_SUCCESS;
-}
-
 #if (TRACE_LEVEL > 0)
 
 void print_stack_arm32(struct unwind_state_arm32 *state,
