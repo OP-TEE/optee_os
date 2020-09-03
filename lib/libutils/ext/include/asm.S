@@ -3,7 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#if defined(CFG_UNWIND)
+#if defined(CFG_UNWIND) && defined(__arm__)
 #define UNWIND(...) __VA_ARGS__
 #else
 #define UNWIND(...)
@@ -19,6 +19,7 @@
 	.type \name , %function
 	.balign 4
 	\name \colon
+UNWIND(	.fnstart)
 	.endm
 
 	.macro DATA name colon
@@ -36,6 +37,7 @@
 	.type \name , %function
 	.balign 4
 	\name \colon
+UNWIND(	.fnstart)
 	.endm
 
 	.macro LOCAL_DATA name colon
@@ -48,5 +50,6 @@
 	.endm
 
 	.macro END_FUNC name
+UNWIND(	.fnend)
 	.size \name , .-\name
 	.endm

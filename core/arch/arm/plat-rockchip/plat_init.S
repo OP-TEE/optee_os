@@ -8,14 +8,11 @@
 #include <arm32_macros.S>
 
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
 
 	/* Enable SMP bit */
 	read_actlr  r0
 	orr     r0, r0, #ACTLR_SMP
 	write_actlr r0
 	bx	lr
-
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 

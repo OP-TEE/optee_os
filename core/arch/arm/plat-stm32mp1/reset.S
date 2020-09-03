@@ -14,7 +14,6 @@
 #define STM32MP1_NSACR_PRESERVE_MASK	(0xfff << 20)
 
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
 	ldr	r0, =SCR_SIF
 	write_scr r0
 
@@ -25,5 +24,4 @@ UNWIND(	.fnstart)
 
 	isb
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early

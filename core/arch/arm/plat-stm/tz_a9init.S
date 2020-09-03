@@ -26,8 +26,6 @@
  * TODO: to be moved to PL310 code (tz_svce_pl310.S ?)
  */
 FUNC arm_cl2_enable , :
-UNWIND(	.fnstart)
-
 	/* Enable PL310 ctrl -> only set lsb bit */
 	mov  r1, #0x1
 	str  r1, [r0, #PL310_CTRL]
@@ -40,8 +38,6 @@ UNWIND(	.fnstart)
 	write_actlr r0
 
 	mov pc, lr
-
-UNWIND(	.fnend)
 END_FUNC arm_cl2_enable
 
 /*
@@ -53,8 +49,6 @@ END_FUNC arm_cl2_enable
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
-
 	/* CPSR.A can be modified in any security state. */
 	mov_imm	r0, SCR_AW
 	write_scr r0
@@ -72,7 +66,5 @@ UNWIND(	.fnstart)
 	write_pcr r0
 
 	mov pc, lr
-
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early
 

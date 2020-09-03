@@ -16,8 +16,6 @@
  *              ^
  */
 FUNC __ta_entry, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	bl	__ta_entry_c
-UNWIND(	.fnend)
 END_FUNC __ta_entry

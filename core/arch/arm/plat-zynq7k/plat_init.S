@@ -57,8 +57,6 @@
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
-
 	/*
 	 * Disallow NSec to mask FIQ [bit4: FW=0]
 	 * Allow NSec to manage Imprecise Abort [bit5: AW=1]
@@ -103,5 +101,4 @@ UNWIND(	.fnstart)
 	write_pcr r0
 
 	mov pc, lr
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early

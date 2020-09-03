@@ -37,7 +37,6 @@
 
 /* void __cpu_spin_lock(unsigned int *lock) */
 FUNC __cpu_spin_lock , :
-UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 1:
 	ldrex r1, [r0]
@@ -48,12 +47,10 @@ UNWIND(	.fnstart)
 	bne 1b
 	dmb
 	bx lr
-UNWIND(	.fnend)
 END_FUNC __cpu_spin_lock
 
 /* int __cpu_spin_trylock(unsigned int *lock) - return 0 on success */
 FUNC __cpu_spin_trylock , :
-UNWIND(	.fnstart)
 	mov r2, #SPINLOCK_LOCK
 	mov r1, r0
 1:
@@ -69,17 +66,14 @@ UNWIND(	.fnstart)
 	clrex
 	dmb
 	bx lr
-UNWIND(	.fnend)
 END_FUNC __cpu_spin_trylock
 
 /* void __cpu_spin_unlock(unsigned int *lock) */
 FUNC __cpu_spin_unlock , :
-UNWIND(	.fnstart)
 	dmb
 	mov r1, #SPINLOCK_UNLOCK
 	str r1, [r0]
 	dsb
 	sev
 	bx lr
-UNWIND(	.fnend)
 END_FUNC __cpu_spin_unlock

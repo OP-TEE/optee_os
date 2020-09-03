@@ -55,8 +55,6 @@
  * Trap CPU in case of error.
  */
 FUNC plat_cpu_reset_early , :
-UNWIND(	.fnstart)
-
 	/*
 	 * Under very rare timing circumstances, transition into streaming
 	 * mode might create a data corruption
@@ -137,5 +135,4 @@ UNWIND(	.fnstart)
 	write_pcr r0
 
 	mov pc, lr
-UNWIND(	.fnend)
 END_FUNC plat_cpu_reset_early

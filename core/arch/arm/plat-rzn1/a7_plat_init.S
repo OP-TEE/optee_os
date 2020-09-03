@@ -23,8 +23,6 @@
 .code 32
 
 FUNC plat_cpu_reset_early , :
-UNWIND( .fnstart)
-
 	/*
 	 * SCR = 0x00000020
 	 * - FW: Disallow NSec to mask FIQ [bit4=0]
@@ -63,5 +61,4 @@ UNWIND( .fnstart)
 	write_nsacr r0
 
 	mov pc, lr
-UNWIND( .fnend)
 END_FUNC plat_cpu_reset_early

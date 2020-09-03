@@ -10,9 +10,7 @@
  * return quotient and remaining the EABI way (regs r0,r1)
  */
 FUNC ret_idivmod_values , :
-UNWIND(	.fnstart)
         bx lr
-UNWIND(	.fnend)
 END_FUNC ret_idivmod_values
 
 /*
@@ -20,7 +18,5 @@ END_FUNC ret_idivmod_values
  * return quotient and remaining the EABI way (regs r0,r1)
  */
 FUNC ret_uidivmod_values , :
-UNWIND(	.fnstart)
         bx      lr
-UNWIND(	.fnend)
 END_FUNC ret_uidivmod_values
