@@ -55,7 +55,7 @@ srcs-$(CFG_ARM32_core) += entry_a32.S
 srcs-$(CFG_ARM64_core) += entry_a64.S
 
 ifeq ($(CFG_UNWIND),y)
-srcs-y += unwind_arm32.c
+srcs-$(CFG_ARM32_core) += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 

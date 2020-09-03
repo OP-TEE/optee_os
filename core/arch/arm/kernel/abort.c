@@ -5,17 +5,16 @@
 
 #include <arm.h>
 #include <kernel/abort.h>
-#include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/unwind.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
+#include <unw/unwind.h>
 
 #include "thread_private.h"
 
@@ -35,8 +34,6 @@ enum fault_type {
 static void __print_stack_unwind(struct abort_info *ai)
 {
 	struct unwind_state_arm32 state = { };
-	vaddr_t exidx = (vaddr_t)__exidx_start;
-	size_t exidx_sz = (vaddr_t)__exidx_end - (vaddr_t)__exidx_start;
 	uint32_t mode = ai->regs->spsr & CPSR_MODE_MASK;
 	uint32_t sp = 0;
 	uint32_t lr = 0;
@@ -68,8 +65,7 @@ static void __print_stack_unwind(struct abort_info *ai)
 	state.registers[14] = lr;
 	state.registers[15] = ai->pc;
 
-	print_stack_arm32(&state, exidx, exidx_sz, thread_stack_start(),
-			  thread_stack_size());
+	print_stack_arm32(&state, thread_stack_start(), thread_stack_size());
 }
 #endif /* ARM32 */
 

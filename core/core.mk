@@ -142,6 +142,10 @@ libdir = core/lib/zlib
 include mk/lib.mk
 endif
 
+libname = unw
+libdir = lib/libunw
+include mk/lib.mk
+
 #
 # Do main source
 #
