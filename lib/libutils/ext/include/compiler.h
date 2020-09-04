@@ -247,4 +247,6 @@
 #define __compiler_atomic_store(p, val) \
 	__atomic_store_n((p), (val), __ATOMIC_RELAXED)
 
+#define barrier() asm volatile ("" : : : "memory")
+
 #endif /*COMPILER_H*/
