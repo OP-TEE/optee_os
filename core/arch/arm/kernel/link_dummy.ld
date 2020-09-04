@@ -10,6 +10,9 @@ SECTIONS
 	 * sections etc.
 	 */
 	..dummy : { }
+	/DISCARD/ : {
+	        *(.group .debug*)
+	}
 }
 
 __asan_map_end = .;

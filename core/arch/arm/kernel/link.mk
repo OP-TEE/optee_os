@@ -36,7 +36,7 @@ link-script-cppflags := \
 		$(addprefix -I,$(incdirscore) $(link-out-dir)) \
 		$(cppflagscore))
 
-ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
+ldargs-all_objs := -r -T $(link-script-dummy) --no-check-sections \
 		   $(link-objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
@@ -49,7 +49,7 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
-unpaged-ldargs = -T $(link-script-dummy) --no-check-sections --gc-sections
+unpaged-ldargs = -r -T $(link-script-dummy) --no-check-sections --gc-sections
 unpaged-ldadd := $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
@@ -77,7 +77,7 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
-init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
+init-ldargs := -r -T $(link-script-dummy) --no-check-sections --gc-sections
 init-ldadd := $(link-objs-init) $(link-out-dir)/version.o  $(link-ldadd) \
 	      $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
