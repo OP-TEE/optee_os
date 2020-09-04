@@ -257,7 +257,10 @@ void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 
 	cpsr &= ~(THREAD_EXCP_ALL << CPSR_F_SHIFT);
 	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
+
+	barrier();
 	write_cpsr(cpsr);
+	barrier();
 }
 #endif /*ARM32*/
 
@@ -279,7 +282,10 @@ void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 
 	daif &= ~(THREAD_EXCP_ALL << DAIF_F_SHIFT);
 	daif |= ((exceptions & THREAD_EXCP_ALL) << DAIF_F_SHIFT);
+
+	barrier();
 	write_daif(daif);
+	barrier();
 }
 #endif /*ARM64*/
 
