@@ -140,16 +140,17 @@ arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-at
 
 ifeq ($(DEBUG),1)
 # For backwards compatibility
-$(call force,CFG_CC_OPTIMIZE_FOR_SIZE,n)
+$(call force,CFG_CC_OPT_LEVEL,0)
 $(call force,CFG_DEBUG_INFO,y)
 endif
-
-CFG_CC_OPTIMIZE_FOR_SIZE ?= y
-ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),y)
-platform-cflags-optimization ?= -Os
-else
-platform-cflags-optimization ?= -O0
+ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),n)
+# For backwards compatibility
+$(call force,CFG_CC_OPT_LEVEL,0)
 endif
+
+# Optimize for size by default, usually gives good performance too
+CFG_CC_OPT_LEVEL ?= s
+platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
 
 CFG_DEBUG_INFO ?= y
 ifeq ($(CFG_DEBUG_INFO),y)
