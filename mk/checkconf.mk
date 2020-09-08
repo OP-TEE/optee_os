@@ -172,6 +172,15 @@ cfg-check-value =                                                          \
     $(if $(filter-out $(2),$(CFG_$(1))),                                   \
         $(error CFG_$(1) is set to '$(CFG_$(1))', valid values are: $(2)))
 
+print-vars = $(foreach var,$(1),$(var) [='$($(var))'])
+
+# Error out if more than one variable is enabled
+# Example:
+# $(call cfg-check-at-most-one,CFG_FOO CFG_BAR)
+cfg-check-at-most-one =                                                 \
+    $(if $(word 2,$(filter y,$(foreach var,$(1),$($(var))))),           \
+        $(error At most one of $(call print-vars,$(1)) can be enabled))
+
 # Set a variable or error out if it was previously set to a different value
 # The reason message (3rd parameter) is optional
 # Example:
