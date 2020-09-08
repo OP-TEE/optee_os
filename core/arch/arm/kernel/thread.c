@@ -71,7 +71,7 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 #endif /*ARM32*/
 
 #ifdef ARM64
-#if defined(__clang__) && !defined(CFG_CC_OPTIMIZE_FOR_SIZE)
+#if defined(__clang__) && !defined(__OPTIMIZE_SIZE__)
 #define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS)
 #else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
