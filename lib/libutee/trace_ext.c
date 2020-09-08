@@ -74,6 +74,10 @@ int putchar(int c)
 
 #else
 
+void trace_ext_puts(const char *str __unused)
+{
+}
+
 int printf(const char *fmt __unused, ...)
 {
 	return 0;
