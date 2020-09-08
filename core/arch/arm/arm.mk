@@ -145,8 +145,14 @@ $(call force,CFG_DEBUG_INFO,y)
 endif
 
 CFG_CC_OPTIMIZE_FOR_SIZE ?= y
+CFG_CC_OPTIMIZE_FOR_PERFORMANCE ?= n
+
+$(call cfg-check-at-most-one,CFG_CC_OPTIMIZE_FOR_SIZE CFG_CC_OPTIMIZE_FOR_PERFORMANCE)
+
 ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),y)
 platform-cflags-optimization ?= -Os
+else ifeq ($(CFG_CC_OPTIMIZE_FOR_PERFORMANCE),y)
+platform-cflags-optimization ?= -O2
 else
 platform-cflags-optimization ?= -O0
 endif
