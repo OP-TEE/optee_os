@@ -530,8 +530,8 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 	if (key == TEE_HANDLE_NULL) {
 		/* Operation key cleared */
 		TEE_ResetTransientObject(operation->key1);
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
+		return TEE_SUCCESS;
 	}
 
 	/* No key for digest operation */
@@ -608,13 +608,14 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	 * Key1/Key2 and/or are not initialized and
 	 * Either both keys are NULL or both are not NULL
 	 */
-	if (key1 == TEE_HANDLE_NULL || key2 == TEE_HANDLE_NULL) {
-		/* Clear operation key1 (if needed) */
-		if (key1 == TEE_HANDLE_NULL)
-			TEE_ResetTransientObject(operation->key1);
-		/* Clear operation key2 (if needed) */
-		if (key2 == TEE_HANDLE_NULL)
-			TEE_ResetTransientObject(operation->key2);
+	if (!key1 && !key2) {
+		/* Clear the keys */
+		TEE_ResetTransientObject(operation->key1);
+		TEE_ResetTransientObject(operation->key2);
+		operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
+		return TEE_SUCCESS;
+	} else if (!key1 || !key2) {
+		/* Both keys are obviously not valid. */
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
