@@ -400,85 +400,85 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 	}
 }
 
-TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
-			  TEE_OperationInfoMultiple *operationInfoMultiple,
-			  uint32_t *operationSize)
+TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
+					TEE_OperationInfoMultiple *op_info,
+					uint32_t *size)
 {
 	TEE_Result res = TEE_SUCCESS;
-	TEE_ObjectInfo key_info1;
-	TEE_ObjectInfo key_info2;
-	uint32_t num_of_keys;
-	size_t n;
+	TEE_ObjectInfo kinfo = { };
+	size_t max_key_count = 0;
+	bool two_keys = false;
 
-	if (operation == TEE_HANDLE_NULL) {
+	if (op == TEE_HANDLE_NULL) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	__utee_check_outbuf_annotation(operationInfoMultiple, operationSize);
+	__utee_check_outbuf_annotation(op_info, size);
 
-	num_of_keys = (*operationSize-sizeof(TEE_OperationInfoMultiple))/
+	if (*size < sizeof(*op_info)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+	max_key_count = (*size - sizeof(*op_info)) /
 			sizeof(TEE_OperationInfoKey);
 
-	if (num_of_keys > 2) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
+	TEE_MemFill(op_info, 0, *size);
 
 	/* Two keys flag (TEE_ALG_AES_XTS only) */
-	if ((operation->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) !=
-	    0 &&
-	    (num_of_keys != 2)) {
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
-	}
+	two_keys = op->info.handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
 
-	/* Clear */
-	for (n = 0; n < num_of_keys; n++) {
-		operationInfoMultiple->keyInformation[n].keySize = 0;
-		operationInfoMultiple->keyInformation[n].requiredKeyUsage = 0;
-	}
-
-	if (num_of_keys == 2) {
-		res = TEE_GetObjectInfo1(operation->key2, &key_info2);
-		/* Key2 is not a valid handle */
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		operationInfoMultiple->keyInformation[1].keySize =
-			key_info2.keySize;
-		operationInfoMultiple->keyInformation[1].requiredKeyUsage =
-			operation->info.requiredKeyUsage;
-	}
-
-	if (num_of_keys >= 1) {
-		res = TEE_GetObjectInfo1(operation->key1, &key_info1);
-		/* Key1 is not a valid handle */
-		if (res != TEE_SUCCESS) {
-			if (num_of_keys == 2) {
-				operationInfoMultiple->keyInformation[1].
-							keySize = 0;
-				operationInfoMultiple->keyInformation[1].
-							requiredKeyUsage = 0;
-			}
+	if (op->info.mode == TEE_MODE_DIGEST) {
+		op_info->numberOfKeys = 0;
+	} else if (!two_keys) {
+		if (max_key_count < 1) {
+			res = TEE_ERROR_SHORT_BUFFER;
 			goto out;
 		}
 
-		operationInfoMultiple->keyInformation[0].keySize =
-			key_info1.keySize;
-		operationInfoMultiple->keyInformation[0].requiredKeyUsage =
-			operation->info.requiredKeyUsage;
+		res = TEE_GetObjectInfo1(op->key1, &kinfo);
+		/* Key1 is not a valid handle, "can't happen". */
+		if (res)
+			goto out;
+
+		op_info->keyInformation[0].keySize = kinfo.keySize;
+		op_info->keyInformation[0].requiredKeyUsage =
+			op->info.requiredKeyUsage;
+		op_info->numberOfKeys = 1;
+	} else {
+		if (max_key_count < 2) {
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
+		}
+
+		res = TEE_GetObjectInfo1(op->key1, &kinfo);
+		/* Key1 is not a valid handle, "can't happen". */
+		if (res)
+			goto out;
+
+		op_info->keyInformation[0].keySize = kinfo.keySize;
+		op_info->keyInformation[0].requiredKeyUsage =
+			op->info.requiredKeyUsage;
+
+		res = TEE_GetObjectInfo1(op->key2, &kinfo);
+		/* Key2 is not a valid handle, "can't happen". */
+		if (res)
+			goto out;
+
+		op_info->keyInformation[1].keySize = kinfo.keySize;
+		op_info->keyInformation[1].requiredKeyUsage =
+			op->info.requiredKeyUsage;
+
+		op_info->numberOfKeys = 2;
 	}
 
-	/* No key */
-	operationInfoMultiple->algorithm = operation->info.algorithm;
-	operationInfoMultiple->operationClass = operation->info.operationClass;
-	operationInfoMultiple->mode = operation->info.mode;
-	operationInfoMultiple->digestLength = operation->info.digestLength;
-	operationInfoMultiple->maxKeySize = operation->info.maxKeySize;
-	operationInfoMultiple->handleState = operation->info.handleState;
-	operationInfoMultiple->operationState = operation->operationState;
-	operationInfoMultiple->numberOfKeys = num_of_keys;
+	op_info->algorithm = op->info.algorithm;
+	op_info->operationClass = op->info.operationClass;
+	op_info->mode = op->info.mode;
+	op_info->digestLength = op->info.digestLength;
+	op_info->maxKeySize = op->info.maxKeySize;
+	op_info->handleState = op->info.handleState;
+	op_info->operationState = op->operationState;
 
 out:
 	if (res != TEE_SUCCESS &&
