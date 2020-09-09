@@ -3873,15 +3873,38 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		res = tee_alg_get_digest_size(hash_algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			break;
-		/*
-		 * Depending on the DSA algorithm (NIST), the digital signature
-		 * output size may be truncated to the size of a key pair
-		 * (Q prime size). Q prime size must be less or equal than the
-		 * hash output length of the hash algorithm involved.
-		 */
-		if (data_len > hash_size) {
-			res = TEE_ERROR_BAD_PARAMETERS;
-			break;
+
+		if (data_len != hash_size) {
+			struct dsa_public_key *key = o->attr;
+
+			/*
+			 * Depending on the DSA algorithm (NIST), the
+			 * digital signature output size may be truncated
+			 * to the size of a key pair (Q prime size). Q
+			 * prime size must be less or equal than the hash
+			 * output length of the hash algorithm involved.
+			 *
+			 * We're checking here in order to be able to
+			 * return this particular error code, which will
+			 * cause TEE_AsymmetricVerifyDigest() to panic as
+			 * required by GP. crypto_acipher_dsa_verify() is
+			 * implemented in the glue layer of the crypto
+			 * library and it might be a bit harder to catch
+			 * this particular case there or lead to duplicated
+			 * code in different crypto glue layers.
+			 *
+			 * The GP spec says that we SHOULD panic if
+			 * data_len != hash_size, but that would break a
+			 * few of the DSA tests in xtest where the
+			 * hash_size is larger than possible data_len. So
+			 * the compromise is in case data_len != hash_size
+			 * check that it's not smaller than what makes
+			 * sense.
+			 */
+			if (data_len != crypto_bignum_num_bytes(key->q)) {
+				res = TEE_ERROR_BAD_PARAMETERS;
+				break;
+			}
 		}
 		res = crypto_acipher_dsa_verify(cs->algo, o->attr, data,
 						data_len, sig, sig_len);
