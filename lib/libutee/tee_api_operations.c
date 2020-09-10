@@ -394,6 +394,10 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 	__utee_check_out_annotation(operationInfo, sizeof(*operationInfo));
 
 	*operationInfo = operation->info;
+	if (operationInfo->handleState & TEE_HANDLE_FLAG_EXPECT_TWO_KEYS) {
+		operationInfo->keySize = 0;
+		operationInfo->requiredKeyUsage = 0;
+	}
 }
 
 TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
