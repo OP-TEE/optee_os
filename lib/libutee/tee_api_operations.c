@@ -109,7 +109,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 	}
 
-	/* Check algorithm mode */
+	/* Check algorithm mode (and maxKeySize for digests) */
 	switch (algorithm) {
 	case TEE_ALG_AES_CTS:
 	case TEE_ALG_AES_XTS:
@@ -236,6 +236,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_SHA512:
 	case TEE_ALG_SM3:
 		if (mode != TEE_MODE_DIGEST)
+			return TEE_ERROR_NOT_SUPPORTED;
+		if (maxKeySize)
 			return TEE_ERROR_NOT_SUPPORTED;
 		/* v1.1: flags always set for digest operations */
 		handle_state |= TEE_HANDLE_FLAG_KEY_SET;
