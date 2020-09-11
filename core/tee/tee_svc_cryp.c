@@ -901,7 +901,7 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = copy_to_user(info, &o->info, sizeof(o->info));
+	res = copy_to_user_private(info, &o->info, sizeof(o->info));
 
 exit:
 	return res;
@@ -3176,8 +3176,7 @@ TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 		return res;
 
 	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+					  TEE_MEMORY_ACCESS_WRITE,
 					  (uaddr_t)buf, blen);
 	if (res != TEE_SUCCESS)
 		return res;
@@ -3480,9 +3479,7 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 		goto out;
 	}
 
-	res = tee_mmu_check_access_rights(uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+	res = tee_mmu_check_access_rights(uctx, TEE_MEMORY_ACCESS_READ,
 					  (uaddr_t)tag, tag_len);
 	if (res != TEE_SUCCESS)
 		return res;

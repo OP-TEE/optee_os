@@ -740,17 +740,13 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		goto exit;
 
 	/* check rights of the provided buffers */
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
 					  (uaddr_t)info,
 					  sizeof(TEE_ObjectInfo));
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
 					  (uaddr_t)obj_id,
 					  TEE_OBJECT_ID_MAX_LEN);
 	if (res != TEE_SUCCESS)
@@ -787,7 +783,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
 
 	l = o->pobj->obj_id_len;
-	res = copy_to_user(len, &l, sizeof(*len));
+	res = copy_to_user_private(len, &l, sizeof(*len));
 
 exit:
 	if (o) {
@@ -835,9 +831,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
 					  (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
@@ -859,7 +853,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	o->info.dataPosition += bytes;
 
 	u_count = bytes;
-	res = copy_to_user(count, &u_count, sizeof(*count));
+	res = copy_to_user_private(count, &u_count, sizeof(*count));
 exit:
 	return res;
 }
@@ -898,9 +892,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
+	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
 					  (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
