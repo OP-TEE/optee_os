@@ -795,7 +795,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 		goto out_free_only;
 	utc = to_user_ta_ctx(sess->ctx);
 
-	res = copy_from_user(uuid, dest, sizeof(TEE_UUID));
+	res = copy_from_user_private(uuid, dest, sizeof(TEE_UUID));
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -819,8 +819,8 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 function_exit:
 	mobj_put_wipe(mobj_param);
 	if (res == TEE_SUCCESS)
-		copy_to_user(ta_sess, &s->id, sizeof(s->id));
-	copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
+		copy_to_user_private(ta_sess, &s->id, sizeof(s->id));
+	copy_to_user_private(ret_orig, &ret_o, sizeof(ret_o));
 
 out_free_only:
 	free_wipe(param);
@@ -909,8 +909,7 @@ TEE_Result syscall_invoke_ta_command(unsigned long ta_sess,
 function_exit:
 	tee_ta_put_session(called_sess);
 	mobj_put_wipe(mobj_param);
-	if (ret_orig)
-		copy_to_user(ret_orig, &ret_o, sizeof(ret_o));
+	copy_to_user_private(ret_orig, &ret_o, sizeof(ret_o));
 	return res;
 }
 
@@ -1034,7 +1033,7 @@ TEE_Result syscall_get_time(unsigned long cat, TEE_Time *mytime)
 	}
 
 	if (res == TEE_SUCCESS || res == TEE_ERROR_OVERFLOW) {
-		res2 = copy_to_user(mytime, &t, sizeof(t));
+		res2 = copy_to_user_private(mytime, &t, sizeof(t));
 		if (res2 != TEE_SUCCESS)
 			res = res2;
 	}
@@ -1052,7 +1051,7 @@ TEE_Result syscall_set_ta_time(const TEE_Time *mytime)
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = copy_from_user(&t, mytime, sizeof(t));
+	res = copy_from_user_private(&t, mytime, sizeof(t));
 	if (res != TEE_SUCCESS)
 		return res;
 
