@@ -7,7 +7,9 @@ srcs-y += bcmp.c
 srcs-y += memchr.c
 srcs-y += memcmp.c
 srcs-y += memcpy.c
+ifeq (s,$(CFG_CC_OPT_LEVEL))
 cflags-memcpy.c-y += -O2
+endif
 srcs-y += memmove.c
 srcs-y += memset.c
 srcs-y += strchr.c
