@@ -39,11 +39,13 @@
  *
  * @link - chained list of registered client applications
  * @sessions - list of the PKCS11 sessions opened by the client application
+ * @object_handle_db - Database for object handles in name space of client
  */
 struct pkcs11_client {
 	TAILQ_ENTRY(pkcs11_client) link;
 	struct session_list session_list;
 	struct handle_db session_handle_db;
+	struct handle_db object_handle_db;
 };
 
 /* Static allocation of tokens runtime instances (reset to 0 at load) */
@@ -68,6 +70,16 @@ unsigned int get_token_id(struct ck_token *token)
 
 	assert(id >= 0 && id < TOKEN_COUNT);
 	return id;
+}
+
+struct handle_db *get_object_handle_db(struct pkcs11_session *session)
+{
+	return &session->client->object_handle_db;
+}
+
+struct session_list *get_session_list(struct pkcs11_session *session)
+{
+	return &session->client->session_list;
 }
 
 struct pkcs11_client *tee_session2client(void *tee_session)
@@ -98,6 +110,7 @@ struct pkcs11_client *register_client(void)
 	TAILQ_INSERT_HEAD(&pkcs11_client_list, client, link);
 	TAILQ_INIT(&client->session_list);
 	handle_db_init(&client->session_handle_db);
+	handle_db_init(&client->object_handle_db);
 
 	return client;
 }
@@ -116,6 +129,7 @@ void unregister_client(struct pkcs11_client *client)
 		close_ck_session(session);
 
 	TAILQ_REMOVE(&pkcs11_client_list, client, link);
+	handle_db_destroy(&client->object_handle_db);
 	handle_db_destroy(&client->session_handle_db);
 	TEE_Free(client);
 }
@@ -639,7 +653,6 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 	session->client = client;
 
 	LIST_INIT(&session->object_list);
-	handle_db_init(&session->object_handle_db);
 
 	set_session_state(client, session, readonly);
 
@@ -660,17 +673,15 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 static void close_ck_session(struct pkcs11_session *session)
 {
 	release_active_processing(session);
+	release_session_find_obj_context(session);
 
-	/* No need to put object handles, the whole database is destroyed */
+	/* Release all session objects */
 	while (!LIST_EMPTY(&session->object_list))
 		destroy_object(session,
 			       LIST_FIRST(&session->object_list), true);
 
-	release_session_find_obj_context(session);
-
 	TAILQ_REMOVE(&session->client->session_list, session, link);
 	handle_put(&session->client->session_handle_db, session->handle);
-	handle_db_destroy(&session->object_handle_db);
 
 	session->token->session_count--;
 	if (pkcs11_session_is_read_write(session))
@@ -1312,7 +1323,7 @@ static void session_logout(struct pkcs11_session *session)
 			handle = pkcs11_object2handle(obj, session);
 
 			if (handle && object_is_private(obj->attributes))
-				handle_put(&sess->object_handle_db, handle);
+				handle_put(get_object_handle_db(sess), handle);
 		}
 
 		release_session_find_obj_context(session);
