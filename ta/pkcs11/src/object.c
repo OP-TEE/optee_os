@@ -18,16 +18,38 @@
 #include "sanitize_object.h"
 #include "serializer.h"
 
+static struct ck_token *get_session_token(void *session);
+
 struct pkcs11_object *pkcs11_handle2object(uint32_t handle,
 					   struct pkcs11_session *session)
 {
-	return handle_lookup(&session->object_handle_db, handle);
+	struct pkcs11_object *object = NULL;
+
+	object = handle_lookup(get_object_handle_db(session), handle);
+	if (!object)
+		return NULL;
+
+	/*
+	 * If object is session only then no extra checks are needed as session
+	 * objects has flat access control space
+	 */
+	if (!object->token)
+		return object;
+
+	/*
+	 * Only allow access to token object if session is associated with
+	 * the token
+	 */
+	if (object->token != get_session_token(session))
+		return NULL;
+
+	return object;
 }
 
 uint32_t pkcs11_object2handle(struct pkcs11_object *obj,
 			      struct pkcs11_session *session)
 {
-	return handle_lookup_handle(&session->object_handle_db, obj);
+	return handle_lookup_handle(get_object_handle_db(session), obj);
 }
 
 /* Currently handle pkcs11 sessions and tokens */
@@ -123,7 +145,7 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 
 	if (session_only) {
 		/* Destroy object due to session closure */
-		handle_put(&session->object_handle_db,
+		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
 		cleanup_volatile_obj_ref(obj);
 
@@ -138,17 +160,18 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		    unregister_persistent_object(session->token, obj->uuid))
 			TEE_Panic(0);
 
-		handle_put(&session->object_handle_db,
+		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
 		cleanup_persistent_object(obj, session->token);
 	} else {
-		handle_put(&session->object_handle_db,
+		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
 		cleanup_volatile_obj_ref(obj);
 	}
 }
 
-static struct pkcs11_object *create_obj_instance(struct obj_attrs *head)
+static struct pkcs11_object *create_obj_instance(struct obj_attrs *head,
+						 struct ck_token *token)
 {
 	struct pkcs11_object *obj = NULL;
 
@@ -159,14 +182,16 @@ static struct pkcs11_object *create_obj_instance(struct obj_attrs *head)
 	obj->key_handle = TEE_HANDLE_NULL;
 	obj->attribs_hdl = TEE_HANDLE_NULL;
 	obj->attributes = head;
+	obj->token = token;
 
 	return obj;
 }
 
 struct pkcs11_object *create_token_object(struct obj_attrs *head,
-					  TEE_UUID *uuid)
+					  TEE_UUID *uuid,
+					  struct ck_token *token)
 {
-	struct pkcs11_object *obj = create_obj_instance(head);
+	struct pkcs11_object *obj = create_obj_instance(head, token);
 
 	if (obj)
 		obj->uuid = uuid;
@@ -198,12 +223,12 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 	 * are expected consistent and reliable.
 	 */
 
-	obj = create_obj_instance(head);
+	obj = create_obj_instance(head, NULL);
 	if (!obj)
 		return PKCS11_CKR_DEVICE_MEMORY;
 
 	/* Create a handle for the object in the session database */
-	obj_handle = handle_get(&session->object_handle_db, obj);
+	obj_handle = handle_get(get_object_handle_db(session), obj);
 	if (!obj_handle) {
 		rc = PKCS11_CKR_DEVICE_MEMORY;
 		goto err;
@@ -259,7 +284,7 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 err:
 	/* make sure that supplied "head" isn't freed */
 	obj->attributes = NULL;
-	handle_put(&session->object_handle_db, obj_handle);
+	handle_put(get_object_handle_db(session), obj_handle);
 	if (get_bool(head, PKCS11_CKA_TOKEN))
 		cleanup_persistent_object(obj, session->token);
 	else
@@ -469,10 +494,12 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	struct serialargs ctrlargs = { };
 	struct pkcs11_session *session = NULL;
+	struct pkcs11_session *sess = NULL;
 	struct pkcs11_object_head *template = NULL;
 	struct obj_attrs *req_attrs = NULL;
 	struct pkcs11_object *obj = NULL;
 	struct pkcs11_find_objects *find_ctx = NULL;
+	struct handle_db *object_db = NULL;
 
 	if (!client || ptypes != exp_pt)
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -541,18 +568,31 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 	 * candidates that match caller attributes.
 	 */
 
-	LIST_FOREACH(obj, &session->object_list, link) {
-		if (check_access_attrs_against_token(session, obj->attributes))
-			continue;
+	/* Scan all session objects first */
+	TAILQ_FOREACH(sess, get_session_list(session), link) {
+		LIST_FOREACH(obj, &sess->object_list, link) {
+			/*
+			 * Skip all token objects as they could be from
+			 * different token which the session does not have
+			 * access
+			 */
+			if (obj->token)
+				continue;
 
-		if (!attributes_match_reference(obj->attributes, req_attrs))
-			continue;
+			if (!attributes_match_reference(obj->attributes,
+							req_attrs))
+				continue;
 
-		rc = find_ctx_add(find_ctx, pkcs11_object2handle(obj, session));
-		if (rc)
-			goto out;
+			rc = find_ctx_add(find_ctx,
+					  pkcs11_object2handle(obj, session));
+			if (rc)
+				goto out;
+		}
 	}
 
+	object_db = get_object_handle_db(session);
+
+	/* Scan token objects */
 	LIST_FOREACH(obj, &session->token->object_list, link) {
 		uint32_t handle = 0;
 		bool new_load = false;
@@ -575,10 +615,10 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 			continue;
 		}
 
-		/* Object may not yet be published in the session */
+		/* Resolve object handle for object */
 		handle = pkcs11_object2handle(obj, session);
 		if (!handle) {
-			handle = handle_get(&session->object_handle_db, obj);
+			handle = handle_get(object_db, obj);
 			if (!handle) {
 				rc = PKCS11_CKR_DEVICE_MEMORY;
 				goto out;

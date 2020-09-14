@@ -20,6 +20,7 @@ struct pkcs11_session;
  * attributes: pointer to the serialized object attributes
  * key_handle: GPD TEE object handle if used in an operation
  * key_type: GPD TEE key type (shortcut used for processing)
+ * token: associated token for the object
  * uuid: object UUID in the persistent database if a persistent object, or NULL
  * attribs_hdl: GPD TEE attributes handles if persistent object
  */
@@ -28,6 +29,7 @@ struct pkcs11_object {
 	struct obj_attrs *attributes;
 	TEE_ObjectHandle key_handle;
 	uint32_t key_type;
+	struct ck_token *token;
 	TEE_UUID *uuid;
 	TEE_ObjectHandle attribs_hdl;
 };
@@ -41,7 +43,8 @@ uint32_t pkcs11_object2handle(struct pkcs11_object *obj,
 			      struct pkcs11_session *session);
 
 struct pkcs11_object *create_token_object(struct obj_attrs *head,
-					  TEE_UUID *uuid);
+					  TEE_UUID *uuid,
+					  struct ck_token *token);
 
 enum pkcs11_rc create_object(void *session, struct obj_attrs *attributes,
 			     uint32_t *handle);

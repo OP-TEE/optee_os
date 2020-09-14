@@ -316,6 +316,8 @@ enum pkcs11_rc create_object_uuid(struct ck_token *token,
 	if (!obj->uuid)
 		return PKCS11_CKR_DEVICE_MEMORY;
 
+	obj->token = token;
+
 	do {
 		TEE_GenerateRandom(obj->uuid, sizeof(TEE_UUID));
 	} while (get_persistent_obj_idx(token, obj->uuid) >= 0);
@@ -637,7 +639,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 
 			TEE_MemMove(uuid, &db_objs->uuids[idx], sizeof(*uuid));
 
-			obj = create_token_object(NULL, uuid);
+			obj = create_token_object(NULL, uuid, token);
 			if (!obj)
 				TEE_Panic(0);
 
