@@ -29,6 +29,7 @@ struct rpc_i2c_request {
 	uint16_t bus; /* bus identifier used by the REE [0..n] */
 	uint16_t chip; /* slave identifier from its data sheet */
 	uint16_t flags; /* transfer flags (ie: ten bit chip address) */
+	uint16_t retries; /* bus adaptor transfer retries */
 	uint8_t *buffer;
 	size_t buffer_len;
 };

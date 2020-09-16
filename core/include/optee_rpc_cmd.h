@@ -158,6 +158,8 @@
  *				16 bit field (either 7 or 10 bit effective).
  * [in]     value[1].a	    The I2C master control flags (ie, 10 bit address).
  *				16 bit field.
+ * [in]     value[1].b	    The I2C bus retry attempts.
+ *				16 bit field.
  * [in/out] memref[2]	    Buffer used for data transfers.
  * [out]    value[3].a	    Number of bytes transferred by the REE.
  */

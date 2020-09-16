@@ -38,7 +38,7 @@ TEE_Result rpc_io_i2c_transfer(struct rpc_i2c_request *req, size_t *len)
 		memcpy(va, req->buffer, req->buffer_len);
 
 	p[0] = THREAD_PARAM_VALUE(IN, req->mode, req->bus, req->chip);
-	p[1] = THREAD_PARAM_VALUE(IN, req->flags, 0, 0);
+	p[1] = THREAD_PARAM_VALUE(IN, req->flags, req->retries, 0);
 	p[2] = THREAD_PARAM_MEMREF(INOUT, mobj, 0, req->buffer_len);
 	p[3] = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
 
