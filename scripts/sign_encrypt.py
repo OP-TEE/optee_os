@@ -7,6 +7,10 @@
 import sys
 
 
+algo = {'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256': 0x70414930,
+        'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256': 0x70004830}
+
+
 def uuid_parse(s):
     from uuid import UUID
     return UUID(s)
@@ -43,13 +47,14 @@ def get_args(logger):
         ' for offline\n' +
         '                 signing. Takes arguments --uuid, --ta-version,' +
         ' --in, --key,\n'
-        '                 --enc-key (optional) and --dig.\n' +
+        '                 --enc-key (optional), --algo (optional) and' +
+        ' --dig.\n' +
         '     stitch      Generate loadable signed and encrypted TA binary' +
         ' image file from\n' +
         '                 TA raw image and its signature. Takes' +
         ' arguments\n' +
         '                 --uuid, --in, --key, --enc-key (optional), --out,' +
-        ' and --sig.\n\n' +
+        ' --algo (optional) and --sig.\n\n' +
         '   %(prog)s --help  show available commands and arguments\n\n',
         formatter_class=RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
@@ -58,11 +63,19 @@ def get_args(logger):
             command aliases:
               The command \'digest\' can be aliased by ''' + dat + '''
               The command \'stitch\' can be aliased by ''' + sat + '\n' + '''
-            example offline signing command using OpenSSL:
+            example offline signing command using OpenSSL for algorithm
+            TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
               base64 -d <UUID>.dig | \\
               openssl pkeyutl -sign -inkey <KEYFILE>.pem \\
-                  -pkeyopt digest:sha256 \\
-                  -pkeyopt rsa_padding_mode:pkcs1 | \\
+                  -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pss \\
+                  -pkeyopt rsa_pss_saltlen:digest \\
+                  -pkeyopt rsa_mgf1_md:sha256 | \\
+              base64 > <UUID>.sig\n
+            example offline signing command using OpenSSL for algorithm
+            TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+              base64 -d <UUID>.dig | \\
+              openssl pkeyutl -sign -inkey <KEYFILE>.pem \\
+                  -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1 | \\
               base64 > <UUID>.sig
             '''))
 
@@ -93,6 +106,12 @@ def get_args(logger):
     parser.add_argument(
         '--out', required=False, dest='outf',
         help='Name of application output file, defaults to <UUID>.ta')
+    parser.add_argument('--algo', required=False, choices=list(algo.keys()),
+                        default='TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256',
+                        help='The hash and signature algorithm, ' +
+                        'defaults to TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256. ' +
+                        'Allowed values are: ' +
+                        ', '.join(list(algo.keys())), metavar='')
 
     parsed = parser.parse_args()
 
@@ -129,6 +148,7 @@ def get_args(logger):
 
 def main():
     from Cryptodome.Signature import pss
+    from Cryptodome.Signature import pkcs1_15
     from Cryptodome.Hash import SHA256
     from Cryptodome.PublicKey import RSA
     import base64
@@ -161,10 +181,10 @@ def main():
         img_type = 2         # SHDR_ENCRYPTED_TA
     else:
         img_type = 1         # SHDR_BOOTSTRAP_TA
-    algo = 0x70414930    # TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256
 
     shdr = struct.pack('<IIIIHH',
-                       magic, img_type, img_size, algo, digest_len, sig_len)
+                       magic, img_type, img_size, algo[args.algo],
+                       digest_len, sig_len)
     shdr_uuid = args.uuid.bytes
     shdr_version = struct.pack('<I', hdr_version)
 
@@ -236,11 +256,15 @@ def main():
                          args.digf, args.sigf)
             sys.exit(1)
         else:
-            verifier = pss.new(key)
-            if verifier.verify(h, sig):
+            if args.algo == 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256':
+                verifier = pss.new(key)
+            elif args.algo == 'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256':
+                verifier = pkcs1_15.new(key)
+            try:
+                verifier.verify(h, sig)
                 write_image_with_signature(sig)
                 logger.info('Successfully applied signature.')
-            else:
+            except ValueError:
                 logger.error('Verification failed, ignoring given signature.')
                 sys.exit(1)
 
