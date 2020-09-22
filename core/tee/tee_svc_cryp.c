@@ -1576,7 +1576,14 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 				if (res != TEE_SUCCESS)
 					return res;
 			} else {
+				TEE_ObjectType obj_type = o->info.objectType;
+
 				obj_size += (attrs[n].content.ref.length * 8);
+
+				/* Drop the parity bits DES keys */
+				if (obj_type == TEE_TYPE_DES ||
+				    obj_type == TEE_TYPE_DES3)
+					obj_size -= obj_size / 8;
 			}
 		}
 	}
