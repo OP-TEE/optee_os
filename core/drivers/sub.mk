@@ -36,3 +36,4 @@ srcs-$(CFG_BCM_GPIO) += bcm_gpio.c
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_SCMI_MSG_DRIVERS) += scmi-msg
+subdirs-y += imx
