@@ -11,9 +11,6 @@
 
 #define TEE_USAGE_DEFAULT   0xffffffff
 
-#define TEE_ATTR_BIT_VALUE                  (1 << 29)
-#define TEE_ATTR_BIT_PROTECTED              (1 << 28)
-
 void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 			uint32_t attr_count)
 {
@@ -21,7 +18,7 @@ void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 
 	for (n = 0; n < attr_count; n++) {
 		ua[n].attribute_id = attrs[n].attributeID;
-		if (attrs[n].attributeID & TEE_ATTR_BIT_VALUE) {
+		if (attrs[n].attributeID & TEE_ATTR_FLAG_VALUE) {
 			ua[n].a = attrs[n].content.value.a;
 			ua[n].b = attrs[n].content.value.b;
 		} else {
@@ -122,7 +119,7 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 		goto exit;
 
 	/* This function only supports reference attributes */
-	if ((attributeID & TEE_ATTR_BIT_VALUE)) {
+	if ((attributeID & TEE_ATTR_FLAG_VALUE)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
@@ -162,7 +159,7 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 		goto exit;
 
 	/* This function only supports value attributes */
-	if (!(attributeID & TEE_ATTR_BIT_VALUE)) {
+	if (!(attributeID & TEE_ATTR_FLAG_VALUE)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
@@ -300,7 +297,7 @@ void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
 
-	if ((attributeID & TEE_ATTR_BIT_VALUE) != 0)
+	if ((attributeID & TEE_ATTR_FLAG_VALUE) != 0)
 		TEE_Panic(0);
 	attr->attributeID = attributeID;
 	attr->content.ref.buffer = (void *)buffer;
@@ -312,7 +309,7 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
 
-	if ((attributeID & TEE_ATTR_BIT_VALUE) == 0)
+	if ((attributeID & TEE_ATTR_FLAG_VALUE) == 0)
 		TEE_Panic(0);
 	attr->attributeID = attributeID;
 	attr->content.value.a = a;
