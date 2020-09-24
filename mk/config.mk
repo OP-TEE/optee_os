@@ -563,12 +563,6 @@ CFG_TA_MBEDTLS_SELF_TEST ?= y
 CFG_CRYPTOLIB_NAME ?= tomcrypt
 CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 
-# Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
-# without ASN.1 around the hash.
-ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
-CFG_CRYPTO_RSASSA_NA1 ?= y
-endif
-
 # Not used since libmpa was removed. Force the value to catch build scripts
 # that would set = n.
 $(call force,CFG_CORE_MBEDTLS_MPI,y)

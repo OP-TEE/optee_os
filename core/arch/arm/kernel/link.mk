@@ -19,6 +19,7 @@ link-ldflags += --fatal-warnings
 link-ldflags += --gc-sections
 
 link-ldadd  = $(LDADD)
+link-ldadd += $(ldflags-external)
 link-ldadd += $(libdeps)
 link-objs := $(filter-out \
 	       $(out-dir)/core/arch/arm/kernel/link_dummies_paged.o \
