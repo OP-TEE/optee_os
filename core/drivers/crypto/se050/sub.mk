@@ -1,7 +1,5 @@
 core-platform-cflags += "-I${CFG_NXP_SE05X_PLUG_AND_TRUST}/optee_lib/include"
 
-cflags-y += -Wno-error
-cflags-y += -Wno-implicit-function-declaration
 cflags-y += -DAX_EMBEDDED=1
 cflags-y += -DVERBOSE_APDU_LOGS=0
 cflags-y += -DT1oI2C_UM11225
@@ -14,3 +12,5 @@ subdirs-y += adaptors
 subdirs-y += core
 
 srcs-y += session.c
+srcs-y += glue/i2c.c
+srcs-y += glue/user.c
