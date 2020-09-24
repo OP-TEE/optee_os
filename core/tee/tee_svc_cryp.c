@@ -1007,7 +1007,7 @@ TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Check that getting the attribute is allowed */
-	if (!(attr_id & TEE_ATTR_BIT_PROTECTED) &&
+	if (!(attr_id & TEE_ATTR_FLAG_PUBLIC) &&
 	    !(o->info.objectUsage & TEE_USAGE_EXTRACTABLE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -1399,7 +1399,7 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 
 	for (n = 0; n < attr_count; n++) {
 		attrs[n].attributeID = usr_attrs[n].attribute_id;
-		if (attrs[n].attributeID & TEE_ATTR_BIT_VALUE) {
+		if (attrs[n].attributeID & TEE_ATTR_FLAG_VALUE) {
 			attrs[n].content.value.a = usr_attrs[n].a;
 			attrs[n].content.value.b = usr_attrs[n].b;
 		} else {
@@ -1572,7 +1572,7 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		ops = attr_ops + type_props->type_attrs[idx].ops_index;
 		attr = (uint8_t *)o->attr +
 		       type_props->type_attrs[idx].raw_offs;
-		if (attrs[n].attributeID & TEE_ATTR_BIT_VALUE)
+		if (attrs[n].attributeID & TEE_ATTR_FLAG_VALUE)
 			res = ops->from_user(attr, &attrs[n].content.value,
 					     sizeof(attrs[n].content.value));
 		else
