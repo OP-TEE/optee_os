@@ -81,6 +81,10 @@ void crypto_authenc_final(void *ctx);
 void crypto_authenc_free_ctx(void *ctx);
 void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx);
 
+#if defined(CFG_NXP_SE05X)
+TEE_Result crypto_enable_scp03(unsigned int rotate_keys);
+#endif
+
 /* Implementation-defined big numbers */
 
 /*
