@@ -914,7 +914,12 @@ static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
 	return rv;
 }
 
-static int get_memory_all(void *fdt, struct core_mmu_phys_mem *mem)
+/*
+ * Find all non-secure memory from DT. Memory marked inaccessible by Secure
+ * World is ignored since it could not be mapped to be used as dynamic shared
+ * memory.
+ */
+static int get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
 {
 	const uint8_t *prop = NULL;
 	uint64_t a = 0;
@@ -943,7 +948,8 @@ static int get_memory_all(void *fdt, struct core_mmu_phys_mem *mem)
 		if (offs < 0)
 			break;
 
-		if (_fdt_get_status(fdt, offs) <= 0)
+		if (_fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
+						   DT_STATUS_OK_SEC))
 			continue;
 
 		prop = fdt_getprop(fdt, offs, "reg", &len);
@@ -973,12 +979,12 @@ static int get_memory_all(void *fdt, struct core_mmu_phys_mem *mem)
 	return elems_total;
 }
 
-static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
+static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems)
 {
 	struct core_mmu_phys_mem *mem = NULL;
 	int elems_total = 0;
 
-	elems_total = get_memory_all(fdt, NULL);
+	elems_total = get_nsec_memory_helper(fdt, NULL);
 	if (elems_total <= 0)
 		return NULL;
 
@@ -986,7 +992,7 @@ static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
 	if (!mem)
 		panic();
 
-	elems_total = get_memory_all(fdt, mem);
+	elems_total = get_nsec_memory_helper(fdt, mem);
 	assert(elems_total > 0);
 
 	*nelems = elems_total;
@@ -1098,8 +1104,8 @@ static void update_external_dt(void)
 }
 
 #ifdef CFG_CORE_DYN_SHM
-static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
-					    size_t *nelems __unused)
+static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
+						 size_t *nelems __unused)
 {
 	return NULL;
 }
@@ -1114,7 +1120,7 @@ static void discover_nsec_memory(void)
 	void *fdt = get_external_dt();
 
 	if (fdt) {
-		mem = get_memory(fdt, &nelems);
+		mem = get_nsec_memory(fdt, &nelems);
 		if (mem) {
 			core_mmu_set_discovered_nsec_ddr(mem, nelems);
 			return;
