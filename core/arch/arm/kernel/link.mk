@@ -128,10 +128,9 @@ version-o-cflags = $(filter-out -g3,$(core-platform-cflags) \
 			$(platform-cflags) $(cflagscore))
 # SOURCE_DATE_EPOCH defined for reproducible builds
 ifneq ($(SOURCE_DATE_EPOCH),)
-DATE_STR = `date -u -d @$(SOURCE_DATE_EPOCH)`
-else
-DATE_STR = `date -u`
+date-opts = -d @$(SOURCE_DATE_EPOCH)
 endif
+DATE_STR = `LANG=C date -u $(date-opts)`
 BUILD_COUNT_STR = `cat $(link-out-dir)/.buildcount`
 CORE_CC_VERSION = `$(CCcore) -v 2>&1 | grep "version " | sed 's/ *$$//'`
 define gen-version-o
