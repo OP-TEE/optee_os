@@ -94,7 +94,7 @@ define build-user-ta
 ta-mk-file := $(1)
 include ta/mk/build-user-ta.mk
 endef
-$(foreach t, $(wildcard ta/*/user_ta.mk), $(eval $(call build-user-ta,$(t))))
+$(foreach t, $(sort $(wildcard ta/*/user_ta.mk)), $(eval $(call build-user-ta,$(t))))
 endif
 
 include mk/cleandirs.mk
