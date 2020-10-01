@@ -1639,8 +1639,8 @@ static TEE_Result __maybe_unused fat_entry_dir_update
 	/* Use a temp var to avoid compiler warning if caching disabled. */
 	uint32_t max_cache_entries = CFG_RPMB_FS_CACHE_ENTRIES;
 
-	assert(!(fat_address - RPMB_FS_FAT_START_ADDRESS) %
-	       sizeof(struct rpmb_fat_entry));
+	assert(!((fat_address - RPMB_FS_FAT_START_ADDRESS) %
+	       sizeof(struct rpmb_fat_entry)));
 
 	/* Nothing to update if the cache is not initialized. */
 	if (!fat_entry_dir)
