@@ -277,7 +277,8 @@ const char *plat_scmi_clock_get_name(unsigned int agent_id,
 }
 
 int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
-				    unsigned long *array, size_t *nb_elts)
+				    size_t start_index, unsigned long *array,
+				    size_t *nb_elts)
 {
 	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
 
@@ -286,6 +287,10 @@ int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
 
 	if (!stm32mp_nsec_can_access_clock(clock->clock_id))
 		return SCMI_DENIED;
+
+	/* Exposed clocks are currently fixed rate clocks */
+	if (start_index)
+		return SCMI_INVALID_PARAMETERS;
 
 	if (!array)
 		*nb_elts = 1;
