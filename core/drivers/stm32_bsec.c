@@ -138,6 +138,11 @@ static uint32_t otp_max_id(void)
 	return bsec_dev.max_id;
 }
 
+static uint32_t otp_upper_base(void)
+{
+	return bsec_dev.upper_base;
+}
+
 static uint32_t otp_bank_offset(uint32_t otp_id)
 {
 	assert(otp_id <= otp_max_id());
@@ -363,12 +368,12 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 	uint32_t addr = 0;
 	uint32_t exceptions = 0;
 	vaddr_t base = bsec_base();
-	uint64_t timeout_ref;
+	uint64_t timeout_ref = 0;
 
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (otp_id < bsec_dev.upper_base) {
+	if (otp_id < otp_upper_base()) {
 		addr = otp_id >> ADDR_LOWER_OTP_PERLOCK_SHIFT;
 		data = DATA_LOWER_OTP_PERLOCK_BIT <<
 		       ((otp_id & DATA_LOWER_OTP_PERLOCK_MASK) << 1U);
@@ -521,7 +526,7 @@ TEE_Result stm32_bsec_otp_lock(uint32_t service)
 
 static size_t nsec_access_array_size(void)
 {
-	size_t upper_count = otp_max_id() - bsec_dev.upper_base + 1;
+	size_t upper_count = otp_max_id() - otp_upper_base() + 1;
 
 	return ROUNDUP(upper_count, BITS_PER_WORD) / BITS_PER_WORD;
 }
@@ -537,16 +542,16 @@ static bool nsec_access_granted(unsigned int index)
 
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 {
-	return otp_id < bsec_dev.upper_base ||
-	       nsec_access_granted(otp_id - bsec_dev.upper_base);
+	return otp_id < otp_upper_base() ||
+	       nsec_access_granted(otp_id - otp_upper_base());
 }
 
 #ifdef CFG_DT
 static void enable_nsec_access(unsigned int otp_id)
 {
-	unsigned int idx = (otp_id - bsec_dev.upper_base) / BITS_PER_WORD;
+	unsigned int idx = (otp_id - otp_upper_base()) / BITS_PER_WORD;
 
-	if (otp_id < bsec_dev.upper_base)
+	if (otp_id < otp_upper_base())
 		return;
 
 	if (otp_id > otp_max_id() || stm32_bsec_shadow_register(otp_id))
