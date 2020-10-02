@@ -1650,7 +1650,8 @@ static TEE_Result __maybe_unused fat_entry_dir_update
 			     sizeof(struct rpmb_fat_entry);
 
 	/* Only need to write if index points to an entry in cache. */
-	if (fat_entry_buf_idx < max_cache_entries) {
+	if (fat_entry_buf_idx < fat_entry_dir->num_buffered &&
+	    fat_entry_buf_idx < max_cache_entries) {
 		memcpy(fat_entry_dir->rpmb_fat_entry_buf + fat_entry_buf_idx,
 		       fat_entry, sizeof(struct rpmb_fat_entry));
 	}
