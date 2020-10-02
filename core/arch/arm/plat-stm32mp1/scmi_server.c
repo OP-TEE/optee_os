@@ -134,6 +134,7 @@ struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
 	RESET_CELL(RST_SCMI0_RNG1, RNG1_R, "rng1"),
 	RESET_CELL(RST_SCMI0_MDMA, MDMA_R, "mdma"),
 	RESET_CELL(RST_SCMI0_MCU, MCU_R, "mcu"),
+	RESET_CELL(RST_SCMI0_MCU_HOLD_BOOT, MCU_HOLD_BOOT_R, "mcu_hold_boot"),
 };
 
 struct scmi_agent_resources {
@@ -400,6 +401,9 @@ int32_t plat_scmi_rd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
 
+	if (rd->reset_id == MCU_HOLD_BOOT_R)
+		return SCMI_NOT_SUPPORTED;
+
 	/* Supports only reset with context loss */
 	if (state)
 		return SCMI_NOT_SUPPORTED;
@@ -425,6 +429,13 @@ int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
 
 	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
+
+	if (rd->reset_id == MCU_HOLD_BOOT_R) {
+		DMSG("SCMI MCU hold boot %s",
+		     assert_not_deassert ? "set" : "release");
+		stm32_reset_assert_deassert_mcu(assert_not_deassert);
+		return SCMI_SUCCESS;
+	}
 
 	if (assert_not_deassert) {
 		DMSG("SCMI reset %u set", scmi_id);

@@ -82,6 +82,9 @@ bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
 TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
 TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
 
+/* Specific reset to manage the MCU hold boot */
+void stm32_reset_assert_deassert_mcu(bool assert_not_deassert);
+
 static inline void stm32_reset_set(unsigned int id)
 {
 	(void)stm32_reset_assert(id, 0);
