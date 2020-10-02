@@ -76,3 +76,18 @@ TEE_Result stm32_reset_deassert(unsigned int id, unsigned int to_us)
 
 	return TEE_SUCCESS;
 }
+
+void stm32_reset_assert_deassert_mcu(bool assert_not_deassert)
+{
+	vaddr_t rcc_base = stm32_rcc_base();
+
+	/*
+	 * The RCC_MP_GCR is a read/write register.
+	 * Assert the MCU HOLD_BOOT means clear the BOOT_MCU bit
+	 * Deassert the MCU HOLD_BOOT means set the BOOT_MCU the bit
+	 */
+	if (assert_not_deassert)
+		io_clrbits32(rcc_base + RCC_MP_GCR, RCC_MP_GCR_BOOT_MCU);
+	else
+		io_setbits32(rcc_base + RCC_MP_GCR, RCC_MP_GCR_BOOT_MCU);
+}
