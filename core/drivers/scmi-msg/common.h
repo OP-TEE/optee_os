@@ -104,6 +104,12 @@ scmi_msg_handler_t scmi_msg_get_base_handler(struct scmi_msg *msg);
  * Return a function handler for the message or NULL
  */
 scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg);
+#else
+static inline
+scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg __unused)
+{
+	return NULL;
+}
 #endif
 
 #ifdef CFG_SCMI_MSG_RESET_DOMAIN
@@ -113,6 +119,12 @@ scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg);
  * Return a function handler for the message or NULL
  */
 scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg);
+#else
+static inline
+scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg __unused)
+{
+	return NULL;
+}
 #endif
 
 /*
