@@ -1214,7 +1214,7 @@ void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 
 	if (parent_id < 0) {
 		DMSG("No parent for clock %lu", clock_id);
-		panic();
+		return;
 	}
 
 	secure_parent_clocks(parent_id);
