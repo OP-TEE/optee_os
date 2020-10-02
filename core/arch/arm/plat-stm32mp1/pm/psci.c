@@ -9,6 +9,7 @@
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/stpmic1.h>
+#include <dt-bindings/clock/stm32mp1-clks.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
@@ -112,6 +113,7 @@ void stm32mp_register_online_cpu(void)
 			stm32_pm_cpu_power_down_wfi();
 			panic();
 		}
+		stm32_clock_disable(RTCAPB);
 	}
 
 	core_state[pos] = CORE_ON;
@@ -203,6 +205,9 @@ int psci_cpu_off(void)
 	core_state[pos] = CORE_OFF;
 
 	unlock_state_access(exceptions);
+
+	/* Enable BKPREG access for the disabled CPU */
+	stm32_clock_enable(RTCAPB);
 
 	thread_mask_exceptions(THREAD_EXCP_ALL);
 	stm32_pm_cpu_power_down_wfi();
