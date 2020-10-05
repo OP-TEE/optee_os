@@ -599,11 +599,11 @@ CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
 
 ifneq ($(CFG_STMM_PATH),)
-$(call force,CFG_WITH_SECURE_PARTITION,y)
+$(call force,CFG_WITH_STMM_SP,y)
 else
-CFG_WITH_SECURE_PARTITION ?= n
+CFG_WITH_STMM_SP ?= n
 endif
-ifeq ($(CFG_WITH_SECURE_PARTITION),y)
+ifeq ($(CFG_WITH_STMM_SP),y)
 $(call force,CFG_ZLIB,y)
 endif
 

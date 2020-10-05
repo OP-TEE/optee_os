@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020, Arm Limited. All rights reserved.
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
 #include <crypto/crypto.h>
 #include <ffa.h>
 #include <kernel/abort.h>
-#include <kernel/secure_partition.h>
+#include <kernel/stmm_sp.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
@@ -42,16 +42,16 @@ extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
 extern const unsigned int stmm_image_uncompressed_size;
 
-static struct sec_part_ctx *sec_part_alloc_ctx(const TEE_UUID *uuid)
+static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 
 	spc = calloc(1, sizeof(*spc));
 	if (!spc)
 		return NULL;
 
-	spc->ta_ctx.ts_ctx.ops = &secure_partition_ops;
+	spc->ta_ctx.ts_ctx.ops = &stmm_sp_ops;
 	spc->ta_ctx.ts_ctx.uuid = *uuid;
 	spc->ta_ctx.flags = TA_FLAG_SINGLE_INSTANCE |
 			    TA_FLAG_INSTANCE_KEEP_ALIVE;
@@ -69,13 +69,13 @@ static struct sec_part_ctx *sec_part_alloc_ctx(const TEE_UUID *uuid)
 	return spc;
 }
 
-static void clear_vfp_state(struct sec_part_ctx *spc __maybe_unused)
+static void clear_vfp_state(struct stmm_ctx *spc __maybe_unused)
 {
 	if (IS_ENABLED(CFG_WITH_VFP))
 		thread_user_clear_vfp(&spc->uctx.vfp);
 }
 
-static TEE_Result sec_part_enter_user_mode(struct sec_part_ctx *spc)
+static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 {
 	uint32_t exceptions = 0;
 	uint32_t panic_code = 0;
@@ -93,14 +93,14 @@ static TEE_Result sec_part_enter_user_mode(struct sec_part_ctx *spc)
 
 	if (panicked) {
 		abort_print_current_ta();
-		DMSG("sec_part panicked with code %#"PRIx32, panic_code);
+		DMSG("stmm panicked with code %#"PRIx32, panic_code);
 		return TEE_ERROR_TARGET_DEAD;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static void init_stmm_regs(struct sec_part_ctx *spc, unsigned long a0,
+static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long sp, unsigned long pc)
 {
 	spc->regs.x[0] = a0;
@@ -109,7 +109,7 @@ static void init_stmm_regs(struct sec_part_ctx *spc, unsigned long a0,
 	spc->regs.pc = pc;
 }
 
-static TEE_Result alloc_and_map_sp_fobj(struct sec_part_ctx *spc, size_t sz,
+static TEE_Result alloc_and_map_sp_fobj(struct stmm_ctx *spc, size_t sz,
 					uint32_t prot, vaddr_t *va)
 {
 	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
@@ -162,10 +162,10 @@ static void uncompress_image(void *dst, size_t dst_size, void *src,
 		panic("inflateEnd");
 }
 
-static TEE_Result load_stmm(struct sec_part_ctx *spc)
+static TEE_Result load_stmm(struct stmm_ctx *spc)
 {
-	struct secure_partition_boot_info *boot_info = NULL;
-	struct secure_partition_mp_info *mp_info = NULL;
+	struct stmm_boot_info *boot_info = NULL;
+	struct stmm_mp_info *mp_info = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t sp_addr = 0;
 	vaddr_t image_addr = 0;
@@ -190,7 +190,7 @@ static TEE_Result load_stmm(struct sec_part_ctx *spc)
 				    &comm_buf_addr);
 	/*
 	 * We don't need to free the previous instance here, they'll all be
-	 * handled during the destruction call (sec_part_ctx_destroy())
+	 * handled during the destruction call (stmm_ctx_destroy())
 	 */
 	if (res)
 		return res;
@@ -226,12 +226,12 @@ static TEE_Result load_stmm(struct sec_part_ctx *spc)
 
 	DMSG("stmm load address %#"PRIxVA, image_addr);
 
-	boot_info = (struct secure_partition_boot_info *)sec_buf_addr;
-	mp_info = (struct secure_partition_mp_info *)(boot_info + 1);
-	*boot_info = (struct secure_partition_boot_info){
-		.h.type = SP_PARAM_SP_IMAGE_BOOT_INFO,
-		.h.version = SP_PARAM_VERSION_1,
-		.h.size = sizeof(struct secure_partition_boot_info),
+	boot_info = (struct stmm_boot_info *)sec_buf_addr;
+	mp_info = (struct stmm_mp_info *)(boot_info + 1);
+	*boot_info = (struct stmm_boot_info){
+		.h.type = STMM_PARAM_SP_IMAGE_BOOT_INFO,
+		.h.version = STMM_PARAM_VERSION_1,
+		.h.size = sizeof(struct stmm_boot_info),
 		.h.attr = 0,
 		.sp_mem_base = sp_addr,
 		.sp_mem_limit = sp_addr + sp_size,
@@ -259,19 +259,18 @@ static TEE_Result load_stmm(struct sec_part_ctx *spc)
 		       (vaddr_t)(mp_info + 1) - sec_buf_addr,
 		       stack_addr + stmm_stack_size, image_addr);
 
-	return sec_part_enter_user_mode(spc);
+	return stmm_enter_user_mode(spc);
 }
 
-TEE_Result sec_part_init_session(const TEE_UUID *uuid,
-				 struct tee_ta_session *sess)
+TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 {
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
 	if (memcmp(uuid, &stmm_uuid, sizeof(*uuid)))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	spc = sec_part_alloc_ctx(uuid);
+	spc = stmm_alloc_ctx(uuid);
 	if (!spc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -302,7 +301,7 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 
 static TEE_Result stmm_enter_open_session(struct ts_session *s)
 {
-	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct stmm_ctx *spc = to_stmm_ctx(s->ctx);
 	struct tee_ta_session *ta_sess = to_ta_session(s);
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
@@ -313,7 +312,7 @@ static TEE_Result stmm_enter_open_session(struct ts_session *s)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (spc->is_initializing) {
-		/* StMM is initialized in sec_part_init_session() */
+		/* StMM is initialized in stmm_init_session() */
 		ta_sess->err_origin = TEE_ORIGIN_TEE;
 		return TEE_ERROR_BAD_STATE;
 	}
@@ -323,7 +322,7 @@ static TEE_Result stmm_enter_open_session(struct ts_session *s)
 
 static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 {
-	struct sec_part_ctx *spc = to_sec_part_ctx(s->ctx);
+	struct stmm_ctx *spc = to_stmm_ctx(s->ctx);
 	struct tee_ta_session *ta_sess = to_ta_session(s);
 	TEE_Result res = TEE_SUCCESS;
 	TEE_Result __maybe_unused tmp_res = TEE_SUCCESS;
@@ -372,7 +371,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 
 	memcpy((void *)spc->ns_comm_buf_addr, va, ns_buf_size);
 
-	res = sec_part_enter_user_mode(spc);
+	res = stmm_enter_user_mode(spc);
 	if (res)
 		goto out_session;
 	/*
@@ -396,19 +395,19 @@ static void stmm_enter_close_session(struct ts_session *s __unused)
 {
 }
 
-static void sec_part_dump_state(struct ts_ctx *ctx)
+static void stmm_dump_state(struct ts_ctx *ctx)
 {
 	user_mode_ctx_print_mappings(to_user_mode_ctx(ctx));
 }
 
-static uint32_t sec_part_get_instance_id(struct ts_ctx *ctx)
+static uint32_t stmm_get_instance_id(struct ts_ctx *ctx)
 {
-	return to_sec_part_ctx(ctx)->uctx.vm_info.asid;
+	return to_stmm_ctx(ctx)->uctx.vm_info.asid;
 }
 
-static void sec_part_ctx_destroy(struct ts_ctx *ctx)
+static void stmm_ctx_destroy(struct ts_ctx *ctx)
 {
-	struct sec_part_ctx *spc = to_sec_part_ctx(ctx);
+	struct stmm_ctx *spc = to_stmm_ctx(ctx);
 
 	tee_pager_rem_um_areas(&spc->uctx);
 	vm_info_final(&spc->uctx);
@@ -419,7 +418,7 @@ static uint32_t sp_svc_get_mem_attr(vaddr_t va)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct ts_session *sess = NULL;
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 	uint16_t attrs = 0;
 	uint16_t perm = 0;
 
@@ -427,55 +426,55 @@ static uint32_t sp_svc_get_mem_attr(vaddr_t va)
 		goto err;
 
 	sess = ts_get_current_session();
-	spc = to_sec_part_ctx(sess->ctx);
+	spc = to_stmm_ctx(sess->ctx);
 
 	res = vm_get_prot(&spc->uctx, va, SMALL_PAGE_SIZE, &attrs);
 	if (res)
 		goto err;
 
 	if (attrs & TEE_MATTR_UR)
-		perm |= SP_MEM_ATTR_ACCESS_RO;
+		perm |= STMM_MEM_ATTR_ACCESS_RO;
 	else if (attrs & TEE_MATTR_UW)
-		perm |= SP_MEM_ATTR_ACCESS_RW;
+		perm |= STMM_MEM_ATTR_ACCESS_RW;
 
 	if (attrs & TEE_MATTR_UX)
-		perm |= SP_MEM_ATTR_EXEC;
+		perm |= STMM_MEM_ATTR_EXEC;
 
 	return perm;
 err:
-	return SP_RET_DENIED;
+	return STMM_RET_DENIED;
 }
 
 static int sp_svc_set_mem_attr(vaddr_t va, unsigned int nr_pages, uint32_t perm)
 {
 	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct ts_session *sess = NULL;
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 	size_t sz = 0;
 	uint32_t prot = 0;
 
 	if (!va || !nr_pages || MUL_OVERFLOW(nr_pages, SMALL_PAGE_SIZE, &sz))
-		return SP_RET_INVALID_PARAM;
+		return STMM_RET_INVALID_PARAM;
 
-	if (perm & ~SP_MEM_ATTR_ALL)
-		return SP_RET_INVALID_PARAM;
+	if (perm & ~STMM_MEM_ATTR_ALL)
+		return STMM_RET_INVALID_PARAM;
 
 	sess = ts_get_current_session();
-	spc = to_sec_part_ctx(sess->ctx);
+	spc = to_stmm_ctx(sess->ctx);
 
-	if ((perm & SP_MEM_ATTR_ACCESS_MASK) == SP_MEM_ATTR_ACCESS_RO)
+	if ((perm & STMM_MEM_ATTR_ACCESS_MASK) == STMM_MEM_ATTR_ACCESS_RO)
 		prot |= TEE_MATTR_UR;
-	else if ((perm & SP_MEM_ATTR_ACCESS_MASK) == SP_MEM_ATTR_ACCESS_RW)
+	else if ((perm & STMM_MEM_ATTR_ACCESS_MASK) == STMM_MEM_ATTR_ACCESS_RW)
 		prot |= TEE_MATTR_URW;
 
-	if ((perm & SP_MEM_ATTR_EXEC_NEVER) == SP_MEM_ATTR_EXEC)
+	if ((perm & STMM_MEM_ATTR_EXEC_NEVER) == STMM_MEM_ATTR_EXEC)
 		prot |= TEE_MATTR_UX;
 
 	res = vm_set_prot(&spc->uctx, va, sz, prot);
 	if (res)
-		return SP_RET_DENIED;
+		return STMM_RET_DENIED;
 
-	return SP_RET_SUCCESS;
+	return STMM_RET_SUCCESS;
 }
 
 static bool return_helper(bool panic, uint32_t panic_code,
@@ -483,7 +482,7 @@ static bool return_helper(bool panic, uint32_t panic_code,
 {
 	if (!panic) {
 		struct ts_session *sess = ts_get_current_session();
-		struct sec_part_ctx *spc = to_sec_part_ctx(sess->ctx);
+		struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
 		size_t n = 0;
 
 		/* Save the return values from StMM */
@@ -537,7 +536,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 	struct tee_pobj *po = NULL;
 	size_t file_size = 0;
 	size_t read_len = 0;
@@ -550,7 +549,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	sess = ts_get_current_session();
-	spc = to_sec_part_ctx(sess->ctx);
+	spc = to_stmm_ctx(sess->ctx);
 	res = vm_check_access_rights(&spc->uctx,
 				     TEE_MEMORY_ACCESS_WRITE |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -597,7 +596,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	const struct tee_file_operations *fops = NULL;
 	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
-	struct sec_part_ctx *spc = NULL;
+	struct stmm_ctx *spc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 
@@ -609,7 +608,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	sess = ts_get_current_session();
-	spc = to_sec_part_ctx(sess->ctx);
+	spc = to_stmm_ctx(sess->ctx);
 	res = vm_check_access_rights(&spc->uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -654,7 +653,7 @@ static bool stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
 		return true;
 	default:
 		EMSG("Undefined service id %#"PRIx32, action);
-		service_compose_direct_resp(regs, SP_RET_INVALID_PARAM);
+		service_compose_direct_resp(regs, STMM_RET_INVALID_PARAM);
 		return true;
 	}
 }
@@ -689,7 +688,7 @@ static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 		return true;
 	default:
 		EMSG("Undefined service id %#"PRIx32, action);
-		service_compose_direct_resp(regs, SP_RET_INVALID_PARAM);
+		service_compose_direct_resp(regs, STMM_RET_INVALID_PARAM);
 		return true;
 	}
 }
@@ -718,7 +717,7 @@ static bool spm_handle_direct_req(struct thread_svc_regs *regs)
 		return stmm_handle_storage_service(regs);
 
 	EMSG("Undefined endpoint id %#"PRIx16, dst_id);
-	return spm_eret_error(SP_RET_INVALID_PARAM, regs);
+	return spm_eret_error(STMM_RET_INVALID_PARAM, regs);
 }
 
 static bool spm_handle_svc(struct thread_svc_regs *regs)
@@ -741,12 +740,12 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	}
 }
 
-const struct ts_ops secure_partition_ops __rodata_unpaged = {
+const struct ts_ops stmm_sp_ops __rodata_unpaged = {
 	.enter_open_session = stmm_enter_open_session,
 	.enter_invoke_cmd = stmm_enter_invoke_cmd,
 	.enter_close_session = stmm_enter_close_session,
-	.dump_state = sec_part_dump_state,
-	.destroy = sec_part_ctx_destroy,
-	.get_instance_id = sec_part_get_instance_id,
+	.dump_state = stmm_dump_state,
+	.destroy = stmm_ctx_destroy,
+	.get_instance_id = stmm_get_instance_id,
 	.handle_svc = spm_handle_svc,
 };
