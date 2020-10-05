@@ -28,6 +28,8 @@
 
 #define PMIC_REGU_SUPPLY_NAME_LEN	12
 
+#define PMIC_REGU_COUNT			14
+
 /* Expect a single PMIC instance */
 static struct i2c_handle_s i2c_handle;
 static uint32_t pmic_i2c_addr;
@@ -436,6 +438,79 @@ static void save_power_configurations(void)
 			     regu_lp_state[n].name);
 }
 
+/* Preallocate not that much regu references */
+static char *nsec_access_regu_name[PMIC_REGU_COUNT];
+
+bool stm32mp_nsec_can_access_pmic_regu(const char *name)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(nsec_access_regu_name); n++)
+		if (nsec_access_regu_name[n] &&
+		    !strcmp(nsec_access_regu_name[n], name))
+			return true;
+
+	return false;
+}
+
+static void register_nsec_regu(const char *name_ref)
+{
+	size_t n = 0;
+
+	assert(!stm32mp_nsec_can_access_pmic_regu(name_ref));
+
+	for (n = 0; n < ARRAY_SIZE(nsec_access_regu_name); n++) {
+		if (!nsec_access_regu_name[n]) {
+			nsec_access_regu_name[n] = strdup(name_ref);
+
+			if (!nsec_access_regu_name[n])
+				panic();
+			break;
+		}
+	}
+
+	assert(stm32mp_nsec_can_access_pmic_regu(name_ref));
+}
+
+static void parse_regulator_fdt_nodes(void)
+{
+	int pmic_node = 0;
+	int regulators_node = 0;
+	int regu_node = 0;
+	void *fdt = NULL;
+
+	/* Expected called once */
+	assert(!regu_bo_config && !regu_bo_count);
+
+	fdt = get_embedded_dt();
+	if (!fdt)
+		panic();
+
+	pmic_node = dt_get_pmic_node(fdt);
+	if (pmic_node < 0)
+		panic();
+
+	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
+	if (regulators_node < 0)
+		panic();
+
+	fdt_for_each_subnode(regu_node, fdt, regulators_node) {
+		int status = _fdt_get_status(fdt, regu_node);
+		const char *regu_name = NULL;
+		size_t n = 0;
+
+		if (status == DT_STATUS_DISABLED)
+			continue;
+
+		regu_name = fdt_get_name(fdt, regu_node, NULL);
+
+		assert(stpmic1_regulator_is_valid(regu_name));
+
+		if (status & DT_STATUS_OK_NSEC)
+			register_nsec_regu(regu_name);
+	}
+}
+
 /*
  * Get PMIC and its I2C bus configuration from the device tree.
  * Return 0 on success, 1 if no PMIC node found and a negative value otherwise
@@ -620,6 +695,8 @@ static TEE_Result initialize_pmic(void)
 		register_secure_pmic();
 	else
 		register_non_secure_pmic();
+
+	parse_regulator_fdt_nodes();
 
 	stm32mp_put_pmic();
 
