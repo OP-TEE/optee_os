@@ -95,89 +95,61 @@ struct regu_bo_config {
 static struct regu_bo_config *regu_bo_config;
 static size_t regu_bo_count;
 
-static int save_boot_on_config(void)
+/* boot-on mandatory? if so: caller panic() on error status */
+static void dt_get_regu_boot_on_config(void *fdt, const char *regu_name,
+				       int regu_node)
 {
-	int pmic_node = 0;
-	int regulators_node = 0;
-	int regu_node = 0;
-	void *fdt = NULL;
+	const fdt32_t *cuint = NULL;
+	struct regu_bo_config regu_cfg = { };
+	uint16_t mv = 0;
 
-	assert(!regu_bo_config && !regu_bo_count);
+	if ((!fdt_getprop(fdt, regu_node, "regulator-boot-on", NULL)) &&
+	    (!fdt_getprop(fdt, regu_node, "regulator-always-on", NULL)))
+		return;
 
-	fdt = get_embedded_dt();
-	if (!fdt)
+	regu_cfg.flags |= REGU_BO_FLAG_ENABLE_REGU;
+	if (stpmic1_bo_enable_cfg(regu_name, &regu_cfg.cfg)) {
+		EMSG("PMIC regulator %s not supported", regu_name);
 		panic();
-
-	pmic_node = dt_get_pmic_node(fdt);
-	if (pmic_node < 0)
-		panic();
-
-	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
-	if (regulators_node < 0)
-		panic();
-
-	fdt_for_each_subnode(regu_node, fdt, regulators_node) {
-		const fdt32_t *cuint = NULL;
-		const char *name = NULL;
-		struct regu_bo_config regu_cfg = { };
-		uint16_t mv = 0;
-
-		if (_fdt_get_status(fdt, regu_node) == DT_STATUS_DISABLED)
-			continue;
-
-		if ((!fdt_getprop(fdt, regu_node, "regulator-boot-on", NULL)) &&
-		    (!fdt_getprop(fdt, regu_node, "regulator-always-on", NULL)))
-			continue;
-
-		memset(&regu_cfg, 0, sizeof(regu_cfg));
-		name = fdt_get_name(fdt, regu_node, NULL);
-
-		regu_cfg.flags |= REGU_BO_FLAG_ENABLE_REGU;
-		if (stpmic1_bo_enable_cfg(name, &regu_cfg.cfg)) {
-			EMSG("PMIC regulator %s not supported", name);
-			panic();
-		}
-
-		if (fdt_getprop(fdt, regu_node, "regulator-pull-down", NULL)) {
-			if (stpmic1_bo_pull_down_cfg(name, &regu_cfg.cfg)) {
-				DMSG("No pull down mode for regu %s", name);
-				panic();
-			}
-			regu_cfg.flags |= REGU_BO_FLAG_PULL_DOWN;
-		}
-
-		if (fdt_getprop(fdt, regu_node, "st,mask-reset", NULL)) {
-			if (stpmic1_bo_mask_reset_cfg(name, &regu_cfg.cfg)) {
-				DMSG("No reset mode for regu %s", name);
-				panic();
-			}
-			regu_cfg.flags |= REGU_BO_FLAG_MASK_RESET;
-		}
-
-		cuint = fdt_getprop(fdt, regu_node,
-				    "regulator-min-microvolt", NULL);
-		if (cuint) {
-			/* DT uses microvolts and driver awaits millivolts */
-			mv = fdt32_to_cpu(*cuint) / 1000;
-
-			if (stpmic1_bo_voltage_cfg(name, mv, &regu_cfg.cfg))
-				DMSG("Ignore regulator-min-microvolt for %s",
-				     name);
-			else
-				regu_cfg.flags |= REGU_BO_FLAG_SET_VOLTAGE;
-		}
-
-		/* Save config in the Boot On configuration list */
-		regu_bo_count++;
-		regu_bo_config = realloc(regu_bo_config,
-					 regu_bo_count * sizeof(regu_cfg));
-		if (!regu_bo_config)
-			panic();
-
-		regu_bo_config[regu_bo_count - 1] = regu_cfg;
 	}
 
-	return 0;
+	if (fdt_getprop(fdt, regu_node, "regulator-pull-down", NULL)) {
+		if (stpmic1_bo_pull_down_cfg(regu_name, &regu_cfg.cfg)) {
+			DMSG("No pull down mode for regu %s", regu_name);
+			panic();
+		}
+		regu_cfg.flags |= REGU_BO_FLAG_PULL_DOWN;
+	}
+
+	if (fdt_getprop(fdt, regu_node, "st,mask-reset", NULL)) {
+		if (stpmic1_bo_mask_reset_cfg(regu_name, &regu_cfg.cfg)) {
+			DMSG("No reset mode for regu %s", regu_name);
+			panic();
+		}
+		regu_cfg.flags |= REGU_BO_FLAG_MASK_RESET;
+	}
+
+	cuint = fdt_getprop(fdt, regu_node,
+			    "regulator-min-microvolt", NULL);
+	if (cuint) {
+		/* DT uses microvolts and driver awaits millivolts */
+		mv = fdt32_to_cpu(*cuint) / 1000;
+
+		if (stpmic1_bo_voltage_cfg(regu_name, mv, &regu_cfg.cfg))
+			DMSG("Ignore regulator-min-microvolt for %s",
+			     regu_name);
+		else
+			regu_cfg.flags |= REGU_BO_FLAG_SET_VOLTAGE;
+	}
+
+	/* Save config in the Boot On configuration list */
+	regu_bo_count++;
+	regu_bo_config = realloc(regu_bo_config,
+				 regu_bo_count * sizeof(regu_cfg));
+	if (!regu_bo_config)
+		panic();
+
+	regu_bo_config[regu_bo_count - 1] = regu_cfg;
 }
 
 void stm32mp_pmic_apply_boot_on_config(void)
@@ -252,97 +224,67 @@ static unsigned int regu_lp_state2idx(const char *name)
 	panic();
 }
 
-/* Return a libfdt compliant status value */
-static int save_low_power_config(const char *lp_state)
+static void dt_get_regu_low_power_config(void *fdt, const char *regu_name,
+					 int regu_node, const char *lp_state)
 {
-	int pmic_node = 0;
-	int regulators_node = 0;
-	int regu_node = 0;
-	void *fdt = NULL;
 	unsigned int state_idx = regu_lp_state2idx(lp_state);
-	struct regu_lp_state *state = &regu_lp_state[state_idx];
+	struct regu_lp_state *state = regu_lp_state + state_idx;
+	const fdt32_t *cuint = NULL;
+	int regu_state_node = 0;
+	struct regu_lp_config *regu_cfg = NULL;
 
-	assert(!state->cfg && !state->cfg_count);
-
-	fdt = get_embedded_dt();
-	if (!fdt)
+	state->cfg_count++;
+	state->cfg = realloc(state->cfg,
+			     state->cfg_count * sizeof(*state->cfg));
+	if (!state->cfg)
 		panic();
 
-	pmic_node = dt_get_pmic_node(fdt);
-	if (pmic_node < 0)
-		return -FDT_ERR_NOTFOUND;
+	regu_cfg = &state->cfg[state->cfg_count - 1];
 
-	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
-	if (regulators_node < 0)
-		return -FDT_ERR_NOTFOUND;
+	memset(regu_cfg, 0, sizeof(*regu_cfg));
 
-	fdt_for_each_subnode(regu_node, fdt, regulators_node) {
-		const fdt32_t *cuint = NULL;
-		const char *reg_name = NULL;
-		int regu_state_node = 0;
-		struct regu_lp_config *regu_cfg = NULL;
-
-		if (_fdt_get_status(fdt, regu_node) == DT_STATUS_DISABLED)
-			continue;
-
-		state->cfg_count++;
-		state->cfg = realloc(state->cfg,
-				     state->cfg_count * sizeof(*state->cfg));
-		if (!state->cfg)
+	if (stpmic1_regu_has_lp_cfg(regu_name)) {
+		if (stpmic1_lp_cfg(regu_name, &regu_cfg->cfg)) {
+			DMSG("Cannot setup low power for regu %s", regu_name);
 			panic();
-
-		regu_cfg = &state->cfg[state->cfg_count - 1];
-
-		memset(regu_cfg, 0, sizeof(*regu_cfg));
-
-		reg_name = fdt_get_name(fdt, regu_node, NULL);
-
-		if (stpmic1_regu_has_lp_cfg(reg_name)) {
-			if (stpmic1_lp_cfg(reg_name, &regu_cfg->cfg)) {
-				EMSG("Cannot setup low power for regu %s",
-				     reg_name);
-				return -1;
-			}
-			/*
-			 * Always copy active configuration (Control register)
-			 * to PWRCTRL Control register, even if regu_state_node
-			 * does not exist.
-			 */
-			regu_cfg->flags |= REGU_LP_FLAG_LOAD_PWRCTRL;
 		}
-
-		/* Then apply configs from regu_state_node */
-		regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_state);
-		if (regu_state_node <= 0)
-			continue;
-
-		if (fdt_getprop(fdt, regu_state_node,
-				"regulator-on-in-suspend", NULL))
-			regu_cfg->flags |= REGU_LP_FLAG_ON_IN_SUSPEND;
-
-		if (fdt_getprop(fdt, regu_state_node,
-				"regulator-off-in-suspend", NULL))
-			regu_cfg->flags |= REGU_LP_FLAG_OFF_IN_SUSPEND;
-
-		cuint = fdt_getprop(fdt, regu_state_node,
-				    "regulator-suspend-microvolt", NULL);
-		if (cuint) {
-			uint32_t mv = fdt32_to_cpu(*cuint) / 1000U;
-
-			if (!stpmic1_lp_voltage_cfg(reg_name, mv,
-						    &regu_cfg->cfg))
-				regu_cfg->flags |= REGU_LP_FLAG_SET_VOLTAGE;
-			else
-				DMSG("Cannot set voltage for %s", reg_name);
-		}
-
-		cuint = fdt_getprop(fdt, regu_state_node,
-				    "regulator-mode", NULL);
-		if (cuint && fdt32_to_cpu(*cuint) == MODE_STANDBY)
-			regu_cfg->flags |= REGU_LP_FLAG_MODE_STANDBY;
+		/*
+		 * Always copy active configuration (Control register)
+		 * to PWRCTRL Control register, even if regu_state_node
+		 * does not exist.
+		 */
+		regu_cfg->flags |= REGU_LP_FLAG_LOAD_PWRCTRL;
 	}
 
-	return 0;
+	/* Parse regulator stte node if any */
+	regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_state);
+	if (regu_state_node <= 0)
+		return;
+
+	if (fdt_getprop(fdt, regu_state_node,
+			"regulator-on-in-suspend", NULL))
+		regu_cfg->flags |= REGU_LP_FLAG_ON_IN_SUSPEND;
+
+	if (fdt_getprop(fdt, regu_state_node,
+			"regulator-off-in-suspend", NULL))
+		regu_cfg->flags |= REGU_LP_FLAG_OFF_IN_SUSPEND;
+
+	cuint = fdt_getprop(fdt, regu_state_node,
+			    "regulator-suspend-microvolt", NULL);
+	if (cuint) {
+		uint32_t mv = fdt32_to_cpu(*cuint) / 1000U;
+
+		if (stpmic1_lp_voltage_cfg(regu_name, mv, &regu_cfg->cfg)) {
+			DMSG("Cannot set voltage for %s", regu_name);
+			panic();
+		}
+		regu_cfg->flags |= REGU_LP_FLAG_SET_VOLTAGE;
+	}
+
+	cuint = fdt_getprop(fdt, regu_state_node,
+			    "regulator-mode", NULL);
+	if (cuint && fdt32_to_cpu(*cuint) == MODE_STANDBY)
+		regu_cfg->flags |= REGU_LP_FLAG_MODE_STANDBY;
 }
 
 /*
@@ -422,22 +364,6 @@ const char *stm32mp_pmic_get_cpu_supply_name(void)
 	return cpu_supply_name;
 }
 
-static void save_power_configurations(void)
-{
-	size_t n = 0;
-
-	if (save_cpu_supply_name())
-		DMSG("No CPU supply provided");
-
-	if (save_boot_on_config())
-		DMSG("No CPU supply provided");
-
-	for (n = 0; n < ARRAY_SIZE(regu_lp_state); n++)
-		if (save_low_power_config(regu_lp_state[n].name))
-			DMSG("Could not save low power cfg for %s",
-			     regu_lp_state[n].name);
-}
-
 /* Preallocate not that much regu references */
 static char *nsec_access_regu_name[PMIC_REGU_COUNT];
 
@@ -508,7 +434,16 @@ static void parse_regulator_fdt_nodes(void)
 
 		if (status & DT_STATUS_OK_NSEC)
 			register_nsec_regu(regu_name);
+
+		dt_get_regu_boot_on_config(fdt, regu_name, regu_node);
+
+		for (n = 0; n < ARRAY_SIZE(regu_lp_state); n++)
+			dt_get_regu_low_power_config(fdt, regu_name, regu_node,
+						     regu_lp_state[n].name);
 	}
+
+	if (save_cpu_supply_name())
+		DMSG("No CPU supply provided");
 }
 
 /*
@@ -688,8 +623,6 @@ static TEE_Result initialize_pmic(void)
 
 	DMSG("PMIC version = 0x%02lx", pmic_version);
 	stpmic1_dump_regulators();
-
-	save_power_configurations();
 
 	if (dt_pmic_is_secure())
 		register_secure_pmic();
