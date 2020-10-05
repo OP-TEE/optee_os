@@ -77,8 +77,6 @@ static inline struct user_ta_ctx *to_user_ta_ctx(struct ts_ctx *ctx)
 	return container_of(ctx, struct user_ta_ctx, ta_ctx.ts_ctx);
 }
 
-struct user_ta_store_ops;
-
 #ifdef CFG_WITH_USER_TA
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
@@ -91,23 +89,5 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 }
 #endif
 
-/*
- * Registers a TA storage.
- *
- * A TA is loaded from the first TA storage in which the TA can be found.
- * TA storage is searched in order of priority, where lower values are
- * tried first.
- *
- * Note prio must be unique per storage in order to avoid dependency on
- * registration order. This is enforced by a deliberate linker error in
- * case of conflict.
- *
- * Also note that TA storage is sorted lexicographically instead of
- * numerically.
- */
-#define TEE_TA_REGISTER_TA_STORE(prio) \
-	int __tee_ta_store_##prio __unused; \
-	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(ta_stores, prio, \
-					       struct user_ta_store_ops)
 
 #endif /*KERNEL_USER_TA_H*/

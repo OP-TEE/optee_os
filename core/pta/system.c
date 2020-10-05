@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2018-2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
 #include <assert.h>
@@ -11,8 +12,8 @@
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
+#include <kernel/ts_store.h>
 #include <kernel/user_ta.h>
-#include <kernel/user_ta_store.h>
 #include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
@@ -26,8 +27,8 @@
 #include <util.h>
 
 struct bin_handle {
-	const struct user_ta_store_ops *op;
-	struct user_ta_store_handle *h;
+	const struct ts_store_ops *op;
+	struct ts_store_handle *h;
 	struct file *f;
 	size_t offs_bytes;
 	size_t size_bytes;
@@ -35,7 +36,7 @@ struct bin_handle {
 
 struct system_ctx {
 	struct handle_db db;
-	const struct user_ta_store_ops *store_op;
+	const struct ts_store_ops *store_op;
 };
 
 static unsigned int system_pnum;
@@ -252,7 +253,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 	if (!binh)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	SCATTERED_ARRAY_FOREACH(binh->op, ta_stores, struct user_ta_store_ops) {
+	SCATTERED_ARRAY_FOREACH(binh->op, ta_stores, struct ts_store_ops) {
 		DMSG("Lookup user TA ELF %pUl (%s)",
 		     (void *)uuid, binh->op->description);
 

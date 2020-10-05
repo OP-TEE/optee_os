@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2020 Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
 #include <assert.h>
@@ -15,10 +16,10 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
+#include <kernel/ts_store.h>
 #include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/user_ta.h>
-#include <kernel/user_ta_store.h>
 #include <ldelf.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -645,9 +646,9 @@ bool is_user_ta_ctx(struct ts_ctx *ctx)
 
 static TEE_Result check_ta_store(void)
 {
-	const struct user_ta_store_ops *op = NULL;
+	const struct ts_store_ops *op = NULL;
 
-	SCATTERED_ARRAY_FOREACH(op, ta_stores, struct user_ta_store_ops)
+	SCATTERED_ARRAY_FOREACH(op, ta_stores, struct ts_store_ops)
 		DMSG("TA store: \"%s\"", op->description);
 
 	return TEE_SUCCESS;
