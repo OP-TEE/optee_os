@@ -582,6 +582,11 @@ static const struct regul_struct *get_regulator_data(const char *name)
 	return NULL;
 }
 
+bool stpmic1_regulator_is_valid(const char *name)
+{
+	return get_regulator_data(name);
+}
+
 TEE_Result stpmic1_regulator_levels_mv(const char *name,
 				       const uint16_t **levels,
 				       size_t *levels_count)

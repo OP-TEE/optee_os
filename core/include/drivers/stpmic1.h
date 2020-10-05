@@ -174,6 +174,7 @@ int stpmic1_register_write(uint8_t register_id, uint8_t value);
 int stpmic1_register_update(uint8_t register_id, uint8_t value, uint8_t mask);
 
 /* API for gating of regulators driven from STPMIC1 device */
+bool stpmic1_regulator_is_valid(const char *name);
 int stpmic1_regulator_enable(const char *name);
 int stpmic1_regulator_disable(const char *name);
 bool stpmic1_is_regulator_enabled(const char *name);
