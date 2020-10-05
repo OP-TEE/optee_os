@@ -34,6 +34,7 @@
 static struct i2c_handle_s i2c_handle;
 static uint32_t pmic_i2c_addr;
 
+/* CPU voltage supplier if found */
 static char cpu_supply_name[PMIC_REGU_SUPPLY_NAME_LEN];
 
 bool stm32mp_with_pmic(void)
@@ -79,6 +80,7 @@ static bool dt_pmic_is_secure(void)
 }
 
 /*
+ * struct regu_bo_config - Boot on configuration for a regulator
  * @flags: Operations expected when entering a low power sequence
  * @cfg: Boot-on configuration to apply during low power sequences
  */
@@ -192,6 +194,12 @@ struct regu_lp_config {
 #define REGU_LP_FLAG_SET_VOLTAGE	BIT(3)
 #define REGU_LP_FLAG_MODE_STANDBY	BIT(4)
 
+/*
+ * struct regu_lp_state - Low power configuration for regulators
+ * @name: low power state identifier string name
+ * @cfg_count: number of regulator configuration instance in @cfg
+ * @cfg: regulator configurations for low power state @name
+ */
 struct regu_lp_state {
 	const char *name;
 	size_t cfg_count;
