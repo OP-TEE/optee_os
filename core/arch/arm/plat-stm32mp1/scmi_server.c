@@ -6,7 +6,9 @@
 #include <compiler.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
+#include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_pwr.h>
+#include <drivers/stpmic1.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
@@ -51,6 +53,7 @@ struct stm32_scmi_rd {
 
 enum voltd_device {
 	VOLTD_PWR,
+	VOLTD_PMIC,
 };
 
 /*
@@ -604,6 +607,116 @@ static void pwr_set_state(struct stm32_scmi_voltd *voltd, bool enable)
 	stm32mp1_pwr_regulator_set_state(regu_id, enable);
 }
 
+static int32_t pmic_describe_levels(struct stm32_scmi_voltd *voltd,
+				    size_t start_index, long *microvolt,
+				    size_t *nb_elts)
+{
+	const uint16_t *levels = NULL;
+	size_t full_count = 0;
+	size_t out_count = 0;
+	size_t i = 0;
+
+	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
+		return SCMI_DENIED;
+
+	stpmic1_regulator_levels_mv(voltd->priv_id, &levels, &full_count);
+
+	if (!microvolt) {
+		*nb_elts = full_count - start_index;
+		return SCMI_SUCCESS;
+	}
+
+	if (SUB_OVERFLOW(full_count, start_index, &out_count))
+		return SCMI_GENERIC_ERROR;
+
+	out_count = MIN(out_count, *nb_elts);
+
+	FMSG("%zu levels: start %zu requested %zu output %zu",
+	     full_count, start_index, *nb_elts, out_count);
+
+	for (i = 0; i < out_count; i++)
+		microvolt[i] = levels[start_index + i] * 1000;
+
+	*nb_elts = out_count;
+
+	return SCMI_SUCCESS;
+}
+
+static long pmic_get_level(struct stm32_scmi_voltd *voltd)
+{
+	unsigned long level_mv = 0;
+
+	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
+		return 0;
+
+	stm32mp_get_pmic();
+	level_mv = stpmic1_regulator_voltage_get(voltd->priv_id);
+	stm32mp_put_pmic();
+
+	return (long)level_mv * 1000;
+}
+
+static int32_t pmic_set_level(struct stm32_scmi_voltd *voltd, long level_uv)
+{
+	int rc = 0;
+	unsigned int level_mv = 0;
+
+	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
+		return SCMI_DENIED;
+
+	if (level_uv < 0 || level_uv > (UINT16_MAX * 1000))
+		return SCMI_INVALID_PARAMETERS;
+
+	level_mv = (unsigned int)level_uv / 1000;
+
+	DMSG("Set STPMIC1 regulator %s level to %dmV", voltd->name, level_mv);
+
+	stm32mp_get_pmic();
+	rc = stpmic1_regulator_voltage_set(voltd->priv_id, level_mv);
+	stm32mp_put_pmic();
+
+	return rc ? SCMI_GENERIC_ERROR : SCMI_SUCCESS;
+}
+
+static uint32_t pmic_get_state(struct stm32_scmi_voltd *voltd)
+{
+	bool enabled = false;
+
+	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
+		return SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_OFF;
+
+	stm32mp_get_pmic();
+	enabled = stpmic1_is_regulator_enabled(voltd->priv_id);
+	stm32mp_put_pmic();
+
+	if (enabled)
+		return SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON;
+
+	return SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_OFF;
+}
+
+static int32_t pmic_set_state(struct stm32_scmi_voltd *voltd, bool enable)
+{
+	int rc = 0;
+
+	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
+		return SCMI_DENIED;
+
+	stm32mp_get_pmic();
+
+	DMSG("%sable STPMIC1 %s (was %s)", enable ? "En" : "Dis", voltd->name,
+	     stpmic1_is_regulator_enabled(voltd->priv_id) ? "on" : "off");
+
+	if (enable)
+		rc = stpmic1_regulator_enable(voltd->priv_id);
+	else
+		rc = stpmic1_regulator_disable(voltd->priv_id);
+
+	stm32mp_put_pmic();
+
+	return rc ? SCMI_GENERIC_ERROR : SCMI_SUCCESS;
+}
+
 int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
 				     unsigned int scmi_id, size_t start_index,
 				     long *levels, size_t *nb_elts)
@@ -617,6 +730,9 @@ int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
 		return pwr_describe_levels(voltd, start_index, levels, nb_elts);
+	case VOLTD_PMIC:
+		return pmic_describe_levels(voltd, start_index, levels,
+					    nb_elts);
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
@@ -632,6 +748,8 @@ long plat_scmi_voltd_get_level(unsigned int agent_id, unsigned int scmi_id)
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
 		return pwr_get_level(voltd);
+	case VOLTD_PMIC:
+		return pmic_get_level(voltd);
 	default:
 		panic();
 	}
@@ -648,6 +766,8 @@ int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
 		return pwr_set_level(voltd, level);
+	case VOLTD_PMIC:
+		return pmic_set_level(voltd, level);
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
@@ -664,6 +784,9 @@ int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
 		*config = pwr_get_state(voltd);
+		break;
+	case VOLTD_PMIC:
+		*config = pmic_get_state(voltd);
 		break;
 	default:
 		return SCMI_GENERIC_ERROR;
@@ -684,6 +807,9 @@ int32_t plat_scmi_voltd_set_config(unsigned int agent_id, unsigned int scmi_id,
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
 		pwr_set_state(voltd, config);
+		break;
+	case VOLTD_PMIC:
+		rc = pmic_set_state(voltd, config);
 		break;
 	default:
 		return SCMI_GENERIC_ERROR;
