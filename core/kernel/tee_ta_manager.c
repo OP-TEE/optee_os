@@ -8,7 +8,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
-#include <kernel/secure_partition.h>
+#include <kernel/stmm_sp.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -654,7 +654,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Look for secure partition */
-	res = sec_part_init_session(uuid, s);
+	res = stmm_init_session(uuid, s);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 

@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019-2020, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
-#ifndef __KERNEL_SECURE_PARTITION_H
-#define __KERNEL_SECURE_PARTITION_H
+#ifndef __KERNEL_STMM_SP_H
+#define __KERNEL_STMM_SP_H
 
 #include <assert.h>
 #include <config.h>
@@ -14,21 +15,21 @@
 #include <types_ext.h>
 #include <util.h>
 
-#define SP_RET_SUCCESS		0
-#define SP_RET_NOT_SUPPORTED	-1
-#define SP_RET_INVALID_PARAM	-2
-#define SP_RET_DENIED		-3
-#define SP_RET_NO_MEM		-5
+#define STMM_RET_SUCCESS		0
+#define STMM_RET_NOT_SUPPORTED	        -1
+#define STMM_RET_INVALID_PARAM	        -2
+#define STMM_RET_DENIED		        -3
+#define STMM_RET_NO_MEM		        -5
 
-#define SP_MEM_ATTR_ACCESS_MASK		0x3
-#define SP_MEM_ATTR_ACCESS_NONE		0
-#define SP_MEM_ATTR_ACCESS_RW		1
-#define SP_MEM_ATTR_ACCESS_RO		3
-#define SP_MEM_ATTR_EXEC_NEVER		BIT(2)
-#define SP_MEM_ATTR_EXEC		0
-#define SP_MEM_ATTR_ALL			(SP_MEM_ATTR_ACCESS_RW | \
-					 SP_MEM_ATTR_ACCESS_RO | \
-					 SP_MEM_ATTR_EXEC_NEVER)
+#define STMM_MEM_ATTR_ACCESS_MASK	0x3
+#define STMM_MEM_ATTR_ACCESS_NONE	0
+#define STMM_MEM_ATTR_ACCESS_RW		1
+#define STMM_MEM_ATTR_ACCESS_RO		3
+#define STMM_MEM_ATTR_EXEC_NEVER	BIT(2)
+#define STMM_MEM_ATTR_EXEC		0
+#define STMM_MEM_ATTR_ALL		(STMM_MEM_ATTR_ACCESS_RW | \
+					 STMM_MEM_ATTR_ACCESS_RO | \
+					 STMM_MEM_ATTR_EXEC_NEVER)
 
 /*
  * Used for EDK2 StMM communication. Since StMM can be launched on an arbitrary
@@ -65,23 +66,23 @@
 #define FFA_SVC_RPMB_WRITE		UINT32_C(0xC4000067)
 
 /* Param header types */
-#define SP_PARAM_EP			UINT8_C(0x01)
-#define SP_PARAM_IMAGE_BINARY		UINT8_C(0x02)
-#define SP_PARAM_BL31			UINT8_C(0x03)
-#define SP_PARAM_BL_LOAD_INFO		UINT8_C(0x04)
-#define SP_PARAM_BL_PARAMS		UINT8_C(0x05)
-#define SP_PARAM_PSCI_LIB_ARGS		UINT8_C(0x06)
-#define SP_PARAM_SP_IMAGE_BOOT_INFO	UINT8_C(0x07)
+#define STMM_PARAM_EP			UINT8_C(0x01)
+#define STMM_PARAM_IMAGE_BINARY		UINT8_C(0x02)
+#define STMM_PARAM_BL31			UINT8_C(0x03)
+#define STMM_PARAM_BL_LOAD_INFO		UINT8_C(0x04)
+#define STMM_PARAM_BL_PARAMS		UINT8_C(0x05)
+#define STMM_PARAM_PSCI_LIB_ARGS	UINT8_C(0x06)
+#define STMM_PARAM_SP_IMAGE_BOOT_INFO	UINT8_C(0x07)
 
 /* Param header version */
-#define SP_PARAM_VERSION_1		UINT8_C(0x01)
-#define SP_PARAM_VERSION_2		UINT8_C(0x02)
+#define STMM_PARAM_VERSION_1		UINT8_C(0x01)
+#define STMM_PARAM_VERSION_2		UINT8_C(0x02)
 
 /*
  * This structure provides information on format used to describe
  * secure partition invocation parameters.
  */
-struct sp_param_header {
+struct stmm_param_header {
 	uint8_t type;		/* type of the structure */
 	uint8_t version;	/* version of this structure */
 	uint16_t size;		/* size of this structure in bytes */
@@ -89,7 +90,7 @@ struct sp_param_header {
 };
 
 /*
- * Flags used by the secure_partition_mp_info structure to describe the
+ * Flags used by the stmm_mp_info structure to describe the
  * characteristics of a cpu. Only a single flag is defined at the moment to
  * indicate the primary cpu.
  */
@@ -99,14 +100,14 @@ struct sp_param_header {
  * This structure is used to provide information required to initialise a S-EL0
  * partition.
  */
-struct secure_partition_mp_info {
+struct stmm_mp_info {
 	uint64_t mpidr;
 	uint32_t linear_id;
 	uint32_t flags;
 };
 
-struct secure_partition_boot_info {
-	struct sp_param_header	h;
+struct stmm_boot_info {
+	struct stmm_param_header	h;
 	uint64_t sp_mem_base;
 	uint64_t sp_mem_limit;
 	uint64_t sp_image_base;
@@ -121,10 +122,10 @@ struct secure_partition_boot_info {
 	uint64_t sp_shared_buf_size;
 	uint32_t num_sp_mem_regions;
 	uint32_t num_cpus;
-	struct secure_partition_mp_info	*mp_info;
+	struct stmm_mp_info	*mp_info;
 };
 
-struct sec_part_ctx {
+struct stmm_ctx {
 	struct user_mode_ctx uctx;
 	struct tee_ta_ctx ta_ctx;
 	struct thread_ctx_regs regs;
@@ -133,30 +134,30 @@ struct sec_part_ctx {
 	bool is_initializing;
 };
 
-extern const struct ts_ops secure_partition_ops;
+extern const struct ts_ops stmm_sp_ops;
 
-static inline bool is_sp_ctx(struct ts_ctx *ctx __maybe_unused)
+static inline bool is_stmm_ctx(struct ts_ctx *ctx __maybe_unused)
 {
-	return IS_ENABLED(CFG_WITH_SECURE_PARTITION) &&
-	       ctx && ctx->ops == &secure_partition_ops;
+	return IS_ENABLED(CFG_WITH_STMM_SP) &&
+	       ctx && ctx->ops == &stmm_sp_ops;
 }
 
-static inline struct sec_part_ctx *to_sec_part_ctx(struct ts_ctx *ctx)
+static inline struct stmm_ctx *to_stmm_ctx(struct ts_ctx *ctx)
 {
-	assert(is_sp_ctx(ctx));
-	return container_of(ctx, struct sec_part_ctx, ta_ctx.ts_ctx);
+	assert(is_stmm_ctx(ctx));
+	return container_of(ctx, struct stmm_ctx, ta_ctx.ts_ctx);
 }
 
-#ifdef CFG_WITH_SECURE_PARTITION
-TEE_Result sec_part_init_session(const TEE_UUID *uuid,
-				 struct tee_ta_session *s);
+#ifdef CFG_WITH_STMM_SP
+TEE_Result stmm_init_session(const TEE_UUID *uuid,
+			     struct tee_ta_session *s);
 #else
 static inline TEE_Result
-sec_part_init_session(const TEE_UUID *uuid __unused,
-		      struct tee_ta_session *s __unused)
+stmm_init_session(const TEE_UUID *uuid __unused,
+		  struct tee_ta_session *s __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 #endif
 
-#endif /*__KERNEL_SECURE_PARTITION_H*/
+#endif /*__KERNEL_STMM_SP_H*/
