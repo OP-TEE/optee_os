@@ -588,10 +588,13 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			       RPMB_NONCE_SIZE);
 
 		if (rawdata->data) {
-			if (fek)
-				encrypt_block(datafrm[i].data,
+			if (fek) {
+				res = encrypt_block(datafrm[i].data,
 					rawdata->data + (i * RPMB_DATA_SIZE),
 					*rawdata->blk_idx + i, fek, uuid);
+				if (res != TEE_SUCCESS)
+					goto func_exit;
+			}
 			else
 				memcpy(datafrm[i].data,
 				       rawdata->data + (i * RPMB_DATA_SIZE),
