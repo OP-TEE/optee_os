@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017, 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
 /*
@@ -38,7 +39,7 @@
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/thread.h>
-#include <kernel/user_ta_store.h>
+#include <kernel/ts_store.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_mm.h>
 #include <mm/mobj.h>
@@ -125,7 +126,7 @@ exit:
 }
 
 static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
-				 struct user_ta_store_handle **h)
+				 struct ts_store_handle **h)
 {
 	struct ree_fs_ta_handle *handle;
 	struct shdr *shdr = NULL;
@@ -262,7 +263,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	handle->hash_ctx = hash_ctx;
 	handle->shdr = shdr;
 	handle->mobj = mobj;
-	*h = (struct user_ta_store_handle *)handle;
+	*h = (struct ts_store_handle *)handle;
 	return TEE_SUCCESS;
 
 error_free_hash:
@@ -277,7 +278,7 @@ error:
 	return res;
 }
 
-static TEE_Result ree_fs_ta_get_size(const struct user_ta_store_handle *h,
+static TEE_Result ree_fs_ta_get_size(const struct ts_store_handle *h,
 				     size_t *size)
 {
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
@@ -286,7 +287,7 @@ static TEE_Result ree_fs_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result ree_fs_ta_get_tag(const struct user_ta_store_handle *h,
+static TEE_Result ree_fs_ta_get_tag(const struct ts_store_handle *h,
 				    uint8_t *tag, unsigned int *tag_len)
 {
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
@@ -412,7 +413,7 @@ out:
 	return res;
 }
 
-static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
+static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 				 size_t len)
 {
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
@@ -498,7 +499,7 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 	return res;
 }
 
-static void ree_fs_ta_close(struct user_ta_store_handle *h)
+static void ree_fs_ta_close(struct ts_store_handle *h)
 {
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
 
@@ -513,7 +514,7 @@ static void ree_fs_ta_close(struct user_ta_store_handle *h)
 }
 
 #ifndef CFG_REE_FS_TA_BUFFERED
-TEE_TA_REGISTER_TA_STORE(9) = {
+REGISTER_TA_STORE(9) = {
 	.description = "REE",
 	.open = ree_fs_ta_open,
 	.get_size = ree_fs_ta_get_size,
@@ -533,7 +534,7 @@ TEE_TA_REGISTER_TA_STORE(9) = {
  */
 
 struct buf_ree_fs_ta_handle {
-	struct user_ta_store_handle *h; /* Note: a REE FS TA store handle */
+	struct ts_store_handle *h; /* Note: a REE FS TA store handle */
 	size_t ta_size;
 	tee_mm_entry_t *mm;
 	uint8_t *buf;
@@ -543,7 +544,7 @@ struct buf_ree_fs_ta_handle {
 };
 
 static TEE_Result buf_ta_open(const TEE_UUID *uuid,
-			      struct user_ta_store_handle **h)
+			      struct ts_store_handle **h)
 {
 	struct buf_ree_fs_ta_handle *handle = NULL;
 	TEE_Result res = TEE_SUCCESS;
@@ -586,7 +587,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	res = ree_fs_ta_read(handle->h, handle->buf, handle->ta_size);
 	if (res)
 		goto err;
-	*h = (struct user_ta_store_handle *)handle;
+	*h = (struct ts_store_handle *)handle;
 err:
 	ree_fs_ta_close(handle->h);
 err2:
@@ -598,7 +599,7 @@ err2:
 	return res;
 }
 
-static TEE_Result buf_ta_get_size(const struct user_ta_store_handle *h,
+static TEE_Result buf_ta_get_size(const struct ts_store_handle *h,
 				  size_t *size)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
@@ -607,7 +608,7 @@ static TEE_Result buf_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
+static TEE_Result buf_ta_read(struct ts_store_handle *h, void *data,
 			      size_t len)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
@@ -624,7 +625,7 @@ static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result buf_ta_get_tag(const struct user_ta_store_handle *h,
+static TEE_Result buf_ta_get_tag(const struct ts_store_handle *h,
 				 uint8_t *tag, unsigned int *tag_len)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
@@ -638,7 +639,7 @@ static TEE_Result buf_ta_get_tag(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static void buf_ta_close(struct user_ta_store_handle *h)
+static void buf_ta_close(struct ts_store_handle *h)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
 
@@ -649,7 +650,7 @@ static void buf_ta_close(struct user_ta_store_handle *h)
 	free(handle);
 }
 
-TEE_TA_REGISTER_TA_STORE(9) = {
+REGISTER_TA_STORE(9) = {
 	.description = "REE [buffered]",
 	.open = buf_ta_open,
 	.get_size = buf_ta_get_size,

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/early_ta.h>
+#include <kernel/ts_store.h>
 #include <kernel/user_ta.h>
-#include <kernel/user_ta_store.h>
 #include <stdio.h>
 #include <string.h>
 #include <trace.h>
@@ -14,7 +15,7 @@
 #include <util.h>
 #include <zlib.h>
 
-struct user_ta_store_handle {
+struct ts_store_handle {
 	const struct early_ta *early_ta;
 	size_t offs;
 	z_stream strm;
@@ -61,9 +62,9 @@ static bool decompression_init(z_stream *strm,
 }
 
 static TEE_Result early_ta_open(const TEE_UUID *uuid,
-				struct user_ta_store_handle **h)
+				struct ts_store_handle **h)
 {
-	struct user_ta_store_handle *handle;
+	struct ts_store_handle *handle;
 	const struct early_ta *ta;
 	bool st;
 
@@ -88,7 +89,7 @@ static TEE_Result early_ta_open(const TEE_UUID *uuid,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result early_ta_get_size(const struct user_ta_store_handle *h,
+static TEE_Result early_ta_get_size(const struct ts_store_handle *h,
 				    size_t *size)
 {
 	const struct early_ta *ta = h->early_ta;
@@ -101,7 +102,7 @@ static TEE_Result early_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result early_ta_get_tag(const struct user_ta_store_handle *h,
+static TEE_Result early_ta_get_tag(const struct ts_store_handle *h,
 				   uint8_t *tag, unsigned int *tag_len)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -128,7 +129,7 @@ out:
 	return res;
 }
 
-static TEE_Result read_uncompressed(struct user_ta_store_handle *h, void *data,
+static TEE_Result read_uncompressed(struct ts_store_handle *h, void *data,
 				    size_t len)
 {
 	uint8_t *src = (uint8_t *)h->early_ta->ta + h->offs;
@@ -144,7 +145,7 @@ static TEE_Result read_uncompressed(struct user_ta_store_handle *h, void *data,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result read_compressed(struct user_ta_store_handle *h, void *data,
+static TEE_Result read_compressed(struct ts_store_handle *h, void *data,
 				  size_t len)
 {
 	z_stream *strm = &h->strm;
@@ -208,7 +209,7 @@ out:
 	return ret;
 }
 
-static TEE_Result early_ta_read(struct user_ta_store_handle *h, void *data,
+static TEE_Result early_ta_read(struct ts_store_handle *h, void *data,
 				size_t len)
 {
 	if (h->early_ta->uncompressed_size)
@@ -217,14 +218,14 @@ static TEE_Result early_ta_read(struct user_ta_store_handle *h, void *data,
 		return read_uncompressed(h, data, len);
 }
 
-static void early_ta_close(struct user_ta_store_handle *h)
+static void early_ta_close(struct ts_store_handle *h)
 {
 	if (h->early_ta->uncompressed_size)
 		inflateEnd(&h->strm);
 	free(h);
 }
 
-TEE_TA_REGISTER_TA_STORE(2) = {
+REGISTER_TA_STORE(2) = {
 	.description = "early TA",
 	.open = early_ta_open,
 	.get_size = early_ta_get_size,

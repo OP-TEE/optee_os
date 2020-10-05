@@ -4,12 +4,12 @@
  */
 
 #include <tee/tadb.h>
+#include <kernel/ts_store.h>
 #include <kernel/user_ta.h>
-#include <kernel/user_ta_store.h>
 #include <initcall.h>
 
 static TEE_Result secstor_ta_open(const TEE_UUID *uuid,
-				  struct user_ta_store_handle **handle)
+				  struct ts_store_handle **handle)
 {
 	TEE_Result res;
 	struct tee_tadb_ta_read *ta;
@@ -30,7 +30,7 @@ static TEE_Result secstor_ta_open(const TEE_UUID *uuid,
 		goto err;
 	}
 
-	*handle = (struct user_ta_store_handle *)ta;
+	*handle = (struct ts_store_handle *)ta;
 
 	return TEE_SUCCESS;
 err:
@@ -38,7 +38,7 @@ err:
 	return res;
 }
 
-static TEE_Result secstor_ta_get_size(const struct user_ta_store_handle *h,
+static TEE_Result secstor_ta_get_size(const struct ts_store_handle *h,
 				      size_t *size)
 {
 	struct tee_tadb_ta_read *ta = (struct tee_tadb_ta_read *)h;
@@ -49,13 +49,13 @@ static TEE_Result secstor_ta_get_size(const struct user_ta_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result secstor_ta_get_tag(const struct user_ta_store_handle *h,
+static TEE_Result secstor_ta_get_tag(const struct ts_store_handle *h,
 				     uint8_t *tag, unsigned int *tag_len)
 {
 	return tee_tadb_get_tag((struct tee_tadb_ta_read *)h, tag, tag_len);
 }
 
-static TEE_Result secstor_ta_read(struct user_ta_store_handle *h, void *data,
+static TEE_Result secstor_ta_read(struct ts_store_handle *h, void *data,
 				  size_t len)
 {
 	struct tee_tadb_ta_read *ta = (struct tee_tadb_ta_read *)h;
@@ -70,14 +70,14 @@ static TEE_Result secstor_ta_read(struct user_ta_store_handle *h, void *data,
 	return TEE_SUCCESS;
 }
 
-static void secstor_ta_close(struct user_ta_store_handle *h)
+static void secstor_ta_close(struct ts_store_handle *h)
 {
 	struct tee_tadb_ta_read *ta = (struct tee_tadb_ta_read *)h;
 
 	tee_tadb_ta_close(ta);
 }
 
-TEE_TA_REGISTER_TA_STORE(4) = {
+REGISTER_TA_STORE(4) = {
 	.description = "Secure Storage TA",
 	.open = secstor_ta_open,
 	.get_size = secstor_ta_get_size,
