@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright 2020 NXP
  */
 
 #ifndef __OPTEE_RPC_CMD_H
@@ -138,6 +139,14 @@
  * [in]     memref[2]	    function graph data
  */
 #define OPTEE_RPC_CMD_FTRACE		11
+
+/*
+ * Send code coverage data to normal world
+ *
+ * [in]     memref[1]	    filepath
+ * [in]     memref[2]	    code coverage data
+ */
+#define OPTEE_RPC_CMD_GCOV 12
 
 /*
  * Register timestamp buffer in the linux kernel optee driver

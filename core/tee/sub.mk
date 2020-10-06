@@ -45,3 +45,4 @@ endif #CFG_WITH_USER_TA,y
 
 srcs-y += uuid.c
 srcs-y += tee_ta_enc_manager.c
+srcs-$(CFG_GCOV_SUPPORT) += tee_gcov_writer.c
