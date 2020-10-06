@@ -42,7 +42,7 @@ static TEE_Result get_devices(uint32_t types,
 			      uint32_t rflags)
 {
 	const struct pseudo_ta_head *ta = NULL;
-	const struct early_ta *eta = NULL;
+	const struct embedded_ts *eta = NULL;
 	void *buf = NULL;
 	uint32_t blen = 0;
 	uint32_t pos = 0;
