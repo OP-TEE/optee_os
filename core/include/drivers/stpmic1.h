@@ -178,6 +178,10 @@ int stpmic1_regulator_enable(const char *name);
 int stpmic1_regulator_disable(const char *name);
 bool stpmic1_is_regulator_enabled(const char *name);
 
+TEE_Result stpmic1_regulator_levels_mv(const char *name,
+				       const uint16_t **levels,
+				       size_t *levels_count);
+
 /* API for voltage cnotrol of regulators driven from STPMIC1 device */
 int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts);
 int stpmic1_regulator_voltage_get(const char *name);
