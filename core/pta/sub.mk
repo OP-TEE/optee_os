@@ -11,3 +11,4 @@ srcs-$(CFG_WITH_STATS) += stats.c
 srcs-$(CFG_SYSTEM_PTA) += system.c
 
 subdirs-y += bcm
+srcs-$(CFG_GCOV_SUPPORT) += gcov.c
