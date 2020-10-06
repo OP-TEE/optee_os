@@ -249,4 +249,14 @@
 
 #define barrier() asm volatile ("" : : : "memory")
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
+#if __has_attribute(__fallthrough__)
+#define fallthrough __attribute__((__fallthrough__))
+#else
+#define fallthrough do {} while (0) /* fallthrough */
+#endif
+
 #endif /*COMPILER_H*/
