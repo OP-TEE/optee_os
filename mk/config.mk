@@ -304,10 +304,19 @@ $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 # for instance avb/023f8f1a-292a-432b-8fc4-de8471358067
 ifneq ($(EARLY_TA_PATHS)$(CFG_IN_TREE_EARLY_TAS),)
 $(call force,CFG_EARLY_TA,y)
+$(call force,CFG_EMBEDDED_TS,y)
 else
 CFG_EARLY_TA ?= n
 endif
-ifeq ($(CFG_EARLY_TA),y)
+
+ifneq ($(SP_PATHS),)
+$(call force,CFG_SECURE_PARTITION,y)
+$(call force,CFG_EMBEDDED_TS,y)
+else
+CFG_SECURE_PARTITION ?= n
+endif
+
+ifeq ($(CFG_EMBEDDED_TS),y)
 $(call force,CFG_ZLIB,y)
 endif
 
