@@ -1287,7 +1287,7 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
 	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
-		res = crypto_acipher_alloc_ecc_public_key(o->attr,
+		res = crypto_acipher_alloc_ecc_public_key(o->attr, obj_type,
 							  max_key_size);
 		break;
 	case TEE_TYPE_ECDSA_KEYPAIR:
@@ -1295,7 +1295,8 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_SM2_DSA_KEYPAIR:
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
 	case TEE_TYPE_SM2_KEP_KEYPAIR:
-		res = crypto_acipher_alloc_ecc_keypair(o->attr, max_key_size);
+		res = crypto_acipher_alloc_ecc_keypair(o->attr, obj_type,
+						       max_key_size);
 		break;
 	default:
 		if (obj_type != TEE_TYPE_DATA) {
@@ -2896,11 +2897,15 @@ static TEE_Result get_sm2_kep_params(const TEE_Attribute *params,
 		BIT(INITIATOR_ID) | BIT(RESPONDER_ID);
 	uint8_t found = 0;
 
-	res = crypto_acipher_alloc_ecc_public_key(peer_key, 256);
+	res = crypto_acipher_alloc_ecc_public_key(peer_key,
+						  TEE_TYPE_SM2_KEP_PUBLIC_KEY,
+						  256);
 	if (res)
 		goto out;
 
-	res = crypto_acipher_alloc_ecc_public_key(peer_eph_key, 256);
+	res = crypto_acipher_alloc_ecc_public_key(peer_eph_key,
+						  TEE_TYPE_SM2_KEP_PUBLIC_KEY,
+						  256);
 	if (res)
 		goto out;
 
@@ -3072,6 +3077,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		struct ecc_public_key key_public;
 		uint8_t *pt_secret;
 		unsigned long pt_secret_len;
+		uint32_t key_type = TEE_TYPE_ECDH_PUBLIC_KEY;
 
 		if (param_count != 2 ||
 		    params[0].attributeID != TEE_ATTR_ECC_PUBLIC_VALUE_X ||
@@ -3102,7 +3108,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 
 		/* Create the public key */
-		res = crypto_acipher_alloc_ecc_public_key(&key_public,
+		res = crypto_acipher_alloc_ecc_public_key(&key_public, key_type,
 							  alloc_size);
 		if (res != TEE_SUCCESS)
 			goto out;
