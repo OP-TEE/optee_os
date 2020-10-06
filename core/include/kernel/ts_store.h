@@ -22,7 +22,7 @@ struct ts_store_ops {
 			   struct ts_store_handle **h);
 	/*
 	 * Return the size of the unencrypted TS binary, that is: the TS
-	 * header (struct ta_head) plus the ELF data.
+	 * header (struct ta_head or sp_head) plus the ELF data.
 	 */
 	TEE_Result (*get_size)(const struct ts_store_handle *h,
 			       size_t *size);
@@ -35,7 +35,7 @@ struct ts_store_ops {
 			      uint8_t *tag, unsigned int *tag_len);
 	/*
 	 * Read the TS sequentially, from the start of the TS header (struct
-	 * ts_head) up to the end of the ELF.
+	 * ta_head or sp_head) up to the end of the ELF.
 	 * The TEE core is expected to read *exactly* get_size() bytes in total
 	 * unless an error occurs. Therefore, an implementation may rely on the
 	 * condition (current offset == total size) to detect the last call to
@@ -71,4 +71,14 @@ struct ts_store_ops {
 	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(ta_stores, prio, \
 					       struct ts_store_ops)
 
+/*
+ * Registers a SP storage.
+ *
+ * The SP store is separate from the TA store. The user of the stores knows if
+ * it needs to access the TA store or if it needs to access the SP one.
+ */
+#define REGISTER_SP_STORE(prio) \
+	int __tee_sp_store_##prio __unused; \
+	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(sp_stores, prio, \
+					       struct ts_store_ops)
 #endif /*__KERNEL_TS_STORE_H*/

@@ -26,15 +26,21 @@ def get_args():
 
     parser.add_argument(
         '--ta',
-        required=True,
+        required=False,
         help='Path to the TA binary. File name has to be: <uuid>.* '
+        'such as: 8aaaf200-2450-11e4-abe2-0002a5d5c51b.stripped.elf')
+
+    parser.add_argument(
+        '--sp',
+        required=False,
+        help='Path to the SP binary. File name has to be: <uuid>.* '
         'such as: 8aaaf200-2450-11e4-abe2-0002a5d5c51b.stripped.elf')
 
     parser.add_argument(
         '--compress',
         dest="compress",
         action="store_true",
-        help='Compress the TA using the DEFLATE '
+        help='Compress the image using the DEFLATE '
         'algorithm')
 
     return parser.parse_args()
@@ -60,24 +66,50 @@ def ta_get_flags(ta_f):
         raise Exception('.ta_head section not found')
 
 
+def sp_get_flags(sp_f):
+    with open(sp_f, 'rb') as f:
+        elffile = ELFFile(f)
+
+        for s in elffile.iter_sections():
+            if get_name(s) == '.sp_head':
+                return struct.unpack('<16x4xI', s.data()[:24])[0]
+
+        raise Exception('.sp_head section not found')
+
+
 def main():
     args = get_args()
+    is_sp = False
 
-    ta_uuid = uuid.UUID(re.sub(r'\..*', '', os.path.basename(args.ta)))
+    if args.ta is None and args.sp is None:
+        raise Exception('The --ta or the --sp flag is required')
 
-    with open(args.ta, 'rb') as ta:
-        bytes = ta.read()
+    if args.ta is not None and args.sp is not None:
+        raise Exception('The --ta and the --sp can\'t be combined')
+
+    if args.ta is not None:
+        ts = args.ta
+        is_sp = False
+
+    if args.sp is not None:
+        ts = args.sp
+        is_sp = True
+
+    ts_uuid = uuid.UUID(re.sub(r'\..*', '', os.path.basename(ts)))
+
+    with open(ts, 'rb') as _ts:
+        bytes = _ts.read()
         uncompressed_size = len(bytes)
         if args.compress:
             bytes = zlib.compress(bytes)
         size = len(bytes)
 
     f = open(args.out, 'w')
-    f.write('/* Generated from ' + args.ta + ' by ' +
+    f.write('/* Generated from ' + ts + ' by ' +
             os.path.basename(__file__) + ' */\n\n')
     f.write('#include <kernel/embedded_ts.h>\n\n')
     f.write('#include <scattered_array.h>\n\n')
-    f.write('const uint8_t ta_bin_' + ta_uuid.hex + '[] = {\n')
+    f.write('const uint8_t ts_bin_' + ts_uuid.hex + '[] = {\n')
     i = 0
     while i < size:
         if i % 8 == 0:
@@ -90,22 +122,28 @@ def main():
             f.write(' ')
     f.write('};\n')
 
-    f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct embedded_ts) = {\n')
-    f.write('\t.flags = 0x{:04x},\n'.format(ta_get_flags(args.ta)))
+    if is_sp:
+        f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(sp_images, struct \
+                embedded_ts) = {\n')
+        f.write('\t.flags = 0x{:04x},\n'.format(sp_get_flags(ts)))
+    else:
+        f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct \
+                embedded_ts) = {\n')
+        f.write('\t.flags = 0x{:04x},\n'.format(ta_get_flags(ts)))
     f.write('\t.uuid = {\n')
-    f.write('\t\t.timeLow = 0x{:08x},\n'.format(ta_uuid.time_low))
-    f.write('\t\t.timeMid = 0x{:04x},\n'.format(ta_uuid.time_mid))
+    f.write('\t\t.timeLow = 0x{:08x},\n'.format(ts_uuid.time_low))
+    f.write('\t\t.timeMid = 0x{:04x},\n'.format(ts_uuid.time_mid))
     f.write('\t\t.timeHiAndVersion = ' +
-            '0x{:04x},\n'.format(ta_uuid.time_hi_version))
+            '0x{:04x},\n'.format(ts_uuid.time_hi_version))
     f.write('\t\t.clockSeqAndNode = {\n')
-    csn = '{0:02x}{1:02x}{2:012x}'.format(ta_uuid.clock_seq_hi_variant,
-                                          ta_uuid.clock_seq_low, ta_uuid.node)
+    csn = '{0:02x}{1:02x}{2:012x}'.format(ts_uuid.clock_seq_hi_variant,
+                                          ts_uuid.clock_seq_low, ts_uuid.node)
     f.write('\t\t\t')
     f.write(', '.join('0x' + csn[i:i + 2] for i in range(0, len(csn), 2)))
     f.write('\n\t\t},\n\t},\n')
-    f.write('\t.size = sizeof(ta_bin_' + ta_uuid.hex +
+    f.write('\t.size = sizeof(ts_bin_' + ts_uuid.hex +
             '), /* {:d} */\n'.format(size))
-    f.write('\t.ta = ta_bin_' + ta_uuid.hex + ',\n')
+    f.write('\t.ts = ts_bin_' + ts_uuid.hex + ',\n')
     if args.compress:
         f.write('\t.uncompressed_size = '
                 '{:d},\n'.format(uncompressed_size))
