@@ -173,7 +173,7 @@
 #	define XLAT_TABLE_VIRTUALIZATION_EXTRA 0
 #endif
 #ifdef CFG_CORE_ASLR
-#	define XLAT_TABLE_ASLR_EXTRA 2
+#	define XLAT_TABLE_ASLR_EXTRA 3
 #else
 #	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
