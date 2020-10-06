@@ -4,6 +4,7 @@
  * Copyright (c) 2020, Linaro Limited
  */
 
+#include <compiler.h>
 #include <kernel/chip_services.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_common.h>
@@ -513,7 +514,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			flags |= TEE_MEMORY_ACCESS_WRITE;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 			p->u[n].mem.offs = a;
 			p->u[n].mem.size = b;

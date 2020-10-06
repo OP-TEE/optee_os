@@ -114,7 +114,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_AES_CTS:
 	case TEE_ALG_AES_XTS:
 		buffer_two_blocks = true;
-		/* FALLTHROUGH */
+		fallthrough;
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_AES_CCM:
@@ -131,7 +131,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			block_size = TEE_SM4_BLOCK_SIZE;
 		else
 			block_size = TEE_DES_BLOCK_SIZE;
-		/* FALLTHROUGH */
+		fallthrough;
 	case TEE_ALG_AES_CTR:
 	case TEE_ALG_AES_GCM:
 		if (mode == TEE_MODE_ENCRYPT)

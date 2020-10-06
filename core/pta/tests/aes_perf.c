@@ -3,6 +3,7 @@
  * Copyright (c) 2020, Linaro Limited
  */
 
+#include <compiler.h>
 #include <crypto/crypto.h>
 #include <kernel/tee_time.h>
 #include <pta_invoke_tests.h>
@@ -70,7 +71,7 @@ static TEE_Result init_ctx(void **ctx, uint32_t algo, TEE_OperationMode mode,
 	case TEE_ALG_AES_XTS:
 		key2_len = key_len;
 		key2 = aes_key2;
-		/*FALLTHROUGH*/
+		fallthrough;
 	case TEE_ALG_AES_ECB_NOPAD:
 	case TEE_ALG_AES_CBC_NOPAD:
 	case TEE_ALG_AES_CTR:
@@ -92,7 +93,7 @@ static TEE_Result init_ctx(void **ctx, uint32_t algo, TEE_OperationMode mode,
 	case TEE_ALG_AES_XTS:
 		iv = aes_iv;
 		iv_len = sizeof(aes_iv);
-		/*FALLTHROUGH*/
+		fallthrough;
 	case TEE_ALG_AES_ECB_NOPAD:
 		res = crypto_cipher_init(*ctx, mode, aes_key, key_len, key2,
 					 key2_len, iv, iv_len);
