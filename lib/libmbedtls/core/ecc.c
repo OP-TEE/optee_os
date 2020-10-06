@@ -6,7 +6,7 @@
 
 #include <assert.h>
 #include <compiler.h>
-#include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecdsa.h>
@@ -33,43 +33,7 @@ static TEE_Result get_tee_result(int lmd_res)
 	}
 }
 
-TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s,
-					    size_t key_size_bits)
-{
-	memset(s, 0, sizeof(*s));
-	s->d = crypto_bignum_allocate(key_size_bits);
-	if (!s->d)
-		goto err;
-	s->x = crypto_bignum_allocate(key_size_bits);
-	if (!s->x)
-		goto err;
-	s->y = crypto_bignum_allocate(key_size_bits);
-	if (!s->y)
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->x);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-TEE_Result crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s,
-					       size_t key_size_bits)
-{
-	memset(s, 0, sizeof(*s));
-	s->x = crypto_bignum_allocate(key_size_bits);
-	if (!s->x)
-		goto err;
-	s->y = crypto_bignum_allocate(key_size_bits);
-	if (!s->y)
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->x);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s)
+static void ecc_free_public_key(struct ecc_public_key *s)
 {
 	if (!s)
 		return;
@@ -150,7 +114,7 @@ static void ecc_clear_precomputed(mbedtls_ecp_group *grp)
 	grp->T_size = 0;
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key, size_t key_size)
+static TEE_Result ecc_generate_keypair(struct ecc_keypair *key, size_t key_size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
@@ -205,9 +169,9 @@ exit:
 	return res;
 }
 
-TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
-				   const uint8_t *msg, size_t msg_len,
-				   uint8_t *sig, size_t *sig_len)
+static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
+			   const uint8_t *msg, size_t msg_len, uint8_t *sig,
+			   size_t *sig_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
@@ -274,9 +238,9 @@ out:
 	return res;
 }
 
-TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
-				     const uint8_t *msg, size_t msg_len,
-				     const uint8_t *sig, size_t sig_len)
+static TEE_Result ecc_verify(uint32_t algo, struct ecc_public_key *key,
+			     const uint8_t *msg, size_t msg_len,
+			     const uint8_t *sig, size_t sig_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
@@ -340,10 +304,9 @@ out:
 	return res;
 }
 
-TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
-					    struct ecc_public_key *public_key,
-					    void *secret,
-					    unsigned long *secret_len)
+static TEE_Result ecc_shared_secret(struct ecc_keypair *private_key,
+				    struct ecc_public_key *public_key,
+				    void *secret, unsigned long *secret_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
@@ -378,4 +341,81 @@ out:
 	mbedtls_mpi_init(&ecdh.Qp.Y);
 	mbedtls_ecdh_free(&ecdh);
 	return res;
+}
+
+static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
+	.generate = &ecc_generate_keypair,
+	.sign = &ecc_sign,
+	.shared_secret = &ecc_shared_secret,
+};
+
+TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
+					 uint32_t key_type,
+					 size_t key_size_bits)
+{
+	switch (key_type) {
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	default:
+		break;
+	}
+
+	memset(s, 0, sizeof(*s));
+	s->d = crypto_bignum_allocate(key_size_bits);
+	if (!s->d)
+		goto err;
+	s->x = crypto_bignum_allocate(key_size_bits);
+	if (!s->x)
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!s->y)
+		goto err;
+
+	s->ops = &ecc_keypair_ops;
+
+	return TEE_SUCCESS;
+
+err:
+	crypto_bignum_free(s->d);
+	crypto_bignum_free(s->x);
+
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+static const struct crypto_ecc_public_ops ecc_public_key_ops = {
+	.free = &ecc_free_public_key,
+	.verify = &ecc_verify,
+};
+
+TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
+					    uint32_t key_type,
+					    size_t key_size_bits)
+{
+	switch (key_type) {
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	default:
+		break;
+	}
+
+	memset(s, 0, sizeof(*s));
+	s->x = crypto_bignum_allocate(key_size_bits);
+	if (!s->x)
+		goto err;
+	s->y = crypto_bignum_allocate(key_size_bits);
+	if (!s->y)
+		goto err;
+
+	s->ops = &ecc_public_key_ops;
+
+	return TEE_SUCCESS;
+
+err:
+	crypto_bignum_free(s->x);
+
+	return TEE_ERROR_OUT_OF_MEMORY;
 }
