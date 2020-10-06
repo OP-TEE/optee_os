@@ -119,6 +119,12 @@ include mk/lib.mk
 base-prefix := $(sm)-
 endif
 
+ifeq ($(CFG_GCOV_SUPPORT),y)
+libname = gcov
+libdir = lib/libgcov
+include mk/lib.mk
+endif
+
 ifeq ($(firstword $(subst /, ,$(CFG_CRYPTOLIB_DIR))),core)
 # If a library can be compiled for both core and user space a base-prefix
 # is needed in order to avoid conflicts in the output. However, if the
