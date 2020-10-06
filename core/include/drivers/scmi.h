@@ -12,6 +12,7 @@
 #define SCMI_PROTOCOL_ID_CLOCK			0x14
 #define SCMI_PROTOCOL_ID_SENSOR			0x15
 #define SCMI_PROTOCOL_ID_RESET_DOMAIN		0x16
+#define SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN		0x17
 
 /* SCMI error codes reported to agent through server-to-agent messages */
 #define SCMI_SUCCESS			0

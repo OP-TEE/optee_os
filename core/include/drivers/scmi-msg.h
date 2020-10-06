@@ -224,4 +224,86 @@ int32_t plat_scmi_rd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
 			       bool assert_not_deassert);
 
+/* Handlers for SCMI Voltage Domain protocol services */
+
+/*
+ * Return number of voltage domain for an agent
+ * @agent_id: SCMI agent ID
+ * Return number of voltage domains
+ */
+size_t plat_scmi_voltd_count(unsigned int agent_id);
+
+/*
+ * Get clock controller string ID (aka name)
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI voltage domain ID
+ * Return pointer to name or NULL
+ */
+const char *plat_scmi_voltd_get_name(unsigned int agent_id,
+				     unsigned int scmi_id);
+
+/*
+ * Get voltage domain possible levels as an array of voltages in microvolt.
+ *
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI voltage domain ID
+ * @levels: If NULL, function returns, else output rates array
+ * @start_index: Level index to start from.
+ * @nb_elts: Array size of @levels.
+ * Return an SCMI compliant error code
+ */
+int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
+				     unsigned int scmi_id, size_t start_index,
+				     long *levels, size_t *nb_elts);
+
+/*
+ * Get voltage domain possible levels as range with regular steps in microvolt
+ *
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI voltage domain ID
+ * @min_max_step: 3 cell array for min, max and step voltage data
+ * Return an SCMI compliant error code
+ */
+int32_t plat_scmi_voltd_levels_by_step(unsigned int agent_id,
+				       unsigned int scmi_id,
+				       long *min_max_step);
+
+/*
+ * Get current voltage domain level in microvolt
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI voltage domain ID
+ * Return clock rate or 0 if not supported
+ */
+long plat_scmi_voltd_get_level(unsigned int agent_id, unsigned int scmi_id);
+
+/*
+ * Set voltage domain level voltage domain
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI clock ID
+ * @level: Target voltage domain level in microvolt
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
+				  long level);
+
+/*
+ * Get voltage domain state configuration (enabled or disabled)
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI voltage domain ID
+ * @config: output state configuration value
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
+				   uint32_t *config);
+
+/*
+ * Get voltage domain state configuration (enabled or disabled)
+ * @agent_id: SCMI agent ID
+ * @scmi_id: SCMI clock ID
+ * @enable_not_disable: Enable clock if true, disable clock otherwise
+ * Return a compliant SCMI error code
+ */
+int32_t plat_scmi_voltd_set_config(unsigned int agent_id, unsigned int scmi_id,
+				   uint32_t config);
+
 #endif /* SCMI_MSG_H */

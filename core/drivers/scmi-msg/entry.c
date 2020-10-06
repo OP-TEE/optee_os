@@ -45,6 +45,9 @@ void scmi_process_message(struct scmi_msg *msg)
 	case SCMI_PROTOCOL_ID_RESET_DOMAIN:
 		handler = scmi_msg_get_rd_handler(msg);
 		break;
+	case SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN:
+		handler = scmi_msg_get_voltd_handler(msg);
+		break;
 	default:
 		break;
 	}
