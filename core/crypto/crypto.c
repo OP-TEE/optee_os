@@ -661,59 +661,94 @@ crypto_acipher_dh_shared_secret(struct dh_keypair *private_key __unused,
 }
 #endif /*!CFG_CRYPTO_DH*/
 
-#if !defined(CFG_CRYPTO_ECC)
-TEE_Result
-crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s __unused,
-				    size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *key,
+					       uint32_t key_type,
+					       size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
+
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_asym_alloc_ecc_public_key(key, key_type, key_size_bits);
+	if (res == TEE_ERROR_NOT_IMPLEMENTED)
+		res = crypto_asym_alloc_ecc_public_key(key, key_type,
+						       key_size_bits);
+
+	return res;
 }
 
-TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s __unused,
-					    size_t key_size_bits __unused)
+TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *key,
+					    uint32_t key_type,
+					    size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
+
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_asym_alloc_ecc_keypair(key, key_type, key_size_bits);
+	if (res == TEE_ERROR_NOT_IMPLEMENTED)
+		res = crypto_asym_alloc_ecc_keypair(key, key_type,
+						    key_size_bits);
+
+	return res;
 }
 
-void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s __unused)
+void crypto_acipher_free_ecc_public_key(struct ecc_public_key *key)
 {
+	assert(key->ops && key->ops->free);
+
+	key->ops->free(key);
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused,
-				      size_t key_size __unused)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key,
+				      size_t key_size_bits)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(key->ops && key->ops->generate);
+
+	return key->ops->generate(key, key_size_bits);
 }
 
-TEE_Result crypto_acipher_ecc_sign(uint32_t algo __unused,
-				   struct ecc_keypair *key __unused,
-				   const uint8_t *msg __unused,
-				   size_t msg_len __unused,
-				   uint8_t *sig __unused,
-				   size_t *sig_len __unused)
+TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
+				   const uint8_t *msg, size_t msg_len,
+				   uint8_t *sig, size_t *sig_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(key->ops);
+
+	if (!key->ops->sign)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return key->ops->sign(algo, key, msg, msg_len, sig, sig_len);
 }
 
-TEE_Result crypto_acipher_ecc_verify(uint32_t algo __unused,
-				     struct ecc_public_key *key __unused,
-				     const uint8_t *msg __unused,
-				     size_t msg_len __unused,
-				     const uint8_t *sig __unused,
-				     size_t sig_len __unused)
+TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
+				     const uint8_t *msg, size_t msg_len,
+				     const uint8_t *sig, size_t sig_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(key->ops);
+
+	if (!key->ops->verify)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return key->ops->verify(algo, key, msg, msg_len, sig, sig_len);
 }
 
-TEE_Result
-crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key __unused,
-				 struct ecc_public_key *public_key __unused,
-				 void *secret __unused,
-				 unsigned long *secret_len __unused)
+TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
+					    struct ecc_public_key *public_key,
+					    void *secret,
+					    unsigned long *secret_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(private_key->ops);
+
+	if (!private_key->ops->shared_secret)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return private_key->ops->shared_secret(private_key, public_key, secret,
+					       secret_len);
 }
-#endif /*!CFG_CRYPTO_ECC*/
 
 #if !defined(CFG_CRYPTO_SM2_PKE)
 TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key __unused,
