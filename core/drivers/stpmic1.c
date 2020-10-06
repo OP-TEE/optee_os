@@ -582,6 +582,24 @@ static const struct regul_struct *get_regulator_data(const char *name)
 	return NULL;
 }
 
+TEE_Result stpmic1_regulator_levels_mv(const char *name,
+				       const uint16_t **levels,
+				       size_t *levels_count)
+{
+	const struct regul_struct *regul = get_regulator_data(name);
+
+	if (!regul)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (levels_count)
+		*levels_count = regul->voltage_table_size;
+
+	if (levels)
+		*levels = regul->voltage_table;
+
+	return TEE_SUCCESS;
+}
+
 static size_t voltage_to_index(const char *name, uint16_t millivolts)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
