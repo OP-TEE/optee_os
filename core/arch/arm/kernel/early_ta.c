@@ -16,14 +16,14 @@
 #include <zlib.h>
 
 struct ts_store_handle {
-	const struct early_ta *early_ta;
+	const struct embedded_ts *early_ta;
 	size_t offs;
 	z_stream strm;
 };
 
-static const struct early_ta *find_early_ta(const TEE_UUID *uuid)
+static const struct embedded_ts *find_early_ta(const TEE_UUID *uuid)
 {
-	const struct early_ta *ta;
+	const struct embedded_ts *ta = NULL;
 
 	for_each_early_ta(ta)
 		if (!memcmp(&ta->uuid, uuid, sizeof(*uuid)))
@@ -44,11 +44,11 @@ static void zfree(void *opaque __unused, void *address)
 }
 
 static bool decompression_init(z_stream *strm,
-			       const struct early_ta *ta)
+			       const struct embedded_ts *ta)
 {
 	int st;
 
-	strm->next_in = ta->ta;
+	strm->next_in = ta->ts;
 	strm->avail_in = ta->size;
 	strm->zalloc = zalloc;
 	strm->zfree = zfree;
@@ -64,9 +64,9 @@ static bool decompression_init(z_stream *strm,
 static TEE_Result early_ta_open(const TEE_UUID *uuid,
 				struct ts_store_handle **h)
 {
-	struct ts_store_handle *handle;
-	const struct early_ta *ta;
-	bool st;
+	struct ts_store_handle *handle = NULL;
+	const struct embedded_ts *ta = NULL;
+	bool st = Z_OK;
 
 	ta = find_early_ta(uuid);
 	if (!ta)
@@ -92,7 +92,7 @@ static TEE_Result early_ta_open(const TEE_UUID *uuid,
 static TEE_Result early_ta_get_size(const struct ts_store_handle *h,
 				    size_t *size)
 {
-	const struct early_ta *ta = h->early_ta;
+	const struct embedded_ts *ta = h->early_ta;
 
 	if (ta->uncompressed_size)
 		*size = ta->uncompressed_size;
@@ -236,7 +236,7 @@ REGISTER_TA_STORE(2) = {
 
 static TEE_Result early_ta_init(void)
 {
-	const struct early_ta *ta;
+	const struct embedded_ts *ta = NULL;
 	char __maybe_unused msg[60] = { '\0', };
 
 	for_each_early_ta(ta) {
