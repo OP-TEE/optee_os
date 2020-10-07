@@ -35,10 +35,15 @@ struct pgt {
 };
 
 /*
- * Reserve 2 page tables per thread, but at least 4 page tables in total
+ * A proper value for PGT_CACHE_SIZE depends on many factors: CFG_WITH_LPAE,
+ * CFG_TA_ASLR, size of TA, size of memrefs passed to TA, CFG_ULIBS_SHARED and
+ * possibly others. The value is based on the number of threads as an indicator
+ * on how large the system might be.
  */
 #if CFG_NUM_THREADS < 2
 #define PGT_CACHE_SIZE	4
+#elif (CFG_NUM_THREADS == 2 && !defined(CFG_WITH_LPAE))
+#define PGT_CACHE_SIZE	8
 #else
 #define PGT_CACHE_SIZE	ROUNDUP(CFG_NUM_THREADS * 2, PGT_NUM_PGT_PER_PAGE)
 #endif
