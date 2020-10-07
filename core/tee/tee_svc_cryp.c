@@ -3671,14 +3671,10 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	case TEE_ALG_ECDSA_P256:
 	case TEE_ALG_ECDSA_P384:
 	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_SM2_DSA_SM3:
 		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);
 		break;
-	case TEE_ALG_SM2_DSA_SM3:
-		res = crypto_acipher_sm2_dsa_sign(cs->algo, o->attr, src_data,
-						  src_len, dst_data, &dlen);
-		break;
-
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -3815,13 +3811,9 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 		break;
 
 	case TEE_MAIN_ALGO_ECDSA:
+	case TEE_MAIN_ALGO_SM2_DSA_SM3:
 		res = crypto_acipher_ecc_verify(cs->algo, o->attr, data,
 						data_len, sig, sig_len);
-		break;
-
-	case TEE_MAIN_ALGO_SM2_DSA_SM3:
-		res = crypto_acipher_sm2_dsa_verify(cs->algo, o->attr, data,
-						    data_len, sig, sig_len);
 		break;
 
 	default:
