@@ -247,6 +247,7 @@ struct thread_specific_data {
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
 #endif
+	unsigned int syscall_recursion;
 };
 
 #ifdef CFG_WITH_ARM_TRUSTED_FW

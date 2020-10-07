@@ -616,3 +616,6 @@ CFG_TA_STRICT_ANNOTATION_CHECKS ?= y
 # When enabled accepts the DES key sizes excluding parity bits as in
 # the GP Internal API Specification v1.0
 CFG_COMPAT_GP10_DES ?= y
+
+# Defines a limit for many levels TAs may call each others.
+CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
