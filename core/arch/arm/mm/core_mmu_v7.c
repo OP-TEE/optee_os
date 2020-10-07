@@ -170,7 +170,7 @@
 
 #ifndef MAX_XLAT_TABLES
 #ifdef CFG_CORE_ASLR
-#	define XLAT_TABLE_ASLR_EXTRA 1
+#	define XLAT_TABLE_ASLR_EXTRA 2
 #else
 #	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
