@@ -53,4 +53,30 @@ TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 
 TEE_Result sm2_kdf(const uint8_t *Z, size_t Z_len, uint8_t *t, size_t tlen);
 
+#ifdef _CFG_CORE_LTC_SM2_DSA
+TEE_Result sm2_ltc_dsa_sign(uint32_t algo, struct ecc_keypair *key,
+			    const uint8_t *msg, size_t msg_len, uint8_t *sig,
+			    size_t *sig_len);
+
+TEE_Result sm2_ltc_dsa_verify(uint32_t algo, struct ecc_public_key *key,
+			      const uint8_t *msg, size_t msg_len,
+			      const uint8_t *sig, size_t sig_len);
+#else
+static inline TEE_Result
+sm2_ltc_dsa_sign(uint32_t algo __unused, struct ecc_keypair *key __unused,
+		 const uint8_t *msg __unused, size_t msg_len __unused,
+		 uint8_t *sig __unused, size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sm2_ltc_dsa_verify(uint32_t algo __unused, struct ecc_public_key *key __unused,
+		   const uint8_t *msg __unused, size_t msg_len __unused,
+		   const uint8_t *sig __unused, size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
 #endif /* ACIPHER_HELPERS_H */
