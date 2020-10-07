@@ -229,7 +229,7 @@ out_clr_cancel:
 	return res;
 }
 
-static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
+static TEE_Result init_with_ldelf(struct tee_ta_session *sess __maybe_unused,
 				  struct user_ta_ctx *utc)
 {
 	struct tee_ta_session *s __maybe_unused = NULL;
@@ -238,9 +238,6 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	uaddr_t usr_stack = 0;
-
-	/* Switch to user ctx */
-	tee_ta_push_current_session(sess);
 
 	usr_stack = utc->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
@@ -255,29 +252,26 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 	clear_vfp_state(utc);
 	if (panicked) {
 		abort_print_current_ta();
-		res = TEE_ERROR_GENERIC;
 		EMSG("ldelf panicked");
-		goto out;
+		return TEE_ERROR_GENERIC;
 	}
 	if (res) {
 		EMSG("ldelf failed with res: %#"PRIx32, res);
-		goto out;
+		return res;
 	}
 
 	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
 					  TEE_MEMORY_ACCESS_ANY_OWNER,
 					  (uaddr_t)arg, sizeof(*arg));
 	if (res)
-		goto out;
+		return res;
 
-	if (arg->flags & ~TA_FLAGS_MASK) {
-		/*
-		 * This is already checked by the elf loader, but since it
-		 * runs in user mode we're not trusting it entirely.
-		 */
-		res = TEE_ERROR_BAD_FORMAT;
-		goto out;
-	}
+	/*
+	 * This is already checked by the elf loader, but since it runs in
+	 * user mode we're not trusting it entirely.
+	 */
+	if (arg->flags & ~TA_FLAGS_MASK)
+		return TEE_ERROR_BAD_FORMAT;
 
 	utc->is_32bit = arg->is_32bit;
 	utc->entry_func = arg->entry_func;
@@ -290,28 +284,12 @@ static TEE_Result init_with_ldelf(struct tee_ta_session *sess,
 #endif
 	utc->dl_entry_func = arg->dl_entry;
 
-out:
-	s = tee_ta_pop_current_session();
-	assert(s == sess);
-
-	return res;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result user_ta_enter_open_session(struct tee_ta_session *s,
 			struct tee_ta_param *param, TEE_ErrorOrigin *eo)
 {
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
-
-	if (utc->is_initializing) {
-		TEE_Result res = init_with_ldelf(s, utc);
-
-		if (res) {
-			*eo = TEE_ORIGIN_TEE;
-			return res;
-		}
-		utc->is_initializing = false;
-	}
-
 	return user_ta_enter(eo, s, UTEE_ENTRY_FUNC_OPEN_SESSION, 0, param);
 }
 
@@ -739,10 +717,9 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 				       struct tee_ta_session *s)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	struct user_ta_ctx *utc = NULL;
 
-	/* Register context */
 	utc = calloc(1, sizeof(struct user_ta_ctx));
 	if (!utc)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -753,6 +730,8 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
 	TAILQ_INIT(&utc->storage_enums);
+	condvar_init(&utc->uctx.ctx.busy_cv);
+	utc->uctx.ctx.ref_count = 1;
 
 	/*
 	 * Set context TA operation structure. It is required by generic
@@ -763,26 +742,50 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	utc->uctx.ctx.uuid = *uuid;
 	res = vm_info_init(&utc->uctx);
 	if (res)
-		goto err;
+		goto out;
 
+	mutex_lock(&tee_ta_mutex);
 	s->ctx = &utc->uctx.ctx;
-	tee_ta_push_current_session(s);
-	res = load_ldelf(utc);
-	tee_ta_pop_current_session();
-	if (res)
-		goto err;
-
-	utc->uctx.ctx.ref_count = 1;
-	condvar_init(&utc->uctx.ctx.busy_cv);
+	/*
+	 * Another thread trying to load this same TA may need to wait
+	 * until this context is fully initialized. This is needed to
+	 * handle single instance TAs.
+	 */
 	TAILQ_INSERT_TAIL(&tee_ctxes, &utc->uctx.ctx, link);
+	mutex_unlock(&tee_ta_mutex);
 
-	tee_mmu_set_ctx(NULL);
-	return TEE_SUCCESS;
+	/*
+	 * We must not hold tee_ta_mutex while allocating page tables as
+	 * that may otherwise lead to a deadlock.
+	 */
+	tee_ta_push_current_session(s);
 
-err:
-	s->ctx = NULL;
-	tee_mmu_set_ctx(NULL);
-	pgt_flush_ctx(&utc->uctx.ctx);
-	free_utc(utc);
+	res = load_ldelf(utc);
+	if (!res)
+		res = init_with_ldelf(s, utc);
+
+	tee_ta_pop_current_session();
+
+	mutex_lock(&tee_ta_mutex);
+
+	if (!res) {
+		utc->is_initializing = false;
+	} else {
+		s->ctx = NULL;
+		TAILQ_REMOVE(&tee_ctxes, &utc->uctx.ctx, link);
+	}
+
+	/* The state has changed for the context, notify eventual waiters. */
+	condvar_broadcast(&tee_ta_init_cv);
+
+	mutex_unlock(&tee_ta_mutex);
+
+out:
+	if (res) {
+		condvar_destroy(&utc->uctx.ctx.busy_cv);
+		pgt_flush_ctx(&utc->uctx.ctx);
+		free_utc(utc);
+	}
+
 	return res;
 }

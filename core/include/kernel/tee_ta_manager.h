@@ -119,6 +119,7 @@ struct tee_ta_session {
 extern struct tee_ta_ctx_head tee_ctxes;
 
 extern struct mutex tee_ta_mutex;
+extern struct condvar tee_ta_init_cv;
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,

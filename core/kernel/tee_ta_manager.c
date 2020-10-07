@@ -36,6 +36,8 @@
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
+/* This condvar is used when waiting for a TA context to become initialized */
+struct condvar tee_ta_init_cv = CONDVAR_INITIALIZER;
 struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
@@ -101,15 +103,6 @@ static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 		return true;
 
 	mutex_lock(&tee_ta_mutex);
-
-	if (ctx->initializing) {
-		/*
-		 * Context is still initializing and flags cannot be relied
-		 * on for user TAs. Wait here until it's initialized.
-		 */
-		while (ctx->busy)
-			condvar_wait(&ctx->busy_cv, &tee_ta_mutex);
-	}
 
 	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
 		lock_single_instance();
@@ -552,9 +545,28 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_ta_init_session_with_context(struct tee_ta_ctx *ctx,
-			struct tee_ta_session *s)
+static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
+						   const TEE_UUID *uuid)
 {
+	struct tee_ta_ctx *ctx = NULL;
+
+	while (true) {
+		ctx = tee_ta_context_find(uuid);
+		if (!ctx)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		if (!is_user_ta_ctx(ctx) ||
+		    !to_user_ta_ctx(ctx)->is_initializing)
+			break;
+		/*
+		 * Context is still initializing, wait here until it's
+		 * fully initialized. Note that we're searching for the
+		 * context again since it may have been removed while we
+		 * where sleeping.
+		 */
+		condvar_wait(&tee_ta_init_cv, &tee_ta_mutex);
+	}
+
 	/*
 	 * If TA isn't single instance it should be loaded as new
 	 * instance instead of doing anything with this instance.
@@ -610,7 +622,6 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 				struct tee_ta_session **sess)
 {
 	TEE_Result res;
-	struct tee_ta_ctx *ctx;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
 
 	*err = TEE_ORIGIN_TEE;
@@ -623,37 +634,32 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	s->lock_thread = THREAD_ID_INVALID;
 	s->ref_count = 1;
 
-
-	/*
-	 * We take the global TA mutex here and hold it while doing
-	 * RPC to load the TA. This big critical section should be broken
-	 * down into smaller pieces.
-	 */
-
-
 	mutex_lock(&tee_ta_mutex);
 	s->id = new_session_id(open_sessions);
 	if (!s->id) {
 		res = TEE_ERROR_OVERFLOW;
-		goto out;
+		goto err_mutex_unlock;
 	}
+
 	TAILQ_INSERT_TAIL(open_sessions, s, link);
 
 	/* Look for already loaded TA */
-	ctx = tee_ta_context_find(uuid);
-	if (ctx) {
-		res = tee_ta_init_session_with_context(ctx, s);
-		if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
-			goto out;
-	}
+	res = tee_ta_init_session_with_context(s, uuid);
+	mutex_unlock(&tee_ta_mutex);
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
 
 	/* Look for secure partition */
+	mutex_lock(&tee_ta_mutex);
 	res = sec_part_init_session(uuid, s);
+	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
 	/* Look for pseudo TA */
+	mutex_lock(&tee_ta_mutex);
 	res = tee_ta_init_pseudo_ta_session(uuid, s);
+	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
@@ -661,13 +667,16 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	res = tee_ta_init_user_ta_session(uuid, s);
 
 out:
-	if (res == TEE_SUCCESS) {
+	if (!res) {
 		*sess = s;
-	} else {
-		TAILQ_REMOVE(open_sessions, s, link);
-		free(s);
+		return TEE_SUCCESS;
 	}
+
+	mutex_lock(&tee_ta_mutex);
+	TAILQ_REMOVE(open_sessions, s, link);
+err_mutex_unlock:
 	mutex_unlock(&tee_ta_mutex);
+	free(s);
 	return res;
 }
 
