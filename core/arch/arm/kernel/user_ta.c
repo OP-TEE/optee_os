@@ -122,6 +122,28 @@ static void clear_vfp_state(struct user_ta_ctx *utc __unused)
 #endif
 }
 
+static bool inc_recursion(void)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	if (tsd->syscall_recursion >= CFG_CORE_MAX_SYSCALL_RECURSION) {
+		DMSG("Maximum allowed recursion depth reached (%u)",
+		     CFG_CORE_MAX_SYSCALL_RECURSION);
+		return false;
+	}
+
+	tsd->syscall_recursion++;
+	return true;
+}
+
+static void dec_recursion(void)
+{
+	struct thread_specific_data *tsd = thread_get_tsd();
+
+	assert(tsd->syscall_recursion);
+	tsd->syscall_recursion--;
+}
+
 static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 			struct tee_ta_session *session,
 			enum utee_entry_func func, uint32_t cmd,
@@ -135,10 +157,16 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 	struct tee_ta_session *s __maybe_unused = NULL;
 	void *param_va[TEE_NUM_PARAMS] = { NULL };
 
+	if (!inc_recursion()) {
+		/* Using this error code since we've run out of resources. */
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out_clr_cancel;
+	}
+
 	/* Map user space memory */
 	res = tee_mmu_map_param(&utc->uctx, param, param_va);
 	if (res != TEE_SUCCESS)
-		goto cleanup_return;
+		goto out;
 
 	/* Switch to user ctx */
 	tee_ta_push_current_session(session);
@@ -181,8 +209,10 @@ static TEE_Result user_ta_enter(TEE_ErrorOrigin *err,
 
 	s = tee_ta_pop_current_session();
 	assert(s == session);
-cleanup_return:
 
+out:
+	dec_recursion();
+out_clr_cancel:
 	/*
 	 * Clear the cancel state now that the user TA has returned. The next
 	 * time the TA will be invoked will be with a new operation and should
