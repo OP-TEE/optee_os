@@ -67,7 +67,7 @@ static struct scmi_msg_channel scmi_channel[] = {
 	},
 	[1] = {
 		.agent_name = "stm32mp1-agent-1",
-		.shm_addr =  { .pa = SMT_BUFFER1_BASE, },
+		.shm_addr = { .pa = SMT_BUFFER1_BASE, },
 		.shm_size = SMT_BUF_SLOT_SIZE,
 	},
 };
