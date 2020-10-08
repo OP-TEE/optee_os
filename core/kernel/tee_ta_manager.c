@@ -655,9 +655,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Look for pseudo TA */
-	mutex_lock(&tee_ta_mutex);
 	res = tee_ta_init_pseudo_ta_session(uuid, s);
-	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
