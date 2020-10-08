@@ -57,11 +57,11 @@
 #define DRAM0_SIZE		0x80000000
 
 /* Location of trusted dram */
-#define TZDRAM_BASE		0x60000000
-#define TZDRAM_SIZE		0x10000000
+#define TZDRAM_BASE		0x7e000000
+#define TZDRAM_SIZE		(28 * 1024 * 1024)
 
-#define TEE_SHMEM_START		0x70000000
-#define TEE_SHMEM_SIZE		0x10000000
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x20000
@@ -85,11 +85,11 @@
 #define DRAM0_SIZE		0x80000000
 
 /* Location of trusted dram */
-#define TZDRAM_BASE		0x60000000
-#define TZDRAM_SIZE		0x10000000
+#define TZDRAM_BASE		0x7e000000
+#define TZDRAM_SIZE		(28 * 1024 * 1024)
 
-#define TEE_SHMEM_START		0x70000000
-#define TEE_SHMEM_SIZE		0x10000000
+#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
+#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x20000
