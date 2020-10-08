@@ -300,12 +300,15 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	ctx = &stc->ctx;
 
 	ctx->ref_count = 1;
-	s->ctx = ctx;
 	ctx->flags = ta->flags;
 	stc->pseudo_ta = ta;
 	ctx->uuid = ta->uuid;
 	ctx->ops = &pseudo_ta_ops;
+
+	mutex_lock(&tee_ta_mutex);
+	s->ctx = ctx;
 	TAILQ_INSERT_TAIL(&tee_ctxes, ctx, link);
+	mutex_unlock(&tee_ta_mutex);
 
 	DMSG("%s : %pUl", stc->pseudo_ta->name, (void *)&ctx->uuid);
 
