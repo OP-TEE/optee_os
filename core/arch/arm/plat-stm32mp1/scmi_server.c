@@ -559,8 +559,8 @@ static int32_t pwr_set_level(struct stm32_scmi_voltd *voltd,
 }
 
 static int32_t pwr_describe_levels(struct stm32_scmi_voltd *voltd,
-				   unsigned long *microvolt,
-				   size_t start_index, size_t *nb_elts)
+				   size_t start_index, long *microvolt,
+				   size_t *nb_elts)
 {
 	if (start_index)
 		return SCMI_INVALID_PARAMETERS;
