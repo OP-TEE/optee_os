@@ -23,6 +23,7 @@
 
 #define SCMI_CLOCK_NAME_SIZE	16
 #define SCMI_RD_NAME_SIZE	16
+#define SCMI_VOLTD_NAME_SIZE	16
 
 /*
  * struct stm32_scmi_clk - Data for the exposed clock
@@ -44,6 +45,23 @@ struct stm32_scmi_clk {
 struct stm32_scmi_rd {
 	unsigned long reset_id;
 	const char *name;
+};
+
+enum voltd_device {
+	VOLTD_PWR,
+};
+
+/*
+ * struct stm32_scmi_voltd - Data for the exposed voltage domains
+ * @name: Power regulator string ID exposed to agent
+ * @priv_id: Internal string ID for the regulator
+ * @priv_dev: Internal ID for the device implementing the regulator
+ */
+struct stm32_scmi_voltd {
+	const char *name;
+	const char *priv_id;
+	enum voltd_device priv_dev;
+
 };
 
 /* Locate all non-secure SMT message buffers in last page of SYSRAM */
@@ -137,6 +155,13 @@ struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
 	RESET_CELL(RST_SCMI0_MCU_HOLD_BOOT, MCU_HOLD_BOOT_R, "mcu_hold_boot"),
 };
 
+#define VOLTD_CELL(_scmi_id, _dev_id, _priv_id, _name) \
+	[_scmi_id] = { \
+		.priv_id = (_priv_id), \
+		.priv_dev = (_dev_id), \
+		.name = (_name), \
+	}
+
 struct scmi_agent_resources {
 	struct stm32_scmi_clk *clock;
 	size_t clock_count;
@@ -146,6 +171,8 @@ struct scmi_agent_resources {
 	size_t pd_count;
 	struct stm32_scmi_perfs *perfs;
 	size_t perfs_count;
+	struct stm32_scmi_voltd *voltd;
+	size_t voltd_count;
 };
 
 const struct scmi_agent_resources agent_resources[] = {
@@ -198,6 +225,12 @@ static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
 	if (n < agent_count)
 		count++;
 
+	for (n = 0; n < agent_count; n++)
+		if (agent_resources[n].voltd_count)
+			break;
+	if (n < agent_count)
+		count++;
+
 	return count;
 }
 
@@ -218,6 +251,7 @@ const char *plat_scmi_sub_vendor_name(void)
 static const uint8_t plat_protocol_list[] = {
 	SCMI_PROTOCOL_ID_CLOCK,
 	SCMI_PROTOCOL_ID_RESET_DOMAIN,
+	SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN,
 	0 /* Null termination */
 };
 
@@ -248,7 +282,7 @@ static struct stm32_scmi_clk *find_clock(unsigned int agent_id,
 	size_t n = 0;
 
 	if (resource) {
-		for (n = 0U; n < resource->clock_count; n++)
+		for (n = 0; n < resource->clock_count; n++)
 			if (n == scmi_id)
 				return &resource->clock[n];
 	}
@@ -449,6 +483,124 @@ int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
 }
 
 /*
+ * Platform SCMI voltage domains
+ */
+static struct stm32_scmi_voltd *find_voltd(unsigned int agent_id,
+					   unsigned int scmi_id)
+{
+	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	size_t n = 0;
+
+	if (resource) {
+		for (n = 0; n < resource->voltd_count; n++)
+			if (n == scmi_id)
+				return &resource->voltd[n];
+	}
+
+	return NULL;
+}
+
+size_t plat_scmi_voltd_count(unsigned int agent_id)
+{
+	const struct scmi_agent_resources *resource = find_resource(agent_id);
+
+	if (!resource)
+		return 0;
+
+	return resource->voltd_count;
+}
+
+const char *plat_scmi_voltd_get_name(unsigned int agent_id,
+				     unsigned int scmi_id)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+
+	/* Currently non-secure is allowed to access all PWR regulators */
+	if (!voltd)
+		return NULL;
+
+	return voltd->name;
+}
+
+int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
+				     unsigned int scmi_id,
+				     size_t start_index __unused,
+				     long *levels __unused,
+				     size_t *nb_elts __unused)
+
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+
+	if (!voltd)
+		return SCMI_NOT_FOUND;
+
+	switch (voltd->priv_dev) {
+	default:
+		return SCMI_GENERIC_ERROR;
+	}
+}
+
+long plat_scmi_voltd_get_level(unsigned int agent_id, unsigned int scmi_id)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+
+	if (!voltd)
+		return 0;
+
+	switch (voltd->priv_dev) {
+	default:
+		panic();
+	}
+}
+
+int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
+				  long level __unused)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+
+	if (!voltd)
+		return SCMI_NOT_FOUND;
+
+	switch (voltd->priv_dev) {
+	default:
+		return SCMI_GENERIC_ERROR;
+	}
+}
+
+int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
+				   uint32_t *config __unused)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+
+	if (!voltd)
+		return SCMI_NOT_FOUND;
+
+	switch (voltd->priv_dev) {
+	default:
+		return SCMI_GENERIC_ERROR;
+	}
+
+	return SCMI_SUCCESS;
+}
+
+int32_t plat_scmi_voltd_set_config(unsigned int agent_id, unsigned int scmi_id,
+				   uint32_t config __unused)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	int32_t rc = SCMI_SUCCESS;
+
+	if (!voltd)
+		return SCMI_NOT_FOUND;
+
+	switch (voltd->priv_dev) {
+	default:
+		return SCMI_GENERIC_ERROR;
+	}
+
+	return rc;
+}
+
+/*
  * Initialize platform SCMI resources
  */
 static TEE_Result stm32mp1_init_scmi_server(void)
@@ -489,6 +641,14 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 			if (!rd->name ||
 			    strlen(rd->name) >= SCMI_RD_NAME_SIZE)
 				panic("SCMI reset domain name invalid");
+		}
+
+		for (j = 0; j < res->voltd_count; j++) {
+			struct stm32_scmi_voltd *voltd = &res->voltd[j];
+
+			if (!voltd->name ||
+			    strlen(voltd->name) >= SCMI_VOLTD_NAME_SIZE)
+				panic("SCMI voltage domain name invalid");
 		}
 	}
 

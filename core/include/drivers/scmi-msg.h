@@ -17,6 +17,10 @@
 /* Minimum size expected for SMT based shared memory message buffers */
 #define SMT_BUF_SLOT_SIZE	128
 
+/* Standard values for SCMI voltage domain protocol configuration state */
+#define SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON	0x7
+#define SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_OFF	0
+
 /* A channel abstract a communication path between agent and server */
 struct scmi_msg_channel;
 
