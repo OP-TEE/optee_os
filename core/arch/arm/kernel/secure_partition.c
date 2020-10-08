@@ -276,7 +276,10 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 
 	spc->is_initializing = true;
 
+	mutex_lock(&tee_ta_mutex);
 	sess->ctx = &spc->uctx.ctx;
+	mutex_unlock(&tee_ta_mutex);
+
 	tee_ta_push_current_session(sess);
 	res = load_stmm(spc);
 	tee_ta_pop_current_session();
@@ -288,8 +291,10 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 		return res;
 	}
 
+	mutex_lock(&tee_ta_mutex);
 	spc->is_initializing = false;
 	TAILQ_INSERT_TAIL(&tee_ctxes, &spc->uctx.ctx, link);
+	mutex_unlock(&tee_ta_mutex);
 
 	return TEE_SUCCESS;
 }

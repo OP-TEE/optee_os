@@ -650,9 +650,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Look for secure partition */
-	mutex_lock(&tee_ta_mutex);
 	res = sec_part_init_session(uuid, s);
-	mutex_unlock(&tee_ta_mutex);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
