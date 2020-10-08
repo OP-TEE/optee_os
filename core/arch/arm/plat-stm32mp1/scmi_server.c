@@ -6,7 +6,9 @@
 #include <compiler.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
+#include <drivers/stm32mp1_pwr.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
+#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
 #include <initcall.h>
 #include <mm/core_memprot.h>
@@ -162,6 +164,12 @@ struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
 		.name = (_name), \
 	}
 
+struct stm32_scmi_voltd scmi0_voltage_domain[] = {
+	VOLTD_CELL(VOLTD_SCMI0_REG11, VOLTD_PWR, "0", "reg11"),
+	VOLTD_CELL(VOLTD_SCMI0_REG18, VOLTD_PWR, "1", "reg18"),
+	VOLTD_CELL(VOLTD_SCMI0_USB33, VOLTD_PWR, "2", "usb33"),
+};
+
 struct scmi_agent_resources {
 	struct stm32_scmi_clk *clock;
 	size_t clock_count;
@@ -181,6 +189,8 @@ const struct scmi_agent_resources agent_resources[] = {
 		.clock_count = ARRAY_SIZE(stm32_scmi0_clock),
 		.rd = stm32_scmi0_reset_domain,
 		.rd_count = ARRAY_SIZE(stm32_scmi0_reset_domain),
+		.voltd = scmi0_voltage_domain,
+		.voltd_count = ARRAY_SIZE(scmi0_voltage_domain),
 	},
 	[1] = {
 		.clock = stm32_scmi1_clock,
@@ -522,10 +532,73 @@ const char *plat_scmi_voltd_get_name(unsigned int agent_id,
 	return voltd->name;
 }
 
+static enum pwr_regulator pwr_scmi_to_regu_id(struct stm32_scmi_voltd *voltd)
+{
+	size_t id = voltd->priv_id[0] - '0';
+
+	assert(id < PWR_REGU_COUNT);
+	return id;
+}
+
+static unsigned long pwr_get_level(struct stm32_scmi_voltd *voltd)
+{
+	enum pwr_regulator regu_id = pwr_scmi_to_regu_id(voltd);
+
+	return stm32mp1_pwr_regulator_mv(regu_id) * 1000;
+}
+
+static int32_t pwr_set_level(struct stm32_scmi_voltd *voltd,
+			     unsigned long level_uv)
+{
+	enum pwr_regulator regu_id = pwr_scmi_to_regu_id(voltd);
+
+	if (level_uv != stm32mp1_pwr_regulator_mv(regu_id) * 1000)
+		return SCMI_INVALID_PARAMETERS;
+
+	return SCMI_SUCCESS;
+}
+
+static int32_t pwr_describe_levels(struct stm32_scmi_voltd *voltd,
+				   unsigned long *microvolt,
+				   size_t start_index, size_t *nb_elts)
+{
+	if (start_index)
+		return SCMI_INVALID_PARAMETERS;
+
+	if (!microvolt) {
+		*nb_elts = 1;
+		return SCMI_SUCCESS;
+	}
+
+	if (*nb_elts < 1)
+		return SCMI_GENERIC_ERROR;
+
+	*nb_elts = 1;
+	*microvolt = pwr_get_level(voltd);
+
+	return SCMI_SUCCESS;
+}
+
+static bool pwr_get_state(struct stm32_scmi_voltd *voltd)
+{
+	enum pwr_regulator regu_id = pwr_scmi_to_regu_id(voltd);
+
+	return stm32mp1_pwr_regulator_is_enable(regu_id);
+}
+
+static void pwr_set_state(struct stm32_scmi_voltd *voltd, bool enable)
+{
+	enum pwr_regulator regu_id = pwr_scmi_to_regu_id(voltd);
+
+	DMSG("%sable PWR %s (was %s)", enable ? "En" : "Dis", voltd->name,
+	     stm32mp1_pwr_regulator_is_enable(regu_id) ? "on" : "off");
+
+	stm32mp1_pwr_regulator_set_state(regu_id, enable);
+}
+
 int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
 				     unsigned int scmi_id, unsigned long *array,
 				     size_t start_index, size_t *nb_elts)
-
 {
 	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
 
@@ -533,6 +606,8 @@ int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
 		return SCMI_NOT_FOUND;
 
 	switch (voltd->priv_dev) {
+	case VOLTD_PWR:
+		return pwr_describe_levels(voltd, array, start_index, nb_elts);
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
@@ -547,6 +622,8 @@ unsigned long plat_scmi_voltd_get_level(unsigned int agent_id,
 		return 0;
 
 	switch (voltd->priv_dev) {
+	case VOLTD_PWR:
+		return pwr_get_level(voltd);
 	default:
 		panic();
 	}
@@ -561,6 +638,8 @@ int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
 		return SCMI_NOT_FOUND;
 
 	switch (voltd->priv_dev) {
+	case VOLTD_PWR:
+		return pwr_set_level(voltd, level);
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
@@ -575,6 +654,9 @@ int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
 		return SCMI_NOT_FOUND;
 
 	switch (voltd->priv_dev) {
+	case VOLTD_PWR:
+		*config = pwr_get_state(voltd);
+		break;
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
@@ -592,6 +674,9 @@ int32_t plat_scmi_voltd_set_config(unsigned int agent_id, unsigned int scmi_id,
 		return SCMI_NOT_FOUND;
 
 	switch (voltd->priv_dev) {
+	case VOLTD_PWR:
+		pwr_set_state(voltd, config);
+		break;
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
