@@ -19,8 +19,10 @@ static inline bool is_user_mode_ctx(struct ts_ctx *ctx)
 
 static inline struct user_mode_ctx *to_user_mode_ctx(struct ts_ctx *ctx)
 {
-	assert(is_user_mode_ctx(ctx));
-	return container_of(ctx, struct user_mode_ctx, ctx.ts_ctx);
+	if (is_user_ta_ctx(ctx))
+		return &to_user_ta_ctx(ctx)->uctx;
+	else
+		return &to_sec_part_ctx(ctx)->uctx;
 }
 
 void user_mode_ctx_print_mappings(struct user_mode_ctx *umctx);

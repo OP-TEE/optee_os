@@ -769,7 +769,7 @@ TEE_Result tee_pager_add_um_area(struct user_mode_ctx *uctx, vaddr_t base,
 	struct tee_pager_area *area = NULL;
 	struct core_mmu_table_info dir_info = { NULL };
 
-	if (&uctx->ctx.ts_ctx != tsd->ctx) {
+	if (uctx->ts_ctx != tsd->ctx) {
 		/*
 		 * Changes are to an utc that isn't active. Just add the
 		 * areas page tables will be dealt with later.

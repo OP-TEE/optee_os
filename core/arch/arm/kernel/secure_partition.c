@@ -51,10 +51,11 @@ static struct sec_part_ctx *sec_part_alloc_ctx(const TEE_UUID *uuid)
 	if (!spc)
 		return NULL;
 
-	spc->uctx.ctx.ts_ctx.ops = &secure_partition_ops;
-	spc->uctx.ctx.ts_ctx.uuid = *uuid;
-	spc->uctx.ctx.flags = TA_FLAG_SINGLE_INSTANCE |
-			      TA_FLAG_INSTANCE_KEEP_ALIVE;
+	spc->ta_ctx.ts_ctx.ops = &secure_partition_ops;
+	spc->ta_ctx.ts_ctx.uuid = *uuid;
+	spc->ta_ctx.flags = TA_FLAG_SINGLE_INSTANCE |
+			    TA_FLAG_INSTANCE_KEEP_ALIVE;
+	spc->uctx.ts_ctx = &spc->ta_ctx.ts_ctx;
 
 	res = vm_info_init(&spc->uctx);
 	if (res) {
@@ -62,8 +63,8 @@ static struct sec_part_ctx *sec_part_alloc_ctx(const TEE_UUID *uuid)
 		return NULL;
 	}
 
-	spc->uctx.ctx.ref_count = 1;
-	condvar_init(&spc->uctx.ctx.busy_cv);
+	spc->ta_ctx.ref_count = 1;
+	condvar_init(&spc->ta_ctx.busy_cv);
 
 	return spc;
 }
@@ -199,7 +200,7 @@ static TEE_Result load_stmm(struct sec_part_ctx *spc)
 	stack_addr = heap_addr + stmm_heap_size;
 	sec_buf_addr = stack_addr + stmm_stack_size;
 
-	tee_mmu_set_ctx(&spc->uctx.ctx.ts_ctx);
+	tee_mmu_set_ctx(&spc->ta_ctx.ts_ctx);
 	uncompress_image((void *)image_addr, stmm_image_uncompressed_size,
 			 stmm_image, stmm_image_size);
 
@@ -277,7 +278,7 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 	spc->is_initializing = true;
 
 	mutex_lock(&tee_ta_mutex);
-	sess->ts_sess.ctx = &spc->uctx.ctx.ts_ctx;
+	sess->ts_sess.ctx = &spc->ta_ctx.ts_ctx;
 	mutex_unlock(&tee_ta_mutex);
 
 	ts_push_current_session(&sess->ts_sess);
@@ -286,14 +287,14 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 	tee_mmu_set_ctx(NULL);
 	if (res) {
 		sess->ts_sess.ctx = NULL;
-		spc->uctx.ctx.ts_ctx.ops->destroy(&spc->uctx.ctx.ts_ctx);
+		spc->ta_ctx.ts_ctx.ops->destroy(&spc->ta_ctx.ts_ctx);
 
 		return res;
 	}
 
 	mutex_lock(&tee_ta_mutex);
 	spc->is_initializing = false;
-	TAILQ_INSERT_TAIL(&tee_ctxes, &spc->uctx.ctx, link);
+	TAILQ_INSERT_TAIL(&tee_ctxes, &spc->ta_ctx, link);
 	mutex_unlock(&tee_ta_mutex);
 
 	return TEE_SUCCESS;

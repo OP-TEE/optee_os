@@ -59,6 +59,7 @@ struct user_ta_ctx {
 	vaddr_t stack_ptr;
 	void *ta_time_offs;
 	struct user_mode_ctx uctx;
+	struct tee_ta_ctx ta_ctx;
 };
 
 #ifdef CFG_WITH_USER_TA
@@ -73,7 +74,7 @@ static inline bool is_user_ta_ctx(struct ts_ctx *ctx __unused)
 static inline struct user_ta_ctx *to_user_ta_ctx(struct ts_ctx *ctx)
 {
 	assert(is_user_ta_ctx(ctx));
-	return container_of(ctx, struct user_ta_ctx, uctx.ctx.ts_ctx);
+	return container_of(ctx, struct user_ta_ctx, ta_ctx.ts_ctx);
 }
 
 struct user_ta_store_ops;

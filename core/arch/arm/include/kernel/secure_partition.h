@@ -126,6 +126,7 @@ struct secure_partition_boot_info {
 
 struct sec_part_ctx {
 	struct user_mode_ctx uctx;
+	struct tee_ta_ctx ta_ctx;
 	struct thread_ctx_regs regs;
 	vaddr_t ns_comm_buf_addr;
 	unsigned int ns_comm_buf_size;
@@ -143,7 +144,7 @@ static inline bool is_sp_ctx(struct ts_ctx *ctx __maybe_unused)
 static inline struct sec_part_ctx *to_sec_part_ctx(struct ts_ctx *ctx)
 {
 	assert(is_sp_ctx(ctx));
-	return container_of(ctx, struct sec_part_ctx, uctx.ctx.ts_ctx);
+	return container_of(ctx, struct sec_part_ctx, ta_ctx.ts_ctx);
 }
 
 #ifdef CFG_WITH_SECURE_PARTITION
