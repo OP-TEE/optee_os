@@ -63,7 +63,7 @@ struct tee_storage_enum {
 };
 
 static TEE_Result tee_svc_storage_get_enum(struct user_ta_ctx *utc,
-					   uint32_t enum_id,
+					   vaddr_t enum_id,
 					   struct tee_storage_enum **e_out)
 {
 	struct tee_storage_enum *e;

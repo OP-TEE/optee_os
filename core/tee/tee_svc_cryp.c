@@ -2039,7 +2039,7 @@ out:
 }
 
 static TEE_Result tee_svc_cryp_get_state(struct tee_ta_session *sess,
-					 uint32_t state_id,
+					 vaddr_t state_id,
 					 struct tee_cryp_state **state)
 {
 	struct tee_cryp_state *s;
