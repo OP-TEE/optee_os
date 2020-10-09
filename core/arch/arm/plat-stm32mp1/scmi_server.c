@@ -109,7 +109,7 @@ struct scmi_msg_channel *plat_scmi_get_channel(unsigned int agent_id)
 		.enabled = _init_enabled, \
 	}
 
-struct stm32_scmi_clk stm32_scmi0_clock[] = {
+static struct stm32_scmi_clk stm32_scmi0_clock[] = {
 	CLOCK_CELL(CK_SCMI0_HSE, CK_HSE, "ck_hse", true),
 	CLOCK_CELL(CK_SCMI0_HSI, CK_HSI, "ck_hsi", true),
 	CLOCK_CELL(CK_SCMI0_CSI, CK_CSI, "ck_csi", true),
@@ -133,7 +133,7 @@ struct stm32_scmi_clk stm32_scmi0_clock[] = {
 	CLOCK_CELL(CK_SCMI0_USART1, USART1_K, "usart1_k", false),
 };
 
-struct stm32_scmi_clk stm32_scmi1_clock[] = {
+static struct stm32_scmi_clk stm32_scmi1_clock[] = {
 	CLOCK_CELL(CK_SCMI1_PLL3_Q, PLL3_Q, "pll3_q", true),
 	CLOCK_CELL(CK_SCMI1_PLL3_R, PLL3_R, "pll3_r", true),
 	CLOCK_CELL(CK_SCMI1_MCU, CK_MCU, "ck_mcu", false),
@@ -145,7 +145,7 @@ struct stm32_scmi_clk stm32_scmi1_clock[] = {
 		.name = _name, \
 	}
 
-struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
+static struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
 	RESET_CELL(RST_SCMI0_SPI6, SPI6_R, "spi6"),
 	RESET_CELL(RST_SCMI0_I2C4, I2C4_R, "i2c4"),
 	RESET_CELL(RST_SCMI0_I2C6, I2C6_R, "i2c6"),
@@ -190,7 +190,7 @@ struct scmi_agent_resources {
 	size_t voltd_count;
 };
 
-const struct scmi_agent_resources agent_resources[] = {
+static const struct scmi_agent_resources agent_resources[] = {
 	[0] = {
 		.clock = stm32_scmi0_clock,
 		.clock_count = ARRAY_SIZE(stm32_scmi0_clock),
