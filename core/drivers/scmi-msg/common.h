@@ -16,7 +16,7 @@
 #include "clock.h"
 #include "reset_domain.h"
 
-#define SCMI_VERSION			0x20000
+#define SCMI_VERSION			0x30000
 #define SCMI_IMPL_VERSION		0
 
 #define SCMI_PLAYLOAD_MAX		92
