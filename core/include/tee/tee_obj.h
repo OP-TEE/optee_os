@@ -6,9 +6,10 @@
 #ifndef TEE_OBJ_H
 #define TEE_OBJ_H
 
-#include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
 #include <sys/queue.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 
 #define TEE_USAGE_DEFAULT   0xffffffff
 
@@ -25,7 +26,7 @@ struct tee_obj {
 
 void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o);
 
-TEE_Result tee_obj_get(struct user_ta_ctx *utc, uint32_t obj_id,
+TEE_Result tee_obj_get(struct user_ta_ctx *utc, vaddr_t obj_id,
 		       struct tee_obj **obj);
 
 void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o);
