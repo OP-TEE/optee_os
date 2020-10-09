@@ -182,10 +182,6 @@ struct scmi_agent_resources {
 	size_t clock_count;
 	struct stm32_scmi_rd *rd;
 	size_t rd_count;
-	struct stm32_scmi_pd *pd;
-	size_t pd_count;
-	struct stm32_scmi_perfs *perfs;
-	size_t perfs_count;
 	struct stm32_scmi_voltd *voltd;
 	size_t voltd_count;
 };
@@ -226,18 +222,6 @@ static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
 
 	for (n = 0; n < agent_count; n++)
 		if (agent_resources[n].rd_count)
-			break;
-	if (n < agent_count)
-		count++;
-
-	for (n = 0; n < agent_count; n++)
-		if (agent_resources[n].pd_count)
-			break;
-	if (n < agent_count)
-		count++;
-
-	for (n = 0; n < agent_count; n++)
-		if (agent_resources[n].perfs_count)
 			break;
 	if (n < agent_count)
 		count++;
