@@ -16,7 +16,7 @@ struct user_mode_ctx {
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif
-	struct tee_ta_ctx ctx;
+	struct ts_ctx *ts_ctx;
 };
 #endif /*__KERNEL_USER_MODE_CTX_STRUCT_H*/
 
