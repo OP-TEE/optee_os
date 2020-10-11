@@ -44,7 +44,7 @@ static vaddr_t wdog_base;
 
 void imx_wdog_restart(void)
 {
-	uint32_t val;
+	uint32_t val = 0;
 
 	if (!wdog_base) {
 		EMSG("No wdog mapped\n");
@@ -89,14 +89,10 @@ DECLARE_KEEP_PAGER(imx_wdog_restart);
 #if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
-	enum teecore_memtypes mtype;
-	void *fdt;
-	paddr_t pbase;
-	vaddr_t vbase;
-	ssize_t sz;
-	int off;
-	int st;
-	uint32_t i;
+	enum teecore_memtypes mtype = MEM_AREA_END;
+	void *fdt = NULL;
+	paddr_t pbase = 0;
+	vaddr_t vbase = 0;
 
 #ifdef CFG_MX7
 	static const char * const wdog_path[] = {
@@ -116,6 +112,10 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 		"/soc/aips-bus@2000000/wdog@20c0000",
 	};
 #endif
+	ssize_t sz = 0;
+	int off = 0;
+	int st = 0;
+	uint32_t i = 0;
 
 	fdt = get_dt();
 	if (!fdt) {
