@@ -42,6 +42,11 @@
 static bool ext_reset;
 static vaddr_t wdog_base;
 
+static const char * const dt_wdog_match_table[] = {
+	"fsl,imx21-wdt",
+	"fsl,imx7ulp-wdt",
+};
+
 void imx_wdog_restart(void)
 {
 	uint32_t val = 0;
@@ -89,30 +94,11 @@ DECLARE_KEEP_PAGER(imx_wdog_restart);
 #if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
-	enum teecore_memtypes mtype = MEM_AREA_END;
+	const char *match = NULL;
 	void *fdt = NULL;
-	paddr_t pbase = 0;
 	vaddr_t vbase = 0;
-
-#ifdef CFG_MX7
-	static const char * const wdog_path[] = {
-		"/soc/aips-bus@30000000/wdog@30280000",
-		"/soc/aips-bus@30000000/wdog@30290000",
-		"/soc/aips-bus@30000000/wdog@302a0000",
-		"/soc/aips-bus@30000000/wdog@302b0000",
-	};
-#elif defined CFG_MX7ULP
-	static const char * const wdog_path[] = {
-		"/ahb-bridge0@40000000/wdog@403D0000",
-		"/ahb-bridge0@40000000/wdog@40430000",
-	};
-#else
-	static const char * const wdog_path[] = {
-		"/soc/aips-bus@2000000/wdog@20bc000",
-		"/soc/aips-bus@2000000/wdog@20c0000",
-	};
-#endif
-	ssize_t sz = 0;
+	int found_off = 0;
+	size_t sz = 0;
 	int off = 0;
 	int st = 0;
 	uint32_t i = 0;
@@ -124,53 +110,36 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	}
 
 	/* search the first usable wdog */
-	for (i = 0; i < ARRAY_SIZE(wdog_path); i++) {
-		off = fdt_path_offset(fdt, wdog_path[i]);
-		if (off < 0)
-			continue;
-
-		st = _fdt_get_status(fdt, off);
-		if (st & DT_STATUS_OK_SEC)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(wdog_path))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	DMSG("path: %s\n", wdog_path[i]);
-
-	ext_reset = dt_have_prop(fdt, off, "fsl,ext-reset-output");
-
-	pbase = _fdt_reg_base_address(fdt, off);
-	if (pbase == (paddr_t)-1)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	sz = _fdt_reg_size(fdt, off);
-	if (sz < 0)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
-		mtype = MEM_AREA_IO_SEC;
-	else
-		mtype = MEM_AREA_IO_NSEC;
-
-	/*
-	 * Check to see whether it has been mapped using
-	 * register_phys_mem or not.
-	 */
-	vbase = (vaddr_t)phys_to_virt(pbase, mtype);
-	if (!vbase) {
-		if (!core_mmu_add_mapping(mtype, pbase, sz)) {
-			EMSG("Failed to map %zu bytes at PA 0x%"PRIxPA,
-			     (size_t)sz, pbase);
-			return TEE_ERROR_GENERIC;
+	for (i = 0; i < ARRAY_SIZE(dt_wdog_match_table); i++) {
+		match = dt_wdog_match_table[i];
+		off = 0;
+		while (off >= 0) {
+			off = fdt_node_offset_by_compatible(fdt, off, match);
+			if (off > 0) {
+				st = _fdt_get_status(fdt, off);
+				if (st & DT_STATUS_OK_SEC) {
+					DMSG("Wdog found at %u", off);
+					found_off = off;
+					break;
+				}
+			}
 		}
+		if (found_off)
+			break;
+		else
+			DMSG("%s not found in DTB", dt_wdog_match_table[i]);
 	}
 
-	vbase = (vaddr_t)phys_to_virt(pbase, mtype);
-	if (!vbase) {
-		EMSG("Failed to get VA for PA 0x%"PRIxPA, pbase);
-		return TEE_ERROR_GENERIC;
+	if (!found_off) {
+		EMSG("No Watchdog found in DTB\n");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	ext_reset = dt_have_prop(fdt, found_off, "fsl,ext-reset-output");
+
+	if (dt_map_dev(fdt, found_off, &vbase, &sz) < 0) {
+		EMSG("Failed to map Watchdog\n");
+		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
 	*wdog_vbase = vbase;
