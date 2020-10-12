@@ -571,7 +571,7 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 
 		if (rawdata->blk_idx) {
 			/* Check the block index is within range. */
-			if ((*rawdata->blk_idx + nbr_frms) >
+			if ((*rawdata->blk_idx + nbr_frms - 1) >
 			    rpmb_ctx->max_blk_idx) {
 				res = TEE_ERROR_GENERIC;
 				goto func_exit;
