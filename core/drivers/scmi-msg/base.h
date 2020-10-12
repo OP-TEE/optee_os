@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <types_ext.h>
 
+#include "common.h"
+
 #define SCMI_PROTOCOL_VERSION_BASE	0x20000
 
 #define SCMI_DEFAULT_STRING_LENGTH	16
@@ -72,5 +74,12 @@ struct scmi_base_discover_list_protocols_p2a {
 	uint32_t num_protocols;
 	uint32_t protocols[];
 };
+
+/*
+ * scmi_msg_get_base_handler - Return a handler for a base message
+ * @msg - message to process
+ * Return a function handler for the message or NULL
+ */
+scmi_msg_handler_t scmi_msg_get_base_handler(struct scmi_msg *msg);
 
 #endif /* SCMI_MSG_BASE_H */

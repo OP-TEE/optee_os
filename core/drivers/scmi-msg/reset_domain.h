@@ -12,6 +12,8 @@
 #include <types_ext.h>
 #include <util.h>
 
+#include "common.h"
+
 #define SCMI_PROTOCOL_VERSION_RESET_DOMAIN	0x10000
 
 #define SCMI_RESET_STATE_ARCH			BIT(31)
@@ -120,4 +122,18 @@ struct scmi_reset_domain_issued_p2a {
 	uint32_t reset_state;
 };
 
+#ifdef CFG_SCMI_MSG_RESET_DOMAIN
+/*
+ * scmi_msg_get_rd_handler - Return a handler for a reset domain message
+ * @msg - message to process
+ * Return a function handler for the message or NULL
+ */
+scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg);
+#else
+static inline
+scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg __unused)
+{
+	return NULL;
+}
+#endif
 #endif /* SCMI_MSG_RESET_DOMAIN_H */

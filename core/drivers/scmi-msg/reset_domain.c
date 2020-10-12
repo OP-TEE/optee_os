@@ -11,6 +11,7 @@
 #include <util.h>
 
 #include "common.h"
+#include "reset_domain.h"
 
 static bool message_id_is_supported(unsigned int message_id);
 
