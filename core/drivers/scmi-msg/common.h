@@ -12,10 +12,6 @@
 #include <string.h>
 #include <types_ext.h>
 
-#include "base.h"
-#include "clock.h"
-#include "reset_domain.h"
-
 #define SCMI_VERSION			0x30000
 #define SCMI_IMPL_VERSION		0
 
@@ -89,58 +85,6 @@ struct scmi_msg {
  * the handler function for the incoming message ID.
  */
 typedef void (*scmi_msg_handler_t)(struct scmi_msg *msg);
-
-/*
- * scmi_msg_get_base_handler - Return a handler for a base message
- * @msg - message to process
- * Return a function handler for the message or NULL
- */
-scmi_msg_handler_t scmi_msg_get_base_handler(struct scmi_msg *msg);
-
-#ifdef CFG_SCMI_MSG_CLOCK
-/*
- * scmi_msg_get_clock_handler - Return a handler for a clock message
- * @msg - message to process
- * Return a function handler for the message or NULL
- */
-scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg);
-#else
-static inline
-scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg __unused)
-{
-	return NULL;
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_RESET_DOMAIN
-/*
- * scmi_msg_get_rd_handler - Return a handler for a reset domain message
- * @msg - message to process
- * Return a function handler for the message or NULL
- */
-scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg);
-#else
-static inline
-scmi_msg_handler_t scmi_msg_get_rd_handler(struct scmi_msg *msg __unused)
-{
-	return NULL;
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_VOLTAGE_DOMAIN
-/*
- * scmi_msg_get_voltd_handler - Return a handler for a voltage domain message
- * @msg - message to process
- * Return a function handler for the message or NULL
- */
-scmi_msg_handler_t scmi_msg_get_voltd_handler(struct scmi_msg *msg);
-#else
-static inline
-scmi_msg_handler_t scmi_msg_get_voltd_handler(struct scmi_msg *msg __unused)
-{
-	return NULL;
-}
-#endif
 
 /*
  * Process Read, process and write response for input SCMI message

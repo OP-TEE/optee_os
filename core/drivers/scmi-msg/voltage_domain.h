@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <util.h>
 
+#include "common.h"
+
 #define SCMI_PROTOCOL_VERSION_VOLTAGE_DOMAIN	0x30000
 
 /*
@@ -116,4 +118,18 @@ struct scmi_voltd_config_get_p2a {
 	uint32_t config;
 };
 
+#ifdef CFG_SCMI_MSG_VOLTAGE_DOMAIN
+/*
+ * scmi_msg_get_voltd_handler - Return a handler for a voltage domain message
+ * @msg - message to process
+ * Return a function handler for the message or NULL
+ */
+scmi_msg_handler_t scmi_msg_get_voltd_handler(struct scmi_msg *msg);
+#else
+static inline
+scmi_msg_handler_t scmi_msg_get_voltd_handler(struct scmi_msg *msg __unused)
+{
+	return NULL;
+}
+#endif
 #endif /* SCMI_MSG_CLOCK_H */

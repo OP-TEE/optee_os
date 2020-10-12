@@ -7,7 +7,11 @@
 #include <drivers/scmi.h>
 #include <trace.h>
 
+#include "base.h"
+#include "clock.h"
 #include "common.h"
+#include "reset_domain.h"
+#include "voltage_domain.h"
 
 void scmi_status_response(struct scmi_msg *msg, int32_t status)
 {

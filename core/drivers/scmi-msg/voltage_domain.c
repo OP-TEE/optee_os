@@ -11,8 +11,8 @@
 #include <string.h>
 #include <util.h>
 
-#include "voltage_domain.h"
 #include "common.h"
+#include "voltage_domain.h"
 
 static bool message_id_is_supported(unsigned int message_id);
 
