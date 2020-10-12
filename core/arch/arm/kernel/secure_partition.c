@@ -743,7 +743,8 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	switch (regs->x0) {
 	case FFA_VERSION:
 		DMSG("Received FFA version");
-		regs->x0 = FFA_VERSION;
+		regs->x0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR,
+					    FFA_VERSION_MINOR);
 		return true;
 	case FFA_MSG_SEND_DIRECT_RESP_64:
 		DMSG("Received FFA direct response");
