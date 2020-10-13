@@ -55,8 +55,11 @@ link-ldflags += --eh-frame-hdr
 link-ldadd += $(libstdc++$(sm)) $(libgcc_eh$(sm))
 endif
 link-ldadd += --end-group
-ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
+link-ldadd-after-libgcc += $(addprefix -l,$(libnames-after-libgcc))
+
+ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) \
+				$(libgcc$(sm)) $(link-ldadd-after-libgcc)
 
 link-script-cppflags-$(sm) := \
 	$(filter-out $(CPPFLAGS_REMOVE) $(cppflags-remove), \
@@ -76,6 +79,7 @@ $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefi
 		$(link-script-cppflags-$(sm)) $$< -o $$@
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
+					  $(libdeps-after-libgcc) \
 					  $(link-script-pp$(sm)) \
 					  $(dynlistdep) \
 					  $(additional-link-deps)
