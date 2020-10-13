@@ -7,7 +7,7 @@ $(if $($(_var_name)),$(1),$(2))
 endef
 cc-option = $(strip $(call _cc-option,$(1),$(2)))
 
-_ld-option-supported = $(if $(shell $(LD$(sm)) -v $(1) 2>/dev/null >/dev/null || echo "Not supported"),,1)
+_ld-option-supported = $(if $(shell $(LD$(sm)) -v $(1) 2>&1 | grep warning || echo "Not supported"),,1)
 _ld-opt-cached-var-name = $(subst =,~,$(subst $(empty) $(empty),,$(strip cached-ld-option-$(1)-$(LD$(sm)))))
 define _ld-option
 $(eval _var_name := $(call _ld-opt-cached-var-name,$(1)))
