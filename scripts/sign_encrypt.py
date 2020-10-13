@@ -147,10 +147,16 @@ def get_args(logger):
 
 
 def main():
-    from Cryptodome.Signature import pss
-    from Cryptodome.Signature import pkcs1_15
-    from Cryptodome.Hash import SHA256
-    from Cryptodome.PublicKey import RSA
+    try:
+        from Cryptodome.Signature import pss
+        from Cryptodome.Signature import pkcs1_15
+        from Cryptodome.Hash import SHA256
+        from Cryptodome.PublicKey import RSA
+    except ImportError:
+        from Crypto.Signature import pss
+        from Crypto.Signature import pkcs1_15
+        from Crypto.Hash import SHA256
+        from Crypto.PublicKey import RSA
     import base64
     import logging
     import os
