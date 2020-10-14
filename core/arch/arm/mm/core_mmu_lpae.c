@@ -356,15 +356,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static void check_nsec_ddr_max_pa(void)
-{
-	const struct core_mmu_phys_mem *mem;
-
-	for (mem = phys_nsec_ddr_begin; mem < phys_nsec_ddr_end; mem++)
-		if (!core_mmu_check_end_pa(mem->addr, mem->size))
-			panic();
-}
-
 #ifdef CFG_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void)
 {
@@ -481,8 +472,6 @@ void core_init_mmu(struct tee_mmap_region *mm)
 			   sizeof(l1_xlation_table) / 2);
 #endif
 	COMPILE_TIME_ASSERT(XLAT_TABLES_SIZE == sizeof(xlat_tables));
-
-	check_nsec_ddr_max_pa();
 
 	/* Initialize default pagetables */
 	core_init_mmu_prtn(&default_partition, mm);

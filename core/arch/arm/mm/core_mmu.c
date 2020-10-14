@@ -383,10 +383,19 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
 
 	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
-		if (map->type == MEM_AREA_NSEC_SHM)
+		switch (map->type) {
+		case MEM_AREA_NSEC_SHM:
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
-		else if (map->type != MEM_AREA_EXT_DT)
+			break;
+		case MEM_AREA_EXT_DT:
+		case MEM_AREA_RES_VASPACE:
+		case MEM_AREA_SHM_VASPACE:
+		case MEM_AREA_TA_VASPACE:
+		case MEM_AREA_PAGER_VASPACE:
+			break;
+		default:
 			check_phys_mem_is_outside(m, num_elems, map);
+		}
 	}
 
 	discovered_nsec_ddr_start = m;
@@ -414,10 +423,8 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf, size_t len)
 	const struct core_mmu_phys_mem *start;
 	const struct core_mmu_phys_mem *end;
 
-	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = phys_nsec_ddr_begin;
-		end = phys_nsec_ddr_end;
-	}
+	if (!get_discovered_nsec_ddr(&start, &end))
+		return false;
 
 	return pbuf_is_special_mem(pbuf, len, start, end);
 }
@@ -427,10 +434,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 	const struct core_mmu_phys_mem *start;
 	const struct core_mmu_phys_mem *end;
 
-	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = phys_nsec_ddr_begin;
-		end = phys_nsec_ddr_end;
-	}
+	if (!get_discovered_nsec_ddr(&start, &end))
+		return false;
 
 	return start != end;
 }
@@ -473,31 +478,6 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 			panic("can't create SDP physical memory object");
 	}
 	return mobj_base;
-}
-
-static void check_sdp_intersection_with_nsec_ddr(void)
-{
-	const struct core_mmu_phys_mem *sdp_start = phys_sdp_mem_begin;
-	const struct core_mmu_phys_mem *sdp_end = phys_sdp_mem_end;
-	const struct core_mmu_phys_mem *ddr_start = phys_nsec_ddr_begin;
-	const struct core_mmu_phys_mem *ddr_end = phys_nsec_ddr_end;
-	const struct core_mmu_phys_mem *sdp;
-	const struct core_mmu_phys_mem *nsec_ddr;
-
-	if (sdp_start == sdp_end || ddr_start == ddr_end)
-		return;
-
-	for (sdp = sdp_start; sdp < sdp_end; sdp++) {
-		for (nsec_ddr = ddr_start; nsec_ddr < ddr_end; nsec_ddr++) {
-			if (core_is_buffer_intersect(sdp->addr, sdp->size,
-					     nsec_ddr->addr, nsec_ddr->size)) {
-				MSG_MEM_INSTERSECT(sdp->addr, sdp->size,
-						   nsec_ddr->addr,
-						   nsec_ddr->size);
-				panic("SDP <-> NSEC DDR memory intersection");
-			}
-		}
-	}
 }
 
 #else /* CFG_SECURE_DATA_PATH */
@@ -544,17 +524,9 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	/*
 	 * Check memories do not intersect any mapped memory.
 	 * This is called before reserved VA space is loaded in mem_map.
-	 *
-	 * Only exception is with MEM_AREA_RAM_NSEC and MEM_AREA_NSEC_SHM,
-	 * which may overlap since they are used for the same purpose
-	 * except that MEM_AREA_NSEC_SHM is always mapped and
-	 * MEM_AREA_RAM_NSEC only uses a dynamic mapping.
 	 */
 	for (mem = start; mem < end; mem++) {
 		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
-			if (mem->type == MEM_AREA_RAM_NSEC &&
-			    mmap->type == MEM_AREA_NSEC_SHM)
-				continue;
 			if (core_is_buffer_intersect(mem->addr, mem->size,
 						     mmap->pa, mmap->size)) {
 				MSG_MEM_INSTERSECT(mem->addr, mem->size,
@@ -868,15 +840,10 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
 
-#ifdef CFG_SECURE_DATA_PATH
-	verify_special_mem_areas(memory_map, num_elems, phys_sdp_mem_begin,
-				 phys_sdp_mem_end, "SDP");
-
-	check_sdp_intersection_with_nsec_ddr();
-#endif
-
-	verify_special_mem_areas(memory_map, num_elems, phys_nsec_ddr_begin,
-				 phys_nsec_ddr_end, "NSEC DDR");
+	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
+		verify_special_mem_areas(memory_map, num_elems,
+					 phys_sdp_mem_begin,
+					 phys_sdp_mem_end, "SDP");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     CFG_RESERVED_VASPACE_SIZE, &last);
