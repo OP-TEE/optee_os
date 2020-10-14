@@ -966,7 +966,7 @@ static int get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
 
 			l = get_dt_val_and_advance(prop, &prop_offs, len_size);
 			if (mem) {
-				mem->type = MEM_AREA_RAM_NSEC;
+				mem->type = MEM_AREA_DDR_OVERALL;
 				mem->addr = a;
 				mem->size = l;
 				mem++;
@@ -1116,6 +1116,8 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 static void discover_nsec_memory(void)
 {
 	struct core_mmu_phys_mem *mem;
+	const struct core_mmu_phys_mem *mem_begin = NULL;
+	const struct core_mmu_phys_mem *mem_end = NULL;
 	size_t nelems;
 	void *fdt = get_external_dt();
 
@@ -1129,12 +1131,24 @@ static void discover_nsec_memory(void)
 		DMSG("No non-secure memory found in FDT");
 	}
 
-	nelems = phys_ddr_overall_end - phys_ddr_overall_begin;
-	if (!nelems)
-		return;
-
-	/* Platform cannot define nsec_ddr && overall_ddr */
-	assert(phys_nsec_ddr_begin == phys_nsec_ddr_end);
+	mem_begin = phys_ddr_overall_begin;
+	mem_end = phys_ddr_overall_end;
+	nelems = mem_end - mem_begin;
+	if (nelems) {
+		/*
+		 * Platform cannot use both register_ddr() and the now
+		 * deprecated register_dynamic_shm().
+		 */
+		assert(phys_ddr_overall_compat_begin ==
+		       phys_ddr_overall_compat_end);
+	} else {
+		mem_begin = phys_ddr_overall_compat_begin;
+		mem_end = phys_ddr_overall_compat_end;
+		nelems = mem_end - mem_begin;
+		if (!nelems)
+			return;
+		DMSG("Warning register_dynamic_shm() is deprecated, please use register_ddr() instead");
+	}
 
 	mem = nex_calloc(nelems, sizeof(*mem));
 	if (!mem)
