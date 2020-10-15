@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2017, Linaro Limited
+# Copyright (c) 2017, 2020, Linaro Limited
 #
 
 import argparse
@@ -74,11 +74,22 @@ def main():
     f = open(args.out, 'w')
     f.write('/* Generated from ' + args.ta + ' by ' +
             os.path.basename(__file__) + ' */\n\n')
-    f.write('#include <compiler.h>\n')
     f.write('#include <kernel/early_ta.h>\n\n')
-    f.write('__extension__ const struct early_ta __early_ta_' +
-            ta_uuid.hex +
-            '\n__early_ta __aligned(__alignof__(struct early_ta)) = {\n')
+    f.write('#include <scattered_array.h>\n\n')
+    f.write('const uint8_t ta_bin_' + ta_uuid.hex + '[] = {\n')
+    i = 0
+    while i < size:
+        if i % 8 == 0:
+            f.write('\t\t')
+        f.write(hex(bytes[i]) + ',')
+        i = i + 1
+        if i % 8 == 0 or i == size:
+            f.write('\n')
+        else:
+            f.write(' ')
+    f.write('};\n')
+
+    f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct early_ta) = {\n')
     f.write('\t.flags = 0x{:04x},\n'.format(ta_get_flags(args.ta)))
     f.write('\t.uuid = {\n')
     f.write('\t\t.timeLow = 0x{:08x},\n'.format(ta_uuid.time_low))
@@ -91,22 +102,12 @@ def main():
     f.write('\t\t\t')
     f.write(', '.join('0x' + csn[i:i + 2] for i in range(0, len(csn), 2)))
     f.write('\n\t\t},\n\t},\n')
-    f.write('\t.size = {:d},\n'.format(size))
+    f.write('\t.size = sizeof(ta_bin_' + ta_uuid.hex +
+            '), /* {:d} */\n'.format(size))
+    f.write('\t.ta = ta_bin_' + ta_uuid.hex + ',\n')
     if args.compress:
         f.write('\t.uncompressed_size = '
                 '{:d},\n'.format(uncompressed_size))
-    f.write('\t.ta = {\n')
-    i = 0
-    while i < size:
-        if i % 8 == 0:
-            f.write('\t\t')
-        f.write(hex(bytes[i]) + ',')
-        i = i + 1
-        if i % 8 == 0 or i == size:
-            f.write('\n')
-        else:
-            f.write(' ')
-    f.write('\t},\n')
     f.write('};\n')
     f.close()
 
