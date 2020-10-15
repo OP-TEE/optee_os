@@ -298,12 +298,16 @@ DECLARE_KEEP_INIT _start
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 		assert_flat_mapped_range (\vbase), (\line)
 		bl	pl310_base
-		ldr	r1, \vbase
-		ldr	r2, \vend
+		ldr	r1, =\vbase
+		ldr	r1, [r1]
+		ldr	r2, =\vend
+		ldr	r2, [r2]
 		bl	arm_cl2_invbypa
 #endif
-		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r0, =\vbase
+		ldr	r0, [r0]
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_inv_range
 	.endm
@@ -311,17 +315,23 @@ DECLARE_KEEP_INIT _start
 	.macro __flush_cache_vrange vbase, vend, line
 #if defined(CFG_PL310) && !defined(CFG_PL310_SIP_PROTOCOL)
 		assert_flat_mapped_range (\vbase), (\line)
-		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r0, =\vbase
+		ldr	r0, [r0]
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_clean_range
 		bl	pl310_base
-		ldr	r1, \vbase
-		ldr	r2, \vend
+		ldr	r1, =\vbase
+		ldr	r1, [r1]
+		ldr	r2, =\vend
+		ldr	r1, [r2]
 		bl	arm_cl2_cleaninvbypa
 #endif
-		ldr	r0, \vbase
-		ldr	r1, \vend
+		ldr	r0, =\vbase
+		ldr	r0, [r0]
+		ldr	r1, =\vend
+		ldr	r1, [r1]
 		sub	r1, r1, r0
 		bl	dcache_cleaninv_range
 	.endm
@@ -364,7 +374,8 @@ UNWIND(	.cantunwind)
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2		/* __init_start + len */
 	add	r1, r1, r2		/* __data_end + len */
-	str	r0, cached_mem_end
+	ldr	r3, =cached_mem_end
+	str	r0, [r3]
 	ldr	r2, =__init_start
 copy_init:
 	ldmdb	r1!, {r3, r8-r12}
@@ -384,7 +395,8 @@ copy_init:
 	/* Copy backwards (as memmove) in case we're overlapping */
 	add	r0, r0, r2
 	add	r1, r1, r2
-	str	r0, cached_mem_end
+	ldr	r3, =cached_mem_end
+	str	r0, [r3]
 	ldr	r2, =__end
 
 copy_init:
@@ -498,9 +510,10 @@ shadow_stack_access_ok:
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
 	 */
-	ldr	r2, cached_mem_end
+	ldr	r3, =cached_mem_end
+	ldr	r2, [r3]
 	add	r2, r2, r0
-	str	r2, cached_mem_end
+	str	r2, [r3]
 
 	bl	relocate
 #endif
@@ -598,9 +611,17 @@ LOCAL_DATA cached_mem_start , :
 	.word	__text_start
 END_DATA cached_mem_start
 
+/*
+ * cached_mem_end is written to at boot time so it should not be in .text. .bss
+ * is not appropriate either since cached_mem_end is set before clear_bss().
+ * .nozi is the place for such uninitialized data.
+ * Note: cached_mem_start is not written to, so it can remain in .text.
+ */
+.pushsection .nozi.cached_mem_end
 LOCAL_DATA cached_mem_end , :
 	.skip	4
 END_DATA cached_mem_end
+.popsection
 
 LOCAL_FUNC unhandled_cpu , :
 	wfi
