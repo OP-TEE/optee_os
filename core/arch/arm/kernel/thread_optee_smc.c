@@ -523,15 +523,23 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 {
 	struct mobj *mobj = NULL;
 	uint64_t cookie = 0;
+	size_t size = 0;
+	paddr_t pa = 0;
 
 	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
+		pa = arg->params[0].u.tmem.buf_ptr;
+		size = arg->params[0].u.tmem.size;
 		cookie = arg->params[0].u.tmem.shm_ref;
-		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size,
-				      cookie);
+
+		if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
+			mobj = mobj_shm_alloc(pa, size, cookie);
+#ifdef CFG_CORE_DYN_SHM
+		else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
+			mobj = mobj_mapped_shm_alloc(&pa, 1, 0, cookie);
+#endif
 	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 					   OPTEE_MSG_ATTR_NONCONTIG)) {
 		paddr_t p = arg->params[0].u.tmem.buf_ptr;
