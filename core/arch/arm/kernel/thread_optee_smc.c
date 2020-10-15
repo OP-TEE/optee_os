@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <io.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
@@ -283,6 +284,19 @@ out:
 	return rv;
 }
 
+static struct mobj *rpc_shm_mobj_alloc(paddr_t pa, size_t sz, uint64_t cookie)
+{
+	/* Check if this region is in static shared space */
+	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, sz))
+		return mobj_shm_alloc(pa, sz, cookie);
+
+	if (IS_ENABLED(CFG_CORE_DYN_SHM) &&
+	    !(pa & SMALL_PAGE_MASK) && sz <= SMALL_PAGE_SIZE)
+		return mobj_mapped_shm_alloc(&pa, 1, 0, cookie);
+
+	return NULL;
+}
+
 /**
  * Allocates data for struct optee_msg_arg.
  *
@@ -309,14 +323,7 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 	if (!ALIGNMENT_IS_OK(pa, struct optee_msg_arg))
 		goto err;
 
-	/* Check if this region is in static shared space */
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
-		mobj = mobj_shm_alloc(pa, size, co);
-#ifdef CFG_CORE_DYN_SHM
-	else if ((!(pa & SMALL_PAGE_MASK)) && size <= SMALL_PAGE_SIZE)
-		mobj = mobj_mapped_shm_alloc(&pa, 1, 0, co);
-#endif
-
+	mobj = rpc_shm_mobj_alloc(pa, size, co);
 	if (!mobj)
 		goto err;
 
@@ -523,25 +530,25 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 {
 	struct mobj *mobj = NULL;
 	uint64_t cookie = 0;
+	size_t sz = 0;
+	paddr_t p = 0;
 
 	if (arg->ret || arg->num_params != 1)
 		return NULL;
 
-	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT) {
-		cookie = arg->params[0].u.tmem.shm_ref;
-		mobj = mobj_shm_alloc(arg->params[0].u.tmem.buf_ptr,
-				      arg->params[0].u.tmem.size,
-				      cookie);
-	} else if (arg->params[0].attr == (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
-					   OPTEE_MSG_ATTR_NONCONTIG)) {
-		paddr_t p = arg->params[0].u.tmem.buf_ptr;
-		size_t sz = arg->params[0].u.tmem.size;
-
-		cookie = arg->params[0].u.tmem.shm_ref;
-		mobj = msg_param_mobj_from_noncontig(p, sz, cookie, true);
-	} else {
+	if (arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT  &&
+	    arg->params[0].attr != (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
+				    OPTEE_MSG_ATTR_NONCONTIG))
 		return NULL;
-	}
+
+	p = arg->params[0].u.tmem.buf_ptr;
+	sz = arg->params[0].u.tmem.size;
+	cookie = arg->params[0].u.tmem.shm_ref;
+
+	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
+		mobj = rpc_shm_mobj_alloc(p, sz, cookie);
+	else
+		mobj = msg_param_mobj_from_noncontig(p, sz, cookie, true);
 
 	if (!mobj) {
 		thread_rpc_free(bt, cookie, mobj);
@@ -587,6 +594,14 @@ struct mobj *thread_rpc_alloc_payload(size_t size)
 
 struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
 {
+	/*
+	 * Error out early since kernel private dynamic shared memory
+	 * allocations don't currently use the `OPTEE_MSG_ATTR_NONCONTIG` bit
+	 * and therefore cannot be larger than a page.
+	 */
+	if (IS_ENABLED(CFG_CORE_DYN_SHM) && size > SMALL_PAGE_SIZE)
+		return NULL;
+
 	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_KERNEL);
 }
 
