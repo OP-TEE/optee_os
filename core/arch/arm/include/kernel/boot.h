@@ -40,7 +40,7 @@ struct boot_embdata {
 };
 
 extern uint8_t embedded_secure_dtb[];
-extern const struct core_mmu_config boot_mmu_config;
+extern struct core_mmu_config boot_mmu_config;
 
 /* @nsec_entry is unused if using CFG_WITH_ARM_TRUSTED_FW */
 void boot_init_primary(unsigned long pageable_part, unsigned long nsec_entry,

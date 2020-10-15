@@ -38,6 +38,8 @@
 #define DEBUG_XLAT_TABLE 0
 #endif
 
+struct core_mmu_config boot_mmu_config;
+
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
 /*

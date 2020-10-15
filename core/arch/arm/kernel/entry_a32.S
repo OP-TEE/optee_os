@@ -557,7 +557,8 @@ shadow_stack_access_ok:
 	 * Compensate for the load offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	r1, =boot_mmu_config
+	ldr	r1, [r1, #CORE_MMU_CONFIG_LOAD_OFFSET]
 	sub	r0, r0, r1
 	bl	ffa_secondary_cpu_boot_req
 	b	thread_ffa_msg_wait
@@ -670,7 +671,9 @@ END_FUNC relocate
  */
 LOCAL_FUNC enable_mmu , : , .identity_map
 	/* r0 = core pos */
-	adr	r1, boot_mmu_config
+	adr	r2, boot_mmu_config_rel
+	ldr	r1, [r2]
+	add	r1, r1, r2
 
 #ifdef CFG_WITH_LPAE
 	ldm	r1!, {r2, r3}
@@ -784,9 +787,9 @@ LOCAL_DATA stack_tmp_stride_rel , :
 	.word	stack_tmp_stride - stack_tmp_stride_rel
 END_DATA stack_tmp_stride_rel
 
-DATA boot_mmu_config , : /* struct core_mmu_config */
-	.skip	CORE_MMU_CONFIG_SIZE
-END_DATA boot_mmu_config
+LOCAL_DATA boot_mmu_config_rel , :
+	.word	boot_mmu_config - boot_mmu_config_rel
+END_DATA boot_mmu_config_rel
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 FUNC cpu_on_handler , : , .identity_map
@@ -836,7 +839,9 @@ UNWIND(	.cantunwind)
 	 * this CPU yet we need to restore the corresponding physical
 	 * address.
 	 */
-	adr	r0, boot_mmu_config
+	adr	r1, boot_mmu_config_rel
+	ldr	r0, [r1]
+	add	r0, r0, r1
 	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
 	sub	sp, sp, r0
 #endif
