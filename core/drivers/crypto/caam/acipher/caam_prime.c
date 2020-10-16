@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * CAAM Prime Numbering.
  * Implementation of Prime Number functions
@@ -17,14 +17,15 @@
 
 #include "local.h"
 
-#define RSA_TRY_FAIL    0x42
+#define RSA_MAX_TRIES_PRIMES 100
+#define MAX_RETRY_PRIME_GEN  1000
+
+#define RSA_TRY_FAIL	0x42
 #define RETRY_TOO_SMALL 0x2A
 
 #define STATUS_GOOD_Q   0xCA
 
 #define MR_PRIME_SIZE 1536
-
-#define MAX_RETRY_PRIME_GEN 5000
 
 #ifdef CFG_CAAM_64BIT
 #define SETUP_RSA_DESC_ENTRIES   20
@@ -369,9 +370,9 @@ static void search_smallprime(size_t size, struct caambuf *prime)
  * @small_prime  Pre-generated small prime value
  * @desc_prime   Physical address of the prime generator descriptor
  */
-static enum caam_status do_desc_setup(uint32_t *desc, struct prime_data *data,
-				      const struct caambuf *small_prime,
-				      const paddr_t desc_prime)
+static void do_desc_setup(uint32_t *desc, struct prime_data *data,
+			  const struct caambuf *small_prime,
+			  const paddr_t desc_prime)
 {
 	/*
 	 * Referring to FIPS.186-4, B.3.3 (step 4.7)
@@ -439,8 +440,6 @@ static enum caam_status do_desc_setup(uint32_t *desc, struct prime_data *data,
 
 	RSA_DUMPDESC(desc);
 	cache_operation(TEE_CACHECLEAN, (void *)sqrt_value, data->p->length);
-
-	return CAAM_NO_ERROR;
 }
 
 /*
@@ -719,12 +718,65 @@ static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
 	RSA_DUMPDESC(desc);
 }
 
+/*
+ * Run the Primes descriptor.
+ *
+ * @desc   Descriptor built
+ * @prime  Prime generation data
+ */
+static enum caam_status run_primes(uint32_t *desc, struct prime_data *prime)
+{
+	enum caam_status retstatus = CAAM_FAILURE;
+	struct caam_jobctx jobctx = {};
+
+	cache_operation(TEE_CACHEFLUSH, prime->p->data, prime->p->length);
+
+	if (prime->q)
+		cache_operation(TEE_CACHEFLUSH, prime->q->data,
+				prime->q->length);
+
+	jobctx.desc = desc;
+	retstatus = caam_jr_enqueue(&jobctx, NULL);
+
+	if (prime->q && retstatus == CAAM_JOB_STATUS) {
+		/*
+		 * Expect to have a retstatus == CAAM_JOB_STATUS, where
+		 * job status == STATUS_GOOD_Q
+		 */
+		RSA_TRACE("Check Prime Q Status 0x%08" PRIx32, jobctx.status);
+
+		if (JRSTA_GET_HALT_USER(jobctx.status) == STATUS_GOOD_Q) {
+			cache_operation(TEE_CACHEINVALIDATE, prime->p->data,
+					prime->p->length);
+			cache_operation(TEE_CACHEINVALIDATE, prime->q->data,
+					prime->q->length);
+
+			RSA_DUMPBUF("Prime P", prime->p->data,
+				    prime->p->length);
+			RSA_DUMPBUF("Prime Q", prime->q->data,
+				    prime->q->length);
+			retstatus = CAAM_NO_ERROR;
+		}
+	} else if (retstatus == CAAM_NO_ERROR && !prime->q) {
+		cache_operation(TEE_CACHEINVALIDATE, prime->p->data,
+				prime->p->length);
+
+		RSA_DUMPBUF("Prime", prime->p->data, prime->p->length);
+	}
+
+	if (retstatus != CAAM_NO_ERROR) {
+		RSA_TRACE("Prime Status 0x%08" PRIx32, jobctx.status);
+		retstatus = CAAM_FAILURE;
+	}
+
+	return retstatus;
+}
+
 enum caam_status caam_prime_gen(struct prime_data *data)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caambuf small_prime = { };
 	struct caambuf max_n = { };
-	struct caam_jobctx jobctx = { };
 	uint32_t *all_descs = NULL;
 	uint32_t *desc_p = NULL;
 	uint32_t *desc_q = NULL;
@@ -733,6 +785,7 @@ enum caam_status caam_prime_gen(struct prime_data *data)
 	paddr_t paddr_desc_q = 0;
 	paddr_t paddr_desc_check_p_q = 0;
 	size_t size_all_descs = 0;
+	size_t nb_tries = RSA_MAX_TRIES_PRIMES;
 
 	/* Allocate the job used to prepare the operation */
 	if (data->q) {
@@ -776,7 +829,7 @@ enum caam_status caam_prime_gen(struct prime_data *data)
 		  ")",
 		  data->p->length, data->key_size, data->era);
 
-	retstatus = do_desc_setup(all_descs, data, &small_prime, paddr_desc_p);
+	do_desc_setup(all_descs, data, &small_prime, paddr_desc_p);
 
 	if (data->q) {
 		/* Descriptor Prime Q */
@@ -802,48 +855,12 @@ enum caam_status caam_prime_gen(struct prime_data *data)
 
 	cache_operation(TEE_CACHECLEAN, small_prime.data, data->p->length);
 	cache_operation(TEE_CACHECLEAN, data->e->data, data->e->length);
-	cache_operation(TEE_CACHEFLUSH, data->p->data, data->p->length);
-
-	if (data->q)
-		cache_operation(TEE_CACHEFLUSH, data->q->data, data->q->length);
-
-	jobctx.desc = all_descs;
-
 	cache_operation(TEE_CACHECLEAN, (void *)all_descs,
 			DESC_SZBYTES(size_all_descs));
 
-	retstatus = caam_jr_enqueue(&jobctx, NULL);
-
-	if (data->q && retstatus == CAAM_JOB_STATUS) {
-		/*
-		 * Expect to have a retstatus == CAAM_JOB_STATUS, where
-		 * job status == STATUS_GOOD_Q
-		 */
-		RSA_TRACE("Check Prime Q Status 0x%08" PRIx32, jobctx.status);
-
-		if (JRSTA_GET_HALT_USER(jobctx.status) == STATUS_GOOD_Q) {
-			cache_operation(TEE_CACHEINVALIDATE, data->p->data,
-					data->p->length);
-			cache_operation(TEE_CACHEINVALIDATE, data->q->data,
-					data->q->length);
-
-			RSA_DUMPBUF("Prime P", data->p->data, data->p->length);
-			RSA_DUMPBUF("Prime Q", data->q->data, data->q->length);
-			retstatus = CAAM_NO_ERROR;
-			goto end_gen_prime;
-		}
-	} else if (retstatus == CAAM_NO_ERROR && !data->q) {
-		cache_operation(TEE_CACHEINVALIDATE, data->p->data,
-				data->p->length);
-
-		RSA_DUMPBUF("Prime", data->p->data, data->p->length);
-
-		retstatus = CAAM_NO_ERROR;
-		goto end_gen_prime;
-	}
-
-	RSA_TRACE("Prime Status 0x%08" PRIx32, jobctx.status);
-	retstatus = CAAM_FAILURE;
+	for (retstatus = CAAM_FAILURE;
+	     nb_tries > 0 && retstatus != CAAM_NO_ERROR; nb_tries--)
+		retstatus = run_primes(all_descs, data);
 
 end_gen_prime:
 	caam_free_desc(&all_descs);
