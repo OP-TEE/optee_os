@@ -90,23 +90,26 @@ struct mem_frag_state {
 };
 
 /*
- * If @rxtx_size is 0 RX/TX buffers are not mapped or initialized.
+ * If struct ffa_rxtx::size is 0 RX/TX buffers are not mapped or initialized.
  *
- * @rxtx_spinlock protects the variables below from concurrent access
- * this includes the use of content of @rx_buf and @frag_state_head.
+ * struct ffa_rxtx::spin_lock protects the variables below from concurrent
+ * access this includes the use of content of struct ffa_rxtx::rx and
+ * @frag_state_head.
  *
- * @tx_buf_is_mine is true when we may write to tx_buf and false when it is
- * owned by normal world.
+ * struct ffa_rxtx::tx_buf_is_mine is true when we may write to struct
+ * ffa_rxtx::tx and false when it is owned by normal world.
  *
  * Note that we can't prevent normal world from updating the content of
  * these buffers so we must always be careful when reading. while we hold
  * the lock.
  */
-static void *rx_buf;
-static void *tx_buf;
-static unsigned int rxtx_size;
-static unsigned int rxtx_spinlock;
-static bool tx_buf_is_mine;
+
+static struct ffa_rxtx nw_rxtx;
+
+static bool is_nw_buf(struct ffa_rxtx *rxtx)
+{
+	return rxtx == &nw_rxtx;
+}
 
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
@@ -220,7 +223,7 @@ static void unmap_buf(void *va, size_t sz)
 	tee_mm_free(mm);
 }
 
-static void handle_rxtx_map(struct thread_smc_args *args)
+void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
 	uint32_t ret_fid = FFA_ERROR;
@@ -230,7 +233,7 @@ static void handle_rxtx_map(struct thread_smc_args *args)
 	void *rx = NULL;
 	void *tx = NULL;
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 
 	if (args->a3 & GENMASK_64(63, 6)) {
 		rc = FFA_INVALID_PARAMETERS;
@@ -246,71 +249,95 @@ static void handle_rxtx_map(struct thread_smc_args *args)
 	tx_pa = args->a2;
 	rx_pa = args->a1;
 
-	if (rxtx_size) {
+	if (rxtx->size) {
 		rc = FFA_DENIED;
 		goto out;
 	}
 
-	rc = map_buf(tx_pa, sz, &tx);
-	if (rc)
-		goto out;
-	rc = map_buf(rx_pa, sz, &rx);
-	if (rc) {
-		unmap_buf(tx, sz);
-		goto out;
+	/*
+	 * If the buffer comes from a SP the address is virtual and already
+	 * mapped.
+	 */
+	if (is_nw_buf(rxtx)) {
+		rc = map_buf(tx_pa, sz, &tx);
+		if (rc)
+			goto out;
+		rc = map_buf(rx_pa, sz, &rx);
+		if (rc) {
+			unmap_buf(tx, sz);
+			goto out;
+		}
+		rxtx->tx = tx;
+		rxtx->rx = rx;
+	} else {
+		if ((tx_pa & SMALL_PAGE_MASK) || (rx_pa & SMALL_PAGE_MASK)) {
+			rc = FFA_INVALID_PARAMETERS;
+			goto out;
+		}
+
+		if (!virt_to_phys((void *)tx_pa) ||
+		    !virt_to_phys((void *)rx_pa)) {
+			rc = FFA_INVALID_PARAMETERS;
+			goto out;
+		}
+
+		rxtx->tx = (void *)tx_pa;
+		rxtx->rx = (void *)rx_pa;
 	}
 
-	tx_buf = tx;
-	rx_buf = rx;
-	rxtx_size = sz;
-	tx_buf_is_mine = true;
+	rxtx->size = sz;
+	rxtx->tx_is_mine = true;
 	ret_fid = FFA_SUCCESS_32;
 	DMSG("Mapped tx %#"PRIxPA" size %#x @ %p", tx_pa, sz, tx);
 	DMSG("Mapped rx %#"PRIxPA" size %#x @ %p", rx_pa, sz, rx);
 out:
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
 		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_rxtx_unmap(struct thread_smc_args *args)
+void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_fid = FFA_ERROR;
 	int rc = FFA_INVALID_PARAMETERS;
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 
-	if (!rxtx_size)
+	if (!rxtx->size)
 		goto out;
-	unmap_buf(rx_buf, rxtx_size);
-	unmap_buf(tx_buf, rxtx_size);
-	rxtx_size = 0;
-	rx_buf = NULL;
-	tx_buf = NULL;
+
+	/* We don't unmap the SP memory as the SP might still use it */
+	if (is_nw_buf(rxtx)) {
+		unmap_buf(rxtx->rx, rxtx->size);
+		unmap_buf(rxtx->tx, rxtx->size);
+	}
+	rxtx->size = 0;
+	rxtx->rx = NULL;
+	rxtx->tx = NULL;
 	ret_fid = FFA_SUCCESS_32;
 	rc = 0;
 out:
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
 		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
-static void handle_rx_release(struct thread_smc_args *args)
+void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_fid = 0;
 	int rc = 0;
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 	/* The senders RX is our TX */
-	if (!rxtx_size || tx_buf_is_mine) {
+	if (!rxtx->size || rxtx->tx_is_mine) {
 		ret_fid = FFA_ERROR;
 		rc = FFA_DENIED;
 	} else {
 		ret_fid = FFA_SUCCESS_32;
 		rc = 0;
-		tx_buf_is_mine = true;
+		rxtx->tx_is_mine = true;
 	}
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 
 	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
 		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
@@ -329,7 +356,8 @@ static bool is_optee_os_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 	       w3 == OPTEE_MSG_OS_OPTEE_UUID_3;
 }
 
-static void handle_partition_info_get(struct thread_smc_args *args)
+static void handle_partition_info_get(struct thread_smc_args *args,
+				      struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_fid = 0;
 	int rc = 0;
@@ -341,9 +369,9 @@ static void handle_partition_info_get(struct thread_smc_args *args)
 		goto out;
 	}
 
-	cpu_spin_lock(&rxtx_spinlock);
-	if (rxtx_size && tx_buf_is_mine) {
-		struct ffa_partition_info *fpi = tx_buf;
+	cpu_spin_lock(&rxtx->spinlock);
+	if (rxtx->size && rxtx->tx_is_mine) {
+		struct ffa_partition_info *fpi = rxtx->tx;
 
 		fpi->id = SPMC_ENDPOINT_ID;
 		fpi->execution_context = CFG_TEE_CORE_NB_CORE;
@@ -351,15 +379,15 @@ static void handle_partition_info_get(struct thread_smc_args *args)
 
 		ret_fid = FFA_SUCCESS_32;
 		rc = 1;
-		tx_buf_is_mine = false;
+		rxtx->tx_is_mine = false;
 	} else {
 		ret_fid = FFA_ERROR;
-		if (rxtx_size)
+		if (rxtx->size)
 			rc = FFA_BUSY;
 		else
 			rc = FFA_DENIED; /* TX buffer not setup yet */
 	}
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 
 out:
 	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
@@ -607,7 +635,7 @@ err:
 
 static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 				 unsigned int page_count,
-				 uint64_t *global_handle)
+				 uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
 	size_t len = 0;
@@ -636,10 +664,10 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 		goto out;
 	}
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 	rc = add_mem_share(mm, (void *)(tee_mm_get_smem(mm) + offs), blen, flen,
 			   global_handle);
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 	if (rc > 0)
 		return rc;
 
@@ -650,21 +678,23 @@ out:
 }
 
 static int handle_mem_share_rxbuf(size_t blen, size_t flen,
-				  uint64_t *global_handle)
+				  uint64_t *global_handle,
+				  struct ffa_rxtx *rxtx)
 {
 	int rc = FFA_DENIED;
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 
-	if (rx_buf && flen <= rxtx_size)
-		rc = add_mem_share(NULL, rx_buf, blen, flen, global_handle);
+	if (rxtx->rx && flen <= rxtx->size)
+		rc = add_mem_share(NULL, rxtx->rx, blen, flen, global_handle);
 
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 
 	return rc;
 }
 
-static void handle_mem_share(struct thread_smc_args *args)
+static void handle_mem_share(struct thread_smc_args *args,
+			     struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_w1 = 0;
 	uint32_t ret_w2 = FFA_INVALID_PARAMETERS;
@@ -684,10 +714,11 @@ static void handle_mem_share(struct thread_smc_args *args)
 		 */
 		if (args->a4)
 			goto out;
-		rc = handle_mem_share_rxbuf(args->a1, args->a2, &global_handle);
+		rc = handle_mem_share_rxbuf(args->a1, args->a2, &global_handle,
+					    rxtx);
 	} else {
 		rc = handle_mem_share_tmem(args->a3, args->a1, args->a2,
-					   args->a4, &global_handle);
+					   args->a4, &global_handle, rxtx);
 	}
 	if (rc < 0) {
 		ret_w2 = rc;
@@ -715,7 +746,8 @@ static struct mem_frag_state *get_frag_state(uint64_t global_handle)
 	return NULL;
 }
 
-static void handle_mem_frag_tx(struct thread_smc_args *args)
+static void handle_mem_frag_tx(struct thread_smc_args *args,
+			       struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
 	uint64_t global_handle = reg_pair_to_64(READ_ONCE(args->a2),
@@ -735,7 +767,7 @@ static void handle_mem_frag_tx(struct thread_smc_args *args)
 	 * requests.
 	 */
 
-	cpu_spin_lock(&rxtx_spinlock);
+	cpu_spin_lock(&rxtx->spinlock);
 
 	s = get_frag_state(global_handle);
 	if (!s) {
@@ -752,16 +784,16 @@ static void handle_mem_frag_tx(struct thread_smc_args *args)
 		page_count = s->share.page_count;
 		buf = (void *)tee_mm_get_smem(mm);
 	} else {
-		if (flen > rxtx_size) {
+		if (flen > rxtx->size) {
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-		buf = rx_buf;
+		buf = rxtx->rx;
 	}
 
 	rc = add_mem_share_frag(s, buf, flen);
 out:
-	cpu_spin_unlock(&rxtx_spinlock);
+	cpu_spin_unlock(&rxtx->spinlock);
 
 	if (rc <= 0 && mm) {
 		core_mmu_unmap_pages(tee_mm_get_smem(mm), page_count);
@@ -827,16 +859,16 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_RXTX_MAP_64:
 #endif
 	case FFA_RXTX_MAP_32:
-		handle_rxtx_map(args);
+		spmc_handle_rxtx_map(args, &nw_rxtx);
 		break;
 	case FFA_RXTX_UNMAP:
-		handle_rxtx_unmap(args);
+		spmc_handle_rxtx_unmap(args, &nw_rxtx);
 		break;
 	case FFA_RX_RELEASE:
-		handle_rx_release(args);
+		spmc_handle_rx_release(args, &nw_rxtx);
 		break;
 	case FFA_PARTITION_INFO_GET:
-		handle_partition_info_get(args);
+		handle_partition_info_get(args, &nw_rxtx);
 		break;
 	case FFA_INTERRUPT:
 		itr_core_handler();
@@ -858,13 +890,13 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
-		handle_mem_share(args);
+		handle_mem_share(args, &nw_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
 		handle_mem_reclaim(args);
 		break;
 	case FFA_MEM_FRAG_TX:
-		handle_mem_frag_tx(args);
+		handle_mem_frag_tx(args, &nw_rxtx);
 		break;
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);

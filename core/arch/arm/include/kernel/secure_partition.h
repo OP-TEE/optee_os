@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <config.h>
 #include <kernel/embedded_ts.h>
+#include <kernel/thread_spmc.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <stdint.h>
 #include <tee_api_types.h>
@@ -31,6 +32,7 @@ struct sp_ffa_init_info {
 enum sp_status { sp_idle, sp_busy, sp_preempted, sp_dead };
 
 struct sp_session {
+	struct ffa_rxtx rxtx;
 	enum sp_status state;
 	uint16_t endpoint_id;
 	uint16_t caller_id;

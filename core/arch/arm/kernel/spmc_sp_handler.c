@@ -213,10 +213,32 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			cpu_spin_unlock(&caller_sp->spinlock);
 			caller_sp = NULL;
 			break;
+#ifdef ARM64
+		case FFA_RXTX_MAP_64:
+#endif
+		case FFA_RXTX_MAP_32:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_handle_rxtx_map(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_RXTX_UNMAP:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_handle_rxtx_unmap(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_RX_RELEASE:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_handle_rx_release(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
 		default:
 			EMSG("Unhandled FFA function ID %#"PRIx32,
 			     (uint32_t)args->a0);
 			ffa_set_error(args, FFA_INVALID_PARAMETERS);
+			sp_enter(args, caller_sp);
 		}
 	} while (caller_sp);
 }
