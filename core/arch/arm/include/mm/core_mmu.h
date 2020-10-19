@@ -695,6 +695,9 @@ void core_mmu_set_default_prtn(void);
 void core_mmu_init_virtualization(void);
 #endif
 
+/* init some allocation pools */
+void core_mmu_init_ta_ram(void);
+
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */

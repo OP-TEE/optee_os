@@ -26,7 +26,6 @@
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
 #include <stdio.h>
@@ -426,7 +425,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
 	 * DDR below.
 	 */
-	teecore_init_ta_ram();
+	core_mmu_init_ta_ram();
 
 	carve_out_asan_mem(&tee_mm_sec_ddr);
 
@@ -1172,7 +1171,7 @@ void init_tee_runtime(void)
 
 #ifndef CFG_WITH_PAGER
 	/* Pager initializes TA RAM early */
-	teecore_init_ta_ram();
+	core_mmu_init_ta_ram();
 #endif
 	call_initcalls();
 }
