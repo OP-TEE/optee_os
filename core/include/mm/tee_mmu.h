@@ -61,14 +61,6 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 
 TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len);
 
-/*
- * Map a code segment of a user TA, this function may be called multiple
- * times if there's several segments.
- */
-TEE_Result tee_mmu_map_add_segment(struct user_mode_ctx *uctx,
-				   struct mobj *mobj, size_t offs, size_t size,
-				   uint32_t prot, vaddr_t *va);
-
 /* Map parameters for a user TA */
 TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 			     struct tee_ta_param *param,
