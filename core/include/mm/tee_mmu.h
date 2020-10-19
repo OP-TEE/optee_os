@@ -115,7 +115,6 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
  * If ctx is NULL user mapping is removed and ASID set to 0
  *---------------------------------------------------------------------------*/
 void tee_mmu_set_ctx(struct ts_ctx *ctx);
-struct ts_ctx *tee_mmu_get_ctx(void);
 
 /* init some allocation pools */
 void teecore_init_ta_ram(void);

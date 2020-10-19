@@ -1313,11 +1313,6 @@ void tee_mmu_set_ctx(struct ts_ctx *ctx)
 	tsd->ctx = ctx;
 }
 
-struct ts_ctx *tee_mmu_get_ctx(void)
-{
-	return thread_get_tsd()->ctx;
-}
-
 void teecore_init_ta_ram(void)
 {
 	vaddr_t s;
