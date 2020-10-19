@@ -1382,13 +1382,3 @@ static TEE_Result teecore_init_pub_ram(void)
 }
 early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
-
-uint32_t tee_mmu_user_get_cache_attr(struct user_mode_ctx *uctx, void *va)
-{
-	uint32_t attr = 0;
-
-	if (tee_mmu_user_va2pa_attr(uctx, va, NULL, &attr) != TEE_SUCCESS)
-		panic("cannot get attr");
-
-	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
-}
