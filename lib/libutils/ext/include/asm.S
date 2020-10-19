@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Linaro Limited
  */
 
 #if defined(CFG_UNWIND) && defined(__arm__)
@@ -9,7 +10,7 @@
 #define UNWIND(...)
 #endif
 
-	.macro FUNC name colon section=default
+	.macro FUNC name colon section=default align=4
 	.ifc	\section\(),default
 	.section .text.\name
 	.else
@@ -17,7 +18,7 @@
 	.endif
 	.global \name
 	.type \name , %function
-	.balign 4
+	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
 	.endm
@@ -28,14 +29,14 @@ UNWIND(	.fnstart)
 	\name \colon
 	.endm
 
-	.macro LOCAL_FUNC name colon section=default
+	.macro LOCAL_FUNC name colon section=default align=4
 	.ifc	\section\(),default
 	.section .text.\name
 	.else
 	.section \section , "ax" , %progbits
 	.endif
 	.type \name , %function
-	.balign 4
+	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
 	.endm
