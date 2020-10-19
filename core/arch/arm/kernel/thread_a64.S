@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2017, Linaro Limited
+ * Copyright (c) 2015-2020, Linaro Limited
  */
 
 #include <arm.h>
@@ -210,8 +210,7 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 #define INV_INSN	0
-	.align	11, INV_INSN
-FUNC thread_excp_vect , :
+FUNC thread_excp_vect , : align=2048
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------

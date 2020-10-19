@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -515,8 +515,7 @@ END_FUNC thread_unwind_user_mode
 	b	thread_foreign_intr_exit
 .endm
 
-        .align	5
-FUNC thread_excp_vect , :
+FUNC thread_excp_vect , :, align=32
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
 	b	__thread_und_handler	/* Undefined instruction	*/
