@@ -55,16 +55,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TZC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
-#if DDR_BASE < CFG_TZDRAM_START
-register_dynamic_shm(DDR_BASE, CFG_TZDRAM_START - DDR_BASE);
-#endif
-
-#define DRAM_END		(DDR_BASE + CFG_DRAM_SIZE)
-#define TZDRAM_END		(CFG_TZDRAM_START + CFG_TZDRAM_SIZE)
-
-#if DRAM_END > TZDRAM_END
-register_dynamic_shm(TZDRAM_END, DRAM_END - TZDRAM_END);
-#endif
+register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
