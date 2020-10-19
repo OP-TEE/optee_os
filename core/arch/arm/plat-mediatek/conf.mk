@@ -1,5 +1,7 @@
 PLATFORM_FLAVOR ?= mt8173
 
+CFG_ARM64_core ?= y
+
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,4)
