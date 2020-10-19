@@ -62,58 +62,51 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len);
 
 /* Map parameters for a user TA */
-TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
-			     struct tee_ta_param *param,
-			     void *param_va[TEE_NUM_PARAMS]);
-void tee_mmu_clean_param(struct user_mode_ctx *uctx);
+TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
+			void *param_va[TEE_NUM_PARAMS]);
+void vm_clean_param(struct user_mode_ctx *uctx);
 
-TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-			     vaddr_t *va);
-void tee_mmu_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-		       vaddr_t va);
+TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
+			vaddr_t *va);
+void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va);
 
 /*
- * TA private memory is defined as TA image static segment (code, ro/rw static
- * data, heap, stack). The sole other virtual memory mapped to TA are memref
- * parameters. These later are considered outside TA private memory as it
- * might be accessed by the TA and its client(s).
+ * User mode private memory is defined as user mode image static segment
+ * (code, ro/rw static data, heap, stack). The sole other virtual memory
+ * mapped to user mode are memref parameters. These later are considered
+ * outside user mode private memory as it might be accessed by the user
+ * mode context and its client(s).
  */
-bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
-				       const void *va, size_t size);
+bool vm_buf_is_inside_um_private(const struct user_mode_ctx *uctx,
+				 const void *va, size_t size);
 
-bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
-					  const void *va, size_t size);
+bool vm_buf_intersects_um_private(const struct user_mode_ctx *uctx,
+				  const void *va, size_t size);
 
-TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_mode_ctx *uctx,
-				     const void *va, size_t size,
-				     struct mobj **mobj, size_t *offs);
+TEE_Result vm_buf_to_mboj_offs(const struct user_mode_ctx *uctx,
+			       const void *va, size_t size,
+			       struct mobj **mobj, size_t *offs);
 
 /*-----------------------------------------------------------------------------
- * tee_mmu_user_va2pa - Translate virtual user address to physical address
+ * vm_va2pa - Translate virtual user address to physical address
  * given the user context.
  * Interface is deprecated, use virt_to_phys() instead.
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_user_va2pa_helper(const struct user_mode_ctx *uctx, void *ua,
-				     paddr_t *pa);
+TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa);
 
 /*-----------------------------------------------------------------------------
- * tee_mmu_user_va2pa - Translate physical address to virtual user address
+ * vm_pa2va - Translate physical address to virtual user address
  * given the user context.
  * Interface is deprecated, use phys_to_virt() instead.
  *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_user_pa2va_helper(const struct user_mode_ctx *uctx,
-				     paddr_t pa, void **va);
+TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va);
 
-/*-----------------------------------------------------------------------------
- * tee_mmu_check_access_rights -
- *---------------------------------------------------------------------------*/
-TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
-				       uint32_t flags, uaddr_t uaddr,
-				       size_t len);
+TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
+				  uint32_t flags, uaddr_t uaddr, size_t len);
 
 /*-----------------------------------------------------------------------------
  * If ctx is NULL user mapping is removed and ASID set to 0
  *---------------------------------------------------------------------------*/
-void tee_mmu_set_ctx(struct ts_ctx *ctx);
+void vm_set_ctx(struct ts_ctx *ctx);
 
 #endif /*TEE_MMU_H*/

@@ -6,7 +6,7 @@
 #include <kernel/misc.h>
 #include <kernel/pseudo_ta.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <sdp_pta.h>
 
 #define PTA_NAME "sdp.pta"
@@ -33,10 +33,11 @@ static TEE_Result sdp_pa_cmd_virt_to_phys(uint32_t types,
 		return TEE_ERROR_ACCESS_DENIED;
 
 	utc = to_user_ta_ctx(s->ctx);
-	res = tee_mmu_check_access_rights(utc, TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)va, len);
+	res = vm_check_access_rights(utc,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)va, len);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_ACCESS_DENIED;
 

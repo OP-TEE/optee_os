@@ -12,12 +12,12 @@
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <optee_rpc_cmd.h>
 #include <pta_benchmark.h>
-#include <string.h>
-#include <string_ext.h>
 #include <stdio.h>
+#include <string_ext.h>
+#include <string.h>
 #include <trace.h>
 
 #define TA_NAME		"benchmark.ta"

@@ -9,7 +9,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/ts_manager.h>
 #include <kernel/user_access.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
@@ -285,10 +285,8 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto exit;
 	}
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t) object_id,
-					  object_id_len);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+				     (uaddr_t)object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -428,8 +426,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t)object_id, object_id_len);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+				     (uaddr_t)object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -445,8 +443,8 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 			uint32_t f = TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_ANY_OWNER;
 
-			res = tee_mmu_check_access_rights(&utc->uctx, f,
-							  (uaddr_t)data, len);
+			res = vm_check_access_rights(&utc->uctx, f,
+						     (uaddr_t)data, len);
 
 			if (res != TEE_SUCCESS)
 				goto err;
@@ -568,8 +566,8 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		goto exit;
 	}
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t)object_id, object_id_len);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+				     (uaddr_t)object_id, object_id_len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -696,15 +694,13 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		goto exit;
 
 	/* check rights of the provided buffers */
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
-					  (uaddr_t)info,
-					  sizeof(TEE_ObjectInfo));
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
+				     (uaddr_t)info, sizeof(TEE_ObjectInfo));
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
-					  (uaddr_t)obj_id,
-					  TEE_OBJECT_ID_MAX_LEN);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
+				     (uaddr_t)obj_id, TEE_OBJECT_ID_MAX_LEN);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -782,8 +778,8 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
-					  (uaddr_t)data, len);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
+				     (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -838,8 +834,8 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	}
 
 	/* check rights of the provided buffer */
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t)data, len);
+	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+				     (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		goto exit;
 

@@ -10,7 +10,6 @@
 #include <kernel/thread.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
-#include <mm/tee_mmu.h>
 #include <optee_rpc_cmd.h>
 #include <pta_gprof.h>
 #include <string.h>

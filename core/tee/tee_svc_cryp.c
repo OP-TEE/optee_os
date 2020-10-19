@@ -11,7 +11,7 @@
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/user_access.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <stdlib_ext.h>
 #include <string_ext.h>
 #include <string.h>
@@ -689,11 +689,11 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 		return TEE_ERROR_SHORT_BUFFER;
 
 	/* Check we can access data using supplied user mode pointer */
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)buffer, req_size);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)buffer, req_size);
 	if (res != TEE_SUCCESS)
 		return res;
 	/*
@@ -1387,10 +1387,10 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 	if (MUL_OVERFLOW(sizeof(struct utee_attribute), attr_count, &size))
 		return TEE_ERROR_OVERFLOW;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)usr_attrs, size);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)usr_attrs, size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1405,8 +1405,8 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 			uint32_t flags = TEE_MEMORY_ACCESS_READ |
 					 TEE_MEMORY_ACCESS_ANY_OWNER;
 
-			res = tee_mmu_check_access_rights(&utc->uctx, flags,
-							  buf, len);
+			res = vm_check_access_rights(&utc->uctx, flags, buf,
+						     len);
 			if (res != TEE_SUCCESS)
 				return res;
 			attrs[n].content.ref.buffer = (void *)buf;
@@ -2403,10 +2403,10 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	if (!chunk_size)
 		return TEE_SUCCESS;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)chunk, chunk_size);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)chunk, chunk_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2449,10 +2449,10 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	if (!chunk && chunk_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)chunk, chunk_size);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)chunk, chunk_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2460,11 +2460,11 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)hash, hlen);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)hash, hlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2543,10 +2543,10 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_CIPHER)
 		return TEE_ERROR_BAD_STATE;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)iv, iv_len);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)iv, iv_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2598,10 +2598,10 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 	if (cs->state != CRYP_STATE_INITIALIZED)
 		return TEE_ERROR_BAD_STATE;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)src, src_len);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)src, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -2617,8 +2617,7 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_mmu_check_access_rights(uctx, flags, (uaddr_t)dst,
-						  dlen);
+		res = vm_check_access_rights(uctx, flags, (uaddr_t)dst, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -3190,9 +3189,9 @@ TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 	struct ts_session *sess = ts_get_current_session();
 	TEE_Result res = TEE_SUCCESS;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_WRITE,
-					  (uaddr_t)buf, blen);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_WRITE,
+				     (uaddr_t)buf, blen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3213,10 +3212,10 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)nonce, nonce_len);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)nonce, nonce_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3250,11 +3249,10 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_cryp_state *cs = NULL;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t) aad_data,
-					  aad_data_len);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)aad_data, aad_data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3296,10 +3294,10 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)src_data, src_len);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3307,11 +3305,11 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)dst_data, dlen);
+	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)dst_data, dlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3358,10 +3356,10 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
 
-	res = tee_mmu_check_access_rights(uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)src_data, src_len);
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3372,11 +3370,11 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_mmu_check_access_rights(uctx,
-						  TEE_MEMORY_ACCESS_READ |
-						  TEE_MEMORY_ACCESS_WRITE |
-						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (uaddr_t)dst_data, dlen);
+		res = vm_check_access_rights(uctx,
+					     TEE_MEMORY_ACCESS_READ |
+					     TEE_MEMORY_ACCESS_WRITE |
+					     TEE_MEMORY_ACCESS_ANY_OWNER,
+					     (uaddr_t)dst_data, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -3390,11 +3388,11 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)tag, tlen);
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)tag, tlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3442,10 +3440,10 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
 
-	res = tee_mmu_check_access_rights(uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)src_data, src_len);
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3456,11 +3454,11 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		res = tee_mmu_check_access_rights(uctx,
-						  TEE_MEMORY_ACCESS_READ |
-						  TEE_MEMORY_ACCESS_WRITE |
-						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (uaddr_t)dst_data, dlen);
+		res = vm_check_access_rights(uctx,
+					     TEE_MEMORY_ACCESS_READ |
+					     TEE_MEMORY_ACCESS_WRITE |
+					     TEE_MEMORY_ACCESS_ANY_OWNER,
+					     (uaddr_t)dst_data, dlen);
 		if (res != TEE_SUCCESS)
 			return res;
 	}
@@ -3470,8 +3468,8 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 		goto out;
 	}
 
-	res = tee_mmu_check_access_rights(uctx, TEE_MEMORY_ACCESS_READ,
-					  (uaddr_t)tag, tag_len);
+	res = vm_check_access_rights(uctx, TEE_MEMORY_ACCESS_READ,
+				     (uaddr_t)tag, tag_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3532,10 +3530,10 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)src_data, src_len);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)src_data, src_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3543,11 +3541,11 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)dst_data, dlen);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)dst_data, dlen);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -3715,17 +3713,17 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	if (cs->mode != TEE_MODE_VERIFY)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)data, data_len);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)data, data_len);
 	if (res != TEE_SUCCESS)
 		return res;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)sig, sig_len);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)sig, sig_len);
 	if (res != TEE_SUCCESS)
 		return res;
 

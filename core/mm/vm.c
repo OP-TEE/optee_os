@@ -19,9 +19,9 @@
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
 #include <tee_api_defines_extensions.h>
@@ -310,7 +310,7 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 	 * the mapping.
 	 */
 	if (thread_get_tsd()->ctx == uctx->ts_ctx)
-		tee_mmu_set_ctx(uctx->ts_ctx);
+		vm_set_ctx(uctx->ts_ctx);
 
 	*va = reg->va;
 
@@ -550,7 +550,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(uctx->ts_ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	r_first = TAILQ_FIRST(&regs);
 	while (!TAILQ_EMPTY(&regs)) {
@@ -603,7 +603,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 
 	fobj_put(fobj);
 
-	tee_mmu_set_ctx(uctx->ts_ctx);
+	vm_set_ctx(uctx->ts_ctx);
 	*new_va = r_first->va;
 
 	return TEE_SUCCESS;
@@ -623,7 +623,7 @@ err_restore_map:
 			panic("Cannot restore mapping");
 	}
 	fobj_put(fobj);
-	tee_mmu_set_ctx(uctx->ts_ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	return res;
 }
@@ -716,7 +716,7 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 
 	if (need_sync) {
 		/* Synchronize changes to translation tables */
-		tee_mmu_set_ctx(uctx->ts_ctx);
+		vm_set_ctx(uctx->ts_ctx);
 	}
 
 	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
@@ -787,7 +787,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(uctx->ts_ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	return TEE_SUCCESS;
 }
@@ -836,7 +836,7 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx)
 	return res;
 }
 
-void tee_mmu_clean_param(struct user_mode_ctx *uctx)
+void vm_clean_param(struct user_mode_ctx *uctx)
 {
 	struct vm_region *next_r;
 	struct vm_region *r;
@@ -916,9 +916,8 @@ static int cmp_param_mem(const void *a0, const void *a1)
 	return CMP_TRILEAN(m0->size, m1->size);
 }
 
-TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
-			     struct tee_ta_param *param,
-			     void *param_va[TEE_NUM_PARAMS])
+TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
+			void *param_va[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_SUCCESS;
 	size_t n;
@@ -1012,13 +1011,13 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 	res = alloc_pgt(uctx);
 out:
 	if (res)
-		tee_mmu_clean_param(uctx);
+		vm_clean_param(uctx);
 
 	return res;
 }
 
-TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-			     vaddr_t *va)
+TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
+			vaddr_t *va)
 {
 	TEE_Result res;
 	struct vm_region *reg = calloc(1, sizeof(*reg));
@@ -1050,8 +1049,7 @@ TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 	return res;
 }
 
-void tee_mmu_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-		       vaddr_t va)
+void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va)
 {
 	struct vm_region *r = NULL;
 
@@ -1082,8 +1080,8 @@ void vm_info_final(struct user_mode_ctx *uctx)
 }
 
 /* return true only if buffer fits inside TA private memory */
-bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
-				       const void *va, size_t size)
+bool vm_buf_is_inside_um_private(const struct user_mode_ctx *uctx,
+				 const void *va, size_t size)
 {
 	struct vm_region *r = NULL;
 
@@ -1098,8 +1096,8 @@ bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
 }
 
 /* return true only if buffer intersects TA private memory */
-bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
-					  const void *va, size_t size)
+bool vm_buf_intersects_um_private(const struct user_mode_ctx *uctx,
+				  const void *va, size_t size)
 {
 	struct vm_region *r = NULL;
 
@@ -1113,9 +1111,9 @@ bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
 	return false;
 }
 
-TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_mode_ctx *uctx,
-				     const void *va, size_t size,
-				     struct mobj **mobj, size_t *offs)
+TEE_Result vm_buf_to_mboj_offs(const struct user_mode_ctx *uctx,
+			       const void *va, size_t size,
+			       struct mobj **mobj, size_t *offs)
 {
 	struct vm_region *r = NULL;
 
@@ -1182,14 +1180,12 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_mode_ctx *uctx,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_user_va2pa_helper(const struct user_mode_ctx *uctx, void *ua,
-				     paddr_t *pa)
+TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa)
 {
 	return tee_mmu_user_va2pa_attr(uctx, ua, pa, NULL);
 }
 
-TEE_Result tee_mmu_user_pa2va_helper(const struct user_mode_ctx *uctx,
-				     paddr_t pa, void **va)
+TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
 {
 	TEE_Result res = TEE_SUCCESS;
 	paddr_t p = 0;
@@ -1238,9 +1234,8 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_mode_ctx *uctx,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
-				       uint32_t flags, uaddr_t uaddr,
-				       size_t len)
+TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
+				  uint32_t flags, uaddr_t uaddr, size_t len)
 {
 	uaddr_t a = 0;
 	uaddr_t end_addr = 0;
@@ -1259,7 +1254,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
 	 * to TA or not.
 	 */
 	if (!(flags & TEE_MEMORY_ACCESS_ANY_OWNER) &&
-	   !tee_mmu_is_vbuf_inside_um_private(uctx, (void *)uaddr, len))
+	   !vm_buf_is_inside_um_private(uctx, (void *)uaddr, len))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	for (a = ROUNDDOWN(uaddr, addr_incr); a < end_addr; a += addr_incr) {
@@ -1287,7 +1282,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
 	return TEE_SUCCESS;
 }
 
-void tee_mmu_set_ctx(struct ts_ctx *ctx)
+void vm_set_ctx(struct ts_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
