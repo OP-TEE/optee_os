@@ -24,36 +24,19 @@
 #include <stm32_util.h>
 #include <trace.h>
 
-#ifdef CFG_WITH_NSEC_GPIOS
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GPIOS_NSEC_BASE, GPIOS_NSEC_SIZE);
-#endif
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, I2C4_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, I2C6_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, RNG1_BASE, SMALL_PAGE_SIZE);
-#ifdef CFG_WITH_NSEC_UARTS
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART1_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART2_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART3_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART4_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART5_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, USART6_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART7_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART8_BASE, SMALL_PAGE_SIZE);
-#endif
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB2_BASE, APB2_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB3_BASE, APB3_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB4_BASE, APB4_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB5_BASE, APB5_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, AHB4_BASE, AHB4_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, AHB5_BASE, AHB5_SIZE);
 
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, BSEC_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, ETZPC_BASE, SMALL_PAGE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, APB3_BASE, APB4_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, APB5_BASE, APB5_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB4_BASE, AHB4_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB5_BASE, AHB5_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, GPIOZ_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, I2C4_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, I2C6_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, PWR_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, RCC_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG1_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, SYSCFG_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, TAMP_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, TZC_BASE, SMALL_PAGE_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, USART1_BASE, SMALL_PAGE_SIZE);
 
 register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
