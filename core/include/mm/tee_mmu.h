@@ -116,6 +116,4 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
  *---------------------------------------------------------------------------*/
 void tee_mmu_set_ctx(struct ts_ctx *ctx);
 
-/* init some allocation pools */
-void teecore_init_ta_ram(void);
 #endif /*TEE_MMU_H*/
