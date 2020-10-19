@@ -11,6 +11,23 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			32
 
+/* SoC interface registers base address ranges */
+#define APB1_BASE			0x40000000
+#define APB1_SIZE			0x0001d000
+#define APB2_BASE			0x44000000
+#define APB2_SIZE			0x00014000
+#define APB3_BASE			0x50020000
+#define APB3_SIZE			0x0000b000
+#define APB4_BASE			0x5a000000
+#define APB4_SIZE			0x00008000
+#define APB5_BASE			0x5c000000
+#define APB5_SIZE			0x0000b000
+
+#define AHB4_BASE			0x50000000
+#define AHB4_SIZE			0x00020000
+#define AHB5_BASE			0x54000000
+#define AHB5_SIZE			0x00005000
+
 /* SoC interface registers base address */
 #define BSEC_BASE			0x5c005000
 #define ETZPC_BASE			0x5c007000
