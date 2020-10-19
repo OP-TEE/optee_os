@@ -2021,7 +2021,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	TEE_Result res;
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
-	struct core_mmu_table_info ti __maybe_unused;
+	struct core_mmu_table_info ti __maybe_unused = { };
+	struct user_mode_ctx *uctx = NULL;
 
 	if (core_mmu_user_va_range_is_defined()) {
 		vaddr_t user_va_base;
@@ -2036,8 +2037,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 				return;
 			}
 
-			res = tee_mmu_user_va2pa_helper(
-				to_user_mode_ctx(tee_mmu_get_ctx()), va, &p);
+			uctx = to_user_mode_ctx(thread_get_tsd()->ctx);
+			res = tee_mmu_user_va2pa_helper(uctx, va, &p);
 			if (res == TEE_SUCCESS && pa != p)
 				panic("bad pa");
 			if (res != TEE_SUCCESS && pa)
@@ -2135,7 +2136,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
 
-	res = tee_mmu_user_pa2va_helper(to_user_mode_ctx(tee_mmu_get_ctx()),
+	res = tee_mmu_user_pa2va_helper(to_user_mode_ctx(thread_get_tsd()->ctx),
 					pa, &va);
 	if (res != TEE_SUCCESS)
 		return NULL;
