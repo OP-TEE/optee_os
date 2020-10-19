@@ -7,11 +7,11 @@
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/ts_manager.h>
 #include <kernel/thread.h>
+#include <kernel/ts_manager.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 
 static void update_current_ctx(struct thread_specific_data *tsd)
 {
@@ -27,7 +27,7 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 	}
 
 	if (tsd->ctx != ctx)
-		tee_mmu_set_ctx(ctx);
+		vm_set_ctx(ctx);
 	/*
 	 * If current context is of user mode, then it has to be active too.
 	 */

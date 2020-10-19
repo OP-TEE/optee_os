@@ -16,7 +16,7 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <stdlib_ext.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
@@ -521,8 +521,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 
 			p->u[n].mem.mobj = &mobj_virt;
 
-			if (tee_mmu_check_access_rights(&utc->uctx, flags, a,
-							b))
+			if (vm_check_access_rights(&utc->uctx, flags, a, b))
 				return TEE_ERROR_ACCESS_DENIED;
 			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
@@ -590,9 +589,9 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 				 TEE_MEMORY_ACCESS_WRITE |
 				 TEE_MEMORY_ACCESS_ANY_OWNER;
 
-		res = tee_mmu_check_access_rights(&utc->uctx, flags,
-						  (uaddr_t)callee_params,
-						  sizeof(struct utee_params));
+		res = vm_check_access_rights(&utc->uctx, flags,
+					     (uaddr_t)callee_params,
+					     sizeof(struct utee_params));
 		if (res != TEE_SUCCESS)
 			return res;
 		res = utee_param_to_param(utc, param, callee_params);
@@ -623,9 +622,7 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 				break;
 			}
 			/* uTA cannot expose its private memory */
-			if (tee_mmu_is_vbuf_inside_um_private(&utc->uctx, va,
-							      s)) {
-
+			if (vm_buf_is_inside_um_private(&utc->uctx, va, s)) {
 				s = ROUNDUP(s, sizeof(uint32_t));
 				if (ADD_OVERFLOW(req_mem, s, &req_mem))
 					return TEE_ERROR_BAD_PARAMETERS;
@@ -633,9 +630,9 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 				break;
 			}
 
-			res = tee_mmu_vbuf_to_mobj_offs(&utc->uctx, va, s,
-							&param->u[n].mem.mobj,
-							&param->u[n].mem.offs);
+			res = vm_buf_to_mboj_offs(&utc->uctx, va, s,
+						  &param->u[n].mem.mobj,
+						  &param->u[n].mem.offs);
 			if (res != TEE_SUCCESS)
 				return res;
 			break;
@@ -797,7 +794,7 @@ TEE_Result syscall_open_ta_session(const TEE_UUID *dest,
 
 	res = tee_ta_open_session(&ret_o, &s, &utc->open_sessions, uuid,
 				  clnt_id, cancel_req_to, param);
-	tee_mmu_set_ctx(&utc->ta_ctx.ts_ctx);
+	vm_set_ctx(&utc->ta_ctx.ts_ctx);
 	if (res != TEE_SUCCESS)
 		goto function_exit;
 
@@ -896,8 +893,8 @@ TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 {
 	struct ts_session *s = ts_get_current_session();
 
-	return tee_mmu_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx, flags,
-					   (uaddr_t)buf, len);
+	return vm_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx, flags,
+				      (uaddr_t)buf, len);
 }
 
 TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)

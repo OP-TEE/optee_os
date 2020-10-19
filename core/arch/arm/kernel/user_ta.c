@@ -27,8 +27,8 @@
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <optee_rpc_cmd.h>
 #include <printk.h>
 #include <signed_hdr.h>
@@ -162,7 +162,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	}
 	if (ta_sess->param) {
 		/* Map user space memory */
-		res = tee_mmu_map_param(&utc->uctx, ta_sess->param, param_va);
+		res = vm_map_param(&utc->uctx, ta_sess->param, param_va);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
@@ -206,9 +206,9 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 
 		/*
 		 * Clear out the parameter mappings added with
-		 * tee_mmu_map_param() above.
+		 * vm_clean_param() above.
 		 */
-		tee_mmu_clean_param(&utc->uctx);
+		vm_clean_param(&utc->uctx);
 	}
 
 
@@ -258,9 +258,10 @@ static TEE_Result init_with_ldelf(struct ts_session *sess __maybe_unused,
 		return res;
 	}
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg));
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
 	if (res)
 		return res;
 
@@ -327,9 +328,10 @@ static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
 			     STACK_ALIGNMENT);
 	arg = (struct dump_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg));
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;
@@ -457,9 +459,10 @@ static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (size_t *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg));
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;
@@ -702,7 +705,7 @@ static TEE_Result load_ldelf(struct user_ta_ctx *utc)
 	if (res)
 		return res;
 
-	tee_mmu_set_ctx(&utc->ta_ctx.ts_ctx);
+	vm_set_ctx(&utc->ta_ctx.ts_ctx);
 
 	memcpy((void *)code_addr, ldelf_data, ldelf_code_size);
 	memcpy((void *)rw_addr, ldelf_data + ldelf_code_size, ldelf_data_size);

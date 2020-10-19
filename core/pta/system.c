@@ -16,7 +16,7 @@
 #include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <pta_system.h>
 #include <stdlib_ext.h>
 #include <stdlib.h>
@@ -98,9 +98,9 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 	 */
 	access_flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER |
 		       TEE_MEMORY_ACCESS_SECURE;
-	res = tee_mmu_check_access_rights(&utc->uctx, access_flags,
-					  (uaddr_t)params[1].memref.buffer,
-					  params[1].memref.size);
+	res = vm_check_access_rights(&utc->uctx, access_flags,
+				     (uaddr_t)params[1].memref.buffer,
+				     params[1].memref.size);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 
@@ -429,9 +429,9 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 * avoid a dead-lock with the other thread (which already
 		 * is holding the file lock) mapping lots of memory below.
 		 */
-		tee_mmu_set_ctx(NULL);
+		vm_set_ctx(NULL);
 		file_lock(binh->f);
-		tee_mmu_set_ctx(s->ctx);
+		vm_set_ctx(s->ctx);
 	}
 	file_is_locked = true;
 	fs = file_find_slice(binh->f, offs_pages);
@@ -498,7 +498,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 * The context currently is active set it again to update
 		 * the mapping.
 		 */
-		tee_mmu_set_ctx(s->ctx);
+		vm_set_ctx(s->ctx);
 
 		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
 			res = file_add_slice(binh->f, f, offs_pages);
@@ -520,7 +520,7 @@ err_unmap_va:
 	 * The context currently is active set it again to update
 	 * the mapping.
 	 */
-	tee_mmu_set_ctx(s->ctx);
+	vm_set_ctx(s->ctx);
 
 err:
 	if (file_is_locked)
@@ -672,11 +672,11 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg));
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;
@@ -717,11 +717,11 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg) + len + 1);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg) + len + 1);
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;

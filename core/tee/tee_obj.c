@@ -3,16 +3,15 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include <tee/tee_obj.h>
-
+#include <mm/vm.h>
 #include <stdlib.h>
 #include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
+#include <tee/tee_obj.h>
 #include <tee/tee_pobj.h>
-#include <trace.h>
-#include <tee/tee_svc_storage.h>
 #include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc_storage.h>
+#include <trace.h>
 
 void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o)
 {

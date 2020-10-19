@@ -25,8 +25,8 @@
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <smccc.h>
 #include <sm/sm.h>
 #include <trace.h>

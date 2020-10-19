@@ -19,7 +19,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -859,12 +859,12 @@ void tee_ta_gprof_sample_pc(vaddr_t pc)
 	idx = (((uint64_t)pc - sbuf->offset)/2 * sbuf->scale)/65536;
 	if (idx < sbuf->nsamples) {
 		utc = to_user_ta_ctx(s->ctx);
-		res = tee_mmu_check_access_rights(&utc->uctx,
-						  TEE_MEMORY_ACCESS_READ |
-						  TEE_MEMORY_ACCESS_WRITE |
-						  TEE_MEMORY_ACCESS_ANY_OWNER,
-						  (uaddr_t)&sbuf->samples[idx],
-						  sizeof(*sbuf->samples));
+		res = vm_check_access_rights(&utc->uctx,
+					     TEE_MEMORY_ACCESS_READ |
+					     TEE_MEMORY_ACCESS_WRITE |
+					     TEE_MEMORY_ACCESS_ANY_OWNER,
+					     (uaddr_t)&sbuf->samples[idx],
+					     sizeof(*sbuf->samples));
 		if (res != TEE_SUCCESS)
 			return;
 		sbuf->samples[idx]++;

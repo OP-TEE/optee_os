@@ -11,7 +11,7 @@
 #include <kernel/user_mode_ctx.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <pta_stmm.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_pobj.h>
@@ -200,7 +200,7 @@ static TEE_Result load_stmm(struct sec_part_ctx *spc)
 	stack_addr = heap_addr + stmm_heap_size;
 	sec_buf_addr = stack_addr + stmm_stack_size;
 
-	tee_mmu_set_ctx(&spc->ta_ctx.ts_ctx);
+	vm_set_ctx(&spc->ta_ctx.ts_ctx);
 	uncompress_image((void *)image_addr, stmm_image_uncompressed_size,
 			 stmm_image, stmm_image_size);
 
@@ -284,7 +284,7 @@ TEE_Result sec_part_init_session(const TEE_UUID *uuid,
 	ts_push_current_session(&sess->ts_sess);
 	res = load_stmm(spc);
 	ts_pop_current_session();
-	tee_mmu_set_ctx(NULL);
+	vm_set_ctx(NULL);
 	if (res) {
 		sess->ts_sess.ctx = NULL;
 		spc->ta_ctx.ts_ctx.ops->destroy(&spc->ta_ctx.ts_ctx);
@@ -551,10 +551,10 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 
 	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
-	res = tee_mmu_check_access_rights(&spc->uctx,
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)data, len);
+	res = vm_check_access_rights(&spc->uctx,
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -610,10 +610,10 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 
 	sess = ts_get_current_session();
 	spc = to_sec_part_ctx(sess->ctx);
-	res = tee_mmu_check_access_rights(&spc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)data, len);
+	res = vm_check_access_rights(&spc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)data, len);
 	if (res != TEE_SUCCESS)
 		return res;
 

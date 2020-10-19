@@ -8,8 +8,8 @@
 #include <assert.h>
 #include <bitstring.h>
 #include <config.h>
-#include <kernel/cache_helpers.h>
 #include <kernel/boot.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -25,8 +25,8 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <platform_config.h>
 #include <stdlib.h>
 #include <trace.h>
@@ -2022,7 +2022,6 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
 	struct core_mmu_table_info ti __maybe_unused = { };
-	struct user_mode_ctx *uctx = NULL;
 
 	if (core_mmu_user_va_range_is_defined()) {
 		vaddr_t user_va_base;
@@ -2037,8 +2036,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 				return;
 			}
 
-			uctx = to_user_mode_ctx(thread_get_tsd()->ctx);
-			res = tee_mmu_user_va2pa_helper(uctx, va, &p);
+			res = vm_va2pa(to_user_mode_ctx(thread_get_tsd()->ctx),
+				       va, &p);
 			if (res == TEE_SUCCESS && pa != p)
 				panic("bad pa");
 			if (res != TEE_SUCCESS && pa)
@@ -2136,8 +2135,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
 
-	res = tee_mmu_user_pa2va_helper(to_user_mode_ctx(thread_get_tsd()->ctx),
-					pa, &va);
+	res = vm_pa2va(to_user_mode_ctx(thread_get_tsd()->ctx), pa, &va);
 	if (res != TEE_SUCCESS)
 		return NULL;
 	return va;
