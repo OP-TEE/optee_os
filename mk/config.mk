@@ -578,6 +578,9 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 # that would set = n.
 $(call force,CFG_CORE_MBEDTLS_MPI,y)
 
+# Enable PKCS#11 TA's TEE Identity based authentication support
+CFG_PKCS11_TA_AUTH_TEE_IDENTITY ?= y
+
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
 CFG_VIRTUALIZATION ?= n

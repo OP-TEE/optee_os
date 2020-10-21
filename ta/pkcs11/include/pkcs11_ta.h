@@ -599,6 +599,47 @@ enum pkcs11_user_type {
 };
 
 /*
+ * TEE Identity based authentication for tokens
+ *
+ * When configuration CFG_PKCS11_TA_AUTH_TEE_IDENTITY is enabled TEE Identity
+ * based authentication scheme is enabled.
+ *
+ * Feature enablement per token basis is controlled by token flag:
+ * pkcs11_token_info->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH
+ *
+ * When calling C_InitToken() mode is determined based on SO PIN value.
+ * - If the PIN is empty (or NULL_PTR) then active client TEE Identity will be
+ *   used as SO TEE Identity
+ * - If the PIN is given then normal PIN behavior is used
+ *
+ * Once TEE Identity based authentication is activated following operational
+ * changes happen:
+ * - PIN failure counters are disabled to prevent token authentication lockups
+ * - Switching to different authentication mode needs C_InitToken()
+ * - When C_Login() or so is performed actual PIN value is ignored and active
+ *   client TEE Identity will be used
+ *
+ * Different types of TEE Identity authentication methods can be configured:
+ * - Configured with C_InitToken(), C_InitPIN() or by C_SetPIN()
+ * - PIN value follows below PIN syntax
+ *
+ * TEE Identity based authenticate PIN syntax:
+ * - PIN value: NULL_PTR or empty
+ *   - Use active client TEE Identity
+ * - PIN value: public
+ *   - TEE public login
+ * - PIN value: user:<client UUID string>
+ *   - TEE user login with client UUID matching user credentials
+ * - PIN value: group:<client UUID string>
+ *   - TEE group login with client UUID matching group credentials
+ */
+
+/* Keywords for protected authenticated path PIN parser */
+#define PKCS11_AUTH_TEE_IDENTITY_PUBLIC	"public"
+#define PKCS11_AUTH_TEE_IDENTITY_USER	"user:"
+#define PKCS11_AUTH_TEE_IDENTITY_GROUP	"group:"
+
+/*
  * Values for 32bit session flags argument to PKCS11_CMD_OPEN_SESSION
  * and pkcs11_session_info::flags.
  * PKCS11_CKFSS_<x> reflects CryptoKi client API session flags CKF_<x>.

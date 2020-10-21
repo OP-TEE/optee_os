@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <confine_array_index.h>
 #include <pkcs11_ta.h>
 #include <printk.h>
@@ -839,6 +840,28 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 			if (sess->token == token)
 				return PKCS11_CKR_SESSION_EXISTS;
 
+#if defined(CFG_PKCS11_TA_AUTH_TEE_IDENTITY)
+	/* Check TEE Identity based authentication if enabled */
+	if (token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH) {
+		rc = verify_identity_auth(ck_token, PKCS11_CKU_SO);
+		if (rc)
+			return rc;
+	}
+
+	/* Detect TEE Identity based ACL usage activation with NULL PIN */
+	if (!pin) {
+		rc = setup_so_identity_auth_from_client(token);
+		if (rc)
+			return rc;
+
+		goto inited;
+	} else {
+		/* De-activate TEE Identity based authentication */
+		token->db_main->flags &=
+			~PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH;
+	}
+#endif /* CFG_PKCS11_TA_AUTH_TEE_IDENTITY */
+
 	if (!token->db_main->so_pin_salt) {
 		/*
 		 * The spec doesn't permit returning
@@ -921,6 +944,16 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 	if (!pkcs11_session_is_read_write(session))
 		return PKCS11_CKR_SESSION_READ_ONLY;
 
+	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
+	    token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH) {
+		rc = setup_identity_auth_from_pin(token, user_type, new_pin,
+						  new_pin_size);
+		if (rc)
+			return rc;
+
+		goto update_db;
+	}
+
 	if (new_pin_size < PKCS11_TOKEN_PIN_SIZE_MIN ||
 	    new_pin_size > PKCS11_TOKEN_PIN_SIZE_MAX)
 		return PKCS11_CKR_PIN_LEN_RANGE;
@@ -955,6 +988,7 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 		return PKCS11_CKR_FUNCTION_FAILED;
 	}
 
+update_db:
 	token->db_main->flags &= ~flags_clear;
 	token->db_main->flags |= flags_set;
 
@@ -1015,6 +1049,10 @@ static enum pkcs11_rc check_so_pin(struct pkcs11_session *session,
 
 	assert(token->db_main->flags & PKCS11_CKFT_TOKEN_INITIALIZED);
 
+	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
+	    token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH)
+		return verify_identity_auth(token, PKCS11_CKU_SO);
+
 	if (token->db_main->flags & PKCS11_CKFT_SO_PIN_LOCKED)
 		return PKCS11_CKR_PIN_LOCKED;
 
@@ -1066,6 +1104,10 @@ static enum pkcs11_rc check_user_pin(struct pkcs11_session *session,
 {
 	struct ck_token *token = session->token;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
+	    token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH)
+		return verify_identity_auth(token, PKCS11_CKU_USER);
 
 	if (!token->db_main->user_pin_salt)
 		return PKCS11_CKR_USER_PIN_NOT_INITIALIZED;
