@@ -279,6 +279,7 @@ END_FUNC sm_vect_table
 	.endm
 
 LOCAL_FUNC sm_vect_table_a15 , :, align=32
+UNWIND(	.cantunwind)
 	vector_prologue_spectre
 	/*
 	 * Invalidate the branch predictor for the current processor.
@@ -298,6 +299,7 @@ END_FUNC sm_vect_table_a15
 
 
 LOCAL_FUNC sm_vect_table_bpiall , :, align=32
+UNWIND(	.cantunwind)
 	vector_prologue_spectre
 	/* Invalidate the branch predictor for the current processor. */
 	write_bpiall
