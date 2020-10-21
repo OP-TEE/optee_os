@@ -855,8 +855,6 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 		if (rc)
 			return rc;
 
-		update_persistent_db(token);
-
 		goto inited;
 	}
 
@@ -883,11 +881,14 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 		return PKCS11_CKR_PIN_INCORRECT;
 	}
 
+inited:
+	/* Make sure SO PIN counters are zeroed */
 	token->db_main->flags &= ~(PKCS11_CKFT_SO_PIN_COUNT_LOW |
-				   PKCS11_CKFT_SO_PIN_FINAL_TRY);
+				   PKCS11_CKFT_SO_PIN_FINAL_TRY |
+				   PKCS11_CKFT_SO_PIN_LOCKED |
+				   PKCS11_CKFT_SO_PIN_TO_BE_CHANGED);
 	token->db_main->so_pin_count = 0;
 
-inited:
 	TEE_MemMove(token->db_main->label, label, PKCS11_TOKEN_LABEL_SIZE);
 	token->db_main->flags |= PKCS11_CKFT_TOKEN_INITIALIZED;
 	/* Reset user PIN */
