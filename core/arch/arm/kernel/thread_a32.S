@@ -551,7 +551,7 @@ UNWIND(	.cantunwind)
 		cpsid   aif		/* 0:000 FIQ			*/
 	.endm
 
-        .align	5
+        .balign	32
 	.global thread_excp_vect_workaround_a15
 thread_excp_vect_workaround_a15:
 	vector_prologue_spectre
@@ -574,7 +574,7 @@ thread_excp_vect_workaround_a15:
 	isb
 	b	1f
 
-        .align	5
+        .balign	32
 	.global thread_excp_vect_workaround
 thread_excp_vect_workaround:
 	vector_prologue_spectre
