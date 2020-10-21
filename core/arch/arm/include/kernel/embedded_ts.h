@@ -20,5 +20,17 @@ struct embedded_ts {
 	const uint8_t *ts; /* @size bytes */
 };
 
+struct ts_store_handle;
+
+TEE_Result emb_ts_read(struct ts_store_handle *h, void *data, size_t len);
+void emb_ts_close(struct ts_store_handle *h);
+
+TEE_Result emb_ts_open(const TEE_UUID *uuid,
+		       struct ts_store_handle **h,
+		       const struct embedded_ts* (*find_ts)
+		       (const TEE_UUID *uuid));
+TEE_Result emb_ts_get_size(const struct ts_store_handle *h, size_t *size);
+TEE_Result emb_ts_get_tag(const struct ts_store_handle *h,
+			  uint8_t *tag, unsigned int *tag_len);
 #endif /* KERNEL_EMBEDDED_TS_H */
 

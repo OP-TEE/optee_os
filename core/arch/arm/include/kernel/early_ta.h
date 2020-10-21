@@ -6,6 +6,7 @@
 #ifndef KERNEL_EARLY_TA_H
 #define KERNEL_EARLY_TA_H
 
+#include <kernel/embedded_ts.h>
 #include <scattered_array.h>
 #include <stdint.h>
 #include <tee_api_types.h>

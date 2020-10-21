@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017, 2020, Linaro Limited
+# Copyright (c) 2020, Arm Limited.
 #
 
 import argparse
@@ -74,7 +75,7 @@ def main():
     f = open(args.out, 'w')
     f.write('/* Generated from ' + args.ta + ' by ' +
             os.path.basename(__file__) + ' */\n\n')
-    f.write('#include <kernel/early_ta.h>\n\n')
+    f.write('#include <kernel/embedded_ts.h>\n\n')
     f.write('#include <scattered_array.h>\n\n')
     f.write('const uint8_t ta_bin_' + ta_uuid.hex + '[] = {\n')
     i = 0
@@ -89,7 +90,7 @@ def main():
             f.write(' ')
     f.write('};\n')
 
-    f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct early_ta) = {\n')
+    f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct embedded_ts) = {\n')
     f.write('\t.flags = 0x{:04x},\n'.format(ta_get_flags(args.ta)))
     f.write('\t.uuid = {\n')
     f.write('\t\t.timeLow = 0x{:08x},\n'.format(ta_uuid.time_low))
