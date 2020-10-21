@@ -910,11 +910,12 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 			      uint8_t *new_pin, size_t new_pin_size,
 			      enum pkcs11_user_type user_type)
 {
+	struct ck_token *token = session->token;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	uint32_t flags_clear = 0;
 	uint32_t flags_set = 0;
 
-	if (session->token->db_main->flags & PKCS11_CKFT_WRITE_PROTECTED)
+	if (token->db_main->flags & PKCS11_CKFT_WRITE_PROTECTED)
 		return PKCS11_CKR_TOKEN_WRITE_PROTECTED;
 
 	if (!pkcs11_session_is_read_write(session))
@@ -927,11 +928,11 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 	switch (user_type) {
 	case PKCS11_CKU_SO:
 		rc = hash_pin(user_type, new_pin, new_pin_size,
-			      &session->token->db_main->so_pin_salt,
-			      session->token->db_main->so_pin_hash);
+			      &token->db_main->so_pin_salt,
+			      token->db_main->so_pin_hash);
 		if (rc)
 			return rc;
-		session->token->db_main->so_pin_count = 0;
+		token->db_main->so_pin_count = 0;
 		flags_clear = PKCS11_CKFT_SO_PIN_COUNT_LOW |
 			      PKCS11_CKFT_SO_PIN_FINAL_TRY |
 			      PKCS11_CKFT_SO_PIN_LOCKED |
@@ -939,11 +940,11 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 		break;
 	case PKCS11_CKU_USER:
 		rc = hash_pin(user_type, new_pin, new_pin_size,
-			      &session->token->db_main->user_pin_salt,
-			      session->token->db_main->user_pin_hash);
+			      &token->db_main->user_pin_salt,
+			      token->db_main->user_pin_hash);
 		if (rc)
 			return rc;
-		session->token->db_main->user_pin_count = 0;
+		token->db_main->user_pin_count = 0;
 		flags_clear = PKCS11_CKFT_USER_PIN_COUNT_LOW |
 			      PKCS11_CKFT_USER_PIN_FINAL_TRY |
 			      PKCS11_CKFT_USER_PIN_LOCKED |
@@ -954,10 +955,10 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 		return PKCS11_CKR_FUNCTION_FAILED;
 	}
 
-	session->token->db_main->flags &= ~flags_clear;
-	session->token->db_main->flags |= flags_set;
+	token->db_main->flags &= ~flags_clear;
+	token->db_main->flags |= flags_set;
 
-	update_persistent_db(session->token);
+	update_persistent_db(token);
 
 	return PKCS11_CKR_OK;
 }
