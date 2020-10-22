@@ -182,9 +182,6 @@ static void init_canaries(void)
 									\
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
-		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
-			#name, n, (void *)(end_canary - 1));		\
-		DMSG("watch *%p", (void *)end_canary);			\
 	}
 
 	INIT_CANARY(stack_tmp);
@@ -195,37 +192,45 @@ static void init_canaries(void)
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
 
-#define CANARY_DIED(stack, loc, n) \
+#define CANARY_DIED(stack, loc, n, addr) \
 	do { \
-		EMSG_RAW("Dead canary at %s of '%s[%zu]'", #loc, #stack, n); \
+		EMSG_RAW("Dead canary at %s of '%s[%zu]' (%p)", #loc, #stack, \
+			 n, (void *)addr); \
 		panic(); \
 	} while (0)
 
 void thread_check_canaries(void)
 {
 #ifdef CFG_WITH_STACK_CANARIES
-	size_t n;
+	uint32_t *canary = NULL;
+	size_t n = 0;
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		if (GET_START_CANARY(stack_tmp, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_tmp, start, n);
-		if (GET_END_CANARY(stack_tmp, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_tmp, end, n);
+		canary = &GET_START_CANARY(stack_tmp, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_tmp, start, n, canary);
+		canary = &GET_END_CANARY(stack_tmp, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_tmp, end, n, canary);
 	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		if (GET_START_CANARY(stack_abt, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_abt, start, n);
-		if (GET_END_CANARY(stack_abt, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_abt, end, n);
+		canary = &GET_START_CANARY(stack_abt, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_abt, start, n, canary);
+		canary = &GET_END_CANARY(stack_abt, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_abt, end, n, canary);
 
 	}
 #if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		if (GET_START_CANARY(stack_thread, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_thread, start, n);
-		if (GET_END_CANARY(stack_thread, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_thread, end, n);
+		canary = &GET_START_CANARY(stack_thread, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_thread, start, n, canary);
+		canary = &GET_END_CANARY(stack_thread, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_thread, end, n, canary);
 	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
