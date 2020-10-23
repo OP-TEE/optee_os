@@ -6,7 +6,10 @@
 #include <drivers/imx_i2c.h>
 #include <initcall.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -27,6 +30,7 @@
 #endif
 
 static struct io_pa_va i2c_bus[3] = {
+#if !(defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY))
 #if defined I2C1_BASE
 	[0] = { .pa = I2C1_BASE, },
 #endif
@@ -35,6 +39,7 @@ static struct io_pa_va i2c_bus[3] = {
 #endif
 #if defined I2C3_BASE
 	[2] = { .pa = I2C3_BASE, },
+#endif
 #endif
 };
 
@@ -420,22 +425,87 @@ static TEE_Result get_va(paddr_t pa, vaddr_t *va)
 	return TEE_ERROR_GENERIC;
 }
 
-static TEE_Result i2c_init(void)
+#if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
+static const char *const dt_i2c_match_table[] = {
+	"fsl,imx21-i2c",
+};
+
+static TEE_Result i2c_mapped(const char *i2c_match)
 {
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	void *fdt = get_dt();
+	size_t size = 0;
+	size_t i = 0;
+	int off = 0;
+
+	if (!fdt)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	for (i = 0; i < ARRAY_SIZE(i2c_bus); i++) {
+		off = fdt_node_offset_by_compatible(fdt, off, i2c_match);
+		if (off <= 0)
+			break;
+
+		if (!(_fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
+			EMSG("i2c%zu not enabled\n", i + 1);
+			continue;
+		}
+
+		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size) < 0) {
+			EMSG("i2c%zu not enabled\n", i + 1);
+			continue;
+		}
+
+		i2c_bus[i].pa = virt_to_phys((void *)i2c_bus[i].va);
+		ret = TEE_SUCCESS;
+	}
+
+	return ret;
+}
+
+static TEE_Result i2c_map_controller(void)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dt_i2c_match_table); i++) {
+		ret = i2c_mapped(dt_i2c_match_table[i]);
+		if (!ret || ret == TEE_ERROR_NOT_SUPPORTED)
+			return ret;
+	}
+
+	return ret;
+}
+#else
+static TEE_Result i2c_map_controller(void)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
 	size_t n = 0;
 
+	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
+		if (i2c_bus[n].pa) {
+			if (get_va(i2c_bus[n].pa, &i2c_bus[n].va))
+				EMSG("i2c%zu not enabled\n", n + 1);
+			else
+				ret = TEE_SUCCESS;
+		} else {
+			IMSG("i2c%zu not enabled\n", n + 1);
+		}
+	}
+
+	return ret;
+}
+#endif
+
+static TEE_Result i2c_init(void)
+{
 	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va))
 		return TEE_ERROR_GENERIC;
 
 	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va))
 		return TEE_ERROR_GENERIC;
 
-	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
-		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va))
-			EMSG("i2c%zu not available\n", n + 1);
-	}
-
-	return TEE_SUCCESS;
+	return i2c_map_controller();
 }
 
 early_init(i2c_init);
