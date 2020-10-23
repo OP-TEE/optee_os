@@ -425,5 +425,8 @@ CFG_IMX_CAAM ?= y
 endif
 endif
 
+CFG_IMX_I2C ?= n
+CFG_IMX_I2C_CLK_RATE ?= 24000000
+
 # Cryptographic configuration
 include core/arch/arm/plat-imx/crypto_conf.mk
