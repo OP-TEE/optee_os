@@ -31,6 +31,7 @@
 #define __IMX6_H__
 
 #include <registers/imx6-crm.h>
+#include <registers/imx6-iomux.h>
 
 #define UART1_BASE			0x2020000
 #define IOMUXC_BASE			0x020E0000
@@ -114,6 +115,12 @@
 #define DIGPROG_OFFSET	0x280
 #else
 #define DIGPROG_OFFSET	0x260
+#endif
+
+#if defined(CFG_MX6ULL)
+#define I2C1_BASE		0x021a0000
+#define I2C2_BASE		0x021a4000
+#define I2C3_BASE		0x02184000
 #endif
 
 #endif /* __IMX6_H__ */
