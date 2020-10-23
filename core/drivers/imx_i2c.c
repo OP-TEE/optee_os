@@ -26,10 +26,16 @@
 #define I2C_CLK_CGRBM(__x) 0
 #endif
 
-static struct io_pa_va i2c_bus[] = {
-	{ .pa = I2C1_BASE, },
-	{ .pa = I2C2_BASE, },
-	{ .pa = I2C3_BASE, },
+static struct io_pa_va i2c_bus[3] = {
+#if defined I2C1_BASE
+	[0] = { .pa = I2C1_BASE, },
+#endif
+#if defined I2C2_BASE
+	[1] = { .pa = I2C2_BASE, },
+#endif
+#if defined I2C3_BASE
+	[2] = { .pa = I2C3_BASE, },
+#endif
 };
 
 static struct imx_i2c_clk {
@@ -316,6 +322,9 @@ TEE_Result imx_i2c_read(uint8_t bid, uint8_t chip, uint8_t *buf, int len)
 	if ((len && !buf) || chip > 0x7F)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!i2c_bus[bid].va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ret = i2c_init_transfer(bid, chip << 1 | BIT(0));
 	if (ret == TEE_SUCCESS)
 		ret = i2c_read_data(bid, buf, len);
@@ -336,6 +345,9 @@ TEE_Result imx_i2c_write(uint8_t bid, uint8_t chip, const uint8_t *buf, int len)
 	if ((len && !buf) || chip > 0x7F)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!i2c_bus[bid].va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ret = i2c_init_transfer(bid, chip << 1);
 	if (ret == TEE_SUCCESS)
 		ret = i2c_write_data(bid, buf, len);
@@ -349,6 +361,9 @@ TEE_Result imx_i2c_write(uint8_t bid, uint8_t chip, const uint8_t *buf, int len)
 TEE_Result imx_i2c_probe(uint8_t bid, uint8_t chip)
 {
 	if (bid >= ARRAY_SIZE(i2c_bus))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!i2c_bus[bid].va)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (chip > 0x7F)
@@ -370,6 +385,9 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!bps)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!i2c_bus[bid].va)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	io_write32(mux->base.va + mux->i2c[bid].scl_mux, I2C_MUX_VAL(bid));
@@ -406,15 +424,15 @@ static TEE_Result i2c_init(void)
 {
 	size_t n = 0;
 
-	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va) != TEE_SUCCESS)
+	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va))
 		return TEE_ERROR_GENERIC;
 
-	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va) != TEE_SUCCESS)
+	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va))
 		return TEE_ERROR_GENERIC;
 
 	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
-		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va) != TEE_SUCCESS)
-			return TEE_ERROR_GENERIC;
+		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va))
+			EMSG("i2c%zu not available\n", n + 1);
 	}
 
 	return TEE_SUCCESS;
