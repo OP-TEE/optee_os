@@ -17,14 +17,21 @@
 #include <trace.h>
 #include <util.h>
 
-/* SoC optional: iomuxc daisy configuration register */
+#define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_VAL(__x)	IOMUXC_I2C_MUX_VAL
+#define I2C_CFG_VAL(__x)	IOMUXC_I2C_CFG_VAL
+
+/* SoC dependent: iomuxc daisy configuration register */
 #ifndef I2C_INP_SCL
 #define I2C_INP_SCL(__x) 0
 #define I2C_INP_SDA(__x) 0
 #define I2C_INP_VAL(__x) 0
 #endif
 
-/* SoC optional: clock gate bitmask */
+/* SoC dependent: clock gate bitmask */
 #ifndef I2C_CLK_CGRBM
 #define I2C_CLK_CGRBM(__x) 0
 #endif
