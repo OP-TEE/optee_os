@@ -882,8 +882,9 @@ static void assign_mem_granularity(struct tee_mmap_region *memory_map)
 static unsigned int get_va_width(void)
 {
 	if (IS_ENABLED(ARM64)) {
-		COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(CFG_LPAE_ADDR_SPACE_SIZE));
-		return __builtin_ctzll(CFG_LPAE_ADDR_SPACE_SIZE);
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS >= 32);
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS < 48);
+		return CFG_LPAE_ADDR_SPACE_BITS;
 	}
 	return 32;
 }
