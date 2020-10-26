@@ -53,7 +53,8 @@
  * we rather not expose here. There's a compile time assertion to check
  * that these magic numbers are correct.
  */
-#define CORE_MMU_L1_TBL_OFFSET		(CFG_TEE_CORE_NB_CORE * 4 * 8)
+#define CORE_MMU_L1_TBL_OFFSET		(CFG_TEE_CORE_NB_CORE * \
+					 BIT(CFG_LPAE_ADDR_SPACE_BITS - 30) * 8)
 #endif
 /*
  * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
