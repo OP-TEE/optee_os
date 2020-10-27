@@ -855,8 +855,4 @@
 #define BM_CCM_ANALOG_PLL_ARM_DIV_SELECT	\
 			SHIFT_U32(0x7F, BS_CCM_ANALOG_PLL_DIV_SELECT)
 
-/* I2C clock gate register and bit mask */
-#define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
-#define I2C_CLK_CGR(__x)	CCM_CCGR2
-
 #endif /* __IMX6_CRM_H__ */
