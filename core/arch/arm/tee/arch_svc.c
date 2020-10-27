@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <arm.h>
@@ -362,7 +363,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 				   TEE_MEMORY_ACCESS_READ |
 				   TEE_MEMORY_ACCESS_WRITE,
 				   (uaddr_t)regs->x1,
-				   utc->is_32bit ?
+				   utc->uctx.is_32bit ?
 				   TA32_CONTEXT_MAX_SIZE :
 				   TA64_CONTEXT_MAX_SIZE)) {
 		TAMSG_RAW("");
@@ -375,7 +376,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 	tsd->abort_descr = 0;
 	tsd->abort_va = 0;
 
-	if (utc->is_32bit)
+	if (utc->uctx.is_32bit)
 		save_panic_regs_a32_ta(tsd, (uint32_t *)regs->x1);
 	else
 		save_panic_regs_a64_ta(tsd, (uint64_t *)regs->x1);
