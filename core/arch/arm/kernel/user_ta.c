@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <initcall.h>
 #include <keep.h>
+#include <kernel/ldelf_loader.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
@@ -48,16 +49,6 @@
 #include <types_ext.h>
 #include <utee_defines.h>
 #include <util.h>
-
-extern uint8_t ldelf_data[];
-extern const unsigned int ldelf_code_size;
-extern const unsigned int ldelf_data_size;
-extern const unsigned int ldelf_entry;
-#ifdef ARM32
-const bool is_arm32 = true;
-#else
-const bool is_arm32;
-#endif
 
 static void init_utee_param(struct utee_params *up,
 			const struct tee_ta_param *p, void *va[TEE_NUM_PARAMS])
@@ -222,64 +213,6 @@ out_clr_cancel:
 	return res;
 }
 
-static TEE_Result init_with_ldelf(struct ts_session *sess __maybe_unused,
-				  struct user_ta_ctx *utc)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct ldelf_arg *arg = NULL;
-	uint32_t panic_code = 0;
-	uint32_t panicked = 0;
-	uaddr_t usr_stack = 0;
-
-	usr_stack = utc->ldelf_stack_ptr;
-	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
-	arg = (struct ldelf_arg *)usr_stack;
-	memset(arg, 0, sizeof(*arg));
-	arg->uuid = utc->ta_ctx.ts_ctx.uuid;
-
-	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->entry_func,
-				     is_arm32, &panicked, &panic_code);
-
-	thread_user_clear_vfp(&utc->uctx);
-	if (panicked) {
-		abort_print_current_ta();
-		EMSG("ldelf panicked");
-		return TEE_ERROR_GENERIC;
-	}
-	if (res) {
-		EMSG("ldelf failed with res: %#"PRIx32, res);
-		return res;
-	}
-
-	res = vm_check_access_rights(&utc->uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res)
-		return res;
-
-	/*
-	 * This is already checked by the elf loader, but since it runs in
-	 * user mode we're not trusting it entirely.
-	 */
-	if (arg->flags & ~TA_FLAGS_MASK)
-		return TEE_ERROR_BAD_FORMAT;
-
-	utc->is_32bit = arg->is_32bit;
-	utc->entry_func = arg->entry_func;
-	utc->stack_ptr = arg->stack_ptr;
-	utc->ta_ctx.flags = arg->flags;
-	utc->dump_entry_func = arg->dump_entry;
-#ifdef CFG_FTRACE_SUPPORT
-	utc->ftrace_entry_func = arg->ftrace_entry;
-	sess->fbuf = arg->fbuf;
-#endif
-	utc->dl_entry_func = arg->dl_entry;
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result user_ta_enter_open_session(struct ts_session *s)
 {
 	return user_ta_enter(s, UTEE_ENTRY_FUNC_OPEN_SESSION, 0);
@@ -302,134 +235,20 @@ static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
 	user_mode_ctx_print_mappings(&utc->uctx);
 }
 
-static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
-{
-	TEE_Result res = TEE_SUCCESS;
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
-	struct dump_entry_arg *arg = NULL;
-	uint32_t panic_code = 0;
-	uint32_t panicked = 0;
-	struct thread_specific_data *tsd = thread_get_tsd();
-	struct vm_region *r = NULL;
-	size_t n = 0;
-
-	TAILQ_FOREACH(r, &utc->uctx.vm_info.regions, link)
-		if (r->attr & TEE_MATTR_URWX)
-			n++;
-
-	usr_stack = utc->ldelf_stack_ptr;
-	usr_stack -= ROUNDUP(sizeof(*arg) + n * sizeof(struct dump_map),
-			     STACK_ALIGNMENT);
-	arg = (struct dump_entry_arg *)usr_stack;
-
-	res = vm_check_access_rights(&utc->uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
-
-	memset(arg, 0, sizeof(*arg) + n * sizeof(struct dump_map));
-
-	arg->num_maps = n;
-	n = 0;
-	TAILQ_FOREACH(r, &utc->uctx.vm_info.regions, link) {
-		if (r->attr & TEE_MATTR_URWX) {
-			if (r->mobj)
-				mobj_get_pa(r->mobj, r->offset, 0,
-					    &arg->maps[n].pa);
-			arg->maps[n].va = r->va;
-			arg->maps[n].sz = r->size;
-			if (r->attr & TEE_MATTR_UR)
-				arg->maps[n].flags |= DUMP_MAP_READ;
-			if (r->attr & TEE_MATTR_UW)
-				arg->maps[n].flags |= DUMP_MAP_WRITE;
-			if (r->attr & TEE_MATTR_UX)
-				arg->maps[n].flags |= DUMP_MAP_EXEC;
-			if (r->attr & TEE_MATTR_SECURE)
-				arg->maps[n].flags |= DUMP_MAP_SECURE;
-			if (r->flags & VM_FLAG_EPHEMERAL)
-				arg->maps[n].flags |= DUMP_MAP_EPHEM;
-			if (r->flags & VM_FLAG_LDELF)
-				arg->maps[n].flags |= DUMP_MAP_LDELF;
-			n++;
-		}
-	}
-
-	arg->is_arm32 = utc->is_32bit;
-#ifdef ARM32
-		arg->arm32.regs[0] = tsd->abort_regs.r0;
-		arg->arm32.regs[1] = tsd->abort_regs.r1;
-		arg->arm32.regs[2] = tsd->abort_regs.r2;
-		arg->arm32.regs[3] = tsd->abort_regs.r3;
-		arg->arm32.regs[4] = tsd->abort_regs.r4;
-		arg->arm32.regs[5] = tsd->abort_regs.r5;
-		arg->arm32.regs[6] = tsd->abort_regs.r6;
-		arg->arm32.regs[7] = tsd->abort_regs.r7;
-		arg->arm32.regs[8] = tsd->abort_regs.r8;
-		arg->arm32.regs[9] = tsd->abort_regs.r9;
-		arg->arm32.regs[10] = tsd->abort_regs.r10;
-		arg->arm32.regs[11] = tsd->abort_regs.r11;
-		arg->arm32.regs[12] = tsd->abort_regs.ip;
-		arg->arm32.regs[13] = tsd->abort_regs.usr_sp; /*SP*/
-		arg->arm32.regs[14] = tsd->abort_regs.usr_lr; /*LR*/
-		arg->arm32.regs[15] = tsd->abort_regs.elr; /*PC*/
-#endif /*ARM32*/
-#ifdef ARM64
-	if (utc->is_32bit) {
-		arg->arm32.regs[0] = tsd->abort_regs.x0;
-		arg->arm32.regs[1] = tsd->abort_regs.x1;
-		arg->arm32.regs[2] = tsd->abort_regs.x2;
-		arg->arm32.regs[3] = tsd->abort_regs.x3;
-		arg->arm32.regs[4] = tsd->abort_regs.x4;
-		arg->arm32.regs[5] = tsd->abort_regs.x5;
-		arg->arm32.regs[6] = tsd->abort_regs.x6;
-		arg->arm32.regs[7] = tsd->abort_regs.x7;
-		arg->arm32.regs[8] = tsd->abort_regs.x8;
-		arg->arm32.regs[9] = tsd->abort_regs.x9;
-		arg->arm32.regs[10] = tsd->abort_regs.x10;
-		arg->arm32.regs[11] = tsd->abort_regs.x11;
-		arg->arm32.regs[12] = tsd->abort_regs.x12;
-		arg->arm32.regs[13] = tsd->abort_regs.x13; /*SP*/
-		arg->arm32.regs[14] = tsd->abort_regs.x14; /*LR*/
-		arg->arm32.regs[15] = tsd->abort_regs.elr; /*PC*/
-	} else {
-		arg->arm64.fp = tsd->abort_regs.x29;
-		arg->arm64.pc = tsd->abort_regs.elr;
-		arg->arm64.sp = tsd->abort_regs.sp_el0;
-	}
-#endif /*ARM64*/
-
-	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->dump_entry_func,
-				     is_arm32, &panicked, &panic_code);
-	thread_user_clear_vfp(&utc->uctx);
-	if (panicked) {
-		utc->dump_entry_func = 0;
-		EMSG("ldelf dump function panicked");
-		abort_print_current_ta();
-		res = TEE_ERROR_TARGET_DEAD;
-	}
-
-	return res;
-}
-
 static void user_ta_dump_state(struct ts_ctx *ctx)
 {
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
 	if (utc->dump_entry_func) {
-		TEE_Result res = dump_state_ldelf_dbg(utc);
+		TEE_Result res = ldelf_dump_state(utc);
 
 		if (!res || res == TEE_ERROR_TARGET_DEAD)
 			return;
 		/*
 		 * Fall back to dump_state_no_ldelf_dbg() if
-		 * dump_state_ldelf_dbg() fails for some reason.
+		 * ldelf_dump_state() fails for some reason.
 		 *
-		 * If dump_state_ldelf_dbg() failed with panic
+		 * If ldelf_dump_state() failed with panic
 		 * where done since abort_print_current_ta() will be
 		 * called which will dump the memory map.
 		 */
@@ -439,51 +258,6 @@ static void user_ta_dump_state(struct ts_ctx *ctx)
 }
 
 #ifdef CFG_FTRACE_SUPPORT
-static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
-{
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
-	TEE_Result res = TEE_SUCCESS;
-	uint32_t panic_code = 0;
-	uint32_t panicked = 0;
-	size_t *arg = NULL;
-
-	if (!utc->ftrace_entry_func)
-		return TEE_ERROR_NOT_SUPPORTED;
-
-	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
-	arg = (size_t *)usr_stack;
-
-	res = vm_check_access_rights(&utc->uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
-
-	*arg = *blen;
-
-	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
-				     usr_stack, utc->ftrace_entry_func,
-				     is_arm32, &panicked, &panic_code);
-	thread_user_clear_vfp(&utc->uctx);
-	if (panicked) {
-		utc->ftrace_entry_func = 0;
-		EMSG("ldelf ftrace function panicked");
-		abort_print_current_ta();
-		res = TEE_ERROR_TARGET_DEAD;
-	}
-
-	if (!res) {
-		if (*arg > *blen)
-			res = TEE_ERROR_SHORT_BUFFER;
-		*blen = *arg;
-	}
-
-	return res;
-}
-
 static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 {
 	uint32_t prot = TEE_MATTR_URW;
@@ -497,7 +271,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 	size_t blen = 0, ld_addr_len = 0;
 	vaddr_t va = 0;
 
-	res = dump_ftrace(utc, NULL, &blen);
+	res = ldelf_dump_ftrace(utc, NULL, &blen);
 	if (res != TEE_ERROR_SHORT_BUFFER)
 		return;
 
@@ -529,7 +303,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 			       VCORE_START_VA);
 	ubuf += ld_addr_len;
 
-	res = dump_ftrace(utc, ubuf, &blen);
+	res = ldelf_dump_ftrace(utc, ubuf, &blen);
 	if (res) {
 		EMSG("Ftrace dump failed: %#"PRIx32, res);
 		goto out_unmap_pl;
@@ -648,73 +422,6 @@ static TEE_Result check_ta_store(void)
 }
 service_init(check_ta_store);
 
-static TEE_Result alloc_and_map_ldelf_fobj(struct user_ta_ctx *utc, size_t sz,
-					   uint32_t prot, vaddr_t *va)
-{
-	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
-	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
-	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL);
-	TEE_Result res = TEE_SUCCESS;
-
-	fobj_put(fobj);
-	if (!mobj)
-		return TEE_ERROR_OUT_OF_MEMORY;
-	res = vm_map(&utc->uctx, va, num_pgs * SMALL_PAGE_SIZE,
-		     prot, VM_FLAG_LDELF, mobj, 0);
-	mobj_put(mobj);
-
-	return res;
-}
-
-/*
- * This function may leave a few mappings behind on error, but that's taken
- * care of by tee_ta_init_user_ta_session() since the entire context is
- * removed then.
- */
-static TEE_Result load_ldelf(struct user_ta_ctx *utc)
-{
-	TEE_Result res = TEE_SUCCESS;
-	vaddr_t stack_addr = 0;
-	vaddr_t code_addr = 0;
-	vaddr_t rw_addr = 0;
-
-	utc->is_32bit = is_arm32;
-
-	res = alloc_and_map_ldelf_fobj(utc, LDELF_STACK_SIZE,
-				       TEE_MATTR_URW | TEE_MATTR_PRW,
-				       &stack_addr);
-	if (res)
-		return res;
-	utc->ldelf_stack_ptr = stack_addr + LDELF_STACK_SIZE;
-
-	res = alloc_and_map_ldelf_fobj(utc, ldelf_code_size, TEE_MATTR_PRW,
-				       &code_addr);
-	if (res)
-		return res;
-	utc->entry_func = code_addr + ldelf_entry;
-
-	rw_addr = ROUNDUP(code_addr + ldelf_code_size, SMALL_PAGE_SIZE);
-	res = alloc_and_map_ldelf_fobj(utc, ldelf_data_size,
-				       TEE_MATTR_URW | TEE_MATTR_PRW, &rw_addr);
-	if (res)
-		return res;
-
-	vm_set_ctx(&utc->ta_ctx.ts_ctx);
-
-	memcpy((void *)code_addr, ldelf_data, ldelf_code_size);
-	memcpy((void *)rw_addr, ldelf_data + ldelf_code_size, ldelf_data_size);
-
-	res = vm_set_prot(&utc->uctx, code_addr,
-			  ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE),
-			  TEE_MATTR_URX);
-	if (res)
-		return res;
-
-	DMSG("ldelf load address %#"PRIxVA, code_addr);
-
-	return TEE_SUCCESS;
-}
-
 TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 				       struct tee_ta_session *s)
 {
@@ -763,9 +470,9 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 */
 	ts_push_current_session(&s->ts_sess);
 
-	res = load_ldelf(utc);
+	res = ldelf_load_ldelf(utc);
 	if (!res)
-		res = init_with_ldelf(&s->ts_sess, utc);
+		res = ldelf_init_with_ldelf(&s->ts_sess, utc);
 
 	ts_pop_current_session();
 
