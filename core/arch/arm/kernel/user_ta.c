@@ -21,7 +21,6 @@
 #include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/user_ta.h>
-#include <ldelf.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/file.h>
@@ -156,7 +155,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	ts_push_current_session(session);
 
 	/* Make room for usr_params at top of stack */
-	usr_stack = utc->stack_ptr;
+	usr_stack = utc->uctx.stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	if (ta_sess->param)
@@ -166,7 +165,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 
 	res = thread_enter_user_mode(func, kaddr_to_uref(session),
 				     (vaddr_t)usr_params, cmd, usr_stack,
-				     utc->entry_func, utc->is_32bit,
+				     utc->uctx.entry_func, utc->uctx.is_32bit,
 				     &utc->ta_ctx.panicked,
 				     &utc->ta_ctx.panic_code);
 
@@ -226,7 +225,7 @@ static TEE_Result user_ta_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 static void user_ta_enter_close_session(struct ts_session *s)
 {
 	/* Only if the TA was fully initialized by ldelf */
-	if (!to_user_ta_ctx(s->ctx)->is_initializing)
+	if (!to_user_ta_ctx(s->ctx)->uctx.is_initializing)
 		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
 }
 
@@ -239,8 +238,8 @@ static void user_ta_dump_state(struct ts_ctx *ctx)
 {
 	struct user_ta_ctx *utc = to_user_ta_ctx(ctx);
 
-	if (utc->dump_entry_func) {
-		TEE_Result res = ldelf_dump_state(utc);
+	if (utc->uctx.dump_entry_func) {
+		TEE_Result res = ldelf_dump_state(&utc->uctx);
 
 		if (!res || res == TEE_ERROR_TARGET_DEAD)
 			return;
@@ -271,7 +270,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 	size_t blen = 0, ld_addr_len = 0;
 	vaddr_t va = 0;
 
-	res = ldelf_dump_ftrace(utc, NULL, &blen);
+	res = ldelf_dump_ftrace(&utc->uctx, NULL, &blen);
 	if (res != TEE_ERROR_SHORT_BUFFER)
 		return;
 
@@ -303,7 +302,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 			       VCORE_START_VA);
 	ubuf += ld_addr_len;
 
-	res = ldelf_dump_ftrace(utc, ubuf, &blen);
+	res = ldelf_dump_ftrace(&utc->uctx, ubuf, &blen);
 	if (res) {
 		EMSG("Ftrace dump failed: %#"PRIx32, res);
 		goto out_unmap_pl;
@@ -433,7 +432,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	utc->ta_ctx.initializing = true;
-	utc->is_initializing = true;
+	utc->uctx.is_initializing = true;
 	TAILQ_INIT(&utc->open_sessions);
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
@@ -470,16 +469,16 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	 */
 	ts_push_current_session(&s->ts_sess);
 
-	res = ldelf_load_ldelf(utc);
+	res = ldelf_load_ldelf(&utc->uctx);
 	if (!res)
-		res = ldelf_init_with_ldelf(&s->ts_sess, utc);
+		res = ldelf_init_with_ldelf(&s->ts_sess, &utc->uctx);
 
 	ts_pop_current_session();
 
 	mutex_lock(&tee_ta_mutex);
 
 	if (!res) {
-		utc->is_initializing = false;
+		utc->uctx.is_initializing = false;
 	} else {
 		s->ts_sess.ctx = NULL;
 		TAILQ_REMOVE(&tee_ctxes, &utc->ta_ctx, link);

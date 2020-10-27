@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 #ifndef KERNEL_USER_TA_H
 #define KERNEL_USER_TA_H
@@ -23,40 +24,19 @@ SLIST_HEAD(load_seg_head, load_seg);
 
 /*
  * struct user_ta_ctx - user TA context
- * @entry_func:		Entry address in TA
- * @dump_entry_func:	Entry address in TA for dumping address mappings
- *			and stack trace
- * @ftrace_entry_func:	Entry address in ldelf for dumping ftrace data
- * @ldelf_stack_ptr:	Stack pointer used for dumping address mappings and
- *			stack trace
- * @is_32bit:		True if 32-bit TA, false if 64-bit TA
- * @is_initializing:	True if TA is not fully loaded
  * @open_sessions:	List of sessions opened by this TA
  * @cryp_states:	List of cryp states created by this TA
  * @objects:		List of storage objects opened by this TA
  * @storage_enums:	List of storage enumerators opened by this TA
- * @stack_ptr:		Stack pointer
- * @vm_info:		Virtual memory map of this context
  * @ta_time_offs:	Time reference used by the TA
- * @areas:		Memory areas registered by pager
- * @vfp:		State of VFP registers
+ * @uctx:		Generic user mode context
  * @ctx:		Generic TA context
  */
 struct user_ta_ctx {
-	uaddr_t entry_func;
-	uaddr_t dump_entry_func;
-#ifdef CFG_FTRACE_SUPPORT
-	uaddr_t ftrace_entry_func;
-#endif
-	uaddr_t dl_entry_func;
-	uaddr_t ldelf_stack_ptr;
-	bool is_32bit;
-	bool is_initializing;
 	struct tee_ta_session_head open_sessions;
 	struct tee_cryp_state_head cryp_states;
 	struct tee_obj_head objects;
 	struct tee_storage_enum_head storage_enums;
-	vaddr_t stack_ptr;
 	void *ta_time_offs;
 	struct user_mode_ctx uctx;
 	struct tee_ta_ctx ta_ctx;

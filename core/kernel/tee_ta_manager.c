@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <arm.h>
@@ -560,7 +561,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
 			return TEE_ERROR_ITEM_NOT_FOUND;
 
 		if (!is_user_ta_ctx(&ctx->ts_ctx) ||
-		    !to_user_ta_ctx(&ctx->ts_ctx)->is_initializing)
+		    !to_user_ta_ctx(&ctx->ts_ctx)->uctx.is_initializing)
 			break;
 		/*
 		 * Context is still initializing, wait here until it's

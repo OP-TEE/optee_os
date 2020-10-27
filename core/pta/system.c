@@ -662,7 +662,7 @@ static const bool is_arm32;
 static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 				    uint32_t flags)
 {
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -689,7 +689,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlopen.flags = flags;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->dl_entry_func,
+				     usr_stack, utc->uctx.dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
@@ -705,7 +705,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 				   const char *sym, size_t maxlen, vaddr_t *val)
 {
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -735,7 +735,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlsym.symbol[len] = '\0';
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->dl_entry_func,
+				     usr_stack, utc->uctx.dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
