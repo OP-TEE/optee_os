@@ -29,6 +29,5 @@
 #define CCM_CCRG_I2C1		23
 #define CCM_CCRG_I2C2		24
 #define CCM_CCRG_I2C3		25
-#define I2C_CLK_CGR(__x)	CCM_CCRG_I2C##__x
 
 #endif  /* __IMX8M_CRM_H */

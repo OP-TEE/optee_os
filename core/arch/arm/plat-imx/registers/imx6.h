@@ -145,24 +145,12 @@
 #define I2C2_BASE		0x021a4000
 #define I2C3_BASE		0x02184000
 
-#define IOMUXC_I2C1_SCL_CFG	0x340
-#define IOMUXC_I2C1_SDA_CFG	0x344
-#define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG + ((__x) - 1) * 0x8)
-#define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG + ((__x) - 1) * 0x8)
-
-#define IOMUXC_I2C1_SCL_MUX	0xb4
-#define IOMUXC_I2C1_SDA_MUX	0xb8
-#define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX + ((__x) - 1) * 0x8)
-#define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX + ((__x) - 1) * 0x8)
-
-#define IOMUXC_I2C1_SCL_INP	0x5a4
-#define IOMUXC_I2C1_SDA_INP	0x5a8
-#define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP + ((__x) - 1) * 0x8)
-#define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP + ((__x) - 1) * 0x8)
-
-#define I2C_MUX_VAL(__x)	0x12
-#define I2C_CFG_VAL(__x)	0x1b8b0
-#define I2C_INP_VAL(__x)	(((__x) == IOMUXC_I2C1_SCL_INP) ? 0x1 : 0x2)
+#define IOMUXC_I2C1_SCL_CFG_OFF	0x340
+#define IOMUXC_I2C1_SDA_CFG_OFF	0x344
+#define IOMUXC_I2C1_SCL_MUX_OFF	0xb4
+#define IOMUXC_I2C1_SDA_MUX_OFF	0xb8
+#define IOMUXC_I2C1_SCL_INP_OFF	0x5a4
+#define IOMUXC_I2C1_SDA_INP_OFF	0x5a8
 #endif
 
 #endif /* __IMX6_H__ */

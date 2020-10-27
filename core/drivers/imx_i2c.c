@@ -22,16 +22,33 @@
 #define USE_I2C_STATIC_ADDRESS \
 	(!defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY))
 
-/* SoC optional: iomuxc daisy configuration register */
-#ifndef I2C_INP_SCL
-#define I2C_INP_SCL(__x) 0
-#define I2C_INP_SDA(__x) 0
-#define I2C_INP_VAL(__x) 0
-#endif
-
-/* SoC optional: clock gate bitmask */
-#ifndef I2C_CLK_CGRBM
-#define I2C_CLK_CGRBM(__x) 0
+/* Utility macros (__x identifies the bus [1 .. 3]) */
+#define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
+#if defined(CFG_MX8MM)
+/* IOMUX */
+#define I2C_INP_SCL(__x)	0 /* Not implemented */
+#define I2C_INP_SDA(__x)	0 /* Not implemented */
+#define I2C_INP_VAL(__x)	0 /* Not implemented */
+#define I2C_MUX_VAL(__x)	0x010
+#define I2C_CFG_VAL(__x)	0x1c3
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR(__x)	CCM_CCRG_I2C##__x
+#elif defined(CFG_MX6ULL)
+/* IOMUX */
+#define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_VAL(__x)	(((__x) == 1) ? 0x1 : 0x2)
+#define I2C_MUX_VAL(__x)	0x012
+#define I2C_CFG_VAL(__x)	0x1b8b0
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
+#define I2C_CLK_CGR(__x)	CCM_CCGR2
+#else
+#error IMX_I2C driver not supported on this platform
 #endif
 
 static struct io_pa_va i2c_bus[3] = {
@@ -174,6 +191,8 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 #elif defined(CFG_MX6ULL)
 	addr += i2c_clk.i2c[bid];
 	val = i2c_clk.cgrbm[bid] | io_read32(addr);
+#else
+#error IMX_I2C driver not supported on this platform
 #endif
 	io_write32(addr, val);
 	i2c_set_prescaler(bid, bps);
@@ -404,13 +423,13 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	io_write32(mux->base.va + mux->i2c[bid].scl_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].scl_inp)
 		io_write32(mux->base.va + mux->i2c[bid].scl_inp,
-			   I2C_INP_VAL(mux->i2c[bid].scl_inp));
+			   I2C_INP_VAL(bid + 1));
 
 	io_write32(mux->base.va + mux->i2c[bid].sda_mux, I2C_MUX_VAL(bid));
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].sda_inp)
 		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
-			   I2C_INP_VAL(mux->i2c[bid].sda_inp));
+			   I2C_INP_VAL(bid + 1));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
@@ -500,7 +519,7 @@ static TEE_Result i2c_map_controller(void)
 
 	return ret;
 }
-#endif
+#endif /* !USE_I2C_STATIC_ADDRESS */
 
 static TEE_Result i2c_init(void)
 {
