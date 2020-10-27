@@ -34,6 +34,9 @@
 #elif defined(PLATFORM_FLAVOR_armada3700)
 #include <drivers/mvebu_uart.h>
 #endif
+#ifdef CFG_PL011
+#include <drivers/pl011.h>
+#endif
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
@@ -51,6 +54,8 @@ static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
 #elif defined(PLATFORM_FLAVOR_armada3700)
 static struct mvebu_uart_data console_data;
+#elif CFG_PL011
+static struct pl011_data console_data;
 #endif
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
@@ -58,18 +63,24 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 
 #ifdef GIC_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, CORE_MMU_PGDIR_SIZE);
+#ifdef GICC_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, CORE_MMU_PGDIR_SIZE);
+#endif
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
 	vaddr_t gicd_base;
+	vaddr_t gicc_base = 0;
 
+#ifdef GICC_BASE
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
 					  MEM_AREA_IO_SEC);
+	if (!gicc_base)
+		panic();
+#endif
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
 					  MEM_AREA_IO_SEC);
-	if (!gicc_base || !gicd_base)
+	if (!gicd_base)
 		panic();
 
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
@@ -91,6 +102,9 @@ void console_init(void)
 #elif defined(PLATFORM_FLAVOR_armada3700)
 	mvebu_uart_init(&console_data, CONSOLE_UART_BASE,
 		CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
+#elif CFG_PL011
+	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
+		   CONSOLE_BAUDRATE);
 #endif
 	register_serial_console(&console_data.chip);
 }
