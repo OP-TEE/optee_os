@@ -762,6 +762,12 @@ enum pkcs11_key_type {
  * Note that this will be extended as needed.
  */
 enum pkcs11_mechanism_id {
+	PKCS11_CKM_MD5_HMAC			= 0x00211,
+	PKCS11_CKM_SHA_1_HMAC			= 0x00221,
+	PKCS11_CKM_SHA256_HMAC			= 0x00251,
+	PKCS11_CKM_SHA224_HMAC			= 0x00256,
+	PKCS11_CKM_SHA384_HMAC			= 0x00261,
+	PKCS11_CKM_SHA512_HMAC			= 0x00271,
 	PKCS11_CKM_AES_KEY_GEN			= 0x01080,
 	PKCS11_CKM_AES_ECB			= 0x01081,
 	PKCS11_CKM_AES_CBC			= 0x01082,
