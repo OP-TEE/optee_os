@@ -1095,6 +1095,48 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 
 		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		if (key_class != PKCS11_CKO_SECRET_KEY)
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+
+		if (key_type == PKCS11_CKK_GENERIC_SECRET)
+			break;
+
+		switch (proc_id) {
+		case PKCS11_CKM_MD5_HMAC:
+			if (key_type == PKCS11_CKK_MD5_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		case PKCS11_CKM_SHA_1_HMAC:
+			if (key_type == PKCS11_CKK_SHA_1_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		case PKCS11_CKM_SHA224_HMAC:
+			if (key_type == PKCS11_CKK_SHA224_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		case PKCS11_CKM_SHA256_HMAC:
+			if (key_type == PKCS11_CKK_SHA256_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		case PKCS11_CKM_SHA384_HMAC:
+			if (key_type == PKCS11_CKK_SHA384_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		case PKCS11_CKM_SHA512_HMAC:
+			if (key_type == PKCS11_CKK_SHA512_HMAC)
+				break;
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		default:
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
+		break;
+
 	default:
 		DMSG("Invalid processing %#"PRIx32"/%s", proc_id,
 		     id2str_proc(proc_id));
