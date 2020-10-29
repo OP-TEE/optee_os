@@ -99,6 +99,13 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 
 	switch (get_key_type(attrs)) {
 	case PKCS11_CKK_AES:
+	case PKCS11_CKK_GENERIC_SECRET:
+	case PKCS11_CKK_MD5_HMAC:
+	case PKCS11_CKK_SHA_1_HMAC:
+	case PKCS11_CKK_SHA224_HMAC:
+	case PKCS11_CKK_SHA256_HMAC:
+	case PKCS11_CKK_SHA384_HMAC:
+	case PKCS11_CKK_SHA512_HMAC:
 		if (get_attribute_ptr(attrs, PKCS11_CKA_VALUE, NULL, &a_size))
 			return 0;
 
@@ -254,7 +261,7 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 	else
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 
-	if (rc == PKCS11_CKR_OK) {
+	if (rc == PKCS11_CKR_OK && step == PKCS11_FUNC_STEP_UPDATE) {
 		session->processing->updated = true;
 		DMSG("PKCS11 session%"PRIu32": processing %s %s",
 		     session->handle, id2str_proc(mecha_type),

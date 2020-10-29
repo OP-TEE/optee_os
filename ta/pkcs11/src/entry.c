@@ -247,7 +247,44 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 					   PKCS11_FUNCTION_DECRYPT,
 					   PKCS11_FUNC_STEP_FINAL);
 		break;
-
+	case PKCS11_CMD_SIGN_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_SIGN);
+		break;
+	case PKCS11_CMD_VERIFY_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_VERIFY);
+		break;
+	case PKCS11_CMD_SIGN_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_SIGN,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_VERIFY_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_VERIFY,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_SIGN_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_SIGN,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_VERIFY_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_VERIFY,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_SIGN_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_SIGN,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
+	case PKCS11_CMD_VERIFY_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_VERIFY,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
 	default:
 		EMSG("Command %#"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

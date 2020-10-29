@@ -23,6 +23,13 @@
 bool processing_is_tee_symm(enum pkcs11_mechanism_id proc_id)
 {
 	switch (proc_id) {
+	/* Authentication */
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
 	/* Cipherering */
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
@@ -48,6 +55,13 @@ pkcs2tee_algorithm(uint32_t *tee_id, struct pkcs11_attribute_head *proc_params)
 		{ PKCS11_CKM_AES_CBC_PAD, TEE_ALG_AES_CBC_NOPAD },
 		{ PKCS11_CKM_AES_CTR, TEE_ALG_AES_CTR },
 		{ PKCS11_CKM_AES_CTS, TEE_ALG_AES_CTS },
+		/* HMAC flavors */
+		{ PKCS11_CKM_MD5_HMAC, TEE_ALG_HMAC_MD5 },
+		{ PKCS11_CKM_SHA_1_HMAC, TEE_ALG_HMAC_SHA1 },
+		{ PKCS11_CKM_SHA224_HMAC, TEE_ALG_HMAC_SHA224 },
+		{ PKCS11_CKM_SHA256_HMAC, TEE_ALG_HMAC_SHA256 },
+		{ PKCS11_CKM_SHA384_HMAC, TEE_ALG_HMAC_SHA384 },
+		{ PKCS11_CKM_SHA512_HMAC, TEE_ALG_HMAC_SHA512 },
 	};
 	size_t n = 0;
 
@@ -109,7 +123,19 @@ allocate_tee_operation(struct pkcs11_session *session,
 		return PKCS11_CKR_FUNCTION_FAILED;
 
 	/* Sign/Verify with AES or generic key relate to TEE MAC operation */
-	pkcs2tee_mode(&mode, function);
+	switch (params->id) {
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		mode = TEE_MODE_MAC;
+		break;
+	default:
+		pkcs2tee_mode(&mode, function);
+		break;
+	}
 
 	res = TEE_AllocateOperation(&session->processing->tee_op_handle,
 				    algo, mode, size);
@@ -188,6 +214,18 @@ init_tee_operation(struct pkcs11_session *session,
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 
 	switch (proc_params->id) {
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		if (proc_params->size)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+
+		TEE_MACInit(session->processing->tee_op_handle, NULL, 0);
+		rc = PKCS11_CKR_OK;
+		break;
 	case PKCS11_CKM_AES_ECB:
 		if (proc_params->size)
 			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
@@ -273,6 +311,41 @@ static enum pkcs11_rc input_data_size_is_valid(struct active_processing *proc,
 	return PKCS11_CKR_OK;
 }
 
+/* Validate input buffer size as per PKCS#11 constraints */
+static enum pkcs11_rc input_sign_size_is_valid(struct active_processing *proc,
+					       size_t in_size)
+{
+	size_t sign_sz = 0;
+
+	switch (proc->mecha_type) {
+	case PKCS11_CKM_MD5_HMAC:
+		sign_sz = TEE_MD5_HASH_SIZE;
+		break;
+	case PKCS11_CKM_SHA_1_HMAC:
+		sign_sz = TEE_SHA1_HASH_SIZE;
+		break;
+	case PKCS11_CKM_SHA224_HMAC:
+		sign_sz = TEE_SHA224_HASH_SIZE;
+		break;
+	case PKCS11_CKM_SHA256_HMAC:
+		sign_sz = TEE_SHA256_HASH_SIZE;
+		break;
+	case PKCS11_CKM_SHA384_HMAC:
+		sign_sz = TEE_SHA384_HASH_SIZE;
+		break;
+	case PKCS11_CKM_SHA512_HMAC:
+		sign_sz = TEE_SHA512_HASH_SIZE;
+		break;
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+
+	if (in_size < sign_sz)
+		return PKCS11_CKR_SIGNATURE_LEN_RANGE;
+
+	return PKCS11_CKR_OK;
+}
+
 /*
  * step_sym_cipher - processing symmetric (and related) cipher operation step
  *
@@ -336,9 +409,35 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 
 	/*
 	 * Feed active operation with data
-	 * (PKCS11_FUNC_STEP_UPDATE/_ONESHOT)
 	 */
 	switch (proc->mecha_type) {
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		if (step == PKCS11_FUNC_STEP_FINAL ||
+		    step == PKCS11_FUNC_STEP_ONESHOT)
+			break;
+
+		if (!in_buf) {
+			DMSG("No input data");
+			return PKCS11_CKR_ARGUMENTS_BAD;
+		}
+
+		switch (function) {
+		case PKCS11_FUNCTION_SIGN:
+		case PKCS11_FUNCTION_VERIFY:
+			TEE_MACUpdate(proc->tee_op_handle, in_buf, in_size);
+			rc = PKCS11_CKR_OK;
+			break;
+		default:
+			TEE_Panic(function);
+			break;
+		}
+		break;
+
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_CBC_PAD:
@@ -380,6 +479,35 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 	 * Finalize (PKCS11_FUNC_STEP_ONESHOT/_FINAL) operation
 	 */
 	switch (session->processing->mecha_type) {
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		switch (function) {
+		case PKCS11_FUNCTION_SIGN:
+			res = TEE_MACComputeFinal(proc->tee_op_handle,
+						  in_buf, in_size, out_buf,
+						  &out_size);
+			output_data = true;
+			rc = tee2pkcs_error(res);
+			break;
+		case PKCS11_FUNCTION_VERIFY:
+			rc = input_sign_size_is_valid(proc, in2_size);
+			if (rc)
+				return rc;
+			res = TEE_MACCompareFinal(proc->tee_op_handle,
+						  in_buf, in_size, in2_buf,
+						  in2_size);
+			rc = tee2pkcs_error(res);
+			break;
+		default:
+			TEE_Panic(function);
+			break;
+		}
+		break;
+
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_CBC_PAD:
