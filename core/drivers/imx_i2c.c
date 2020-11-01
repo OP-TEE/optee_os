@@ -183,7 +183,7 @@ static TEE_Result i2c_write_byte(uint8_t bid, uint8_t byte)
 	ret = i2c_sync_bus(bid, &isr_active, &status);
 	i2c_io_write8(bid, I2SR, 0);
 
-	if (ret == TEE_SUCCESS && (status & I2SR_RX_NO_AK))
+	if (!ret && (status & I2SR_RX_NO_AK))
 		return TEE_ERROR_BAD_STATE;
 
 	return ret;
@@ -213,7 +213,7 @@ static TEE_Result i2c_write_data(uint8_t bid, const uint8_t *buf, int len)
 
 	while (len--) {
 		ret = i2c_write_byte(bid, *buf++);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
 
@@ -235,7 +235,7 @@ static TEE_Result i2c_read_data(uint8_t bid, uint8_t *buf, int len)
 	i2c_io_read8(bid, I2DR);
 
 	ret = i2c_read_byte(bid, &dummy);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/*
@@ -251,7 +251,7 @@ static TEE_Result i2c_read_data(uint8_t bid, uint8_t *buf, int len)
 		}
 
 		ret = i2c_read_byte(bid, buf++);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	} while (len--);
 
@@ -264,7 +264,7 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 	uint32_t tmp = 0;
 
 	ret = i2c_idle_bus(bid);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* Enable the interface */
@@ -275,7 +275,7 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 
 	/* Wait until the bus is active */
 	ret = i2c_sync_bus(bid, &bus_is_busy, NULL);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* Slave address on the bus */
@@ -293,10 +293,10 @@ TEE_Result imx_i2c_read(uint8_t bid, uint8_t chip, uint8_t *buf, int len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = i2c_init_transfer(bid, chip << 1 | BIT(0));
-	if (ret == TEE_SUCCESS)
+	if (!ret)
 		ret = i2c_read_data(bid, buf, len);
 
-	if (i2c_idle_bus(bid) != TEE_SUCCESS)
+	if (i2c_idle_bus(bid))
 		IMSG("bus not idle");
 
 	return ret;
@@ -313,10 +313,10 @@ TEE_Result imx_i2c_write(uint8_t bid, uint8_t chip, const uint8_t *buf, int len)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	ret = i2c_init_transfer(bid, chip << 1);
-	if (ret == TEE_SUCCESS)
+	if (!ret)
 		ret = i2c_write_data(bid, buf, len);
 
-	if (i2c_idle_bus(bid) != TEE_SUCCESS)
+	if (i2c_idle_bus(bid))
 		IMSG("bus not idle");
 
 	return ret;
@@ -375,14 +375,14 @@ static TEE_Result i2c_init(void)
 {
 	size_t n = 0;
 
-	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va) != TEE_SUCCESS)
+	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va))
 		return TEE_ERROR_GENERIC;
 
-	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va) != TEE_SUCCESS)
+	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va))
 		return TEE_ERROR_GENERIC;
 
 	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
-		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va) != TEE_SUCCESS)
+		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va))
 			return TEE_ERROR_GENERIC;
 	}
 
