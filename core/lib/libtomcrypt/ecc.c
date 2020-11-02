@@ -372,10 +372,12 @@ static const struct crypto_ecc_public_ops sm2_dsa_public_key_ops = {
 
 static const struct crypto_ecc_keypair_ops sm2_pke_keypair_ops = {
 	.generate = &_ltc_ecc_generate_keypair,
+	.decrypt = &sm2_ltc_pke_decrypt,
 };
 
 static const struct crypto_ecc_public_ops sm2_pke_public_key_ops = {
 	.free = &_ltc_ecc_free_public_key,
+	.encrypt = &sm2_ltc_pke_encrypt,
 };
 
 static const struct crypto_ecc_keypair_ops sm2_kep_keypair_ops = {
