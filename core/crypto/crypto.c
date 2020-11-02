@@ -750,25 +750,29 @@ TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
 					       secret_len);
 }
 
-#if !defined(CFG_CRYPTO_SM2_PKE)
-TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key __unused,
-					  const uint8_t *src __unused,
-					  size_t src_len __unused,
-					  uint8_t *dst __unused,
-					  size_t *dst_len __unused)
+TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
+					  const uint8_t *src, size_t src_len,
+					  uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(key->ops);
+
+	if (!key->ops->decrypt)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return key->ops->decrypt(key, src, src_len, dst, dst_len);
 }
 
-TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key __unused,
-					  const uint8_t *src __unused,
-					  size_t src_len __unused,
-					  uint8_t *dst __unused,
-					  size_t *dst_len __unused)
+TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
+					  const uint8_t *src, size_t src_len,
+					  uint8_t *dst, size_t *dst_len)
 {
-	return TEE_ERROR_NOT_IMPLEMENTED;
+	assert(key->ops);
+
+	if (!key->ops->encrypt)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	return key->ops->encrypt(key, src, src_len, dst, dst_len);
 }
-#endif /* !CFG_CRYPTO_SM2_PKE */
 
 #if !defined(CFG_CRYPTO_SM2_KEP)
 TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key __unused,

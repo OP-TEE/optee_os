@@ -303,18 +303,29 @@ drvcrypt_mac_alloc_ctx(struct crypto_mac_ctx **ctx __unused,
  * The ECC public key operations used by the crypto_acipher_ecc_*() and
  * crypto_acipher_free_ecc_*() functions.
  * Reference set in ecc_public_key when key allocated.
+ *
+ * @free    is mandatory
+ * @verify  is optional
+ * @encrypt is optional
  */
 struct crypto_ecc_public_ops {
 	void (*free)(struct ecc_public_key *key);
 	TEE_Result (*verify)(uint32_t algo, struct ecc_public_key *key,
 			     const uint8_t *msg, size_t msg_len,
 			     const uint8_t *sig, size_t sig_len);
+	TEE_Result (*encrypt)(struct ecc_public_key *key, const uint8_t *src,
+			      size_t src_len, uint8_t *dst, size_t *dst_len);
 };
 
 /*
  * The ECC keypair operations used by the crypto_acipher_ecc_*() and
  * crypto_acipher_gen_ecc_*() functions.
  * Reference set in ecc_keypair when key allocated.
+ *
+ * @generate      is mandatory
+ * @sign          is optional
+ * @shared_secret is optional
+ * @decrypt       is optional
  */
 struct crypto_ecc_keypair_ops {
 	TEE_Result (*generate)(struct ecc_keypair *key, size_t key_size_bits);
@@ -324,6 +335,8 @@ struct crypto_ecc_keypair_ops {
 	TEE_Result (*shared_secret)(struct ecc_keypair *private_key,
 				    struct ecc_public_key *public_key,
 				    void *secret, unsigned long *secret_len);
+	TEE_Result (*decrypt)(struct ecc_keypair *key, const uint8_t *src,
+			      size_t src_len, uint8_t *dst, size_t *dst_len);
 };
 
 #ifdef CFG_CRYPTO_ECC
