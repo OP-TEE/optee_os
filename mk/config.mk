@@ -619,3 +619,29 @@ CFG_COMPAT_GP10_DES ?= y
 
 # Defines a limit for many levels TAs may call each others.
 CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
+
+# Core coverage.
+# When this option is enabled, code coverage data can be obtained for the
+# components in OP-TEE binary
+#
+# The coverage information will be outputed in gcda format to
+# /core/<user_description>/<tree structure>/<source file>.gcda
+# (path is defined in tee-supplicant)
+CFG_CORE_GCOV_SUPPORT ?= n
+
+ifeq ($(CFG_CORE_GCOV_SUPPORT), y)
+CFG_GCOV_SUPPORT = y
+endif
+
+# TA coverage.
+# When this option is enabled, code coverage data can be obtained for the
+# components in TA binary
+#
+# The coverage information will be outputed in gcda format to
+# /<user_description>/<tree structure>/<source file>.gcda
+# (path is defined in tee-supplicant)
+CFG_TA_GCOV_SUPPORT ?= n
+
+ifeq ($(CFG_TA_GCOV_SUPPORT), y)
+CFG_GCOV_SUPPORT = y
+endif
