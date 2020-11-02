@@ -9,6 +9,7 @@
 #
 # set	  objs
 # update  cleanfiles
+# update  gcnofiles if CFG_GCOV_SUPPORT is enabled
 #
 # Generates explicit rules for all objs
 
@@ -81,6 +82,15 @@ ifeq ($C,1)
 check-cmd-$2 = $(CHECK) $$(comp-cppflags-$2) $$<
 echo-check-$2 := $(cmd-echo-silent)
 echo-check-cmd-$2 = $(cmd-echo) $$(subst \",\\\",$$(check-cmd-$2))
+endif
+
+ifeq ($(CFG_GCOV_SUPPORT),y)
+ifeq ($$(findstring --coverage, $$(comp-flags-$2)), --coverage)
+gcnofile := $(basename $2).gcno
+cleanfiles := $$(cleanfiles) $(gcnofile)
+gcnofiles := $$(gcnofiles) $(gcnofile)
+$(basename $2).gcno: $2
+endif
 endif
 
 else ifeq ($$(filter %.S,$1),$1)

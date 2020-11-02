@@ -47,6 +47,10 @@ link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
 dynlistdep = $(link-out-dir$(sm))/dyn_list
 cleanfiles += $(link-out-dir$(sm))/dyn_list
 
+ifeq ($(CFG_GCOV_SUPPORT),y)
+	libnames += gcov
+endif
+
 link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
 link-ldadd += --start-group
 link-ldadd += $(addprefix -l,$(libnames))

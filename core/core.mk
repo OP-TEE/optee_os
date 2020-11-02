@@ -63,6 +63,12 @@ endif
 cppflags$(sm)	+= -Ildelf/include
 cppflags$(sm)	+= -Ilib/libutee/include
 
+ifeq ($(CFG_CORE_GCOV_SUPPORT),y)
+cppflags$(sm) += --coverage
+cflags$(sm) += --coverage
+aflags$(sm) += --coverage
+endif
+
 ifeq ($(filter y, $(CFG_CORE_DYN_SHM) $(CFG_CORE_RESERVED_SHM)),)
 $(error error: No shared memory configured)
 endif

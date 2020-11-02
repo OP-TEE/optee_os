@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright 2020 NXP
  */
 
 #include <arm.h>
@@ -202,7 +203,13 @@ static void secondary_init_cntfrq(void)
 }
 #endif
 
-#ifdef CFG_CORE_SANITIZE_KADDRESS
+/*
+ * Gcov needs the constructor to run at init. There is a constructor
+ * function for each function to gather coverage data.
+ * These functions are created automatically by the compiler.
+ * Each constructor function will call __gcov_int() for their function.
+ */
+#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(CFG_CORE_GCOV_SUPPORT)
 static void init_run_constructors(void)
 {
 	const vaddr_t *ctor;
@@ -210,7 +217,9 @@ static void init_run_constructors(void)
 	for (ctor = &__ctor_list; ctor < &__ctor_end; ctor++)
 		((void (*)(void))(*ctor))();
 }
+#endif /* CFG_CORE_SANITIZE_KADDRESS || CFG_CORE_GCOV_SUPPORT */
 
+#ifdef CFG_CORE_SANITIZE_KADDRESS
 static void init_asan(void)
 {
 
@@ -260,6 +269,9 @@ static void init_asan(void)
 #else /*CFG_CORE_SANITIZE_KADDRESS*/
 static void init_asan(void)
 {
+#ifdef CFG_CORE_GCOV_SUPPORT
+	init_run_constructors();
+#endif
 }
 #endif /*CFG_CORE_SANITIZE_KADDRESS*/
 

@@ -83,6 +83,13 @@ endif
 
 base-prefix := $(sm)-
 
+ifeq ($(CFG_GCOV_SUPPORT),y)
+libname = gcov
+libdir = lib/libgcov
+libuuid = a97851f6-c80e-11ea-87d0-0242ac130003
+include mk/lib.mk
+endif
+
 libname = utils
 libdir = lib/libutils
 libuuid = 71855bba-6055-4293-a63f-b0963a737360
