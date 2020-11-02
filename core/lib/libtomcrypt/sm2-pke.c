@@ -159,8 +159,10 @@ TEE_Result sm2_ltc_pke_decrypt(struct ecc_keypair *key, const uint8_t *src,
 		}
 
 		ltc_res = mp_init_multi(&h, NULL);
-		if (ltc_res != CRYPT_OK)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (ltc_res != CRYPT_OK) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
 
 		ltc_res = mp_set_int(h, ltc_key.dp.cofactor);
 		if (ltc_res != CRYPT_OK) {
