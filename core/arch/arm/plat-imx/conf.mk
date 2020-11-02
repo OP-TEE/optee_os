@@ -425,5 +425,17 @@ CFG_IMX_CAAM ?= y
 endif
 endif
 
+ifeq ($(CFG_CORE_GCOV_SUPPORT), y)
+ifneq ($(CFG_WITH_LPAE), y)
+# Default:
+# TEE_RAM_VA_SIZE = CORE_MMU_PGDIR_SIZE
+#                 = BIT(CORE_MMU_PGDIR_SHIFT)
+# with LPAE disabled: #define CORE_MMU_PGDIR_SHIFT	20
+#                 = BIT(20)
+#                 = 0x80000 (512 Ko)
+CFG_TEE_RAM_VA_SIZE := 0x200000 # 2MB
+endif
+endif
+
 # Cryptographic configuration
 include core/arch/arm/plat-imx/crypto_conf.mk
