@@ -134,7 +134,8 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 		return (uint8_t *)&bool_true;
 	case PKCS11_CKA_TOKEN:
 	case PKCS11_CKA_PRIVATE:
-	/* symkey false, privkey: token specific */
+	case PKCS11_CKA_WRAP_WITH_TRUSTED:
+	case PKCS11_CKA_ALWAYS_AUTHENTICATE:
 	case PKCS11_CKA_SENSITIVE:
 		return (uint8_t *)&bool_false;
 	/* Token specific default value */
@@ -149,8 +150,6 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
 	case PKCS11_CKA_EXTRACTABLE:
-	case PKCS11_CKA_WRAP_WITH_TRUSTED:
-	case PKCS11_CKA_ALWAYS_AUTHENTICATE:
 	case PKCS11_CKA_TRUSTED:
 		return (uint8_t *)&bool_false;
 	default:
