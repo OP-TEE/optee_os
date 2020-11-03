@@ -10,6 +10,7 @@
 #include <string_ext.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_internal_api.h>
+#include <trace.h>
 #include <util.h>
 
 #include "attributes.h"
@@ -1010,11 +1011,15 @@ static bool parent_key_complies_allowed_processings(uint32_t proc_id,
 	uint32_t size = 0;
 	uint32_t proc = 0;
 	size_t count = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 
-	/* Check only if restricted allowed mechanisms list is defined */
-	if (get_attribute_ptr(head, PKCS11_CKA_ALLOWED_MECHANISMS,
-			      (void *)&attr, &size) != PKCS11_CKR_OK) {
+	rc = get_attribute_ptr(head, PKCS11_CKA_ALLOWED_MECHANISMS,
+			       (void *)&attr, &size);
+	if (rc == PKCS11_RV_NOT_FOUND)
 		return true;
+	if (rc) {
+		EMSG("unexpected attributes state");
+		TEE_Panic(TEE_ERROR_BAD_STATE);
 	}
 
 	for (count = size / sizeof(uint32_t); count; count--) {
