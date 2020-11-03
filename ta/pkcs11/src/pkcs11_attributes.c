@@ -86,15 +86,24 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 		break;
 
 	case PKCS11_FUNC_STEP_ONESHOT:
+		if (session->processing->always_authen &&
+		    !session->processing->relogged)
+			return PKCS11_CKR_USER_NOT_LOGGED_IN;
+
+		if (session->processing->updated) {
+			EMSG("Cannot perform one-shot on updated processing");
+			return PKCS11_CKR_OPERATION_ACTIVE;
+		}
+
+		allowed = true;
+		break;
+
 	case PKCS11_FUNC_STEP_UPDATE:
 		if (session->processing->always_authen &&
 		    !session->processing->relogged)
 			return PKCS11_CKR_USER_NOT_LOGGED_IN;
 
-		if (!session->processing->updated)
-			allowed = true;
-		else
-			allowed = !mechanism_is_one_shot_only(mechanism_type);
+		allowed = !mechanism_is_one_shot_only(mechanism_type);
 		break;
 
 	case PKCS11_FUNC_STEP_FINAL:
