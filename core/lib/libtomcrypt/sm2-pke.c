@@ -245,8 +245,10 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 	*dst_len = out_len;
 	if (out_len < C2_len) {
 		eom = calloc(1, C2_len - out_len);
-		if (!eom)
+		if (!eom) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
+		}
 		for (i = out_len; i < C2_len; i++)
 		       eom[i - out_len] = src[C1_len + i] ^ t[i];
 	}
