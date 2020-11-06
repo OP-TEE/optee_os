@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef KERNEL_THREAD_H
@@ -250,6 +251,8 @@ struct thread_specific_data {
 	unsigned int syscall_recursion;
 };
 
+struct user_mode_ctx;
+
 #ifdef CFG_WITH_ARM_TRUSTED_FW
 /*
  * These five functions have a __weak default implementation which does
@@ -446,13 +449,12 @@ static inline void thread_user_save_vfp(void)
 
 /*
  * thread_user_clear_vfp() - Clears the vfp state
- * @uvfp:	pointer to saved state to clear
+ * @uctx:	pointer to user mode context containing the saved state to clear
  */
 #ifdef CFG_WITH_VFP
-void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp);
+void thread_user_clear_vfp(struct user_mode_ctx *uctx);
 #else
-static inline void thread_user_clear_vfp(
-			struct thread_user_vfp_state *uvfp __unused)
+static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 {
 }
 #endif

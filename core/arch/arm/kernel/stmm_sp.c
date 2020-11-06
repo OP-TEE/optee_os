@@ -69,12 +69,6 @@ static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 	return spc;
 }
 
-static void clear_vfp_state(struct stmm_ctx *spc __maybe_unused)
-{
-	if (IS_ENABLED(CFG_WITH_VFP))
-		thread_user_clear_vfp(&spc->uctx.vfp);
-}
-
 static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 {
 	uint32_t exceptions = 0;
@@ -89,7 +83,7 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	write_cntkctl(cntkctl);
 	thread_unmask_exceptions(exceptions);
 
-	clear_vfp_state(spc);
+	thread_user_clear_vfp(&spc->uctx);
 
 	if (panicked) {
 		abort_print_current_ta();

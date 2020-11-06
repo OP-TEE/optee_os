@@ -116,13 +116,6 @@ static void update_from_utee_param(struct tee_ta_param *p,
 	}
 }
 
-static void clear_vfp_state(struct user_ta_ctx *utc __unused)
-{
-#ifdef CFG_WITH_VFP
-	thread_user_clear_vfp(&utc->uctx.vfp);
-#endif
-}
-
 static bool inc_recursion(void)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
@@ -186,7 +179,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 				     &utc->ta_ctx.panicked,
 				     &utc->ta_ctx.panic_code);
 
-	clear_vfp_state(utc);
+	thread_user_clear_vfp(&utc->uctx);
 
 	if (utc->ta_ctx.panicked) {
 		abort_print_current_ta();
@@ -248,7 +241,7 @@ static TEE_Result init_with_ldelf(struct ts_session *sess __maybe_unused,
 				     usr_stack, utc->entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	clear_vfp_state(utc);
+	thread_user_clear_vfp(&utc->uctx);
 	if (panicked) {
 		abort_print_current_ta();
 		EMSG("ldelf panicked");
@@ -412,7 +405,7 @@ static TEE_Result dump_state_ldelf_dbg(struct user_ta_ctx *utc)
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, utc->dump_entry_func,
 				     is_arm32, &panicked, &panic_code);
-	clear_vfp_state(utc);
+	thread_user_clear_vfp(&utc->uctx);
 	if (panicked) {
 		utc->dump_entry_func = 0;
 		EMSG("ldelf dump function panicked");
@@ -474,7 +467,7 @@ static TEE_Result dump_ftrace(struct user_ta_ctx *utc, void *buf, size_t *blen)
 	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
 				     usr_stack, utc->ftrace_entry_func,
 				     is_arm32, &panicked, &panic_code);
-	clear_vfp_state(utc);
+	thread_user_clear_vfp(&utc->uctx);
 	if (panicked) {
 		utc->ftrace_entry_func = 0;
 		EMSG("ldelf ftrace function panicked");
