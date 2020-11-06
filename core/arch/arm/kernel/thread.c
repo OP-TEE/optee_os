@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <platform_config.h>
@@ -21,6 +22,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
+#include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
@@ -1360,8 +1362,9 @@ void thread_user_save_vfp(void)
 	tuv->lazy_saved = true;
 }
 
-void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp)
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
 {
+	struct thread_user_vfp_state *uvfp = &uctx->vfp;
 	struct thread_ctx *thr = threads + thread_get_id();
 
 	if (uvfp == thr->vfp_state.uvfp)
