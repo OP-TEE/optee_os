@@ -37,7 +37,7 @@ comp-cflags-warns-high = \
 	-Wwrite-strings \
 	-Wno-missing-field-initializers -Wno-format-zero-length
 comp-cflags-warns-medium = \
-	-Waggregate-return -Wredundant-decls
+	-Wredundant-decls
 comp-cflags-warns-low = \
 	-Wold-style-definition -Wstrict-aliasing=2 \
 	-Wundef
