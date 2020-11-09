@@ -527,6 +527,7 @@ void tee_pager_early_init(void)
 		assert(pager_tables[n].tbl_info.level == TBL_LEVEL);
 
 		pager_tables[n].pgt.tbl = pager_tables[n].tbl_info.table;
+		pager_tables[n].pgt.vabase = pager_tables[n].tbl_info.va_base;
 		pgt_set_used_entries(&pager_tables[n].pgt,
 				tbl_usage_count(&pager_tables[n].tbl_info));
 	}
