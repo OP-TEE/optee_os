@@ -96,6 +96,23 @@ static bool has_single_instance_lock(void)
 }
 #endif
 
+struct tee_ta_session *__noprof to_ta_session(struct ts_session *sess)
+{
+	assert(is_ta_ctx(sess->ctx) || is_stmm_ctx(sess->ctx));
+	return container_of(sess, struct tee_ta_session, ts_sess);
+}
+
+static struct tee_ta_ctx *ts_to_ta_ctx(struct ts_ctx *ctx)
+{
+	if (is_ta_ctx(ctx))
+		return to_ta_ctx(ctx);
+
+	if (is_stmm_ctx(ctx))
+		return &(to_stmm_ctx(ctx)->ta_ctx);
+
+	panic("bad context");
+}
+
 static bool tee_ta_try_set_busy(struct tee_ta_ctx *ctx)
 {
 	bool rc = true;
@@ -303,10 +320,10 @@ static void destroy_ta_ctx_from_session(struct tee_ta_session *s)
 	struct tee_ta_session_head *open_sessions = NULL;
 	struct tee_ta_ctx *ctx = NULL;
 	struct user_ta_ctx *utc = NULL;
+	struct ts_ctx *ts_ctx = s->ts_sess.ctx;
 	size_t count = 1; /* start counting the references to the context */
 
-	DMSG("Remove references to context (0x%" PRIxVA ")",
-	     (vaddr_t)s->ts_sess.ctx);
+	DMSG("Remove references to context (%#"PRIxVA")", (vaddr_t)ts_ctx);
 
 	mutex_lock(&tee_ta_mutex);
 	nsec_sessions_list_head(&open_sessions);
@@ -323,7 +340,7 @@ static void destroy_ta_ctx_from_session(struct tee_ta_session *s)
 	 * non-secure world.
 	 */
 	TAILQ_FOREACH(sess, open_sessions, link) {
-		if (sess->ts_sess.ctx == s->ts_sess.ctx && sess != s) {
+		if (sess->ts_sess.ctx == ts_ctx && sess != s) {
 			sess->ts_sess.ctx = NULL;
 			count++;
 		}
@@ -339,7 +356,7 @@ static void destroy_ta_ctx_from_session(struct tee_ta_session *s)
 			utc = to_user_ta_ctx(&ctx->ts_ctx);
 
 			TAILQ_FOREACH(sess, &utc->open_sessions, link) {
-				if (sess->ts_sess.ctx == s->ts_sess.ctx &&
+				if (sess->ts_sess.ctx == ts_ctx &&
 				    sess != s) {
 					sess->ts_sess.ctx = NULL;
 					count++;
@@ -348,14 +365,13 @@ static void destroy_ta_ctx_from_session(struct tee_ta_session *s)
 		}
 	}
 
-	ctx = to_ta_ctx(s->ts_sess.ctx);
+	ctx = ts_to_ta_ctx(ts_ctx);
 	assert(count == ctx->ref_count);
 
 	TAILQ_REMOVE(&tee_ctxes, ctx, link);
 	mutex_unlock(&tee_ta_mutex);
 
 	destroy_context(ctx);
-
 	s->ts_sess.ctx = NULL;
 }
 
@@ -429,7 +445,7 @@ static bool check_params(struct tee_ta_session *sess,
 	 * SDP memory references. Only TAs flagged SDP can access SDP memory.
 	 */
 	if (sess->ts_sess.ctx &&
-	    to_ta_ctx(sess->ts_sess.ctx)->flags & TA_FLAG_SECURE_DATA_PATH)
+	    ts_to_ta_ctx(sess->ts_sess.ctx)->flags & TA_FLAG_SECURE_DATA_PATH)
 		return true;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -490,9 +506,10 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id)
 {
-	struct tee_ta_session *sess;
-	struct tee_ta_ctx *ctx;
-	bool keep_alive;
+	struct tee_ta_session *sess = NULL;
+	struct tee_ta_ctx *ctx = NULL;
+	struct ts_ctx *ts_ctx = NULL;
+	bool keep_alive = false;
 
 	DMSG("csess 0x%" PRIxVA " id %u",
 	     (vaddr_t)csess, csess ? csess->id : UINT_MAX);
@@ -515,18 +532,19 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 
 	DMSG("Destroy session");
 
-	if (!sess->ts_sess.ctx) {
+	ts_ctx = sess->ts_sess.ctx;
+	if (!ts_ctx) {
 		destroy_session(sess, open_sessions);
 		return TEE_SUCCESS;
 	}
 
-	ctx = to_ta_ctx(sess->ts_sess.ctx);
+	ctx = ts_to_ta_ctx(ts_ctx);
 	if (ctx->panicked) {
 		destroy_session(sess, open_sessions);
 	} else {
 		tee_ta_set_busy(ctx);
 		set_invoke_timeout(sess, TEE_TIMEOUT_INFINITE);
-		ctx->ts_ctx.ops->enter_close_session(&sess->ts_sess);
+		ts_ctx->ops->enter_close_session(&sess->ts_sess);
 		destroy_session(sess, open_sessions);
 		tee_ta_clear_busy(ctx);
 	}
@@ -692,6 +710,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_ta_session *s = NULL;
 	struct tee_ta_ctx *ctx = NULL;
+	struct ts_ctx *ts_ctx = NULL;
 	bool panicked = false;
 	bool was_busy = false;
 
@@ -704,8 +723,9 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	if (!check_params(s, param))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (s->ts_sess.ctx)
-		ctx = to_ta_ctx(s->ts_sess.ctx);
+	ts_ctx = s->ts_sess.ctx;
+	if (ts_ctx)
+		ctx = ts_to_ta_ctx(ts_ctx);
 
 	if (!ctx || ctx->panicked) {
 		DMSG("panicked, call tee_ta_close_session()");
@@ -721,7 +741,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	if (tee_ta_try_set_busy(ctx)) {
 		s->param = param;
 		set_invoke_timeout(s, cancel_req_to);
-		res = ctx->ts_ctx.ops->enter_open_session(&s->ts_sess);
+		res = ts_ctx->ops->enter_open_session(&s->ts_sess);
 		tee_ta_clear_busy(ctx);
 	} else {
 		/* Deadlock avoided */
@@ -758,6 +778,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_param *param)
 {
 	struct tee_ta_ctx *ta_ctx = NULL;
+	struct ts_ctx *ts_ctx = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
 	if (check_client(sess, clnt_id) != TEE_SUCCESS)
@@ -766,13 +787,14 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	if (!check_params(sess, param))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!sess->ts_sess.ctx) {
+	ts_ctx = sess->ts_sess.ctx;
+	if (!ts_ctx) {
 		/* The context has been already destroyed */
 		*err = TEE_ORIGIN_TEE;
 		return TEE_ERROR_TARGET_DEAD;
 	}
 
-	ta_ctx = to_ta_ctx(sess->ts_sess.ctx);
+	ta_ctx = ts_to_ta_ctx(ts_ctx);
 	if (ta_ctx->panicked) {
 		DMSG("Panicked !");
 		destroy_ta_ctx_from_session(sess);
@@ -784,7 +806,7 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 
 	sess->param = param;
 	set_invoke_timeout(sess, cancel_req_to);
-	res = ta_ctx->ts_ctx.ops->enter_invoke_cmd(&sess->ts_sess, cmd);
+	res = ts_ctx->ops->enter_invoke_cmd(&sess->ts_sess, cmd);
 
 	sess->param = NULL;
 	tee_ta_clear_busy(ta_ctx);
