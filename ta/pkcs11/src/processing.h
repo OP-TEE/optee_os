@@ -27,12 +27,6 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 				     enum processing_func function,
 				     enum processing_step step);
 
-/* verify_oneshot is specific since it get 2 input data buffers */
-enum pkcs11_rc entry_verify_oneshot(struct pkcs11_client *client,
-				    uint32_t ptypes, TEE_Param *params,
-				    enum processing_func function,
-				    enum processing_step step);
-
 /*
  * Util
  */
