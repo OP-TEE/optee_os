@@ -160,12 +160,7 @@ static inline void tee_ta_ftrace_update_times_resume(void) {}
 
 bool is_ta_ctx(struct ts_ctx *ctx);
 
-static inline struct tee_ta_session * __noprof
-to_ta_session(struct ts_session *sess)
-{
-	assert(is_ta_ctx(sess->ctx));
-	return container_of(sess, struct tee_ta_session, ts_sess);
-}
+struct tee_ta_session *to_ta_session(struct ts_session *sess);
 
 static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
 {
