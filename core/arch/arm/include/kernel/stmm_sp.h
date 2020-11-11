@@ -36,16 +36,19 @@
  * address it uses these 2 syscalls to define the memory attributes for the
  * data and code segments after dispatching the binaries.
  *
- * FFA_SVC_MEMORY_ATTRIBUTES_SET_64:
+ * FFA_SVC_MEMORY_ATTRIBUTES_SET_64/FFA_SVC_MEMORY_ATTRIBUTES_SET_32:
  *  - x4: base address
  *  - x5: number of pages
  *  - x6: attributes of the remapping (described above)
  *
- * FFA_SVC_MEMORY_ATTRIBUTES_GET_64: currently only a single page is requested
- *  - x4: base address
+ * FFA_SVC_MEMORY_ATTRIBUTES_GET_32/FFA_SVC_MEMORY_ATTRIBUTES_GET_64:
+ *  - x4: base address, currently only a single page is requested.
  */
 #define FFA_SVC_MEMORY_ATTRIBUTES_GET_64	UINT32_C(0xC4000064)
 #define FFA_SVC_MEMORY_ATTRIBUTES_SET_64	UINT32_C(0xC4000065)
+
+#define FFA_SVC_MEMORY_ATTRIBUTES_GET_32	UINT32_C(0x84000064)
+#define FFA_SVC_MEMORY_ATTRIBUTES_SET_32	UINT32_C(0x84000065)
 
 /*
  * We need to define the RPMB IDs formally, since the plan is
@@ -53,17 +56,20 @@
  * This is fine for now as it represents the internal contract between the
  * EDK2 RPMB driver and Secure Partition
  *
- * FFA_SVC_RPMB_WRITE:
+ * FFA_SVC_RPMB_WRITE/FFA_SVC_RPMB_WRITE_32:
  *  - x4: virtual address of the buffer to write in the device
  *  - x5: buffer byte length
  *  - x6: byte offset in the device
- * FFA_SVC_RPMB_READ:
+ * FFA_SVC_RPMB_READ/FFA_SVC_RPMB_READ_32:
  *  - x4: virtual address of the buffer were RPMB contents are copied
  *  - x5: buffer byte length to read
  *  - x6: byte offset in the device
  */
 #define FFA_SVC_RPMB_READ		UINT32_C(0xC4000066)
 #define FFA_SVC_RPMB_WRITE		UINT32_C(0xC4000067)
+
+#define FFA_SVC_RPMB_READ_32		UINT32_C(0x84000066)
+#define FFA_SVC_RPMB_WRITE_32		UINT32_C(0x84000067)
 
 /* Param header types */
 #define STMM_PARAM_EP			UINT8_C(0x01)
