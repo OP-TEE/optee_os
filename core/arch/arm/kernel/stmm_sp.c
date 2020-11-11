@@ -652,6 +652,23 @@ static bool stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
 	}
 }
 
+static uint32_t tee2stmm_ret_val(TEE_Result res)
+{
+	switch (res) {
+	case TEE_SUCCESS:
+		return STMM_RET_SUCCESS;
+	case TEE_ERROR_NOT_SUPPORTED:
+		return STMM_RET_NOT_SUPPORTED;
+	case TEE_ERROR_ACCESS_DENIED:
+		return STMM_RET_DENIED;
+	case TEE_ERROR_OUT_OF_MEMORY:
+		return STMM_RET_NO_MEM;
+	case TEE_ERROR_BAD_PARAMETERS:
+	default:
+		return STMM_RET_INVALID_PARAM;
+	}
+}
+
 #define FILENAME "EFI_VARS"
 static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 {
@@ -666,25 +683,27 @@ static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 	char obj_id[] = FILENAME;
 	size_t obj_id_len = strlen(obj_id);
 	TEE_Result res = TEE_SUCCESS;
+	uint32_t stmm_rc = STMM_RET_INVALID_PARAM;
 
 	switch (action) {
 	case FFA_SVC_RPMB_READ:
 		res = sec_storage_obj_read(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					   obj_id_len, va, len, offset, flags);
-		service_compose_direct_resp(regs, res);
-
-		return true;
+		stmm_rc = tee2stmm_ret_val(res);
+		break;
 	case FFA_SVC_RPMB_WRITE:
 		res = sec_storage_obj_write(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					    obj_id_len, va, len, offset, flags);
-		service_compose_direct_resp(regs, res);
-
-		return true;
+		stmm_rc = tee2stmm_ret_val(res);
+		break;
 	default:
 		EMSG("Undefined service id %#"PRIx32, action);
-		service_compose_direct_resp(regs, STMM_RET_INVALID_PARAM);
-		return true;
+		break;
 	}
+
+	service_compose_direct_resp(regs, stmm_rc);
+
+	return true;
 }
 
 static bool spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
