@@ -21,6 +21,39 @@
 
 #include "thread_private.h"
 
+#ifdef ARM64
+#define SVC_REGS_A0(_regs)	((_regs)->x0)
+#define SVC_REGS_A1(_regs)	((_regs)->x1)
+#define SVC_REGS_A2(_regs)	((_regs)->x2)
+#define SVC_REGS_A3(_regs)	((_regs)->x3)
+#define SVC_REGS_A4(_regs)	((_regs)->x4)
+#define SVC_REGS_A5(_regs)	((_regs)->x5)
+#define SVC_REGS_A6(_regs)	((_regs)->x6)
+#define SVC_REGS_A7(_regs)	((_regs)->x7)
+#define __FFA_SVC_RPMB_READ		FFA_SVC_RPMB_READ
+#define __FFA_SVC_RPMB_WRITE		FFA_SVC_RPMB_WRITE
+#define __FFA_SVC_MEMORY_ATTRIBUTES_GET	FFA_SVC_MEMORY_ATTRIBUTES_GET_64
+#define __FFA_SVC_MEMORY_ATTRIBUTES_SET	FFA_SVC_MEMORY_ATTRIBUTES_SET_64
+#define __FFA_MSG_SEND_DIRECT_RESP	FFA_MSG_SEND_DIRECT_RESP_64
+#define __FFA_MSG_SEND_DIRECT_REQ	FFA_MSG_SEND_DIRECT_REQ_64
+#endif
+#ifdef ARM32
+#define SVC_REGS_A0(_regs)	((_regs)->r0)
+#define SVC_REGS_A1(_regs)	((_regs)->r1)
+#define SVC_REGS_A2(_regs)	((_regs)->r2)
+#define SVC_REGS_A3(_regs)	((_regs)->r3)
+#define SVC_REGS_A4(_regs)	((_regs)->r4)
+#define SVC_REGS_A5(_regs)	((_regs)->r5)
+#define SVC_REGS_A6(_regs)	((_regs)->r6)
+#define SVC_REGS_A7(_regs)	((_regs)->r7)
+#define __FFA_SVC_RPMB_READ		FFA_SVC_RPMB_READ_32
+#define __FFA_SVC_RPMB_WRITE		FFA_SVC_RPMB_WRITE_32
+#define __FFA_SVC_MEMORY_ATTRIBUTES_GET	FFA_SVC_MEMORY_ATTRIBUTES_GET_32
+#define __FFA_SVC_MEMORY_ATTRIBUTES_SET	FFA_SVC_MEMORY_ATTRIBUTES_SET_32
+#define __FFA_MSG_SEND_DIRECT_RESP	FFA_MSG_SEND_DIRECT_RESP_32
+#define __FFA_MSG_SEND_DIRECT_REQ	FFA_MSG_SEND_DIRECT_REQ_32
+#endif
+
 static const TEE_UUID stmm_uuid = PTA_STMM_UUID;
 
 /*
@@ -94,6 +127,7 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	return TEE_SUCCESS;
 }
 
+#ifdef ARM64
 static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 			   unsigned long a1, unsigned long sp, unsigned long pc)
 {
@@ -102,6 +136,30 @@ static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
 	spc->regs.sp = sp;
 	spc->regs.pc = pc;
 }
+#endif
+
+#ifdef ARM32
+static uint32_t __maybe_unused get_spsr(void)
+{
+	uint32_t s = 0;
+
+	s = read_cpsr();
+	s &= ~(CPSR_MODE_MASK | CPSR_T | ARM32_CPSR_IT_MASK);
+	s |= CPSR_MODE_USR;
+
+	return s;
+}
+
+static void init_stmm_regs(struct stmm_ctx *spc, unsigned long a0,
+			   unsigned long a1, unsigned long sp, unsigned long pc)
+{
+	spc->regs.r0 = a0;
+	spc->regs.r1 = a1;
+	spc->regs.usr_sp = sp;
+	spc->regs.cpsr = get_spsr();
+	spc->regs.pc = pc;
+}
+#endif
 
 static TEE_Result alloc_and_map_sp_fobj(struct stmm_ctx *spc, size_t sz,
 					uint32_t prot, vaddr_t *va)
@@ -243,7 +301,7 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 		.num_cpus = 1,
 		.mp_info = mp_info,
 	};
-	mp_info->mpidr = read_mpidr_el1();
+	mp_info->mpidr = read_mpidr();
 	mp_info->linear_id = 0;
 	mp_info->flags = MP_INFO_FLAG_PRIMARY_CPU;
 	spc->ns_comm_buf_addr = comm_buf_addr;
@@ -352,7 +410,8 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 		goto out_va;
 	}
 
-	spc->regs.x[0] = FFA_MSG_SEND_DIRECT_REQ_64;
+#ifdef ARM64
+	spc->regs.x[0] = __FFA_MSG_SEND_DIRECT_REQ;
 	spc->regs.x[1] = (stmm_pta_id << 16) | stmm_id;
 	spc->regs.x[2] = FFA_PARAM_MBZ;
 	spc->regs.x[3] = spc->ns_comm_buf_addr;
@@ -360,6 +419,17 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	spc->regs.x[5] = 0;
 	spc->regs.x[6] = 0;
 	spc->regs.x[7] = 0;
+#endif
+#ifdef ARM32
+	spc->regs.r0 = __FFA_MSG_SEND_DIRECT_REQ;
+	spc->regs.r1 = (stmm_pta_id << 16) | stmm_id;
+	spc->regs.r2 = FFA_PARAM_MBZ;
+	spc->regs.r3 = spc->ns_comm_buf_addr;
+	spc->regs.r4 = ns_buf_size;
+	spc->regs.r5 = 0;
+	spc->regs.r6 = 0;
+	spc->regs.r7 = 0;
+#endif
 
 	ts_push_current_session(s);
 
@@ -372,7 +442,12 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	 * Copy the SPM response from secure partition back to the non-secure
 	 * buffer of the client that called us.
 	 */
+#ifdef ARM64
 	ta_sess->param->u[1].val.a = spc->regs.x[4];
+#endif
+#ifdef ARM32
+	ta_sess->param->u[1].val.a = spc->regs.r4;
+#endif
 
 	memcpy(va, (void *)spc->ns_comm_buf_addr, ns_buf_size);
 
@@ -471,26 +546,50 @@ static int sp_svc_set_mem_attr(vaddr_t va, unsigned int nr_pages, uint32_t perm)
 	return STMM_RET_SUCCESS;
 }
 
+#ifdef ARM64
+static void save_sp_ctx(struct stmm_ctx *spc, struct thread_svc_regs *svc_regs)
+{
+	size_t n = 0;
+
+	/* Save the return values from StMM */
+	for (n = 0; n <= 7; n++)
+		spc->regs.x[n] = *(&svc_regs->x0 + n);
+
+	spc->regs.sp = svc_regs->sp_el0;
+	spc->regs.pc = svc_regs->elr;
+	spc->regs.cpsr = svc_regs->spsr;
+}
+#endif
+
+#ifdef ARM32
+static void save_sp_ctx(struct stmm_ctx *spc, struct thread_svc_regs *svc_regs)
+{
+	spc->regs.r0 = svc_regs->r0;
+	spc->regs.r1 = svc_regs->r1;
+	spc->regs.r2 = svc_regs->r2;
+	spc->regs.r3 = svc_regs->r3;
+	spc->regs.r4 = svc_regs->r4;
+	spc->regs.r5 = svc_regs->r5;
+	spc->regs.r6 = svc_regs->r6;
+	spc->regs.r7 = svc_regs->r7;
+	spc->regs.pc = svc_regs->lr;
+	spc->regs.cpsr = svc_regs->spsr;
+	spc->regs.usr_sp = thread_get_usr_sp();
+}
+#endif
+
 static bool return_helper(bool panic, uint32_t panic_code,
 			  struct thread_svc_regs *svc_regs)
 {
-	if (!panic) {
-		struct ts_session *sess = ts_get_current_session();
-		struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
-		size_t n = 0;
+	struct ts_session *sess = ts_get_current_session();
+	struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
 
-		/* Save the return values from StMM */
-		for (n = 0; n <= 7; n++)
-			spc->regs.x[n] = *(&svc_regs->x0 + n);
+	if (!panic)
+		save_sp_ctx(spc, svc_regs);
 
-		spc->regs.sp = svc_regs->sp_el0;
-		spc->regs.pc = svc_regs->elr;
-		spc->regs.cpsr = svc_regs->spsr;
-	}
-
-	svc_regs->x0 = 0;
-	svc_regs->x1 = panic;
-	svc_regs->x2 = panic_code;
+	SVC_REGS_A0(svc_regs) = 0;
+	SVC_REGS_A1(svc_regs) = panic;
+	SVC_REGS_A2(svc_regs) = panic_code;
 
 	return false;
 }
@@ -502,19 +601,19 @@ static void service_compose_direct_resp(struct thread_svc_regs *regs,
 	uint16_t dst_id = 0;
 
 	/* extract from request */
-	src_id = (regs->x1 >> 16) & UINT16_MAX;
-	dst_id = regs->x1 & UINT16_MAX;
+	src_id = (SVC_REGS_A1(regs) >> 16) & UINT16_MAX;
+	dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
 
 	/* compose message */
-	regs->x0 = FFA_MSG_SEND_DIRECT_RESP_64;
+	SVC_REGS_A0(regs) = __FFA_MSG_SEND_DIRECT_RESP;
 	/* swap endpoint ids */
-	regs->x1 = SHIFT_U32(dst_id, 16) | src_id;
-	regs->x2 = FFA_PARAM_MBZ;
-	regs->x3 = ret_val;
-	regs->x4 = 0;
-	regs->x5 = 0;
-	regs->x6 = 0;
-	regs->x7 = 0;
+	SVC_REGS_A1(regs) = SHIFT_U32(dst_id, 16) | src_id;
+	SVC_REGS_A2(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A3(regs) = ret_val;
+	SVC_REGS_A4(regs) = 0;
+	SVC_REGS_A5(regs) = 0;
+	SVC_REGS_A6(regs) = 0;
+	SVC_REGS_A7(regs) = 0;
 }
 
 /*
@@ -631,16 +730,16 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 
 static bool stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
 {
-	uint32_t action = regs->x3;
-	uintptr_t va = regs->x4;
-	uint32_t nr_pages = regs->x5;
-	uint32_t perm = regs->x6;
+	uint32_t action = SVC_REGS_A3(regs);
+	uintptr_t va = SVC_REGS_A4(regs);
+	uint32_t nr_pages = SVC_REGS_A5(regs);
+	uint32_t perm = SVC_REGS_A6(regs);
 
 	switch (action) {
-	case FFA_SVC_MEMORY_ATTRIBUTES_GET_64:
+	case __FFA_SVC_MEMORY_ATTRIBUTES_GET:
 		service_compose_direct_resp(regs, sp_svc_get_mem_attr(va));
 		return true;
-	case FFA_SVC_MEMORY_ATTRIBUTES_SET_64:
+	case __FFA_SVC_MEMORY_ATTRIBUTES_SET:
 		service_compose_direct_resp(regs,
 					    sp_svc_set_mem_attr(va, nr_pages,
 								perm));
@@ -676,22 +775,24 @@ static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 			 TEE_DATA_FLAG_ACCESS_WRITE |
 			 TEE_DATA_FLAG_SHARE_READ |
 			 TEE_DATA_FLAG_SHARE_WRITE;
-	uint32_t action = regs->x3;
-	void *va = (void *)regs->x4;
-	unsigned long len = regs->x5;
-	unsigned long offset = regs->x6;
+	uint32_t action = SVC_REGS_A3(regs);
+	void *va = (void *)SVC_REGS_A4(regs);
+	unsigned long len = SVC_REGS_A5(regs);
+	unsigned long offset = SVC_REGS_A6(regs);
 	char obj_id[] = FILENAME;
 	size_t obj_id_len = strlen(obj_id);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t stmm_rc = STMM_RET_INVALID_PARAM;
 
 	switch (action) {
-	case FFA_SVC_RPMB_READ:
+	case __FFA_SVC_RPMB_READ:
+		DMSG("RPMB read");
 		res = sec_storage_obj_read(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					   obj_id_len, va, len, offset, flags);
 		stmm_rc = tee2stmm_ret_val(res);
 		break;
-	case FFA_SVC_RPMB_WRITE:
+	case __FFA_SVC_RPMB_WRITE:
+		DMSG("RPMB write");
 		res = sec_storage_obj_write(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					    obj_id_len, va, len, offset, flags);
 		stmm_rc = tee2stmm_ret_val(res);
@@ -708,20 +809,20 @@ static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 
 static bool spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
 {
-	regs->x0 = FFA_ERROR;
-	regs->x1 = FFA_PARAM_MBZ;
-	regs->x2 = error_code;
-	regs->x3 = FFA_PARAM_MBZ;
-	regs->x4 = FFA_PARAM_MBZ;
-	regs->x5 = FFA_PARAM_MBZ;
-	regs->x6 = FFA_PARAM_MBZ;
-	regs->x7 = FFA_PARAM_MBZ;
+	SVC_REGS_A0(regs) = FFA_ERROR;
+	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A2(regs) = error_code;
+	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
 	return true;
 }
 
 static bool spm_handle_direct_req(struct thread_svc_regs *regs)
 {
-	uint16_t dst_id = regs->x1 & UINT16_MAX;
+	uint16_t dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
 
 	/* Look-up of destination endpoint */
 	if (dst_id == mem_mgr_id)
@@ -735,20 +836,26 @@ static bool spm_handle_direct_req(struct thread_svc_regs *regs)
 
 static bool spm_handle_svc(struct thread_svc_regs *regs)
 {
-	switch (regs->x0) {
+#ifdef ARM64
+	uint64_t *a0 = &regs->x0;
+#endif
+#ifdef ARM32
+	uint32_t *a0 = &regs->r0;
+#endif
+
+	switch (*a0) {
 	case FFA_VERSION:
 		DMSG("Received FFA version");
-		regs->x0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR,
-					    FFA_VERSION_MINOR);
+		*a0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
 		return true;
-	case FFA_MSG_SEND_DIRECT_RESP_64:
+	case __FFA_MSG_SEND_DIRECT_RESP:
 		DMSG("Received FFA direct response");
 		return return_helper(false, 0, regs);
-	case FFA_MSG_SEND_DIRECT_REQ_64:
+	case __FFA_MSG_SEND_DIRECT_REQ:
 		DMSG("Received FFA direct request");
 		return spm_handle_direct_req(regs);
 	default:
-		EMSG("Undefined syscall %#"PRIx32, (uint32_t)regs->x0);
+		EMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
 		return return_helper(true /*panic*/, 0xabcd, regs);
 	}
 }
