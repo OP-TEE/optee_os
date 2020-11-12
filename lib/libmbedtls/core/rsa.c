@@ -155,14 +155,7 @@ TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
 
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->e);
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->qp);
-	crypto_bignum_free(s->dp);
-
+	crypto_acipher_free_rsa_keypair(s);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
