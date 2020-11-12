@@ -94,6 +94,7 @@ static void do_free_keypair(struct rsa_keypair *key)
 	crypto_bignum_free(key->q);
 	crypto_bignum_free(key->qp);
 	crypto_bignum_free(key->dp);
+	crypto_bignum_free(key->dq);
 }
 
 /*
