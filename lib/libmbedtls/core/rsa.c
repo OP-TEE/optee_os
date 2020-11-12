@@ -201,6 +201,7 @@ void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 	crypto_bignum_free(s->q);
 	crypto_bignum_free(s->qp);
 	crypto_bignum_free(s->dp);
+	crypto_bignum_free(s->dq);
 }
 
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
