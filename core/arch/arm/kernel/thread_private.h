@@ -178,6 +178,9 @@ void thread_set_irq_sp(vaddr_t sp);
 
 /* Sets sp for fiq mode */
 void thread_set_fiq_sp(vaddr_t sp);
+
+/* Read usr_sp banked CPU register */
+uint32_t thread_get_usr_sp(void);
 #endif /*ARM32*/
 
 /* Checks stack canaries */
