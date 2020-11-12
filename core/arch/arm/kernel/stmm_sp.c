@@ -578,8 +578,8 @@ static void save_sp_ctx(struct stmm_ctx *spc, struct thread_svc_regs *svc_regs)
 }
 #endif
 
-static bool return_helper(bool panic, uint32_t panic_code,
-			  struct thread_svc_regs *svc_regs)
+static void return_from_sp_helper(bool panic, uint32_t panic_code,
+				  struct thread_svc_regs *svc_regs)
 {
 	struct ts_session *sess = ts_get_current_session();
 	struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
@@ -592,8 +592,6 @@ static bool return_helper(bool panic, uint32_t panic_code,
 	SVC_REGS_A0(svc_regs) = 0;
 	SVC_REGS_A1(svc_regs) = panic;
 	SVC_REGS_A2(svc_regs) = panic_code;
-
-	return false;
 }
 
 static void service_compose_direct_resp(struct thread_svc_regs *regs,
@@ -730,7 +728,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	return res;
 }
 
-static bool stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
+static void stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
 {
 	uint32_t action = SVC_REGS_A3(regs);
 	uintptr_t va = SVC_REGS_A4(regs);
@@ -740,16 +738,16 @@ static bool stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
 	switch (action) {
 	case __FFA_SVC_MEMORY_ATTRIBUTES_GET:
 		service_compose_direct_resp(regs, sp_svc_get_mem_attr(va));
-		return true;
+		break;
 	case __FFA_SVC_MEMORY_ATTRIBUTES_SET:
 		service_compose_direct_resp(regs,
 					    sp_svc_set_mem_attr(va, nr_pages,
 								perm));
-		return true;
+		break;
 	default:
 		EMSG("Undefined service id %#"PRIx32, action);
 		service_compose_direct_resp(regs, STMM_RET_INVALID_PARAM);
-		return true;
+		break;
 	}
 }
 
@@ -771,7 +769,7 @@ static uint32_t tee2stmm_ret_val(TEE_Result res)
 }
 
 #define FILENAME "EFI_VARS"
-static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
+static void stmm_handle_storage_service(struct thread_svc_regs *regs)
 {
 	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
 			 TEE_DATA_FLAG_ACCESS_WRITE |
@@ -805,11 +803,9 @@ static bool stmm_handle_storage_service(struct thread_svc_regs *regs)
 	}
 
 	service_compose_direct_resp(regs, stmm_rc);
-
-	return true;
 }
 
-static bool spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
+static void spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
 {
 	SVC_REGS_A0(regs) = FFA_ERROR;
 	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
@@ -819,23 +815,23 @@ static bool spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
 	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
 	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
 	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
-	return true;
 }
 
-static bool spm_handle_direct_req(struct thread_svc_regs *regs)
+static void spm_handle_direct_req(struct thread_svc_regs *regs)
 {
 	uint16_t dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
 
-	/* Look-up of destination endpoint */
-	if (dst_id == mem_mgr_id)
-		return stmm_handle_mem_mgr_service(regs);
-	else if (dst_id == ffa_storage_id)
-		return stmm_handle_storage_service(regs);
-
-	EMSG("Undefined endpoint id %#"PRIx16, dst_id);
-	return spm_eret_error(STMM_RET_INVALID_PARAM, regs);
+	if (dst_id == mem_mgr_id) {
+		stmm_handle_mem_mgr_service(regs);
+	} else if (dst_id == ffa_storage_id) {
+		stmm_handle_storage_service(regs);
+	} else {
+		EMSG("Undefined endpoint id %#"PRIx16, dst_id);
+		spm_eret_error(STMM_RET_INVALID_PARAM, regs);
+	}
 }
 
+/* Return true if returning to SP, false if returning to caller */
 static bool spm_handle_svc(struct thread_svc_regs *regs)
 {
 #ifdef ARM64
@@ -852,13 +848,16 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 		return true;
 	case __FFA_MSG_SEND_DIRECT_RESP:
 		DMSG("Received FFA direct response");
-		return return_helper(false, 0, regs);
+		return_from_sp_helper(false, 0, regs);
+		return false;
 	case __FFA_MSG_SEND_DIRECT_REQ:
 		DMSG("Received FFA direct request");
-		return spm_handle_direct_req(regs);
+		spm_handle_direct_req(regs);
+		return true;
 	default:
 		EMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
-		return return_helper(true /*panic*/, 0xabcd, regs);
+		return_from_sp_helper(true /*panic*/, 0xabcd, regs);
+		return false;
 	}
 }
 
