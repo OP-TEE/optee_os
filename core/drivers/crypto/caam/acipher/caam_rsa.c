@@ -402,14 +402,7 @@ static TEE_Result do_allocate_keypair(struct rsa_keypair *key, size_t size_bits)
 err_alloc_keypair:
 	RSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->e);
-	crypto_bignum_free(key->d);
-	crypto_bignum_free(key->n);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
-	crypto_bignum_free(key->dp);
-	crypto_bignum_free(key->dq);
-	crypto_bignum_free(key->qp);
+	do_free_keypair(key);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
