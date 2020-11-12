@@ -63,6 +63,15 @@ UNWIND(	.cantunwind)
 	bx	lr
 END_FUNC thread_set_fiq_sp
 
+FUNC thread_get_usr_sp , :
+	mrs	r1, cpsr
+	cpsid	aif
+	cps	#CPSR_MODE_SYS
+	mov	r0, sp
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_get_usr_sp
+
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 UNWIND(	.cantunwind)
