@@ -9,7 +9,6 @@
 #include <arm32_macros.S>
 #include <asm.S>
 #include <kernel/cache_helpers.h>
-#include <kernel/unwind.h>
 
 /*
  * Cache line size helpers
@@ -51,9 +50,7 @@ loop_\reg:
 	 * ------------------------------------------
 	 */
 FUNC dcache_cleaninv_range , :
-UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dccimvac
-UNWIND(	.fnend)
 END_FUNC dcache_cleaninv_range
 
 	/* ------------------------------------------
@@ -62,9 +59,7 @@ END_FUNC dcache_cleaninv_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_clean_range , :
-UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dccmvac
-UNWIND(	.fnend)
 END_FUNC dcache_clean_range
 
 	/* ------------------------------------------
@@ -73,9 +68,7 @@ END_FUNC dcache_clean_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_inv_range , :
-UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dcimvac
-UNWIND(	.fnend)
 END_FUNC dcache_inv_range
 
 
@@ -85,9 +78,7 @@ END_FUNC dcache_inv_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_clean_range_pou , :
-UNWIND(	.fnstart)
 	do_dcache_maintenance_by_mva dccmvau
-UNWIND(	.fnend)
 END_FUNC dcache_clean_range_pou
 
 	/* ----------------------------------------------------------------
@@ -116,7 +107,6 @@ END_FUNC dcache_clean_range_pou
 	.endm
 
 LOCAL_FUNC do_dcsw_op , :
-UNWIND(	.fnstart)
 	push	{r4-r12,lr}
 	adr	r11, dcsw_loop_table	// compute cache op based on the operation type
 	add	r6, r11, r0, lsl #3	// cache op is 2x32-bit instructions
@@ -167,7 +157,6 @@ dcsw_loop_table:
 	bx	lr
 	write_dccsw r0
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC do_dcsw_op
 
 	/* ---------------------------------------------------------------
@@ -179,9 +168,7 @@ END_FUNC do_dcsw_op
 	 * ---------------------------------------------------------------
 	 */
 FUNC dcache_op_louis , :
-UNWIND(	.fnstart)
 	dcsw_op #CLIDR_LOUIS_SHIFT, #CLIDR_FIELD_WIDTH, #CSSELR_LEVEL_SHIFT
-UNWIND(	.fnend)
 END_FUNC dcache_op_louis
 
 	/* ---------------------------------------------------------------
@@ -193,9 +180,7 @@ END_FUNC dcache_op_louis
 	 * ---------------------------------------------------------------
 	 */
 FUNC dcache_op_all , :
-UNWIND(	.fnstart)
 	dcsw_op #CLIDR_LOC_SHIFT, #CLIDR_FIELD_WIDTH, #CSSELR_LEVEL_SHIFT
-UNWIND(	.fnend)
 END_FUNC dcache_op_all
 
 
@@ -220,9 +205,7 @@ END_FUNC dcache_op_all
 	 * ---------------------------------------------------------------
 	 */
 FUNC dcache_op_level1 , :
-UNWIND(	.fnstart)
 	dcsw_op_level #(1 << CSSELR_LEVEL_SHIFT)
-UNWIND(	.fnend)
 END_FUNC dcache_op_level1
 
 	/* ---------------------------------------------------------------
@@ -234,9 +217,7 @@ END_FUNC dcache_op_level1
 	 * ---------------------------------------------------------------
 	 */
 FUNC dcache_op_level2 , :
-UNWIND(	.fnstart)
 	dcsw_op_level #(2 << CSSELR_LEVEL_SHIFT)
-UNWIND(	.fnend)
 END_FUNC dcache_op_level2
 
 	/* ---------------------------------------------------------------
@@ -248,13 +229,10 @@ END_FUNC dcache_op_level2
 	 * ---------------------------------------------------------------
 	 */
 FUNC dcache_op_level3 , :
-UNWIND(	.fnstart)
 	dcsw_op_level #(3 << CSSELR_LEVEL_SHIFT)
-UNWIND(	.fnend)
 END_FUNC dcache_op_level3
 
 FUNC icache_inv_all , :
-UNWIND(	.fnstart)
 	/* Invalidate Entire Instruction Cache (and branch predictors) */
 	write_icialluis
 
@@ -262,7 +240,6 @@ UNWIND(	.fnstart)
 	isb		/* by the instructions rigth after the isb */
 
 	bx      lr
-UNWIND(	.fnend)
 END_FUNC icache_inv_all
 
 	/* ------------------------------------------
@@ -271,7 +248,6 @@ END_FUNC icache_inv_all
 	 * ------------------------------------------
 	 */
 FUNC icache_inv_range , :
-UNWIND(	.fnstart)
 	icache_line_size r2, r3
 	add	r1, r0, r1
 	sub	r3, r2, #1
@@ -289,5 +265,4 @@ loop_ic_inv:
 	isb
 
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC icache_inv_range

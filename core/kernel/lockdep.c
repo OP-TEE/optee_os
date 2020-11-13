@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <kernel/lockdep.h>
 #include <kernel/unwind.h>
 #include <stdlib.h>
@@ -64,6 +65,9 @@ static vaddr_t *dup_call_stack(vaddr_t *stack)
 static void lockdep_print_call_stack(vaddr_t *stack)
 {
 	vaddr_t *p = NULL;
+
+	if (!IS_ENABLED(CFG_LOCKDEP_RECORD_STACK))
+		return;
 
 	EMSG_RAW("Call stack:");
 	for (p = stack; p && *p; p++)
@@ -265,12 +269,19 @@ static void lockdep_print_edge_info(uintptr_t from __maybe_unused,
 				    struct lockdep_edge *edge)
 {
 	uintptr_t __maybe_unused to = edge->to->lock_id;
+	const char __maybe_unused *at_msg = "";
+	const char __maybe_unused *acq_msg = "";
 
-	EMSG_RAW("-> Thread %#" PRIxPTR " acquired lock %#" PRIxPTR " at:",
-		 edge->thread_id, to);
+	if (IS_ENABLED(CFG_LOCKDEP_RECORD_STACK)) {
+		at_msg = " at:";
+		acq_msg = " acquired at:";
+	}
+
+	EMSG_RAW("-> Thread %#" PRIxPTR " acquired lock %#" PRIxPTR "%s",
+		 edge->thread_id, to, at_msg);
 	lockdep_print_call_stack(edge->call_stack_to);
-	EMSG_RAW("...while holding lock %#" PRIxPTR " acquired at:",
-		 from);
+	EMSG_RAW("...while holding lock %#" PRIxPTR "%s",
+		 from, acq_msg);
 	lockdep_print_call_stack(edge->call_stack_from);
 }
 
@@ -312,6 +323,14 @@ static void lockdep_print_cycle_info(struct lockdep_node_head *graph,
 	free(cycle);
 }
 
+static vaddr_t *lockdep_get_kernel_stack(void)
+{
+	if (IS_ENABLED(CFG_LOCKDEP_RECORD_STACK))
+		return unw_get_kernel_stack();
+
+	return NULL;
+}
+
 TEE_Result __lockdep_lock_acquire(struct lockdep_node_head *graph,
 				  struct lockdep_lock_head *owned,
 				  uintptr_t id)
@@ -322,7 +341,7 @@ TEE_Result __lockdep_lock_acquire(struct lockdep_node_head *graph,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	struct lockdep_lock *lock = NULL;
-	vaddr_t *acq_stack = unw_get_kernel_stack();
+	vaddr_t *acq_stack = lockdep_get_kernel_stack();
 
 	TAILQ_FOREACH(lock, owned, link) {
 		TEE_Result res = lockdep_add_edge(lock->node, node,
@@ -369,7 +388,7 @@ TEE_Result __lockdep_lock_tryacquire(struct lockdep_node_head *graph,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	struct lockdep_lock *lock = NULL;
-	vaddr_t *acq_stack = unw_get_kernel_stack();
+	vaddr_t *acq_stack = lockdep_get_kernel_stack();
 
 	lock = calloc(1, sizeof(*lock));
 	if (!lock)

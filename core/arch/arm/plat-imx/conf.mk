@@ -5,9 +5,11 @@ mx6ul-flavorlist = \
 	mx6ulevk \
 	mx6ul9x9evk \
 	mx6ulccimx6ulsbcpro \
+	mx6ulccbv2 \
 
 mx6ull-flavorlist = \
 	mx6ullevk \
+	mx6ulzevk \
 
 mx6q-flavorlist = \
 	mx6qsabrelite \
@@ -76,6 +78,7 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ul-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6UL,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_TZC380,y)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6ull-flavorlist)))
 $(call force,CFG_MX6,y)
@@ -88,6 +91,7 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6q-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6Q,y)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
+$(call force,CFG_TZC380,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6qp-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6QP,y)
@@ -96,10 +100,12 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6d-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6D,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
+$(call force,CFG_TZC380,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6dl-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6DL,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
+$(call force,CFG_TZC380,y)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx6s-flavorlist)))
 $(call force,CFG_MX6,y)
 $(call force,CFG_MX6S,y)
@@ -224,6 +230,7 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qpsabreauto mx6qsabreauto \
 	mx6dlsabreauto mx6solosabreauto))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_NS_ENTRY_ADDR ?= 0x12000000
+CFG_UART_BASE ?= UART4_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6qhmbedge))
@@ -267,7 +274,7 @@ CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk))
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulevk mx6ullevk mx6ulzevk))
 CFG_DDR_SIZE ?= 0x20000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 endif
@@ -281,6 +288,11 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ul9x9evk))
 CFG_DDR_SIZE ?= 0x10000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulccbv2))
+CFG_DDR_SIZE ?= 0x10000000
+CFG_UART_BASE ?= UART7_BASE
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mqevk))
@@ -301,6 +313,9 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8qxpmek mx8qmmek))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART0_BASE
+CFG_NSEC_DDR_1_BASE ?= 0x880000000UL
+CFG_NSEC_DDR_1_SIZE  ?= 0x380000000UL
+CFG_CORE_ARM64_PA_BITS ?= 40
 endif
 
 # i.MX6 Solo/SL/SoloX/DualLite/Dual/Quad specific config
@@ -337,11 +352,8 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
 endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_PM_STUBS,y)
 
-CFG_BOOT_SYNC_CPU ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_DT ?= y
 CFG_PAGEABLE_ADDR ?= 0
@@ -352,6 +364,9 @@ endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
 $(call force,CFG_IMX_UART,y)
+ifeq ($(CFG_RPMB_FS),y)
+CFG_IMX_SNVS ?= y
+endif
 CFG_CSU ?= y
 endif
 
@@ -364,14 +379,12 @@ ifeq ($(CFG_ARM64_core),y)
 # arm-v8 platforms
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_ARM_GICV3,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
 CFG_CRYPTO_WITH_CE ?= y
-CFG_PM_STUBS ?= y
 
 supported-ta-targets = ta_arm64
 endif
@@ -381,8 +394,10 @@ CFG_TZDRAM_SIZE ?= 0x01e00000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
 
+CFG_NSEC_DDR_0_BASE ?= $(CFG_DRAM_BASE)
+CFG_NSEC_DDR_0_SIZE ?= ($(CFG_DDR_SIZE) - 0x02000000)
+
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
-CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 24
 
 # Almost all platforms include CAAM HW Modules, except the
@@ -398,7 +413,9 @@ $(call force,CFG_IMX_CAAM,n)
 # it with generic crypto API can be enabled.
 CFG_CRYPTO_DRIVER ?= y
 # Crypto Driver Debug
-CFG_CRYPTO_DRIVER_DEBUG ?= n
+# DRV_DBG_TRACE BIT32(0) // Driver trace
+# DRV_DBG_BUF   BIT32(1) // Driver dump Buffer
+CFG_CRYPTO_DRIVER_DEBUG ?= 0
 else
 $(call force,CFG_CRYPTO_DRIVER,n)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)

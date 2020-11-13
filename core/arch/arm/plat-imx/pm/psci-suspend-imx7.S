@@ -11,7 +11,6 @@
 #include <kernel/cache_helpers.h>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 #define MX7_SRC_GPR1	0x74
@@ -456,7 +455,6 @@
 	.endm
 
 FUNC imx7_suspend, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{r4-r12}
 
@@ -657,11 +655,9 @@ dsm_ddr_self_refresh_out:
 dsm_ddr_retention_out:
 
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC imx7_suspend
 
 FUNC ca7_cpu_resume, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	mov     r0, #0	@ ; write the cache size selection register to be
 	write_csselr r0	@ ; sure we address the data cache
@@ -693,5 +689,4 @@ _inv_nextline:
 	blx	plat_cpu_reset_early
 
 	b	sm_pm_cpu_resume
-UNWIND(	.fnend)
 END_FUNC ca7_cpu_resume

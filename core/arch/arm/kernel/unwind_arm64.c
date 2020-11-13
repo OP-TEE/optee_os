@@ -31,109 +31,11 @@
 
 #include <arm.h>
 #include <kernel/linker.h>
-#include <kernel/tee_misc.h>
-#include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
-#include <string.h>
-#include <tee/tee_svc.h>
-#include <trace.h>
-#include <user_ta_header.h>
-#include <util.h>
+#include <unw/unwind.h>
 
 #include "unwind_private.h"
-
-static void copy_in_reg(uint64_t *reg, vaddr_t addr)
-{
-	memcpy(reg, (void *)addr, sizeof(*reg));
-}
-
-#ifdef CFG_SYSCALL_FTRACE
-static void ftrace_core_map_lr(uint64_t *lr)
-{
-	struct ftrace_buf *fbuf = NULL;
-	struct tee_ta_session *s = NULL;
-
-	if (tee_ta_get_current_session(&s) != TEE_SUCCESS)
-		return;
-
-	if (!s->fbuf)
-		return;
-
-	fbuf = s->fbuf;
-
-	/*
-	 * Function tracer inserts return hook (addr: &__ftrace_return)
-	 * via modifying lr values in the stack frames. And during aborts,
-	 * stack trace picks these modified lr values which needs to be
-	 * replaced with original lr value. So here we use the ftrace return
-	 * stack to retrieve original lr value but we need to first check if
-	 * it has actually been modified or not in case TA is profiled
-	 * partially.
-	 */
-	if ((*lr == (uint64_t)&__ftrace_return) &&
-	    fbuf->lr_idx < fbuf->ret_idx) {
-		fbuf->lr_idx++;
-		*lr = fbuf->ret_stack[fbuf->ret_idx - fbuf->lr_idx];
-	}
-}
-#else
-static void ftrace_core_map_lr(uint64_t *lr __unused)
-{
-}
-#endif
-
-bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
-			vaddr_t stack, size_t stack_size)
-{
-	vaddr_t fp = frame->fp;
-
-	if (!core_is_buffer_inside(fp, sizeof(uint64_t) * 3,
-				   stack, stack_size))
-		return false;
-
-	frame->sp = fp + 0x10;
-	/* FP to previous frame (X29) */
-	copy_in_reg(&frame->fp, fp);
-	/* LR (X30) */
-	copy_in_reg(&frame->pc, fp + 8);
-
-	ftrace_core_map_lr(&frame->pc);
-
-	frame->pc -= 4;
-
-	return true;
-}
-
-#if (TRACE_LEVEL > 0)
-
-void print_stack_arm64(int level, struct unwind_state_arm64 *state,
-		       vaddr_t stack, size_t stack_size)
-{
-	trace_printf_helper_raw(level, true, "TEE load address @ %#"PRIxVA,
-				VCORE_START_VA);
-	trace_printf_helper_raw(level, true, "Call stack:");
-
-	do {
-		trace_printf_helper_raw(level, true, " 0x%016" PRIx64,
-					state->pc);
-	} while (unwind_stack_arm64(state, stack, stack_size));
-}
-
-void print_kernel_stack(int level)
-{
-	struct unwind_state_arm64 state;
-	uaddr_t stack = thread_stack_start();
-	size_t stack_size = thread_stack_size();
-
-	memset(&state, 0, sizeof(state));
-	state.pc = read_pc();
-	state.fp = read_fp();
-
-	print_stack_arm64(level, &state, stack, stack_size);
-}
-
-#endif
 
 vaddr_t *unw_get_kernel_stack(void)
 {
@@ -141,12 +43,12 @@ vaddr_t *unw_get_kernel_stack(void)
 	size_t size = 0;
 	vaddr_t *tmp = NULL;
 	vaddr_t *addr = NULL;
-	struct unwind_state_arm64 state = { 0 };
 	uaddr_t stack = thread_stack_start();
 	size_t stack_size = thread_stack_size();
-
-	state.pc = read_pc();
-	state.fp = read_fp();
+	struct unwind_state_arm64 state = {
+		.pc = read_pc(),
+		.fp = read_fp()
+	};
 
 	while (unwind_stack_arm64(&state, stack, stack_size)) {
 		tmp = unw_grow(addr, &size, (n + 1) * sizeof(vaddr_t));
@@ -170,4 +72,19 @@ err:
 	EMSG("Out of memory");
 	free(addr);
 	return NULL;
+}
+
+void print_kernel_stack(void)
+{
+	struct unwind_state_arm64 state = { };
+	vaddr_t stack_start = 0;
+	vaddr_t stack_end = 0;
+
+	state.pc = read_pc();
+	state.fp = read_fp();
+
+	trace_printf_helper_raw(TRACE_ERROR, true,
+				"TEE load address @ %#"PRIxVA, VCORE_START_VA);
+	get_stack_hard_limits(&stack_start, &stack_end);
+	print_stack_arm64(&state, stack_start, stack_end - stack_start);
 }

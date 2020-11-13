@@ -2,7 +2,7 @@ link-script$(sm) = $(ta-dev-kit-dir$(sm))/src/ta.ld.S
 link-script-pp$(sm) = $(link-out-dir$(sm))/ta.lds
 link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 
-SIGN_ENC ?= $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
+SIGN_ENC ?= $(PYTHON3) $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 
 ifeq ($(CFG_ENCRYPT_TA),y)
@@ -34,19 +34,28 @@ link-ldflags += -z max-page-size=4096 # OP-TEE always uses 4K alignment
 link-ldflags += --as-needed # Do not add dependency on unused shlib
 link-ldflags += $(link-ldflags$(sm))
 
-ifeq ($(CFG_FTRACE_SUPPORT),y)
 $(link-out-dir$(sm))/dyn_list:
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)mkdir -p $(dir $@)
-	$(q)echo "{__ftrace_info;};" >$@
-link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
-ftracedep = $(link-out-dir$(sm))/dyn_list
-cleanfiles += $(link-out-dir$(sm))/dyn_list
+	$(q)echo "{" >$@
+	$(q)echo "__elf_phdr_info;" >>$@
+ifeq ($(CFG_FTRACE_SUPPORT),y)
+	$(q)echo "__ftrace_info;" >>$@
 endif
+	$(q)echo "};" >>$@
+link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
+dynlistdep = $(link-out-dir$(sm))/dyn_list
+cleanfiles += $(link-out-dir$(sm))/dyn_list
 
 link-ldadd  = $(user-ta-ldadd) $(addprefix -L,$(libdirs))
-link-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd)
+link-ldadd += --start-group
+link-ldadd += $(addprefix -l,$(libnames))
+ifneq (,$(filter %.cpp,$(srcs)))
+link-ldflags += --eh-frame-hdr
+link-ldadd += $(libstdc++$(sm)) $(libgcc_eh$(sm))
+endif
+link-ldadd += --end-group
+ldargs-$(user-ta-uuid).elf := $(link-ldflags) $(objs) $(link-ldadd) $(libgcc$(sm))
 
 
 link-script-cppflags-$(sm) := \
@@ -68,7 +77,7 @@ $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefi
 
 $(link-out-dir$(sm))/$(user-ta-uuid).elf: $(objs) $(libdeps) \
 					  $(link-script-pp$(sm)) \
-					  $(ftracedep) \
+					  $(dynlistdep) \
 					  $(additional-link-deps)
 	@$(cmd-echo-silent) '  LD      $$@'
 	$(q)$(LD$(sm)) $(ldargs-$(user-ta-uuid).elf) -o $$@

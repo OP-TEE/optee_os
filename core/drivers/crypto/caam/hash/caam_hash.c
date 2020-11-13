@@ -4,11 +4,11 @@
  *
  *         Implementation of Hashing functions.
  */
-#include <caam_common.h>
 #include <caam_hal_ctrl.h>
 #include <caam_hash.h>
 #include <caam_jr.h>
 #include <caam_utils_mem.h>
+#include <caam_utils_sgt.h>
 #include <caam_utils_status.h>
 #include <drvcrypt.h>
 #include <drvcrypt_hash.h>
@@ -18,23 +18,17 @@
 #include <string.h>
 #include <utee_defines.h>
 
+#include "local.h"
+
 static const struct crypto_hash_ops hash_ops;
 
 /*
- * Hash Algorithm definition
+ * Maximum number of entries in the descriptor
  */
-struct hashalg {
-	uint32_t type;       /* Algo type for operation */
-	uint8_t size_digest; /* Digest size */
-	uint8_t size_block;  /* Computing block size */
-	uint8_t size_ctx;    /* CAAM Context Register size (8 + digest size) */
-};
-
-/* First part CAAM HW Context - message length */
-#define HASH_MSG_LEN	8
+#define MAX_DESC_ENTRIES	20
 
 /*
- * Constants definition of the Hash algorithm
+ * Constants definition of the hash/HMAC algorithm
  */
 static const struct hashalg hash_alg[] = {
 	{
@@ -43,6 +37,7 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_MD5_HASH_SIZE,
 		.size_block = TEE_MD5_HASH_SIZE * 4,
 		.size_ctx = HASH_MSG_LEN + TEE_MD5_HASH_SIZE,
+		.size_key = 32,
 	},
 	{
 		/* sha1 */
@@ -50,6 +45,7 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_SHA1_HASH_SIZE,
 		.size_block = TEE_MAX_HASH_SIZE,
 		.size_ctx = HASH_MSG_LEN + TEE_SHA1_HASH_SIZE,
+		.size_key = 40,
 	},
 	{
 		/* sha224 */
@@ -57,6 +53,7 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_SHA224_HASH_SIZE,
 		.size_block = TEE_MAX_HASH_SIZE,
 		.size_ctx = HASH_MSG_LEN + TEE_SHA256_HASH_SIZE,
+		.size_key = 64,
 	},
 	{
 		/* sha256 */
@@ -64,6 +61,7 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_SHA256_HASH_SIZE,
 		.size_block = TEE_MAX_HASH_SIZE,
 		.size_ctx = HASH_MSG_LEN + TEE_SHA256_HASH_SIZE,
+		.size_key = 64,
 	},
 	{
 		/* sha384 */
@@ -71,6 +69,7 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_SHA384_HASH_SIZE,
 		.size_block = TEE_MAX_HASH_SIZE * 2,
 		.size_ctx = HASH_MSG_LEN + TEE_SHA512_HASH_SIZE,
+		.size_key = 128,
 	},
 	{
 		/* sha512 */
@@ -78,22 +77,8 @@ static const struct hashalg hash_alg[] = {
 		.size_digest = TEE_SHA512_HASH_SIZE,
 		.size_block = TEE_MAX_HASH_SIZE * 2,
 		.size_ctx = HASH_MSG_LEN + TEE_SHA512_HASH_SIZE,
+		.size_key = 128,
 	},
-};
-
-/*
- * Maximum number of entry in the descriptor
- */
-#define MAX_DESC_ENTRIES	20
-
-/*
- * Full hashing data SW context
- */
-struct hashdata {
-	uint32_t *descriptor; /* Job descriptor */
-	struct caamblock blockbuf; /* Temporary Block buffer */
-	struct caambuf ctx; /* Hash Context used by the CAAM */
-	const struct hashalg *alg; /* Reference to the algo constants */
 };
 
 /*
@@ -102,7 +87,7 @@ struct hashdata {
  */
 struct crypto_hash {
 	struct crypto_hash_ctx hash_ctx; /* Crypto Hash API context */
-	struct hashdata *ctx; /* Hash Context */
+	struct hashctx *ctx;		 /* Hash Context */
 };
 
 /*
@@ -125,13 +110,28 @@ static struct crypto_hash *to_hash_ctx(struct crypto_hash_ctx *ctx)
 }
 
 /*
+ * Add the load key in the CAAM descriptor and clean the key buffer.
+ *
+ * @desc    CAAM Descriptor
+ * @key     Key to load
+ */
+static void do_desc_load_key(uint32_t *desc, struct caambuf *key)
+{
+	HASH_TRACE("Insert Key");
+	caam_desc_add_word(desc, LD_KEY_SPLIT(key->length));
+	caam_desc_add_ptr(desc, key->paddr);
+
+	cache_operation(TEE_CACHECLEAN, key->data, key->length);
+}
+
+/*
  * Free the internal hashing data context
  *
  * @ctx    [in/out] Caller context variable
  */
-static void do_free_intern(struct hashdata *ctx)
+static void do_free_intern(struct hashctx *ctx)
 {
-	HASH_TRACE("Free Context (0x%p)", ctx);
+	HASH_TRACE("Free Context (%p)", ctx);
 
 	if (ctx) {
 		/* Free the descriptor */
@@ -142,25 +142,165 @@ static void do_free_intern(struct hashdata *ctx)
 
 		/* Free the context register */
 		caam_free_buf(&ctx->ctx);
+
+		/* Free the HMAC Key */
+		caam_free_buf(&ctx->key);
 	}
 }
 
 /*
- * Allocate the internal hashing data context
+ * Initialization of the Hash operation
+ * Call common initialization operation between hash and HMAC
+ *
+ * @ctx   Operation software context
+ */
+static TEE_Result do_hash_init(struct crypto_hash_ctx *ctx)
+{
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+
+	return caam_hash_hmac_init(hash->ctx);
+}
+
+/*
+ * Update the Hash operation
+ * Call common update operation between hash and HMAC
+ *
+ * @ctx   Operation software context
+ * @data  Data to hash
+ * @len   Data length
+ */
+static TEE_Result do_hash_update(struct crypto_hash_ctx *ctx,
+				 const uint8_t *data, size_t len)
+{
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+
+	return caam_hash_hmac_update(hash->ctx, data, len);
+}
+
+/*
+ * Finalize the Hash operation
+ * Call common final operation between hash and HMAC
+ *
+ * @ctx     Operation software context
+ * @digest  [out] Hash digest buffer
+ * @len     Digest buffer length
+ */
+static TEE_Result do_hash_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
+				size_t len)
+{
+	struct crypto_hash *hash = to_hash_ctx(ctx);
+
+	return caam_hash_hmac_final(hash->ctx, digest, len);
+}
+
+/*
+ * Free the SW hashing data context
+ * Call common free operation between hash and HMAC
  *
  * @ctx    [in/out] Caller context variable
  */
-static enum caam_status do_allocate_intern(struct hashdata *ctx)
+static void do_hash_free(struct crypto_hash_ctx *ctx)
 {
-	TEE_Result ret = CAAM_OUT_MEMORY;
+	struct crypto_hash *hash = to_hash_ctx(ctx);
 
-	HASH_TRACE("Allocate Context (0x%p)", ctx);
+	caam_hash_hmac_free(hash->ctx);
+
+	free(hash);
+}
+
+/*
+ * Copy Software Hashing Context
+ * Call common copy operation between hash and HMAC
+ *
+ * @dst_ctx  [out] Reference the context destination
+ * @src_ctx  Reference the context source
+ */
+static void do_hash_copy_state(struct crypto_hash_ctx *dst_ctx,
+			       struct crypto_hash_ctx *src_ctx)
+{
+	struct crypto_hash *hash_src = to_hash_ctx(src_ctx);
+	struct crypto_hash *hash_dst = to_hash_ctx(dst_ctx);
+
+	return caam_hash_hmac_copy_state(hash_dst->ctx, hash_src->ctx);
+}
+
+/*
+ * Registration of the hash Driver
+ */
+static const struct crypto_hash_ops hash_ops = {
+	.init = do_hash_init,
+	.update = do_hash_update,
+	.final = do_hash_final,
+	.free_ctx = do_hash_free,
+	.copy_state = do_hash_copy_state,
+};
+
+/*
+ * Allocate the internal hashing data context
+ *
+ * @ctx    [out] Caller context variable
+ * @algo   Algorithm ID
+ */
+static TEE_Result caam_hash_allocate(struct crypto_hash_ctx **ctx,
+				     uint32_t algo)
+{
+	struct crypto_hash *hash = NULL;
+	struct hashctx *hash_ctx = NULL;
+	const struct hashalg *alg = NULL;
+	TEE_Result ret = TEE_ERROR_GENERIC;
+
+	HASH_TRACE("Allocate Context (%p) algo %" PRId32, ctx, algo);
+
+	*ctx = NULL;
+
+	alg = caam_hash_get_alg(algo);
+	if (!alg)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	hash = calloc(1, sizeof(*hash));
+	if (!hash)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	hash_ctx = caam_calloc(sizeof(*hash_ctx));
+	if (!hash_ctx) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	hash_ctx->alg = alg;
+	hash->hash_ctx.ops = &hash_ops;
+	hash->ctx = hash_ctx;
+
+	*ctx = &hash->hash_ctx;
+
+	ret = caam_hash_hmac_allocate(hash_ctx);
+	if (ret != TEE_SUCCESS)
+		goto err;
+
+	HASH_TRACE("Allocated Context (%p)", hash_ctx);
+
+	return TEE_SUCCESS;
+
+err:
+	free(hash);
+
+	if (hash_ctx)
+		caam_free(hash_ctx);
+
+	return ret;
+}
+
+TEE_Result caam_hash_hmac_allocate(struct hashctx *ctx)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+
+	HASH_TRACE("Allocate Context (%p)", ctx);
 
 	/* Allocate the descriptor */
 	ctx->descriptor = caam_calloc_desc(MAX_DESC_ENTRIES);
 	if (!ctx->descriptor) {
-		HASH_TRACE("Allocation descriptor error");
-		goto exit_alloc;
+		HASH_TRACE("Allocation context descriptor error");
+		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	/* Initialize the block buffer */
@@ -168,11 +308,19 @@ static enum caam_status do_allocate_intern(struct hashdata *ctx)
 	ctx->blockbuf.max = ctx->alg->size_block;
 
 	/* Allocate the CAAM Context register */
-	ret = caam_calloc_align_buf(&ctx->ctx, ctx->alg->size_ctx);
-
-	if (ret != CAAM_NO_ERROR) {
+	if (caam_calloc_align_buf(&ctx->ctx, ctx->alg->size_ctx) !=
+	    CAAM_NO_ERROR) {
 		HASH_TRACE("Allocation context register error");
-		goto exit_alloc;
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	/* Allocate the Hash Key */
+	if (caam_calloc_align_buf(&ctx->key, ctx->alg->size_key) !=
+	    CAAM_NO_ERROR) {
+		HASH_TRACE("Allocation context key error");
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
 	}
 
 	cache_operation(TEE_CACHEFLUSH, ctx->ctx.data, ctx->ctx.length);
@@ -180,11 +328,10 @@ static enum caam_status do_allocate_intern(struct hashdata *ctx)
 	/* Ensure buffer length is 0 */
 	ctx->ctx.length = 0;
 
-exit_alloc:
-	if (ret != CAAM_NO_ERROR) {
-		/* Free all data allocated */
-		do_free_intern(ctx);
-	}
+	return TEE_SUCCESS;
+
+err:
+	do_free_intern(ctx);
 
 	return ret;
 }
@@ -192,169 +339,199 @@ exit_alloc:
 /*
  * Free the SW hashing data context
  *
- * @ctx    [in/out] Caller context variable
+ * @ctx    Caller context variable
  */
-static void do_free(struct crypto_hash_ctx *ctx)
+void caam_hash_hmac_free(struct hashctx *ctx)
 {
-	struct crypto_hash *hash = to_hash_ctx(ctx);
+	HASH_TRACE("Free Context (%p)", ctx);
 
-	HASH_TRACE("Free Context (0x%p)", hash->ctx);
-
-	if (hash->ctx) {
-		do_free_intern(hash->ctx);
-		caam_free(hash->ctx);
+	if (ctx) {
+		do_free_intern(ctx);
+		caam_free(ctx);
 	}
-
-	free(hash);
 }
 
-/*
- * Initialization of the Hash operation
- *
- * @ctx   Operation Software context
- */
-static TEE_Result do_init(struct crypto_hash_ctx *ctx)
+const struct hashalg *caam_hash_get_alg(uint32_t algo)
 {
-	struct crypto_hash *hash = to_hash_ctx(ctx);
-	struct hashdata *hashdata = hash->ctx;
+	uint8_t hash_id = TEE_ALG_GET_MAIN_ALG(algo);
+	unsigned int idx = hash_id - TEE_MAIN_ALGO_MD5;
 
-	HASH_TRACE("Hash Init (0x%p)", hashdata);
-	if (!hashdata)
+	if (hash_id > caam_hash_limit || idx > ARRAY_SIZE(hash_alg))
+		return NULL;
+
+	return &hash_alg[idx];
+}
+
+TEE_Result caam_hash_hmac_init(struct hashctx *ctx)
+{
+	HASH_TRACE("Hash/HMAC Init (%p)", ctx);
+	if (!ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	/* Initialize the block buffer */
-	hashdata->blockbuf.filled = 0;
+	ctx->blockbuf.filled = 0;
 
 	/* Ensure Context length is 0 */
-	hashdata->ctx.length = 0;
+	ctx->ctx.length = 0;
+
+	/* Initialize the HMAC Key */
+	ctx->key.length = 0;
 
 	return TEE_SUCCESS;
 }
 
-/*
- * Update the Hash operation
- *
- * @ctx   Operation Software context
- * @data  Data to hash
- * @len   Data length
- */
-static TEE_Result do_update(struct crypto_hash_ctx *ctx, const uint8_t *data,
-			    size_t len)
+TEE_Result caam_hash_hmac_update(struct hashctx *ctx, const uint8_t *data,
+				 size_t len)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct crypto_hash *hash = to_hash_ctx(ctx);
-	struct hashdata *hashdata = hash->ctx;
 	const struct hashalg *alg = NULL;
+	uint32_t alg_type = 0;
 	struct caam_jobctx jobctx = {};
 	uint32_t *desc = NULL;
 	size_t fullsize = 0;
 	size_t size_topost = 0;
 	size_t size_todo = 0;
 	size_t size_inmade = 0;
-	size_t inlen = 0;
-	paddr_t paddr_data = 0;
+	struct caamsgtbuf src_sgt = { .sgt_type = false };
+	struct caambuf indata = { .data = (uint8_t *)data, .length = len };
 
-	HASH_TRACE("Hash Update (0x%p)", hashdata);
+	HASH_TRACE("Hash/HMAC Update (%p) %p - %zu", ctx, data, len);
 
-	if ((!data && len) || !hashdata)
+	if ((!data && len) || !ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	alg = hashdata->alg;
+	alg = ctx->alg;
+	alg_type = alg->type;
 
 	if (data) {
-		paddr_data = virt_to_phys((void *)data);
-		if (!paddr_data) {
+		indata.paddr = virt_to_phys((void *)data);
+		if (!indata.paddr) {
 			HASH_TRACE("Bad input data virtual address");
-			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto exit_update;
+			return TEE_ERROR_BAD_PARAMETERS;
 		}
-		inlen = len;
+
+		if (!caam_mem_is_cached_buf(indata.data, indata.length))
+			indata.nocache = 1;
 	}
 
-	if (!hashdata->ctx.data) {
-		retstatus = do_allocate_intern(hashdata);
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto exit_update;
-		}
-	}
+	if (!ctx->ctx.data)
+		return TEE_ERROR_GENERIC;
 
-	HASH_TRACE("Update Type 0x%" PRIX32 " - Input @%p-%zu", alg->type,
-		   data, inlen);
+	HASH_TRACE("Update Type 0x%" PRIX32 " - Input @%p-%zu", alg_type,
+		   indata.data, indata.length);
 
 	/* Calculate the total data to be handled */
-	fullsize = hashdata->blockbuf.filled + inlen;
+	fullsize = ctx->blockbuf.filled + indata.length;
 	size_topost = fullsize % alg->size_block;
 	size_todo = fullsize - size_topost;
-	size_inmade = inlen - size_topost;
+	size_inmade = indata.length - size_topost;
 	HASH_TRACE("FullSize %zu - posted %zu - todo %zu", fullsize,
 		   size_topost, size_todo);
 
 	if (size_todo) {
-		desc = hashdata->descriptor;
+		desc = ctx->descriptor;
 		caam_desc_init(desc);
 		caam_desc_add_word(desc, DESC_HEADER(0));
 
 		/* There are blocks to hash - Create the Descriptor */
-		if (hashdata->ctx.length) {
+		if (ctx->ctx.length) {
 			HASH_TRACE("Update Operation");
 			/* Algo Operation - Update */
-			caam_desc_add_word(desc, HASH_UPDATE(alg->type));
+			caam_desc_add_word(desc, HASH_UPDATE(alg_type));
 			/* Running context to restore */
-			caam_desc_add_word(desc,
-					   LD_NOIMM(CLASS_2, REG_CTX,
-						    hashdata->ctx.length));
-			caam_desc_add_ptr(desc, hashdata->ctx.paddr);
+			caam_desc_add_word(desc, LD_NOIMM(CLASS_2, REG_CTX,
+							  ctx->ctx.length));
+			caam_desc_add_ptr(desc, ctx->ctx.paddr);
 		} else {
 			HASH_TRACE("Init Operation");
 
-			/* Algo Operation - Init */
-			caam_desc_add_word(desc, HASH_INIT(alg->type));
+			/* Check if there is a key to load it */
+			if (ctx->key.length) {
+				do_desc_load_key(desc, &ctx->key);
 
-			hashdata->ctx.length = alg->size_ctx;
+				/* Algo Operation - HMAC Init */
+				caam_desc_add_word(desc,
+						   HMAC_INIT_PRECOMP(alg_type));
+			} else {
+				/* Algo Operation - Init */
+				caam_desc_add_word(desc, HASH_INIT(alg_type));
+			}
+			ctx->ctx.length = alg->size_ctx;
 		}
 
-		if (hashdata->blockbuf.filled != 0) {
-			/* Add the temporary buffer */
-			caam_desc_add_word(desc,
-					   FIFO_LD_EXT(CLASS_2, MSG, NOACTION));
-			caam_desc_add_ptr(desc, hashdata->blockbuf.buf.paddr);
-			caam_desc_add_word(desc, hashdata->blockbuf.filled);
+		/* Set the exact size of input data to use */
+		indata.length = size_inmade;
 
-			/* Clean the circular buffer data to be loaded */
-			cache_operation(TEE_CACHECLEAN,
-					hashdata->blockbuf.buf.data,
-					hashdata->blockbuf.filled);
-			hashdata->blockbuf.filled = 0;
+		if (ctx->blockbuf.filled)
+			retstatus = caam_sgt_build_block_data(&src_sgt,
+							      &ctx->blockbuf,
+							      &indata);
+		else
+			retstatus = caam_sgt_build_block_data(&src_sgt, NULL,
+							      &indata);
+
+		if (retstatus != CAAM_NO_ERROR) {
+			ret = TEE_ERROR_GENERIC;
+			goto out;
 		}
 
-		/* Add the input data multiple of blocksize */
-		caam_desc_add_word(desc, FIFO_LD_EXT(CLASS_2, MSG, LAST_C2));
-		caam_desc_add_ptr(desc, paddr_data);
-		caam_desc_add_word(desc, size_inmade);
+		if (src_sgt.sgt_type) {
+			if (src_sgt.length > FIFO_LOAD_MAX) {
+				caam_desc_add_word(desc,
+						   FIFO_LD_SGT_EXT(CLASS_2, MSG,
+								   LAST_C2));
+				caam_desc_add_ptr(desc,
+						  virt_to_phys(src_sgt.sgt));
+				caam_desc_add_word(desc, src_sgt.length);
+			} else {
+				caam_desc_add_word(desc,
+						   FIFO_LD_SGT(CLASS_2, MSG,
+							       LAST_C2,
+							       src_sgt.length));
+				caam_desc_add_ptr(desc,
+						  virt_to_phys(src_sgt.sgt));
+			}
+			caam_sgt_cache_op(TEE_CACHECLEAN, &src_sgt);
+		} else {
+			if (src_sgt.length > FIFO_LOAD_MAX) {
+				caam_desc_add_word(desc,
+						   FIFO_LD_EXT(CLASS_2, MSG,
+							       LAST_C2));
+				caam_desc_add_ptr(desc, src_sgt.buf->paddr);
+				caam_desc_add_word(desc, src_sgt.length);
+			} else {
+				caam_desc_add_word(desc,
+						   FIFO_LD(CLASS_2, MSG,
+							   LAST_C2,
+							   src_sgt.length));
+				caam_desc_add_ptr(desc, src_sgt.buf->paddr);
+			}
 
-		/* Clean the input data to be loaded */
-		cache_operation(TEE_CACHECLEAN, (void *)data, size_inmade);
+			if (!src_sgt.buf->nocache)
+				cache_operation(TEE_CACHECLEAN,
+						src_sgt.buf->data,
+						src_sgt.length);
+		}
+
+		ctx->blockbuf.filled = 0;
 
 		/* Save the running context */
-		caam_desc_add_word(desc, ST_NOIMM(CLASS_2, REG_CTX,
-						  hashdata->ctx.length));
-		caam_desc_add_ptr(desc, hashdata->ctx.paddr);
+		caam_desc_add_word(desc,
+				   ST_NOIMM(CLASS_2, REG_CTX, ctx->ctx.length));
+		caam_desc_add_ptr(desc, ctx->ctx.paddr);
 
 		HASH_DUMPDESC(desc);
 
 		/* Ensure Context register data are not in cache */
-		cache_operation(TEE_CACHEINVALIDATE, hashdata->ctx.data,
-				hashdata->ctx.length);
+		cache_operation(TEE_CACHEINVALIDATE, ctx->ctx.data,
+				ctx->ctx.length);
 
 		jobctx.desc = desc;
 		retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 		if (retstatus == CAAM_NO_ERROR) {
 			ret = TEE_SUCCESS;
-			HASH_DUMPBUF("CTX", hashdata->ctx.data,
-				     hashdata->ctx.length);
+			HASH_DUMPBUF("CTX", ctx->ctx.data, ctx->ctx.length);
 		} else {
 			HASH_TRACE("CAAM Status 0x%08" PRIx32, jobctx.status);
 			ret = job_status_to_tee_result(jobctx.status);
@@ -369,131 +546,151 @@ static TEE_Result do_update(struct crypto_hash_ctx *ctx, const uint8_t *data,
 	}
 
 	if (size_topost && data) {
-		struct caambuf indata = {
-			.data = (uint8_t *)data,
-			.length = inlen
-		};
-
-		HASH_TRACE("Post %zu of input len %zu made %zu", size_topost,
-			   len, size_inmade);
-		ret = caam_cpy_block_src(&hashdata->blockbuf, &indata,
-					 size_inmade);
+		/*
+		 * Set the full data size of the input buffer.
+		 * indata.length has been changed when creating the SGT
+		 * object.
+		 */
+		indata.length = len;
+		HASH_TRACE("Posted %zu of input len %zu made %zu", size_topost,
+			   indata.length, size_inmade);
+		ret = caam_cpy_block_src(&ctx->blockbuf, &indata, size_inmade);
 	}
 
-exit_update:
+out:
+	if (src_sgt.sgt_type)
+		caam_sgtbuf_free(&src_sgt);
+
 	if (ret != TEE_SUCCESS)
-		do_free_intern(hashdata);
+		do_free_intern(ctx);
 
 	return ret;
 }
 
-/*
- * Finalize the Hash operation
- *
- * @ctx     Operation Software context
- * @digest  [out] Hash digest buffer
- * @len     Digest buffer length
- */
-static TEE_Result do_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
-			   size_t len)
+TEE_Result caam_hash_hmac_final(struct hashctx *ctx, uint8_t *digest,
+				size_t len)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
-	struct crypto_hash *hash = to_hash_ctx(ctx);
-	struct hashdata *hashdata = hash->ctx;
 	const struct hashalg *alg = NULL;
-	struct caam_jobctx jobctx = {};
+	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
-	int realloc = 0;
-	struct caambuf digest_align = {};
+	bool realloc = false;
+	struct caambuf digest_align = { };
+	struct caamsgtbuf sgtdigest = { .sgt_type = false };
 
-	HASH_TRACE("Hash Final (0x%p)", hashdata);
+	HASH_TRACE("Hash/HMAC Final (%p)", ctx);
 
-	if (!digest || !len || !hashdata)
+	if (!digest || !len || !ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	alg = hashdata->alg;
+	alg = ctx->alg;
 
-	if (!hashdata->ctx.data) {
-		retstatus = do_allocate_intern(hashdata);
-		if (retstatus != CAAM_NO_ERROR) {
-			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto exit_final;
-		}
-	}
+	if (!ctx->ctx.data)
+		return TEE_ERROR_GENERIC;
 
 	if (alg->size_digest > len) {
 		HASH_TRACE("Digest buffer size %" PRId8 " too short (%zu)",
 			   alg->size_digest, len);
 
-		retstatus =
-			caam_alloc_align_buf(&digest_align, alg->size_digest);
+		retstatus = caam_alloc_align_buf(&digest_align,
+						 alg->size_digest);
 		if (retstatus != CAAM_NO_ERROR) {
-			HASH_TRACE("Hash digest reallocation error");
+			HASH_TRACE("Digest reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto exit_final;
+			goto out;
 		}
-		realloc = 1;
+		realloc = true;
 	} else {
-		realloc =
-			caam_set_or_alloc_align_buf(digest, &digest_align, len);
+		retstatus = caam_set_or_alloc_align_buf(digest, &digest_align,
+							len, &realloc);
 
-		if (realloc == -1) {
-			HASH_TRACE("Hash digest reallocation error");
+		if (retstatus != CAAM_NO_ERROR) {
+			HASH_TRACE("Digest reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto exit_final;
+			goto out;
+		}
+
+		retstatus = caam_sgt_build_block_data(&sgtdigest, NULL,
+						      &digest_align);
+
+		if (retstatus != CAAM_NO_ERROR) {
+			ret = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
 		}
 	}
 
 	HASH_TRACE("Final Type 0x%" PRIX32 " - Digest @%p-%zu", alg->type,
 		   digest_align.data, len);
 
-	desc = hashdata->descriptor;
+	desc = ctx->descriptor;
 	caam_desc_init(desc);
 
 	/* Set the descriptor Header with length */
 	caam_desc_add_word(desc, DESC_HEADER(0));
 
-	if (hashdata->ctx.length) {
+	/* Load key if any */
+	if (ctx->key.length)
+		do_desc_load_key(desc, &ctx->key);
+
+	if (ctx->ctx.length) {
 		HASH_TRACE("Final Operation");
 
-		caam_desc_add_word(desc, HASH_FINAL(alg->type));
+		if (ctx->key.length)
+			caam_desc_add_word(desc, HMAC_FINAL_PRECOMP(alg->type));
+		else
+			caam_desc_add_word(desc, HASH_FINAL(alg->type));
 
 		/* Running context to restore */
-		caam_desc_add_word(desc, LD_NOIMM(CLASS_2, REG_CTX,
-						  hashdata->ctx.length));
-		caam_desc_add_ptr(desc, hashdata->ctx.paddr);
+		caam_desc_add_word(desc,
+				   LD_NOIMM(CLASS_2, REG_CTX, ctx->ctx.length));
+		caam_desc_add_ptr(desc, ctx->ctx.paddr);
 
-		cache_operation(TEE_CACHEINVALIDATE, hashdata->ctx.data,
-				hashdata->ctx.length);
-		HASH_DUMPBUF("CTX", hashdata->ctx.data, hashdata->ctx.length);
-		hashdata->ctx.length = 0;
+		cache_operation(TEE_CACHEINVALIDATE, ctx->ctx.data,
+				ctx->ctx.length);
+		HASH_DUMPBUF("CTX", ctx->ctx.data, ctx->ctx.length);
+		ctx->ctx.length = 0;
 	} else {
 		HASH_TRACE("Init/Final Operation");
-		caam_desc_add_word(desc, HASH_INITFINAL(alg->type));
+		if (ctx->key.length)
+			caam_desc_add_word(desc,
+					   HMAC_INITFINAL_PRECOMP(alg->type));
+		else
+			caam_desc_add_word(desc, HASH_INITFINAL(alg->type));
 	}
 
-	HASH_DUMPBUF("Temporary Block", hashdata->blockbuf.buf.data,
-		     hashdata->blockbuf.filled);
+	HASH_DUMPBUF("Temporary Block", ctx->blockbuf.buf.data,
+		     ctx->blockbuf.filled);
+
 	caam_desc_add_word(desc, FIFO_LD_EXT(CLASS_2, MSG, LAST_C2));
-	caam_desc_add_ptr(desc, hashdata->blockbuf.buf.paddr);
-	caam_desc_add_word(desc, hashdata->blockbuf.filled);
-	cache_operation(TEE_CACHECLEAN, hashdata->blockbuf.buf.data,
-			hashdata->blockbuf.filled);
-	hashdata->blockbuf.filled = 0;
+	caam_desc_add_ptr(desc, ctx->blockbuf.buf.paddr);
+	caam_desc_add_word(desc, ctx->blockbuf.filled);
+
+	cache_operation(TEE_CACHECLEAN, ctx->blockbuf.buf.data,
+			ctx->blockbuf.filled);
+
+	ctx->blockbuf.filled = 0;
 
 	/* Save the final digest */
-	caam_desc_add_word(desc, ST_NOIMM(CLASS_2, REG_CTX, alg->size_digest));
-	caam_desc_add_ptr(desc, digest_align.paddr);
+	if (sgtdigest.sgt_type) {
+		caam_desc_add_word(desc, ST_SGT_NOIMM(CLASS_2, REG_CTX,
+						      alg->size_digest));
+		caam_desc_add_ptr(desc, virt_to_phys(sgtdigest.sgt));
+
+		caam_sgt_cache_op(TEE_CACHEFLUSH, &sgtdigest);
+	} else {
+		caam_desc_add_word(desc, ST_NOIMM(CLASS_2, REG_CTX,
+						  alg->size_digest));
+		caam_desc_add_ptr(desc, digest_align.paddr);
+
+		if (digest_align.nocache == 0)
+			cache_operation(TEE_CACHEFLUSH, digest_align.data,
+					alg->size_digest);
+	}
 
 	HASH_DUMPDESC(desc);
 
 	jobctx.desc = desc;
-
-	if (digest_align.nocache == 0)
-		cache_operation(TEE_CACHEFLUSH, digest_align.data,
-				alg->size_digest);
-
 	retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 	if (retstatus == CAAM_NO_ERROR) {
@@ -514,40 +711,23 @@ static TEE_Result do_final(struct crypto_hash_ctx *ctx, uint8_t *digest,
 		ret = job_status_to_tee_result(jobctx.status);
 	}
 
-exit_final:
-	if (realloc == 1)
+out:
+	if (realloc)
 		caam_free_buf(&digest_align);
+
+	if (sgtdigest.sgt_type)
+		caam_sgtbuf_free(&sgtdigest);
 
 	return ret;
 }
 
-/*
- * Copy Sofware Hashing Context
- *
- * @dst_ctx  [out] Reference the context destination
- * @src_ctx  Reference the context source
- */
-static void do_copy_state(struct crypto_hash_ctx *dst_ctx,
-			  struct crypto_hash_ctx *src_ctx)
+void caam_hash_hmac_copy_state(struct hashctx *dst, struct hashctx *src)
 {
-	enum caam_status retstatus = CAAM_FAILURE;
-	struct crypto_hash *hash_src = to_hash_ctx(src_ctx);
-	struct crypto_hash *hash_dst = to_hash_ctx(dst_ctx);
-	struct hashdata *dst = hash_dst->ctx;
-	struct hashdata *src = hash_src->ctx;
+	HASH_TRACE("Copy State context (%p) to (%p)", src, dst);
 
-	HASH_TRACE("Copy State context (0x%p) to (0x%p)", src, dst);
-
-	if (!dst || !src)
-		panic();
+	assert(dst && src);
 
 	dst->alg = src->alg;
-
-	if (!dst->ctx.data) {
-		retstatus = do_allocate_intern(dst);
-		if (retstatus != CAAM_NO_ERROR)
-			panic();
-	}
 
 	memcpy(dst->ctx.data, src->ctx.data, src->ctx.length);
 	dst->ctx.length = src->ctx.length;
@@ -561,64 +741,9 @@ static void do_copy_state(struct crypto_hash_ctx *dst_ctx,
 
 		caam_cpy_block_src(&dst->blockbuf, &srcdata, 0);
 	}
-}
 
-/*
- * Registration of the hash Driver
- */
-static const struct crypto_hash_ops hash_ops = {
-	.init = do_init,
-	.update = do_update,
-	.final = do_final,
-	.free_ctx = do_free,
-	.copy_state = do_copy_state,
-};
-
-/*
- * Allocate the internal hashing data context
- *
- * @ctx    [out] Caller context variable
- * @algo   Algorithm ID
- */
-static TEE_Result caam_hash_allocate(struct crypto_hash_ctx **ctx,
-				     uint32_t algo)
-{
-	struct crypto_hash *hash = NULL;
-	struct hashdata *hashdata = NULL;
-	uint8_t hash_id = TEE_ALG_GET_MAIN_ALG(algo);
-	unsigned int algo_idx = hash_id - TEE_MAIN_ALGO_MD5;
-
-	HASH_TRACE("Allocate Context (%p) algo %" PRId16, ctx, algo_idx);
-
-	*ctx = NULL;
-
-	if (hash_id > caam_hash_limit)
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	if (algo_idx > ARRAY_SIZE(hash_alg))
-		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	hash = calloc(1, sizeof(*hash));
-	if (!hash)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	hashdata = caam_calloc(sizeof(*hashdata));
-	if (!hashdata) {
-		HASH_TRACE("Allocation Hash data error");
-		free(hash);
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-	HASH_TRACE("Allocated Context (0x%p)", hashdata);
-
-	hashdata->alg = &hash_alg[algo_idx];
-
-	hash->hash_ctx.ops = &hash_ops;
-	hash->ctx = hashdata;
-
-	*ctx = &hash->hash_ctx;
-
-	return TEE_SUCCESS;
+	if (src->key.data)
+		memcpy(dst->key.data, src->key.data, src->key.length);
 }
 
 enum caam_status caam_hash_init(vaddr_t ctrl_addr)

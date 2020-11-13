@@ -113,7 +113,6 @@
 #define TEE_OPERATION_ASYMMETRIC_CIPHER    6
 #define TEE_OPERATION_ASYMMETRIC_SIGNATURE 7
 #define TEE_OPERATION_KEY_DERIVATION       8
-#define TEE_OPERATION_EXTENSION		   0xF
 #define TEE_OPERATION_STATE_INITIAL        0x00000000
 #define TEE_OPERATION_STATE_ACTIVE         0x00000001
 
@@ -200,6 +199,7 @@
 #define TEE_ALG_ECDH_P521                       0x80005042
 #define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_SM3                             0x50000007
+#define TEE_ALG_ILLEGAL_VALUE                   0xEFFFFFFF
 
 /* Object Types */
 
@@ -273,6 +273,7 @@
 #define TEE_ATTR_BIT_VALUE		(1 << 29)
 
 /* List of Supported ECC Curves */
+#define TEE_CRYPTO_ELEMENT_NONE             0x00000000
 #define TEE_ECC_CURVE_NIST_P192             0x00000001
 #define TEE_ECC_CURVE_NIST_P224             0x00000002
 #define TEE_ECC_CURVE_NIST_P256             0x00000003

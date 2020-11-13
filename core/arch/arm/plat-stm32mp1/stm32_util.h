@@ -15,6 +15,13 @@
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
 
+/*
+ * SYSCFG IO compensation.
+ * These functions assume non-secure world is suspended.
+ */
+void stm32mp_syscfg_enable_io_compensation(void);
+void stm32mp_syscfg_disable_io_compensation(void);
+
 /* Platform util for the GIC */
 vaddr_t get_gicc_base(void);
 vaddr_t get_gicd_base(void);
@@ -35,6 +42,9 @@ vaddr_t get_gicd_base(void);
 vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
+
+/* Platform util for PMIC support */
+bool stm32mp_with_pmic(void);
 
 /* Power management service */
 #ifdef CFG_PSCI_ARM32
@@ -61,12 +71,29 @@ void stm32_clock_disable(unsigned long id);
 unsigned long stm32_clock_get_rate(unsigned long id);
 bool stm32_clock_is_enabled(unsigned long id);
 
+/* Return true if @clock_id is shared by secure and non-secure worlds */
+bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
+
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
  * @id: Target peripheral ID, ID used in reset DT bindings
+ * @to_us: Timeout out in microsecond, or 0 if not waiting signal state
  */
-void stm32_reset_assert(unsigned int id);
-void stm32_reset_deassert(unsigned int id);
+TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
+TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
+
+static inline void stm32_reset_set(unsigned int id)
+{
+	(void)stm32_reset_assert(id, 0);
+}
+
+static inline void stm32_reset_release(unsigned int id)
+{
+	(void)stm32_reset_deassert(id, 0);
+}
+
+/* Return true if and only if @reset_id relates to a non-secure peripheral */
+bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
 
 /*
  * Structure and API function for BSEC driver to get some platform data.
@@ -74,15 +101,11 @@ void stm32_reset_deassert(unsigned int id);
  * @base: BSEC interface registers physical base address
  * @upper_start: Base ID for the BSEC upper words in the platform
  * @max_id: Max value for BSEC word ID for the platform
- * @closed_device_id: BSEC word ID storing the "closed_device" OTP bit
- * @closed_device_position: Bit position of "closed_device" bit in the OTP word
  */
 struct stm32_bsec_static_cfg {
 	paddr_t base;
 	unsigned int upper_start;
 	unsigned int max_id;
-	unsigned int closed_device_id;
-	unsigned int closed_device_position;
 };
 
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
@@ -205,23 +228,9 @@ enum stm32mp_shres {
 	STM32MP1_SHRES_I2C6,
 	STM32MP1_SHRES_RTC,
 	STM32MP1_SHRES_MCU,
-	STM32MP1_SHRES_HSI,
-	STM32MP1_SHRES_LSI,
-	STM32MP1_SHRES_HSE,
-	STM32MP1_SHRES_LSE,
-	STM32MP1_SHRES_CSI,
-	STM32MP1_SHRES_PLL1,
-	STM32MP1_SHRES_PLL1_P,
-	STM32MP1_SHRES_PLL1_Q,
-	STM32MP1_SHRES_PLL1_R,
-	STM32MP1_SHRES_PLL2,
-	STM32MP1_SHRES_PLL2_P,
-	STM32MP1_SHRES_PLL2_Q,
-	STM32MP1_SHRES_PLL2_R,
 	STM32MP1_SHRES_PLL3,
-	STM32MP1_SHRES_PLL3_P,
-	STM32MP1_SHRES_PLL3_Q,
-	STM32MP1_SHRES_PLL3_R,
+	STM32MP1_SHRES_MDMA,
+
 	STM32MP1_SHRES_COUNT
 };
 
@@ -268,15 +277,6 @@ bool stm32mp_gpio_bank_is_shared(unsigned int bank);
 
 /* Return true if and only if GPIO bank @bank is registered as non-secure */
 bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
-
-/* Return true if and only if @clock_id is shareable */
-bool stm32mp_clock_is_shareable(unsigned long clock_id);
-
-/* Return true if and only if @clock_id is shared by secure and non-secure */
-bool stm32mp_clock_is_shared(unsigned long clock_id);
-
-/* Return true if and only if @clock_id is assigned to non-secure world */
-bool stm32mp_clock_is_non_secure(unsigned long clock_id);
 
 /* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
 void stm32mp_register_clock_parents_secure(unsigned long clock_id);

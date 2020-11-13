@@ -13,7 +13,7 @@
  */
 typedef void (*syscall_t)(void);
 
-/* Helper function for tee_svc_handler() */
+/* Helper function for user_ta_handle_svc() */
 uint32_t tee_svc_do_call(struct thread_svc_regs *regs, syscall_t func);
 
 #endif /*ARCH_SVC_PRIVATE_H*/

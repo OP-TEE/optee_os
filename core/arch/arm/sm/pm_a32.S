@@ -12,7 +12,6 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/asan.h>
-#include <kernel/unwind.h>
 #include <platform_config.h>
 
 .section .text
@@ -24,7 +23,6 @@
  *		 -1 - cpu not suspended.
  */
 FUNC sm_pm_cpu_suspend, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{r4 - r12, lr}
 	mov	r5, sp
@@ -44,11 +42,9 @@ aborted:
 	mov	r0, #(-1)
 suspend_return:
 	pop	{r4 - r12, pc}
-UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_suspend
 
 FUNC sm_pm_cpu_do_suspend, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	push	{r4 - r11}
 	read_midr r4
@@ -90,11 +86,9 @@ a7_suspend:
 	stmia	r0, {r4 - r7}
 	pop	{r4 - r11}
 	bx	lr
-UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_do_suspend
 
 FUNC sm_pm_cpu_resume, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	cpsid	aif
 
@@ -122,7 +116,6 @@ UNWIND(	.cantunwind)
 	ldr	r0, [r0, #THREAD_CORE_LOCAL_SM_PM_CTX_PHYS]
 	/* Need to use r0!, because sm_pm_cpu_do_resume needs it */
 	ldmia	r0!, {sp, pc}
-UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_resume
 
 /*
@@ -146,7 +139,6 @@ _core_pos:
  * field of struct sm_pm_ctx.
  */
 FUNC sm_pm_cpu_do_resume, :
-UNWIND(	.fnstart)
 UNWIND(	.cantunwind)
 	read_midr r4
 	ubfx	r5, r4, #4, #12
@@ -200,6 +192,5 @@ a7_resume:
 	isb
 	mov	r0, #0
 	b	suspend_return
-UNWIND(	.fnend)
 END_FUNC sm_pm_cpu_do_resume
 

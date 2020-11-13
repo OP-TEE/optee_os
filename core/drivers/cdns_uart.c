@@ -109,7 +109,7 @@ static const struct serial_ops cdns_uart_ops = {
 	.have_rx_data = cdns_uart_have_rx_data,
 	.putc = cdns_uart_putc,
 };
-KEEP_PAGER(cdns_uart_ops);
+DECLARE_KEEP_PAGER(cdns_uart_ops);
 
 /*
  * we rely on the bootloader having set up the HW correctly, we just enable

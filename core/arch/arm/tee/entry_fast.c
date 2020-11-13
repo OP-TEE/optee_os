@@ -7,7 +7,7 @@
 #include <tee/entry_fast.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/virtualization.h>
 #include <kernel/misc.h>
@@ -62,7 +62,7 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 
 static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
-	bool dyn_shm_en = false;
+	bool dyn_shm_en __maybe_unused = false;
 
 	/*
 	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
@@ -91,6 +91,7 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 #ifdef CFG_VIRTUALIZATION
 	args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
 #endif
+	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
 
 #if defined(CFG_CORE_DYN_SHM)
 	dyn_shm_en = core_mmu_nsec_ddr_is_defined();
@@ -131,7 +132,7 @@ static void tee_entry_enable_shm_cache(struct thread_smc_args *args)
 static void tee_entry_boot_secondary(struct thread_smc_args *args)
 {
 #if defined(CFG_BOOT_SECONDARY_REQUEST)
-	if (!generic_boot_core_release(args->a1, (paddr_t)(args->a3)))
+	if (!boot_core_release(args->a1, (paddr_t)(args->a3)))
 		args->a0 = OPTEE_SMC_RETURN_OK;
 	else
 		args->a0 = OPTEE_SMC_RETURN_EBADCMD;

@@ -1,9 +1,7 @@
 PLATFORM_FLAVOR ?= bpi_zero
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_PM_STUBS,y)
 
 ifeq ($(PLATFORM_FLAVOR),bpi_zero)
 include core/arch/arm/cpu/cortex-a7.mk
@@ -16,7 +14,6 @@ $(call force,CFG_WITH_PAGER,n)
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_NUM_THREADS ?= 4
 CFG_TEE_CORE_NB_CORE ?= 4
-CFG_WITH_STACK_CANARIES ?= y
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_PSCI_ARM32 ?= y
 CFG_NS_ENTRY_ADDR ?= 0x42000000
@@ -46,5 +43,4 @@ ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 endif
 
-CFG_WITH_STACK_CANARIES ?= y
 CFG_WITH_STATS ?= y

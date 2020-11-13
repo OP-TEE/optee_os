@@ -81,7 +81,7 @@ TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
 
 	hmac_parms.algo = TEE_ALG_HMAC_ALGO(hash_id);
 
-	res = tee_mac_get_digest_size(hmac_parms.algo, &hmac_parms.hash_len);
+	res = tee_alg_get_digest_size(hmac_parms.algo, &hmac_parms.hash_len);
 	if (res != TEE_SUCCESS)
 		return res;
 

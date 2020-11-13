@@ -514,9 +514,19 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 			flags |= TEE_MEMORY_ACCESS_WRITE;
 			/*FALLTHROUGH*/
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-			p->u[n].mem.mobj = &mobj_virt;
 			p->u[n].mem.offs = a;
 			p->u[n].mem.size = b;
+
+			if (!p->u[n].mem.offs) {
+				/* Allow NULL memrefs if of size 0 */
+				if (p->u[n].mem.size)
+					return TEE_ERROR_BAD_PARAMETERS;
+				p->u[n].mem.mobj = NULL;
+				break;
+			}
+
+			p->u[n].mem.mobj = &mobj_virt;
+
 			if (tee_mmu_check_access_rights(&utc->uctx, flags, a,
 							b))
 				return TEE_ERROR_ACCESS_DENIED;
@@ -583,6 +593,7 @@ static TEE_Result tee_svc_copy_param(struct tee_ta_session *sess,
 		memset(param, 0, sizeof(*param));
 	} else {
 		uint32_t flags = TEE_MEMORY_ACCESS_READ |
+				 TEE_MEMORY_ACCESS_WRITE |
 				 TEE_MEMORY_ACCESS_ANY_OWNER;
 
 		res = tee_mmu_check_access_rights(&utc->uctx, flags,

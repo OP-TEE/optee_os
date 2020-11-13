@@ -8,7 +8,6 @@
 #include <compiler.h>
 #include <crypto/crypto.h>
 #include <ctype.h>
-#include <elf_common.h>
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/panic.h>
@@ -613,6 +612,7 @@ static struct tee_ta_ops const *_user_ta_ops;
 static TEE_Result init_user_ta(void)
 {
 	_user_ta_ops = &user_ta_ops;
+	tee_svc_uref_base = VCORE_START_VA;
 
 	return TEE_SUCCESS;
 }

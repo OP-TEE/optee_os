@@ -66,11 +66,11 @@
 #define MBEDTLS_DHM_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
-#include "bignum.h"
+#include "mbedtls/bignum.h"
 
 /*
  * DHM Error codes
@@ -298,7 +298,6 @@ int mbedtls_dhm_calc_secret( mbedtls_dhm_context *ctx,
 void mbedtls_dhm_free( mbedtls_dhm_context *ctx );
 
 #if defined(MBEDTLS_ASN1_PARSE_C)
-/** \ingroup x509_module */
 /**
  * \brief             This function parses DHM parameters in PEM or DER format.
  *
@@ -317,7 +316,6 @@ int mbedtls_dhm_parse_dhm( mbedtls_dhm_context *dhm, const unsigned char *dhmin,
                            size_t dhminlen );
 
 #if defined(MBEDTLS_FS_IO)
-/** \ingroup x509_module */
 /**
  * \brief          This function loads and parses DHM parameters from a file.
  *
@@ -334,6 +332,8 @@ int mbedtls_dhm_parse_dhmfile( mbedtls_dhm_context *dhm, const char *path );
 #endif /* MBEDTLS_FS_IO */
 #endif /* MBEDTLS_ASN1_PARSE_C */
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          The DMH checkup routine.
  *
@@ -342,6 +342,7 @@ int mbedtls_dhm_parse_dhmfile( mbedtls_dhm_context *dhm, const char *path );
  */
 int mbedtls_dhm_self_test( int verbose );
 
+#endif /* MBEDTLS_SELF_TEST */
 #ifdef __cplusplus
 }
 #endif

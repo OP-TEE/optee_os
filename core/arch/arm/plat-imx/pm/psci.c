@@ -12,22 +12,23 @@
 #include <imx.h>
 #include <imx_pm.h>
 #include <imx-regs.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <sm/optee_smc.h>
 #include <sm/psci.h>
+#include <sm/std_smc.h>
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case ARM_SMCCC_VERSION:
 	case PSCI_PSCI_FEATURES:
 	case PSCI_VERSION:
 	case PSCI_CPU_SUSPEND:
@@ -63,7 +64,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		return PSCI_RET_INVALID_PARAMETERS;
 
 	/* set secondary cores' NS entry addresses */
-	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
+	boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	val = virt_to_phys((void *)TEE_TEXT_VA_START);
 

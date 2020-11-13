@@ -55,6 +55,21 @@
 		(void)(*(res) = __roundup_tmp & ~__roundup_mask), 0; \
 }))
 
+/*
+ * Rounds up to the nearest multiple of y and then divides by y. Safe
+ * against overflow, y has to be a multiple of 2.
+ *
+ * This macro is intended to be used to convert from "number of bytes" to
+ * "number of pages" or similar units. Example:
+ * num_pages = ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE);
+ */
+#define ROUNDUP_DIV(x, y) (__extension__({ \
+	typeof(x) __roundup_x = (x); \
+	typeof(y) __roundup_mask = (typeof(x))(y) - 1; \
+	\
+	(__roundup_x / (y)) + (__roundup_x & __roundup_mask ? 1 : 0); \
+}))
+
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 

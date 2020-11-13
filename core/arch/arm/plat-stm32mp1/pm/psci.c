@@ -5,11 +5,14 @@
 
 #include <arm.h>
 #include <boot_api.h>
+#include <console.h>
+#include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_rcc.h>
+#include <drivers/stpmic1.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -17,8 +20,11 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
+#include <sm/std_smc.h>
 #include <stm32_util.h>
 #include <trace.h>
+
+#define CONSOLE_FLUSH_DELAY_MS		10
 
 /*
  * SMP boot support and access to the mailbox
@@ -171,7 +177,7 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	unlock_state_access(exceptions);
 
 	if (rc == PSCI_RET_SUCCESS) {
-		generic_boot_set_core_ns_entry(pos, entry, context_id);
+		boot_set_core_ns_entry(pos, entry, context_id);
 		release_secondary_early_hpen(pos);
 	}
 
@@ -204,16 +210,55 @@ int psci_cpu_off(void)
 }
 #endif
 
+/* Override default psci_system_off() with platform specific sequence */
+void __noreturn psci_system_off(void)
+{
+	DMSG("core %u", get_core_pos());
+
+	if (TRACE_LEVEL >= TRACE_DEBUG) {
+		console_flush();
+		mdelay(CONSOLE_FLUSH_DELAY_MS);
+	}
+
+	if (stm32mp_with_pmic()) {
+		stm32mp_get_pmic();
+		stpmic1_switch_off();
+		udelay(100);
+	}
+
+	panic();
+}
+
+/* Override default psci_system_reset() with platform specific sequence */
+void __noreturn psci_system_reset(void)
+{
+	vaddr_t rcc_base = stm32_rcc_base();
+
+	DMSG("core %u", get_core_pos());
+
+	io_write32(rcc_base + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
+	udelay(100);
+	panic();
+}
+
 /* Override default psci_cpu_on() with platform supported features */
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {
+	case ARM_SMCCC_VERSION:
 	case PSCI_PSCI_FEATURES:
+	case PSCI_SYSTEM_RESET:
 	case PSCI_VERSION:
-#if CFG_TEE_CORE_NB_CORE > 1
-	case PSCI_CPU_ON:
-#endif
 		return PSCI_RET_SUCCESS;
+	case PSCI_CPU_ON:
+	case PSCI_CPU_OFF:
+		if (CFG_TEE_CORE_NB_CORE > 1)
+			return PSCI_RET_SUCCESS;
+		return PSCI_RET_NOT_SUPPORTED;
+	case PSCI_SYSTEM_OFF:
+		if (stm32mp_with_pmic())
+			return PSCI_RET_SUCCESS;
+		return PSCI_RET_NOT_SUPPORTED;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
 	}

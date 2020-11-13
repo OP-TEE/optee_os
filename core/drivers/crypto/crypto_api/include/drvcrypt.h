@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   Crypto Driver exported constants and interfaces.
  */
@@ -9,18 +9,51 @@
 
 #include <tee_api_types.h>
 #include <trace.h>
+#include <util.h>
 
-#ifdef CFG_CRYPTO_DRIVER_DEBUG
-#define CRYPTO_TRACE	DMSG
+/*
+ * Debug Macros function of Crypto Driver Debug Level setting
+ * The CFG_CRYPTO_DRV_DBG is a bit mask 32 bits value defined
+ * as followed:
+ */
+#define DRV_DBG_TRACE BIT32(0) /* Driver trace */
+#define DRV_DBG_BUF   BIT32(1) /* Driver dump Buffer */
+
+#if (CFG_CRYPTO_DRIVER_DEBUG & DRV_DBG_TRACE)
+#define CRYPTO_TRACE DMSG
 #else
 #define CRYPTO_TRACE(...)
 #endif
+#if (CFG_CRYPTO_DRIVER_DEBUG & DRV_DBG_BUF)
+#define CRYPTO_DUMPBUF(title, buf, len)                                        \
+	do {                                                                   \
+		__typeof__(buf) _buf = (buf);                                  \
+		__typeof__(len) _len = (len);                                  \
+		CRYPTO_TRACE("%s @%p: %zu", title, _buf, _len);                \
+		dhex_dump(NULL, 0, 0, _buf, _len);                             \
+	} while (0)
+#else
+#define CRYPTO_DUMPBUF(...)
+#endif
+
+/*
+ * Definition of a crypto buffer type
+ */
+struct drvcrypt_buf {
+	uint8_t *data;
+	size_t length;
+};
 
 /*
  * Crypto Library Algorithm enumeration
  */
 enum drvcrypt_algo_id {
 	CRYPTO_HASH = 0, /* Hash driver */
+	CRYPTO_HMAC,	 /* HMAC driver */
+	CRYPTO_CMAC,	 /* CMAC driver */
+	CRYPTO_RSA,      /* Asymmetric RSA driver */
+	CRYPTO_MATH,	 /* Mathematical driver */
+	CRYPTO_CIPHER,   /* Cipher driver */
 	CRYPTO_MAX_ALGO  /* Maximum number of algo supported */
 };
 

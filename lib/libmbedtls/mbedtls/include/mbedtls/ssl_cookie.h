@@ -24,10 +24,16 @@
 #ifndef MBEDTLS_SSL_COOKIE_H
 #define MBEDTLS_SSL_COOKIE_H
 
-#include "ssl.h"
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
+
+#include "mbedtls/ssl.h"
 
 #if defined(MBEDTLS_THREADING_C)
-#include "threading.h"
+#include "mbedtls/threading.h"
 #endif
 
 /**

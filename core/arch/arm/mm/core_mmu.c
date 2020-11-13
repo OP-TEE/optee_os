@@ -9,7 +9,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -257,6 +257,7 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
+#if defined(CFG_CORE_DYN_SHM) || defined(CFG_SECURE_DATA_PATH)
 static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 				const struct core_mmu_phys_mem *start,
 				const struct core_mmu_phys_mem *end)
@@ -270,6 +271,7 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 
 	return false;
 }
+#endif
 
 #ifdef CFG_CORE_DYN_SHM
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
@@ -377,6 +379,9 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
 #endif
 
+	carve_out_phys_mem(&m, &num_elems, TEE_RAM_START, TEE_RAM_PH_SIZE);
+	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
+
 	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
 		if (map->type == MEM_AREA_NSEC_SHM)
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
@@ -388,7 +393,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	discovered_nsec_ddr_nelems = num_elems;
 
 	if (!core_mmu_check_end_pa(m[num_elems - 1].addr,
-				   m[num_elems - 1].size - 1))
+				   m[num_elems - 1].size))
 		panic();
 }
 
@@ -907,6 +912,15 @@ static void assign_mem_granularity(struct tee_mmap_region *memory_map)
 	}
 }
 
+static unsigned int get_va_width(void)
+{
+	if (IS_ENABLED(ARM64)) {
+		COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(CFG_LPAE_ADDR_SPACE_SIZE));
+		return __builtin_ctzll(CFG_LPAE_ADDR_SPACE_SIZE);
+	}
+	return 32;
+}
+
 static bool assign_mem_va(vaddr_t tee_ram_va,
 			  struct tee_mmap_region *memory_map)
 {
@@ -932,6 +946,8 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 			assert(!(map->size & (map->region_size - 1)));
 			map->va = va;
 			if (ADD_OVERFLOW(va, map->size, &va))
+				return false;
+			if (IS_ENABLED(ARM64) && va >= BIT64(get_va_width()))
 				return false;
 		}
 	}
@@ -1004,6 +1020,8 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 			map->va = va;
 			if (ADD_OVERFLOW(va, map->size, &va))
 				return false;
+			if (IS_ENABLED(ARM64) && va >= BIT64(get_va_width()))
+				return false;
 		}
 	}
 
@@ -1028,15 +1046,6 @@ static int cmp_init_mem_map(const void *a, const void *b)
 		rc = CMP_TRILEAN(map_is_secure(mm_a), map_is_secure(mm_b));
 
 	return rc;
-}
-
-static unsigned int get_va_width(void)
-{
-#ifdef ARM64
-	return 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
-#else
-	return 32;
-#endif
 }
 
 static bool mem_map_add_id_map(struct tee_mmap_region *memory_map,
@@ -1202,8 +1211,11 @@ static struct tee_mmap_region *get_tmp_mmap(void)
  * based on the seed and return the offset from the link address.
  *
  * If an error happened: core_init_mmu_map is expected to panic.
+ *
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
  */
-void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
+void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
 #ifndef CFG_VIRTUALIZATION
 	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);

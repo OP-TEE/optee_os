@@ -3,7 +3,6 @@
 #ifndef __MBEDTLS_CONFIG_KERNEL_H
 #define __MBEDTLS_CONFIG_KERNEL_H
 
-#ifdef CFG_CORE_MBEDTLS_MPI
 #ifdef ARM32
 #define MBEDTLS_HAVE_INT32
 #endif
@@ -12,7 +11,6 @@
 #endif
 #define MBEDTLS_BIGNUM_C
 #define MBEDTLS_GENPRIME
-#endif
 
 /* Test if Mbedtls is the primary crypto lib */
 #ifdef CFG_CRYPTOLIB_NAME_mbedtls
@@ -25,11 +23,17 @@
 #if defined(CFG_CRYPTO_SHA1)
 #define MBEDTLS_SHA1_C
 #define MBEDTLS_MD_C
+#if defined(CFG_CORE_CRYPTO_SHA1_ACCEL)
+#define MBEDTLS_SHA1_PROCESS_ALT
+#endif
 #endif
 
 #if defined(CFG_CRYPTO_SHA224) || defined(CFG_CRYPTO_SHA256)
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_MD_C
+#if defined(CFG_CRYPTO_SHA256_ACCEL)
+#define MBEDTLS_SHA256_PROCESS_ALT
+#endif
 #endif
 
 #if defined(CFG_CRYPTO_SHA384) || defined(CFG_CRYPTO_SHA512)
@@ -44,6 +48,9 @@
 #if defined(CFG_CRYPTO_AES)
 #define MBEDTLS_AES_C
 #define MBEDTLS_AES_ROM_TABLES
+#if defined(CFG_CORE_CRYPTO_AES_ACCEL)
+#define MBEDTLS_AES_ALT
+#endif
 #endif
 
 #if defined(CFG_CRYPTO_DES)
@@ -103,6 +110,7 @@
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ECDH_C
+#define MBEDTLS_ECDH_LEGACY_CONTEXT
 #endif
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/

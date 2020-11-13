@@ -50,6 +50,12 @@ endif
 cppflags$(sm)  := $($(sm)-platform-cppflags) $(CPPFLAGS_$(sm))
 aflags$(sm)    := $($(sm)-platform-aflags)
 cflags$(sm)    := $($(sm)-platform-cflags) $(CFLAGS_$(sm))
+cxxflags$(sm)  := $($(sm)-platform-cxxflags) $(CXXFLAGS_$(sm))
+ifneq (,$(shlibname))
+# Exception handling is not supported in shared libraries (with GCC it would
+# require to use the shared libgcc, which depend on the GNU libc)
+cxxflags$(sm)  += -fno-exceptions
+endif
 
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
@@ -63,10 +69,6 @@ endif
 libdirs += $(ta-dev-kit-dir$(sm))/lib
 libnames += utils
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutils.a
-ifneq ($(CFG_TA_MBEDTLS_MPI),y)
-libnames += mpa
-libdeps += $(ta-dev-kit-dir$(sm))/lib/libmpa.a
-endif
 libnames += utee
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libutee.a
 ifeq ($(CFG_TA_MBEDTLS),y)
@@ -93,6 +95,9 @@ clean:
 	@$(cmd-echo-silent) '  CLEAN   $(O)'
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
 
+include  $(ta-dev-kit-dir$(sm))/mk/$(COMPILER_$(sm)).mk
+include  $(ta-dev-kit-dir$(sm))/mk/cc-option.mk
+
 subdirs = .
 include  $(ta-dev-kit-dir$(sm))/mk/subdir.mk
 
@@ -107,7 +112,6 @@ endif
 endif
 
 SCRIPTS_DIR := $(ta-dev-kit-dir)/scripts
-include  $(ta-dev-kit-dir$(sm))/mk/$(COMPILER_$(sm)).mk
 include  $(ta-dev-kit-dir$(sm))/mk/compile.mk
 
 ifneq ($(user-ta-uuid),)

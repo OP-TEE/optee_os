@@ -105,7 +105,7 @@ struct tee_ta_session {
 	uint32_t ref_count;	/* reference counter */
 	struct condvar refc_cv;	/* CV used to wait for ref_count to be 0 */
 	struct condvar lock_cv;	/* CV used to wait for lock */
-	int lock_thread;	/* Id of thread holding the lock */
+	short int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
 #if defined(CFG_TA_GPROF_SUPPORT)
 	struct sample_buf *sbuf; /* Profiling data (PC sampling) */

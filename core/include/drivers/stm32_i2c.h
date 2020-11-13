@@ -21,12 +21,6 @@
  *
  * [1] https://www.nxp.com/docs/en/user-guide/UM10204.pdf
  */
-enum i2c_speed_e {
-	I2C_SPEED_STANDARD,	/* 100 kHz */
-	I2C_SPEED_FAST,		/* 400 kHz */
-	I2C_SPEED_FAST_PLUS,	/* 1 MHz   */
-};
-
 #define I2C_STANDARD_RATE	100000
 #define I2C_FAST_RATE		400000
 #define I2C_FAST_PLUS_RATE	1000000
@@ -47,7 +41,7 @@ enum i2c_speed_e {
  * @no_stretch_mode: If enabling the No-Stretch mode
  * @rise_time: SCL clock pin rising time in nanoseconds
  * @fall_time: SCL clock pin falling time in nanoseconds
- * @speed_mode: I2C clock source frequency mode
+ * @bus_rate: Specifies the I2C clock frequency in Hertz
  * @analog_filter: True if enabling analog filter
  * @digital_filter_coef: filter coef (below STM32_I2C_DIGITAL_FILTER_MAX)
  */
@@ -64,7 +58,7 @@ struct stm32_i2c_init_s {
 	bool no_stretch_mode;
 	uint32_t rise_time;
 	uint32_t fall_time;
-	enum i2c_speed_e speed_mode;
+	uint32_t bus_rate;
 	bool analog_filter;
 	uint8_t digital_filter_coef;
 };
@@ -110,7 +104,9 @@ struct i2c_cfg {
  * @clock: clock ID
  * @i2c_state: Driver state ID I2C_STATE_*
  * @i2c_err: Last error code I2C_ERROR_*
- * @sec_cfg: I2C regsiters configuration storage
+ * @saved_timing: Saved timing value if already computed
+ * @saved_frequency: Saved frequency value if already computed
+ * @sec_cfg: I2C registers configuration storage
  * @pinctrl: PINCTRLs configuration for the I2C PINs
  * @pinctrl_count: Number of PINCTRLs elements
  */
@@ -120,13 +116,14 @@ struct i2c_handle_s {
 	unsigned long clock;
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
+	uint32_t saved_timing;
+	unsigned long saved_frequency;
 	struct i2c_cfg sec_cfg;
 	struct stm32_pinctrl *pinctrl;
 	size_t pinctrl_count;
 };
 
 /* STM32 specific defines */
-#define STM32_I2C_SPEED_DEFAULT			I2C_SPEED_STANDARD
 #define STM32_I2C_RISE_TIME_DEFAULT		25	/* ns */
 #define STM32_I2C_FALL_TIME_DEFAULT		10	/* ns */
 #define STM32_I2C_ANALOG_FILTER_DELAY_MIN	50	/* ns */

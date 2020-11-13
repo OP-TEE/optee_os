@@ -60,41 +60,36 @@ err:
 
 TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 {
-	TEE_Result res;
-	dsa_key ltc_tmp_key;
-	size_t group_size, modulus_size = key_size/8;
-	int ltc_res;
+	dsa_key ltc_tmp_key = { };
+	int ltc_res = 0;
 
-	if (modulus_size <= 128)
-		group_size = 20;
-	else if (modulus_size <= 256)
-		group_size = 30;
-	else if (modulus_size <= 384)
-		group_size = 35;
-	else
-		group_size = 40;
+	if (key_size != 8 * mp_unsigned_bin_size(key->p))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ltc_res = mp_init_multi(&ltc_tmp_key.g, &ltc_tmp_key.p, &ltc_tmp_key.q,
+				&ltc_tmp_key.x, &ltc_tmp_key.y, NULL);
+	if (ltc_res)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	/* Copy the key parameters */
+	mp_copy(key->g, ltc_tmp_key.g);
+	mp_copy(key->p, ltc_tmp_key.p);
+	mp_copy(key->q, ltc_tmp_key.q);
 
 	/* Generate the DSA key */
-	ltc_res = dsa_make_key(NULL, find_prng("prng_crypto"), group_size,
-			       modulus_size, &ltc_tmp_key);
-	if (ltc_res != CRYPT_OK) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else if ((size_t)mp_count_bits(ltc_tmp_key.p) != key_size) {
-		dsa_free(&ltc_tmp_key);
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else {
-		/* Copy the key */
-		ltc_mp.copy(ltc_tmp_key.g, key->g);
-		ltc_mp.copy(ltc_tmp_key.p, key->p);
-		ltc_mp.copy(ltc_tmp_key.q, key->q);
-		ltc_mp.copy(ltc_tmp_key.y, key->y);
-		ltc_mp.copy(ltc_tmp_key.x, key->x);
+	ltc_res = dsa_generate_key(NULL, find_prng("prng_crypto"),
+				   &ltc_tmp_key);
+	if (ltc_res)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-		/* Free the tempory key */
-		dsa_free(&ltc_tmp_key);
-		res = TEE_SUCCESS;
-	}
-	return res;
+	/* Copy the key */
+	mp_copy(ltc_tmp_key.y, key->y);
+	mp_copy(ltc_tmp_key.x, key->x);
+
+	/* Free the temporary key */
+	dsa_free(&ltc_tmp_key);
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
@@ -122,8 +117,8 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 		goto err;
 	}
 
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
+	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
+				      &hash_size);
 	if (res != TEE_SUCCESS)
 		goto err;
 	if (mp_unsigned_bin_size(ltc_key.q) < hash_size)

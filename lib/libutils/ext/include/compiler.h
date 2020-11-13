@@ -62,6 +62,7 @@
 #define __nex_data
 #endif	/* CFG_VIRTUALIZATION */
 #define __noprof	__attribute__((no_instrument_function))
+#define __nostackcheck	__attribute__((no_instrument_function))
 
 #define __compiler_bswap64(x)	__builtin_bswap64((x))
 #define __compiler_bswap32(x)	__builtin_bswap32((x))
@@ -245,5 +246,7 @@
 #define __compiler_atomic_load(p) __atomic_load_n((p), __ATOMIC_RELAXED)
 #define __compiler_atomic_store(p, val) \
 	__atomic_store_n((p), (val), __ATOMIC_RELAXED)
+
+#define barrier() asm volatile ("" : : : "memory")
 
 #endif /*COMPILER_H*/

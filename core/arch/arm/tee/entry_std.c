@@ -59,6 +59,40 @@ static bool __maybe_unused param_mem_from_mobj(struct param_mem *mem,
 	return true;
 }
 
+#ifdef CFG_CORE_FFA
+static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
+				 struct param_mem *mem)
+{
+	size_t req_size = 0;
+	uint64_t global_id = READ_ONCE(fmem->global_id);
+	size_t sz = READ_ONCE(fmem->size);
+
+	if (!global_id && !sz) {
+		mem->mobj = NULL;
+		mem->offs = 0;
+		mem->size = 0;
+		return TEE_SUCCESS;
+	}
+	mem->mobj = mobj_ffa_get_by_cookie(global_id,
+					   READ_ONCE(fmem->internal_offs));
+	if (!mem->mobj)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mem->offs = reg_pair_to_64(READ_ONCE(fmem->offs_high),
+				   READ_ONCE(fmem->offs_low));
+	mem->size = sz;
+
+	/*
+	 * Check that the supplied offset and size is covered by the
+	 * previously verified MOBJ.
+	 */
+	if (ADD_OVERFLOW(mem->offs, mem->size, &req_size) ||
+	    mem->mobj->size < req_size)
+		return TEE_ERROR_SECURITY;
+
+	return TEE_SUCCESS;
+}
+#else /*!CFG_CORE_FFA*/
 /* fill 'struct param_mem' structure if buffer matches a valid memory object */
 static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 				 uint32_t attr, struct param_mem *mem)
@@ -67,8 +101,10 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 	paddr_t pa = READ_ONCE(tmem->buf_ptr);
 	size_t sz = READ_ONCE(tmem->size);
 
-	/* Handle NULL memory reference */
-	if (!pa && !sz) {
+	/*
+	 * Handle NULL memory reference
+	 */
+	if (!pa) {
 		mem->mobj = NULL;
 		mem->offs = 0;
 		mem->size = 0;
@@ -110,13 +146,14 @@ static TEE_Result set_rmem_param(const struct optee_msg_param_rmem *rmem,
 {
 	size_t req_size = 0;
 	uint64_t shm_ref = READ_ONCE(rmem->shm_ref);
+	size_t sz = READ_ONCE(rmem->size);
 
 	mem->mobj = mobj_reg_shm_get_by_cookie(shm_ref);
 	if (!mem->mobj)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	mem->offs = READ_ONCE(rmem->offs);
-	mem->size = READ_ONCE(rmem->size);
+	mem->size = sz;
 
 	/*
 	 * Check that the supplied offset and size is covered by the
@@ -128,7 +165,8 @@ static TEE_Result set_rmem_param(const struct optee_msg_param_rmem *rmem,
 
 	return TEE_SUCCESS;
 }
-#endif
+#endif /*CFG_CORE_DYN_SHM*/
+#endif /*!CFG_CORE_FFA*/
 
 static TEE_Result copy_in_params(const struct optee_msg_param *params,
 				 uint32_t num_params,
@@ -165,6 +203,18 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			ta_param->u[n].val.a = READ_ONCE(params[n].u.value.a);
 			ta_param->u[n].val.b = READ_ONCE(params[n].u.value.b);
 			break;
+#ifdef CFG_CORE_FFA
+		case OPTEE_MSG_ATTR_TYPE_FMEM_INPUT:
+		case OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT:
+		case OPTEE_MSG_ATTR_TYPE_FMEM_INOUT:
+			res = set_fmem_param(&params[n].u.fmem,
+					     &ta_param->u[n].mem);
+			if (res)
+				return res;
+			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
+				OPTEE_MSG_ATTR_TYPE_FMEM_INPUT;
+			break;
+#else /*!CFG_CORE_FFA*/
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INOUT:
@@ -186,7 +236,8 @@ static TEE_Result copy_in_params(const struct optee_msg_param *params,
 			pt[n] = TEE_PARAM_TYPE_MEMREF_INPUT + attr -
 				OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
 			break;
-#endif
+#endif /*CFG_CORE_DYN_SHM*/
+#endif /*!CFG_CORE_FFA*/
 		default:
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -278,6 +329,7 @@ static TEE_Result get_open_session_meta(size_t num_params,
 	clnt_id->login = params[1].u.value.c;
 	switch (clnt_id->login) {
 	case TEE_LOGIN_PUBLIC:
+	case TEE_LOGIN_REE_KERNEL:
 		memset(&clnt_id->uuid, 0, sizeof(clnt_id->uuid));
 		break;
 	case TEE_LOGIN_USER:
@@ -425,6 +477,7 @@ out:
 	arg->ret_origin = err_orig;
 }
 
+#ifndef CFG_CORE_FFA
 #ifdef CFG_CORE_DYN_SHM
 static void register_shm(struct optee_msg_arg *arg, uint32_t num_params)
 {
@@ -462,6 +515,7 @@ static void unregister_shm(struct optee_msg_arg *arg, uint32_t num_params)
 	}
 }
 #endif /*CFG_CORE_DYN_SHM*/
+#endif
 
 void nsec_sessions_list_head(struct tee_ta_session_head **open_sessions)
 {
@@ -497,6 +551,7 @@ uint32_t __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 	case OPTEE_MSG_CMD_CANCEL:
 		entry_cancel(arg, num_params);
 		break;
+#ifndef CFG_CORE_FFA
 #ifdef CFG_CORE_DYN_SHM
 	case OPTEE_MSG_CMD_REGISTER_SHM:
 		register_shm(arg, num_params);
@@ -504,6 +559,7 @@ uint32_t __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 	case OPTEE_MSG_CMD_UNREGISTER_SHM:
 		unregister_shm(arg, num_params);
 		break;
+#endif
 #endif
 	default:
 		EMSG("Unknown cmd 0x%x", arg->cmd);

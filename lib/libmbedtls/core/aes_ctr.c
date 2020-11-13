@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <crypto/crypto_accel.h>
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <mbedtls/aes.h>
@@ -113,3 +114,56 @@ TEE_Result crypto_aes_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
 
 	return TEE_SUCCESS;
 }
+
+#if defined(MBEDTLS_AES_ALT)
+static void next_ctr(unsigned char stream_block[16], mbedtls_aes_context *ctx,
+		     unsigned char nonce_counter[16])
+{
+	const unsigned char zeroes[16] = { 0 };
+
+	crypto_accel_aes_ctr_be_enc(stream_block, zeroes, ctx->key,
+				    ctx->round_count, 1, nonce_counter);
+}
+
+int mbedtls_aes_crypt_ctr(mbedtls_aes_context *ctx, size_t length,
+			  size_t *nc_off, unsigned char nonce_counter[16],
+			  unsigned char stream_block[16],
+			  const unsigned char *input, unsigned char *output)
+{
+	size_t offs = 0;
+
+	if (*nc_off >= 16)
+		return MBEDTLS_ERR_AES_BAD_INPUT_DATA;
+
+	/*
+	 * If the stream_block is in use, continue until done or
+	 * stream_block is consumed.
+	 */
+	while (*nc_off) {
+		output[offs] = stream_block[*nc_off] ^ input[offs];
+		offs++;
+		*nc_off = (*nc_off + 1) % 16;
+		if (offs == length)
+			return 0;
+	}
+
+	if ((length - offs) >= 16) {
+		size_t block_count = (length - offs) / 16;
+
+		crypto_accel_aes_ctr_be_enc(output + offs, input + offs,
+					    ctx->key, ctx->round_count,
+					    block_count, nonce_counter);
+		offs += block_count * 16;
+	}
+
+	while (offs < length) {
+		if (!*nc_off)
+			next_ctr(stream_block, ctx, nonce_counter);
+		output[offs] = stream_block[*nc_off] ^ input[offs];
+		offs++;
+		*nc_off = (*nc_off + 1) % 16;
+	}
+
+	return 0;
+}
+#endif /*MBEDTLS_AES_ALT*/

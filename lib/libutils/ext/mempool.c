@@ -16,7 +16,6 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
-#include <kernel/refcount.h>
 #endif
 
 /*
@@ -63,10 +62,7 @@ struct mempool {
 #endif
 #if defined(__KERNEL__)
 	void (*release_mem)(void *ptr, size_t size);
-	struct mutex mu;
-	struct condvar cv;
-	struct refcount refc;
-	int owner;
+	struct recursive_mutex mu;
 #endif
 };
 
@@ -77,53 +73,24 @@ struct mempool *mempool_default;
 static void get_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
-	/*
-	 * Owner matches our thread it cannot be changed. If it doesn't
-	 * match it can change any at time we're not holding the mutex to
-	 * any value but our thread id.
-	 */
-	if (atomic_load_int(&pool->owner) == thread_get_id()) {
-		if (!refcount_inc(&pool->refc))
-			panic();
-		return;
-	}
-
-	mutex_lock(&pool->mu);
-
-	/* Wait until the pool is available */
-	while (pool->owner != THREAD_ID_INVALID)
-		condvar_wait(&pool->cv, &pool->mu);
-
-	pool->owner = thread_get_id();
-	refcount_set(&pool->refc, 1);
-
-	mutex_unlock(&pool->mu);
+	mutex_lock_recursive(&pool->mu);
 #endif
 }
 
 static void put_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
-	assert(atomic_load_int(&pool->owner) == thread_get_id());
-
-	if (refcount_dec(&pool->refc)) {
-		mutex_lock(&pool->mu);
-
+	if (mutex_get_recursive_lock_depth(&pool->mu) == 1) {
 		/*
-		 * Do an atomic store to match the atomic load in
-		 * get_pool() above.
+		 * As the refcount is about to become 0 there should be no items
+		 * left
 		 */
-		atomic_store_int(&pool->owner, THREAD_ID_INVALID);
-		condvar_signal(&pool->cv);
-
-		/* As the refcount is 0 there should be no items left */
 		if (pool->last_offset >= 0)
 			panic();
 		if (pool->release_mem)
 			pool->release_mem((void *)pool->data, pool->size);
-
-		mutex_unlock(&pool->mu);
 	}
+	mutex_unlock_recursive(&pool->mu);
 #endif
 }
 
@@ -142,9 +109,7 @@ mempool_alloc_pool(void *data, size_t size,
 		pool->last_offset = -1;
 #if defined(__KERNEL__)
 		pool->release_mem = release_mem;
-		mutex_init(&pool->mu);
-		condvar_init(&pool->cv);
-		pool->owner = THREAD_ID_INVALID;
+		mutex_init_recursive(&pool->mu);
 #endif
 	}
 

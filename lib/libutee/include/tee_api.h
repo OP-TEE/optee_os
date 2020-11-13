@@ -226,6 +226,8 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 void TEE_CopyOperation(TEE_OperationHandle dstOperation,
 		       TEE_OperationHandle srcOperation);
 
+TEE_Result TEE_IsAlgorithmSupported(uint32_t algId, uint32_t element);
+
 /* Cryptographic Operations API - Message Digest Functions */
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,

@@ -150,7 +150,7 @@ static void ecc_clear_precomputed(mbedtls_ecp_group *grp)
 	grp->T_size = 0;
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key, size_t key_size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
@@ -163,6 +163,9 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 	res = ecc_get_keysize(key->curve, 0, &key_size_bytes, &key_size_bits);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	if (key_size != key_size_bits)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	mbedtls_ecdsa_init(&ecdsa);
 

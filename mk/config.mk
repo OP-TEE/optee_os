@@ -32,6 +32,12 @@ endif
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
 
+# Path to the Python interpreter used by the build system.
+# This variable is set to the default python3 interpreter in the user's
+# path. But build environments that require more explicit control can
+# set the path to a specific interpreter through this variable.
+PYTHON3 ?= python3
+
 # Define DEBUG=1 to compile without optimization (forces -O0)
 # DEBUG=1
 
@@ -116,7 +122,7 @@ endif
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 8
+CFG_OPTEE_REVISION_MINOR ?= 10
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
@@ -140,6 +146,39 @@ CFG_RPMB_FS ?= n
 # The exact meaning of this value is platform-dependent. On Linux, the
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
+
+# This config variable determines the number of entries read in from RPMB at
+# once whenever a function traverses the RPMB FS. Increasing the default value
+# has the following consequences:
+# - More memory required on heap. A single FAT entry currently has a size of
+#   256 bytes.
+# - Potentially significant speed-ups for RPMB I/O. Depending on how many
+#   entries a function needs to traverse, the number of time-consuming RPMB
+#   read-in operations can be reduced.
+# Chosing a proper value is both platform- (available memory) and use-case-
+# dependent (potential number of FAT fs entries), so overwrite in platform
+# config files
+CFG_RPMB_FS_RD_ENTRIES ?= 8
+
+# Enables caching of FAT FS entries when set to a value greater than zero.
+# When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
+# entries. The cache is populated when FAT FS entries are initially read in.
+# When traversing the FAT FS entries, we read from the cache instead of reading
+# in the entries from RPMB storage. Consequently, when a FAT FS entry is
+# written, the cache is updated. In scenarios where an estimate of the number
+# of FAT FS entries can be made, the cache may be specifically tailored to
+# store all entries. The caching can improve RPMB I/O at the cost
+# of additional memory.
+# Without caching, we temporarily require
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# while traversing the FAT FS (e.g. in read_fat).
+# For example 8*256 bytes = 2kB while in read_fat.
+# With caching, we constantly require up to
+# CFG_RPMB_FS_CACHE_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# depending on how many elements are in the cache, and additional temporary
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# in case the cache is too small to hold all elements when traversing.
+CFG_RPMB_FS_CACHE_ENTRIES ?= 0
 
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
@@ -278,10 +317,12 @@ CFG_WITH_PAGER ?= n
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will
 # cause a panic as soon as the invalid locking condition is detected. If
-# CFG_UNWIND is enabled, the algorithm records the call stacks when locks are
-# taken, and prints them when a potential deadlock is found.
+# CFG_UNWIND and CFG_LOCKDEP_RECORD_STACK are both enabled, the algorithm
+# records the call stacks when locks are taken, and prints them when a
+# potential deadlock is found.
 # Expect a significant performance impact when enabling this.
 CFG_LOCKDEP ?= n
+CFG_LOCKDEP_RECORD_STACK ?= y
 
 # BestFit algorithm in bget reduces the fragmentation of the heap when running
 # with the pager enabled or lockdep
@@ -298,6 +339,14 @@ CFG_CORE_SANITIZE_UNDEFINED ?= n
 # lot of memory and need platform specific adaptations, can't be enabled by
 # default
 CFG_CORE_SANITIZE_KADDRESS ?= n
+
+# Add stack guards before/after stacks and periodically check them
+CFG_WITH_STACK_CANARIES ?= y
+
+# Use compiler instrumentation to troubleshoot stack overflows.
+# When enabled, most C functions check the stack pointer against the current
+# stack limits on entry and panic immediately if it is out of range.
+CFG_CORE_DEBUG_CHECK_STACKS ?= n
 
 # Device Tree support
 #
@@ -369,6 +418,16 @@ CFG_TA_GPROF_SUPPORT ?= n
 # defined in tee-supplicant)
 CFG_FTRACE_SUPPORT ?= n
 
+# How to make room when the function tracing buffer is full?
+# 'shift': shift the previously stored data by the amount needed in order
+#    to always keep the latest logs (slower, especially with big buffer sizes)
+# 'wrap': discard the previous data and start at the beginning of the buffer
+#    again (fast, but can result in a mostly empty buffer)
+# 'stop': stop logging new data
+CFG_FTRACE_BUF_WHEN_FULL ?= shift
+$(call cfg-check-value,FTRACE_BUF_WHEN_FULL,shift stop wrap)
+$(call force,_CFG_FTRACE_BUF_WHEN_FULL_$(CFG_FTRACE_BUF_WHEN_FULL),y)
+
 # Function tracing: unit to be used when displaying durations
 #  0: always display durations in microseconds
 # >0: if duration is greater or equal to the specified value (in microseconds),
@@ -394,7 +453,7 @@ $(error Cannot instrument user libraries if user mode profiling is disabled)
 endif
 endif
 
-# Build libutee, libutils, libmpa/libmbedtls as shared libraries.
+# Build libutee, libutils, libmbedtls as shared libraries.
 # - Static libraries are still generated when this is enabled, but TAs will use
 # the shared libraries unless explicitly linked with the -static flag.
 # - Shared libraries are made of two files: for example, libutee is
@@ -471,8 +530,10 @@ CFG_TA_BIGNUM_MAX_BITS ?= 2048
 # Set this to a lower value to reduce the memory footprint.
 CFG_CORE_BIGNUM_MAX_BITS ?= 4096
 
-# Compiles mbedTLS for TA usage
-CFG_TA_MBEDTLS ?= y
+# Not used since libmpa was removed. Force the values to catch build scripts
+# that would set = n.
+$(call force,CFG_TA_MBEDTLS_MPI,y)
+$(call force,CFG_TA_MBEDTLS,y)
 
 # Compile the TA library mbedTLS with self test functions, the functions
 # need to be called to test anything
@@ -493,8 +554,11 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 # without ASN.1 around the hash.
 ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_RSASSA_NA1 ?= y
-CFG_CORE_MBEDTLS_MPI ?= y
 endif
+
+# Not used since libmpa was removed. Force the value to catch build scripts
+# that would set = n.
+$(call force,CFG_CORE_MBEDTLS_MPI,y)
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
@@ -514,3 +578,27 @@ CFG_CORE_HUK_SUBKEY_COMPAT ?= y
 # Compress and encode conf.mk into the TEE core, and show the encoded string on
 # boot (with severity TRACE_INFO).
 CFG_SHOW_CONF_ON_BOOT ?= n
+
+# Enables support for passing a TPM Event Log stored in secure memory
+# to a TA, so a TPM Service could use it to extend any measurement
+# taken before the service was up and running.
+CFG_CORE_TPM_EVENT_LOG ?= n
+
+# When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
+# Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+# CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
+# CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
+# CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
+CFG_SCMI_MSG_DRIVERS ?= n
+CFG_SCMI_MSG_CLOCK ?= n
+CFG_SCMI_MSG_RESET_DOMAIN ?= n
+CFG_SCMI_MSG_SMT ?= n
+
+ifneq ($(CFG_STMM_PATH),)
+$(call force,CFG_WITH_SECURE_PARTITION,y)
+else
+CFG_WITH_SECURE_PARTITION ?= n
+endif
+ifeq ($(CFG_WITH_SECURE_PARTITION),y)
+$(call force,CFG_ZLIB,y)
+endif

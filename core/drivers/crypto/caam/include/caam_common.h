@@ -17,7 +17,11 @@
 /*
  * Definition of the number of CAAM Jobs to manage in JR queues
  */
+#if defined(CFG_NB_JOBS_QUEUE)
+#define NB_JOBS_QUEUE	CFG_NB_JOBS_QUEUE
+#else
 #define NB_JOBS_QUEUE 10
+#endif
 
 /*
  * Flag Job Ring Owner is Secure
@@ -73,30 +77,35 @@ struct caamdefkey {
  * Scatter/Gather Table type for input and output data
  */
 struct caamsgt {
+#if defined(CFG_CAAM_64BIT) && defined(CFG_CAAM_LITTLE_ENDIAN)
 	/* Word 0 */
-	uint32_t ptr_ms : 8;  /* Address pointer (MS 8 bits) */
-	uint32_t res_w0 : 24; /* Not used */
+	uint32_t ptr_ls;   /* Address pointer (LS 32 bits) */
 
 	/* Word 1 */
-	uint32_t ptr_ls;      /* Address pointer (LS 32 bits) */
+	uint32_t ptr_ms;   /* Address pointer (MS 8 LSBs) */
+#else
+	/* Word 0 */
+	uint32_t ptr_ms;   /* Address pointer (MS 8 LSBs) */
+
+	/* Word 1 */
+	uint32_t ptr_ls;   /* Address pointer (LS 32 bits) */
+#endif
 
 	/* Word 2 */
-	uint32_t length : 30; /* Length (30 bits) */
-	uint32_t final : 1;   /* Last entry in the table */
-	uint32_t ext : 1;     /* Extension bit (if set, point to sgt table) */
+	uint32_t len_f_e;  /* Length 30bits + 1bit Final + 1bit Extension) */
 
 	/* Word 3 */
-	uint32_t offset : 13; /* Offset in memory buffer */
-	uint32_t res_w3 : 19; /* Not used */
+	uint32_t offset;   /* Offset in memory buffer (13 LSBs) */
 };
 
 /*
  * Data buffer encoded in SGT format
  */
 struct caamsgtbuf {
-	struct cammsgt *sgt; /* SGT Array */
+	struct caamsgt *sgt; /* SGT Array */
 	struct caambuf *buf; /* Buffer Array */
-	uint8_t number;      /* Number of SGT/Buf */
+	unsigned int number; /* Number of SGT/Buf */
+	size_t length;       /* Total length of the data encoded */
 	bool sgt_type;       /* Define the data format */
 };
 

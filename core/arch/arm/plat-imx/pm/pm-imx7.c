@@ -10,7 +10,6 @@
 #include <imx.h>
 #include <imx_pm.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/cache_helpers.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>

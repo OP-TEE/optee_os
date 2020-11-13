@@ -10,7 +10,7 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
@@ -259,7 +259,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	DMSG("core_id: %" PRIu32, core_idx);
 
 	/* set secondary cores' NS entry addresses */
-	generic_boot_set_core_ns_entry(core_idx, entry, context_id);
+	boot_set_core_ns_entry(core_idx, entry, context_id);
 
 	/* wait */
 	if (!core_held_in_reset(core_idx)) {

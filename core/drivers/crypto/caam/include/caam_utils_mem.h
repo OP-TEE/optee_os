@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -96,16 +96,13 @@ enum caam_status caam_sgtbuf_alloc(struct caamsgtbuf *data);
  * Initialize struct caambuf with buffer reference, eventually
  * reallocating the buffer if not matching cache line alignment.
  *
- * @orig  Buffer origin
- * @dst   [out] CAAM Buffer object with origin or reallocated buffer
- * @size  Size in bytes of the buffer
- *
- * Returns:
- * 0    if destination is the same as origin
- * 1    if reallocation of the buffer
- * (-1) if allocation error
+ * @orig    Buffer origin
+ * @dst     [out] CAAM Buffer object with origin or reallocated buffer
+ * @size    Size in bytes of the buffer
+ * @realloc [out] true if buffer has been reallocated
  */
-int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size);
+enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
+					     size_t size, bool *realloc);
 
 /*
  * Copy source data into the block buffer. Allocate block buffer if
@@ -118,4 +115,35 @@ int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size);
 enum caam_status caam_cpy_block_src(struct caamblock *block,
 				    struct caambuf *src, size_t offset);
 
+/*
+ * Return the number of Physical Areas used by the buffer @buf.
+ * If @pabufs is not NULL, function fills it with the Physical Areas used
+ * to map the buffer @buf.
+ *
+ * @buf         Data buffer to analyze
+ * @pabufs[out] If not NULL, list the Physical Areas of the @buf
+ *
+ * Returns:
+ * Number of physical area used
+ * (-1) if error
+ */
+int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **pabufs);
+
+/*
+ * Return if the buffer @buf is cacheable or not
+ *
+ * @buf  Buffer address
+ * @size Buffer size
+ */
+bool caam_mem_is_cached_buf(void *buf, size_t size);
+
+/*
+ * Copy source data into the destination buffer removing non-significant
+ * first zeros (left zeros).
+ * If all source @src buffer is zero, left only one zero in the destination.
+ *
+ * @dst    [out] Destination buffer
+ * @src    Source to copy
+ */
+void caam_mem_cpy_ltrim_buf(struct caambuf *dst, struct caambuf *src);
 #endif /* __CAAM_UTILS_MEM_H__ */

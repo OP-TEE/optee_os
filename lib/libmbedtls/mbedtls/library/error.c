@@ -25,8 +25,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(MBEDTLS_ERROR_C) || defined(MBEDTLS_ERROR_STRERROR_DUMMY)
-#include "mbedtls/error.h"
+#if defined(MBEDTLS_ERROR_STRERROR_DUMMY)
 #include <string.h>
 #endif
 
@@ -107,6 +106,10 @@
 
 #if defined(MBEDTLS_ENTROPY_C)
 #include "mbedtls/entropy.h"
+#endif
+
+#if defined(MBEDTLS_ERROR_C)
+#include "mbedtls/error.h"
 #endif
 
 #if defined(MBEDTLS_GCM_C)
@@ -523,6 +526,10 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
             mbedtls_snprintf( buf, buflen, "SSL - The asynchronous operation is not completed yet" );
         if( use_ret == -(MBEDTLS_ERR_SSL_EARLY_MESSAGE) )
             mbedtls_snprintf( buf, buflen, "SSL - Internal-only message signaling that a message arrived early" );
+        if( use_ret == -(MBEDTLS_ERR_SSL_UNEXPECTED_CID) )
+            mbedtls_snprintf( buf, buflen, "SSL - An encrypted DTLS-frame with an unexpected CID was received" );
+        if( use_ret == -(MBEDTLS_ERR_SSL_VERSION_MISMATCH) )
+            mbedtls_snprintf( buf, buflen, "SSL - An operation failed due to an unexpected version or configuration" );
         if( use_ret == -(MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS) )
             mbedtls_snprintf( buf, buflen, "SSL - A cryptographic operation is in progress. Try again later" );
 #endif /* MBEDTLS_SSL_TLS_C */
@@ -567,7 +574,7 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
         if( use_ret == -(MBEDTLS_ERR_X509_BUFFER_TOO_SMALL) )
             mbedtls_snprintf( buf, buflen, "X509 - Destination buffer is too small" );
         if( use_ret == -(MBEDTLS_ERR_X509_FATAL_ERROR) )
-            mbedtls_snprintf( buf, buflen, "X509 - A fatal error occured, eg the chain is too long or the vrfy callback failed" );
+            mbedtls_snprintf( buf, buflen, "X509 - A fatal error occurred, eg the chain is too long or the vrfy callback failed" );
 #endif /* MBEDTLS_X509_USE_C || MBEDTLS_X509_CREATE_C */
         // END generated code
 
@@ -638,7 +645,7 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
     if( use_ret == -(MBEDTLS_ERR_ASN1_LENGTH_MISMATCH) )
         mbedtls_snprintf( buf, buflen, "ASN1 - Actual length differs from expected length" );
     if( use_ret == -(MBEDTLS_ERR_ASN1_INVALID_DATA) )
-        mbedtls_snprintf( buf, buflen, "ASN1 - Data is invalid. (not used)" );
+        mbedtls_snprintf( buf, buflen, "ASN1 - Data is invalid" );
     if( use_ret == -(MBEDTLS_ERR_ASN1_ALLOC_FAILED) )
         mbedtls_snprintf( buf, buflen, "ASN1 - Memory allocation failed" );
     if( use_ret == -(MBEDTLS_ERR_ASN1_BUF_TOO_SMALL) )
@@ -749,6 +756,13 @@ void mbedtls_strerror( int ret, char *buf, size_t buflen )
     if( use_ret == -(MBEDTLS_ERR_ENTROPY_FILE_IO_ERROR) )
         mbedtls_snprintf( buf, buflen, "ENTROPY - Read/write error in file" );
 #endif /* MBEDTLS_ENTROPY_C */
+
+#if defined(MBEDTLS_ERROR_C)
+    if( use_ret == -(MBEDTLS_ERR_ERROR_GENERIC_ERROR) )
+        mbedtls_snprintf( buf, buflen, "ERROR - Generic error" );
+    if( use_ret == -(MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED) )
+        mbedtls_snprintf( buf, buflen, "ERROR - This is a bug in the library" );
+#endif /* MBEDTLS_ERROR_C */
 
 #if defined(MBEDTLS_GCM_C)
     if( use_ret == -(MBEDTLS_ERR_GCM_AUTH_FAILED) )

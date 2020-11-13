@@ -186,24 +186,11 @@ enum desc_type {
 	DESC_TYPE_INVALID,
 };
 
-/*
- * Main MMU L1 table for teecore
- *
- * With CFG_CORE_UNMAP_CORE_AT_EL0, one table to be used while in kernel
- * mode and one to be used while in user mode. These are not static as the
- * symbols are accessed directly from assembly.
- */
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-#define NUM_L1_TABLES	2
-#else
-#define NUM_L1_TABLES	1
-#endif
-
 typedef uint32_t l1_xlat_tbl_t[NUM_L1_ENTRIES];
 typedef uint32_t l2_xlat_tbl_t[NUM_L2_ENTRIES];
 typedef uint32_t ul1_xlat_tbl_t[NUM_UL1_ENTRIES];
 
-l1_xlat_tbl_t main_mmu_l1_ttb[NUM_L1_TABLES]
+static l1_xlat_tbl_t main_mmu_l1_ttb
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
 /* L2 MMU tables */
@@ -215,14 +202,14 @@ static ul1_xlat_tbl_t main_mmu_ul1_ttb[CFG_NUM_THREADS]
 		__aligned(UL1_ALIGNMENT) __section(".nozi.mmu.ul1");
 
 struct mmu_partition {
-	l1_xlat_tbl_t *l1_tables;
+	l1_xlat_tbl_t *l1_table;
 	l2_xlat_tbl_t *l2_tables;
 	ul1_xlat_tbl_t *ul1_tables;
 	uint32_t tables_used;
 };
 
 static struct mmu_partition default_partition = {
-	.l1_tables = main_mmu_l1_ttb,
+	.l1_table = &main_mmu_l1_ttb,
 	.l2_tables = main_mmu_l2_ttb,
 	.ul1_tables = main_mmu_ul1_ttb,
 	.tables_used = 0,
@@ -243,7 +230,7 @@ static struct mmu_partition *get_prtn(void)
 
 static vaddr_t core_mmu_get_main_ttb_va(struct mmu_partition *prtn)
 {
-	return (vaddr_t)prtn->l1_tables[0];
+	return (vaddr_t)prtn->l1_table;
 }
 
 static paddr_t core_mmu_get_main_ttb_pa(struct mmu_partition *prtn)
@@ -740,16 +727,8 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	void *ttb1 = (void *)core_mmu_get_main_ttb_va(prtn);
 	size_t n;
 
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	COMPILE_TIME_ASSERT(CORE_MMU_L1_TBL_OFFSET ==
-			   sizeof(main_mmu_l1_ttb) / 2);
-#endif
-
 	/* reset L1 table */
 	memset(ttb1, 0, L1_TBL_SIZE);
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	memset(main_mmu_l1_ttb[1], 0, sizeof(main_mmu_l1_ttb[1]));
-#endif
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
@@ -798,7 +777,7 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	 */
 	cfg->ttbcr = TTBCR_N_VALUE;
 }
-KEEP_PAGER(core_init_mmu_regs);
+DECLARE_KEEP_PAGER(core_init_mmu_regs);
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {

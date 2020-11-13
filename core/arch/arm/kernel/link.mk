@@ -11,7 +11,7 @@ AWK	 = awk
 
 link-ldflags  = $(LDFLAGS)
 ifeq ($(CFG_CORE_ASLR),y)
-link-ldflags += -pie -z notext -z norelro
+link-ldflags += -pie -Bsymbolic -z notext -z norelro $(ldflag-apply-dynamic-relocs)
 endif
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
@@ -20,8 +20,13 @@ link-ldflags += --gc-sections
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(libdeps)
-link-objs := $(filter-out $(out-dir)/core/arch/arm/kernel/link_dummies.o, \
-			  $(objs))
+link-objs := $(filter-out \
+	       $(out-dir)/core/arch/arm/kernel/link_dummies_paged.o \
+	       $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+	       $(objs))
+link-objs-init := $(filter-out \
+		    $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+		    $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
 		  $(link-ldadd) $(libgcccore)
 
@@ -57,13 +62,13 @@ cleanfiles += $(link-out-dir)/text_unpaged.ld.S
 $(link-out-dir)/text_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -S -W $< | \
-		./scripts/gen_ld_sects.py .text. > $@
+		$(PYTHON3) ./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_unpaged.ld.S
 $(link-out-dir)/rodata_unpaged.ld.S: $(link-out-dir)/unpaged.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -S -W $< | \
-		./scripts/gen_ld_sects.py .rodata. > $@
+		$(PYTHON3) ./scripts/gen_ld_sects.py .rodata. > $@
 
 
 cleanfiles += $(link-out-dir)/init_entries.txt
@@ -73,7 +78,8 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
 init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
-init-ldadd := $(objs) $(link-out-dir)/version.o  $(link-ldadd) $(libgcccore)
+init-ldadd := $(link-objs-init) $(link-out-dir)/version.o  $(link-ldadd) \
+	      $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
 $(link-out-dir)/init.o: $(link-out-dir)/init_entries.txt
 	$(call gen-version-o)
@@ -86,12 +92,12 @@ cleanfiles += $(link-out-dir)/text_init.ld.S
 $(link-out-dir)/text_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(READELFcore) -S -W $< | \
-		./scripts/gen_ld_sects.py .text. > $@
+		$(PYTHON3) ./scripts/gen_ld_sects.py .text. > $@
 
 cleanfiles += $(link-out-dir)/rodata_init.ld.S
 $(link-out-dir)/rodata_init.ld.S: $(link-out-dir)/init.o
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)$(READELFcore) -S -W $< | ./scripts/gen_ld_sects.py .rodata. > $@
+	$(q)$(READELFcore) -S -W $< | $(PYTHON3) ./scripts/gen_ld_sects.py .rodata. > $@
 
 -include $(link-script-dep)
 
@@ -170,39 +176,39 @@ cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@echo Warning: $@ is deprecated
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_tee_pager_bin $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_tee_pager_bin $@
 
 cleanfiles += $(link-out-dir)/tee-pageable.bin
 $(link-out-dir)/tee-pageable.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@echo Warning: $@ is deprecated
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_tee_pageable_bin $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_tee_pageable_bin $@
 
 all: $(link-out-dir)/tee.bin
 cleanfiles += $(link-out-dir)/tee.bin
 $(link-out-dir)/tee.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_tee_bin $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_tee_bin $@
 
 all: $(link-out-dir)/tee-header_v2.bin
 cleanfiles += $(link-out-dir)/tee-header_v2.bin
 $(link-out-dir)/tee-header_v2.bin: $(link-out-dir)/tee.elf \
 				   scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_header_v2 $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_header_v2 $@
 
 all: $(link-out-dir)/tee-pager_v2.bin
 cleanfiles += $(link-out-dir)/tee-pager_v2.bin
 $(link-out-dir)/tee-pager_v2.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_pager_v2 $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_pager_v2 $@
 
 all: $(link-out-dir)/tee-pageable_v2.bin
 cleanfiles += $(link-out-dir)/tee-pageable_v2.bin
 $(link-out-dir)/tee-pageable_v2.bin: $(link-out-dir)/tee.elf \
 				     scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)scripts/gen_tee_bin.py --input $< --out_pageable_v2 $@
+	$(q)$(PYTHON3) scripts/gen_tee_bin.py --input $< --out_pageable_v2 $@
 
 all: $(link-out-dir)/tee.symb_sizes
 cleanfiles += $(link-out-dir)/tee.symb_sizes
@@ -216,5 +222,5 @@ mem_usage: $(link-out-dir)/tee.mem_usage
 
 $(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  GEN     $@'
-	$(q)./scripts/mem_usage.py $< > $@
+	$(q)$(PYTHON3) ./scripts/mem_usage.py $< > $@
 endif

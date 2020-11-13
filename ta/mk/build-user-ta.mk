@@ -10,6 +10,9 @@ ta-target := $(strip $(if $(CFG_USER_TA_TARGET_$(sm)), \
 ta-dev-kit-dir$(sm) := $(out-dir)/export-$(ta-target)
 link-out-dir$(sm) := $(out-dir)/$(patsubst %/,%, $(dir $(ta-mk-file)))
 
+# Default if ta-mk-file defines none
+user-ta-version := 0
+
 include $(ta-mk-file)
 ifeq ($(user-ta-uuid),)
 $(error user-ta-uuid missing in $(ta-mk-file))
@@ -31,9 +34,6 @@ endif
 
 libdirs  = $(ta-dev-kit-dir$(sm))/lib
 libnames = utils utee
-ifneq ($(CFG_TA_MBEDTLS_MPI),y)
-libnames += mpa
-endif
 ifeq ($(CFG_TA_MBEDTLS),y)
 libnames += mbedtls
 endif

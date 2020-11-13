@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2020 NXP
  *
  * Brief   CAAM Global Controller.
  */
+#include <caam_acipher.h>
+#include <caam_cipher.h>
 #include <caam_common.h>
 #include <caam_hal_cfg.h>
 #include <caam_hal_clk.h>
 #include <caam_hal_ctrl.h>
 #include <caam_hash.h>
 #include <caam_jr.h>
+#include <caam_blob.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
 #include <caam_utils_mem.h>
@@ -57,6 +60,48 @@ static TEE_Result crypto_driver_init(void)
 		goto exit_init;
 	}
 
+	/* Initialize the MATH Module */
+	retstatus = caam_math_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the RSA Module */
+	retstatus = caam_rsa_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the Cipher Module */
+	retstatus = caam_cipher_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the HMAC Module */
+	retstatus = caam_hmac_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the BLOB Module */
+	retstatus = caam_blob_mkvb_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the CMAC Module */
+	retstatus = caam_cmac_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
 	/* Everything is OK, register the Power Management handler */
 	caam_pwr_init();
 
@@ -79,7 +124,7 @@ exit_init:
 	return retresult;
 }
 
-driver_init(crypto_driver_init);
+early_init(crypto_driver_init);
 
 /* Crypto driver late initialization to complete on-going CAAM operations */
 static TEE_Result init_caam_late(void)
@@ -96,4 +141,4 @@ static TEE_Result init_caam_late(void)
 	return TEE_SUCCESS;
 }
 
-driver_init_late(init_caam_late);
+early_init_late(init_caam_late);

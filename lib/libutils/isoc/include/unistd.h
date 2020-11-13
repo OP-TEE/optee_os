@@ -11,4 +11,7 @@
 #define __ssize_t_defined
 typedef intptr_t ssize_t;
 
+/* @fd must be 1 or 2. Writes to the secure console. */
+ssize_t write(int fd, const void *buf, size_t count);
+
 #endif

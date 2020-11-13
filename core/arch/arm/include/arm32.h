@@ -7,6 +7,7 @@
 #ifndef ARM32_H
 #define ARM32_H
 
+#include <compiler.h>
 #include <sys/cdefs.h>
 #include <stdint.h>
 #include <util.h>
@@ -57,6 +58,7 @@
 #define SCTLR_WXN	BIT32(19)
 #define SCTLR_UWXN	BIT32(20)
 #define SCTLR_FI	BIT32(21)
+#define SCTLR_SPAN	BIT32(23)
 #define SCTLR_VE	BIT32(24)
 #define SCTLR_EE	BIT32(25)
 #define SCTLR_NMFI	BIT32(26)
@@ -167,42 +169,42 @@
 #include <generated/arm32_gicv3_sysreg.h>
 #endif
 
-static inline void isb(void)
+static inline __noprof void isb(void)
 {
 	asm volatile ("isb");
 }
 
-static inline void dsb(void)
+static inline __noprof void dsb(void)
 {
 	asm volatile ("dsb");
 }
 
-static inline void dsb_ish(void)
+static inline __noprof void dsb_ish(void)
 {
 	asm volatile ("dsb ish");
 }
 
-static inline void dsb_ishst(void)
+static inline __noprof void dsb_ishst(void)
 {
 	asm volatile ("dsb ishst");
 }
 
-static inline void dmb(void)
+static inline __noprof void dmb(void)
 {
 	asm volatile ("dmb");
 }
 
-static inline void sev(void)
+static inline __noprof void sev(void)
 {
 	asm volatile ("sev");
 }
 
-static inline void wfe(void)
+static inline __noprof void wfe(void)
 {
 	asm volatile ("wfe");
 }
 
-static inline uint32_t read_cpsr(void)
+static inline __noprof uint32_t read_cpsr(void)
 {
 	uint32_t cpsr;
 
@@ -212,14 +214,14 @@ static inline uint32_t read_cpsr(void)
 	return cpsr;
 }
 
-static inline void write_cpsr(uint32_t cpsr)
+static inline __noprof void write_cpsr(uint32_t cpsr)
 {
 	asm volatile ("msr	cpsr_fsxc, %[cpsr]"
 			: : [cpsr] "r" (cpsr)
 	);
 }
 
-static inline uint32_t read_spsr(void)
+static inline __noprof uint32_t read_spsr(void)
 {
 	uint32_t spsr;
 
@@ -229,12 +231,12 @@ static inline uint32_t read_spsr(void)
 	return spsr;
 }
 
-static inline void wfi(void)
+static inline __noprof void wfi(void)
 {
 	asm volatile("wfi");
 }
 
-static __always_inline uint32_t read_pc(void)
+static __always_inline __noprof uint32_t read_pc(void)
 {
 	uint32_t val;
 
@@ -242,7 +244,7 @@ static __always_inline uint32_t read_pc(void)
 	return val;
 }
 
-static __always_inline uint32_t read_sp(void)
+static __always_inline __noprof uint32_t read_sp(void)
 {
 	uint32_t val;
 
@@ -250,7 +252,7 @@ static __always_inline uint32_t read_sp(void)
 	return val;
 }
 
-static __always_inline uint32_t read_lr(void)
+static __always_inline __noprof uint32_t read_lr(void)
 {
 	uint32_t val;
 
@@ -258,7 +260,7 @@ static __always_inline uint32_t read_lr(void)
 	return val;
 }
 
-static __always_inline uint32_t read_fp(void)
+static __always_inline __noprof uint32_t read_fp(void)
 {
 	uint32_t val;
 
@@ -266,7 +268,7 @@ static __always_inline uint32_t read_fp(void)
 	return val;
 }
 
-static __always_inline uint32_t read_r7(void)
+static __always_inline __noprof uint32_t read_r7(void)
 {
 	uint32_t val;
 

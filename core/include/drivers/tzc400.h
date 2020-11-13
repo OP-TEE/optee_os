@@ -61,6 +61,7 @@
 #include <stdint.h>
 #include <types_ext.h>
 #include <trace_levels.h>
+#include <tee_api_types.h>
 
 #define TZC400_REG_SIZE		0x1000
 
@@ -74,7 +75,13 @@
 #define FAIL_ADDRESS_LOW_OFF	0x020
 #define FAIL_ADDRESS_HIGH_OFF	0x024
 #define FAIL_CONTROL_OFF	0x028
-#define FAIL_ID			0x02c
+#define FAIL_ID_OFF		0x02c
+#define FAIL_FILTER_OFF(idx)	(0x10 * (idx))
+
+#define FAIL_ADDRESS_LOW(idx)	(FAIL_ADDRESS_LOW_OFF + FAIL_FILTER_OFF(idx))
+#define FAIL_ADDRESS_HIGH(idx)	(FAIL_ADDRESS_HIGH_OFF + FAIL_FILTER_OFF(idx))
+#define FAIL_CONTROL(idx)	(FAIL_CONTROL_OFF + FAIL_FILTER_OFF(idx))
+#define FAIL_ID(idx)		(FAIL_ID_OFF + FAIL_FILTER_OFF(idx))
 
 #define REGION_BASE_LOW_OFF	0x100
 #define REGION_BASE_HIGH_OFF	0x104
@@ -82,7 +89,7 @@
 #define REGION_TOP_HIGH_OFF	0x10c
 #define REGION_ATTRIBUTES_OFF	0x110
 #define REGION_ID_ACCESS_OFF	0x114
-#define REGION_NUM_OFF(region)  (0x20 * region)
+#define REGION_NUM_OFF(region)  (0x20 * (region))
 
 /* ID Registers */
 #define PID0_OFF		0xfe0
@@ -138,15 +145,12 @@
 #define INT_CLEAR_CLEAR_SHIFT		0
 #define INT_CLEAR_CLEAR_MASK		0xf
 
-#define FAIL_CONTROL_DIR_SHIFT		(1 << 24)
-#define  FAIL_CONTROL_DIR_READ		0x0
-#define  FAIL_CONTROL_DIR_WRITE		0x1
-#define FAIL_CONTROL_NS_SHIFT		(1 << 21)
-#define  FAIL_CONTROL_NS_SECURE		0x0
-#define  FAIL_CONTROL_NS_NONSECURE	0x1
-#define FAIL_CONTROL_PRIV_SHIFT		(1 << 20)
-#define  FAIL_CONTROL_PRIV_PRIV		0x0
-#define  FAIL_CONTROL_PRIV_UNPRIV	0x1
+/* If set write access, else read access */
+#define FAIL_CONTROL_DIRECTION_WRITE	BIT(24)
+/* If set non-secure access, else secure access */
+#define FAIL_CONTROL_NONSECURE		BIT(21)
+/* If set privileged access, else unprivileged access */
+#define FAIL_CONTROL_PRIVILEGED		BIT(20)
 
 /*
  * FAIL_ID_ID_MASK depends on AID_WIDTH which is platform specific.
@@ -216,15 +220,23 @@ enum tzc_region_attributes {
 	TZC_REGION_S_RDWR = (TZC_REGION_S_RD | TZC_REGION_S_WR)
 };
 
+struct tzc_region_config {
+	uint32_t filters;
+	vaddr_t base;
+	vaddr_t top;
+	enum tzc_region_attributes sec_attr;
+	uint32_t ns_device_access;
+};
 
 void tzc_init(vaddr_t base);
-void tzc_configure_region(uint32_t filters, uint8_t region,
-			  vaddr_t region_base, vaddr_t region_top,
-			  enum tzc_region_attributes sec_attr,
-			  uint32_t ns_device_access);
+void tzc_configure_region(uint8_t region, const struct tzc_region_config *cfg);
+TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg);
 void tzc_enable_filters(void);
 void tzc_disable_filters(void);
 void tzc_set_action(enum tzc_action action);
+
+void tzc_fail_dump(void);
+void tzc_int_clear(void);
 
 #if TRACE_LEVEL >= TRACE_DEBUG
 void tzc_dump_state(void);

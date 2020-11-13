@@ -3,6 +3,7 @@
  * Copyright (c) 2014-2019, Linaro Limited
  */
 
+#include <crypto/crypto_accel.h>
 #include <crypto/crypto.h>
 #include <kernel/panic.h>
 #include <tee_api_defines.h>
@@ -13,6 +14,10 @@ TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 				     void *enc_key, size_t enc_keylen,
 				     unsigned int *rounds)
 {
+#ifdef _CFG_CORE_LTC_AES_ACCEL
+	return crypto_accel_aes_expand_keys(key, key_len, enc_key, NULL,
+					    enc_keylen, rounds);
+#else
 	symmetric_key skey;
 
 	if (enc_keylen < sizeof(skey.rijndael.eK))
@@ -23,12 +28,16 @@ TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 
 	memcpy(enc_key, skey.rijndael.eK, sizeof(skey.rijndael.eK));
 	*rounds = skey.rijndael.Nr;
+#endif
 	return TEE_SUCCESS;
 }
 
 void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __maybe_unused,
 			  unsigned int rounds, const void *src, void *dst)
 {
+#ifdef _CFG_CORE_LTC_AES_ACCEL
+	crypto_accel_aes_ecb_enc(dst, src, enc_key, rounds, 1);
+#else
 	symmetric_key skey;
 
 	assert(enc_keylen >= sizeof(skey.rijndael.eK));
@@ -36,4 +45,5 @@ void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __maybe_unused,
 	skey.rijndael.Nr = rounds;
 	if (aes_ecb_encrypt(src, dst, &skey))
 		panic();
+#endif
 }

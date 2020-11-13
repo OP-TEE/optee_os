@@ -9,7 +9,7 @@
 #include <caam_hal_ctrl.h>
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <registers/jr_regs.h>
 
@@ -91,9 +91,13 @@ void caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg)
 		/*
 		 * When the Cryptographic driver is enabled, keep the
 		 * Secure Job Ring don't release it.
+		 * But save the configuration to restore it when
+		 * device reset after suspend.
 		 */
-		if (jr_offset == jrcfg->offset)
+		if (jr_offset == jrcfg->offset) {
+			caam_hal_jr_prepare_backup(jrcfg->base, jr_offset);
 			continue;
+		}
 #endif
 		status = caam_hal_jr_setowner(jrcfg->base, jr_offset,
 					      JROWN_ARM_NS);

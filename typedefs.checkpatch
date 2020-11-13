@@ -34,3 +34,6 @@ SLIST_HEAD\(.*\)
 SLIST_ENTRY\(.*\)
 mbedtls_mpi_uint
 mbedtls_mpi
+Elf_Phdr
+Elf_Half
+Elf_Addr

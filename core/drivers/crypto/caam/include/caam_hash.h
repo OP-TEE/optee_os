@@ -19,6 +19,19 @@ static inline enum caam_status caam_hash_init(vaddr_t ctrl_addr __unused)
 {
 	return CAAM_NO_ERROR;
 }
-#endif
+#endif /* CFG_NXP_CAAM_HASH_DRV */
 
+#ifdef CFG_NXP_CAAM_HMAC_DRV
+/*
+ * Initialize the HMAC module
+ *
+ * @ctrl_addr   Controller base address
+ */
+enum caam_status caam_hmac_init(vaddr_t ctrl_addr);
+#else
+static inline enum caam_status caam_hmac_init(vaddr_t ctrl_addr __unused)
+{
+	return CAAM_NO_ERROR;
+}
+#endif /* CFG_NXP_CAAM_HMAC_DRV */
 #endif /* __CAAM_HASH_H__ */

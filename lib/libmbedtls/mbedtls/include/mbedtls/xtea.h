@@ -25,7 +25,7 @@
 #define MBEDTLS_XTEA_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
@@ -121,12 +121,16 @@ int mbedtls_xtea_crypt_cbc( mbedtls_xtea_context *ctx,
                     unsigned char *output);
 #endif /* MBEDTLS_CIPHER_MODE_CBC */
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          Checkup routine
  *
  * \return         0 if successful, or 1 if the test failed
  */
 int mbedtls_xtea_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

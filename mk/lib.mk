@@ -62,8 +62,9 @@ ifeq ($(CFG_ULIBS_SHARED),y)
 $(lib-shlibfile): $(objs) $(lib-needed-so-files)
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
-	$$(q)$$(LD$(sm)) $(lib-ldflags) $(lib-Ll-args) -shared \
-		-z max-page-size=4096 --soname=$(libuuid) -o $$@ $$^
+	$$(q)$$(LD$(sm)) $(lib-ldflags) -shared -z max-page-size=4096 \
+		$(call ld-option,-z separate-loadable-segments) \
+		--soname=$(libuuid) -o $$@ $$(filter-out %.so,$$^) $(lib-Ll-args)
 
 $(lib-shlibstrippedfile): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
@@ -71,7 +72,7 @@ $(lib-shlibstrippedfile): $(lib-shlibfile)
 
 $(lib-shlibtafile): $(lib-shlibstrippedfile) $(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  SIGN    $$@'
-	$$(q)$$(SIGN) --key $(TA_SIGN_KEY) --uuid $(libuuid) --in $$< --out $$@
+	$$(q)$$(PYTHON3) $$(SIGN) --key $(TA_SIGN_KEY) --uuid $(libuuid) --in $$< --out $$@
 
 $(lib-libuuidln): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  LN      $$@'

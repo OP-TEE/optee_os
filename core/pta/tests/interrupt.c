@@ -63,7 +63,7 @@ static enum itr_return __maybe_unused ihandler_ok(struct itr_handler *handler)
 
 	return ITRR_HANDLED;
 }
-KEEP_PAGER(ihandler_ok);
+DECLARE_KEEP_PAGER(ihandler_ok);
 
 struct itr_handler sgi_handler = {
 	.it = TEST_SGI_ID,

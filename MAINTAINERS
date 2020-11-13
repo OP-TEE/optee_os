@@ -54,6 +54,11 @@ R:	Amit Singh Tomar <amittomer25@gmail.com> [@Amit-Radur]
 S:	Maintained
 F:	core/arch/arm/plat-sunxi/
 
+AmLogic AXG (A113D)
+R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
+S:	Maintained
+F:	core/arch/arm/plat-amlogic/
+
 Atmel ATSAMA5D2-XULT
 R:	Akshay Bhat <akshay.bhat@timesys.com> [@nodeax]
 R:	[@OP-TEE/plat-sam]
@@ -65,6 +70,11 @@ R:	Sandeep Tripathy <sandeep.tripathy@broadcom.com> [@sandeepbrcm]
 L:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com>
 S:	Maintained
 F:	core/arch/arm/plat-bcm/
+
+Core Drivers I2C
+R:	Jorge Ramirez <jorge@foundries.io>
+S:	Maintained
+F:	core/drivers/imx_i2c.c
 
 Function Graph Tracer (ftrace) support
 R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
@@ -91,7 +101,7 @@ S:	Maintained
 F:	core/arch/arm/plat-poplar/
 
 Hisilicon Hi3519AV100 family
-R:	Jerome Forissier <jerome.@forissier.org> [@jforissier]
+R:	Jerome Forissier <jerome@forissier.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
@@ -153,6 +163,12 @@ R:	[@OP-TEE/plat-rcar]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
 
+Renesas RZ/N1
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+S:	Maintained
+F:	core/arch/arm/plat-rzn1/
+
 Rockchip RK322X
 R:	Rockchip <op-tee@rock-chips.com>
 R:	[@OP-TEE/plat-rockchip]
@@ -164,6 +180,12 @@ R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
 F:	core/arch/arm/plat-synquacer/
+
+Socionext UniPhier
+R:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+R:	[@96boards-akebi96/optee]
+S:	Maintained
+F:	core/arch/arm/plat-uniphier/
 
 Spreadtrum SC9860
 R:	Aijun Sun <aijun.sun@unisoc.com>

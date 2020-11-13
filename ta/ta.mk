@@ -34,10 +34,11 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS_MPI
 ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_TA_DYNLINK
-ta-mk-file-export-vars-$(sm) += CFG_TEE_TA_LOG_LEVEL
 ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
+ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
+ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_nl_
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -66,7 +67,7 @@ $$(arm32-user-sysregs-out)/$$(arm32-user-sysregs-$(1)-h): \
 		$(1) scripts/arm32_sysreg.py
 	@$(cmd-echo-silent) '  GEN     $$@'
 	$(q)mkdir -p $$(dir $$@)
-	$(q)scripts/arm32_sysreg.py --guard __$$(arm32-user-sysregs-$(1)-h) \
+	$(q)$(PYTHON3) scripts/arm32_sysreg.py --guard __$$(arm32-user-sysregs-$(1)-h) \
 		< $$< > $$@
 
 endef #process-arm32-user-sysreg
@@ -84,32 +85,17 @@ libdir = lib/libutils
 libuuid = 71855bba-6055-4293-a63f-b0963a737360
 include mk/lib.mk
 
-CFG_TA_MBEDTLS_MPI ?= y
-ifeq ($(CFG_TA_MBEDTLS_MPI),y)
-mplib-for-utee = mbedtls
-$(call force,CFG_TA_MBEDTLS,y)
-else
-mplib-for-utee = mpa
-libname = mpa
-libdir = lib/libmpa
-libuuid = 39b498d9-1e1f-4ae0-a9e1-6d1caf8ec731
-libl = utils
-include mk/lib.mk
-endif
-
-ifeq ($(CFG_TA_MBEDTLS),y)
 libname = mbedtls
 libdir = lib/libmbedtls
 libuuid = 87bb6ae8-4b1d-49fe-9986-2b966132c309
 libl = utils
 include mk/lib.mk
 ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
-endif
 
 libname = utee
 libdir = lib/libutee
 libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
-libl = $(mplib-for-utee) utils
+libl = mbedtls utils
 include mk/lib.mk
 
 libname = dl
@@ -157,6 +143,7 @@ $(foreach f, $(libfiles), \
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
+	mk/cc-option.mk \
 	ta/arch/$(ARCH)/link.mk ta/arch/$(ARCH)/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 
@@ -203,6 +190,7 @@ define mk-file-export
 .PHONY: $(conf-mk-file-export)
 $(conf-mk-file-export):
 	@$$(cmd-echo-silent) '  CHK    ' $$@
+	$(q)mkdir -p $$(dir $$@)
 	$(q)echo sm := $$(sm-$(conf-mk-file-export)) > $$@.tmp
 	$(q)echo sm-$$(sm-$(conf-mk-file-export)) := y >> $$@.tmp
 	$(q)($$(foreach v, $$(ta-mk-file-export-vars-$$(sm-$(conf-mk-file-export))), \

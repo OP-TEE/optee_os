@@ -7,20 +7,12 @@
 #include <tee_syscall_numbers.h>
 #include <asm.S>
 
-#if defined(CFG_UNWIND)
-#define UNWIND(...)	__VA_ARGS__
-#else
-#define UNWIND(...)
-#endif
-
         .section .text
         .balign 4
         .code 32
 
         .macro UTEE_SYSCALL name, scn, num_args
 	FUNC \name , :
-
-UNWIND( .fnstart)
         push    {r5-r7,lr}
 UNWIND( .save   {r5-r7,lr})
 #if defined(CFG_SYSCALL_WRAPPERS_MCOUNT) && !defined(__LDELF__)
@@ -49,12 +41,10 @@ UNWIND( .save   {r5-r7,lr})
         .endif
         svc #0
         pop     {r5-r7,pc}
-UNWIND( .fnend)
 	END_FUNC \name
         .endm
 
-	FUNC utee_panic, :
-UNWIND( .fnstart)
+	FUNC _utee_panic, :
 	push	{r0-r11, lr}
 UNWIND(	.save	{r0-r11, lr})
 	mov	lr, pc
@@ -63,7 +53,6 @@ UNWIND(	.save	{lr})
 	mov	r1, sp
 	bl	__utee_panic
 	/* Not reached */
-UNWIND( .fnend)
-	END_FUNC utee_panic
+	END_FUNC _utee_panic
 
 #include "utee_syscalls_asm.S"

@@ -16,8 +16,9 @@
  * we begin to modify settings after boot initialization.
  */
 
-static struct itr_chip *itr_chip;
-static SLIST_HEAD(, itr_handler) handlers = SLIST_HEAD_INITIALIZER(handlers);
+static struct itr_chip *itr_chip __nex_bss;
+static SLIST_HEAD(, itr_handler) handlers __nex_data =
+	SLIST_HEAD_INITIALIZER(handlers);
 
 void itr_init(struct itr_chip *chip)
 {

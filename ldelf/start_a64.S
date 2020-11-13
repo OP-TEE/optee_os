@@ -51,9 +51,9 @@ FUNC _ldelf_start , :
 
 2:	bl	ldelf
 	mov	x0, #0
-	bl	utee_return
+	bl	_utee_return
 3:	mov	x0, #0
-	bl	utee_panic
+	bl	_utee_panic
 reloc_begin_rel:
     .word __reloc_begin - reloc_begin_rel
 reloc_end_rel:

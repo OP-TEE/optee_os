@@ -1,19 +1,28 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limied
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#include <compiler.h>
-#include <string.h>
-#include <stdlib.h>
 
+#include <compiler.h>
+#include <initcall.h>
 #include <kernel/tee_time.h>
-#include <kernel/time_source.h>
 #include <kernel/thread.h>
-#include <optee_rpc_cmd.h>
+#include <kernel/time_source.h>
 #include <mm/core_mmu.h>
+#include <optee_rpc_cmd.h>
+#include <stdlib.h>
+#include <string.h>
 
 struct time_source _time_source;
+
+static TEE_Result register_time_source(void)
+{
+	time_source_init();
+
+	return TEE_SUCCESS;
+}
+early_init(register_time_source);
 
 TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {

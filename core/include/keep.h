@@ -7,7 +7,7 @@
 
 #ifdef __ASSEMBLER__
 
-	.macro KEEP_PAGER sym
+	.macro DECLARE_KEEP_PAGER sym
 	.pushsection __keep_meta_vars_pager
 	.global ____keep_pager_\sym
 	____keep_pager_\sym:
@@ -15,7 +15,7 @@
 	.popsection
 	.endm
 
-	.macro KEEP_INIT sym
+	.macro DECLARE_KEEP_INIT sym
 	.pushsection __keep_meta_vars_init
 	.global ____keep_init_\sym
 	____keep_init_\sym:
@@ -27,21 +27,21 @@
 
 #include <compiler.h>
 
-#define __KEEP_PAGER2(sym, file_id) \
+#define __DECLARE_KEEP_PAGER2(sym, file_id) \
 	extern const unsigned long ____keep_pager_##sym; \
 	const unsigned long ____keep_pager_##sym##_##file_id  \
-		__section("__keep_meta_vars_pager") = (unsigned long)&sym
+		__section("__keep_meta_vars_pager") = (unsigned long)&(sym)
 
-#define __KEEP_PAGER1(sym, file_id)	__KEEP_PAGER2(sym, file_id)
-#define KEEP_PAGER(sym)			__KEEP_PAGER1(sym, __FILE_ID__)
+#define __DECLARE_KEEP_PAGER1(sym, file_id) __DECLARE_KEEP_PAGER2(sym, file_id)
+#define DECLARE_KEEP_PAGER(sym) __DECLARE_KEEP_PAGER1(sym, __FILE_ID__)
 
-#define __KEEP_INIT2(sym, file_id) \
+#define __DECLARE_KEEP_INIT2(sym, file_id) \
 	extern const unsigned long ____keep_init_##sym##file_id; \
 	const unsigned long ____keep_init_##sym##_##file_id  \
-		__section("__keep_meta_vars_init") = (unsigned long)&sym
+		__section("__keep_meta_vars_init") = (unsigned long)&(sym)
 
-#define __KEEP_INIT1(sym, file_id)	__KEEP_INIT2(sym, file_id)
-#define KEEP_INIT(sym)			__KEEP_INIT1(sym, __FILE_ID__)
+#define __DECLARE_KEEP_INIT1(sym, file_id) __DECLARE_KEEP_INIT2(sym, file_id)
+#define DECLARE_KEEP_INIT(sym) __DECLARE_KEEP_INIT1(sym, __FILE_ID__)
 
 #endif /* __ASSEMBLER__ */
 

@@ -29,7 +29,7 @@
 #define MBEDTLS_MD5_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
@@ -288,6 +288,8 @@ MBEDTLS_DEPRECATED void mbedtls_md5( const unsigned char *input,
 #undef MBEDTLS_DEPRECATED
 #endif /* !MBEDTLS_DEPRECATED_REMOVED */
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          Checkup routine
  *
@@ -299,6 +301,8 @@ MBEDTLS_DEPRECATED void mbedtls_md5( const unsigned char *input,
  *
  */
 int mbedtls_md5_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

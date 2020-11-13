@@ -24,9 +24,15 @@
 #ifndef MBEDTLS_PKCS12_H
 #define MBEDTLS_PKCS12_H
 
-#include "md.h"
-#include "cipher.h"
-#include "asn1.h"
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
+
+#include "mbedtls/md.h"
+#include "mbedtls/cipher.h"
+#include "mbedtls/asn1.h"
 
 #include <stddef.h>
 

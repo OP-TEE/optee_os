@@ -5,7 +5,8 @@
 
 #include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
-#include <kernel/generic_boot.h>
+#include <initcall.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -42,15 +43,26 @@ static const struct fobj_ops ops_rw_paged;
 
 static struct internal_aes_gcm_key rwp_ae_key;
 
-void fobj_generate_authenc_key(void)
+/*
+ * fobj_generate_authenc_key() - Generate authentication key
+ *
+ * Generates the authentication key used in all fobjs allocated with
+ * fobj_rw_paged_alloc().
+ */
+static TEE_Result fobj_generate_authenc_key(void)
 {
 	uint8_t key[RWP_AE_KEY_BITS / 8] = { 0 };
 
 	if (crypto_rng_read(key, sizeof(key)) != TEE_SUCCESS)
 		panic("failed to generate random");
-	if (internal_aes_gcm_expand_enc_key(key, sizeof(key), &rwp_ae_key))
+	if (crypto_aes_expand_enc_key(key, sizeof(key), rwp_ae_key.data,
+				      sizeof(rwp_ae_key.data),
+				      &rwp_ae_key.rounds))
 		panic("failed to expand key");
+
+	return TEE_SUCCESS;
 }
+driver_init_late(fobj_generate_authenc_key);
 
 static void fobj_init(struct fobj *fobj, const struct fobj_ops *ops,
 		      unsigned int num_pages)
@@ -149,7 +161,7 @@ static TEE_Result rwp_load_page(struct fobj *fobj, unsigned int page_idx,
 				    NULL, 0, src, SMALL_PAGE_SIZE, va,
 				    state->tag, sizeof(state->tag));
 }
-KEEP_PAGER(rwp_load_page);
+DECLARE_KEEP_PAGER(rwp_load_page);
 
 static TEE_Result rwp_save_page(struct fobj *fobj, unsigned int page_idx,
 				const void *va)
@@ -190,7 +202,7 @@ static TEE_Result rwp_save_page(struct fobj *fobj, unsigned int page_idx,
 				    NULL, 0, va, SMALL_PAGE_SIZE, dst,
 				    state->tag, &tag_len);
 }
-KEEP_PAGER(rwp_save_page);
+DECLARE_KEEP_PAGER(rwp_save_page);
 
 static const struct fobj_ops ops_rw_paged __rodata_unpaged = {
 	.free = rwp_free,
@@ -270,7 +282,7 @@ static TEE_Result rop_load_page(struct fobj *fobj, unsigned int page_idx,
 {
 	return rop_load_page_helper(to_rop(fobj), page_idx, va);
 }
-KEEP_PAGER(rop_load_page);
+DECLARE_KEEP_PAGER(rop_load_page);
 
 static TEE_Result rop_save_page(struct fobj *fobj __unused,
 				unsigned int page_idx __unused,
@@ -278,7 +290,7 @@ static TEE_Result rop_save_page(struct fobj *fobj __unused,
 {
 	return TEE_ERROR_GENERIC;
 }
-KEEP_PAGER(rop_save_page);
+DECLARE_KEEP_PAGER(rop_save_page);
 
 static const struct fobj_ops ops_ro_paged __rodata_unpaged = {
 	.free = rop_free,
@@ -450,7 +462,7 @@ static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(rrp_load_page);
+DECLARE_KEEP_PAGER(rrp_load_page);
 
 static const struct fobj_ops ops_ro_reloc_paged __rodata_unpaged = {
 	.free = rrp_free,
@@ -495,7 +507,7 @@ static TEE_Result lop_load_page(struct fobj *fobj __maybe_unused,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(lop_load_page);
+DECLARE_KEEP_PAGER(lop_load_page);
 
 static TEE_Result lop_save_page(struct fobj *fobj __unused,
 				unsigned int page_idx __unused,
@@ -503,7 +515,7 @@ static TEE_Result lop_save_page(struct fobj *fobj __unused,
 {
 	return TEE_ERROR_GENERIC;
 }
-KEEP_PAGER(lop_save_page);
+DECLARE_KEEP_PAGER(lop_save_page);
 
 static const struct fobj_ops ops_locked_paged __rodata_unpaged = {
 	.free = lop_free,
@@ -519,7 +531,7 @@ struct fobj_sec_mem {
 	struct fobj fobj;
 };
 
-static struct fobj_ops ops_sec_mem;
+static const struct fobj_ops ops_sec_mem;
 
 struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 {
@@ -580,7 +592,7 @@ static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
 	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
 }
 
-static struct fobj_ops ops_sec_mem __rodata_unpaged = {
+static const struct fobj_ops ops_sec_mem __rodata_unpaged = {
 	.free = sec_mem_free,
 	.get_pa = sec_mem_get_pa,
 };

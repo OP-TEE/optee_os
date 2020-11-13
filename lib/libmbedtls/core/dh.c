@@ -44,12 +44,13 @@ err:
 
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key,
 				     struct bignum *q __unused,
-				     size_t xbits)
+				     size_t xbits, size_t key_size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	int lmd_res = 0;
 	mbedtls_dhm_context dhm;
 	unsigned char *buf = NULL;
+	size_t xbytes = 0;
 
 	memset(&dhm, 0, sizeof(dhm));
 	mbedtls_dhm_init(&dhm);
@@ -58,24 +59,28 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key,
 	dhm.P = *(mbedtls_mpi *)key->p;
 
 	dhm.len = crypto_bignum_num_bytes(key->p);
+	if (key_size != 8 * dhm.len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 
 	if (xbits == 0)
-		xbits = dhm.len;
+		xbytes = dhm.len;
 	else
-		xbits = xbits / 8;
+		xbytes = xbits / 8;
 
 	buf = malloc(dhm.len);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
-	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbits, buf,
+	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbytes, buf,
 					  dhm.len, mbd_rand, NULL);
 	if (lmd_res != 0) {
 		FMSG("mbedtls_dhm_make_public err, return is 0x%x", -lmd_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
-		crypto_bignum_bin2bn(buf, xbits / 8, key->y);
+		crypto_bignum_bin2bn(buf, xbytes, key->y);
 		crypto_bignum_copy(key->x, (void *)&dhm.X);
 		res = TEE_SUCCESS;
 	}

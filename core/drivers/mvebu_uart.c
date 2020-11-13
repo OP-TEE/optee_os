@@ -112,7 +112,7 @@ static const struct serial_ops mvebu_uart_ops = {
 	.have_rx_data = mvebu_uart_have_rx_data,
 	.putc = mvebu_uart_putc,
 };
-KEEP_PAGER(mvebu_uart_ops);
+DECLARE_KEEP_PAGER(mvebu_uart_ops);
 
 void mvebu_uart_init(struct mvebu_uart_data *pd, paddr_t pbase,
 		uint32_t uart_clk, uint32_t baud_rate)

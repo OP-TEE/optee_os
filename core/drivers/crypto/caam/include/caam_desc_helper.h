@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   CAAM Descriptor interface.
  */
@@ -8,6 +8,7 @@
 #define __CAAM_DESC_HELPER_H__
 
 #include <caam_desc_defines.h>
+#include <caam_jr.h>
 #include <trace.h>
 
 /*
@@ -22,15 +23,10 @@ void caam_desc_add_ptr(uint32_t *desc, paddr_t ptr);
 void caam_desc_add_word(uint32_t *desc, uint32_t word);
 
 /* Push/Pop descriptor rings queue */
-#ifdef CFG_CAAM_64BIT
-void caam_desc_push(uint64_t *in_entry, paddr_t paddr);
-paddr_t caam_desc_pop(uint64_t *out_entry);
-#else
-void caam_desc_push(uint32_t *in_entry, paddr_t paddr);
-paddr_t caam_desc_pop(uint32_t *out_entry);
-#endif /* CFG_CAAM_64BIT */
+void caam_desc_push(struct caam_inring_entry *in_entry, paddr_t paddr);
+paddr_t caam_desc_pop(struct caam_outring_entry *out_entry);
 
-uint32_t caam_read_jobstatus(uint32_t *addr);
+uint32_t caam_read_jobstatus(struct caam_outring_entry *out);
 
 /* Debug print function to dump a Descriptor in hex */
 static inline void dump_desc(uint32_t *desc)
@@ -137,11 +133,20 @@ static inline void dump_desc(uint32_t *desc)
 
 /*
  * FIFO Load to register dst class cla with action act.
- * Pointer is a Scatter/Gatter Table
+ * Pointer is a Scatter/Gather Table
  */
 #define FIFO_LD_SGT(cla, dst, act, len)                                        \
 	(CMD_FIFO_LOAD_TYPE | CMD_CLASS(cla) | CMD_SGT |                       \
 	 FIFO_LOAD_INPUT(dst) | FIFO_LOAD_ACTION(act) | FIFO_LOAD_LENGTH(len))
+
+/*
+ * FIFO Load to register dst class cla with action act.
+ * Pointer is a Scatter/Gather Table
+ * The length is externally defined
+ */
+#define FIFO_LD_SGT_EXT(cla, dst, act)                                         \
+	(CMD_FIFO_LOAD_TYPE | CMD_CLASS(cla) | CMD_SGT | FIFO_LOAD_EXT |       \
+	 FIFO_LOAD_INPUT(dst) | FIFO_LOAD_ACTION(act))
 
 /*
  * FIFO Load to register dst class cla with action act.
@@ -166,6 +171,14 @@ static inline void dump_desc(uint32_t *desc)
 	(CMD_STORE_TYPE | CMD_CLASS(cla) | STORE_SRC(src) | STORE_LENGTH(len))
 
 /*
+ * Store value of length len from register src of class cla
+ * Pointer is a Scatter/Gather Table
+ */
+#define ST_SGT_NOIMM(cla, src, len)                                            \
+	(CMD_STORE_TYPE | CMD_CLASS(cla) | CMD_SGT | STORE_SRC(src) |          \
+	 STORE_LENGTH(len))
+
+/*
  * Store value of length len from register src of class cla starting
  * at register offset off
  */
@@ -184,15 +197,24 @@ static inline void dump_desc(uint32_t *desc)
  * The length is externally defined
  */
 #define FIFO_ST_EXT(src)                                                       \
-	(CMD_FIFO_STORE_TYPE | FIFO_LOAD_EXT | FIFO_STORE_OUTPUT(src))
+	(CMD_FIFO_STORE_TYPE | FIFO_STORE_EXT | FIFO_STORE_OUTPUT(src))
 
 /*
  * FIFO Store from register src of length len.
- * Pointer is a Scatter/Gatter Table
+ * Pointer is a Scatter/Gather Table
  */
 #define FIFO_ST_SGT(src, len)                                                  \
 	(CMD_FIFO_STORE_TYPE | CMD_SGT | FIFO_STORE_OUTPUT(src) |              \
 	 FIFO_STORE_LENGTH(len))
+
+/*
+ * FIFO Store from register src.
+ * Pointer is a Scatter/Gather Table
+ * The length is externally defined
+ */
+#define FIFO_ST_SGT_EXT(src)                                                   \
+	(CMD_FIFO_STORE_TYPE | CMD_SGT | FIFO_STORE_EXT |                      \
+	 FIFO_STORE_OUTPUT(src))
 
 /*
  * RNG State Handle instantation operation for sh ID
@@ -302,6 +324,15 @@ static inline void dump_desc(uint32_t *desc)
  */
 #define LD_KEY_PLAIN(cla, dst, len)                                            \
 	(CMD_KEY_TYPE | CMD_CLASS(cla) | KEY_PTS | KEY_DEST(dst) |             \
+	 KEY_LENGTH(len))
+
+/*
+ * Load a class cla key of length len to register dst.
+ * Key can be stored in plain text.
+ * Pointer is a Scatter/Gatter Table
+ */
+#define LD_KEY_SGT_PLAIN(cla, dst, len)                                        \
+	(CMD_KEY_TYPE | CMD_CLASS(cla) | CMD_SGT | KEY_PTS | KEY_DEST(dst) |   \
 	 KEY_LENGTH(len))
 
 /*

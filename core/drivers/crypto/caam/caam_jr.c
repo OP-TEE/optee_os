@@ -21,34 +21,6 @@
 #include <tee/cache.h>
 
 /*
- * The CAAM physical address is decorrelated from the CPU addressing mode.
- * CAAM can manage 32 or 64 bits address depending on its version and the
- * device.
- */
-/*
- * Definition of input and output ring object
- */
-#ifdef CFG_CAAM_64BIT
-struct inring_entry {
-	uint64_t desc;   /* Physical address of the descriptor */
-};
-
-struct __packed outring_entry {
-	uint64_t desc;   /* Physical address of the descriptor */
-	uint32_t status; /* Status of the executed job */
-};
-#else
-struct inring_entry {
-	uint32_t desc;   /* Physical address of the descriptor */
-};
-
-struct __packed outring_entry {
-	uint32_t desc;   /* Physical address of the descriptor */
-	uint32_t status; /* Status of the executed job */
-};
-#endif /* CFG_CAAM_64BIT */
-
-/*
  * Job Free define
  */
 #define JR_JOB_FREE	0
@@ -76,12 +48,12 @@ struct jr_privdata {
 	uint8_t nb_jobs;         /* Number of Job ring entries managed */
 
 	/* Input Job Ring Variables */
-	struct inring_entry *inrings; /* Input JR HW queue */
+	struct caam_inring_entry *inrings; /* Input JR HW queue */
 	unsigned int inlock;          /* Input JR spin lock */
 	uint16_t inwrite_index;       /* SW Index - next JR entry free */
 
 	/* Output Job Ring Variables */
-	struct outring_entry *outrings; /* Output JR HW queue */
+	struct caam_outring_entry *outrings; /* Output JR HW queue */
 	unsigned int outlock;           /* Output JR spin lock */
 	uint16_t outread_index;         /* SW Index - next JR output done */
 
@@ -137,9 +109,9 @@ static enum caam_status do_jr_alloc(struct jr_privdata **privdata,
 
 	/* Allocate the input and output job ring queues */
 	jr_priv->inrings =
-		caam_calloc_align(nb_jobs * sizeof(struct inring_entry));
+		caam_calloc_align(nb_jobs * sizeof(struct caam_inring_entry));
 	jr_priv->outrings =
-		caam_calloc_align(nb_jobs * sizeof(struct outring_entry));
+		caam_calloc_align(nb_jobs * sizeof(struct caam_outring_entry));
 
 	/* Allocate the callers information */
 	jr_priv->callers = caam_calloc(nb_jobs * sizeof(struct caller_info));
@@ -163,9 +135,9 @@ static enum caam_status do_jr_alloc(struct jr_privdata **privdata,
 	 * memory
 	 */
 	cache_operation(TEE_CACHEFLUSH, jr_priv->inrings,
-			nb_jobs * sizeof(struct inring_entry));
+			nb_jobs * sizeof(struct caam_inring_entry));
 	cache_operation(TEE_CACHEFLUSH, jr_priv->outrings,
-			nb_jobs * sizeof(struct outring_entry));
+			nb_jobs * sizeof(struct caam_outring_entry));
 
 	retstatus = CAAM_NO_ERROR;
 end_alloc:
@@ -206,7 +178,7 @@ static uint32_t do_jr_dequeue(uint32_t wait_job_ids)
 {
 	uint32_t ret_job_id = 0;
 	struct caller_info *caller = NULL;
-	struct outring_entry *jr_out = NULL;
+	struct caam_outring_entry *jr_out = NULL;
 	struct caam_jobctx *jobctx = NULL;
 	uint32_t exceptions = 0;
 	bool found = false;
@@ -239,7 +211,7 @@ static uint32_t do_jr_dequeue(uint32_t wait_job_ids)
 	}
 
 	cache_operation(TEE_CACHEINVALIDATE, jr_out,
-			sizeof(struct outring_entry) * nb_jobs_inv);
+			sizeof(struct caam_outring_entry) * nb_jobs_inv);
 
 	for (; nb_jobs_done; nb_jobs_done--) {
 		jr_out = &jr_privdata->outrings[jr_privdata->outread_index];
@@ -259,10 +231,9 @@ static uint32_t do_jr_dequeue(uint32_t wait_job_ids)
 			 * buffer
 			 */
 			caller = &jr_privdata->callers[idx_jr];
-			if (caam_desc_pop(&jr_out->desc) == caller->pdesc) {
+			if (caam_desc_pop(jr_out) == caller->pdesc) {
 				jobctx = caller->jobctx;
-				jobctx->status =
-					caam_read_jobstatus(&jr_out->status);
+				jobctx->status = caam_read_jobstatus(jr_out);
 
 				/* Update return Job IDs mask */
 				if (caller->job_id & wait_job_ids)
@@ -318,7 +289,7 @@ static enum caam_status do_jr_enqueue(struct caam_jobctx *jobctx,
 				      uint32_t *job_id)
 {
 	enum caam_status retstatus = CAAM_BUSY;
-	struct inring_entry *cur_inrings = NULL;
+	struct caam_inring_entry *cur_inrings = NULL;
 	struct caller_info *caller = NULL;
 	uint32_t exceptions = 0;
 	uint32_t job_mask = 0;
@@ -380,11 +351,11 @@ static enum caam_status do_jr_enqueue(struct caam_jobctx *jobctx,
 	cur_inrings = &jr_privdata->inrings[jr_privdata->inwrite_index];
 
 	/* Push the descriptor into the JR HW list */
-	caam_desc_push(&cur_inrings->desc, caller->pdesc);
+	caam_desc_push(cur_inrings, caller->pdesc);
 
 	/* Ensure that physical memory is up to date */
 	cache_operation(TEE_CACHECLEAN, cur_inrings,
-			sizeof(struct inring_entry));
+			sizeof(struct caam_inring_entry));
 
 	/*
 	 * Increment index to next JR input entry taking care that
@@ -629,9 +600,6 @@ enum caam_status caam_jr_flush(void)
 void caam_jr_resume(uint32_t pm_hint)
 {
 	if (pm_hint == PM_HINT_CONTEXT_STATE) {
-#if !(defined(CFG_MX6DL) || defined(CFG_MX6D) || defined(CFG_MX6Q) ||          \
-	defined(CFG_MX6QP))
-
 #ifndef CFG_NXP_CAAM_RUNTIME_JR
 		/*
 		 * In case the CAAM is not used the JR used to
@@ -661,7 +629,6 @@ void caam_jr_resume(uint32_t pm_hint)
 		caam_hal_jr_setowner(jr_privdata->ctrladdr,
 				     jr_privdata->jroffset, JROWN_ARM_NS);
 #endif /* CFG_NXP_CAAM_RUNTIME_JR */
-#endif /* !(CFG_MX6DL || CFG_MX6D || CFG_MX6Q || CFG_MX6QP) */
 	} else {
 		caam_hal_jr_resume(jr_privdata->baseaddr);
 	}

@@ -184,7 +184,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	    shdr->img_type == SHDR_ENCRYPTED_TA) {
 		TEE_UUID bs_uuid;
 
-		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(bs_hdr)) {
+		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(*bs_hdr)) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
@@ -229,8 +229,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		memcpy(&img_ehdr, ((uint8_t *)ta + offs), sizeof(img_ehdr));
 
 		ehdr = malloc(SHDR_ENC_GET_SIZE(&img_ehdr));
-		if (!ehdr)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (!ehdr) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto error_free_hash;
+		}
 
 		memcpy(ehdr, ((uint8_t *)ta + offs),
 		       SHDR_ENC_GET_SIZE(&img_ehdr));
@@ -322,14 +324,14 @@ out:
 
 static TEE_Result check_update_version(struct shdr_bootstrap_ta *hdr)
 {
-	struct shdr_bootstrap_ta hdr_entry = {0};
+	struct shdr_bootstrap_ta hdr_entry = { };
 	const struct tee_file_operations *ops = NULL;
 	struct tee_file_handle *fh = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	bool entry_found = false;
 	size_t len = 0;
 	unsigned int i = 0;
-	struct ta_ver_db_hdr db_hdr = {0};
+	struct ta_ver_db_hdr db_hdr = { };
 	struct tee_pobj pobj = {
 		.obj_id = (void *)ta_ver_db_obj_id,
 		.obj_id_len = sizeof(ta_ver_db_obj_id)
@@ -416,10 +418,12 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
 
 	uint8_t *src = (uint8_t *)handle->nw_ta + handle->offs;
+	size_t next_offs = 0;
 	uint8_t *dst = src;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 
-	if (handle->offs + len > handle->nw_ta_size)
+	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
+	    next_offs > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
@@ -468,7 +472,7 @@ static TEE_Result ree_fs_ta_read(struct user_ta_store_handle *h, void *data,
 			return TEE_ERROR_SECURITY;
 	}
 
-	handle->offs += len;
+	handle->offs = next_offs;
 	if (handle->offs == handle->nw_ta_size) {
 		if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
 			/*
@@ -608,12 +612,15 @@ static TEE_Result buf_ta_read(struct user_ta_store_handle *h, void *data,
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
 	uint8_t *src = handle->buf + handle->offs;
+	size_t next_offs = 0;
 
-	if (handle->offs + len > handle->ta_size)
+	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
+	    next_offs > handle->ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (data)
 		memcpy(data, src, len);
-	handle->offs += len;
+	handle->offs = next_offs;
 	return TEE_SUCCESS;
 }
 

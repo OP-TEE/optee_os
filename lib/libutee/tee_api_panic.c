@@ -9,5 +9,5 @@
 
 void TEE_Panic(TEE_Result panicCode)
 {
-	utee_panic(panicCode);
+	_utee_panic(panicCode);
 }

@@ -5,6 +5,7 @@
 
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <trace.h>
@@ -16,10 +17,15 @@ void mutex_init(struct mutex *m)
 	*m = (struct mutex)MUTEX_INITIALIZER;
 }
 
+void mutex_init_recursive(struct recursive_mutex *m)
+{
+	*m = (struct recursive_mutex)RECURSIVE_MUTEX_INITIALIZER;
+}
+
 static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	mutex_lock_check(m);
@@ -60,12 +66,33 @@ static void __mutex_lock(struct mutex *m, const char *fname, int lineno)
 	}
 }
 
+static void __mutex_lock_recursive(struct recursive_mutex *m, const char *fname,
+				   int lineno)
+{
+	short int ct = thread_get_id();
+
+	assert_have_no_spinlock();
+	assert(thread_is_in_normal_mode());
+
+	if (atomic_load_short(&m->owner) == ct) {
+		if (!refcount_inc(&m->lock_depth))
+			panic();
+		return;
+	}
+
+	__mutex_lock(&m->m, fname, lineno);
+
+	assert(m->owner == THREAD_ID_INVALID);
+	atomic_store_short(&m->owner, ct);
+	refcount_set(&m->lock_depth, 1);
+}
+
 static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	mutex_unlock_check(m);
 
@@ -81,6 +108,22 @@ static void __mutex_unlock(struct mutex *m, const char *fname, int lineno)
 	wq_wake_next(&m->wq, m, fname, lineno);
 }
 
+static void __mutex_unlock_recursive(struct recursive_mutex *m,
+				     const char *fname, int lineno)
+{
+	assert_have_no_spinlock();
+	assert(m->owner == thread_get_id());
+
+	if (refcount_dec(&m->lock_depth)) {
+		/*
+		 * Do an atomic store to match the atomic load in
+		 * __mutex_lock_recursive()
+		 */
+		atomic_store_short(&m->owner, THREAD_ID_INVALID);
+		__mutex_unlock(&m->m, fname, lineno);
+	}
+}
+
 static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 			int lineno __unused)
 {
@@ -88,7 +131,7 @@ static bool __mutex_trylock(struct mutex *m, const char *fname __unused,
 	bool can_lock_write;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
@@ -110,7 +153,7 @@ static void __mutex_read_unlock(struct mutex *m, const char *fname, int lineno)
 	short new_state;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
 
@@ -129,7 +172,7 @@ static void __mutex_read_unlock(struct mutex *m, const char *fname, int lineno)
 static void __mutex_read_lock(struct mutex *m, const char *fname, int lineno)
 {
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	while (true) {
@@ -175,7 +218,7 @@ static bool __mutex_read_trylock(struct mutex *m, const char *fname __unused,
 	bool can_lock;
 
 	assert_have_no_spinlock();
-	assert(thread_get_id_may_fail() != -1);
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
 	assert(thread_is_in_normal_mode());
 
 	old_itr_status = cpu_spin_lock_xsave(&m->spin_lock);
@@ -219,15 +262,37 @@ bool mutex_read_trylock_debug(struct mutex *m, const char *fname, int lineno)
 {
 	return __mutex_read_trylock(m, fname, lineno);
 }
+
+void mutex_unlock_recursive_debug(struct recursive_mutex *m, const char *fname,
+				  int lineno)
+{
+	__mutex_unlock_recursive(m, fname, lineno);
+}
+
+void mutex_lock_recursive_debug(struct recursive_mutex *m, const char *fname,
+				int lineno)
+{
+	__mutex_lock_recursive(m, fname, lineno);
+}
 #else
 void mutex_unlock(struct mutex *m)
 {
 	__mutex_unlock(m, NULL, -1);
 }
 
+void mutex_unlock_recursive(struct recursive_mutex *m)
+{
+	__mutex_unlock_recursive(m, NULL, -1);
+}
+
 void mutex_lock(struct mutex *m)
 {
 	__mutex_lock(m, NULL, -1);
+}
+
+void mutex_lock_recursive(struct recursive_mutex *m)
+{
+	__mutex_lock_recursive(m, NULL, -1);
 }
 
 bool mutex_trylock(struct mutex *m)
@@ -262,6 +327,19 @@ void mutex_destroy(struct mutex *m)
 	if (!wq_is_empty(&m->wq))
 		panic("waitqueue not empty");
 	mutex_destroy_check(m);
+}
+
+void mutex_destroy_recursive(struct recursive_mutex *m)
+{
+	mutex_destroy(&m->m);
+}
+
+unsigned int mutex_get_recursive_lock_depth(struct recursive_mutex *m)
+{
+	assert_have_no_spinlock();
+	assert(m->owner == thread_get_id());
+
+	return refcount_val(&m->lock_depth);
 }
 
 void condvar_init(struct condvar *cv)

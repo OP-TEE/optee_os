@@ -25,7 +25,7 @@
 #define MBEDTLS_CAMELLIA_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
@@ -33,7 +33,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "platform_util.h"
+#include "mbedtls/platform_util.h"
 
 #define MBEDTLS_CAMELLIA_ENCRYPT     1
 #define MBEDTLS_CAMELLIA_DECRYPT     0
@@ -308,12 +308,16 @@ int mbedtls_camellia_crypt_ctr( mbedtls_camellia_context *ctx,
                        unsigned char *output );
 #endif /* MBEDTLS_CIPHER_MODE_CTR */
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          Checkup routine
  *
  * \return         0 if successful, or 1 if the test failed
  */
 int mbedtls_camellia_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

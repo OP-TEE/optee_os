@@ -10,7 +10,6 @@
 #include <kernel/tee_ta_manager.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
-#include <sm/tee_mon.h>
 #include <stdlib.h>
 #include <string.h>
 #include <trace.h>
@@ -75,17 +74,21 @@ static TEE_Result copy_in_param(struct tee_ta_session *s __maybe_unused,
 			mem = &param->u[n].mem;
 			if (!validate_in_param(s, mem->mobj))
 				return TEE_ERROR_BAD_PARAMETERS;
-			va = mobj_get_va(mem->mobj, mem->offs);
-			if (!va && mem->size) {
-				TEE_Result res;
+			if (mem->size) {
+				TEE_Result res = mobj_inc_map(mem->mobj);
 
-				res = mobj_inc_map(mem->mobj);
 				if (res)
 					return res;
 				did_map[n] = true;
 				va = mobj_get_va(mem->mobj, mem->offs);
 				if (!va)
 					return TEE_ERROR_BAD_PARAMETERS;
+				if (mem->size &&
+				    !mobj_get_va(mem->mobj,
+						 mem->offs + mem->size - 1))
+					return TEE_ERROR_BAD_PARAMETERS;
+			} else {
+				va = NULL;
 			}
 
 			tee_param[n].memref.buffer = va;

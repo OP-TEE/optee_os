@@ -37,46 +37,79 @@ def round_up(n, m):
 
 def emit_load_segments(elffile, outf):
     load_size = 0
+    code_size = 0
     data_size = 0
-    next_rwseg_va = 0
+    load_segments = [s for s in elffile.iter_segments()
+                     if s['p_type'] == 'PT_LOAD']
+    prev_segment = None
+    pad = 0
+    pad_size = []
+    w_found = False
     n = 0
-    for segment in elffile.iter_segments():
-        if segment['p_type'] == 'PT_LOAD':
-            if n == 0:
-                if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_X):
-                    print('Expected first load segment to be read/execute')
-                    sys.exit(1)
-                code_size = segment['p_filesz']
-            else:
-                if segment['p_flags'] != (P_FLAGS.PF_R | P_FLAGS.PF_W):
-                    print('Expected load segment to be read/write')
-                    sys.exit(1)
-                if next_rwseg_va and segment['p_vaddr'] != next_rwseg_va:
-                    print('Expected contiguous read/write segments')
-                    print(segment['p_vaddr'])
-                    print(next_rwseg_va)
-                    sys.exit(1)
-                data_size += segment['p_filesz']
-                next_rwseg_va = segment['p_vaddr'] + segment['p_filesz']
-            load_size += segment['p_filesz']
-            n = n + 1
-
+    # Check that load segments ordered by VA have the expected layout:
+    # read only first, then read-write. Compute padding at end of each segment,
+    # 0 if none is required.
+    for segment in load_segments:
+        if prev_segment:
+            pad = segment['p_vaddr'] - (prev_segment['p_vaddr'] +
+                                        prev_segment['p_filesz'])
+        else:
+            if segment['p_flags'] & P_FLAGS.PF_W:
+                print('Expected RO load segment(s) first')
+                sys.exit(1)
+        if segment['p_flags'] & P_FLAGS.PF_W:
+            if not w_found:
+                # End of RO segments, discard padding for the last one (it
+                # would just take up space in the generated C file)
+                pad = 0
+                w_found = True
+        else:
+            if w_found:
+                print('RO load segment found after RW one(s) (m={})'.format(n))
+                sys.exit(1)
+        if prev_segment:
+            if pad > 31:
+                # We expect segments to be tightly packed together for memory
+                # efficiency. 31 is an arbitrary, "sounds reasonable" value
+                # which might need to be adjusted -- who knows what the
+                # compiler/linker can do.
+                print('Warning: suspiciously large padding ({}) after load '
+                      'segment {}, please check'.format(pad, n-1))
+            pad_size.append(pad)
+        prev_segment = segment
+        n = n + 1
+    pad_size.append(0)
+    n = 0
+    # Compute code_size, data_size and load_size
+    for segment in load_segments:
+        sz = segment['p_filesz'] + pad_size[n]
+        if segment['p_flags'] & P_FLAGS.PF_W:
+            data_size += sz
+        else:
+            code_size += sz
+        load_size += sz
+        n = n + 1
+    n = 0
+    i = 0
+    # Output data to C file
     outf.write(b'const uint8_t ldelf_data[%d]' % round_up(load_size, 4096))
     outf.write(b' __aligned(4096) = {\n')
-    i = 0
-    for segment in elffile.iter_segments():
-        if segment['p_type'] == 'PT_LOAD':
-            data = segment.data()
-            for n in range(segment['p_filesz']):
-                if i % 8 == 0:
-                    outf.write(b'\t')
-                outf.write(b'0x' + '{:02x}'.format(data[n]).encode('utf-8')
-                           + b',')
-                i = i + 1
-                if i % 8 == 0 or i == load_size:
-                    outf.write(b'\n')
-                else:
-                    outf.write(b' ')
+    for segment in load_segments:
+        data = segment.data()
+        if pad_size[n]:
+            # Pad with zeros if needed
+            data += bytearray(pad_size[n])
+        for j in range(len(data)):
+            if i % 8 == 0:
+                outf.write(b'\t')
+            outf.write(b'0x' + '{:02x}'.format(data[j]).encode('utf-8')
+                       + b',')
+            i = i + 1
+            if i % 8 == 0 or i == load_size:
+                outf.write(b'\n')
+            else:
+                outf.write(b' ')
+        n = n + 1
     outf.write(b'};\n')
 
     outf.write(b'const unsigned int ldelf_code_size = %d;\n' % code_size)

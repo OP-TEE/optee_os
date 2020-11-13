@@ -30,7 +30,7 @@
 #define MBEDTLS_DES_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
-#include "config.h"
+#include "mbedtls/config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
 #endif
@@ -338,12 +338,16 @@ int mbedtls_des3_crypt_cbc( mbedtls_des3_context *ctx,
 void mbedtls_des_setkey( uint32_t SK[32],
                          const unsigned char key[MBEDTLS_DES_KEY_SIZE] );
 
+#if defined(MBEDTLS_SELF_TEST)
+
 /**
  * \brief          Checkup routine
  *
  * \return         0 if successful, or 1 if the test failed
  */
 int mbedtls_des_self_test( int verbose );
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #ifdef __cplusplus
 }

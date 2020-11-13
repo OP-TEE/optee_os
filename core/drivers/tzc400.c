@@ -99,10 +99,20 @@ static void tzc_write_action(vaddr_t base, enum tzc_action action)
 	io_write32(base + ACTION_OFF, action);
 }
 
+static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_base_low(vaddr_t base, uint32_t region,
 				      uint32_t val)
 {
 	io_write32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
@@ -111,10 +121,20 @@ static void tzc_write_region_base_high(vaddr_t base, uint32_t region,
 	io_write32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region), val);
 }
 
+static uint32_t tzc_read_region_top_low(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_top_low(vaddr_t base, uint32_t region,
 				     uint32_t val)
 {
 	io_write32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_top_high(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_top_high(vaddr_t base, uint32_t region,
@@ -123,10 +143,20 @@ static void tzc_write_region_top_high(vaddr_t base, uint32_t region,
 	io_write32(base + REGION_TOP_HIGH_OFF +	REGION_NUM_OFF(region), val);
 }
 
+static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
+}
+
 static void tzc_write_region_attributes(vaddr_t base, uint32_t region,
 					uint32_t val)
 {
 	io_write32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region), val);
+}
+
+static uint32_t tzc_read_region_id_access(vaddr_t base, uint32_t region)
+{
+	return io_read32(base + REGION_ID_ACCESS_OFF + REGION_NUM_OFF(region));
 }
 
 static void tzc_write_region_id_access(vaddr_t base, uint32_t region,
@@ -232,17 +262,12 @@ static uint32_t addr_high(vaddr_t addr __unused)
  * this cannot be changed. It is, however, possible to change some region 0
  * permissions.
  */
-void tzc_configure_region(uint32_t filters,
-			  uint8_t  region,
-			  vaddr_t  region_base,
-			  vaddr_t  region_top,
-			  enum tzc_region_attributes sec_attr,
-			  uint32_t ns_device_access)
+void tzc_configure_region(uint8_t region, const struct tzc_region_config *cfg)
 {
-	assert(tzc.base);
+	assert(tzc.base && cfg);
 
 	/* Do range checks on filters and regions. */
-	assert(((filters >> tzc.num_filters) == 0) &&
+	assert(((cfg->filters >> tzc.num_filters) == 0) &&
 	       (region < tzc.num_regions));
 
 	/*
@@ -250,40 +275,57 @@ void tzc_configure_region(uint32_t filters,
 	 * the max and expected case.
 	 */
 #if (UINTPTR_MAX == UINT64_MAX)
-	assert(((region_top <= (UINT64_MAX >> (64 - tzc.addr_width))) &&
-		(region_base < region_top)));
+	assert(((cfg->top <= (UINT64_MAX >> (64 - tzc.addr_width))) &&
+		(cfg->base < cfg->top)));
 #endif
 	/* region_base and (region_top + 1) must be 4KB aligned */
-	assert(((region_base | (region_top + 1)) & (4096 - 1)) == 0);
+	assert(((cfg->base | (cfg->top + 1)) & (4096 - 1)) == 0);
 
-	assert(sec_attr <= TZC_REGION_S_RDWR);
+	assert(cfg->sec_attr <= TZC_REGION_S_RDWR);
 
 	/*
 	 * Inputs look ok, start programming registers.
 	 * All the address registers are 32 bits wide and have a LOW and HIGH
 	 * component used to construct a up to a 64bit address.
 	 */
-	tzc_write_region_base_low(tzc.base, region,
-				  addr_low(region_base));
-	tzc_write_region_base_high(tzc.base, region,
-				   addr_high(region_base));
+	tzc_write_region_base_low(tzc.base, region, addr_low(cfg->base));
+	tzc_write_region_base_high(tzc.base, region, addr_high(cfg->base));
 
-	tzc_write_region_top_low(tzc.base, region,
-				addr_low(region_top));
-	tzc_write_region_top_high(tzc.base, region,
-				addr_high(region_top));
+	tzc_write_region_top_low(tzc.base, region, addr_low(cfg->top));
+	tzc_write_region_top_high(tzc.base, region, addr_high(cfg->top));
 
 	/* Assign the region to a filter and set secure attributes */
 	tzc_write_region_attributes(tzc.base, region,
-		(sec_attr << REG_ATTR_SEC_SHIFT) | filters);
+				    (cfg->sec_attr << REG_ATTR_SEC_SHIFT) |
+				    cfg->filters);
 
 	/*
 	 * Specify which non-secure devices have permission to access this
 	 * region.
 	 */
-	tzc_write_region_id_access(tzc.base, region, ns_device_access);
+	tzc_write_region_id_access(tzc.base, region, cfg->ns_device_access);
 }
 
+TEE_Result tzc_get_region_config(uint8_t region, struct tzc_region_config *cfg)
+{
+	uint32_t val32 = 0;
+
+	if (region >= tzc.num_regions)
+		return TEE_ERROR_GENERIC;
+
+	cfg->base = reg_pair_to_64(tzc_read_region_base_high(tzc.base, region),
+				   tzc_read_region_base_low(tzc.base, region));
+	cfg->top = reg_pair_to_64(tzc_read_region_top_high(tzc.base, region),
+				  tzc_read_region_top_low(tzc.base, region));
+
+	cfg->ns_device_access = tzc_read_region_id_access(tzc.base, region);
+
+	val32 = tzc_read_region_attributes(tzc.base, region);
+	cfg->sec_attr = val32 >> REG_ATTR_SEC_SHIFT;
+	cfg->filters = val32 & REG_ATTR_F_EN_MASK;
+
+	return TEE_SUCCESS;
+}
 
 void tzc_set_action(enum tzc_action action)
 {
@@ -340,32 +382,74 @@ void tzc_disable_filters(void)
 		tzc_set_gate_keeper(tzc.base, filter, 0);
 }
 
+static bool __maybe_unused write_not_read(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_DIRECTION_WRITE;
+}
+
+static bool __maybe_unused nonsecure_not_secure(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_NONSECURE;
+}
+
+static bool __maybe_unused priv_not_unpriv(unsigned int filter)
+{
+	return io_read32(tzc.base + FAIL_CONTROL(filter)) &
+	       FAIL_CONTROL_PRIVILEGED;
+}
+
+static void dump_fail_filter(unsigned int filter)
+{
+	uint64_t __maybe_unused addr = 0;
+	uint32_t status = io_read32(tzc.base + INT_STATUS);
+
+	if (!(status & BIT(filter + INT_STATUS_OVERLAP_SHIFT)) &&
+	    !(status & BIT(filter + INT_STATUS_OVERRUN_SHIFT)) &&
+	    !(status & BIT(filter + INT_STATUS_STATUS_SHIFT)))
+		return;
+
+	if (status & BIT(filter + INT_STATUS_OVERLAP_SHIFT))
+		EMSG("Overlap violation on filter %u", filter);
+
+	if (status & BIT(filter + INT_STATUS_OVERRUN_SHIFT))
+		EMSG("Overrun violation on filter %u", filter);
+
+	if (status & BIT(filter + INT_STATUS_STATUS_SHIFT))
+		EMSG("Permission violation on filter %u", filter);
+
+	addr = reg_pair_to_64(io_read32(tzc.base + FAIL_ADDRESS_HIGH(filter)),
+			      io_read32(tzc.base + FAIL_ADDRESS_LOW(filter)));
+
+	EMSG("Violation @0x%"PRIx64", %ssecure %sprivileged %s, AXI ID %"PRIx32,
+	     addr,
+	     nonsecure_not_secure(filter) ? "non-" : "",
+	     priv_not_unpriv(filter) ? "" : "un",
+	     write_not_read(filter) ? "write" : "read",
+	     io_read32(tzc.base + FAIL_ID(filter)));
+}
+
+/*
+ * Dump info when TZC400 catches an unallowed access with TZC
+ * interrupt enabled.
+ */
+void tzc_fail_dump(void)
+{
+	unsigned int filter = 0;
+
+	for (filter = 0; filter < tzc.num_filters; filter++)
+		dump_fail_filter(filter);
+}
+
+void tzc_int_clear(void)
+{
+	assert(tzc.base);
+
+	io_setbits32(tzc.base + INT_CLEAR, GENMASK_32(tzc.num_filters - 1, 0));
+}
+
 #if TRACE_LEVEL >= TRACE_DEBUG
-
-static uint32_t tzc_read_region_attributes(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_ATTRIBUTES_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_base_low(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_BASE_LOW_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_base_high(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_BASE_HIGH_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_top_low(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_TOP_LOW_OFF + REGION_NUM_OFF(region));
-}
-
-static uint32_t tzc_read_region_top_high(vaddr_t base, uint32_t region)
-{
-	return io_read32(base + REGION_TOP_HIGH_OFF + REGION_NUM_OFF(region));
-}
 
 #define	REGION_MAX		8
 static const __maybe_unused char * const tzc_attr_msg[] = {
@@ -379,14 +463,13 @@ void tzc_dump_state(void)
 {
 	uint32_t n;
 	uint32_t temp_32reg, temp_32reg_h;
+	unsigned int filter = 0;
 
-	DMSG("enter");
 	for (n = 0; n <= REGION_MAX; n++) {
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		if (!(temp_32reg & REG_ATTR_F_EN_MASK))
 			continue;
 
-		DMSG("\n");
 		DMSG("region %d", n);
 		temp_32reg = tzc_read_region_base_low(tzc.base, n);
 		temp_32reg_h = tzc_read_region_base_high(tzc.base, n);
@@ -397,16 +480,11 @@ void tzc_dump_state(void)
 		temp_32reg = tzc_read_region_attributes(tzc.base, n);
 		DMSG("secure rw: %s",
 		     tzc_attr_msg[temp_32reg >> REG_ATTR_SEC_SHIFT]);
-		if (temp_32reg & (1 << 0))
-			DMSG("filter 0 enable");
-		if (temp_32reg & (1 << 1))
-			DMSG("filter 1 enable");
-		if (temp_32reg & (1 << 2))
-			DMSG("filter 2 enable");
-		if (temp_32reg & (1 << 3))
-			DMSG("filter 3 enable");
+
+		for (filter = 0; filter < tzc.num_filters; filter++)
+			if (temp_32reg & BIT(filter))
+				DMSG("filter %u enable", filter);
 	}
-	DMSG("exit");
 }
 
 #endif /* CFG_TRACE_LEVEL >= TRACE_DEBUG */

@@ -5,6 +5,7 @@
 #ifndef ARM64_H
 #define ARM64_H
 
+#include <compiler.h>
 #include <sys/cdefs.h>
 #include <stdint.h>
 #include <util.h>
@@ -15,6 +16,7 @@
 #define SCTLR_SA	BIT32(3)
 #define SCTLR_I		BIT32(12)
 #define SCTLR_WXN	BIT32(19)
+#define SCTLR_SPAN	BIT32(23)
 
 #define TTBR_ASID_MASK		0xff
 #define TTBR_ASID_SHIFT		48
@@ -195,42 +197,42 @@
 #define TLBI_ASID_MASK		0xff
 
 #ifndef __ASSEMBLER__
-static inline void isb(void)
+static inline __noprof void isb(void)
 {
 	asm volatile ("isb");
 }
 
-static inline void dsb(void)
+static inline __noprof void dsb(void)
 {
 	asm volatile ("dsb sy");
 }
 
-static inline void dsb_ish(void)
+static inline __noprof void dsb_ish(void)
 {
 	asm volatile ("dsb ish");
 }
 
-static inline void dsb_ishst(void)
+static inline __noprof void dsb_ishst(void)
 {
 	asm volatile ("dsb ishst");
 }
 
-static inline void sev(void)
+static inline __noprof void sev(void)
 {
 	asm volatile ("sev");
 }
 
-static inline void wfe(void)
+static inline __noprof void wfe(void)
 {
 	asm volatile ("wfe");
 }
 
-static inline void write_at_s1e1r(uint64_t va)
+static inline __noprof void write_at_s1e1r(uint64_t va)
 {
 	asm volatile ("at	S1E1R, %0" : : "r" (va));
 }
 
-static __always_inline uint64_t read_pc(void)
+static __always_inline __noprof uint64_t read_pc(void)
 {
 	uint64_t val;
 
@@ -238,7 +240,7 @@ static __always_inline uint64_t read_pc(void)
 	return val;
 }
 
-static __always_inline uint64_t read_fp(void)
+static __always_inline __noprof uint64_t read_fp(void)
 {
 	uint64_t val;
 
@@ -246,7 +248,7 @@ static __always_inline uint64_t read_fp(void)
 	return val;
 }
 
-static inline uint64_t read_pmu_ccnt(void)
+static inline __noprof uint64_t read_pmu_ccnt(void)
 {
 	uint64_t val;
 
@@ -254,12 +256,12 @@ static inline uint64_t read_pmu_ccnt(void)
 	return val;
 }
 
-static inline void tlbi_vaae1is(uint64_t mva)
+static inline __noprof void tlbi_vaae1is(uint64_t mva)
 {
 	asm volatile ("tlbi	vaae1is, %0" : : "r" (mva));
 }
 
-static inline void tlbi_vale1is(uint64_t mva)
+static inline __noprof void tlbi_vale1is(uint64_t mva)
 {
 	asm volatile ("tlbi	vale1is, %0" : : "r" (mva));
 }
@@ -269,7 +271,7 @@ static inline void tlbi_vale1is(uint64_t mva)
  */
 
 #define DEFINE_REG_READ_FUNC_(reg, type, asmreg)		\
-static inline type read_##reg(void)				\
+static inline __noprof type read_##reg(void)			\
 {								\
 	uint64_t val64 = 0;					\
 								\
@@ -278,7 +280,7 @@ static inline type read_##reg(void)				\
 }
 
 #define DEFINE_REG_WRITE_FUNC_(reg, type, asmreg)		\
-static inline void write_##reg(type val)			\
+static inline __noprof void write_##reg(type val)		\
 {								\
 	uint64_t val64 = val;					\
 								\
@@ -337,6 +339,8 @@ DEFINE_U64_REG_READWRITE_FUNCS(tcr_el1)
 DEFINE_U64_REG_READ_FUNC(esr_el1)
 DEFINE_U64_REG_READ_FUNC(far_el1)
 DEFINE_U64_REG_READ_FUNC(mpidr_el1)
+/* Alias for reading this register to avoid ifdefs in code */
+#define read_mpidr() read_mpidr_el1()
 DEFINE_U64_REG_READ_FUNC(midr_el1)
 /* Alias for reading this register to avoid ifdefs in code */
 #define read_midr() read_midr_el1()

@@ -10,6 +10,7 @@
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/tpm.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
 #include <ldelf.h>
@@ -17,12 +18,12 @@
 #include <mm/fobj.h>
 #include <mm/tee_mmu.h>
 #include <pta_system.h>
+#include <stdlib_ext.h>
+#include <stdlib.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <util.h>
-
-#define MAX_ENTROPY_IN			32u
 
 struct bin_handle {
 	const struct user_ta_store_ops *op;
@@ -55,11 +56,8 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 	entropy_input = params[0].memref.buffer;
 	entropy_sz = params[0].memref.size;
 
-	/* Fortuna PRNG requires seed <= 32 bytes */
-	if (!entropy_sz)
+	if (!entropy_sz || !entropy_input)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	entropy_sz = MIN(entropy_sz, MAX_ENTROPY_IN);
 
 	crypto_rng_add_event(CRYPTO_RNG_SRC_NONSECURE, &system_pnum,
 			     entropy_input, entropy_sz);
@@ -123,7 +121,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	res = huk_subkey_derive(HUK_SUBKEY_UNIQUE_TA, data, data_len,
 				params[1].memref.buffer,
 				params[1].memref.size);
-	free(data);
+	free_wipe(data);
 
 	return res;
 }
@@ -159,8 +157,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	pad_begin = params[2].value.a;
 	pad_end = params[2].value.b;
 
-	f = fobj_ta_mem_alloc(ROUNDUP(num_bytes, SMALL_PAGE_SIZE) /
-			      SMALL_PAGE_SIZE);
+	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	mobj = mobj_with_fobj_alloc(f, NULL);
@@ -168,7 +165,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	res = vm_map_pad(&utc->uctx, &va, num_bytes, prot, vm_flags,
-			 mobj, 0, pad_begin, pad_end);
+			 mobj, 0, pad_begin, pad_end, 0);
 	mobj_put(mobj);
 	if (!res)
 		reg_pair_from_64(va, &params[1].value.a, &params[1].value.b);
@@ -186,6 +183,7 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t vm_flags = 0;
+	vaddr_t end_va = 0;
 	vaddr_t va = 0;
 	size_t sz = 0;
 
@@ -197,6 +195,15 @@ static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
 
 	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
+
+	/*
+	 * The vm_get_flags() and vm_unmap() are supposed to detect or
+	 * handle overflow directly or indirectly. However, this function
+	 * an API function so an extra guard here is in order. If nothing
+	 * else to make it easier to review the code.
+	 */
+	if (ADD_OVERFLOW(va, sz, &end_va))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
 	if (res)
@@ -271,6 +278,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 	h = handle_get(&ctx->db, binh);
 	if (h < 0)
 		goto err_oom;
+	params[0].value.a = h;
 
 	return TEE_SUCCESS;
 err_oom:
@@ -313,10 +321,14 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 			       size_t offs_bytes, size_t num_bytes)
 {
 	TEE_Result res = TEE_SUCCESS;
-	size_t l =  num_bytes;
+	size_t next_offs = 0;
 
 	if (offs_bytes < binh->offs_bytes)
 		return TEE_ERROR_BAD_STATE;
+
+	if (ADD_OVERFLOW(offs_bytes, num_bytes, &next_offs))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	if (offs_bytes > binh->offs_bytes) {
 		res = binh->op->read(binh->h, NULL,
 				     offs_bytes - binh->offs_bytes);
@@ -325,19 +337,19 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 		binh->offs_bytes = offs_bytes;
 	}
 
-	if (binh->offs_bytes + l > binh->size_bytes) {
+	if (next_offs > binh->size_bytes) {
 		size_t rb = binh->size_bytes - binh->offs_bytes;
 
 		res = binh->op->read(binh->h, (void *)va, rb);
 		if (res)
 			return res;
-		memset((uint8_t *)va + rb, 0, l - rb);
+		memset((uint8_t *)va + rb, 0, num_bytes - rb);
 		binh->offs_bytes = binh->size_bytes;
 	} else {
-		res = binh->op->read(binh->h, (void *)va, l);
+		res = binh->op->read(binh->h, (void *)va, num_bytes);
 		if (res)
 			return res;
-		binh->offs_bytes += l;
+		binh->offs_bytes = next_offs;
 	}
 
 	return TEE_SUCCESS;
@@ -357,6 +369,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
 	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	struct bin_handle *binh = NULL;
+	uint32_t num_rounded_bytes = 0;
 	TEE_Result res = TEE_SUCCESS;
 	struct file_slice *fs = NULL;
 	bool file_is_locked = false;
@@ -405,7 +418,9 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		prot |= TEE_MATTR_UX;
 
 	offs_pages = offs_bytes >> SMALL_PAGE_SHIFT;
-	num_pages = ROUNDUP(num_bytes, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
+	if (ROUNDUP_OVERFLOW(num_bytes, SMALL_PAGE_SIZE, &num_rounded_bytes))
+		return TEE_ERROR_BAD_PARAMETERS;
+	num_pages = num_rounded_bytes / SMALL_PAGE_SIZE;
 
 	if (!file_trylock(binh->f)) {
 		/*
@@ -439,9 +454,9 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 prot, VM_FLAG_READONLY,
-				 mobj, 0, pad_begin, pad_end);
+				 mobj, 0, pad_begin, pad_end, 0);
 		mobj_put(mobj);
 		if (res)
 			goto err;
@@ -465,16 +480,16 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
-				 pad_begin, pad_end);
+				 pad_begin, pad_end, 0);
 		mobj_put(mobj);
 		if (res)
 			goto err;
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE,
+		res = vm_set_prot(&utc->uctx, va, num_rounded_bytes,
 				  prot);
 		if (res)
 			goto err_unmap_va;
@@ -498,7 +513,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (vm_unmap(&utc->uctx, va, num_pages * SMALL_PAGE_SIZE))
+	if (vm_unmap(&utc->uctx, va, num_rounded_bytes))
 		panic();
 
 	/*
@@ -550,6 +565,7 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t vm_flags = 0;
 	uint32_t flags = 0;
+	vaddr_t end_va = 0;
 	vaddr_t va = 0;
 	size_t sz = 0;
 
@@ -565,8 +581,17 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	if (flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
 
-	va = reg_pair_to_64(params[1].value.a, params[1].value.b),
+	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
 	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
+
+	/*
+	 * The vm_get_flags() and vm_set_prot() are supposed to detect or
+	 * handle overflow directly or indirectly. However, this function
+	 * an API function so an extra guard here is in order. If nothing
+	 * else to make it easier to review the code.
+	 */
+	if (ADD_OVERFLOW(va, sz, &end_va))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
 	if (res)
@@ -795,6 +820,26 @@ static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
 	return res;
 }
 
+static TEE_Result system_get_tpm_event_log(uint32_t param_types,
+					   TEE_Param params[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+	size_t size = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (exp_pt != param_types)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	size = params[0].memref.size;
+	res = tpm_get_event_log(params[0].memref.buffer, &size);
+	params[0].memref.size = size;
+
+	return res;
+}
+
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
@@ -858,6 +903,8 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 		return system_dlopen(s, param_types, params);
 	case PTA_SYSTEM_DLSYM:
 		return system_dlsym(s, param_types, params);
+	case PTA_SYSTEM_GET_TPM_EVENT_LOG:
+		return system_get_tpm_event_log(param_types, params);
 	default:
 		break;
 	}

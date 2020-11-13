@@ -7,6 +7,7 @@
 
 #include <compiler.h>
 #include <tee_api_defines.h>
+#include <tee_api_defines_extensions.h>
 #include <types_ext.h>
 
 /*
@@ -56,6 +57,8 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 		return TEE_OPERATION_ASYMMETRIC_CIPHER;
 	if (algo == TEE_ALG_SM2_KEP)
 		return TEE_OPERATION_KEY_DERIVATION;
+	if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
+		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }
@@ -164,6 +167,50 @@ typedef enum {
 #define TEE_MAC_SIZE_AES_CBC_MAC_PKCS5
 #define TEE_MAC_SIZE_AES_CMAC
 #define TEE_MAC_SIZE_DES_CBC_MAC_PKCS5
+
+static inline size_t __tee_alg_get_digest_size(uint32_t algo)
+{
+	switch (algo) {
+	case TEE_ALG_MD5:
+	case TEE_ALG_HMAC_MD5:
+		return TEE_MD5_HASH_SIZE;
+	case TEE_ALG_SHA1:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_DSA_SHA1:
+		return TEE_SHA1_HASH_SIZE;
+	case TEE_ALG_SHA224:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_DSA_SHA224:
+		return TEE_SHA224_HASH_SIZE;
+	case TEE_ALG_SHA256:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_DSA_SHA256:
+		return TEE_SHA256_HASH_SIZE;
+	case TEE_ALG_SHA384:
+	case TEE_ALG_HMAC_SHA384:
+		return TEE_SHA384_HASH_SIZE;
+	case TEE_ALG_SHA512:
+	case TEE_ALG_HMAC_SHA512:
+		return TEE_SHA512_HASH_SIZE;
+	case TEE_ALG_SM3:
+	case TEE_ALG_HMAC_SM3:
+		return TEE_SM3_HASH_SIZE;
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_AES_CMAC:
+		return TEE_AES_BLOCK_SIZE;
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		return TEE_DES_BLOCK_SIZE;
+	default:
+		return 0;
+	}
+}
+
+	/* Return algorithm digest size */
+#define TEE_ALG_GET_DIGEST_SIZE(algo) __tee_alg_get_digest_size(algo)
 
 /*
  * Bit indicating that the attribute is a value attribute

@@ -95,6 +95,7 @@
 #define CSU_CSL_END			0xA0
 #define	CSU_ACCESS_ALL			0x00FF00FF
 #define CSU_SETTING_LOCK		0x01000100
+#define CSU_SA				0x218
 
 /* Used in suspend/resume and low power idle */
 #define MX6Q_SRC_GPR1			0x20

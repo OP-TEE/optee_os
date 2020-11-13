@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
 #include <mm/tee_mmu.h>
@@ -1724,9 +1725,15 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 
 static TEE_Result tee_svc_obj_generate_key_dsa(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
+
+	/* Copy the present attributes into the obj before starting */
+	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
+					     param_count);
+	if (res != TEE_SUCCESS)
+		return res;
 
 	res = crypto_acipher_gen_dsa_key(o->attr, key_size);
 	if (res != TEE_SUCCESS)
@@ -1740,8 +1747,7 @@ static TEE_Result tee_svc_obj_generate_key_dsa(
 
 static TEE_Result tee_svc_obj_generate_key_dh(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size __unused,
-	const TEE_Attribute *params, uint32_t param_count)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct dh_keypair *tee_dh_key;
@@ -1760,7 +1766,7 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 		dh_q = tee_dh_key->q;
 	if (get_attribute(o, type_props, TEE_ATTR_DH_X_BITS))
 		dh_xbits = tee_dh_key->xbits;
-	res = crypto_acipher_gen_dh_key(tee_dh_key, dh_q, dh_xbits);
+	res = crypto_acipher_gen_dh_key(tee_dh_key, dh_q, dh_xbits, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1773,8 +1779,7 @@ static TEE_Result tee_svc_obj_generate_key_dh(
 
 static TEE_Result tee_svc_obj_generate_key_ecc(
 	struct tee_obj *o, const struct tee_cryp_obj_type_props *type_props,
-	uint32_t key_size __unused,
-	const TEE_Attribute *params, uint32_t param_count)
+	uint32_t key_size, const TEE_Attribute *params, uint32_t param_count)
 {
 	TEE_Result res;
 	struct ecc_keypair *tee_ecc_key;
@@ -1787,7 +1792,7 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 
 	tee_ecc_key = (struct ecc_keypair *)o->attr;
 
-	res = crypto_acipher_gen_ecc_key(tee_ecc_key);
+	res = crypto_acipher_gen_ecc_key(tee_ecc_key, key_size);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -1908,7 +1913,8 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 		break;
 
 	case TEE_TYPE_DSA_KEYPAIR:
-		res = tee_svc_obj_generate_key_dsa(o, type_props, key_size);
+		res = tee_svc_obj_generate_key_dsa(o, type_props, key_size,
+						   params, param_count);
 		if (res != TEE_SUCCESS)
 			goto out;
 		break;
@@ -2142,13 +2148,6 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	cs->state = CRYP_STATE_UNINITIALIZED;
 
 	switch (TEE_ALG_GET_CLASS(algo)) {
-	case TEE_OPERATION_EXTENSION:
-#ifdef CFG_CRYPTO_RSASSA_NA1
-		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
-			goto rsassa_na1;
-#endif
-		res = TEE_ERROR_NOT_SUPPORTED;
-		break;
 	case TEE_OPERATION_CIPHER:
 		if ((algo == TEE_ALG_AES_XTS && (key1 == 0 || key2 == 0)) ||
 		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
@@ -2188,7 +2187,11 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 		break;
 	case TEE_OPERATION_ASYMMETRIC_CIPHER:
 	case TEE_OPERATION_ASYMMETRIC_SIGNATURE:
-rsassa_na1: __maybe_unused
+		if (algo == TEE_ALG_RSASSA_PKCS1_V1_5 &&
+		    !IS_ENABLED(CFG_CRYPTO_RSASSA_NA1)) {
+			res = TEE_ERROR_NOT_SUPPORTED;
+			break;
+		}
 		if (key1 == 0 || key2 != 0)
 			res = TEE_ERROR_BAD_PARAMETERS;
 		break;
@@ -2444,7 +2447,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
-		res = tee_hash_get_digest_size(cs->algo, &hash_size);
+		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (hlen < hash_size) {
@@ -2464,7 +2467,7 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		break;
 
 	case TEE_OPERATION_MAC:
-		res = tee_mac_get_digest_size(cs->algo, &hash_size);
+		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
 		if (hlen < hash_size) {
@@ -3776,7 +3779,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	case TEE_MAIN_ALGO_RSA:
 		if (cs->algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 			hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-			res = tee_hash_get_digest_size(hash_algo, &hash_size);
+			res = tee_alg_get_digest_size(hash_algo, &hash_size);
 			if (res != TEE_SUCCESS)
 				break;
 			if (data_len != hash_size) {
@@ -3793,7 +3796,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 
 	case TEE_MAIN_ALGO_DSA:
 		hash_algo = TEE_DIGEST_HASH_TO_ALGO(cs->algo);
-		res = tee_hash_get_digest_size(hash_algo, &hash_size);
+		res = tee_alg_get_digest_size(hash_algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			break;
 		/*

@@ -106,7 +106,8 @@ class Symbolizer(object):
     def my_Popen(self, cmd):
         try:
             return subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE, text=True,
+                                    stdout=subprocess.PIPE,
+                                    universal_newlines=True,
                                     bufsize=1)
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -124,17 +125,11 @@ class Symbolizer(object):
             if elf:
                 return elf[0]
 
-    def set_arch(self):
-        if self._arch:
-            return
+    def set_arch(self, elf):
         self._arch = os.getenv('CROSS_COMPILE')
         if self._arch:
             return
-        elf = self.get_elf(self._elfs[0][0])
-        if elf is None:
-            return
-        p = subprocess.Popen(['file', self.get_elf(self._elfs[0][0])],
-                             stdout=subprocess.PIPE)
+        p = subprocess.Popen(['file', '-L', elf], stdout=subprocess.PIPE)
         output = p.stdout.readlines()
         p.terminate()
         if b'ARM aarch64,' in output[0]:
@@ -142,8 +137,8 @@ class Symbolizer(object):
         elif b'ARM,' in output[0]:
             self._arch = 'arm-linux-gnueabihf-'
 
-    def arch_prefix(self, cmd):
-        self.set_arch()
+    def arch_prefix(self, cmd, elf):
+        self.set_arch(elf)
         if self._arch is None:
             return ''
         return self._arch + cmd
@@ -159,10 +154,11 @@ class Symbolizer(object):
         elf = self.get_elf(elf_name)
         if not elf:
             return
-        cmd = self.arch_prefix('addr2line')
+        cmd = self.arch_prefix('addr2line', elf)
         if not cmd:
             return
         self._addr2line = self.my_Popen([cmd, '-f', '-p', '-e', elf])
+        self._addr2line_elf_name = elf_name
 
     # If addr falls into a region that maps a TA ELF file, return the load
     # address of that file.
@@ -227,7 +223,7 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('nm')
+        cmd = self.arch_prefix('nm', elf)
         if not reladdr or not elf or not cmd:
             return ''
         ireladdr = int(reladdr, 16)
@@ -268,7 +264,7 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('objdump')
+        cmd = self.arch_prefix('objdump', elf)
         if not reladdr or not elf or not cmd:
             return ''
         iaddr = int(reladdr, 16)
@@ -315,7 +311,9 @@ class Symbolizer(object):
         if elf_name in self._sections:
             return
         elf = self.get_elf(elf_name)
-        cmd = self.arch_prefix('objdump')
+        if not elf:
+            return
+        cmd = self.arch_prefix('objdump', elf)
         if not elf or not cmd:
             return
         self._sections[elf_name] = []
@@ -387,7 +385,15 @@ class Symbolizer(object):
                 post = match.end('addr')
                 self._out.write(line[:pre])
                 self._out.write(addr)
-                res = self.resolve(addr)
+                # The call stack contains return addresses (LR/ELR values).
+                # Heuristic: subtract 2 to obtain the call site of the function
+                # or the location of the exception. This value works for A64,
+                # A32 as well as Thumb.
+                pc = 0
+                lr = int(addr, 16)
+                if lr:
+                    pc = lr - 2
+                res = self.resolve('0x{:x}'.format(pc))
                 res = self.pretty_print_path(res)
                 self._out.write(' ' + res)
                 self._out.write(line[post:])

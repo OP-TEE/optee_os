@@ -9,7 +9,8 @@
 #include <config.h>
 #include <drivers/tzc380.h>
 #include <imx-regs.h>
-#include <imx.h>
+#include <initcall.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/generic_ram_layout.h>
 
@@ -22,12 +23,11 @@
 #define TZASC2_BASE			0
 #endif
 
-void imx_configure_tzasc(void)
+static TEE_Result imx_configure_tzasc(void)
 {
-
-	int i = 0;
-	int end = 1;
 	vaddr_t addr[2] = {0};
+	int end = 1;
+	int i = 0;
 
 	addr[0] = core_mmu_get_va(TZASC_BASE, MEM_AREA_IO_SEC);
 
@@ -49,6 +49,10 @@ void imx_configure_tzasc(void)
 			     TZC_ATTR_SP_S_RW, region);
 		region = tzc_auto_configure(CFG_SHMEM_START, CFG_SHMEM_SIZE,
 			     TZC_ATTR_SP_ALL, region);
-		DMSG("Action register: %xl", tzc_get_action());
+		tzc_dump_state();
+		if (tzc_regions_lockdown() != TEE_SUCCESS)
+			panic("Region lockdown failed!");
 	}
+	return TEE_SUCCESS;
 }
+driver_init(imx_configure_tzasc);

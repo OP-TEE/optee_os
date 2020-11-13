@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /*
+ * Copyright (c) 2017-2020, Linaro Limited
+ *
  *  NIST SP800-38D compliant GCM implementation
  *
  *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
@@ -17,13 +19,13 @@
  *  limitations under the License.
  */
 
+#include <crypto/crypto.h>
+#include <crypto/internal_aes-gcm.h>
 #include <io.h>
 #include <kernel/panic.h>
 #include <string.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
-
-#include "aes-gcm-private.h"
 
 /*
  * http://csrc.nist.gov/publications/nistpubs/800-38D/SP-800-38D.pdf
@@ -44,7 +46,7 @@ gcm-revised-spec.pdf
  * is the high-order bit of HH corresponds to P^0 and the low-order bit of HL
  * corresponds to P^127.
  */
-void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_state *state,
+void internal_aes_gcm_ghash_gen_tbl(struct internal_ghash_key *ghash_key,
 				    const struct internal_aes_gcm_key *ek)
 {
 	int i, j;
@@ -52,18 +54,18 @@ void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_state *state,
 	unsigned char h[16];
 
 	memset(h, 0, 16);
-	internal_aes_gcm_encrypt_block(ek, h, h);
+	crypto_aes_enc_block(ek->data, sizeof(ek->data), ek->rounds, h, h);
 
 	vh = get_be64(h);
 	vl = get_be64(h + 8);
 
 	/* 8 = 1000 corresponds to 1 in GF(2^128) */
-	state->HL[8] = vl;
-	state->HH[8] = vh;
+	ghash_key->HL[8] = vl;
+	ghash_key->HH[8] = vh;
 
 	/* 0 corresponds to 0 in GF(2^128) */
-	state->HH[0] = 0;
-	state->HL[0] = 0;
+	ghash_key->HH[0] = 0;
+	ghash_key->HL[0] = 0;
 
 	for (i = 4; i > 0; i >>= 1) {
 		uint32_t T = (vl & 1) * 0xe1000000U;
@@ -71,18 +73,19 @@ void internal_aes_gcm_ghash_gen_tbl(struct internal_aes_gcm_state *state,
 		vl  = (vh << 63) | (vl >> 1);
 		vh  = (vh >> 1) ^ ((uint64_t)T << 32);
 
-		state->HL[i] = vl;
-		state->HH[i] = vh;
+		ghash_key->HL[i] = vl;
+		ghash_key->HH[i] = vh;
 	}
 
 	for (i = 2; i <= 8; i *= 2) {
-		uint64_t *HiL = state->HL + i, *HiH = state->HH + i;
+		uint64_t *HiL = ghash_key->HL + i;
+		uint64_t *HiH = ghash_key->HH + i;
 
 		vh = *HiH;
 		vl = *HiL;
 		for (j = 1; j < i; j++) {
-			HiH[j] = vh ^ state->HH[j];
-			HiL[j] = vl ^ state->HL[j];
+			HiH[j] = vh ^ ghash_key->HH[j];
+			HiL[j] = vl ^ ghash_key->HL[j];
 		}
 	}
 }
@@ -103,17 +106,18 @@ static const uint64_t last4[16] = {
  * Sets output to x times H using the precomputed tables.
  * x and output are seen as elements of GF(2^128) as in [MGV].
  */
-static void gcm_mult(struct internal_aes_gcm_state *state,
-		     const unsigned char x[16], unsigned char output[16])
+void internal_aes_gcm_ghash_mult_tbl(struct internal_ghash_key *ghash_key,
+				     const unsigned char x[16],
+				     unsigned char output[16])
 {
 	int i = 0;
-	unsigned char lo, hi, rem;
-	uint64_t zh, zl;
+	unsigned char lo = 0, hi = 0, rem = 0;
+	uint64_t zh = 0, zl = 0;
 
 	lo = x[15] & 0xf;
 
-	zh = state->HH[lo];
-	zl = state->HL[lo];
+	zh = ghash_key->HH[lo];
+	zl = ghash_key->HL[lo];
 
 	for (i = 15; i >= 0; i--) {
 		lo = x[i] & 0xf;
@@ -124,27 +128,18 @@ static void gcm_mult(struct internal_aes_gcm_state *state,
 			zl = (zh << 60) | (zl >> 4);
 			zh = (zh >> 4);
 			zh ^= (uint64_t)last4[rem] << 48;
-			zh ^= state->HH[lo];
-			zl ^= state->HL[lo];
+			zh ^= ghash_key->HH[lo];
+			zl ^= ghash_key->HL[lo];
 		}
 
 		rem = (unsigned char)zl & 0xf;
 		zl = (zh << 60) | (zl >> 4);
 		zh = (zh >> 4);
 		zh ^= (uint64_t)last4[rem] << 48;
-		zh ^= state->HH[hi];
-		zl ^= state->HL[hi];
+		zh ^= ghash_key->HH[hi];
+		zl ^= ghash_key->HL[hi];
 	}
 
 	put_be64(output, zh);
 	put_be64(output + 8, zl);
-}
-
-void internal_aes_gcm_ghash_update_block(struct internal_aes_gcm_state *state,
-					 const void *data)
-{
-	void *y = state->hash_state;
-
-	internal_aes_gcm_xor_block(y, data);
-	gcm_mult(state, y, y);
 }

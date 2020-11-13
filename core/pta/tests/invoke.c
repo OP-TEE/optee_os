@@ -71,6 +71,26 @@ static int test_v2p2v(void *va)
 }
 
 /*
+ * Check PTA can be invoked with a memory reference on a NULL buffer
+ */
+static TEE_Result test_entry_memref_null(uint32_t type,
+					 TEE_Param p[TEE_NUM_PARAMS])
+{
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE,
+					  TEE_PARAM_TYPE_NONE);
+
+	if (exp_pt != type)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (p[0].memref.buffer || p[0].memref.size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
+/*
  * Supported tests on parameters
  * (I, J, K, L refer to param index)
  *
@@ -394,6 +414,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return test_trace(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_PARAMS:
 		return test_entry_params(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_MEMREF_NULL:
+		return test_entry_memref_null(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_COPY_NSEC_TO_SEC:
 		return test_inject_sdp(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_READ_MODIFY_SEC:
@@ -410,6 +432,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return core_mutex_tests(nParamTypes, pParams);
 	case PTA_INVOKE_TESTS_CMD_LOCKDEP:
 		return core_lockdep_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TEST_CMD_AES_PERF:
+		return core_aes_perf_tests(nParamTypes, pParams);
 	default:
 		break;
 	}

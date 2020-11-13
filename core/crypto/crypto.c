@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017, Linaro Limited
+ * Copyright 2020 NXP
  */
 
 #include <assert.h>
@@ -18,7 +19,7 @@ TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 	struct crypto_hash_ctx *c = NULL;
 
 	/*
-	 * Use default cryptographic implement if no matching
+	 * Use default cryptographic implementation if no matching
 	 * drvcrypt device.
 	 */
 	res = drvcrypt_hash_alloc_ctx(&c, algo);
@@ -94,48 +95,56 @@ TEE_Result crypto_hash_final(void *ctx, uint8_t *digest, size_t len)
 
 TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_cipher_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_AES_ECB_NOPAD:
-		res = crypto_aes_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_NOPAD:
-		res = crypto_aes_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTR:
-		res = crypto_aes_ctr_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CTS:
-		res = crypto_aes_cts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_XTS:
-		res = crypto_aes_xts_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_ECB_NOPAD:
-		res = crypto_des_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_ECB_NOPAD:
-		res = crypto_des3_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_NOPAD:
-		res = crypto_des_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_NOPAD:
-		res = crypto_des3_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_ECB_NOPAD:
-		res = crypto_sm4_ecb_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_CBC_NOPAD:
-		res = crypto_sm4_cbc_alloc_ctx(&c);
-		break;
-	case TEE_ALG_SM4_CTR:
-		res = crypto_sm4_ctr_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_cipher_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_AES_ECB_NOPAD:
+			res = crypto_aes_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_NOPAD:
+			res = crypto_aes_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTR:
+			res = crypto_aes_ctr_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CTS:
+			res = crypto_aes_cts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_XTS:
+			res = crypto_aes_xts_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_ECB_NOPAD:
+			res = crypto_des_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_ECB_NOPAD:
+			res = crypto_des3_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_NOPAD:
+			res = crypto_des_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_NOPAD:
+			res = crypto_des3_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_ECB_NOPAD:
+			res = crypto_sm4_ecb_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_CBC_NOPAD:
+			res = crypto_sm4_cbc_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SM4_CTR:
+			res = crypto_sm4_ctr_alloc_ctx(&c);
+			break;
+		default:
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		}
 	}
 
 	if (!res)
@@ -217,51 +226,59 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 	TEE_Result res = TEE_SUCCESS;
 	struct crypto_mac_ctx *c = NULL;
 
-	switch (algo) {
-	case TEE_ALG_HMAC_MD5:
-		res = crypto_hmac_md5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA1:
-		res = crypto_hmac_sha1_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA224:
-		res = crypto_hmac_sha224_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA256:
-		res = crypto_hmac_sha256_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA384:
-		res = crypto_hmac_sha384_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SHA512:
-		res = crypto_hmac_sha512_alloc_ctx(&c);
-		break;
-	case TEE_ALG_HMAC_SM3:
-		res = crypto_hmac_sm3_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_MAC_NOPAD:
-		res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CBC_MAC_PKCS5:
-		res = crypto_aes_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_MAC_NOPAD:
-		res = crypto_des_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES_CBC_MAC_PKCS5:
-		res = crypto_des_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_MAC_NOPAD:
-		res = crypto_des3_cbc_mac_nopad_alloc_ctx(&c);
-		break;
-	case TEE_ALG_DES3_CBC_MAC_PKCS5:
-		res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
-		break;
-	case TEE_ALG_AES_CMAC:
-		res = crypto_aes_cmac_alloc_ctx(&c);
-		break;
-	default:
-		return TEE_ERROR_NOT_SUPPORTED;
+	/*
+	 * Use default cryptographic implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_mac_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
+		case TEE_ALG_HMAC_MD5:
+			res = crypto_hmac_md5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA1:
+			res = crypto_hmac_sha1_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA224:
+			res = crypto_hmac_sha224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA256:
+			res = crypto_hmac_sha256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA384:
+			res = crypto_hmac_sha384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA512:
+			res = crypto_hmac_sha512_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SM3:
+			res = crypto_hmac_sm3_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_MAC_NOPAD:
+			res = crypto_aes_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CBC_MAC_PKCS5:
+			res = crypto_aes_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_MAC_NOPAD:
+			res = crypto_des_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES_CBC_MAC_PKCS5:
+			res = crypto_des_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_MAC_NOPAD:
+			res = crypto_des3_cbc_mac_nopad_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CBC_MAC_PKCS5:
+			res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_AES_CMAC:
+			res = crypto_aes_cmac_alloc_ctx(&c);
+			break;
+		default:
+			return TEE_ERROR_NOT_SUPPORTED;
+		}
 	}
 
 	if (!res)
@@ -625,7 +642,8 @@ TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s __unused,
 
 TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key __unused,
 				     struct bignum *q __unused,
-				     size_t xbits __unused)
+				     size_t xbits __unused,
+				     size_t key_size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
@@ -657,7 +675,8 @@ void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s __unused)
 {
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused)
+TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key __unused,
+				      size_t key_size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

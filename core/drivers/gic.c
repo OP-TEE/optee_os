@@ -84,7 +84,7 @@ static const struct itr_ops gic_ops = {
 	.raise_sgi = gic_op_raise_sgi,
 	.set_affinity = gic_op_set_affinity,
 };
-KEEP_PAGER(gic_ops);
+DECLARE_KEEP_PAGER(gic_ops);
 
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
@@ -306,8 +306,6 @@ static void gic_it_set_pending(struct gic_data *gd, size_t it)
 
 	/* Should be Peripheral Interrupt */
 	assert(it >= NUM_SGI);
-	/* Assigned to group0 */
-	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
 	/* Raise the interrupt */
 	io_write32(gd->gicd_base + GICD_ISPENDR(idx), mask);

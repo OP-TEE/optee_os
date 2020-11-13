@@ -8,6 +8,9 @@
  * UUIDs which can act as TEE bus devices.
  */
 
+#include <config.h>
+#include <kernel/early_ta.h>
+#include <kernel/linker.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
 #include <pta_device.h>
@@ -17,14 +20,32 @@
 
 #define PTA_NAME "device.pta"
 
-static TEE_Result get_devices(uint32_t types,
-			      TEE_Param params[TEE_NUM_PARAMS])
+static void add_ta(uint32_t flags, const TEE_UUID *uuid, uint8_t *buf,
+		   uint32_t blen, uint32_t *pos, uint32_t rflags)
 {
-	const struct pseudo_ta_head *ta;
-	TEE_UUID *device_uuid = NULL;
-	uint8_t uuid_octet[sizeof(TEE_UUID)];
-	size_t ip_size, op_size = 0;
-	TEE_Result res = TEE_SUCCESS;
+	if ((flags & TA_FLAG_DEVICE_ENUM) &&
+	    (flags & TA_FLAG_DEVICE_ENUM_SUPP)) {
+		EMSG(PTA_NAME ": skipping TA %pUl, inconsistent flags", uuid);
+		return;
+	}
+
+	if (flags & rflags) {
+		if (*pos + sizeof(*uuid) <= blen)
+			tee_uuid_to_octets(buf + *pos, uuid);
+
+		*pos += sizeof(*uuid);
+	}
+}
+
+static TEE_Result get_devices(uint32_t types,
+			      TEE_Param params[TEE_NUM_PARAMS],
+			      uint32_t rflags)
+{
+	const struct pseudo_ta_head *ta = NULL;
+	const struct early_ta *eta = NULL;
+	void *buf = NULL;
+	uint32_t blen = 0;
+	uint32_t pos = 0;
 
 	if (types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
 				     TEE_PARAM_TYPE_NONE,
@@ -35,27 +56,22 @@ static TEE_Result get_devices(uint32_t types,
 	if (!params[0].memref.buffer && (params[0].memref.size > 0))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	device_uuid = (TEE_UUID *)params[0].memref.buffer;
-	ip_size = params[0].memref.size;
+	buf =  params[0].memref.buffer;
+	blen = params[0].memref.size;
 
-	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head) {
-		if (ta->flags & TA_FLAG_DEVICE_ENUM) {
-			if (ip_size < sizeof(TEE_UUID)) {
-				res = TEE_ERROR_SHORT_BUFFER;
-			} else {
-				tee_uuid_to_octets(uuid_octet, &ta->uuid);
-				memcpy(device_uuid, uuid_octet,
-				       sizeof(TEE_UUID));
-				device_uuid++;
-				ip_size -= sizeof(TEE_UUID);
-			}
-			op_size += sizeof(TEE_UUID);
-		}
-	}
+	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head)
+		add_ta(ta->flags, &ta->uuid, buf, blen, &pos, rflags);
 
-	params[0].memref.size = op_size;
+	if (IS_ENABLED(CFG_EARLY_TA))
+		for_each_early_ta(eta)
+			add_ta(eta->flags, &eta->uuid, buf, blen, &pos,
+			       rflags);
 
-	return res;
+	params[0].memref.size = pos;
+	if (pos > blen)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result invoke_command(void *pSessionContext __unused,
@@ -64,7 +80,11 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 {
 	switch (nCommandID) {
 	case PTA_CMD_GET_DEVICES:
-		return get_devices(nParamTypes, pParams);
+		return get_devices(nParamTypes, pParams,
+				   TA_FLAG_DEVICE_ENUM);
+	case PTA_CMD_GET_DEVICES_SUPP:
+		return get_devices(nParamTypes, pParams,
+				   TA_FLAG_DEVICE_ENUM_SUPP);
 	default:
 		break;
 	}
