@@ -17,21 +17,18 @@
 
 #include <assert.h>
 #include <drivers/stm32_etzpc.h>
-#include <kernel/dt.h>
-#include <kernel/generic_boot.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/dt.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <util.h>
 
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
-
-/* Devicetree compatibulity */
+/* Devicetree compatibility */
 #define ETZPC_COMPAT			"st,stm32-etzpc"
 
 /* ID Registers */
@@ -244,7 +241,7 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(etzpc_pm);
+DECLARE_KEEP_PAGER(etzpc_pm);
 
 static void init_pm(struct etzpc_instance *dev)
 {
@@ -291,8 +288,8 @@ static void get_hwcfg(struct etzpc_hwcfg *hwcfg)
 			    ETZPC_HWCFGR_CHUNCKS1N4_SHIFT;
 }
 
-static void init_devive_from_hw_config(struct etzpc_instance *dev,
-					      paddr_t pbase)
+static void init_device_from_hw_config(struct etzpc_instance *dev,
+				       paddr_t pbase)
 {
 	struct etzpc_hwcfg hwcfg = { };
 
@@ -315,7 +312,7 @@ static void init_devive_from_hw_config(struct etzpc_instance *dev,
 
 void stm32_etzpc_init(paddr_t base)
 {
-	init_devive_from_hw_config(&etzpc_dev, base);
+	init_device_from_hw_config(&etzpc_dev, base);
 }
 
 #ifdef CFG_DT
@@ -340,7 +337,7 @@ static TEE_Result init_etzpc_from_dt(void)
 	if (pbase == (paddr_t)-1)
 		panic();
 
-	init_devive_from_hw_config(&etzpc_dev, pbase);
+	init_device_from_hw_config(&etzpc_dev, pbase);
 
 	return TEE_SUCCESS;
 }

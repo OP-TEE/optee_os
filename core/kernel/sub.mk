@@ -7,7 +7,9 @@ srcs-y += pm.c
 srcs-y += handle.c
 srcs-y += interrupt.c
 srcs-$(CFG_LOCKDEP) += lockdep.c
+ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += msg_param.c
+endif
 srcs-y += panic.c
 srcs-y += refcount.c
 srcs-y += tee_misc.c
@@ -18,3 +20,4 @@ srcs-y += huk_subkey.c
 srcs-$(CFG_SHOW_CONF_ON_BOOT) += show_conf.c
 srcs-y += user_mode_ctx.c
 srcs-$(CFG_CORE_TPM_EVENT_LOG) += tpm.c
+srcs-y += initcall.c

@@ -8,14 +8,11 @@
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
 #include <io.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdint.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_PGDIR_SIZE),
@@ -38,21 +35,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 static struct gic_data gic_data;
 
-static const struct thread_handlers handlers = {
-	.cpu_on = cpu_on_handler,
-	.cpu_off = pm_do_nothing,
-	.cpu_suspend = pm_do_nothing,
-	.cpu_resume = pm_do_nothing,
-	.system_off = pm_do_nothing,
-	.system_reset = pm_do_nothing,
-};
-
 static struct serial8250_uart_data console_data;
-
-const struct thread_handlers *generic_boot_get_handlers(void)
-{
-	return &handlers;
-}
 
 void main_init_gic(void)
 {

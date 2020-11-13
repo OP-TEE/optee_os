@@ -5,7 +5,6 @@
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/early_ta.h>
-#include <kernel/linker.h>
 #include <kernel/user_ta.h>
 #include <kernel/user_ta_store.h>
 #include <stdio.h>
@@ -20,12 +19,6 @@ struct user_ta_store_handle {
 	size_t offs;
 	z_stream strm;
 };
-
-#define for_each_early_ta(_ta) \
-	for (_ta = &__rodata_early_ta_start; _ta < &__rodata_early_ta_end; \
-	     _ta = (const struct early_ta *)				   \
-		   ROUNDUP((vaddr_t)_ta + sizeof(*_ta) + _ta->size,	   \
-			   __alignof__(struct early_ta)))
 
 static const struct early_ta *find_early_ta(const TEE_UUID *uuid)
 {

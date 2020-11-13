@@ -14,11 +14,10 @@
 #include <imx.h>
 #include <imx_pm.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
-#include <kernel/pm_stubs.h>
 #include <kernel/spinlock.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>

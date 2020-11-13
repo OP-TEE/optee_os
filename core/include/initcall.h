@@ -8,20 +8,44 @@
 
 #include <scattered_array.h>
 #include <tee_api_types.h>
+#include <trace.h>
 
-typedef TEE_Result (*initcall_t)(void);
+struct initcall {
+	TEE_Result (*func)(void);
+#if TRACE_LEVEL >= TRACE_DEBUG
+	int level;
+	const char *func_name;
+#endif
+};
 
-#define __define_initcall(level, fn) \
-	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(initcall, level, initcall_t) = \
-		(fn)
+#if TRACE_LEVEL >= TRACE_DEBUG
+#define __define_initcall(type, lvl, fn) \
+	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(type ## call, lvl, \
+					       struct initcall) = \
+		{ .func = (fn), .level = (lvl), .func_name = #fn, }
+#else
+#define __define_initcall(type, lvl, fn) \
+	SCATTERED_ARRAY_DEFINE_PG_ITEM_ORDERED(type ## call, lvl, \
+					       struct initcall) = \
+		{ .func = (fn), }
+#endif
 
-#define initcall_begin	SCATTERED_ARRAY_BEGIN(initcall, initcall_t)
-#define initcall_end	SCATTERED_ARRAY_END(initcall, initcall_t)
+#define initcall_begin	SCATTERED_ARRAY_BEGIN(initcall, struct initcall)
+#define initcall_end	SCATTERED_ARRAY_END(initcall, struct initcall)
 
-#define service_init(fn)	__define_initcall(1, fn)
-#define service_init_late(fn)	__define_initcall(2, fn)
-#define driver_init(fn)		__define_initcall(3, fn)
-#define driver_init_late(fn)	__define_initcall(4, fn)
+#define finalcall_begin	SCATTERED_ARRAY_BEGIN(finalcall, struct initcall)
+#define finalcall_end	SCATTERED_ARRAY_END(finalcall, struct initcall)
 
+#define early_init(fn)			__define_initcall(init, 1, fn)
+#define early_init_late(fn)		__define_initcall(init, 2, fn)
+#define service_init(fn)		__define_initcall(init, 3, fn)
+#define service_init_late(fn)		__define_initcall(init, 4, fn)
+#define driver_init(fn)			__define_initcall(init, 5, fn)
+#define driver_init_late(fn)		__define_initcall(init, 6, fn)
+
+#define boot_final(fn)			__define_initcall(final, 1, fn)
+
+void call_initcalls(void);
+void call_finalcalls(void);
 
 #endif

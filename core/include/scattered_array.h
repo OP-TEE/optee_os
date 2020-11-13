@@ -19,7 +19,7 @@
 
 #define __SCT_ARRAY_DEF_ITEM3(element_type, element_name, section_name) \
 	static const element_type element_name; \
-	KEEP_INIT(element_name); \
+	DECLARE_KEEP_INIT(element_name); \
 	static const element_type element_name __used \
 		__section(section_name __SECTION_FLAGS_RODATA)
 

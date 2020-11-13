@@ -9,8 +9,6 @@ CFG_SHMEM_START ?= 0xbfe00000
 CFG_SHMEM_SIZE ?= 0x00200000
 
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_GENERIC_BOOT,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
@@ -19,8 +17,6 @@ $(call force,CFG_WITH_LPAE,y)
 else
 $(call force,CFG_ARM32_core,y)
 endif
-
-CFG_WITH_STACK_CANARIES ?= y
 
 ifeq ($(PLATFORM_FLAVOR),mt8173)
 # 2**1 = 2 cores per cluster

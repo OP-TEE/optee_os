@@ -4,7 +4,7 @@
  */
 
 #include <gen-asm-defines.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
@@ -22,9 +22,6 @@ DEFINES
 	DEFINE(SM_CTX_SIZE, sizeof(struct sm_ctx));
 	DEFINE(SM_CTX_NSEC, offsetof(struct sm_ctx, nsec));
 	DEFINE(SM_CTX_SEC, offsetof(struct sm_ctx, sec));
-
-	DEFINE(THREAD_VECTOR_TABLE_FIQ_ENTRY,
-	       offsetof(struct thread_vector_table, fiq_entry));
 
 	DEFINE(THREAD_SVC_REG_R0, offsetof(struct thread_svc_regs, r0));
 	DEFINE(THREAD_SVC_REG_R5, offsetof(struct thread_svc_regs, r5));
@@ -77,6 +74,8 @@ DEFINES
 	DEFINE(THREAD_CTX_REGS_X2, offsetof(struct thread_ctx_regs, x[2]));
 	DEFINE(THREAD_CTX_REGS_X4, offsetof(struct thread_ctx_regs, x[4]));
 	DEFINE(THREAD_CTX_REGS_X19, offsetof(struct thread_ctx_regs, x[19]));
+	DEFINE(THREAD_CTX_REGS_TPIDR_EL0, offsetof(struct thread_ctx_regs,
+						   tpidr_el0));
 
 	/* struct thread_user_mode_rec */
 	DEFINE(THREAD_USER_MODE_REC_CTX_REGS_PTR,
@@ -91,6 +90,13 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_X0, offsetof(struct thread_core_local, x[0]));
 	DEFINE(THREAD_CORE_LOCAL_X2, offsetof(struct thread_core_local, x[2]));
 #endif /*ARM64*/
+
+	/* struct thread_ctx */
+	DEFINE(THREAD_CTX_SIZE, sizeof(struct thread_ctx));
+#ifdef CFG_CORE_FFA
+	DEFINE(THREAD_CTX_TSD_RPC_TARGET_INFO,
+	       offsetof(struct thread_ctx, tsd.rpc_target_info))
+#endif
 
 	/* struct thread_core_local */
 	DEFINE(THREAD_CORE_LOCAL_TMP_STACK_VA_END,

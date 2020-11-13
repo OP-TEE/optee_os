@@ -11,6 +11,7 @@ srcs-y += isxdigit.c
 srcs-y += qsort.c
 cflags-qsort.c-y += -Wno-inline
 cflags-remove-qsort.c-y += -Wcast-align
+srcs-y += sprintf.c
 srcs-y += snprintf.c
 srcs-y += stack_check.c
 srcs-y += strdup.c
@@ -26,6 +27,14 @@ srcs-y += islower.c
 srcs-y += isprint.c
 srcs-y += ispunct.c
 srcs-y += toupper.c
+
+ifneq (,$(filter ta_%,$(sm)))
+srcs-y += fp.c
+srcs-y += fputc.c
+srcs-y += fputs.c
+srcs-y += fwrite.c
+srcs-y += write.c
+endif
 
 subdirs-y += newlib
 subdirs-$(arch_arm) += arch/$(ARCH)

@@ -59,10 +59,25 @@ struct ta_elf {
 	/* DT_HASH hash table for faster resolution of external symbols */
 	void *hashtab;
 
+	/* DT_SONAME */
+	char *soname;
+
 	struct segment_head segs;
 
 	vaddr_t exidx_start;
 	size_t exidx_size;
+
+	/* Thread Local Storage */
+
+	size_t tls_mod_id;
+	/* PT_TLS segment */
+	vaddr_t tls_start;
+	size_t tls_filesz; /* Covers the .tdata section */
+	size_t tls_memsz; /* Covers the .tdata and .tbss sections */
+#ifdef ARM64
+	/* Offset of the copy of the TLS block in the TLS area of the TCB */
+	size_t tls_tcb_offs;
+#endif
 
 	uint32_t handle;
 
@@ -102,8 +117,9 @@ static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 #endif /*CFG_UNWIND*/
 
 TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
-			      struct ta_elf *elf);
+			      struct ta_elf **found_elf, struct ta_elf *elf);
 TEE_Result ta_elf_add_library(const TEE_UUID *uuid);
-TEE_Result ta_elf_set_init_fini_info(bool is_32bit);
+TEE_Result ta_elf_set_init_fini_info_compat(bool is_32bit);
+TEE_Result ta_elf_set_elf_phdr_info(bool is_32bit);
 
 #endif /*TA_ELF_H*/

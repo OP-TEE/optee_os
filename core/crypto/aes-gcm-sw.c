@@ -43,9 +43,11 @@ void internal_aes_gcm_ghash_update(struct internal_aes_gcm_state *state,
 	if (head)
 		ghash_update_block(state, head);
 
-	for (n = 0; n < num_blocks; n++)
-		ghash_update_block(state,
-				   (uint8_t *)data + n * TEE_AES_BLOCK_SIZE);
+	if (data)
+		for (n = 0; n < num_blocks; n++)
+			ghash_update_block(state,
+					   (const uint8_t *)data +
+					   n * TEE_AES_BLOCK_SIZE);
 }
 
 static void encrypt_block(struct internal_aes_gcm_state *state,

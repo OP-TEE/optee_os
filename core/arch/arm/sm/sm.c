@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include <arm.h>
 #include <compiler.h>
+#include <config.h>
 #include <kernel/misc.h>
+#include <kernel/thread.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
@@ -13,9 +15,48 @@
 #include <string.h>
 #include "sm_private.h"
 
+enum sm_handler_ret __weak sm_platform_handler(struct sm_ctx *ctx __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
+}
+
+static void smc_arch_handler(struct thread_smc_args *args)
+{
+	uint32_t smc_fid = args->a0;
+	uint32_t feature_fid = args->a1;
+
+	switch (smc_fid) {
+	case ARM_SMCCC_VERSION:
+		args->a0 = SMCCC_V_1_1;
+		break;
+	case ARM_SMCCC_ARCH_FEATURES:
+		switch (feature_fid) {
+		case ARM_SMCCC_VERSION:
+		case ARM_SMCCC_ARCH_SOC_ID:
+			args->a0 = ARM_SMCCC_RET_SUCCESS;
+			break;
+		default:
+			args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
+			break;
+		}
+		break;
+	case ARM_SMCCC_ARCH_SOC_ID:
+		args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
+		break;
+	case ARM_SMCCC_ARCH_WORKAROUND_1:
+	case ARM_SMCCC_ARCH_WORKAROUND_2:
+		args->a0 = ARM_SMCCC_RET_NOT_REQUIRED;
+		break;
+	default:
+		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+	}
+}
+
 uint32_t sm_from_nsec(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
+	struct thread_smc_args *args = (struct thread_smc_args *)nsec_r0;
 
 	/*
 	 * Check that struct sm_ctx has the different parts properly
@@ -26,26 +67,32 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
 
-#ifdef CFG_SM_PLATFORM_HANDLER
-	if (sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
+	if (IS_ENABLED(CFG_SM_PLATFORM_HANDLER) &&
+	    sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
 		return SM_EXIT_TO_NON_SECURE;
-#endif
 
-#ifdef CFG_PSCI_ARM32
-	if (OPTEE_SMC_OWNER_NUM(*nsec_r0) == OPTEE_SMC_OWNER_STANDARD) {
-		smc_std_handler((struct thread_smc_args *)nsec_r0, &ctx->nsec);
+	switch (OPTEE_SMC_OWNER_NUM(args->a0)) {
+	case OPTEE_SMC_OWNER_STANDARD:
+		if (IS_ENABLED(CFG_PSCI_ARM32)) {
+			smc_std_handler(args, &ctx->nsec);
+			return SM_EXIT_TO_NON_SECURE;
+		}
+		break;
+	case OPTEE_SMC_OWNER_ARCH:
+		smc_arch_handler(args);
 		return SM_EXIT_TO_NON_SECURE;
+	default:
+		break;
 	}
-#endif
 
 	sm_save_unbanked_regs(&ctx->nsec.ub_regs);
 	sm_restore_unbanked_regs(&ctx->sec.ub_regs);
 
-	memcpy(&ctx->sec.r0, nsec_r0, sizeof(uint32_t) * 8);
+	memcpy(&ctx->sec.r0, args, sizeof(*args));
 	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.fast_smc_entry;
+		ctx->sec.mon_lr = (uint32_t)vector_fast_smc_entry;
 	else
-		ctx->sec.mon_lr = (uint32_t)&thread_vector_table.std_smc_entry;
+		ctx->sec.mon_lr = (uint32_t)vector_std_smc_entry;
 
 	return SM_EXIT_TO_SECURE;
 }

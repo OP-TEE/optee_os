@@ -10,18 +10,15 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <platform_config.h>
-#include <stm32_util.h>
 #include <stdio.h>
+#include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 /* Identifiers for root oscillators */
 enum stm32mp_osc_id {
@@ -380,12 +377,13 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 #ifdef CFG_WITH_NSEC_UARTS
 	_CLK_SC_SELEC(N_S, RCC_MP_APB2ENSETR, 13, USART6_K, _UART6_SEL),
 #endif
+	_CLK_SC_FIXED(N_S, RCC_MP_APB3ENSETR, 11, SYSCFG, _UNKNOWN_ID),
 	_CLK_SC_SELEC(N_S, RCC_MP_APB4ENSETR, 8, DDRPERFM, _UNKNOWN_SEL),
 	_CLK_SC_SELEC(N_S, RCC_MP_APB4ENSETR, 15, IWDG2, _UNKNOWN_SEL),
 
 	_CLK_SELEC(N_S, RCC_DBGCFGR, 8, CK_DBG, _UNKNOWN_SEL),
 };
-KEEP_PAGER(stm32mp1_clk_gate);
+DECLARE_KEEP_PAGER(stm32mp1_clk_gate);
 
 /* Parents for secure aware clocks in the xxxSELR value ordering */
 static const uint8_t stgen_parents[] = {
@@ -483,8 +481,8 @@ static const uint8_t stm32mp1_mcu_div[16] = {
 };
 
 /* div = /1 /2 /4 /8 /16 : same divider for PMU and APBX */
-#define stm32mp1_mpu_div stm32mp1_mpu_apbx_div
-#define stm32mp1_apbx_div stm32mp1_mpu_apbx_div
+#define stm32mp1_mpu_div	stm32mp1_mpu_apbx_div
+#define stm32mp1_apbx_div	stm32mp1_mpu_apbx_div
 static const uint8_t stm32mp1_mpu_apbx_div[8] = {
 	0, 1, 2, 3, 4, 4, 4, 4
 };
@@ -706,7 +704,6 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 static unsigned long get_clock_rate(int p)
 {
 	uint32_t reg = 0;
-	uint32_t clkdiv = 0;
 	unsigned long clock = 0;
 	vaddr_t rcc_base = stm32_rcc_base();
 
@@ -725,12 +722,12 @@ static unsigned long get_clock_rate(int p)
 			clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P);
 			break;
 		case RCC_MPCKSELR_PLL_MPUDIV:
-			clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P);
-
 			reg = io_read32(rcc_base + RCC_MPCKDIVR);
-			clkdiv = reg & RCC_MPUDIV_MASK;
-			if (clkdiv)
-				clock /= stm32mp1_mpu_div[clkdiv];
+			if (reg & RCC_MPUDIV_MASK)
+				clock = stm32mp1_read_pll_freq(_PLL1, _DIV_P) >>
+					stm32mp1_mpu_div[reg & RCC_MPUDIV_MASK];
+			else
+				clock = 0;
 			break;
 		default:
 			break;
@@ -1224,8 +1221,6 @@ void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 }
 
 #ifdef CFG_EMBED_DTB
-#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
-
 static const char *stm32mp_osc_node_label[NB_OSC] = {
 	[_LSI] = "clk-lsi",
 	[_LSE] = "clk-lse",
@@ -1284,6 +1279,24 @@ static void get_osc_freq_from_dt(void *fdt)
 		if (!stm32mp1_osc[idx])
 			DMSG("Osc %s: no frequency info", name);
 	}
+}
+
+static void enable_static_secure_clocks(void)
+{
+	unsigned int idx = 0;
+	static const unsigned long secure_enable[] = {
+		DDRC1, DDRC1LP, DDRC2, DDRC2LP, DDRPHYC, DDRPHYCLP, DDRCAPB,
+		AXIDCG, DDRPHYCAPB, DDRPHYCAPBLP, TZPC, TZC1, TZC2, STGEN_K,
+		BSEC,
+	};
+
+	for (idx = 0; idx < ARRAY_SIZE(secure_enable); idx++) {
+		stm32_clock_enable(secure_enable[idx]);
+		stm32mp_register_clock_parents_secure(secure_enable[idx]);
+	}
+
+	if (CFG_TEE_CORE_NB_CORE > 1)
+		stm32_clock_enable(RTCAPB);
 }
 
 static TEE_Result stm32mp1_clk_early_init(void)
@@ -1347,6 +1360,8 @@ static TEE_Result stm32mp1_clk_early_init(void)
 
 	if (ignored != 0)
 		IMSG("DT clock tree configurations were ignored");
+
+	enable_static_secure_clocks();
 
 	return TEE_SUCCESS;
 }

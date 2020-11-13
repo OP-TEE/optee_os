@@ -10,8 +10,10 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "object.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 
 TEE_Result TA_CreateEntryPoint(void)
 {
@@ -49,13 +51,13 @@ void TA_CloseSessionEntryPoint(void *tee_session)
  *
  * Return a PKCS11_CKR_* value which is also loaded into the output param#0
  */
-static uint32_t entry_ping(uint32_t ptypes, TEE_Param *params)
+static enum pkcs11_rc entry_ping(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *out = &params[2];
+	TEE_Param *out = params + 2;
 	const uint32_t ver[] = {
 		PKCS11_TA_VERSION_MAJOR,
 		PKCS11_TA_VERSION_MINOR,
@@ -200,12 +202,58 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		rc = entry_ck_logout(client, ptypes, params);
 		break;
 
+	case PKCS11_CMD_CREATE_OBJECT:
+		rc = entry_create_object(client, ptypes, params);
+		break;
+	case PKCS11_CMD_DESTROY_OBJECT:
+		rc = entry_destroy_object(client, ptypes, params);
+		break;
+
+	case PKCS11_CMD_ENCRYPT_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT);
+		break;
+	case PKCS11_CMD_DECRYPT_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT);
+		break;
+	case PKCS11_CMD_ENCRYPT_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_DECRYPT_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_ENCRYPT_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_DECRYPT_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_ENCRYPT_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_ENCRYPT,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
+	case PKCS11_CMD_DECRYPT_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DECRYPT,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
+
 	default:
-		EMSG("Command 0x%"PRIx32" is not supported", cmd);
+		EMSG("Command %#"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	DMSG("%s rc 0x%08"PRIx32"/%s", id2str_ta_cmd(cmd), rc, id2str_rc(rc));
+	DMSG("%s rc %#"PRIx32"/%s", id2str_ta_cmd(cmd), rc, id2str_rc(rc));
 
 	TEE_MemMove(params[0].memref.buffer, &rc, sizeof(rc));
 	params[0].memref.size = sizeof(rc);

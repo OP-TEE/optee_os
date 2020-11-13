@@ -92,7 +92,7 @@ static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
 
 	return TEE_SUCCESS;
 }
-KEEP_PAGER(mobj_reg_shm_get_pa);
+DECLARE_KEEP_PAGER(mobj_reg_shm_get_pa);
 
 static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
 					 size_t granule __maybe_unused)
@@ -176,6 +176,60 @@ static TEE_Result mobj_reg_shm_get_cattr(struct mobj *mobj __unused,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
+	size_t sz = 0;
+
+	if (refcount_inc(&r->mapcount))
+		return TEE_SUCCESS;
+
+	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	if (refcount_val(&r->mapcount))
+		goto out;
+
+	sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
+	r->mm = tee_mm_alloc(&tee_mm_shm, sz);
+	if (!r->mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	res = core_mmu_map_pages(tee_mm_get_smem(r->mm), r->pages,
+				 sz / SMALL_PAGE_SIZE, MEM_AREA_NSEC_SHM);
+	if (res) {
+		tee_mm_free(r->mm);
+		r->mm = NULL;
+		goto out;
+	}
+
+	refcount_set(&r->mapcount, 1);
+out:
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+
+	return res;
+}
+
+static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
+{
+	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
+	uint32_t exceptions = 0;
+
+	if (!refcount_dec(&r->mapcount))
+		return TEE_SUCCESS;
+
+	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	if (refcount_val(&r->mapcount))
+		reg_shm_unmap_helper(r);
+
+	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+
+	return TEE_SUCCESS;
+}
+
 static bool mobj_reg_shm_matches(struct mobj *mobj, enum buf_is_attr attr);
 
 static uint64_t mobj_reg_shm_get_cookie(struct mobj *mobj)
@@ -191,6 +245,8 @@ static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
 	.matches = mobj_reg_shm_matches,
 	.free = mobj_reg_shm_free,
 	.get_cookie = mobj_reg_shm_get_cookie,
+	.inc_map = mobj_reg_shm_inc_map,
+	.dec_map = mobj_reg_shm_dec_map,
 };
 
 static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
@@ -204,14 +260,6 @@ static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
 static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj)
 {
 	assert(mobj->ops == &mobj_reg_shm_ops);
-	return container_of(mobj, struct mobj_reg_shm, mobj);
-}
-
-static struct mobj_reg_shm *to_mobj_reg_shm_may_fail(struct mobj *mobj)
-{
-	if (mobj && mobj->ops != &mobj_reg_shm_ops)
-		return NULL;
-
 	return container_of(mobj, struct mobj_reg_shm, mobj);
 }
 
@@ -351,67 +399,6 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 
 	return TEE_SUCCESS;
 }
-
-TEE_Result mobj_inc_map(struct mobj *mobj)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
-	size_t sz = 0;
-
-	if (!r)
-		return TEE_ERROR_GENERIC;
-
-	if (refcount_inc(&r->mapcount))
-		return TEE_SUCCESS;
-
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
-
-	if (refcount_val(&r->mapcount))
-		goto out;
-
-	sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
-	r->mm = tee_mm_alloc(&tee_mm_shm, sz);
-	if (!r->mm) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	res = core_mmu_map_pages(tee_mm_get_smem(r->mm), r->pages,
-				 sz / SMALL_PAGE_SIZE, MEM_AREA_NSEC_SHM);
-	if (res) {
-		tee_mm_free(r->mm);
-		r->mm = NULL;
-		goto out;
-	}
-
-	refcount_set(&r->mapcount, 1);
-out:
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
-
-	return res;
-}
-
-TEE_Result mobj_dec_map(struct mobj *mobj)
-{
-	struct mobj_reg_shm *r = to_mobj_reg_shm_may_fail(mobj);
-	uint32_t exceptions = 0;
-
-	if (!r)
-		return TEE_ERROR_GENERIC;
-
-	if (!refcount_dec(&r->mapcount))
-		return TEE_SUCCESS;
-
-	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
-
-	if (refcount_val(&r->mapcount))
-		reg_shm_unmap_helper(r);
-
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
-
-	return TEE_SUCCESS;
-}
-
 
 struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				  paddr_t page_offset, uint64_t cookie)

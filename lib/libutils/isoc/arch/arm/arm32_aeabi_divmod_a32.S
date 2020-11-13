@@ -6,23 +6,11 @@
 #include <asm.S>
 
 /*
- * This assembly source is used both in kernel and userland
- * hence define unwind resources that match both environments.
- */
-#if defined(CFG_UNWIND)
-#define LOCAL_UNWIND(...)	__VA_ARGS__
-#else
-#define LOCAL_UNWIND(...)
-#endif
-
-/*
  * signed ret_idivmod_values(signed quot, signed rem);
  * return quotient and remaining the EABI way (regs r0,r1)
  */
 FUNC ret_idivmod_values , :
-LOCAL_UNWIND(.fnstart)
         bx lr
-LOCAL_UNWIND(.fnend)
 END_FUNC ret_idivmod_values
 
 /*
@@ -30,7 +18,5 @@ END_FUNC ret_idivmod_values
  * return quotient and remaining the EABI way (regs r0,r1)
  */
 FUNC ret_uidivmod_values , :
-LOCAL_UNWIND(.fnstart)
         bx      lr
-LOCAL_UNWIND(.fnend)
 END_FUNC ret_uidivmod_values

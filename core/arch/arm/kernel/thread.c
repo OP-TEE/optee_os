@@ -8,9 +8,11 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <config.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/asan.h>
+#include <kernel/boot.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -32,12 +34,25 @@
 
 #include "thread_private.h"
 
+struct thread_ctx threads[CFG_NUM_THREADS];
+
+struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
+
+/*
+ * Stacks
+ *
+ * [Lower addresses on the left]
+ *
+ * [ STACK_CANARY_SIZE/2 | STACK_CHECK_EXTRA | STACK_XXX_SIZE | STACK_CANARY_SIZE/2 ]
+ * ^                     ^                   ^                ^
+ * stack_xxx[n]          "hard" top          "soft" top       bottom
+ */
+
 #ifdef CFG_WITH_ARM_TRUSTED_FW
 #define STACK_TMP_OFFS		0
 #else
 #define STACK_TMP_OFFS		SM_STACK_TMP_RESERVE_SIZE
 #endif
-
 
 #ifdef ARM32
 #ifdef CFG_CORE_SANITIZE_KADDRESS
@@ -56,7 +71,11 @@
 #endif /*ARM32*/
 
 #ifdef ARM64
+#if defined(__clang__) && !defined(__OPTIMIZE_SIZE__)
+#define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS)
+#else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
+#endif
 #define STACK_THREAD_SIZE	8192
 
 #if TRACE_LEVEL > 0
@@ -65,10 +84,6 @@
 #define STACK_ABT_SIZE		1024
 #endif
 #endif /*ARM64*/
-
-struct thread_ctx threads[CFG_NUM_THREADS];
-
-struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 
 #ifdef CFG_WITH_STACK_CANARIES
 #ifdef ARM32
@@ -86,17 +101,27 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 #define STACK_CANARY_SIZE	0
 #endif
 
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+/*
+ * Extra space added to each stack in order to reliably detect and dump stack
+ * overflows. Should cover the maximum expected overflow size caused by any C
+ * function (say, 512 bytes; no function should have that much local variables),
+ * plus the maximum stack space needed by __cyg_profile_func_exit(): about 1 KB,
+ * a large part of which is used to print the call stack. Total: 1.5 KB.
+ */
+#define STACK_CHECK_EXTRA	1536
+#else
+#define STACK_CHECK_EXTRA	0
+#endif
+
 #define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
 linkage uint32_t name[num_stacks] \
-		[ROUNDUP(stack_size + STACK_CANARY_SIZE, STACK_ALIGNMENT) / \
-		sizeof(uint32_t)] \
+		[ROUNDUP(stack_size + STACK_CANARY_SIZE + STACK_CHECK_EXTRA, \
+			 STACK_ALIGNMENT) / sizeof(uint32_t)] \
 		__attribute__((section(".nozi_stack." # name), \
 			       aligned(STACK_ALIGNMENT)))
 
-#define STACK_SIZE(stack) (sizeof(stack) - STACK_CANARY_SIZE / 2)
-
-#define GET_STACK(stack) \
-	((vaddr_t)(stack) + STACK_SIZE(stack))
+#define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
 
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, static);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
@@ -104,9 +129,15 @@ DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
+#define GET_STACK_TOP_HARD(stack, n) \
+	((vaddr_t)&(stack)[n] + STACK_CANARY_SIZE / 2)
+#define GET_STACK_TOP_SOFT(stack, n) \
+	(GET_STACK_TOP_HARD(stack, n) + STACK_CHECK_EXTRA)
+#define GET_STACK_BOTTOM(stack, n) ((vaddr_t)&(stack)[n] + sizeof(stack[n]) - \
+				    STACK_CANARY_SIZE / 2)
+
 const void *stack_tmp_export __section(".identity_map.stack_tmp_export") =
-	(uint8_t *)stack_tmp + sizeof(stack_tmp[0]) -
-	(STACK_TMP_OFFS + STACK_CANARY_SIZE / 2);
+	(void *)(GET_STACK_BOTTOM(stack_tmp, 0) - STACK_TMP_OFFS);
 const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
 	sizeof(stack_tmp[0]);
 
@@ -114,15 +145,8 @@ const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
  * These stack setup info are required by secondary boot cores before they
  * each locally enable the pager (the mmu). Hence kept in pager sections.
  */
-KEEP_PAGER(stack_tmp_export);
-KEEP_PAGER(stack_tmp_stride);
-
-thread_pm_handler_t thread_cpu_on_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_off_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_suspend_handler_ptr __nex_bss;
-thread_pm_handler_t thread_cpu_resume_handler_ptr __nex_bss;
-thread_pm_handler_t thread_system_off_handler_ptr __nex_bss;
-thread_pm_handler_t thread_system_reset_handler_ptr __nex_bss;
+DECLARE_KEEP_PAGER(stack_tmp_export);
+DECLARE_KEEP_PAGER(stack_tmp_stride);
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 static vaddr_t thread_user_kcode_va __nex_bss;
@@ -216,14 +240,14 @@ void thread_unlock_global(void)
 }
 
 #ifdef ARM32
-uint32_t thread_get_exceptions(void)
+uint32_t __nostackcheck thread_get_exceptions(void)
 {
 	uint32_t cpsr = read_cpsr();
 
 	return (cpsr >> CPSR_F_SHIFT) & THREAD_EXCP_ALL;
 }
 
-void thread_set_exceptions(uint32_t exceptions)
+void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t cpsr = read_cpsr();
 
@@ -233,19 +257,22 @@ void thread_set_exceptions(uint32_t exceptions)
 
 	cpsr &= ~(THREAD_EXCP_ALL << CPSR_F_SHIFT);
 	cpsr |= ((exceptions & THREAD_EXCP_ALL) << CPSR_F_SHIFT);
+
+	barrier();
 	write_cpsr(cpsr);
+	barrier();
 }
 #endif /*ARM32*/
 
 #ifdef ARM64
-uint32_t thread_get_exceptions(void)
+uint32_t __nostackcheck thread_get_exceptions(void)
 {
 	uint32_t daif = read_daif();
 
 	return (daif >> DAIF_F_SHIFT) & THREAD_EXCP_ALL;
 }
 
-void thread_set_exceptions(uint32_t exceptions)
+void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 {
 	uint32_t daif = read_daif();
 
@@ -255,11 +282,14 @@ void thread_set_exceptions(uint32_t exceptions)
 
 	daif &= ~(THREAD_EXCP_ALL << DAIF_F_SHIFT);
 	daif |= ((exceptions & THREAD_EXCP_ALL) << DAIF_F_SHIFT);
+
+	barrier();
 	write_daif(daif);
+	barrier();
 }
 #endif /*ARM64*/
 
-uint32_t thread_mask_exceptions(uint32_t exceptions)
+uint32_t __nostackcheck thread_mask_exceptions(uint32_t exceptions)
 {
 	uint32_t state = thread_get_exceptions();
 
@@ -267,16 +297,15 @@ uint32_t thread_mask_exceptions(uint32_t exceptions)
 	return state;
 }
 
-void thread_unmask_exceptions(uint32_t state)
+void __nostackcheck thread_unmask_exceptions(uint32_t state)
 {
 	thread_set_exceptions(state & THREAD_EXCP_ALL);
 }
 
 
-struct thread_core_local *thread_get_core_local(void)
+static struct thread_core_local * __nostackcheck
+get_core_local(unsigned int pos)
 {
-	uint32_t cpu_id = get_core_pos();
-
 	/*
 	 * Foreign interrupts must be disabled before playing with core_local
 	 * since we otherwise may be rescheduled to a different core in the
@@ -284,9 +313,98 @@ struct thread_core_local *thread_get_core_local(void)
 	 */
 	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
 
-	assert(cpu_id < CFG_TEE_CORE_NB_CORE);
-	return &thread_core_local[cpu_id];
+	assert(pos < CFG_TEE_CORE_NB_CORE);
+	return &thread_core_local[pos];
 }
+
+struct thread_core_local * __nostackcheck thread_get_core_local(void)
+{
+	unsigned int pos = get_core_pos();
+
+	return get_core_local(pos);
+}
+
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+static void print_stack_limits(void)
+{
+	size_t n = 0;
+	vaddr_t __maybe_unused start = 0;
+	vaddr_t __maybe_unused end = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		start = GET_STACK_TOP_SOFT(stack_tmp, n);
+		end = GET_STACK_BOTTOM(stack_tmp, n);
+		DMSG("tmp [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
+	}
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		start = GET_STACK_TOP_SOFT(stack_abt, n);
+		end = GET_STACK_BOTTOM(stack_abt, n);
+		DMSG("abt [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
+	}
+	for (n = 0; n < CFG_NUM_THREADS; n++) {
+		end = threads[n].stack_va_end;
+		start = end - STACK_THREAD_SIZE;
+		DMSG("thr [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
+	}
+}
+
+static void check_stack_limits(void)
+{
+	vaddr_t stack_start = 0;
+	vaddr_t stack_end = 0;
+	/* Any value in the current stack frame will do */
+	vaddr_t current_sp = (vaddr_t)&stack_start;
+
+	if (!get_stack_soft_limits(&stack_start, &stack_end))
+		panic("Unknown stack limits");
+	if (current_sp < stack_start || current_sp > stack_end) {
+		DMSG("Stack pointer out of range (0x%" PRIxVA ")", current_sp);
+		print_stack_limits();
+		panic();
+	}
+}
+
+static bool * __nostackcheck get_stackcheck_recursion_flag(void)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	unsigned int pos = get_core_pos();
+	struct thread_core_local *l = get_core_local(pos);
+	int ct = l->curr_thread;
+	bool *p = NULL;
+
+	if (l->flags & (THREAD_CLF_ABORT | THREAD_CLF_TMP))
+		p = &l->stackcheck_recursion;
+	else if (!l->flags)
+		p = &threads[ct].tsd.stackcheck_recursion;
+
+	thread_unmask_exceptions(exceptions);
+	return p;
+}
+
+void __cyg_profile_func_enter(void *this_fn, void *call_site);
+void __nostackcheck __cyg_profile_func_enter(void *this_fn __unused,
+					     void *call_site __unused)
+{
+	bool *p = get_stackcheck_recursion_flag();
+
+	assert(p);
+	if (*p)
+		return;
+	*p = true;
+	check_stack_limits();
+	*p = false;
+}
+
+void __cyg_profile_func_exit(void *this_fn, void *call_site);
+void __nostackcheck __cyg_profile_func_exit(void *this_fn __unused,
+					    void *call_site __unused)
+{
+}
+#else
+static void print_stack_limits(void)
+{
+}
+#endif
 
 static void thread_lazy_save_ns_vfp(void)
 {
@@ -393,7 +511,7 @@ void thread_init_boot_thread(void)
 	threads[0].state = THREAD_STATE_ACTIVE;
 }
 
-void thread_clr_boot_thread(void)
+void __nostackcheck thread_clr_boot_thread(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
@@ -432,6 +550,8 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 	init_regs(threads + n, a0, a1, a2, a3);
 
 	thread_lazy_save_ns_vfp();
+
+	l->flags &= ~THREAD_CLF_TMP;
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
 	panic();
@@ -569,14 +689,21 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	if (threads[n].have_user_map)
 		ftrace_resume();
 
+	l->flags &= ~THREAD_CLF_TMP;
 	thread_resume(&threads[n].regs);
 	/*NOTREACHED*/
 	panic();
 }
 
-void *thread_get_tmp_sp(void)
+void __nostackcheck *thread_get_tmp_sp(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
+
+	/*
+	 * Called from assembly when switching to the temporary stack, so flags
+	 * need updating
+	 */
+	l->flags |= THREAD_CLF_TMP;
 
 	return (void *)l->tmp_stack_va_end;
 }
@@ -609,6 +736,43 @@ size_t thread_stack_size(void)
 	return STACK_THREAD_SIZE;
 }
 
+bool get_stack_limits(vaddr_t *start, vaddr_t *end, bool hard)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	unsigned int pos = get_core_pos();
+	struct thread_core_local *l = get_core_local(pos);
+	int ct = l->curr_thread;
+	bool ret = false;
+
+	if (l->flags & THREAD_CLF_TMP) {
+		if (hard)
+			*start = GET_STACK_TOP_HARD(stack_tmp, pos);
+		else
+			*start = GET_STACK_TOP_SOFT(stack_tmp, pos);
+		*end = GET_STACK_BOTTOM(stack_tmp, pos);
+		ret = true;
+	} else if (l->flags & THREAD_CLF_ABORT) {
+		if (hard)
+			*start = GET_STACK_TOP_HARD(stack_abt, pos);
+		else
+			*start = GET_STACK_TOP_SOFT(stack_abt, pos);
+		*end = GET_STACK_BOTTOM(stack_abt, pos);
+		ret = true;
+	} else if (!l->flags) {
+		if (ct < 0 || ct >= CFG_NUM_THREADS)
+			goto out;
+
+		*end = threads[ct].stack_va_end;
+		*start = *end - STACK_THREAD_SIZE;
+		if (!hard)
+			*start += STACK_CHECK_EXTRA;
+		ret = true;
+	}
+out:
+	thread_unmask_exceptions(exceptions);
+	return ret;
+}
+
 bool thread_is_from_abort_mode(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -630,8 +794,11 @@ bool thread_is_in_normal_mode(void)
 	struct thread_core_local *l = thread_get_core_local();
 	bool ret;
 
-	/* If any bit in l->flags is set we're handling some exception. */
-	ret = !l->flags;
+	/*
+	 * If any bit in l->flags is set aside from THREAD_CLF_TMP we're
+	 * handling some exception.
+	 */
+	ret = (l->curr_thread != -1) && !(l->flags & ~THREAD_CLF_TMP);
 	thread_unmask_exceptions(exceptions);
 
 	return ret;
@@ -779,35 +946,27 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
-int thread_get_id_may_fail(void)
+short int thread_get_id_may_fail(void)
 {
 	/*
 	 * thread_get_core_local() requires foreign interrupts to be disabled
 	 */
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct thread_core_local *l = thread_get_core_local();
-	int ct = l->curr_thread;
+	short int ct = l->curr_thread;
 
 	thread_unmask_exceptions(exceptions);
 	return ct;
 }
 
-int thread_get_id(void)
+short int thread_get_id(void)
 {
-	int ct = thread_get_id_may_fail();
+	short int ct = thread_get_id_may_fail();
 
+	/* Thread ID has to fit in a short int */
+	COMPILE_TIME_ASSERT(CFG_NUM_THREADS <= SHRT_MAX);
 	assert(ct >= 0 && ct < CFG_NUM_THREADS);
 	return ct;
-}
-
-static void init_handlers(const struct thread_handlers *handlers)
-{
-	thread_cpu_on_handler_ptr = handlers->cpu_on;
-	thread_cpu_off_handler_ptr = handlers->cpu_off;
-	thread_cpu_suspend_handler_ptr = handlers->cpu_suspend;
-	thread_cpu_resume_handler_ptr = handlers->cpu_resume;
-	thread_system_off_handler_ptr = handlers->system_off;
-	thread_system_reset_handler_ptr = handlers->system_reset;
 }
 
 #ifdef CFG_WITH_PAGER
@@ -855,7 +1014,7 @@ static void init_thread_stacks(void)
 
 	/* Assign the thread stacks */
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (!thread_init_stack(n, GET_STACK(stack_thread[n])))
+		if (!thread_init_stack(n, GET_STACK_BOTTOM(stack_thread, n)))
 			panic("thread_init_stack failed");
 	}
 }
@@ -888,9 +1047,10 @@ static void init_user_kcode(void)
 
 void thread_init_threads(void)
 {
-	size_t n;
+	size_t n = 0;
 
 	init_thread_stacks();
+	print_stack_limits();
 	pgt_init();
 
 	mutex_lockdep_init();
@@ -899,26 +1059,34 @@ void thread_init_threads(void)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
 		SLIST_INIT(&threads[n].tsd.pgt_cache);
 	}
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		thread_core_local[n].curr_thread = -1;
 }
 
-void thread_init_primary(const struct thread_handlers *handlers)
+void __nostackcheck thread_init_thread_core_local(void)
 {
-	init_handlers(handlers);
+	size_t n = 0;
+	struct thread_core_local *tcl = thread_core_local;
 
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		tcl[n].curr_thread = -1;
+		tcl[n].flags = THREAD_CLF_TMP;
+	}
+
+	tcl[0].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, 0);
+}
+
+void thread_init_primary(void)
+{
 	/* Initialize canaries around the stacks */
 	init_canaries();
 
 	init_user_kcode();
 }
 
-static void init_sec_mon(size_t pos __maybe_unused)
+static void init_sec_mon_stack(size_t pos __maybe_unused)
 {
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* Initialize secure monitor */
-	sm_init(GET_STACK(stack_tmp[pos]));
+	sm_init(GET_STACK_BOTTOM(stack_tmp, pos));
 #endif
 }
 
@@ -1006,10 +1174,10 @@ void thread_init_per_cpu(void)
 	size_t pos = get_core_pos();
 	struct thread_core_local *l = thread_get_core_local();
 
-	init_sec_mon(pos);
+	init_sec_mon_stack(pos);
 
-	set_tmp_stack(l, GET_STACK(stack_tmp[pos]) - STACK_TMP_OFFS);
-	set_abt_stack(l, GET_STACK(stack_abt[pos]));
+	set_tmp_stack(l, GET_STACK_BOTTOM(stack_tmp, pos) - STACK_TMP_OFFS);
+	set_abt_stack(l, GET_STACK_BOTTOM(stack_abt, pos));
 
 	thread_init_vbar(get_excp_vect());
 
@@ -1028,7 +1196,7 @@ struct thread_specific_data *thread_get_tsd(void)
 	return &threads[thread_get_id()].tsd;
 }
 
-struct thread_ctx_regs *thread_get_ctx_regs(void)
+struct thread_ctx_regs * __nostackcheck thread_get_ctx_regs(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
@@ -1383,3 +1551,166 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 		setup_unwind_user_mode(regs);
 	}
 }
+
+static struct mobj *alloc_shm(enum thread_shm_type shm_type, size_t size)
+{
+	switch (shm_type) {
+	case THREAD_SHM_TYPE_APPLICATION:
+		return thread_rpc_alloc_payload(size);
+	case THREAD_SHM_TYPE_KERNEL_PRIVATE:
+		return thread_rpc_alloc_kernel_payload(size);
+	case THREAD_SHM_TYPE_GLOBAL:
+		return thread_rpc_alloc_global_payload(size);
+	default:
+		return NULL;
+	}
+}
+
+static void clear_shm_cache_entry(struct thread_shm_cache_entry *ce)
+{
+	if (ce->mobj) {
+		switch (ce->type) {
+		case THREAD_SHM_TYPE_APPLICATION:
+			thread_rpc_free_payload(ce->mobj);
+			break;
+		case THREAD_SHM_TYPE_KERNEL_PRIVATE:
+			thread_rpc_free_kernel_payload(ce->mobj);
+			break;
+		case THREAD_SHM_TYPE_GLOBAL:
+			thread_rpc_free_global_payload(ce->mobj);
+			break;
+		default:
+			assert(0); /* "can't happen" */
+			break;
+		}
+	}
+	ce->mobj = NULL;
+	ce->size = 0;
+}
+
+static struct thread_shm_cache_entry *
+get_shm_cache_entry(enum thread_shm_cache_user user)
+{
+	struct thread_shm_cache *cache = &threads[thread_get_id()].shm_cache;
+	struct thread_shm_cache_entry *ce = NULL;
+
+	SLIST_FOREACH(ce, cache, link)
+		if (ce->user == user)
+			return ce;
+
+	ce = calloc(1, sizeof(*ce));
+	if (ce) {
+		ce->user = user;
+		SLIST_INSERT_HEAD(cache, ce, link);
+	}
+
+	return ce;
+}
+
+void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
+				 enum thread_shm_type shm_type,
+				 size_t size, struct mobj **mobj)
+{
+	struct thread_shm_cache_entry *ce = NULL;
+	size_t sz = size;
+	paddr_t p = 0;
+	void *va = NULL;
+
+	if (!size)
+		return NULL;
+
+	ce = get_shm_cache_entry(user);
+	if (!ce)
+		return NULL;
+
+	/*
+	 * Always allocate in page chunks as normal world allocates payload
+	 * memory as complete pages.
+	 */
+	sz = ROUNDUP(size, SMALL_PAGE_SIZE);
+
+	if (ce->type != shm_type || sz > ce->size) {
+		clear_shm_cache_entry(ce);
+
+		ce->mobj = alloc_shm(shm_type, sz);
+		if (!ce->mobj)
+			return NULL;
+
+		if (mobj_get_pa(ce->mobj, 0, 0, &p))
+			goto err;
+
+		if (!ALIGNMENT_IS_OK(p, uint64_t))
+			goto err;
+
+		va = mobj_get_va(ce->mobj, 0);
+		if (!va)
+			goto err;
+
+		ce->size = sz;
+		ce->type = shm_type;
+	} else {
+		va = mobj_get_va(ce->mobj, 0);
+		if (!va)
+			goto err;
+	}
+	*mobj = ce->mobj;
+
+	return va;
+err:
+	clear_shm_cache_entry(ce);
+	return NULL;
+}
+
+void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache)
+{
+	while (true) {
+		struct thread_shm_cache_entry *ce = SLIST_FIRST(cache);
+
+		if (!ce)
+			break;
+		SLIST_REMOVE_HEAD(cache, link);
+		clear_shm_cache_entry(ce);
+		free(ce);
+	}
+}
+
+#ifdef CFG_WITH_ARM_TRUSTED_FW
+/*
+ * These five functions are __weak to allow platforms to override them if
+ * needed.
+ */
+unsigned long __weak thread_cpu_off_handler(unsigned long a0 __unused,
+					    unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_off_handler);
+
+unsigned long __weak thread_cpu_suspend_handler(unsigned long a0 __unused,
+						unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_suspend_handler);
+
+unsigned long __weak thread_cpu_resume_handler(unsigned long a0 __unused,
+					       unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_cpu_resume_handler);
+
+unsigned long __weak thread_system_off_handler(unsigned long a0 __unused,
+					       unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_system_off_handler);
+
+unsigned long __weak thread_system_reset_handler(unsigned long a0 __unused,
+						 unsigned long a1 __unused)
+{
+	return 0;
+}
+DECLARE_KEEP_PAGER(thread_system_reset_handler);
+#endif /*CFG_WITH_ARM_TRUSTED_FW*/

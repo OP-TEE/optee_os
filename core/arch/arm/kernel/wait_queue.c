@@ -160,7 +160,7 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 	/*
 	 * Find condvar waiter(s) and promote each to an active waiter.
 	 * This is a bit unfair to eventual other active waiters as a
-	 * condvar waiter is added the the queue when waiting for the
+	 * condvar waiter is added to the queue when waiting for the
 	 * condvar.
 	 */
 	SLIST_FOREACH(wqe, wq, link) {

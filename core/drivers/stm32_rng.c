@@ -6,18 +6,15 @@
 #include <assert.h>
 #include <drivers/stm32_rng.h>
 #include <io.h>
-#include <kernel/dt.h>
 #include <kernel/delay.h>
-#include <kernel/generic_boot.h>
+#include <kernel/dt.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stm32_util.h>
 #include <string.h>
-
-#ifdef CFG_DT
-#include <libfdt.h>
-#endif
 
 #define DT_RNG_COMPAT		"st,stm32-rng"
 #define RNG_CR			0x00U
@@ -34,7 +31,7 @@
 #define RNG_SR_CEIS		BIT(5)
 #define RNG_SR_SEIS		BIT(6)
 
-#define RNG_TIMEOUT_US		1000
+#define RNG_TIMEOUT_US		10000
 
 struct stm32_rng_instance {
 	struct io_pa_va base;

@@ -32,6 +32,12 @@ endif
 # Supported values: undefined, 1, 2 and 3. 3 gives more warnings.
 WARNS ?= 3
 
+# Path to the Python interpreter used by the build system.
+# This variable is set to the default python3 interpreter in the user's
+# path. But build environments that require more explicit control can
+# set the path to a specific interpreter through this variable.
+PYTHON3 ?= python3
+
 # Define DEBUG=1 to compile without optimization (forces -O0)
 # DEBUG=1
 
@@ -116,7 +122,7 @@ endif
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 8
+CFG_OPTEE_REVISION_MINOR ?= 10
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
@@ -153,6 +159,26 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # dependent (potential number of FAT fs entries), so overwrite in platform
 # config files
 CFG_RPMB_FS_RD_ENTRIES ?= 8
+
+# Enables caching of FAT FS entries when set to a value greater than zero.
+# When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
+# entries. The cache is populated when FAT FS entries are initially read in.
+# When traversing the FAT FS entries, we read from the cache instead of reading
+# in the entries from RPMB storage. Consequently, when a FAT FS entry is
+# written, the cache is updated. In scenarios where an estimate of the number
+# of FAT FS entries can be made, the cache may be specifically tailored to
+# store all entries. The caching can improve RPMB I/O at the cost
+# of additional memory.
+# Without caching, we temporarily require
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# while traversing the FAT FS (e.g. in read_fat).
+# For example 8*256 bytes = 2kB while in read_fat.
+# With caching, we constantly require up to
+# CFG_RPMB_FS_CACHE_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# depending on how many elements are in the cache, and additional temporary
+# CFG_RPMB_FS_RD_ENTRIES*sizeof(struct rpmb_fat_entry) bytes of heap memory
+# in case the cache is too small to hold all elements when traversing.
+CFG_RPMB_FS_CACHE_ENTRIES ?= 0
 
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
@@ -313,6 +339,14 @@ CFG_CORE_SANITIZE_UNDEFINED ?= n
 # lot of memory and need platform specific adaptations, can't be enabled by
 # default
 CFG_CORE_SANITIZE_KADDRESS ?= n
+
+# Add stack guards before/after stacks and periodically check them
+CFG_WITH_STACK_CANARIES ?= y
+
+# Use compiler instrumentation to troubleshoot stack overflows.
+# When enabled, most C functions check the stack pointer against the current
+# stack limits on entry and panic immediately if it is out of range.
+CFG_CORE_DEBUG_CHECK_STACKS ?= n
 
 # Device Tree support
 #
@@ -559,3 +593,12 @@ CFG_SCMI_MSG_DRIVERS ?= n
 CFG_SCMI_MSG_CLOCK ?= n
 CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
+
+ifneq ($(CFG_STMM_PATH),)
+$(call force,CFG_WITH_SECURE_PARTITION,y)
+else
+CFG_WITH_SECURE_PARTITION ?= n
+endif
+ifeq ($(CFG_WITH_SECURE_PARTITION),y)
+$(call force,CFG_ZLIB,y)
+endif

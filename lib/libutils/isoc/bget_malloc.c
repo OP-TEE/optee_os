@@ -92,6 +92,7 @@
 #include <kernel/asan.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
+#include <kernel/unwind.h>
 
 static void tag_asan_free(void *buf, size_t len)
 {
@@ -198,7 +199,7 @@ static void print_oom(size_t req_size __maybe_unused, void *ctx __maybe_unused)
 {
 #if defined(__KERNEL__) && defined(CFG_CORE_DUMP_OOM)
 	EMSG("Memory allocation failed: size %zu context %p", req_size, ctx);
-	EPRINT_STACK();
+	print_kernel_stack();
 #endif
 }
 

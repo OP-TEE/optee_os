@@ -6,6 +6,7 @@ srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
 srcs-y += pseudo_ta.c
 srcs-y += tee_time.c
+srcs-y += rpc_io_i2c.c
 srcs-y += otp_stubs.c
 srcs-y += delay.c
 
@@ -26,9 +27,16 @@ srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 srcs-$(CFG_ARM32_core) += thread_a32.S
 srcs-$(CFG_ARM64_core) += thread_a64.S
 srcs-y += thread.c
+ifeq ($(CFG_CORE_FFA),y)
+srcs-y += thread_spmc.c
+cppflags-thread_spmc.c-y += -DTEE_IMPL_GIT_SHA1=$(TEE_IMPL_GIT_SHA1)
+srcs-$(CFG_ARM32_core) += thread_spmc_a32.S
+srcs-$(CFG_ARM64_core) += thread_spmc_a64.S
+else
 srcs-y += thread_optee_smc.c
 srcs-$(CFG_ARM32_core) += thread_optee_smc_a32.S
 srcs-$(CFG_ARM64_core) += thread_optee_smc_a64.S
+endif
 srcs-y += abort.c
 srcs-$(CFG_WITH_VFP) += vfp.c
 ifeq ($(CFG_WITH_VFP),y)
@@ -41,16 +49,14 @@ srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c
 srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
-srcs-$(CFG_PM_STUBS) += pm_stubs.c
+srcs-$(CFG_WITH_SECURE_PARTITION) += secure_partition.c
 
-srcs-$(CFG_GENERIC_BOOT) += generic_boot.c
-ifeq ($(CFG_GENERIC_BOOT),y)
-srcs-$(CFG_ARM32_core) += generic_entry_a32.S
-srcs-$(CFG_ARM64_core) += generic_entry_a64.S
-endif
+srcs-y += boot.c
+srcs-$(CFG_ARM32_core) += entry_a32.S
+srcs-$(CFG_ARM64_core) += entry_a64.S
 
 ifeq ($(CFG_UNWIND),y)
-srcs-y += unwind_arm32.c
+srcs-$(CFG_ARM32_core) += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 

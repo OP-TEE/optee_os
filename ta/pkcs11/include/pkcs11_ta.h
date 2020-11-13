@@ -18,8 +18,8 @@
 #define PKCS11_TA_VERSION_PATCH			0
 
 /* Attribute specific values */
-#define PKCS11_UNAVAILABLE_INFORMATION		UINT32_C(0xFFFFFFFF)
-#define PKCS11_UNDEFINED_ID			PKCS11_UNAVAILABLE_INFORMATION
+#define PKCS11_CK_UNAVAILABLE_INFORMATION	UINT32_C(0xFFFFFFFF)
+#define PKCS11_UNDEFINED_ID			UINT32_C(0xFFFFFFFF)
 #define PKCS11_FALSE				false
 #define PKCS11_TRUE				true
 
@@ -43,13 +43,13 @@
  * return code for the invoked command.
  *
  * Param#1 can be used for input data arguments of the invoked command.
- * It is unused or is a input memory reference, aka memref[1].
+ * It is unused or is an input memory reference, aka memref[1].
  * Evolution of the API may use memref[1] for output data as well.
  *
  * Param#2 is mostly used for output data arguments of the invoked command
  * and for output handles generated from invoked commands.
  * Few commands uses it for a secondary input data buffer argument.
- * It is unused or is a input/output/in-out memory reference, aka memref[2].
+ * It is unused or is an input/output/in-out memory reference, aka memref[2].
  *
  * Param#3 is currently unused and reserved for evolution of the API.
  */
@@ -249,6 +249,98 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_Logout().
 	 */
 	PKCS11_CMD_LOGOUT = 14,
+
+	/*
+	 * PKCS11_CMD_CREATE_OBJECT - Create a raw client assembled object in
+	 *			      the session or token
+	 *
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_CreateObject().
+	 */
+	PKCS11_CMD_CREATE_OBJECT = 15,
+
+	/*
+	 * PKCS11_CMD_DESTROY_OBJECT - Destroy an object
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_DestroyObject().
+	 */
+	PKCS11_CMD_DESTROY_OBJECT = 16,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_INIT - Initialize encryption processing
+	 * PKCS11_CMD_DECRYPT_INIT - Initialize decryption processing
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle of the key,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptInit() and C_DecryptInit().
+	 */
+	PKCS11_CMD_ENCRYPT_INIT = 17,
+	PKCS11_CMD_DECRYPT_INIT = 18,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_UPDATE - Update encryption processing
+	 * PKCS11_CMD_DECRYPT_UPDATE - Update decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptUpdate() and C_DecryptUpdate().
+	 */
+	PKCS11_CMD_ENCRYPT_UPDATE = 19,
+	PKCS11_CMD_DECRYPT_UPDATE = 20,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_FINAL - Finalize encryption processing
+	 * PKCS11_CMD_DECRYPT_FINAL - Finalize decryption processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions
+	 * C_EncryptFinal() and C_DecryptFinal().
+	 */
+	PKCS11_CMD_ENCRYPT_FINAL = 21,
+	PKCS11_CMD_DECRYPT_FINAL = 22,
+
+	/*
+	 * PKCS11_CMD_ENCRYPT_ONESHOT - Update and finalize encryption
+	 *				processing
+	 * PKCS11_CMD_DECRYPT_ONESHOT - Update and finalize decryption
+	 *				processing
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [in]  memref[1] = input data to be processed
+	 * [out] memref[2] = output processed data
+	 *
+	 * These commands relate to the PKCS#11 API functions C_Encrypt and
+	 * C_Decrypt.
+	 */
+	PKCS11_CMD_ENCRYPT_ONESHOT = 23,
+	PKCS11_CMD_DECRYPT_ONESHOT = 24,
 };
 
 /*
@@ -470,10 +562,219 @@ struct pkcs11_mechanism_info {
 #define PKCS11_CKFM_EC_COMPRESS			(1U << 25)
 
 /*
+ * pkcs11_object_head - Header of object whose data are serialized in memory
+ *
+ * An object is made of several attributes. Attributes are stored one next to
+ * the other with byte alignment as a serialized byte array. The byte array
+ * of serialized attributes is prepended with the size of the attrs[] array
+ * in bytes and the number of attributes in the array, yielding the struct
+ * pkcs11_object_head.
+ *
+ * @attrs_size - byte size of whole byte array attrs[]
+ * @attrs_count - number of attribute items stored in attrs[]
+ * @attrs - then starts the attributes data
+ */
+struct pkcs11_object_head {
+	uint32_t attrs_size;
+	uint32_t attrs_count;
+	uint8_t attrs[];
+};
+
+/*
+ * Attribute reference in the TA ABI. Each attribute starts with a header
+ * structure followed by the attribute value. The attribute byte size is
+ * defined in the attribute header.
+ *
+ * @id - the 32bit identifier of the attribute, see PKCS11_CKA_<x>
+ * @size - the 32bit value attribute byte size
+ * @data - then starts the attribute value
+ */
+struct pkcs11_attribute_head {
+	uint32_t id;
+	uint32_t size;
+	uint8_t data[];
+};
+
+/*
+ * Attribute identification IDs as of v2.40 excluding deprecated IDs.
+ * Valid values for struct pkcs11_attribute_head::id
+ * PKCS11_CKA_<x> reflects CryptoKi client API attribute IDs CKA_<x>.
+ */
+enum pkcs11_attr_id {
+	PKCS11_CKA_CLASS			= 0x0000,
+	PKCS11_CKA_TOKEN			= 0x0001,
+	PKCS11_CKA_PRIVATE			= 0x0002,
+	PKCS11_CKA_LABEL			= 0x0003,
+	PKCS11_CKA_APPLICATION			= 0x0010,
+	PKCS11_CKA_VALUE			= 0x0011,
+	PKCS11_CKA_OBJECT_ID			= 0x0012,
+	PKCS11_CKA_CERTIFICATE_TYPE		= 0x0080,
+	PKCS11_CKA_ISSUER			= 0x0081,
+	PKCS11_CKA_SERIAL_NUMBER		= 0x0082,
+	PKCS11_CKA_AC_ISSUER			= 0x0083,
+	PKCS11_CKA_OWNER			= 0x0084,
+	PKCS11_CKA_ATTR_TYPES			= 0x0085,
+	PKCS11_CKA_TRUSTED			= 0x0086,
+	PKCS11_CKA_CERTIFICATE_CATEGORY		= 0x0087,
+	PKCS11_CKA_JAVA_MIDP_SECURITY_DOMAIN	= 0x0088,
+	PKCS11_CKA_URL				= 0x0089,
+	PKCS11_CKA_HASH_OF_SUBJECT_PUBLIC_KEY	= 0x008a,
+	PKCS11_CKA_HASH_OF_ISSUER_PUBLIC_KEY	= 0x008b,
+	PKCS11_CKA_NAME_HASH_ALGORITHM		= 0x008c,
+	PKCS11_CKA_CHECK_VALUE			= 0x0090,
+	PKCS11_CKA_KEY_TYPE			= 0x0100,
+	PKCS11_CKA_SUBJECT			= 0x0101,
+	PKCS11_CKA_ID				= 0x0102,
+	PKCS11_CKA_SENSITIVE			= 0x0103,
+	PKCS11_CKA_ENCRYPT			= 0x0104,
+	PKCS11_CKA_DECRYPT			= 0x0105,
+	PKCS11_CKA_WRAP				= 0x0106,
+	PKCS11_CKA_UNWRAP			= 0x0107,
+	PKCS11_CKA_SIGN				= 0x0108,
+	PKCS11_CKA_SIGN_RECOVER			= 0x0109,
+	PKCS11_CKA_VERIFY			= 0x010a,
+	PKCS11_CKA_VERIFY_RECOVER		= 0x010b,
+	PKCS11_CKA_DERIVE			= 0x010c,
+	PKCS11_CKA_START_DATE			= 0x0110,
+	PKCS11_CKA_END_DATE			= 0x0111,
+	PKCS11_CKA_MODULUS			= 0x0120,
+	PKCS11_CKA_MODULUS_BITS			= 0x0121,
+	PKCS11_CKA_PUBLIC_EXPONENT		= 0x0122,
+	PKCS11_CKA_PRIVATE_EXPONENT		= 0x0123,
+	PKCS11_CKA_PRIME_1			= 0x0124,
+	PKCS11_CKA_PRIME_2			= 0x0125,
+	PKCS11_CKA_EXPONENT_1			= 0x0126,
+	PKCS11_CKA_EXPONENT_2			= 0x0127,
+	PKCS11_CKA_COEFFICIENT			= 0x0128,
+	PKCS11_CKA_PUBLIC_KEY_INFO		= 0x0129,
+	PKCS11_CKA_PRIME			= 0x0130,
+	PKCS11_CKA_SUBPRIME			= 0x0131,
+	PKCS11_CKA_BASE				= 0x0132,
+	PKCS11_CKA_PRIME_BITS			= 0x0133,
+	PKCS11_CKA_SUBPRIME_BITS		= 0x0134,
+	PKCS11_CKA_VALUE_BITS			= 0x0160,
+	PKCS11_CKA_VALUE_LEN			= 0x0161,
+	PKCS11_CKA_EXTRACTABLE			= 0x0162,
+	PKCS11_CKA_LOCAL			= 0x0163,
+	PKCS11_CKA_NEVER_EXTRACTABLE		= 0x0164,
+	PKCS11_CKA_ALWAYS_SENSITIVE		= 0x0165,
+	PKCS11_CKA_KEY_GEN_MECHANISM		= 0x0166,
+	PKCS11_CKA_MODIFIABLE			= 0x0170,
+	PKCS11_CKA_COPYABLE			= 0x0171,
+	PKCS11_CKA_DESTROYABLE			= 0x0172,
+	PKCS11_CKA_EC_PARAMS			= 0x0180,
+	PKCS11_CKA_EC_POINT			= 0x0181,
+	PKCS11_CKA_ALWAYS_AUTHENTICATE		= 0x0202,
+	PKCS11_CKA_WRAP_WITH_TRUSTED		= 0x0210,
+	/*
+	 * The leading 4 comes from the PKCS#11 spec or:ing with
+	 * CKF_ARRAY_ATTRIBUTE = 0x40000000.
+	 */
+	PKCS11_CKA_WRAP_TEMPLATE		= 0x40000211,
+	PKCS11_CKA_UNWRAP_TEMPLATE		= 0x40000212,
+	PKCS11_CKA_DERIVE_TEMPLATE		= 0x40000213,
+	PKCS11_CKA_OTP_FORMAT			= 0x0220,
+	PKCS11_CKA_OTP_LENGTH			= 0x0221,
+	PKCS11_CKA_OTP_TIME_INTERVAL		= 0x0222,
+	PKCS11_CKA_OTP_USER_FRIENDLY_MODE	= 0x0223,
+	PKCS11_CKA_OTP_CHALLENGE_REQUIREMENT	= 0x0224,
+	PKCS11_CKA_OTP_TIME_REQUIREMENT		= 0x0225,
+	PKCS11_CKA_OTP_COUNTER_REQUIREMENT	= 0x0226,
+	PKCS11_CKA_OTP_PIN_REQUIREMENT		= 0x0227,
+	PKCS11_CKA_OTP_COUNTER			= 0x022e,
+	PKCS11_CKA_OTP_TIME			= 0x022f,
+	PKCS11_CKA_OTP_USER_IDENTIFIER		= 0x022a,
+	PKCS11_CKA_OTP_SERVICE_IDENTIFIER	= 0x022b,
+	PKCS11_CKA_OTP_SERVICE_LOGO		= 0x022c,
+	PKCS11_CKA_OTP_SERVICE_LOGO_TYPE	= 0x022d,
+	PKCS11_CKA_GOSTR3410_PARAMS		= 0x0250,
+	PKCS11_CKA_GOSTR3411_PARAMS		= 0x0251,
+	PKCS11_CKA_GOST28147_PARAMS		= 0x0252,
+	PKCS11_CKA_HW_FEATURE_TYPE		= 0x0300,
+	PKCS11_CKA_RESET_ON_INIT		= 0x0301,
+	PKCS11_CKA_HAS_RESET			= 0x0302,
+	PKCS11_CKA_PIXEL_X			= 0x0400,
+	PKCS11_CKA_PIXEL_Y			= 0x0401,
+	PKCS11_CKA_RESOLUTION			= 0x0402,
+	PKCS11_CKA_CHAR_ROWS			= 0x0403,
+	PKCS11_CKA_CHAR_COLUMNS			= 0x0404,
+	PKCS11_CKA_COLOR			= 0x0405,
+	PKCS11_CKA_BITS_PER_PIXEL		= 0x0406,
+	PKCS11_CKA_CHAR_SETS			= 0x0480,
+	PKCS11_CKA_ENCODING_METHODS		= 0x0481,
+	PKCS11_CKA_MIME_TYPES			= 0x0482,
+	PKCS11_CKA_MECHANISM_TYPE		= 0x0500,
+	PKCS11_CKA_REQUIRED_CMS_ATTRIBUTES	= 0x0501,
+	PKCS11_CKA_DEFAULT_CMS_ATTRIBUTES	= 0x0502,
+	PKCS11_CKA_SUPPORTED_CMS_ATTRIBUTES	= 0x0503,
+	/*
+	 * The leading 4 comes from the PKCS#11 spec or:ing with
+	 * CKF_ARRAY_ATTRIBUTE = 0x40000000.
+	 */
+	PKCS11_CKA_ALLOWED_MECHANISMS		= 0x40000600,
+	/* Vendor extension: reserved for undefined ID (~0U) */
+	PKCS11_CKA_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
+};
+
+/*
+ * Valid values for attribute PKCS11_CKA_CLASS
+ * PKCS11_CKO_<x> reflects CryptoKi client API object class IDs CKO_<x>.
+ */
+enum pkcs11_class_id {
+	PKCS11_CKO_DATA				= 0x000,
+	PKCS11_CKO_CERTIFICATE			= 0x001,
+	PKCS11_CKO_PUBLIC_KEY			= 0x002,
+	PKCS11_CKO_PRIVATE_KEY			= 0x003,
+	PKCS11_CKO_SECRET_KEY			= 0x004,
+	PKCS11_CKO_HW_FEATURE			= 0x005,
+	PKCS11_CKO_DOMAIN_PARAMETERS		= 0x006,
+	PKCS11_CKO_MECHANISM			= 0x007,
+	PKCS11_CKO_OTP_KEY			= 0x008,
+	/* Vendor extension: reserved for undefined ID (~0U) */
+	PKCS11_CKO_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
+};
+
+/*
+ * Valid values for attribute PKCS11_CKA_KEY_TYPE
+ * PKCS11_CKK_<x> reflects CryptoKi client API key type IDs CKK_<x>.
+ * Note that this is only a subset of the PKCS#11 specification.
+ */
+enum pkcs11_key_type {
+	PKCS11_CKK_RSA				= 0x000,
+	PKCS11_CKK_DSA				= 0x001,
+	PKCS11_CKK_DH				= 0x002,
+	PKCS11_CKK_EC				= 0x003,
+	PKCS11_CKK_GENERIC_SECRET		= 0x010,
+	PKCS11_CKK_AES				= 0x01f,
+	PKCS11_CKK_MD5_HMAC			= 0x027,
+	PKCS11_CKK_SHA_1_HMAC			= 0x028,
+	PKCS11_CKK_SHA256_HMAC			= 0x02b,
+	PKCS11_CKK_SHA384_HMAC			= 0x02c,
+	PKCS11_CKK_SHA512_HMAC			= 0x02d,
+	PKCS11_CKK_SHA224_HMAC			= 0x02e,
+	/* Vendor extension: reserved for undefined ID (~0U) */
+	PKCS11_CKK_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
+};
+
+/*
  * Valid values for mechanism IDs
  * PKCS11_CKM_<x> reflects CryptoKi client API mechanism IDs CKM_<x>.
+ * Note that this will be extended as needed.
  */
 enum pkcs11_mechanism_id {
+	PKCS11_CKM_AES_KEY_GEN			= 0x01080,
 	PKCS11_CKM_AES_ECB			= 0x01081,
+	PKCS11_CKM_AES_CBC			= 0x01082,
+	PKCS11_CKM_AES_CBC_PAD			= 0x01085,
+	PKCS11_CKM_AES_CTR			= 0x01086,
+	PKCS11_CKM_AES_CTS			= 0x01089,
+	PKCS11_CKM_AES_ECB_ENCRYPT_DATA		= 0x01104,
+	PKCS11_CKM_AES_CBC_ENCRYPT_DATA		= 0x01105,
+	/*
+	 * Vendor extensions below.
+	 * PKCS11 added IDs for operation not related to a CK mechanism ID
+	 */
+	PKCS11_PROCESSING_IMPORT		= 0x80000000,
+	PKCS11_CKM_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
 #endif /*PKCS11_TA_H*/

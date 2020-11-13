@@ -7,3 +7,4 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,n)
 arm32-platform-cpuarch 	:= cortex-a5
 arm32-platform-cflags 	+= -mcpu=$(arm32-platform-cpuarch)
 arm32-platform-aflags 	+= -mcpu=$(arm32-platform-cpuarch)
+arm32-platform-cxxflags	+= -mcpu=$(arm32-platform-cpuarch)

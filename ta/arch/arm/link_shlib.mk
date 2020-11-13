@@ -19,12 +19,13 @@ cleanfiles += $(link-out-dir)/$(shlibuuid).ta
 
 shlink-ldflags  = $(LDFLAGS)
 shlink-ldflags += -shared -z max-page-size=4096
+shlink-ldflags += $(call ld-option,-z separate-loadable-segments)
 shlink-ldflags += --as-needed # Do not add dependency on unused shlib
 
 shlink-ldadd  = $(LDADD)
 shlink-ldadd += $(addprefix -L,$(libdirs))
 shlink-ldadd += --start-group $(addprefix -l,$(libnames)) --end-group
-ldargs-$(shlibname).so := $(shlink-ldflags) $(objs) $(shlink-ldadd)
+ldargs-$(shlibname).so := $(shlink-ldflags) $(objs) $(shlink-ldadd) $(libgcc$(sm))
 
 
 $(link-out-dir)/$(shlibname).so: $(objs) $(libdeps)
@@ -46,5 +47,5 @@ $(link-out-dir)/$(shlibuuid).elf: $(link-out-dir)/$(shlibname).so
 $(link-out-dir)/$(shlibuuid).ta: $(link-out-dir)/$(shlibname).stripped.so \
 				$(TA_SIGN_KEY)
 	@$(cmd-echo-silent) '  SIGN    $@'
-	$(q)$(SIGN) --key $(TA_SIGN_KEY) --uuid $(shlibuuid) \
+	$(q)$(PYTHON3) $(SIGN) --key $(TA_SIGN_KEY) --uuid $(shlibuuid) \
 		--in $< --out $@

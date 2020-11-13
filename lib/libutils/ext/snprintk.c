@@ -150,6 +150,11 @@ __vsnprintf(char *bf, size_t size, const char *fmt, va_list ap,
 	return retval;
 }
 
+int __vsprintf(char *bf, const char *fmt, va_list ap)
+{
+	return kprintf(fmt, TOBUFONLY, NULL, bf, ap, false);
+}
+
 /*
  * kprintf: scaled down version of printf(3).
  *

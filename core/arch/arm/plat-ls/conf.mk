@@ -1,10 +1,8 @@
 PLATFORM_FLAVOR ?= ls1021atwr
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_16550_UART,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_LS,y)
 
 $(call force,CFG_DRAM0_BASE,0x80000000)
@@ -90,6 +88,7 @@ endif
 ifeq ($(PLATFORM_FLAVOR),lx2160ardb)
 CFG_HW_UNQ_KEY_REQUEST ?= y
 include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force,CFG_TEE_CORE_NB_CORE,16)
 $(call force,CFG_DRAM0_SIZE,0x80000000)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
@@ -135,7 +134,6 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 endif
 
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
-CFG_WITH_STACK_CANARIES ?= y
 
 # NXP CAAM support is not enabled by default and can be enabled
 # on the command line

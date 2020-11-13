@@ -43,6 +43,16 @@ struct thread_vfp_state {
 
 #endif /*CFG_WITH_VFP*/
 
+struct thread_shm_cache_entry {
+	struct mobj *mobj;
+	size_t size;
+	enum thread_shm_type type;
+	enum thread_shm_cache_user user;
+	SLIST_ENTRY(thread_shm_cache_entry) link;
+};
+
+SLIST_HEAD(thread_shm_cache, thread_shm_cache_entry);
+
 struct thread_ctx {
 	struct thread_ctx_regs regs;
 	enum thread_state state;
@@ -58,6 +68,7 @@ struct thread_ctx {
 #endif
 	void *rpc_arg;
 	struct mobj *rpc_mobj;
+	struct thread_shm_cache shm_cache;
 	struct thread_specific_data tsd;
 };
 #endif /*__ASSEMBLER__*/
@@ -89,13 +100,6 @@ struct thread_ctx {
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
-extern thread_pm_handler_t thread_cpu_on_handler_ptr;
-extern thread_pm_handler_t thread_cpu_off_handler_ptr;
-extern thread_pm_handler_t thread_cpu_suspend_handler_ptr;
-extern thread_pm_handler_t thread_cpu_resume_handler_ptr;
-extern thread_pm_handler_t thread_system_off_handler_ptr;
-extern thread_pm_handler_t thread_system_reset_handler_ptr;
-
 
 /*
  * During boot note the part of code and data that needs to be mapped while
@@ -194,7 +198,28 @@ void thread_unlock_global(void);
  * world.
  */
 #define THREAD_RPC_NUM_ARGS     4
+#ifdef CFG_CORE_FFA
+struct thread_rpc_arg {
+	union {
+		struct {
+			uint32_t w1;
+			uint32_t w4;
+			uint32_t w5;
+			uint32_t w6;
+		} call;
+		struct {
+			uint32_t w4;
+			uint32_t w5;
+			uint32_t w6;
+		} ret;
+		uint32_t pad[THREAD_RPC_NUM_ARGS];
+	};
+};
+
+void thread_rpc(struct thread_rpc_arg *rpc_arg);
+#else
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+#endif
 
 /*
  * Called from assembly only, vector_fast_smc_entry(). Handles a fast SMC
@@ -213,6 +238,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 /* Called from assembly only. Handles a SVC from user mode. */
 void thread_svc_handler(struct thread_svc_regs *regs);
 
+/* Frees the cache of allocated FS RPC memory */
+void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache);
 #endif /*__ASSEMBLER__*/
-
 #endif /*THREAD_PRIVATE_H*/

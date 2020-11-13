@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2020 NXP
  *
  * Brief   CAAM Descriptor interface.
  */
@@ -324,6 +324,15 @@ static inline void dump_desc(uint32_t *desc)
  */
 #define LD_KEY_PLAIN(cla, dst, len)                                            \
 	(CMD_KEY_TYPE | CMD_CLASS(cla) | KEY_PTS | KEY_DEST(dst) |             \
+	 KEY_LENGTH(len))
+
+/*
+ * Load a class cla key of length len to register dst.
+ * Key can be stored in plain text.
+ * Pointer is a Scatter/Gatter Table
+ */
+#define LD_KEY_SGT_PLAIN(cla, dst, len)                                        \
+	(CMD_KEY_TYPE | CMD_CLASS(cla) | CMD_SGT | KEY_PTS | KEY_DEST(dst) |   \
 	 KEY_LENGTH(len))
 
 /*

@@ -487,8 +487,10 @@ void TEE_BigIntDiv(TEE_BigInt *dest_q, TEE_BigInt *dest_r,
 
 	MPI_CHECK(mbedtls_mpi_div_mpi(&mpi_dest_q, &mpi_dest_r, pop1, pop2));
 
-	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_q, dest_q));
-	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_r, dest_r));
+	if (dest_q)
+		MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_q, dest_q));
+	if (dest_r)
+		MPI_CHECK(copy_mpi_to_bigint(&mpi_dest_r, dest_r));
 	mbedtls_mpi_free(&mpi_dest_q);
 	mbedtls_mpi_free(&mpi_dest_r);
 	if (pop1 == &mpi_op1)
@@ -755,7 +757,7 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 
 static int rng_read(void *ignored __unused, unsigned char *buf, size_t blen)
 {
-	if (utee_cryp_random_number_generate(buf, blen))
+	if (_utee_cryp_random_number_generate(buf, blen))
 		return MBEDTLS_ERR_MPI_FILE_IO_ERROR;
 	return 0;
 }

@@ -5,6 +5,7 @@ mx6ul-flavorlist = \
 	mx6ulevk \
 	mx6ul9x9evk \
 	mx6ulccimx6ulsbcpro \
+	mx6ulccbv2 \
 
 mx6ull-flavorlist = \
 	mx6ullevk \
@@ -289,6 +290,11 @@ CFG_DDR_SIZE ?= 0x10000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx6ulccbv2))
+CFG_DDR_SIZE ?= 0x10000000
+CFG_UART_BASE ?= UART7_BASE
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mqevk))
 CFG_DDR_SIZE ?= 0xc0000000
 CFG_UART_BASE ?= UART1_BASE
@@ -307,6 +313,9 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8qxpmek mx8qmmek))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART0_BASE
+CFG_NSEC_DDR_1_BASE ?= 0x880000000UL
+CFG_NSEC_DDR_1_SIZE  ?= 0x380000000UL
+CFG_CORE_ARM64_PA_BITS ?= 40
 endif
 
 # i.MX6 Solo/SL/SoloX/DualLite/Dual/Quad specific config
@@ -343,11 +352,8 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
 endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
-$(call force,CFG_PM_STUBS,y)
 
-CFG_BOOT_SYNC_CPU ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_DT ?= y
 CFG_PAGEABLE_ADDR ?= 0
@@ -373,14 +379,12 @@ ifeq ($(CFG_ARM64_core),y)
 # arm-v8 platforms
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_ARM_GICV3,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
 CFG_CRYPTO_WITH_CE ?= y
-CFG_PM_STUBS ?= y
 
 supported-ta-targets = ta_arm64
 endif
@@ -390,8 +394,10 @@ CFG_TZDRAM_SIZE ?= 0x01e00000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
 
+CFG_NSEC_DDR_0_BASE ?= $(CFG_DRAM_BASE)
+CFG_NSEC_DDR_0_SIZE ?= ($(CFG_DDR_SIZE) - 0x02000000)
+
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
-CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 24
 
 # Almost all platforms include CAAM HW Modules, except the

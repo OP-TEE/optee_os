@@ -37,12 +37,12 @@
         END_FUNC \name
         .endm
 
-	FUNC utee_panic, :
+	FUNC _utee_panic, :
 	stp	x29, x30, [sp, #-16]!
 	mov	x1, sp
 	bl	__utee_panic
 	/* Not reached */
-	END_FUNC utee_panic
+	END_FUNC _utee_panic
 
 #include "utee_syscalls_asm.S"
 

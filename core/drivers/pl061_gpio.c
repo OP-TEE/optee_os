@@ -165,7 +165,7 @@ static const struct gpio_ops pl061_ops = {
 	.get_interrupt = pl061_get_interrupt,
 	.set_interrupt = pl061_set_interrupt,
 };
-KEEP_PAGER(pl061_ops);
+DECLARE_KEEP_PAGER(pl061_ops);
 
 /*
  * Initialize PL061 GPIO controller

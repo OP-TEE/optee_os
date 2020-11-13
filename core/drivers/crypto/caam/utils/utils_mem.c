@@ -374,9 +374,11 @@ bool caam_mem_is_cached_buf(void *buf, size_t size)
 	return is_cached;
 }
 
-int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size)
+enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
+					     size_t size, bool *realloc)
 {
 	uint32_t cacheline_size = 0;
+	enum caam_status retstatus = CAAM_FAILURE;
 
 	if (caam_mem_is_cached_buf(orig, size)) {
 		/*
@@ -387,10 +389,11 @@ int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size)
 		cacheline_size = read_cacheline_size();
 		if (!IS_PTR_ALIGN(orig, cacheline_size) ||
 		    !IS_SIZE_ALIGN(size, cacheline_size)) {
-			if (caam_alloc_align_buf(dst, size) != CAAM_NO_ERROR)
-				return -1;
+			retstatus = caam_alloc_align_buf(dst, size);
+			if (retstatus == CAAM_NO_ERROR)
+				*realloc = true;
 
-			return 1;
+			return retstatus;
 		}
 		dst->nocache = 0;
 	} else {
@@ -400,11 +403,12 @@ int caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst, size_t size)
 	dst->data = orig;
 	dst->paddr = virt_to_phys(dst->data);
 	if (!dst->paddr)
-		return -1;
+		return CAAM_OUT_MEMORY;
 
 	dst->length = size;
 
-	return 0;
+	*realloc = false;
+	return CAAM_NO_ERROR;
 }
 
 enum caam_status caam_cpy_block_src(struct caamblock *block,
@@ -412,6 +416,9 @@ enum caam_status caam_cpy_block_src(struct caamblock *block,
 {
 	enum caam_status ret = CAAM_FAILURE;
 	size_t cpy_size = 0;
+
+	if (!src->data)
+		return CAAM_FAILURE;
 
 	/* Check if the temporary buffer is allocated, else allocate it */
 	if (!block->buf.data) {

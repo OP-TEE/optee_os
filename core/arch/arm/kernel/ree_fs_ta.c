@@ -229,8 +229,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		memcpy(&img_ehdr, ((uint8_t *)ta + offs), sizeof(img_ehdr));
 
 		ehdr = malloc(SHDR_ENC_GET_SIZE(&img_ehdr));
-		if (!ehdr)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (!ehdr) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto error_free_hash;
+		}
 
 		memcpy(ehdr, ((uint8_t *)ta + offs),
 		       SHDR_ENC_GET_SIZE(&img_ehdr));
@@ -322,14 +324,14 @@ out:
 
 static TEE_Result check_update_version(struct shdr_bootstrap_ta *hdr)
 {
-	struct shdr_bootstrap_ta hdr_entry = {0};
+	struct shdr_bootstrap_ta hdr_entry = { };
 	const struct tee_file_operations *ops = NULL;
 	struct tee_file_handle *fh = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	bool entry_found = false;
 	size_t len = 0;
 	unsigned int i = 0;
-	struct ta_ver_db_hdr db_hdr = {0};
+	struct ta_ver_db_hdr db_hdr = { };
 	struct tee_pobj pobj = {
 		.obj_id = (void *)ta_ver_db_obj_id,
 		.obj_id_len = sizeof(ta_ver_db_obj_id)

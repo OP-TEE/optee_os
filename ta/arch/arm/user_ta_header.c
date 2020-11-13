@@ -51,12 +51,12 @@ void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
 	/*
 	 * __ta_entry is the first TA API called from TEE core. As it being
 	 * __noreturn API, we need to call ftrace_return in this API just
-	 * before utee_return syscall to get proper ftrace call graph.
+	 * before _utee_return syscall to get proper ftrace call graph.
 	 */
 	ftrace_return();
 #endif
 
-	utee_return(res);
+	_utee_return(res);
 }
 
 /*

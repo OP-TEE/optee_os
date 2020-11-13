@@ -71,6 +71,11 @@ L:	Broadcom <bcm-optee-feedback-list.pdl@broadcom.com>
 S:	Maintained
 F:	core/arch/arm/plat-bcm/
 
+Core Drivers I2C
+R:	Jorge Ramirez <jorge@foundries.io>
+S:	Maintained
+F:	core/drivers/imx_i2c.c
+
 Function Graph Tracer (ftrace) support
 R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 S:	Maintained
@@ -157,6 +162,12 @@ R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
 R:	[@OP-TEE/plat-rcar]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
+
+Renesas RZ/N1
+R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
+R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
+S:	Maintained
+F:	core/arch/arm/plat-rzn1/
 
 Rockchip RK322X
 R:	Rockchip <op-tee@rock-chips.com>

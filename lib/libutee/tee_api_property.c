@@ -99,8 +99,8 @@ static TEE_Result propget_get_ext_prop(const struct user_ta_property *ep,
 		 * string
 		 */
 		l = *len;
-		if (!base64_dec(ep->value, strlen(ep->value), buf, &l) &&
-		    (l <= *len))
+		if (!_base64_dec(ep->value, strlen(ep->value), buf, &l) &&
+		    l <= *len)
 			return TEE_ERROR_GENERIC;
 		if (*len < l) {
 			*len = l;
@@ -148,12 +148,13 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 		}
 
 		/* get the index from the name */
-		res = utee_get_property_name_to_index((unsigned long)h, name,
-						strlen(name) + 1, &index);
+		res = _utee_get_property_name_to_index((unsigned long)h, name,
+						       strlen(name) + 1,
+						       &index);
 		if (res != TEE_SUCCESS)
 			return res;
-		res = utee_get_property((unsigned long)h, index, NULL, NULL,
-					buf, len, &prop_type);
+		res = _utee_get_property((unsigned long)h, index, NULL, NULL,
+					 buf, len, &prop_type);
 	} else {
 		struct prop_enumerator *pe = (struct prop_enumerator *)h;
 		uint32_t idx = pe->idx;
@@ -169,8 +170,8 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 			return propget_get_ext_prop(eps + idx, type, buf, len);
 		idx -= eps_len;
 
-		res = utee_get_property((unsigned long)pe->prop_set, idx,
-					NULL, NULL, buf, len, &prop_type);
+		res = _utee_get_property((unsigned long)pe->prop_set, idx,
+					 NULL, NULL, buf, len, &prop_type);
 		if (res == TEE_ERROR_ITEM_NOT_FOUND)
 			res = TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -216,7 +217,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				 * with the size of the of the base64 encoded
 				 * see base64_enc() function
 				 */
-				tmp_len = base64_enc_len(tmp_len);
+				tmp_len = _base64_enc_len(tmp_len);
 			}
 			*value_len = tmp_len;
 		}
@@ -251,8 +252,8 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 
 	case USER_TA_PROP_TYPE_BINARY_BLOCK:
 		l = *value_len;	/* l includes the zero-termination */
-		if (!base64_enc(tmp_buf, tmp_len, value, &l) &&
-		    (l <= *value_len)) {
+		if (!_base64_enc(tmp_buf, tmp_len, value, &l) &&
+		    l <= *value_len) {
 			res = TEE_ERROR_GENERIC;
 			goto out;
 		}
@@ -343,7 +344,7 @@ TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	TEE_Result res;
 	enum user_ta_prop_type type;
 
-	if (!value || !value_len) {
+	if (!value_len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -501,9 +502,9 @@ TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 			res = TEE_ERROR_SHORT_BUFFER;
 		*name_len = bufferlen;
 	} else {
-		res = utee_get_property((unsigned long)pe->prop_set,
-					pe->idx - eps_len,
-					name, name_len, NULL, NULL, NULL);
+		res = _utee_get_property((unsigned long)pe->prop_set,
+					 pe->idx - eps_len, name, name_len,
+					 NULL, NULL, NULL);
 		if (res != TEE_SUCCESS)
 			goto err;
 	}
@@ -543,9 +544,9 @@ TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator)
 	if (next_idx < eps_len)
 		res = TEE_SUCCESS;
 	else
-		res = utee_get_property((unsigned long)pe->prop_set,
-					next_idx - eps_len,
-					NULL, NULL, NULL, NULL, NULL);
+		res = _utee_get_property((unsigned long)pe->prop_set,
+					 next_idx - eps_len, NULL, NULL, NULL,
+					 NULL, NULL);
 
 out:
 	if (res != TEE_SUCCESS &&

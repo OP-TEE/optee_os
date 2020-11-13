@@ -19,15 +19,6 @@
 #include "local.h"
 
 /*
- * Maximum job ring descriptor entries
- */
-#ifdef CFG_CAAM_64BIT
-#define MAX_DESC_ENTRIES 22
-#else
-#define MAX_DESC_ENTRIES 16
-#endif
-
-/*
  * Max Cipher Buffer to encrypt/decrypt at each operation
  */
 #define MAX_CIPHER_BUFFER (8 * 1024)
@@ -175,7 +166,8 @@ static enum caam_status do_check_keysize(const struct caamdefkey *def,
 enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 				   uint8_t keyid, bool encrypt,
 				   struct caambuf *indata,
-				   struct caambuf *outdata, bool blockbuf)
+				   struct caambuf *outdata,
+				   enum caam_cipher_block blocks)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caam_jobctx jobctx = { };
@@ -223,7 +215,7 @@ enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 	 * If Source data is a User Data buffer mapped on multiple pages
 	 * create a Scatter/Gather table.
 	 */
-	if (blockbuf)
+	if (blocks == CIPHER_BLOCK_IN || blocks == CIPHER_BLOCK_BOTH)
 		retstatus = caam_sgt_build_block_data(&src_sgt, &ctx->blockbuf,
 						      indata);
 	else
@@ -273,7 +265,7 @@ enum caam_status caam_cipher_block(struct cipherdata *ctx, bool savectx,
 	 * If Output data is a User Data buffer mapped on multiple pages
 	 * create a Scatter/Gather table.
 	 */
-	if (blockbuf)
+	if (blocks == CIPHER_BLOCK_OUT || blocks == CIPHER_BLOCK_BOTH)
 		retstatus = caam_sgt_build_block_data(&dst_sgt, &ctx->blockbuf,
 						      outdata);
 	else
@@ -352,13 +344,9 @@ exit_cipher_block:
  */
 static const struct cipheralg *get_cipheralgo(uint32_t algo)
 {
-	unsigned int algo_id = 0;
-	unsigned int algo_md = 0;
+	unsigned int algo_id = TEE_ALG_GET_MAIN_ALG(algo);
+	unsigned int algo_md = TEE_ALG_GET_CHAIN_MODE(algo);
 	const struct cipheralg *ca = NULL;
-
-	/* Extract the algorithms fields */
-	algo_id = TEE_ALG_GET_MAIN_ALG(algo);
-	algo_md = TEE_ALG_GET_CHAIN_MODE(algo);
 
 	CIPHER_TRACE("Algo id:%" PRId32 " md:%" PRId32, algo_id, algo_md);
 
@@ -469,12 +457,7 @@ static void do_free_intern(struct cipherdata *ctx)
 	}
 }
 
-/*
- * Free the SW Cipher data context
- *
- * @ctx    Caller context variable or NULL
- */
-static void do_free(void *ctx)
+void caam_cipher_free(void *ctx)
 {
 	CIPHER_TRACE("Free Context (%p)", ctx);
 
@@ -484,13 +467,7 @@ static void do_free(void *ctx)
 	}
 }
 
-/*
- * Copy Software Cipher Context
- *
- * @dst_ctx  [out] Reference the context destination
- * @src_ctx  Reference the context source
- */
-static void do_copy_state(void *dst_ctx, void *src_ctx)
+void caam_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct cipherdata *dst = dst_ctx;
 	struct cipherdata *src = src_ctx;
@@ -541,12 +518,7 @@ static void do_copy_state(void *dst_ctx, void *src_ctx)
 	}
 }
 
-/*
- * Initialization of the cipher operation
- *
- * @dinit  Data initialization object
- */
-static TEE_Result do_init(struct drvcrypt_cipher_init *dinit)
+TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 {
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
 	enum caam_status retstatus = CAAM_FAILURE;
@@ -704,15 +676,15 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 	size_t size_topost = 0;
 	size_t size_todo = 0;
 	size_t size_indone = 0;
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf dst_align = { };
 
 	CIPHER_TRACE("Length=%zu - %s", dupdate->src.length,
 		     ctx->encrypt ? "Encrypt" : "Decrypt");
 
-	realloc = caam_set_or_alloc_align_buf(dupdate->dst.data, &dst_align,
-					      dupdate->dst.length);
-	if (realloc == -1) {
+	retstatus = caam_set_or_alloc_align_buf(dupdate->dst.data, &dst_align,
+						dupdate->dst.length, &realloc);
+	if (retstatus != CAAM_NO_ERROR) {
 		CIPHER_TRACE("Destination buffer reallocation error");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -729,8 +701,6 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 	/* Calculate the total data to be handled */
 	fullSize = ctx->blockbuf.filled + dupdate->src.length;
-	size_topost = fullSize % ctx->alg->size_block;
-
 	if (fullSize < ctx->alg->size_block) {
 		size_topost = dupdate->src.length;
 	} else {
@@ -766,7 +736,8 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 			retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
 						      ctx->encrypt, &srcbuf,
-						      &dstbuf, true);
+						      &dstbuf,
+						      CIPHER_BLOCK_BOTH);
 
 			ctx->blockbuf.filled = 0;
 		} else {
@@ -780,9 +751,10 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 			dstbuf.paddr = dst_align.paddr;
 			dstbuf.nocache = dst_align.nocache;
 
-			retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
-						      ctx->encrypt, &srcbuf,
-						      &dstbuf, false);
+			retstatus =
+				caam_cipher_block(ctx, true, NEED_KEY1,
+						  ctx->encrypt, &srcbuf,
+						  &dstbuf, CIPHER_BLOCK_NONE);
 		}
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -825,7 +797,7 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 
 		retstatus = caam_cipher_block(ctx, false, NEED_KEY1,
 					      ctx->encrypt, &srcbuf, &dstbuf,
-					      false);
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus != CAAM_NO_ERROR) {
 			ret = TEE_ERROR_GENERIC;
@@ -846,7 +818,7 @@ static TEE_Result do_update_streaming(struct drvcrypt_cipher_update *dupdate)
 	ret = TEE_SUCCESS;
 
 out:
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&dst_align);
 
 	return ret;
@@ -865,7 +837,7 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 	struct cipherdata *ctx = dupdate->ctx;
 	struct caambuf srcbuf = { };
 	struct caambuf dstbuf = { };
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf dst_align = { };
 	unsigned int nb_buf = 0;
 	size_t offset = 0;
@@ -900,12 +872,13 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
-		realloc = 1;
+		realloc = true;
 	} else {
-		realloc = caam_set_or_alloc_align_buf(dupdate->dst.data,
-						      &dst_align,
-						      dupdate->dst.length);
-		if (realloc == -1) {
+		retstatus = caam_set_or_alloc_align_buf(dupdate->dst.data,
+							&dst_align,
+							dupdate->dst.length,
+							&realloc);
+		if (retstatus != CAAM_NO_ERROR) {
 			CIPHER_TRACE("Destination buffer reallocation error");
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
@@ -943,9 +916,9 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 
 		CIPHER_TRACE("Do nb_buf=%u, offset %zu", nb_buf, offset);
 
-		retstatus =
-			caam_cipher_block(ctx, true, NEED_KEY1, ctx->encrypt,
-					  &srcbuf, &dstbuf, false);
+		retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
+					      ctx->encrypt, &srcbuf, &dstbuf,
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus != CAAM_NO_ERROR) {
 			ret = TEE_ERROR_GENERIC;
@@ -975,7 +948,7 @@ static TEE_Result do_update_cipher(struct drvcrypt_cipher_update *dupdate)
 
 		retstatus = caam_cipher_block(ctx, true, NEED_KEY1,
 					      ctx->encrypt, &srcbuf, &dstbuf,
-					      false);
+					      CIPHER_BLOCK_NONE);
 
 		if (retstatus == CAAM_NO_ERROR) {
 			if (!dstbuf.nocache)
@@ -1027,12 +1000,12 @@ static void do_final(void *ctx __unused)
  * Registration of the Cipher Driver
  */
 static struct drvcrypt_cipher driver_cipher = {
-	.alloc_ctx = &do_allocate,
-	.free_ctx = &do_free,
-	.init = &do_init,
-	.update = &do_update,
-	.final = &do_final,
-	.copy_state = &do_copy_state,
+	.alloc_ctx = do_allocate,
+	.free_ctx = caam_cipher_free,
+	.init = caam_cipher_initialize,
+	.update = do_update,
+	.final = do_final,
+	.copy_state = caam_cipher_copy_state,
 };
 
 /*

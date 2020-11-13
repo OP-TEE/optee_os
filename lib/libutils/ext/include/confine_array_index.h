@@ -76,7 +76,7 @@ static inline size_t confine_array_index(size_t index, size_t size) {
   asm(
     "cmp %1, %2\n"  // %1 holds the unsanitized index
     "csel %0, %1, xzr, lo\n"  // Select index or zero based on carry (%1 within range)
-    "csdb\n"
+    "hint #20\n" // csdb
   : "=r"(safe_index)
   : "r"(index), "r"(size)
   : "cc");
@@ -86,7 +86,7 @@ static inline size_t confine_array_index(size_t index, size_t size) {
 #ifdef __arm__
 static inline size_t confine_array_index(size_t index, size_t size)
 {
-	size_t safe_index = 0;
+	size_t ret_val = index;
 
 	/*
 	 * For the ARMv7/AArch32 case we're basing the select and barrier
@@ -97,22 +97,30 @@ static inline size_t confine_array_index(size_t index, size_t size)
 #ifdef __thumb2__
       asm volatile (
 	".syntax unified\n"
-	"cmp	%1, %2\n" /* %1 holds the unsanitized index */
+	"cmp	%0, %1\n"
 	"it	cs\n"
-	"movcs	%1, #0\n"
+#ifdef __clang__
+#pragma clang diagnostic push
+	/* Avoid 'deprecated instruction in IT block [-Werror,-Winline-asm]' */
+#pragma clang diagnostic ignored "-Winline-asm"
+#endif
+	"movcs	%0, #0\n"
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 	".inst.n 0xf3af\t@ CSDB\n"
 	".inst.n 0x8014\t@ CSDB"
-	: "=r" (safe_index) : "r" (index), "r" (size) : "cc");
+	: "+r" (ret_val) : "r" (size) : "cc");
 #else
       asm volatile (
 	".syntax unified\n"
-	"cmp	%1, %2\n" /* %1 holds the unsanitized index */
-	"movcs	%1, #0\n"
+	"cmp	%0, %1\n" /* %0 holds the unsanitized index */
+	"movcs	%0, #0\n"
 	".inst	0xe320f014\t@ CSDB"
-	: "=r" (safe_index) : "r" (index), "r" (size) : "cc");
+	: "+r" (ret_val) : "r" (size) : "cc");
 #endif
 
-	return safe_index;
+	return ret_val;
 }
 #endif /* __arm__ */
 

@@ -84,7 +84,7 @@ static const struct itr_ops gic_ops = {
 	.raise_sgi = gic_op_raise_sgi,
 	.set_affinity = gic_op_set_affinity,
 };
-KEEP_PAGER(gic_ops);
+DECLARE_KEEP_PAGER(gic_ops);
 
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {

@@ -21,7 +21,6 @@ struct tee_obj {
 	size_t ds_pos;
 	struct tee_pobj *pobj;	/* ptr to persistant object */
 	struct tee_file_handle *fh;
-	uint32_t flags;		/* permission flags for persistent objects */
 };
 
 void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o);

@@ -29,7 +29,7 @@
  */
 
 #include <console.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <stdint.h>
 #include <sm/optee_smc.h>

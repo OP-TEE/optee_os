@@ -1,17 +1,39 @@
-PLATFORM_FLAVOR ?= stm32mp157
+# 1GB and 512MB DDR targets do not locate secure DDR at the same place.
+flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
+flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
+flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
+flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
 
-# 1GB and 512MB DDR target do not locate secure DDR at the same place.
-#
-flavorlist-1G = stm32mp157c-ev1.dts stm32mp157c-ed1.dts
-flavorlist-512M = stm32mp157c-dk2.dts
+flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2)
+
+flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
+
+flavorlist-cryp-1G = $(flavor_dts_file-157C_ED1) \
+		     $(flavor_dts_file-157C_EV1)
+
+flavorlist-no_cryp = $(flavorlist-no_cryp-512M)
+
+flavorlist-512M = $(flavorlist-cryp-512M) \
+		  $(flavorlist-no_cryp-512M)
+
+flavorlist-1G = $(flavorlist-cryp-1G)
+
+ifneq ($(PLATFORM_FLAVOR),)
+ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
+$(error Invalid platform flavor $(PLATFORM_FLAVOR))
+endif
+CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
+$(call force,CFG_STM32_CRYP,n)
+endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y)
 $(call force,CFG_SCMI_MSG_CLOCK,y)
@@ -42,12 +64,12 @@ CFG_DRAM_SIZE    ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 CFG_WITH_LPAE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 CFG_MMAP_REGIONS ?= 23
 
 ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
 # Some drivers mandate DT support
 $(call force,CFG_STM32_I2C,n)
+$(call force,CFG_STPMIC1,n)
 endif
 
 CFG_STM32_BSEC ?= y
@@ -55,8 +77,20 @@ CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_RNG ?= y
-CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
+CFG_STPMIC1 ?= y
+CFG_TZC400 ?= y
+
+ifeq ($(CFG_STPMIC1),y)
+$(call force,CFG_STM32_I2C,y)
+$(call force,CFG_STM32_GPIO,y)
+endif
+
+# Platform specific configuration
+CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
+
+# SiP/OEM service for non-secure world
+CFG_STM32_BSEC_SIP ?= y
 
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y

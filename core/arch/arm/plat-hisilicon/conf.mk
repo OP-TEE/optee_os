@@ -9,9 +9,7 @@ $(call force,CFG_TEE_CORE_NB_CORE,2)
 # Hi3519av100 has got two clusters, one core per cluster
 $(call force,CFG_CORE_CLUSTER_SHIFT,0)
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PL011,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM32_core,y)
 $(call force,CFG_PSCI_ARM32,y)
@@ -19,7 +17,6 @@ $(call force,CFG_PSCI_ARM32,y)
 CFG_BOOT_SECONDARY_REQUEST ?= y
 CFG_NUM_THREADS ?= 4
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 CFG_NS_ENTRY_ADDR ?= 0x22008000
 CFG_CORE_HEAP_SIZE ?= 131072
 

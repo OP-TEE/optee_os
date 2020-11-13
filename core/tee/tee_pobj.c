@@ -58,12 +58,12 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 }
 
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
-			uint32_t flags, bool temporary,
+			uint32_t flags, enum tee_pobj_usage usage,
 			const struct tee_file_operations *fops,
 			struct tee_pobj **obj)
 {
-	struct tee_pobj *o;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_pobj *o = NULL;
 
 	*obj = NULL;
 
@@ -79,7 +79,11 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	}
 
 	if (*obj) {
-		if (temporary != (*obj)->temporary) {
+		if (usage == TEE_POBJ_USAGE_ENUM) {
+			(*obj)->refcnt++;
+			goto out;
+		}
+		if ((*obj)->creating) {
 			res = TEE_ERROR_ACCESS_CONFLICT;
 			goto out;
 		}
@@ -100,7 +104,11 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 	memcpy(&o->uuid, uuid, sizeof(TEE_UUID));
 	o->flags = flags;
 	o->fops = fops;
-	o->temporary = temporary;
+
+	if (usage == TEE_POBJ_USAGE_CREATE) {
+		o->temporary = true;
+		o->creating = true;
+	}
 
 	o->obj_id = malloc(obj_id_len);
 	if (o->obj_id == NULL) {
@@ -120,6 +128,14 @@ out:
 		*obj = NULL;
 	mutex_unlock(&pobjs_mutex);
 	return res;
+}
+
+void tee_pobj_create_final(struct tee_pobj *po)
+{
+	mutex_lock(&pobjs_mutex);
+	po->temporary = false;
+	po->creating = false;
+	mutex_unlock(&pobjs_mutex);
 }
 
 TEE_Result tee_pobj_release(struct tee_pobj *obj)

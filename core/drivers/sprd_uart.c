@@ -87,7 +87,7 @@ static const struct serial_ops sprd_uart_ops = {
 	.have_rx_data = sprd_uart_have_rx_data,
 	.putc = sprd_uart_putc,
 };
-KEEP_PAGER(sprd_uart_ops);
+DECLARE_KEEP_PAGER(sprd_uart_ops);
 
 void sprd_uart_init(struct sprd_uart_data *pd, paddr_t base)
 {

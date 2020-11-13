@@ -37,6 +37,10 @@ libname = utee
 libdir = lib/libutee
 include mk/lib.mk
 
+libname = unw
+libdir = lib/libunw
+include mk/lib.mk
+
 base-prefix :=
 
 subdirs = ldelf

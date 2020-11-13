@@ -1,3 +1,16 @@
+# Setup compiler for the core module
+ifeq ($(CFG_ARM64_core),y)
+arch-bits-core := 64
+else
+arch-bits-core := 32
+endif
+CROSS_COMPILE_core := $(CROSS_COMPILE$(arch-bits-core))
+COMPILER_core := $(COMPILER)
+include mk/$(COMPILER_core).mk
+
+# Defines the cc-option macro using the compiler set for the core module
+include mk/cc-option.mk
+
 CFG_LTC_OPTEE_THREAD ?= y
 # Size of emulated TrustZone protected SRAM, 448 kB.
 # Only applicable when paging is enabled.
@@ -66,10 +79,18 @@ ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 endif
 # 'y' to set the Alignment Check Enable bit in SCTLR/SCTLR_EL1, 'n' to clear it
-CFG_SCTLR_ALIGNMENT_CHECK ?= y
+CFG_SCTLR_ALIGNMENT_CHECK ?= n
 
 ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
 $(call force,CFG_WITH_LPAE,y)
+endif
+
+# SPMC configuration "S-EL1 SPMC" where SPM Core is implemented at S-EL1,
+# that is, OP-TEE.
+# Note that this is an experimental feature, ABIs etc may have incompatible
+# changes
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+$(call force,CFG_CORE_FFA,y)
 endif
 
 # Unmaps all kernel mode code except the code needed to take exceptions
@@ -115,20 +136,21 @@ arm32-platform-aflags-no-hard-float ?=
 
 arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
 arm64-platform-cflags-hard-float ?=
-arm64-platform-cflags-generic ?= -mstrict-align
+arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-atomics,)
 
 ifeq ($(DEBUG),1)
 # For backwards compatibility
-$(call force,CFG_CC_OPTIMIZE_FOR_SIZE,n)
+$(call force,CFG_CC_OPT_LEVEL,0)
 $(call force,CFG_DEBUG_INFO,y)
 endif
-
-CFG_CC_OPTIMIZE_FOR_SIZE ?= y
-ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),y)
-platform-cflags-optimization ?= -Os
-else
-platform-cflags-optimization ?= -O0
+ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),n)
+# For backwards compatibility
+$(call force,CFG_CC_OPT_LEVEL,0)
 endif
+
+# Optimize for size by default, usually gives good performance too
+CFG_CC_OPT_LEVEL ?= s
+platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
 
 CFG_DEBUG_INFO ?= y
 ifeq ($(CFG_DEBUG_INFO),y)
@@ -148,14 +170,12 @@ core-platform-cflags += -fpie
 endif
 
 ifeq ($(CFG_ARM64_core),y)
-arch-bits-core := 64
 core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-cflags += $(arm64-platform-cflags-generic)
 core-platform-cflags += $(arm64-platform-cflags-no-hard-float)
 core-platform-aflags += $(arm64-platform-aflags)
 else
-arch-bits-core := 32
 core-platform-cppflags += $(arm32-platform-cppflags)
 core-platform-cflags += $(arm32-platform-cflags)
 core-platform-cflags += $(arm32-platform-cflags-no-hard-float)
@@ -216,16 +236,29 @@ ta_arm32-platform-aflags += $(platform-aflags-generic)
 ta_arm32-platform-aflags += $(platform-aflags-debug-info)
 ta_arm32-platform-aflags += $(arm32-platform-aflags)
 
+ta_arm32-platform-cxxflags += -fpic
+ta_arm32-platform-cxxflags += $(arm32-platform-cxxflags)
+ta_arm32-platform-cxxflags += $(platform-cflags-optimization)
+ta_arm32-platform-cxxflags += $(platform-cflags-debug-info)
+
+ifeq ($(arm32-platform-hard-float-enabled),y)
+ta_arm32-platform-cxxflags += $(arm32-platform-cflags-hard-float)
+else
+ta_arm32-platform-cxxflags += $(arm32-platform-cflags-no-hard-float)
+endif
+
 ta-mk-file-export-vars-ta_arm32 += CFG_ARM32_ta_arm32
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cppflags
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cflags
 ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-aflags
+ta-mk-file-export-vars-ta_arm32 += ta_arm32-platform-cxxflags
 
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE ?= arm-linux-gnueabihf-_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm32 += CROSS_COMPILE_ta_arm32 ?= $$(CROSS_COMPILE32)_nl_
 ta-mk-file-export-add-ta_arm32 += COMPILER ?= gcc_nl_
 ta-mk-file-export-add-ta_arm32 += COMPILER_ta_arm32 ?= $$(COMPILER)_nl_
+ta-mk-file-export-add-ta_arm32 += PYTHON3 ?= python3_nl_
 endif
 
 ifneq ($(filter ta_arm64,$(ta-targets)),)
@@ -247,19 +280,25 @@ ta_arm64-platform-aflags += $(platform-aflags-generic)
 ta_arm64-platform-aflags += $(platform-aflags-debug-info)
 ta_arm64-platform-aflags += $(arm64-platform-aflags)
 
+ta_arm64-platform-cxxflags += -fpic
+ta_arm64-platform-cxxflags += $(platform-cflags-optimization)
+ta_arm64-platform-cxxflags += $(platform-cflags-debug-info)
+
 ta-mk-file-export-vars-ta_arm64 += CFG_ARM64_ta_arm64
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cppflags
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cflags
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-aflags
+ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cxxflags
 
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
 ta-mk-file-export-add-ta_arm64 += CROSS_COMPILE_ta_arm64 ?= $$(CROSS_COMPILE64)_nl_
 ta-mk-file-export-add-ta_arm64 += COMPILER ?= gcc_nl_
 ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
+ta-mk-file-export-add-ta_arm64 += PYTHON3 ?= python3_nl_
 endif
 
-# Set cross compiler prefix for each submodule
-$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+# Set cross compiler prefix for each TA target
+$(foreach sm, $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
 
 arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
 arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h

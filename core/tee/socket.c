@@ -33,7 +33,9 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_SOCKET,
+					THREAD_SHM_TYPE_APPLICATION,
+					params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -95,7 +97,9 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_SOCKET,
+					THREAD_SHM_TYPE_APPLICATION,
+					params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -132,7 +136,9 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_SOCKET,
+					THREAD_SHM_TYPE_APPLICATION,
+					params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -172,7 +178,9 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	va = tee_fs_rpc_cache_alloc(params[1].memref.size, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_SOCKET,
+					THREAD_SHM_TYPE_APPLICATION,
+					params[1].memref.size, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 

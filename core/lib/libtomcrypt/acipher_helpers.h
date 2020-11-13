@@ -28,6 +28,7 @@ static inline TEE_Result convert_ltc_verify_status(int ltc_res, int ltc_stat)
 		else
 			return TEE_ERROR_SIGNATURE_INVALID;
 	case CRYPT_INVALID_PACKET:
+	case CRYPT_PK_INVALID_SIZE:
 		return TEE_ERROR_SIGNATURE_INVALID;
 	default:
 		return TEE_ERROR_GENERIC;

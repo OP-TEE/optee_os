@@ -8,6 +8,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/secure_partition.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
@@ -39,7 +40,7 @@ struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
-static int tee_ta_single_instance_thread = THREAD_ID_INVALID;
+static short int tee_ta_single_instance_thread = THREAD_ID_INVALID;
 static size_t tee_ta_single_instance_count;
 #endif
 
@@ -645,6 +646,11 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 			goto out;
 	}
+
+	/* Look for secure partition */
+	res = sec_part_init_session(uuid, s);
+	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
 
 	/* Look for pseudo TA */
 	res = tee_ta_init_pseudo_ta_session(uuid, s);

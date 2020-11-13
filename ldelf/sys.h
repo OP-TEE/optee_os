@@ -30,7 +30,7 @@ void __noreturn sys_return_cleanup(void);
 #define err(res, ...) \
 	do { \
 		trace_printf_helper(TRACE_ERROR, true, __VA_ARGS__); \
-		utee_return(res); \
+		_utee_return(res); \
 	} while (0)
 
 TEE_Result sys_map_zi(size_t num_bytes, uint32_t flags, vaddr_t *va,

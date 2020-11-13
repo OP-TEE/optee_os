@@ -1,8 +1,5 @@
 language: c
 build:
-  cache: true
-  cache_dir_list:
-    - /root/.ccache
   pre_ci_boot:
     image_name: jforissier/optee_os_ci_clangbuilt
     image_tag: latest
@@ -15,15 +12,24 @@ build:
     - export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
     - export CFG_DEBUG_INFO=n
     - export CFG_WERROR=y
-    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z; }
+    - export START=$(date +%s)
+    - export PROJ=$ORG_NAME-$REPO_NAME
+    - export SCP_OPT="-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+    - function download_cache() { ssh $SCP_OPT shippable@shippable-cache.forissier.org "cat ccache-$PROJ.tar.gz" | tar zx -C /root || echo Nevermind; }
+    - function upload_cache() { if [ ! -e .uploaded ]; then echo Uploading cache && tar c -C /root .ccache | gzip -1 | ssh $SCP_OPT shippable@shippable-cache.forissier.org "cat >ccache-$PROJ.tar.gz" && touch .uploaded || echo Nevermind; fi; }
+    - function check_upload_cache() { NOW=$(date +%s); if [ $(expr $NOW - $START) -gt 3000 ]; then upload_cache; fi; }
+    - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z && check_upload_cache; }
+
+    - download_cache
     - ccache -z
 
     - _make
     - _make COMPILER=clang
-    - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPTIMIZE_FOR_SIZE=n CFG_DEBUG_INFO=y
-    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_CC_OPTIMIZE_FOR_SIZE=y CFG_DEBUG_INFO=n
+    - _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
+    - _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
     - _make CFG_TEE_CORE_LOG_LEVEL=0
-    - _make CFG_TEE_CORE_MALLOC_DEBUG=y
+    - _make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_CORE_DEBUG_CHECK_STACKS=y
     - _make CFG_CORE_SANITIZE_UNDEFINED=y
     - _make CFG_CORE_SANITIZE_KADDRESS=y
     - _make CFG_LOCKDEP=y
@@ -41,22 +47,25 @@ build:
     - _make CFG_RPMB_FS=y CFG_CORE_ASLR=y
     - _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
     - _make CFG_REE_FS=n CFG_RPMB_FS=y
-    - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y CFG_CC_OPTIMIZE_FOR_SIZE=n CFG_DEBUG_INFO=y
+    - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n DEBUG=0
     - _make CFG_BUILT_IN_ARGS=y CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0 CFG_DT_ADDR=0 CFG_DT=y
     - _make CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
     - _make CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
     - _make CFG_SECURE_DATA_PATH=y
     - _make CFG_REE_FS_TA_BUFFERED=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_CORE_ASLR=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y COMPILER=clang
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_WITH_PAGER=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_ARM64_core=y CFG_VIRTUALIZATION=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_ASLR=y
+    - _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_VIRTUALIZATION=y
+    - _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
+    - dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
     - _make PLATFORM=stm-b2260
     - _make PLATFORM=stm-cannes
     - _make PLATFORM=stm32mp1
+    - _make PLATFORM=stm32mp1-157C_DK2
     - _make PLATFORM=vexpress-fvp
     - _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
     - _make PLATFORM=vexpress-juno
@@ -142,3 +151,6 @@ build:
     - _make PLATFORM=bcm-ns3 CFG_ARM64_core=y
     - _make PLATFORM=hisilicon-hi3519av100_demo
     - _make PLATFORM=amlogic
+    - _make PLATFORM=rzn1
+
+    - upload_cache

@@ -32,7 +32,8 @@ void vm_info_final(struct user_mode_ctx *uctx);
 
 TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 		      uint32_t prot, uint32_t flags, struct mobj *mobj,
-		      size_t offs, size_t pad_begin, size_t pad_end);
+		      size_t offs, size_t pad_begin, size_t pad_end,
+		      size_t align);
 
 /*
  * Creates a memory map of a mobj.
@@ -43,7 +44,7 @@ static inline TEE_Result vm_map(struct user_mode_ctx *uctx, vaddr_t *va,
 				size_t len, uint32_t prot, uint32_t flags,
 				struct mobj *mobj, size_t offs)
 {
-	return vm_map_pad(uctx, va, len, prot, flags, mobj, offs, 0, 0);
+	return vm_map_pad(uctx, va, len, prot, flags, mobj, offs, 0, 0, 0);
 }
 
 TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
@@ -51,6 +52,9 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 
 TEE_Result vm_get_flags(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 			uint32_t *flags);
+
+TEE_Result vm_get_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
+		       uint16_t *prot);
 
 TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		       uint32_t prot);
@@ -123,9 +127,6 @@ struct tee_ta_ctx *tee_mmu_get_ctx(void);
 
 /* init some allocation pools */
 void teecore_init_ta_ram(void);
-#ifdef CFG_CORE_RESERVED_SHM
-void teecore_init_pub_ram(void);
-#endif
 
 uint32_t tee_mmu_user_get_cache_attr(struct user_mode_ctx *uctx, void *va);
 #endif /*TEE_MMU_H*/

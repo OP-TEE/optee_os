@@ -97,7 +97,7 @@ static const struct serial_ops stm32_uart_serial_ops = {
 	.getchar = loc_getchar,
 
 };
-KEEP_PAGER(stm32_uart_serial_ops);
+DECLARE_KEEP_PAGER(stm32_uart_serial_ops);
 
 void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 {

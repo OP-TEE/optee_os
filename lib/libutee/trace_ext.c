@@ -15,7 +15,7 @@
 
 void trace_ext_puts(const char *str)
 {
-	utee_log(str, strlen(str));
+	_utee_log(str, strlen(str));
 }
 
 int trace_ext_get_thread_id(void)
@@ -73,6 +73,10 @@ int putchar(int c)
 }
 
 #else
+
+void trace_ext_puts(const char *str __unused)
+{
+}
 
 int printf(const char *fmt __unused, ...)
 {

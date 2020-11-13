@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <confine_array_index.h>
 #include <pkcs11_ta.h>
+#include <printk.h>
 #include <string.h>
 #include <string_ext.h>
 #include <sys/queue.h>
@@ -13,6 +14,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "attributes.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
 #include "serializer.h"
@@ -149,13 +151,70 @@ void pkcs11_deinit(void)
 		close_persistent_db(get_token(id));
 }
 
-uint32_t entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)
+/*
+ * Currently no support for dual operations.
+ */
+enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
+				    enum processing_func function,
+				    struct pkcs11_object *obj1,
+				    struct pkcs11_object *obj2)
+{
+	enum pkcs11_proc_state state = PKCS11_SESSION_READY;
+	struct active_processing *proc = NULL;
+
+	if (session->processing)
+		return PKCS11_CKR_OPERATION_ACTIVE;
+
+	switch (function) {
+	case PKCS11_FUNCTION_ENCRYPT:
+		state = PKCS11_SESSION_ENCRYPTING;
+		break;
+	case PKCS11_FUNCTION_DECRYPT:
+		state = PKCS11_SESSION_DECRYPTING;
+		break;
+	case PKCS11_FUNCTION_SIGN:
+		state = PKCS11_SESSION_SIGNING;
+		break;
+	case PKCS11_FUNCTION_VERIFY:
+		state = PKCS11_SESSION_VERIFYING;
+		break;
+	case PKCS11_FUNCTION_DIGEST:
+		state = PKCS11_SESSION_DIGESTING;
+		break;
+	case PKCS11_FUNCTION_DERIVE:
+		state = PKCS11_SESSION_READY;
+		break;
+	default:
+		TEE_Panic(function);
+		return -1;
+	}
+
+	proc = TEE_Malloc(sizeof(*proc), TEE_MALLOC_FILL_ZERO);
+	if (!proc)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	/* Boolean are default to false and pointers to NULL */
+	proc->state = state;
+	proc->tee_op_handle = TEE_HANDLE_NULL;
+
+	if (obj1 && get_bool(obj1->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
+		proc->always_authen = true;
+
+	if (obj2 && get_bool(obj2->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
+		proc->always_authen = true;
+
+	session->processing = proc;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *out = &params[2];
+	TEE_Param *out = params + 2;
 	uint32_t token_id = 0;
 	const size_t out_size = sizeof(token_id) * TOKEN_COUNT;
 	uint8_t *id = NULL;
@@ -189,18 +248,40 @@ static void pad_str(uint8_t *str, size_t size)
 	TEE_MemFill(str + n, ' ', size - n);
 }
 
-uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
+static void set_token_description(struct pkcs11_slot_info *info)
+{
+	char desc[sizeof(info->slot_description) + 1] = { 0 };
+	TEE_UUID dev_id = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int n = 0;
+
+	res = TEE_GetPropertyAsUUID(TEE_PROPSET_TEE_IMPLEMENTATION,
+				    "gpd.tee.deviceID", &dev_id);
+	if (res == TEE_SUCCESS) {
+		n = snprintk(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - TEE UUID %pUl", (void *)&dev_id);
+	} else {
+		n = snprintf(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - No TEE UUID");
+	}
+	if (n < 0 || n >= (int)sizeof(desc))
+		TEE_Panic(0);
+
+	TEE_MemMove(info->slot_description, desc, n);
+	pad_str(info->slot_description, sizeof(info->slot_description));
+}
+
+enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
-	struct ck_token *token = NULL;
 	struct pkcs11_slot_info info = {
 		.slot_description = PKCS11_SLOT_DESCRIPTION,
 		.manufacturer_id = PKCS11_SLOT_MANUFACTURER,
@@ -219,18 +300,18 @@ uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	token = get_token(token_id);
-	if (!token)
+	if (!get_token(token_id))
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	pad_str(info.slot_description, sizeof(info.slot_description));
+	set_token_description(&info);
+
 	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
 
 	out->memref.size = sizeof(info);
@@ -239,22 +320,21 @@ uint32_t entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	struct ck_token *token = NULL;
 	struct pkcs11_token_info info = {
 		.manufacturer_id = PKCS11_TOKEN_MANUFACTURER,
 		.model = PKCS11_TOKEN_MODEL,
-		.serial_number = PKCS11_TOKEN_SERIAL_NUMBER,
 		.max_session_count = UINT32_MAX,
 		.max_rw_session_count = UINT32_MAX,
 		.max_pin_len = PKCS11_TOKEN_PIN_SIZE_MAX,
@@ -266,15 +346,17 @@ uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 		.hardware_version = PKCS11_TOKEN_HW_VERSION,
 		.firmware_version = PKCS11_TOKEN_FW_VERSION,
 	};
+	char sn[sizeof(info.serial_number) + 1] = { 0 };
+	int n = 0;
 
 	if (ptypes != exp_pt || out->memref.size != sizeof(info))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -285,6 +367,13 @@ uint32_t entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 
 	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
 	pad_str(info.model, sizeof(info.model));
+
+	n = snprintf(sn, sizeof(sn), "%0*"PRIu32,
+		     (int)sizeof(info.serial_number), token_id);
+	if (n != (int)sizeof(info.serial_number))
+		TEE_Panic(0);
+
+	TEE_MemMove(info.serial_number, sn, sizeof(info.serial_number));
 	pad_str(info.serial_number, sizeof(info.serial_number));
 
 	TEE_MemMove(info.label, token->db_main->label, sizeof(info.label));
@@ -312,15 +401,15 @@ static void dmsg_print_supported_mechanism(unsigned int token_id __maybe_unused,
 		     token_id, array[n], id2str_mechanism(array[n]));
 }
 
-uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	struct ck_token __maybe_unused *token = NULL;
@@ -332,9 +421,9 @@ uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -365,31 +454,18 @@ uint32_t entry_ck_token_mecha_ids(uint32_t ptypes, TEE_Param *params)
 
 	TEE_Free(array);
 
-	return rv;
+	return rc;
 }
 
-static void supported_mechanism_key_size(uint32_t proc_id,
-					 uint32_t *max_key_size,
-					 uint32_t *min_key_size)
-{
-	switch (proc_id) {
-	/* Will be filled once TA supports mechanisms */
-	default:
-		*min_key_size = 0;
-		*max_key_size = 0;
-		break;
-	}
-}
-
-uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	uint32_t type = 0;
@@ -401,13 +477,13 @@ uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
+	if (rc)
+		return rc;
 
-	rv = serialargs_get(&ctrlargs, &type, sizeof(uint32_t));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &type, sizeof(uint32_t));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -421,8 +497,8 @@ uint32_t entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 
 	info.flags = mechanism_supported_flags(type);
 
-	supported_mechanism_key_size(type, &info.min_key_size,
-				     &info.max_key_size);
+	mechanism_supported_key_sizes(type, &info.min_key_size,
+				      &info.max_key_size);
 
 	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
 
@@ -484,16 +560,16 @@ static void set_session_state(struct pkcs11_client *client,
 	session->state = state;
 }
 
-uint32_t entry_ck_open_session(struct pkcs11_client *client,
-			       uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	uint32_t flags = 0;
@@ -507,13 +583,13 @@ uint32_t entry_ck_open_session(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	if (rc)
+		return rc;
 
-	rv = serialargs_get(&ctrlargs, &flags, sizeof(flags));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &flags, sizeof(flags));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -553,6 +629,9 @@ uint32_t entry_ck_open_session(struct pkcs11_client *client,
 	session->token = token;
 	session->client = client;
 
+	LIST_INIT(&session->object_list);
+	handle_db_init(&session->object_handle_db);
+
 	set_session_state(client, session, readonly);
 
 	TAILQ_INSERT_HEAD(&client->session_list, session, link);
@@ -571,8 +650,14 @@ uint32_t entry_ck_open_session(struct pkcs11_client *client,
 
 static void close_ck_session(struct pkcs11_session *session)
 {
+	/* No need to put object handles, the whole database is destroyed */
+	while (!LIST_EMPTY(&session->object_list))
+		destroy_object(session,
+			       LIST_FIRST(&session->object_list), true);
+
 	TAILQ_REMOVE(&session->client->session_list, session, link);
 	handle_put(&session->client->session_handle_db, session->handle);
+	handle_db_destroy(&session->object_handle_db);
 
 	session->token->session_count--;
 	if (pkcs11_session_is_read_write(session))
@@ -583,17 +668,16 @@ static void close_ck_session(struct pkcs11_session *session)
 	DMSG("Close PKCS11 session %"PRIu32, session->handle);
 }
 
-uint32_t entry_ck_close_session(struct pkcs11_client *client,
-				uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_close_session(struct pkcs11_client *client,
+				      uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	struct pkcs11_session *session = NULL;
 
 	if (!client || ptypes != exp_pt)
@@ -601,31 +685,27 @@ uint32_t entry_ck_close_session(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
-	if (rv)
-		return rv;
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	close_ck_session(session);
 
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_close_all_sessions(struct pkcs11_client *client,
-				     uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_close_all_sessions(struct pkcs11_client *client,
+					   uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	struct ck_token *token = NULL;
@@ -637,9 +717,9 @@ uint32_t entry_ck_close_all_sessions(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
-	if (rv)
-		return rv;
+	rc = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -657,18 +737,17 @@ uint32_t entry_ck_close_all_sessions(struct pkcs11_client *client,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_session_info(struct pkcs11_client *client,
-			       uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_session_info(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-	TEE_Param *ctrl = &params[0];
-	TEE_Param *out = &params[2];
-	uint32_t rv = 0;
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	struct pkcs11_session *session = NULL;
 	struct pkcs11_session_info info = {
 		.flags = PKCS11_CKFSS_SERIAL_SESSION,
@@ -679,16 +758,12 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rv = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
-	if (rv)
-		return rv;
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	info.slot_id = get_token_id(session->token);
 	info.state = session->state;
@@ -702,7 +777,7 @@ uint32_t entry_ck_session_info(struct pkcs11_client *client,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -880,8 +955,8 @@ static enum pkcs11_rc set_pin(struct pkcs11_session *session,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_init_pin(struct pkcs11_client *client,
-			   uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_init_pin(struct pkcs11_client *client,
+				 uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -890,7 +965,6 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 	uint32_t pin_size = 0;
 	void *pin = NULL;
@@ -900,7 +974,7 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -915,22 +989,18 @@ uint32_t entry_ck_init_pin(struct pkcs11_client *client,
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (!pkcs11_session_is_so(session))
 		return PKCS11_CKR_USER_NOT_LOGGED_IN;
 
 	assert(session->token->db_main->flags & PKCS11_CKFT_TOKEN_INITIALIZED);
 
-	IMSG("PKCS11 session %"PRIu32": init PIN", session_handle);
+	IMSG("PKCS11 session %"PRIu32": init PIN", session->handle);
 
 	return set_pin(session, pin, pin_size, PKCS11_CKU_USER);
 }
 
-static uint32_t check_so_pin(struct pkcs11_session *session,
-			     uint8_t *pin, size_t pin_size)
+static enum pkcs11_rc check_so_pin(struct pkcs11_session *session,
+				   uint8_t *pin, size_t pin_size)
 {
 	struct ck_token *token = session->token;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
@@ -983,8 +1053,8 @@ static uint32_t check_so_pin(struct pkcs11_session *session,
 	return PKCS11_CKR_OK;
 }
 
-static uint32_t check_user_pin(struct pkcs11_session *session,
-			       uint8_t *pin, size_t pin_size)
+static enum pkcs11_rc check_user_pin(struct pkcs11_session *session,
+				     uint8_t *pin, size_t pin_size)
 {
 	struct ck_token *token = session->token;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
@@ -1038,8 +1108,8 @@ static uint32_t check_user_pin(struct pkcs11_session *session,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_ck_set_pin(struct pkcs11_client *client,
-			  uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_set_pin(struct pkcs11_client *client,
+				uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -1048,7 +1118,6 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	uint32_t old_pin_size = 0;
 	TEE_Param *ctrl = params;
 	uint32_t pin_size = 0;
@@ -1060,7 +1129,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -1083,10 +1152,6 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (!pkcs11_session_is_read_write(session))
 		return PKCS11_CKR_SESSION_READ_ONLY;
 
@@ -1099,7 +1164,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 		if (rc)
 			return rc;
 
-		IMSG("PKCS11 session %"PRIu32": set PIN", session_handle);
+		IMSG("PKCS11 session %"PRIu32": set PIN", session->handle);
 
 		return set_pin(session, pin, pin_size, PKCS11_CKU_SO);
 	}
@@ -1112,7 +1177,7 @@ uint32_t entry_ck_set_pin(struct pkcs11_client *client,
 	if (rc)
 		return rc;
 
-	IMSG("PKCS11 session %"PRIu32": set PIN", session_handle);
+	IMSG("PKCS11 session %"PRIu32": set PIN", session->handle);
 
 	return set_pin(session, pin, pin_size, PKCS11_CKU_USER);
 }
@@ -1165,8 +1230,8 @@ static void session_logout(struct pkcs11_session *session)
 	}
 }
 
-uint32_t entry_ck_login(struct pkcs11_client *client,
-			uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_login(struct pkcs11_client *client,
+			      uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -1176,7 +1241,6 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 	struct pkcs11_session *sess = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 	uint32_t user_type = 0;
 	uint32_t pin_size = 0;
@@ -1187,7 +1251,7 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
@@ -1205,10 +1269,6 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
-
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
 
 	switch (user_type) {
 	case PKCS11_CKU_SO:
@@ -1276,13 +1336,13 @@ uint32_t entry_ck_login(struct pkcs11_client *client,
 	}
 
 	if (!rc)
-		IMSG("PKCS11 session %"PRIu32": login", session_handle);
+		IMSG("PKCS11 session %"PRIu32": login", session->handle);
 
 	return rc;
 }
 
-uint32_t entry_ck_logout(struct pkcs11_client *client,
-			 uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_ck_logout(struct pkcs11_client *client,
+			       uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -1291,7 +1351,6 @@ uint32_t entry_ck_logout(struct pkcs11_client *client,
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t session_handle = 0;
 	TEE_Param *ctrl = params;
 
 	if (!client || ptypes != exp_pt)
@@ -1299,23 +1358,19 @@ uint32_t entry_ck_logout(struct pkcs11_client *client,
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &session_handle, sizeof(uint32_t));
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
 	if (rc)
 		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	session = pkcs11_handle2session(session_handle, client);
-	if (!session)
-		return PKCS11_CKR_SESSION_HANDLE_INVALID;
-
 	if (pkcs11_session_is_public(session))
 		return PKCS11_CKR_USER_NOT_LOGGED_IN;
 
 	session_logout(session);
 
-	IMSG("PKCS11 session %"PRIu32": logout", session_handle);
+	IMSG("PKCS11 session %"PRIu32": logout", session->handle);
 
 	return PKCS11_CKR_OK;
 }

@@ -44,7 +44,7 @@ static const struct serial_ops stih_asc_ops = {
 	.flush = stih_asc_flush,
 	.putc = stih_asc_putc,
 };
-KEEP_PAGER(stih_asc_ops);
+DECLARE_KEEP_PAGER(stih_asc_ops);
 
 void stih_asc_init(struct stih_asc_pd *pd, vaddr_t base)
 {

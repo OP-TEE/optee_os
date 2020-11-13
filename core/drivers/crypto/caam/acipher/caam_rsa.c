@@ -1149,7 +1149,7 @@ static TEE_Result do_caam_encrypt(struct drvcrypt_rsa_ed *rsa_data,
 	paddr_t paddr_msg = 0;
 	struct caambuf msg_tmp = { };
 	struct caamsgtbuf sgtmsg = { .sgt_type = false };
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf cipher_align = { };
 	struct caamsgtbuf sgtcipher = { .sgt_type = false };
 	paddr_t paddr_cipher = 0;
@@ -1181,9 +1181,10 @@ static TEE_Result do_caam_encrypt(struct drvcrypt_rsa_ed *rsa_data,
 	 * ReAllocate the cipher result buffer with a maximum size
 	 * of the Key Modulus's size (N) if not cache aligned
 	 */
-	realloc = caam_set_or_alloc_align_buf(rsa_data->cipher.data,
-					      &cipher_align, key.n.length);
-	if (realloc == -1) {
+	retstatus = caam_set_or_alloc_align_buf(rsa_data->cipher.data,
+						&cipher_align, key.n.length,
+						&realloc);
+	if (retstatus != CAAM_NO_ERROR) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit_encrypt;
 	}
@@ -1255,7 +1256,7 @@ static TEE_Result do_caam_encrypt(struct drvcrypt_rsa_ed *rsa_data,
 			cache_operation(TEE_CACHEINVALIDATE, cipher_align.data,
 					cipher_align.length);
 
-		if (realloc == 1)
+		if (realloc)
 			memcpy(rsa_data->cipher.data, cipher_align.data,
 			       cipher_align.length);
 
@@ -1273,7 +1274,7 @@ exit_encrypt:
 	caam_free_desc(&desc);
 	do_keypair_free(&key);
 
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&cipher_align);
 
 	if (sgtmsg.sgt_type)
@@ -1300,7 +1301,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 	struct caambuf cipher_tmp = { };
 	struct caamsgtbuf sgtcipher = { .sgt_type = false };
 	paddr_t paddr_cipher = 0;
-	int realloc = 0;
+	bool realloc = false;
 	struct caambuf msg_align = { };
 	struct caamsgtbuf sgtmsg = { .sgt_type = false };
 	paddr_t paddr_msg = 0;
@@ -1335,11 +1336,12 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 			goto exit_decrypt;
 		}
 
-		realloc = 1;
+		realloc = true;
 	} else {
-		realloc = caam_set_or_alloc_align_buf(rsa_data->message.data,
-						      &msg_align, key.n.length);
-		if (realloc == (-1)) {
+		retstatus = caam_set_or_alloc_align_buf(rsa_data->message.data,
+							&msg_align,
+							key.n.length, &realloc);
+		if (retstatus != CAAM_NO_ERROR) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
 			goto exit_decrypt;
 		}
@@ -1534,7 +1536,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 				};
 				caam_mem_cpy_ltrim_buf(&outmsg, &msg_align);
 				rsa_data->message.length = outmsg.length;
-			} else if (realloc == 1) {
+			} else if (realloc) {
 				rsa_data->message.length =
 					MIN(key.n.length,
 					    rsa_data->message.length);
@@ -1548,7 +1550,7 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 
 			rsa_data->message.length =
 				caam_read_val32(size_msg.data);
-			if (realloc == 1)
+			if (realloc)
 				memcpy(rsa_data->message.data, msg_align.data,
 				       rsa_data->message.length);
 		}
@@ -1566,7 +1568,7 @@ exit_decrypt:
 	do_keypair_free(&key);
 	caam_free_buf(&size_msg);
 
-	if (realloc == 1)
+	if (realloc)
 		caam_free_buf(&msg_align);
 
 	if (sgtmsg.sgt_type)

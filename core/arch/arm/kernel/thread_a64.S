@@ -16,7 +16,7 @@
 #include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
-		ldr	w\tmp0, [\core_local, \
+		ldrh	w\tmp0, [\core_local, \
 				#THREAD_CORE_LOCAL_CURR_THREAD]
 		ldr	x\res, =threads
 		mov	x\tmp1, #THREAD_CTX_SIZE
@@ -43,6 +43,8 @@ FUNC thread_resume , :
 	mov	sp, x1
 	msr	elr_el1, x2
 	msr	spsr_el1, x3
+	ldr	x1, [x0, THREAD_CTX_REGS_TPIDR_EL0]
+	msr	tpidr_el0, x1
 
 	b_if_spsr_is_el0 w3, 1f
 
@@ -67,7 +69,7 @@ FUNC thread_init_vbar , :
 	msr	vbar_el1, x0
 	ret
 END_FUNC thread_init_vbar
-KEEP_PAGER thread_init_vbar
+DECLARE_KEEP_PAGER thread_init_vbar
 
 /*
  * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
@@ -123,7 +125,7 @@ FUNC __thread_enter_user_mode , :
 	/* Jump into user mode */
 	b eret_to_el0
 END_FUNC __thread_enter_user_mode
-KEEP_PAGER __thread_enter_user_mode
+DECLARE_KEEP_PAGER __thread_enter_user_mode
 
 /*
  * void thread_unwind_user_mode(uint32_t ret, uint32_t exit_status0,
@@ -600,6 +602,8 @@ END_FUNC thread_excp_vect
 LOCAL_FUNC el0_svc , :
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
+	mrs	x1, tpidr_el0
+	str	x1, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
 	/* load saved kernel sp */
 	ldr	x0, [x0, #THREAD_CTX_KERN_SP]
 	/* Keep pointer to initial recod in x1 */
@@ -654,6 +658,8 @@ LOCAL_FUNC el0_svc , :
 	str	x1, [x0, #THREAD_CTX_KERN_SP]
 
 	/* Restore registers to the required state and return*/
+	ldr	x1, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
+	msr	tpidr_el0, x1
 	load_xregs sp, THREAD_SVC_REG_ELR, 0, 1
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
@@ -858,7 +864,10 @@ END_FUNC el0_sync_abort
 
 	/* Store original sp_el0 */
 	str	x2, [x0, #THREAD_CTX_REGS_SP]
-	/* store x4..x30 */
+	/* Store tpidr_el0 */
+	mrs	x2, tpidr_el0
+	str	x2, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
+	/* Store x4..x30 */
 	store_xregs x0, THREAD_CTX_REGS_X4, 4, 30
 	/* Load original x0..x3 into x10..x13 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 10, 13
@@ -894,6 +903,7 @@ END_FUNC el0_sync_abort
 	msr	spsel, #1
 	ldr	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	lsr	w1, w1, #THREAD_CLF_SAVED_SHIFT
+	orr	w1, w1, #THREAD_CLF_TMP
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 	msr	spsel, #0
 

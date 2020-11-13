@@ -3,9 +3,7 @@ PLATFORM_FLAVOR ?= hikey
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,8)
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_PL011,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
@@ -17,7 +15,6 @@ endif
 
 CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y
 
 ifeq ($(PLATFORM_FLAVOR),hikey)
 CFG_PL061 ?= y

@@ -97,7 +97,9 @@ static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 	TEE_Result res;
 	void *va;
 
-	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
+					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -121,7 +123,9 @@ static TEE_Result ta_operation_remove(uint32_t file_number)
 	struct mobj *mobj;
 	void *va;
 
-	va = tee_fs_rpc_cache_alloc(TEE_FS_NAME_MAX, &mobj);
+	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
+					THREAD_SHM_TYPE_APPLICATION,
+					TEE_FS_NAME_MAX, &mobj);
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 

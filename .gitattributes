@@ -1,0 +1,6 @@
+# For git archive
+.gitignore              export-ignore
+.gitattributes          export-ignore
+.travis.yml             export-ignore
+.github                 export-ignore
+.shippable.yml          export-ignore

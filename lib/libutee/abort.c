@@ -11,7 +11,7 @@
 void abort(void)
 {
 	printf("Abort!\n");
-	utee_panic(0);
+	_utee_panic(0);
 	/* Not reached */
 	while (1)
 		;

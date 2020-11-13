@@ -15,6 +15,13 @@
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
 
+/*
+ * SYSCFG IO compensation.
+ * These functions assume non-secure world is suspended.
+ */
+void stm32mp_syscfg_enable_io_compensation(void);
+void stm32mp_syscfg_disable_io_compensation(void);
+
 /* Platform util for the GIC */
 vaddr_t get_gicc_base(void);
 vaddr_t get_gicd_base(void);
@@ -35,6 +42,9 @@ vaddr_t get_gicd_base(void);
 vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
+
+/* Platform util for PMIC support */
+bool stm32mp_with_pmic(void);
 
 /* Power management service */
 #ifdef CFG_PSCI_ARM32
@@ -91,15 +101,11 @@ bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
  * @base: BSEC interface registers physical base address
  * @upper_start: Base ID for the BSEC upper words in the platform
  * @max_id: Max value for BSEC word ID for the platform
- * @closed_device_id: BSEC word ID storing the "closed_device" OTP bit
- * @closed_device_position: Bit position of "closed_device" bit in the OTP word
  */
 struct stm32_bsec_static_cfg {
 	paddr_t base;
 	unsigned int upper_start;
 	unsigned int max_id;
-	unsigned int closed_device_id;
-	unsigned int closed_device_position;
 };
 
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);

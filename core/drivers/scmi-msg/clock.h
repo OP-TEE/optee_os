@@ -95,7 +95,7 @@ struct scmi_clock_rate_set_p2a {
 #define SCMI_CLOCK_CONFIG_SET_ENABLE_POS	0
 
 #define SCMI_CLOCK_CONFIG_SET_ENABLE_MASK \
-	(0x1 << SCMI_CLOCK_CONFIG_SET_ENABLE_POS)
+	BIT(SCMI_CLOCK_CONFIG_SET_ENABLE_POS)
 
 struct scmi_clock_config_set_a2p {
 	uint32_t clock_id;

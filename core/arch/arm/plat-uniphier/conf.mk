@@ -26,12 +26,10 @@ CFG_TEE_RAM_VA_SIZE ?= 0x00100000
 # 32-bit flags
 core_arm32-platform-aflags	+= -mfpu=neon
 
-$(call force,CFG_GENERIC_BOOT,y)
 $(call force,CFG_HWSUPP_MEM_PERM_PXN,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_8250_UART,y)
-$(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
@@ -47,4 +45,3 @@ endif
 
 CFG_NUM_THREADS ?= 4
 CFG_CRYPTO_WITH_CE ?= y
-CFG_WITH_STACK_CANARIES ?= y

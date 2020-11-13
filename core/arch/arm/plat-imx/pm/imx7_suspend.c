@@ -14,7 +14,7 @@
 #include <imx_pm.h>
 #include <kernel/panic.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/generic_boot.h>
+#include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>

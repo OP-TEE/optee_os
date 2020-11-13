@@ -3,14 +3,12 @@
  * Copyright (c) 2020, ARM Limited. All rights reserved.
  */
 
-#include <mm/core_memprot.h>
-#include <kernel/tpm.h>
 #include <compiler.h>
-#include <string.h>
-#ifdef CFG_DT
 #include <kernel/dt.h>
+#include <kernel/tpm.h>
 #include <libfdt.h>
-#endif
+#include <mm/core_memprot.h>
+#include <string.h>
 
 static void *tpm_log_addr;
 static size_t tpm_log_size;
@@ -72,7 +70,7 @@ static void get_tpm_phys_params(void *fdt __maybe_unused,
 #ifdef CFG_DT
 	int node = 0;
 	const char *dt_tpm_match_table = {
-		"arm,nt_fw",
+		"arm,tpm_event_log",
 	};
 
 	if (!fdt) {

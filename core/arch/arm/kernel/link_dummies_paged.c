@@ -3,23 +3,26 @@
  * Copyright (c) 2017, Linaro Limited
  */
 #include <compiler.h>
+#include <initcall.h>
+#include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <kernel/wait_queue.h>
-#include <sm/tee_mon.h>
 #include <tee_api_types.h>
-#include <tee/arch_svc.h>
 #include <tee/entry_std.h>
 
 #include "thread_private.h"
 
-void __section(".text.dummy.tee_svc_handler")
-thread_svc_handler(struct thread_svc_regs *regs __unused)
+void __section(".text.dummy.call_initcalls") call_initcalls(void)
 {
 }
 
-TEE_Result __section(".text.dummy.init_teecore") init_teecore(void)
+void __section(".text.dummy.call_finalcalls") call_finalcalls(void)
 {
-	return TEE_SUCCESS;
+}
+
+void __section(".text.dummy.paged_init_primary")
+paged_init_primary(unsigned long fdt __unused)
+{
 }
 
 uint32_t __section(".text.dummy.__thread_std_smc_entry")
