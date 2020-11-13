@@ -43,6 +43,8 @@
 
 #define TEE_RPMB_FS_FILENAME_LENGTH 224
 
+#define RPMB_MAX_RETRIES		10
+
 /**
  * Utilized when caching is enabled, i.e., when CFG_RPMB_FS_CACHE_ENTRIES > 0.
  * Cache size + the number of entries that are repeatedly read in and buffered
@@ -263,6 +265,9 @@ struct tee_rpmb_ctx {
 };
 
 static struct tee_rpmb_ctx *rpmb_ctx;
+
+/* If set to true, don't try to access RPMB until rebooted */
+static bool rpmb_dead;
 
 /*
  * Mutex to serialize the operations exported by this file.
@@ -1086,6 +1091,9 @@ static TEE_Result tee_rpmb_init(uint16_t dev_id)
 	struct rpmb_dev_info dev_info;
 	uint32_t nblocks = 0;
 
+	if (rpmb_dead)
+		return TEE_ERROR_COMMUNICATION;
+
 	if (!rpmb_ctx) {
 		rpmb_ctx = calloc(1, sizeof(struct tee_rpmb_ctx));
 		if (!rpmb_ctx)
@@ -1264,18 +1272,111 @@ func_exit:
 	return res;
 }
 
+static TEE_Result write_req(uint16_t dev_id, uint16_t blk_idx,
+			    const void *data_blks, uint16_t blkcnt,
+			    const uint8_t *fek, const TEE_UUID *uuid,
+			    struct tee_rpmb_mem *mem, void  *req, void *resp)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t hmac[RPMB_KEY_MAC_SIZE] = { };
+	uint32_t wr_cnt = rpmb_ctx->wr_cnt;
+	struct rpmb_raw_data rawdata = { };
+	size_t retry_count = 0;
+
+	assert(mem->req_size <=
+	       sizeof(struct rpmb_req) + blkcnt * RPMB_DATA_FRAME_SIZE);
+	assert(mem->resp_size <= RPMB_DATA_FRAME_SIZE);
+
+	while (true) {
+		memset(req, 0, mem->req_size);
+		memset(resp, 0, mem->resp_size);
+
+		memset(&rawdata, 0, sizeof(struct rpmb_raw_data));
+		rawdata.msg_type = RPMB_MSG_TYPE_REQ_AUTH_DATA_WRITE;
+		rawdata.block_count = &blkcnt;
+		rawdata.blk_idx = &blk_idx;
+		rawdata.write_counter = &wr_cnt;
+		rawdata.key_mac = hmac;
+		rawdata.data = (uint8_t *)data_blks;
+
+		res = tee_rpmb_req_pack(req, &rawdata, blkcnt, dev_id, fek,
+					uuid);
+		if (res) {
+			/*
+			 * If we haven't tried to send a request yet we can
+			 * allow a failure here since there's no chance of
+			 * an intercepted request with a valid write
+			 * counter.
+			 */
+			if (!retry_count)
+				return res;
+
+			retry_count++;
+			if (retry_count >= RPMB_MAX_RETRIES)
+				goto out_of_retries;
+
+			DMSG("Request pack failed, retrying %zu", retry_count);
+			continue;
+		}
+
+		res = tee_rpmb_invoke(mem);
+		if (res != TEE_SUCCESS) {
+			retry_count++;
+			if (retry_count >= RPMB_MAX_RETRIES)
+				goto out_of_retries;
+			/*
+			 * To force wr_cnt sync next time, as it might get
+			 * out of sync due to inconsistent operation result!
+			 */
+			rpmb_ctx->wr_cnt_synced = false;
+			DMSG("Write invoke failed, retrying %zu", retry_count);
+			continue;
+		}
+
+		memset(&rawdata, 0, sizeof(struct rpmb_raw_data));
+		rawdata.msg_type = RPMB_MSG_TYPE_RESP_AUTH_DATA_WRITE;
+		rawdata.block_count = &blkcnt;
+		rawdata.blk_idx = &blk_idx;
+		rawdata.write_counter = &wr_cnt;
+		rawdata.key_mac = hmac;
+
+		res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1, NULL,
+						  NULL);
+		if (res != TEE_SUCCESS) {
+			retry_count++;
+			if (retry_count >= RPMB_MAX_RETRIES)
+				goto out_of_retries;
+			/*
+			 * To force wr_cnt sync next time, as it might get
+			 * out of sync due to inconsistent operation result!
+			 */
+			rpmb_ctx->wr_cnt_synced = false;
+			DMSG("Write resp unpack verify failed, retrying %zu",
+			     retry_count);
+			continue;
+		}
+
+		return TEE_SUCCESS;
+	}
+
+out_of_retries:
+	rpmb_dead = true;
+	/*
+	 * We're using this error code to cause an eventuall calling TA to
+	 * panic since we don't know if the data to be written has been
+	 * committed to storage or not.
+	 */
+	return TEE_ERROR_COMMUNICATION;
+}
+
 static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 				     const uint8_t *data_blks, uint16_t blkcnt,
 				     const uint8_t *fek, const TEE_UUID *uuid)
 {
 	TEE_Result res;
 	struct tee_rpmb_mem mem;
-	uint16_t msg_type;
-	uint32_t wr_cnt;
-	uint8_t hmac[RPMB_KEY_MAC_SIZE];
 	struct rpmb_req *req = NULL;
 	struct rpmb_data_frame *resp = NULL;
-	struct rpmb_raw_data rawdata;
 	uint32_t req_size;
 	uint32_t resp_size;
 	uint32_t nbr_writes;
@@ -1317,6 +1418,8 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 	tmp_blkcnt = rpmb_ctx->rel_wr_blkcnt;
 	tmp_blk_idx = blk_idx;
 	for (i = 0; i < nbr_writes; i++) {
+		size_t offs = i * rpmb_ctx->rel_wr_blkcnt * RPMB_DATA_SIZE;
+
 		/*
 		 * To handle the last write of block count which is
 		 * equal or smaller than reliable write block count.
@@ -1325,55 +1428,11 @@ static TEE_Result tee_rpmb_write_blk(uint16_t dev_id, uint16_t blk_idx,
 			tmp_blkcnt = blkcnt - rpmb_ctx->rel_wr_blkcnt *
 			    (nbr_writes - 1);
 
-		msg_type = RPMB_MSG_TYPE_REQ_AUTH_DATA_WRITE;
-		wr_cnt = rpmb_ctx->wr_cnt;
-
-		memset(req, 0x00, req_size);
-		memset(resp, 0x00, resp_size);
-
-		memset(&rawdata, 0x00, sizeof(struct rpmb_raw_data));
-		rawdata.msg_type = msg_type;
-		rawdata.block_count = &tmp_blkcnt;
-		rawdata.blk_idx = &tmp_blk_idx;
-		rawdata.write_counter = &wr_cnt;
-		rawdata.key_mac = hmac;
-		rawdata.data = (uint8_t *)data_blks +
-				i * rpmb_ctx->rel_wr_blkcnt * RPMB_DATA_SIZE;
-
-		res = tee_rpmb_req_pack(req, &rawdata, tmp_blkcnt, dev_id,
-					fek, uuid);
-		if (res != TEE_SUCCESS)
+		res = write_req(dev_id, tmp_blk_idx, data_blks + offs,
+				tmp_blkcnt, fek, uuid, &mem, req, resp);
+		if (res)
 			goto out;
 
-		res = tee_rpmb_invoke(&mem);
-		if (res != TEE_SUCCESS) {
-			/*
-			 * To force wr_cnt sync next time, as it might get
-			 * out of sync due to inconsistent operation result!
-			 */
-			rpmb_ctx->wr_cnt_synced = false;
-			goto out;
-		}
-
-		msg_type = RPMB_MSG_TYPE_RESP_AUTH_DATA_WRITE;
-
-		memset(&rawdata, 0x00, sizeof(struct rpmb_raw_data));
-		rawdata.msg_type = msg_type;
-		rawdata.block_count = &tmp_blkcnt;
-		rawdata.blk_idx = &tmp_blk_idx;
-		rawdata.write_counter = &wr_cnt;
-		rawdata.key_mac = hmac;
-
-		res = tee_rpmb_resp_unpack_verify(resp, &rawdata, 1, NULL,
-						  NULL);
-		if (res != TEE_SUCCESS) {
-			/*
-			 * To force wr_cnt sync next time, as it might get
-			 * out of sync due to inconsistent operation result!
-			 */
-			rpmb_ctx->wr_cnt_synced = false;
-			goto out;
-		}
 
 		tmp_blk_idx += tmp_blkcnt;
 	}
@@ -1466,6 +1525,9 @@ static TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id,
 	if (!counter)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (rpmb_dead)
+		return TEE_ERROR_COMMUNICATION;
+
 	if (!rpmb_ctx || !rpmb_ctx->wr_cnt_synced) {
 		res = tee_rpmb_init(dev_id);
 		if (res != TEE_SUCCESS)
@@ -1490,6 +1552,9 @@ static TEE_Result tee_rpmb_get_max_block(uint16_t dev_id, uint32_t *max_block)
 
 	if (!max_block)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (rpmb_dead)
+		return TEE_ERROR_COMMUNICATION;
 
 	if (!rpmb_ctx || !rpmb_ctx->dev_info_synced) {
 		res = tee_rpmb_init(dev_id);
@@ -1929,12 +1994,39 @@ static TEE_Result rpmb_fs_setup(void)
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	partition_data = calloc(1, sizeof(struct rpmb_fs_partition));
+	/*
+	 * We're going to read a full block in order to have a full block
+	 * for the dummy write below.
+	 */
+	COMPILE_TIME_ASSERT(sizeof(struct rpmb_fs_partition) <=
+			    RPMB_DATA_SIZE);
+	partition_data = calloc(1, RPMB_DATA_SIZE);
 	if (!partition_data) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
+	res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
+			    (uint8_t *)partition_data, RPMB_DATA_SIZE,
+			    NULL, NULL);
+	if (res != TEE_SUCCESS)
+		goto out;
+	/*
+	 * Perform a write in order to increase the write counter. This
+	 * prevents late usage (replay attack) of a previously blocked
+	 * request with a valid write counter value.
+	 */
+	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
+			     (uint8_t *)partition_data, RPMB_DATA_SIZE,
+			     NULL, NULL);
+	if (res != TEE_SUCCESS)
+		goto out;
+	/*
+	 * We're reading again in case a stale request was committed
+	 * instead of the one issued above. If this succeeds we're in sync
+	 * with the RPMB block since there are no other possible stale
+	 * blocks with valid write counters available.
+	 */
 	res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
 			    (uint8_t *)partition_data,
 			    sizeof(struct rpmb_fs_partition), NULL, NULL);
