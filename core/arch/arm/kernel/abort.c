@@ -5,6 +5,7 @@
 
 #include <arm.h>
 #include <kernel/abort.h>
+#include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
@@ -217,8 +218,12 @@ static void __abort_print(struct abort_info *ai, bool stack_dump)
 
 	__print_abort_info(ai, "Core");
 
-	if (stack_dump)
+	if (stack_dump) {
+		trace_printf_helper_raw(TRACE_ERROR, true,
+					"TEE load address @ %#"PRIxVA,
+					VCORE_START_VA);
 		__print_stack_unwind(ai);
+	}
 }
 
 void abort_print(struct abort_info *ai)
