@@ -120,11 +120,6 @@ int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 		if (xbits)
 		      buf[0] |= 0x80;
 
-		/* transform it as a Big Number */
-		err = mp_read_unsigned_bin(key->x, buf, key_size);
-		if (err != CRYPT_OK)
-			goto error;
-
 		/*
 		 * Transform it as a Big Number compatible with p and q
 		 */
