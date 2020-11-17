@@ -584,7 +584,9 @@ static bool return_helper(bool panic, uint32_t panic_code,
 	struct ts_session *sess = ts_get_current_session();
 	struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
 
-	if (!panic)
+	if (panic)
+		spc->ta_ctx.panicked = true;
+	else
 		save_sp_ctx(spc, svc_regs);
 
 	SVC_REGS_A0(svc_regs) = 0;
