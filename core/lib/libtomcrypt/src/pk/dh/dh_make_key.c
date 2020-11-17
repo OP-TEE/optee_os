@@ -48,14 +48,12 @@
 
 int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 {
-	const int limit = 500;	/* number of tries */
-	int err, i;
+	int err = 0;
 	int key_size = 0;	/* max key size, in bytes */
 	int key_size_p = 0;	/* key size of p */
 	int key_size_q = 0;	/* key size of p */
-	void *arg_mod;
+	void *arg_mod = 0;
 	uint8_t *buf = 0;	/* intermediate buffer to have a raw random  */
-	int found = 0;
 
 	/*
 	 * Check the arguments
@@ -108,48 +106,22 @@ int dh_make_key(prng_state *prng, int wprng, void *q, int xbits, dh_key *key)
 		goto error;
 	}
 
-	for (i = 0; (i < limit) && (!found); i++) {
-		/* generate the private key in a raw-buffer */
-		if (prng_descriptor[wprng]->read(buf, key_size, prng) !=
-		    (unsigned long)key_size) {
-			err = CRYPT_ERROR_READPRNG;
-			goto error;
-		}
-
-		/* make sure it is on the right number of bits */
-		if (xbits)
-		      buf[0] |= 0x80;
-
-		/*
-		 * Transform it as a Big Number compatible with p and q
-		 */
-		err = mp_read_unsigned_bin(key->y, buf, key_size);
-		if (err != CRYPT_OK)
-			goto error;
-		err = mp_mod(key->y, arg_mod, key->x);
-		if (err != CRYPT_OK)
-			goto error;
-
-		/*
-		 * Check the constraints
-		 * - x < p  is ok by construction
-		 * - x < q-1:
-		 * - x contains xbits
-		 */
-		if (xbits) {
-			if (mp_count_bits(key->x) != xbits)
-				continue;
-		}
-
-		/* we found a suitable private key key->x */
-		found = 1;
-	}
-
-	if (!found) {
-		/* key is not found */
-		err = CRYPT_ERROR;
+	/* generate the private key in a raw-buffer */
+	if (prng_descriptor[wprng]->read(buf, key_size, prng) !=
+	    (unsigned long)key_size) {
+		err = CRYPT_ERROR_READPRNG;
 		goto error;
 	}
+
+	/*
+	 * Transform it as a Big Number compatible with p and q
+	 */
+	err = mp_read_unsigned_bin(key->y, buf, key_size);
+	if (err != CRYPT_OK)
+		goto error;
+	err = mp_mod(key->y, arg_mod, key->x);
+	if (err != CRYPT_OK)
+		goto error;
 
 	/* generate the public key key->y */
 	err = mp_exptmod(key->base, key->x, key->prime, key->y);
