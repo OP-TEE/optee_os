@@ -417,7 +417,6 @@ CFG_CRYPTO_DRIVER ?= y
 # DRV_DBG_BUF   BIT32(1) // Driver dump Buffer
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 else
-$(call force,CFG_CRYPTO_DRIVER,n)
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 CFG_IMX_CAAM ?= y
