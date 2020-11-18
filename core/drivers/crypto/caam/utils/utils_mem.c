@@ -10,7 +10,6 @@
 #include <caam_trace.h>
 #include <caam_utils_mem.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mmu.h>
 #include <string.h>
 
 /*

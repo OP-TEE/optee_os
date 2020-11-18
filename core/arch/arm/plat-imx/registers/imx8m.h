@@ -32,20 +32,10 @@
 #define I2C2_BASE		0x30a30000
 #define I2C3_BASE		0x30a40000
 
-#define IOMUXC_I2C1_SCL_CFG	0x47C
-#define IOMUXC_I2C1_SDA_CFG	0x480
-#define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG + ((__x) - 1) * 0x8)
-#define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG + ((__x) - 1) * 0x8)
-
-#define IOMUXC_I2C1_SCL_MUX	0x214
-#define IOMUXC_I2C1_SDA_MUX	0x218
-#define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX + ((__x) - 1) * 0x8)
-#define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX + ((__x) - 1) * 0x8)
-
-#define IOMUXC_I2C_MUX_VAL	0x010
-#define IOMUXC_I2C_CFG_VAL	0x1c3
-#define I2C_MUX_VAL(__x)	IOMUXC_I2C_MUX_VAL
-#define I2C_CFG_VAL(__x)	IOMUXC_I2C_CFG_VAL
+#define IOMUXC_I2C1_SCL_CFG_OFF	0x47C
+#define IOMUXC_I2C1_SDA_CFG_OFF	0x480
+#define IOMUXC_I2C1_SCL_MUX_OFF	0x214
+#define IOMUXC_I2C1_SDA_MUX_OFF	0x218
 #endif
 
 #endif /* __IMX8M_H__ */

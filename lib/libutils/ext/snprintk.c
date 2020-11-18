@@ -66,6 +66,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <compiler.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
@@ -316,7 +317,7 @@ reswitch:	switch (ch) {
 			if ((width = va_arg(ap, int)) >= 0)
 				goto rflag;
 			width = -width;
-			/* FALLTHROUGH */
+			fallthrough;
 		case '-':
 			flags |= LADJUST;
 			goto rflag;
@@ -383,7 +384,7 @@ reswitch:	switch (ch) {
 			break;
 		case 'D':
 			flags |= LONGINT;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case 'd':
 		case 'i':
 			_uquad = SARG();
@@ -411,7 +412,7 @@ reswitch:	switch (ch) {
 			continue;	/* no output */
 		case 'O':
 			flags |= LONGINT;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case 'o':
 			_uquad = UARG();
 			base = OCT;
@@ -467,7 +468,7 @@ reswitch:	switch (ch) {
 			break;
 		case 'U':
 			flags |= LONGINT;
-			/*FALLTHROUGH*/
+			fallthrough;
 		case 'u':
 			_uquad = UARG();
 			base = DEC;

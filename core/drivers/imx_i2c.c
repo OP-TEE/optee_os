@@ -6,7 +6,10 @@
 #include <drivers/imx_i2c.h>
 #include <initcall.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/delay.h>
+#include <kernel/dt.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -16,18 +19,60 @@
 
 #define I2C_CLK_RATE	24000000 /* Bits per second */
 
-static struct io_pa_va i2c_bus[] = {
-	{ .pa = I2C1_BASE, },
-	{ .pa = I2C2_BASE, },
-	{ .pa = I2C3_BASE, },
+#define USE_I2C_STATIC_ADDRESS \
+	(!defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY))
+
+/* Utility macros (__x identifies the bus [1 .. 3]) */
+#define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
+#define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
+#if defined(CFG_MX8MM)
+/* IOMUX */
+#define I2C_INP_SCL(__x)	0 /* Not implemented */
+#define I2C_INP_SDA(__x)	0 /* Not implemented */
+#define I2C_INP_VAL(__x)	0 /* Not implemented */
+#define I2C_MUX_VAL(__x)	0x010
+#define I2C_CFG_VAL(__x)	0x1c3
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR(__x)	CCM_CCRG_I2C##__x
+#elif defined(CFG_MX6ULL)
+/* IOMUX */
+#define I2C_INP_SCL(__x)	(IOMUXC_I2C1_SCL_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_SDA(__x)	(IOMUXC_I2C1_SDA_INP_OFF + ((__x) - 1) * 0x8)
+#define I2C_INP_VAL(__x)	(((__x) == 1) ? 0x1 : 0x2)
+#define I2C_MUX_VAL(__x)	0x012
+#define I2C_CFG_VAL(__x)	0x1b8b0
+/* Clock */
+#define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
+#define I2C_CLK_CGR(__x)	CCM_CCGR2
+#else
+#error IMX_I2C driver not supported on this platform
+#endif
+
+static struct io_pa_va i2c_bus[3] = {
+#if USE_I2C_STATIC_ADDRESS
+#if defined(I2C1_BASE)
+	[0] = { .pa = I2C1_BASE, },
+#endif
+#if defined(I2C2_BASE)
+	[1] = { .pa = I2C2_BASE, },
+#endif
+#if defined(I2C3_BASE)
+	[2] = { .pa = I2C3_BASE, },
+#endif
+#endif
 };
 
 static struct imx_i2c_clk {
 	struct io_pa_va base;
 	uint32_t i2c[ARRAY_SIZE(i2c_bus)];
+	uint32_t cgrbm[ARRAY_SIZE(i2c_bus)];
 } i2c_clk = {
 	.base.pa = CCM_BASE,
 	.i2c = { I2C_CLK_CGR(1), I2C_CLK_CGR(2), I2C_CLK_CGR(3), },
+	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), },
 };
 
 static struct imx_i2c_mux {
@@ -35,17 +80,22 @@ static struct imx_i2c_mux {
 	struct imx_i2c_mux_regs {
 		uint32_t scl_mux;
 		uint32_t scl_cfg;
+		uint32_t scl_inp;
 		uint32_t sda_mux;
 		uint32_t sda_cfg;
+		uint32_t sda_inp;
 	} i2c[ARRAY_SIZE(i2c_bus)];
 } i2c_mux = {
 	.base.pa = IOMUXC_BASE,
 	.i2c = {{ .scl_mux = I2C_MUX_SCL(1), .scl_cfg = I2C_CFG_SCL(1),
-		.sda_mux = I2C_MUX_SDA(1), .sda_cfg = I2C_CFG_SDA(1), },
-	       { .scl_mux = I2C_MUX_SCL(2), .scl_cfg = I2C_CFG_SCL(2),
-		.sda_mux = I2C_MUX_SDA(2), .sda_cfg = I2C_CFG_SDA(2), },
-	       { .scl_mux = I2C_MUX_SCL(3), .scl_cfg = I2C_CFG_SCL(3),
-		.sda_mux = I2C_MUX_SDA(3), .sda_cfg = I2C_CFG_SDA(3), },},
+		.scl_inp = I2C_INP_SCL(1), .sda_mux = I2C_MUX_SDA(1),
+		.sda_cfg = I2C_CFG_SDA(1), .sda_inp = I2C_INP_SDA(1), },
+		{ .scl_mux = I2C_MUX_SCL(2), .scl_cfg = I2C_CFG_SCL(2),
+		.scl_inp = I2C_INP_SCL(2), .sda_mux = I2C_MUX_SDA(2),
+		.sda_cfg = I2C_CFG_SDA(2), .sda_inp = I2C_INP_SDA(2), },
+		{ .scl_mux = I2C_MUX_SCL(3), .scl_cfg = I2C_CFG_SCL(3),
+		.scl_inp = I2C_INP_SCL(3), .sda_mux = I2C_MUX_SDA(3),
+		.sda_cfg = I2C_CFG_SDA(3), .sda_inp = I2C_INP_SDA(3), },},
 };
 
 #define I2DR				0x10
@@ -132,10 +182,19 @@ static void i2c_set_prescaler(uint8_t bid, uint32_t bps)
 
 static void i2c_set_bus_speed(uint8_t bid, int bps)
 {
-	/* Enable the clock */
-	io_write32(i2c_clk.base.va + CCM_CCGRx_SET(i2c_clk.i2c[bid]),
-		   CCM_CCGRx_ALWAYS_ON(0));
+	vaddr_t addr = i2c_clk.base.va;
+	uint32_t val = 0;
 
+#if defined(CFG_MX8MM)
+	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
+	val = CCM_CCGRx_ALWAYS_ON(0);
+#elif defined(CFG_MX6ULL)
+	addr += i2c_clk.i2c[bid];
+	val = i2c_clk.cgrbm[bid] | io_read32(addr);
+#else
+#error IMX_I2C driver not supported on this platform
+#endif
+	io_write32(addr, val);
 	i2c_set_prescaler(bid, bps);
 }
 
@@ -183,7 +242,7 @@ static TEE_Result i2c_write_byte(uint8_t bid, uint8_t byte)
 	ret = i2c_sync_bus(bid, &isr_active, &status);
 	i2c_io_write8(bid, I2SR, 0);
 
-	if (ret == TEE_SUCCESS && (status & I2SR_RX_NO_AK))
+	if (!ret && (status & I2SR_RX_NO_AK))
 		return TEE_ERROR_BAD_STATE;
 
 	return ret;
@@ -213,7 +272,7 @@ static TEE_Result i2c_write_data(uint8_t bid, const uint8_t *buf, int len)
 
 	while (len--) {
 		ret = i2c_write_byte(bid, *buf++);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	}
 
@@ -235,7 +294,7 @@ static TEE_Result i2c_read_data(uint8_t bid, uint8_t *buf, int len)
 	i2c_io_read8(bid, I2DR);
 
 	ret = i2c_read_byte(bid, &dummy);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/*
@@ -251,7 +310,7 @@ static TEE_Result i2c_read_data(uint8_t bid, uint8_t *buf, int len)
 		}
 
 		ret = i2c_read_byte(bid, buf++);
-		if (ret != TEE_SUCCESS)
+		if (ret)
 			return ret;
 	} while (len--);
 
@@ -264,7 +323,7 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 	uint32_t tmp = 0;
 
 	ret = i2c_idle_bus(bid);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* Enable the interface */
@@ -275,7 +334,7 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 
 	/* Wait until the bus is active */
 	ret = i2c_sync_bus(bid, &bus_is_busy, NULL);
-	if (ret != TEE_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* Slave address on the bus */
@@ -292,11 +351,14 @@ TEE_Result imx_i2c_read(uint8_t bid, uint8_t chip, uint8_t *buf, int len)
 	if ((len && !buf) || chip > 0x7F)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!i2c_bus[bid].va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ret = i2c_init_transfer(bid, chip << 1 | BIT(0));
-	if (ret == TEE_SUCCESS)
+	if (!ret)
 		ret = i2c_read_data(bid, buf, len);
 
-	if (i2c_idle_bus(bid) != TEE_SUCCESS)
+	if (i2c_idle_bus(bid))
 		IMSG("bus not idle");
 
 	return ret;
@@ -312,11 +374,14 @@ TEE_Result imx_i2c_write(uint8_t bid, uint8_t chip, const uint8_t *buf, int len)
 	if ((len && !buf) || chip > 0x7F)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!i2c_bus[bid].va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ret = i2c_init_transfer(bid, chip << 1);
-	if (ret == TEE_SUCCESS)
+	if (!ret)
 		ret = i2c_write_data(bid, buf, len);
 
-	if (i2c_idle_bus(bid) != TEE_SUCCESS)
+	if (i2c_idle_bus(bid))
 		IMSG("bus not idle");
 
 	return ret;
@@ -325,6 +390,9 @@ TEE_Result imx_i2c_write(uint8_t bid, uint8_t chip, const uint8_t *buf, int len)
 TEE_Result imx_i2c_probe(uint8_t bid, uint8_t chip)
 {
 	if (bid >= ARRAY_SIZE(i2c_bus))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!i2c_bus[bid].va)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (chip > 0x7F)
@@ -348,10 +416,20 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	if (!bps)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!i2c_bus[bid].va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	io_write32(mux->base.va + mux->i2c[bid].scl_mux, I2C_MUX_VAL(bid));
 	io_write32(mux->base.va + mux->i2c[bid].scl_cfg, I2C_CFG_VAL(bid));
+	if (mux->i2c[bid].scl_inp)
+		io_write32(mux->base.va + mux->i2c[bid].scl_inp,
+			   I2C_INP_VAL(bid + 1));
+
 	io_write32(mux->base.va + mux->i2c[bid].sda_mux, I2C_MUX_VAL(bid));
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
+	if (mux->i2c[bid].sda_inp)
+		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
+			   I2C_INP_VAL(bid + 1));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
@@ -371,22 +449,87 @@ static TEE_Result get_va(paddr_t pa, vaddr_t *va)
 	return TEE_ERROR_GENERIC;
 }
 
-static TEE_Result i2c_init(void)
+#if !USE_I2C_STATIC_ADDRESS
+static const char *const dt_i2c_match_table[] = {
+	"fsl,imx21-i2c",
+};
+
+static TEE_Result i2c_mapped(const char *i2c_match)
 {
-	size_t n = 0;
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	void *fdt = get_dt();
+	size_t size = 0;
+	size_t i = 0;
+	int off = 0;
 
-	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va) != TEE_SUCCESS)
-		return TEE_ERROR_GENERIC;
+	if (!fdt)
+		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va) != TEE_SUCCESS)
-		return TEE_ERROR_GENERIC;
+	for (i = 0; i < ARRAY_SIZE(i2c_bus); i++) {
+		off = fdt_node_offset_by_compatible(fdt, off, i2c_match);
+		if (off < 0)
+			break;
 
-	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
-		if (get_va(i2c_bus[n].pa, &i2c_bus[n].va) != TEE_SUCCESS)
-			return TEE_ERROR_GENERIC;
+		if (!(_fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
+			EMSG("i2c%zu not enabled", i + 1);
+			continue;
+		}
+
+		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size) < 0) {
+			EMSG("i2c%zu not enabled", i + 1);
+			continue;
+		}
+
+		i2c_bus[i].pa = virt_to_phys((void *)i2c_bus[i].va);
+		ret = TEE_SUCCESS;
 	}
 
-	return TEE_SUCCESS;
+	return ret;
 }
 
-driver_init(i2c_init);
+static TEE_Result i2c_map_controller(void)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(dt_i2c_match_table); i++) {
+		ret = i2c_mapped(dt_i2c_match_table[i]);
+		if (!ret || ret == TEE_ERROR_NOT_SUPPORTED)
+			return ret;
+	}
+
+	return ret;
+}
+#else
+static TEE_Result i2c_map_controller(void)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(i2c_bus); n++) {
+		if (i2c_bus[n].pa) {
+			if (get_va(i2c_bus[n].pa, &i2c_bus[n].va))
+				EMSG("i2c%zu not enabled", n + 1);
+			else
+				ret = TEE_SUCCESS;
+		} else {
+			IMSG("i2c%zu not enabled", n + 1);
+		}
+	}
+
+	return ret;
+}
+#endif /* !USE_I2C_STATIC_ADDRESS */
+
+static TEE_Result i2c_init(void)
+{
+	if (get_va(i2c_clk.base.pa, &i2c_clk.base.va))
+		return TEE_ERROR_GENERIC;
+
+	if (get_va(i2c_mux.base.pa, &i2c_mux.base.va))
+		return TEE_ERROR_GENERIC;
+
+	return i2c_map_controller();
+}
+
+early_init(i2c_init);

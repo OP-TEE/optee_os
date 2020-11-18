@@ -26,7 +26,6 @@
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
 #include <stdio.h>
@@ -426,7 +425,7 @@ static void init_runtime(unsigned long pageable_part)
 	 * Need tee_mm_sec_ddr initialized to be able to allocate secure
 	 * DDR below.
 	 */
-	teecore_init_ta_ram();
+	core_mmu_init_ta_ram();
 
 	carve_out_asan_mem(&tee_mm_sec_ddr);
 
@@ -914,58 +913,88 @@ static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
 	return rv;
 }
 
-static struct core_mmu_phys_mem *get_memory(void *fdt, size_t *nelems)
+/*
+ * Find all non-secure memory from DT. Memory marked inaccessible by Secure
+ * World is ignored since it could not be mapped to be used as dynamic shared
+ * memory.
+ */
+static int get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
 {
-	int offs = 0;
+	const uint8_t *prop = NULL;
+	uint64_t a = 0;
+	uint64_t l = 0;
+	size_t prop_offs = 0;
+	size_t prop_len = 0;
+	int elems_total = 0;
 	int addr_size = 0;
 	int len_size = 0;
-	size_t prop_len = 0;
-	const uint8_t *prop = NULL;
-	size_t prop_offs = 0;
+	int offs = 0;
 	size_t n = 0;
-	struct core_mmu_phys_mem *mem = NULL;
+	int len = 0;
 
-	offs = fdt_subnode_offset(fdt, 0, "memory");
-	if (offs < 0)
-		return NULL;
-
-	prop = fdt_getprop(fdt, offs, "reg", &addr_size);
-	if (!prop)
-		return NULL;
-
-	prop_len = addr_size;
 	addr_size = fdt_address_cells(fdt, 0);
 	if (addr_size < 0)
-		return NULL;
+		return 0;
 
 	len_size = fdt_size_cells(fdt, 0);
 	if (len_size < 0)
-		return NULL;
+		return 0;
 
-	for (n = 0, prop_offs = 0; prop_offs < prop_len; n++) {
-		get_dt_val_and_advance(prop, &prop_offs, addr_size);
-		if (prop_offs >= prop_len) {
-			n--;
+	while (true) {
+		offs = fdt_node_offset_by_prop_value(fdt, offs, "device_type",
+						     "memory",
+						     sizeof("memory"));
+		if (offs < 0)
 			break;
+
+		if (_fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
+						   DT_STATUS_OK_SEC))
+			continue;
+
+		prop = fdt_getprop(fdt, offs, "reg", &len);
+		if (!prop)
+			continue;
+
+		prop_len = len;
+		for (n = 0, prop_offs = 0; prop_offs < prop_len; n++) {
+			a = get_dt_val_and_advance(prop, &prop_offs, addr_size);
+			if (prop_offs >= prop_len) {
+				n--;
+				break;
+			}
+
+			l = get_dt_val_and_advance(prop, &prop_offs, len_size);
+			if (mem) {
+				mem->type = MEM_AREA_DDR_OVERALL;
+				mem->addr = a;
+				mem->size = l;
+				mem++;
+			}
 		}
-		get_dt_val_and_advance(prop, &prop_offs, len_size);
+
+		elems_total += n;
 	}
 
-	if (!n)
+	return elems_total;
+}
+
+static struct core_mmu_phys_mem *get_nsec_memory(void *fdt, size_t *nelems)
+{
+	struct core_mmu_phys_mem *mem = NULL;
+	int elems_total = 0;
+
+	elems_total = get_nsec_memory_helper(fdt, NULL);
+	if (elems_total <= 0)
 		return NULL;
 
-	*nelems = n;
-	mem = nex_calloc(n, sizeof(*mem));
+	mem = nex_calloc(elems_total, sizeof(*mem));
 	if (!mem)
 		panic();
 
-	for (n = 0, prop_offs = 0; n < *nelems; n++) {
-		mem[n].type = MEM_AREA_RAM_NSEC;
-		mem[n].addr = get_dt_val_and_advance(prop, &prop_offs,
-						     addr_size);
-		mem[n].size = get_dt_val_and_advance(prop, &prop_offs,
-						     len_size);
-	}
+	elems_total = get_nsec_memory_helper(fdt, mem);
+	assert(elems_total > 0);
+
+	*nelems = elems_total;
 
 	return mem;
 }
@@ -1074,8 +1103,8 @@ static void update_external_dt(void)
 }
 
 #ifdef CFG_CORE_DYN_SHM
-static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
-					    size_t *nelems __unused)
+static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
+						 size_t *nelems __unused)
 {
 	return NULL;
 }
@@ -1086,11 +1115,13 @@ static struct core_mmu_phys_mem *get_memory(void *fdt __unused,
 static void discover_nsec_memory(void)
 {
 	struct core_mmu_phys_mem *mem;
+	const struct core_mmu_phys_mem *mem_begin = NULL;
+	const struct core_mmu_phys_mem *mem_end = NULL;
 	size_t nelems;
 	void *fdt = get_external_dt();
 
 	if (fdt) {
-		mem = get_memory(fdt, &nelems);
+		mem = get_nsec_memory(fdt, &nelems);
 		if (mem) {
 			core_mmu_set_discovered_nsec_ddr(mem, nelems);
 			return;
@@ -1099,12 +1130,24 @@ static void discover_nsec_memory(void)
 		DMSG("No non-secure memory found in FDT");
 	}
 
-	nelems = phys_ddr_overall_end - phys_ddr_overall_begin;
-	if (!nelems)
-		return;
-
-	/* Platform cannot define nsec_ddr && overall_ddr */
-	assert(phys_nsec_ddr_begin == phys_nsec_ddr_end);
+	mem_begin = phys_ddr_overall_begin;
+	mem_end = phys_ddr_overall_end;
+	nelems = mem_end - mem_begin;
+	if (nelems) {
+		/*
+		 * Platform cannot use both register_ddr() and the now
+		 * deprecated register_dynamic_shm().
+		 */
+		assert(phys_ddr_overall_compat_begin ==
+		       phys_ddr_overall_compat_end);
+	} else {
+		mem_begin = phys_ddr_overall_compat_begin;
+		mem_end = phys_ddr_overall_compat_end;
+		nelems = mem_end - mem_begin;
+		if (!nelems)
+			return;
+		DMSG("Warning register_dynamic_shm() is deprecated, please use register_ddr() instead");
+	}
 
 	mem = nex_calloc(nelems, sizeof(*mem));
 	if (!mem)
@@ -1128,7 +1171,7 @@ void init_tee_runtime(void)
 
 #ifndef CFG_WITH_PAGER
 	/* Pager initializes TA RAM early */
-	teecore_init_ta_ram();
+	core_mmu_init_ta_ram();
 #endif
 	call_initcalls();
 }

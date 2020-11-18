@@ -1,9 +1,13 @@
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += user_ta.c
+srcs-y += ldelf_loader.c
 srcs-$(CFG_REE_FS_TA) += ree_fs_ta.c
 srcs-$(CFG_EARLY_TA) += early_ta.c
 srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
+
+srcs-$(CFG_SECURE_PARTITION) += secure_partition.c
+srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += pseudo_ta.c
 srcs-y += tee_time.c
 srcs-y += rpc_io_i2c.c
@@ -49,7 +53,7 @@ srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-y += mutex.c
 srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
-srcs-$(CFG_WITH_SECURE_PARTITION) += secure_partition.c
+srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
 
 srcs-y += boot.c
 srcs-$(CFG_ARM32_core) += entry_a32.S

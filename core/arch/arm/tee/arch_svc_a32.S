@@ -40,7 +40,7 @@ UNWIND(	.cantunwind)
 	mov     r0, sp
 	mov     r1, r5
 	mov     r2, r6, lsl #2
-	ldr     lr, =tee_svc_copy_from_user
+	ldr     lr, =copy_from_user
 	blx     lr
 
 	/* If copy failed return the error */

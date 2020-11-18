@@ -7,7 +7,11 @@
 #include <drivers/scmi.h>
 #include <trace.h>
 
+#include "base.h"
+#include "clock.h"
 #include "common.h"
+#include "reset_domain.h"
+#include "voltage_domain.h"
 
 void scmi_status_response(struct scmi_msg *msg, int32_t status)
 {
@@ -39,16 +43,15 @@ void scmi_process_message(struct scmi_msg *msg)
 	case SCMI_PROTOCOL_ID_BASE:
 		handler = scmi_msg_get_base_handler(msg);
 		break;
-#ifdef CFG_SCMI_MSG_CLOCK
 	case SCMI_PROTOCOL_ID_CLOCK:
 		handler = scmi_msg_get_clock_handler(msg);
 		break;
-#endif
-#ifdef CFG_SCMI_MSG_RESET_DOMAIN
 	case SCMI_PROTOCOL_ID_RESET_DOMAIN:
 		handler = scmi_msg_get_rd_handler(msg);
 		break;
-#endif
+	case SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN:
+		handler = scmi_msg_get_voltd_handler(msg);
+		break;
 	default:
 		break;
 	}

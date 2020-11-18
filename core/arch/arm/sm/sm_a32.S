@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -245,8 +245,7 @@ UNWIND(	.cantunwind)
 	rfefd	sp!
 END_FUNC sm_fiq_entry
 
-        .align	5
-LOCAL_FUNC sm_vect_table , :
+LOCAL_FUNC sm_vect_table , :, align=32
 UNWIND(	.cantunwind)
 	b	.		/* Reset			*/
 	b	.		/* Undefined instruction	*/
@@ -256,6 +255,7 @@ UNWIND(	.cantunwind)
 	b	.		/* Reserved			*/
 	b	.		/* IRQ				*/
 	b	sm_fiq_entry	/* FIQ				*/
+END_FUNC sm_vect_table
 
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP
 	.macro vector_prologue_spectre
@@ -278,8 +278,8 @@ UNWIND(	.cantunwind)
 		nop			/* 0:000 FIQ			*/
 	.endm
 
-	.align 5
-sm_vect_table_a15:
+LOCAL_FUNC sm_vect_table_a15 , :, align=32
+UNWIND(	.cantunwind)
 	vector_prologue_spectre
 	/*
 	 * Invalidate the branch predictor for the current processor.
@@ -295,9 +295,11 @@ sm_vect_table_a15:
 	write_iciallu
 	isb
 	b	1f
+END_FUNC sm_vect_table_a15
 
-	.align 5
-sm_vect_table_bpiall:
+
+LOCAL_FUNC sm_vect_table_bpiall , :, align=32
+UNWIND(	.cantunwind)
 	vector_prologue_spectre
 	/* Invalidate the branch predictor for the current processor. */
 	write_bpiall
@@ -322,8 +324,8 @@ sm_vect_table_bpiall:
 
 	/* unhandled exception */
 	b	.
+END_FUNC sm_vect_table_bpiall
 #endif /*!CFG_CORE_WORKAROUND_SPECTRE_BP*/
-END_FUNC sm_vect_table
 
 /* void sm_init(vaddr_t stack_pointer); */
 FUNC sm_init , :

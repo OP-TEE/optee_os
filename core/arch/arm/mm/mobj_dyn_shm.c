@@ -14,8 +14,8 @@
 #include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>

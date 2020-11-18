@@ -24,14 +24,24 @@ define process_early_ta
 early-ta-$1-uuid := $(firstword $(subst ., ,$(notdir $1)))
 gensrcs-y += early-ta-$1
 produce-early-ta-$1 = early_ta_$$(early-ta-$1-uuid).c
-depends-early-ta-$1 = $1 scripts/ta_bin_to_c.py
-recipe-early-ta-$1 = $(PYTHON3) scripts/ta_bin_to_c.py --compress --ta $1 \
+depends-early-ta-$1 = $1 scripts/ts_bin_to_c.py
+recipe-early-ta-$1 = $(PYTHON3) scripts/ts_bin_to_c.py --compress --ta $1 \
 		--out $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
 endef
 $(foreach f, $(EARLY_TA_PATHS), $(eval $(call process_early_ta,$(f))))
 $(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
 	process_early_ta,$(out-dir)/ta/$(f).stripped.elf)))
 endif
+
+define process_secure_partition
+sp-$1-uuid := $(firstword $(subst ., ,$(notdir $1)))
+gensrcs-y += sp-$1
+produce-sp-$1 = sp_$$(sp-$1-uuid).c
+depends-sp-$1 = $1 scripts/ts_bin_to_c.py
+recipe-sp-$1 = $(PYTHON3) scripts/ts_bin_to_c.py --compress --sp $1 \
+		--out $(sub-dir-out)/sp_$$(sp-$1-uuid).c
+endef
+$(foreach f, $(SP_PATHS), $(eval $(call process_secure_partition,$(f))))
 
 ifeq ($(CFG_EMBED_DTB),y)
 core-embed-fdt-dts = $(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE)

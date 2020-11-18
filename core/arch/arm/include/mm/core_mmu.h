@@ -53,7 +53,8 @@
  * we rather not expose here. There's a compile time assertion to check
  * that these magic numbers are correct.
  */
-#define CORE_MMU_L1_TBL_OFFSET		(CFG_TEE_CORE_NB_CORE * 4 * 8)
+#define CORE_MMU_L1_TBL_OFFSET		(CFG_TEE_CORE_NB_CORE * \
+					 BIT(CFG_LPAE_ADDR_SPACE_BITS - 30) * 8)
 #endif
 /*
  * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
@@ -233,10 +234,26 @@ struct core_mmu_phys_mem {
 			__unused
 #endif
 
+/* register_dynamic_shm() is deprecated, please use register_ddr() instead */
 #define register_dynamic_shm(addr, size) \
-		__register_memory(#addr, MEM_AREA_RAM_NSEC, (addr), (size), \
-				  phys_nsec_ddr)
+		__register_memory(#addr, MEM_AREA_DDR_OVERALL, (addr), (size), \
+				  phys_ddr_overall_compat)
 
+/*
+ * register_ddr() - Define a memory range
+ * @addr: Base address
+ * @size: Length
+ *
+ * This macro can be used multiple times to define disjoint ranges. While
+ * initializing holes are carved out of these ranges where it overlaps with
+ * special memory, for instance memory registered with register_sdp_mem().
+ *
+ * The memory that remains is accepted as non-secure shared memory when
+ * communicating with normal world.
+ *
+ * This macro is an alternative to supply the memory description with a
+ * devicetree blob.
+ */
 #define register_ddr(addr, size) \
 		__register_memory(#addr, MEM_AREA_DDR_OVERALL, (addr), \
 				  (size), phys_ddr_overall)
@@ -247,11 +264,11 @@ struct core_mmu_phys_mem {
 #define phys_ddr_overall_end \
 	SCATTERED_ARRAY_END(phys_ddr_overall, struct core_mmu_phys_mem)
 
-#define phys_nsec_ddr_begin \
-	SCATTERED_ARRAY_BEGIN(phys_nsec_ddr, struct core_mmu_phys_mem)
+#define phys_ddr_overall_compat_begin \
+	SCATTERED_ARRAY_BEGIN(phys_ddr_overall_compat, struct core_mmu_phys_mem)
 
-#define phys_nsec_ddr_end \
-	SCATTERED_ARRAY_END(phys_nsec_ddr, struct core_mmu_phys_mem)
+#define phys_ddr_overall_compat_end \
+	SCATTERED_ARRAY_END(phys_ddr_overall_compat, struct core_mmu_phys_mem)
 
 #define phys_sdp_mem_begin \
 	SCATTERED_ARRAY_BEGIN(phys_sdp_mem, struct core_mmu_phys_mem)
@@ -677,6 +694,9 @@ void core_mmu_set_default_prtn(void);
 
 void core_mmu_init_virtualization(void);
 #endif
+
+/* init some allocation pools */
+void core_mmu_init_ta_ram(void);
 
 #endif /*__ASSEMBLER__*/
 

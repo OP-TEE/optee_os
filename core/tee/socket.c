@@ -11,7 +11,7 @@
 #include <string.h>
 #include <tee/tee_fs_rpc.h>
 
-static uint32_t get_instance_id(struct tee_ta_session *sess)
+static uint32_t get_instance_id(struct ts_session *sess)
 {
 	return sess->ctx->ops->get_instance_id(sess->ctx);
 }
@@ -225,11 +225,10 @@ static TEE_Result pta_socket_open_session(uint32_t param_types __unused,
 			TEE_Param pParams[TEE_NUM_PARAMS] __unused,
 			void **sess_ctx)
 {
-	struct tee_ta_session *s;
+	struct ts_session *s = ts_get_calling_session();
 
 	/* Check that we're called from a TA */
-	s = tee_ta_get_calling_session();
-	if (!s)
+	if (!s || !is_user_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	*sess_ctx = (void *)(vaddr_t)get_instance_id(s);

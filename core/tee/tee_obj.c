@@ -3,23 +3,22 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include <tee/tee_obj.h>
-
+#include <mm/vm.h>
 #include <stdlib.h>
 #include <tee_api_defines.h>
-#include <mm/tee_mmu.h>
 #include <tee/tee_fs.h>
+#include <tee/tee_obj.h>
 #include <tee/tee_pobj.h>
-#include <trace.h>
-#include <tee/tee_svc_storage.h>
 #include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc_storage.h>
+#include <trace.h>
 
 void tee_obj_add(struct user_ta_ctx *utc, struct tee_obj *o)
 {
 	TAILQ_INSERT_TAIL(&utc->objects, o, link);
 }
 
-TEE_Result tee_obj_get(struct user_ta_ctx *utc, uint32_t obj_id,
+TEE_Result tee_obj_get(struct user_ta_ctx *utc, vaddr_t obj_id,
 		       struct tee_obj **obj)
 {
 	struct tee_obj *o;
@@ -30,7 +29,7 @@ TEE_Result tee_obj_get(struct user_ta_ctx *utc, uint32_t obj_id,
 			return TEE_SUCCESS;
 		}
 	}
-	return TEE_ERROR_BAD_PARAMETERS;
+	return TEE_ERROR_BAD_STATE;
 }
 
 void tee_obj_close(struct user_ta_ctx *utc, struct tee_obj *o)
@@ -66,7 +65,7 @@ TEE_Result tee_obj_verify(struct tee_ta_session *sess, struct tee_obj *o)
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
 		EMSG("Object corrupt");
 		fops->remove(o->pobj);
-		tee_obj_close(to_user_ta_ctx(sess->ctx), o);
+		tee_obj_close(to_user_ta_ctx(sess->ts_sess.ctx), o);
 	}
 
 	fops->close(&fh);

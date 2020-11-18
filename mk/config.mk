@@ -122,7 +122,7 @@ endif
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 10
+CFG_OPTEE_REVISION_MINOR ?= 11
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
@@ -304,10 +304,19 @@ $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 # for instance avb/023f8f1a-292a-432b-8fc4-de8471358067
 ifneq ($(EARLY_TA_PATHS)$(CFG_IN_TREE_EARLY_TAS),)
 $(call force,CFG_EARLY_TA,y)
+$(call force,CFG_EMBEDDED_TS,y)
 else
 CFG_EARLY_TA ?= n
 endif
-ifeq ($(CFG_EARLY_TA),y)
+
+ifneq ($(SP_PATHS),)
+$(call force,CFG_SECURE_PARTITION,y)
+$(call force,CFG_EMBEDDED_TS,y)
+else
+CFG_SECURE_PARTITION ?= n
+endif
+
+ifeq ($(CFG_EMBEDDED_TS),y)
 $(call force,CFG_ZLIB,y)
 endif
 
@@ -347,6 +356,10 @@ CFG_WITH_STACK_CANARIES ?= y
 # When enabled, most C functions check the stack pointer against the current
 # stack limits on entry and panic immediately if it is out of range.
 CFG_CORE_DEBUG_CHECK_STACKS ?= n
+
+# Use when the default stack allocations are not sufficient.
+CFG_STACK_THREAD_EXTRA ?= 0
+CFG_STACK_TMP_EXTRA ?= 0
 
 # Device Tree support
 #
@@ -595,10 +608,23 @@ CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
 
 ifneq ($(CFG_STMM_PATH),)
-$(call force,CFG_WITH_SECURE_PARTITION,y)
+$(call force,CFG_WITH_STMM_SP,y)
 else
-CFG_WITH_SECURE_PARTITION ?= n
+CFG_WITH_STMM_SP ?= n
 endif
-ifeq ($(CFG_WITH_SECURE_PARTITION),y)
+ifeq ($(CFG_WITH_STMM_SP),y)
 $(call force,CFG_ZLIB,y)
 endif
+
+# When enabled checks that buffers passed to the GP Internal Core API
+# comply with the rules added as annotations as part of the definition of
+# the API. For example preventing buffers in non-secure shared memory when
+# not allowed.
+CFG_TA_STRICT_ANNOTATION_CHECKS ?= y
+
+# When enabled accepts the DES key sizes excluding parity bits as in
+# the GP Internal API Specification v1.0
+CFG_COMPAT_GP10_DES ?= y
+
+# Defines a limit for many levels TAs may call each others.
+CFG_CORE_MAX_SYSCALL_RECURSION ?= 4

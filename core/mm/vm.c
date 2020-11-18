@@ -19,9 +19,9 @@
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
 #include <tee_api_defines_extensions.h>
@@ -150,12 +150,12 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 
 #ifdef CFG_PAGED_USER_TA
 	tsd = thread_get_tsd();
-	if (&uctx->ctx == tsd->ctx) {
+	if (uctx->ts_ctx == tsd->ctx) {
 		/*
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&tsd->pgt_cache, &uctx->ctx, b, e - 1);
+		pgt_alloc(&tsd->pgt_cache, uctx->ts_ctx, b, e - 1);
 	}
 #endif
 
@@ -184,10 +184,10 @@ static void maybe_free_pgt(struct user_mode_ctx *uctx, struct vm_region *r)
 		return;
 
 	tsd = thread_get_tsd();
-	if (&uctx->ctx == tsd->ctx)
+	if (uctx->ts_ctx == tsd->ctx)
 		pgt_cache = &tsd->pgt_cache;
 
-	pgt_flush_ctx_range(pgt_cache, &uctx->ctx, r->va, r->va + r->size);
+	pgt_flush_ctx_range(pgt_cache, uctx->ts_ctx, r->va, r->va + r->size);
 }
 
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
@@ -309,8 +309,8 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 	 * If the context currently is active set it again to update
 	 * the mapping.
 	 */
-	if (thread_get_tsd()->ctx == &uctx->ctx)
-		tee_mmu_set_ctx(&uctx->ctx);
+	if (thread_get_tsd()->ctx == uctx->ts_ctx)
+		vm_set_ctx(uctx->ts_ctx);
 
 	*va = reg->va;
 
@@ -520,7 +520,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	struct fobj *fobj = NULL;
 	vaddr_t next_va = 0;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == uctx->ts_ctx);
 
 	if (!len || ((len | old_va) & SMALL_PAGE_MASK))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -550,7 +550,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(&uctx->ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	r_first = TAILQ_FIRST(&regs);
 	while (!TAILQ_EMPTY(&regs)) {
@@ -603,7 +603,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 
 	fobj_put(fobj);
 
-	tee_mmu_set_ctx(&uctx->ctx);
+	vm_set_ctx(uctx->ts_ctx);
 	*new_va = r_first->va;
 
 	return TEE_SUCCESS;
@@ -623,7 +623,7 @@ err_restore_map:
 			panic("Cannot restore mapping");
 	}
 	fobj_put(fobj);
-	tee_mmu_set_ctx(&uctx->ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	return res;
 }
@@ -692,7 +692,7 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 	bool was_writeable = false;
 	bool need_sync = false;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == uctx->ts_ctx);
 
 	if (prot & ~TEE_MATTR_PROT_MASK || !len)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -716,7 +716,7 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 
 	if (need_sync) {
 		/* Synchronize changes to translation tables */
-		tee_mmu_set_ctx(&uctx->ctx);
+		vm_set_ctx(uctx->ts_ctx);
 	}
 
 	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
@@ -756,7 +756,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	size_t unmap_end_va = 0;
 	size_t l = 0;
 
-	assert(thread_get_tsd()->ctx == &uctx->ctx);
+	assert(thread_get_tsd()->ctx == uctx->ts_ctx);
 
 	if (ROUNDUP_OVERFLOW(len, SMALL_PAGE_SIZE, &l))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -787,7 +787,7 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	 * Synchronize change to translation tables. Even though the pager
 	 * case unmaps immediately we may still free a translation table.
 	 */
-	tee_mmu_set_ctx(&uctx->ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 	return TEE_SUCCESS;
 }
@@ -836,7 +836,7 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx)
 	return res;
 }
 
-void tee_mmu_clean_param(struct user_mode_ctx *uctx)
+void vm_clean_param(struct user_mode_ctx *uctx)
 {
 	struct vm_region *next_r;
 	struct vm_region *r;
@@ -916,9 +916,8 @@ static int cmp_param_mem(const void *a0, const void *a1)
 	return CMP_TRILEAN(m0->size, m1->size);
 }
 
-TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
-			     struct tee_ta_param *param,
-			     void *param_va[TEE_NUM_PARAMS])
+TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
+			void *param_va[TEE_NUM_PARAMS])
 {
 	TEE_Result res = TEE_SUCCESS;
 	size_t n;
@@ -1012,13 +1011,13 @@ TEE_Result tee_mmu_map_param(struct user_mode_ctx *uctx,
 	res = alloc_pgt(uctx);
 out:
 	if (res)
-		tee_mmu_clean_param(uctx);
+		vm_clean_param(uctx);
 
 	return res;
 }
 
-TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-			     vaddr_t *va)
+TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
+			vaddr_t *va)
 {
 	TEE_Result res;
 	struct vm_region *reg = calloc(1, sizeof(*reg));
@@ -1050,8 +1049,7 @@ TEE_Result tee_mmu_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 	return res;
 }
 
-void tee_mmu_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-		       vaddr_t va)
+void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va)
 {
 	struct vm_region *r = NULL;
 
@@ -1082,8 +1080,8 @@ void vm_info_final(struct user_mode_ctx *uctx)
 }
 
 /* return true only if buffer fits inside TA private memory */
-bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
-				       const void *va, size_t size)
+bool vm_buf_is_inside_um_private(const struct user_mode_ctx *uctx,
+				 const void *va, size_t size)
 {
 	struct vm_region *r = NULL;
 
@@ -1098,8 +1096,8 @@ bool tee_mmu_is_vbuf_inside_um_private(const struct user_mode_ctx *uctx,
 }
 
 /* return true only if buffer intersects TA private memory */
-bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
-					  const void *va, size_t size)
+bool vm_buf_intersects_um_private(const struct user_mode_ctx *uctx,
+				  const void *va, size_t size)
 {
 	struct vm_region *r = NULL;
 
@@ -1113,9 +1111,9 @@ bool tee_mmu_is_vbuf_intersect_um_private(const struct user_mode_ctx *uctx,
 	return false;
 }
 
-TEE_Result tee_mmu_vbuf_to_mobj_offs(const struct user_mode_ctx *uctx,
-				     const void *va, size_t size,
-				     struct mobj **mobj, size_t *offs)
+TEE_Result vm_buf_to_mboj_offs(const struct user_mode_ctx *uctx,
+			       const void *va, size_t size,
+			       struct mobj **mobj, size_t *offs)
 {
 	struct vm_region *r = NULL;
 
@@ -1182,14 +1180,12 @@ static TEE_Result tee_mmu_user_va2pa_attr(const struct user_mode_ctx *uctx,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_user_va2pa_helper(const struct user_mode_ctx *uctx, void *ua,
-				     paddr_t *pa)
+TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa)
 {
 	return tee_mmu_user_va2pa_attr(uctx, ua, pa, NULL);
 }
 
-TEE_Result tee_mmu_user_pa2va_helper(const struct user_mode_ctx *uctx,
-				     paddr_t pa, void **va)
+TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
 {
 	TEE_Result res = TEE_SUCCESS;
 	paddr_t p = 0;
@@ -1238,9 +1234,8 @@ TEE_Result tee_mmu_user_pa2va_helper(const struct user_mode_ctx *uctx,
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
-				       uint32_t flags, uaddr_t uaddr,
-				       size_t len)
+TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
+				  uint32_t flags, uaddr_t uaddr, size_t len)
 {
 	uaddr_t a = 0;
 	uaddr_t end_addr = 0;
@@ -1259,7 +1254,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
 	 * to TA or not.
 	 */
 	if (!(flags & TEE_MEMORY_ACCESS_ANY_OWNER) &&
-	   !tee_mmu_is_vbuf_inside_um_private(uctx, (void *)uaddr, len))
+	   !vm_buf_is_inside_um_private(uctx, (void *)uaddr, len))
 		return TEE_ERROR_ACCESS_DENIED;
 
 	for (a = ROUNDDOWN(uaddr, addr_incr); a < end_addr; a += addr_incr) {
@@ -1287,7 +1282,7 @@ TEE_Result tee_mmu_check_access_rights(const struct user_mode_ctx *uctx,
 	return TEE_SUCCESS;
 }
 
-void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
+void vm_set_ctx(struct ts_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
@@ -1313,82 +1308,3 @@ void tee_mmu_set_ctx(struct tee_ta_ctx *ctx)
 	tsd->ctx = ctx;
 }
 
-struct tee_ta_ctx *tee_mmu_get_ctx(void)
-{
-	return thread_get_tsd()->ctx;
-}
-
-void teecore_init_ta_ram(void)
-{
-	vaddr_t s;
-	vaddr_t e;
-	paddr_t ps;
-	paddr_t pe;
-
-	/* get virtual addr/size of RAM where TA are loaded/executedNSec
-	 * shared mem allcated from teecore */
-#ifndef CFG_VIRTUALIZATION
-	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
-#else
-	virt_get_ta_ram(&s, &e);
-#endif
-	ps = virt_to_phys((void *)s);
-	pe = virt_to_phys((void *)(e - 1)) + 1;
-
-	if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
-	    !pe || (pe & CORE_MMU_USER_CODE_MASK))
-		panic("invalid TA RAM");
-
-	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	if (!tee_pbuf_is_sec(ps, pe - ps))
-		panic("TA RAM is not secure");
-
-	if (!tee_mm_is_empty(&tee_mm_sec_ddr))
-		panic("TA RAM pool is not empty");
-
-	/* remove previous config and init TA ddr memory pool */
-	tee_mm_final(&tee_mm_sec_ddr);
-	tee_mm_init(&tee_mm_sec_ddr, ps, pe, CORE_MMU_USER_CODE_SHIFT,
-		    TEE_MM_POOL_NO_FLAGS);
-}
-
-#ifdef CFG_CORE_RESERVED_SHM
-static TEE_Result teecore_init_pub_ram(void)
-{
-	vaddr_t s;
-	vaddr_t e;
-
-	/* get virtual addr/size of NSec shared mem allcated from teecore */
-	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
-
-	if (s >= e || s & SMALL_PAGE_MASK || e & SMALL_PAGE_MASK)
-		panic("invalid PUB RAM");
-
-	/* extra check: we could rely on  core_mmu_get_mem_by_type() */
-	if (!tee_vbuf_is_non_sec(s, e - s))
-		panic("PUB RAM is not non-secure");
-
-#ifdef CFG_PL310
-	/* Allocate statically the l2cc mutex */
-	tee_l2cc_store_mutex_boot_pa(virt_to_phys((void *)s));
-	s += sizeof(uint32_t);			/* size of a pl310 mutex */
-	s =  ROUNDUP(s, SMALL_PAGE_SIZE);	/* keep required alignment */
-#endif
-
-	default_nsec_shm_paddr = virt_to_phys((void *)s);
-	default_nsec_shm_size = e - s;
-
-	return TEE_SUCCESS;
-}
-early_init(teecore_init_pub_ram);
-#endif /*CFG_CORE_RESERVED_SHM*/
-
-uint32_t tee_mmu_user_get_cache_attr(struct user_mode_ctx *uctx, void *va)
-{
-	uint32_t attr = 0;
-
-	if (tee_mmu_user_va2pa_attr(uctx, va, NULL, &attr) != TEE_SUCCESS)
-		panic("cannot get attr");
-
-	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
-}

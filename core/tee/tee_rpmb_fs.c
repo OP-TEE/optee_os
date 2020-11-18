@@ -571,7 +571,7 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 
 		if (rawdata->blk_idx) {
 			/* Check the block index is within range. */
-			if ((*rawdata->blk_idx + nbr_frms) >
+			if ((*rawdata->blk_idx + nbr_frms - 1) >
 			    rpmb_ctx->max_blk_idx) {
 				res = TEE_ERROR_GENERIC;
 				goto func_exit;
@@ -588,14 +588,19 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 			       RPMB_NONCE_SIZE);
 
 		if (rawdata->data) {
-			if (fek)
-				encrypt_block(datafrm[i].data,
-					rawdata->data + (i * RPMB_DATA_SIZE),
-					*rawdata->blk_idx + i, fek, uuid);
-			else
+			if (fek) {
+				res = encrypt_block(datafrm[i].data,
+						    rawdata->data +
+						    (i * RPMB_DATA_SIZE),
+						    *rawdata->blk_idx + i,
+						    fek, uuid);
+				if (res != TEE_SUCCESS)
+					goto func_exit;
+			} else {
 				memcpy(datafrm[i].data,
 				       rawdata->data + (i * RPMB_DATA_SIZE),
 				       RPMB_DATA_SIZE);
+			}
 		}
 	}
 
@@ -1639,8 +1644,8 @@ static TEE_Result __maybe_unused fat_entry_dir_update
 	/* Use a temp var to avoid compiler warning if caching disabled. */
 	uint32_t max_cache_entries = CFG_RPMB_FS_CACHE_ENTRIES;
 
-	assert(!(fat_address - RPMB_FS_FAT_START_ADDRESS) %
-	       sizeof(struct rpmb_fat_entry));
+	assert(!((fat_address - RPMB_FS_FAT_START_ADDRESS) %
+	       sizeof(struct rpmb_fat_entry)));
 
 	/* Nothing to update if the cache is not initialized. */
 	if (!fat_entry_dir)
@@ -1650,7 +1655,8 @@ static TEE_Result __maybe_unused fat_entry_dir_update
 			     sizeof(struct rpmb_fat_entry);
 
 	/* Only need to write if index points to an entry in cache. */
-	if (fat_entry_buf_idx < max_cache_entries) {
+	if (fat_entry_buf_idx < fat_entry_dir->num_buffered &&
+	    fat_entry_buf_idx < max_cache_entries) {
 		memcpy(fat_entry_dir->rpmb_fat_entry_buf + fat_entry_buf_idx,
 		       fat_entry, sizeof(struct rpmb_fat_entry));
 	}

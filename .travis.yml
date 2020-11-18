@@ -14,8 +14,8 @@ before_script:
 
   # Download checkpatch.pl
   - export KERNEL=$HOME/linux && mkdir -p $KERNEL/scripts && cd $KERNEL/scripts
-  - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/checkpatch.pl && chmod a+x checkpatch.pl
-  - wget https://raw.githubusercontent.com/torvalds/linux/master/scripts/spelling.txt
+  - wget https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/checkpatch.pl && chmod a+x checkpatch.pl
+  - wget https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/spelling.txt
   - echo "invalid.struct.name" >const_structs.checkpatch
   - export PATH=$KERNEL/scripts/:$PATH
   - cd $OPTEE_OS

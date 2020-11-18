@@ -663,7 +663,7 @@ static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
 	 * We started with 128, 192, or 256 bytes in the OFIFO before we moved
 	 * check_len bytes into MATH registers.
 	 */
-	if (p->length > 128 + check_len) {
+	if (p->length > 128 + (size_t)check_len) {
 		caam_desc_add_word(desc, MOVE(OFIFO, C1_CTX_REG, 0, check_len));
 		caam_desc_add_word(desc, MOVE(OFIFO, C1_CTX_REG, 0,
 					      (p->length - 128 - check_len)));

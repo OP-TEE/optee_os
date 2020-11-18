@@ -21,6 +21,7 @@
 #define DT_STATUS_OK_SEC		BIT(1)
 
 #define DT_INFO_INVALID_REG		((paddr_t)-1)
+#define DT_INFO_INVALID_REG_SIZE	((ssize_t)-1)
 #define DT_INFO_INVALID_CLOCK		-1
 #define DT_INFO_INVALID_RESET		-1
 #define DT_INFO_INVALID_INTERRUPT	-1
@@ -146,8 +147,7 @@ ssize_t _fdt_reg_size(const void *fdt, int offs);
 /*
  * Read the status and secure-status properties into a bitfield.
  * @status is set to DT_STATUS_DISABLED or a combination of DT_STATUS_OK_NSEC
- * and DT_STATUS_OK_SEC
- * Returns positive or null status value on success or -1 in case of error.
+ * and DT_STATUS_OK_SEC.
  */
 int _fdt_get_status(const void *fdt, int offs);
 
