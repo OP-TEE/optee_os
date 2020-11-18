@@ -418,7 +418,6 @@ CFG_CRYPTO_DRIVER ?= y
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 else
 $(call force,CFG_CRYPTO_DRIVER,n)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 CFG_IMX_CAAM ?= y
