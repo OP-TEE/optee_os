@@ -163,8 +163,8 @@
 #define L1_XLAT_ADDRESS_SHIFT	(L2_XLAT_ADDRESS_SHIFT + \
 				 XLAT_TABLE_ENTRIES_SHIFT)
 
-#define NUM_L1_ENTRIES		\
-		(CFG_LPAE_ADDR_SPACE_SIZE >> L1_XLAT_ADDRESS_SHIFT)
+#define NUM_L1_ENTRIES		BIT(CFG_LPAE_ADDR_SPACE_BITS - \
+				    L1_XLAT_ADDRESS_SHIFT)
 
 #ifndef MAX_XLAT_TABLES
 #ifdef CFG_VIRTUALIZATION
@@ -173,7 +173,7 @@
 #	define XLAT_TABLE_VIRTUALIZATION_EXTRA 0
 #endif
 #ifdef CFG_CORE_ASLR
-#	define XLAT_TABLE_ASLR_EXTRA 2
+#	define XLAT_TABLE_ASLR_EXTRA 3
 #else
 #	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
@@ -356,15 +356,6 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-static void check_nsec_ddr_max_pa(void)
-{
-	const struct core_mmu_phys_mem *mem;
-
-	for (mem = phys_nsec_ddr_begin; mem < phys_nsec_ddr_end; mem++)
-		if (!core_mmu_check_end_pa(mem->addr, mem->size))
-			panic();
-}
-
 #ifdef CFG_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void)
 {
@@ -482,8 +473,6 @@ void core_init_mmu(struct tee_mmap_region *mm)
 #endif
 	COMPILE_TIME_ASSERT(XLAT_TABLES_SIZE == sizeof(xlat_tables));
 
-	check_nsec_ddr_max_pa();
-
 	/* Initialize default pagetables */
 	core_init_mmu_prtn(&default_partition, mm);
 
@@ -507,8 +496,8 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	}
 	assert(user_va_idx != -1);
 
-	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_SIZE > 0);
-	assert(max_va < CFG_LPAE_ADDR_SPACE_SIZE);
+	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS > L1_XLAT_ADDRESS_SHIFT);
+	assert(max_va < BIT64(CFG_LPAE_ADDR_SPACE_BITS));
 }
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
@@ -598,7 +587,7 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	tcr |= TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT;
 	tcr |= TCR_SHX_ISH << TCR_SH0_SHIFT;
 	tcr |= ips << TCR_EL1_IPS_SHIFT;
-	tcr |= 64 - __builtin_ctzl(CFG_LPAE_ADDR_SPACE_SIZE);
+	tcr |= 64 - CFG_LPAE_ADDR_SPACE_BITS;
 
 	/* Disable the use of TTBR1 */
 	tcr |= TCR_EPD1;

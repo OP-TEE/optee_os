@@ -74,6 +74,9 @@ bool stm32_clock_is_enabled(unsigned long id);
 /* Return true if @clock_id is shared by secure and non-secure worlds */
 bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
 
+/* Return true if non-secure world can manipulate regulator @pmic_regu_name */
+bool stm32mp_nsec_can_access_pmic_regu(const char *pmic_regu_name);
+
 /*
  * Util for reset signal assertion/desassertion for stm32 and platform drivers
  * @id: Target peripheral ID, ID used in reset DT bindings
@@ -81,6 +84,9 @@ bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
  */
 TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
 TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
+
+/* Specific reset to manage the MCU hold boot */
+void stm32_reset_assert_deassert_mcu(bool assert_not_deassert);
 
 static inline void stm32_reset_set(unsigned int id)
 {

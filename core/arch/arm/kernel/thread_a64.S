@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2017, Linaro Limited
+ * Copyright (c) 2015-2020, Linaro Limited
  */
 
 #include <arm.h>
@@ -210,31 +210,30 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 #define INV_INSN	0
-	.align	11, INV_INSN
-FUNC thread_excp_vect , :
+FUNC thread_excp_vect , : align=2048
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_sync_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	el1_sync_abort
 	check_vector_size el1_sync_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_irq_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_irq
 	check_vector_size el1_irq_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_fiq_sp0:
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	b	elx_fiq
 	check_vector_size el1_fiq_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_serror_sp0:
 	b	el1_serror_sp0
 	check_vector_size el1_serror_sp0
@@ -243,22 +242,22 @@ el1_serror_sp0:
 	 * Current EL with SP1: 0x200 - 0x380
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_sync_sp1:
 	b	el1_sync_sp1
 	check_vector_size el1_sync_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_irq_sp1:
 	b	el1_irq_sp1
 	check_vector_size el1_irq_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_fiq_sp1:
 	b	el1_fiq_sp1
 	check_vector_size el1_fiq_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el1_serror_sp1:
 	b	el1_serror_sp1
 	check_vector_size el1_serror_sp1
@@ -267,7 +266,7 @@ el1_serror_sp1:
 	 * Lower EL using AArch64 : 0x400 - 0x580
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_sync_a64:
 	restore_mapping
 
@@ -279,21 +278,21 @@ el0_sync_a64:
 	b	el0_sync_abort
 	check_vector_size el0_sync_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_irq_a64:
 	restore_mapping
 
 	b	elx_irq
 	check_vector_size el0_irq_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_fiq_a64:
 	restore_mapping
 
 	b	elx_fiq
 	check_vector_size el0_fiq_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_serror_a64:
 	b   	el0_serror_a64
 	check_vector_size el0_serror_a64
@@ -302,7 +301,7 @@ el0_serror_a64:
 	 * Lower EL using AArch32 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_sync_a32:
 	restore_mapping
 
@@ -314,21 +313,21 @@ el0_sync_a32:
 	b	el0_sync_abort
 	check_vector_size el0_sync_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_irq_a32:
 	restore_mapping
 
 	b	elx_irq
 	check_vector_size el0_irq_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_fiq_a32:
 	restore_mapping
 
 	b	elx_fiq
 	check_vector_size el0_fiq_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 el0_serror_a32:
 	b	el0_serror_a32
 	check_vector_size el0_serror_a32
@@ -341,29 +340,29 @@ el0_serror_a32:
 		load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 	.endm
 
-	.align	11, INV_INSN
+	.balign	2048, INV_INSN
 	.global thread_excp_vect_workaround
 thread_excp_vect_workaround:
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_sync_sp0:
 	b	el1_sync_sp0
 	check_vector_size workaround_el1_sync_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_irq_sp0:
 	b	el1_irq_sp0
 	check_vector_size workaround_el1_irq_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_fiq_sp0:
 	b	el1_fiq_sp0
 	check_vector_size workaround_el1_fiq_sp0
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_serror_sp0:
 	b	el1_serror_sp0
 	check_vector_size workaround_el1_serror_sp0
@@ -372,22 +371,22 @@ workaround_el1_serror_sp0:
 	 * Current EL with SP1: 0x200 - 0x380
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_sync_sp1:
 	b	workaround_el1_sync_sp1
 	check_vector_size workaround_el1_sync_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_irq_sp1:
 	b	workaround_el1_irq_sp1
 	check_vector_size workaround_el1_irq_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_fiq_sp1:
 	b	workaround_el1_fiq_sp1
 	check_vector_size workaround_el1_fiq_sp1
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el1_serror_sp1:
 	b	workaround_el1_serror_sp1
 	check_vector_size workaround_el1_serror_sp1
@@ -396,25 +395,25 @@ workaround_el1_serror_sp1:
 	 * Lower EL using AArch64 : 0x400 - 0x580
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_sync_a64:
 	invalidate_branch_predictor
 	b	el0_sync_a64
 	check_vector_size workaround_el0_sync_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_irq_a64:
 	invalidate_branch_predictor
 	b	el0_irq_a64
 	check_vector_size workaround_el0_irq_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_fiq_a64:
 	invalidate_branch_predictor
 	b	el0_fiq_a64
 	check_vector_size workaround_el0_fiq_a64
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_serror_a64:
 	b   	workaround_el0_serror_a64
 	check_vector_size workaround_el0_serror_a64
@@ -423,25 +422,25 @@ workaround_el0_serror_a64:
 	 * Lower EL using AArch32 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_sync_a32:
 	invalidate_branch_predictor
 	b	el0_sync_a32
 	check_vector_size workaround_el0_sync_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_irq_a32:
 	invalidate_branch_predictor
 	b	el0_irq_a32
 	check_vector_size workaround_el0_irq_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_fiq_a32:
 	invalidate_branch_predictor
 	b	el0_fiq_a32
 	check_vector_size workaround_el0_fiq_a32
 
-	.align	7, INV_INSN
+	.balign	128, INV_INSN
 workaround_el0_serror_a32:
 	b	workaround_el0_serror_a32
 	check_vector_size workaround_el0_serror_a32

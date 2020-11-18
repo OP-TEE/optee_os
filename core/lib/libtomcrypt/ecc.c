@@ -3,7 +3,8 @@
  * Copyright (c) 2014-2019, Linaro Limited
  */
 
-#include <crypto/crypto.h>
+#include <config.h>
+#include <crypto/crypto_impl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
@@ -12,40 +13,7 @@
 
 #include "acipher_helpers.h"
 
-TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s,
-					    size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->d))
-		goto err;
-	if (!bn_alloc_max(&s->x))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->x);
-	crypto_bignum_free(s->y);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-TEE_Result crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s,
-					       size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->x))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->x);
-	crypto_bignum_free(s->y);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s)
+static void _ltc_ecc_free_public_key(struct ecc_public_key *s)
 {
 	if (!s)
 		return;
@@ -146,7 +114,8 @@ static TEE_Result ecc_get_curve_info(uint32_t curve, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key, size_t key_size)
+static TEE_Result _ltc_ecc_generate_keypair(struct ecc_keypair *key,
+					    size_t key_size)
 {
 	TEE_Result res;
 	ecc_key ltc_tmp_key;
@@ -273,9 +242,9 @@ TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_ecc_sign(uint32_t algo, struct ecc_keypair *key,
-				   const uint8_t *msg, size_t msg_len,
-				   uint8_t *sig, size_t *sig_len)
+static TEE_Result _ltc_ecc_sign(uint32_t algo, struct ecc_keypair *key,
+				const uint8_t *msg, size_t msg_len,
+				uint8_t *sig, size_t *sig_len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int ltc_res = 0;
@@ -312,9 +281,9 @@ out:
 	return res;
 }
 
-TEE_Result crypto_acipher_ecc_verify(uint32_t algo, struct ecc_public_key *key,
-				     const uint8_t *msg, size_t msg_len,
-				     const uint8_t *sig, size_t sig_len)
+static TEE_Result _ltc_ecc_verify(uint32_t algo, struct ecc_public_key *key,
+				  const uint8_t *msg, size_t msg_len,
+				  const uint8_t *sig, size_t sig_len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int ltc_stat = 0;
@@ -343,10 +312,10 @@ out:
 	return res;
 }
 
-TEE_Result crypto_acipher_ecc_shared_secret(struct ecc_keypair *private_key,
-					    struct ecc_public_key *public_key,
-					    void *secret,
-					    unsigned long *secret_len)
+static TEE_Result _ltc_ecc_shared_secret(struct ecc_keypair *private_key,
+					 struct ecc_public_key *public_key,
+					 void *secret,
+					 unsigned long *secret_len)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int ltc_res = 0;
@@ -378,4 +347,142 @@ out:
 	ecc_free(&ltc_private_key);
 	ecc_free(&ltc_public_key);
 	return res;
+}
+
+static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
+	.generate = &_ltc_ecc_generate_keypair,
+	.sign = &_ltc_ecc_sign,
+	.shared_secret = &_ltc_ecc_shared_secret,
+};
+
+static const struct crypto_ecc_public_ops ecc_public_key_ops = {
+	.free = &_ltc_ecc_free_public_key,
+	.verify = &_ltc_ecc_verify,
+};
+
+static const struct crypto_ecc_keypair_ops sm2_dsa_keypair_ops = {
+	.generate = &_ltc_ecc_generate_keypair,
+	.sign = &sm2_ltc_dsa_sign,
+};
+
+static const struct crypto_ecc_public_ops sm2_dsa_public_key_ops = {
+	.free = &_ltc_ecc_free_public_key,
+	.verify = &sm2_ltc_dsa_verify,
+};
+
+static const struct crypto_ecc_keypair_ops sm2_pke_keypair_ops = {
+	.generate = &_ltc_ecc_generate_keypair,
+	.decrypt = &sm2_ltc_pke_decrypt,
+};
+
+static const struct crypto_ecc_public_ops sm2_pke_public_key_ops = {
+	.free = &_ltc_ecc_free_public_key,
+	.encrypt = &sm2_ltc_pke_encrypt,
+};
+
+static const struct crypto_ecc_keypair_ops sm2_kep_keypair_ops = {
+	.generate = &_ltc_ecc_generate_keypair,
+};
+
+static const struct crypto_ecc_public_ops sm2_kep_public_key_ops = {
+	.free = &_ltc_ecc_free_public_key,
+};
+
+TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
+					 uint32_t key_type,
+					 size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+		s->ops = &ecc_keypair_ops;
+		break;
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_dsa_keypair_ops;
+		break;
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_pke_keypair_ops;
+		break;
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_kep_keypair_ops;
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (!bn_alloc_max(&s->d))
+		goto err;
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+
+	return TEE_SUCCESS;
+
+err:
+	s->ops = NULL;
+
+	crypto_bignum_free(s->d);
+	crypto_bignum_free(s->x);
+
+	return TEE_ERROR_OUT_OF_MEMORY;
+}
+
+TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
+					    uint32_t key_type,
+					    size_t key_size_bits __unused)
+{
+	memset(s, 0, sizeof(*s));
+
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_PUBLIC_KEY:
+	case TEE_TYPE_ECDH_PUBLIC_KEY:
+		s->ops = &ecc_public_key_ops;
+		break;
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_dsa_public_key_ops;
+		break;
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_pke_public_key_ops;
+		break;
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_kep_public_key_ops;
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (!bn_alloc_max(&s->x))
+		goto err;
+	if (!bn_alloc_max(&s->y))
+		goto err;
+
+	return TEE_SUCCESS;
+
+err:
+	s->ops = NULL;
+
+	crypto_bignum_free(s->x);
+
+	return TEE_ERROR_OUT_OF_MEMORY;
 }

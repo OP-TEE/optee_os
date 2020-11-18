@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2020, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -515,8 +515,7 @@ END_FUNC thread_unwind_user_mode
 	b	thread_foreign_intr_exit
 .endm
 
-        .align	5
-FUNC thread_excp_vect , :
+FUNC thread_excp_vect , :, align=32
 UNWIND(	.cantunwind)
 	b	.			/* Reset			*/
 	b	__thread_und_handler	/* Undefined instruction	*/
@@ -552,7 +551,7 @@ UNWIND(	.cantunwind)
 		cpsid   aif		/* 0:000 FIQ			*/
 	.endm
 
-        .align	5
+        .balign	32
 	.global thread_excp_vect_workaround_a15
 thread_excp_vect_workaround_a15:
 	vector_prologue_spectre
@@ -575,7 +574,7 @@ thread_excp_vect_workaround_a15:
 	isb
 	b	1f
 
-        .align	5
+        .balign	32
 	.global thread_excp_vect_workaround
 thread_excp_vect_workaround:
 	vector_prologue_spectre

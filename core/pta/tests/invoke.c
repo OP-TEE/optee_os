@@ -4,14 +4,16 @@
  */
 
 #include <compiler.h>
-#include <kernel/pseudo_ta.h>
 #include <kernel/panic.h>
+#include <kernel/pseudo_ta.h>
+#include <kernel/tee_ta_manager.h>
+#include <kernel/ts_manager.h>
 #include <mm/core_memprot.h>
 #include <pta_invoke_tests.h>
 #include <string.h>
-#include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
+#include <tee/cache.h>
 #include <trace.h>
 #include <types_ext.h>
 
@@ -29,23 +31,21 @@ static TEE_Result test_trace(uint32_t param_types __unused,
 
 static int test_v2p2v(void *va)
 {
-	struct tee_ta_session *session;
-	paddr_t p;
-	void *v;
+	struct ts_session *session = NULL;
+	paddr_t p = 0;
+	void *v = NULL;
 
 	if  (!va)
 		return 0;
 
-	if (tee_ta_get_current_session(&session))
-		panic();
-
+	session = ts_get_current_session();
 	p = virt_to_phys(va);
 
 	/* 0 is not a valid physical address */
 	if (!p)
 		return 1;
 
-	if (session->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
+	if (to_ta_session(session)->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
 		v = phys_to_virt(p, MEM_AREA_TA_VASPACE);
 	} else {
 		v = phys_to_virt(p, MEM_AREA_NSEC_SHM);

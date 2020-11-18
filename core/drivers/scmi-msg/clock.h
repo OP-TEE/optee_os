@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <util.h>
 
+#include "common.h"
+
 #define SCMI_PROTOCOL_VERSION_CLOCK	0x20000
 
 /*
@@ -146,4 +148,18 @@ struct scmi_clock_describe_rates_p2a {
 	struct scmi_clock_rate rates[];
 };
 
+#ifdef CFG_SCMI_MSG_CLOCK
+/*
+ * scmi_msg_get_clock_handler - Return a handler for a clock message
+ * @msg - message to process
+ * Return a function handler for the message or NULL
+ */
+scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg);
+#else
+static inline
+scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg __unused)
+{
+	return NULL;
+}
+#endif
 #endif /* SCMI_MSG_CLOCK_H */

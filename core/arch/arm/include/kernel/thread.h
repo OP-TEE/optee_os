@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef KERNEL_THREAD_H
@@ -233,8 +234,8 @@ struct thread_ctx_regs {
 #endif /*ARM64*/
 
 struct thread_specific_data {
-	TAILQ_HEAD(, tee_ta_session) sess_stack;
-	struct tee_ta_ctx *ctx;
+	TAILQ_HEAD(, ts_session) sess_stack;
+	struct ts_ctx *ctx;
 	struct pgt_cache pgt_cache;
 #ifdef CFG_CORE_FFA
 	uint32_t rpc_target_info;
@@ -247,7 +248,10 @@ struct thread_specific_data {
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
 #endif
+	unsigned int syscall_recursion;
 };
+
+struct user_mode_ctx;
 
 #ifdef CFG_WITH_ARM_TRUSTED_FW
 /*
@@ -445,13 +449,12 @@ static inline void thread_user_save_vfp(void)
 
 /*
  * thread_user_clear_vfp() - Clears the vfp state
- * @uvfp:	pointer to saved state to clear
+ * @uctx:	pointer to user mode context containing the saved state to clear
  */
 #ifdef CFG_WITH_VFP
-void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp);
+void thread_user_clear_vfp(struct user_mode_ctx *uctx);
 #else
-static inline void thread_user_clear_vfp(
-			struct thread_user_vfp_state *uvfp __unused)
+static inline void thread_user_clear_vfp(struct user_mode_ctx *uctx __unused)
 {
 }
 #endif

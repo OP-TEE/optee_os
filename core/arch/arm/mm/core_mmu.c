@@ -8,8 +8,8 @@
 #include <assert.h>
 #include <bitstring.h>
 #include <config.h>
-#include <kernel/cache_helpers.h>
 #include <kernel/boot.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -25,8 +25,8 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/pgt_cache.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <platform_config.h>
 #include <stdlib.h>
 #include <trace.h>
@@ -383,10 +383,19 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
 
 	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
-		if (map->type == MEM_AREA_NSEC_SHM)
+		switch (map->type) {
+		case MEM_AREA_NSEC_SHM:
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
-		else if (map->type != MEM_AREA_EXT_DT)
+			break;
+		case MEM_AREA_EXT_DT:
+		case MEM_AREA_RES_VASPACE:
+		case MEM_AREA_SHM_VASPACE:
+		case MEM_AREA_TA_VASPACE:
+		case MEM_AREA_PAGER_VASPACE:
+			break;
+		default:
 			check_phys_mem_is_outside(m, num_elems, map);
+		}
 	}
 
 	discovered_nsec_ddr_start = m;
@@ -414,10 +423,8 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf, size_t len)
 	const struct core_mmu_phys_mem *start;
 	const struct core_mmu_phys_mem *end;
 
-	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = phys_nsec_ddr_begin;
-		end = phys_nsec_ddr_end;
-	}
+	if (!get_discovered_nsec_ddr(&start, &end))
+		return false;
 
 	return pbuf_is_special_mem(pbuf, len, start, end);
 }
@@ -427,10 +434,8 @@ bool core_mmu_nsec_ddr_is_defined(void)
 	const struct core_mmu_phys_mem *start;
 	const struct core_mmu_phys_mem *end;
 
-	if (!get_discovered_nsec_ddr(&start, &end)) {
-		start = phys_nsec_ddr_begin;
-		end = phys_nsec_ddr_end;
-	}
+	if (!get_discovered_nsec_ddr(&start, &end))
+		return false;
 
 	return start != end;
 }
@@ -473,31 +478,6 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 			panic("can't create SDP physical memory object");
 	}
 	return mobj_base;
-}
-
-static void check_sdp_intersection_with_nsec_ddr(void)
-{
-	const struct core_mmu_phys_mem *sdp_start = phys_sdp_mem_begin;
-	const struct core_mmu_phys_mem *sdp_end = phys_sdp_mem_end;
-	const struct core_mmu_phys_mem *ddr_start = phys_nsec_ddr_begin;
-	const struct core_mmu_phys_mem *ddr_end = phys_nsec_ddr_end;
-	const struct core_mmu_phys_mem *sdp;
-	const struct core_mmu_phys_mem *nsec_ddr;
-
-	if (sdp_start == sdp_end || ddr_start == ddr_end)
-		return;
-
-	for (sdp = sdp_start; sdp < sdp_end; sdp++) {
-		for (nsec_ddr = ddr_start; nsec_ddr < ddr_end; nsec_ddr++) {
-			if (core_is_buffer_intersect(sdp->addr, sdp->size,
-					     nsec_ddr->addr, nsec_ddr->size)) {
-				MSG_MEM_INSTERSECT(sdp->addr, sdp->size,
-						   nsec_ddr->addr,
-						   nsec_ddr->size);
-				panic("SDP <-> NSEC DDR memory intersection");
-			}
-		}
-	}
 }
 
 #else /* CFG_SECURE_DATA_PATH */
@@ -544,17 +524,9 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	/*
 	 * Check memories do not intersect any mapped memory.
 	 * This is called before reserved VA space is loaded in mem_map.
-	 *
-	 * Only exception is with MEM_AREA_RAM_NSEC and MEM_AREA_NSEC_SHM,
-	 * which may overlap since they are used for the same purpose
-	 * except that MEM_AREA_NSEC_SHM is always mapped and
-	 * MEM_AREA_RAM_NSEC only uses a dynamic mapping.
 	 */
 	for (mem = start; mem < end; mem++) {
 		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
-			if (mem->type == MEM_AREA_RAM_NSEC &&
-			    mmap->type == MEM_AREA_NSEC_SHM)
-				continue;
 			if (core_is_buffer_intersect(mem->addr, mem->size,
 						     mmap->pa, mmap->size)) {
 				MSG_MEM_INSTERSECT(mem->addr, mem->size,
@@ -868,15 +840,10 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
 
-#ifdef CFG_SECURE_DATA_PATH
-	verify_special_mem_areas(memory_map, num_elems, phys_sdp_mem_begin,
-				 phys_sdp_mem_end, "SDP");
-
-	check_sdp_intersection_with_nsec_ddr();
-#endif
-
-	verify_special_mem_areas(memory_map, num_elems, phys_nsec_ddr_begin,
-				 phys_nsec_ddr_end, "NSEC DDR");
+	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
+		verify_special_mem_areas(memory_map, num_elems,
+					 phys_sdp_mem_begin,
+					 phys_sdp_mem_end, "SDP");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     CFG_RESERVED_VASPACE_SIZE, &last);
@@ -915,8 +882,9 @@ static void assign_mem_granularity(struct tee_mmap_region *memory_map)
 static unsigned int get_va_width(void)
 {
 	if (IS_ENABLED(ARM64)) {
-		COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(CFG_LPAE_ADDR_SPACE_SIZE));
-		return __builtin_ctzll(CFG_LPAE_ADDR_SPACE_SIZE);
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS >= 32);
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS < 48);
+		return CFG_LPAE_ADDR_SPACE_BITS;
 	}
 	return 32;
 }
@@ -1881,7 +1849,8 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, &uctx->ctx, r->va, r_last->va + r_last->size - 1);
+	pgt_alloc(pgt_cache, uctx->ts_ctx, r->va,
+		  r_last->va + r_last->size - 1);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
@@ -2052,7 +2021,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	TEE_Result res;
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
-	struct core_mmu_table_info ti __maybe_unused;
+	struct core_mmu_table_info ti __maybe_unused = { };
 
 	if (core_mmu_user_va_range_is_defined()) {
 		vaddr_t user_va_base;
@@ -2067,8 +2036,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 				return;
 			}
 
-			res = tee_mmu_user_va2pa_helper(
-				to_user_mode_ctx(tee_mmu_get_ctx()), va, &p);
+			res = vm_va2pa(to_user_mode_ctx(thread_get_tsd()->ctx),
+				       va, &p);
 			if (res == TEE_SUCCESS && pa != p)
 				panic("bad pa");
 			if (res != TEE_SUCCESS && pa)
@@ -2166,8 +2135,7 @@ static void *phys_to_virt_ta_vaspace(paddr_t pa)
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
 
-	res = tee_mmu_user_pa2va_helper(to_user_mode_ctx(tee_mmu_get_ctx()),
-					pa, &va);
+	res = vm_pa2va(to_user_mode_ctx(thread_get_tsd()->ctx), pa, &va);
 	if (res != TEE_SUCCESS)
 		return NULL;
 	return va;
@@ -2317,4 +2285,71 @@ vaddr_t io_pa_or_va_nsec(struct io_pa_va *p)
 		return p->va;
 	}
 	return p->pa;
+}
+
+#ifdef CFG_CORE_RESERVED_SHM
+static TEE_Result teecore_init_pub_ram(void)
+{
+	vaddr_t s = 0;
+	vaddr_t e = 0;
+
+	/* get virtual addr/size of NSec shared mem allocated from teecore */
+	core_mmu_get_mem_by_type(MEM_AREA_NSEC_SHM, &s, &e);
+
+	if (s >= e || s & SMALL_PAGE_MASK || e & SMALL_PAGE_MASK)
+		panic("invalid PUB RAM");
+
+	/* extra check: we could rely on core_mmu_get_mem_by_type() */
+	if (!tee_vbuf_is_non_sec(s, e - s))
+		panic("PUB RAM is not non-secure");
+
+#ifdef CFG_PL310
+	/* Allocate statically the l2cc mutex */
+	tee_l2cc_store_mutex_boot_pa(virt_to_phys((void *)s));
+	s += sizeof(uint32_t);			/* size of a pl310 mutex */
+	s = ROUNDUP(s, SMALL_PAGE_SIZE);	/* keep required alignment */
+#endif
+
+	default_nsec_shm_paddr = virt_to_phys((void *)s);
+	default_nsec_shm_size = e - s;
+
+	return TEE_SUCCESS;
+}
+early_init(teecore_init_pub_ram);
+#endif /*CFG_CORE_RESERVED_SHM*/
+
+void core_mmu_init_ta_ram(void)
+{
+	vaddr_t s = 0;
+	vaddr_t e = 0;
+	paddr_t ps = 0;
+	paddr_t pe = 0;
+
+	/*
+	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
+	 * shared mem allocated from teecore.
+	 */
+#ifndef CFG_VIRTUALIZATION
+	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
+#else
+	virt_get_ta_ram(&s, &e);
+#endif
+	ps = virt_to_phys((void *)s);
+	pe = virt_to_phys((void *)(e - 1)) + 1;
+
+	if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
+	    !pe || (pe & CORE_MMU_USER_CODE_MASK))
+		panic("invalid TA RAM");
+
+	/* extra check: we could rely on core_mmu_get_mem_by_type() */
+	if (!tee_pbuf_is_sec(ps, pe - ps))
+		panic("TA RAM is not secure");
+
+	if (!tee_mm_is_empty(&tee_mm_sec_ddr))
+		panic("TA RAM pool is not empty");
+
+	/* remove previous config and init TA ddr memory pool */
+	tee_mm_final(&tee_mm_sec_ddr);
+	tee_mm_init(&tee_mm_sec_ddr, ps, pe, CORE_MMU_USER_CODE_SHIFT,
+		    TEE_MM_POOL_NO_FLAGS);
 }

@@ -78,6 +78,16 @@ endif
 libnames += dl
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libdl.a
 
+# libutils provides __getauxval symbol which is needed by libgcc 10.x. We can't
+# link libutils after libgcc, because libgcc will replace some symbols provided
+# by libutils, which will cause further linking issues.
+#
+# But if we place libutils before libgcc, linker will not be able to resolve
+# __getauxval. So we need to link with libutils twice: before and after libgcc.
+# Hence it included both in $(libnames) and in $(libnames-after-libgcc)
+libnames-after-libgcc += utils
+libdeps-after-libgcc += $(ta-dev-kit-dir$(sm))/lib/libutils.a
+
 # Pass config variable (CFG_) from conf.mk on the command line
 cppflags$(sm) += $(strip \
 	$(foreach var, $(filter CFG_%,$(.VARIABLES)), \

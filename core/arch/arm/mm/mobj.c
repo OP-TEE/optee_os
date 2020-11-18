@@ -14,8 +14,8 @@
 #include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <stdlib.h>
@@ -430,7 +430,7 @@ static void *mobj_seccpy_shm_get_va(struct mobj *mobj, size_t offs)
 {
 	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
 
-	if (&m->utc->uctx.ctx != thread_get_tsd()->ctx)
+	if (&m->utc->ta_ctx.ts_ctx != thread_get_tsd()->ctx)
 		return NULL;
 
 	if (offs >= mobj->size)
@@ -451,7 +451,7 @@ static void mobj_seccpy_shm_free(struct mobj *mobj)
 	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
 
 	tee_pager_rem_um_region(&m->utc->uctx, m->va, mobj->size);
-	tee_mmu_rem_rwmem(&m->utc->uctx, mobj, m->va);
+	vm_rem_rwmem(&m->utc->uctx, mobj, m->va);
 	fobj_put(m->fobj);
 	free(m);
 }
@@ -492,7 +492,7 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 	m->mobj.ops = &mobj_seccpy_shm_ops;
 	refcount_set(&m->mobj.refc, 1);
 
-	if (tee_mmu_add_rwmem(&utc->uctx, &m->mobj, &va) != TEE_SUCCESS)
+	if (vm_add_rwmem(&utc->uctx, &m->mobj, &va) != TEE_SUCCESS)
 		goto bad;
 
 	m->fobj = fobj_rw_paged_alloc(ROUNDUP(size, SMALL_PAGE_SIZE) /
@@ -506,7 +506,7 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 	return &m->mobj;
 bad:
 	if (va)
-		tee_mmu_rem_rwmem(&utc->uctx, &m->mobj, va);
+		vm_rem_rwmem(&utc->uctx, &m->mobj, va);
 	fobj_put(m->fobj);
 	free(m);
 	return NULL;

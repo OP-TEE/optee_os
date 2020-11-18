@@ -571,6 +571,7 @@ bool stm32mp_nsec_can_access_reset(unsigned int reset_id)
 		shres_id = STM32MP1_SHRES_MDMA;
 		break;
 	case MCU_R:
+	case MCU_HOLD_BOOT_R:
 		shres_id = STM32MP1_SHRES_MCU;
 		break;
 	default:

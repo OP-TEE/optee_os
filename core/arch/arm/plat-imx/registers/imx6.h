@@ -140,4 +140,17 @@
 #define DIGPROG_OFFSET	0x260
 #endif
 
+#if defined(CFG_MX6ULL)
+#define I2C1_BASE		0x021a0000
+#define I2C2_BASE		0x021a4000
+#define I2C3_BASE		0x02184000
+
+#define IOMUXC_I2C1_SCL_CFG_OFF	0x340
+#define IOMUXC_I2C1_SDA_CFG_OFF	0x344
+#define IOMUXC_I2C1_SCL_MUX_OFF	0xb4
+#define IOMUXC_I2C1_SDA_MUX_OFF	0xb8
+#define IOMUXC_I2C1_SCL_INP_OFF	0x5a4
+#define IOMUXC_I2C1_SDA_INP_OFF	0x5a8
+#endif
+
 #endif /* __IMX6_H__ */

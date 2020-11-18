@@ -277,7 +277,7 @@ static struct pgt *pop_from_some_list(vaddr_t vabase, void *ctx)
 	return p;
 }
 
-void pgt_flush_ctx(struct tee_ta_ctx *ctx)
+void pgt_flush_ctx(struct ts_ctx *ctx)
 {
 	struct pgt *p;
 	struct pgt *pp = NULL;
@@ -387,7 +387,7 @@ static void flush_ctx_range_from_list(struct pgt_cache *pgt_cache, void *ctx,
 	}
 }
 
-void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, void *ctx,
+void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t last)
 {
 	mutex_lock(&pgt_mu);
@@ -414,13 +414,13 @@ static void pgt_free_unlocked(struct pgt_cache *pgt_cache,
 }
 
 static struct pgt *pop_from_some_list(vaddr_t vabase __unused,
-				      void *ctx __unused)
+				      struct ts_ctx *ctx __unused)
 {
 	return pop_from_free_list();
 }
 #endif /*!CFG_PAGED_USER_TA*/
 
-static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, void *ctx,
+static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			       vaddr_t begin, vaddr_t last)
 {
 	const vaddr_t base = ROUNDDOWN(begin, CORE_MMU_PGDIR_SIZE);
@@ -447,7 +447,7 @@ static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, void *ctx,
 	return true;
 }
 
-void pgt_alloc(struct pgt_cache *pgt_cache, void *ctx,
+void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	       vaddr_t begin, vaddr_t last)
 {
 	if (last <= begin)

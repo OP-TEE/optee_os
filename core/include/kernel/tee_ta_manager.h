@@ -7,11 +7,12 @@
 #ifndef TEE_TA_MANAGER_H
 #define TEE_TA_MANAGER_H
 
+#include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/tee_common.h>
+#include <kernel/ts_manager.h>
 #include <mm/tee_mmu_types.h>
 #include <sys/queue.h>
-#include <tee_api_types.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
@@ -46,23 +47,7 @@ struct tee_ta_param {
 	} u[TEE_NUM_PARAMS];
 };
 
-struct tee_ta_ctx;
 struct user_ta_ctx;
-struct pseudo_ta_ctx;
-struct thread_svc_regs;
-
-struct tee_ta_ops {
-	TEE_Result (*enter_open_session)(struct tee_ta_session *s,
-			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
-	TEE_Result (*enter_invoke_cmd)(struct tee_ta_session *s, uint32_t cmd,
-			struct tee_ta_param *param, TEE_ErrorOrigin *eo);
-	void (*enter_close_session)(struct tee_ta_session *s);
-	void (*dump_state)(struct tee_ta_ctx *ctx);
-	void (*dump_ftrace)(struct tee_ta_ctx *ctx);
-	void (*destroy)(struct tee_ta_ctx *ctx);
-	uint32_t (*get_instance_id)(struct tee_ta_ctx *ctx);
-	bool (*handle_svc)(struct thread_svc_regs *regs);
-};
 
 #if defined(CFG_TA_GPROF_SUPPORT)
 struct sample_buf {
@@ -80,10 +65,9 @@ struct sample_buf {
 
 /* Context of a loaded TA */
 struct tee_ta_ctx {
-	TEE_UUID uuid;
-	const struct tee_ta_ops *ops;
 	uint32_t flags;		/* TA_FLAGS from TA header */
 	TAILQ_ENTRY(tee_ta_ctx) link;
+	struct ts_ctx ts_ctx;
 	uint32_t panicked;	/* True if TA has panicked, written from asm */
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
@@ -94,10 +78,11 @@ struct tee_ta_ctx {
 
 struct tee_ta_session {
 	TAILQ_ENTRY(tee_ta_session) link;
-	TAILQ_ENTRY(tee_ta_session) link_tsd;
+	struct ts_session ts_sess;
 	uint32_t id;		/* Session handle (0 is invalid) */
-	struct tee_ta_ctx *ctx;	/* TA context */
 	TEE_Identity clnt_id;	/* Identify of client */
+	struct tee_ta_param *param;
+	TEE_ErrorOrigin err_origin;
 	bool cancel;		/* True if TA invocation is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
 	TEE_Time cancel_time;	/* Time when to cancel the TA invocation */
@@ -107,18 +92,13 @@ struct tee_ta_session {
 	struct condvar lock_cv;	/* CV used to wait for lock */
 	short int lock_thread;	/* Id of thread holding the lock */
 	bool unlink;		/* True if session is to be unlinked */
-#if defined(CFG_TA_GPROF_SUPPORT)
-	struct sample_buf *sbuf; /* Profiling data (PC sampling) */
-#endif
-#if defined(CFG_FTRACE_SUPPORT)
-	struct ftrace_buf *fbuf; /* ftrace buffer */
-#endif
 };
 
 /* Registered contexts */
 extern struct tee_ta_ctx_head tee_ctxes;
 
 extern struct mutex tee_ta_mutex;
+extern struct condvar tee_ta_init_cv;
 
 TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 			       struct tee_ta_session **sess,
@@ -151,12 +131,7 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *sess,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_Identity *clnt_id);
 
-TEE_Result tee_ta_get_current_session(struct tee_ta_session **sess);
 
-void tee_ta_push_current_session(struct tee_ta_session *sess);
-struct tee_ta_session *tee_ta_pop_current_session(void);
-
-struct tee_ta_session *tee_ta_get_calling_session(void);
 
 struct tee_ta_session *tee_ta_find_session(uint32_t id,
 			struct tee_ta_session_head *open_sessions);
@@ -183,4 +158,13 @@ static inline void tee_ta_ftrace_update_times_suspend(void) {}
 static inline void tee_ta_ftrace_update_times_resume(void) {}
 #endif
 
+bool is_ta_ctx(struct ts_ctx *ctx);
+
+struct tee_ta_session *to_ta_session(struct ts_session *sess);
+
+static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
+{
+	assert(is_ta_ctx(ctx));
+	return container_of(ctx, struct tee_ta_ctx, ts_ctx);
+}
 #endif

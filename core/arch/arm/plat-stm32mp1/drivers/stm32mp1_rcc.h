@@ -455,6 +455,9 @@
 #define RCC_MP_SREQCLRR_STPREQ_P0	BIT(0)
 #define RCC_MP_SREQCLRR_STPREQ_P1	BIT(1)
 
+/* Global Control Register */
+#define RCC_MP_GCR_BOOT_MCU		BIT(0)
+
 /* RCC_MP_APB5RST(SET|CLR)R bit fields */
 #define RCC_APB5RSTSETR_SPI6RST		BIT(0)
 #define RCC_APB5RSTSETR_I2C4RST		BIT(2)

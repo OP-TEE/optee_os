@@ -269,8 +269,17 @@
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000946 /* Missing in 1.2.1 */
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000A46 /* Missing in 1.2.1 */
 
-#define TEE_ATTR_BIT_PROTECTED		(1 << 28)
-#define TEE_ATTR_BIT_VALUE		(1 << 29)
+#define TEE_ATTR_FLAG_PUBLIC		(1 << 28)
+#define TEE_ATTR_FLAG_VALUE		(1 << 29)
+/*
+ * Deprecated, but kept for backwards compatibility
+ *
+ * Be careful with GPD TEE Internal API specification v1.0 where table 6-12
+ * defines BIT [28] with the right meaning whereas sections 5.4.3 and 5.4.4
+ * falsely describe a reversed bit flag value meaning.
+ */
+#define TEE_ATTR_BIT_PROTECTED		TEE_ATTR_FLAG_PUBLIC
+#define TEE_ATTR_BIT_VALUE		TEE_ATTR_FLAG_VALUE
 
 /* List of Supported ECC Curves */
 #define TEE_CRYPTO_ELEMENT_NONE             0x00000000

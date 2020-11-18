@@ -153,6 +153,7 @@ struct ecc_public_key {
 	struct bignum *x;	/* Public value x */
 	struct bignum *y;	/* Public value y */
 	uint32_t curve;	        /* Curve type */
+	const struct crypto_ecc_public_ops *ops; /* Key Operations */
 };
 
 struct ecc_keypair {
@@ -160,6 +161,7 @@ struct ecc_keypair {
 	struct bignum *x;	/* Public value x */
 	struct bignum *y;	/* Public value y */
 	uint32_t curve;	        /* Curve type */
+	const struct crypto_ecc_keypair_ops *ops; /* Key Operations */
 };
 
 /*
@@ -180,9 +182,11 @@ TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s,
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
 			       size_t key_size_bits);
 TEE_Result crypto_acipher_alloc_ecc_public_key(struct ecc_public_key *s,
-				   size_t key_size_bits);
+					       uint32_t key_type,
+					       size_t key_size_bits);
 TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s,
-				size_t key_size_bits);
+					    uint32_t key_type,
+					    size_t key_size_bits);
 void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s);
 
 /*
@@ -245,13 +249,6 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
 					  const uint8_t *src, size_t src_len,
 					  uint8_t *dst, size_t *dst_len);
-TEE_Result crypto_acipher_sm2_dsa_sign(uint32_t algo, struct ecc_keypair *key,
-				       const uint8_t *msg, size_t msg_len,
-				       uint8_t *sig, size_t *sig_len);
-TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo,
-					 struct ecc_public_key *key,
-					 const uint8_t *msg, size_t msg_len,
-					 const uint8_t *sig, size_t sig_len);
 
 struct sm2_kep_parms {
 	uint8_t *out;

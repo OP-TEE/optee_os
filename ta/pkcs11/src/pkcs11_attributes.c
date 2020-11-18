@@ -10,6 +10,7 @@
 #include <string_ext.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_internal_api.h>
+#include <trace.h>
 #include <util.h>
 
 #include "attributes.h"
@@ -134,13 +135,13 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 		return (uint8_t *)&bool_true;
 	case PKCS11_CKA_TOKEN:
 	case PKCS11_CKA_PRIVATE:
-	/* symkey false, privkey: token specific */
+	case PKCS11_CKA_WRAP_WITH_TRUSTED:
+	case PKCS11_CKA_ALWAYS_AUTHENTICATE:
 	case PKCS11_CKA_SENSITIVE:
 		return (uint8_t *)&bool_false;
 	/* Token specific default value */
 	case PKCS11_CKA_SIGN:
 	case PKCS11_CKA_VERIFY:
-		return (uint8_t *)&bool_true;
 	case PKCS11_CKA_DERIVE:
 	case PKCS11_CKA_ENCRYPT:
 	case PKCS11_CKA_DECRYPT:
@@ -149,8 +150,6 @@ static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
 	case PKCS11_CKA_EXTRACTABLE:
-	case PKCS11_CKA_WRAP_WITH_TRUSTED:
-	case PKCS11_CKA_ALWAYS_AUTHENTICATE:
 	case PKCS11_CKA_TRUSTED:
 		return (uint8_t *)&bool_false;
 	default:
@@ -245,10 +244,11 @@ static enum pkcs11_rc get_default_value(enum pkcs11_attr_id id, void **value,
 	return PKCS11_CKR_OK;
 }
 
-static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
-					      struct obj_attrs *temp,
-					      uint32_t const *bp,
-					      size_t bp_count)
+static enum pkcs11_rc set_optional_attributes_with_def(struct obj_attrs **out,
+						       struct obj_attrs *temp,
+						       uint32_t const *bp,
+						       size_t bp_count,
+						       bool default_to_null)
 {
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	size_t n = 0;
@@ -258,8 +258,14 @@ static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
 		void *value = NULL;
 
 		rc = get_attribute_ptr(temp, bp[n], &value, &size);
-		if (rc == PKCS11_RV_NOT_FOUND)
-			rc = get_default_value(bp[n], &value, &size);
+		if (rc == PKCS11_RV_NOT_FOUND) {
+			if (default_to_null) {
+				rc = get_default_value(bp[n], &value, &size);
+			} else {
+				rc = PKCS11_CKR_OK;
+				continue;
+			}
+		}
 		if (rc)
 			return rc;
 
@@ -269,6 +275,22 @@ static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
 	}
 
 	return rc;
+}
+
+static enum pkcs11_rc set_attributes_opt_or_null(struct obj_attrs **out,
+						 struct obj_attrs *temp,
+						 uint32_t const *bp,
+						 size_t bp_count)
+{
+	return set_optional_attributes_with_def(out, temp, bp, bp_count, true);
+}
+
+static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
+					      struct obj_attrs *temp,
+					      uint32_t const *bp,
+					      size_t bp_count)
+{
+	return set_optional_attributes_with_def(out, temp, bp, bp_count, false);
 }
 
 /*
@@ -281,33 +303,36 @@ static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
  */
 
 /* PKCS#11 specification for any object (session/token) of the storage */
-static const uint32_t pkcs11_any_object_boolprops[] = {
+static const uint32_t any_object_boolprops[] = {
 	PKCS11_CKA_TOKEN, PKCS11_CKA_PRIVATE,
 	PKCS11_CKA_MODIFIABLE, PKCS11_CKA_COPYABLE, PKCS11_CKA_DESTROYABLE,
 };
 
-static const uint32_t pkcs11_any_object_optional[] = {
+static const uint32_t any_object_opt_or_null[] = {
 	PKCS11_CKA_LABEL,
 };
 
-/* PKCS#11 specification for raw data object (+pkcs11_any_object_xxx) */
-const uint32_t pkcs11_raw_data_optional[] = {
+/* PKCS#11 specification for raw data object (+any_object_xxx) */
+const uint32_t raw_data_opt_or_null[] = {
 	PKCS11_CKA_OBJECT_ID, PKCS11_CKA_APPLICATION, PKCS11_CKA_VALUE,
 };
 
-/* PKCS#11 specification for any key object (+pkcs11_any_object_xxx) */
-static const uint32_t pkcs11_any_key_boolprops[] = {
+/* PKCS#11 specification for any key object (+any_object_xxx) */
+static const uint32_t any_key_boolprops[] = {
 	PKCS11_CKA_DERIVE,
 };
 
-static const uint32_t pkcs11_any_key_optional[] = {
+static const uint32_t any_key_opt_or_null[] = {
 	PKCS11_CKA_ID,
 	PKCS11_CKA_START_DATE, PKCS11_CKA_END_DATE,
+};
+
+static const uint32_t any_key_optional[] = {
 	PKCS11_CKA_ALLOWED_MECHANISMS,
 };
 
-/* PKCS#11 specification for any symmetric key (+pkcs11_any_key_xxx) */
-static const uint32_t pkcs11_symm_key_boolprops[] = {
+/* PKCS#11 specification for any symmetric key (+any_key_xxx) */
+static const uint32_t symm_key_boolprops[] = {
 	PKCS11_CKA_ENCRYPT, PKCS11_CKA_DECRYPT,
 	PKCS11_CKA_SIGN, PKCS11_CKA_VERIFY,
 	PKCS11_CKA_WRAP, PKCS11_CKA_UNWRAP,
@@ -315,73 +340,73 @@ static const uint32_t pkcs11_symm_key_boolprops[] = {
 	PKCS11_CKA_WRAP_WITH_TRUSTED, PKCS11_CKA_TRUSTED,
 };
 
-static const uint32_t pkcs11_symm_key_optional[] = {
+static const uint32_t symm_key_opt_or_null[] = {
 	PKCS11_CKA_WRAP_TEMPLATE, PKCS11_CKA_UNWRAP_TEMPLATE,
 	PKCS11_CKA_DERIVE_TEMPLATE,
 	PKCS11_CKA_VALUE, PKCS11_CKA_VALUE_LEN,
 };
 
-/* PKCS#11 specification for any asymmetric public key (+pkcs11_any_key_xxx) */
-static const uint32_t pkcs11_public_key_boolprops[] = {
+/* PKCS#11 specification for any asymmetric public key (+any_key_xxx) */
+static const uint32_t public_key_boolprops[] = {
 	PKCS11_CKA_ENCRYPT, PKCS11_CKA_VERIFY, PKCS11_CKA_VERIFY_RECOVER,
 	PKCS11_CKA_WRAP,
 	PKCS11_CKA_TRUSTED,
 };
 
-static const uint32_t pkcs11_public_key_mandated[] = {
+static const uint32_t public_key_mandated[] = {
 	PKCS11_CKA_SUBJECT
 };
 
-static const uint32_t pkcs11_public_key_optional[] = {
+static const uint32_t public_key_opt_or_null[] = {
 	PKCS11_CKA_WRAP_TEMPLATE, PKCS11_CKA_PUBLIC_KEY_INFO,
 };
 
-/* PKCS#11 specification for any asymmetric private key (+pkcs11_any_key_xxx) */
-static const uint32_t pkcs11_private_key_boolprops[] = {
+/* PKCS#11 specification for any asymmetric private key (+any_key_xxx) */
+static const uint32_t private_key_boolprops[] = {
 	PKCS11_CKA_DECRYPT, PKCS11_CKA_SIGN, PKCS11_CKA_SIGN_RECOVER,
 	PKCS11_CKA_UNWRAP,
 	PKCS11_CKA_SENSITIVE, PKCS11_CKA_EXTRACTABLE,
 	PKCS11_CKA_WRAP_WITH_TRUSTED, PKCS11_CKA_ALWAYS_AUTHENTICATE,
 };
 
-static const uint32_t pkcs11_private_key_mandated[] = {
+static const uint32_t private_key_mandated[] = {
 	PKCS11_CKA_SUBJECT
 };
 
-static const uint32_t pkcs11_private_key_optional[] = {
+static const uint32_t private_key_opt_or_null[] = {
 	PKCS11_CKA_UNWRAP_TEMPLATE, PKCS11_CKA_PUBLIC_KEY_INFO,
 };
 
-/* PKCS#11 specification for any RSA key (+pkcs11_public/private_key_xxx) */
-static const uint32_t pkcs11_rsa_public_key_mandated[] = {
+/* PKCS#11 specification for any RSA key (+public/private_key_xxx) */
+static const uint32_t rsa_public_key_mandated[] = {
 	PKCS11_CKA_MODULUS_BITS,
 };
 
-static const uint32_t pkcs11_rsa_public_key_optional[] = {
+static const uint32_t rsa_public_key_opt_or_null[] = {
 	PKCS11_CKA_MODULUS, PKCS11_CKA_PUBLIC_EXPONENT,
 };
 
-static const uint32_t pkcs11_rsa_private_key_optional[] = {
+static const uint32_t rsa_private_key_opt_or_null[] = {
 	PKCS11_CKA_MODULUS, PKCS11_CKA_PUBLIC_EXPONENT,
 	PKCS11_CKA_PRIVATE_EXPONENT,
 	PKCS11_CKA_PRIME_1, PKCS11_CKA_PRIME_2,
 	PKCS11_CKA_EXPONENT_1, PKCS11_CKA_EXPONENT_2, PKCS11_CKA_COEFFICIENT,
 };
 
-/* PKCS#11 specification for any EC key (+pkcs11_public/private_key_xxx) */
-static const uint32_t pkcs11_ec_public_key_mandated[] = {
+/* PKCS#11 specification for any EC key (+public/private_key_xxx) */
+static const uint32_t ec_public_key_mandated[] = {
 	PKCS11_CKA_EC_PARAMS,
 };
 
-static const uint32_t pkcs11_ec_public_key_optional[] = {
+static const uint32_t ec_public_key_opt_or_null[] = {
 	PKCS11_CKA_EC_POINT,
 };
 
-static const uint32_t pkcs11_ec_private_key_mandated[] = {
+static const uint32_t ec_private_key_mandated[] = {
 	PKCS11_CKA_EC_PARAMS,
 };
 
-static const uint32_t pkcs11_ec_private_key_optional[] = {
+static const uint32_t ec_private_key_opt_or_null[] = {
 	PKCS11_CKA_VALUE,
 };
 
@@ -406,13 +431,13 @@ static enum pkcs11_rc create_storage_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	rc = set_mandatory_boolprops(out, temp, pkcs11_any_object_boolprops,
-				     ARRAY_SIZE(pkcs11_any_object_boolprops));
+	rc = set_mandatory_boolprops(out, temp, any_object_boolprops,
+				     ARRAY_SIZE(any_object_boolprops));
 	if (rc)
 		return rc;
 
-	return set_optional_attributes(out, temp, pkcs11_any_object_optional,
-				       ARRAY_SIZE(pkcs11_any_object_optional));
+	return set_attributes_opt_or_null(out, temp, any_object_opt_or_null,
+					  ARRAY_SIZE(any_object_opt_or_null));
 }
 
 static enum pkcs11_rc create_genkey_attributes(struct obj_attrs **out,
@@ -435,13 +460,19 @@ static enum pkcs11_rc create_genkey_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	rc = set_mandatory_boolprops(out, temp, pkcs11_any_key_boolprops,
-				     ARRAY_SIZE(pkcs11_any_key_boolprops));
+	rc = set_mandatory_boolprops(out, temp, any_key_boolprops,
+				     ARRAY_SIZE(any_key_boolprops));
 	if (rc)
 		return rc;
 
-	return set_optional_attributes(out, temp, pkcs11_any_key_optional,
-				       ARRAY_SIZE(pkcs11_any_key_optional));
+	rc = set_attributes_opt_or_null(out, temp, any_key_opt_or_null,
+					ARRAY_SIZE(any_key_opt_or_null));
+	if (rc)
+		return rc;
+
+	return set_optional_attributes(out, temp, any_key_optional,
+				       ARRAY_SIZE(any_key_optional));
+
 }
 
 static enum pkcs11_rc create_symm_key_attributes(struct obj_attrs **out,
@@ -474,13 +505,13 @@ static enum pkcs11_rc create_symm_key_attributes(struct obj_attrs **out,
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 	}
 
-	rc = set_mandatory_boolprops(out, temp, pkcs11_symm_key_boolprops,
-				     ARRAY_SIZE(pkcs11_symm_key_boolprops));
+	rc = set_mandatory_boolprops(out, temp, symm_key_boolprops,
+				     ARRAY_SIZE(symm_key_boolprops));
 	if (rc)
 		return rc;
 
-	return set_optional_attributes(out, temp, pkcs11_symm_key_optional,
-				       ARRAY_SIZE(pkcs11_symm_key_optional));
+	return set_attributes_opt_or_null(out, temp, symm_key_opt_or_null,
+					  ARRAY_SIZE(symm_key_opt_or_null));
 }
 
 static enum pkcs11_rc create_data_attributes(struct obj_attrs **out,
@@ -496,17 +527,17 @@ static enum pkcs11_rc create_data_attributes(struct obj_attrs **out,
 
 	assert(get_class(*out) == PKCS11_CKO_DATA);
 
-	return set_optional_attributes(out, temp, pkcs11_raw_data_optional,
-				       ARRAY_SIZE(pkcs11_raw_data_optional));
+	return set_attributes_opt_or_null(out, temp, raw_data_opt_or_null,
+					  ARRAY_SIZE(raw_data_opt_or_null));
 }
 
 static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 						struct obj_attrs *temp)
 {
 	uint32_t const *mandated = NULL;
-	uint32_t const *optional = NULL;
+	uint32_t const *opt_or_null = NULL;
 	size_t mandated_count = 0;
-	size_t optional_count = 0;
+	size_t opt_or_null_count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
 	assert(get_class(temp) == PKCS11_CKO_PUBLIC_KEY);
@@ -517,33 +548,34 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 
 	assert(get_class(*out) == PKCS11_CKO_PUBLIC_KEY);
 
-	rc = set_mandatory_boolprops(out, temp, pkcs11_public_key_boolprops,
-				     ARRAY_SIZE(pkcs11_public_key_boolprops));
+	rc = set_mandatory_boolprops(out, temp, public_key_boolprops,
+				     ARRAY_SIZE(public_key_boolprops));
 	if (rc)
 		return rc;
 
-	rc = set_mandatory_attributes(out, temp, pkcs11_public_key_mandated,
-				      ARRAY_SIZE(pkcs11_public_key_mandated));
+	rc = set_mandatory_attributes(out, temp, public_key_mandated,
+				      ARRAY_SIZE(public_key_mandated));
 	if (rc)
 		return rc;
 
-	rc = set_optional_attributes(out, temp, pkcs11_public_key_optional,
-				     ARRAY_SIZE(pkcs11_public_key_optional));
+	rc = set_attributes_opt_or_null(out, temp,
+					public_key_opt_or_null,
+					ARRAY_SIZE(public_key_opt_or_null));
 	if (rc)
 		return rc;
 
 	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
-		mandated = pkcs11_rsa_public_key_mandated;
-		optional = pkcs11_rsa_public_key_optional;
-		mandated_count = ARRAY_SIZE(pkcs11_rsa_public_key_mandated);
-		optional_count = ARRAY_SIZE(pkcs11_rsa_public_key_optional);
+		mandated = rsa_public_key_mandated;
+		opt_or_null = rsa_public_key_opt_or_null;
+		mandated_count = ARRAY_SIZE(rsa_public_key_mandated);
+		opt_or_null_count = ARRAY_SIZE(rsa_public_key_opt_or_null);
 		break;
 	case PKCS11_CKK_EC:
-		mandated = pkcs11_ec_public_key_mandated;
-		optional = pkcs11_ec_public_key_optional;
-		mandated_count = ARRAY_SIZE(pkcs11_ec_public_key_mandated);
-		optional_count = ARRAY_SIZE(pkcs11_ec_public_key_optional);
+		mandated = ec_public_key_mandated;
+		opt_or_null = ec_public_key_opt_or_null;
+		mandated_count = ARRAY_SIZE(ec_public_key_mandated);
+		opt_or_null_count = ARRAY_SIZE(ec_public_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -556,16 +588,17 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	return set_optional_attributes(out, temp, optional, optional_count);
+	return set_attributes_opt_or_null(out, temp, opt_or_null,
+					  opt_or_null_count);
 }
 
 static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 						 struct obj_attrs *temp)
 {
 	uint32_t const *mandated = NULL;
-	uint32_t const *optional = NULL;
+	uint32_t const *opt_or_null = NULL;
 	size_t mandated_count = 0;
-	size_t optional_count = 0;
+	size_t opt_or_null_count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
 	assert(get_class(temp) == PKCS11_CKO_PRIVATE_KEY);
@@ -576,31 +609,31 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 
 	assert(get_class(*out) == PKCS11_CKO_PRIVATE_KEY);
 
-	rc = set_mandatory_boolprops(out, temp, pkcs11_private_key_boolprops,
-				     ARRAY_SIZE(pkcs11_private_key_boolprops));
+	rc = set_mandatory_boolprops(out, temp, private_key_boolprops,
+				     ARRAY_SIZE(private_key_boolprops));
 	if (rc)
 		return rc;
 
-	rc = set_mandatory_attributes(out, temp, pkcs11_private_key_mandated,
-				      ARRAY_SIZE(pkcs11_private_key_mandated));
+	rc = set_mandatory_attributes(out, temp, private_key_mandated,
+				      ARRAY_SIZE(private_key_mandated));
 	if (rc)
 		return rc;
 
-	rc = set_optional_attributes(out, temp, pkcs11_private_key_optional,
-				     ARRAY_SIZE(pkcs11_private_key_optional));
+	rc = set_attributes_opt_or_null(out, temp, private_key_opt_or_null,
+					ARRAY_SIZE(private_key_opt_or_null));
 	if (rc)
 		return rc;
 
 	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
-		optional = pkcs11_rsa_private_key_optional;
-		optional_count = ARRAY_SIZE(pkcs11_rsa_private_key_optional);
+		opt_or_null = rsa_private_key_opt_or_null;
+		opt_or_null_count = ARRAY_SIZE(rsa_private_key_opt_or_null);
 		break;
 	case PKCS11_CKK_EC:
-		mandated = pkcs11_ec_private_key_mandated;
-		optional = pkcs11_ec_private_key_optional;
-		mandated_count = ARRAY_SIZE(pkcs11_ec_private_key_mandated);
-		optional_count = ARRAY_SIZE(pkcs11_ec_private_key_optional);
+		mandated = ec_private_key_mandated;
+		opt_or_null = ec_private_key_opt_or_null;
+		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
+		opt_or_null_count = ARRAY_SIZE(ec_private_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -613,7 +646,8 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	return set_optional_attributes(out, temp, optional, optional_count);
+	return set_attributes_opt_or_null(out, temp, opt_or_null,
+					  opt_or_null_count);
 }
 
 /*
@@ -977,11 +1011,15 @@ static bool parent_key_complies_allowed_processings(uint32_t proc_id,
 	uint32_t size = 0;
 	uint32_t proc = 0;
 	size_t count = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 
-	/* Check only if restricted allowed mechanisms list is defined */
-	if (get_attribute_ptr(head, PKCS11_CKA_ALLOWED_MECHANISMS,
-			      (void *)&attr, &size) != PKCS11_CKR_OK) {
+	rc = get_attribute_ptr(head, PKCS11_CKA_ALLOWED_MECHANISMS,
+			       (void *)&attr, &size);
+	if (rc == PKCS11_RV_NOT_FOUND)
 		return true;
+	if (rc) {
+		EMSG("unexpected attributes state");
+		TEE_Panic(TEE_ERROR_BAD_STATE);
 	}
 
 	for (count = size / sizeof(uint32_t); count; count--) {

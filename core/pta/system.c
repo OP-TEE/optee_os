@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2018-2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited.
  */
 
 #include <assert.h>
@@ -11,12 +12,12 @@
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
+#include <kernel/ts_store.h>
 #include <kernel/user_ta.h>
-#include <kernel/user_ta_store.h>
 #include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
-#include <mm/tee_mmu.h>
+#include <mm/vm.h>
 #include <pta_system.h>
 #include <stdlib_ext.h>
 #include <stdlib.h>
@@ -26,8 +27,8 @@
 #include <util.h>
 
 struct bin_handle {
-	const struct user_ta_store_ops *op;
-	struct user_ta_store_handle *h;
+	const struct ts_store_ops *op;
+	struct ts_store_handle *h;
 	struct file *f;
 	size_t offs_bytes;
 	size_t size_bytes;
@@ -35,17 +36,17 @@ struct bin_handle {
 
 struct system_ctx {
 	struct handle_db db;
-	const struct user_ta_store_ops *store_op;
+	const struct ts_store_ops *store_op;
 };
 
 static unsigned int system_pnum;
 
-static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
-				uint32_t param_types,
-				TEE_Param params[TEE_NUM_PARAMS])
+static TEE_Result system_rng_reseed(struct ts_session *s __unused,
+				    uint32_t param_types,
+				    TEE_Param params[TEE_NUM_PARAMS])
 {
-	size_t entropy_sz;
-	uint8_t *entropy_input;
+	size_t entropy_sz = 0;
+	uint8_t *entropy_input = NULL;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE,
@@ -64,7 +65,7 @@ static TEE_Result system_rng_reseed(struct tee_ta_session *s __unused,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
+static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 					      uint32_t param_types,
 					      TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -98,9 +99,9 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	 */
 	access_flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER |
 		       TEE_MEMORY_ACCESS_SECURE;
-	res = tee_mmu_check_access_rights(&utc->uctx, access_flags,
-					  (uaddr_t)params[1].memref.buffer,
-					  params[1].memref.size);
+	res = vm_check_access_rights(&utc->uctx, access_flags,
+				     (uaddr_t)params[1].memref.buffer,
+				     params[1].memref.size);
 	if (res != TEE_SUCCESS)
 		return TEE_ERROR_SECURITY;
 
@@ -126,7 +127,7 @@ static TEE_Result system_derive_ta_unique_key(struct tee_ta_session *s,
 	return res;
 }
 
-static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
+static TEE_Result system_map_zi(struct ts_session *s, uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -173,7 +174,7 @@ static TEE_Result system_map_zi(struct tee_ta_session *s, uint32_t param_types,
 	return res;
 }
 
-static TEE_Result system_unmap(struct tee_ta_session *s, uint32_t param_types,
+static TEE_Result system_unmap(struct ts_session *s, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -252,7 +253,7 @@ static TEE_Result system_open_ta_binary(struct system_ctx *ctx,
 	if (!binh)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	SCATTERED_ARRAY_FOREACH(binh->op, ta_stores, struct user_ta_store_ops) {
+	SCATTERED_ARRAY_FOREACH(binh->op, ta_stores, struct ts_store_ops) {
 		DMSG("Lookup user TA ELF %pUl (%s)",
 		     (void *)uuid, binh->op->description);
 
@@ -356,7 +357,7 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 }
 
 static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
-				       struct tee_ta_session *s,
+				       struct ts_session *s,
 				       uint32_t param_types,
 				       TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -429,9 +430,9 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 * avoid a dead-lock with the other thread (which already
 		 * is holding the file lock) mapping lots of memory below.
 		 */
-		tee_mmu_set_ctx(NULL);
+		vm_set_ctx(NULL);
 		file_lock(binh->f);
-		tee_mmu_set_ctx(s->ctx);
+		vm_set_ctx(s->ctx);
 	}
 	file_is_locked = true;
 	fs = file_find_slice(binh->f, offs_pages);
@@ -498,7 +499,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 * The context currently is active set it again to update
 		 * the mapping.
 		 */
-		tee_mmu_set_ctx(s->ctx);
+		vm_set_ctx(s->ctx);
 
 		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
 			res = file_add_slice(binh->f, f, offs_pages);
@@ -520,7 +521,7 @@ err_unmap_va:
 	 * The context currently is active set it again to update
 	 * the mapping.
 	 */
-	tee_mmu_set_ctx(s->ctx);
+	vm_set_ctx(s->ctx);
 
 err:
 	if (file_is_locked)
@@ -550,7 +551,7 @@ static TEE_Result system_copy_from_ta_binary(struct system_ctx *ctx,
 			    params[0].value.b, params[1].memref.size);
 }
 
-static TEE_Result system_set_prot(struct tee_ta_session *s,
+static TEE_Result system_set_prot(struct ts_session *s,
 				  uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -611,7 +612,7 @@ static TEE_Result system_set_prot(struct tee_ta_session *s,
 	return vm_set_prot(&utc->uctx, va, sz, prot);
 }
 
-static TEE_Result system_remap(struct tee_ta_session *s, uint32_t param_types,
+static TEE_Result system_remap(struct ts_session *s, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
@@ -661,7 +662,7 @@ static const bool is_arm32;
 static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 				    uint32_t flags)
 {
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -672,11 +673,11 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg));
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;
@@ -688,7 +689,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlopen.flags = flags;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->dl_entry_func,
+				     usr_stack, utc->uctx.dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
@@ -704,7 +705,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 				   const char *sym, size_t maxlen, vaddr_t *val)
 {
-	uaddr_t usr_stack = utc->ldelf_stack_ptr;
+	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -717,11 +718,11 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = tee_mmu_check_access_rights(&utc->uctx,
-					  TEE_MEMORY_ACCESS_READ |
-					  TEE_MEMORY_ACCESS_WRITE |
-					  TEE_MEMORY_ACCESS_ANY_OWNER,
-					  (uaddr_t)arg, sizeof(*arg) + len + 1);
+	res = vm_check_access_rights(&utc->uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg) + len + 1);
 	if (res) {
 		EMSG("ldelf stack is inaccessible!");
 		return res;
@@ -734,7 +735,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlsym.symbol[len] = '\0';
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->dl_entry_func,
+				     usr_stack, utc->uctx.dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
@@ -750,7 +751,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	return res;
 }
 
-static TEE_Result system_dlopen(struct tee_ta_session *cs, uint32_t param_types,
+static TEE_Result system_dlopen(struct ts_session *cs, uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -758,7 +759,7 @@ static TEE_Result system_dlopen(struct tee_ta_session *cs, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct tee_ta_session *s = NULL;
+	struct ts_session *s = NULL;
 	struct user_ta_ctx *utc = NULL;
 	TEE_UUID *uuid = NULL;
 	uint32_t flags = 0;
@@ -774,14 +775,14 @@ static TEE_Result system_dlopen(struct tee_ta_session *cs, uint32_t param_types,
 
 	utc = to_user_ta_ctx(cs->ctx);
 
-	s = tee_ta_pop_current_session();
+	s = ts_pop_current_session();
 	res = call_ldelf_dlopen(utc, uuid, flags);
-	tee_ta_push_current_session(s);
+	ts_push_current_session(s);
 
 	return res;
 }
 
-static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
+static TEE_Result system_dlsym(struct ts_session *cs, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -789,7 +790,7 @@ static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct tee_ta_session *s = NULL;
+	struct ts_session *s = NULL;
 	struct user_ta_ctx *utc = NULL;
 	const char *sym = NULL;
 	TEE_UUID *uuid = NULL;
@@ -810,9 +811,9 @@ static TEE_Result system_dlsym(struct tee_ta_session *cs, uint32_t param_types,
 
 	utc = to_user_ta_ctx(cs->ctx);
 
-	s = tee_ta_pop_current_session();
+	s = ts_pop_current_session();
 	res = call_ldelf_dlsym(utc, uuid, sym, maxlen, &va);
-	tee_ta_push_current_session(s);
+	ts_push_current_session(s);
 
 	if (!res)
 		reg_pair_from_64(va, &params[2].value.a, &params[2].value.b);
@@ -844,11 +845,11 @@ static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
 			       void **sess_ctx)
 {
-	struct tee_ta_session *s = NULL;
+	struct ts_session *s = NULL;
 	struct system_ctx *ctx = NULL;
 
 	/* Check that we're called from a user TA */
-	s = tee_ta_get_calling_session();
+	s = ts_get_calling_session();
 	if (!s)
 		return TEE_ERROR_ACCESS_DENIED;
 	if (!is_user_ta_ctx(s->ctx))
@@ -875,7 +876,7 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
-	struct tee_ta_session *s = tee_ta_get_calling_session();
+	struct ts_session *s = ts_get_calling_session();
 
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <platform_config.h>
@@ -21,12 +22,13 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
+#include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
-#include <mm/tee_mmu.h>
 #include <mm/tee_pager.h>
+#include <mm/vm.h>
 #include <smccc.h>
 #include <sm/sm.h>
 #include <trace.h>
@@ -123,10 +125,12 @@ linkage uint32_t name[num_stacks] \
 
 #define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
 
-DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE, static);
+DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE,
+	      STACK_TMP_SIZE + CFG_STACK_TMP_EXTRA, static);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
+DECLARE_STACK(stack_thread, CFG_NUM_THREADS,
+	      STACK_THREAD_SIZE + CFG_STACK_THREAD_EXTRA, static);
 #endif
 
 #define GET_STACK_TOP_HARD(stack, n) \
@@ -180,9 +184,6 @@ static void init_canaries(void)
 									\
 		*start_canary = START_CANARY_VALUE;			\
 		*end_canary = END_CANARY_VALUE;				\
-		DMSG("#Stack canaries for %s[%zu] with top at %p",	\
-			#name, n, (void *)(end_canary - 1));		\
-		DMSG("watch *%p", (void *)end_canary);			\
 	}
 
 	INIT_CANARY(stack_tmp);
@@ -193,37 +194,45 @@ static void init_canaries(void)
 #endif/*CFG_WITH_STACK_CANARIES*/
 }
 
-#define CANARY_DIED(stack, loc, n) \
+#define CANARY_DIED(stack, loc, n, addr) \
 	do { \
-		EMSG_RAW("Dead canary at %s of '%s[%zu]'", #loc, #stack, n); \
+		EMSG_RAW("Dead canary at %s of '%s[%zu]' (%p)", #loc, #stack, \
+			 n, (void *)addr); \
 		panic(); \
 	} while (0)
 
 void thread_check_canaries(void)
 {
 #ifdef CFG_WITH_STACK_CANARIES
-	size_t n;
+	uint32_t *canary = NULL;
+	size_t n = 0;
 
 	for (n = 0; n < ARRAY_SIZE(stack_tmp); n++) {
-		if (GET_START_CANARY(stack_tmp, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_tmp, start, n);
-		if (GET_END_CANARY(stack_tmp, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_tmp, end, n);
+		canary = &GET_START_CANARY(stack_tmp, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_tmp, start, n, canary);
+		canary = &GET_END_CANARY(stack_tmp, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_tmp, end, n, canary);
 	}
 
 	for (n = 0; n < ARRAY_SIZE(stack_abt); n++) {
-		if (GET_START_CANARY(stack_abt, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_abt, start, n);
-		if (GET_END_CANARY(stack_abt, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_abt, end, n);
+		canary = &GET_START_CANARY(stack_abt, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_abt, start, n, canary);
+		canary = &GET_END_CANARY(stack_abt, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_abt, end, n, canary);
 
 	}
 #if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
-		if (GET_START_CANARY(stack_thread, n) != START_CANARY_VALUE)
-			CANARY_DIED(stack_thread, start, n);
-		if (GET_END_CANARY(stack_thread, n) != END_CANARY_VALUE)
-			CANARY_DIED(stack_thread, end, n);
+		canary = &GET_START_CANARY(stack_thread, n);
+		if (*canary != START_CANARY_VALUE)
+			CANARY_DIED(stack_thread, start, n, canary);
+		canary = &GET_END_CANARY(stack_thread, n);
+		if (*canary != END_CANARY_VALUE)
+			CANARY_DIED(stack_thread, end, n, canary);
 	}
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -609,23 +618,17 @@ static bool is_from_user(uint32_t cpsr)
 #ifdef CFG_SYSCALL_FTRACE
 static void __noprof ftrace_suspend(void)
 {
-	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
 
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_suspended = true;
 }
 
 static void __noprof ftrace_resume(void)
 {
-	struct tee_ta_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
+	struct ts_session *s = TAILQ_FIRST(&thread_get_tsd()->sess_stack);
 
-	if (!s)
-		return;
-
-	if (s->fbuf)
+	if (s && s->fbuf)
 		s->fbuf->syscall_trace_suspended = false;
 }
 #else
@@ -1359,8 +1362,9 @@ void thread_user_save_vfp(void)
 	tuv->lazy_saved = true;
 }
 
-void thread_user_clear_vfp(struct thread_user_vfp_state *uvfp)
+void thread_user_clear_vfp(struct user_mode_ctx *uctx)
 {
+	struct thread_user_vfp_state *uvfp = &uctx->vfp;
 	struct thread_ctx *thr = threads + thread_get_id();
 
 	if (uvfp == thr->vfp_state.uvfp)
@@ -1520,13 +1524,22 @@ static void setup_unwind_user_mode(struct thread_svc_regs *regs)
 #endif
 }
 
+static void gprof_set_status(struct ts_session *s __maybe_unused,
+			     enum ts_gprof_status status __maybe_unused)
+{
+#ifdef CFG_TA_GPROF_SUPPORT
+	if (s->ctx->ops->gprof_set_status)
+		s->ctx->ops->gprof_set_status(status);
+#endif
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
 void __weak thread_svc_handler(struct thread_svc_regs *regs)
 {
-	struct tee_ta_session *sess = NULL;
+	struct ts_session *sess = NULL;
 	uint32_t state = 0;
 
 	/* Enable native interrupts */
@@ -1535,17 +1548,20 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 
 	thread_user_save_vfp();
 
-	/* TA has just entered kernel mode */
-	tee_ta_update_session_utime_suspend();
+	sess = ts_get_current_session();
+	/*
+	 * User mode service has just entered kernel mode, suspend gprof
+	 * collection until we're about to switch back again.
+	 */
+	gprof_set_status(sess, TS_GPROF_SUSPEND);
 
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	tee_ta_get_current_session(&sess);
 	assert(sess && sess->ctx->ops && sess->ctx->ops->handle_svc);
 	if (sess->ctx->ops->handle_svc(regs)) {
 		/* We're about to switch back to user mode */
-		tee_ta_update_session_utime_resume();
+		gprof_set_status(sess, TS_GPROF_RESUME);
 	} else {
 		/* We're returning from __thread_enter_user_mode() */
 		setup_unwind_user_mode(regs);
