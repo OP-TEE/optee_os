@@ -239,28 +239,28 @@ void mechanism_supported_key_sizes(uint32_t proc_id, uint32_t *min_key_size,
 {
 	switch (proc_id) {
 	case PKCS11_CKM_MD5_HMAC:
-		*min_key_size = 16;
-		*max_key_size = 16;
+		*min_key_size = 8;
+		*max_key_size = 64;
 		break;
 	case PKCS11_CKM_SHA_1_HMAC:
-		*min_key_size = 20;
-		*max_key_size = 20;
+		*min_key_size = 10;
+		*max_key_size = 64;
 		break;
 	case PKCS11_CKM_SHA224_HMAC:
-		*min_key_size = 28;
-		*max_key_size = 28;
+		*min_key_size = 14;
+		*max_key_size = 64;
 		break;
 	case PKCS11_CKM_SHA256_HMAC:
-		*min_key_size = 32;
-		*max_key_size = 32;
+		*min_key_size = 24;
+		*max_key_size = 128;
 		break;
 	case PKCS11_CKM_SHA384_HMAC:
-		*min_key_size = 48;
-		*max_key_size = 48;
+		*min_key_size = 32;
+		*max_key_size = 128;
 		break;
 	case PKCS11_CKM_SHA512_HMAC:
-		*min_key_size = 64;
-		*max_key_size = 64;
+		*min_key_size = 32;
+		*max_key_size = 128;
 		break;
 	case PKCS11_CKM_AES_KEY_GEN:
 	case PKCS11_CKM_AES_ECB:
