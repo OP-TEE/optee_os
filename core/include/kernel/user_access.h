@@ -33,11 +33,11 @@ static inline TEE_Result copy_from_user(void *kaddr __unused,
 TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len);
 TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
-TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
+TEE_Result copy_kaddr_to_uref(vaddr_t *uref, void *kaddr);
 
-uint32_t kaddr_to_uref(void *kaddr);
-vaddr_t uref_to_vaddr(uint32_t uref);
-static inline void *uref_to_kaddr(uint32_t uref)
+vaddr_t kaddr_to_uref(void *kaddr);
+vaddr_t uref_to_vaddr(vaddr_t uref);
+static inline void *uref_to_kaddr(vaddr_t uref)
 {
 	return (void *)uref_to_vaddr(uref);
 }

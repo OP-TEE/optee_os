@@ -64,20 +64,20 @@ TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
 	return res;
 }
 
-TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
+TEE_Result copy_kaddr_to_uref(vaddr_t *uref, void *kaddr)
 {
-	uint32_t ref = kaddr_to_uref(kaddr);
+	vaddr_t ref = kaddr_to_uref(kaddr);
 
 	return copy_to_user_private(uref, &ref, sizeof(ref));
 }
 
-uint32_t kaddr_to_uref(void *kaddr)
+vaddr_t kaddr_to_uref(void *kaddr)
 {
 	assert(((vaddr_t)kaddr - VCORE_START_VA) < UINT32_MAX);
 	return (vaddr_t)kaddr - VCORE_START_VA;
 }
 
-vaddr_t uref_to_vaddr(uint32_t uref)
+vaddr_t uref_to_vaddr(vaddr_t uref)
 {
 	return VCORE_START_VA + uref;
 }
