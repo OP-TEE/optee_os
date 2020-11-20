@@ -127,6 +127,11 @@ R:	[@OP-TEE/plat-ls]
 S:	Maintained
 F:	core/arch/arm/plat-ls/
 
+Core Drivers I2C
+R:	Sahil Malhotra <sahil.malhotra@nxp.com>
+S:	Maintained
+F:	core/drivers/ls_i2c.c
+
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
