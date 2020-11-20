@@ -332,6 +332,7 @@ struct thread_core_local * __nostackcheck thread_get_core_local(void)
 
 	return get_core_local(pos);
 }
+DECLARE_KEEP_PAGER(thread_get_core_local);
 
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 static void print_stack_limits(void)
