@@ -98,6 +98,7 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,48)
 $(call force,CFG_EMBED_DT,y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,fsl-lx2160a-qds.dts)
+CFG_LS_I2C ?= y
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
@@ -115,6 +116,7 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,48)
 $(call force,CFG_EMBED_DT,y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,fsl-lx2160a-rdb.dts)
+CFG_LS_I2C ?= y
 CFG_SHMEM_SIZE ?= 0x00200000
 endif
 
