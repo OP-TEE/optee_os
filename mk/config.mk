@@ -190,8 +190,12 @@ CFG_RPMB_FS_CACHE_ENTRIES ?= 0
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
-# Embed public part of this key in OP-TEE OS
+# Signing key for OP-TEE TA's
+# When performing external HSM signing for TA's TA_SIGN_KEY can be set to dummy
+# key and then set TA_PUBLIC_KEY to match public key from the HSM.
+# TA_PUBLIC_KEY's public key will be embedded into OP-TEE OS.
 TA_SIGN_KEY ?= keys/default_ta.pem
+TA_PUBLIC_KEY ?= $(TA_SIGN_KEY)
 
 # Include lib/libutils/isoc in the build? Most platforms need this, but some
 # may not because they obtain the isoc functions from elsewhere
