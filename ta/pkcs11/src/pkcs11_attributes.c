@@ -950,6 +950,24 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 	case PKCS11_CKK_AES:
 		mechanism = PKCS11_CKM_AES_KEY_GEN;
 		break;
+	case PKCS11_CKK_MD5_HMAC:
+		mechanism = PKCS11_CKM_MD5_HMAC;
+		break;
+	case PKCS11_CKK_SHA_1_HMAC:
+		mechanism = PKCS11_CKM_SHA_1_HMAC;
+		break;
+	case PKCS11_CKK_SHA256_HMAC:
+		mechanism = PKCS11_CKM_SHA256_HMAC;
+		break;
+	case PKCS11_CKK_SHA224_HMAC:
+		mechanism = PKCS11_CKM_SHA224_HMAC;
+		break;
+	case PKCS11_CKK_SHA384_HMAC:
+		mechanism = PKCS11_CKM_SHA384_HMAC;
+		break;
+	case PKCS11_CKK_SHA512_HMAC:
+		mechanism = PKCS11_CKM_SHA512_HMAC;
+		break;
 	default:
 		TEE_Panic(key_type);
 		break;
