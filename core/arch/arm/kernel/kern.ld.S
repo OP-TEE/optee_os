@@ -324,7 +324,6 @@ SECTIONS
 		. = ALIGN(8);
 		__rodata_init_end = .;
 	}
-	__rodata_init_end = .;
 
 	__init_end = ROUNDUP(__rodata_init_end, SMALL_PAGE_SIZE);
 	__get_tee_init_end = __init_end;
