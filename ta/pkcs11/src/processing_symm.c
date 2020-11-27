@@ -106,6 +106,32 @@ static enum pkcs11_rc pkcs2tee_key_type(uint32_t *tee_type,
 	return PKCS11_RV_NOT_FOUND;
 }
 
+static enum pkcs11_rc pkcsmech2tee_key_type(uint32_t *tee_type,
+					    enum pkcs11_mechanism_id mech_id)
+{
+	static const struct {
+		enum pkcs11_mechanism_id mech;
+		uint32_t tee_id;
+	} pkcs2tee_key_type[] = {
+		{ PKCS11_CKM_MD5_HMAC, TEE_TYPE_HMAC_MD5 },
+		{ PKCS11_CKM_SHA_1_HMAC, TEE_TYPE_HMAC_SHA1 },
+		{ PKCS11_CKM_SHA224_HMAC, TEE_TYPE_HMAC_SHA224 },
+		{ PKCS11_CKM_SHA256_HMAC, TEE_TYPE_HMAC_SHA256 },
+		{ PKCS11_CKM_SHA384_HMAC, TEE_TYPE_HMAC_SHA384 },
+		{ PKCS11_CKM_SHA512_HMAC, TEE_TYPE_HMAC_SHA512 },
+	};
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(pkcs2tee_key_type); n++) {
+		if (pkcs2tee_key_type[n].mech == mech_id) {
+			*tee_type = pkcs2tee_key_type[n].tee_id;
+			return PKCS11_CKR_OK;
+		}
+	}
+
+	return PKCS11_RV_NOT_FOUND;
+}
+
 static enum pkcs11_rc
 allocate_tee_operation(struct pkcs11_session *session,
 		       enum processing_func function,
@@ -150,11 +176,13 @@ allocate_tee_operation(struct pkcs11_session *session,
 }
 
 static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
-				   struct pkcs11_object *obj)
+				   struct pkcs11_object *obj,
+				   struct pkcs11_attribute_head *proc_params)
 {
 	TEE_Attribute tee_attr = { };
 	size_t object_size = 0;
 	uint32_t tee_key_type = 0;
+	enum pkcs11_key_type key_type = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -169,7 +197,35 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 		return PKCS11_CKR_FUNCTION_FAILED;
 	}
 
-	rc = pkcs2tee_key_type(&tee_key_type, obj);
+	switch (proc_params->id) {
+	case PKCS11_CKM_MD5_HMAC:
+	case PKCS11_CKM_SHA_1_HMAC:
+	case PKCS11_CKM_SHA224_HMAC:
+	case PKCS11_CKM_SHA256_HMAC:
+	case PKCS11_CKM_SHA384_HMAC:
+	case PKCS11_CKM_SHA512_HMAC:
+		key_type = get_key_type(obj->attributes);
+		/*
+		 * If Object Key type is PKCS11_CKK_GENERIC_SECRET,
+		 * determine the tee_key_type using the
+		 * mechanism instead of object key_type.
+		 */
+		if (key_type == PKCS11_CKK_GENERIC_SECRET)
+			rc = pkcsmech2tee_key_type(&tee_key_type,
+						   proc_params->id);
+		else
+			rc = pkcs2tee_key_type(&tee_key_type, obj);
+
+		break;
+	default:
+		/*
+		 * For all other mechanisms, use object key_type
+		 * to determine the corresponding tee_key_type
+		 */
+		rc = pkcs2tee_key_type(&tee_key_type, obj);
+		break;
+	}
+
 	if (rc)
 		return rc;
 
@@ -269,7 +325,7 @@ enum pkcs11_rc init_symm_operation(struct pkcs11_session *session,
 	if (rc)
 		return rc;
 
-	rc = load_tee_key(session, obj);
+	rc = load_tee_key(session, obj, proc_params);
 	if (rc)
 		return rc;
 
