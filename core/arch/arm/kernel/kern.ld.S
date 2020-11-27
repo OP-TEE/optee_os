@@ -61,6 +61,13 @@
 #define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
 					(TEE_LOAD_ADDR - TEE_RAM_START))
 
+/*
+ * Note:
+ * Clang 11 (ld.lld) generates non-relocatable reference when using ROUNDDOWN()
+ * from <util.h>, which does not work with ASLR.
+ */
+#define LD_ROUNDDOWN(x, y) ((x) - ((x) % (y)))
+
 OUTPUT_FORMAT(CFG_KERN_LINKER_FORMAT)
 OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 
@@ -81,7 +88,7 @@ SECTIONS
 	 * value will be mapped with unpaged "text" section attributes:
 	 * likely to be read-only/executable.
 	 */
-	__flatmap_unpg_rx_start = ROUNDDOWN(__text_start, SMALL_PAGE_SIZE);
+	__flatmap_unpg_rx_start = LD_ROUNDDOWN(__text_start, SMALL_PAGE_SIZE);
 
 	.text : {
 		KEEP(*(.text._start))
@@ -325,7 +332,7 @@ SECTIONS
 		__rodata_init_end = .;
 	}
 
-	__init_end = ROUNDUP(__rodata_init_end, SMALL_PAGE_SIZE);
+	__init_end = ALIGN(__rodata_init_end, SMALL_PAGE_SIZE);
 	__get_tee_init_end = __init_end;
 	__init_size = __init_end - __init_start;
 
