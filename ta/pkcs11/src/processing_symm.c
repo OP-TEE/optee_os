@@ -139,8 +139,11 @@ allocate_tee_operation(struct pkcs11_session *session,
 		       struct pkcs11_object *obj)
 {
 	uint32_t size = (uint32_t)get_object_key_bit_size(obj);
+	uint32_t key_size = size / 8;
 	uint32_t algo = 0;
 	uint32_t mode = 0;
+	uint32_t max_key_size = 0;
+	uint32_t min_key_size = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	assert(session->processing->tee_op_handle == TEE_HANDLE_NULL);
@@ -156,6 +159,11 @@ allocate_tee_operation(struct pkcs11_session *session,
 	case PKCS11_CKM_SHA256_HMAC:
 	case PKCS11_CKM_SHA384_HMAC:
 	case PKCS11_CKM_SHA512_HMAC:
+		mechanism_supported_key_sizes(params->id,
+					      &min_key_size,
+					      &max_key_size);
+		if (key_size < min_key_size)
+			return PKCS11_CKR_KEY_SIZE_RANGE;
 		mode = TEE_MODE_MAC;
 		break;
 	default:
