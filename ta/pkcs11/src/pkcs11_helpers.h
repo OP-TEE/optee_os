@@ -61,6 +61,14 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 			struct pkcs11_object *obj,
 			enum pkcs11_attr_id pkcs11_id);
 
+/* Hash and load TEE operation attributes from a PKCS11 object */
+enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
+					 uint32_t tee_id,
+					 struct pkcs11_object *obj,
+					 enum pkcs11_attr_id pkcs11_id,
+					 uint32_t tee_algo, void *hash_ptr,
+					 uint32_t *hash_size);
+
 /* Return true if attribute is a boolean, false otherwise */
 static inline bool pkcs11_attr_is_boolean(enum pkcs11_attr_id id)
 {

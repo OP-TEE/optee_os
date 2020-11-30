@@ -479,6 +479,45 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 	return true;
 }
 
+/*
+ * Initialize a TEE attribute with hash of a target PKCS11 TA attribute
+ * in an object.
+ */
+enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
+					 uint32_t tee_id,
+					 struct pkcs11_object *obj,
+					 enum pkcs11_attr_id pkcs11_id,
+					 uint32_t tee_algo, void *hash_ptr,
+					 uint32_t *hash_size)
+{
+	TEE_OperationHandle handle = TEE_HANDLE_NULL;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	rc = get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size);
+	if (rc)
+		return rc;
+
+	res = TEE_AllocateOperation(&handle, tee_algo, TEE_MODE_DIGEST, 0);
+	if (res) {
+		EMSG("TEE_AllocateOperation() failed %#"PRIx32, tee_algo);
+		return tee2pkcs_error(res);
+	}
+
+	res = TEE_DigestDoFinal(handle, a_ptr, a_size, hash_ptr, hash_size);
+	TEE_FreeOperation(handle);
+	if (res) {
+		EMSG("TEE_DigestDoFinal() failed %#"PRIx32, tee_algo);
+		return PKCS11_CKR_FUNCTION_FAILED;
+	}
+
+	TEE_InitRefAttribute(tee_ref, tee_id, hash_ptr, *hash_size);
+
+	return PKCS11_CKR_OK;
+}
+
 /* Easy conversion between PKCS11 TA function of TEE crypto mode */
 void pkcs2tee_mode(uint32_t *tee_id, enum processing_func function)
 {
