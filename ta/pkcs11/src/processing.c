@@ -88,6 +88,8 @@ void release_active_processing(struct pkcs11_session *session)
 		session->processing->tee_op_handle = TEE_HANDLE_NULL;
 	}
 
+	TEE_Free(session->processing->extra_ctx);
+
 	TEE_Free(session->processing);
 	session->processing = NULL;
 }
