@@ -8,6 +8,13 @@
 #define TEE_API_DEFINES_EXTENSIONS_H
 
 /*
+ * RSA signatures with MD5 hash
+ * Values prefixed with vendor ID bit31 with by TEE bitfields IDs
+ */
+#define TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5       0xF0111930
+#define TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5       0xF0110230
+
+/*
  * API extended result codes as per TEE_Result IDs defined in GPD TEE
  * Internal Core API specification v1.1:
  *
