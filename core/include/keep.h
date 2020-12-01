@@ -8,7 +8,7 @@
 #ifdef __ASSEMBLER__
 
 	.macro DECLARE_KEEP_PAGER sym
-	.pushsection __keep_meta_vars_pager
+	.pushsection __keep_meta_vars_pager, "a"
 	.global ____keep_pager_\sym
 	____keep_pager_\sym:
 	.long	\sym
@@ -16,7 +16,7 @@
 	.endm
 
 	.macro DECLARE_KEEP_INIT sym
-	.pushsection __keep_meta_vars_init
+	.pushsection __keep_meta_vars_init, "a"
 	.global ____keep_init_\sym
 	____keep_init_\sym:
 	.long	\sym
