@@ -175,6 +175,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
@@ -206,6 +207,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_RSAES_PKCS1_V1_5:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
@@ -2585,7 +2587,9 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 	}
 	if (IS_ENABLED(CFG_CRYPTO_RSA)) {
 		if (IS_ENABLED(CFG_CRYPTO_MD5)) {
-			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_MD5)
+			if (alg == TEE_ALG_RSASSA_PKCS1_V1_5_MD5 ||
+			    alg == TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5 ||
+			    alg == TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5)
 				goto check_element_none;
 		}
 		if (IS_ENABLED(CFG_CRYPTO_SHA1)) {
