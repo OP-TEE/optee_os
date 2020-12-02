@@ -368,6 +368,18 @@ size_t pkcs11_attr_is_type(uint32_t attribute_id)
 	}
 }
 
+bool pkcs11_attr_has_indirect_attributes(uint32_t attribute_id)
+{
+	switch (attribute_id) {
+	case PKCS11_CKA_WRAP_TEMPLATE:
+	case PKCS11_CKA_UNWRAP_TEMPLATE:
+	case PKCS11_CKA_DERIVE_TEMPLATE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 bool pkcs11_class_has_type(uint32_t class)
 {
 	enum pkcs11_class_id class_id = class;
