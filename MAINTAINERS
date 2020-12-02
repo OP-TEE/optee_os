@@ -168,6 +168,13 @@ R:	[@OP-TEE/plat-rcar]
 S:	Maintained
 F:	core/arch/arm/plat-rcar/
 
+Renesas RZ/G2
+R:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com> [@prabhakarlad]
+R:	Biju Das <biju.das.jz@bp.renesas.com> [@bijucdas]
+R:	[@OP-TEE/plat-rzg]
+S:	Maintained
+F:	core/arch/arm/plat-rzg/
+
 Renesas RZ/N1
 R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
