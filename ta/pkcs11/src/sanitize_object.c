@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
+#include <assert.h>
 #include <bitstring.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
@@ -230,18 +231,7 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	enum pkcs11_class_id class = get_class(*dst);
 
-	/*
-	 * Serialized attributes: current applicable only to the key
-	 * templates which are tables of attributes.
-	 */
-	switch (cli_ref->id) {
-	case PKCS11_CKA_WRAP_TEMPLATE:
-	case PKCS11_CKA_UNWRAP_TEMPLATE:
-	case PKCS11_CKA_DERIVE_TEMPLATE:
-		break;
-	default:
-		return PKCS11_RV_NOT_FOUND;
-	}
+	assert(pkcs11_attr_has_indirect_attributes(cli_ref->id));
 
 	if (class == PKCS11_CKO_UNDEFINED_ID) {
 		DMSG("Template without CLASS not supported yet");
@@ -313,11 +303,13 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 		    pkcs11_attr_is_boolean(cli_ref.id))
 			continue;
 
-		rc = sanitize_indirect_attr(dst, &cli_ref, data);
-		if (rc == PKCS11_CKR_OK)
+		if (pkcs11_attr_has_indirect_attributes(cli_ref.id)) {
+			rc = sanitize_indirect_attr(dst, &cli_ref, data);
+			if (rc)
+				return rc;
+
 			continue;
-		if (rc != PKCS11_RV_NOT_FOUND)
-			return rc;
+		}
 
 		if (!valid_pkcs11_attribute_id(cli_ref.id, cli_ref.size)) {
 			EMSG("Invalid attribute id %#"PRIx32, cli_ref.id);
