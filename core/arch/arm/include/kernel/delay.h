@@ -44,12 +44,12 @@ static inline uint64_t arm_cnt_us2cnt(uint32_t us)
 
 static inline uint64_t timeout_init_us(uint32_t us)
 {
-	return read_cntpct() + arm_cnt_us2cnt(us);
+	return barrier_read_cntpct() + arm_cnt_us2cnt(us);
 }
 
 static inline bool timeout_elapsed(uint64_t expire)
 {
-	return read_cntpct() > expire;
+	return barrier_read_cntpct() > expire;
 }
 
 #endif

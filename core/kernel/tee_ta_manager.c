@@ -923,7 +923,7 @@ static void gprof_update_session_utime(bool suspend, struct ts_session *s,
 static void tee_ta_update_session_utime(bool suspend)
 {
 	struct ts_session *s = ts_get_current_session();
-	uint64_t now = read_cntpct();
+	uint64_t now = barrier_read_cntpct();
 
 	gprof_update_session_utime(suspend, s, now);
 }
@@ -947,7 +947,7 @@ static void ftrace_update_times(bool suspend)
 	uint64_t now = 0;
 	uint32_t i = 0;
 
-	now = read_cntpct();
+	now = barrier_read_cntpct();
 
 	fbuf = s->fbuf;
 	if (!fbuf)

@@ -165,7 +165,7 @@ void __noprof ftrace_enter(unsigned long pc, unsigned long *lr)
 
 	if (fbuf->ret_idx < FTRACE_RETFUNC_DEPTH) {
 		fbuf->ret_stack[fbuf->ret_idx] = *lr;
-		fbuf->begin_time[fbuf->ret_idx] = read_cntpct();
+		fbuf->begin_time[fbuf->ret_idx] = barrier_read_cntpct();
 		fbuf->ret_idx++;
 	} else {
 		/*
@@ -269,7 +269,7 @@ unsigned long __noprof ftrace_return(void)
 		dur_loc = curr_buf - (fbuf->ret_idx +
 				      (2 * sizeof(unsigned long)) + 11);
 		ftrace_duration(dur_loc, fbuf->begin_time[fbuf->ret_idx],
-				read_cntpct());
+				barrier_read_cntpct());
 	} else {
 		bool full = false;
 
@@ -297,7 +297,7 @@ unsigned long __noprof ftrace_return(void)
 			dur_loc = curr_buf - fbuf->ret_idx - 6;
 			ftrace_duration(dur_loc,
 					fbuf->begin_time[fbuf->ret_idx],
-					read_cntpct());
+					barrier_read_cntpct());
 		}
 	}
 
