@@ -16,7 +16,7 @@
 
 static TEE_Result arm_cntpct_get_sys_time(TEE_Time *time)
 {
-	uint64_t cntpct = read_cntpct();
+	uint64_t cntpct = barrier_read_cntpct();
 	uint32_t cntfrq = read_cntfrq();
 
 	time->seconds = cntpct / cntfrq;
@@ -49,7 +49,7 @@ REGISTER_TIME_SOURCE(arm_cntpct_time_source)
 
 void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum)
 {
-	uint64_t tsc = read_cntpct();
+	uint64_t tsc = barrier_read_cntpct();
 	int bytes = 0, n;
 	static uint8_t first, bits;
 	static uint16_t acc;
