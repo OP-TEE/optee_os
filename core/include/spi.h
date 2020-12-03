@@ -34,6 +34,7 @@ struct spi_ops {
 	enum spi_result (*txrx16)(struct spi_chip *chip, uint16_t *wdat,
 		uint16_t *rdat, size_t num_pkts);
 	void (*end)(struct spi_chip *chip);
+	void (*flushfifo)(struct spi_chip *chip);
 };
 
 #endif	/* __SPI_H__ */

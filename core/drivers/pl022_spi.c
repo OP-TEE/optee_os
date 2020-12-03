@@ -353,10 +353,10 @@ done:
 		*cpsdvr, *cpsdvr, *scr, *scr);
 }
 
-static void pl022_flush_fifo(struct pl022_data *pd)
+static void pl022_flush_fifo(struct spi_chip *chip)
 {
 	uint32_t __maybe_unused rdat;
-
+	struct pl022_data *pd = container_of(chip, struct pl022_data, chip);
 	do {
 		while (io_read32(pd->base + SSPSR) & SSPSR_RNE) {
 			rdat = io_read32(pd->base + SSPDR);
@@ -469,7 +469,7 @@ static void pl022_configure(struct spi_chip *chip)
 		SSPICR_RORIC | SSPICR_RTIC);
 
 	DMSG("Empty FIFO before starting");
-	pl022_flush_fifo(pd);
+	pl022_flush_fifo(chip);
 }
 
 static void pl022_start(struct spi_chip *chip)
@@ -498,6 +498,7 @@ static const struct spi_ops pl022_ops = {
 	.txrx8 = pl022_txrx8,
 	.txrx16 = pl022_txrx16,
 	.end = pl022_end,
+	.flushfifo = pl022_flush_fifo,
 };
 DECLARE_KEEP_PAGER(pl022_ops);
 
