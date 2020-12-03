@@ -251,11 +251,20 @@ CFG_WITH_USER_TA ?= y
 # By default, in-tree TAs are built using the first architecture specified in
 # $(ta-targets).
 
+# When enabled Trusted Applications are compiled as position-independent
+# executables
+CFG_TA_PIE ?= y
+
 # Address Space Layout Randomization for user-mode Trusted Applications
 #
 # When this flag is enabled, the ELF loader will introduce a random offset
 # when mapping the application in user space. ASLR makes the exploitation of
 # memory corruption vulnerabilities more difficult.
+# The flag can be enabled only if CFG_TA_PIE is enabled.
+ifneq ($(CFG_TA_PIE),y)
+$(call force,CFG_TA_ASLR,n)
+endif
+
 CFG_TA_ASLR ?= y
 
 # How much ASLR may shift the base address (in pages). The base address is

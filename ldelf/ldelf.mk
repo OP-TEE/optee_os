@@ -7,7 +7,10 @@ sm-$(sm) := y
 link-out-dir$(sm) := $(out-dir)/$(sm)
 
 cppflags$(sm)	:= $(core-platform-cppflags)
-cflags$(sm)	:= $(core-platform-cflags) -fpie -fvisibility=hidden
+cflags$(sm)	:= $(core-platform-cflags) -fvisibility=hidden
+ifeq ($(CFG_TA_PIE),y)
+cflags$(sm) += -fpie
+endif
 aflags$(sm)	:= $(core-platform-aflags)
 
 # ldelf is compiled for the same arch or register width as core

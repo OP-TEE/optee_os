@@ -116,6 +116,10 @@ ifeq ($(CFG_ARM32_core),y)
 # CFG_DT_ADDR:       if defined, forces Device Tree data physical address.
 endif
 
+# ARM user-space must be relocatable. Forces compiling TA as
+# position-independent executable such it is relocated while loaded.
+$(call force,CFG_TA_PIE,y)
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)

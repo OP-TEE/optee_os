@@ -12,7 +12,10 @@ cleanfiles += $(link-out-dir$(sm))/ldelf.map
 cleanfiles += $(link-out-dir$(sm))/ldelf.elf
 cleanfiles += $(link-script-pp$(sm)) $(link-script-dep$(sm))
 
-link-ldflags  = -pie -static --gc-sections
+link-ldflags  = -static --gc-sections
+ifeq ($(CFG_TA_PIE),y)
+link-ldflags += -pie
+endif
 link-ldflags += -T $(link-script-pp$(sm))
 link-ldflags += -Map=$(link-out-dir$(sm))/ldelf.map
 link-ldflags += --sort-section=alignment
