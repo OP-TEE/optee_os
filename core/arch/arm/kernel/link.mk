@@ -1,9 +1,9 @@
 link-out-dir = $(out-dir)/core
 
-link-script-dummy = core/arch/arm/kernel/link_dummy.ld
+link-script-dummy = $(arch-dir)/kernel/link_dummy.ld
 link-script = $(if $(wildcard $(platform-dir)/kern.ld.S), \
 		$(platform-dir)/kern.ld.S, \
-		core/arch/arm/kernel/kern.ld.S)
+		$(arch-dir)/kernel/kern.ld.S)
 link-script-pp = $(link-out-dir)/kern.ld
 link-script-dep = $(link-out-dir)/.kern.ld.d
 
@@ -22,11 +22,11 @@ link-ldadd  = $(LDADD)
 link-ldadd += $(ldflags-external)
 link-ldadd += $(libdeps)
 link-objs := $(filter-out \
-	       $(out-dir)/core/arch/arm/kernel/link_dummies_paged.o \
-	       $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+	       $(out-dir)/$(arch-dir)/kernel/link_dummies_paged.o \
+	       $(out-dir)/$(arch-dir)/kernel/link_dummies_init.o, \
 	       $(objs))
 link-objs-init := $(filter-out \
-		    $(out-dir)/core/arch/arm/kernel/link_dummies_init.o, \
+		    $(out-dir)/$(arch-dir)/kernel/link_dummies_init.o, \
 		    $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
 		  $(link-ldadd) $(libgcccore)
