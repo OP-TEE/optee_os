@@ -39,6 +39,10 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, PRR_BASE, SMALL_PAGE_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
+/* Legacy platforms */
+#if defined(PLATFORM_FLAVOR_salvator_h3) || \
+	defined(PLATFORM_FLAVOR_salvator_h3_4x2g) || \
+	defined(PLATFORM_FLAVOR_salvator_m3)
 register_dynamic_shm(NSEC_DDR_0_BASE, NSEC_DDR_0_SIZE);
 register_dynamic_shm(NSEC_DDR_1_BASE, NSEC_DDR_1_SIZE);
 #ifdef NSEC_DDR_2_BASE
@@ -46,6 +50,7 @@ register_dynamic_shm(NSEC_DDR_2_BASE, NSEC_DDR_2_SIZE);
 #endif
 #ifdef NSEC_DDR_3_BASE
 register_dynamic_shm(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
+#endif
 #endif
 
 static struct scif_uart_data console_data __nex_bss;

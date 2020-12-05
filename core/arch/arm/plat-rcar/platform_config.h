@@ -71,6 +71,10 @@
 #define NSEC_DDR_1_BASE		0x600000000U
 #define NSEC_DDR_1_SIZE		0x80000000
 
+#else
+
+/* Generic DT-based platform */
+
 #endif
 
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */
