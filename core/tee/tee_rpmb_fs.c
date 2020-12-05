@@ -2437,8 +2437,13 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 		DMSG("Need to re-allocate");
 		newsize = MAX(end, fh->fat_entry.data_size);
 		mm = tee_mm_alloc(&p, newsize);
+		if (!mm) {
+			DMSG("RPMB: No space left");
+			res = TEE_ERROR_STORAGE_NO_SPACE;
+			goto out;
+		}
 		newbuf = calloc(1, newsize);
-		if (!mm || !newbuf) {
+		if (!newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
 		}
