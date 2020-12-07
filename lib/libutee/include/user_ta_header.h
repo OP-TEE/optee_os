@@ -138,12 +138,6 @@ extern const size_t ta_num_props;
 extern uint32_t ta_param_types;
 extern TEE_Param ta_params[TEE_NUM_PARAMS];
 
-/* Trusted Application Function header */
-typedef struct ta_func_head {
-	uint32_t cmd_id;	/* Trusted Application Function ID */
-	uint32_t start;		/* offset to start func */
-} ta_func_head_t;
-
 int tahead_get_trace_level(void);
 
 #endif /* USER_TA_HEADER_H */
