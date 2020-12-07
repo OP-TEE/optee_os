@@ -128,12 +128,6 @@ enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_BINARY_BLOCK,	/* zero terminated base64 coded string */
 };
 
-enum user_ta_core_service_id {
-	USER_TA_CORE_ENTRY_MATH_INIT = 0x00000010,
-	USER_TA_CORE_ENTRY_GARBAGE = 0x00000011,
-	USER_TA_CORE_ENTRY_CLOSESESSION = 0x00000012,
-};
-
 struct user_ta_property {
 	const char *name;
 	enum user_ta_prop_type type;
