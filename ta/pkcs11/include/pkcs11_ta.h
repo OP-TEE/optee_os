@@ -423,6 +423,22 @@ enum pkcs11_ta_cmd {
 	 */
 	PKCS11_CMD_VERIFY_ONESHOT = 32,
 
+	/*
+	 * PKCS11_CMD_GENERATE_KEY - Generate a symmetric key or domain
+	 *                           parameters
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_GenerateKey().
+	 */
+	PKCS11_CMD_GENERATE_KEY = 33,
+
 };
 
 /*
