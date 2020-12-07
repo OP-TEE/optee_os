@@ -115,9 +115,6 @@ extern struct __elf_phdr_info __elf_phdr_info;
 #define TA_PROP_STR_STACK_SIZE		"gpd.ta.stackSize"
 #define TA_PROP_STR_VERSION		"gpd.ta.version"
 #define TA_PROP_STR_DESCRIPTION		"gpd.ta.description"
-#define TA_PROP_STR_UNSAFE_PARAM	"op-tee.unsafe_param"
-#define TA_PROP_STR_REMAP		"op-tee.remap"
-#define TA_PROP_STR_CACHE_SYNC		"op-tee.cache_sync"
 
 enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_BOOL,	/* bool */
