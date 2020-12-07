@@ -514,6 +514,10 @@ CFG_DEVICE_ENUM_PTA ?= y
 # The jobs will be triggered by the tee-supplicant, when it will start.
 CFG_DEFERRED_WORK ?= y
 
+# Enable automatically adding some deferred works to the queue
+# before optee will execute ones. The option is needed just for test.
+CFG_DEFERRED_WORK_WITH_TESTS ?= n
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
