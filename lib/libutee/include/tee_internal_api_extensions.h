@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2020, Open Mobile Platform LLC
  */
 
 #ifndef TEE_INTERNAL_API_EXTENSIONS_H
@@ -61,5 +62,20 @@ TEE_Result tee_unmap(void *buf, size_t len);
  * 'x' being any hexadecimal digit (0-9a-fA-F)
  */
 TEE_Result tee_uuid_from_str(TEE_UUID *uuid, const char *s);
+
+/*
+ * tee_invoke_supp_plugin() - invoke a tee-supplicant's plugin
+ * @uuid:       uuid of the plugin
+ * @cmd:        command for the plugin
+ * @sub_cmd:    subcommand for the plugin
+ * @buf:        data [for/from] the plugin [in/out]
+ * @len:        length of the input buf
+ * @outlen:     pointer to length of the output data (if they will be used)
+ *
+ * Return TEE_SUCCESS on success or TEE_ERRROR_* on failure.
+ */
+TEE_Result tee_invoke_supp_plugin(const TEE_UUID *uuid, uint32_t cmd,
+				  uint32_t sub_cmd, void *buf, size_t len,
+				  size_t *outlen);
 
 #endif
