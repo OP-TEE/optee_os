@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Open Mobile Platform LLC
  */
 
 #include <pta_system.h>
@@ -73,6 +74,38 @@ TEE_Result tee_unmap(void *buf, size_t len)
 	res = invoke_system_pta(PTA_SYSTEM_UNMAP, param_types, params);
 	if (res)
 		EMSG("Invoke PTA_SYSTEM_UNMAP: buf %p, len %#zx", buf, len);
+
+	return res;
+}
+
+TEE_Result tee_invoke_supp_plugin(const TEE_UUID *uuid, uint32_t cmd,
+				  uint32_t sub_cmd, void *buf, size_t len,
+				  size_t *outlen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					       TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_MEMREF_INOUT,
+					       TEE_PARAM_TYPE_VALUE_OUTPUT);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+
+	if (!uuid || (len && !buf) || (!len && buf))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	params[0].memref.buffer = (void *)uuid;
+	params[0].memref.size = sizeof(TEE_UUID);
+	params[1].value.a = cmd;
+	params[1].value.b = sub_cmd;
+	params[2].memref.buffer = buf;
+	params[2].memref.size = len;
+
+	res = invoke_system_pta(PTA_SYSTEM_SUPP_PLUGIN_INVOKE, param_types,
+				params);
+	if (res)
+		EMSG("Invoke tee-supplicant's plugin failed: %#"PRIx32, res);
+
+	if (outlen)
+		*outlen = params[3].value.a;
 
 	return res;
 }
