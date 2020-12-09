@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014,2020 Linaro Limited
  */
 
 #ifndef INITCALL_H
@@ -47,5 +47,14 @@ struct initcall {
 
 void call_initcalls(void);
 void call_finalcalls(void);
+
+#ifdef CFG_CORE_DEFERRED_INIT
+#define deferredcall_begin SCATTERED_ARRAY_BEGIN(deferredcall, struct initcall)
+#define deferredcall_end   SCATTERED_ARRAY_END(deferredcall, struct initcall)
+
+#define deferred_init(fn)		__define_initcall(deferred, 1, fn)
+
+void call_deferredcalls(void);
+#endif
 
 #endif

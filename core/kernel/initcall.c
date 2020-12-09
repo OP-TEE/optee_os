@@ -8,23 +8,29 @@
 #include <trace.h>
 #include <kernel/linker.h>
 
+static void call_inits(const char *name __maybe_unused,
+		       const struct initcall *begin, const struct initcall *end)
+{
+	const struct initcall *call = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	for (call = begin; call < end; call++) {
+		DMSG("level %d %s()", call->level, call->func_name);
+		ret = call->func();
+		if (ret != TEE_SUCCESS) {
+			EMSG("%scall __text_start + 0x%08"PRIxVA" failed",
+			     name, (vaddr_t)call - VCORE_START_VA);
+		}
+	}
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
 void __weak call_initcalls(void)
 {
-	const struct initcall *call = NULL;
-	TEE_Result ret = TEE_SUCCESS;
-
-	for (call = initcall_begin; call < initcall_end; call++) {
-		DMSG("level %d %s()", call->level, call->func_name);
-		ret = call->func();
-		if (ret != TEE_SUCCESS) {
-			EMSG("Initcall __text_start + 0x%08" PRIxVA
-			     " failed", (vaddr_t)call - VCORE_START_VA);
-		}
-	}
+	call_inits("Init", initcall_begin, initcall_end);
 }
 
 /*
@@ -33,15 +39,16 @@ void __weak call_initcalls(void)
  */
 void __weak call_finalcalls(void)
 {
-	const struct initcall *call = NULL;
-	TEE_Result ret = TEE_SUCCESS;
-
-	for (call = finalcall_begin; call < finalcall_end; call++) {
-		DMSG("level %d %s()", call->level, call->func_name);
-		ret = call->func();
-		if (ret != TEE_SUCCESS) {
-			EMSG("Finalcall __text_start + 0x%08" PRIxVA
-			     " failed", (vaddr_t)call - VCORE_START_VA);
-		}
-	}
+	call_inits("Final", finalcall_begin, finalcall_end);
 }
+
+#ifdef CFG_CORE_DEFERRED_INIT
+/*
+ * No need to exclude this from the unpaged area as it's expected to be
+ * called from a PTA.
+ */
+void call_deferredcalls(void)
+{
+	call_inits("Deferred", deferredcall_begin, deferredcall_end);
+}
+#endif /*CFG_CORE_DEFERRED_INIT*/

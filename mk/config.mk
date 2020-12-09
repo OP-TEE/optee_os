@@ -626,3 +626,7 @@ CFG_COMPAT_GP10_DES ?= y
 
 # Defines a limit for many levels TAs may call each others.
 CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
+
+# When enabled provides deferred init calls to be called when tee-supplicant
+# is initialized.
+CFG_CORE_DEFERRED_INIT ?= n
