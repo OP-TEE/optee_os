@@ -52,6 +52,12 @@ void call_finalcalls(void);
 #define deferredcall_begin SCATTERED_ARRAY_BEGIN(deferredcall, struct initcall)
 #define deferredcall_end   SCATTERED_ARRAY_END(deferredcall, struct initcall)
 
+/*
+ * OP-TEE can't guarantee that the functions registered with
+ * deferred_init() will ever be called. We depend on normal world to
+ * trigger this by invoking a designated PTA when tee-supplicant has
+ * initialized.
+ */
 #define deferred_init(fn)		__define_initcall(deferred, 1, fn)
 
 void call_deferredcalls(void);
