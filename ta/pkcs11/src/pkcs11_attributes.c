@@ -215,20 +215,20 @@ static enum pkcs11_rc set_mandatory_boolprops(struct obj_attrs **out,
 
 static enum pkcs11_rc set_mandatory_attributes(struct obj_attrs **out,
 					       struct obj_attrs *temp,
-					       uint32_t const *bp,
-					       size_t bp_count)
+					       uint32_t const *attrs,
+					       size_t attrs_count)
 {
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	size_t n = 0;
 
-	for (n = 0; n < bp_count; n++) {
+	for (n = 0; n < attrs_count; n++) {
 		uint32_t size = 0;
 		void *value = NULL;
 
-		if (get_attribute_ptr(temp, bp[n], &value, &size))
+		if (get_attribute_ptr(temp, attrs[n], &value, &size))
 			return PKCS11_CKR_TEMPLATE_INCOMPLETE;
 
-		rc = add_attribute(out, bp[n], value, size);
+		rc = add_attribute(out, attrs[n], value, size);
 		if (rc)
 			return rc;
 	}
@@ -255,21 +255,21 @@ static enum pkcs11_rc get_default_value(enum pkcs11_attr_id id, void **value,
 
 static enum pkcs11_rc set_optional_attributes_with_def(struct obj_attrs **out,
 						       struct obj_attrs *temp,
-						       uint32_t const *bp,
-						       size_t bp_count,
+						       uint32_t const *attrs,
+						       size_t attrs_count,
 						       bool default_to_null)
 {
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	size_t n = 0;
 
-	for (n = 0; n < bp_count; n++) {
+	for (n = 0; n < attrs_count; n++) {
 		uint32_t size = 0;
 		void *value = NULL;
 
-		rc = get_attribute_ptr(temp, bp[n], &value, &size);
+		rc = get_attribute_ptr(temp, attrs[n], &value, &size);
 		if (rc == PKCS11_RV_NOT_FOUND) {
 			if (default_to_null) {
-				rc = get_default_value(bp[n], &value, &size);
+				rc = get_default_value(attrs[n], &value, &size);
 			} else {
 				rc = PKCS11_CKR_OK;
 				continue;
@@ -278,7 +278,7 @@ static enum pkcs11_rc set_optional_attributes_with_def(struct obj_attrs **out,
 		if (rc)
 			return rc;
 
-		rc = add_attribute(out, bp[n], value, size);
+		rc = add_attribute(out, attrs[n], value, size);
 		if (rc)
 			return rc;
 	}
@@ -288,18 +288,20 @@ static enum pkcs11_rc set_optional_attributes_with_def(struct obj_attrs **out,
 
 static enum pkcs11_rc set_attributes_opt_or_null(struct obj_attrs **out,
 						 struct obj_attrs *temp,
-						 uint32_t const *bp,
-						 size_t bp_count)
+						 uint32_t const *attrs,
+						 size_t attrs_count)
 {
-	return set_optional_attributes_with_def(out, temp, bp, bp_count, true);
+	return set_optional_attributes_with_def(out, temp, attrs, attrs_count,
+						true /* defaults to empty */);
 }
 
 static enum pkcs11_rc set_optional_attributes(struct obj_attrs **out,
 					      struct obj_attrs *temp,
-					      uint32_t const *bp,
-					      size_t bp_count)
+					      uint32_t const *attrs,
+					      size_t attrs_count)
 {
-	return set_optional_attributes_with_def(out, temp, bp, bp_count, false);
+	return set_optional_attributes_with_def(out, temp, attrs, attrs_count,
+						false /* no default value */);
 }
 
 /*
