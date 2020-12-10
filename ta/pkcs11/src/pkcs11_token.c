@@ -15,10 +15,12 @@
 #include <util.h>
 
 #include "attributes.h"
+#include "handle.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
 #include "processing.h"
 #include "serializer.h"
+#include "token_capabilities.h"
 
 /* Provide 3 slots/tokens, ID is token index */
 #ifndef CFG_PKCS11_TA_TOKEN_COUNT

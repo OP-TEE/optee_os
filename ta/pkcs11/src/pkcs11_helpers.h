@@ -6,8 +6,10 @@
 #ifndef PKCS11_HELPERS_H
 #define PKCS11_HELPERS_H
 
+#include <pkcs11_ta.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <tee_internal_api.h>
 
 #include <pkcs11_attributes.h>
 #include <token_capabilities.h>
