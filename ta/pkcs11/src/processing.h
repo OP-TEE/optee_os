@@ -18,6 +18,9 @@ struct active_processing;
  * Entry points from PKCS11 TA invocation commands
  */
 
+enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params);
+
 enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 				     uint32_t ptypes, TEE_Param *params,
 				     enum processing_func function);

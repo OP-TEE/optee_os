@@ -86,6 +86,14 @@ enum pkcs11_rc add_attribute(struct obj_attrs **head, uint32_t attribute,
 			     void *data, size_t size);
 
 /*
+ * Update serialized attributes to remove an empty entry. Can relocate the
+ * attribute list buffer. Only 1 instance of the entry is expected.
+ *
+ * Return PKCS11_CKR_OK on success or a PKCS11 return code.
+ */
+enum pkcs11_rc remove_empty_attribute(struct obj_attrs **head, uint32_t attrib);
+
+/*
  * get_attribute_ptrs() - Get pointers to attributes with a given ID
  * @head:	Pointer to serialized attributes
  * @attribute:	Attribute ID to look for

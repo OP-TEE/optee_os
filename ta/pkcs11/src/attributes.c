@@ -58,6 +58,49 @@ enum pkcs11_rc add_attribute(struct obj_attrs **head, uint32_t attribute,
 	return rc;
 }
 
+static enum pkcs11_rc _remove_attribute(struct obj_attrs **head,
+					uint32_t attribute, bool empty)
+{
+	struct obj_attrs *h = *head;
+	char *cur = NULL;
+	char *end = NULL;
+	size_t next_off = 0;
+
+	/* Let's find the target attribute */
+	cur = (char *)h + sizeof(struct obj_attrs);
+	end = cur + h->attrs_size;
+	for (; cur < end; cur += next_off) {
+		struct pkcs11_attribute_head pkcs11_ref = { };
+
+		TEE_MemMove(&pkcs11_ref, cur, sizeof(pkcs11_ref));
+		next_off = sizeof(pkcs11_ref) + pkcs11_ref.size;
+
+		if (pkcs11_ref.id != attribute)
+			continue;
+
+		if (empty && pkcs11_ref.size)
+			return PKCS11_CKR_FUNCTION_FAILED;
+
+		TEE_MemMove(cur, cur + next_off, end - (cur + next_off));
+
+		h->attrs_count--;
+		h->attrs_size -= next_off;
+		end -= next_off;
+		next_off = 0;
+
+		return PKCS11_CKR_OK;
+	}
+
+	DMSG("Attribute %s (%#x) not found", id2str_attr(attribute), attribute);
+	return PKCS11_RV_NOT_FOUND;
+}
+
+enum pkcs11_rc remove_empty_attribute(struct obj_attrs **head,
+				      uint32_t attribute)
+{
+	return _remove_attribute(head, attribute, true /* empty */);
+}
+
 void get_attribute_ptrs(struct obj_attrs *head, uint32_t attribute,
 			void **attr, uint32_t *attr_size, size_t *count)
 {
