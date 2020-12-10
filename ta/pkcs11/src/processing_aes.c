@@ -50,7 +50,3 @@ enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 
 	return PKCS11_CKR_OK;
 }
-
-void tee_release_ctr_operation(struct active_processing *processing __unused)
-{
-}

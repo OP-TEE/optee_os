@@ -49,7 +49,6 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 				   enum processing_step step,
 				   uint32_t ptypes, TEE_Param *params);
 
-void tee_release_ctr_operation(struct active_processing *processing);
 enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 				      void *proc_params, size_t params_size);
 #endif /*PKCS11_TA_PROCESSING_H*/
