@@ -684,7 +684,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 				size_t template_size,
 				struct obj_attrs *parent __unused,
 				enum processing_func function,
-				enum pkcs11_mechanism_id mecha __unused)
+				enum pkcs11_mechanism_id mecha)
 {
 	struct obj_attrs *temp = NULL;
 	struct obj_attrs *attrs = NULL;
@@ -692,11 +692,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	uint8_t local = 0;
 	uint8_t always_sensitive = 0;
 	uint8_t never_extract = 0;
+	uint32_t class = PKCS11_UNDEFINED_ID;
+	uint32_t type = PKCS11_UNDEFINED_ID;
 	uint32_t mechanism_id = PKCS11_CKM_UNDEFINED_ID;
 
 #ifdef DEBUG	/* Sanity: check function argument */
 	trace_attributes_from_api_head("template", template, template_size);
 	switch (function) {
+	case PKCS11_FUNCTION_GENERATE:
 	case PKCS11_FUNCTION_IMPORT:
 		break;
 	default:
@@ -711,9 +714,51 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	/* If class/type not defined, match from mechanism */
 	if (get_class(temp) == PKCS11_UNDEFINED_ID &&
 	    get_key_type(temp) == PKCS11_UNDEFINED_ID) {
-		EMSG("Unable to define class/type from mechanism");
-		rc = PKCS11_CKR_TEMPLATE_INCOMPLETE;
-		goto out;
+		switch (mecha) {
+		case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+			class = PKCS11_CKO_SECRET_KEY;
+			type = PKCS11_CKK_GENERIC_SECRET;
+			break;
+		case PKCS11_CKM_AES_KEY_GEN:
+			class = PKCS11_CKO_SECRET_KEY;
+			type = PKCS11_CKK_AES;
+			break;
+		default:
+			EMSG("Unable to define class/type from mechanism");
+			rc = PKCS11_CKR_TEMPLATE_INCOMPLETE;
+			goto out;
+		}
+		if (class != PKCS11_UNDEFINED_ID) {
+			rc = add_attribute(&temp, PKCS11_CKA_CLASS,
+					   &class, sizeof(uint32_t));
+			if (rc)
+				goto out;
+		}
+		if (type != PKCS11_UNDEFINED_ID) {
+			rc = add_attribute(&temp, PKCS11_CKA_KEY_TYPE,
+					   &type, sizeof(uint32_t));
+			if (rc)
+				goto out;
+		}
+	}
+
+	switch (mecha) {
+	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+		if (get_class(temp) != PKCS11_CKO_SECRET_KEY ||
+		    get_key_type(temp) != PKCS11_CKK_GENERIC_SECRET) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	case PKCS11_CKM_AES_KEY_GEN:
+		if (get_class(temp) != PKCS11_CKO_SECRET_KEY ||
+		    get_key_type(temp) != PKCS11_CKK_AES) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	default:
+		break;
 	}
 
 	if (!sanitize_consistent_class_and_type(temp)) {
@@ -758,6 +803,9 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	}
 
 	switch (function) {
+	case PKCS11_FUNCTION_GENERATE:
+		local = PKCS11_TRUE;
+		break;
 	case PKCS11_FUNCTION_IMPORT:
 	default:
 		local = PKCS11_FALSE;
@@ -774,6 +822,17 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		always_sensitive = PKCS11_FALSE;
 		never_extract = PKCS11_FALSE;
 
+		switch (function) {
+		case PKCS11_FUNCTION_GENERATE:
+			always_sensitive = get_bool(attrs,
+						    PKCS11_CKA_SENSITIVE);
+			never_extract = !get_bool(attrs,
+						  PKCS11_CKA_EXTRACTABLE);
+			break;
+		default:
+			break;
+		}
+
 		rc = add_attribute(&attrs, PKCS11_CKA_ALWAYS_SENSITIVE,
 				   &always_sensitive, sizeof(always_sensitive));
 		if (rc)
@@ -785,7 +844,11 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			goto out;
 
 		/* Keys mandate attribute PKCS11_CKA_KEY_GEN_MECHANISM */
-		mechanism_id = PKCS11_CK_UNAVAILABLE_INFORMATION;
+		if (local)
+			mechanism_id = mecha;
+		else
+			mechanism_id = PKCS11_CK_UNAVAILABLE_INFORMATION;
+
 		rc = add_attribute(&attrs, PKCS11_CKA_KEY_GEN_MECHANISM,
 				   &mechanism_id, sizeof(mechanism_id));
 		if (rc)
@@ -938,8 +1001,24 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	case PKCS11_PROCESSING_IMPORT:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, false));
 		break;
+	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+	case PKCS11_CKM_AES_KEY_GEN:
+		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, true));
+		break;
 	default:
 		TEE_Panic(proc_id);
+		break;
+	}
+
+	switch (proc_id) {
+	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_GENERIC_SECRET);
+		break;
+	case PKCS11_CKM_AES_KEY_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_AES);
+		break;
+	case PKCS11_PROCESSING_IMPORT:
+	default:
 		break;
 	}
 
@@ -953,6 +1032,9 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 	enum pkcs11_mechanism_id mechanism = PKCS11_CKM_UNDEFINED_ID;
 
 	switch (key_type) {
+	case PKCS11_CKK_GENERIC_SECRET:
+		mechanism = PKCS11_CKM_GENERIC_SECRET_KEY_GEN;
+		break;
 	case PKCS11_CKK_AES:
 		mechanism = PKCS11_CKM_AES_KEY_GEN;
 		break;

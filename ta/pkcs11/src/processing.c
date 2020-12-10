@@ -110,6 +110,178 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 	}
 }
 
+static enum pkcs11_rc generate_random_key_value(struct obj_attrs **head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *data = NULL;
+	uint32_t data_size = 0;
+	uint32_t value_len = 0;
+	void *value = NULL;
+
+	if (!*head)
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+	rc = get_attribute_ptr(*head, PKCS11_CKA_VALUE_LEN, &data, &data_size);
+	if (rc || data_size != sizeof(uint32_t)) {
+		DMSG("%s", rc ? "No attribute value_len found" :
+		     "Invalid size for attribute VALUE_LEN");
+
+		return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+	}
+	TEE_MemMove(&value_len, data, data_size);
+
+	if (get_key_type(*head) == PKCS11_CKK_GENERIC_SECRET)
+		value_len = (value_len + 7) / 8;
+
+	/* Remove the default empty value attribute if found */
+	rc = remove_empty_attribute(head, PKCS11_CKA_VALUE);
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	value = TEE_Malloc(value_len, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!value)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	TEE_GenerateRandom(value, value_len);
+
+	rc = add_attribute(head, PKCS11_CKA_VALUE, value, value_len);
+
+	TEE_Free(value);
+
+	return rc;
+}
+
+enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_attribute_head *proc_params = NULL;
+	struct obj_attrs *head = NULL;
+	struct pkcs11_object_head *template = NULL;
+	size_t template_size = 0;
+	uint32_t obj_handle = 0;
+
+	if (!client || ptypes != exp_pt ||
+	    out->memref.size != sizeof(obj_handle))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
+	if (rc)
+		goto out;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
+	if (rc)
+		goto out;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	rc = get_ready_session(session);
+	if (rc)
+		goto out;
+
+	template_size = sizeof(*template) + template->attrs_size;
+
+	rc = check_mechanism_against_processing(session, proc_params->id,
+						PKCS11_FUNCTION_GENERATE,
+						PKCS11_FUNC_STEP_INIT);
+	if (rc) {
+		DMSG("Invalid mechanism %#"PRIx32": %#x", proc_params->id, rc);
+		goto out;
+	}
+
+	/*
+	 * Prepare a clean initial state for the requested object attributes.
+	 * Free temporary template once done.
+	 */
+	rc = create_attributes_from_template(&head, template, template_size,
+					     NULL, PKCS11_FUNCTION_GENERATE,
+					     proc_params->id);
+	if (rc)
+		goto out;
+
+	TEE_Free(template);
+	template = NULL;
+
+	rc = check_created_attrs(head, NULL);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_processing(proc_params->id, head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
+	/*
+	 * Execute target processing and add value as attribute
+	 * PKCS11_CKA_VALUE. Symm key generation: depends on target
+	 * processing to be used.
+	 */
+	switch (proc_params->id) {
+	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+	case PKCS11_CKM_AES_KEY_GEN:
+		/* Generate random of size specified by attribute VALUE_LEN */
+		rc = generate_random_key_value(&head);
+		if (rc)
+			goto out;
+		break;
+
+	default:
+		rc = PKCS11_CKR_MECHANISM_INVALID;
+		goto out;
+	}
+
+	TEE_Free(proc_params);
+	proc_params = NULL;
+
+	/*
+	 * Object is ready, register it and return a handle.
+	 */
+	rc = create_object(session, head, &obj_handle);
+	if (rc)
+		goto out;
+
+	/*
+	 * Now obj_handle (through the related struct pkcs11_object instance)
+	 * owns the serialized buffer that holds the object attributes.
+	 * We reset head to NULL as it is no more the buffer owner and would
+	 * be freed at function out.
+	 */
+	head = NULL;
+
+	TEE_MemMove(out->memref.buffer, &obj_handle, sizeof(obj_handle));
+	out->memref.size = sizeof(obj_handle);
+
+	DMSG("PKCS11 session %"PRIu32": generate secret %#"PRIx32,
+	     session->handle, obj_handle);
+
+out:
+	TEE_Free(proc_params);
+	TEE_Free(template);
+	TEE_Free(head);
+
+	return rc;
+}
+
 /*
  * entry_processing_init - Generic entry for initializing a processing
  *
