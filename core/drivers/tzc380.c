@@ -253,7 +253,7 @@ int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
 			lregion++;
 			address += region_size;
 			lsize -= region_size;
-			pow--;
+			pow = tzc.addr_width;
 			continue;
 		}
 
@@ -278,7 +278,7 @@ int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
 					     TZC_ATTR_REGION_EN_MASK |
 					     mask | attr);
 			lregion++;
-			pow--;
+			pow = tzc.addr_width;
 			continue;
 		}
 		pow--;
