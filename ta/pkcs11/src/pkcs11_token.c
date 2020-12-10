@@ -17,6 +17,7 @@
 #include "attributes.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 #include "serializer.h"
 
 /* Provide 3 slots/tokens, ID is token index */
@@ -650,6 +651,8 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 
 static void close_ck_session(struct pkcs11_session *session)
 {
+	release_active_processing(session);
+
 	/* No need to put object handles, the whole database is destroyed */
 	while (!LIST_EMPTY(&session->object_list))
 		destroy_object(session,
