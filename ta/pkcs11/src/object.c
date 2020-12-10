@@ -184,7 +184,7 @@ struct pkcs11_object *create_token_object(struct obj_attrs *head,
 enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 			     uint32_t *out_handle)
 {
-	enum pkcs11_rc rc = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	struct pkcs11_object *obj = NULL;
 	struct pkcs11_session *session = (struct pkcs11_session *)sess;
 	uint32_t obj_handle = 0;

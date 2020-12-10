@@ -118,7 +118,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 				      TEE_Param params[TEE_NUM_PARAMS])
 {
 	struct pkcs11_client *client = tee_session2client(tee_session);
-	uint32_t rc = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 
 	if (!client)
 		return TEE_ERROR_SECURITY;
