@@ -3,7 +3,8 @@
  * Copyright (c) 2020, Arm Limited
  */
 
-#include <kernel/user_mode_ctx_struct.h>
+#include <kernel/ts_manager.h>
+#include <kernel/user_mode_ctx.h>
 #include <tee_api_types.h>
 
 #ifndef KERNEL_LDELF_LOADER_H

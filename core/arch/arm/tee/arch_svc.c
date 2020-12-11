@@ -7,12 +7,14 @@
 #include <arm.h>
 #include <assert.h>
 #include <kernel/abort.h>
+#include <kernel/ldelf_syscalls.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
 #include <kernel/user_ta.h>
+#include <ldelf.h>
 #include <mm/vm.h>
 #include <speculation_barrier.h>
 #include <string.h>
@@ -121,6 +123,26 @@ static const struct syscall_entry tee_svc_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_cache_operation),
 };
 
+/*
+ * The ldelf return, log, panic syscalls have the same functionality and syscall
+ * number as the user TAs'. To avoid unnecessary code duplication, the ldelf SVC
+ * handler doesn't implement separate functions for these.
+ */
+static const struct syscall_entry ldelf_syscall_table[] = {
+	SYSCALL_ENTRY(syscall_sys_return),
+	SYSCALL_ENTRY(syscall_log),
+	SYSCALL_ENTRY(syscall_panic),
+	SYSCALL_ENTRY(ldelf_syscall_map_zi),
+	SYSCALL_ENTRY(ldelf_syscall_unmap),
+	SYSCALL_ENTRY(ldelf_syscall_open_bin),
+	SYSCALL_ENTRY(ldelf_syscall_close_bin),
+	SYSCALL_ENTRY(ldelf_syscall_map_bin),
+	SYSCALL_ENTRY(ldelf_syscall_copy_from_bin),
+	SYSCALL_ENTRY(ldelf_syscall_set_prot),
+	SYSCALL_ENTRY(ldelf_syscall_remap),
+	SYSCALL_ENTRY(ldelf_syscall_gen_rnd_num),
+};
+
 #ifdef TRACE_SYSCALLS
 static void trace_syscall(size_t num)
 {
@@ -209,7 +231,7 @@ static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
 }
 #endif /*ARM64*/
 
-static syscall_t get_syscall_func(size_t num)
+static syscall_t get_tee_syscall_func(size_t num)
 {
 	/* Cast away const */
 	struct syscall_entry *sc_table = (void *)tee_svc_syscall_table;
@@ -226,9 +248,9 @@ static syscall_t get_syscall_func(size_t num)
 
 bool user_ta_handle_svc(struct thread_svc_regs *regs)
 {
-	size_t scn;
-	size_t max_args;
-	syscall_t scf;
+	size_t scn = 0;
+	size_t max_args = 0;
+	syscall_t scf = NULL;
 
 	get_scn_max_args(regs, &scn, &max_args);
 
@@ -240,7 +262,7 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 		return true; /* return to user mode */
 	}
 
-	scf = get_syscall_func(scn);
+	scf = get_tee_syscall_func(scn);
 
 	ftrace_syscall_enter(scn);
 
@@ -253,6 +275,52 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 	 * thread_svc_handler() will take care of the rest.
 	 */
 	return scn != TEE_SCN_RETURN && scn != TEE_SCN_PANIC;
+}
+
+static syscall_t get_ldelf_syscall_func(size_t num)
+{
+	/* Cast away const */
+	struct syscall_entry *sc_table = (void *)ldelf_syscall_table;
+
+	COMPILE_TIME_ASSERT(ARRAY_SIZE(ldelf_syscall_table) ==
+			    (LDELF_SCN_MAX + 1));
+
+	if (num > LDELF_SCN_MAX)
+		return (syscall_t)syscall_not_supported;
+
+	return load_no_speculate(&sc_table[num].fn, &sc_table[0].fn,
+				 &sc_table[LDELF_SCN_MAX].fn + 1);
+}
+
+bool ldelf_handle_svc(struct thread_svc_regs *regs)
+{
+	size_t scn = 0;
+	size_t max_args = 0;
+	syscall_t scf = NULL;
+
+	get_scn_max_args(regs, &scn, &max_args);
+
+	trace_syscall(scn);
+
+	if (max_args > TEE_SVC_MAX_ARGS) {
+		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
+		set_svc_retval(regs, TEE_ERROR_GENERIC);
+		return true; /* return to user mode */
+	}
+
+	scf = get_ldelf_syscall_func(scn);
+
+	ftrace_syscall_enter(scn);
+
+	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+
+	ftrace_syscall_leave();
+
+	/*
+	 * Return true if we're to return to user mode,
+	 * thread_svc_handler() will take care of the rest.
+	 */
+	return scn != LDELF_RETURN && scn != LDELF_PANIC;
 }
 
 #define TA32_CONTEXT_MAX_SIZE		(14 * sizeof(uint32_t))

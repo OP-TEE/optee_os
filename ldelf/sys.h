@@ -1,17 +1,18 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef SYS_H
 #define SYS_H
 
 #include <compiler.h>
+#include <ldelf_syscalls.h>
 #include <stddef.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <types_ext.h>
-#include <utee_syscalls.h>
 
 #if defined(CFG_TEE_CORE_DEBUG)
 #define panic()    __panic(__FILE__, __LINE__, __func__)
@@ -30,7 +31,7 @@ void __noreturn sys_return_cleanup(void);
 #define err(res, ...) \
 	do { \
 		trace_printf_helper(TRACE_ERROR, true, __VA_ARGS__); \
-		_utee_return(res); \
+		_ldelf_return(res); \
 	} while (0)
 
 TEE_Result sys_map_zi(size_t num_bytes, uint32_t flags, vaddr_t *va,
@@ -46,5 +47,6 @@ TEE_Result sys_copy_from_ta_bin(void *dst, size_t num_bytes, uint32_t handle,
 TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags);
 TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
 		     size_t pad_begin, size_t pad_end);
+TEE_Result sys_gen_random_num(void *buf, size_t blen);
 
 #endif /*SYS_H*/

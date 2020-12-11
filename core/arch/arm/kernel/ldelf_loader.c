@@ -7,9 +7,11 @@
 
 #include <assert.h>
 #include <kernel/ldelf_loader.h>
+#include <kernel/ldelf_syscalls.h>
 #include <ldelf.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
+#include <tee/arch_svc.h>
 
 extern uint8_t ldelf_data[];
 extern const unsigned int ldelf_code_size;
@@ -91,7 +93,7 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	return TEE_SUCCESS;
 }
 
-TEE_Result ldelf_init_with_ldelf(struct ts_session *sess __maybe_unused,
+TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 				 struct user_mode_ctx *uctx)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -105,12 +107,15 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess __maybe_unused,
 	arg = (struct ldelf_arg *)usr_stack;
 	memset(arg, 0, sizeof(*arg));
 	arg->uuid = uctx->ts_ctx->uuid;
+	sess->handle_svc = ldelf_handle_svc;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->entry_func,
 				     is_arm32, &panicked, &panic_code);
 
+	sess->handle_svc = sess->ctx->ops->handle_svc;
 	thread_user_clear_vfp(uctx);
+	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
 		abort_print_current_ta();
@@ -161,6 +166,7 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	struct thread_specific_data *tsd = thread_get_tsd();
+	struct ts_session *sess = NULL;
 	struct vm_region *r = NULL;
 	size_t n = 0;
 
@@ -253,11 +259,16 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 	}
 #endif /*ARM64*/
 
+	sess = ts_get_current_session();
+	sess->handle_svc = ldelf_handle_svc;
+
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dump_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
+	sess->handle_svc = sess->ctx->ops->handle_svc;
 	thread_user_clear_vfp(uctx);
+	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
 		uctx->dump_entry_func = 0;
@@ -278,6 +289,7 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	size_t *arg = NULL;
+	struct ts_session *sess = NULL;
 
 	if (!uctx->ftrace_entry_func)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -296,11 +308,16 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 
 	*arg = *blen;
 
+	sess = ts_get_current_session();
+	sess->handle_svc = ldelf_handle_svc;
+
 	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
 				     usr_stack, uctx->ftrace_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
+	sess->handle_svc = sess->ctx->ops->handle_svc;
 	thread_user_clear_vfp(uctx);
+	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
 		uctx->ftrace_entry_func = 0;
@@ -327,6 +344,7 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
+	struct ts_session *sess = NULL;
 
 	assert(uuid);
 
@@ -348,9 +366,16 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	arg->dlopen.uuid = *uuid;
 	arg->dlopen.flags = flags;
 
+	sess = ts_get_current_session();
+	sess->handle_svc = ldelf_handle_svc;
+
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
+
+	sess->handle_svc = sess->ctx->ops->handle_svc;
+	ldelf_sess_cleanup(sess);
+
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
 		abort_print_current_ta();
@@ -371,6 +396,7 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	size_t len = strnlen(sym, maxlen);
+	struct ts_session *sess = NULL;
 
 	if (len == maxlen)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -394,9 +420,16 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	memcpy(arg->dlsym.symbol, sym, len);
 	arg->dlsym.symbol[len] = '\0';
 
+	sess = ts_get_current_session();
+	sess->handle_svc = ldelf_handle_svc;
+
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
+
+	sess->handle_svc = sess->ctx->ops->handle_svc;
+	ldelf_sess_cleanup(sess);
+
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
 		abort_print_current_ta();
