@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 #include <initcall.h>
 #include <kernel/linker.h>
@@ -158,7 +159,7 @@ static TEE_Result pseudo_ta_enter_open_session(struct ts_session *s)
 	}
 
 	if (stc->pseudo_ta->open_session_entry_point) {
-		void **user_ctx = &ta_sess->user_ctx;
+		void **user_ctx = &s->user_ctx;
 		uint32_t param_types = 0;
 
 		if (ta_sess->param) {
@@ -207,7 +208,7 @@ static TEE_Result pseudo_ta_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	}
 
 	ta_sess->err_origin = TEE_ORIGIN_TRUSTED_APP;
-	res = stc->pseudo_ta->invoke_command_entry_point(ta_sess->user_ctx, cmd,
+	res = stc->pseudo_ta->invoke_command_entry_point(s->user_ctx, cmd,
 							 param_types,
 							 tee_param);
 	if (ta_sess->param) {
@@ -222,7 +223,7 @@ out:
 static void pseudo_ta_enter_close_session(struct ts_session *s)
 {
 	struct pseudo_ta_ctx *stc = to_pseudo_ta_ctx(s->ctx);
-	void *user_ctx = to_ta_session(s)->user_ctx;
+	void *user_ctx = s->user_ctx;
 
 	ts_push_current_session(s);
 

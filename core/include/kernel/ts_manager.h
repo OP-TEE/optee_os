@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2017-2020, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef __KERNEL_TS_MANAGER_H
@@ -24,6 +25,11 @@ struct ts_session {
 #if defined(CFG_FTRACE_SUPPORT)
 	struct ftrace_buf *fbuf; /* ftrace buffer */
 #endif
+	/*
+	 * Used by PTAs to store session specific information, or used by ldelf
+	 * syscalls to store handlers of opened TA/SP binaries.
+	 */
+	void *user_ctx;
 };
 
 enum ts_gprof_status {
