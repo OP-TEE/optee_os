@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef TEE_TA_MANAGER_H
@@ -86,7 +87,6 @@ struct tee_ta_session {
 	bool cancel;		/* True if TA invocation is cancelled */
 	bool cancel_mask;	/* True if cancel is masked */
 	TEE_Time cancel_time;	/* Time when to cancel the TA invocation */
-	void *user_ctx;		/* Opaque session handle assigned by PTA */
 	uint32_t ref_count;	/* reference counter */
 	struct condvar refc_cv;	/* CV used to wait for ref_count to be 0 */
 	struct condvar lock_cv;	/* CV used to wait for lock */
