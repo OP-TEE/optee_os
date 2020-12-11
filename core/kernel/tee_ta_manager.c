@@ -610,6 +610,7 @@ static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
 
 	ctx->ref_count++;
 	s->ts_sess.ctx = &ctx->ts_ctx;
+	s->ts_sess.handle_svc = s->ts_sess.ctx->ops->handle_svc;
 	return TEE_SUCCESS;
 }
 

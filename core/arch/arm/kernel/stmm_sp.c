@@ -330,6 +330,7 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 
 	mutex_lock(&tee_ta_mutex);
 	sess->ts_sess.ctx = &spc->ta_ctx.ts_ctx;
+	sess->ts_sess.handle_svc = sess->ts_sess.ctx->ops->handle_svc;
 	mutex_unlock(&tee_ta_mutex);
 
 	ts_push_current_session(&sess->ts_sess);
