@@ -1022,7 +1022,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 		rc = get_u32_attribute(secret, PKCS11_CKA_VALUE_LEN,
 				       &key_length);
 		if (rc)
-			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			return PKCS11_CKR_TEMPLATE_INCOMPLETE;
 	}
 
 	get_key_min_max_sizes(get_key_type(key1), &min_key_size, &max_key_size);
