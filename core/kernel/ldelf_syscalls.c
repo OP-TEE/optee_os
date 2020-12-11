@@ -5,6 +5,7 @@
  */
 
 #include <assert.h>
+#include <crypto/crypto.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/user_mode_ctx.h>
 #include <ldelf.h>
@@ -12,7 +13,6 @@
 #include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
-#include <pta_system.h>
 #include <stdlib.h>
 #include <string.h>
 #include <trace.h>
@@ -26,7 +26,65 @@ struct bin_handle {
 	size_t size_bytes;
 };
 
-void ta_bin_close(void *ptr)
+TEE_Result ldelf_syscall_map_zi(vaddr_t *va, size_t num_bytes, size_t pad_begin,
+				size_t pad_end, unsigned long flags)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	struct fobj *f = NULL;
+	struct mobj *mobj = NULL;
+	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
+	uint32_t vm_flags = 0;
+
+	if (flags & ~LDELF_MAP_FLAG_SHAREABLE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (flags & LDELF_MAP_FLAG_SHAREABLE)
+		vm_flags |= VM_FLAG_SHAREABLE;
+
+	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
+	if (!f)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	mobj = mobj_with_fobj_alloc(f, NULL);
+	fobj_put(f);
+	if (!mobj)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	res = vm_map_pad(uctx, va, num_bytes, prot, vm_flags,
+			 mobj, 0, pad_begin, pad_end, 0);
+	mobj_put(mobj);
+
+	return res;
+}
+
+TEE_Result ldelf_syscall_unmap(vaddr_t va, size_t num_bytes)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	size_t sz = ROUNDUP(num_bytes, SMALL_PAGE_SIZE);
+	uint32_t vm_flags = 0;
+	vaddr_t end_va = 0;
+
+	/*
+	 * The vm_get_flags() and vm_unmap() are supposed to detect or handle
+	 * overflow directly or indirectly. However, since this function is an
+	 * API function it's worth having an extra guard here. If nothing else,
+	 * to increase code clarity.
+	 */
+	if (ADD_OVERFLOW(va, sz, &end_va))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = vm_get_flags(uctx, va, sz, &vm_flags);
+	if (res)
+		return res;
+	if (vm_flags & VM_FLAG_PERMANENT)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return vm_unmap(uctx, va, sz);
+}
+
+static void bin_close(void *ptr)
 {
 	struct bin_handle *binh = ptr;
 
@@ -38,26 +96,41 @@ void ta_bin_close(void *ptr)
 	free(binh);
 }
 
-TEE_Result ldelf_open_ta_binary(struct system_ctx *ctx, uint32_t param_types,
-				TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_open_bin(const TEE_UUID *uuid, size_t uuid_size,
+				  uint32_t *handle)
 {
 	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	struct system_ctx *sys_ctx = sess->user_ctx;
 	struct bin_handle *binh = NULL;
-	int h = 0;
-	TEE_UUID *uuid = NULL;
 	uint8_t tag[FILE_TAG_SIZE] = { 0 };
 	unsigned int tag_len = sizeof(tag);
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-					  TEE_PARAM_TYPE_VALUE_OUTPUT,
-					  TEE_PARAM_TYPE_NONE,
-					  TEE_PARAM_TYPE_NONE);
+	int h = 0;
 
-	if (exp_pt != param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-	if (params[0].memref.size != sizeof(*uuid))
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)uuid, sizeof(TEE_UUID));
+	if (res)
+		return res;
+
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)handle, sizeof(uint32_t));
+	if (res)
+		return res;
+
+	if (uuid_size != sizeof(*uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	uuid = params[0].memref.buffer;
+	if (!sys_ctx) {
+		sys_ctx = calloc(1, sizeof(*sys_ctx));
+		if (!sys_ctx)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		sess->user_ctx = sys_ctx;
+	}
 
 	binh = calloc(1, sizeof(*binh));
 	if (!binh)
@@ -68,7 +141,7 @@ TEE_Result ldelf_open_ta_binary(struct system_ctx *ctx, uint32_t param_types,
 		     (void *)uuid, binh->op->description);
 
 		res = binh->op->open(uuid, &binh->h);
-		DMSG("res=0x%x", res);
+		DMSG("res=%#"PRIx32, res);
 		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
 		    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 			break;
@@ -86,36 +159,31 @@ TEE_Result ldelf_open_ta_binary(struct system_ctx *ctx, uint32_t param_types,
 	if (!binh->f)
 		goto err_oom;
 
-	h = handle_get(&ctx->db, binh);
+	h = handle_get(&sys_ctx->db, binh);
 	if (h < 0)
 		goto err_oom;
-	params[0].value.a = h;
+	*handle = h;
 
 	return TEE_SUCCESS;
+
 err_oom:
 	res = TEE_ERROR_OUT_OF_MEMORY;
 err:
-	ta_bin_close(binh);
+	bin_close(binh);
 	return res;
 }
 
-TEE_Result ldelf_close_ta_binary(struct system_ctx *ctx, uint32_t param_types,
-				 TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_close_bin(unsigned long handle)
 {
 	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct system_ctx *sys_ctx = sess->user_ctx;
 	struct bin_handle *binh = NULL;
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_NONE,
-					  TEE_PARAM_TYPE_NONE,
-					  TEE_PARAM_TYPE_NONE);
 
-	if (exp_pt != param_types)
+	if (!sys_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (params[0].value.b)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	binh = handle_put(&ctx->db, params[0].value.a);
+	binh = handle_put(&sys_ctx->db, handle);
 	if (!binh)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -123,7 +191,12 @@ TEE_Result ldelf_close_ta_binary(struct system_ctx *ctx, uint32_t param_types,
 		res = binh->op->read(binh->h, NULL,
 				     binh->size_bytes - binh->offs_bytes);
 
-	ta_bin_close(binh);
+	bin_close(binh);
+	if (handle_db_is_empty(&sys_ctx->db)) {
+		handle_db_destroy(&sys_ctx->db, bin_close);
+		free(sys_ctx);
+		sess->user_ctx = NULL;
+	}
 
 	return res;
 }
@@ -166,65 +239,52 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 	return TEE_SUCCESS;
 }
 
-TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
-			       struct user_mode_ctx *uctx,
-			       uint32_t param_types,
-			       TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
+				 unsigned long handle, size_t offs_bytes,
+				 size_t pad_begin, size_t pad_end,
+				 unsigned long flags)
 {
-	const uint32_t accept_flags = PTA_SYSTEM_MAP_FLAG_SHAREABLE |
-				      PTA_SYSTEM_MAP_FLAG_WRITEABLE |
-				      PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_VALUE_INOUT,
-					  TEE_PARAM_TYPE_VALUE_INPUT);
+	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	struct system_ctx *sys_ctx = sess->user_ctx;
 	struct bin_handle *binh = NULL;
 	uint32_t num_rounded_bytes = 0;
-	TEE_Result res = TEE_SUCCESS;
 	struct file_slice *fs = NULL;
 	bool file_is_locked = false;
 	struct mobj *mobj = NULL;
-	uint32_t offs_bytes = 0;
 	uint32_t offs_pages = 0;
-	uint32_t num_bytes = 0;
-	uint32_t pad_begin = 0;
-	uint32_t pad_end = 0;
 	size_t num_pages = 0;
-	uint32_t flags = 0;
 	uint32_t prot = 0;
-	vaddr_t va = 0;
+	const uint32_t accept_flags = LDELF_MAP_FLAG_SHAREABLE |
+				      LDELF_MAP_FLAG_WRITEABLE |
+				      LDELF_MAP_FLAG_EXECUTABLE;
 
-	if (exp_pt != param_types)
+	if (!sys_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	binh = handle_lookup(&ctx->db, params[0].value.a);
+	binh = handle_lookup(&sys_ctx->db, handle);
 	if (!binh)
 		return TEE_ERROR_BAD_PARAMETERS;
-	flags = params[0].value.b;
-	offs_bytes = params[1].value.a;
-	num_bytes = params[1].value.b;
-	va = reg_pair_to_64(params[2].value.a, params[2].value.b);
-	pad_begin = params[3].value.a;
-	pad_end = params[3].value.b;
 
 	if ((flags & accept_flags) != flags)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if ((flags & PTA_SYSTEM_MAP_FLAG_SHAREABLE) &&
-	    (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE))
+	if ((flags & LDELF_MAP_FLAG_SHAREABLE) &&
+	    (flags & LDELF_MAP_FLAG_WRITEABLE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if ((flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE) &&
-	    (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE))
+	if ((flags & LDELF_MAP_FLAG_EXECUTABLE) &&
+	    (flags & LDELF_MAP_FLAG_WRITEABLE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (offs_bytes & SMALL_PAGE_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	prot = TEE_MATTR_UR | TEE_MATTR_PR;
-	if (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)
+	if (flags & LDELF_MAP_FLAG_WRITEABLE)
 		prot |= TEE_MATTR_UW | TEE_MATTR_PW;
-	if (flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE)
+	if (flags & LDELF_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
 
 	offs_pages = offs_bytes >> SMALL_PAGE_SHIFT;
@@ -254,7 +314,7 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 		}
 
 		/* If there's a slice we must be mapping shareable */
-		if (!(flags & PTA_SYSTEM_MAP_FLAG_SHAREABLE)) {
+		if (!(flags & LDELF_MAP_FLAG_SHAREABLE)) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 			goto err;
 		}
@@ -264,7 +324,7 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(uctx, &va, num_rounded_bytes,
+		res = vm_map_pad(uctx, va, num_rounded_bytes,
 				 prot, VM_FLAG_READONLY,
 				 mobj, 0, pad_begin, pad_end, 0);
 		mobj_put(mobj);
@@ -279,7 +339,7 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
+		if (!(flags & LDELF_MAP_FLAG_WRITEABLE)) {
 			file = binh->f;
 			vm_flags |= VM_FLAG_READONLY;
 		}
@@ -290,16 +350,16 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(uctx, &va, num_rounded_bytes,
+		res = vm_map_pad(uctx, va, num_rounded_bytes,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
 				 pad_begin, pad_end, 0);
 		mobj_put(mobj);
 		if (res)
 			goto err;
-		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
+		res = binh_copy_to(binh, *va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(uctx, va, num_rounded_bytes,
+		res = vm_set_prot(uctx, *va, num_rounded_bytes,
 				  prot);
 		if (res)
 			goto err_unmap_va;
@@ -310,7 +370,7 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 		 */
 		vm_set_ctx(uctx->ts_ctx);
 
-		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
+		if (!(flags & LDELF_MAP_FLAG_WRITEABLE)) {
 			res = file_add_slice(binh->f, f, offs_pages);
 			if (res)
 				goto err_unmap_va;
@@ -319,11 +379,10 @@ TEE_Result ldelf_map_ta_binary(struct system_ctx *ctx,
 
 	file_unlock(binh->f);
 
-	reg_pair_from_64(va, &params[2].value.a, &params[2].value.b);
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (vm_unmap(uctx, va, num_rounded_bytes))
+	if (vm_unmap(uctx, *va, num_rounded_bytes))
 		panic();
 
 	/*
@@ -339,64 +398,57 @@ err:
 	return res;
 }
 
-TEE_Result ldelf_copy_from_ta_binary(struct system_ctx *ctx,
-				     uint32_t param_types,
-				     TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_copy_from_bin(void *dst, size_t offs, size_t num_bytes,
+				       unsigned long handle)
 {
+	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	struct system_ctx *sys_ctx = sess->user_ctx;
 	struct bin_handle *binh = NULL;
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
-					  TEE_PARAM_TYPE_NONE,
-					  TEE_PARAM_TYPE_NONE);
 
-	if (exp_pt != param_types)
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)dst, num_bytes);
+	if (res)
+		return res;
+
+	if (!sys_ctx)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	binh = handle_lookup(&ctx->db, params[0].value.a);
+	binh = handle_lookup(&sys_ctx->db, handle);
 	if (!binh)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return binh_copy_to(binh, (vaddr_t)params[1].memref.buffer,
-			    params[0].value.b, params[1].memref.size);
+	return binh_copy_to(binh, (vaddr_t)dst, offs, num_bytes);
 }
 
-TEE_Result ldelf_set_prot(struct user_mode_ctx *uctx, uint32_t param_types,
-			  TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_set_prot(unsigned long va, size_t num_bytes,
+				  unsigned long flags)
 {
-	const uint32_t accept_flags = PTA_SYSTEM_MAP_FLAG_WRITEABLE |
-				      PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_NONE,
-					  TEE_PARAM_TYPE_NONE);
-	uint32_t prot = TEE_MATTR_UR | TEE_MATTR_PR;
 	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+	size_t sz = ROUNDUP(num_bytes, SMALL_PAGE_SIZE);
+	uint32_t prot = TEE_MATTR_UR | TEE_MATTR_PR;
 	uint32_t vm_flags = 0;
-	uint32_t flags = 0;
 	vaddr_t end_va = 0;
-	vaddr_t va = 0;
-	size_t sz = 0;
-
-	if (exp_pt != param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	flags = params[0].value.b;
+	const uint32_t accept_flags = LDELF_MAP_FLAG_WRITEABLE |
+				      LDELF_MAP_FLAG_EXECUTABLE;
 
 	if ((flags & accept_flags) != flags)
 		return TEE_ERROR_BAD_PARAMETERS;
-	if (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)
+	if (flags & LDELF_MAP_FLAG_WRITEABLE)
 		prot |= TEE_MATTR_UW | TEE_MATTR_PW;
-	if (flags & PTA_SYSTEM_MAP_FLAG_EXECUTABLE)
+	if (flags & LDELF_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
 
-	va = reg_pair_to_64(params[1].value.a, params[1].value.b);
-	sz = ROUNDUP(params[0].value.a, SMALL_PAGE_SIZE);
-
 	/*
-	 * The vm_get_flags() and vm_set_prot() are supposed to detect or
-	 * handle overflow directly or indirectly. However, this function
-	 * an API function so an extra guard here is in order. If nothing
-	 * else to make it easier to review the code.
+	 * The vm_get_flags() and vm_unmap() are supposed to detect or handle
+	 * overflow directly or indirectly. However, since this function is an
+	 * API function it's worth having an extra guard here. If nothing else,
+	 * to increase code clarity.
 	 */
 	if (ADD_OVERFLOW(va, sz, &end_va))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -419,29 +471,14 @@ TEE_Result ldelf_set_prot(struct user_mode_ctx *uctx, uint32_t param_types,
 	return vm_set_prot(uctx, va, sz, prot);
 }
 
-TEE_Result ldelf_remap(struct user_mode_ctx *uctx, uint32_t param_types,
-		       TEE_Param params[TEE_NUM_PARAMS])
+TEE_Result ldelf_syscall_remap(unsigned long old_va, vaddr_t *new_va,
+			       size_t num_bytes, size_t pad_begin,
+			       size_t pad_end)
 {
-	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_VALUE_INPUT,
-					  TEE_PARAM_TYPE_VALUE_INOUT,
-					  TEE_PARAM_TYPE_VALUE_INPUT);
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t num_bytes = 0;
-	uint32_t pad_begin = 0;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
 	uint32_t vm_flags = 0;
-	uint32_t pad_end = 0;
-	vaddr_t old_va = 0;
-	vaddr_t new_va = 0;
-
-	if (exp_pt != param_types)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	num_bytes = params[0].value.a;
-	old_va = reg_pair_to_64(params[1].value.a, params[1].value.b);
-	new_va = reg_pair_to_64(params[2].value.a, params[2].value.b);
-	pad_begin = params[3].value.a;
-	pad_end = params[3].value.b;
 
 	res = vm_get_flags(uctx, old_va, num_bytes, &vm_flags);
 	if (res)
@@ -449,11 +486,39 @@ TEE_Result ldelf_remap(struct user_mode_ctx *uctx, uint32_t param_types,
 	if (vm_flags & VM_FLAG_PERMANENT)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = vm_remap(uctx, &new_va, old_va, num_bytes, pad_begin,
-		       pad_end);
-	if (!res)
-		reg_pair_from_64(new_va, &params[2].value.a,
-				 &params[2].value.b);
+	res = vm_remap(uctx, new_va, old_va, num_bytes, pad_begin, pad_end);
 
 	return res;
+}
+
+TEE_Result ldelf_syscall_gen_rnd_num(void *buf, size_t num_bytes)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ts_session *sess = ts_get_current_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(sess->ctx);
+
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)buf, num_bytes);
+	if (res)
+		return res;
+
+	return crypto_rng_read(buf, num_bytes);
+}
+
+/*
+ * Should be called after returning from ldelf. If user_ctx is not NULL means
+ * that ldelf crashed or otherwise didn't complete properly. This function will
+ * close the remaining handles and free the context structs allocated by ldelf.
+ */
+void ldelf_sess_cleanup(struct ts_session *sess)
+{
+	struct system_ctx *sys_ctx = sess->user_ctx;
+
+	if (sys_ctx) {
+		handle_db_destroy(&sys_ctx->db, bin_close);
+		free(sys_ctx);
+		sess->user_ctx = NULL;
+	}
 }

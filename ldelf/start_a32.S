@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <asm.S>
@@ -48,9 +49,9 @@ FUNC _ldelf_start , :
 
 2:	bl	ldelf
 	mov	r0, #0
-	bl	_utee_return
+	bl	_ldelf_return
 3:	mov	r0, #0
-	bl	_utee_panic
+	bl	_ldelf_panic
 reloc_begin_rel:
     .word __reloc_begin - reloc_begin_rel
 reloc_end_rel:

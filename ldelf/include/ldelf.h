@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #ifndef __LDELF_H
 #define __LDELF_H
 
+#ifndef __ASSEMBLER__
 #include <types_ext.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
@@ -99,6 +101,27 @@ struct dl_entry_arg {
 #define RTLD_NOW	2
 #define RTLD_GLOBAL	0x100
 #define RTLD_NODELETE	0x1000
+
+#define LDELF_MAP_FLAG_SHAREABLE	BIT32(0)
+#define LDELF_MAP_FLAG_WRITEABLE	BIT32(1)
+#define LDELF_MAP_FLAG_EXECUTABLE	BIT32(2)
+
+#endif /*!__ASSEMBLER__*/
+
+#define LDELF_RETURN		0
+#define LDELF_LOG		1
+#define LDELF_PANIC		2
+#define LDELF_MAP_ZI		3
+#define LDELF_UNMAP		4
+#define LDELF_OPEN_BIN		5
+#define LDELF_CLOSE_BIN		6
+#define LDELF_MAP_BIN		7
+#define LDELF_CP_FROM_BIN	8
+#define LDELF_SET_PROT		9
+#define LDELF_REMAP		10
+#define LDELF_GEN_RND_NUM	11
+
+#define LDELF_SCN_MAX		11
 
 /*
  * ldelf is loaded into memory by TEE Core. BSS is initialized and a

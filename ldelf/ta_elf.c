@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
 #include <assert.h>
@@ -10,7 +11,6 @@
 #include <elf_common.h>
 #include <ldelf.h>
 #include <link.h>
-#include <pta_system.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string_ext.h>
@@ -19,7 +19,6 @@
 #include <tee_internal_api_extensions.h>
 #include <unw/unwind.h>
 #include <user_ta_header.h>
-#include <utee_syscalls.h>
 #include <util.h>
 
 #include "sys.h"
@@ -430,7 +429,7 @@ static void init_elf(struct ta_elf *elf)
 {
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t va = 0;
-	uint32_t flags = PTA_SYSTEM_MAP_FLAG_SHAREABLE;
+	uint32_t flags = LDELF_MAP_FLAG_SHAREABLE;
 	size_t sz = 0;
 
 	res = sys_open_ta_bin(&elf->uuid, &elf->handle);
@@ -442,7 +441,7 @@ static void init_elf(struct ta_elf *elf)
 	 * the ELF header is included in a load segment.
 	 */
 	if (!elf->is_main)
-		flags |= PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
+		flags |= LDELF_MAP_FLAG_EXECUTABLE;
 	res = sys_map_ta_bin(&va, SMALL_PAGE_SIZE, flags, elf->handle, 0, 0, 0);
 	if (res)
 		err(res, "sys_map_ta_bin");
@@ -710,7 +709,7 @@ static size_t get_pad_begin(void)
 	COMPILE_TIME_ASSERT(CFG_TA_ASLR_MIN_OFFSET_PAGES <
 			    CFG_TA_ASLR_MAX_OFFSET_PAGES);
 	if (max > min) {
-		res = _utee_cryp_random_number_generate(&rnd32, sizeof(rnd32));
+		res = sys_gen_random_num(&rnd32, sizeof(rnd32));
 		if (res) {
 			DMSG("Random read failed: %#"PRIx32, res);
 			return min * SMALL_PAGE_SIZE;
@@ -812,15 +811,15 @@ static void populate_segments(struct ta_elf *elf)
 			}
 
 			if (seg->flags & PF_W)
-				flags |= PTA_SYSTEM_MAP_FLAG_WRITEABLE;
+				flags |= LDELF_MAP_FLAG_WRITEABLE;
 			else
-				flags |= PTA_SYSTEM_MAP_FLAG_SHAREABLE;
+				flags |= LDELF_MAP_FLAG_SHAREABLE;
 			if (seg->flags & PF_X)
-				flags |= PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
+				flags |= LDELF_MAP_FLAG_EXECUTABLE;
 			if (!(seg->flags & PF_R))
 				err(TEE_ERROR_NOT_SUPPORTED,
 				    "Segment must be readable");
-			if (flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE) {
+			if (flags & LDELF_MAP_FLAG_WRITEABLE) {
 				res = sys_map_zi(memsz, 0, &va, pad_begin,
 						 pad_end);
 				if (pad_begin && res == TEE_ERROR_OUT_OF_MEMORY)
@@ -1192,9 +1191,9 @@ void ta_elf_finalize_mappings(struct ta_elf *elf)
 		uint32_t flags =  0;
 
 		if (seg->flags & PF_W)
-			flags |= PTA_SYSTEM_MAP_FLAG_WRITEABLE;
+			flags |= LDELF_MAP_FLAG_WRITEABLE;
 		if (seg->flags & PF_X)
-			flags |= PTA_SYSTEM_MAP_FLAG_EXECUTABLE;
+			flags |= LDELF_MAP_FLAG_EXECUTABLE;
 
 		res = sys_set_prot(va, seg->memsz, flags);
 		if (res)

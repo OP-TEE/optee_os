@@ -9,7 +9,6 @@
 #include <kernel/handle.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/ldelf_loader.h>
-#include <kernel/ldelf_syscalls.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
@@ -286,10 +285,9 @@ static TEE_Result system_get_tpm_event_log(uint32_t param_types,
 
 static TEE_Result open_session(uint32_t param_types __unused,
 			       TEE_Param params[TEE_NUM_PARAMS] __unused,
-			       void **sess_ctx)
+			       void **sess_ctx __unused)
 {
 	struct ts_session *s = NULL;
-	struct system_ctx *ctx = NULL;
 
 	/* Check that we're called from a user TA */
 	s = ts_get_calling_session();
@@ -298,24 +296,10 @@ static TEE_Result open_session(uint32_t param_types __unused,
 	if (!is_user_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	ctx = calloc(1, sizeof(*ctx));
-	if (!ctx)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	*sess_ctx = ctx;
-
 	return TEE_SUCCESS;
 }
 
-static void close_session(void *sess_ctx)
-{
-	struct system_ctx *ctx = sess_ctx;
-
-	handle_db_destroy(&ctx->db, ta_bin_close);
-	free(ctx);
-}
-
-static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
+static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -331,19 +315,6 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 		return system_map_zi(uctx, param_types, params);
 	case PTA_SYSTEM_UNMAP:
 		return system_unmap(uctx, param_types, params);
-	case PTA_SYSTEM_OPEN_TA_BINARY:
-		return ldelf_open_ta_binary(sess_ctx, param_types, params);
-	case PTA_SYSTEM_CLOSE_TA_BINARY:
-		return ldelf_close_ta_binary(sess_ctx, param_types, params);
-	case PTA_SYSTEM_MAP_TA_BINARY:
-		return ldelf_map_ta_binary(sess_ctx, uctx, param_types, params);
-	case PTA_SYSTEM_COPY_FROM_TA_BINARY:
-		return ldelf_copy_from_ta_binary(sess_ctx, param_types,
-						  params);
-	case PTA_SYSTEM_SET_PROT:
-		return ldelf_set_prot(uctx, param_types, params);
-	case PTA_SYSTEM_REMAP:
-		return ldelf_remap(uctx, param_types, params);
 	case PTA_SYSTEM_DLOPEN:
 		return system_dlopen(uctx, param_types, params);
 	case PTA_SYSTEM_DLSYM:
@@ -360,5 +331,4 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 pseudo_ta_register(.uuid = PTA_SYSTEM_UUID, .name = "system.pta",
 		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_CONCURRENT,
 		   .open_session_entry_point = open_session,
-		   .close_session_entry_point = close_session,
 		   .invoke_command_entry_point = invoke_command);

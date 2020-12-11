@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 
+#include <ldelf.h>
 #include <trace.h>
-#include <utee_syscalls.h>
-#include <pta_system.h>
 
 #include "sys.h"
 
 int trace_level = TRACE_LEVEL;
 const char trace_ext_prefix[]  = "LD";
-
-static uint32_t sess;
 
 void __panic(const char *file __maybe_unused, const int line __maybe_unused,
 	     const char *func __maybe_unused)
@@ -24,7 +22,7 @@ void __panic(const char *file __maybe_unused, const int line __maybe_unused,
 			 file ? file : "?", file ? line : 0,
 			 func ? "<" : "", func ? func : "", func ? ">" : "");
 
-	_utee_panic(1);
+	_ldelf_panic(1);
 	/*NOTREACHED*/
 	while (true)
 		;
@@ -32,204 +30,60 @@ void __panic(const char *file __maybe_unused, const int line __maybe_unused,
 
 void sys_return_cleanup(void)
 {
-	if (sess) {
-		if (_utee_close_ta_session(sess))
-			panic();
-		sess = 0;
-	}
-
-	_utee_return(0);
+	_ldelf_return(0);
 	/*NOTREACHED*/
 	while (true)
 		;
 }
 
-static TEE_Result invoke_sys_ta(uint32_t cmdid, struct utee_params *params)
-{
-	TEE_Result res = TEE_SUCCESS;
-	uint32_t ret_orig = 0;
-
-	if (!sess) {
-		uint32_t s = 0;
-
-		res = _utee_open_ta_session(&(const TEE_UUID)PTA_SYSTEM_UUID,
-					    0, NULL, &s, &ret_orig);
-		if (res)
-			return res;
-		sess = s;
-	}
-
-	return _utee_invoke_ta_command(sess, 0, cmdid, params, &ret_orig);
-}
-
 TEE_Result sys_map_zi(size_t num_bytes, uint32_t flags, vaddr_t *va,
 		      size_t pad_begin, size_t pad_end)
 {
-	TEE_Result res = TEE_SUCCESS;
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INOUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_NONE),
-	};
-	uint32_t r[2] = { 0 };
-
-	params.vals[0] = num_bytes;
-	params.vals[1] = flags;
-	reg_pair_from_64(*va, r, r + 1);
-	params.vals[2] = r[0];
-	params.vals[3] = r[1];
-	params.vals[4] = pad_begin;
-	params.vals[5] = pad_end;
-
-	res = invoke_sys_ta(PTA_SYSTEM_MAP_ZI, &params);
-	if (!res)
-		*va = reg_pair_to_64(params.vals[2], params.vals[3]);
-	return res;
+	return _ldelf_map_zi(va, num_bytes, pad_begin, pad_end, flags);
 }
 
 TEE_Result sys_unmap(vaddr_t va, size_t num_bytes)
 {
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE),
-	};
-	uint32_t r[2] = { 0 };
-
-	params.vals[0] = num_bytes;
-	reg_pair_from_64(va, r, r + 1);
-	params.vals[2] = r[0];
-	params.vals[3] = r[1];
-
-	return invoke_sys_ta(PTA_SYSTEM_UNMAP, &params);
+	return _ldelf_unmap(va, num_bytes);
 }
 
 TEE_Result sys_open_ta_bin(const TEE_UUID *uuid, uint32_t *handle)
 {
-	TEE_Result res = TEE_SUCCESS;
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
-					 TEE_PARAM_TYPE_VALUE_OUTPUT,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE),
-	};
-
-	params.vals[0] = (vaddr_t)uuid;
-	params.vals[1] = sizeof(*uuid);
-
-	res = invoke_sys_ta(PTA_SYSTEM_OPEN_TA_BINARY, &params);
-	if (!res)
-		*handle = params.vals[2];
-	return res;
+	return _ldelf_open_bin(uuid, sizeof(TEE_UUID), handle);
 }
 
 TEE_Result sys_close_ta_bin(uint32_t handle)
 {
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE),
-	};
-
-	params.vals[0] = handle;
-
-	return invoke_sys_ta(PTA_SYSTEM_CLOSE_TA_BINARY, &params);
+	return _ldelf_close_bin(handle);
 }
 
 TEE_Result sys_map_ta_bin(vaddr_t *va, size_t num_bytes, uint32_t flags,
 			  uint32_t handle, size_t offs, size_t pad_begin,
 			  size_t pad_end)
 {
-	TEE_Result res = TEE_SUCCESS;
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INOUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT),
-	};
-	uint32_t r[2] = { 0 };
-
-	params.vals[0] = handle;
-	params.vals[1] = flags;
-	params.vals[2] = offs;
-	params.vals[3] = num_bytes;
-	reg_pair_from_64(*va, r, r + 1);
-	params.vals[4] = r[0];
-	params.vals[5] = r[1];
-	params.vals[6] = pad_begin;
-	params.vals[7] = pad_end;
-
-	res = invoke_sys_ta(PTA_SYSTEM_MAP_TA_BINARY, &params);
-	if (!res)
-		*va = reg_pair_to_64(params.vals[4], params.vals[5]);
-	return res;
+	return _ldelf_map_bin(va, num_bytes, handle, offs,
+			     pad_begin, pad_end, flags);
 }
 
 
 TEE_Result sys_copy_from_ta_bin(void *dst, size_t num_bytes, uint32_t handle,
 				size_t offs)
 {
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_MEMREF_OUTPUT,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE),
-	};
-
-	params.vals[0] = handle;
-	params.vals[1] = offs;
-	params.vals[2] = (vaddr_t)dst;
-	params.vals[3] = num_bytes;
-
-	return invoke_sys_ta(PTA_SYSTEM_COPY_FROM_TA_BINARY, &params);
+	return _ldelf_cp_from_bin(dst, offs, num_bytes, handle);
 }
 
 TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags)
 {
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_NONE,
-					 TEE_PARAM_TYPE_NONE),
-	};
-	uint32_t r[2] = { 0 };
-
-	params.vals[0] = num_bytes;
-	params.vals[1] = flags;
-	reg_pair_from_64(va, r, r + 1);
-	params.vals[2] = r[0];
-	params.vals[3] = r[1];
-
-	return invoke_sys_ta(PTA_SYSTEM_SET_PROT, &params);
+	return _ldelf_set_prot(va, num_bytes, flags);
 }
 
 TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
 		     size_t pad_begin, size_t pad_end)
 {
-	TEE_Result res = TEE_SUCCESS;
-	struct utee_params params = {
-		.types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT,
-					 TEE_PARAM_TYPE_VALUE_INOUT,
-					 TEE_PARAM_TYPE_VALUE_INPUT),
-	};
-	uint32_t r[2] = { 0 };
+	return _ldelf_remap(old_va, new_va, num_bytes, pad_begin, pad_end);
+}
 
-	params.vals[0] = num_bytes;
-	reg_pair_from_64(old_va, r, r + 1);
-	params.vals[2] = r[0];
-	params.vals[3] = r[1];
-	reg_pair_from_64(*new_va, r, r + 1);
-	params.vals[4] = r[0];
-	params.vals[5] = r[1];
-	params.vals[6] = pad_begin;
-	params.vals[7] = pad_end;
-
-	res = invoke_sys_ta(PTA_SYSTEM_REMAP, &params);
-	if (!res)
-		*new_va = reg_pair_to_64(params.vals[4], params.vals[5]);
-	return res;
+TEE_Result sys_gen_random_num(void *buf, size_t blen)
+{
+	return _ldelf_gen_rnd_num(buf, blen);
 }
