@@ -318,3 +318,95 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 	return res;
 }
 #endif /*CFG_FTRACE_SUPPORT*/
+
+TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
+			uint32_t flags)
+{
+	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *arg = NULL;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+
+	assert(uuid);
+
+	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
+	arg = (struct dl_entry_arg *)usr_stack;
+
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg));
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	memset(arg, 0, sizeof(*arg));
+	arg->cmd = LDELF_DL_ENTRY_DLOPEN;
+	arg->dlopen.uuid = *uuid;
+	arg->dlopen.flags = flags;
+
+	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+				     usr_stack, uctx->dl_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	if (panicked) {
+		EMSG("ldelf dl_entry function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+	if (!res)
+		res = arg->ret;
+
+	return res;
+}
+
+TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
+		       const char *sym, size_t maxlen, vaddr_t *val)
+{
+	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *arg = NULL;
+	uint32_t panic_code = 0;
+	uint32_t panicked = 0;
+	size_t len = strnlen(sym, maxlen);
+
+	if (len == maxlen)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
+	arg = (struct dl_entry_arg *)usr_stack;
+
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_WRITE |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
+				     (uaddr_t)arg, sizeof(*arg) + len + 1);
+	if (res) {
+		EMSG("ldelf stack is inaccessible!");
+		return res;
+	}
+
+	memset(arg, 0, sizeof(*arg));
+	arg->cmd = LDELF_DL_ENTRY_DLSYM;
+	arg->dlsym.uuid = *uuid;
+	memcpy(arg->dlsym.symbol, sym, len);
+	arg->dlsym.symbol[len] = '\0';
+
+	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+				     usr_stack, uctx->dl_entry_func,
+				     is_arm32, &panicked, &panic_code);
+	if (panicked) {
+		EMSG("ldelf dl_entry function panicked");
+		abort_print_current_ta();
+		res = TEE_ERROR_TARGET_DEAD;
+	}
+	if (!res) {
+		res = arg->ret;
+		if (!res)
+			*val = arg->dlsym.val;
+	}
+
+	return res;
+}
