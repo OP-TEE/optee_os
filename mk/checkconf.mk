@@ -177,7 +177,7 @@ cfg-check-value =                                                          \
 # Example:
 # $(call force,CFG_FOO,foo,required by CFG_BAR)
 define force
-$(eval $(call _force,$(1),$(2),$(3)))
+$(eval $(call _force,$(strip $(1)),$(2),$(3)))
 endef
 
 define _force
