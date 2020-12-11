@@ -13,7 +13,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
 #include <kernel/ts_store.h>
-#include <kernel/user_ta.h>
+#include <kernel/user_mode_ctx.h>
 #include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
@@ -41,8 +41,7 @@ struct system_ctx {
 
 static unsigned int system_pnum;
 
-static TEE_Result system_rng_reseed(struct ts_session *s __unused,
-				    uint32_t param_types,
+static TEE_Result system_rng_reseed(uint32_t param_types,
 				    TEE_Param params[TEE_NUM_PARAMS])
 {
 	size_t entropy_sz = 0;
@@ -65,7 +64,7 @@ static TEE_Result system_rng_reseed(struct ts_session *s __unused,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
+static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 					      uint32_t param_types,
 					      TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -77,7 +76,6 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
-	struct user_ta_ctx *utc = NULL;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -86,8 +84,6 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 	    params[1].memref.size < TA_DERIVED_KEY_MIN_SIZE ||
 	    params[1].memref.size > TA_DERIVED_KEY_MAX_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	utc = to_user_ta_ctx(s->ctx);
 
 	/*
 	 * The derived key shall not end up in non-secure memory by
@@ -99,7 +95,7 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 	 */
 	access_flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER |
 		       TEE_MEMORY_ACCESS_SECURE;
-	res = vm_check_access_rights(&utc->uctx, access_flags,
+	res = vm_check_access_rights(uctx, access_flags,
 				     (uaddr_t)params[1].memref.buffer,
 				     params[1].memref.size);
 	if (res != TEE_SUCCESS)
@@ -113,7 +109,7 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 	if (!data)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(data, &s->ctx->uuid, sizeof(TEE_UUID));
+	memcpy(data, &uctx->ts_ctx->uuid, sizeof(TEE_UUID));
 
 	/* Append the user provided data */
 	memcpy(data + sizeof(TEE_UUID), params[0].memref.buffer,
@@ -127,14 +123,14 @@ static TEE_Result system_derive_ta_unique_key(struct ts_session *s,
 	return res;
 }
 
-static TEE_Result system_map_zi(struct ts_session *s, uint32_t param_types,
+static TEE_Result system_map_zi(struct user_mode_ctx *uctx,
+				uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE);
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	uint32_t prot = TEE_MATTR_URW | TEE_MATTR_PRW;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct mobj *mobj = NULL;
@@ -165,7 +161,7 @@ static TEE_Result system_map_zi(struct ts_session *s, uint32_t param_types,
 	fobj_put(f);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = vm_map_pad(&utc->uctx, &va, num_bytes, prot, vm_flags,
+	res = vm_map_pad(uctx, &va, num_bytes, prot, vm_flags,
 			 mobj, 0, pad_begin, pad_end, 0);
 	mobj_put(mobj);
 	if (!res)
@@ -174,14 +170,13 @@ static TEE_Result system_map_zi(struct ts_session *s, uint32_t param_types,
 	return res;
 }
 
-static TEE_Result system_unmap(struct ts_session *s, uint32_t param_types,
+static TEE_Result system_unmap(struct user_mode_ctx *uctx, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t vm_flags = 0;
 	vaddr_t end_va = 0;
@@ -206,13 +201,13 @@ static TEE_Result system_unmap(struct ts_session *s, uint32_t param_types,
 	if (ADD_OVERFLOW(va, sz, &end_va))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
+	res = vm_get_flags(uctx, va, sz, &vm_flags);
 	if (res)
 		return res;
 	if (vm_flags & VM_FLAG_PERMANENT)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	return vm_unmap(&to_user_ta_ctx(s->ctx)->uctx, va, sz);
+	return vm_unmap(uctx, va, sz);
 }
 
 static void ta_bin_close(void *ptr)
@@ -357,7 +352,7 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 }
 
 static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
-				       struct ts_session *s,
+				       struct user_mode_ctx *uctx,
 				       uint32_t param_types,
 				       TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -368,7 +363,6 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	struct bin_handle *binh = NULL;
 	uint32_t num_rounded_bytes = 0;
 	TEE_Result res = TEE_SUCCESS;
@@ -432,7 +426,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 */
 		vm_set_ctx(NULL);
 		file_lock(binh->f);
-		vm_set_ctx(s->ctx);
+		vm_set_ctx(uctx->ts_ctx);
 	}
 	file_is_locked = true;
 	fs = file_find_slice(binh->f, offs_pages);
@@ -455,7 +449,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
+		res = vm_map_pad(uctx, &va, num_rounded_bytes,
 				 prot, VM_FLAG_READONLY,
 				 mobj, 0, pad_begin, pad_end, 0);
 		mobj_put(mobj);
@@ -481,7 +475,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
 		}
-		res = vm_map_pad(&utc->uctx, &va, num_rounded_bytes,
+		res = vm_map_pad(uctx, &va, num_rounded_bytes,
 				 TEE_MATTR_PRW, vm_flags, mobj, 0,
 				 pad_begin, pad_end, 0);
 		mobj_put(mobj);
@@ -490,7 +484,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		res = binh_copy_to(binh, va, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
-		res = vm_set_prot(&utc->uctx, va, num_rounded_bytes,
+		res = vm_set_prot(uctx, va, num_rounded_bytes,
 				  prot);
 		if (res)
 			goto err_unmap_va;
@@ -499,7 +493,7 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 		 * The context currently is active set it again to update
 		 * the mapping.
 		 */
-		vm_set_ctx(s->ctx);
+		vm_set_ctx(uctx->ts_ctx);
 
 		if (!(flags & PTA_SYSTEM_MAP_FLAG_WRITEABLE)) {
 			res = file_add_slice(binh->f, f, offs_pages);
@@ -514,14 +508,14 @@ static TEE_Result system_map_ta_binary(struct system_ctx *ctx,
 	return TEE_SUCCESS;
 
 err_unmap_va:
-	if (vm_unmap(&utc->uctx, va, num_rounded_bytes))
+	if (vm_unmap(uctx, va, num_rounded_bytes))
 		panic();
 
 	/*
 	 * The context currently is active set it again to update
 	 * the mapping.
 	 */
-	vm_set_ctx(s->ctx);
+	vm_set_ctx(uctx->ts_ctx);
 
 err:
 	if (file_is_locked)
@@ -551,7 +545,7 @@ static TEE_Result system_copy_from_ta_binary(struct system_ctx *ctx,
 			    params[0].value.b, params[1].memref.size);
 }
 
-static TEE_Result system_set_prot(struct ts_session *s,
+static TEE_Result system_set_prot(struct user_mode_ctx *uctx,
 				  uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -561,7 +555,6 @@ static TEE_Result system_set_prot(struct ts_session *s,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE);
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	uint32_t prot = TEE_MATTR_UR | TEE_MATTR_PR;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t vm_flags = 0;
@@ -594,7 +587,7 @@ static TEE_Result system_set_prot(struct ts_session *s,
 	if (ADD_OVERFLOW(va, sz, &end_va))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = vm_get_flags(&utc->uctx, va, sz, &vm_flags);
+	res = vm_get_flags(uctx, va, sz, &vm_flags);
 	if (res)
 		return res;
 	if (vm_flags & VM_FLAG_PERMANENT)
@@ -609,17 +602,16 @@ static TEE_Result system_set_prot(struct ts_session *s,
 	    (prot & (TEE_MATTR_UW | TEE_MATTR_PW)))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	return vm_set_prot(&utc->uctx, va, sz, prot);
+	return vm_set_prot(uctx, va, sz, prot);
 }
 
-static TEE_Result system_remap(struct ts_session *s, uint32_t param_types,
+static TEE_Result system_remap(struct user_mode_ctx *uctx, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT,
 					  TEE_PARAM_TYPE_VALUE_INOUT,
 					  TEE_PARAM_TYPE_VALUE_INPUT);
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t num_bytes = 0;
 	uint32_t pad_begin = 0;
@@ -637,13 +629,13 @@ static TEE_Result system_remap(struct ts_session *s, uint32_t param_types,
 	pad_begin = params[3].value.a;
 	pad_end = params[3].value.b;
 
-	res = vm_get_flags(&utc->uctx, old_va, num_bytes, &vm_flags);
+	res = vm_get_flags(uctx, old_va, num_bytes, &vm_flags);
 	if (res)
 		return res;
 	if (vm_flags & VM_FLAG_PERMANENT)
 		return TEE_ERROR_ACCESS_DENIED;
 
-	res = vm_remap(&utc->uctx, &new_va, old_va, num_bytes, pad_begin,
+	res = vm_remap(uctx, &new_va, old_va, num_bytes, pad_begin,
 		       pad_end);
 	if (!res)
 		reg_pair_from_64(new_va, &params[2].value.a,
@@ -659,10 +651,10 @@ static const bool is_arm32 = true;
 static const bool is_arm32;
 #endif
 
-static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
+static TEE_Result call_ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 				    uint32_t flags)
 {
-	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
+	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -673,7 +665,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = vm_check_access_rights(&utc->uctx,
+	res = vm_check_access_rights(uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_WRITE |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -689,7 +681,7 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlopen.flags = flags;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->uctx.dl_entry_func,
+				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
@@ -702,10 +694,10 @@ static TEE_Result call_ldelf_dlopen(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	return res;
 }
 
-static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
+static TEE_Result call_ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 				   const char *sym, size_t maxlen, vaddr_t *val)
 {
-	uaddr_t usr_stack = utc->uctx.ldelf_stack_ptr;
+	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
@@ -718,7 +710,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = vm_check_access_rights(&utc->uctx,
+	res = vm_check_access_rights(uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_WRITE |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -735,7 +727,7 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	arg->dlsym.symbol[len] = '\0';
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
-				     usr_stack, utc->uctx.dl_entry_func,
+				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
@@ -751,7 +743,8 @@ static TEE_Result call_ldelf_dlsym(struct user_ta_ctx *utc, TEE_UUID *uuid,
 	return res;
 }
 
-static TEE_Result system_dlopen(struct ts_session *cs, uint32_t param_types,
+static TEE_Result system_dlopen(struct user_mode_ctx *uctx,
+				uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -760,7 +753,6 @@ static TEE_Result system_dlopen(struct ts_session *cs, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	struct user_ta_ctx *utc = NULL;
 	TEE_UUID *uuid = NULL;
 	uint32_t flags = 0;
 
@@ -773,16 +765,14 @@ static TEE_Result system_dlopen(struct ts_session *cs, uint32_t param_types,
 
 	flags = params[1].value.a;
 
-	utc = to_user_ta_ctx(cs->ctx);
-
 	s = ts_pop_current_session();
-	res = call_ldelf_dlopen(utc, uuid, flags);
+	res = call_ldelf_dlopen(uctx, uuid, flags);
 	ts_push_current_session(s);
 
 	return res;
 }
 
-static TEE_Result system_dlsym(struct ts_session *cs, uint32_t param_types,
+static TEE_Result system_dlsym(struct user_mode_ctx *uctx, uint32_t param_types,
 			       TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
@@ -791,7 +781,6 @@ static TEE_Result system_dlsym(struct ts_session *cs, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	struct user_ta_ctx *utc = NULL;
 	const char *sym = NULL;
 	TEE_UUID *uuid = NULL;
 	size_t maxlen = 0;
@@ -809,10 +798,8 @@ static TEE_Result system_dlsym(struct ts_session *cs, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	maxlen = params[1].memref.size;
 
-	utc = to_user_ta_ctx(cs->ctx);
-
 	s = ts_pop_current_session();
-	res = call_ldelf_dlsym(utc, uuid, sym, maxlen, &va);
+	res = call_ldelf_dlsym(uctx, uuid, sym, maxlen, &va);
 	ts_push_current_session(s);
 
 	if (!res)
@@ -877,33 +864,35 @@ static TEE_Result invoke_command(void *sess_ctx, uint32_t cmd_id,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	struct ts_session *s = ts_get_calling_session();
+	struct user_mode_ctx *uctx = to_user_mode_ctx(s->ctx);
 
 	switch (cmd_id) {
 	case PTA_SYSTEM_ADD_RNG_ENTROPY:
-		return system_rng_reseed(s, param_types, params);
+		return system_rng_reseed(param_types, params);
 	case PTA_SYSTEM_DERIVE_TA_UNIQUE_KEY:
-		return system_derive_ta_unique_key(s, param_types, params);
+		return system_derive_ta_unique_key(uctx, param_types, params);
 	case PTA_SYSTEM_MAP_ZI:
-		return system_map_zi(s, param_types, params);
+		return system_map_zi(uctx, param_types, params);
 	case PTA_SYSTEM_UNMAP:
-		return system_unmap(s, param_types, params);
+		return system_unmap(uctx, param_types, params);
 	case PTA_SYSTEM_OPEN_TA_BINARY:
 		return system_open_ta_binary(sess_ctx, param_types, params);
 	case PTA_SYSTEM_CLOSE_TA_BINARY:
 		return system_close_ta_binary(sess_ctx, param_types, params);
 	case PTA_SYSTEM_MAP_TA_BINARY:
-		return system_map_ta_binary(sess_ctx, s, param_types, params);
+		return system_map_ta_binary(sess_ctx, uctx, param_types,
+					    params);
 	case PTA_SYSTEM_COPY_FROM_TA_BINARY:
 		return system_copy_from_ta_binary(sess_ctx, param_types,
 						  params);
 	case PTA_SYSTEM_SET_PROT:
-		return system_set_prot(s, param_types, params);
+		return system_set_prot(uctx, param_types, params);
 	case PTA_SYSTEM_REMAP:
-		return system_remap(s, param_types, params);
+		return system_remap(uctx, param_types, params);
 	case PTA_SYSTEM_DLOPEN:
-		return system_dlopen(s, param_types, params);
+		return system_dlopen(uctx, param_types, params);
 	case PTA_SYSTEM_DLSYM:
-		return system_dlsym(s, param_types, params);
+		return system_dlsym(uctx, param_types, params);
 	case PTA_SYSTEM_GET_TPM_EVENT_LOG:
 		return system_get_tpm_event_log(param_types, params);
 	default:
