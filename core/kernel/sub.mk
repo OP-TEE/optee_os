@@ -6,6 +6,7 @@ srcs-$(CFG_DT) += dt.c
 srcs-y += pm.c
 srcs-y += handle.c
 srcs-y += interrupt.c
+srcs-$(CFG_WITH_USER_TA) += ldelf_syscalls.c
 srcs-$(CFG_LOCKDEP) += lockdep.c
 ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += msg_param.c
