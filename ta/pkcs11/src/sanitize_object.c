@@ -214,9 +214,6 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	enum pkcs11_class_id class = get_class(*dst);
 
-	if (class == PKCS11_CKO_UNDEFINED_ID)
-		return PKCS11_CKR_GENERAL_ERROR;
-
 	/*
 	 * Serialized attributes: current applicable only to the key
 	 * templates which are tables of attributes.
@@ -229,6 +226,12 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 	default:
 		return PKCS11_RV_NOT_FOUND;
 	}
+
+	if (class == PKCS11_CKO_UNDEFINED_ID) {
+		DMSG("Template without CLASS not supported yet");
+		return PKCS11_CKR_TEMPLATE_INCOMPLETE;
+	}
+
 	/* Such attributes are expected only for keys (and vendor defined) */
 	if (pkcs11_attr_class_is_key(class))
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
