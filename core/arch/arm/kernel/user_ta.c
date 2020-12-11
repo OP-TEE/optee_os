@@ -455,6 +455,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	mutex_lock(&tee_ta_mutex);
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
+	s->ts_sess.handle_svc = s->ts_sess.ctx->ops->handle_svc;
 	/*
 	 * Another thread trying to load this same TA may need to wait
 	 * until this context is fully initialized. This is needed to

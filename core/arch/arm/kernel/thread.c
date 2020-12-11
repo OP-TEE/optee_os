@@ -1558,8 +1558,8 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	assert(sess && sess->ctx->ops && sess->ctx->ops->handle_svc);
-	if (sess->ctx->ops->handle_svc(regs)) {
+	assert(sess && sess->handle_svc);
+	if (sess->handle_svc(regs)) {
 		/* We're about to switch back to user mode */
 		gprof_set_status(sess, TS_GPROF_RESUME);
 	} else {
