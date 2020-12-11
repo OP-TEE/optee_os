@@ -19,9 +19,6 @@
 
 #define I2C_CLK_RATE	24000000 /* Bits per second */
 
-#define USE_I2C_STATIC_ADDRESS \
-	(!defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY))
-
 /* Utility macros (__x identifies the bus [1 .. 3]) */
 #define I2C_CFG_SCL(__x)	(IOMUXC_I2C1_SCL_CFG_OFF + ((__x) - 1) * 0x8)
 #define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
@@ -52,7 +49,7 @@
 #endif
 
 static struct io_pa_va i2c_bus[3] = {
-#if USE_I2C_STATIC_ADDRESS
+#if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
 #if defined(I2C1_BASE)
 	[0] = { .pa = I2C1_BASE, },
 #endif
@@ -449,7 +446,7 @@ static TEE_Result get_va(paddr_t pa, vaddr_t *va)
 	return TEE_ERROR_GENERIC;
 }
 
-#if !USE_I2C_STATIC_ADDRESS
+#if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
 static const char *const dt_i2c_match_table[] = {
 	"fsl,imx21-i2c",
 };
@@ -519,7 +516,7 @@ static TEE_Result i2c_map_controller(void)
 
 	return ret;
 }
-#endif /* !USE_I2C_STATIC_ADDRESS */
+#endif
 
 static TEE_Result i2c_init(void)
 {
