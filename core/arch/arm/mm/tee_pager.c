@@ -1703,7 +1703,7 @@ void tee_pager_pgt_save_and_release_entries(struct pgt *pgt)
 	assert(!pgt->num_used_entries);
 
 out:
-	areas = to_user_ta_ctx(pgt->ctx)->uctx.areas;
+	areas = to_user_mode_ctx(pgt->ctx)->areas;
 	if (areas) {
 		TAILQ_FOREACH(area, areas, link) {
 			if (area->pgt == pgt)
