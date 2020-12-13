@@ -42,11 +42,11 @@ se050-one-enabled = $(call cfg-one-enabled, \
                         $(foreach v,$(1), CFG_NXP_SE05X_$(v)_DRV))
 # Asymmetric ciphers
 CFG_NXP_SE05X_RSA_DRV ?= y
-$(call force, CFG_NXP_SE05X_ACIPHER_DRV, $(call se050-one-enabled, RSA))
+$(call force,CFG_NXP_SE05X_ACIPHER_DRV,$(call se050-one-enabled,RSA))
 
 # Asymmetric driver
 ifeq ($(CFG_NXP_SE05X_ACIPHER_DRV),y)
-$(call force, CFG_CRYPTO_DRV_ACIPHER,y,Mandated by CFG_NXP_SE05X_ACIPHER_DRV)
+$(call force,CFG_CRYPTO_DRV_ACIPHER,y,Mandated by CFG_NXP_SE05X_ACIPHER_DRV)
 endif
 
 # Asymmetric ciphers configuration
@@ -59,11 +59,11 @@ endif
 
 # Symmetric ciphers
 CFG_NXP_SE05X_CTR_DRV ?= y
-$(call force, CFG_NXP_SE05X_CIPHER_DRV, $(call se050-one-enabled, CTR))
+$(call force,CFG_NXP_SE05X_CIPHER_DRV,$(call se050-one-enabled,CTR))
 
 # Symmetric driver
 ifeq ($(CFG_NXP_SE05X_CIPHER_DRV),y)
-$(call force, CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_NXP_SE05X_CIPHER_DRV)
+$(call force,CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_NXP_SE05X_CIPHER_DRV)
 endif
 
 # Plug and Trust NXP SE050X OP-TEE enabled static library
