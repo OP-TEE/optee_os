@@ -14,6 +14,7 @@
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -42,6 +43,8 @@
 #define FILE_IS_LAST_ENTRY              (1u << 1)
 
 #define TEE_RPMB_FS_FILENAME_LENGTH 224
+
+#define TMP_BLOCK_SIZE			4096U
 
 #define RPMB_MAX_RETRIES		10
 
@@ -2369,19 +2372,82 @@ out:
 	return res;
 }
 
+static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
+				      size_t pos, const void *buf,
+				      size_t size, uintptr_t new_fat,
+				      size_t new_size)
+{
+	uintptr_t old_fat = fh->fat_entry.start_address;
+	size_t old_size = fh->fat_entry.data_size;
+	const uint8_t *rem_buf = buf;
+	size_t rem_size = size;
+	uint8_t *blk_buf = NULL;
+	size_t blk_offset = 0;
+	size_t blk_size = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	blk_buf = mempool_alloc(mempool_default, TMP_BLOCK_SIZE);
+	if (!blk_buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	while (blk_offset < new_size) {
+		blk_size = MIN(TMP_BLOCK_SIZE, new_size - blk_offset);
+
+		/* Possibly read old RPMB data in temporary buffer */
+		if (blk_offset < pos && blk_offset < old_size) {
+			size_t rd_size = MIN(blk_size, old_size - blk_offset);
+
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
+					    old_fat + blk_offset, blk_buf,
+					    rd_size, fh->fat_entry.fek,
+					    fh->uuid);
+			if (res != TEE_SUCCESS)
+				break;
+		}
+
+		/* Possibly update data in temporary buffer */
+		if ((blk_offset + TMP_BLOCK_SIZE > pos) &&
+		    (blk_offset < pos + size)) {
+			uint8_t *dst = blk_buf;
+			size_t copy_size = TMP_BLOCK_SIZE;
+
+			if (blk_offset < pos) {
+				size_t offset = pos - blk_offset;
+
+				dst += offset;
+				copy_size -= offset;
+			}
+			copy_size = MIN(copy_size, rem_size);
+
+			memcpy(dst, rem_buf, copy_size);
+			rem_buf += copy_size;
+			rem_size -= copy_size;
+		}
+
+		/* Write temporary buffer to new RPMB destination */
+		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, new_fat + blk_offset,
+				     blk_buf, blk_size,
+				     fh->fat_entry.fek, fh->uuid);
+		if (res != TEE_SUCCESS)
+			break;
+
+		blk_offset += blk_size;
+	}
+
+	mempool_free(mempool_default, blk_buf);
+
+	return res;
+}
+
 static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 					  size_t pos, const void *buf,
 					  size_t size)
 {
-	TEE_Result res;
-	tee_mm_pool_t p;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	tee_mm_pool_t p = { };
 	bool pool_result = false;
-	tee_mm_entry_t *mm;
-	size_t end;
-	size_t newsize;
-	uint8_t *newbuf = NULL;
-	uintptr_t newaddr;
-	uint32_t start_addr;
+	size_t end = 0;
+	uint32_t start_addr = 0;
 
 	if (!size)
 		return TEE_SUCCESS;
@@ -2426,57 +2492,37 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 		DMSG("Updating data in-place");
 		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, start_addr, buf,
 				     size, fh->fat_entry.fek, fh->uuid);
-		if (res != TEE_SUCCESS)
-			goto out;
 	} else {
 		/*
 		 * File must be extended, or update cannot be atomic: allocate,
 		 * read, update, write.
 		 */
+		size_t new_size = MAX(end, fh->fat_entry.data_size);
+		tee_mm_entry_t *mm = tee_mm_alloc(&p, new_size);
+		uintptr_t new_fat_entry = 0;
 
 		DMSG("Need to re-allocate");
-		newsize = MAX(end, fh->fat_entry.data_size);
-		mm = tee_mm_alloc(&p, newsize);
 		if (!mm) {
 			DMSG("RPMB: No space left");
 			res = TEE_ERROR_STORAGE_NO_SPACE;
 			goto out;
 		}
-		newbuf = calloc(1, newsize);
-		if (!newbuf) {
-			res = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+
+		new_fat_entry = tee_mm_get_smem(mm);
+
+		res = update_write_helper(fh, pos, buf, size,
+					  new_fat_entry, new_size);
+		if (res == TEE_SUCCESS) {
+			fh->fat_entry.data_size = new_size;
+			fh->fat_entry.start_address = new_fat_entry;
+
+			res = write_fat_entry(fh, true);
 		}
-
-		if (fh->fat_entry.data_size) {
-			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
-					    fh->fat_entry.start_address,
-					    newbuf, fh->fat_entry.data_size,
-					    fh->fat_entry.fek, fh->uuid);
-			if (res != TEE_SUCCESS)
-				goto out;
-		}
-
-		memcpy(newbuf + pos, buf, size);
-
-		newaddr = tee_mm_get_smem(mm);
-		res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, newaddr, newbuf,
-				     newsize, fh->fat_entry.fek, fh->uuid);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		fh->fat_entry.data_size = newsize;
-		fh->fat_entry.start_address = newaddr;
-		res = write_fat_entry(fh, true);
-		if (res != TEE_SUCCESS)
-			goto out;
 	}
 
 out:
 	if (pool_result)
 		tee_mm_final(&p);
-	if (newbuf)
-		free(newbuf);
 
 	return res;
 }
