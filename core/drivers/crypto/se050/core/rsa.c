@@ -212,67 +212,6 @@ static TEE_Result decrypt_es(uint32_t algo, struct rsa_keypair *key,
 	return res;
 }
 
-static TEE_Result decrypt_nopad(struct rsa_keypair *key, const uint8_t *src,
-				size_t src_len, uint8_t *dst, size_t *dst_len)
-{
-	sss_status_t st = kStatus_SSS_Fail;
-	sss_se05x_asymmetric_t ctx = { };
-	sss_se05x_object_t kobject = { };
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *buf = NULL;
-	size_t offset = 0;
-	size_t blen = 0;
-	size_t rsa_len = 0;
-
-	res = se050_inject_keypair(&kobject, key);
-	if (res)
-		return res;
-
-	st = sss_se05x_asymmetric_context_init(&ctx, se050_session, &kobject,
-					       kAlgorithm_SSS_RSASSA_NO_PADDING,
-					       kMode_SSS_Decrypt);
-	if (st != kStatus_SSS_Success) {
-		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	blen = CFG_CORE_BIGNUM_MAX_BITS / 8;
-	buf = malloc(blen);
-	if (!buf) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	rsa_len = crypto_bignum_num_bytes(key->n);
-	memset(buf, 0, blen);
-	memcpy(buf + rsa_len - src_len, src, src_len);
-
-	st = sss_se05x_asymmetric_decrypt(&ctx, buf, src_len, buf, &blen);
-	if (st != kStatus_SSS_Success) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	offset = 0;
-	while ((offset < rsa_len - 1) && (buf[offset] == 0))
-		offset++;
-
-	if (*dst_len < rsa_len - offset) {
-		*dst_len = rsa_len - offset;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
-	}
-	*dst_len = rsa_len - offset;
-	memcpy(dst, (char *)buf + offset, *dst_len);
-out:
-	free(buf);
-	if (!se050_rsa_keypair_from_nvm(key))
-		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
-	sss_se05x_asymmetric_context_free(&ctx);
-
-	return res;
-}
-
 static TEE_Result encrypt_es(uint32_t algo, struct rsa_public_key *key,
 			     const uint8_t *src, size_t src_len,
 			     uint8_t *dst, size_t *dst_len)
@@ -302,66 +241,6 @@ static TEE_Result encrypt_es(uint32_t algo, struct rsa_public_key *key,
 	if (st != kStatus_SSS_Success)
 		res = TEE_ERROR_BAD_PARAMETERS;
 
-	sss_se05x_key_store_erase_key(se050_kstore, &kobject);
-	sss_se05x_asymmetric_context_free(&ctx);
-
-	return res;
-}
-
-static TEE_Result encrypt_nopad(struct rsa_public_key *key, const uint8_t *src,
-				size_t src_len, uint8_t *dst, size_t *dst_len)
-{
-	sss_status_t st = kStatus_SSS_Fail;
-	sss_se05x_asymmetric_t ctx = { };
-	sss_se05x_object_t kobject = { };
-	TEE_Result res = TEE_SUCCESS;
-	uint8_t *buf = NULL;
-	size_t offset = 0;
-	size_t blen = 0;
-	size_t rsa_len = 0;
-
-	if (se050_inject_public_key(&kobject, key))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	st = sss_se05x_asymmetric_context_init(&ctx, se050_session, &kobject,
-					       kAlgorithm_SSS_RSASSA_NO_PADDING,
-					       kMode_SSS_Encrypt);
-	if (st != kStatus_SSS_Success) {
-		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	blen = CFG_CORE_BIGNUM_MAX_BITS / 8;
-	buf = malloc(blen);
-	if (!buf) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
-	}
-
-	rsa_len = crypto_bignum_num_bytes(key->n);
-	memset(buf, 0, blen);
-	memcpy(buf + rsa_len - src_len, src, src_len);
-
-	st = sss_se05x_asymmetric_encrypt(&ctx, buf, src_len, buf, &blen);
-	if (st != kStatus_SSS_Success) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	offset = 0;
-	while ((offset < rsa_len - 1) && (buf[offset] == 0))
-		offset++;
-
-	if (*dst_len < rsa_len - offset) {
-		*dst_len = rsa_len - offset;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
-	}
-
-	*dst_len = rsa_len - offset;
-	memcpy(dst, buf + offset, *dst_len);
-out:
-	free(buf);
 	sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 	sss_se05x_asymmetric_context_free(&ctx);
 
@@ -498,7 +377,7 @@ static void do_free_keypair(struct rsa_keypair *s)
 {
 	sss_status_t st = kStatus_SSS_Fail;
 	sss_se05x_object_t k_object = { };
-	uint32_t key_id;
+	uint32_t key_id = 0;
 
 	if (!s)
 		return;
@@ -582,70 +461,68 @@ error:
 
 static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 {
-	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-
 	switch (rsa_data->rsa_id) {
-	case DRVCRYPT_RSA_NOPAD:
-	case DRVCRYPT_RSASSA_PKCS_V1_5:
-	case DRVCRYPT_RSASSA_PSS:
-		ret = encrypt_nopad(rsa_data->key.key,
-				    rsa_data->message.data,
-				    rsa_data->message.length,
-				    rsa_data->cipher.data,
-				    &rsa_data->cipher.length);
-		break;
-
 	case DRVCRYPT_RSA_PKCS_V1_5:
-		ret = encrypt_es(rsa_data->hash_algo,
-				 rsa_data->key.key,
-				 rsa_data->message.data,
-				 rsa_data->message.length,
-				 rsa_data->cipher.data,
-				 &rsa_data->cipher.length);
-		break;
-
 	case DRVCRYPT_RSA_OAEP:
+		return encrypt_es(rsa_data->hash_algo,
+				  rsa_data->key.key,
+				  rsa_data->message.data,
+				  rsa_data->message.length,
+				  rsa_data->cipher.data,
+				  &rsa_data->cipher.length);
+
+	case DRVCRYPT_RSASSA_PSS:
+	case DRVCRYPT_RSASSA_PKCS_V1_5:
+	case DRVCRYPT_RSA_NOPAD:
 	default:
 		break;
 	}
 
-	return ret;
+	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
 static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 {
-	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-
 	switch (rsa_data->rsa_id) {
-	case DRVCRYPT_RSA_NOPAD:
-	case DRVCRYPT_RSASSA_PKCS_V1_5:
-	case DRVCRYPT_RSASSA_PSS:
-		ret = decrypt_nopad(rsa_data->key.key,
-				    rsa_data->message.data,
-				    rsa_data->message.length,
-				    rsa_data->cipher.data,
-				    &rsa_data->cipher.length);
-		break;
-
 	case DRVCRYPT_RSA_PKCS_V1_5:
-		ret = decrypt_es(rsa_data->hash_algo,
-				 rsa_data->key.key,
-				 rsa_data->message.data,
-				 rsa_data->message.length,
-				 rsa_data->cipher.data,
-				 &rsa_data->cipher.length);
-		break;
-
 	case DRVCRYPT_RSA_OAEP:
+		return decrypt_es(rsa_data->hash_algo,
+				  rsa_data->key.key,
+				  rsa_data->message.data,
+				  rsa_data->message.length,
+				  rsa_data->cipher.data,
+				  &rsa_data->cipher.length);
+
+	case DRVCRYPT_RSASSA_PSS:
+	case DRVCRYPT_RSASSA_PKCS_V1_5:
+	case DRVCRYPT_RSA_NOPAD:
 	default:
 		break;
 	}
 
-	return ret;
+	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
 static TEE_Result do_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 {
+	/* PKCS1_PSS_MGF1 padding limitations */
+	switch (ssa_data->algo) {
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+		if (ssa_data->key.n_size * 8 <= 512)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		if (ssa_data->key.n_size * 8 <= 1024)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		break;
+	default:
+		break;
+	}
+
 	return sign_ssa(ssa_data->algo,
 			ssa_data->key.key,
 			ssa_data->message.data,
@@ -656,6 +533,24 @@ static TEE_Result do_ssa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 
 static TEE_Result do_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 {
+	/* PKCS1_PSS_MGF1 padding limitations */
+	switch (ssa_data->algo) {
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+		if (ssa_data->key.n_size * 8 <= 512)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		if (ssa_data->key.n_size * 8 <= 1024)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+		break;
+	default:
+		break;
+	}
+
 	return verify_ssa(ssa_data->algo,
 			ssa_data->key.key,
 			ssa_data->message.data,
