@@ -34,7 +34,7 @@ static struct mempool *get_mp_scratch_memory_pool(void)
 	void *data;
 
 	size = ROUNDUP(MPI_MEMPOOL_SIZE, SMALL_PAGE_SIZE);
-	data = tee_pager_alloc(size);
+	data = tee_pager_alloc(size, PAGER_AREA_TYPE_LOCK);
 	if (!data)
 		panic();
 

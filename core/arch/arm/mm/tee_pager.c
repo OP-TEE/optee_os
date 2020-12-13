@@ -1744,7 +1744,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 }
 DECLARE_KEEP_PAGER(tee_pager_release_phys);
 
-void *tee_pager_alloc(size_t size)
+void *tee_pager_alloc(size_t size, enum tee_pager_area_type area_type)
 {
 	tee_mm_entry_t *mm = NULL;
 	uint8_t *smem = NULL;
@@ -1760,13 +1760,23 @@ void *tee_pager_alloc(size_t size)
 
 	smem = (uint8_t *)tee_mm_get_smem(mm);
 	num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE;
-	fobj = fobj_locked_paged_alloc(num_pages);
+
+	switch (area_type) {
+	case PAGER_AREA_TYPE_LOCK:
+		fobj = fobj_locked_paged_alloc(num_pages);
+		break;
+	case PAGER_AREA_TYPE_RW:
+		fobj = fobj_rw_paged_alloc(num_pages);
+		break;
+	default:
+		panic();
+	}
 	if (!fobj) {
 		tee_mm_free(mm);
 		return NULL;
 	}
 
-	tee_pager_add_core_area((vaddr_t)smem, PAGER_AREA_TYPE_LOCK, fobj);
+	tee_pager_add_core_area((vaddr_t)smem, area_type, fobj);
 	fobj_put(fobj);
 
 	asan_tag_access(smem, smem + num_pages * SMALL_PAGE_SIZE);

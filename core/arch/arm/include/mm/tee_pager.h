@@ -216,10 +216,11 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap);
 /*
  * tee_pager_alloc() - Allocate read-write virtual memory from pager.
  * @size:	size of memory in bytes
+ * @area_type   area attributes (locked, ro, rw)
  *
  * @return NULL on failure or a pointer to the virtual memory on success.
  */
-void *tee_pager_alloc(size_t size);
+void *tee_pager_alloc(size_t size, enum tee_pager_area_type area_type);
 
 #ifdef CFG_PAGED_USER_TA
 /*
