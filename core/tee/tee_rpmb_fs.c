@@ -14,6 +14,7 @@
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -2437,7 +2438,7 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 		DMSG("Need to re-allocate");
 		newsize = MAX(end, fh->fat_entry.data_size);
 		mm = tee_mm_alloc(&p, newsize);
-		newbuf = calloc(1, newsize);
+		newbuf = mempool_alloc(mempool_default, newsize);
 		if (!mm || !newbuf) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto out;
@@ -2470,8 +2471,8 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 out:
 	if (pool_result)
 		tee_mm_final(&p);
-	if (newbuf)
-		free(newbuf);
+
+	mempool_free(mempool_default, newbuf);
 
 	return res;
 }
