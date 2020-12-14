@@ -2317,6 +2317,7 @@ TEE_Result syscall_cryp_state_copy(unsigned long dst, unsigned long src)
 	}
 
 	cs_dst->state = cs_src->state;
+	cs_dst->ctx_finalize = cs_src->ctx_finalize;
 
 	return TEE_SUCCESS;
 }
