@@ -117,11 +117,9 @@ static void get_mpi(mbedtls_mpi *mpi, const TEE_BigInt *bigInt)
 
 void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
 {
-	memset(bigInt, 0, TEE_BigIntSizeInU32(len) * sizeof(uint32_t));
-
 	struct bigint_hdr *hdr = (struct bigint_hdr *)bigInt;
 
-
+	memset(bigInt, 0, len * sizeof(uint32_t));
 	hdr->sign = 1;
 	if ((len - BIGINT_HDR_SIZE_IN_U32) > MBEDTLS_MPI_MAX_LIMBS)
 		API_PANIC("Too large bigint");
