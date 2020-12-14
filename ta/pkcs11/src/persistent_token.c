@@ -350,16 +350,19 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		if (res || size != sizeof(*db_objs))
 			TEE_Panic(0);
 
-		size += db_objs->count * sizeof(TEE_UUID);
-		ptr = TEE_Realloc(db_objs, size);
-		if (!ptr)
-			goto error;
+		if (db_objs->count > 0) {
+			size += db_objs->count * sizeof(TEE_UUID);
+			ptr = TEE_Realloc(db_objs, size);
+			if (!ptr)
+				goto error;
 
-		db_objs = ptr;
-		size -= sizeof(*db_objs);
-		res = TEE_ReadObjectData(db_hdl, db_objs->uuids, size, &size);
-		if (res || size != (db_objs->count * sizeof(TEE_UUID)))
-			TEE_Panic(0);
+			db_objs = ptr;
+			size -= sizeof(*db_objs);
+			res = TEE_ReadObjectData(db_hdl, db_objs->uuids, size,
+						 &size);
+			if (res || size != (db_objs->count * sizeof(TEE_UUID)))
+				TEE_Panic(0);
+		}
 
 		for (idx = 0; idx < db_objs->count; idx++) {
 			/* Create an empty object instance */
