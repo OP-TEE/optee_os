@@ -16,15 +16,15 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 	size_t se050_huk_len = sizeof(se050_huk);
 	sss_status_t status = kStatus_SSS_Fail;
 
-	memset(buffer, 0, len);
-
 	status = sss_se05x_session_prop_get_au8(se050_session,
 						kSSS_SessionProp_UID,
 						se050_huk, &se050_huk_len);
 	if (status != kStatus_SSS_Success)
 		return -1;
 
-	memcpy(buffer, se050_huk, MIN(len, se050_huk_len));
+	if (tee_hash_createdigest(TEE_ALG_SHA256, se050_huk, se050_huk_len,
+				  buffer, len))
+		return -1;
 
 	return 0;
 }
