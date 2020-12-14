@@ -220,6 +220,7 @@ static void cts_copy_state(struct crypto_cipher_ctx *dst_ctx,
 
 	crypto_cipher_copy_state(dst->cbc, src->cbc);
 	crypto_cipher_copy_state(dst->ecb, src->ecb);
+	dst->mode = src->mode;
 }
 
 static const struct crypto_cipher_ops cts_ops = {
