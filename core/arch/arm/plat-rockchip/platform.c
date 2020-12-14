@@ -15,7 +15,9 @@ int __weak platform_secure_init(void)
 	return 0;
 }
 
-int __weak platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
+int __weak platform_secure_ddr_region(int rgn __maybe_unused,
+				      paddr_t st __maybe_unused,
+				      size_t sz __maybe_unused)
 {
 	MSG("Not protecting region %d: 0x%lx-0x%lx\n", rgn, st, st + sz);
 
