@@ -718,6 +718,8 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 		TEE_Panic(0);
 	if (dst_op->info.algorithm != src_op->info.algorithm)
 		TEE_Panic(0);
+	if (dst_op->info.mode != src_op->info.mode)
+		TEE_Panic(0);
 	if (src_op->info.operationClass != TEE_OPERATION_DIGEST) {
 		TEE_ObjectHandle key1 = TEE_HANDLE_NULL;
 		TEE_ObjectHandle key2 = TEE_HANDLE_NULL;
