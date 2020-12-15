@@ -524,3 +524,209 @@ sss_status_t se050_scp03_send_rotate_cmd(pSe05xSession_t ctx,
 
 	return kStatus_SSS_Fail;
 }
+
+static uint8_t *alloc_pubkey_buf(struct se050_ecc_keypub *keypub, size_t *len)
+{
+	size_t pubkey_len = 0;
+	uint8_t *pubkey = NULL;
+	uint8_t *buf = NULL;
+
+	pubkey_len = keypub->x_len + keypub->y_len + 1;
+	buf = malloc(pubkey_len);
+	if (!buf)
+		return NULL;
+
+	*buf = 0x04;
+	pubkey = buf + 1;
+	memcpy(pubkey, keypub->x, keypub->x_len);
+	memcpy(pubkey + keypub->x_len, keypub->y, keypub->y_len);
+	*len = pubkey_len;
+
+	return buf;
+}
+
+sss_status_t se050_ecc_gen_shared_secret(pSe05xSession_t ctx, uint32_t kid,
+					 struct se050_ecc_keypub *keypub,
+					 uint8_t *secret, size_t *len)
+{
+	smStatus_t status = SM_OK;
+	uint8_t *buf = NULL;
+	size_t pubkey_len = 0;
+
+	if (!keypub || !secret || !len)
+		return kStatus_SSS_Fail;
+
+	buf = alloc_pubkey_buf(keypub, &pubkey_len);
+	if (!buf)
+		return kStatus_SSS_Fail;
+
+	status = Se05x_API_ECGenSharedSecret(ctx, kid,
+					     buf, pubkey_len, secret, len);
+	free(buf);
+	if (status != SM_OK)
+		return kStatus_SSS_Fail;
+
+	return kStatus_SSS_Success;
+}
+
+static sss_status_t set_ecc_public(Se05xSession_t *s_ctx,
+				   Se05xPolicy_t *policy,
+				   sss_se05x_object_t *k_object,
+				   SE05x_TransientType_t type,
+				   struct se050_ecc_keypub *keypub)
+{
+	size_t pubkey_len = 0;
+	smStatus_t status = SM_NOT_OK;
+	uint8_t *buf = NULL;
+
+	buf = alloc_pubkey_buf(keypub, &pubkey_len);
+	if (!buf)
+		return kStatus_SSS_Fail;
+
+	k_object->curve_id = keypub->curve;
+	status = Se05x_API_WriteECKey(s_ctx, policy, SE05x_MaxAttemps_UNLIMITED,
+				      k_object->keyId,
+				      keypub->curve,
+				      NULL,
+				      0,
+				      buf,
+				      pubkey_len,
+				      (SE05x_INS_t)type,
+				      kSE05x_KeyPart_Public);
+	free(buf);
+	if (status != SM_OK)
+		return kStatus_SSS_Fail;
+
+	return kStatus_SSS_Success;
+}
+
+static sss_status_t set_ecc_private(Se05xSession_t *s_ctx,
+				    Se05xPolicy_t *policy,
+				    sss_se05x_object_t *k_object,
+				    SE05x_TransientType_t type,
+				    struct se050_ecc_keypair *keypair)
+{
+	smStatus_t status = SM_NOT_OK;
+
+	k_object->curve_id = keypair->pub.curve;
+	status = Se05x_API_WriteECKey(s_ctx, policy, SE05x_MaxAttemps_UNLIMITED,
+				      k_object->keyId,
+				      keypair->pub.curve,
+				      keypair->d,
+				      keypair->d_len,
+				      NULL,
+				      0,
+				      (SE05x_INS_t)type,
+				      kSE05x_KeyPart_Private);
+	if (status != SM_OK)
+		return kStatus_SSS_Fail;
+
+	return kStatus_SSS_Success;
+}
+
+static sss_status_t set_ecc_pair(Se05xSession_t *s_ctx,
+				 Se05xPolicy_t *policy,
+				 sss_se05x_object_t *k_object,
+				 SE05x_TransientType_t type,
+				 struct se050_ecc_keypair *keypair)
+{
+	size_t pubkey_len = 0;
+	smStatus_t status = SM_NOT_OK;
+	uint8_t *buf = NULL;
+
+	buf = alloc_pubkey_buf(&keypair->pub, &pubkey_len);
+	if (!buf)
+		return kStatus_SSS_Fail;
+
+	k_object->curve_id = keypair->pub.curve;
+	status = Se05x_API_WriteECKey(s_ctx, policy, SE05x_MaxAttemps_UNLIMITED,
+				      k_object->keyId,
+				      keypair->pub.curve,
+				      keypair->d,
+				      keypair->d_len,
+				      buf,
+				      pubkey_len,
+				      (SE05x_INS_t)type,
+				      kSE05x_KeyPart_Pair);
+	free(buf);
+	if (status != SM_OK)
+		return kStatus_SSS_Fail;
+
+	return kStatus_SSS_Success;
+}
+
+sss_status_t se050_key_store_set_ecc_key_bin(sss_se05x_key_store_t *store,
+					     sss_se05x_object_t *k_object,
+					     struct se050_ecc_keypair *keypair,
+					     struct se050_ecc_keypub *keypub)
+{
+	SE05x_TransientType_t type = kSE05x_TransientType_Transient;
+	Se05xPolicy_t policy = { };
+
+	if (!store || !store->session || !k_object)
+		return kStatus_SSS_Fail;
+
+	if (k_object->isPersistant)
+		type = kSE05x_TransientType_Persistent;
+
+	switch (k_object->objectType) {
+	case kSSS_KeyPart_Public:
+		if (!keypub)
+			return kStatus_SSS_Fail;
+
+		return set_ecc_public(&store->session->s_ctx,
+				      &policy, k_object, type, keypub);
+	case kSSS_KeyPart_Private:
+		if (!keypair)
+			return kStatus_SSS_Fail;
+
+		return set_ecc_private(&store->session->s_ctx,
+				       &policy, k_object, type, keypair);
+	case kSSS_KeyPart_Pair:
+		if (!keypair)
+			return kStatus_SSS_Fail;
+
+		return set_ecc_pair(&store->session->s_ctx,
+				    &policy, k_object, type, keypair);
+	default:
+		return  kStatus_SSS_Fail;
+	}
+}
+
+sss_status_t se050_key_store_get_ecc_key_bin(sss_se05x_key_store_t *store,
+					     sss_se05x_object_t *k_object,
+					     uint8_t *key, size_t *key_len)
+{
+	smStatus_t status = SM_NOT_OK;
+	uint8_t *buf = NULL;
+	size_t buflen = 0;
+
+	if (!store || !store->session || !k_object || !key || !key_len)
+		return kStatus_SSS_Fail;
+
+	switch (k_object->cipherType) {
+	case kSSS_CipherType_EC_NIST_P:
+	case kSSS_CipherType_EC_NIST_K:
+	case kSSS_CipherType_EC_BRAINPOOL:
+	case kSSS_CipherType_EC_BARRETO_NAEHRIG:
+	case kSSS_CipherType_EC_MONTGOMERY:
+	case kSSS_CipherType_EC_TWISTED_ED:
+		add_ecc_header(key, &buf, &buflen, k_object->curve_id);
+		status = Se05x_API_ReadObject(&store->session->s_ctx,
+					      k_object->keyId, 0, 0,
+					      buf, key_len);
+		if (status != SM_OK)
+			return kStatus_SSS_Fail;
+
+		*key_len += buflen;
+		buflen = *key_len;
+		get_ecc_raw_data(key, &buf, &buflen, k_object->curve_id);
+
+		/* return only the binary data */
+		*key_len = buflen;
+		memcpy(key, buf, buflen);
+		return kStatus_SSS_Success;
+	default:
+		return kStatus_SSS_Fail;
+	}
+}

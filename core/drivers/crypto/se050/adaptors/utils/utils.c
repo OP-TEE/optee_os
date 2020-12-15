@@ -134,6 +134,21 @@ uint32_t se050_rsa_keypair_from_nvm(struct rsa_keypair *key)
 	return se050_key(key_id);
 }
 
+uint32_t se050_ecc_keypair_from_nvm(struct ecc_keypair *key)
+{
+	uint64_t key_id = 0;
+
+	if (!key)
+		return 0;
+
+	if (crypto_bignum_num_bytes(key->d) != sizeof(uint64_t))
+		return 0;
+
+	crypto_bignum_bn2bin(key->d, (uint8_t *)&key_id);
+
+	return se050_key(key_id);
+}
+
 uint64_t se050_generate_private_key(uint32_t oid)
 {
 	return WATERMARKED(oid);
