@@ -15,4 +15,17 @@
 #include <arm64_user_sysreg.h>
 #endif
 
+#ifndef __ASSEMBLER__
+static inline __noprof void isb(void)
+{
+	asm volatile ("isb");
+}
+
+static inline __noprof uint64_t barrier_read_cntpct(void)
+{
+	isb();
+	return read_cntpct();
+}
+#endif
+
 #endif /*ARM_USER_SYSREG_H*/
