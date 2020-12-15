@@ -738,6 +738,7 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 	}
 	dst_op->info.handleState = src_op->info.handleState;
 	dst_op->info.keySize = src_op->info.keySize;
+	dst_op->info.digestLength = src_op->info.digestLength;
 	dst_op->operationState = src_op->operationState;
 
 	if (dst_op->buffer_two_blocks != src_op->buffer_two_blocks ||
