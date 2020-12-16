@@ -41,6 +41,11 @@ $(call force, CFG_JR_INT,137)  # Default JR IT Number (105 + 32) = 137
 #
 ifeq ($(CFG_CRYPTO_DRIVER), y)
 
+# Crypto Driver Debug
+# DRV_DBG_TRACE BIT32(0) // Driver trace
+# DRV_DBG_BUF   BIT32(1) // Driver dump Buffer
+CFG_CRYPTO_DRIVER_DEBUG ?= 0
+
 $(call force, CFG_NXP_CAAM_RUNTIME_JR, y)
 
 #
