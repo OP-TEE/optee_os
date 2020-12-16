@@ -1067,6 +1067,108 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 				   CFG_TZDRAM_SIZE);
 }
 
+#ifdef CFG_CORE_RESERVE_DRIVERS
+static char *strtok(char *str, const char *delims)
+{
+	static char *pos;
+	char *start = NULL;
+
+	if (str)
+		pos = str;
+
+	if (pos) {
+		while (*pos && strchr(delims, *pos))
+			pos++;
+
+		if (*pos) {
+			start = pos;
+			while (*pos && !strchr(delims, *pos))
+				pos++;
+
+			if (*pos)
+				*pos++ = '\0';
+		}
+	}
+
+	return start;
+}
+
+static int add_descriptor_node(struct dt_descriptor *dt, const char *driver)
+{
+	unsigned int i = 0;
+	unsigned int j = 0;
+	char root_name[50] = { '\0' };
+	char buffer[200] = { '\0' };
+	char *item[10] = { NULL };
+	char *root = NULL;
+	int offs = 0;
+
+	/* strok will modify the buffer */
+	strncpy(buffer, driver, sizeof(buffer));
+
+	root = strtok(buffer, "/");
+	if (!root)
+		return -1;
+
+	for (i = 0; i < ARRAY_SIZE(item); i++) {
+		item[i] = strtok(NULL, "/");
+		if (!item[i])
+			break;
+	}
+
+	if (i >= ARRAY_SIZE(item))
+		return -1;
+
+	if (fdt_path_offset(dt->blob, driver) >= 0)
+		return 0;
+
+	/* add the root node name */
+	snprintf(root_name, sizeof(root_name), "/%s", root);
+	offs = fdt_path_offset(dt->blob, root_name);
+	if (offs < 0) {
+		offs = add_dt_path_subnode(dt, "/", root);
+		if (offs < 0)
+			return -1;
+	}
+
+	for (j = 0; j < i; j++) {
+		offs = fdt_add_subnode(dt->blob, offs, item[j]);
+		if (offs < 0)
+			return -1;
+	}
+
+	return offs;
+}
+
+static int reserve_drivers(struct dt_descriptor *dt)
+{
+	static const char * const driver[] = {
+		CFG_CORE_RESERVE_DRIVERS,
+		NULL,
+	};
+	unsigned int i = 0;
+	int offs = 0;
+
+	while (driver[i]) {
+		offs = add_descriptor_node(dt, driver[i]);
+		if (offs < 0)
+			return -1;
+		i++;
+
+		if (!offs)
+			continue;
+
+		if (fdt_setprop_string(dt->blob, offs, "status", "disabled"))
+			return -1;
+
+		if (fdt_setprop_string(dt->blob, offs, "secure-status", "okay"))
+			return -1;
+	}
+
+	return 0;
+}
+#endif
+
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
@@ -1079,6 +1181,11 @@ static void update_external_dt(void)
 
 	if (config_psci(dt))
 		panic("Failed to config PSCI");
+
+#ifdef CFG_CORE_RESERVE_DRIVERS
+	if (reserve_drivers(dt))
+		panic("Failed to reserve drivers for OP-TEE exclusive access");
+#endif
 
 #ifdef CFG_CORE_RESERVED_SHM
 	if (mark_static_shm_as_reserved(dt))
