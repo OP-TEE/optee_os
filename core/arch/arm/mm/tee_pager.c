@@ -3,9 +3,9 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-
 #include <arm.h>
 #include <assert.h>
+#include <initcall.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/abort.h>
@@ -19,6 +19,7 @@
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/user_mode_ctx.h>
+#include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/fobj.h>
 #include <mm/tee_mm.h>
@@ -1783,3 +1784,18 @@ void *tee_pager_alloc(size_t size, enum tee_pager_area_type area_type)
 
 	return smem;
 }
+
+static TEE_Result pager_mempool_init(void)
+{
+	size_t size = ROUNDUP(CFG_CORE_HEAP_SIZE, SMALL_PAGE_SIZE);
+	void *va = tee_pager_alloc(size, PAGER_AREA_TYPE_RW);
+
+	if (!va)
+		panic();
+
+	assert(!mempool_default);
+	mempool_default = mempool_alloc_pool(va, size, tee_pager_release_phys);
+
+	return TEE_SUCCESS;
+}
+early_init(pager_mempool_init);

@@ -41,11 +41,18 @@ static struct mempool *get_mp_scratch_memory_pool(void)
 	return mempool_alloc_pool(data, size, tee_pager_release_phys);
 }
 #else /* _CFG_CORE_LTC_PAGER */
+/* MPI pool serves as core's default mempool */
+#define MEMPOOL_SIZE	MAX(MPI_MEMPOOL_SIZE, CFG_CORE_HEAP_SIZE)
+
 static struct mempool *get_mp_scratch_memory_pool(void)
 {
-	static uint8_t data[MPI_MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
+	static uint8_t data[MEMPOOL_SIZE] __aligned(MEMPOOL_ALIGN);
+	struct mempool *p = mempool_alloc_pool(data, sizeof(data), NULL);
 
-	return mempool_alloc_pool(data, sizeof(data), NULL);
+	assert(!mempool_default);
+	mempool_default = p;
+
+	return p;
 }
 #endif
 
@@ -56,8 +63,6 @@ void init_mp_tomcrypt(void)
 	if (!p)
 		panic();
 	mbedtls_mpi_mempool = p;
-	assert(!mempool_default);
-	mempool_default = p;
 }
 
 static int init(void **a)
