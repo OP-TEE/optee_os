@@ -408,14 +408,6 @@ ifeq ($(CFG_NXP_CAAM),y)
 # As NXP CAAM Driver is enabled, disable the small local CAAM driver
 # used just to release Job Rings to Non-Secure world
 $(call force,CFG_IMX_CAAM,n)
-
-# If NXP CAAM Driver is supported, the Crypto Driver interfacing
-# it with generic crypto API can be enabled.
-CFG_CRYPTO_DRIVER ?= y
-# Crypto Driver Debug
-# DRV_DBG_TRACE BIT32(0) // Driver trace
-# DRV_DBG_BUF   BIT32(1) // Driver dump Buffer
-CFG_CRYPTO_DRIVER_DEBUG ?= 0
 else
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
