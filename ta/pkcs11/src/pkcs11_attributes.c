@@ -796,7 +796,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		goto out;
 	}
 
-	if (get_attribute(attrs, PKCS11_CKA_KEY_GEN_MECHANISM, NULL, NULL) !=
+	if (get_attribute(temp, PKCS11_CKA_KEY_GEN_MECHANISM, NULL, NULL) !=
 	    PKCS11_RV_NOT_FOUND) {
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		goto out;
