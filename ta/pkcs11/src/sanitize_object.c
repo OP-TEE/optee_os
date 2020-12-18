@@ -69,7 +69,9 @@ static enum pkcs11_rc read_attr_advance(void *buf, size_t blen, size_t *pos,
 
 /* Sanitize class/type in a client attribute list */
 static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src,
-					      size_t src_size)
+					      size_t src_size,
+					      uint32_t class_hint,
+					      uint32_t type_hint)
 {
 	uint32_t class_found = PKCS11_CKO_UNDEFINED_ID;
 	size_t pos = sizeof(struct pkcs11_object_head);
@@ -131,6 +133,13 @@ static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src,
 				   &class_found, sizeof(class_found));
 		if (rc)
 			return rc;
+	} else {
+		if (class_hint != PKCS11_CKO_UNDEFINED_ID) {
+			rc = add_attribute(dst, PKCS11_CKA_CLASS,
+					   &class_hint, sizeof(class_hint));
+			if (rc)
+				return rc;
+		}
 	}
 
 	if (type_found != PKCS11_UNDEFINED_ID) {
@@ -138,6 +147,13 @@ static enum pkcs11_rc sanitize_class_and_type(struct obj_attrs **dst, void *src,
 				   &type_found, sizeof(type_found));
 		if (rc)
 			return rc;
+	} else {
+		if (type_hint != PKCS11_UNDEFINED_ID) {
+			rc = add_attribute(dst, PKCS11_CKA_KEY_TYPE,
+					   &type_hint, sizeof(type_hint));
+			if (rc)
+				return rc;
+		}
 	}
 
 	return PKCS11_CKR_OK;
@@ -241,7 +257,9 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 		return rc;
 
 	/* Build a new serial object while sanitizing the attributes list */
-	rc = sanitize_client_object(&obj2, data, cli_ref->size);
+	rc = sanitize_client_object(&obj2, data, cli_ref->size,
+				    PKCS11_CKO_UNDEFINED_ID,
+				    PKCS11_UNDEFINED_ID);
 	if (rc)
 		goto out;
 
@@ -253,7 +271,8 @@ out:
 }
 
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
-				      size_t size)
+				      size_t size, uint32_t class_hint,
+				      uint32_t type_hint)
 {
 	struct pkcs11_attribute_head cli_ref = { };
 	struct pkcs11_object_head head = { };
@@ -275,7 +294,8 @@ enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *src,
 	if (rc)
 		return rc;
 
-	rc = sanitize_class_and_type(dst, src, sz_from_hdr);
+	rc = sanitize_class_and_type(dst, src, sz_from_hdr, class_hint,
+				     type_hint);
 	if (rc)
 		return rc;
 

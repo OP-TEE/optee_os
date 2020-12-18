@@ -22,6 +22,10 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs);
  * @dst - output structure tracking the generated serial object
  * @head - pointer to the formatted serialized object (its head)
  * @size - byte size of the serialized binary blob
+ * @class_hint - Hint for class to be added to template if not presnet
+ *               in serialized object.
+ * @type_hint - Hint for type to be added to template if not presnet
+ *               in serialized object.
  *
  * This function copies an attribute list from a client API attribute head
  * into a PKCS11 TA internal attribute structure. It generates a serialized
@@ -33,7 +37,8 @@ bool sanitize_consistent_class_and_type(struct obj_attrs *attrs);
  * into a serializer container.
  */
 enum pkcs11_rc sanitize_client_object(struct obj_attrs **dst, void *head,
-				      size_t size);
+				      size_t size, uint32_t class_hint,
+				      uint32_t type_hint);
 
 /* Debug: dump attribute content as debug traces */
 void trace_attributes_from_api_head(const char *prefix, void *ref, size_t size);
