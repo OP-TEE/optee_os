@@ -707,13 +707,13 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	}
 #endif
 
-	rc = sanitize_client_object(&temp, template, template_size);
-	if (rc)
-		goto out;
-
-	/* If class/type not defined, match from mechanism */
-	if (get_class(temp) == PKCS11_UNDEFINED_ID &&
-	    get_key_type(temp) == PKCS11_UNDEFINED_ID) {
+	/*
+	 * For PKCS11_FUNCTION_GENERATE, find the class and type
+	 * based on the mechanism. These will be passed as hint
+	 * sanitize_client_object() and added in temp if not
+	 * already present
+	 */
+	if (function == PKCS11_FUNCTION_GENERATE) {
 		switch (mecha) {
 		case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 			class = PKCS11_CKO_SECRET_KEY;
@@ -724,24 +724,18 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			type = PKCS11_CKK_AES;
 			break;
 		default:
-			EMSG("Unable to define class/type from mechanism");
-			rc = PKCS11_CKR_TEMPLATE_INCOMPLETE;
-			goto out;
-		}
-		if (class != PKCS11_UNDEFINED_ID) {
-			rc = add_attribute(&temp, PKCS11_CKA_CLASS,
-					   &class, sizeof(uint32_t));
-			if (rc)
-				goto out;
-		}
-		if (type != PKCS11_UNDEFINED_ID) {
-			rc = add_attribute(&temp, PKCS11_CKA_KEY_TYPE,
-					   &type, sizeof(uint32_t));
-			if (rc)
-				goto out;
+			TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
 		}
 	}
 
+	rc = sanitize_client_object(&temp, template, template_size, class,
+				    type);
+	if (rc)
+		goto out;
+
+	/*
+	 * Check if class and type in temp are consistent with the mechanism
+	 */
 	switch (mecha) {
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 		if (get_class(temp) != PKCS11_CKO_SECRET_KEY ||
