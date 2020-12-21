@@ -120,7 +120,8 @@ enum pkcs11_rc
 create_attributes_from_template(struct obj_attrs **out, void *template,
 				size_t template_size, struct obj_attrs *parent,
 				enum processing_func func,
-				enum pkcs11_mechanism_id proc_mecha);
+				enum pkcs11_mechanism_id proc_mecha,
+				enum pkcs11_class_id template_class);
 
 /*
  * The various checks to be performed before a processing:
