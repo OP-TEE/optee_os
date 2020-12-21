@@ -1223,7 +1223,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak paged_init_primary(unsigned long fdt)
+void __weak boot_init_primary_late(unsigned long fdt)
 {
 	init_external_dt(fdt);
 	tpm_map_log_area(get_external_dt());
@@ -1278,9 +1278,8 @@ static void init_secondary_helper(unsigned long nsec_entry)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area so that it lies in the init area.
  */
-void __weak boot_init_primary(unsigned long pageable_part,
-			      unsigned long nsec_entry __maybe_unused,
-			      unsigned long fdt)
+void __weak boot_init_primary_early(unsigned long pageable_part,
+				    unsigned long nsec_entry __maybe_unused)
 {
 	unsigned long e = PADDR_INVALID;
 
@@ -1289,7 +1288,6 @@ void __weak boot_init_primary(unsigned long pageable_part,
 #endif
 
 	init_primary(pageable_part, e);
-	paged_init_primary(fdt);
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
