@@ -45,6 +45,9 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	if (key_size != 8 * mp_unsigned_bin_size(key->p))
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (mp_prime_is_prime(key->p, 0, &ltc_res) != CRYPT_OK || ltc_res != LTC_MP_YES)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	ltc_res = mp_init_multi(&ltc_tmp_key.base, &ltc_tmp_key.prime, NULL);
 	if (ltc_res != CRYPT_OK)
 		return TEE_ERROR_OUT_OF_MEMORY;
