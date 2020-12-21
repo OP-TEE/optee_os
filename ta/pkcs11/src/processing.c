@@ -212,7 +212,8 @@ enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
 	 */
 	rc = create_attributes_from_template(&head, template, template_size,
 					     NULL, PKCS11_FUNCTION_GENERATE,
-					     proc_params->id);
+					     proc_params->id,
+					     PKCS11_CKO_UNDEFINED_ID);
 	if (rc)
 		goto out;
 

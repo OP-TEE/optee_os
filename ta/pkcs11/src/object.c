@@ -313,7 +313,8 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	 */
 	rc = create_attributes_from_template(&head, template, template_size,
 					     NULL, PKCS11_FUNCTION_IMPORT,
-					     PKCS11_PROCESSING_IMPORT);
+					     PKCS11_PROCESSING_IMPORT,
+					     PKCS11_CKO_UNDEFINED_ID);
 	TEE_Free(template);
 	template = NULL;
 	if (rc)

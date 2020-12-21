@@ -684,7 +684,8 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 				size_t template_size,
 				struct obj_attrs *parent __unused,
 				enum processing_func function,
-				enum pkcs11_mechanism_id mecha)
+				enum pkcs11_mechanism_id mecha,
+				enum pkcs11_class_id template_class __unused)
 {
 	struct obj_attrs *temp = NULL;
 	struct obj_attrs *attrs = NULL;
