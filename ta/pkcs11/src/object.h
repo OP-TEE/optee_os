@@ -60,4 +60,16 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 
 enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 				    uint32_t ptypes, TEE_Param *params);
+
+enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
+				       uint32_t ptypes, TEE_Param *params);
+
+enum pkcs11_rc entry_find_objects(struct pkcs11_client *client,
+				  uint32_t ptypes, TEE_Param *params);
+
+enum pkcs11_rc entry_find_objects_final(struct pkcs11_client *client,
+					uint32_t ptypes, TEE_Param *params);
+
+void release_session_find_obj_context(struct pkcs11_session *session);
+
 #endif /*PKCS11_TA_OBJECT_H*/

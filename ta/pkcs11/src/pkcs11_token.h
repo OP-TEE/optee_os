@@ -149,6 +149,21 @@ struct active_processing {
 };
 
 /*
+ * Pkcs11 objects search context
+ *
+ * @attributes - matching attributes list searched (null if no search)
+ * @count - number of matching handle found
+ * @handles - array of handle of matching objects
+ * @next - index of the next object handle to return to C_FindObject
+ */
+struct pkcs11_find_objects {
+	void *attributes;
+	size_t count;
+	uint32_t *handles;
+	size_t next;
+};
+
+/*
  * Structure tracking the PKCS#11 sessions
  *
  * @link - List of the session belonging to a client
@@ -159,6 +174,7 @@ struct active_processing {
  * @object_handle_db - Database for object handles published by the session
  * @state - R/W SO, R/W user, RO user, R/W public, RO public.
  * @processing - Reference to initialized processing context if any
+ * @find_ctx - Reference to active search context (null if no active search)
  */
 struct pkcs11_session {
 	TAILQ_ENTRY(pkcs11_session) link;
@@ -169,6 +185,7 @@ struct pkcs11_session {
 	struct handle_db object_handle_db;
 	enum pkcs11_session_state state;
 	struct active_processing *processing;
+	struct pkcs11_find_objects *find_ctx;
 };
 
 /* Initialize static token instance(s) from default/persistent database */

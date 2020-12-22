@@ -662,6 +662,8 @@ static void close_ck_session(struct pkcs11_session *session)
 		destroy_object(session,
 			       LIST_FIRST(&session->object_list), true);
 
+	release_session_find_obj_context(session);
+
 	TAILQ_REMOVE(&session->client->session_list, session, link);
 	handle_put(&session->client->session_handle_db, session->handle);
 	handle_db_destroy(&session->object_handle_db);

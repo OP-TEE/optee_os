@@ -170,6 +170,9 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_SIGN_ONESHOT),
 	PKCS11_ID(PKCS11_CMD_VERIFY_ONESHOT),
 	PKCS11_ID(PKCS11_CMD_GENERATE_KEY),
+	PKCS11_ID(PKCS11_CMD_FIND_OBJECTS_INIT),
+	PKCS11_ID(PKCS11_CMD_FIND_OBJECTS),
+	PKCS11_ID(PKCS11_CMD_FIND_OBJECTS_FINAL),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {

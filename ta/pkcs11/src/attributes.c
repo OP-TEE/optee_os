@@ -207,6 +207,37 @@ bool get_bool(struct obj_attrs *head, uint32_t attribute)
 	return bbool;
 }
 
+bool attributes_match_reference(struct obj_attrs *candidate,
+				struct obj_attrs *ref)
+{
+	size_t count = ref->attrs_count;
+	unsigned char *ref_attr = ref->attrs;
+	uint32_t rc = PKCS11_CKR_GENERAL_ERROR;
+
+	if (!ref->attrs_count) {
+		DMSG("Empty reference: no match");
+		return false;
+	}
+
+	for (count = 0; count < ref->attrs_count; count++) {
+		struct pkcs11_attribute_head pkcs11_ref = { };
+		void *value = NULL;
+		uint32_t size = 0;
+
+		TEE_MemMove(&pkcs11_ref, ref_attr, sizeof(pkcs11_ref));
+
+		rc = get_attribute_ptr(candidate, pkcs11_ref.id, &value, &size);
+
+		if (rc || !value || size != pkcs11_ref.size ||
+		    TEE_MemCompare(ref_attr + sizeof(pkcs11_ref), value, size))
+			return false;
+
+		ref_attr += sizeof(pkcs11_ref) + pkcs11_ref.size;
+	}
+
+	return true;
+}
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
 /*
  * Debug: dump CK attribute array to output trace

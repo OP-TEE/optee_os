@@ -180,6 +180,15 @@ static inline enum pkcs11_rc get_u32_attribute(struct obj_attrs *head,
 }
 
 /*
+ * Return true if all attributes from the reference are found and match value
+ * in the candidate attribute list.
+ *
+ * Return PKCS11_CKR_OK on success, or a PKCS11 return code.
+ */
+bool attributes_match_reference(struct obj_attrs *ref,
+				struct obj_attrs *candidate);
+
+/*
  * get_class() - Get class ID of an object
  * @head:	Pointer to serialized attributes
  *
