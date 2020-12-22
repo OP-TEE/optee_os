@@ -439,6 +439,41 @@ enum pkcs11_ta_cmd {
 	 */
 	PKCS11_CMD_GENERATE_KEY = 33,
 
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS_INIT - Initialize an object search
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjectsInit().
+	 */
+	PKCS11_CMD_FIND_OBJECTS_INIT = 34,
+
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS - Get handles of matching objects
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit array object_handle_array[N]
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjects().
+	 * The size of object_handle_array depends on the size of the output
+	 * buffer provided by the client.
+	 */
+	PKCS11_CMD_FIND_OBJECTS = 35,
+
+	/*
+	 * PKCS11_CMD_FIND_OBJECTS_FINAL - Finalize current objects search
+	 *
+	 * [in]  memref[0] = 32bit session handle
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_FindOjectsFinal().
+	 */
+	PKCS11_CMD_FIND_OBJECTS_FINAL = 36,
 };
 
 /*
