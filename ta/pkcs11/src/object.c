@@ -427,3 +427,339 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 
 	return rc;
 }
+
+static enum pkcs11_rc token_obj_matches_ref(struct obj_attrs *req_attrs,
+					    struct pkcs11_object *obj)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_ObjectHandle hdl = obj->attribs_hdl;
+	TEE_ObjectInfo info = { };
+	struct obj_attrs *attr = NULL;
+	uint32_t read_bytes = 0;
+
+	if (obj->attributes) {
+		if (!attributes_match_reference(obj->attributes, req_attrs))
+			return PKCS11_RV_NOT_FOUND;
+
+		return PKCS11_CKR_OK;
+	}
+
+	if (hdl == TEE_HANDLE_NULL) {
+		res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+					       obj->uuid, sizeof(*obj->uuid),
+					       TEE_DATA_FLAG_ACCESS_READ,
+					       &hdl);
+		if (res) {
+			EMSG("OpenPersistent failed %#"PRIx32, res);
+			return tee2pkcs_error(res);
+		}
+	}
+
+	res = TEE_GetObjectInfo1(hdl, &info);
+	if (res) {
+		EMSG("GetObjectInfo failed %#"PRIx32, res);
+		rc = tee2pkcs_error(res);
+		goto out;
+	}
+
+	attr = TEE_Malloc(info.dataSize, TEE_MALLOC_FILL_ZERO);
+	if (!attr) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	res = TEE_ReadObjectData(hdl, attr, info.dataSize, &read_bytes);
+	if (!res) {
+		res = TEE_SeekObjectData(hdl, 0, TEE_DATA_SEEK_SET);
+		if (res)
+			EMSG("Seek to 0 failed with %#"PRIx32, res);
+	}
+
+	if (res) {
+		rc = tee2pkcs_error(res);
+		EMSG("Read %"PRIu32" bytes, failed %#"PRIx32,
+		     read_bytes, res);
+		goto out;
+	}
+
+	if (read_bytes != info.dataSize) {
+		EMSG("Read %"PRIu32" bytes, expected %"PRIu32,
+		     read_bytes, info.dataSize);
+		rc = PKCS11_CKR_GENERAL_ERROR;
+		goto out;
+	}
+
+	if (!attributes_match_reference(attr, req_attrs)) {
+		rc = PKCS11_RV_NOT_FOUND;
+		goto out;
+	}
+
+	obj->attributes = attr;
+	attr = NULL;
+	obj->attribs_hdl = hdl;
+	hdl = TEE_HANDLE_NULL;
+
+	rc = PKCS11_CKR_OK;
+
+out:
+	TEE_Free(attr);
+	if (obj->attribs_hdl == TEE_HANDLE_NULL)
+		TEE_CloseObject(hdl);
+
+	return rc;
+}
+
+static void release_find_obj_context(struct pkcs11_find_objects *find_ctx)
+{
+	if (!find_ctx)
+		return;
+
+	TEE_Free(find_ctx->attributes);
+	TEE_Free(find_ctx->handles);
+	TEE_Free(find_ctx);
+}
+
+static enum pkcs11_rc find_ctx_add(struct pkcs11_find_objects *find_ctx,
+				   uint32_t handle)
+{
+	uint32_t *hdls = TEE_Realloc(find_ctx->handles,
+				     (find_ctx->count + 1) * sizeof(*hdls));
+
+	if (!hdls)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	find_ctx->handles = hdls;
+
+	*(find_ctx->handles + find_ctx->count) = handle;
+	find_ctx->count++;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
+				       uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_object_head *template = NULL;
+	struct obj_attrs *req_attrs = NULL;
+	struct pkcs11_object *obj = NULL;
+	struct pkcs11_find_objects *find_ctx = NULL;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	/* Search objects only if no operation is on-going */
+	if (session_is_active(session)) {
+		rc = PKCS11_CKR_OPERATION_ACTIVE;
+		goto out;
+	}
+
+	if (session->find_ctx) {
+		EMSG("Active object search already in progress");
+		rc = PKCS11_CKR_FUNCTION_FAILED;
+		goto out;
+	}
+
+	rc = sanitize_client_object(&req_attrs, template,
+				    sizeof(*template) + template->attrs_size,
+				    PKCS11_UNDEFINED_ID, PKCS11_UNDEFINED_ID);
+	if (rc)
+		goto out;
+
+	/* Must zero init the structure */
+	find_ctx = TEE_Malloc(sizeof(*find_ctx), TEE_MALLOC_FILL_ZERO);
+	if (!find_ctx) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	TEE_Free(template);
+	template = NULL;
+
+	switch (get_class(req_attrs)) {
+	case PKCS11_CKO_UNDEFINED_ID:
+	/* Unspecified class searches among data objects */
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_PUBLIC_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
+	case PKCS11_CKO_DATA:
+		break;
+	default:
+		EMSG("Find object of class %s (%"PRIu32") is not supported",
+		     id2str_class(get_class(req_attrs)),
+		     get_class(req_attrs));
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	/*
+	 * Scan all objects (sessions and persistent ones) and set a list of
+	 * candidates that match caller attributes.
+	 */
+
+	LIST_FOREACH(obj, &session->object_list, link) {
+		if (check_access_attrs_against_token(session, obj->attributes))
+			continue;
+
+		if (req_attrs->attrs_count &&
+		    !attributes_match_reference(obj->attributes, req_attrs))
+			continue;
+
+		rc = find_ctx_add(find_ctx, pkcs11_object2handle(obj, session));
+		if (rc)
+			goto out;
+	}
+
+	LIST_FOREACH(obj, &session->token->object_list, link) {
+		uint32_t handle = 0;
+
+		if (check_access_attrs_against_token(session, obj->attributes))
+			continue;
+
+		if (req_attrs->attrs_count) {
+			rc = token_obj_matches_ref(req_attrs, obj);
+			if (rc == PKCS11_RV_NOT_FOUND)
+				continue;
+			if (rc != PKCS11_CKR_OK)
+				goto out;
+		}
+
+		/* Object may not yet be published in the session */
+		handle = pkcs11_object2handle(obj, session);
+		if (!handle) {
+			handle = handle_get(&session->object_handle_db, obj);
+			if (!handle) {
+				rc = PKCS11_CKR_DEVICE_MEMORY;
+				goto out;
+			}
+		}
+
+		rc = find_ctx_add(find_ctx, handle);
+		if (rc)
+			goto out;
+	}
+
+	find_ctx->attributes = req_attrs;
+	req_attrs = NULL;
+	session->find_ctx = find_ctx;
+	find_ctx = NULL;
+	rc = PKCS11_CKR_OK;
+
+out:
+	TEE_Free(req_attrs);
+	TEE_Free(template);
+	release_find_obj_context(find_ctx);
+
+	return rc;
+}
+
+enum pkcs11_rc entry_find_objects(struct pkcs11_client *client,
+				  uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_find_objects *ctx = NULL;
+	uint8_t *out_handles = NULL;
+	size_t out_count = 0;
+	size_t count = 0;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	out_count = out->memref.size / sizeof(uint32_t);
+	out_handles = out->memref.buffer;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	ctx = session->find_ctx;
+
+	if (!ctx)
+		return PKCS11_CKR_OPERATION_NOT_INITIALIZED;
+
+	for (count = 0; ctx->next < ctx->count && count < out_count;
+	     ctx->next++, count++)
+		TEE_MemMove(out_handles + count * sizeof(uint32_t),
+			    ctx->handles + ctx->next, sizeof(uint32_t));
+
+	/* Update output buffer according the number of handles provided */
+	out->memref.size = count * sizeof(uint32_t);
+
+	DMSG("PKCS11 session %"PRIu32": finding objects", session->handle);
+
+	return PKCS11_CKR_OK;
+}
+
+void release_session_find_obj_context(struct pkcs11_session *session)
+{
+	release_find_obj_context(session->find_ctx);
+	session->find_ctx = NULL;
+}
+
+uint32_t entry_find_objects_final(struct pkcs11_client *client,
+				  uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!session->find_ctx)
+		return PKCS11_CKR_OPERATION_NOT_INITIALIZED;
+
+	release_session_find_obj_context(session);
+
+	return PKCS11_CKR_OK;
+}
