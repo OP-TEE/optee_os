@@ -785,13 +785,13 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	if (rc)
 		goto out;
 
-	if (get_attribute(temp, PKCS11_CKA_LOCAL, NULL, NULL) !=
+	if (get_attribute_ptr(temp, PKCS11_CKA_LOCAL, NULL, NULL) !=
 	    PKCS11_RV_NOT_FOUND) {
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		goto out;
 	}
 
-	if (get_attribute(temp, PKCS11_CKA_KEY_GEN_MECHANISM, NULL, NULL) !=
+	if (get_attribute_ptr(temp, PKCS11_CKA_KEY_GEN_MECHANISM, NULL, NULL) !=
 	    PKCS11_RV_NOT_FOUND) {
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		goto out;
