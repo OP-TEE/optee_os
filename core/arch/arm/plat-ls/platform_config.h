@@ -71,7 +71,19 @@
 #define CAAM_BASE			0x01700000
 #endif
 
-#if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb)
+#if defined(PLATFORM_FLAVOR_ls1043ardb)
+#define UART0_BASE		0x021C0500
+#define GIC_BASE		0x01400000
+#define GICC_OFFSET_REV1	0x2000
+#define GICD_OFFSET_REV1	0x1000
+#define GICC_OFFSET_REV1_1	0x20000
+#define GICD_OFFSET_REV1_1	0x10000
+#define CAAM_BASE		0x01700000
+#define DCFG_BASE		0x01EE0000
+#define DCFG_SVR_OFFSET		0xA4
+#endif
+
+#if defined(PLATFORM_FLAVOR_ls1046ardb)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
 #define GIC_BASE			0x01400000
