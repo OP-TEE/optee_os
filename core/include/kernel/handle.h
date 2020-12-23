@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 #ifndef KERNEL_HANDLE_H
 #define KERNEL_HANDLE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 struct handle_db {
@@ -21,6 +23,9 @@ struct handle_db {
  * called for each registered pointer before the database is cleared.
  */
 void handle_db_destroy(struct handle_db *db, void (*ptr_destructor)(void *ptr));
+
+/* Checks if the associated pointers of all handles in the database are NULL. */
+bool handle_db_is_empty(struct handle_db *db);
 
 /*
  * Allocates a new handle and assigns the supplied pointer to it,
