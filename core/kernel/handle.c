@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2020, Arm Limited
  */
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +29,19 @@ void handle_db_destroy(struct handle_db *db, void (*ptr_destructor)(void *ptr))
 		db->ptrs = NULL;
 		db->max_ptrs = 0;
 	}
+}
+
+bool handle_db_is_empty(struct handle_db *db)
+{
+	size_t n = 0;
+
+	if (db) {
+		for (n = 0; n < db->max_ptrs; n++) {
+			if (db->ptrs[n])
+				return false;
+		}
+	}
+	return true;
 }
 
 int handle_get(struct handle_db *db, void *ptr)
