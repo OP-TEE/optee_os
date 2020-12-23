@@ -69,6 +69,9 @@ register_ddr(CFG_DRAM0_BASE, (CFG_TZDRAM_START - CFG_DRAM0_BASE));
 register_ddr(CFG_DRAM1_BASE, CFG_DRAM1_SIZE);
 #endif
 #endif
+#ifdef DCFG_BASE
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, DCFG_BASE, CORE_MMU_PGDIR_SIZE);
+#endif
 
 #ifdef CFG_ARM32_core
 void plat_primary_init_early(void)
@@ -167,6 +170,36 @@ static TEE_Result get_gic_base_addr_from_dt(paddr_t *gic_addr)
 }
 #endif
 
+#define SVR_MINOR_MASK 0xF
+
+static void get_gic_offset(uint32_t *offsetc, uint32_t *offsetd)
+{
+#ifdef PLATFORM_FLAVOR_ls1043ardb
+	vaddr_t addr = 0;
+	uint32_t rev = 0;
+
+	addr = (vaddr_t)phys_to_virt(DCFG_BASE + DCFG_SVR_OFFSET,
+				     MEM_AREA_IO_NSEC, 1);
+	if (!addr) {
+		EMSG("Failed to get virtual address for SVR register");
+		panic();
+	}
+
+	rev = get_be32((void *)addr);
+
+	if ((rev & SVR_MINOR_MASK) == 1) {
+		*offsetc = GICC_OFFSET_REV1_1;
+		*offsetd = GICD_OFFSET_REV1_1;
+	} else {
+		*offsetc = GICC_OFFSET_REV1;
+		*offsetd = GICD_OFFSET_REV1;
+	}
+#else
+	*offsetc = GICC_OFFSET;
+	*offsetd = GICD_OFFSET;
+#endif
+}
+
 void main_init_gic(void)
 {
 	vaddr_t gicc_base = 0;
@@ -181,9 +214,8 @@ void main_init_gic(void)
 		EMSG("Failed to get GIC base addr from DT");
 #else
 	gic_base = GIC_BASE;
-	gicc_offset = GICC_OFFSET;
-	gicd_offset = GICD_OFFSET;
 #endif
+	get_gic_offset(&gicc_offset, &gicd_offset);
 
 	gicc_base = (vaddr_t)phys_to_virt(gic_base + gicc_offset,
 					  MEM_AREA_IO_SEC, 1);
