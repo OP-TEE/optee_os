@@ -914,7 +914,7 @@ enum pkcs11_rc check_access_attrs_against_token(struct pkcs11_session *session,
 	if (private && pkcs11_session_is_public(session)) {
 		DMSG("Private object access from a public session");
 
-		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		return PKCS11_CKR_USER_NOT_LOGGED_IN;
 	}
 
 	return PKCS11_CKR_OK;
