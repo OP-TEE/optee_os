@@ -333,6 +333,10 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	rc = check_access_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
 	/*
 	 * At this stage the object is almost created: all its attributes are
 	 * referenced in @head, including the key value and are assumed
