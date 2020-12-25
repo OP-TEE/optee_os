@@ -252,11 +252,6 @@ static enum pkcs11_rc get_default_value(enum pkcs11_attr_id id, void **value,
 	/* should have been taken care of already */
 	assert(!pkcs11_attr_is_boolean(id));
 
-	if (id == PKCS11_CKA_PUBLIC_KEY_INFO) {
-		EMSG("Cannot provide default PUBLIC_KEY_INFO");
-		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
-	}
-
 	/* All other attributes have an empty default value */
 	*value = NULL;
 	*size = 0;
