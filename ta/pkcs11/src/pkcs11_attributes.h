@@ -188,4 +188,14 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 			    size_t key_size);
 
+/*
+ * Adds CKA_ID attribute from paired object if missing.
+ *
+ * @pub_head - Public key object attributes
+ * @priv_head - Private key object attributes
+ * Return a PKCS11 return code
+ */
+enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,
+					struct obj_attrs **priv_head);
+
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/

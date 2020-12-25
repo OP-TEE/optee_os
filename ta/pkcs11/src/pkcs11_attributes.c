@@ -22,9 +22,6 @@
 #include "serializer.h"
 #include "token_capabilities.h"
 
-/* Byte size of CKA_ID attribute when generated locally */
-#define PKCS11_CKA_DEFAULT_SIZE		16
-
 static uint32_t pkcs11_func2ckfm(enum processing_func function)
 {
 	switch (function) {
@@ -1715,4 +1712,49 @@ enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 	default:
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
+}
+
+enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,
+					struct obj_attrs **priv_head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *id1 = NULL;
+	uint32_t id1_size = 0;
+	void *id2 = NULL;
+	uint32_t id2_size = 0;
+
+	assert(pub_head);
+	assert(priv_head);
+
+	rc = get_attribute_ptr(*pub_head, PKCS11_CKA_ID, &id1, &id1_size);
+	if (rc) {
+		if (rc != PKCS11_RV_NOT_FOUND)
+			return rc;
+		id1 = NULL;
+	} else if (!id1_size) {
+		id1 = NULL;
+	}
+
+	rc = get_attribute_ptr(*priv_head, PKCS11_CKA_ID, &id2, &id2_size);
+	if (rc) {
+		if (rc != PKCS11_RV_NOT_FOUND)
+			return rc;
+		id2 = NULL;
+	} else if (!id2_size) {
+		id2 = NULL;
+	}
+
+	/* Both have value -- let them be what caller has specified them */
+	if (id1 && id2)
+		return PKCS11_CKR_OK;
+
+	/* Both are empty -- leave empty values */
+	if (!id1 && !id2)
+		return PKCS11_CKR_OK;
+
+	/* Cross copy CKA_ID value */
+	if (id1)
+		return set_attribute(priv_head, PKCS11_CKA_ID, id1, id1_size);
+	else
+		return set_attribute(pub_head, PKCS11_CKA_ID, id2, id2_size);
 }
