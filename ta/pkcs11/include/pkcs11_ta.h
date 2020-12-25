@@ -657,6 +657,28 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_Digest().
 	 */
 	PKCS11_CMD_DIGEST_ONESHOT = 49,
+
+	/*
+	 * PKCS11_CMD_GENERATE_KEY_PAIR - Generate an asymmetric key pair
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)public key attribs +
+	 *              attributes data,
+	 *              (struct pkcs11_object_head)private key attribs +
+	 *              attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = [
+	 *              32bit public key object handle,
+	 *              32bit private key object handle
+	 *	 ]
+	 *
+	 * This command relates to the PKCS#11 API function
+	 * C_GenerateKeyPair().
+	 */
+	PKCS11_CMD_GENERATE_KEY_PAIR = 50,
 };
 
 /*
