@@ -485,6 +485,9 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 
 	/* Generate key pair */
 	switch (proc_params->id) {
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+		rc = generate_ec_keys(proc_params, &pub_head, &priv_head);
+		break;
 	default:
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 		break;
