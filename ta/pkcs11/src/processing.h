@@ -21,6 +21,9 @@ struct active_processing;
 enum pkcs11_rc entry_generate_secret(struct pkcs11_client *client,
 				     uint32_t ptypes, TEE_Param *params);
 
+enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
+				       uint32_t ptypes, TEE_Param *params);
+
 enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 				     uint32_t ptypes, TEE_Param *params,
 				     enum processing_func function);
@@ -44,6 +47,15 @@ enum pkcs11_rc entry_release_active_processing(struct pkcs11_client *client,
 size_t get_object_key_bit_size(struct pkcs11_object *obj);
 
 void release_active_processing(struct pkcs11_session *session);
+
+enum pkcs11_rc alloc_get_tee_attribute_data(TEE_ObjectHandle tee_obj,
+					    uint32_t attribute,
+					    void **data, size_t *size);
+
+enum pkcs11_rc tee2pkcs_add_attribute(struct obj_attrs **head,
+				      uint32_t pkcs11_id,
+				      TEE_ObjectHandle tee_obj,
+				      uint32_t tee_id);
 
 /*
  * Symmetric crypto algorithm specific functions
