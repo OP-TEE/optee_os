@@ -9,6 +9,7 @@ srcs-y += pkcs11_token.c
 srcs-y += processing.c
 srcs-y += processing_aes.c
 srcs-y += processing_digest.c
+srcs-y += processing_ec.c
 srcs-y += processing_symm.c
 srcs-y += sanitize_object.c
 srcs-y += serializer.c

@@ -90,4 +90,15 @@ enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
 				     struct pkcs11_object *obj,
 				     uint32_t ptypes, TEE_Param *params);
 
+/*
+ * Elliptic curve crypto algorithm specific functions
+ */
+size_t ec_params2tee_keysize(void *attr, size_t size);
+
+uint32_t ec_params2tee_curve(void *attr, size_t size);
+
+enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
+				struct obj_attrs **pub_head,
+				struct obj_attrs **priv_head);
+
 #endif /*PKCS11_TA_PROCESSING_H*/

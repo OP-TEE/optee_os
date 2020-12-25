@@ -94,6 +94,9 @@ static const struct pkcs11_mechachism_modes pkcs11_modes[] = {
 	MECHANISM(PKCS11_CKM_SHA256_HMAC, CKFM_AUTH_NO_RECOVER, ANY_PART),
 	MECHANISM(PKCS11_CKM_SHA384_HMAC, CKFM_AUTH_NO_RECOVER, ANY_PART),
 	MECHANISM(PKCS11_CKM_SHA512_HMAC, CKFM_AUTH_NO_RECOVER, ANY_PART),
+	/* EC */
+	MECHANISM(PKCS11_CKM_EC_KEY_PAIR_GEN, PKCS11_CKFM_GENERATE_KEY_PAIR,
+		  ANY_PART),
 };
 
 #if CFG_TEE_TA_LOG_LEVEL > 0
@@ -195,6 +198,8 @@ const struct pkcs11_mechachism_modes token_mechanism[] = {
 	TA_MECHANISM(PKCS11_CKM_SHA256_HMAC, CKFM_AUTH_NO_RECOVER),
 	TA_MECHANISM(PKCS11_CKM_SHA384_HMAC, CKFM_AUTH_NO_RECOVER),
 	TA_MECHANISM(PKCS11_CKM_SHA512_HMAC, CKFM_AUTH_NO_RECOVER),
+	TA_MECHANISM(PKCS11_CKM_EC_KEY_PAIR_GEN,
+		     PKCS11_CKFM_GENERATE_KEY_PAIR),
 };
 
 /*
@@ -293,6 +298,10 @@ void pkcs11_mechanism_supported_key_sizes(uint32_t proc_id,
 	case PKCS11_CKM_AES_CTS:
 		*min_key_size = 16;
 		*max_key_size = 32;
+		break;
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+		*min_key_size = 160;	/* in bits */
+		*max_key_size = 521;	/* in bits */
 		break;
 	default:
 		*min_key_size = 0;

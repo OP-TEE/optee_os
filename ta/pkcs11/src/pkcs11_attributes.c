@@ -419,10 +419,10 @@ static const uint32_t ec_public_key_opt_or_null[] = {
 };
 
 static const uint32_t ec_private_key_mandated[] = {
-	PKCS11_CKA_EC_PARAMS,
 };
 
 static const uint32_t ec_private_key_opt_or_null[] = {
+	PKCS11_CKA_EC_PARAMS,
 	PKCS11_CKA_VALUE,
 };
 
@@ -745,7 +745,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 				struct obj_attrs *parent,
 				enum processing_func function,
 				enum pkcs11_mechanism_id mecha,
-				enum pkcs11_class_id template_class __unused)
+				enum pkcs11_class_id template_class)
 {
 	struct obj_attrs *temp = NULL;
 	struct obj_attrs *attrs = NULL;
@@ -801,6 +801,10 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	 */
 	if (function == PKCS11_FUNCTION_GENERATE_PAIR) {
 		switch (mecha) {
+		case PKCS11_CKM_EC_KEY_PAIR_GEN:
+			class = template_class;
+			type = PKCS11_CKK_EC;
+			break;
 		default:
 			TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
 		}
@@ -843,6 +847,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	case PKCS11_CKM_AES_KEY_GEN:
 		if (get_class(temp) != PKCS11_CKO_SECRET_KEY ||
 		    get_key_type(temp) != PKCS11_CKK_AES) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
+		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
+		    get_key_type(temp) != PKCS11_CKK_EC) {
 			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 			goto out;
 		}
@@ -1129,6 +1141,7 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 	case PKCS11_CKM_AES_KEY_GEN:
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, true));
 		break;
 	default:
@@ -1142,6 +1155,9 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_AES_KEY_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_AES);
+		break;
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_EC);
 		break;
 	case PKCS11_PROCESSING_IMPORT:
 	default:
@@ -1262,15 +1278,30 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	}
 	if (public) {
 		switch (get_key_type(public)) {
+		case PKCS11_CKK_EC:
+			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		}
 	}
 	if (private) {
 		switch (get_key_type(private)) {
+		case PKCS11_CKK_EC:
+			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		}
+	}
+
+	/*
+	 * Check key size for symmetric keys and RSA keys
+	 * EC is bound to domains, no need to check here.
+	 */
+	switch (get_key_type(key1)) {
+	case PKCS11_CKK_EC:
+		return PKCS11_CKR_OK;
+	default:
+		break;
 	}
 
 	get_key_min_max_sizes(get_key_type(key1), &min_key_size, &max_key_size);
