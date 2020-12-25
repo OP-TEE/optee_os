@@ -761,6 +761,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	trace_attributes_from_api_head("template", template, template_size);
 	switch (function) {
 	case PKCS11_FUNCTION_GENERATE:
+	case PKCS11_FUNCTION_GENERATE_PAIR:
 	case PKCS11_FUNCTION_IMPORT:
 	case PKCS11_FUNCTION_MODIFY:
 	case PKCS11_FUNCTION_DERIVE:
@@ -787,6 +788,19 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			class = PKCS11_CKO_SECRET_KEY;
 			type = PKCS11_CKK_AES;
 			break;
+		default:
+			TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
+		}
+	}
+
+	/*
+	 * For PKCS11_FUNCTION_GENERATE_PAIR, find the class and type
+	 * based on the mechanism. These will be passed as hint
+	 * sanitize_client_object() and added in temp if not
+	 * already present
+	 */
+	if (function == PKCS11_FUNCTION_GENERATE_PAIR) {
+		switch (mecha) {
 		default:
 			TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
 		}
@@ -883,6 +897,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 
 	switch (function) {
 	case PKCS11_FUNCTION_GENERATE:
+	case PKCS11_FUNCTION_GENERATE_PAIR:
 		local = PKCS11_TRUE;
 		break;
 	case PKCS11_FUNCTION_IMPORT:
@@ -912,6 +927,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			       !get_bool(attrs, PKCS11_CKA_EXTRACTABLE);
 			break;
 		case PKCS11_FUNCTION_GENERATE:
+		case PKCS11_FUNCTION_GENERATE_PAIR:
 			always_sensitive = get_bool(attrs,
 						    PKCS11_CKA_SENSITIVE);
 			never_extract = !get_bool(attrs,
@@ -1181,6 +1197,8 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 {
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct obj_attrs *secret = NULL;
+	struct obj_attrs *private = NULL;
+	struct obj_attrs *public = NULL;
 	uint32_t max_key_size = 0;
 	uint32_t min_key_size = 0;
 	uint32_t key_length = 0;
@@ -1189,12 +1207,37 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	case PKCS11_CKO_SECRET_KEY:
 		secret = key1;
 		break;
+	case PKCS11_CKO_PUBLIC_KEY:
+		public = key1;
+		break;
+	case PKCS11_CKO_PRIVATE_KEY:
+		private = key1;
+		break;
 	default:
 		return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
 	}
 
-	if (key2)
-		return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+	if (key2) {
+		switch (get_class(key2)) {
+		case PKCS11_CKO_PUBLIC_KEY:
+			public = key2;
+			if (private == key1)
+				break;
+
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		case PKCS11_CKO_PRIVATE_KEY:
+			private = key2;
+			if (public == key1)
+				break;
+
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		default:
+			return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+		}
+
+		if (get_key_type(private) != get_key_type(public))
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
 
 	if (secret) {
 		switch (get_key_type(secret)) {
@@ -1216,6 +1259,18 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 				       &key_length);
 		if (rc)
 			return PKCS11_CKR_TEMPLATE_INCOMPLETE;
+	}
+	if (public) {
+		switch (get_key_type(public)) {
+		default:
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		}
+	}
+	if (private) {
+		switch (get_key_type(private)) {
+		default:
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		}
 	}
 
 	get_key_min_max_sizes(get_key_type(key1), &min_key_size, &max_key_size);

@@ -309,6 +309,241 @@ out:
 	return rc;
 }
 
+enum pkcs11_rc alloc_get_tee_attribute_data(TEE_ObjectHandle tee_obj,
+					    uint32_t attribute,
+					    void **data, size_t *size)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	void *ptr = NULL;
+	uint32_t sz = 0;
+
+	res = TEE_GetObjectBufferAttribute(tee_obj, attribute, NULL, &sz);
+	if (res != TEE_ERROR_SHORT_BUFFER)
+		return PKCS11_CKR_FUNCTION_FAILED;
+
+	ptr = TEE_Malloc(sz, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!ptr)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	res = TEE_GetObjectBufferAttribute(tee_obj, attribute, ptr, &sz);
+	if (res) {
+		TEE_Free(ptr);
+	} else {
+		*data = ptr;
+		*size = sz;
+	}
+
+	return tee2pkcs_error(res);
+}
+
+enum pkcs11_rc tee2pkcs_add_attribute(struct obj_attrs **head,
+				      uint32_t pkcs11_id,
+				      TEE_ObjectHandle tee_obj,
+				      uint32_t tee_id)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *a_ptr = NULL;
+	size_t a_size = 0;
+
+	rc = alloc_get_tee_attribute_data(tee_obj, tee_id, &a_ptr, &a_size);
+	if (rc)
+		goto out;
+
+	rc = add_attribute(head, pkcs11_id, a_ptr, a_size);
+
+	TEE_Free(a_ptr);
+
+out:
+	if (rc)
+		EMSG("Failed TEE attribute %#"PRIx32" for %#"PRIx32"/%s",
+		     tee_id, pkcs11_id, id2str_attr(pkcs11_id));
+	return rc;
+}
+
+enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
+				       uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_attribute_head *proc_params = NULL;
+	struct obj_attrs *pub_head = NULL;
+	struct obj_attrs *priv_head = NULL;
+	struct pkcs11_object_head *pub_template = NULL;
+	struct pkcs11_object_head *priv_template = NULL;
+	struct pkcs11_object *object = NULL;
+	size_t pub_template_size = 0;
+	size_t priv_template_size = 0;
+	uint32_t pubkey_handle = 0;
+	uint32_t privkey_handle = 0;
+	uint32_t *hdl_ptr = NULL;
+	size_t out_ref_size = sizeof(pubkey_handle) + sizeof(privkey_handle);
+
+	if (!client || ptypes != exp_pt || out->memref.size != out_ref_size)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
+	if (rc)
+		goto out;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &pub_template);
+	if (rc)
+		goto out;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &priv_template);
+	if (rc)
+		goto out;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	rc = get_ready_session(session);
+	if (rc)
+		goto out;
+
+	rc = check_mechanism_against_processing(session, proc_params->id,
+						PKCS11_FUNCTION_GENERATE_PAIR,
+						PKCS11_FUNC_STEP_INIT);
+	if (rc)
+		goto out;
+
+	pub_template_size = sizeof(*pub_template) + pub_template->attrs_size;
+
+	rc = create_attributes_from_template(&pub_head, pub_template,
+					     pub_template_size, NULL,
+					     PKCS11_FUNCTION_GENERATE_PAIR,
+					     proc_params->id,
+					     PKCS11_CKO_PUBLIC_KEY);
+	if (rc)
+		goto out;
+
+	TEE_Free(pub_template);
+	pub_template = NULL;
+
+	priv_template_size = sizeof(*priv_template) +
+			     priv_template->attrs_size;
+
+	rc = create_attributes_from_template(&priv_head, priv_template,
+					     priv_template_size, NULL,
+					     PKCS11_FUNCTION_GENERATE_PAIR,
+					     proc_params->id,
+					     PKCS11_CKO_PRIVATE_KEY);
+	if (rc)
+		goto out;
+
+	TEE_Free(priv_template);
+	priv_template = NULL;
+
+	/* Generate CKA_ID for keys if not specified by the templates */
+	rc = add_missing_attribute_id(&pub_head, &priv_head);
+	if (rc)
+		goto out;
+
+	/* Check created object against processing and token state */
+	rc = check_created_attrs(pub_head, priv_head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_processing(proc_params->id, pub_head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_processing(proc_params->id,
+						    priv_head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_token(session, pub_head);
+	if (rc)
+		goto out;
+
+	rc = check_access_attrs_against_token(session, pub_head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_token(session, priv_head);
+	if (rc)
+		goto out;
+
+	rc = check_access_attrs_against_token(session, priv_head);
+	if (rc)
+		goto out;
+
+	/* Generate key pair */
+	switch (proc_params->id) {
+	default:
+		rc = PKCS11_CKR_MECHANISM_INVALID;
+		break;
+	}
+	if (rc)
+		goto out;
+
+	TEE_Free(proc_params);
+	proc_params = NULL;
+
+	/*
+	 * Object is ready, register it and return a handle.
+	 */
+	rc = create_object(session, pub_head, &pubkey_handle);
+	if (rc)
+		goto out;
+
+	/*
+	 * Now obj_handle (through the related struct pkcs11_object instance)
+	 * owns the serialized buffer that holds the object attributes.
+	 * We reset local pub_head to NULL to mark that ownership has been
+	 * transferred.
+	 */
+	pub_head = NULL;
+
+	rc = create_object(session, priv_head, &privkey_handle);
+	if (rc)
+		goto out;
+
+	/* Ownership has been transferred so mark it with NULL */
+	priv_head = NULL;
+
+	hdl_ptr = (uint32_t *)out->memref.buffer;
+
+	TEE_MemMove(hdl_ptr, &pubkey_handle, sizeof(pubkey_handle));
+	TEE_MemMove(hdl_ptr + 1, &privkey_handle, sizeof(privkey_handle));
+
+	pubkey_handle = 0;
+	privkey_handle = 0;
+
+	DMSG("PKCS11 session %"PRIu32": create key pair %#"PRIx32"/%#"PRIx32,
+	     session->handle, privkey_handle, pubkey_handle);
+
+out:
+	if (pubkey_handle) {
+		object = pkcs11_handle2object(pubkey_handle, session);
+		if (!object)
+			TEE_Panic(0);
+		destroy_object(session, object, false);
+	}
+	TEE_Free(priv_head);
+	TEE_Free(pub_head);
+	TEE_Free(priv_template);
+	TEE_Free(pub_template);
+	TEE_Free(proc_params);
+
+	return rc;
+}
+
 /*
  * entry_processing_init - Generic entry for initializing a processing
  *
