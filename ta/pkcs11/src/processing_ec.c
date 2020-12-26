@@ -7,9 +7,11 @@
 #include <pkcs11_ta.h>
 #include <tee_api_defines.h>
 #include <tee_internal_api.h>
+#include <tee_internal_api_extensions.h>
 #include <util.h>
 
 #include "attributes.h"
+#include "object.h"
 #include "processing.h"
 
 /*
@@ -317,6 +319,131 @@ uint32_t ec_params2tee_curve(void *ec_params, size_t size)
 	return curve->tee_id;
 }
 
+enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
+				     size_t *tee_count,
+				     struct pkcs11_object *obj)
+{
+	TEE_Attribute *attrs = NULL;
+	size_t count = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+
+	assert(get_key_type(obj->attributes) == PKCS11_CKK_EC);
+
+	switch (get_class(obj->attributes)) {
+	case PKCS11_CKO_PUBLIC_KEY:
+		attrs = TEE_Malloc(3 * sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_ECC_CURVE,
+				       obj, PKCS11_CKA_EC_PARAMS))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ECC_PUBLIC_VALUE_X,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (count == 3)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	case PKCS11_CKO_PRIVATE_KEY:
+		attrs = TEE_Malloc(4 * sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_ECC_CURVE,
+				       obj, PKCS11_CKA_EC_PARAMS))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ECC_PRIVATE_VALUE,
+				       obj, PKCS11_CKA_VALUE))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ECC_PUBLIC_VALUE_X,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (count == 4)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	default:
+		assert(0);
+		break;
+	}
+
+	if (rc == PKCS11_CKR_OK) {
+		*tee_attrs = attrs;
+		*tee_count = count;
+	} else {
+		TEE_Free(attrs);
+	}
+
+	return rc;
+}
+
+enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
+				   struct pkcs11_attribute_head *proc_params,
+				   struct pkcs11_object *obj)
+{
+	switch (proc_params->id) {
+	case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_ECDSA_SHA1:
+	case PKCS11_CKM_ECDSA_SHA224:
+	case PKCS11_CKM_ECDSA_SHA256:
+	case PKCS11_CKM_ECDSA_SHA384:
+	case PKCS11_CKM_ECDSA_SHA512:
+		break;
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+
+	/*
+	 * TODO: Fixing this in a way to support also other EC curves would
+	 * require OP-TEE to be updated for newer version of GlobalPlatform API
+	 */
+	switch (get_object_key_bit_size(obj)) {
+	case 192:
+		*tee_id = TEE_ALG_ECDSA_P192;
+		break;
+	case 224:
+		*tee_id = TEE_ALG_ECDSA_P224;
+		break;
+	case 256:
+		*tee_id = TEE_ALG_ECDSA_P256;
+		break;
+	case 384:
+		*tee_id = TEE_ALG_ECDSA_P384;
+		break;
+	case 521:
+		*tee_id = TEE_ALG_ECDSA_P521;
+		break;
+	default:
+		TEE_Panic(0);
+		break;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
 static enum pkcs11_rc tee2pkcs_ec_attributes(struct obj_attrs **pub_head,
 					     struct obj_attrs **priv_head,
 					     TEE_ObjectHandle tee_obj,
@@ -495,4 +622,27 @@ out:
 		TEE_CloseObject(tee_obj);
 
 	return rc;
+}
+
+size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
+{
+	TEE_OperationInfo info = { };
+
+	TEE_GetOperationInfo(op, &info);
+
+	switch (info.algorithm) {
+	case TEE_ALG_ECDSA_P192:
+		return 24;
+	case TEE_ALG_ECDSA_P224:
+		return 28;
+	case TEE_ALG_ECDSA_P256:
+		return 32;
+	case TEE_ALG_ECDSA_P384:
+		return 48;
+	case TEE_ALG_ECDSA_P521:
+		return 66;
+	default:
+		DMSG("Unexpected ECDSA algorithm %#"PRIx32, info.algorithm);
+		return 0;
+	}
 }

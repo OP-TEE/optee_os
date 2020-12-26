@@ -218,6 +218,8 @@ enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
 	/* Boolean are default to false and pointers to NULL */
 	proc->state = state;
 	proc->tee_op_handle = TEE_HANDLE_NULL;
+	proc->tee_hash_algo = 0;
+	proc->tee_hash_op_handle = TEE_HANDLE_NULL;
 
 	if (obj1 && get_bool(obj1->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
 		proc->always_authen = true;

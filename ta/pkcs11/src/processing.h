@@ -57,6 +57,19 @@ enum pkcs11_rc tee2pkcs_add_attribute(struct obj_attrs **head,
 				      TEE_ObjectHandle tee_obj,
 				      uint32_t tee_id);
 
+/* Asymmetric key operations util */
+bool processing_is_tee_asymm(uint32_t proc_id);
+
+enum pkcs11_rc init_asymm_operation(struct pkcs11_session *session,
+				    enum processing_func function,
+				    struct pkcs11_attribute_head *proc_params,
+				    struct pkcs11_object *obj);
+
+enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
+				    enum processing_func function,
+				    enum processing_step step,
+				    uint32_t ptypes, TEE_Param *params);
+
 /*
  * Symmetric crypto algorithm specific functions
  */
@@ -93,12 +106,22 @@ enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
 /*
  * Elliptic curve crypto algorithm specific functions
  */
+enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
+				     size_t *tee_count,
+				     struct pkcs11_object *obj);
+
 size_t ec_params2tee_keysize(void *attr, size_t size);
 
 uint32_t ec_params2tee_curve(void *attr, size_t size);
 
+enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
+				   struct pkcs11_attribute_head *proc_params,
+				   struct pkcs11_object *obj);
+
 enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 				struct obj_attrs **pub_head,
 				struct obj_attrs **priv_head);
+
+size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 
 #endif /*PKCS11_TA_PROCESSING_H*/

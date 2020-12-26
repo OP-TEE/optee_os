@@ -136,6 +136,9 @@ enum pkcs11_proc_state {
  * @relogged - true once client logged since last operation update
  * @updated - true once an active operation is updated
  * @tee_op_handle - handle on active crypto operation or TEE_HANDLE_NULL
+ * @tee_hash_algo - hash algorithm identifier.
+ * @tee_hash_op_handle - handle on active hashing crypto operation or
+ * TEE_HANDLE_NULL
  * @extra_ctx - context for the active processing
  */
 struct active_processing {
@@ -145,6 +148,8 @@ struct active_processing {
 	bool relogged;
 	bool updated;
 	TEE_OperationHandle tee_op_handle;
+	uint32_t tee_hash_algo;
+	TEE_OperationHandle tee_hash_op_handle;
 	void *extra_ctx;
 };
 
