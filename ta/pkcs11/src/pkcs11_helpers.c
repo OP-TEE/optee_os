@@ -12,6 +12,7 @@
 #include "object.h"
 #include "pkcs11_attributes.h"
 #include "pkcs11_helpers.h"
+#include "processing.h"
 
 static const char __maybe_unused unknown[] = "<unknown-identifier>";
 
@@ -505,7 +506,91 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 			enum pkcs11_attr_id pkcs11_id)
 {
 	void *a_ptr = NULL;
+	uint8_t *der_ptr = NULL;
 	uint32_t a_size = 0;
+	uint32_t data32 = 0;
+	size_t hsize = 0;
+	size_t qsize = 0;
+
+	switch (tee_id) {
+	case TEE_ATTR_ECC_PUBLIC_VALUE_X:
+	case TEE_ATTR_ECC_PUBLIC_VALUE_Y:
+	case TEE_ATTR_ECC_CURVE:
+		if (get_attribute_ptr(obj->attributes, PKCS11_CKA_EC_PARAMS,
+				      &a_ptr, &a_size) || !a_ptr) {
+			EMSG("Missing EC_PARAMS attribute");
+			return false;
+		}
+
+		if (tee_id == TEE_ATTR_ECC_CURVE) {
+			data32 = ec_params2tee_curve(a_ptr, a_size);
+			TEE_InitValueAttribute(tee_ref, TEE_ATTR_ECC_CURVE,
+					       data32, 0);
+			return true;
+		}
+
+		data32 = (ec_params2tee_keysize(a_ptr, a_size) + 7) / 8;
+
+		if (get_attribute_ptr(obj->attributes, PKCS11_CKA_EC_POINT,
+				      &a_ptr, &a_size)) {
+			/*
+			 * Public X/Y is required for both TEE keypair and
+			 * public key, so abort if EC_POINT is not provided
+			 * during object import.
+			 */
+
+			EMSG("Missing EC_POINT attribute");
+			return false;
+		}
+
+		der_ptr = (uint8_t *)a_ptr;
+
+		if (der_ptr[0] != 0x04) {
+			EMSG("Unsupported DER type");
+			return false;
+		}
+
+		if ((der_ptr[1] & 0x80) == 0) {
+			/* DER short definitive form up to 127 bytes */
+			qsize = der_ptr[1] & 0x7F;
+			hsize = 2 /* der */ + 1 /* point compression */;
+		} else if (der_ptr[1] == 0x81) {
+			/* DER long definitive form up to 255 bytes */
+			qsize = der_ptr[2];
+			hsize = 3 /* der */ + 1 /* point compression */;
+		} else {
+			EMSG("Unsupported DER long form");
+			return false;
+		}
+
+		if (der_ptr[hsize - 1] != 0x04) {
+			EMSG("Unsupported EC_POINT compression");
+			return false;
+		}
+
+		if (a_size != (hsize - 1) + qsize) {
+			EMSG("Invalid EC_POINT attribute");
+			return false;
+		}
+
+		if (a_size != hsize + 2 * data32) {
+			EMSG("Invalid EC_POINT attribute");
+			return false;
+		}
+
+		if (tee_id == TEE_ATTR_ECC_PUBLIC_VALUE_X)
+			TEE_InitRefAttribute(tee_ref, tee_id,
+					     der_ptr + hsize, data32);
+		else
+			TEE_InitRefAttribute(tee_ref, tee_id,
+					     der_ptr + hsize + data32,
+					     data32);
+
+		return true;
+
+	default:
+		break;
+	}
 
 	if (get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size))
 		return false;

@@ -1463,6 +1463,27 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 		}
 		break;
 
+	case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_ECDSA_SHA1:
+	case PKCS11_CKM_ECDSA_SHA224:
+	case PKCS11_CKM_ECDSA_SHA256:
+	case PKCS11_CKM_ECDSA_SHA384:
+	case PKCS11_CKM_ECDSA_SHA512:
+		if (key_type != PKCS11_CKK_EC) {
+			EMSG("Invalid key %s for mechanism %s",
+			     id2str_type(key_type, key_class),
+			     id2str_proc(proc_id));
+
+			return PKCS11_CKR_KEY_TYPE_INCONSISTENT;
+		}
+		if (key_class != PKCS11_CKO_PUBLIC_KEY &&
+		    key_class != PKCS11_CKO_PRIVATE_KEY) {
+			EMSG("Invalid key class for mechanism %s",
+			     id2str_proc(proc_id));
+
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
+		break;
 	default:
 		DMSG("Invalid processing %#"PRIx32"/%s", proc_id,
 		     id2str_proc(proc_id));

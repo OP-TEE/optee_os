@@ -104,6 +104,12 @@ void release_active_processing(struct pkcs11_session *session)
 	if (!session->processing)
 		return;
 
+	if (session->processing->tee_hash_op_handle != TEE_HANDLE_NULL) {
+		TEE_FreeOperation(session->processing->tee_hash_op_handle);
+		session->processing->tee_hash_op_handle = TEE_HANDLE_NULL;
+		session->processing->tee_hash_algo = 0;
+	}
+
 	if (session->processing->tee_op_handle != TEE_HANDLE_NULL) {
 		TEE_FreeOperation(session->processing->tee_op_handle);
 		session->processing->tee_op_handle = TEE_HANDLE_NULL;
@@ -117,6 +123,7 @@ void release_active_processing(struct pkcs11_session *session)
 
 size_t get_object_key_bit_size(struct pkcs11_object *obj)
 {
+	void *a_ptr = NULL;
 	uint32_t a_size = 0;
 	struct obj_attrs *attrs = obj->attributes;
 
@@ -133,6 +140,12 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 			return 0;
 
 		return a_size * 8;
+	case PKCS11_CKK_EC:
+		if (get_attribute_ptr(attrs, PKCS11_CKA_EC_PARAMS,
+				      &a_ptr, &a_size) || !a_ptr)
+			return 0;
+
+		return ec_params2tee_keysize(a_ptr, a_size);
 	default:
 		TEE_Panic(0);
 		return 0;
@@ -632,6 +645,8 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 
 	if (processing_is_tee_symm(proc_params->id))
 		rc = init_symm_operation(session, function, proc_params, obj);
+	else if (processing_is_tee_asymm(proc_params->id))
+		rc = init_asymm_operation(session, function, proc_params, obj);
 	else if (processing_is_tee_digest(proc_params->id))
 		rc = init_digest_operation(session, proc_params);
 	else
@@ -726,6 +741,9 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 	if (processing_is_tee_symm(mecha_type))
 		rc = step_symm_operation(session, function, step,
 					 ptypes, params);
+	else if (processing_is_tee_asymm(mecha_type))
+		rc = step_asymm_operation(session, function, step,
+					  ptypes, params);
 	else if (processing_is_tee_digest(mecha_type))
 		rc = step_digest_operation(session, step, obj, ptypes, params);
 	else
