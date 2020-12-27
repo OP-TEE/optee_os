@@ -47,3 +47,7 @@ void	bstatse     _((bufsize *pool_incr, long *npool, long *npget,
 void	bufdump     _((void *buf));
 void	bpoold	    _((void *pool, int dumpalloc, int dumpfree));
 int	bpoolv	    _((void *pool));
+
+#if !defined(__KERNEL__) && !defined(__LDELF__) && defined(CFG_TA_BGET_TEST)
+int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *));
+#endif
