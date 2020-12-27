@@ -223,7 +223,7 @@ $3: $1 $(conf-file) FORCE
 			$$(comp-cmd-file-$3) ;\
 	)
 
-guard-$2 := $$(subst -,_,$$(subst .,_,$$(subst /,_,$2)))
+guard-$2 := $$(subst -,_,$$(subst .,_,$$(subst /,_,$$(subst +,_,$2))))
 
 $(2): $(3)
 	$(q)set -e;							\
