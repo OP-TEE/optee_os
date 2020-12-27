@@ -1298,17 +1298,9 @@ int bpoolv(buf)
 	*			*
         \***********************/
 
-#ifdef TestProg
+#if !defined(__KERNEL__) && !defined(__LDELF__) && defined(CFG_TA_BGET_TEST)
 
-#define Repeatable  1		      /* Repeatable pseudorandom sequence */
-				      /* If Repeatable is not defined, a
-					 time-seeded pseudorandom sequence
-					 is generated, exercising BGET with
-					 a different pattern of calls on each
-					 run. */
-#define OUR_RAND		      /* Use our own built-in version of
-					 rand() to guarantee the test is
-					 100% repeatable. */
+#define TestProg 20000
 
 #ifdef BECtl
 #define PoolSize    300000	      /* Test buffer pool size */
@@ -1321,25 +1313,28 @@ int bpoolv(buf)
 #define dumpAlloc   0		      /* Dump allocated buffers ? */
 #define dumpFree    0		      /* Dump free buffers ? */
 
-#ifndef Repeatable
-extern long time();
-#endif
-
-extern char *malloc();
-extern int free _((char *));
-
 static char *bchain = NULL;	      /* Our private buffer chain */
 static char *bp = NULL; 	      /* Our initial buffer pool */
 
+#ifdef UsingFloat
 #include <math.h>
-
-#ifdef OUR_RAND
+#endif
 
 static unsigned long int next = 1;
 
+static void *(*mymalloc)(size_t size);
+static void (*myfree)(void *ptr);
+
+static struct bpoolset mypoolset = {
+	.freelist = {
+		.bh = { 0, 0},
+		.ql = { &mypoolset.freelist, &mypoolset.freelist},
+	}
+};
+
 /* Return next random integer */
 
-int rand()
+static int myrand(void)
 {
 	next = next * 1103515245L + 12345;
 	return (unsigned int) (next / 65536L) % 32768L;
@@ -1347,31 +1342,33 @@ int rand()
 
 /* Set seed for random generator */
 
-void srand(seed)
-  unsigned int seed;
+static void mysrand(unsigned int seed)
 {
 	next = seed;
 }
-#endif
 
 /*  STATS  --  Edit statistics returned by bstats() or bstatse().  */
 
-static void stats(when)
-  char *when;
+static void stats(const char *when __maybe_unused,
+		  struct bpoolset *poolset __maybe_unused)
 {
+#ifdef BufStats
     bufsize cural, totfree, maxfree;
     long nget, nfree;
+#endif
 #ifdef BECtl
     bufsize pincr;
     long totblocks, npget, nprel, ndget, ndrel;
 #endif
 
-    bstats(&cural, &totfree, &maxfree, &nget, &nfree);
+#ifdef BufStats
+    bstats(&cural, &totfree, &maxfree, &nget, &nfree, poolset);
     V printf(
         "%s: %ld gets, %ld releases.  %ld in use, %ld free, largest = %ld\n",
 	when, nget, nfree, (long) cural, (long) totfree, (long) maxfree);
+#endif
 #ifdef BECtl
-    bstatse(&pincr, &totblocks, &npget, &nprel, &ndget, &ndrel);
+    bstatse(&pincr, &totblocks, &npget, &nprel, &ndget, &ndrel, poolset);
     V printf(
          "  Blocks: size = %ld, %ld (%ld bytes) in use, %ld gets, %ld frees\n",
 	 (long)pincr, totblocks, pincr * totblocks, npget, nprel);
@@ -1443,7 +1440,7 @@ static void *bexpand(size)
     bstats(&cural, &totfree, &maxfree, &nget, &nfree);
 
     if (cural < PoolSize) {
-	np = (void *) malloc((unsigned) size);
+	np = (void *) mymalloc((unsigned) size);
     }
 #ifdef EXPTRACE
     V printf("Expand pool by %ld -- %s.\n", (long) size,
@@ -1466,7 +1463,7 @@ static void bshrink(buf)
 #ifdef EXPTRACE
     V printf("Shrink pool.\n");
 #endif
-    free((char *) buf);
+    myfree((char *) buf);
 }
 
 #endif /* BECtl */
@@ -1474,8 +1471,7 @@ static void bshrink(buf)
 /*  Restrict buffer requests to those large enough to contain our pointer and
     small enough for the CPU architecture.  */
 
-static bufsize blimit(bs)
-  bufsize bs;
+static bufsize blimit(bufsize bs)
 {
     if (bs < sizeof(char *)) {
 	bs = sizeof(char *);
@@ -1497,54 +1493,65 @@ static bufsize blimit(bs)
     return bs;
 }
 
-int main()
+int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 {
     int i;
+#ifdef UsingFloat
     double x;
+#endif
+
+    mymalloc = malloc_func;
+    myfree = free_func;
 
     /* Seed the random number generator.  If Repeatable is defined, we
        always use the same seed.  Otherwise, we seed from the clock to
        shake things up from run to run. */
 
-#ifdef Repeatable
-    V srand(1234);
-#else
-    V srand((int) time((long *) NULL));
-#endif
+    mysrand(1234);
 
     /*	Compute x such that pow(x, p) ranges between 1 and 4*ExpIncr as
 	p ranges from 0 to ExpIncr-1, with a concentration in the lower
 	numbers.  */
 
+#ifdef UsingFloat
     x = 4.0 * ExpIncr;
     x = log(x);
     x = exp(log(4.0 * ExpIncr) / (ExpIncr - 1.0));
+#endif
 
 #ifdef BECtl
-    bectl(bcompact, bexpand, bshrink, (bufsize) ExpIncr);
-    bp = malloc(ExpIncr);
+    bectl(bcompact, bexpand, bshrink, (bufsize) ExpIncr, &mypoolset);
+    bp = mymalloc(ExpIncr);
     assert(bp != NULL);
     bpool((void *) bp, (bufsize) ExpIncr);
 #else
-    bp = malloc(PoolSize);
+    bp = mymalloc(PoolSize);
     assert(bp != NULL);
-    bpool((void *) bp, (bufsize) PoolSize);
+    bpool((void *) bp, (bufsize) PoolSize, &mypoolset);
 #endif
 
-    stats("Create pool");
+    stats("Create pool", &mypoolset);
+#ifdef BufValid
     V bpoolv((void *) bp);
+#endif
+#ifdef BufDump
     bpoold((void *) bp, dumpAlloc, dumpFree);
+#endif
 
     for (i = 0; i < TestProg; i++) {
 	char *cb;
-	bufsize bs = pow(x, (double) (rand() & (ExpIncr - 1)));
+#ifdef UsingFloat
+	bufsize bs = pow(x, (double) (myrand() & (ExpIncr - 1)));
+#else
+	bufsize bs = (rand() & (ExpIncr * 4 - 1)) / (1 << (rand() & 0x7));
+#endif
 
 	assert(bs <= (((bufsize) 4) * ExpIncr));
 	bs = blimit(bs);
-	if (rand() & 0x400) {
-	    cb = (char *) bgetz(bs);
+	if (myrand() & 0x400) {
+	    cb = (char *) bgetz(bs, &mypoolset);
 	} else {
-	    cb = (char *) bget(bs);
+	    cb = (char *) bget(bs, &mypoolset);
 	}
 	if (cb == NULL) {
 #ifdef EasyOut
@@ -1558,7 +1565,7 @@ int main()
 		fb = *((char **) bc);
 		if (fb != NULL) {
 		    *((char **) bc) = *((char **) fb);
-		    brel((void *) fb);
+		    brel((void *) fb, &mypoolset, true/*wipe*/);
 		}
 		continue;
 	    }
@@ -1570,13 +1577,13 @@ int main()
 	/* Based on a random cast, release a random buffer in the list
 	   of allocated buffers. */
 
-	if ((rand() & 0x10) == 0) {
+	if ((myrand() & 0x10) == 0) {
 	    char *bc = bchain;
-	    int i = rand() & 0x3;
+	    int j = myrand() & 0x3;
 
-	    while (i > 0 && bc != NULL) {
+	    while (j > 0 && bc != NULL) {
 		bc = *((char **) bc);
-		i--;
+		j--;
 	    }
 	    if (bc != NULL) {
 		char *fb;
@@ -1584,7 +1591,7 @@ int main()
 		fb = *((char **) bc);
 		if (fb != NULL) {
 		    *((char **) bc) = *((char **) fb);
-		    brel((void *) fb);
+		    brel((void *) fb, &mypoolset, true/*wipe*/);
 		}
 	    }
 	}
@@ -1592,13 +1599,13 @@ int main()
 	/* Based on a random cast, reallocate a random buffer in the list
 	   to a random size */
 
-	if ((rand() & 0x20) == 0) {
+	if ((myrand() & 0x20) == 0) {
 	    char *bc = bchain;
-	    int i = rand() & 0x3;
+	    int j = myrand() & 0x3;
 
-	    while (i > 0 && bc != NULL) {
+	    while (j > 0 && bc != NULL) {
 		bc = *((char **) bc);
-		i--;
+		j--;
 	    }
 	    if (bc != NULL) {
 		char *fb;
@@ -1607,12 +1614,16 @@ int main()
 		if (fb != NULL) {
 		    char *newb;
 
-		    bs = pow(x, (double) (rand() & (ExpIncr - 1)));
+#ifdef UsingFloat
+		    bs = pow(x, (double) (myrand() & (ExpIncr - 1)));
+#else
+		    bs = (rand() & (ExpIncr * 4 - 1)) / (1 << (rand() & 0x7));
+#endif
 		    bs = blimit(bs);
 #ifdef BECtl
 		    protect = 1;      /* Protect against compaction */
 #endif
-		    newb = (char *) bgetr((void *) fb, bs);
+		    newb = (char *) bgetr((void *) fb, bs, &mypoolset);
 #ifdef BECtl
 		    protect = 0;
 #endif
@@ -1623,23 +1634,31 @@ int main()
 	    }
 	}
     }
-    stats("\nAfter allocation");
+    stats("\nAfter allocation", &mypoolset);
     if (bp != NULL) {
+#ifdef BufValid
 	V bpoolv((void *) bp);
+#endif
+#ifdef BufDump
 	bpoold((void *) bp, dumpAlloc, dumpFree);
+#endif
     }
 
     while (bchain != NULL) {
 	char *buf = bchain;
 
 	bchain = *((char **) buf);
-	brel((void *) buf);
+	brel((void *) buf, &mypoolset, true/*wipe*/);
     }
-    stats("\nAfter release");
+    stats("\nAfter release", &mypoolset);
 #ifndef BECtl
     if (bp != NULL) {
+#ifdef BufValid
 	V bpoolv((void *) bp);
+#endif
+#ifdef BufDump
 	bpoold((void *) bp, dumpAlloc, dumpFree);
+#endif
     }
 #endif
 

@@ -408,6 +408,9 @@ CFG_ENABLE_EMBEDDED_TESTS ?= n
 # Enable core self tests and related pseudo TAs
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 
+# Compiles bget_main_test() to be called from a test TA
+CFG_TA_BGET_TEST ?= $(CFG_ENABLE_EMBEDDED_TESTS)
+
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
 # with specific core number and non-secure entry address.
