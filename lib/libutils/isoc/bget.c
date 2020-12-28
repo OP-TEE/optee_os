@@ -576,7 +576,8 @@ struct bpoolset {
 
 #define ESent	((bufsize) (-(((1L << (sizeof(bufsize) * 8 - 2)) - 1) * 2) - 2))
 
-static bufsize buf_get_pos(struct bfhead *bf, bufsize align, bufsize size)
+static bufsize buf_get_pos(struct bfhead *bf, bufsize align, bufsize hdr_size,
+                           bufsize size)
 {
     unsigned long buf = 0;
     bufsize pos = 0;
@@ -585,12 +586,13 @@ static bufsize buf_get_pos(struct bfhead *bf, bufsize align, bufsize size)
        return -1;
 
     /*
-     * plus sizeof(struct bhead) since buf will follow just after a struct
-     * bhead.
+     * plus sizeof(struct bhead) and hdr_size since buf will follow just
+     * after a struct bhead and an eventual extra header.
      */
-    buf = (unsigned long)bf + bf->bh.bsize - size + sizeof(struct bhead);
+    buf = (unsigned long)bf + bf->bh.bsize - size + sizeof(struct bhead) +
+          hdr_size;
     buf &= ~(align - 1);
-    pos = buf - (unsigned long)bf - sizeof(struct bhead);
+    pos = buf - (unsigned long)bf - sizeof(struct bhead) - hdr_size;
 
     if (pos == 0) /* exact match */
         return pos;
@@ -602,8 +604,9 @@ static bufsize buf_get_pos(struct bfhead *bf, bufsize align, bufsize size)
 
 /*  BGET  --  Allocate a buffer.  */
 
-void *bget(requested_align, requested_size, poolset)
+void *bget(requested_align, hdr_size, requested_size, poolset)
   bufsize requested_align;
+  bufsize hdr_size;
   bufsize requested_size;
   struct bpoolset *poolset;
 {
@@ -620,7 +623,11 @@ void *bget(requested_align, requested_size, poolset)
 #endif
 
     assert(size > 0);
+    COMPILE_TIME_ASSERT(BGET_HDR_QUANTUM == SizeQ);
+
     if (align < 0 || (align > 0 && !IS_POWER_OF_TWO((unsigned long)align)))
+        return NULL;
+    if (hdr_size % BGET_HDR_QUANTUM != 0)
         return NULL;
 
     if (size < SizeQ) { 	      /* Need at least room for the */
@@ -639,6 +646,8 @@ void *bget(requested_align, requested_size, poolset)
 
     /* Add overhead in allocated buffer to size required. */
     if (ADD_OVERFLOW(size, sizeof(struct bhead), &size))
+        return NULL;
+    if (ADD_OVERFLOW(size, hdr_size, &size))
         return NULL;
 
 #ifdef BECtl
@@ -660,7 +669,7 @@ void *bget(requested_align, requested_size, poolset)
 #ifdef BestFit
 	while (b != &poolset->freelist) {
             assert(b->bh.prevfree == 0);
-            pos = buf_get_pos(b, align, size);
+            pos = buf_get_pos(b, align, hdr_size, size);
             if (pos >= 0) {
 		if ((best == &poolset->freelist) ||
 		    (b->bh.bsize < best->bh.bsize)) {
@@ -673,7 +682,7 @@ void *bget(requested_align, requested_size, poolset)
 #endif /* BestFit */
 
 	while (b != &poolset->freelist) {
-            pos = buf_get_pos(b, align, size);
+            pos = buf_get_pos(b, align, hdr_size, size);
             if (pos >= 0) {
                 struct bhead *b_alloc = BH((char *)b + pos);
                 struct bhead *b_next = BH((char *)b + b->bh.bsize);
@@ -783,8 +792,12 @@ void *bget(requested_align, requested_size, poolset)
                     bdh = BDH(p);
 		    buf = bdh + 1;
                 } else {
-		    buf = (void *)(((unsigned long)p + sizeof(*bdh) + align) &
-                                   ~(align - 1));
+                    unsigned long tp = (unsigned long)p;
+
+                    tp += sizeof(*bdh) + hdr_size + align;
+                    tp &= ~(align - 1);
+                    tp -= hdr_size;
+		    buf = (void *)tp;
                     bdh = BDH((char *)buf - sizeof(*bdh));
                 }
 
@@ -799,7 +812,6 @@ void *bget(requested_align, requested_size, poolset)
 		poolset->numget++;	  /* Increment number of bget() calls */
 		poolset->numdget++;	  /* Direct bget() call count */
 #endif
-		buf =  (void *) (bdh + 1);
 		tag_asan_alloced(buf, size);
 		return buf;
 	    }
@@ -812,7 +824,7 @@ void *bget(requested_align, requested_size, poolset)
 
 	    if ((newpool = poolset->acqfcn((bufsize) exp_incr)) != NULL) {
 		bpool(newpool, exp_incr, poolset);
-                buf =  bget(align, requested_size, pool);  /* This can't, I say, can't
+                buf =  bget(align, hdr_size, requested_size, pool);  /* This can't, I say, can't
 						       get into a loop. */
 		return buf;
 	    }
@@ -830,12 +842,13 @@ void *bget(requested_align, requested_size, poolset)
 	       the  entire  contents  of  the buffer to zero, not just the
 	       region requested by the caller. */
 
-void *bgetz(align, size, poolset)
+void *bgetz(align, hdr_size, size, poolset)
   bufsize align;
+  bufsize hdr_size;
   bufsize size;
   struct bpoolset *poolset;
 {
-    char *buf = (char *) bget(align, size, poolset);
+    char *buf = (char *) bget(align, hdr_size, size, poolset);
 
     if (buf != NULL) {
 	struct bhead *b;
@@ -862,9 +875,10 @@ void *bgetz(align, size, poolset)
 	       enhanced to allow the buffer to grow into adjacent free
 	       blocks and to avoid moving data unnecessarily.  */
 
-void *bgetr(buf, align, size, poolset)
+void *bgetr(buf, align, hdr_size, size, poolset)
   void *buf;
   bufsize align;
+  bufsize hdr_size;
   bufsize size;
   struct bpoolset *poolset;
 {
@@ -872,7 +886,7 @@ void *bgetr(buf, align, size, poolset)
     bufsize osize;		      /* Old size of buffer */
     struct bhead *b;
 
-    if ((nbuf = bget(align, size, poolset)) == NULL) { /* Acquire new buffer */
+    if ((nbuf = bget(align, hdr_size, size, poolset)) == NULL) { /* Acquire new buffer */
 	return NULL;
     }
     if (buf == NULL) {
@@ -1605,6 +1619,7 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 	bufsize bs = (myrand() & (ExpIncr * 4 - 1)) / (1 << (myrand() & 0x7));
 #endif
 	bufsize align = 0;
+	bufsize hdr_size = 0;
 
         switch (rand() & 0x3) {
         case 1:
@@ -1620,12 +1635,14 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
             break;
         }
 
+        hdr_size = (rand() & 0x3) * BGET_HDR_QUANTUM;
+
 	assert(bs <= (((bufsize) 4) * ExpIncr));
 	bs = blimit(bs);
 	if (myrand() & 0x400) {
-	    cb = (char *) bgetz(align, bs, &mypoolset);
+	    cb = (char *) bgetz(align, hdr_size, bs, &mypoolset);
 	} else {
-	    cb = (char *) bget(align, bs, &mypoolset);
+	    cb = (char *) bget(align, hdr_size, bs, &mypoolset);
 	}
 	if (cb == NULL) {
 #ifdef EasyOut
@@ -1645,7 +1662,7 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 	    continue;
 #endif
 	}
-        assert(!align || !((unsigned long)cb & (align - 1)));
+        assert(!align || !(((unsigned long)cb + hdr_size) & (align - 1)));
 	*((char **) cb) = (char *) bchain;
 	bchain = cb;
 
@@ -1698,11 +1715,13 @@ int bget_main_test(void *(*malloc_func)(size_t), void (*free_func)(void *))
 #ifdef BECtl
 		    protect = 1;      /* Protect against compaction */
 #endif
-		    newb = (char *) bgetr((void *) fb, align, bs, &mypoolset);
+		    newb = (char *) bgetr((void *) fb, align, hdr_size, bs, &mypoolset);
 #ifdef BECtl
 		    protect = 0;
 #endif
 		    if (newb != NULL) {
+                        assert(!align || !(((unsigned long)newb + hdr_size) &
+                                           (align - 1)));
 			*((char **) bc) = newb;
 		    }
 		}

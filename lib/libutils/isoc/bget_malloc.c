@@ -361,17 +361,15 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 
 	raw_malloc_validate_pools(ctx);
 
-	/* Compute total size */
-	if (ADD_OVERFLOW(pl_size, hdr_size, &s))
-		goto out;
-	if (ADD_OVERFLOW(s, ftr_size, &s))
+	/* Compute total size, excluding the header */
+	if (ADD_OVERFLOW(pl_size, ftr_size, &s))
 		goto out;
 
 	/* BGET doesn't like 0 sized allocations */
 	if (!s)
 		s++;
 
-	ptr = bget(0, s, &ctx->poolset);
+	ptr = bget(0, hdr_size, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(ptr, pl_size, ctx);
 
@@ -394,10 +392,8 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 
 	raw_malloc_validate_pools(ctx);
 
-	/* Compute total size */
+	/* Compute total size, excluding hdr_size */
 	if (MUL_OVERFLOW(pl_nmemb, pl_size, &s))
-		goto out;
-	if (ADD_OVERFLOW(s, hdr_size, &s))
 		goto out;
 	if (ADD_OVERFLOW(s, ftr_size, &s))
 		goto out;
@@ -406,7 +402,7 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 	if (!s)
 		s++;
 
-	ptr = bgetz(0, s, &ctx->poolset);
+	ptr = bgetz(0, hdr_size, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(ptr, pl_nmemb * pl_size, ctx);
 
@@ -431,7 +427,7 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 	if (!s)
 		s++;
 
-	p = bgetr(ptr, 0, s, &ctx->poolset);
+	p = bgetr(ptr, 0, 0, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(p, pl_size, ctx);
 
@@ -513,13 +509,9 @@ static void *gen_mdbg_malloc(struct malloc_ctx *ctx, const char *fname,
 	uint32_t exceptions = malloc_lock(ctx);
 
 	/*
-	 * Check struct mdbg_hdr doesn't get bad alignment.
-	 * This is required by C standard: the buffer returned from
-	 * malloc() should be aligned with a fundamental alignment.
-	 * For ARM32, the required alignment is 8. For ARM64, it is 16.
+	 * Check struct mdbg_hdr works with BGET_HDR_QUANTUM.
 	 */
-	COMPILE_TIME_ASSERT(
-		(sizeof(struct mdbg_hdr) % (__alignof(uintptr_t) * 2)) == 0);
+	COMPILE_TIME_ASSERT((sizeof(struct mdbg_hdr) % BGET_HDR_QUANTUM) == 0);
 
 	hdr = raw_malloc(sizeof(struct mdbg_hdr),
 			 mdbg_get_ftr_size(size), size, ctx);

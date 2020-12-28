@@ -26,13 +26,15 @@
 #endif /* PROTOTYPES */
 #endif
 
+#define BGET_HDR_QUANTUM    (2 * sizeof(long))
+
 typedef long bufsize;
 struct bpoolset;
 
 void	bpool	    _((void *buffer, bufsize len, struct bpoolset *poolset));
-void   *bget	    _((bufsize align, bufsize size, struct bpoolset *poolset));
-void   *bgetz	    _((bufsize align, bufsize size, struct bpoolset *poolset));
-void   *bgetr	    _((void *buffer, bufsize align, bufsize newsize,
+void   *bget	    _((bufsize align, bufsize hdr_size, bufsize size, struct bpoolset *poolset));
+void   *bgetz	    _((bufsize align, bufsize hdr_size, bufsize size, struct bpoolset *poolset));
+void   *bgetr	    _((void *buffer, bufsize align, bufsize hdr_size, bufsize newsize,
 		       struct bpoolset *poolset));
 void	brel	    _((void *buf, struct bpoolset *poolset, int wipe));
 void	bectl	    _((int (*compact)(bufsize sizereq, int sequence),
