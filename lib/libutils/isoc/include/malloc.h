@@ -15,6 +15,8 @@ void free(void *ptr);
 void *mdbg_malloc(const char *fname, int lineno, size_t size);
 void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
 void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
+void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
+		    size_t size);
 
 void mdbg_check(int bufdump);
 
@@ -23,12 +25,15 @@ void mdbg_check(int bufdump);
 		mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
 #define realloc(ptr, size) \
 		mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
+#define memalign(alignment, size) \
+		mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
 
 #else
 
 void *malloc(size_t size);
 void *calloc(size_t nmemb, size_t size);
 void *realloc(void *ptr, size_t size);
+void *memalign(size_t alignment, size_t size);
 
 #define mdbg_check(x)        do { } while (0)
 
@@ -86,6 +91,8 @@ void nex_free(void *ptr);
 void *nex_mdbg_malloc(const char *fname, int lineno, size_t size);
 void *nex_mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
 void *nex_mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
+void *nex_mdbg_memalign(const char *fname, int lineno, size_t alignment,
+			size_t size);
 
 void nex_mdbg_check(int bufdump);
 
@@ -94,12 +101,15 @@ void nex_mdbg_check(int bufdump);
 		nex_mdbg_calloc(__FILE__, __LINE__, (nmemb), (size))
 #define nex_realloc(ptr, size) \
 		nex_mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
+#define nex_memalign(alignment, size) \
+		nex_mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
 
 #else /* ENABLE_MDBG */
 
 void *nex_malloc(size_t size);
 void *nex_calloc(size_t nmemb, size_t size);
 void *nex_realloc(void *ptr, size_t size);
+void *nex_memalign(size_t alignment, size_t size);
 
 #define nex_mdbg_check(x)        do { } while (0)
 
@@ -124,6 +134,7 @@ void nex_malloc_reset_stats(void);
 #define nex_malloc(size) malloc(size)
 #define nex_calloc(nmemb, size) calloc(nmemb, size)
 #define nex_realloc(ptr, size) realloc(ptr, size)
+#define nex_memalign(alignment, size) memalign(alignment, size)
 
 #endif	/* CFG_VIRTUALIZATION */
 

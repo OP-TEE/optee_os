@@ -312,7 +312,7 @@ static int self_test_malloc(void)
 	bool r;
 	int ret = 0;
 
-	LOG("malloc tests (malloc, free, calloc, realloc):");
+	LOG("malloc tests:");
 	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
 	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	/* test malloc */
@@ -373,6 +373,47 @@ static int self_test_malloc(void)
 	p3 = NULL;
 	p4 = NULL;
 
+	/* test memalign */
+	p3 = memalign(0x1000, 1024);
+	LOG("- p3 = memalign(%d, 1024)", 0x1000);
+	p1 = malloc(1024);
+	LOG("- p1 = malloc(1024)");
+	p4 = memalign(0x100, 512);
+	LOG("- p4 = memalign(%d, 512)", 0x100);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	r = (p1 && p3 && p4 &&
+	    !((vaddr_t)p3 % 0x1000) && !((vaddr_t)p4 % 0x100));
+	if (!r)
+		ret = -1;
+	LOG("  => test %s", r ? "ok" : "FAILED");
+	LOG("");
+	LOG("- free p1, p3, p4");
+	free(p1);
+	free(p3);
+	free(p4);
+	p1 = NULL;
+	p3 = NULL;
+	p4 = NULL;
+
+	/* test memalign with invalid alignments */
+	p3 = memalign(100, 1024);
+	LOG("- p3 = memalign(%d, 1024)", 100);
+	p4 = memalign(0, 1024);
+	LOG("- p4 = memalign(%d, 1024)", 0);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	r = (!p3 && !p4);
+	if (!r)
+		ret = -1;
+	LOG("  => test %s", r ? "ok" : "FAILED");
+	LOG("");
+	LOG("- free p3, p4");
+	free(p3);
+	free(p4);
+	p3 = NULL;
+	p4 = NULL;
+
 	/* test free(NULL) */
 	LOG("- free NULL");
 	free(NULL);
@@ -391,7 +432,7 @@ static int self_test_nex_malloc(void)
 	bool r;
 	int ret = 0;
 
-	LOG("nex_malloc tests (nex_malloc, nex_free, nex_calloc, nex_realloc):");
+	LOG("nex_malloc tests:");
 	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
 	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	/* test malloc */
@@ -442,6 +483,47 @@ static int self_test_nex_malloc(void)
 	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
 	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
 	r = (p3 && !p4);
+	if (!r)
+		ret = -1;
+	LOG("  => test %s", r ? "ok" : "FAILED");
+	LOG("");
+	LOG("- nex_free p3, p4");
+	nex_free(p3);
+	nex_free(p4);
+	p3 = NULL;
+	p4 = NULL;
+
+	/* test memalign */
+	p3 = nex_memalign(0x1000, 1024);
+	LOG("- p3 = nex_memalign(%d, 1024)", 0x1000);
+	p1 = nex_malloc(1024);
+	LOG("- p1 = nex_malloc(1024)");
+	p4 = nex_memalign(0x100, 512);
+	LOG("- p4 = nex_memalign(%d, 512)", 0x100);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	r = (p1 && p3 && p4 &&
+	    !((vaddr_t)p3 % 0x1000) && !((vaddr_t)p4 % 0x100));
+	if (!r)
+		ret = -1;
+	LOG("  => test %s", r ? "ok" : "FAILED");
+	LOG("");
+	LOG("- nex_free p1, p3, p4");
+	nex_free(p1);
+	nex_free(p3);
+	nex_free(p4);
+	p1 = NULL;
+	p3 = NULL;
+	p4 = NULL;
+
+	/* test memalign with invalid alignments */
+	p3 = nex_memalign(100, 1024);
+	LOG("- p3 = nex_memalign(%d, 1024)", 100);
+	p4 = nex_memalign(0, 1024);
+	LOG("- p4 = nex_memalign(%d, 1024)", 0);
+	LOG("  p1=%p  p2=%p  p3=%p  p4=%p",
+	    (void *)p1, (void *)p2, (void *)p3, (void *)p4);
+	r = (!p3 && !p4);
 	if (!r)
 		ret = -1;
 	LOG("  => test %s", r ? "ok" : "FAILED");
