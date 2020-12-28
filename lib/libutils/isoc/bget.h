@@ -30,9 +30,9 @@ typedef long bufsize;
 struct bpoolset;
 
 void	bpool	    _((void *buffer, bufsize len, struct bpoolset *poolset));
-void   *bget	    _((bufsize size, struct bpoolset *poolset));
-void   *bgetz	    _((bufsize size, struct bpoolset *poolset));
-void   *bgetr	    _((void *buffer, bufsize newsize,
+void   *bget	    _((bufsize align, bufsize size, struct bpoolset *poolset));
+void   *bgetz	    _((bufsize align, bufsize size, struct bpoolset *poolset));
+void   *bgetr	    _((void *buffer, bufsize align, bufsize newsize,
 		       struct bpoolset *poolset));
 void	brel	    _((void *buf, struct bpoolset *poolset, int wipe));
 void	bectl	    _((int (*compact)(bufsize sizereq, int sequence),

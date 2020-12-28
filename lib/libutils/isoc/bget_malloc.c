@@ -371,7 +371,7 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 	if (!s)
 		s++;
 
-	ptr = bget(s, &ctx->poolset);
+	ptr = bget(0, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(ptr, pl_size, ctx);
 
@@ -406,7 +406,7 @@ static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 	if (!s)
 		s++;
 
-	ptr = bgetz(s, &ctx->poolset);
+	ptr = bgetz(0, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(ptr, pl_nmemb * pl_size, ctx);
 
@@ -431,7 +431,7 @@ static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 	if (!s)
 		s++;
 
-	p = bgetr(ptr, s, &ctx->poolset);
+	p = bgetr(ptr, 0, s, &ctx->poolset);
 out:
 	raw_malloc_return_hook(p, pl_size, ctx);
 
@@ -452,7 +452,7 @@ static __maybe_unused bufsize bget_buf_size(void *buf)
 		struct bdhead *bd;
 
 		bd = BDH(((char *)buf) - sizeof(struct bdhead));
-		osize = bd->tsize - sizeof(struct bdhead);
+		osize = bd->tsize - sizeof(struct bdhead) - bd->offs;
 	} else
 #endif
 		osize -= sizeof(struct bhead);
