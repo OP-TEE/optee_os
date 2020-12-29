@@ -402,6 +402,24 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 	if (!object)
 		return PKCS11_CKR_OBJECT_HANDLE_INVALID;
 
+	/* Only session objects can be destroyed during a read-only session */
+	if (get_bool(object->attributes, PKCS11_CKA_TOKEN) &&
+	    !pkcs11_session_is_read_write(session)) {
+		DMSG("Can't destroy persistent object");
+		return PKCS11_CKR_SESSION_READ_ONLY;
+	}
+
+	/*
+	 * Only public objects can be destroyed unless normal user is logged in
+	 */
+	rc = check_access_attrs_against_token(session, object->attributes);
+	if (rc)
+		return PKCS11_CKR_USER_NOT_LOGGED_IN;
+
+	/* Objects with PKCS11_CKA_DESTROYABLE as false aren't destroyable */
+	if (!get_bool(object->attributes, PKCS11_CKA_DESTROYABLE))
+		return PKCS11_CKR_ACTION_PROHIBITED;
+
 	destroy_object(session, object, false);
 
 	DMSG("PKCS11 session %"PRIu32": destroy object %#"PRIx32,
