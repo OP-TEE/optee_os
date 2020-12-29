@@ -177,7 +177,7 @@ enum pkcs11_rc get_attribute(struct obj_attrs *head, uint32_t attribute,
 	if (rc)
 		return rc;
 
-	if (attr_size && *attr_size != size) {
+	if (attr_size && *attr_size < size) {
 		*attr_size = size;
 		/* This reuses buffer-to-small for any bad size matching */
 		return PKCS11_CKR_BUFFER_TOO_SMALL;

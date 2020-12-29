@@ -141,10 +141,16 @@ enum pkcs11_rc get_attribute_ptr(struct obj_attrs *head, uint32_t attribute,
  * @attr_size:	Size of the attribute value
  *
  * If attribute is not found, return PKCS11_RV_NOT_FOUND.
- * If attr_size != NULL, check *attr_size matches attributes size and return
- * PKCS11_CKR_BUFFER_TOO_SMALL with expected size in *attr_size.
- * If attr != NULL and attr_size is NULL or gives expected buffer size,
- * copy attribute value into attr.
+ *
+ * If attr_size != NULL, check that attr has enough room for value (compare
+ * against *attr_size), copy attribute value to attr and finally return actual
+ * value size in *attr_size.
+ *
+ * If there is not enough room return PKCS11_CKR_BUFFER_TOO_SMALL with expected
+ * size in *attr_size.
+ *
+ * If attr is NULL and attr_size != NULL return expected buffer size in
+ * *attr_size.
  *
  * Return PKCS11_CKR_OK or PKCS11_RV_NOT_FOUND on success, or a PKCS11 return
  * code.
