@@ -401,8 +401,12 @@ CFG_DTB_MAX_SIZE ?= 0x10000
 # DTB using the standard fdt_overlay_apply() method.
 CFG_EXTERNAL_DTB_OVERLAY ?= n
 
+# All embedded tests are supposed to be disabled by default, this flag
+# is used to control the default value of all other embedded tests
+CFG_ENABLE_EMBEDDED_TESTS ?= n
+
 # Enable core self tests and related pseudo TAs
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
+CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
