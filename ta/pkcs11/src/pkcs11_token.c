@@ -8,6 +8,7 @@
 #include <confine_array_index.h>
 #include <pkcs11_ta.h>
 #include <printk.h>
+#include <pta_system.h>
 #include <string.h>
 #include <string_ext.h>
 #include <sys/queue.h>
@@ -29,6 +30,9 @@
 #else
 #define TOKEN_COUNT		CFG_PKCS11_TA_TOKEN_COUNT
 #endif
+
+/* RNG chunk size used to split RNG generation to smaller sizes */
+#define RNG_CHUNK_SIZE		512U
 
 /*
  * Structure tracking client applications
@@ -1461,6 +1465,139 @@ enum pkcs11_rc entry_ck_logout(struct pkcs11_client *client,
 	session_logout(session);
 
 	IMSG("PKCS11 session %"PRIu32": logout", session->handle);
+
+	return PKCS11_CKR_OK;
+}
+
+static TEE_Result seed_rng_pool(void *seed, size_t length)
+{
+	static const TEE_UUID system_uuid = PTA_SYSTEM_UUID;
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	TEE_TASessionHandle sess = TEE_HANDLE_NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t ret_orig = 0;
+
+	params[0].memref.buffer = seed;
+	params[0].memref.size = (uint32_t)length;
+
+	res = TEE_OpenTASession(&system_uuid, TEE_TIMEOUT_INFINITE, 0, NULL,
+				&sess, &ret_orig);
+	if (res != TEE_SUCCESS) {
+		EMSG("Can't open session to system PTA");
+		return res;
+	}
+
+	res = TEE_InvokeTACommand(sess, TEE_TIMEOUT_INFINITE,
+				  PTA_SYSTEM_ADD_RNG_ENTROPY,
+				  param_types, params, &ret_orig);
+	if (res != TEE_SUCCESS)
+		EMSG("Can't invoke system PTA");
+
+	TEE_CloseTASession(sess);
+	return res;
+}
+
+enum pkcs11_rc entry_ck_seed_random(struct pkcs11_client *client,
+				    uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *in = params + 1;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (in->memref.size && !in->memref.buffer)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!in->memref.size)
+		return PKCS11_CKR_OK;
+
+	res = seed_rng_pool(in->memref.buffer, in->memref.size);
+	if (res != TEE_SUCCESS)
+		return PKCS11_CKR_FUNCTION_FAILED;
+
+	DMSG("PKCS11 session %"PRIu32": seed random", session->handle);
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc entry_ck_generate_random(struct pkcs11_client *client,
+					uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	void *buffer = NULL;
+	size_t buffer_size = 0;
+	uint8_t *data = NULL;
+	size_t left = 0;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (out->memref.size && !out->memref.buffer)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (!out->memref.size)
+		return PKCS11_CKR_OK;
+
+	buffer_size = MIN(out->memref.size, RNG_CHUNK_SIZE);
+	buffer = TEE_Malloc(buffer_size, TEE_MALLOC_FILL_ZERO);
+	if (!buffer)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	data = out->memref.buffer;
+	left = out->memref.size;
+
+	while (left) {
+		size_t count = MIN(left, buffer_size);
+
+		TEE_GenerateRandom(buffer, count);
+		TEE_MemMove(data, buffer, count);
+
+		data += count;
+		left -= count;
+	}
+
+	DMSG("PKCS11 session %"PRIu32": generate random", session->handle);
+
+	TEE_Free(buffer);
 
 	return PKCS11_CKR_OK;
 }

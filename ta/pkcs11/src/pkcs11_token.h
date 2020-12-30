@@ -336,5 +336,9 @@ enum pkcs11_rc entry_ck_login(struct pkcs11_client *client,
 			      uint32_t ptypes, TEE_Param *params);
 enum pkcs11_rc entry_ck_logout(struct pkcs11_client *client,
 			       uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_seed_random(struct pkcs11_client *client,
+				    uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_ck_generate_random(struct pkcs11_client *client,
+					uint32_t ptypes, TEE_Param *params);
 
 #endif /*PKCS11_TA_PKCS11_TOKEN_H*/
