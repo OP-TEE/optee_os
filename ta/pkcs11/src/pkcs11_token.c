@@ -602,9 +602,10 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
 	/* Sanitize session flags */
-	if (!(flags & PKCS11_CKFSS_SERIAL_SESSION) ||
-	    (flags & ~(PKCS11_CKFSS_RW_SESSION |
-		       PKCS11_CKFSS_SERIAL_SESSION)))
+	if (!(flags & PKCS11_CKFSS_SERIAL_SESSION))
+		return PKCS11_CKR_SESSION_PARALLEL_NOT_SUPPORTED;
+
+	if (flags & ~(PKCS11_CKFSS_RW_SESSION | PKCS11_CKFSS_SERIAL_SESSION))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	readonly = !(flags & PKCS11_CKFSS_RW_SESSION);
