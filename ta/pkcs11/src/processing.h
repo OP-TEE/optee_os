@@ -135,4 +135,11 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 
 size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 
+/*
+ * RSA crypto algorithm specific functions
+ */
+enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
+				 struct obj_attrs **pub_head,
+				 struct obj_attrs **priv_head);
+
 #endif /*PKCS11_TA_PROCESSING_H*/
