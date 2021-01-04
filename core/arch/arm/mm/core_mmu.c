@@ -1483,6 +1483,26 @@ void core_mmu_get_entry(struct core_mmu_table_info *tbl_info, unsigned idx,
 				     idx, pa, attr);
 }
 
+static void clear_region(struct core_mmu_table_info *tbl_info,
+			 struct tee_mmap_region *region)
+{
+	unsigned int end = 0;
+	unsigned int idx = 0;
+
+	/* va, len and pa should be block aligned */
+	assert(!core_mmu_get_block_offset(tbl_info, region->va));
+	assert(!core_mmu_get_block_offset(tbl_info, region->size));
+	assert(!core_mmu_get_block_offset(tbl_info, region->pa));
+
+	idx = core_mmu_va2idx(tbl_info, region->va);
+	end = core_mmu_va2idx(tbl_info, region->va + region->size);
+
+	while (idx < end) {
+		core_mmu_set_entry(tbl_info, idx, 0, 0);
+		idx++;
+	}
+}
+
 static void set_region(struct core_mmu_table_info *tbl_info,
 		struct tee_mmap_region *region)
 {
@@ -1857,6 +1877,60 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link)
 		set_pg_region(dir_info, r, &pgt, &pg_info);
+}
+
+TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
+				   size_t len)
+{
+	struct core_mmu_table_info tbl_info = { };
+	struct tee_mmap_region *res_map = NULL;
+	struct tee_mmap_region *map = NULL;
+	paddr_t pa = virt_to_phys(addr);
+	size_t granule = 0;
+	ptrdiff_t i = 0;
+	paddr_t p = 0;
+	size_t l = 0;
+
+	map = find_map_by_type_and_pa(type, pa);
+	if (!map)
+		return TEE_ERROR_GENERIC;
+
+	res_map = find_map_by_type(MEM_AREA_RES_VASPACE);
+	if (!res_map)
+		return TEE_ERROR_GENERIC;
+	if (!core_mmu_find_table(NULL, res_map->va, UINT_MAX, &tbl_info))
+		return TEE_ERROR_GENERIC;
+	granule = BIT(tbl_info.shift);
+
+	if (map < static_memory_map ||
+	    map >= static_memory_map + ARRAY_SIZE(static_memory_map))
+		return TEE_ERROR_GENERIC;
+	i = map - static_memory_map;
+
+	/* Check that we have a full match */
+	p = ROUNDDOWN(pa, granule);
+	l = ROUNDUP(len + pa - p, granule);
+	if (map->pa != p || map->size != l)
+		return TEE_ERROR_GENERIC;
+
+	clear_region(&tbl_info, map);
+	tlbi_all();
+
+	/* If possible remove the va range from res_map */
+	if (res_map->va - map->size == map->va) {
+		res_map->va -= map->size;
+		res_map->size += map->size;
+	}
+
+	/* Remove the entry. */
+	memmove(map, map + 1,
+		(ARRAY_SIZE(static_memory_map) - i - 1) * sizeof(*map));
+
+	/* Clear the last new entry in case it was used */
+	memset(static_memory_map + ARRAY_SIZE(static_memory_map) - 1,
+	       0, sizeof(*map));
+
+	return TEE_SUCCESS;
 }
 
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
