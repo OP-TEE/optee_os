@@ -610,6 +610,10 @@ static TEE_Result release_external_dt(void)
 		panic();
 	}
 
+	if (core_mmu_remove_mapping(MEM_AREA_EXT_DT, external_dt.blob,
+				    CFG_DTB_MAX_SIZE))
+		panic("Failed to remove temporary Device Tree mapping");
+
 	/* External DTB no more reached, reset pointer to invalid */
 	external_dt.blob = NULL;
 
