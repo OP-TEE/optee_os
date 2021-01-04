@@ -140,6 +140,11 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 			return 0;
 
 		return a_size * 8;
+	case PKCS11_CKK_RSA:
+		if (get_attribute_ptr(attrs, PKCS11_CKA_MODULUS, NULL, &a_size))
+			return 0;
+
+		return a_size * 8;
 	case PKCS11_CKK_EC:
 		if (get_attribute_ptr(attrs, PKCS11_CKA_EC_PARAMS,
 				      &a_ptr, &a_size) || !a_ptr)

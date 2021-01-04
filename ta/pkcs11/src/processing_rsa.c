@@ -10,7 +10,113 @@
 #include <tee_internal_api_extensions.h>
 
 #include "attributes.h"
+#include "object.h"
 #include "processing.h"
+
+enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
+				      size_t *tee_count,
+				      struct pkcs11_object *obj)
+{
+	TEE_Attribute *attrs = NULL;
+	size_t count = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *a_ptr = NULL;
+
+	assert(get_key_type(obj->attributes) == PKCS11_CKK_RSA);
+
+	switch (get_class(obj->attributes)) {
+	case PKCS11_CKO_PUBLIC_KEY:
+		attrs = TEE_Malloc(2 * sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_MODULUS,
+				       obj, PKCS11_CKA_MODULUS))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_RSA_PUBLIC_EXPONENT, obj,
+				       PKCS11_CKA_PUBLIC_EXPONENT))
+			count++;
+
+		if (count == 2)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	case PKCS11_CKO_PRIVATE_KEY:
+		attrs = TEE_Malloc(8 * sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_MODULUS,
+				       obj, PKCS11_CKA_MODULUS))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_RSA_PUBLIC_EXPONENT, obj,
+				       PKCS11_CKA_PUBLIC_EXPONENT))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_RSA_PRIVATE_EXPONENT, obj,
+				       PKCS11_CKA_PRIVATE_EXPONENT))
+			count++;
+
+		if (count != 3)
+			break;
+
+		/* If pre-computed values are present load those */
+		rc = get_attribute_ptr(obj->attributes, PKCS11_CKA_PRIME_1,
+				       &a_ptr, NULL);
+		if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+			break;
+		if (rc == PKCS11_RV_NOT_FOUND || !a_ptr) {
+			rc = PKCS11_CKR_OK;
+			break;
+		}
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_PRIME1, obj,
+				       PKCS11_CKA_PRIME_1))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_PRIME2, obj,
+				       PKCS11_CKA_PRIME_2))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_EXPONENT1,
+				       obj, PKCS11_CKA_EXPONENT_1))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_EXPONENT2,
+				       obj, PKCS11_CKA_EXPONENT_2))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count], TEE_ATTR_RSA_COEFFICIENT,
+				       obj, PKCS11_CKA_COEFFICIENT))
+			count++;
+
+		if (count == 8)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	default:
+		assert(0);
+		break;
+	}
+
+	if (rc == PKCS11_CKR_OK) {
+		*tee_attrs = attrs;
+		*tee_count = count;
+	} else {
+		TEE_Free(attrs);
+	}
+
+	return rc;
+}
 
 static enum pkcs11_rc tee2pkcs_rsa_attributes(struct obj_attrs **pub_head,
 					      struct obj_attrs **priv_head,
@@ -168,4 +274,13 @@ out:
 		TEE_CloseObject(tee_obj);
 
 	return rc;
+}
+
+size_t rsa_get_input_max_byte_size(TEE_OperationHandle op)
+{
+	TEE_OperationInfo info = { };
+
+	TEE_GetOperationInfo(op, &info);
+
+	return info.maxKeySize / 8;
 }

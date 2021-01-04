@@ -138,8 +138,14 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 /*
  * RSA crypto algorithm specific functions
  */
+enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
+				      size_t *tee_count,
+				      struct pkcs11_object *obj);
+
 enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 				 struct obj_attrs **pub_head,
 				 struct obj_attrs **priv_head);
+
+size_t rsa_get_input_max_byte_size(TEE_OperationHandle op);
 
 #endif /*PKCS11_TA_PROCESSING_H*/
