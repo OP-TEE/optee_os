@@ -75,7 +75,9 @@ DECLARE_KEEP_PAGER(sem_cpu_sync);
 #ifdef CFG_DT
 struct dt_descriptor {
 	void *blob;
+#ifdef CFG_EXTERNAL_DTB_OVERLAY
 	int frag_id;
+#endif
 };
 
 static struct dt_descriptor external_dt __nex_bss;
