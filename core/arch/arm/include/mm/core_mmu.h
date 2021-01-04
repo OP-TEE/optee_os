@@ -614,6 +614,8 @@ static inline bool core_mmu_is_shm_cached(void)
 		(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
 }
 
+TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
+				   size_t len);
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
 /* various invalidate secure TLB */
