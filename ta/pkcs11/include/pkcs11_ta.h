@@ -1187,6 +1187,7 @@ enum pkcs11_key_type {
  * Note that this will be extended as needed.
  */
 enum pkcs11_mechanism_id {
+	PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN	= 0x00000,
 	PKCS11_CKM_MD5				= 0x00210,
 	PKCS11_CKM_MD5_HMAC			= 0x00211,
 	PKCS11_CKM_SHA_1			= 0x00220,

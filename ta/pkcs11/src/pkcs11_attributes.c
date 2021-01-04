@@ -810,6 +810,10 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			class = template_class;
 			type = PKCS11_CKK_EC;
 			break;
+		case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
+			class = template_class;
+			type = PKCS11_CKK_RSA;
+			break;
 		default:
 			TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
 		}
@@ -875,6 +879,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
 		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
 		    get_key_type(temp) != PKCS11_CKK_EC) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
+		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
+		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
+		    get_key_type(temp) != PKCS11_CKK_RSA) {
 			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 			goto out;
 		}
@@ -1194,6 +1206,7 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 	case PKCS11_CKM_AES_KEY_GEN:
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, true));
 		break;
 	default:
@@ -1210,6 +1223,9 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_EC);
+		break;
+	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_RSA);
 		break;
 	case PKCS11_PROCESSING_IMPORT:
 	default:
@@ -1253,6 +1269,9 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 		break;
 	case PKCS11_CKK_EC:
 		mechanism = PKCS11_CKM_EC_KEY_PAIR_GEN;
+		break;
+	case PKCS11_CKK_RSA:
+		mechanism = PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN;
 		break;
 	default:
 		TEE_Panic(key_type);
@@ -1333,6 +1352,14 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	}
 	if (public) {
 		switch (get_key_type(public)) {
+		case PKCS11_CKK_RSA:
+			/* Get key size */
+			rc = get_u32_attribute(public, PKCS11_CKA_MODULUS_BITS,
+					       &key_length);
+			if (rc)
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			key_length = ROUNDUP(key_length, 8) / 8;
+			break;
 		case PKCS11_CKK_EC:
 			break;
 		default:
@@ -1341,6 +1368,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	}
 	if (private) {
 		switch (get_key_type(private)) {
+		case PKCS11_CKK_RSA:
 		case PKCS11_CKK_EC:
 			break;
 		default:
