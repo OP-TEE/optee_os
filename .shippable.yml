@@ -78,7 +78,7 @@ build:
     - _make PLATFORM=mediatek-mt8183
     - _make PLATFORM=mediatek-mt8516
     - _make PLATFORM=imx-mx6ulevk
-    - _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y
+    - _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - _make PLATFORM=imx-mx6ul9x9evk
     - _make PLATFORM=imx-mx6ullevk
     - if [ -d /root/se050-0.0.1 ]; then _make PLATFORM=imx-mx6ullevk CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{RNG,RSA,ECC,CTR}_DRV=y  CFG_NXP_SE05X_PLUG_AND_TRUST_LIB=/root/se050-0.0.1/buildarm/libse050.a CFG_NXP_SE05X_PLUG_AND_TRUST=/root/se050-0.0.1 ; fi
@@ -87,7 +87,7 @@ build:
     - _make PLATFORM=imx-mx6sllevk
     - _make PLATFORM=imx-mx6sxsabreauto
     - _make PLATFORM=imx-mx6sxsabresd
-    - _make PLATFORM=imx-mx6sxsabresd CFG_NXP_CAAM=y
+    - _make PLATFORM=imx-mx6sxsabresd CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - _make PLATFORM=imx-mx6solosabresd
     - _make PLATFORM=imx-mx6solosabreauto
     - _make PLATFORM=imx-mx6sxsabreauto
@@ -95,7 +95,7 @@ build:
     - _make PLATFORM=imx-mx6qsabresd
     - _make PLATFORM=imx-mx6qsabresd CFG_RPMB_FS=y
     - _make PLATFORM=imx-mx6qsabreauto
-    - _make PLATFORM=imx-mx6qsabreauto CFG_NXP_CAAM=y
+    - _make PLATFORM=imx-mx6qsabreauto CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - _make PLATFORM=imx-mx6qpsabreauto
     - _make PLATFORM=imx-mx6qpsabresd
     - _make PLATFORM=imx-mx6dlsabresd
@@ -103,10 +103,10 @@ build:
     - _make PLATFORM=imx-mx6dapalis
     - _make PLATFORM=imx-mx6qapalis
     - _make PLATFORM=imx-mx7dsabresd
-    - _make PLATFORM=imx-mx7dsabresd CFG_NXP_CAAM=y
+    - _make PLATFORM=imx-mx7dsabresd CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - _make PLATFORM=imx-mx7ulpevk
     - _make PLATFORM=imx-mx8mmevk
-    - _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y
+    - _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - if [ -d /root/se050-0.0.1 ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_PLUG_AND_TRUST_LIB=/root/se050-0.0.1/build/libse050.a CFG_NXP_SE05X_PLUG_AND_TRUST=/root/se050-0.0.1 ; fi
     - _make PLATFORM=imx-mx8mnevk
     - _make PLATFORM=imx-mx8mqevk
