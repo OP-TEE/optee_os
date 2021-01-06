@@ -45,8 +45,8 @@ build:
     - _make CFG_WITH_PAGER=y out/core/tee{,-pager,-pageable}.bin
     - _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
-    - _make CFG_WITH_LPAE=y CFG_CORE_ASLR=y
-    - _make CFG_RPMB_FS=y CFG_CORE_ASLR=y
+    - _make CFG_WITH_LPAE=y
+    - _make CFG_RPMB_FS=y
     - _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
     - _make CFG_REE_FS=n CFG_RPMB_FS=y
     - _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
@@ -56,7 +56,7 @@ build:
     - _make CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
     - _make CFG_SECURE_DATA_PATH=y
     - _make CFG_REE_FS_TA_BUFFERED=y
-    - _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_ASLR=y
+    - _make PLATFORM=vexpress-qemu_armv8a
     - _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
     - _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
     - _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
