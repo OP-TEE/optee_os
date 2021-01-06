@@ -65,8 +65,8 @@ static void cleanup_volatile_obj_ref(struct pkcs11_object *obj)
 }
 
 /* Release resources of a persistent object including volatile resources */
-static void cleanup_persistent_object(struct pkcs11_object *obj,
-				      struct ck_token *token)
+void cleanup_persistent_object(struct pkcs11_object *obj,
+			       struct ck_token *token)
 {
 	TEE_Result res = TEE_SUCCESS;
 

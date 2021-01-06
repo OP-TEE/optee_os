@@ -10,6 +10,7 @@
 #include <sys/queue.h>
 #include <tee_internal_api.h>
 
+struct ck_token;
 struct obj_attrs;
 struct pkcs11_client;
 struct pkcs11_session;
@@ -44,6 +45,9 @@ struct pkcs11_object *create_token_object(struct obj_attrs *head,
 
 enum pkcs11_rc create_object(void *session, struct obj_attrs *attributes,
 			     uint32_t *handle);
+
+void cleanup_persistent_object(struct pkcs11_object *obj,
+			       struct ck_token *token);
 
 void destroy_object(struct pkcs11_session *session,
 		    struct pkcs11_object *object, bool session_object_only);
