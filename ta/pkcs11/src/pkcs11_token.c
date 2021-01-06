@@ -800,6 +800,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 	uint32_t token_id = 0;
 	uint32_t pin_size = 0;
 	void *pin = NULL;
+	struct pkcs11_object *obj = NULL;
 
 	if (ptypes != exp_pt)
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -923,6 +924,18 @@ inited:
 				   PKCS11_CKFT_USER_PIN_TO_BE_CHANGED);
 
 	update_persistent_db(token);
+
+	/* Remove all persistent objects */
+	while (!LIST_EMPTY(&token->object_list)) {
+		obj = LIST_FIRST(&token->object_list);
+
+		/* Try twice otherwise panic! */
+		if (unregister_persistent_object(token, obj->uuid) &&
+		    unregister_persistent_object(token, obj->uuid))
+			TEE_Panic(0);
+
+		cleanup_persistent_object(obj, token);
+	}
 
 	IMSG("PKCS11 token %"PRIu32": initialized", token_id);
 
