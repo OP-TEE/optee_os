@@ -356,7 +356,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 			goto error;
 
 		db_objs = ptr;
-		size -= sizeof(struct token_persistent_objs);
+		size -= sizeof(*db_objs);
 		res = TEE_ReadObjectData(db_hdl, db_objs->uuids, size, &size);
 		if (res || size != (db_objs->count * sizeof(TEE_UUID)))
 			TEE_Panic(0);
