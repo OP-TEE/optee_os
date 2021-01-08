@@ -578,6 +578,13 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 # that would set = n.
 $(call force,CFG_CORE_MBEDTLS_MPI,y)
 
+# Number of tokens implemented by the PKCS11 TA
+CFG_PKCS11_TA_TOKEN_COUNT ?= 3
+
+# CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN implements a PKCS11 token dedicated to
+# debug and test purpose.
+CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN ?= $(CFG_ENABLE_EMBEDDED_TESTS)
+
 # Enable PKCS#11 TA's TEE Identity based authentication support
 CFG_PKCS11_TA_AUTH_TEE_IDENTITY ?= y
 

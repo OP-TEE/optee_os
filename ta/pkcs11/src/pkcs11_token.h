@@ -27,6 +27,13 @@
 #define PKCS11_TOKEN_HW_VERSION		PKCS11_SLOT_HW_VERSION
 #define PKCS11_TOKEN_FW_VERSION		PKCS11_SLOT_FW_VERSION
 
+/*
+ * This sepcific slot description is used in OP-TEE test environment
+ * to locate a debug and test PKCS11 token regression tests can safely
+ * play with.
+ */
+#define PKCS11_DEBUG_SLOT_DESCRIPTION	"OP-TEE PKCS11 TA debug slot"
+
 enum pkcs11_token_state {
 	PKCS11_TOKEN_RESET = 0,
 	PKCS11_TOKEN_READ_WRITE,
@@ -197,6 +204,9 @@ struct ck_token *get_token(unsigned int token_id);
 
 /* Return token identified from token instance address */
 unsigned int get_token_id(struct ck_token *token);
+
+/* CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN can reserve a token for debug & test */
+bool token_is_optee_debug_token(struct ck_token *token);
 
 /* Access to persistent database */
 struct ck_token *init_persistent_db(unsigned int token_id);

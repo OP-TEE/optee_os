@@ -24,12 +24,14 @@
 #include "serializer.h"
 #include "token_capabilities.h"
 
-/* Provide 3 slots/tokens, ID is token index */
-#ifndef CFG_PKCS11_TA_TOKEN_COUNT
-#define TOKEN_COUNT		3
+#ifdef CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN
+#define DEBUG_TOKEN_COUNT	1
 #else
-#define TOKEN_COUNT		CFG_PKCS11_TA_TOKEN_COUNT
+#define DEBUG_TOKEN_COUNT	0
 #endif
+
+/* Slot/token IDs is a index in ck_token[TOKEN_COUNT] */
+#define TOKEN_COUNT	(CFG_PKCS11_TA_TOKEN_COUNT + DEBUG_TOKEN_COUNT)
 
 /* RNG chunk size used to split RNG generation to smaller sizes */
 #define RNG_CHUNK_SIZE		512U
@@ -68,6 +70,18 @@ unsigned int get_token_id(struct ck_token *token)
 
 	assert(id >= 0 && id < TOKEN_COUNT);
 	return id;
+}
+
+/*
+ * When CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN is enable, last token in
+ * ck_token[] is the debug slot/token. It may have a specific
+ * features as a full erase reset to factory and other thing
+ * useful for test purpose.
+ */
+bool token_is_optee_debug_token(struct ck_token *token)
+{
+	return IS_ENABLED(CFG_PKCS11_TA_OPTEE_DEBUG_TOKEN) &&
+	       get_token_id(token) == TOKEN_COUNT - 1;
 }
 
 struct pkcs11_client *tee_session2client(void *tee_session)
@@ -256,7 +270,7 @@ static void pad_str(uint8_t *str, size_t size)
 	TEE_MemFill(str + n, ' ', size - n);
 }
 
-static void set_token_description(struct pkcs11_slot_info *info)
+static void set_slot_description(struct pkcs11_slot_info *info)
 {
 	char desc[sizeof(info->slot_description) + 1] = { 0 };
 	TEE_UUID dev_id = { };
@@ -297,11 +311,7 @@ enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 		.hardware_version = PKCS11_SLOT_HW_VERSION,
 		.firmware_version = PKCS11_SLOT_FW_VERSION,
 	};
-
-	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_DESCRIPTION) <=
-			    sizeof(info.slot_description));
-	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_MANUFACTURER) <=
-			    sizeof(info.manufacturer_id));
+	char debug_slot_description[] = PKCS11_DEBUG_SLOT_DESCRIPTION;
 
 	if (ptypes != exp_pt || out->memref.size != sizeof(info))
 		return PKCS11_CKR_ARGUMENTS_BAD;
@@ -318,8 +328,19 @@ enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	if (!get_token(token_id))
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	set_token_description(&info);
+	set_slot_description(&info);
 
+	if (token_is_optee_debug_token(get_token(token_id))) {
+		/* Specific description for OP-TEE debug and test slot */
+		COMPILE_TIME_ASSERT(sizeof(debug_slot_description) <=
+				    sizeof(info.slot_description));
+		memcpy(info.slot_description, debug_slot_description,
+		       sizeof(debug_slot_description));
+		pad_str(info.slot_description, sizeof(info.slot_description));
+	}
+
+	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_MANUFACTURER) <=
+			    sizeof(info.manufacturer_id));
 	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
 
 	out->memref.size = sizeof(info);
