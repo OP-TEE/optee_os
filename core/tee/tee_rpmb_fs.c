@@ -2393,11 +2393,15 @@ static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	while (blk_offset < new_size) {
+		uint8_t *copy_dst = blk_buf;
+		size_t copy_size = 0;
+		size_t rd_size = 0;
+
 		blk_size = MIN(TMP_BLOCK_SIZE, new_size - blk_offset);
 
 		/* Possibly read old RPMB data in temporary buffer */
 		if (blk_offset < pos && blk_offset < old_size) {
-			size_t rd_size = MIN(blk_size, old_size - blk_offset);
+			rd_size = MIN(blk_size, old_size - blk_offset);
 
 			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
 					    old_fat + blk_offset, blk_buf,
@@ -2410,20 +2414,28 @@ static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
 		/* Possibly update data in temporary buffer */
 		if ((blk_offset + TMP_BLOCK_SIZE > pos) &&
 		    (blk_offset < pos + size)) {
-			uint8_t *dst = blk_buf;
-			size_t copy_size = TMP_BLOCK_SIZE;
+			size_t offset = 0;
+
+			copy_dst = blk_buf;
+			copy_size = TMP_BLOCK_SIZE;
 
 			if (blk_offset < pos) {
-				size_t offset = pos - blk_offset;
+				offset = pos - blk_offset;
 
-				dst += offset;
+				copy_dst += offset;
 				copy_size -= offset;
 			}
 			copy_size = MIN(copy_size, rem_size);
 
-			memcpy(dst, rem_buf, copy_size);
+			memcpy(copy_dst, rem_buf, copy_size);
 			rem_buf += copy_size;
 			rem_size -= copy_size;
+
+			/* Extend from read data to copied data with zeros */
+			memset(blk_buf + rd_size, 0, offset - rd_size);
+		} else {
+			/* Extend from read data to block end with zeros */
+			memset(blk_buf + rd_size, 0, blk_size - rd_size);
 		}
 
 		/* Write temporary buffer to new RPMB destination */
