@@ -105,7 +105,8 @@ cmd-echo$(user-ta-uuid) := SIGNENC
 endif
 $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
-			$(TA_SIGN_KEY)
+			$(TA_SIGN_KEY) \
+			$(lastword $(SIGN_ENC))
 	@$(cmd-echo-silent) '  $$(cmd-echo$(user-ta-uuid)) $$@'
 	$(q)$(SIGN_ENC) --key $(TA_SIGN_KEY) $$(crypt-args$(user-ta-uuid)) \
 		--uuid $(user-ta-uuid) --ta-version $(user-ta-version) \
