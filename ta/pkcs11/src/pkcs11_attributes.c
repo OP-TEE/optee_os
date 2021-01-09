@@ -394,15 +394,19 @@ static const uint32_t private_key_opt_or_null[] = {
 };
 
 /* PKCS#11 specification for any RSA key (+public/private_key_xxx) */
-static const uint32_t rsa_public_key_mandated[] = {
+static const uint32_t rsa_pub_key_gen_mand[] = {
 	PKCS11_CKA_MODULUS_BITS,
 };
 
-static const uint32_t rsa_public_key_opt_or_null[] = {
+static const uint32_t rsa_pub_key_create_mand[] = {
 	PKCS11_CKA_MODULUS, PKCS11_CKA_PUBLIC_EXPONENT,
 };
 
-static const uint32_t rsa_private_key_opt_or_null[] = {
+static const uint32_t rsa_pub_key_gen_opt_or_null[] = {
+	PKCS11_CKA_PUBLIC_EXPONENT,
+};
+
+static const uint32_t rsa_priv_key_opt_or_null[] = {
 	PKCS11_CKA_MODULUS, PKCS11_CKA_PUBLIC_EXPONENT,
 	PKCS11_CKA_PRIVATE_EXPONENT,
 	PKCS11_CKA_PRIME_1, PKCS11_CKA_PRIME_2,
@@ -553,12 +557,13 @@ static enum pkcs11_rc create_data_attributes(struct obj_attrs **out,
 }
 
 static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
-						struct obj_attrs *temp)
+						struct obj_attrs *temp,
+						enum processing_func function)
 {
 	uint32_t const *mandated = NULL;
-	uint32_t const *opt_or_null = NULL;
+	uint32_t const *oon = NULL;
 	size_t mandated_count = 0;
-	size_t opt_or_null_count = 0;
+	size_t oon_count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
 	assert(get_class(temp) == PKCS11_CKO_PUBLIC_KEY);
@@ -587,16 +592,29 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 
 	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
-		mandated = rsa_public_key_mandated;
-		opt_or_null = rsa_public_key_opt_or_null;
-		mandated_count = ARRAY_SIZE(rsa_public_key_mandated);
-		opt_or_null_count = ARRAY_SIZE(rsa_public_key_opt_or_null);
+		switch (function) {
+		case PKCS11_FUNCTION_GENERATE_PAIR:
+			mandated = rsa_pub_key_gen_mand;
+			oon = rsa_pub_key_gen_opt_or_null;
+			mandated_count = ARRAY_SIZE(rsa_pub_key_gen_mand);
+			oon_count = ARRAY_SIZE(rsa_pub_key_gen_opt_or_null);
+			break;
+		case PKCS11_FUNCTION_IMPORT:
+			mandated = rsa_pub_key_create_mand;
+			mandated_count = ARRAY_SIZE(rsa_pub_key_create_mand);
+			break;
+		default:
+			EMSG("Unsupported function %#"PRIx32"/%s", function,
+			     id2str_function(function));
+
+			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		}
 		break;
 	case PKCS11_CKK_EC:
 		mandated = ec_public_key_mandated;
-		opt_or_null = ec_public_key_opt_or_null;
+		oon = ec_public_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_public_key_mandated);
-		opt_or_null_count = ARRAY_SIZE(ec_public_key_opt_or_null);
+		oon_count = ARRAY_SIZE(ec_public_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -609,17 +627,16 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	return set_attributes_opt_or_null(out, temp, opt_or_null,
-					  opt_or_null_count);
+	return set_attributes_opt_or_null(out, temp, oon, oon_count);
 }
 
 static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 						 struct obj_attrs *temp)
 {
 	uint32_t const *mandated = NULL;
-	uint32_t const *opt_or_null = NULL;
+	uint32_t const *oon = NULL;
 	size_t mandated_count = 0;
-	size_t opt_or_null_count = 0;
+	size_t oon_count = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
 	assert(get_class(temp) == PKCS11_CKO_PRIVATE_KEY);
@@ -647,14 +664,14 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 
 	switch (get_key_type(*out)) {
 	case PKCS11_CKK_RSA:
-		opt_or_null = rsa_private_key_opt_or_null;
-		opt_or_null_count = ARRAY_SIZE(rsa_private_key_opt_or_null);
+		oon = rsa_priv_key_opt_or_null;
+		oon_count = ARRAY_SIZE(rsa_priv_key_opt_or_null);
 		break;
 	case PKCS11_CKK_EC:
 		mandated = ec_private_key_mandated;
-		opt_or_null = ec_private_key_opt_or_null;
+		oon = ec_private_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
-		opt_or_null_count = ARRAY_SIZE(ec_private_key_opt_or_null);
+		oon_count = ARRAY_SIZE(ec_private_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -667,8 +684,7 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	return set_attributes_opt_or_null(out, temp, opt_or_null,
-					  opt_or_null_count);
+	return set_attributes_opt_or_null(out, temp, oon, oon_count);
 }
 
 static enum pkcs11_rc
@@ -920,7 +936,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		rc = create_symm_key_attributes(&attrs, temp);
 		break;
 	case PKCS11_CKO_PUBLIC_KEY:
-		rc = create_pub_key_attributes(&attrs, temp);
+		rc = create_pub_key_attributes(&attrs, temp, function);
 		break;
 	case PKCS11_CKO_PRIVATE_KEY:
 		rc = create_priv_key_attributes(&attrs, temp);
