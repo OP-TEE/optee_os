@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2019-2021, Linaro Limited
  * Copyright (c) 2020, Arm Limited
  */
 
@@ -14,7 +14,7 @@
 /*
  * struct user_mode_ctx - user mode context
  * @vm_info:		Virtual memory map of this context
- * @areas:		Memory areas registered by pager
+ * @regions:		Memory regions registered by pager
  * @vfp:		State of VFP registers
  * @ts_ctx:		Generic TS context
  * @entry_func:		Entry address in TS
@@ -30,7 +30,7 @@
  */
 struct user_mode_ctx {
 	struct vm_info vm_info;
-	struct tee_pager_area_head *areas;
+	struct vm_paged_region_head *regions;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif

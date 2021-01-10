@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2020 Linaro Limited
+ * Copyright (c) 2015-2021 Linaro Limited
  * Copyright (c) 2020, Arm Limited.
  */
 
@@ -337,7 +337,7 @@ static void user_ta_gprof_set_status(enum ts_gprof_status status)
 
 static void free_utc(struct user_ta_ctx *utc)
 {
-	tee_pager_rem_um_areas(&utc->uctx);
+	tee_pager_rem_um_regions(&utc->uctx);
 
 	/*
 	 * Close sessions opened by this TA

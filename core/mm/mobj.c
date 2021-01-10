@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  */
 
 #include <assert.h>
@@ -497,8 +497,8 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size)
 
 	m->fobj = fobj_rw_paged_alloc(ROUNDUP(size, SMALL_PAGE_SIZE) /
 				      SMALL_PAGE_SIZE);
-	if (tee_pager_add_um_area(&utc->uctx, va, m->fobj,
-				  TEE_MATTR_PRW | TEE_MATTR_URW))
+	if (tee_pager_add_um_region(&utc->uctx, va, m->fobj,
+				    TEE_MATTR_PRW | TEE_MATTR_URW))
 		goto bad;
 
 	m->va = va;

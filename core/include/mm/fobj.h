@@ -24,7 +24,7 @@ struct fobj {
 	unsigned int num_pages;
 	struct refcount refc;
 #ifdef CFG_WITH_PAGER
-	struct tee_pager_area_head areas;
+	struct vm_paged_region_head regions;
 #endif
 };
 
