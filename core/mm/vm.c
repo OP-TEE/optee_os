@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -307,7 +307,7 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 			goto err_rem_reg;
 		}
 
-		res = tee_pager_add_um_area(uctx, reg->va, fobj, prot);
+		res = tee_pager_add_um_region(uctx, reg->va, fobj, prot);
 		fobj_put(fobj);
 		if (res)
 			goto err_rem_reg;
@@ -575,7 +575,8 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		if (!res)
 			res = alloc_pgt(uctx);
 		if (fobj && !res)
-			res = tee_pager_add_um_area(uctx, r->va, fobj, r->attr);
+			res = tee_pager_add_um_region(uctx, r->va, fobj,
+						      r->attr);
 
 		if (res) {
 			/*
@@ -625,7 +626,7 @@ err_restore_map:
 			panic("Cannot restore mapping");
 		if (alloc_pgt(uctx))
 			panic("Cannot restore mapping");
-		if (fobj && tee_pager_add_um_area(uctx, r->va, fobj, r->attr))
+		if (fobj && tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
 			panic("Cannot restore mapping");
 	}
 	fobj_put(fobj);
@@ -729,8 +730,8 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		if (r->va + r->size > va + len)
 			break;
 		if (mobj_is_paged(r->mobj)) {
-			if (!tee_pager_set_um_area_attr(uctx, r->va, r->size,
-							prot))
+			if (!tee_pager_set_um_region_attr(uctx, r->va, r->size,
+							  prot))
 				panic();
 		} else if (was_writeable) {
 			cache_op_inner(DCACHE_AREA_CLEAN, (void *)r->va,

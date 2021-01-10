@@ -69,13 +69,13 @@ static void fobj_init(struct fobj *fobj, const struct fobj_ops *ops,
 	fobj->ops = ops;
 	fobj->num_pages = num_pages;
 	refcount_set(&fobj->refc, 1);
-	TAILQ_INIT(&fobj->areas);
+	TAILQ_INIT(&fobj->regions);
 }
 
 static void fobj_uninit(struct fobj *fobj)
 {
 	assert(!refcount_val(&fobj->refc));
-	assert(TAILQ_EMPTY(&fobj->areas));
+	assert(TAILQ_EMPTY(&fobj->regions));
 	tee_pager_invalidate_fobj(fobj);
 }
 
@@ -204,7 +204,7 @@ static TEE_Result rwp_paged_iv_save_page(struct fobj *fobj,
 		 * This fobj is being teared down, it just hasn't had the time
 		 * to call tee_pager_invalidate_fobj() yet.
 		 */
-		assert(TAILQ_EMPTY(&fobj->areas));
+		assert(TAILQ_EMPTY(&fobj->regions));
 		return TEE_SUCCESS;
 	}
 
@@ -310,7 +310,7 @@ static TEE_Result rwp_unpaged_iv_save_page(struct fobj *fobj,
 		 * This fobj is being teared down, it just hasn't had the time
 		 * to call tee_pager_invalidate_fobj() yet.
 		 */
-		assert(TAILQ_EMPTY(&fobj->areas));
+		assert(TAILQ_EMPTY(&fobj->regions));
 		return TEE_SUCCESS;
 	}
 
@@ -380,7 +380,7 @@ static TEE_Result rwp_init(void)
 	if (!fobj)
 		panic();
 
-	rwp_state_base = (void *)tee_pager_init_iv_area(fobj);
+	rwp_state_base = (void *)tee_pager_init_iv_region(fobj);
 	assert(rwp_state_base);
 
 	rwp_store_base = phys_to_virt(tee_mm_sec_ddr.lo, MEM_AREA_TA_RAM);

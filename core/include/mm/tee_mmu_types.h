@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2021, Linaro Limited
  */
 #ifndef TEE_MMU_TYPES_H
 #define TEE_MMU_TYPES_H
@@ -82,6 +83,25 @@ struct vm_region {
 	TAILQ_ENTRY(vm_region) link;
 };
 
+enum vm_paged_region_type {
+	PAGED_REGION_TYPE_RO,
+	PAGED_REGION_TYPE_RW,
+	PAGED_REGION_TYPE_LOCK,
+};
+
+struct vm_paged_region {
+	struct fobj *fobj;
+	size_t fobj_pgoffs;
+	enum vm_paged_region_type type;
+	uint32_t flags;
+	vaddr_t base;
+	size_t size;
+	struct pgt **pgt_array;
+	TAILQ_ENTRY(vm_paged_region) link;
+	TAILQ_ENTRY(vm_paged_region) fobj_link;
+};
+
+TAILQ_HEAD(vm_paged_region_head, vm_paged_region);
 TAILQ_HEAD(vm_region_head, vm_region);
 
 struct vm_info {

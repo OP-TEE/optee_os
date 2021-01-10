@@ -1021,9 +1021,9 @@ static void init_thread_stacks(void)
 		num_pages = tee_mm_get_bytes(mm) / SMALL_PAGE_SIZE - 1;
 		fobj = fobj_locked_paged_alloc(num_pages);
 
-		/* Add the area to the pager */
-		tee_pager_add_core_area(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
-					PAGER_AREA_TYPE_LOCK, fobj);
+		/* Add the region to the pager */
+		tee_pager_add_core_region(tee_mm_get_smem(mm) + SMALL_PAGE_SIZE,
+					  PAGED_REGION_TYPE_LOCK, fobj);
 		fobj_put(fobj);
 
 		/* init effective stack */

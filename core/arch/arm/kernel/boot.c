@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 
 #include <arm.h>
@@ -507,7 +507,8 @@ static void init_runtime(unsigned long pageable_part)
 	assert(mm);
 	fobj = ro_paged_alloc(mm, hashes, paged_store);
 	assert(fobj);
-	tee_pager_add_core_area(tee_mm_get_smem(mm), PAGER_AREA_TYPE_RO, fobj);
+	tee_pager_add_core_region(tee_mm_get_smem(mm), PAGED_REGION_TYPE_RO,
+				  fobj);
 	fobj_put(fobj);
 
 	tee_pager_add_pages(pageable_start, init_size / SMALL_PAGE_SIZE, false);
