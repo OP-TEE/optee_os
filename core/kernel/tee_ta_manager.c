@@ -943,10 +943,13 @@ void tee_ta_update_session_utime_resume(void)
 #if defined(CFG_FTRACE_SUPPORT)
 static void ftrace_update_times(bool suspend)
 {
-	struct ts_session *s = ts_get_current_session();
+	struct ts_session *s = ts_get_current_session_may_fail();
 	struct ftrace_buf *fbuf = NULL;
 	uint64_t now = 0;
 	uint32_t i = 0;
+
+	if (!s)
+		return;
 
 	now = barrier_read_cntpct();
 
