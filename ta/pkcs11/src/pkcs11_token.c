@@ -1285,8 +1285,32 @@ static void session_logout(struct pkcs11_session *session)
 	struct pkcs11_session *sess = NULL;
 
 	TAILQ_FOREACH(sess, &client->session_list, link) {
+		struct pkcs11_object *obj = NULL;
+		uint32_t handle = 0;
+
 		if (sess->token != session->token)
 			continue;
+
+		release_active_processing(session);
+
+		/* Destroy private session objects */
+		LIST_FOREACH(obj, &sess->object_list, link) {
+			if (object_is_private(obj->attributes))
+				destroy_object(sess, obj, true);
+		}
+
+		/*
+		 * Remove handle of token private objects from
+		 * sessions object_handle_db
+		 */
+		LIST_FOREACH(obj, &session->token->object_list, link) {
+			handle = pkcs11_object2handle(obj, session);
+
+			if (handle && object_is_private(obj->attributes))
+				handle_put(&sess->object_handle_db, handle);
+		}
+
+		release_session_find_obj_context(session);
 
 		if (pkcs11_session_is_read_write(sess))
 			sess->state = PKCS11_CKS_RW_PUBLIC_SESSION;
