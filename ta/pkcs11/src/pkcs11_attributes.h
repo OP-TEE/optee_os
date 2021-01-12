@@ -163,4 +163,6 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 			     struct pkcs11_object *obj);
 
+bool object_is_private(struct obj_attrs *head);
+
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/

@@ -891,6 +891,17 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 	return PKCS11_CKR_OK;
 }
 
+bool object_is_private(struct obj_attrs *head)
+{
+	if (get_class(head) == PKCS11_CKO_PRIVATE_KEY)
+		return true;
+
+	if (get_bool(head, PKCS11_CKA_PRIVATE))
+		return true;
+
+	return false;
+}
+
 /*
  * Check access to object against authentication to token
  */
