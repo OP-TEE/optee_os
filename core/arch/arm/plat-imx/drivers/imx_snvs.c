@@ -18,11 +18,11 @@ bool plat_rpmb_key_is_ready(void)
 		      mode == SNVS_SSM_MODE_SECURE);
 
 	/*
-	 * On i.MX6SDL, the security cfg always returns
+	 * On i.MX6SDL and i.MX6DQ, the security cfg always returns
 	 * SNVS_SECURITY_CFG_FAB (000), therefore we ignore the security
 	 * configuration for this SoC.
 	 */
-	if (soc_is_imx6sdl())
+	if (soc_is_imx6sdl() || soc_is_imx6dq())
 		return ssm_secure;
 
 	return ssm_secure && (security == SNVS_SECURITY_CFG_CLOSED);
