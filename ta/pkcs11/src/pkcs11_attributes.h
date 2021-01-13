@@ -160,4 +160,7 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 				   enum processing_func function,
 				   enum processing_step step);
 
+bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
+			     struct pkcs11_object *obj);
+
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/

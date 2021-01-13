@@ -763,3 +763,204 @@ uint32_t entry_find_objects_final(struct pkcs11_client *client,
 
 	return PKCS11_CKR_OK;
 }
+
+uint32_t entry_get_attribute_value(struct pkcs11_client *client,
+				   uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_object_head *template = NULL;
+	struct pkcs11_object *obj = NULL;
+	uint32_t object_handle = 0;
+	char *cur = NULL;
+	size_t len = 0;
+	char *end = NULL;
+	bool attr_sensitive = 0;
+	bool attr_type_invalid = 0;
+	bool buffer_too_small = 0;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &object_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	obj = pkcs11_handle2object(object_handle, session);
+	if (!obj) {
+		rc = PKCS11_CKR_OBJECT_HANDLE_INVALID;
+		goto out;
+	}
+
+	rc = check_access_attrs_against_token(session, obj->attributes);
+	if (rc) {
+		rc = PKCS11_CKR_OBJECT_HANDLE_INVALID;
+		goto out;
+	}
+
+	/* Iterate over attributes and set their values */
+	/*
+	 * 1. If the specified attribute (i.e., the attribute specified by the
+	 * type field) for the object cannot be revealed because the object is
+	 * sensitive or unextractable, then the ulValueLen field in that triple
+	 * is modified to hold the value PKCS11_CK_UNAVAILABLE_INFORMATION.
+	 *
+	 * 2. Otherwise, if the specified value for the object is invalid (the
+	 * object does not possess such an attribute), then the ulValueLen field
+	 * in that triple is modified to hold the value
+	 * PKCS11_CK_UNAVAILABLE_INFORMATION.
+	 *
+	 * 3. Otherwise, if the pValue field has the value NULL_PTR, then the
+	 * ulValueLen field is modified to hold the exact length of the
+	 * specified attribute for the object.
+	 *
+	 * 4. Otherwise, if the length specified in ulValueLen is large enough
+	 * to hold the value of the specified attribute for the object, then
+	 * that attribute is copied into the buffer located at pValue, and the
+	 * ulValueLen field is modified to hold the exact length of the
+	 * attribute.
+	 *
+	 * 5. Otherwise, the ulValueLen field is modified to hold the value
+	 * PKCS11_CK_UNAVAILABLE_INFORMATION.
+	 */
+	cur = (char *)template + sizeof(struct pkcs11_object_head);
+	end = cur + template->attrs_size;
+
+	for (; cur < end; cur += len) {
+		struct pkcs11_attribute_head *cli_ref = (void *)cur;
+
+		len = sizeof(*cli_ref) + cli_ref->size;
+
+		/* Check 1. */
+		if (!attribute_is_exportable(cli_ref, obj)) {
+			cli_ref->size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			attr_sensitive = 1;
+			continue;
+		}
+
+		/*
+		 * We assume that if size is 0, pValue was NULL, so we return
+		 * the size of the required buffer for it (3., 4.)
+		 */
+		rc = get_attribute(obj->attributes, cli_ref->id,
+				   cli_ref->size ? cli_ref->data : NULL,
+				   &cli_ref->size);
+		/* Check 2. */
+		switch (rc) {
+		case PKCS11_CKR_OK:
+			break;
+		case PKCS11_RV_NOT_FOUND:
+			cli_ref->size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			attr_type_invalid = 1;
+			break;
+		case PKCS11_CKR_BUFFER_TOO_SMALL:
+			buffer_too_small = 1;
+			break;
+		default:
+			rc = PKCS11_CKR_GENERAL_ERROR;
+			goto out;
+		}
+	}
+
+	/*
+	 * If case 1 applies to any of the requested attributes, then the call
+	 * should return the value CKR_ATTRIBUTE_SENSITIVE. If case 2 applies to
+	 * any of the requested attributes, then the call should return the
+	 * value CKR_ATTRIBUTE_TYPE_INVALID. If case 5 applies to any of the
+	 * requested attributes, then the call should return the value
+	 * CKR_BUFFER_TOO_SMALL. As usual, if more than one of these error codes
+	 * is applicable, Cryptoki may return any of them. Only if none of them
+	 * applies to any of the requested attributes will CKR_OK be returned.
+	 */
+
+	rc = PKCS11_CKR_OK;
+	if (attr_sensitive)
+		rc = PKCS11_CKR_ATTRIBUTE_SENSITIVE;
+	if (attr_type_invalid)
+		rc = PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	if (buffer_too_small)
+		rc = PKCS11_CKR_BUFFER_TOO_SMALL;
+
+	/* Move updated template to out buffer */
+	TEE_MemMove(out->memref.buffer, template, out->memref.size);
+
+	DMSG("PKCS11 session %"PRIu32": get attributes %#"PRIx32,
+	     session->handle, object_handle);
+
+out:
+	TEE_Free(template);
+
+	return rc;
+}
+
+uint32_t entry_get_object_size(struct pkcs11_client *client,
+			       uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	uint32_t object_handle = 0;
+	struct pkcs11_object *obj = NULL;
+	uint32_t obj_size = 0;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &object_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	obj = pkcs11_handle2object(object_handle, session);
+	if (!obj)
+		return PKCS11_CKR_OBJECT_HANDLE_INVALID;
+
+	rc = check_access_attrs_against_token(session, obj->attributes);
+	if (rc)
+		return PKCS11_CKR_OBJECT_HANDLE_INVALID;
+
+	if (out->memref.size != sizeof(uint32_t))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	obj_size = ((struct obj_attrs *)obj->attributes)->attrs_size +
+		   sizeof(struct obj_attrs);
+	TEE_MemMove(out->memref.buffer, &obj_size, sizeof(obj_size));
+
+	return PKCS11_CKR_OK;
+}
