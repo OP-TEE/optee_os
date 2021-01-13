@@ -137,7 +137,7 @@ static int _fini_iterate_phdr_cb(struct dl_phdr_info *info,
 	size_t num_fn = 0;
 	size_t i = 0;
 
-	_get_fn_array(info, DT_INIT_ARRAY, DT_FINI_ARRAYSZ, &fn, &num_fn);
+	_get_fn_array(info, DT_FINI_ARRAY, DT_FINI_ARRAYSZ, &fn, &num_fn);
 
 	for (i = 1; i <= num_fn; i++)
 		fn[num_fn - i]();
