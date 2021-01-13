@@ -1252,3 +1252,42 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 
 	return PKCS11_CKR_OK;
 }
+
+bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
+			     struct pkcs11_object *obj)
+{
+	uint8_t boolval = 0;
+	uint32_t boolsize = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	enum pkcs11_class_id key_class = get_class(obj->attributes);
+
+	if (key_class != PKCS11_CKO_SECRET_KEY &&
+	    key_class != PKCS11_CKO_PRIVATE_KEY)
+		return true;
+
+	switch (req_attr->id) {
+	case PKCS11_CKA_PRIVATE_EXPONENT:
+	case PKCS11_CKA_PRIME_1:
+	case PKCS11_CKA_PRIME_2:
+	case PKCS11_CKA_EXPONENT_1:
+	case PKCS11_CKA_EXPONENT_2:
+	case PKCS11_CKA_COEFFICIENT:
+	case PKCS11_CKA_VALUE:
+		boolsize = sizeof(boolval);
+		rc = get_attribute(obj->attributes, PKCS11_CKA_EXTRACTABLE,
+				   &boolval, &boolsize);
+		if (rc || boolval == PKCS11_FALSE)
+			return false;
+
+		boolsize = sizeof(boolval);
+		rc = get_attribute(obj->attributes, PKCS11_CKA_SENSITIVE,
+				   &boolval, &boolsize);
+		if (rc || boolval == PKCS11_TRUE)
+			return false;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}

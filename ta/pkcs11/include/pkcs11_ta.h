@@ -474,6 +474,41 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_FindOjectsFinal().
 	 */
 	PKCS11_CMD_FIND_OBJECTS_FINAL = 36,
+
+	/*
+	 * PKCS11_CMD_GET_OBJECT_SIZE - Get byte size used by object in the TEE
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object_byte_size
+	 *
+	 * This command relates to the PKCS#11 API function C_GetObjectSize().
+	 */
+	PKCS11_CMD_GET_OBJECT_SIZE = 37,
+
+	/*
+	 * PKCS11_CMD_GET_ATTRIBUTE_VALUE - Get the value of object attribute(s)
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = (struct pkcs11_object_head)attribs + attributes
+	 *                   data
+	 *
+	 * This command relates to the PKCS#11 API function C_GetAttributeValue.
+	 * Caller provides an attribute template as 3rd argument in memref[0]
+	 * (referred here as attribs + attributes data). Upon successful
+	 * completion, the TA returns the provided template filled with expected
+	 * data through output argument memref[2] (referred here again as
+	 * attribs + attributes data).
+	 */
+	PKCS11_CMD_GET_ATTRIBUTE_VALUE = 38,
 };
 
 /*
