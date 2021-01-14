@@ -2398,6 +2398,7 @@ static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
 		size_t rd_size = 0;
 
 		blk_size = MIN(TMP_BLOCK_SIZE, new_size - blk_offset);
+		memset(blk_buf, 0, blk_size);
 
 		/* Possibly read old RPMB data in temporary buffer */
 		if (blk_offset < pos && blk_offset < old_size) {
@@ -2430,12 +2431,6 @@ static TEE_Result update_write_helper(struct rpmb_file_handle *fh,
 			memcpy(copy_dst, rem_buf, copy_size);
 			rem_buf += copy_size;
 			rem_size -= copy_size;
-
-			/* Extend from read data to copied data with zeros */
-			memset(blk_buf + rd_size, 0, offset - rd_size);
-		} else {
-			/* Extend from read data to block end with zeros */
-			memset(blk_buf + rd_size, 0, blk_size - rd_size);
 		}
 
 		/* Write temporary buffer to new RPMB destination */
