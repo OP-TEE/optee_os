@@ -42,6 +42,8 @@ $(link-out-dir$(sm))/dyn_list:
 ifeq ($(CFG_FTRACE_SUPPORT),y)
 	$(q)echo "__ftrace_info;" >>$@
 endif
+	$(q)echo "trace_ext_prefix;" >>$@
+	$(q)echo "trace_level;" >>$@
 	$(q)echo "};" >>$@
 link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
 dynlistdep = $(link-out-dir$(sm))/dyn_list
