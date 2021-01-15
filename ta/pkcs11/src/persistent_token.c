@@ -462,6 +462,82 @@ out:
 	return tee2pkcs_error(res);
 }
 
+enum pkcs11_rc load_persistent_object_attributes(struct pkcs11_object *obj)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_ObjectHandle hdl = obj->attribs_hdl;
+	TEE_ObjectInfo info = { };
+	struct obj_attrs *attr = NULL;
+	uint32_t read_bytes = 0;
+
+	if (obj->attributes)
+		return PKCS11_CKR_OK;
+
+	if (hdl == TEE_HANDLE_NULL) {
+		res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+					       obj->uuid, sizeof(*obj->uuid),
+					       TEE_DATA_FLAG_ACCESS_READ, &hdl);
+		if (res) {
+			EMSG("OpenPersistent failed %#"PRIx32, res);
+			return tee2pkcs_error(res);
+		}
+	}
+
+	TEE_MemFill(&info, 0, sizeof(info));
+	res = TEE_GetObjectInfo1(hdl, &info);
+	if (res) {
+		EMSG("GetObjectInfo failed %#"PRIx32, res);
+		rc = tee2pkcs_error(res);
+		goto out;
+	}
+
+	attr = TEE_Malloc(info.dataSize, TEE_MALLOC_FILL_ZERO);
+	if (!attr) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	res = TEE_ReadObjectData(hdl, attr, info.dataSize, &read_bytes);
+	if (!res) {
+		res = TEE_SeekObjectData(hdl, 0, TEE_DATA_SEEK_SET);
+		if (res)
+			EMSG("Seek to 0 failed %#"PRIx32, res);
+	}
+
+	if (res) {
+		rc = tee2pkcs_error(res);
+		EMSG("Read %"PRIu32" bytes, failed %#"PRIx32,
+		     read_bytes, res);
+		goto out;
+	}
+	if (read_bytes != info.dataSize) {
+		EMSG("Read %"PRIu32" bytes, expected %"PRIu32,
+		     read_bytes, info.dataSize);
+		rc = PKCS11_CKR_GENERAL_ERROR;
+		goto out;
+	}
+
+	obj->attributes = attr;
+	attr = NULL;
+
+	rc = PKCS11_CKR_OK;
+
+out:
+	TEE_Free(attr);
+	/* Close object only if it was open from this function */
+	if (obj->attribs_hdl == TEE_HANDLE_NULL)
+		TEE_CloseObject(hdl);
+
+	return rc;
+}
+
+void release_persistent_object_attributes(struct pkcs11_object *obj)
+{
+	TEE_Free(obj->attributes);
+	obj->attributes = NULL;
+}
+
 /*
  * Return the token instance, either initialized from reset or initialized
  * from the token persistent state if found.
