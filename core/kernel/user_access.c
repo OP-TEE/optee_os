@@ -7,6 +7,7 @@
 #include <initcall.h>
 #include <kernel/linker.h>
 #include <kernel/user_access.h>
+#include <kernel/user_mode_ctx.h>
 #include <mm/vm.h>
 #include <string.h>
 #include <tee_api_types.h>
@@ -15,9 +16,8 @@
 static TEE_Result check_access(uint32_t flags, vaddr_t va, size_t len)
 {
 	struct ts_session *s = ts_get_current_session();
-	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
 
-	return vm_check_access_rights(&utc->uctx, flags, va, len);
+	return vm_check_access_rights(to_user_mode_ctx(s->ctx), flags, va, len);
 }
 
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)

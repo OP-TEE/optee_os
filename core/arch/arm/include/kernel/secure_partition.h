@@ -1,16 +1,75 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020, Arm Limited.
+ * Copyright (c) 2020-2021, Arm Limited.
  */
-#ifndef KERNEL_SECURE_PARTITION_H
-#define KERNEL_SECURE_PARTITION_H
+#ifndef __KERNEL_SECURE_PARTITION_H
+#define __KERNEL_SECURE_PARTITION_H
 
+#include <assert.h>
+#include <config.h>
 #include <kernel/embedded_ts.h>
+#include <kernel/user_mode_ctx_struct.h>
 #include <stdint.h>
 #include <tee_api_types.h>
+#include <tee/entry_std.h>
+
+TAILQ_HEAD(sp_sessions_head, sp_session);
+
+struct sp_name_value_pair {
+	uint32_t name[4];
+	uint64_t value;
+	uint64_t size;
+};
+
+struct sp_ffa_init_info {
+	uint32_t magic; /* FF-A */
+	uint32_t count; /* Count of name value size pairs */
+	struct sp_name_value_pair nvp[]; /* Array of name value size pairs */
+};
+
+enum sp_status { sp_idle, sp_busy, sp_preempted, sp_dead };
+
+struct sp_session {
+	enum sp_status state;
+	uint16_t endpoint_id;
+	uint16_t caller_id;
+	struct ts_session ts_sess;
+	struct sp_ffa_init_info *info;
+	TAILQ_ENTRY(sp_session) link;
+};
+
+struct sp_ctx {
+	struct thread_ctx_regs sp_regs;
+	struct sp_session *open_session;
+	struct user_mode_ctx uctx;
+	struct ts_ctx ts_ctx;
+};
+
+#ifdef CFG_SECURE_PARTITION
+bool is_sp_ctx(struct ts_ctx *ctx);
+#else
+static inline bool is_sp_ctx(struct ts_ctx *ctx __unused)
+{
+	return false;
+}
+#endif
+
+static inline struct sp_session *__noprof
+to_sp_session(struct ts_session *sess)
+{
+	assert(is_sp_ctx(sess->ctx));
+	return container_of(sess, struct sp_session, ts_sess);
+}
+
+static inline struct sp_ctx *to_sp_ctx(struct ts_ctx *ctx)
+{
+	assert(is_sp_ctx(ctx));
+	return container_of(ctx, struct sp_ctx, ts_ctx);
+}
+
+struct sp_session *sp_get_session(uint32_t session_id);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
 
-#endif /* KERNEL_SECURE_PARTITION_H */
-
+#endif /* __KERNEL_SECURE_PARTITION_H */

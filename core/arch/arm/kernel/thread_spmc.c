@@ -12,6 +12,7 @@
 #include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/thread_spmc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <optee_ffa.h>
@@ -85,8 +86,6 @@ struct mem_frag_state {
 	unsigned int frag_offset;
 	SLIST_ENTRY(mem_frag_state) link;
 };
-
-static uint16_t my_sp_id = 0x8001;
 
 /*
  * If @rxtx_size is 0 RX/TX buffers are not mapped or initialized.
@@ -344,7 +343,7 @@ static void handle_partition_info_get(struct thread_smc_args *args)
 	if (rxtx_size && tx_buf_is_mine) {
 		struct ffa_partition_info *fpi = tx_buf;
 
-		fpi->id = my_sp_id;
+		fpi->id = SPMC_ENDPOINT_ID;
 		fpi->execution_context = CFG_TEE_CORE_NB_CORE;
 		fpi->partition_properties = BIT(0) | BIT(1);
 
@@ -418,7 +417,7 @@ static int get_acc_perms(struct mem_accsess_descr *mem_acc,
 		struct mem_access_perm_descr *descr =
 			&mem_acc[n].mem_access_perm_descr;
 
-		if (READ_ONCE(descr->endpoint_id) == my_sp_id) {
+		if (READ_ONCE(descr->endpoint_id) == SPMC_ENDPOINT_ID) {
 			*acc_perms = READ_ONCE(descr->access_perm);
 			*region_offs = READ_ONCE(mem_acc[n].mem_region_offs);
 			return 0;
