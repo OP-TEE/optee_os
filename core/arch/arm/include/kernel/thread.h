@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2016-2017, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2021, Arm Limited
  */
 
 #ifndef KERNEL_THREAD_H
@@ -194,6 +194,23 @@ struct thread_svc_regs {
 	uint64_t x14;	/* r14/lr_usr */
 	uint64_t x30;
 	uint64_t sp_el0;
+#ifdef CFG_SECURE_PARTITION
+	uint64_t x15;
+	uint64_t x16;
+	uint64_t x17;
+	uint64_t x18;
+	uint64_t x19;
+	uint64_t x20;
+	uint64_t x21;
+	uint64_t x22;
+	uint64_t x23;
+	uint64_t x24;
+	uint64_t x25;
+	uint64_t x26;
+	uint64_t x27;
+	uint64_t x28;
+	uint64_t x29;
+#endif
 	uint64_t pad;
 } __aligned(16);
 #endif /*ARM64*/

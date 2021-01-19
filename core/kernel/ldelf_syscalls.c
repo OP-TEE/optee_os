@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2018-2019, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2021, Arm Limited
  */
 
 #include <assert.h>
@@ -136,16 +136,34 @@ TEE_Result ldelf_syscall_open_bin(const TEE_UUID *uuid, size_t uuid_size,
 	if (!binh)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	SCATTERED_ARRAY_FOREACH(binh->op, ta_stores, struct ts_store_ops) {
-		DMSG("Lookup user TA ELF %pUl (%s)",
-		     (void *)uuid, binh->op->description);
+	if (is_user_ta_ctx(sess->ctx) || is_stmm_ctx(sess->ctx)) {
+		SCATTERED_ARRAY_FOREACH(binh->op, ta_stores,
+					struct ts_store_ops) {
+			DMSG("Lookup user TA ELF %pUl (%s)",
+			     (void *)uuid, binh->op->description);
 
-		res = binh->op->open(uuid, &binh->h);
-		DMSG("res=%#"PRIx32, res);
-		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
-		    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
-			break;
+			res = binh->op->open(uuid, &binh->h);
+			DMSG("res=%#"PRIx32, res);
+			if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+			    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+				break;
+		}
+	} else if (is_sp_ctx(sess->ctx)) {
+		SCATTERED_ARRAY_FOREACH(binh->op, sp_stores,
+					struct ts_store_ops) {
+			DMSG("Lookup user SP ELF %pUl (%s)",
+			     (void *)uuid, binh->op->description);
+
+			res = binh->op->open(uuid, &binh->h);
+			DMSG("res=%#"PRIx32, res);
+			if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+			    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+				break;
+		}
+	} else {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
 	}
+
 	if (res)
 		goto err;
 
