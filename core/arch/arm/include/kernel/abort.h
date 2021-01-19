@@ -35,7 +35,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
 bool abort_is_user_exception(struct abort_info *ai);
 
 /* Called from a normal thread */
-void abort_print_current_ta(void);
+void abort_print_current_ts(void);
 
 #endif /*__ASSEMBLER__*/
 #endif /*KERNEL_ABORT_H*/

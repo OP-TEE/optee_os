@@ -131,7 +131,7 @@ void ldelf(struct ldelf_arg *arg)
 	TEE_Result res = TEE_SUCCESS;
 	struct ta_elf *elf = NULL;
 
-	DMSG("Loading TA %pUl", (void *)&arg->uuid);
+	DMSG("Loading TS %pUl", (void *)&arg->uuid);
 	res = sys_map_zi(mpool_size, 0, &mpool_base, 0, 0);
 	if (res) {
 		EMSG("sys_map_zi(%zu): result %"PRIx32, mpool_size, res);
