@@ -119,7 +119,7 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	thread_user_clear_vfp(&spc->uctx);
 
 	if (panicked) {
-		abort_print_current_ta();
+		abort_print_current_ts();
 		DMSG("stmm panicked with code %#"PRIx32, panic_code);
 		return TEE_ERROR_TARGET_DEAD;
 	}

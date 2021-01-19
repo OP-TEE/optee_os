@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2020, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2021, Arm Limited
  */
 
 #include <assert.h>
@@ -118,7 +118,7 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
-		abort_print_current_ta();
+		abort_print_current_ts();
 		EMSG("ldelf panicked");
 		return TEE_ERROR_GENERIC;
 	}
@@ -273,7 +273,7 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 	if (panicked) {
 		uctx->dump_entry_func = 0;
 		EMSG("ldelf dump function panicked");
-		abort_print_current_ta();
+		abort_print_current_ts();
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 
@@ -322,7 +322,7 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 	if (panicked) {
 		uctx->ftrace_entry_func = 0;
 		EMSG("ldelf ftrace function panicked");
-		abort_print_current_ta();
+		abort_print_current_ts();
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 
@@ -378,7 +378,7 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
-		abort_print_current_ta();
+		abort_print_current_ts();
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 	if (!res)
@@ -432,7 +432,7 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 
 	if (panicked) {
 		EMSG("ldelf dl_entry function panicked");
-		abort_print_current_ta();
+		abort_print_current_ts();
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 	if (!res) {

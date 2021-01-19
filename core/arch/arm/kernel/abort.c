@@ -237,7 +237,7 @@ void abort_print_error(struct abort_info *ai)
 }
 
 /* This function must be called from a normal thread */
-void abort_print_current_ta(void)
+void abort_print_current_ts(void)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct abort_info ai = { };
