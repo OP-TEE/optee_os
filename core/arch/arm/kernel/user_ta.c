@@ -172,7 +172,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	thread_user_clear_vfp(&utc->uctx);
 
 	if (utc->ta_ctx.panicked) {
-		abort_print_current_ta();
+		abort_print_current_ts();
 		DMSG("tee_user_ta_enter: TA panicked with code 0x%x",
 		     utc->ta_ctx.panic_code);
 		res = TEE_ERROR_TARGET_DEAD;
@@ -248,7 +248,7 @@ static void user_ta_dump_state(struct ts_ctx *ctx)
 		 * ldelf_dump_state() fails for some reason.
 		 *
 		 * If ldelf_dump_state() failed with panic
-		 * where done since abort_print_current_ta() will be
+		 * we are done since abort_print_current_ts() will be
 		 * called which will dump the memory map.
 		 */
 	}
