@@ -133,7 +133,6 @@ endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
-srcs-$(if $(filter y,$(_CFG_CORE_LTC_SM2_PKE) $(_CFG_CORE_LTC_SM2_KEP),y),y) += sm2_kdf.c
 
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c

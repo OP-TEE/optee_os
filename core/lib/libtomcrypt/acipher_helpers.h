@@ -51,8 +51,6 @@ TEE_Result ecc_populate_ltc_public_key(ecc_key *ltc_key,
                 mp_to_unsigned_bin(_a, (b) + (c) - mp_unsigned_bin_size(_a)); \
         } while(0)
 
-TEE_Result sm2_kdf(const uint8_t *Z, size_t Z_len, uint8_t *t, size_t tlen);
-
 #ifdef _CFG_CORE_LTC_SM2_DSA
 TEE_Result sm2_ltc_dsa_sign(uint32_t algo, struct ecc_keypair *key,
 			    const uint8_t *msg, size_t msg_len, uint8_t *sig,

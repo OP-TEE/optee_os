@@ -4,6 +4,7 @@
  */
 
 #include <crypto/crypto.h>
+#include <crypto/sm2-kdf.h>
 #include <io.h>
 #include <stdlib.h>
 #include <string.h>
