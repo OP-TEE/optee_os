@@ -36,6 +36,7 @@ struct sp_session {
 	uint16_t caller_id;
 	struct ts_session ts_sess;
 	struct sp_ffa_init_info *info;
+	unsigned int spinlock;
 	TAILQ_ENTRY(sp_session) link;
 };
 
@@ -69,6 +70,7 @@ static inline struct sp_ctx *to_sp_ctx(struct ts_ctx *ctx)
 }
 
 struct sp_session *sp_get_session(uint32_t session_id);
+TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2019, Arm Limited
+ * Copyright (c) 2019-2021, Arm Limited
  */
 
 #include <platform_config.h>
@@ -70,6 +70,37 @@ FUNC thread_std_smc_entry , :
 	mov	x7, #FFA_PARAM_MBZ		/* Unused parameter */
 	b	ffa_msg_send_direct_resp
 END_FUNC thread_std_smc_entry
+
+#ifdef CFG_SECURE_PARTITION
+/* void spmc_sp_thread_entry(args) */
+FUNC spmc_sp_thread_entry , :
+	/* Store the parameters as struct thread_smc_args on stack */
+	sub     sp, sp, #THREAD_SMC_ARGS_SIZE
+	store_xregs sp, THREAD_SMC_ARGS_X0, 0, 7
+	mov     x0, sp
+	mov     x1, #0 /* Pass NULL pointer for caller_sp, coming from NW */
+	bl      spmc_sp_msg_handler
+	load_xregs sp, THREAD_SMC_ARGS_X0, 20, 27
+
+	/* Mask all maskable exceptions before switching to temporary stack */
+	msr     daifset, #DAIFBIT_ALL
+	bl      thread_get_tmp_sp
+	mov     sp, x0
+
+	bl      thread_state_free
+
+	/* Restore the FF-A arguments before the SMC instruction. */
+	mov     w0, w20
+	mov     w1, w21
+	mov     w2, w22
+	mov     w3, w23
+	mov     w4, w24
+	mov     w5, w25
+	mov     w6, w26
+	mov     w7, w27
+	b .ffa_msg_loop
+END_FUNC spmc_sp_thread_entry
+#endif
 
 /* void thread_rpc(struct thread_rpc_arg *rpc_arg) */
 FUNC thread_rpc , :

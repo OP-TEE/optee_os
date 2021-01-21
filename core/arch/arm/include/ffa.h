@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 /* Error codes */
+#define FFA_OK			0
 #define FFA_NOT_SUPPORTED	-1
 #define FFA_INVALID_PARAMETERS	-2
 #define FFA_NO_MEMORY		-3
