@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020, Linaro Limited.
- * Copyright (c) 2019, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2021, Arm Limited. All rights reserved.
  */
 
 #include <assert.h>
@@ -9,7 +9,9 @@
 #include <io.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
+#include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/thread_spmc.h>
@@ -841,6 +843,12 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		set_args(args, FFA_SUCCESS_32, args->a1, 0, 0, 0, 0);
 		break;
 	case FFA_MSG_SEND_DIRECT_REQ_32:
+		if (IS_ENABLED(CFG_SECURE_PARTITION) &&
+		    FFA_DST(args->a1) != SPMC_ENDPOINT_ID) {
+			spmc_sp_start_thread(args);
+			break;
+		}
+
 		if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
 			handle_yielding_call(args);
 		else
