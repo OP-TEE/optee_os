@@ -22,6 +22,9 @@ endif
 ifneq ($(CFG_CRYPTO_CTS_FROM_CRYPTOLIB),y)
 srcs-$(CFG_CRYPTO_CTS) += aes-cts.c
 endif
+ifneq (,$(filter y,$(CFG_CRYPTO_SM2_PKE) $(CFG_CRYPTO_SM2_KEP)))
+srcs-y += sm2-kdf.c
+endif
 ifeq ($(CFG_CRYPTO_SM3),y)
 srcs-y += sm3.c
 srcs-y += sm3-hash.c

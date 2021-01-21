@@ -4,13 +4,13 @@
  */
 
 #include <crypto/crypto.h>
+#include <crypto/sm2-kdf.h>
 #include <io.h>
 #include <stdint.h>
+#include <string.h>
 #include <tee_api_types.h>
 #include <unistd.h>
 #include <utee_defines.h>
-
-#include "acipher_helpers.h"
 
 /*
  * GM/T 0003.1‒2012 Part 4 Sections 5.4.2 and 5.4.3
