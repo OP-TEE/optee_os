@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2021, Arm Limited
  */
 
 #include <platform_config.h>
@@ -19,6 +19,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
@@ -445,9 +446,10 @@ static void thread_lazy_restore_ns_vfp(void)
 
 #ifdef ARM32
 static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
-		      uint32_t a2, uint32_t a3)
+		      uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5,
+		      uint32_t a6, uint32_t a7, void *pc)
 {
-	thread->regs.pc = (uint32_t)thread_std_smc_entry;
+	thread->regs.pc = (uint32_t)pc;
 
 	/*
 	 * Stdcalls starts in SVC mode with masked foreign interrupts, masked
@@ -470,18 +472,19 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.r1 = a1;
 	thread->regs.r2 = a2;
 	thread->regs.r3 = a3;
-	thread->regs.r4 = 0;
-	thread->regs.r5 = 0;
-	thread->regs.r6 = 0;
-	thread->regs.r7 = 0;
+	thread->regs.r4 = a4;
+	thread->regs.r5 = a5;
+	thread->regs.r6 = a6;
+	thread->regs.r7 = a7;
 }
 #endif /*ARM32*/
 
 #ifdef ARM64
 static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
-		      uint32_t a2, uint32_t a3)
+		      uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5,
+		      uint32_t a6, uint32_t a7, void *pc)
 {
-	thread->regs.pc = (uint64_t)thread_std_smc_entry;
+	thread->regs.pc = (uint64_t)pc;
 
 	/*
 	 * Stdcalls starts in SVC mode with masked foreign interrupts, masked
@@ -500,10 +503,10 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	thread->regs.x[1] = a1;
 	thread->regs.x[2] = a2;
 	thread->regs.x[3] = a3;
-	thread->regs.x[4] = 0;
-	thread->regs.x[5] = 0;
-	thread->regs.x[6] = 0;
-	thread->regs.x[7] = 0;
+	thread->regs.x[4] = a4;
+	thread->regs.x[5] = a5;
+	thread->regs.x[6] = a6;
+	thread->regs.x[7] = a7;
 
 	/* Set up frame pointer as per the Aarch64 AAPCS */
 	thread->regs.x[29] = 0;
@@ -530,7 +533,10 @@ void __nostackcheck thread_clr_boot_thread(void)
 	l->curr_thread = -1;
 }
 
-void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
+				   uint32_t a3, uint32_t a4, uint32_t a5,
+				   uint32_t a6, uint32_t a7,
+				   void *pc)
 {
 	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
@@ -556,7 +562,7 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 	l->curr_thread = n;
 
 	threads[n].flags = 0;
-	init_regs(threads + n, a0, a1, a2, a3);
+	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 
 	thread_lazy_save_ns_vfp();
 
@@ -565,6 +571,21 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
 	/*NOTREACHED*/
 	panic();
 }
+
+void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3)
+{
+	__thread_alloc_and_run(a0, a1, a2, a3, 0, 0, 0, 0,
+			       thread_std_smc_entry);
+}
+
+#ifdef CFG_SECURE_PARTITION
+void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)
+{
+	__thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3, args->a4,
+			       args->a5, args->a6, args->a7,
+			       spmc_sp_thread_entry);
+}
+#endif
 
 #ifdef ARM32
 static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,

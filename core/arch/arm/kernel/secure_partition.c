@@ -2,11 +2,14 @@
 /*
  * Copyright (c) 2020-2021, Arm Limited.
  */
+#include <bench.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/embedded_ts.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/secure_partition.h>
+#include <kernel/spinlock.h>
+#include <kernel/spmc_sp_handler.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/ts_store.h>
 #include <ldelf.h>
@@ -18,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <tee_api_types.h>
+#include "thread_private.h"
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_defines.h>
@@ -29,9 +33,6 @@ static const struct ts_ops *_sp_ops;
 /* List that holds all of the loaded SP's */
 static struct sp_sessions_head open_sp_sessions =
 	TAILQ_HEAD_INITIALIZER(open_sp_sessions);
-
-static struct ts_ops sp_ops __rodata_unpaged = {
-};
 
 static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 {
@@ -66,17 +67,22 @@ struct sp_session *sp_get_session(uint32_t session_id)
 	return NULL;
 }
 
-static void sp_init_info(struct sp_ctx *ctx)
+static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)
 {
 	struct sp_ffa_init_info *info = NULL;
 
+	/*
+	 * When starting the SP for the first time a init_info struct is passed.
+	 * Store the struct on the stack and store the address in x0
+	 */
 	ctx->uctx.stack_ptr -= ROUNDUP(sizeof(*info), STACK_ALIGNMENT);
 
-	ctx->sp_regs.x[0]  = (uintptr_t)ctx->uctx.stack_ptr;
 	info = (struct sp_ffa_init_info *)ctx->uctx.stack_ptr;
 
 	info->magic = 0;
 	info->count = 0;
+
+	args->a0 = (vaddr_t)info;
 
 }
 
@@ -158,12 +164,9 @@ err:
 static TEE_Result sp_init_set_registers(struct sp_ctx *ctx)
 {
 	struct thread_ctx_regs *sp_regs = &ctx->sp_regs;
-	uint64_t x0 = sp_regs->x[0];
 
-	/* Clear all addresses except x0, x0 contains the info address. */
 	memset(sp_regs, 0, sizeof(*sp_regs));
 	sp_regs->sp = ctx->uctx.stack_ptr;
-	sp_regs->x[0] = x0;
 	sp_regs->pc = ctx->uctx.entry_func;
 
 	return TEE_SUCCESS;
@@ -206,7 +209,6 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	/* Make the SP ready for its first run */
 	s->state = sp_idle;
 	s->caller_id = 0;
-	sp_init_info(ctx);
 	sp_init_set_registers(ctx);
 	ts_pop_current_session();
 
@@ -217,13 +219,174 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
+	struct thread_smc_args args = {0};
 
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
 			      uuid);
 
+	ts_push_current_session(&sess->ts_sess);
+	sp_init_info(to_sp_ctx(sess->ts_sess.ctx), &args);
+	ts_pop_current_session();
+
+	if (sp_enter(&args, sess))
+		return FFA_ABORTED;
+
+	spmc_sp_msg_handler(&args, sess);
+
 	return res;
 }
+
+TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
+{
+	TEE_Result res = FFA_OK;
+	struct sp_ctx *ctx = to_sp_ctx(sp->ts_sess.ctx);
+
+	ctx->sp_regs.x[0] = args->a0;
+	ctx->sp_regs.x[1] = args->a1;
+	ctx->sp_regs.x[2] = args->a2;
+	ctx->sp_regs.x[3] = args->a3;
+	ctx->sp_regs.x[4] = args->a4;
+	ctx->sp_regs.x[5] = args->a5;
+	ctx->sp_regs.x[6] = args->a6;
+	ctx->sp_regs.x[7] = args->a7;
+
+	res = sp->ts_sess.ctx->ops->enter_invoke_cmd(&sp->ts_sess, 0);
+
+	args->a0 = ctx->sp_regs.x[0];
+	args->a1 = ctx->sp_regs.x[1];
+	args->a2 = ctx->sp_regs.x[2];
+	args->a3 = ctx->sp_regs.x[3];
+	args->a4 = ctx->sp_regs.x[4];
+	args->a5 = ctx->sp_regs.x[5];
+	args->a6 = ctx->sp_regs.x[6];
+	args->a7 = ctx->sp_regs.x[7];
+
+	return res;
+}
+
+static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
+				      uint32_t cmd __unused)
+{
+	struct sp_ctx *ctx = to_sp_ctx(s->ctx);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t exceptions = 0;
+	uint64_t cpsr = 0;
+	struct sp_session *sp_s = to_sp_session(s);
+	struct ts_session *sess = NULL;
+	struct thread_ctx_regs *sp_regs = NULL;
+	uint32_t panicked = false;
+	uint32_t panic_code = 0;
+
+	bm_timestamp();
+
+	sp_regs = &ctx->sp_regs;
+	ts_push_current_session(s);
+
+	cpsr = sp_regs->cpsr;
+	sp_regs->cpsr = read_daif() & (SPSR_64_DAIF_MASK << SPSR_64_DAIF_SHIFT);
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+	sp_regs->cpsr = cpsr;
+	thread_unmask_exceptions(exceptions);
+
+	thread_user_clear_vfp(&ctx->uctx);
+
+	if (panicked) {
+		DMSG("tee_user_ta_enter: SP panicked with code  %#"PRIx32,
+		     panic_code);
+		abort_print_current_ts();
+
+		sess = ts_pop_current_session();
+		cpu_spin_lock(&sp_s->spinlock);
+		sp_s->state = sp_dead;
+		cpu_spin_unlock(&sp_s->spinlock);
+
+		return TEE_ERROR_TARGET_DEAD;
+	}
+	sess = ts_pop_current_session();
+
+	assert(sess == s);
+
+	bm_timestamp();
+	return res;
+}
+
+static void sp_svc_store_registers(struct thread_svc_regs *regs,
+				   struct thread_ctx_regs *sp_regs)
+{
+	sp_regs->x[0] = regs->x0;
+	sp_regs->x[1] = regs->x1;
+	sp_regs->x[2] = regs->x2;
+	sp_regs->x[3] = regs->x3;
+	sp_regs->x[4] = regs->x4;
+	sp_regs->x[5] = regs->x5;
+	sp_regs->x[6] = regs->x6;
+	sp_regs->x[7] = regs->x7;
+	sp_regs->x[8] = regs->x8;
+	sp_regs->x[9] = regs->x9;
+	sp_regs->x[10] = regs->x10;
+	sp_regs->x[11] = regs->x11;
+	sp_regs->x[12] = regs->x12;
+	sp_regs->x[13] = regs->x13;
+	sp_regs->x[14] = regs->x14;
+	sp_regs->x[15] = regs->x15;
+	sp_regs->x[16] = regs->x16;
+	sp_regs->x[17] = regs->x17;
+	sp_regs->x[18] = regs->x18;
+	sp_regs->x[19] = regs->x19;
+	sp_regs->x[20] = regs->x20;
+	sp_regs->x[21] = regs->x21;
+	sp_regs->x[22] = regs->x22;
+	sp_regs->x[23] = regs->x23;
+	sp_regs->x[24] = regs->x24;
+	sp_regs->x[25] = regs->x25;
+	sp_regs->x[26] = regs->x26;
+	sp_regs->x[27] = regs->x27;
+	sp_regs->x[28] = regs->x28;
+	sp_regs->x[29] = regs->x29;
+	sp_regs->x[30] = regs->x30;
+	sp_regs->pc = regs->elr;
+	sp_regs->sp = regs->sp_el0;
+}
+
+static bool sp_handle_svc(struct thread_svc_regs *regs)
+{
+	struct ts_session *ts = NULL;
+	struct sp_ctx *uctx = NULL;
+	struct sp_session *s = NULL;
+
+	ts = ts_get_current_session();
+	uctx = to_sp_ctx(ts->ctx);
+
+	s = uctx->open_session;
+	assert(s);
+
+	sp_svc_store_registers(regs, &uctx->sp_regs);
+
+	regs->x0 = 0;
+	regs->x1 = 0; /* panic */
+	regs->x2 = 0; /* panic code */
+
+	/*
+	 * All the registers of the SP are saved in the SP session by the SVC
+	 * handler.
+	 * We always return to S-El1 after handling the SVC. We will continue
+	 * in sp_enter_invoke_cmd() (return from __thread_enter_user_mode).
+	 * The sp_enter() function copies the FF-A parameters (a0-a7) from the
+	 * saved registers to the thread_smc_args. The thread_smc_args object is
+	 * afterward used by the spmc_sp_msg_handler to handle the FF-A message
+	 * send by the SP.
+	 */
+	return false;
+}
+
+static struct ts_ops sp_ops __rodata_unpaged = {
+	.enter_invoke_cmd = sp_enter_invoke_cmd,
+	.handle_svc = sp_handle_svc,
+};
 
 static TEE_Result sp_init_all(void)
 {
