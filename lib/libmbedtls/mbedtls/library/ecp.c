@@ -355,7 +355,8 @@ int mbedtls_ecp_check_budget( const mbedtls_ecp_group *grp,
     defined(MBEDTLS_ECP_DP_BP512R1_ENABLED)   ||   \
     defined(MBEDTLS_ECP_DP_SECP192K1_ENABLED) ||   \
     defined(MBEDTLS_ECP_DP_SECP224K1_ENABLED) ||   \
-    defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED)
+    defined(MBEDTLS_ECP_DP_SECP256K1_ENABLED) ||   \
+    defined(MBEDTLS_ECP_DP_SM2_ENABLED)
 #define ECP_SHORTWEIERSTRASS
 #endif
 
@@ -413,6 +414,10 @@ static const mbedtls_ecp_curve_info ecp_supported_curves[] =
 #endif
 #if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED) && defined(MBEDTLS_ECDH_VARIANT_EVEREST_ENABLED)
     { MBEDTLS_ECP_DP_CURVE25519,   29,     256,    "x25519"            },
+#endif
+#if defined(MBEDTLS_ECP_DP_SM2_ENABLED)
+    /* https://tools.ietf.org/id/draft-yang-tls-tls13-sm-suites-05.html */
+    { MBEDTLS_ECP_DP_SM2,          41,     256,    "sm2"               },
 #endif
     { MBEDTLS_ECP_DP_NONE,          0,     0,      NULL                },
 };
