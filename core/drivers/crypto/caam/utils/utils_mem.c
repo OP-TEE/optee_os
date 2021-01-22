@@ -61,132 +61,6 @@ static uint32_t read_cacheline_size(void)
 #define MEM_TYPE_ZEROED	BIT(0) /* Buffer filled with 0's */
 #define MEM_TYPE_ALIGN	BIT(1) /* Address and size aligned on a cache line */
 
-#if CAAM_DBG_TRACE(MEM)
-#define DEBUG_INFO_SIZE
-#endif
-
-#define CAAM_MEM_INFO_HDR
-#ifdef CAAM_MEM_INFO_HDR
-struct __packed mem_info {
-	void *addr;
-#ifdef DEBUG_INFO_SIZE
-	size_t size;
-#endif /* DEBUG_INFO_SIZE */
-	uint8_t type;
-};
-
-#define MEM_INFO_SIZE  ROUNDUP(sizeof(struct mem_info), sizeof(void *))
-#define OF_MEM_INFO(p) (struct mem_info *)((uint8_t *)(p) - MEM_INFO_SIZE)
-
-/*
- * Allocate an area of given size in bytes. Add the memory allocator
- * information in the newly allocated area.
- *
- * @size   Size in bytes to allocate
- * @type   Type of area to allocate (refer to MEM_TYPE_*)
- */
-static void *mem_alloc(size_t size, uint8_t type)
-{
-	struct mem_info *info = NULL;
-	vaddr_t ret_addr = 0;
-	void *ptr = NULL;
-	size_t alloc_size = 0;
-	uint32_t cacheline_size = 0;
-
-	MEM_TRACE("alloc %zu bytes of type %" PRIu8, size, type);
-
-	/*
-	 * The mem_info header is added just before the returned
-	 * buffer address
-	 *
-	 * --------------
-	 * |  mem_info  |
-	 * --------------
-	 * |  Buffer    |
-	 * --------------
-	 */
-	if (ADD_OVERFLOW(size, MEM_INFO_SIZE, &alloc_size))
-		return NULL;
-
-	if (type & MEM_TYPE_ALIGN) {
-		/*
-		 * Buffer must be aligned on a cache line:
-		 *  - Buffer start address aligned on a cache line
-		 *  - End of Buffer inside a cache line.
-		 *
-		 * If area's (mem info + buffer) to be allocated size is
-		 * already cache line aligned add a cache line.
-		 *
-		 * Because Buffer address returned is moved up to a cache
-		 * line start offset, add a cache line to full area allocated
-		 * to ensure that end of the working buffer is in a cache line.
-		 */
-		cacheline_size = read_cacheline_size();
-		if (size == cacheline_size) {
-			if (ADD_OVERFLOW(alloc_size, cacheline_size,
-					 &alloc_size))
-				return NULL;
-		}
-
-		if (ADD_OVERFLOW(cacheline_size,
-				 ROUNDUP(alloc_size, cacheline_size),
-				 &alloc_size))
-			return NULL;
-	}
-
-	if (type & MEM_TYPE_ZEROED)
-		ptr = calloc(1, alloc_size);
-	else
-		ptr = malloc(alloc_size);
-
-	if (!ptr) {
-		MEM_TRACE("alloc Error - NULL");
-		return NULL;
-	}
-
-	/* Calculate the return buffer address */
-	ret_addr = (vaddr_t)ptr + MEM_INFO_SIZE;
-	if (type & MEM_TYPE_ALIGN) {
-		ret_addr = ROUNDUP(ret_addr, cacheline_size);
-		MEM_TRACE("alloc %p 0x%" PRIxVA " %zu vs %zu", ptr, ret_addr,
-			  alloc_size, size);
-	}
-
-	/*
-	 * Add the mem_info header
-	 */
-	info = OF_MEM_INFO(ret_addr);
-	info->addr = ptr;
-#ifdef DEBUG_INFO_SIZE
-	info->size = alloc_size;
-#endif /* DEBUG_INFO_SIZE */
-	info->type = type;
-
-	MEM_TRACE("alloc returned %p -> %p", ptr, (void *)ret_addr);
-
-	return (void *)ret_addr;
-}
-
-/*
- * Free allocated area
- *
- * @ptr  area to free
- */
-static void mem_free(void *ptr)
-{
-	struct mem_info *info = NULL;
-
-	if (!ptr)
-		return;
-
-	info = OF_MEM_INFO(ptr);
-	MEM_TRACE("free %p info %p", ptr, info);
-	MEM_TRACE("free @%p - %zu bytes of type %" PRIu8, info->addr,
-		  info->size, info->type);
-
-	free(info->addr);
-}
-#else /* CAAM_MEM_INFO_HDR */
 /*
  * Allocate an area of given size in bytes
  *
@@ -196,29 +70,23 @@ static void mem_free(void *ptr)
 static void *mem_alloc(size_t size, uint8_t type)
 {
 	void *ptr = NULL;
-	size_t alloc_size = size;
-	uint32_t cacheline_size = 0;
 
-	MEM_TRACE("alloc (normal) %zu bytes of type %" PRIu8, size, type);
+	MEM_TRACE("alloc %zu bytes of type %" PRIu8, size, type);
 
-	if (type & MEM_TYPE_ALIGN) {
-		cacheline_size = read_cacheline_size();
-		if (ADD_OVERFLOW(alloc_size,
-				 ROUNDUP(alloc_size, cacheline_size),
-				 &alloc_size))
-			return NULL;
-	}
+	if (type & MEM_TYPE_ALIGN)
+		ptr = memalign(read_cacheline_size(), size);
+	else
+		ptr = malloc(size);
 
-	ptr = malloc(alloc_size);
 	if (!ptr) {
-		MEM_TRACE("alloc (normal) Error - NULL");
+		MEM_TRACE("alloc Error - NULL");
 		return NULL;
 	}
 
 	if (type & MEM_TYPE_ZEROED)
-		memset(ptr, 0, alloc_size);
+		memset(ptr, 0, size);
 
-	MEM_TRACE("alloc (normal) returned %p", ptr);
+	MEM_TRACE("alloc returned %p", ptr);
 	return ptr;
 }
 
@@ -230,11 +98,10 @@ static void *mem_alloc(size_t size, uint8_t type)
 static void mem_free(void *ptr)
 {
 	if (ptr) {
-		MEM_TRACE("free (normal) %p", ptr);
+		MEM_TRACE("free %p", ptr);
 		free(ptr);
 	}
 }
-#endif /* CAAM_MEM_INFO_HDR */
 
 /*
  * Allocate internal driver buffer aligned with a cache line.
