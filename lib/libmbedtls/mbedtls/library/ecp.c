@@ -555,6 +555,10 @@ static const mbedtls_ecp_curve_info ecp_supported_curves[] =
 #if defined(MBEDTLS_ECP_DP_CURVE448_ENABLED)
     { MBEDTLS_ECP_DP_CURVE448,     30,     448,    "x448"              },
 #endif
+#if defined(MBEDTLS_ECP_DP_SM2_ENABLED)
+    /* https://tools.ietf.org/id/draft-yang-tls-tls13-sm-suites-05.html */
+    { MBEDTLS_ECP_DP_SM2,          41,     256,    "sm2"               },
+#endif
     { MBEDTLS_ECP_DP_NONE,          0,     0,      NULL                },
 };
 
