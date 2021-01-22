@@ -166,6 +166,8 @@ jobs:
           _make PLATFORM=marvell-armada7k8k
           _make PLATFORM=marvell-armada3700
           _make PLATFORM=marvell-otx2t96
+          _make PLATFORM=marvell-otx2f95
+          _make PLATFORM=marvell-otx2t98
           _make PLATFORM=synquacer
           _make PLATFORM=sunxi-bpi_zero
           _make PLATFORM=sunxi-sun50i_a64

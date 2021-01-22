@@ -109,7 +109,8 @@
 #define MARVELL_CONSOLE_BAUDRATE		115200
 #define CONSOLE_UART_BASE	PLAT_MARVELL_BOOT_UART_BASE
 
-#elif defined(PLATFORM_FLAVOR_otx2t96)
+#elif defined(PLATFORM_FLAVOR_otx2t96) || defined(PLATFORM_FLAVOR_otx2f95) || \
+	defined(PLATFORM_FLAVOR_otx2t98)
 /*
  * OcteonTX2(otx2) specifics.
  */
