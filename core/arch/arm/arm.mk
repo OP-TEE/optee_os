@@ -11,7 +11,6 @@ include mk/$(COMPILER_core).mk
 # Defines the cc-option macro using the compiler set for the core module
 include mk/cc-option.mk
 
-CFG_LTC_OPTEE_THREAD ?= y
 # Size of emulated TrustZone protected SRAM, 448 kB.
 # Only applicable when paging is enabled.
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 458752
