@@ -1286,6 +1286,7 @@ static void session_logout(struct pkcs11_session *session)
 
 	TAILQ_FOREACH(sess, &client->session_list, link) {
 		struct pkcs11_object *obj = NULL;
+		struct pkcs11_object *tobj = NULL;
 		uint32_t handle = 0;
 
 		if (sess->token != session->token)
@@ -1294,7 +1295,7 @@ static void session_logout(struct pkcs11_session *session)
 		release_active_processing(session);
 
 		/* Destroy private session objects */
-		LIST_FOREACH(obj, &sess->object_list, link) {
+		LIST_FOREACH_SAFE(obj, &sess->object_list, link, tobj) {
 			if (object_is_private(obj->attributes))
 				destroy_object(sess, obj, true);
 		}
