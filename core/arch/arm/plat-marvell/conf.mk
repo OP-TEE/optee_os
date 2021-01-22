@@ -47,6 +47,42 @@ CFG_NUM_THREADS ?= CFG_TEE_CORE_NB_CORE
 CFG_CORE_HEAP_SIZE ?= 131072
 endif
 
+ifeq ($(PLATFORM_FLAVOR),otx2f95)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,6)
+$(call force,CFG_CLUSTERS_PER_NODE,1)
+$(call force,CFG_TZDRAM_START,0x00001000)
+$(call force,CFG_TZDRAM_SIZE,0x000a00000)
+$(call force,CFG_SHMEM_START,0x01000000)
+$(call force,CFG_SHMEM_SIZE,0x00800000)
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,48)
+$(call force,CFG_LPAE_ADDR_SPACE_BITS,36)
+$(call force,CFG_PL011,y)
+$(call force,CFG_ARM_GICV3,y)
+CFG_USER_TA_TARGETS ?= ta_arm64
+CFG_NUM_THREADS ?= CFG_TEE_CORE_NB_CORE
+CFG_CORE_HEAP_SIZE ?= 131072
+endif
+
+ifeq ($(PLATFORM_FLAVOR),otx2t98)
+include core/arch/arm/cpu/cortex-armv8-0.mk
+$(call force,CFG_TEE_CORE_NB_CORE,36)
+$(call force,CFG_CLUSTERS_PER_NODE,6)
+$(call force,CFG_TZDRAM_START,0x00001000)
+$(call force,CFG_TZDRAM_SIZE,0x000a00000)
+$(call force,CFG_SHMEM_START,0x01000000)
+$(call force,CFG_SHMEM_SIZE,0x00800000)
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,48)
+#$(call force,CFG_LPAE_ADDR_SPACE_BITS,36)
+$(call force,CFG_PL011,y)
+$(call force,CFG_ARM_GICV3,y)
+CFG_USER_TA_TARGETS ?= ta_arm64
+CFG_NUM_THREADS ?= CFG_TEE_CORE_NB_CORE
+CFG_CORE_HEAP_SIZE ?= 131072
+endif
+
 ifeq ($(platform-debugger-arm),1)
 # ARM debugger needs this
 platform-cflags-debug-info = -gdwarf-2
