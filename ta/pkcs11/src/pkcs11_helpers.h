@@ -92,6 +92,7 @@ const char *id2str_attr(uint32_t id);
 const char *id2str_class(uint32_t id);
 const char *id2str_type(uint32_t id, uint32_t class);
 const char *id2str_key_type(uint32_t id);
+const char *id2str_certificate_type(uint32_t id);
 const char *id2str_attr_value(uint32_t id, size_t size, void *value);
 const char *id2str_proc(uint32_t id);
 const char *id2str_function(uint32_t id);

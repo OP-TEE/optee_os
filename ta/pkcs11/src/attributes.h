@@ -263,6 +263,24 @@ static inline enum pkcs11_key_type get_key_type(struct obj_attrs *head)
 }
 
 /*
+ * get_certificate_type() - Get the certificate type of an object
+ * @head:	Pointer to serialized attributes
+ *
+ * Returns the certificate type of an object on success or returns
+ * PKCS11_CKC_UNDEFINED_ID on error.
+ */
+static inline
+enum pkcs11_certificate_type get_certificate_type(struct obj_attrs *head)
+{
+	uint32_t type = 0;
+
+	if (get_u32_attribute(head, PKCS11_CKA_CERTIFICATE_TYPE, &type))
+		return PKCS11_CKC_UNDEFINED_ID;
+
+	return type;
+}
+
+/*
  * get_mechanism_type() - Get the mechanism type of an object
  * @head:	Pointer to serialized attributes
  *
