@@ -39,6 +39,16 @@ static const struct attr_size attr_ids[] = {
 	PKCS11_ID_SZ(PKCS11_CKA_VALUE_LEN, 4),
 	PKCS11_ID_SZ(PKCS11_CKA_KEY_GEN_MECHANISM, 4),
 	PKCS11_ID_SZ(PKCS11_CKA_LABEL, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_CERTIFICATE_TYPE, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_ISSUER, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_SERIAL_NUMBER, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_CERTIFICATE_CATEGORY, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_URL, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_HASH_OF_SUBJECT_PUBLIC_KEY, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_HASH_OF_ISSUER_PUBLIC_KEY, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_JAVA_MIDP_SECURITY_DOMAIN, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_NAME_HASH_ALGORITHM, 4),
+	PKCS11_ID_SZ(PKCS11_CKA_CHECK_VALUE, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_WRAP_TEMPLATE, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_UNWRAP_TEMPLATE, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_DERIVE_TEMPLATE, 0),
@@ -328,6 +338,13 @@ static const struct any_id __maybe_unused string_key_type[] = {
 	PKCS11_ID(PKCS11_CKK_EC),
 	PKCS11_ID(PKCS11_CKK_RSA),
 	PKCS11_ID(PKCS11_CKK_UNDEFINED_ID)
+};
+
+static const struct any_id __maybe_unused string_certificate_type[] = {
+	PKCS11_ID(PKCS11_CKC_X_509),
+	PKCS11_ID(PKCS11_CKC_X_509_ATTR_CERT),
+	PKCS11_ID(PKCS11_CKC_WTLS),
+	PKCS11_ID(PKCS11_CKC_UNDEFINED_ID)
 };
 
 /*
@@ -758,6 +775,11 @@ const char *id2str_type(uint32_t id, uint32_t class)
 const char *id2str_key_type(uint32_t id)
 {
 	return ID2STR(id, string_key_type, "PKCS11_CKK_");
+}
+
+const char *id2str_certificate_type(uint32_t id)
+{
+	return ID2STR(id, string_certificate_type, "PKCS11_CKC_");
 }
 
 const char *id2str_attr_value(uint32_t id, size_t size, void *value)

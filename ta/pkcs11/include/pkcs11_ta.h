@@ -1182,6 +1182,27 @@ enum pkcs11_key_type {
 };
 
 /*
+ * Valid values for attribute PKCS11_CKA_CERTIFICATE_TYPE
+ */
+enum pkcs11_certificate_type {
+	PKCS11_CKC_X_509		= 0x00000000UL,
+	PKCS11_CKC_X_509_ATTR_CERT	= 0x00000001UL,
+	PKCS11_CKC_WTLS			= 0x00000002UL,
+	/* Vendor extension: reserved for undefined ID (~0U) */
+	PKCS11_CKC_UNDEFINED_ID		= PKCS11_UNDEFINED_ID,
+};
+
+/*
+ * Valid values for attribute PKCS11_CKA_CERTIFICATE_CATEGORY
+ */
+enum pkcs11_certificate_category {
+	PKCS11_CK_CERTIFICATE_CATEGORY_UNSPECIFIED	= 0UL,
+	PKCS11_CK_CERTIFICATE_CATEGORY_TOKEN_USER	= 1UL,
+	PKCS11_CK_CERTIFICATE_CATEGORY_AUTHORITY	= 2UL,
+	PKCS11_CK_CERTIFICATE_CATEGORY_OTHER_ENTITY	= 3UL,
+};
+
+/*
  * Valid values for mechanism IDs
  * PKCS11_CKM_<x> reflects CryptoKi client API mechanism IDs CKM_<x>.
  * Note that this will be extended as needed.

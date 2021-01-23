@@ -559,6 +559,7 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 	case PKCS11_CKO_PUBLIC_KEY:
 	case PKCS11_CKO_PRIVATE_KEY:
 	case PKCS11_CKO_DATA:
+	case PKCS11_CKO_CERTIFICATE:
 		break;
 	default:
 		EMSG("Find object of class %s (%"PRIu32") is not supported",
