@@ -27,12 +27,14 @@
  */
 
 #include <console.h>
+#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdint.h>
 #include <drivers/scif.h>
 #include <drivers/gic.h>
+#include <rng_support.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, SCIF_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PRR_BASE, SMALL_PAGE_SIZE);
@@ -61,4 +63,16 @@ void console_init(void)
 {
 	scif_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);
+}
+
+unsigned long plat_get_aslr_seed(void)
+{
+	unsigned long seed = 0;
+	size_t i;
+
+	/* On RCAR we can call hw_get_random_byte() on early boot stages */
+	for (i = 0; i < sizeof(seed); i++)
+		seed = (seed << 8) | hw_get_random_byte();
+
+	return seed;
 }
