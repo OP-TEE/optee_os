@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2019-2021, Linaro Limited
  */
 
 #ifndef __MM_FOBJ_H
@@ -30,10 +30,12 @@ struct fobj {
 
 /*
  * struct fobj_ops - operations struct for struct fobj
- * @free:	Frees the @fobj
- * @load_page:	Loads page with index @page_idx at address @va
- * @save_page:	Saves page with index @page_idx from address @va
- * @get_pa:	Returns physical address of page at @page_idx if not paged
+ * @free:	  Frees the @fobj
+ * @load_page:	  Loads page with index @page_idx at address @va
+ * @save_page:	  Saves page with index @page_idx from address @va
+ * @get_iv_vaddr: Returns virtual address of tag and IV for the page at
+ *		  @page_idx if tag and IV are paged for this fobj
+ * @get_pa:	  Returns physical address of page at @page_idx if not paged
  */
 struct fobj_ops {
 	void (*free)(struct fobj *fobj);
@@ -42,6 +44,7 @@ struct fobj_ops {
 				void *va);
 	TEE_Result (*save_page)(struct fobj *fobj, unsigned int page_idx,
 				const void *va);
+	vaddr_t (*get_iv_vaddr)(struct fobj *fobj, unsigned int page_idx);
 #endif
 	paddr_t (*get_pa)(struct fobj *fobj, unsigned int page_idx);
 };
@@ -137,6 +140,15 @@ static inline TEE_Result fobj_save_page(struct fobj *fobj,
 		return fobj->ops->save_page(fobj, page_idx, va);
 
 	return TEE_ERROR_GENERIC;
+}
+
+static inline vaddr_t fobj_get_iv_vaddr(struct fobj *fobj,
+					unsigned int page_idx)
+{
+	if (fobj && fobj->ops->get_iv_vaddr)
+		return fobj->ops->get_iv_vaddr(fobj, page_idx);
+
+	return 0;
 }
 #endif
 
