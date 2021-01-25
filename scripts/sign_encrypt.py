@@ -102,7 +102,9 @@ def get_args(logger):
         help='Name of digest output file, defaults to <UUID>.dig')
     parser.add_argument(
         '--in', required=True, dest='inf',
-        help='Name of application input file, defaults to <UUID>.stripped.elf')
+        help='Name of application input file, ' +
+        'defaults to <UUID>.stripped.elf. If a signature exists, ' +
+        'it will be removed and the input file re-signed')
     parser.add_argument(
         '--out', required=False, dest='outf',
         help='Name of application output file, defaults to <UUID>.ta')
@@ -172,6 +174,17 @@ def main():
 
     with open(args.inf, 'rb') as f:
         img = f.read()
+
+    magic, img_type, img_size, alg, digest_len, sig_len = struct.unpack(
+        "IIIIHH", img[0:20])
+    if magic == 0x4f545348:
+        # Already encrypted. Cannot be sign-enc again
+        # Already signed. Skip header etc. to be able to re-sign
+        if img_type == 2:
+            logger.error('Sign-enc failed, the encrypted TA cannot be encrypted again.')
+            sys.exit(1)
+        # 20-header len,16-uuid len,4-version len
+        img = img[20 + 16 + 4 + sig_len + digest_len:]
 
     h = SHA256.new()
 
