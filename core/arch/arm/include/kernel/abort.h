@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 
 #ifndef KERNEL_ABORT_H
@@ -33,6 +33,8 @@ void abort_print_error(struct abort_info *ai);
 void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs);
 
 bool abort_is_user_exception(struct abort_info *ai);
+
+bool abort_is_write_fault(struct abort_info *ai);
 
 /* Called from a normal thread */
 void abort_print_current_ts(void);
