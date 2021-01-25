@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -69,6 +69,17 @@ void *tee_pager_phys_to_virt(paddr_t pa);
  * Panics if called twice or some other error occurs.
  */
 void tee_pager_set_alias_area(tee_mm_entry_t *mm_alias);
+
+/*
+ * tee_pager_init_iv_area() - Inialized pager area for tags IVs used by RW
+ *			      paged fobjs
+ * @fobj:	fobj backing the area
+ *
+ * Panics if called twice or some other error occurs.
+ *
+ * Returns virtual address of start of IV area.
+ */
+vaddr_t tee_pager_init_iv_area(struct fobj *fobj);
 
 /*
  * tee_pager_generate_authenc_key() - Generates authenc key for r/w paging
