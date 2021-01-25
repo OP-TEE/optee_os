@@ -9,6 +9,7 @@
 #include <arm.h>
 #include <arm64_macros.S>
 #include <platform_config.h>
+#include "rcar.h"
 
 FUNC get_core_pos_mpidr , :
 	/*
