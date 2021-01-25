@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -416,10 +416,8 @@ static vaddr_t area_idx2va(struct tee_pager_area *area, size_t idx)
 	return (idx << SMALL_PAGE_SHIFT) + (area->base & ~CORE_MMU_PGDIR_MASK);
 }
 
-static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
+static void area_tlbi_page_va(struct tee_pager_area *area, vaddr_t va)
 {
-	vaddr_t va = area_idx2va(area, idx);
-
 #if defined(CFG_PAGED_USER_TA)
 	assert(area->pgt);
 	if (area->pgt->ctx) {
@@ -430,6 +428,18 @@ static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
 	}
 #endif
 	tlbi_mva_allasid(va);
+}
+
+static void area_tlbi_entry(struct tee_pager_area *area, size_t idx)
+{
+	area_tlbi_page_va(area, area_idx2va(area, idx));
+}
+
+static void pmem_clear(struct tee_pager_pmem *pmem)
+{
+	pmem->fobj = NULL;
+	pmem->fobj_pgidx = INVALID_PGIDX;
+	pmem->flags = 0;
 }
 
 static void pmem_unmap(struct tee_pager_pmem *pmem, struct pgt *only_this_pgt)
@@ -1118,12 +1128,9 @@ void tee_pager_invalidate_fobj(struct fobj *fobj)
 
 	exceptions = pager_lock_check_stack(64);
 
-	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link) {
-		if (pmem->fobj == fobj) {
-			pmem->fobj = NULL;
-			pmem->fobj_pgidx = INVALID_PGIDX;
-		}
-	}
+	TAILQ_FOREACH(pmem, &tee_pager_pmem_head, link)
+		if (pmem->fobj == fobj)
+			pmem_clear(pmem);
 
 	pager_unlock(exceptions);
 }
@@ -1142,9 +1149,9 @@ static struct tee_pager_pmem *pmem_find(struct tee_pager_area *area,
 	return NULL;
 }
 
-static bool tee_pager_unhide_page(struct tee_pager_area *area,
-				  unsigned int tblidx)
+static bool tee_pager_unhide_page(struct tee_pager_area *area, vaddr_t page_va)
 {
+	unsigned int tblidx = area_va2idx(area, page_va);
 	struct tee_pager_pmem *pmem = pmem_find(area, tblidx);
 	uint32_t a = get_area_mattr(area->flags);
 	uint32_t attr = 0;
@@ -1275,8 +1282,7 @@ static bool tee_pager_release_one_phys(struct tee_pager_area *area,
 		area_set_entry(area, tblidx, 0, 0);
 		pgt_dec_used_entries(area->pgt);
 		TAILQ_REMOVE(&tee_pager_lock_pmem_head, pmem, link);
-		pmem->fobj = NULL;
-		pmem->fobj_pgidx = INVALID_PGIDX;
+		pmem_clear(pmem);
 		tee_pager_npages++;
 		set_npages();
 		TAILQ_INSERT_HEAD(&tee_pager_pmem_head, pmem, link);
@@ -1285,6 +1291,19 @@ static bool tee_pager_release_one_phys(struct tee_pager_area *area,
 	}
 
 	return false;
+}
+
+static void make_dirty_page(struct tee_pager_pmem *pmem,
+			    struct tee_pager_area *area, unsigned int tblidx,
+			    paddr_t pa, vaddr_t page_va)
+{
+	assert(area->flags & (TEE_MATTR_UW | TEE_MATTR_PW));
+	assert(!(pmem->flags & PMEM_FLAG_DIRTY));
+
+	FMSG("Dirty %#"PRIxVA, page_va);
+	pmem->flags |= PMEM_FLAG_DIRTY;
+	area_set_entry(area, tblidx, pa, get_area_mattr(area->flags));
+	area_tlbi_page_va(area, page_va);
 }
 
 /* Finds the oldest page and unmaps it from all tables */
@@ -1304,9 +1323,7 @@ static struct tee_pager_pmem *tee_pager_get_page(enum tee_pager_area_type at)
 	}
 
 	TAILQ_REMOVE(&tee_pager_pmem_head, pmem, link);
-	pmem->fobj = NULL;
-	pmem->fobj_pgidx = INVALID_PGIDX;
-	pmem->flags = 0;
+	pmem_clear(pmem);
 	if (at == PAGER_AREA_TYPE_LOCK) {
 		/* Move page to lock list */
 		if (tee_pager_npages <= 0)
@@ -1374,28 +1391,18 @@ static bool pager_update_permissions(struct tee_pager_area *area,
 		if (abort_is_user_exception(ai)) {
 			if (!(area->flags & TEE_MATTR_UW))
 				return true;
-			if (!(attr & TEE_MATTR_UW)) {
-				FMSG("Dirty %p",
-				     (void *)(ai->va & ~SMALL_PAGE_MASK));
-				pmem->flags |= PMEM_FLAG_DIRTY;
-				area_set_entry(area, pgidx, pa,
-					       get_area_mattr(area->flags));
-				area_tlbi_entry(area, pgidx);
-			}
+			if (!(attr & TEE_MATTR_UW))
+				make_dirty_page(pmem, area, pgidx, pa,
+						ai->va & ~SMALL_PAGE_MASK);
 
 		} else {
 			if (!(area->flags & TEE_MATTR_PW)) {
 				abort_print_error(ai);
 				panic();
 			}
-			if (!(attr & TEE_MATTR_PW)) {
-				FMSG("Dirty %p",
-				     (void *)(ai->va & ~SMALL_PAGE_MASK));
-				pmem->flags |= PMEM_FLAG_DIRTY;
-				area_set_entry(area, pgidx, pa,
-					       get_area_mattr(area->flags));
-				tlbi_mva_allasid(ai->va & ~SMALL_PAGE_MASK);
-			}
+			if (!(attr & TEE_MATTR_PW))
+				make_dirty_page(pmem, area, pgidx, pa,
+						ai->va & ~SMALL_PAGE_MASK);
 		}
 		/* Since permissions has been updated now it's OK */
 		break;
@@ -1478,7 +1485,7 @@ bool tee_pager_handle_fault(struct abort_info *ai)
 		goto out;
 	}
 
-	if (!tee_pager_unhide_page(area, area_va2idx(area, page_va))) {
+	if (!tee_pager_unhide_page(area, page_va)) {
 		struct tee_pager_pmem *pmem = NULL;
 		uint32_t attr = 0;
 		paddr_t pa = 0;
@@ -1620,8 +1627,7 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 		pmem->va_alias = pager_add_alias_page(pa);
 
 		if (unmap) {
-			pmem->fobj = NULL;
-			pmem->fobj_pgidx = INVALID_PGIDX;
+			pmem_clear(pmem);
 			core_mmu_set_entry(ti, pgidx, 0, 0);
 			pgt_dec_used_entries(find_core_pgt(va));
 		} else {
