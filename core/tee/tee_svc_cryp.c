@@ -2832,13 +2832,13 @@ static TEE_Result get_sm2_kep_params(const TEE_Attribute *params,
 						  TEE_TYPE_SM2_KEP_PUBLIC_KEY,
 						  256);
 	if (res)
-		goto out;
+		return res;
 
 	res = crypto_acipher_alloc_ecc_public_key(peer_eph_key,
 						  TEE_TYPE_SM2_KEP_PUBLIC_KEY,
 						  256);
 	if (res)
-		goto out;
+		goto out_p;
 
 	peer_key->curve = TEE_ECC_CURVE_SM2;
 	peer_eph_key->curve = TEE_ECC_CURVE_SM2;
@@ -2907,8 +2907,9 @@ static TEE_Result get_sm2_kep_params(const TEE_Attribute *params,
 
 	return TEE_SUCCESS;
 out:
-	crypto_acipher_free_ecc_public_key(peer_key);
 	crypto_acipher_free_ecc_public_key(peer_eph_key);
+out_p:
+	crypto_acipher_free_ecc_public_key(peer_key);
 	return res;
 }
 #endif
