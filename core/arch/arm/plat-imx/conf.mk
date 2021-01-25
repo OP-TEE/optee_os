@@ -63,7 +63,8 @@ mx8mq-flavorlist = \
 	mx8mqevk
 
 mx8mm-flavorlist = \
-	mx8mmevk
+	mx8mmevk \
+	mx8mm_cl_iot_gate
 
 mx8mn-flavorlist = \
 	mx8mnevk
@@ -315,6 +316,13 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mmevk))
 CFG_DDR_SIZE ?= 0x80000000
 CFG_UART_BASE ?= UART2_BASE
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mm_cl_iot_gate))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART3_BASE
+CFG_NSEC_DDR_1_BASE ?= 0x80000000UL
+CFG_NSEC_DDR_1_SIZE ?= 0x40000000UL
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8mnevk))
