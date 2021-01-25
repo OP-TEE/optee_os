@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
  */
@@ -65,7 +65,8 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
 #endif
 #define STACK_THREAD_SIZE	8192
 
-#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__)
+#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__) || \
+	!defined(CFG_CRYPTO_WITH_CE)
 #define STACK_ABT_SIZE		3072
 #else
 #define STACK_ABT_SIZE		2048
