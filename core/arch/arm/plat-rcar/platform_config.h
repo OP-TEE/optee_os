@@ -31,8 +31,10 @@
 
 #include <mm/generic_ram_layout.h>
 
+#define RCAR_CACHE_LINE_SZ		64
+
 /* Make stacks aligned to data cache line length */
-#define STACK_ALIGNMENT		64
+#define STACK_ALIGNMENT		RCAR_CACHE_LINE_SZ
 
 #define GIC_BASE		0xF1000000
 #define GICC_BASE		0xF1020000
@@ -41,9 +43,6 @@
 #define CONSOLE_UART_BASE	0xE6E88000
 
 #define PRR_BASE		0xFFF00000
-#define PRR_OFFSET		0x44
-#define PRR_PRODUCT_M3W		0x5200
-#define PRR_PRODUCT_MASK	0xFF00
 
 #if defined(PLATFORM_FLAVOR_salvator_h3)
 #define NSEC_DDR_0_BASE		0x47E00000
