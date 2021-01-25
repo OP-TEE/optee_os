@@ -79,10 +79,14 @@ static const struct serial_ops scif_uart_ops = {
 };
 DECLARE_KEEP_PAGER(scif_uart_ops);
 
-void scif_uart_init(struct scif_uart_data *pd, paddr_t base)
+void scif_uart_init(struct scif_uart_data *pd, paddr_t pbase)
 {
-	pd->base.pa = base;
+	vaddr_t base;
+
+	pd->base.pa = pbase;
 	pd->chip.ops = &scif_uart_ops;
+
+	base = io_pa_or_va(&pd->base);
 
 	/* Set Transmit Enable in Control register */
 	io_setbits16(base + SCIF_SCSCR, SCSCR_TE);
