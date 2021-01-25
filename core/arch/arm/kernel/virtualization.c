@@ -30,6 +30,8 @@ tee_mm_pool_t virt_mapper_pool __nex_bss;
 /* Memory used by OP-TEE core */
 struct tee_mmap_region *kmemory_map __nex_bss;
 
+static size_t tee_ram_size __nex_bss;
+
 struct guest_partition {
 	LIST_ENTRY(guest_partition) link;
 	struct mmu_partition *mmu_prtn;
@@ -70,7 +72,7 @@ static void set_current_prtn(struct guest_partition *prtn)
 static size_t get_ta_ram_size(void)
 {
 	return TA_RAM_SIZE / CFG_VIRT_GUEST_COUNT -
-		VCORE_UNPG_RW_SZ -
+		tee_ram_size -
 		core_mmu_get_total_pages_size();
 }
 
@@ -138,6 +140,12 @@ void virt_init_memory(struct tee_mmap_region *memory_map)
 {
 	struct tee_mmap_region *map;
 
+	/*
+	 * We can't use VCORE_UNPG_RW_SZ value directly, because it is altered
+	 * by ASLR.
+	 */
+	tee_ram_size = VCORE_UNPG_RW_SZ - boot_mmu_config.load_offset;
+
 	/* Init page pool that covers all secure RAM */
 	if (!tee_mm_init(&virt_mapper_pool, TEE_RAM_START,
 			 TA_RAM_START + TA_RAM_SIZE,
@@ -173,7 +181,7 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	int ret;
 	paddr_t original_data_pa;
 
-	prtn->tee_ram = tee_mm_alloc(&virt_mapper_pool, VCORE_UNPG_RW_SZ);
+	prtn->tee_ram = tee_mm_alloc(&virt_mapper_pool, tee_ram_size);
 	if (!prtn->tee_ram) {
 		EMSG("Can't allocate memory for TEE runtime context");
 		ret = TEE_ERROR_OUT_OF_MEMORY;
@@ -221,7 +229,7 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	core_mmu_set_prtn(prtn->mmu_prtn);
 
 	/* clear .bss */
-	memset((void *)(VCORE_UNPG_RW_PA), 0, VCORE_UNPG_RW_SZ);
+	memset((void *)(VCORE_UNPG_RW_PA), 0, tee_ram_size);
 
 	/* copy .data section from R/O original */
 	memcpy(__data_start,
