@@ -443,15 +443,19 @@ __vcore_unpg_ro_size = __flatmap_unpg_ro_size;
 __vcore_unpg_rx_size = __flatmap_unpg_rx_size + __flatmap_unpg_ro_size;
 __vcore_unpg_ro_size = 0;
 #endif
+__vcore_unpg_rx_end = __vcore_unpg_rx_start + __vcore_unpg_rx_size;
+__vcore_unpg_ro_end = __vcore_unpg_ro_start + __vcore_unpg_ro_size;
 
 /* Unpaged read-write memory */
 __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
+__vcore_unpg_rw_end = __vcore_unpg_rw_start + __vcore_unpg_rw_size;
 
 #ifdef CFG_VIRTUALIZATION
 /* Nexus read-write memory */
 __vcore_nex_rw_start = __flatmap_nex_rw_start;
 __vcore_nex_rw_size = __flatmap_nex_rw_size;
+__vcore_nex_rw_end = __vcore_nex_rw_start + __vcore_nex_rw_size;
 #endif
 
 #ifdef CFG_WITH_PAGER
@@ -475,6 +479,8 @@ __vcore_init_rx_size = __flatmap_init_rx_size + __flatmap_init_ro_size +
 		       __FLATMAP_PAGER_TRAILING_SPACE;
 __vcore_init_ro_size = 0;
 #endif /* CFG_CORE_RODATA_NOEXEC */
+__vcore_init_rx_end = __vcore_init_rx_start + __vcore_init_rx_size;
+__vcore_init_ro_end = __vcore_init_ro_start + __vcore_init_ro_size;
 #endif /* CFG_WITH_PAGER */
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS

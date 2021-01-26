@@ -90,19 +90,26 @@ register_sdp_mem(TEE_SDP_TEST_MEM_BASE, TEE_SDP_TEST_MEM_SIZE);
 #ifdef CFG_CORE_RWDATA_NOEXEC
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
 		     VCORE_UNPG_RX_PA - TEE_RAM_START);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA, VCORE_UNPG_RX_SZ);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA, VCORE_UNPG_RO_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
+		     VCORE_UNPG_RX_SZ_UNSAFE);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
+		     VCORE_UNPG_RO_SZ_UNSAFE);
 
 #ifdef CFG_VIRTUALIZATION
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
-register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA, VCORE_NEX_RW_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RW_PA,
+		     VCORE_UNPG_RW_SZ_UNSAFE);
+register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
+		     VCORE_NEX_RW_SZ_UNSAFE);
 #else
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA, VCORE_UNPG_RW_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA,
+		     VCORE_UNPG_RW_SZ_UNSAFE);
 #endif
 
 #ifdef CFG_WITH_PAGER
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA, VCORE_INIT_RX_SZ);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA, VCORE_INIT_RO_SZ);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA,
+		     VCORE_INIT_RX_SZ_UNSAFE);
+register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA,
+		     VCORE_INIT_RO_SZ_UNSAFE);
 #endif /*CFG_WITH_PAGER*/
 #else /*!CFG_CORE_RWDATA_NOEXEC*/
 register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
