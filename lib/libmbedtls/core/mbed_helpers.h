@@ -9,7 +9,9 @@
 
 #include <crypto/crypto.h>
 #include <mbedtls/aes.h>
+#include <mbedtls/bignum.h>
 #include <mbedtls/ctr_drbg.h>
+#include <tee_api_types.h>
 
 static inline int mbd_rand(void *rng_state __unused, unsigned char *output,
 			size_t len)
@@ -36,4 +38,5 @@ static inline void mbed_copy_mbedtls_aes_context(mbedtls_aes_context *dst,
 #endif
 }
 
+TEE_Result mbed_gen_random_upto(mbedtls_mpi *n, mbedtls_mpi *max);
 #endif /*MBED_HELPERS_H*/

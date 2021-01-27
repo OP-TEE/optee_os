@@ -1,3 +1,4 @@
+srcs-y += mbed_helpers.c
 srcs-y += tomcrypt.c
 srcs-$(call cfg-one-enabled, CFG_CRYPTO_MD5 CFG_CRYPTO_SHA1 CFG_CRYPTO_SHA224 \
 			     CFG_CRYPTO_SHA256 CFG_CRYPTO_SHA384 \
@@ -26,3 +27,6 @@ endif
 srcs-$(CFG_CRYPTO_RSA) += rsa.c
 srcs-$(CFG_CRYPTO_DH) += dh.c
 srcs-$(CFG_CRYPTO_ECC) += ecc.c
+srcs-$(CFG_CRYPTO_SM2_DSA) += sm2-dsa.c
+srcs-$(CFG_CRYPTO_SM2_KEP) += sm2-kep.c
+srcs-$(CFG_CRYPTO_SM2_PKE) += sm2-pke.c

@@ -111,6 +111,10 @@
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ECDH_C
 #define MBEDTLS_ECDH_LEGACY_CONTEXT
+#if defined(CFG_CRYPTO_DSA) || defined(CFG_CRYPTO_SM2_PKE) || \
+	defined(CFG_CRYPTO_SM2_KEP)
+#define MBEDTLS_ECP_DP_SM2_ENABLED
+#endif
 #endif
 
 #endif /*CFG_CRYPTOLIB_NAME_mbedtls*/
