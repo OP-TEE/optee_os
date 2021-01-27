@@ -5,7 +5,7 @@
  */
 
 #include <assert.h>
-#include <compiler.h>
+#include <config.h>
 #include <crypto/crypto_impl.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
@@ -17,6 +17,8 @@
 #include <string.h>
 
 #include "mbed_helpers.h"
+#include "sm2-dsa.h"
+#include "sm2-pke.h"
 
 /* Translate mbedtls result to TEE result */
 static TEE_Result get_tee_result(int lmd_res)
@@ -349,20 +351,53 @@ static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
 	.shared_secret = ecc_shared_secret,
 };
 
+static const struct crypto_ecc_keypair_ops sm2_pke_keypair_ops = {
+	.generate = ecc_generate_keypair,
+	.decrypt = sm2_mbedtls_pke_decrypt,
+};
+
+static const struct crypto_ecc_keypair_ops sm2_kep_keypair_ops = {
+	.generate = ecc_generate_keypair,
+};
+
+static const struct crypto_ecc_keypair_ops sm2_dsa_keypair_ops = {
+	.generate = ecc_generate_keypair,
+	.sign = sm2_mbedtls_dsa_sign,
+};
+
 TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 					 uint32_t key_type,
 					 size_t key_size_bits)
 {
+	memset(s, 0, sizeof(*s));
+
 	switch (key_type) {
-	case TEE_TYPE_SM2_DSA_KEYPAIR:
-	case TEE_TYPE_SM2_PKE_KEYPAIR:
-	case TEE_TYPE_SM2_KEP_KEYPAIR:
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	default:
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+		s->ops = &ecc_keypair_ops;
 		break;
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_dsa_keypair_ops;
+		break;
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_pke_keypair_ops;
+		break;
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_kep_keypair_ops;
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
-	memset(s, 0, sizeof(*s));
 	s->d = crypto_bignum_allocate(key_size_bits);
 	if (!s->d)
 		goto err;
@@ -372,8 +407,6 @@ TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 	s->y = crypto_bignum_allocate(key_size_bits);
 	if (!s->y)
 		goto err;
-
-	s->ops = &ecc_keypair_ops;
 
 	return TEE_SUCCESS;
 
@@ -389,28 +422,59 @@ static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.verify = ecc_verify,
 };
 
+static const struct crypto_ecc_public_ops sm2_pke_public_key_ops = {
+	.free = ecc_free_public_key,
+	.encrypt = sm2_mbedtls_pke_encrypt,
+};
+
+static const struct crypto_ecc_public_ops sm2_kep_public_key_ops = {
+	.free = ecc_free_public_key,
+};
+
+static const struct crypto_ecc_public_ops sm2_dsa_public_key_ops = {
+	.free = ecc_free_public_key,
+	.verify = sm2_mbedtls_dsa_verify,
+};
+
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 					    uint32_t key_type,
 					    size_t key_size_bits)
 {
+	memset(s, 0, sizeof(*s));
+
 	switch (key_type) {
-	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
-	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
-	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
-		return TEE_ERROR_NOT_IMPLEMENTED;
-	default:
+	case TEE_TYPE_ECDSA_PUBLIC_KEY:
+	case TEE_TYPE_ECDH_PUBLIC_KEY:
+		s->ops = &ecc_public_key_ops;
 		break;
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_dsa_public_key_ops;
+		break;
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_pke_public_key_ops;
+		break;
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		s->ops = &sm2_kep_public_key_ops;
+		break;
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
-	memset(s, 0, sizeof(*s));
 	s->x = crypto_bignum_allocate(key_size_bits);
 	if (!s->x)
 		goto err;
 	s->y = crypto_bignum_allocate(key_size_bits);
 	if (!s->y)
 		goto err;
-
-	s->ops = &ecc_public_key_ops;
 
 	return TEE_SUCCESS;
 

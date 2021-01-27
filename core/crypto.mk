@@ -39,20 +39,9 @@ CFG_CRYPTO_RSA ?= y
 CFG_CRYPTO_DH ?= y
 # ECC includes ECDSA and ECDH
 CFG_CRYPTO_ECC ?= y
-ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_SM2_PKE ?= y
 CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
-endif
-ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_PKE),mbedtls-y)
-$(error Error: CFG_CRYPTO_SM2_PKE=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
-endif
-ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_DSA),mbedtls-y)
-$(error Error: CFG_CRYPTO_SM2_DSA=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
-endif
-ifeq ($(CFG_CRYPTOLIB_NAME)-$(CFG_CRYPTO_SM2_KEP),mbedtls-y)
-$(error Error: CFG_CRYPTO_SM2_KEP=y requires CFG_CRYPTOLIB_NAME=tomcrypt)
-endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
