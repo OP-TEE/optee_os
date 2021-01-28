@@ -99,16 +99,33 @@ enum caam_status caam_hal_rng_kick(vaddr_t baseaddr, uint32_t inc_delay)
 		ent_delay = val;
 	}
 
-	val = io_caam_read32(baseaddr + TRNG_SDCTL);
-	val &= ~BM_TRNG_SDCTL_ENT_DLY;
-	val |= TRNG_SDCTL_ENT_DLY(ent_delay);
-	io_caam_write32(baseaddr + TRNG_SDCTL, val);
+	io_caam_write32(baseaddr + TRNG_SDCTL, TRNG_SDCTL_ENT_DLY(ent_delay) |
+					       TRNG_SDCTL_SAMP_SIZE(512));
 
 	/* min. freq. count, equal to 1/4 of the entropy sample length */
 	io_caam_write32(baseaddr + TRNG_FRQMIN, ent_delay >> 2);
 
 	/* max. freq. count, equal to 16 times the entropy sample length */
 	io_caam_write32(baseaddr + TRNG_FRQMAX, ent_delay << 4);
+
+	io_caam_write32(baseaddr + TRNG_RTSCMISC,
+			TRNG_RTSCMISC_RTY_CNT(2) | TRNG_RTSCMISC_LRUN_MAX(32));
+	io_caam_write32(baseaddr + TRNG_RTPKRRNG, TRNG_RTPKRRNG_PKR_RNG(570));
+	io_caam_write32(baseaddr + TRNG_RTPKRMAX, TRNG_RTPKRMAX_PKR_MAX(1600));
+	io_caam_write32(baseaddr + TRNG_RTSCML,
+			TRNG_RTSCML_MONO_RNG(122) | TRNG_RTSCML_MONO_MAX(317));
+	io_caam_write32(baseaddr + TRNG_RTSCR1L,
+			TRNG_RTSCR1L_RUN1_RNG(80) | TRNG_RTSCR1L_RUN1_MAX(107));
+	io_caam_write32(baseaddr + TRNG_RTSCR2L,
+			TRNG_RTSCR2L_RUN2_RNG(57) | TRNG_RTSCR2L_RUN2_MAX(62));
+	io_caam_write32(baseaddr + TRNG_RTSCR3L,
+			TRNG_RTSCR3L_RUN3_RNG(39) | TRNG_RTSCR3L_RUN3_MAX(39));
+	io_caam_write32(baseaddr + TRNG_RTSCR4L,
+			TRNG_RTSCR4L_RUN4_RNG(27) | TRNG_RTSCR4L_RUN4_MAX(26));
+	io_caam_write32(baseaddr + TRNG_RTSCR5L,
+			TRNG_RTSCR5L_RUN5_RNG(19) | TRNG_RTSCR5L_RUN5_MAX(18));
+	io_caam_write32(baseaddr + TRNG_RTSCR6PL,
+			TRNG_RTSCR5L_RUN5_RNG(18) | TRNG_RTSCR5L_RUN5_MAX(17));
 
 	val = io_caam_read32(baseaddr + TRNG_MCTL);
 	/*
