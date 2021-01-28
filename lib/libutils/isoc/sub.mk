@@ -37,4 +37,4 @@ srcs-y += write.c
 endif
 
 subdirs-y += newlib
-subdirs-$(arch_arm) += arch/$(ARCH)
+subdirs-y += arch/$(ARCH)

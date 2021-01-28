@@ -174,6 +174,11 @@ struct {								\
 #define	LIST_FIRST(head)		((head)->lh_first)
 #define	LIST_NEXT(elm, field)		((elm)->field.le_next)
 
+#define	LIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = LIST_FIRST((head));				\
+	    (var) && ((tvar) = LIST_NEXT((var), field), 1);		\
+	    (var) = (tvar))
+
 /*
  * Singly-linked List definitions.
  */

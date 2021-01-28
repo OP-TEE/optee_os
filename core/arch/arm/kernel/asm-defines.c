@@ -27,6 +27,10 @@ DEFINES
 	DEFINE(THREAD_SVC_REG_R5, offsetof(struct thread_svc_regs, r5));
 	DEFINE(THREAD_SVC_REG_R6, offsetof(struct thread_svc_regs, r6));
 
+	/* struct thread_ctx */
+	DEFINE(THREAD_CTX_STACK_VA_END, offsetof(struct thread_ctx,
+						 stack_va_end));
+
 	/* struct thread_ctx_regs */
 	DEFINE(THREAD_CTX_REGS_USR_SP,
 	       offsetof(struct thread_ctx_regs, usr_sp));
@@ -65,6 +69,8 @@ DEFINES
 
 	/* struct thread_ctx */
 	DEFINE(THREAD_CTX_KERN_SP, offsetof(struct thread_ctx, kern_sp));
+	DEFINE(THREAD_CTX_STACK_VA_END, offsetof(struct thread_ctx,
+						 stack_va_end));
 	DEFINE(THREAD_CTX_SIZE, sizeof(struct thread_ctx));
 
 	/* struct thread_ctx_regs */

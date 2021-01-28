@@ -208,8 +208,18 @@ clear_nex_bss:
 
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
-	mov	x2, x20		/* DT address */
-	bl	boot_init_primary
+	bl	boot_init_primary_early
+#ifndef CFG_VIRTUALIZATION
+	mov	x21, sp
+	adr_l	x0, threads
+	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
+	mov	sp, x0
+#endif
+	mov	x0, x20		/* DT address */
+	bl	boot_init_primary_late
+#ifndef CFG_VIRTUALIZATION
+	mov	sp, x21
+#endif
 
 	/*
 	 * In case we've touched memory that secondary CPUs will use before

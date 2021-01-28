@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2021, Linaro Limited
  */
 
 #ifndef __OPTEE_RPC_CMD_H
@@ -151,7 +151,7 @@
 /*
  * Issue master requests (read and write operations) to an I2C chip.
  *
- * [in]     value[0].a	    Transfer mode (OPTEE_MSG_RPC_CMD_I2C_TRANSFER_*)
+ * [in]     value[0].a	    Transfer mode (OPTEE_RPC_I2C_TRANSFER_*)
  * [in]     value[0].b	    The I2C bus (a.k.a adapter).
  *				16 bit field.
  * [in]     value[0].c	    The I2C chip (a.k.a address).
@@ -164,11 +164,11 @@
 #define OPTEE_RPC_CMD_I2C_TRANSFER	21
 
 /* I2C master transfer modes */
-#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD	0
-#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR	1
+#define OPTEE_RPC_I2C_TRANSFER_RD	0
+#define OPTEE_RPC_I2C_TRANSFER_WR	1
 
 /* I2C master control flags */
-#define OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT	BIT(0)
+#define OPTEE_RPC_I2C_FLAGS_TEN_BIT	BIT(0)
 
 /*
  * Definition of protocol for command OPTEE_RPC_CMD_FS

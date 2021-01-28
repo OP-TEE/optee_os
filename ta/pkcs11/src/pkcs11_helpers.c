@@ -60,6 +60,7 @@ static const struct attr_size attr_ids[] = {
 	PKCS11_ID_SZ(PKCS11_CKA_COEFFICIENT, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_SUBJECT, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_PUBLIC_KEY_INFO, 0),
+	PKCS11_ID_SZ(PKCS11_CKA_KEY_GEN_MECHANISM, 4),
 	/* Below are boolean attributes */
 	PKCS11_ID_SZ(PKCS11_CKA_TOKEN, 1),
 	PKCS11_ID_SZ(PKCS11_CKA_PRIVATE, 1),
@@ -365,6 +366,18 @@ size_t pkcs11_attr_is_type(uint32_t attribute_id)
 		return sizeof(uint32_t);
 	default:
 		return 0;
+	}
+}
+
+bool pkcs11_attr_has_indirect_attributes(uint32_t attribute_id)
+{
+	switch (attribute_id) {
+	case PKCS11_CKA_WRAP_TEMPLATE:
+	case PKCS11_CKA_UNWRAP_TEMPLATE:
+	case PKCS11_CKA_DERIVE_TEMPLATE:
+		return true;
+	default:
+		return false;
 	}
 }
 

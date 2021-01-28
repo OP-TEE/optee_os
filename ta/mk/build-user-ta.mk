@@ -54,3 +54,12 @@ include mk/compile.mk
 # Install TA libraries before in-tree TAs can be linked
 additional-link-deps := $(ta_dev_kit-files-lib)
 include  ta/arch/$(ARCH)/link.mk
+
+ta_dev_kit: $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta
+
+$(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta: $(link-out-dir$(sm))/$(user-ta-uuid).ta
+	$(q)mkdir -p $(dir $@)
+	@$(cmd-echo-silent) '  INSTALL $@'
+	$(q)cp -P $< $@
+
+cleanfiles += $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta

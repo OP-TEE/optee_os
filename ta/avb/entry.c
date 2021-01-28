@@ -267,13 +267,18 @@ static TEE_Result write_persist_value(uint32_t pt,
 	char *name_buf = params[0].memref.buffer;
 	uint32_t name_buf_sz = params[0].memref.size;
 
-	char *value = params[1].memref.buffer;
 	uint32_t value_sz = params[1].memref.size;
+	char *value = TEE_Malloc(value_sz, 0);
+
+	if (!value)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	TEE_MemMove(value, params[1].memref.buffer, value_sz);
 
 	res = get_named_object_name(name_buf, name_buf_sz,
 				    name_full, &name_full_sz);
 	if (res)
-		return res;
+		goto out;
 
 	res = TEE_CreatePersistentObject(storageid, name_full,
 					 name_full_sz,
@@ -283,6 +288,8 @@ static TEE_Result write_persist_value(uint32_t pt,
 		EMSG("Can't create named object value, res = 0x%x", res);
 
 	TEE_CloseObject(h);
+out:
+	TEE_Free(value);
 
 	return res;
 }
@@ -309,19 +316,22 @@ static TEE_Result read_persist_value(uint32_t pt,
 	char *name_buf = params[0].memref.buffer;
 	uint32_t name_buf_sz = params[0].memref.size;
 
-	char *value = params[1].memref.buffer;
 	uint32_t value_sz = params[1].memref.size;
+	char *value = TEE_Malloc(value_sz, 0);
+
+	if (!value)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	res = get_named_object_name(name_buf, name_buf_sz,
 				    name_full, &name_full_sz);
 	if (res)
-		return res;
+		goto out_free;
 
 	res = TEE_OpenPersistentObject(storageid, name_full,
 				       name_full_sz, flags, &h);
 	if (res) {
 		EMSG("Can't open named object value, res = 0x%x", res);
-		return res;
+		goto out_free;
 	}
 
 	res =  TEE_ReadObjectData(h, value, value_sz, &count);
@@ -330,9 +340,14 @@ static TEE_Result read_persist_value(uint32_t pt,
 		goto out;
 	}
 
+	TEE_MemMove(params[1].memref.buffer, value,
+		    value_sz);
+
 	params[1].memref.size = count;
 out:
 	TEE_CloseObject(h);
+out_free:
+	TEE_Free(value);
 
 	return res;
 }

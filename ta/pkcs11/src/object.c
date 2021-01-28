@@ -428,88 +428,6 @@ enum pkcs11_rc entry_destroy_object(struct pkcs11_client *client,
 	return rc;
 }
 
-static enum pkcs11_rc token_obj_matches_ref(struct obj_attrs *req_attrs,
-					    struct pkcs11_object *obj)
-{
-	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
-	TEE_Result res = TEE_ERROR_GENERIC;
-	TEE_ObjectHandle hdl = obj->attribs_hdl;
-	TEE_ObjectInfo info = { };
-	struct obj_attrs *attr = NULL;
-	uint32_t read_bytes = 0;
-
-	if (obj->attributes) {
-		if (!attributes_match_reference(obj->attributes, req_attrs))
-			return PKCS11_RV_NOT_FOUND;
-
-		return PKCS11_CKR_OK;
-	}
-
-	if (hdl == TEE_HANDLE_NULL) {
-		res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
-					       obj->uuid, sizeof(*obj->uuid),
-					       TEE_DATA_FLAG_ACCESS_READ,
-					       &hdl);
-		if (res) {
-			EMSG("OpenPersistent failed %#"PRIx32, res);
-			return tee2pkcs_error(res);
-		}
-	}
-
-	res = TEE_GetObjectInfo1(hdl, &info);
-	if (res) {
-		EMSG("GetObjectInfo failed %#"PRIx32, res);
-		rc = tee2pkcs_error(res);
-		goto out;
-	}
-
-	attr = TEE_Malloc(info.dataSize, TEE_MALLOC_FILL_ZERO);
-	if (!attr) {
-		rc = PKCS11_CKR_DEVICE_MEMORY;
-		goto out;
-	}
-
-	res = TEE_ReadObjectData(hdl, attr, info.dataSize, &read_bytes);
-	if (!res) {
-		res = TEE_SeekObjectData(hdl, 0, TEE_DATA_SEEK_SET);
-		if (res)
-			EMSG("Seek to 0 failed with %#"PRIx32, res);
-	}
-
-	if (res) {
-		rc = tee2pkcs_error(res);
-		EMSG("Read %"PRIu32" bytes, failed %#"PRIx32,
-		     read_bytes, res);
-		goto out;
-	}
-
-	if (read_bytes != info.dataSize) {
-		EMSG("Read %"PRIu32" bytes, expected %"PRIu32,
-		     read_bytes, info.dataSize);
-		rc = PKCS11_CKR_GENERAL_ERROR;
-		goto out;
-	}
-
-	if (!attributes_match_reference(attr, req_attrs)) {
-		rc = PKCS11_RV_NOT_FOUND;
-		goto out;
-	}
-
-	obj->attributes = attr;
-	attr = NULL;
-	obj->attribs_hdl = hdl;
-	hdl = TEE_HANDLE_NULL;
-
-	rc = PKCS11_CKR_OK;
-
-out:
-	TEE_Free(attr);
-	if (obj->attribs_hdl == TEE_HANDLE_NULL)
-		TEE_CloseObject(hdl);
-
-	return rc;
-}
-
 static void release_find_obj_context(struct pkcs11_find_objects *find_ctx)
 {
 	if (!find_ctx)
@@ -624,8 +542,7 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 		if (check_access_attrs_against_token(session, obj->attributes))
 			continue;
 
-		if (req_attrs->attrs_count &&
-		    !attributes_match_reference(obj->attributes, req_attrs))
+		if (!attributes_match_reference(obj->attributes, req_attrs))
 			continue;
 
 		rc = find_ctx_add(find_ctx, pkcs11_object2handle(obj, session));
@@ -635,16 +552,24 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 
 	LIST_FOREACH(obj, &session->token->object_list, link) {
 		uint32_t handle = 0;
+		bool new_load = false;
 
-		if (check_access_attrs_against_token(session, obj->attributes))
+		if (!obj->attributes) {
+			rc = load_persistent_object_attributes(obj);
+			if (rc)
+				return PKCS11_CKR_GENERAL_ERROR;
+
+			new_load = true;
+		}
+
+		if (!obj->attributes ||
+		    check_access_attrs_against_token(session,
+						     obj->attributes) ||
+		    !attributes_match_reference(obj->attributes, req_attrs)) {
+			if (new_load)
+				release_persistent_object_attributes(obj);
+
 			continue;
-
-		if (req_attrs->attrs_count) {
-			rc = token_obj_matches_ref(req_attrs, obj);
-			if (rc == PKCS11_RV_NOT_FOUND)
-				continue;
-			if (rc != PKCS11_CKR_OK)
-				goto out;
 		}
 
 		/* Object may not yet be published in the session */
@@ -850,38 +775,51 @@ uint32_t entry_get_attribute_value(struct pkcs11_client *client,
 
 	for (; cur < end; cur += len) {
 		struct pkcs11_attribute_head *cli_ref = (void *)cur;
+		struct pkcs11_attribute_head cli_head = { };
+		void *data_ptr = NULL;
 
-		len = sizeof(*cli_ref) + cli_ref->size;
+		/* Make copy of header so that is aligned properly. */
+		TEE_MemMove(&cli_head, cli_ref, sizeof(cli_head));
+
+		len = sizeof(*cli_ref) + cli_head.size;
 
 		/* Check 1. */
-		if (!attribute_is_exportable(cli_ref, obj)) {
-			cli_ref->size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+		if (!attribute_is_exportable(&cli_head, obj)) {
+			cli_head.size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			TEE_MemMove(&cli_ref->size, &cli_head.size,
+				    sizeof(cli_head.size));
 			attr_sensitive = 1;
 			continue;
 		}
+
+		/* Get real data pointer from template data */
+		data_ptr = cli_head.size ? cli_ref->data : NULL;
 
 		/*
 		 * We assume that if size is 0, pValue was NULL, so we return
 		 * the size of the required buffer for it (3., 4.)
 		 */
-		rc = get_attribute(obj->attributes, cli_ref->id,
-				   cli_ref->size ? cli_ref->data : NULL,
-				   &cli_ref->size);
+		rc = get_attribute(obj->attributes, cli_head.id, data_ptr,
+				   &cli_head.size);
 		/* Check 2. */
 		switch (rc) {
 		case PKCS11_CKR_OK:
 			break;
 		case PKCS11_RV_NOT_FOUND:
-			cli_ref->size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			cli_head.size = PKCS11_CK_UNAVAILABLE_INFORMATION;
 			attr_type_invalid = 1;
 			break;
 		case PKCS11_CKR_BUFFER_TOO_SMALL:
-			buffer_too_small = 1;
+			if (data_ptr)
+				buffer_too_small = 1;
 			break;
 		default:
 			rc = PKCS11_CKR_GENERAL_ERROR;
 			goto out;
 		}
+
+		TEE_MemMove(&cli_ref->size, &cli_head.size,
+			    sizeof(cli_head.size));
 	}
 
 	/*

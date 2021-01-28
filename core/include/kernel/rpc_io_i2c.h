@@ -11,12 +11,12 @@
 
 /* I2C master transfer mode */
 enum rpc_i2c_mode {
-	RPC_I2C_MODE_WRITE = OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR,
-	RPC_I2C_MODE_READ = OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD,
+	RPC_I2C_MODE_WRITE = OPTEE_RPC_I2C_TRANSFER_WR,
+	RPC_I2C_MODE_READ = OPTEE_RPC_I2C_TRANSFER_RD,
 };
 
 /* I2C master transfer control flags */
-#define RPC_I2C_FLAGS_TEN_BIT	OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT
+#define RPC_I2C_FLAGS_TEN_BIT	OPTEE_RPC_I2C_FLAGS_TEN_BIT
 
 /*
  * The bus identifier defines an implicit ABI with the REE.
