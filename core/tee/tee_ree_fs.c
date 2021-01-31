@@ -497,8 +497,18 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 		return res;
 
 	res = tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh);
-	if (res == TEE_ERROR_ITEM_NOT_FOUND)
+	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		if (hashp) {
+			res = tee_rpmb_fs_raw_remove(ree_fs_rpmb_fh);
+			if (res)
+				return res;
+			res = tee_rpmb_fs_raw_open(fname, true,
+						   &ree_fs_rpmb_fh);
+			if (res)
+				return res;
+		}
 		res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+	}
 
 	if (res)
 		rpmb_fs_ops.close(&ree_fs_rpmb_fh);

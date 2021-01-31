@@ -3037,6 +3037,24 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 	return res;
 }
 
+TEE_Result tee_rpmb_fs_raw_remove(struct tee_file_handle *fh)
+{
+	TEE_Result res;
+
+	if (!fh)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_lock(&rpmb_mutex);
+
+	res = rpmb_fs_remove_internal((struct rpmb_file_handle *)fh);
+
+	mutex_unlock(&rpmb_mutex);
+
+	rpmb_fs_close(&fh);
+
+	return res;
+}
+
 bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;

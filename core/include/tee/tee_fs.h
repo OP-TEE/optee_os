@@ -59,6 +59,8 @@ extern const struct tee_file_operations rpmb_fs_ops;
 TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 				struct tee_file_handle **fh);
 
+TEE_Result tee_rpmb_fs_raw_remove(struct tee_file_handle *fh);
+
 /**
  * Weak function which can be overridden by platforms to indicate that the RPMB
  * key is ready to be written. Defaults to true, platforms can return false to
