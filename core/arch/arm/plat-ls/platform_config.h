@@ -97,12 +97,6 @@
 #if defined(PLATFORM_FLAVOR_lx2160ardb)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0000
-#define CONSOLE_BAUDRATE		0x1C200
-/* As per LX2 Clock tree, UART clock is 1/4th of the platform clock.
- * Currently hard-coding for Platform clock = 700MHz.
- */
-#define CONSOLE_UART_CLK_IN_HZ		0xA6E49C0
-#define UART1_BASE			0x021D0000
 #define GIC_BASE			0x06000000
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0

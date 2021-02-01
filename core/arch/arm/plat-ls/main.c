@@ -102,8 +102,11 @@ void plat_primary_init_early(void)
 void console_init(void)
 {
 #ifdef CFG_PL011
-	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
-		   CONSOLE_BAUDRATE);
+	/*
+	 * Everything for uart driver initialization is done in bootloader.
+	 * So not reinitializing console.
+	 */
+	pl011_init(&console_data, CONSOLE_UART_BASE, 0, 0);
 #else
 	ns16550_init(&console_data, CONSOLE_UART_BASE, IO_WIDTH_U8, 0);
 #endif
