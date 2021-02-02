@@ -144,11 +144,11 @@ static void do_copy_state(struct crypto_cipher_ctx *dst_ctx,
 }
 
 static struct crypto_cipher_ops aes_ctr_ops = {
-	.update = &se050_aes_ctr_update,
-	.copy_state = &do_copy_state,
-	.init = &se050_aes_ctr_init,
-	.free_ctx = &do_free,
-	.final = &do_final,
+	.update = se050_aes_ctr_update,
+	.copy_state = do_copy_state,
+	.init = se050_aes_ctr_init,
+	.free_ctx = do_free,
+	.final = do_final,
 };
 
 TEE_Result se050_aes_ctr_allocate(void **ctx)

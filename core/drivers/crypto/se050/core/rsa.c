@@ -560,15 +560,15 @@ static TEE_Result do_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 }
 
 static const struct drvcrypt_rsa driver_rsa = {
-	.alloc_keypair = &do_alloc_keypair,
-	.alloc_publickey = &do_alloc_publickey,
-	.free_publickey = &do_free_publickey,
-	.free_keypair = &do_free_keypair,
-	.gen_keypair = &do_gen_keypair,
-	.encrypt = &do_encrypt,
-	.decrypt = &do_decrypt,
-	.optional.ssa_sign = &do_ssa_sign,
-	.optional.ssa_verify = &do_ssa_verify,
+	.alloc_keypair = do_alloc_keypair,
+	.alloc_publickey = do_alloc_publickey,
+	.free_publickey = do_free_publickey,
+	.free_keypair = do_free_keypair,
+	.gen_keypair = do_gen_keypair,
+	.encrypt = do_encrypt,
+	.decrypt = do_decrypt,
+	.optional.ssa_sign = do_ssa_sign,
+	.optional.ssa_verify = do_ssa_verify,
 };
 
 static TEE_Result rsa_init(void)

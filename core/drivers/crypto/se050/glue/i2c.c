@@ -64,10 +64,10 @@ int glue_i2c_write(uint8_t *buffer, int len)
 
 int glue_i2c_init(void)
 {
-	if (transfer == &rpc_io_i2c_transfer)
+	if (transfer == rpc_io_i2c_transfer)
 		return 0;
 
-	transfer = &native_i2c_transfer;
+	transfer = native_i2c_transfer;
 
 	if (imx_i2c_init(CFG_CORE_SE05X_I2C_BUS, CFG_CORE_SE05X_BAUDRATE))
 		return -1;
@@ -80,7 +80,7 @@ int glue_i2c_init(void)
 
 static TEE_Result load_trampoline(void)
 {
-	transfer = &rpc_io_i2c_transfer;
+	transfer = rpc_io_i2c_transfer;
 
 	return TEE_SUCCESS;
 }
