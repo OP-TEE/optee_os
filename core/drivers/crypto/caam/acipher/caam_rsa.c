@@ -1658,13 +1658,13 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
  * Registration of the RSA Driver
  */
 static const struct drvcrypt_rsa driver_rsa = {
-	.alloc_keypair = &do_allocate_keypair,
-	.alloc_publickey = &do_allocate_publickey,
-	.free_publickey = &do_free_publickey,
-	.free_keypair = &do_free_keypair,
-	.gen_keypair = &do_gen_keypair,
-	.encrypt = &do_encrypt,
-	.decrypt = &do_decrypt,
+	.alloc_keypair = do_allocate_keypair,
+	.alloc_publickey = do_allocate_publickey,
+	.free_publickey = do_free_publickey,
+	.free_keypair = do_free_keypair,
+	.gen_keypair = do_gen_keypair,
+	.encrypt = do_encrypt,
+	.decrypt = do_decrypt,
 	.optional.ssa_sign = NULL,
 	.optional.ssa_verify = NULL,
 };
