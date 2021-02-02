@@ -344,9 +344,9 @@ out:
 }
 
 static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
-	.generate = &ecc_generate_keypair,
-	.sign = &ecc_sign,
-	.shared_secret = &ecc_shared_secret,
+	.generate = ecc_generate_keypair,
+	.sign = ecc_sign,
+	.shared_secret = ecc_shared_secret,
 };
 
 TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
@@ -385,8 +385,8 @@ err:
 }
 
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
-	.free = &ecc_free_public_key,
-	.verify = &ecc_verify,
+	.free = ecc_free_public_key,
+	.verify = ecc_verify,
 };
 
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
