@@ -350,42 +350,42 @@ out:
 }
 
 static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
-	.generate = &_ltc_ecc_generate_keypair,
-	.sign = &_ltc_ecc_sign,
-	.shared_secret = &_ltc_ecc_shared_secret,
+	.generate = _ltc_ecc_generate_keypair,
+	.sign = _ltc_ecc_sign,
+	.shared_secret = _ltc_ecc_shared_secret,
 };
 
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
-	.free = &_ltc_ecc_free_public_key,
-	.verify = &_ltc_ecc_verify,
+	.free = _ltc_ecc_free_public_key,
+	.verify = _ltc_ecc_verify,
 };
 
 static const struct crypto_ecc_keypair_ops sm2_dsa_keypair_ops = {
-	.generate = &_ltc_ecc_generate_keypair,
-	.sign = &sm2_ltc_dsa_sign,
+	.generate = _ltc_ecc_generate_keypair,
+	.sign = sm2_ltc_dsa_sign,
 };
 
 static const struct crypto_ecc_public_ops sm2_dsa_public_key_ops = {
-	.free = &_ltc_ecc_free_public_key,
-	.verify = &sm2_ltc_dsa_verify,
+	.free = _ltc_ecc_free_public_key,
+	.verify = sm2_ltc_dsa_verify,
 };
 
 static const struct crypto_ecc_keypair_ops sm2_pke_keypair_ops = {
-	.generate = &_ltc_ecc_generate_keypair,
-	.decrypt = &sm2_ltc_pke_decrypt,
+	.generate = _ltc_ecc_generate_keypair,
+	.decrypt = sm2_ltc_pke_decrypt,
 };
 
 static const struct crypto_ecc_public_ops sm2_pke_public_key_ops = {
-	.free = &_ltc_ecc_free_public_key,
-	.encrypt = &sm2_ltc_pke_encrypt,
+	.free = _ltc_ecc_free_public_key,
+	.encrypt = sm2_ltc_pke_encrypt,
 };
 
 static const struct crypto_ecc_keypair_ops sm2_kep_keypair_ops = {
-	.generate = &_ltc_ecc_generate_keypair,
+	.generate = _ltc_ecc_generate_keypair,
 };
 
 static const struct crypto_ecc_public_ops sm2_kep_public_key_ops = {
-	.free = &_ltc_ecc_free_public_key,
+	.free = _ltc_ecc_free_public_key,
 };
 
 TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
