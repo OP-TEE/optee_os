@@ -64,12 +64,12 @@ static TEE_Result do_allocate(void **ctx, uint32_t algo)
 }
 
 static struct drvcrypt_cipher driver_cipher = {
-	.alloc_ctx = &do_allocate,
-	.free_ctx = &do_free,
-	.init = &do_init,
-	.update = &do_update,
-	.final = &do_final,
-	.copy_state = &do_copy_state,
+	.alloc_ctx = do_allocate,
+	.free_ctx = do_free,
+	.init = do_init,
+	.update = do_update,
+	.final = do_final,
+	.copy_state = do_copy_state,
 };
 
 static TEE_Result se050_cipher_init(void)
