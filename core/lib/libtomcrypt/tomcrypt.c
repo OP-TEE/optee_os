@@ -72,14 +72,14 @@ static int prng_crypto_test(void)
 static const struct ltc_prng_descriptor prng_crypto_desc = {
 	.name = "prng_crypto",
 	.export_size = 64,
-	.start = &prng_crypto_start,
-	.add_entropy = &prng_crypto_add_entropy,
-	.ready = &prng_crypto_ready,
-	.read = &prng_crypto_read,
-	.done = &prng_crypto_done,
-	.pexport = &prng_crypto_export,
-	.pimport = &prng_crypto_import,
-	.test = &prng_crypto_test,
+	.start = prng_crypto_start,
+	.add_entropy = prng_crypto_add_entropy,
+	.ready = prng_crypto_ready,
+	.read = prng_crypto_read,
+	.done = prng_crypto_done,
+	.pexport = prng_crypto_export,
+	.pimport = prng_crypto_import,
+	.test = prng_crypto_test,
 };
 #endif /*_CFG_CORE_LTC_ACIPHER*/
 

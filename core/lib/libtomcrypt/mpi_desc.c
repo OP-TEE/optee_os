@@ -630,80 +630,80 @@ ltc_math_descriptor ltc_mp = {
 	.name = "MPI",
 	.bits_per_digit = sizeof(mbedtls_mpi_uint) * 8,
 
-	.init = &init,
-	.init_size = &init_size,
-	.init_copy = &init_copy,
-	.deinit = &deinit,
+	.init = init,
+	.init_size = init_size,
+	.init_copy = init_copy,
+	.deinit = deinit,
 
-	.neg = &neg,
-	.copy = &copy,
+	.neg = neg,
+	.copy = copy,
 
-	.set_int = &set_int,
-	.get_int = &get_int,
-	.get_digit = &get_digit,
-	.get_digit_count = &get_digit_count,
-	.compare = &compare,
-	.compare_d = &compare_d,
-	.count_bits = &count_bits,
-	.count_lsb_bits = &count_lsb_bits,
-	.twoexpt = &twoexpt,
+	.set_int = set_int,
+	.get_int = get_int,
+	.get_digit = get_digit,
+	.get_digit_count = get_digit_count,
+	.compare = compare,
+	.compare_d = compare_d,
+	.count_bits = count_bits,
+	.count_lsb_bits = count_lsb_bits,
+	.twoexpt = twoexpt,
 
-	.read_radix = &read_radix,
-	.write_radix = &write_radix,
-	.unsigned_size = &unsigned_size,
-	.unsigned_write = &unsigned_write,
-	.unsigned_read = &unsigned_read,
+	.read_radix = read_radix,
+	.write_radix = write_radix,
+	.unsigned_size = unsigned_size,
+	.unsigned_write = unsigned_write,
+	.unsigned_read = unsigned_read,
 
-	.add = &add,
-	.addi = &addi,
-	.sub = &sub,
-	.subi = &subi,
-	.mul = &mul,
-	.muli = &muli,
-	.sqr = &sqr,
-	.mpdiv = &divide,
-	.div_2 = &div_2,
-	.modi = &modi,
-	.gcd = &gcd,
-	.lcm = &lcm,
+	.add = add,
+	.addi = addi,
+	.sub = sub,
+	.subi = subi,
+	.mul = mul,
+	.muli = muli,
+	.sqr = sqr,
+	.mpdiv = divide,
+	.div_2 = div_2,
+	.modi = modi,
+	.gcd = gcd,
+	.lcm = lcm,
 
-	.mulmod = &mulmod,
-	.sqrmod = &sqrmod,
-	.invmod = &invmod,
+	.mulmod = mulmod,
+	.sqrmod = sqrmod,
+	.invmod = invmod,
 
-	.montgomery_setup = &montgomery_setup,
-	.montgomery_normalization = &montgomery_normalization,
-	.montgomery_reduce = &montgomery_reduce,
-	.montgomery_deinit = &montgomery_deinit,
+	.montgomery_setup = montgomery_setup,
+	.montgomery_normalization = montgomery_normalization,
+	.montgomery_reduce = montgomery_reduce,
+	.montgomery_deinit = montgomery_deinit,
 
-	.exptmod = &exptmod,
-	.isprime = &isprime,
+	.exptmod = exptmod,
+	.isprime = isprime,
 
 #ifdef LTC_MECC
 #ifdef LTC_MECC_FP
-	.ecc_ptmul = &ltc_ecc_fp_mulmod,
+	.ecc_ptmul = ltc_ecc_fp_mulmod,
 #else
-	.ecc_ptmul = &ltc_ecc_mulmod,
+	.ecc_ptmul = ltc_ecc_mulmod,
 #endif /* LTC_MECC_FP */
-	.ecc_ptadd = &ltc_ecc_projective_add_point,
-	.ecc_ptdbl = &ltc_ecc_projective_dbl_point,
-	.ecc_map = &ltc_ecc_map,
+	.ecc_ptadd = ltc_ecc_projective_add_point,
+	.ecc_ptdbl = ltc_ecc_projective_dbl_point,
+	.ecc_map = ltc_ecc_map,
 #ifdef LTC_ECC_SHAMIR
 #ifdef LTC_MECC_FP
-	.ecc_mul2add = &ltc_ecc_fp_mul2add,
+	.ecc_mul2add = ltc_ecc_fp_mul2add,
 #else
-	.ecc_mul2add = &ltc_ecc_mul2add,
+	.ecc_mul2add = ltc_ecc_mul2add,
 #endif /* LTC_MECC_FP */
 #endif /* LTC_ECC_SHAMIR */
 #endif /* LTC_MECC */
 
 #ifdef LTC_MRSA
-	.rsa_keygen = &rsa_make_key,
-	.rsa_me = &rsa_exptmod,
+	.rsa_keygen = rsa_make_key,
+	.rsa_me = rsa_exptmod,
 #endif
 	.addmod = addmod,
 	.submod = submod,
-	.rand = &mpi_rand,
+	.rand = mpi_rand,
 
 };
 
