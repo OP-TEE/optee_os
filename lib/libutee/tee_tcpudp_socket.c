@@ -208,23 +208,23 @@ static TEE_Result udp_ioctl(TEE_iSocketHandle ctx, uint32_t commandCode,
 static TEE_iSocket tcp_socket_instance = {
 	.TEE_iSocketVersion = TEE_ISOCKET_VERSION,
 	.protocolID = TEE_ISOCKET_PROTOCOLID_TCP,
-	.open = &tcp_open,
-	.close = &sock_close,
-	.send = &sock_send,
-	.recv = &sock_recv,
-	.error = &sock_error,
-	.ioctl = &tcp_ioctl,
+	.open = tcp_open,
+	.close = sock_close,
+	.send = sock_send,
+	.recv = sock_recv,
+	.error = sock_error,
+	.ioctl = tcp_ioctl,
 };
 
 static TEE_iSocket udp_socket_instance = {
 	.TEE_iSocketVersion = TEE_ISOCKET_VERSION,
 	.protocolID = TEE_ISOCKET_PROTOCOLID_UDP,
-	.open = &udp_open,
-	.close = &sock_close,
-	.send = &sock_send,
-	.recv = &sock_recv,
-	.error = &sock_error,
-	.ioctl = &udp_ioctl,
+	.open = udp_open,
+	.close = sock_close,
+	.send = sock_send,
+	.recv = sock_recv,
+	.error = sock_error,
+	.ioctl = udp_ioctl,
 };
 
 TEE_iSocket *const TEE_tcpSocket = &tcp_socket_instance;
