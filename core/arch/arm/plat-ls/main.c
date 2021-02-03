@@ -39,10 +39,12 @@
 #endif
 #include <io.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/tz_ssvce_def.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <sm/optee_smc.h>
 #include <kernel/tee_common_otp.h>
@@ -57,7 +59,9 @@ static struct ns16550_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
+#if !defined(PLATFORM_FLAVOR_lx2160ardb)
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
+#endif
 
 #if defined(PLATFORM_FLAVOR_lx2160ardb)
 register_ddr(CFG_DRAM0_BASE, (CFG_TZDRAM_START - CFG_DRAM0_BASE));
@@ -120,16 +124,71 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
+#if defined(PLATFORM_FLAVOR_lx2160ardb)
+static TEE_Result get_gic_base_addr_from_dt(paddr_t *gic_addr)
+{
+	paddr_t paddr = 0;
+	ssize_t size = 0;
+
+	void *fdt = get_embedded_dt();
+	int gic_offset = 0;
+
+	gic_offset = fdt_path_offset(fdt, "/soc/interrupt-controller@6000000");
+
+	if (gic_offset < 0)
+		gic_offset = fdt_path_offset(fdt,
+					     "/interrupt-controller@6000000");
+
+	if (gic_offset > 0) {
+		paddr = _fdt_reg_base_address(fdt, gic_offset);
+		if (paddr == DT_INFO_INVALID_REG) {
+			EMSG("GIC: Unable to get base addr from DT");
+			return TEE_ERROR_ITEM_NOT_FOUND;
+		}
+
+		size = _fdt_reg_size(fdt, gic_offset);
+		if (size < 0) {
+			EMSG("GIC: Unable to get size of base addr from DT");
+			return TEE_ERROR_ITEM_NOT_FOUND;
+		}
+	} else {
+		EMSG("Unable to get gic offset node");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	/* make entry in page table */
+	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, paddr, size)) {
+		EMSG("GIC controller base MMU PA mapping failure");
+		return TEE_ERROR_GENERIC;
+	}
+
+	*gic_addr = paddr;
+	return TEE_SUCCESS;
+}
+#endif
+
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
+	vaddr_t gicc_base = 0;
+	vaddr_t gicd_base = 0;
 
-	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+	paddr_t gic_base = 0;
+	uint32_t gicc_offset = 0;
+	uint32_t gicd_offset = 0;
 
+#if defined(PLATFORM_FLAVOR_lx2160ardb)
+	if (get_gic_base_addr_from_dt(&gic_base))
+		EMSG("Failed to get GIC base addr from DT");
+#else
+	gic_base = GIC_BASE;
+	gicc_offset = GICC_OFFSET;
+	gicd_offset = GICD_OFFSET;
+#endif
+
+	gicc_base = (vaddr_t)phys_to_virt(gic_base + gicc_offset,
+					  MEM_AREA_IO_SEC);
+	gicd_base = (vaddr_t)phys_to_virt(gic_base + gicd_offset,
+					  MEM_AREA_IO_SEC);
 	if (!gicc_base || !gicd_base)
 		panic();
 
