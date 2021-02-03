@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mbd_rand.h"
+#include "mbed_helpers.h"
 
 /* Translate mbedtls result to TEE result */
 static TEE_Result get_tee_result(int lmd_res)

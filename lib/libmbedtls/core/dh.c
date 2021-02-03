@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mbd_rand.h"
+#include "mbed_helpers.h"
 
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
 					   size_t key_size_bits)
