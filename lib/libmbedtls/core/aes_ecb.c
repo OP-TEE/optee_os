@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2019, Linaro Limited
+ * Copyright (C) 2021, Huawei Technologies Co., Ltd
  */
 
 #include <assert.h>
@@ -14,6 +15,8 @@
 #include <tee_api_types.h>
 #include <utee_defines.h>
 #include <util.h>
+
+#include "mbed_helpers.h"
 
 struct mbed_aes_ecb_ctx {
 	struct crypto_cipher_ctx ctx;
@@ -97,7 +100,7 @@ static void mbed_aes_ecb_copy_state(struct crypto_cipher_ctx *dst_ctx,
 	struct mbed_aes_ecb_ctx *dst = to_aes_ecb_ctx(dst_ctx);
 
 	dst->mbed_mode = src->mbed_mode;
-	dst->aes_ctx = src->aes_ctx;
+	mbed_copy_mbedtls_aes_context(&dst->aes_ctx, &src->aes_ctx);
 }
 
 static const struct crypto_cipher_ops mbed_aes_ecb_ops = {
