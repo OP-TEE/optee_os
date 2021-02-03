@@ -8,6 +8,7 @@
 #define MBED_HELPERS_H
 
 #include <crypto/crypto.h>
+#include <mbedtls/aes.h>
 #include <mbedtls/ctr_drbg.h>
 
 static inline int mbd_rand(void *rng_state __unused, unsigned char *output,
@@ -16,6 +17,23 @@ static inline int mbd_rand(void *rng_state __unused, unsigned char *output,
 	if (crypto_rng_read(output, len))
 		return MBEDTLS_ERR_CTR_DRBG_ENTROPY_SOURCE_FAILED;
 	return 0;
+}
+
+static inline void mbed_copy_mbedtls_aes_context(mbedtls_aes_context *dst,
+						 mbedtls_aes_context *src)
+{
+	*dst = *src;
+#if !defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_PADLOCK_C) && defined(MBEDTLS_PADLOCK_ALIGN16)
+	/*
+	 * This build configuration should not occur, but just in case error out
+	 * here. It needs special handling of the rk pointer, see
+	 * mbedtls_aes_setkey_enc().
+	 */
+#error Do not know how to copy mbedtls_aes_context::rk
+#endif
+	dst->rk = dst->buf;
+#endif
 }
 
 #endif /*MBED_HELPERS_H*/
