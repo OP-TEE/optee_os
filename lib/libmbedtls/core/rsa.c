@@ -15,7 +15,7 @@
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
-#include "mbd_rand.h"
+#include "mbed_helpers.h"
 
 static TEE_Result get_tee_result(int lmd_res)
 {
