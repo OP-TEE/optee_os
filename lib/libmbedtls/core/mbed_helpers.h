@@ -4,8 +4,8 @@
  * Copyright (C) 2019, Linaro Limited
  */
 
-#ifndef __MBD_RAND_H
-#define __MBD_RAND_H
+#ifndef MBED_HELPERS_H
+#define MBED_HELPERS_H
 
 #include <crypto/crypto.h>
 #include <mbedtls/ctr_drbg.h>
@@ -18,4 +18,4 @@ static inline int mbd_rand(void *rng_state __unused, unsigned char *output,
 	return 0;
 }
 
-#endif /*__MBD_RAND_H*/
+#endif /*MBED_HELPERS_H*/
