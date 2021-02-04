@@ -59,7 +59,7 @@ static struct ns16550_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
-#if !defined(PLATFORM_FLAVOR_lx2160ardb)
+#if !defined(PLATFORM_FLAVOR_lx2160aqds) && !defined(PLATFORM_FLAVOR_lx2160ardb)
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 
@@ -124,7 +124,7 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(PLATFORM_FLAVOR_lx2160ardb)
+#if defined(PLATFORM_FLAVOR_lx2160aqds) || defined(PLATFORM_FLAVOR_lx2160ardb)
 static TEE_Result get_gic_base_addr_from_dt(paddr_t *gic_addr)
 {
 	paddr_t paddr = 0;
@@ -176,7 +176,7 @@ void main_init_gic(void)
 	uint32_t gicc_offset = 0;
 	uint32_t gicd_offset = 0;
 
-#if defined(PLATFORM_FLAVOR_lx2160ardb)
+#if defined(PLATFORM_FLAVOR_lx2160aqds) || defined(PLATFORM_FLAVOR_lx2160ardb)
 	if (get_gic_base_addr_from_dt(&gic_base))
 		EMSG("Failed to get GIC base addr from DT");
 #else
