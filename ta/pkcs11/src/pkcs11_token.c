@@ -846,7 +846,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 #if defined(CFG_PKCS11_TA_AUTH_TEE_IDENTITY)
 	/* Check TEE Identity based authentication if enabled */
 	if (token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH) {
-		rc = verify_identity_auth(ck_token, PKCS11_CKU_SO);
+		rc = verify_identity_auth(token, PKCS11_CKU_SO);
 		if (rc)
 			return rc;
 	}
