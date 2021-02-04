@@ -855,12 +855,14 @@ icache_inv_user_range:
 
 #ifdef CFG_WITH_LPAE
 	read_ttbr0_64bit r6, r7	/* These registers must be preseved */
-#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	add	r2, r6, #CORE_MMU_L1_TBL_OFFSET
-#endif
 	/* switch to user ASID */
 	orr	r3, r7, #BIT(TTBR_ASID_SHIFT - 32)
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	add	r2, r6, #CORE_MMU_L1_TBL_OFFSET
 	write_ttbr0_64bit r2, r3
+#else
+	write_ttbr0_64bit r6, r3
+#endif
 	isb
 #else /*!CFG_WITH_LPAE*/
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
