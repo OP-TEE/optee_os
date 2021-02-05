@@ -413,12 +413,62 @@ static void pgt_free_unlocked(struct pgt_cache *pgt_cache,
 	}
 }
 
-static struct pgt *pop_from_some_list(vaddr_t vabase __unused,
+static struct pgt *pop_from_some_list(vaddr_t vabase,
 				      struct ts_ctx *ctx __unused)
 {
-	return pop_from_free_list();
+	struct pgt *p = pop_from_free_list();
+
+	if (p)
+		p->vabase = vabase;
+
+	return p;
 }
 #endif /*!CFG_PAGED_USER_TA*/
+
+static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
+				      void *ctx __maybe_unused,
+				      vaddr_t begin, vaddr_t end)
+{
+	struct pgt *p = NULL;
+#ifdef CFG_WITH_LPAE
+	uint64_t *tbl = NULL;
+#else
+	uint32_t *tbl = NULL;
+#endif
+	unsigned int idx = 0;
+	unsigned int n = 0;
+
+	SLIST_FOREACH(p, pgt_cache, link) {
+		vaddr_t b = MAX(p->vabase, begin);
+		vaddr_t e = MIN(p->vabase + CORE_MMU_PGDIR_SIZE, end);
+
+#ifdef CFG_PAGED_USER_TA
+		if (p->ctx != ctx)
+			continue;
+#endif
+		if (b >= e)
+			continue;
+
+		tbl = p->tbl;
+		idx = (b - p->vabase) / SMALL_PAGE_SIZE;
+		n = (e - b) / SMALL_PAGE_SIZE;
+		memset(tbl + idx, 0, n * sizeof(*tbl));
+	}
+}
+
+void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
+			 vaddr_t begin, vaddr_t end)
+{
+	mutex_lock(&pgt_mu);
+
+	if (pgt_cache)
+		clear_ctx_range_from_list(pgt_cache, ctx, begin, end);
+#ifdef CFG_PAGED_USER_TA
+	clear_ctx_range_from_list(&pgt_cache_list, ctx, begin, end);
+#endif
+
+	mutex_unlock(&pgt_mu);
+}
 
 static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			       vaddr_t begin, vaddr_t last)

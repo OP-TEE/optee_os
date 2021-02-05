@@ -23,8 +23,8 @@ struct ts_ctx;
 
 struct pgt {
 	void *tbl;
-#if defined(CFG_PAGED_USER_TA)
 	vaddr_t vabase;
+#if defined(CFG_PAGED_USER_TA)
 	struct ts_ctx *ctx;
 	size_t num_used_entries;
 #endif
@@ -61,6 +61,8 @@ void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
 	       vaddr_t begin, vaddr_t last);
 void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx);
 
+void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
+			 vaddr_t begin, vaddr_t end);
 #ifdef CFG_PAGED_USER_TA
 void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t last);
