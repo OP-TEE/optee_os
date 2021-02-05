@@ -1374,6 +1374,21 @@ void tlbi_mva_range(vaddr_t va, size_t len, size_t granule)
 	isb();
 }
 
+void tlbi_mva_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid)
+{
+	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
+	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
+
+	dsb_ishst();
+	while (len) {
+		tlbi_mva_asid_nosync(va, asid);
+		len -= granule;
+		va += granule;
+	}
+	dsb_ish();
+	isb();
+}
+
 TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len)
 {
 	switch (op) {

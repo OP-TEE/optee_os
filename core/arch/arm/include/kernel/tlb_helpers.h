@@ -25,11 +25,10 @@ static inline void tlbi_mva_allasid_nosync(vaddr_t va)
 #endif
 }
 
-static inline void tlbi_mva_asid(vaddr_t va, uint32_t asid)
+static inline void tlbi_mva_asid_nosync(vaddr_t va, uint32_t asid)
 {
 	uint32_t a = asid & TLBI_ASID_MASK;
 
-	dsb_ishst();
 #ifdef ARM64
 	tlbi_vale1is((va >> TLBI_MVA_SHIFT) | SHIFT_U64(a, TLBI_ASID_SHIFT));
 	tlbi_vale1is((va >> TLBI_MVA_SHIFT) |
@@ -38,6 +37,12 @@ static inline void tlbi_mva_asid(vaddr_t va, uint32_t asid)
 	write_tlbimvais((va & ~(BIT32(TLBI_MVA_SHIFT) - 1)) | a);
 	write_tlbimvais((va & ~(BIT32(TLBI_MVA_SHIFT) - 1)) | a | 1);
 #endif
+}
+
+static inline void tlbi_mva_asid(vaddr_t va, uint32_t asid)
+{
+	dsb_ishst();
+	tlbi_mva_asid_nosync(va, asid);
 	dsb_ish();
 	isb();
 }
