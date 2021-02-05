@@ -162,13 +162,25 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 	return TEE_SUCCESS;
 }
 
-static void maybe_free_pgt(struct user_mode_ctx *uctx, struct vm_region *r)
+static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 {
-	struct thread_specific_data *tsd = NULL;
+	struct thread_specific_data *tsd = thread_get_tsd();
 	struct pgt_cache *pgt_cache = NULL;
 	vaddr_t begin = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
 	vaddr_t last = ROUNDUP(r->va + r->size, CORE_MMU_PGDIR_SIZE);
 	struct vm_region *r2 = NULL;
+
+	if (uctx->ts_ctx == tsd->ctx)
+		pgt_cache = &tsd->pgt_cache;
+
+	if (mobj_is_paged(r->mobj)) {
+		tee_pager_rem_um_region(uctx, r->va, r->size);
+	} else {
+		pgt_clear_ctx_range(pgt_cache, uctx->ts_ctx, r->va,
+				    r->va + r->size);
+		tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
+				    uctx->vm_info.asid);
+	}
 
 	r2 = TAILQ_NEXT(r, link);
 	if (r2)
@@ -182,10 +194,6 @@ static void maybe_free_pgt(struct user_mode_ctx *uctx, struct vm_region *r)
 	/* If there's no unused page tables, there's nothing left to do */
 	if (begin >= last)
 		return;
-
-	tsd = thread_get_tsd();
-	if (uctx->ts_ctx == tsd->ctx)
-		pgt_cache = &tsd->pgt_cache;
 
 	pgt_flush_ctx_range(pgt_cache, uctx->ts_ctx, r->va, r->va + r->size);
 }
@@ -539,9 +547,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		if (r->va + r->size > old_va + len)
 			break;
 		r_next = TAILQ_NEXT(r, link);
-		if (fobj)
-			tee_pager_rem_um_region(uctx, r->va, r->size);
-		maybe_free_pgt(uctx, r);
+		rem_um_region(uctx, r);
 		TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
 		TAILQ_INSERT_TAIL(&regs, r, link);
 	}
@@ -774,20 +780,12 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 	while (true) {
 		r_next = TAILQ_NEXT(r, link);
 		unmap_end_va = r->va + r->size;
-		if (mobj_is_paged(r->mobj))
-			tee_pager_rem_um_region(uctx, r->va, r->size);
-		maybe_free_pgt(uctx, r);
+		rem_um_region(uctx, r);
 		umap_remove_region(&uctx->vm_info, r);
 		if (!r_next || unmap_end_va == end_va)
 			break;
 		r = r_next;
 	}
-
-	/*
-	 * Synchronize change to translation tables. Even though the pager
-	 * case unmaps immediately we may still free a translation table.
-	 */
-	vm_set_ctx(uctx->ts_ctx);
 
 	return TEE_SUCCESS;
 }
@@ -843,9 +841,7 @@ void vm_clean_param(struct user_mode_ctx *uctx)
 
 	TAILQ_FOREACH_SAFE(r, &uctx->vm_info.regions, link, next_r) {
 		if (r->flags & VM_FLAG_EPHEMERAL) {
-			if (mobj_is_paged(r->mobj))
-				tee_pager_rem_um_region(uctx, r->va, r->size);
-			maybe_free_pgt(uctx, r);
+			rem_um_region(uctx, r);
 			umap_remove_region(&uctx->vm_info, r);
 		}
 	}
@@ -1055,9 +1051,7 @@ void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va)
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
 		if (r->mobj == mobj && r->va == va) {
-			if (mobj_is_paged(r->mobj))
-				tee_pager_rem_um_region(uctx, r->va, r->size);
-			maybe_free_pgt(uctx, r);
+			rem_um_region(uctx, r);
 			umap_remove_region(&uctx->vm_info, r);
 			return;
 		}
