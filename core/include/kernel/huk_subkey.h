@@ -17,6 +17,7 @@
  * @HUK_SUBKEY_DIE_ID:	  Representing the die ID
  * @HUK_SUBKEY_UNIQUE_TA: TA unique key
  * @HUK_SUBKEY_TA_ENC:    TA encryption key
+ * @HUK_SUBKEY_SE050:     SCP03 set of encryption keys
  *
  * Add more identifiers as needed, be careful to not change the already
  * assigned numbers as that will affect the derived subkey.
@@ -31,6 +32,7 @@ enum huk_subkey_usage {
 	HUK_SUBKEY_DIE_ID = 2,
 	HUK_SUBKEY_UNIQUE_TA = 3,
 	HUK_SUBKEY_TA_ENC = 4,
+	HUK_SUBKEY_SE050 = 5,
 };
 
 #define HUK_SUBKEY_MAX_LEN	TEE_SHA256_HASH_SIZE
