@@ -44,6 +44,7 @@ static TEE_Result display_info(void)
 	se050_display_board_info(se050_session);
 	/* the session must be closed after accessing board information */
 	sss_se05x_session_close(se050_session);
+
 	return se050_core_early_init(NULL);
 }
 
@@ -51,18 +52,6 @@ static TEE_Result enable_scp03(void)
 {
 	if (se050_enable_scp03(se050_session) != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
-
-	/*
-	 * Do not provision the keys at this point unless there is guaranteed
-	 * access to trusted storage so the new keys can be written.
-	 *
-	 * This can be done once RPMB is accessible and we can test it
-	 *
-	 * #if defined(CFG_CORE_SE05X_SCP03_PROVISION)
-	 *	if (se050_rotate_scp03_keys(&se050_ctx) != kStatus_SSS_Success)
-	 *		return TEE_ERROR_GENERIC;
-	 * #endif
-	 */
 
 	return TEE_SUCCESS;
 }

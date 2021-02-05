@@ -10,10 +10,12 @@
 #include <se050.h>
 #include <tee_api_types.h>
 
+#define SE050_SCP03_KEY_SZ 16
+
 struct se050_scp_key {
-	uint8_t enc[16];
-	uint8_t mac[16];
-	uint8_t dek[16];
+	uint8_t enc[SE050_SCP03_KEY_SZ];
+	uint8_t mac[SE050_SCP03_KEY_SZ];
+	uint8_t dek[SE050_SCP03_KEY_SZ];
 };
 
 struct s050_scp_rotate_cmd {
@@ -44,9 +46,14 @@ int se050_refcount_final_ctx(uint8_t *cnt);
 
 void se050_display_board_info(sss_se05x_session_t *session);
 
-sss_status_t se050_scp03_get_keys(struct se050_scp_key *keys);
-sss_status_t se050_scp03_put_keys(struct se050_scp_key *new_keys,
-				  struct se050_scp_key *cur_keys);
+enum se050_scp03_ksrc { SCP03_CFG, SCP03_DERIVED, SCP03_OFID };
+void se050_scp03_set_enable(enum se050_scp03_ksrc ksrc);
+void se050_scp03_set_disable(void);
+bool se050_scp03_enabled(void);
+sss_status_t se050_scp03_get_current_keys(struct se050_scp_key *keys);
+sss_status_t se050_scp03_get_keys(struct se050_scp_key *keys,
+				  enum se050_scp03_ksrc);
+sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys);
 sss_status_t se050_scp03_prepare_rotate_cmd(struct sss_se05x_ctx *ctx,
 					    struct s050_scp_rotate_cmd *cmd,
 					    struct se050_scp_key *keys);

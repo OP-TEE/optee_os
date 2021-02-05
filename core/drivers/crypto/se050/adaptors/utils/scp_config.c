@@ -7,8 +7,10 @@
 #include <bitstring.h>
 #include <config.h>
 #include <crypto/crypto.h>
+#include <kernel/huk_subkey.h>
 #include <kernel/mutex.h>
 #include <kernel/refcount.h>
+#include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
@@ -19,12 +21,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
-#include <tee/tadb.h>
-#include <tee/tee_fs.h>
-#include <tee/tee_fs_rpc.h>
-#include <tee/tee_pobj.h>
-#include <tee/tee_svc_storage.h>
+#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
+
+static enum se050_scp03_ksrc scp03_ksrc;
+static bool scp03_enabled;
 
 #define SE050A1_ID 0xA204
 #define SE050A2_ID 0xA205
@@ -100,98 +101,6 @@ static const struct se050_scp_key se050_default_keys[] = {
 			0x36, 0x1a, 0x44, 0x25, 0xfe, 0x79, 0xfa, 0x29 },
 	},
 };
-
-struct tee_scp03db_dir {
-	const struct tee_file_operations *ops;
-	struct tee_file_handle *fh;
-};
-
-static const char scp03db_obj_id[] = "scp03.db";
-static struct tee_pobj po = {
-	.obj_id_len = sizeof(scp03db_obj_id),
-	.obj_id = (void *)scp03db_obj_id,
-};
-
-static TEE_Result __maybe_unused scp03db_delete_keys(void)
-{
-	struct tee_scp03db_dir *db = calloc(1, sizeof(struct tee_scp03db_dir));
-	TEE_Result res = TEE_SUCCESS;
-
-	if (!db)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	db->ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
-	res = db->ops->open(&po, NULL, &db->fh);
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		free(db);
-		return TEE_SUCCESS;
-	}
-
-	if (res) {
-		free(db);
-		return res;
-	}
-
-	db->ops->close(&db->fh);
-	db->ops->remove(&po);
-	free(db);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result scp03db_write_keys(struct se050_scp_key *keys)
-{
-	struct tee_scp03db_dir *db = calloc(1, sizeof(struct tee_scp03db_dir));
-	TEE_Result res = TEE_SUCCESS;
-	size_t len = sizeof(*keys);
-
-	if (!db)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	db->ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
-
-	res = db->ops->open(&po, NULL, &db->fh);
-	if (res && res != TEE_ERROR_ITEM_NOT_FOUND) {
-		free(db);
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
-	}
-
-	res = db->ops->create(&po, true, NULL, 0, NULL, 0, keys, len, &db->fh);
-	db->ops->close(&db->fh);
-	free(db);
-
-	return res;
-}
-
-static TEE_Result scp03db_read_keys(struct se050_scp_key *keys)
-{
-	struct tee_scp03db_dir *db = calloc(1, sizeof(struct tee_scp03db_dir));
-	TEE_Result res = TEE_SUCCESS;
-	size_t len = sizeof(*keys);
-
-	if (!db)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	db->ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
-
-	res = db->ops->open(&po, NULL, &db->fh);
-	if (res) {
-		free(db);
-		return TEE_ERROR_STORAGE_NOT_AVAILABLE;
-	}
-
-	res = db->ops->read(db->fh, 0, keys, &len);
-	if (res)
-		goto close;
-
-	if (len != sizeof(*keys))
-		res = TEE_ERROR_GENERIC;
-close:
-	db->ops->close(&db->fh);
-	free(db);
-
-	return res;
-}
 
 static sss_status_t get_id_from_ofid(uint32_t ofid, uint32_t *id)
 {
@@ -369,23 +278,6 @@ static sss_status_t get_ofid_key(struct se050_scp_key *keys)
 	return kStatus_SSS_Success;
 }
 
-static sss_status_t get_db_key(struct se050_scp_key *keys)
-{
-	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_EARLY)) {
-		/*
-		 * File system access requires the REE or RPMB to be ready to
-		 * respond to RPC calls (memory allocation and so forth).
-		 * TODO.
-		 */
-		return kStatus_SSS_Fail;
-	}
-
-	if (scp03db_read_keys(keys))
-		return kStatus_SSS_Fail;
-
-	return kStatus_SSS_Success;
-}
-
 static sss_status_t get_config_key(struct se050_scp_key *keys __maybe_unused)
 {
 #ifdef CFG_CORE_SE05X_SCP03_CURRENT_DEK
@@ -402,34 +294,67 @@ static sss_status_t get_config_key(struct se050_scp_key *keys __maybe_unused)
 #endif
 }
 
-sss_status_t se050_scp03_get_keys(struct se050_scp_key *keys)
+sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
 {
-	sss_status_t (*get_keys[])(struct se050_scp_key *) = {
-		&get_config_key, &get_db_key, &get_ofid_key,
+	struct {
+		const char *name;
+		uint8_t *data;
+	} key[3] = {
+		[0] = { .name = "dek", .data = keys->dek },
+		[1] = { .name = "mac", .data = keys->mac },
+		[2] = { .name = "enc", .data = keys->enc },
 	};
+	uint8_t msg[SE050_SCP03_KEY_SZ + 3] = { 0 };
 	size_t i = 0;
 
-	for (i = 0; i < ARRAY_SIZE(get_keys); i++)
-		if ((*get_keys[i])(keys) == kStatus_SSS_Success)
-			return kStatus_SSS_Success;
-
-	return kStatus_SSS_Fail;
-}
-
-sss_status_t se050_scp03_put_keys(struct se050_scp_key *keys,
-				  struct se050_scp_key *cur_keys)
-
-{
-	sss_status_t status = kStatus_SSS_Success;
-
-	if (cur_keys) {
-		status = se050_scp03_get_keys(cur_keys);
-		if (status != kStatus_SSS_Success)
-			return status;
-	}
-
-	if (scp03db_write_keys(keys))
+	if (tee_otp_get_die_id(msg + 3, SE050_SCP03_KEY_SZ))
 		return kStatus_SSS_Fail;
 
+	for (i = 0; i < ARRAY_SIZE(key); i++) {
+		memcpy(msg, key[i].name, 3);
+		if (huk_subkey_derive(HUK_SUBKEY_SE050, msg, sizeof(msg),
+				      key[i].data, SE050_SCP03_KEY_SZ))
+			return kStatus_SSS_Fail;
+	}
+
 	return kStatus_SSS_Success;
+}
+
+bool se050_scp03_enabled(void)
+{
+	return scp03_enabled;
+}
+
+void se050_scp03_set_enable(enum se050_scp03_ksrc ksrc)
+{
+	scp03_enabled = true;
+	scp03_ksrc = ksrc;
+}
+
+void se050_scp03_set_disable(void)
+{
+	scp03_enabled = false;
+}
+
+sss_status_t se050_scp03_get_keys(struct se050_scp_key *keys,
+				  enum se050_scp03_ksrc ksrc)
+{
+	switch (ksrc) {
+	case SCP03_CFG:
+		return get_config_key(keys);
+	case SCP03_DERIVED:
+		return se050_scp03_subkey_derive(keys);
+	case SCP03_OFID:
+		return get_ofid_key(keys);
+	default:
+		return kStatus_SSS_Fail;
+	}
+}
+
+sss_status_t se050_scp03_get_current_keys(struct se050_scp_key *keys)
+{
+	if (se050_scp03_enabled())
+		return se050_scp03_get_keys(keys, scp03_ksrc);
+
+	return kStatus_SSS_Fail;
 }

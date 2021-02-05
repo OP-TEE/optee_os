@@ -59,78 +59,106 @@ sss_status_t se050_rotate_scp03_keys(struct sss_se05x_ctx *ctx)
 	if (!ctx)
 		return kStatus_SSS_Fail;
 
-	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_EARLY))
-		return kStatus_SSS_Fail;
-
-	if (crypto_rng_read(new_keys.dek, sizeof(new_keys.dek)))
-		return kStatus_SSS_Fail;
-
-	if (crypto_rng_read(new_keys.mac, sizeof(new_keys.mac)))
-		return kStatus_SSS_Fail;
-
-	if (crypto_rng_read(new_keys.enc, sizeof(new_keys.enc)))
-		return kStatus_SSS_Fail;
-
-	status = se050_scp03_put_keys(&new_keys, &cur_keys);
+	status = se050_scp03_subkey_derive(&new_keys);
 	if (status != kStatus_SSS_Success)
 		return status;
+
+	status = se050_scp03_get_current_keys(&cur_keys);
+	if (status != kStatus_SSS_Success)
+		return status;
+
+	if (IS_ENABLED(CFG_CORE_SE05X_DISPLAY_SCP03_KEYS)) {
+		IMSG("scp03: current keys");
+		nLog_au8("scp03", 0xff, "dek: ",
+			 cur_keys.dek, SE050_SCP03_KEY_SZ);
+		nLog_au8("scp03", 0xff, "mac: ",
+			 cur_keys.mac, SE050_SCP03_KEY_SZ);
+		nLog_au8("scp03", 0xff, "enc: ",
+			 cur_keys.enc, SE050_SCP03_KEY_SZ);
+		IMSG("scp03: proposed new keys");
+		nLog_au8("scp03", 0xff, "dek: ",
+			 new_keys.dek, SE050_SCP03_KEY_SZ);
+		nLog_au8("scp03", 0xff, "mac: ",
+			 new_keys.mac, SE050_SCP03_KEY_SZ);
+		nLog_au8("scp03", 0xff, "enc: ",
+			 new_keys.enc, SE050_SCP03_KEY_SZ);
+	}
+
+	if (!memcmp(new_keys.enc, cur_keys.enc, SE050_SCP03_KEY_SZ) &&
+	    !memcmp(new_keys.mac, cur_keys.mac, SE050_SCP03_KEY_SZ) &&
+	    !memcmp(new_keys.dek, cur_keys.dek, SE050_SCP03_KEY_SZ))
+		return kStatus_SSS_Success;
 
 	connect_ctx = &ctx->open_ctx;
 	session = &ctx->session;
 
 	status = se050_scp03_prepare_rotate_cmd(ctx, &cmd, &new_keys);
 	if (status != kStatus_SSS_Success)
-		goto restore;
+		return status;
 
 	sss_se05x_refresh_session(se050_session, NULL);
 	sss_se05x_session_close(session);
 
+	/* re-open session with same keys */
 	connect_ctx->skip_select_applet = 1;
 	status = sss_se05x_session_open(session, kType_SSS_SE_SE05x, 0,
 					kSSS_ConnectionType_Encrypted,
 					connect_ctx);
-	if (status != kStatus_SSS_Success)
-		goto restore;
+	if (status != kStatus_SSS_Success) {
+		se050_scp03_set_disable();
+		EMSG("scp03 re-open failed, session lost");
+		return kStatus_SSS_Fail;
+	}
 
 	status = se050_scp03_send_rotate_cmd(&session->s_ctx, &cmd);
-	if (status != kStatus_SSS_Success)
-		goto restore;
+	if (status != kStatus_SSS_Success) {
+		EMSG("scp03 keys not updated");
+		return kStatus_SSS_Fail;
+	}
 
 	sss_host_session_close(&ctx->host_session);
 	sss_se05x_session_close(se050_session);
 	memset(ctx, 0, sizeof(*ctx));
 
-	if (se050_core_early_init(&new_keys))
+	/* open session with new keys */
+	se050_scp03_set_enable(SCP03_DERIVED);
+	if (se050_core_early_init(&new_keys)) {
+		se050_scp03_set_disable();
+		EMSG("scp03 keys rejected, session lost");
 		return kStatus_SSS_Fail;
+	}
 
 	return kStatus_SSS_Success;
-
-restore:
-	se050_scp03_put_keys(&cur_keys, NULL);
-	return status;
 }
 
 sss_status_t se050_enable_scp03(sss_se05x_session_t *session)
 {
 	struct se050_scp_key keys = { };
 	sss_status_t status = kStatus_SSS_Success;
-	static bool enabled;
+	enum se050_scp03_ksrc key_src[] = { SCP03_CFG, SCP03_DERIVED,
+		SCP03_OFID };
+	size_t i = 0;
 
-	if (enabled)
+	if (se050_scp03_enabled())
 		return kStatus_SSS_Success;
 
-	status = se050_scp03_get_keys(&keys);
-	if (status != kStatus_SSS_Success)
-		return status;
+	for (i = 0; i < ARRAY_SIZE(key_src); i++) {
+		status = se050_scp03_get_keys(&keys, key_src[i]);
+		if (status != kStatus_SSS_Success)
+			continue;
 
-	sss_se05x_session_close(session);
+		if (session->subsystem)
+			sss_se05x_session_close(session);
 
-	if (se050_core_early_init(&keys))
-		return kStatus_SSS_Fail;
+		if (!se050_core_early_init(&keys)) {
+			se050_scp03_set_enable(key_src[i]);
+			return kStatus_SSS_Success;
+		}
 
-	enabled = true;
+		sss_host_session_close(&se050_ctx.host_session);
+	}
 
-	return kStatus_SSS_Success;
+	return kStatus_SSS_Fail;
 }
 
 sss_status_t se050_session_open(struct sss_se05x_ctx *ctx,
