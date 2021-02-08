@@ -28,7 +28,7 @@ struct tee_pager_area {
 	uint32_t flags;
 	vaddr_t base;
 	size_t size;
-	struct pgt *pgt;
+	struct pgt **pgt_array;
 	TAILQ_ENTRY(tee_pager_area) link;
 	TAILQ_ENTRY(tee_pager_area) fobj_link;
 };
