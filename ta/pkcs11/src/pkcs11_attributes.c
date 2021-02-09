@@ -702,6 +702,8 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	switch (function) {
 	case PKCS11_FUNCTION_GENERATE:
 	case PKCS11_FUNCTION_IMPORT:
+	case PKCS11_FUNCTION_MODIFY:
+	case PKCS11_FUNCTION_COPY:
 		break;
 	default:
 		TEE_Panic(TEE_ERROR_NOT_SUPPORTED);
@@ -729,10 +731,28 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		}
 	}
 
+	/*
+	 * Check and remove duplicates if any and create a new temporary
+	 * template
+	 */
 	rc = sanitize_client_object(&temp, template, template_size, class,
 				    type);
 	if (rc)
 		goto out;
+
+	/*
+	 * For function type modify and copy return the created template
+	 * from here. Rest of the code below is for creating objects
+	 * or generating keys.
+	 */
+	switch (function) {
+	case PKCS11_FUNCTION_MODIFY:
+	case PKCS11_FUNCTION_COPY:
+		*out = temp;
+		return rc;
+	default:
+		break;
+	}
 
 	/*
 	 * Check if class and type in temp are consistent with the mechanism
@@ -900,6 +920,21 @@ bool object_is_private(struct obj_attrs *head)
 		return true;
 
 	return false;
+}
+
+bool object_is_token(struct obj_attrs *head)
+{
+	return get_bool(head, PKCS11_CKA_TOKEN);
+}
+
+bool object_is_modifiable(struct obj_attrs *head)
+{
+	return get_bool(head, PKCS11_CKA_MODIFIABLE);
+}
+
+bool object_is_copyable(struct obj_attrs *head)
+{
+	return get_bool(head, PKCS11_CKA_COPYABLE);
 }
 
 /*
@@ -1302,4 +1337,233 @@ bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 	}
 
 	return true;
+}
+
+static bool attr_is_modifiable_any_key(struct pkcs11_attribute_head *attr)
+{
+	switch (attr->id) {
+	case PKCS11_CKA_ID:
+	case PKCS11_CKA_START_DATE:
+	case PKCS11_CKA_END_DATE:
+	case PKCS11_CKA_DERIVE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool attr_is_modifiable_secret_key(struct pkcs11_attribute_head *attr,
+					  struct pkcs11_session *session,
+					  struct pkcs11_object *obj)
+{
+	switch (attr->id) {
+	case PKCS11_CKA_ENCRYPT:
+	case PKCS11_CKA_DECRYPT:
+	case PKCS11_CKA_SIGN:
+	case PKCS11_CKA_VERIFY:
+	case PKCS11_CKA_WRAP:
+	case PKCS11_CKA_UNWRAP:
+		return true;
+	/* Can't be modified once set to CK_FALSE - 12 in Table 10 */
+	case PKCS11_CKA_EXTRACTABLE:
+		return get_bool(obj->attributes, attr->id);
+	/* Can't be modified once set to CK_TRUE - 11 in Table 10 */
+	case PKCS11_CKA_SENSITIVE:
+	case PKCS11_CKA_WRAP_WITH_TRUSTED:
+		return !get_bool(obj->attributes, attr->id);
+	/* Change in CKA_TRUSTED can only be done by SO */
+	case PKCS11_CKA_TRUSTED:
+		return pkcs11_session_is_so(session);
+	case PKCS11_CKA_NEVER_EXTRACTABLE:
+	case PKCS11_CKA_ALWAYS_SENSITIVE:
+		return false;
+	default:
+		return false;
+	}
+}
+
+static bool attr_is_modifiable_public_key(struct pkcs11_attribute_head *attr,
+					  struct pkcs11_session *session,
+					  struct pkcs11_object *obj __unused)
+{
+	switch (attr->id) {
+	case PKCS11_CKA_SUBJECT:
+	case PKCS11_CKA_ENCRYPT:
+	case PKCS11_CKA_VERIFY:
+	case PKCS11_CKA_VERIFY_RECOVER:
+	case PKCS11_CKA_WRAP:
+		return true;
+	case PKCS11_CKA_TRUSTED:
+		/* Change in CKA_TRUSTED can only be done by SO */
+		return pkcs11_session_is_so(session);
+	default:
+		return false;
+	}
+}
+
+static bool attr_is_modifiable_private_key(struct pkcs11_attribute_head *attr,
+					   struct pkcs11_session *sess __unused,
+					   struct pkcs11_object *obj)
+{
+	switch (attr->id) {
+	case PKCS11_CKA_SUBJECT:
+	case PKCS11_CKA_DECRYPT:
+	case PKCS11_CKA_SIGN:
+	case PKCS11_CKA_SIGN_RECOVER:
+	case PKCS11_CKA_UNWRAP:
+	/*
+	 * TBD: Revisit if we don't support PKCS11_CKA_PUBLIC_KEY_INFO
+	 * Specification mentions that if this attribute is
+	 * supplied as part of a template for C_CreateObject, C_CopyObject or
+	 * C_SetAttributeValue for a private key, the token MUST verify
+	 * correspondence between the private key data and the public key data
+	 * as supplied in CKA_PUBLIC_KEY_INFO. This needs to be
+	 * taken care of when this object type will be implemented
+	 */
+	case PKCS11_CKA_PUBLIC_KEY_INFO:
+		return true;
+	/* Can't be modified once set to CK_FALSE - 12 in Table 10 */
+	case PKCS11_CKA_EXTRACTABLE:
+		return get_bool(obj->attributes, attr->id);
+	/* Can't be modified once set to CK_TRUE - 11 in Table 10 */
+	case PKCS11_CKA_SENSITIVE:
+	case PKCS11_CKA_WRAP_WITH_TRUSTED:
+		return !get_bool(obj->attributes, attr->id);
+	case PKCS11_CKA_NEVER_EXTRACTABLE:
+	case PKCS11_CKA_ALWAYS_SENSITIVE:
+		return false;
+	default:
+		return false;
+	}
+}
+
+static bool attribute_is_modifiable(struct pkcs11_session *session,
+				    struct pkcs11_attribute_head *req_attr,
+				    struct pkcs11_object *obj,
+				    enum pkcs11_class_id class,
+				    enum processing_func function)
+{
+	/* Check modifiable attributes common to any object */
+	switch (req_attr->id) {
+	case PKCS11_CKA_LABEL:
+		return true;
+	case PKCS11_CKA_TOKEN:
+	case PKCS11_CKA_MODIFIABLE:
+	case PKCS11_CKA_DESTROYABLE:
+	case PKCS11_CKA_PRIVATE:
+		return function == PKCS11_FUNCTION_COPY;
+	case PKCS11_CKA_COPYABLE:
+		/*
+		 * Specification mentions that if the attribute value is false
+		 * it can't be set to true. Reading this we assume that it
+		 * should be possible to modify this attribute even though this
+		 * is not marked as modifiable in Table 10 if done in right
+		 * direction i.e from TRUE -> FALSE.
+		 */
+		return get_bool(obj->attributes, req_attr->id);
+	default:
+		break;
+	}
+
+	/* Attribute checking based on class type */
+	switch (class) {
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_PUBLIC_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
+		if (attr_is_modifiable_any_key(req_attr))
+			return true;
+		if (class == PKCS11_CKO_SECRET_KEY &&
+		    attr_is_modifiable_secret_key(req_attr, session, obj))
+			return true;
+		if (class == PKCS11_CKO_PUBLIC_KEY &&
+		    attr_is_modifiable_public_key(req_attr, session, obj))
+			return true;
+		if (class == PKCS11_CKO_PRIVATE_KEY &&
+		    attr_is_modifiable_private_key(req_attr, session, obj))
+			return true;
+		break;
+	case PKCS11_CKO_DATA:
+		/* None of the data object attributes are modifiable */
+		return false;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
+						struct obj_attrs *head,
+						struct pkcs11_object *obj,
+						enum processing_func function)
+{
+	enum pkcs11_class_id class = PKCS11_CKO_UNDEFINED_ID;
+	char *cur = NULL;
+	char *end = NULL;
+	size_t len = 0;
+
+	class = get_class(obj->attributes);
+
+	cur = (char *)head + sizeof(struct obj_attrs);
+	end = cur + head->attrs_size;
+
+	for (; cur < end; cur += len) {
+		/* Structure aligned copy of the pkcs11_ref in the object */
+		struct pkcs11_attribute_head cli_ref = { };
+
+		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
+		len = sizeof(cli_ref) + cli_ref.size;
+
+		/*
+		 * Check 1 - Check if attribute belongs to the object
+		 * The obj->attributes has all the attributes in
+		 * it which are allowed for an object.
+		 */
+		if (get_attribute_ptr(obj->attributes, cli_ref.id, NULL,
+				      NULL) == PKCS11_RV_NOT_FOUND)
+			return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+
+		/* Check 2 - Is attribute modifiable */
+		if (!attribute_is_modifiable(session, &cli_ref, obj, class,
+					     function))
+			return PKCS11_CKR_ATTRIBUTE_READ_ONLY;
+
+		/*
+		 * Checks for modification in PKCS11_CKA_TOKEN and
+		 * PKCS11_CKA_PRIVATE are required for PKCS11_FUNCTION_COPY
+		 * only, so skip them for PKCS11_FUNCTION_MODIFY.
+		 */
+		if (function == PKCS11_FUNCTION_MODIFY)
+			continue;
+
+		/*
+		 * An attempt to copy an object to a token will fail for
+		 * RO session
+		 */
+		if (cli_ref.id == PKCS11_CKA_TOKEN &&
+		    get_bool(head, PKCS11_CKA_TOKEN)) {
+			if (!pkcs11_session_is_read_write(session)) {
+				DMSG("Can't copy to token in a RO session");
+				return PKCS11_CKR_SESSION_READ_ONLY;
+			}
+		}
+
+		if (cli_ref.id == PKCS11_CKA_PRIVATE) {
+			bool parent_priv =
+				get_bool(obj->attributes, cli_ref.id);
+			bool obj_priv = get_bool(head, cli_ref.id);
+
+			/*
+			 * If PKCS11_CKA_PRIVATE is being set to TRUE from
+			 * FALSE, user has to be logged in
+			 */
+			if (!parent_priv && obj_priv) {
+				if ((pkcs11_session_is_public(session) ||
+				     pkcs11_session_is_so(session)))
+					return PKCS11_CKR_USER_NOT_LOGGED_IN;
+			}
+		}
+	}
+
+	return PKCS11_CKR_OK;
 }

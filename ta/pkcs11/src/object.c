@@ -902,3 +902,108 @@ uint32_t entry_get_object_size(struct pkcs11_client *client,
 
 	return PKCS11_CKR_OK;
 }
+
+enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
+					 uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_object_head *template = NULL;
+	size_t template_size = 0;
+	struct pkcs11_object *obj = NULL;
+	struct obj_attrs *head = NULL;
+	uint32_t object_handle = 0;
+	enum processing_func function = PKCS11_FUNCTION_MODIFY;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &object_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	obj = pkcs11_handle2object(object_handle, session);
+	if (!obj) {
+		rc = PKCS11_CKR_OBJECT_HANDLE_INVALID;
+		goto out;
+	}
+
+	/* Only session objects can be modified during a read-only session */
+	if (object_is_token(obj->attributes) &&
+	    !pkcs11_session_is_read_write(session)) {
+		DMSG("Can't modify persistent object in a RO session");
+		rc = PKCS11_CKR_SESSION_READ_ONLY;
+		goto out;
+	}
+
+	/*
+	 * Only public objects can be modified unless normal user is logged in
+	 */
+	rc = check_access_attrs_against_token(session, obj->attributes);
+	if (rc) {
+		rc = PKCS11_CKR_USER_NOT_LOGGED_IN;
+		goto out;
+	}
+
+	/* Objects with PKCS11_CKA_MODIFIABLE as false aren't modifiable */
+	if (!object_is_modifiable(obj->attributes)) {
+		rc = PKCS11_CKR_ACTION_PROHIBITED;
+		goto out;
+	}
+
+	template_size = sizeof(*template) + template->attrs_size;
+
+	/*
+	 * Prepare a clean initial state (@head) for the template. Helps in
+	 * removing any duplicates or inconsistent values from the
+	 * template.
+	 */
+	rc = create_attributes_from_template(&head, template, template_size,
+					     NULL, function,
+					     PKCS11_CKM_UNDEFINED_ID,
+					     PKCS11_CKO_UNDEFINED_ID);
+	if (rc)
+		goto out;
+
+	/* Check the attributes in @head to see if they are modifiable */
+	rc = check_attrs_against_modification(session, head, obj, function);
+	if (rc)
+		goto out;
+
+	/*
+	 * All checks complete. The attributes in @head have been checked and
+	 * can now be used to set/modify the object attributes.
+	 */
+	rc = modify_attributes_list(&obj->attributes, head);
+	if (rc)
+		goto out;
+
+	DMSG("PKCS11 session %"PRIu32": set attributes %#"PRIx32,
+	     session->handle, object_handle);
+
+out:
+	TEE_Free(head);
+	TEE_Free(template);
+	return rc;
+}

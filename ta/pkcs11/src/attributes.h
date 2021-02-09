@@ -159,6 +159,33 @@ enum pkcs11_rc get_attribute(struct obj_attrs *head, uint32_t attribute,
 			     void *attr, uint32_t *attr_size);
 
 /*
+ * set_attribute() - Set the attribute of a given ID with value
+ * @head:	Pointer to serialized attributes where attribute is to be set,
+ *		can be relocated as attributes are modified/added
+ * @attribute:	Attribute ID to look for
+ * @data:	Holds the attribute value to be set
+ * @size:	Size of the attribute value
+ *
+ * Return PKCS11_CKR_OK on success or a PKCS11 return code.
+ */
+enum pkcs11_rc set_attribute(struct obj_attrs **head, uint32_t attribute,
+			     void *data, size_t size);
+
+/*
+ * modify_attributes_list() - Modify the value of attributes in destination
+ * attribute list (serialized attributes) based on the value of attributes in
+ * the source attribute list
+ * @dst:	Pointer to serialized attrbutes where attributes are to be
+ *		modified, can be relocated as attributes are modified
+ * @head:	Serialized attributes containing attributes which need to be
+ *		modified in the destination attribute list
+ *
+ * Return PKCS11_CKR_OK on success
+ */
+enum pkcs11_rc modify_attributes_list(struct obj_attrs **dst,
+				      struct obj_attrs *head);
+
+/*
  * get_u32_attribute() - Copy out the 32-bit attribute value of a given ID
  * @head:	Pointer to serialized attributes
  * @attribute:	Attribute ID
