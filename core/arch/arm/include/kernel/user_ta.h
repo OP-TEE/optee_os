@@ -16,6 +16,7 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
+#include <utee_defines.h>
 
 TAILQ_HEAD(tee_cryp_state_head, tee_cryp_state);
 TAILQ_HEAD(tee_obj_head, tee_obj);
@@ -31,6 +32,7 @@ SLIST_HEAD(load_seg_head, load_seg);
  * @ta_time_offs:	Time reference used by the TA
  * @uctx:		Generic user mode context
  * @ctx:		Generic TA context
+ * @ta_image_sha256:	Fingerprint of the TA
  */
 struct user_ta_ctx {
 	struct tee_ta_session_head open_sessions;
@@ -40,6 +42,9 @@ struct user_ta_ctx {
 	void *ta_time_offs;
 	struct user_mode_ctx uctx;
 	struct tee_ta_ctx ta_ctx;
+#ifdef CFG_ATTESTATION_PTA
+	uint8_t ta_image_sha256[TEE_SHA256_HASH_SIZE];
+#endif
 };
 
 #ifdef CFG_WITH_USER_TA
