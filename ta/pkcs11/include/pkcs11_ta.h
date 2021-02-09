@@ -509,6 +509,23 @@ enum pkcs11_ta_cmd {
 	 * attribs + attributes data).
 	 */
 	PKCS11_CMD_GET_ATTRIBUTE_VALUE = 38,
+
+	/*
+	 * PKCS11_CMD_SET_ATTRIBUTE_VALUE - Set the value of object attribute(s)
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command relates to the PKCS#11 API function C_SetAttributeValue.
+	 * Caller provides an attribute template as 3rd argument in memref[0]
+	 * (referred here as attribs + attributes data).
+	 */
+	PKCS11_CMD_SET_ATTRIBUTE_VALUE = 39,
+
 };
 
 /*

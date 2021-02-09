@@ -192,6 +192,44 @@ enum pkcs11_rc get_attribute(struct obj_attrs *head, uint32_t attribute,
 	return PKCS11_CKR_OK;
 }
 
+enum pkcs11_rc set_attribute(struct obj_attrs **head, uint32_t attribute,
+			     void *data, size_t size)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	rc = _remove_attribute(head, attribute, false);
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return rc;
+
+	return add_attribute(head, attribute, data, size);
+}
+
+enum pkcs11_rc modify_attributes_list(struct obj_attrs **dst,
+				      struct obj_attrs *head)
+{
+	char *cur = (char *)head + sizeof(struct obj_attrs);
+	char *end = cur + head->attrs_size;
+	size_t len = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	for (; cur < end; cur += len) {
+		struct pkcs11_attribute_head *cli_ref = (void *)cur;
+		/* Structure aligned copy of the pkcs11_ref in the object */
+		struct pkcs11_attribute_head cli_head = { };
+
+		TEE_MemMove(&cli_head, cur, sizeof(cli_head));
+		len = sizeof(cli_head) + cli_head.size;
+
+		rc = set_attribute(dst, cli_head.id,
+				   cli_head.size ? cli_ref->data : NULL,
+				   cli_head.size);
+		if (rc)
+			return rc;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
 bool get_bool(struct obj_attrs *head, uint32_t attribute)
 {
 	enum pkcs11_rc rc = PKCS11_CKR_OK;

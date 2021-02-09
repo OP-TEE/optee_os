@@ -165,4 +165,22 @@ bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 
 bool object_is_private(struct obj_attrs *head);
 
+bool object_is_token(struct obj_attrs *head);
+
+bool object_is_modifiable(struct obj_attrs *head);
+
+bool object_is_copyable(struct obj_attrs *head);
+
+/*
+ * Check the attributes passed in template against the attributes which can be
+ * modified. These are the attributes marked with * 8,10,11 or 12 in Table 10
+ * in PKCS #11 Cryptographic Token InterfaceBase Specification Version 2.40.
+ * Few attributes not with this marking but explicitly specified as modifiable
+ * in footnote of their tables are also considered to be modifiable
+ */
+enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
+						struct obj_attrs *head,
+						struct pkcs11_object *obj,
+						enum processing_func function);
+
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/
