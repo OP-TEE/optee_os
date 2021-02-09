@@ -618,8 +618,15 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 				   size_t len);
 bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
 
-/* TLB invalidation for a range of virtual address */
-void tlbi_mva_range(vaddr_t va, size_t size, size_t granule);
+/*
+ * tlbi_mva_range() - Invalidate TLB for virtual address range
+ * @va:		start virtual address, must be a multiple of @granule
+ * @len:	length in bytes of range, must be a multiple of @granule
+ * @granule:	granularity of mapping, supported values are
+ *		CORE_MMU_PGDIR_SIZE or SMALL_PAGE_SIZE. This value must
+ *		match the actual mappings.
+ */
+void tlbi_mva_range(vaddr_t va, size_t len, size_t granule);
 
 /* Cache maintenance operation type */
 enum cache_op {
