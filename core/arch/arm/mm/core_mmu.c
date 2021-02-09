@@ -1359,31 +1359,6 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 	return map->type;
 }
 
-int __deprecated core_tlb_maintenance(int op, unsigned long a)
-{
-	switch (op) {
-	case TLBINV_UNIFIEDTLB:
-		tlbi_all();
-		break;
-	case TLBINV_CURRENT_ASID:
-#ifdef ARM32
-		tlbi_asid(read_contextidr());
-#endif
-#ifdef ARM64
-		tlbi_asid(read_contextidr_el1());
-#endif
-		break;
-	case TLBINV_BY_ASID:
-		tlbi_asid(a);
-		break;
-	case TLBINV_BY_MVA:
-		panic();
-	default:
-		return 1;
-	}
-	return 0;
-}
-
 void tlbi_mva_range(vaddr_t va, size_t size, size_t granule)
 {
 	size_t sz = size;
