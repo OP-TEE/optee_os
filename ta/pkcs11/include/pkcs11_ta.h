@@ -526,6 +526,24 @@ enum pkcs11_ta_cmd {
 	 */
 	PKCS11_CMD_SET_ATTRIBUTE_VALUE = 39,
 
+	/*
+	 * PKCS11_CMD_COPY_OBJECT - Copies an object, creating a new object for
+	 *			    the copy.
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit object handle,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_CopyObject().
+	 * Caller provides an attribute template as 3rd argument in memref[0]
+	 * (referred here as attribs + attributes data).
+	 */
+	PKCS11_CMD_COPY_OBJECT = 40,
+
 };
 
 /*
