@@ -1359,18 +1359,15 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa)
 	return map->type;
 }
 
-void tlbi_mva_range(vaddr_t va, size_t size, size_t granule)
+void tlbi_mva_range(vaddr_t va, size_t len, size_t granule)
 {
-	size_t sz = size;
-
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
+	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
 	dsb_ishst();
-	while (sz) {
+	while (len) {
 		tlbi_mva_allasid_nosync(va);
-		if (sz < granule)
-			break;
-		sz -= granule;
+		len -= granule;
 		va += granule;
 	}
 	dsb_ish();
