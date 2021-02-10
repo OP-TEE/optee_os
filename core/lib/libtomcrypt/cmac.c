@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014-2019, Linaro Limited
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #include <assert.h>
@@ -82,10 +83,14 @@ static const struct crypto_mac_ops ltc_omac_ops = {
 	.copy_state = ltc_omac_copy_state,
 };
 
-TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
+static TEE_Result crypto_common_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
+		const char *cipher)
 {
 	struct ltc_omac_ctx *ctx = NULL;
-	int cipher_idx = find_cipher("aes");
+	int cipher_idx = find_cipher(cipher);
+
+	if (!ctx_ret)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (cipher_idx < 0)
 		return TEE_ERROR_NOT_SUPPORTED;
@@ -99,4 +104,14 @@ TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
 	*ctx_ret = &ctx->ctx;
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
+{
+	return crypto_common_cmac_alloc_ctx(ctx_ret, "aes");
+}
+
+TEE_Result crypto_des3_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
+{
+	return crypto_common_cmac_alloc_ctx(ctx_ret, "3des");
 }
