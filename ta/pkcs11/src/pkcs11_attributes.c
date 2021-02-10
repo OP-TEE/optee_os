@@ -1562,6 +1562,13 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 				     pkcs11_session_is_so(session)))
 					return PKCS11_CKR_USER_NOT_LOGGED_IN;
 			}
+
+			/*
+			 * Restriction added - Even for Copy, do not allow
+			 * modification of CKA_PRIVATE from TRUE to FALSE
+			 */
+			if (parent_priv && !obj_priv)
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		}
 	}
 
