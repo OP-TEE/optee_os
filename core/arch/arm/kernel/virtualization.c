@@ -69,9 +69,9 @@ static void set_current_prtn(struct guest_partition *prtn)
 
 static size_t get_ta_ram_size(void)
 {
-	return TA_RAM_SIZE / CFG_VIRT_GUEST_COUNT -
-		VCORE_UNPG_RW_SZ -
-		core_mmu_get_total_pages_size();
+	return ROUNDDOWN(TA_RAM_SIZE / CFG_VIRT_GUEST_COUNT -
+			 VCORE_UNPG_RW_SZ -
+			 core_mmu_get_total_pages_size(), SMALL_PAGE_SIZE);
 }
 
 static struct tee_mmap_region *prepare_memory_map(paddr_t tee_data,
