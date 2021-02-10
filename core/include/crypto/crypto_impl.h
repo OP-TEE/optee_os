@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #ifndef __CRYPTO_CRYPTO_IMPL_H
@@ -135,8 +136,10 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cbc_mac_pkcs5, mac)
 
 #if defined(CFG_CRYPTO_CMAC)
 TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx);
+TEE_Result crypto_des3_cmac_alloc_ctx(struct crypto_mac_ctx **ctx);
 #else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cmac, mac)
 #endif
 
 /*

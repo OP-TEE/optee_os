@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2017, Linaro Limited
  * Copyright 2020 NXP
+ * Copyright 2021, SumUp Service GmbH
  */
 
 #include <assert.h>
@@ -272,6 +273,9 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 			break;
 		case TEE_ALG_DES3_CBC_MAC_PKCS5:
 			res = crypto_des3_cbc_mac_pkcs5_alloc_ctx(&c);
+			break;
+		case TEE_ALG_DES3_CMAC:
+			res = crypto_des3_cmac_alloc_ctx(&c);
 			break;
 		case TEE_ALG_AES_CMAC:
 			res = crypto_aes_cmac_alloc_ctx(&c);
