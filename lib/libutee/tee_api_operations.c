@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 #include <config.h>
 #include <stdlib.h>
@@ -251,6 +252,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CMAC:
 	case TEE_ALG_HMAC_MD5:
 	case TEE_ALG_HMAC_SHA1:
 	case TEE_ALG_HMAC_SHA224:

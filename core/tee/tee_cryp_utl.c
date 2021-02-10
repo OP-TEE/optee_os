@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #include <crypto/crypto.h>
@@ -82,6 +83,7 @@ TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size)
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_ECB_NOPAD:
 	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_DES3_CMAC:
 		*size = 8;
 		break;
 

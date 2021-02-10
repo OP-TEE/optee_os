@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #ifndef TEE_API_DEFINES_EXTENSIONS_H
@@ -61,6 +62,11 @@
  */
 
 #define TEE_ALG_RSASSA_PKCS1_V1_5	0xF0000830
+
+/*
+ *  TDEA CMAC (NIST SP800-38B)
+ */
+#define TEE_ALG_DES3_CMAC	0xF0000613
 
 /*
  * Implementation-specific object storage constants

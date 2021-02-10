@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2021, SumUp Services GmbH
  */
 #ifndef UTEE_DEFINES_H
 #define UTEE_DEFINES_H
@@ -59,6 +60,8 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 		return TEE_OPERATION_KEY_DERIVATION;
 	if (algo == TEE_ALG_RSASSA_PKCS1_V1_5)
 		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
+	if (algo == TEE_ALG_DES3_CMAC)
+		return TEE_OPERATION_MAC;
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }
@@ -203,6 +206,7 @@ static inline size_t __tee_alg_get_digest_size(uint32_t algo)
 	case TEE_ALG_DES_CBC_MAC_PKCS5:
 	case TEE_ALG_DES3_CBC_MAC_NOPAD:
 	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CMAC:
 		return TEE_DES_BLOCK_SIZE;
 	default:
 		return 0;
