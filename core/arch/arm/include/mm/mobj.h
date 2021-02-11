@@ -259,6 +259,16 @@ struct mobj *mobj_mapped_shm_alloc(paddr_t *pages, size_t num_pages,
 				   paddr_t page_offset, uint64_t cookie);
 #endif /*CFG_CORE_DYN_SHM*/
 
+#if !defined(CFG_CORE_DYN_SHM)
+static inline struct mobj *mobj_mapped_shm_alloc(paddr_t *pages __unused,
+						 size_t num_pages __unused,
+						 paddr_t page_offset __unused,
+						 uint64_t cookie __unused)
+{
+	return NULL;
+}
+#endif
+
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
 
 #ifdef CFG_PAGED_USER_TA
