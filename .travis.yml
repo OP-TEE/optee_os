@@ -13,9 +13,17 @@ git:
 before_install:
   - sudo apt-get -y install codespell
   - sudo mkdir -p /usr/share/codespell && sudo ln -s /usr/lib/python3/dist-packages/codespell_lib/data/dictionary.txt /usr/share/codespell/dictionary.txt
+  - sudo apt-get -y install python3-pip
+  - wget http://releases.linaro.org/components/toolchain/binaries/5.3-2016.02/arm-linux-gnueabihf/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
+  - tar xf gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
+  - export PATH=${PWD}/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin:${PATH}
+  - arm-linux-gnueabihf-gcc --version
 
 before_script:
   - export OPTEE_OS=$PWD
+  - pip3 install --upgrade --user pycrypto
+  - pip3 install --upgrade --user wand
+  - pip3 install --upgrade --user pycryptodome
 
   # Download checkpatch.pl
   - export KERNEL=$HOME/linux && mkdir -p $KERNEL/scripts && cd $KERNEL/scripts
@@ -30,6 +38,11 @@ before_script:
   - pip install --upgrade --user pycodestyle
 
 script:
+  - if [ "${COVERITY_SCAN_BRANCH}" == 1 ]; then
+      echo "Skip script for Coverity";
+      travis_terminate 0;
+    fi
+
   # Run checkpatch.pl on:
   # - the tip of the branch if we're not in a pull request
   # - each commit in the development branch that's not in the target branch otherwise
@@ -40,3 +53,18 @@ script:
 
   # Check Python style
   - pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
+
+env:
+  global:
+    # COVERITY_SCAN_TOKEN
+    secure: "k30FG3hL6dQywtvMeEjSM0FQ7A0r+AQriUkGSFv7bmwD3EX2H17tJsfZt/h3dj+Pj6lQPdhVg3YO6O6pksJLqBLyz86bN15JEik0e1zftZplzK00oT89eoQr+qgqyrbs6CZBRvS98EAneCNbvgJto9sIPJs0SGu0u31Pr06bTAg="
+
+addons:
+  coverity_scan:
+    project:
+      name: "OP-TEE/optee_os"
+      description: "Build submitted via Travis CI"
+    notification_email: jens.wiklander@linaro.org
+    build_command_prepend: "cov-configure --comptype gcc --compiler arm-linux-gnueabihf-gcc --template"
+    build_command: "make"
+    branch_pattern: coverity_scan
