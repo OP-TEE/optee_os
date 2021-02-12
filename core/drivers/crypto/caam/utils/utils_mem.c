@@ -51,13 +51,20 @@
 static void *mem_alloc(size_t size, uint8_t type)
 {
 	void *ptr = NULL;
+	size_t alloc_size = size;
 
 	MEM_TRACE("alloc %zu bytes of type %" PRIu8, size, type);
 
-	if (type & MEM_TYPE_ALIGN)
-		ptr = memalign(dcache_get_line_size(), size);
-	else
-		ptr = malloc(size);
+	if (type & MEM_TYPE_ALIGN) {
+		size_t cacheline_size = dcache_get_line_size();
+
+		if (ROUNDUP_OVERFLOW(alloc_size, cacheline_size, &alloc_size))
+			return NULL;
+
+		ptr = memalign(cacheline_size, alloc_size);
+	} else {
+		ptr = malloc(alloc_size);
+	}
 
 	if (!ptr) {
 		MEM_TRACE("alloc Error - NULL");
@@ -65,7 +72,7 @@ static void *mem_alloc(size_t size, uint8_t type)
 	}
 
 	if (type & MEM_TYPE_ZEROED)
-		memset(ptr, 0, size);
+		memset(ptr, 0, alloc_size);
 
 	MEM_TRACE("alloc returned %p", ptr);
 	return ptr;
