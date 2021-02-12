@@ -70,6 +70,15 @@ srcs-y += link_dummies_paged.c
 srcs-y += link_dummies_init.c
 
 asm-defines-y += asm-defines.c
+# Reflect the following dependencies:
+# asm-defines.c includes <kernel/thread.h>
+#   <kernel/thread.h> includes <asm.h>
+#     <asm.h> includes <generated/arm32_sysreg.h>
+#                  and <generated/arm32_gicv3_sysreg.h> (optional)
+asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_sysreg.h
+ifeq ($(CFG_ARM_GICV3),y)
+asm-defines-asm-defines.c-deps += $(out-dir)/core/include/generated/arm32_gicv3_sysreg.h
+endif
 
 ifeq ($(CFG_SYSCALL_FTRACE),y)
 # We would not like to profile thread.c file as it provide common APIs
