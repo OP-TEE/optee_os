@@ -1158,6 +1158,11 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 		return PKCS11_CKR_KEY_SIZE_RANGE;
 	}
 
+	if (secret && get_key_type(secret) == PKCS11_CKK_AES) {
+		if (key_length != 16 && key_length != 24 && key_length != 32)
+			return PKCS11_CKR_KEY_SIZE_RANGE;
+	}
+
 	return PKCS11_CKR_OK;
 }
 
