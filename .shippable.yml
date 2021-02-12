@@ -20,7 +20,7 @@ build:
     - function upload_cache() { if [ ! -e .uploaded ]; then echo Uploading cache && tar c -C /root .ccache | gzip -1 | ssh $SCP_OPT shippable@shippable-cache.forissier.org "cat >ccache-$PROJ.tar.gz" && touch .uploaded || echo Nevermind; fi; }
     - function check_upload_cache() { NOW=$(date +%s); if [ $(expr $NOW - $START) -gt 3000 ]; then upload_cache; fi; }
     - function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && ccache -s && ccache -z && check_upload_cache; }
-    - function download_plug_and_trust() { mkdir -p /root/se050 && curl -L https://github.com/foundriesio/plug-and-trust/releases/download/v0.0.1/se050-0.0.1.tar.bz2 | tar -jxvf - --strip-components=1 -C /root/se050 || (rm -rf /root/se050; echo Nervermind); }
+    - function download_plug_and_trust() { mkdir -p /root/se050 && curl -L https://github.com/foundriesio/plug-and-trust/releases/download/v0.0.2/se050-0.0.2.tar.bz2 | tar -jxvf - --strip-components=1 -C /root/se050 || (rm -rf /root/se050; echo Nervermind); }
 
     - download_cache
     - ccache -z
