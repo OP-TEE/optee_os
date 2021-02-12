@@ -505,8 +505,8 @@ enum pkcs11_rc entry_ck_token_mecha_info(uint32_t ptypes, TEE_Param *params)
 
 	info.flags = mechanism_supported_flags(type);
 
-	mechanism_supported_key_sizes(type, &info.min_key_size,
-				      &info.max_key_size);
+	pkcs11_mechanism_supported_key_sizes(type, &info.min_key_size,
+					     &info.max_key_size);
 
 	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
 

@@ -185,9 +185,8 @@ allocate_tee_operation(struct pkcs11_session *session,
 	case PKCS11_CKM_SHA256_HMAC:
 	case PKCS11_CKM_SHA384_HMAC:
 	case PKCS11_CKM_SHA512_HMAC:
-		mechanism_supported_key_sizes(params->id,
-					      &min_key_size,
-					      &max_key_size);
+		mechanism_supported_key_sizes_bytes(params->id, &min_key_size,
+						    &max_key_size);
 		if (key_size < min_key_size)
 			return PKCS11_CKR_KEY_SIZE_RANGE;
 
@@ -302,9 +301,9 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 		if (rc)
 			return rc;
 
-		mechanism_supported_key_sizes(proc_params->id,
-					      &min_key_size,
-					      &max_key_size);
+		mechanism_supported_key_sizes_bytes(proc_params->id,
+						    &min_key_size,
+						    &max_key_size);
 
 		if ((object_size / 8) > max_key_size) {
 			rc = hash_secret_helper(proc_params->id, obj, &tee_attr,
