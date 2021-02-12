@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -9,6 +9,7 @@
 #include <caam_common.h>
 #include <caam_trace.h>
 #include <caam_utils_mem.h>
+#include <kernel/cache_helpers.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 
@@ -38,26 +39,6 @@
 		(_sizeup == _size) ? 1 : 0;                                    \
 	})
 
-/*
- * Read the system cache line size.
- * Get the value from the ARM system configration register
- */
-static uint32_t read_cacheline_size(void)
-{
-	uint32_t value = 0;
-
-#ifdef ARM64
-	value = read_ctr_el0();
-#else
-	value = read_ctr();
-#endif /* ARM64 */
-	value = CTR_WORD_SIZE
-		<< ((value >> CTR_DMINLINE_SHIFT) & CTR_DMINLINE_MASK);
-	MEM_TRACE("System Cache Line size = %" PRIu32 " bytes", value);
-
-	return value;
-}
-
 #define MEM_TYPE_ZEROED	BIT(0) /* Buffer filled with 0's */
 #define MEM_TYPE_ALIGN	BIT(1) /* Address and size aligned on a cache line */
 
@@ -74,7 +55,7 @@ static void *mem_alloc(size_t size, uint8_t type)
 	MEM_TRACE("alloc %zu bytes of type %" PRIu8, size, type);
 
 	if (type & MEM_TYPE_ALIGN)
-		ptr = memalign(read_cacheline_size(), size);
+		ptr = memalign(dcache_get_line_size(), size);
 	else
 		ptr = malloc(size);
 
@@ -252,7 +233,7 @@ enum caam_status caam_set_or_alloc_align_buf(void *orig, struct caambuf *dst,
 		 * cache line size.
 		 * If not, reallocate a buffer aligned on cache line.
 		 */
-		cacheline_size = read_cacheline_size();
+		cacheline_size = dcache_get_line_size();
 		if (!IS_PTR_ALIGN(orig, cacheline_size) ||
 		    !IS_SIZE_ALIGN(size, cacheline_size)) {
 			retstatus = caam_alloc_align_buf(dst, size);
