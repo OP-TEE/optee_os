@@ -173,6 +173,7 @@ define _gen-asm-defines-file
 # c-filename in $1
 # h-filename in $2
 # s-filename in $3
+# Dependencies in $4
 
 FORCE-GENSRC$(sm): $(2)
 
@@ -208,7 +209,7 @@ comp-cmd-$3 = $$(CC$(sm)) $$(comp-flags-$3) -fverbose-asm -S $$< -o $$@
 -include $$(comp-cmd-file-$3)
 -include $$(comp-dep-$3)
 
-$3: $1 $(conf-file) FORCE
+$3: $1 $(conf-file) $(4) FORCE
 # Check if any prerequisites are newer than the target and
 # check if command line has changed
 	$$(if $$(strip $$(filter-out FORCE, $$?) \
@@ -239,7 +240,7 @@ $(2): $(3)
 endef
 
 define gen-asm-defines-file
-$(call _gen-asm-defines-file,$1,$2,$(dir $2).$(notdir $(2:.h=.s)))
+$(call _gen-asm-defines-file,$1,$2,$(dir $2).$(notdir $(2:.h=.s)),$(asm-defines-$(notdir $(1))-deps))
 endef
 
 $(foreach f,$(asm-defines-files),$(eval $(call gen-asm-defines-file,$(f),$(out-dir)/$(sm)/include/generated/$(basename $(notdir $(f))).h)))
