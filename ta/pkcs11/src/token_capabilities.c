@@ -238,8 +238,9 @@ uint32_t mechanism_supported_flags(enum pkcs11_mechanism_id id)
 	return 0;
 }
 
-void mechanism_supported_key_sizes(uint32_t proc_id, uint32_t *min_key_size,
-				   uint32_t *max_key_size)
+void pkcs11_mechanism_supported_key_sizes(uint32_t proc_id,
+					  uint32_t *min_key_size,
+					  uint32_t *max_key_size)
 {
 	switch (proc_id) {
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
@@ -284,5 +285,18 @@ void mechanism_supported_key_sizes(uint32_t proc_id, uint32_t *min_key_size,
 		*min_key_size = 0;
 		*max_key_size = 0;
 		break;
+	}
+}
+
+void mechanism_supported_key_sizes_bytes(uint32_t proc_id,
+					 uint32_t *min_key_size,
+					 uint32_t *max_key_size)
+{
+	pkcs11_mechanism_supported_key_sizes(proc_id, min_key_size,
+					     max_key_size);
+
+	if (proc_id == PKCS11_CKM_GENERIC_SECRET_KEY_GEN) {
+		*min_key_size = (*min_key_size + 7) / 8;
+		*max_key_size = (*max_key_size + 7) / 8;
 	}
 }

@@ -130,9 +130,6 @@ static enum pkcs11_rc generate_random_key_value(struct obj_attrs **head)
 	}
 	TEE_MemMove(&value_len, data, data_size);
 
-	if (get_key_type(*head) == PKCS11_CKK_GENERIC_SECRET)
-		value_len = (value_len + 7) / 8;
-
 	/* Remove the default empty value attribute if found */
 	rc = remove_empty_attribute(head, PKCS11_CKA_VALUE);
 	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)

@@ -1067,6 +1067,7 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	return PKCS11_CKR_OK;
 }
 
+/* Return min and max key size supported for a key_type in bytes */
 static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 				  uint32_t *min_key_size,
 				  uint32_t *max_key_size)
@@ -1103,8 +1104,8 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 		break;
 	}
 
-	mechanism_supported_key_sizes(mechanism, min_key_size,
-				      max_key_size);
+	mechanism_supported_key_sizes_bytes(mechanism, min_key_size,
+					    max_key_size);
 }
 
 enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
