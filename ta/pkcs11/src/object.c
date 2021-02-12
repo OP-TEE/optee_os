@@ -351,7 +351,7 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 
 	/*
 	 * Now obj_handle (through the related struct pkcs11_object
-	 * instance) owns the serialised buffer that holds the object
+	 * instance) owns the serialized buffer that holds the object
 	 * attributes. We clear reference in head to NULL as the serializer
 	 * object is now referred from obj_handle. This allows smooth pass
 	 * through free at function exit.
@@ -660,8 +660,8 @@ void release_session_find_obj_context(struct pkcs11_session *session)
 	session->find_ctx = NULL;
 }
 
-uint32_t entry_find_objects_final(struct pkcs11_client *client,
-				  uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_find_objects_final(struct pkcs11_client *client,
+					uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -692,8 +692,8 @@ uint32_t entry_find_objects_final(struct pkcs11_client *client,
 	return PKCS11_CKR_OK;
 }
 
-uint32_t entry_get_attribute_value(struct pkcs11_client *client,
-				   uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
+					 uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -856,8 +856,8 @@ out:
 	return rc;
 }
 
-uint32_t entry_get_object_size(struct pkcs11_client *client,
-			       uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_get_object_size(struct pkcs11_client *client,
+				     uint32_t ptypes, TEE_Param *params)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -1159,7 +1159,7 @@ enum pkcs11_rc entry_copy_object(struct pkcs11_client *client, uint32_t ptypes,
 
 	/*
 	 * Now obj_handle (through the related struct pkcs11_object
-	 * instance) owns the serialised buffer that holds the object
+	 * instance) owns the serialized buffer that holds the object
 	 * attributes. We clear reference in head to NULL as the serializer
 	 * object is now referred from obj_handle. This allows smooth pass
 	 * through free at function exit.
