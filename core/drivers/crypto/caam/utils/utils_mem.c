@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -9,6 +9,7 @@
 #include <caam_common.h>
 #include <caam_trace.h>
 #include <caam_utils_mem.h>
+#include <kernel/cache_helpers.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 
@@ -74,7 +75,7 @@ static void *mem_alloc(size_t size, uint8_t type)
 	MEM_TRACE("alloc %zu bytes of type %" PRIu8, size, type);
 
 	if (type & MEM_TYPE_ALIGN)
-		ptr = memalign(read_cacheline_size(), size);
+		ptr = memalign(dcache_get_line_size(), size);
 	else
 		ptr = malloc(size);
 
