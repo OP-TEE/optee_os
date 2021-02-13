@@ -913,13 +913,7 @@ static enum pkcs11_rc check_attrs_misc_integrity(struct obj_attrs *head)
 
 bool object_is_private(struct obj_attrs *head)
 {
-	if (get_class(head) == PKCS11_CKO_PRIVATE_KEY)
-		return true;
-
-	if (get_bool(head, PKCS11_CKA_PRIVATE))
-		return true;
-
-	return false;
+	return get_bool(head, PKCS11_CKA_PRIVATE);
 }
 
 bool object_is_token(struct obj_attrs *head)
@@ -947,11 +941,10 @@ enum pkcs11_rc check_access_attrs_against_token(struct pkcs11_session *session,
 
 	switch (get_class(head)) {
 	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_PRIVATE_KEY:
 	case PKCS11_CKO_PUBLIC_KEY:
 	case PKCS11_CKO_DATA:
-		private = get_bool(head, PKCS11_CKA_PRIVATE);
-		break;
-	case PKCS11_CKO_PRIVATE_KEY:
+		private = object_is_private(head);
 		break;
 	default:
 		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
