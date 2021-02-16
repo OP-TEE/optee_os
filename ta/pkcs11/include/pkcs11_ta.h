@@ -565,6 +565,22 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_GenerateRandom().
 	 */
 	PKCS11_CMD_GENERATE_RANDOM = 42,
+
+	/*
+	 * PKCS11_CMD_DERIVE_KEY - Derive a key from a parent key.
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit parent key handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_DeriveKey().
+	 */
+	PKCS11_CMD_DERIVE_KEY = 43,
 };
 
 /*
