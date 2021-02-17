@@ -85,11 +85,13 @@ void glue_context_free(void *cipher)
 
 sss_status_t glue_rng_get_random(uint8_t *data, size_t len)
 {
-	if (IS_ENABLED(CFG_NXP_SE05X_RNG_DRV))
-		return kStatus_SSS_InvalidArgument;
+	if (IS_ENABLED(CFG_NXP_SE05X_RNG_DRV)) {
+		if (crypto_prng_read(data, len))
+			return kStatus_SSS_Fail;
+		return kStatus_SSS_Success;
+	}
 
 	if (crypto_rng_read(data, len))
 		return kStatus_SSS_Fail;
-
 	return kStatus_SSS_Success;
 }
