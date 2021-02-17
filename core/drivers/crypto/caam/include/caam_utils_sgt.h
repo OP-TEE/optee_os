@@ -77,21 +77,6 @@ void caam_sgt_set_entry(struct caamsgt *sgt, vaddr_t paddr, size_t len,
 	caam_sgt_set_entry(sgt, paddr, len, 0, false, true)
 
 /*
- * Build a SGT object with @block and @data buffer.
- * If @block is not null, create a SGT with block buffer as first SGT entry
- * and then the @data.
- * If the @data buffer is a buffer mapped on non-contiguous physical areas,
- * convert it in SGT entries.
- *
- * @sgtbuf [out] SGT object built
- * @block  If not NULL, data block to be handled first
- * @data   Operation data
- */
-enum caam_status caam_sgt_build_block_data(struct caamsgtbuf *sgtbuf,
-					   struct caamblock *block,
-					   struct caambuf *data);
-
-/*
  * Build a SGT object with @data buffer.
  * If the @data buffer is a buffer mapped on non-contiguous physical areas,
  * convert it in SGT entries.
