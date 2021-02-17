@@ -10,6 +10,7 @@ srcs-$(CFG_SECURE_PARTITION) += secure_partition.c
 srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += pseudo_ta.c
 srcs-y += tee_time.c
+srcs-$(CFG_PRNG_SOURCE_RANDOM_REE) += tee_random_ree.c
 srcs-y += rpc_io_i2c.c
 srcs-y += otp_stubs.c
 srcs-y += delay.c

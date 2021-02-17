@@ -176,6 +176,17 @@
 #define OPTEE_RPC_I2C_FLAGS_TEN_BIT	BIT(0)
 
 /*
+ * Get random
+ *
+ * Returns random bytes
+ *
+ * [out] param[0].u.value.a	random bytes
+ * [out] param[0].u.value.b	random bytes
+ * [out] param[0].u.value.c	random bytes
+ */
+#define OPTEE_RPC_CMD_GET_RANDOM	22
+
+/*
  * Definition of protocol for command OPTEE_RPC_CMD_FS
  */
 
