@@ -244,6 +244,9 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 		if (rc)
 			goto err;
 
+		TEE_CloseObject(obj->attribs_hdl);
+		obj->attribs_hdl = TEE_HANDLE_NULL;
+
 		LIST_INSERT_HEAD(&session->token->object_list, obj, link);
 	} else {
 		rc = PKCS11_CKR_OK;
