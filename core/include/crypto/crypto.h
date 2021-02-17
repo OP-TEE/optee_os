@@ -347,6 +347,20 @@ void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
  */
 TEE_Result crypto_rng_read(void *buf, size_t len);
 
+/* These set of functions provide PRNG support when an RNG is already
+ * available
+ *
+ * Secure elements require encryption (SCP03) of the communication channel
+ * between the processor and the element; therefore a random number generator
+ * is required to be able to access the RNG provided by these secure elements
+ */
+TEE_Result crypto_prng_init(const void *data, size_t dlen);
+
+TEE_Result crypto_prng_read(void *buf, size_t len);
+
+void crypto_prng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
+			   const void *data, size_t dlen);
+
 /*
  * crypto_aes_expand_enc_key() - Expand an AES key
  * @key:	AES key buffer

@@ -10,9 +10,11 @@
 #include <assert.h>
 #include <crypto/crypto.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_time.h>
+#include <rng_support.h>
 #include <string.h>
 #include <types_ext.h>
 #include <utee_defines.h>
@@ -127,7 +129,11 @@ static void fortuna_done(void)
 	state.ctx = NULL;
 }
 
+#if defined(CFG_WITH_SOFTWARE_PRNG)
 TEE_Result crypto_rng_init(const void *data, size_t dlen)
+#else
+TEE_Result crypto_prng_init(const void *data, size_t dlen)
+#endif
 {
 	TEE_Result res;
 	uint8_t key[KEY_SIZE];
@@ -295,8 +301,13 @@ static unsigned int get_next_pnum(unsigned int *pnum)
 	}
 }
 
+#if defined(CFG_WITH_SOFTWARE_PRNG)
 void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
 			  const void *data, size_t dlen)
+#else
+void crypto_prng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
+			   const void *data, size_t dlen)
+#endif
 {
 	unsigned int pn = get_next_pnum(pnum);
 	uint8_t snum = sid >> 1;
@@ -511,7 +522,11 @@ out:
 	return res;
 }
 
+#if defined(CFG_WITH_SOFTWARE_PRNG)
 TEE_Result crypto_rng_read(void *buf, size_t blen)
+#else
+TEE_Result crypto_prng_read(void *buf, size_t blen)
+#endif
 {
 	size_t offs = 0;
 
@@ -529,3 +544,27 @@ TEE_Result crypto_rng_read(void *buf, size_t blen)
 		offs += n;
 	}
 }
+
+#if defined(CFG_WITH_SOFTWARE_PRNG)
+uint8_t __noreturn hw_get_random_byte(void)
+{
+	/* must not be called (software implementation could fail) */
+	panic();
+}
+
+TEE_Result crypto_prng_init(const void *data __unused, size_t dlen __unused)
+{
+	return TEE_ERROR_GENERIC;
+}
+
+TEE_Result crypto_prng_read(void *buf __unused, size_t blen __unused)
+{
+	return TEE_ERROR_GENERIC;
+}
+
+void crypto_prng_add_event(enum crypto_rng_src sid __unused,
+			   unsigned int *pnum __unused,
+			   const void *data __unused, size_t dlen __unused)
+{
+}
+#endif
