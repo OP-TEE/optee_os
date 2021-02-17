@@ -180,6 +180,7 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_COPY_OBJECT),
 	PKCS11_ID(PKCS11_CMD_SEED_RANDOM),
 	PKCS11_ID(PKCS11_CMD_GENERATE_RANDOM),
+	PKCS11_ID(PKCS11_CMD_DERIVE_KEY),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
