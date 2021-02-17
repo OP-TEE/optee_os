@@ -85,6 +85,7 @@ jobs:
           _make PLATFORM=hikey
           _make PLATFORM=hikey CFG_ARM64_core=y
           _make PLATFORM=mediatek-mt8173
+          _make PLATFORM=mediatek-mt8175
           _make PLATFORM=mediatek-mt8183
           _make PLATFORM=mediatek-mt8516
           _make PLATFORM=imx-mx6ulevk
