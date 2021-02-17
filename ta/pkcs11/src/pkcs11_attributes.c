@@ -682,7 +682,7 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 enum pkcs11_rc
 create_attributes_from_template(struct obj_attrs **out, void *template,
 				size_t template_size,
-				struct obj_attrs *parent __unused,
+				struct obj_attrs *parent,
 				enum processing_func function,
 				enum pkcs11_mechanism_id mecha,
 				enum pkcs11_class_id template_class __unused)
@@ -703,6 +703,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	case PKCS11_FUNCTION_GENERATE:
 	case PKCS11_FUNCTION_IMPORT:
 	case PKCS11_FUNCTION_MODIFY:
+	case PKCS11_FUNCTION_DERIVE:
 	case PKCS11_FUNCTION_COPY:
 		break;
 	default:
@@ -822,6 +823,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		local = PKCS11_TRUE;
 		break;
 	case PKCS11_FUNCTION_IMPORT:
+	case PKCS11_FUNCTION_DERIVE:
 	default:
 		local = PKCS11_FALSE;
 		break;
@@ -838,6 +840,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		never_extract = PKCS11_FALSE;
 
 		switch (function) {
+		case PKCS11_FUNCTION_DERIVE:
+			always_sensitive =
+				get_bool(parent, PKCS11_CKA_ALWAYS_SENSITIVE) &&
+				get_bool(attrs, PKCS11_CKA_SENSITIVE);
+			never_extract =
+			       get_bool(parent, PKCS11_CKA_NEVER_EXTRACTABLE) &&
+			       !get_bool(attrs, PKCS11_CKA_EXTRACTABLE);
+			break;
 		case PKCS11_FUNCTION_GENERATE:
 			always_sensitive = get_bool(attrs,
 						    PKCS11_CKA_SENSITIVE);
@@ -1034,6 +1044,8 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	 */
 	switch (proc_id) {
 	case PKCS11_PROCESSING_IMPORT:
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, false));
 		break;
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
@@ -1233,6 +1245,8 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_AES_CBC_PAD:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		if (key_class == PKCS11_CKO_SECRET_KEY &&
 		    key_type == PKCS11_CKK_AES)
 			break;

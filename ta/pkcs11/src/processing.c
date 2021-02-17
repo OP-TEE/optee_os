@@ -447,3 +447,187 @@ out:
 
 	return rc;
 }
+
+enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
+				uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	TEE_Param *out = params + 2;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_attribute_head *proc_params = NULL;
+	struct pkcs11_object_head *template = NULL;
+	uint32_t parent_handle = 0;
+	uint32_t obj_handle = 0;
+	struct pkcs11_object *parent = NULL;
+	struct obj_attrs *head = NULL;
+	size_t template_size = 0;
+	enum processing_func function = PKCS11_FUNCTION_DERIVE;
+
+	if (!client || ptypes != exp_pt ||
+	    out->memref.size != sizeof(obj_handle))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &parent_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
+	if (rc)
+		goto out_free;
+
+	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
+	if (rc)
+		goto out_free;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out_free;
+	}
+
+	/* Return error if processing already active */
+	rc = get_ready_session(session);
+	if (rc)
+		goto out_free;
+
+	/* Check parent handle */
+	parent = pkcs11_handle2object(parent_handle, session);
+	if (!parent) {
+		rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+		goto out_free;
+	}
+
+	/* Check if mechanism supplied is supported for key derivation */
+	switch (proc_params->id) {
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		break;
+	default:
+		rc = PKCS11_CKR_MECHANISM_INVALID;
+		goto out_free;
+	}
+
+	/* Check if mechanism can be used for derivation function */
+	rc = check_mechanism_against_processing(session, proc_params->id,
+						function,
+						PKCS11_FUNC_STEP_INIT);
+	if (rc)
+		goto out_free;
+
+	/* Set the processing state to active */
+	rc = set_processing_state(session, function, parent, NULL);
+	if (rc)
+		goto out_free;
+
+	/*
+	 * Check if base/parent key has CKA_DERIVE set and its key type is
+	 * compatible with the mechanism passed
+	 */
+	rc = check_parent_attrs_against_processing(proc_params->id, function,
+						   parent->attributes);
+	if (rc)
+		goto out;
+
+	/* Check access of base/parent key */
+	rc = check_access_attrs_against_token(session, parent->attributes);
+	if (rc)
+		goto out;
+
+	template_size = sizeof(*template) + template->attrs_size;
+	/*
+	 * Prepare a clean initial state for the requested object attributes
+	 * using base/parent key attributes. Free temporary template once done.
+	 */
+	rc = create_attributes_from_template(&head, template, template_size,
+					     parent->attributes,
+					     function,
+					     proc_params->id,
+					     PKCS11_CKO_UNDEFINED_ID);
+	if (rc)
+		goto out;
+
+	TEE_Free(template);
+	template = NULL;
+
+	/* check_created_attrs() is called later once key size is known */
+
+	rc = check_created_attrs_against_processing(proc_params->id, head);
+	if (rc)
+		goto out;
+
+	rc = check_created_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
+	/*
+	 * Execute target processing and add value as attribute
+	 * PKCS11_CKA_VALUE. Symm key generation: depends on target
+	 * processing to be used.
+	 */
+	switch (proc_params->id) {
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		/*
+		 * These derivation mechanism require encryption to be
+		 * performed on the data passed in proc_params by parent
+		 * key. Hence pass function as PKCS11_FUNCTION_ENCRYPT
+		 * to init_symm_operation()
+		 */
+		rc = init_symm_operation(session, PKCS11_FUNCTION_ENCRYPT,
+					 proc_params, parent);
+		if (rc)
+			goto out;
+
+		rc = derive_key_by_symm_enc(session, &head);
+		if (rc)
+			goto out;
+		break;
+	default:
+		rc = PKCS11_CKR_MECHANISM_INVALID;
+		goto out;
+	}
+
+	TEE_Free(proc_params);
+	proc_params = NULL;
+
+	/*
+	 * Object is ready, register it and return a handle.
+	 */
+	rc = create_object(session, head, &obj_handle);
+	if (rc)
+		goto out;
+
+	/*
+	 * Now obj_handle (through the related struct pkcs11_object instance)
+	 * owns the serialized buffer that holds the object attributes.
+	 * We reset head to NULL as it is no more the buffer owner and would
+	 * be freed at function out.
+	 */
+	head = NULL;
+
+	TEE_MemMove(out->memref.buffer, &obj_handle, sizeof(obj_handle));
+	out->memref.size = sizeof(obj_handle);
+
+	DMSG("PKCS11 session %"PRIu32": derive secret %#"PRIx32,
+	     session->handle, obj_handle);
+
+out:
+	release_active_processing(session);
+out_free:
+	TEE_Free(proc_params);
+	TEE_Free(template);
+	TEE_Free(head);
+
+	return rc;
+}

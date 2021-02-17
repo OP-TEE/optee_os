@@ -20,6 +20,11 @@
 #include "processing.h"
 #include "serializer.h"
 
+struct input_data_ref {
+	size_t size;
+	void *data;
+};
+
 bool processing_is_tee_symm(enum pkcs11_mechanism_id proc_id)
 {
 	switch (proc_id) {
@@ -36,6 +41,8 @@ bool processing_is_tee_symm(enum pkcs11_mechanism_id proc_id)
 	case PKCS11_CKM_AES_CBC_PAD:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		return true;
 	default:
 		return false;
@@ -53,6 +60,8 @@ pkcs2tee_algorithm(uint32_t *tee_id, struct pkcs11_attribute_head *proc_params)
 		{ PKCS11_CKM_AES_ECB, TEE_ALG_AES_ECB_NOPAD },
 		{ PKCS11_CKM_AES_CBC, TEE_ALG_AES_CBC_NOPAD },
 		{ PKCS11_CKM_AES_CBC_PAD, TEE_ALG_AES_CBC_NOPAD },
+		{ PKCS11_CKM_AES_ECB_ENCRYPT_DATA, TEE_ALG_AES_ECB_NOPAD },
+		{ PKCS11_CKM_AES_CBC_ENCRYPT_DATA, TEE_ALG_AES_CBC_NOPAD },
 		{ PKCS11_CKM_AES_CTR, TEE_ALG_AES_CTR },
 		{ PKCS11_CKM_AES_CTS, TEE_ALG_AES_CTS },
 		/* HMAC flavors */
@@ -366,6 +375,77 @@ error:
 }
 
 static enum pkcs11_rc
+tee_init_derive_symm(struct active_processing *processing,
+		     struct pkcs11_attribute_head *proc_params)
+{
+	struct serialargs args = { };
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct input_data_ref *param = NULL;
+	void *iv = NULL;
+
+	if (!proc_params)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	param =	TEE_Malloc(sizeof(struct input_data_ref), TEE_MALLOC_FILL_ZERO);
+	if (!param)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	switch (proc_params->id) {
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		rc = serialargs_get_ptr(&args, &iv, 16);
+		if (rc)
+			goto err;
+		break;
+	default:
+		break;
+	}
+
+	rc = serialargs_get(&args, &param->size, sizeof(uint32_t));
+	if (rc)
+		goto err;
+
+	rc = serialargs_get_ptr(&args, &param->data, param->size);
+	if (rc)
+		goto err;
+
+	if (serialargs_remaining_bytes(&args)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto err;
+	}
+
+	processing->extra_ctx = param;
+
+	switch (proc_params->id) {
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+		if (param->size % TEE_AES_BLOCK_SIZE) {
+			rc = PKCS11_CKR_DATA_LEN_RANGE;
+			goto err;
+		}
+		TEE_CipherInit(processing->tee_op_handle, NULL, 0);
+		break;
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		if (param->size % TEE_AES_BLOCK_SIZE) {
+			rc = PKCS11_CKR_DATA_LEN_RANGE;
+			goto err;
+		}
+		TEE_CipherInit(processing->tee_op_handle, iv, 16);
+		break;
+	default:
+		TEE_Panic(proc_params->id);
+		break;
+	}
+
+	return PKCS11_CKR_OK;
+
+err:
+	processing->extra_ctx = NULL;
+	TEE_Free(param);
+	return rc;
+}
+
+static enum pkcs11_rc
 init_tee_operation(struct pkcs11_session *session,
 		   struct pkcs11_attribute_head *proc_params)
 {
@@ -405,6 +485,10 @@ init_tee_operation(struct pkcs11_session *session,
 		rc = tee_init_ctr_operation(session->processing,
 					    proc_params->data,
 					    proc_params->size);
+		break;
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		rc = tee_init_derive_symm(session->processing, proc_params);
 		break;
 	default:
 		TEE_Panic(proc_params->id);
@@ -710,5 +794,75 @@ out:
 		}
 	}
 
+	return rc;
+}
+
+enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
+				      struct obj_attrs **head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct active_processing *proc = session->processing;
+	struct input_data_ref *input = proc->extra_ctx;
+	void *in_buf = NULL;
+	void *out_buf = NULL;
+	uint32_t out_size = 0;
+	uint32_t in_size = 0;
+	uint32_t size = sizeof(uint32_t);
+	uint32_t key_length = 0;
+
+	if (!proc->extra_ctx)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	in_buf = input->data;
+	in_size = input->size;
+
+	out_size = in_size;
+	if (!out_size)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	out_buf = TEE_Malloc(out_size, 0);
+	if (!out_buf)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	res = TEE_CipherDoFinal(proc->tee_op_handle, in_buf, in_size, out_buf,
+				&out_size);
+	rc = tee2pkcs_error(res);
+	if (rc)
+		goto out;
+
+	/* Get key size if present in template */
+	rc = get_attribute(*head, PKCS11_CKA_VALUE_LEN, &key_length, &size);
+	if (rc && rc != PKCS11_RV_NOT_FOUND)
+		goto out;
+
+	if (key_length) {
+		/* Derived key is smaller than the required size */
+		if (out_size < key_length) {
+			rc = PKCS11_CKR_DATA_LEN_RANGE;
+			goto out;
+		}
+	} else {
+		key_length = out_size;
+		rc = set_attribute(head, PKCS11_CKA_VALUE_LEN, &key_length,
+				   sizeof(uint32_t));
+		if (rc)
+			goto out;
+	}
+
+	/* Now we can check the VALUE_LEN field */
+	rc = check_created_attrs(*head, NULL);
+	if (rc)
+		goto out;
+
+	/* Remove the default empty value attribute if found */
+	rc = remove_empty_attribute(head, PKCS11_CKA_VALUE);
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	rc = add_attribute(head, PKCS11_CKA_VALUE, out_buf, key_length);
+
+out:
+	TEE_Free(out_buf);
 	return rc;
 }

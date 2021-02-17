@@ -30,6 +30,9 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 				     enum processing_func function,
 				     enum processing_step step);
 
+enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
+				uint32_t ptypes, TEE_Param *params);
+
 /*
  * Util
  */
@@ -54,4 +57,8 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 
 enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 				      void *proc_params, size_t params_size);
+
+enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
+				      struct obj_attrs **head);
+
 #endif /*PKCS11_TA_PROCESSING_H*/
