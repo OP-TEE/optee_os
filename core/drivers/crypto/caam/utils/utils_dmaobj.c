@@ -755,6 +755,9 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 			goto out;
 		}
 
+		/* Add the additional size in the DMA buffer length */
+		add_dma_require(obj->priv, newbuf.length);
+
 		entry->nocopy = true;
 		entry->newbuf = true;
 	}
