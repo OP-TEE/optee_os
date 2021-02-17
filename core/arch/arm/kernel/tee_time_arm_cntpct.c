@@ -4,8 +4,10 @@
  */
 
 #include <arm.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/misc.h>
+#include <kernel/tee_random_ree.h>
 #include <kernel/tee_time.h>
 #include <kernel/time_source.h>
 #include <mm/core_mmu.h>
@@ -34,7 +36,7 @@ static const struct time_source arm_cntpct_time_source = {
 REGISTER_TIME_SOURCE(arm_cntpct_time_source)
 
 /*
- * We collect jitter using cntpct in 32- or 64-bit mode that is typically
+ * We collect RPC jitter using cntpct in 32-bit or 64-bit mode that is typically
  * clocked at around 1MHz.
  *
  * The first time we are called, we add low 16 bits of the counter as entropy.
@@ -45,15 +47,26 @@ REGISTER_TIME_SOURCE(arm_cntpct_time_source)
  *  - XORing it in 2-bit chunks with the whole CNTPCT contents
  *
  * and adding one byte of entropy when we reach 8 rotated bits.
+ *
+ * When enabled, we will attempt to collect SESSION jitter from the non-secure
+ * REE random number generator: an RPC call to the REE will add 196 bits
+ * of entropy to the pool. If the entropy data is not available, the algorithm
+ * fallbacks to using cntpct.
  */
 
 void plat_prng_add_jitter_entropy(enum crypto_rng_src sid, unsigned int *pnum)
 {
-	uint64_t tsc = barrier_read_cntpct();
+	uint64_t tsc = 0;
 	int bytes = 0, n;
 	static uint8_t first, bits;
 	static uint16_t acc;
 
+	if (IS_ENABLED(CFG_PRNG_SOURCE_RANDOM_REE) &&
+	    sid == CRYPTO_RNG_SRC_JITTER_SESSION &&
+	    !tee_random_add_ree_random(sid, pnum))
+		return;
+
+	tsc = barrier_read_cntpct();
 	if (!first) {
 		acc = tsc;
 		bytes = 2;
