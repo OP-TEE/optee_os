@@ -206,6 +206,7 @@ void close_persistent_db(struct ck_token *token);
 /* Load and release persistent object attributes in memory */
 enum pkcs11_rc load_persistent_object_attributes(struct pkcs11_object *obj);
 void release_persistent_object_attributes(struct pkcs11_object *obj);
+enum pkcs11_rc update_persistent_object_attributes(struct pkcs11_object *obj);
 
 enum pkcs11_rc hash_pin(enum pkcs11_user_type user, const uint8_t *pin,
 			size_t pin_size, uint32_t *salt,
