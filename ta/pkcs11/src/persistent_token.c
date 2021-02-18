@@ -10,6 +10,7 @@
 #include <tee_internal_api_extensions.h>
 #include <util.h>
 
+#include "attributes.h"
 #include "pkcs11_token.h"
 #include "pkcs11_helpers.h"
 
@@ -536,6 +537,36 @@ void release_persistent_object_attributes(struct pkcs11_object *obj)
 {
 	TEE_Free(obj->attributes);
 	obj->attributes = NULL;
+}
+
+enum pkcs11_rc update_persistent_object_attributes(struct pkcs11_object *obj)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_ObjectHandle hdl = TEE_HANDLE_NULL;
+	uint32_t tee_obj_flags = TEE_DATA_FLAG_ACCESS_WRITE;
+	size_t size = 0;
+
+	assert(obj && obj->attributes);
+
+	res = TEE_OpenPersistentObject(TEE_STORAGE_PRIVATE,
+				       obj->uuid, sizeof(*obj->uuid),
+				       tee_obj_flags, &hdl);
+	if (res) {
+		EMSG("OpenPersistent failed %#"PRIx32, res);
+		return tee2pkcs_error(res);
+	}
+
+	size = sizeof(struct obj_attrs) + obj->attributes->attrs_size;
+
+	res = TEE_WriteObjectData(hdl, obj->attributes, size);
+	if (res)
+		goto out;
+
+	res = TEE_TruncateObjectData(hdl, size);
+
+out:
+	TEE_CloseObject(hdl);
+	return tee2pkcs_error(res);
 }
 
 /*

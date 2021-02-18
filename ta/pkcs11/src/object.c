@@ -1002,6 +1002,12 @@ enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
+		rc = update_persistent_object_attributes(obj);
+		if (rc)
+			goto out;
+	}
+
 	DMSG("PKCS11 session %"PRIu32": set attributes %#"PRIx32,
 	     session->handle, object_handle);
 
