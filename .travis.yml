@@ -14,6 +14,12 @@ before_install:
   - sudo apt-get -y install codespell
   - sudo mkdir -p /usr/share/codespell && sudo ln -s /usr/lib/python3/dist-packages/codespell_lib/data/dictionary.txt /usr/share/codespell/dictionary.txt
   - sudo apt-get -y install python3-pip
+  - sudo apt-get -y install python3-setuptools
+  - sudo apt-get -y install python3-wheel
+  - sudo apt-get -y install python3-crypto
+  - sudo apt-get -y install python3-pyelftools
+  - sudo apt-get -y install python3-serial
+  - sudo apt-get -y install python3-wand
   - wget http://releases.linaro.org/components/toolchain/binaries/5.3-2016.02/arm-linux-gnueabihf/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
   - tar xf gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf.tar.xz
   - export PATH=${PWD}/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin:${PATH}
@@ -21,8 +27,12 @@ before_install:
 
 before_script:
   - export OPTEE_OS=$PWD
-  - pip3 install --upgrade --user pycrypto
-  - pip3 install --upgrade --user wand
+
+  # Do NOT upgrade pip. It will cause the pycryptodome install to fail!
+  #- pip3 install --upgrade pip
+
+  # apt-get is unable to find pycryptodome in Ubuntu 16 (xenial)
+  # but using pip works
   - pip3 install --upgrade --user pycryptodome
 
   # Download checkpatch.pl
@@ -35,7 +45,7 @@ before_script:
   - source scripts/checkpatch_inc.sh
 
   # Install pycodestyle
-  - pip install --upgrade --user pycodestyle
+  - pip3 install --upgrade --user pycodestyle
 
 script:
   - if [ "${COVERITY_SCAN_BRANCH}" == 1 ]; then
