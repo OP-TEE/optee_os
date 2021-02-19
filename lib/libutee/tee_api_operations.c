@@ -1109,15 +1109,18 @@ TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 	}
 
 	if (operation->block_size > 1) {
-		res = tee_buffer_update(operation, _utee_cipher_update,
-					srcData, srcLen, dst, &tmp_dlen);
-		if (res != TEE_SUCCESS)
-			goto out;
+		if (srcLen) {
+			res = tee_buffer_update(operation, _utee_cipher_update,
+						srcData, srcLen, dst,
+						&tmp_dlen);
+			if (res != TEE_SUCCESS)
+				goto out;
 
-		dst += tmp_dlen;
-		acc_dlen += tmp_dlen;
+			dst += tmp_dlen;
+			acc_dlen += tmp_dlen;
 
-		tmp_dlen = *destLen - acc_dlen;
+			tmp_dlen = *destLen - acc_dlen;
+		}
 		res = _utee_cipher_final(operation->state, operation->buffer,
 					 operation->buffer_offs, dst,
 					 &tmp_dlen);
