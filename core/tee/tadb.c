@@ -80,7 +80,10 @@ static struct mutex tadb_mutex = MUTEX_INITIALIZER;
 
 static void file_num_to_str(char *buf, size_t blen, uint32_t file_number)
 {
-	snprintf(buf, blen, "%" PRIu32 ".ta", file_number);
+	int rc __maybe_unused = 0;
+
+	rc = snprintf(buf, blen, "%" PRIu32 ".ta", file_number);
+	assert(rc >= 0);
 }
 
 static bool is_null_uuid(const TEE_UUID *uuid)
