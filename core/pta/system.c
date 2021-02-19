@@ -248,7 +248,7 @@ static TEE_Result system_dlsym(struct user_mode_ctx *uctx, uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	uuid = params[0].memref.buffer;
-	if (uuid && params[0].memref.size != sizeof(*uuid))
+	if (!uuid || params[0].memref.size != sizeof(*uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	sym = params[1].memref.buffer;
