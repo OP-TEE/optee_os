@@ -22,6 +22,9 @@
 void TEE_Panic(TEE_Result panicCode)
 {
 	_utee_panic(panicCode);
+#ifdef __COVERITY__
+	__coverity_panic__();
+#endif
 }
 
 static void check_res(const char *msg __maybe_unused, TEE_Result res)
