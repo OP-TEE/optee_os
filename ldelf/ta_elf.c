@@ -1216,19 +1216,27 @@ static void print_seg(void *pctx, print_func_t print_func,
 		      vaddr_t va __maybe_unused, paddr_t pa __maybe_unused,
 		      size_t sz __maybe_unused, uint32_t flags)
 {
+	int rc __maybe_unused = 0;
 	int width __maybe_unused = 8;
 	char desc[14] __maybe_unused = "";
 	char flags_str[] __maybe_unused = "----";
 
 	if (elf_idx > -1) {
-		snprintf(desc, sizeof(desc), " [%d]", elf_idx);
+		rc = snprintf(desc, sizeof(desc), " [%d]", elf_idx);
+		assert(rc >= 0);
 	} else {
-		if (flags & DUMP_MAP_EPHEM)
-			snprintf(desc, sizeof(desc), " (param)");
-		if (flags & DUMP_MAP_LDELF)
-			snprintf(desc, sizeof(desc), " (ldelf)");
-		if (va == ta_stack)
-			snprintf(desc, sizeof(desc), " (stack)");
+		if (flags & DUMP_MAP_EPHEM) {
+			rc = snprintf(desc, sizeof(desc), " (param)");
+			assert(rc >= 0);
+		}
+		if (flags & DUMP_MAP_LDELF) {
+			rc = snprintf(desc, sizeof(desc), " (ldelf)");
+			assert(rc >= 0);
+		}
+		if (va == ta_stack) {
+			rc = snprintf(desc, sizeof(desc), " (stack)");
+			assert(rc >= 0);
+		}
 	}
 
 	if (flags & DUMP_MAP_READ)
