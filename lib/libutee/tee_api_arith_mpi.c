@@ -710,9 +710,7 @@ void TEE_BigIntComputeExtendedGcd(TEE_BigInt *gcd, TEE_BigInt *u,
 		get_mpi(&mpi_op2, op2);
 
 	if (!u && !v) {
-		if (gcd)
-			MPI_CHECK(mbedtls_mpi_gcd(&mpi_gcd_res, &mpi_op1,
-						  pop2));
+		MPI_CHECK(mbedtls_mpi_gcd(&mpi_gcd_res, &mpi_op1, pop2));
 	} else {
 		mbedtls_mpi mpi_u;
 		mbedtls_mpi mpi_v;
