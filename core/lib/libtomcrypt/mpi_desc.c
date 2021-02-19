@@ -724,8 +724,11 @@ int32_t crypto_bignum_compare(struct bignum *a, struct bignum *b)
 
 void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
 {
-	mbedtls_mpi_write_binary((const mbedtls_mpi *)from, (void *)to,
-				 mbedtls_mpi_size((const mbedtls_mpi *)from));
+	const mbedtls_mpi *f = (const mbedtls_mpi *)from;
+	int rc __maybe_unused = 0;
+
+	rc = mbedtls_mpi_write_binary(f, (void *)to, mbedtls_mpi_size(f));
+	assert(!rc);
 }
 
 TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
