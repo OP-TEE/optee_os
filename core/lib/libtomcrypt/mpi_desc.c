@@ -742,7 +742,10 @@ TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
 
 void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
 {
-	mbedtls_mpi_copy((mbedtls_mpi *)to, (const mbedtls_mpi *)from);
+	int rc __maybe_unused = 0;
+
+	rc = mbedtls_mpi_copy((mbedtls_mpi *)to, (const mbedtls_mpi *)from);
+	assert(!rc);
 }
 
 struct bignum *crypto_bignum_allocate(size_t size_bits)
