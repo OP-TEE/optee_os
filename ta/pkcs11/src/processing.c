@@ -46,6 +46,11 @@ static enum processing_func func_for_cmd(enum pkcs11_ta_cmd cmd)
 	case PKCS11_CMD_VERIFY_UPDATE:
 	case PKCS11_CMD_VERIFY_FINAL:
 		return PKCS11_FUNCTION_VERIFY;
+	case PKCS11_CMD_DIGEST_UPDATE:
+	case PKCS11_CMD_DIGEST_KEY:
+	case PKCS11_CMD_DIGEST_ONESHOT:
+	case PKCS11_CMD_DIGEST_FINAL:
+		return PKCS11_FUNCTION_DIGEST;
 	default:
 		return PKCS11_FUNCTION_UNKNOWN;
 	}
@@ -337,9 +342,11 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 	if (rc)
 		return rc;
 
-	rc = serialargs_get(&ctrlargs, &key_handle, sizeof(uint32_t));
-	if (rc)
-		return rc;
+	if (function != PKCS11_FUNCTION_DIGEST) {
+		rc = serialargs_get(&ctrlargs, &key_handle, sizeof(uint32_t));
+		if (rc)
+			return rc;
+	}
 
 	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
 	if (rc)
@@ -354,10 +361,12 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
-	obj = pkcs11_handle2object(key_handle, session);
-	if (!obj) {
-		rc = PKCS11_CKR_KEY_HANDLE_INVALID;
-		goto out;
+	if (function != PKCS11_FUNCTION_DIGEST) {
+		obj = pkcs11_handle2object(key_handle, session);
+		if (!obj) {
+			rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+			goto out;
+		}
 	}
 
 	rc = set_processing_state(session, function, obj, NULL);
@@ -370,17 +379,23 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
-	rc = check_parent_attrs_against_processing(proc_params->id, function,
-						   obj->attributes);
-	if (rc)
-		goto out;
+	if (obj) {
+		rc = check_parent_attrs_against_processing(proc_params->id,
+							   function,
+							   obj->attributes);
+		if (rc)
+			goto out;
 
-	rc = check_access_attrs_against_token(session, obj->attributes);
-	if (rc)
-		goto out;
+		rc = check_access_attrs_against_token(session,
+						      obj->attributes);
+		if (rc)
+			goto out;
+	}
 
 	if (processing_is_tee_symm(proc_params->id))
 		rc = init_symm_operation(session, function, proc_params, obj);
+	else if (processing_is_tee_digest(proc_params->id))
+		rc = init_digest_operation(session, proc_params);
 	else
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 
@@ -419,6 +434,8 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 	struct serialargs ctrlargs = { };
 	struct pkcs11_session *session = NULL;
 	enum pkcs11_mechanism_id mecha_type = PKCS11_CKM_UNDEFINED_ID;
+	uint32_t key_handle = 0;
+	struct pkcs11_object *obj = NULL;
 
 	if (!client ||
 	    TEE_PARAM_TYPE_GET(ptypes, 0) != TEE_PARAM_TYPE_MEMREF_INOUT)
@@ -430,12 +447,37 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 	if (rc)
 		return rc;
 
+	if (step == PKCS11_FUNC_STEP_UPDATE_KEY) {
+		assert(function == PKCS11_FUNCTION_DIGEST);
+
+		rc = serialargs_get(&ctrlargs, &key_handle, sizeof(uint32_t));
+		if (rc)
+			return rc;
+	}
+
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	rc = get_active_session(session, function);
 	if (rc)
 		return rc;
+
+	if (step == PKCS11_FUNC_STEP_UPDATE_KEY) {
+		assert(function == PKCS11_FUNCTION_DIGEST);
+
+		obj = pkcs11_handle2object(key_handle, session);
+		if (!obj) {
+			rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+			goto out;
+		}
+
+		rc = check_access_attrs_against_token(session,
+						      obj->attributes);
+		if (rc) {
+			rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+			goto out;
+		}
+	}
 
 	mecha_type = session->processing->mecha_type;
 	rc = check_mechanism_against_processing(session, mecha_type,
@@ -446,10 +488,13 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 	if (processing_is_tee_symm(mecha_type))
 		rc = step_symm_operation(session, function, step,
 					 ptypes, params);
+	else if (processing_is_tee_digest(mecha_type))
+		rc = step_digest_operation(session, step, obj, ptypes, params);
 	else
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 
-	if (rc == PKCS11_CKR_OK && step == PKCS11_FUNC_STEP_UPDATE) {
+	if (rc == PKCS11_CKR_OK && (step == PKCS11_FUNC_STEP_UPDATE ||
+				    step == PKCS11_FUNC_STEP_UPDATE_KEY)) {
 		session->processing->updated = true;
 		DMSG("PKCS11 session%"PRIu32": processing %s %s",
 		     session->handle, id2str_proc(mecha_type),
@@ -459,6 +504,7 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 out:
 	switch (step) {
 	case PKCS11_FUNC_STEP_UPDATE:
+	case PKCS11_FUNC_STEP_UPDATE_KEY:
 		if (rc != PKCS11_CKR_OK && rc != PKCS11_CKR_BUFFER_TOO_SMALL)
 			release_active_processing(session);
 		break;

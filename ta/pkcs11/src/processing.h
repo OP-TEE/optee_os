@@ -66,4 +66,16 @@ enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 				      void **out_buf, uint32_t *out_sz);
 
+/* Digest specific functions */
+bool processing_is_tee_digest(enum pkcs11_mechanism_id mecha_id);
+
+enum pkcs11_rc
+init_digest_operation(struct pkcs11_session *session,
+		      struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
+				     enum processing_step step,
+				     struct pkcs11_object *obj,
+				     uint32_t ptypes, TEE_Param *params);
+
 #endif /*PKCS11_TA_PROCESSING_H*/

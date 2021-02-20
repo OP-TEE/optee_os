@@ -182,6 +182,11 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_GENERATE_RANDOM),
 	PKCS11_ID(PKCS11_CMD_DERIVE_KEY),
 	PKCS11_ID(PKCS11_CMD_RELEASE_ACTIVE_PROCESSING),
+	PKCS11_ID(PKCS11_CMD_DIGEST_INIT),
+	PKCS11_ID(PKCS11_CMD_DIGEST_UPDATE),
+	PKCS11_ID(PKCS11_CMD_DIGEST_KEY),
+	PKCS11_ID(PKCS11_CMD_DIGEST_ONESHOT),
+	PKCS11_ID(PKCS11_CMD_DIGEST_FINAL),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
@@ -270,6 +275,7 @@ static const struct any_id __maybe_unused string_rc[] = {
 	PKCS11_ID(PKCS11_CKR_USER_TOO_MANY_TYPES),
 	PKCS11_ID(PKCS11_CKR_USER_TYPE_INVALID),
 	PKCS11_ID(PKCS11_CKR_KEY_SIZE_RANGE),
+	PKCS11_ID(PKCS11_CKR_KEY_INDIGESTIBLE),
 	PKCS11_ID(PKCS11_CKR_SESSION_READ_ONLY_EXISTS),
 	PKCS11_ID(PKCS11_CKR_SIGNATURE_LEN_RANGE),
 	PKCS11_ID(PKCS11_RV_NOT_FOUND),
@@ -312,6 +318,7 @@ static const struct any_id __maybe_unused string_internal_processing[] = {
 };
 
 static const struct any_id __maybe_unused string_functions[] = {
+	PKCS11_ID(PKCS11_FUNCTION_DIGEST),
 	PKCS11_ID(PKCS11_FUNCTION_IMPORT),
 	PKCS11_ID(PKCS11_FUNCTION_ENCRYPT),
 	PKCS11_ID(PKCS11_FUNCTION_DECRYPT),
@@ -563,6 +570,9 @@ void pkcs2tee_mode(uint32_t *tee_id, enum processing_func function)
 		break;
 	case PKCS11_FUNCTION_DERIVE:
 		*tee_id = TEE_MODE_DERIVE;
+		break;
+	case PKCS11_FUNCTION_DIGEST:
+		*tee_id = TEE_MODE_DIGEST;
 		break;
 	default:
 		TEE_Panic(function);
