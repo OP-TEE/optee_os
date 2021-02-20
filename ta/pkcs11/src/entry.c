@@ -322,6 +322,30 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 	case PKCS11_CMD_RELEASE_ACTIVE_PROCESSING:
 		rc = entry_release_active_processing(client, ptypes, params);
 		break;
+	case PKCS11_CMD_DIGEST_INIT:
+		rc = entry_processing_init(client, ptypes, params,
+					   PKCS11_FUNCTION_DIGEST);
+		break;
+	case PKCS11_CMD_DIGEST_UPDATE:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DIGEST,
+					   PKCS11_FUNC_STEP_UPDATE);
+		break;
+	case PKCS11_CMD_DIGEST_KEY:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DIGEST,
+					   PKCS11_FUNC_STEP_UPDATE_KEY);
+		break;
+	case PKCS11_CMD_DIGEST_ONESHOT:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DIGEST,
+					   PKCS11_FUNC_STEP_ONESHOT);
+		break;
+	case PKCS11_CMD_DIGEST_FINAL:
+		rc = entry_processing_step(client, ptypes, params,
+					   PKCS11_FUNCTION_DIGEST,
+					   PKCS11_FUNC_STEP_FINAL);
+		break;
 	default:
 		EMSG("Command %#"PRIx32" is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;
