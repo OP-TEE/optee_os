@@ -190,6 +190,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 	if (refcount_val(&r->mapcount))
 		goto out;
 
+	assert(!r->mm);
 	sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
 	r->mm = tee_mm_alloc(&tee_mm_shm, sz);
 	if (!r->mm) {
@@ -222,7 +223,7 @@ static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
 
-	if (refcount_val(&r->mapcount))
+	if (!refcount_val(&r->mapcount))
 		reg_shm_unmap_helper(r);
 
 	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
