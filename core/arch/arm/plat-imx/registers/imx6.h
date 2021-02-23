@@ -67,6 +67,12 @@
 #define AIPS3_BASE			0x02200000
 #define AIPS3_SIZE			0x100000
 
+#if defined(CFG_MX6ULL)
+#define RNGB_BASE			0x02284000
+#elif defined(CFG_MX6SL) || defined(CFG_MX6SLL)
+#define RNGB_BASE			0x021b4000
+#endif
+
 #define SCU_BASE			0x00A00000
 #define PL310_BASE			0x00A02000
 #define SRC_BASE			0x020D8000
