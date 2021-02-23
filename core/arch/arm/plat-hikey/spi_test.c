@@ -27,8 +27,9 @@ static void spi_cs_callback(enum gpio_level value)
 		pl061_init(&pd);
 		pl061_register(gpio6_base, 6);
 		pl061_set_mode_control(GPIO6_2, PL061_MC_SW);
-		pd.chip.ops->set_interrupt(GPIO6_2, GPIO_INTERRUPT_DISABLE);
-		pd.chip.ops->set_direction(GPIO6_2, GPIO_DIR_OUT);
+		pd.chip.ops->set_interrupt(NULL, GPIO6_2,
+					   GPIO_INTERRUPT_DISABLE);
+		pd.chip.ops->set_direction(NULL, GPIO6_2, GPIO_DIR_OUT);
 		inited = true;
 	}
 
@@ -38,7 +39,7 @@ static void spi_cs_callback(enum gpio_level value)
 		;
 	DMSG("pl022 done - set CS!");
 
-	pd.chip.ops->set_value(GPIO6_2, value);
+	pd.chip.ops->set_value(NULL, GPIO6_2, value);
 }
 
 static void spi_set_cs_mux(uint32_t val)

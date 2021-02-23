@@ -26,13 +26,18 @@ struct gpio_chip {
 };
 
 struct gpio_ops {
-	enum gpio_dir (*get_direction)(unsigned int gpio_pin);
-	void (*set_direction)(unsigned int gpio_pin, enum gpio_dir direction);
-	enum gpio_level (*get_value)(unsigned int gpio_pin);
-	void (*set_value)(unsigned int gpio_pin, enum gpio_level value);
-	enum gpio_interrupt (*get_interrupt)(unsigned int gpio_pin);
-	void (*set_interrupt)(unsigned int gpio_pin,
-		enum gpio_interrupt ena_dis);
+	enum gpio_dir (*get_direction)(struct gpio_chip *chip,
+				       unsigned int gpio_pin);
+	void (*set_direction)(struct gpio_chip *chip, unsigned int gpio_pin,
+			      enum gpio_dir direction);
+	enum gpio_level (*get_value)(struct gpio_chip *chip,
+				     unsigned int gpio_pin);
+	void (*set_value)(struct gpio_chip *chip, unsigned int gpio_pin,
+			  enum gpio_level value);
+	enum gpio_interrupt (*get_interrupt)(struct gpio_chip *chip,
+					     unsigned int gpio_pin);
+	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
+			      enum gpio_interrupt ena_dis);
 };
 
 #endif	/* __GPIO_H__ */

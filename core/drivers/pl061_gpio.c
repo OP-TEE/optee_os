@@ -40,7 +40,8 @@
 
 static vaddr_t pl061_reg_base[MAX_GPIO_DEVICES];
 
-static enum gpio_dir pl061_get_direction(unsigned int gpio_pin)
+static enum gpio_dir pl061_get_direction(struct gpio_chip *chip __unused,
+					 unsigned int gpio_pin)
 {
 	vaddr_t base_addr;
 	uint8_t data;
@@ -56,7 +57,8 @@ static enum gpio_dir pl061_get_direction(unsigned int gpio_pin)
 	return GPIO_DIR_IN;
 }
 
-static void pl061_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
+static void pl061_set_direction(struct gpio_chip *chip __unused,
+				unsigned int gpio_pin, enum gpio_dir direction)
 {
 	vaddr_t base_addr;
 	unsigned int offset;
@@ -79,7 +81,8 @@ static void pl061_set_direction(unsigned int gpio_pin, enum gpio_dir direction)
  * to be read, and bits that are 0 in the address mask cause the corresponding
  * bits in GPIODATA to be read as 0, regardless of their value.
  */
-static enum gpio_level pl061_get_value(unsigned int gpio_pin)
+static enum gpio_level pl061_get_value(struct gpio_chip *chip __unused,
+				       unsigned int gpio_pin)
 {
 	vaddr_t base_addr;
 	unsigned int offset;
@@ -98,7 +101,8 @@ static enum gpio_level pl061_get_value(unsigned int gpio_pin)
  * from the address bus, PADDR[9:2], must be HIGH. Otherwise the bit values
  * remain unchanged by the write.
  */
-static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
+static void pl061_set_value(struct gpio_chip *chip __unused,
+			    unsigned int gpio_pin, enum gpio_level value)
 {
 	vaddr_t base_addr;
 	unsigned int offset;
@@ -113,7 +117,8 @@ static void pl061_set_value(unsigned int gpio_pin, enum gpio_level value)
 		io_write8(base_addr + BIT(offset + 2), 0);
 }
 
-static enum gpio_interrupt pl061_get_interrupt(unsigned int gpio_pin)
+static enum gpio_interrupt pl061_get_interrupt(struct gpio_chip *chip __unused,
+					       unsigned int gpio_pin)
 {
 	vaddr_t base_addr;
 	uint8_t data;
@@ -129,8 +134,9 @@ static enum gpio_interrupt pl061_get_interrupt(unsigned int gpio_pin)
 	return GPIO_INTERRUPT_DISABLE;
 }
 
-static void pl061_set_interrupt(unsigned int gpio_pin,
-	enum gpio_interrupt ena_dis)
+static void pl061_set_interrupt(struct gpio_chip *chip __unused,
+				unsigned int gpio_pin,
+				enum gpio_interrupt ena_dis)
 {
 	vaddr_t base_addr;
 	unsigned int offset;

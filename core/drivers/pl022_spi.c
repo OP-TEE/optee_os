@@ -294,7 +294,7 @@ static void pl022_control_cs(struct spi_chip *chip, enum gpio_level value)
 			;
 		DMSG("pl022 done - set CS!");
 
-		pd->cs_data.gpio_data.chip->ops->set_value(
+		pd->cs_data.gpio_data.chip->ops->set_value(NULL,
 			pd->cs_data.gpio_data.pin_num, value);
 		break;
 	case PL022_CS_CTRL_CB:
@@ -380,11 +380,11 @@ static void pl022_configure(struct spi_chip *chip)
 	case PL022_CS_CTRL_AUTO_GPIO:
 		DMSG("Use auto GPIO CS control");
 		DMSG("Mask/disable interrupt for CS GPIO");
-		pd->cs_data.gpio_data.chip->ops->set_interrupt(
+		pd->cs_data.gpio_data.chip->ops->set_interrupt(NULL,
 			pd->cs_data.gpio_data.pin_num,
 			GPIO_INTERRUPT_DISABLE);
 		DMSG("Set CS GPIO dir to out");
-		pd->cs_data.gpio_data.chip->ops->set_direction(
+		pd->cs_data.gpio_data.chip->ops->set_direction(NULL,
 			pd->cs_data.gpio_data.pin_num,
 			GPIO_DIR_OUT);
 		break;
