@@ -72,10 +72,10 @@ static TEE_Result pta_gpio_config(uint32_t param_types,
 
 	if (dir) {
 		/* Set GPIO to output with default value to 0 */
-		gc->ops->set_direction(gpio_num, GPIO_DIR_OUT);
-		gc->ops->set_value(gpio_num, 0);
+		gc->ops->set_direction(NULL, gpio_num, GPIO_DIR_OUT);
+		gc->ops->set_value(NULL, gpio_num, 0);
 	} else {
-		gc->ops->set_direction(gpio_num, GPIO_DIR_IN);
+		gc->ops->set_direction(NULL, gpio_num, GPIO_DIR_IN);
 	}
 
 	return res;
@@ -115,14 +115,15 @@ static TEE_Result pta_gpio_set(uint32_t param_types,
 	 * need to make sure the PIN is configured in
 	 * output direction.
 	 */
-	if (gc->ops->get_direction(gpio_num) != GPIO_DIR_OUT) {
+	if (gc->ops->get_direction(NULL, gpio_num) != GPIO_DIR_OUT) {
 		EMSG("gpio pin %u is configured as INPUT", gpio_num);
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
-	gc->ops->set_value(gpio_num, val);
+	gc->ops->set_value(NULL, gpio_num, val);
 
-	DMSG("GPIO(%d) value = 0x%08x", gpio_num, gc->ops->get_value(gpio_num));
+	DMSG("GPIO(%d) value = 0x%08x", gpio_num,
+	     gc->ops->get_value(NULL, gpio_num));
 
 	return res;
 }
@@ -153,7 +154,7 @@ static TEE_Result pta_gpio_get(uint32_t param_types,
 
 	gc = &bcm_gc->chip;
 
-	params[1].value.a = gc->ops->get_value(gpio_num);
+	params[1].value.a = gc->ops->get_value(NULL, gpio_num);
 
 	DMSG("gpio(%d) value = 0x%08x", gpio_num, params[1].value.a);
 
