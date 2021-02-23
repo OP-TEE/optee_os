@@ -76,6 +76,11 @@ R:	Jorge Ramirez <jorge@foundries.io>
 S:	Maintained
 F:	core/drivers/imx_i2c.c
 
+Core Drivers RNGB
+R:	Jorge Ramirez <jorge@foundries.io>
+S:	Maintained
+F:	core/drivers/imx_rngb.c
+
 Core Drivers SE050
 R:	Jorge Ramirez <jorge@foundries.io>
 S:	Maintained
