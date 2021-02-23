@@ -1245,8 +1245,6 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_AES_CBC_PAD:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
-	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
-	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		if (key_class == PKCS11_CKO_SECRET_KEY &&
 		    key_type == PKCS11_CKK_AES)
 			break;
@@ -1256,6 +1254,24 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 
 		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		if (key_class != PKCS11_CKO_SECRET_KEY &&
+		    key_type != PKCS11_CKK_AES)
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+
+		if (get_bool(head, PKCS11_CKA_ENCRYPT)) {
+			/*
+			 * Intentionally refuse to proceed despite
+			 * PKCS#11 specifications v2.40 and v3.0 not expecting
+			 * this behavior to avoid potential security issue
+			 * where keys derived by these mechanisms can be
+			 * revealed by doing data encryption using parent key.
+			 */
+			return PKCS11_CKR_FUNCTION_FAILED;
+		}
+
+		break;
 	case PKCS11_CKM_MD5_HMAC:
 	case PKCS11_CKM_SHA_1_HMAC:
 	case PKCS11_CKM_SHA224_HMAC:
