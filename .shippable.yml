@@ -81,7 +81,7 @@ build:
     - _make PLATFORM=imx-mx6ulevk
     - _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
     - _make PLATFORM=imx-mx6ul9x9evk
-    - _make PLATFORM=imx-mx6ullevk
+    - _make PLATFORM=imx-mx6ullevk CFG_WITH_SOFTWARE_PRNG=n CFG_IMX_RNGB=y
     - if [ -d /root/se050 ]; then _make PLATFORM=imx-mx6ullevk CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{RNG,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_PLUG_AND_TRUST_LIB=/root/se050/buildarm/libse050.a CFG_NXP_SE05X_PLUG_AND_TRUST=/root/se050; fi
     - _make PLATFORM=imx-mx6ulzevk
     - _make PLATFORM=imx-mx6slevk
