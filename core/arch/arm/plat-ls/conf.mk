@@ -8,6 +8,8 @@ $(call force,CFG_LS,y)
 $(call force,CFG_DRAM0_BASE,0x80000000)
 $(call force,CFG_TEE_OS_DRAM0_SIZE,0x4000000)
 
+CFG_CORE_HEAP_SIZE ?= 131072
+
 ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 $(call force,CFG_TEE_CORE_NB_CORE,1)
