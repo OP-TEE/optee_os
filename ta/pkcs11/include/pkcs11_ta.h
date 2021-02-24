@@ -679,6 +679,40 @@ enum pkcs11_ta_cmd {
 	 * C_GenerateKeyPair().
 	 */
 	PKCS11_CMD_GENERATE_KEY_PAIR = 50,
+
+	/*
+	 * PKCS11_CMD_WRAP_KEY - Wraps a private or secret key.
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit wrapping key handle,
+	 *              32bit key handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [out] memref[2] = wrapped key
+	 *
+	 * This command relates to the PKCS#11 API function C_WrapKey().
+	 */
+	PKCS11_CMD_WRAP_KEY = 51,
+
+	/*
+	 * PKCS11_CMD_UNWRAP_KEY - Unwraps a wrapped key, creating a new
+	 *                         private or secret key object.
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit unwrapping key handle,
+	 *              (struct pkcs11_attribute_head)mechanism + mecha params,
+	 *              (struct pkcs11_object_head)attribs + attributes data
+	 *	 ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 * [in]  memref[1] = wrapped key
+	 * [out] memref[2] = 32bit object handle
+	 *
+	 * This command relates to the PKCS#11 API function C_UnwrapKey().
+	 */
+	PKCS11_CMD_UNWRAP_KEY = 52,
 };
 
 /*
