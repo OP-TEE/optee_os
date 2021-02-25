@@ -813,7 +813,7 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 
 	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
 	if (rc)
-		goto out_free;
+		return rc;
 
 	rc = serialargs_alloc_get_attributes(&ctrlargs, &template);
 	if (rc)
@@ -1002,4 +1002,182 @@ enum pkcs11_rc entry_release_active_processing(struct pkcs11_client *client,
 	DMSG("PKCS11 session %"PRIu32": release processing", session->handle);
 
 	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
+			      uint32_t ptypes, TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	struct pkcs11_attribute_head *proc_params = NULL;
+	struct pkcs11_object *wrapping_key = NULL;
+	struct pkcs11_object *key = NULL;
+	void *req_attrs = NULL;
+	uint32_t wrapping_key_handle = 0;
+	uint32_t key_handle = 0;
+	uint32_t size = 0;
+	void *key_data = NULL;
+	uint32_t key_sz = 0;
+	void *out_buf = params[2].memref.buffer;
+	uint32_t out_size = params[2].memref.size;
+	const enum processing_func function = PKCS11_FUNCTION_WRAP;
+
+	if (!client || ptypes != exp_pt ||
+	    (out_size && !out_buf))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &wrapping_key_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_get(&ctrlargs, &key_handle, sizeof(uint32_t));
+	if (rc)
+		return rc;
+
+	rc = serialargs_alloc_get_one_attribute(&ctrlargs, &proc_params);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&ctrlargs)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out_free;
+	}
+
+	rc = get_ready_session(session);
+	if (rc)
+		goto out_free;
+
+	wrapping_key = pkcs11_handle2object(wrapping_key_handle, session);
+	if (!wrapping_key) {
+		rc = PKCS11_CKR_WRAPPING_KEY_HANDLE_INVALID;
+		goto out_free;
+	}
+
+	key = pkcs11_handle2object(key_handle, session);
+	if (!key) {
+		rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+		goto out_free;
+	}
+
+	/*
+	 * The wrapping key and key to be wrapped shouldn't be same.
+	 * PKCS#11 spec doesn't explicitly state that but logically this isn't
+	 * a use case and also acts as an attack vector, so explicitly
+	 * disallow this.
+	 */
+	if (key == wrapping_key) {
+		rc = PKCS11_CKR_WRAPPING_KEY_HANDLE_INVALID;
+		goto out_free;
+	}
+
+	rc = set_processing_state(session, function, wrapping_key, NULL);
+	if (rc)
+		goto out_free;
+
+	/* Check if mechanism can be used for wrapping function */
+	rc = check_mechanism_against_processing(session, proc_params->id,
+						function,
+						PKCS11_FUNC_STEP_INIT);
+	if (rc)
+		goto out;
+
+	/*
+	 * Check if wrapping key has CKA_WRAP set and its key type is
+	 * compatible with the mechanism passed
+	 */
+	rc = check_parent_attrs_against_processing(proc_params->id, function,
+						   wrapping_key->attributes);
+	if (rc) {
+		/*
+		 * CKR_KEY_FUNCTION_NOT_PERMITTED is not in the list of errors
+		 * specified with C_Wrap() in the specification. So
+		 * return the next most appropriate error.
+		 */
+		if (rc == PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED)
+			rc = PKCS11_CKR_WRAPPING_KEY_TYPE_INCONSISTENT;
+
+		goto out;
+	}
+
+	/* Check access of wrapping key */
+	rc = check_access_attrs_against_token(session,
+					      wrapping_key->attributes);
+	if (rc)
+		goto out;
+
+	switch (get_class(key->attributes)) {
+	case PKCS11_CKO_SECRET_KEY:
+		break;
+	/* Key type not supported as yet */
+	case PKCS11_CKO_PRIVATE_KEY:
+	default:
+		rc = PKCS11_CKR_KEY_NOT_WRAPPABLE;
+		goto out;
+	}
+
+	/* Check if key to be wrapped is extractable */
+	if (!get_bool(key->attributes, PKCS11_CKA_EXTRACTABLE)) {
+		DMSG("Extractable property is false");
+		rc = PKCS11_CKR_KEY_UNEXTRACTABLE;
+		goto out;
+	}
+
+	if (get_bool(key->attributes, PKCS11_CKA_WRAP_WITH_TRUSTED) &&
+	    !get_bool(wrapping_key->attributes, PKCS11_CKA_TRUSTED)) {
+		DMSG("Wrap with trusted not satisfied");
+		rc = PKCS11_CKR_KEY_NOT_WRAPPABLE;
+		goto out;
+	}
+
+	rc = check_access_attrs_against_token(session, key->attributes);
+	if (rc)
+		goto out;
+
+	rc = get_attribute_ptr(wrapping_key->attributes,
+			       PKCS11_CKA_WRAP_TEMPLATE, &req_attrs, &size);
+	if (rc == PKCS11_CKR_OK && size != 0) {
+		if (!attributes_match_reference(key->attributes, req_attrs)) {
+			rc = PKCS11_CKR_KEY_HANDLE_INVALID;
+			goto out;
+		}
+	}
+
+	rc = get_key_data_to_wrap(key->attributes, &key_data, &key_sz);
+	if (rc)
+		goto out;
+
+	if (processing_is_tee_symm(proc_params->id)) {
+		rc = init_symm_operation(session, PKCS11_FUNCTION_ENCRYPT,
+					 proc_params, wrapping_key);
+		if (rc)
+			goto out;
+
+		session->processing->mecha_type = proc_params->id;
+
+		rc = wrap_data_by_symm_enc(session, key_data, key_sz, out_buf,
+					   &out_size);
+	} else {
+		rc = PKCS11_CKR_MECHANISM_INVALID;
+	}
+
+	if (rc == PKCS11_CKR_OK || rc == PKCS11_CKR_BUFFER_TOO_SMALL)
+		params[2].memref.size = out_size;
+
+out:
+	release_active_processing(session);
+out_free:
+	TEE_Free(proc_params);
+	return rc;
 }

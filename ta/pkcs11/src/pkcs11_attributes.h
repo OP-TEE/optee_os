@@ -188,6 +188,9 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 			    size_t key_size);
 
+enum pkcs11_rc get_key_data_to_wrap(struct obj_attrs *head, void **data,
+				    uint32_t *sz);
+
 /*
  * Adds CKA_ID attribute from paired object if missing.
  *

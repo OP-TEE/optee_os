@@ -190,6 +190,8 @@ static const struct any_id __maybe_unused string_ta_cmd[] = {
 	PKCS11_ID(PKCS11_CMD_DIGEST_ONESHOT),
 	PKCS11_ID(PKCS11_CMD_DIGEST_FINAL),
 	PKCS11_ID(PKCS11_CMD_GENERATE_KEY_PAIR),
+	PKCS11_ID(PKCS11_CMD_WRAP_KEY),
+	PKCS11_ID(PKCS11_CMD_UNWRAP_KEY),
 };
 
 static const struct any_id __maybe_unused string_slot_flags[] = {
@@ -337,6 +339,9 @@ static const struct any_id __maybe_unused string_functions[] = {
 	PKCS11_ID(PKCS11_FUNCTION_DECRYPT),
 	PKCS11_ID(PKCS11_FUNCTION_SIGN),
 	PKCS11_ID(PKCS11_FUNCTION_VERIFY),
+	PKCS11_ID(PKCS11_FUNCTION_DERIVE),
+	PKCS11_ID(PKCS11_FUNCTION_WRAP),
+	PKCS11_ID(PKCS11_FUNCTION_UNWRAP),
 };
 
 /*

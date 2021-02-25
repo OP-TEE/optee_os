@@ -41,6 +41,9 @@ enum pkcs11_rc entry_release_active_processing(struct pkcs11_client *client,
 					       uint32_t ptypes,
 					       TEE_Param *params);
 
+enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
+			      uint32_t ptypes, TEE_Param *params);
+
 /*
  * Util
  */
@@ -90,6 +93,10 @@ enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 
 enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 				      void **out_buf, uint32_t *out_sz);
+
+enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
+				     void *data, uint32_t data_sz,
+				     void *out_buf, uint32_t *out_sz);
 
 /* Digest specific functions */
 bool processing_is_tee_digest(enum pkcs11_mechanism_id mecha_id);
