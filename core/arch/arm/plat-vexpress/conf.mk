@@ -69,6 +69,9 @@ CFG_SHMEM_SIZE   ?= 0x00200000
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+endif
 endif
 
 ifeq ($(PLATFORM_FLAVOR),juno)
@@ -125,6 +128,9 @@ CFG_SHMEM_SIZE  ?= 0x00200000
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+endif
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
