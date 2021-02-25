@@ -104,7 +104,7 @@
 #endif
 
 #ifndef __ASSEMBLER__
-static inline __noprof uint64_t barrier_read_cntpct(void)
+static inline __noprof uint64_t barrier_read_counter_timer(void)
 {
 	isb();
 	return read_cntpct();
