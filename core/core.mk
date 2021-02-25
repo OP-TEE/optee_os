@@ -146,6 +146,12 @@ libname = unw
 libdir = lib/libunw
 include mk/lib.mk
 
+ifeq ($(CFG_SCMI_SERVER),y)
+libname = scmi-server
+libdir = core/scmi-server
+include mk/lib.mk
+endif
+
 #
 # Do main source
 #
