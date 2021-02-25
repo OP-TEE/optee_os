@@ -73,7 +73,83 @@
 /* Special value for traffic targeted to the Hypervisor or SPM */
 #define FFA_TARGET_INFO_MBZ		U(0x0)
 
+/* Memory attributes: Normal memory, Write-Back cacheable, Inner shareable */
+#define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
+
+/* Memory access permissions: Read-write */
+#define FFA_MEM_ACC_RW			U(0x2)
+
+/* Clear memory before mapping in receiver */
+#define FFA_MEMORY_REGION_FLAG_CLEAR		BIT(0)
+/* Relayer may time slice this operation */
+#define FFA_MEMORY_REGION_FLAG_TIME_SLICE	BIT(1)
+/* Clear memory after receiver relinquishes it */
+#define FFA_MEMORY_REGION_FLAG_CLEAR_RELINQUISH	BIT(2)
+
+/* Share memory transaction */
+#define FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE SHIFT_U32(1, 3)
+/* Relayer must choose the alignment boundary */
+#define FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT	0
+
 /* Special value for MBZ parameters */
 #define FFA_PARAM_MBZ			U(0x0)
 
+#ifndef __ASSEMBLER__
+/* Constituent memory region descriptor */
+struct ffa_address_range {
+	uint64_t address;
+	uint32_t page_count;
+	uint32_t reserved;
+};
+
+/* Composite memory region descriptor */
+struct ffa_mem_region {
+	uint32_t total_page_count;
+	uint32_t address_range_count;
+	uint64_t reserved;
+	struct ffa_address_range address_range_array[];
+};
+
+/* Memory access permissions descriptor */
+struct ffa_mem_access_perm {
+	uint16_t endpoint_id;
+	uint8_t perm;
+	uint8_t flags;
+};
+
+/* Endpoint memory access descriptor */
+struct ffa_mem_access {
+	struct ffa_mem_access_perm access_perm;
+	uint32_t region_offs;
+	uint64_t reserved;
+};
+
+/* Lend, donate or share memory transaction descriptor */
+struct ffa_mem_transaction {
+	uint16_t sender_id;
+	uint8_t mem_reg_attr;
+	uint8_t reserved0;
+	uint32_t flags;
+	uint64_t global_handle;
+	uint64_t tag;
+	uint32_t reserved1;
+	uint32_t mem_access_count;
+	struct ffa_mem_access mem_access_array[];
+};
+
+/* Partition information descriptor */
+struct ffa_partition_info {
+	uint16_t id;
+	uint16_t execution_context;
+	uint32_t partition_properties;
+};
+
+/* Descriptor to relinquish a memory region (FFA_MEM_RELINQUISH) */
+struct ffa_mem_relinquish {
+	uint64_t handle;
+	uint32_t flags;
+	uint32_t endpoint_count;
+	uint16_t endpoint_id_array[];
+};
+#endif /*__ASSEMBLER__*/
 #endif /* __FFA_H */

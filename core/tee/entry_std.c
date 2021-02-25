@@ -67,7 +67,7 @@ static TEE_Result set_fmem_param(const struct optee_msg_param_fmem *fmem,
 	uint64_t global_id = READ_ONCE(fmem->global_id);
 	size_t sz = READ_ONCE(fmem->size);
 
-	if (!global_id && !sz) {
+	if (global_id == OPTEE_MSG_FMEM_INVALID_GLOBAL_ID && !sz) {
 		mem->mobj = NULL;
 		mem->offs = 0;
 		mem->size = 0;

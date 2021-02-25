@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2019-2021, Linaro Limited
  */
 
 /*
  * This file is exported by OP-TEE and is kept in sync between secure world
- * and normal world drivers. We're using ARM FF-A 1.0 EAC specification.
+ * and normal world drivers. We're using ARM FF-A 1.0 specification.
  */
 
 #ifndef __OPTEE_FFA_H
@@ -27,8 +27,8 @@
  * w3-w7: Implementation defined, free to be used below
  */
 
-#define OPTEE_FFA_VERSION_MAJOR	UINT32_C(0)
-#define OPTEE_FFA_VERSION_MINOR	UINT32_C(9)
+#define OPTEE_FFA_VERSION_MAJOR	UINT32_C(1)
+#define OPTEE_FFA_VERSION_MINOR	UINT32_C(0)
 
 #define OPTEE_FFA_BLOCKING_CALL(id)	UINT32_C(id)
 #define OPTEE_FFA_YIELDING_CALL_BIT	31
@@ -78,12 +78,28 @@
  *
  * Return register usage:
  * w3:    Error code, 0 on success
- * w4:    Bit[1:0]:  Number of 4kB pages of shared memory to register with
- *                   OPTEE_FFA_REGISTER_RPC_SHM to support RPC
- *        Bit[31:2]: Reserved (MBZ)
+ * w4:    Bit[7:0]:  Number of parameters needed for RPC to be supplied
+ *                   as the second MSG arg struct for
+ *                   OPTEE_FFA_YIELDING_CALL_WITH_ARG.
+ *        Bit[31:8]: Reserved (MBZ)
  * w5-w7: Note used (MBZ)
  */
 #define OPTEE_FFA_EXCHANGE_CAPABILITIES OPTEE_FFA_BLOCKING_CALL(2)
+
+/*
+ * Unregister shared memory
+ *
+ * Call register usage:
+ * w3:    Service ID, OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM
+ * w4:    Shared memory handle, lower bits
+ * w5:    Shared memory handle, higher bits
+ * w6-w7: Not used (MBZ)
+ *
+ * Return register usage:
+ * w3:    Error code, 0 on success
+ * w4-w7: Note used (MBZ)
+ */
+#define OPTEE_FFA_UNREGISTER_SHM	OPTEE_FFA_BLOCKING_CALL(3)
 
 /*
  * Call with struct optee_msg_arg as argument in the supplied shared memory
@@ -93,35 +109,14 @@
  * w4:    Lower 32 bits of a 64-bit Shared memory handle
  * w5:    Upper 32 bits of a 64-bit Shared memory handle
  * w6:    Offset into shared memory pointing to a struct optee_msg_arg
+ *	  right after the parameters of this struct (at offset
+ *	  OPTEE_MSG_GET_ARG_SIZE(num_params) follows a struct optee_msg_arg
+ *	  for RPC, this struct has reserved space for the number of RPC
+ *	  parameters as returned by OPTEE_FFA_EXCHANGE_CAPABILITIES.
  * w7:    Not used (MBZ)
- *
- * Call to register shared memory. The data is supplied in shared
- * memory with a zero internal offset and normal cached memory attributes.
- * The data is formatted as described in FF-A 1.0 EAC Table 44
- * "Lend, donate or share memory transaction descriptor".
- * Register usage:
- * w3:    Service ID, OPTEE_FFA_YIELDING_CALL_REGISTER_SHM
- * w4:    Lower 32 bits of a 64-bit Shared memory handle
- * w5:    Upper 32 bits of a 64-bit Shared memory handle
- * w6-w7: Not used (MBZ)
- *
- * Call to unregister shared memory. Register usage:
- * w3:    Service ID, OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM
- * w4:    Lower 32 bits of a 64-bit Shared memory handle
- * w5:    Upper 32 bits of a 64-bit Shared memory handle
- * w6-w7: Not used (MBZ)
- *
  * Resume from RPC. Register usage:
  * w3:    Service ID, OPTEE_FFA_YIELDING_CALL_RESUME
- * If returning from OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_SHM:
- *	w4:    Lower 32 bits of a 64-bit Shared memory handle
- *	w5:    Upper 32 bits of a 64-bit Shared memory handle
- *	       If the allocation failed both w4 and w5 are 0
- *	w6:    Offset into shared memory pointing the table. If internal
- *	       offset > 0 then one more 4kB page than requested has been
- *	       allocated.
- * else if resuming from another RPC:
- *	w4-w6: Not used (MBZ)
+ * w4-w6: Not used (MBZ)
  * w7:    Resume info
  *
  * Normal return (yielding call is completed). Register usage:
@@ -129,51 +124,18 @@
  * w4:    OPTEE_FFA_YIELDING_CALL_RETURN_DONE
  * w5-w7: Not used (MBZ)
  *
- * Alloc SHM return (RPC from secure world). Register usage:
- * w3:    Error code == 0
- * w4:    OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_KERN_SHM or
- *	  OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_SUPPL_SHM
- *	  allocate kernel private or supplicant memory respectively.
- * w5:    Number of 4kB pages of shared memory
- * w6:    Not used (MBZ)
- * w7:    Resume info
- *
- * Free SHM return (RPC from secure world). Register usage:
- * w3:    Error code == 0
- * w4:    OPTEE_FFA_YIELDING_CALL_RETURN_FREE_KERN_SHM or
- *	  OPTEE_FFA_YIELDING_CALL_RETURN_FREE_SUPPL_SHM
- *	  free kernel private or supplicant memory respectively.
- * w5:    Lower 32 bits of a 64-bit Shared memory handle
- * w6:    Upper 32 bits of a 64-bit Shared memory handle
- *	  The handle previously allocated with
- *	  OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_KERN_SHM or
- *	  OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_SUPPL_SHM.
- * w7:    Resume info
- *
- * RPC cmd return (RPC from secure world). Register usage:
- * w3:    Error code == 0
- * w4:    OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD
- * w5:    Lower 32 bits of a 64-bit Shared memory handle
- * w6:    Upper 32 bits of a 64-bit Shared memory handle
- *	  The handle contains aed the RPC.
- * w7:    Resume info
- *
  * RPC interrupt return (RPC from secure world). Register usage:
  * w3:    Error code == 0
- * w4:    OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT
+ * w4:    Any defined RPC code but OPTEE_FFA_YIELDING_CALL_RETURN_DONE
  * w5-w6: Not used (MBZ)
  * w7:    Resume info
  *
  * Possible error codes in register w3:
  * 0:                       Success
- * FFA_DENIED:              w4 isn't one of OPTEE_FFA_YIELDING_CALL_START
- *                          OPTEE_FFA_YIELDING_CALL_REGISTER_SHM,
- *                          OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM or
+ * FFA_DENIED:             w4 isn't one of OPTEE_FFA_YIELDING_CALL_START
  *                          OPTEE_FFA_YIELDING_CALL_RESUME
  *
  * Possible error codes for OPTEE_FFA_YIELDING_CALL_START,
- * OPTEE_FFA_YIELDING_CALL_REGISTER_SHM and
- * OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM
  * FFA_BUSY:               Number of OP-TEE OS threads exceeded,
  *                         try again later
  * FFA_DENIED:             RPC shared memory object not found
@@ -183,19 +145,10 @@
  * FFA_INVALID_PARAMETER:  Bad resume info
  */
 #define OPTEE_FFA_YIELDING_CALL_WITH_ARG	OPTEE_FFA_YIELDING_CALL(0)
-#define OPTEE_FFA_YIELDING_CALL_REGISTER_SHM	OPTEE_FFA_YIELDING_CALL(1)
-#define OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM	OPTEE_FFA_YIELDING_CALL(2)
-#define OPTEE_FFA_YIELDING_CALL_RESUME		OPTEE_FFA_YIELDING_CALL(3)
+#define OPTEE_FFA_YIELDING_CALL_RESUME		OPTEE_FFA_YIELDING_CALL(1)
 
 #define OPTEE_FFA_YIELDING_CALL_RETURN_DONE		0
-#define OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_KERN_SHM	1
-#define OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_SUPPL_SHM	2
-#define OPTEE_FFA_YIELDING_CALL_RETURN_RESERVED0	3
-#define OPTEE_FFA_YIELDING_CALL_RETURN_FREE_KERN_SHM	4
-#define OPTEE_FFA_YIELDING_CALL_RETURN_FREE_SUPPL_SHM	5
-#define OPTEE_FFA_YIELDING_CALL_RETURN_RESERVED1	6
-#define OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD		7
-#define OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT	8
+#define OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD		1
+#define OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT	2
 
 #endif /*__OPTEE_FFA_H*/
-
