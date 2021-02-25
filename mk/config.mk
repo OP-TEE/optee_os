@@ -752,6 +752,27 @@ $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT)
 $(eval $(call cfg-depends-one,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
 endif
 
+# CFG_SCMI_SERVER, when enabled, embeds the reference SCMI server implementation
+# from SCP-firmware package as an built-in SCMI stack in core. This
+# configuration mandates target product identifier is configured with
+# CFG_SCMI_SERVER_PRODUCT and the SCP-firmware source tree path with
+# CFG_SCP_FIRMWARE.
+CFG_SCMI_SERVER ?= n
+
+ifeq ($(CFG_SCMI_SERVER),y)
+$(call force,CFG_SCMI_PTA,y,Required by CFG_SCMI_SERVER)
+ifeq (,$(CFG_SCMI_SERVER_PRODUCT))
+$(error CFG_SCMI_SERVER=y mandates CFG_SCMI_SERVER_PRODUCT configuration)
+endif
+ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
+$(error CFG_SCMI_SERVER=y mandates CFG_SCP_FIRMWARE configuration)
+endif
+endif #CFG_SCMI_SERVER
+
+ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SERVER),y-y)
+$(error CFG_SCMI_MSG_DRIVERS=y and CFG_SCMI_SERVER=y are mutually exclusive)
+endif
+
 # Enable SCMI PTA interface for REE SCMI agents
 CFG_SCMI_PTA ?= n
 
