@@ -789,6 +789,27 @@ _CFG_SCMI_PTA_MSG_HEADER := y
 endif
 endif
 
+# CFG_SCMI_SCPFW, when enabled, embeds the reference SCMI server implementation
+# from SCP-firmware package as an built-in SCMI stack in core. This
+# configuration mandates target product identifier is configured with
+# CFG_SCMI_SCPFW_PRODUCT and the SCP-firmware source tree path with
+# CFG_SCP_FIRMWARE.
+CFG_SCMI_SCPFW ?= n
+
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_PTA,y,Required by CFG_SCMI_SCPFW)
+ifeq (,$(CFG_SCMI_SCPFW_PRODUCT))
+$(error CFG_SCMI_SCPFW=y requires CFG_SCMI_SCPFW_PRODUCT configuration)
+endif
+ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
+$(error CFG_SCMI_SCPFW=y requires CFG_SCP_FIRMWARE configuration)
+endif
+endif #CFG_SCMI_SCPFW
+
+ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SCPFW),y-y)
+$(error CFG_SCMI_MSG_DRIVERS=y and CFG_SCMI_SCPFW=y are mutually exclusive)
+endif
+
 # Enable SCMI PTA interface for REE SCMI agents
 CFG_SCMI_PTA ?= n
 ifeq ($(CFG_SCMI_PTA),y)
