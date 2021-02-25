@@ -314,6 +314,12 @@ enum crypto_rng_src {
 	CRYPTO_RNG_SRC_NONSECURE	= (1 << 1 | 0),
 };
 
+enum crypto_rng_quality {
+	CRYPTO_RNG_IS_HW        = (1 << 10),
+	CRYPTO_RNG_IS_HW_SEEDED = (1 << 7),
+	CRYPTO_RNG_IS_SW        = (1 << 1),
+};
+
 /*
  * crypto_rng_init() - initialize the RNG
  * @data:	buffer with initial seed
@@ -346,6 +352,16 @@ void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
  * function call.
  */
 TEE_Result crypto_rng_read(void *buf, size_t len);
+
+/*
+ * crypto_rng_get_info() - get the RNG quality information
+ *
+ * @quality:
+ *   CRYPTO_RNG_IS_HW        : HWRNG or PRNG with high frequency HWRNG seeding,
+ *   CRYPTO_RNG_IS_HW_SEEDED : PRNG with low frequency HWRNG seeding,
+ *   CRYPTO_RNG_IS_SW        : PRNG
+ */
+void crypto_rng_get_info(enum crypto_rng_quality *quality);
 
 /*
  * crypto_aes_expand_enc_key() - Expand an AES key

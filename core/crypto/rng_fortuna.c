@@ -529,3 +529,9 @@ TEE_Result crypto_rng_read(void *buf, size_t blen)
 		offs += n;
 	}
 }
+
+void crypto_rng_get_info(enum crypto_rng_quality *quality)
+{
+	*quality = CRYPTO_RNG_IS_SW;
+}
+

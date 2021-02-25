@@ -20,6 +20,14 @@ void __weak crypto_rng_add_event(enum crypto_rng_src sid __unused,
 {
 }
 
+void __weak crypto_rng_get_info(enum crypto_rng_quality *quality)
+{
+	if (!quality)
+		return;
+
+	*quality = CRYPTO_RNG_IS_HW;
+}
+
 TEE_Result __weak crypto_rng_read(void *buf, size_t blen)
 {
 	uint8_t *b = buf;
