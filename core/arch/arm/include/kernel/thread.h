@@ -776,6 +776,12 @@ enum thread_shm_cache_user {
 void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
 				 enum thread_shm_type shm_type,
 				 size_t size, struct mobj **mobj);
+
+#if defined(CFG_CORE_SEL2_SPMC)
+struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie);
+void thread_spmc_relinquish(uint64_t memory_region_handle);
+#endif
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*KERNEL_THREAD_H*/

@@ -222,6 +222,12 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
 #endif
+#ifdef CFG_CORE_SEL2_SPMC
+struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
+					unsigned int num_pages);
+void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mobj);
+#endif
+
 uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mobj, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages);
