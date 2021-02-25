@@ -95,10 +95,10 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
 	if (i != -1) {
 		bit_set(shm_bits, i);
 		/*
-		 * + 1 to avoid a cookie value 0, setting bit 44 to use one
-		 * of the upper 32 bits too for testing.
+		 * Setting bit 44 to use one of the upper 32 bits too for
+		 * testing.
 		 */
-		mf->cookie = (i + 1) | BIT64(44);
+		mf->cookie = i | BIT64(44);
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
@@ -171,7 +171,7 @@ static struct mobj_ffa *find_in_list(struct mobj_ffa_head *head,
 #ifdef CFG_CORE_SEL1_SPMC
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 {
-	int i = (mf->cookie - 1) & ~BIT64(44);
+	int i = mf->cookie & ~BIT64(44);
 	uint32_t exceptions = 0;
 
 	assert(i >= 0 && i < NUM_SHMS);
@@ -275,6 +275,7 @@ TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie)
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
 
+	assert(cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID);
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
 	mf = find_in_list(&shm_head, cmp_cookie, cookie);
 	/*

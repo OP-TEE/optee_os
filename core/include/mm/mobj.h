@@ -15,6 +15,8 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
+#include <optee_msg.h>
+
 struct mobj {
 	const struct mobj_ops *ops;
 	size_t size;
@@ -165,7 +167,11 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 	if (mobj && mobj->ops && mobj->ops->get_cookie)
 		return mobj->ops->get_cookie(mobj);
 
+#if defined(CFG_CORE_SEL1_SPMC) || defined(CFG_CORE_SEL2_SPMC)
+	return OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
+#else
 	return 0;
+#endif
 }
 
 static inline struct fobj *mobj_get_fobj(struct mobj *mobj)

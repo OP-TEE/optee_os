@@ -27,54 +27,6 @@
 
 #include "thread_private.h"
 
-/* Table 39: Constituent memory region descriptor */
-struct constituent_address_range {
-	uint64_t address;
-	uint32_t page_count;
-	uint32_t reserved;
-};
-
-/* Table 38: Composite memory region descriptor */
-struct mem_region_descr {
-	uint32_t total_page_count;
-	uint32_t address_range_count;
-	uint64_t reserved;
-	struct constituent_address_range address_range_array[];
-};
-
-/* Table 40: Memory access permissions descriptor */
-struct mem_access_perm_descr {
-	uint16_t endpoint_id;
-	uint8_t access_perm;
-	uint8_t flags;
-};
-
-/* Table 41: Endpoint memory access descriptor */
-struct mem_accsess_descr {
-	struct mem_access_perm_descr mem_access_perm_descr;
-	uint32_t mem_region_offs;
-	uint64_t reserved;
-};
-
-/* Table 44: Lend, donate or share memory transaction descriptor */
-struct mem_transaction_descr {
-	uint16_t sender_id;
-	uint8_t mem_reg_attr;
-	uint8_t reserved0;
-	uint32_t flags;
-	uint64_t global_handle;
-	uint64_t tag;
-	uint32_t reserved1;
-	uint32_t mem_access_descr_count;
-	struct mem_accsess_descr mem_accsess_descr_array[];
-};
-
-struct ffa_partition_info {
-	uint16_t id;
-	uint16_t execution_context;
-	uint32_t partition_properties;
-};
-
 struct mem_share_state {
 	struct mobj_ffa *mf;
 	unsigned int page_count;
@@ -348,12 +300,17 @@ static bool is_nil_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 	return !w0 && !w1 && !w2 && !w3;
 }
 
-static bool is_optee_os_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
+static bool is_my_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 {
-	return w0 == OPTEE_MSG_OS_OPTEE_UUID_0 &&
-	       w1 == OPTEE_MSG_OS_OPTEE_UUID_1 &&
-	       w2 == OPTEE_MSG_OS_OPTEE_UUID_2 &&
-	       w3 == OPTEE_MSG_OS_OPTEE_UUID_3;
+	/*
+	 * This depends on which UUID we have been assigned.
+	 * TODO add a generic mechanism to obtain our UUID.
+	 *
+	 * The test below is for the hard coded UUID
+	 * 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
+	 */
+	return w0 == 0xe0786148 && w1 == 0xe311f8e7 &&
+	       w2 == 0x02005ebc && w3 == 0x1bc5d5a5;
 }
 
 static void handle_partition_info_get(struct thread_smc_args *args,
@@ -363,7 +320,7 @@ static void handle_partition_info_get(struct thread_smc_args *args,
 	int rc = 0;
 
 	if (!is_nil_uuid(args->a1, args->a2, args->a3, args->a4) &&
-	    !is_optee_os_uuid(args->a1, args->a2, args->a3, args->a4)) {
+	    !is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
 		ret_fid = FFA_ERROR;
 		rc = FFA_INVALID_PARAMETERS;
 		goto out;
@@ -396,7 +353,7 @@ out:
 
 static void handle_yielding_call(struct thread_smc_args *args)
 {
-	uint32_t ret_val = 0;
+	TEE_Result res = 0;
 
 	thread_check_canaries();
 
@@ -404,14 +361,33 @@ static void handle_yielding_call(struct thread_smc_args *args)
 		/* Note connection to struct thread_rpc_arg::ret */
 		thread_resume_from_rpc(args->a7, args->a4, args->a5, args->a6,
 				       0);
-		ret_val = FFA_INVALID_PARAMETERS;
+		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
 		thread_alloc_and_run(args->a1, args->a3, args->a4, args->a5,
 				     args->a6, args->a7);
-		ret_val = FFA_BUSY;
+		res = TEE_ERROR_BUSY;
 	}
-	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32, swap_src_dst(args->a1),
-		      0, ret_val, 0, 0);
+	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+		      swap_src_dst(args->a1), 0, res, 0, 0);
+}
+
+static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
+{
+	uint64_t cookie = reg_pair_to_64(a5, a4);
+	uint32_t res = 0;
+
+	res = mobj_ffa_unregister_by_cookie(cookie);
+	switch (res) {
+	case TEE_SUCCESS:
+	case TEE_ERROR_ITEM_NOT_FOUND:
+		return 0;
+	case TEE_ERROR_BUSY:
+		EMSG("res %#"PRIx32, res);
+		return FFA_BUSY;
+	default:
+		EMSG("res %#"PRIx32, res);
+		return FFA_INVALID_PARAMETERS;
+	}
 }
 
 static void handle_blocking_call(struct thread_smc_args *args)
@@ -431,7 +407,13 @@ static void handle_blocking_call(struct thread_smc_args *args)
 		break;
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
 		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0, 0, 0, 0);
+			      swap_src_dst(args->a1), 0, 0,
+			      THREAD_RPC_MAX_NUM_PARAMS, 0);
+		break;
+	case OPTEE_FFA_UNREGISTER_SHM:
+		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+			      swap_src_dst(args->a1), 0,
+			      handle_unregister_shm(args->a4, args->a5), 0, 0);
 		break;
 	default:
 		EMSG("Unhandled blocking service ID %#"PRIx32,
@@ -440,19 +422,18 @@ static void handle_blocking_call(struct thread_smc_args *args)
 	}
 }
 
-static int get_acc_perms(struct mem_accsess_descr *mem_acc,
+static int get_acc_perms(struct ffa_mem_access *mem_acc,
 			 unsigned int num_mem_accs, uint8_t *acc_perms,
 			 unsigned int *region_offs)
 {
 	unsigned int n = 0;
 
 	for (n = 0; n < num_mem_accs; n++) {
-		struct mem_access_perm_descr *descr =
-			&mem_acc[n].mem_access_perm_descr;
+		struct ffa_mem_access_perm *descr = &mem_acc[n].access_perm;
 
 		if (READ_ONCE(descr->endpoint_id) == SPMC_ENDPOINT_ID) {
-			*acc_perms = READ_ONCE(descr->access_perm);
-			*region_offs = READ_ONCE(mem_acc[n].mem_region_offs);
+			*acc_perms = READ_ONCE(descr->perm);
+			*region_offs = READ_ONCE(mem_acc[n].region_offs);
 			return 0;
 		}
 	}
@@ -463,25 +444,24 @@ static int get_acc_perms(struct mem_accsess_descr *mem_acc,
 static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 			  unsigned int *region_count, size_t *addr_range_offs)
 {
-	struct mem_region_descr *region_descr = NULL;
-	struct mem_transaction_descr *descr = NULL;
-	const uint8_t exp_mem_acc_perm = 0x6; /* Not executable, Read-write */
-	/* Normal memory, Write-Back cacheable, Inner shareable */
-	const uint8_t exp_mem_reg_attr = 0x2f;
+	const uint8_t exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
+	struct ffa_mem_region *region_descr = NULL;
+	struct ffa_mem_transaction *descr = NULL;
 	unsigned int num_mem_accs = 0;
 	uint8_t mem_acc_perm = 0;
 	unsigned int region_descr_offs = 0;
 	size_t n = 0;
 
-	if (!ALIGNMENT_IS_OK(buf, struct mem_transaction_descr) ||
-	    blen < sizeof(struct mem_transaction_descr))
+	if (!ALIGNMENT_IS_OK(buf, struct ffa_mem_transaction) ||
+	    blen < sizeof(struct ffa_mem_transaction))
 		return FFA_INVALID_PARAMETERS;
 
 	descr = buf;
 
 	/* Check that the endpoint memory access descriptor array fits */
-	num_mem_accs = READ_ONCE(descr->mem_access_descr_count);
-	if (MUL_OVERFLOW(sizeof(struct mem_accsess_descr), num_mem_accs, &n) ||
+	num_mem_accs = READ_ONCE(descr->mem_access_count);
+	if (MUL_OVERFLOW(sizeof(struct ffa_mem_access), num_mem_accs, &n) ||
 	    ADD_OVERFLOW(sizeof(*descr), n, &n) || n > blen)
 		return FFA_INVALID_PARAMETERS;
 
@@ -489,7 +469,7 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 		return FFA_INVALID_PARAMETERS;
 
 	/* Check that the access permissions matches what's expected */
-	if (get_acc_perms(descr->mem_accsess_descr_array,
+	if (get_acc_perms(descr->mem_access_array,
 			  num_mem_accs, &mem_acc_perm, &region_descr_offs) ||
 	    mem_acc_perm != exp_mem_acc_perm)
 		return FFA_INVALID_PARAMETERS;
@@ -500,11 +480,11 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 		return FFA_INVALID_PARAMETERS;
 
 	if (!ALIGNMENT_IS_OK((vaddr_t)descr + region_descr_offs,
-			     struct mem_region_descr))
+			     struct ffa_mem_region))
 		return FFA_INVALID_PARAMETERS;
 
-	region_descr = (struct mem_region_descr *)((vaddr_t)descr +
-						    region_descr_offs);
+	region_descr = (struct ffa_mem_region *)((vaddr_t)descr +
+						 region_descr_offs);
 	*page_count = READ_ONCE(region_descr->total_page_count);
 	*region_count = READ_ONCE(region_descr->address_range_count);
 	*addr_range_offs = n;
@@ -514,15 +494,14 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 static int add_mem_share_helper(struct mem_share_state *s, void *buf,
 				size_t flen)
 {
-	unsigned int region_count = flen /
-				    sizeof(struct constituent_address_range);
-	struct constituent_address_range *arange = NULL;
+	unsigned int region_count = flen / sizeof(struct ffa_address_range);
+	struct ffa_address_range *arange = NULL;
 	unsigned int n = 0;
 
 	if (region_count > s->region_count)
 		region_count = s->region_count;
 
-	if (!ALIGNMENT_IS_OK(buf, struct constituent_address_range))
+	if (!ALIGNMENT_IS_OK(buf, struct ffa_address_range))
 		return FFA_INVALID_PARAMETERS;
 	arange = buf;
 
@@ -588,7 +567,7 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 		return rc;
 
 	if (MUL_OVERFLOW(share.region_count,
-			 sizeof(struct constituent_address_range), &n) ||
+			 sizeof(struct ffa_address_range), &n) ||
 	    ADD_OVERFLOW(n, addr_range_offs, &n) || n > blen)
 		return FFA_INVALID_PARAMETERS;
 
@@ -908,12 +887,15 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	}
 }
 
-static uint32_t yielding_call_with_arg(uint64_t cookie)
+static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 {
+	size_t sz_rpc = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+	struct thread_ctx *thr = threads + thread_get_id();
 	uint32_t rv = TEE_ERROR_BAD_PARAMETERS;
 	struct optee_msg_arg *arg = NULL;
 	struct mobj *mobj = NULL;
 	uint32_t num_params = 0;
+	size_t sz = 0;
 
 	mobj = mobj_ffa_get_by_cookie(cookie, 0);
 	if (!mobj) {
@@ -926,7 +908,7 @@ static uint32_t yielding_call_with_arg(uint64_t cookie)
 		goto out_put_mobj;
 
 	rv = TEE_ERROR_BAD_PARAMETERS;
-	arg = mobj_get_va(mobj, 0);
+	arg = mobj_get_va(mobj, offset);
 	if (!arg)
 		goto out_dec_map;
 
@@ -937,35 +919,21 @@ static uint32_t yielding_call_with_arg(uint64_t cookie)
 	if (num_params > OPTEE_MSG_MAX_NUM_PARAMS)
 		goto out_dec_map;
 
-	if (!mobj_get_va(mobj, OPTEE_MSG_GET_ARG_SIZE(num_params)))
+	sz = OPTEE_MSG_GET_ARG_SIZE(num_params);
+	thr->rpc_arg = mobj_get_va(mobj, offset + sz);
+	if (!thr->rpc_arg || !mobj_get_va(mobj, offset + sz + sz_rpc))
 		goto out_dec_map;
 
 	rv = tee_entry_std(arg, num_params);
 
-	thread_rpc_shm_cache_clear(&threads[thread_get_id()].shm_cache);
+	thread_rpc_shm_cache_clear(&thr->shm_cache);
+	thr->rpc_arg = NULL;
 
 out_dec_map:
 	mobj_dec_map(mobj);
 out_put_mobj:
 	mobj_put(mobj);
 	return rv;
-}
-
-static uint32_t yielding_unregister_shm(uint64_t cookie)
-{
-	uint32_t res = mobj_ffa_unregister_by_cookie(cookie);
-
-	switch (res) {
-	case TEE_SUCCESS:
-	case TEE_ERROR_ITEM_NOT_FOUND:
-		return 0;
-	case TEE_ERROR_BUSY:
-		EMSG("res %#"PRIx32, res);
-		return FFA_BUSY;
-	default:
-		EMSG("res %#"PRIx32, res);
-		return FFA_INVALID_PARAMETERS;
-	}
 }
 
 /*
@@ -976,8 +944,7 @@ static uint32_t yielding_unregister_shm(uint64_t cookie)
  */
 uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
 				       uint32_t a2, uint32_t a3,
-				       uint32_t a4 __unused,
-				       uint32_t a5 __unused)
+				       uint32_t a4, uint32_t a5 __unused)
 {
 	/*
 	 * Arguments are supplied from handle_yielding_call() as:
@@ -989,16 +956,9 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
 	 * a5 <- w7
 	 */
 	thread_get_tsd()->rpc_target_info = swap_src_dst(a0);
-	switch (a1) {
-	case OPTEE_FFA_YIELDING_CALL_WITH_ARG:
-		return yielding_call_with_arg(reg_pair_to_64(a3, a2));
-	case OPTEE_FFA_YIELDING_CALL_REGISTER_SHM:
-		return FFA_NOT_SUPPORTED;
-	case OPTEE_FFA_YIELDING_CALL_UNREGISTER_SHM:
-		return yielding_unregister_shm(reg_pair_to_64(a3, a2));
-	default:
-		return FFA_DENIED;
-	}
+	if (a1 == OPTEE_FFA_YIELDING_CALL_WITH_ARG)
+		return yielding_call_with_arg(reg_pair_to_64(a3, a2), a4);
+	return FFA_DENIED;
 }
 
 static bool set_fmem(struct optee_msg_param *param, struct thread_param *tpm)
@@ -1015,101 +975,22 @@ static bool set_fmem(struct optee_msg_param *param, struct thread_param *tpm)
 
 	param->u.fmem.size = tpm->u.memref.size;
 	if (tpm->u.memref.mobj) {
-		param->u.fmem.global_id = mobj_get_cookie(tpm->u.memref.mobj);
-		if (!param->u.fmem.global_id)
+		uint64_t cookie = mobj_get_cookie(tpm->u.memref.mobj);
+
+		/* If a mobj is passed it better be one with a valid cookie. */
+		if (cookie == OPTEE_MSG_FMEM_INVALID_GLOBAL_ID)
 			return false;
+		param->u.fmem.global_id = cookie;
 	} else {
-		param->u.fmem.global_id = 0;
+		param->u.fmem.global_id = OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
 	}
 
 	return true;
 }
 
-static void thread_rpc_free(uint32_t type, uint64_t cookie, struct mobj *mobj)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct thread_rpc_arg rpc_arg = { .call = {
-			.w1 = thread_get_tsd()->rpc_target_info,
-			.w4 = type,
-		},
-	};
-
-	reg_pair_from_64(cookie, &rpc_arg.call.w6, &rpc_arg.call.w5);
-	mobj_put(mobj);
-	res = mobj_ffa_unregister_by_cookie(cookie);
-	if (res)
-		DMSG("mobj_ffa_unregister_by_cookie(%#"PRIx64"): res %#"PRIx32,
-		     cookie, res);
-	thread_rpc(&rpc_arg);
-}
-
-static struct mobj *thread_rpc_alloc(size_t size, uint32_t type)
-{
-	struct mobj *mobj = NULL;
-	unsigned int page_count = ROUNDUP(size, SMALL_PAGE_SIZE) /
-				  SMALL_PAGE_SIZE;
-	struct thread_rpc_arg rpc_arg = { .call = {
-			.w1 = thread_get_tsd()->rpc_target_info,
-			.w4 = type,
-			.w5 = page_count,
-		},
-	};
-	unsigned int internal_offset = 0;
-	uint64_t cookie = 0;
-
-	thread_rpc(&rpc_arg);
-
-	cookie = reg_pair_to_64(rpc_arg.ret.w5, rpc_arg.ret.w4);
-	if (!cookie)
-		return NULL;
-	internal_offset = rpc_arg.ret.w6;
-
-	mobj = mobj_ffa_get_by_cookie(cookie, internal_offset);
-	if (!mobj) {
-		DMSG("mobj_ffa_get_by_cookie(%#"PRIx64", %#x): failed",
-		     cookie, internal_offset);
-		return NULL;
-	}
-
-	assert(mobj_is_nonsec(mobj));
-
-	if (mobj_inc_map(mobj)) {
-		DMSG("mobj_inc_map(%#"PRIx64"): failed", cookie);
-		mobj_put(mobj);
-		return NULL;
-	}
-
-	return mobj;
-}
-
-struct mobj *thread_rpc_alloc_payload(size_t size)
-{
-	return thread_rpc_alloc(size,
-				OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_SUPPL_SHM);
-}
-
-void thread_rpc_free_payload(struct mobj *mobj)
-{
-	thread_rpc_free(OPTEE_FFA_YIELDING_CALL_RETURN_FREE_SUPPL_SHM,
-			mobj_get_cookie(mobj), mobj);
-}
-
-struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
-{
-	return thread_rpc_alloc(size,
-				OPTEE_FFA_YIELDING_CALL_RETURN_ALLOC_KERN_SHM);
-}
-
-void thread_rpc_free_kernel_payload(struct mobj *mobj)
-{
-	thread_rpc_free(OPTEE_FFA_YIELDING_CALL_RETURN_FREE_KERN_SHM,
-			mobj_get_cookie(mobj), mobj);
-}
-
 static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
 			    struct thread_param *params,
-			    struct optee_msg_arg **arg_ret,
-			    uint64_t *carg_ret)
+			    struct optee_msg_arg **arg_ret)
 {
 	size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
 	struct thread_ctx *thr = threads + thread_get_id();
@@ -1119,19 +1000,8 @@ static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (!arg) {
-		struct mobj *mobj = thread_rpc_alloc_kernel_payload(sz);
-
-		if (!mobj)
-			return TEE_ERROR_OUT_OF_MEMORY;
-
-		arg = mobj_get_va(mobj, 0);
-		if (!arg) {
-			thread_rpc_free_kernel_payload(mobj);
-			return TEE_ERROR_OUT_OF_MEMORY;
-		}
-
-		thr->rpc_arg = arg;
-		thr->rpc_mobj = mobj;
+		EMSG("rpc_arg not set");
+		return TEE_ERROR_GENERIC;
 	}
 
 	memset(arg, 0, sz);
@@ -1165,8 +1035,8 @@ static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
 		}
 	}
 
-	*arg_ret = arg;
-	*carg_ret = mobj_get_cookie(thr->rpc_mobj);
+	if (arg_ret)
+		*arg_ret = arg;
 
 	return TEE_SUCCESS;
 }
@@ -1202,32 +1072,112 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 			.w4 = OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD,
 		},
 	};
-	uint64_t carg = 0;
 	struct optee_msg_arg *arg = NULL;
 	uint32_t ret = 0;
 
-	ret = get_rpc_arg(cmd, num_params, params, &arg, &carg);
+	ret = get_rpc_arg(cmd, num_params, params, &arg);
 	if (ret)
 		return ret;
 
-	reg_pair_from_64(carg, &rpc_arg.call.w6, &rpc_arg.call.w5);
 	thread_rpc(&rpc_arg);
 
 	return get_rpc_arg_res(arg, num_params, params);
 }
 
-struct mobj *thread_rpc_alloc_global_payload(size_t size __unused)
+static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 {
-	return NULL;
+	struct thread_rpc_arg rpc_arg = { .call = {
+			.w1 = thread_get_tsd()->rpc_target_info,
+			.w4 = OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD,
+		},
+	};
+	struct thread_param param = THREAD_PARAM_VALUE(IN, bt, cookie, 0);
+	uint32_t res2 = 0;
+	uint32_t res = 0;
+
+	DMSG("freeing cookie %#"PRIx64, cookie);
+
+	res = get_rpc_arg(OPTEE_RPC_CMD_SHM_FREE, 1, &param, NULL);
+
+	mobj_put(mobj);
+	res2 = mobj_ffa_unregister_by_cookie(cookie);
+	if (res2)
+		DMSG("mobj_ffa_unregister_by_cookie(%#"PRIx64"): %#"PRIx32,
+		     cookie, res2);
+	if (!res)
+		thread_rpc(&rpc_arg);
 }
 
-void thread_rpc_free_global_payload(struct mobj *mobj __unused)
+static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 {
-	/*
-	 * "can't happen" since thread_rpc_alloc_global_payload() always
-	 * returns NULL.
-	 */
-	volatile bool cant_happen __maybe_unused = true;
+	struct thread_rpc_arg rpc_arg = { .call = {
+			.w1 = thread_get_tsd()->rpc_target_info,
+			.w4 = OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD,
+		},
+	};
+	struct thread_param param = THREAD_PARAM_VALUE(IN, bt, size, align);
+	struct optee_msg_arg *arg = NULL;
+	unsigned int internal_offset = 0;
+	struct mobj *mobj = NULL;
+	uint64_t cookie = 0;
 
-	assert(!cant_happen);
+	if (get_rpc_arg(OPTEE_RPC_CMD_SHM_ALLOC, 1, &param, &arg))
+		return NULL;
+
+	thread_rpc(&rpc_arg);
+
+	if (arg->num_params != 1 ||
+	    arg->params->attr != OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT)
+		return NULL;
+
+	internal_offset = arg->params->u.fmem.internal_offs;
+	cookie = arg->params->u.fmem.global_id;
+	mobj = mobj_ffa_get_by_cookie(cookie, internal_offset);
+	if (!mobj) {
+		DMSG("mobj_ffa_get_by_cookie(%#"PRIx64", %#x): failed",
+		     cookie, internal_offset);
+		return NULL;
+	}
+
+	assert(mobj_is_nonsec(mobj));
+
+	if (mobj_inc_map(mobj)) {
+		DMSG("mobj_inc_map(%#"PRIx64"): failed", cookie);
+		mobj_put(mobj);
+		return NULL;
+	}
+
+	return mobj;
+}
+
+struct mobj *thread_rpc_alloc_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_APPL);
+}
+
+struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_KERNEL);
+}
+
+void thread_rpc_free_kernel_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL, mobj_get_cookie(mobj), mobj);
+}
+
+void thread_rpc_free_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
+			mobj);
+}
+
+struct mobj *thread_rpc_alloc_global_payload(size_t size)
+{
+	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_GLOBAL);
+}
+
+void thread_rpc_free_global_payload(struct mobj *mobj)
+{
+	thread_rpc_free(OPTEE_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
+			mobj);
 }

@@ -96,6 +96,8 @@
  */
 #define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
 
+#define OPTEE_MSG_FMEM_INVALID_GLOBAL_ID	0xffffffffffffffff
+
 #ifndef __ASSEMBLER__
 /**
  * struct optee_msg_param_tmem - temporary memory reference parameter
