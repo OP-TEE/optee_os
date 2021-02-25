@@ -19,8 +19,10 @@ struct mobj_ffa {
 	tee_mm_entry_t *mm;
 	struct refcount mapcount;
 	uint16_t page_offset;
+#ifdef CFG_CORE_SEL1_SPMC
 	bool registered_by_cookie;
 	bool unregistered_by_cookie;
+#endif
 	paddr_t pages[];
 };
 
@@ -186,6 +188,25 @@ void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
+#ifdef CFG_CORE_SEL2_SPMC
+struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
+					unsigned int num_pages)
+{
+	struct mobj_ffa *mf = NULL;
+
+	assert(cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID);
+	mf = ffa_new(num_pages);
+	if (mf)
+		mf->cookie = cookie;
+	return mf;
+}
+
+void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mf)
+{
+	free(mf);
+}
+#endif /*CFG_CORE_SEL2_SPMC*/
+
 TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages)
 {
@@ -234,40 +255,6 @@ static void unmap_helper(struct mobj_ffa *mf)
 	}
 }
 
-TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct mobj_ffa *mf = NULL;
-	uint32_t exceptions = 0;
-
-	exceptions = cpu_spin_lock_xsave(&shm_lock);
-	mf = find_in_list(&shm_head, cmp_cookie, cookie);
-	/*
-	 * If the mobj is found here it's still active and cannot be
-	 * unregistered.
-	 */
-	if (mf) {
-		DMSG("cookie %#"PRIx64" busy refc %u",
-		     cookie, refcount_val(&mf->mobj.refc));
-		res = TEE_ERROR_BUSY;
-		goto out;
-	}
-	mf = find_in_list(&shm_inactive_head, cmp_cookie, cookie);
-	/*
-	 * If the mobj isn't found or if it already has been unregistered.
-	 */
-	if (!mf || mf->unregistered_by_cookie) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto out;
-	}
-	mf->unregistered_by_cookie = true;
-	res = TEE_SUCCESS;
-
-out:
-	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
-	return res;
-}
-
 #ifdef CFG_CORE_SEL1_SPMC
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie)
 {
@@ -275,7 +262,6 @@ TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie)
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
 
-	assert(cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID);
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
 	mf = find_in_list(&shm_head, cmp_cookie, cookie);
 	/*
@@ -315,16 +301,61 @@ out:
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
-struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie, unsigned int internal_offs)
+TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj_ffa *mf = NULL;
+	uint32_t exceptions = 0;
+
+	assert(cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID);
+	exceptions = cpu_spin_lock_xsave(&shm_lock);
+	mf = find_in_list(&shm_head, cmp_cookie, cookie);
+	/*
+	 * If the mobj is found here it's still active and cannot be
+	 * unregistered.
+	 */
+	if (mf) {
+		DMSG("cookie %#"PRIx64" busy refc %u",
+		     cookie, refcount_val(&mf->mobj.refc));
+		res = TEE_ERROR_BUSY;
+		goto out;
+	}
+	mf = find_in_list(&shm_inactive_head, cmp_cookie, cookie);
+	/*
+	 * If the mobj isn't found or if it already has been unregistered.
+	 */
+#ifdef CFG_CORE_SEL2_SPMC
+	if (!mf) {
+#else
+	if (!mf || mf->unregistered_by_cookie) {
+#endif
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
+	}
+
+#ifdef CFG_CORE_SEL2_SPMC
+	mf = pop_from_list(&shm_inactive_head, cmp_cookie, cookie);
+	mobj_ffa_sel2_spmc_delete(mf);
+	thread_spmc_relinquish(cookie);
+#else
+	mf->unregistered_by_cookie = true;
+#endif
+	res = TEE_SUCCESS;
+
+out:
+	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
+	return res;
+}
+
+struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
+				    unsigned int internal_offs)
 {
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
 
 	if (internal_offs >= SMALL_PAGE_SIZE)
 		return NULL;
-
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
-
 	mf = find_in_list(&shm_head, cmp_cookie, cookie);
 	if (mf) {
 		if (mf->page_offset == internal_offs) {
@@ -346,9 +377,21 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie, unsigned int internal_offs)
 		}
 	} else {
 		mf = pop_from_list(&shm_inactive_head, cmp_cookie, cookie);
+#if defined(CFG_CORE_SEL2_SPMC)
+		/* Try to retrieve it from the SPM at S-EL2 */
 		if (mf) {
+			DMSG("cookie %#"PRIx64" resurrecting", cookie);
+		} else {
+			EMSG("Populating mobj from rx buffer, cookie %#"PRIx64,
+			     cookie);
+			mf = thread_spmc_populate_mobj_from_rx(cookie);
+		}
+#endif
+		if (mf) {
+#if defined(CFG_CORE_SEL1_SPMC)
 			mf->unregistered_by_cookie = false;
 			mf->registered_by_cookie = true;
+#endif
 			assert(refcount_val(&mf->mobj.refc) == 0);
 			refcount_set(&mf->mobj.refc, 1);
 			refcount_set(&mf->mapcount, 0);
@@ -367,7 +410,6 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie, unsigned int internal_offs)
 		     cookie, internal_offs);
 		return NULL;
 	}
-
 	return &mf->mobj;
 }
 

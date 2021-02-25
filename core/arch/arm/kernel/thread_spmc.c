@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020, Linaro Limited.
+ * Copyright (c) 2020-2021, Linaro Limited.
  * Copyright (c) 2019-2021, Arm Limited. All rights reserved.
  */
 
 #include <assert.h>
 #include <ffa.h>
 #include <io.h>
+#include <initcall.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
@@ -27,6 +28,7 @@
 
 #include "thread_private.h"
 
+#if defined(CFG_CORE_SEL1_SPMC)
 struct mem_share_state {
 	struct mobj_ffa *mf;
 	unsigned int page_count;
@@ -40,6 +42,10 @@ struct mem_frag_state {
 	unsigned int frag_offset;
 	SLIST_ENTRY(mem_frag_state) link;
 };
+#endif
+
+/* Initialized in spmc_init() below */
+static uint16_t my_endpoint_id;
 
 /*
  * If struct ffa_rxtx::size is 0 RX/TX buffers are not mapped or initialized.
@@ -56,6 +62,11 @@ struct mem_frag_state {
  * the lock.
  */
 
+#ifdef CFG_CORE_SEL2_SPMC
+static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
+static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
+static struct ffa_rxtx nw_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
+#else
 static struct ffa_rxtx nw_rxtx;
 
 static bool is_nw_buf(struct ffa_rxtx *rxtx)
@@ -65,6 +76,7 @@ static bool is_nw_buf(struct ffa_rxtx *rxtx)
 
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
+#endif
 
 static uint32_t swap_src_dst(uint32_t src_dst)
 {
@@ -82,6 +94,7 @@ void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 					  .a5 = w5, };
 }
 
+#if defined(CFG_CORE_SEL1_SPMC)
 void spmc_handle_version(struct thread_smc_args *args)
 {
 	/*
@@ -330,8 +343,12 @@ static void handle_partition_info_get(struct thread_smc_args *args,
 	if (rxtx->size && rxtx->tx_is_mine) {
 		struct ffa_partition_info *fpi = rxtx->tx;
 
-		fpi->id = SPMC_ENDPOINT_ID;
+		fpi->id = my_endpoint_id;
 		fpi->execution_context = CFG_TEE_CORE_NB_CORE;
+		/*
+		 * Supports receipt of direct requests.
+		 * Can send direct requests.
+		 */
 		fpi->partition_properties = BIT(0) | BIT(1);
 
 		ret_fid = FFA_SUCCESS_32;
@@ -350,6 +367,7 @@ out:
 	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
+#endif /*CFG_CORE_SEL1_SPMC*/
 
 static void handle_yielding_call(struct thread_smc_args *args)
 {
@@ -422,6 +440,7 @@ static void handle_blocking_call(struct thread_smc_args *args)
 	}
 }
 
+#if defined(CFG_CORE_SEL1_SPMC)
 static int get_acc_perms(struct ffa_mem_access *mem_acc,
 			 unsigned int num_mem_accs, uint8_t *acc_perms,
 			 unsigned int *region_offs)
@@ -431,7 +450,7 @@ static int get_acc_perms(struct ffa_mem_access *mem_acc,
 	for (n = 0; n < num_mem_accs; n++) {
 		struct ffa_mem_access_perm *descr = &mem_acc[n].access_perm;
 
-		if (READ_ONCE(descr->endpoint_id) == SPMC_ENDPOINT_ID) {
+		if (READ_ONCE(descr->endpoint_id) == my_endpoint_id) {
 			*acc_perms = READ_ONCE(descr->perm);
 			*region_offs = READ_ONCE(mem_acc[n].region_offs);
 			return 0;
@@ -824,6 +843,7 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 out:
 	spmc_set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
 }
+#endif
 
 /* Only called from assembly */
 void thread_spmc_msg_recv(struct thread_smc_args *args);
@@ -831,6 +851,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 {
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 	switch (args->a0) {
+#if defined(CFG_CORE_SEL1_SPMC)
 	case FFA_VERSION:
 		spmc_handle_version(args);
 		break;
@@ -852,13 +873,14 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_PARTITION_INFO_GET:
 		handle_partition_info_get(args, &nw_rxtx);
 		break;
+#endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
 		itr_core_handler();
 		spmc_set_args(args, FFA_SUCCESS_32, args->a1, 0, 0, 0, 0);
 		break;
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 		if (IS_ENABLED(CFG_SECURE_PARTITION) &&
-		    FFA_DST(args->a1) != SPMC_ENDPOINT_ID) {
+		    FFA_DST(args->a1) != my_endpoint_id) {
 			spmc_sp_start_thread(args);
 			break;
 		}
@@ -868,6 +890,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		else
 			handle_blocking_call(args);
 		break;
+#if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
 	case FFA_MEM_SHARE_64:
 #endif
@@ -880,6 +903,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MEM_FRAG_TX:
 		handle_mem_frag_tx(args, &nw_rxtx);
 		break;
+#endif /*CFG_CORE_SEL1_SPMC*/
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);
 		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
@@ -1181,3 +1205,207 @@ void thread_rpc_free_global_payload(struct mobj *mobj)
 	thread_rpc_free(OPTEE_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
 			mobj);
 }
+
+#ifdef CFG_CORE_SEL2_SPMC
+static bool is_ffa_success(uint32_t fid)
+{
+#ifdef ARM64
+	if (fid == FFA_SUCCESS_64)
+		return true;
+#endif
+	return fid == FFA_SUCCESS_32;
+}
+
+static void spmc_rxtx_map(struct ffa_rxtx *rxtx)
+{
+	struct thread_smc_args args = {
+#ifdef ARM64
+		.a0 = FFA_RXTX_MAP_64,
+#else
+		.a0 = FFA_RXTX_MAP_32,
+#endif
+		.a1 = (vaddr_t)rxtx->tx,
+		.a2 = (vaddr_t)rxtx->rx,
+		.a3 = 1,
+	};
+
+	thread_smccc(&args);
+	if (!is_ffa_success(args.a0)) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("rxtx map failed with error %ld", args.a2);
+		else
+			EMSG("rxtx map failed");
+		panic();
+	}
+}
+
+static uint16_t spmc_get_id(void)
+{
+	struct thread_smc_args args = {
+		.a0 = FFA_ID_GET,
+	};
+
+	thread_smccc(&args);
+	if (!is_ffa_success(args.a0)) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("Get id failed with error %ld", args.a2);
+		else
+			EMSG("Get id failed");
+		panic();
+	}
+
+	return args.a2;
+}
+
+static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
+{
+	struct ffa_mem_transaction *trans_descr = nw_rxtx.tx;
+	struct ffa_mem_access *acc_descr_array = NULL;
+	struct ffa_mem_access_perm *perm_descr = NULL;
+	size_t size = sizeof(*trans_descr) +
+		      1 * sizeof(struct ffa_mem_access);
+	struct thread_smc_args args = {
+		.a0 = FFA_MEM_RETRIEVE_REQ_32,
+		.a1 =   size,	/* Total Length */
+		.a2 =	size,	/* Frag Length == Total length */
+		.a3 =	0,	/* Address, Using TX -> MBZ */
+		.a4 =   0,	/* Using TX -> MBZ */
+	};
+
+	memset(trans_descr, 0, size);
+	trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
+	trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+	trans_descr->global_handle = cookie;
+	trans_descr->flags = FFA_MEMORY_REGION_FLAG_TIME_SLICE |
+			     FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
+			     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+	trans_descr->mem_access_count = 1;
+	acc_descr_array = trans_descr->mem_access_array;
+	acc_descr_array->region_offs = 0;
+	acc_descr_array->reserved = 0;
+	perm_descr = &acc_descr_array->access_perm;
+	perm_descr->endpoint_id = my_endpoint_id;
+	perm_descr->perm = FFA_MEM_ACC_RW;
+	perm_descr->flags = FFA_MEMORY_REGION_FLAG_TIME_SLICE;
+
+	thread_smccc(&args);
+	if (args.a0 != FFA_MEM_RETRIEVE_RESP) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("Failed to fetch cookie %#"PRIx64" error code %d",
+			     cookie, (int)args.a2);
+		else
+			EMSG("Failed to fetch cookie %#"PRIx64" a0 %#"PRIx64,
+			     cookie, args.a0);
+		return NULL;
+	}
+
+	return nw_rxtx.rx;
+}
+
+void thread_spmc_relinquish(uint64_t cookie)
+{
+	struct ffa_mem_relinquish *relinquish_desc = nw_rxtx.tx;
+	struct thread_smc_args args = {
+		.a0 = FFA_MEM_RELINQUISH,
+	};
+
+	memset(relinquish_desc, 0, sizeof(*relinquish_desc));
+	relinquish_desc->handle = cookie;
+	relinquish_desc->flags = 0;
+	relinquish_desc->endpoint_count = 1;
+	relinquish_desc->endpoint_id_array[0] = my_endpoint_id;
+	thread_smccc(&args);
+	if (!is_ffa_success(args.a0))
+		EMSG("Failed to relinquish cookie %#"PRIx64, cookie);
+}
+
+static int set_pages(struct ffa_address_range *regions,
+		     unsigned int num_regions, unsigned int num_pages,
+		     struct mobj_ffa *mf)
+{
+	unsigned int n = 0;
+	unsigned int idx = 0;
+
+	for (n = 0; n < num_regions; n++) {
+		unsigned int page_count = READ_ONCE(regions[n].page_count);
+		uint64_t addr = READ_ONCE(regions[n].address);
+
+		if (mobj_ffa_add_pages_at(mf, &idx, addr, page_count))
+			return FFA_INVALID_PARAMETERS;
+	}
+
+	if (idx != num_pages)
+		return FFA_INVALID_PARAMETERS;
+
+	return 0;
+}
+
+struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
+{
+	struct mobj_ffa *ret = NULL;
+	struct ffa_mem_transaction *retrieve_desc = NULL;
+	struct ffa_mem_access *descr_array = NULL;
+	struct ffa_mem_region *descr = NULL;
+	struct mobj_ffa *mf = NULL;
+	unsigned int num_pages = 0;
+	unsigned int offs = 0;
+	struct thread_smc_args ffa_rx_release_args = {
+		.a0 = FFA_RX_RELEASE
+	};
+
+	/*
+	 * OP-TEE is only supporting a single mem_region while the
+	 * specification allows for more than one.
+	 */
+	retrieve_desc = spmc_retrieve_req(cookie);
+	if (!retrieve_desc) {
+		EMSG("Failed to retrieve cookie from rx buffer %#"PRIx64,
+		     cookie);
+		return NULL;
+	}
+
+	descr_array = retrieve_desc->mem_access_array;
+	offs = READ_ONCE(descr_array->region_offs);
+	descr = (struct ffa_mem_region *)((vaddr_t)retrieve_desc + offs);
+
+	num_pages = READ_ONCE(descr->total_page_count);
+	mf = mobj_ffa_sel2_spmc_new(cookie, num_pages);
+	if (!mf)
+		goto out;
+
+	if (set_pages(descr->address_range_array,
+		      READ_ONCE(descr->address_range_count), num_pages, mf)) {
+		mobj_ffa_sel2_spmc_delete(mf);
+		goto out;
+	}
+
+	ret = mf;
+
+out:
+	/* Release RX buffer after the mem retrieve request. */
+	thread_smccc(&ffa_rx_release_args);
+
+	return ret;
+}
+
+static TEE_Result spmc_init(void)
+{
+	spmc_rxtx_map(&nw_rxtx);
+	my_endpoint_id = spmc_get_id();
+	DMSG("My endpoint ID %#x", my_endpoint_id);
+
+	return TEE_SUCCESS;
+}
+#endif /*CFG_CORE_SEL2_SPMC*/
+
+#if defined(CFG_CORE_SEL1_SPMC)
+static TEE_Result spmc_init(void)
+{
+	my_endpoint_id = SPMC_ENDPOINT_ID;
+	DMSG("My endpoint ID %#x", my_endpoint_id);
+
+	return TEE_SUCCESS;
+}
+#endif /*CFG_CORE_SEL1_SPMC*/
+
+service_init(spmc_init);

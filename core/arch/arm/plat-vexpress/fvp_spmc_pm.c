@@ -29,10 +29,17 @@ static const uint64_t core_clus_aff_array[] = {
 	0x0001,		/* Cluster 0 Cpu 1 */
 	0x0002,		/* Cluster 0 Cpu 2 */
 	0x0003,		/* Cluster 0 Cpu 3 */
+#ifdef CFG_CORE_SEL2_SPMC
+	0x0004,		/* Cluster 1 Cpu 0 */
+	0x0005,		/* Cluster 1 Cpu 1 */
+	0x0006,		/* Cluster 1 Cpu 2 */
+	0x0007,		/* Cluster 1 Cpu 3 */
+#else
 	0x0100,		/* Cluster 1 Cpu 0 */
 	0x0101,		/* Cluster 1 Cpu 1 */
 	0x0102,		/* Cluster 1 Cpu 2 */
 	0x0103,		/* Cluster 1 Cpu 3 */
+#endif
 };
 
 static uint32_t get_cpu_on_fid(void)
