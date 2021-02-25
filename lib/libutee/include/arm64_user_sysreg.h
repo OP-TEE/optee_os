@@ -32,6 +32,7 @@ static inline __noprof void write_##reg(type val)		\
 /* ARM Generic timer functions */
 DEFINE_REG_READ_FUNC_(cntfrq, uint32_t, cntfrq_el0)
 DEFINE_REG_READ_FUNC_(cntpct, uint64_t, cntpct_el0)
+DEFINE_REG_READ_FUNC_(cntvct, uint64_t, cntvct_el0)
 DEFINE_REG_READ_FUNC_(tpidr_el0, uint64_t, tpidr_el0)
 DEFINE_REG_WRITE_FUNC_(tpidr_el0, uint64_t, tpidr_el0)
 
