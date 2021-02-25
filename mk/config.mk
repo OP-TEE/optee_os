@@ -517,6 +517,9 @@ CFG_SYSTEM_PTA ?= y
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
+# Disable the pseudo TA that provides the crypto RNG to the normal world OS.
+CFG_RNG_PTA ?= n
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
