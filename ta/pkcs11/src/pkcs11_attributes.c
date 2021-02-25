@@ -1401,7 +1401,10 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 		DMSG("%s invalid key %s/%s", id2str_proc(proc_id),
 		     id2str_class(key_class), id2str_key_type(key_type));
 
-		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		if (function == PKCS11_FUNCTION_WRAP)
+			return PKCS11_CKR_WRAPPING_KEY_TYPE_INCONSISTENT;
+		else
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
@@ -1819,6 +1822,21 @@ enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 	default:
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
+}
+
+enum pkcs11_rc get_key_data_to_wrap(struct obj_attrs *head, void **data,
+				    uint32_t *sz)
+{
+	switch (get_class(head)) {
+	case PKCS11_CKO_SECRET_KEY:
+		if (get_attribute_ptr(head, PKCS11_CKA_VALUE, data, sz))
+			return PKCS11_CKR_ARGUMENTS_BAD;
+		break;
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+
+	return PKCS11_CKR_OK;
 }
 
 enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,

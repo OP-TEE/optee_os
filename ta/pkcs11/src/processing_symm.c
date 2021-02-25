@@ -833,3 +833,74 @@ enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 
 	return rc;
 }
+
+enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
+				     void *data, uint32_t data_sz,
+				     void *out_buf, uint32_t *out_sz)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct active_processing *proc = session->processing;
+	void *in_buf = NULL;
+	uint32_t align = 0;
+	uint32_t in_sz = data_sz;
+	uint32_t tmp_sz = *out_sz;
+	uint8_t *tmp_buf = out_buf;
+
+	switch (proc->mecha_type) {
+	case PKCS11_CKM_AES_ECB:
+	case PKCS11_CKM_AES_CBC:
+		align = data_sz % TEE_AES_BLOCK_SIZE;
+		if (align)
+			in_sz = data_sz + (TEE_AES_BLOCK_SIZE - align);
+
+		if (*out_sz < in_sz) {
+			*out_sz = in_sz;
+			return PKCS11_CKR_BUFFER_TOO_SMALL;
+		}
+
+		if (align) {
+			if (data_sz > TEE_AES_BLOCK_SIZE) {
+				in_sz = data_sz - align;
+				res = TEE_CipherUpdate(proc->tee_op_handle,
+						       data, in_sz, tmp_buf,
+						       &tmp_sz);
+				if (res) {
+					assert(res != TEE_ERROR_SHORT_BUFFER);
+					return tee2pkcs_error(res);
+				}
+				tmp_buf += tmp_sz;
+				tmp_sz = *out_sz - tmp_sz;
+			} else {
+				in_sz = 0;
+			}
+
+			in_buf = TEE_Malloc(TEE_AES_BLOCK_SIZE,
+					    TEE_MALLOC_FILL_ZERO);
+			if (!in_buf)
+				return PKCS11_CKR_DEVICE_MEMORY;
+
+			TEE_MemMove(in_buf, (uint8_t *)data + in_sz, align);
+			in_sz = TEE_AES_BLOCK_SIZE;
+		} else {
+			in_buf = data;
+			in_sz = data_sz;
+		}
+
+		res = TEE_CipherDoFinal(proc->tee_op_handle, in_buf, in_sz,
+					tmp_buf, &tmp_sz);
+		if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
+			*out_sz = tmp_sz;
+			if (align)
+				*out_sz += tmp_buf - (uint8_t *)out_buf;
+		}
+
+		if (align)
+			TEE_Free(in_buf);
+
+		return tee2pkcs_error(res);
+	default:
+		return PKCS11_CKR_MECHANISM_INVALID;
+	}
+
+	return PKCS11_CKR_GENERAL_ERROR;
+}

@@ -204,7 +204,9 @@ enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
 		state = PKCS11_SESSION_DIGESTING;
 		break;
 	case PKCS11_FUNCTION_DERIVE:
-		state = PKCS11_SESSION_READY;
+	case PKCS11_FUNCTION_WRAP:
+	case PKCS11_FUNCTION_UNWRAP:
+		state = PKCS11_SESSION_BUSY;
 		break;
 	default:
 		TEE_Panic(function);
