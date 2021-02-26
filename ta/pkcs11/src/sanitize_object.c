@@ -348,6 +348,7 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		struct pkcs11_attribute_head pkcs11_ref;
 		uint8_t data[4] = { 0 };
 		uint32_t data_u32 = 0;
+		char *start = NULL;
 
 		TEE_MemMove(&pkcs11_ref, cur, sizeof(pkcs11_ref));
 		TEE_MemMove(&data[0], cur + sizeof(pkcs11_ref),
@@ -391,9 +392,9 @@ static void __trace_attributes(char *prefix, void *src, void *end)
 		case PKCS11_CKA_WRAP_TEMPLATE:
 		case PKCS11_CKA_UNWRAP_TEMPLATE:
 		case PKCS11_CKA_DERIVE_TEMPLATE:
-			trace_attributes_from_api_head(prefix2,
-						       cur + sizeof(pkcs11_ref),
-						       (char *)end - cur);
+			start = cur + sizeof(pkcs11_ref);
+			trace_attributes_from_api_head(prefix2, start,
+						       (char *)end - start);
 			break;
 		default:
 			break;
