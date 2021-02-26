@@ -239,7 +239,7 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 	}
 
 	/* Such attributes are expected only for keys (and vendor defined) */
-	if (pkcs11_attr_class_is_key(class))
+	if (!pkcs11_attr_class_is_key(class))
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 
 	rc = init_attributes_head(&obj2);
