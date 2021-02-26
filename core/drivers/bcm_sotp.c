@@ -133,4 +133,4 @@ static TEE_Result bcm_sotp_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(bcm_sotp_init);
+service_init(bcm_sotp_init);
