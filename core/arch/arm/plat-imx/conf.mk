@@ -365,11 +365,14 @@ CFG_SECURE_TIME_SOURCE_REE ?= y
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX8MM)))
 $(call force,CFG_IMX_UART,y)
 ifeq ($(CFG_RPMB_FS),y)
 CFG_IMX_SNVS ?= y
 endif
+endif
+
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
 CFG_CSU ?= y
 endif
 
