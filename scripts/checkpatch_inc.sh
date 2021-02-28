@@ -1,6 +1,7 @@
 #!/bin/bash
 
 CHECKPATCH="${CHECKPATCH:-checkpatch.pl}"
+CHECKPATCH_OPT="${CHECKPATCH_OPT:-}"
 # checkpatch.pl will ignore the following paths
 CHECKPATCH_IGNORE=$(echo \
 		core/include/gen-asm-defines.h \
@@ -19,7 +20,7 @@ function _checkpatch() {
 				typedefs_opt="";
 		# Ignore NOT_UNIFIED_DIFF in case patch has no diff
 		# (e.g., all paths filtered out)
-		$CHECKPATCH $typedefs_opt -
+		$CHECKPATCH $CHECKPATCH_OPT $typedefs_opt -
 }
 
 function checkpatch() {
