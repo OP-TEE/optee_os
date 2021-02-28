@@ -106,6 +106,7 @@ enum processing_func {
 	PKCS11_FUNCTION_COPY,
 	PKCS11_FUNCTION_MODIFY,
 	PKCS11_FUNCTION_DESTROY,
+	PKCS11_FUNCTION_UNKNOWN,
 };
 
 enum processing_step {

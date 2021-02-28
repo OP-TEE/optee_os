@@ -581,6 +581,22 @@ enum pkcs11_ta_cmd {
 	 * This command relates to the PKCS#11 API function C_DeriveKey().
 	 */
 	PKCS11_CMD_DERIVE_KEY = 43,
+
+	/*
+	 * PKCS11_CMD_RELEASE_ACTIVE_PROCESSING - Release active processing
+	 *
+	 * [in]  memref[0] = [
+	 *              32bit session handle,
+	 *              32bit enum pkcs11_ta_cmd
+	 *       ]
+	 * [out] memref[0] = 32bit return code, enum pkcs11_rc
+	 *
+	 * This command is used to release active processing in case of
+	 * Cryptoki API invocation error is detected in user space processing.
+	 * Function derived from pkcs11_ta_cmd is used to verify that active
+	 * processing matches.
+	 */
+	PKCS11_CMD_RELEASE_ACTIVE_PROCESSING = 44,
 };
 
 /*
