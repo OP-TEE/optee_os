@@ -27,6 +27,30 @@ static enum pkcs11_rc get_ready_session(struct pkcs11_session *session)
 	return PKCS11_CKR_OK;
 }
 
+static enum processing_func func_for_cmd(enum pkcs11_ta_cmd cmd)
+{
+	switch (cmd) {
+	case PKCS11_CMD_ENCRYPT_UPDATE:
+	case PKCS11_CMD_ENCRYPT_ONESHOT:
+	case PKCS11_CMD_ENCRYPT_FINAL:
+		return PKCS11_FUNCTION_ENCRYPT;
+	case PKCS11_CMD_DECRYPT_UPDATE:
+	case PKCS11_CMD_DECRYPT_ONESHOT:
+	case PKCS11_CMD_DECRYPT_FINAL:
+		return PKCS11_FUNCTION_DECRYPT;
+	case PKCS11_CMD_SIGN_ONESHOT:
+	case PKCS11_CMD_SIGN_UPDATE:
+	case PKCS11_CMD_SIGN_FINAL:
+		return PKCS11_FUNCTION_SIGN;
+	case PKCS11_CMD_VERIFY_ONESHOT:
+	case PKCS11_CMD_VERIFY_UPDATE:
+	case PKCS11_CMD_VERIFY_FINAL:
+		return PKCS11_FUNCTION_VERIFY;
+	default:
+		return PKCS11_FUNCTION_UNKNOWN;
+	}
+}
+
 static bool func_matches_state(enum processing_func function,
 			       enum pkcs11_proc_state state)
 {
@@ -632,4 +656,48 @@ out_free:
 	TEE_Free(out_buf);
 
 	return rc;
+}
+
+enum pkcs11_rc entry_release_active_processing(struct pkcs11_client *client,
+					       uint32_t ptypes,
+					       TEE_Param *params)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param *ctrl = params;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	struct serialargs ctrlargs = { };
+	struct pkcs11_session *session = NULL;
+	enum processing_func function = PKCS11_FUNCTION_UNKNOWN;
+	uint32_t cmd = 0;
+
+	if (!client || ptypes != exp_pt)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
+
+	rc = serialargs_get_session_from_handle(&ctrlargs, client, &session);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&ctrlargs, &cmd);
+
+	if (serialargs_remaining_bytes(&ctrlargs))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	function = func_for_cmd(cmd);
+	if (function == PKCS11_FUNCTION_UNKNOWN)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	rc = get_active_session(session, function);
+	if (rc)
+		return rc;
+
+	release_active_processing(session);
+
+	DMSG("PKCS11 session %"PRIu32": release processing", session->handle);
+
+	return PKCS11_CKR_OK;
 }

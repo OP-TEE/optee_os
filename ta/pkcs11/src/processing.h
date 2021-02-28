@@ -34,6 +34,10 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 				    uint32_t ptypes, TEE_Param *params,
 				    enum processing_func function);
 
+enum pkcs11_rc entry_release_active_processing(struct pkcs11_client *client,
+					       uint32_t ptypes,
+					       TEE_Param *params);
+
 /*
  * Util
  */
