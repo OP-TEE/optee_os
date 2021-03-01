@@ -50,9 +50,6 @@ endif
 srcs-y += trace_ext.c
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
-srcs-y += mutex.c
-srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
-srcs-y += wait_queue.c
 srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
 
 srcs-y += boot.c
