@@ -5,7 +5,6 @@ srcs-y += core_mmu_lpae.c
 else
 srcs-y += core_mmu_v7.c
 endif
-srcs-y += tee_mm.c
 srcs-y += pgt_cache.c
 srcs-y += mobj.c
 srcs-$(CFG_CORE_FFA) += mobj_ffa.c
