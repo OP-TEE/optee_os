@@ -390,6 +390,7 @@ static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
 	if (pop2 == &mpi_op2)
 		mbedtls_mpi_free(&mpi_op2);
 	mbedtls_mpi_free(&mpi_t);
+	mbedtls_mpi_free(&mpi_n);
 }
 
 void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
