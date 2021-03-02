@@ -10,6 +10,7 @@
 #include <kernel/dt.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <kernel/thread.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
