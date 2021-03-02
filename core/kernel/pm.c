@@ -7,6 +7,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <mm/core_memprot.h>
+#include <stdlib.h>
 #include <string.h>
 #include <types_ext.h>
 
