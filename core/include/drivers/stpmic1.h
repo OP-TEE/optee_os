@@ -179,9 +179,9 @@ int stpmic1_regulator_enable(const char *name);
 int stpmic1_regulator_disable(const char *name);
 bool stpmic1_is_regulator_enabled(const char *name);
 
-TEE_Result stpmic1_regulator_levels_mv(const char *name,
-				       const uint16_t **levels,
-				       size_t *levels_count);
+void stpmic1_regulator_levels_mv(const char *name,
+				 const uint16_t **levels,
+				 size_t *levels_count);
 
 /* API for voltage cnotrol of regulators driven from STPMIC1 device */
 int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts);
@@ -249,7 +249,7 @@ int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable);
 int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg,
-			     unsigned int mode);
+			 unsigned int mode);
 int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
 			   struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg);
