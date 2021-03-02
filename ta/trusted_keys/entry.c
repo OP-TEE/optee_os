@@ -31,6 +31,8 @@ struct tk_blob_hdr {
 
 static TEE_Result get_random(uint32_t types, TEE_Param params[TEE_NUM_PARAMS])
 {
+	uint8_t *rng_buf = NULL;
+
 	DMSG("Invoked TA_CMD_GET_RANDOM");
 
 	if (types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -42,7 +44,15 @@ static TEE_Result get_random(uint32_t types, TEE_Param params[TEE_NUM_PARAMS])
 	if (!params[0].memref.buffer || !params[0].memref.size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	TEE_GenerateRandom(params[0].memref.buffer, params[0].memref.size);
+	rng_buf = TEE_Malloc(params[0].memref.size, TEE_MALLOC_FILL_ZERO);
+	if (!rng_buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	TEE_GenerateRandom(rng_buf, params[0].memref.size);
+	memcpy(params[0].memref.buffer, rng_buf, params[0].memref.size);
+	memzero_explicit(rng_buf, params[0].memref.size);
+
+	TEE_Free(rng_buf);
 
 	return TEE_SUCCESS;
 }
@@ -87,11 +97,13 @@ static TEE_Result huk_ae_encrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tk_blob_hdr *hdr = (struct tk_blob_hdr *)out;
+	uint8_t iv[IV_SIZE] = { 0 };
 	uint32_t enc_key_len = in_sz;
 	uint32_t tag_len = TAG_SIZE;
 
 	hdr->reserved = 0;
-	TEE_GenerateRandom(hdr->iv, IV_SIZE);
+	TEE_GenerateRandom(iv, IV_SIZE);
+	memcpy(hdr->iv, iv, IV_SIZE);
 
 	res = TEE_AEInit(crypto_op, hdr->iv, IV_SIZE, TAG_SIZE * 8, 0, 0);
 	if (res)
@@ -113,6 +125,7 @@ static TEE_Result huk_ae_decrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tk_blob_hdr *hdr = (struct tk_blob_hdr *)in;
+	uint8_t tag[TAG_SIZE] = { 0 };
 	uint32_t enc_key_len = 0;
 
 	if (SUB_OVERFLOW(in_sz, sizeof(*hdr), &enc_key_len))
@@ -122,8 +135,9 @@ static TEE_Result huk_ae_decrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 	if (res)
 		return res;
 
+	memcpy(tag, hdr->tag, TAG_SIZE);
 	res = TEE_AEDecryptFinal(crypto_op, hdr->enc_key, enc_key_len, out,
-				 out_sz, hdr->tag, TAG_SIZE);
+				 out_sz, tag, TAG_SIZE);
 	if (res)
 		res = TEE_ERROR_SECURITY;
 
