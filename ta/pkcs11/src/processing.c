@@ -448,8 +448,9 @@ out:
 	return rc;
 }
 
-enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
-				uint32_t ptypes, TEE_Param *params)
+enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
+				    uint32_t ptypes, TEE_Param *params,
+				    enum processing_func function)
 {
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 						TEE_PARAM_TYPE_NONE,
@@ -469,7 +470,6 @@ enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
 	size_t template_size = 0;
 	void *out_buf = NULL;
 	uint32_t out_size = 0;
-	enum processing_func function = PKCS11_FUNCTION_DERIVE;
 
 	if (!client || ptypes != exp_pt ||
 	    out->memref.size != sizeof(obj_handle))

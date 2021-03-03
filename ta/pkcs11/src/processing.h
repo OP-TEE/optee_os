@@ -30,8 +30,9 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 				     enum processing_func function,
 				     enum processing_step step);
 
-enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
-				uint32_t ptypes, TEE_Param *params);
+enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
+				    uint32_t ptypes, TEE_Param *params,
+				    enum processing_func function);
 
 /*
  * Util
