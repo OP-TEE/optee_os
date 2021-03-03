@@ -122,7 +122,7 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 		EMSG("Processing %#x/%s not permitted (%u/%u)",
 		     (unsigned int)mechanism_type, id2str_proc(mechanism_type),
 		     function, step);
-		return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		return PKCS11_CKR_MECHANISM_INVALID;
 	}
 
 	return PKCS11_CKR_OK;
