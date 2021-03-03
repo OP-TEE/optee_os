@@ -1603,3 +1603,50 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 
 	return PKCS11_CKR_OK;
 }
+
+static enum pkcs11_rc set_secret_key_data(struct obj_attrs **head, void *data,
+					  size_t key_size)
+{
+	uint32_t size = sizeof(uint32_t);
+	uint32_t key_length = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+
+	/* Get key size if present in template */
+	rc = get_attribute(*head, PKCS11_CKA_VALUE_LEN, &key_length, &size);
+	if (rc && rc != PKCS11_RV_NOT_FOUND)
+		return rc;
+
+	if (key_length) {
+		if (key_size < key_length)
+			return PKCS11_CKR_DATA_LEN_RANGE;
+	} else {
+		key_length = key_size;
+		rc = set_attribute(head, PKCS11_CKA_VALUE_LEN, &key_length,
+				   sizeof(uint32_t));
+		if (rc)
+			return rc;
+	}
+
+	/* Now we can check the VALUE_LEN field */
+	rc = check_created_attrs(*head, NULL);
+	if (rc)
+		return rc;
+
+	/* Remove the default empty value attribute if found */
+	rc = remove_empty_attribute(head, PKCS11_CKA_VALUE);
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	return add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
+}
+
+enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
+			    size_t key_size)
+{
+	switch (get_class(*head)) {
+	case PKCS11_CKO_SECRET_KEY:
+		return set_secret_key_data(head, data, key_size);
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+}

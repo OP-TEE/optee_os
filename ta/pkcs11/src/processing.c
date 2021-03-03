@@ -467,6 +467,8 @@ enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
 	struct pkcs11_object *parent = NULL;
 	struct obj_attrs *head = NULL;
 	size_t template_size = 0;
+	void *out_buf = NULL;
+	uint32_t out_size = 0;
 	enum processing_func function = PKCS11_FUNCTION_DERIVE;
 
 	if (!client || ptypes != exp_pt ||
@@ -560,14 +562,7 @@ enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
-	/*
-	 * Execute target processing and add value as attribute
-	 * PKCS11_CKA_VALUE. Symm key generation: depends on target
-	 * processing to be used.
-	 */
-	switch (proc_params->id) {
-	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
-	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+	if (processing_is_tee_symm(proc_params->id)) {
 		/*
 		 * These derivation mechanism require encryption to be
 		 * performed on the data passed in proc_params by parent
@@ -579,14 +574,22 @@ enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
 		if (rc)
 			goto out;
 
-		rc = derive_key_by_symm_enc(session, &head);
+		session->processing->mecha_type = proc_params->id;
+
+		rc = derive_key_by_symm_enc(session, &out_buf, &out_size);
 		if (rc)
 			goto out;
-		break;
-	default:
+	} else {
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 		goto out;
 	}
+
+	rc = set_key_data(&head, out_buf, out_size);
+	if (rc)
+		goto out;
+
+	TEE_Free(out_buf);
+	out_buf = NULL;
 
 	TEE_Free(proc_params);
 	proc_params = NULL;
@@ -618,6 +621,7 @@ out_free:
 	TEE_Free(proc_params);
 	TEE_Free(template);
 	TEE_Free(head);
+	TEE_Free(out_buf);
 
 	return rc;
 }

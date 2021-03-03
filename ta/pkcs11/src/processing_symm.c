@@ -798,71 +798,38 @@ out:
 }
 
 enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
-				      struct obj_attrs **head)
+				      void **out_buf, uint32_t *out_size)
 {
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct active_processing *proc = session->processing;
 	struct input_data_ref *input = proc->extra_ctx;
 	void *in_buf = NULL;
-	void *out_buf = NULL;
-	uint32_t out_size = 0;
 	uint32_t in_size = 0;
-	uint32_t size = sizeof(uint32_t);
-	uint32_t key_length = 0;
 
-	if (!proc->extra_ctx)
-		return PKCS11_CKR_ARGUMENTS_BAD;
+	switch (proc->mecha_type) {
+	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
+	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+		if (!proc->extra_ctx)
+			return PKCS11_CKR_ARGUMENTS_BAD;
 
-	in_buf = input->data;
-	in_size = input->size;
+		in_buf = input->data;
+		in_size = input->size;
 
-	out_size = in_size;
-	if (!out_size)
-		return PKCS11_CKR_ARGUMENTS_BAD;
+		*out_size = in_size;
+		*out_buf = TEE_Malloc(*out_size, 0);
+		if (!*out_buf)
+			return PKCS11_CKR_DEVICE_MEMORY;
 
-	out_buf = TEE_Malloc(out_size, 0);
-	if (!out_buf)
-		return PKCS11_CKR_DEVICE_MEMORY;
-
-	res = TEE_CipherDoFinal(proc->tee_op_handle, in_buf, in_size, out_buf,
-				&out_size);
-	rc = tee2pkcs_error(res);
-	if (rc)
-		goto out;
-
-	/* Get key size if present in template */
-	rc = get_attribute(*head, PKCS11_CKA_VALUE_LEN, &key_length, &size);
-	if (rc && rc != PKCS11_RV_NOT_FOUND)
-		goto out;
-
-	if (key_length) {
-		/* Derived key is smaller than the required size */
-		if (out_size < key_length) {
-			rc = PKCS11_CKR_DATA_LEN_RANGE;
-			goto out;
-		}
-	} else {
-		key_length = out_size;
-		rc = set_attribute(head, PKCS11_CKA_VALUE_LEN, &key_length,
-				   sizeof(uint32_t));
+		res = TEE_CipherDoFinal(proc->tee_op_handle, in_buf, in_size,
+					*out_buf, out_size);
+		rc = tee2pkcs_error(res);
 		if (rc)
-			goto out;
+			TEE_Free(*out_buf);
+		break;
+	default:
+		return PKCS11_CKR_MECHANISM_INVALID;
 	}
 
-	/* Now we can check the VALUE_LEN field */
-	rc = check_created_attrs(*head, NULL);
-	if (rc)
-		goto out;
-
-	/* Remove the default empty value attribute if found */
-	rc = remove_empty_attribute(head, PKCS11_CKA_VALUE);
-	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
-		return PKCS11_CKR_GENERAL_ERROR;
-
-	rc = add_attribute(head, PKCS11_CKA_VALUE, out_buf, key_length);
-
-out:
-	TEE_Free(out_buf);
 	return rc;
 }
