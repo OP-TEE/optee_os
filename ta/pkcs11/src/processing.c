@@ -508,16 +508,6 @@ enum pkcs11_rc entry_derive_key(struct pkcs11_client *client,
 		goto out_free;
 	}
 
-	/* Check if mechanism supplied is supported for key derivation */
-	switch (proc_params->id) {
-	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
-	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
-		break;
-	default:
-		rc = PKCS11_CKR_MECHANISM_INVALID;
-		goto out_free;
-	}
-
 	/* Check if mechanism can be used for derivation function */
 	rc = check_mechanism_against_processing(session, proc_params->id,
 						function,
