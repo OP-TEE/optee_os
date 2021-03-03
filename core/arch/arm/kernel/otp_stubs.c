@@ -31,6 +31,7 @@ __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 	return 0;
 }
 
+#ifdef CFG_WITH_USER_TA
 /*
  * Override this API on your platform to provide TA encryption key as
  * per your security requirements. There can be two options for this key:
@@ -51,3 +52,4 @@ __weak TEE_Result tee_otp_get_ta_enc_key(uint32_t key_type __maybe_unused,
 
 	return TEE_SUCCESS;
 }
+#endif
