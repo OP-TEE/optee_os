@@ -65,6 +65,7 @@ jobs:
           _make CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
           _make CFG_SECURE_DATA_PATH=y
           _make CFG_REE_FS_TA_BUFFERED=y
+          _make CFG_WITH_USER_TA=n
           _make PLATFORM=vexpress-qemu_armv8a
           _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
           _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
