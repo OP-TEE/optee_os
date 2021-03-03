@@ -137,6 +137,11 @@ R:	Manish Tomar <manish.tomar@nxp.com>
 S:	Maintained
 F:	core/drivers/ls_gpio.c
 
+Core Drivers DSPI
+R:	Manish Tomar <manish.tomar@nxp.com>
+S:	Maintained
+F:	core/drivers/ls_dspi.c
+
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
 R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
