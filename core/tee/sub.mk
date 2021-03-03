@@ -40,9 +40,9 @@ srcs-y += tee_pobj.c
 srcs-y += tee_time_generic.c
 srcs-$(CFG_SECSTOR_TA) += tadb.c
 srcs-$(CFG_GP_SOCKETS) += socket.c
+srcs-y += tee_ta_enc_manager.c
 
 endif #CFG_WITH_USER_TA,y
 
 srcs-y += uuid.c
-srcs-y += tee_ta_enc_manager.c
 srcs-y += tee_supp_plugin_rpc.c
