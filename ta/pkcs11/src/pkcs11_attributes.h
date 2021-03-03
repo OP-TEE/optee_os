@@ -183,4 +183,7 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 						struct pkcs11_object *obj,
 						enum processing_func function);
 
+enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
+			    size_t key_size);
+
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/

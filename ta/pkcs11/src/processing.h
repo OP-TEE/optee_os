@@ -59,6 +59,6 @@ enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 				      void *proc_params, size_t params_size);
 
 enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
-				      struct obj_attrs **head);
+				      void **out_buf, uint32_t *out_sz);
 
 #endif /*PKCS11_TA_PROCESSING_H*/
