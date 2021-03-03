@@ -405,6 +405,8 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 		goto exit;
 	}
 
+	__utee_check_out_annotation(object, sizeof(*object));
+
 	res = _utee_storage_obj_open(storageID, objectID, objectIDLen, flags,
 				     &obj);
 	if (res == TEE_SUCCESS)
