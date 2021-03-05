@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * CAAM RSA manager.
  * Implementation of RSA functions
@@ -662,8 +662,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 		cache_operation(TEE_CACHEINVALIDATE, genkey.d.data,
 				genkey.d.length + genkey.n.length);
 
-		size_d_gen = genkey.d.data[0] + (genkey.d.data[1] << 8);
-
+		size_d_gen = caam_read_val32(genkey.d.data);
 		RSA_TRACE("D size %zu", size_d_gen);
 		RSA_DUMPBUF("N", genkey.n.data, genkey.n.length);
 		RSA_DUMPBUF("D", genkey.d.data + sizeof(uint32_t), size_d_gen);
