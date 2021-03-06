@@ -528,8 +528,16 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 	 */
 	rc = check_parent_attrs_against_processing(proc_params->id, function,
 						   parent->attributes);
-	if (rc)
+	if (rc) {
+		/*
+		 * CKR_KEY_FUNCTION_NOT_PERMITTED is not in the list of errors
+		 * specified with C_Derive/Unwrap() in the specification. So
+		 * return the next most appropriate error.
+		 */
+		if (rc == PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED)
+			rc = PKCS11_CKR_KEY_TYPE_INCONSISTENT;
 		goto out;
+	}
 
 	/* Check access of base/parent key */
 	rc = check_access_attrs_against_token(session, parent->attributes);
