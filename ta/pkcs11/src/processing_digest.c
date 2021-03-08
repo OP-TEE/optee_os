@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <pkcs11_ta.h>
 #include <string.h>
 #include <tee_api_defines.h>
@@ -154,6 +155,9 @@ enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
 	switch (step) {
 	case PKCS11_FUNC_STEP_UPDATE_KEY:
 		assert(obj);
+
+		if (!IS_ENABLED(CFG_PKCS11_TA_ALLOW_DIGEST_KEY))
+			return PKCS11_CKR_KEY_INDIGESTIBLE;
 
 		if (get_class(obj->attributes) != PKCS11_CKO_SECRET_KEY)
 			return PKCS11_CKR_KEY_INDIGESTIBLE;

@@ -581,6 +581,9 @@ $(call force,CFG_CORE_MBEDTLS_MPI,y)
 # Enable PKCS#11 TA's TEE Identity based authentication support
 CFG_PKCS11_TA_AUTH_TEE_IDENTITY ?= y
 
+# Enable PKCS#11 TA's C_DigestKey support
+CFG_PKCS11_TA_ALLOW_DIGEST_KEY ?= y
+
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
 CFG_VIRTUALIZATION ?= n
