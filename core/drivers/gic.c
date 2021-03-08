@@ -381,7 +381,7 @@ void gic_dump_state(struct gic_data *gd)
 #endif
 	DMSG("GICD_CTLR: 0x%x", io_read32(gd->gicd_base + GICD_CTLR));
 
-	for (i = 0; i < (int)gd->max_it; i++) {
+	for (i = 0; i <= (int)gd->max_it; i++) {
 		if (gic_it_is_enabled(gd, i)) {
 			DMSG("irq%d: enabled, group:%d, target:%x", i,
 			     gic_it_get_group(gd, i), gic_it_get_target(gd, i));
@@ -397,7 +397,7 @@ void gic_it_handle(struct gic_data *gd)
 	iar = gic_read_iar(gd);
 	id = iar & GICC_IAR_IT_ID_MASK;
 
-	if (id < gd->max_it)
+	if (id <= gd->max_it)
 		itr_handle(id);
 	else
 		DMSG("ignoring interrupt %" PRIu32, id);
@@ -410,7 +410,7 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	gic_it_add(gd, it);
@@ -423,7 +423,7 @@ static void gic_op_enable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	gic_it_enable(gd, it);
@@ -433,7 +433,7 @@ static void gic_op_disable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	gic_it_disable(gd, it);
@@ -443,7 +443,7 @@ static void gic_op_raise_pi(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	gic_it_set_pending(gd, it);
@@ -454,7 +454,7 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	if (it < NUM_NS_SGI)
@@ -467,7 +467,7 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
-	if (it >= gd->max_it)
+	if (it > gd->max_it)
 		panic();
 
 	gic_it_set_cpu_mask(gd, it, cpu_mask);
