@@ -61,8 +61,8 @@ void scmi_process_message(struct scmi_msg *msg)
 		return;
 	}
 
-	DMSG("Agent %u Protocol %#x Message %#x: not supported",
-	     msg->agent_id, msg->protocol_id, msg->message_id);
+	DMSG("Channel %u Protocol %#x Message %#x: not supported",
+	     msg->channel_id, msg->protocol_id, msg->message_id);
 
 	scmi_status_response(msg, SCMI_NOT_SUPPORTED);
 }

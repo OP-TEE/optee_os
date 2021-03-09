@@ -16,18 +16,18 @@
 
 static bool message_id_is_supported(unsigned int message_id);
 
-size_t __weak plat_scmi_voltd_count(unsigned int agent_id __unused)
+size_t __weak plat_scmi_voltd_count(unsigned int channel_id __unused)
 {
 	return 0;
 }
 
-const char __weak *plat_scmi_voltd_get_name(unsigned int agent_id __unused,
+const char __weak *plat_scmi_voltd_get_name(unsigned int channel_id __unused,
 					    unsigned int scmi_id __unused)
 {
 	return NULL;
 }
 
-int32_t __weak plat_scmi_voltd_levels_array(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_voltd_levels_array(unsigned int channel_id __unused,
 					    unsigned int scmi_id __unused,
 					    size_t start_index __unused,
 					    long *levels __unused,
@@ -36,34 +36,34 @@ int32_t __weak plat_scmi_voltd_levels_array(unsigned int agent_id __unused,
 	return SCMI_NOT_SUPPORTED;
 }
 
-int32_t __weak plat_scmi_voltd_levels_by_step(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_voltd_levels_by_step(unsigned int channel_id __unused,
 					      unsigned int scmi_id __unused,
 					      long *steps __unused)
 {
 	return SCMI_NOT_SUPPORTED;
 }
 
-long __weak plat_scmi_voltd_get_level(unsigned int agent_id __unused,
+long __weak plat_scmi_voltd_get_level(unsigned int channel_id __unused,
 				      unsigned int scmi_id __unused)
 {
 	return 0;
 }
 
-int32_t __weak plat_scmi_voltd_set_level(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_voltd_set_level(unsigned int channel_id __unused,
 					 unsigned int scmi_id __unused,
 					 long microvolt __unused)
 {
 	return SCMI_NOT_SUPPORTED;
 }
 
-int32_t __weak plat_scmi_voltd_get_config(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_voltd_get_config(unsigned int channel_id __unused,
 					  unsigned int scmi_id __unused,
 					  uint32_t *config __unused)
 {
 	return SCMI_NOT_SUPPORTED;
 }
 
-int32_t __weak plat_scmi_voltd_set_config(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_voltd_set_config(unsigned int channel_id __unused,
 					  unsigned int scmi_id __unused,
 					  uint32_t config __unused)
 {
@@ -87,7 +87,7 @@ static void report_version(struct scmi_msg *msg)
 
 static void report_attributes(struct scmi_msg *msg)
 {
-	size_t domain_count = plat_scmi_voltd_count(msg->agent_id);
+	size_t domain_count = plat_scmi_voltd_count(msg->channel_id);
 	struct scmi_protocol_attributes_p2a out_args = {
 		.status = SCMI_SUCCESS,
 		.attributes = domain_count,
@@ -139,15 +139,15 @@ static void scmi_voltd_domain_attributes(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
-	name = plat_scmi_voltd_get_name(msg->agent_id, domain_id);
+	name = plat_scmi_voltd_get_name(msg->channel_id, domain_id);
 	if (!name) {
 		scmi_status_response(msg, SCMI_NOT_FOUND);
 		return;
@@ -185,17 +185,17 @@ static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 		goto out;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		status = SCMI_INVALID_PARAMETERS;
 		goto out;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
 	/* Platform may support array rate description */
-	status = plat_scmi_voltd_levels_array(msg->agent_id, domain_id, 0, NULL,
-					      &nb_levels);
+	status = plat_scmi_voltd_levels_array(msg->channel_id, domain_id, 0,
+					      NULL, &nb_levels);
 	if (status == SCMI_SUCCESS) {
 		/* Use the stack to get the returned portion of levels array */
 		long plat_levels[LEVELS_ARRAY_SIZE_MAX];
@@ -211,7 +211,8 @@ static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 			     nb_levels - in_args->level_index);
 		rem_nb = nb_levels - in_args->level_index - ret_nb;
 
-		status =  plat_scmi_voltd_levels_array(msg->agent_id, domain_id,
+		status =  plat_scmi_voltd_levels_array(msg->channel_id,
+						       domain_id,
 						       in_args->level_index,
 						       plat_levels,
 						       &ret_nb);
@@ -239,7 +240,7 @@ static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 		long triplet[3] = { 0, 0, 0 };
 
 		/* Platform may support min/max/step triplet description */
-		status =  plat_scmi_voltd_levels_by_step(msg->agent_id,
+		status =  plat_scmi_voltd_levels_by_step(msg->channel_id,
 							 domain_id, triplet);
 		if (status == SCMI_SUCCESS) {
 			struct scmi_voltd_describe_levels_p2a out_args = {
@@ -279,17 +280,17 @@ static void scmi_voltd_config_set(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
 	config = in_args->config & SCMI_VOLTAGE_DOMAIN_CONFIG_MASK;
 
-	status = plat_scmi_voltd_set_config(msg->agent_id, domain_id, config);
+	status = plat_scmi_voltd_set_config(msg->channel_id, domain_id, config);
 
 	scmi_status_response(msg, status);
 }
@@ -305,15 +306,15 @@ static void scmi_voltd_config_get(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
-	if (plat_scmi_voltd_get_config(msg->agent_id, domain_id,
+	if (plat_scmi_voltd_get_config(msg->channel_id, domain_id,
 				       &out_args.config)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
@@ -333,15 +334,15 @@ static void scmi_voltd_level_set(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
-	status = plat_scmi_voltd_set_level(msg->agent_id, domain_id,
+	status = plat_scmi_voltd_set_level(msg->channel_id, domain_id,
 					   in_args->voltage_level);
 
 	scmi_status_response(msg, status);
@@ -360,15 +361,15 @@ static void scmi_voltd_level_get(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_voltd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_voltd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_voltd_count(msg->agent_id));
+					plat_scmi_voltd_count(msg->channel_id));
 
-	out_args.voltage_level = plat_scmi_voltd_get_level(msg->agent_id,
+	out_args.voltage_level = plat_scmi_voltd_get_level(msg->channel_id,
 							   domain_id);
 
 	scmi_write_response(msg, &out_args, sizeof(out_args));

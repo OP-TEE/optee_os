@@ -15,25 +15,25 @@
 
 static bool message_id_is_supported(unsigned int message_id);
 
-size_t __weak plat_scmi_rd_count(unsigned int agent_id __unused)
+size_t __weak plat_scmi_rd_count(unsigned int channel_id __unused)
 {
 	return 0;
 }
 
-const char __weak *plat_scmi_rd_get_name(unsigned int agent_id __unused,
+const char __weak *plat_scmi_rd_get_name(unsigned int channel_id __unused,
 					 unsigned int scmi_id __unused)
 {
 	return NULL;
 }
 
-int32_t __weak plat_scmi_rd_autonomous(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_rd_autonomous(unsigned int channel_id __unused,
 				       unsigned int scmi_id __unused,
 				       unsigned int state __unused)
 {
 	return SCMI_NOT_SUPPORTED;
 }
 
-int32_t __weak plat_scmi_rd_set_state(unsigned int agent_id __unused,
+int32_t __weak plat_scmi_rd_set_state(unsigned int channel_id __unused,
 				      unsigned int scmi_id __unused,
 				      bool assert_not_deassert __unused)
 {
@@ -59,7 +59,7 @@ static void report_attributes(struct scmi_msg *msg)
 {
 	struct scmi_protocol_attributes_p2a return_values = {
 		.status = SCMI_SUCCESS,
-		.attributes = plat_scmi_rd_count(msg->agent_id),
+		.attributes = plat_scmi_rd_count(msg->channel_id),
 	};
 
 	if (msg->in_size) {
@@ -104,15 +104,15 @@ static void reset_domain_attributes(struct scmi_msg *msg)
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_rd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_rd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
 		return;
 	}
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_rd_count(msg->agent_id));
+					plat_scmi_rd_count(msg->channel_id));
 
-	name = plat_scmi_rd_get_name(msg->agent_id, domain_id);
+	name = plat_scmi_rd_get_name(msg->channel_id, domain_id);
 	if (!name) {
 		scmi_status_response(msg, SCMI_NOT_FOUND);
 		return;
@@ -135,27 +135,27 @@ static void reset_request(struct scmi_msg *msg)
 	unsigned int domain_id = 0;
 
 	domain_id = confine_array_index(in_args->domain_id,
-					plat_scmi_rd_count(msg->agent_id));
+					plat_scmi_rd_count(msg->channel_id));
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
 		return;
 	}
 
-	if (in_args->domain_id >= plat_scmi_rd_count(msg->agent_id)) {
+	if (in_args->domain_id >= plat_scmi_rd_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_NOT_FOUND);
 		return;
 	}
 
 	if (in_args->flags & SCMI_RESET_DOMAIN_AUTO)
-		out_args.status = plat_scmi_rd_autonomous(msg->agent_id,
+		out_args.status = plat_scmi_rd_autonomous(msg->channel_id,
 							  domain_id,
 							  in_args->reset_state);
 	else if (in_args->flags & SCMI_RESET_DOMAIN_EXPLICIT)
-		out_args.status = plat_scmi_rd_set_state(msg->agent_id,
+		out_args.status = plat_scmi_rd_set_state(msg->channel_id,
 							 domain_id, true);
 	else
-		out_args.status = plat_scmi_rd_set_state(msg->agent_id,
+		out_args.status = plat_scmi_rd_set_state(msg->channel_id,
 							 domain_id, false);
 
 	if (out_args.status)
