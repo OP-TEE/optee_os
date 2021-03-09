@@ -114,8 +114,7 @@ void caam_hal_cfg_get_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg)
 		}
 
 		jrcfg->offset = jr_offset;
-		/* Add index of the first SPI interrupt */
-		jrcfg->it_num = jr_it_num + 32;
+		jrcfg->it_num = jr_it_num;
 	}
 }
 
