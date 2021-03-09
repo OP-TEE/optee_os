@@ -52,7 +52,7 @@ bool dt_have_prop(const void *fdt, int offs, const char *propname)
 	return prop;
 }
 
-int dt_get_irq(void *fdt, int node)
+int dt_get_irq(const void *fdt, int node)
 {
 	const uint32_t *int_prop = NULL;
 	int len_prop = 0;
@@ -300,6 +300,7 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 		.reg = DT_INFO_INVALID_REG,
 		.clock = DT_INFO_INVALID_CLOCK,
 		.reset = DT_INFO_INVALID_RESET,
+		.interrupt = DT_INFO_INVALID_INTERRUPT,
 	};
 	const fdt32_t *cuint;
 
@@ -316,6 +317,8 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 		cuint++;
 		dinfo.reset = (int)fdt32_to_cpu(*cuint);
 	}
+
+	dinfo.interrupt = dt_get_irq(fdt, offs);
 
 	dinfo.status = _fdt_get_status(fdt, offs);
 

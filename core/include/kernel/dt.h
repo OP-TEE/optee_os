@@ -31,12 +31,15 @@
  * @reg: Device register physical base address or DT_INFO_INVALID_REG
  * @clock: Device identifier (positive value) or DT_INFO_INVALID_CLOCK
  * @reset: Device reset identifier (positive value) or DT_INFO_INVALID_CLOCK
+ * @interrupt: Device interrupt identifier (positive value) or
+ * DT_INFO_INVALID_INTERRUPT
  */
 struct dt_node_info {
 	unsigned int status;
 	paddr_t reg;
 	int clock;
 	int reset;
+	int interrupt;
 };
 
 #if defined(CFG_DT)
@@ -106,7 +109,7 @@ bool dt_have_prop(const void *fdt, int offs, const char *propname);
  * Returns the interrupt number if value >= 0
  * otherwise DT_INFO_INVALID_INTERRUPT
  */
-int dt_get_irq(void *fdt, int node);
+int dt_get_irq(const void *fdt, int node);
 
 /*
  * Modify or add "status" property to "disabled"
