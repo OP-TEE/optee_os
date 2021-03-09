@@ -363,8 +363,11 @@ static const uint32_t symm_key_boolprops[] = {
 
 static const uint32_t symm_key_opt_or_null[] = {
 	PKCS11_CKA_WRAP_TEMPLATE, PKCS11_CKA_UNWRAP_TEMPLATE,
-	PKCS11_CKA_DERIVE_TEMPLATE,
-	PKCS11_CKA_VALUE, PKCS11_CKA_VALUE_LEN,
+	PKCS11_CKA_DERIVE_TEMPLATE, PKCS11_CKA_VALUE,
+};
+
+static const uint32_t symm_key_optional[] = {
+	PKCS11_CKA_VALUE_LEN,
 };
 
 /* PKCS#11 specification for any asymmetric public key (+any_key_xxx) */
@@ -531,8 +534,13 @@ static enum pkcs11_rc create_symm_key_attributes(struct obj_attrs **out,
 	if (rc)
 		return rc;
 
-	return set_attributes_opt_or_null(out, temp, symm_key_opt_or_null,
-					  ARRAY_SIZE(symm_key_opt_or_null));
+	rc = set_attributes_opt_or_null(out, temp, symm_key_opt_or_null,
+					ARRAY_SIZE(symm_key_opt_or_null));
+	if (rc)
+		return rc;
+
+	return set_optional_attributes(out, temp, symm_key_optional,
+				       ARRAY_SIZE(symm_key_optional));
 }
 
 static enum pkcs11_rc create_data_attributes(struct obj_attrs **out,
