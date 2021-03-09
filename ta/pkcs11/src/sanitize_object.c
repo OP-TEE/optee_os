@@ -229,18 +229,8 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 {
 	struct obj_attrs *obj2 = NULL;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
-	enum pkcs11_class_id class = get_class(*dst);
 
 	assert(pkcs11_attr_has_indirect_attributes(cli_ref->id));
-
-	if (class == PKCS11_CKO_UNDEFINED_ID) {
-		DMSG("Template without CLASS not supported yet");
-		return PKCS11_CKR_TEMPLATE_INCOMPLETE;
-	}
-
-	/* Such attributes are expected only for keys (and vendor defined) */
-	if (!pkcs11_attr_class_is_key(class))
-		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 
 	rc = init_attributes_head(&obj2);
 	if (rc)
