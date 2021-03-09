@@ -210,10 +210,25 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 
 static int gic_dt_get_irq(const uint32_t *properties, int len)
 {
+	int it_num = DT_INFO_INVALID_INTERRUPT;
+
 	if (!properties || len < 2)
 		return DT_INFO_INVALID_INTERRUPT;
 
-	return fdt32_to_cpu(properties[1]);
+	it_num = fdt32_to_cpu(properties[1]);
+
+	switch (fdt32_to_cpu(properties[0])) {
+	case 1:
+		it_num += 16;
+		break;
+	case 0:
+		it_num += 32;
+		break;
+	default:
+		it_num = DT_INFO_INVALID_INTERRUPT;
+	}
+
+	return it_num;
 }
 
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
