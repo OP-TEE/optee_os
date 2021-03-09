@@ -133,8 +133,8 @@ const char *plat_scmi_clock_get_name(unsigned int channel_id,
  *
  * @channel_id: SCMI channel ID
  * @scmi_id: SCMI clock ID
- * @rates: If NULL, function returns, else output rates array
  * @start_index: Requested start index for the exposed rates array
+ * @rates: If NULL, function returns, else output rates array
  * @nb_elts: Array size of @rates.
  * Return an SCMI compliant error code
  */
@@ -253,8 +253,8 @@ const char *plat_scmi_voltd_get_name(unsigned int channel_id,
  *
  * @channel_id: SCMI channel ID
  * @scmi_id: SCMI voltage domain ID
- * @levels: If NULL, function returns, else output rates array
  * @start_index: Level index to start from.
+ * @levels: If NULL, function returns, else output rates array
  * @nb_elts: Array size of @levels.
  * Return an SCMI compliant error code
  */
@@ -296,7 +296,7 @@ int32_t plat_scmi_voltd_set_level(unsigned int channel_id, unsigned int scmi_id,
  * Get voltage domain state configuration (enabled or disabled)
  * @channel_id: SCMI channel ID
  * @scmi_id: SCMI voltage domain ID
- * @config: output state configuration value
+ * @config: output state configuration value SCMI_VOLTAGE_DOMAIN_CONFIG_*
  * Return a compliant SCMI error code
  */
 int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
@@ -305,8 +305,8 @@ int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
 /*
  * Get voltage domain state configuration (enabled or disabled)
  * @channel_id: SCMI channel ID
- * @scmi_id: SCMI clock ID
- * @enable_not_disable: Enable clock if true, disable clock otherwise
+ * @scmi_id: SCMI voltage domain ID
+ * @config: Target state configuration value SCMI_VOLTAGE_DOMAIN_CONFIG_*
  * Return a compliant SCMI error code
  */
 int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
