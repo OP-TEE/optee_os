@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <libfdt.h>
@@ -59,7 +60,7 @@ int dt_get_irq(void *fdt, int node)
 
 	/*
 	 * Interrupt property can be defined with at least 2x32 bits word
-	 *  - Type of interrupt
+	 *  - Type of interrupt (GIC_SPI, GIC_PPI)
 	 *  - Interrupt Number
 	 */
 	int_prop = fdt_getprop(fdt, node, "interrupts", &len_prop);
@@ -68,6 +69,17 @@ int dt_get_irq(void *fdt, int node)
 		return it_num;
 
 	it_num = fdt32_to_cpu(int_prop[1]);
+
+	switch (fdt32_to_cpu(int_prop[0])) {
+	case GIC_PPI:
+		it_num += 16;
+		break;
+	case GIC_SPI:
+		it_num += 32;
+		break;
+	default:
+		it_num = DT_INFO_INVALID_INTERRUPT;
+	}
 
 	return it_num;
 }
