@@ -613,10 +613,12 @@ CFG_CORE_TPM_EVENT_LOG ?= n
 # CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
 # CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
 # CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
+# CFG_SCMI_MSG_VOLTAGE_DOMAIN embeds SCMI voltage domain protocol support.
 CFG_SCMI_MSG_DRIVERS ?= n
 CFG_SCMI_MSG_CLOCK ?= n
 CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
+CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
 
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
