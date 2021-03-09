@@ -60,7 +60,7 @@ struct scmi_protocol_message_attributes_p2a {
 /*
  * struct scmi_msg - SCMI message context
  *
- * @agent_id: SCMI agent ID, safely set from secure world
+ * @channel_id: SCMI channel ID, safely set from secure world
  * @protocol_id: SCMI protocol ID for the related message, set by caller agent
  * @message_id: SCMI message ID for the related message, set by caller agent
  * @in: Address of the incoming message payload copied in secure memory
@@ -70,7 +70,7 @@ struct scmi_protocol_message_attributes_p2a {
  * @out_size_out: Byte length of the output message payload
  */
 struct scmi_msg {
-	unsigned int agent_id;
+	unsigned int channel_id;
 	unsigned int protocol_id;
 	unsigned int message_id;
 	char *in;

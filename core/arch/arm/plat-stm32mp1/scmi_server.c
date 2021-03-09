@@ -32,7 +32,7 @@
 /*
  * struct stm32_scmi_clk - Data for the exposed clock
  * @clock_id: Clock identifier in RCC clock driver
- * @name: Clock string ID exposed to agent
+ * @name: Clock string ID exposed to channel
  * @enabled: State of the SCMI clock
  */
 struct stm32_scmi_clk {
@@ -44,7 +44,7 @@ struct stm32_scmi_clk {
 /*
  * struct stm32_scmi_rd - Data for the exposed reset controller
  * @reset_id: Reset identifier in RCC reset driver
- * @name: Reset string ID exposed to agent
+ * @name: Reset string ID exposed to channel
  */
 struct stm32_scmi_rd {
 	unsigned long reset_id;
@@ -58,7 +58,7 @@ enum voltd_device {
 
 /*
  * struct stm32_scmi_voltd - Data for the exposed voltage domains
- * @name: Power regulator string ID exposed to agent
+ * @name: Power regulator string ID exposed to channel
  * @priv_id: Internal string ID for the regulator
  * @priv_dev: Internal ID for the device implementing the regulator
  */
@@ -81,26 +81,6 @@ struct stm32_scmi_voltd {
 
 register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
 		  CFG_STM32MP1_SCMI_SHM_SIZE);
-
-static struct scmi_msg_channel scmi_channel[] = {
-	[0] = {
-		.agent_name = "stm32mp1-agent-0",
-		.shm_addr = { .pa = SMT_BUFFER0_BASE, },
-		.shm_size = SMT_BUF_SLOT_SIZE,
-	},
-	[1] = {
-		.agent_name = "stm32mp1-agent-1",
-		.shm_addr = { .pa = SMT_BUFFER1_BASE, },
-		.shm_size = SMT_BUF_SLOT_SIZE,
-	},
-};
-
-struct scmi_msg_channel *plat_scmi_get_channel(unsigned int agent_id)
-{
-	assert(agent_id < ARRAY_SIZE(scmi_channel));
-
-	return &scmi_channel[agent_id];
-}
 
 #define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled) \
 	[_scmi_id] = { \
@@ -177,7 +157,8 @@ struct stm32_scmi_voltd scmi0_voltage_domain[] = {
 	VOLTD_CELL(VOLTD_SCMI0_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
 };
 
-struct scmi_agent_resources {
+struct channel_resources {
+	struct scmi_msg_channel *channel;
 	struct stm32_scmi_clk *clock;
 	size_t clock_count;
 	struct stm32_scmi_rd *rd;
@@ -186,8 +167,12 @@ struct scmi_agent_resources {
 	size_t voltd_count;
 };
 
-static const struct scmi_agent_resources agent_resources[] = {
+static const struct channel_resources scmi_channel[] = {
 	[0] = {
+		.channel = &(struct scmi_msg_channel){
+			.shm_addr = { .pa = SMT_BUFFER0_BASE },
+			.shm_size = SMT_BUF_SLOT_SIZE,
+		},
 		.clock = stm32_scmi0_clock,
 		.clock_count = ARRAY_SIZE(stm32_scmi0_clock),
 		.rd = stm32_scmi0_reset_domain,
@@ -196,40 +181,49 @@ static const struct scmi_agent_resources agent_resources[] = {
 		.voltd_count = ARRAY_SIZE(scmi0_voltage_domain),
 	},
 	[1] = {
+		.channel = &(struct scmi_msg_channel){
+			.shm_addr = { .pa = SMT_BUFFER1_BASE },
+			.shm_size = SMT_BUF_SLOT_SIZE,
+		},
 		.clock = stm32_scmi1_clock,
 		.clock_count = ARRAY_SIZE(stm32_scmi1_clock),
 	},
 };
 
-static const struct scmi_agent_resources *find_resource(unsigned int agent_id)
+static const struct channel_resources *find_resource(unsigned int channel_id)
 {
-	assert(agent_id < ARRAY_SIZE(agent_resources));
+	assert(channel_id < ARRAY_SIZE(scmi_channel));
 
-	return &agent_resources[agent_id];
+	return scmi_channel + channel_id;
+}
+
+struct scmi_msg_channel *plat_scmi_get_channel(unsigned int channel_id)
+{
+	return find_resource(channel_id)->channel;
 }
 
 static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
 {
 	unsigned int n = 0;
 	unsigned int count = 0;
-	const size_t agent_count = ARRAY_SIZE(agent_resources);
+	const size_t channel_count = ARRAY_SIZE(scmi_channel);
 
-	for (n = 0; n < agent_count; n++)
-		if (agent_resources[n].clock_count)
+	for (n = 0; n < channel_count; n++)
+		if (scmi_channel[n].clock_count)
 			break;
-	if (n < agent_count)
+	if (n < channel_count)
 		count++;
 
-	for (n = 0; n < agent_count; n++)
-		if (agent_resources[n].rd_count)
+	for (n = 0; n < channel_count; n++)
+		if (scmi_channel[n].rd_count)
 			break;
-	if (n < agent_count)
+	if (n < channel_count)
 		count++;
 
-	for (n = 0; n < agent_count; n++)
-		if (agent_resources[n].voltd_count)
+	for (n = 0; n < channel_count; n++)
+		if (scmi_channel[n].voltd_count)
 			break;
-	if (n < agent_count)
+	if (n < channel_count)
 		count++;
 
 	return count;
@@ -265,7 +259,7 @@ size_t plat_scmi_protocol_count(void)
 	return count;
 }
 
-const uint8_t *plat_scmi_protocol_list(unsigned int agent_id __unused)
+const uint8_t *plat_scmi_protocol_list(unsigned int channel_id __unused)
 {
 	assert(plat_scmi_protocol_count_paranoid() ==
 	       (ARRAY_SIZE(plat_protocol_list) - 1));
@@ -276,10 +270,10 @@ const uint8_t *plat_scmi_protocol_list(unsigned int agent_id __unused)
 /*
  * Platform SCMI clocks
  */
-static struct stm32_scmi_clk *find_clock(unsigned int agent_id,
+static struct stm32_scmi_clk *find_clock(unsigned int channel_id,
 					 unsigned int scmi_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 	size_t n = 0;
 
 	if (resource) {
@@ -291,9 +285,9 @@ static struct stm32_scmi_clk *find_clock(unsigned int agent_id,
 	return NULL;
 }
 
-size_t plat_scmi_clock_count(unsigned int agent_id)
+size_t plat_scmi_clock_count(unsigned int channel_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 
 	if (!resource)
 		return 0;
@@ -301,10 +295,10 @@ size_t plat_scmi_clock_count(unsigned int agent_id)
 	return resource->clock_count;
 }
 
-const char *plat_scmi_clock_get_name(unsigned int agent_id,
+const char *plat_scmi_clock_get_name(unsigned int channel_id,
 				     unsigned int scmi_id)
 {
-	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
 	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
 		return NULL;
@@ -312,11 +306,11 @@ const char *plat_scmi_clock_get_name(unsigned int agent_id,
 	return clock->name;
 }
 
-int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
-				    size_t start_index, unsigned long *array,
-				    size_t *nb_elts)
+int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
+				    unsigned int scmi_id, size_t start_index,
+				    unsigned long *array, size_t *nb_elts)
 {
-	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
 	if (!clock)
 		return SCMI_NOT_FOUND;
@@ -338,10 +332,10 @@ int32_t plat_scmi_clock_rates_array(unsigned int agent_id, unsigned int scmi_id,
 	return SCMI_SUCCESS;
 }
 
-unsigned long plat_scmi_clock_get_rate(unsigned int agent_id,
+unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
 				       unsigned int scmi_id)
 {
-	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
 	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
 		return 0;
@@ -349,9 +343,9 @@ unsigned long plat_scmi_clock_get_rate(unsigned int agent_id,
 	return stm32_clock_get_rate(clock->clock_id);
 }
 
-int32_t plat_scmi_clock_get_state(unsigned int agent_id, unsigned int scmi_id)
+int32_t plat_scmi_clock_get_state(unsigned int channel_id, unsigned int scmi_id)
 {
-	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
 	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
 		return 0;
@@ -359,10 +353,10 @@ int32_t plat_scmi_clock_get_state(unsigned int agent_id, unsigned int scmi_id)
 	return (int32_t)clock->enabled;
 }
 
-int32_t plat_scmi_clock_set_state(unsigned int agent_id, unsigned int scmi_id,
+int32_t plat_scmi_clock_set_state(unsigned int channel_id, unsigned int scmi_id,
 				  bool enable_not_disable)
 {
-	struct stm32_scmi_clk *clock = find_clock(agent_id, scmi_id);
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
 	if (!clock)
 		return SCMI_NOT_FOUND;
@@ -390,10 +384,10 @@ int32_t plat_scmi_clock_set_state(unsigned int agent_id, unsigned int scmi_id,
 /*
  * Platform SCMI reset domains
  */
-static struct stm32_scmi_rd *find_rd(unsigned int agent_id,
+static struct stm32_scmi_rd *find_rd(unsigned int channel_id,
 				     unsigned int scmi_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 	size_t n = 0;
 
 	if (resource) {
@@ -405,9 +399,9 @@ static struct stm32_scmi_rd *find_rd(unsigned int agent_id,
 	return NULL;
 }
 
-const char *plat_scmi_rd_get_name(unsigned int agent_id, unsigned int scmi_id)
+const char *plat_scmi_rd_get_name(unsigned int channel_id, unsigned int scmi_id)
 {
-	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+	const struct stm32_scmi_rd *rd = find_rd(channel_id, scmi_id);
 
 	if (!rd)
 		return NULL;
@@ -415,9 +409,9 @@ const char *plat_scmi_rd_get_name(unsigned int agent_id, unsigned int scmi_id)
 	return rd->name;
 }
 
-size_t plat_scmi_rd_count(unsigned int agent_id)
+size_t plat_scmi_rd_count(unsigned int channel_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 
 	if (!resource)
 		return 0;
@@ -425,10 +419,10 @@ size_t plat_scmi_rd_count(unsigned int agent_id)
 	return resource->rd_count;
 }
 
-int32_t plat_scmi_rd_autonomous(unsigned int agent_id, unsigned int scmi_id,
+int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 				uint32_t state)
 {
-	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+	const struct stm32_scmi_rd *rd = find_rd(channel_id, scmi_id);
 
 	if (!rd)
 		return SCMI_NOT_FOUND;
@@ -454,10 +448,10 @@ int32_t plat_scmi_rd_autonomous(unsigned int agent_id, unsigned int scmi_id,
 	return SCMI_SUCCESS;
 }
 
-int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
+int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 			       bool assert_not_deassert)
 {
-	const struct stm32_scmi_rd *rd = find_rd(agent_id, scmi_id);
+	const struct stm32_scmi_rd *rd = find_rd(channel_id, scmi_id);
 
 	if (!rd)
 		return SCMI_NOT_FOUND;
@@ -486,10 +480,10 @@ int32_t plat_scmi_rd_set_state(unsigned int agent_id, unsigned int scmi_id,
 /*
  * Platform SCMI voltage domains
  */
-static struct stm32_scmi_voltd *find_voltd(unsigned int agent_id,
+static struct stm32_scmi_voltd *find_voltd(unsigned int channel_id,
 					   unsigned int scmi_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 	size_t n = 0;
 
 	if (resource) {
@@ -501,9 +495,9 @@ static struct stm32_scmi_voltd *find_voltd(unsigned int agent_id,
 	return NULL;
 }
 
-size_t plat_scmi_voltd_count(unsigned int agent_id)
+size_t plat_scmi_voltd_count(unsigned int channel_id)
 {
-	const struct scmi_agent_resources *resource = find_resource(agent_id);
+	const struct channel_resources *resource = find_resource(channel_id);
 
 	if (!resource)
 		return 0;
@@ -511,10 +505,10 @@ size_t plat_scmi_voltd_count(unsigned int agent_id)
 	return resource->voltd_count;
 }
 
-const char *plat_scmi_voltd_get_name(unsigned int agent_id,
+const char *plat_scmi_voltd_get_name(unsigned int channel_id,
 				     unsigned int scmi_id)
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 
 	/* Currently non-secure is allowed to access all PWR regulators */
 	if (!voltd)
@@ -701,12 +695,12 @@ static int32_t pmic_set_state(struct stm32_scmi_voltd *voltd, bool enable)
 	return rc ? SCMI_GENERIC_ERROR : SCMI_SUCCESS;
 }
 
-int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
+int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 				     unsigned int scmi_id, size_t start_index,
 				     long *levels, size_t *nb_elts)
 
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 
 	if (!voltd)
 		return SCMI_NOT_FOUND;
@@ -722,9 +716,9 @@ int32_t plat_scmi_voltd_levels_array(unsigned int agent_id,
 	}
 }
 
-long plat_scmi_voltd_get_level(unsigned int agent_id, unsigned int scmi_id)
+long plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id)
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 
 	if (!voltd)
 		return 0;
@@ -739,10 +733,10 @@ long plat_scmi_voltd_get_level(unsigned int agent_id, unsigned int scmi_id)
 	}
 }
 
-int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
+int32_t plat_scmi_voltd_set_level(unsigned int channel_id, unsigned int scmi_id,
 				  long level)
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 
 	if (!voltd)
 		return SCMI_NOT_FOUND;
@@ -757,10 +751,10 @@ int32_t plat_scmi_voltd_set_level(unsigned int agent_id, unsigned int scmi_id,
 	}
 }
 
-int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
-				   uint32_t *config)
+int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
+				   unsigned int scmi_id, uint32_t *config)
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 
 	if (!voltd)
 		return SCMI_NOT_FOUND;
@@ -779,10 +773,10 @@ int32_t plat_scmi_voltd_get_config(unsigned int agent_id, unsigned int scmi_id,
 	return SCMI_SUCCESS;
 }
 
-int32_t plat_scmi_voltd_set_config(unsigned int agent_id, unsigned int scmi_id,
-				   uint32_t config)
+int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
+				   unsigned int scmi_id, uint32_t config)
 {
-	struct stm32_scmi_voltd *voltd = find_voltd(agent_id, scmi_id);
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
 	int32_t rc = SCMI_SUCCESS;
 
 	if (!voltd)
@@ -811,7 +805,8 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 	size_t j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(scmi_channel); i++) {
-		struct scmi_msg_channel *chan = &scmi_channel[i];
+		const struct channel_resources *res = scmi_channel + i;
+		struct scmi_msg_channel *chan = res->channel;
 
 		/* Enforce non-secure shm mapped as device memory */
 		chan->shm_addr.va = (vaddr_t)phys_to_virt(chan->shm_addr.pa,
@@ -819,10 +814,6 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 		assert(chan->shm_addr.va);
 
 		scmi_smt_init_agent_channel(chan);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(agent_resources); i++) {
-		const struct scmi_agent_resources *res = &agent_resources[i];
 
 		for (j = 0; j < res->clock_count; j++) {
 			struct stm32_scmi_clk *clk = &res->clock[j];

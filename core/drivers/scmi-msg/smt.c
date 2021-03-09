@@ -91,7 +91,7 @@ static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
  * references to input payload in secure memory and output message buffer
  * in shared memory.
  */
-static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
+static void scmi_proccess_smt(unsigned int channel_id, uint32_t *payload_buf)
 {
 	struct scmi_msg_channel *chan = NULL;
 	struct smt_header *smt_hdr = NULL;
@@ -100,7 +100,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 	struct scmi_msg msg = { };
 	bool error = true;
 
-	chan = plat_scmi_get_channel(agent_id);
+	chan = plat_scmi_get_channel(channel_id);
 	if (!chan)
 		return;
 
@@ -110,7 +110,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 	smt_status = READ_ONCE(smt_hdr->status);
 
 	if (!channel_set_busy(chan)) {
-		DMSG("SCMI channel %u busy", agent_id);
+		DMSG("SCMI channel %u busy", channel_id);
 		goto out;
 	}
 
@@ -141,7 +141,7 @@ static void scmi_proccess_smt(unsigned int agent_id, uint32_t *payload_buf)
 
 	msg.protocol_id = SMT_HDR_PROT_ID(smt_hdr->message_header);
 	msg.message_id = SMT_HDR_MSG_ID(smt_hdr->message_header);
-	msg.agent_id = agent_id;
+	msg.channel_id = channel_id;
 
 	scmi_process_message(&msg);
 
@@ -164,9 +164,9 @@ out:
 /* Provision input message payload buffers for fastcall SMC context entries */
 static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
 
-void scmi_smt_fastcall_smc_entry(unsigned int agent_id)
+void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
 {
-	scmi_proccess_smt(agent_id, fast_smc_payload[get_core_pos()]);
+	scmi_proccess_smt(channel_id, fast_smc_payload[get_core_pos()]);
 }
 #endif
 
@@ -174,9 +174,9 @@ void scmi_smt_fastcall_smc_entry(unsigned int agent_id)
 /* Provision input message payload buffers for fastcall SMC context entries */
 static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
 
-void scmi_smt_interrupt_entry(unsigned int agent_id)
+void scmi_smt_interrupt_entry(unsigned int channel_id)
 {
-	scmi_proccess_smt(agent_id, interrupt_payload[get_core_pos()]);
+	scmi_proccess_smt(channel_id, interrupt_payload[get_core_pos()]);
 }
 #endif
 
@@ -184,11 +184,11 @@ void scmi_smt_interrupt_entry(unsigned int agent_id)
 /* Provision input message payload buffers for fastcall SMC context entries */
 static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PLAYLOAD_U32_MAX];
 
-void scmi_smt_threaded_entry(unsigned int agent_id)
+void scmi_smt_threaded_entry(unsigned int channel_id)
 {
-	assert(plat_scmi_get_channel(agent_id)->threaded);
+	assert(plat_scmi_get_channel(channel_id)->threaded);
 
-	scmi_proccess_smt(agent_id, threaded_payload[thread_get_id()]);
+	scmi_proccess_smt(channel_id, threaded_payload[thread_get_id()]);
 }
 #endif
 

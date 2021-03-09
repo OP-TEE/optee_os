@@ -151,7 +151,7 @@ static void discover_list_protocols(struct scmi_msg *msg)
 
 	a2p = (void *)msg->in;
 
-	list = plat_scmi_protocol_list(msg->agent_id);
+	list = plat_scmi_protocol_list(msg->channel_id);
 	count = count_protocols_in_list(list);
 	if (count > a2p->skip)
 		count = MIN(count - a2p->skip, MAX_PROTOCOL_IN_LIST);
