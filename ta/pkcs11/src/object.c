@@ -826,6 +826,12 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 
 		len = sizeof(*cli_ref) + cli_head.size;
 
+		/* We don't support getting value of indirect templates */
+		if (pkcs11_attr_has_indirect_attributes(cli_head.id)) {
+			attr_type_invalid = 1;
+			continue;
+		}
+
 		/* Check 1. */
 		if (!attribute_is_exportable(&cli_head, obj)) {
 			cli_head.size = PKCS11_CK_UNAVAILABLE_INFORMATION;
