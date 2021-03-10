@@ -679,6 +679,56 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 					  opt_or_null_count);
 }
 
+static enum pkcs11_rc
+sanitize_symm_key_attributes(struct obj_attrs **temp,
+			     enum processing_func function)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+	uint32_t a_size = 0;
+
+	assert(get_class(*temp) == PKCS11_CKO_SECRET_KEY);
+
+	rc = get_attribute_ptr(*temp, PKCS11_CKA_VALUE, NULL, &a_size);
+
+	switch (get_key_type(*temp)) {
+	case PKCS11_CKK_GENERIC_SECRET:
+	case PKCS11_CKK_AES:
+	case PKCS11_CKK_MD5_HMAC:
+	case PKCS11_CKK_SHA_1_HMAC:
+	case PKCS11_CKK_SHA256_HMAC:
+	case PKCS11_CKK_SHA384_HMAC:
+	case PKCS11_CKK_SHA512_HMAC:
+	case PKCS11_CKK_SHA224_HMAC:
+		switch (function) {
+		case PKCS11_FUNCTION_IMPORT:
+			/* CKA_VALUE is a mandatory with C_CreateObject */
+			if (rc || a_size == 0)
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+			if (get_attribute_ptr(*temp, PKCS11_CKA_VALUE_LEN, NULL,
+					      NULL) != PKCS11_RV_NOT_FOUND)
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+			return add_attribute(temp, PKCS11_CKA_VALUE_LEN,
+					     &a_size, sizeof(uint32_t));
+		case PKCS11_FUNCTION_GENERATE:
+			if (rc != PKCS11_RV_NOT_FOUND)
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		EMSG("Invalid key type %#"PRIx32"/%s",
+		     get_key_type(*temp), id2str_key_type(get_key_type(*temp)));
+
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
 /*
  * Create an attribute list for a new object from a template and a parent
  * object (optional) for an object generation function (generate, copy,
@@ -806,6 +856,9 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		rc = create_data_attributes(&attrs, temp);
 		break;
 	case PKCS11_CKO_SECRET_KEY:
+		rc = sanitize_symm_key_attributes(&temp, function);
+		if (rc)
+			goto out;
 		rc = create_symm_key_attributes(&attrs, temp);
 		break;
 	case PKCS11_CKO_PUBLIC_KEY:
