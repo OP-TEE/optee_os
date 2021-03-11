@@ -2042,8 +2042,8 @@ void asid_free(unsigned int asid)
 static bool arm_va2pa_helper(void *va, paddr_t *pa)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	paddr_t par;
-	paddr_t par_pa_mask;
+	paddr_t par = 0;
+	paddr_t par_pa_mask = 0;
 	bool ret = false;
 
 #ifdef ARM32
@@ -2086,14 +2086,14 @@ static vaddr_t get_linear_map_end(void)
 #if defined(CFG_TEE_CORE_DEBUG)
 static void check_pa_matches_va(void *va, paddr_t pa)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	vaddr_t v = (vaddr_t)va;
 	paddr_t p = 0;
 	struct core_mmu_table_info ti __maybe_unused = { };
 
 	if (core_mmu_user_va_range_is_defined()) {
-		vaddr_t user_va_base;
-		size_t user_va_size;
+		vaddr_t user_va_base = 0;
+		size_t user_va_size = 0;
 
 		core_mmu_get_user_va_range(&user_va_base, &user_va_size);
 		if (v >= user_va_base &&
@@ -2167,7 +2167,7 @@ static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
 
 paddr_t virt_to_phys(void *va)
 {
-	paddr_t pa;
+	paddr_t pa = 0;
 
 	if (!arm_va2pa_helper(va, &pa))
 		pa = 0;
@@ -2178,7 +2178,7 @@ paddr_t virt_to_phys(void *va)
 #if defined(CFG_TEE_CORE_DEBUG)
 static void check_va_matches_pa(paddr_t pa, void *va)
 {
-	paddr_t p;
+	paddr_t p = 0;
 
 	if (!va)
 		return;
@@ -2197,7 +2197,7 @@ static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
 
 static void *phys_to_virt_ta_vaspace(paddr_t pa)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	void *va = NULL;
 
 	if (!core_mmu_user_mapping_is_active())
@@ -2219,7 +2219,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 #else
 static void *phys_to_virt_tee_ram(paddr_t pa)
 {
-	struct tee_mmap_region *mmap;
+	struct tee_mmap_region *mmap = NULL;
 
 	mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM, pa);
 	if (!mmap)
@@ -2237,7 +2237,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 
 void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 {
-	void *va;
+	void *va = NULL;
 
 	switch (m) {
 	case MEM_AREA_TA_VASPACE:
@@ -2264,8 +2264,8 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 
 void *phys_to_virt_io(paddr_t pa)
 {
-	struct tee_mmap_region *map;
-	void *va;
+	struct tee_mmap_region *map = NULL;
+	void *va = NULL;
 
 	map = find_map_by_type_and_pa(MEM_AREA_IO_SEC, pa);
 	if (!map)
