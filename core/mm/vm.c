@@ -1179,9 +1179,8 @@ TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa)
 	return tee_mmu_user_va2pa_attr(uctx, ua, pa, NULL);
 }
 
-TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
+void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa)
 {
-	TEE_Result res = TEE_SUCCESS;
 	paddr_t p = 0;
 	struct vm_region *region = NULL;
 
@@ -1199,6 +1198,8 @@ TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
 		assert(!granule || IS_POWER_OF_TWO(granule));
 
 		for (ofs = region->offset; ofs < region->size; ofs += size) {
+			if (mobj_get_pa(region->mobj, ofs, granule, &p))
+				continue;
 
 			if (granule) {
 				/* From current offset to buffer/granule end */
@@ -1206,12 +1207,9 @@ TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
 
 				if (size > (region->size - ofs))
 					size = region->size - ofs;
-			} else
+			} else {
 				size = region->size;
-
-			res = mobj_get_pa(region->mobj, ofs, granule, &p);
-			if (res != TEE_SUCCESS)
-				return res;
+			}
 
 			if (core_is_buffer_inside(pa, 1, p, size)) {
 				/* Remove region offset (mobj phys offset) */
@@ -1219,13 +1217,12 @@ TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va)
 				/* Get offset-in-granule */
 				p = pa - p;
 
-				*va = (void *)(region->va + ofs + (vaddr_t)p);
-				return TEE_SUCCESS;
+				return (void *)(region->va + ofs + (vaddr_t)p);
 			}
 		}
 	}
 
-	return TEE_ERROR_ACCESS_DENIED;
+	return NULL;
 }
 
 TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,

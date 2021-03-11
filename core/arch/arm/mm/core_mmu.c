@@ -2197,16 +2197,10 @@ static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
 
 static void *phys_to_virt_ta_vaspace(paddr_t pa)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	void *va = NULL;
-
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
 
-	res = vm_pa2va(to_user_mode_ctx(thread_get_tsd()->ctx), pa, &va);
-	if (res != TEE_SUCCESS)
-		return NULL;
-	return va;
+	return vm_pa2va(to_user_mode_ctx(thread_get_tsd()->ctx), pa);
 }
 
 #ifdef CFG_WITH_PAGER
