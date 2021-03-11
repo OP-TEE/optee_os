@@ -39,6 +39,17 @@ static TEE_Result mbed_cmac_init(struct crypto_mac_ctx *ctx,
 	struct mbed_cmac_ctx *c = to_cmac_ctx(ctx);
 	const mbedtls_cipher_info_t *cipher_info = NULL;
 
+	if (len == 16) {
+		/*
+		 * mbedTLS supports 128 bit keys for MBEDTLS_CIPHER_ID_DES
+		 * and not for MBEDTLS_CIPHER_ID_3DES.
+		 * That's why we have to change the cipher id here.
+		 */
+		if (c->cipher_id == MBEDTLS_CIPHER_ID_3DES) {
+			c->cipher_id = MBEDTLS_CIPHER_ID_DES;
+		}
+	}
+
 	cipher_info = mbedtls_cipher_info_from_values(c->cipher_id,
 						      len * 8,
 						      MBEDTLS_MODE_ECB);
@@ -81,8 +92,10 @@ static TEE_Result mbed_cmac_final(struct crypto_mac_ctx *ctx,
 	if (len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (c->cipher_id == MBEDTLS_CIPHER_ID_3DES)
+	if ((c->cipher_id == MBEDTLS_CIPHER_ID_3DES) ||
+	    (c->cipher_id == MBEDTLS_CIPHER_ID_DES)) {
 		block_size = TEE_DES_BLOCK_SIZE;
+	}
 
 	if (len < block_size)
 		tmp_digest = block_digest; /* use a tempory buffer */
