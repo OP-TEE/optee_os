@@ -31,14 +31,12 @@ struct scmi_msg_channel;
  * @shm_size: Byte size of the shared memory for the SCMI channel
  * @busy: True when channel is busy, flase when channel is free
  * @threaded: True is executed in a threaded context, false otherwise
- * @agent_name: Agent name, SCMI protocol exposes 16 bytes max, or NULL
  */
 struct scmi_msg_channel {
 	struct io_pa_va shm_addr;
 	size_t shm_size;
 	bool busy;
 	bool threaded;
-	const char *agent_name;
 };
 
 /*
