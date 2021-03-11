@@ -99,7 +99,7 @@ TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa);
  * given the user context.
  * Interface is deprecated, use phys_to_virt() instead.
  *---------------------------------------------------------------------------*/
-TEE_Result vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, void **va);
+void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa);
 
 TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 				  uint32_t flags, uaddr_t uaddr, size_t len);
