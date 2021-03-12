@@ -171,7 +171,7 @@ bool mechanism_is_one_shot_only(uint32_t mechanism_type)
 
 /*
  * Arrays that centralizes the IDs and processing flags for mechanisms
- * supported by each embedded token. Currently none.
+ * supported by each embedded token.
  */
 const struct pkcs11_mechachism_modes token_mechanism[] = {
 	TA_MECHANISM(PKCS11_CKM_AES_ECB, CKFM_CIPHER),
