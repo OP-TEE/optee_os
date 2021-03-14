@@ -25,6 +25,12 @@
 
 TAILQ_HEAD(tee_ta_session_head, tee_ta_session);
 TAILQ_HEAD(tee_ta_ctx_head, tee_ta_ctx);
+TAILQ_HEAD(tee_initializing_uuid_head, tee_initializing_uuid);
+
+struct tee_initializing_uuid {
+	TEE_UUID uuid;
+	TAILQ_ENTRY(tee_initializing_uuid) link;
+};
 
 struct mobj;
 
@@ -96,6 +102,7 @@ struct tee_ta_session {
 
 /* Registered contexts */
 extern struct tee_ta_ctx_head tee_ctxes;
+extern struct tee_initializing_uuid_head initializing_ctxes;
 
 extern struct mutex tee_ta_mutex;
 extern struct condvar tee_ta_init_cv;

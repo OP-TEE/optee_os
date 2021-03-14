@@ -40,6 +40,8 @@ struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
 /* This condvar is used when waiting for a TA context to become initialized */
 struct condvar tee_ta_init_cv = CONDVAR_INITIALIZER;
 struct tee_ta_ctx_head tee_ctxes = TAILQ_HEAD_INITIALIZER(tee_ctxes);
+static struct condvar tee_ta_prepare_init = CONDVAR_INITIALIZER;
+struct tee_initializing_uuid_head initializing_ctxes = TAILQ_HEAD_INITIALIZER(initializing_ctxes);
 
 #ifndef CFG_CONCURRENT_SINGLE_INSTANCE_TA
 static struct condvar tee_ta_cv = CONDVAR_INITIALIZER;
@@ -568,15 +570,63 @@ TEE_Result tee_ta_close_session(struct tee_ta_session *csess,
 	return TEE_SUCCESS;
 }
 
+static bool has_other_prepare_init_same_uuid(const TEE_UUID *uuid)
+{
+	struct tee_initializing_uuid *list_node;
+	TAILQ_FOREACH(list_node, &initializing_ctxes, link) {
+		if (memcmp(&list_node->uuid, uuid, sizeof(TEE_UUID)) == 0)
+			return true;
+	}
+	return false;
+}
+
+static void remove_prepare_init_uuid(const TEE_UUID *uuid)
+{
+	struct tee_initializing_uuid *list_node;
+
+	mutex_lock(&tee_ta_mutex);
+	TAILQ_FOREACH(list_node, &initializing_ctxes, link) {
+		if (memcmp(&list_node->uuid, uuid, sizeof(TEE_UUID)) == 0) {
+			TAILQ_REMOVE(&initializing_ctxes, list_node, link);
+			free(list_node);
+			condvar_broadcast(&tee_ta_prepare_init);
+			mutex_unlock(&tee_ta_mutex);
+			return;
+		}
+	}
+	mutex_unlock(&tee_ta_mutex);
+}
+
+static void add_prepare_init_uuid(const TEE_UUID *uuid)
+{
+	struct tee_initializing_uuid* new_ctx = NULL;
+
+	new_ctx = malloc(sizeof(struct tee_initializing_uuid));
+	if (!new_ctx) {
+		EMSG(OOM, malloc failed);
+		return;
+	}
+	memcpy(&new_ctx->uuid, uuid, sizeof(TEE_UUID));
+	TAILQ_INSERT_TAIL(&initializing_ctxes, new_ctx, link);
+}
+
 static TEE_Result tee_ta_init_session_with_context(struct tee_ta_session *s,
 						   const TEE_UUID *uuid)
 {
 	struct tee_ta_ctx *ctx = NULL;
 
 	while (true) {
+check_again:
 		ctx = tee_ta_context_find(uuid);
-		if (!ctx)
-			return TEE_ERROR_ITEM_NOT_FOUND;
+		if (!ctx) {
+			if (has_other_prepare_init_same_uuid(uuid)) {
+				condvar_wait(&tee_ta_prepare_init, &tee_ta_mutex);
+				goto check_again;
+			} else {
+				add_prepare_init_uuid(uuid);
+				return TEE_ERROR_ITEM_NOT_FOUND;
+			}
+		}
 
 		if (!is_user_ta_ctx(&ctx->ts_ctx) ||
 		    !to_user_ta_ctx(&ctx->ts_ctx)->uctx.is_initializing)
@@ -686,6 +736,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 	res = tee_ta_init_user_ta_session(uuid, s);
 
 out:
+	remove_prepare_init_uuid(uuid);
 	if (!res) {
 		*sess = s;
 		return TEE_SUCCESS;
