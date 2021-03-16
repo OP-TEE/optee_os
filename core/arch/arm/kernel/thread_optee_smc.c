@@ -71,7 +71,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 		thread_resume_from_rpc(a3, a1, a2, a4, a5);
 		rv = OPTEE_SMC_RETURN_ERESUME;
 	} else {
-		thread_alloc_and_run(a0, a1, a2, a3);
+		thread_alloc_and_run(a0, a1, a2, a3, 0, 0);
 		rv = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 	}
 
@@ -204,7 +204,8 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
  * the unpaged area.
  */
 uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
-				       uint32_t a3)
+				       uint32_t a3, uint32_t a4 __unused,
+				       uint32_t a5 __unused)
 {
 	uint32_t rv = 0;
 

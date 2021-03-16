@@ -125,9 +125,10 @@ void thread_excp_vect_end(void);
  * everything is set up and does some post processing once
  * __thread_std_smc_entry() returns.
  */
-void thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
+void thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			  uint32_t a4, uint32_t a5);
 uint32_t __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
-				uint32_t a3);
+				uint32_t a3, uint32_t a4, uint32_t a5);
 
 void thread_sp_alloc_and_run(struct thread_smc_args *args);
 
@@ -187,7 +188,8 @@ uint32_t thread_get_usr_sp(void);
 /* Checks stack canaries */
 void thread_check_canaries(void);
 
-void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
+void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			  uint32_t a4, uint32_t a5);
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
 void thread_lock_global(void);
