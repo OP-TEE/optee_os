@@ -655,7 +655,7 @@ static void op_attr_secret_value_clear(void *attr)
 	struct tee_cryp_obj_secret *key = attr;
 
 	key->key_size = 0;
-	memset(key + 1, 0, key->alloc_size);
+	memzero_explicit(key + 1, key->alloc_size);
 }
 
 static TEE_Result op_attr_bignum_from_user(void *attr, const void *buffer,
