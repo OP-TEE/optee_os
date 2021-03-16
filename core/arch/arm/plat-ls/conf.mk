@@ -170,8 +170,7 @@ ifeq ($(CFG_NXP_CAAM),y)
 # If NXP CAAM Driver is supported, the Crypto Driver interfacing
 # it with generic crypto API can be enabled.
 CFG_CRYPTO_DRIVER ?= y
-CFG_CAAM_64BIT ?= y
-CFG_CRYPTO_DRIVER_DEBUG ?= n
+CFG_CRYPTO_DRIVER_DEBUG ?= 0
 else
 $(call force,CFG_CRYPTO_DRIVER,n)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
