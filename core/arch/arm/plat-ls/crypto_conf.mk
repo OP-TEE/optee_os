@@ -23,6 +23,12 @@ CFG_DBG_CAAM_TRACE ?= BIT32(1)
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
 
+CFG_CAAM_64BIT ?= y
+
+# Number of entries by which SGT entries must be allocated
+# On layerscape, SGT entries are loaded by burst of 4
+$(call force, CFG_CAAM_SGT_ALIGN,4)
+
 #
 # CAAM Job Ring configuration
 #  - Normal boot settings
@@ -32,12 +38,34 @@ $(call force,CFG_JR_BLOCK_SIZE,0x10000)
 $(call force,CFG_JR_INDEX,2)  # Default JR index used
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),ls1046ardb))
-$(call force,CFG_JR_INT,137)  # Default JR IT Number (105 + 32) = 137
-endif
-
-ifneq (,$(filter $(PLATFORM_FLAVOR),lx2160ardb))
+$(call force,CFG_JR_INT,137)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),ls1088ardb))
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
+$(call force,CFG_JR_INT,175)
+$(call force,CFG_NXP_CAAM_SGT_V2,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),ls2088ardb))
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
+$(call force,CFG_JR_INT,175)
+$(call force,CFG_NXP_CAAM_SGT_V2,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),ls1028ardb))
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
+$(call force,CFG_JR_INT,175)
+$(call force,CFG_NXP_CAAM_SGT_V2,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),lx2160aqds))
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force,CFG_JR_INT, 174)
 $(call force,CFG_NB_JOBS_QUEUE, 80)  # Default JR index used
+$(call force,CFG_NXP_CAAM_SGT_V2,y)
+else ifneq (,$(filter $(PLATFORM_FLAVOR),lx2160ardb))
+$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
+$(call force,CFG_JR_INT, 174)
+$(call force,CFG_NB_JOBS_QUEUE, 80)  # Default JR index used
+$(call force,CFG_NXP_CAAM_SGT_V2,y)
+endif
+
+# Version of the SGT implementation to use
+ifneq ($(CFG_NXP_CAAM_SGT_V2),y)
+$(call force,CFG_NXP_CAAM_SGT_V1,y)
 endif
 
 #
