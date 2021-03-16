@@ -2106,6 +2106,8 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 
 			res = vm_va2pa(to_user_mode_ctx(thread_get_tsd()->ctx),
 				       va, &p);
+			if (res == TEE_ERROR_NOT_SUPPORTED)
+				return;
 			if (res == TEE_SUCCESS && pa != p)
 				panic("bad pa");
 			if (res != TEE_SUCCESS && pa)
