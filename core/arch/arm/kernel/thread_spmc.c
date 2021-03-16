@@ -406,7 +406,8 @@ static void handle_yielding_call(struct thread_smc_args *args)
 				       0);
 		ret_val = FFA_INVALID_PARAMETERS;
 	} else {
-		thread_alloc_and_run(args->a1, args->a3, args->a4, args->a5);
+		thread_alloc_and_run(args->a1, args->a3, args->a4, args->a5,
+				     args->a6, args->a7);
 		ret_val = FFA_BUSY;
 	}
 	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32, swap_src_dst(args->a1),
@@ -974,7 +975,9 @@ static uint32_t yielding_unregister_shm(uint64_t cookie)
  * the unpaged area.
  */
 uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
-				       uint32_t a2, uint32_t a3)
+				       uint32_t a2, uint32_t a3,
+				       uint32_t a4 __unused,
+				       uint32_t a5 __unused)
 {
 	/*
 	 * Arguments are supplied from handle_yielding_call() as:
@@ -982,6 +985,8 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
 	 * a1 <- w3
 	 * a2 <- w4
 	 * a3 <- w5
+	 * a4 <- w6
+	 * a5 <- w7
 	 */
 	thread_get_tsd()->rpc_target_info = swap_src_dst(a0);
 	switch (a1) {

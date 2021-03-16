@@ -27,7 +27,8 @@ boot_init_primary_late(unsigned long fdt __unused)
 
 uint32_t __section(".text.dummy.__thread_std_smc_entry")
 __thread_std_smc_entry(uint32_t a0 __unused, uint32_t a1 __unused,
-		       uint32_t a2 __unused, uint32_t a3 __unused)
+		       uint32_t a2 __unused, uint32_t a3 __unused,
+		       uint32_t a4 __unused, uint32_t a5 __unused)
 {
 	return 0;
 }
