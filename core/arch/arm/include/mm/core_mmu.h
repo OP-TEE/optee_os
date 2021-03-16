@@ -428,8 +428,10 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map);
 
 /*
  * core_mmu_set_user_map() - Set new MMU configuration for user VA space
- * @map:	If NULL will disable user VA space, if not NULL the user
- *		VA space to activate.
+ * @map:	User context MMU configuration or NULL to set core VA space
+ *
+ * Activate user VA space mapping and set its ASID if @map is not NULL,
+ * otherwise activate core mapping and set ASID to 0.
  */
 void core_mmu_set_user_map(struct core_mmu_user_map *map);
 

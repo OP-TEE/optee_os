@@ -9,14 +9,10 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/user_ta.h>
 
-/*-----------------------------------------------------------------------------
- * Allocate context resources like ASID and MMU table information
- *---------------------------------------------------------------------------*/
+/* Allocate context resources like ASID and MMU table information */
 TEE_Result vm_info_init(struct user_mode_ctx *uctx);
 
-/*-----------------------------------------------------------------------------
- * Release context resources like ASID
- *---------------------------------------------------------------------------*/
+/* Release context resources like ASID */
 void vm_info_final(struct user_mode_ctx *uctx);
 
 /*
@@ -87,26 +83,20 @@ TEE_Result vm_buf_to_mboj_offs(const struct user_mode_ctx *uctx,
 			       const void *va, size_t size,
 			       struct mobj **mobj, size_t *offs);
 
-/*-----------------------------------------------------------------------------
- * vm_va2pa - Translate virtual user address to physical address
- * given the user context.
- * Interface is deprecated, use virt_to_phys() instead.
- *---------------------------------------------------------------------------*/
+/* Helper function for virt_to_phys(), shouldn't be used directly elsewhere */
 TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa);
 
-/*-----------------------------------------------------------------------------
- * vm_pa2va - Translate physical address to virtual user address
- * given the user context.
- * Interface is deprecated, use phys_to_virt() instead.
- *---------------------------------------------------------------------------*/
+/* Helper function for phys_to_virt(), shouldn't be used directly elsewhere */
 void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa);
 
+/*
+ * Return TEE_SUCCESS or TEE_ERROR_ACCESS_DENIED when buffer exists or return
+ * another TEE_Result code.
+ */
 TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 				  uint32_t flags, uaddr_t uaddr, size_t len);
 
-/*-----------------------------------------------------------------------------
- * If ctx is NULL user mapping is removed and ASID set to 0
- *---------------------------------------------------------------------------*/
+/* Set user context @ctx or core privileged context if @ctx is NULL */
 void vm_set_ctx(struct ts_ctx *ctx);
 
 #endif /*TEE_MMU_H*/
