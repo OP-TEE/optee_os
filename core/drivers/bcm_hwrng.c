@@ -3,12 +3,16 @@
  * Copyright 2019 Broadcom.
  */
 
+#include <crypto/crypto.h>
 #include <drivers/bcm_hwrng.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/delay.h>
+#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
+#include <rng_support.h>
+#include <string.h>
 #include <trace.h>
 
 /* Registers */
@@ -44,29 +48,74 @@ static void bcm_hwrng_reset(void)
 			RNG_CTRL_MASK, RNG_CTRL_ENABLE);
 }
 
-uint32_t bcm_hwrng_read_rng(uint32_t *p_out, uint32_t words_to_read)
+static uint32_t do_rng_read(void *buf, ssize_t blen)
 {
-	uint32_t available_words = 0;
-	uint32_t num_words = 0;
-	uint32_t i = 0;
-	uint64_t timeout = timeout_init_us(RNG_TIMEOUT_US);
+	uint32_t available = 0;
+	ssize_t copied = 0;
+	ssize_t copy_len = 0;
+	union {
+		uint32_t word;
+		uint8_t  bytes[4];
+	} data;
+	uint64_t timeout;
 
 	assert(bcm_hwrng_base);
 
-	do {
-		available_words = io_read32(bcm_hwrng_base +
-					    RNG_FIFO_COUNT_OFFSET);
-		available_words = available_words & RNG_FIFO_COUNT_MASK;
-	} while (!available_words && !timeout_elapsed(timeout));
+	while (copied < blen) {
+		if (!available) {
+			timeout = timeout_init_us(RNG_TIMEOUT_US);
+			do {
+				available = io_read32(bcm_hwrng_base +
+						RNG_FIFO_COUNT_OFFSET);
+				available = available & RNG_FIFO_COUNT_MASK;
+				if (timeout_elapsed(timeout)) {
+					DMSG("timeout waiting for rng FIFO\n");
+					goto out;
+				}
+			} while (!available);
+		}
+		available--;
 
-	if ((available_words > 0) && (words_to_read > 0)) {
-		num_words =  MIN(available_words, words_to_read);
-		for (i = 0; i < num_words; i++)
-			p_out[i] = io_read32(bcm_hwrng_base +
-					     RNG_FIFO_DATA_OFFSET);
+		data.word = io_read32(bcm_hwrng_base +
+				     RNG_FIFO_DATA_OFFSET);
+
+		copy_len = MIN((blen - copied), 4);
+		memcpy((uint8_t *)buf + copied, data.bytes, copy_len);
+		copied += copy_len;
 	}
 
-	return num_words;
+out:
+	return copied;
+}
+
+uint32_t bcm_hwrng_read_rng(uint32_t *p_out, uint32_t words_to_read)
+{
+	ssize_t copy_len = (ssize_t)words_to_read << 2;
+
+	copy_len = do_rng_read((void *)p_out, copy_len);
+
+	return (copy_len >> 2);
+}
+
+TEE_Result crypto_rng_read(void *buf, size_t blen)
+{
+	if (!buf)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (do_rng_read(buf, blen) == blen)
+		return TEE_SUCCESS;
+
+	return TEE_ERROR_NO_DATA;
+}
+
+uint8_t hw_get_random_byte(void)
+{
+	uint8_t data = 0;
+
+	if (do_rng_read(&data, 1) != 1)
+		panic();
+
+	return data;
 }
 
 static TEE_Result bcm_hwrng_init(void)
