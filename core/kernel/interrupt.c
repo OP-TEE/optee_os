@@ -5,6 +5,7 @@
 
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <stdlib.h>
 #include <trace.h>
 #include <assert.h>
 
@@ -43,6 +44,33 @@ void itr_handle(size_t it)
 		EMSG("Disabling unhandled interrupt %zu", it);
 		itr_chip->ops->disable(itr_chip, it);
 	}
+}
+
+struct itr_handler *itr_alloc_add(size_t it, itr_handler_t handler,
+				  uint32_t flags, void *data)
+{
+	struct itr_handler *hdl = calloc(1, sizeof(struct itr_handler));
+
+	if (hdl) {
+		hdl->it = it;
+		hdl->handler = handler;
+		hdl->flags = flags;
+		hdl->data = data;
+		itr_add(hdl);
+	}
+
+	return hdl;
+}
+
+void itr_free(struct itr_handler *hdl)
+{
+	if (!hdl)
+		return;
+
+	itr_chip->ops->disable(itr_chip, hdl->it);
+
+	SLIST_REMOVE(&handlers, hdl, itr_handler, link);
+	free(hdl);
 }
 
 void itr_add(struct itr_handler *h)
