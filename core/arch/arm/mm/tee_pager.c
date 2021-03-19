@@ -1410,8 +1410,10 @@ static void make_iv_available(struct fobj *fobj, unsigned int fobj_pgidx,
 	paddr_t pa = 0;
 
 	page_va = fobj_get_iv_vaddr(fobj, fobj_pgidx) & ~SMALL_PAGE_MASK;
-	if (!page_va)
+	if (!IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV) || !page_va) {
+		assert(!page_va);
 		return;
+	}
 
 	assert(area && area->type == PAGER_AREA_TYPE_RW);
 	assert(pager_spare_pmem);
@@ -1488,7 +1490,8 @@ static void pager_get_page(struct tee_pager_area *area, struct abort_info *ai,
 				 *
 				 * See make_iv_available() for details.
 				 */
-				if (!pager_spare_pmem) {
+				if (IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV) &&
+				    !pager_spare_pmem) {
 					TAILQ_REMOVE(&tee_pager_pmem_head,
 						     pmem, link);
 					pager_spare_pmem = pmem;
@@ -1521,7 +1524,7 @@ static void pager_get_page(struct tee_pager_area *area, struct abort_info *ai,
 		pmem_assign_fobj_page(pmem, area, page_va);
 		make_iv_available(pmem->fobj, pmem->fobj_pgidx,
 				  false /*!writable*/);
-		if (pager_spare_pmem)
+		if (!IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV) || pager_spare_pmem)
 			break;
 
 		/*
@@ -1778,7 +1781,8 @@ void tee_pager_add_pages(vaddr_t vaddr, size_t npages, bool unmap)
 				       get_area_mattr(area->flags));
 		}
 
-		if (unmap && !pager_spare_pmem) {
+		if (unmap && IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV) &&
+		    !pager_spare_pmem) {
 			pager_spare_pmem = pmem;
 		} else {
 			tee_pager_npages++;

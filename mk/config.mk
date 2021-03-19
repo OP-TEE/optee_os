@@ -327,6 +327,13 @@ endif
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 
+# Use the pager for user TAs
+CFG_PAGED_USER_TA ?= $(CFG_WITH_PAGER)
+
+# If paging of user TAs, that is, R/W paging default to enable paging of
+# TAG and IV in order to reduce heap usage.
+CFG_CORE_PAGE_TAG_AND_IV ?= $(CFG_PAGED_USER_TA)
+
 # Runtime lock dependency checker: ensures that a proper locking hierarchy is
 # used in the TEE core when acquiring and releasing mutexes. Any violation will
 # cause a panic as soon as the invalid locking condition is detected. If
@@ -340,9 +347,6 @@ CFG_LOCKDEP_RECORD_STACK ?= y
 # BestFit algorithm in bget reduces the fragmentation of the heap when running
 # with the pager enabled or lockdep
 CFG_CORE_BGET_BESTFIT ?= $(call cfg-one-enabled, CFG_WITH_PAGER CFG_LOCKDEP)
-
-# Use the pager for user TAs
-CFG_PAGED_USER_TA ?= $(CFG_WITH_PAGER)
 
 # Enable support for detected undefined behavior in C
 # Uses a lot of memory, can't be enabled by default

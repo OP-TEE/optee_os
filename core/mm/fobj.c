@@ -3,6 +3,7 @@
  * Copyright (c) 2019-2021, Linaro Limited
  */
 
+#include <config.h>
 #include <crypto/crypto.h>
 #include <crypto/internal_aes-gcm.h>
 #include <initcall.h>
@@ -136,14 +137,13 @@ static uint8_t *idx_to_store(size_t idx)
 	return rwp_store_base + idx * SMALL_PAGE_SIZE;
 }
 
-struct fobj *fobj_rw_paged_alloc(unsigned int num_pages)
+static struct fobj *rwp_paged_iv_alloc(unsigned int num_pages)
 {
 	struct fobj_rwp_paged_iv *rwp = NULL;
 	tee_mm_entry_t *mm = NULL;
 	size_t size = 0;
 
 	COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(sizeof(struct rwp_state_padded)));
-	assert(num_pages);
 
 	rwp = calloc(1, sizeof(*rwp));
 	if (!rwp)
@@ -243,6 +243,39 @@ static const struct fobj_ops ops_rwp_paged_iv __rodata_unpaged = {
 	.get_iv_vaddr = rwp_paged_iv_get_iv_vaddr,
 };
 
+static struct fobj *rwp_unpaged_iv_alloc(unsigned int num_pages)
+{
+	struct fobj_rwp_unpaged_iv *rwp = NULL;
+	tee_mm_entry_t *mm = NULL;
+	size_t size = 0;
+
+	rwp = calloc(1, sizeof(*rwp));
+	if (!rwp)
+		return NULL;
+
+	rwp->state = calloc(num_pages, sizeof(*rwp->state));
+	if (!rwp->state)
+		goto err_free_rwp;
+
+	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
+		goto err_free_state;
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	if (!mm)
+		goto err_free_state;
+	rwp->store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
+	assert(rwp->store);
+
+	fobj_init(&rwp->fobj, &ops_rwp_unpaged_iv, num_pages);
+
+	return &rwp->fobj;
+
+err_free_state:
+	free(rwp->state);
+err_free_rwp:
+	free(rwp);
+	return NULL;
+}
+
 static struct fobj_rwp_unpaged_iv *to_rwp_unpaged_iv(struct fobj *fobj)
 {
 	assert(fobj->ops == &ops_rwp_unpaged_iv);
@@ -285,9 +318,23 @@ static TEE_Result rwp_unpaged_iv_save_page(struct fobj *fobj,
 }
 DECLARE_KEEP_PAGER(rwp_unpaged_iv_save_page);
 
-static void rwp_unpaged_iv_free(struct fobj *fobj __unused)
+static void rwp_unpaged_iv_free(struct fobj *fobj)
 {
-	panic();
+	struct fobj_rwp_unpaged_iv *rwp = NULL;
+	tee_mm_entry_t *mm = NULL;
+
+	if (IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV))
+		panic();
+
+	rwp = to_rwp_unpaged_iv(fobj);
+	mm = tee_mm_find(&tee_mm_sec_ddr, virt_to_phys(rwp->store));
+
+	assert(mm);
+
+	fobj_uninit(fobj);
+	tee_mm_free(mm);
+	free(rwp->state);
+	free(rwp);
 }
 
 static const struct fobj_ops ops_rwp_unpaged_iv __rodata_unpaged = {
@@ -299,8 +346,7 @@ static const struct fobj_ops ops_rwp_unpaged_iv __rodata_unpaged = {
 static TEE_Result rwp_init(void)
 {
 	uint8_t key[RWP_AE_KEY_BITS / 8] = { 0 };
-	struct fobj_rwp_unpaged_iv *rwp = NULL;
-	tee_mm_entry_t *mm = NULL;
+	struct fobj *fobj = NULL;
 	size_t num_pool_pages = 0;
 	size_t num_fobj_pages = 0;
 	size_t sz = 0;
@@ -311,6 +357,9 @@ static TEE_Result rwp_init(void)
 				      sizeof(rwp_ae_key.data),
 				      &rwp_ae_key.rounds))
 		panic("failed to expand key");
+
+	if (!IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV))
+		return TEE_SUCCESS;
 
 	assert(tee_mm_sec_ddr.hi > tee_mm_sec_ddr.lo);
 	sz = tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo;
@@ -327,23 +376,11 @@ static TEE_Result rwp_init(void)
 	 * fobj_rw_paged_alloc() don't need any. A future optimization
 	 * may try to avoid allocating for such pages.
 	 */
-
-	rwp = calloc(1, sizeof(*rwp));
-	if (!rwp)
+	fobj = rwp_unpaged_iv_alloc(num_fobj_pages);
+	if (!fobj)
 		panic();
 
-	rwp->state = calloc(num_fobj_pages, sizeof(*rwp->state));
-	if (!rwp->state)
-		panic();
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, num_fobj_pages * SMALL_PAGE_SIZE);
-	if (!mm)
-		panic();
-	rwp->store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
-	assert(rwp->store);
-
-	fobj_init(&rwp->fobj, &ops_rwp_unpaged_iv, num_fobj_pages);
-
-	rwp_state_base = (void *)tee_pager_init_iv_area(&rwp->fobj);
+	rwp_state_base = (void *)tee_pager_init_iv_area(fobj);
 	assert(rwp_state_base);
 
 	rwp_store_base = phys_to_virt(tee_mm_sec_ddr.lo, MEM_AREA_TA_RAM);
@@ -352,6 +389,16 @@ static TEE_Result rwp_init(void)
 	return TEE_SUCCESS;
 }
 driver_init_late(rwp_init);
+
+struct fobj *fobj_rw_paged_alloc(unsigned int num_pages)
+{
+	assert(num_pages);
+
+	if (IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV))
+		return rwp_paged_iv_alloc(num_pages);
+	else
+		return rwp_unpaged_iv_alloc(num_pages);
+}
 
 struct fobj_rop {
 	uint8_t *hashes;
