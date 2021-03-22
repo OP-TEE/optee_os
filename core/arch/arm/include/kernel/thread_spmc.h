@@ -21,4 +21,5 @@ struct ffa_rxtx {
 void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *buf);
+void spmc_handle_version(struct thread_smc_args *args);
 #endif /* __KERNEL_THREAD_SPMC_H */
