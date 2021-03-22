@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <tee/entry_std.h>
+#include <tee/uuid.h>
 #include <util.h>
 
 #include "thread_private.h"
@@ -326,46 +327,116 @@ static bool is_my_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 	       w2 == 0x02005ebc && w3 == 0x1bc5d5a5;
 }
 
-static void handle_partition_info_get(struct thread_smc_args *args,
-				      struct ffa_rxtx *rxtx)
+void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
+			       uint16_t endpoint_id, uint16_t execution_context)
 {
-	uint32_t ret_fid = 0;
-	int rc = 0;
+	fpi->id = endpoint_id;
+	/* Number of execution contexts implemented by this partition */
+	fpi->execution_context = execution_context;
 
-	if (!is_nil_uuid(args->a1, args->a2, args->a3, args->a4) &&
-	    !is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
+	fpi->partition_properties = FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT |
+				    FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT;
+}
+
+static uint32_t handle_partition_info_get_all(size_t *elem_count,
+					      struct ffa_rxtx *rxtx)
+{
+	struct ffa_partition_info *fpi = rxtx->tx;
+
+	/* Add OP-TEE SP */
+	spmc_fill_partition_entry(fpi, my_endpoint_id, CFG_TEE_CORE_NB_CORE);
+	rxtx->tx_is_mine = false;
+	*elem_count = 1;
+	fpi++;
+
+	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
+		size_t count = (rxtx->size / sizeof(*fpi)) - 1;
+
+		if (sp_partition_info_get_all(fpi, &count))
+			return FFA_NO_MEMORY;
+		*elem_count += count;
+	}
+
+	return FFA_OK;
+}
+
+void spmc_handle_partition_info_get(struct thread_smc_args *args,
+				    struct ffa_rxtx *rxtx)
+{
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t rc = 0;
+	uint32_t endpoint_id = my_endpoint_id;
+	struct ffa_partition_info *fpi = NULL;
+
+	cpu_spin_lock(&rxtx->spinlock);
+
+	if (!rxtx->size || !rxtx->tx_is_mine) {
+		if (rxtx->size)
+			rc = FFA_BUSY;
+		else
+			rc = FFA_DENIED; /* TX buffer not setup yet */
+		goto out;
+	}
+
+	fpi = rxtx->tx;
+
+	if (rxtx->size < sizeof(*fpi)) {
+		ret_fid = FFA_ERROR;
+		rc = FFA_NO_MEMORY;
+		goto out;
+	}
+
+	if (is_nil_uuid(args->a1, args->a2, args->a3, args->a4)) {
+		size_t elem_count = 0;
+
+		ret_fid = handle_partition_info_get_all(&elem_count, rxtx);
+
+		if (ret_fid) {
+			rc = ret_fid;
+			ret_fid = FFA_ERROR;
+		} else {
+			ret_fid = FFA_SUCCESS_32;
+			rc = elem_count;
+		}
+
+		goto out;
+	}
+
+	if (is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
+		spmc_fill_partition_entry(fpi, endpoint_id,
+					  CFG_TEE_CORE_NB_CORE);
+	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
+		uint32_t uuid_array[4] = { 0 };
+		TEE_UUID uuid = { };
+		TEE_Result res = TEE_SUCCESS;
+
+		uuid_array[0] = args->a1;
+		uuid_array[1] = args->a2;
+		uuid_array[2] = args->a3;
+		uuid_array[3] = args->a4;
+		tee_uuid_from_octets(&uuid, (uint8_t *)uuid_array);
+
+		res = sp_find_session_id(&uuid, &endpoint_id);
+		if (res != TEE_SUCCESS) {
+			ret_fid = FFA_ERROR;
+			rc = FFA_INVALID_PARAMETERS;
+			goto out;
+		}
+		spmc_fill_partition_entry(fpi, endpoint_id, 1);
+	} else {
 		ret_fid = FFA_ERROR;
 		rc = FFA_INVALID_PARAMETERS;
 		goto out;
 	}
 
-	cpu_spin_lock(&rxtx->spinlock);
-	if (rxtx->size && rxtx->tx_is_mine) {
-		struct ffa_partition_info *fpi = rxtx->tx;
-
-		fpi->id = my_endpoint_id;
-		fpi->execution_context = CFG_TEE_CORE_NB_CORE;
-		/*
-		 * Supports receipt of direct requests.
-		 * Can send direct requests.
-		 */
-		fpi->partition_properties = BIT(0) | BIT(1);
-
-		ret_fid = FFA_SUCCESS_32;
-		rc = 1;
-		rxtx->tx_is_mine = false;
-	} else {
-		ret_fid = FFA_ERROR;
-		if (rxtx->size)
-			rc = FFA_BUSY;
-		else
-			rc = FFA_DENIED; /* TX buffer not setup yet */
-	}
-	cpu_spin_unlock(&rxtx->spinlock);
+	ret_fid = FFA_SUCCESS_32;
+	rxtx->tx_is_mine = false;
+	rc = 1;
 
 out:
 	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	cpu_spin_unlock(&rxtx->spinlock);
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
@@ -871,7 +942,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		spmc_handle_rx_release(args, &nw_rxtx);
 		break;
 	case FFA_PARTITION_INFO_GET:
-		handle_partition_info_get(args, &nw_rxtx);
+		spmc_handle_partition_info_get(args, &nw_rxtx);
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
