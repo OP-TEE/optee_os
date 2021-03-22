@@ -24,10 +24,8 @@ struct tee_fs_rpc_operation {
 
 struct tee_fs_dirfile_fileh;
 
-TEE_Result tee_fs_rpc_open(uint32_t id, struct tee_pobj *po, int *fd);
 TEE_Result tee_fs_rpc_open_dfh(uint32_t id,
 			       const struct tee_fs_dirfile_fileh *dfh, int *fd);
-TEE_Result tee_fs_rpc_create(uint32_t id, struct tee_pobj *po, int *fd);
 TEE_Result tee_fs_rpc_create_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh,
 				 int *fd);
@@ -46,15 +44,6 @@ TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op);
 
 
 TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len);
-TEE_Result tee_fs_rpc_remove(uint32_t id, struct tee_pobj *po);
 TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh);
-TEE_Result tee_fs_rpc_rename(uint32_t id, struct tee_pobj *old,
-			     struct tee_pobj *new, bool overwrite);
-
-TEE_Result tee_fs_rpc_opendir(uint32_t id, const TEE_UUID *uuid,
-				  struct tee_fs_dir **d);
-TEE_Result tee_fs_rpc_closedir(uint32_t id, struct tee_fs_dir *d);
-TEE_Result tee_fs_rpc_readdir(uint32_t id, struct tee_fs_dir *d,
-			      struct tee_fs_dirent **ent);
 #endif /* TEE_FS_RPC_H */
