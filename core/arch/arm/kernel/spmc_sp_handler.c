@@ -234,6 +234,11 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;
+		case FFA_ID_GET:
+			args->a0 = FFA_SUCCESS_32;
+			args->a2 = caller_sp->endpoint_id;
+			sp_enter(args, caller_sp);
+			break;
 		default:
 			EMSG("Unhandled FFA function ID %#"PRIx32,
 			     (uint32_t)args->a0);
