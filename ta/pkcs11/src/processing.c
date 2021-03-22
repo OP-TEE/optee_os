@@ -938,6 +938,10 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	rc = check_access_attrs_against_token(session, head);
+	if (rc)
+		goto out;
+
 	if (processing_is_tee_symm(proc_params->id)) {
 		rc = init_symm_operation(session, operation, proc_params,
 					 parent);
