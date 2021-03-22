@@ -131,7 +131,7 @@ static void set_args(struct thread_smc_args *args, uint32_t fid,
 					  .a5 = w5, };
 }
 
-static void handle_version(struct thread_smc_args *args)
+void spmc_handle_version(struct thread_smc_args *args)
 {
 	/*
 	 * We currently only support one version, 1.0 so let's keep it
@@ -850,7 +850,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 	switch (args->a0) {
 	case FFA_VERSION:
-		handle_version(args);
+		spmc_handle_version(args);
 		break;
 	case FFA_FEATURES:
 		handle_features(args);
