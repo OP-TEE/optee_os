@@ -101,6 +101,8 @@ cryphw-one-enabled = $(call cfg-one-enabled, \
 # Definition of the HW and Cryto Driver Algorithm supported by all LS
 $(eval $(call cryphw-enable-drv-hw, HASH))
 $(eval $(call cryphw-enable-drv-hw, CIPHER))
+$(call force, CFG_NXP_CAAM_HMAC_DRV,y)
+$(call force, CFG_NXP_CAAM_CMAC_DRV,y)
 $(eval $(call cryphw-enable-drv-hw, RSA))
 
 # Define the RSA Private Key Format used by the CAAM
@@ -110,6 +112,7 @@ $(eval $(call cryphw-enable-drv-hw, RSA))
 CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
 
 $(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA))
+$(call force, CFG_CRYPTO_DRV_MAC, $(call cryphw-one-enabled, HMAC CMAC))
 
 #
 # Enable Cryptographic Driver interface
