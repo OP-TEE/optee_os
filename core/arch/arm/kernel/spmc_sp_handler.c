@@ -267,11 +267,19 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			args->a0 = FFA_SUCCESS_32;
 			args->a2 = caller_sp->endpoint_id;
 			sp_enter(args, caller_sp);
+			break;
 		case FFA_VERSION:
 			spmc_handle_version(args);
 			sp_enter(args, caller_sp);
+			break;
 		case FFA_FEATURES:
 			handle_features(args);
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_PARTITION_INFO_GET:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_handle_partition_info_get(args, &caller_sp->rxtx);
+			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;
 		default:
