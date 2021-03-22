@@ -56,6 +56,23 @@ static void set_sp_ctx_ops(struct ts_ctx *ctx)
 	ctx->ops = &sp_ops;
 }
 
+TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
+{
+	struct sp_session *s = NULL;
+
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		if (!memcmp(&s->ts_sess.ctx->uuid, uuid, sizeof(*uuid))) {
+			if (s->state == sp_dead)
+				return TEE_ERROR_TARGET_DEAD;
+
+			*session_id  = s->endpoint_id;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 struct sp_session *sp_get_session(uint32_t session_id)
 {
 	struct sp_session *s = NULL;
@@ -66,6 +83,32 @@ struct sp_session *sp_get_session(uint32_t session_id)
 	}
 
 	return NULL;
+}
+
+TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
+				  size_t *elements)
+{
+	size_t in_elements = *elements;
+	struct sp_session *s = NULL;
+	uint32_t count = 0;
+
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		if (count < in_elements) {
+			if (s->state != sp_dead) {
+				spmc_fill_partition_entry(fpi, s->endpoint_id);
+				fpi++;
+			}
+		}
+		if (s->state != sp_dead)
+			count++;
+	}
+
+	if (count > in_elements) {
+		*elements = count;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	return TEE_SUCCESS;
 }
 
 static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)

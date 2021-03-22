@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <config.h>
+#include <ffa.h>
 #include <kernel/embedded_ts.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/user_mode_ctx_struct.h>
@@ -73,6 +74,10 @@ static inline struct sp_ctx *to_sp_ctx(struct ts_ctx *ctx)
 
 struct sp_session *sp_get_session(uint32_t session_id);
 TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp);
+TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
+				  size_t *elements);
+
+TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

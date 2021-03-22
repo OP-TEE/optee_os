@@ -5,6 +5,7 @@
 #ifndef __KERNEL_THREAD_SPMC_H
 #define __KERNEL_THREAD_SPMC_H
 
+#include <ffa.h>
 #include <kernel/thread.h>
 
 /* FF-A endpoint base ID when OP-TEE is used as a S-EL1 endpoint */
@@ -25,4 +26,8 @@ void spmc_handle_version(struct thread_smc_args *args);
 
 void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 		   uint32_t w2, uint32_t w3, uint32_t w4, uint32_t w5);
+void spmc_handle_partition_info_get(struct thread_smc_args *args,
+				    struct ffa_rxtx *rxtx);
+void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
+			       uint16_t endpoint_id);
 #endif /* __KERNEL_THREAD_SPMC_H */

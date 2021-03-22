@@ -276,6 +276,12 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			handle_features(args);
 			sp_enter(args, caller_sp);
 			break;
+		case FFA_PARTITION_INFO_GET:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_handle_partition_info_get(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
 		default:
 			EMSG("Unhandled FFA function ID %#"PRIx32,
 			     (uint32_t)args->a0);
