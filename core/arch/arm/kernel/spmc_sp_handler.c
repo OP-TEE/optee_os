@@ -186,6 +186,35 @@ ffa_handle_sp_error(struct thread_smc_args *args,
 	return dst;
 }
 
+static void handle_features(struct thread_smc_args *args)
+{
+	uint32_t ret_fid = 0;
+	uint32_t ret_w2 = FFA_PARAM_MBZ;
+
+	switch (args->a1) {
+#ifdef ARM64
+	case FFA_RXTX_MAP_64:
+#endif
+	case FFA_RXTX_MAP_32:
+		ret_fid = FFA_SUCCESS_32;
+		ret_w2 = 0; /* 4kB Minimum buffer size and alignment boundary */
+		break;
+	case FFA_ERROR:
+	case FFA_VERSION:
+	case FFA_SUCCESS_32:
+#ifdef ARM64
+	case FFA_SUCCESS_64:
+#endif
+	default:
+		ret_fid = FFA_ERROR;
+		ret_w2 = FFA_NOT_SUPPORTED;
+		break;
+	}
+
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_w2, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
 /*
  * FF-A messages handler for SP. Every messages for or from a SP is handled
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
@@ -240,6 +269,9 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			sp_enter(args, caller_sp);
 		case FFA_VERSION:
 			spmc_handle_version(args);
+			sp_enter(args, caller_sp);
+		case FFA_FEATURES:
+			handle_features(args);
 			sp_enter(args, caller_sp);
 			break;
 		default:

@@ -119,9 +119,8 @@ static uint32_t swap_src_dst(uint32_t src_dst)
 	return (src_dst >> 16) | (src_dst << 16);
 }
 
-static void set_args(struct thread_smc_args *args, uint32_t fid,
-		     uint32_t src_dst, uint32_t w2, uint32_t w3, uint32_t w4,
-		     uint32_t w5)
+void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
+		   uint32_t w2, uint32_t w3, uint32_t w4, uint32_t w5)
 {
 	*args = (struct thread_smc_args){ .a0 = fid,
 					  .a1 = src_dst,
@@ -137,9 +136,10 @@ void spmc_handle_version(struct thread_smc_args *args)
 	 * We currently only support one version, 1.0 so let's keep it
 	 * simple.
 	 */
-	set_args(args, MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR),
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
-		 FFA_PARAM_MBZ);
+	spmc_set_args(args,
+		      MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR),
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 static void handle_features(struct thread_smc_args *args)
@@ -188,8 +188,8 @@ static void handle_features(struct thread_smc_args *args)
 		break;
 	}
 
-	set_args(args, ret_fid, FFA_PARAM_MBZ, ret_w2,
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_w2, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
@@ -292,8 +292,8 @@ void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	DMSG("Mapped rx %#"PRIxPA" size %#x @ %p", rx_pa, sz, rx);
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
-	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
@@ -318,8 +318,8 @@ void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	rc = 0;
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
-	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
@@ -339,8 +339,8 @@ void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	}
 	cpu_spin_unlock(&rxtx->spinlock);
 
-	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 static bool is_nil_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
@@ -390,8 +390,8 @@ static void handle_partition_info_get(struct thread_smc_args *args,
 	cpu_spin_unlock(&rxtx->spinlock);
 
 out:
-	set_args(args, ret_fid, FFA_PARAM_MBZ, rc,
-		 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 static void handle_yielding_call(struct thread_smc_args *args)
@@ -409,26 +409,28 @@ static void handle_yielding_call(struct thread_smc_args *args)
 		thread_alloc_and_run(args->a1, args->a3, args->a4, args->a5);
 		ret_val = FFA_BUSY;
 	}
-	set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-		 swap_src_dst(args->a1), 0, ret_val, 0, 0);
+	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32, swap_src_dst(args->a1),
+		      0, ret_val, 0, 0);
 }
 
 static void handle_blocking_call(struct thread_smc_args *args)
 {
 	switch (args->a3) {
 	case OPTEE_FFA_GET_API_VERSION:
-		set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			 swap_src_dst(args->a1), 0, OPTEE_FFA_VERSION_MAJOR,
-			 OPTEE_FFA_VERSION_MINOR, 0);
+		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+			      swap_src_dst(args->a1), 0,
+			      OPTEE_FFA_VERSION_MAJOR, OPTEE_FFA_VERSION_MINOR,
+			      0);
 		break;
 	case OPTEE_FFA_GET_OS_VERSION:
-		set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			 swap_src_dst(args->a1), 0, CFG_OPTEE_REVISION_MAJOR,
-			 CFG_OPTEE_REVISION_MINOR, TEE_IMPL_GIT_SHA1);
+		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+			      swap_src_dst(args->a1), 0,
+			      CFG_OPTEE_REVISION_MAJOR,
+			      CFG_OPTEE_REVISION_MINOR, TEE_IMPL_GIT_SHA1);
 		break;
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
-		set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			 swap_src_dst(args->a1), 0, 0, 0, 0);
+		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+			      swap_src_dst(args->a1), 0, 0, 0, 0);
 		break;
 	default:
 		EMSG("Unhandled blocking service ID %#"PRIx32,
@@ -732,7 +734,7 @@ static void handle_mem_share(struct thread_smc_args *args,
 	ret_fid = FFA_SUCCESS_32;
 	reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 out:
-	set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
+	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
 
 static struct mem_frag_state *get_frag_state(uint64_t global_handle)
@@ -812,7 +814,7 @@ out:
 		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 	}
 
-	set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
+	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
 
 static void handle_mem_reclaim(struct thread_smc_args *args)
@@ -840,7 +842,7 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 		break;
 	}
 out:
-	set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
+	spmc_set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
 }
 
 /* Only called from assembly */
@@ -872,7 +874,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 	case FFA_INTERRUPT:
 		itr_core_handler();
-		set_args(args, FFA_SUCCESS_32, args->a1, 0, 0, 0, 0);
+		spmc_set_args(args, FFA_SUCCESS_32, args->a1, 0, 0, 0, 0);
 		break;
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 		if (IS_ENABLED(CFG_SECURE_PARTITION) &&
@@ -900,8 +902,8 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);
-		set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
-			 FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
+			      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 	}
 }
 
