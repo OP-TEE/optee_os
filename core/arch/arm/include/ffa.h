@@ -95,6 +95,17 @@
 /* Special value for MBZ parameters */
 #define FFA_PARAM_MBZ			U(0x0)
 
+/*
+ * Flags used for the FFA_PARTITION_INFO_GET return message:
+ * BIT(0): Supports receipt of direct requests
+ * BIT(1): Can send direct requests
+ * BIT(2): Cannot send and receive indirect messages
+ * BIT(3): Does not support receipt of notifications
+ * BIT(4-5): Partition ID is a PE endpoint ID
+ */
+#define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
+#define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
+
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
 struct ffa_address_range {
