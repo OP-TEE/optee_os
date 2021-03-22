@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * All rights reserved.
+ * Copyright 2021 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,6 +59,7 @@
 #define GIC_BASE			0x01400000
 #define GICC_OFFSET			0x2000
 #define GICD_OFFSET			0x1000
+#define CAAM_BASE			0x01700000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb) \
@@ -76,6 +78,7 @@
 #define GIC_BASE			0x06000000
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
+#define CAAM_BASE			0x08000000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls2088ardb)
@@ -84,6 +87,7 @@
 #define GIC_BASE			0x06000000
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
+#define CAAM_BASE			0x08000000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1028ardb)
@@ -92,6 +96,7 @@
 #define GIC_BASE			0x06000000
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
+#define CAAM_BASE			0x08000000
 #endif
 
 #if defined(PLATFORM_FLAVOR_lx2160ardb)
@@ -109,6 +114,7 @@
 #define GIC_BASE                        0x06000000
 #define GICC_OFFSET                     0x0
 #define GICD_OFFSET                     0x0
+#define CAAM_BASE                       0x08000000
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
