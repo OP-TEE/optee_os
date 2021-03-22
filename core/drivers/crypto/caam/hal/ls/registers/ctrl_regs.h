@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019 NXP
+ * Copyright 2019, 2021 NXP
  *
  * Brief   Control Registers.
  */
@@ -33,6 +33,9 @@
 #define JRxMIDR_LS_NONSEQ_MID(val)	SHIFT_U32((val) & 0x7, 16)
 #define JRxMIDR_LS_SEQ_NS		BIT32(3)
 #define JRxMIDR_LS_SEQ_MID(val)		SHIFT_U32((val) & 0x7, 0)
+
+/* Security Configuration */
+#define SCFGR 0x000C
 
 #endif /* __CTRL_REGS_H__ */
 
