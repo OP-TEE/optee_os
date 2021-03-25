@@ -37,6 +37,7 @@
 #define DBG_TRACE_CIPHER BIT32(9)  /* Cipher dump Buffer */
 #define DBG_TRACE_BLOB   BIT32(10) /* BLOB trace */
 #define DBG_TRACE_DMAOBJ BIT32(11) /* DMA Object trace */
+#define DBG_TRACE_ECC    BIT32(12) /* ECC trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -181,6 +182,29 @@
 #define DMAOBJ_TRACE DRV_TRACE
 #else
 #define DMAOBJ_TRACE(...)
+#endif
+
+/* ECC */
+#if CAAM_DBG_TRACE(ECC)
+#define ECC_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(ECC)
+#define ECC_DUMPDESC(desc)                                                     \
+	do {                                                                   \
+		ECC_TRACE("ECC Descriptor");                                   \
+		DRV_DUMPDESC(desc);                                            \
+	} while (0)
+#else
+#define ECC_DUMPDESC(desc) do { } while (0)
+#endif
+#if CAAM_DBG_BUF(ECC)
+#define ECC_DUMPBUF DRV_DUMPBUF
+#else
+#define ECC_DUMPBUF(...) do { } while (0)
+#endif
+#else
+#define ECC_TRACE(...) do { } while (0)
+#define ECC_DUMPDESC(desc) do { } while (0)
+#define ECC_DUMPBUF(...) do { } while (0)
 #endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)
