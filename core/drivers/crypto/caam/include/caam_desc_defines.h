@@ -641,6 +641,19 @@
 /* Shared Secret */
 #define PDB_SHARED_SECRET_PD1	SHIFT_U32(1, 25)
 
+/* SGT Flags Signature */
+#define PDB_SGT_PKSIGN_MSG	SHIFT_U32(1, 27)
+#define PDB_SGT_PKSIGN_SIGN_C	SHIFT_U32(1, 26)
+#define PDB_SGT_PKSIGN_SIGN_D	SHIFT_U32(1, 25)
+
+/* SGT Flags Verify */
+#define PDB_SGT_PKVERIF_MSG	SHIFT_U32(1, 27)
+#define PDB_SGT_PKVERIF_SIGN_C	SHIFT_U32(1, 26)
+#define PDB_SGT_PKVERIF_SIGN_D	SHIFT_U32(1, 25)
+
+/* SGT Flags Shared Secret */
+#define PDB_SGT_PKDH_SECRET	SHIFT_U32(1, 27)
+
 /* ECC Domain Selection */
 #define PDB_ECC_ECDSEL(curve)	SHIFT_U32((curve) & 0x3F, 7)
 
