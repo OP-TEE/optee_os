@@ -86,7 +86,7 @@
 /*
  * AES performance tests
  *
- * [in]     value[0].a	Top 16 bits Decrypt, low 16 bits key size in bytes
+ * [in]     value[0].a	Top 16 bits Decrypt, low 16 bits key size in bits
  * [in]     value[0].b	AES mode, one of
  *			PTA_INVOKE_TESTS_AES_{ECB_NOPAD,CBC_NOPAD,CTR,XTS,GCM}
  * [in]     value[1].a	repetition count
