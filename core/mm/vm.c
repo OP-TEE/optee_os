@@ -1198,8 +1198,6 @@ void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa)
 		assert(!granule || IS_POWER_OF_TWO(granule));
 
 		for (ofs = region->offset; ofs < region->size; ofs += size) {
-			if (mobj_get_pa(region->mobj, ofs, granule, &p))
-				continue;
 
 			if (granule) {
 				/* From current offset to buffer/granule end */
@@ -1210,6 +1208,9 @@ void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa)
 			} else {
 				size = region->size;
 			}
+
+			if (mobj_get_pa(region->mobj, ofs, granule, &p))
+				continue;
 
 			if (core_is_buffer_inside(pa, 1, p, size)) {
 				/* Remove region offset (mobj phys offset) */
