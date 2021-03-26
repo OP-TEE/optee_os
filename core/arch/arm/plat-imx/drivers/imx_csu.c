@@ -112,7 +112,7 @@ static TEE_Result csu_init(void)
 
 	csu_setting = csu_config->csl;
 
-	while (csu_setting->csu_index > 0) {
+	while (csu_setting->csu_index >= 0) {
 		io_write32(csu_base + (csu_setting->csu_index * 4),
 				csu_setting->value);
 
