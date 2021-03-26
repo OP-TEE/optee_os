@@ -1739,7 +1739,7 @@ static TEE_Result check_pub_rsa_key(struct bignum *e)
 
 	crypto_bignum_bn2bin(e, bin_key);
 
-	if (!(bin_key[0] & 1)) /* key must be odd */
+	if (!(bin_key[n - 1] & 1)) /* key must be odd */
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (n == 3) {
