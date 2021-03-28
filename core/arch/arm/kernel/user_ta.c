@@ -431,7 +431,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	if (!utc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	utc->ta_ctx.initializing = true;
 	utc->uctx.is_initializing = true;
 	TAILQ_INIT(&utc->open_sessions);
 	TAILQ_INIT(&utc->cryp_states);
