@@ -73,7 +73,6 @@ struct tee_ta_ctx {
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
 	bool busy;		/* Context is busy and cannot be entered */
-	bool initializing;	/* Context is initializing */
 	struct condvar busy_cv;	/* CV used when context is busy */
 };
 
