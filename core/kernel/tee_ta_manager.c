@@ -169,10 +169,8 @@ static void tee_ta_clear_busy(struct tee_ta_ctx *ctx)
 	ctx->busy = false;
 	condvar_signal(&ctx->busy_cv);
 
-	if (!ctx->initializing && (ctx->flags & TA_FLAG_SINGLE_INSTANCE))
+	if (ctx->flags & TA_FLAG_SINGLE_INSTANCE)
 		unlock_single_instance();
-
-	ctx->initializing = false;
 
 	mutex_unlock(&tee_ta_mutex);
 }
