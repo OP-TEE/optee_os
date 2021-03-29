@@ -1,6 +1,5 @@
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += ldelf_loader.c
-srcs-$(CFG_REE_FS_TA) += ree_fs_ta.c
 srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
 
