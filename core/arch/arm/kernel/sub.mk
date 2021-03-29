@@ -1,8 +1,4 @@
-ifeq ($(CFG_WITH_USER_TA),y)
-srcs-y += ldelf_loader.c
-srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
-endif
-
+srcs-$(CFG_WITH_USER_TA) += ldelf_loader.c
 srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += tee_time.c
 srcs-y += rpc_io_i2c.c
