@@ -31,3 +31,5 @@ srcs-y += wait_queue.c
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += user_ta.c
 endif
+
+srcs-y += pseudo_ta.c
