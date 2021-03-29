@@ -30,6 +30,7 @@ srcs-y += wait_queue.c
 
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += user_ta.c
+srcs-$(CFG_REE_FS_TA) += ree_fs_ta.c
 srcs-$(CFG_EARLY_TA) += early_ta.c
 endif
 
