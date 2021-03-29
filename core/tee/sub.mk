@@ -17,6 +17,7 @@ CFG_CRYPTO_PBKDF2 ?= y
 
 endif
 
+srcs-y += entry_std.c
 srcs-y += tee_cryp_utl.c
 srcs-$(CFG_CRYPTO_HKDF) += tee_cryp_hkdf.c
 srcs-$(CFG_CRYPTO_CONCAT_KDF) += tee_cryp_concat_kdf.c
