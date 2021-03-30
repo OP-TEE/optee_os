@@ -451,7 +451,7 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 			size_topost = ctx->alg->size_block;
 
 		size_inmade = dupdate->src.length - size_topost;
-		size_todo = size_inmade;
+		size_todo = full_size - size_topost;
 	} else {
 		ret = caam_dmaobj_output_sgtbuf(&dst, dupdate->dst.data,
 						dupdate->dst.length,
@@ -490,10 +490,12 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 		CIPHER_TRACE("Do input %zu bytes, offset %zu", size_done,
 			     offset);
 
-		ret = caam_dmaobj_sgtbuf_build(&src, &size_done, offset,
-					       ctx->alg->size_block);
-		if (ret)
-			goto end_cmac;
+		if (size_inmade) {
+			ret = caam_dmaobj_sgtbuf_build(&src, &size_done, offset,
+						       ctx->alg->size_block);
+			if (ret)
+				goto end_cmac;
+		}
 
 		/*
 		 * Need to re-adjust the length of the data if the
@@ -505,7 +507,11 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 			src.sgtbuf.length = size_done;
 		}
 
-		ret = run_cmac_desc(ctx, &src, NULL, false);
+		if (size_inmade)
+			ret = run_cmac_desc(ctx, &src, NULL, false);
+		else
+			ret = run_cmac_desc(ctx, NULL, NULL, false);
+
 		if (ret)
 			goto end_cmac;
 	}
