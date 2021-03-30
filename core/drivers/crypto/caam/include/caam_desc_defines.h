@@ -654,6 +654,11 @@
 /* SGT Flags Shared Secret */
 #define PDB_SGT_PKDH_SECRET	SHIFT_U32(1, 27)
 
+/* DL Keypair Generation */
+#define PDB_DL_KEY_L_SIZE(len) SHIFT_U32((len) & (0x3FF), 7)
+#define PDB_DL_KEY_N_MASK      0x7F
+#define PDB_DL_KEY_N_SIZE(len) SHIFT_U32((len) & (PDB_DL_KEY_N_MASK), 0)
+
 /* ECC Domain Selection */
 #define PDB_ECC_ECDSEL(curve)	SHIFT_U32((curve) & 0x3F, 7)
 
