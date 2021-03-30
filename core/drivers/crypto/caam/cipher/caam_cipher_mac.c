@@ -469,7 +469,7 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 		}
 	}
 
-	if (dupdate->src.length) {
+	if (size_inmade) {
 		ret = caam_dmaobj_init_input(&src, dupdate->src.data,
 					     size_inmade);
 		if (ret)
