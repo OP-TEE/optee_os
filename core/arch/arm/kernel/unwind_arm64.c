@@ -74,6 +74,7 @@ err:
 	return NULL;
 }
 
+#if defined(CFG_UNWIND) && (TRACE_LEVEL > 0)
 void print_kernel_stack(void)
 {
 	struct unwind_state_arm64 state = { };
@@ -88,3 +89,4 @@ void print_kernel_stack(void)
 	get_stack_hard_limits(&stack_start, &stack_end);
 	print_stack_arm64(&state, stack_start, stack_end - stack_start);
 }
+#endif
