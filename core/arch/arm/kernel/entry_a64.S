@@ -206,6 +206,14 @@ clear_nex_bss:
 	bl	console_init
 #endif
 
+#ifdef CFG_VIRTUALIZATION
+	/*
+	 * Initialize partition tables for each partition to
+	 * default_partition which has been relocated now to a different VA
+	 */
+	bl	core_mmu_set_default_prtn_tbl
+#endif
+
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
 	bl	boot_init_primary_early
