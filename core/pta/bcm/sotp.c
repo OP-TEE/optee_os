@@ -35,7 +35,7 @@ static TEE_Result pta_sotp_read(uint32_t param_types,
 
 	val = params[0].value.a;
 
-	bcm_iproc_sotp_mem_read(val, 1, &sotp_row_value);
+	bcm_iproc_sotp_mem_read(val, true, &sotp_row_value);
 	reg_pair_from_64(sotp_row_value, &params[1].value.a,
 			 &params[1].value.b);
 
