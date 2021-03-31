@@ -516,6 +516,14 @@ shadow_stack_access_ok:
 	bl	console_init
 #endif
 
+#ifdef CFG_VIRTUALIZATION
+	/*
+	 * Initialize partition tables for each partition to
+	 * default_partition which has been relocated now to a different VA
+	 */
+	bl	core_mmu_set_default_prtn_tbl
+#endif
+
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early

@@ -217,6 +217,14 @@ static struct mmu_partition default_partition = {
 
 #ifdef CFG_VIRTUALIZATION
 static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE];
+
+void core_mmu_set_default_prtn_tbl(void)
+{
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		current_prtn[n] = &default_partition;
+}
 #endif
 
 static struct mmu_partition *get_prtn(void)
@@ -742,13 +750,6 @@ bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
 
 void core_init_mmu(struct tee_mmap_region *mm)
 {
-#ifdef CFG_VIRTUALIZATION
-	size_t n;
-
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		current_prtn[n] = &default_partition;
-#endif
-
 	/* Initialize default pagetables */
 	core_init_mmu_prtn(&default_partition, mm);
 }

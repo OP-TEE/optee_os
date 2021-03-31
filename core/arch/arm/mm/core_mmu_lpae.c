@@ -425,6 +425,14 @@ void core_mmu_set_default_prtn(void)
 {
 	core_mmu_set_prtn(&default_partition);
 }
+
+void core_mmu_set_default_prtn_tbl(void)
+{
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		current_prtn[n] = &default_partition;
+}
 #endif
 
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
@@ -475,11 +483,6 @@ void core_init_mmu(struct tee_mmap_region *mm)
 
 	/* Initialize default pagetables */
 	core_init_mmu_prtn(&default_partition, mm);
-
-#ifdef CFG_VIRTUALIZATION
-	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
-		current_prtn[n] = &default_partition;
-#endif
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++) {
 		vaddr_t va_end = mm[n].va + mm[n].size - 1;
