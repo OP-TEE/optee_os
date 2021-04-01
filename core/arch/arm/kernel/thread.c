@@ -531,7 +531,7 @@ void __nostackcheck thread_clr_boot_thread(void)
 	assert(l->curr_thread >= 0 && l->curr_thread < CFG_NUM_THREADS);
 	assert(threads[l->curr_thread].state == THREAD_STATE_ACTIVE);
 	threads[l->curr_thread].state = THREAD_STATE_FREE;
-	l->curr_thread = -1;
+	l->curr_thread = THREAD_ID_INVALID;
 }
 
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
@@ -543,7 +543,7 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
-	assert(l->curr_thread == -1);
+	assert(l->curr_thread == THREAD_ID_INVALID);
 
 	thread_lock_global();
 
@@ -675,7 +675,7 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
 
-	assert(l->curr_thread == -1);
+	assert(l->curr_thread == THREAD_ID_INVALID);
 
 	thread_lock_global();
 
@@ -739,7 +739,7 @@ vaddr_t thread_get_saved_thread_sp(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
+	assert(ct != THREAD_ID_INVALID);
 	return threads[ct].kern_sp;
 }
 #endif /*ARM64*/
@@ -749,7 +749,7 @@ vaddr_t thread_stack_start(void)
 	struct thread_ctx *thr;
 	int ct = thread_get_id_may_fail();
 
-	if (ct == -1)
+	if (ct == THREAD_ID_INVALID)
 		return 0;
 
 	thr = threads + ct;
@@ -823,7 +823,8 @@ bool thread_is_in_normal_mode(void)
 	 * If any bit in l->flags is set aside from THREAD_CLF_TMP we're
 	 * handling some exception.
 	 */
-	ret = (l->curr_thread != -1) && !(l->flags & ~THREAD_CLF_TMP);
+	ret = (l->curr_thread != THREAD_ID_INVALID) &&
+	      !(l->flags & ~THREAD_CLF_TMP);
 	thread_unmask_exceptions(exceptions);
 
 	return ret;
@@ -835,7 +836,7 @@ void thread_state_free(void)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
+	assert(ct != THREAD_ID_INVALID);
 
 	thread_lazy_restore_ns_vfp();
 	tee_pager_release_phys(
@@ -847,7 +848,7 @@ void thread_state_free(void)
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
 	threads[ct].state = THREAD_STATE_FREE;
 	threads[ct].flags = 0;
-	l->curr_thread = -1;
+	l->curr_thread = THREAD_ID_INVALID;
 
 #ifdef CFG_VIRTUALIZATION
 	virt_unset_guest();
@@ -887,7 +888,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
 
-	assert(ct != -1);
+	assert(ct != THREAD_ID_INVALID);
 
 	if (core_mmu_user_mapping_is_active())
 		ftrace_suspend();
@@ -919,7 +920,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 		core_mmu_set_user_map(NULL);
 	}
 
-	l->curr_thread = -1;
+	l->curr_thread = THREAD_ID_INVALID;
 
 #ifdef CFG_VIRTUALIZATION
 	virt_unset_guest();
@@ -1092,7 +1093,7 @@ void __nostackcheck thread_init_thread_core_local(void)
 	struct thread_core_local *tcl = thread_core_local;
 
 	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
-		tcl[n].curr_thread = -1;
+		tcl[n].curr_thread = THREAD_ID_INVALID;
 		tcl[n].flags = THREAD_CLF_TMP;
 	}
 
@@ -1225,7 +1226,7 @@ struct thread_ctx_regs * __nostackcheck thread_get_ctx_regs(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	assert(l->curr_thread != THREAD_ID_INVALID);
 	return &threads[l->curr_thread].regs;
 }
 
@@ -1237,7 +1238,7 @@ void thread_set_foreign_intr(bool enable)
 
 	l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	assert(l->curr_thread != THREAD_ID_INVALID);
 
 	if (enable) {
 		threads[l->curr_thread].flags |=
@@ -1261,7 +1262,7 @@ void thread_restore_foreign_intr(void)
 
 	l = thread_get_core_local();
 
-	assert(l->curr_thread != -1);
+	assert(l->curr_thread != THREAD_ID_INVALID);
 
 	if (threads[l->curr_thread].flags & THREAD_FLAGS_FOREIGN_INTR_ENABLE)
 		thread_set_exceptions(exceptions & ~THREAD_EXCP_FOREIGN_INTR);
