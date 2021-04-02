@@ -1,5 +1,4 @@
 srcs-$(CFG_WITH_USER_TA) += ldelf_loader.c
-srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += tee_time.c
 srcs-y += rpc_io_i2c.c
 srcs-y += otp_stubs.c

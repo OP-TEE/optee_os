@@ -35,4 +35,5 @@ srcs-$(CFG_EARLY_TA) += early_ta.c
 srcs-$(CFG_SECSTOR_TA) += secstor_ta.c
 endif
 
+srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += pseudo_ta.c
