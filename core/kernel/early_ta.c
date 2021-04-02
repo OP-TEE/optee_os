@@ -14,7 +14,6 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
-#include <zlib.h>
 
 static const struct embedded_ts *find_early_ta(const TEE_UUID *uuid)
 {
