@@ -67,6 +67,7 @@ jobs:
           _make CFG_WITH_USER_TA=n
           _make PLATFORM=vexpress-qemu_armv8a
           _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
           _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
