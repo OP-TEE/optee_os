@@ -628,6 +628,9 @@ CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
 CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
 
+# Enable SCMI PTA interface for REE SCMI agents
+CFG_SCMI_PTA ?= n
+
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
 else
