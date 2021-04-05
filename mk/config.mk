@@ -324,6 +324,10 @@ ifeq ($(CFG_EMBEDDED_TS),y)
 $(call force,CFG_ZLIB,y)
 endif
 
+# By default the early TAs are compressed in the TEE binary, it is possible to
+# not compress them with CFG_EARLY_TA_COMPRESS=n
+CFG_EARLY_TA_COMPRESS ?= y
+
 # Enable paging, requires SRAM, can't be enabled by default
 CFG_WITH_PAGER ?= n
 

@@ -20,13 +20,16 @@ recipe-ldelf = $(PYTHON3) scripts/gen_ldelf_hex.py --input $(out-dir)/ldelf/ldel
 endif
 
 ifeq ($(CFG_WITH_USER_TA)-$(CFG_EARLY_TA),y-y)
+ifeq ($(CFG_EARLY_TA_COMPRESS),y)
+early-ta-compress = --compress
+endif
 define process_early_ta
 early-ta-$1-uuid := $(firstword $(subst ., ,$(notdir $1)))
 gensrcs-y += early-ta-$1
 produce-early-ta-$1 = early_ta_$$(early-ta-$1-uuid).c
 depends-early-ta-$1 = $1 scripts/ts_bin_to_c.py
-recipe-early-ta-$1 = $(PYTHON3) scripts/ts_bin_to_c.py --compress --ta $1 \
-		--out $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
+recipe-early-ta-$1 = $(PYTHON3) scripts/ts_bin_to_c.py $(early-ta-compress) \
+		--ta $1 --out $(sub-dir-out)/early_ta_$$(early-ta-$1-uuid).c
 endef
 $(foreach f, $(EARLY_TA_PATHS), $(eval $(call process_early_ta,$(f))))
 $(foreach f, $(CFG_IN_TREE_EARLY_TAS), $(eval $(call \
