@@ -39,6 +39,7 @@ struct scmi_msg_channel {
 	bool threaded;
 };
 
+#ifdef CFG_SCMI_MSG_SMT
 /*
  * Initialize SMT memory buffer, called by platform at init for each
  * agent channel using the SMT header format.
@@ -46,8 +47,16 @@ struct scmi_msg_channel {
  *
  * @chan: Pointer to the channel shared memory to be initialized
  */
-void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan);
+void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel);
+#else
+static inline
+void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel __unused)
+{
+	panic();
+}
+#endif
 
+#ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
 /*
  * Process SMT formatted message in a fastcall SMC execution context.
  * Called by platform on SMC entry. When returning, output message is
@@ -57,7 +66,13 @@ void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan);
  * @channel_id: SCMI channel ID the SMT belongs to
  */
 void scmi_smt_fastcall_smc_entry(unsigned int channel_id);
+#else
+static inline void scmi_smt_fastcall_smc_entry(unsigned int channel_id __unused)
+{
+}
+#endif
 
+#ifdef CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY
 /*
  * Process SMT formatted message in a secure interrupt execution context.
  * Called by platform interrupt handler. When returning, output message is
@@ -67,7 +82,13 @@ void scmi_smt_fastcall_smc_entry(unsigned int channel_id);
  * @channel_id: SCMI channel ID the SMT belongs to
  */
 void scmi_smt_interrupt_entry(unsigned int channel_id);
+#else
+static inline void scmi_smt_interrupt_entry(unsigned int channel_id __unused)
+{
+}
+#endif
 
+#ifdef CFG_SCMI_MSG_SMT_THREAD_ENTRY
 /*
  * Process SMT formatted message in a TEE thread execution context.
  * When returning, output message is available in shared memory for
@@ -77,6 +98,11 @@ void scmi_smt_interrupt_entry(unsigned int channel_id);
  * @channel_id: SCMI channel ID the SMT belongs to
  */
 void scmi_smt_threaded_entry(unsigned int channel_id);
+#else
+static inline void scmi_smt_threaded_entry(unsigned int channel_id __unused)
+{
+}
+#endif
 
 /* Platform callback functions */
 

@@ -91,7 +91,7 @@ static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
  * references to input payload in secure memory and output message buffer
  * in shared memory.
  */
-static void scmi_proccess_smt(unsigned int channel_id, uint32_t *payload_buf)
+static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 {
 	struct scmi_msg_channel *chan = NULL;
 	struct smt_header *smt_hdr = NULL;
@@ -166,7 +166,7 @@ static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
 
 void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
 {
-	scmi_proccess_smt(channel_id, fast_smc_payload[get_core_pos()]);
+	scmi_process_smt(channel_id, fast_smc_payload[get_core_pos()]);
 }
 #endif
 
@@ -176,7 +176,7 @@ static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
 
 void scmi_smt_interrupt_entry(unsigned int channel_id)
 {
-	scmi_proccess_smt(channel_id, interrupt_payload[get_core_pos()]);
+	scmi_process_smt(channel_id, interrupt_payload[get_core_pos()]);
 }
 #endif
 
@@ -188,7 +188,7 @@ void scmi_smt_threaded_entry(unsigned int channel_id)
 {
 	assert(plat_scmi_get_channel(channel_id)->threaded);
 
-	scmi_proccess_smt(channel_id, threaded_payload[thread_get_id()]);
+	scmi_process_smt(channel_id, threaded_payload[thread_get_id()]);
 }
 #endif
 
