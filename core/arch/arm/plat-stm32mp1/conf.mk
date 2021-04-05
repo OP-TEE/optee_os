@@ -92,6 +92,13 @@ $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 endif
 
+# Default enable SCMI PTA support
+CFG_SCMI_PTA ?= y
+ifeq ($(CFG_SCMI_PTA),y)
+$(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_SCMI_PTA)
+$(call force,CFG_SCMI_MSG_SMT_THREAD_ENTRY,y,Mandated by CFG_SCMI_PTA)
+endif
+
 CFG_SCMI_MSG_DRIVERS ?= n
 ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
 $(call force,CFG_SCMI_MSG_CLOCK,y)
