@@ -58,11 +58,30 @@ static TEE_Result cmd_process_smt_message(void *sess __unused, uint32_t ptypes,
 						    TEE_PARAM_TYPE_MEMREF_INOUT,
 						    TEE_PARAM_TYPE_NONE,
 						    TEE_PARAM_TYPE_NONE);
-	uint32_t __unused channel_id = (int)params[0].value.a;
-	TEE_Param __unused *param1 = params + 1;
+	uint32_t channel_id = (int)params[0].value.a;
+	TEE_Param *param1 = params + 1;
 
 	if (ptypes != exp_ptypes)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (IS_ENABLED(CFG_SCMI_MSG_SMT)) {
+		struct scmi_msg_channel *channel = NULL;
+
+		channel = plat_scmi_get_channel(channel_id);
+		if (!channel)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		/*
+		 * Caller provides the buffer, we bind channel to that buffer.
+		 * Once message is processed, unbind the buffer since it is
+		 * valid only for the current invocation.
+		 */
+		scmi_smt_set_shared_buffer(channel, param1->memref.buffer);
+		scmi_smt_threaded_entry(channel_id);
+		scmi_smt_set_shared_buffer(channel, NULL);
+
+		return TEE_SUCCESS;
+	}
 
 	return TEE_ERROR_NOT_SUPPORTED;
 }
