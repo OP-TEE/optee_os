@@ -35,12 +35,6 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
-$(call force,CFG_SCMI_MSG_DRIVERS,y)
-$(call force,CFG_SCMI_MSG_CLOCK,y)
-$(call force,CFG_SCMI_MSG_RESET_DOMAIN,y)
-$(call force,CFG_SCMI_MSG_SMT,y)
-$(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y)
-$(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
@@ -92,6 +86,19 @@ CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
 # SiP/OEM service for non-secure world
 CFG_STM32_BSEC_SIP ?= y
+CFG_STM32MP1_SCMI_SIP ?= y
+ifeq ($(CFG_STM32MP1_SCMI_SIP),y)
+$(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_STM32MP1_SCMI_SIP)
+$(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y,Mandated by CFG_STM32MP1_SCMI_SIP)
+endif
+
+CFG_SCMI_MSG_DRIVERS ?= n
+ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
+$(call force,CFG_SCMI_MSG_CLOCK,y)
+$(call force,CFG_SCMI_MSG_RESET_DOMAIN,y)
+$(call force,CFG_SCMI_MSG_SMT,y)
+$(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
+endif
 
 # Default enable some test facitilites
 CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
