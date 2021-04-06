@@ -16,8 +16,12 @@
 static TEE_Result do_init(struct drvcrypt_cipher_init *dinit)
 {
 	struct crypto_cipher_ctx *ctx = dinit->ctx;
+	TEE_OperationMode mode = TEE_MODE_DECRYPT;
 
-	return ctx->ops->init(dinit->ctx, dinit->encrypt,
+	if (dinit->encrypt)
+		mode = TEE_MODE_ENCRYPT;
+
+	return ctx->ops->init(dinit->ctx, mode,
 			      dinit->key1.data, dinit->key1.length,
 			      dinit->key2.data, dinit->key2.length,
 			      dinit->iv.data, dinit->iv.length);
