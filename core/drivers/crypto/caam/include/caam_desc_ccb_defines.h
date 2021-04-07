@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Brief   Define the CCB Registers to use in the CAAM descriptor
  */
@@ -9,12 +9,20 @@
 
 /* CCB CHA Control Register */
 #define CCTRL_ULOAD_PKHA_B  BIT32(27)
+#define CCTRL_ULOAD_PKHA_A  BIT32(26)
+
+/* CCB Clear Written Register */
+#define CLR_WR_IFIFO_NFIFO BIT32(31)
+#define CLR_WR_RST_C2_CHA  BIT32(28)
+#define CLR_WR_RST_C2_DSZ  BIT32(18)
 
 /* CCB NFIFO */
 #define NFIFO_CLASS(cla)       SHIFT_U32(NFIFO_CLASS_##cla & 0x3, 30)
 #define NFIFO_CLASS_DECO       0x0
 #define NFIFO_CLASS_C1         0x1
+#define NFIFO_CLASS_BOTH       0x3
 
+#define NFIFO_LC2	       BIT32(29)
 #define NFIFO_LC1              BIT32(28)
 #define NFIFO_FC1              BIT32(26)
 

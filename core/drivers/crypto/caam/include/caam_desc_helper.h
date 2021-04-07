@@ -92,10 +92,26 @@ static inline void dump_desc(uint32_t *desc)
 
 /*
  * Jump Local of class 1 to descriptor offset if test meet the
- * condition ond
+ * condition cond
  */
 #define JUMP_C1_LOCAL(test, cond, offset)                                      \
 	JUMP_LOCAL(CLASS_1, test, cond, offset)
+
+/*
+ * First decrement specified source then
+ * Jump Local of no class to descriptor offset if test meet the
+ * condition cond
+ */
+#define JUMP_CNO_LOCAL_DEC(test, src, cond, offset)                            \
+	(CMD_JUMP_TYPE | CMD_CLASS(CLASS_NO) | JUMP_TYPE(LOCAL_DEC) |          \
+	 JUMP_TST_TYPE(test) | JMP_SRC(src) | (cond) |                         \
+	 JMP_LOCAL_OFFSET(offset))
+
+/*
+ * Wait until test condition meet and jump next
+ */
+#define WAIT_COND(test, cond)                                                  \
+	(JUMP_LOCAL(CLASS_NO, test, JMP_COND(cond), 1) | JMP_JSL)
 
 /*
  * Jump No Local of class cla to descriptor offset if test meet the
@@ -201,6 +217,13 @@ static inline void dump_desc(uint32_t *desc)
 	 STORE_OFFSET(off) | STORE_LENGTH(len))
 
 /*
+ * Store value of length len from register src of class cla
+ */
+#define ST_NOIMM_SEQ(cla, src, len)                                            \
+	(CMD_STORE_SEQ_TYPE | CMD_CLASS(cla) | STORE_SRC(src) |                \
+	 STORE_LENGTH(len))
+
+/*
  * FIFO Store from register src of length len
  */
 #define FIFO_ST(src, len)                                                      \
@@ -229,6 +252,13 @@ static inline void dump_desc(uint32_t *desc)
 #define FIFO_ST_SGT_EXT(src)                                                   \
 	(CMD_FIFO_STORE_TYPE | CMD_SGT | FIFO_STORE_EXT |                      \
 	 FIFO_STORE_OUTPUT(src))
+
+/*
+ * SEQ FIFO Store from register src of length len
+ */
+#define FIFO_ST_SEQ(src, len)                                                  \
+	(CMD_SEQ_FIFO_STORE_TYPE | FIFO_STORE_OUTPUT(src) |                    \
+	 FIFO_STORE_LENGTH(len))
 
 /*
  * RNG State Handle instantation operation for sh ID
@@ -393,6 +423,14 @@ static inline void dump_desc(uint32_t *desc)
  */
 #define PKHA_CPY_SSIZE(src, dst)                                               \
 	(CMD_OP_TYPE | OP_TYPE(PKHA) | PKHA_ALG | PKHA_FUNC(CPY_SSIZE) |       \
+	 PKHA_CPY_SRC(src) | PKHA_CPY_DST(dst))
+
+/*
+ * PKHA Copy N-Size function from src to dst. Copy number of words specified
+ * in PKHA N size register
+ */
+#define PKHA_CPY_NSIZE(src, dst)                                               \
+	(CMD_OP_TYPE | OP_TYPE(PKHA) | PKHA_ALG | PKHA_FUNC(CPY_NSIZE) |       \
 	 PKHA_CPY_SRC(src) | PKHA_CPY_DST(dst))
 
 /*
