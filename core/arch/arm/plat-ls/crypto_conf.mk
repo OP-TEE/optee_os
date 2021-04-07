@@ -125,6 +125,7 @@ $(call force, CFG_NXP_CAAM_CMAC_DRV,y)
 $(eval $(call cryphw-enable-drv-hw, RSA))
 $(eval $(call cryphw-enable-drv-hw, ECC))
 $(eval $(call cryphw-enable-drv-hw, DH))
+$(eval $(call cryphw-enable-drv-hw, DSA))
 
 # Define the RSA Private Key Format used by the CAAM
 #   Format #1: (n, d)
@@ -132,7 +133,7 @@ $(eval $(call cryphw-enable-drv-hw, DH))
 #   Format #3: (p, q, dp, dq, qp)
 CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
 
-$(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA ECC DH))
+$(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA ECC DH DSA))
 $(call force, CFG_CRYPTO_DRV_MAC, $(call cryphw-one-enabled, HMAC CMAC))
 
 #
