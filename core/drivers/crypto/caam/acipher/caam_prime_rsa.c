@@ -369,7 +369,7 @@ static void search_smallprime(size_t size, struct caambuf *prime)
  * @small_prime  Pre-generated small prime value
  * @desc_prime   Physical address of the prime generator descriptor
  */
-static void do_desc_setup(uint32_t *desc, struct prime_data *data,
+static void do_desc_setup(uint32_t *desc, struct prime_data_rsa *data,
 			  const struct caambuf *small_prime,
 			  const paddr_t desc_prime)
 {
@@ -450,7 +450,7 @@ static void do_desc_setup(uint32_t *desc, struct prime_data *data,
  * @do_prime_q  Generate Prime Q
  * @desc_next   Physical address of the next descriptor (can be NULL)
  */
-static void do_desc_prime(uint32_t *desc, struct prime_data *data,
+static void do_desc_prime(uint32_t *desc, struct prime_data_rsa *data,
 			  const struct caambuf *small_prime, bool do_prime_q,
 			  const paddr_t desc_next)
 {
@@ -723,7 +723,7 @@ static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
  * @desc   Descriptor built
  * @prime  Prime generation data
  */
-static enum caam_status run_primes(uint32_t *desc, struct prime_data *data)
+static enum caam_status run_primes(uint32_t *desc, struct prime_data_rsa *data)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caam_jobctx jobctx = { };
@@ -765,7 +765,7 @@ static enum caam_status run_primes(uint32_t *desc, struct prime_data *data)
 	return retstatus;
 }
 
-enum caam_status caam_prime_gen(struct prime_data *data)
+enum caam_status caam_prime_rsa_gen(struct prime_data_rsa *data)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
 	struct caambuf small_prime = { };

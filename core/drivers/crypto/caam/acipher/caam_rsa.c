@@ -526,7 +526,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 	struct caam_jobctx jobctx = { };
 	uint32_t *desc = 0;
 	uint32_t desclen = 0;
-	struct prime_data prime = { };
+	struct prime_data_rsa prime = { };
 
 	RSA_TRACE("Generate Keypair of %zu bits", key_size);
 
@@ -607,7 +607,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t key_size)
 	prime.q = &genkey.q;
 
 	/* Generate prime p and q */
-	retstatus = caam_prime_gen(&prime);
+	retstatus = caam_prime_rsa_gen(&prime);
 	RSA_TRACE("Generate Prime P and Q returned 0x%" PRIx32, retstatus);
 	if (retstatus != CAAM_NO_ERROR) {
 		ret = caam_status_to_tee_result(retstatus);
