@@ -116,6 +116,13 @@ static TEE_Result crypto_driver_init(void)
 		goto exit_init;
 	}
 
+	/* Initialize the DSA Module */
+	retstatus = caam_dsa_init(&jrcfg);
+	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
 	/* Everything is OK, register the Power Management handler */
 	caam_pwr_init();
 

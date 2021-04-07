@@ -39,6 +39,7 @@
 #define DBG_TRACE_DMAOBJ BIT32(11) /* DMA Object trace */
 #define DBG_TRACE_ECC    BIT32(12) /* ECC trace */
 #define DBG_TRACE_DH	 BIT32(13) /* DH trace */
+#define DBG_TRACE_DSA	 BIT32(14) /* DSA trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -229,6 +230,29 @@
 #define DH_TRACE(...)
 #define DH_DUMPDESC(desc)
 #define DH_DUMPBUF(...)
+#endif
+
+/* DSA */
+#if CAAM_DBG_TRACE(DSA)
+#define DSA_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(DSA)
+#define DSA_DUMPDESC(desc)                                                     \
+	do {                                                                   \
+		MP_TRACE("DSA Descriptor");                                    \
+		DRV_DUMPDESC(desc);                                            \
+	} while (0)
+#else
+#define DSA_DUMPDESC(desc)
+#endif
+#if CAAM_DBG_BUF(DSA)
+#define DSA_DUMPBUF DRV_DUMPBUF
+#else
+#define DSA_DUMPBUF(...)
+#endif
+#else
+#define DSA_TRACE(...)
+#define DSA_DUMPDESC(desc)
+#define DSA_DUMPBUF(...)
 #endif
 
 #if (TRACE_LEVEL >= TRACE_DEBUG)
