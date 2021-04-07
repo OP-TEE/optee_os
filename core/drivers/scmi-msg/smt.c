@@ -211,3 +211,17 @@ void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan)
 
 	panic();
 }
+
+void scmi_smt_set_shared_buffer(struct scmi_msg_channel *channel, void *base)
+{
+	paddr_t p_base = 0;
+
+	if (base) {
+		assert(!channel->shm_addr.va && !channel->shm_addr.pa);
+		p_base = virt_to_phys(base);
+		assert(p_base);
+	}
+
+	channel->shm_addr.va = (vaddr_t)base;
+	channel->shm_addr.pa = p_base;
+}
