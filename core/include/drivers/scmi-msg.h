@@ -48,13 +48,27 @@ struct scmi_msg_channel {
  * @chan: Pointer to the channel shared memory to be initialized
  */
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel);
+
+/*
+ * Set SMT shared buffer location
+ *
+ * @channel: SCMI channel reference
+ * @base: virtual address of the shared buffer or NULL to clear the reference
+ */
+void scmi_smt_set_shared_buffer(struct scmi_msg_channel *channel, void *base);
 #else
 static inline
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel __unused)
 {
 	panic();
 }
-#endif
+
+static inline
+void scmi_smt_set_shared_buffer(struct scmi_msg_channel *channel __unused,
+				void *base __unused)
+{
+}
+#endif /* CFG_SCMI_MSG_SMT */
 
 #ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
 /*
