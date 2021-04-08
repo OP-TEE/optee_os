@@ -4,8 +4,8 @@
  */
 
 #include <assert.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <kernel/dt.h>
+#include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -50,38 +50,6 @@ bool dt_have_prop(const void *fdt, int offs, const char *propname)
 	prop = fdt_getprop(fdt, offs, propname, NULL);
 
 	return prop;
-}
-
-int dt_get_irq(const void *fdt, int node)
-{
-	const uint32_t *int_prop = NULL;
-	int len_prop = 0;
-	int it_num = DT_INFO_INVALID_INTERRUPT;
-
-	/*
-	 * Interrupt property can be defined with at least 2x32 bits word
-	 *  - Type of interrupt (GIC_SPI, GIC_PPI)
-	 *  - Interrupt Number
-	 */
-	int_prop = fdt_getprop(fdt, node, "interrupts", &len_prop);
-
-	if (!int_prop || len_prop < 2)
-		return it_num;
-
-	it_num = fdt32_to_cpu(int_prop[1]);
-
-	switch (fdt32_to_cpu(int_prop[0])) {
-	case GIC_PPI:
-		it_num += 16;
-		break;
-	case GIC_SPI:
-		it_num += 32;
-		break;
-	default:
-		it_num = DT_INFO_INVALID_INTERRUPT;
-	}
-
-	return it_num;
 }
 
 int dt_disable_status(void *fdt, int node)

@@ -14,6 +14,7 @@
 
 struct itr_chip {
 	const struct itr_ops *ops;
+	int (*xlate)(const uint32_t *properties, int len);
 };
 
 struct itr_ops {
@@ -46,6 +47,18 @@ struct itr_handler {
 
 void itr_init(struct itr_chip *data);
 void itr_handle(size_t it);
+#ifdef CFG_DT
+/*
+ * Get the DT interrupt property of the @node. In the DT an interrupt
+ *
+ * @fdt reference to the Device Tree
+ * @node is the node offset to read
+ *
+ * Returns the interrupt number if value >= 0
+ * otherwise DT_INFO_INVALID_INTERRUPT
+ */
+int dt_get_irq(const void *fdt, int node);
+#endif
 
 struct itr_handler *itr_alloc_add(size_t it, itr_handler_t handler,
 				  uint32_t flags, void *data);

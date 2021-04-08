@@ -8,8 +8,10 @@
 #include <assert.h>
 #include <drivers/gic.h>
 #include <keep.h>
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <util.h>
 #include <io.h>
 #include <trace.h>
@@ -205,6 +207,29 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 #endif
 }
 
+static int __maybe_unused gic_xlate(const uint32_t *properties, int len)
+{
+	int it_num = DT_INFO_INVALID_INTERRUPT;
+
+	if (!properties || len < 2)
+		return it_num;
+
+	it_num = fdt32_to_cpu(properties[1]);
+
+	switch (fdt32_to_cpu(properties[0])) {
+	case 1:
+		it_num += 16;
+		break;
+	case 0:
+		it_num += 32;
+		break;
+	default:
+		it_num = DT_INFO_INVALID_INTERRUPT;
+	}
+
+	return it_num;
+}
+
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 			vaddr_t gicd_base)
 {
@@ -212,6 +237,9 @@ void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 	gd->gicd_base = gicd_base;
 	gd->max_it = probe_max_it(gicc_base, gicd_base);
 	gd->chip.ops = &gic_ops;
+#ifdef CFG_DT
+	gd->chip.xlate = gic_xlate;
+#endif
 }
 
 static void gic_it_add(struct gic_data *gd, size_t it)

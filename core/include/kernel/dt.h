@@ -100,18 +100,6 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
 bool dt_have_prop(const void *fdt, int offs, const char *propname);
 
 /*
- * Get the DT interrupt property of the @node. In the DT an interrupt
- * is defined with at least 2x32 bits detailling the interrupt number and type.
- *
- * @fdt reference to the Device Tree
- * @node is the node offset to read
- *
- * Returns the interrupt number if value >= 0
- * otherwise DT_INFO_INVALID_INTERRUPT
- */
-int dt_get_irq(const void *fdt, int node);
-
-/*
  * Modify or add "status" property to "disabled"
  *
  * @fdt reference to the Device Tree
