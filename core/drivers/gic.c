@@ -6,10 +6,13 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <config.h>
 #include <drivers/gic.h>
 #include <keep.h>
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <util.h>
 #include <io.h>
 #include <trace.h>
@@ -205,6 +208,14 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 #endif
 }
 
+static int gic_dt_get_irq(const uint32_t *properties, int len)
+{
+	if (!properties || len < 2)
+		return DT_INFO_INVALID_INTERRUPT;
+
+	return fdt32_to_cpu(properties[1]);
+}
+
 void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 			vaddr_t gicd_base)
 {
@@ -212,6 +223,9 @@ void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 	gd->gicd_base = gicd_base;
 	gd->max_it = probe_max_it(gicc_base, gicd_base);
 	gd->chip.ops = &gic_ops;
+
+	if (IS_ENABLED(CFG_DT))
+		gd->chip.dt_get_irq = gic_dt_get_irq;
 }
 
 static void gic_it_add(struct gic_data *gd, size_t it)

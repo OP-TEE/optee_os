@@ -3,8 +3,10 @@
  * Copyright (c) 2016-2019, Linaro Limited
  */
 
+#include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <trace.h>
 #include <assert.h>
 
@@ -24,6 +26,24 @@ void itr_init(struct itr_chip *chip)
 {
 	itr_chip = chip;
 }
+
+#ifdef CFG_DT
+int dt_get_irq(const void *fdt, int node)
+{
+	const uint32_t *prop = NULL;
+	int len = 0;
+	int it_num = DT_INFO_INVALID_INTERRUPT;
+
+	if (!itr_chip || !itr_chip->dt_get_irq)
+		return it_num;
+
+	prop = fdt_getprop(fdt, node, "interrupts", &len);
+	if (!prop)
+		return it_num;
+
+	return itr_chip->dt_get_irq(prop, len);
+}
+#endif
 
 void itr_handle(size_t it)
 {
