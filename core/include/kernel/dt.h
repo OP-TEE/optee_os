@@ -31,12 +31,15 @@
  * @reg: Device register physical base address or DT_INFO_INVALID_REG
  * @clock: Device identifier (positive value) or DT_INFO_INVALID_CLOCK
  * @reset: Device reset identifier (positive value) or DT_INFO_INVALID_CLOCK
+ * @interrupt: Device interrupt identifier (positive value) or
+ * DT_INFO_INVALID_INTERRUPT
  */
 struct dt_node_info {
 	unsigned int status;
 	paddr_t reg;
 	int clock;
 	int reset;
+	int interrupt;
 };
 
 #if defined(CFG_DT)
