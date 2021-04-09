@@ -33,10 +33,14 @@ enum itr_return {
 	ITRR_HANDLED,
 };
 
+struct itr_handler;
+
+typedef enum itr_return (*itr_handler_t)(struct itr_handler *h);
+
 struct itr_handler {
 	size_t it;
 	uint32_t flags;
-	enum itr_return (*handler)(struct itr_handler *h);
+	itr_handler_t handler;
 	void *data;
 	SLIST_ENTRY(itr_handler) link;
 };
@@ -57,6 +61,9 @@ void itr_handle(size_t it);
 int dt_get_irq(const void *fdt, int node);
 #endif
 
+struct itr_handler *itr_alloc_add(size_t it, itr_handler_t handler,
+				  uint32_t flags, void *data);
+void itr_free(struct itr_handler *hdl);
 void itr_add(struct itr_handler *handler);
 void itr_enable(size_t it);
 void itr_disable(size_t it);
