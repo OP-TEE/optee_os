@@ -9,6 +9,7 @@
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
 #include <kernel/dt.h>
+#include <kernel/interrupt.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

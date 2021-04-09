@@ -51,27 +51,6 @@ bool dt_have_prop(const void *fdt, int offs, const char *propname)
 	return prop;
 }
 
-int dt_get_irq(void *fdt, int node)
-{
-	const uint32_t *int_prop = NULL;
-	int len_prop = 0;
-	int it_num = DT_INFO_INVALID_INTERRUPT;
-
-	/*
-	 * Interrupt property can be defined with at least 2x32 bits word
-	 *  - Type of interrupt
-	 *  - Interrupt Number
-	 */
-	int_prop = fdt_getprop(fdt, node, "interrupts", &len_prop);
-
-	if (!int_prop || len_prop < 2)
-		return it_num;
-
-	it_num = fdt32_to_cpu(int_prop[1]);
-
-	return it_num;
-}
-
 int dt_disable_status(void *fdt, int node)
 {
 	const char *prop = NULL;
