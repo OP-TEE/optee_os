@@ -140,12 +140,12 @@ struct stmm_ctx {
 	bool is_initializing;
 };
 
-extern const struct ts_ops stmm_sp_ops;
+extern const struct ts_ops *stmm_sp_ops_ptr;
 
 static inline bool is_stmm_ctx(struct ts_ctx *ctx __maybe_unused)
 {
-	return IS_ENABLED(CFG_WITH_STMM_SP) &&
-	       ctx && ctx->ops == &stmm_sp_ops;
+	return IS_ENABLED(CFG_WITH_STMM_SP) && stmm_sp_ops_ptr &&
+	       ctx && ctx->ops == stmm_sp_ops_ptr;
 }
 
 static inline struct stmm_ctx *to_stmm_ctx(struct ts_ctx *ctx)
