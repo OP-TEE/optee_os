@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <kernel/dt.h>
+#include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -267,6 +268,7 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 		.reg = DT_INFO_INVALID_REG,
 		.clock = DT_INFO_INVALID_CLOCK,
 		.reset = DT_INFO_INVALID_RESET,
+		.interrupt = DT_INFO_INVALID_INTERRUPT,
 	};
 	const fdt32_t *cuint;
 
@@ -283,6 +285,8 @@ void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int offs)
 		cuint++;
 		dinfo.reset = (int)fdt32_to_cpu(*cuint);
 	}
+
+	dinfo.interrupt = dt_get_irq(fdt, offs);
 
 	dinfo.status = _fdt_get_status(fdt, offs);
 
