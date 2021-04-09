@@ -105,10 +105,13 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
 CFG_WITH_STATS ?= y
 
 # Default disable some support for pager memory size constraint
+ifeq ($(CFG_WITH_PAGER),y)
 CFG_TEE_CORE_DEBUG ?= n
 CFG_UNWIND ?= n
 CFG_LOCKDEP ?= n
 CFG_CORE_ASLR ?= n
+CFG_TA_BGET_TEST ?= n
+endif
 
 # Non-secure UART and GPIO/pinctrl for the output console
 CFG_WITH_NSEC_GPIOS ?= y
