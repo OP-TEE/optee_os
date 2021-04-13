@@ -18,6 +18,16 @@
 #include "sanitize_object.h"
 #include "serializer.h"
 
+/*
+ * Temporary list used to register allocated struct pkcs11_object instances
+ * so that destroy_object() can unconditionally remove the object from its
+ * list, being from an object destruction request or because object creation
+ * failed before being completed. Objects are moved to their target list at
+ * creation completion.
+ */
+LIST_HEAD(temp_obj_list, pkcs11_object) temporary_object_list =
+	LIST_HEAD_INITIALIZER(temp_obj_list);
+
 static struct ck_token *get_session_token(void *session);
 
 struct pkcs11_object *pkcs11_handle2object(uint32_t handle,
@@ -130,18 +140,7 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		MSG_RAW("[destroy] obj uuid %pUl", (void *)obj->uuid);
 #endif
 
-	/*
-	 * Remove from session list only if it was published.
-	 *
-	 * This depends on obj->link.le_prev always pointing on the
-	 * link.le_next element in the previous object in the list even if
-	 * there's only a single object in the list. In the first object in
-	 * the list obj->link.le_prev instead points to lh_first in the
-	 * list head. If list implementation is changed we need to revisit
-	 * this.
-	 */
-	if (obj->link.le_next || obj->link.le_prev)
-		LIST_REMOVE(obj, link);
+	LIST_REMOVE(obj, link);
 
 	if (session_only) {
 		/* Destroy object due to session closure */
@@ -227,6 +226,8 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 	if (!obj)
 		return PKCS11_CKR_DEVICE_MEMORY;
 
+	LIST_INSERT_HEAD(&temporary_object_list, obj, link);
+
 	/* Create a handle for the object in the session database */
 	obj_handle = handle_get(get_object_handle_db(session), obj);
 	if (!obj_handle) {
@@ -272,10 +273,14 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 		TEE_CloseObject(obj->attribs_hdl);
 		obj->attribs_hdl = TEE_HANDLE_NULL;
 
+		/* Move object from temporary list to target token list */
+		LIST_REMOVE(obj, link);
 		LIST_INSERT_HEAD(&session->token->object_list, obj, link);
 	} else {
-		rc = PKCS11_CKR_OK;
+		/* Move object from temporary list to target session list */
+		LIST_REMOVE(obj, link);
 		LIST_INSERT_HEAD(get_session_objects(session), obj, link);
+		rc = PKCS11_CKR_OK;
 	}
 
 	*out_handle = obj_handle;
