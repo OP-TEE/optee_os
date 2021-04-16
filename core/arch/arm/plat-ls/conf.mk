@@ -54,7 +54,6 @@ endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1046ardb)
 include core/arch/arm/cpu/cortex-armv8-0.mk
-$(call force,CFG_CAAM_BIG_ENDIAN,y)
 $(call force,CFG_TEE_CORE_NB_CORE,4)
 $(call force,CFG_DRAM0_SIZE,0x80000000)
 $(call force,CFG_CORE_CLUSTER_SHIFT,2)
@@ -99,7 +98,6 @@ endif
 
 ifeq ($(PLATFORM_FLAVOR),lx2160ardb)
 include core/arch/arm/cpu/cortex-armv8-0.mk
-$(call force,CFG_CAAM_LITTLE_ENDIAN,y)
 $(call force,CFG_TEE_CORE_NB_CORE,16)
 $(call force,CFG_DRAM0_SIZE,0x80000000)
 $(call force,CFG_DRAM1_BASE,0x2080000000)
