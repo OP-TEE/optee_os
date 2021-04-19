@@ -491,6 +491,9 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - $(CFG_TZDRAM_SIZE) - $(CFG_SHMEM_SIZE) + $(CFG_DDR_SIZE))
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 
+# Enable embedded tests by default
+CFG_ENABLE_EMBEDDED_TESTS ?= y
+
 # Set default heap size for imx platforms to 128k
 CFG_CORE_HEAP_SIZE ?= 131072
 
