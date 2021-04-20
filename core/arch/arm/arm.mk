@@ -114,6 +114,15 @@ CFG_CORE_UNMAP_CORE_AT_EL0 ?= y
 # save/restore PMCR during world switch.
 CFG_SM_NO_CYCLE_COUNTING ?= y
 
+
+# CFG_CORE_ASYNC_NOTIF_GIC_INTID is defined by the platform to some free
+# interrupt. Setting it to a non-zero number enables support for using an
+# Arm-GIC to notify normal world. This config variable should use a value
+# larger the 32 to make it of the type SPI.
+# Note that asynchronous notifactions must be enabled with
+# CFG_CORE_ASYNC_NOTIF=y for this variable to be used.
+CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 0
+
 ifeq ($(CFG_ARM32_core),y)
 # Configration directive related to ARMv7 optee boot arguments.
 # CFG_PAGEABLE_ADDR: if defined, forces pageable data physical address.

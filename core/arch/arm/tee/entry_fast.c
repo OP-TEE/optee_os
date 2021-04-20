@@ -7,6 +7,7 @@
 #include <config.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
+#include <kernel/notif.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
@@ -92,6 +93,12 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	if (IS_ENABLED(CFG_VIRTUALIZATION))
 		args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
 	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		args->a1 |= OPTEE_SMC_SEC_CAP_ASYNC_NOTIF;
+		args->a2 = NOTIF_VALUE_MAX;
+	}
+	DMSG("Asynchronous notifications are %sabled",
+	     IS_ENABLED(CFG_CORE_ASYNC_NOTIF) ? "en" : "dis");
 
 #if defined(CFG_CORE_DYN_SHM)
 	dyn_shm_en = core_mmu_nsec_ddr_is_defined();
@@ -187,6 +194,20 @@ void __weak tee_entry_fast(struct thread_smc_args *args)
 	__tee_entry_fast(args);
 }
 
+static void get_async_notif_value(struct thread_smc_args *args)
+{
+	bool value_valid = false;
+	bool value_pending = false;
+
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = notif_get_value(&value_valid, &value_pending);
+	args->a2 = 0;
+	if (value_valid)
+		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_VALID;
+	if (value_pending)
+		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_PENDING;
+}
+
 /*
  * If tee_entry_fast() is overridden, it's still supposed to call this
  * function.
@@ -245,6 +266,21 @@ void __tee_entry_fast(struct thread_smc_args *args)
 		tee_entry_vm_destroyed(args);
 		break;
 #endif
+
+	case OPTEE_SMC_ENABLE_ASYNC_NOTIF:
+		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+			notif_deliver_atomic_event(NOTIF_EVENT_STARTED);
+			args->a0 = OPTEE_SMC_RETURN_OK;
+		} else {
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		}
+		break;
+	case OPTEE_SMC_GET_ASYNC_NOTIF_VALUE:
+		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+			get_async_notif_value(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
 
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
