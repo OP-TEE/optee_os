@@ -1,6 +1,4 @@
-PLATFORM_FLAVOR ?= tc0
-
-ifeq ($(PLATFORM_FLAVOR),tc0)
+ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1))
 include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
 endif
@@ -26,7 +24,7 @@ platform-cflags-debug-info = -gdwarf-2
 platform-aflags-debug-info = -gdwarf-2
 endif
 
-ifeq ($(PLATFORM_FLAVOR),tc0)
+ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1))
 CFG_TEE_CORE_NB_CORE = 8
 
 ifeq ($(CFG_CORE_SEL1_SPMC),y)
