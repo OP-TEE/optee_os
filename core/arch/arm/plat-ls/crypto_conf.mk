@@ -29,6 +29,9 @@ CFG_CAAM_64BIT ?= y
 # On layerscape, SGT entries are loaded by burst of 4
 $(call force, CFG_CAAM_SGT_ALIGN,4)
 
+# Enable the BLOB module used for the hardware unique key
+CFG_NXP_CAAM_BLOB_DRV ?= y
+
 #
 # CAAM Job Ring configuration
 #  - Normal boot settings
