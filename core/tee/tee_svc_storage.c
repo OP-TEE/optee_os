@@ -34,7 +34,7 @@ const struct tee_file_operations *tee_svc_storage_file_ops(uint32_t storage_id)
 #elif defined(CFG_RPMB_FS)
 		return &rpmb_fs_ops;
 #else
-#error At least one filesystem must be enabled.
+		return NULL;
 #endif
 #ifdef CFG_REE_FS
 	case TEE_STORAGE_PRIVATE_REE:

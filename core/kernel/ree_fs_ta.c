@@ -36,6 +36,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/thread.h>
@@ -493,8 +494,10 @@ static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 		if (res != TEE_SUCCESS)
 			return res;
 
-		if (handle->bs_hdr)
+		if (handle->bs_hdr &&
+		    (IS_ENABLED(CFG_REE_FS) || IS_ENABLED(CFG_RPMB_FS))) {
 			res = check_update_version(handle->bs_hdr);
+		}
 	}
 	return res;
 }
