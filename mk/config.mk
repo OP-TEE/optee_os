@@ -767,3 +767,9 @@ endif
 ifeq (y-y,$(CFG_PAGED_USER_TA)-$(CFG_TA_BTI))
 $(error CFG_PAGED_USER_TA and CFG_TA_BTI are currently incompatible)
 endif
+
+# CFG_CORE_ASYNC_NOTIF is defined by the platform to enable enables support
+# for sending asynchronous notifications to normal world. Note that an
+# interrupt ID must be configurged by the platform too. Currently is only
+# CFG_CORE_ASYNC_NOTIF_GIC_INTID defined.
+CFG_CORE_ASYNC_NOTIF ?= n

@@ -11,6 +11,7 @@
 #include <io.h>
 #include <kernel/linker.h>
 #include <kernel/msg_param.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
@@ -563,7 +564,22 @@ uint32_t __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 		break;
 #endif
 #endif
+
+	case OPTEE_MSG_CMD_DO_BOTTOM_HALF:
+		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+			notif_deliver_event(NOTIF_EVENT_DO_BOTTOM_HALF);
+		else
+			goto err;
+		break;
+	case OPTEE_MSG_CMD_STOP_ASYNC_NOTIF:
+		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+			notif_deliver_event(NOTIF_EVENT_STOPPED);
+		else
+			goto err;
+		break;
+
 	default:
+err:
 		EMSG("Unknown cmd 0x%x", arg->cmd);
 		rv = OPTEE_SMC_RETURN_EBADCMD;
 	}

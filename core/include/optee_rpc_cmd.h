@@ -59,6 +59,9 @@
  * Conversely a synchronous notification can be sent when a secure
  * world mutex with a thread waiting thread is unlocked.
  *
+ * This interface can also be used to wait for a asynchronous notification
+ * which instead is sent via a non-secure interrupt.
+ *
  * Waiting on notification
  * [in]    value[0].a	    OPTEE_RPC_NOTIFICATION_WAIT
  * [in]    value[0].b	    notification value

@@ -9,6 +9,7 @@
 #include <config.h>
 #include <console.h>
 #include <crypto/crypto.h>
+#include <drivers/gic.h>
 #include <initcall.h>
 #include <inttypes.h>
 #include <keep.h>
@@ -728,6 +729,36 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 	ret = fdt_setprop_string(dt->blob, offs, "method", "smc");
 	if (ret < 0)
 		return -1;
+	if (CFG_CORE_ASYNC_NOTIF_GIC_INTID) {
+		/*
+		 * The format of the interrupt property is defined by the
+		 * binding of the interrupt domain root. In this case it's
+		 * one Arm GIC v1, v2 or v3 so we must be compatible with
+		 * these.
+		 *
+		 * An SPI type of interrupt is indicated with a 0 in the
+		 * first cell.
+		 *
+		 * The interrupt number goes in the second cell where
+		 * SPIs ranges from 0 to 987.
+		 *
+		 * Flags are passed in the third cell where a 1 means edge
+		 * triggered.
+		 */
+		const uint32_t gic_spi = 0;
+		const uint32_t irq_type_edge = 1;
+		uint32_t val[] = {
+			TEE_U32_TO_BIG_ENDIAN(gic_spi),
+			TEE_U32_TO_BIG_ENDIAN(CFG_CORE_ASYNC_NOTIF_GIC_INTID -
+					      GIC_SPI_BASE),
+			TEE_U32_TO_BIG_ENDIAN(irq_type_edge),
+		};
+
+		ret = fdt_setprop(dt->blob, offs, "interrupts", val,
+				  sizeof(val));
+		if (ret < 0)
+			return -1;
+	}
 	return 0;
 }
 
