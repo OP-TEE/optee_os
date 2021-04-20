@@ -41,6 +41,7 @@ struct sp_session {
 	struct sp_ffa_init_info *info;
 	unsigned int spinlock;
 	TAILQ_ENTRY(sp_session) link;
+	SLIST_HEAD(sp_mem_head_t, sp_shared_mem) mem_head;
 };
 
 struct sp_ctx {
@@ -78,6 +79,7 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 				  size_t *elements);
 
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
+struct ts_session *sp_get_active(void);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

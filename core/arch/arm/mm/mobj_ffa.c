@@ -22,6 +22,7 @@ struct mobj_ffa {
 #ifdef CFG_CORE_SEL1_SPMC
 	bool registered_by_cookie;
 	bool unregistered_by_cookie;
+	enum buf_is_attr attr;
 #endif
 	paddr_t pages[];
 };
@@ -82,7 +83,8 @@ static struct mobj_ffa *ffa_new(unsigned int num_pages)
 }
 
 #ifdef CFG_CORE_SEL1_SPMC
-struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
+struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages,
+					enum buf_is_attr attr)
 {
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
@@ -103,6 +105,8 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
 		mf->cookie = i | BIT64(44);
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
+
+	mf->attr = attr;
 
 	if (i == -1) {
 		free(mf);
@@ -212,11 +216,15 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 {
 	unsigned int n = 0;
 	size_t tot_page_count = get_page_count(mf);
+	uint32_t attr = CORE_MEM_NON_SEC;
 
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
+#ifdef CFG_SECURE_PARTITION
+	attr = mf->attr;
+#endif
+	if (!core_pbuf_is(attr, pa, num_pages * SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
@@ -499,9 +507,14 @@ static TEE_Result ffa_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
 
 static bool ffa_matches(struct mobj *mobj __maybe_unused, enum buf_is_attr attr)
 {
+	enum buf_is_attr ffa_attr = CORE_MEM_NON_SEC;
+
 	assert(mobj->ops == &mobj_ffa_ops);
 
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+#ifdef CFG_SECURE_PARTITION
+	ffa_attr = to_mobj_ffa(mobj)->attr;
+#endif
+	return attr == ffa_attr || attr == CORE_MEM_REG_SHM;
 }
 
 static uint64_t ffa_get_cookie(struct mobj *mobj)

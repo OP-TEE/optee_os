@@ -17,6 +17,23 @@
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
 void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp);
+TEE_Result spmc_sp_add_share(struct ffa_mem_transaction *input_descr,
+			     uint64_t global_handle, size_t blen);
+
+struct sp_shared_mem {
+	size_t counter;
+	struct shared_mem *s_mem;
+	struct ffa_mem_access *access_descr;
+	uint16_t endpoint_id;
+	SLIST_ENTRY(sp_shared_mem) link;
+};
+
+struct shared_mem {
+	TAILQ_ENTRY(shared_mem) link;
+	uint16_t owner_id;
+	struct ffa_mem_transaction *mem_descr;
+	SLIST_HEAD(mem_head_t, sp_shared_mem) sp_head;
+};
 
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);

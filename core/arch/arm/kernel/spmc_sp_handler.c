@@ -4,12 +4,19 @@
  */
 #include <assert.h>
 #include <bench.h>
+#include <io.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
 #include <optee_ffa.h>
+#include <string.h>
 #include "thread_private.h"
+
+#define FFA_NW_ID			0
+
+TAILQ_HEAD(mem_shares_t, shared_mem);
+static struct mem_shares_t mem_shares = TAILQ_HEAD_INITIALIZER(mem_shares);
 
 void spmc_sp_start_thread(struct thread_smc_args *args)
 {
@@ -50,6 +57,175 @@ static TEE_Result ffa_get_dst(struct thread_smc_args *args,
 	*dst = s;
 
 	return FFA_OK;
+}
+
+static struct sp_shared_mem *get_sp_shared_mem_by_handle(struct sp_session *s,
+							 uint64_t handle)
+{
+	struct sp_shared_mem *ssm = NULL;
+
+	/*
+	 * FF-A Spec 8.10.2:
+	 * Each Handle identifies a single unique composite memory region
+	 * description that is, there is a 1:1 mapping between the two.
+	 * This means that there can only be one SP linked to a specific handle.
+	 */
+	SLIST_FOREACH(ssm, &s->mem_head, link) {
+		if (ssm->s_mem->mem_descr->global_handle == handle)
+			return ssm;
+	}
+	return NULL;
+}
+
+static TEE_Result add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
+				       struct shared_mem *mem_share,
+				       uint64_t global_handle)
+{
+	struct ffa_mem_access_perm *access_perm =
+		&mem_acc->access_perm;
+	uint16_t endpoint_id = 0;
+	struct sp_session *s = NULL;
+
+	endpoint_id = READ_ONCE(access_perm->endpoint_id);
+	s = sp_get_session(endpoint_id);
+
+	/* Only add memory shares of loaded SPs */
+	if (s) {
+		struct sp_shared_mem *ssm = NULL;
+
+		ssm = calloc(1, sizeof(struct sp_shared_mem));
+
+		if (!ssm)
+			return FFA_NO_MEMORY;
+
+		ssm->access_descr = mem_acc;
+
+		ssm->counter = 0;
+		ssm->endpoint_id = s->endpoint_id;
+
+		/* Only allow each endpoint ones */
+		if (get_sp_shared_mem_by_handle(s, global_handle)) {
+			free(ssm);
+			return FFA_DENIED;
+		}
+		/*
+		 * Make a link between struct shared_mem and
+		 * struct sp_shared_mem
+		 */
+		ssm->s_mem = mem_share;
+		SLIST_INSERT_HEAD(&s->mem_head, ssm, link);
+		SLIST_INSERT_HEAD(&mem_share->sp_head, ssm,
+				  link);
+
+	} else {
+		/*
+		 * We don't register memory that is shared with
+		 * the OP-TEE endpoint. However we do need to
+		 * check that if someone tries to share with an
+		 * invalid endpoint.
+		 */
+		if (endpoint_id != spmc_get_id())
+			return FFA_DENIED;
+	}
+
+	return FFA_OK;
+}
+
+TEE_Result spmc_sp_add_share(struct ffa_mem_transaction *input_descr,
+			     uint64_t global_handle, size_t blen)
+{
+	int rc = FFA_INVALID_PARAMETERS;
+	struct ts_session *ts = 0;
+	uint16_t caller_id = FFA_NW_ID;
+	unsigned int num_mem_accs = 0;
+	unsigned int i = 0;
+	void *mem_share_buffer = NULL;
+	struct ffa_mem_access *mem_acc = NULL;
+	struct shared_mem *mem_share = NULL;
+
+	ts = sp_get_active();
+
+	/* Find the endpoint which is sharing the memory region */
+	if (ts) {
+		struct sp_ctx *uctx = NULL;
+		struct sp_session *calling_s = NULL;
+
+		uctx = to_sp_ctx(ts->ctx);
+		calling_s = uctx->open_session;
+		caller_id = calling_s->endpoint_id;
+	}
+
+	num_mem_accs = READ_ONCE(input_descr->mem_access_count);
+
+	if (num_mem_accs) {
+		/*
+		 * We store the full incoming transaction buffer and have
+		 * shared_mem->mem_descr point to the beginning of the buffer.
+		 * A struct sp_shared_mem object is created for each
+		 * struct ffa_mem_access in the buffer.
+		 * sp_shared_mem->access_descr is set to point to the
+		 * corresponding struct ffa_mem_access in the transaction
+		 * buffer.
+		 */
+		mem_share = calloc(1, sizeof(struct shared_mem));
+		if (!mem_share)
+			return FFA_NO_MEMORY;
+
+		mem_share_buffer = calloc(1, blen);
+		if (!mem_share_buffer) {
+			free(mem_share);
+			return FFA_NO_MEMORY;
+		}
+
+		memcpy(mem_share_buffer, (void *)input_descr, blen);
+
+		/* Point mem_descr to the beginning of the buffer*/
+		mem_share->mem_descr = mem_share_buffer;
+		mem_share->mem_descr->global_handle = global_handle;
+		mem_share->owner_id = caller_id;
+
+		/* Create a list for all struct sp_shared_mem */
+		SLIST_INIT(&mem_share->sp_head);
+		TAILQ_INSERT_TAIL(&mem_shares, mem_share, link);
+
+		mem_acc = mem_share->mem_descr->mem_access_array;
+
+		/* Iterate over the mem_access_array */
+		for (i = 0; i < num_mem_accs; i++) {
+			rc = add_mem_region_to_sp(&mem_acc[i], mem_share,
+						  global_handle);
+			if (rc)
+				goto cleanup;
+		}
+		/* Return if we processed a valid message */
+		if (!rc)
+			return rc;
+	}
+
+cleanup:
+	if (num_mem_accs) {
+		struct sp_shared_mem *ssm = NULL;
+		struct sp_shared_mem *prev_ssm = NULL;
+
+		SLIST_FOREACH(ssm, &mem_share->sp_head, link) {
+			struct sp_session *sp_s = NULL;
+
+			sp_s = sp_get_session(ssm->endpoint_id);
+			if (prev_ssm)
+				free(prev_ssm);
+			prev_ssm = ssm;
+
+			SLIST_REMOVE(&sp_s->mem_head, ssm, sp_shared_mem, link);
+		}
+
+		if (prev_ssm)
+			free(prev_ssm);
+
+		TAILQ_REMOVE(&mem_shares, mem_share, link);
+		free(mem_share);
+		free(mem_share_buffer);
+	}
+	return rc;
 }
 
 static struct sp_session *
@@ -279,6 +455,13 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_PARTITION_INFO_GET:
 			ts_push_current_session(&caller_sp->ts_sess);
 			spmc_handle_partition_info_get(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_SHARE_64:
+		case FFA_MEM_SHARE_32:
+			ts_push_current_session(&caller_sp->ts_sess);
+			thread_spmc_handle_mem_share(args, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

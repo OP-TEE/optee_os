@@ -56,6 +56,20 @@ static void set_sp_ctx_ops(struct ts_ctx *ctx)
 	ctx->ops = _sp_ops;
 }
 
+struct ts_session *sp_get_active(void)
+{
+	struct ts_session *ts = 0;
+
+	/*
+	 * Make sure that ts_get_current_session_may_fail() won't print an
+	 * error.
+	 */
+	if (thread_get_id_may_fail() >= 0)
+		ts = ts_get_current_session_may_fail();
+
+	return ts;
+}
+
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
 {
 	struct sp_session *s = NULL;
@@ -248,6 +262,9 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	s->state = sp_idle;
 	s->caller_id = 0;
 	sp_init_set_registers(ctx);
+
+	SLIST_INIT(&s->mem_head);
+
 	ts_pop_current_session();
 
 	return TEE_SUCCESS;

@@ -218,7 +218,8 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 
 /* Functions for SPMC */
 #ifdef CFG_CORE_SEL1_SPMC
-struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
+struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages,
+					enum buf_is_attr attr);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
 #endif
