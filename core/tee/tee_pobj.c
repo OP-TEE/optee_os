@@ -83,7 +83,8 @@ TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 			(*obj)->refcnt++;
 			goto out;
 		}
-		if ((*obj)->creating) {
+		if ((*obj)->creating || (usage == TEE_POBJ_USAGE_CREATE &&
+					 !(flags & TEE_DATA_FLAG_OVERWRITE))) {
 			res = TEE_ERROR_ACCESS_CONFLICT;
 			goto out;
 		}
