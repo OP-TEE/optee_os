@@ -17,7 +17,8 @@ FUNC __get_core_pos , : , .identity_map
 END_FUNC __get_core_pos
 
 /* size_t get_core_pos_mpidr(uint32_t mpidr); */
-FUNC get_core_pos_mpidr , :
+/* Let platforms override this if needed */
+WEAK_FUNC get_core_pos_mpidr , :
 	mov	r3, r0
 
 	/*
@@ -53,9 +54,6 @@ FUNC get_core_pos_mpidr , :
 
 	bx	lr
 END_FUNC get_core_pos_mpidr
-
-/* Let platforms override this if needed */
-.weak get_core_pos_mpidr
 
 /*
  * uint32_t temp_set_mode(int cpu_mode)
