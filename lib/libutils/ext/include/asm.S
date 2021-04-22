@@ -35,6 +35,19 @@ UNWIND(	.fnstart)
 UNWIND(	.fnstart)
 	.endm
 
+	.macro WEAK_FUNC name colon section=default align=4
+	.ifc	\section\(),default
+	.section .text.\name
+	.else
+	.section \section , "ax" , %progbits
+	.endif
+	.weak \name
+	.type \name , %function
+	.balign \align
+	\name \colon
+UNWIND(	.fnstart)
+	.endm
+
 	.macro END_FUNC name
 UNWIND(	.fnend)
 	.size \name , .-\name
