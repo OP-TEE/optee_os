@@ -65,11 +65,10 @@ END_FUNC __assert_flat_mapped_range
 	.endm
 #endif /* CFG_PL310 */
 
-FUNC plat_cpu_reset_early , :
+WEAK_FUNC plat_cpu_reset_early , :
 	bx	lr
 END_FUNC plat_cpu_reset_early
 DECLARE_KEEP_PAGER plat_cpu_reset_early
-.weak plat_cpu_reset_early
 
 	.section .identity_map, "ax"
 	.align 5
