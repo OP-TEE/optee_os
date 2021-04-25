@@ -4,6 +4,7 @@
  */
 #include <assert.h>
 #include <compiler.h>
+#include <confine_array_index.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <drivers/stm32mp1_pmic.h>
@@ -199,7 +200,13 @@ static const struct channel_resources *find_resource(unsigned int channel_id)
 
 struct scmi_msg_channel *plat_scmi_get_channel(unsigned int channel_id)
 {
-	return find_resource(channel_id)->channel;
+	const size_t max_id = ARRAY_SIZE(scmi_channel);
+	unsigned int confined_id = confine_array_index(channel_id, max_id);
+
+	if (channel_id >= max_id)
+		return NULL;
+
+	return find_resource(confined_id)->channel;
 }
 
 static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
