@@ -127,6 +127,14 @@ static inline void scmi_smt_threaded_entry(unsigned int channel_id __unused)
  */
 struct scmi_msg_channel *plat_scmi_get_channel(unsigned int channel_id);
 
+/* Scmi-msg uses the channel ID as handle. Must channel_id is valid */
+static inline unsigned int scmi_smt_channel_handle(unsigned int channel_id)
+{
+	assert(plat_scmi_get_channel(channel_id));
+
+	return channel_id;
+}
+
 /*
  * Return how many SCMI protocols supported by the platform
  * According to the SCMI specification, this function does not target
