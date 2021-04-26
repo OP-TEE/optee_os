@@ -39,6 +39,7 @@ int psci_features(uint32_t psci_fid)
 	case PSCI_AFFINITY_INFO:
 	case PSCI_SYSTEM_OFF:
 	case PSCI_SYSTEM_RESET:
+	case PSCI_SYSTEM_RESET2:
 		return PSCI_RET_SUCCESS;
 	default:
 		return PSCI_RET_NOT_SUPPORTED;
@@ -236,5 +237,12 @@ int psci_cpu_suspend(uint32_t power_state,
 
 void __noreturn psci_system_reset(void)
 {
-	imx_wdog_restart();
+	imx_wdog_restart(true);
+}
+
+int __noreturn psci_system_reset2(uint32_t reset_type __unused,
+				  uint32_t cookie __unused)
+{
+	/* force WDOG reset */
+	imx_wdog_restart(false);
 }
