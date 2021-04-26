@@ -302,6 +302,18 @@ drvcrypt_mac_alloc_ctx(struct crypto_mac_ctx **ctx __unused,
 }
 #endif /* CFG_CRYPTO_DRV_MAC */
 
+#ifdef CFG_CRYPTO_DRV_AUTHENC
+/* Cryptographic Authenticated Encryption driver context allocation */
+TEE_Result drvcrypt_authenc_alloc_ctx(struct crypto_authenc_ctx **ctx,
+				      uint32_t algo);
+#else
+static inline TEE_Result
+drvcrypt_authenc_alloc_ctx(struct crypto_authenc_ctx **ctx __unused,
+			   uint32_t algo __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /* CFG_CRYPTO_DRV_AUTHENC */
 /*
  * The ECC public key operations used by the crypto_acipher_ecc_*() and
  * crypto_acipher_free_ecc_*() functions.

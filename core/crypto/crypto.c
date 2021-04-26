@@ -331,22 +331,30 @@ TEE_Result crypto_mac_final(void *ctx, uint8_t *digest, size_t digest_len)
 
 TEE_Result crypto_authenc_alloc_ctx(void **ctx, uint32_t algo)
 {
-	TEE_Result res = TEE_SUCCESS;
+	TEE_Result res = TEE_ERROR_NOT_IMPLEMENTED;
 	struct crypto_authenc_ctx *c = NULL;
 
-	switch (algo) {
+	/*
+	 * Use default authenc implementation if no matching
+	 * drvcrypt device.
+	 */
+	res = drvcrypt_authenc_alloc_ctx(&c, algo);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		switch (algo) {
 #if defined(CFG_CRYPTO_CCM)
-	case TEE_ALG_AES_CCM:
-		res = crypto_aes_ccm_alloc_ctx(&c);
-		break;
+		case TEE_ALG_AES_CCM:
+			res = crypto_aes_ccm_alloc_ctx(&c);
+			break;
 #endif
 #if defined(CFG_CRYPTO_GCM)
-	case TEE_ALG_AES_GCM:
-		res = crypto_aes_gcm_alloc_ctx(&c);
-		break;
+		case TEE_ALG_AES_GCM:
+			res = crypto_aes_gcm_alloc_ctx(&c);
+			break;
 #endif
-	default:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+		default:
+			break;
+		}
 	}
 
 	if (!res)
