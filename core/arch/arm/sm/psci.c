@@ -39,7 +39,7 @@
 
 __weak uint32_t psci_version(void)
 {
-	return PSCI_VERSION_0_2;
+	return PSCI_VERSION_1_1;
 }
 
 __weak int psci_cpu_suspend(uint32_t power_state __unused,
@@ -91,6 +91,23 @@ __weak void psci_system_reset(void)
 }
 
 __weak int psci_features(uint32_t psci_fid __unused)
+{
+	return PSCI_RET_NOT_SUPPORTED;
+}
+
+__weak int psci_mem_protect(uint32_t enable __unused)
+{
+	return PSCI_RET_NOT_SUPPORTED;
+}
+
+__weak int psci_mem_chk_range(paddr_t base __unused,
+			      size_t length __unused)
+{
+	return PSCI_RET_NOT_SUPPORTED;
+}
+
+__weak int psci_system_reset2(uint32_t reset_type __unused,
+			      uint32_t cookie __unused)
 {
 	return PSCI_RET_NOT_SUPPORTED;
 }
@@ -164,6 +181,15 @@ void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		break;
 	case PSCI_PSCI_FEATURES:
 		args->a0 = psci_features(a1);
+		break;
+	case PSCI_SYSTEM_RESET2:
+		args->a0 = psci_system_reset2(a1, a2);
+		break;
+	case PSCI_MEM_PROTECT:
+		args->a0 = psci_mem_protect(a1);
+		break;
+	case PSCI_MEM_PROTECT_CHECK_RANGE:
+		args->a0 = psci_mem_chk_range(a1, a2);
 		break;
 	case PSCI_NODE_HW_STATE:
 		args->a0 = psci_node_hw_state(a1, a2);
