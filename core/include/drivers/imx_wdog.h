@@ -62,5 +62,5 @@
 #define WDOG_CS_UPDATE		BIT(5)
 
 /* Exposed for psci reset */
-void __noreturn imx_wdog_restart(void);
+void __noreturn imx_wdog_restart(bool external_reset);
 #endif

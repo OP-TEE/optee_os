@@ -39,7 +39,7 @@
 #include <mm/core_mmu.h>
 #include <util.h>
 
-static bool ext_reset;
+static bool ext_reset_output;
 static vaddr_t wdog_base;
 
 static const char * const dt_wdog_match_table[] = {
@@ -47,7 +47,7 @@ static const char * const dt_wdog_match_table[] = {
 	"fsl,imx7ulp-wdt",
 };
 
-void imx_wdog_restart(void)
+void imx_wdog_restart(bool external_reset __maybe_unused)
 {
 	uint32_t val = 0;
 
@@ -67,7 +67,7 @@ void imx_wdog_restart(void)
 	io_write32(wdog_base + WDOG_TOVAL, 1000);
 	io_write32(wdog_base + WDOG_CNT, REFRESH);
 #else
-	if (ext_reset)
+	if (external_reset && ext_reset_output)
 		val = 0x14;
 	else
 		val = 0x24;
@@ -135,7 +135,8 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	ext_reset = dt_have_prop(fdt, found_off, "fsl,ext-reset-output");
+	ext_reset_output = dt_have_prop(fdt, found_off,
+					"fsl,ext-reset-output");
 
 	if (dt_map_dev(fdt, found_off, &vbase, &sz) < 0) {
 		EMSG("Failed to map Watchdog\n");
@@ -152,7 +153,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
 	*wdog_vbase = (vaddr_t)phys_to_virt(WDOG_BASE, MEM_AREA_IO_SEC);
 #if defined(CFG_IMX_WDOG_EXT_RESET)
-	ext_reset = true;
+	ext_reset_output = true;
 #endif
 	return TEE_SUCCESS;
 }
@@ -163,7 +164,7 @@ static TEE_Result imx_wdog_init(void)
 #if defined(PLATFORM_FLAVOR_mx7dsabresd) || \
 	defined(PLATFORM_FLAVOR_mx7dclsom)
 
-	ext_reset = true;
+	ext_reset_output = true;
 #endif
 	return imx_wdog_base(&wdog_base);
 }
