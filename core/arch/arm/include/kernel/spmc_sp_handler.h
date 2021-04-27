@@ -26,6 +26,7 @@ struct sp_shared_mem {
 	struct ffa_mem_access *access_descr;
 	uint16_t endpoint_id;
 	SLIST_ENTRY(sp_shared_mem) link;
+	bool zero_flag;
 };
 
 struct shared_mem {
@@ -42,5 +43,4 @@ static inline void spmc_sp_start_thread(struct thread_smc_args *args __unused)
 {
 }
 #endif
-
 #endif /* __KERNEL_SPMC_SP_HANDLER_H */

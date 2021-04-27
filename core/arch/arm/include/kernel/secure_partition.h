@@ -80,6 +80,8 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
 struct ts_session *sp_get_active(void);
+vaddr_t sp_map_shared_va(struct sp_session *s, struct sp_shared_mem *ssm,
+			 uint32_t perm);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

@@ -397,7 +397,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 		case MEM_AREA_EXT_DT:
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
-		case MEM_AREA_TA_VASPACE:
+		case MEM_AREA_TS_VASPACE:
 		case MEM_AREA_PAGER_VASPACE:
 			break;
 		default:
@@ -2197,7 +2197,7 @@ static void check_va_matches_pa(paddr_t pa __unused, void *va __unused)
 }
 #endif
 
-static void *phys_to_virt_ta_vaspace(paddr_t pa)
+static void *phys_to_virt_ts_vaspace(paddr_t pa)
 {
 	if (!core_mmu_user_mapping_is_active())
 		return NULL;
@@ -2236,8 +2236,8 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	void *va = NULL;
 
 	switch (m) {
-	case MEM_AREA_TA_VASPACE:
-		va = phys_to_virt_ta_vaspace(pa);
+	case MEM_AREA_TS_VASPACE:
+		va = phys_to_virt_ts_vaspace(pa);
 		break;
 	case MEM_AREA_TEE_RAM:
 	case MEM_AREA_TEE_RAM_RX:
