@@ -507,6 +507,73 @@ static void ffa_mem_retrieve(struct thread_smc_args *args,
 	cpu_spin_unlock(&rxtx->spinlock);
 }
 
+static void ffa_mem_reclaim(struct thread_smc_args *args,
+			    struct sp_session *caller_sp)
+{
+	uint64_t handle = 0;
+	struct sp_shared_mem *ssm = NULL;
+	struct sp_shared_mem *prev_ssm = NULL;
+	struct shared_mem *sm = NULL;
+	uint32_t flags = args->a3;
+
+	handle = reg_pair_to_64(args->a2, args->a1);
+
+	TAILQ_FOREACH(sm, &mem_shares, link) {
+		if (sm->mem_descr->global_handle == handle)
+			break;
+	}
+
+	/*
+	 * We don't have a mem_share when the memory region was shared with the
+	 * SPM.
+	 */
+	if (!sm) {
+		thread_spmc_handle_mem_reclaim(args);
+		return;
+	}
+
+	/* Make sure that the caller is the owner of the share */
+	if (sm->owner_id != caller_sp->endpoint_id) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+	/* Make sure that all shares where relinquished */
+	SLIST_FOREACH(ssm, &sm->sp_head, link) {
+		if (ssm->counter != 0) {
+			ffa_set_error(args, FFA_DENIED);
+			return;
+		}
+	}
+
+	if (flags & FFA_MEMORY_REGION_FLAG_CLEAR) {
+		struct ffa_mem_region *region = NULL;
+
+		sm =  ssm->s_mem;
+		region = (struct ffa_mem_region *)((vaddr_t)sm->mem_descr +
+						ssm->access_descr->region_offs);
+		zero_mem_region(region);
+	}
+
+	/* Remove all links between the share and the linked SPs */
+	SLIST_FOREACH(ssm, &sm->sp_head, link) {
+		struct sp_session *sp_s = sp_get_session(ssm->endpoint_id);
+
+		if (prev_ssm)
+			free(prev_ssm);
+		prev_ssm = ssm;
+		SLIST_REMOVE(&sp_s->mem_head, ssm, sp_shared_mem, link);
+	}
+
+	if (prev_ssm)
+		free(prev_ssm);
+
+	TAILQ_REMOVE(&mem_shares, sm, link);
+	free(sm->mem_descr);
+	free(sm);
+
+	thread_spmc_handle_mem_reclaim(args);
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -749,6 +816,10 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RECLAIM:
+			ffa_mem_reclaim(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
 		default:

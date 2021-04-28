@@ -929,7 +929,7 @@ out:
 	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
 
-static void handle_mem_reclaim(struct thread_smc_args *args)
+void thread_spmc_handle_mem_reclaim(struct thread_smc_args *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
 	uint32_t ret_fid = FFA_ERROR;
@@ -1011,7 +1011,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		thread_spmc_handle_mem_share(args, &nw_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
-		handle_mem_reclaim(args);
+		thread_spmc_handle_mem_reclaim(args);
 		break;
 	case FFA_MEM_FRAG_TX:
 		handle_mem_frag_tx(args, &nw_rxtx);
