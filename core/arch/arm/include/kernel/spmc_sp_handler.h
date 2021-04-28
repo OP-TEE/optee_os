@@ -20,6 +20,8 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp);
 TEE_Result spmc_sp_add_share(struct ffa_mem_transaction *input_descr,
 			     struct mobj_ffa *m, size_t blen);
+void ffa_mem_reclaim(struct thread_smc_args *args,
+		     struct sp_session *caller_sp);
 
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);

@@ -534,6 +534,66 @@ out:
 		mobj_put(m);
 }
 
+void ffa_mem_reclaim(struct thread_smc_args *args,
+		     struct sp_session *caller_sp)
+{
+	uint64_t handle = 0;
+	struct sp_mem_access_descr *sma = NULL;
+	uint32_t flags = args->a3;
+	uint32_t endpoint = 0;
+	struct mobj_ffa *m = NULL;
+
+	handle = reg_pair_to_64(args->a2, args->a1);
+
+	m = to_mobj_ffa(mobj_ffa_get_by_cookie(handle, 0));
+	if (!m) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+
+	if (SLIST_EMPTY(&m->sp_head)) {
+		/*
+		 * We don't have a mem_share when the memory region was shared
+		 * with the OP-TEE endpoint.
+		 */
+		mobj_put(&m->mobj);
+		mobj_ffa_unregister_by_cookie(handle);
+		thread_spmc_handle_mem_reclaim(args);
+		return;
+	}
+
+	if (caller_sp)
+		endpoint = caller_sp->endpoint_id;
+
+	/* Make sure that the caller is the owner of the share */
+	if (m->transaction.sender_id != endpoint) {
+		mobj_put(&m->mobj);
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+	/* Make sure that all shares where relinquished */
+	SLIST_FOREACH(sma, &m->sp_head, link) {
+		if (sma->counter != 0) {
+			mobj_put(&m->mobj);
+			ffa_set_error(args, FFA_DENIED);
+			return;
+		}
+	}
+
+	if (flags & FFA_MEMORY_REGION_FLAG_CLEAR)
+		zero_mem_region(m, caller_sp);
+
+	while (!SLIST_EMPTY(&m->sp_head)) {
+		sma = SLIST_FIRST(&m->sp_head);
+		SLIST_REMOVE_HEAD(&m->sp_head, link);
+		free(sma);
+	}
+
+	mobj_put(&m->mobj);
+	mobj_ffa_unregister_by_cookie(handle);
+	thread_spmc_handle_mem_reclaim(args);
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -782,6 +842,10 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RECLAIM:
+			ffa_mem_reclaim(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
 		default:
