@@ -275,6 +275,32 @@ void *sp_get_mobj_va(struct mobj *m, struct sp_ctx *ctx)
 	return vm_pa2va(&ctx->uctx, pa);
 }
 
+static TEE_Result unmap_shared_va(struct sp_session *s, vaddr_t va,
+				  size_t len)
+{
+	struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	return vm_unmap(&ctx->uctx, va, len);
+}
+
+TEE_Result sp_unmap_regions(struct sp_session *s,
+			    struct sp_mem_access_descr *sma)
+{
+	TEE_Result res = TEE_SUCCESS;
+	vaddr_t vaddr = 0;
+	size_t len = 0;
+	struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	vaddr = (vaddr_t)sp_get_mobj_va(&sma->m->mobj, ctx);
+	len = mobj_ffa_get_page_count(sma->m) * SMALL_PAGE_SIZE;
+
+	res = unmap_shared_va(s, vaddr, len);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	return res;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)

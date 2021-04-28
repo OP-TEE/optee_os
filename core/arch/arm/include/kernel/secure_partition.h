@@ -103,6 +103,8 @@ void *sp_get_mobj_va(struct mobj *m, struct sp_ctx *ctx);
 TEE_Result sp_map_shared_va(struct sp_session *s,
 			    struct sp_mem_access_descr *sma, uint32_t perm,
 			    uint64_t *va);
+TEE_Result sp_unmap_regions(struct sp_session *s,
+			    struct sp_mem_access_descr *sma);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

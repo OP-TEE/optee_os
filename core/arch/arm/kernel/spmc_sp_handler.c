@@ -226,8 +226,7 @@ cleanup:
 
 static bool check_rxtx(struct ffa_rxtx *rxtx)
 {
-	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0 &&
-	       rxtx->tx_is_mine;
+	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0;
 }
 
 static void zero_mem_region(struct mobj_ffa *mf, struct sp_session *s)
@@ -380,7 +379,7 @@ static void ffa_mem_retrieve(struct thread_smc_args *args,
 	struct mobj *m = NULL;
 	bool original_zero_flag = false;
 
-	if (!check_rxtx(rxtx)) {
+	if (!check_rxtx(rxtx) || !rxtx->tx_is_mine) {
 		ret = FFA_DENIED;
 		goto out;
 	}
@@ -460,6 +459,79 @@ out:
 	if (m)
 		mobj_put(m);
 	ffa_set_error(args, ret);
+}
+
+static void ffa_mem_relinquish(struct thread_smc_args *args,
+			       struct sp_session *caller_sp,
+			       struct ffa_rxtx  *rxtx)
+{
+	struct sp_mem_access_descr *sma = NULL;
+	struct ffa_mem_relinquish *mem = rxtx->rx;
+	uint32_t err = 0;
+	struct mobj *m = NULL;
+
+	if (!check_rxtx(rxtx)) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+
+	cpu_spin_lock(&rxtx->spinlock);
+
+	m = mobj_ffa_get_by_cookie(mem->handle, 0);
+
+	if (!m) {
+		DMSG("Incorrect handle");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	sma = get_sp_mem_access_descr(caller_sp, to_mobj_ffa(m));
+
+	if (mem->endpoint_count != 1) {
+		DMSG("Incorrect endpoint count");
+		err = FFA_INVALID_PARAMETERS;
+		goto out_spinlock;
+	}
+
+	if (mem->endpoint_id_array[0] != caller_sp->endpoint_id) {
+		DMSG("Incorrect endpoint id");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	cpu_spin_unlock(&rxtx->spinlock);
+
+	if (!sma->counter) {
+		DMSG("To many relinquish requests");
+		err = FFA_DENIED;
+		goto out;
+	}
+
+	if (sma->counter == 1) {
+		if ((mem->flags & FFA_MEMORY_REGION_FLAG_CLEAR) ||
+		    sma->zero_flag) {
+			zero_mem_region(sma->m, caller_sp);
+		}
+
+		if (sp_unmap_regions(caller_sp, sma) != TEE_SUCCESS) {
+			DMSG("Failed to unmap region");
+			err = FFA_DENIED;
+			goto out;
+		}
+	}
+	sma->counter--;
+
+	mobj_put(m);
+
+	args->a0 = FFA_SUCCESS_32;
+	return;
+
+out_spinlock:
+	cpu_spin_unlock(&rxtx->spinlock);
+out:
+	ffa_set_error(args, err);
+	if (m)
+		mobj_put(m);
 }
 
 static struct sp_session *
@@ -703,6 +775,12 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_MEM_RETRIEVE_REQ_64:
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RELINQUISH:
+			ts_push_current_session(&caller_sp->ts_sess);
+			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;
