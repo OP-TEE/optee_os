@@ -103,6 +103,14 @@ __weak void main_secondary_init_gic(void)
 {
 }
 
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak unsigned long plat_get_aslr_seed(void)
+{
+	DMSG("Warning: no ASLR seed");
+
+	return 0;
+}
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
@@ -1359,27 +1367,31 @@ unsigned long __weak get_aslr_seed(void *fdt)
 
 	if (rc) {
 		DMSG("Bad fdt: %d", rc);
-		return 0;
+		goto err;
 	}
 
 	offs =  fdt_path_offset(fdt, "/secure-chosen");
 	if (offs < 0) {
 		DMSG("Cannot find /secure-chosen");
-		return 0;
+		goto err;
 	}
 	seed = fdt_getprop(fdt, offs, "kaslr-seed", &len);
 	if (!seed || len != sizeof(*seed)) {
 		DMSG("Cannot find valid kaslr-seed");
-		return 0;
+		goto err;
 	}
 
 	return fdt64_to_cpu(*seed);
+
+err:
+	/* Try platform implementation */
+	return plat_get_aslr_seed();
 }
 #else /*!CFG_DT*/
 unsigned long __weak get_aslr_seed(void *fdt __unused)
 {
-	DMSG("Warning: no ASLR seed");
-	return 0;
+	/* Try platform implementation */
+	return plat_get_aslr_seed();
 }
 #endif /*!CFG_DT*/
 #endif /*CFG_CORE_ASLR*/
