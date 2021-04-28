@@ -230,8 +230,7 @@ cleanup:
 
 static bool check_rxtx(struct ffa_rxtx *rxtx)
 {
-	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0 &&
-	       rxtx->tx_is_mine;
+	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0;
 }
 
 static void zero_mem_region(struct ffa_mem_region *region)
@@ -428,7 +427,7 @@ static void ffa_mem_retrieve(struct thread_smc_args *args,
 	uint32_t perm = TEE_MATTR_UR;
 	struct ffa_mem_access *mem_access = NULL;
 
-	if (!check_rxtx(rxtx)) {
+	if (!check_rxtx(rxtx) && rxtx->tx_is_mine) {
 		ffa_set_error(args, FFA_DENIED);
 		return;
 	}
@@ -482,6 +481,7 @@ static void ffa_mem_retrieve(struct thread_smc_args *args,
 	res = create_retrieve_response(retr_dsc, rxtx->tx, ssm, &tx_len);
 
 	if (res) {
+		sp_unmap_regions(caller_sp, ssm);
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		cpu_spin_unlock(&rxtx->spinlock);
 		return;
@@ -572,6 +572,74 @@ static void ffa_mem_reclaim(struct thread_smc_args *args,
 	free(sm);
 
 	thread_spmc_handle_mem_reclaim(args);
+}
+
+static void ffa_mem_relinquish(struct thread_smc_args *args,
+			       struct sp_session *caller_sp,
+			       struct ffa_rxtx  *rxtx)
+{
+	struct sp_shared_mem *ssm = NULL;
+	struct ffa_mem_relinquish *mem = rxtx->rx;
+	uint32_t err = 0;
+
+	if (!check_rxtx(rxtx)) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+
+	cpu_spin_lock(&rxtx->spinlock);
+	ssm = get_sp_shared_mem_by_handle(caller_sp, mem->handle);
+
+	if (!ssm) {
+		DMSG("Incorrect handle");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	if (mem->endpoint_count != 1) {
+		DMSG("Incorrect endpoint count");
+		err = FFA_INVALID_PARAMETERS;
+		goto out_spinlock;
+	}
+
+	if (mem->endpoint_id_array[0] != caller_sp->endpoint_id) {
+		DMSG("Incorrect endpoint id");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	cpu_spin_unlock(&rxtx->spinlock);
+
+	if (!ssm->counter) {
+		DMSG("To many relinquish requests");
+		err = FFA_DENIED;
+		goto out;
+	}
+
+	if ((mem->flags & FFA_MEMORY_REGION_FLAG_CLEAR) || ssm->zero_flag) {
+		struct ffa_mem_region *region = NULL;
+		struct shared_mem *sm = ssm->s_mem;
+
+		region = (struct ffa_mem_region *)((vaddr_t)sm->mem_descr +
+						ssm->access_descr->region_offs);
+		zero_mem_region(region);
+	}
+
+	if (ssm->counter == 1 &&
+	    sp_unmap_regions(caller_sp, ssm) != TEE_SUCCESS) {
+		DMSG("Failed to unmap region");
+		err = FFA_DENIED;
+		goto out;
+	}
+	ssm->counter--;
+
+	args->a0 = FFA_SUCCESS_32;
+	return;
+
+out_spinlock:
+	cpu_spin_unlock(&rxtx->spinlock);
+out:
+	ffa_set_error(args, err);
 }
 
 static struct sp_session *
@@ -815,6 +883,12 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_MEM_RETRIEVE_REQ_64:
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RELINQUISH:
+			ts_push_current_session(&caller_sp->ts_sess);
+			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

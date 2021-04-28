@@ -254,6 +254,41 @@ vaddr_t sp_map_shared_va(struct sp_session *s, struct sp_shared_mem *ssm,
 	return va;
 }
 
+static TEE_Result unmap_shared_va(struct sp_session *s, vaddr_t va,
+				  size_t len)
+{
+	struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	return vm_unmap(&ctx->uctx, va, len);
+}
+
+TEE_Result sp_unmap_regions(struct sp_session *s, struct sp_shared_mem *m)
+{
+	uint32_t i = 0;
+	TEE_Result res = TEE_SUCCESS;
+	struct ffa_mem_region *m_region = (struct ffa_mem_region *)
+		((vaddr_t)m->s_mem->mem_descr +
+		m->access_descr->region_offs);
+
+	for (i = 0; i < m_region->address_range_count; i++) {
+		uaddr_t phaddr = 0;
+		vaddr_t vaddr = 0;
+		size_t len = 0;
+
+		phaddr = m_region->address_range_array[i].address;
+		vaddr = (vaddr_t)phys_to_virt((paddr_t)phaddr,
+			MEM_AREA_TS_VASPACE);
+		len = m_region->address_range_array[i].page_count *
+		      SMALL_PAGE_SIZE;
+
+		res = unmap_shared_va(s, vaddr, len);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+	res = mobj_ffa_unregister_by_cookie(m->s_mem->mem_descr->global_handle);
+	return res;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)
