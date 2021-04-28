@@ -677,6 +677,96 @@ out:
 	ffa_set_error(args, err);
 }
 
+static void zero_mem_region(struct sp_mem *smem, struct sp_session *s)
+{
+	void *addr = NULL;
+	struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+	struct sp_mem_map_region *reg = NULL;
+
+	ts_push_current_session(&s->ts_sess);
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		size_t sz = reg->page_count * SMALL_PAGE_SIZE;
+
+		addr = sp_mem_get_va(&ctx->uctx, reg->page_offset, reg->mobj);
+
+		if (addr)
+			memset(addr, 0, sz);
+	}
+	ts_pop_current_session();
+}
+
+bool ffa_mem_reclaim(struct thread_smc_args *args,
+		     struct sp_session *caller_sp)
+{
+	uint64_t handle = 0;
+	uint32_t flags = args->a3;
+	uint32_t endpoint = 0;
+	struct sp_mem *smem = NULL;
+	struct sp_mem_receiver *receiver  = NULL;
+
+	handle = reg_pair_to_64(args->a2, args->a1);
+
+	smem = sp_mem_get(handle);
+	if (!smem)
+		return false;
+
+	if (caller_sp)
+		endpoint = caller_sp->endpoint_id;
+
+	/* Make sure that the caller is the owner of the share */
+	if (smem->transaction.sender_id != endpoint) {
+		ffa_set_error(args, FFA_DENIED);
+		return true;
+	}
+	/* Make sure that all shares where relinquished */
+	SLIST_FOREACH(receiver, &smem->receivers, link) {
+		if (receiver->ref_count != 0) {
+			ffa_set_error(args, FFA_DENIED);
+			return true;
+		}
+	}
+
+	if (flags & FFA_MEMORY_REGION_FLAG_CLEAR) {
+		if (caller_sp) {
+			zero_mem_region(smem, caller_sp);
+		} else {
+			/*
+			 * Currently we don't support zeroing Normal World
+			 * memory. To do this we would have to map the memory
+			 * again, zero it and unmap it.
+			 */
+			ffa_set_error(args, FFA_DENIED);
+			return true;
+		}
+	}
+
+	while (!SLIST_EMPTY(&smem->receivers)) {
+		receiver = SLIST_FIRST(&smem->receivers);
+		SLIST_REMOVE_HEAD(&smem->receivers, link);
+		free(receiver);
+	}
+
+	while (!SLIST_EMPTY(&smem->regions)) {
+		struct sp_mem_map_region *region = NULL;
+
+		region = SLIST_FIRST(&smem->regions);
+		SLIST_REMOVE_HEAD(&smem->regions, link);
+
+		if (release_mobj(smem, region, !caller_sp)) {
+			ffa_set_error(args, FFA_DENIED);
+			return true;
+		}
+
+		free(region);
+	}
+
+	sp_mem_remove(smem);
+
+	args->a0 = FFA_SUCCESS_32;
+
+	return true;
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -928,6 +1018,10 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RECLAIM:
+			ffa_mem_reclaim(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
 		default:

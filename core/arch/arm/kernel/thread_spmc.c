@@ -982,7 +982,13 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		handle_mem_share(args, &nw_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
-		handle_mem_reclaim(args);
+#ifdef CFG_SECURE_PARTITION
+		if (!ffa_mem_reclaim(args, NULL)) {
+#else
+		{
+#endif
+			handle_mem_reclaim(args);
+		}
 		break;
 	case FFA_MEM_FRAG_TX:
 		handle_mem_frag_tx(args, &nw_rxtx);
