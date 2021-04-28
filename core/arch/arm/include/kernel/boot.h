@@ -64,6 +64,7 @@ void init_tee_runtime(void);
 /* weak routines eventually overridden by platform */
 void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);
+unsigned long plat_get_aslr_seed(void);
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 
