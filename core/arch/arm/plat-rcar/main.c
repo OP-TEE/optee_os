@@ -55,6 +55,7 @@ register_ddr(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 #endif
 
 static struct scif_uart_data console_data __nex_bss;
+uint32_t rcar_prr_value __nex_bss;
 
 void console_init(void)
 {

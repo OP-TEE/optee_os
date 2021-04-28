@@ -42,7 +42,7 @@ FUNC get_core_pos_mpidr , :
 	 * core ID as CorePos = CoreId + (ClusterId << (IsM3W ? 1 : 0))
 	 */
 
-	adr_l	x2, soc_prr_config
+	adr_l	x2, rcar_prr_value
 	ldr	w3, [x2]
 	cmp	w3, wzr
 	bne	1f
@@ -50,7 +50,6 @@ FUNC get_core_pos_mpidr , :
 	/* Load PRR PRODUCT into x3 */
 	mov	x2, #PRR_BASE
 	ldr	w3, [x2, #PRR_OFFSET]
-	and	w3, w3, #PRR_PRODUCT_MASK
 	/*
 	 * Cache the PRR register value. PRR value does not change at runtime.
 	 * This function is first called with MMU disabled, so it is possible
@@ -58,10 +57,11 @@ FUNC get_core_pos_mpidr , :
 	 * enabled, this is no longer possible as the virtual address is not
 	 * available here, so in that case, use the cached value of the PRR.
 	 */
-	adr_l	x2, soc_prr_config
+	adr_l	x2, rcar_prr_value
 	str	w3, [x2]
 
 1:	mov	w2, #PRR_PRODUCT_M3W
+	and	w3, w3, #PRR_PRODUCT_MASK
 	cmp	w2, w3
 	bne	2f	/* if (IsM3W) { x1 <<= 1; } */
 	lsl	x1, x1, #1
@@ -69,11 +69,3 @@ FUNC get_core_pos_mpidr , :
 
 	ret
 END_FUNC get_core_pos_mpidr
-
-#ifdef CFG_VIRTUALIZATION
-.section .nex_data
-#else
-.section .data
-#endif
-	.balign	4
-soc_prr_config: .long 0
