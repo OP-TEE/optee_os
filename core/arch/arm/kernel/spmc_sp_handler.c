@@ -267,9 +267,11 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			args->a0 = FFA_SUCCESS_32;
 			args->a2 = caller_sp->endpoint_id;
 			sp_enter(args, caller_sp);
+			break;
 		case FFA_VERSION:
 			spmc_handle_version(args);
 			sp_enter(args, caller_sp);
+			break;
 		case FFA_FEATURES:
 			handle_features(args);
 			sp_enter(args, caller_sp);
