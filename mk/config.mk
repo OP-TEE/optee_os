@@ -180,6 +180,19 @@ CFG_RPMB_FS_RD_ENTRIES ?= 8
 # in case the cache is too small to hold all elements when traversing.
 CFG_RPMB_FS_CACHE_ENTRIES ?= 0
 
+# Print RPMB data frames send to and received from the RPMB device
+CFG_RPMB_FS_DEBUG_DATA ?= n
+
+# Disable RPMB MAC authentication when CFG_RPMB_FS_NO_MAC=y
+CFG_RPMB_FS_NO_MAC ?= n
+
+# Clear RPMB content to start from a empty VFAT at cold boot
+CFG_RPMB_RESET_FAT ?= n
+
+# Use a RPMB key define at build time in tee_rpmb_fs.c, instead of deriving
+# it from the platform HUK.
+CFG_RPMB_TESTKEY ?= n
+
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
 # !!! Security warning !!!
