@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -497,6 +498,15 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 		return res;
 
 	res = tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh);
+
+	if (IS_ENABLED(CFG_REE_FS_ALLOW_RESET) && res == TEE_ERROR_SECURITY) {
+		/* If file does not exist, consider REE FS has been reset */
+		res = tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh);
+		if (res == TEE_ERROR_STORAGE_NOT_AVAILABLE)
+			res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops,
+						  dirh);
+	}
+
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
 		res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
 

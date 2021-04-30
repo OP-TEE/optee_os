@@ -298,6 +298,10 @@ CFG_REE_FS_TA ?= y
 CFG_REE_FS_TA_BUFFERED ?= n
 $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 
+# Allow REE FS content to be reset. If .../tee root directory does not
+# exists, assume it is virgin even of an anti rollback hask exists.
+CFG_REE_FS_ALLOW_RESET ?= n
+
 # Support for loading user TAs from a special section in the TEE binary.
 # Such TAs are available even before tee-supplicant is available (hence their
 # name), but note that many services exported to TAs may need tee-supplicant,
