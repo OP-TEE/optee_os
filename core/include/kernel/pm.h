@@ -28,7 +28,7 @@
 #define PM_HINT_IO_STATE		BIT(2)
 #define PM_HINT_CONTEXT_STATE		BIT(3)
 #define PM_HINT_PLATFORM_STATE_MASK	GENMASK_32(31, 16)
-#define PM_HINT_PLATFORM_STATE_SHIFT	16
+#define PM_HINT_PLATFORM_STATE_SHIFT	U(16)
 
 /*
  * PM_OP_SUSPEND: platform is suspending to a target low power state

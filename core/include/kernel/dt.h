@@ -16,7 +16,7 @@
  * Bitfield to reflect status and secure-status values ("okay", "disabled"
  * or not present)
  */
-#define DT_STATUS_DISABLED		0
+#define DT_STATUS_DISABLED		U(0)
 #define DT_STATUS_OK_NSEC		BIT(0)
 #define DT_STATUS_OK_SEC		BIT(1)
 

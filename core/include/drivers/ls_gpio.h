@@ -12,21 +12,22 @@
 #include <gpio.h>
 #include <stdlib.h>
 #include <tee_api_types.h>
+#include <util.h>
 
 /* supported ports for GPIO controller */
-#define MAX_GPIO_PINS 31
+#define MAX_GPIO_PINS U(31)
 
 /* map register values to LE by subtracting pin number from MAX GPIO PINS */
 #define PIN_SHIFT(x) BIT(MAX_GPIO_PINS - (x))
 
 /* gpio register offsets */
-#define GPIODIR 0x0  /* direction register */
-#define GPIOODR 0x4  /* open drain register */
-#define GPIODAT 0x8  /* data register */
-#define GPIOIER 0xc  /* interrupt event register */
-#define GPIOIMR 0x10 /* interrupt mask register */
-#define GPIOICR 0x14 /* interrupt control register */
-#define GPIOIBE 0x18 /* input buffer enable register */
+#define GPIODIR U(0x0)  /* direction register */
+#define GPIOODR U(0x4)  /* open drain register */
+#define GPIODAT U(0x8)  /* data register */
+#define GPIOIER U(0xc)  /* interrupt event register */
+#define GPIOIMR U(0x10) /* interrupt mask register */
+#define GPIOICR U(0x14) /* interrupt control register */
+#define GPIOIBE U(0x18) /* input buffer enable register */
 
 /*
  * struct ls_gpio_chip_data describes GPIO controller chip instance

@@ -21,9 +21,9 @@
  *
  * [1] https://www.nxp.com/docs/en/user-guide/UM10204.pdf
  */
-#define I2C_STANDARD_RATE	100000
-#define I2C_FAST_RATE		400000
-#define I2C_FAST_PLUS_RATE	1000000
+#define I2C_STANDARD_RATE	U(100000)
+#define I2C_FAST_RATE		U(400000)
+#define I2C_FAST_PLUS_RATE	U(1000000)
 
 /*
  * Initialization configuration structure for the STM32 I2C bus.
@@ -79,7 +79,7 @@ enum i2c_mode_e {
 	I2C_MODE_MEM,		/* Communication in Memory Mode */
 };
 
-#define I2C_ERROR_NONE		0x0
+#define I2C_ERROR_NONE		U(0x0)
 #define I2C_ERROR_BERR		BIT(0)
 #define I2C_ERROR_ARLO		BIT(1)
 #define I2C_ERROR_ACKF		BIT(2)
@@ -124,11 +124,11 @@ struct i2c_handle_s {
 };
 
 /* STM32 specific defines */
-#define STM32_I2C_RISE_TIME_DEFAULT		25	/* ns */
-#define STM32_I2C_FALL_TIME_DEFAULT		10	/* ns */
-#define STM32_I2C_ANALOG_FILTER_DELAY_MIN	50	/* ns */
-#define STM32_I2C_ANALOG_FILTER_DELAY_MAX	260	/* ns */
-#define STM32_I2C_DIGITAL_FILTER_MAX		16
+#define STM32_I2C_RISE_TIME_DEFAULT		U(25)	/* ns */
+#define STM32_I2C_FALL_TIME_DEFAULT		U(10)	/* ns */
+#define STM32_I2C_ANALOG_FILTER_DELAY_MIN	U(50)	/* ns */
+#define STM32_I2C_ANALOG_FILTER_DELAY_MAX	U(260)	/* ns */
+#define STM32_I2C_DIGITAL_FILTER_MAX		U(16)
 
 /*
  * Fill struct stm32_i2c_init_s from DT content for a given I2C node

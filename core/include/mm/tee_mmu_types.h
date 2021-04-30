@@ -29,11 +29,11 @@
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)
 
-#define TEE_MATTR_CACHE_MASK	0x7
-#define TEE_MATTR_CACHE_SHIFT	12
+#define TEE_MATTR_CACHE_MASK	U(0x7)
+#define TEE_MATTR_CACHE_SHIFT	U(12)
 /* These are shifted TEE_MATTR_CACHE_SHIFT */
-#define TEE_MATTR_CACHE_NONCACHE 0
-#define TEE_MATTR_CACHE_CACHED	1
+#define TEE_MATTR_CACHE_NONCACHE U(0)
+#define TEE_MATTR_CACHE_CACHED	U(1)
 
 /*
  * Tags TA mappings which are only used during a single call (open session
