@@ -1622,7 +1622,7 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	vaddr_t vaddr = mm->va;
 	paddr_t paddr = mm->pa;
 	ssize_t size_left = mm->size;
-	int level;
+	unsigned int level;
 	bool table_found;
 	uint32_t old_attr;
 
