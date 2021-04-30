@@ -141,6 +141,8 @@ arm32-platform-aflags-no-hard-float ?=
 
 arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
 arm64-platform-cflags-hard-float ?=
+# Prevent generation of .eh_frame, will produce .debug_frame when CFG_DEBUG_INFO=y
+arm64-platform-cflags-no-eh-frame := $(call cc-option,-fno-unwind-tables) $(call cc-option,-fno-asynchronous-unwind-tables)
 arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-atomics,)
 
 ifeq ($(DEBUG),1)
@@ -179,6 +181,7 @@ core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
 core-platform-cflags += $(arm64-platform-cflags-generic)
 core-platform-cflags += $(arm64-platform-cflags-no-hard-float)
+core-platform-cflags += $(arm64-platform-cflags-no-eh-frame)
 core-platform-aflags += $(arm64-platform-aflags)
 else
 core-platform-cppflags += $(arm32-platform-cppflags)

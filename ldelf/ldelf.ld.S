@@ -29,7 +29,6 @@ SECTIONS {
 	}
         .plt : { *(.plt) }
 
-	.eh_frame : { *(.eh_frame) }
 	.rodata : {
 		*(.gnu.linkonce.r.*)
 		*(.rodata .rodata.*)
@@ -82,5 +81,5 @@ SECTIONS {
 	.data : { *(.data .data.* .gnu.linkonce.d.*) }
 	.bss : { *(.bss .bss.* .gnu.linkonce.b.* COMMON) }
 
-	/DISCARD/ : { *(.interp) }
+	/DISCARD/ : { *(.interp) *(.eh_frame .eh_frame.*) }
 }
