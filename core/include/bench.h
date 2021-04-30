@@ -15,21 +15,21 @@
  * Cycle count divider is enabled (in PMCR),
  * CCNT value is incremented every 64th clock cycle
  */
-#define TEE_BENCH_DIVIDER		64
+#define TEE_BENCH_DIVIDER		U(64)
 
 /* Max amount of timestamps per buffer */
-#define TEE_BENCH_MAX_STAMPS	32
+#define TEE_BENCH_MAX_STAMPS		U(32)
 #define TEE_BENCH_MAX_MASK		(TEE_BENCH_MAX_STAMPS - 1)
 
-#define OPTEE_MSG_RPC_CMD_BENCH_REG_NEW		0
-#define OPTEE_MSG_RPC_CMD_BENCH_REG_DEL		1
+#define OPTEE_MSG_RPC_CMD_BENCH_REG_NEW		U(0)
+#define OPTEE_MSG_RPC_CMD_BENCH_REG_DEL		U(1)
 
 /* OP-TEE susbsystems ids */
-#define TEE_BENCH_CLIENT	0x10000000
-#define TEE_BENCH_KMOD		0x20000000
-#define TEE_BENCH_CORE		0x30000000
-#define TEE_BENCH_UTEE		0x40000000
-#define TEE_BENCH_DUMB_TA	0xF0000001
+#define TEE_BENCH_CLIENT	U(0x10000000)
+#define TEE_BENCH_KMOD		U(0x20000000)
+#define TEE_BENCH_CORE		U(0x30000000)
+#define TEE_BENCH_UTEE		U(0x40000000)
+#define TEE_BENCH_DUMB_TA	U(0xF0000001)
 
 /* storing timestamp */
 struct tee_time_st {

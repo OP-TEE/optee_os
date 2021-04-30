@@ -25,7 +25,7 @@
  * [in]     value[0].a-b    UUID
  * [out]    memref[1]	    Buffer with TA
  */
-#define OPTEE_RPC_CMD_LOAD_TA		0
+#define OPTEE_RPC_CMD_LOAD_TA		U(0)
 
 /*
  * Replay Protected Memory Block access
@@ -33,12 +33,12 @@
  * [in]     memref[0]	    Frames to device
  * [out]    memref[1]	    Frames from device
  */
-#define OPTEE_RPC_CMD_RPMB		1
+#define OPTEE_RPC_CMD_RPMB		U(1)
 
 /*
  * File system access, see definition of protocol below
  */
-#define OPTEE_RPC_CMD_FS		2
+#define OPTEE_RPC_CMD_FS		U(2)
 
 /*
  * Get time
@@ -49,7 +49,7 @@
  * [out]    value[0].a	    Number of seconds
  * [out]    value[0].b	    Number of nano seconds.
  */
-#define OPTEE_RPC_CMD_GET_TIME		3
+#define OPTEE_RPC_CMD_GET_TIME		U(3)
 
 /*
  * Wait queue primitive, helper for secure world to implement a wait queue.
@@ -67,16 +67,16 @@
  * [in]    value[0].a	    OPTEE_RPC_WAIT_QUEUE_WAKEUP
  * [in]    value[0].b	    Wakeup key
  */
-#define OPTEE_RPC_CMD_WAIT_QUEUE	4
-#define OPTEE_RPC_WAIT_QUEUE_SLEEP	0
-#define OPTEE_RPC_WAIT_QUEUE_WAKEUP	1
+#define OPTEE_RPC_CMD_WAIT_QUEUE	U(4)
+#define OPTEE_RPC_WAIT_QUEUE_SLEEP	U(0)
+#define OPTEE_RPC_WAIT_QUEUE_WAKEUP	U(1)
 
 /*
  * Suspend execution
  *
  * [in]    value[0].a	Number of milliseconds to suspend
  */
-#define OPTEE_RPC_CMD_SUSPEND		5
+#define OPTEE_RPC_CMD_SUSPEND		U(5)
 
 /*
  * Allocate a piece of shared memory
@@ -87,16 +87,16 @@
  * [in]    value[0].c	    Required alignment
  * [out]   memref[0]	    Buffer
  */
-#define OPTEE_RPC_CMD_SHM_ALLOC		6
+#define OPTEE_RPC_CMD_SHM_ALLOC		U(6)
 /* Memory that can be shared with a non-secure user space application */
-#define OPTEE_RPC_SHM_TYPE_APPL		0
+#define OPTEE_RPC_SHM_TYPE_APPL		U(0)
 /* Memory only shared with non-secure kernel */
-#define OPTEE_RPC_SHM_TYPE_KERNEL	1
+#define OPTEE_RPC_SHM_TYPE_KERNEL	U(1)
 /*
  * Memory shared with non-secure kernel and exported to a non-secure user
  * space application
  */
-#define OPTEE_RPC_SHM_TYPE_GLOBAL	2
+#define OPTEE_RPC_SHM_TYPE_GLOBAL	U(2)
 
 /*
  * Free shared memory previously allocated with OPTEE_RPC_CMD_SHM_ALLOC
@@ -105,10 +105,10 @@
  *			    OPTEE_RPC_SHM_TYPE_* above
  * [in]     value[0].b	    Value of shared memory reference or cookie
  */
-#define OPTEE_RPC_CMD_SHM_FREE		7
+#define OPTEE_RPC_CMD_SHM_FREE		U(7)
 
 /* Was OPTEE_RPC_CMD_SQL_FS, which isn't supported any longer */
-#define OPTEE_RPC_CMD_SQL_FS_RESERVED	8
+#define OPTEE_RPC_CMD_SQL_FS_RESERVED	U(8)
 
 /*
  * Send TA profiling information to normal world
@@ -120,12 +120,12 @@
  * [in]     memref[1]	    TA UUID
  * [in]     memref[2]	    Profile data
  */
-#define OPTEE_RPC_CMD_GPROF		9
+#define OPTEE_RPC_CMD_GPROF		U(9)
 
 /*
  * Socket command, see definition of protocol below
  */
-#define OPTEE_RPC_CMD_SOCKET		10
+#define OPTEE_RPC_CMD_SOCKET		U(10)
 
 /*
  * Send TA function graph data to normal world
@@ -137,12 +137,12 @@
  * [in]     memref[1]	    TA UUID
  * [in]     memref[2]	    function graph data
  */
-#define OPTEE_RPC_CMD_FTRACE		11
+#define OPTEE_RPC_CMD_FTRACE		U(11)
 
 /*
  * tee-supplicant plugin command, see definition of protocol below
  */
-#define OPTEE_RPC_CMD_SUPP_PLUGIN	12
+#define OPTEE_RPC_CMD_SUPP_PLUGIN	U(12)
 
 /*
  * Register timestamp buffer in the linux kernel optee driver
@@ -151,7 +151,7 @@
  * [in]     value[0].b	    Physical address of timestamp buffer
  * [in]     value[0].c	    Size of buffer
  */
-#define OPTEE_RPC_CMD_BENCH_REG		20
+#define OPTEE_RPC_CMD_BENCH_REG		U(20)
 
 /*
  * Issue master requests (read and write operations) to an I2C chip.
@@ -166,11 +166,11 @@
  * [in/out] memref[2]	    Buffer used for data transfers.
  * [out]    value[3].a	    Number of bytes transferred by the REE.
  */
-#define OPTEE_RPC_CMD_I2C_TRANSFER	21
+#define OPTEE_RPC_CMD_I2C_TRANSFER	U(21)
 
 /* I2C master transfer modes */
-#define OPTEE_RPC_I2C_TRANSFER_RD	0
-#define OPTEE_RPC_I2C_TRANSFER_WR	1
+#define OPTEE_RPC_I2C_TRANSFER_RD	U(0)
+#define OPTEE_RPC_I2C_TRANSFER_WR	U(1)
 
 /* I2C master control flags */
 #define OPTEE_RPC_I2C_FLAGS_TEN_BIT	BIT(0)
@@ -186,7 +186,7 @@
  * [in]     memref[1]	    A string holding the file name
  * [out]    value[2].a	    File descriptor of open file
  */
-#define OPTEE_RPC_FS_OPEN		0
+#define OPTEE_RPC_FS_OPEN		U(0)
 
 /*
  * Create a file
@@ -195,7 +195,7 @@
  * [in]     memref[1]	    A string holding the file name
  * [out]    value[2].a	    File descriptor of open file
  */
-#define OPTEE_RPC_FS_CREATE		1
+#define OPTEE_RPC_FS_CREATE		U(1)
 
 /*
  * Close a file
@@ -203,7 +203,7 @@
  * [in]     value[0].a	    OPTEE_RPC_FS_CLOSE
  * [in]     value[0].b	    File descriptor of open file.
  */
-#define OPTEE_RPC_FS_CLOSE		2
+#define OPTEE_RPC_FS_CLOSE		U(2)
 
 /*
  * Read from a file
@@ -213,7 +213,7 @@
  * [in]     value[0].c	    Offset into file
  * [out]    memref[1]	    Buffer to hold returned data
  */
-#define OPTEE_RPC_FS_READ		3
+#define OPTEE_RPC_FS_READ		U(3)
 
 /*
  * Write to a file
@@ -223,7 +223,7 @@
  * [in]     value[0].c	    Offset into file
  * [in]     memref[1]	    Buffer holding data to be written
  */
-#define OPTEE_RPC_FS_WRITE		4
+#define OPTEE_RPC_FS_WRITE		U(4)
 
 /*
  * Truncate a file
@@ -232,7 +232,7 @@
  * [in]     value[0].b	    File descriptor of open file
  * [in]     value[0].c	    Length of file.
  */
-#define OPTEE_RPC_FS_TRUNCATE		5
+#define OPTEE_RPC_FS_TRUNCATE		U(5)
 
 /*
  * Remove a file
@@ -240,7 +240,7 @@
  * [in]     value[0].a	    OPTEE_RPC_FS_REMOVE
  * [in]     memref[1]	    A string holding the file name
  */
-#define OPTEE_RPC_FS_REMOVE		6
+#define OPTEE_RPC_FS_REMOVE		U(6)
 
 /*
  * Rename a file
@@ -250,7 +250,7 @@
  * [in]     memref[1]	    A string holding the old file name
  * [in]     memref[2]	    A string holding the new file name
  */
-#define OPTEE_RPC_FS_RENAME		7
+#define OPTEE_RPC_FS_RENAME		U(7)
 
 /*
  * Opens a directory for file listing
@@ -259,7 +259,7 @@
  * [in]     memref[1]	    A string holding the name of the directory
  * [out]    value[2].a	    Handle to open directory
  */
-#define OPTEE_RPC_FS_OPENDIR		8
+#define OPTEE_RPC_FS_OPENDIR		U(8)
 
 /*
  * Closes a directory handle
@@ -267,7 +267,7 @@
  * [in]     value[0].a	    OPTEE_RPC_FS_CLOSEDIR
  * [in]     value[0].b	    Handle to open directory
  */
-#define OPTEE_RPC_FS_CLOSEDIR		9
+#define OPTEE_RPC_FS_CLOSEDIR		U(9)
 
 /*
  * Read next file name of directory
@@ -277,7 +277,7 @@
  * [in]     value[0].b	    Handle to open directory
  * [out]    memref[1]	    A string holding the file name
  */
-#define OPTEE_RPC_FS_READDIR		10
+#define OPTEE_RPC_FS_READDIR		U(10)
 
 /* End of definition of protocol for command OPTEE_RPC_CMD_FS */
 
@@ -285,8 +285,8 @@
  * Definition of protocol for command OPTEE_RPC_CMD_SOCKET
  */
 
-#define OPTEE_RPC_SOCKET_TIMEOUT_NONBLOCKING	0
-#define OPTEE_RPC_SOCKET_TIMEOUT_BLOCKING	0xffffffff
+#define OPTEE_RPC_SOCKET_TIMEOUT_NONBLOCKING	U(0)
+#define OPTEE_RPC_SOCKET_TIMEOUT_BLOCKING	U(0xffffffff)
 
 /*
  * Open socket
@@ -299,7 +299,7 @@
  * [in]     memref[2]	    Server address
  * [out]    value[3].a	    Socket handle (32-bit)
  */
-#define OPTEE_RPC_SOCKET_OPEN	0
+#define OPTEE_RPC_SOCKET_OPEN	U(0)
 
 /*
  * Close socket
@@ -308,7 +308,7 @@
  * [in]     value[0].b	    TA instance id
  * [in]     value[0].c	    Socket handle
  */
-#define OPTEE_RPC_SOCKET_CLOSE	1
+#define OPTEE_RPC_SOCKET_CLOSE	U(1)
 
 /*
  * Close all sockets
@@ -316,7 +316,7 @@
  * [in]     value[0].a	    OPTEE_RPC_SOCKET_CLOSE_ALL
  * [in]     value[0].b	    TA instance id
  */
-#define OPTEE_RPC_SOCKET_CLOSE_ALL 2
+#define OPTEE_RPC_SOCKET_CLOSE_ALL U(2)
 
 /*
  * Send data on socket
@@ -328,7 +328,7 @@
  * [in]     value[2].a	    Timeout ms or OPTEE_RPC_SOCKET_TIMEOUT_*
  * [out]    value[2].b	    Number of transmitted bytes
  */
-#define OPTEE_RPC_SOCKET_SEND	3
+#define OPTEE_RPC_SOCKET_SEND	U(3)
 
 /*
  * Receive data on socket
@@ -339,7 +339,7 @@
  * [out]    memref[1]	    Buffer to receive
  * [in]     value[2].a	    Timeout ms or OPTEE_RPC_SOCKET_TIMEOUT_*
  */
-#define OPTEE_RPC_SOCKET_RECV	4
+#define OPTEE_RPC_SOCKET_RECV	U(4)
 
 /*
  * Perform IOCTL on socket
@@ -350,7 +350,7 @@
  * [in/out] memref[1]	    Buffer
  * [in]     value[2].a	    Ioctl command
  */
-#define OPTEE_RPC_SOCKET_IOCTL	5
+#define OPTEE_RPC_SOCKET_IOCTL	U(5)
 
 /* End of definition of protocol for command OPTEE_RPC_CMD_SOCKET */
 
@@ -381,7 +381,7 @@
  * d3 word contains [b11 b10 b9 b8]
  * d4 word contains [b15 b14 b13 b12]
  */
-#define OPTEE_RPC_SUPP_PLUGIN_INVOKE	0
+#define OPTEE_RPC_SUPP_PLUGIN_INVOKE	U(0)
 
 /* End of definition of protocol for command OPTEE_RPC_CMD_SUPP_PLUGIN */
 
