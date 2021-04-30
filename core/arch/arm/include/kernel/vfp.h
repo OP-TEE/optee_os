@@ -17,7 +17,7 @@
  * - FPEXC (32 bits)
  */
 
-#define VFP_NUM_REGS	32
+#define VFP_NUM_REGS	U(32)
 
 struct vfp_reg {
 	uint64_t v;
@@ -39,7 +39,7 @@ struct vfp_state {
  * - CPACR_EL1.FPEN (2 bits)
  */
 
-#define VFP_NUM_REGS	32
+#define VFP_NUM_REGS	U(32)
 
 struct vfp_reg {
 	uint8_t v[16];
