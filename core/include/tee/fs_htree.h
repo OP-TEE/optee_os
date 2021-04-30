@@ -16,13 +16,14 @@
  * guarantees the integrity and confidentiality of the file.
  */
 
+#include <stdint.h>
 #include <tee_api_types.h>
 #include <utee_defines.h>
 
 #define TEE_FS_HTREE_HASH_SIZE		TEE_SHA256_HASH_SIZE
-#define TEE_FS_HTREE_IV_SIZE		16
-#define TEE_FS_HTREE_FEK_SIZE		16
-#define TEE_FS_HTREE_TAG_SIZE		16
+#define TEE_FS_HTREE_IV_SIZE		U(16)
+#define TEE_FS_HTREE_FEK_SIZE		U(16)
+#define TEE_FS_HTREE_TAG_SIZE		U(16)
 
 /* Internal struct provided to let the rpc callbacks know the size if needed */
 struct tee_fs_htree_node_image {

@@ -20,10 +20,10 @@
  * accessed. Status register fields (IBSR) are not valid when the module
  * is disabled.
  */
-#define I2C_IBCR_MDIS 0x80
+#define I2C_IBCR_MDIS U(0x80)
 
 /* I2c Bus Interrupt Enable */
-#define I2C_IBCR_IBIE 0x40
+#define I2C_IBCR_IBIE U(0x40)
 
 /*
  * Master / Slave Mode 0b - Slave mode 1b - Master mode
@@ -34,10 +34,10 @@
  * The module clears this field without generating a STOP signal when the
  * master loses arbitration.
  */
-#define I2C_IBCR_MSSL 0x20
+#define I2C_IBCR_MSSL U(0x20)
 
 /* 0b - Receive 1b - Transmit */
-#define I2C_IBCR_TXRX 0x10
+#define I2C_IBCR_TXRX U(0x10)
 
 /*
  * Data acknowledge disable
@@ -48,7 +48,7 @@
  * 1b - The module does not send an acknowledge-signal response (that is,
  * acknowledge bit = 1).
  */
-#define I2C_IBCR_NOACK 0x08
+#define I2C_IBCR_NOACK U(0x08)
 
 /*
  * Repeat START
@@ -57,45 +57,45 @@
  * If you attempt a repeated START at the wrong time, if the bus is owned by
  * another master the result is loss of arbitration.
  */
-#define I2C_IBCR_RSTA 0x04
+#define I2C_IBCR_RSTA U(0x04)
 
 /* DMA enable */
-#define I2C_IBCR_DMAEN 0x02
+#define I2C_IBCR_DMAEN U(0x02)
 
 /* Transfer Complete */
-#define I2C_IBSR_TCF 0x80
+#define I2C_IBSR_TCF U(0x80)
 
 /* I2C bus Busy. 0b - Bus is idle, 1b - Bus is busy */
-#define I2C_IBSR_IBB 0x20
+#define I2C_IBSR_IBB U(0x20)
 
 /* Arbitration Lost. software must clear this field by writing a one to it. */
-#define I2C_IBSR_IBAL 0x10
+#define I2C_IBSR_IBAL U(0x10)
 
 /* I2C bus interrupt flag */
-#define I2C_IBSR_IBIF 0x02
+#define I2C_IBSR_IBIF U(0x02)
 
 /*
  * Received acknowledge
  * 0b - Acknowledge received
  * 1b - No acknowledge received
  */
-#define I2C_IBSR_RXAK 0x01
+#define I2C_IBSR_RXAK U(0x01)
 
 /* Bus idle interrupt enable */
-#define I2C_IBIC_BIIE 0x80
+#define I2C_IBIC_BIIE U(0x80)
 
 /* Glitch filter enable */
-#define I2C_IBDBG_GLFLT_EN 0x08
+#define I2C_IBDBG_GLFLT_EN U(0x08)
 
-#define I2C_FLAG_WRITE 0x00000000
-#define I2C_FLAG_READ  0x00000001
+#define I2C_FLAG_WRITE U(0x00000000)
+#define I2C_FLAG_READ  U(0x00000001)
 
 #define I2C_BUS_TEST_BUSY      true
 #define I2C_BUS_TEST_IDLE      !I2C_BUS_TEST_BUSY
 #define I2C_BUS_TEST_RX_ACK    true
 #define I2C_BUS_NO_TEST_RX_ACK !I2C_BUS_TEST_RX_ACK
 
-#define I2C_NUM_RETRIES	   500
+#define I2C_NUM_RETRIES	   U(500)
 
 struct i2c_regs {
 	uint8_t ibad;  /* I2c Bus Address Register */

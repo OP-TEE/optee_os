@@ -10,8 +10,8 @@
 #include <types_ext.h>
 #include <util.h>
 
-#define DCP_SHA_BLOCK_SIZE    64
-#define DCP_AES128_BLOCK_SIZE 16
+#define DCP_SHA_BLOCK_SIZE    U(64)
+#define DCP_AES128_BLOCK_SIZE U(16)
 #define DCP_AES128_KEY_SIZE   DCP_AES128_BLOCK_SIZE
 #define DCP_AES128_IV_SIZE    DCP_AES128_BLOCK_SIZE
 
