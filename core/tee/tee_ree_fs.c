@@ -472,6 +472,7 @@ static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 static struct tee_fs_dirfile_dirh *ree_fs_dirh;
 static size_t ree_fs_dirh_refcount;
 
+#ifdef CFG_REE_FS_ANTI_ROLLBACK
 #ifdef CFG_RPMB_FS
 static struct tee_file_handle *ree_fs_rpmb_fh;
 
@@ -533,8 +534,10 @@ static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
 	*dirh = NULL;
 	rpmb_fs_ops.close(&ree_fs_rpmb_fh);
 }
-
-#else /*!CFG_RPMB_FS*/
+#else /* CFG_RPMB_FS */
+#error "No anti rollback implementation available for CFG_REE_FS_ANTI_ROLLBACK"
+#endif
+#else /*CFG_REE_FS_ANTI_ROLLBACK*/
 static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
 	TEE_Result res;
@@ -556,7 +559,7 @@ static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
 	tee_fs_dirfile_close(*dirh);
 	*dirh = NULL;
 }
-#endif /*!CFG_RPMB_FS*/
+#endif /*CFG_REE_FS_ANTI_ROLLBACK*/
 
 static TEE_Result get_dirh(struct tee_fs_dirfile_dirh **dirh)
 {

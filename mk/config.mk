@@ -302,6 +302,15 @@ $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 # exists, assume it is virgin even of an anti rollback hask exists.
 CFG_REE_FS_ALLOW_RESET ?= n
 
+# Protect REE FS secure storage against rollback injection
+ifeq ($(CFG_REE_FS),y)
+ifneq ($(CFG_RPMB_FS),y)
+$(call force,CFG_REE_FS_ANTI_ROLLBACK,n,No support for REE FS anti rollback)
+endif
+CFG_REE_FS_ANTI_ROLLBACK ?= y
+endif
+
+
 # Support for loading user TAs from a special section in the TEE binary.
 # Such TAs are available even before tee-supplicant is available (hence their
 # name), but note that many services exported to TAs may need tee-supplicant,
