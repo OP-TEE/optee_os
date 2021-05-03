@@ -14,7 +14,9 @@
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -99,14 +101,29 @@ void console_init(void)
  * will hang in EL3 since the interrupt will just be delivered again and
  * again.
  */
-static enum itr_return console_itr_cb(struct itr_handler *h __unused)
+
+static void read_console(void)
 {
 	struct serial_chip *cons = &console_data.chip;
 
 	while (cons->ops->have_rx_data(cons)) {
 		int ch __maybe_unused = cons->ops->getchar(cons);
 
-		DMSG("cpu %zu: got 0x%x", get_core_pos(), ch);
+		DMSG("got 0x%x", ch);
+	}
+}
+
+static enum itr_return console_itr_cb(struct itr_handler *h __maybe_unused)
+{
+	if (notif_async_is_started()) {
+		/*
+		 * Asynchronous notifications are enabled, lets read from
+		 * uart in the bottom half instead.
+		 */
+		itr_disable(IT_CONSOLE_UART);
+		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF);
+	} else {
+		read_console();
 	}
 	return ITRR_HANDLED;
 }
@@ -118,10 +135,41 @@ static struct itr_handler console_itr = {
 };
 DECLARE_KEEP_PAGER(console_itr);
 
+static void atomic_console_notif(struct notif_driver *ndrv __unused,
+				 enum notif_event ev __maybe_unused)
+{
+	DMSG("Asynchronous notifications started, event %d", (int)ev);
+}
+DECLARE_KEEP_PAGER(atomic_console_notif);
+
+static void yielding_console_notif(struct notif_driver *ndrv __unused,
+				   enum notif_event ev)
+{
+	switch (ev) {
+	case NOTIF_EVENT_DO_BOTTOM_HALF:
+		read_console();
+		itr_enable(IT_CONSOLE_UART);
+		break;
+	case NOTIF_EVENT_STOPPED:
+		DMSG("Asynchronous notifications stopped");
+		itr_enable(IT_CONSOLE_UART);
+		break;
+	default:
+		EMSG("Unknown event %d", (int)ev);
+	}
+}
+
+struct notif_driver console_notif = {
+	.atomic_cb = atomic_console_notif,
+	.yielding_cb = yielding_console_notif,
+};
+
 static TEE_Result init_console_itr(void)
 {
 	itr_add(&console_itr);
 	itr_enable(IT_CONSOLE_UART);
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+		notif_register_driver(&console_notif);
 	return TEE_SUCCESS;
 }
 driver_init(init_console_itr);
