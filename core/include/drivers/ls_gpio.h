@@ -17,7 +17,7 @@
 #define MAX_GPIO_PINS 31
 
 /* map register values to LE by subtracting pin number from MAX GPIO PINS */
-#define PIN_SHIFT(x) (1 << (MAX_GPIO_PINS - (x)))
+#define PIN_SHIFT(x) BIT(MAX_GPIO_PINS - (x))
 
 /* gpio register offsets */
 #define GPIODIR 0x0  /* direction register */
