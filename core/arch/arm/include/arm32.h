@@ -159,9 +159,9 @@
 
 /* ID_PFR1 bit fields */
 #define IDPFR1_VIRT_SHIFT            12
-#define IDPFR1_VIRT_MASK             (0xF << IDPFR1_VIRT_SHIFT)
+#define IDPFR1_VIRT_MASK             SHIFT_U32(0xF, IDPFR1_VIRT_SHIFT)
 #define IDPFR1_GENTIMER_SHIFT        16
-#define IDPFR1_GENTIMER_MASK         (0xF << IDPFR1_GENTIMER_SHIFT)
+#define IDPFR1_GENTIMER_MASK         SHIFT_U32(0xF, IDPFR1_GENTIMER_SHIFT)
 
 #ifndef __ASSEMBLER__
 #include <generated/arm32_sysreg.h>

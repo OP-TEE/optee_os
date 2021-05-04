@@ -63,7 +63,7 @@
 #define CTR_ERG_MASK		0xf
 #define CTR_DMINLINE_SHIFT	16
 #define CTR_DMINLINE_WIDTH	4
-#define CTR_DMINLINE_MASK	((1 << 4) - 1)
+#define CTR_DMINLINE_MASK	(BIT(4) - 1)
 #define CTR_L1IP_SHIFT		14
 #define CTR_L1IP_MASK		0x3
 #define CTR_IMINLINE_SHIFT	0
@@ -80,12 +80,12 @@
 #define ARM32_CPSR_MODE_UND	0x1b
 #define ARM32_CPSR_MODE_SYS	0x1f
 
-#define ARM32_CPSR_T		(1 << 5)
+#define ARM32_CPSR_T		BIT(5)
 #define ARM32_CPSR_F_SHIFT	6
-#define ARM32_CPSR_F		(1 << 6)
-#define ARM32_CPSR_I		(1 << 7)
-#define ARM32_CPSR_A		(1 << 8)
-#define ARM32_CPSR_E		(1 << 9)
+#define ARM32_CPSR_F		BIT(6)
+#define ARM32_CPSR_I		BIT(7)
+#define ARM32_CPSR_A		BIT(8)
+#define ARM32_CPSR_E		BIT(9)
 #define ARM32_CPSR_FIA		(ARM32_CPSR_F | ARM32_CPSR_I | ARM32_CPSR_A)
 #define ARM32_CPSR_IT_MASK	(ARM32_CPSR_IT_MASK1 | ARM32_CPSR_IT_MASK2)
 #define ARM32_CPSR_IT_MASK1	0x06000000
