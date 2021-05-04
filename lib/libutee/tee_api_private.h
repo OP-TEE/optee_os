@@ -8,6 +8,8 @@
 #include <tee_api_types.h>
 #include <utee_types.h>
 
+/* From tee_api.c */
+extern TEE_TASessionHandle __tee_api_system_session;
 
 void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 			uint32_t attr_count);

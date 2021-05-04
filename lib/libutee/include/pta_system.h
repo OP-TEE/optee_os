@@ -201,4 +201,24 @@
  */
 #define PTA_SYSTEM_SUPP_PLUGIN_INVOKE	13
 
+/*
+ * Send an OCALL to the calling TA's Client Application
+ *
+ * Note that if TA 1 invokes TA 2 which invokes TA N+1 and the latter sends an
+ * OCALL, it is the CA of TA 1 that receives the OCALL. Nevertheless, the OCALL
+ * carries the UUID of the TA that sent it. Therefore, the CA can determine that
+ * the OCALL originated from TA N+1, even though the CA receives the OCALL as a
+ * result of having communicated with TA 1.
+ *
+ * [in/out] value[0].a:	CA command Id (IN), CA command return value (OUT)
+ * [out]    value[0].b:	CA command return value origin
+ * [in/out] memref[1]:	Array of TEE_Param[TEE_NUM_PARAMS], the OCALL params
+ *
+ * Returns TEE_SUCCESS if the OCALL was sent and was processed successfully.
+ * This value is not necessarily the same as the return value of the OCALL
+ * itself, whose interpretation is up to the CA & TA, and is passed to the TA
+ * along with its origin code via this command's parameters as specified above.
+ */
+#define PTA_SYSTEM_OCALL		14
+
 #endif /* __PTA_SYSTEM_H */

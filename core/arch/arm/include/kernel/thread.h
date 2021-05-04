@@ -20,7 +20,7 @@
 #define THREAD_ID_0		0
 #define THREAD_ID_INVALID	-1
 
-#define THREAD_RPC_MAX_NUM_PARAMS	4
+#define THREAD_RPC_MAX_NUM_PARAMS	6
 
 #ifndef __ASSEMBLER__
 
@@ -740,6 +740,24 @@ struct mobj *thread_rpc_alloc_global_payload(size_t size);
  * @mobj:	mobj that describes the buffer
  */
 void thread_rpc_free_global_payload(struct mobj *mobj);
+
+/**
+ * Request that the Client Application allocate shared memory for OCALL payload
+ * buffers.
+ *
+ * @size:	size in bytes of payload buffer
+ *
+ * @returns	mobj that describes allocated buffer or NULL on error
+ */
+struct mobj *thread_rpc_alloc_client_app_payload(size_t size);
+
+/**
+ * Free physical memory previously allocated with
+ * thread_rpc_alloc_client_app_payload()
+ *
+ * @mobj:	mobj that describes the buffer
+ */
+void thread_rpc_free_client_app_payload(struct mobj *mobj);
 
 /*
  * enum thread_shm_type - type of non-secure shared memory

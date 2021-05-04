@@ -5,6 +5,8 @@
 #ifndef OPTEE_SMC_H
 #define OPTEE_SMC_H
 
+#include <util.h>
+
 /*
  * This file is exported by OP-TEE and is in kept in sync between secure
  * world and normal world kernel driver. We're following ARM SMC Calling
@@ -264,20 +266,22 @@
  * a2-7 Preserved
  */
 /* Normal world works as a uniprocessor system */
-#define OPTEE_SMC_NSEC_CAP_UNIPROCESSOR		(1 << 0)
+#define OPTEE_SMC_NSEC_CAP_UNIPROCESSOR		BIT(0)
 /* Secure world has reserved shared memory for normal world to use */
-#define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	(1 << 0)
+#define OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM	BIT(0)
 /* Secure world can communicate via previously unregistered shared memory */
-#define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	(1 << 1)
+#define OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM	BIT(1)
 /*
  * Secure world supports commands "register/unregister shared memory",
  * secure world accepts command buffers located in any parts of non-secure RAM
  */
-#define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		(1 << 2)
+#define OPTEE_SMC_SEC_CAP_DYNAMIC_SHM		BIT(2)
 /* Secure world is built with virtualization support */
-#define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	(1 << 3)
+#define OPTEE_SMC_SEC_CAP_VIRTUALIZATION	BIT(3)
 /* Secure world supports Shared Memory with a NULL reference */
-#define OPTEE_SMC_SEC_CAP_MEMREF_NULL		(1 << 4)
+#define OPTEE_SMC_SEC_CAP_MEMREF_NULL		BIT(4)
+/* Secure world is built with OCALL support */
+#define OPTEE_SMC_SEC_CAP_OCALL			BIT(5)
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	9
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
