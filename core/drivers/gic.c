@@ -304,13 +304,6 @@ static void gic_it_enable(struct gic_data *gd, size_t it)
 
 	/* Assigned to group0 */
 	assert(!(io_read32(base + GICD_IGROUPR(idx)) & mask));
-	if (it >= NUM_SGI) {
-		/*
-		 * Not enabled yet, except Software Generated Interrupt
-		 * which is implementation defined
-		 */
-		assert(!(io_read32(base + GICD_ISENABLER(idx)) & mask));
-	}
 
 	/* Enable the interrupt */
 	io_write32(base + GICD_ISENABLER(idx), mask);
