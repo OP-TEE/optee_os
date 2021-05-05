@@ -150,7 +150,6 @@ jobs:
           _make PLATFORM=d02
           _make PLATFORM=d02 CFG_ARM64_core=y
           _make PLATFORM=rcar
-          _make PLATFORM=rcar CFG_ARM64_core=y
           _make PLATFORM=rzg
           _make PLATFORM=rzg CFG_ARM64_core=y
           _make PLATFORM=rpi3
