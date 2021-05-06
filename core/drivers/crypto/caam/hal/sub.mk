@@ -4,7 +4,7 @@ endif
 ifeq ($(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)),y)
 CAAM_HAL_DIR = imx_6_7
 endif
-ifeq ($(filter y, $(CFG_MX8MQ) $(CFG_MX8MM) $(CFG_MX8MN)),y)
+ifeq ($(filter y, $(CFG_MX8MQ) $(CFG_MX8MM) $(CFG_MX8MN) $(CFG_MX8MP)),y)
 CAAM_HAL_DIR = imx_8m
 endif
 
