@@ -211,6 +211,9 @@ struct rpmb_req {
 	/* uint8_t data[]; REMOVED! */
 };
 
+#define RPMB_REQ_MEMREF_OFFSET \
+	(ROUNDUP(sizeof(struct rpmb_req), 4) - sizeof(struct rpmb_req))
+
 #define TEE_RPMB_REQ_DATA(req) \
 		((void *)((struct rpmb_req *)(req) + 1))
 
@@ -453,6 +456,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		goto out;
 	}
 
+	*req = (uint8_t *)*req + RPMB_REQ_MEMREF_OFFSET;
+
 	mem->req_size = req_size;
 	mem->resp_size = resp_size;
 
@@ -465,8 +470,8 @@ out:
 static TEE_Result tee_rpmb_invoke(struct tee_rpmb_mem *mem)
 {
 	struct thread_param params[2] = {
-		[0] = THREAD_PARAM_MEMREF(IN, mem->phreq_mobj, 0,
-					  mem->req_size),
+		[0] = THREAD_PARAM_MEMREF(IN, mem->phreq_mobj,
+				RPMB_REQ_MEMREF_OFFSET, mem->req_size),
 		[1] = THREAD_PARAM_MEMREF(OUT, mem->phresp_mobj, 0,
 					  mem->resp_size),
 	};
