@@ -1,5 +1,7 @@
 language: c
 
+# Ubuntu Focal (20.04)
+# Please check the path to the codespell dictionary below if you change this
 dist: focal
 
 notifications:
@@ -10,6 +12,7 @@ git:
 
 before_install:
   - sudo apt-get -y install codespell
+  - sudo mkdir -p /usr/share/codespell && sudo ln -s /usr/lib/python3/dist-packages/codespell_lib/data/dictionary.txt /usr/share/codespell/dictionary.txt
 
 before_script:
   - export OPTEE_OS=$PWD
