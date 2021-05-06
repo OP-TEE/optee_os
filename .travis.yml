@@ -1,5 +1,7 @@
 language: c
 
+dist: focal
+
 notifications:
   - email: true
 
