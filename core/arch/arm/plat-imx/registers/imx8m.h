@@ -24,7 +24,7 @@
 #ifdef CFG_MX8MQ
 #define DIGPROG_OFFSET	0x06c
 #endif
-#if defined(CFG_MX8MM) || defined(CFG_MX8MN)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MN) || defined(CFG_MX8MP)
 #define DIGPROG_OFFSET	0x800
 #endif
 
