@@ -121,6 +121,7 @@ jobs:
           if [ -d $HOME/se050 ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_PLUG_AND_TRUST_LIB=$HOME/se050/build/libse050.a CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050 ; fi
           _make PLATFORM=imx-mx8mnevk
           _make PLATFORM=imx-mx8mqevk
+          _make PLATFORM=imx-mx8mpevk
           _make PLATFORM=imx-mx8qxpmek
           _make PLATFORM=imx-mx8qmmek
           _make PLATFORM=k3-j721e
