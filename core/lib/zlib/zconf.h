@@ -487,6 +487,11 @@ typedef uLong FAR uLongf;
 #  endif
 #endif
 
+/* Other places expect _LFS64_LARGEFILE to be defined with a valid value */
+#ifndef _LFS64_LARGEFILE
+#define _LFS64_LARGEFILE	0
+#endif
+
 #if defined(_LFS64_LARGEFILE) && _LFS64_LARGEFILE-0
 #  define Z_LFS64
 #endif
