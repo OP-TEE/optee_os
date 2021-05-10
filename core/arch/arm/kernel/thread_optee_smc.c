@@ -221,7 +221,7 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		if (!thread_prealloc_rpc_cache) {
 			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
 			mobj_put(thr->rpc_mobj);
-			thr->rpc_arg = 0;
+			thr->rpc_arg = NULL;
 			thr->rpc_mobj = NULL;
 		}
 	}
@@ -250,6 +250,7 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 			*cookie = mobj_get_cookie(threads[n].rpc_mobj);
 			mobj_put(threads[n].rpc_mobj);
 			threads[n].rpc_arg = NULL;
+			threads[n].rpc_mobj = NULL;
 			goto out;
 		}
 	}
