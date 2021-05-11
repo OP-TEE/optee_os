@@ -11,13 +11,6 @@
 #include <tee/tee_fs.h>
 
 /*
- * Returns the appropriate tee_file_operations for the specified storage ID.
- * The value TEE_STORAGE_PRIVATE will select the REE FS if available, otherwise
- * RPMB.
- */
-const struct tee_file_operations *tee_svc_storage_file_ops(uint32_t storage_id);
-
-/*
  * Persistant Object Functions
  */
 TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,

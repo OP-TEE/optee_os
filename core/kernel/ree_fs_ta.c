@@ -338,8 +338,11 @@ static TEE_Result check_update_version(struct shdr_bootstrap_ta *hdr)
 		.obj_id_len = sizeof(ta_ver_db_obj_id)
 	};
 
-	mutex_lock(&ta_ver_db_mutex);
 	ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
+	if (!ops)
+		return TEE_SUCCESS; /* Compiled with no secure storage */
+
+	mutex_lock(&ta_ver_db_mutex);
 
 	res = ops->open(&pobj, NULL, &fh);
 	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
