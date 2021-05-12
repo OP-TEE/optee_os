@@ -120,6 +120,7 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 		if (!channel)
 			return TEE_ERROR_BAD_PARAMETERS;
 
+		channel->threaded = true;
 		params[0].value.a = scmi_smt_channel_handle(channel_id);
 
 		return TEE_SUCCESS;
