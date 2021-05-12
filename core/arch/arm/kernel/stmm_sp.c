@@ -76,9 +76,7 @@ extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
 extern const unsigned int stmm_image_uncompressed_size;
 
-/* Indirect reference to unlink stmm_sp_ops from pager unpaged sections */
-static const struct ts_ops stmm_sp_ops;
-const struct ts_ops *stmm_sp_ops_ptr;
+const struct ts_ops stmm_sp_ops;
 
 static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 {
@@ -103,7 +101,6 @@ static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 
 	spc->ta_ctx.ref_count = 1;
 	condvar_init(&spc->ta_ctx.busy_cv);
-	stmm_sp_ops_ptr = &stmm_sp_ops;
 
 	return spc;
 }
@@ -869,7 +866,11 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	}
 }
 
-static const struct ts_ops stmm_sp_ops __rodata_unpaged("stmm_sp_ops") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct ts_ops stmm_sp_ops __weak __rodata_unpaged("stmm_sp_ops") = {
 	.enter_open_session = stmm_enter_open_session,
 	.enter_invoke_cmd = stmm_enter_invoke_cmd,
 	.enter_close_session = stmm_enter_close_session,

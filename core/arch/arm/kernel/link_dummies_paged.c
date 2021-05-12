@@ -51,3 +51,4 @@ const struct fobj_ops ops_ro_reloc_paged __rodata_dummy;
 const struct fobj_ops ops_locked_paged __rodata_dummy;
 const struct fobj_ops ops_sec_mem __rodata_dummy;
 const struct ts_ops user_ta_ops __rodata_dummy;
+const struct ts_ops stmm_sp_ops __rodata_dummy;
