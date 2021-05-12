@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017, Linaro Limited
+ * Copyright (c) 2017-2021, Linaro Limited
  */
 #include <compiler.h>
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/thread.h>
+#include <kernel/ts_manager.h>
 #include <kernel/wait_queue.h>
+#include <mm/fobj.h>
+#include <mm/mobj.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
-#include <mm/mobj.h>
-#include <mm/fobj.h>
 
 #include "thread_private.h"
 
@@ -49,3 +50,4 @@ const struct fobj_ops ops_ro_paged __rodata_dummy;
 const struct fobj_ops ops_ro_reloc_paged __rodata_dummy;
 const struct fobj_ops ops_locked_paged __rodata_dummy;
 const struct fobj_ops ops_sec_mem __rodata_dummy;
+const struct ts_ops user_ta_ops __rodata_dummy;

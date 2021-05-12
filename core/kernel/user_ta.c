@@ -370,7 +370,11 @@ static uint32_t user_ta_get_instance_id(struct ts_ctx *ctx)
 	return to_user_ta_ctx(ctx)->uctx.vm_info.asid;
 }
 
-static const struct ts_ops user_ta_ops __rodata_unpaged("user_ta_ops") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct ts_ops user_ta_ops __weak __rodata_unpaged("user_ta_ops") = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
@@ -386,28 +390,14 @@ static const struct ts_ops user_ta_ops __rodata_unpaged("user_ta_ops") = {
 #endif
 };
 
-/*
- * Break unpaged attribute dependency propagation to user_ta_ops structure
- * content thanks to a runtime initialization of the ops reference.
- */
-static const struct ts_ops *_user_ta_ops;
-
-static TEE_Result init_user_ta(void)
-{
-	_user_ta_ops = &user_ta_ops;
-
-	return TEE_SUCCESS;
-}
-service_init(init_user_ta);
-
 static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 {
-	ctx->ts_ctx.ops = _user_ta_ops;
+	ctx->ts_ctx.ops = &user_ta_ops;
 }
 
 bool is_user_ta_ctx(struct ts_ctx *ctx)
 {
-	return ctx && ctx->ops == _user_ta_ops;
+	return ctx && ctx->ops == &user_ta_ops;
 }
 
 static TEE_Result check_ta_store(void)
