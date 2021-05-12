@@ -114,7 +114,7 @@ static void mobj_phys_free(struct mobj *mobj)
 	free(moph);
 }
 
-static const struct mobj_ops mobj_phys_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_phys_ops __rodata_unpaged("mobj_phys_ops") = {
 	.get_va = mobj_phys_get_va,
 	.get_pa = mobj_phys_get_pa,
 	.get_phys_offs = NULL, /* only offset 0 */
@@ -193,7 +193,7 @@ static void *mobj_virt_get_va(struct mobj *mobj, size_t offset)
 	return (void *)(vaddr_t)offset;
 }
 
-static const struct mobj_ops mobj_virt_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_virt_ops __rodata_unpaged("mobj_virt_ops") = {
 	.get_va = mobj_virt_get_va,
 };
 
@@ -261,7 +261,7 @@ static void mobj_mm_free(struct mobj *mobj)
 	free(m);
 }
 
-static const struct mobj_ops mobj_mm_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_mm_ops __rodata_unpaged("mobj_mm_ops") = {
 	.get_va = mobj_mm_get_va,
 	.get_pa = mobj_mm_get_pa,
 	.get_phys_offs = mobj_mm_get_phys_offs,
@@ -371,7 +371,7 @@ static uint64_t mobj_shm_get_cookie(struct mobj *mobj)
 	return to_mobj_shm(mobj)->cookie;
 }
 
-static const struct mobj_ops mobj_shm_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_shm_ops __rodata_unpaged("mobj_shm_ops") = {
 	.get_va = mobj_shm_get_va,
 	.get_pa = mobj_shm_get_pa,
 	.get_phys_offs = mobj_shm_get_phys_offs,
@@ -461,7 +461,8 @@ static struct fobj *mobj_seccpy_shm_get_fobj(struct mobj *mobj)
 	return fobj_get(to_mobj_seccpy_shm(mobj)->fobj);
 }
 
-static const struct mobj_ops mobj_seccpy_shm_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_seccpy_shm_ops
+__rodata_unpaged("mobj_seccpy_shm_ops") = {
 	.get_va = mobj_seccpy_shm_get_va,
 	.matches = mobj_seccpy_shm_matches,
 	.free = mobj_seccpy_shm_free,
@@ -618,7 +619,8 @@ static TEE_Result mobj_with_fobj_get_pa(struct mobj *mobj, size_t offs,
 }
 DECLARE_KEEP_PAGER(mobj_with_fobj_get_pa);
 
-static const struct mobj_ops mobj_with_fobj_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_with_fobj_ops
+__rodata_unpaged("mobj_with_fobj_ops") = {
 	.matches = mobj_with_fobj_matches,
 	.free = mobj_with_fobj_free,
 	.get_fobj = mobj_with_fobj_get_fobj,

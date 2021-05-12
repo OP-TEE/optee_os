@@ -238,7 +238,8 @@ static uint64_t mobj_reg_shm_get_cookie(struct mobj *mobj)
 	return to_mobj_reg_shm(mobj)->cookie;
 }
 
-static const struct mobj_ops mobj_reg_shm_ops __rodata_unpaged = {
+static const struct mobj_ops mobj_reg_shm_ops
+__rodata_unpaged("mobj_reg_shm_ops") = {
 	.get_pa = mobj_reg_shm_get_pa,
 	.get_phys_offs = mobj_reg_shm_get_phys_offs,
 	.get_va = mobj_reg_shm_get_va,

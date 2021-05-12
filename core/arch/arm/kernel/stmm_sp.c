@@ -869,7 +869,7 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	}
 }
 
-static const struct ts_ops stmm_sp_ops __rodata_unpaged = {
+static const struct ts_ops stmm_sp_ops __rodata_unpaged("stmm_sp_ops") = {
 	.enter_open_session = stmm_enter_open_session,
 	.enter_invoke_cmd = stmm_enter_invoke_cmd,
 	.enter_close_session = stmm_enter_close_session,
