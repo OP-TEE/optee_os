@@ -53,7 +53,8 @@
 #define __SECTION_FLAGS_RODATA ",\"a\",%progbits //"
 #endif
 #define __rodata	__section(".rodata" __SECTION_FLAGS_RODATA)
-#define __rodata_unpaged __section(".rodata.__unpaged" __SECTION_FLAGS_RODATA)
+#define __rodata_unpaged(x) \
+	__section(".rodata.__unpaged." x __SECTION_FLAGS_RODATA)
 #ifdef CFG_VIRTUALIZATION
 #define __nex_bss		__section(".nex_bss")
 #define __nex_data		__section(".nex_data")

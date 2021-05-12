@@ -127,7 +127,7 @@ SECTIONS
 		__rodata_start = .;
 		*(.gnu.linkonce.r.*)
 #ifdef CFG_WITH_PAGER
-		*(.rodata .rodata.__unpaged)
+		*(.rodata .rodata.__unpaged .rodata.__unpaged.*)
 #include <rodata_unpaged.ld.S>
 #else
 #ifdef CFG_DT

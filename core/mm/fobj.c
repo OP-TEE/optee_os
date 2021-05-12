@@ -236,7 +236,8 @@ static vaddr_t rwp_paged_iv_get_iv_vaddr(struct fobj *fobj,
 }
 DECLARE_KEEP_PAGER(rwp_paged_iv_get_iv_vaddr);
 
-static const struct fobj_ops ops_rwp_paged_iv __rodata_unpaged = {
+static const struct fobj_ops ops_rwp_paged_iv
+__rodata_unpaged("ops_rwp_paged_iv") = {
 	.free = rwp_paged_iv_free,
 	.load_page = rwp_paged_iv_load_page,
 	.save_page = rwp_paged_iv_save_page,
@@ -337,7 +338,8 @@ static void rwp_unpaged_iv_free(struct fobj *fobj)
 	free(rwp);
 }
 
-static const struct fobj_ops ops_rwp_unpaged_iv __rodata_unpaged = {
+static const struct fobj_ops ops_rwp_unpaged_iv
+__rodata_unpaged("ops_rwp_unpaged_iv") = {
 	.free = rwp_unpaged_iv_free,
 	.load_page = rwp_unpaged_iv_load_page,
 	.save_page = rwp_unpaged_iv_save_page,
@@ -482,7 +484,7 @@ static TEE_Result rop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(rop_save_page);
 
-static const struct fobj_ops ops_ro_paged __rodata_unpaged = {
+static const struct fobj_ops ops_ro_paged __rodata_unpaged("ops_ro_paged") = {
 	.free = rop_free,
 	.load_page = rop_load_page,
 	.save_page = rop_save_page,
@@ -654,7 +656,8 @@ static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
 }
 DECLARE_KEEP_PAGER(rrp_load_page);
 
-static const struct fobj_ops ops_ro_reloc_paged __rodata_unpaged = {
+static const struct fobj_ops ops_ro_reloc_paged
+__rodata_unpaged("ops_ro_reloc_paged") = {
 	.free = rrp_free,
 	.load_page = rrp_load_page,
 	.save_page = rop_save_page, /* Direct reuse */
@@ -707,7 +710,8 @@ static TEE_Result lop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(lop_save_page);
 
-static const struct fobj_ops ops_locked_paged __rodata_unpaged = {
+static const struct fobj_ops ops_locked_paged
+__rodata_unpaged("ops_locked_paged") = {
 	.free = lop_free,
 	.load_page = lop_load_page,
 	.save_page = lop_save_page,
@@ -782,7 +786,7 @@ static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
 	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
 }
 
-static const struct fobj_ops ops_sec_mem __rodata_unpaged = {
+static const struct fobj_ops ops_sec_mem __rodata_unpaged("ops_sec_mem") = {
 	.free = sec_mem_free,
 	.get_pa = sec_mem_get_pa,
 };

@@ -349,7 +349,7 @@ static bool sp_handle_svc(struct thread_svc_regs *regs)
 	return false;
 }
 
-static const struct ts_ops sp_ops __rodata_unpaged = {
+static const struct ts_ops sp_ops __rodata_unpaged("sp_ops") = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
 	.handle_svc = sp_handle_svc,
 };
