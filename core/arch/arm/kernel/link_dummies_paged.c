@@ -9,6 +9,8 @@
 #include <kernel/wait_queue.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
+#include <mm/mobj.h>
+#include <mm/fobj.h>
 
 #include "thread_private.h"
 
@@ -38,3 +40,18 @@ __wq_rpc(uint32_t func __unused, int id __unused,
 	 int lineno  __unused)
 {
 }
+
+const struct mobj_ops mobj_reg_shm_ops __rodata_dummy;
+const struct mobj_ops mobj_ffa_ops __rodata_dummy;
+const struct mobj_ops mobj_phys_ops __rodata_dummy;
+const struct mobj_ops mobj_virt_ops __rodata_dummy;
+const struct mobj_ops mobj_mm_ops __rodata_dummy;
+const struct mobj_ops mobj_shm_ops __rodata_dummy;
+const struct mobj_ops mobj_seccpy_shm_ops __rodata_dummy;
+const struct mobj_ops mobj_with_fobj_ops __rodata_dummy;
+const struct fobj_ops ops_rwp_paged_iv __rodata_dummy;
+const struct fobj_ops ops_rwp_unpaged_iv __rodata_dummy;
+const struct fobj_ops ops_ro_paged __rodata_dummy;
+const struct fobj_ops ops_ro_reloc_paged __rodata_dummy;
+const struct fobj_ops ops_locked_paged __rodata_dummy;
+const struct fobj_ops ops_sec_mem __rodata_dummy;
