@@ -20,11 +20,7 @@ void wq_init(struct wait_queue *wq)
 	*wq = (struct wait_queue)WAIT_QUEUE_INITIALIZER;
 }
 
-/*
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
- */
-void __weak __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
+static void __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 		     const char *fname, int lineno __maybe_unused)
 {
 	uint32_t ret;
