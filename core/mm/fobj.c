@@ -55,8 +55,8 @@ struct fobj_rwp_paged_iv {
 	struct fobj fobj;
 };
 
-static const struct fobj_ops ops_rwp_paged_iv;
-static const struct fobj_ops ops_rwp_unpaged_iv;
+const struct fobj_ops ops_rwp_paged_iv;
+const struct fobj_ops ops_rwp_unpaged_iv;
 
 static struct internal_aes_gcm_key rwp_ae_key;
 
@@ -236,8 +236,12 @@ static vaddr_t rwp_paged_iv_get_iv_vaddr(struct fobj *fobj,
 }
 DECLARE_KEEP_PAGER(rwp_paged_iv_get_iv_vaddr);
 
-static const struct fobj_ops ops_rwp_paged_iv
-__rodata_unpaged("ops_rwp_paged_iv") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_rwp_paged_iv
+__weak __rodata_unpaged("ops_rwp_paged_iv") = {
 	.free = rwp_paged_iv_free,
 	.load_page = rwp_paged_iv_load_page,
 	.save_page = rwp_paged_iv_save_page,
@@ -338,8 +342,12 @@ static void rwp_unpaged_iv_free(struct fobj *fobj)
 	free(rwp);
 }
 
-static const struct fobj_ops ops_rwp_unpaged_iv
-__rodata_unpaged("ops_rwp_unpaged_iv") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_rwp_unpaged_iv
+__weak __rodata_unpaged("ops_rwp_unpaged_iv") = {
 	.free = rwp_unpaged_iv_free,
 	.load_page = rwp_unpaged_iv_load_page,
 	.save_page = rwp_unpaged_iv_save_page,
@@ -408,7 +416,7 @@ struct fobj_rop {
 	struct fobj fobj;
 };
 
-static const struct fobj_ops ops_ro_paged;
+const struct fobj_ops ops_ro_paged;
 
 static void rop_init(struct fobj_rop *rop, const struct fobj_ops *ops,
 		     unsigned int num_pages, void *hashes, void *store)
@@ -484,7 +492,11 @@ static TEE_Result rop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(rop_save_page);
 
-static const struct fobj_ops ops_ro_paged __rodata_unpaged("ops_ro_paged") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_ro_paged __weak __rodata_unpaged("ops_ro_paged") = {
 	.free = rop_free,
 	.load_page = rop_load_page,
 	.save_page = rop_save_page,
@@ -516,7 +528,7 @@ struct fobj_ro_reloc_paged {
 	struct fobj_rop rop;
 };
 
-static const struct fobj_ops ops_ro_reloc_paged;
+const struct fobj_ops ops_ro_reloc_paged;
 
 static unsigned int get_num_rels(unsigned int num_pages,
 				 unsigned int reloc_offs,
@@ -656,15 +668,19 @@ static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
 }
 DECLARE_KEEP_PAGER(rrp_load_page);
 
-static const struct fobj_ops ops_ro_reloc_paged
-__rodata_unpaged("ops_ro_reloc_paged") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_ro_reloc_paged
+__weak __rodata_unpaged("ops_ro_reloc_paged") = {
 	.free = rrp_free,
 	.load_page = rrp_load_page,
 	.save_page = rop_save_page, /* Direct reuse */
 };
 #endif /*CFG_CORE_ASLR*/
 
-static const struct fobj_ops ops_locked_paged;
+const struct fobj_ops ops_locked_paged;
 
 struct fobj *fobj_locked_paged_alloc(unsigned int num_pages)
 {
@@ -710,8 +726,12 @@ static TEE_Result lop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(lop_save_page);
 
-static const struct fobj_ops ops_locked_paged
-__rodata_unpaged("ops_locked_paged") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_locked_paged
+__weak __rodata_unpaged("ops_locked_paged") = {
 	.free = lop_free,
 	.load_page = lop_load_page,
 	.save_page = lop_save_page,
@@ -725,7 +745,7 @@ struct fobj_sec_mem {
 	struct fobj fobj;
 };
 
-static const struct fobj_ops ops_sec_mem;
+const struct fobj_ops ops_sec_mem;
 
 struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 {
@@ -786,7 +806,11 @@ static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
 	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
 }
 
-static const struct fobj_ops ops_sec_mem __rodata_unpaged("ops_sec_mem") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct fobj_ops ops_sec_mem __weak __rodata_unpaged("ops_sec_mem") = {
 	.free = sec_mem_free,
 	.get_pa = sec_mem_get_pa,
 };

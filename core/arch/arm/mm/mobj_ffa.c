@@ -39,7 +39,7 @@ static struct mobj_ffa_head shm_inactive_head =
 
 static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
-static const struct mobj_ops mobj_ffa_ops __rodata_unpaged("mobj_ffa_ops");
+const struct mobj_ops mobj_ffa_ops;
 
 static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
@@ -577,7 +577,11 @@ static TEE_Result mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-static const struct mobj_ops mobj_ffa_ops __rodata_unpaged("mobj_ffa_ops") = {
+/*
+ * Note: this variable is weak just to ease breaking its dependency chain
+ * when added to the unpaged area.
+ */
+const struct mobj_ops mobj_ffa_ops __weak __rodata_unpaged("mobj_ffa_ops") = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
 	.get_va = ffa_get_va,
