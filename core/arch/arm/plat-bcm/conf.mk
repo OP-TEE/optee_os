@@ -25,7 +25,8 @@ $(call force,CFG_SP805_WDT,y)
 $(call force,CFG_BCM_HWRNG,y)
 $(call force,CFG_BCM_SOTP,y)
 $(call force,CFG_BCM_GPIO,y)
-+CFG_PTA_BCM_HWRNG ?= y
+CFG_PTA_BCM_HWRNG ?= y
+CFG_WITH_SOFTWARE_PRNG = n
 CFG_BNXT_FW ?= y
 CFG_BCM_ELOG_DUMP ?= y
 endif
