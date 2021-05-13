@@ -139,6 +139,7 @@ out:
 	mbedtls_mpi_free(&r);
 	mbedtls_mpi_free(&s);
 	mbedtls_mpi_free(&tmp);
+	mbedtls_ecp_group_free(&grp);
 	return res;
 }
 
@@ -262,5 +263,6 @@ out:
 	mbedtls_mpi_free(&t);
 	mbedtls_mpi_free(&eprime);
 	mbedtls_mpi_free(&R);
+	mbedtls_ecp_group_free(&grp);
 	return res;
 }
