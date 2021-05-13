@@ -446,5 +446,7 @@ out:
 	mbedtls_ecp_point_free(&x2y2p);
 	mbedtls_ecp_point_free(&PB);
 	mbedtls_ecp_point_free(&C1);
+	mbedtls_ecp_group_free(&grp);
+	mbedtls_mpi_free(&k);
 	return res;
 }
