@@ -5,6 +5,8 @@ link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 SIGN_ENC ?= $(PYTHON3) $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 
+# If set to 'n', the build process will only generate the TA .elf files.
+# It is up to the user to generate the corresponding .ta files afterwards. 
 CFG_TEE_SIGN_TAS ?= y
 
 ifeq ($(CFG_ENCRYPT_TA),y)
