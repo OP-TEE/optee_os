@@ -5,13 +5,7 @@ link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 SIGN_ENC ?= $(PYTHON3) $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
 TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
 
-# In case the TA offline-signing has been performed.
-ifeq ($(CFG_STITCH_TA),y)
-# The signatures directory. The linking process expects <ta-uuid>.sig files in it.
-TA_SIG_DIR ?= signatures
-# The hash and signing algorithm.
-TA_SIGN_ALG ?= TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256
-endif
+CFG_TEE_SIGN_TAS ?= y
 
 ifeq ($(CFG_ENCRYPT_TA),y)
 # Default TA encryption key is a dummy key derived from default
@@ -115,12 +109,8 @@ $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY) \
 			$(lastword $(SIGN_ENC))
+ifeq ($(CFG_TEE_SIGN_TAS),y)
 	@$(cmd-echo-silent) '  $$(cmd-echo$(user-ta-uuid)) $$@'
-ifeq ($(CFG_STITCH_TA),y)
-	$(q)$(SIGN_ENC) stitch --key $(TA_PUBLIC_KEY) $$(crypt-args$(user-ta-uuid)) \
-        --uuid $(user-ta-uuid) --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig \
-		--algo $(TA_SIGN_ALG) --in $$< --out $$@
-else
 	$(q)$(SIGN_ENC) --key $(TA_SIGN_KEY) $$(crypt-args$(user-ta-uuid)) \
 		--uuid $(user-ta-uuid) --ta-version $(user-ta-version) \
 		--in $$< --out $$@
