@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright (c) 2021, Arm Limited
  */
 #ifndef __KERNEL_BOOT_H
 #define __KERNEL_BOOT_H
@@ -85,6 +86,6 @@ void *get_external_dt(void);
 
 unsigned long get_aslr_seed(void *fdt);
 
-void ffa_secondary_cpu_boot_req(vaddr_t secondary_ep, uint64_t cookie);
+void ffa_secondary_cpu_ep_register(vaddr_t secondary_ep);
 
 #endif /* __KERNEL_BOOT_H */
