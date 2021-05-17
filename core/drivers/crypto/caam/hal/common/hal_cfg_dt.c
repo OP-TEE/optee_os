@@ -80,14 +80,12 @@ void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base)
 		return;
 	}
 
-	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, pctrl_base, size)) {
+	*ctrl_base = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, pctrl_base,
+						   size);
+	if (!*ctrl_base) {
 		EMSG("CAAM control base MMU PA mapping failure");
 		return;
 	}
-
-	*ctrl_base = (vaddr_t)phys_to_virt(pctrl_base, MEM_AREA_IO_SEC);
-	if (!*ctrl_base)
-		EMSG("CAAM control base MMU VA mapping failure");
 
 	HAL_TRACE("Map Controller 0x%" PRIxVA, *ctrl_base);
 }

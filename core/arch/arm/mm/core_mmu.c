@@ -1927,7 +1927,7 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	return TEE_SUCCESS;
 }
 
-bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
+void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 {
 	struct core_mmu_table_info tbl_info;
 	struct tee_mmap_region *map;
@@ -1937,23 +1937,23 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	size_t l;
 
 	if (!len)
-		return true;
+		return NULL;
 
 	if (!core_mmu_check_end_pa(addr, len))
-		return false;
+		return NULL;
 
 	/* Check if the memory is already mapped */
 	map = find_map_by_type_and_pa(type, addr);
 	if (map && pbuf_inside_map_area(addr, len, map))
-		return true;
+		return (void *)(vaddr_t)(map->va + addr - map->pa);
 
 	/* Find the reserved va space used for late mappings */
 	map = find_map_by_type(MEM_AREA_RES_VASPACE);
 	if (!map)
-		return false;
+		return NULL;
 
 	if (!core_mmu_find_table(NULL, map->va, UINT_MAX, &tbl_info))
-		return false;
+		return NULL;
 
 	granule = 1 << tbl_info.shift;
 	p = ROUNDDOWN(addr, granule);
@@ -1961,7 +1961,7 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 
 	/* Ban overflowing virtual addresses */
 	if (map->size < l)
-		return false;
+		return NULL;
 
 	/*
 	 * Something is wrong, we can't fit the va range into the selected
@@ -1969,7 +1969,7 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	 * granule.
 	 */
 	if (core_mmu_va2idx(&tbl_info, map->va + len) >= tbl_info.num_entries)
-		return false;
+		return NULL;
 
 	/* Find end of the memory map */
 	n = 0;
@@ -2001,7 +2001,7 @@ bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	/* Make sure the new entry is visible before continuing. */
 	dsb_ishst();
 
-	return true;
+	return (void *)(vaddr_t)(map->va + addr - map->pa);
 }
 
 unsigned int asid_alloc(void)

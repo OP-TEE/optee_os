@@ -123,14 +123,10 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 		mtype = MEM_AREA_IO_NSEC;
 
 	/* Check if we have a mapping, create one if needed */
-	if (!core_mmu_add_mapping(mtype, pbase, sz)) {
+	vbase = (vaddr_t)core_mmu_add_mapping(mtype, pbase, sz);
+	if (!vbase) {
 		EMSG("Failed to map %zu bytes at PA 0x%"PRIxPA,
 		     (size_t)sz, pbase);
-		return -1;
-	}
-	vbase = (vaddr_t)phys_to_virt(pbase, mtype);
-	if (!vbase) {
-		EMSG("Failed to get VA for PA 0x%"PRIxPA, pbase);
 		return -1;
 	}
 

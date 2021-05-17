@@ -436,14 +436,11 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 
 static TEE_Result get_va(paddr_t pa, vaddr_t *va)
 {
-	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, pa, 0x10000))
+	*va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, pa, 0x10000);
+	if (!*va)
 		return TEE_ERROR_GENERIC;
 
-	*va = (vaddr_t)phys_to_virt(pa, MEM_AREA_IO_SEC);
-	if (*va)
-		return TEE_SUCCESS;
-
-	return TEE_ERROR_GENERIC;
+	return TEE_SUCCESS;
 }
 
 #if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)

@@ -129,13 +129,10 @@ void tpm_map_log_area(void *fdt)
 
 	rounded_size = ROUNDUP(tpm_log_size, SMALL_PAGE_SIZE);
 
-	if (!core_mmu_add_mapping(MEM_AREA_RAM_SEC, log_addr, rounded_size)) {
+	tpm_log_addr = core_mmu_add_mapping(MEM_AREA_RAM_SEC, log_addr,
+					    rounded_size);
+	if (!tpm_log_addr) {
 		EMSG("TPM: Failed to map TPM log memory");
 		return;
 	}
-
-	tpm_log_addr = phys_to_virt(log_addr, MEM_AREA_RAM_SEC);
-
-	if (!tpm_log_addr)
-		EMSG("TPM: Error mapping phys mem to va space");
 }
