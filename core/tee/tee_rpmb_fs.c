@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/misc.h>
@@ -631,13 +632,13 @@ static TEE_Result tee_rpmb_req_pack(struct rpmb_req *req,
 	memcpy(TEE_RPMB_REQ_DATA(req), datafrm,
 	       nbr_frms * RPMB_DATA_FRAME_SIZE);
 
-#ifdef CFG_RPMB_FS_DEBUG_DATA
-	for (i = 0; i < nbr_frms; i++) {
-		DMSG("Dumping data frame %d:", i);
-		DHEXDUMP((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
-			 512 - RPMB_STUFF_DATA_SIZE);
+	if (IS_ENABLED(CFG_RPMB_FS_DEBUG_DATA)) {
+		for (i = 0; i < nbr_frms; i++) {
+			DMSG("Dumping data frame %d:", i);
+			DHEXDUMP((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
+				 512 - RPMB_STUFF_DATA_SIZE);
+		}
 	}
-#endif
 
 	res = TEE_SUCCESS;
 func_exit:
@@ -783,13 +784,15 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 	if (!datafrm || !rawdata || !nbr_frms)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-#ifdef CFG_RPMB_FS_DEBUG_DATA
-	for (uint32_t i = 0; i < nbr_frms; i++) {
-		DMSG("Dumping data frame %d:", i);
-		DHEXDUMP((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
-			 512 - RPMB_STUFF_DATA_SIZE);
+	if (IS_ENABLED(CFG_RPMB_FS_DEBUG_DATA)) {
+		size_t i = 0;
+
+		for (i = 0; i < nbr_frms; i++) {
+			DMSG("Dumping data frame %zu:", i);
+			DHEXDUMP((uint8_t *)&datafrm[i] + RPMB_STUFF_DATA_SIZE,
+				 512 - RPMB_STUFF_DATA_SIZE);
+		}
 	}
-#endif
 
 	/* Make sure the last data packet can't be modified once verified */
 	memcpy(&lastfrm, &datafrm[nbr_frms - 1], RPMB_DATA_FRAME_SIZE);
@@ -872,9 +875,9 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 				     (datafrm + nbr_frms - 1)->key_mac,
 				     RPMB_KEY_MAC_SIZE) != 0) {
 			DMSG("MAC mismatched:");
-#ifdef CFG_RPMB_FS_DEBUG_DATA
-			DHEXDUMP((uint8_t *)rawdata->key_mac, 32);
-#endif
+			if (IS_ENABLED(CFG_RPMB_FS_DEBUG_DATA))
+				DHEXDUMP(rawdata->key_mac, RPMB_KEY_MAC_SIZE);
+
 			return TEE_ERROR_SECURITY;
 		}
 	}
@@ -920,10 +923,10 @@ static TEE_Result tee_rpmb_get_dev_info(uint16_t dev_id,
 
 	memcpy((uint8_t *)dev_info, resp, sizeof(struct rpmb_dev_info));
 
-#ifdef CFG_RPMB_FS_DEBUG_DATA
-	DMSG("Dumping dev_info:");
-	DHEXDUMP((uint8_t *)dev_info, sizeof(struct rpmb_dev_info));
-#endif
+	if (IS_ENABLED(CFG_RPMB_FS_DEBUG_DATA)) {
+		DMSG("Dumping dev_info:");
+		DHEXDUMP((uint8_t *)dev_info, sizeof(struct rpmb_dev_info));
+	}
 
 	res = TEE_SUCCESS;
 
