@@ -868,7 +868,6 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 				return res;
 		}
 
-#ifndef CFG_RPMB_FS_NO_MAC
 		if (consttime_memcmp(rawdata->key_mac,
 				     (datafrm + nbr_frms - 1)->key_mac,
 				     RPMB_KEY_MAC_SIZE) != 0) {
@@ -878,7 +877,6 @@ static TEE_Result tee_rpmb_resp_unpack_verify(struct rpmb_data_frame *datafrm,
 #endif
 			return TEE_ERROR_SECURITY;
 		}
-#endif /* !CFG_RPMB_FS_NO_MAC */
 	}
 
 	return TEE_SUCCESS;
