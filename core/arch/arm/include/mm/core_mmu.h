@@ -618,7 +618,8 @@ static inline bool core_mmu_is_shm_cached(void)
 
 TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 				   size_t len);
-bool core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len);
+void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr,
+			   size_t len);
 
 /*
  * tlbi_mva_range() - Invalidate TLB for virtual address range

@@ -29,20 +29,11 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 		caam_hal_cfg_get_ctrl_dt(fdt, &ctrl_base);
 
 	if (!ctrl_base) {
-		ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE, MEM_AREA_IO_SEC);
+		ctrl_base = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
+							  CAAM_BASE,
+							  CORE_MMU_PGDIR_SIZE);
 		if (!ctrl_base) {
-			if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, CAAM_BASE,
-						  CORE_MMU_PGDIR_SIZE)) {
-				EMSG("Unable to map CAAM Registers");
-				goto exit_get_conf;
-			}
-
-			ctrl_base = (vaddr_t)phys_to_virt(CAAM_BASE,
-							  MEM_AREA_IO_SEC);
-		}
-
-		if (!ctrl_base) {
-			EMSG("Unable to get the CAAM Base address");
+			EMSG("Unable to map CAAM Registers");
 			goto exit_get_conf;
 		}
 	}

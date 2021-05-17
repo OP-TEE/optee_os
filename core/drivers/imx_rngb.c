@@ -118,14 +118,12 @@ static void rng_seed(struct imx_rng *rng)
 
 static TEE_Result map_controller_static(void)
 {
-	if (!core_mmu_add_mapping(MEM_AREA_IO_SEC, rngb.base.pa, rngb.size))
+	rngb.base.va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
+						     rngb.base.pa, rngb.size);
+	if (!rngb.base.va)
 		return TEE_ERROR_GENERIC;
 
-	rngb.base.va = (vaddr_t)phys_to_virt(rngb.base.pa, MEM_AREA_IO_SEC);
-	if (rngb.base.va)
-		return TEE_SUCCESS;
-
-	return TEE_ERROR_GENERIC;
+	return TEE_SUCCESS;
 }
 
 #if !defined(CFG_DT)

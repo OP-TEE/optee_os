@@ -1053,12 +1053,9 @@ static void init_external_dt(unsigned long phys_dt)
 		return;
 	}
 
-	if (!core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE))
-		panic("Failed to map external DTB");
-
-	fdt = phys_to_virt(phys_dt, MEM_AREA_EXT_DT);
+	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE);
 	if (!fdt)
-		panic();
+		panic("Failed to map external DTB");
 
 	dt->blob = fdt;
 
