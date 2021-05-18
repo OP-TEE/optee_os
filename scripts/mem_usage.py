@@ -118,8 +118,7 @@ def main():
                  flags) = words[:8]
             except BaseException:
                 continue
-            if (flags == 'AX' or flags == 'WA' or flags == 'A' or
-                    flags == 'AL'):
+            if ('A' in flags):
                 sects.append({'name': name, 'addr': addr,
                               'offs': offs, 'size': size})
     first_addr = None
