@@ -29,9 +29,6 @@
 
 #include "thread_private.h"
 
-#define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
-#define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
-
 #if defined(CFG_CORE_SEL1_SPMC)
 struct mem_share_state {
 	struct mobj_ffa *mf;
@@ -331,11 +328,11 @@ static bool is_my_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 }
 
 void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
-			       uint16_t endpoint_id)
+			       uint16_t endpoint_id, uint16_t execution_context)
 {
 	fpi->id = endpoint_id;
 	/* Number of execution contexts implemented by this partition */
-	fpi->execution_context = 1;
+	fpi->execution_context = execution_context;
 
 	/*
 	 * BIT(0): Supports receipt of direct requests
@@ -348,16 +345,15 @@ void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
 				    FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT;
 }
 
-static uint32_t handle_partition_info_get_all(int *rc, struct ffa_rxtx *rxtx)
+static uint32_t handle_partition_info_get_all(size_t *elem_count,
+					      struct ffa_rxtx *rxtx)
 {
-	struct ffa_partition_info *fpi = NULL;
-
-	fpi = rxtx->tx;
+	struct ffa_partition_info *fpi = rxtx->tx;
 
 	/* Add OP-TEE SP */
-	spmc_fill_partition_entry(fpi, my_endpoint_id);
+	spmc_fill_partition_entry(fpi, my_endpoint_id, 0);
 	rxtx->tx_is_mine = false;
-	*rc = 1;
+	*elem_count = 1;
 	fpi++;
 
 	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
@@ -365,7 +361,7 @@ static uint32_t handle_partition_info_get_all(int *rc, struct ffa_rxtx *rxtx)
 
 		if (sp_get_partitions_info(fpi, &elements))
 			return TEE_ERROR_SHORT_BUFFER;
-		rc += elements;
+		elem_count += elements;
 	}
 	return FFA_SUCCESS_32;
 }
@@ -374,7 +370,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 				    struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_fid = FFA_ERROR;
-	int rc = 0;
+	uint32_t rc = 0;
 	uint32_t endpoint_id = my_endpoint_id;
 	struct ffa_partition_info *fpi = NULL;
 
@@ -391,7 +387,10 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	fpi = rxtx->tx;
 
 	if (is_nil_uuid(args->a1, args->a2, args->a3, args->a4)) {
-		ret_fid = handle_partition_info_get_all(&rc, rxtx);
+		size_t elem_count = 0;
+
+		ret_fid = handle_partition_info_get_all(&elem_count, rxtx);
+		rc = elem_count;
 		goto out;
 	}
 
@@ -420,7 +419,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		}
 	}
 
-	spmc_fill_partition_entry(fpi, endpoint_id);
+	spmc_fill_partition_entry(fpi, endpoint_id, 1);
 	ret_fid = FFA_SUCCESS_32;
 	rxtx->tx_is_mine = false;
 	rc = 1;

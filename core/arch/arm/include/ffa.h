@@ -95,6 +95,10 @@
 /* Special value for MBZ parameters */
 #define FFA_PARAM_MBZ			U(0x0)
 
+/* Flags used for the FFA_PARTITION_INFO_GET  return message */
+#define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
+#define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
+
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
 struct ffa_address_range {
