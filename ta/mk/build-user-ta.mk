@@ -57,6 +57,8 @@ include  ta/arch/$(ARCH)/link.mk
 
 ta_elf: $(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf
 
+ta: $(link-out-dir$(sm))/$(user-ta-uuid).ta
+
 ta_dev_kit: $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta
 
 $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta: $(link-out-dir$(sm))/$(user-ta-uuid).ta
