@@ -95,17 +95,16 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
 		if (s->state != sp_dead)
 			continue;
-		count++;
 		if (count < in_elements) {
 			spmc_fill_partition_entry(fpi, s->endpoint_id, 1);
 			fpi++;
 		}
+		count++;
 	}
 
+	*elements = count;
 	if (count >= in_elements)
 		return TEE_ERROR_SHORT_BUFFER;
-
-	*elements = count;
 
 	return TEE_SUCCESS;
 }
