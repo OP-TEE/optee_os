@@ -1135,8 +1135,6 @@ static TEE_Result try_allocate_dmabuf_max_size(struct caamdmaobj *obj,
 	bool try_alloc = false;
 	uint32_t exceptions = 0;
 
-	DMAOBJ_TRACE("DMA buffer size require %zu", priv->dmabuf.require);
-
 	alloc_size = get_dma_max_alloc_size(obj);
 	if (alloc_size) {
 		try_alloc = true;
