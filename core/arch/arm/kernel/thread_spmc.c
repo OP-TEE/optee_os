@@ -351,7 +351,7 @@ static uint32_t handle_partition_info_get_all(size_t *elem_count,
 	struct ffa_partition_info *fpi = rxtx->tx;
 
 	/* Add OP-TEE SP */
-	spmc_fill_partition_entry(fpi, my_endpoint_id, 0);
+	spmc_fill_partition_entry(fpi, my_endpoint_id, CFG_TEE_CORE_NB_CORE);
 	rxtx->tx_is_mine = false;
 	*elem_count = 1;
 	fpi++;
@@ -361,7 +361,7 @@ static uint32_t handle_partition_info_get_all(size_t *elem_count,
 
 		if (sp_get_partitions_info(fpi, &elements))
 			return TEE_ERROR_SHORT_BUFFER;
-		elem_count += elements;
+		*elem_count += elements;
 	}
 	return FFA_SUCCESS_32;
 }
@@ -373,6 +373,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	uint32_t rc = 0;
 	uint32_t endpoint_id = my_endpoint_id;
 	struct ffa_partition_info *fpi = NULL;
+	uint16_t execution_context = CFG_TEE_CORE_NB_CORE;
 
 	cpu_spin_lock(&rxtx->spinlock);
 
@@ -412,6 +413,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 				rc = FFA_INVALID_PARAMETERS;
 				goto out;
 			}
+			execution_context = 1;
 		} else {
 			ret_fid = FFA_ERROR;
 			rc = FFA_INVALID_PARAMETERS;
@@ -419,7 +421,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		}
 	}
 
-	spmc_fill_partition_entry(fpi, endpoint_id, 1);
+	spmc_fill_partition_entry(fpi, endpoint_id, execution_context);
 	ret_fid = FFA_SUCCESS_32;
 	rxtx->tx_is_mine = false;
 	rc = 1;
