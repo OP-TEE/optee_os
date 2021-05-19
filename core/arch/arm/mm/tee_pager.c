@@ -1102,11 +1102,11 @@ bool tee_pager_set_um_region_attr(struct user_mode_ctx *uctx, vaddr_t base,
 	exceptions = pager_lock_check_stack(SMALL_PAGE_SIZE);
 
 	while (s) {
-		s2 = MIN(CORE_MMU_PGDIR_SIZE - (b & CORE_MMU_PGDIR_MASK), s);
-		if (!reg || reg->base != b || reg->size != s2) {
+		if (!reg) {
 			ret = false;
 			goto out;
 		}
+		s2 = MIN(reg->size, s);
 		b += s2;
 		s -= s2;
 
