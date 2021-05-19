@@ -50,8 +50,10 @@ END_FUNC ffa_msg_send_direct_resp
 FUNC thread_std_smc_entry , :
 UNWIND(	.cantunwind)
 
+	push	{r4, r5} /* Pass these following the arm32 calling convention */
 	ror	r4, r0, #16 /* Save target info with src and dst swapped */
 	bl	__thread_std_smc_entry
+	add	sp, sp, #8 /* There's nothing return, just restore the sp */
 	mov	r5, r0	/* Save return value */
 
 	/* Mask all maskable exceptions before switching to temporary stack */

@@ -161,7 +161,9 @@ DECLARE_KEEP_PAGER thread_vector_table
 
 FUNC thread_std_smc_entry , :
 UNWIND(	.cantunwind)
+	push	{r4, r5} /* Pass these following the arm32 calling convention */
 	bl	__thread_std_smc_entry
+	add	sp, sp, #8 /* There's nothing return, just restore the sp */
 	mov	r4, r0	/* Save return value for later */
 
 	/* Disable interrupts before switching to temporary stack */
