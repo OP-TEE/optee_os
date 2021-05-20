@@ -216,6 +216,9 @@ $(link-out-dir)/tee.symb_sizes: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)$(NMcore) --print-size --reverse-sort --size-sort $< > $@
 
+tee_bin: $(link-out-dir)/tee-header_v2.bin $(link-out-dir)/tee-pager_v2.bin \
+	 $(link-out-dir)/tee-pageable_v2.bin
+
 cleanfiles += $(link-out-dir)/tee.mem_usage
 ifneq ($(filter mem_usage,$(MAKECMDGOALS)),)
 mem_usage: $(link-out-dir)/tee.mem_usage
