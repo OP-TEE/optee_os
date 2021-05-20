@@ -109,6 +109,9 @@ TA_SIG_DIR ?= signatures
 crypt-args$(user-ta-uuid) := --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig
 sign-method$(user-ta-uuid) := stitch
 cmd-echo$(user-ta-uuid) := SIGNST #
+ifneq (,$(TA_SIGN_ALG))
+crypt-args$(user-ta-uuid) += --algo $(TA_SIGN_ALG)
+endif
 endif
 
 $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
