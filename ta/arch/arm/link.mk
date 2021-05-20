@@ -103,12 +103,21 @@ ifeq ($(CFG_ENCRYPT_TA),y)
 crypt-args$(user-ta-uuid) := --enc-key $(TA_ENC_KEY)
 cmd-echo$(user-ta-uuid) := SIGNENC
 endif
+ifeq ($(TA_SIGN_METHOD),stitch)
+# Offline signing
+TA_SIG_DIR ?= signatures
+crypt-args$(user-ta-uuid) := --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig
+sign-method$(user-ta-uuid) := stitch
+cmd-echo$(user-ta-uuid) := SIGNST #
+endif
+
 $(link-out-dir$(sm))/$(user-ta-uuid).ta: \
 			$(link-out-dir$(sm))/$(user-ta-uuid).stripped.elf \
 			$(TA_SIGN_KEY) \
 			$(lastword $(SIGN_ENC))
 	@$(cmd-echo-silent) '  $$(cmd-echo$(user-ta-uuid)) $$@'
-	$(q)$(SIGN_ENC) --key $(TA_SIGN_KEY) $$(crypt-args$(user-ta-uuid)) \
+	$(q)$(SIGN_ENC) $$(sign-method$(user-ta-uuid)) --key $(TA_SIGN_KEY) \
+		$$(crypt-args$(user-ta-uuid)) \
 		--uuid $(user-ta-uuid) --ta-version $(user-ta-version) \
 		--in $$< --out $$@
 endef
