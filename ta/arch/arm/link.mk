@@ -73,6 +73,8 @@ link-script-cppflags-$(sm) := \
 
 link-script-pp-makefiles$(sm) = $(filter-out %.d %.cmd,$(MAKEFILE_LIST))
 
+TA_SIG_DIR ?= signatures
+
 define gen-link-t
 $(link-script-pp$(sm)): $(link-script$(sm)) $(conf-file) $(link-script-pp-makefiles$(sm))
 	@$(cmd-echo-silent) '  CPP     $$@'
@@ -105,7 +107,6 @@ cmd-echo$(user-ta-uuid) := SIGNENC
 endif
 ifeq ($(TA_SIGN_METHOD),stitch)
 # Offline signing
-TA_SIG_DIR ?= signatures
 crypt-args$(user-ta-uuid) := --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig
 sign-method$(user-ta-uuid) := stitch
 cmd-echo$(user-ta-uuid) := SIGNST #
