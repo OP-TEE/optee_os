@@ -107,7 +107,7 @@ cmd-echo$(user-ta-uuid) := SIGNENC
 endif
 ifeq ($(TA_SIGN_METHOD),stitch)
 # Offline signing
-crypt-args$(user-ta-uuid) := --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig
+crypt-args$(user-ta-uuid) += --sig $(TA_SIG_DIR)/$(user-ta-uuid).sig
 sign-method$(user-ta-uuid) := stitch
 cmd-echo$(user-ta-uuid) := SIGNST #
 ifneq (,$(TA_SIGN_ALG))
