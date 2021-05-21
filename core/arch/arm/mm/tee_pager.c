@@ -839,6 +839,7 @@ static void split_region(struct vm_paged_region_head *regions,
 	uint32_t exceptions = pager_lock_check_stack(64);
 	size_t diff = va - reg->base;
 	size_t r2_pgt_count = 0;
+	size_t reg_pgt_count = 0;
 	size_t n0 = 0;
 	size_t n = 0;
 
@@ -851,8 +852,9 @@ static void split_region(struct vm_paged_region_head *regions,
 	r2->flags = reg->flags;
 
 	r2_pgt_count = get_pgt_count(r2->base, r2->size);
-	n0 = get_pgt_count(reg->base, reg->size) - r2_pgt_count;
-	for (n = n0; n < r2_pgt_count; n++)
+	reg_pgt_count = get_pgt_count(reg->base, reg->size);
+	n0 = reg_pgt_count - r2_pgt_count;
+	for (n = n0; n < reg_pgt_count; n++)
 		r2->pgt_array[n - n0] = reg->pgt_array[n];
 	reg->size = diff;
 
