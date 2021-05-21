@@ -661,3 +661,15 @@ CFG_COMPAT_GP10_DES ?= y
 
 # Defines a limit for many levels TAs may call each others.
 CFG_CORE_MAX_SYSCALL_RECURSION ?= 4
+
+# Pseudo-TA to export hardware RNG output to Normal World
+# RNG characteristics are platform specific
+CFG_HWRNG_PTA ?= n
+ifeq ($(CFG_HWRNG_PTA),y)
+# Output rate of hw_get_random_bytes() in bytes per second, 0: not rate-limited
+CFG_HWRNG_RATE ?= 0
+# Quality/entropy of hw_get_random_bytes() per 1024 bits of output data, in bits
+ifeq (,$(CFG_HWRNG_QUALITY))
+$(error CFG_HWRNG_QUALITY not defined)
+endif
+endif
