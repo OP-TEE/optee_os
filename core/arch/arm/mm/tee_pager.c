@@ -832,8 +832,7 @@ TEE_Result tee_pager_add_um_region(struct user_mode_ctx *uctx, vaddr_t base,
 	return TEE_SUCCESS;
 }
 
-static void split_region(struct vm_paged_region_head *regions,
-			 struct vm_paged_region *reg,
+static void split_region(struct vm_paged_region *reg,
 			 struct vm_paged_region *r2, vaddr_t va)
 {
 	uint32_t exceptions = pager_lock_check_stack(64);
@@ -858,7 +857,7 @@ static void split_region(struct vm_paged_region_head *regions,
 		r2->pgt_array[n - n0] = reg->pgt_array[n];
 	reg->size = diff;
 
-	TAILQ_INSERT_AFTER(regions, reg, r2, link);
+	TAILQ_INSERT_BEFORE(reg, r2, link);
 	TAILQ_INSERT_AFTER(&reg->fobj->regions, reg, r2, fobj_link);
 
 	pager_unlock(exceptions);
@@ -882,7 +881,7 @@ TEE_Result tee_pager_split_um_region(struct user_mode_ctx *uctx, vaddr_t va)
 			r2 = alloc_region(va, reg->size - diff);
 			if (!r2)
 				return TEE_ERROR_OUT_OF_MEMORY;
-			split_region(uctx->regions, reg, r2, va);
+			split_region(reg, r2, va);
 			return TEE_SUCCESS;
 		}
 	}
