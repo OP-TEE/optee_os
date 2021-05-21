@@ -487,15 +487,15 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 	     offset += size_done, size_todo -= size_done) {
 		size_done = size_todo;
 
-		CIPHER_TRACE("Do input %zu bytes, offset %zu", size_done,
-			     offset);
-
 		if (size_inmade) {
 			ret = caam_dmaobj_sgtbuf_build(&src, &size_done, offset,
 						       ctx->alg->size_block);
 			if (ret)
 				goto end_cmac;
 		}
+
+		CIPHER_TRACE("Do input %zu bytes, offset %zu", size_done,
+			     offset);
 
 		/*
 		 * Need to re-adjust the length of the data if the
@@ -504,6 +504,7 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 		 */
 		if (ctx->blockbuf.filled && size_done < size_todo) {
 			size_done -= ctx->blockbuf.filled;
+			size_todo -= ctx->blockbuf.filled;
 			src.sgtbuf.length = size_done;
 		}
 
