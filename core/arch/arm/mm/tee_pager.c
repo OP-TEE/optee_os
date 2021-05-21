@@ -912,16 +912,24 @@ static struct pgt **alloc_merged_pgt_array(struct vm_paged_region *a,
 {
 	size_t a_next_pgt_count = get_pgt_count(a_next->base, a_next->size);
 	size_t a_pgt_count = get_pgt_count(a->base, a->size);
+	size_t pgt_count = get_pgt_count(a->base, a->size + a_next->size);
 	struct pgt **pgt_array = NULL;
+	bool have_shared_pgt = false;
+
+	have_shared_pgt = ((a->base + a->size) & ~CORE_MMU_PGDIR_MASK) ==
+			  (a_next->base & ~CORE_MMU_PGDIR_MASK);
+
+	if (have_shared_pgt)
+		assert(pgt_count == a_pgt_count + a_next_pgt_count - 1);
+	else
+		assert(pgt_count == a_pgt_count + a_next_pgt_count);
 
 	/* In case there's a shared pgt they must match */
-	if ((a->base & ~CORE_MMU_PGDIR_MASK) ==
-	    (a_next->base & ~CORE_MMU_PGDIR_MASK) &&
+	if (have_shared_pgt &&
 	    a->pgt_array[a_pgt_count - 1] != a_next->pgt_array[0])
 		return NULL;
 
-	pgt_array = calloc(sizeof(struct pgt *),
-			   get_pgt_count(a->base, a->size + a_next->size));
+	pgt_array = calloc(sizeof(struct pgt *), pgt_count);
 	if (!pgt_array)
 		return NULL;
 
@@ -930,8 +938,7 @@ static struct pgt **alloc_merged_pgt_array(struct vm_paged_region *a,
 	 * where a pgt is shared.
 	 */
 	memcpy(pgt_array, a->pgt_array, a_pgt_count * sizeof(struct pgt *));
-	if ((a->base & ~CORE_MMU_PGDIR_MASK) ==
-	    (a_next->base & ~CORE_MMU_PGDIR_MASK))
+	if (have_shared_pgt)
 		memcpy(pgt_array + a_pgt_count, a_next->pgt_array + 1,
 		       (a_next_pgt_count - 1) * sizeof(struct pgt *));
 	else
