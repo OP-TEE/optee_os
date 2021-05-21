@@ -73,6 +73,8 @@ link-script-cppflags-$(sm) := \
 
 link-script-pp-makefiles$(sm) = $(filter-out %.d %.cmd,$(MAKEFILE_LIST))
 
+# Path to a directory containing signature file(s) (<uuid>.sig). Used when
+# TA_SIGN_METHOD=stitch.
 TA_SIG_DIR ?= signatures
 
 define gen-link-t
