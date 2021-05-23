@@ -71,7 +71,8 @@ uint32_t bcm_hwrng_read_rng(uint32_t *p_out, uint32_t words_to_read)
 
 static TEE_Result bcm_hwrng_init(void)
 {
-	bcm_hwrng_base = (vaddr_t)phys_to_virt(HWRNG_BASE, MEM_AREA_IO_SEC);
+	bcm_hwrng_base = (vaddr_t)phys_to_virt(HWRNG_BASE, MEM_AREA_IO_SEC,
+					       HWRNG_END - HWRNG_BASE);
 
 	bcm_hwrng_reset();
 

@@ -86,7 +86,7 @@ static struct etzpc_instance etzpc_dev;
 
 static vaddr_t etzpc_base(void)
 {
-	return io_pa_or_va_secure(&etzpc_dev.base);
+	return io_pa_or_va_secure(&etzpc_dev.base, 1);
 }
 
 static bool __maybe_unused valid_decprot_id(unsigned int id)
@@ -295,7 +295,7 @@ static void init_device_from_hw_config(struct etzpc_instance *dev,
 
 	assert(!dev->base.pa && cpu_mmu_enabled());
 	dev->base.pa = pbase;
-	dev->base.va = (vaddr_t)phys_to_virt(dev->base.pa, MEM_AREA_IO_SEC);
+	dev->base.va = (vaddr_t)phys_to_virt(dev->base.pa, MEM_AREA_IO_SEC, 1);
 	assert(etzpc_base());
 
 	get_hwcfg(&hwcfg);

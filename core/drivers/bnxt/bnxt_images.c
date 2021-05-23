@@ -97,8 +97,9 @@ int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type,
 		set_bnxt_images_info(bnxt_info, chip_type,
 				     ddr_dest + BNXT_IMG_SECMEM_OFFSET, 0);
 	} else {
-		flash_dev_vaddr = (vaddr_t)phys_to_virt(QSPI_BNXT_IMG,
-							MEM_AREA_IO_NSEC);
+		flash_dev_vaddr = (vaddr_t)
+			phys_to_virt(QSPI_BNXT_IMG, MEM_AREA_IO_NSEC,
+				     sizeof(struct bnxt_img_header));
 
 		if (verify_header(flash_dev_vaddr) != BNXT_SUCCESS) {
 			EMSG("failed to load fw images");
@@ -108,7 +109,8 @@ int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type,
 		DMSG("Images loading from flash memory");
 		bnxt_info->bnxt_bspd_cfg_vaddr =
 				(vaddr_t)phys_to_virt(QSPI_BSPD_ADDR,
-						      MEM_AREA_IO_NSEC);
+						      MEM_AREA_IO_NSEC,
+						      BNXT_BSPD_CFG_LEN);
 		memcpy((void *)ddr_dest, (void *)bnxt_info->bnxt_bspd_cfg_vaddr,
 		       BNXT_BSPD_CFG_LEN);
 

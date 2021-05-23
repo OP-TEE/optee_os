@@ -42,6 +42,7 @@
 #define UART_STATUS_REG		0x0c
 #define UART_BAUD_REG		0x10
 #define UART_POSSR_REG		0x14
+#define UART_SIZE		0x18
 
 /* Line Status Register bits */
 #define UARTLSR_TXFIFOFULL	(1 << 11)       /* Tx Fifo Full */
@@ -58,7 +59,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct mvebu_uart_data *pd =
 		container_of(chip, struct mvebu_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, UART_SIZE);
 }
 
 static void mvebu_uart_flush(struct serial_chip *chip)
@@ -123,7 +124,7 @@ void mvebu_uart_init(struct mvebu_uart_data *pd, paddr_t pbase,
 	pd->base.pa = pbase;
 	pd->chip.ops = &mvebu_uart_ops;
 
-	base = io_pa_or_va(&pd->base);
+	base = io_pa_or_va(&pd->base, UART_SIZE);
 
 	dll = (uart_clk / (baud_rate << 4)) & 0x3FF;
 

@@ -47,7 +47,8 @@ uint32_t psci_version(void)
 
 void psci_system_reset(void)
 {
-	vaddr_t sysctrl = core_mmu_get_va(SYS_CTRL_BASE, MEM_AREA_IO_SEC);
+	vaddr_t sysctrl = core_mmu_get_va(SYS_CTRL_BASE, MEM_AREA_IO_SEC,
+					  SYS_CTRL_SIZE);
 
 	if (!sysctrl) {
 		EMSG("no sysctrl mapping, hang here");
@@ -63,8 +64,10 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 {
 	uint32_t val = 0;
 	size_t pos = get_core_pos_mpidr(core_idx);
-	vaddr_t bootsram = core_mmu_get_va(BOOTSRAM_BASE, MEM_AREA_IO_SEC);
-	vaddr_t crg = core_mmu_get_va(CPU_CRG_BASE, MEM_AREA_IO_SEC);
+	vaddr_t bootsram = core_mmu_get_va(BOOTSRAM_BASE, MEM_AREA_IO_SEC,
+					   BOOTSRAM_SIZE);
+	vaddr_t crg = core_mmu_get_va(CPU_CRG_BASE, MEM_AREA_IO_SEC,
+				      CPU_CRG_SIZE);
 
 	if (!bootsram || !crg) {
 		EMSG("No bootsram or crg mapping");

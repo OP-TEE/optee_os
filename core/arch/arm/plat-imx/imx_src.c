@@ -10,7 +10,7 @@
 
 uint32_t imx_get_src_gpr(int cpu)
 {
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (soc_is_imx7ds())
 		return io_read32(va + SRC_GPR1_MX7 + cpu * 8 + 4);
@@ -20,7 +20,7 @@ uint32_t imx_get_src_gpr(int cpu)
 
 void imx_set_src_gpr(int cpu, uint32_t val)
 {
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (soc_is_imx7ds())
 		io_write32(va + SRC_GPR1_MX7 + cpu * 8 + 4, val);

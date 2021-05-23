@@ -199,7 +199,8 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	}
 
 	prtn->tables_va = phys_to_virt(tee_mm_get_smem(prtn->tables),
-				      MEM_AREA_SEC_RAM_OVERALL);
+				      MEM_AREA_SEC_RAM_OVERALL,
+				      core_mmu_get_total_pages_size());
 	assert(prtn->tables_va);
 
 	prtn->mmu_prtn = core_alloc_mmu_prtn(prtn->tables_va);
@@ -226,7 +227,8 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 
 	/* copy .data section from R/O original */
 	memcpy(__data_start,
-	       phys_to_virt(original_data_pa, MEM_AREA_SEC_RAM_OVERALL),
+	       phys_to_virt(original_data_pa, MEM_AREA_SEC_RAM_OVERALL,
+			    __data_end - __data_start),
 	       __data_end - __data_start);
 
 	return 0;
@@ -388,6 +390,7 @@ void virt_get_ta_ram(vaddr_t *start, vaddr_t *end)
 	struct guest_partition *prtn = get_current_prtn();
 
 	*start = (vaddr_t)phys_to_virt(tee_mm_get_smem(prtn->ta_ram),
-				       MEM_AREA_TA_RAM);
+				       MEM_AREA_TA_RAM,
+				       tee_mm_get_bytes(prtn->ta_ram));
 	*end = *start + tee_mm_get_bytes(prtn->ta_ram);
 }

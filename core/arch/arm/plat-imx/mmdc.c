@@ -17,16 +17,19 @@
 
 int imx_get_ddr_type(void)
 {
-	uint32_t val, off;
+	uint32_t val = 0;
+	uint32_t off = 0;
 	bool is_mx7 = soc_is_imx7ds();
-	vaddr_t mmdc_base = core_mmu_get_va(MMDC_P0_BASE, MEM_AREA_IO_SEC);
+	vaddr_t mmdc_base = 0;
 
 	if (is_mx7)
 		off = DDRC_MSTR;
 	else
 		off = MMDC_MDMISC;
 
-	val =  io_read32(mmdc_base + off);
+	mmdc_base = core_mmu_get_va(MMDC_P0_BASE, MEM_AREA_IO_SEC,
+				    off + sizeof(uint32_t));
+	val = io_read32(mmdc_base + off);
 
 	if (is_mx7) {
 		if (val & MSTR_DDR3)

@@ -516,7 +516,8 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 		core_mmu_set_info_table(tbl_info, 1, 0, tbl);
 	} else {
 		paddr_t ntbl = tbl[n] & ~((1 << 10) - 1);
-		void *l2tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
+		void *l2tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA,
+					   L2_TBL_SIZE);
 
 		if (!l2tbl)
 			return false;

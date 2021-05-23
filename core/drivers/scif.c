@@ -50,7 +50,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct scif_uart_data *pd =
 		container_of(chip, struct scif_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, SCIF_REG_SIZE);
 }
 
 static void scif_uart_flush(struct serial_chip *chip)
@@ -86,7 +86,7 @@ void scif_uart_init(struct scif_uart_data *pd, paddr_t pbase)
 	pd->base.pa = pbase;
 	pd->chip.ops = &scif_uart_ops;
 
-	base = io_pa_or_va(&pd->base);
+	base = io_pa_or_va(&pd->base, SCIF_REG_SIZE);
 
 	/* Set Transmit Enable in Control register */
 	io_setbits16(base + SCIF_SCSCR, SCSCR_TE);

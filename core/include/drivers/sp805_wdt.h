@@ -16,6 +16,7 @@
 #define WDT_CONTROL_OFFSET	0x008
 #define WDT_INTCLR_OFFSET	0x00c
 #define WDT_LOCK_OFFSET		0xc00
+#define WDT_SIZE		0xc04
 
 /* Magic word to unlock the wd registers */
 #define WDT_UNLOCK_KEY		0x1ACCE551

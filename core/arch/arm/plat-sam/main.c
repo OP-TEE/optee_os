@@ -63,7 +63,7 @@ static vaddr_t sfr_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC, 1);
 		return (vaddr_t)va;
 	}
 	return SFR_BASE;
@@ -85,7 +85,7 @@ vaddr_t pl310_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC, 1);
 		return (vaddr_t)va;
 	}
 	return PL310_BASE;
@@ -120,7 +120,8 @@ vaddr_t matrix32_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(AT91C_BASE_MATRIX32, MEM_AREA_IO_SEC);
+			va = phys_to_virt(AT91C_BASE_MATRIX32, MEM_AREA_IO_SEC,
+					  1);
 		return (vaddr_t)va;
 	}
 	return AT91C_BASE_MATRIX32;
@@ -132,7 +133,8 @@ vaddr_t matrix64_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(AT91C_BASE_MATRIX64, MEM_AREA_IO_SEC);
+			va = phys_to_virt(AT91C_BASE_MATRIX64, MEM_AREA_IO_SEC,
+					  1);
 		return (vaddr_t)va;
 	}
 	return AT91C_BASE_MATRIX64;

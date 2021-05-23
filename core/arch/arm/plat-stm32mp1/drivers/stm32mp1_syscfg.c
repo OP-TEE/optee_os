@@ -39,7 +39,7 @@ static vaddr_t get_syscfg_base(void)
 {
 	struct io_pa_va base = { .pa = SYSCFG_BASE };
 
-	return io_pa_or_va(&base);
+	return io_pa_or_va(&base, 1);
 }
 
 void stm32mp_syscfg_enable_io_compensation(void)

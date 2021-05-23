@@ -103,7 +103,8 @@ void console_init(void)
 #ifdef SUNXI_TZPC_BASE
 static void tzpc_init(void)
 {
-	vaddr_t v = (vaddr_t)phys_to_virt(SUNXI_TZPC_BASE, MEM_AREA_IO_SEC);
+	vaddr_t v = (vaddr_t)phys_to_virt(SUNXI_TZPC_BASE, MEM_AREA_IO_SEC,
+					  SUNXI_TZPC_REG_SIZE);
 
 	DMSG("SMTA_DECPORT0=%x", io_read32(v + REG_TZPC_SMTA_DECPORT0_STA_REG));
 	DMSG("SMTA_DECPORT1=%x", io_read32(v + REG_TZPC_SMTA_DECPORT1_STA_REG));
@@ -130,8 +131,8 @@ void main_init_gic(void)
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
-	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC);
-	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC);
+	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC, 1);
+	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC, 1);
 
 	if (!gicc_base || !gicd_base)
 		panic();
@@ -163,7 +164,8 @@ void plat_primary_init_early(void)
 #ifdef CFG_TZC380
 vaddr_t smc_base(void)
 {
-	return (vaddr_t)phys_to_virt(SUNXI_SMC_BASE, MEM_AREA_IO_SEC);
+	return (vaddr_t)phys_to_virt(SUNXI_SMC_BASE, MEM_AREA_IO_SEC,
+				     TZC400_REG_SIZE);
 }
 
 static TEE_Result smc_init(void)

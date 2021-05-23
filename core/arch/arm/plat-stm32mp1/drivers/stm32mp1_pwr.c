@@ -45,7 +45,7 @@ vaddr_t stm32_pwr_base(void)
 {
 	static struct io_pa_va base = { .pa = PWR_BASE };
 
-	return io_pa_or_va_secure(&base);
+	return io_pa_or_va_secure(&base, 1);
 }
 
 unsigned int stm32mp1_pwr_regulator_mv(enum pwr_regulator id)

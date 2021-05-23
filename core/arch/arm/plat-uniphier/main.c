@@ -42,9 +42,9 @@ void main_init_gic(void)
 	vaddr_t gicc_base, gicd_base;
 
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, CORE_MMU_PGDIR_SIZE);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, CORE_MMU_PGDIR_SIZE);
 
 	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
 	itr_init(&gic_data.chip);

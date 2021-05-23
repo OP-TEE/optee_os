@@ -61,7 +61,8 @@ static const struct dcp_hashalg hash_alg[2] = {
  */
 static void dcp_clk_enable(bool enable)
 {
-	vaddr_t ccm_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC);
+	vaddr_t ccm_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC,
+					   CCM_CCGR0 + sizeof(uint32_t));
 	uint32_t clock_except = cpu_spin_lock_xsave(&clock_spinlock);
 
 	if (enable) {
@@ -718,7 +719,8 @@ TEE_Result dcp_init(void)
 	if (ret != TEE_SUCCESS)
 		pbase = DCP_BASE;
 
-	dcp_base = core_mmu_get_va(pbase, MEM_AREA_IO_SEC);
+	dcp_base = core_mmu_get_va(pbase, MEM_AREA_IO_SEC, DCP_CONTEXT +
+				   sizeof(uint32_t));
 	if (!dcp_base) {
 		EMSG("Unable to get DCP physical address");
 		return TEE_ERROR_ITEM_NOT_FOUND;

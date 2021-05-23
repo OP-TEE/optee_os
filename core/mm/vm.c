@@ -1181,7 +1181,7 @@ TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa)
 	return tee_mmu_user_va2pa_attr(uctx, ua, pa, NULL);
 }
 
-void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa)
+void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, size_t pa_size)
 {
 	paddr_t p = 0;
 	struct vm_region *region = NULL;
@@ -1214,7 +1214,7 @@ void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa)
 			if (mobj_get_pa(region->mobj, ofs, granule, &p))
 				continue;
 
-			if (core_is_buffer_inside(pa, 1, p, size)) {
+			if (core_is_buffer_inside(pa, pa_size, p, size)) {
 				/* Remove region offset (mobj phys offset) */
 				ofs -= region->offset;
 				/* Get offset-in-granule */

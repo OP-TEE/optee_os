@@ -520,7 +520,7 @@ static bool initialize_pmic_i2c(void)
 
 	/* Initialize PMIC I2C */
 	i2c->base.pa = i2c_info.reg;
-	i2c->base.va = (vaddr_t)phys_to_virt(i2c->base.pa, MEM_AREA_IO_SEC);
+	i2c->base.va = (vaddr_t)phys_to_virt(i2c->base.pa, MEM_AREA_IO_SEC, 1);
 	assert(i2c->base.va);
 	i2c->dt_status = i2c_info.status;
 	i2c->clock = i2c_info.clock;

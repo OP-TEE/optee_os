@@ -35,6 +35,7 @@
 #define UART_TXD		0x0000
 #define UART_RXD		0x0004
 #define UART_STS1		0x000C /* data number in TX and RX fifo */
+#define UART_SIZE		0x0010
 
 /* Register Bit Fields*/
 #define STS1_RXF_CNT_MASK	0x00ff  /* Rx FIFO data counter mask */
@@ -45,7 +46,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct sprd_uart_data *pd =
 		container_of(chip, struct sprd_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, UART_SIZE);
 }
 
 static void sprd_uart_flush(struct serial_chip *chip)

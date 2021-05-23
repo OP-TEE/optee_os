@@ -34,8 +34,8 @@ void main_init_gic(void)
 	vaddr_t gicc_base = 0;
 	vaddr_t gicd_base = 0;
 
-	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC);
-	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC);
+	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC, 1);
+	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC, 1);
 	if (!gicc_base || !gicd_base)
 		panic();
 
@@ -54,8 +54,10 @@ static TEE_Result rzn1_tz_init(void)
 	vaddr_t tza_init_reg = 0;
 	vaddr_t tza_targ_reg = 0;
 
-	tza_init_reg = core_mmu_get_va(FW_STATIC_TZA_INIT, MEM_AREA_IO_SEC);
-	tza_targ_reg = core_mmu_get_va(FW_STATIC_TZA_TARG, MEM_AREA_IO_SEC);
+	tza_init_reg = core_mmu_get_va(FW_STATIC_TZA_INIT, MEM_AREA_IO_SEC,
+				       sizeof(uint32_t));
+	tza_targ_reg = core_mmu_get_va(FW_STATIC_TZA_TARG, MEM_AREA_IO_SEC,
+				       sizeof(uint32_t));
 
 	/* TZ initiator ports */
 	io_write32(tza_init_reg, TZ_INIT_CSA_SEC | TZ_INIT_YS_SEC |

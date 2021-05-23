@@ -100,14 +100,16 @@ int pm_imx7_iram_tbl_init(void)
 
 	iram_tbl_phys_addr = TRUSTZONE_OCRAM_START + 16 * 1024;
 	iram_tbl_virt_addr = phys_to_virt(iram_tbl_phys_addr,
-					  MEM_AREA_TEE_COHERENT);
+					  MEM_AREA_TEE_COHERENT,
+					  16 * 1024);
 
 	/* 16KB */
 	memset(iram_tbl_virt_addr, 0, 16 * 1024);
 
 	for (i = 0; i < ARRAY_SIZE(phys_addr); i++) {
 		map.pa = phys_addr[i];
-		map.va = (vaddr_t)phys_to_virt(phys_addr[i], MEM_AREA_IO_SEC);
+		map.va = (vaddr_t)phys_to_virt(phys_addr[i], MEM_AREA_IO_SEC,
+					       AIPS1_SIZE);
 		map.region_size = CORE_MMU_PGDIR_SIZE;
 		map.size = AIPS1_SIZE; /* 4M for AIPS1/2/3 */
 		map.type = MEM_AREA_IO_SEC;
@@ -119,7 +121,8 @@ int pm_imx7_iram_tbl_init(void)
 
 	/* Note IRAM_S_BASE is not 1M aligned, so take care */
 	map.pa = ROUNDDOWN(IRAM_S_BASE, CORE_MMU_PGDIR_SIZE);
-	map.va = (vaddr_t)phys_to_virt(map.pa, MEM_AREA_TEE_COHERENT);
+	map.va = (vaddr_t)phys_to_virt(map.pa, MEM_AREA_TEE_COHERENT,
+				       CORE_MMU_PGDIR_SIZE);
 	map.region_size = CORE_MMU_PGDIR_SIZE;
 	map.size = CORE_MMU_PGDIR_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
@@ -127,7 +130,7 @@ int pm_imx7_iram_tbl_init(void)
 	map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
 
 	map.pa = GIC_BASE;
-	map.va = (vaddr_t)phys_to_virt((paddr_t)GIC_BASE, MEM_AREA_IO_SEC);
+	map.va = (vaddr_t)phys_to_virt((paddr_t)GIC_BASE, MEM_AREA_IO_SEC, 1);
 	map.region_size = CORE_MMU_PGDIR_SIZE;
 	map.size = CORE_MMU_PGDIR_SIZE;
 	map.type = MEM_AREA_TEE_COHERENT;
@@ -142,9 +145,10 @@ int imx7_suspend_init(void)
 	uint32_t i;
 	uint32_t (*ddrc_offset_array)[2];
 	uint32_t (*ddrc_phy_offset_array)[2];
-	uint32_t suspend_ocram_base = core_mmu_get_va(TRUSTZONE_OCRAM_START +
-						      SUSPEND_OCRAM_OFFSET,
-						      MEM_AREA_TEE_COHERENT);
+	uint32_t suspend_ocram_base =
+		core_mmu_get_va(TRUSTZONE_OCRAM_START + SUSPEND_OCRAM_OFFSET,
+				MEM_AREA_TEE_COHERENT,
+				sizeof(struct imx7_pm_info));
 	struct imx7_pm_info *p = (struct imx7_pm_info *)suspend_ocram_base;
 	struct imx7_pm_data *pm_data;
 
@@ -155,26 +159,27 @@ int imx7_suspend_init(void)
 	p->pa_base = TRUSTZONE_OCRAM_START + SUSPEND_OCRAM_OFFSET;
 	p->tee_resume = virt_to_phys((void *)(vaddr_t)ca7_cpu_resume);
 	p->pm_info_size = sizeof(*p);
-	p->ccm_va_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC);
+	p->ccm_va_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC, 1);
 	p->ccm_pa_base = CCM_BASE;
-	p->ddrc_va_base = core_mmu_get_va(DDRC_BASE, MEM_AREA_IO_SEC);
+	p->ddrc_va_base = core_mmu_get_va(DDRC_BASE, MEM_AREA_IO_SEC, 1);
 	p->ddrc_pa_base = DDRC_BASE;
-	p->ddrc_phy_va_base = core_mmu_get_va(DDRC_PHY_BASE, MEM_AREA_IO_SEC);
+	p->ddrc_phy_va_base = core_mmu_get_va(DDRC_PHY_BASE, MEM_AREA_IO_SEC,
+					      1);
 	p->ddrc_phy_pa_base = DDRC_PHY_BASE;
-	p->src_va_base = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	p->src_va_base = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 	p->src_pa_base = SRC_BASE;
 	p->iomuxc_gpr_va_base = core_mmu_get_va(IOMUXC_GPR_BASE,
-						MEM_AREA_IO_SEC);
+						MEM_AREA_IO_SEC, 1);
 	p->iomuxc_gpr_pa_base = IOMUXC_GPR_BASE;
-	p->gpc_va_base = core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC);
+	p->gpc_va_base = core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC, 1);
 	p->gpc_pa_base = GPC_BASE;
-	p->anatop_va_base = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
+	p->anatop_va_base = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC, 1);
 	p->anatop_pa_base = ANATOP_BASE;
-	p->snvs_va_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
+	p->snvs_va_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC, 1);
 	p->snvs_pa_base = SNVS_BASE;
-	p->lpsr_va_base = core_mmu_get_va(LPSR_BASE, MEM_AREA_IO_SEC);
+	p->lpsr_va_base = core_mmu_get_va(LPSR_BASE, MEM_AREA_IO_SEC, 1);
 	p->lpsr_pa_base = LPSR_BASE;
-	p->gic_va_base = core_mmu_get_va(GIC_BASE, MEM_AREA_IO_SEC);
+	p->gic_va_base = core_mmu_get_va(GIC_BASE, MEM_AREA_IO_SEC, 1);
 	p->gic_pa_base = GIC_BASE;
 
 	/* TODO:lpsr disabled now */

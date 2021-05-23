@@ -11,7 +11,7 @@
 
 void caam_hal_clk_enable(bool enable)
 {
-	vaddr_t ccm_base = (vaddr_t)phys_to_virt(CCM_BASE, MEM_AREA_IO_SEC);
+	vaddr_t ccm_base = (vaddr_t)phys_to_virt(CCM_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (enable) {
 		io_caam_write32(ccm_base + CCM_CCGRx_SET(CCM_CLOCK_DOMAIN_CAAM),

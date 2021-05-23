@@ -64,7 +64,7 @@ static bool tzc_region_is_secure(unsigned int i, vaddr_t base, size_t size)
 
 static TEE_Result init_stm32mp1_tzc(void)
 {
-	void *base = phys_to_virt(TZC_BASE, MEM_AREA_IO_SEC);
+	void *base = phys_to_virt(TZC_BASE, MEM_AREA_IO_SEC, 1);
 	unsigned int region_index = 1;
 	const uint64_t dram_start = DDR_BASE;
 	const uint64_t dram_end = dram_start + CFG_DRAM_SIZE;

@@ -30,8 +30,10 @@ void main_init_gic(void)
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
-	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC);
-	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC);
+	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC,
+					  GICC_SIZE);
+	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC,
+					  GICD_SIZE);
 
 	if (!gicc_base || !gicd_base)
 		panic();

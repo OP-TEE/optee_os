@@ -21,7 +21,7 @@
 /* Override weak plat_rng_init with platform handler to seed PRNG */
 void plat_rng_init(void)
 {
-	vaddr_t rng = (vaddr_t)phys_to_virt(RNG1_BASE, MEM_AREA_IO_SEC);
+	vaddr_t rng = (vaddr_t)phys_to_virt(RNG1_BASE, MEM_AREA_IO_SEC, 1);
 	vaddr_t rcc = stm32_rcc_base();
 	uint64_t timeout_ref = timeout_init_us(RNG1_RESET_TIMEOUT_US);
 	uint8_t seed[PRNG_SEED_SIZE] = { };

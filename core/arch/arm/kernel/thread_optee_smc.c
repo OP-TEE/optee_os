@@ -104,7 +104,8 @@ static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	struct optee_msg_arg *arg;
 	size_t args_size;
 
-	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM);
+	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM,
+			   sizeof(struct optee_msg_arg));
 	if (!arg)
 		return NULL;
 

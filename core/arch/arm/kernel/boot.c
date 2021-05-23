@@ -441,7 +441,8 @@ static void init_runtime(unsigned long pageable_part)
 
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, pageable_size);
 	assert(mm);
-	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM);
+	paged_store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM,
+				   pageable_size);
 	/*
 	 * Load pageable part in the dedicated allocated area:
 	 * - Move pageable non-init part into pageable area. Note bootloader
@@ -450,7 +451,8 @@ static void init_runtime(unsigned long pageable_part)
 	 */
 	memmove(paged_store + init_size,
 		phys_to_virt(pageable_part,
-			     core_mmu_get_type_by_pa(pageable_part)),
+			     core_mmu_get_type_by_pa(pageable_part),
+			     __pageable_part_end - __pageable_part_start),
 		__pageable_part_end - __pageable_part_start);
 	asan_memcpy_unchecked(paged_store, __init_start, init_size);
 	/*

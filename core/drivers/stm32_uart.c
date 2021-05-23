@@ -48,7 +48,7 @@ static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 
 	pd = container_of(chip, struct stm32_uart_pdata, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, 1);
 }
 
 static void loc_flush(struct serial_chip *chip)
@@ -153,7 +153,7 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	assert(cpu_mmu_enabled());
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
 					    pd->secure ? MEM_AREA_IO_SEC :
-					    MEM_AREA_IO_NSEC);
+					    MEM_AREA_IO_NSEC, 1);
 
 	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
 	if (count < 0)

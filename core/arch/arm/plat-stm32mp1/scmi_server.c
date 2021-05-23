@@ -817,7 +817,7 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 
 		/* Enforce non-secure shm mapped as device memory */
 		chan->shm_addr.va = (vaddr_t)phys_to_virt(chan->shm_addr.pa,
-							  MEM_AREA_IO_NSEC);
+							  MEM_AREA_IO_NSEC, 1);
 		assert(chan->shm_addr.va);
 
 		scmi_smt_init_agent_channel(chan);

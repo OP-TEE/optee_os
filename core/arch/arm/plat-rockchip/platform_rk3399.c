@@ -17,7 +17,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SGRF_BASE, SGRF_SIZE);
 
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 {
-	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE);
+	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE, SGRF_SIZE);
 	paddr_t ed = st + sz;
 	uint32_t st_mb = st / SIZE_M(1);
 	uint32_t ed_mb = ed / SIZE_M(1);

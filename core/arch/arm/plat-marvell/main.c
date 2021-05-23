@@ -80,12 +80,12 @@ void main_init_gic(void)
 
 #ifdef GICC_BASE
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 	if (!gicc_base)
 		panic();
 #endif
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 	if (!gicd_base)
 		panic();
 
@@ -120,7 +120,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	void *huk = phys_to_virt(PLAT_MARVELL_FUSF_FUSE_BASE +
 				 PLAT_MARVELL_FUSF_HUK_OFFSET,
-				 MEM_AREA_IO_SEC);
+				 MEM_AREA_IO_SEC, sizeof(hwkey->data));
 	if (!huk) {
 		EMSG("\nH/W Unique key is not fetched from the platform.");
 		return TEE_ERROR_SECURITY;

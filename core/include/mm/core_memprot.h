@@ -67,17 +67,22 @@ bool core_pbuf_is(uint32_t flags, paddr_t pbuf, size_t len);
 bool core_vbuf_is(uint32_t flags, const void *vbuf, size_t len);
 
 /*
- * Translate physical address to virtual address using specified mapping
+ * Translate physical address to virtual address using specified mapping.
+ * Also tries to find proper mapping which have counterpart translation
+ * for specified length of data starting from given physical address.
+ * Len parameter can be set to 1 if caller knows that requested (pa + len)
+ * doesn`t cross mapping granule boundary.
  * Returns NULL on failure or a valid virtual address on success.
  */
-void *phys_to_virt(paddr_t pa, enum teecore_memtypes m);
+void *phys_to_virt(paddr_t pa, enum teecore_memtypes m, size_t len);
 
 /*
  * Translate physical address to virtual address trying MEM_AREA_IO_SEC
- * first then MEM_AREA_IO_NSEC if not found.
+ * first then MEM_AREA_IO_NSEC if not found. Like phys_to_virt() tries
+ * to find proper mapping relying on length parameter.
  * Returns NULL on failure or a valid virtual address on success.
  */
-void *phys_to_virt_io(paddr_t pa);
+void *phys_to_virt_io(paddr_t pa, size_t len);
 
 /*
  * Translate virtual address to physical address
@@ -87,9 +92,10 @@ paddr_t virt_to_phys(void *va);
 
 /*
  * Return runtime usable address, irrespective of whether
- * the MMU is enabled or not.
+ * the MMU is enabled or not. In case of MMU enabled also will be performed
+ * check for requested amount of data is present in found mapping.
  */
-vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type);
+vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type, size_t len);
 
 /* Return true if @va relates to a unpaged section else false */
 bool is_unpaged(void *va);
@@ -105,8 +111,8 @@ struct io_pa_va {
  * io_pa_or_va() uses secure mapped IO memory if found or fallback to
  * non-secure mapped IO memory.
  */
-vaddr_t io_pa_or_va_secure(struct io_pa_va *p);
-vaddr_t io_pa_or_va_nsec(struct io_pa_va *p);
-vaddr_t io_pa_or_va(struct io_pa_va *p);
+vaddr_t io_pa_or_va_secure(struct io_pa_va *p, size_t len);
+vaddr_t io_pa_or_va_nsec(struct io_pa_va *p, size_t len);
+vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len);
 
 #endif /* CORE_MEMPROT_H */

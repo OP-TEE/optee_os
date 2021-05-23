@@ -14,7 +14,8 @@
 
 enum snvs_security_cfg snvs_get_security_cfg(void)
 {
-	vaddr_t snvs = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
+	vaddr_t snvs = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
+				       SNVS_HPSR + sizeof(uint32_t));
 	uint32_t val = 0;
 
 	val = io_read32(snvs + SNVS_HPSR);
@@ -33,7 +34,8 @@ enum snvs_security_cfg snvs_get_security_cfg(void)
 
 enum snvs_ssm_mode snvs_get_ssm_mode(void)
 {
-	vaddr_t snvs = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
+	vaddr_t snvs = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
+				       SNVS_HPSR + sizeof(uint32_t));
 	uint32_t val = 0;
 
 	val = io_read32(snvs + SNVS_HPSR);

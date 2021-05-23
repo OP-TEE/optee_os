@@ -34,6 +34,7 @@
 #define I2C_PECR			0x20U
 #define I2C_RXDR			0x24U
 #define I2C_TXDR			0x28U
+#define I2C_SIZE			0x2CU
 
 /* Bit definition for I2C_CR1 register */
 #define I2C_CR1_PE			BIT(0)
@@ -289,7 +290,7 @@ struct i2c_request {
 
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
-	return io_pa_or_va_secure(&hi2c->base);
+	return io_pa_or_va_secure(&hi2c->base, I2C_SIZE);
 }
 
 static void notif_i2c_timeout(struct i2c_handle_s *hi2c)
