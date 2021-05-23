@@ -32,7 +32,8 @@ static void imx_digproc(void)
 #elif defined(CFG_MX8QM)
 	digprog = SOC_MX8QM << 16;
 #else
-	anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
+	anatop_addr = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC,
+				      DIGPROG_OFFSET + sizeof(uint32_t));
 
 	if (!anatop_addr)
 		return;

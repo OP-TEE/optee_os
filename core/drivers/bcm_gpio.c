@@ -160,8 +160,11 @@ void iproc_gpio_set_secure(int gpiopin)
 {
 	vaddr_t regaddr = 0;
 	unsigned int shift = IPROC_GPIO_SHIFT(gpiopin);
-	vaddr_t baseaddr = (vaddr_t)phys_to_virt(CHIP_SECURE_GPIO_CONTROL0_BASE,
-						 MEM_AREA_IO_SEC);
+	vaddr_t baseaddr =
+		(vaddr_t)phys_to_virt(CHIP_SECURE_GPIO_CONTROL0_BASE,
+				      MEM_AREA_IO_SEC,
+				      IPROC_GPIO_SEC_CFG_REG(gpiopin) +
+				      sizeof(uint32_t));
 
 	regaddr = baseaddr + IPROC_GPIO_SEC_CFG_REG(gpiopin);
 
@@ -173,7 +176,7 @@ static void iproc_gpio_init(struct bcm_gpio_chip *gc, unsigned int paddr,
 {
 	assert(!gpio_is_range_overlap(gpio_base, gpio_base + gc->ngpios));
 
-	gc->base = core_mmu_get_va(paddr, MEM_AREA_IO_SEC);
+	gc->base = core_mmu_get_va(paddr, MEM_AREA_IO_SEC, 1);
 	gc->chip.ops = &bcm_gpio_ops;
 	gc->gpio_base = gpio_base;
 	gc->ngpios = ngpios;

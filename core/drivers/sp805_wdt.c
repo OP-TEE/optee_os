@@ -17,7 +17,7 @@ static vaddr_t chip_to_base(struct wdt_chip *chip)
 	struct sp805_wdt_data *pd =
 		container_of(chip, struct sp805_wdt_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, WDT_SIZE);
 }
 
 static TEE_Result sp805_setload(struct wdt_chip *chip, unsigned long timeout)

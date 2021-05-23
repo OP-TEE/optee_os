@@ -124,7 +124,7 @@ TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out, size_t *size)
 
 static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 {
-	vaddr_t rng_cr = io_pa_or_va(&dev->base) + RNG_CR;
+	vaddr_t rng_cr = io_pa_or_va(&dev->base, 1) + RNG_CR;
 	uint32_t exceptions = may_spin_lock(&dev->lock);
 
 	if (enable) {
@@ -149,7 +149,7 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 {
 	TEE_Result rc = 0;
 	uint32_t exceptions = 0;
-	vaddr_t rng_base = io_pa_or_va(&stm32_rng->base);
+	vaddr_t rng_base = io_pa_or_va(&stm32_rng->base, 1);
 	uint8_t *out_ptr = out;
 	size_t out_size = 0;
 
@@ -228,7 +228,8 @@ static TEE_Result stm32_rng_init(void)
 		}
 
 		stm32_rng->base.pa = dt_info.reg;
-		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype);
+		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype,
+							   1);
 
 		stm32_rng->clock = (unsigned long)dt_info.clock;
 

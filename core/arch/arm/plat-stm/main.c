@@ -90,7 +90,7 @@ vaddr_t pl310_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC, 1);
 		return (vaddr_t)va;
 	}
 	return PL310_BASE;
@@ -138,8 +138,8 @@ void main_init_gic(void)
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
-	gicc_base = (vaddr_t)phys_to_virt(GIC_CPU_BASE, MEM_AREA_IO_SEC);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_DIST_BASE, MEM_AREA_IO_SEC);
+	gicc_base = (vaddr_t)phys_to_virt(GIC_CPU_BASE, MEM_AREA_IO_SEC, 1);
+	gicd_base = (vaddr_t)phys_to_virt(GIC_DIST_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (!gicc_base || !gicd_base)
 		panic();

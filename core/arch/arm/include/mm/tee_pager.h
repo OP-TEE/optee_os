@@ -36,10 +36,11 @@ bool tee_pager_get_table_info(vaddr_t va, struct core_mmu_table_info *ti);
  * tee_pager_phys_to_virt() - Translate physical address to virtual address
  * looking in the pager page tables
  * @pa:	address to translate
+ * @len: check for length is mapped linearly in CORE_MMU_PGDIR_SIZE range
  *
  * Returns found virtual address or NULL on error
  */
-void *tee_pager_phys_to_virt(paddr_t pa);
+void *tee_pager_phys_to_virt(paddr_t pa, size_t len);
 
 /*
  * tee_pager_set_alias_area() - Initialize pager alias area

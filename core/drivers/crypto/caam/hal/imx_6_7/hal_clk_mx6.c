@@ -11,7 +11,8 @@
 
 void caam_hal_clk_enable(bool enable)
 {
-	vaddr_t ccm_base = (vaddr_t)phys_to_virt(CCM_BASE, MEM_AREA_IO_SEC);
+	vaddr_t ccm_base = (vaddr_t)phys_to_virt(CCM_BASE, MEM_AREA_IO_SEC,
+						 CCM_SIZE);
 	uint32_t reg = 0;
 	uint32_t mask = 0;
 

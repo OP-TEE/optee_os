@@ -53,9 +53,12 @@ void console_init(void)
 void spi_init(void)
 {
 	uint32_t shifted_val, read_val;
-	vaddr_t peri_base = core_mmu_get_va(PERI_BASE, MEM_AREA_IO_NSEC);
-	vaddr_t pmx0_base = core_mmu_get_va(PMX0_BASE, MEM_AREA_IO_NSEC);
-	vaddr_t pmx1_base = core_mmu_get_va(PMX1_BASE, MEM_AREA_IO_NSEC);
+	vaddr_t peri_base = core_mmu_get_va(PERI_BASE, MEM_AREA_IO_NSEC,
+					    PERI_BASE_REG_SIZE);
+	vaddr_t pmx0_base = core_mmu_get_va(PMX0_BASE, MEM_AREA_IO_NSEC,
+					    PMX0_REG_SIZE);
+	vaddr_t pmx1_base = core_mmu_get_va(PMX1_BASE, MEM_AREA_IO_NSEC,
+					    PMX1_REG_SIZE);
 
 	DMSG("take SPI0 out of reset\n");
 	shifted_val = PERI_RST3_SSP;
@@ -118,7 +121,8 @@ void spi_init(void)
 
 static TEE_Result peripherals_init(void)
 {
-	vaddr_t pmussi_base = core_mmu_get_va(PMUSSI_BASE, MEM_AREA_IO_NSEC);
+	vaddr_t pmussi_base = core_mmu_get_va(PMUSSI_BASE, MEM_AREA_IO_NSEC,
+					      PMUSSI_REG_SIZE);
 
 	DMSG("enable LD021_1V8 source (pin 35) on LS connector\n");
 	/*

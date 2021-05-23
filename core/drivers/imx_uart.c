@@ -50,6 +50,7 @@
 #define UBMR  0xa8 /* BRM Modulator Register */
 #define UBRC  0xac /* Baud Rate Count Register */
 #define UTS   0xb4 /* UART Test Register (mx31) */
+#define USIZE 0xb8 /* UTS + sizeof(uint32_t) */
 
 /* UART Control Register Bit Fields.*/
 #define  URXD_CHARRDY    (1<<15)
@@ -87,7 +88,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct imx_uart_data *pd =
 		container_of(chip, struct imx_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, USIZE);
 }
 
 static void imx_uart_flush(struct serial_chip *chip)

@@ -96,6 +96,7 @@
 #define SCU_FILT_EA	U(0x44)
 #define SCU_SAC		U(0x50)
 #define SCU_NSAC	U(0x54)
+#define SCU_SIZE	U(0x58)
 #define SCU_ERRATA744369 U(0x30)
 
 #define SCU_ACCESS_CONTROL_CPU0		BIT32(0)

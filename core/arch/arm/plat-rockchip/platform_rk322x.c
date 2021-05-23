@@ -20,8 +20,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, DDRSGRF_BASE, DDRSGRF_SIZE);
 
 int platform_secure_init(void)
 {
-	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE);
-	vaddr_t ddrsgrf_base = (vaddr_t)phys_to_virt_io(DDRSGRF_BASE);
+	vaddr_t sgrf_base = (vaddr_t)phys_to_virt_io(SGRF_BASE, SGRF_SIZE);
+	vaddr_t ddrsgrf_base = (vaddr_t)phys_to_virt_io(DDRSGRF_BASE,
+							DDRSGRF_SIZE);
 
 	/* Set rgn0 non-secure */
 	io_write32(ddrsgrf_base + DDR_SGRF_DDR_CON(0), DDR_RGN0_NS);

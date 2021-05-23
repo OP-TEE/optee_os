@@ -37,7 +37,8 @@ int imx7d_cpuidle_init(void)
 	uint32_t lpm_idle_ocram_base =
 		core_mmu_get_va(TRUSTZONE_OCRAM_START +
 				LOWPOWER_IDLE_OCRAM_OFFSET,
-				MEM_AREA_TEE_COHERENT);
+				MEM_AREA_TEE_COHERENT,
+				sizeof(struct imx7_pm_info));
 	struct imx7_pm_info *p =
 		(struct imx7_pm_info *)lpm_idle_ocram_base;
 
@@ -49,20 +50,20 @@ int imx7d_cpuidle_init(void)
 	p->pa_base = TRUSTZONE_OCRAM_START + LOWPOWER_IDLE_OCRAM_OFFSET;
 	p->tee_resume = (paddr_t)virt_to_phys((void *)(vaddr_t)v7_cpu_resume);
 	p->pm_info_size = sizeof(*p);
-	p->ddrc_va_base = core_mmu_get_va(DDRC_BASE, MEM_AREA_IO_SEC);
+	p->ddrc_va_base = core_mmu_get_va(DDRC_BASE, MEM_AREA_IO_SEC, 1);
 	p->ddrc_pa_base = DDRC_BASE;
-	p->ccm_va_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC);
+	p->ccm_va_base = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC, 1);
 	p->ccm_pa_base = CCM_BASE;
-	p->anatop_va_base = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC);
+	p->anatop_va_base = core_mmu_get_va(ANATOP_BASE, MEM_AREA_IO_SEC, 1);
 	p->anatop_pa_base = ANATOP_BASE;
-	p->src_va_base = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	p->src_va_base = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 	p->src_pa_base = SRC_BASE;
 	p->iomuxc_gpr_va_base = core_mmu_get_va(IOMUXC_GPR_BASE,
-						MEM_AREA_IO_SEC);
+						MEM_AREA_IO_SEC, 1);
 	p->iomuxc_gpr_pa_base = IOMUXC_GPR_BASE;
-	p->gpc_va_base = core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC);
+	p->gpc_va_base = core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC, 1);
 	p->gpc_pa_base = GPC_BASE;
-	p->gic_va_base = core_mmu_get_va(GIC_BASE, MEM_AREA_IO_SEC);
+	p->gic_va_base = core_mmu_get_va(GIC_BASE, MEM_AREA_IO_SEC, 1);
 	p->gic_pa_base = GIC_BASE;
 
 	p->num_lpi_cpus = 0;
@@ -92,7 +93,8 @@ static void imx_pen_lock(uint32_t cpu)
 
 	cpuidle_ocram_base = core_mmu_get_va(TRUSTZONE_OCRAM_START +
 					     LOWPOWER_IDLE_OCRAM_OFFSET,
-					     MEM_AREA_TEE_COHERENT);
+					     MEM_AREA_TEE_COHERENT,
+					     sizeof(struct imx7_pm_info));
 	p = (struct imx7_pm_info *)cpuidle_ocram_base;
 
 	if (cpu == 0) {
@@ -123,7 +125,8 @@ static void imx_pen_unlock(int cpu)
 
 	cpuidle_ocram_base = core_mmu_get_va(TRUSTZONE_OCRAM_START +
 					     LOWPOWER_IDLE_OCRAM_OFFSET,
-					     MEM_AREA_TEE_COHERENT);
+					     MEM_AREA_TEE_COHERENT,
+					     sizeof(struct imx7_pm_info));
 	p = (struct imx7_pm_info *)cpuidle_ocram_base;
 
 	dsb();
@@ -136,7 +139,7 @@ static void imx_pen_unlock(int cpu)
 static uint32_t get_online_cpus(void)
 {
 	vaddr_t src_a7rcr1 = core_mmu_get_va(SRC_BASE + SRC_A7RCR1,
-					     MEM_AREA_IO_SEC);
+					     MEM_AREA_IO_SEC, sizeof(uint32_t));
 	uint32_t val = io_read32(src_a7rcr1);
 
 	return (val & (1 << SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET)) ? 2 : 1;
@@ -159,7 +162,8 @@ int imx7d_lowpower_idle(uint32_t power_state __unused,
 
 	cpuidle_ocram_base = core_mmu_get_va(TRUSTZONE_OCRAM_START +
 					     LOWPOWER_IDLE_OCRAM_OFFSET,
-					     MEM_AREA_TEE_COHERENT);
+					     MEM_AREA_TEE_COHERENT,
+					     sizeof(struct imx7_pm_info));
 	p = (struct imx7_pm_info *)cpuidle_ocram_base;
 
 	imx_pen_lock(cpu);

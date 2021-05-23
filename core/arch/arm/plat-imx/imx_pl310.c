@@ -55,7 +55,7 @@ void arm_cl2_enable(vaddr_t pl310_base)
 
 vaddr_t pl310_base(void)
 {
-	return core_mmu_get_va(PL310_BASE, MEM_AREA_IO_SEC);
+	return core_mmu_get_va(PL310_BASE, MEM_AREA_IO_SEC, 1);
 }
 
 #ifdef CFG_PL310_SIP_PROTOCOL

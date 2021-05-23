@@ -102,7 +102,7 @@ vaddr_t pl310_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(PL310_BASE, MEM_AREA_IO_SEC, 1);
 		return (vaddr_t)va;
 	}
 	return PL310_BASE;
@@ -148,9 +148,9 @@ void main_init_gic(void)
 	vaddr_t gicd_base;
 
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 
 	if (!gicc_base || !gicd_base)
 		panic();
@@ -183,7 +183,9 @@ static uint32_t write_slcr(uint32_t addr, uint32_t val)
 
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,
-							   MEM_AREA_IO_SEC);
+							   MEM_AREA_IO_SEC,
+							   addr +
+							   sizeof(uint32_t));
 			io_write32(va + addr, val);
 			return OPTEE_SMC_RETURN_OK;
 		}
@@ -202,7 +204,9 @@ static uint32_t read_slcr(uint32_t addr, uint32_t *val)
 
 			if (!va)
 				va = (vaddr_t)phys_to_virt(SLCR_BASE,
-							   MEM_AREA_IO_SEC);
+							   MEM_AREA_IO_SEC,
+							   addr +
+							   sizeof(uint32_t));
 			*val = io_read32(va + addr);
 			return OPTEE_SMC_RETURN_OK;
 		}

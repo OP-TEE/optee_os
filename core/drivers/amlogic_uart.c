@@ -15,6 +15,7 @@
 #define AML_UART_CONTROL	0x0008
 #define AML_UART_STATUS		0x000C
 #define AML_UART_MISC		0x0010
+#define AML_UART_SIZE		0x0014
 
 /* AML_UART_STATUS bits */
 #define AML_UART_RX_EMPTY	BIT(20)
@@ -26,7 +27,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct amlogic_uart_data *pd =
 		container_of(chip, struct amlogic_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, AML_UART_SIZE);
 }
 
 static void amlogic_uart_flush(struct serial_chip *chip)

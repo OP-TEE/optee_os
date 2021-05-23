@@ -69,9 +69,11 @@ int psci_features(uint32_t psci_fid)
 int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id)
 {
-	vaddr_t base = (vaddr_t)phys_to_virt(SUNXI_PRCM_BASE, MEM_AREA_IO_SEC);
+	vaddr_t base = (vaddr_t)phys_to_virt(SUNXI_PRCM_BASE, MEM_AREA_IO_SEC,
+					     SUNXI_PRCM_REG_SIZE);
 	vaddr_t cpucfg = (vaddr_t)phys_to_virt(SUNXI_CPUCFG_BASE,
-					       MEM_AREA_IO_SEC);
+					       MEM_AREA_IO_SEC,
+					       SUNXI_CPUCFG_REG_SIZE);
 	uint32_t tmpff;
 	uint32_t val;
 
@@ -130,9 +132,11 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 int __noreturn psci_cpu_off(void)
 {
 	uint32_t core_id;
-	vaddr_t base = (vaddr_t)phys_to_virt(SUNXI_PRCM_BASE, MEM_AREA_IO_SEC);
+	vaddr_t base = (vaddr_t)phys_to_virt(SUNXI_PRCM_BASE, MEM_AREA_IO_SEC,
+					     SUNXI_PRCM_REG_SIZE);
 	vaddr_t cpucfg = (vaddr_t)phys_to_virt(SUNXI_CPUCFG_BASE,
-					       MEM_AREA_IO_SEC);
+					       MEM_AREA_IO_SEC,
+					       SUNXI_CPUCFG_REG_SIZE);
 
 	core_id = get_core_pos();
 

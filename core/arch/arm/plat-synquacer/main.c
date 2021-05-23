@@ -45,7 +45,7 @@ void main_init_gic(void)
 	vaddr_t gicd_base;
 
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 
 	if (!gicd_base)
 		panic();

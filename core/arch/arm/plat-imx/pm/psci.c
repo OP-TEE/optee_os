@@ -56,7 +56,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id)
 {
 	uint32_t val;
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 
 	if (!va)
 		EMSG("No SRC mapping\n");
@@ -116,8 +116,9 @@ int __noreturn psci_cpu_off(void)
 int psci_affinity_info(uint32_t affinity,
 		       uint32_t lowest_affnity_level __unused)
 {
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC);
-	vaddr_t gpr5 = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC) +
+	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
+	vaddr_t gpr5 = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC,
+				       IOMUXC_GPR5_OFFSET + sizeof(uint32_t)) +
 				       IOMUXC_GPR5_OFFSET;
 	uint32_t cpu, val;
 	bool wfi;
@@ -165,7 +166,7 @@ int psci_affinity_info(uint32_t affinity,
 void __noreturn psci_system_off(void)
 {
 #ifndef CFG_MX7ULP
-	vaddr_t snvs_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC);
+	vaddr_t snvs_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC, 1);
 
 	io_write32(snvs_base + SNVS_LPCR_OFF,
 		   SNVS_LPCR_TOP_MASK |

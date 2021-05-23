@@ -63,7 +63,7 @@ static const uint32_t clks_gating_table[CRU_CLKGATE_CON_CNT] = {
 static void clks_disable(void)
 {
 	uint32_t i;
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	for (i = 0; i < CRU_CLKGATE_CON_CNT; i++) {
 		dram_d.cru_clkgate[i] = io_read32(va_base + CRU_CLKGATE_CON(i));
@@ -75,7 +75,7 @@ static void clks_disable(void)
 static void clks_restore(void)
 {
 	uint32_t i;
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	for (i = 0; i < CRU_CLKGATE_CON_CNT; i++)
 		io_write32(va_base + CRU_CLKGATE_CON(i),
@@ -84,7 +84,7 @@ static void clks_restore(void)
 
 static void pll_power_down(uint32_t pll)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	io_write32(va_base + CRU_MODE_CON, PLL_SLOW_MODE(pll));
 	io_write32(va_base + CRU_PLL_CON1(pll), PLL_POWER_DOWN);
@@ -92,7 +92,7 @@ static void pll_power_down(uint32_t pll)
 
 static void pll_power_up(uint32_t pll)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	io_write32(va_base + CRU_PLL_CON1(pll), PLL_POWER_UP);
 }
@@ -100,7 +100,7 @@ static void pll_power_up(uint32_t pll)
 static void pll_wait_lock(uint32_t pll)
 {
 	uint32_t loop = 0;
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	while (!(io_read32(va_base + CRU_PLL_CON1(pll)) & PLL_LOCK) &&
 	       (loop < 500)) {
@@ -120,7 +120,7 @@ static void pll_wait_lock(uint32_t pll)
  */
 static void plls_power_down(void)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	dram_d.cru_clksel0 = io_read32(va_base + CRU_CLKSEL_CON(0));
 	dram_d.cru_clksel1 = io_read32(va_base + CRU_CLKSEL_CON(1));
@@ -155,7 +155,7 @@ static void plls_power_down(void)
 
 static void plls_restore(void)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	/* power up plls */
 	pll_power_up(APLL_ID);
@@ -203,7 +203,7 @@ static void plls_restore(void)
 static bool wait_core_wfe_i(uint32_t core)
 {
 	uint32_t wfei_mask, loop = 0;
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE, GRF_SIZE);
 
 	wfei_mask = CORE_WFE_I_MASK(core);
 	while (!(io_read32(va_base + GRF_CPU_STATUS1) & wfei_mask) &&
@@ -218,7 +218,7 @@ static bool wait_core_wfe_i(uint32_t core)
 static bool core_held_in_reset(uint32_t core)
 {
 	uint32_t val;
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	val = io_read32(va_base + CRU_SOFTRST_CON(0));
 
@@ -249,8 +249,8 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 		uint32_t context_id)
 {
 	bool wfei;
-	vaddr_t cru_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
-	vaddr_t isram_base = (vaddr_t)phys_to_virt_io(ISRAM_BASE);
+	vaddr_t cru_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
+	vaddr_t isram_base = (vaddr_t)phys_to_virt_io(ISRAM_BASE, ISRAM_SIZE);
 
 	core_idx &= MPIDR_CPU_MASK;
 	if ((core_idx == 0) || (core_idx >= CFG_TEE_CORE_NB_CORE))
@@ -322,7 +322,7 @@ int psci_affinity_info(uint32_t affinity,
 {
 	uint32_t core_idx = affinity & MPIDR_CPU_MASK;
 	uint32_t wfi_mask = CORE_WFI_MASK(core_idx);
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(GRF_BASE, GRF_SIZE);
 
 	DMSG("core_id: %" PRIu32 " STATUS: %" PRIx32 " MASK: %" PRIx32,
 	     core_idx, io_read32(va_base + GRF_CPU_STATUS1), wfi_mask);
@@ -333,7 +333,7 @@ int psci_affinity_info(uint32_t affinity,
 
 void psci_system_reset(void)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	/* PLLs enter slow mode */
 	io_write32(va_base + CRU_MODE_CON, PLLS_SLOW_MODE);
@@ -366,7 +366,7 @@ int psci_system_suspend(uintptr_t entry __unused,
 /* When SMP bootup, we release cores one by one */
 static TEE_Result reset_nonboot_cores(void)
 {
-	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE);
+	vaddr_t va_base = (vaddr_t)phys_to_virt_io(CRU_BASE, CRU_SIZE);
 
 	io_write32(va_base + CRU_SOFTRST_CON(0), NONBOOT_CORES_SOFT_RESET);
 

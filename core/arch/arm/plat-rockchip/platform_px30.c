@@ -22,7 +22,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, FIREWALL_DDR_BASE, FIREWALL_DDR_SIZE);
 
 int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 {
-	vaddr_t fw_base = (vaddr_t)phys_to_virt_io(FIREWALL_DDR_BASE);
+	vaddr_t fw_base = (vaddr_t)phys_to_virt_io(FIREWALL_DDR_BASE,
+						   FIREWALL_DDR_SIZE);
 	paddr_t ed = st + sz;
 	uint32_t st_mb = st / SIZE_M(1);
 	uint32_t ed_mb = ed / SIZE_M(1);

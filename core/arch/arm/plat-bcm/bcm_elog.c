@@ -14,7 +14,7 @@ void bcm_elog_putchar(char ch)
 	uint32_t offset = 0, len = 0;
 	vaddr_t base = 0;
 
-	base = io_pa_or_va(&elog->base);
+	base = io_pa_or_va(&elog->base, elog->max_size);
 
 	offset = io_read32(base + BCM_ELOG_OFF_OFFSET);
 	len = io_read32(base + BCM_ELOG_LEN_OFFSET);
@@ -42,7 +42,7 @@ void bcm_elog_init(uintptr_t pa_base, uint32_t size)
 	elog->base.pa = pa_base;
 	elog->max_size = size;
 
-	base = io_pa_or_va(&elog->base);
+	base = io_pa_or_va(&elog->base, BCM_ELOG_HEADER_LEN);
 
 	/*
 	 * If a valid signature is found, it means logging is already

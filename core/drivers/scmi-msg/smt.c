@@ -82,7 +82,8 @@ static void channel_release_busy(struct scmi_msg_channel *chan)
 
 static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
 {
-	return (struct smt_header *)io_pa_or_va(&chan->shm_addr);
+	return (struct smt_header *)io_pa_or_va(&chan->shm_addr,
+						sizeof(struct smt_header));
 }
 
 /*

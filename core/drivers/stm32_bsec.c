@@ -153,7 +153,7 @@ static uint32_t otp_bank_offset(uint32_t otp_id)
 
 static vaddr_t bsec_base(void)
 {
-	return io_pa_or_va_secure(&bsec_dev.base);
+	return io_pa_or_va_secure(&bsec_dev.base, BSEC_IP_MAGIC_ID_OFF + 1);
 }
 
 static uint32_t bsec_status(void)

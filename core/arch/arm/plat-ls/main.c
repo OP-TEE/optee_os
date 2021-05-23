@@ -186,9 +186,9 @@ void main_init_gic(void)
 #endif
 
 	gicc_base = (vaddr_t)phys_to_virt(gic_base + gicc_offset,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 	gicd_base = (vaddr_t)phys_to_virt(gic_base + gicd_offset,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, 1);
 	if (!gicc_base || !gicd_base)
 		panic();
 

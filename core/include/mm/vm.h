@@ -87,7 +87,7 @@ TEE_Result vm_buf_to_mboj_offs(const struct user_mode_ctx *uctx,
 TEE_Result vm_va2pa(const struct user_mode_ctx *uctx, void *ua, paddr_t *pa);
 
 /* Helper function for phys_to_virt(), shouldn't be used directly elsewhere */
-void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa);
+void *vm_pa2va(const struct user_mode_ctx *uctx, paddr_t pa, size_t pa_size);
 
 /*
  * Return TEE_SUCCESS or TEE_ERROR_ACCESS_DENIED when buffer exists or return

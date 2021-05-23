@@ -700,11 +700,14 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 
 #ifdef CFG_VIRTUALIZATION
 		if (prtn == &default_partition)
-			tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
+			tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA,
+					   XLAT_TABLE_SIZE);
 		else
-			tbl = phys_to_virt(ntbl, MEM_AREA_SEC_RAM_OVERALL);
+			tbl = phys_to_virt(ntbl, MEM_AREA_SEC_RAM_OVERALL,
+					   XLAT_TABLE_SIZE);
 #else
-		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA);
+		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA,
+				   XLAT_TABLE_SIZE);
 #endif
 		if (!tbl)
 			goto out;

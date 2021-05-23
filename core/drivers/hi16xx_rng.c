@@ -39,8 +39,10 @@ static unsigned int rng_lock = SPINLOCK_UNLOCK;
 
 static TEE_Result hi16xx_rng_init(void)
 {
-	vaddr_t alg = (vaddr_t)phys_to_virt(ALG_SC_BASE, MEM_AREA_IO_SEC);
-	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC);
+	vaddr_t alg = (vaddr_t)phys_to_virt(ALG_SC_BASE, MEM_AREA_IO_SEC,
+					    ALG_SC_REG_SIZE);
+	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC,
+					    RNG_REG_SIZE);
 	TEE_Time time;
 
 	/* ALG sub-controller must allow RNG out of reset */
@@ -74,7 +76,8 @@ uint8_t hw_get_random_byte(void)
 	exceptions = cpu_spin_lock_xsave(&rng_lock);
 
 	if (!r)
-		r = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC) + RNG_NUM;
+		r = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, 1) +
+			RNG_NUM;
 
 	if (!pos)
 		random.val = io_read32(r);

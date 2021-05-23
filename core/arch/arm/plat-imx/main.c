@@ -120,7 +120,7 @@ void main_init_gic(void)
 #ifdef CFG_ARM_GICV3
 	vaddr_t gicd_base;
 
-	gicd_base = core_mmu_get_va(GICD_BASE, MEM_AREA_IO_SEC);
+	gicd_base = core_mmu_get_va(GICD_BASE, MEM_AREA_IO_SEC, 0x10000);
 
 	if (!gicd_base)
 		panic();
@@ -132,8 +132,10 @@ void main_init_gic(void)
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
 
-	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC);
-	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC);
+	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC,
+				    1);
+	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC,
+				    0x10000);
 
 	if (!gicc_base || !gicd_base)
 		panic();

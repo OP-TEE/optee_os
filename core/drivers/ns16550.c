@@ -49,7 +49,8 @@ static void ns16550_flush(struct serial_chip *chip)
 {
 	struct ns16550_data *pd =
 		container_of(chip, struct ns16550_data, chip);
-	vaddr_t base = io_pa_or_va(&pd->base);
+	vaddr_t base = io_pa_or_va(&pd->base,
+				   (UART_LSR << pd->reg_shift) + pd->io_width);
 
 	while ((serial_in(base + (UART_LSR << pd->reg_shift), pd->io_width) &
 		UART_LSR_THRE) == 0)
@@ -60,7 +61,8 @@ static void ns16550_putc(struct serial_chip *chip, int ch)
 {
 	struct ns16550_data *pd =
 		container_of(chip, struct ns16550_data, chip);
-	vaddr_t base = io_pa_or_va(&pd->base);
+	vaddr_t base = io_pa_or_va(&pd->base, (UART_THR << pd->reg_shift) +
+					       pd->io_width);
 
 	ns16550_flush(chip);
 

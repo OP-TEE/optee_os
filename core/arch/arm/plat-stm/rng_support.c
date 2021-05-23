@@ -26,7 +26,7 @@ static vaddr_t rng_base(void)
 
 	if (cpu_mmu_enabled()) {
 		if (!va)
-			va = phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC);
+			va = phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, RNG_SIZE);
 		return (vaddr_t)va;
 	}
 	return RNG_BASE;

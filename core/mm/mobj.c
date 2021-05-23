@@ -150,7 +150,7 @@ static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
 	}
 
 	if (pa) {
-		va = phys_to_virt(pa, area_type);
+		va = phys_to_virt(pa, area_type, size);
 	} else {
 		map = core_mmu_find_mapping_exclusive(area_type, size);
 		if (!map)
@@ -355,7 +355,8 @@ static void *mobj_shm_get_va(struct mobj *mobj, size_t offset)
 	if (offset >= mobj->size)
 		return NULL;
 
-	return phys_to_virt(m->pa + offset, MEM_AREA_NSEC_SHM);
+	return phys_to_virt(m->pa + offset, MEM_AREA_NSEC_SHM,
+			    mobj->size - offset);
 }
 
 static TEE_Result mobj_shm_get_pa(struct mobj *mobj, size_t offs,

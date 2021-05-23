@@ -224,7 +224,7 @@ static void pager_unlock(uint32_t exceptions)
 	cpu_spin_unlock_xrestore(&pager_spinlock, exceptions);
 }
 
-void *tee_pager_phys_to_virt(paddr_t pa)
+void *tee_pager_phys_to_virt(paddr_t pa, size_t len)
 {
 	struct core_mmu_table_info ti;
 	unsigned idx;
@@ -232,6 +232,9 @@ void *tee_pager_phys_to_virt(paddr_t pa)
 	paddr_t p;
 	vaddr_t v;
 	size_t n;
+
+	if (pa & SMALL_PAGE_MASK || len > SMALL_PAGE_SIZE)
+		return NULL;
 
 	/*
 	 * Most addresses are mapped lineary, try that first if possible.

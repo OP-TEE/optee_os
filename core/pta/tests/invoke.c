@@ -29,7 +29,7 @@ static TEE_Result test_trace(uint32_t param_types __unused,
 	return TEE_SUCCESS;
 }
 
-static int test_v2p2v(void *va)
+static int test_v2p2v(void *va, size_t size)
 {
 	struct ts_session *session = NULL;
 	paddr_t p = 0;
@@ -46,13 +46,13 @@ static int test_v2p2v(void *va)
 		return 1;
 
 	if (to_ta_session(session)->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
-		v = phys_to_virt(p, MEM_AREA_TS_VASPACE);
+		v = phys_to_virt(p, MEM_AREA_TS_VASPACE, size);
 	} else {
-		v = phys_to_virt(p, MEM_AREA_NSEC_SHM);
+		v = phys_to_virt(p, MEM_AREA_NSEC_SHM, size);
 		if (!v)
-			v = phys_to_virt(p, MEM_AREA_SDP_MEM);
+			v = phys_to_virt(p, MEM_AREA_SDP_MEM, size);
 		if (!v)
-			v = phys_to_virt(p, MEM_AREA_SHM_VASPACE);
+			v = phys_to_virt(p, MEM_AREA_SHM_VASPACE, size);
 	}
 
 	/*
@@ -188,7 +188,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[0].memref.buffer;
-		if (test_v2p2v(in))
+		if (test_v2p2v(in, p[0].memref.size))
 			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[0].memref.size; i++)
@@ -202,7 +202,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[1].memref.buffer;
-		if (test_v2p2v(in))
+		if (test_v2p2v(in, p[1].memref.size))
 			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[1].memref.size; i++)
@@ -216,7 +216,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_MEMREF_INOUT) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_NONE)) {
 		in = (uint8_t *)p[2].memref.buffer;
-		if (test_v2p2v(in))
+		if (test_v2p2v(in, p[2].memref.size))
 			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[2].memref.size; i++)
@@ -230,7 +230,7 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		(TEE_PARAM_TYPE_GET(type, 2) == TEE_PARAM_TYPE_NONE) &&
 		(TEE_PARAM_TYPE_GET(type, 3) == TEE_PARAM_TYPE_MEMREF_INOUT)) {
 		in = (uint8_t *)p[3].memref.buffer;
-		if (test_v2p2v(in))
+		if (test_v2p2v(in, p[3].memref.size))
 			return TEE_ERROR_SECURITY;
 		d8 = 0;
 		for (i = 0; i < p[3].memref.size; i++)
@@ -277,8 +277,7 @@ static TEE_Result test_inject_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_SUCCESS;
 
 	/* Check that core can p2v and v2p over memory reference arguments */
-	if (test_v2p2v(src) || test_v2p2v(src + sz - 1) ||
-	    test_v2p2v(dst) || test_v2p2v(dst + sz - 1))
+	if (test_v2p2v(src, sz) || test_v2p2v(dst, sz))
 		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)
@@ -315,7 +314,7 @@ static TEE_Result test_transform_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_SUCCESS;
 
 	/* Check that core can p2v and v2p over memory reference arguments */
-	if (test_v2p2v(buf) || test_v2p2v(buf + sz - 1))
+	if (test_v2p2v(buf, sz))
 		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, buf, sz) != TEE_SUCCESS)
@@ -360,8 +359,7 @@ static TEE_Result test_dump_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_SUCCESS;
 
 	/* Check that core can p2v and v2p over memory reference arguments */
-	if (test_v2p2v(src) || test_v2p2v(src + sz - 1) ||
-	    test_v2p2v(dst) || test_v2p2v(dst + sz - 1))
+	if (test_v2p2v(src, sz) || test_v2p2v(dst, sz))
 		return TEE_ERROR_SECURITY;
 
 	if (cache_operation(TEE_CACHEFLUSH, dst, sz) != TEE_SUCCESS)

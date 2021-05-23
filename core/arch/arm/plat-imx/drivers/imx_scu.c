@@ -12,7 +12,8 @@
 
 static TEE_Result scu_init(void)
 {
-	vaddr_t scu_base = core_mmu_get_va(SCU_BASE, MEM_AREA_IO_SEC);
+	vaddr_t scu_base = core_mmu_get_va(SCU_BASE, MEM_AREA_IO_SEC,
+					   SCU_SIZE);
 
 	if (!scu_base)
 		return TEE_ERROR_GENERIC;

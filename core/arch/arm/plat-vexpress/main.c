@@ -52,9 +52,9 @@ void main_init_gic(void)
 	vaddr_t gicd_base;
 
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, GIC_CPU_REG_SIZE);
 	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC, GIC_DIST_REG_SIZE);
 	if (!gicc_base || !gicd_base)
 		panic();
 
@@ -136,7 +136,7 @@ static TEE_Result init_tzc400(void)
 
 	DMSG("Initializing TZC400");
 
-	va = phys_to_virt(TZC400_BASE, MEM_AREA_IO_SEC);
+	va = phys_to_virt(TZC400_BASE, MEM_AREA_IO_SEC, TZC400_REG_SIZE);
 	if (!va) {
 		EMSG("TZC400 not mapped");
 		panic();
@@ -160,7 +160,8 @@ static void release_secondary_early_hpen(size_t pos)
 	} *mailbox;
 
 	if (cpu_mmu_enabled())
-		mailbox = phys_to_virt(SECRAM_BASE, MEM_AREA_IO_SEC);
+		mailbox = phys_to_virt(SECRAM_BASE, MEM_AREA_IO_SEC,
+				       SECRAM_COHERENT_SIZE);
 	else
 		mailbox = (void *)SECRAM_BASE;
 

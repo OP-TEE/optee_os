@@ -79,7 +79,8 @@ uint8_t hw_get_random_byte(void)
 		uint32_t val[2];
 		uint8_t byte[8];
 	} random;
-	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC);
+	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC,
+					    RNG_REG_SIZE);
 	uint8_t ret;
 
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
@@ -125,7 +126,8 @@ uint8_t hw_get_random_byte(void)
 
 static TEE_Result dra7_rng_init(void)
 {
-	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC);
+	vaddr_t rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC,
+					    RNG_REG_SIZE);
 	uint32_t val;
 
 	/* Execute a software reset */

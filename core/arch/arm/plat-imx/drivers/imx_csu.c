@@ -103,7 +103,7 @@ static TEE_Result csu_init(void)
 	const struct csu_config *csu_config = NULL;
 	const struct csu_setting *csu_setting = NULL;
 
-	csu_base = core_mmu_get_va(CSU_BASE, MEM_AREA_IO_SEC);
+	csu_base = core_mmu_get_va(CSU_BASE, MEM_AREA_IO_SEC, 1);
 	if (!csu_base)
 		panic();
 

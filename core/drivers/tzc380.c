@@ -139,7 +139,8 @@ void tzc_region_enable(uint8_t region)
 void tzc_fail_dump(void)
 {
 	vaddr_t base __maybe_unused = core_mmu_get_va(tzc.base,
-						      MEM_AREA_IO_SEC);
+						      MEM_AREA_IO_SEC,
+						      TZC400_REG_SIZE);
 
 	EMSG("Fail address Low 0x%" PRIx32,
 	     io_read32(base + FAIL_ADDRESS_LOW_OFF));
@@ -151,7 +152,8 @@ void tzc_fail_dump(void)
 
 void tzc_int_clear(void)
 {
-	vaddr_t base = core_mmu_get_va(tzc.base, MEM_AREA_IO_SEC);
+	vaddr_t base = core_mmu_get_va(tzc.base, MEM_AREA_IO_SEC,
+				       TZC400_REG_SIZE);
 
 	io_write32(base + INT_CLEAR, 0);
 }

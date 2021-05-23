@@ -43,7 +43,8 @@ uint32_t psci_version(void)
 int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 {
 	vaddr_t sctl_va = core_mmu_get_va(SYSCTRL_BOOTADDR_REG,
-					  MEM_AREA_IO_SEC);
+					  MEM_AREA_IO_SEC,
+					  sizeof(uint32_t));
 
 	if (core_id == 0 || core_id >= CFG_TEE_CORE_NB_CORE)
 		return PSCI_RET_INVALID_PARAMETERS;
@@ -74,11 +75,13 @@ int __noreturn psci_cpu_off(void)
 void psci_system_reset(void)
 {
 	/* Enable software reset */
-	io_setbits32(core_mmu_get_va(SYSCTRL_REG_RSTEN, MEM_AREA_IO_SEC),
+	io_setbits32(core_mmu_get_va(SYSCTRL_REG_RSTEN, MEM_AREA_IO_SEC,
+				     sizeof(uint32_t)),
 		     SYSCTRL_REG_RSTEN_SWRST_EN | SYSCTRL_REG_RSTEN_MRESET_EN);
 
 	/* Trigger software reset */
-	io_setbits32(core_mmu_get_va(SYSCTRL_REG_RSTCTRL, MEM_AREA_IO_SEC),
+	io_setbits32(core_mmu_get_va(SYSCTRL_REG_RSTCTRL, MEM_AREA_IO_SEC,
+				     sizeof(uint32_t)),
 		     SYSCTRL_REG_RSTCTRL_SWRST_REQ);
 
 	dsb();

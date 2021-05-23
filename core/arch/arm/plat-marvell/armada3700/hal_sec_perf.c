@@ -32,7 +32,7 @@
 #include <mm/core_memprot.h>
 #include <util.h>
 
-#define PHY_2_VIR(addr)	((vaddr_t)phys_to_virt((addr), MEM_AREA_IO_SEC))
+#define PHY_2_VIR(addr)	((vaddr_t)phys_to_virt((addr), MEM_AREA_IO_SEC, 1))
 
 #define MCU_BASE	0xD0000000
 #define MCU_MC_CONTROL_0_REG	PHY_2_VIR(MCU_BASE + 0x044)

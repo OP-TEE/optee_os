@@ -38,6 +38,7 @@
 #define CDNS_UART_IRQ_STATUS		0x14
 #define CDNS_UART_CHANNEL_STATUS	0x2c
 #define CDNS_UART_FIFO			0x30
+#define CDNS_UART_SIZE			0x34
 
 #define CDNS_UART_CONTROL_RXRES		BIT(0)
 #define CDNS_UART_CONTROL_TXRES		BIT(1)
@@ -60,7 +61,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct cdns_uart_data *pd =
 		container_of(chip, struct cdns_uart_data, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, CDNS_UART_SIZE);
 }
 
 static void cdns_uart_flush(struct serial_chip *chip)

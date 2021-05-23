@@ -42,7 +42,7 @@ static int l2cc_mutex_alloc(void)
 
 	l2cc_mutex_pa = l2cc_mutex_boot_pa;
 
-	va = phys_to_virt(l2cc_mutex_pa, MEM_AREA_NSEC_SHM);
+	va = phys_to_virt(l2cc_mutex_pa, MEM_AREA_NSEC_SHM, MUTEX_SZ);
 	if (!va)
 		return -1;
 
@@ -115,9 +115,7 @@ TEE_Result tee_set_l2cc_mutex(paddr_t *mutex)
 	if (l2cc_mutex_va != NULL)
 		return TEE_ERROR_BAD_PARAMETERS;
 	addr = *mutex;
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, addr, MUTEX_SZ) == false)
-		return TEE_ERROR_BAD_PARAMETERS;
-	va = phys_to_virt(addr, MEM_AREA_NSEC_SHM);
+	va = phys_to_virt(addr, MEM_AREA_NSEC_SHM, MUTEX_SZ);
 	if (!va)
 		return TEE_ERROR_BAD_PARAMETERS;
 	l2cc_mutex_pa = addr;

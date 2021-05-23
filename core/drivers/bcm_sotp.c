@@ -127,7 +127,7 @@ TEE_Result bcm_iproc_sotp_mem_read(uint32_t row_addr, uint32_t sotp_add_ecc,
 
 static TEE_Result bcm_sotp_init(void)
 {
-	bcm_sotp_base = (vaddr_t)phys_to_virt(SOTP_BASE, MEM_AREA_IO_SEC);
+	bcm_sotp_base = (vaddr_t)phys_to_virt(SOTP_BASE, MEM_AREA_IO_SEC, 1);
 
 	DMSG("bcm_sotp init done\n");
 	return TEE_SUCCESS;

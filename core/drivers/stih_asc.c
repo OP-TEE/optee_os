@@ -19,7 +19,7 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	struct stih_asc_pd *pd =
 		container_of(chip, struct stih_asc_pd, chip);
 
-	return io_pa_or_va(&pd->base);
+	return io_pa_or_va(&pd->base, STIH_ASC_REG_SIZE);
 }
 
 static void stih_asc_flush(struct serial_chip *chip)
