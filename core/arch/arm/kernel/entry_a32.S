@@ -161,6 +161,24 @@ END_FUNC reset_vect_table
 		write_sctlr r0
 	.endm
 
+#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_WITH_ARM_TRUSTED_FW)
+	/*
+	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
+	 * the DTB in r0, pagable part in r1, and the rest of the registers
+	 * are unused
+	 *
+	 * Save boot arguments passed
+	 * entry r0, saved r6: device tree address
+	 * entry r1, saved r4: pagestore
+	 * saved r5, r7: Zero
+	 */
+	.macro bootargs_entry
+	mov	r6, r0
+	mov	r4, r1
+	mov	r5, #0
+	mov	r7, #0
+	.endm
+#else
 	/*
 	 * Save boot arguments
 	 * entry r0, saved r4: pagestore
@@ -186,6 +204,7 @@ END_FUNC reset_vect_table
 #endif
 	mov	r7, r1
 	.endm
+#endif
 
 	.macro maybe_init_spectre_workaround
 #if !defined(CFG_WITH_ARM_TRUSTED_FW) && \
