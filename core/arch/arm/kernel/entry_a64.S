@@ -56,11 +56,21 @@
 	.endm
 
 FUNC _start , :
+#if defined(CFG_CORE_SEL1_SPMC)
+	/*
+	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
+	 * the DTB in x0, pagaeble part in x1 and the rest of the registers
+	 * are unused
+	 */
+	mov	x19, x1		/* Save pagable part */
+	mov	x20, x0		/* Save DT address */
+#else
 	mov	x19, x0		/* Save pagable part address */
 #if defined(CFG_DT_ADDR)
 	ldr     x20, =CFG_DT_ADDR
 #else
 	mov	x20, x2		/* Save DT address */
+#endif
 #endif
 
 	adr	x0, reset_vect_table
