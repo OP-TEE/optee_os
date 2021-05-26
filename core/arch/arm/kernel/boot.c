@@ -1091,7 +1091,7 @@ static void update_external_dt(void)
 	if (!dt->blob)
 		return;
 
-	if (add_optee_dt_node(dt))
+	if (!IS_ENABLED(CFG_CORE_FFA) && add_optee_dt_node(dt))
 		panic("Failed to add OP-TEE Device Tree node");
 
 	if (config_psci(dt))
