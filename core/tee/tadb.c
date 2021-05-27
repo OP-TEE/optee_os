@@ -313,7 +313,7 @@ static TEE_Result populate_files(struct tee_tadb_dir *db)
 	 * If db->files isn't NULL the bitfield is already populated and
 	 * there's nothing left to do here for now.
 	 */
-	if (db->files)
+	if (db->nbits)
 		return TEE_SUCCESS;
 
 	/*
