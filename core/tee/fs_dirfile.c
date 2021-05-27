@@ -181,7 +181,7 @@ TEE_Result tee_fs_dirfile_get_tmp(struct tee_fs_dirfile_dirh *dirh,
 	TEE_Result res;
 	int i = 0;
 
-	if (dirh->files) {
+	if (dirh->nbits) {
 		bit_ffc(dirh->files, dirh->nbits, &i);
 		if (i == -1)
 			i = dirh->nbits;
