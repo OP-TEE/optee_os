@@ -367,16 +367,25 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			break;
 		case R_ARM_GLOB_DAT:
 		case R_ARM_JUMP_SLOT:
+			if (!sym_tab)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Missing symbol table");
 			e32_process_dyn_rel(sym_tab, num_syms, str_tab,
 					    str_tab_size, rel, where);
 			break;
 		case R_ARM_TLS_DTPMOD32:
+			if (!sym_tab)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Missing symbol table");
 			mod = elf;
 			e32_tls_get_module(sym_tab, num_syms, str_tab,
 					   str_tab_size, rel, &mod);
 			*where = mod->tls_mod_id;
 			break;
 		case R_ARM_TLS_DTPOFF32:
+			if (!sym_tab)
+				err(TEE_ERROR_BAD_FORMAT,
+				    "Missing symbol table");
 			e32_tls_resolve(sym_tab, num_syms, str_tab,
 					str_tab_size, rel, &val);
 			*where = val;
