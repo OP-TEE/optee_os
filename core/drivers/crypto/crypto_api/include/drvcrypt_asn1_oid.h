@@ -42,7 +42,7 @@
  * us(840) rsadsi(113549)
  */
 #define DRVCRYPT_OID_MB_US	  "\x86\x48"
-#define DRVCRYPT_OID_MB_US_RSADSI DRVCRYPT_OID_MB_US "\x86\x48"
+#define DRVCRYPT_OID_MB_US_RSADSI DRVCRYPT_OID_MB_US "\x86\xF7\x0D"
 
 /*
  * ISO Identified organization
