@@ -414,6 +414,7 @@ enum caam_status caam_jr_dequeue(uint32_t job_ids, unsigned int timeout_ms)
 	uint32_t job_complete = 0;
 	uint32_t nb_loop = 0;
 	bool infinite = false;
+	bool it_active = false;
 
 	if (timeout_ms == UINT_MAX)
 		infinite = true;
@@ -424,11 +425,14 @@ enum caam_status caam_jr_dequeue(uint32_t job_ids, unsigned int timeout_ms)
 		/* Call the do_jr_dequeue function to dequeue the jobs */
 		job_complete = do_jr_dequeue(job_ids);
 
+		/* Check if new job has been submitted and acknowledge it */
+		it_active = caam_hal_jr_check_ack_itr(jr_privdata->baseaddr);
+
 		if (job_complete & job_ids)
 			return CAAM_NO_ERROR;
 
 		/* Check if JR interrupt otherwise wait a bit */
-		if (!caam_hal_jr_check_ack_itr(jr_privdata->baseaddr))
+		if (!it_active)
 			caam_udelay(10);
 	} while (infinite || (nb_loop--));
 
