@@ -31,17 +31,21 @@
  * Job Ring Owner. Enumerate Id (expect the Secure Flag) correspond
  * to the HW ID.
  */
-#if !defined(CFG_MX7ULP)
+#if defined(CFG_MX7ULP)
 enum caam_jr_owner {
-	JROWN_ARM_NS = 0x1,                  /* Non-Secure ARM */
-	JROWN_ARM_S  = JROWNER_SECURE | 0x1, /* Secure ARM */
+	JROWN_ARM_NS = 0x4,		    /* Non-Secure ARM */
+	JROWN_ARM_S = JROWNER_SECURE | 0x4, /* Secure ARM */
+};
+#elif defined(CFG_MX8ULP)
+enum caam_jr_owner {
+	JROWN_ARM_NS = 0x7,		    /* Non-Secure ARM */
+	JROWN_ARM_S = JROWNER_SECURE | 0x7, /* Secure ARM */
 };
 #else
 enum caam_jr_owner {
-	JROWN_ARM_NS = 0x4,                  /* Non-Secure ARM */
-	JROWN_ARM_S = JROWNER_SECURE | 0x4,  /* Secure ARM */
+	JROWN_ARM_NS = 0x1,		    /* Non-Secure ARM */
+	JROWN_ARM_S = JROWNER_SECURE | 0x1, /* Secure ARM */
 };
-
-#endif /* CFG_MX7ULP */
+#endif
 
 #endif /* __CAAM_COMMON_H__ */
