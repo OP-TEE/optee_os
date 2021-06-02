@@ -239,7 +239,8 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 					  TEE_DATA_FLAG_ACCESS_WRITE |
 					  TEE_DATA_FLAG_ACCESS_WRITE_META |
 					  TEE_DATA_FLAG_SHARE_READ |
-					  TEE_DATA_FLAG_SHARE_WRITE;
+					  TEE_DATA_FLAG_SHARE_WRITE |
+					  TEE_DATA_FLAG_OVERWRITE;
 	const struct tee_file_operations *fops =
 			tee_svc_storage_file_ops(storage_id);
 	struct ts_session *sess = ts_get_current_session();
