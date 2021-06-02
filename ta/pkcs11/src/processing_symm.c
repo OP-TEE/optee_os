@@ -35,7 +35,7 @@ bool processing_is_tee_symm(enum pkcs11_mechanism_id proc_id)
 	case PKCS11_CKM_SHA256_HMAC:
 	case PKCS11_CKM_SHA384_HMAC:
 	case PKCS11_CKM_SHA512_HMAC:
-	/* Cipherering */
+	/* Ciphering */
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_CBC_PAD:
