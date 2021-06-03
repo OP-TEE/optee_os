@@ -769,12 +769,10 @@ static void gen_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 					(~(SizeQuant - 1))) +
 				sizeof(struct bhead) * 2;
 
-
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
-	assert(start < end);
 
-	if ((end - start) < min_len) {
+	if (start > end || (end - start) < min_len) {
 		DMSG("Skipping too small pool");
 		return;
 	}
