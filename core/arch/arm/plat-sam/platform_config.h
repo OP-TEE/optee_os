@@ -29,6 +29,8 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
+#include <mm/generic_ram_layout.h>
+
 #define STACK_ALIGNMENT       64
 
 #ifdef CFG_WITH_PAGER
@@ -39,42 +41,6 @@
 #endif
 
 #define CONSOLE_UART_BASE     AT91C_BASE_UART1
-
-/*
- * Everything is in DDR memory
- * +-----------------------+ 0x4000_0000
- * |      Linux memory     |
- * +-----------------------+ 0x30C0_0000
- * |      SHMEM 4MiB       |
- * +-----------------------+ 0x3080_0000 [TEE_SHMEM_START]
- * |        | TA_RAM 7MiB  |
- * + TZDRAM +--------------+ 0x3010_0000 [TA_RAM_START]
- * |        | TEE_RAM 1MiB |
- * +-----------------------+ 0x3000_0000 [TEE_RAM_START/TEE_LOAD_ADDR]
- * |      Linux memory     |
- * +-----------------------+ 0x2000_0000 [DRAM0_BASE]
- */
-
-#define TZDRAM_BASE         0x30000000
-#define TZDRAM_SIZE         (8 * 1024 * 1024)
-
-#define TEE_SHMEM_START		(TZDRAM_BASE + TZDRAM_SIZE)
-#define TEE_SHMEM_SIZE		(4 * 1024 * 1024)
-
-#define TEE_RAM_START		TZDRAM_BASE
-#define TEE_RAM_VA_SIZE		(1 * 1024 * 1024)
-#define TEE_RAM_PH_SIZE		TEE_RAM_VA_SIZE
-
-#ifdef CFG_TEE_LOAD_ADDR
-#define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
-#else
-#define TEE_LOAD_ADDR			TEE_RAM_START
-#endif
-
-#define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
-					CORE_MMU_PGDIR_SIZE)
-#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
-					CORE_MMU_PGDIR_SIZE)
 
 #define PL310_BASE          (AT91C_BASE_L2CC)
 #define SFR_BASE            (AT91C_BASE_SFR)
