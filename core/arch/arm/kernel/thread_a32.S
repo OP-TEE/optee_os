@@ -206,7 +206,10 @@ END_FUNC thread_save_state
  *			    unsigned long a2, unsigned long a3)
  */
 FUNC thread_smc , :
+	push	{r4-r7}
+UNWIND(	.save	{r4-r7})
 	smc	#0
+	pop	{r4-r7}
 	bx	lr
 END_FUNC thread_smc
 
