@@ -1,5 +1,12 @@
 PLATFORM_FLAVOR ?= sama5d2xult
 
+flavor_dts_file-sama5d2xult = at91-sama5d2_xplained.dts
+
+ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
+$(error Invalid platform flavor $(PLATFORM_FLAVOR))
+endif
+CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
+
 include core/arch/arm/cpu/cortex-a5.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,1)
