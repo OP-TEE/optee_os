@@ -5,6 +5,8 @@
 
 #ifndef SMC_IDS_H
 #define SMC_IDS_H
+#include <optee_msg.h>
+#include <sm/optee_smc.h>
 
 #define SAMA5_SMC_SIP_SFR_SET_USB_SUSPEND	0x300
 
