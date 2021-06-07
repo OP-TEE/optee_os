@@ -29,6 +29,7 @@ $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_DRIVERS_SAM_CLK,y)
 $(call force,CFG_DRIVERS_SAMA5D2_CLK,y)
 $(call force,CFG_PSCI_ARM32,y)
+$(call force,CFG_SM_PLATFORM_HANDLER,y)
 
 # These values are forced because of matrix configuration for secure area.
 # When modifying these, always update matrix settings in
