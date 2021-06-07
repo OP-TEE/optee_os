@@ -713,8 +713,8 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			goto out;
 		}
 
-		/* Copy bits 39:12 from tbl[n] to ntbl */
-		ntbl = tbl[n] & GENMASK_64(39, 12);
+		/* Copy bits 47:12 from tbl[n] to ntbl */
+		ntbl = tbl[n] & GENMASK_64(47, 12);
 
 #ifdef CFG_VIRTUALIZATION
 		if (prtn == &default_partition)
@@ -802,7 +802,7 @@ void core_mmu_get_entry_primitive(const void *table, size_t level,
 	const uint64_t *tbl = table;
 
 	if (pa)
-		*pa = tbl[idx] & GENMASK_64(39, 12);
+		*pa = tbl[idx] & GENMASK_64(47, 12);
 
 	if (attr)
 		*attr = desc_to_mattr(level, tbl[idx]);
