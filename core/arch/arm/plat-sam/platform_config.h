@@ -44,7 +44,6 @@
 
 #define PL310_BASE          (AT91C_BASE_L2CC)
 #define SFR_BASE            (AT91C_BASE_SFR)
-#define SFR_L2CC_HRAMC      (0x58)
 
 /*
  * PL310 Auxiliary Control Register
