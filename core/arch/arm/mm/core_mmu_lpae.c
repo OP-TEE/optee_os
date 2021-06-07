@@ -151,6 +151,8 @@
 #define XLAT_TABLE_SIZE_SHIFT	PAGE_SIZE_SHIFT
 #define XLAT_TABLE_SIZE		(1 << XLAT_TABLE_SIZE_SHIFT)
 
+#define XLAT_TABLE_LEVEL_MAX	U(3)
+
 /* Values for number of entries in each MMU translation table */
 #define XLAT_TABLE_ENTRIES_SHIFT (XLAT_TABLE_SIZE_SHIFT - XLAT_ENTRY_SIZE_SHIFT)
 #define XLAT_TABLE_ENTRIES	(1 << XLAT_TABLE_ENTRIES_SHIFT)
@@ -252,7 +254,7 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 	if (!(desc & 1))
 		return 0;
 
-	if (level == 3) {
+	if (level == XLAT_TABLE_LEVEL_MAX) {
 		if ((desc & DESC_ENTRY_TYPE_MASK) != L3_BLOCK_DESC)
 			return 0;
 	} else {
@@ -313,7 +315,7 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_UW)
 		a |= TEE_MATTR_PW;
 
-	if (level == 3)
+	if (level == XLAT_TABLE_LEVEL_MAX)
 		desc = L3_BLOCK_DESC;
 	else
 		desc = BLOCK_DESC;
@@ -611,7 +613,9 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->va_base = va_base;
 	tbl_info->shift = L1_XLAT_ADDRESS_SHIFT -
 			  (level - 1) * XLAT_TABLE_ENTRIES_SHIFT;
-	assert(level <= 3);
+
+	assert(level <= XLAT_TABLE_LEVEL_MAX);
+
 	if (level == 1)
 		tbl_info->num_entries = NUM_L1_ENTRIES;
 	else
@@ -666,8 +670,8 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 		if (n >= num_entries)
 			goto out;
 
-		if (level == max_level || level == 3 ||
-			(tbl[n] & TABLE_DESC) != TABLE_DESC) {
+		if (level == max_level || level == XLAT_TABLE_LEVEL_MAX ||
+		    (tbl[n] & TABLE_DESC) != TABLE_DESC) {
 			/*
 			 * We've either reached max_level, level 3, a block
 			 * mapping entry or an "invalid" mapping entry.
@@ -737,7 +741,8 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 #endif
 	assert(prtn);
 
-	if (tbl_info->level >= 3 || idx > tbl_info->num_entries)
+	if (tbl_info->level >= XLAT_TABLE_LEVEL_MAX ||
+	    idx > tbl_info->num_entries)
 		return false;
 
 	entry = (uint64_t *)tbl_info->table + idx;
