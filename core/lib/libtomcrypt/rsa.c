@@ -150,14 +150,10 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	TEE_Result res;
 	rsa_key ltc_tmp_key;
 	int ltc_res;
-	long e;
-
-	/* get the public exponent */
-	e = mp_get_int(key->e);
 
 	/* Generate a temporary RSA key */
-	ltc_res = rsa_make_key(NULL, find_prng("prng_crypto"), key_size / 8, e,
-			       &ltc_tmp_key);
+	ltc_res = rsa_make_key_bn_e(NULL, find_prng("prng_crypto"),
+				    key_size / 8, key->e, &ltc_tmp_key);
 	if (ltc_res != CRYPT_OK) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else if ((size_t)mp_count_bits(ltc_tmp_key.N) != key_size) {
@@ -165,7 +161,6 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
 		/* Copy the key */
-		ltc_mp.copy(ltc_tmp_key.e,  key->e);
 		ltc_mp.copy(ltc_tmp_key.d,  key->d);
 		ltc_mp.copy(ltc_tmp_key.N,  key->n);
 		ltc_mp.copy(ltc_tmp_key.p,  key->p);
