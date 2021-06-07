@@ -714,7 +714,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 		}
 
 		/* Copy bits 39:12 from tbl[n] to ntbl */
-		ntbl = (tbl[n] & ((1ULL << 40) - 1)) & ~((1 << 12) - 1);
+		ntbl = tbl[n] & GENMASK_64(39, 12);
 
 #ifdef CFG_VIRTUALIZATION
 		if (prtn == &default_partition)
@@ -802,7 +802,7 @@ void core_mmu_get_entry_primitive(const void *table, size_t level,
 	const uint64_t *tbl = table;
 
 	if (pa)
-		*pa = (tbl[idx] & ((1ull << 40) - 1)) & ~((1 << 12) - 1);
+		*pa = tbl[idx] & GENMASK_64(39, 12);
 
 	if (attr)
 		*attr = desc_to_mattr(level, tbl[idx]);
@@ -820,7 +820,7 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 	if (base)
 		*base = (vaddr_t)user_va_idx << L1_XLAT_ADDRESS_SHIFT;
 	if (size)
-		*size = 1 << L1_XLAT_ADDRESS_SHIFT;
+		*size = BIT64(L1_XLAT_ADDRESS_SHIFT);
 }
 
 bool core_mmu_user_mapping_is_active(void)

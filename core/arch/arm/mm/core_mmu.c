@@ -758,7 +758,7 @@ static void dump_xlat_table(vaddr_t va, int level)
 					    level * 2, "", level, va);
 			}
 		}
-		va += 1 << tbl_info.shift;
+		va += BIT64(tbl_info.shift);
 	}
 }
 
@@ -1516,7 +1516,7 @@ static void set_region(struct core_mmu_table_info *tbl_info,
 	while (idx < end) {
 		core_mmu_set_entry(tbl_info, idx, pa, region->attr);
 		idx++;
-		pa += 1 << tbl_info->shift;
+		pa += BIT64(tbl_info->shift);
 	}
 }
 
@@ -1632,6 +1632,8 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 		level = CORE_MMU_BASE_TABLE_LEVEL;
 
 		while (true) {
+			paddr_t block_size = 0;
+
 			assert(level <= CORE_MMU_PGDIR_LEVEL);
 
 			table_found = core_mmu_find_table(prtn, vaddr, level,
@@ -1639,10 +1641,11 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 			if (!table_found)
 				panic("can't find table for mapping");
 
-			idx = core_mmu_va2idx(&tbl_info, vaddr);
+			block_size = BIT64(tbl_info.shift);
 
+			idx = core_mmu_va2idx(&tbl_info, vaddr);
 			if (!can_map_at_level(paddr, vaddr, size_left,
-					      1 << tbl_info.shift, mm)) {
+					      block_size, mm)) {
 				/*
 				 * This part of the region can't be mapped at
 				 * this level. Need to go deeper.
@@ -1660,9 +1663,9 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 				panic("Page is already mapped");
 
 			core_mmu_set_entry(&tbl_info, idx, paddr, mm->attr);
-			paddr += 1 << tbl_info.shift;
-			vaddr += 1 << tbl_info.shift;
-			size_left -= 1 << tbl_info.shift;
+			paddr += block_size;
+			vaddr += block_size;
+			size_left -= block_size;
 
 			break;
 		}
@@ -1955,7 +1958,7 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 	if (!core_mmu_find_table(NULL, map->va, UINT_MAX, &tbl_info))
 		return NULL;
 
-	granule = 1 << tbl_info.shift;
+	granule = BIT64(tbl_info.shift);
 	p = ROUNDDOWN(addr, granule);
 	l = ROUNDUP(len + addr - p, granule);
 
@@ -2067,7 +2070,7 @@ static bool arm_va2pa_helper(void *va, paddr_t *pa)
 	if (par & PAR_F)
 		goto out;
 	*pa = (par & (par_pa_mask << PAR_PA_SHIFT)) |
-		((vaddr_t)va & ((1 << PAR_PA_SHIFT) - 1));
+		((vaddr_t)va & (BIT64(PAR_PA_SHIFT) - 1));
 
 	ret = true;
 out:
@@ -2133,7 +2136,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 		 */
 		core_mmu_get_entry(&ti, core_mmu_va2idx(&ti, v), &p, &a);
 		if (a & TEE_MATTR_VALID_BLOCK) {
-			paddr_t mask = ((1 << ti.shift) - 1);
+			paddr_t mask = BIT64(ti.shift) - 1;
 
 			p |= v & mask;
 			if (pa != p)
