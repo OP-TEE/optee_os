@@ -181,7 +181,7 @@ END_FUNC thread_unwind_user_mode
 
 		/* Update the mapping to use the full kernel mapping */
 		mrs	x0, ttbr0_el1
-		sub	x0, x0, #CORE_MMU_L1_TBL_OFFSET
+		sub	x0, x0, #CORE_MMU_BASE_TABLE_OFFSET
 		/* switch to kernel mode ASID */
 		bic	x0, x0, #BIT(TTBR_ASID_SHIFT)
 		msr	ttbr0_el1, x0
@@ -494,7 +494,7 @@ eret_to_el0:
 
 	/* Update the mapping to exclude the full kernel mapping */
 	mrs	x0, ttbr0_el1
-	add	x0, x0, #CORE_MMU_L1_TBL_OFFSET
+	add	x0, x0, #CORE_MMU_BASE_TABLE_OFFSET
 	orr	x0, x0, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
 	msr	ttbr0_el1, x0
 	isb
@@ -550,7 +550,7 @@ icache_inv_user_range:
 
 	/* Update the mapping to exclude the full kernel mapping */
 	mrs	x5, ttbr0_el1	/* this register must be preserved */
-	add	x2, x5, #CORE_MMU_L1_TBL_OFFSET
+	add	x2, x5, #CORE_MMU_BASE_TABLE_OFFSET
 	orr	x2, x2, #BIT(TTBR_ASID_SHIFT) /* switch to user mode ASID */
 	msr	ttbr0_el1, x2
 	isb

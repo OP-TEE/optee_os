@@ -46,15 +46,23 @@
 #define CORE_MMU_USER_PARAM_SIZE	BIT(CORE_MMU_USER_PARAM_SHIFT)
 #define CORE_MMU_USER_PARAM_MASK	((paddr_t)CORE_MMU_USER_PARAM_SIZE - 1)
 
+/*
+ * Level of base table (i.e. first level of page table),
+ * depending on address space
+ */
+#define CORE_MMU_BASE_TABLE_SHIFT	U(30)
+#define CORE_MMU_BASE_TABLE_LEVEL	U(1)
 #ifdef CFG_WITH_LPAE
 /*
- * CORE_MMU_L1_TBL_OFFSET is used when switching to/from reduced kernel
+ * CORE_MMU_BASE_TABLE_OFFSET is used when switching to/from reduced kernel
  * mapping. The actual value depends on internals in core_mmu_lpae.c which
  * we rather not expose here. There's a compile time assertion to check
  * that these magic numbers are correct.
  */
-#define CORE_MMU_L1_TBL_OFFSET \
-	(CFG_TEE_CORE_NB_CORE * BIT(CFG_LPAE_ADDR_SPACE_BITS - U(30)) * U(8))
+#define CORE_MMU_BASE_TABLE_OFFSET \
+	(CFG_TEE_CORE_NB_CORE * \
+	 BIT(CFG_LPAE_ADDR_SPACE_BITS - CORE_MMU_BASE_TABLE_SHIFT) * \
+	 U(8))
 #endif
 /*
  * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
