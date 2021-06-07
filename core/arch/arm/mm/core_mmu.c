@@ -730,7 +730,7 @@ static void dump_xlat_table(vaddr_t va, int level)
 	va = tbl_info.va_base;
 	for (idx = 0; idx < tbl_info.num_entries; idx++) {
 		core_mmu_get_entry(&tbl_info, idx, &pa, &attr);
-		if (attr || level > 1) {
+		if (attr || level > CORE_MMU_BASE_TABLE_LEVEL) {
 			if (attr & TEE_MATTR_TABLE) {
 #ifdef CFG_WITH_LPAE
 				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
@@ -1222,7 +1222,7 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 
 	check_mem_map(tmp_mmap);
 	core_init_mmu(tmp_mmap);
-	dump_xlat_table(0x0, 1);
+	dump_xlat_table(0x0, CORE_MMU_BASE_TABLE_LEVEL);
 	core_init_mmu_regs(cfg);
 	cfg->load_offset = offs;
 	memcpy(static_memory_map, tmp_mmap, sizeof(static_memory_map));
@@ -1629,7 +1629,7 @@ void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	assert(!((vaddr | paddr) & SMALL_PAGE_MASK));
 
 	while (size_left > 0) {
-		level = 1;
+		level = CORE_MMU_BASE_TABLE_LEVEL;
 
 		while (true) {
 			assert(level <= CORE_MMU_PGDIR_LEVEL);

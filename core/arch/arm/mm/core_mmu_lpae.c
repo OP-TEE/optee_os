@@ -164,9 +164,20 @@
 				 XLAT_TABLE_ENTRIES_SHIFT)
 #define L1_XLAT_ADDRESS_SHIFT	(L2_XLAT_ADDRESS_SHIFT + \
 				 XLAT_TABLE_ENTRIES_SHIFT)
+#define L0_XLAT_ADDRESS_SHIFT	(L1_XLAT_ADDRESS_SHIFT + \
+				 XLAT_TABLE_ENTRIES_SHIFT)
+#define XLAT_ADDR_SHIFT(level)	(PAGE_SIZE_SHIFT + \
+				 ((XLAT_TABLE_LEVEL_MAX - (level)) * \
+				 XLAT_TABLE_ENTRIES_SHIFT))
 
-#define NUM_L1_ENTRIES		BIT(CFG_LPAE_ADDR_SPACE_BITS - \
-				    L1_XLAT_ADDRESS_SHIFT)
+#define XLAT_BLOCK_SIZE(level)	(UL(1) << XLAT_ADDR_SHIFT(level))
+
+/* Base table */
+#define BASE_XLAT_ADDRESS_SHIFT	XLAT_ADDR_SHIFT(CORE_MMU_BASE_TABLE_LEVEL)
+#define BASE_XLAT_BLOCK_SIZE	XLAT_BLOCK_SIZE(CORE_MMU_BASE_TABLE_LEVEL)
+
+#define NUM_BASE_LEVEL_ENTRIES	\
+	BIT(CFG_LPAE_ADDR_SPACE_BITS - BASE_XLAT_ADDRESS_SHIFT)
 
 #ifndef MAX_XLAT_TABLES
 #ifdef CFG_VIRTUALIZATION
@@ -190,16 +201,17 @@
  * while in kernel mode and one to be used while in user mode.
  */
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-#define NUM_L1_TABLES	2
+#define NUM_BASE_TABLES	2
 #else
-#define NUM_L1_TABLES	1
+#define NUM_BASE_TABLES	1
 #endif
 
-typedef uint64_t l1_xlat_tbls_t[CFG_TEE_CORE_NB_CORE][NUM_L1_ENTRIES];
+typedef uint64_t base_xlat_tbls_t[CFG_TEE_CORE_NB_CORE][NUM_BASE_LEVEL_ENTRIES];
 typedef uint64_t xlat_tbl_t[XLAT_TABLE_ENTRIES];
 
-static l1_xlat_tbls_t l1_xlation_table[NUM_L1_TABLES]
-	__aligned(NUM_L1_ENTRIES * XLAT_ENTRY_SIZE) __section(".nozi.mmu.l1");
+static base_xlat_tbls_t base_xlation_table[NUM_BASE_TABLES]
+	__aligned(NUM_BASE_LEVEL_ENTRIES * XLAT_ENTRY_SIZE)
+	__section(".nozi.mmu.base_table");
 
 static xlat_tbl_t xlat_tables[MAX_XLAT_TABLES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
@@ -213,7 +225,7 @@ static xlat_tbl_t xlat_tables_ul1[CFG_NUM_THREADS]
 static int user_va_idx __nex_data = -1;
 
 struct mmu_partition {
-	l1_xlat_tbls_t *l1_tables;
+	base_xlat_tbls_t *base_tables;
 	xlat_tbl_t *xlat_tables;
 	xlat_tbl_t *l2_ta_tables;
 	unsigned int xlat_tables_used;
@@ -221,7 +233,7 @@ struct mmu_partition {
 };
 
 static struct mmu_partition default_partition __nex_data = {
-	.l1_tables = l1_xlation_table,
+	.base_tables = base_xlation_table,
 	.xlat_tables = xlat_tables,
 	.l2_ta_tables = xlat_tables_ul1,
 	.xlat_tables_used = 0,
@@ -361,7 +373,7 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 #ifdef CFG_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void)
 {
-	return ROUNDUP(sizeof(l1_xlation_table), SMALL_PAGE_SIZE) +
+	return ROUNDUP(sizeof(base_xlation_table), SMALL_PAGE_SIZE) +
 		sizeof(xlat_tables) + sizeof(xlat_tables_ul1);
 }
 
@@ -382,10 +394,10 @@ struct mmu_partition *core_alloc_mmu_prtn(void *tables)
 		return NULL;
 	}
 
-	prtn->l1_tables = (void *)tbl;
-	COMPILE_TIME_ASSERT(sizeof(l1_xlation_table) <= SMALL_PAGE_SIZE);
-	memset(prtn->l1_tables, 0, SMALL_PAGE_SIZE);
-	tbl += ROUNDUP(sizeof(l1_xlation_table), SMALL_PAGE_SIZE);
+	prtn->base_tables = (void *)tbl;
+	COMPILE_TIME_ASSERT(sizeof(base_xlation_table) <= SMALL_PAGE_SIZE);
+	memset(prtn->base_tables, 0, SMALL_PAGE_SIZE);
+	tbl += ROUNDUP(sizeof(base_xlation_table), SMALL_PAGE_SIZE);
 
 	prtn->xlat_tables = (void *)tbl;
 	memset(prtn->xlat_tables, 0, XLAT_TABLES_SIZE);
@@ -416,7 +428,7 @@ void core_mmu_set_prtn(struct mmu_partition *prtn)
 
 	current_prtn[get_core_pos()] = prtn;
 
-	ttbr = virt_to_phys(prtn->l1_tables[0][get_core_pos()]);
+	ttbr = virt_to_phys(prtn->base_tables[0][get_core_pos()]);
 
 	write_ttbr0_el1(ttbr | ((paddr_t)prtn->asid << TTBR_ASID_SHIFT));
 	isb();
@@ -452,7 +464,7 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	}
 
 	/* Clear table before use */
-	memset(prtn->l1_tables, 0, sizeof(l1_xlation_table));
+	memset(prtn->base_tables, 0, sizeof(base_xlation_table));
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
@@ -466,9 +478,9 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 		if (n == get_core_pos())
 			continue;
 
-		memcpy(prtn->l1_tables[0][n],
-		       prtn->l1_tables[0][get_core_pos()],
-		       XLAT_ENTRY_SIZE * NUM_L1_ENTRIES);
+		memcpy(prtn->base_tables[0][n],
+		       prtn->base_tables[0][get_core_pos()],
+		       XLAT_ENTRY_SIZE * NUM_BASE_LEVEL_ENTRIES);
 	}
 }
 
@@ -477,9 +489,11 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	uint64_t max_va = 0;
 	size_t n;
 
+	COMPILE_TIME_ASSERT(CORE_MMU_BASE_TABLE_SHIFT ==
+			    XLAT_ADDR_SHIFT(CORE_MMU_BASE_TABLE_LEVEL));
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-	COMPILE_TIME_ASSERT(CORE_MMU_L1_TBL_OFFSET ==
-			   sizeof(l1_xlation_table) / 2);
+	COMPILE_TIME_ASSERT(CORE_MMU_BASE_TABLE_OFFSET ==
+			   sizeof(base_xlation_table) / 2);
 #endif
 	COMPILE_TIME_ASSERT(XLAT_TABLES_SIZE == sizeof(xlat_tables));
 
@@ -493,8 +507,8 @@ void core_init_mmu(struct tee_mmap_region *mm)
 			max_va = va_end;
 	}
 
-	for (n = 1; n < NUM_L1_ENTRIES; n++) {
-		if (!default_partition.l1_tables[0][0][n]) {
+	for (n = 1; n < NUM_BASE_LEVEL_ENTRIES; n++) {
+		if (!default_partition.base_tables[0][0][n]) {
 			user_va_idx = n;
 			break;
 		}
@@ -507,10 +521,10 @@ void core_init_mmu(struct tee_mmap_region *mm)
 
 bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
 {
-	size_t l1size = (1 << L1_XLAT_ADDRESS_SHIFT);
-	paddr_t l1mask = l1size - 1;
+	size_t base_level_size = BASE_XLAT_BLOCK_SIZE;
+	paddr_t base_level_mask = base_level_size - 1;
 
-	return (paddr & l1mask) > (l1size / 2);
+	return (paddr & base_level_mask) > (base_level_size / 2);
 }
 
 #ifdef ARM32
@@ -519,8 +533,8 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	uint32_t ttbcr = 0;
 	uint32_t mair = 0;
 
-	cfg->ttbr0_base = virt_to_phys(l1_xlation_table[0][0]);
-	cfg->ttbr0_core_offset = sizeof(l1_xlation_table[0][0]);
+	cfg->ttbr0_base = virt_to_phys(base_xlation_table[0][0]);
+	cfg->ttbr0_core_offset = sizeof(base_xlation_table[0][0]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -580,8 +594,8 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	uint64_t mair = 0;
 	uint64_t tcr = 0;
 
-	cfg->ttbr0_el1_base = virt_to_phys(l1_xlation_table[0][0]);
-	cfg->ttbr0_core_offset = sizeof(l1_xlation_table[0][0]);
+	cfg->ttbr0_el1_base = virt_to_phys(base_xlation_table[0][0]);
+	cfg->ttbr0_core_offset = sizeof(base_xlation_table[0][0]);
 
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
@@ -611,13 +625,15 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 	tbl_info->level = level;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
-	tbl_info->shift = L1_XLAT_ADDRESS_SHIFT -
-			  (level - 1) * XLAT_TABLE_ENTRIES_SHIFT;
+	tbl_info->shift = XLAT_ADDR_SHIFT(level);
 
+#if (CORE_MMU_BASE_TABLE_LEVEL > 0)
+	assert(level >= CORE_MMU_BASE_TABLE_LEVEL);
+#endif
 	assert(level <= XLAT_TABLE_LEVEL_MAX);
 
-	if (level == 1)
-		tbl_info->num_entries = NUM_L1_ENTRIES;
+	if (level == CORE_MMU_BASE_TABLE_LEVEL)
+		tbl_info->num_entries = NUM_BASE_LEVEL_ENTRIES;
 	else
 		tbl_info->num_entries = XLAT_TABLE_ENTRIES;
 }
@@ -650,8 +666,8 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			 struct core_mmu_table_info *tbl_info)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	unsigned int num_entries = NUM_L1_ENTRIES;
-	unsigned int level = 1;
+	unsigned int num_entries = NUM_BASE_LEVEL_ENTRIES;
+	unsigned int level = CORE_MMU_BASE_TABLE_LEVEL;
 	vaddr_t va_base = 0;
 	bool ret = false;
 	uintptr_t ntbl;
@@ -659,13 +675,11 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 
 	if (!prtn)
 		prtn = get_prtn();
-	tbl = prtn->l1_tables[0][get_core_pos()];
+	tbl = prtn->base_tables[0][get_core_pos()];
 
 	while (true) {
-		unsigned level_size_shift =
-			L1_XLAT_ADDRESS_SHIFT - (level - 1) *
-						XLAT_TABLE_ENTRIES_SHIFT;
-		unsigned n = (va - va_base) >> level_size_shift;
+		unsigned int level_size_shift = XLAT_ADDR_SHIFT(level);
+		unsigned int n = (va - va_base) >> level_size_shift;
 
 		if (n >= num_entries)
 			goto out;
@@ -678,12 +692,12 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			 */
 
 			/*
-			 * Level 1 is the CPU specific translation table.
+			 * Base level is the CPU specific translation table.
 			 * It doesn't make sense to return anything based
 			 * on that unless foreign interrupts already are
 			 * masked.
 			 */
-			if (level == 1 &&
+			if (level == CORE_MMU_BASE_TABLE_LEVEL &&
 			    !(exceptions & THREAD_EXCP_FOREIGN_INTR))
 				goto out;
 
@@ -730,8 +744,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	int i;
 	paddr_t pa;
 	uint64_t attr;
-	paddr_t block_size_on_next_lvl = 1 << (L1_XLAT_ADDRESS_SHIFT -
-		tbl_info->level * XLAT_TABLE_ENTRIES_SHIFT);
+	paddr_t block_size_on_next_lvl = XLAT_BLOCK_SIZE(tbl_info->level + 1);
 	struct mmu_partition *prtn;
 
 #ifdef CFG_VIRTUALIZATION
@@ -816,7 +829,7 @@ bool core_mmu_user_mapping_is_active(void)
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	assert(user_va_idx != -1);
-	ret = get_prtn()->l1_tables[0][get_core_pos()][user_va_idx];
+	ret = get_prtn()->base_tables[0][get_core_pos()][user_va_idx];
 	thread_unmask_exceptions(exceptions);
 
 	return ret;
@@ -829,7 +842,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 
 	assert(user_va_idx != -1);
 
-	map->user_map = prtn->l1_tables[0][get_core_pos()][user_va_idx];
+	map->user_map = prtn->base_tables[0][get_core_pos()][user_va_idx];
 	if (map->user_map) {
 		map->asid = (read_ttbr0_64bit() >> TTBR_ASID_SHIFT) &
 			    TTBR_ASID_MASK;
@@ -854,10 +867,10 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	/* Set the new map */
 	if (map && map->user_map) {
-		prtn->l1_tables[0][get_core_pos()][user_va_idx] =
+		prtn->base_tables[0][get_core_pos()][user_va_idx] =
 			map->user_map;
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		prtn->l1_tables[1][get_core_pos()][user_va_idx] =
+		prtn->base_tables[1][get_core_pos()][user_va_idx] =
 			map->user_map;
 #endif
 		dsb();	/* Make sure the write above is visible */
@@ -865,9 +878,9 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		write_ttbr0_64bit(ttbr);
 		isb();
 	} else {
-		prtn->l1_tables[0][get_core_pos()][user_va_idx] = 0;
+		prtn->base_tables[0][get_core_pos()][user_va_idx] = 0;
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		prtn->l1_tables[1][get_core_pos()][user_va_idx] = 0;
+		prtn->base_tables[1][get_core_pos()][user_va_idx] = 0;
 #endif
 		dsb();	/* Make sure the write above is visible */
 	}
@@ -915,7 +928,7 @@ void core_mmu_get_user_map(struct core_mmu_user_map *map)
 
 	assert(user_va_idx != -1);
 
-	map->user_map = prtn->l1_tables[0][get_core_pos()][user_va_idx];
+	map->user_map = prtn->base_tables[0][get_core_pos()][user_va_idx];
 	if (map->user_map) {
 		map->asid = (read_ttbr0_el1() >> TTBR_ASID_SHIFT) &
 			    TTBR_ASID_MASK;
@@ -938,10 +951,10 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 
 	/* Set the new map */
 	if (map && map->user_map) {
-		prtn->l1_tables[0][get_core_pos()][user_va_idx] =
+		prtn->base_tables[0][get_core_pos()][user_va_idx] =
 			map->user_map;
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		prtn->l1_tables[1][get_core_pos()][user_va_idx] =
+		prtn->base_tables[1][get_core_pos()][user_va_idx] =
 			map->user_map;
 #endif
 		dsb();	/* Make sure the write above is visible */
@@ -949,9 +962,9 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map)
 		write_ttbr0_el1(ttbr);
 		isb();
 	} else {
-		prtn->l1_tables[0][get_core_pos()][user_va_idx] = 0;
+		prtn->base_tables[0][get_core_pos()][user_va_idx] = 0;
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
-		prtn->l1_tables[1][get_core_pos()][user_va_idx] = 0;
+		prtn->base_tables[1][get_core_pos()][user_va_idx] = 0;
 #endif
 		dsb();	/* Make sure the write above is visible */
 	}
