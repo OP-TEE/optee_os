@@ -50,8 +50,16 @@
  * Level of base table (i.e. first level of page table),
  * depending on address space
  */
+#if !defined(CFG_WITH_LPAE) || (CFG_LPAE_ADDR_SPACE_BITS < 40)
 #define CORE_MMU_BASE_TABLE_SHIFT	U(30)
 #define CORE_MMU_BASE_TABLE_LEVEL	U(1)
+#elif (CFG_LPAE_ADDR_SPACE_BITS >= 40) && (CFG_LPAE_ADDR_SPACE_BITS <= 48)
+#define CORE_MMU_BASE_TABLE_SHIFT	U(39)
+#define CORE_MMU_BASE_TABLE_LEVEL	U(0)
+#else /* (CFG_LPAE_ADDR_SPACE_BITS > 48) */
+#error "CFG_WITH_LPAE with CFG_LPAE_ADDR_SPACE_BITS > 48 isn't supported!"
+#endif
+
 #ifdef CFG_WITH_LPAE
 /*
  * CORE_MMU_BASE_TABLE_OFFSET is used when switching to/from reduced kernel
