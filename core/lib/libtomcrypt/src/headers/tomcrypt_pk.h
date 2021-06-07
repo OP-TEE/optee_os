@@ -52,7 +52,8 @@ typedef struct Rsa_key {
 } rsa_key;
 
 int rsa_make_key(prng_state *prng, int wprng, int size, long e, rsa_key *key);
-
+int rsa_make_key_ubin_e(prng_state *prng, int wprng, int size,
+                        const unsigned char *e, unsigned long elen, rsa_key *key);
 int rsa_get_size(const rsa_key *key);
 
 int rsa_exptmod(const unsigned char *in,   unsigned long inlen,
