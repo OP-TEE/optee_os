@@ -818,9 +818,9 @@ void core_mmu_get_user_va_range(vaddr_t *base, size_t *size)
 	assert(user_va_idx != -1);
 
 	if (base)
-		*base = (vaddr_t)user_va_idx << L1_XLAT_ADDRESS_SHIFT;
+		*base = (vaddr_t)user_va_idx << BASE_XLAT_ADDRESS_SHIFT;
 	if (size)
-		*size = BIT64(L1_XLAT_ADDRESS_SHIFT);
+		*size = BASE_XLAT_BLOCK_SIZE;
 }
 
 bool core_mmu_user_mapping_is_active(void)
