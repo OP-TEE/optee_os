@@ -211,7 +211,7 @@ SECTIONS
 	}
 	.nex_nozi (NOLOAD) : {
 		ASSERT(!(ABSOLUTE(.) & (16 * 1024 - 1)), "align nozi to 16kB");
-		KEEP(*(.nozi.mmu.l1 .nozi.mmu.l2))
+		KEEP(*(.nozi.mmu.base_table .nozi.mmu.l2))
 	}
 
 	. = ALIGN(SMALL_PAGE_SIZE);
