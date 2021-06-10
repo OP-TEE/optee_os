@@ -713,3 +713,8 @@ ifeq ($(CFG_WITH_PAGER),y)
 CFG_PREALLOC_RPC_CACHE ?= n
 endif
 CFG_PREALLOC_RPC_CACHE ?= y
+
+# When enabled, CFG_DRIVERS_CLK embeds a clock framework in OP-TEE core.
+# This clock framework allows to describe clock tree and provides functions to
+# get and configure the clocks.
+CFG_DRIVERS_CLK ?= n
