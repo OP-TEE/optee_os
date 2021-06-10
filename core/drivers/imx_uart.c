@@ -194,6 +194,7 @@ static const struct dt_device_match imx_match_table[] = {
 
 const struct dt_driver imx_dt_driver __dt_driver = {
 	.name = "imx_uart",
+	.type = DT_DRIVER_UART,
 	.match_table = imx_match_table,
 	.driver = &imx_uart_driver,
 };

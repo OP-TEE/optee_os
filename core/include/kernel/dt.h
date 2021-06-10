@@ -52,8 +52,14 @@ struct dt_device_match {
 	const char *compatible;
 };
 
+enum dt_driver_type {
+	DT_DRIVER_NOTYPE,
+	DT_DRIVER_UART,
+};
+
 struct dt_driver {
 	const char *name;
+	enum dt_driver_type type;
 	const struct dt_device_match *match_table; /* null-terminated */
 	const void *driver;
 };

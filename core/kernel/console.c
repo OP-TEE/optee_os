@@ -129,7 +129,7 @@ void configure_console_from_dt(void)
 		return;
 
 	dt_drv = dt_find_compatible_driver(fdt, offs);
-	if (!dt_drv)
+	if (!dt_drv || dt_drv->type != DT_DRIVER_UART)
 		goto out;
 
 	sdrv = (const struct serial_driver *)dt_drv->driver;
