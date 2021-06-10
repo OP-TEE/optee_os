@@ -485,6 +485,16 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 
 	for (offset = 0; size_todo;
 	     offset += size_done, size_todo -= size_done) {
+		/*
+		 * At least one block is to be done.
+		 * At first iteration, we can have less than one block
+		 * data available from previous update operation which
+		 * was not block modulus.
+		 * Remove the previous saved data (blockbuf) from the data to
+		 * take from input data.
+		 * Next iteration, blockbuf will be empty.
+		 */
+		size_todo -= ctx->blockbuf.filled;
 		size_done = size_todo;
 
 		if (size_inmade) {
@@ -492,26 +502,16 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 						       ctx->alg->size_block);
 			if (ret)
 				goto end_cmac;
-		}
 
-		CIPHER_TRACE("Do input %zu bytes, offset %zu", size_done,
-			     offset);
+			CIPHER_TRACE("Do input %zu bytes, offset %zu",
+				     size_done, offset);
 
-		/*
-		 * Need to re-adjust the length of the data if the
-		 * posted data block is not empty and the SGT/Buffer
-		 * is part of the full input data to do.
-		 */
-		if (ctx->blockbuf.filled && size_done < size_todo) {
-			size_done -= ctx->blockbuf.filled;
-			size_todo -= ctx->blockbuf.filled;
-			src.sgtbuf.length = size_done;
-		}
-
-		if (size_inmade)
 			ret = run_cmac_desc(ctx, &src, NULL, false);
-		else
+		} else {
+			CIPHER_TRACE("Do saved blockbuf %zu bytes (done = %zu)",
+				     ctx->blockbuf.filled, size_done);
 			ret = run_cmac_desc(ctx, NULL, NULL, false);
+		}
 
 		if (ret)
 			goto end_cmac;

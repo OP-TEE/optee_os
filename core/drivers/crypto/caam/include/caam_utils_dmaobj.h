@@ -180,9 +180,7 @@ TEE_Result caam_dmaobj_prepare(struct caamdmaobj *input,
 /*
  * Build the CAAM DMA Object's sgtbuf object. Try to build a sgtbuf of
  * maximum @length starting at @offset.
- * Return the @length mapped in the sgtbuf object. If a new data buffer
- * must be reallocated, allocated it to the maximum possible round to @align
- * value.
+ * Return the @length mapped in the sgtbuf object.
  *
  * @obj     CAAM DMA object
  * @length  [in/out] maximum length to do/done
