@@ -32,7 +32,7 @@
  * Peripheral identifiers/interrupts.
  */
 #define AT91C_ID_FIQ		0	/* FIQ Interrupt ID */
-#define AT91C_ID_1		1	/* Undefined/Reserved ID */
+#define AT91C_ID_PMC		1	/* Power Management Controller */
 #define AT91C_ID_ARM		2	/* Performance Monitor Unit */
 #define AT91C_ID_PIT		3	/* Periodic Interval Timer Interrupt */
 #define AT91C_ID_WDT		4	/* Watchdog Timer Interrupt */

@@ -49,12 +49,8 @@ struct peri_security {
 };
 
 static const struct peri_security peri_security_array[] = {
-	/*
-	 * AT91C_ID_1 - This is a undocumented bit in the datasheet.
-	 * However needs to be set for Linux to boot in "normal world"
-	 */
 	{
-		.peri_id = AT91C_ID_1,
+		.peri_id = AT91C_ID_PMC,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
 	},
