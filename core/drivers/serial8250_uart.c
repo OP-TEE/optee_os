@@ -160,6 +160,7 @@ static const struct dt_device_match serial8250_match_table[] = {
 
 const struct dt_driver serial8250_dt_driver __dt_driver = {
 	.name = "serial8250_uart",
+	.type = DT_DRIVER_UART,
 	.match_table = serial8250_match_table,
 	.driver = &serial8250_driver,
 };
