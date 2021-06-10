@@ -289,7 +289,7 @@ static void matrix_configure_slave_h32mx(void)
 }
 
 static unsigned int security_ps_peri_id[] = {
-	AT91C_ID_1,
+	AT91C_ID_PMC,
 	AT91C_ID_ARM,
 	AT91C_ID_PIT,
 	AT91C_ID_WDT,
