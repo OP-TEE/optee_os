@@ -102,4 +102,5 @@ CFG_SCMI_MSG_DRIVERS ?= y
 ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
 $(call force,CFG_SCMI_MSG_SMT,y)
 $(call force,CFG_SCMI_MSG_CLOCK,y)
+$(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y)
 endif

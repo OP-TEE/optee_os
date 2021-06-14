@@ -5,6 +5,7 @@
 
 #include <console.h>
 #include <drivers/pm/sam/atmel_pm.h>
+#include <drivers/scmi-msg.h>
 #include <io.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
@@ -24,6 +25,10 @@ static enum sm_handler_ret sam_sip_handler(struct thread_smc_args *args)
 		return at91_pm_set_suspend_mode(args);
 	case SAMA5_SMC_SIP_GET_SUSPEND_MODE:
 		return at91_pm_get_suspend_mode(args);
+	case SAMA5_SMC_SIP_SCMI_CALL_ID:
+		scmi_smt_fastcall_smc_entry(0);
+		args->a0 = SAMA5_SMC_SIP_RETURN_SUCCESS;
+		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;
 	}
