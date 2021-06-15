@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019, 2021 NXP
+ * Copyright 2017-2019, 2021, 2024 NXP
  *
  * Brief   CAAM Configuration.
  */
@@ -66,6 +66,12 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 
 	retstatus = CAAM_NO_ERROR;
 
+	if (IS_ENABLED(CFG_NXP_CAAM_RUNTIME_JR))
+		caam_hal_jr_prepare_backup(jrcfg->base, jrcfg->offset);
+
+	if (IS_ENABLED(CFG_MX8M))
+		caam_hal_cfg_hab_jr_mgmt(jrcfg);
+
 exit_get_conf:
 	HAL_TRACE("HAL CFG Get CAAM config ret (0x%x)\n", retstatus);
 	return retstatus;
@@ -79,6 +85,14 @@ void __weak caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg)
 
 	for (jrnum = caam_hal_ctrl_jrnum(jrcfg->base); jrnum; jrnum--) {
 		jr_offset = jrnum * JRX_BLOCK_SIZE;
+
+		/*
+		 * Skip configuration for the JR used by the HAB
+		 */
+		if (IS_ENABLED(CFG_MX8M)) {
+			if (caam_hal_cfg_is_hab_jr(jr_offset))
+				continue;
+		}
 
 #ifdef CFG_NXP_CAAM_RUNTIME_JR
 		/*
