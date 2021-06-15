@@ -75,6 +75,12 @@
 /* Round down the even multiple of size, size has to be a multiple of 2 */
 #define ROUNDDOWN(v, size) ((v) & ~((__typeof__(v))(size) - 1))
 
+/*
+ * Round up the result of x / y to the nearest upper integer if result is not 
+ * already an integer.
+ */
+#define DIV_ROUND_UP(x, y) (((x) + (y) - 1) / (y))
+
 /* Unsigned integer division with nearest rounding variant */
 #define UDIV_ROUND_NEAREST(x, y) \
 	(__extension__ ({ __typeof__(x) _x = (x); \
