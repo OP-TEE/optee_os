@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019, 2024 NXP
  *
  * Brief   CAAM Configuration header.
  */
@@ -26,6 +26,20 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg);
  * @jrcfg   Job Ring configuration
  */
 void caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg);
+
+/*
+ * Removes the JR used by HAB from dtb and backup its DID
+ *
+ * @jrcfg   Job Ring configuration of HAB JR
+ */
+void caam_hal_cfg_hab_jr_mgmt(struct caam_jrcfg *jrcfg);
+
+/*
+ * Indicate if the job ring is used by the HAB
+ *
+ * @jr_offset   Job Ring offset
+ */
+bool caam_hal_cfg_is_hab_jr(paddr_t jr_offset);
 
 #ifdef CFG_DT
 /*
