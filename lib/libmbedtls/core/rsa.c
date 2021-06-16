@@ -22,6 +22,8 @@ static TEE_Result get_tee_result(int lmd_res)
 	switch (lmd_res) {
 	case 0:
 		return TEE_SUCCESS;
+	case MBEDTLS_ERR_RSA_PRIVATE_FAILED +
+		MBEDTLS_ERR_MPI_BAD_INPUT_DATA:
 	case MBEDTLS_ERR_RSA_BAD_INPUT_DATA:
 	case MBEDTLS_ERR_RSA_INVALID_PADDING:
 	case MBEDTLS_ERR_PK_TYPE_MISMATCH:
