@@ -725,3 +725,8 @@ CFG_DRIVERS_CLK_FIXED ?= $(CFG_DRIVERS_CLK_DT)
 
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
+
+# When enabled, CFG_SCMI_MSG_USE_CLK will embed SCMI clocks function using
+# the clock framework and define plat_scmi_clock* functions.
+CFG_SCMI_MSG_USE_CLK ?= $(call cfg-all-enabled,CFG_DRIVERS_CLK CFG_DT)
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_USE_CLK,CFG_DRIVERS_CLK CFG_DT))
