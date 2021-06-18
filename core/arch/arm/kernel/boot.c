@@ -885,9 +885,9 @@ static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	}
 
 	ret = snprintf(subnode_name, sizeof(subnode_name),
-		       "%s@0x%" PRIxPA, name, pa);
+		       "%s@%" PRIxPA, name, pa);
 	if (ret < 0 || ret >= (int)sizeof(subnode_name))
-		DMSG("truncated node \"%s@0x%"PRIxPA"\"", name, pa);
+		DMSG("truncated node \"%s@%" PRIxPA"\"", name, pa);
 	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
 	if (offs >= 0) {
 		uint32_t data[FDT_MAX_NCELLS * 2];
