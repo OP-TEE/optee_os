@@ -146,6 +146,26 @@ static inline TEE_Result scmi_msg_threaded_entry(unsigned int chan_id __unused,
 }
 #endif
 
+struct clk;
+
+#ifdef CFG_SCMI_MSG_USE_CLK
+/*
+ * Expose a clock through SCMI
+ * @clk: Clock to be exposed
+ * @channel_id: SCMI server channel exposing the clock
+ * @scmi_id: SCMI ID of the clock within the channel
+ */
+TEE_Result scmi_clk_add(struct clk *clk, unsigned int channel_id,
+			unsigned int scmi_id);
+#else
+static inline TEE_Result scmi_clk_add(struct clk *clk __unused,
+				      unsigned int channel_id __unused,
+				      unsigned int scmi_id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
 /* Platform callback functions */
 
 /*
