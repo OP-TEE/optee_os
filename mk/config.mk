@@ -808,6 +808,12 @@ ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SCPFW),y-y)
 $(error CFG_SCMI_MSG_DRIVERS=y and CFG_SCMI_SCPFW=y are mutually exclusive)
 endif
 
+# When enabled, CFG_SCMI_MSG_USE_CLK embeds SCMI clocks registering services for
+# the platform SCMI server and implements the platform plat_scmi_clock_*()
+# functions.
+CFG_SCMI_MSG_USE_CLK ?= n
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_USE_CLK,CFG_DRIVERS_CLK CFG_SCMI_MSG_DRIVERS))
+
 # Enable SCMI PTA interface for REE SCMI agents
 CFG_SCMI_PTA ?= n
 ifeq ($(CFG_SCMI_PTA),y)
