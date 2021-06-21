@@ -42,6 +42,9 @@
 #define SECURITY_TYPE_NS	2
 #define SECURITY_TYPE_PS	3
 
+#define WORLD_NON_SECURE	0
+#define WORLD_SECURE		1
+
 struct peri_security {
 	unsigned int peri_id;
 	unsigned int matrix;
@@ -467,7 +470,8 @@ static const struct peri_security *get_peri_security(unsigned int peri_id)
 	return NULL;
 }
 
-static int matrix_set_peri_security(unsigned int matrix, unsigned int peri_id)
+static int matrix_set_periph_world(unsigned int matrix, unsigned int peri_id,
+				   unsigned int world)
 {
 	unsigned int base;
 	unsigned int spselr;
@@ -488,14 +492,28 @@ static int matrix_set_peri_security(unsigned int matrix, unsigned int peri_id)
 		return -1;
 
 	spselr = matrix_read(base, MATRIX_SPSELR(idx));
-	spselr |= bit;
+	if (world == WORLD_SECURE)
+		spselr &= ~bit;
+	else
+		spselr |= bit;
 	matrix_write(base, MATRIX_SPSELR(idx), spselr);
 
 	return 0;
 }
 
-int matrix_configure_peri_security(unsigned int *peri_id_array,
-				   unsigned int size)
+int matrix_configure_periph_secure(unsigned int peri_id)
+{
+	const struct peri_security *psec = NULL;
+
+	psec = get_peri_security(peri_id);
+	if (!psec)
+		return -1;
+
+	return matrix_set_periph_world(psec->matrix, peri_id, WORLD_SECURE);
+}
+
+int matrix_configure_periph_non_secure(unsigned int *peri_id_array,
+				       unsigned int size)
 {
 	unsigned int i;
 	unsigned int *peri_id_p;
@@ -518,7 +536,8 @@ int matrix_configure_peri_security(unsigned int *peri_id_array,
 
 		matrix = peripheral_sec->matrix;
 		peri_id = *peri_id_p;
-		ret = matrix_set_peri_security(matrix, peri_id);
+		ret = matrix_set_periph_world(matrix, peri_id,
+					      WORLD_NON_SECURE);
 		if (ret)
 			return -1;
 
