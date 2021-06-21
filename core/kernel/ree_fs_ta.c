@@ -134,10 +134,11 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	void *hash_ctx = NULL;
 	struct shdr *ta = NULL;
 	size_t ta_size = 0;
-	TEE_Result res;
-	size_t offs;
+	TEE_Result res = TEE_SUCCESS;
+	size_t offs = 0;
 	struct shdr_bootstrap_ta *bs_hdr = NULL;
 	struct shdr_encrypted_ta *ehdr = NULL;
+	size_t shdr_sz = 0;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
@@ -179,13 +180,19 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	res = crypto_hash_update(hash_ctx, (uint8_t *)shdr, sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
-	offs = SHDR_GET_SIZE(shdr);
+	shdr_sz = SHDR_GET_SIZE(shdr);
+	if (!shdr_sz) {
+		res = TEE_ERROR_SECURITY;
+		goto error_free_hash;
+	}
+	offs = shdr_sz;
 
 	if (shdr->img_type == SHDR_BOOTSTRAP_TA ||
 	    shdr->img_type == SHDR_ENCRYPTED_TA) {
-		TEE_UUID bs_uuid;
+		TEE_UUID bs_uuid = { };
+		size_t sz = shdr_sz;
 
-		if (ta_size < SHDR_GET_SIZE(shdr) + sizeof(*bs_hdr)) {
+		if (ADD_OVERFLOW(sz, sizeof(*bs_hdr), &sz) || ta_size < sz) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
@@ -219,27 +226,36 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	}
 
 	if (shdr->img_type == SHDR_ENCRYPTED_TA) {
-		struct shdr_encrypted_ta img_ehdr;
+		struct shdr_encrypted_ta img_ehdr = { };
+		size_t sz = shdr_sz;
+		size_t ehdr_sz = 0;
 
-		if (ta_size < SHDR_GET_SIZE(shdr) +
-		    sizeof(struct shdr_bootstrap_ta) + sizeof(img_ehdr)) {
+		if (ADD_OVERFLOW(sz, sizeof(struct shdr_bootstrap_ta), &sz) ||
+		    ADD_OVERFLOW(sz, sizeof(img_ehdr), &sz) ||
+		    ta_size < sz) {
 			res = TEE_ERROR_SECURITY;
 			goto error_free_hash;
 		}
 
 		memcpy(&img_ehdr, ((uint8_t *)ta + offs), sizeof(img_ehdr));
+		ehdr_sz = SHDR_ENC_GET_SIZE(&img_ehdr);
+		sz -= sizeof(img_ehdr);
+		if (!ehdr_sz || ADD_OVERFLOW(sz, ehdr_sz, &sz) ||
+		    ta_size < sz) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_hash;
+		}
 
-		ehdr = malloc(SHDR_ENC_GET_SIZE(&img_ehdr));
+
+		ehdr = malloc(ehdr_sz);
 		if (!ehdr) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto error_free_hash;
 		}
 
-		memcpy(ehdr, ((uint8_t *)ta + offs),
-		       SHDR_ENC_GET_SIZE(&img_ehdr));
+		memcpy(ehdr, ((uint8_t *)ta + offs), ehdr_sz);
 
-		res = crypto_hash_update(hash_ctx, (uint8_t *)ehdr,
-					 SHDR_ENC_GET_SIZE(ehdr));
+		res = crypto_hash_update(hash_ctx, (uint8_t *)ehdr, ehdr_sz);
 		if (res != TEE_SUCCESS)
 			goto error_free_hash;
 
@@ -248,7 +264,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		if (res != TEE_SUCCESS)
 			goto error_free_hash;
 
-		offs += SHDR_ENC_GET_SIZE(ehdr);
+		offs += ehdr_sz;
 		handle->ehdr = ehdr;
 	}
 
