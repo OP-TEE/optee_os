@@ -362,7 +362,7 @@ static int matrix_init(void)
 	matrix_configure_slave_h64mx();
 	matrix_configure_slave_h32mx();
 
-	return matrix_configure_peri_security(security_ps_peri_id,
+	return matrix_configure_periph_non_secure(security_ps_peri_id,
 					      ARRAY_SIZE(security_ps_peri_id));
 }
 
