@@ -484,10 +484,6 @@ static int matrix_set_peri_security(unsigned int matrix, unsigned int peri_id)
 
 	bit = (0x01 << (peri_id % 32));
 
-	/* The Peripheral ID to SPSELR register bit mapping breaks at ID 73 */
-	if (peri_id > AT91C_ID_SDMMC1_TIMER)
-		bit = bit >> 1;
-
 	if (matrix == MATRIX_H32MX)
 		base = matrix32_base();
 	else if (matrix == MATRIX_H64MX)
