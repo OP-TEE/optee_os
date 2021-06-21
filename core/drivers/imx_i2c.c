@@ -182,7 +182,7 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
 
-#if defined(CFG_MX8MM)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
 	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
 	val = CCM_CCGRx_ALWAYS_ON(0);
 #elif defined(CFG_MX6ULL)
