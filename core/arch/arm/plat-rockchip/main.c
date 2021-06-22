@@ -14,14 +14,15 @@
 #include <platform_config.h>
 #include <stdint.h>
 
-static struct gic_data gic_data;
+static struct gic_data gic_data __nex_bss;
 
 #if defined(CFG_EARLY_CONSOLE)
-static struct serial8250_uart_data early_console_data;
+static struct serial8250_uart_data early_console_data __nex_bss;
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CFG_EARLY_CONSOLE_BASE, CFG_EARLY_CONSOLE_SIZE);
 #endif
 
+register_dynamic_shm(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 void main_init_gic(void)
