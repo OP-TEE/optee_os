@@ -42,6 +42,11 @@ R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
+ARM Corstone1000
+R:	Vishnu Banavath <vishnu.banavath@arm.com> [@vishnu-banavath]
+S:	Maintained
+F:	core/arch/arm/plat-corstone1000/
+
 AllWinner sun8i H2+
 R:	Ying-Chun Liu (PaulLiu) <paul.liu@linaro.org> [@grandpaul]
 S:	Maintained

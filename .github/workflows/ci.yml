@@ -231,6 +231,7 @@ jobs:
           _make PLATFORM=amlogic
           _make PLATFORM=rzn1
           _make PLATFORM=versal
+          _make PLATFORM=corstone1000
 
   QEMUv8_check:
     name: make check (QEMUv8)
