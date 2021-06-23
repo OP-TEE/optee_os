@@ -22,7 +22,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CFG_EARLY_CONSOLE_BASE, CFG_EARLY_CONSOLE_SIZE);
 #endif
 
-register_dynamic_shm(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
+register_ddr(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 void main_init_gic(void)
