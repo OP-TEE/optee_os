@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/linker.h>
@@ -24,7 +25,8 @@
 #include <util.h>
 
 struct mobj *mobj_sec_ddr;
-struct mobj *mobj_tee_ram;
+struct mobj *mobj_tee_ram_rx;
+struct mobj *mobj_tee_ram_rw;
 
 /*
  * mobj_phys implementation
@@ -133,34 +135,16 @@ static struct mobj_phys *to_mobj_phys(struct mobj *mobj)
 	return container_of(mobj, struct mobj_phys, mobj);
 }
 
-struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
-			     enum buf_is_attr battr)
+static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
+				   enum buf_is_attr battr,
+				   enum teecore_memtypes area_type)
 {
-	struct mobj_phys *moph;
-	enum teecore_memtypes area_type;
-	void *va;
+	void *va = NULL;
+	struct mobj_phys *moph = NULL;
 
 	if ((pa & CORE_MMU_USER_PARAM_MASK) ||
 	    (size & CORE_MMU_USER_PARAM_MASK)) {
 		DMSG("Expect %#x alignment", CORE_MMU_USER_PARAM_SIZE);
-		return NULL;
-	}
-
-	switch (battr) {
-	case CORE_MEM_TEE_RAM:
-		area_type = MEM_AREA_TEE_RAM_RW_DATA;
-		break;
-	case CORE_MEM_TA_RAM:
-		area_type = MEM_AREA_TA_RAM;
-		break;
-	case CORE_MEM_NSEC_SHM:
-		area_type = MEM_AREA_NSEC_SHM;
-		break;
-	case CORE_MEM_SDP_MEM:
-		area_type = MEM_AREA_SDP_MEM;
-		break;
-	default:
-		DMSG("can't allocate with specified attribute");
 		return NULL;
 	}
 
@@ -182,6 +166,32 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 	moph->va = (vaddr_t)va;
 
 	return &moph->mobj;
+}
+
+struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
+			     enum buf_is_attr battr)
+{
+	enum teecore_memtypes area_type;
+
+	switch (battr) {
+	case CORE_MEM_TEE_RAM:
+		area_type = MEM_AREA_TEE_RAM_RW_DATA;
+		break;
+	case CORE_MEM_TA_RAM:
+		area_type = MEM_AREA_TA_RAM;
+		break;
+	case CORE_MEM_NSEC_SHM:
+		area_type = MEM_AREA_NSEC_SHM;
+		break;
+	case CORE_MEM_SDP_MEM:
+		area_type = MEM_AREA_SDP_MEM;
+		break;
+	default:
+		DMSG("can't allocate with specified attribute");
+		return NULL;
+	}
+
+	return mobj_phys_init(pa, size, cattr, battr, area_type);
 }
 
 /*
@@ -674,13 +684,36 @@ static TEE_Result mobj_init(void)
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
 
-	mobj_tee_ram = mobj_phys_alloc(TEE_RAM_START,
-				       VCORE_UNPG_RW_PA + VCORE_UNPG_RW_SZ -
-						TEE_RAM_START,
-				       TEE_MATTR_CACHE_CACHED,
-				       CORE_MEM_TEE_RAM);
-	if (!mobj_tee_ram)
-		panic("Failed to register tee ram");
+	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
+		mobj_tee_ram_rx = mobj_phys_init(TEE_RAM_START,
+						 VCORE_UNPG_RX_SZ,
+						 TEE_MATTR_CACHE_CACHED,
+						 CORE_MEM_TEE_RAM,
+						 MEM_AREA_TEE_RAM_RX);
+		if (!mobj_tee_ram_rx)
+			panic("Failed to register tee ram rx");
+
+		mobj_tee_ram_rw = mobj_phys_init(TEE_RAM_START +
+						 VCORE_UNPG_RX_SZ,
+						 VCORE_UNPG_RW_SZ,
+						 TEE_MATTR_CACHE_CACHED,
+						 CORE_MEM_TEE_RAM,
+						 MEM_AREA_TEE_RAM_RW_DATA);
+		if (!mobj_tee_ram_rw)
+			panic("Failed to register tee ram rw");
+	} else {
+		mobj_tee_ram_rw = mobj_phys_init(TEE_RAM_START,
+						 VCORE_UNPG_RW_PA +
+						 VCORE_UNPG_RW_SZ -
+						 TEE_RAM_START,
+						 TEE_MATTR_CACHE_CACHED,
+						 CORE_MEM_TEE_RAM,
+						 MEM_AREA_TEE_RAM_RW_DATA);
+		if (!mobj_tee_ram_rw)
+			panic("Failed to register tee ram");
+
+		mobj_tee_ram_rx = mobj_tee_ram_rw;
+	}
 
 	return TEE_SUCCESS;
 }
