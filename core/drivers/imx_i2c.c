@@ -34,6 +34,7 @@
 #define I2C_CFG_VAL(__x)	0x1c3
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR6BM(__x)	0
 #define I2C_CLK_CGR(__x)	CCM_CCRG_I2C##__x
 #elif defined(CFG_MX6ULL)
 /* IOMUX */
@@ -43,8 +44,9 @@
 #define I2C_MUX_VAL(__x)	0x012
 #define I2C_CFG_VAL(__x)	0x1b8b0
 /* Clock */
-#define I2C_CLK_CGRBM(__x)	(((__x) == 3)? BM_CCM_CCGR6_I2C##__x##_SERIAL : BM_CCM_CCGR2_I2C##__x##_SERIAL)
-#define I2C_CLK_CGR(__x)	(((__x) == 3)? CCM_CCGR6 : CCM_CCGR2)
+#define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
+#define I2C_CLK_CGR6BM(__x)	BM_CCM_CCGR6_I2C##__x##_SERIAL
+#define I2C_CLK_CGR(__x)	(((__x) == 4) ? CCM_CCGR6 : CCM_CCGR2)
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
@@ -69,11 +71,15 @@ static struct io_pa_va i2c_bus[4] = {
 static struct imx_i2c_clk {
 	struct io_pa_va base;
 	uint32_t i2c[ARRAY_SIZE(i2c_bus)];
+#if defined(CFG_MX6ULL)
 	uint32_t cgrbm[ARRAY_SIZE(i2c_bus)];
+#endif
 } i2c_clk = {
 	.base.pa = CCM_BASE,
 	.i2c = { I2C_CLK_CGR(1), I2C_CLK_CGR(2), I2C_CLK_CGR(3), I2C_CLK_CGR(4), },
-	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), I2C_CLK_CGRBM(4),},
+#if defined(CFG_MX6ULL)
+	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), I2C_CLK_CGR6BM(4),},
+#endif
 };
 
 static struct imx_i2c_mux {
