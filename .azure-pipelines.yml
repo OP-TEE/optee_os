@@ -9,8 +9,8 @@ jobs:
       - task: InstallSSHKey@0
         displayName: 'Install SSH key for build cache'
         inputs:
-          hostname: 'shippable-cache.forissier.org'
-          knownHostEntry: 'shippable-cache.forissier.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDhjh94ShHh6M19+0NBjgX8ZUiZINQS60GmQjzLfivljvAxBtheCDlDqK5NLIoXn4HE2FxkNTMqmJ+D0p7eQAy81OyYVtvTrJm4B4dk60wMDzQgUK2Cikl2YWNTuxeHpwvpEXP0EK/AHjX1z+98Us9XP6bMr7n1nN6WM8JEdOKpMgl7O9uK3jqYJHo9k+ldkAR4yX8jYgxothu9qkeu2X8tbaP3rjaLlDEsi90AOZb0VJxVmTRWFjh3DBcbbeiurTQndKrQff6T5SkbK2vjKP7ipFAKfAYK6SDOxsZ6c5KB8/5aMHXnble9aL2tDV2CArlbKlTySM9ozcN274gK8n2at8lKfDgzK1yzCehVk6KQk+EERNqxFESpoFgq28DLGqxcPQW27nD7jqFSxPSHGll3ePTF49e8/sNi6vRD3dvmgGMMZWmdI8QwfR83ELN+jcwb3sCNhUh/kK4ETfDMV3N5kRhSGcJK84Lzb4s85afacGxXRu/9HhiEe7wl+LWv5Es='
+          hostname: 'cache.forissier.org'
+          knownHostEntry: 'cache.forissier.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDhjh94ShHh6M19+0NBjgX8ZUiZINQS60GmQjzLfivljvAxBtheCDlDqK5NLIoXn4HE2FxkNTMqmJ+D0p7eQAy81OyYVtvTrJm4B4dk60wMDzQgUK2Cikl2YWNTuxeHpwvpEXP0EK/AHjX1z+98Us9XP6bMr7n1nN6WM8JEdOKpMgl7O9uK3jqYJHo9k+ldkAR4yX8jYgxothu9qkeu2X8tbaP3rjaLlDEsi90AOZb0VJxVmTRWFjh3DBcbbeiurTQndKrQff6T5SkbK2vjKP7ipFAKfAYK6SDOxsZ6c5KB8/5aMHXnble9aL2tDV2CArlbKlTySM9ozcN274gK8n2at8lKfDgzK1yzCehVk6KQk+EERNqxFESpoFgq28DLGqxcPQW27nD7jqFSxPSHGll3ePTF49e8/sNi6vRD3dvmgGMMZWmdI8QwfR83ELN+jcwb3sCNhUh/kK4ETfDMV3N5kRhSGcJK84Lzb4s85afacGxXRu/9HhiEe7wl+LWv5Es='
           sshPublicKey: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDHVf1VsKwFAc1574TJfQK1v7ugPoYIpASm3UqB8HUQHVl353zH/veEL2xer1g4GSj27LIh0wszGqu6wMIWGNxb1iEozhLBABnavAht9mSYWkeOfzWb8f8c4EgLyK5gWhT049+A1iI8tu9DjHjgGD6JeyYyUXGHwC0cexqu6QJszWuXi2a0arCeM2Dbo/bjTJ4HdKEJBaxHpaO0JbbNmJrKwlAySHKdWtQ7uowKQgdD6BZcjV4n++pj4WfMMUVgBfaw7m3S6DP7I+yAWH4U3mLpf6Yq54rYYCewjLtQHj9H5xAPAi7Yk7b4+DJgeOY8CQ3zSdsnrHf69905ShVy9fUbylilgqdZEiRwxCaQ7Felh9cH9OBmP1DtEDpL1FSj5lj9o7fSNCJ22F8vYKf7hQRK68vjJW16rB1iPh63fHSIdEQV4pobxjhoOctckxI7svHT6u7pf6tP4BW9wu8i4utQq5XaF1HN2DWcKSP8I+R3668/p/kHfAvJQZaHsbFmB+s= jerome@azure-pipelines'
           sshKeySecureFile: 'ssh_rsa_build-cache'
       - script: |
@@ -25,8 +25,8 @@ jobs:
           export PROJ=$(System.CollectionId)-$(System.TeamProject) # $ORG_NAME-$REPO_NAME
           export SCP_OPT="-o ConnectTimeout=10 -o StrictHostKeyChecking=no"
 
-          function download_cache() { ssh $SCP_OPT shippable@shippable-cache.forissier.org "cat ccache-$PROJ.tar.gz" | tar zx -C $HOME || echo Nevermind; }
-          function upload_cache() { if [ ! -e .uploaded ]; then echo Uploading cache && tar c -C $HOME .ccache | gzip -1 | ssh $SCP_OPT shippable@shippable-cache.forissier.org "cat >ccache-$PROJ.tar.gz" && touch .uploaded || echo Nevermind; fi; }
+          function download_cache() { ssh $SCP_OPT optee_os_ci@cache.forissier.org "cat ccache-$PROJ.tar.gz" | tar zx -C $HOME || echo Nevermind; }
+          function upload_cache() { if [ ! -e .uploaded ]; then echo Uploading cache && tar c -C $HOME .ccache | gzip -1 | ssh $SCP_OPT optee_os_ci@cache.forissier.org "cat >ccache-$PROJ.tar.gz" && touch .uploaded || echo Nevermind; fi; }
           function check_upload_cache() { NOW=$(date +%s); if [ $(expr $NOW - $START) -gt 3000 ]; then upload_cache; fi; }
           function _make() { make -j$(getconf _NPROCESSORS_ONLN) -s O=out $* && check_upload_cache; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && curl -L https://github.com/foundriesio/plug-and-trust/releases/download/v0.0.2/se050-0.0.2.tar.bz2 | tar jxf - --strip-components=1 -C $HOME/se050 || (rm -rf $HOME/se050; echo Nervermind); }
