@@ -40,7 +40,8 @@ struct mobj_ops {
 
 extern struct mobj mobj_virt;
 extern struct mobj *mobj_sec_ddr;
-extern struct mobj *mobj_tee_ram;
+extern struct mobj *mobj_tee_ram_rx;
+extern struct mobj *mobj_tee_ram_rw;
 
 static inline void *mobj_get_va(struct mobj *mobj, size_t offset)
 {
