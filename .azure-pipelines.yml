@@ -4,7 +4,7 @@ jobs:
     pool:
       vmImage: ubuntu-18.04
     container:
-      image: jforissier/optee_os_ci_clangbuilt
+      image: jforissier/optee_os_ci
     steps:
       - task: InstallSSHKey@0
         displayName: 'Install SSH key for build cache'
