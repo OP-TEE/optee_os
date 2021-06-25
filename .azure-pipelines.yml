@@ -174,3 +174,25 @@ jobs:
           _make PLATFORM=rzn1
 
           upload_cache
+
+  - job: QEMUv8_check
+    displayName: 'Run regression tests (xtest) in QEMUv8'
+    pool:
+      vmImage: ubuntu-18.04
+    container:
+      image: jforissier/optee_os_ci:qemuv8_check
+    steps:
+      - script: |
+          set -e -v
+          export LC_ALL=C
+          WD=$(pwd)
+          sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
+          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
+          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(getconf _NPROCESSORS_ONLN) CFG_TEE_CORE_LOG_LEVEL=0 check
+
+          sudo touch /boot/vmlinuz-$(uname -r)
+          sudo -E rm -rf /root/optee_repo_qemu_v8/out-br/build/optee_test*
+          sudo -E make -C /root/optee_repo_qemu_v8/build arm-tf-clean
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(getconf _NPROCESSORS_ONLN) CFG_TEE_CORE_LOG_LEVEL=0 check XEN_BOOT=y
