@@ -516,6 +516,8 @@
 			sfr: sfr@f8030000 {
 				compatible = "atmel,sama5d2-sfr", "syscon";
 				reg = <0xf8030000 0x98>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			flx0: flexcom@f8034000 {
