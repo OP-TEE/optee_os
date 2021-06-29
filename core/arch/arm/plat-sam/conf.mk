@@ -22,6 +22,11 @@ $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
 $(call force,CFG_PL310_LOCKED,y)
 $(call force,CFG_AT91_MATRIX,y)
+$(call force,CFG_DRIVERS_CLK,y)
+$(call force,CFG_DRIVERS_CLK_DT,y)
+$(call force,CFG_DRIVERS_CLK_FIXED,y)
+$(call force,CFG_DRIVERS_SAM_CLK,y)
+$(call force,CFG_DRIVERS_SAMA5D2_CLK,y)
 
 # These values are forced because of matrix configuration for secure area.
 # When modifying these, always update matrix settings in
