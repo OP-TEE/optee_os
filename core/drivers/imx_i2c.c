@@ -71,15 +71,11 @@ static struct io_pa_va i2c_bus[4] = {
 static struct imx_i2c_clk {
 	struct io_pa_va base;
 	uint32_t i2c[ARRAY_SIZE(i2c_bus)];
-#if defined(CFG_MX6ULL)
 	uint32_t cgrbm[ARRAY_SIZE(i2c_bus)];
-#endif
 } i2c_clk = {
 	.base.pa = CCM_BASE,
 	.i2c = { I2C_CLK_CGR(1), I2C_CLK_CGR(2), I2C_CLK_CGR(3), I2C_CLK_CGR(4), },
-#if defined(CFG_MX6ULL)
 	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), I2C_CLK_CGR6BM(4),},
-#endif
 };
 
 static struct imx_i2c_mux {
