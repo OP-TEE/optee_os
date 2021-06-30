@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <drivers/stpmic1.h>
+#include <drivers/stpmic1_regulator.h>
 #include <kernel/panic.h>
 #include <platform_config.h>
 #include <stdint.h>

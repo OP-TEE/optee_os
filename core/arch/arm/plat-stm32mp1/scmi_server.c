@@ -13,6 +13,7 @@
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_pwr.h>
 #include <drivers/stpmic1.h>
+#include <drivers/stpmic1_regulator.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
