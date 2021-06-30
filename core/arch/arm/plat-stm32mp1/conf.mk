@@ -190,6 +190,11 @@ CFG_WDT ?= $(CFG_STM32_IWDG)
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
+# Default enable scmi-msg server if SCP-firmware SCMI server is disabled
+ifneq ($(CFG_SCMI_SERVER),y)
+CFG_SCMI_MSG_DRIVERS ?= y
+endif
+
 # SiP/OEM service for non-secure world
 CFG_STM32_BSEC_SIP ?= y
 CFG_STM32MP1_SCMI_SIP ?= n
@@ -202,10 +207,18 @@ endif
 # Default enable SCMI PTA support
 CFG_SCMI_PTA ?= y
 ifeq ($(CFG_SCMI_PTA),y)
+ifneq ($(CFG_SCMI_SERVER),y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_SCMI_PTA)
 $(call force,CFG_SCMI_MSG_SMT_THREAD_ENTRY,y,Mandated by CFG_SCMI_PTA)
 CFG_SCMI_MSG_SHM_MSG ?= y
 CFG_SCMI_MSG_SMT ?= y
+endif # !CFG_SCMI_SERVER
+endif # CFG_SCMI_PTA
+
+CFG_SCMI_SERVER ?= n
+ifeq ($(CFG_SCMI_SERVER),y)
+$(call force,CFG_SCMI_SERVER_PRODUCT,optee-stm32mp1)
+cflags-plat-scmi-server-$(CFG_STPMIC1) += -DCFG_STPMIC1
 endif
 
 CFG_SCMI_MSG_DRIVERS ?= n
