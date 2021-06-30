@@ -28,8 +28,7 @@
 		adr	x1, stack_tmp_stride
 		ldr	w1, [x1]
 		mul	x1, x0, x1
-		adrp	x0, stack_tmp_export
-		add	x0, x0, :lo12:stack_tmp_export
+		adr_l	x0, stack_tmp_export
 		ldr	x0, [x0]
 		msr	spsel, #0
 		add	sp, x1, x0
