@@ -14,6 +14,7 @@
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp1_etzpc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
+#include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
@@ -22,8 +23,10 @@
 #include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
+#include <scmi/scmi_server.h>
 #include <sm/psci.h>
 #include <stm32_util.h>
+#include <string.h>
 #include <trace.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
@@ -40,6 +43,11 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, APB5_BASE, APB5_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB4_BASE, AHB4_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB5_BASE, AHB5_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+
+#ifdef CFG_STM32MP1_SCMI_SHM_BASE
+register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
+		  CFG_STM32MP1_SCMI_SHM_SIZE);
+#endif
 
 register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
@@ -188,6 +196,18 @@ static TEE_Result init_stm32mp1_drivers(void)
 
 	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
+
+	if (SYSRAM_SIZE > SYSRAM_SEC_SIZE) {
+		size_t nsec_size = SYSRAM_SIZE - SYSRAM_SEC_SIZE;
+		paddr_t nsec_start = SYSRAM_BASE + SYSRAM_SEC_SIZE;
+		uint8_t *va = phys_to_virt(nsec_start, MEM_AREA_IO_NSEC,
+					   nsec_size);
+
+		IMSG("Non-secure SYSRAM [%p %p]", va, va + nsec_size - 1);
+
+		/* Clear content from the non-secure part */
+		memset(va, 0, nsec_size);
+	}
 
 	return TEE_SUCCESS;
 }
