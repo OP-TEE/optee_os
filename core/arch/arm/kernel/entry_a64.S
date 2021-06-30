@@ -25,7 +25,7 @@
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
-		adr	x1, stack_tmp_stride
+		adr_l	x1, stack_tmp_stride
 		ldr	w1, [x1]
 		mul	x1, x0, x1
 		adr_l	x0, stack_tmp_export
