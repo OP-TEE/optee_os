@@ -210,10 +210,23 @@ supported-ta-targets += ta_arm64
 endif
 endif
 
+ifeq (,$(supported-sp-targets))
+supported-sp-targets = sp_arm32
+ifeq ($(CFG_ARM64_core),y)
+supported-sp-targets += sp_arm64
+endif
+endif
+
 ta-targets := $(if $(CFG_USER_TA_TARGETS),$(filter $(supported-ta-targets),$(CFG_USER_TA_TARGETS)),$(supported-ta-targets))
 unsup-targets := $(filter-out $(ta-targets),$(CFG_USER_TA_TARGETS))
 ifneq (,$(unsup-targets))
 $(error CFG_USER_TA_TARGETS contains unsupported value(s): $(unsup-targets). Valid values: $(supported-ta-targets))
+endif
+
+sp-targets := $(if $(CFG_SP_TARGETS),$(filter $(supported-sp-targets),$(CFG_SP_TARGETS)),$(supported-sp-targets))
+unsup-targets := $(filter-out $(sp-targets),$(CFG_SP_TARGETS))
+ifneq (,$(unsup-targets))
+$(error CFG_SP_TARGETS contains unsupported value(s): $(unsup-targets). Valid values: $(supported-sp-targets))
 endif
 
 ifneq ($(filter ta_arm32,$(ta-targets)),)
@@ -308,8 +321,96 @@ ta-mk-file-export-add-ta_arm64 += COMPILER_ta_arm64 ?= $$(COMPILER)_nl_
 ta-mk-file-export-add-ta_arm64 += PYTHON3 ?= python3_nl_
 endif
 
-# Set cross compiler prefix for each TA target
-$(foreach sm, $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+ifneq ($(filter sp_arm32,$(sp-targets)),)
+# Variables for sp-target/sm "sp_arm32"
+CFG_ARM32_sp_arm32 := y
+arch-bits-sp_arm32 := 32
+sp_arm32-platform-cppflags += $(arm32-platform-cppflags)
+sp_arm32-platform-cflags += $(arm32-platform-cflags)
+sp_arm32-platform-cflags += $(platform-cflags-optimization)
+sp_arm32-platform-cflags += $(platform-cflags-debug-info)
+sp_arm32-platform-cflags += -fpic
+
+# Thumb mode doesn't support function graph tracing due to missing
+# frame pointer support required to trace function call chain. So
+# rather compile in ARM mode if function tracing is enabled.
+ifeq ($(CFG_FTRACE_SUPPORT),y)
+sp_arm32-platform-cflags += $(arm32-platform-cflags-generic-arm)
+else
+sp_arm32-platform-cflags += $(arm32-platform-cflags-generic-thumb)
+endif
+
+ifeq ($(arm32-platform-hard-float-enabled),y)
+sp_arm32-platform-cflags += $(arm32-platform-cflags-hard-float)
+else
+sp_arm32-platform-cflags += $(arm32-platform-cflags-no-hard-float)
+endif
+ifeq ($(CFG_UNWIND),y)
+sp_arm32-platform-cflags += -funwind-tables
+endif
+sp_arm32-platform-aflags += $(platform-aflags-generic)
+sp_arm32-platform-aflags += $(platform-aflags-debug-info)
+sp_arm32-platform-aflags += $(arm32-platform-aflags)
+
+sp_arm32-platform-cxxflags += -fpic
+sp_arm32-platform-cxxflags += $(arm32-platform-cxxflags)
+sp_arm32-platform-cxxflags += $(platform-cflags-optimization)
+sp_arm32-platform-cxxflags += $(platform-cflags-debug-info)
+
+ifeq ($(arm32-platform-hard-float-enabled),y)
+sp_arm32-platform-cxxflags += $(arm32-platform-cflags-hard-float)
+else
+sp_arm32-platform-cxxflags += $(arm32-platform-cflags-no-hard-float)
+endif
+
+sp-mk-file-export-vars-sp_arm32 += CFG_ARM32_sp_arm32
+sp-mk-file-export-vars-sp_arm32 += sp_arm32-platform-cppflags
+sp-mk-file-export-vars-sp_arm32 += sp_arm32-platform-cflags
+sp-mk-file-export-vars-sp_arm32 += sp_arm32-platform-aflags
+sp-mk-file-export-vars-sp_arm32 += sp_arm32-platform-cxxflags
+
+sp-mk-file-export-add-sp_arm32 += CROSS_COMPILE ?= arm-linux-gnueabihf-_nl_
+sp-mk-file-export-add-sp_arm32 += CROSS_COMPILE32 ?= $$(CROSS_COMPILE)_nl_
+sp-mk-file-export-add-sp_arm32 += CROSS_COMPILE_sp_arm32 ?= $$(CROSS_COMPILE32)_nl_
+sp-mk-file-export-add-sp_arm32 += COMPILER ?= gcc_nl_
+sp-mk-file-export-add-sp_arm32 += COMPILER_sp_arm32 ?= $$(COMPILER)_nl_
+sp-mk-file-export-add-sp_arm32 += PYTHON3 ?= python3_nl_
+endif
+
+ifneq ($(filter sp_arm64,$(sp-targets)),)
+# Variables for sp-target/sm "sp_arm64"
+CFG_ARM64_sp_arm64 := y
+arch-bits-sp_arm64 := 64
+sp_arm64-platform-cppflags += $(arm64-platform-cppflags)
+sp_arm64-platform-cflags += $(arm64-platform-cflags)
+sp_arm64-platform-cflags += $(platform-cflags-optimization)
+sp_arm64-platform-cflags += $(platform-cflags-debug-info)
+sp_arm64-platform-cflags += -fpic
+sp_arm64-platform-cflags += $(arm64-platform-cflags-generic)
+ifeq ($(arm64-platform-hard-float-enabled),y)
+sp_arm64-platform-cflags += $(arm64-platform-cflags-hard-float)
+else
+sp_arm64-platform-cflags += $(arm64-platform-cflags-no-hard-float)
+endif
+sp_arm64-platform-aflags += $(platform-aflags-generic)
+sp_arm64-platform-aflags += $(platform-aflags-debug-info)
+sp_arm64-platform-aflags += $(arm64-platform-aflags)
+
+sp-mk-file-export-vars-sp_arm64 += CFG_ARM64_sp_arm64
+sp-mk-file-export-vars-sp_arm64 += sp_arm64-platform-cppflags
+sp-mk-file-export-vars-sp_arm64 += sp_arm64-platform-cflags
+sp-mk-file-export-vars-sp_arm64 += sp_arm64-platform-aflags
+
+sp-mk-file-export-add-sp_arm64 += CROSS_COMPILE64 ?= $$(CROSS_COMPILE)_nl_
+sp-mk-file-export-add-sp_arm64 += CROSS_COMPILE_sp_arm64 ?= $$(CROSS_COMPILE64)_nl_
+sp-mk-file-export-add-sp_arm64 += COMPILER ?= gcc_nl_
+sp-mk-file-export-add-sp_arm64 += COMPILER_sp_arm64 ?= $$(COMPILER)_nl_
+sp-mk-file-export-add-sp_arm64 += PYTHON3 ?= python3_nl_
+endif
+
+# Set cross compiler prefix for each submodule
+$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+$(foreach sm, core $(sp-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
 
 arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
 arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h

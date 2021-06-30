@@ -63,6 +63,12 @@ CFG_TEE_CORE_LOG_LEVEL ?= 1
 # when the TA is built.
 CFG_TEE_TA_LOG_LEVEL ?= 1
 
+# SP log level
+# If user-mode library libutils.a is built with CFG_TEE_SP_LOG_LEVEL=0,
+# SP tracing is disabled regardless of the value of CFG_TEE_SP_LOG_LEVEL
+# when the SP is built.
+CFG_TEE_SP_LOG_LEVEL ?= 1
+
 # TA enablement
 # When defined to "y", TA traces are output according to
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
