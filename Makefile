@@ -97,6 +97,25 @@ endef
 $(foreach t, $(sort $(wildcard ta/*/user_ta.mk)), $(eval $(call build-user-ta,$(t))))
 endif
 
+# Platform/arch config is supposed to assign the targets
+sp-targets ?= invalid
+default-sp-target ?= $(firstword $(sp-targets))
+
+ifeq ($(CFG_SECURE_PARTITION),y)
+define build-sp-target
+sp-target := $(1)
+include sp/sp.mk
+endef
+$(foreach t, $(sp-targets), $(eval $(call build-sp-target, $(t))))
+
+# Build SPs included in this git
+define build-sp
+sp-mk-file := $(1)
+include sp/mk/build-sp.mk
+endef
+$(foreach t, $(wildcard sp/*/sp.mk), $(eval $(call build-sp,$(t))))
+endif
+
 include mk/cleandirs.mk
 
 .PHONY: clean
