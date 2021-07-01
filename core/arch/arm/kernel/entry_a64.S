@@ -15,6 +15,8 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
+#include "thread_private.h"
+
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
 	 * SP_EL0 is assigned stack_tmp_export + cpu_id * stack_tmp_stride
@@ -232,10 +234,15 @@ clear_nex_bss:
 	adr_l	x0, threads
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, x0
+	bl	thread_get_core_local
+	mov	x22, x0
+	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	x0, x20		/* DT address */
 	bl	boot_init_primary_late
 #ifndef CFG_VIRTUALIZATION
+	mov	x0, #THREAD_CLF_TMP
+	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, x21
 #endif
 
