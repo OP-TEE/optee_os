@@ -44,7 +44,7 @@
 #define I2C_CFG_VAL(__x)	0x1b8b0
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	(((__x) == 3)? BM_CCM_CCGR6_I2C##__x##_SERIAL : BM_CCM_CCGR2_I2C##__x##_SERIAL)
-#define I2C_CLK_CGR(__x)	(((__x) == 3)? CCM_CCGR6 : CCM_CCGR2)
+#define I2C_CLK_CGR(__x)	(((__x) == x3)? CCM_CCGR6 : CCM_CCGR2)
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
