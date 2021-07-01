@@ -156,7 +156,7 @@ static const char *shres2str_state_tbl[4] __maybe_unused = {
 	[SHRES_SECURE] = "secure",
 };
 
-static __maybe_unused const char *shres2str_state(enum stm32mp_shres id)
+static __maybe_unused const char *shres2str_state(enum shres_state id)
 {
 	return shres2str_state_tbl[id];
 }
