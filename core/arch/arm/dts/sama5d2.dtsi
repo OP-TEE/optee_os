@@ -1024,6 +1024,16 @@
 				atmel,external-irqs = <49>;
 			};
 
+			saic: interrupt-controller@f803c000 {
+				#interrupt-cells = <3>;
+				compatible = "atmel,sama5d2-saic";
+				interrupt-controller;
+				reg = <0xf803c000 0x200>;
+				atmel,external-irqs = <49>;
+				status = "disabled";
+				secure-status = "okay";
+			};
+
 			i2c1: i2c@fc028000 {
 				compatible = "atmel,sama5d2-i2c";
 				reg = <0xfc028000 0x100>;
