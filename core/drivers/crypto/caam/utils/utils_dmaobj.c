@@ -1394,9 +1394,9 @@ TEE_Result caam_dmaobj_sgtbuf_build(struct caamdmaobj *obj, size_t *length,
 		obj->sgtbuf.paddr = obj->sgtbuf.buf->paddr;
 	}
 
-	*length = obj->sgtbuf.length;
+	*length = max_length;
 	ret = TEE_SUCCESS;
 out:
-	DMAOBJ_TRACE("SGTBUF (%zu) returns 0x%" PRIx32, *length, ret);
+	DMAOBJ_TRACE("SGTBUF returns 0x%" PRIx32, ret);
 	return ret;
 }

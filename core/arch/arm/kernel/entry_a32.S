@@ -16,8 +16,6 @@
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
-#include "thread_private.h"
-
 .arch_extension sec
 
 .section .data
@@ -553,16 +551,10 @@ shadow_stack_access_ok:
 	ldr	r0, =threads
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, r0
-	bl	thread_get_core_local
-	mov	r8, r0
-	mov	r0, #0
-	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	r0, r6		/* DT address */
 	bl	boot_init_primary_late
 #ifndef CFG_VIRTUALIZATION
-	mov	r0, #THREAD_CLF_TMP
-	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, r7
 #endif
 

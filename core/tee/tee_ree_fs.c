@@ -4,7 +4,6 @@
  */
 
 #include <assert.h>
-#include <config.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -498,28 +497,9 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 		return res;
 
 	res = tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh);
-
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		if (hashp) {
-			if (IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
-				DMSG("dirf.db not found, clear hash in RPMB");
-				res = rpmb_fs_ops.truncate(ree_fs_rpmb_fh, 0);
-				if (res) {
-					DMSG("Can't clear hash: %#"PRIx32, res);
-					res = TEE_ERROR_SECURITY;
-					goto out;
-				}
-			} else {
-				DMSG("dirf.db file not found");
-				res = TEE_ERROR_SECURITY;
-				goto out;
-			}
-		}
-
+	if (res == TEE_ERROR_ITEM_NOT_FOUND)
 		res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
-	}
 
-out:
 	if (res)
 		rpmb_fs_ops.close(&ree_fs_rpmb_fh);
 
