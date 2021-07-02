@@ -1,6 +1,7 @@
-PLATFORM_FLAVOR ?= sama5d2xult
+PLATFORM_FLAVOR ?= sama5d27_som1_ek
 
 flavor_dts_file-sama5d2xult = at91-sama5d2_xplained.dts
+flavor_dts_file-sama5d27_som1_ek = at91-sama5d27_som1_ek.dts
 
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
