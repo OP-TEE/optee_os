@@ -4,6 +4,7 @@
  *
  */
 
+#include <config.h>
 #include <imx.h>
 #include <initcall.h>
 #include <io.h>
@@ -80,6 +81,21 @@ const struct csu_config csu_imx6sl = { NULL, csu_setting_imx6sl };
 const struct csu_config csu_imx6sx = { NULL, csu_setting_imx6sx };
 const struct csu_config csu_imx7ds = { NULL, csu_setting_imx7ds };
 
+static void rngb_configure(vaddr_t csu_base)
+{
+	int csu_index = 0;
+
+	if (soc_is_imx6sl() || soc_is_imx6sll())
+		csu_index = 16;
+	else if (soc_is_imx6ull())
+		csu_index = 34;
+	else
+		return;
+
+	/* Protect RNGB */
+	io_mask32(csu_base + csu_index * 4, 0x330000, 0xFF0000);
+}
+
 static TEE_Result csu_init(void)
 {
 	vaddr_t csu_base;
@@ -118,6 +134,9 @@ static TEE_Result csu_init(void)
 
 		csu_setting++;
 	}
+
+	if (IS_ENABLED(CFG_IMX_RNGB))
+		rngb_configure(csu_base);
 
 	/* lock the settings */
 	for (offset = CSU_CSL_START; offset < CSU_CSL_END; offset += 4) {
