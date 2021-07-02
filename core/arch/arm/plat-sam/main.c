@@ -176,8 +176,20 @@ static void matrix_configure_slave_h64mx(void)
 					ssr_setting);
 
 	/* 11:  Internal SRAM 128K (Cache L2): Default */
-	/* 12:  QSPI0: Default */
-	/* 13:  QSPI1: Default */
+
+	/* 12:  QSPI0: Normal world */
+	/* 13:  QSPI1: Normal world */
+	srtop_setting = MATRIX_SRTOP(0, MATRIX_SRTOP_VALUE_128M);
+	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SASPLIT_VALUE_128M);
+	ssr_setting = MATRIX_LANSECH_NS(0) | MATRIX_RDNSECH_NS(0) |
+		      MATRIX_WRNSECH_NS(0);
+
+	matrix_configure_slave_security(matrix64_base(), H64MX_SLAVE_QSPI0,
+					srtop_setting, sasplit_setting,
+					ssr_setting);
+	matrix_configure_slave_security(matrix64_base(), H64MX_SLAVE_QSPI1,
+					srtop_setting, sasplit_setting,
+					ssr_setting);
 	/* 14:  AESB: Default */
 }
 
