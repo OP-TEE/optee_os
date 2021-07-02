@@ -17,6 +17,7 @@ include core/arch/arm/cpu/cortex-a5.mk
 
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_ATMEL_UART,y)
+$(call force,CFG_ATMEL_SAIC,y)
 $(call force,CFG_SECURE_TIME_SOURCE_REE,y)
 $(call force,CFG_NO_SMP,y)
 $(call force,CFG_PL310,y)
