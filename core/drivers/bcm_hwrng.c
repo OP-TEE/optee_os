@@ -48,11 +48,11 @@ static void bcm_hwrng_reset(void)
 			RNG_CTRL_MASK, RNG_CTRL_ENABLE);
 }
 
-static uint32_t do_rng_read(void *buf, ssize_t blen)
+static size_t do_rng_read(void *buf, size_t blen)
 {
 	uint32_t available = 0;
-	ssize_t copied = 0;
-	ssize_t copy_len = 0;
+	size_t copied = 0;
+	size_t copy_len = 0;
 	union {
 		uint32_t word;
 		uint8_t  bytes[4];
@@ -90,18 +90,15 @@ out:
 
 uint32_t bcm_hwrng_read_rng(uint32_t *p_out, uint32_t words_to_read)
 {
-	ssize_t copy_len = (ssize_t)words_to_read << 2;
+	size_t copy_len = words_to_read * sizeof(uint32_t);
 
 	copy_len = do_rng_read((void *)p_out, copy_len);
 
-	return (copy_len >> 2);
+	return copy_len / sizeof(uint32_t);
 }
 
 TEE_Result crypto_rng_read(void *buf, size_t blen)
 {
-	if (!buf)
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	if (do_rng_read(buf, blen) == blen)
 		return TEE_SUCCESS;
 
