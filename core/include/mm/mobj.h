@@ -211,30 +211,7 @@ struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
 
-#if defined(CFG_CORE_FFA)
-struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
-				    unsigned int internal_offs);
-
-TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
-
-/* Functions for SPMC */
-#ifdef CFG_CORE_SEL1_SPMC
-struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
-void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
-TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
-#endif
-#ifdef CFG_CORE_SEL2_SPMC
-struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
-					unsigned int num_pages);
-void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mobj);
-#endif
-
-uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mobj);
-TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mobj, unsigned int *idx,
-				 paddr_t pa, unsigned int num_pages);
-uint64_t mobj_ffa_push_to_inactive(struct mobj_ffa *mobj);
-
-#elif defined(CFG_CORE_DYN_SHM)
+#if defined(CFG_CORE_DYN_SHM)
 /* reg_shm represents TEE shared memory */
 struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 				paddr_t page_offset, uint64_t cookie);

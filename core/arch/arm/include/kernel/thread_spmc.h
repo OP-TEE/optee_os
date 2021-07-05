@@ -31,4 +31,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
 			       uint16_t endpoint_id,
 			       uint16_t execution_context);
+void thread_spmc_handle_mem_share(struct thread_smc_args *args,
+				  struct ffa_rxtx *rxtx);
+
 #endif /* __KERNEL_THREAD_SPMC_H */

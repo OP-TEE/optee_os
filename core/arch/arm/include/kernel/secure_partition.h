@@ -50,6 +50,24 @@ struct sp_ctx {
 	struct ts_ctx ts_ctx;
 };
 
+struct mobj_ffa;
+
+/*
+ * struct sp_mem_access_descr is used to track the FF-A memory shares in the
+ * system. Every FF-A share can be shared with multiple receiver SPs. The struct
+ * sp_mem_access_descr is used to store the data that is specific to the
+ * receiver of the FF-A share.
+ */
+
+struct sp_mem_access_descr {
+	size_t counter;	/* Track how often the share was retrieved */
+	struct ffa_mem_access_perm perm;	/* FF-A mapping permisons */
+	struct mobj_ffa *m; /* Used to get access to the memory descriptor */
+	bool zero_flag;
+
+	SLIST_ENTRY(sp_mem_access_descr) link;
+};
+
 #ifdef CFG_SECURE_PARTITION
 bool is_sp_ctx(struct ts_ctx *ctx);
 #else
@@ -78,6 +96,10 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 				  size_t *elements);
 
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
+struct sp_session *sp_get_active(void);
+bool sp_has_exclusive_access(paddr_t pa, struct sp_session *owner_sp,
+			     size_t size);
+void *sp_get_mobj_va(struct mobj *m, struct sp_ctx *ctx);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)

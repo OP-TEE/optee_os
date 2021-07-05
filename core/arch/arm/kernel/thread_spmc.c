@@ -18,6 +18,7 @@
 #include <kernel/thread_spmc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
+#include <mm/mobj_ffa.h>
 #include <optee_ffa.h>
 #include <optee_msg.h>
 #include <optee_rpc_cmd.h>
@@ -505,34 +506,55 @@ static void handle_blocking_call(struct thread_smc_args *args)
 }
 
 #if defined(CFG_CORE_SEL1_SPMC)
-static int get_acc_perms(struct ffa_mem_access *mem_acc,
-			 unsigned int num_mem_accs, uint8_t *acc_perms,
-			 unsigned int *region_offs)
+static int check_acc_perms(struct ffa_mem_access *mem_acc,
+			   unsigned int num_mem_accs, unsigned int *region_offs)
 {
 	unsigned int n = 0;
+	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
 
+	if (!num_mem_accs) {
+		EMSG("Incorrect number of access");
+		return FFA_INVALID_PARAMETERS;
+	}
+
+	/*
+	 * The spec defines that all of the offsets should be equal. Check if
+	 * all elements are correct and take the last one.
+	 */
 	for (n = 0; n < num_mem_accs; n++) {
 		struct ffa_mem_access_perm *descr = &mem_acc[n].access_perm;
 
+		 /*
+		  * Make sure that the access rights for the OP-TEE SP are
+		  * correct.
+		  */
 		if (READ_ONCE(descr->endpoint_id) == my_endpoint_id) {
-			*acc_perms = READ_ONCE(descr->perm);
+			if (READ_ONCE(descr->perm) != exp_mem_acc_perm) {
+				EMSG("Incorrect access permissions");
+				return FFA_INVALID_PARAMETERS;
+			}
+
 			*region_offs = READ_ONCE(mem_acc[n].region_offs);
-			return 0;
+#ifdef CFG_SECURE_PARTITION
+		} else if (sp_get_session(descr->endpoint_id)) {
+			*region_offs = READ_ONCE(mem_acc[n].region_offs);
+#endif
+		} else {
+			EMSG("Incorrect endpoint in memory share");
+			return FFA_INVALID_PARAMETERS;
 		}
 	}
+	return 0;
 
-	return FFA_INVALID_PARAMETERS;
 }
 
 static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 			  unsigned int *region_count, size_t *addr_range_offs)
 {
 	const uint8_t exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
-	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
 	struct ffa_mem_region *region_descr = NULL;
 	struct ffa_mem_transaction *descr = NULL;
 	unsigned int num_mem_accs = 0;
-	uint8_t mem_acc_perm = 0;
 	unsigned int region_descr_offs = 0;
 	size_t n = 0;
 
@@ -552,9 +574,8 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 		return FFA_INVALID_PARAMETERS;
 
 	/* Check that the access permissions matches what's expected */
-	if (get_acc_perms(descr->mem_access_array,
-			  num_mem_accs, &mem_acc_perm, &region_descr_offs) ||
-	    mem_acc_perm != exp_mem_acc_perm)
+	if (check_acc_perms(descr->mem_access_array,
+			    num_mem_accs, &region_descr_offs))
 		return FFA_INVALID_PARAMETERS;
 
 	/* Check that the Composite memory region descriptor fits */
@@ -590,10 +611,22 @@ static int add_mem_share_helper(struct mem_share_state *s, void *buf,
 
 	for (n = 0; n < region_count; n++) {
 		unsigned int page_count = READ_ONCE(arange[n].page_count);
-		uint64_t addr = READ_ONCE(arange[n].address);
+		uint64_t *addr = &arange[n].address;
 
+#if defined(CFG_SECURE_PARTITION)
+		/*
+		 * The address is virtual if the share comes for a SP, update
+		 * the value inside the buffer.
+		 */
+		if (sp_get_active())
+			*addr = virt_to_phys((void *)*addr);
+#endif
+		if (*addr & SMALL_PAGE_MASK) {
+			EMSG("FF-A: Trying to map unaligned memory!");
+			return FFA_INVALID_PARAMETERS;
+		}
 		if (mobj_ffa_add_pages_at(s->mf, &s->current_page_idx,
-					  addr, page_count))
+					  *addr, page_count))
 			return FFA_INVALID_PARAMETERS;
 	}
 
@@ -640,6 +673,8 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 	struct mem_share_state share = { };
 	size_t addr_range_offs = 0;
 	size_t n = 0;
+	enum buf_is_attr attr = CORE_MEM_NON_SEC;
+	__maybe_unused struct ffa_mem_transaction *input_descr = NULL;
 
 	if (flen > blen)
 		return FFA_INVALID_PARAMETERS;
@@ -654,7 +689,15 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 	    ADD_OVERFLOW(n, addr_range_offs, &n) || n > blen)
 		return FFA_INVALID_PARAMETERS;
 
-	share.mf = mobj_ffa_sel1_spmc_new(share.page_count);
+#if defined(CFG_SECURE_PARTITION)
+	/*
+	 * Map in none secure memory when coming from the Normal World,
+	 * Map in secure memory when coming from a SP.
+	 */
+	if (sp_get_active())
+		attr = CORE_MEM_SEC;
+#endif
+	share.mf = mobj_ffa_sel1_spmc_new(share.page_count, attr);
 	if (!share.mf)
 		return FFA_NO_MEMORY;
 
@@ -691,7 +734,19 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 	}
 
 	*global_handle = mobj_ffa_push_to_inactive(share.mf);
+#ifdef CFG_SECURE_PARTITION
+	input_descr = (struct ffa_mem_transaction *)buf;
 
+	if (input_descr->mem_access_array[0].access_perm.endpoint_id !=
+	    my_endpoint_id) {
+		rc = spmc_sp_add_share(input_descr, share.mf, blen);
+	}
+
+	if (rc) {
+		mobj_ffa_sel1_spmc_reclaim(*global_handle);
+		return rc;
+	}
+#endif
 	return 0;
 err:
 	mobj_ffa_sel1_spmc_delete(share.mf);
@@ -758,8 +813,8 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 	return rc;
 }
 
-static void handle_mem_share(struct thread_smc_args *args,
-			     struct ffa_rxtx *rxtx)
+void thread_spmc_handle_mem_share(struct thread_smc_args *args,
+				  struct ffa_rxtx *rxtx)
 {
 	uint32_t ret_w1 = 0;
 	uint32_t ret_w2 = FFA_INVALID_PARAMETERS;
@@ -959,7 +1014,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
-		handle_mem_share(args, &nw_rxtx);
+		thread_spmc_handle_mem_share(args, &nw_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
 		handle_mem_reclaim(args);

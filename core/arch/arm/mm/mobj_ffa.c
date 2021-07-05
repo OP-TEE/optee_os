@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2016-2020, Linaro Limited
+ * Copyright (c) 2021, Arm Limited
  */
 
 #include <assert.h>
@@ -9,22 +10,8 @@
 #include <keep.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
-#include <mm/mobj.h>
+#include <mm/mobj_ffa.h>
 #include <sys/queue.h>
-
-struct mobj_ffa {
-	struct mobj mobj;
-	SLIST_ENTRY(mobj_ffa) link;
-	uint64_t cookie;
-	tee_mm_entry_t *mm;
-	struct refcount mapcount;
-	uint16_t page_offset;
-#ifdef CFG_CORE_SEL1_SPMC
-	bool registered_by_cookie;
-	bool unregistered_by_cookie;
-#endif
-	paddr_t pages[];
-};
 
 SLIST_HEAD(mobj_ffa_head, mobj_ffa);
 
@@ -41,7 +28,7 @@ static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
 const struct mobj_ops mobj_ffa_ops;
 
-static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
+struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
 	assert(mobj->ops == &mobj_ffa_ops);
 	return container_of(mobj, struct mobj_ffa, mobj);
@@ -82,7 +69,8 @@ static struct mobj_ffa *ffa_new(unsigned int num_pages)
 }
 
 #ifdef CFG_CORE_SEL1_SPMC
-struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
+struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages,
+					enum buf_is_attr attr)
 {
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
@@ -104,6 +92,8 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
+	mf->attr = attr;
+
 	if (i == -1) {
 		free(mf);
 		return NULL;
@@ -113,7 +103,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
-static size_t get_page_count(struct mobj_ffa *mf)
+size_t mobj_ffa_get_page_count(struct mobj_ffa *mf)
 {
 	return ROUNDUP(mf->mobj.size, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 }
@@ -211,12 +201,16 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages)
 {
 	unsigned int n = 0;
-	size_t tot_page_count = get_page_count(mf);
+	size_t tot_page_count = mobj_ffa_get_page_count(mf);
+	uint32_t attr = CORE_MEM_NON_SEC;
 
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
+#ifdef CFG_SECURE_PARTITION
+	attr = mf->attr;
+#endif
+	if (!core_pbuf_is(attr, pa, num_pages * SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
@@ -224,6 +218,59 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 
 	(*idx) += n;
 	return TEE_SUCCESS;
+}
+
+static bool is_in_page(struct mobj_ffa *mf, unsigned int page_nr, paddr_t pa)
+{
+	bool res = false;
+
+	res = mf->pages[page_nr] >= pa;
+	res = res && pa < (mf->pages[page_nr] + SMALL_PAGE_SIZE);
+	return  res;
+}
+
+static bool mobj_is_shared(struct mobj_ffa *mf, paddr_t pa, size_t page_count)
+{
+	unsigned int n = 0;
+	unsigned int i = 0;
+
+	/*
+	 * A mobj_ffa is linked to a FF-A share when it has SPs linked
+	 * to it
+	 */
+	if (!SLIST_EMPTY(&mf->sp_head)) {
+		size_t m_page_count = mobj_ffa_get_page_count(mf);
+
+		for (n = 0; n < m_page_count; n++) {
+			for (i = 0; i < page_count; i++) {
+				size_t offset = SMALL_PAGE_SIZE * i;
+
+				if (is_in_page(mf, n, pa + offset))
+					return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool mobj_ffa_pa_is_shared(paddr_t pa, size_t page_count)
+{
+	struct mobj_ffa *mf = NULL;
+
+	assert(!(pa & SMALL_PAGE_MASK));
+	SLIST_FOREACH(mf, &shm_head, link) {
+		if (mobj_is_shared(mf, pa, page_count))
+			return true;
+	}
+
+	mf = NULL;
+
+	SLIST_FOREACH(mf, &shm_inactive_head, link) {
+		if (mobj_is_shared(mf, pa, page_count))
+			return true;
+	}
+
+	return false;
 }
 
 uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mf)
@@ -249,7 +296,7 @@ static void unmap_helper(struct mobj_ffa *mf)
 {
 	if (mf->mm) {
 		core_mmu_unmap_pages(tee_mm_get_smem(mf->mm),
-				     get_page_count(mf));
+				     mobj_ffa_get_page_count(mf));
 		tee_mm_free(mf->mm);
 		mf->mm = NULL;
 	}
@@ -413,8 +460,8 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 	return &mf->mobj;
 }
 
-static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
-			     size_t granule, paddr_t *pa)
+TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
+		      size_t granule, paddr_t *pa)
 {
 	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 	size_t full_offset = 0;
@@ -452,7 +499,7 @@ static size_t ffa_get_phys_offs(struct mobj *mobj,
 	return to_mobj_ffa(mobj)->page_offset;
 }
 
-static void *ffa_get_va(struct mobj *mobj, size_t offset)
+void *mobj_ffa_get_va(struct mobj *mobj, size_t offset)
 {
 	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 
@@ -499,9 +546,14 @@ static TEE_Result ffa_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
 
 static bool ffa_matches(struct mobj *mobj __maybe_unused, enum buf_is_attr attr)
 {
+	enum buf_is_attr ffa_attr = CORE_MEM_NON_SEC;
+
 	assert(mobj->ops == &mobj_ffa_ops);
 
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+#ifdef CFG_SECURE_PARTITION
+	ffa_attr = to_mobj_ffa(mobj)->attr;
+#endif
+	return attr == ffa_attr || attr == CORE_MEM_REG_SHM;
 }
 
 static uint64_t ffa_get_cookie(struct mobj *mobj)
@@ -530,7 +582,8 @@ static TEE_Result ffa_inc_map(struct mobj *mobj)
 	}
 
 	res = core_mmu_map_pages(tee_mm_get_smem(mf->mm), mf->pages,
-				 get_page_count(mf), MEM_AREA_NSEC_SHM);
+				 mobj_ffa_get_page_count(mf),
+				 MEM_AREA_NSEC_SHM);
 	if (res) {
 		tee_mm_free(mf->mm);
 		mf->mm = NULL;
@@ -584,7 +637,7 @@ static TEE_Result mapped_shm_init(void)
 const struct mobj_ops mobj_ffa_ops __weak __rodata_unpaged("mobj_ffa_ops") = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
-	.get_va = ffa_get_va,
+	.get_va = mobj_ffa_get_va,
 	.get_cattr = ffa_get_cattr,
 	.matches = ffa_matches,
 	.free = ffa_inactivate,

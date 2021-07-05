@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <kernel/secure_partition.h>
 #include <kernel/user_mode_ctx_struct.h>
+#include <mm/mobj_ffa.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
 
@@ -17,6 +18,8 @@
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
 void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp);
+TEE_Result spmc_sp_add_share(struct ffa_mem_transaction *input_descr,
+			     struct mobj_ffa *m, size_t blen);
 
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);

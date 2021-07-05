@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2021, Arm Limited
  */
 
 #include <arm.h>
@@ -1073,6 +1074,26 @@ void vm_info_final(struct user_mode_ctx *uctx)
 		umap_remove_region(&uctx->vm_info,
 				   TAILQ_FIRST(&uctx->vm_info.regions));
 	memset(&uctx->vm_info, 0, sizeof(uctx->vm_info));
+}
+
+bool vm_region_is_mapped(const struct user_mode_ctx *uctx,
+			 paddr_t pa, size_t size)
+{
+	paddr_t p = 0;
+	struct vm_region *region = NULL;
+
+	TAILQ_FOREACH(region, &uctx->vm_info.regions, link) {
+		if (!region->mobj)
+			continue;
+
+		if (mobj_get_pa(region->mobj, 0, 0, &p))
+			continue;
+
+		if (core_is_buffer_intersect(pa, size, p, region->size))
+			return true;
+	}
+
+	return false;
 }
 
 /* return true only if buffer fits inside TA private memory */

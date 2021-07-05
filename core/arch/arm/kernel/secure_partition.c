@@ -56,6 +56,19 @@ static void set_sp_ctx_ops(struct ts_ctx *ctx)
 	ctx->ops = &sp_ops;
 }
 
+struct sp_session *sp_get_active(void)
+{
+	struct ts_session *ts = 0;
+
+	/*We can only have a session if we run on a thread */
+	if (thread_get_id_may_fail() >= 0)
+		ts = ts_get_current_session_may_fail();
+
+	if (ts)
+		return to_sp_session(ts);
+	return NULL;
+}
+
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
 {
 	struct sp_session *s = NULL;
@@ -107,6 +120,25 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 		return TEE_ERROR_SHORT_BUFFER;
 
 	return TEE_SUCCESS;
+}
+
+bool sp_has_exclusive_access(paddr_t pa, struct sp_session *owner_sp,
+			     size_t size)
+{
+	/*Check that we have access to the region*/
+	if (owner_sp) {
+		struct sp_ctx *sp_ctx = NULL;
+
+		sp_ctx = to_sp_ctx(owner_sp->ts_sess.ctx);
+
+		if (!vm_region_is_mapped(&sp_ctx->uctx, pa, size))
+			return false;
+	}
+
+	assert(!(size & SMALL_PAGE_MASK));
+
+	/* Check that it is not shared with another SP*/
+	return !mobj_ffa_pa_is_shared(pa, size / SMALL_PAGE_SIZE);
 }
 
 static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)

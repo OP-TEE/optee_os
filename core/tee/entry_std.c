@@ -16,6 +16,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
+#include <mm/mobj_ffa.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
 #include <string.h>
