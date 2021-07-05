@@ -904,3 +904,43 @@ enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
 
 	return PKCS11_CKR_GENERAL_ERROR;
 }
+
+enum pkcs11_rc unwrap_key_by_symm(struct pkcs11_session *session, void *data,
+				  uint32_t data_sz, void **out_buf,
+				  uint32_t *out_sz)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct active_processing *proc = session->processing;
+
+	if (input_data_size_is_valid(proc, PKCS11_FUNCTION_DECRYPT, data_sz))
+		return PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+
+	switch (proc->mecha_type) {
+	case PKCS11_CKM_AES_ECB:
+	case PKCS11_CKM_AES_CBC:
+		*out_sz = 0;
+		res = TEE_CipherDoFinal(proc->tee_op_handle, data, data_sz,
+					NULL, out_sz);
+		if (res != TEE_ERROR_SHORT_BUFFER) {
+			DMSG("TEE_CipherDoFinal() issue: %#"PRIx32, res);
+			return PKCS11_CKR_GENERAL_ERROR;
+		}
+
+		*out_buf = TEE_Malloc(*out_sz, TEE_MALLOC_FILL_ZERO);
+		if (!*out_buf)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		res = TEE_CipherDoFinal(proc->tee_op_handle, data, data_sz,
+				        *out_buf, out_sz);
+		if (tee2pkcs_error(res)) {
+			TEE_Free(*out_buf);
+			*out_buf = NULL;
+			return PKCS11_CKR_WRAPPED_KEY_INVALID;
+		}
+		break;
+	default:
+		return PKCS11_CKR_MECHANISM_INVALID;
+	}
+
+	return PKCS11_CKR_OK;
+}

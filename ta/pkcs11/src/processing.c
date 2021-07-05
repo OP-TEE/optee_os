@@ -778,10 +778,6 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 				    uint32_t ptypes, TEE_Param *params,
 				    enum processing_func function)
 {
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
-						TEE_PARAM_TYPE_NONE,
-						TEE_PARAM_TYPE_MEMREF_OUTPUT,
-						TEE_PARAM_TYPE_NONE);
 	TEE_Param *ctrl = params;
 	TEE_Param *out = params + 2;
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
@@ -794,12 +790,53 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 	struct pkcs11_object *parent = NULL;
 	struct obj_attrs *head = NULL;
 	size_t template_size = 0;
+	void *in_buf = NULL;
+	uint32_t in_size = 0;
 	void *out_buf = NULL;
 	uint32_t out_size = 0;
+	enum processing_func operation = PKCS11_FUNCTION_UNKNOWN;
 
-	if (!client || ptypes != exp_pt ||
-	    out->memref.size != sizeof(obj_handle))
+	if (!client ||
+	    TEE_PARAM_TYPE_GET(ptypes, 0) != TEE_PARAM_TYPE_MEMREF_INOUT ||
+	    TEE_PARAM_TYPE_GET(ptypes, 2) != TEE_PARAM_TYPE_MEMREF_OUTPUT ||
+	    out->memref.size != sizeof(obj_handle) ||
+	    TEE_PARAM_TYPE_GET(ptypes, 3) != TEE_PARAM_TYPE_NONE)
 		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	switch (function) {
+	case PKCS11_FUNCTION_UNWRAP:
+		if (TEE_PARAM_TYPE_GET(ptypes, 1) !=
+				TEE_PARAM_TYPE_MEMREF_INPUT)
+			return PKCS11_CKR_ARGUMENTS_BAD;
+
+		in_buf = params[1].memref.buffer;
+		in_size = params[1].memref.size;
+		if (in_size && !in_buf)
+			return PKCS11_CKR_ARGUMENTS_BAD;
+
+		/*
+		 * Some unwrap mechanisms require encryption to be
+		 * performed on the data passed in proc_params by parent
+		 * key. Hence set operation as PKCS11_FUNCTION_DECRYPT
+		 * to be used with init_symm_operation()
+		 */
+		operation = PKCS11_FUNCTION_DECRYPT;
+		break;
+	case PKCS11_FUNCTION_DERIVE:
+		if (TEE_PARAM_TYPE_GET(ptypes, 1) != TEE_PARAM_TYPE_NONE)
+			return PKCS11_CKR_ARGUMENTS_BAD;
+
+		/*
+		 * Some derivation mechanism require encryption to be
+		 * performed on the data passed in proc_params by parent
+		 * key. Hence set operation as PKCS11_FUNCTION_ENCRYPT
+		 * to be used with init_symm_operation()
+		 */
+		operation = PKCS11_FUNCTION_ENCRYPT;
+		break;
+	default:
+		return PKCS11_CKR_ARGUMENTS_BAD;
+	}
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
@@ -860,8 +897,13 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		 * specified with C_Derive/Unwrap() in the specification. So
 		 * return the next most appropriate error.
 		 */
-		if (rc == PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED)
-			rc = PKCS11_CKR_KEY_TYPE_INCONSISTENT;
+		if (rc == PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED) {
+			if (function == PKCS11_FUNCTION_UNWRAP)
+				rc =
+				  PKCS11_CKR_UNWRAPPING_KEY_TYPE_INCONSISTENT;
+			else
+				rc = PKCS11_CKR_KEY_TYPE_INCONSISTENT;
+		}
 		goto out;
 	}
 
@@ -897,20 +939,25 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		goto out;
 
 	if (processing_is_tee_symm(proc_params->id)) {
-		/*
-		 * These derivation mechanism require encryption to be
-		 * performed on the data passed in proc_params by parent
-		 * key. Hence pass function as PKCS11_FUNCTION_ENCRYPT
-		 * to init_symm_operation()
-		 */
-		rc = init_symm_operation(session, PKCS11_FUNCTION_ENCRYPT,
-					 proc_params, parent);
+		rc = init_symm_operation(session, operation, proc_params,
+					 parent);
 		if (rc)
 			goto out;
 
 		session->processing->mecha_type = proc_params->id;
 
-		rc = derive_key_by_symm_enc(session, &out_buf, &out_size);
+		switch (function) {
+		case PKCS11_FUNCTION_DERIVE:
+			rc = derive_key_by_symm_enc(session, &out_buf,
+						    &out_size);
+			break;
+		case PKCS11_FUNCTION_UNWRAP:
+			rc = unwrap_key_by_symm(session, in_buf, in_size,
+						&out_buf, &out_size);
+			break;
+		default:
+			TEE_Panic(function);
+		}
 		if (rc)
 			goto out;
 	} else {

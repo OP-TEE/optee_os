@@ -98,6 +98,10 @@ enum pkcs11_rc wrap_data_by_symm_enc(struct pkcs11_session *session,
 				     void *data, uint32_t data_sz,
 				     void *out_buf, uint32_t *out_sz);
 
+enum pkcs11_rc unwrap_key_by_symm(struct pkcs11_session *session, void *data,
+				  uint32_t data_sz, void **out_buf,
+				  uint32_t *out_sz);
+
 /* Digest specific functions */
 bool processing_is_tee_digest(enum pkcs11_mechanism_id mecha_id);
 
