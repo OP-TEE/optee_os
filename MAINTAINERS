@@ -158,6 +158,11 @@ F:	core/arch/arm/plat-imx/
 F:	core/arch/arm/plat-imx/registers
 F:	core/drivers/crypto/caam/
 
+Clock driver framework
+R:	Clement Leger <clement.leger@bootlin.com> [@clementleger]
+S:	Maintained
+F:	core/drivers/clk/
+
 Crypto driver interface
 R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
 R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
