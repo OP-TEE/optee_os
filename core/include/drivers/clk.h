@@ -48,6 +48,7 @@ struct clk {
  * @get_parent: Get the current parent index of the clock
  * @set_rate: Set the clock rate
  * @get_rate: Get the clock rate
+ * @get_rates_array: Get the supported clock rates as array
  */
 struct clk_ops {
 	TEE_Result (*enable)(struct clk *clk);
@@ -58,6 +59,8 @@ struct clk_ops {
 			       unsigned long parent_rate);
 	unsigned long (*get_rate)(struct clk *clk,
 				  unsigned long parent_rate);
+	TEE_Result (*get_rates_array)(struct clk *clk, size_t start_index,
+				      unsigned long *rates, size_t *nb_elts);
 };
 
 /**
@@ -167,5 +170,18 @@ struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx);
  * Return a TEE_Result compliant value
  */
 TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
+
+/**
+ * clk_get_rates_array - Get supported rates as an array
+ *
+ * @clk: Clock for which the rates are requested
+ * @start_index: start index of requested rates
+ * @rates: Array of rates allocated by caller or NULL to query count of rates
+ * @nb_elts: Max number of elements that the array can hold as input. Contains
+ * the number of elements that was added in the array as output.
+ * Returns a TEE_Result compliant value
+ */
+TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
+			       unsigned long *rates, size_t *nb_elts);
 
 #endif /* __DRIVERS_CLK_H */
