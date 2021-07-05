@@ -240,6 +240,41 @@ static TEE_Result sp_init_set_registers(struct sp_ctx *ctx)
 	return TEE_SUCCESS;
 }
 
+TEE_Result sp_map_shared_va(struct sp_session *s,
+			    struct sp_mem_access_descr *sma,
+			    uint32_t perm, uint64_t *va)
+{
+	struct sp_ctx *ctx = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	if (!sma->m) {
+		EMSG("Can't map memory share, failed to retrieve mobj");
+		return FFA_INVALID_PARAMETERS;
+	}
+
+	res = vm_map(&ctx->uctx, va, sma->m->mobj.size,
+		     perm,
+		     0,
+		     &sma->m->mobj, 0);
+
+	if (res != TEE_SUCCESS)
+		EMSG("Failed to map memory region");
+
+	return res;
+}
+
+void *sp_get_mobj_va(struct mobj *m, struct sp_ctx *ctx)
+{
+	paddr_t pa = 0;
+
+	if (ffa_get_pa(m, 0, SMALL_PAGE_SIZE, &pa))
+		return NULL;
+
+	return vm_pa2va(&ctx->uctx, pa);
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)

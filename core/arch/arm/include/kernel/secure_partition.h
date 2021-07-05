@@ -100,6 +100,9 @@ struct sp_session *sp_get_active(void);
 bool sp_has_exclusive_access(paddr_t pa, struct sp_session *owner_sp,
 			     size_t size);
 void *sp_get_mobj_va(struct mobj *m, struct sp_ctx *ctx);
+TEE_Result sp_map_shared_va(struct sp_session *s,
+			    struct sp_mem_access_descr *sma, uint32_t perm,
+			    uint64_t *va);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
