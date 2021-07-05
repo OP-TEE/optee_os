@@ -276,6 +276,43 @@ bool attributes_match_reference(struct obj_attrs *candidate,
 	return true;
 }
 
+enum pkcs11_rc attributes_match_add_reference(struct obj_attrs **head,
+					      struct obj_attrs *ref)
+{
+	size_t count = ref->attrs_count;
+	unsigned char *ref_attr = ref->attrs;
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	if (!ref->attrs_count)
+		return PKCS11_CKR_OK;
+
+	for (count = 0; count < ref->attrs_count; count++) {
+		struct pkcs11_attribute_head pkcs11_ref = { };
+		void *value = NULL;
+		uint32_t size = 0;
+
+		TEE_MemMove(&pkcs11_ref, ref_attr, sizeof(pkcs11_ref));
+
+		rc = get_attribute_ptr(*head, pkcs11_ref.id, &value, &size);
+		if (rc == PKCS11_RV_NOT_FOUND) {
+			rc = add_attribute(head, pkcs11_ref.id,
+					   ref_attr + sizeof(pkcs11_ref),
+					   pkcs11_ref.size);
+			if (rc)
+				return rc;
+		} else {
+			if (rc || !value || size != pkcs11_ref.size ||
+			    TEE_MemCompare(ref_attr + sizeof(pkcs11_ref), value,
+					   size))
+				return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		}
+
+		ref_attr += sizeof(pkcs11_ref) + pkcs11_ref.size;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
 #if CFG_TEE_TA_LOG_LEVEL > 0
 /*
  * Debug: dump CK attribute array to output trace

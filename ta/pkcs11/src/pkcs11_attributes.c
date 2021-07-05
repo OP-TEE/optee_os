@@ -753,9 +753,13 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	uint8_t local = 0;
 	uint8_t always_sensitive = 0;
 	uint8_t never_extract = 0;
+	uint8_t extractable = 0;
 	uint32_t class = PKCS11_UNDEFINED_ID;
 	uint32_t type = PKCS11_UNDEFINED_ID;
 	uint32_t mechanism_id = PKCS11_CKM_UNDEFINED_ID;
+	struct obj_attrs *req_attrs = NULL;
+	uint32_t size = 0;
+	uint32_t indirect_template = PKCS11_CKA_UNDEFINED_ID;
 
 #ifdef DEBUG	/* Sanity: check function argument */
 	trace_attributes_from_api_head("template", template, template_size);
@@ -765,6 +769,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	case PKCS11_FUNCTION_IMPORT:
 	case PKCS11_FUNCTION_MODIFY:
 	case PKCS11_FUNCTION_DERIVE:
+	case PKCS11_FUNCTION_UNWRAP:
 	case PKCS11_FUNCTION_COPY:
 		break;
 	default:
@@ -829,6 +834,21 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	case PKCS11_FUNCTION_COPY:
 		*out = temp;
 		return rc;
+	case PKCS11_FUNCTION_DERIVE:
+	case PKCS11_FUNCTION_UNWRAP:
+		if (function == PKCS11_FUNCTION_UNWRAP)
+			indirect_template = PKCS11_CKA_UNWRAP_TEMPLATE;
+		else
+			indirect_template = PKCS11_CKA_DERIVE_TEMPLATE;
+
+		rc = get_attribute_ptr(parent, indirect_template,
+				       (void *)&req_attrs, &size);
+		if (rc == PKCS11_CKR_OK && size != 0) {
+			rc = attributes_match_add_reference(&temp, req_attrs);
+			if (rc)
+				goto out;
+		}
+		break;
 	default:
 		break;
 	}
@@ -868,6 +888,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 		goto out;
 	}
+
+	/*
+	 * TBD - Add a check to see if temp contains any attribute which
+	 * is not consistent with the object class or type and return error.
+	 * In current implementation such attributes are ignored and not
+	 * added to final object while PKCS#11 specification expects a
+	 * failure and an error code be returned.
+	 */
 
 	switch (get_class(temp)) {
 	case PKCS11_CKO_DATA:
@@ -914,6 +942,7 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		break;
 	case PKCS11_FUNCTION_IMPORT:
 	case PKCS11_FUNCTION_DERIVE:
+	case PKCS11_FUNCTION_UNWRAP:
 	default:
 		local = PKCS11_FALSE;
 		break;
@@ -937,6 +966,27 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 			never_extract =
 			       get_bool(parent, PKCS11_CKA_NEVER_EXTRACTABLE) &&
 			       !get_bool(attrs, PKCS11_CKA_EXTRACTABLE);
+			break;
+		case PKCS11_FUNCTION_UNWRAP:
+			always_sensitive = PKCS11_FALSE;
+			never_extract = PKCS11_FALSE;
+			extractable = PKCS11_TRUE;
+
+			/*
+			 * Check if template passed by user has CKA_EXTRACTABLE.
+			 * If not, by default value of CKA_EXTRACTABLE is set as
+			 * TRUE.
+			 */
+			if (get_attribute_ptr(temp, PKCS11_CKA_EXTRACTABLE,
+					      NULL,
+					      NULL) == PKCS11_RV_NOT_FOUND) {
+				rc = set_attribute(&attrs,
+						   PKCS11_CKA_EXTRACTABLE,
+						   &extractable,
+						   sizeof(extractable));
+				if (rc)
+					goto out;
+			}
 			break;
 		case PKCS11_FUNCTION_GENERATE:
 		case PKCS11_FUNCTION_GENERATE_PAIR:
@@ -1135,6 +1185,8 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	 */
 	switch (proc_id) {
 	case PKCS11_PROCESSING_IMPORT:
+	case PKCS11_CKM_AES_ECB:
+	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, false));
@@ -1403,6 +1455,8 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 
 		if (function == PKCS11_FUNCTION_WRAP)
 			return PKCS11_CKR_WRAPPING_KEY_TYPE_INCONSISTENT;
+		else if (function == PKCS11_FUNCTION_UNWRAP)
+			return PKCS11_CKR_UNWRAPPING_KEY_TYPE_INCONSISTENT;
 		else
 			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 
