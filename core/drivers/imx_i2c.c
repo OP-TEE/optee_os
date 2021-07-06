@@ -33,6 +33,7 @@
 #define I2C_CFG_VAL(__x)	0x1c3
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	0 /* Not implemented */
+#define I2C_CLK_CGR6BM(__x)	0
 #define I2C_CLK_CGR(__x)	CCM_CCRG_I2C##__x
 #elif defined(CFG_MX6ULL)
 /* IOMUX */
@@ -43,12 +44,13 @@
 #define I2C_CFG_VAL(__x)	0x1b8b0
 /* Clock */
 #define I2C_CLK_CGRBM(__x)	BM_CCM_CCGR2_I2C##__x##_SERIAL
-#define I2C_CLK_CGR(__x)	CCM_CCGR2
+#define I2C_CLK_CGR6BM(__x)	BM_CCM_CCGR6_I2C##__x##_SERIAL
+#define I2C_CLK_CGR(__x)	(((__x) == 4) ? CCM_CCGR6 : CCM_CCGR2)
 #else
 #error IMX_I2C driver not supported on this platform
 #endif
 
-static struct io_pa_va i2c_bus[3] = {
+static struct io_pa_va i2c_bus[4] = {
 #if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
 #if defined(I2C1_BASE)
 	[0] = { .pa = I2C1_BASE, },
@@ -59,6 +61,9 @@ static struct io_pa_va i2c_bus[3] = {
 #if defined(I2C3_BASE)
 	[2] = { .pa = I2C3_BASE, },
 #endif
+#if defined(I2C4_BASE)
+	[3] = { .pa = I2C4_BASE, },
+#endif
 #endif
 };
 
@@ -68,8 +73,8 @@ static struct imx_i2c_clk {
 	uint32_t cgrbm[ARRAY_SIZE(i2c_bus)];
 } i2c_clk = {
 	.base.pa = CCM_BASE,
-	.i2c = { I2C_CLK_CGR(1), I2C_CLK_CGR(2), I2C_CLK_CGR(3), },
-	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), },
+	.i2c = { I2C_CLK_CGR(1), I2C_CLK_CGR(2), I2C_CLK_CGR(3), I2C_CLK_CGR(4), },
+	.cgrbm = { I2C_CLK_CGRBM(1), I2C_CLK_CGRBM(2), I2C_CLK_CGRBM(3), I2C_CLK_CGR6BM(4),},
 };
 
 static struct imx_i2c_mux {
@@ -92,7 +97,10 @@ static struct imx_i2c_mux {
 		.sda_cfg = I2C_CFG_SDA(2), .sda_inp = I2C_INP_SDA(2), },
 		{ .scl_mux = I2C_MUX_SCL(3), .scl_cfg = I2C_CFG_SCL(3),
 		.scl_inp = I2C_INP_SCL(3), .sda_mux = I2C_MUX_SDA(3),
-		.sda_cfg = I2C_CFG_SDA(3), .sda_inp = I2C_INP_SDA(3), },},
+		.sda_cfg = I2C_CFG_SDA(3), .sda_inp = I2C_INP_SDA(3), },
+		{ .scl_mux = I2C_MUX_SCL(4), .scl_cfg = I2C_CFG_SCL(4),
+		.scl_inp = I2C_INP_SCL(4), .sda_mux = I2C_MUX_SDA(4),
+		.sda_cfg = I2C_CFG_SDA(4), .sda_inp = I2C_INP_SDA(4), },},
 };
 
 #define I2DR				0x10
@@ -400,7 +408,7 @@ TEE_Result imx_i2c_probe(uint8_t bid, uint8_t chip)
 
 /*
  * I2C bus initialization: configure the IOMUX and enable the clock.
- * @bid: Bus ID: (0=I2C1), (1=I2C2), (2=I2C3).
+ * @bid: Bus ID: (0=I2C1), (1=I2C2), (2=I2C3), (3=I2C4).
  * @bps: Bus baud rate, in bits per second.
  */
 TEE_Result imx_i2c_init(uint8_t bid, int bps)
