@@ -79,7 +79,7 @@ static size_t do_rng_read(void *buf, size_t blen)
 		data.word = io_read32(bcm_hwrng_base +
 				     RNG_FIFO_DATA_OFFSET);
 
-		copy_len = MIN((blen - copied), 4);
+		copy_len = MIN((blen - copied), sizeof(uint32_t));
 		memcpy((uint8_t *)buf + copied, data.bytes, copy_len);
 		copied += copy_len;
 	}
