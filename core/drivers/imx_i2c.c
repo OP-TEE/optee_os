@@ -24,7 +24,7 @@
 #define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
-#if defined(CFG_MX8MM)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
