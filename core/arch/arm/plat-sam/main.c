@@ -169,23 +169,31 @@ static void matrix_configure_slave_h64mx(void)
 					sasplit_setting,
 					ssr_setting);
 
+	/*
+	 * Matrix DDR configuration is hardcoded here and is difficult to
+	 * generate at runtime. Since this configuration expect the secure
+	 * DRAM to be at start of RAM and 8M of size, enforce it here.
+	 */
+	COMPILE_TIME_ASSERT(CFG_TZDRAM_START == AT91C_BASE_DDRCS);
+	COMPILE_TIME_ASSERT(CFG_TZDRAM_SIZE == 0x800000);
+
 	/* 2 ~ 9 DDR2 Port1 ~ 7: Non-Secure, except op-tee tee/ta memory */
 	srtop_setting = MATRIX_SRTOP(0, MATRIX_SRTOP_VALUE_128M);
-	sasplit_setting = (MATRIX_SASPLIT(0, MATRIX_SASPLIT_VALUE_128M)
+	sasplit_setting = (MATRIX_SASPLIT(0, MATRIX_SASPLIT_VALUE_8M)
 				| MATRIX_SASPLIT(1, MATRIX_SASPLIT_VALUE_128M)
-				| MATRIX_SASPLIT(2, MATRIX_SASPLIT_VALUE_8M)
+				| MATRIX_SASPLIT(2, MATRIX_SASPLIT_VALUE_128M)
 				| MATRIX_SASPLIT(3, MATRIX_SASPLIT_VALUE_128M));
-	ssr_setting = (MATRIX_LANSECH_NS(0)
+	ssr_setting = (MATRIX_LANSECH_S(0)
 			| MATRIX_LANSECH_NS(1)
-			| MATRIX_LANSECH_S(2)
+			| MATRIX_LANSECH_NS(2)
 			| MATRIX_LANSECH_NS(3)
-			| MATRIX_RDNSECH_NS(0)
+			| MATRIX_RDNSECH_S(0)
 			| MATRIX_RDNSECH_NS(1)
-			| MATRIX_RDNSECH_S(2)
+			| MATRIX_RDNSECH_NS(2)
 			| MATRIX_RDNSECH_NS(3)
-			| MATRIX_WRNSECH_NS(0)
+			| MATRIX_WRNSECH_S(0)
 			| MATRIX_WRNSECH_NS(1)
-			| MATRIX_WRNSECH_S(2)
+			| MATRIX_WRNSECH_NS(2)
 			| MATRIX_WRNSECH_NS(3));
 	/* DDR port 0 not used from NWd */
 	for (ddr_port = 1; ddr_port < 8; ddr_port++) {
