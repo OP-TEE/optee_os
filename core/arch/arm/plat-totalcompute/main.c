@@ -16,14 +16,19 @@
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 
+#ifndef CFG_CORE_SEL2_SPMC
 static struct gic_data gic_data __nex_bss;
+#endif
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
+#ifndef CFG_CORE_SEL2_SPMC
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+#endif
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 
+#ifndef CFG_CORE_SEL2_SPMC
 void main_init_gic(void)
 {
 	vaddr_t gicc_base;
@@ -40,10 +45,15 @@ void main_init_gic(void)
 	gic_init_base_addr(&gic_data, gicc_base, gicc_base);
 	itr_init(&gic_data.chip);
 }
+#endif
 
 void itr_core_handler(void)
 {
+#ifdef CFG_CORE_SEL2_SPMC
+	panic("Secure interrupt handler not defined");
+#else
 	gic_it_handle(&gic_data);
+#endif
 }
 
 void console_init(void)

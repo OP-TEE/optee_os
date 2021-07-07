@@ -12,9 +12,11 @@
 #define STACK_ALIGNMENT		64
 
 #if defined(PLATFORM_FLAVOR_tc0)
+#ifndef CFG_CORE_SEL2_SPMC
 #define GIC_BASE		0x30000000
 #define GICD_OFFSET		0x0
 #define GICC_OFFSET		0x0
+#endif
 
 #define UART0_BASE		0x7FF70000
 #define UART1_BASE		0x7FF80000
