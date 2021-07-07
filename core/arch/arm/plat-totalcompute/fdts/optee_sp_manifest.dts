@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) 2021, Arm Limited. All rights reserved.
+ *
+ * This file is a Partition Manifest (PM) for OP-TEE as a Secure Partition (SP)
+ *
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "arm,ffa-manifest-1.0";
+
+	/* Properties */
+	description = "op-tee";
+	ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
+	uuid = <0x486178e0 0xe7f811e3 0xbc5e0002 0xa5d5c51b>;
+	id = <1>;
+	execution-ctx-count = <8>;
+	exception-level = <2>; /* S-EL1 */
+	execution-state = <0>; /* AARCH64 */
+	load-address = <0xfd280000>;
+	entrypoint-offset = <0x1000>;
+	xlat-granule = <0>; /* 4KiB */
+	boot-order = <0>;
+	messaging-method = <0>; /* Direct messaging only */
+
+	device-regions {
+		compatible = "arm,ffa-manifest-device-regions";
+		uart0 {
+			base-address = <0x00000000 0x7ff70000>;
+			pages-count = <1>;
+			attributes = <0x3>; /* read-write */
+		};
+	};
+};
