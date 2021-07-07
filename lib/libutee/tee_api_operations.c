@@ -1270,12 +1270,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	if (computed_mac_size != macLen) {
-		res = TEE_ERROR_MAC_INVALID;
-		goto out;
-	}
-
-	if (consttime_memcmp(mac, computed_mac, computed_mac_size) != 0) {
+	if (consttime_memcmp(mac, computed_mac, macLen) != 0) {
 		res = TEE_ERROR_MAC_INVALID;
 		goto out;
 	}
