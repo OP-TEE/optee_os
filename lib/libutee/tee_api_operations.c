@@ -1265,6 +1265,11 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	if (macLen > computed_mac_size) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	if (computed_mac_size != macLen) {
 		res = TEE_ERROR_MAC_INVALID;
 		goto out;
