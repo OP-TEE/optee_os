@@ -9,6 +9,7 @@
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <rng_support.h>
@@ -32,6 +33,7 @@
 #define RNG_TIMEOUT_US		10000
 
 static vaddr_t bcm_hwrng_base;
+static unsigned int bcm_hwrng_lock;
 
 static void bcm_hwrng_reset(void)
 {
@@ -61,6 +63,8 @@ static size_t do_rng_read(void *buf, size_t blen)
 
 	assert(bcm_hwrng_base);
 
+	cpu_spin_lock(&bcm_hwrng_lock);
+
 	while (copied < blen) {
 		if (!available) {
 			timeout = timeout_init_us(RNG_TIMEOUT_US);
@@ -85,6 +89,7 @@ static size_t do_rng_read(void *buf, size_t blen)
 	}
 
 out:
+	cpu_spin_unlock(&bcm_hwrng_lock);
 	return copied;
 }
 
@@ -118,6 +123,7 @@ uint8_t hw_get_random_byte(void)
 static TEE_Result bcm_hwrng_init(void)
 {
 	bcm_hwrng_base = (vaddr_t)phys_to_virt(HWRNG_BASE, MEM_AREA_IO_SEC);
+	bcm_hwrng_lock = SPINLOCK_UNLOCK;
 
 	bcm_hwrng_reset();
 
