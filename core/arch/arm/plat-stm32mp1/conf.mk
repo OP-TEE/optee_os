@@ -60,6 +60,7 @@ CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 CFG_WITH_LPAE ?= y
 CFG_MMAP_REGIONS ?= 23
+CFG_DTB_MAX_SIZE ?= (256 * 1024)
 
 ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
 # Some drivers mandate DT support
