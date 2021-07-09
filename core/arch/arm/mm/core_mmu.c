@@ -1936,6 +1936,31 @@ TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
 	return TEE_SUCCESS;
 }
 
+struct tee_mmap_region *
+core_mmu_find_mapping_exclusive(enum teecore_memtypes type, size_t len)
+{
+	struct tee_mmap_region *map = NULL;
+	struct tee_mmap_region *map_found = NULL;
+
+	if (!len)
+		return NULL;
+
+	for (map = get_memory_map(); !core_mmap_is_end_of_table(map); map++) {
+		if (map->type != type)
+			continue;
+
+		if (map_found)
+			return NULL;
+
+		map_found = map;
+	}
+
+	if (!map_found || map_found->size < len)
+		return NULL;
+
+	return map_found;
+}
+
 void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 {
 	struct core_mmu_table_info tbl_info;
