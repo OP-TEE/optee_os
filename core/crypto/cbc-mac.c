@@ -57,6 +57,10 @@ static TEE_Result crypto_cbc_mac_init(struct crypto_mac_ctx *ctx,
 static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 					const uint8_t *data, size_t len)
 {
+	size_t nblocks = 0;
+	size_t out_len = 0;
+	uint8_t *out_tmp = NULL;
+	uint8_t *out = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct crypto_cbc_mac_ctx *mc = to_cbc_mac_ctx(ctx);
 
@@ -76,15 +80,37 @@ static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 		mc->current_block_len = 0;
 	}
 
+	nblocks = MIN(len / mc->block_len,
+		      (size_t)CFG_CRYPTO_CBC_MAC_BUNDLE_BLOCKS);
+	if (nblocks > 1)
+		out_tmp = malloc(nblocks * mc->block_len);
+
 	while (len >= mc->block_len) {
+		nblocks = MIN(len / mc->block_len,
+			      (size_t)CFG_CRYPTO_CBC_MAC_BUNDLE_BLOCKS);
+
+		if (nblocks > 1 && out_tmp) {
+			out_len = nblocks * mc->block_len;
+			out = out_tmp;
+		} else {
+			out_len = mc->block_len;
+			out = mc->digest;
+			nblocks = 1;
+		}
+
 		res = crypto_cipher_update(mc->cbc_ctx, TEE_MODE_ENCRYPT,
-					   false, data, mc->block_len,
-					   mc->digest);
+					   false, data, out_len, out);
 		if (res)
-			return res;
+			goto out;
 		mc->is_computed = 1;
-		data += mc->block_len;
-		len -= mc->block_len;
+		data += out_len;
+		len -= out_len;
+		if (nblocks > 1 && len < mc->block_len) {
+			assert(out_tmp);
+			/* Copy last block of output */
+			memcpy(mc->digest, out_tmp + out_len - mc->block_len,
+			       mc->block_len);
+		}
 	}
 
 	if (len > 0) {
@@ -93,7 +119,9 @@ static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 		mc->current_block_len += len;
 	}
 
-	return TEE_SUCCESS;
+out:
+	free(out_tmp);
+	return res;
 }
 
 static TEE_Result crypto_cbc_mac_final(struct crypto_mac_ctx *ctx,
