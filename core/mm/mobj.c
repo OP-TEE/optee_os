@@ -141,6 +141,7 @@ static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
 {
 	void *va = NULL;
 	struct mobj_phys *moph = NULL;
+	struct tee_mmap_region *map = NULL;
 
 	if ((pa & CORE_MMU_USER_PARAM_MASK) ||
 	    (size & CORE_MMU_USER_PARAM_MASK)) {
@@ -148,8 +149,18 @@ static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
 		return NULL;
 	}
 
+	if (pa) {
+		va = phys_to_virt(pa, area_type);
+	} else {
+		map = core_mmu_find_mapping_exclusive(area_type, size);
+		if (!map)
+			return NULL;
+
+		pa = map->pa;
+		va = (void *)map->va;
+	}
+
 	/* Only SDP memory may not have a virtual address */
-	va = phys_to_virt(pa, area_type);
 	if (!va && battr != CORE_MEM_SDP_MEM)
 		return NULL;
 
@@ -685,7 +696,7 @@ static TEE_Result mobj_init(void)
 		panic("Failed to register secure ta ram");
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
-		mobj_tee_ram_rx = mobj_phys_init(TEE_RAM_START,
+		mobj_tee_ram_rx = mobj_phys_init(0,
 						 VCORE_UNPG_RX_SZ,
 						 TEE_MATTR_CACHE_CACHED,
 						 CORE_MEM_TEE_RAM,
@@ -693,8 +704,7 @@ static TEE_Result mobj_init(void)
 		if (!mobj_tee_ram_rx)
 			panic("Failed to register tee ram rx");
 
-		mobj_tee_ram_rw = mobj_phys_init(TEE_RAM_START +
-						 VCORE_UNPG_RX_SZ,
+		mobj_tee_ram_rw = mobj_phys_init(0,
 						 VCORE_UNPG_RW_SZ,
 						 TEE_MATTR_CACHE_CACHED,
 						 CORE_MEM_TEE_RAM,

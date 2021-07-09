@@ -631,6 +631,17 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr,
 			   size_t len);
 
 /*
+ * core_mmu_find_mapping_exclusive() - Find mapping of specified type and
+ *				       length. If more than one mapping of
+ *				       specified type is present, NULL will be
+ *				       returned.
+ * @type:	memory type
+ * @len:	length in bytes
+ */
+struct tee_mmap_region *
+core_mmu_find_mapping_exclusive(enum teecore_memtypes type, size_t len);
+
+/*
  * tlbi_mva_range() - Invalidate TLB for virtual address range
  * @va:		start virtual address, must be a multiple of @granule
  * @len:	length in bytes of range, must be a multiple of @granule
