@@ -22,6 +22,11 @@ CFG_CRYPTO_XTS ?= y
 CFG_CRYPTO_HMAC ?= y
 CFG_CRYPTO_CMAC ?= y
 CFG_CRYPTO_CBC_MAC ?= y
+# Instead of calling the AES CBC encryption function for each 16 byte block of
+# input, bundle a maximum of N blocks when possible. A maximum of N*16 bytes of
+# temporary data are allocated on the heap.
+# Minimum value is 1.
+CFG_CRYPTO_CBC_MAC_BUNDLE_BLOCKS ?= 64
 
 # Hashes
 CFG_CRYPTO_MD5 ?= y
