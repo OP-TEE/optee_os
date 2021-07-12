@@ -582,7 +582,7 @@ static enum pkcs11_rc input_sign_size_is_valid(struct active_processing *proc,
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
 
-	if (in_size < sign_sz)
+	if (in_size != sign_sz)
 		return PKCS11_CKR_SIGNATURE_LEN_RANGE;
 
 	return PKCS11_CKR_OK;
