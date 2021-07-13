@@ -293,7 +293,7 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 
 	res = umap_add_region(&uctx->vm_info, reg, pad_begin, pad_end, align);
 	if (res)
-		goto err_free_reg;
+		goto err_put_mobj;
 
 	res = alloc_pgt(uctx);
 	if (res)
@@ -326,8 +326,9 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 
 err_rem_reg:
 	TAILQ_REMOVE(&uctx->vm_info.regions, reg, link);
-err_free_reg:
+err_put_mobj:
 	mobj_put(reg->mobj);
+err_free_reg:
 	free(reg);
 	return res;
 }
