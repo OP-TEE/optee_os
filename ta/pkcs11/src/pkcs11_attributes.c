@@ -1579,6 +1579,12 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_SHA256_RSA_PKCS:
 	case PKCS11_CKM_SHA384_RSA_PKCS:
 	case PKCS11_CKM_SHA512_RSA_PKCS:
+	case PKCS11_CKM_RSA_PKCS_PSS:
+	case PKCS11_CKM_SHA1_RSA_PKCS_PSS:
+	case PKCS11_CKM_SHA224_RSA_PKCS_PSS:
+	case PKCS11_CKM_SHA256_RSA_PKCS_PSS:
+	case PKCS11_CKM_SHA384_RSA_PKCS_PSS:
+	case PKCS11_CKM_SHA512_RSA_PKCS_PSS:
 		if (key_type != PKCS11_CKK_RSA) {
 			EMSG("Invalid key %s for mechanism %s",
 			     id2str_type(key_type, key_class),
