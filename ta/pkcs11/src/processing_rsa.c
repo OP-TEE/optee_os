@@ -11,7 +11,190 @@
 
 #include "attributes.h"
 #include "object.h"
+#include "pkcs11_token.h"
 #include "processing.h"
+
+enum pkcs11_rc
+pkcs2tee_proc_params_rsa_pss(struct active_processing *proc,
+			     struct pkcs11_attribute_head *proc_params)
+{
+	struct serialargs args = { };
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct rsa_pss_processing_ctx *ctx = NULL;
+	uint32_t hash = 0;
+	uint32_t mgf = 0;
+	uint32_t salt_len = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &hash);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &mgf);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &salt_len);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	proc->extra_ctx = TEE_Malloc(sizeof(struct rsa_pss_processing_ctx),
+				     TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!proc->extra_ctx)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	ctx = proc->extra_ctx;
+
+	ctx->hash_alg = hash;
+	ctx->mgf_type = mgf;
+	ctx->salt_len = salt_len;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc pkcs2tee_validate_rsa_pss(struct active_processing *proc,
+					 struct pkcs11_object *obj)
+{
+	struct rsa_pss_processing_ctx *rsa_pss_ctx = NULL;
+	size_t modulus_size = 0;
+	size_t hash_size = 0;
+	uint32_t k = 0;
+
+	rsa_pss_ctx = proc->extra_ctx;
+	assert(rsa_pss_ctx);
+
+	switch (rsa_pss_ctx->hash_alg) {
+	case PKCS11_CKM_SHA_1:
+		hash_size = TEE_ALG_GET_DIGEST_SIZE(TEE_ALG_SHA1);
+		break;
+	case PKCS11_CKM_SHA224:
+		hash_size = TEE_ALG_GET_DIGEST_SIZE(TEE_ALG_SHA224);
+		break;
+	case PKCS11_CKM_SHA256:
+		hash_size = TEE_ALG_GET_DIGEST_SIZE(TEE_ALG_SHA256);
+		break;
+	case PKCS11_CKM_SHA384:
+		hash_size = TEE_ALG_GET_DIGEST_SIZE(TEE_ALG_SHA384);
+		break;
+	case PKCS11_CKM_SHA512:
+		hash_size = TEE_ALG_GET_DIGEST_SIZE(TEE_ALG_SHA512);
+		break;
+	default:
+		assert(0);
+		break;
+	}
+
+	modulus_size = get_object_key_bit_size(obj);
+
+	/**
+	 * The sLen field must be less than or equal to k*-2-hLen where
+	 * hLen is the length in bytes of the hash value. k* is the
+	 * length in bytes of the RSA modulus, except if the length in
+	 * bits of the RSA modulus is one more than a multiple of 8, in
+	 * which case k* is one less than the length in bytes of the
+	 * RSA modulus.
+	 */
+	if ((modulus_size % 8) == 1)
+		k = modulus_size / 8;
+	else
+		k = ROUNDUP(modulus_size, 8) / 8;
+
+	if (rsa_pss_ctx->salt_len > (k - 2 - hash_size))
+		return PKCS11_CKR_KEY_SIZE_RANGE;
+
+	return PKCS11_CKR_OK;
+}
+
+/*
+ * Check or set TEE algorithm identifier upon PKCS11 mechanism parameters
+ * @tee_id: Input and/or output TEE algorithm identifier
+ * @proc_params: PKCS11 processing parameters
+ */
+enum pkcs11_rc pkcs2tee_algo_rsa_pss(uint32_t *tee_id,
+				     struct pkcs11_attribute_head *proc_params)
+{
+	struct serialargs args = { };
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t hash = 0;
+	uint32_t mgf = 0;
+	uint32_t salt_len = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &hash);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &mgf);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &salt_len);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (proc_params->id == PKCS11_CKM_RSA_PKCS_PSS) {
+		if (hash == PKCS11_CKM_SHA_1 && mgf == PKCS11_CKG_MGF1_SHA1) {
+			*tee_id = TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1;
+			return PKCS11_CKR_OK;
+		}
+		if (hash == PKCS11_CKM_SHA224 &&
+		    mgf == PKCS11_CKG_MGF1_SHA224) {
+			*tee_id = TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224;
+			return PKCS11_CKR_OK;
+		}
+		if (hash == PKCS11_CKM_SHA256 &&
+		    mgf == PKCS11_CKG_MGF1_SHA256) {
+			*tee_id = TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256;
+			return PKCS11_CKR_OK;
+		}
+		if (hash == PKCS11_CKM_SHA384 &&
+		    mgf == PKCS11_CKG_MGF1_SHA384) {
+			*tee_id = TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384;
+			return PKCS11_CKR_OK;
+		}
+		if (hash == PKCS11_CKM_SHA512 &&
+		    mgf == PKCS11_CKG_MGF1_SHA512) {
+			*tee_id = TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512;
+			return PKCS11_CKR_OK;
+		}
+		return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+	}
+
+	switch (*tee_id) {
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
+		if (hash != PKCS11_CKM_SHA_1 || mgf != PKCS11_CKG_MGF1_SHA1)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
+		if (hash != PKCS11_CKM_SHA224 || mgf != PKCS11_CKG_MGF1_SHA224)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
+		if (hash != PKCS11_CKM_SHA256 || mgf != PKCS11_CKG_MGF1_SHA256)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
+		if (hash != PKCS11_CKM_SHA384 || mgf != PKCS11_CKG_MGF1_SHA384)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		if (hash != PKCS11_CKM_SHA512 || mgf != PKCS11_CKG_MGF1_SHA512)
+			return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+		break;
+	default:
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+
+	return PKCS11_CKR_OK;
+}
 
 enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 				      size_t *tee_count,

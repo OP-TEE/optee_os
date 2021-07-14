@@ -7,12 +7,26 @@
 #define PKCS11_TA_PROCESSING_H
 
 #include <pkcs11_attributes.h>
+#include <pkcs11_ta.h>
 #include <tee_internal_api.h>
 
 struct pkcs11_client;
 struct pkcs11_session;
 struct pkcs11_object;
 struct active_processing;
+
+/**
+ * RSA PSS processing context
+ *
+ * @hash_alg: Hash algorithm mechanism
+ * @mgf_type: Mask generator function
+ * @salt_len: Length of the salt in bytes
+ */
+struct rsa_pss_processing_ctx {
+	enum pkcs11_mechanism_id hash_alg;
+	enum pkcs11_mgf_id mgf_type;
+	uint32_t salt_len;
+};
 
 /*
  * Entry points from PKCS11 TA invocation commands
@@ -141,6 +155,16 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 				      size_t *tee_count,
 				      struct pkcs11_object *obj);
+
+enum pkcs11_rc
+pkcs2tee_proc_params_rsa_pss(struct active_processing *proc,
+			     struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc pkcs2tee_validate_rsa_pss(struct active_processing *proc,
+					 struct pkcs11_object *obj);
+
+enum pkcs11_rc pkcs2tee_algo_rsa_pss(uint32_t *tee_id,
+				     struct pkcs11_attribute_head *params);
 
 enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 				 struct obj_attrs **pub_head,
