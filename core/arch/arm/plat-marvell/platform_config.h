@@ -127,6 +127,10 @@
 #define MARVELL_CONSOLE_BAUDRATE		115200
 #define CONSOLE_UART_BASE			PLAT_MARVELL_BOOT_UART_BASE
 
+/* eFUSE */
+#define PLAT_MARVELL_FUSF_FUSE_BASE		0x87E004000000ll
+#define PLAT_MARVELL_FUSF_HUK_OFFSET		(0x90)
+
 #else
 #error "Unknown platform flavor"
 #endif
