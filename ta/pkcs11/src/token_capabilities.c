@@ -335,8 +335,21 @@ void mechanism_supported_key_sizes_bytes(uint32_t proc_id,
 	pkcs11_mechanism_supported_key_sizes(proc_id, min_key_size,
 					     max_key_size);
 
-	if (proc_id == PKCS11_CKM_GENERIC_SECRET_KEY_GEN) {
-		*min_key_size = (*min_key_size + 7) / 8;
-		*max_key_size = (*max_key_size + 7) / 8;
+	switch (proc_id) {
+	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
+	case PKCS11_CKM_EC_KEY_PAIR_GEN:
+	case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_ECDSA_SHA1:
+	case PKCS11_CKM_ECDSA_SHA224:
+	case PKCS11_CKM_ECDSA_SHA256:
+	case PKCS11_CKM_ECDSA_SHA384:
+	case PKCS11_CKM_ECDSA_SHA512:
+		/* Size is in bits -> convert to bytes and ceil */
+		*min_key_size = ROUNDUP(*min_key_size, 8) / 8;
+		*max_key_size = ROUNDUP(*max_key_size, 8) / 8;
+		break;
+	default:
+		/* Size is already in bytes */
+		break;
 	}
 }
