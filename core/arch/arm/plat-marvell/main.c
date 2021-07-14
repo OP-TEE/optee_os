@@ -37,11 +37,13 @@
 #ifdef CFG_PL011
 #include <drivers/pl011.h>
 #endif
+#include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/tee_common_otp.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -60,6 +62,10 @@ static struct pl011_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
+#ifdef CFG_HW_UNQ_KEY_SUPPORT
+register_phys_mem(MEM_AREA_IO_SEC, PLAT_MARVELL_FUSF_FUSE_BASE,
+		  SMALL_PAGE_SIZE);
+#endif
 
 #ifdef GIC_BASE
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, CORE_MMU_PGDIR_SIZE);
@@ -108,3 +114,19 @@ void console_init(void)
 #endif
 	register_serial_console(&console_data.chip);
 }
+
+#ifdef CFG_HW_UNQ_KEY_SUPPORT
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	void *huk = phys_to_virt(PLAT_MARVELL_FUSF_FUSE_BASE +
+				 PLAT_MARVELL_FUSF_HUK_OFFSET,
+				 MEM_AREA_IO_SEC);
+	if (!huk) {
+		EMSG("\nH/W Unique key is not fetched from the platform.");
+		return TEE_ERROR_SECURITY;
+	}
+
+	memcpy(&hwkey->data[0], huk, sizeof(hwkey->data));
+	return TEE_SUCCESS;
+}
+#endif
