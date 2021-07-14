@@ -1251,6 +1251,9 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 	case PKCS11_CKK_SHA512_HMAC:
 		mechanism = PKCS11_CKM_SHA512_HMAC;
 		break;
+	case PKCS11_CKK_EC:
+		mechanism = PKCS11_CKM_EC_KEY_PAIR_GEN;
+		break;
 	default:
 		TEE_Panic(key_type);
 		break;
