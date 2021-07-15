@@ -279,12 +279,24 @@ drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx __unused,
 #endif /* CFG_CRYPTO_DRV_HASH */
 
 #ifdef CFG_CRYPTO_DRV_CIPHER
+TEE_Result drvcrypt_cipher_alloc_key(struct tee_cryp_obj_secret *key,
+				     uint32_t key_type);
+TEE_Result drvcrypt_cipher_gen_key(struct tee_cryp_obj_secret *key);
 TEE_Result drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx,
 				     uint32_t algo);
 #else
-static inline TEE_Result
-drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx __unused,
-			  uint32_t algo __unused)
+static inline TEE_Result drvcrypt_cipher_alloc_key(
+	struct tee_cryp_obj_secret *key, uint32_t key_type)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+static inline TEE_Result drvcrypt_cipher_gen_key(
+	struct tee_cryp_obj_secret *key)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+static inline TEE_Result drvcrypt_cipher_alloc_ctx(
+	struct crypto_cipher_ctx **ctx, uint32_t algo)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
@@ -292,11 +304,24 @@ drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx __unused,
 
 #ifdef CFG_CRYPTO_DRV_MAC
 /* Cryptographic MAC driver context allocation */
+TEE_Result drvcrypt_mac_alloc_key(struct tee_cryp_obj_secret *key,
+				  uint32_t key_type);
+TEE_Result drvcrypt_mac_gen_key(struct tee_cryp_obj_secret *key);
 TEE_Result drvcrypt_mac_alloc_ctx(struct crypto_mac_ctx **ctx, uint32_t algo);
 #else
 static inline TEE_Result
 drvcrypt_mac_alloc_ctx(struct crypto_mac_ctx **ctx __unused,
 		       uint32_t algo __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+static inline TEE_Result
+drvcrypt_mac_gen_key(struct tee_cryp_obj_secret *key)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+static inline TEE_Result
+drvcrypt_mac_alloc_key(struct tee_cryp_obj_secret *key, uint32_t key_type)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

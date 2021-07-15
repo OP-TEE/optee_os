@@ -45,6 +45,11 @@ struct drvcrypt_cipher_update {
  * Crypto library cipher driver operations
  */
 struct drvcrypt_cipher {
+	/* Allocate the key */
+	TEE_Result (*alloc_key)(struct tee_cryp_obj_secret *key,
+				uint32_t key_type);
+	/* Generate the key */
+	TEE_Result (*gen_key)(struct tee_cryp_obj_secret *key);
 	/* Allocate context */
 	TEE_Result (*alloc_ctx)(void **ctx, uint32_t algo);
 	/* Free context */

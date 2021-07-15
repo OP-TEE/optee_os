@@ -198,6 +198,58 @@ void crypto_cipher_final(void *ctx)
 	cipher_ops(ctx)->final(ctx);
 }
 
+TEE_Result crypto_cipher_alloc_key(struct tee_cryp_obj_key *key,
+				   uint32_t key_type)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * The Crypto driver might need more space than the security size of
+	 * the key. That's why we need to add the allocation() interface with
+	 * the crypto driver.
+	 */
+	res = drvcrypt_cipher_alloc_key(key, key_type);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		/*
+		 * The CIPHER driver does not have to implement this
+		 * alloc_key() operation.
+		 * If it is not implemented, we fallback to a simple sw
+		 * allocation where the size allocated for the key is equal
+		 * to the security size of the key.
+		 *
+		 * return calloc(key->size) ...
+		 */
+	}
+}
+
+TEE_Result crypto_cipher_gen_key(struct tee_cryp_obj_key *key)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * Let the Crypto driver generate the key.
+	 * The key can be:
+	 * - plain text : in this case, we can call the crypto driver RNG or
+	 *                even return not implemented to use the regular
+	 *                SW implementation crypto_rng_read() below.
+	 * - encrypted : in this case, the crypto driver will generate the
+	 *               encrypted key accordingly.
+	 */
+	res = drvcrypt_cipher_gen_key(key);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		/*
+		 * The CIPHER driver does not have to implement this
+		 * gen_key() operation.
+		 * If it is not implemented, we fallback to a simple SW
+		 * generation like it was done for TEE_TYPE_GENERIC_SECRET.
+		 *
+		 * crypto_rng_read(key->data, key->size);
+		 */
+	}
+}
+
 TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 {
 	uint32_t class = TEE_ALG_GET_CLASS(algo);
@@ -219,6 +271,47 @@ TEE_Result crypto_cipher_get_block_size(uint32_t algo, size_t *size)
 		return TEE_SUCCESS;
 	default:
 		return TEE_ERROR_NOT_SUPPORTED;
+	}
+}
+
+TEE_Result crypto_mac_alloc_key(struct tee_cryp_obj_key *key, uint32_t key_type)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * The Crypto driver might need more space than the security size of
+	 * the key. That's why we need to add the allocation() interface with
+	 * the crypto driver.
+	 */
+	res = drvcrypt_mac_alloc_key(key, key_type);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		/*
+		 * The MAC driver does not have to implement this
+		 * alloc_key() operation.
+		 * If it is not implemented, we fallback to a simple sw
+		 * allocation.
+		 *
+		 * return calloc(key->size) ...
+		 */
+	}
+}
+
+TEE_Result crypto_mac_gen_key(struct tee_cryp_obj_key *key)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	res = drvcrypt_mac_gen_key(key);
+
+	if (res == TEE_ERROR_NOT_IMPLEMENTED) {
+		/*
+		 * The MAC driver does not have to implement this
+		 * gen_key() operation.
+		 * If it is not implemented, we fallback to a simple sw
+		 * generation like it was done for TEE_TYPE_GENERIC_SECRET.
+		 *
+		 * crypto_rng_read(key->data, key->size);
+		 */
 	}
 }
 

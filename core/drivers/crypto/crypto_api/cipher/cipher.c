@@ -169,6 +169,45 @@ static const struct crypto_cipher_ops cipher_ops = {
 	.copy_state = cipher_copy_state,
 };
 
+TEE_Result drvcrypt_cipher_alloc_key(struct tee_cryp_obj_key *key,
+				     uint32_t key_type)
+{
+	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
+	struct crypto_cipher cipher = { };
+
+	if (!key) {
+		CRYPTO_TRACE("Parameters error (key @%p)", key);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	cipher.op = drvcrypt_get_ops(CRYPTO_CIPHER);
+	if (cipher.op && cipher.op->alloc_key)
+		ret = cipher.op->alloc_key(key, key_type);
+
+	CRYPTO_TRACE("Cipher alloc ret 0x%" PRIX32, ret);
+
+	return ret;
+}
+
+TEE_Result drvcrypt_cipher_gen_key(struct tee_cryp_obj_key *key)
+{
+	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
+	struct crypto_cipher cipher = { };
+
+	if (!key) {
+		CRYPTO_TRACE("Parameters error (key @%p)", key);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	cipher.op = drvcrypt_get_ops(CRYPTO_CIPHER);
+	if (cipher.op && cipher.op->gen_key)
+		ret = cipher.op->gen_key(key);
+
+	CRYPTO_TRACE("Cipher alloc ret 0x%" PRIX32, ret);
+
+	return ret;
+}
+
 TEE_Result drvcrypt_cipher_alloc_ctx(struct crypto_cipher_ctx **ctx,
 				     uint32_t algo)
 {

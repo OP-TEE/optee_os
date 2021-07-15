@@ -12,19 +12,23 @@
 #include <tee_api_types.h>
 
 /*
- * Crypto library HMAC driver allocation function prototype
+ * Crypto library MAC driver operations
  */
-typedef TEE_Result (*drvcrypt_mac_allocate)(struct crypto_mac_ctx **ctx,
-					    uint32_t algo);
+struct drvcrypt_mac {
+	TEE_Result (*alloc_key)(struct tee_cryp_obj_secret *key,
+				uint32_t key_type);
+	TEE_Result (*gen_key)(struct tee_cryp_obj_secret *key);
+	TEE_Result (*alloc_ctx)(struct crypto_mac_ctx **ctx, uint32_t algo);
+};
 
 /*
  * Register a HMAC processing driver in the crypto API
  *
  * @allocate - Callback for driver context allocation in the crypto layer
  */
-static inline TEE_Result drvcrypt_register_hmac(drvcrypt_mac_allocate allocate)
+static inline TEE_Result drvcrypt_register_hmac(struct drvcrypt_mac *ops)
 {
-	return drvcrypt_register(CRYPTO_HMAC, (void *)allocate);
+	return drvcrypt_register(CRYPTO_HMAC, (void *)ops);
 }
 
 /*
@@ -32,8 +36,8 @@ static inline TEE_Result drvcrypt_register_hmac(drvcrypt_mac_allocate allocate)
  *
  * @allocate - Callback for driver context allocation in the crypto layer
  */
-static inline TEE_Result drvcrypt_register_cmac(drvcrypt_mac_allocate allocate)
+static inline TEE_Result drvcrypt_register_cmac(struct drvcrypt_mac *ops)
 {
-	return drvcrypt_register(CRYPTO_CMAC, (void *)allocate);
+	return drvcrypt_register(CRYPTO_CMAC, (void *)ops);
 }
 #endif /* __DRVCRYPT_MAC_H__ */
