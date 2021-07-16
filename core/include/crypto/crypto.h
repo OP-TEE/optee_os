@@ -24,6 +24,44 @@
 
 #include <tee_api_types.h>
 
+struct tee_cryp_obj_key {
+	/*
+	 * Security size of the key in bits
+	 * - 128, 192, 256 ... for the cipher
+	 * - 521, 1028, 2048 ... for the acipher
+	 */
+	uint32_t size;
+	/*
+	 * Space allocated to store the key under the desired form (plain text
+	 * or encrypted) in bytes.
+	 * The crypto driver implementation might need more space than the
+	 * security size of the key.
+	 * In the case of a SW generated key, size = alloc_size
+	 */
+	uint32_t alloc_size;
+
+	/* The key buffer of alloc_size size */
+	uint8_t *data;
+
+	/* Tell if the key is rsec or not */
+	bool rsec;
+
+	/*
+	 * Key operation vectors associated with the key. These key operations
+	 * are set during the key generation by the crypto driver.
+	 */
+	struct key_ops *ops;
+};
+
+struct key_ops {
+	/*
+	 * Call after an object is populated by user
+	 * Transform a plain key into Runtime Secure key.
+	 * This function is optional.
+	 */
+	TEE_Result (*wrap)(struct tee_cryp_obj_key *key);
+};
+
 TEE_Result crypto_init(void);
 
 /* Message digest functions */

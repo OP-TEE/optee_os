@@ -52,18 +52,6 @@ struct tee_cryp_state {
 	enum cryp_state state;
 };
 
-struct tee_cryp_obj_secret {
-	uint32_t key_size;
-	uint32_t alloc_size;
-
-	/*
-	 * Pseudo code visualize layout of structure
-	 * Next follows data, such as:
-	 *	uint8_t data[alloc_size]
-	 * key_size must never exceed alloc_size
-	 */
-};
-
 #define TEE_TYPE_ATTR_OPTIONAL		BIT(0)
 #define TEE_TYPE_ATTR_REQUIRED		BIT(1)
 #define TEE_TYPE_ATTR_OPTIONAL_GROUP	BIT(2)
@@ -73,11 +61,9 @@ struct tee_cryp_obj_secret {
 #define TEE_TYPE_ATTR_BIGNUM_MAXBITS	BIT(6)
 
     /* Handle storing of generic secret keys of varying lengths */
-#define ATTR_OPS_INDEX_SECRET     0
-    /* Convert to/from big-endian byte array and provider-specific bignum */
-#define ATTR_OPS_INDEX_BIGNUM     1
+#define ATTR_OPS_INDEX_KEY     0
     /* Convert to/from value attribute depending on direction */
-#define ATTR_OPS_INDEX_VALUE      2
+#define ATTR_OPS_INDEX_VALUE   1
 
 struct tee_cryp_obj_type_attrs {
 	uint32_t attr_id;
@@ -91,11 +77,11 @@ struct tee_cryp_obj_type_attrs {
 	.raw_offs = offsetof(_x, _y), .raw_size = MEMBER_SIZE(_x, _y)
 
 static const struct tee_cryp_obj_type_attrs
-	tee_cryp_obj_secret_value_attrs[] = {
+	tee_cryp_obj_key_value_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_SECRET_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_SECRET,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	.raw_offs = 0,
 	.raw_size = 0
 	},
@@ -105,14 +91,14 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_RSA_MODULUS,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_public_key, n)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_public_key, e)
 	},
 };
@@ -121,56 +107,56 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_RSA_MODULUS,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, n)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PUBLIC_EXPONENT,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, e)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIVATE_EXPONENT,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME1,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_PRIME2,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, q)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT1,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, dp)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_EXPONENT2,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, dq)
 	},
 
 	{
 	.attr_id = TEE_ATTR_RSA_COEFFICIENT,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct rsa_keypair, qp)
 	},
 };
@@ -179,28 +165,28 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_DSA_PRIME,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_public_key, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_public_key, q)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_BASE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_public_key, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PUBLIC_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_public_key, y)
 	},
 };
@@ -210,7 +196,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 	.attr_id = TEE_ATTR_DSA_PRIME,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
 		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_keypair, p)
 	},
 
@@ -218,7 +204,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 	.attr_id = TEE_ATTR_DSA_SUBPRIME,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR |
 		 TEE_TYPE_ATTR_GEN_KEY_REQ,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_keypair, q)
 	},
 
@@ -226,21 +212,21 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dsa_keypair_attrs[] = {
 	.attr_id = TEE_ATTR_DSA_BASE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ |
 		 TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_keypair, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PRIVATE_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DSA_PUBLIC_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_BIGNUM_MAXBITS,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dsa_keypair, y)
 	},
 };
@@ -250,35 +236,35 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_dh_keypair_attrs[] = {
 	.attr_id = TEE_ATTR_DH_PRIME,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR |
 		 TEE_TYPE_ATTR_GEN_KEY_REQ,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dh_keypair, p)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_BASE,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_REQ,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dh_keypair, g)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PUBLIC_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dh_keypair, y)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_PRIVATE_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dh_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_DH_SUBPRIME,
 	.flags = TEE_TYPE_ATTR_OPTIONAL_GROUP |	 TEE_TYPE_ATTR_GEN_KEY_OPT,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct dh_keypair, q)
 	},
 
@@ -296,7 +282,7 @@ static const struct tee_cryp_obj_type_attrs
 	{
 	.attr_id = TEE_ATTR_HKDF_IKM,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_SECRET,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	.raw_offs = 0,
 	.raw_size = 0
 	},
@@ -309,7 +295,7 @@ static const struct tee_cryp_obj_type_attrs
 	{
 	.attr_id = TEE_ATTR_CONCAT_KDF_Z,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_SECRET,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	.raw_offs = 0,
 	.raw_size = 0
 	},
@@ -322,7 +308,7 @@ static const struct tee_cryp_obj_type_attrs
 	{
 	.attr_id = TEE_ATTR_PBKDF2_PASSWORD,
 	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_SIZE_INDICATOR,
-	.ops_index = ATTR_OPS_INDEX_SECRET,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	.raw_offs = 0,
 	.raw_size = 0
 	},
@@ -333,14 +319,14 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct ecc_public_key, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct ecc_public_key, y)
 	},
 
@@ -356,21 +342,21 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct ecc_keypair, d)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct ecc_keypair, x)
 	},
 
 	{
 	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
-	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	.ops_index = ATTR_OPS_INDEX_KEY,
 	RAW_DATA(struct ecc_keypair, y)
 	},
 
@@ -558,10 +544,10 @@ static bool op_u32_from_binary_helper(uint32_t *v, const uint8_t *data,
 	return true;
 }
 
-static TEE_Result op_attr_secret_value_from_user(void *attr, const void *buffer,
+static TEE_Result op_attr_key_value_from_user(void *attr, const void *buffer,
 						 size_t size)
 {
-	struct tee_cryp_obj_secret *key = attr;
+	struct tee_cryp_obj_key *key = attr;
 
 	/* Data size has to fit in allocated buffer */
 	if (size > key->alloc_size)
@@ -571,7 +557,7 @@ static TEE_Result op_attr_secret_value_from_user(void *attr, const void *buffer,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result op_attr_secret_value_to_user(void *attr,
+static TEE_Result op_attr_key_value_to_user(void *attr,
 					       struct ts_session *sess __unused,
 					       void *buffer, uint64_t *size)
 {
@@ -595,7 +581,7 @@ static TEE_Result op_attr_secret_value_to_user(void *attr,
 	return copy_to_user(buffer, key + 1, key->key_size);
 }
 
-static TEE_Result op_attr_secret_value_to_binary(void *attr, void *data,
+static TEE_Result op_attr_key_value_to_binary(void *attr, void *data,
 					   size_t data_len, size_t *offs)
 {
 	TEE_Result res;
@@ -616,7 +602,7 @@ static TEE_Result op_attr_secret_value_to_binary(void *attr, void *data,
 	return TEE_SUCCESS;
 }
 
-static bool op_attr_secret_value_from_binary(void *attr, const void *data,
+static bool op_attr_key_value_from_binary(void *attr, const void *data,
 					     size_t data_len, size_t *offs)
 {
 	struct tee_cryp_obj_secret *key = attr;
@@ -638,7 +624,7 @@ static bool op_attr_secret_value_from_binary(void *attr, const void *data,
 }
 
 
-static TEE_Result op_attr_secret_value_from_obj(void *attr, void *src_attr)
+static TEE_Result op_attr_key_value_from_obj(void *attr, void *src_attr)
 {
 	struct tee_cryp_obj_secret *key = attr;
 	struct tee_cryp_obj_secret *src_key = src_attr;
@@ -650,7 +636,7 @@ static TEE_Result op_attr_secret_value_from_obj(void *attr, void *src_attr)
 	return TEE_SUCCESS;
 }
 
-static void op_attr_secret_value_clear(void *attr)
+static void op_attr_key_value_clear(void *attr)
 {
 	struct tee_cryp_obj_secret *key = attr;
 
@@ -833,14 +819,14 @@ static void op_attr_value_clear(void *attr)
 }
 
 static const struct attr_ops attr_ops[] = {
-	[ATTR_OPS_INDEX_SECRET] = {
-		.from_user = op_attr_secret_value_from_user,
-		.to_user = op_attr_secret_value_to_user,
-		.to_binary = op_attr_secret_value_to_binary,
-		.from_binary = op_attr_secret_value_from_binary,
-		.from_obj = op_attr_secret_value_from_obj,
-		.free = op_attr_secret_value_clear, /* not a typo */
-		.clear = op_attr_secret_value_clear,
+	[ATTR_OPS_INDEX_KEY] = {
+		.from_user = op_attr_key_value_from_user,
+		.to_user = op_attr_key_value_to_user,
+		.to_binary = op_attr_key_value_to_binary,
+		.from_binary = op_attr_key_value_from_binary,
+		.from_obj = op_attr_key_value_from_obj,
+		.free = op_attr_key_value_clear, /* not a typo */
+		.clear = op_attr_key_value_clear,
 	},
 	[ATTR_OPS_INDEX_BIGNUM] = {
 		.from_user = op_attr_bignum_from_user,
