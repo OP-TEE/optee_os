@@ -605,18 +605,18 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 
 	if (serialargs_remaining_bytes(&ctrlargs)) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
-		goto out;
+		goto out_free;
 	}
 
 	rc = get_ready_session(session);
 	if (rc)
-		goto out;
+		goto out_free;
 
 	if (function != PKCS11_FUNCTION_DIGEST) {
 		obj = pkcs11_handle2object(key_handle, session);
 		if (!obj) {
 			rc = PKCS11_CKR_KEY_HANDLE_INVALID;
-			goto out;
+			goto out_free;
 		}
 	}
 
@@ -660,9 +660,9 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 	}
 
 out:
-	if (rc && session)
+	if (rc)
 		release_active_processing(session);
-
+out_free:
 	TEE_Free(proc_params);
 
 	return rc;
