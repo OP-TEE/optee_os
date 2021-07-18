@@ -10,7 +10,8 @@ CHECKPATCH_IGNORE=$(echo \
 		lib/libutee/include/elf.h \
 		core/arch/arm/include/arm{32,64}.h \
 		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h \
-		core/arch/arm/dts)
+		core/arch/arm/dts \
+		ta/pkcs11/scripts/verify-helpers.sh )
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {
