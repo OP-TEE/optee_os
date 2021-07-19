@@ -189,6 +189,7 @@ jobs:
           set -e -v
           export LC_ALL=C
           WD=$(pwd)
+          sudo -E bash -c "cd /root/optee_repo_qemu_v8/.repo/repo && git pull"
           sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
           sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
           sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
