@@ -4,11 +4,20 @@
  */
 
 #include <drivers/atmel_rstc.h>
+#include <drivers/atmel_shdwc.h>
 #include <kernel/panic.h>
 #include <sm/psci.h>
 #include <sm/std_smc.h>
 #include <stdint.h>
 #include <trace.h>
+
+void __noreturn psci_system_off(void)
+{
+	if (!atmel_shdwc_available())
+		panic();
+
+	atmel_shdwc_shutdown();
+}
 
 void __noreturn psci_system_reset(void)
 {
@@ -27,6 +36,10 @@ int psci_features(uint32_t psci_fid)
 		return PSCI_RET_SUCCESS;
 	case PSCI_SYSTEM_RESET:
 		if (atmel_rstc_available())
+			return PSCI_RET_SUCCESS;
+		return PSCI_RET_NOT_SUPPORTED;
+	case PSCI_SYSTEM_OFF:
+		if (atmel_shdwc_available())
 			return PSCI_RET_SUCCESS;
 		return PSCI_RET_NOT_SUPPORTED;
 	default:
