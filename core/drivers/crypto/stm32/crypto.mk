@@ -18,4 +18,9 @@ ifeq ($(CFG_STM32_CRYP),y)
 $(call force,CFG_CRYPTO_DRV_AUTHENC,y,Mandated by CFG_STM32_CRYP)
 endif
 
+ifeq ($(CFG_STM32_PKA),y)
+$(call force,CFG_CRYPTO_DRV_ECC,y,Mandated by CFG_STM32_PKA)
+$(call force,CFG_CRYPTO_DRV_ACIPHER,y,Mandated by CFG_STM32_PKA)
+endif
+
 endif # CFG_STM32_CRYPTO_DRIVER
