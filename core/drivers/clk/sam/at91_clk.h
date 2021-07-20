@@ -116,6 +116,8 @@ struct clk_programmable_layout {
 
 extern const struct clk_master_layout at91sam9x5_master_layout;
 
+vaddr_t at91_pmc_get_base(void);
+
 struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 				   unsigned int nperiph, unsigned int ngck,
 				   unsigned int npck);

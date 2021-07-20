@@ -300,6 +300,15 @@ static const struct sam_clk sama5d2_progck[] = {
 	{ .n = "prog2", .id = 2 },
 };
 
+static struct pmc_data *pmc;
+
+vaddr_t at91_pmc_get_base(void)
+{
+	assert(pmc);
+
+	return pmc->base;
+}
+
 static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 			    const void *data __unused)
 {
@@ -309,7 +318,6 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	int bypass = 0;
 	const uint32_t *fdt_prop = NULL;
 	struct pmc_clk *pmc_clk = NULL;
-	struct pmc_data *pmc = NULL;
 	const struct sam_clk *sam_clk = NULL;
 	struct clk_range range = CLK_RANGE(0, 0);
 	struct clk *h32mxck = NULL;
