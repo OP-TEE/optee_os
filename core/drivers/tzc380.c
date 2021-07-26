@@ -300,7 +300,7 @@ TEE_Result tzc_regions_lockdown(void)
 	uint32_t val = 0;
 	uint32_t check = 0;
 
-	val = LOCKDOWN_RANGE_ENABLE | tzc.num_regions;
+	val = LOCKDOWN_RANGE_ENABLE | (tzc.num_regions - 1);
 	io_write32(tzc.base + LOCKDOWN_RANGE_OFF, val);
 	check = io_read32(tzc.base + LOCKDOWN_RANGE_OFF);
 	if (check != val)
