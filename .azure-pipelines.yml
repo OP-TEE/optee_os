@@ -1,4 +1,47 @@
 jobs:
+  - job: code_style
+    displayName: 'Check code style'
+    pool:
+      vmImage: ubuntu-18.04
+    container:
+      image: jforissier/optee_os_ci
+    steps:
+      - script: |
+          set -e
+          pushd .
+          mkdir -p /tmp/linux/scripts
+          cd /tmp/linux/scripts
+          wget --quiet https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/checkpatch.pl
+          chmod +x checkpatch.pl
+          wget --quiet https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/spelling.txt
+          echo "invalid.struct.name" >const_structs.checkpatch
+          export PATH=/tmp/linux/scripts:$PATH
+          popd
+          source scripts/checkpatch_inc.sh
+          function _do() { echo '>>' $*; $*; }
+          # Run checkpatch.pl:
+          # - on the tip of the branch only if we're not in a pull request
+          # - otherwise:
+          #   * on each commit in the development branch that is not in the target (merge to) branch
+          #   * on the global diff if the PR contains more than one commit (useful to check if fixup
+          #     commits do solve previous checkpatch errors)
+          if [ "${SYSTEM_PULLREQUEST_PULLREQUESTID}" == "" ]; then \
+            _do checkpatch HEAD || failed=1; \
+          else \
+            for c in $(git rev-list HEAD^1..HEAD^2); do \
+              _do checkpatch $c || failed=1; \
+            done; \
+            if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then \
+              _do checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2) || failed=1; \
+            fi; \
+          fi
+          [ -z "$failed" ]
+        displayName: 'Run checkpatch'
+      - script: |
+          sudo -E bash -c "apt update -qq -y && apt install -qq -y pycodestyle"
+          pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
+        displayName: 'Run pycodestyle'
+        condition: succeededOrFailed()  # Run this 'script' even if previous ones failed
   - job: build_all
     displayName: 'Build all'
     pool:
