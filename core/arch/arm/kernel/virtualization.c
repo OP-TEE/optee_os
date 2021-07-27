@@ -152,6 +152,7 @@ void virt_init_memory(struct tee_mmap_region *memory_map)
 		switch (map->type) {
 		case MEM_AREA_TEE_RAM_RX:
 		case MEM_AREA_TEE_RAM_RO:
+		case MEM_AREA_NEX_RAM_RO:
 		case MEM_AREA_NEX_RAM_RW:
 			DMSG("Carving out area of type %d (0x%08lx-0x%08lx)",
 			     map->type, map->pa, map->pa + map->size);

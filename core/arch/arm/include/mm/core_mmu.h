@@ -89,6 +89,9 @@
  * MEM_AREA_TEE_RAM_RX:  core private read-only/executable memory (secure)
  * MEM_AREA_TEE_RAM_RO:  core private read-only/non-executable memory (secure)
  * MEM_AREA_TEE_RAM_RW:  core private read/write/non-executable memory (secure)
+ * MEM_AREA_INIT_RAM_RO: init private read-only/non-executable memory (secure)
+ * MEM_AREA_INIT_RAM_RX: init private read-only/executable memory (secure)
+ * MEM_AREA_NEX_RAM_RO: nexus private read-only/non-executable memory (secure)
  * MEM_AREA_NEX_RAM_RW: nexus private r/w/non-executable memory (secure)
  * MEM_AREA_TEE_COHERENT: teecore coherent RAM (secure, reserved to TEE)
  * MEM_AREA_TEE_ASAN: core address sanitizer RAM (secure, reserved to TEE)
@@ -113,6 +116,9 @@ enum teecore_memtypes {
 	MEM_AREA_TEE_RAM_RX,
 	MEM_AREA_TEE_RAM_RO,
 	MEM_AREA_TEE_RAM_RW,
+	MEM_AREA_INIT_RAM_RO,
+	MEM_AREA_INIT_RAM_RX,
+	MEM_AREA_NEX_RAM_RO,
 	MEM_AREA_NEX_RAM_RW,
 	MEM_AREA_TEE_COHERENT,
 	MEM_AREA_TEE_ASAN,
@@ -142,6 +148,9 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_TEE_RAM_RX] = "TEE_RAM_RX",
 		[MEM_AREA_TEE_RAM_RO] = "TEE_RAM_RO",
 		[MEM_AREA_TEE_RAM_RW] = "TEE_RAM_RW",
+		[MEM_AREA_INIT_RAM_RO] = "INIT_RAM_RO",
+		[MEM_AREA_INIT_RAM_RX] = "INIT_RAM_RX",
+		[MEM_AREA_NEX_RAM_RO] = "NEX_RAM_RO",
 		[MEM_AREA_NEX_RAM_RW] = "NEX_RAM_RW",
 		[MEM_AREA_TEE_ASAN] = "TEE_ASAN",
 		[MEM_AREA_IDENTITY_MAP_RX] = "IDENTITY_MAP_RX",
