@@ -239,7 +239,6 @@ jobs:
 
           sudo -E make -C /root/optee_repo_qemu_v8/build -j$(getconf _NPROCESSORS_ONLN) CFG_TEE_CORE_LOG_LEVEL=0 check
 
-          sudo touch /boot/vmlinuz-$(uname -r)
           sudo -E rm -rf /root/optee_repo_qemu_v8/out-br/build/optee_test*
           sudo -E make -C /root/optee_repo_qemu_v8/build arm-tf-clean
           sudo -E make -C /root/optee_repo_qemu_v8/build -j$(getconf _NPROCESSORS_ONLN) CFG_TEE_CORE_LOG_LEVEL=0 check XEN_BOOT=y
