@@ -96,7 +96,7 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
 		     VCORE_UNPG_RO_SZ_UNSAFE);
 
 #ifdef CFG_VIRTUALIZATION
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RW_PA,
+register_phys_mem_ul(MEM_AREA_NEX_RAM_RO, VCORE_UNPG_RW_PA,
 		     VCORE_UNPG_RW_SZ_UNSAFE);
 register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
 		     VCORE_NEX_RW_SZ_UNSAFE);
@@ -106,9 +106,9 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA,
 #endif
 
 #ifdef CFG_WITH_PAGER
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_INIT_RX_PA,
+register_phys_mem_ul(MEM_AREA_INIT_RAM_RX, VCORE_INIT_RX_PA,
 		     VCORE_INIT_RX_SZ_UNSAFE);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_INIT_RO_PA,
+register_phys_mem_ul(MEM_AREA_INIT_RAM_RO, VCORE_INIT_RO_PA,
 		     VCORE_INIT_RO_SZ_UNSAFE);
 #endif /*CFG_WITH_PAGER*/
 #else /*!CFG_CORE_RWDATA_NOEXEC*/
@@ -633,11 +633,14 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TEE_RAM:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | cached;
 	case MEM_AREA_TEE_RAM_RX:
+	case MEM_AREA_INIT_RAM_RX:
 	case MEM_AREA_IDENTITY_MAP_RX:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRX | cached;
 	case MEM_AREA_TEE_RAM_RO:
+	case MEM_AREA_INIT_RAM_RO:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
 	case MEM_AREA_TEE_RAM_RW:
+	case MEM_AREA_NEX_RAM_RO: /* This has to be r/w during init runtime */
 	case MEM_AREA_NEX_RAM_RW:
 	case MEM_AREA_TEE_ASAN:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
@@ -674,7 +677,10 @@ static bool __maybe_unused map_is_tee_ram(const struct tee_mmap_region *mm)
 	case MEM_AREA_TEE_RAM_RX:
 	case MEM_AREA_TEE_RAM_RO:
 	case MEM_AREA_TEE_RAM_RW:
+	case MEM_AREA_INIT_RAM_RX:
+	case MEM_AREA_INIT_RAM_RO:
 	case MEM_AREA_NEX_RAM_RW:
+	case MEM_AREA_NEX_RAM_RO:
 	case MEM_AREA_TEE_ASAN:
 		return true;
 	default:
@@ -1132,7 +1138,10 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_TEE_RAM_RX:
 		case MEM_AREA_TEE_RAM_RO:
 		case MEM_AREA_TEE_RAM_RW:
+		case MEM_AREA_INIT_RAM_RX:
+		case MEM_AREA_INIT_RAM_RO:
 		case MEM_AREA_NEX_RAM_RW:
+		case MEM_AREA_NEX_RAM_RO:
 		case MEM_AREA_IDENTITY_MAP_RX:
 			if (!pbuf_is_inside(secure_only, m->pa, m->size))
 				panic("TEE_RAM can't fit in secure_only");
@@ -2221,12 +2230,17 @@ static void *phys_to_virt_tee_ram(paddr_t pa)
 	if (!mmap)
 		mmap = find_map_by_type_and_pa(MEM_AREA_NEX_RAM_RW, pa);
 	if (!mmap)
+		mmap = find_map_by_type_and_pa(MEM_AREA_NEX_RAM_RO, pa);
+	if (!mmap)
 		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RW, pa);
 	if (!mmap)
 		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RO, pa);
 	if (!mmap)
 		mmap = find_map_by_type_and_pa(MEM_AREA_TEE_RAM_RX, pa);
-
+	/*
+	 * Note that MEM_AREA_INIT_RAM_RO and MEM_AREA_INIT_RAM_RX are only
+	 * used with pager and not needed here.
+	 */
 	return map_pa2va(mmap, pa);
 }
 #endif
@@ -2243,6 +2257,7 @@ void *phys_to_virt(paddr_t pa, enum teecore_memtypes m)
 	case MEM_AREA_TEE_RAM_RX:
 	case MEM_AREA_TEE_RAM_RO:
 	case MEM_AREA_TEE_RAM_RW:
+	case MEM_AREA_NEX_RAM_RO:
 	case MEM_AREA_NEX_RAM_RW:
 		va = phys_to_virt_tee_ram(pa);
 		break;
