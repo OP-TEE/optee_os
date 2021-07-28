@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file cmac.c
  *
  * \brief NIST SP800-38B compliant CMAC implementation for AES and 3DES
  *
- *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
 /*
@@ -40,31 +38,16 @@
  *
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_CMAC_C)
 
 #include "mbedtls/cmac.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
+#include "mbedtls/platform.h"
 
 #include <string.h>
-
-#if defined(MBEDTLS_PLATFORM_C)
-#include "mbedtls/platform.h"
-#else
-#include <stdlib.h>
-#define mbedtls_calloc     calloc
-#define mbedtls_free       free
-#if defined(MBEDTLS_SELF_TEST)
-#include <stdio.h>
-#define mbedtls_printf     printf
-#endif /* MBEDTLS_SELF_TEST */
-#endif /* MBEDTLS_PLATFORM_C */
 
 #if !defined(MBEDTLS_CMAC_ALT) || defined(MBEDTLS_SELF_TEST)
 
@@ -199,26 +182,11 @@ static void cmac_pad( unsigned char padded_block[MBEDTLS_CIPHER_BLKSIZE_MAX],
     }
 }
 
-int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx)
-{
-    mbedtls_cmac_context_t *cmac_ctx;
-
-    /* Allocated and initialise in the cipher context memory for the CMAC
-     * context */
-    cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
-    if( cmac_ctx == NULL )
-        return( MBEDTLS_ERR_CIPHER_ALLOC_FAILED );
-
-    ctx->cmac_ctx = cmac_ctx;
-
-    mbedtls_platform_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
-    return 0;
-}
-
 int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
                                 const unsigned char *key, size_t keybits )
 {
     mbedtls_cipher_type_t type;
+    mbedtls_cmac_context_t *cmac_ctx;
     int retval;
 
     if( ctx == NULL || ctx->cipher_info == NULL || key == NULL )
@@ -241,11 +209,17 @@ int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
             return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
     }
 
-    /* Check if cmac ctx had been allocated by mbedtls_cipher_cmac_setup() */
-    if( ctx->cmac_ctx != NULL )
-        return 0;
+    /* Allocated and initialise in the cipher context memory for the CMAC
+     * context */
+    cmac_ctx = mbedtls_calloc( 1, sizeof( mbedtls_cmac_context_t ) );
+    if( cmac_ctx == NULL )
+        return( MBEDTLS_ERR_CIPHER_ALLOC_FAILED );
 
-    return mbedtls_cipher_cmac_setup( ctx );
+    ctx->cmac_ctx = cmac_ctx;
+
+    mbedtls_platform_zeroize( cmac_ctx->state, sizeof( cmac_ctx->state ) );
+
+    return 0;
 }
 
 int mbedtls_cipher_cmac_update( mbedtls_cipher_context_t *ctx,
@@ -434,7 +408,7 @@ exit:
  */
 int mbedtls_aes_cmac_prf_128( const unsigned char *key, size_t key_length,
                               const unsigned char *input, size_t in_len,
-                              unsigned char *output )
+                              unsigned char output[16] )
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     const mbedtls_cipher_info_t *cipher_info;
@@ -792,7 +766,7 @@ static int cmac_test_subkeys( int verbose,
     for( i = 0; i < num_tests; i++ )
     {
         if( verbose != 0 )
-            mbedtls_printf( "  %s CMAC subkey #%u: ", testname, i + 1 );
+            mbedtls_printf( "  %s CMAC subkey #%d: ", testname, i + 1 );
 
         mbedtls_cipher_init( &ctx );
 
@@ -807,6 +781,18 @@ static int cmac_test_subkeys( int verbose,
         if( ( ret = mbedtls_cipher_setkey( &ctx, key, keybits,
                                        MBEDTLS_ENCRYPT ) ) != 0 )
         {
+            /* When CMAC is implemented by an alternative implementation, or
+             * the underlying primitive itself is implemented alternatively,
+             * AES-192 may be unavailable. This should not cause the selftest
+             * function to fail. */
+            if( ( ret == MBEDTLS_ERR_PLATFORM_FEATURE_UNSUPPORTED ||
+                  ret == MBEDTLS_ERR_CIPHER_FEATURE_UNAVAILABLE ) &&
+                  cipher_type == MBEDTLS_CIPHER_AES_192_ECB ) {
+                if( verbose != 0 )
+                    mbedtls_printf( "skipped\n" );
+                goto next_test;
+            }
+
             if( verbose != 0 )
                 mbedtls_printf( "test execution failed\n" );
 
@@ -834,6 +820,7 @@ static int cmac_test_subkeys( int verbose,
         if( verbose != 0 )
             mbedtls_printf( "passed\n" );
 
+next_test:
         mbedtls_cipher_free( &ctx );
     }
 
@@ -873,11 +860,24 @@ static int cmac_test_wth_cipher( int verbose,
     for( i = 0; i < num_tests; i++ )
     {
         if( verbose != 0 )
-            mbedtls_printf( "  %s CMAC #%u: ", testname, i + 1 );
+            mbedtls_printf( "  %s CMAC #%d: ", testname, i + 1 );
 
         if( ( ret = mbedtls_cipher_cmac( cipher_info, key, keybits, messages,
                                          message_lengths[i], output ) ) != 0 )
         {
+            /* When CMAC is implemented by an alternative implementation, or
+             * the underlying primitive itself is implemented alternatively,
+             * AES-192 and/or 3DES may be unavailable. This should not cause
+             * the selftest function to fail. */
+            if( ( ret == MBEDTLS_ERR_PLATFORM_FEATURE_UNSUPPORTED ||
+                  ret == MBEDTLS_ERR_CIPHER_FEATURE_UNAVAILABLE ) &&
+                ( cipher_type == MBEDTLS_CIPHER_AES_192_ECB ||
+                  cipher_type == MBEDTLS_CIPHER_DES_EDE3_ECB ) ) {
+                if( verbose != 0 )
+                    mbedtls_printf( "skipped\n" );
+                continue;
+            }
+
             if( verbose != 0 )
                 mbedtls_printf( "failed\n" );
             goto exit;
@@ -908,7 +908,7 @@ static int test_aes128_cmac_prf( int verbose )
 
     for( i = 0; i < NB_PRF_TESTS; i++ )
     {
-        mbedtls_printf( "  AES CMAC 128 PRF #%u: ", i );
+        mbedtls_printf( "  AES CMAC 128 PRF #%d: ", i );
         ret = mbedtls_aes_cmac_prf_128( PRFK, PRFKlen[i], PRFM, 20, output );
         if( ret != 0 ||
             memcmp( output, PRFT[i], MBEDTLS_AES_BLOCK_SIZE ) != 0 )

@@ -1,8 +1,8 @@
-/*  SPDX-License-Identifier: Apache-2.0 */
 /*
  *  ARIA implementation
  *
- *  Copyright (C) 2006-2017, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
 /*
@@ -25,11 +23,7 @@
  * [2] https://tools.ietf.org/html/rfc5794
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_ARIA_C)
 
@@ -927,7 +921,7 @@ static const uint8_t aria_test2_ctr_ct[3][48] =         // CTR ciphertext
         {                                   \
             if( verbose )                   \
                 mbedtls_printf( "failed\n" );       \
-            return( 1 );                    \
+            goto exit;                              \
         } else {                            \
             if( verbose )                   \
                 mbedtls_printf( "passed\n" );       \
@@ -941,6 +935,7 @@ int mbedtls_aria_self_test( int verbose )
     int i;
     uint8_t blk[MBEDTLS_ARIA_BLOCKSIZE];
     mbedtls_aria_context ctx;
+    int ret = 1;
 
 #if (defined(MBEDTLS_CIPHER_MODE_CFB) || defined(MBEDTLS_CIPHER_MODE_CTR))
     size_t j;
@@ -951,6 +946,8 @@ int mbedtls_aria_self_test( int verbose )
      defined(MBEDTLS_CIPHER_MODE_CTR))
     uint8_t buf[48], iv[MBEDTLS_ARIA_BLOCKSIZE];
 #endif
+
+    mbedtls_aria_init( &ctx );
 
     /*
      * Test set 1
@@ -1071,7 +1068,11 @@ int mbedtls_aria_self_test( int verbose )
         mbedtls_printf( "\n" );
 #endif /* MBEDTLS_CIPHER_MODE_CTR */
 
-    return( 0 );
+    ret = 0;
+
+exit:
+    mbedtls_aria_free( &ctx );
+    return( ret );
 }
 
 #endif /* MBEDTLS_SELF_TEST */

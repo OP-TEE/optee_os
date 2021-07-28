@@ -25,6 +25,8 @@ To generate a local copy of the library documentation in HTML format, tailored t
 1. Run `make apidoc`.
 1. Browse `apidoc/index.html` or `apidoc/modules.html`.
 
+For other sources of documentation, see the [SUPPORT](SUPPORT.md) document.
+
 Compiling
 ---------
 
@@ -85,11 +87,11 @@ In order to build the source using CMake in a separate directory (recommended), 
 
     mkdir /path/to/build_dir && cd /path/to/build_dir
     cmake /path/to/mbedtls_source
-    make
+    cmake --build .
 
 In order to run the tests, enter:
 
-    make test
+    ctest
 
 The test suites need Python to be built and Perl to be executed. If you don't have one of these installed, you'll want to disable the test suites with:
 
@@ -208,7 +210,7 @@ The design goals of the PSA cryptography API include:
 
 * The API distinguishes caller memory from internal memory, which allows the library to be implemented in an isolated space for additional security. Library calls can be implemented as direct function calls if isolation is not desired, and as remote procedure calls if isolation is desired.
 * The structure of internal data is hidden to the application, which allows substituting alternative implementations at build time or run time, for example, in order to take advantage of hardware accelerators.
-* All access to the keys happens through handles, which allows support for external cryptoprocessors that is transparent to applications.
+* All access to the keys happens through key identifiers, which allows support for external cryptoprocessors that is transparent to applications.
 * The interface to algorithms is generic, favoring algorithm agility.
 * The interface is designed to be easy to use and hard to accidentally misuse.
 

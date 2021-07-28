@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file bignum.h
  *
  * \brief Multi-precision integer library
  */
 /*
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 #ifndef MBEDTLS_BIGNUM_H
 #define MBEDTLS_BIGNUM_H
@@ -63,12 +61,12 @@
  * Maximum window size used for modular exponentiation. Default: 6
  * Minimum value: 1. Maximum value: 6.
  *
- * Result is an array of ( 2 << MBEDTLS_MPI_WINDOW_SIZE ) MPIs used
+ * Result is an array of ( 2 ** MBEDTLS_MPI_WINDOW_SIZE ) MPIs used
  * for the sliding window calculation. (So 64 by default)
  *
  * Reduction in size, reduces speed.
  */
-#define MBEDTLS_MPI_WINDOW_SIZE                           6        /**< Maximum windows size used. */
+#define MBEDTLS_MPI_WINDOW_SIZE                           6        /**< Maximum window size used. */
 #endif /* !MBEDTLS_MPI_WINDOW_SIZE */
 
 #if !defined(MBEDTLS_MPI_MAX_SIZE)
@@ -185,14 +183,11 @@ extern "C" {
  */
 typedef struct mbedtls_mpi
 {
-    short s;            /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
-    short use_mempool;
+    int s;              /*!<  Sign: -1 if the mpi is negative, 1 otherwise */
     size_t n;           /*!<  total # of limbs  */
     mbedtls_mpi_uint *p;          /*!<  pointer to limbs  */
 }
 mbedtls_mpi;
-
-extern void *mbedtls_mpi_mempool;
 
 /**
  * \brief           Initialize an MPI context.
@@ -203,7 +198,6 @@ extern void *mbedtls_mpi_mempool;
  * \param X         The MPI context to initialize. This must not be \c NULL.
  */
 void mbedtls_mpi_init( mbedtls_mpi *X );
-void mbedtls_mpi_init_mempool( mbedtls_mpi *X );
 
 /**
  * \brief          This function frees the components of an MPI context.
@@ -877,6 +871,44 @@ int mbedtls_mpi_fill_random( mbedtls_mpi *X, size_t size,
                      int (*f_rng)(void *, unsigned char *, size_t),
                      void *p_rng );
 
+/** Generate a random number uniformly in a range.
+ *
+ * This function generates a random number between \p min inclusive and
+ * \p N exclusive.
+ *
+ * The procedure complies with RFC 6979 §3.3 (deterministic ECDSA)
+ * when the RNG is a suitably parametrized instance of HMAC_DRBG
+ * and \p min is \c 1.
+ *
+ * \note           There are `N - min` possible outputs. The lower bound
+ *                 \p min can be reached, but the upper bound \p N cannot.
+ *
+ * \param X        The destination MPI. This must point to an initialized MPI.
+ * \param min      The minimum value to return.
+ *                 It must be nonnegative.
+ * \param N        The upper bound of the range, exclusive.
+ *                 In other words, this is one plus the maximum value to return.
+ *                 \p N must be strictly larger than \p min.
+ * \param f_rng    The RNG function to use. This must not be \c NULL.
+ * \param p_rng    The RNG parameter to be passed to \p f_rng.
+ *
+ * \return         \c 0 if successful.
+ * \return         #MBEDTLS_ERR_MPI_ALLOC_FAILED if a memory allocation failed.
+ * \return         #MBEDTLS_ERR_MPI_BAD_INPUT_DATA if \p min or \p N is invalid
+ *                 or if they are incompatible.
+ * \return         #MBEDTLS_ERR_MPI_NOT_ACCEPTABLE if the implementation was
+ *                 unable to find a suitable value within a limited number
+ *                 of attempts. This has a negligible probability if \p N
+ *                 is significantly larger than \p min, which is the case
+ *                 for all usual cryptographic applications.
+ * \return         Another negative error code on failure.
+ */
+int mbedtls_mpi_random( mbedtls_mpi *X,
+                        mbedtls_mpi_sint min,
+                        const mbedtls_mpi *N,
+                        int (*f_rng)(void *, unsigned char *, size_t),
+                        void *p_rng );
+
 /**
  * \brief          Compute the greatest common divisor: G = gcd(A, B)
  *
@@ -1004,40 +1036,6 @@ typedef enum {
 int mbedtls_mpi_gen_prime( mbedtls_mpi *X, size_t nbits, int flags,
                    int (*f_rng)(void *, unsigned char *, size_t),
                    void *p_rng );
-
-/**
- * \brief          Montgomery initialization
- *
- * \param mm       The -1/m mod N result
- * \param N        The modulus
- */
-void mbedtls_mpi_montg_init( mbedtls_mpi_uint *mm, const mbedtls_mpi *N );
-
-/**
- * \brief          Montgomery multiplication: A = A * B * R^-1 mod N
- * \A              Parameter and result
- * \B              Parameter
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B,
-			 const mbedtls_mpi *N, mbedtls_mpi_uint mm,
-                         const mbedtls_mpi *T );
-
-/**
- * \brief          Montgomery reduction: A = A * R^-1 mod N
- * \A              Parameter and result
- * \N              Modulus
- * \mm             Parameter from mbedtls_mpi_montg_init()
- * \T              Temporary variable, should be as twice as big as N + 2
- * \return         0 if successful,
- *                 MBEDTLS_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
- */
-int mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
-			 mbedtls_mpi_uint mm, const mbedtls_mpi *T );
 
 #if defined(MBEDTLS_SELF_TEST)
 

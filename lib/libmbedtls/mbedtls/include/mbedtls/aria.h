@@ -9,7 +9,8 @@
  *        Korean, but see http://210.104.33.10/ARIA/index-e.html in English)
  *        and also described by the IETF in <em>RFC 5794</em>.
  */
-/*  Copyright (C) 2006-2018, ARM Limited, All Rights Reserved
+/*
+ *  Copyright The Mbed TLS Contributors
  *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -23,8 +24,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
 #ifndef MBEDTLS_ARIA_H
@@ -62,13 +61,13 @@
 /* MBEDTLS_ERR_ARIA_HW_ACCEL_FAILED is deprecated and should not be used. */
 #define MBEDTLS_ERR_ARIA_HW_ACCEL_FAILED      -0x0058  /**< ARIA hardware accelerator failed. */
 
-#if !defined(MBEDTLS_ARIA_ALT)
-// Regular implementation
-//
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#if !defined(MBEDTLS_ARIA_ALT)
+// Regular implementation
+//
 
 /**
  * \brief The ARIA context-type definition.

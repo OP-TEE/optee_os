@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
- * \file mbedtls_md.c
+ * \file md.c
  *
  * \brief Generic message digest wrapper for mbed TLS
  *
  * \author Adriaan de Jong <dejong@fox-it.com>
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -19,15 +19,9 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_MD_C)
 
@@ -393,9 +387,6 @@ int mbedtls_md_clone( mbedtls_md_context_t *dst,
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
 
-    if( dst->hmac_ctx != NULL && src->hmac_ctx != NULL )
-        memcpy( dst->hmac_ctx, src->hmac_ctx, 2 * src->md_info->block_size );
-
     return( 0 );
 }
 
@@ -419,6 +410,10 @@ int mbedtls_md_setup( mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_inf
 {
     if( md_info == NULL || ctx == NULL )
         return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
+
+    ctx->md_info = md_info;
+    ctx->md_ctx = NULL;
+    ctx->hmac_ctx = NULL;
 
     switch( md_info->type )
     {
@@ -474,8 +469,6 @@ int mbedtls_md_setup( mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_inf
             return( MBEDTLS_ERR_MD_ALLOC_FAILED );
         }
     }
-
-    ctx->md_info = md_info;
 
     return( 0 );
 }
@@ -556,14 +549,12 @@ int mbedtls_md_update( mbedtls_md_context_t *ctx, const unsigned char *input, si
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-            return( mbedtls_sha256_update_ret( ctx->md_ctx, input, ilen ) );
         case MBEDTLS_MD_SHA256:
             return( mbedtls_sha256_update_ret( ctx->md_ctx, input, ilen ) );
 #endif
 #if defined(MBEDTLS_SHA512_C)
 #if !defined(MBEDTLS_SHA512_NO_SHA384)
         case MBEDTLS_MD_SHA384:
-            return( mbedtls_sha512_update_ret( ctx->md_ctx, input, ilen ) );
 #endif
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_update_ret( ctx->md_ctx, input, ilen ) );
@@ -602,14 +593,12 @@ int mbedtls_md_finish( mbedtls_md_context_t *ctx, unsigned char *output )
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-            return( mbedtls_sha256_finish_ret( ctx->md_ctx, output ) );
         case MBEDTLS_MD_SHA256:
             return( mbedtls_sha256_finish_ret( ctx->md_ctx, output ) );
 #endif
 #if defined(MBEDTLS_SHA512_C)
 #if !defined(MBEDTLS_SHA512_NO_SHA384)
         case MBEDTLS_MD_SHA384:
-            return( mbedtls_sha512_finish_ret( ctx->md_ctx, output ) );
 #endif
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_finish_ret( ctx->md_ctx, output ) );
@@ -859,14 +848,12 @@ int mbedtls_md_process( mbedtls_md_context_t *ctx, const unsigned char *data )
 #endif
 #if defined(MBEDTLS_SHA256_C)
         case MBEDTLS_MD_SHA224:
-            return( mbedtls_internal_sha256_process( ctx->md_ctx, data ) );
         case MBEDTLS_MD_SHA256:
             return( mbedtls_internal_sha256_process( ctx->md_ctx, data ) );
 #endif
 #if defined(MBEDTLS_SHA512_C)
 #if !defined(MBEDTLS_SHA512_NO_SHA384)
         case MBEDTLS_MD_SHA384:
-            return( mbedtls_internal_sha512_process( ctx->md_ctx, data ) );
 #endif
         case MBEDTLS_MD_SHA512:
             return( mbedtls_internal_sha512_process( ctx->md_ctx, data ) );
