@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 /**
  * \file bn_mul.h
  *
  * \brief Multi-precision integer library
  */
 /*
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 /*
  *      Multiply source vector [s] with b, add result
@@ -45,6 +43,46 @@
 #endif
 
 #include "mbedtls/bignum.h"
+
+
+/*
+ * Conversion macros for embedded constants:
+ * build lists of mbedtls_mpi_uint's from lists of unsigned char's grouped by 8, 4 or 2
+ */
+#if defined(MBEDTLS_HAVE_INT32)
+
+#define MBEDTLS_BYTES_TO_T_UINT_4( a, b, c, d )               \
+    ( (mbedtls_mpi_uint) (a) <<  0 ) |                        \
+    ( (mbedtls_mpi_uint) (b) <<  8 ) |                        \
+    ( (mbedtls_mpi_uint) (c) << 16 ) |                        \
+    ( (mbedtls_mpi_uint) (d) << 24 )
+
+#define MBEDTLS_BYTES_TO_T_UINT_2( a, b )                   \
+    MBEDTLS_BYTES_TO_T_UINT_4( a, b, 0, 0 )
+
+#define MBEDTLS_BYTES_TO_T_UINT_8( a, b, c, d, e, f, g, h ) \
+    MBEDTLS_BYTES_TO_T_UINT_4( a, b, c, d ),                \
+    MBEDTLS_BYTES_TO_T_UINT_4( e, f, g, h )
+
+#else /* 64-bits */
+
+#define MBEDTLS_BYTES_TO_T_UINT_8( a, b, c, d, e, f, g, h )   \
+    ( (mbedtls_mpi_uint) (a) <<  0 ) |                        \
+    ( (mbedtls_mpi_uint) (b) <<  8 ) |                        \
+    ( (mbedtls_mpi_uint) (c) << 16 ) |                        \
+    ( (mbedtls_mpi_uint) (d) << 24 ) |                        \
+    ( (mbedtls_mpi_uint) (e) << 32 ) |                        \
+    ( (mbedtls_mpi_uint) (f) << 40 ) |                        \
+    ( (mbedtls_mpi_uint) (g) << 48 ) |                        \
+    ( (mbedtls_mpi_uint) (h) << 56 )
+
+#define MBEDTLS_BYTES_TO_T_UINT_4( a, b, c, d )             \
+    MBEDTLS_BYTES_TO_T_UINT_8( a, b, c, d, 0, 0, 0, 0 )
+
+#define MBEDTLS_BYTES_TO_T_UINT_2( a, b )                   \
+    MBEDTLS_BYTES_TO_T_UINT_8( a, b, 0, 0, 0, 0, 0, 0 )
+
+#endif /* bits in mbedtls_mpi_uint */
 
 #if defined(MBEDTLS_HAVE_ASM)
 

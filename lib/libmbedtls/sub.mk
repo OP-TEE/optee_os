@@ -73,6 +73,7 @@ SRCS_CRYPTO += bignum.c
 SRCS_CRYPTO += cipher.c
 SRCS_CRYPTO += cipher_wrap.c
 SRCS_CRYPTO += cmac.c
+SRCS_CRYPTO += ctr_drbg.c
 SRCS_CRYPTO += des.c
 SRCS_CRYPTO += dhm.c
 SRCS_CRYPTO += ecdh.c
