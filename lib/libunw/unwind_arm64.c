@@ -74,11 +74,13 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 void print_stack_arm64(struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
+	int width = 8;
+
 	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
 
 	ftrace_map_lr(&state->pc);
 	do {
-		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%016" PRIx64,
-					state->pc);
+		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%0*"PRIx64,
+					width, state->pc);
 	} while (unwind_stack_arm64(state, stack, stack_size));
 }
