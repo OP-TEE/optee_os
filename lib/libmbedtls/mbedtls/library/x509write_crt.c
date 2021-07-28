@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  X.509 certificate writing
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 /*
  * References:
@@ -25,11 +23,7 @@
  * - attributes: PKCS#9 v2.0 aka RFC 2985
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_X509_CRT_WRITE_C)
 
@@ -169,7 +163,7 @@ int mbedtls_x509write_crt_set_basic_constraints( mbedtls_x509write_cert *ctx,
     return(
         mbedtls_x509write_crt_set_extension( ctx, MBEDTLS_OID_BASIC_CONSTRAINTS,
                              MBEDTLS_OID_SIZE( MBEDTLS_OID_BASIC_CONSTRAINTS ),
-                             0, buf + sizeof(buf) - len, len ) );
+                             is_ca, buf + sizeof(buf) - len, len ) );
 }
 
 #if defined(MBEDTLS_SHA1_C)
@@ -239,7 +233,7 @@ int mbedtls_x509write_crt_set_authority_key_identifier( mbedtls_x509write_cert *
 int mbedtls_x509write_crt_set_key_usage( mbedtls_x509write_cert *ctx,
                                          unsigned int key_usage )
 {
-    unsigned char buf[5], ku[2];
+    unsigned char buf[5] = {0}, ku[2] = {0};
     unsigned char *c;
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
     const unsigned int allowed_bits = MBEDTLS_X509_KU_DIGITAL_SIGNATURE |
@@ -278,7 +272,7 @@ int mbedtls_x509write_crt_set_key_usage( mbedtls_x509write_cert *ctx,
 int mbedtls_x509write_crt_set_ns_cert_type( mbedtls_x509write_cert *ctx,
                                     unsigned char ns_cert_type )
 {
-    unsigned char buf[4];
+    unsigned char buf[4] = {0};
     unsigned char *c;
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
 

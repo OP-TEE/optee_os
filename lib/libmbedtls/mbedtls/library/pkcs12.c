@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
 /*
  *  PKCS#12 Personal Information Exchange Syntax
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 /*
  *  The PKCS #12 Personal Information Exchange Syntax Standard v1.1
@@ -25,11 +23,7 @@
  *  ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-12/pkcs-12v1-1.asn
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_PKCS12_C)
 
@@ -66,21 +60,21 @@ static int pkcs12_parse_pbe_params( mbedtls_asn1_buf *params,
      *
      */
     if( params->tag != ( MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE ) )
-        return( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT +
-                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT,
+                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG ) );
 
     if( ( ret = mbedtls_asn1_get_tag( p, end, &salt->len, MBEDTLS_ASN1_OCTET_STRING ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT, ret ) );
 
     salt->p = *p;
     *p += salt->len;
 
     if( ( ret = mbedtls_asn1_get_int( p, end, iterations ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT, ret ) );
 
     if( *p != end )
-        return( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT +
-                MBEDTLS_ERR_ASN1_LENGTH_MISMATCH );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS12_PBE_INVALID_FORMAT,
+                MBEDTLS_ERR_ASN1_LENGTH_MISMATCH ) );
 
     return( 0 );
 }
