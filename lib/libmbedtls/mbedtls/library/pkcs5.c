@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
 /**
  * \file pkcs5.c
  *
@@ -6,7 +5,8 @@
  *
  * \author Mathias Olsson <mathias@kompetensum.com>
  *
- *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Copyright The Mbed TLS Contributors
+ *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
  *  not use this file except in compliance with the License.
@@ -19,8 +19,6 @@
  *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
- *
- *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 /*
  * PKCS#5 includes PBKDF2 and more
@@ -29,11 +27,7 @@
  * http://tools.ietf.org/html/rfc6070 (Test vectors)
  */
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "common.h"
 
 #if defined(MBEDTLS_PKCS5_C)
 
@@ -66,8 +60,8 @@ static int pkcs5_parse_pbkdf2_params( const mbedtls_asn1_buf *params,
     const unsigned char *end = params->p + params->len;
 
     if( params->tag != ( MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE ) )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT +
-                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT,
+                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG ) );
     /*
      *  PBKDF2-params ::= SEQUENCE {
      *    salt              OCTET STRING,
@@ -79,13 +73,13 @@ static int pkcs5_parse_pbkdf2_params( const mbedtls_asn1_buf *params,
      */
     if( ( ret = mbedtls_asn1_get_tag( &p, end, &salt->len,
                                       MBEDTLS_ASN1_OCTET_STRING ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
 
     salt->p = p;
     p += salt->len;
 
     if( ( ret = mbedtls_asn1_get_int( &p, end, iterations ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
 
     if( p == end )
         return( 0 );
@@ -93,21 +87,21 @@ static int pkcs5_parse_pbkdf2_params( const mbedtls_asn1_buf *params,
     if( ( ret = mbedtls_asn1_get_int( &p, end, keylen ) ) != 0 )
     {
         if( ret != MBEDTLS_ERR_ASN1_UNEXPECTED_TAG )
-            return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+            return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
     }
 
     if( p == end )
         return( 0 );
 
     if( ( ret = mbedtls_asn1_get_alg_null( &p, end, &prf_alg_oid ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
 
     if( mbedtls_oid_get_md_hmac( &prf_alg_oid, md_type ) != 0 )
         return( MBEDTLS_ERR_PKCS5_FEATURE_UNAVAILABLE );
 
     if( p != end )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT +
-                MBEDTLS_ERR_ASN1_LENGTH_MISMATCH );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT,
+                MBEDTLS_ERR_ASN1_LENGTH_MISMATCH ) );
 
     return( 0 );
 }
@@ -140,12 +134,12 @@ int mbedtls_pkcs5_pbes2( const mbedtls_asn1_buf *pbe_params, int mode,
      *  }
      */
     if( pbe_params->tag != ( MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE ) )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT +
-                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT,
+                MBEDTLS_ERR_ASN1_UNEXPECTED_TAG ) );
 
     if( ( ret = mbedtls_asn1_get_alg( &p, end, &kdf_alg_oid,
                                       &kdf_alg_params ) ) != 0 )
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
 
     // Only PBKDF2 supported at the moment
     //
@@ -166,7 +160,7 @@ int mbedtls_pkcs5_pbes2( const mbedtls_asn1_buf *pbe_params, int mode,
     if( ( ret = mbedtls_asn1_get_alg( &p, end, &enc_scheme_oid,
                               &enc_scheme_params ) ) != 0 )
     {
-        return( MBEDTLS_ERR_PKCS5_INVALID_FORMAT + ret );
+        return( MBEDTLS_ERROR_ADD( MBEDTLS_ERR_PKCS5_INVALID_FORMAT, ret ) );
     }
 
     if( mbedtls_oid_get_cipher_alg( &enc_scheme_oid, &cipher_alg ) != 0 )
@@ -227,7 +221,8 @@ int mbedtls_pkcs5_pbkdf2_hmac( mbedtls_md_context_t *ctx,
                        unsigned int iteration_count,
                        uint32_t key_length, unsigned char *output )
 {
-    int ret, j;
+    int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
+    int j;
     unsigned int i;
     unsigned char md1[MBEDTLS_MD_MAX_SIZE];
     unsigned char work[MBEDTLS_MD_MAX_SIZE];
@@ -251,16 +246,16 @@ int mbedtls_pkcs5_pbkdf2_hmac( mbedtls_md_context_t *ctx,
         // U1 ends up in work
         //
         if( ( ret = mbedtls_md_hmac_update( ctx, salt, slen ) ) != 0 )
-            return( ret );
+            goto cleanup;
 
         if( ( ret = mbedtls_md_hmac_update( ctx, counter, 4 ) ) != 0 )
-            return( ret );
+            goto cleanup;
 
         if( ( ret = mbedtls_md_hmac_finish( ctx, work ) ) != 0 )
-            return( ret );
+            goto cleanup;
 
         if( ( ret = mbedtls_md_hmac_reset( ctx ) ) != 0 )
-           return( ret );
+            goto cleanup;
 
         memcpy( md1, work, md_size );
 
@@ -269,13 +264,13 @@ int mbedtls_pkcs5_pbkdf2_hmac( mbedtls_md_context_t *ctx,
             // U2 ends up in md1
             //
             if( ( ret = mbedtls_md_hmac_update( ctx, md1, md_size ) ) != 0 )
-                return( ret );
+                goto cleanup;
 
             if( ( ret = mbedtls_md_hmac_finish( ctx, md1 ) ) != 0 )
-                return( ret );
+                goto cleanup;
 
             if( ( ret = mbedtls_md_hmac_reset( ctx ) ) != 0 )
-                return( ret );
+                goto cleanup;
 
             // U1 xor U2
             //
@@ -294,7 +289,12 @@ int mbedtls_pkcs5_pbkdf2_hmac( mbedtls_md_context_t *ctx,
                 break;
     }
 
-    return( 0 );
+cleanup:
+    /* Zeroise buffers to clear sensitive data from memory. */
+    mbedtls_platform_zeroize( work, MBEDTLS_MD_MAX_SIZE );
+    mbedtls_platform_zeroize( md1, MBEDTLS_MD_MAX_SIZE );
+
+    return( ret );
 }
 
 #if defined(MBEDTLS_SELF_TEST)

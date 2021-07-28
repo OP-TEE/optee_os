@@ -545,8 +545,7 @@ static int montgomery_reduce(void *a, void *b, void *c)
 	if (mbedtls_mpi_grow(&A, N->n + 1))
 		goto out;
 
-	if (mbedtls_mpi_montred(&A, N, *mm, &T))
-		goto out;
+	mbedtls_mpi_montred(&A, N, *mm, &T);
 
 	if (mbedtls_mpi_copy(a, &A))
 		goto out;
