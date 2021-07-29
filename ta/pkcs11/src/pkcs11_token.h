@@ -135,7 +135,7 @@ enum pkcs11_proc_state {
  * @mecha_type - mechanism type of the active processing
  * @always_authen - true if user need to login before each use
  * @relogged - true once client logged since last operation update
- * @updated - true once an active operation is updated
+ * @op_step - last active operation step - update, final or one-shot
  * @tee_op_handle - handle on active crypto operation or TEE_HANDLE_NULL
  * @tee_hash_algo - hash algorithm identifier.
  * @tee_hash_op_handle - handle on active hashing crypto operation or
@@ -145,9 +145,9 @@ enum pkcs11_proc_state {
 struct active_processing {
 	enum pkcs11_proc_state state;
 	uint32_t mecha_type;
+	enum processing_step step;
 	bool always_authen;
 	bool relogged;
-	bool updated;
 	TEE_OperationHandle tee_op_handle;
 	uint32_t tee_hash_algo;
 	TEE_OperationHandle tee_hash_op_handle;
