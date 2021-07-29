@@ -449,6 +449,33 @@ void core_mmu_set_default_prtn_tbl(void)
 }
 #endif
 
+/*
+ * Given an entry that points to a table returns the virtual address
+ * of the pointed table. NULL otherwise.
+ */
+static void *core_mmu_xlat_table_entry_pa2va(struct mmu_partition *prtn,
+					     unsigned int level,
+					     uint64_t entry)
+{
+	paddr_t pa = 0;
+	void *va = NULL;
+
+	if ((entry & DESC_ENTRY_TYPE_MASK) != TABLE_DESC ||
+	    level >= XLAT_TABLE_LEVEL_MAX)
+		return NULL;
+
+	pa = entry & OUTPUT_ADDRESS_MASK;
+
+	if (!IS_ENABLED(CFG_VIRTUALIZATION) || prtn == &default_partition)
+		va = phys_to_virt(pa, MEM_AREA_TEE_RAM_RW_DATA,
+				  XLAT_TABLE_SIZE);
+	else
+		va = phys_to_virt(pa, MEM_AREA_SEC_RAM_OVERALL,
+				  XLAT_TABLE_SIZE);
+
+	return va;
+}
+
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
 	size_t n;
@@ -703,7 +730,6 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 	unsigned int level = CORE_MMU_BASE_TABLE_LEVEL;
 	vaddr_t va_base = 0;
 	bool ret = false;
-	uintptr_t ntbl;
 	uint64_t *tbl;
 
 	if (!prtn)
@@ -746,20 +772,8 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			goto out;
 		}
 
-		/* Copy bits 47:12 from tbl[n] to ntbl */
-		ntbl = tbl[n] & GENMASK_64(47, 12);
+		tbl = core_mmu_xlat_table_entry_pa2va(prtn, level, tbl[n]);
 
-#ifdef CFG_VIRTUALIZATION
-		if (prtn == &default_partition)
-			tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA,
-					   XLAT_TABLE_SIZE);
-		else
-			tbl = phys_to_virt(ntbl, MEM_AREA_SEC_RAM_OVERALL,
-					   XLAT_TABLE_SIZE);
-#else
-		tbl = phys_to_virt(ntbl, MEM_AREA_TEE_RAM_RW_DATA,
-				   XLAT_TABLE_SIZE);
-#endif
 		if (!tbl)
 			goto out;
 
