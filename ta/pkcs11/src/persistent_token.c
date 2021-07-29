@@ -657,7 +657,6 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		db_main->flags = PKCS11_CKFT_SO_PIN_TO_BE_CHANGED |
 				 PKCS11_CKFT_USER_PIN_TO_BE_CHANGED |
 				 PKCS11_CKFT_RNG |
-				 PKCS11_CKFT_DUAL_CRYPTO_OPERATIONS |
 				 PKCS11_CKFT_LOGIN_REQUIRED;
 
 		res = get_db_file_name(token, file, sizeof(file));
