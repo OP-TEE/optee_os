@@ -759,11 +759,18 @@ enum pkcs11_rc entry_processing_step(struct pkcs11_client *client,
 
 	if (rc == PKCS11_CKR_OK && (step == PKCS11_FUNC_STEP_UPDATE ||
 				    step == PKCS11_FUNC_STEP_UPDATE_KEY)) {
-		session->processing->updated = true;
+		session->processing->step = PKCS11_FUNC_STEP_UPDATE;
 		DMSG("PKCS11 session%"PRIu32": processing %s %s",
 		     session->handle, id2str_proc(mecha_type),
 		     id2str_function(function));
 	}
+
+	if (rc == PKCS11_CKR_BUFFER_TOO_SMALL &&
+	    step == PKCS11_FUNC_STEP_ONESHOT)
+		session->processing->step = PKCS11_FUNC_STEP_ONESHOT;
+
+	if (rc == PKCS11_CKR_BUFFER_TOO_SMALL && step == PKCS11_FUNC_STEP_FINAL)
+		session->processing->step = PKCS11_FUNC_STEP_FINAL;
 
 out:
 	switch (step) {
