@@ -484,6 +484,45 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	}
 }
 
+/*
+ * In order to support 32-bit TAs we will have to find
+ * a user VA base in the region [1GB, 4GB[.
+ * Due to OP-TEE design limitation, TAs page table should be an entry
+ * inside a level 1 page table.
+ *
+ * Available options are only these:
+ * - base level 0 entry 0 - [0GB, 512GB[
+ *   - level 1 entry 0 - [0GB, 1GB[
+ *   - level 1 entry 1 - [1GB, 2GB[           <----
+ *   - level 1 entry 2 - [2GB, 3GB[           <----
+ *   - level 1 entry 3 - [3GB, 4GB[           <----
+ *   - level 1 entry 4 - [4GB, 5GB[
+ *   - ...
+ * - ...
+ */
+static void set_user_va_idx(struct mmu_partition *prtn)
+{
+	uint64_t *tbl = NULL;
+	unsigned int n = 0;
+
+	assert(prtn);
+
+	tbl = prtn->base_tables[0][get_core_pos()];
+
+	/*
+	 * Search level 1 table (i.e. 1GB mapping per entry) for
+	 * an empty entry in the range [1GB, 4GB[.
+	 */
+	for (n = 1; n < 4; n++) {
+		if ((tbl[n] & DESC_ENTRY_TYPE_MASK) == INVALID_DESC) {
+			user_va_idx = n;
+			break;
+		}
+	}
+
+	assert(user_va_idx != -1);
+}
+
 void core_init_mmu(struct tee_mmap_region *mm)
 {
 	uint64_t max_va = 0;
@@ -507,13 +546,7 @@ void core_init_mmu(struct tee_mmap_region *mm)
 			max_va = va_end;
 	}
 
-	for (n = 1; n < NUM_BASE_LEVEL_ENTRIES; n++) {
-		if (!default_partition.base_tables[0][0][n]) {
-			user_va_idx = n;
-			break;
-		}
-	}
-	assert(user_va_idx != -1);
+	set_user_va_idx(&default_partition);
 
 	COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS > L1_XLAT_ADDRESS_SHIFT);
 	assert(max_va < BIT64(CFG_LPAE_ADDR_SPACE_BITS));
