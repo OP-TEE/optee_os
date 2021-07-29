@@ -449,6 +449,24 @@ void core_mmu_set_default_prtn_tbl(void)
 }
 #endif
 
+static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
+{
+	uint64_t *new_table = NULL;
+
+	if (prtn->xlat_tables_used >= MAX_XLAT_TABLES) {
+		EMSG("%u xlat tables exhausted", MAX_XLAT_TABLES);
+
+		return NULL;
+	}
+
+	new_table = prtn->xlat_tables[prtn->xlat_tables_used++];
+
+	DMSG("xlat tables used %u / %u",
+	     prtn->xlat_tables_used, MAX_XLAT_TABLES);
+
+	return new_table;
+}
+
 /*
  * Given an entry that points to a table returns the virtual address
  * of the pointed table. NULL otherwise.
@@ -474,6 +492,55 @@ static void *core_mmu_xlat_table_entry_pa2va(struct mmu_partition *prtn,
 				  XLAT_TABLE_SIZE);
 
 	return va;
+}
+
+/*
+ * For a table entry that points to a table - allocate and copy to
+ * a new pointed table. This is done for the requested entry,
+ * without going deeper into the pointed table entries.
+ *
+ * A success is returned for non-table entries, as nothing to do there.
+ */
+__maybe_unused
+static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
+				unsigned int idx)
+{
+	uint64_t *orig_table = NULL;
+	uint64_t *new_table = NULL;
+	uint64_t *entry = NULL;
+	struct mmu_partition *prtn = NULL;
+
+#ifdef CFG_VIRTUALIZATION
+	prtn = tbl_info->prtn;
+#else
+	prtn = &default_partition;
+#endif
+	assert(prtn);
+
+	if (idx >= tbl_info->num_entries)
+		return false;
+
+	entry = (uint64_t *)tbl_info->table + idx;
+
+	/* Nothing to do for non-table entries */
+	if ((*entry & DESC_ENTRY_TYPE_MASK) != TABLE_DESC ||
+	    tbl_info->level >= XLAT_TABLE_LEVEL_MAX)
+		return true;
+
+	new_table = core_mmu_xlat_table_alloc(prtn);
+	if (!new_table)
+		return false;
+
+	orig_table = core_mmu_xlat_table_entry_pa2va(prtn, tbl_info->level,
+						     *entry);
+
+	/* Copy original table content to new table */
+	memcpy(new_table, orig_table, XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE);
+
+	/* Point to the new table */
+	*entry = virt_to_phys(new_table) | (*entry & ~OUTPUT_ADDRESS_MASK);
+
+	return true;
 }
 
 void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
@@ -813,13 +880,9 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	if ((*entry & DESC_ENTRY_TYPE_MASK) == TABLE_DESC)
 		return true;
 
-	if (prtn->xlat_tables_used >= MAX_XLAT_TABLES)
+	new_table = core_mmu_xlat_table_alloc(prtn);
+	if (!new_table)
 		return false;
-
-	new_table = prtn->xlat_tables[prtn->xlat_tables_used++];
-
-	DMSG("xlat tables used %d / %d",
-	     prtn->xlat_tables_used, MAX_XLAT_TABLES);
 
 	if (*entry) {
 		pa = *entry & OUTPUT_ADDRESS_MASK;
