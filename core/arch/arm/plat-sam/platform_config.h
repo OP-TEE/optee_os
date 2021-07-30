@@ -30,6 +30,7 @@
 #define PLATFORM_CONFIG_H
 
 #include <mm/generic_ram_layout.h>
+#include <sama5d2.h>
 
 #define STACK_ALIGNMENT       64
 
