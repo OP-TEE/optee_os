@@ -159,5 +159,7 @@ at91_clk_register_programmable(struct pmc_data *pmc,
 		return NULL;
 	}
 
+	pmc_register_pck(id);
+
 	return clk;
 }

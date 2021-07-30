@@ -223,4 +223,14 @@ struct clk *
 at91_clk_register_audio_pll_pmc(struct pmc_data *pmc, const char *name,
 				struct clk *parent);
 
+#ifdef CFG_PM_ARM32
+void pmc_register_id(uint8_t id);
+void pmc_register_pck(uint8_t pck);
+void pmc_register_pm(void);
+#else
+static inline void pmc_register_id(uint8_t id __unused) {}
+static inline void pmc_register_pck(uint8_t pck __unused) {}
+static inline void pmc_register_pm(void) {}
+#endif
+
 #endif
