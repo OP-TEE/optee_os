@@ -6,6 +6,8 @@
 #define __DRIVERS_PM_SAM_ATMEL_PM_H
 
 #include <compiler.h>
+#include <kernel/thread.h>
+#include <sm/sm.h>
 #include <stdbool.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -24,6 +26,10 @@ void atmel_pm_cpu_idle(void);
 TEE_Result atmel_pm_suspend(uintptr_t entry, struct sm_nsec_ctx *nsec);
 
 TEE_Result sama5d2_pm_init(const void *fdt, vaddr_t shdwc);
+
+enum sm_handler_ret at91_pm_set_suspend_mode(struct thread_smc_args *args);
+
+enum sm_handler_ret at91_pm_get_suspend_mode(struct thread_smc_args *args);
 
 #else
 
@@ -44,6 +50,18 @@ static inline TEE_Result sama5d2_pm_init(const void *fdt __unused,
 					 vaddr_t shdwc __unused)
 {
 	return TEE_SUCCESS;
+}
+
+static inline enum sm_handler_ret
+at91_pm_set_suspend_mode(struct thread_smc_args *args __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
+}
+
+static inline enum sm_handler_ret
+at91_pm_get_suspend_mode(struct thread_smc_args *args __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
 }
 
 #endif

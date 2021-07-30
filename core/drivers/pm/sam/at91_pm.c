@@ -15,6 +15,7 @@
 #include <libfdt.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
+#include <smc_ids.h>
 #include <sm/pm.h>
 #include <stdbool.h>
 #include <tee_api_types.h>
@@ -45,6 +46,39 @@ static struct at91bootstrap_bu {
 
 static vaddr_t at91_suspend_sram_base;
 static void (*at91_suspend_sram_fn)(struct at91_pm_data *);
+
+enum sm_handler_ret at91_pm_set_suspend_mode(struct thread_smc_args *args)
+{
+	unsigned int mode = args->a1;
+
+	/*
+	 * We don't expect this function to be called simultaneously while we
+	 * are entering suspend/resume function. On sama5d2, this is not a
+	 * problem since this SoC is a single core one but in order to prevent
+	 * any other SoC support to be added without handling this concurrency,
+	 * check that we are compiled for a single core.
+	 */
+	COMPILE_TIME_ASSERT(CFG_TEE_CORE_NB_CORE == 1);
+
+	if (mode > AT91_PM_BACKUP) {
+		args->a0 = SAMA5_SMC_SIP_RETURN_EINVAL;
+		return SM_HANDLER_SMC_HANDLED;
+	}
+	DMSG("Setting suspend mode to %u", mode);
+
+	args->a0 = SAMA5_SMC_SIP_RETURN_SUCCESS;
+	soc_pm.mode = mode;
+
+	return SM_HANDLER_SMC_HANDLED;
+}
+
+enum sm_handler_ret at91_pm_get_suspend_mode(struct thread_smc_args *args)
+{
+	args->a1 = soc_pm.mode;
+	args->a0 = SAMA5_SMC_SIP_RETURN_SUCCESS;
+
+	return SM_HANDLER_SMC_HANDLED;
+}
 
 static void at91_pm_copy_suspend_to_sram(void)
 {
