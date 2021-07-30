@@ -595,6 +595,8 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 
 	clk_dt_register_clk_provider(fdt, nodeoffset, clk_dt_pmc_get, pmc);
 
+	pmc_register_pm();
+
 	return TEE_SUCCESS;
 }
 
