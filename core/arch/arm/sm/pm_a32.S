@@ -49,9 +49,12 @@ UNWIND(	.cantunwind)
 	push	{r4 - r11}
 	read_midr r4
 	ubfx	r5, r4, #4, #12
+	ldr     r4, =CORTEX_A5_PART_NUM
+	cmp	r5, r4
+	beq	a5_a7_suspend
 	ldr     r4, =CORTEX_A7_PART_NUM
 	cmp	r5, r4
-	beq	a7_suspend
+	beq	a5_a7_suspend
 	ldr     r4, =CORTEX_A9_PART_NUM
 	cmp	r5, r4
 	beq	a9_suspend
@@ -62,7 +65,7 @@ a9_suspend:
 	read_pcr r4
 	read_diag r5
 	stmia	r0!, {r4 - r5}
-a7_suspend:
+a5_a7_suspend:
 	read_fcseidr r4
 	read_tpidruro r5
 	stmia	r0!, {r4 - r5}
@@ -142,9 +145,12 @@ FUNC sm_pm_cpu_do_resume, :
 UNWIND(	.cantunwind)
 	read_midr r4
 	ubfx	r5, r4, #4, #12
+	ldr     r4, =CORTEX_A5_PART_NUM
+	cmp	r5, r4
+	beq	a5_a7_resume
 	ldr     r4, =CORTEX_A7_PART_NUM
 	cmp	r5, r4
-	beq	a7_resume
+	beq	a5_a7_resume
 
 	/*
 	 * A9 needs PCR/DIAG
@@ -153,7 +159,7 @@ UNWIND(	.cantunwind)
 	write_pcr r4
 	write_diag r5
 
-a7_resume:
+a5_a7_resume:
 	/* v7 resume */
 	mov	ip, #0
 	/* Invalidate icache to PoU */
