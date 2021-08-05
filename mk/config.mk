@@ -325,16 +325,22 @@ CFG_REE_FS_ALLOW_RESET ?= n
 # for instance avb/023f8f1a-292a-432b-8fc4-de8471358067
 ifneq ($(EARLY_TA_PATHS)$(CFG_IN_TREE_EARLY_TAS),)
 $(call force,CFG_EARLY_TA,y)
-$(call force,CFG_EMBEDDED_TS,y)
 else
 CFG_EARLY_TA ?= n
 endif
 
+ifeq ($(CFG_EARLY_TA),y)
+$(call force,CFG_EMBEDDED_TS,y)
+endif
+
 ifneq ($(SP_PATHS),)
-$(call force,CFG_SECURE_PARTITION,y)
 $(call force,CFG_EMBEDDED_TS,y)
 else
 CFG_SECURE_PARTITION ?= n
+endif
+
+ifeq ($(CFG_SECURE_PARTITION),y)
+$(call force,CFG_EMBEDDED_TS,y)
 endif
 
 ifeq ($(CFG_EMBEDDED_TS),y)
