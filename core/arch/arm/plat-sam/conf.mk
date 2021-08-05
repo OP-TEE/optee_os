@@ -1,7 +1,12 @@
 PLATFORM_FLAVOR ?= sama5d27_som1_ek
 
 flavor_dts_file-sama5d2xult = at91-sama5d2_xplained.dts
+flavor_dts_file-sama5d2_xplained = at91-sama5d2_xplained.dts
 flavor_dts_file-sama5d27_som1_ek = at91-sama5d27_som1_ek.dts
+
+ifeq ($(PLATFORM_FLAVOR),sama5d2xult)
+$(warning "sama5d2xult is deprecated, please use sama5d2_xplained")
+endif
 
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
