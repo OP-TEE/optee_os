@@ -70,7 +70,11 @@ static const char descr[] = TO_STR(CFG_TEE_IMPL_DESCR);
  * The real-time clock MUST be out of reach of software attacks
  * from the REE.
  */
+#ifdef CFG_SECURE_TIME_SOURCE_REE
 static const uint32_t ta_time_prot_lvl = 100;
+#elif CFG_SECURE_TIME_SOURCE_CNTPCT
+static const uint32_t ta_time_prot_lvl = 1000;
+#endif
 
 /* Elliptic Curve Cryptographic support */
 #ifdef CFG_CRYPTO_ECC
