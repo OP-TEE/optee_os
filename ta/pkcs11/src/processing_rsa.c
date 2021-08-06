@@ -196,6 +196,157 @@ enum pkcs11_rc pkcs2tee_algo_rsa_pss(uint32_t *tee_id,
 	return PKCS11_CKR_OK;
 }
 
+enum pkcs11_rc
+pkcs2tee_proc_params_rsa_oaep(struct active_processing *proc,
+			      struct pkcs11_attribute_head *proc_params)
+{
+	struct serialargs args = { };
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct rsa_oaep_processing_ctx *ctx = NULL;
+	uint32_t hash = 0;
+	uint32_t mgf = 0;
+	uint32_t source_type = 0;
+	void *source_data = NULL;
+	uint32_t source_size = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &hash);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &mgf);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &source_type);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &source_size);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_ptr(&args, &source_data, source_size);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	proc->extra_ctx = TEE_Malloc(sizeof(struct rsa_oaep_processing_ctx) +
+				     source_size,
+				     TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!proc->extra_ctx)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	ctx = proc->extra_ctx;
+
+	ctx->hash_alg = hash;
+	ctx->mgf_type = mgf;
+	ctx->source_type = source_type;
+	ctx->source_data_len = source_size;
+	TEE_MemMove(ctx->source_data, source_data, source_size);
+
+	return PKCS11_CKR_OK;
+}
+
+/*
+ * Set TEE RSA OAEP algorithm identifier upon PKCS11 mechanism parameters
+ * @tee_id: output TEE RSA OAEP algorithm identifier
+ * @tee_hash_id: output TEE hash algorithm identifier
+ * @proc_params: PKCS11 processing parameters
+ */
+enum pkcs11_rc
+pkcs2tee_algo_rsa_oaep(uint32_t *tee_id, uint32_t *tee_hash_id,
+		       struct pkcs11_attribute_head *proc_params)
+{
+	struct serialargs args = { };
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t hash = 0;
+	uint32_t mgf = 0;
+	uint32_t source_type = 0;
+	void *source_data = NULL;
+	uint32_t source_size = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &hash);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &mgf);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &source_type);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &source_size);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_ptr(&args, &source_data, source_size);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (source_type != PKCS11_CKZ_DATA_SPECIFIED)
+		return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+
+	switch (proc_params->id) {
+	case PKCS11_CKM_RSA_PKCS_OAEP:
+		switch (hash) {
+		case PKCS11_CKM_SHA_1:
+			if (mgf != PKCS11_CKG_MGF1_SHA1)
+				return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+			*tee_id = TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1;
+			*tee_hash_id = TEE_ALG_SHA1;
+			break;
+		case PKCS11_CKM_SHA224:
+			if (mgf != PKCS11_CKG_MGF1_SHA224)
+				return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+			*tee_id = TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224;
+			*tee_hash_id = TEE_ALG_SHA224;
+			break;
+		case PKCS11_CKM_SHA256:
+			if (mgf != PKCS11_CKG_MGF1_SHA256)
+				return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+			*tee_id = TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256;
+			*tee_hash_id = TEE_ALG_SHA256;
+			break;
+		case PKCS11_CKM_SHA384:
+			if (mgf != PKCS11_CKG_MGF1_SHA384)
+				return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+			*tee_id = TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384;
+			*tee_hash_id = TEE_ALG_SHA384;
+			break;
+		case PKCS11_CKM_SHA512:
+			if (mgf != PKCS11_CKG_MGF1_SHA512)
+				return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+			*tee_id = TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512;
+			*tee_hash_id = TEE_ALG_SHA512;
+			break;
+		default:
+			EMSG("Unexpected %#"PRIx32"/%s", hash,
+			     id2str_proc(hash));
+
+			return PKCS11_CKR_GENERAL_ERROR;
+		}
+		break;
+	default:
+		EMSG("Unexpected mechanism %#"PRIx32"/%s", proc_params->id,
+		     id2str_proc(proc_params->id));
+
+		return PKCS11_CKR_GENERAL_ERROR;
+	}
+
+	return PKCS11_CKR_OK;
+}
+
 enum pkcs11_rc load_tee_rsa_key_attrs(TEE_Attribute **tee_attrs,
 				      size_t *tee_count,
 				      struct pkcs11_object *obj)

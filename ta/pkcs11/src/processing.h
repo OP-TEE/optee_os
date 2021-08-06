@@ -28,6 +28,23 @@ struct rsa_pss_processing_ctx {
 	uint32_t salt_len;
 };
 
+/**
+ * RSA OAEP processing context
+ *
+ * @hash_alg: Hash algorithm mechanism
+ * @mgf_type: Mask generator function
+ * @source_type: Type of source.
+ * @source_data_len: Length of the source data.
+ * @source_data: Source data.
+ */
+struct rsa_oaep_processing_ctx {
+	enum pkcs11_mechanism_id hash_alg;
+	enum pkcs11_mgf_id mgf_type;
+	uint32_t source_type;
+	uint32_t source_data_len;
+	uint8_t source_data[];
+};
+
 /*
  * Entry points from PKCS11 TA invocation commands
  */
@@ -165,6 +182,13 @@ enum pkcs11_rc pkcs2tee_validate_rsa_pss(struct active_processing *proc,
 
 enum pkcs11_rc pkcs2tee_algo_rsa_pss(uint32_t *tee_id,
 				     struct pkcs11_attribute_head *params);
+
+enum pkcs11_rc
+pkcs2tee_proc_params_rsa_oaep(struct active_processing *proc,
+			      struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc pkcs2tee_algo_rsa_oaep(uint32_t *tee_id, uint32_t *tee_hash_id,
+				      struct pkcs11_attribute_head *params);
 
 enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 				 struct obj_attrs **pub_head,

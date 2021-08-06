@@ -1191,6 +1191,7 @@ enum pkcs11_mechanism_id {
 	PKCS11_CKM_RSA_PKCS			= 0x00001,
 	PKCS11_CKM_MD5_RSA_PKCS			= 0x00005,
 	PKCS11_CKM_SHA1_RSA_PKCS		= 0x00006,
+	PKCS11_CKM_RSA_PKCS_OAEP		= 0x00009,
 	PKCS11_CKM_RSA_PKCS_PSS			= 0x0000d,
 	PKCS11_CKM_SHA1_RSA_PKCS_PSS		= 0x0000e,
 	PKCS11_CKM_SHA256_RSA_PKCS		= 0x00040,
@@ -1259,5 +1260,11 @@ enum pkcs11_mgf_id {
 	/* Vendor extension: reserved for undefined ID (~0U) */
 	PKCS11_CKG_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
+
+/*
+ * Valid values for RSA PKCS/OAEP source type identifier
+ * PKCS11_CKZ_<x> reflects CryptoKi client API source type IDs CKZ_<x>.
+ */
+#define PKCS11_CKZ_DATA_SPECIFIED		0x0001
 
 #endif /*PKCS11_TA_H*/
