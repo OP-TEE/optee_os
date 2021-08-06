@@ -679,6 +679,8 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 						    out_buf, &out_size);
 			output_data = true;
 			rc = tee2pkcs_error(res);
+			if (rc == PKCS11_CKR_ARGUMENTS_BAD)
+				rc = PKCS11_CKR_ENCRYPTED_DATA_LEN_RANGE;
 			break;
 
 		case PKCS11_FUNCTION_SIGN:
