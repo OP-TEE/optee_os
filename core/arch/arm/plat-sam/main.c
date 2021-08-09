@@ -163,16 +163,18 @@ static void matrix_configure_slave_h64mx(void)
 					ssr_setting);
 	}
 
-	/* 10: Internal SRAM 128K: Non-Secure */
+	/*
+	 * 10: Internal SRAM 128K:
+	 * - First 64K are reserved for suspend code in Secure World
+	 * - Last 64K are for Non-Secure world (used by CAN)
+	 */
 	srtop_setting = MATRIX_SRTOP(0, MATRIX_SRTOP_VALUE_128K);
-	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SASPLIT_VALUE_128K);
-	ssr_setting = (MATRIX_LANSECH_NS(0)
-			| MATRIX_RDNSECH_NS(0)
-			| MATRIX_WRNSECH_NS(0));
+	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SRTOP_VALUE_64K);
+	ssr_setting = (MATRIX_LANSECH_S(0) | MATRIX_RDNSECH_S(0) |
+		       MATRIX_WRNSECH_S(0));
 	matrix_configure_slave_security(matrix64_base(),
 					H64MX_SLAVE_INTERNAL_SRAM,
-					srtop_setting,
-					sasplit_setting,
+					srtop_setting, sasplit_setting,
 					ssr_setting);
 
 	/* 11:  Internal SRAM 128K (Cache L2): Default */
