@@ -30,5 +30,6 @@
 #define CCM_CCRG_I2C2		24
 #define CCM_CCRG_I2C3		25
 #define CCM_CCRG_I2C4		26
+#define CCM_CCRG_OCOTP		34
 
 #endif  /* __IMX8M_CRM_H */

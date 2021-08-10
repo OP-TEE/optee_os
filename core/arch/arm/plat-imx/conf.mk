@@ -185,6 +185,7 @@ CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x80000000
 CFG_TEE_CORE_NB_CORE ?= 6
 $(call force,CFG_NXP_CAAM,n)
+$(call force,CFG_IMX_OCOTP,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qx-flavorlist)))
 $(call force,CFG_MX8QX,y)
 $(call force,CFG_ARM64_core,y)
@@ -193,6 +194,7 @@ CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x80000000
 CFG_TEE_CORE_NB_CORE ?= 4
 $(call force,CFG_NXP_CAAM,n)
+$(call force,CFG_IMX_OCOTP,n)
 else
 $(error Unsupported PLATFORM_FLAVOR "$(PLATFORM_FLAVOR)")
 endif
@@ -436,6 +438,12 @@ CFG_NSEC_DDR_0_SIZE ?= ($(CFG_DDR_SIZE) - 0x02000000)
 
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_MMAP_REGIONS ?= 24
+
+# SE05X and OCOTP both implement tee_otp_get_die_id()
+ifeq ($(CFG_NXP_SE05X),y)
+$(call force,CFG_IMX_OCOTP,n)
+endif
+CFG_IMX_OCOTP ?= y
 
 # Almost all platforms include CAAM HW Modules, except the
 # ones forced to be disabled
