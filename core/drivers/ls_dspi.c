@@ -394,6 +394,18 @@ void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
 }
 
 /*
+ * Flush DSPI module
+ * chip:	spi_chip instance
+ */
+static void ls_dspi_flush(struct spi_chip *chip)
+{
+	struct ls_dspi_data *data = container_of(chip, struct ls_dspi_data,
+						  chip);
+
+	dspi_flush_fifo(data);
+}
+
+/*
  * Configure active state of slave
  * dspi_data:   DSPI controller chip instance
  * cs:		chip select value of slave
@@ -585,6 +597,7 @@ static const struct spi_ops ls_dspi_ops = {
 	.txrx8 = ls_dspi_txrx8,
 	.txrx16 = ls_dspi_txrx16,
 	.end = ls_dspi_end,
+	.flushfifo = ls_dspi_flush,
 };
 DECLARE_KEEP_PAGER(ls_dspi_ops);
 
