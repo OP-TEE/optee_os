@@ -106,6 +106,7 @@
 /*
  * Clock Domain ID
  */
+#define CCM_CLOCK_DOMAIN_OCOTP		35
 #define CCM_CLOCK_DOMAIN_CAAM		36
 
 #endif /* __IMX7_CRM_H__ */
