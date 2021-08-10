@@ -29,7 +29,8 @@ void itr_init(struct itr_chip *chip)
 }
 
 #ifdef CFG_DT
-int dt_get_irq(const void *fdt, int node)
+int dt_get_irq_type_prio(const void *fdt, int node, uint32_t *type,
+			 uint32_t *prio)
 {
 	const uint32_t *prop = NULL;
 	int count = 0;
@@ -42,7 +43,7 @@ int dt_get_irq(const void *fdt, int node)
 	if (!prop)
 		return it_num;
 
-	return itr_chip->dt_get_irq(prop, count);
+	return itr_chip->dt_get_irq(prop, count, type, prio);
 }
 #endif
 
@@ -66,8 +67,9 @@ void itr_handle(size_t it)
 	}
 }
 
-struct itr_handler *itr_alloc_add(size_t it, itr_handler_t handler,
-				  uint32_t flags, void *data)
+struct itr_handler *itr_alloc_add_type_prio(size_t it, itr_handler_t handler,
+					    uint32_t flags, void *data,
+					    uint32_t type, uint32_t prio)
 {
 	struct itr_handler *hdl = calloc(1, sizeof(*hdl));
 
@@ -76,7 +78,7 @@ struct itr_handler *itr_alloc_add(size_t it, itr_handler_t handler,
 		hdl->handler = handler;
 		hdl->flags = flags;
 		hdl->data = data;
-		itr_add(hdl);
+		itr_add_type_prio(hdl, type, prio);
 	}
 
 	return hdl;
@@ -93,7 +95,7 @@ void itr_free(struct itr_handler *hdl)
 	free(hdl);
 }
 
-void itr_add(struct itr_handler *h)
+void itr_add_type_prio(struct itr_handler *h, uint32_t type, uint32_t prio)
 {
 	struct itr_handler __maybe_unused *hdl = NULL;
 
@@ -102,7 +104,7 @@ void itr_add(struct itr_handler *h)
 			assert((hdl->flags & ITRF_SHARED) &&
 			       (h->flags & ITRF_SHARED));
 
-	itr_chip->ops->add(itr_chip, h->it, h->flags);
+	itr_chip->ops->add(itr_chip, h->it, type, prio);
 	SLIST_INSERT_HEAD(&handlers, h, link);
 }
 
