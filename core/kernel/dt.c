@@ -282,7 +282,8 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 		dinfo.reset = (int)fdt32_to_cpu(*cuint);
 	}
 
-	dinfo.interrupt = dt_get_irq(fdt, offs);
+	dinfo.interrupt = dt_get_irq_type_prio(fdt, offs, &dinfo.type,
+					       &dinfo.prio);
 
 	dinfo.status = _fdt_get_status(fdt, offs);
 

@@ -7,6 +7,7 @@
 #define KERNEL_DT_H
 
 #include <compiler.h>
+#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <stdint.h>
 #include <types_ext.h>
@@ -33,6 +34,10 @@
  * @reset: Device reset identifier (positive value) or DT_INFO_INVALID_CLOCK
  * @interrupt: Device interrupt identifier (positive value) or
  * DT_INFO_INVALID_INTERRUPT
+ * @type: IRQ_TYPE_* value parsed from interrupts properties or IRQ_TYPE_NONE if
+ * not present
+ * @prio: interrupt priority parsed from interrupts properties or 0 if not
+ * present
  */
 struct dt_node_info {
 	unsigned int status;
@@ -40,6 +45,8 @@ struct dt_node_info {
 	int clock;
 	int reset;
 	int interrupt;
+	uint32_t type;
+	uint32_t prio;
 };
 
 #if defined(CFG_DT)

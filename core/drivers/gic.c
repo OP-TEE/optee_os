@@ -70,7 +70,8 @@
 #define GICC_IAR_CPU_ID_MASK	0x7
 #define GICC_IAR_CPU_ID_SHIFT	10
 
-static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t flags);
+static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
+		       uint32_t prio);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
 static void gic_op_disable(struct itr_chip *chip, size_t it);
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
@@ -208,9 +209,16 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 #endif
 }
 
-static int gic_dt_get_irq(const uint32_t *properties, int count)
+static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
+			  uint32_t *prio)
 {
 	int it_num = DT_INFO_INVALID_INTERRUPT;
+
+	if (type)
+		*type = IRQ_TYPE_NONE;
+
+	if (prio)
+		*prio = 0;
 
 	if (!properties || count < 2)
 		return DT_INFO_INVALID_INTERRUPT;
@@ -428,7 +436,8 @@ void gic_it_handle(struct gic_data *gd)
 }
 
 static void gic_op_add(struct itr_chip *chip, size_t it,
-		       uint32_t flags __unused)
+		       uint32_t type __unused,
+		       uint32_t prio __unused)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
