@@ -171,6 +171,13 @@ R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org> [@bryanodonoghue]
 S:	Maintained
 F:	core/arch/arm/plat-imx/conf.mk
 
+PKCS#11 TA
+R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
+R:	Ruchika Gupta <ruchika.gupta@linaro.org> [@ruchi393]
+R:	Vesa Jääskeläinen <vesa.jaaskelainen@vaisala.com> [@vesajaaskelainen]
+S:	Maintained
+F:	ta/pkcs11
+
 QEMU (32 and 64 bits)
 R:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 S:	Maintained
