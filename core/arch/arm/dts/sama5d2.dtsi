@@ -1008,6 +1008,8 @@
 				reg = <0xfc01c000 0x100>;
 				interrupts = <47 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 47>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			aic: interrupt-controller@fc020000 {
