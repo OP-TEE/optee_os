@@ -1242,7 +1242,7 @@ TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 			       const void *mac, uint32_t macLen)
 {
 	TEE_Result res;
-	uint8_t computed_mac[TEE_MAX_HASH_SIZE];
+	uint8_t computed_mac[TEE_MAX_HASH_SIZE] = { 0 };
 	uint32_t computed_mac_size = TEE_MAX_HASH_SIZE;
 
 	if (operation->info.operationClass != TEE_OPERATION_MAC) {
