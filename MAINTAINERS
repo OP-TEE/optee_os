@@ -138,13 +138,11 @@ S:	Maintained
 F:	core/drivers/ls_i2c.c
 
 Core Drivers GPIO
-R:	Manish Tomar <manish.tomar@nxp.com>
-S:	Maintained
+S:	Orphan
 F:	core/drivers/ls_gpio.c
 
 Core Drivers DSPI
-R:	Manish Tomar <manish.tomar@nxp.com>
-S:	Maintained
+S:	Orphan
 F:	core/drivers/ls_dspi.c
 
 NXP (Freescale) i.MX family
