@@ -137,12 +137,14 @@ R:	Sahil Malhotra <sahil.malhotra@nxp.com>
 S:	Maintained
 F:	core/drivers/ls_i2c.c
 
-Core Drivers GPIO
-S:	Orphan
+LS Core Drivers GPIO
+R:	Sahil Malhotra <sahil.malhotra@nxp.com>
+S:	Maintained
 F:	core/drivers/ls_gpio.c
 
-Core Drivers DSPI
-S:	Orphan
+LS Core Drivers DSPI
+R:	Sahil Malhotra <sahil.malhotra@nxp.com>
+S:	Maintained
 F:	core/drivers/ls_dspi.c
 
 NXP (Freescale) i.MX family
