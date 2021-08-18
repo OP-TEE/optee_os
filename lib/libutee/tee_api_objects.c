@@ -92,6 +92,28 @@ void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage)
 TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsage)
 {
 	TEE_Result res;
+	TEE_ObjectInfo objectInfo;
+
+	res = _utee_cryp_obj_get_info((unsigned long)object, &objectInfo);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+
+	if (!(objectInfo.objectUsage & TEE_USAGE_RSEC) &&
+	    objectUsage & TEE_USAGE_RSEC) {
+		if (info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) {
+			/*
+			 * Wrap the key from plain text to rsec format by
+			 * calling the (*wrap) function
+			*/
+		} else {
+			/*
+			 * Nothing to do here, the key will be generated as
+			 * rsec by the Crypto driver with the following call
+			 * to TEE_GenerateKey(). Calling this function will set
+			 * the flag TEE_HANDLE_FLAG_INITIALIZED to the object.
+			 */
+		}
+	}
 
 	res = _utee_cryp_obj_restrict_usage((unsigned long)object,
 					    objectUsage);

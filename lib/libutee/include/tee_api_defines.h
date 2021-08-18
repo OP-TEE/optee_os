@@ -102,6 +102,7 @@
 #define TEE_USAGE_SIGN                     0x00000010
 #define TEE_USAGE_VERIFY                   0x00000020
 #define TEE_USAGE_DERIVE                   0x00000040
+#define TEE_USAGE_RSEC                     0xffffffff /* TBD */
 #define TEE_HANDLE_FLAG_PERSISTENT         0x00010000
 #define TEE_HANDLE_FLAG_INITIALIZED        0x00020000
 #define TEE_HANDLE_FLAG_KEY_SET            0x00040000
