@@ -20,7 +20,6 @@
  * * OPTEE_SP_HEAP_SIZE: Heap size in bytes
  * * OPTEE_SP_UUID: UUID of the SP as an sp_uuid structure
  * * OPTEE_SP_STACK_SIZE: Stack size in bytes
- * * OPTEE_SP_FLAGS: SP attributes (currently none available, set to zero)
  */
 
 /*

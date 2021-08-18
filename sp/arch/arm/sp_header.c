@@ -16,13 +16,9 @@
 #error "OPTEE_SP_STACK_SIZE is not defined in SP"
 #endif
 
-#ifndef OPTEE_SP_FLAGS
-#error "OPTEE_SP_FLAGS is not defined in SP"
-#endif
-
 const struct optee_sp_head sp_head __section(".sp_head") = {
 	.uuid = OPTEE_SP_UUID,
 	.stack_size = OPTEE_SP_STACK_SIZE,
-	.flags = OPTEE_SP_FLAGS,
+	.flags = 0,
 	.depr_entry = UINT64_MAX
 };
