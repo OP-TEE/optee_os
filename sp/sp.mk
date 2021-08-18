@@ -16,7 +16,7 @@ include mk/$(COMPILER_$(sm)).mk
 sp-mk-file-export-add-$(sm) += CFG_TEE_SP_LOG_LEVEL ?= $(CFG_TEE_SP_LOG_LEVEL)_nl_
 
 # Expand platform flags here as $(sm) will change if we have several SP
-# targets. Platform flags should not change after inclusion of sp/sp.mk.
+# targets. Platform flags should not change after inclusion of this file.
 cppflags$(sm)	:= $(platform-cppflags) $($(sm)-platform-cppflags)
 cflags$(sm)	:= $(platform-cflags) $($(sm)-platform-cflags)
 aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)

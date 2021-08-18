@@ -409,8 +409,7 @@ sp-mk-file-export-add-sp_arm64 += PYTHON3 ?= python3_nl_
 endif
 
 # Set cross compiler prefix for each submodule
-$(foreach sm, core $(ta-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
-$(foreach sm, core $(sp-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
+$(foreach sm, $(ta-targets) $(sp-targets), $(eval CROSS_COMPILE_$(sm) ?= $(CROSS_COMPILE$(arch-bits-$(sm)))))
 
 arm32-sysreg-txt = core/arch/arm/kernel/arm32_sysreg.txt
 arm32-sysregs-$(arm32-sysreg-txt)-h := arm32_sysreg.h

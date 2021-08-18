@@ -114,7 +114,7 @@ sp-mk-file := $(1)
 include sp/mk/build-sp.mk
 endef
 $(foreach t, $(wildcard sp/*/sp.mk), $(eval $(call build-sp,$(t))))
-endif
+endif # CFG_SECURE_PARTITION
 
 include mk/cleandirs.mk
 
