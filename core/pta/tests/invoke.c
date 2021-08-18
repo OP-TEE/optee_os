@@ -46,7 +46,7 @@ static int test_v2p2v(void *va)
 		return 1;
 
 	if (to_ta_session(session)->clnt_id.login == TEE_LOGIN_TRUSTED_APP) {
-		v = phys_to_virt(p, MEM_AREA_TA_VASPACE);
+		v = phys_to_virt(p, MEM_AREA_TS_VASPACE);
 	} else {
 		v = phys_to_virt(p, MEM_AREA_NSEC_SHM);
 		if (!v)
