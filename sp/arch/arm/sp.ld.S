@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
 #ifdef ARM32
 OUTPUT_FORMAT("elf32-littlearm")
 OUTPUT_ARCH(arm)
