@@ -2,28 +2,12 @@ link-script$(sm) = $(sp-dev-kit-dir$(sm))/src/sp.ld.S
 link-script-pp$(sm) = $(link-out-dir$(sm))/sp.lds
 link-script-dep$(sm) = $(link-out-dir$(sm))/.sp.ld.d
 
-SP_SIGN_ENC ?= $(PYTHON3) $(sp-dev-kit-dir$(sm))/scripts/sign_encrypt.py
-SP_SIGN_KEY ?= $(sp-dev-kit-dir$(sm))/keys/default_sp.pem
-
-ifeq ($(CFG_ENCRYPT_SP),y)
-# Default SP encryption key is a dummy key derived from default
-# hardware unique key (an array of 16 zero bytes) to demonstrate
-# usage of REE-FS SPs encryption feature.
-#
-# Note that a user of this SP encryption feature needs to provide
-# encryption key and its handling corresponding to their security
-# requirements.
-SP_ENC_KEY ?= 'b64d239b1f3c7d3b06506229cd8ff7c8af2bb4db2168621ac62c84948468c4f4'
-endif
-
 all: $(link-out-dir$(sm))/$(sp-uuid).dmp \
-	$(link-out-dir$(sm))/$(sp-uuid).stripped.elf \
-	$(link-out-dir$(sm))/$(sp-uuid).sp
+	$(link-out-dir$(sm))/$(sp-uuid).stripped.elf
 cleanfiles += $(link-out-dir$(sm))/$(sp-uuid).elf
 cleanfiles += $(link-out-dir$(sm))/$(sp-uuid).dmp
 cleanfiles += $(link-out-dir$(sm))/$(sp-uuid).map
 cleanfiles += $(link-out-dir$(sm))/$(sp-uuid).stripped.elf
-cleanfiles += $(link-out-dir$(sm))/$(sp-uuid).sp
 cleanfiles += $(link-script-pp$(sm)) $(link-script-dep$(sm))
 
 link-ldflags  = -e__sp_entry -pie
@@ -97,20 +81,6 @@ $(link-out-dir$(sm))/$(sp-uuid).stripped.elf: \
 			$(link-out-dir$(sm))/$(sp-uuid).elf
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
 	$(q)$(OBJCOPY$(sm)) --strip-unneeded $$< $$@
-
-cmd-echo$(sp-uuid) := SIGN   #
-ifeq ($(CFG_ENCRYPT_SP),y)
-crypt-args$(sp-uuid) := --enc-key $(SP_ENC_KEY)
-cmd-echo$(sp-uuid) := SIGNENC
-endif
-$(link-out-dir$(sm))/$(sp-uuid).sp: \
-			$(link-out-dir$(sm))/$(sp-uuid).stripped.elf \
-			$(SP_SIGN_KEY) \
-			$(lastword $(SIGN_ENC))
-	@$(cmd-echo-silent) '  $$(cmd-echo$(sp-uuid)) $$@'
-	$(q)$(SP_SIGN_ENC) --key $(SP_SIGN_KEY) $$(crypt-args$(sp-uuid)) \
-		--uuid $(sp-uuid) --ta-version $(sp-version) \
-		--in $$< --out $$@
 endef
 
 $(eval $(call gen-link-t))

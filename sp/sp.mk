@@ -105,13 +105,8 @@ endif
 $(foreach f, $(sp-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/src)))
 
-# Copy keys
-sp-keys = keys/default_sp.pem
-$(foreach f, $(sp-keys), \
-	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
-
 # Copy the scripts
-sp-scripts = scripts/sign_encrypt.py scripts/symbolize.py
+sp-scripts = scripts/symbolize.py
 $(foreach f, $(sp-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/scripts)))
 

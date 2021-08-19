@@ -51,12 +51,3 @@ include mk/compile.mk
 # Install SP libraries before in-tree SPs can be linked
 additional-link-deps := $(sp_dev_kit-files-lib)
 include  sp/arch/$(ARCH)/link.mk
-
-sp_dev_kit: $(out-dir)/export-$(sp-target)/sp/$(sp-uuid).sp
-
-$(out-dir)/export-$(sp-target)/sp/$(sp-uuid).sp: $(link-out-dir$(sm))/$(sp-uuid).sp
-	$(q)mkdir -p $(dir $@)
-	@$(cmd-echo-silent) '  INSTALL $@'
-	$(q)cp -P $< $@
-
-cleanfiles += $(out-dir)/export-$(sp-target)/sp/$(sp-uuid).sp
