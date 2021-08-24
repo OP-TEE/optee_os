@@ -526,6 +526,7 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 
 			TEE_DigestUpdate(proc->tee_hash_op_handle, in_buf,
 					 in_size);
+			rc = PKCS11_CKR_OK;
 			break;
 		default:
 			/*
