@@ -15,7 +15,8 @@
 					 TA_FLAG_INSTANCE_KEEP_ALIVE)
 
 #define TA_STACK_SIZE			(4 * 1024)
-#define TA_DATA_SIZE			(16 * 1024)
+
+#define TA_DATA_SIZE			CFG_PKCS11_TA_HEAP_SIZE
 
 #define TA_DESCRIPTION			"PKCS#11 trusted application"
 #define TA_VERSION			TO_STR(PKCS11_TA_VERSION_MAJOR) "." \
