@@ -35,19 +35,23 @@ static void pfree(tee_mm_pool_t *pool, void *ptr)
 		free(ptr);
 }
 
-bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
-		 uint32_t flags)
+bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
+		 uint8_t shift, uint32_t flags)
 {
+	paddr_size_t rounded = 0;
+	paddr_t initial_lo = lo;
+
 	if (pool == NULL)
 		return false;
 
 	lo = ROUNDUP(lo, 1 << shift);
-	hi = ROUNDDOWN(hi, 1 << shift);
+	rounded = lo - initial_lo;
+	size = ROUNDDOWN(size - rounded, 1 << shift);
 
-	assert(((uint64_t)(hi - lo) >> shift) < (uint64_t)UINT32_MAX);
+	assert(((uint64_t)size >> shift) < (uint64_t)UINT32_MAX);
 
 	pool->lo = lo;
-	pool->hi = hi;
+	pool->size = size;
 	pool->shift = shift;
 	pool->flags = flags;
 	pool->entry = pcalloc(pool, 1, sizeof(tee_mm_entry_t));
@@ -56,7 +60,8 @@ bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
 		return false;
 
 	if (pool->flags & TEE_MM_POOL_HI_ALLOC)
-		pool->entry->offset = ((hi - lo - 1) >> shift) + 1;
+		pool->entry->offset = ((size - 1) >> shift) + 1;
+
 	pool->entry->pool = pool;
 	pool->lock = SPINLOCK_UNLOCK;
 
@@ -111,7 +116,7 @@ void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct malloc_stats *stats,
 
 	exceptions = cpu_spin_lock_xsave(&pool->lock);
 
-	stats->size = pool->hi - pool->lo;
+	stats->size = pool->size;
 	stats->max_allocated = pool->max_allocated;
 	stats->allocated = tee_mm_stats_allocated(pool);
 
@@ -152,7 +157,7 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 	exceptions = cpu_spin_lock_xsave(&pool->lock);
 
 	entry = pool->entry;
-	if (size == 0)
+	if (!size)
 		psize = 0;
 	else
 		psize = ((size - 1) >> pool->shift) + 1;
@@ -186,10 +191,10 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size)
 				goto err;
 			}
 		} else {
-			if (pool->hi <= pool->lo)
+			if (!pool->size)
 				panic("invalid pool");
 
-			remaining = (pool->hi - pool->lo);
+			remaining = pool->size;
 			remaining -= ((entry->offset + entry->size) <<
 				      pool->shift);
 
@@ -226,13 +231,13 @@ static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
 		if (offshi > e->offset ||
 		    (e->next != NULL &&
 		     (offslo < e->next->offset + e->next->size)) ||
-		    (offshi << pool->shift) - 1 > (pool->hi - pool->lo))
+		    (offshi << pool->shift) - 1 > pool->size)
 			/* memory not available */
 			return false;
 	} else {
 		if (offslo < (e->offset + e->size) ||
 		    (e->next != NULL && (offshi > e->next->offset)) ||
-		    (offshi << pool->shift) > (pool->hi - pool->lo))
+		    (offshi << pool->shift) > pool->size)
 			/* memory not available */
 			return false;
 	}
@@ -327,9 +332,10 @@ size_t tee_mm_get_bytes(const tee_mm_entry_t *mm)
 		return mm->size << mm->pool->shift;
 }
 
-bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, paddr_t addr)
+bool tee_mm_addr_is_within_range(const tee_mm_pool_t *pool, paddr_t addr)
 {
-	return (pool && ((addr >= pool->lo) && (addr <= pool->hi)));
+	return pool && addr >= pool->lo &&
+		addr <= (pool->lo + (pool->size - 1));
 }
 
 bool tee_mm_is_empty(tee_mm_pool_t *pool)
@@ -362,7 +368,7 @@ tee_mm_entry_t *tee_mm_find(const tee_mm_pool_t *pool, paddr_t addr)
 	uint16_t offset = (addr - pool->lo) >> pool->shift;
 	uint32_t exceptions;
 
-	if (addr > pool->hi || addr < pool->lo)
+	if (!tee_mm_addr_is_within_range(pool, addr))
 		return NULL;
 
 	exceptions = cpu_spin_lock_xsave(&((tee_mm_pool_t *)pool)->lock);

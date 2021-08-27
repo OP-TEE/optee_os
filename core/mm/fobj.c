@@ -359,7 +359,6 @@ static TEE_Result rwp_init(void)
 	struct fobj *fobj = NULL;
 	size_t num_pool_pages = 0;
 	size_t num_fobj_pages = 0;
-	size_t sz = 0;
 
 	if (crypto_rng_read(key, sizeof(key)) != TEE_SUCCESS)
 		panic("failed to generate random");
@@ -371,11 +370,9 @@ static TEE_Result rwp_init(void)
 	if (!IS_ENABLED(CFG_CORE_PAGE_TAG_AND_IV))
 		return TEE_SUCCESS;
 
-	assert(tee_mm_sec_ddr.hi > tee_mm_sec_ddr.lo);
-	sz = tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo;
-	assert(!(sz & SMALL_PAGE_SIZE));
+	assert(tee_mm_sec_ddr.size && !(tee_mm_sec_ddr.size & SMALL_PAGE_SIZE));
 
-	num_pool_pages = sz / SMALL_PAGE_SIZE;
+	num_pool_pages = tee_mm_sec_ddr.size / SMALL_PAGE_SIZE;
 	num_fobj_pages = ROUNDUP(num_pool_pages * sizeof(*rwp_state_base),
 				 SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 
@@ -393,7 +390,8 @@ static TEE_Result rwp_init(void)
 	rwp_state_base = (void *)tee_pager_init_iv_region(fobj);
 	assert(rwp_state_base);
 
-	rwp_store_base = phys_to_virt(tee_mm_sec_ddr.lo, MEM_AREA_TA_RAM, sz);
+	rwp_store_base = phys_to_virt(tee_mm_sec_ddr.lo, MEM_AREA_TA_RAM,
+				      tee_mm_sec_ddr.size);
 	assert(rwp_store_base);
 
 	return TEE_SUCCESS;

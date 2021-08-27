@@ -691,7 +691,7 @@ bool mobj_is_paged(struct mobj *mobj)
 static TEE_Result mobj_init(void)
 {
 	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
-				       tee_mm_sec_ddr.hi - tee_mm_sec_ddr.lo,
+				       tee_mm_sec_ddr.size,
 				       OPTEE_SMC_SHM_CACHED, CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");

@@ -27,7 +27,7 @@ typedef struct _tee_mm_entry_t tee_mm_entry_t;
 struct _tee_mm_pool_t {
 	tee_mm_entry_t *entry;
 	paddr_t lo;		/* low boundary of the pool */
-	paddr_t hi;		/* high boundary of the pool */
+	paddr_size_t size;	/* pool size */
 	uint32_t flags;		/* Config flags for the pool */
 	uint8_t shift;		/* size shift */
 	unsigned int lock;
@@ -70,8 +70,8 @@ static inline bool tee_mm_validate(const tee_mm_pool_t *pool, paddr_t addr)
 uintptr_t tee_mm_get_smem(const tee_mm_entry_t *mm);
 
 /* Init managed memory area */
-bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_t hi, uint8_t shift,
-		 uint32_t flags);
+bool tee_mm_init(tee_mm_pool_t *pool, paddr_t lo, paddr_size_t size,
+		 uint8_t shift, uint32_t flags);
 
 /* Kill managed memory area*/
 void tee_mm_final(tee_mm_pool_t *pool);
@@ -107,7 +107,7 @@ static inline uint32_t tee_mm_get_offset(tee_mm_entry_t *p)
 /* Return size of the mm entry in bytes */
 size_t tee_mm_get_bytes(const tee_mm_entry_t *mm);
 
-bool tee_mm_addr_is_within_range(tee_mm_pool_t *pool, paddr_t addr);
+bool tee_mm_addr_is_within_range(const tee_mm_pool_t *pool, paddr_t addr);
 
 bool tee_mm_is_empty(tee_mm_pool_t *pool);
 
