@@ -71,7 +71,6 @@ DEFINES
 	DEFINE(THREAD_CTX_KERN_SP, offsetof(struct thread_ctx, kern_sp));
 	DEFINE(THREAD_CTX_STACK_VA_END, offsetof(struct thread_ctx,
 						 stack_va_end));
-	DEFINE(THREAD_CTX_SIZE, sizeof(struct thread_ctx));
 
 	/* struct thread_ctx_regs */
 	DEFINE(THREAD_CTX_REGS_SP, offsetof(struct thread_ctx_regs, sp));
