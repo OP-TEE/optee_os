@@ -227,6 +227,11 @@ static inline __noprof void wfe(void)
 	asm volatile ("wfe");
 }
 
+static inline __noprof void wfi(void)
+{
+	asm volatile ("wfi");
+}
+
 static inline __noprof void write_at_s1e1r(uint64_t va)
 {
 	asm volatile ("at	S1E1R, %0" : : "r" (va));
