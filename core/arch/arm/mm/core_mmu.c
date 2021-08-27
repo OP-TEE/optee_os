@@ -2463,7 +2463,7 @@ void core_mmu_init_ta_ram(void)
 	vaddr_t s = 0;
 	vaddr_t e = 0;
 	paddr_t ps = 0;
-	paddr_t pe = 0;
+	size_t size = 0;
 
 	/*
 	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
@@ -2475,14 +2475,14 @@ void core_mmu_init_ta_ram(void)
 		core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
 
 	ps = virt_to_phys((void *)s);
-	pe = virt_to_phys((void *)(e - 1)) + 1;
+	size = e - s;
 
 	if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
-	    !pe || (pe & CORE_MMU_USER_CODE_MASK))
+	    !size || (size & CORE_MMU_USER_CODE_MASK))
 		panic("invalid TA RAM");
 
 	/* extra check: we could rely on core_mmu_get_mem_by_type() */
-	if (!tee_pbuf_is_sec(ps, pe - ps))
+	if (!tee_pbuf_is_sec(ps, size))
 		panic("TA RAM is not secure");
 
 	if (!tee_mm_is_empty(&tee_mm_sec_ddr))
@@ -2490,6 +2490,6 @@ void core_mmu_init_ta_ram(void)
 
 	/* remove previous config and init TA ddr memory pool */
 	tee_mm_final(&tee_mm_sec_ddr);
-	tee_mm_init(&tee_mm_sec_ddr, ps, pe, CORE_MMU_USER_CODE_SHIFT,
+	tee_mm_init(&tee_mm_sec_ddr, ps, size, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
 }

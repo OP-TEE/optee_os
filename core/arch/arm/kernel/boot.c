@@ -324,15 +324,15 @@ static void print_pager_pool_size(void)
 static void init_vcore(tee_mm_pool_t *mm_vcore)
 {
 	const vaddr_t begin = VCORE_START_VA;
-	vaddr_t end = begin + TEE_RAM_VA_SIZE;
+	size_t size = TEE_RAM_VA_SIZE;
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
 	/* Carve out asan memory, flat maped after core memory */
-	if (end > ASAN_SHADOW_PA)
-		end = ASAN_MAP_PA;
+	if (begin + size > ASAN_SHADOW_PA)
+		size = ASAN_MAP_PA - begin;
 #endif
 
-	if (!tee_mm_init(mm_vcore, begin, end, SMALL_PAGE_SHIFT,
+	if (!tee_mm_init(mm_vcore, begin, size, SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
 		panic("tee_mm_vcore init failed");
 }
@@ -497,7 +497,9 @@ static void init_runtime(unsigned long pageable_part)
 	 * TZSRAM.
 	 */
 	mm = tee_mm_alloc2(&tee_mm_vcore,
-		(vaddr_t)tee_mm_vcore.hi - TZSRAM_SIZE, TZSRAM_SIZE);
+			   (vaddr_t)tee_mm_vcore.lo +
+			   tee_mm_vcore.size - TZSRAM_SIZE,
+			   TZSRAM_SIZE);
 	assert(mm);
 	tee_pager_set_alias_area(mm);
 

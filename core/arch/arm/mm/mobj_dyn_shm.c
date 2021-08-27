@@ -441,8 +441,8 @@ static TEE_Result mobj_mapped_shm_init(void)
 	if (!pool_start || !pool_end)
 		panic("Can't find region for shmem pool");
 
-	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end, SMALL_PAGE_SHIFT,
-		    TEE_MM_POOL_NO_FLAGS))
+	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end - pool_start,
+			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 
 	DMSG("Shared memory address range: %" PRIxVA ", %" PRIxVA,
