@@ -33,4 +33,10 @@ void __do_panic(const char *file, const int line, const char *func,
 #define _panic_fn(a, b, name, ...) name
 #define panic(...) _panic_fn("", ##__VA_ARGS__, _panic1, _panic0)(__VA_ARGS__)
 
+/*
+ * Weak function used in __do_panic() to put the current CPU on hold.
+ * If no arch-specific override is provided, defaults to a busy loop.
+ */
+void cpu_idle(void);
+
 #endif /*KERNEL_PANIC_H*/
