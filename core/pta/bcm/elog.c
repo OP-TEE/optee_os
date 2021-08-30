@@ -60,7 +60,9 @@ static TEE_Result pta_elog_load_nitro_fw(uint32_t param_types,
 	TEE_Result res = TEE_SUCCESS;
 	paddr_t src_paddr = BCM_NITRO_FW_LOAD_ADDR + BNXT_IMG_SECMEM_OFFSET;
 	vaddr_t src_vaddr = 0;
-	uint32_t offset = 0, sz = 0;
+	uint32_t offset = 0;
+	size_t end_offs = 0;
+	size_t sz = 0;
 	char *buf = NULL;
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 						   TEE_PARAM_TYPE_VALUE_INPUT,
@@ -79,18 +81,18 @@ static TEE_Result pta_elog_load_nitro_fw(uint32_t param_types,
 	}
 
 	offset = params[1].value.a;
+	buf = params[0].memref.buffer;
+	sz = params[0].memref.size;
 
 	/*
-	 * Check if offset is within memory range reserved for nitro firmware
-	 * minus default size of buffer
+	 * Check that we under no circumstances will attempt to write
+	 * beyond BCM_NITRO_FW_LOAD_ADDR + MAX_NITRO_FW_LOAD_MEM_SIZE.
 	 */
-	if (offset > MAX_NITRO_FW_LOAD_MEM_SIZE - DEFAULT_ELOG_BUFFER_SIZE) {
+	if (ADD_OVERFLOW(sz, offset, &end_offs) ||
+	    end_offs > MAX_NITRO_FW_LOAD_MEM_SIZE - BNXT_IMG_SECMEM_OFFSET) {
 		EMSG("Invalid access");
 		return TEE_ERROR_ACCESS_DENIED;
 	}
-
-	buf = params[0].memref.buffer;
-	sz = params[0].memref.size;
 
 	src_vaddr = (vaddr_t)phys_to_virt((uintptr_t)src_paddr + offset,
 					  MEM_AREA_RAM_SEC, sz);
