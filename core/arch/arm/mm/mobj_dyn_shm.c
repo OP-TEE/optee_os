@@ -450,4 +450,4 @@ static TEE_Result mobj_mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-service_init(mobj_mapped_shm_init);
+preinit(mobj_mapped_shm_init);
