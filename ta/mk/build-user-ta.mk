@@ -1,4 +1,6 @@
 include mk/cleanvars.mk
+
+# Set $(sm) as the name of the in tree TA being built, for instance "avb" or "pkcs11"
 sm := $(lastword $(subst /, ,$(dir $(ta-mk-file))))
 sm-$(sm) := y
 
@@ -6,6 +8,9 @@ sm-$(sm) := y
 ta-target := $(strip $(if $(CFG_USER_TA_TARGET_$(sm)), \
 		$(filter $(CFG_USER_TA_TARGET_$(sm)), $(ta-targets)), \
 		$(default-user-ta-target)))
+
+arch-bits-ta_arm32 := 32
+arch-bits-ta_arm64 := 64
 
 ta-dev-kit-dir$(sm) := $(out-dir)/export-$(ta-target)
 link-out-dir$(sm) := $(out-dir)/$(patsubst %/,%, $(dir $(ta-mk-file)))

@@ -26,6 +26,8 @@ libname := $(LIBNAME)
 shlibname := $(SHLIBNAME)
 shlibuuid := $(SHLIBUUID)
 
+arch-bits-ta_arm32 := 32
+arch-bits-ta_arm64 := 64
 
 ifneq ($V,1)
 q := @
