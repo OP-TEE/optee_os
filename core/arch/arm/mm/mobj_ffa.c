@@ -593,4 +593,4 @@ const struct mobj_ops mobj_ffa_ops __weak __rodata_unpaged("mobj_ffa_ops") = {
 	.dec_map = ffa_dec_map,
 };
 
-service_init(mapped_shm_init);
+preinit(mapped_shm_init);
