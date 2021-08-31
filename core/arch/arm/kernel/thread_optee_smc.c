@@ -32,7 +32,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
-	if (!virt_set_guest(args->a7)) {
+	if (virt_set_guest(args->a7)) {
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		goto out;
 	}
@@ -58,7 +58,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 	thread_check_canaries();
 
 #ifdef CFG_VIRTUALIZATION
-	if (!virt_set_guest(a7))
+	if (virt_set_guest(a7))
 		return OPTEE_SMC_RETURN_ENOTAVAIL;
 #endif
 
