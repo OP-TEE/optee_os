@@ -158,12 +158,13 @@ static void mmu_unlock(uint32_t exceptions)
 
 static struct tee_mmap_region *get_memory_map(void)
 {
-#ifdef CFG_VIRTUALIZATION
-	struct tee_mmap_region *map = virt_get_memory_map();
+	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+		struct tee_mmap_region *map = virt_get_memory_map();
 
-	if (map)
-		return map;
-#endif
+		if (map)
+			return map;
+	}
+
 	return static_memory_map;
 
 }
@@ -2366,12 +2367,10 @@ bool is_unpaged(void *va __unused)
 }
 #endif
 
-#ifdef CFG_VIRTUALIZATION
 void core_mmu_init_virtualization(void)
 {
 	virt_init_memory(static_memory_map);
 }
-#endif
 
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len)
 {
@@ -2453,11 +2452,11 @@ void core_mmu_init_ta_ram(void)
 	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
 	 * shared mem allocated from teecore.
 	 */
-#ifndef CFG_VIRTUALIZATION
-	core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
-#else
-	virt_get_ta_ram(&s, &e);
-#endif
+	if (IS_ENABLED(CFG_VIRTUALIZATION))
+		virt_get_ta_ram(&s, &e);
+	else
+		core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);
+
 	ps = virt_to_phys((void *)s);
 	pe = virt_to_phys((void *)(e - 1)) + 1;
 

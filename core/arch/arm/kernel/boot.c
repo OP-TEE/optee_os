@@ -1259,13 +1259,12 @@ void __weak boot_init_primary_late(unsigned long fdt)
 
 	main_init_gic();
 	init_vfp_nsec();
-#ifndef CFG_VIRTUALIZATION
-	init_tee_runtime();
-#endif
-#ifdef CFG_VIRTUALIZATION
-	IMSG("Initializing virtualization support");
-	core_mmu_init_virtualization();
-#endif
+	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+		IMSG("Initializing virtualization support");
+		core_mmu_init_virtualization();
+	} else {
+		init_tee_runtime();
+	}
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
 }
