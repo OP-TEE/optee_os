@@ -15,6 +15,10 @@
 
 #include "thread_private.h"
 
+void __section(".text.dummy.call_preinitcalls") call_preinitcalls(void)
+{
+}
+
 void __section(".text.dummy.call_initcalls") call_initcalls(void)
 {
 }

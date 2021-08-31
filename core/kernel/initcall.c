@@ -12,6 +12,25 @@
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
+void __weak call_preinitcalls(void)
+{
+	const struct initcall *call = NULL;
+	TEE_Result ret = TEE_SUCCESS;
+
+	for (call = preinitcall_begin; call < preinitcall_end; call++) {
+		DMSG("level %d %s()", call->level, call->func_name);
+		ret = call->func();
+		if (ret != TEE_SUCCESS) {
+			EMSG("Preinitcall __text_start + 0x%08" PRIxVA
+			     " failed", (vaddr_t)call - VCORE_START_VA);
+		}
+	}
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
 void __weak call_initcalls(void)
 {
 	const struct initcall *call = NULL;

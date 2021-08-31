@@ -1186,6 +1186,12 @@ void init_tee_runtime(void)
 	/* Pager initializes TA RAM early */
 	core_mmu_init_ta_ram();
 #endif
+	/*
+	 * With virtualization we call this function when creating the
+	 * OP-TEE partition instead.
+	 */
+	if (!IS_ENABLED(CFG_VIRTUALIZATION))
+		call_preinitcalls();
 	call_initcalls();
 }
 

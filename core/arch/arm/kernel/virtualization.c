@@ -267,6 +267,8 @@ uint32_t virt_guest_created(uint16_t guest_id)
 
 	/* Initialize threads */
 	thread_init_threads();
+	/* Do the preinitcalls */
+	call_preinitcalls();
 
 	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 	LIST_INSERT_HEAD(&prtn_list, prtn, link);
