@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#include <tee/entry_fast.h>
-#include <optee_msg.h>
-#include <sm/optee_smc.h>
+#include <config.h>
 #include <kernel/boot.h>
+#include <kernel/misc.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/virtualization.h>
-#include <kernel/misc.h>
 #include <mm/core_mmu.h>
+#include <optee_msg.h>
+#include <sm/optee_smc.h>
+#include <tee/entry_fast.h>
 
 #ifdef CFG_CORE_RESERVED_SHM
 static void tee_entry_get_shm_config(struct thread_smc_args *args)
@@ -88,9 +89,8 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 #ifdef CFG_CORE_RESERVED_SHM
 	args->a1 |= OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
 #endif
-#ifdef CFG_VIRTUALIZATION
-	args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
-#endif
+	if (IS_ENABLED(CFG_VIRTUALIZATION))
+		args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
 	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
 
 #if defined(CFG_CORE_DYN_SHM)
@@ -261,9 +261,8 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 */
 	size_t ret = 12;
 
-#if defined(CFG_VIRTUALIZATION)
-	ret += 2;
-#endif
+	if (IS_ENABLED(CFG_VIRTUALIZATION))
+		ret += 2;
 
 	return ret;
 }
