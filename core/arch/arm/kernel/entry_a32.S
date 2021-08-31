@@ -549,7 +549,7 @@ shadow_stack_access_ok:
 	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early
 #ifndef CFG_VIRTUALIZATION
-	mov	r7, sp
+	mov	r9, sp
 	ldr	r0, =threads
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, r0
@@ -563,7 +563,7 @@ shadow_stack_access_ok:
 #ifndef CFG_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
-	mov	sp, r7
+	mov	sp, r9
 #endif
 
 	/*
