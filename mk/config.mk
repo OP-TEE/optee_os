@@ -110,19 +110,21 @@ CFG_TEE_IMPL_DESCR ?= OPTEE
 # World?
 CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 
-# Trusted OS implementation version
-TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || echo Unknown)
-ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
-TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=8 HEAD 2>/dev/null || echo 0)
-else
-TEE_IMPL_GIT_SHA1 := 0x0
-endif
 # The following values are not extracted from the "git describe" output because
 # we might be outside of a Git environment, or the tree may have been cloned
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
 CFG_OPTEE_REVISION_MINOR ?= 14
+
+# Trusted OS implementation version
+TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || \
+		      echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))
+ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
+TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=8 HEAD 2>/dev/null || echo 0)
+else
+TEE_IMPL_GIT_SHA1 := 0x0
+endif
 
 # Trusted OS implementation manufacturer name
 CFG_TEE_MANUFACTURER ?= LINARO
