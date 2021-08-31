@@ -158,7 +158,10 @@ static void tee_entry_vm_created(struct thread_smc_args *args)
 		return;
 	}
 
-	args->a0 = virt_guest_created(guest_id);
+	if (virt_guest_created(guest_id))
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+	else
+		args->a0 = OPTEE_SMC_RETURN_OK;
 }
 
 static void tee_entry_vm_destroyed(struct thread_smc_args *args)
@@ -171,7 +174,10 @@ static void tee_entry_vm_destroyed(struct thread_smc_args *args)
 		return;
 	}
 
-	args->a0 = virt_guest_destroyed(guest_id);
+	if (virt_guest_destroyed(guest_id))
+		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
+	else
+		args->a0 = OPTEE_SMC_RETURN_OK;
 }
 #endif
 

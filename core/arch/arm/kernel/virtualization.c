@@ -169,15 +169,15 @@ void virt_init_memory(struct tee_mmap_region *memory_map)
 }
 
 
-static int configure_guest_prtn_mem(struct guest_partition *prtn)
+static TEE_Result configure_guest_prtn_mem(struct guest_partition *prtn)
 {
-	int ret;
-	paddr_t original_data_pa;
+	TEE_Result res = TEE_SUCCESS;
+	paddr_t original_data_pa = 0;
 
 	prtn->tee_ram = tee_mm_alloc(&virt_mapper_pool, VCORE_UNPG_RW_SZ);
 	if (!prtn->tee_ram) {
 		EMSG("Can't allocate memory for TEE runtime context");
-		ret = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
 	DMSG("TEE RAM: %08" PRIxPA, tee_mm_get_smem(prtn->tee_ram));
@@ -185,7 +185,7 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 	prtn->ta_ram = tee_mm_alloc(&virt_mapper_pool, get_ta_ram_size());
 	if (!prtn->ta_ram) {
 		EMSG("Can't allocate memory for TA data");
-		ret = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
 	DMSG("TA RAM: %08" PRIxPA, tee_mm_get_smem(prtn->ta_ram));
@@ -194,7 +194,7 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 				   core_mmu_get_total_pages_size());
 	if (!prtn->tables) {
 		EMSG("Can't allocate memory for page tables");
-		ret = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
 
@@ -205,14 +205,14 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 
 	prtn->mmu_prtn = core_alloc_mmu_prtn(prtn->tables_va);
 	if (!prtn->mmu_prtn) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
 
 	prtn->memory_map = prepare_memory_map(tee_mm_get_smem(prtn->tee_ram),
 					     tee_mm_get_smem(prtn->ta_ram));
 	if (!prtn->memory_map) {
-		ret = TEE_ERROR_OUT_OF_MEMORY;
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
 
@@ -231,7 +231,7 @@ static int configure_guest_prtn_mem(struct guest_partition *prtn)
 			    __data_end - __data_start),
 	       __data_end - __data_start);
 
-	return 0;
+	return TEE_SUCCESS;
 
 err:
 	if (prtn->tee_ram)
@@ -243,24 +243,26 @@ err:
 	nex_free(prtn->mmu_prtn);
 	nex_free(prtn->memory_map);
 
-	return ret;
+	return res;
 }
 
-uint32_t virt_guest_created(uint16_t guest_id)
+TEE_Result virt_guest_created(uint16_t guest_id)
 {
-	struct guest_partition *prtn;
-	uint32_t exceptions;
+	struct guest_partition *prtn = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t exceptions = 0;
 
 	prtn = nex_calloc(1, sizeof(*prtn));
 	if (!prtn)
-		return OPTEE_SMC_RETURN_ENOTAVAIL;
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	prtn->id = guest_id;
 	mutex_init(&prtn->mutex);
 	refcount_set(&prtn->refc, 1);
-	if (configure_guest_prtn_mem(prtn)) {
+	res = configure_guest_prtn_mem(prtn);
+	if (res) {
 		nex_free(prtn);
-		return OPTEE_SMC_RETURN_ENOTAVAIL;
+		return res;
 	}
 
 	set_current_prtn(prtn);
@@ -278,10 +280,11 @@ uint32_t virt_guest_created(uint16_t guest_id)
 
 	set_current_prtn(NULL);
 	core_mmu_set_default_prtn();
-	return OPTEE_SMC_RETURN_OK;
+
+	return TEE_SUCCESS;
 }
 
-uint32_t virt_guest_destroyed(uint16_t guest_id)
+TEE_Result virt_guest_destroyed(uint16_t guest_id)
 {
 	struct guest_partition *prtn;
 	uint32_t exceptions;
@@ -314,10 +317,10 @@ uint32_t virt_guest_destroyed(uint16_t guest_id)
 	} else
 		EMSG("Client with id %d is not found", guest_id);
 
-	return OPTEE_SMC_RETURN_OK;
+	return TEE_SUCCESS;
 }
 
-bool virt_set_guest(uint16_t guest_id)
+TEE_Result virt_set_guest(uint16_t guest_id)
 {
 	struct guest_partition *prtn;
 	uint32_t exceptions;
@@ -326,7 +329,7 @@ bool virt_set_guest(uint16_t guest_id)
 
 	/* This can be true only if we return from IRQ RPC */
 	if (prtn && prtn->id == guest_id)
-		return true;
+		return TEE_SUCCESS;
 
 	if (prtn)
 		panic("Virtual guest partition is already set");
@@ -339,12 +342,14 @@ bool virt_set_guest(uint16_t guest_id)
 			refcount_inc(&prtn->refc);
 			cpu_spin_unlock_xrestore(&prtn_list_lock,
 						 exceptions);
-			return true;
+			return TEE_SUCCESS;
 		}
 	}
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
-	return guest_id == HYP_CLNT_ID;
+	if (guest_id == HYP_CLNT_ID)
+		return TEE_SUCCESS;
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
 void virt_unset_guest(void)
