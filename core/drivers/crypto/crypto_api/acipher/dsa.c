@@ -44,7 +44,7 @@ TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *key,
 
 	if (!key || !size_bits) {
 		CRYPTO_TRACE("Param error key @0x%" PRIxPTR " size %zu bits",
-			     key, size_bits);
+			     (uintptr_t)key, size_bits);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -72,7 +72,7 @@ TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *key,
 
 	if (!key || !size_bits) {
 		CRYPTO_TRACE("Param error key @0x%" PRIxPTR " size %zu bits",
-			     key, size_bits);
+			     (uintptr_t)key, size_bits);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -99,7 +99,7 @@ TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
 
 	if (!key || !key_size) {
 		CRYPTO_TRACE("Param error key @0x%" PRIxPTR " size %zu bits",
-			     key, size_bits);
+			     (uintptr_t)key, key_size);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
