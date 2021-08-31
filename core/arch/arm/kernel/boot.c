@@ -1175,13 +1175,19 @@ static void discover_nsec_memory(void)
 }
 #endif /*!CFG_CORE_DYN_SHM*/
 
-void init_tee_runtime(void)
-{
 #ifdef CFG_VIRTUALIZATION
+static TEE_Result virt_init_heap(void)
+{
 	/* We need to initialize pool for every virtual guest partition */
 	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+
+	return TEE_SUCCESS;
+}
+preinit_early(virt_init_heap);
 #endif
 
+void init_tee_runtime(void)
+{
 #ifndef CFG_WITH_PAGER
 	/* Pager initializes TA RAM early */
 	core_mmu_init_ta_ram();
