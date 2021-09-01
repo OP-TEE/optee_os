@@ -79,6 +79,7 @@
 #define IRAM_BASE			0x00900000
 
 #define OCOTP_BASE			0x021BC000
+#define OCOTP_SIZE			0x4000
 
 #define GIC_BASE			0x00A00000
 #define GICD_OFFSET			0x1000
