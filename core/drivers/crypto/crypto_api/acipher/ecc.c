@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2021 NXP
  *
  * Crypto ECC interface implementation to enable HW driver.
  */
@@ -98,6 +98,7 @@ static TEE_Result ecc_generate_keypair(struct ecc_keypair *key,
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
 	struct drvcrypt_ecc *ecc = NULL;
+	size_t key_size_bits = 0;
 
 	/* Check input parameters */
 	if (!key) {
@@ -105,12 +106,14 @@ static TEE_Result ecc_generate_keypair(struct ecc_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	key_size_bits = get_ecc_key_size_bytes(key->curve) * 8;
+
 	ecc = drvcrypt_get_ops(CRYPTO_ECC);
 	if (ecc)
-		ret = ecc->gen_keypair(key, get_ecc_key_size_bytes(key->curve));
+		ret = ecc->gen_keypair(key, key_size_bits);
 
 	CRYPTO_TRACE("ECC Keypair (%zu bits) generate ret = 0x%" PRIx32,
-		     size_bits, ret);
+		     key_size_bits, ret);
 
 	return ret;
 }
