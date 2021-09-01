@@ -22,6 +22,7 @@
 #define SOC_MX7ULP	0xE1
 #define SOC_MX8QX	0xE2
 #define SOC_MX8QM	0xE3
+#define SOC_MX8M	0x82
 
 #ifndef __ASSEMBLER__
 uint32_t imx_get_src_gpr(int cpu);
@@ -37,7 +38,16 @@ bool soc_is_imx6dq(void);
 bool soc_is_imx6dqp(void);
 bool soc_is_imx7ds(void);
 bool soc_is_imx7ulp(void);
-uint16_t soc_revision(void);
+bool soc_is_imx8m(void);
+bool soc_is_imx8mq(void);
+bool soc_is_imx8mm(void);
+bool soc_is_imx8mn(void);
+bool soc_is_imx8mp(void);
+bool soc_is_imx8mq_b0_layer(void);
+uint32_t imx_soc_type(void);
+uint32_t imx_soc_rev_major(void);
+uint32_t imx_soc_rev_minor(void);
+uint32_t imx_get_digprog(void);
 void imx_gpcv2_set_core1_pdn_by_software(void);
 void imx_gpcv2_set_core1_pup_by_software(void);
 void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
