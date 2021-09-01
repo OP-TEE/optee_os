@@ -740,7 +740,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 #endif
 	assert(prtn);
 
-	if (tbl_info->level >= 3 || idx > tbl_info->num_entries)
+	if (tbl_info->level >= 3 || idx >= tbl_info->num_entries)
 		return false;
 
 	entry = (uint64_t *)tbl_info->table + idx;
