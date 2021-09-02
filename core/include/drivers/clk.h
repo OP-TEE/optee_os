@@ -14,6 +14,7 @@
 #define CLK_SET_RATE_GATE	BIT(0) /* must be gated across rate change */
 #define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
 
+#ifdef CFG_DRIVERS_CLK_CORE
 /**
  * struct clk - Clock structure
  *
@@ -61,14 +62,6 @@ struct clk_ops {
 };
 
 /**
- * Return the clock name
- *
- * @clk: Clock for which the name is needed
- * Return a const char * pointing to the clock name
- */
-const char *clk_get_name(struct clk *clk);
-
-/**
  * clk_alloc - Allocate a clock structure
  *
  * @name: Clock name
@@ -95,6 +88,21 @@ void clk_free(struct clk *clk);
  * Return a TEE_Result compliant value
  */
 TEE_Result clk_register(struct clk *clk);
+#else
+/*
+ * struct clk is an opaque structure known from the platform clock provider.
+ * plat_clk_*() function prototypes strictly match their clk_*() counterpart.
+ */
+struct clk;
+#endif /* CFG_DRIVERS_CLK_CORE */
+
+/**
+ * Return the clock name
+ *
+ * @clk: Clock for which the name is needed
+ * Return a const char * pointing to the clock name
+ */
+const char *clk_get_name(struct clk *clk);
 
 /**
  * clk_get_rate - Get clock rate
