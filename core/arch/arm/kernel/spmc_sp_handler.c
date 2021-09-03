@@ -582,6 +582,77 @@ err:
 	ffa_set_error(args, ret);
 }
 
+static void ffa_mem_relinquish(struct thread_smc_args *args,
+			       struct sp_session *caller_sp,
+			       struct ffa_rxtx  *rxtx)
+{
+	struct sp_mem *smem = NULL;
+	struct ffa_mem_relinquish *mem = rxtx->rx;
+	struct sp_mem_receiver *receiver = NULL;
+	int err = FFA_NOT_SUPPORTED;
+	uint32_t exceptions = 0;
+
+	if (!check_rxtx(rxtx)) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+
+	exceptions = cpu_spin_lock_xsave(&rxtx->spinlock);
+	smem = sp_mem_get(READ_ONCE(mem->handle));
+
+	if (!smem) {
+		DMSG("Incorrect handle");
+		err = FFA_DENIED;
+		goto err_unlock_rxtwx;
+	}
+
+	if (READ_ONCE(mem->endpoint_count) != 1) {
+		DMSG("Incorrect endpoint count");
+		err = FFA_INVALID_PARAMETERS;
+		goto err_unlock_rxtwx;
+	}
+
+	if (READ_ONCE(mem->endpoint_id_array[0]) != caller_sp->endpoint_id) {
+		DMSG("Incorrect endpoint id");
+		err = FFA_DENIED;
+		goto err_unlock_rxtwx;
+	}
+
+	cpu_spin_unlock_xrestore(&rxtx->spinlock, exceptions);
+
+	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
+
+	exceptions = cpu_spin_lock_xsave(&mem_ref_lock);
+	if (!receiver->ref_count) {
+		DMSG("To many relinquish requests");
+		err = FFA_DENIED;
+		goto err_unlock_memref;
+	}
+
+	receiver->ref_count--;
+	if (!receiver->ref_count) {
+		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
+		if (sp_unmap_ffa_regions(caller_sp, smem) != TEE_SUCCESS) {
+			DMSG("Failed to unmap region");
+			ffa_set_error(args, FFA_DENIED);
+			return;
+		}
+	} else {
+		cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
+	}
+
+	args->a0 = FFA_SUCCESS_32;
+	return;
+
+err_unlock_rxtwx:
+	cpu_spin_unlock_xrestore(&rxtx->spinlock, exceptions);
+	ffa_set_error(args, err);
+	return;
+err_unlock_memref:
+	cpu_spin_unlock_xrestore(&mem_ref_lock, exceptions);
+	ffa_set_error(args, err);
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -828,6 +899,12 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_MEM_RETRIEVE_REQ_32:
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RELINQUISH:
+			ts_push_current_session(&caller_sp->ts_sess);
+			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

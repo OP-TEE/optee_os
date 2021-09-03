@@ -276,6 +276,27 @@ TEE_Result sp_map_shared(struct sp_session *s,
 	return TEE_SUCCESS;
 }
 
+TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem)
+{
+	TEE_Result res = TEE_SUCCESS;
+	vaddr_t vaddr = 0;
+	size_t len = 0;
+	struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+	struct sp_mem_map_region *reg = NULL;
+
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		vaddr = (vaddr_t)sp_mem_get_va(&ctx->uctx, reg->page_offset,
+					       reg->mobj);
+		len = reg->page_count * SMALL_PAGE_SIZE;
+
+		res = vm_unmap(&ctx->uctx, vaddr, len);
+		if (res != TEE_SUCCESS)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)
