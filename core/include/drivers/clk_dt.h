@@ -27,7 +27,7 @@ struct clk_dt_phandle_args {
  * probe: probe function for the clock driver
  */
 struct clk_driver {
-	TEE_Result (*probe)(const void *fdt, int nodeoffset);
+	TEE_Result (*probe)(const void *fdt, int nodeoffset, const void *data);
 };
 
 /**
