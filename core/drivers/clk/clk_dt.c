@@ -179,7 +179,9 @@ struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
 	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx);
 }
 
-static const struct clk_driver *clk_get_compatible_driver(const char *compat)
+static const struct clk_driver *
+clk_get_compatible_driver(const char *compat,
+			  const struct dt_device_match **out_dm)
 {
 	const struct dt_driver *drv = NULL;
 	const struct dt_device_match *dm = NULL;
@@ -191,8 +193,12 @@ static const struct clk_driver *clk_get_compatible_driver(const char *compat)
 
 		clk_drv = (const struct clk_driver *)drv->driver;
 		for (dm = drv->match_table; dm && dm->compatible; dm++) {
-			if (strcmp(dm->compatible, compat) == 0)
+			if (strcmp(dm->compatible, compat) == 0) {
+				if (out_dm)
+					*out_dm = dm;
+
 				return clk_drv;
+			}
 		}
 	}
 
@@ -247,6 +253,7 @@ static TEE_Result clk_dt_node_clock_setup_driver(const void *fdt, int node)
 	const char *compat = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const struct clk_driver *clk_drv = NULL;
+	const struct dt_device_match *dm = NULL;
 
 	count = fdt_stringlist_count(fdt, node, "compatible");
 	if (count < 0)
@@ -257,11 +264,11 @@ static TEE_Result clk_dt_node_clock_setup_driver(const void *fdt, int node)
 		if (!compat)
 			return TEE_ERROR_GENERIC;
 
-		clk_drv = clk_get_compatible_driver(compat);
+		clk_drv = clk_get_compatible_driver(compat, &dm);
 		if (!clk_drv)
 			continue;
 
-		res = clk_drv->probe(fdt, node);
+		res = clk_drv->probe(fdt, node, dm->compat_data);
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed to probe clock driver for compatible %s",
 			     compat);
