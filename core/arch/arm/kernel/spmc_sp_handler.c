@@ -616,6 +616,67 @@ out:
 	ffa_set_error(args, ret);
 }
 
+static void ffa_mem_relinquish(struct thread_smc_args *args,
+			       struct sp_session *caller_sp,
+			       struct ffa_rxtx  *rxtx)
+{
+	struct sp_mem *smem = NULL;
+	struct ffa_mem_relinquish *mem = rxtx->rx;
+	struct sp_mem_receiver *receiver = NULL;
+	TEE_Result err = FFA_OK;
+
+	if (!check_rxtx(rxtx)) {
+		ffa_set_error(args, FFA_DENIED);
+		return;
+	}
+
+	cpu_spin_lock(&rxtx->spinlock);
+	smem = sp_mem_get(mem->handle);
+
+	if (!smem) {
+		DMSG("Incorrect handle");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	if (mem->endpoint_count != 1) {
+		DMSG("Incorrect endpoint count");
+		err = FFA_INVALID_PARAMETERS;
+		goto out_spinlock;
+	}
+
+	if (mem->endpoint_id_array[0] != caller_sp->endpoint_id) {
+		DMSG("Incorrect endpoint id");
+		err = FFA_DENIED;
+		goto out_spinlock;
+	}
+
+	cpu_spin_unlock(&rxtx->spinlock);
+	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
+	if (!receiver->ref_count) {
+		DMSG("To many relinquish requests");
+		err = FFA_DENIED;
+		goto out;
+	}
+
+	if (receiver->ref_count == 1) {
+		if (sp_unmap_ffa_regions(caller_sp, smem) != TEE_SUCCESS) {
+			DMSG("Failed to unmap region");
+			err = FFA_DENIED;
+			goto out;
+		}
+	}
+	receiver->ref_count--;
+
+	args->a0 = FFA_SUCCESS_32;
+	return;
+
+out_spinlock:
+	cpu_spin_unlock(&rxtx->spinlock);
+out:
+	ffa_set_error(args, err);
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -860,6 +921,12 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_MEM_RETRIEVE_REQ_64:
 			ts_push_current_session(&caller_sp->ts_sess);
 			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RELINQUISH:
+			ts_push_current_session(&caller_sp->ts_sess);
+			ffa_mem_relinquish(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

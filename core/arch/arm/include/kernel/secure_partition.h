@@ -85,6 +85,7 @@ TEE_Result sp_map_shared(struct sp_session *s,
 			 struct sp_mem_receiver *receiver,
 			 struct sp_mem *mem,
 			 uint64_t *va);
+TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
