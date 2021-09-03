@@ -520,7 +520,7 @@ endif
 #   in the same way as TAs so that they can be found at runtime.
 CFG_ULIBS_SHARED ?= n
 
-ifeq (yy,$(CFG_TA_GPROF_SUPPORT)$(CFG_ULIBS_SHARED))
+ifeq (y-y,$(CFG_TA_GPROF_SUPPORT)-$(CFG_ULIBS_SHARED))
 $(error CFG_TA_GPROF_SUPPORT and CFG_ULIBS_SHARED are currently incompatible)
 endif
 
