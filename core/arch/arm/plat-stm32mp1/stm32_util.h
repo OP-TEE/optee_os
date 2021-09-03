@@ -7,6 +7,7 @@
 #define __STM32_UTIL_H__
 
 #include <assert.h>
+#include <drivers/clk.h>
 #include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
@@ -70,6 +71,17 @@ void stm32_clock_enable(unsigned long id);
 void stm32_clock_disable(unsigned long id);
 unsigned long stm32_clock_get_rate(unsigned long id);
 bool stm32_clock_is_enabled(unsigned long id);
+
+#ifdef _CFG_DRIVERS_CLK_WEAK
+unsigned int stm32_clock_clk2id(struct clk *clk);
+#else
+static inline unsigned int stm32_clock_clk2id(struct clk *clk __unused)
+{
+	assert(0);
+
+	return ~0;
+}
+#endif
 
 /* Return true if @clock_id is shared by secure and non-secure worlds */
 bool stm32mp_nsec_can_access_clock(unsigned long clock_id);

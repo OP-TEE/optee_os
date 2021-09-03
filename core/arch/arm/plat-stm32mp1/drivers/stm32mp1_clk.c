@@ -4,6 +4,9 @@
  */
 
 #include <assert.h>
+#include <config.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <initcall.h>
@@ -1402,4 +1405,126 @@ static TEE_Result stm32mp1_clk_early_init(void)
 }
 
 service_init(stm32mp1_clk_early_init);
+
+#ifdef _CFG_DRIVERS_CLK_WEAK
+/*
+ * Clock driver API functions
+ */
+static void assert_clk_is_valid(struct clk *clk)
+{
+	uintptr_t va __maybe_unused = (uintptr_t)clk;
+	uintptr_t base __maybe_unused = (uintptr_t)stm32mp1_clk_gate;
+	uintptr_t end __maybe_unused = base + sizeof(stm32mp1_clk_gate);
+
+	assert(va >= base && va < end &&
+	       ((va - base) % sizeof(struct stm32mp1_clk_gate)) == 0);
+}
+
+/* Convert the opaque struct clk reference into driver private clock ID */
+static unsigned int clk2clock_id(struct clk *clk)
+{
+	struct stm32mp1_clk_gate *ref = (void *)clk;
+
+	assert_clk_is_valid(clk);
+
+	return ref->clock_id;
+}
+
+/* Convert the driver private clock ID into its opaque struct clk reference */
+static struct clk *clock_id2clk(unsigned int clock_id)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(stm32mp1_clk_gate); n++)
+		if (stm32mp1_clk_gate[n].clock_id == clock_id)
+			return (struct clk *)(void *)(stm32mp1_clk_gate + n);
+
+	return NULL;
+}
+
+unsigned int stm32_clock_clk2id(struct clk *clk)
+{
+	return clk2clock_id(clk);
+}
+
+const char *clk_get_name(struct clk *clk __maybe_unused)
+{
+	static const char no_name[] = "n.a";
+
+	assert_clk_is_valid(clk);
+
+	return no_name;
+}
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	unsigned int clock_id = clk2clock_id(clk);
+
+	return stm32_clock_get_rate(clock_id);
+}
+
+TEE_Result clk_enable(struct clk *clk)
+{
+	unsigned int clock_id = clk2clock_id(clk);
+
+	stm32_clock_enable(clock_id);
+
+	return TEE_SUCCESS;
+}
+
+void clk_disable(struct clk *clk)
+{
+	unsigned int clock_id = clk2clock_id(clk);
+
+	stm32_clock_disable(clock_id);
+}
+
+static struct clk *stm32mp1_clk_dt_get_clk(struct clk_dt_phandle_args *pargs,
+					    void *data __unused)
+{
+	if (pargs->args_count != 1)
+		return NULL;
+
+	IMSG("dt get clock: found clock %u", pargs->args[0]);
+
+	return clock_id2clk(pargs->args[0]);
+}
+
+static const uint8_t non_secure_rcc;
+
+static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
+						const void *compat_data)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (compat_data == &non_secure_rcc)
+		disable_rcc_tzen();
+	else
+		enable_rcc_tzen();
+
+	res = stm32mp1_clk_init(fdt, offs);
+	if (res)
+		return res;
+
+	return clk_dt_register_clk_provider(fdt, offs, stm32mp1_clk_dt_get_clk,
+					    NULL);
+}
+
+static const struct dt_device_match stm32mp1_clock_match_table[] = {
+	{  .compatible = "st,stm32mp1-rcc", .compat_data = &non_secure_rcc, },
+	{  .compatible = "st,stm32mp1-rcc-secure", },
+	{ }
+};
+
+static const struct clk_driver stm32mp1_clk_driver = {
+	.probe = stm32mp1_clock_provider_probe,
+};
+
+const struct dt_driver stm32mp1_clock_dt_driver __dt_driver = {
+	.name = "stm32mp1_clock",
+	.type = DT_DRIVER_CLK,
+	.match_table = stm32mp1_clock_match_table,
+	.driver = &stm32mp1_clk_driver,
+};
+#endif /*_CFG_DRIVERS_CLK_WEAK*/
 #endif /*CFG_EMBED_DTB*/
