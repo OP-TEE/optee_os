@@ -23,9 +23,6 @@ $(link-out-dir$(sm))/dyn_list:
 	$(q)mkdir -p $(dir $@)
 	$(q)echo "{" >$@
 	$(q)echo "__elf_phdr_info;" >>$@
-ifeq ($(CFG_FTRACE_SUPPORT),y)
-	$(q)echo "__ftrace_info;" >>$@
-endif
 	$(q)echo "trace_ext_prefix;" >>$@
 	$(q)echo "trace_level;" >>$@
 	$(q)echo "};" >>$@
