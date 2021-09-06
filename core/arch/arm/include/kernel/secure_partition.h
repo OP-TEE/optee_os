@@ -81,6 +81,10 @@ TEE_Result sp_partition_info_get_all(struct ffa_partition_info *fpi,
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
 bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 			     struct user_mode_ctx *uctx);
+TEE_Result sp_map_shared(struct sp_session *s,
+			 struct sp_mem_receiver *receiver,
+			 struct sp_mem *mem,
+			 uint64_t *va);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
