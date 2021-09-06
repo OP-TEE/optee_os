@@ -236,6 +236,39 @@ static TEE_Result sp_init_set_registers(struct sp_ctx *ctx)
 	return TEE_SUCCESS;
 }
 
+TEE_Result sp_map_shared(struct sp_session *s,
+			 struct sp_mem_receiver *receiver,
+			 struct sp_mem *smem,
+			 uint64_t *va)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct sp_ctx *ctx = NULL;
+	uint32_t perm = TEE_MATTR_UR;
+	struct sp_mem_map_region *reg = NULL;
+
+	ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	/* Get the permission */
+	if (receiver->perm.perm & FFA_MEM_ACC_RW)
+		perm = TEE_MATTR_URW;
+
+	if (receiver->perm.perm & FFA_MEM_ACC_EXE)
+		perm |= TEE_MATTR_UX;
+
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		res = vm_map(&ctx->uctx, va, reg->page_count * SMALL_PAGE_SIZE,
+			     perm,
+			     0,
+			     reg->mobj, reg->page_offset);
+
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed to map memory region");
+			return res;
+		}
+	}
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)

@@ -424,6 +424,198 @@ cleanup:
 	return res;
 }
 
+static bool check_rxtx(struct ffa_rxtx *rxtx)
+{
+	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0;
+}
+
+static TEE_Result check_retrieve_request(struct sp_mem_receiver *receiver,
+					 struct ffa_mem_transaction *retr_dsc,
+					 struct sp_mem *smem, int64_t tx_len)
+{
+	struct ffa_mem_access *retr_access = NULL;
+	uint8_t share_perm = receiver->perm.perm;
+	uint32_t retr_perm = 0;
+	uint32_t retr_flags =  retr_dsc->flags;
+	struct sp_mem_map_region *reg = NULL;
+
+	/*
+	 * The request came for the endpoint. It should only have one
+	 * ffa_mem_access element
+	 */
+	if (retr_dsc->mem_access_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	retr_access = &retr_dsc->mem_access_array[0];
+	retr_perm = retr_access->access_perm.perm;
+	/*
+	 * Compare the permissions and flags of the original share with the
+	 * current request (retr_dsc).
+	 */
+
+	/* Check if tag is correct */
+	if (receiver->smem->transaction.tag != retr_dsc->tag) {
+		EMSG("Incorrect tag! %lx %lx", receiver->smem->transaction.tag,
+		     retr_dsc->tag);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Check permissions  and flags*/
+	if ((retr_perm & FFA_MEM_ACC_RW) &&
+	    !(share_perm & FFA_MEM_ACC_RW)) {
+		DMSG("Incorrect memshare permission set");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if ((retr_perm & FFA_MEM_ACC_EXE) &&
+	    !(share_perm & FFA_MEM_ACC_EXE)) {
+		DMSG("Incorrect memshare permission set");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if ((retr_flags & FFA_MEMORY_REGION_FLAG_CLEAR_RELINQUISH)) {
+		DMSG("CLEAR_RELINQUISH is not allowed for FFA_SHARE");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Check if there is enough space in the tx buffer to send the respons*/
+	tx_len -= sizeof(struct ffa_mem_transaction) +
+		  sizeof(struct ffa_mem_access) +
+		  sizeof(struct ffa_mem_region);
+
+	if (tx_len < 0)
+		return FFA_NO_MEMORY;
+
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		tx_len -= sizeof(struct ffa_address_range);
+		if (tx_len < 0)
+			return FFA_NO_MEMORY;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void create_retrieve_response(void *dst_buffer,
+				     struct sp_mem_receiver *receiver,
+				     struct sp_mem *smem, struct sp_session *s)
+{
+	size_t off = 0;
+	struct ffa_mem_region *dst_region =  NULL;
+	struct ffa_mem_transaction *d_ds = dst_buffer;
+	struct ffa_address_range *addr_dst = NULL;
+	struct sp_mem_map_region *reg = NULL;
+
+	/*
+	 * We respond with a FFA_MEM_RETRIEVE_RESP which defines the
+	 * following data in the rx buffer of the SP.
+	 * struct mem_transaction_descr
+	 * struct mem_access_descr //1 Element
+	 * struct mem_region_descr
+	 */
+	/* Copy the mem_transaction_descr */
+	memcpy(d_ds, &receiver->smem->transaction,
+	       sizeof(receiver->smem->transaction));
+
+	off = sizeof(struct ffa_mem_transaction) +
+	      sizeof(struct ffa_mem_access);
+
+	d_ds->mem_access_count = 1;
+
+	/* Copy the mem_accsess_descr */
+	d_ds->mem_access_array[0].region_offs = off;
+	memcpy(&d_ds->mem_access_array[0].access_perm,
+	       &receiver->perm, sizeof(struct ffa_mem_access_perm));
+
+	/* Copy the mem_region_descr */
+	dst_region = (struct ffa_mem_region *)((vaddr_t)d_ds + off);
+
+	dst_region->address_range_count = 0;
+
+	addr_dst = &dst_region->address_range_array[0];
+
+	dst_region->total_page_count = 0;
+
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		uint32_t offset = reg->page_offset;
+		struct sp_ctx *ctx = to_sp_ctx(s->ts_sess.ctx);
+
+		addr_dst->address = (uint64_t)sp_mem_get_va(&ctx->uctx,
+							    offset,
+							    reg->mobj);
+		addr_dst->page_count = reg->page_count;
+		dst_region->address_range_count++;
+
+		dst_region->total_page_count += addr_dst->page_count;
+	}
+}
+
+static void ffa_mem_retrieve(struct thread_smc_args *args,
+			     struct sp_session *caller_sp,
+			     struct ffa_rxtx *rxtx)
+{
+	TEE_Result ret = FFA_OK;
+	size_t tx_len = 0;
+	struct ffa_mem_transaction *retr_dsc = NULL;
+	struct ffa_mem_region *mem_region = NULL;
+	uint64_t va = 0;
+	struct sp_mem *smem = NULL;
+	struct sp_mem_receiver *receiver = NULL;
+
+	if (!check_rxtx(rxtx) || !rxtx->tx_is_mine) {
+		ret = FFA_DENIED;
+		goto out;
+	}
+
+	tx_len = rxtx->size;
+	retr_dsc = rxtx->rx;
+
+	smem = sp_mem_get(retr_dsc->global_handle);
+
+	if (!smem) {
+		DMSG("Incorrect handle");
+		ret = FFA_DENIED;
+		goto out;
+	}
+
+	receiver = sp_mem_get_receiver(caller_sp->endpoint_id, smem);
+
+	if (check_retrieve_request(receiver, retr_dsc, smem, tx_len) !=
+	    TEE_SUCCESS) {
+		ret = FFA_INVALID_PARAMETERS;
+		goto out;
+	}
+
+	if (!receiver->ref_count) {
+		/*
+		 * Try to map the memory linked to the handle in
+		 * sp_mem_access_descr.
+		 */
+		mem_region = (struct ffa_mem_region *)((vaddr_t)retr_dsc +
+				retr_dsc->mem_access_array[0].region_offs);
+
+		va = mem_region->address_range_array[0].address;
+
+		ret = sp_map_shared(caller_sp, receiver, smem,  &va);
+
+		if (ret)
+			goto out;
+	}
+
+	receiver->ref_count++;
+
+	create_retrieve_response(rxtx->tx, receiver, smem, caller_sp);
+
+	args->a0 = FFA_MEM_RETRIEVE_RESP;
+	args->a1 = tx_len;
+	args->a2 = tx_len;
+
+	rxtx->tx_is_mine = false;
+
+	return;
+out:
+	ffa_set_error(args, ret);
+}
+
 static struct sp_session *
 ffa_handle_sp_direct_req(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
@@ -661,6 +853,13 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			ts_push_current_session(&caller_sp->ts_sess);
 			spmc_sp_handle_mem_share(args, &caller_sp->rxtx,
 						 caller_sp);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+		case FFA_MEM_RETRIEVE_REQ_32:
+		case FFA_MEM_RETRIEVE_REQ_64:
+			ts_push_current_session(&caller_sp->ts_sess);
+			ffa_mem_retrieve(args, caller_sp, &caller_sp->rxtx);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

@@ -64,5 +64,9 @@ struct sp_mem {
 struct sp_mem *sp_mem_new(void);
 bool sp_mem_is_shared(struct sp_mem_map_region *new_reg);
 bool sp_mem_remove(struct sp_mem *s_mem);
+struct sp_mem_receiver *sp_mem_get_receiver(uint32_t s_id, struct sp_mem *smem);
+struct sp_mem *sp_mem_get(uint64_t handle);
 
+void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
+		    struct mobj *mobj);
 #endif /*__MM_SP_MEM_H*/
