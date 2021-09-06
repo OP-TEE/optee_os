@@ -315,7 +315,7 @@ void stm32_etzpc_init(paddr_t base)
 	init_device_from_hw_config(&etzpc_dev, base);
 }
 
-#ifdef CFG_DT
+#ifdef CFG_EMBED_DTB
 static TEE_Result init_etzpc_from_dt(void)
 {
 	void *fdt = get_embedded_dt();
@@ -343,4 +343,4 @@ static TEE_Result init_etzpc_from_dt(void)
 }
 
 service_init(init_etzpc_from_dt);
-#endif /*CFG_DT*/
+#endif /*CFG_EMBED_DTB*/

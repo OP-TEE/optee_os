@@ -162,7 +162,7 @@ static __maybe_unused const char *shres2str_state(enum shres_state id)
 }
 
 /* GPIOZ bank pin count depends on SoC variants */
-#ifdef CFG_DT
+#ifdef CFG_EMBED_DTB
 /* A light count routine for unpaged context to not depend on DTB support */
 static int gpioz_nbpin = -1;
 

@@ -104,7 +104,7 @@ void console_init(void)
 	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
 
-#ifdef CFG_DT
+#ifdef CFG_EMBED_DTB
 static TEE_Result init_console_from_dt(void)
 {
 	struct stm32_uart_pdata *pd = NULL;
