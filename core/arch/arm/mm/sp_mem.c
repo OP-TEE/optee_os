@@ -17,6 +17,7 @@ static unsigned int sp_mem_lock = SPINLOCK_UNLOCK;
 /* mem_shares stores all active FF-A shares. */
 SLIST_HEAD(sp_mem_head, sp_mem);
 static struct sp_mem_head mem_shares = SLIST_HEAD_INITIALIZER(sp_mem_head);
+/* Weak instance of mobj_sp_ops mandates it is not static */
 const struct mobj_ops mobj_sp_ops;
 
 struct mobj_sp {
@@ -162,6 +163,43 @@ const struct mobj_ops mobj_sp_ops __weak __rodata_unpaged("mobj_sp_ops") = {
 	.matches = mobj_sp_matches,
 	.free = inactivate,
 };
+
+struct sp_mem_receiver *sp_mem_get_receiver(uint32_t s_id, struct sp_mem *smem)
+{
+	struct sp_mem_receiver *r = NULL;
+
+	SLIST_FOREACH(r, &smem->receivers, link) {
+		if (r->perm.endpoint_id == s_id)
+			return r;
+	}
+	return NULL;
+}
+
+struct sp_mem *sp_mem_get(uint64_t handle)
+{
+	struct sp_mem *smem = NULL;
+	uint32_t exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+
+	SLIST_FOREACH(smem, &mem_shares, link) {
+		if (smem->global_handle == handle)
+			break;
+	}
+
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+	return smem;
+}
+
+void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
+		    struct mobj *mobj)
+{
+	struct vm_region *region = NULL;
+
+	TAILQ_FOREACH(region, &uctx->vm_info.regions, link) {
+		if (region->mobj == mobj && region->offset == offset)
+			return (void *)region->va;
+	}
+	return NULL;
+}
 
 struct sp_mem *sp_mem_new(void)
 {

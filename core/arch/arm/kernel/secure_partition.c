@@ -232,6 +232,50 @@ static TEE_Result sp_init_set_registers(struct sp_ctx *ctx)
 	return TEE_SUCCESS;
 }
 
+TEE_Result sp_map_shared(struct sp_session *s,
+			 struct sp_mem_receiver *receiver,
+			 struct sp_mem *smem,
+			 uint64_t *va)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct sp_ctx *ctx = NULL;
+	uint32_t perm = TEE_MATTR_UR;
+	struct sp_mem_map_region *reg = NULL;
+
+	ctx = to_sp_ctx(s->ts_sess.ctx);
+
+	/* Get the permission */
+	if (receiver->perm.perm & FFA_MEM_ACC_EXE)
+		perm |= TEE_MATTR_UX;
+
+	if (receiver->perm.perm & FFA_MEM_ACC_RW) {
+		if (receiver->perm.perm & FFA_MEM_ACC_EXE)
+			return TEE_ERROR_ACCESS_CONFLICT;
+
+		perm |= TEE_MATTR_UW;
+	}
+	/*
+	 * Currently we don't support passing a va. We can't guarantee that the
+	 * full region will be mapped in a contiguous region. A smem->region can
+	 * have multiple mobj for one share. Currently there doesn't seem to be
+	 * an option to guarantee that these will be mapped in a contiguous va
+	 * space.
+	 */
+	if (*va)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	SLIST_FOREACH(reg, &smem->regions, link) {
+		res = vm_map(&ctx->uctx, va, reg->page_count * SMALL_PAGE_SIZE,
+			     perm, 0, reg->mobj, reg->page_offset);
+
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed to map memory region %#"PRIx32, res);
+			return res;
+		}
+	}
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *uuid)
