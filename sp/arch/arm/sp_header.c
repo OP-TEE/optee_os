@@ -20,5 +20,5 @@ const struct optee_sp_head sp_head __section(".sp_head") = {
 	.uuid = OPTEE_SP_UUID,
 	.stack_size = OPTEE_SP_STACK_SIZE,
 	.flags = 0,
-	.depr_entry = UINT64_MAX
+	.reserved = UINT64_MAX
 };

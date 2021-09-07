@@ -97,11 +97,11 @@ endef
 $(foreach t, $(sort $(wildcard ta/*/user_ta.mk)), $(eval $(call build-user-ta,$(t))))
 endif
 
+ifeq ($(CFG_SECURE_PARTITION),y)
 # Platform/arch config is supposed to assign the targets
 sp-targets ?= invalid
 default-sp-target ?= $(firstword $(sp-targets))
 
-ifeq ($(CFG_SECURE_PARTITION),y)
 define build-sp-target
 sp-target := $(1)
 include sp/sp.mk

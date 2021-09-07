@@ -23,10 +23,6 @@
  */
 
 /*
- * The file defines the functions and variables that other
- */
-
-/*
  * SP header types
  */
 struct optee_sp_uuid {
@@ -40,7 +36,7 @@ struct optee_sp_head {
 	struct optee_sp_uuid uuid;
 	uint32_t stack_size;
 	uint32_t flags;
-	uint64_t depr_entry;
+	uint64_t reserved;
 };
 
 /*

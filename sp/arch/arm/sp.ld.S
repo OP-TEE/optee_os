@@ -40,8 +40,8 @@ SECTIONS {
 	PROVIDE_HIDDEN(__exidx_start = .);
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	PROVIDE_HIDDEN(__exidx_end = .);
-        .ctors : { *(.ctors) }
-        .dtors : { *(.dtors) }
+	.ctors : { *(.ctors) }
+	.dtors : { *(.dtors) }
 	.dynsym : { *(.dynsym) }
 	.dynstr : { *(.dynstr) }
 	.hash : { *(.hash) }

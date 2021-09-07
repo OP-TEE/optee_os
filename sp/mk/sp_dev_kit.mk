@@ -16,7 +16,6 @@ out-dir := $O
 else
 out-dir := .
 endif
-link-out-dir := $(out-dir)	# backward compat
 link-out-dir$(sm) := $(out-dir)
 
 sp-uuid := $(BINARY)

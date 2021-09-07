@@ -5,7 +5,7 @@ sm := $(sp-target)
 sm-$(sm) := y
 
 # Setup compiler for this sub module
-COMPILER_$(sm)		?= $(COMPILER)
+COMPILER_$(sm) ?= $(COMPILER)
 include mk/$(COMPILER_$(sm)).mk
 
 #
@@ -23,7 +23,7 @@ aflags$(sm)	:= $(platform-aflags) $($(sm)-platform-aflags)
 
 # Changes to cppflags$(sm) will only affect how SP dev kit libraries are
 # compiled, these flags are not propagated to the SP
-cppflags$(sm)	+= -include $(conf-file)
+cppflags$(sm) += -include $(conf-file)
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_SP_LOG_LEVEL)
 
 base-prefix := $(sm)-
