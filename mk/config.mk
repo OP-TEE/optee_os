@@ -473,6 +473,10 @@ CFG_TA_GPROF_SUPPORT ?= n
 # defined in tee-supplicant)
 CFG_FTRACE_SUPPORT ?= n
 
+ifeq ($(CFG_FTRACE_SUPPORT)-$(CFG_SECURE_PARTITION),y-y)
+$(error ftrace is not supported with Secure Partitions)
+endif
+
 # How to make room when the function tracing buffer is full?
 # 'shift': shift the previously stored data by the amount needed in order
 #    to always keep the latest logs (slower, especially with big buffer sizes)

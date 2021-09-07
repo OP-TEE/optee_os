@@ -322,11 +322,6 @@ ta-mk-file-export-add-ta_arm64 += PYTHON3 ?= python3_nl_
 endif
 
 ifneq ($(filter sp_arm32,$(sp-targets)),)
-
-ifeq ($(CFG_FTRACE_SUPPORT),y)
-$(error ftrace is not supported for Secure Partitions)
-endif
-
 # Variables for sp-target/sm "sp_arm32"
 CFG_ARM32_sp_arm32 := y
 arch-bits-sp_arm32 := 32
@@ -375,11 +370,6 @@ sp-mk-file-export-add-sp_arm32 += PYTHON3 ?= python3_nl_
 endif
 
 ifneq ($(filter sp_arm64,$(sp-targets)),)
-
-ifeq ($(CFG_FTRACE_SUPPORT),y)
-$(error ftrace is not supported for Secure Partitions)
-endif
-
 # Variables for sp-target/sm "sp_arm64"
 CFG_ARM64_sp_arm64 := y
 arch-bits-sp_arm64 := 64
