@@ -2189,7 +2189,6 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	}
 #endif
 
-#ifndef CFG_VIRTUALIZATION
 	if (!core_va2pa_helper(va, &p)) {
 		/* Verfiy only the static mapping (case non null phys addr) */
 		if (p && pa != p) {
@@ -2203,7 +2202,6 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 			panic();
 		}
 	}
-#endif
 }
 #else
 static void check_pa_matches_va(void *va __unused, paddr_t pa __unused)
