@@ -12,6 +12,12 @@
 #include <utee_syscalls.h>
 #include "tee_api_private.h"
 
+/*
+ * return a known non-NULL invalid pointer when the
+ * requested size is zero
+ */
+#define TEE_NULL_SIZED_VA	((void *)1)
+
 static const void *tee_api_instance_data;
 
 /* System API - Internal Client API */
@@ -392,6 +398,9 @@ void TEE_GetREETime(TEE_Time *time)
 
 void *TEE_Malloc(uint32_t len, uint32_t hint)
 {
+	if (!len)
+		return TEE_NULL_SIZED_VA;
+
 	if (hint == TEE_MALLOC_FILL_ZERO)
 		return calloc(1, len);
 	else if (hint == TEE_USER_MEM_HINT_NO_FILL_ZERO)
@@ -404,12 +413,21 @@ void *TEE_Malloc(uint32_t len, uint32_t hint)
 
 void *TEE_Realloc(void *buffer, uint32_t newSize)
 {
+	if (!newSize) {
+		TEE_Free(buffer);
+		return TEE_NULL_SIZED_VA;
+	}
+
+	if (buffer == TEE_NULL_SIZED_VA)
+		return calloc(1, newSize);
+
 	return realloc(buffer, newSize);
 }
 
 void TEE_Free(void *buffer)
 {
-	free(buffer);
+	if (buffer != TEE_NULL_SIZED_VA)
+		free(buffer);
 }
 
 /* Cache maintenance support (TA requires the CACHE_MAINTENANCE property) */
