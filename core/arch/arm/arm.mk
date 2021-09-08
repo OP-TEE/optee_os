@@ -210,17 +210,17 @@ supported-ta-targets += ta_arm64
 endif
 endif
 
+ta-targets := $(if $(CFG_USER_TA_TARGETS),$(filter $(supported-ta-targets),$(CFG_USER_TA_TARGETS)),$(supported-ta-targets))
+unsup-targets := $(filter-out $(ta-targets),$(CFG_USER_TA_TARGETS))
+ifneq (,$(unsup-targets))
+$(error CFG_USER_TA_TARGETS contains unsupported value(s): $(unsup-targets). Valid values: $(supported-ta-targets))
+endif
+
 ifeq (,$(supported-sp-targets))
 supported-sp-targets = sp_arm32
 ifeq ($(CFG_ARM64_core),y)
 supported-sp-targets += sp_arm64
 endif
-endif
-
-ta-targets := $(if $(CFG_USER_TA_TARGETS),$(filter $(supported-ta-targets),$(CFG_USER_TA_TARGETS)),$(supported-ta-targets))
-unsup-targets := $(filter-out $(ta-targets),$(CFG_USER_TA_TARGETS))
-ifneq (,$(unsup-targets))
-$(error CFG_USER_TA_TARGETS contains unsupported value(s): $(unsup-targets). Valid values: $(supported-ta-targets))
 endif
 
 sp-targets := $(if $(CFG_SP_TARGETS),$(filter $(supported-sp-targets),$(CFG_SP_TARGETS)),$(supported-sp-targets))
