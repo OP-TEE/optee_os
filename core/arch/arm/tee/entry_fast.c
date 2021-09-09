@@ -16,11 +16,26 @@
 #ifdef CFG_CORE_RESERVED_SHM
 static void tee_entry_get_shm_config(struct thread_smc_args *args)
 {
+	unsigned long page_shift, paddr, settings;
+
+	/*
+	 * If the page_shift is set from ree kernel, return the pfn and
+	 * set the corresponding bit in a3 to let the ree kernel know it.
+	 * If page_shift equals 0 means a1 is paddr.
+	 */
+	page_shift = args->a1;
+	paddr = ROUNDUP(default_nsec_shm_paddr, BIT32(page_shift));
+	settings = core_mmu_is_shm_cached();
+
+	if (page_shift)
+		settings |= BIT32(page_shift);
+
 	args->a0 = OPTEE_SMC_RETURN_OK;
-	args->a1 = default_nsec_shm_paddr;
+	args->a1 = paddr >> page_shift;
 	args->a2 = default_nsec_shm_size;
 	/* Should this be TEESMC cache attributes instead? */
-	args->a3 = core_mmu_is_shm_cached();
+	args->a3 = settings;
+
 }
 #endif
 
