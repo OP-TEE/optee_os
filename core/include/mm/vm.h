@@ -99,4 +99,6 @@ TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 /* Set user context @ctx or core privileged context if @ctx is NULL */
 void vm_set_ctx(struct ts_ctx *ctx);
 
+struct mobj *vm_get_mobj(struct user_mode_ctx *uctx, vaddr_t va, size_t *len,
+			 uint16_t *prot, size_t *offs);
 #endif /*TEE_MMU_H*/
