@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016-2021, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2021, Arm Limited
  */
 
 #include <arm.h>
@@ -1302,3 +1303,21 @@ void vm_set_ctx(struct ts_ctx *ctx)
 	tsd->ctx = ctx;
 }
 
+struct mobj *vm_get_mobj(struct user_mode_ctx *uctx, vaddr_t va, size_t *len,
+			 uint16_t *prot, size_t *offs)
+{
+	struct vm_region *r = NULL;
+	size_t r_offs = 0;
+
+	if (!len || ((*len | va) & SMALL_PAGE_MASK))
+		return NULL;
+
+	r = find_vm_region(&uctx->vm_info, va);
+	if (!r)
+		return NULL;
+	r_offs = va - r->va;
+	*len = MIN(r->size - r_offs, *len);
+	*offs = r->offset + r_offs;
+	*prot = r->attr & TEE_MATTR_PROT_MASK;
+	return mobj_get(r->mobj);
+}
