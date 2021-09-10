@@ -416,8 +416,9 @@ static void init_runtime(unsigned long pageable_part)
 
 	init_asan();
 
-	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
+	/* Add heap2 first as heap1 may be too small as initial bget pool */
 	malloc_add_pool(__heap2_start, __heap2_end - __heap2_start);
+	malloc_add_pool(__heap1_start, __heap1_end - __heap1_start);
 
 	/*
 	 * This needs to be initialized early to support address lookup
