@@ -8,21 +8,10 @@
 #include <drivers/clk_dt.h>
 #include <initcall.h>
 #include <kernel/boot.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <stddef.h>
-
-struct clk_dt_provider {
-	int nodeoffset;
-	unsigned int clock_cells;
-	uint32_t phandle;
-	clk_dt_get_func get_dt_clk;
-	void *data;
-	SLIST_ENTRY(clk_dt_provider) link;
-};
-
-static SLIST_HEAD(, clk_dt_provider) clk_dt_provider_list =
-				SLIST_HEAD_INITIALIZER(clk_dt_provider_list);
 
 static int fdt_clock_cells(const void *fdt, int nodeoffset)
 {
@@ -42,36 +31,36 @@ static int fdt_clock_cells(const void *fdt, int nodeoffset)
 TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
 					clk_dt_get_func get_dt_clk, void *data)
 {
-	struct clk_dt_provider *prv = NULL;
+	struct dt_driver_provider *prv = NULL;
 	int clock_cells = 0;
 
 	prv = calloc(1, sizeof(*prv));
 	if (!prv)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	prv->get_dt_clk = get_dt_clk;
-	prv->data = data;
+	prv->get_of_device = (get_of_device_func)get_dt_clk;
+	prv->priv_data = data;
 	prv->nodeoffset = nodeoffset;
 	clock_cells = fdt_clock_cells(fdt, nodeoffset);
 	if (clock_cells < 0) {
 		free(prv);
 		return TEE_ERROR_GENERIC;
 	}
-	prv->clock_cells = clock_cells;
+	prv->provider_cells = clock_cells;
 	prv->phandle = fdt_get_phandle(fdt, nodeoffset);
 
-	SLIST_INSERT_HEAD(&clk_dt_provider_list, prv, link);
+	SLIST_INSERT_HEAD(&dt_driver_provider_list, prv, link);
 
 	return TEE_SUCCESS;
 }
 
 static TEE_Result clk_dt_release_provider(void)
 {
-	struct clk_dt_provider *prv = NULL;
+	struct dt_driver_provider *prv = NULL;
 
-	while (!SLIST_EMPTY(&clk_dt_provider_list)) {
-		prv = SLIST_FIRST(&clk_dt_provider_list);
-		SLIST_REMOVE_HEAD(&clk_dt_provider_list, link);
+	while (!SLIST_EMPTY(&dt_driver_provider_list)) {
+		prv = SLIST_FIRST(&dt_driver_provider_list);
+		SLIST_REMOVE_HEAD(&dt_driver_provider_list, link);
 		free(prv);
 	}
 
@@ -80,46 +69,48 @@ static TEE_Result clk_dt_release_provider(void)
 
 driver_init_late(clk_dt_release_provider);
 
-static struct clk_dt_provider *clk_get_provider_by_node(int nodeoffset)
+static struct dt_driver_provider *clk_get_provider_by_node(int nodeoffset)
 {
-	struct clk_dt_provider *prv = NULL;
+	struct dt_driver_provider *prv = NULL;
 
-	SLIST_FOREACH(prv, &clk_dt_provider_list, link)
+	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
 		if (prv->nodeoffset == nodeoffset)
 			return prv;
 
 	return NULL;
 }
 
-static struct clk_dt_provider *clk_get_provider_by_phandle(uint32_t phandle)
+static struct dt_driver_provider *clk_get_provider_by_phandle(uint32_t phandle)
 {
-	struct clk_dt_provider *prv = NULL;
+	struct dt_driver_provider *prv = NULL;
 
-	SLIST_FOREACH(prv, &clk_dt_provider_list, link)
+	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
 		if (prv->phandle == phandle)
 			return prv;
 
 	return NULL;
 }
 
-static struct clk *clk_dt_get_from_provider(struct clk_dt_provider *prv,
+static struct clk *clk_dt_get_from_provider(struct dt_driver_provider *prv,
 					    unsigned int clock_cells,
 					    const uint32_t *prop)
 {
 	unsigned int arg = 0;
 	struct clk *clk = NULL;
-	struct clk_dt_phandle_args pargs = { };
+	struct dt_driver_phandle_args *pargs = NULL;
 
-	pargs.args_count = clock_cells;
-	pargs.args = calloc(pargs.args_count, sizeof(uint32_t));
-	if (!pargs.args)
+	pargs = calloc(1, clock_cells * sizeof(uint32_t *) +
+		       sizeof(*pargs));
+	if (!pargs)
 		return NULL;
 
+	pargs->args_count = clock_cells;
 	for (arg = 0; arg < clock_cells; arg++)
-		pargs.args[arg] = fdt32_to_cpu(prop[arg + 1]);
+		pargs->args[arg] = fdt32_to_cpu(prop[arg + 1]);
 
-	clk = prv->get_dt_clk(&pargs, prv->data);
-	free(pargs.args);
+	clk = prv->get_of_device(pargs, prv->priv_data);
+
+	free(pargs);
 
 	return clk;
 }
@@ -146,7 +137,7 @@ static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 	int clock_cells = 0;
 	uint32_t phandle = 0;
 	const uint32_t *prop = NULL;
-	struct clk_dt_provider *prv = NULL;
+	struct dt_driver_provider *prv = NULL;
 
 	prop = fdt_getprop(fdt, nodeoffset, prop_name, &len);
 	if (!prop)
@@ -160,7 +151,7 @@ static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 		if (!prv)
 			return NULL;
 
-		clock_cells = prv->clock_cells;
+		clock_cells = prv->provider_cells;
 		if (clk_idx) {
 			clk_idx--;
 			idx += sizeof(phandle) + clock_cells * sizeof(uint32_t);

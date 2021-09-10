@@ -7,20 +7,9 @@
 #define __DRIVERS_CLK_DT_H
 
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <stdint.h>
 #include <sys/queue.h>
-
-/**
- * struct clk_dt_phandle_args - Devicetree clock args
- * @nodeoffset: Clock consumer node offset
- * @args_count: Count of items in @args
- * @args: Clocks consumer specifiers
- */
-struct clk_dt_phandle_args {
-	int nodeoffset;
-	int args_count;
-	uint32_t *args;
-};
 
 /**
  * struct clk_driver - Clock driver setup struct
@@ -85,7 +74,7 @@ struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
  * Returns a clk struct pointer pointing to a clock matching the devicetree
  * description or NULL if invalid description.
  */
-typedef struct clk *(*clk_dt_get_func)(struct clk_dt_phandle_args *args,
+typedef struct clk *(*clk_dt_get_func)(struct dt_driver_phandle_args *args,
 				       void *data);
 
 /**
@@ -105,7 +94,7 @@ TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
  * providers
  */
 static inline
-struct clk *clk_dt_get_simple_clk(struct clk_dt_phandle_args *args __unused,
+struct clk *clk_dt_get_simple_clk(struct dt_driver_phandle_args *args __unused,
 				  void *data)
 {
 	return data;
