@@ -12,7 +12,30 @@
 #include <sys/queue.h>
 #include <tee_api_types.h>
 
-struct dt_driver_prov_list dt_driver_provider_list =
+/*
+ * struct dt_driver_provider - DT related info on probed device
+ *
+ * Saves information on the probed device so that device
+ * drivers can get resources from DT phandle and related arguments.
+ *
+ * @nodeoffset: Node offset of device referenced in the FDT
+ * @type: One of DT_DRIVER_* or DT_DRIVER_NOTYPE.
+ * @provider_cells: Cells count in the FDT used by the driver's references
+ * @get_of_device: Function to get driver's device ref from phandle data
+ * @priv_data: Driver private data passed as @get_of_device argument
+ * @link: Reference in DT driver providers list
+ */
+struct dt_driver_provider {
+	int nodeoffset;
+	enum dt_driver_type type;
+	unsigned int provider_cells;
+	uint32_t phandle;
+	get_of_device_func get_of_device;
+	void *priv_data;
+	SLIST_ENTRY(dt_driver_provider) link;
+};
+
+static SLIST_HEAD(, dt_driver_provider) dt_driver_provider_list =
 	SLIST_HEAD_INITIALIZER(dt_driver_provider_list);
 
 /*
