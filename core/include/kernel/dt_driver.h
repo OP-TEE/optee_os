@@ -12,6 +12,9 @@
 #include <sys/queue.h>
 #include <tee_api_types.h>
 
+/* Opaque reference to DT driver device provider instance */
+struct dt_driver_provider;
+
 /**
  * struct dt_driver_phandle_args - Devicetree phandle arguments
  * @args_count: Count of cells for the device
@@ -35,32 +38,6 @@ struct dt_driver_phandle_args {
  */
 typedef void *(*get_of_device_func)(struct dt_driver_phandle_args *parg,
 				    void *data);
-
-/*
- * struct dt_driver_provider - DT related info on probed device
- *
- * Saves information on the probed device so that device
- * drivers can get resources from DT phandle and related arguments.
- *
- * @nodeoffset: Node offset of device referenced in the FDT
- * @type: One of DT_DRIVER_* or DT_DRIVER_NOTYPE.
- * @provider_cells: Cells count in the FDT used by the driver's references
- * @get_of_device: Function to get driver's device ref from phandle data
- * @priv_data: Driver private data passed as @get_of_device argument
- * @link: Reference in DT driver providers list
- */
-struct dt_driver_provider {
-	int nodeoffset;
-	enum dt_driver_type type;
-	unsigned int provider_cells;
-	uint32_t phandle;
-	get_of_device_func get_of_device;
-	void *priv_data;
-	SLIST_ENTRY(dt_driver_provider) link;
-};
-
-SLIST_HEAD(dt_driver_prov_list, dt_driver_provider);
-extern struct dt_driver_prov_list dt_driver_provider_list;
 
 /**
  * dt_driver_register_provider - Register a driver provider
