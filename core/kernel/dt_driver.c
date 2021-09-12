@@ -651,3 +651,35 @@ static TEE_Result probe_dt_drivers(void)
 }
 
 driver_init(probe_dt_drivers);
+
+/*
+ * Simple bus support: handy to parse subnodes
+ */
+static TEE_Result simple_bus_probe(const void *fdt, int node,
+				   const void *compat_data __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int subnode = 0;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed on node %s with %#"PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			panic();
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match simple_bus_match_table[] = {
+	{ .compatible = "simple-bus" },
+	{ }
+};
+
+const struct dt_driver simple_bus_dt_driver __dt_driver = {
+	.name = "simple-bus",
+	.match_table = simple_bus_match_table,
+	.probe = simple_bus_probe,
+};
