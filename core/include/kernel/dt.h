@@ -77,6 +77,7 @@ enum dt_driver_type {
  * @compat_data: Data registered for the compatible that probed the device
  *
  * Return TEE_SUCCESS on successful probe,
+ *	TEE_ERROR_DEFER_DRIVER_INIT if probe must be deferred
  *	TEE_ERROR_ITEM_NOT_FOUND when no driver matched node's compatible string
  *	Any other TEE_ERROR_* compliant code.
  */
