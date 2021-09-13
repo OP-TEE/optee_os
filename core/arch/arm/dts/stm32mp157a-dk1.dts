@@ -27,7 +27,6 @@
 
 &rcc {
 	status = "okay";
-	secure-status = "disable";
 };
 
 &bsec {
