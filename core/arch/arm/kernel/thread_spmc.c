@@ -640,6 +640,25 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 	return rc;
 }
 
+static bool is_sp_share(void *buf)
+{
+	struct ffa_mem_transaction *input_descr = NULL;
+	struct ffa_mem_access_perm *perm = NULL;
+
+	if (!IS_ENABLED(CFG_SECURE_PARTITION))
+		return false;
+
+	input_descr = buf;
+	perm = &input_descr->mem_access_array[0].access_perm;
+
+	/*
+	 * perm->endpoint_id is read here only to check if the endpoint is
+	 * OP-TEE. We do read it later on again, but there are some additional
+	 * checks there to make sure that the data is correct.
+	 */
+	return READ_ONCE(perm->endpoint_id) != my_endpoint_id;
+}
+
 static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 			 size_t flen, uint64_t *global_handle)
 {
@@ -757,8 +776,15 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 
 	cpu_spin_lock(&rxtx->spinlock);
 
-	if (rxtx->rx && flen <= rxtx->size)
-		rc = add_mem_share(NULL, rxtx->rx, blen, flen, global_handle);
+	if (rxtx->rx && flen <= rxtx->size) {
+		if (is_sp_share(rxtx->rx)) {
+			rc = spmc_sp_add_share(rxtx, blen,
+					       global_handle, NULL);
+		} else {
+			rc = add_mem_share(NULL, rxtx->rx, blen, flen,
+					   global_handle);
+		}
+	}
 
 	cpu_spin_unlock(&rxtx->spinlock);
 

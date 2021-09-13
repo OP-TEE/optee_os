@@ -10,7 +10,6 @@
 #include <mm/fobj.h>
 #include <sys/queue.h>
 
-struct sp_mem_receiver;
 struct sp_mem;
 
 /*
@@ -60,7 +59,7 @@ SLIST_HEAD(sp_mem_regions_head, sp_mem_map_region);
 struct sp_mem {
 	struct sp_mem_regions_head regions;
 	struct sp_mem_receiver_head receivers;
-	/* Data which was passed inside struct ffa_mem_transaction*/
+	/* Data which was passed inside struct ffa_mem_transaction */
 	uint16_t sender_id;
 	uint8_t mem_reg_attr;
 	uint32_t flags;
@@ -79,4 +78,7 @@ void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 		    struct mobj *mobj);
 void sp_mem_remove(struct sp_mem *s_mem);
 void sp_mem_add(struct sp_mem *smem);
+struct mobj *sp_mem_new_mobj(uint64_t pages);
+int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
+		     paddr_t pa, unsigned int num_pages);
 #endif /*__MM_SP_MEM_H*/
