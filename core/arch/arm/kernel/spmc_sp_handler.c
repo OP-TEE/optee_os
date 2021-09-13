@@ -214,10 +214,52 @@ err:
 	return res;
 }
 
-static int spmc_sp_add_nw_region(struct sp_mem *smem __unused,
-				 struct ffa_mem_region *mem_reg __unused)
+static int spmc_sp_add_nw_region(struct sp_mem *smem,
+				 struct ffa_mem_region *mem_reg)
 {
+	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
+	struct sp_mem_map_region *region = NULL;
+	struct mobj *m = sp_mem_new_mobj(page_count);
+	unsigned int i = 0;
+	unsigned int idx = 0;
+	int res = FFA_OK;
+	uint64_t address_count = READ_ONCE(mem_reg->address_range_count);
+
+	if (!m)
+		return FFA_NO_MEMORY;
+
+	for (i = 0; i < address_count; i++) {
+		struct ffa_address_range *addr_range = NULL;
+
+		addr_range = &mem_reg->address_range_array[i];
+		if (sp_mem_add_pages(m, &idx,
+				     READ_ONCE(addr_range->address),
+				     READ_ONCE(addr_range->page_count))) {
+			res = FFA_DENIED;
+			goto clean_up;
+		}
+	}
+
+	region = calloc(1, sizeof(*region));
+	if (!region) {
+		res = FFA_NO_MEMORY;
+		goto clean_up;
+	}
+
+	region->mobj = m;
+	region->page_count = page_count;
+
+	if (!sp_has_exclusive_access(region, NULL)) {
+		free(region);
+		res = FFA_DENIED;
+		goto clean_up;
+	}
+
+	SLIST_INSERT_HEAD(&smem->regions, region, link);
 	return FFA_OK;
+clean_up:
+	mobj_put(m);
+	return res;
 }
 
 int spmc_sp_add_share(struct ffa_rxtx *rxtx,
