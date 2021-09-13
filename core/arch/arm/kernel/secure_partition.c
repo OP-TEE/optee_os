@@ -14,8 +14,8 @@
 #include <kernel/ts_store.h>
 #include <ldelf.h>
 #include <mm/core_mmu.h>
-#include <mm/fobj.h>
 #include <mm/mobj.h>
+#include <mm/sp_mem.h>
 #include <mm/vm.h>
 #include <optee_ffa.h>
 #include <stdio.h>
