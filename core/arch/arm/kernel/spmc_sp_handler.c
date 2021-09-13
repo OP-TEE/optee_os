@@ -58,9 +58,63 @@ static TEE_Result ffa_get_dst(struct thread_smc_args *args,
 	return FFA_OK;
 }
 
-static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc __unused,
-				struct sp_mem *smem __unused)
+static struct sp_mem_receiver *find_sp_mem_receiver(struct sp_session *s,
+						    struct sp_mem *smem)
 {
+	struct sp_mem_receiver *receiver = NULL;
+
+	/*
+	 * FF-A Spec 8.10.2:
+	 * Each Handle identifies a single unique composite memory region
+	 * description that is, there is a 1:1 mapping between the two.
+	 *
+	 * Each memory share has an unique handle. We can only have each SP
+	 * once as a receiver in the memory share. For each receiver of a
+	 * memory share, we have one sp_mem_access_descr object.
+	 * This means that there can only be one SP linked to a specific
+	 * struct sp_mem_access_descr.
+	 */
+	SLIST_FOREACH(receiver, &smem->receivers, link) {
+		if (receiver->perm.endpoint_id == s->endpoint_id)
+			break;
+	}
+	return receiver;
+}
+
+static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
+				struct sp_mem *smem)
+{
+	struct ffa_mem_access_perm *access_perm = &mem_acc->access_perm;
+	struct sp_session *s = NULL;
+	struct sp_mem_receiver *receiver = NULL;
+	uint8_t perm = READ_ONCE(access_perm->perm);
+	uint16_t endpoint_id = READ_ONCE(access_perm->endpoint_id);
+
+	s = sp_get_session(endpoint_id);
+
+	/* Only add memory shares of loaded SPs */
+	if (!s)
+		return FFA_DENIED;
+
+	/* Only allow each endpoint once */
+	if (find_sp_mem_receiver(s, smem))
+		return FFA_DENIED;
+
+	if (perm & ~FFA_MEM_ACC_MASK)
+		return FFA_DENIED;
+
+	receiver = calloc(1, sizeof(struct sp_mem_receiver));
+	if (!receiver)
+		return FFA_NO_MEMORY;
+
+	receiver->smem = smem;
+
+	receiver->perm.endpoint_id = endpoint_id;
+	receiver->perm.perm = perm;
+	receiver->perm.flags = READ_ONCE(access_perm->flags);
+
+	SLIST_INSERT_HEAD(&smem->receivers, receiver, link);
+
 	return FFA_OK;
 }
 
