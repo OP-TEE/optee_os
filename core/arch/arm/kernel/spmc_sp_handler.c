@@ -4,11 +4,17 @@
  */
 #include <assert.h>
 #include <bench.h>
+#include <io.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
+#include <kernel/tee_misc.h>
+#include <mm/mobj.h>
+#include <mm/sp_mem.h>
+#include <mm/vm.h>
 #include <optee_ffa.h>
+#include <string.h>
 #include "thread_private.h"
 
 void spmc_sp_start_thread(struct thread_smc_args *args)
@@ -50,6 +56,147 @@ static TEE_Result ffa_get_dst(struct thread_smc_args *args,
 	*dst = s;
 
 	return FFA_OK;
+}
+
+static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc __unused,
+				struct sp_mem *smem __unused)
+{
+	return FFA_OK;
+}
+
+static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
+				     struct ffa_rxtx *rxtx,
+				     struct sp_session *owner_sp)
+{
+	uint64_t global_handle = 0;
+	int res = FFA_OK;
+	uint32_t ret_w2 = 0;
+	uint32_t ret_w3 = 0;
+
+	cpu_spin_lock(&rxtx->spinlock);
+
+	res = spmc_sp_add_share(rxtx, args->a1, &global_handle, owner_sp);
+	if (!res) {
+		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
+		args->a3 = ret_w3;
+		args->a2 = ret_w2;
+		args->a1 = FFA_PARAM_MBZ;
+		args->a0 = FFA_SUCCESS_32;
+	} else {
+		ffa_set_error(args, res);
+	}
+
+	cpu_spin_unlock(&rxtx->spinlock);
+}
+
+static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
+				 struct ffa_address_range *mem_reg __unused,
+				 struct sp_session *owner_sp __unused,
+				 uint8_t highest_permission __unused)
+{
+	return FFA_OK;
+}
+
+static int spmc_sp_add_nw_region(struct sp_mem *smem __unused,
+				 struct ffa_mem_region *mem_reg __unused)
+{
+	return FFA_OK;
+}
+
+int spmc_sp_add_share(struct ffa_rxtx *rxtx,
+		      size_t blen, uint64_t *global_handle,
+		      struct sp_session *owner_sp)
+{
+	int res = FFA_INVALID_PARAMETERS;
+	unsigned int num_mem_accs = 0;
+	unsigned int i = 0;
+	struct ffa_mem_access *mem_acc = NULL;
+	size_t needed_size = 0;
+	size_t addr_range_offs = 0;
+	struct ffa_mem_region *mem_reg = NULL;
+	uint8_t highest_permission = 0;
+	struct sp_mem *smem = sp_mem_new();
+	struct ffa_mem_transaction *input_descr = rxtx->rx;
+	uint16_t sender_id = READ_ONCE(input_descr->sender_id);
+
+	if (!smem)
+		return FFA_NO_MEMORY;
+
+	if ((owner_sp && owner_sp->endpoint_id != sender_id) ||
+	    (!owner_sp && sp_get_session(sender_id))) {
+		res = FFA_DENIED;
+		goto cleanup;
+	}
+
+	num_mem_accs = READ_ONCE(input_descr->mem_access_count);
+	mem_acc = input_descr->mem_access_array;
+
+	if (!num_mem_accs) {
+		res = FFA_DENIED;
+		goto cleanup;
+	}
+
+	/* Store the ffa_mem_transaction */
+	smem->sender_id = sender_id;
+	smem->mem_reg_attr = READ_ONCE(input_descr->mem_reg_attr);
+	smem->flags = READ_ONCE(input_descr->flags);
+	smem->tag = READ_ONCE(input_descr->tag);
+
+	if (MUL_OVERFLOW(num_mem_accs, sizeof(*mem_acc), &needed_size) ||
+	    ADD_OVERFLOW(needed_size, sizeof(*input_descr), &needed_size) ||
+	    needed_size > blen) {
+		res = FFA_NO_MEMORY;
+		goto cleanup;
+	}
+
+	for (i = 0; i < num_mem_accs; i++)
+		highest_permission |= READ_ONCE(mem_acc[i].access_perm.perm);
+
+	addr_range_offs = READ_ONCE(mem_acc[0].region_offs);
+	mem_reg = (void *)((char *)input_descr + addr_range_offs);
+
+	/* Iterate over all the addresses */
+	if (owner_sp) {
+		size_t address_range = READ_ONCE(mem_reg->address_range_count);
+
+		for (i = 0; i < address_range; i++) {
+			struct ffa_address_range *addr_range = NULL;
+
+			addr_range = &mem_reg->address_range_array[i];
+
+			if (!core_is_buffer_inside((vaddr_t)addr_range,
+						   sizeof(*addr_range),
+						   (vaddr_t)rxtx->rx,
+						   rxtx->size)) {
+				res = FFA_NO_MEMORY;
+				goto cleanup;
+			}
+			res = spmc_sp_add_sp_region(smem, addr_range,
+						    owner_sp,
+						    highest_permission);
+			if (res)
+				goto cleanup;
+		}
+	} else {
+		res = spmc_sp_add_nw_region(smem, mem_reg);
+		if (res)
+			goto cleanup;
+	}
+
+	/* Add the memory address to the SP */
+	for (i = 0; i < num_mem_accs; i++) {
+		res = add_mem_region_to_sp(&mem_acc[i], smem);
+		if (res)
+			goto cleanup;
+	}
+	*global_handle = smem->global_handle;
+	sp_mem_add(smem);
+
+	return FFA_OK;
+
+cleanup:
+	sp_mem_remove(smem);
+	return res;
 }
 
 static struct sp_session *
@@ -279,6 +426,16 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_PARTITION_INFO_GET:
 			ts_push_current_session(&caller_sp->ts_sess);
 			spmc_handle_partition_info_get(args, &caller_sp->rxtx);
+			ts_pop_current_session();
+			sp_enter(args, caller_sp);
+			break;
+#ifdef ARM64
+		case FFA_MEM_SHARE_64:
+#endif
+		case FFA_MEM_SHARE_32:
+			ts_push_current_session(&caller_sp->ts_sess);
+			spmc_sp_handle_mem_share(args, &caller_sp->rxtx,
+						 caller_sp);
 			ts_pop_current_session();
 			sp_enter(args, caller_sp);
 			break;

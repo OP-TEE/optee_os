@@ -8,6 +8,7 @@ endif
 srcs-y += tee_mm.c
 srcs-y += pgt_cache.c
 srcs-$(CFG_CORE_FFA) += mobj_ffa.c
+srcs-$(CFG_SECURE_PARTITION) += sp_mem.c
 ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += mobj_dyn_shm.c
 endif
