@@ -62,5 +62,7 @@ struct sp_mem {
 };
 
 struct sp_mem *sp_mem_new(void);
+bool sp_mem_is_shared(struct sp_mem_map_region *new_reg);
 bool sp_mem_remove(struct sp_mem *s_mem);
+
 #endif /*__MM_SP_MEM_H*/

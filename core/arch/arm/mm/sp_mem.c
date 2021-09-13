@@ -11,6 +11,7 @@
 #include <mm/sp_mem.h>
 
 #define NUM_SHARES	64
+static unsigned int sp_mem_lock = SPINLOCK_UNLOCK;
 static bitstr_t bit_decl(share_bits, NUM_SHARES);
 
 /* mem_shares stores all active FF-A shares. */
@@ -44,6 +45,33 @@ struct sp_mem *sp_mem_new(void)
 	SLIST_INSERT_HEAD(&mem_shares, smem, link);
 
 	return smem;
+}
+
+bool sp_mem_is_shared(struct sp_mem_map_region *new_reg)
+{
+	struct sp_mem *smem = NULL;
+
+	SLIST_FOREACH(smem, &mem_shares, link) {
+		struct sp_mem_map_region *reg = NULL;
+
+		SLIST_FOREACH(reg, &smem->regions, link) {
+			uint64_t reg_end = reg->page_offset +
+					   (reg->page_count * SMALL_PAGE_SIZE);
+			uint64_t new_reg_end = 0;
+
+			new_reg_end = new_reg->page_offset +
+				      (new_reg->page_count * SMALL_PAGE_SIZE);
+
+			if (new_reg->mobj == reg->mobj) {
+				if (new_reg->page_offset < reg_end &&
+				    reg->page_offset < new_reg_end) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 bool sp_mem_remove(struct sp_mem *smem)

@@ -109,6 +109,34 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 	return TEE_SUCCESS;
 }
 
+bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
+			     struct user_mode_ctx *uctx)
+{
+	bool found = false;
+
+	/*
+	 * Check that we have access to the region if it is supposed to be
+	 * mapped to the current context.
+	 */
+	if (uctx) {
+		struct vm_region *region = NULL;
+
+		/* Make sure that each mobj belongs to the SP*/
+		TAILQ_FOREACH(region, &uctx->vm_info.regions, link) {
+			if (region->mobj == mem->mobj) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			return false;
+	}
+
+	/* Check that it is not shared with another SP*/
+	return !sp_mem_is_shared(mem);
+}
+
 static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)
 {
 	struct sp_ffa_init_info *info = NULL;
