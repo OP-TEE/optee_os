@@ -41,7 +41,7 @@ static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
 const struct mobj_ops mobj_ffa_ops;
 
-static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
+struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
 	assert(mobj->ops == &mobj_ffa_ops);
 	return container_of(mobj, struct mobj_ffa, mobj);

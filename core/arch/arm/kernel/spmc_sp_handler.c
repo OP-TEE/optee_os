@@ -216,10 +216,87 @@ out:
 	return res;
 }
 
+static int release_mobj(struct sp_mem *smem, struct sp_mem_map_region *region,
+			bool mobj_ffa)
+{
+	uint64_t handle = smem->transaction.global_handle;
+	int res = FFA_OK;
+
+	if (mobj_ffa) {
+		if (handle) {
+			mobj_put(region->mobj);
+			if (mobj_ffa_unregister_by_cookie(handle))
+				return FFA_DENIED;
+
+			if (mobj_ffa_sel1_spmc_reclaim(handle))
+				return FFA_DENIED;
+		} else {
+			mobj_ffa_sel1_spmc_delete(to_mobj_ffa(region->mobj));
+		}
+	} else {
+		mobj_put(region->mobj);
+	}
+
+	return res;
+}
+
 static int spmc_sp_add_nw_region(struct sp_mem *smem,
 				 struct ffa_mem_region *mem_reg)
 {
+	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
+	struct mobj *mobj = NULL;
+	struct sp_mem_map_region *region = NULL;
+	struct mobj_ffa *m = mobj_ffa_sel1_spmc_new(page_count);
+	unsigned int i = 0;
+	unsigned int idx = 0;
+	int res = FFA_OK;
+	uint64_t cookie = 0;
+
+	if (!m)
+		return FFA_DENIED;
+
+	for (i = 0; i < READ_ONCE(mem_reg->address_range_count); i++) {
+		struct ffa_address_range *addr_range = NULL;
+
+		addr_range =  &mem_reg->address_range_array[i];
+		if (mobj_ffa_add_pages_at(m, &idx,
+					  READ_ONCE(addr_range->address),
+					  READ_ONCE(addr_range->page_count))) {
+			res = FFA_DENIED;
+			goto clean_up;
+		}
+	}
+	cookie = mobj_ffa_push_to_inactive(m);
+	mobj = mobj_ffa_get_by_cookie(cookie, 0);
+
+	if (!mobj) {
+		res = FFA_DENIED;
+		goto clean_up;
+	}
+
+	region = malloc(sizeof(*region));
+	region->mobj = mobj;
+	region->page_offset = 0;
+	region->page_count = page_count;
+
+	if (!sp_has_exclusive_access(region, NULL)) {
+		free(region);
+		res = FFA_DENIED;
+		goto clean_up;
+	}
+
+	SLIST_INSERT_HEAD(&smem->regions, region, link);
+	smem->transaction.global_handle = cookie;
 	return FFA_OK;
+clean_up:
+	if (cookie) {
+		mobj_ffa_unregister_by_cookie(cookie);
+		mobj_ffa_sel1_spmc_reclaim(cookie);
+	} else {
+		mobj_ffa_sel1_spmc_delete(m);
+	}
+
+	return res;
 }
 
 int spmc_sp_add_share(struct ffa_rxtx *rxtx,
@@ -338,8 +415,9 @@ cleanup:
 	while (!SLIST_EMPTY(&smem->regions)) {
 		struct sp_mem_map_region *region = SLIST_FIRST(&smem->regions);
 
+		release_mobj(smem, region, !owner_sp);
+
 		SLIST_REMOVE_HEAD(&smem->regions, link);
-		mobj_put(region->mobj);
 		free(region);
 	}
 	sp_mem_remove(smem);

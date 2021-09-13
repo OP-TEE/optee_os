@@ -217,6 +217,7 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 
 TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 
+struct mobj_ffa *to_mobj_ffa(struct mobj *mobj);
 /* Functions for SPMC */
 #ifdef CFG_CORE_SEL1_SPMC
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
