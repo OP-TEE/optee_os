@@ -143,12 +143,75 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 	cpu_spin_unlock(&rxtx->spinlock);
 }
 
-static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
-				 struct ffa_address_range *mem_reg __unused,
-				 struct sp_session *owner_sp __unused,
-				 uint8_t highest_permission __unused)
+static int spmc_sp_add_sp_region(struct sp_mem *smem,
+				 struct ffa_address_range *mem_reg,
+				 struct sp_session *owner_sp,
+				 uint8_t highest_permission)
 {
+	struct sp_ctx *sp_ctx = NULL;
+	uint64_t va = READ_ONCE(mem_reg->address);
+	int res = FFA_OK;
+	uint64_t region_len = READ_ONCE(mem_reg->page_count) * SMALL_PAGE_SIZE;
+	struct mobj *mobj = NULL;
+
+	sp_ctx = to_sp_ctx(owner_sp->ts_sess.ctx);
+
+	/*
+	 * The memory region we try to share might not be linked to just one
+	 * mobj. Create a new region for each mobj.
+	 */
+	while (region_len) {
+		size_t len = region_len;
+		struct sp_mem_map_region *region = NULL;
+		uint16_t prot = 0;
+		size_t offs = 0;
+
+		/*
+		 * There is already a mobj for each address that is in the SPs
+		 * address range.
+		 */
+		mobj = vm_get_mobj(&sp_ctx->uctx, va, &len, &prot, &offs);
+		if (!mobj)
+			return FFA_DENIED;
+
+		/*
+		 * If we share memory from a SP, check if we are not sharing
+		 * with a higher permission than the memory was originally
+		 * mapped.
+		 */
+		if ((highest_permission & FFA_MEM_ACC_RW) &&
+		    !(prot & TEE_MATTR_UW)) {
+			res = FFA_DENIED;
+			goto err;
+		}
+
+		if ((highest_permission & FFA_MEM_ACC_EXE) &&
+		    !(prot & TEE_MATTR_UX)) {
+			res = FFA_DENIED;
+			goto err;
+		}
+
+		region = calloc(1, sizeof(*region));
+		region->mobj = mobj;
+		region->page_offset = offs;
+		region->page_count = len / SMALL_PAGE_SIZE;
+
+		if (!sp_has_exclusive_access(region, &sp_ctx->uctx)) {
+			free(region);
+			res = FFA_DENIED;
+			goto err;
+		}
+
+		va += len;
+		region_len -= len;
+		SLIST_INSERT_HEAD(&smem->regions, region, link);
+	}
+
 	return FFA_OK;
+err:
+	mobj_put(mobj);
+
+	return res;
 }
 
 static int spmc_sp_add_nw_region(struct sp_mem *smem __unused,

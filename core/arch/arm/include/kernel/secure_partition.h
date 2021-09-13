@@ -11,6 +11,7 @@
 #include <kernel/embedded_ts.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/user_mode_ctx_struct.h>
+#include <mm/sp_mem.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
@@ -78,6 +79,8 @@ TEE_Result sp_partition_info_get_all(struct ffa_partition_info *fpi,
 				     size_t *elem_count);
 
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id);
+bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
+			     struct user_mode_ctx *uctx);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
