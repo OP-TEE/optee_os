@@ -17,6 +17,9 @@
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
 void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp);
+int spmc_sp_add_share(struct ffa_rxtx *rxtx,
+		      size_t blen, uint64_t *global_handle,
+		      struct sp_session *owner_sp);
 
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);

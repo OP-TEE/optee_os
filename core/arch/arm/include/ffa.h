@@ -78,7 +78,10 @@
 #define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
 
 /* Memory access permissions: Read-write */
-#define FFA_MEM_ACC_RW			U(0x2)
+#define FFA_MEM_ACC_RW			BIT(1)
+
+/* Memory access permissions: executable */
+#define FFA_MEM_ACC_EXE			BIT(3)
 
 /* Clear memory before mapping in receiver */
 #define FFA_MEMORY_REGION_FLAG_CLEAR		BIT(0)
@@ -106,7 +109,9 @@
 #define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
 #define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
 
+#define FFA_MEMORY_HANDLE_SECURE_BIT	BIT64(45)
 #define FFA_MEMORY_HANDLE_NONE_SECURE_BIT	BIT64(44)
+
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
 struct ffa_address_range {
