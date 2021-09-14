@@ -8,6 +8,12 @@
 #include <stddef.h>
 #include <types_ext.h>
 
+/*
+ * Due to bget implementation, the first memory pool registered shall have
+ * a min size. Choose 1kB which is reasonable.
+ */
+#define MALLOC_INITIAL_POOL_MIN_SIZE	1024
+
 void free(void *ptr);
 
 #ifdef ENABLE_MDBG

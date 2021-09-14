@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include <compiler.h>
+#include <malloc.h>
 #include <tee_ta_api.h>
 #include <tee_internal_api_extensions.h>
 #include <trace.h>
@@ -90,6 +91,10 @@ const struct ta_head ta_head __section(".ta_head") = {
 };
 
 /* Keeping the heap in bss */
+#if TA_DATA_SIZE < MALLOC_INITIAL_POOL_MIN_SIZE
+#error TA_DATA_SIZE too small
+#endif
+
 uint8_t ta_heap[TA_DATA_SIZE];
 const size_t ta_heap_size = sizeof(ta_heap);
 
