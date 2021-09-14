@@ -154,10 +154,6 @@ ifeq ($(DEBUG),1)
 $(call force,CFG_CC_OPT_LEVEL,0)
 $(call force,CFG_DEBUG_INFO,y)
 endif
-ifeq ($(CFG_CC_OPTIMIZE_FOR_SIZE),n)
-# For backwards compatibility
-$(call force,CFG_CC_OPT_LEVEL,0)
-endif
 
 # Optimize for size by default, usually gives good performance too
 CFG_CC_OPT_LEVEL ?= s
