@@ -765,15 +765,19 @@ static void gen_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 	uint32_t exceptions;
 	uintptr_t start = (uintptr_t)buf;
 	uintptr_t end = start + len;
-	const size_t min_len = ((sizeof(struct malloc_pool) + (SizeQuant - 1)) &
-					(~(SizeQuant - 1))) +
-				sizeof(struct bhead) * 2;
+	const size_t min_len = sizeof(struct bhead) + sizeof(struct bfhead);
 
 	start = ROUNDUP(start, SizeQuant);
 	end = ROUNDDOWN(end, SizeQuant);
 
 	if (start > end || (end - start) < min_len) {
 		DMSG("Skipping too small pool");
+		return;
+	}
+
+	/* First pool requires a bigger size */
+	if (!ctx->pool_len && (end - start) < MALLOC_INITIAL_POOL_MIN_SIZE) {
+		DMSG("Skipping too small initial pool");
 		return;
 	}
 
