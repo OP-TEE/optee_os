@@ -77,4 +77,7 @@ struct sp_mem *sp_mem_get(uint64_t handle);
 void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 		    struct mobj *mobj);
 void sp_mem_remove(struct sp_mem *s_mem);
+struct mobj *sp_mem_new_mobj(uint64_t pages);
+int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
+		     paddr_t pa, unsigned int num_pages);
 #endif /*__MM_SP_MEM_H*/

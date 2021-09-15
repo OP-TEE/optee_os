@@ -636,14 +636,15 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 static bool is_sp_share(void *buf)
 {
 	struct ffa_mem_transaction *input_descr = NULL;
+	struct ffa_mem_access_perm *perm = NULL;
 
 	if (!IS_ENABLED(CFG_SECURE_PARTITION))
 		return false;
 
-	input_descr = (struct ffa_mem_transaction *)buf;
+	input_descr = buf;
 
-	return input_descr->mem_access_array[0].access_perm.endpoint_id !=
-		my_endpoint_id;
+	perm = &input_descr->mem_access_array[0].access_perm;
+	return READ_ONCE(perm->endpoint_id) != my_endpoint_id;
 }
 
 static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
