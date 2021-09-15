@@ -551,8 +551,10 @@ CFG_SECSTOR_TA_MGMT_PTA ?= $(call cfg-all-enabled,CFG_SECSTOR_TA)
 $(eval $(call cfg-depends-all,CFG_SECSTOR_TA_MGMT_PTA,CFG_SECSTOR_TA))
 
 # Enable the pseudo TA for misc. auxilary services, extending existing
-# GlobalPlatform Core API (for example, re-seeding RNG entropy pool etc.)
-CFG_SYSTEM_PTA ?= y
+# GlobalPlatform TEE Internal Core API (for example, re-seeding RNG entropy
+# pool etc...)
+CFG_SYSTEM_PTA ?= $(CFG_WITH_USER_TA)
+$(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 
 # Enable the pseudo TA for enumeration of TEE based devices for the normal
 # world OS.
