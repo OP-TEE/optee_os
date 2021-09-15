@@ -25,7 +25,7 @@ static const struct clk_ops fixed_clk_clk_ops = {
 	.get_rate = fixed_clk_get_rate,
 };
 
-static TEE_Result fixed_clock_setup(const void *fdt, int offs,
+static TEE_Result fixed_clock_probe(const void *fdt, int offs,
 				    const void *compat_data __unused)
 {
 	const uint32_t *freq = NULL;
@@ -74,4 +74,4 @@ free_clk:
 	return res;
 }
 
-CLK_DT_DECLARE(fixed_clock, "fixed-clock", fixed_clock_setup);
+CLK_DT_DECLARE(fixed_clock, "fixed-clock", fixed_clock_probe);
