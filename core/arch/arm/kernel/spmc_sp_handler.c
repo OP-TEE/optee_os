@@ -658,8 +658,8 @@ static void zero_mem_region(struct sp_mem *smem, struct sp_session *s)
 
 		addr = sp_mem_get_va(&ctx->uctx, reg->page_offset, reg->mobj);
 
-		if (addr)
-			memset(addr, 0, sz);
+		assert (addr);
+		memset(addr, 0, sz);
 	}
 	ts_pop_current_session();
 }
@@ -683,10 +683,11 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 		endpoint = caller_sp->endpoint_id;
 
 	/* Make sure that the caller is the owner of the share */
-	if (smem->transaction.sender_id != endpoint) {
+	if (smem->sender_id != endpoint) {
 		ffa_set_error(args, FFA_DENIED);
 		return true;
 	}
+
 	/* Make sure that all shares where relinquished */
 	SLIST_FOREACH(receiver, &smem->receivers, link) {
 		if (receiver->ref_count != 0) {
@@ -721,11 +722,7 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 		region = SLIST_FIRST(&smem->regions);
 		SLIST_REMOVE_HEAD(&smem->regions, link);
 
-		if (release_mobj(smem, region, !caller_sp)) {
-			ffa_set_error(args, FFA_DENIED);
-			return true;
-		}
-
+		mobj_put(region->mobj);
 		free(region);
 	}
 

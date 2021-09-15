@@ -171,7 +171,7 @@ struct sp_mem *sp_mem_get(uint64_t handle)
 	struct sp_mem *smem = NULL;
 
 	SLIST_FOREACH(smem, &mem_shares, link) {
-		if (smem->transaction.global_handle == handle)
+		if (smem->global_handle == handle)
 			return smem;
 	}
 	return NULL;
