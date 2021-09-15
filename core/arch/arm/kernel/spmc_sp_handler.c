@@ -421,8 +421,8 @@ static TEE_Result check_retrieve_request(struct sp_mem_receiver *receiver,
 	 */
 
 	/* Check if tag is correct */
-	if (receiver->smem->transaction.tag != retr_dsc->tag) {
-		EMSG("Incorrect tag! %lx %lx", receiver->smem->transaction.tag,
+	if (receiver->smem->tag != retr_dsc->tag) {
+		EMSG("Incorrect tag! %lx %lx", receiver->smem->tag,
 		     retr_dsc->tag);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -480,8 +480,10 @@ static void create_retrieve_response(void *dst_buffer,
 	 * struct mem_region_descr
 	 */
 	/* Copy the mem_transaction_descr */
-	memcpy(d_ds, &receiver->smem->transaction,
-	       sizeof(receiver->smem->transaction));
+	d_ds->sender_id = receiver->smem->sender_id;
+	d_ds->mem_reg_attr = receiver->smem->mem_reg_attr;
+	d_ds->flags = receiver->smem->flags;
+	d_ds->tag = receiver->smem->tag;
 
 	off = sizeof(struct ffa_mem_transaction) +
 	      sizeof(struct ffa_mem_access);

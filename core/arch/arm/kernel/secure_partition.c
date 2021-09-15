@@ -257,9 +257,7 @@ TEE_Result sp_map_shared(struct sp_session *s,
 
 	SLIST_FOREACH(reg, &smem->regions, link) {
 		res = vm_map(&ctx->uctx, va, reg->page_count * SMALL_PAGE_SIZE,
-			     perm,
-			     0,
-			     reg->mobj, reg->page_offset);
+			     perm, 0, reg->mobj, reg->page_offset);
 
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed to map memory region");

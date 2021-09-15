@@ -188,7 +188,7 @@ void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 				return (void *)region->va;
 		}
 	}
-	return 0;
+	return NULL;
 }
 
 struct sp_mem *sp_mem_new(void)
