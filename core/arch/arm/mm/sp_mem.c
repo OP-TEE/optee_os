@@ -89,27 +89,32 @@ struct sp_mem *sp_mem_new(void)
 bool sp_mem_is_shared(struct sp_mem_map_region *new_reg)
 {
 	struct sp_mem *smem = NULL;
+	uint32_t exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
+	uint64_t new_reg_end = new_reg->page_offset +
+			       (new_reg->page_count * SMALL_PAGE_SIZE);
 
 	SLIST_FOREACH(smem, &mem_shares, link) {
 		struct sp_mem_map_region *reg = NULL;
 
 		SLIST_FOREACH(reg, &smem->regions, link) {
-			uint64_t reg_end = reg->page_offset +
-					   (reg->page_count * SMALL_PAGE_SIZE);
-			uint64_t new_reg_end = 0;
-
-			new_reg_end = new_reg->page_offset +
-				      (new_reg->page_count * SMALL_PAGE_SIZE);
 
 			if (new_reg->mobj == reg->mobj) {
+				uint64_t reg_end = 0;
+
+				reg_end = reg->page_offset +
+					  (reg->page_count * SMALL_PAGE_SIZE);
+
 				if (new_reg->page_offset < reg_end &&
-				    reg->page_offset < new_reg_end) {
+				    new_reg_end > reg->page_offset) {
+					cpu_spin_unlock_xrestore(&sp_mem_lock,
+								 exceptions);
 					return true;
 				}
 			}
 		}
 	}
 
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 	return false;
 }
 

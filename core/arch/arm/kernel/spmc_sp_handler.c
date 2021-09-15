@@ -153,10 +153,10 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 	cpu_spin_unlock(&rxtx->spinlock);
 }
 
-static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
-				 struct ffa_address_range *mem_reg __unused,
-				 struct sp_session *owner_sp __unused,
-				 uint8_t highest_permission __unused)
+static int spmc_sp_add_sp_region(struct sp_mem *smem,
+				 struct ffa_address_range *mem_reg,
+				 struct sp_session *owner_sp,
+				 uint8_t highest_permission)
 {
 	struct sp_ctx *sp_ctx = NULL;
 	uint64_t va = READ_ONCE(mem_reg->address);
@@ -171,18 +171,16 @@ static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
 	 * mobj. Create a new region for each mobj.
 	 */
 	while (region_len) {
-		uint64_t len = region_len;
+		size_t len = region_len;
 		struct sp_mem_map_region *region = NULL;
 		uint16_t prot = 0;
-		uint64_t offs = 0;
+		size_t offs = 0;
 
 		/*
 		 * There is already a mobj for each address that is in the SPs
 		 * address range.
 		 */
-		mobj = vm_get_mobj(&sp_ctx->uctx, va, &len,
-				   &prot, &offs);
-
+		mobj = vm_get_mobj(&sp_ctx->uctx, va, &len, &prot, &offs);
 		if (!mobj)
 			return FFA_DENIED;
 
@@ -192,15 +190,15 @@ static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
 		 * mapped.
 		 */
 		if ((highest_permission & FFA_MEM_ACC_RW) &&
-		    !(prot & TEE_MATTR_PW)) {
+		    !(prot & TEE_MATTR_UW)) {
 			res = FFA_DENIED;
-			goto out;
+			goto err;
 		}
 
 		if ((highest_permission & FFA_MEM_ACC_EXE) &&
-		    !(prot & TEE_MATTR_PX)) {
+		    !(prot & TEE_MATTR_UX)) {
 			res = FFA_DENIED;
-			goto out;
+			goto err;
 		}
 
 		region = malloc(sizeof(*region));
@@ -211,7 +209,7 @@ static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
 		if (!sp_has_exclusive_access(region, &sp_ctx->uctx)) {
 			free(region);
 			res = FFA_DENIED;
-			goto out;
+			goto err;
 		}
 
 		va += len;
@@ -219,9 +217,10 @@ static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
 		SLIST_INSERT_HEAD(&smem->regions, region, link);
 	}
 
-	return FFA_OK;
-out:
-	mobj_put(mobj);
+err:
+	if (res != FFA_OK)
+		mobj_put(mobj);
+
 	return res;
 }
 

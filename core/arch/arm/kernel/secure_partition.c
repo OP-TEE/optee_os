@@ -113,16 +113,15 @@ TEE_Result sp_get_partitions_info(struct ffa_partition_info *fpi,
 bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 			     struct user_mode_ctx *uctx)
 {
-	bool found = false;
-
 	/*
 	 * Check that we have access to the region if it is supposed to be
 	 * mapped to the current context.
 	 */
 	if (uctx) {
+		bool found = false;
 		struct vm_region *region = NULL;
 
-		/* Make sure that each mobj belongs to the SP*/
+		/* Make sure that each mobj belongs to the SP */
 		TAILQ_FOREACH(region, &uctx->vm_info.regions, link) {
 			if (region->mobj == mem->mobj) {
 				found = true;
@@ -134,7 +133,7 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 			return false;
 	}
 
-	/* Check that it is not shared with another SP*/
+	/* Check that it is not shared with another SP */
 	return !sp_mem_is_shared(mem);
 }
 
