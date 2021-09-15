@@ -58,8 +58,8 @@ static TEE_Result ffa_get_dst(struct thread_smc_args *args,
 	return FFA_OK;
 }
 
-static struct sp_mem_receiver *get_sp_mem_receiver(struct sp_session *s,
-						   struct sp_mem *smem)
+static struct sp_mem_receiver *find_sp_mem_receiver(struct sp_session *s,
+						    struct sp_mem *smem)
 {
 	struct sp_mem_receiver *receiver  = NULL;
 
@@ -81,8 +81,8 @@ static struct sp_mem_receiver *get_sp_mem_receiver(struct sp_session *s,
 	return NULL;
 }
 
-static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc __unused,
-				struct sp_mem *smem __unused)
+static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
+				struct sp_mem *smem)
 {
 	struct ffa_mem_access_perm *access_perm =
 		&mem_acc->access_perm;
@@ -98,20 +98,28 @@ static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc __unused,
 		return FFA_DENIED;
 
 	/* Only allow each endpoint once */
-	if (get_sp_mem_receiver(s, smem))
+	if (find_sp_mem_receiver(s, smem))
 		return FFA_DENIED;
 
 	receiver = calloc(1, sizeof(struct sp_mem_receiver));
-
 	if (!receiver)
 		return FFA_NO_MEMORY;
 
 	receiver->smem = smem;
 
 	receiver->ref_count = 0;
-	receiver->perm.endpoint_id = READ_ONCE(access_perm->endpoint_id);
+	receiver->perm.endpoint_id = endpoint_id;
 	receiver->perm.perm = READ_ONCE(access_perm->perm);
 	receiver->perm.flags = READ_ONCE(access_perm->flags);
+
+	if (!sp_get_session(receiver->perm.endpoint_id)) {
+		free(receiver);
+		return FFA_DENIED;
+	}
+	if (receiver->perm.perm & ~FFA_MEM_ACC_MASK) {
+		free(receiver);
+		return FFA_DENIED;
+	}
 
 	SLIST_INSERT_HEAD(&smem->receivers, receiver, link);
 

@@ -83,6 +83,9 @@
 /* Memory access permissions: executable */
 #define FFA_MEM_ACC_EXE			BIT(3)
 
+/* Memory access permissions: mask*/
+#define FFA_MEM_ACC_MASK		0xf
+
 /* Clear memory before mapping in receiver */
 #define FFA_MEMORY_REGION_FLAG_CLEAR		BIT(0)
 /* Relayer may time slice this operation */
