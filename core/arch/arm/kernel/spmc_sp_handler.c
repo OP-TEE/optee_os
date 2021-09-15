@@ -9,6 +9,7 @@
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
+#include <kernel/tee_misc.h>
 #include <mm/mobj.h>
 #include <mm/sp_mem.h>
 #include <mm/vm.h>
@@ -80,8 +81,8 @@ static struct sp_mem_receiver *get_sp_mem_receiver(struct sp_session *s,
 	return NULL;
 }
 
-static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc,
-				struct sp_mem *smem)
+static int add_mem_region_to_sp(struct ffa_mem_access *mem_acc __unused,
+				struct sp_mem *smem __unused)
 {
 	struct ffa_mem_access_perm *access_perm =
 		&mem_acc->access_perm;
@@ -128,7 +129,7 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 
 	cpu_spin_lock(&rxtx->spinlock);
 
-	/*clear top bits*/
+	/* clear top bits */
 	args->a1 &= 0x0000ffff;
 
 	res = spmc_sp_add_share(rxtx, args->a1, &global_handle, owner_sp);
@@ -144,10 +145,10 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 	cpu_spin_unlock(&rxtx->spinlock);
 }
 
-static int spmc_sp_add_sp_region(struct sp_mem *smem,
-				 struct ffa_address_range *mem_reg,
-				 struct sp_session *owner_sp,
-				 uint8_t highest_permission)
+static int spmc_sp_add_sp_region(struct sp_mem *smem __unused,
+				 struct ffa_address_range *mem_reg __unused,
+				 struct sp_session *owner_sp __unused,
+				 uint8_t highest_permission __unused)
 {
 	struct sp_ctx *sp_ctx = NULL;
 	uint64_t va = READ_ONCE(mem_reg->address);
@@ -216,32 +217,8 @@ out:
 	return res;
 }
 
-static int release_mobj(struct sp_mem *smem, struct sp_mem_map_region *region,
-			bool mobj_ffa)
-{
-	uint64_t handle = smem->transaction.global_handle;
-	int res = FFA_OK;
-
-	if (mobj_ffa) {
-		if (handle) {
-			mobj_put(region->mobj);
-			if (mobj_ffa_unregister_by_cookie(handle))
-				return FFA_DENIED;
-
-			if (mobj_ffa_sel1_spmc_reclaim(handle))
-				return FFA_DENIED;
-		} else {
-			mobj_ffa_sel1_spmc_delete(to_mobj_ffa(region->mobj));
-		}
-	} else {
-		mobj_put(region->mobj);
-	}
-
-	return res;
-}
-
-static int spmc_sp_add_nw_region(struct sp_mem *smem,
-				 struct ffa_mem_region *mem_reg)
+static int spmc_sp_add_nw_region(struct sp_mem *smem __unused,
+				 struct ffa_mem_region *mem_reg __unused)
 {
 	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
 	struct mobj *mobj = NULL;
@@ -313,18 +290,18 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 	uint8_t highest_permission = 0;
 	struct sp_mem *smem = sp_mem_new();
 	struct ffa_mem_transaction *input_descr = rxtx->rx;
+	uint16_t sender_id = READ_ONCE(input_descr->sender_id);
 
 	if (!smem)
 		return FFA_NO_MEMORY;
 
 	if (owner_sp) {
-		if (owner_sp->endpoint_id !=
-		    READ_ONCE(input_descr->sender_id)) {
+		if (owner_sp->endpoint_id != sender_id) {
 			res = FFA_DENIED;
 			goto cleanup;
 		}
 	} else {
-		if (sp_get_session(READ_ONCE(input_descr->sender_id))) {
+		if (sp_get_session(sender_id)) {
 			res = FFA_DENIED;
 			goto cleanup;
 		}
@@ -339,25 +316,17 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 	}
 
 	/* Store the ffa_mem_transaction */
-	smem->transaction.sender_id = READ_ONCE(input_descr->sender_id);
-	smem->transaction.mem_reg_attr = READ_ONCE(input_descr->mem_reg_attr);
-	smem->transaction.flags = READ_ONCE(input_descr->flags);
-	smem->transaction.tag = READ_ONCE(input_descr->tag);
-	smem->transaction.mem_access_count = 0;
+	smem->sender_id = sender_id;
+	smem->mem_reg_attr = READ_ONCE(input_descr->mem_reg_attr);
+	smem->flags = READ_ONCE(input_descr->flags);
+	smem->tag = READ_ONCE(input_descr->tag);
 
 	SLIST_INIT(&smem->receivers);
 
 	if (MUL_OVERFLOW(num_mem_accs, sizeof(struct ffa_mem_access),
-			 &needed_size)) {
-		res = FFA_NO_MEMORY;
-		goto cleanup;
-	}
-	if (ADD_OVERFLOW(needed_size, sizeof(*input_descr), &needed_size)) {
-		res = FFA_NO_MEMORY;
-		goto cleanup;
-	}
-
-	if (needed_size > blen) {
+			&needed_size) ||
+	    ADD_OVERFLOW(needed_size, sizeof(*input_descr), &needed_size) ||
+	    needed_size > blen) {
 		res = FFA_NO_MEMORY;
 		goto cleanup;
 	}
@@ -370,14 +339,17 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 
 	/* Iterate over all the addresses */
 	if (owner_sp) {
-		for (i = 0; i < READ_ONCE(mem_reg->address_range_count); i++) {
+		size_t address_range = READ_ONCE(mem_reg->address_range_count);
+
+		for (i = 0; i < address_range; i++) {
 			struct ffa_address_range *addr_range = NULL;
 
 			addr_range =  &mem_reg->address_range_array[i];
 
-			if ((char *)addr_range +
-			    sizeof(struct ffa_mem_region) >
-			    (char *)rxtx->rx + rxtx->size) {
+			if (!core_is_buffer_inside((vaddr_t)addr_range,
+						   sizeof(*addr_range),
+						   (vaddr_t)rxtx->rx,
+						   rxtx->size)) {
 				res = FFA_NO_MEMORY;
 				goto cleanup;
 			}
@@ -399,7 +371,7 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 		if (res)
 			goto cleanup;
 	}
-	*global_handle = smem->transaction.global_handle;
+	*global_handle = smem->global_handle;
 	return FFA_OK;
 
 cleanup:
@@ -415,7 +387,7 @@ cleanup:
 	while (!SLIST_EMPTY(&smem->regions)) {
 		struct sp_mem_map_region *region = SLIST_FIRST(&smem->regions);
 
-		release_mobj(smem, region, !owner_sp);
+		mobj_put(region->mobj);
 
 		SLIST_REMOVE_HEAD(&smem->regions, link);
 		free(region);

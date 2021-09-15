@@ -11,8 +11,8 @@
 #include <mm/sp_mem.h>
 
 #define NUM_SHARES	64
-static unsigned int sp_mem_lock = SPINLOCK_UNLOCK;
 static bitstr_t bit_decl(share_bits, NUM_SHARES);
+static unsigned int sp_mem_lock = SPINLOCK_UNLOCK;
 
 /* mem_shares stores all active FF-A shares. */
 SLIST_HEAD(sp_mem_head, sp_mem);
@@ -69,14 +69,19 @@ struct sp_mem *sp_mem_new(void)
 	if (i != -1) {
 		bit_set(share_bits, i);
 		/*
-		 * OP_TEE SHAREs use bit 44 use bit 45 instead.
+		 * OP-TEE SHAREs use bit 44 use bit 45 instead.
 		 */
-		smem->transaction.global_handle = i | BIT64(45);
+		smem->global_handle = i | FFA_MEMORY_HANDLE_SECURE_BIT;
 	}
-	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 
+	if (i == -1) {
+		cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
+		free(smem);
+		return NULL;
+	}
 	SLIST_INIT(&smem->regions);
 	SLIST_INSERT_HEAD(&mem_shares, smem, link);
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 
 	return smem;
 }
@@ -108,11 +113,14 @@ bool sp_mem_is_shared(struct sp_mem_map_region *new_reg)
 	return false;
 }
 
-bool sp_mem_remove(struct sp_mem *smem)
+void sp_mem_remove(struct sp_mem *smem)
 {
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&sp_mem_lock);
 	if (smem) {
 		SLIST_REMOVE(&mem_shares, smem, sp_mem, link);
 		free(smem);
 	}
-	return false;
+	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 }
