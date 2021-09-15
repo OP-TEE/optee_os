@@ -37,18 +37,6 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
 
-enum ram_config {RAMC_SRAM = 0, RAMC_L2CC};
-
-static void l2_sram_config(enum ram_config setting)
-{
-	vaddr_t sfr_base = sam_sfr_base();
-
-	if (setting == RAMC_L2CC)
-		io_write32(sfr_base + AT91_SFR_L2CC_HRAMC, 0x1);
-	else
-		io_write32(sfr_base + AT91_SFR_L2CC_HRAMC, 0x0);
-}
-
 vaddr_t pl310_base(void)
 {
 	static void *va;
@@ -64,7 +52,7 @@ vaddr_t pl310_base(void)
 void arm_cl2_config(vaddr_t pl310_base)
 {
 	io_write32(pl310_base + PL310_CTRL, 0);
-	l2_sram_config(RAMC_L2CC);
+	io_write32(sam_sfr_base() + AT91_SFR_L2CC_HRAMC, 0x1);
 	io_write32(pl310_base + PL310_AUX_CTRL, PL310_AUX_CTRL_INIT);
 	io_write32(pl310_base + PL310_PREFETCH_CTRL, PL310_PREFETCH_CTRL_INIT);
 	io_write32(pl310_base + PL310_POWER_CTRL, PL310_POWER_CTRL_INIT);
