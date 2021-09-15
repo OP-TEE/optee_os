@@ -230,10 +230,10 @@ static TEE_Result parse_clock_property(const void *fdt, int node)
 		if (parent_node < 0)
 			return TEE_ERROR_GENERIC;
 
-		/* Parent setup should not fail or clock won't be available */
+		/* Parent probe should not fail or clock won't be available */
 		res = clk_probe_clock_provider_node(fdt, parent_node);
 		if (res)
-			panic("Failed to setup parent clock");
+			panic("Failed to probe parent clock");
 
 		clock_cells = fdt_clock_cells(fdt, parent_node);
 		if (clock_cells < 0)
@@ -245,7 +245,7 @@ static TEE_Result parse_clock_property(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result clk_dt_node_clock_setup_driver(const void *fdt, int node)
+static TEE_Result clk_dt_node_clock_probe_driver(const void *fdt, int node)
 {
 	int idx = 0;
 	int len = 0;
@@ -299,12 +299,12 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 	if (clk_get_provider_by_node(node))
 		return TEE_SUCCESS;
 
-	/* Check if the node has a clock property first to setup parent */
+	/* Check if the node has a clock property first to probe parent */
 	res = parse_clock_property(fdt, node);
 	if (res)
 		return res;
 
-	return clk_dt_node_clock_setup_driver(fdt, node);
+	return clk_dt_node_clock_probe_driver(fdt, node);
 }
 
 static void clk_probe_node(const void *fdt, int parent_node)
