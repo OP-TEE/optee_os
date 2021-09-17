@@ -89,7 +89,7 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,48)
-$(call force,CFG_EMBED_DT,y)
+$(call force,CFG_EMBED_DTB,y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,fsl-lx2160a-qds.dts)
 CFG_LS_I2C ?= y
 CFG_LS_GPIO ?= y
@@ -108,7 +108,7 @@ $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,48)
-$(call force,CFG_EMBED_DT,y)
+$(call force,CFG_EMBED_DTB,y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,fsl-lx2160a-rdb.dts)
 CFG_LS_I2C ?= y
 CFG_LS_GPIO ?= y
