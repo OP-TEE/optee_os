@@ -150,7 +150,8 @@ int _fdt_get_status(const void *fdt, int offs);
  * a single reset ID line and a single interrupt ID.
  * Default DT_INFO_* macros are used when the relate property is not found.
  */
-void _fdt_fill_device_info(void *fdt, struct dt_node_info *info, int node);
+void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info,
+			   int node);
 
 #else /* !CFG_DT */
 
@@ -195,7 +196,7 @@ static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
 }
 
 __noreturn
-static inline void _fdt_fill_device_info(void *fdt __unused,
+static inline void _fdt_fill_device_info(const void *fdt __unused,
 					 struct dt_node_info *info __unused,
 					 int node __unused)
 {
