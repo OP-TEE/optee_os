@@ -111,6 +111,11 @@ static bool clk_is_enabled_no_lock(struct clk *clk)
 	return refcount_val(&clk->enabled_count) != 0;
 }
 
+bool clk_is_enabled(struct clk *clk)
+{
+	return clk_is_enabled_no_lock(clk);
+}
+
 static void clk_disable_no_lock(struct clk *clk)
 {
 	struct clk *parent = NULL;
