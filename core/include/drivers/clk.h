@@ -132,6 +132,16 @@ TEE_Result clk_enable(struct clk *clk);
 void clk_disable(struct clk *clk);
 
 /**
+ * clk_is_enabled - Informative state on the clock
+ *
+ * This function is useful during specific system sequences where core
+ * executes atomically (primary core boot, some low power sequences).
+ *
+ * @clk: Clock refernece
+ */
+bool clk_is_enabled(struct clk *clk);
+
+/**
  * clk_get_parent - Get the current clock parent
  *
  * @clk: Clock for which the parent is needed
