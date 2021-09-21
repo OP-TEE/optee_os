@@ -97,6 +97,7 @@ struct initcall {
 #define service_init_late(fn)		__define_initcall(init, 4, fn)
 #define driver_init(fn)			__define_initcall(init, 5, fn)
 #define driver_init_late(fn)		__define_initcall(init, 6, fn)
+#define release_init_resource(fn)	__define_initcall(init, 7, fn)
 
 #define boot_final(fn)			__define_initcall(final, 1, fn)
 
