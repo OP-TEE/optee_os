@@ -20,18 +20,43 @@
 #define PL310_AUX_CTRL_FLZW			BIT(0)
 #define PL310_DEBUG_CTRL_DISABLE_WRITEBACK	BIT(1)
 #define PL310_DEBUG_CTRL_DISABLE_LINEFILL	BIT(0)
+#define PL310_PREFETCH_DOUBLE_LINEFILL		BIT(30)
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PL310_BASE, CORE_MMU_PGDIR_SIZE);
 
 void arm_cl2_config(vaddr_t pl310_base)
 {
+	uint32_t val = 0;
+	uint32_t id = 0;
+
 	/* Disable PL310 */
 	io_write32(pl310_base + PL310_CTRL, 0);
 
 	io_write32(pl310_base + PL310_TAG_RAM_CTRL, PL310_TAG_RAM_CTRL_INIT);
 	io_write32(pl310_base + PL310_DATA_RAM_CTRL, PL310_DATA_RAM_CTRL_INIT);
 	io_write32(pl310_base + PL310_AUX_CTRL, PL310_AUX_CTRL_INIT);
-	io_write32(pl310_base + PL310_PREFETCH_CTRL, PL310_PREFETCH_CTRL_INIT);
+	/*
+	 * The L2 cache controller(PL310) version on the i.MX6D/Q
+	 * is r3p1-50rel0
+	 * The L2 cache controller(PL310) version on the
+	 * i.MX6DL/SOLO/SL/SX/DQP is r3p2.
+	 *
+	 * According to ARM PL310 errata: 752271
+	 * ID: 752271: Double linefill feature can cause data corruption
+	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
+	 * Workaround: The only workaround to this erratum is to disable the
+	 * double linefill feature. This is the default behavior.
+	 */
+	val = PL310_PREFETCH_CTRL_INIT;
+
+	id = io_read32(pl310_base + PL310_CACHE_ID);
+
+	if (((id & PL310_CACHE_ID_PART_MASK) == PL310_CACHE_ID_PART_L310) &&
+	    ((id & PL310_CACHE_ID_RTL_MASK) < PL310_CACHE_ID_RTL_R3P2))
+		val &= ~PL310_PREFETCH_DOUBLE_LINEFILL;
+
+	io_write32(pl310_base + PL310_PREFETCH_CTRL, val);
+
 	io_write32(pl310_base + PL310_POWER_CTRL, PL310_POWER_CTRL_INIT);
 
 	/* invalidate all cache ways */
