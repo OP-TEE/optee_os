@@ -146,7 +146,7 @@ static TEE_Result dt_driver_release_provider(void)
 	return TEE_SUCCESS;
 }
 
-driver_init_late(dt_driver_release_provider);
+release_init_resource(dt_driver_release_provider);
 
 /*
  * Helper functions for dt_drivers querying driver provider information
@@ -651,6 +651,30 @@ static TEE_Result probe_dt_drivers(void)
 }
 
 driver_init(probe_dt_drivers);
+
+static TEE_Result release_probe_lists(void)
+{
+	struct dt_driver_probe *elt = NULL;
+	struct dt_driver_probe *next = NULL;
+	const void * __maybe_unused fdt = NULL;
+
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		return TEE_SUCCESS;
+
+	fdt = get_embedded_dt();
+
+	assert(fdt && TAILQ_EMPTY(&dt_driver_probe_list));
+
+	TAILQ_FOREACH_SAFE(elt, &dt_driver_ready_list, link, next) {
+		DMSG("element: %s on node %s", elt->dt_drv->name,
+		     fdt_get_name(fdt, elt->nodeoffset, NULL));
+		free(elt);
+	}
+
+	return TEE_SUCCESS;
+}
+
+release_init_resource(release_probe_lists);
 
 /*
  * Simple bus support: handy to parse subnodes
