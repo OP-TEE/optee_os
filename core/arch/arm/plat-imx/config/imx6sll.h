@@ -53,13 +53,13 @@
 /*
  * PL310 Prefetch Control Register
  *
- * Double linefill disabled (bit30=0)
+ * Double linefill enabled (bit30=1)
  * I/D prefetch enabled (bit29:28=2b11)
- * Prefetch drop enabled (bit24=1)
+ * Prefetch drop disabled (bit24=0)
  * Incr double linefill disable (bit23=0)
- * Prefetch offset = 7 (bit4:0)
+ * Prefetch offset = 0xF (bit4:0)
  */
-#define PL310_PREFETCH_CTRL_INIT	0x31000007
+#define PL310_PREFETCH_CTRL_INIT	0x7000000F
 
 /*
  * PL310 Power Register
