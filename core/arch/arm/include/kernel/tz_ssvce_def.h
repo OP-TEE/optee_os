@@ -57,6 +57,7 @@
 #define PL310_LINE_SIZE		U(32)
 #define PL310_8_WAYS		U(8)
 
+#define PL310_CACHE_ID		0x0
 /* reg1 */
 #define PL310_CTRL		U(0x100)
 #define PL310_AUX_CTRL		U(0x104)
@@ -84,6 +85,11 @@
 
 #define PL310_CTRL_ENABLE_BIT	BIT32(0)
 #define PL310_AUX_16WAY_BIT	BIT32(16)
+
+#define PL310_CACHE_ID_PART_MASK	GENMASK_32(9, 6)
+#define PL310_CACHE_ID_PART_L310	0xC0
+#define PL310_CACHE_ID_RTL_MASK		GENMASK_32(5, 0)
+#define PL310_CACHE_ID_RTL_R3P2		0x8
 
 /*
  * SCU iomem
