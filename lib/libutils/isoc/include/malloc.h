@@ -14,6 +14,10 @@
  */
 #define MALLOC_INITIAL_POOL_MIN_SIZE	1024
 
+void *malloc(size_t size);
+void *calloc(size_t nmemb, size_t size);
+void *realloc(void *ptr, size_t size);
+void *memalign(size_t alignment, size_t size);
 void free(void *ptr);
 
 #ifdef ENABLE_MDBG
@@ -36,15 +40,9 @@ void mdbg_check(int bufdump);
 
 #else
 
-void *malloc(size_t size);
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t size);
-void *memalign(size_t alignment, size_t size);
-
 #define mdbg_check(x)        do { } while (0)
 
 #endif
-
 
 /*
  * Returns true if the supplied memory area is within a buffer

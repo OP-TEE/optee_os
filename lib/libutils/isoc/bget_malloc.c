@@ -684,7 +684,32 @@ void mdbg_check(int bufdump)
 {
 	gen_mdbg_check(&malloc_ctx, bufdump);
 }
-#else
+
+/*
+ * Since malloc debug is enabled, malloc() and friends are redirected by macros
+ * to mdbg_malloc() etc.
+ * We still want to export the standard entry points in case they are referenced
+ * by the application, either directly or via external libraries.
+ */
+#undef malloc
+void *malloc(size_t size)
+{
+	return mdbg_malloc(__FILE__, __LINE__, size);
+}
+
+#undef calloc
+void *calloc(size_t nmemb, size_t size)
+{
+	return mdbg_calloc(__FILE__, __LINE__, nmemb, size);
+}
+
+#undef realloc
+void *realloc(void *ptr, size_t size)
+{
+	return mdbg_realloc(__FILE__, __LINE__, ptr, size);
+}
+
+#else /* ENABLE_MDBG */
 
 void *malloc(size_t size)
 {
