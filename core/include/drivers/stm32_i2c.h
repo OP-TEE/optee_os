@@ -141,13 +141,13 @@ struct i2c_handle_s {
  * @node: Target I2C node in the DT
  * @init: Output stm32_i2c_init_s structure
  * @pinctrl: Reference to output pinctrl array
- * @pinctrl_count: Input @pinctrl array size, output expected size
- * Return 0 on success else a negative value
+ * @pinctrl_count: Input @pinctrl array size, output expected size upon success
+ * Return a TEE_Result compliant value
  */
-int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
-				 struct stm32_i2c_init_s *init,
-				 struct stm32_pinctrl **pinctrl,
-				 size_t *pinctrl_count);
+TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
+					struct stm32_i2c_init_s *init,
+					struct stm32_pinctrl **pinctrl,
+					size_t *pinctrl_count);
 
 /*
  * Initialize I2C bus handle from input configuration directives

@@ -679,10 +679,10 @@ static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
 	return 0;
 }
 
-int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
-				 struct stm32_i2c_init_s *init,
-				 struct stm32_pinctrl **pinctrl,
-				 size_t *pinctrl_count)
+TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
+					struct stm32_i2c_init_s *init,
+					struct stm32_pinctrl **pinctrl,
+					size_t *pinctrl_count)
 {
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
@@ -720,7 +720,7 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 		if (init->bus_rate > I2C_FAST_PLUS_RATE) {
 			DMSG("Invalid bus speed (%"PRIu32" > %i)",
 			     init->bus_rate, I2C_FAST_PLUS_RATE);
-			return -FDT_ERR_BADVALUE;
+			return TEE_ERROR_GENERIC;
 		}
 	} else {
 		init->bus_rate = I2C_STANDARD_RATE;
@@ -729,22 +729,25 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
 	if (count <= 0) {
 		*pinctrl = NULL;
-		*pinctrl_count = 0;
-		return count;
+		*pinctrl_count = count;
+		DMSG("Failed to get pinctrl: FDT errno %d", count);
+		return TEE_ERROR_GENERIC;
 	}
 
-	if (count > 2)
-		panic("Too many PINCTRLs found");
+	if (count > 2) {
+		DMSG("Too many PINCTRLs found: %zd", count);
+		return TEE_ERROR_GENERIC;
+	}
 
 	*pinctrl = calloc(count, sizeof(**pinctrl));
 	if (!*pinctrl)
-		panic();
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	*pinctrl_count = stm32_pinctrl_fdt_get_pinctrl(fdt, node,
 						       *pinctrl, count);
 	assert(*pinctrl_count == (unsigned int)count);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 int stm32_i2c_init(struct i2c_handle_s *hi2c,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2020, STMicroelectronics
+ * Copyright (c) 2017-2021, STMicroelectronics
  */
 
 #include <drivers/stm32_i2c.h>
@@ -492,8 +492,11 @@ static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
 	if (!i2c_info->reg)
 		return -FDT_ERR_NOTFOUND;
 
-	return stm32_i2c_get_setup_from_fdt(fdt, i2c_node, init,
-					    pinctrl, pinctrl_count);
+	if (stm32_i2c_get_setup_from_fdt(fdt, i2c_node, init,
+					 pinctrl, pinctrl_count))
+		panic();
+
+	return 0;
 }
 
 /*
