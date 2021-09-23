@@ -17,22 +17,28 @@ static unsigned int clk_lock = SPINLOCK_UNLOCK;
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
 {
-	struct clk *clk = NULL;
+	struct clk_elt *clk_elt = NULL;
 	size_t parent = 0;
 
-	clk = calloc(1, sizeof(*clk) + parent_count * sizeof(clk));
-	if (!clk)
+	if (ops->id != CLK_OPS_ELT) {
+		EMSG("Panic on unexpected ops ID %u", ops->id);
+		panic();
+	}
+
+	clk_elt = calloc(1, sizeof(*clk_elt) +
+			 parent_count * sizeof(*parent_clks));
+	if (!clk_elt)
 		return NULL;
 
-	clk->num_parents = parent_count;
+	clk_elt->num_parents = parent_count;
 	for (parent = 0; parent < parent_count; parent++)
-		clk->parents[parent] = parent_clks[parent];
+		clk_elt->parents[parent] = parent_clks[parent];
 
-	clk->name = name;
-	clk->ops = ops;
-	refcount_set(&clk->enabled_count, 0);
+	clk_elt->name = name;
+	clk_elt->clk.ops = ops;
+	refcount_set(&clk_elt->clk.enabled_count, 0);
 
-	return clk;
+	return &clk_elt->clk;
 }
 
 void clk_free(struct clk *clk)
@@ -45,11 +51,17 @@ static bool __maybe_unused clk_check(struct clk *clk)
 	if (!clk->ops)
 		return false;
 
-	if (clk->ops->set_parent && !clk->ops->get_parent)
-		return false;
+	if (is_clk_elt(clk)) {
+		struct clk_elt *clk_elt = clk_to_clk_elt(clk);
 
-	if (clk->num_parents > 1 && !clk->ops->get_parent)
+		if (clk->ops->set_parent && !clk->ops->get_parent)
+			return false;
+
+		if (clk_elt->num_parents > 1 && !clk->ops->get_parent)
+			return false;
+	} else {
 		return false;
+	}
 
 	return true;
 }
@@ -57,39 +69,48 @@ static bool __maybe_unused clk_check(struct clk *clk)
 static void clk_compute_rate_no_lock(struct clk *clk)
 {
 	unsigned long parent_rate = 0;
+	struct clk_elt *elt = NULL;
 
-	if (clk->parent)
-		parent_rate = clk->parent->rate;
+	if (!is_clk_elt(clk))
+		return;
+
+	elt = clk_to_clk_elt(clk);
+	if (elt->parent && is_clk_elt(elt->parent))
+		parent_rate = clk_to_clk_elt(elt->parent)->rate;
 
 	if (clk->ops->get_rate)
-		clk->rate = clk->ops->get_rate(clk, parent_rate);
+		elt->rate = clk->ops->get_rate(clk, parent_rate);
 	else
-		clk->rate = parent_rate;
+		elt->rate = parent_rate;
 }
 
 struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx)
 {
-	if (pidx >= clk->num_parents)
+	if (!is_clk_elt(clk))
 		return NULL;
 
-	return clk->parents[pidx];
+	if (pidx >= clk_to_clk_elt(clk)->num_parents)
+		return NULL;
+
+	return clk_to_clk_elt(clk)->parents[pidx];
 }
 
 static void clk_init_parent(struct clk *clk)
 {
+	struct clk_elt *clk_elt = clk_to_clk_elt(clk);
 	size_t pidx = 0;
 
-	switch (clk->num_parents) {
+	switch (clk_elt->num_parents) {
 	case 0:
 		break;
 	case 1:
-		clk->parent = clk->parents[0];
+		clk_elt->parent = clk_elt->parents[0];
 		break;
 	default:
 		pidx = clk->ops->get_parent(clk);
-		assert(pidx < clk->num_parents);
+		assert(pidx < clk_elt->num_parents);
 
-		clk->parent = clk->parents[pidx];
+		clk_elt->parent = clk_elt->parents[pidx];
 		break;
 	}
 }
@@ -98,7 +119,9 @@ TEE_Result clk_register(struct clk *clk)
 {
 	assert(clk_check(clk));
 
-	clk_init_parent(clk);
+	if (is_clk_elt(clk))
+		clk_init_parent(clk);
+
 	clk_compute_rate_no_lock(clk);
 
 	DMSG("Registered clock %s, freq %lu", clk_get_name(clk),
@@ -109,7 +132,15 @@ TEE_Result clk_register(struct clk *clk)
 
 const char *clk_get_name(struct clk *clk)
 {
-	return clk->name;
+	if (clk->ops->get_name)
+		return clk->ops->get_name(clk);
+
+	return NULL;
+}
+
+const char *clk_elt_name(struct clk *clk)
+{
+	return clk_to_clk_elt(clk)->name;
 }
 
 static bool clk_is_enabled_no_lock(struct clk *clk)
@@ -145,11 +176,13 @@ static TEE_Result clk_enable_no_lock(struct clk *clk)
 	if (refcount_inc(&clk->enabled_count))
 		return TEE_SUCCESS;
 
-	parent = clk_get_parent(clk);
-	if (parent) {
-		res = clk_enable_no_lock(parent);
-		if (res)
-			return res;
+	if (is_clk_elt(clk)) {
+		parent = clk_get_parent(clk);
+		if (parent) {
+			res = clk_enable_no_lock(parent);
+			if (res)
+				return res;
+		}
 	}
 
 	if (clk->ops->enable) {
@@ -190,7 +223,10 @@ void clk_disable(struct clk *clk)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
-	return clk->rate;
+	if (is_clk_elt(clk))
+		return clk_to_clk_elt(clk)->rate;
+
+	return 0;
 }
 
 static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
@@ -198,8 +234,12 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	unsigned long parent_rate = 0;
 
-	if (clk->parent)
-		parent_rate = clk_get_rate(clk->parent);
+	if (is_clk_elt(clk)) {
+		struct clk_elt *clk_elt = clk_to_clk_elt(clk);
+
+		if (clk_elt->parent)
+			parent_rate = clk_get_rate(clk_elt->parent);
+	}
 
 	res = clk->ops->set_rate(clk, rate, parent_rate);
 	if (res)
@@ -216,11 +256,12 @@ TEE_Result clk_set_rate(struct clk *clk, unsigned long rate)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!clk->ops->set_rate)
-		return TEE_ERROR_NOT_SUPPORTED;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	exceptions =  cpu_spin_lock_xsave(&clk_lock);
 
-	if (clk->flags & CLK_SET_RATE_GATE && clk_is_enabled_no_lock(clk))
+	if (clk_to_clk_elt(clk)->flags & CLK_SET_RATE_GATE &&
+	    clk_is_enabled_no_lock(clk))
 		res = TEE_ERROR_BAD_STATE;
 	else
 		res = clk_set_rate_no_lock(clk, rate);
@@ -232,13 +273,16 @@ TEE_Result clk_set_rate(struct clk *clk, unsigned long rate)
 
 struct clk *clk_get_parent(struct clk *clk)
 {
-	return clk->parent;
+	if (is_clk_elt(clk))
+		return clk_to_clk_elt(clk)->parent;
+
+	return NULL;
 }
 
 size_t clk_get_num_parents(struct clk *clk)
 {
-	if (clk_is_clk_elt(clk))
-		return to_clk_elt(clk)->num_parents;
+	if (is_clk_elt(clk))
+		return clk_to_clk_elt(clk)->num_parents;
 
 	return 0;
 }
@@ -248,6 +292,9 @@ static TEE_Result clk_get_parent_idx(struct clk *clk, struct clk *parent,
 {
 	size_t i = 0;
 
+	if (is_clk_elt(clk))
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	for (i = 0; i < clk_get_num_parents(clk); i++) {
 		if (clk_get_parent_by_index(clk, i) == parent) {
 			*pidx = i;
@@ -256,7 +303,7 @@ static TEE_Result clk_get_parent_idx(struct clk *clk, struct clk *parent,
 	}
 
 	EMSG("Clock %s is not a parent of clock %s", clk_get_name(parent),
-	     clk_get_name(clk);
+	     clk_get_name(clk));
 
 	return TEE_ERROR_BAD_PARAMETERS;
 }
@@ -266,9 +313,10 @@ static TEE_Result clk_set_parent_no_lock(struct clk *clk, struct clk *parent,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	bool was_enabled = false;
+	struct clk_elt *clk_elt = clk_to_clk_elt(clk);
 
 	/* Requested parent is already the one set */
-	if (clk->parent == parent)
+	if (clk_elt->parent == parent)
 		return TEE_SUCCESS;
 
 	was_enabled = clk_is_enabled_no_lock(clk);
@@ -280,7 +328,7 @@ static TEE_Result clk_set_parent_no_lock(struct clk *clk, struct clk *parent,
 	if (res)
 		goto out;
 
-	clk->parent = parent;
+	clk_elt->parent = parent;
 
 	/* The parent changed and the rate might also have changed */
 	clk_compute_rate_no_lock(clk);
@@ -301,18 +349,23 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent)
 	size_t pidx = 0;
 	uint32_t exceptions = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct clk_elt *clk_elt = NULL;
 
-	if (clk_get_parent_idx(clk, parent, &pidx) || !clk->ops->set_parent)
+	if (!clk->ops->set_parent)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	exceptions = cpu_spin_lock_xsave(&clk_lock);
-	if (clk->flags & CLK_SET_PARENT_GATE && clk_is_enabled_no_lock(clk)) {
-		res = TEE_ERROR_BAD_STATE;
-		goto out;
-	}
+	if (clk_get_parent_idx(clk, parent, &pidx))
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = clk_set_parent_no_lock(clk, parent, pidx);
-out:
+	clk_elt = clk_to_clk_elt(clk);
+
+	exceptions = cpu_spin_lock_xsave(&clk_lock);
+
+	if (clk_elt->flags & CLK_SET_PARENT_GATE && clk_is_enabled_no_lock(clk))
+		res = TEE_ERROR_BAD_STATE;
+	else
+		res = clk_set_parent_no_lock(clk, parent, pidx);
+
 	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
 
 	return res;

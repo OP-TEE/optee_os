@@ -344,6 +344,11 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 		if (!clk)
 			return;
 
+		if (!is_clk_elt(clk)) {
+			EMSG("Can't assign orphan clock %s", clk_get_name(clk));
+			panic();
+		}
+
 		parent = clk_dt_get_by_idx_prop("assigned-clock-parents", fdt,
 						nodeoffset, clock_idx);
 		if (parent) {
