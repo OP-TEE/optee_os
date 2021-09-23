@@ -152,10 +152,7 @@ struct clk *clk_get_parent(struct clk *clk);
  * @clk: Clock for which the number of parents is needed
  * Return the number of parents
  */
-static inline size_t clk_get_num_parents(struct clk *clk)
-{
-	return clk->num_parents;
-}
+size_t clk_get_num_parents(struct clk *clk);
 
 /**
  * Get a clock parent by its index
