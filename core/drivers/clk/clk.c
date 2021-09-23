@@ -101,9 +101,15 @@ TEE_Result clk_register(struct clk *clk)
 	clk_init_parent(clk);
 	clk_compute_rate_no_lock(clk);
 
-	DMSG("Registered clock %s, freq %lu", clk->name, clk_get_rate(clk));
+	DMSG("Registered clock %s, freq %lu", clk_get_name(clk),
+	     clk_get_rate(clk));
 
 	return TEE_SUCCESS;
+}
+
+const char *clk_get_name(struct clk *clk)
+{
+	return clk->name;
 }
 
 static bool clk_is_enabled_no_lock(struct clk *clk)
@@ -240,7 +246,9 @@ static TEE_Result clk_get_parent_idx(struct clk *clk, struct clk *parent,
 			return TEE_SUCCESS;
 		}
 	}
-	EMSG("Clock %s is not a parent of clock %s", parent->name, clk->name);
+
+	EMSG("Clock %s is not a parent of clock %s", clk_get_name(parent),
+	     clk_get_name(clk);
 
 	return TEE_ERROR_BAD_PARAMETERS;
 }
