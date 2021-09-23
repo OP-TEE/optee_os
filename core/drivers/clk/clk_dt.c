@@ -150,7 +150,7 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 		if (parent) {
 			if (clk_set_parent(clk, parent)) {
 				EMSG("Could not set clk %s parent to clock %s",
-				     clk->name, parent->name);
+				     clk_get_name(clk), clk_get_name(parent));
 				panic();
 			}
 		}
