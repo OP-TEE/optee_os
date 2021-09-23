@@ -13,8 +13,8 @@ struct fixed_clock_data {
 	unsigned long rate;
 };
 
-static unsigned long fixed_clk_get_rate(struct clk *clk,
-					unsigned long parent_rate __unused)
+static unsigned long fixed_clk_compute_rate(struct clk *clk,
+					    unsigned long parent_rate __unused)
 {
 	struct fixed_clock_data *d = clk_priv(clk);
 
@@ -23,7 +23,7 @@ static unsigned long fixed_clk_get_rate(struct clk *clk,
 
 static const struct clk_ops fixed_clk_clk_ops = {
 	.get_name = clk_elt_name,
-	.get_rate = fixed_clk_get_rate,
+	.compute_rate = fixed_clk_compute_rate,
 };
 
 static TEE_Result fixed_clock_probe(const void *fdt, int offs,

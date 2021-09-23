@@ -64,8 +64,8 @@ static void clk_compute_rate_no_lock(struct clk *clk)
 	if (clk->parent)
 		parent_rate = clk->parent->rate;
 
-	if (clk->ops->get_rate)
-		clk->rate = clk->ops->get_rate(clk, parent_rate);
+	if (clk->ops->compute_rate)
+		clk->rate = clk->ops->compute_rate(clk, parent_rate);
 	else
 		clk->rate = parent_rate;
 }
