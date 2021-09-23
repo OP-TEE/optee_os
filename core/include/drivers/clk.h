@@ -21,14 +21,21 @@
  *
  * CLK_OP_ELT identities a full fledged clock. The struct clk * reference can be
  * cast to struct clk_elt * to access clock element data.
+ *
+ * CLK_OP_ORPHAN identifies a simple clock without parents. struct clk fully
+ * represents the clock.
  */
 enum clk_ops_id {
 	CLK_OPS_INVALID = 0,
 	CLK_OPS_ELT,
+	CLK_OPS_ORPHAN,
 };
 
 /**
- * struct clk - Clock core structure, common to all clocks
+ * struct clk - Minimal clock core structure
+ *
+ * This minimalist core clock struct is intended to clock drivers
+ * that need to optimatize their RAM footprint.
  *
  * @ops: Clock operations
  * @enabled_count: Enable/disable reference counter
@@ -100,6 +107,11 @@ static inline struct clk_elt *clk_to_clk_elt(struct clk *clk)
 	return container_of(clk, struct clk_elt, clk);
 }
 
+static inline bool is_clk_orphan(struct clk *clk)
+{
+	return clk->ops->id == CLK_OPS_ORPHAN;
+}
+
 /**
  * Return the clock name
  *
@@ -119,9 +131,9 @@ const char *clk_get_name(struct clk *clk);
 const char *clk_elt_name(struct clk *clk);
 
 /**
- * clk_alloc - Allocate a clock element structure
+ * clk_alloc - Allocate and initialize a clock instance
  *
- * @name: Clock name
+ * @name: Clock name or NULL
  * @ops: Clock operations
  * @parent_clks: Parents of the clock
  * @parent_count: Number of parents of the clock
@@ -132,6 +144,24 @@ const char *clk_elt_name(struct clk *clk);
  */
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count);
+
+/**
+ * clk_alloc_orphans - Allocate and initialize an array of orphan clocks
+ *
+ * @ops: Clock operations
+ * @count: Number of clocks (> 0)
+ *
+ * Returns a clock struct properly initialized or NULL if allocation failed
+ */
+struct clk *clk_alloc_orphans(const struct clk_ops *ops, size_t count);
+
+/**
+ * clk_init_instance - Initialize a clock instance
+ *
+ * @clk: Reference to clock instance to initialize
+ * @ops: Clock operations pointner for the clock
+ */
+void clk_init_instance(struct clk *clk, const struct clk_ops *ops);
 
 /**
  * clk_free - Free a clock structure

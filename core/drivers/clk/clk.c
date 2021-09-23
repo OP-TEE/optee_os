@@ -3,6 +3,7 @@
  * Copyright (c) 2021, Bootlin
  */
 
+#include <assert.h>
 #include <drivers/clk.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
@@ -13,6 +14,17 @@
 
 /* Global clock tree lock */
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
+
+void clk_init_instance(struct clk *clk, const struct clk_ops *ops)
+{
+	assert(clk && ops &&
+	       (ops->id == CLK_OPS_ELT ||
+		(ops->id == CLK_OPS_ORPHAN && !ops->set_parent &&
+		 !ops->get_parent)));
+
+	clk->ops = ops;
+	refcount_set(&clk->enabled_count, 0);
+}
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
@@ -35,10 +47,29 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		clk_elt->parents[parent] = parent_clks[parent];
 
 	clk_elt->name = name;
-	clk_elt->clk.ops = ops;
-	refcount_set(&clk_elt->clk.enabled_count, 0);
+	clk_init_instance(&clk_elt->clk, ops);
 
 	return &clk_elt->clk;
+}
+
+struct clk *clk_alloc_orphans(const struct clk_ops *ops, size_t count)
+{
+	struct clk *clk = NULL;
+	size_t n = 0;
+
+	if (ops->id != CLK_OPS_ORPHAN) {
+		EMSG("Panic on unexpected ops ID %u", ops->id);
+		panic();
+	}
+
+	clk = calloc(count, sizeof(*clk));
+	if (!clk)
+		return NULL;
+
+	for (n = 0; n < count; n++)
+		clk_init_instance(clk + n, ops);
+
+	return clk;
 }
 
 void clk_free(struct clk *clk)
@@ -59,7 +90,7 @@ static bool __maybe_unused clk_check(struct clk *clk)
 
 		if (clk_elt->num_parents > 1 && !clk->ops->get_parent)
 			return false;
-	} else {
+	} else if (!is_clk_orphan(clk)) {
 		return false;
 	}
 
@@ -124,7 +155,8 @@ TEE_Result clk_register(struct clk *clk)
 
 	clk_compute_rate_no_lock(clk);
 
-	DMSG("Registered clock %s, freq %lu", clk_get_name(clk),
+	DMSG("Registered %sclock %s, freq %lu",
+	     is_clk_orphan(clk) ? "orphan " : "", clk_get_name(clk),
 	     clk_get_rate(clk));
 
 	return TEE_SUCCESS;
@@ -162,6 +194,9 @@ static void clk_disable_no_lock(struct clk *clk)
 
 	if (clk->ops->disable)
 		clk->ops->disable(clk);
+
+	if (is_clk_orphan(clk))
+		return;
 
 	parent = clk_get_parent(clk);
 	if (parent)
@@ -226,7 +261,9 @@ unsigned long clk_get_rate(struct clk *clk)
 	if (is_clk_elt(clk))
 		return clk_to_clk_elt(clk)->rate;
 
-	return 0;
+	assert(is_clk_orphan(clk));
+
+	return clk->ops->get_rate(clk, 0);
 }
 
 static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
