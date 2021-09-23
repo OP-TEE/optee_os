@@ -16,7 +16,7 @@ struct fixed_clock_data {
 static unsigned long fixed_clk_get_rate(struct clk *clk,
 					unsigned long parent_rate __unused)
 {
-	struct fixed_clock_data *d = clk->priv;
+	struct fixed_clock_data *d = clk_priv(clk);
 
 	return d->rate;
 }
