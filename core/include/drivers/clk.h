@@ -107,6 +107,15 @@ void clk_free(struct clk *clk);
  */
 TEE_Result clk_register(struct clk *clk);
 
+/*
+ * clk_set_priv - Set clock private data
+ *
+ * @clk: Target clock
+ * @priv: Private data reference to set
+ * Return a TEE_Result compliant value
+ */
+TEE_Result clk_set_priv(struct clk *clk, void *priv);
+
 /**
  * clk_get_rate - Get clock rate
  *

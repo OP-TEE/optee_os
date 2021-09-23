@@ -56,7 +56,7 @@ static TEE_Result fixed_clock_probe(const void *fdt, int offs,
 	}
 
 	fcd->rate = fdt32_to_cpu(*freq);
-	clk->priv = fcd;
+	clk_set_priv(clk, fcd);
 
 	res = clk_register(clk);
 	if (res)

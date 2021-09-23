@@ -110,6 +110,12 @@ TEE_Result clk_register(struct clk *clk)
 	return TEE_SUCCESS;
 }
 
+TEE_Result clk_set_priv(struct clk *clk, void *priv)
+{
+	clk->priv = priv;
+	return TEE_SUCCESS;
+}
+
 const char *clk_elt_name(struct clk *clk)
 {
 	return clk->name;
