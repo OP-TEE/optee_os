@@ -238,6 +238,11 @@ struct clk *clk_get_parent(struct clk *clk)
 	return clk->parent;
 }
 
+size_t clk_get_num_parents(struct clk *clk)
+{
+	return clk->num_parents;
+}
+
 static TEE_Result clk_get_parent_idx(struct clk *clk, struct clk *parent,
 				     size_t *pidx)
 {
