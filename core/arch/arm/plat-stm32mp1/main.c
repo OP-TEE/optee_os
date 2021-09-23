@@ -299,4 +299,15 @@ unsigned int stm32_get_gpio_bank_clock(unsigned int bank)
 	assert(bank <= GPIO_BANK_K);
 	return GPIOA + bank;
 }
+
+#ifdef CFG_DRIVERS_CLK
+struct clk *stm32_get_gpio_bank_clk(unsigned int bank)
+{
+	if (bank == GPIO_BANK_Z)
+		return stm32mp_rcc_clock_id_to_clk(GPIOZ);
+
+	assert(bank <= GPIO_BANK_K);
+	return stm32mp_rcc_clock_id_to_clk(GPIOA + bank);
+}
+#endif
 #endif /* CFG_STM32_GPIO */
