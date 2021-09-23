@@ -66,10 +66,7 @@ struct clk_ops {
  * @clk: Clock for which the name is needed
  * Return a const char * pointing to the clock name
  */
-static inline const char *clk_get_name(struct clk *clk)
-{
-	return clk->name;
-}
+const char *clk_get_name(struct clk *clk);
 
 /**
  * clk_alloc - Allocate a clock structure
