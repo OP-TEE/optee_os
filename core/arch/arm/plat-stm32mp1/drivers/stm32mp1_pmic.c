@@ -593,13 +593,6 @@ static void register_non_secure_pmic(void)
 						 i2c_handle.pinctrl[n].pin);
 
 	stm32mp_register_non_secure_periph_iomem(i2c_handle.base.pa);
-
-	/*
-	 * Non secure PMIC can be used by secure world during power state
-	 * transition when non-secure world is suspended. Therefore secure
-	 * the I2C clock parents, if not specifically the I2C clock itself.
-	 */
-	stm32mp_register_clock_parents_secure(i2c_handle.clock);
 }
 
 static void register_secure_pmic(void)
