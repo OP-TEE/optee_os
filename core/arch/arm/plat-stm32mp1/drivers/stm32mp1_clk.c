@@ -1310,20 +1310,28 @@ static TEE_Result stm32mp1_clk_early_init(void)
 	unsigned int i = 0;
 	int len = 0;
 	int ignored = 0;
+	bool rcc_secure = true;
 
-	fdt = get_embedded_dt();
-	node = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_CLK_COMPAT);
+	node = fdt_node_offset_by_compatible(fdt, -1, DT_RCC_SECURE_CLK_COMPAT);
+	if (node < 0) {
+		node = fdt_node_offset_by_compatible(fdt, -1,
+						     DT_RCC_CLK_COMPAT);
+		if (node < 0)
+			panic();
 
-	if (node < 0 || _fdt_reg_base_address(fdt, node) != RCC_BASE)
-		panic();
+		rcc_secure = false;
+	}
 
-	if (_fdt_get_status(fdt, node) & DT_STATUS_OK_SEC) {
-		io_setbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
-	} else {
+	assert(_fdt_reg_base_address(fdt, node) == RCC_BASE);
+	assert(_fdt_get_status(fdt, node) != DT_STATUS_DISABLED);
+
+	if (!rcc_secure) {
 		if (io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_TZEN)
 			panic("Refuse to release RCC[TZEN]");
 
 		IMSG("RCC is non-secure");
+	} else {
+		io_setbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 	}
 
 	get_osc_freq_from_dt(fdt);
