@@ -264,6 +264,7 @@ vaddr_t stm32mp_bkpreg(unsigned int idx)
 	return bkpreg_base() + (idx * sizeof(uint32_t));
 }
 
+#ifdef CFG_STM32_GPIO
 vaddr_t stm32_get_gpio_bank_base(unsigned int bank)
 {
 	static struct io_pa_va gpios_nsec_base = { .pa = GPIOS_NSEC_BASE };
@@ -298,3 +299,4 @@ unsigned int stm32_get_gpio_bank_clock(unsigned int bank)
 	assert(bank <= GPIO_BANK_K);
 	return GPIOA + bank;
 }
+#endif /* CFG_STM32_GPIO */
