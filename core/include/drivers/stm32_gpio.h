@@ -13,6 +13,7 @@
 #ifndef __STM32_GPIO_H
 #define __STM32_GPIO_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -151,6 +152,7 @@ static inline int stm32_pinctrl_get_gpio_level(struct stm32_pinctrl *pinctrl)
 	return stm32_gpio_get_input_level(pinctrl->bank, pinctrl->pin);
 }
 
+#ifdef CFG_STM32_GPIO
 /*
  * Configure pin muxing access permission: can be secure or not
  *
@@ -160,6 +162,14 @@ static inline int stm32_pinctrl_get_gpio_level(struct stm32_pinctrl *pinctrl)
  */
 void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin,
 			       bool secure);
+#else
+static inline void stm32_gpio_set_secure_cfg(unsigned int bank __unused,
+					     unsigned int pin __unused,
+					     bool secure __unused)
+{
+	assert(0);
+}
+#endif
 
 /*
  * Get the number of GPIO pins supported by a target GPIO bank
