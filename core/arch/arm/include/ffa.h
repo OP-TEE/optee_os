@@ -69,7 +69,7 @@
 #define FFA_MEM_RECLAIM			U(0x84000077)
 #define FFA_MEM_FRAG_RX			U(0x8400007A)
 #define FFA_MEM_FRAG_TX			U(0x8400007B)
-#define FFA_SECONDARY_EP_REGISTER_64	U(0xC4000084)
+#define FFA_SECONDARY_EP_REGISTER_64	U(0xC4000087)
 
 /* Special value for traffic targeted to the Hypervisor or SPM */
 #define FFA_TARGET_INFO_MBZ		U(0x0)
