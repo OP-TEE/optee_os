@@ -541,7 +541,8 @@
 #define RCC_MP_IWDGFZSETR_IWDG1			BIT(0)
 #define RCC_MP_IWDGFZSETR_IWDG2			BIT(1)
 
-#define DT_RCC_CLK_COMPAT	"st,stm32mp1-rcc"
+#define DT_RCC_CLK_COMPAT		"st,stm32mp1-rcc"
+#define DT_RCC_SECURE_CLK_COMPAT	"st,stm32mp1-rcc-secure"
 
 #ifndef __ASSEMBLER__
 vaddr_t stm32_rcc_base(void);
