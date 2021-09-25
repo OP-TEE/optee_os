@@ -149,17 +149,8 @@ arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
 arm64-platform-cflags-hard-float ?=
 arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-atomics,)
 
-ifeq ($(DEBUG),1)
-# For backwards compatibility
-$(call force,CFG_CC_OPT_LEVEL,0)
-$(call force,CFG_DEBUG_INFO,y)
-endif
-
-# Optimize for size by default, usually gives good performance too
-CFG_CC_OPT_LEVEL ?= s
 platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
 
-CFG_DEBUG_INFO ?= y
 ifeq ($(CFG_DEBUG_INFO),y)
 platform-cflags-debug-info ?= -g3
 platform-aflags-debug-info ?= -g
