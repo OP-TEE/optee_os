@@ -1504,6 +1504,8 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_AES_CBC_PAD:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
+	case PKCS11_CKM_AES_CMAC:
+	case PKCS11_CKM_AES_CMAC_GENERAL:
 		if (key_class == PKCS11_CKO_SECRET_KEY &&
 		    key_type == PKCS11_CKK_AES)
 			break;
