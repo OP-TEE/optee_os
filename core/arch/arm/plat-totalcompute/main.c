@@ -27,6 +27,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 #endif
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
+register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 #ifndef CFG_CORE_SEL2_SPMC
 void main_init_gic(void)

@@ -24,6 +24,8 @@ platform-cflags-debug-info = -gdwarf-2
 platform-aflags-debug-info = -gdwarf-2
 endif
 
+$(call force,CFG_CORE_ARM64_PA_BITS,40)
+
 ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1))
 CFG_TEE_CORE_NB_CORE = 8
 
