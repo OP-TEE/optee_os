@@ -26,13 +26,17 @@ static void update_current_ctx(struct thread_specific_data *tsd)
 			ctx = s->ctx;
 	}
 
-	if (tsd->ctx != ctx)
-		vm_set_ctx(ctx);
-	/*
-	 * If current context is of user mode, then it has to be active too.
-	 */
-	if (is_user_mode_ctx(ctx) != core_mmu_user_mapping_is_active())
-		panic("unexpected active mapping");
+	if(ctx)
+	{
+		if (tsd->ctx != ctx)
+			vm_set_ctx(ctx);
+
+		/*
+		* If current context is of user mode, then it has to be active too.
+		*/
+		if (is_user_mode_ctx(ctx) != core_mmu_user_mapping_is_active())
+			panic("unexpected active mapping");
+	}
 }
 
 void ts_push_current_session(struct ts_session *s)
