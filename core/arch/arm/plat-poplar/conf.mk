@@ -25,7 +25,6 @@ ifeq ($(CFG_PL061),y)
 core-platform-cppflags		+= -DPLAT_PL061_MAX_GPIOS=104
 endif
 
-CFG_SECURE_DATA_PATH ?= y
 CFG_TEE_SDP_MEM_BASE ?= 0x02800000
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 
