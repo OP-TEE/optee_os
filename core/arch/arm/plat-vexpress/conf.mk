@@ -55,6 +55,7 @@ $(call force,CFG_ARM32_core,y)
 endif
 
 CFG_WITH_STATS ?= y
+CFG_ENABLE_EMBEDDED_TESTS ?= y
 
 ifeq ($(PLATFORM_FLAVOR),fvp)
 CFG_TEE_CORE_NB_CORE = 8
