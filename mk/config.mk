@@ -693,3 +693,11 @@ ifeq (,$(CFG_HWRNG_QUALITY))
 $(error CFG_HWRNG_QUALITY not defined)
 endif
 endif
+
+# CFG_PREALLOC_RPC_CACHE, when enabled, makes core to preallocate
+# shared memory for each secure thread. When disabled, RPC shared
+# memory is released once the secure thread has completed is execution.
+ifeq ($(CFG_WITH_PAGER),y)
+CFG_PREALLOC_RPC_CACHE ?= n
+endif
+CFG_PREALLOC_RPC_CACHE ?= y

@@ -232,8 +232,8 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 {
-	bool rv;
-	size_t n;
+	bool rv = false;
+	size_t n = 0;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 
 	thread_lock_global();
@@ -246,13 +246,16 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
 	}
 
 	rv = true;
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].rpc_arg) {
-			*cookie = mobj_get_cookie(threads[n].rpc_mobj);
-			mobj_put(threads[n].rpc_mobj);
-			threads[n].rpc_arg = NULL;
-			threads[n].rpc_mobj = NULL;
-			goto out;
+
+	if (IS_ENABLED(CFG_PREALLOC_RPC_CACHE)) {
+		for (n = 0; n < CFG_NUM_THREADS; n++) {
+			if (threads[n].rpc_arg) {
+				*cookie = mobj_get_cookie(threads[n].rpc_mobj);
+				mobj_put(threads[n].rpc_mobj);
+				threads[n].rpc_arg = NULL;
+				threads[n].rpc_mobj = NULL;
+				goto out;
+			}
 		}
 	}
 
@@ -266,10 +269,14 @@ out:
 
 bool thread_enable_prealloc_rpc_cache(void)
 {
-	bool rv;
-	size_t n;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	bool rv = false;
+	size_t n = 0;
+	uint32_t exceptions = 0;
 
+	if (!IS_ENABLED(CFG_PREALLOC_RPC_CACHE))
+		return true;
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	thread_lock_global();
 
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
