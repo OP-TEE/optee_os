@@ -255,6 +255,11 @@ __weak __rodata_unpaged("mobj_reg_shm_ops") = {
 	.dec_map = mobj_reg_shm_dec_map,
 };
 
+/* Releasing RPC preallocated shm mandates few resources to be unpaged */
+DECLARE_KEEP_PAGER(mobj_reg_shm_get_cookie);
+DECLARE_KEEP_PAGER(mobj_reg_shm_matches);
+DECLARE_KEEP_PAGER(mobj_reg_shm_free);
+
 static bool mobj_reg_shm_matches(struct mobj *mobj __maybe_unused,
 				   enum buf_is_attr attr)
 {
