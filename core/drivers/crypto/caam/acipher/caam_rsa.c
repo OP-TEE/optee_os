@@ -712,6 +712,7 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 	struct caambuf EM = { };
 	size_t db_size = 0;
 	size_t b01_idx = 0;
+	size_t db_len = 0;
 	struct drvcrypt_rsa_mgf mgf_data = { };
 	struct drvcrypt_rsa_ed dec_data = { };
 	struct drvcrypt_mod_op mod_op = { };
@@ -916,7 +917,15 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 		goto exit_oaep_decrypt;
 	}
 
-	rsa_data->message.length = DB.length - b01_idx - 1;
+	db_len = DB.length - b01_idx - 1;
+
+	if (rsa_data->message.length < db_len) {
+		rsa_data->message.length = db_len;
+		ret = TEE_ERROR_SHORT_BUFFER;
+		goto exit_oaep_decrypt;
+	}
+
+	rsa_data->message.length = db_len;
 	memcpy(rsa_data->message.data, &DB.data[b01_idx + 1],
 	       rsa_data->message.length);
 
