@@ -28,6 +28,6 @@ CFG_SHMEM_SIZE   ?= 0x10000000
 CFG_WITH_STATS ?= y
 CFG_CRYPTO_WITH_CE ?= y
 
-ifneq (,$(filter y, $(CFG_ZYNQMP_CSU_PUF)))
-$(call force,CFG_ZYNQMP_CSU,y,Mandated by CFG_ZYNQMP_CSU_PUF)
+ifneq (,$(filter y, $(CFG_ZYNQMP_CSU_PUF) $(CFG_ZYNQMP_CSUDMA)))
+$(call force,CFG_ZYNQMP_CSU,y,Mandated by CFG_ZYNQMP_CSU* clients)
 endif
