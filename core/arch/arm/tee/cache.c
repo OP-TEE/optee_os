@@ -11,7 +11,7 @@
 /*
  * tee_uta_cache_operation - dynamic cache clean/inval request from a TA.
  * It follows ARM recommendation:
- *     http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246d/Beicdhde.html
+ *     https://developer.arm.com/documentation/ddi0246/c/Beicdhde
  * Note that this implementation assumes dsb operations are part of
  * cache_op_inner(), and outer cache sync are part of cache_op_outer().
  */
