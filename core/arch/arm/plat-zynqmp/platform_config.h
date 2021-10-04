@@ -86,6 +86,11 @@
 #error "Unknown platform flavor"
 #endif
 
+#define CSUDMA_BASE		0xFFC80000
+#define CSUDMA_SIZE		0x1000
+#define CSU_BASE		0xFFCA0000
+#define CSU_SIZE		0x5038
+
 #ifdef CFG_TEE_LOAD_ADDR
 #define TEE_LOAD_ADDR			CFG_TEE_LOAD_ADDR
 #else
