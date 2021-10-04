@@ -57,6 +57,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			ROUNDDOWN(GIC_BASE + GICD_OFFSET, CORE_MMU_PGDIR_SIZE),
 			CORE_MMU_PGDIR_SIZE);
+#if defined(CFG_ZYNQMP_CSU)
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, CSU_BASE, CSU_SIZE);
+#endif
 
 #ifdef DRAM0_BASE
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
