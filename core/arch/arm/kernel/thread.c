@@ -1680,7 +1680,7 @@ void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
 		if (mobj_get_pa(ce->mobj, 0, 0, &p))
 			goto err;
 
-		if (!ALIGNMENT_IS_OK(p, uint64_t))
+		if (!IS_ALIGNED_WITH_TYPE(p, uint64_t))
 			goto err;
 
 		va = mobj_get_va(ce->mobj, 0);

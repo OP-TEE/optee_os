@@ -90,8 +90,11 @@
 #define IS_POWER_OF_TWO(x) (((x) != 0) && (((x) & (~(x) + 1)) == (x)))
 
 #define IS_ALIGNED(x, a)		(((x) & ((a) - 1)) == 0)
-#define ALIGNMENT_IS_OK(p, type) \
-	(((uintptr_t)(p) & (__alignof__(type) - 1)) == 0)
+#define IS_ALIGNED_WITH_TYPE(x, type) \
+        (__extension__({ \
+                type __is_aligned_y; \
+                IS_ALIGNED((uintptr_t)(x), __alignof__(__is_aligned_y)); \
+        }))
 
 #define TO_STR(x) _TO_STR(x)
 #define _TO_STR(x) #x

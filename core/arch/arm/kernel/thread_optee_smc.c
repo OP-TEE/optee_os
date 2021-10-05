@@ -184,7 +184,7 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		mobj = map_cmd_buffer(parg, &num_params);
 	}
 
-	if (!mobj || !ALIGNMENT_IS_OK(parg, struct optee_msg_arg)) {
+	if (!mobj || !IS_ALIGNED_WITH_TYPE(parg, struct optee_msg_arg)) {
 		EMSG("Bad arg address 0x%" PRIxPA, parg);
 		mobj_put(mobj);
 		return OPTEE_SMC_RETURN_EBADADDR;
@@ -330,7 +330,7 @@ static struct mobj *thread_rpc_alloc_arg(size_t size)
 	/* Registers 4 and 5 passed from normal world */
 	co = reg_pair_to_64(rpc_args[2], rpc_args[3]);
 
-	if (!ALIGNMENT_IS_OK(pa, struct optee_msg_arg))
+	if (!IS_ALIGNED_WITH_TYPE(pa, struct optee_msg_arg))
 		goto err;
 
 	mobj = rpc_shm_mobj_alloc(pa, size, co);

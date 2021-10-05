@@ -92,8 +92,8 @@ static inline void internal_aes_gcm_xor_block(void *dst, const void *src)
 	uint64_t *d = dst;
 	const uint64_t *s = src;
 
-	assert(ALIGNMENT_IS_OK(dst, uint64_t));
-	assert(ALIGNMENT_IS_OK(src, uint64_t));
+	assert(IS_ALIGNED_WITH_TYPE(dst, uint64_t));
+	assert(IS_ALIGNED_WITH_TYPE(src, uint64_t));
 
 	d[0] ^= s[0];
 	d[1] ^= s[1];

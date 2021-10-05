@@ -545,7 +545,7 @@ static unsigned int get_num_rels(unsigned int num_pages,
 	 * relocations and sorted in order of address which it applies to.
 	 */
 	for (; n < num_relocs; n++) {
-		assert(ALIGNMENT_IS_OK(reloc[n], unsigned long));
+		assert(IS_ALIGNED_WITH_TYPE(reloc[n], unsigned long));
 		assert(offs < reloc[n]);	/* check that it's sorted */
 		offs = reloc[n];
 		if (offs >= reloc_offs &&
@@ -597,8 +597,8 @@ struct fobj *fobj_ro_reloc_paged_alloc(unsigned int num_pages, void *hashes,
 	const unsigned int num_relocs = reloc_len / sizeof(uint32_t);
 	unsigned int nrels = 0;
 
-	assert(ALIGNMENT_IS_OK(reloc, uint32_t));
-	assert(ALIGNMENT_IS_OK(reloc_len, uint32_t));
+	assert(IS_ALIGNED_WITH_TYPE(reloc, uint32_t));
+	assert(IS_ALIGNED_WITH_TYPE(reloc_len, uint32_t));
 	assert(num_pages && hashes && store);
 	if (!reloc_len) {
 		assert(!reloc);

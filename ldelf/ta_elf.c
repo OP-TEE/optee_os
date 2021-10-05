@@ -249,7 +249,7 @@ static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
 	size_t num_words = 2;
 	size_t sz = 0;
 
-	if (!ALIGNMENT_IS_OK(ptr, uint32_t))
+	if (!IS_ALIGNED_WITH_TYPE(ptr, uint32_t))
 		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of DT_HASH %p", ptr);
 
 	if (ADD_OVERFLOW(num_words, num_buckets, &num_words) ||
@@ -350,7 +350,7 @@ static void e32_save_symtab(struct ta_elf *elf, size_t tab_idx)
 	size_t str_idx = shdr[tab_idx].sh_link;
 
 	elf->dynsymtab = (void *)(shdr[tab_idx].sh_addr + elf->load_addr);
-	if (!ALIGNMENT_IS_OK(elf->dynsymtab, Elf32_Sym))
+	if (!IS_ALIGNED_WITH_TYPE(elf->dynsymtab, Elf32_Sym))
 		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of dynsymtab %p",
 		    elf->dynsymtab);
 	check_range(elf, "Dynsymtab", elf->dynsymtab, shdr[tab_idx].sh_size);
@@ -376,7 +376,7 @@ static void e64_save_symtab(struct ta_elf *elf, size_t tab_idx)
 	elf->dynsymtab = (void *)(vaddr_t)(shdr[tab_idx].sh_addr +
 					   elf->load_addr);
 
-	if (!ALIGNMENT_IS_OK(elf->dynsymtab, Elf64_Sym))
+	if (!IS_ALIGNED_WITH_TYPE(elf->dynsymtab, Elf64_Sym))
 		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of .dynsym/DYNSYM %p",
 		    elf->dynsymtab);
 	check_range(elf, ".dynsym/DYNSYM", elf->dynsymtab,
