@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <util.h>
 
 /*
  * These macros are the offsets where images reside on sec mem
@@ -28,8 +29,6 @@
 #define BNXT_BSPD_CFG_SIZE	0x200
 
 #define BNXT_CRASH_DUMP_INFO_NS3_BASE	0x3a5ff00
-
-#define IS_ALIGNED(addr, algn)      (!((addr) & ((algn) - 1)))
 
 #define SZ_1K				0x400
 

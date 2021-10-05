@@ -133,8 +133,6 @@
 		 io_write32(MCU_MC_CONTROL_0_REG, (x));	\
 	} while (0)
 
-#define _IS_ALIGNED(_addr, _algn)	(!((_addr) & ((_algn) - 1)))
-
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MCU_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MC_SCR_REGISTER, CORE_MMU_PGDIR_SIZE);
 
@@ -158,19 +156,19 @@ static int32_t set_range(uint32_t addr, uint32_t size, uint32_t perm)
 	int32_t valid_range;
 	uint32_t i;
 
-	if (!_IS_ALIGNED(addr, SIZE_1M)) {
+	if (!IS_ALIGNED(addr, SIZE_1M)) {
 		EMSG("region addr(0x%" PRIx32 ") is not aligned with 1M!",
 			addr);
 		return -1;
 	}
 
-	if (!_IS_ALIGNED(size, SIZE_1M)) {
+	if (!IS_ALIGNED(size, SIZE_1M)) {
 		EMSG("region size(0x%" PRIx32 ") is not aligned with 1M!",
 			size);
 		return -1;
 	}
 
-	if (!_IS_ALIGNED(addr, size)) {
+	if (!IS_ALIGNED(addr, size)) {
 		EMSG("region size(0x%" PRIx32
 			") not align with addr(0x%" PRIx32 ")",
 			size, addr);
@@ -245,7 +243,7 @@ static uint32_t _find_granule(uint32_t addr, uint32_t size)
 	uint32_t max_granule = SIZE_2G;
 
 	while (max_granule >= SIZE_4K) {	/* min granule is 4kB */
-		if (max_granule <= size && _IS_ALIGNED(addr, max_granule))
+		if (max_granule <= size && IS_ALIGNED(addr, max_granule))
 			return max_granule;
 
 		max_granule >>= 1;
