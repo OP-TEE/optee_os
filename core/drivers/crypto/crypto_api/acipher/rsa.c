@@ -302,6 +302,9 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			if (ret != TEE_SUCCESS)
 				return ret;
 
+			if (2 * rsa_data.digest_size >= rsa_data.key.n_size - 2)
+				return TEE_ERROR_BAD_PARAMETERS;
+
 			if (msg_len >
 			    rsa_data.key.n_size - 2 * rsa_data.digest_size - 2)
 				return TEE_ERROR_BAD_PARAMETERS;
