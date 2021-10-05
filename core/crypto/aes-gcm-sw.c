@@ -71,7 +71,7 @@ static void encrypt_pl(struct internal_aes_gcm_state *state,
 {
 	size_t n = 0;
 
-	if (ALIGNMENT_IS_OK(src, uint64_t)) {
+	if (IS_ALIGNED_WITH_TYPE(src, uint64_t)) {
 		for (n = 0; n < num_blocks; n++) {
 			const void *s = src + n * TEE_AES_BLOCK_SIZE;
 			void *d = dst + n * TEE_AES_BLOCK_SIZE;
@@ -110,7 +110,7 @@ static void decrypt_pl(struct internal_aes_gcm_state *state,
 {
 	size_t n = 0;
 
-	if (ALIGNMENT_IS_OK(src, uint64_t)) {
+	if (IS_ALIGNED_WITH_TYPE(src, uint64_t)) {
 		for (n = 0; n < num_blocks; n++) {
 			const void *s = src + n * TEE_AES_BLOCK_SIZE;
 			void *d = dst + n * TEE_AES_BLOCK_SIZE;

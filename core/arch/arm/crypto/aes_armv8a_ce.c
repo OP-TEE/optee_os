@@ -129,8 +129,8 @@ TEE_Result crypto_accel_aes_expand_keys(const void *key, size_t key_len,
 		return TEE_ERROR_BAD_PARAMETERS;
 	if (key_len != 16 && key_len != 24 && key_len != 32)
 		return TEE_ERROR_BAD_PARAMETERS;
-	if (!ALIGNMENT_IS_OK(enc_key, struct aes_block) ||
-	    !ALIGNMENT_IS_OK(dec_key, struct aes_block))
+	if (!IS_ALIGNED_WITH_TYPE(enc_key, struct aes_block) ||
+	    !IS_ALIGNED_WITH_TYPE(dec_key, struct aes_block))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	num_rounds = 10 + ((key_len / 8) - 2) * 2;

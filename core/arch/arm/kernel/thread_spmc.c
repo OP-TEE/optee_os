@@ -472,7 +472,7 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 	unsigned int region_descr_offs = 0;
 	size_t n = 0;
 
-	if (!ALIGNMENT_IS_OK(buf, struct ffa_mem_transaction) ||
+	if (!IS_ALIGNED_WITH_TYPE(buf, struct ffa_mem_transaction) ||
 	    blen < sizeof(struct ffa_mem_transaction))
 		return FFA_INVALID_PARAMETERS;
 
@@ -498,8 +498,8 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 	    n > blen)
 		return FFA_INVALID_PARAMETERS;
 
-	if (!ALIGNMENT_IS_OK((vaddr_t)descr + region_descr_offs,
-			     struct ffa_mem_region))
+	if (!IS_ALIGNED_WITH_TYPE((vaddr_t)descr + region_descr_offs,
+				  struct ffa_mem_region))
 		return FFA_INVALID_PARAMETERS;
 
 	region_descr = (struct ffa_mem_region *)((vaddr_t)descr +
@@ -520,7 +520,7 @@ static int add_mem_share_helper(struct mem_share_state *s, void *buf,
 	if (region_count > s->region_count)
 		region_count = s->region_count;
 
-	if (!ALIGNMENT_IS_OK(buf, struct ffa_address_range))
+	if (!IS_ALIGNED_WITH_TYPE(buf, struct ffa_address_range))
 		return FFA_INVALID_PARAMETERS;
 	arange = buf;
 

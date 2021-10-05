@@ -226,7 +226,7 @@ static TEE_Result seal_trusted_key(uint32_t types,
 	if (!in || !in_sz || in_sz > MAX_BUF_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 	if ((!out && out_sz) ||
-	    (out && !ALIGNMENT_IS_OK(out, struct tk_blob_hdr)) ||
+	    (out && !IS_ALIGNED_WITH_TYPE(out, struct tk_blob_hdr)) ||
 	    out_sz > MAX_BUF_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 
@@ -266,7 +266,7 @@ static TEE_Result unseal_trusted_key(uint32_t types,
 	out = params[1].memref.buffer;
 	out_sz = params[1].memref.size;
 
-	if (!in || !ALIGNMENT_IS_OK(in, struct tk_blob_hdr) ||
+	if (!in || !IS_ALIGNED_WITH_TYPE(in, struct tk_blob_hdr) ||
 	    in_sz <= sizeof(struct tk_blob_hdr) || in_sz > MAX_BUF_SIZE)
 		return TEE_ERROR_BAD_PARAMETERS;
 	if ((!out && out_sz) || out_sz > MAX_BUF_SIZE)
