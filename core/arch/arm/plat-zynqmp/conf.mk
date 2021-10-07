@@ -28,6 +28,8 @@ CFG_SHMEM_SIZE   ?= 0x10000000
 CFG_WITH_STATS ?= y
 CFG_CRYPTO_WITH_CE ?= y
 
+CFG_ZYNQMP_PM ?= $(CFG_ARM64_core)
+
 ifeq ($(CFG_ZYNQMP_CSU_AES),y)
 $(call force,CFG_ZYNQMP_CSUDMA,y,Mandated by CFG_ZYNQMP_CSU_AES)
 $(call force,CFG_DT,y,Mandated by CFG_ZYNQMP_CSU_AES)
