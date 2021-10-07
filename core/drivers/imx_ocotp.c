@@ -38,7 +38,7 @@ static void ocotp_clock_enable(void)
 {
 	vaddr_t va = core_mmu_get_va(CCM_BASE, MEM_AREA_IO_SEC, CCM_SIZE);
 
-	io_setbits32(va + CCM_CCGRx_SET(CCM_CLOCK_DOMAIN_CAAM),
+	io_setbits32(va + CCM_CCGRx_SET(CCM_CLOCK_DOMAIN_OCOTP),
 		     CCM_CCGRx_ALWAYS_ON(0));
 }
 #elif defined(CFG_MX8M)
