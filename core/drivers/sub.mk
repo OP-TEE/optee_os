@@ -42,6 +42,7 @@ srcs-$(CFG_ZYNQMP_CSU_PUF) += zynqmp_csu_puf.c
 srcs-$(CFG_ZYNQMP_CSUDMA) += zynqmp_csudma.c
 srcs-$(CFG_ZYNQMP_CSU_AES) += zynqmp_csu_aes.c
 srcs-$(CFG_ZYNQMP_PM) += zynqmp_pm.c
+srcs-$(CFG_ZYNQMP_HUK) += zynqmp_huk.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
