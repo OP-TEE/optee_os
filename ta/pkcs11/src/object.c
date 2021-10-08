@@ -605,8 +605,10 @@ enum pkcs11_rc entry_find_objects_init(struct pkcs11_client *client,
 
 		if (!obj->attributes) {
 			rc = load_persistent_object_attributes(obj);
-			if (rc)
-				return PKCS11_CKR_GENERAL_ERROR;
+			if (rc) {
+				rc = PKCS11_CKR_GENERAL_ERROR;
+				goto out;
+			}
 
 			new_load = true;
 		}
