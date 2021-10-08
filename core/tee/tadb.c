@@ -172,12 +172,20 @@ static TEE_Result set_file(struct tee_tadb_dir *db, int idx)
 
 static void clear_file(struct tee_tadb_dir *db, int idx)
 {
+	/*
+	 * This is safe because db->nbits > 0 implies that
+	 * db->files is non-NULL (see maybe_grow_files()).
+	 */
 	if (idx < db->nbits)
 		bit_clear(db->files, idx);
 }
 
 static bool test_file(struct tee_tadb_dir *db, int idx)
 {
+	/*
+	 * This is safe because db->nbits > 0 implies that
+	 * db->files is non-NULL (see maybe_grow_files()).
+	 */
 	if (idx < db->nbits)
 		return bit_test(db->files, idx);
 
