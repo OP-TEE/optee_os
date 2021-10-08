@@ -57,3 +57,18 @@ void zynqmp_csu_puf_reset(void)
 
 	io_write32(puf + PUF_CMD_OFFSET, PUF_RESET);
 }
+
+static TEE_Result zynqmp_csu_puf_init(void)
+{
+	vaddr_t csu = core_mmu_get_va(CSU_BASE, MEM_AREA_IO_SEC, CSU_SIZE);
+	uint32_t status = 0;
+
+	/* if the bootloader has been authenticated, reserve the PUF */
+	status = io_read32(csu + ZYNQMP_CSU_STATUS_OFFSET);
+	if (status & ZYNQMP_CSU_STATUS_AUTH)
+		return zynqmp_csu_aes_dt_enable_secure_status();
+
+	return TEE_SUCCESS;
+}
+
+driver_init(zynqmp_csu_puf_init);
