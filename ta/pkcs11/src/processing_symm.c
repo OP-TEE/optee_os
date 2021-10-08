@@ -999,6 +999,7 @@ enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 	struct active_processing *proc = session->processing;
 	struct input_data_ref *input = proc->extra_ctx;
 	void *in_buf = NULL;
+	void *dest_buf = NULL;
 	uint32_t in_size = 0;
 
 	switch (proc->mecha_type) {
@@ -1011,15 +1012,19 @@ enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 		in_size = input->size;
 
 		*out_size = in_size;
-		*out_buf = TEE_Malloc(*out_size, 0);
-		if (!*out_buf)
+		dest_buf = TEE_Malloc(*out_size, 0);
+		if (!dest_buf)
 			return PKCS11_CKR_DEVICE_MEMORY;
 
 		res = TEE_CipherDoFinal(proc->tee_op_handle, in_buf, in_size,
-					*out_buf, out_size);
+					dest_buf, out_size);
 		rc = tee2pkcs_error(res);
-		if (rc)
-			TEE_Free(*out_buf);
+		if (rc) {
+			TEE_Free(dest_buf);
+			return rc;
+		}
+
+		*out_buf = dest_buf;
 		break;
 	default:
 		return PKCS11_CKR_MECHANISM_INVALID;
