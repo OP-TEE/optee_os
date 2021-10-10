@@ -30,6 +30,10 @@ CFG_CRYPTO_WITH_CE ?= y
 
 CFG_ZYNQMP_PM ?= $(CFG_ARM64_core)
 
+ifeq ($(CFG_RPMB_FS),y)
+$(call force,CFG_ZYNQMP_HUK,y,Mandated by CFG_RPMB_FS)
+endif
+
 ifeq ($(CFG_ZYNQMP_HUK),y)
 $(call force,CFG_ZYNQMP_CSU_AES,y,Mandated by CFG_ZYNQMP_HUK)
 $(call force,CFG_ZYNQMP_CSU_PUF,y,Mandated by CFG_ZYNQMP_HUK)
