@@ -1173,6 +1173,7 @@ static void secure_parent_clocks(unsigned long parent_id)
 	switch (parent_id) {
 	case _ACLK:
 	case _HCLK2:
+	case _HCLK5:
 	case _HCLK6:
 	case _PCLK4:
 	case _PCLK5:
