@@ -152,7 +152,7 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 static uint8_t *pkcs11_object_default_boolprop(uint32_t attribute)
 {
 	static const uint8_t bool_true = 1;
-	static const uint8_t bool_false;
+	static const uint8_t bool_false = 0;
 
 	switch (attribute) {
 	/* As per PKCS#11 default value */
