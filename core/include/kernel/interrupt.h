@@ -14,7 +14,7 @@
 
 struct itr_chip {
 	const struct itr_ops *ops;
-	int (*dt_get_irq)(const uint32_t *properties, int len);
+	int (*dt_get_irq)(const uint32_t *properties, int count);
 };
 
 struct itr_ops {
