@@ -32,17 +32,17 @@ void itr_init(struct itr_chip *chip)
 int dt_get_irq(const void *fdt, int node)
 {
 	const uint32_t *prop = NULL;
-	int len = 0;
+	int count = 0;
 	int it_num = DT_INFO_INVALID_INTERRUPT;
 
 	if (!itr_chip || !itr_chip->dt_get_irq)
 		return it_num;
 
-	prop = fdt_getprop(fdt, node, "interrupts", &len);
+	prop = fdt_getprop(fdt, node, "interrupts", &count);
 	if (!prop)
 		return it_num;
 
-	return itr_chip->dt_get_irq(prop, len);
+	return itr_chip->dt_get_irq(prop, count);
 }
 #endif
 

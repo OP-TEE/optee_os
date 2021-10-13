@@ -208,11 +208,11 @@ void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
 #endif
 }
 
-static int gic_dt_get_irq(const uint32_t *properties, int len)
+static int gic_dt_get_irq(const uint32_t *properties, int count)
 {
 	int it_num = DT_INFO_INVALID_INTERRUPT;
 
-	if (!properties || len < 2)
+	if (!properties || count < 2)
 		return DT_INFO_INVALID_INTERRUPT;
 
 	it_num = fdt32_to_cpu(properties[1]);
