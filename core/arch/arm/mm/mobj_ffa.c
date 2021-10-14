@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <bitstring.h>
+#include <ffa.h>
 #include <initcall.h>
 #include <keep.h>
 #include <kernel/refcount.h>
@@ -101,7 +102,8 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
 		 * Setting bit 44 to use one of the upper 32 bits too for
 		 * testing.
 		 */
-		mf->cookie = i | BIT64(44);
+		mf->cookie = i | FFA_MEMORY_HANDLE_NONE_SECURE_BIT;
+
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 

@@ -106,6 +106,7 @@
 #define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
 #define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
 
+#define FFA_MEMORY_HANDLE_NONE_SECURE_BIT	BIT64(44)
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
 struct ffa_address_range {
