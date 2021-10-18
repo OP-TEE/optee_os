@@ -86,6 +86,15 @@ R:	Jorge Ramirez <jorge@foundries.io>
 S:	Maintained
 F:	core/drivers/crypto/se050
 
+Core Drivers ZYNQMP
+R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
+S:	Maintained
+F:	core/drivers/zynqmp_csu_aes.c
+F:	core/drivers/zynqmp_csu_puf.c
+F:	core/drivers/zynqmp_csudma.c
+F:	core/drivers/zynqmp_huk.c
+F:	core/drivers/zynqmp_pm.c
+
 Function Graph Tracer (ftrace) support
 R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 S:	Maintained
