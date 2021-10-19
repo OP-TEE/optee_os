@@ -39,6 +39,7 @@
 #endif
 
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
+#define RTI_CHECK_VASPACE_SIZE	CORE_MMU_PGDIR_SIZE
 
 /*
  * These variables are initialized before .bss is cleared. To avoid
@@ -52,11 +53,11 @@ unsigned long default_nsec_shm_size __nex_bss;
 unsigned long default_nsec_shm_paddr __nex_bss;
 #endif
 
-static struct tee_mmap_region static_memory_map[CFG_MMAP_REGIONS
-#ifdef CFG_CORE_ASLR
-						+ 1
-#endif
-						+ 1] __nex_bss;
+#define MMAP_ELEMENT_COUNT	(CFG_MMAP_REGIONS + 1 + \
+				 IS_ENABLED(CFG_CORE_ASLR) + \
+				 IS_ENABLED(CFG_NS_RTI_CHECK))
+
+static struct tee_mmap_region static_memory_map[MMAP_ELEMENT_COUNT] __nex_bss;
 
 /* Define the platform's memory layout. */
 struct memaccess_area {
@@ -669,6 +670,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_RES_VASPACE:
 	case MEM_AREA_SHM_VASPACE:
+	case MEM_AREA_RTI_CHECK_VASPACE:
 		return 0;
 	case MEM_AREA_PAGER_VASPACE:
 		return TEE_MATTR_SECURE;
@@ -870,6 +872,10 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 
 	add_va_space(memory_map, num_elems, MEM_AREA_SHM_VASPACE,
 		     SHM_VASPACE_SIZE, &last);
+
+	if (IS_ENABLED(CFG_NS_RTI_CHECK))
+		add_va_space(memory_map, num_elems, MEM_AREA_RTI_CHECK_VASPACE,
+			     RTI_CHECK_VASPACE_SIZE, &last);
 
 	memory_map[last].type = MEM_AREA_END;
 
@@ -1171,6 +1177,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
+		case MEM_AREA_RTI_CHECK_VASPACE:
 		case MEM_AREA_PAGER_VASPACE:
 			break;
 		default:
@@ -2474,3 +2481,98 @@ void core_mmu_init_ta_ram(void)
 	tee_mm_init(&tee_mm_sec_ddr, ps, pe, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
 }
+
+#ifdef CFG_NS_RTI_CHECK
+void *core_mmu_map_rti_check(paddr_t pa, size_t len, size_t *mapped_len)
+{
+	uint32_t new_attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PR |
+			    TEE_MATTR_GLOBAL |
+			    (TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+	struct core_mmu_table_info tbl_info = { };
+	struct tee_mmap_region *map = NULL;
+	size_t old_granule = 0;
+	vaddr_t vabase = 0;
+	uint32_t attr = 0;
+	size_t idx = 0;
+
+	/* Refuse to map memory which isn't know to be non-secure */
+	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, len))
+		return NULL;
+
+	map = find_map_by_type(MEM_AREA_RTI_CHECK_VASPACE);
+	if (!map)
+		panic("MEM_AREA_RTI_CHECK_VASPACE not found");
+	vabase = map->va;
+
+	if (!core_mmu_find_table(NULL, vabase, CORE_MMU_PGDIR_LEVEL - 1,
+				 &tbl_info))
+		panic("Can't find pgdir entry");
+
+	idx = core_mmu_va2idx(&tbl_info, vabase);
+	core_mmu_get_entry(&tbl_info, idx, NULL, &attr);
+	if (attr & TEE_MATTR_TABLE)
+		old_granule = SMALL_PAGE_SIZE;
+	else
+		old_granule = CORE_MMU_PGDIR_SIZE;
+
+	/*
+	 * Invalidate the map and matching TLB entries before setting the
+	 * new map.
+	 */
+	if (attr & (TEE_MATTR_PR | TEE_MATTR_TABLE)) {
+		core_mmu_set_entry(&tbl_info, idx, 0, 0);
+		tlbi_mva_range(vabase, CORE_MMU_PGDIR_SIZE, old_granule);
+	}
+	if (!len)
+		return NULL;
+	/* We cannot map anything smaller than a page */
+	if ((pa | len) & SMALL_PAGE_MASK)
+		return NULL;
+
+	if ((pa & CORE_MMU_PGDIR_MASK) || len < CORE_MMU_PGDIR_SIZE) {
+		/* Map using page granularity */
+		struct core_mmu_table_info pg_ti = {
+			.table = core_mmu_rti_check_table,
+			.va_base = vabase,
+			.level = CORE_MMU_PGDIR_LEVEL,
+			.shift = SMALL_PAGE_SHIFT,
+			.num_entries = CORE_MMU_PGDIR_SIZE / SMALL_PAGE_SIZE,
+		};
+		size_t m_len = 0;
+		size_t n = 0;
+
+		m_len = MIN(len, pg_ti.num_entries * SMALL_PAGE_SIZE);
+		if (m_len < len) {
+			/*
+			 * There remains some to be mapped, only map up to
+			 * the next page directory (section) boundary to
+			 * allow us to use section mappings in the next
+			 * request if len is large enough to permit that.
+			 */
+			m_len -= (pa + m_len) & CORE_MMU_PGDIR_MASK;
+		}
+		for (n = 0; n < m_len / SMALL_PAGE_SIZE; n++)
+			core_mmu_set_entry(&pg_ti, n, pa + n * SMALL_PAGE_SIZE,
+					   new_attr);
+		for (; n < pg_ti.num_entries; n++)
+			core_mmu_set_entry(&pg_ti, n, 0, 0);
+
+		/*
+		 * Make sure that the table update above is visible before
+		 * we start to use the table.
+		 */
+		dsb_ishst();
+		core_mmu_set_entry(&tbl_info, idx, virt_to_phys(pg_ti.table),
+				   TEE_MATTR_TABLE);
+		*mapped_len = m_len;
+	} else {
+		core_mmu_set_entry(&tbl_info, idx, pa, new_attr);
+		*mapped_len = CORE_MMU_PGDIR_SIZE;
+	}
+
+	/* Make sure that the table update above is visible.  */
+	dsb_ishst();
+
+	return (void *)vabase;
+}
+#endif /*CFG_NS_RTI_CHECK*/

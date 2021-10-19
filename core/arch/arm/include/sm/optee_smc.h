@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 #ifndef OPTEE_SMC_H
 #define OPTEE_SMC_H
@@ -451,6 +451,91 @@
 #define OPTEE_SMC_FUNCID_GET_THREAD_COUNT	U(15)
 #define OPTEE_SMC_GET_THREAD_COUNT \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_THREAD_COUNT)
+
+/*
+ * Add runtime integrity check for a physical memory range
+ *
+ * The normal world OS or even hypervisor can register physical memory
+ * ranges which are not supposed to change. Secure world will check that
+ * the memory is unchanged periodically.  In case changes are detected
+ * secure world will log this and optionally reset the system.
+ *
+ * Call request usage:
+ * a0	SMC Function ID, OPTEE_SMC_RTI_CHECK
+ * a1	Upper 32 bits of a physical address of the memory range
+ * a2	Lower 32 bits of a physical address of the memory range
+ * a3	Size in bytes of memory range
+ * a4	Flags, unused bits MBZ
+ * a5-6 Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Error return:
+ * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION   Requested call is not implemented
+ *	OPTEE_SMC_RETURN_EBADADDR	    Physical memory range out of range
+ *	OPTEE_SMC_RETURN_ENOMEM		    Out of memory, cannot register range
+ * a1-7	Preserved
+ */
+/*
+ * Make the settings for this memory range final, that is, the physical
+ * memory range can't be changed or removed once OPTEE_SMC_ADD_RTI_CHECK
+ * has returned OK.
+ */
+#define OPTEE_SMC_RTI_FLAG_FINAL		BIT(0)
+#define OPTEE_SMC_FUNCID_ADD_RTI_CHECK		U(16)
+#define OPTEE_SMC_ADD_RTI_CHECK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_ADD_RTI_CHECK)
+
+/*
+ * Remove runtime integrity check for a physical memory range
+ *
+ * Memory ranges not marked as final may be removed.
+ *
+ * Call request usage:
+ * a0	SMC Function ID, OPTEE_SMC_RTI_CHECK
+ * a1	Upper 32 bits of a physical address of the memory range
+ * a2	Lower 32 bits of a physical address of the memory range
+ * a3	Size in bytes of memory range
+ * a4-6 Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Error return:
+ * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION   Requested call is not implemented
+ *	OPTEE_SMC_RETURN_EBADADDR	    Physical memory range not
+ *					    registered or not changeable.
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_REM_RTI_CHECK		U(17)
+#define OPTEE_SMC_REM_RTI_CHECK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_REM_RTI_CHECK)
+
+/*
+ * Run runtime integrity check on registered memory ranges
+ *
+ * Call request usage:
+ * a0	SMC Function ID, OPTEE_SMC_RTI_CHECK
+ * a1-6 Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Error return:
+ * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION   Requested call is not implemented
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_RUN_RTI_CHECK		U(18)
+#define OPTEE_SMC_RUN_RTI_CHECK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_RUN_RTI_CHECK)
+
 
 /*
  * Resume from RPC (for example after processing a foreign interrupt)

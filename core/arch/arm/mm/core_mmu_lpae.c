@@ -226,6 +226,12 @@ static base_xlat_tbls_t base_xlation_table[NUM_BASE_TABLES]
 static xlat_tbl_t xlat_tables[MAX_XLAT_TABLES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
+#ifdef CFG_NS_RTI_CHECK
+static xlat_tbl_t xlat_table_rti_check
+	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
+void *const core_mmu_rti_check_table = xlat_table_rti_check;
+#endif
+
 #define XLAT_TABLES_SIZE	(sizeof(xlat_tbl_t) * MAX_XLAT_TABLES)
 
 /* MMU L2 table for TAs, one for each thread */

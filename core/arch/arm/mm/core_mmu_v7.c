@@ -197,6 +197,12 @@ static l1_xlat_tbl_t main_mmu_l1_ttb
 static l2_xlat_tbl_t main_mmu_l2_ttb[MAX_XLAT_TABLES]
 		__aligned(L2_ALIGNMENT) __section(".nozi.mmu.l2");
 
+#ifdef CFG_NS_RTI_CHECK
+static l2_xlat_tbl_t xlat_table_rti_check
+	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
+void *const core_mmu_rti_check_table = xlat_table_rti_check;
+#endif
+
 /* MMU L1 table for TAs, one for each thread */
 static ul1_xlat_tbl_t main_mmu_ul1_ttb[CFG_NUM_THREADS]
 		__aligned(UL1_ALIGNMENT) __section(".nozi.mmu.ul1");

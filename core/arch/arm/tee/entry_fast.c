@@ -14,6 +14,8 @@
 #include <sm/optee_smc.h>
 #include <tee/entry_fast.h>
 
+#include "rti_check.h"
+
 #ifdef CFG_CORE_RESERVED_SHM
 static void tee_entry_get_shm_config(struct thread_smc_args *args)
 {
@@ -181,6 +183,41 @@ static void tee_entry_vm_destroyed(struct thread_smc_args *args)
 }
 #endif
 
+static uint32_t to_rti_smc_ret(TEE_Result res)
+{
+	switch (res) {
+	case TEE_ERROR_NOT_IMPLEMENTED:
+		return OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+	case TEE_ERROR_OUT_OF_MEMORY:
+		return OPTEE_SMC_RETURN_ENOMEM;
+	case TEE_ERROR_ACCESS_CONFLICT:
+	default:
+		return OPTEE_SMC_RETURN_EBADADDR;
+	}
+}
+
+static void tee_entry_add_rti_check(struct thread_smc_args *args)
+{
+	paddr_t pa = reg_pair_to_64(args->a1, args->a2);
+	size_t sz = args->a3;
+	bool final = args->a4 & OPTEE_SMC_RTI_FLAG_FINAL;
+
+	args->a0 = to_rti_smc_ret(rti_check_add(pa, sz, final));
+}
+
+static void tee_entry_rem_rti_check(struct thread_smc_args *args)
+{
+	paddr_t pa = reg_pair_to_64(args->a1, args->a2);
+	size_t sz = args->a3;
+
+	args->a0 = to_rti_smc_ret(rti_check_rem(pa, sz));
+}
+
+static void tee_entry_run_rti_check(struct thread_smc_args *args)
+{
+	args->a0 = to_rti_smc_ret(rti_check_run());
+}
+
 /* Note: this function is weak to let platforms add special handling */
 void __weak tee_entry_fast(struct thread_smc_args *args)
 {
@@ -245,6 +282,16 @@ void __tee_entry_fast(struct thread_smc_args *args)
 		tee_entry_vm_destroyed(args);
 		break;
 #endif
+
+	case OPTEE_SMC_ADD_RTI_CHECK:
+		tee_entry_add_rti_check(args);
+		break;
+	case OPTEE_SMC_REM_RTI_CHECK:
+		tee_entry_rem_rti_check(args);
+		break;
+	case OPTEE_SMC_RUN_RTI_CHECK:
+		tee_entry_run_rti_check(args);
+		break;
 
 	default:
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;

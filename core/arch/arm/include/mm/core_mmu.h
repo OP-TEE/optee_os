@@ -121,6 +121,7 @@
  * MEM_AREA_EXT_DT:   Memory loads external device tree
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
+ * MEM_AREA_RTI_CHECK_VASPACE: Virtual memory space runtime integrity check
  * MEM_AREA_TS_VASPACE: TS va space, only used with phys_to_virt()
  * MEM_AREA_DDR_OVERALL: Overall DDR address range, candidate to dynamic shm.
  * MEM_AREA_SEC_RAM_OVERALL: Whole secure RAM
@@ -148,6 +149,7 @@ enum teecore_memtypes {
 	MEM_AREA_EXT_DT,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_SHM_VASPACE,
+	MEM_AREA_RTI_CHECK_VASPACE,
 	MEM_AREA_TS_VASPACE,
 	MEM_AREA_PAGER_VASPACE,
 	MEM_AREA_SDP_MEM,
@@ -180,6 +182,7 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_EXT_DT] = "EXT_DT",
 		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
 		[MEM_AREA_SHM_VASPACE] = "SHM_VASPACE",
+		[MEM_AREA_RTI_CHECK_VASPACE] = "RTI_CHECK_VASPACE",
 		[MEM_AREA_TS_VASPACE] = "TS_VASPACE",
 		[MEM_AREA_PAGER_VASPACE] = "PAGER_VASPACE",
 		[MEM_AREA_SDP_MEM] = "SDP_MEM",
@@ -311,6 +314,10 @@ struct core_mmu_phys_mem {
 /* Default NSec shared memory allocated from NSec world */
 extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
+#endif
+
+#ifdef CFG_NS_RTI_CHECK
+extern void *const core_mmu_rti_check_table;
 #endif
 
 /*
@@ -575,7 +582,8 @@ static inline size_t core_mmu_get_block_offset(
 static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
 {
 	return mm->type == MEM_AREA_RES_VASPACE ||
-		mm->type == MEM_AREA_SHM_VASPACE;
+	       mm->type == MEM_AREA_SHM_VASPACE ||
+	       mm->type == MEM_AREA_RTI_CHECK_VASPACE;
 }
 
 /*
@@ -608,6 +616,8 @@ TEE_Result core_mmu_map_pages(vaddr_t vstart, paddr_t *pages, size_t num_pages,
 TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 					 size_t num_pages,
 					 enum teecore_memtypes memtype);
+
+void *core_mmu_map_rti_check(paddr_t pa, size_t len, size_t *mapped_len);
 
 /*
  * core_mmu_unmap_pages() - remove mapping at given virtual address

@@ -6,6 +6,7 @@ srcs-y += arch_svc.c
 endif
 ifneq ($(CFG_CORE_FFA),y)
 srcs-y += entry_fast.c
+srcs-$(CFG_NS_RTI_CHECK) += rti_check.c
 cppflags-entry_fast.c-y += -DTEE_IMPL_GIT_SHA1=$(TEE_IMPL_GIT_SHA1)
 endif
 srcs-y += cache.c

@@ -725,3 +725,7 @@ CFG_DRIVERS_CLK_FIXED ?= $(CFG_DRIVERS_CLK_DT)
 
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
+
+# CFG_NS_RTI_CHECK, enables runtime integrity checks of non-secure physical
+# memory
+CFG_NS_RTI_CHECK ?= n
