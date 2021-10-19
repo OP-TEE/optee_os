@@ -298,6 +298,12 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 TEE_Result hash_sha512_256_compute(uint8_t *digest, const uint8_t *data,
 		size_t data_size);
 
+size_t crypto_atomic_sha256_get_ctx_size(void);
+TEE_Result crypto_atomic_sha256_init(void *ctx);
+TEE_Result crypto_atomic_sha256_update(void *ctx, const uint8_t *data,
+				       size_t len);
+TEE_Result crypto_atomic_sha256_final(void *ctx, uint8_t *digest, size_t len);
+
 #define CRYPTO_RNG_SRC_IS_QUICK(sid) (!!((sid) & 1))
 
 /*

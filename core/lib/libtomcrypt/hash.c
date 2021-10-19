@@ -184,6 +184,34 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 		return TEE_ERROR_SECURITY;
 	return TEE_SUCCESS;
 }
+
+size_t crypto_atomic_sha256_get_ctx_size(void)
+{
+	return sizeof(hash_state);
+}
+
+TEE_Result crypto_atomic_sha256_init(void *ctx)
+{
+	if (sha256_init(ctx) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_atomic_sha256_update(void *ctx, const uint8_t *data,
+				       size_t len)
+{
+	if (sha256_process(ctx, data, len) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	return TEE_SUCCESS;
+}
+
+TEE_Result crypto_atomic_sha256_final(void *ctx, uint8_t *digest, size_t len)
+{
+	if (len != TEE_SHA256_HASH_SIZE ||
+	    sha256_done(ctx, digest) != CRYPT_OK)
+		return TEE_ERROR_GENERIC;
+	return TEE_SUCCESS;
+}
 #endif
 
 #if defined(_CFG_CORE_LTC_SHA512_256)
