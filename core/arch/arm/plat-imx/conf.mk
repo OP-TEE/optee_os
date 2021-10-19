@@ -499,6 +499,7 @@ ifeq ($(CFG_NXP_SE05X),y)
 $(call force,CFG_IMX_OCOTP,n)
 endif
 CFG_IMX_OCOTP ?= y
+CFG_IMX_DIGPROG ?= y
 
 # Almost all platforms include CAAM HW Modules, except the
 # ones forced to be disabled
