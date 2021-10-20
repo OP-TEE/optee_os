@@ -1154,8 +1154,8 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 	    arg->params->attr != OPTEE_MSG_ATTR_TYPE_FMEM_OUTPUT)
 		return NULL;
 
-	internal_offset = arg->params->u.fmem.internal_offs;
-	cookie = arg->params->u.fmem.global_id;
+	internal_offset = READ_ONCE(arg->params->u.fmem.internal_offs);
+	cookie = READ_ONCE(arg->params->u.fmem.global_id);
 	mobj = mobj_ffa_get_by_cookie(cookie, internal_offset);
 	if (!mobj) {
 		DMSG("mobj_ffa_get_by_cookie(%#"PRIx64", %#x): failed",
