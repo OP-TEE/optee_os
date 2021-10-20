@@ -711,7 +711,7 @@ sss_status_t se050_key_store_get_ecc_key_bin(sss_se05x_key_store_t *store,
 	case kSSS_CipherType_EC_BARRETO_NAEHRIG:
 	case kSSS_CipherType_EC_MONTGOMERY:
 	case kSSS_CipherType_EC_TWISTED_ED:
-		add_ecc_header(key, &buf, &buflen, k_object->curve_id);
+		add_ecc_header(key, key_len, &buf, &buflen, k_object->curve_id);
 		status = Se05x_API_ReadObject(&store->session->s_ctx,
 					      k_object->keyId, 0, 0,
 					      buf, key_len);
@@ -720,7 +720,8 @@ sss_status_t se050_key_store_get_ecc_key_bin(sss_se05x_key_store_t *store,
 
 		*key_len += buflen;
 		buflen = *key_len;
-		get_ecc_raw_data(key, &buf, &buflen, k_object->curve_id);
+		get_ecc_raw_data(key, *key_len, &buf, &buflen,
+				 k_object->curve_id);
 
 		/* return only the binary data */
 		*key_len = buflen;
