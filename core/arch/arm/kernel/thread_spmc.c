@@ -1236,6 +1236,12 @@ static struct mobj *thread_rpc_alloc(size_t size, size_t align, unsigned int bt)
 
 	assert(mobj_is_nonsec(mobj));
 
+	if (mobj->size < size) {
+		DMSG("Mobj %#"PRIx64": wrong size", cookie);
+		mobj_put(mobj);
+		return NULL;
+	}
+
 	if (mobj_inc_map(mobj)) {
 		DMSG("mobj_inc_map(%#"PRIx64"): failed", cookie);
 		mobj_put(mobj);
