@@ -92,8 +92,6 @@ endif
 
 # SPMC configuration "S-EL1 SPMC" where SPM Core is implemented at S-EL1,
 # that is, OP-TEE.
-# Note that this is an experimental feature, ABIs etc may have incompatible
-# changes
 ifeq ($(CFG_CORE_SEL1_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL2_SPMC,n)
