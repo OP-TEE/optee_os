@@ -150,7 +150,7 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 	struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
-	if (!key || !msg || !cipher || !cipher_len) {
+	if (!key || !msg || !cipher_len) {
 		CRYPTO_TRACE("Parameters error (key @%p)\n"
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @%p size %zu bytes)",
@@ -168,6 +168,11 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 			     *cipher_len, rsa_data.key.n_size);
 		*cipher_len = rsa_data.key.n_size;
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	if (!cipher) {
+		CRYPTO_TRACE("Parameter \"cipher\" reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
@@ -260,7 +265,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 	struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
-	if (!key || !msg || !cipher || !cipher_len || (!label && label_len)) {
+	if (!key || !msg || !cipher_len || (!label && label_len)) {
 		CRYPTO_TRACE("Parameters error (key @%p\n"
 			     "(msg @%p size %zu bytes)\n"
 			     "(cipher @%p size %zu bytes)\n"
@@ -280,6 +285,11 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			     *cipher_len, rsa_data.key.n_size);
 		*cipher_len = rsa_data.key.n_size;
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	if (!cipher) {
+		CRYPTO_TRACE("Parameter \"cipher\" reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
@@ -339,7 +349,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ssa rsa_ssa = { };
 
-	if (!key || !msg || !sig || !sig_len) {
+	if (!key || !msg || !sig_len) {
 		CRYPTO_TRACE("Input parameters reference error");
 		return ret;
 	}
@@ -374,6 +384,11 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 			     *sig_len, rsa_ssa.key.n_size);
 		*sig_len = rsa_ssa.key.n_size;
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	if (!sig) {
+		CRYPTO_TRACE("Parameter \"sig\" reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);

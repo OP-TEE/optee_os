@@ -128,7 +128,7 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	size_t l_bytes = 0;
 	size_t n_bytes = 0;
 
-	if (!key || !msg || !sig || !sig_len) {
+	if (!key || !msg || !sig_len) {
 		CRYPTO_TRACE("Input parameters reference error");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -147,6 +147,11 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 			     *sig_len, 2 * n_bytes);
 		*sig_len = 2 * n_bytes;
 		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	if (!sig) {
+		CRYPTO_TRACE("Parameter \"sig\" reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	dsa = drvcrypt_get_ops(CRYPTO_DSA);
