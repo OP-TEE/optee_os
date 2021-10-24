@@ -5,6 +5,7 @@
 #
 
 import sys
+import math
 
 
 algo = {'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256': 0x70414930,
@@ -33,7 +34,7 @@ def get_args(logger):
     sat = '[' + ', '.join(command_aliases_stitch) + ']'
 
     parser = ArgumentParser(
-        description='Sign and encrypt (optional) a Tusted Application for' +
+        description='Sign and encrypt (optional) a Trusted Application for' +
         ' OP-TEE.',
         usage='\n   %(prog)s command [ arguments ]\n\n'
 
@@ -147,16 +148,13 @@ def get_args(logger):
 
 
 def main():
-    try:
-        from Cryptodome.Signature import pss
-        from Cryptodome.Signature import pkcs1_15
-        from Cryptodome.Hash import SHA256
-        from Cryptodome.PublicKey import RSA
-    except ImportError:
-        from Crypto.Signature import pss
-        from Crypto.Signature import pkcs1_15
-        from Crypto.Hash import SHA256
-        from Crypto.PublicKey import RSA
+    from cryptography import exceptions
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import padding
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.asymmetric import utils
     import base64
     import logging
     import os
@@ -168,15 +166,23 @@ def main():
     args = get_args(logger)
 
     with open(args.key, 'rb') as f:
-        key = RSA.importKey(f.read())
+        data = f.read()
+
+        try:
+            key = serialization.load_pem_private_key(data, password=None,
+                                                     backend=default_backend())
+        except ValueError:
+            key = serialization.load_pem_public_key(data,
+                                                    backend=default_backend())
 
     with open(args.inf, 'rb') as f:
         img = f.read()
 
-    h = SHA256.new()
+    chosen_hash = hashes.SHA256()
+    h = hashes.Hash(chosen_hash, default_backend())
 
-    digest_len = h.digest_size
-    sig_len = key.size_in_bytes()
+    digest_len = chosen_hash.digest_size
+    sig_len = math.ceil(key.key_size / 8)
 
     img_size = len(img)
 
@@ -195,24 +201,29 @@ def main():
     shdr_version = struct.pack('<I', hdr_version)
 
     if args.enc_key:
-        from Cryptodome.Cipher import AES
-        cipher = AES.new(bytearray.fromhex(args.enc_key), AES.MODE_GCM)
-        ciphertext, tag = cipher.encrypt_and_digest(img)
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        cipher = AESGCM(bytes.fromhex(args.enc_key))
+        # Use 12 bytes for nonce per recommendation
+        nonce = os.urandom(12)
+        out = cipher.encrypt(nonce, img, None)
+        ciphertext = out[:-16]
+        # Authentication Tag is always the last 16 bytes
+        tag = out[-16:]
 
         enc_algo = 0x40000810  # TEE_ALG_AES_GCM
         flags = 0              # SHDR_ENC_KEY_DEV_SPECIFIC
         ehdr = struct.pack('<IIHH',
-                           enc_algo, flags, len(cipher.nonce), len(tag))
+                           enc_algo, flags, len(nonce), len(tag))
 
     h.update(shdr)
     h.update(shdr_uuid)
     h.update(shdr_version)
     if args.enc_key:
         h.update(ehdr)
-        h.update(cipher.nonce)
+        h.update(nonce)
         h.update(tag)
     h.update(img)
-    img_digest = h.digest()
+    img_digest = h.finalize()
 
     def write_image_with_signature(sig):
         with open(args.outf, 'wb') as f:
@@ -223,20 +234,34 @@ def main():
             f.write(shdr_version)
             if args.enc_key:
                 f.write(ehdr)
-                f.write(cipher.nonce)
+                f.write(nonce)
                 f.write(tag)
                 f.write(ciphertext)
             else:
                 f.write(img)
 
     def sign_encrypt_ta():
-        if not key.has_private():
+        if not isinstance(key, rsa.RSAPrivateKey):
             logger.error('Provided key cannot be used for signing, ' +
                          'please use offline-signing mode.')
             sys.exit(1)
         else:
-            signer = pss.new(key)
-            sig = signer.sign(h)
+            if args.algo == 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256':
+                sig = key.sign(
+                    img_digest,
+                    padding.PSS(
+                        mgf=padding.MGF1(chosen_hash),
+                        salt_length=digest_len
+                    ),
+                    utils.Prehashed(chosen_hash)
+                )
+            elif args.algo == 'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256':
+                sig = key.sign(
+                    img_digest,
+                    padding.PKCS1v15(),
+                    utils.Prehashed(chosen_hash)
+                )
+
             if len(sig) != sig_len:
                 raise Exception(("Actual signature length is not equal to ",
                                  "the computed one: {} != {}").
@@ -262,17 +287,30 @@ def main():
                          args.digf, args.sigf)
             sys.exit(1)
         else:
-            if args.algo == 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256':
-                verifier = pss.new(key)
-            elif args.algo == 'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256':
-                verifier = pkcs1_15.new(key)
             try:
-                verifier.verify(h, sig)
-                write_image_with_signature(sig)
-                logger.info('Successfully applied signature.')
-            except ValueError:
+                if args.algo == 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256':
+                    key.verify(
+                        sig,
+                        img_digest,
+                        padding.PSS(
+                            mgf=padding.MGF1(chosen_hash),
+                            salt_length=digest_len
+                        ),
+                        utils.Prehashed(chosen_hash)
+                    )
+                elif args.algo == 'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256':
+                    key.verify(
+                        sig,
+                        img_digest,
+                        padding.PKCS1v15(),
+                        utils.Prehashed(chosen_hash)
+                    )
+            except exceptions.InvalidSignature:
                 logger.error('Verification failed, ignoring given signature.')
                 sys.exit(1)
+
+            write_image_with_signature(sig)
+            logger.info('Successfully applied signature.')
 
     # dispatch command
     {
