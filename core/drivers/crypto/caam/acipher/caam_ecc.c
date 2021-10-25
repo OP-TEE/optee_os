@@ -700,11 +700,12 @@ static struct drvcrypt_ecc driver_ecc = {
 	.shared_secret = do_shared_secret,
 };
 
-enum caam_status caam_ecc_init(vaddr_t ctrl_addr)
+enum caam_status caam_ecc_init(struct caam_jrcfg *caam_jrcfg)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
+	vaddr_t jr_base = caam_jrcfg->base + caam_jrcfg->offset;
 
-	if (caam_hal_ctrl_pknum(ctrl_addr))
+	if (caam_hal_ctrl_pknum(jr_base))
 		if (drvcrypt_register_ecc(&driver_ecc) == TEE_SUCCESS)
 			retstatus = CAAM_NO_ERROR;
 

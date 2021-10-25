@@ -14,11 +14,12 @@
 /*
  * Initialize the RSA module
  *
- * @ctrl_addr   Controller base address
+ * @caam_jrcfg   JR configuration structure
  */
-enum caam_status caam_rsa_init(vaddr_t ctrl_addr);
+enum caam_status caam_rsa_init(struct caam_jrcfg *caam_jrcfg);
 #else
-static inline enum caam_status caam_rsa_init(vaddr_t ctrl_addr __unused)
+static inline enum caam_status
+caam_rsa_init(struct caam_jrcfg *caam_jrcfg __unused)
 {
 	return CAAM_NO_ERROR;
 }
@@ -28,11 +29,12 @@ static inline enum caam_status caam_rsa_init(vaddr_t ctrl_addr __unused)
 /*
  * Initialize the DH module
  *
- * @ctrl_addr   Controller base address
+ * @caam_jrcfg   JR configuration structure
  */
-enum caam_status caam_dh_init(vaddr_t ctrl_addr);
+enum caam_status caam_dh_init(struct caam_jrcfg *caam_jrcfg);
 #else
-static inline enum caam_status caam_dh_init(vaddr_t ctrl_addr __unused)
+static inline enum caam_status
+caam_dh_init(struct caam_jrcfg *caam_jrcfg __unused)
 {
 	return CAAM_NO_ERROR;
 }
@@ -42,11 +44,12 @@ static inline enum caam_status caam_dh_init(vaddr_t ctrl_addr __unused)
 /*
  * Initialize the MATH module
  *
- * @ctrl_addr   Controller base address
+ * @caam_jrcfg   JR configuration structure
  */
-enum caam_status caam_math_init(vaddr_t ctrl_addr);
+enum caam_status caam_math_init(struct caam_jrcfg *caam_jrcfg);
 #else
-static inline enum caam_status caam_math_init(vaddr_t ctrl_addr __unused)
+static inline enum caam_status
+caam_math_init(struct caam_jrcfg *caam_jrcfg __unused)
 {
 	return CAAM_NO_ERROR;
 }
@@ -56,11 +59,12 @@ static inline enum caam_status caam_math_init(vaddr_t ctrl_addr __unused)
 /*
  * Initialize the Cipher module
  *
- * @ctrl_addr   Controller base address
+ * @caam_jrcfg   JR configuration structure
  */
-enum caam_status caam_ecc_init(vaddr_t ctrl_addr);
+enum caam_status caam_ecc_init(struct caam_jrcfg *caam_jrcfg);
 #else
-static inline enum caam_status caam_ecc_init(vaddr_t ctrl_addr __unused)
+static inline enum caam_status
+caam_ecc_init(struct caam_jrcfg *caam_jrcfg __unused)
 {
 	return CAAM_NO_ERROR;
 }

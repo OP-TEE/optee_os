@@ -114,11 +114,12 @@ static const struct drvcrypt_math driver_math = {
 	.xor_mod_n = &do_xor_mod_n,
 };
 
-enum caam_status caam_math_init(vaddr_t ctrl_addr __unused)
+enum caam_status caam_math_init(struct caam_jrcfg *caam_jrcfg)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
+	vaddr_t jr_base = caam_jrcfg->base + caam_jrcfg->offset;
 
-	if (caam_hal_ctrl_pknum(ctrl_addr))
+	if (caam_hal_ctrl_pknum(jr_base))
 		if (!drvcrypt_register_math(&driver_math))
 			retstatus = CAAM_NO_ERROR;
 
