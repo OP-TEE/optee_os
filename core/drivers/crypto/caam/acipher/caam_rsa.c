@@ -1555,12 +1555,13 @@ static const struct drvcrypt_rsa driver_rsa = {
 	.optional.ssa_verify = NULL,
 };
 
-enum caam_status caam_rsa_init(vaddr_t ctrl_addr)
+enum caam_status caam_rsa_init(struct caam_jrcfg *caam_jrcfg)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
+	vaddr_t jr_base = caam_jrcfg->base + caam_jrcfg->offset;
 
-	if (caam_hal_ctrl_pknum(ctrl_addr)) {
-		caam_era = caam_hal_ctrl_era(ctrl_addr);
+	if (caam_hal_ctrl_pknum(jr_base)) {
+		caam_era = caam_hal_ctrl_era(jr_base);
 		RSA_TRACE("CAAM Era %d", caam_era);
 
 		if (!drvcrypt_register_rsa(&driver_rsa))
