@@ -36,15 +36,15 @@ CFG_CAAM_SGT_ALIGN ?= 1
 # Version of the SGT implementation to use
 CFG_NXP_CAAM_SGT_V1 ?= y
 
-#
-# CAAM Job Ring configuration
-#  - Normal boot settings
-#  - HAB support boot settings
-#
+ifeq ($(filter y, $(CFG_MX8QM) $(CFG_MX8QX)),y)
+$(call force, CFG_JR_BLOCK_SIZE,0x10000)
+$(call force,CFG_JR_INDEX,3)
+$(call force,CFG_JR_INT,486)
+else
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
-
-$(call force, CFG_JR_INDEX,0)  # Default JR index used
-$(call force, CFG_JR_INT,137)  # Default JR IT Number (105 + 32) = 137
+$(call force, CFG_JR_INDEX,0)
+$(call force, CFG_JR_INT,137)
+endif
 
 #
 # Configuration of the Crypto Driver
