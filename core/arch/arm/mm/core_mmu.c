@@ -2495,6 +2495,8 @@ void *core_mmu_map_rti_check(paddr_t pa, size_t len, size_t *mapped_len)
 	uint32_t attr = 0;
 	size_t idx = 0;
 
+	DMSG("%#"PRIxPA":%#zx", pa, len);
+
 	/* Refuse to map memory which isn't know to be non-secure */
 	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, len))
 		return NULL;
@@ -2572,6 +2574,8 @@ void *core_mmu_map_rti_check(paddr_t pa, size_t len, size_t *mapped_len)
 
 	/* Make sure that the table update above is visible.  */
 	dsb_ishst();
+
+	DMSG("*mapped_len %#zx", *mapped_len);
 
 	return (void *)vabase;
 }
