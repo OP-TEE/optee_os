@@ -333,12 +333,14 @@ err:
 	return ret;
 }
 
-enum caam_status caam_hmac_init(vaddr_t ctrl_addr)
+enum caam_status caam_hmac_init(struct caam_jrcfg *caam_jrcfg)
 {
-	caam_hash_limit = caam_hal_ctrl_hash_limit(ctrl_addr);
+	vaddr_t jr_base = caam_jrcfg->base + caam_jrcfg->offset;
+
+	caam_hash_limit = caam_hal_ctrl_hash_limit(jr_base);
 
 	if (caam_hash_limit != UINT8_MAX &&
-	    caam_hal_ctrl_splitkey_support(ctrl_addr)) {
+	    caam_hal_ctrl_splitkey_support(jr_base)) {
 		if (drvcrypt_register_hmac(&caam_hmac_allocate))
 			return CAAM_FAILURE;
 	}

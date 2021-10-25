@@ -54,7 +54,7 @@ static TEE_Result crypto_driver_init(void)
 	}
 
 	/* Initialize the Hash Module */
-	retstatus = caam_hash_init(jrcfg.base);
+	retstatus = caam_hash_init(&jrcfg);
 	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;
@@ -82,7 +82,7 @@ static TEE_Result crypto_driver_init(void)
 	}
 
 	/* Initialize the HMAC Module */
-	retstatus = caam_hmac_init(jrcfg.base);
+	retstatus = caam_hmac_init(&jrcfg);
 	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;

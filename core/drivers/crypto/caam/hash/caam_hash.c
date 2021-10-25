@@ -703,11 +703,12 @@ void caam_hash_hmac_copy_state(struct hashctx *dst, struct hashctx *src)
 	}
 }
 
-enum caam_status caam_hash_init(vaddr_t ctrl_addr)
+enum caam_status caam_hash_init(struct caam_jrcfg *caam_jrcfg)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
+	vaddr_t jr_base = caam_jrcfg->base + caam_jrcfg->offset;
 
-	caam_hash_limit = caam_hal_ctrl_hash_limit(ctrl_addr);
+	caam_hash_limit = caam_hal_ctrl_hash_limit(jr_base);
 
 	if (caam_hash_limit != UINT8_MAX) {
 		if (drvcrypt_register_hash(&caam_hash_allocate) == TEE_SUCCESS)
