@@ -451,6 +451,10 @@ CFG_IMX_OCOTP ?= y
 CFG_NXP_CAAM ?= n
 
 ifeq ($(CFG_NXP_CAAM),y)
+ifeq ($(filter y, $(CFG_MX8QM) $(CFG_MX8QX)), y)
+CFG_IMX_SC ?= y
+endif
+
 # As NXP CAAM Driver is enabled, disable the small local CAAM driver
 # used just to release Job Rings to Non-Secure world
 $(call force,CFG_IMX_CAAM,n)
