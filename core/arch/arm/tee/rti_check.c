@@ -127,7 +127,6 @@ TEE_Result rti_check_run(void)
 			     range->pa, range->sz);
 			res = TEE_ERROR_SECURITY;
 		}
-
 	}
 	core_mmu_map_rti_check(0, 0, &dummy_len);
 	cpu_spin_unlock(&rti_check_lock);

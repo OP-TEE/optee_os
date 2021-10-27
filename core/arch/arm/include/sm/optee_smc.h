@@ -536,7 +536,6 @@
 #define OPTEE_SMC_RUN_RTI_CHECK \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_RUN_RTI_CHECK)
 
-
 /*
  * Resume from RPC (for example after processing a foreign interrupt)
  *

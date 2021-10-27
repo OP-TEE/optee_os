@@ -18,10 +18,12 @@ static inline TEE_Result rti_check_add(paddr_t pa __unused, size_t sz __unused,
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
+
 static inline TEE_Result rti_check_rem(paddr_t pa __unused, size_t sz __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
+
 static inline TEE_Result rti_check_run(void)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
