@@ -711,6 +711,8 @@
 
 				clocks = <&slow_xtal>;
 				#clock-cells = <0>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			rtc: rtc@f80480b0 {
