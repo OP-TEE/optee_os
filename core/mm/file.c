@@ -193,6 +193,25 @@ struct file_slice *file_find_slice(struct file *f, unsigned int page_offset)
 	return NULL;
 }
 
+TEE_Result file_find_page_offset(struct file *f, struct fobj *fobj,
+				 unsigned int *page_offset)
+{
+	struct file_slice_elem *fse = NULL;
+
+	assert(f->mu.state);
+
+	SLIST_FOREACH(fse, &f->slice_head, link) {
+		struct file_slice *fs = &fse->slice;
+
+		if (fs->fobj == fobj) {
+			*page_offset = fs->page_offset;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 void file_lock(struct file *f)
 {
 	mutex_lock(&f->mu);
@@ -206,4 +225,9 @@ bool file_trylock(struct file *f)
 void file_unlock(struct file *f)
 {
 	mutex_unlock(&f->mu);
+}
+
+uint8_t *file_get_tag(struct file *f)
+{
+	return f->tag;
 }

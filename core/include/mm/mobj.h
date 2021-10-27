@@ -297,4 +297,6 @@ struct mobj *mobj_seccpy_shm_alloc(size_t size);
 
 struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file);
 
+struct file *to_file_may_fail(struct mobj *mobj);
+
 #endif /*__MM_MOBJ_H*/
