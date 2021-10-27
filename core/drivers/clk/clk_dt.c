@@ -14,31 +14,34 @@
 #include <stddef.h>
 
 struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
-			       const char *name)
+			       const char *name, TEE_Result *res)
 {
 	int clk_id = 0;
 
 	clk_id = fdt_stringlist_search(fdt, nodeoffset, "clock-names", name);
-	if (clk_id < 0)
+	if (clk_id < 0) {
+		*res = TEE_ERROR_GENERIC;
 		return NULL;
+	}
 
-	return clk_dt_get_by_idx(fdt, nodeoffset, clk_id);
+	return clk_dt_get_by_idx(fdt, nodeoffset, clk_id, res);
 }
 
 static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 					  const void *fdt, int nodeoffset,
-					  unsigned int clk_idx)
+					  unsigned int clk_idx, TEE_Result *res)
 {
 	void *device = dt_driver_device_from_node_idx_prop(prop_name, fdt,
-							   nodeoffset, clk_idx);
+							   nodeoffset, clk_idx,
+							   res);
 
 	return (struct clk *)device;
 }
 
 struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
-			      unsigned int clk_idx)
+			      unsigned int clk_idx, TEE_Result *res)
 {
-	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx);
+	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx, res);
 }
 
 /* Recursively called from parse_clock_property() */
@@ -134,6 +137,7 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 	unsigned long rate = 0;
 	struct clk *parent = NULL;
 	const uint32_t *rate_prop = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	rate_prop = fdt_getprop(fdt, nodeoffset, "assigned-clock-rates",
 				&rate_len);
@@ -141,12 +145,12 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 
 	while (1) {
 		clk = clk_dt_get_by_idx_prop("assigned-clocks", fdt, nodeoffset,
-					     clock_idx);
+					     clock_idx, &res);
 		if (!clk)
 			return;
 
 		parent = clk_dt_get_by_idx_prop("assigned-clock-parents", fdt,
-						nodeoffset, clock_idx);
+						nodeoffset, clock_idx, &res);
 		if (parent) {
 			if (clk_set_parent(clk, parent)) {
 				EMSG("Could not set clk %s parent to clock %s",

@@ -151,7 +151,8 @@ struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle)
 }
 
 static void *device_from_provider_prop(struct dt_driver_provider *prv,
-				       const uint32_t *prop)
+					  const uint32_t *prop,
+					  TEE_Result *res)
 {
 	struct dt_driver_phandle_args *pargs = NULL;
 	unsigned int n = 0;
@@ -159,14 +160,16 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 
 	pargs = calloc(1, prv->provider_cells * sizeof(uint32_t *) +
 		       sizeof(*pargs));
-	if (!pargs)
+	if (!pargs) {
+		*res = TEE_ERROR_OUT_OF_MEMORY;
 		return NULL;
+	}
 
 	pargs->args_count = prv->provider_cells;
 	for (n = 0; n < prv->provider_cells; n++)
 		pargs->args[n] = fdt32_to_cpu(prop[n + 1]);
 
-	device = prv->get_of_device(pargs, prv->priv_data);
+	device = prv->get_of_device(pargs, prv->priv_data, res);
 
 	free(pargs);
 
@@ -175,7 +178,8 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 
 void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  const void *fdt, int nodeoffset,
-					  unsigned int prop_idx)
+					  unsigned int prop_idx,
+					  TEE_Result *res)
 {
 	int len = 0;
 	int idx = 0;
@@ -186,16 +190,20 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 	struct dt_driver_provider *prv = NULL;
 
 	prop = fdt_getprop(fdt, nodeoffset, prop_name, &len);
-	if (!prop)
+	if (!prop) {
+		*res = TEE_ERROR_GENERIC;
 		return NULL;
+	}
 
 	while (idx < len) {
 		idx32 = idx / sizeof(uint32_t);
 		phandle = fdt32_to_cpu(prop[idx32]);
 
 		prv = dt_driver_get_provider_by_phandle(phandle);
-		if (!prv)
+		if (!prv) {
+			*res = TEE_ERROR_GENERIC;
 			return NULL;
+		}
 
 		prv_cells = dt_driver_provider_cells(prv);
 		if (prop_idx) {
@@ -204,9 +212,10 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 			continue;
 		}
 
-		return device_from_provider_prop(prv, prop + idx32);
+		return device_from_provider_prop(prv, prop + idx32, res);
 	}
 
+	*res = TEE_ERROR_GENERIC;
 	return NULL;
 }
 
