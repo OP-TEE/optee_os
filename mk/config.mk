@@ -574,6 +574,20 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
+# The attestation pseudo TA provides an interface to request measurements of
+# a TA or the TEE binary.
+CFG_ATTESTATION_PTA ?= n
+$(eval $(call cfg-depends-all,CFG_ATTESTATION_PTA,_CFG_WITH_SECURE_STORAGE))
+
+# RSA key size (in bits) for the attestation PTA. Must be at least 528 given
+# other algorithm parameters (RSA PSS with SHA-256 and 32-byte salt), but
+# note that such a low value is not secure.
+# See https://tools.ietf.org/html/rfc8017#section-8.1.1 and
+# https://tools.ietf.org/html/rfc8017#section-9.1.1
+#  emLen >= hlen + sLen + 2 = 32 + 32 + 2 = 66
+#  emLen = ceil((modBits - 1) / 8) => emLen is the key size in bytes
+CFG_ATTESTATION_PTA_KEY_SIZE ?= 3072
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
