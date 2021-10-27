@@ -286,6 +286,8 @@
 				#clock-cells = <2>;
 				clocks = <&clk32k>, <&main_xtal>;
 				clock-names = "slow_clk", "main_xtal";
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			qspi0: spi@f0020000 {
