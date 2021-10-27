@@ -572,6 +572,13 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
+# The attestation pseudo TA provides an interface for user space TAs to request
+# a measurement of their own code and read-only data pages.
+CFG_ATTESTATION_PTA ?= n
+
+# Private key used by the attestation PTA to sign TA measurements
+CFG_ATTESTATION_PTA_SIGN_KEY ?= core/pta/attestation/signing_key.pem
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).

@@ -1,3 +1,4 @@
+subdirs-$(CFG_ATTESTATION_PTA) += attestation
 subdirs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += tests
 
 srcs-$(CFG_TEE_BENCHMARK) += benchmark.c
