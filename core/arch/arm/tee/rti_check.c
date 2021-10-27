@@ -43,6 +43,8 @@ static TEE_Result compute_hash(paddr_t pa, size_t sz, uint8_t *digest)
 		return res;
 	while (pos < sz) {
 		p = core_mmu_map_rti_check(pa + pos, sz - pos, &len);
+		if (!p)
+			return TEE_ERROR_ACCESS_CONFLICT;
 		pos += len;
 		res = crypto_atomic_sha256_update(rti_check_ctx, p, len);
 		if (res)
