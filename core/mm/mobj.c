@@ -594,6 +594,23 @@ static struct mobj_with_fobj *to_mobj_with_fobj(struct mobj *mobj)
 	return container_of(mobj, struct mobj_with_fobj, mobj);
 }
 
+static struct mobj_with_fobj *to_mobj_with_fobj_may_fail(struct mobj *mobj)
+{
+	if (!mobj || mobj->ops != &mobj_with_fobj_ops)
+		return NULL;
+
+	return to_mobj_with_fobj(mobj);
+}
+
+struct file *to_file_may_fail(struct mobj *mobj)
+{
+	struct mobj_with_fobj *m = to_mobj_with_fobj_may_fail(mobj);
+
+	if (!m)
+		return NULL;
+	return m->file;
+}
+
 static bool mobj_with_fobj_matches(struct mobj *mobj __maybe_unused,
 				 enum buf_is_attr attr)
 {
