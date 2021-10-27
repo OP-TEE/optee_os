@@ -462,8 +462,8 @@
  *
  * Call request usage:
  * a0	SMC Function ID, OPTEE_SMC_RTI_CHECK
- * a1	Upper 32 bits of a physical address of the memory range
- * a2	Lower 32 bits of a physical address of the memory range
+ * a1	Upper 32 bits of the physical address of the memory range
+ * a2	Lower 32 bits of the physical address of the memory range
  * a3	Size in bytes of memory range
  * a4	Flags, unused bits MBZ
  * a5-6 Not used

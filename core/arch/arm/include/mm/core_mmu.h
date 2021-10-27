@@ -617,6 +617,18 @@ TEE_Result core_mmu_map_contiguous_pages(vaddr_t vstart, paddr_t pstart,
 					 size_t num_pages,
 					 enum teecore_memtypes memtype);
 
+/*
+ * core_mmu_map_rti_check() - map range of pages for run-time integrity check
+ * @pa:		Physical address
+ * @len:	Total requested length
+ * @mapped_len:	Range actually mapped
+ *
+ * The function establishes a temporary memory mapping which may be smaller
+ * than the requested range. In such a case is the caller expected to call
+ * again with the remaining range once it's done with the first sub-range.
+ *
+ * @returns:	Pointer to mapped memory range of length @mapped_len.
+ */
 void *core_mmu_map_rti_check(paddr_t pa, size_t len, size_t *mapped_len);
 
 /*

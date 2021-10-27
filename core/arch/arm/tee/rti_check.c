@@ -90,10 +90,15 @@ TEE_Result rti_check_rem(paddr_t pa, size_t sz)
 	cpu_spin_lock(&rti_check_lock);
 	SLIST_FOREACH(range, &rti_check_head, link) {
 		if (pa == range->pa && sz == range->sz) {
-			if (range->final)
-				SLIST_REMOVE_AFTER(range_prev, link);
-			else
+			if (!range->final) {
+				if (range_prev)
+					SLIST_REMOVE_AFTER(range_prev, link);
+				else
+					SLIST_REMOVE_HEAD(&rti_check_head,
+							  link);
+			} else {
 				range = NULL;
+			}
 			break;
 		}
 		range_prev = range;
@@ -116,8 +121,8 @@ TEE_Result rti_check_run(void)
 	cpu_spin_lock(&rti_check_lock);
 	SLIST_FOREACH(range, &rti_check_head, link) {
 		res = compute_hash(range->pa, range->sz, rti_check_tmp_digest);
-		if (consttime_memcmp(rti_check_tmp_digest, range->digest,
-				     sizeof(range->digest))) {
+		if (res || consttime_memcmp(rti_check_tmp_digest, range->digest,
+					    sizeof(range->digest))) {
 			EMSG("PA:len %#"PRIxPA":%#zx failed RTI check",
 			     range->pa, range->sz);
 			res = TEE_ERROR_SECURITY;
