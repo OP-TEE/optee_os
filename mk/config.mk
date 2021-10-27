@@ -574,6 +574,17 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
+# The attestation pseudo TA provides an interface to request a measurement of
+# a given TA binary or shared library given its UUID.
+CFG_ATTESTATION_PTA ?= $(_CFG_WITH_SECURE_STORAGE)
+$(eval $(call cfg-depends-all,CFG_ATTESTATION_PTA,_CFG_WITH_SECURE_STORAGE))
+
+# RSA key size (in bits) for the attestation PTA. Must be at least 2048 which
+# is the size of the data to be signed (an SHA-256 hash).
+# 3072 is a better value by today's standards but it takes longer to generate.
+# A smaller default is better for testing.
+CFG_ATTESTATION_PTA_KEY_SIZE ?= 2048
+
 # Define the number of cores per cluster used in calculating core position.
 # The cluster number is shifted by this value and added to the core ID,
 # so its value represents log2(cores/cluster).
