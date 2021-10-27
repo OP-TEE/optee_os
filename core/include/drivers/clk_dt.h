@@ -77,7 +77,7 @@ struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
 			       const char *name);
 
 /**
- * clk_dt_get_fn - Typedef of function to get clock from devicetree properties
+ * clk_dt_get_func - Typedef of function to get clock from devicetree properties
  *
  * @args: Pointer to devicetree description of the clock to parse
  * @data: Pointer to data given at clk_dt_register_clk_provider() call
@@ -85,8 +85,8 @@ struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
  * Returns a clk struct pointer pointing to a clock matching the devicetree
  * description or NULL if invalid description.
  */
-typedef struct clk *(*clk_dt_get_fn)(struct clk_dt_phandle_args *args,
-				     void *data);
+typedef struct clk *(*clk_dt_get_func)(struct clk_dt_phandle_args *args,
+				       void *data);
 
 /**
  * clk_dt_register_clk_provider - Register a clock provider
@@ -98,7 +98,7 @@ typedef struct clk *(*clk_dt_get_fn)(struct clk_dt_phandle_args *args,
  * Returns TEE_Result value
  */
 TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
-					clk_dt_get_fn get_dt_clk, void *data);
+					clk_dt_get_func get_dt_clk, void *data);
 
 /**
  * clk_dt_get_simple_clk: simple clock matching function for single clock

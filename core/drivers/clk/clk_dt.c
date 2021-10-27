@@ -16,7 +16,7 @@ struct clk_dt_provider {
 	int nodeoffset;
 	unsigned int clock_cells;
 	uint32_t phandle;
-	clk_dt_get_fn get_dt_clk;
+	clk_dt_get_func get_dt_clk;
 	void *data;
 	SLIST_ENTRY(clk_dt_provider) link;
 };
@@ -40,7 +40,7 @@ static int fdt_clock_cells(const void *fdt, int nodeoffset)
 }
 
 TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
-					clk_dt_get_fn get_dt_clk, void *data)
+					clk_dt_get_func get_dt_clk, void *data)
 {
 	struct clk_dt_provider *prv = NULL;
 	int clock_cells = 0;
