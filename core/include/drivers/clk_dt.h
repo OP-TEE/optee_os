@@ -35,11 +35,17 @@
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a clock property
  * @clk_idx: Clock index to get
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	Any TEE_Result compliant code in case of error.
+ *
  * Returns a clk struct pointer matching the clock at index clk_idx in clocks
- * property or NULL if no clock match the given index.
+ * property or NULL if no clock match the given index in which case @res
+ * provides the error code.
  */
 struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
-			      unsigned int clk_idx);
+			      unsigned int clk_idx, TEE_Result *res);
 
 /**
  * clk_dt_get_by_name - Get a clock matching a name in the "clock-names"
@@ -48,23 +54,34 @@ struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a clock property
  * @name: Clock name to get
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	Any TEE_Result compliant code in case of error.
+ *
  * Returns a clk struct pointer matching the name in "clock-names" property or
- * NULL if no clock match the given name.
+ * NULL if no clock match the given name in which case @res provides the
+ * error code.
  */
 struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
-			       const char *name);
+			       const char *name, TEE_Result *res);
 
 /**
  * clk_dt_get_func - Typedef of function to get clock from devicetree properties
  *
  * @args: Pointer to devicetree description of the clock to parse
  * @data: Pointer to data given at clk_dt_register_clk_provider() call
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	Any TEE_Result compliant code in case of error.
  *
  * Returns a clk struct pointer pointing to a clock matching the devicetree
- * description or NULL if invalid description.
+ * description or NULL if invalid description in which case @res provides the
+ * error code.
  */
 typedef struct clk *(*clk_dt_get_func)(struct dt_driver_phandle_args *args,
-				       void *data);
+				       void *data, TEE_Result *res);
 
 /**
  * clk_dt_register_clk_provider - Register a clock provider
@@ -90,8 +107,10 @@ TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
  */
 static inline
 struct clk *clk_dt_get_simple_clk(struct dt_driver_phandle_args *args __unused,
-				  void *data)
+				  void *data, TEE_Result *res)
 {
+	*res = TEE_SUCCESS;
+
 	return data;
 }
 
