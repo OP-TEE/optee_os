@@ -36,7 +36,7 @@ static TEE_Result compute_hash(paddr_t pa, size_t sz, uint8_t *digest)
 	TEE_Result res = TEE_SUCCESS;
 	size_t pos = 0;
 	void *p = NULL;
-	size_t len;
+	size_t len = 0;
 
 	res = crypto_atomic_sha256_init(rti_check_ctx);
 	if (res)
