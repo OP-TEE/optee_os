@@ -916,6 +916,25 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 	vaddr_t va = tee_ram_va;
 	bool va_is_secure = true;
 
+	/*
+	 * Check that we're not overlapping with the user VA range.
+	 */
+	if (IS_ENABLED(CFG_WITH_LPAE)) {
+		/*
+		 * User VA range is supposed to be defined after these
+		 * mappings have been established.
+		 */
+		assert(!core_mmu_user_va_range_is_defined());
+	} else {
+		vaddr_t user_va_base = 0;
+		size_t user_va_size = 0;
+
+		assert(core_mmu_user_va_range_is_defined());
+		core_mmu_get_user_va_range(&user_va_base, &user_va_size);
+		if (tee_ram_va < (user_va_base + user_va_size))
+			return false;
+	}
+
 	/* Clear eventual previous assignments */
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++)
 		map->va = 0;
