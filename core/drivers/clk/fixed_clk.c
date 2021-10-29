@@ -7,72 +7,91 @@
 #include <drivers/clk_dt.h>
 #include <libfdt.h>
 #include <malloc.h>
+#include <mm/core_memprot.h>
 #include <stdint.h>
 
 struct fixed_clock_data {
 	unsigned long rate;
+	const char *name;
+	struct clk clk;
 };
 
-static unsigned long fixed_clk_compute_rate(struct clk *clk,
-					    unsigned long parent_rate __unused)
+static struct fixed_clock_data *to_fixed_clock(struct clk *clk)
 {
-	struct fixed_clock_data *d = clk_priv(clk);
-
-	return d->rate;
+	return container_of(clk, struct fixed_clock_data, clk);
 }
 
-static const struct clk_ops fixed_clk_clk_ops = {
-	.id = CLK_OPS_STANDARD,
-	.get_name = clk_std_name,
-	.get_rate = clk_std_rate,
-	.compute_rate = fixed_clk_compute_rate,
+static unsigned long fixed_clk_get_rate(struct clk *clk)
+{
+	return to_fixed_clock(clk)->rate;
+}
+
+static const char *fixed_clk_get_name(struct clk *clk)
+{
+	return to_fixed_clock(clk)->name;
+}
+
+static const struct clk_ops fixed_clk_ops = {
+	.id = CLK_OPS_LIGHTWEIGHT,
+	.get_rate = fixed_clk_get_rate,
+	.get_name = fixed_clk_get_name,
 };
+DECLARE_KEEP_PAGER(fixed_clk_ops);
 
 static TEE_Result fixed_clock_probe(const void *fdt, int offs,
 				    const void *compat_data __unused)
 {
-	const uint32_t *freq = NULL;
-	const char *name = NULL;
-	struct clk *clk = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct fixed_clock_data *fcd = NULL;
+	struct clk *clk = NULL;
+	const uint32_t *freq = NULL;
+	const char *name = NULL;
+	char *dup_name = NULL;
 
 	name = fdt_get_name(fdt, offs, NULL);
 	if (!name)
 		name = "fixed-clock";
 
-	clk = clk_alloc(name, &fixed_clk_clk_ops, NULL, 0);
-	if (!clk)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	fcd = calloc(1, sizeof(struct fixed_clock_data));
-	if (!fcd) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto free_clk;
+	if (!is_unpaged((void *)name)) {
+		dup_name = strdup(name);
+		if (!dup_name) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+		name = dup_name;
 	}
 
 	freq = fdt_getprop(fdt, offs, "clock-frequency", NULL);
 	if (!freq) {
 		res = TEE_ERROR_BAD_FORMAT;
-		goto free_fcd;
+		goto err;
 	}
 
+	fcd = calloc(1, sizeof(struct fixed_clock_data));
+	if (!fcd) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	clk = &fcd->clk;
+	clk_init_instance(clk, &fixed_clk_ops);
+
+	fcd->name = name;
 	fcd->rate = fdt32_to_cpu(*freq);
 	clk_set_priv(clk, fcd);
 
 	res = clk_register(clk);
 	if (res)
-		goto free_fcd;
+		goto err;
 
 	res = clk_dt_register_clk_provider(fdt, offs, clk_dt_get_simple_clk,
 					   clk);
 	if (!res)
 		return TEE_SUCCESS;
 
-free_fcd:
+err:
+	free(dup_name);
 	free(fcd);
-free_clk:
-	clk_free(clk);
 
 	return res;
 }
