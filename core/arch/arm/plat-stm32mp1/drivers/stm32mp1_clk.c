@@ -387,6 +387,12 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 };
 DECLARE_KEEP_PAGER(stm32mp1_clk_gate);
 
+const uint8_t stm32mp1_clk_on[] = {
+	CK_HSE, CK_CSI, CK_LSI, CK_LSE, CK_HSI, CK_HSE_DIV2,
+	PLL1_P, PLL1_Q, PLL1_R, PLL2_P, PLL2_Q, PLL2_R, PLL3_P, PLL3_Q, PLL3_R,
+	CK_AXI, CK_MPU, CK_MCU,
+};
+
 /* Parents for secure aware clocks in the xxxSELR value ordering */
 static const uint8_t stgen_parents[] = {
 	_HSI_KER, _HSE_KER
@@ -940,32 +946,13 @@ static bool __clk_is_enabled(struct stm32mp1_clk_gate const *gate)
 
 static bool clock_is_always_on(unsigned long id)
 {
-	COMPILE_TIME_ASSERT(CK_HSE == 0 &&
-			    (CK_HSE + 1) == CK_CSI &&
-			    (CK_HSE + 2) == CK_LSI &&
-			    (CK_HSE + 3) == CK_LSE &&
-			    (CK_HSE + 4) == CK_HSI &&
-			    (CK_HSE + 5) == CK_HSE_DIV2 &&
-			    (PLL1_P + 1) == PLL1_Q &&
-			    (PLL1_P + 2) == PLL1_R &&
-			    (PLL1_P + 3) == PLL2_P &&
-			    (PLL1_P + 4) == PLL2_Q &&
-			    (PLL1_P + 5) == PLL2_R &&
-			    (PLL1_P + 6) == PLL3_P &&
-			    (PLL1_P + 7) == PLL3_Q &&
-			    (PLL1_P + 8) == PLL3_R);
+	size_t n = 0;
 
-	if (id <= CK_HSE_DIV2 || (id >= PLL1_P && id <= PLL3_R))
-		return true;
+	for (n = 0; n < ARRAY_SIZE(stm32mp1_clk_on); n++)
+		if (stm32mp1_clk_on[n] == id)
+			return true;
 
-	switch (id) {
-	case CK_AXI:
-	case CK_MPU:
-	case CK_MCU:
-		return true;
-	default:
-		return false;
-	}
+	return false;
 }
 
 bool stm32_clock_is_enabled(unsigned long id)
