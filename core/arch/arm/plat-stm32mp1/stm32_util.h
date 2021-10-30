@@ -7,6 +7,7 @@
 #define __STM32_UTIL_H__
 
 #include <assert.h>
+#include <drivers/clk.h>
 #include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
@@ -73,6 +74,8 @@ bool stm32_clock_is_enabled(unsigned long id);
 
 /* Return true if @clock_id is shared by secure and non-secure worlds */
 bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
+
+extern const struct clk_ops stm32mp1_clk_ops;
 
 #if defined(CFG_STPMIC1)
 /* Return true if non-secure world can manipulate regulator @pmic_regu_name */
