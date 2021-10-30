@@ -1289,7 +1289,7 @@ static void get_osc_freq_from_dt(const void *fdt)
 static void enable_static_secure_clocks(void)
 {
 	unsigned int idx = 0;
-	static const unsigned long secure_enable[] = {
+	const unsigned long secure_enable[] = {
 		DDRC1, DDRC1LP, DDRC2, DDRC2LP, DDRPHYC, DDRPHYCLP, DDRCAPB,
 		AXIDCG, DDRPHYCAPB, DDRPHYCAPBLP, TZPC, TZC1, TZC2, STGEN_K,
 		BSEC,
