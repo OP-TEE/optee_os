@@ -32,6 +32,7 @@ endif
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
+$(call force,CFG_DRIVERS_CLK_FIXED,n)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
@@ -64,6 +65,7 @@ CFG_DTB_MAX_SIZE ?= (256 * 1024)
 
 ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
 # Some drivers mandate DT support
+$(call force,CFG_DRIVERS_CLK_DT,n)
 $(call force,CFG_STM32_CRYP,n)
 $(call force,CFG_STM32_GPIO,n)
 $(call force,CFG_STM32_I2C,n)

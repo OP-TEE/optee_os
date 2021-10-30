@@ -4,7 +4,10 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <drivers/stm32mp1_rcc.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <initcall.h>
 #include <io.h>
@@ -554,9 +557,11 @@ static unsigned long osc_frequency(enum stm32mp_osc_id idx)
 	return stm32mp1_osc[idx];
 }
 
+#ifndef CFG_DRIVERS_CLK
 /* Reference counting for clock gating */
 static unsigned int gate_refcounts[NB_GATES];
 static unsigned int refcount_lock;
+#endif
 
 static const struct stm32mp1_clk_gate *gate_ref(unsigned int idx)
 {
@@ -906,12 +911,14 @@ static unsigned long get_clock_rate(int p)
 	return clock;
 }
 
+#ifndef CFG_DRIVERS_CLK
 static bool __clk_is_enabled(const struct stm32mp1_clk_gate *gate)
 {
 	vaddr_t base = stm32_rcc_base();
 
 	return io_read32(base + gate->offset) & BIT(gate->bit);
 }
+#endif
 
 static void __clk_enable(const struct stm32mp1_clk_gate *gate)
 {
@@ -939,6 +946,7 @@ static void __clk_disable(const struct stm32mp1_clk_gate *gate)
 	FMSG("Clock %u has been disabled", gate->clock_id);
 }
 
+#ifndef CFG_DRIVERS_CLK
 static bool clock_is_always_on(unsigned long id)
 {
 	size_t n = 0;
@@ -955,7 +963,7 @@ static bool gate_is_non_secure(const struct stm32mp1_clk_gate *gate)
 	return gate->secure == N_S || !stm32_rcc_is_secure();
 }
 
-bool stm32_clock_is_enabled(unsigned long id)
+static bool _stm32_clock_is_enabled(unsigned long id)
 {
 	int i = 0;
 
@@ -969,7 +977,7 @@ bool stm32_clock_is_enabled(unsigned long id)
 	return __clk_is_enabled(gate_ref(i));
 }
 
-void stm32_clock_enable(unsigned long id)
+static void _stm32_clock_enable(unsigned long id)
 {
 	int i = 0;
 	uint32_t exceptions = 0;
@@ -999,7 +1007,7 @@ void stm32_clock_enable(unsigned long id)
 	may_spin_unlock(&refcount_lock, exceptions);
 }
 
-void stm32_clock_disable(unsigned long id)
+static void _stm32_clock_disable(unsigned long id)
 {
 	int i = 0;
 	uint32_t exceptions = 0;
@@ -1027,6 +1035,7 @@ void stm32_clock_disable(unsigned long id)
 
 	may_spin_unlock(&refcount_lock, exceptions);
 }
+#endif /*!CFG_DRIVERS_CLK*/
 
 static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 {
@@ -1058,7 +1067,7 @@ static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 	return parent_rate * (timgxpre + 1) * 2;
 }
 
-unsigned long stm32_clock_get_rate(unsigned long id)
+static unsigned long _stm32_clock_get_rate(unsigned long id)
 {
 	int p = 0;
 	unsigned long rate = 0;
@@ -1272,6 +1281,7 @@ static void get_osc_freq_from_dt(const void *fdt)
 			DMSG("Osc %s: no frequency info", name);
 	}
 }
+#endif /*CFG_EMBED_DTB*/
 
 static void enable_static_secure_clocks(void)
 {
@@ -1291,17 +1301,18 @@ static void enable_static_secure_clocks(void)
 		stm32_clock_enable(RTCAPB);
 }
 
-static void enable_rcc_tzen(void)
+static void __maybe_unused enable_rcc_tzen(void)
 {
 	io_setbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 }
 
-static void disable_rcc_tzen(void)
+static void __maybe_unused disable_rcc_tzen(void)
 {
 	IMSG("RCC is non-secure");
 	io_clrbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 }
 
+#ifdef CFG_EMBED_DTB
 static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 {
 	unsigned int i = 0;
@@ -1349,8 +1360,333 @@ static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 
 	return TEE_SUCCESS;
 }
+#endif /*CFG_EMBED_DTB*/
 
-static TEE_Result stm32mp1_clk_early_init(void)
+#ifdef CFG_DRIVERS_CLK
+/*
+ * Conversion between clk references and clock gates and clock on internals
+ *
+ * stm32mp1_clk first cells follow stm32mp1_clk_gate[] ordering.
+ * stm32mp1_clk last cells follow stm32mp1_clk_on[] ordering.
+ */
+static struct clk stm32mp1_clk[ARRAY_SIZE(stm32mp1_clk_gate) +
+			       ARRAY_SIZE(stm32mp1_clk_on)];
+
+#define CLK_ON_INDEX_OFFSET	((int)ARRAY_SIZE(stm32mp1_clk_gate))
+
+static bool clk_is_gate(struct clk *clk)
+{
+	int clk_index = clk - stm32mp1_clk;
+
+	assert(clk_index >= 0 && clk_index < (int)ARRAY_SIZE(stm32mp1_clk));
+	return clk_index < CLK_ON_INDEX_OFFSET;
+}
+
+static unsigned long clk_to_clock_id(struct clk *clk)
+{
+	int gate_index = clk - stm32mp1_clk;
+	int on_index = gate_index - CLK_ON_INDEX_OFFSET;
+
+	if (clk_is_gate(clk))
+		return stm32mp1_clk_gate[gate_index].clock_id;
+
+	return stm32mp1_clk_on[on_index];
+}
+
+static const struct stm32mp1_clk_gate *clk_to_gate_ref(struct clk *clk)
+{
+	int gate_index = clk - stm32mp1_clk;
+
+	assert(clk_is_gate(clk));
+
+	return stm32mp1_clk_gate + gate_index;
+}
+
+static int clock_id_to_gate_index(unsigned long clock_id)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(stm32mp1_clk_gate); n++)
+		if (stm32mp1_clk_gate[n].clock_id == clock_id)
+			return n;
+
+	return -1;
+}
+
+static int clock_id_to_always_on_index(unsigned long clock_id)
+{
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(stm32mp1_clk_on); n++)
+		if (stm32mp1_clk_on[n] == clock_id)
+			return n;
+
+	return -1;
+}
+
+static struct clk *clock_id_to_clk(unsigned long clock_id)
+{
+	int gate_index = clock_id_to_gate_index(clock_id);
+	int on_index = clock_id_to_always_on_index(clock_id);
+
+	if (gate_index >= 0)
+		return stm32mp1_clk + gate_index;
+
+	if (on_index >= 0)
+		return stm32mp1_clk + CLK_ON_INDEX_OFFSET + on_index;
+
+	return NULL;
+}
+
+#if CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG
+struct clk_name {
+	unsigned int clock_id;
+	const char *name;
+};
+
+#define CLOCK_NAME(_binding, _name) \
+	{ .clock_id = (_binding), .name = (_name) }
+
+/* Store names only for some clocks */
+const struct clk_name exposed_clk_name[] = {
+	/* Clocks used by platform drivers not yet probed from DT */
+	CLOCK_NAME(CK_DBG, "dbg"),
+	CLOCK_NAME(CK_MCU, "mcu"),
+	CLOCK_NAME(RTCAPB, "rtcapb"),
+	CLOCK_NAME(BKPSRAM, "bkpsram"),
+	CLOCK_NAME(RTC, "rtc"),
+	CLOCK_NAME(CRYP1, "crpy1"),
+	CLOCK_NAME(SYSCFG, "syscfg"),
+	CLOCK_NAME(GPIOA, "gpioa"),
+	CLOCK_NAME(GPIOB, "gpiob"),
+	CLOCK_NAME(GPIOC, "gpioc"),
+	CLOCK_NAME(GPIOD, "gpiod"),
+	CLOCK_NAME(GPIOE, "gpioe"),
+	CLOCK_NAME(GPIOF, "gpiof"),
+	CLOCK_NAME(GPIOG, "gpiog"),
+	CLOCK_NAME(GPIOH, "gpioh"),
+	CLOCK_NAME(GPIOI, "gpioi"),
+	CLOCK_NAME(GPIOJ, "gpioj"),
+	CLOCK_NAME(GPIOK, "gpiok"),
+	CLOCK_NAME(GPIOZ, "gpioz"),
+	/* Clock exposed by SCMI. SCMI clock fmro DT bindings to come... */
+	CLOCK_NAME(CK_HSE, "hse"),
+	CLOCK_NAME(CK_HSI, "hsi"),
+	CLOCK_NAME(CK_CSI, "csi"),
+	CLOCK_NAME(CK_LSE, "lse"),
+	CLOCK_NAME(CK_LSI, "lsi"),
+	CLOCK_NAME(PLL2_Q, "pll2q"),
+	CLOCK_NAME(PLL2_R, "pll2r"),
+	CLOCK_NAME(PLL3_Q, "pll3q"),
+	CLOCK_NAME(PLL3_R, "pll3r"),
+	CLOCK_NAME(CRYP1, "cryp1"),
+	CLOCK_NAME(HASH1, "hash1"),
+	CLOCK_NAME(I2C4_K, "i2c4"),
+	CLOCK_NAME(I2C6_K, "i2c6"),
+	CLOCK_NAME(IWDG1, "iwdg"),
+	CLOCK_NAME(RNG1_K, "rng1"),
+	CLOCK_NAME(SPI6_K, "spi6"),
+	CLOCK_NAME(USART1_K, "usart1"),
+	CLOCK_NAME(CK_MCU, "mcu"),
+};
+DECLARE_KEEP_PAGER(exposed_clk_name);
+
+static const char *clk_op_get_name(struct clk *clk)
+{
+	unsigned long clock_id = clk_to_clock_id(clk);
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(exposed_clk_name); n++)
+		if (exposed_clk_name[n].clock_id == clock_id)
+			return exposed_clk_name[n].name;
+
+	return NULL;
+}
+#else
+static const char *clk_op_get_name(struct clk *clk __unused)
+{
+	return NULL;
+}
+#endif /*CFG_TEE_CORE_LOG_LEVEL*/
+
+static unsigned long clk_op_compute_rate(struct clk *clk,
+					 unsigned long parent_rate __unused)
+{
+	return _stm32_clock_get_rate(clk_to_clock_id(clk));
+}
+
+static TEE_Result clk_op_enable(struct clk *clk)
+{
+	if (clk_is_gate(clk))
+		__clk_enable(clk_to_gate_ref(clk));
+
+	return TEE_SUCCESS;
+}
+DECLARE_KEEP_PAGER(clk_op_enable);
+
+static void clk_op_disable(struct clk *clk)
+{
+	if (clk_is_gate(clk))
+		__clk_disable(clk_to_gate_ref(clk));
+}
+DECLARE_KEEP_PAGER(clk_op_disable);
+
+/* This variable is weak to break its dependency chain when linked as unpaged */
+const struct clk_ops stm32mp1_clk_ops
+__weak __rodata_unpaged("stm32mp1_clk_ops") = {
+	.enable = clk_op_enable,
+	.disable = clk_op_disable,
+	.get_rate = clk_op_compute_rate,
+};
+
+static TEE_Result register_stm32mp1_clocks(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(stm32mp1_clk); n++) {
+		stm32mp1_clk[n].ops = &stm32mp1_clk_ops;
+		stm32mp1_clk[n].name = clk_op_get_name(stm32mp1_clk + n);
+		refcount_set(&stm32mp1_clk[n].enabled_count, 0);
+
+		res = clk_register(stm32mp1_clk + n);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/* Route platform legacy clock functions to clk driver functions */
+bool stm32_clock_is_enabled(unsigned long clock_id)
+{
+	struct clk *clk = clock_id_to_clk(clock_id);
+
+	assert(clk);
+	return clk_is_enabled(clk);
+}
+
+void stm32_clock_enable(unsigned long clock_id)
+{
+	struct clk *clk = clock_id_to_clk(clock_id);
+	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
+
+	assert(clk);
+	res = clk_enable(clk);
+	assert(!res);
+}
+
+void stm32_clock_disable(unsigned long clock_id)
+{
+	struct clk *clk = clock_id_to_clk(clock_id);
+
+	assert(clk);
+	clk_disable(clk);
+}
+
+unsigned long stm32_clock_get_rate(unsigned long clock_id)
+{
+	struct clk *clk = clock_id_to_clk(clock_id);
+
+	assert(clk);
+	return clk_get_rate(clk);
+}
+#else /*CFG_DRIVERS_CLK*/
+/* Route platform legacy clock functions to platform clock driver functions */
+bool stm32_clock_is_enabled(unsigned long clock_id)
+{
+	return _stm32_clock_is_enabled(clock_id);
+}
+
+void stm32_clock_enable(unsigned long clock_id)
+{
+	_stm32_clock_enable(clock_id);
+}
+
+void stm32_clock_disable(unsigned long clock_id)
+{
+	_stm32_clock_disable(clock_id);
+}
+
+unsigned long stm32_clock_get_rate(unsigned long clock_id)
+{
+	return _stm32_clock_get_rate(clock_id);
+}
+#endif /*CFG_DRIVERS_CLK*/
+
+#ifdef CFG_DRIVERS_CLK_DT
+static struct clk *stm32mp1_clk_dt_get_clk(struct dt_driver_phandle_args *pargs,
+					   void *data __unused, TEE_Result *res)
+{
+	unsigned long clock_id = pargs->args[0];
+	struct clk *clk = NULL;
+
+	*res = TEE_ERROR_BAD_PARAMETERS;
+
+	if (pargs->args_count != 1)
+		return NULL;
+
+	clk = clock_id_to_clk(clock_id);
+	if (!clk)
+		return NULL;
+
+	*res = TEE_SUCCESS;
+	return clk;
+}
+
+/* Non-null reference for compat data */
+static const uint8_t non_secure_rcc;
+
+static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
+						const void *compat_data)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (compat_data == &non_secure_rcc)
+		disable_rcc_tzen();
+	else
+		enable_rcc_tzen();
+
+	res = stm32mp1_clk_fdt_init(fdt, offs);
+	if (res) {
+		EMSG("Failed to initialize clocks from DT: %#"PRIx32, res);
+		panic();
+	}
+
+	res = register_stm32mp1_clocks();
+	if (res) {
+		EMSG("Failed to register clocks: %#"PRIx32, res);
+		panic();
+	}
+
+	res = clk_dt_register_clk_provider(fdt, offs, stm32mp1_clk_dt_get_clk,
+					   NULL);
+	if (res) {
+		EMSG("Failed to register clock provider: %#"PRIx32, res);
+		panic();
+	}
+
+	enable_static_secure_clocks();
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match stm32mp1_clock_match_table[] = {
+	{  .compatible = "st,stm32mp1-rcc", .compat_data = &non_secure_rcc, },
+	{  .compatible = "st,stm32mp1-rcc-secure", },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32mp1_clock_dt_driver) = {
+	.name = "stm32mp1_clock",
+	.type = DT_DRIVER_CLK,
+	.match_table = stm32mp1_clock_match_table,
+	.probe = stm32mp1_clock_provider_probe,
+};
+#else /*CFG_DRIVERS_CLK_DT*/
+
+#ifdef CFG_EMBED_DTB
+static void stm32mp1_clk_dt_early_init(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const void *fdt = get_embedded_dt();
@@ -1384,6 +1720,24 @@ static TEE_Result stm32mp1_clk_early_init(void)
 		DMSG("Clock init from DTB failed: %#"PRIx32, res);
 		panic();
 	}
+}
+#endif /*CFG_EMBED_DTB*/
+
+static TEE_Result stm32mp1_clk_early_init(void)
+{
+	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
+
+#ifdef CFG_EMBED_DTB
+	stm32mp1_clk_dt_early_init();
+#endif
+
+#ifdef CFG_DRIVERS_CLK
+	res = register_stm32mp1_clocks();
+	if (res) {
+		EMSG("Failed to register clocks: %#"PRIx32, res);
+		panic();
+	}
+#endif
 
 	enable_static_secure_clocks();
 
@@ -1391,4 +1745,4 @@ static TEE_Result stm32mp1_clk_early_init(void)
 }
 
 service_init(stm32mp1_clk_early_init);
-#endif /*CFG_EMBED_DTB*/
+#endif /*CFG_DRIVERS_CLK_DT*/
