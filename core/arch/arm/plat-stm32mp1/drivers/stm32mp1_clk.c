@@ -911,7 +911,7 @@ static unsigned long get_clock_rate(int p)
 	return clock;
 }
 
-static void __clk_enable(struct stm32mp1_clk_gate const *gate)
+static void __clk_enable(const struct stm32mp1_clk_gate *gate)
 {
 	vaddr_t base = stm32_rcc_base();
 	uint32_t bit = BIT(gate->bit);
@@ -924,7 +924,7 @@ static void __clk_enable(struct stm32mp1_clk_gate const *gate)
 	FMSG("Clock %u has been enabled", gate->clock_id);
 }
 
-static void __clk_disable(struct stm32mp1_clk_gate const *gate)
+static void __clk_disable(const struct stm32mp1_clk_gate *gate)
 {
 	vaddr_t base = stm32_rcc_base();
 	uint32_t bit = BIT(gate->bit);
@@ -937,7 +937,7 @@ static void __clk_disable(struct stm32mp1_clk_gate const *gate)
 	FMSG("Clock %u has been disabled", gate->clock_id);
 }
 
-static bool __clk_is_enabled(struct stm32mp1_clk_gate const *gate)
+static bool __clk_is_enabled(const struct stm32mp1_clk_gate *gate)
 {
 	vaddr_t base = stm32_rcc_base();
 
