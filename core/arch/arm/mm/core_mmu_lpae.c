@@ -105,6 +105,7 @@
 #define CONT_HINT		(1ull << 0)
 
 #define UPPER_ATTRS(x)		(((x) & 0x7) << 52)
+#define GP                      BIT64(50)   /* Guarded Page, Aarch64 FEAT_BTI */
 #define NON_GLOBAL		(1ull << 9)
 #define ACCESS_FLAG		(1ull << 8)
 #define NSH			(0x0 << 6)
@@ -333,6 +334,9 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 	if (!(desc & LOWER_ATTRS(NS)))
 		a |= TEE_MATTR_SECURE;
 
+	if (desc & GP)
+		a |= TEE_MATTR_GUARDED;
+
 	return a;
 }
 
@@ -356,6 +360,9 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	if (a & TEE_MATTR_UW)
 		a |= TEE_MATTR_PW;
 
+	if (IS_ENABLED(CFG_CORE_BTI) && (a & TEE_MATTR_PX))
+		a |= TEE_MATTR_GUARDED;
+
 	if (level == XLAT_TABLE_LEVEL_MAX)
 		desc = L3_BLOCK_DESC;
 	else
@@ -371,6 +378,9 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 
 	if (!(a & TEE_MATTR_PW))
 		desc |= LOWER_ATTRS(AP_RO);
+
+	if (feat_bti_is_implemented() && (a & TEE_MATTR_GUARDED))
+		desc |= GP;
 
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
 	switch ((a >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK) {
