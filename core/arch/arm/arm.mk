@@ -290,6 +290,14 @@ ta_arm64-platform-cxxflags += -fpic
 ta_arm64-platform-cxxflags += $(platform-cflags-optimization)
 ta_arm64-platform-cxxflags += $(platform-cflags-debug-info)
 
+ifeq ($(CFG_TA_BTI),y)
+bti-ta-opt := $(call cc-option,-mbranch-protection=bti)
+ifeq (,$(bti-ta-opt))
+$(error -mbranch-protection=bti not supported)
+endif
+ta_arm64-platform-cflags += $(bti-ta-opt)
+endif
+
 ta-mk-file-export-vars-ta_arm64 += CFG_ARM64_ta_arm64
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cppflags
 ta-mk-file-export-vars-ta_arm64 += ta_arm64-platform-cflags
