@@ -63,6 +63,14 @@ typedef struct {
 	uint32_t	gh_maskwords;	/* #maskwords used in bloom filter. */
 	uint32_t	gh_shift2;	/* Bloom filter shift count. */
 } Elf_GNU_Hash_Header;
+
+/*
+ * Program Property Array
+ */
+typedef struct {
+	uint32_t	pr_type;
+	uint32_t	pr_datasz;
+} Elf_Prop;
 #endif /*__ASSEMBLER__*/
 
 /* Indexes into the e_ident array.  Keep synced with
@@ -352,6 +360,7 @@ typedef struct {
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
 #define	PT_GNU_RELRO	0x6474e552
+#define	PT_GNU_PROPERTY	0x6474e553
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -505,6 +514,12 @@ typedef struct {
 #define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
 
+/* Note section names */
+#define	ELF_NOTE_FREEBSD	"FreeBSD"
+#define	ELF_NOTE_NETBSD		"NetBSD"
+#define	ELF_NOTE_SOLARIS	"SUNW Solaris"
+#define	ELF_NOTE_GNU		"GNU"
+
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
@@ -519,6 +534,23 @@ typedef struct {
 #define	NT_PROCSTAT_OSREL	14	/* Procstat osreldate data. */
 #define	NT_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
 #define	NT_PROCSTAT_AUXV	16	/* Procstat auxv data. */
+
+/* GNU note types. */
+#define	NT_GNU_ABI_TAG		1
+#define	NT_GNU_HWCAP		2
+#define	NT_GNU_BUILD_ID		3
+#define	NT_GNU_GOLD_VERSION	4
+#define	NT_GNU_PROPERTY_TYPE_0	5
+
+#define	GNU_PROPERTY_LOPROC			0xc0000000
+#define	GNU_PROPERTY_HIPROC			0xdfffffff
+
+#define	GNU_PROPERTY_AARCH64_FEATURE_1_AND	0xc0000000
+
+#define	GNU_PROPERTY_AARCH64_FEATURE_1_BTI	0x00000001
+#define	GNU_PROPERTY_AARCH64_FEATURE_1_PAC	0x00000002
+
+#define	GNU_PROPERTY_X86_FEATURE_1_AND		0xc0000002
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */
