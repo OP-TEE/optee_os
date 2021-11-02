@@ -119,8 +119,8 @@ static TEE_Result call_callbacks(enum pm_op op, uint32_t pm_hint,
 
 TEE_Result pm_change_state(enum pm_op op, uint32_t pm_hint)
 {
-	enum pm_callback_order cnt;
-	TEE_Result res;
+	enum pm_callback_order cnt = PM_CB_ORDER_DRIVER;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	switch (op) {
 	case PM_OP_SUSPEND:
