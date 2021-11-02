@@ -794,15 +794,19 @@ TEE_Result vm_unmap(struct user_mode_ctx *uctx, vaddr_t va, size_t len)
 
 static TEE_Result map_kinit(struct user_mode_ctx *uctx)
 {
-	TEE_Result res;
-	struct mobj *mobj;
-	size_t offs;
-	vaddr_t va;
-	size_t sz;
+	TEE_Result res = TEE_SUCCESS;
+	struct mobj *mobj = NULL;
+	size_t offs = 0;
+	vaddr_t va = 0;
+	size_t sz = 0;
+	uint32_t prot = 0;
 
 	thread_get_user_kcode(&mobj, &offs, &va, &sz);
 	if (sz) {
-		res = vm_map(uctx, &va, sz, TEE_MATTR_PRX, VM_FLAG_PERMANENT,
+		prot = TEE_MATTR_PRX;
+		if (IS_ENABLED(CFG_CORE_BTI))
+			prot |= TEE_MATTR_GUARDED;
+		res = vm_map(uctx, &va, sz, prot, VM_FLAG_PERMANENT,
 			     mobj, offs);
 		if (res)
 			return res;
