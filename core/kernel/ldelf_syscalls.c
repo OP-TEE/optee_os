@@ -276,6 +276,7 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 	uint32_t prot = 0;
 	const uint32_t accept_flags = LDELF_MAP_FLAG_SHAREABLE |
 				      LDELF_MAP_FLAG_WRITEABLE |
+				      LDELF_MAP_FLAG_BTI |
 				      LDELF_MAP_FLAG_EXECUTABLE;
 
 	if (!sys_ctx)
@@ -304,6 +305,8 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 		prot |= TEE_MATTR_UW | TEE_MATTR_PW;
 	if (flags & LDELF_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
+	if (flags & LDELF_MAP_FLAG_BTI)
+		prot |= TEE_MATTR_GUARDED;
 
 	offs_pages = offs_bytes >> SMALL_PAGE_SHIFT;
 	if (ROUNDUP_OVERFLOW(num_bytes, SMALL_PAGE_SIZE, &num_rounded_bytes))
@@ -453,6 +456,7 @@ TEE_Result ldelf_syscall_set_prot(unsigned long va, size_t num_bytes,
 	uint32_t vm_flags = 0;
 	vaddr_t end_va = 0;
 	const uint32_t accept_flags = LDELF_MAP_FLAG_WRITEABLE |
+				      LDELF_MAP_FLAG_BTI |
 				      LDELF_MAP_FLAG_EXECUTABLE;
 
 	if ((flags & accept_flags) != flags)
@@ -461,6 +465,8 @@ TEE_Result ldelf_syscall_set_prot(unsigned long va, size_t num_bytes,
 		prot |= TEE_MATTR_UW | TEE_MATTR_PW;
 	if (flags & LDELF_MAP_FLAG_EXECUTABLE)
 		prot |= TEE_MATTR_UX;
+	if (flags & LDELF_MAP_FLAG_BTI)
+		prot |= TEE_MATTR_GUARDED;
 
 	/*
 	 * The vm_get_flags() and vm_unmap() are supposed to detect or handle

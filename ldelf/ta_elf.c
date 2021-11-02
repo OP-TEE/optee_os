@@ -862,6 +862,23 @@ static void populate_segments(struct ta_elf *elf)
 	}
 }
 
+static void ta_elf_add_bti(struct ta_elf *elf)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct segment *seg = NULL;
+	uint32_t flags = LDELF_MAP_FLAG_EXECUTABLE | LDELF_MAP_FLAG_BTI;
+
+	TAILQ_FOREACH(seg, &elf->segs, link) {
+		vaddr_t va = elf->load_addr + seg->vaddr;
+
+		if (seg->flags & PF_X) {
+			res = sys_set_prot(va, seg->memsz, flags);
+			if (res)
+				err(res, "sys_set_prot");
+		}
+	}
+}
+
 static void parse_property_segment(struct ta_elf *elf)
 {
 	char *desc = NULL;
@@ -1139,6 +1156,9 @@ static void load_main(struct ta_elf *elf)
 	save_symtab(elf);
 	close_handle(elf);
 	set_tls_offset(elf);
+	parse_property_segment(elf);
+	if (elf->bti_enabled)
+		ta_elf_add_bti(elf);
 
 	elf->head = (struct ta_head *)elf->load_addr;
 	if (elf->head->depr_entry != UINT64_MAX) {
@@ -1246,6 +1266,9 @@ void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit)
 	save_symtab(elf);
 	close_handle(elf);
 	set_tls_offset(elf);
+	parse_property_segment(elf);
+	if (elf->bti_enabled)
+		ta_elf_add_bti(elf);
 }
 
 void ta_elf_finalize_mappings(struct ta_elf *elf)
