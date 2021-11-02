@@ -6,8 +6,8 @@
 #include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
+#include <malloc.h>
 #include <mm/core_memprot.h>
-#include <stdlib.h>
 #include <string.h>
 #include <types_ext.h>
 
@@ -59,29 +59,59 @@ void register_pm_cb(struct pm_callback_handle *pm_hdl)
 	pm_cb_ref = ref;
 }
 
+static TEE_Result do_pm_callback(enum pm_op op, uint32_t pm_hint,
+				 struct pm_callback_handle *hdl)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool suspending = op == PM_OP_SUSPEND;
+
+	if (suspending == (bool)(hdl->flags | PM_FLAG_SUSPENDED))
+		return TEE_SUCCESS;
+
+	DMSG("%s %s", suspending ? "Suspend" : "Resume", hdl->name);
+
+	res = hdl->callback(op, pm_hint, hdl);
+	if (res) {
+		EMSG("%s %s (%p) failed: %#"PRIx32, suspending ? "Suspend" :
+		     "Resume", hdl->name, (void *)(vaddr_t)hdl->callback, res);
+		return res;
+	}
+
+	if (suspending)
+		hdl->flags |= PM_FLAG_SUSPENDED;
+	else
+		hdl->flags &= ~PM_FLAG_SUSPENDED;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result call_callbacks(enum pm_op op, uint32_t pm_hint,
 				 enum pm_callback_order order)
 {
-	struct pm_callback_handle *hdl;
-	size_t n;
-	TEE_Result res;
+	struct pm_callback_handle *hdl = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t n = 0;
 
-	for (n = 0, hdl = pm_cb_ref; n < pm_cb_count; n++, hdl++) {
-		if (hdl->order != order ||
-		    (hdl->flags & PM_FLAG_SUSPENDED) == (op == PM_OP_SUSPEND))
-			continue;
+	/*
+	 * Suspend first the last registered instances.
+	 * Resume first the first registered instances.
+	 */
+	if (op == PM_OP_SUSPEND)
+		hdl = pm_cb_ref + pm_cb_count - 1;
+	else
+		hdl = pm_cb_ref;
 
-		DMSG("%s %s (%p)", op == PM_OP_SUSPEND ? "Suspend" : "Resume",
-		     hdl->name, (void *)hdl->callback);
-
-		res = hdl->callback(op, pm_hint, hdl);
-		if (res)
-			return res;
+	for (n = 0; n < pm_cb_count; n++) {
+		if (hdl->order == order) {
+			res = do_pm_callback(op, pm_hint, hdl);
+			if (res)
+				return res;
+		}
 
 		if (op == PM_OP_SUSPEND)
-			hdl->flags |= PM_FLAG_SUSPENDED;
+			hdl--;
 		else
-			hdl->flags &= ~PM_FLAG_SUSPENDED;
+			hdl++;
 	}
 
 	return TEE_SUCCESS;
