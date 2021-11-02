@@ -713,7 +713,8 @@ static TEE_Result stm32mp1_init_final_shres(void)
 	set_etzpc_secure_configuration();
 	if (IS_ENABLED(CFG_STM32_GPIO)) {
 		set_gpio_secure_configuration();
-		register_pm_driver_cb(gpioz_pm, NULL);
+		register_pm_driver_cb(gpioz_pm, NULL,
+				      "stm32mp1-shared-resources");
 	}
 	check_rcc_secure_configuration();
 

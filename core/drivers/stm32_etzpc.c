@@ -264,7 +264,7 @@ static void init_pm(struct etzpc_instance *dev)
 			dev->tzma_cfg[n] |= TZMA_PM_LOCK_BIT;
 	}
 
-	register_pm_core_service_cb(etzpc_pm, dev);
+	register_pm_core_service_cb(etzpc_pm, dev, "stm32-etzpc");
 }
 
 struct etzpc_hwcfg {

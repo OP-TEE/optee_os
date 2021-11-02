@@ -51,12 +51,13 @@ enum pm_callback_order {
 	PM_CB_ORDER_MAX
 };
 
-#define PM_CALLBACK_HANDLE_INITIALIZER(_callback, _handle, _order)	\
-		(struct pm_callback_handle){				\
+#define PM_CALLBACK_HANDLE_INITIALIZER(_callback, _handle, _order, _name)\
+		((struct pm_callback_handle){				\
 			.callback = (_callback),			\
 			.handle = (_handle),				\
 			.order = (_order),				\
-		}
+			.name = (_name),				\
+		})
 
 #define PM_CALLBACK_GET_HANDLE(pm_handle)	((pm_handle)->handle)
 
@@ -107,6 +108,7 @@ struct pm_callback_handle {
 	uint8_t order;
 	/* Set by the system according to execution context */
 	uint8_t flags;
+	const char *name;
 };
 
 /*
@@ -126,10 +128,12 @@ void register_pm_cb(struct pm_callback_handle *pm_handle);
  * @callback: Registered callback function
  * @handle: Registered private handle argument for the callback
  */
-static inline void register_pm_driver_cb(pm_callback callback, void *handle)
+static inline void register_pm_driver_cb(pm_callback callback, void *handle,
+					 const char *name)
 {
 	register_pm_cb(&PM_CALLBACK_HANDLE_INITIALIZER(callback, handle,
-						       PM_CB_ORDER_DRIVER));
+						       PM_CB_ORDER_DRIVER,
+						       name));
 }
 
 /*
@@ -141,10 +145,11 @@ static inline void register_pm_driver_cb(pm_callback callback, void *handle)
  * @handle: Registered private handle argument for the callback
  */
 static inline void register_pm_core_service_cb(pm_callback callback,
-					       void *handle)
+					       void *handle, const char *name)
 {
 	register_pm_cb(&PM_CALLBACK_HANDLE_INITIALIZER(callback, handle,
-						PM_CB_ORDER_CORE_SERVICE));
+						PM_CB_ORDER_CORE_SERVICE,
+						name));
 }
 
 /*
