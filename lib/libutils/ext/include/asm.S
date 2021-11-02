@@ -4,6 +4,13 @@
  * Copyright (c) 2020, Linaro Limited
  */
 
+#if defined(__aarch64__) && ((defined(__KERNEL__) && defined(CFG_CORE_BTI)) || \
+			     (!defined(__KERNEL__) && defined(CFG_TA_BTI)))
+#define BTI(...) __VA_ARGS__
+#else
+#define BTI(...)
+#endif
+
 #if defined(CFG_UNWIND) && defined(__arm__)
 #define UNWIND(...) __VA_ARGS__
 #else
@@ -21,6 +28,7 @@
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+BTI(	bti	c)
 	.endm
 
 	.macro LOCAL_FUNC name colon section=default align=4
@@ -33,6 +41,7 @@ UNWIND(	.fnstart)
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+BTI(	bti	c)
 	.endm
 
 	.macro WEAK_FUNC name colon section=default align=4
@@ -46,6 +55,7 @@ UNWIND(	.fnstart)
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+BTI(	bti	c)
 	.endm
 
 	.macro END_FUNC name
