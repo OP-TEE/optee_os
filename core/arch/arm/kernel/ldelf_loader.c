@@ -55,6 +55,7 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	vaddr_t stack_addr = 0;
 	vaddr_t code_addr = 0;
 	vaddr_t rw_addr = 0;
+	uint32_t prot = 0;
 
 	uctx->is_32bit = is_arm32;
 
@@ -82,9 +83,12 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	memcpy((void *)code_addr, ldelf_data, ldelf_code_size);
 	memcpy((void *)rw_addr, ldelf_data + ldelf_code_size, ldelf_data_size);
 
+	prot = TEE_MATTR_URX;
+	if (IS_ENABLED(CFG_CORE_BTI))
+		prot |= TEE_MATTR_GUARDED;
+
 	res = vm_set_prot(uctx, code_addr,
-			  ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE),
-			  TEE_MATTR_URX);
+			  ROUNDUP(ldelf_code_size, SMALL_PAGE_SIZE), prot);
 	if (res)
 		return res;
 
