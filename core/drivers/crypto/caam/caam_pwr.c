@@ -172,5 +172,5 @@ pm_enter_resume(enum pm_op op, uint32_t pm_hint,
 
 void caam_pwr_init(void)
 {
-	register_pm_driver_cb(pm_enter_resume, NULL);
+	register_pm_driver_cb(pm_enter_resume, NULL, "caam_pwr");
 }

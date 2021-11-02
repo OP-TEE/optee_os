@@ -604,7 +604,7 @@ static void register_secure_pmic(void)
 					     i2c_handle.pinctrl[n].pin);
 
 	stm32mp_register_secure_periph_iomem(i2c_handle.base.pa);
-	register_pm_driver_cb(pmic_pm, NULL);
+	register_pm_driver_cb(pmic_pm, NULL, "stm32mp1-pmic");
 }
 
 static TEE_Result initialize_pmic(void)
