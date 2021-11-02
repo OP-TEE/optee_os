@@ -742,3 +742,26 @@ $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
 
 # Enables warnings for declarations mixed with statements
 CFG_WARN_DECL_AFTER_STATEMENT ?= y
+
+# Branch Target Identification (part of the ARMv8.5 Extensions) provides a
+# mechanism to limit the set of locations to which computed branch instructions
+# such as BR or BLR can jump. To make use of BTI in TEE core and ldelf on CPU's
+# that support it, enable this option. A GCC toolchain built with
+# --enable-standard-branch-protection is needed to use this option.
+CFG_CORE_BTI ?= n
+
+$(eval $(call cfg-depends-all,CFG_CORE_BTI,CFG_ARM64_core))
+
+# To make use of BTI in user space libraries and TA's on CPU's that support it,
+# enable this option.
+CFG_TA_BTI ?= $(CFG_CORE_BTI)
+
+$(eval $(call cfg-depends-all,CFG_TA_BTI,CFG_ARM64_core))
+
+ifeq (y-y,$(CFG_VIRTUALIZATION)-$(call cfg-one-enabled, CFG_TA_BTI CFG_CORE_BTI))
+$(error CFG_VIRTUALIZATION and BTI are currently incompatible)
+endif
+
+ifeq (y-y,$(CFG_PAGED_USER_TA)-$(CFG_TA_BTI))
+$(error CFG_PAGED_USER_TA and CFG_TA_BTI are currently incompatible)
+endif
