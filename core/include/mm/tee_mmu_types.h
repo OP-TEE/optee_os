@@ -24,7 +24,8 @@
 #define TEE_MATTR_URW			(TEE_MATTR_UR | TEE_MATTR_UW)
 #define TEE_MATTR_URX			(TEE_MATTR_UR | TEE_MATTR_UX)
 #define TEE_MATTR_URWX			(TEE_MATTR_URW | TEE_MATTR_UX)
-#define TEE_MATTR_PROT_MASK		(TEE_MATTR_PRWX | TEE_MATTR_URWX)
+#define TEE_MATTR_PROT_MASK	\
+		(TEE_MATTR_PRWX | TEE_MATTR_URWX | TEE_MATTR_GUARDED)
 
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)
@@ -34,6 +35,8 @@
 /* These are shifted TEE_MATTR_CACHE_SHIFT */
 #define TEE_MATTR_CACHE_NONCACHE U(0)
 #define TEE_MATTR_CACHE_CACHED	U(1)
+
+#define TEE_MATTR_GUARDED		BIT(15)
 
 /*
  * Tags TA mappings which are only used during a single call (open session
