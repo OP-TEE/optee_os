@@ -97,106 +97,192 @@ static void thread_rpc_free_arg(uint64_t cookie)
 	}
 }
 
-static struct mobj *get_cmd_buffer(paddr_t parg, uint32_t *num_params)
+static uint32_t get_msg_arg(struct mobj *mobj, size_t offset,
+			    size_t *num_params, struct optee_msg_arg **arg,
+			    struct optee_msg_arg **rpc_arg)
 {
-	struct optee_msg_arg *arg;
-	size_t args_size;
+	void *p = NULL;
+	size_t sz = 0;
 
-	arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM,
-			   sizeof(struct optee_msg_arg));
-	if (!arg)
-		return NULL;
-
-	*num_params = READ_ONCE(arg->num_params);
-	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
-		return NULL;
-
-	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
-
-	return mobj_shm_alloc(parg, args_size, 0);
-}
-
-#ifdef CFG_CORE_DYN_SHM
-static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
-{
-	struct mobj *mobj;
-	struct optee_msg_arg *arg;
-	size_t args_size;
-
-	assert(!(parg & SMALL_PAGE_MASK));
-	/* mobj_mapped_shm_alloc checks if parg resides in nonsec ddr */
-	mobj = mobj_mapped_shm_alloc(&parg, 1, 0, 0);
 	if (!mobj)
-		return NULL;
+		return OPTEE_SMC_RETURN_EBADADDR;
 
-	arg = mobj_get_va(mobj, 0, SMALL_PAGE_SIZE);
-	if (!arg)
-		goto err;
+	p = mobj_get_va(mobj, offset, sizeof(struct optee_msg_arg));
+	if (!p || !IS_ALIGNED_WITH_TYPE(p, struct optee_msg_arg))
+		return OPTEE_SMC_RETURN_EBADADDR;
 
-	*num_params = READ_ONCE(arg->num_params);
+	*arg = p;
+	*num_params = READ_ONCE((*arg)->num_params);
 	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
-		goto err;
+		return OPTEE_SMC_RETURN_EBADADDR;
 
-	args_size = OPTEE_MSG_GET_ARG_SIZE(*num_params);
-	if (args_size > SMALL_PAGE_SIZE) {
-		EMSG("Command buffer spans across page boundary");
-		goto err;
+	sz = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+	if (!mobj_get_va(mobj, offset, sz))
+		return OPTEE_SMC_RETURN_EBADADDR;
+
+	if (rpc_arg) {
+		size_t rpc_sz = 0;
+
+		rpc_sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+		p = mobj_get_va(mobj, offset + sz, rpc_sz);
+		if (!p)
+			return OPTEE_SMC_RETURN_EBADADDR;
+		*rpc_arg = p;
 	}
 
-	return mobj;
-err:
-	mobj_put(mobj);
-	return NULL;
+	return OPTEE_SMC_RETURN_OK;
 }
-#else
-static struct mobj *map_cmd_buffer(paddr_t pargi __unused,
-				   uint32_t *num_params __unused)
-{
-	return NULL;
-}
-#endif /*CFG_CORE_DYN_SHM*/
 
-static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
-			      uint32_t a3 __unused)
+static void maybe_clear_prealloc_rpc_cache(struct thread_ctx *thr)
 {
-	paddr_t parg = 0;
-	struct optee_msg_arg *arg = NULL;
-	uint32_t num_params = 0;
-	struct mobj *mobj = NULL;
+	if (IS_ENABLED(CFG_PREALLOC_RPC_CACHE) && thread_prealloc_rpc_cache) {
+		thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
+		mobj_put(thr->rpc_mobj);
+		thr->rpc_arg = NULL;
+		thr->rpc_mobj = NULL;
+	}
+}
+
+static uint32_t call_entry_std(struct optee_msg_arg *arg, size_t num_params,
+			       struct optee_msg_arg *rpc_arg)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
 	uint32_t rv = 0;
 
-	if (a0 != OPTEE_SMC_CALL_WITH_ARG) {
-		EMSG("Unknown SMC 0x%"PRIx32, a0);
-		DMSG("Expected 0x%x", OPTEE_SMC_CALL_WITH_ARG);
-		return OPTEE_SMC_RETURN_EBADCMD;
-	}
-	parg = reg_pair_to_64(a1, a2);
-
-	/* Check if this region is in static shared space */
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg,
-			 sizeof(struct optee_msg_arg))) {
-		mobj = get_cmd_buffer(parg, &num_params);
-	} else {
-		if (parg & SMALL_PAGE_MASK)
-			return OPTEE_SMC_RETURN_EBADADDR;
-		mobj = map_cmd_buffer(parg, &num_params);
+	if (rpc_arg) {
+		/*
+		 * In case the prealloc RPC arg cache is enabled, clear the
+		 * cached object for this thread.
+		 *
+		 * Normally it doesn't make sense to have the prealloc RPC
+		 * arg cache enabled together with a supplied RPC arg
+		 * struct. But if it is we must use the supplied struct and
+		 * at the same time make sure to not break anything.
+		 */
+		maybe_clear_prealloc_rpc_cache(thr);
+		thr->rpc_arg = rpc_arg;
 	}
 
-	if (!mobj || !IS_ALIGNED_WITH_TYPE(parg, struct optee_msg_arg)) {
-		EMSG("Bad arg address 0x%" PRIxPA, parg);
-		mobj_put(mobj);
-		return OPTEE_SMC_RETURN_EBADADDR;
-	}
-
-	arg = mobj_get_va(mobj, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
-	assert(arg && mobj_is_nonsec(mobj));
 	if (tee_entry_std(arg, num_params))
 		rv = OPTEE_SMC_RETURN_EBADCMD;
 	else
 		rv = OPTEE_SMC_RETURN_OK;
+
+	thread_rpc_shm_cache_clear(&thr->shm_cache);
+	if (rpc_arg)
+		thr->rpc_arg = NULL;
+
+	if (rv == OPTEE_SMC_RETURN_OK)
+		maybe_clear_prealloc_rpc_cache(thr);
+
+	return rv;
+}
+
+static uint32_t std_entry_with_parg(paddr_t parg, bool with_rpc_arg)
+{
+	size_t sz = sizeof(struct optee_msg_arg);
+	struct optee_msg_arg *rpc_arg = NULL;
+	struct optee_msg_arg *arg = NULL;
+	struct mobj *mobj = NULL;
+	size_t num_params = 0;
+	uint32_t rv = 0;
+
+	/* Check if this region is in static shared space */
+	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg, sz)) {
+		if (!IS_ALIGNED_WITH_TYPE(parg, struct optee_msg_arg))
+			goto bad_addr;
+
+		arg = phys_to_virt(parg, MEM_AREA_NSEC_SHM,
+				   sizeof(struct optee_msg_arg));
+		if (!arg)
+			goto bad_addr;
+
+		num_params = READ_ONCE(arg->num_params);
+		if (num_params > OPTEE_MSG_MAX_NUM_PARAMS)
+			return OPTEE_SMC_RETURN_EBADADDR;
+
+		sz = OPTEE_MSG_GET_ARG_SIZE(num_params);
+		if (with_rpc_arg) {
+			rpc_arg = (void *)((uint8_t *)arg + sz);
+			sz += OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+		}
+		if (!core_pbuf_is(CORE_MEM_NSEC_SHM, parg, sz))
+			goto bad_addr;
+
+		return call_entry_std(arg, num_params, rpc_arg);
+	} else {
+		if (parg & SMALL_PAGE_MASK)
+			goto bad_addr;
+		/*
+		 * mobj_mapped_shm_alloc checks if parg resides in nonsec
+		 * ddr.
+		 */
+		mobj = mobj_mapped_shm_alloc(&parg, 1, 0, 0);
+		if (!mobj)
+			goto bad_addr;
+		if (with_rpc_arg)
+			rv = get_msg_arg(mobj, 0, &num_params, &arg, &rpc_arg);
+		else
+			rv = get_msg_arg(mobj, 0, &num_params, &arg, NULL);
+		if (!rv)
+			rv = call_entry_std(arg, num_params, rpc_arg);
+		mobj_put(mobj);
+		return rv;
+	}
+
+bad_addr:
+	EMSG("Bad arg address 0x%"PRIxPA, parg);
+	return OPTEE_SMC_RETURN_EBADADDR;
+}
+
+static uint32_t std_entry_with_regd_arg(uint64_t cookie, size_t offset)
+{
+	struct optee_msg_arg *rpc_arg = NULL;
+	struct optee_msg_arg *arg = NULL;
+	size_t num_params = 0;
+	struct mobj *mobj = NULL;
+	uint32_t rv = 0;
+
+	mobj = mobj_reg_shm_get_by_cookie(cookie);
+	if (!mobj) {
+		EMSG("Bad arg cookie 0x%"PRIx64, cookie);
+		return OPTEE_SMC_RETURN_EBADADDR;
+	}
+
+	if (mobj_inc_map(mobj)) {
+		rv = OPTEE_SMC_RETURN_ENOMEM;
+		goto out;
+	}
+
+	rv = get_msg_arg(mobj, offset, &num_params, &arg, &rpc_arg);
+	if (!rv)
+		rv = call_entry_std(arg, num_params, rpc_arg);
+
+	mobj_dec_map(mobj);
+out:
 	mobj_put(mobj);
 
 	return rv;
+}
+
+static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+			      uint32_t a3 __unused)
+{
+	const bool with_rpc_arg = true;
+
+	switch (a0) {
+	case OPTEE_SMC_CALL_WITH_ARG:
+		return std_entry_with_parg(reg_pair_to_64(a1, a2),
+					   !with_rpc_arg);
+	case OPTEE_SMC_CALL_WITH_RPC_ARG:
+		return std_entry_with_parg(reg_pair_to_64(a1, a2),
+					   with_rpc_arg);
+	case OPTEE_SMC_CALL_WITH_REGD_ARG:
+		return std_entry_with_regd_arg(reg_pair_to_64(a1, a2), a3);
+	default:
+		EMSG("Unknown SMC 0x%"PRIx32, a0);
+		return OPTEE_SMC_RETURN_EBADCMD;
+	}
 }
 
 /*
@@ -209,26 +295,10 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 				       uint32_t a3, uint32_t a4 __unused,
 				       uint32_t a5 __unused)
 {
-	uint32_t rv = 0;
-
 	if (IS_ENABLED(CFG_VIRTUALIZATION))
 		virt_on_stdcall();
 
-	rv = std_smc_entry(a0, a1, a2, a3);
-
-	if (rv == OPTEE_SMC_RETURN_OK) {
-		struct thread_ctx *thr = threads + thread_get_id();
-
-		thread_rpc_shm_cache_clear(&thr->shm_cache);
-		if (!thread_prealloc_rpc_cache) {
-			thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
-			mobj_put(thr->rpc_mobj);
-			thr->rpc_arg = NULL;
-			thr->rpc_mobj = NULL;
-		}
-	}
-
-	return rv;
+	return std_smc_entry(a0, a1, a2, a3);
 }
 
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)
