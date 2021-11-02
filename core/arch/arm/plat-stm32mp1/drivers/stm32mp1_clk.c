@@ -563,11 +563,6 @@ static const struct stm32mp1_clk_gate *gate_ref(unsigned int idx)
 	return &stm32mp1_clk_gate[idx];
 }
 
-static bool gate_is_non_secure(const struct stm32mp1_clk_gate *gate)
-{
-	return gate->secure == N_S || !stm32_rcc_is_secure();
-}
-
 static const struct stm32mp1_clk_sel *clk_sel_ref(unsigned int idx)
 {
 	return &stm32mp1_clk_sel[idx];
@@ -911,6 +906,13 @@ static unsigned long get_clock_rate(int p)
 	return clock;
 }
 
+static bool __clk_is_enabled(const struct stm32mp1_clk_gate *gate)
+{
+	vaddr_t base = stm32_rcc_base();
+
+	return io_read32(base + gate->offset) & BIT(gate->bit);
+}
+
 static void __clk_enable(const struct stm32mp1_clk_gate *gate)
 {
 	vaddr_t base = stm32_rcc_base();
@@ -937,13 +939,6 @@ static void __clk_disable(const struct stm32mp1_clk_gate *gate)
 	FMSG("Clock %u has been disabled", gate->clock_id);
 }
 
-static bool __clk_is_enabled(const struct stm32mp1_clk_gate *gate)
-{
-	vaddr_t base = stm32_rcc_base();
-
-	return io_read32(base + gate->offset) & BIT(gate->bit);
-}
-
 static bool clock_is_always_on(unsigned long id)
 {
 	size_t n = 0;
@@ -953,6 +948,11 @@ static bool clock_is_always_on(unsigned long id)
 			return true;
 
 	return false;
+}
+
+static bool gate_is_non_secure(const struct stm32mp1_clk_gate *gate)
+{
+	return gate->secure == N_S || !stm32_rcc_is_secure();
 }
 
 bool stm32_clock_is_enabled(unsigned long id)
