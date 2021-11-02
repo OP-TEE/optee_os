@@ -5,6 +5,8 @@
  */
 
 #include <assert.h>
+#include <config.h>
+#include <confine_array_index.h>
 #include <ctype.h>
 #include <elf32.h>
 #include <elf64.h>
@@ -534,6 +536,11 @@ static void parse_load_segments(struct ta_elf *elf)
 				elf->tls_start = phdr[n].p_vaddr;
 				elf->tls_filesz = phdr[n].p_filesz;
 				elf->tls_memsz = phdr[n].p_memsz;
+			} else if (IS_ENABLED(CFG_TA_BTI) &&
+				   phdr[n].p_type == PT_GNU_PROPERTY) {
+				elf->prop_start = phdr[n].p_vaddr;
+				elf->prop_align = phdr[n].p_align;
+				elf->prop_memsz = phdr[n].p_memsz;
 			}
 	}
 }
@@ -853,6 +860,69 @@ static void populate_segments(struct ta_elf *elf)
 			elf->max_offs += filesz;
 		}
 	}
+}
+
+static void parse_property_segment(struct ta_elf *elf)
+{
+	char *desc = NULL;
+	size_t align = elf->prop_align;
+	size_t desc_offset = 0;
+	size_t prop_offset = 0;
+	vaddr_t va = 0;
+	Elf_Note *note = NULL;
+	char *name = NULL;
+
+	if (!IS_ENABLED(CFG_TA_BTI) || !elf->prop_start)
+		return;
+
+	check_phdr_in_range(elf, PT_GNU_PROPERTY, elf->prop_start,
+			    elf->prop_memsz);
+
+	va = elf->load_addr + elf->prop_start;
+	note = (void *)va;
+	name = (char *)(note + 1);
+
+	if (elf->prop_memsz < sizeof(*note) + sizeof(ELF_NOTE_GNU))
+		return;
+
+	if (note->n_type != NT_GNU_PROPERTY_TYPE_0 ||
+	    note->n_namesz != sizeof(ELF_NOTE_GNU) ||
+	    memcmp(name, ELF_NOTE_GNU, sizeof(ELF_NOTE_GNU)) ||
+	    !IS_POWER_OF_TWO(align))
+		return;
+
+	desc_offset = ROUNDUP(sizeof(*note) + sizeof(ELF_NOTE_GNU), align);
+
+	if (desc_offset > elf->prop_memsz ||
+	    ROUNDUP(desc_offset + note->n_descsz, align) > elf->prop_memsz)
+		return;
+
+	desc = (char *)(va + desc_offset);
+
+	do {
+		Elf_Prop *prop = (void *)(desc + prop_offset);
+		size_t data_offset = prop_offset + sizeof(*prop);
+
+		if (note->n_descsz < data_offset)
+			return;
+
+		data_offset = confine_array_index(data_offset, note->n_descsz);
+
+		if (prop->pr_type == GNU_PROPERTY_AARCH64_FEATURE_1_AND) {
+			uint32_t *pr_data = (void *)(desc + data_offset);
+
+			if (note->n_descsz < (data_offset + sizeof(*pr_data)) &&
+			    prop->pr_datasz != sizeof(*pr_data))
+				return;
+
+			if (*pr_data & GNU_PROPERTY_AARCH64_FEATURE_1_BTI) {
+				DMSG("BTI Feature present in note property");
+				elf->bti_enabled = true;
+			}
+		}
+
+		prop_offset += ROUNDUP(sizeof(*prop) + prop->pr_datasz, align);
+	} while (prop_offset < note->n_descsz);
 }
 
 static void map_segments(struct ta_elf *elf)

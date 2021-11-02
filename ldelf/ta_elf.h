@@ -29,6 +29,7 @@ struct ta_elf {
 	bool is_main;
 	bool is_32bit;	/* Initialized from Elf32_Ehdr/Elf64_Ehdr */
 	bool is_legacy;
+	bool bti_enabled;
 
 	vaddr_t load_addr;
 	vaddr_t max_addr;
@@ -78,6 +79,11 @@ struct ta_elf {
 	/* Offset of the copy of the TLS block in the TLS area of the TCB */
 	size_t tls_tcb_offs;
 #endif
+
+	/* PT_GNU_PROPERTY segment */
+	vaddr_t prop_start;
+	size_t prop_align;
+	size_t prop_memsz;
 
 	uint32_t handle;
 
