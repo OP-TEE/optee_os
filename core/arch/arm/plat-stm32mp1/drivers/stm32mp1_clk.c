@@ -1302,7 +1302,7 @@ static void disable_rcc_tzen(void)
 	io_clrbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 }
 
-static TEE_Result stm32mp1_clk_init(const void *fdt, int node)
+static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 {
 	unsigned int i = 0;
 	int len = 0;
@@ -1379,9 +1379,11 @@ static TEE_Result stm32mp1_clk_early_init(void)
 		enable_rcc_tzen();
 	}
 
-	res = stm32mp1_clk_init(fdt, node);
-	if (res)
-		return res;
+	res = stm32mp1_clk_fdt_init(fdt, node);
+	if (res) {
+		DMSG("Clock init from DTB failed: %#"PRIx32, res);
+		panic();
+	}
 
 	enable_static_secure_clocks();
 
