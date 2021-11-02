@@ -167,6 +167,14 @@ ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
 endif
 
+ifeq ($(CFG_CORE_BTI),y)
+bti-opt := $(call cc-option,-mbranch-protection=bti)
+ifeq (,$(bti-opt))
+$(error -mbranch-protection=bti not supported)
+endif
+core-platform-cflags += $(bti-opt)
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 core-platform-cppflags += $(arm64-platform-cppflags)
 core-platform-cflags += $(arm64-platform-cflags)
