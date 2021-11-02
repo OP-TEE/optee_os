@@ -1,11 +1,24 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2021, Linaro Limited
  * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #ifndef TEE_API_DEFINES_EXTENSIONS_H
 #define TEE_API_DEFINES_EXTENSIONS_H
+
+/*
+ * API extended result codes as per TEE_Result IDs defined in GPD TEE
+ * Internal Core API specification v1.1:
+ *
+ * 0x70000000 - 0x7FFFFFFF: Reserved for implementation-specific return
+ *			    code providing non-error information
+ * 0x80000000 - 0x8FFFFFFF: Reserved for implementation-specific errors
+ *
+ * TEE_ERROR_DEFER_DRIVER_INIT - Device driver failed to initialize because
+ * the driver depends on a device not yet initialized.
+ */
+#define TEE_ERROR_DEFER_DRIVER_INIT	0x80000000
 
 /*
  * HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
