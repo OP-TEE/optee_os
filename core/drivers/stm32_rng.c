@@ -217,7 +217,8 @@ static TEE_Result stm32_rng_init(void)
 			panic();
 
 		assert(dt_info.clock != DT_INFO_INVALID_CLOCK &&
-		       dt_info.reg != DT_INFO_INVALID_REG);
+		       dt_info.reg != DT_INFO_INVALID_REG &&
+		       dt_info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
 		if (dt_info.status & DT_STATUS_OK_NSEC) {
 			stm32mp_register_non_secure_periph_iomem(dt_info.reg);
@@ -229,7 +230,7 @@ static TEE_Result stm32_rng_init(void)
 
 		stm32_rng->base.pa = dt_info.reg;
 		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype,
-							   1);
+							   dt_info.reg_size);
 
 		stm32_rng->clock = (unsigned long)dt_info.clock;
 
