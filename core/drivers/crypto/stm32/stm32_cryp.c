@@ -1290,6 +1290,14 @@ static TEE_Result stm32_cryp_driver_init(void)
 	if (stm32_reset_deassert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
 		panic();
 
+	if (IS_ENABLED(CFG_CRYPTO_DRV_AUTHENC)) {
+		res = stm32_register_authenc();
+		if (res) {
+			EMSG("Failed to register to authenc: %#"PRIx32, res);
+			panic();
+		}
+	}
+
 	if (IS_ENABLED(CFG_CRYPTO_DRV_CIPHER)) {
 		res = stm32_register_cipher();
 		if (res) {
