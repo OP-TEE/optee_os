@@ -262,6 +262,7 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 {
 	struct dt_node_info dinfo = {
 		.reg = DT_INFO_INVALID_REG,
+		.reg_size = DT_INFO_INVALID_REG_SIZE,
 		.clock = DT_INFO_INVALID_CLOCK,
 		.reset = DT_INFO_INVALID_RESET,
 		.interrupt = DT_INFO_INVALID_INTERRUPT,
@@ -269,6 +270,7 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 	const fdt32_t *cuint;
 
 	dinfo.reg = _fdt_reg_base_address(fdt, offs);
+	dinfo.reg_size = _fdt_reg_size(fdt, offs);
 
 	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
 	if (cuint) {
