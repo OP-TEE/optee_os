@@ -75,8 +75,10 @@ static void clk_compute_rate_no_lock(struct clk *clk)
 {
 	unsigned long parent_rate = 0;
 
-	if (clk->parent)
+	if (clk->parent) {
+		clk_compute_rate_no_lock(clk->parent);
 		parent_rate = clk->parent->rate;
+	}
 
 	if (clk->ops->get_rate)
 		clk->rate = clk->ops->get_rate(clk, parent_rate);
@@ -202,6 +204,8 @@ void clk_disable(struct clk *clk)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	clk_compute_rate_no_lock(clk);
+
 	return clk->rate;
 }
 
