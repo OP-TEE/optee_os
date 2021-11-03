@@ -30,6 +30,7 @@
 /*
  * @status: Bit mask for DT_STATUS_*
  * @reg: Device register physical base address or DT_INFO_INVALID_REG
+ * @reg_size: Device register size or DT_INFO_INVALID_REG_SIZE
  * @clock: Device identifier (positive value) or DT_INFO_INVALID_CLOCK
  * @reset: Device reset identifier (positive value) or DT_INFO_INVALID_CLOCK
  * @interrupt: Device interrupt identifier (positive value) or
@@ -42,6 +43,7 @@
 struct dt_node_info {
 	unsigned int status;
 	paddr_t reg;
+	size_t reg_size;
 	int clock;
 	int reset;
 	int interrupt;
