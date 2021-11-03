@@ -290,7 +290,7 @@ struct i2c_request {
 
 static vaddr_t get_base(struct i2c_handle_s *hi2c)
 {
-	return io_pa_or_va_secure(&hi2c->base, I2C_SIZE);
+	return io_pa_or_va_secure(&hi2c->base, hi2c->reg_size);
 }
 
 static void notif_i2c_timeout(struct i2c_handle_s *hi2c)
@@ -692,11 +692,14 @@ int stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	memset(init, 0, sizeof(*init));
 
 	_fdt_fill_device_info(fdt, &info, node);
+	assert(info.reg != DT_INFO_INVALID_REG &&
+	       info.reg_size != DT_INFO_INVALID_REG_SIZE &&
+	       info.clock != DT_INFO_INVALID_CLOCK);
+
 	init->dt_status = info.status;
 	init->pbase = info.reg;
+	init->reg_size = info.reg_size;
 	init->clock = info.clock;
-	assert(info.reg != DT_INFO_INVALID_REG &&
-	       info.clock != DT_INFO_INVALID_CLOCK);
 
 	cuint = fdt_getprop(fdt, node, "i2c-scl-rising-time-ns", NULL);
 	if (cuint)
@@ -754,6 +757,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 
 	hi2c->dt_status = init_data->dt_status;
 	hi2c->base.pa = init_data->pbase;
+	hi2c->reg_size = init_data->reg_size;
 	hi2c->clock = init_data->clock;
 
 	rc = i2c_setup_timing(hi2c, init_data, &timing);

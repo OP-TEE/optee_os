@@ -31,6 +31,7 @@
  *
  * @dt_status: non-secure/secure status read from DT
  * @pbase: I2C interface base address
+ * @reg_size: I2C interface register map size
  * @clock: I2C bus/interface clock
  * @addr_mode_10b_not_7b: True if 10bit addressing mode, otherwise 7bit mode
  * @own_address1: 7-bit or 10-bit first device own address.
@@ -48,6 +49,7 @@
 struct stm32_i2c_init_s {
 	unsigned int dt_status;
 	paddr_t pbase;
+	size_t reg_size;
 	unsigned int clock;
 	bool addr_mode_10b_not_7b;
 	uint32_t own_address1;
@@ -100,6 +102,7 @@ struct i2c_cfg {
 /*
  * I2C bus device
  * @base: I2C SoC registers base address
+ * @reg_size: I2C SoC registers address map size
  * @dt_status: non-secure/secure status read from DT
  * @clock: clock ID
  * @i2c_state: Driver state ID I2C_STATE_*
@@ -112,6 +115,7 @@ struct i2c_cfg {
  */
 struct i2c_handle_s {
 	struct io_pa_va base;
+	size_t reg_size;
 	unsigned int dt_status;
 	unsigned long clock;
 	enum i2c_state_e i2c_state;
