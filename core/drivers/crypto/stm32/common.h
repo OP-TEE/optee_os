@@ -8,6 +8,7 @@
 
 #include <tee_api_types.h>
 
+TEE_Result stm32_register_authenc(void);
 TEE_Result stm32_register_cipher(void);
 
 #endif /* __DRIVERS_CRYPTO_STM32_COMMON_H */
