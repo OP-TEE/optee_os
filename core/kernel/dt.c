@@ -101,7 +101,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 	enum teecore_memtypes mtype;
 	paddr_t pbase;
 	vaddr_t vbase;
-	ssize_t sz;
+	size_t sz;
 	int st;
 
 	assert(cpu_mmu_enabled());
@@ -114,7 +114,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 	if (pbase == DT_INFO_INVALID_REG)
 		return -1;
 	sz = _fdt_reg_size(fdt, offs);
-	if (sz < 0)
+	if (sz == DT_INFO_INVALID_REG_SIZE)
 		return -1;
 
 	if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
@@ -188,7 +188,7 @@ paddr_t _fdt_reg_base_address(const void *fdt, int offs)
 	return _fdt_read_paddr(reg, ncells);
 }
 
-ssize_t _fdt_reg_size(const void *fdt, int offs)
+size_t _fdt_reg_size(const void *fdt, int offs)
 {
 	const uint32_t *reg;
 	uint32_t sz;
@@ -202,22 +202,22 @@ ssize_t _fdt_reg_size(const void *fdt, int offs)
 
 	reg = (const uint32_t *)fdt_getprop(fdt, offs, "reg", &len);
 	if (!reg)
-		return -1;
+		return DT_INFO_INVALID_REG_SIZE;
 
 	n = fdt_address_cells(fdt, parent);
 	if (n < 1 || n > 2)
-		return -1;
+		return DT_INFO_INVALID_REG_SIZE;
 
 	reg += n;
 
 	n = fdt_size_cells(fdt, parent);
 	if (n < 1 || n > 2)
-		return -1;
+		return DT_INFO_INVALID_REG_SIZE;
 
 	sz = fdt32_to_cpu(*reg);
 	if (n == 2) {
 		if (sz)
-			return -1;
+			return DT_INFO_INVALID_REG_SIZE;
 		reg++;
 		sz = fdt32_to_cpu(*reg);
 	}

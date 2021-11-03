@@ -52,7 +52,7 @@ static paddr_t find_jr_offset(void *fdt, int status, int *find_node)
 
 void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base)
 {
-	ssize_t size = 0;
+	size_t size = 0;
 	int node = 0;
 	paddr_t pctrl_base = 0;
 
@@ -75,7 +75,7 @@ void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base)
 	}
 
 	size = _fdt_reg_size(fdt, node);
-	if (size < 0) {
+	if (size == DT_INFO_INVALID_REG_SIZE) {
 		HAL_TRACE("CAAM control base address size not defined");
 		return;
 	}

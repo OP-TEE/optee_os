@@ -22,7 +22,7 @@
 #define DT_STATUS_OK_SEC		BIT(1)
 
 #define DT_INFO_INVALID_REG		((paddr_t)-1)
-#define DT_INFO_INVALID_REG_SIZE	((ssize_t)-1)
+#define DT_INFO_INVALID_REG_SIZE	((size_t)-1)
 #define DT_INFO_INVALID_CLOCK		-1
 #define DT_INFO_INVALID_RESET		-1
 #define DT_INFO_INVALID_INTERRUPT	-1
@@ -148,7 +148,7 @@ paddr_t _fdt_reg_base_address(const void *fdt, int offs);
  * Return the reg size for the reg property of the specified node or -1 in case
  * of error
  */
-ssize_t _fdt_reg_size(const void *fdt, int offs);
+size_t _fdt_reg_size(const void *fdt, int offs);
 
 /*
  * Read the status and secure-status properties into a bitfield.
@@ -199,10 +199,10 @@ static inline paddr_t _fdt_reg_base_address(const void *fdt __unused,
 	return (paddr_t)-1;
 }
 
-static inline ssize_t _fdt_reg_size(const void *fdt __unused,
-				    int offs __unused)
+static inline size_t _fdt_reg_size(const void *fdt __unused,
+				   int offs __unused)
 {
-	return -1;
+	return (size_t)-1;
 }
 
 static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
