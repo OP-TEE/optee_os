@@ -139,7 +139,8 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 		return NULL;
 
 	assert(info.clock != DT_INFO_INVALID_CLOCK &&
-	       info.reg != DT_INFO_INVALID_REG);
+	       info.reg != DT_INFO_INVALID_REG &&
+	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
 	pd = calloc(1, sizeof(*pd));
 	if (!pd)
@@ -153,7 +154,7 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	assert(cpu_mmu_enabled());
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,
 					    pd->secure ? MEM_AREA_IO_SEC :
-					    MEM_AREA_IO_NSEC, 1);
+					    MEM_AREA_IO_NSEC, info.reg_size);
 
 	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
 	if (count < 0)
