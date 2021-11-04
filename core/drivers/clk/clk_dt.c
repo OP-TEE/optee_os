@@ -13,62 +13,6 @@
 #include <libfdt.h>
 #include <stddef.h>
 
-static int fdt_clock_cells(const void *fdt, int nodeoffset)
-{
-	const fdt32_t *c = NULL;
-	int len = 0;
-
-	c = fdt_getprop(fdt, nodeoffset, "#clock-cells", &len);
-	if (!c)
-		return len;
-
-	if (len != sizeof(*c))
-		return -FDT_ERR_BADNCELLS;
-
-	return (int)fdt32_to_cpu(*c);
-}
-
-TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
-					clk_dt_get_func get_dt_clk, void *data)
-{
-	struct dt_driver_provider *prv = NULL;
-	int clock_cells = 0;
-
-	prv = calloc(1, sizeof(*prv));
-	if (!prv)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	prv->get_of_device = (get_of_device_func)get_dt_clk;
-	prv->priv_data = data;
-	prv->nodeoffset = nodeoffset;
-	clock_cells = fdt_clock_cells(fdt, nodeoffset);
-	if (clock_cells < 0) {
-		free(prv);
-		return TEE_ERROR_GENERIC;
-	}
-	prv->provider_cells = clock_cells;
-	prv->phandle = fdt_get_phandle(fdt, nodeoffset);
-
-	SLIST_INSERT_HEAD(&dt_driver_provider_list, prv, link);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result clk_dt_release_provider(void)
-{
-	struct dt_driver_provider *prv = NULL;
-
-	while (!SLIST_EMPTY(&dt_driver_provider_list)) {
-		prv = SLIST_FIRST(&dt_driver_provider_list);
-		SLIST_REMOVE_HEAD(&dt_driver_provider_list, link);
-		free(prv);
-	}
-
-	return TEE_SUCCESS;
-}
-
-driver_init_late(clk_dt_release_provider);
-
 static struct dt_driver_provider *clk_get_provider_by_node(int nodeoffset)
 {
 	struct dt_driver_provider *prv = NULL;
@@ -226,7 +170,8 @@ static TEE_Result parse_clock_property(const void *fdt, int node)
 		if (res)
 			panic("Failed to probe parent clock");
 
-		clock_cells = fdt_clock_cells(fdt, parent_node);
+		clock_cells = fdt_get_dt_driver_cells(fdt, parent_node,
+						      DT_DRIVER_CLK);
 		if (clock_cells < 0)
 			return TEE_ERROR_GENERIC;
 

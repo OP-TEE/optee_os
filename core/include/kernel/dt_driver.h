@@ -10,6 +10,7 @@
 #include <kernel/dt.h>
 #include <stdint.h>
 #include <sys/queue.h>
+#include <tee_api_types.h>
 
 /**
  * struct dt_driver_phandle_args - Devicetree phandle arguments
@@ -60,4 +61,39 @@ struct dt_driver_provider {
 
 SLIST_HEAD(dt_driver_prov_list, dt_driver_provider);
 extern struct dt_driver_prov_list dt_driver_provider_list;
+
+/**
+ * dt_driver_register_provider - Register a driver provider
+ *
+ * @fdt: Device tree to work on
+ * @nodeoffset: Node offset in the FDT
+ * @get_of_device: Function to match the devicetree with a device instance
+ * @data: Data which will be passed to the @get_of_device callback
+ * @type: Driver type
+ *
+ * @get_of_device returns a void *. Driver provider is expected to
+ * include a shim helper to cast to device reference into provider driver
+ * target structure reference (e.g (struct clk *) for clock devices).
+ */
+TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
+				       get_of_device_func get_of_device,
+				       void *data, enum dt_driver_type type);
+
+/*
+ * Return number cells used for phandle arguments by a driver provider
+ */
+unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv);
+
+/*
+ * Get cells count of a device node given its dt_driver type
+ *
+ * @fdt: FDT base address
+ * @nodeoffset: Node offset on the FDT for the device
+ * @type: One of the supported DT_DRIVER_* value.
+ *
+ * Currently supports type DT_DRIVER_CLK.
+ * Return a positive cell count value (>= 0) or a negative FDT_ error code
+ */
+int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
+			    enum dt_driver_type type);
 #endif /* __DT_DRIVER_H */
