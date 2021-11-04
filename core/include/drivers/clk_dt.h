@@ -86,8 +86,14 @@ typedef struct clk *(*clk_dt_get_func)(struct dt_driver_phandle_args *args,
  * @data: Data which will be passed to the get_dt_clk callback
  * Returns TEE_Result value
  */
+static inline
 TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
-					clk_dt_get_func get_dt_clk, void *data);
+					clk_dt_get_func get_dt_clk, void *data)
+{
+	return dt_driver_register_provider(fdt, nodeoffset,
+					   (get_of_device_func)get_dt_clk,
+					   data, DT_DRIVER_CLK);
+}
 
 /**
  * clk_dt_get_simple_clk: simple clock matching function for single clock
