@@ -50,6 +50,8 @@ static uint32_t oem_sysreg(uint32_t addr, uint32_t mask, uint32_t *pvalue)
 		if (!reg || !mask)
 			DMSG("Blocking write of 0x%"PRIx32" to register 0x%"
 			     PRIx32" (0x%"PRIxVA")", *pvalue, addr, reg);
+		else if (mask == ~0UL)
+			io_write32(reg, *pvalue);
 		else
 			io_mask32(reg, *pvalue, mask);
 	} else {
