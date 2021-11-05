@@ -111,6 +111,22 @@ struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle);
 unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv);
 
 /*
+ * dt_driver_probe_device_by_node - Probe matching driver to create a device
+ *	from a FDT node
+ *
+ * @fdt: FDT base address
+ * @nodeoffset: Node byte offset from FDT base
+ * @type: Target driver to match or DT_DRIVER_ANY
+ *
+ * Read the dt_driver database. Compatible list is looked up in the order
+ * of the FDT "compatible" property list. @type can be used to probe only
+ * specific drivers.
+ *
+ */
+TEE_Result dt_driver_probe_device_by_node(const void *fdt, int nodeoffset,
+					  enum dt_driver_type type);
+
+/*
  * Get cells count of a device node given its dt_driver type
  *
  * @fdt: FDT base address

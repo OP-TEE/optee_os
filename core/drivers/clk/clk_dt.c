@@ -41,30 +41,6 @@ struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
 	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx);
 }
 
-static const struct dt_driver *
-clk_get_compatible_driver(const char *compat,
-			  const struct dt_device_match **out_dm)
-{
-	const struct dt_driver *drv = NULL;
-	const struct dt_device_match *dm = NULL;
-
-	for_each_dt_driver(drv) {
-		if (drv->type != DT_DRIVER_CLK)
-			continue;
-
-		for (dm = drv->match_table; dm && dm->compatible; dm++) {
-			if (strcmp(dm->compatible, compat) == 0) {
-				if (out_dm)
-					*out_dm = dm;
-
-				return drv;
-			}
-		}
-	}
-
-	return NULL;
-}
-
 /* Recursively called from parse_clock_property() */
 static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node);
 
@@ -106,42 +82,6 @@ static TEE_Result parse_clock_property(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result clk_dt_node_clock_probe_driver(const void *fdt, int node)
-{
-	int idx = 0;
-	int len = 0;
-	int count = 0;
-	const char *compat = NULL;
-	TEE_Result res = TEE_ERROR_GENERIC;
-	const struct dt_driver *dt_drv = NULL;
-	const struct dt_device_match *dm = NULL;
-
-	count = fdt_stringlist_count(fdt, node, "compatible");
-	if (count < 0)
-		return TEE_ERROR_GENERIC;
-
-	for (idx = 0; idx < count; idx++) {
-		compat = fdt_stringlist_get(fdt, node, "compatible", idx, &len);
-		if (!compat)
-			return TEE_ERROR_GENERIC;
-
-		dt_drv = clk_get_compatible_driver(compat, &dm);
-		if (!dt_drv)
-			continue;
-
-		res = dt_drv->probe(fdt, node, dm->compat_data);
-		if (res != TEE_SUCCESS) {
-			EMSG("Failed to probe clock driver for compatible %s",
-			     compat);
-			panic();
-		} else {
-			return TEE_SUCCESS;
-		}
-	}
-
-	return TEE_ERROR_GENERIC;
-}
-
 static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 {
 	int len = 0;
@@ -165,7 +105,7 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 	if (res)
 		return res;
 
-	return clk_dt_node_clock_probe_driver(fdt, node);
+	return dt_driver_probe_device_by_node(fdt, node, DT_DRIVER_CLK);
 }
 
 static void clk_probe_node(const void *fdt, int parent_node)
