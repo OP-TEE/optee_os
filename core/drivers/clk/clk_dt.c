@@ -13,28 +13,6 @@
 #include <libfdt.h>
 #include <stddef.h>
 
-static struct dt_driver_provider *clk_get_provider_by_node(int nodeoffset)
-{
-	struct dt_driver_provider *prv = NULL;
-
-	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
-		if (prv->nodeoffset == nodeoffset)
-			return prv;
-
-	return NULL;
-}
-
-static struct dt_driver_provider *clk_get_provider_by_phandle(uint32_t phandle)
-{
-	struct dt_driver_provider *prv = NULL;
-
-	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
-		if (prv->phandle == phandle)
-			return prv;
-
-	return NULL;
-}
-
 static struct clk *clk_dt_get_from_provider(struct dt_driver_provider *prv,
 					    unsigned int clock_cells,
 					    const uint32_t *prop)
@@ -91,7 +69,7 @@ static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 		idx32 = idx / sizeof(uint32_t);
 		phandle = fdt32_to_cpu(prop[idx32]);
 
-		prv = clk_get_provider_by_phandle(phandle);
+		prv = dt_driver_get_provider_by_node(phandle);
 		if (!prv)
 			return NULL;
 
@@ -232,7 +210,7 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	/* Check if node has already been probed */
-	if (clk_get_provider_by_node(node))
+	if (dt_driver_get_provider_by_node(node))
 		return TEE_SUCCESS;
 
 	/* Check if the node has a clock property first to probe parent */
