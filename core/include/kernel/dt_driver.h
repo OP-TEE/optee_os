@@ -80,6 +80,22 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 				       void *data, enum dt_driver_type type);
 
 /*
+ * dt_driver_device_from_node_idx_prop - Return a device instance based on a
+ *	property name and FDT information
+ *
+ * @prop_name: DT property name, e.g. "clocks" for clock resources
+ * @fdt: FDT base address
+ * @nodeoffset: node offset in the FDT
+ * @prop_idx: index of the phandle data in the property
+ *
+ * Return a device opaque reference, e.g. a struct clk pointer for a clock
+ * driver, or NULL if not found.
+ */
+void *dt_driver_device_from_node_idx_prop(const char *prop_name,
+					  const void *fdt, int nodeoffset,
+					  unsigned int prop_idx);
+
+/*
  * Return driver provider reference from its node offset value in the FDT
  */
 struct dt_driver_provider *dt_driver_get_provider_by_node(int nodeoffset);

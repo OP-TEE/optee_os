@@ -126,3 +126,63 @@ struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle)
 
 	return NULL;
 }
+
+static void *device_from_provider_prop(struct dt_driver_provider *prv,
+				       const uint32_t *prop)
+{
+	struct dt_driver_phandle_args *pargs = NULL;
+	unsigned int n = 0;
+	void *device = NULL;
+
+	pargs = calloc(1, prv->provider_cells * sizeof(uint32_t *) +
+		       sizeof(*pargs));
+	if (!pargs)
+		return NULL;
+
+	pargs->args_count = prv->provider_cells;
+	for (n = 0; n < prv->provider_cells; n++)
+		pargs->args[n] = fdt32_to_cpu(prop[n + 1]);
+
+	device = prv->get_of_device(pargs, prv->priv_data);
+
+	free(pargs);
+
+	return device;
+}
+
+void *dt_driver_device_from_node_idx_prop(const char *prop_name,
+					  const void *fdt, int nodeoffset,
+					  unsigned int prop_idx)
+{
+	int len = 0;
+	int idx = 0;
+	int idx32 = 0;
+	int prv_cells = 0;
+	uint32_t phandle = 0;
+	const uint32_t *prop = NULL;
+	struct dt_driver_provider *prv = NULL;
+
+	prop = fdt_getprop(fdt, nodeoffset, prop_name, &len);
+	if (!prop)
+		return NULL;
+
+	while (idx < len) {
+		idx32 = idx / sizeof(uint32_t);
+		phandle = fdt32_to_cpu(prop[idx32]);
+
+		prv = dt_driver_get_provider_by_phandle(phandle);
+		if (!prv)
+			return NULL;
+
+		prv_cells = dt_driver_provider_cells(prv);
+		if (prop_idx) {
+			prop_idx--;
+			idx += sizeof(phandle) + prv_cells * sizeof(uint32_t);
+			continue;
+		}
+
+		return device_from_provider_prop(prv, prop + idx32);
+	}
+
+	return NULL;
+}
