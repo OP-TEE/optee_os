@@ -80,6 +80,16 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 				       void *data, enum dt_driver_type type);
 
 /*
+ * Return driver provider reference from its node offset value in the FDT
+ */
+struct dt_driver_provider *dt_driver_get_provider_by_node(int nodeoffset);
+
+/*
+ * Return driver provider reference from its phandle value in the FDT
+ */
+struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle);
+
+/*
  * Return number cells used for phandle arguments by a driver provider
  */
 unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv);

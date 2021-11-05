@@ -104,3 +104,25 @@ unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv)
 {
 	return prv->provider_cells;
 }
+
+struct dt_driver_provider *dt_driver_get_provider_by_node(int nodeoffset)
+{
+	struct dt_driver_provider *prv = NULL;
+
+	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
+		if (prv->nodeoffset == nodeoffset)
+			return prv;
+
+	return NULL;
+}
+
+struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle)
+{
+	struct dt_driver_provider *prv = NULL;
+
+	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
+		if (prv->phandle == phandle)
+			return prv;
+
+	return NULL;
+}
