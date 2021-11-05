@@ -13,30 +13,6 @@
 #include <libfdt.h>
 #include <stddef.h>
 
-static struct clk *clk_dt_get_from_provider(struct dt_driver_provider *prv,
-					    unsigned int clock_cells,
-					    const uint32_t *prop)
-{
-	unsigned int arg = 0;
-	struct clk *clk = NULL;
-	struct dt_driver_phandle_args *pargs = NULL;
-
-	pargs = calloc(1, clock_cells * sizeof(uint32_t *) +
-		       sizeof(*pargs));
-	if (!pargs)
-		return NULL;
-
-	pargs->args_count = clock_cells;
-	for (arg = 0; arg < clock_cells; arg++)
-		pargs->args[arg] = fdt32_to_cpu(prop[arg + 1]);
-
-	clk = prv->get_of_device(pargs, prv->priv_data);
-
-	free(pargs);
-
-	return clk;
-}
-
 struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
 			       const char *name)
 {
@@ -53,37 +29,10 @@ static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 					  const void *fdt, int nodeoffset,
 					  unsigned int clk_idx)
 {
-	int len = 0;
-	int idx = 0;
-	int idx32 = 0;
-	int clock_cells = 0;
-	uint32_t phandle = 0;
-	const uint32_t *prop = NULL;
-	struct dt_driver_provider *prv = NULL;
+	void *device = dt_driver_device_from_node_idx_prop(prop_name, fdt,
+							   nodeoffset, clk_idx);
 
-	prop = fdt_getprop(fdt, nodeoffset, prop_name, &len);
-	if (!prop)
-		return NULL;
-
-	while (idx < len) {
-		idx32 = idx / sizeof(uint32_t);
-		phandle = fdt32_to_cpu(prop[idx32]);
-
-		prv = dt_driver_get_provider_by_node(phandle);
-		if (!prv)
-			return NULL;
-
-		clock_cells = prv->provider_cells;
-		if (clk_idx) {
-			clk_idx--;
-			idx += sizeof(phandle) + clock_cells * sizeof(uint32_t);
-			continue;
-		}
-
-		return clk_dt_get_from_provider(prv, clock_cells, &prop[idx32]);
-	}
-
-	return NULL;
+	return (struct clk *)device;
 }
 
 struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
