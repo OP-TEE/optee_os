@@ -186,3 +186,51 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 
 	return NULL;
 }
+
+/* Lookup a compatible driver, possibly of a specific @type, for the FDT node */
+static TEE_Result probe_device_by_compat(const void *fdt, int node,
+					 const char *compat,
+					 enum dt_driver_type type)
+{
+	const struct dt_driver *drv = NULL;
+	const struct dt_device_match *dm = NULL;
+
+	for_each_dt_driver(drv) {
+		if (drv->type != type)
+			continue;
+
+		for (dm = drv->match_table; dm && dm->compatible; dm++)
+			if (strcmp(dm->compatible, compat) == 0)
+				return drv->probe(fdt, node, dm->compat_data);
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+TEE_Result dt_driver_probe_device_by_node(const void *fdt, int nodeoffset,
+					  enum dt_driver_type type)
+{
+	int idx = 0;
+	int len = 0;
+	int count = 0;
+	const char *compat = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	count = fdt_stringlist_count(fdt, nodeoffset, "compatible");
+	if (count < 0)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	for (idx = 0; idx < count; idx++) {
+		compat = fdt_stringlist_get(fdt, nodeoffset, "compatible",
+					    idx, &len);
+		if (!compat)
+			return TEE_ERROR_GENERIC;
+
+		res = probe_device_by_compat(fdt, nodeoffset, compat, type);
+
+		if (res != TEE_ERROR_ITEM_NOT_FOUND)
+			return res;
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
