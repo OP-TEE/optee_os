@@ -12,23 +12,12 @@
 #include <sys/queue.h>
 
 /**
- * struct clk_driver - Clock driver setup struct
- * probe: probe function for the clock driver
- */
-struct clk_driver {
-	TEE_Result (*probe)(const void *fdt, int nodeoffset, const void *data);
-};
-
-/**
  * CLK_DT_DECLARE - Declare a clock driver
  * @__name: Clock driver name
  * @__compat: Compatible string
  * @__probe: Clock probe function
  */
 #define CLK_DT_DECLARE(__name, __compat, __probe) \
-	static const struct clk_driver __name ## _driver = { \
-		.probe = __probe, \
-	}; \
 	static const struct dt_device_match __name ## _match_table[] = { \
 		{ .compatible = __compat }, \
 		{ } \
@@ -37,7 +26,7 @@ struct clk_driver {
 		.name = # __name, \
 		.type = DT_DRIVER_CLK, \
 		.match_table = __name ## _match_table, \
-		.driver = &__name ## _driver, \
+		.probe = __probe, \
 	}
 
 /**
