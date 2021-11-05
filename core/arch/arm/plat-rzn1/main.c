@@ -9,12 +9,25 @@
 #include <drivers/gic.h>
 #include <drivers/ns16550.h>
 #include <kernel/boot.h>
+#include <kernel/delay.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <rzn1_tz.h>
+
+#define SYSCTRL_PWRCTRL_CM3	(SYSCTRL_BASE + 0x174)
+#define SYSCTRL_PWRSTAT_CM3	(SYSCTRL_BASE + 0x178)
+
+#define SYSCTRL_PWRCTRL_CM3_CLKEN_A	BIT(0)
+#define SYSCTRL_PWRCTRL_CM3_RSTN_A	BIT(1)
+#define SYSCTRL_PWRCTRL_CM3_MIREQ_A	BIT(2)
+
+#define SYSCTRL_PWRSTAT_CM3_MIRACK_A	BIT(0)
+
+/* Timeout waiting for Master Idle Request Acknowledge */
+#define IDLE_ACK_TIMEOUT_US		1000
 
 static struct gic_data gic_data;
 static struct ns16550_data console_data;
@@ -72,3 +85,37 @@ static TEE_Result rzn1_tz_init(void)
 }
 
 service_init(rzn1_tz_init);
+
+#ifdef CFG_BOOT_CM3
+static TEE_Result rzn1_cm3_start(void)
+{
+	vaddr_t cm3_pwrctrl_reg = 0;
+	vaddr_t cm3_pwrstat_reg = 0;
+	uint64_t timeout_ack = timeout_init_us(IDLE_ACK_TIMEOUT_US);
+
+	cm3_pwrctrl_reg = core_mmu_get_va(SYSCTRL_PWRCTRL_CM3, MEM_AREA_IO_SEC,
+					  sizeof(uint32_t));
+	cm3_pwrstat_reg = core_mmu_get_va(SYSCTRL_PWRSTAT_CM3, MEM_AREA_IO_SEC,
+					  sizeof(uint32_t));
+
+	/* Master Idle Request to the interconnect for CM3 */
+	io_clrbits32(cm3_pwrctrl_reg, SYSCTRL_PWRCTRL_CM3_MIREQ_A);
+
+	/* Wait for Master Idle Request Acknowledge for CM3 */
+	while (!timeout_elapsed(timeout_ack))
+		if (!(io_read32(cm3_pwrstat_reg) &
+				SYSCTRL_PWRSTAT_CM3_MIRACK_A))
+			break;
+
+	if (io_read32(cm3_pwrstat_reg) & SYSCTRL_PWRSTAT_CM3_MIRACK_A)
+		panic();
+
+	/* Clock Enable for CM3_HCLK & Active low Reset to CM3 */
+	io_setbits32(cm3_pwrctrl_reg, SYSCTRL_PWRCTRL_CM3_CLKEN_A);
+	io_setbits32(cm3_pwrctrl_reg, SYSCTRL_PWRCTRL_CM3_RSTN_A);
+
+	return TEE_SUCCESS;
+}
+
+service_init(rzn1_cm3_start);
+#endif
