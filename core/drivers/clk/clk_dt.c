@@ -257,7 +257,7 @@ static TEE_Result clk_dt_node_clock_probe_driver(const void *fdt, int node)
 
 	count = fdt_stringlist_count(fdt, node, "compatible");
 	if (count < 0)
-		return TEE_ERROR_GENERIC;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	for (idx = 0; idx < count; idx++) {
 		compat = fdt_stringlist_get(fdt, node, "compatible", idx, &len);
@@ -278,7 +278,7 @@ static TEE_Result clk_dt_node_clock_probe_driver(const void *fdt, int node)
 		}
 	}
 
-	return TEE_ERROR_GENERIC;
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
 static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
