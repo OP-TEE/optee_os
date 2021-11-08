@@ -39,27 +39,4 @@
 #define PMC_ETHPLL		(PMC_MAIN + 8)
 #define PMC_CPU			(PMC_MAIN + 9)
 
-#ifndef AT91_PMC_MOSCS
-/* MOSCS Flag */
-#define AT91_PMC_MOSCS		0
-/* PLLA Lock */
-#define AT91_PMC_LOCKA		1
-/* PLLB Lock */
-#define AT91_PMC_LOCKB		2
-/* Master Clock */
-#define AT91_PMC_MCKRDY		3
-/* UPLL Lock */
-#define AT91_PMC_LOCKU		6
-/* Programmable Clock */
-#define AT91_PMC_PCKRDY(id)	(8 + (id))
-/* Main Oscillator Selection */
-#define AT91_PMC_MOSCSELS	16
-/* Main On-Chip RC */
-#define AT91_PMC_MOSCRCS	17
-/* Clock Failure Detector Event */
-#define AT91_PMC_CFDEV		18
-/* Generated Clocks */
-#define AT91_PMC_GCKRDY		24
-#endif
-
 #endif
