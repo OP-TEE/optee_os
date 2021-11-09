@@ -101,9 +101,7 @@ endif
 
 cppflags-lib-y += -DLTC_NO_PKCS
 
-ifneq (,$(filter y,$(_CFG_CORE_LTC_RSA) $(_CFG_CORE_LTC_DSA) $(_CFG_CORE_LTC_ECC) $(_CFG_CORE_LTC_HASH)))
-   cppflags-lib-y += -DLTC_DER
-endif
+cppflags-lib-y += -DLTC_DER
 
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 
