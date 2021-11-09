@@ -1,10 +1,12 @@
 srcs-y += crypto.c
 
+ifeq (y-y,$(CFG_CRYPTO_AES)-$(CFG_CRYPTO_GCM))
 srcs-y += aes-gcm.c
 ifneq ($(CFG_CRYPTO_WITH_CE),y)
 srcs-y += aes-gcm-sw.c
 ifeq ($(CFG_AES_GCM_TABLE_BASED),y)
 srcs-y += aes-gcm-ghash-tbl.c
+endif
 endif
 endif
 
