@@ -433,7 +433,7 @@ err:
 static TEE_Result test_write_read(size_t num_blocks)
 {
 	struct test_aux *aux = aux_alloc(num_blocks);
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	size_t n;
 	size_t m;
 	size_t o;
