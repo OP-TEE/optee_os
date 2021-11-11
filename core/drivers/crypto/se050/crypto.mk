@@ -29,8 +29,8 @@ ifeq ($(shell test $(CFG_STACK_TMP_EXTRA) -lt 8192; echo $$?), 0)
 $(error Error: SE050 requires CFG_STACK_TMP_EXTRA at least 8192)
 endif
 
-# SE05X Unique Key Identifier
-CFG_NXP_SE05X_HUK_DRV ?= y
+# SE05X Die Identifier
+CFG_NXP_SE05X_DIEID_DRV ?= y
 
 # Random Number Generator
 CFG_NXP_SE05X_RNG_DRV ?= y
