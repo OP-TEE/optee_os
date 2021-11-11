@@ -627,7 +627,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	bigint_size = crypto_bignum_num_bytes(key->n);
 	if (sig_len < bigint_size) {
-		res = TEE_ERROR_MAC_INVALID;
+		res = TEE_ERROR_SIGNATURE_INVALID;
 		goto err;
 	}
 
