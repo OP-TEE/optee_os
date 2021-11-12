@@ -62,7 +62,7 @@ static void cache_rate_no_lock(struct clk *clk)
 	unsigned long parent_rate = 0;
 
 	if (clk->parent)
-		parent_rate = clk->parent->rate;
+		parent_rate = clk_get_rate(clk->parent);
 
 	if (clk->ops->compute_rate)
 		clk->rate = clk->ops->compute_rate(clk, parent_rate);
