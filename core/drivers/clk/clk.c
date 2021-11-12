@@ -32,10 +32,7 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 	struct clk_elt *clk_elt = NULL;
 	size_t parent = 0;
 
-	if (ops->id != CLK_OPS_ELT) {
-		EMSG("Panic on unexpected ops ID %u", ops->id);
-		panic();
-	}
+	assert(ops && ops->id == CLK_OPS_ELT);
 
 	clk_elt = calloc(1, sizeof(*clk_elt) +
 			 parent_count * sizeof(*parent_clks));
@@ -57,10 +54,7 @@ struct clk *clk_alloc_orphans(const struct clk_ops *ops, size_t count)
 	struct clk *clk = NULL;
 	size_t n = 0;
 
-	if (ops->id != CLK_OPS_ORPHAN) {
-		EMSG("Panic on unexpected ops ID %u", ops->id);
-		panic();
-	}
+	assert(ops && ops->id == CLK_OPS_ORPHAN);
 
 	clk = calloc(count, sizeof(*clk));
 	if (!clk)
@@ -195,9 +189,6 @@ static void clk_disable_no_lock(struct clk *clk)
 	if (clk->ops->disable)
 		clk->ops->disable(clk);
 
-	if (is_clk_orphan(clk))
-		return;
-
 	parent = clk_get_parent(clk);
 	if (parent)
 		clk_disable_no_lock(parent);
@@ -211,13 +202,11 @@ static TEE_Result clk_enable_no_lock(struct clk *clk)
 	if (refcount_inc(&clk->enabled_count))
 		return TEE_SUCCESS;
 
-	if (is_clk_elt(clk)) {
-		parent = clk_get_parent(clk);
-		if (parent) {
-			res = clk_enable_no_lock(parent);
-			if (res)
-				return res;
-		}
+	parent = clk_get_parent(clk);
+	if (parent) {
+		res = clk_enable_no_lock(parent);
+		if (res)
+			return res;
 	}
 
 	if (clk->ops->enable) {
