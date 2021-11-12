@@ -20,6 +20,9 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 	struct clk *clk = NULL;
 	size_t parent = 0;
 
+	if (name && !ops->get_name)
+		DMSG("Clock name unregistered for %s", name);
+
 	clk = calloc(1, sizeof(*clk) + parent_count * sizeof(clk));
 	if (!clk)
 		return NULL;
@@ -105,6 +108,11 @@ TEE_Result clk_register(struct clk *clk)
 	     clk_get_rate(clk));
 
 	return TEE_SUCCESS;
+}
+
+const char *clk_elt_name(struct clk *clk)
+{
+	return clk->name;
 }
 
 static bool clk_is_enabled_no_lock(struct clk *clk)
