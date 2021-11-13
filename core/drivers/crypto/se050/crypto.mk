@@ -38,6 +38,12 @@ ifeq ($(CFG_NXP_SE05X_SCP03_DRV),y)
 $(call force,CFG_SCP03_PTA,y,Mandated by CFG_NXP_SE05X_SCP03)
 endif
 
+# Allow a secure client to send APDU raw frames
+CFG_NXP_SE05X_APDU_DRV ?= y
+ifeq ($(CFG_NXP_SE05X_APDU_DRV),y)
+$(call force,CFG_APDU_PTA,y,Mandated by CFG_NXP_SE05X_APDU)
+endif
+
 # Random Number Generator
 CFG_NXP_SE05X_RNG_DRV ?= y
 ifeq ($(CFG_NXP_SE05X_RNG_DRV),y)
