@@ -4,11 +4,11 @@
  * Author: Jorge Ramirez <jorge@foundries.io>
  */
 
-#include <crypto/crypto.h>
+#include <crypto/crypto_se.h>
 #include <config.h>
 #include <se050.h>
 
-TEE_Result crypto_enable_scp03(unsigned int rotate_keys)
+TEE_Result crypto_se_enable_scp03(bool rotate_keys)
 {
 	sss_status_t status = kStatus_SSS_Success;
 
