@@ -32,6 +32,12 @@ endif
 # SE05X Die Identifier
 CFG_NXP_SE05X_DIEID_DRV ?= y
 
+# Allow a secure client to enable the SCP03 session
+CFG_NXP_SE05X_SCP03_DRV ?= y
+ifeq ($(CFG_NXP_SE05X_SCP03_DRV),y)
+$(call force,CFG_SCP03_PTA,y,Mandated by CFG_NXP_SE05X_SCP03)
+endif
+
 # Random Number Generator
 CFG_NXP_SE05X_RNG_DRV ?= y
 ifeq ($(CFG_NXP_SE05X_RNG_DRV),y)
