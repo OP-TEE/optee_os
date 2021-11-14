@@ -81,17 +81,25 @@ void clk_lw_free(struct clk *clk)
 
 static bool __maybe_unused clk_check(struct clk *clk)
 {
-	if (!clk->ops)
+	if (!clk->ops) {
+		DMSG("Missing ops reference on clock");
 		return false;
+	}
 
 	if (is_clk_std(clk)) {
 		struct clk_std *clk_std = clk_to_clk_std(clk);
 
-		if (clk->ops->set_parent && !clk->ops->get_parent)
+		if (clk->ops->set_parent && !clk->ops->get_parent) {
+			DMSG("set_parent but no get_parent ops on clock %s",
+			     clk_get_name(clk));
 			return false;
+		}
 
-		if (clk_std->num_parents > 1 && !clk->ops->get_parent)
+		if (clk_std->num_parents > 1 && !clk->ops->get_parent) {
+			DMSG("Several parents but no get_parent op on clock %s",
+			     clk_get_name(clk));
 			return false;
+		}
 
 		return true;
 	}
