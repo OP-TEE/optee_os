@@ -47,6 +47,7 @@ struct clk {
  * @set_parent: Set the clock parent based on index
  * @get_parent: Get the current parent index of the clock
  * @set_rate: Set the clock rate
+ * @get_rate: Get the clock rate (possibly cached)
  * @compute_rate: Compute and return effective clock rate from new parent rate
  * @get_name: Get the clock name
  */
@@ -57,6 +58,7 @@ struct clk_ops {
 	size_t (*get_parent)(struct clk *clk);
 	TEE_Result (*set_rate)(struct clk *clk, unsigned long rate,
 			       unsigned long parent_rate);
+	unsigned long (*get_rate)(struct clk *clk);
 	unsigned long (*compute_rate)(struct clk *clk,
 				      unsigned long parent_rate);
 	const char *(*get_name)(struct clk *clk);
@@ -64,6 +66,7 @@ struct clk_ops {
 
 /* Generic helper clock operators */
 const char *clk_elt_name(struct clk *clk);
+unsigned long clk_elt_rate(struct clk *clk);
 
 /**
  * Return the clock name
@@ -133,7 +136,13 @@ static inline void *clk_priv(struct clk *clk)
  * @clk: Clock for which the rate is needed
  * Return the clock rate in Hz
  */
-unsigned long clk_get_rate(struct clk *clk);
+static inline unsigned long clk_get_rate(struct clk *clk)
+{
+	if (clk->ops->get_rate)
+		return clk->ops->get_rate(clk);
+
+	return 0;
+}
 
 /**
  * clk_set_rate - Set a clock rate

@@ -197,7 +197,7 @@ void clk_disable(struct clk *clk)
 	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
 }
 
-unsigned long clk_get_rate(struct clk *clk)
+unsigned long clk_elt_rate(struct clk *clk)
 {
 	return clk->rate;
 }
