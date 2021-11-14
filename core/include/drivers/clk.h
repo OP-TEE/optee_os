@@ -21,10 +21,15 @@
  *
  * CLK_OPS_STANDARD identities a full fledged standard clock. The struct clk *
  * reference can be cast to struct clk_std * to access clock element fields.
+ *
+ * CLK_OPS_LIGHTWEIGHT identifies a simple clock, no parents, flags and
+ * features handle by strcut clk_std instances to optimize struct clk
+ * memory footprint.
  */
 enum clk_ops_id {
 	CLK_OPS_INVALID = 0,
 	CLK_OPS_STANDARD,
+	CLK_OPS_LIGHTWEIGHT,
 };
 
 /**
@@ -93,6 +98,7 @@ struct clk_ops {
 const char *clk_std_name(struct clk *clk);
 unsigned long clk_std_rate(struct clk *clk);
 void clk_std_free(struct clk *clk);
+void clk_lw_free(struct clk *clk);
 
 /*
  * Helper to identify clock operator type
@@ -107,6 +113,11 @@ static inline struct clk_std *clk_to_clk_std(struct clk *clk)
 	assert(is_clk_std(clk));
 
 	return container_of(clk, struct clk_std, clk);
+}
+
+static inline bool is_clk_lw(struct clk *clk)
+{
+	return clk->ops->id == CLK_OPS_LIGHTWEIGHT;
 }
 
 /**
@@ -137,6 +148,25 @@ static inline const char *clk_get_name(struct clk *clk)
  */
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count);
+
+/**
+ * clk_lw_alloc - Allocate and initialize an array of lightweight clocks
+ *
+ * @ops: Clock operations
+ * @count: Number of clocks (> 0)
+ *
+ * Returns base address of an array of struct clk instances properly initialized
+ * or NULL if allocation failed.
+ */
+struct clk *clk_lw_alloc(const struct clk_ops *ops, size_t count);
+
+/**
+ * clk_init_instance - Initialize a clock instance
+ *
+ * @clk: Reference to clock instance to initialize
+ * @ops: Clock operations pointer for the clock
+ */
+void clk_init_instance(struct clk *clk, const struct clk_ops *ops);
 
 /**
  * clk_free - Free a clock structure

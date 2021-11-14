@@ -3,6 +3,7 @@
  * Copyright (c) 2021, Bootlin
  */
 
+#include <assert.h>
 #include <drivers/clk.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
@@ -13,6 +14,17 @@
 
 /* Global clock tree lock */
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
+
+void clk_init_instance(struct clk *clk, const struct clk_ops *ops)
+{
+	assert(clk && ops &&
+	       (ops->id == CLK_OPS_STANDARD ||
+		(ops->id == CLK_OPS_LIGHTWEIGHT && !ops->set_parent &&
+		 !ops->get_parent)));
+
+	clk->ops = ops;
+	refcount_set(&clk->enabled_count, 0);
+}
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
@@ -34,8 +46,7 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		clk_std->parents[parent] = parent_clks[parent];
 
 	clk_std->name = name;
-	clk_std->clk.ops = ops;
-	refcount_set(&clk_std->clk.enabled_count, 0);
+	clk_init_instance(&clk_std->clk, ops);
 
 	return &clk_std->clk;
 }
@@ -44,6 +55,28 @@ void clk_std_free(struct clk *clk)
 {
 	if (clk)
 		free(clk_to_clk_std(clk));
+}
+
+struct clk *clk_lw_alloc(const struct clk_ops *ops, size_t count)
+{
+	struct clk *clk = NULL;
+	size_t n = 0;
+
+	assert(ops->id == CLK_OPS_LIGHTWEIGHT);
+
+	clk = calloc(count, sizeof(*clk));
+	if (!clk)
+		return NULL;
+
+	for (n = 0; n < count; n++)
+		clk_init_instance(clk + n, ops);
+
+	return clk;
+}
+
+void clk_lw_free(struct clk *clk)
+{
+	free(clk);
 }
 
 static bool __maybe_unused clk_check(struct clk *clk)
@@ -59,11 +92,21 @@ static bool __maybe_unused clk_check(struct clk *clk)
 
 		if (clk_std->num_parents > 1 && !clk->ops->get_parent)
 			return false;
-	} else {
-		return false;
+
+		return true;
 	}
 
-	return true;
+	if (is_clk_lw(clk)) {
+		if (clk->ops->set_parent || clk->ops->get_parent) {
+			DMSG("Unpexpected parent clock ops on clock %s",
+			     clk_get_name(clk));
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 static void cache_rate_no_lock(struct clk *clk)
@@ -126,7 +169,8 @@ TEE_Result clk_register(struct clk *clk)
 	clk_init_parent(clk);
 	cache_rate_no_lock(clk);
 
-	DMSG("Registered clock %s, freq %lu", clk_get_name(clk),
+	DMSG("Registered %sclock %s, freq %lu",
+	     is_clk_lw(clk) ? "lightweight " : "", clk_get_name(clk),
 	     clk_get_rate(clk));
 
 	return TEE_SUCCESS;
