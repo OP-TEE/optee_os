@@ -33,7 +33,7 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 	for (parent = 0; parent < parent_count; parent++)
 		clk_std->parents[parent] = parent_clks[parent];
 
-	clk_std->clk.name = name;
+	clk_std->name = name;
 	clk_std->clk.ops = ops;
 	refcount_set(&clk_std->clk.enabled_count, 0);
 
@@ -79,9 +79,9 @@ static void cache_rate_no_lock(struct clk *clk)
 		parent_rate = clk_get_rate(clk_std->parent);
 
 	if (clk->ops->compute_rate)
-		clk->rate = clk->ops->compute_rate(clk, parent_rate);
+		clk_std->rate = clk->ops->compute_rate(clk, parent_rate);
 	else
-		clk->rate = parent_rate;
+		clk_std->rate = parent_rate;
 }
 
 struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx)
@@ -134,13 +134,18 @@ TEE_Result clk_register(struct clk *clk)
 
 TEE_Result clk_set_priv(struct clk *clk, void *priv)
 {
-	clk->priv = priv;
+	if (!is_clk_std(clk)) {
+		DMSG("Unexpected clock type");
+		return TEE_ERROR_GENERIC;
+	}
+
+	clk_to_clk_std(clk)->priv = priv;
 	return TEE_SUCCESS;
 }
 
 const char *clk_std_name(struct clk *clk)
 {
-	return clk->name;
+	return clk_to_clk_std(clk)->name;
 }
 
 static bool clk_is_enabled_no_lock(struct clk *clk)
@@ -221,7 +226,7 @@ void clk_disable(struct clk *clk)
 
 unsigned long clk_std_rate(struct clk *clk)
 {
-	return clk->rate;
+	return clk_to_clk_std(clk)->rate;
 }
 
 static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)

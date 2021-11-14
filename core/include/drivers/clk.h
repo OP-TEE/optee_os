@@ -30,17 +30,11 @@ enum clk_ops_id {
 /**
  * struct clk - Clock core structure, common to all clocks
  *
- * @name: Clock name
- * @priv: Private data for the clock provider
  * @ops: Clock operations
- * @rate: Current clock rate (cached after init or rate change)
  * @enabled_count: Enable/disable reference counter
  */
 struct clk {
-	const char *name;
-	void *priv;
 	const struct clk_ops *ops;
-	unsigned long rate;
 	struct refcount enabled_count;
 };
 
@@ -48,6 +42,9 @@ struct clk {
  * struct clk_std - Full-fledged standard clock
  *
  * @clk: Clock core structure
+ * @priv: Private data for the clock provider
+ * @name: Clock name
+ * @rate: Current clock rate (cached after init or rate change)
  * @flags: Specific clock flags
  * @parent: Current parent
  * @num_parents: Number of parents
@@ -55,6 +52,9 @@ struct clk {
  */
 struct clk_std {
 	struct clk clk;
+	void *priv;
+	const char *name;
+	unsigned long rate;
 	unsigned int flags;
 	struct clk *parent;
 	size_t num_parents;
@@ -174,7 +174,7 @@ TEE_Result clk_set_priv(struct clk *clk, void *priv);
  */
 static inline void *clk_priv(struct clk *clk)
 {
-	return clk->priv;
+	return clk_to_clk_std(clk)->priv;
 }
 
 /**
