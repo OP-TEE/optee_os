@@ -221,8 +221,37 @@ err:
 	return res;
 }
 
+static TEE_Result mem_set_cache_type(struct sp_mem *smem,
+				     uint8_t permission, struct mobj *m)
+{
+	uint8_t dev_type = 0;
+	uint32_t cache_type = 0;
+
+	if (smem->mem_reg_attr & FFA_DEV_MEM_REG_ATTR) {
+		if (smem->mem_reg_attr & ~FFA_DEV_MEM_REG_ATTR_MASK)
+			return FFA_INVALID_PARAMETERS;
+
+		dev_type = (smem->mem_reg_attr >> FFA_DEV_MEM_SHIFT) &
+			   FFA_DEV_MEM_MASK;
+
+		if (sp_mem_ffa_dev_to_cache_type(dev_type, &cache_type))
+			return FFA_INVALID_PARAMETERS;
+
+		if (permission  & FFA_MEM_ACC_EXE)
+			return FFA_INVALID_PARAMETERS;
+
+	} else {
+		cache_type = TEE_MATTR_MEM_TYPE_CACHED;
+	}
+
+	sp_mem_set_cattr(m, cache_type);
+
+	return TEE_SUCCESS;
+}
+
 static int spmc_sp_add_nw_region(struct sp_mem *smem,
-				 struct ffa_mem_region *mem_reg)
+				 struct ffa_mem_region *mem_reg,
+				 uint8_t highest_permission)
 {
 	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
 	struct sp_mem_map_region *region = NULL;
@@ -259,6 +288,12 @@ static int spmc_sp_add_nw_region(struct sp_mem *smem,
 	if (!sp_has_exclusive_access(region, NULL)) {
 		free(region);
 		res = FFA_DENIED;
+		goto clean_up;
+	}
+
+	res = mem_set_cache_type(smem, highest_permission, m);
+	if (res) {
+		free(region);
 		goto clean_up;
 	}
 
@@ -318,6 +353,13 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 	for (i = 0; i < num_mem_accs; i++)
 		highest_permission |= READ_ONCE(mem_acc[i].access_perm.perm);
 
+	/* Mapping device memory as none secure is not supported */
+	if ((smem->mem_reg_attr & FFA_DEV_MEM_REG_ATTR) &&
+	    (highest_permission & FFA_MEM_ACC_NSEC)) {
+		res = FFA_DENIED;
+		goto cleanup;
+	}
+
 	addr_range_offs = READ_ONCE(mem_acc[0].region_offs);
 	mem_reg = (void *)((char *)input_descr + addr_range_offs);
 
@@ -344,7 +386,7 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 				goto cleanup;
 		}
 	} else {
-		res = spmc_sp_add_nw_region(smem, mem_reg);
+		res = spmc_sp_add_nw_region(smem, mem_reg, highest_permission);
 		if (res)
 			goto cleanup;
 	}
