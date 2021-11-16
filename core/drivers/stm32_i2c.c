@@ -10,6 +10,8 @@
  */
 
 #include <arm.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/stm32_i2c.h>
 #include <io.h>
 #include <kernel/delay.h>
@@ -314,7 +316,7 @@ static void save_cfg(struct i2c_handle_s *hi2c, struct i2c_cfg *cfg)
 {
 	vaddr_t base = get_base(hi2c);
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	cfg->cr1 = io_read32(base + I2C_CR1);
 	cfg->cr2 = io_read32(base + I2C_CR2);
@@ -322,14 +324,14 @@ static void save_cfg(struct i2c_handle_s *hi2c, struct i2c_cfg *cfg)
 	cfg->oar2 = io_read32(base + I2C_OAR2);
 	cfg->timingr = io_read32(base + I2C_TIMINGR);
 
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 }
 
 static void restore_cfg(struct i2c_handle_s *hi2c, struct i2c_cfg *cfg)
 {
 	vaddr_t base = get_base(hi2c);
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	io_clrbits32(base + I2C_CR1, I2C_CR1_PE);
 	io_write32(base + I2C_TIMINGR, cfg->timingr & TIMINGR_CLEAR_MASK);
@@ -339,7 +341,7 @@ static void restore_cfg(struct i2c_handle_s *hi2c, struct i2c_cfg *cfg)
 	io_write32(base + I2C_CR1, cfg->cr1 & ~I2C_CR1_PE);
 	io_setbits32(base + I2C_CR1, cfg->cr1 & I2C_CR1_PE);
 
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 }
 
 static void __maybe_unused dump_cfg(struct i2c_cfg *cfg __maybe_unused)
@@ -355,7 +357,7 @@ static void __maybe_unused dump_i2c(struct i2c_handle_s *hi2c)
 {
 	vaddr_t __maybe_unused base = get_base(hi2c);
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	DMSG("CR1:  %#"PRIx32, io_read32(base + I2C_CR1));
 	DMSG("CR2:  %#"PRIx32, io_read32(base + I2C_CR2));
@@ -363,7 +365,7 @@ static void __maybe_unused dump_i2c(struct i2c_handle_s *hi2c)
 	DMSG("OAR2: %#"PRIx32, io_read32(base + I2C_OAR2));
 	DMSG("TIM:  %#"PRIx32, io_read32(base + I2C_TIMINGR));
 
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 }
 
 /*
@@ -598,7 +600,7 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
 
 	assert(i2c_specs_is_consistent());
 
-	clock_src = stm32_clock_get_rate(hi2c->clock);
+	clock_src = clk_get_rate(hi2c->clock);
 	if (!clock_src) {
 		DMSG("Null I2C clock rate");
 		return -1;
@@ -684,6 +686,7 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 					struct stm32_pinctrl **pinctrl,
 					size_t *pinctrl_count)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
 	int count = 0;
@@ -693,13 +696,15 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 
 	_fdt_fill_device_info(fdt, &info, node);
 	assert(info.reg != DT_INFO_INVALID_REG &&
-	       info.reg_size != DT_INFO_INVALID_REG_SIZE &&
-	       info.clock != DT_INFO_INVALID_CLOCK);
+	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
 	init->dt_status = info.status;
 	init->pbase = info.reg;
 	init->reg_size = info.reg_size;
-	init->clock = info.clock;
+
+	res = clk_dt_get_by_index(fdt, node, 0, &init->clock);
+	if (res)
+		return res;
 
 	cuint = fdt_getprop(fdt, node, "i2c-scl-rising-time-ns", NULL);
 	if (cuint)
@@ -767,7 +772,8 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	if (rc)
 		return rc;
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
+
 	base = get_base(hi2c);
 	hi2c->i2c_state = I2C_STATE_BUSY;
 
@@ -827,7 +833,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	if (rc)
 		DMSG("I2C analog filter error %d", rc);
 
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 
 	return rc;
 }
@@ -1082,7 +1088,7 @@ static int i2c_write(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	if (!p_data || !size)
 		return -1;
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	timeout_ref = timeout_init_us(I2C_TIMEOUT_BUSY_MS * 1000);
 	if (wait_isr_event(hi2c, I2C_ISR_BUSY, 0, timeout_ref))
@@ -1169,7 +1175,7 @@ static int i2c_write(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	rc = 0;
 
 bail:
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 
 	return rc;
 }
@@ -1215,7 +1221,7 @@ int stm32_i2c_read_write_membyte(struct i2c_handle_s *hi2c, uint16_t dev_addr,
 	if (hi2c->i2c_state != I2C_STATE_READY || !p_data)
 		return -1;
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	timeout_ref = timeout_init_us(I2C_TIMEOUT_BUSY_US);
 	if (wait_isr_event(hi2c, I2C_ISR_BUSY, 0, timeout_ref))
@@ -1272,7 +1278,7 @@ int stm32_i2c_read_write_membyte(struct i2c_handle_s *hi2c, uint16_t dev_addr,
 	rc = 0;
 
 bail:
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 
 	return rc;
 }
@@ -1305,7 +1311,7 @@ static int i2c_read(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	if (!p_data || !size)
 		return -1;
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	timeout_ref = timeout_init_us(I2C_TIMEOUT_BUSY_MS * 1000);
 	if (wait_isr_event(hi2c, I2C_ISR_BUSY, 0, timeout_ref))
@@ -1382,7 +1388,7 @@ static int i2c_read(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	rc = 0;
 
 bail:
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 
 	return rc;
 }
@@ -1425,7 +1431,7 @@ bool stm32_i2c_is_device_ready(struct i2c_handle_s *hi2c, uint32_t dev_addr,
 	if (hi2c->i2c_state != I2C_STATE_READY)
 		return rc;
 
-	stm32_clock_enable(hi2c->clock);
+	clk_enable(hi2c->clock);
 
 	if (io_read32(base + I2C_ISR) & I2C_ISR_BUSY)
 		goto bail;
@@ -1497,7 +1503,7 @@ bool stm32_i2c_is_device_ready(struct i2c_handle_s *hi2c, uint32_t dev_addr,
 	notif_i2c_timeout(hi2c);
 
 bail:
-	stm32_clock_disable(hi2c->clock);
+	clk_disable(hi2c->clock);
 
 	return rc;
 }

@@ -6,6 +6,7 @@
 #ifndef __STM32_I2C_H
 #define __STM32_I2C_H
 
+#include <drivers/clk.h>
 #include <drivers/stm32_gpio.h>
 #include <kernel/dt.h>
 #include <mm/core_memprot.h>
@@ -50,7 +51,7 @@ struct stm32_i2c_init_s {
 	unsigned int dt_status;
 	paddr_t pbase;
 	size_t reg_size;
-	unsigned int clock;
+	struct clk *clock;
 	bool addr_mode_10b_not_7b;
 	uint32_t own_address1;
 	bool dual_address_mode;
@@ -117,7 +118,7 @@ struct i2c_handle_s {
 	struct io_pa_va base;
 	size_t reg_size;
 	unsigned int dt_status;
-	unsigned long clock;
+	struct clk *clock;
 	enum i2c_state_e i2c_state;
 	uint32_t i2c_err;
 	uint32_t saved_timing;
