@@ -68,8 +68,12 @@ static TEE_Result parse_clock_property(const void *fdt, int node)
 
 		/* Parent probe should not fail or clock won't be available */
 		res = clk_probe_clock_provider_node(fdt, parent_node);
-		if (res)
-			panic("Failed to probe parent clock");
+		if (res) {
+			EMSG("Probe parent clock node %s on node %s: %#"PRIx32,
+			     fdt_get_name(fdt, parent_node, NULL),
+			     fdt_get_name(fdt, node, NULL), res);
+			panic();
+		}
 
 		clock_cells = fdt_get_dt_driver_cells(fdt, parent_node,
 						      DT_DRIVER_CLK);
