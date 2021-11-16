@@ -526,7 +526,7 @@ static bool initialize_pmic_i2c(void)
 	i2c->base.va = (vaddr_t)phys_to_virt(i2c->base.pa, MEM_AREA_IO_SEC, 1);
 	assert(i2c->base.va);
 	i2c->dt_status = i2c_info.status;
-	i2c->clock = i2c_info.clock;
+	i2c->clock = i2c_init.clock;
 	i2c->i2c_state = I2C_STATE_RESET;
 	i2c_init.own_address1 = pmic_i2c_addr;
 	i2c_init.analog_filter = true;
