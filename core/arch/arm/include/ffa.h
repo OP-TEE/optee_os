@@ -78,6 +78,12 @@
 #define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
 
 /* Device memory attributes */
+#define FFA_DEV_MEM_REG_ATTR_MASK	U(0x1c)
+#define FFA_DEV_MEM_REG_ATTR		BIT(4)
+
+/* FF-A Device memory attributes */
+#define FFA_DEV_MEM_SHIFT		U(2)
+#define FFA_DEV_MEM_MASK		U(0x3)
 #define FFA_DEV_MEM_nGnRnE		U(0x0)
 #define FFA_DEV_MEM_nGnRE		U(0x1)
 
