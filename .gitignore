@@ -1,5 +1,7 @@
-*.swp
-cscope.*
-out
 .cproject
+cscope.*
+tags
+TAGS
+out
 .project
+*.swp
