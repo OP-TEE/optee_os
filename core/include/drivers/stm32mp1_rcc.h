@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2018, STMicroelectronics
  */
 
-#ifndef __STM32MP1_RCC_H__
-#define __STM32MP1_RCC_H__
+#ifndef __DRIVERS_STM32MP1_RCC_H__
+#define __DRIVERS_STM32MP1_RCC_H__
 
 #include <io.h>
 #include <stdbool.h>
@@ -558,4 +558,4 @@ static inline bool stm32_rcc_is_mckprot(void)
 }
 #endif /*__ASSEMBLER__*/
 
-#endif /*__STM32MP1_RCC_H__*/
+#endif /*__DRIVERS_STM32MP1_RCC_H__*/
