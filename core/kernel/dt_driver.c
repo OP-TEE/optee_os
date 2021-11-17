@@ -103,8 +103,9 @@ static void assert_type_is_valid(enum dt_driver_type type)
 {
 	switch (type) {
 	case DT_DRIVER_NOTYPE:
-	case DT_DRIVER_UART:
 	case DT_DRIVER_CLK:
+	case DT_DRIVER_RSTCTRL:
+	case DT_DRIVER_UART:
 		return;
 	default:
 		assert(0);
@@ -167,6 +168,9 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 	switch (type) {
 	case DT_DRIVER_CLK:
 		cells_name = "#clock-cells";
+		break;
+	case DT_DRIVER_RSTCTRL:
+		cells_name = "#reset-cells";
 		break;
 	default:
 		panic();
