@@ -48,6 +48,7 @@ enum stm32mp1_parent_id {
 	_HSI_KER,
 	_HSE_KER,
 	_HSE_KER_DIV2,
+	_HSE_RTC,
 	_CSI_KER,
 	_PLL1_P,
 	_PLL1_Q,
@@ -96,6 +97,7 @@ enum stm32mp1_parent_sel {
 	_USBPHY_SEL,
 	_USBO_SEL,
 	_RTC_SEL,
+	_MPU_SEL,
 	_PARENT_SEL_NB,
 	_UNKNOWN_SEL = 0xff,
 };
@@ -111,6 +113,7 @@ static const uint8_t parent_id_clock_id[_PARENT_NB] = {
 	[_HSI_KER] = CK_HSI,
 	[_HSE_KER] = CK_HSE,
 	[_HSE_KER_DIV2] = CK_HSE_DIV2,
+	[_HSE_RTC] = _UNKNOWN_ID,
 	[_CSI_KER] = CK_CSI,
 	[_PLL1_P] = PLL1_P,
 	[_PLL1_Q] = PLL1_Q,
@@ -433,6 +436,10 @@ static const uint8_t rng1_parents[] = {
 	_CSI, _PLL4_R, _LSE, _LSI
 };
 
+static const uint8_t mpu_parents[] = {
+	_HSI, _HSE, _PLL1_P, _PLL1_P /* specific div */
+};
+
 /* Parents for (some) non-secure clocks */
 #ifdef CFG_WITH_NSEC_UARTS
 static const uint8_t uart6_parents[] = {
@@ -453,7 +460,7 @@ static const uint8_t mcuss_parents[] = {
 };
 
 static const uint8_t rtc_parents[] = {
-	_UNKNOWN_ID, _LSE, _LSI, _HSE
+	_UNKNOWN_ID, _LSE, _LSI, _HSE_RTC
 };
 
 static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
@@ -463,7 +470,8 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_SPI6_SEL, RCC_SPI6CKSELR, 0, 0x7, spi6_parents),
 	_CLK_PARENT(_USART1_SEL, RCC_UART1CKSELR, 0, 0x7, usart1_parents),
 	_CLK_PARENT(_RNG1_SEL, RCC_RNG1CKSELR, 0, 0x3, rng1_parents),
-	_CLK_PARENT(_RTC_SEL, RCC_BDCR, 0, 0x3, rtc_parents),
+	_CLK_PARENT(_RTC_SEL, RCC_BDCR, 16, 0x3, rtc_parents),
+	_CLK_PARENT(_MPU_SEL, RCC_MPCKSELR, 0, 0x3, mpu_parents),
 	/* Always non-secure clocks (maybe used in some way in secure world) */
 #ifdef CFG_WITH_NSEC_UARTS
 	_CLK_PARENT(_UART6_SEL, RCC_UART6CKSELR, 0, 0x7, uart6_parents),
@@ -529,6 +537,7 @@ static const char __maybe_unused *const stm32mp1_clk_parent_name[_PARENT_NB] = {
 	[_HSI_KER] = "HSI_KER",
 	[_HSE_KER] = "HSE_KER",
 	[_HSE_KER_DIV2] = "HSE_KER_DIV2",
+	[_HSE_RTC] = "HSE_RTC",
 	[_CSI_KER] = "CSI_KER",
 	[_PLL1_P] = "PLL1_P",
 	[_PLL1_Q] = "PLL1_Q",
@@ -867,6 +876,10 @@ static unsigned long get_clock_rate(enum stm32mp1_parent_id p)
 	case _HSE_KER_DIV2:
 		clock = osc_frequency(OSC_HSE) >> 1;
 		break;
+	case _HSE_RTC:
+		clock = osc_frequency(OSC_HSE);
+		clock /= (io_read32(rcc_base + RCC_RTCDIVR) &
+			  RCC_DIVR_DIV_MASK) + 1;
 		break;
 	case _LSI:
 		clock = osc_frequency(OSC_LSI);
@@ -1094,6 +1107,7 @@ static void secure_parent_clocks(enum stm32mp1_parent_id parent_id)
 	case _HSE:
 	case _HSE_KER:
 	case _HSE_KER_DIV2:
+	case _HSE_RTC:
 	case _LSE:
 	case _PLL1_P:
 	case _PLL1_Q:
