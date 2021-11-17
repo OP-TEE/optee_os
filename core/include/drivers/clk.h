@@ -77,7 +77,6 @@ struct clk_std {
  * @get_rate: Get the clock rate (possibly cached)
  * @compute_rate: Compute and return effective clock rate from new parent rate
  * @get_name: Get the clock name
- * @free: Release the clock instance
  */
 struct clk_ops {
 	enum clk_ops_id id;
@@ -91,14 +90,11 @@ struct clk_ops {
 	unsigned long (*compute_rate)(struct clk *clk,
 				      unsigned long parent_rate);
 	const char *(*get_name)(struct clk *clk);
-	void (*free)(struct clk *clk);
 };
 
 /* Generic helper clock operators */
 const char *clk_std_name(struct clk *clk);
 unsigned long clk_std_rate(struct clk *clk);
-void clk_std_free(struct clk *clk);
-void clk_lw_free(struct clk *clk);
 
 /*
  * Helper to identify clock operator type
@@ -169,15 +165,12 @@ struct clk *clk_lw_alloc(const struct clk_ops *ops, size_t count);
 void clk_init_instance(struct clk *clk, const struct clk_ops *ops);
 
 /**
- * clk_free - Free a clock structure
+ * clk_free - Free clock reference (possible clock array reference) returned by
+ * clk_alloc() or clk_lw_alloc()
  *
- * @clk: Clock to be freed or NULL
+ * @clk: A reference returned by clk_alloc()/clk_lw_alloc() or NULL
  */
-static inline void clk_free(struct clk *clk)
-{
-	if (clk && clk->ops->free)
-		clk->ops->free(clk);
-}
+void clk_free(struct clk *clk);
 
 /**
  * clk_register - Register a clock within the clock framework

@@ -51,12 +51,6 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 	return &clk_std->clk;
 }
 
-void clk_std_free(struct clk *clk)
-{
-	if (clk)
-		free(clk_to_clk_std(clk));
-}
-
 struct clk *clk_lw_alloc(const struct clk_ops *ops, size_t count)
 {
 	struct clk *clk = NULL;
@@ -74,9 +68,14 @@ struct clk *clk_lw_alloc(const struct clk_ops *ops, size_t count)
 	return clk;
 }
 
-void clk_lw_free(struct clk *clk)
+void clk_free(struct clk *clk)
 {
-	free(clk);
+	void *p = clk;
+
+	if (clk && is_clk_std(clk))
+		p = clk_to_clk_std(clk);
+
+	free(p);
 }
 
 static bool __maybe_unused clk_check(struct clk *clk)
