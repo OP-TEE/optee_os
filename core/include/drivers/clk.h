@@ -50,6 +50,7 @@ struct clk {
  * @get_rate: Get the clock rate (possibly cached)
  * @compute_rate: Compute and return effective clock rate from new parent rate
  * @get_name: Get the clock name
+ * @free: Release the clock instance
  */
 struct clk_ops {
 	TEE_Result (*enable)(struct clk *clk);
@@ -62,11 +63,13 @@ struct clk_ops {
 	unsigned long (*compute_rate)(struct clk *clk,
 				      unsigned long parent_rate);
 	const char *(*get_name)(struct clk *clk);
+	void (*free)(struct clk *clk);
 };
 
 /* Generic helper clock operators */
 const char *clk_elt_name(struct clk *clk);
 unsigned long clk_elt_rate(struct clk *clk);
+void clk_elt_free(struct clk *clk);
 
 /**
  * Return the clock name
@@ -100,7 +103,11 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
  *
  * @clk: Clock to be freed or NULL
  */
-void clk_free(struct clk *clk);
+static inline void clk_free(struct clk *clk)
+{
+	if (clk && clk->ops->free)
+		clk->ops->free(clk);
+}
 
 /**
  * clk_register - Register a clock within the clock framework

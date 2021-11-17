@@ -38,9 +38,10 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 	return clk;
 }
 
-void clk_free(struct clk *clk)
+void clk_elt_free(struct clk *clk)
 {
-	free(clk);
+	if (clk)
+		free(clk_to_clk_elt(clk));
 }
 
 static bool __maybe_unused clk_check(struct clk *clk)
