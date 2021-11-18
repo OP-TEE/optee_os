@@ -5,6 +5,8 @@
 
 #include <compiler.h>
 #include <console.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/serial.h>
 #include <drivers/stm32_uart.h>
 #include <io.h>
@@ -12,6 +14,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <stm32_util.h>
 #include <util.h>
 
@@ -128,6 +131,7 @@ static void register_non_secure_uart(struct stm32_uart_pdata *pd)
 
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_uart_pdata *pd = NULL;
 	struct dt_node_info info = { };
 	struct stm32_pinctrl *pinctrl_cfg = NULL;
@@ -138,8 +142,7 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	if (info.status == DT_STATUS_DISABLED)
 		return NULL;
 
-	assert(info.clock != DT_INFO_INVALID_CLOCK &&
-	       info.reg != DT_INFO_INVALID_REG &&
+	assert(info.reg != DT_INFO_INVALID_REG &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
 	pd = calloc(1, sizeof(*pd));
@@ -149,7 +152,16 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	pd->chip.ops = &stm32_uart_serial_ops;
 	pd->base.pa = info.reg;
 	pd->secure = (info.status == DT_STATUS_OK_SEC);
-	pd->clock = (unsigned int)info.clock;
+
+	res = clk_dt_get_by_index(fdt, node, 0, &pd->clock);
+	if (res) {
+		EMSG("Failed to get clock: %#"PRIx32, res);
+		panic();
+	}
+
+	res = clk_enable(pd->clock);
+	if (res)
+		panic();
 
 	assert(cpu_mmu_enabled());
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa,

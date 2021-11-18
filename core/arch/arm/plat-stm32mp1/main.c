@@ -94,7 +94,7 @@ void console_init(void)
 		return;
 
 	/* No clock yet bound to the UART console */
-	console_data.clock = DT_INFO_INVALID_CLOCK;
+	console_data.clock = NULL;
 
 	console_data.secure = uarts[CFG_STM32_EARLY_CONSOLE_UART].secure;
 	stm32_uart_init(&console_data, uarts[CFG_STM32_EARLY_CONSOLE_UART].pa);
