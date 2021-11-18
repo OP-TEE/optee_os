@@ -1133,7 +1133,7 @@ static void discover_nsec_memory(void)
 	const struct core_mmu_phys_mem *mem_begin = NULL;
 	const struct core_mmu_phys_mem *mem_end = NULL;
 	size_t nelems;
-	void *fdt = get_external_dt();
+	void *fdt = get_dt();
 
 	if (fdt) {
 		mem = get_nsec_memory(fdt, &nelems);
