@@ -6,6 +6,7 @@
 #ifndef __STM32_UART_H__
 #define __STM32_UART_H__
 
+#include <drivers/clk.h>
 #include <drivers/serial.h>
 #include <drivers/stm32_gpio.h>
 
@@ -13,7 +14,7 @@ struct stm32_uart_pdata {
 	struct io_pa_va base;
 	struct serial_chip chip;
 	bool secure;
-	unsigned int clock;
+	struct clk *clock;
 	struct stm32_pinctrl *pinctrl;
 	size_t pinctrl_count;
 };
