@@ -4,6 +4,8 @@
  */
 
 #include <assert.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/stm32_rng.h>
 #include <io.h>
 #include <kernel/delay.h>
@@ -36,7 +38,7 @@
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
-	unsigned long clock;
+	struct clk *clock;
 	unsigned int lock;
 	unsigned int refcount;
 };
@@ -130,7 +132,7 @@ static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 	if (enable) {
 		/* incr_refcnt return non zero if resource shall be enabled */
 		if (incr_refcnt(&dev->refcount)) {
-			stm32_clock_enable(dev->clock);
+			clk_enable(dev->clock);
 			io_write32(rng_cr, 0);
 			io_write32(rng_cr, RNG_CR_RNGEN | RNG_CR_CED);
 		}
@@ -138,7 +140,7 @@ static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 		/* decr_refcnt return non zero if resource shall be disabled */
 		if (decr_refcnt(&dev->refcount)) {
 			io_write32(rng_cr, 0);
-			stm32_clock_disable(dev->clock);
+			clk_disable(dev->clock);
 		}
 	}
 
@@ -192,6 +194,7 @@ static TEE_Result stm32_rng_init(void)
 	int node = -1;
 	struct dt_node_info dt_info;
 	enum teecore_memtypes mtype = MEM_AREA_END;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	memset(&dt_info, 0, sizeof(dt_info));
 
@@ -232,7 +235,11 @@ static TEE_Result stm32_rng_init(void)
 		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype,
 							   dt_info.reg_size);
 
-		stm32_rng->clock = (unsigned long)dt_info.clock;
+		res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
+		if (res)
+			return res;
+
+		assert(stm32_rng->clock);
 
 		DMSG("RNG init");
 	}
