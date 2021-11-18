@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <compiler.h>
 #include <confine_array_index.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <drivers/stm32mp1_pmic.h>
@@ -38,6 +40,7 @@
  */
 struct stm32_scmi_clk {
 	unsigned long clock_id;
+	struct clk *clk;
 	const char *name;
 	bool enabled;
 };
@@ -332,7 +335,7 @@ int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
 	if (!array)
 		*nb_elts = 1;
 	else if (*nb_elts == 1)
-		*array = stm32_clock_get_rate(clock->clock_id);
+		*array = clk_get_rate(clock->clk);
 	else
 		return SCMI_GENERIC_ERROR;
 
@@ -347,7 +350,7 @@ unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
 	if (!clock || !stm32mp_nsec_can_access_clock(clock->clock_id))
 		return 0;
 
-	return stm32_clock_get_rate(clock->clock_id);
+	return clk_get_rate(clock->clk);
 }
 
 int32_t plat_scmi_clock_get_state(unsigned int channel_id, unsigned int scmi_id)
@@ -374,13 +377,13 @@ int32_t plat_scmi_clock_set_state(unsigned int channel_id, unsigned int scmi_id,
 	if (enable_not_disable) {
 		if (!clock->enabled) {
 			DMSG("SCMI clock %u enable", scmi_id);
-			stm32_clock_enable(clock->clock_id);
+			clk_enable(clock->clk);
 			clock->enabled = true;
 		}
 	} else {
 		if (clock->enabled) {
 			DMSG("SCMI clock %u disable", scmi_id);
-			stm32_clock_disable(clock->clock_id);
+			clk_disable(clock->clk);
 			clock->enabled = false;
 		}
 	}
@@ -829,10 +832,13 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 			    strlen(clk->name) >= SCMI_CLOCK_NAME_SIZE)
 				panic("SCMI clock name invalid");
 
+			clk->clk = stm32mp_rcc_clock_id_to_clk(clk->clock_id);
+			assert(clk->clk);
+
 			/* Sync SCMI clocks with their targeted initial state */
 			if (clk->enabled &&
 			    stm32mp_nsec_can_access_clock(clk->clock_id))
-				stm32_clock_enable(clk->clock_id);
+				clk_enable(clk->clk);
 		}
 
 		for (j = 0; j < res->rd_count; j++) {
