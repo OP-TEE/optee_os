@@ -14,6 +14,12 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
+# default DRAM base address
+CFG_DRAM_BASE ?= 0x40000000
+
+# default DRAM size 1 GiB
+CFG_DRAM_SIZE ?= 0x40000000
+
 ifeq ($(PLATFORM_FLAVOR),mt8173)
 # 2**1 = 2 cores per cluster
 $(call force,CFG_TEE_CORE_NB_CORE,4)
