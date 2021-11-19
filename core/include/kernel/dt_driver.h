@@ -153,4 +153,19 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
  * @nodeoffset: Node offset on the FDT for the device
  */
 TEE_Result dt_driver_maybe_add_probe_node(const void *fdt, int nodeoffset);
+
+#ifdef CFG_DT_DRIVER_EMBEDDED_TEST
+/*
+ * Return TEE_ERROR_NOT_IMPLEMENTED if test are not implemented
+ * otherwise return TEE_ERROR_GENERIC if some test has failed
+ * otherwise return TEE_SUCCESS (tests succeed or skipped)
+ */
+TEE_Result dt_driver_test_status(void);
+#else
+static inline TEE_Result dt_driver_test_status(void)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
 #endif /* __DT_DRIVER_H */

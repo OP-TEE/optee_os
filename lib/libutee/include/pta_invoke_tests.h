@@ -103,5 +103,10 @@
  */
 #define PTA_INVOKE_TESTS_CMD_MEMREF_NULL	10
 
+/*
+ * Retrieve results of the dt_driver framework internal test
+ */
+#define PTA_INVOKE_TESTS_CMD_DT_DRIVER_TESTS	11
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 

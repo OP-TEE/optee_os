@@ -466,6 +466,18 @@ CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 # Compiles bget_main_test() to be called from a test TA
 CFG_TA_BGET_TEST ?= $(CFG_ENABLE_EMBEDDED_TESTS)
 
+# CFG_DT_DRIVER_EMBEDDED_TEST when enabled embedb DT driver probing tests.
+# This also requires embeddeding a DTB with expected content.
+# Defautl disable CFG_DRIVERS_CLK_EARLY_PROBE to probe clocks as other drivers.
+# A probe deferral test mandates CFG_DRIVERS_DT_RECURSIVE_PROBE=n.
+CFG_DT_DRIVER_EMBEDDED_TEST ?= n
+ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
+CFG_DRIVERS_CLK ?= y
+CFG_DRIVERS_RSTCTRL ?= y
+CFG_DRIVERS_CLK_EARLY_PROBE ?= n
+$(call force,CFG_DRIVERS_DT_RECURSIVE_PROBE,n,Mandated by CFG_DT_DRIVER_EMBEDDED_TEST)
+endif
+
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
 # with specific core number and non-secure entry address.
