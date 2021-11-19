@@ -45,6 +45,7 @@ TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
 	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx, clk);
 }
 
+#ifdef CFG_DRIVERS_CLK_EARLY_PROBE
 /* Recursively called from parse_clock_property() */
 static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node);
 
@@ -209,3 +210,4 @@ static TEE_Result clk_dt_probe(void)
 	return TEE_SUCCESS;
 }
 early_init(clk_dt_probe);
+#endif
