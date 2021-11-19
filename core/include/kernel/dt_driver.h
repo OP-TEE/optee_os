@@ -68,6 +68,7 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @fdt: FDT base address
  * @nodeoffset: node offset in the FDT
  * @prop_idx: index of the phandle data in the property
+ * @type: Driver type
  * @res: Output result code of the operation: TEE_ERROR_BUSY is target
  *	device is not yet initialized, otherwise any other compliant code.
  *
@@ -77,17 +78,20 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  const void *fdt, int nodeoffset,
 					  unsigned int prop_idx,
+					  enum dt_driver_type type,
 					  TEE_Result *res);
 
 /*
  * Return driver provider reference from its node offset value in the FDT
  */
-struct dt_driver_provider *dt_driver_get_provider_by_node(int nodeoffset);
+struct dt_driver_provider *
+dt_driver_get_provider_by_node(int nodeoffset, enum dt_driver_type type);
 
 /*
  * Return driver provider reference from its phandle value in the FDT
  */
-struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle);
+struct dt_driver_provider *
+dt_driver_get_provider_by_phandle(uint32_t phandle, enum dt_driver_type type);
 
 /*
  * Return number cells used for phandle arguments by a driver provider

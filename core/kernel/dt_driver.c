@@ -182,23 +182,25 @@ unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv)
 	return prv->provider_cells;
 }
 
-struct dt_driver_provider *dt_driver_get_provider_by_node(int nodeoffset)
+struct dt_driver_provider *
+dt_driver_get_provider_by_node(int nodeoffset, enum dt_driver_type type)
 {
 	struct dt_driver_provider *prv = NULL;
 
 	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
-		if (prv->nodeoffset == nodeoffset)
+		if (prv->nodeoffset == nodeoffset && prv->type == type)
 			return prv;
 
 	return NULL;
 }
 
-struct dt_driver_provider *dt_driver_get_provider_by_phandle(uint32_t phandle)
+struct dt_driver_provider *
+dt_driver_get_provider_by_phandle(uint32_t phandle, enum dt_driver_type type)
 {
 	struct dt_driver_provider *prv = NULL;
 
 	SLIST_FOREACH(prv, &dt_driver_provider_list, link)
-		if (prv->phandle == phandle)
+		if (prv->phandle == phandle && prv->type == type)
 			return prv;
 
 	return NULL;
@@ -233,6 +235,7 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  const void *fdt, int nodeoffset,
 					  unsigned int prop_idx,
+					  enum dt_driver_type type,
 					  TEE_Result *res)
 {
 	int len = 0;
@@ -253,7 +256,7 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 		idx32 = idx / sizeof(uint32_t);
 		phandle = fdt32_to_cpu(prop[idx32]);
 
-		prv = dt_driver_get_provider_by_phandle(phandle);
+		prv = dt_driver_get_provider_by_phandle(phandle, type);
 		if (!prv) {
 			*res = TEE_ERROR_GENERIC;
 			return NULL;
