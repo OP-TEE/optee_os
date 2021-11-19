@@ -33,6 +33,7 @@ static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
 {
 	void *device = dt_driver_device_from_node_idx_prop(prop_name, fdt,
 							   nodeoffset, clk_idx,
+							   DT_DRIVER_CLK,
 							   res);
 
 	return (struct clk *)device;
@@ -100,7 +101,7 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	/* Check if node has already been probed */
-	if (dt_driver_get_provider_by_node(node))
+	if (dt_driver_get_provider_by_node(node, DT_DRIVER_CLK))
 		return TEE_SUCCESS;
 
 	/* Check if the node has a clock property first to probe parent */
