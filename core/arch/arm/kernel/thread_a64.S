@@ -225,7 +225,7 @@ END_FUNC thread_unwind_user_mode
 	.endm
 
 #define INV_INSN	0
-FUNC thread_excp_vect , : align=2048
+FUNC thread_excp_vect , : , default, 2048, nobti
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
