@@ -30,6 +30,7 @@
 	ldr	x16, =1111f
 	br	x16
 1111:
+BTI(	bti	j)
 #endif
 	.endm
 
