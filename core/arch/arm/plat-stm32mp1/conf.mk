@@ -83,6 +83,7 @@ CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_RNG ?= y
+CFG_STM32_RSTCTRL ?= y
 CFG_STM32_UART ?= y
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_STPMIC1 ?= y
@@ -97,6 +98,9 @@ endif
 ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
+
+CFG_DRIVERS_RSTCTRL ?= $(CFG_STM32_RSTCTRL)
+$(eval $(call cfg-depends-all,CFG_STM32_RSTCTRL,CFG_DRIVERS_RSTCTRL))
 
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y

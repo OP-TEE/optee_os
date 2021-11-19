@@ -190,6 +190,13 @@ static TEE_Result init_stm32mp1_drivers(void)
 }
 service_init_late(init_stm32mp1_drivers);
 
+vaddr_t stm32_rcc_base(void)
+{
+	static struct io_pa_va base = { .pa = RCC_BASE };
+
+	return io_pa_or_va_secure(&base, 1);
+}
+
 vaddr_t get_gicd_base(void)
 {
 	struct io_pa_va base = { .pa = GIC_BASE + GICD_OFFSET };
