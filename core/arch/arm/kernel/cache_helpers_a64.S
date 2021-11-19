@@ -102,6 +102,7 @@ LOCAL_FUNC do_dcsw_op , :
 	cbz	x3, exit
 	adr	x14, dcsw_loop_table	// compute inner loop address
 	add	x14, x14, x0, lsl #5	// inner loop is 8x32-bit instructions
+BTI(	add	x14, x14, x0, lsl #2)	// inner loop is + "bti j" instruction
 	mov	x0, x9
 	mov	w8, #1
 loop1:
@@ -127,6 +128,7 @@ loop1:
 	br	x14			// jump to DC operation specific loop
 
 	.macro	dcsw_loop _op
+BTI(	bti	j)
 loop2_\_op:
 	lsl	w7, w6, w2		// w7 = aligned max set number
 

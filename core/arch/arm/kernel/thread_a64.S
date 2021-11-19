@@ -191,7 +191,7 @@ END_FUNC thread_unwind_user_mode
 		ldr	x0, =1f
 		br	x0
 	1:
-
+BTI(		bti	j)
 		/* Point to the vector into the full mapping */
 		adr_l	x0, thread_user_kcode_offset
 		ldr	x0, [x0]
@@ -488,7 +488,7 @@ eret_to_el0:
 	sub	x1, x1, x0
 	br	x1
 1:
-
+BTI(	bti	j)
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 	msr	tpidrro_el0, x0
 
@@ -547,7 +547,7 @@ icache_inv_user_range:
 	sub	x3, x3, x2
 	br	x3
 1:
-
+BTI(	bti	j)
 	/* Update the mapping to exclude the full kernel mapping */
 	mrs	x5, ttbr0_el1	/* this register must be preserved */
 	add	x2, x5, #CORE_MMU_BASE_TABLE_OFFSET
@@ -591,7 +591,7 @@ icache_inv_user_range:
 	ldr	x0, =1f
 	br	x0
 1:
-
+BTI(	bti	j)
 	/* Point to the vector into the full mapping */
 	msr	vbar_el1, x4
 	isb
