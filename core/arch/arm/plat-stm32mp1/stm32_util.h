@@ -23,6 +23,9 @@ vaddr_t stm32mp_bkpreg(unsigned int idx);
 void stm32mp_syscfg_enable_io_compensation(void);
 void stm32mp_syscfg_disable_io_compensation(void);
 
+/* Platform util for the RCC drivers */
+vaddr_t stm32_rcc_base(void);
+
 /* Platform util for the GIC */
 vaddr_t get_gicd_base(void);
 
@@ -62,6 +65,9 @@ static inline void stm32mp_register_online_cpu(void)
  */
 uint32_t may_spin_lock(unsigned int *lock);
 void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
+
+/* Helper from platform RCC drivers */
+struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
 /*
  * Util for clock gating and to get clock rate for stm32 and platform drivers

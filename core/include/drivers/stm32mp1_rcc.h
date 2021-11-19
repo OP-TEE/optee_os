@@ -545,7 +545,7 @@
 #define DT_RCC_SECURE_CLK_COMPAT	"st,stm32mp1-rcc-secure"
 
 #ifndef __ASSEMBLER__
-vaddr_t stm32_rcc_base(void);
+#include <stm32_util.h>
 
 static inline bool stm32_rcc_is_secure(void)
 {
