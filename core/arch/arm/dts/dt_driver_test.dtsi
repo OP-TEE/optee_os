@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ *  Copyright (c) 2022, Linaro Limited
+ */
+
+/ {
+	/*
+	 * Device dt-test-consumer consumes resource, it is expected
+	 * to defer its probe until resources are ready.
+	 */
+	dt-test-consumer {
+		compatible = "linaro,dt-test-consumer";
+		clocks = <&dt_test_provider 3>, <&dt_test_provider 7>;
+		clock-names = "clk0", "clk1";
+		resets = <&dt_test_provider 35>, <&dt_test_provider 5>;
+		reset-names = "rst0", "rst1";
+	};
+
+	/*
+	 * Resource device are discovered from subnode added to probe
+	 * list by related drivers (here all simple-bus).
+	 */
+	dt-test-bus-b0 {
+		compatible = "simple-bus";
+
+		dt-test-bus-b1 {
+			compatible = "simple-bus";
+
+			dt-test-bus-b2 {
+				compatible = "simple-bus";
+
+				dt-test-bus-b3 {
+					compatible = "simple-bus";
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					dt_test_provider: dt-test-provider@0 {
+						compatible = "linaro,dt-test-provider";
+						reg = <0>;
+						#clock-cells = <1>;
+						#reset-cells = <1>;
+					};
+				};
+			};
+		};
+	};
+
+	dt-test-crypt-consumer {
+		compatible = "linaro,dt-test-crypt-consumer";
+	};
+};
