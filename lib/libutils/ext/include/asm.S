@@ -17,7 +17,7 @@
 #define UNWIND(...)
 #endif
 
-	.macro FUNC name colon section=default align=4
+	.macro FUNC name colon section=default align=4 _bti=default
 	.ifc	\section\(),default
 	.section .text.\name
 	.else
@@ -28,10 +28,12 @@
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+	.ifc	\_bti\(),default
 BTI(	bti	c)
+	.endif
 	.endm
 
-	.macro LOCAL_FUNC name colon section=default align=4
+	.macro LOCAL_FUNC name colon section=default align=4 _bti=default
 	.ifc	\section\(),default
 	.section .text.\name
 	.else
@@ -41,10 +43,12 @@ BTI(	bti	c)
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+	.ifc	\_bti\(),default
 BTI(	bti	c)
+	.endif
 	.endm
 
-	.macro WEAK_FUNC name colon section=default align=4
+	.macro WEAK_FUNC name colon section=default align=4 _bti=default
 	.ifc	\section\(),default
 	.section .text.\name
 	.else
@@ -55,7 +59,9 @@ BTI(	bti	c)
 	.balign \align
 	\name \colon
 UNWIND(	.fnstart)
+	.ifc	\_bti\(),default
 BTI(	bti	c)
+	.endif
 	.endm
 
 	.macro END_FUNC name

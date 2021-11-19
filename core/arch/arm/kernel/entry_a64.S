@@ -479,7 +479,7 @@ END_FUNC unhandled_cpu
 
 	.section .identity_map, "ax", %progbits
 	.align	11
-LOCAL_FUNC reset_vect_table , :, .identity_map
+LOCAL_FUNC reset_vect_table , :, .identity_map, , nobti
 	/* -----------------------------------------------------
 	 * Current EL with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------

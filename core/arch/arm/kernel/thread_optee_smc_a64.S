@@ -131,7 +131,7 @@ END_FUNC vector_system_reset_entry
  * Note that ARM-TF depends on the layout of this vector table, any change
  * in layout has to be synced with ARM-TF.
  */
-FUNC thread_vector_table , : , .identity_map
+FUNC thread_vector_table , : , .identity_map, , nobti
 	b	vector_std_smc_entry
 	b	vector_fast_smc_entry
 	b	vector_cpu_on_entry
