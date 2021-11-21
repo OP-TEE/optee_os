@@ -257,7 +257,8 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 
 		prv = dt_driver_get_provider_by_phandle(phandle);
 		if (!prv) {
-			*res = TEE_ERROR_GENERIC;
+			/* No provider registered yet */
+			*res = TEE_ERROR_DEFER_DRIVER_INIT;
 			return NULL;
 		}
 
