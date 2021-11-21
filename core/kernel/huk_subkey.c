@@ -3,6 +3,7 @@
  * Copyright (c) 2019, Linaro Limited
  */
 
+#include <config.h>
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/tee_common_otp.h>
@@ -15,17 +16,18 @@ static TEE_Result mac_usage(void *ctx, uint32_t usage)
 }
 
 #ifdef CFG_CORE_HUK_SUBKEY_COMPAT
-/*
- * This gives the result of the default tee_otp_get_die_id()
- * implementation.
- */
-static void get_dummy_die_id(uint8_t *buffer, size_t len)
+static TEE_Result get_otp_die_id(uint8_t *buffer, size_t len)
 {
 	static const char pattern[4] = { 'B', 'E', 'E', 'F' };
 	size_t i;
 
+	if (IS_ENABLED(CFG_CORE_HUK_SUBKEY_COMPAT_USE_OTP_DIE_ID))
+		return tee_otp_get_die_id(buffer, len);
+
 	for (i = 0; i < len; i++)
 		buffer[i] = pattern[i % 4];
+
+	return TEE_SUCCESS;
 }
 
 /*
@@ -42,7 +44,9 @@ static TEE_Result huk_compat(void *ctx, enum huk_subkey_usage usage)
 	case HUK_SUBKEY_RPMB:
 		return TEE_SUCCESS;
 	case HUK_SUBKEY_SSK:
-		get_dummy_die_id(chip_id, sizeof(chip_id));
+		res = get_otp_die_id(chip_id, sizeof(chip_id));
+		if (res)
+			return res;
 		res = crypto_mac_update(ctx, chip_id, sizeof(chip_id));
 		if (res)
 			return res;
