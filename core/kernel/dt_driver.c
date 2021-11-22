@@ -75,6 +75,10 @@ static TAILQ_HEAD(dt_driver_probe_head, dt_driver_probe) dt_driver_probe_list =
 static TAILQ_HEAD(, dt_driver_probe) dt_driver_ready_list =
 	TAILQ_HEAD_INITIALIZER(dt_driver_ready_list);
 
+/* List of the nodes for which a compatible driver but reported a failure */
+static TAILQ_HEAD(, dt_driver_probe) dt_driver_failed_list =
+	TAILQ_HEAD_INITIALIZER(dt_driver_failed_list);
+
 /* Flag enabled when a new node (possibly typed) is added in the probe list */
 static bool added_node;
 
@@ -312,9 +316,11 @@ static TEE_Result probe_driver_node(const void *fdt,
 		     node_name, elt->deferrals);
 		break;
 	default:
-		EMSG("Fail to probe %s on node %s: %#"PRIx32,
+		TAILQ_INSERT_HEAD(&dt_driver_failed_list, elt, link);
+
+		EMSG("Failed to probe %s on node %s: %#"PRIx32,
 		     drv_name, node_name, res);
-		panic();
+		break;
 	}
 
 	return res;
@@ -435,8 +441,7 @@ static TEE_Result process_probe_list(const void *fdt)
 				one_deferred = true;
 				break;
 			default:
-				/* We don't expect error return codes */
-				assert(0);
+				break;
 			}
 		}
 
@@ -449,7 +454,11 @@ static TEE_Result process_probe_list(const void *fdt)
 	     loop_count, deferral_loop_count);
 
 	TAILQ_FOREACH(elt, &dt_driver_probe_list, link)
-		EMSG("- %s on node %s", elt->dt_drv->name,
+		EMSG("- Pending: driver %s on node %s", elt->dt_drv->name,
+		     fdt_get_name(fdt, elt->nodeoffset, NULL));
+
+	TAILQ_FOREACH(elt, &dt_driver_failed_list, link)
+		EMSG("- Failed: driver %s on node %s", elt->dt_drv->name,
 		     fdt_get_name(fdt, elt->nodeoffset, NULL));
 
 	panic();
@@ -653,6 +662,9 @@ static TEE_Result release_probe_lists(void)
 
 	TAILQ_FOREACH_SAFE(elt, &dt_driver_ready_list, link, next)
 		free(elt);
+
+	TAILQ_FOREACH_SAFE(elt, &dt_driver_failed_list, link, next)
+	       free(elt);
 
 	SLIST_FOREACH_SAFE(prov, &dt_driver_provider_list, link, next_prov)
 	       free(prov);
