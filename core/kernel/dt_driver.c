@@ -132,22 +132,6 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 	return TEE_SUCCESS;
 }
 
-/* Release driver provider references once all dt_drivers are initialized */
-static TEE_Result dt_driver_release_provider(void)
-{
-	struct dt_driver_provider *prv = NULL;
-
-	while (!SLIST_EMPTY(&dt_driver_provider_list)) {
-		prv = SLIST_FIRST(&dt_driver_provider_list);
-		SLIST_REMOVE_HEAD(&dt_driver_provider_list, link);
-		free(prv);
-	}
-
-	return TEE_SUCCESS;
-}
-
-release_init_resource(dt_driver_release_provider);
-
 /*
  * Helper functions for dt_drivers querying driver provider information
  */
@@ -668,6 +652,8 @@ static TEE_Result release_probe_lists(void)
 {
 	struct dt_driver_probe *elt = NULL;
 	struct dt_driver_probe *next = NULL;
+	struct dt_driver_provider *prov = NULL;
+	struct dt_driver_provider *next_prov = NULL;
 	const void * __maybe_unused fdt = NULL;
 
 	if (!IS_ENABLED(CFG_EMBED_DTB))
@@ -677,11 +663,11 @@ static TEE_Result release_probe_lists(void)
 
 	assert(fdt && TAILQ_EMPTY(&dt_driver_probe_list));
 
-	TAILQ_FOREACH_SAFE(elt, &dt_driver_ready_list, link, next) {
-		DMSG("element: %s on node %s", elt->dt_drv->name,
-		     fdt_get_name(fdt, elt->nodeoffset, NULL));
+	TAILQ_FOREACH_SAFE(elt, &dt_driver_ready_list, link, next)
 		free(elt);
-	}
+
+	SLIST_FOREACH_SAFE(prov, &dt_driver_provider_list, link, next_prov)
+	       free(prov);
 
 	return TEE_SUCCESS;
 }
