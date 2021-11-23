@@ -7,6 +7,7 @@
 #include <confine_array_index.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/rstctrl.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <drivers/stm32mp1_pmic.h>
@@ -49,10 +50,12 @@ struct stm32_scmi_clk {
  * struct stm32_scmi_rd - Data for the exposed reset controller
  * @reset_id: Reset identifier in RCC reset driver
  * @name: Reset string ID exposed to channel
+ * @rstctrl: Reset controller device
  */
 struct stm32_scmi_rd {
 	unsigned long reset_id;
 	const char *name;
+	struct rstctrl *rstctrl;
 };
 
 enum voltd_device {
@@ -439,6 +442,7 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 
 	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
+	assert(rd->rstctrl);
 
 	if (rd->reset_id == MCU_HOLD_BOOT_R)
 		return SCMI_NOT_SUPPORTED;
@@ -449,10 +453,10 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 
 	DMSG("SCMI reset %u cycle", scmi_id);
 
-	if (stm32_reset_assert(rd->reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_assert_to(rd->rstctrl, TIMEOUT_US_1MS))
 		return SCMI_HARDWARE_ERROR;
 
-	if (stm32_reset_deassert(rd->reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_deassert_to(rd->rstctrl, TIMEOUT_US_1MS))
 		return SCMI_HARDWARE_ERROR;
 
 	return SCMI_SUCCESS;
@@ -462,27 +466,25 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 			       bool assert_not_deassert)
 {
 	const struct stm32_scmi_rd *rd = find_rd(channel_id, scmi_id);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
 	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
-
-	if (rd->reset_id == MCU_HOLD_BOOT_R) {
-		DMSG("SCMI MCU hold boot %s",
-		     assert_not_deassert ? "set" : "release");
-		stm32_reset_assert_deassert_mcu(assert_not_deassert);
-		return SCMI_SUCCESS;
-	}
+	assert(rd->rstctrl);
 
 	if (assert_not_deassert) {
 		DMSG("SCMI reset %u set", scmi_id);
-		stm32_reset_set(rd->reset_id);
+		res = rstctrl_assert(rd->rstctrl);
 	} else {
 		DMSG("SCMI reset %u release", scmi_id);
-		stm32_reset_release(rd->reset_id);
+		res = rstctrl_deassert(rd->rstctrl);
 	}
+
+	if (res)
+		return SCMI_HARDWARE_ERROR;
 
 	return SCMI_SUCCESS;
 }
@@ -843,10 +845,20 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 
 		for (j = 0; j < res->rd_count; j++) {
 			struct stm32_scmi_rd *rd = &res->rd[j];
+			struct rstctrl *rstctrl = NULL;
 
 			if (!rd->name ||
 			    strlen(rd->name) >= SCMI_RD_NAME_SIZE)
 				panic("SCMI reset domain name invalid");
+
+			if (stm32mp_nsec_can_access_clock(rd->reset_id))
+				continue;
+
+			rstctrl = stm32mp_rcc_reset_id_to_rstctrl(rd->reset_id);
+			assert(rstctrl);
+			if (rstctrl_get_exclusive(rstctrl))
+				panic();
+			rd->rstctrl = rstctrl;
 		}
 
 		for (j = 0; j < res->voltd_count; j++) {
