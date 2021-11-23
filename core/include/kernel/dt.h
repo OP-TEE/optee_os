@@ -180,8 +180,8 @@ size_t _fdt_reg_size(const void *fdt, int offs);
 
 /*
  * Read the status and secure-status properties into a bitfield.
- * @status is set to DT_STATUS_DISABLED or a combination of DT_STATUS_OK_NSEC
- * and DT_STATUS_OK_SEC.
+ * Return -1 on failure, DT_STATUS_DISABLED if the node is disabled,
+ * otherwise return a combination of DT_STATUS_OK_NSEC and DT_STATUS_OK_SEC.
  */
 int _fdt_get_status(const void *fdt, int offs);
 
