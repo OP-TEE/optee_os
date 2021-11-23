@@ -572,8 +572,8 @@ $(eval $(call cfg-depends-all,CFG_SYSTEM_PTA,CFG_WITH_USER_TA))
 # world OS.
 CFG_DEVICE_ENUM_PTA ?= y
 
-# The attestation pseudo TA provides an interface for user space TAs to request
-# a measurement of their own code and read-only data pages.
+# The attestation pseudo TA provides an interface to request a measurement of
+# a given TA binary or shared library given its UUID.
 CFG_ATTESTATION_PTA ?= n
 
 # Private key used by the attestation PTA to sign TA measurements
