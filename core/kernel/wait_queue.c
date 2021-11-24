@@ -23,7 +23,8 @@ void wq_init(struct wait_queue *wq)
 static void __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 		     const char *fname, int lineno __maybe_unused)
 {
-	uint32_t ret;
+	struct thread_param params = THREAD_PARAM_VALUE(IN, func, id, 0);
+	uint32_t ret = 0;
 	const char *cmd_str __maybe_unused =
 	     func == OPTEE_RPC_WAIT_QUEUE_SLEEP ? "sleep" : "wake ";
 
@@ -33,7 +34,6 @@ static void __wq_rpc(uint32_t func, int id, const void *sync_obj __maybe_unused,
 	else
 		DMSG("%s thread %u %p", cmd_str, id, sync_obj);
 
-	struct thread_param params = THREAD_PARAM_VALUE(IN, func, id, 0);
 
 	ret = thread_rpc_cmd(OPTEE_RPC_CMD_WAIT_QUEUE, 1, &params);
 	if (ret != TEE_SUCCESS)
