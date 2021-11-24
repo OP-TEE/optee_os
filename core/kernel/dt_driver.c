@@ -284,7 +284,7 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 	return NULL;
 }
 
-static unsigned int __maybe_unused probe_list_count(void)
+static void __maybe_unused print_probe_list(const void *fdt __maybe_unused)
 {
 	struct dt_driver_probe *elt = NULL;
 	unsigned int count = 0;
@@ -292,21 +292,24 @@ static unsigned int __maybe_unused probe_list_count(void)
 	TAILQ_FOREACH(elt, &dt_driver_probe_list, link)
 		count++;
 
-	return count;
-}
-
-static void __maybe_unused print_probe_list(const void *fdt __maybe_unused)
-{
-	struct dt_driver_probe *elt = NULL;
-
-	DMSG("Probe list: %u elements", probe_list_count());
-
+	DMSG("Probe list: %u elements", count);
 	TAILQ_FOREACH(elt, &dt_driver_probe_list, link)
-		DMSG("- Driver %s probes on node %s",
+		DMSG("|- Driver %s probes on node %s",
 		     elt->dt_drv->name,
 		     fdt_get_name(fdt, elt->nodeoffset, NULL));
 
-	DMSG("Probe list end");
+	DMSG("`- Probe list end");
+
+	count = 0;
+	TAILQ_FOREACH(elt, &dt_driver_failed_list, link)
+		count++;
+
+	DMSG("Failed list: %u elements", count);
+	TAILQ_FOREACH(elt, &dt_driver_failed_list, link)
+		EMSG("|- Driver %s on node %s failed", elt->dt_drv->name,
+		     fdt_get_name(fdt, elt->nodeoffset, NULL));
+
+	DMSG("`- Failed list end");
 }
 
 /*
@@ -432,8 +435,8 @@ static TEE_Result process_probe_list(const void *fdt)
 {
 	struct dt_driver_probe *elt = NULL;
 	struct dt_driver_probe *prev = NULL;
-	unsigned int __maybe_unused loop_count = 0;
-	unsigned int __maybe_unused deferral_loop_count = 0;
+	static unsigned int __maybe_unused loop_count;
+	static unsigned int __maybe_unused deferral_loop_count;
 	bool __maybe_unused one_deferred = false;
 	bool one_probed_ok = false;
 
@@ -479,18 +482,13 @@ static TEE_Result process_probe_list(const void *fdt)
 
 	} while (added_node || one_probed_ok);
 
-	EMSG("Panic on unresolved dependencies after %u rounds, %u deferred:",
+	DMSG("Unresolved dependencies after %u rounds, %u deferred",
 	     loop_count, deferral_loop_count);
 
-	TAILQ_FOREACH(elt, &dt_driver_probe_list, link)
-		EMSG("- Pending: driver %s on node %s", elt->dt_drv->name,
-		     fdt_get_name(fdt, elt->nodeoffset, NULL));
-
-	TAILQ_FOREACH(elt, &dt_driver_failed_list, link)
-		EMSG("- Failed: driver %s on node %s", elt->dt_drv->name,
-		     fdt_get_name(fdt, elt->nodeoffset, NULL));
-
-	panic();
+	if (one_deferred)
+		return TEE_ERROR_DEFER_DRIVER_INIT;
+	else
+		return TEE_ERROR_GENERIC;
 }
 
 static int driver_probe_compare(struct dt_driver_probe *candidate,
@@ -657,8 +655,9 @@ static void parse_node(const void *fdt, int node)
  * Parse FDT for nodes and save in probe list the node for which a dt_driver
  * matches node's compatible property.
  */
-static TEE_Result probe_dt_drivers(void)
+static TEE_Result probe_dt_drivers_early(void)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	const void *fdt = NULL;
 
 	if (!IS_ENABLED(CFG_EMBED_DTB))
@@ -669,9 +668,39 @@ static TEE_Result probe_dt_drivers(void)
 
 	parse_node(fdt, fdt_path_offset(fdt, "/"));
 
-	return process_probe_list(fdt);
+	res = process_probe_list(fdt);
+	if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
+		DMSG("Deferred drivers probing");
+		print_probe_list(fdt);
+		res = TEE_SUCCESS;
+	}
+
+	return res;
 }
 
+static TEE_Result probe_dt_drivers(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const void *fdt = NULL;
+
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		return TEE_SUCCESS;
+
+	fdt = get_embedded_dt();
+	assert(fdt);
+
+	res = process_probe_list(fdt);
+	if (res || !TAILQ_EMPTY(&dt_driver_failed_list)) {
+		EMSG("Probe sequence result: %#"PRIx32, res);
+		print_probe_list(fdt);
+	}
+	if (res)
+		panic();
+
+	return TEE_SUCCESS;
+}
+
+early_init_late(probe_dt_drivers_early);
 driver_init(probe_dt_drivers);
 
 static TEE_Result release_probe_lists(void)
