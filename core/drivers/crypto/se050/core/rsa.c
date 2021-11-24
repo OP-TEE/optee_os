@@ -93,7 +93,7 @@ static TEE_Result se050_inject_public_key(sss_se05x_object_t *k_object,
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	st = se050_get_oid(kKeyObject_Mode_Persistent, &oid);
+	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
 
@@ -139,7 +139,7 @@ static TEE_Result se050_inject_keypair(sss_se05x_object_t *k_object,
 		return TEE_SUCCESS;
 	}
 
-	st = se050_get_oid(kKeyObject_Mode_Transient, &oid);
+	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
 
@@ -416,7 +416,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t kb)
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	st = se050_get_oid(kKeyObject_Mode_Persistent, &oid);
+	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
 

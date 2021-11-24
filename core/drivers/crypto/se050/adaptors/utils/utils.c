@@ -18,12 +18,15 @@
 
 static void delete_transient_objects(void)
 {
-	Se05xSession_t *ctx = NULL;
+	SE05x_AttestationType_t att = kSE05x_AttestationType_None;
+	SE05x_SecureObjectType_t type = kSE05x_SecObjTyp_HMAC_KEY;
 	uint8_t more = kSE05x_MoreIndicator_NA;
+	smStatus_t status  = SM_NOT_OK;
+	Se05xSession_t *ctx = NULL;
 	uint8_t *list = NULL;
 	size_t len = 1024;
-	smStatus_t status  = SM_NOT_OK;
 	uint16_t offset = 0;
+	uint8_t mode = 0;
 	uint32_t id = 0;
 	size_t i = 0;
 
@@ -51,7 +54,11 @@ static void delete_transient_objects(void)
 			if (id >= OID_MAX || id == 0)
 				continue;
 
-			if (id & BIT(0))
+			status = Se05x_API_ReadType(ctx, id, &type, &mode, att);
+			if (status != SM_OK)
+				continue;
+
+			if (mode == kKeyObject_Mode_Transient)
 				Se05x_API_DeleteSecureObject(ctx, id);
 		}
 	} while (more == kSE05x_MoreIndicator_MORE);
@@ -59,7 +66,7 @@ static void delete_transient_objects(void)
 	free(list);
 }
 
-static sss_status_t generate_oid(sss_key_object_mode_t mode, uint32_t *val)
+static sss_status_t generate_oid(uint32_t *val)
 {
 	uint32_t oid = OID_MIN;
 	uint32_t random = 0;
@@ -73,11 +80,6 @@ static sss_status_t generate_oid(sss_key_object_mode_t mode, uint32_t *val)
 		if (oid > OID_MAX)
 			continue;
 
-		if (mode == kKeyObject_Mode_Transient)
-			oid |= BIT(0);
-		else
-			oid &= ~BIT(0);
-
 		if (!se050_key_exists(oid, &se050_session->s_ctx)) {
 			*val = oid;
 			return kStatus_SSS_Success;
@@ -87,7 +89,7 @@ static sss_status_t generate_oid(sss_key_object_mode_t mode, uint32_t *val)
 	return kStatus_SSS_Fail;
 }
 
-sss_status_t se050_get_oid(sss_key_object_mode_t mode, uint32_t *val)
+sss_status_t se050_get_oid(uint32_t *val)
 {
 	sss_status_t status = kStatus_SSS_Success;
 	uint16_t mem_t = 0;
@@ -103,7 +105,7 @@ sss_status_t se050_get_oid(sss_key_object_mode_t mode, uint32_t *val)
 	if (mem_t < TRANSIENT_MEMORY_THRESHOLD)
 		delete_transient_objects();
 
-	return generate_oid(mode, val);
+	return generate_oid(val);
 }
 
 static uint32_t se050_key(uint64_t key)
