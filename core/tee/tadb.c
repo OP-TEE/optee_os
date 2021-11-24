@@ -96,9 +96,10 @@ static bool is_null_uuid(const TEE_UUID *uuid)
 static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 				    int *fd)
 {
-	struct mobj *mobj;
-	TEE_Result res;
-	void *va;
+	struct thread_param params[3] = { };
+	struct mobj *mobj = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	void *va = NULL;
 
 	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
 					THREAD_SHM_TYPE_APPLICATION,
@@ -108,11 +109,9 @@ static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
 
-	struct thread_param params[] = {
-		[0] = THREAD_PARAM_VALUE(IN, cmd, 0, 0),
-		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
-		[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0),
-	};
+	params[0] = THREAD_PARAM_VALUE(IN, cmd, 0, 0);
+	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX);
+	params[2] = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 	if (!res)
@@ -123,8 +122,9 @@ static TEE_Result ta_operation_open(unsigned int cmd, uint32_t file_number,
 
 static TEE_Result ta_operation_remove(uint32_t file_number)
 {
-	struct mobj *mobj;
-	void *va;
+	struct thread_param params[2] = { };
+	struct mobj *mobj = NULL;
+	void *va = NULL;
 
 	va = thread_rpc_shm_cache_alloc(THREAD_SHM_CACHE_USER_FS,
 					THREAD_SHM_TYPE_APPLICATION,
@@ -134,10 +134,8 @@ static TEE_Result ta_operation_remove(uint32_t file_number)
 
 	file_num_to_str(va, TEE_FS_NAME_MAX, file_number);
 
-	struct thread_param params[] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0),
-		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX),
-	};
+	params[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_REMOVE, 0, 0);
+	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, TEE_FS_NAME_MAX);
 
 	return thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 }
@@ -696,6 +694,7 @@ TEE_Result tee_tadb_get_tag(struct tee_tadb_ta_read *ta, uint8_t *tag,
 
 static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 {
+	struct thread_param params[2] = { };
 	TEE_Result res;
 	const size_t sz = ta->entry.prop.custom_size + ta->entry.prop.bin_size;
 
@@ -709,10 +708,8 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	ta->ta_buf = mobj_get_va(ta->ta_mobj, 0);
 	assert(ta->ta_buf);
 
-	struct thread_param params[] = {
-		[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, ta->fd, 0),
-		[1] = THREAD_PARAM_MEMREF(OUT, ta->ta_mobj, 0, sz),
-	};
+	params[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, ta->fd, 0);
+	params[1] = THREAD_PARAM_MEMREF(OUT, ta->ta_mobj, 0, sz);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_FS, ARRAY_SIZE(params), params);
 	if (res) {
