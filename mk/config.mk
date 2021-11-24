@@ -735,3 +735,6 @@ CFG_WARN_INSECURE ?= y
 
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
+
+# Enables warnings for declarations mixed with statements
+CFG_WARN_DECL_AFTER_STATEMENT ?= y
