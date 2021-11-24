@@ -533,13 +533,13 @@ void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
 void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 		      const TEE_BigInt *n)
 {
-	if (TEE_BigIntCmpS32(n, 2) < 0 || TEE_BigIntCmpS32(op, 0) == 0)
-		API_PANIC("too small modulus or trying to invert zero");
-
 	mbedtls_mpi mpi_dest;
 	mbedtls_mpi mpi_op;
 	mbedtls_mpi mpi_n;
 	mbedtls_mpi *pop = &mpi_op;
+
+	if (TEE_BigIntCmpS32(n, 2) < 0 || TEE_BigIntCmpS32(op, 0) == 0)
+		API_PANIC("too small modulus or trying to invert zero");
 
 	get_mpi(&mpi_dest, dest);
 	get_mpi(&mpi_n, n);
