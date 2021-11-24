@@ -269,7 +269,7 @@ sss_status_t se050_scp03_prepare_rotate_cmd(struct sss_se05x_ctx *ctx,
 	kcv_len += 1;
 
 	for (i = 0; i < ARRAY_SIZE(key); i++) {
-		status = se050_get_oid(kKeyObject_Mode_Transient, &oid);
+		status = se050_get_oid(&oid);
 		if (status != kStatus_SSS_Success)
 			return kStatus_SSS_Fail;
 

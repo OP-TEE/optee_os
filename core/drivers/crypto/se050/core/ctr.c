@@ -48,7 +48,7 @@ static TEE_Result se050_aes_ctr_init(struct crypto_cipher_ctx *ctx,
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
 
-	st = se050_get_oid(kKeyObject_Mode_Transient, &oid);
+	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
 

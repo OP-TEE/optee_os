@@ -32,7 +32,7 @@ struct s050_scp_rotate_cmd {
 #define WATERMARKED(x)	\
 	((uint64_t)(((uint64_t)SE050_KEY_WATERMARK) << 32) + (x))
 
-sss_status_t se050_get_oid(sss_key_object_mode_t type, uint32_t *val);
+sss_status_t se050_get_oid(uint32_t *val);
 
 struct rsa_keypair;
 struct ecc_keypair;
