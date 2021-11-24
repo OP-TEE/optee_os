@@ -17,6 +17,7 @@
 static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 				 uint32_t *id)
 {
+	struct thread_param params[3] = { };
 	struct mobj *mobj;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	char *va;
@@ -32,11 +33,9 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	memcpy(va, uuid, sizeof(*uuid));
 	memcpy(va + sizeof(*uuid), buf, len);
 
-	struct thread_param params[3] = {
-		[0] = THREAD_PARAM_VALUE(INOUT, *id, 0, 0),
-		[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(*uuid)),
-		[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(*uuid), len),
-	};
+	params[0] = THREAD_PARAM_VALUE(INOUT, *id, 0, 0);
+	params[1] = THREAD_PARAM_MEMREF(IN, mobj, 0, sizeof(*uuid));
+	params[2] = THREAD_PARAM_MEMREF(IN, mobj, sizeof(*uuid), len);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_GPROF, 3, params);
 	if (res != TEE_SUCCESS)
