@@ -106,7 +106,7 @@
 #define BSEC_LOCK_PROGRAM		0x04
 
 /* Timeout when polling on status */
-#define BSEC_TIMEOUT_US			1000
+#define BSEC_TIMEOUT_US			10000
 
 #define BITS_PER_WORD		(CHAR_BIT * sizeof(uint32_t))
 
