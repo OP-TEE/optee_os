@@ -42,10 +42,12 @@ void register_serial_console(struct serial_chip *chip)
 #ifdef CFG_DT
 static int find_chosen_node(void *fdt)
 {
+	int offset = 0;
+
 	if (!fdt)
 		return -1;
 
-	int offset = fdt_path_offset(fdt, "/secure-chosen");
+	offset = fdt_path_offset(fdt, "/secure-chosen");
 
 	if (offset < 0)
 		offset = fdt_path_offset(fdt, "/chosen");
