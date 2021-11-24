@@ -255,21 +255,22 @@ static TEE_Result write_persist_value(uint32_t pt,
 	const uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
 			       TEE_DATA_FLAG_ACCESS_WRITE |
 			       TEE_DATA_FLAG_OVERWRITE;
-	TEE_Result res;
-	TEE_ObjectHandle h;
-
-	char name_full[TEE_OBJECT_ID_MAX_LEN];
-	uint32_t name_full_sz;
+	char name_full[TEE_OBJECT_ID_MAX_LEN] = { };
+	TEE_ObjectHandle h = TEE_HANDLE_NULL;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t name_full_sz = 0;
+	uint32_t name_buf_sz = 0;
+	uint32_t value_sz = 0;
+	char *name_buf = NULL;
+	char *value = NULL;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	char *name_buf = params[0].memref.buffer;
-	uint32_t name_buf_sz = params[0].memref.size;
-
-	uint32_t value_sz = params[1].memref.size;
-	char *value = TEE_Malloc(value_sz, 0);
-
+	name_buf = params[0].memref.buffer;
+	name_buf_sz = params[0].memref.size;
+	value_sz = params[1].memref.size;
+	value = TEE_Malloc(value_sz, 0);
 	if (!value)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -303,22 +304,23 @@ static TEE_Result read_persist_value(uint32_t pt,
 						TEE_PARAM_TYPE_NONE);
 	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
 			 TEE_DATA_FLAG_ACCESS_WRITE;
-	TEE_Result res;
-	TEE_ObjectHandle h;
-
+	TEE_Result res = TEE_SUCCESS;
+	TEE_ObjectHandle h = TEE_HANDLE_NULL;
 	char name_full[TEE_OBJECT_ID_MAX_LEN];
-	uint32_t name_full_sz;
-	uint32_t count;
+	uint32_t name_full_sz = 0;
+	uint32_t name_buf_sz = 0;
+	char *name_buf = NULL;
+	uint32_t value_sz = 0;
+	char *value = NULL;
+	uint32_t count = 0;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	char *name_buf = params[0].memref.buffer;
-	uint32_t name_buf_sz = params[0].memref.size;
-
-	uint32_t value_sz = params[1].memref.size;
-	char *value = TEE_Malloc(value_sz, 0);
-
+	name_buf = params[0].memref.buffer;
+	name_buf_sz = params[0].memref.size;
+	value_sz = params[1].memref.size;
+	value = TEE_Malloc(value_sz, 0);
 	if (!value)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
