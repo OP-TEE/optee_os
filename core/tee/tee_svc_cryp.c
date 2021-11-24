@@ -1645,6 +1645,7 @@ TEE_Result syscall_cryp_obj_populate(unsigned long obj,
 	struct tee_obj *o = NULL;
 	const struct tee_cryp_obj_type_props *type_props = NULL;
 	TEE_Attribute *attrs = NULL;
+	size_t alloc_size = 0;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1661,8 +1662,6 @@ TEE_Result syscall_cryp_obj_populate(unsigned long obj,
 	type_props = tee_svc_find_type_props(o->info.objectType);
 	if (!type_props)
 		return TEE_ERROR_NOT_IMPLEMENTED;
-
-	size_t alloc_size = 0;
 
 	if (MUL_OVERFLOW(sizeof(TEE_Attribute), attr_count, &alloc_size))
 		return TEE_ERROR_OVERFLOW;
@@ -1881,6 +1880,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	struct tee_cryp_obj_secret *key = NULL;
 	size_t byte_size = 0;
 	TEE_Attribute *params = NULL;
+	size_t alloc_size = 0;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1903,8 +1903,6 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	res = check_key_size(type_props, key_size);
 	if (res)
 		return res;
-
-	size_t alloc_size = 0;
 
 	if (MUL_OVERFLOW(sizeof(TEE_Attribute), param_count, &alloc_size))
 		return TEE_ERROR_OVERFLOW;
@@ -2963,8 +2961,9 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	}
 
 	if (cs->algo == TEE_ALG_DH_DERIVE_SHARED_SECRET) {
-		struct bignum *pub;
-		struct bignum *ss;
+		struct bignum *pub = NULL;
+		struct bignum *ss = NULL;
+		size_t bin_size = 0;
 
 		if (param_count != 1 ||
 		    params[0].attributeID != TEE_ATTR_DH_PUBLIC_VALUE) {
@@ -2972,7 +2971,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		size_t bin_size = params[0].content.ref.length;
+		bin_size = params[0].content.ref.length;
 
 		if (MUL_OVERFLOW(bin_size, 8, &alloc_size)) {
 			res = TEE_ERROR_OVERFLOW;
@@ -3533,6 +3532,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	size_t n = 0;
 	int salt_len = 0;
 	TEE_Attribute *params = NULL;
+	size_t alloc_size = 0;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3556,8 +3556,6 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 				     (uaddr_t)dst_data, dlen);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	size_t alloc_size = 0;
 
 	if (MUL_OVERFLOW(sizeof(TEE_Attribute), num_params, &alloc_size))
 		return TEE_ERROR_OVERFLOW;
@@ -3709,6 +3707,7 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 	size_t hash_size = 0;
 	uint32_t hash_algo = 0;
 	int salt_len = 0;
+	size_t alloc_size = 0;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -3730,8 +3729,6 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 				     (uaddr_t)sig, sig_len);
 	if (res != TEE_SUCCESS)
 		return res;
-
-	size_t alloc_size = 0;
 
 	if (MUL_OVERFLOW(sizeof(TEE_Attribute), num_params, &alloc_size))
 		return TEE_ERROR_OVERFLOW;
