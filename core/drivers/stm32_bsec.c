@@ -672,4 +672,4 @@ static TEE_Result initialize_bsec(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(initialize_bsec);
+early_init(initialize_bsec);
