@@ -36,6 +36,9 @@ comp-cflags-warns-high = \
 	-Wshadow -Wstrict-prototypes -Wswitch-default \
 	-Wwrite-strings \
 	-Wno-missing-field-initializers -Wno-format-zero-length
+ifeq ($(CFG_WARN_DECL_AFTER_STATEMENT),y)
+comp-cflags-warns-high += $(call cc-option,-Wdeclaration-after-statement)
+endif
 comp-cflags-warns-medium = \
 	-Wredundant-decls
 comp-cflags-warns-low = \
