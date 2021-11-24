@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2020, STMicroelectronics
+ * Copyright (c) 2017-2021, STMicroelectronics
  */
 
 #include <assert.h>
@@ -252,7 +252,7 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 			break;
 
 	if (bsec_status() & BSEC_MODE_BUSY_MASK)
-		result = TEE_ERROR_GENERIC;
+		result = TEE_ERROR_BUSY;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
 
@@ -348,8 +348,10 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
 			break;
 
-	if (bsec_status() & (BSEC_MODE_BUSY_MASK | BSEC_MODE_PROGFAIL_MASK))
-		result = TEE_ERROR_GENERIC;
+	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+		result = TEE_ERROR_BUSY;
+	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
+		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
 
@@ -397,7 +399,9 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
 			break;
 
-	if (bsec_status() & (BSEC_MODE_BUSY_MASK | BSEC_MODE_PROGFAIL_MASK))
+	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+		result = TEE_ERROR_BUSY;
+	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, false /* not-disturbed */);
