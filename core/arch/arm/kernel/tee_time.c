@@ -50,12 +50,11 @@ void tee_time_wait(uint32_t milliseconds_delay)
  */
 TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
-	TEE_Result res;
+	struct thread_param params = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
+	TEE_Result res = TEE_SUCCESS;
 
 	if (!time)
 		return TEE_ERROR_BAD_PARAMETERS;
-
-	struct thread_param params = THREAD_PARAM_VALUE(OUT, 0, 0, 0);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_GET_TIME, 1, &params);
 	if (res == TEE_SUCCESS) {
