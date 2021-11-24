@@ -1,6 +1,8 @@
 global-incdirs-y += include
 global-incdirs-y += src/headers
 
+cflags-lib-y += -Wno-declaration-after-statement
+
 cppflags-lib-y += -DARGTYPE=4  # Make LTC_ARGCHK() return on error
 cppflags-lib-y += -DLTC_CLEAN_STACK -DLTC_NO_TEST -DLTC_NO_PROTOTYPES
 cppflags-lib-y += -DLTC_NO_TABLES -DLTC_HASH_HELPERS
