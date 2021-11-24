@@ -242,7 +242,7 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 
 	result = power_up_safmem();
 	if (result)
-		return result;
+		goto out;
 
 	io_write32(bsec_base() + BSEC_OTP_CTRL_OFF, otp_id | BSEC_READ);
 
@@ -258,6 +258,7 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 
 	power_down_safmem();
 
+out:
 	bsec_unlock(exceptions);
 
 	return result;
@@ -338,7 +339,7 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 
 	result = power_up_safmem();
 	if (result)
-		return result;
+		goto out;
 
 	io_write32(bsec_base() + BSEC_OTP_WRDATA_OFF, value);
 	io_write32(bsec_base() + BSEC_OTP_CTRL_OFF, otp_id | BSEC_WRITE);
@@ -357,6 +358,7 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 
 	power_down_safmem();
 
+out:
 	bsec_unlock(exceptions);
 
 	return result;
@@ -389,7 +391,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 
 	result = power_up_safmem();
 	if (result)
-		return result;
+		goto out;
 
 	io_write32(base + BSEC_OTP_WRDATA_OFF, data);
 	io_write32(base + BSEC_OTP_CTRL_OFF, addr | BSEC_WRITE | BSEC_LOCK);
@@ -408,6 +410,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 
 	power_down_safmem();
 
+out:
 	bsec_unlock(exceptions);
 
 	return result;
