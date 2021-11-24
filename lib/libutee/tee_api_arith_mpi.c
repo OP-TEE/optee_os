@@ -352,9 +352,6 @@ static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
 			      int (*func)(mbedtls_mpi *X, const mbedtls_mpi *A,
 					  const mbedtls_mpi *B))
 {
-	if (TEE_BigIntCmpS32(n, 2) < 0)
-		API_PANIC("Modulus is too short");
-
 	mbedtls_mpi mpi_dest;
 	mbedtls_mpi mpi_op1;
 	mbedtls_mpi mpi_op2;
@@ -362,6 +359,9 @@ static void bigint_binary_mod(TEE_BigInt *dest, const TEE_BigInt *op1,
 	mbedtls_mpi *pop1 = &mpi_op1;
 	mbedtls_mpi *pop2 = &mpi_op2;
 	mbedtls_mpi mpi_t;
+
+	if (TEE_BigIntCmpS32(n, 2) < 0)
+		API_PANIC("Modulus is too short");
 
 	get_mpi(&mpi_dest, dest);
 	get_mpi(&mpi_n, n);
