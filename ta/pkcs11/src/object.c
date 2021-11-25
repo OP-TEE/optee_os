@@ -280,7 +280,6 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 		/* Move object from temporary list to target session list */
 		LIST_REMOVE(obj, link);
 		LIST_INSERT_HEAD(get_session_objects(session), obj, link);
-		rc = PKCS11_CKR_OK;
 	}
 
 	*out_handle = obj_handle;
