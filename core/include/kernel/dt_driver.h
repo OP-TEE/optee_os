@@ -82,6 +82,21 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  TEE_Result *res);
 
 /*
+ * dt_driver_get_crypto() - Request crypto support for driver initialization
+ *
+ * Return TEE_SUCCESS if cryptography services are initialized, otherwise return
+ * TEE_ERROR_DEFER_DRIVER_INIT.
+ */
+TEE_Result dt_driver_get_crypto(void);
+
+#ifdef CFG_DT
+/* Inform DT driver probe sequence that core crypto support is initialized */
+void dt_driver_crypt_init_complete(void);
+#else
+static inline void dt_driver_crypt_init_complete(void) {}
+#endif
+
+/*
  * Return driver provider reference from its node offset value in the FDT
  */
 struct dt_driver_provider *

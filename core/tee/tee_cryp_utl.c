@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2021, Linaro Limited
  * Copyright (c) 2021, SumUp Services GmbH
  */
 
 #include <crypto/crypto.h>
 #include <initcall.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <rng_support.h>
@@ -207,6 +208,8 @@ static TEE_Result tee_cryp_init(void)
 		panic();
 	}
 	plat_rng_init();
+
+	dt_driver_crypt_init_complete();
 
 	return TEE_SUCCESS;
 }
