@@ -82,6 +82,23 @@ static TAILQ_HEAD(, dt_driver_probe) dt_driver_failed_list =
 /* Flag enabled when a new node (possibly typed) is added in the probe list */
 static bool added_node;
 
+/* Resolve drivers dependencies on core crypto layer */
+static bool tee_crypt_is_ready;
+
+void dt_driver_crypt_init_complete(void)
+{
+	assert(!tee_crypt_is_ready);
+	tee_crypt_is_ready = true;
+}
+
+TEE_Result dt_driver_get_crypto(void)
+{
+	if (tee_crypt_is_ready)
+		return TEE_SUCCESS;
+	else
+		return TEE_ERROR_DEFER_DRIVER_INIT;
+}
+
 static void assert_type_is_valid(enum dt_driver_type type)
 {
 	switch (type) {
