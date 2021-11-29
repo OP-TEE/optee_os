@@ -9,8 +9,12 @@ ta-target := $(strip $(if $(CFG_USER_TA_TARGET_$(sm)), \
 		$(filter $(CFG_USER_TA_TARGET_$(sm)), $(ta-targets)), \
 		$(default-user-ta-target)))
 
-arch-bits-ta_arm32 := 32
-arch-bits-ta_arm64 := 64
+ifeq ($(ta-target),ta_arm32)
+arch-bits-$(sm) := 32
+endif
+ifeq ($(ta-target),ta_arm64)
+arch-bits-$(sm) := 64
+endif
 
 ta-dev-kit-dir$(sm) := $(out-dir)/export-$(ta-target)
 link-out-dir$(sm) := $(out-dir)/$(patsubst %/,%, $(dir $(ta-mk-file)))
