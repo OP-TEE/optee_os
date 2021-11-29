@@ -213,6 +213,8 @@ CFG_RPMB_TESTKEY ?= n
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
+_CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS)
+
 # Signing key for OP-TEE TA's
 # When performing external HSM signing for TA's TA_SIGN_KEY can be set to dummy
 # key and then set TA_PUBLIC_KEY to match public key from the HSM.
