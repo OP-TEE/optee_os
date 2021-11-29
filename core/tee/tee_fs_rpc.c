@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
+#include <tee/fs_dirfile.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
 #include <tee/tee_pobj.h>
@@ -22,6 +23,26 @@ struct tee_fs_dir {
 	int nw_dir;
 	struct tee_fs_dirent d;
 };
+
+/* "/dirf.db" or "/<file number>" */
+static TEE_Result create_filename(void *buf, size_t blen,
+				  const struct tee_fs_dirfile_fileh *dfh)
+{
+	char *file = buf;
+	size_t pos = 0;
+	size_t l;
+
+	if (pos >= blen)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	file[pos] = '/';
+	pos++;
+	if (pos >= blen)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	l = blen - pos;
+	return tee_fs_dirfile_fileh_to_fname(dfh, file + pos, &l);
+}
 
 static TEE_Result operation_commit(struct tee_fs_rpc_operation *op)
 {
@@ -43,7 +64,7 @@ static TEE_Result operation_open_dfh(uint32_t id, unsigned int cmd,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
+	res = create_filename(va, TEE_FS_NAME_MAX, dfh);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -187,7 +208,7 @@ TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 
-	res = tee_svc_storage_create_filename_dfh(va, TEE_FS_NAME_MAX, dfh);
+	res = create_filename(va, TEE_FS_NAME_MAX, dfh);
 	if (res != TEE_SUCCESS)
 		return res;
 
