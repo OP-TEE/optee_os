@@ -73,52 +73,6 @@ static TEE_Result tee_svc_close_enum(struct user_ta_ctx *utc,
 	return TEE_SUCCESS;
 }
 
-/* "/TA_uuid/object_id" or "/TA_uuid/.object_id" */
-TEE_Result tee_svc_storage_create_filename(void *buf, size_t blen,
-					   struct tee_pobj *po, bool transient)
-{
-	uint8_t *file = buf;
-	uint32_t pos = 0;
-	uint32_t hslen = 1 /* Leading slash */
-			+ TEE_B2HS_HSBUF_SIZE(sizeof(TEE_UUID) + po->obj_id_len)
-			+ 1; /* Intermediate slash */
-
-	/* +1 for the '.' (temporary persistent object) */
-	if (transient)
-		hslen++;
-
-	if (blen < hslen)
-		return TEE_ERROR_SHORT_BUFFER;
-
-	file[pos++] = '/';
-	pos += tee_b2hs((uint8_t *)&po->uuid, &file[pos],
-			sizeof(TEE_UUID), hslen);
-	file[pos++] = '/';
-
-	if (transient)
-		file[pos++] = '.';
-
-	tee_b2hs(po->obj_id, file + pos, po->obj_id_len, hslen - pos);
-
-	return TEE_SUCCESS;
-}
-
-/* "/TA_uuid" */
-TEE_Result tee_svc_storage_create_dirname(void *buf, size_t blen,
-					  const TEE_UUID *uuid)
-{
-	uint8_t *dir = buf;
-	uint32_t hslen = TEE_B2HS_HSBUF_SIZE(sizeof(TEE_UUID)) + 1;
-
-	if (blen < hslen)
-		return TEE_ERROR_SHORT_BUFFER;
-
-	dir[0] = '/';
-	tee_b2hs((uint8_t *)uuid, dir + 1, sizeof(TEE_UUID), hslen);
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result tee_svc_storage_remove_corrupt_obj(struct ts_session *sess,
 						     struct tee_obj *o)
 {
