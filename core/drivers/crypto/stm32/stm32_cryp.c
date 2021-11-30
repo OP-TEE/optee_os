@@ -1282,6 +1282,8 @@ static TEE_Result stm32_cryp_driver_init(void)
 	if (fdt_stm32_cryp(&cryp_pdata))
 		return TEE_ERROR_NOT_SUPPORTED;
 
+	stm32mp_register_secure_periph_iomem(cryp_pdata.base.pa);
+
 	stm32_clock_enable(cryp_pdata.clock_id);
 
 	if (stm32_reset_assert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
