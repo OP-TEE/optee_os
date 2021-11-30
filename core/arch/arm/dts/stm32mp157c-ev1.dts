@@ -80,10 +80,6 @@
 	status = "okay";
 };
 
-&cryp1 {
-	status = "okay";
-};
-
 &dcmi {
 	status = "okay";
 	pinctrl-names = "default", "sleep";
