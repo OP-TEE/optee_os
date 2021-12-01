@@ -68,6 +68,7 @@ __start_phys_ddr_overall_section = .;
 __start_phys_nsec_ddr_section = .;
 __text_init_start = .;
 __text_start = .;
+__text_end = .;
 __tmp_hashes_end = .;
 __tmp_hashes_size = .;
 __tmp_hashes_start = .;
