@@ -115,7 +115,8 @@ static uint32_t se050_key(uint64_t key)
 	if (!IS_WATERMARKED(key))
 		return 0;
 
-	if (oid < OID_MIN || oid > OID_MAX)
+	/* oid > OID_MAX could have been created by an external client */
+	if (oid < OID_MIN)
 		return 0;
 
 	return oid;
