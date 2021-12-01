@@ -68,9 +68,9 @@ int sha256_ce_transform(ulong32 *state, const unsigned char *buf, int blocks);
 static int sha256_compress_nblocks(hash_state *md, const unsigned char *buf,
 				   int blocks)
 {
-   void *state = md->sha1.state;
+   void *state = md->sha256.state;
 
-   COMPILE_TIME_ASSERT(sizeof(md->sha1.state[0]) == sizeof(uint32_t));
+   COMPILE_TIME_ASSERT(sizeof(md->sha256.state[0]) == sizeof(uint32_t));
 
     crypto_accel_sha256_compress(state, buf, blocks);
     return CRYPT_OK;
