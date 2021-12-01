@@ -52,8 +52,6 @@ struct dt_node_info {
 	uint32_t prio;
 };
 
-#if defined(CFG_DT)
-
 /*
  * DT-aware drivers
  */
@@ -84,6 +82,7 @@ enum dt_driver_type {
 typedef TEE_Result (*dt_driver_probe_func)(const void *fdt, int nodeoffset,
 					   const void *compat_data);
 
+#if defined(CFG_DT)
 /*
  * Driver instance registered to be probed on compatible node found in the DT.
  *
