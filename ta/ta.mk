@@ -33,6 +33,7 @@ ta-mk-file-export-vars-$(sm) += CFG_SYSTEM_PTA
 ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
+ta-mk-file-export-vars-$(sm) += CFG_TA_BTI
 ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
 ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_nl_
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
