@@ -317,6 +317,12 @@ static TEE_Result probe_driver_node(const void *fdt,
 
 	node_name = fdt_get_name(fdt, elt->nodeoffset, NULL);
 	drv_name = elt->dt_drv->name;
+
+	if (!elt->dt_drv->probe) {
+		DMSG("No probe operator for driver %s, skipped", drv_name);
+		return TEE_SUCCESS;
+	}
+
 	FMSG("Probing %s on node %s", drv_name, node_name);
 
 	res = elt->dt_drv->probe(fdt, elt->nodeoffset, elt->dm->compat_data);
