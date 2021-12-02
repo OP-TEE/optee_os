@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2019, 2021 NXP
  *
  * Brief   CAAM Configuration.
  */
@@ -8,6 +8,7 @@
 #include <caam_hal_cfg.h>
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
+#include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <libfdt.h>
@@ -98,10 +99,12 @@ void caam_hal_cfg_get_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg)
 
 	jr_offset = find_jr_offset(fdt, DT_STATUS_OK_SEC, &node);
 	if (jr_offset) {
-		/* Disable JR for Normal World */
-		if (dt_enable_secure_status(fdt, node)) {
-			EMSG("Not able to disable JR DTB entry");
-			return;
+		if (!is_embedded_dt(fdt)) {
+			/* Disable JR for Normal World */
+			if (dt_enable_secure_status(fdt, node)) {
+				EMSG("Not able to disable JR DTB entry");
+				return;
+			}
 		}
 
 		/* Get the job ring interrupt */

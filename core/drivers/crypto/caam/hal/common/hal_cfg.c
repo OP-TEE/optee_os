@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2019, 2021 NXP
  *
  * Brief   CAAM Configuration.
  */
@@ -9,6 +9,7 @@
 #include <caam_hal_ctrl.h>
 #include <caam_hal_jr.h>
 #include <caam_jr.h>
+#include <config.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <registers/jr_regs.h>
@@ -52,12 +53,13 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 		jrcfg->offset = (CFG_JR_INDEX + 1) * JRX_BLOCK_SIZE;
 		jrcfg->it_num = CFG_JR_INT;
 
-#ifdef CFG_NXP_CAAM_RUNTIME_JR
-		if (fdt) {
-			/* Ensure Secure Job Ring is secure only into DTB */
-			caam_hal_cfg_disable_jobring_dt(fdt, jrcfg);
+		if (IS_ENABLED(CFG_NXP_CAAM_RUNTIME_JR) &&
+		    !is_embedded_dt(fdt)) {
+			if (fdt) {
+				/* Ensure Secure Job Ring is secure in DTB */
+				caam_hal_cfg_disable_jobring_dt(fdt, jrcfg);
+			}
 		}
-#endif
 	}
 
 	jrcfg->nb_jobs = NB_JOBS_QUEUE;
