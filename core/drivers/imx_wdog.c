@@ -42,11 +42,6 @@
 static bool ext_reset_output;
 static vaddr_t wdog_base;
 
-static const char * const dt_wdog_match_table[] = {
-	"fsl,imx21-wdt",
-	"fsl,imx7ulp-wdt",
-};
-
 void imx_wdog_restart(bool external_reset __maybe_unused)
 {
 	uint32_t val = 0;
@@ -92,6 +87,11 @@ void imx_wdog_restart(bool external_reset __maybe_unused)
 DECLARE_KEEP_PAGER(imx_wdog_restart);
 
 #if defined(CFG_DT) && !defined(CFG_EXTERNAL_DTB_OVERLAY)
+static const char * const dt_wdog_match_table[] = {
+	"fsl,imx21-wdt",
+	"fsl,imx7ulp-wdt",
+};
+
 static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 {
 	const char *match = NULL;
