@@ -126,6 +126,7 @@ CFG_STM32_BSEC_SIP ?= y
 CFG_STM32MP1_SCMI_SIP ?= n
 ifeq ($(CFG_STM32MP1_SCMI_SIP),y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_STM32MP1_SCMI_SIP)
+$(call force,CFG_SCMI_MSG_SMT,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 endif
 
@@ -134,13 +135,17 @@ CFG_SCMI_PTA ?= y
 ifeq ($(CFG_SCMI_PTA),y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_SCMI_PTA)
 $(call force,CFG_SCMI_MSG_SMT_THREAD_ENTRY,y,Mandated by CFG_SCMI_PTA)
+CFG_SCMI_MSG_SHM_MSG ?= y
+CFG_SCMI_MSG_SMT ?= y
 endif
 
 CFG_SCMI_MSG_DRIVERS ?= n
 ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
 $(call force,CFG_SCMI_MSG_CLOCK,y)
 $(call force,CFG_SCMI_MSG_RESET_DOMAIN,y)
-$(call force,CFG_SCMI_MSG_SMT,y)
+CFG_SCMI_MSG_SHM_MSG ?= y
+CFG_SCMI_MSG_SMT ?= y
+CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= y
 $(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
 endif
 
