@@ -6,6 +6,7 @@
 #ifndef ARM_H
 #define ARM_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <util.h>
 
@@ -112,6 +113,16 @@ static inline __noprof uint64_t barrier_read_counter_timer(void)
 	return read_cntvct();
 #else
 	return read_cntpct();
+#endif
+}
+
+static inline bool feat_bti_is_implemented(void)
+{
+#ifdef ARM32
+	return false;
+#else
+	return ((read_id_aa64pfr1_el1() & ID_AA64PFR1_EL1_BT_MASK) ==
+		FEAT_BTI_IMPLEMENTED);
 #endif
 }
 #endif
