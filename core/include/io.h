@@ -11,13 +11,14 @@
 #include <utee_defines.h>
 
 /*
- * Make sure that compiler reads given variable only once. This is needed
+ * Make sure that compiler reads/writes given variable only once. This is needed
  * in cases when we have normal shared memory, and this memory can be changed
  * at any moment. Compiler does not knows about this, so it can optimize memory
- * access in any way, including repeated read from the same address. This macro
- * enforces compiler to access memory only once.
+ * access in any way, including repeated accesses from the same address.
+ * These macro enforce compiler to access memory only once.
  */
-#define READ_ONCE(p) __compiler_atomic_load(&(p))
+#define READ_ONCE(p)		__compiler_atomic_load(&(p))
+#define WRITE_ONCE(p, v)	__compiler_atomic_store(&(p), (v))
 
 static inline void io_write8(vaddr_t addr, uint8_t val)
 {
