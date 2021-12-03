@@ -1279,8 +1279,14 @@ static TEE_Result stm32_cryp_driver_init(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 
-	if (fdt_stm32_cryp(&cryp_pdata))
-		return TEE_ERROR_NOT_SUPPORTED;
+	switch (fdt_stm32_cryp(&cryp_pdata)) {
+	case 0:
+		break;
+	case -FDT_ERR_NOTFOUND:
+		return TEE_SUCCESS;
+	default:
+		panic();
+	}
 
 	stm32mp_register_secure_periph_iomem(cryp_pdata.base.pa);
 
