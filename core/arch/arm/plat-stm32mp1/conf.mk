@@ -32,6 +32,7 @@ endif
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
+$(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
@@ -72,6 +73,8 @@ $(call force,CFG_STM32_I2C,n)
 $(call force,CFG_STPMIC1,n)
 $(call force,CFG_STM32MP1_SCMI_SIP,n)
 $(call force,CFG_SCMI_PTA,n)
+else
+$(call force,CFG_DRIVERS_CLK_DT,y)
 endif
 
 CFG_STM32_BSEC ?= y
