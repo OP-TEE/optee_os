@@ -17,7 +17,7 @@
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
 		ldrh	w\tmp0, [\core_local, \
 				#THREAD_CORE_LOCAL_CURR_THREAD]
-		ldr	x\res, =threads
+		adr_l	x\res, threads
 		mov	x\tmp1, #THREAD_CTX_SIZE
 		madd	x\res, x\tmp0, x\tmp1, x\res
 	.endm
@@ -524,7 +524,7 @@ eret_to_el0:
 #endif
 
 	/* Jump into the reduced mapping and continue execution */
-	ldr	x1, =1f
+	adr_l	x1, 1f
 	sub	x1, x1, x0
 	br	x1
 1:
