@@ -38,6 +38,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAHB_BASE, SAHB_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
+/* Map beginning SRAM1 as read write for BSEC shadow */
+register_phys_mem(MEM_AREA_RAM_SEC, SRAM1_BASE, SIZE_4K);
+
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
 
