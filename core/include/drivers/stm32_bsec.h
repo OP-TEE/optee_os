@@ -224,6 +224,11 @@ bool stm32_bsec_can_access_otp(uint32_t otp_id);
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 
 /*
+ * Return true if host-self debug is enabled.
+ */
+bool stm32_bsec_self_hosted_debug_is_enabled(void);
+
+/*
  * Return true if Hardware Debug Port (HDP) is enabled.
  */
 bool stm32_bsec_hdp_is_enabled(void);
@@ -232,6 +237,11 @@ bool stm32_bsec_hdp_is_enabled(void);
  * Return true if coresight peripheral can be used.
  */
 bool stm32_bsec_coresight_is_enabled(void);
+
+/*
+ * Program BSEC to open DBGMCU_APB_AP (AP0)
+ */
+void stm32_bsec_mp21_ap0_unlock(void);
 
 /*
  * Find and get OTP location from its name.

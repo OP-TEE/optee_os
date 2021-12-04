@@ -6,6 +6,7 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/stm32_bsec.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_serc.h>
@@ -37,6 +38,9 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAPB_BASE, SAPB_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAHB_BASE, SAHB_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+
+/* Map beginning SRAM1 as read write for BSEC shadow */
+register_phys_mem(MEM_AREA_RAM_SEC, SRAM1_BASE, SIZE_4K);
 
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
@@ -182,6 +186,16 @@ void plat_external_abort_handler(struct abort_info *ai __unused)
 	/* External abort may be due to SERC events */
 	stm32_serc_handle_ilac();
 }
+
+#ifdef CFG_STM32_BSEC3
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg)
+{
+	cfg->base = BSEC3_BASE;
+	cfg->mirror = SRAM1_BASE;
+	cfg->upper_start = STM32MP2_UPPER_OTP_START;
+	cfg->max_id = STM32MP2_OTP_MAX_ID;
+}
+#endif
 
 void __noreturn do_reset(const char *str __maybe_unused)
 {
