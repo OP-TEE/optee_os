@@ -104,6 +104,29 @@
 /* Console configuration */
 #define GIC_SPI_UART4			126
 
+#ifdef CFG_STM32MP21
+/*
+ * BSEC: 364 available OTPs, the other are masked
+ * - OEM FSBL keys 348 to 363 (programmable but not readable)
+ * - ECIES key: 364 to 375 (only readable by bootrom)
+ * - HWKEY: 376 to 383 (never reloadable or readable)
+ */
+#define OEM_KEY_FIRST_OTP		348
+#define STM32MP2_OTP_MAX_ID		0x16BU
+#else
+/*
+ * BSEC: 368 available OTPs, the other are masked
+ * - OEM FSBL keys 360 to 367 (programmable but not readable)
+ * - ECIES key: 368 to 375 (only readable by bootrom)
+ * - HWKEY: 376 to 383 (never reloadable or readable)
+ */
+#define OEM_KEY_FIRST_OTP		360
+#define STM32MP2_OTP_MAX_ID		0x16FU
+#endif
+#define STM32MP2_UPPER_OTP_START	0x100U
+
+#define OTP_MAX_SIZE			(STM32MP2_OTP_MAX_ID + 1U)
+
 #define TARGET_CPU0_GIC_MASK		BIT(0)
 #define TARGET_CPU1_GIC_MASK		BIT(1)
 #define TARGET_CPUS_GIC_MASK		GENMASK_32(CFG_TEE_CORE_NB_CORE - 1, 0)
