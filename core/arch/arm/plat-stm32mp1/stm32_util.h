@@ -72,21 +72,6 @@ extern const struct clk_ops stm32mp1_clk_ops;
 /* Return rstctrl instance related to RCC reset controller DT binding ID */
 struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
-/*
- * Structure and API function for BSEC driver to get some platform data.
- *
- * @base: BSEC interface registers physical base address
- * @upper_start: Base ID for the BSEC upper words in the platform
- * @max_id: Max value for BSEC word ID for the platform
- */
-struct stm32_bsec_static_cfg {
-	paddr_t base;
-	unsigned int upper_start;
-	unsigned int max_id;
-};
-
-void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
-
 bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 
 #if defined(CFG_STM32MP15) && defined(CFG_WITH_PAGER)

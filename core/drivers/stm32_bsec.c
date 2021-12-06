@@ -953,7 +953,7 @@ static TEE_Result initialize_bsec(void)
 {
 	struct stm32_bsec_static_cfg cfg = { };
 
-	stm32mp_get_bsec_static_cfg(&cfg);
+	plat_bsec_get_static_cfg(&cfg);
 
 	bsec_dev.base.pa = cfg.base;
 	bsec_dev.upper_base = cfg.upper_start;

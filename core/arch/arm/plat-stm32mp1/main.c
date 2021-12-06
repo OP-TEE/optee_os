@@ -458,7 +458,7 @@ vaddr_t get_gicd_base(void)
 	return io_pa_or_va_secure(&base, 1);
 }
 
-void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg)
 {
 	cfg->base = BSEC_BASE;
 	cfg->upper_start = STM32MP1_UPPER_OTP_START;

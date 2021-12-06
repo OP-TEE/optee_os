@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <stdint.h>
 #include <tee_api.h>
+#include <types_ext.h>
 
 /* BSEC_DEBUG */
 #define BSEC_HDPEN			BIT(4)
@@ -29,6 +30,23 @@ enum stm32_bsec_sec_state {
 	BSEC_STATE_SEC_OPEN,
 	BSEC_STATE_INVALID
 };
+
+/*
+ * Structure and API function for BSEC driver to get some platform data.
+ *
+ * @base: BSEC interface registers physical base address
+ * @mirror: BSEC mirror base address
+ * @upper_start: Base ID for the BSEC upper words in the platform
+ * @max_id: Max value for BSEC word ID for the platform
+ */
+struct stm32_bsec_static_cfg {
+	paddr_t base;
+	paddr_t mirror;
+	unsigned int upper_start;
+	unsigned int max_id;
+};
+
+void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 /*
  * Load OTP from SAFMEM and provide its value
