@@ -646,3 +646,5 @@ FUNC pmull_gcm_aes_sub , :
 	umov	w0, v0.s[0]
 	ret
 END_FUNC pmull_gcm_aes_sub
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

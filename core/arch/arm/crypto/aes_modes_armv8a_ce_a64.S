@@ -660,3 +660,5 @@ FUNC ce_aes_xor_block , :
 	st1	{v0.16b}, [x0]
 	ret
 END_FUNC ce_aes_xor_block
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

@@ -81,3 +81,5 @@ END_FUNC __ftrace_return
 #endif
 
 #endif /* CFG_TA_GPROF_SUPPORT || CFG_FTRACE_SUPPORT */
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

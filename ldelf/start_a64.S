@@ -60,3 +60,5 @@ reloc_begin_rel:
 reloc_end_rel:
     .word __reloc_end - reloc_end_rel
 END_FUNC _ldelf_start
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

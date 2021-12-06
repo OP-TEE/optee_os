@@ -29,3 +29,5 @@
 	END_FUNC _ldelf_panic
 
 #include "syscalls_asm.S"
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

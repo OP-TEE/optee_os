@@ -18,3 +18,4 @@ FUNC tlsdesc_resolve , :
 	ret
 END_FUNC tlsdesc_resolve
 
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

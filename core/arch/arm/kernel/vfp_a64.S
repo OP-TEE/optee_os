@@ -46,3 +46,5 @@ FUNC vfp_restore_extension_regs , :
 	ldp	q30, q31, [x0, #16 * 30]
 	ret
 END_FUNC vfp_restore_extension_regs
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

@@ -93,3 +93,5 @@ BTI(	bti	c)
 	// use br not ret, as ret is guaranteed to mispredict
 	br	x30
 	.size	longjmp, .-longjmp
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

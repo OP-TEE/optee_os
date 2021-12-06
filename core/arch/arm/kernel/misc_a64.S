@@ -51,3 +51,5 @@ WEAK_FUNC get_core_pos_mpidr , :
 
 	ret
 END_FUNC get_core_pos_mpidr
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)
