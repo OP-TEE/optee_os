@@ -690,6 +690,7 @@ static void core_init_mmu_prtn_ta_core(struct mmu_partition *prtn
 				       unsigned int core __maybe_unused)
 {
 #if (CORE_MMU_BASE_TABLE_LEVEL == 0)
+	struct core_mmu_table_info tbl_info = { };
 	uint64_t *tbl = NULL;
 	uintptr_t idx = 0;
 
@@ -703,36 +704,32 @@ static void core_init_mmu_prtn_ta_core(struct mmu_partition *prtn
 	 * If base level is 0, then user_va_idx refers to
 	 * level 1 page table that's in base level 0 entry 0.
 	 */
-	if (CORE_MMU_BASE_TABLE_LEVEL == 0) {
-		struct core_mmu_table_info tbl_info = { };
-
-		core_mmu_set_info_table(&tbl_info, 0, 0, tbl);
+	core_mmu_set_info_table(&tbl_info, 0, 0, tbl);
 #ifdef CFG_VIRTUALIZATION
-		tbl_info.prtn = prtn;
+	tbl_info.prtn = prtn;
 #endif
 
-		/*
-		 * If this isn't the core that created the initial tables
-		 * mappings, then the level 1 table must be copied,
-		 * as it will hold pointer to the user mapping table
-		 * that changes per core.
-		 */
-		if (core != get_core_pos()) {
-			if (!core_mmu_entry_copy(&tbl_info, 0))
-				panic();
-		}
-
-		if (!core_mmu_entry_to_finer_grained(&tbl_info, 0, true))
+	/*
+	 * If this isn't the core that created the initial tables
+	 * mappings, then the level 1 table must be copied,
+	 * as it will hold pointer to the user mapping table
+	 * that changes per core.
+	 */
+	if (core != get_core_pos()) {
+		if (!core_mmu_entry_copy(&tbl_info, 0))
 			panic();
-
-		/*
-		 * Now base level table should be ready with a table descriptor
-		 */
-		assert((tbl[0] & DESC_ENTRY_TYPE_MASK) == TABLE_DESC);
-
-		tbl = core_mmu_xlat_table_entry_pa2va(prtn, 0, tbl[0]);
-		assert(tbl);
 	}
+
+	if (!core_mmu_entry_to_finer_grained(&tbl_info, 0, true))
+		panic();
+
+	/*
+	 * Now base level table should be ready with a table descriptor
+	 */
+	assert((tbl[0] & DESC_ENTRY_TYPE_MASK) == TABLE_DESC);
+
+	tbl = core_mmu_xlat_table_entry_pa2va(prtn, 0, tbl[0]);
+	assert(tbl);
 
 	idx = ((uintptr_t)&tbl[user_va_idx] - (uintptr_t)prtn->xlat_tables) /
 	      sizeof(xlat_tbl_t);
