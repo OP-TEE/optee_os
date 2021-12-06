@@ -236,3 +236,5 @@ FUNC thread_foreign_intr_exit , :
 	smc	#0
 	b	.	/* SMC should not return */
 END_FUNC thread_foreign_intr_exit
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

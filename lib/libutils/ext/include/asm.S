@@ -4,6 +4,10 @@
  * Copyright (c) 2020, Linaro Limited
  */
 
+#if defined(__aarch64__)
+#include <arm64_bti.S>
+#endif
+
 #if defined(__aarch64__) && ((defined(__KERNEL__) && defined(CFG_CORE_BTI)) || \
 			     (!defined(__KERNEL__) && defined(CFG_TA_BTI)))
 #define BTI(...) __VA_ARGS__

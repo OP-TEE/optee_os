@@ -181,3 +181,5 @@ FUNC thread_foreign_intr_exit , :
 	mov	w7, w0
 	b	ffa_msg_send_direct_resp
 END_FUNC thread_foreign_intr_exit
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

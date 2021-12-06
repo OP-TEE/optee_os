@@ -121,3 +121,5 @@ FUNC sha1_ce_transform , :
 .Lsha1_rcon:
 	.word		0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
 END_FUNC sha1_ce_transform
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

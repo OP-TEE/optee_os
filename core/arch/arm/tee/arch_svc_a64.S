@@ -195,3 +195,5 @@ FUNC syscall_panic , :
 	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_svc_regs */
 	b	tee_svc_sys_return_helper
 END_FUNC syscall_panic
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

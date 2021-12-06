@@ -576,3 +576,5 @@ SErrorA32:
 	check_vector_size SErrorA32
 
 END_FUNC reset_vect_table
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

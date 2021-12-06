@@ -37,3 +37,5 @@ FUNC tlbi_asid , :
 	isb			/* Sync execution on tlb update */
 	ret
 END_FUNC tlbi_asid
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

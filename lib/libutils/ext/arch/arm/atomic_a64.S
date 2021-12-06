@@ -28,3 +28,4 @@ FUNC atomic_dec32 , :
 	ret
 END_FUNC atomic_dec32
 
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

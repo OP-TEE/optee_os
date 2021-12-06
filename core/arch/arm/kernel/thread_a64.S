@@ -1028,3 +1028,5 @@ LOCAL_FUNC elx_fiq , :
 	native_intr_handler	fiq
 #endif
 END_FUNC elx_fiq
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

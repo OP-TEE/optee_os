@@ -237,3 +237,5 @@ loop_ic_inv:
 	ret
 
 END_FUNC icache_inv_range
+
+BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)
