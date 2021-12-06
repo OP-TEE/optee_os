@@ -705,7 +705,6 @@ static void core_init_mmu_prtn_ta_core(struct mmu_partition *prtn
 	 */
 	if (CORE_MMU_BASE_TABLE_LEVEL == 0) {
 		struct core_mmu_table_info tbl_info = { };
-		bool ret = false;
 
 		core_mmu_set_info_table(&tbl_info, 0, 0, tbl);
 #ifdef CFG_VIRTUALIZATION
