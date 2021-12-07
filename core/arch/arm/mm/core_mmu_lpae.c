@@ -216,6 +216,16 @@
 				 XLAT_TABLE_USER_EXTRA)
 #endif /*!MAX_XLAT_TABLES*/
 
+#if (CORE_MMU_BASE_TABLE_LEVEL == 0)
+#if (MAX_XLAT_TABLES <= UINT8_MAX)
+typedef uint8_t l1_idx_t;
+#elif (MAX_XLAT_TABLES <= UINT16_MAX)
+typedef uint16_t l1_idx_t;
+#else
+#error MAX_XLAT_TABLES is suspiciously large, please check
+#endif
+#endif
+
 typedef uint64_t base_xlat_tbls_t[CFG_TEE_CORE_NB_CORE][NUM_BASE_LEVEL_ENTRIES];
 typedef uint64_t xlat_tbl_t[XLAT_TABLE_ENTRIES];
 
@@ -257,7 +267,7 @@ struct mmu_partition {
 	 * Indexes of the L1 table from 'xlat_tables'
 	 * that points to the user mappings.
 	 */
-	uint8_t user_l1_table_idx[NUM_BASE_TABLES][CFG_TEE_CORE_NB_CORE];
+	l1_idx_t user_l1_table_idx[NUM_BASE_TABLES][CFG_TEE_CORE_NB_CORE];
 #endif
 };
 
