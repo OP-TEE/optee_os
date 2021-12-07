@@ -22,6 +22,7 @@ enum caam_status {
 	CAAM_TIMEOUT,        /* Operation timeout */
 	CAAM_OUT_OF_BOUND,   /* Value is out of boundary */
 	CAAM_JOB_STATUS,     /* A job status is available */
+	CAAM_NOT_INIT,	     /* Feature is not initialized */
 };
 
 #endif /* __CAAM_STATUS_H__ */

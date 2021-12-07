@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2021 NXP
  *
  * Brief   CAAM Random Number Generator Hardware Abstration Layer.
  *         Implementation of primitives to access HW
@@ -8,6 +8,7 @@
 #ifndef __CAAM_HAL_RNG_H__
 #define __CAAM_HAL_RNG_H__
 
+#include <caam_status.h>
 #include <types_ext.h>
 
 /*
@@ -15,7 +16,7 @@
  *
  * @baseaddr  RNG Base Address
  */
-bool caam_hal_rng_instantiated(vaddr_t baseaddr);
+enum caam_status caam_hal_rng_instantiated(vaddr_t baseaddr);
 
 /*
  * Returns the number of RNG State Handle

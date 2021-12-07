@@ -71,7 +71,7 @@ exit_get_conf:
 	return retstatus;
 }
 
-void caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg)
+void __weak caam_hal_cfg_setup_nsjobring(struct caam_jrcfg *jrcfg)
 {
 	enum caam_status status = CAAM_FAILURE;
 	paddr_t jr_offset = 0;
