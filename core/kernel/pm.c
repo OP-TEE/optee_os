@@ -65,7 +65,7 @@ static TEE_Result do_pm_callback(enum pm_op op, uint32_t pm_hint,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	bool suspending = op == PM_OP_SUSPEND;
 
-	if (suspending == (bool)(hdl->flags | PM_FLAG_SUSPENDED))
+	if (suspending == (bool)(hdl->flags & PM_FLAG_SUSPENDED))
 		return TEE_SUCCESS;
 
 	DMSG("%s %s", suspending ? "Suspend" : "Resume", hdl->name);
