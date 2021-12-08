@@ -232,10 +232,6 @@ static uint32_t sanitize_indirect_attr(struct obj_attrs **dst,
 
 	assert(pkcs11_attr_has_indirect_attributes(cli_ref->id));
 
-	rc = init_attributes_head(&obj2);
-	if (rc)
-		return rc;
-
 	/* Build a new serial object while sanitizing the attributes list */
 	rc = sanitize_client_object(&obj2, data, cli_ref->size,
 				    PKCS11_CKO_UNDEFINED_ID,
