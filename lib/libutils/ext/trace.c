@@ -57,7 +57,7 @@ static char trace_level_to_string(int level, bool level_ok)
 
 static int print_thread_id(char *buf, size_t bs)
 {
-#if CFG_NUM_THREADS > 9
+#if CFG_NUM_THREADS > 10
 	int num_thread_digits = 2;
 #else
 	int num_thread_digits = 1;
