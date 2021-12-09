@@ -69,8 +69,8 @@ static const uint16_t ffa_storage_id = 4U;
 
 static const unsigned int stmm_stack_size = 4 * SMALL_PAGE_SIZE;
 static const unsigned int stmm_heap_size = 398 * SMALL_PAGE_SIZE;
-static const unsigned int stmm_sec_buf_size = SMALL_PAGE_SIZE;
-static const unsigned int stmm_ns_comm_buf_size = SMALL_PAGE_SIZE;
+static const unsigned int stmm_sec_buf_size = 4 * SMALL_PAGE_SIZE;
+static const unsigned int stmm_ns_comm_buf_size = 4 * SMALL_PAGE_SIZE;
 
 extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
