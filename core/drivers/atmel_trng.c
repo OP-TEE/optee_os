@@ -101,7 +101,6 @@ uint8_t hw_get_random_byte(void)
 /* This is a true RNG, no need for seeding */
 void plat_rng_init(void)
 {
-	assert(trng_base);
 }
 
 static void atmel_trng_reset(void)
