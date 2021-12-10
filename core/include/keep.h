@@ -43,6 +43,19 @@
 #define __DECLARE_KEEP_INIT1(sym, file_id) __DECLARE_KEEP_INIT2(sym, file_id)
 #define DECLARE_KEEP_INIT(sym) __DECLARE_KEEP_INIT1(sym, __FILE_ID__)
 
+/*
+ * DEFINE_RODATA_UNPAGED() - Define a read-only unpaged variable
+ *
+ * Define a const variable linked into an unpaged read-only section without
+ * propagating its unpaged constrain to the references the variable may refer
+ * to. This requires defining it twice with specific attributes for pager
+ * linker management. The variable is global (not static) since using __weak
+ * attribute for the dual definition.
+ */
+#define DEFINE_RODATA_UNPAGED(_type, _label) \
+	const _type _label __rodata_dummy; \
+	const _type _label __weak __rodata_unpaged(#_label)
+
 #endif /* __ASSEMBLER__ */
 
 #endif /*KEEP_H*/
