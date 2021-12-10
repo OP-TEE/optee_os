@@ -6,6 +6,7 @@
 #ifndef __STM32_UTIL_H__
 #define __STM32_UTIL_H__
 
+#include <drivers/stm32mp2_rcc_util.h>
 #include <kernel/spinlock.h>
 #include <stdint.h>
 #include <types_ext.h>
