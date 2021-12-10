@@ -33,6 +33,11 @@
 		__section("__keep_meta_vars_pager") = (unsigned long)&(sym)
 
 #define __DECLARE_KEEP_PAGER1(sym, file_id) __DECLARE_KEEP_PAGER2(sym, file_id)
+
+/*
+ * DECLARE_KEEP_PAGER() - Resource and its dependencies are linked in
+ * an unpaged section
+ */
 #define DECLARE_KEEP_PAGER(sym) __DECLARE_KEEP_PAGER1(sym, __FILE_ID__)
 
 #define __DECLARE_KEEP_INIT2(sym, file_id) \
@@ -41,6 +46,11 @@
 		__section("__keep_meta_vars_init") = (unsigned long)&(sym)
 
 #define __DECLARE_KEEP_INIT1(sym, file_id) __DECLARE_KEEP_INIT2(sym, file_id)
+
+/*
+ * DECLARE_KEEP_INIT() - Resource and its dependencies are linked in
+ * an init (a.k.a pageable pre-mapped) section
+ */
 #define DECLARE_KEEP_INIT(sym) __DECLARE_KEEP_INIT1(sym, __FILE_ID__)
 
 /*
