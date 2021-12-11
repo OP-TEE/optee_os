@@ -29,11 +29,11 @@
 
 #include "thread_private.h"
 
-const struct ts_ops sp_ops;
-
 /* List that holds all of the loaded SP's */
 static struct sp_sessions_head open_sp_sessions =
 	TAILQ_HEAD_INITIALIZER(open_sp_sessions);
+
+static void set_sp_ctx_ops(struct ts_ctx *ctx);
 
 static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 {
@@ -44,16 +44,6 @@ static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 			return sp;
 	}
 	return NULL;
-}
-
-bool is_sp_ctx(struct ts_ctx *ctx)
-{
-	return ctx && (ctx->ops == &sp_ops);
-}
-
-static void set_sp_ctx_ops(struct ts_ctx *ctx)
-{
-	ctx->ops = &sp_ops;
 }
 
 TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
@@ -390,14 +380,20 @@ static bool sp_handle_svc(struct thread_svc_regs *regs)
 	return false;
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct ts_ops sp_ops __weak __rodata_unpaged("sp_ops") = {
+DEFINE_RODATA_UNPAGED(struct ts_ops, sp_ops) = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
 	.handle_svc = sp_handle_svc,
 };
+
+bool is_sp_ctx(struct ts_ctx *ctx)
+{
+	return ctx && (ctx->ops == &sp_ops);
+}
+
+static void set_sp_ctx_ops(struct ts_ctx *ctx)
+{
+	ctx->ops = &sp_ops;
+}
 
 static TEE_Result sp_init_all(void)
 {
