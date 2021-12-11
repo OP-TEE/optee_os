@@ -55,8 +55,9 @@ struct fobj_rwp_paged_iv {
 	struct fobj fobj;
 };
 
-const struct fobj_ops ops_rwp_paged_iv;
-const struct fobj_ops ops_rwp_unpaged_iv;
+/* Forward reference required for objects type assertion */
+static bool __maybe_unused is_fobj_rwp_unpaged_iv(struct fobj *fobj);
+static bool __maybe_unused is_fobj_rwp_paged_iv(struct fobj *fobj);
 
 static struct internal_aes_gcm_key rwp_ae_key;
 
@@ -137,41 +138,9 @@ static uint8_t *idx_to_store(size_t idx)
 	return rwp_store_base + idx * SMALL_PAGE_SIZE;
 }
 
-static struct fobj *rwp_paged_iv_alloc(unsigned int num_pages)
-{
-	struct fobj_rwp_paged_iv *rwp = NULL;
-	tee_mm_entry_t *mm = NULL;
-	size_t size = 0;
-
-	COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(sizeof(struct rwp_state_padded)));
-
-	rwp = calloc(1, sizeof(*rwp));
-	if (!rwp)
-		return NULL;
-
-	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
-		goto err;
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
-	if (!mm)
-		goto err;
-	rwp->idx = (tee_mm_get_smem(mm) - tee_mm_sec_ddr.lo) / SMALL_PAGE_SIZE;
-
-	memset(idx_to_state_padded(rwp->idx), 0,
-	       num_pages * sizeof(struct rwp_state_padded));
-
-	fobj_init(&rwp->fobj, &ops_rwp_paged_iv, num_pages);
-
-	return &rwp->fobj;
-err:
-	tee_mm_free(mm);
-	free(rwp);
-
-	return NULL;
-}
-
 static struct fobj_rwp_paged_iv *to_rwp_paged_iv(struct fobj *fobj)
 {
-	assert(fobj->ops == &ops_rwp_paged_iv);
+	assert(is_fobj_rwp_paged_iv(fobj));
 
 	return container_of(fobj, struct fobj_rwp_paged_iv, fobj);
 }
@@ -236,54 +205,53 @@ static vaddr_t rwp_paged_iv_get_iv_vaddr(struct fobj *fobj,
 }
 DECLARE_KEEP_PAGER(rwp_paged_iv_get_iv_vaddr);
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_rwp_paged_iv
-__weak __rodata_unpaged("ops_rwp_paged_iv") = {
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_rwp_paged_iv) = {
 	.free = rwp_paged_iv_free,
 	.load_page = rwp_paged_iv_load_page,
 	.save_page = rwp_paged_iv_save_page,
 	.get_iv_vaddr = rwp_paged_iv_get_iv_vaddr,
 };
 
-static struct fobj *rwp_unpaged_iv_alloc(unsigned int num_pages)
+static bool is_fobj_rwp_paged_iv(struct fobj *fobj)
 {
-	struct fobj_rwp_unpaged_iv *rwp = NULL;
+	return fobj->ops == &ops_rwp_paged_iv;
+}
+
+static struct fobj *rwp_paged_iv_alloc(unsigned int num_pages)
+{
+	struct fobj_rwp_paged_iv *rwp = NULL;
 	tee_mm_entry_t *mm = NULL;
 	size_t size = 0;
+
+	COMPILE_TIME_ASSERT(IS_POWER_OF_TWO(sizeof(struct rwp_state_padded)));
 
 	rwp = calloc(1, sizeof(*rwp));
 	if (!rwp)
 		return NULL;
 
-	rwp->state = calloc(num_pages, sizeof(*rwp->state));
-	if (!rwp->state)
-		goto err_free_rwp;
-
 	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
-		goto err_free_state;
+		goto err;
 	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
 	if (!mm)
-		goto err_free_state;
-	rwp->store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM, size);
-	assert(rwp->store);
+		goto err;
+	rwp->idx = (tee_mm_get_smem(mm) - tee_mm_sec_ddr.lo) / SMALL_PAGE_SIZE;
 
-	fobj_init(&rwp->fobj, &ops_rwp_unpaged_iv, num_pages);
+	memset(idx_to_state_padded(rwp->idx), 0,
+	       num_pages * sizeof(struct rwp_state_padded));
+
+	fobj_init(&rwp->fobj, &ops_rwp_paged_iv, num_pages);
 
 	return &rwp->fobj;
-
-err_free_state:
-	free(rwp->state);
-err_free_rwp:
+err:
+	tee_mm_free(mm);
 	free(rwp);
+
 	return NULL;
 }
 
 static struct fobj_rwp_unpaged_iv *to_rwp_unpaged_iv(struct fobj *fobj)
 {
-	assert(fobj->ops == &ops_rwp_unpaged_iv);
+	assert(is_fobj_rwp_unpaged_iv(fobj));
 
 	return container_of(fobj, struct fobj_rwp_unpaged_iv, fobj);
 }
@@ -342,16 +310,49 @@ static void rwp_unpaged_iv_free(struct fobj *fobj)
 	free(rwp);
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_rwp_unpaged_iv
-__weak __rodata_unpaged("ops_rwp_unpaged_iv") = {
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_rwp_unpaged_iv) = {
 	.free = rwp_unpaged_iv_free,
 	.load_page = rwp_unpaged_iv_load_page,
 	.save_page = rwp_unpaged_iv_save_page,
 };
+
+static bool is_fobj_rwp_unpaged_iv(struct fobj *fobj)
+{
+	return fobj->ops == &ops_rwp_unpaged_iv;
+}
+
+static struct fobj *rwp_unpaged_iv_alloc(unsigned int num_pages)
+{
+	struct fobj_rwp_unpaged_iv *rwp = NULL;
+	tee_mm_entry_t *mm = NULL;
+	size_t size = 0;
+
+	rwp = calloc(1, sizeof(*rwp));
+	if (!rwp)
+		return NULL;
+
+	rwp->state = calloc(num_pages, sizeof(*rwp->state));
+	if (!rwp->state)
+		goto err_free_rwp;
+
+	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
+		goto err_free_state;
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	if (!mm)
+		goto err_free_state;
+	rwp->store = phys_to_virt(tee_mm_get_smem(mm), MEM_AREA_TA_RAM, size);
+	assert(rwp->store);
+
+	fobj_init(&rwp->fobj, &ops_rwp_unpaged_iv, num_pages);
+
+	return &rwp->fobj;
+
+err_free_state:
+	free(rwp->state);
+err_free_rwp:
+	free(rwp);
+	return NULL;
+}
 
 static TEE_Result rwp_init(void)
 {
@@ -414,7 +415,8 @@ struct fobj_rop {
 	struct fobj fobj;
 };
 
-const struct fobj_ops ops_ro_paged;
+/* Forward reference required for objects type assertion */
+static bool __maybe_unused is_fobj_ro_paged(struct fobj *fobj);
 
 static void rop_init(struct fobj_rop *rop, const struct fobj_ops *ops,
 		     unsigned int num_pages, void *hashes, void *store)
@@ -424,25 +426,9 @@ static void rop_init(struct fobj_rop *rop, const struct fobj_ops *ops,
 	fobj_init(&rop->fobj, ops, num_pages);
 }
 
-struct fobj *fobj_ro_paged_alloc(unsigned int num_pages, void *hashes,
-				 void *store)
-{
-	struct fobj_rop *rop = NULL;
-
-	assert(num_pages && hashes && store);
-
-	rop = calloc(1, sizeof(*rop));
-	if (!rop)
-		return NULL;
-
-	rop_init(rop, &ops_ro_paged, num_pages, hashes, store);
-
-	return &rop->fobj;
-}
-
 static struct fobj_rop *to_rop(struct fobj *fobj)
 {
-	assert(fobj->ops == &ops_ro_paged);
+	assert(is_fobj_ro_paged(fobj));
 
 	return container_of(fobj, struct fobj_rop, fobj);
 }
@@ -490,15 +476,32 @@ static TEE_Result rop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(rop_save_page);
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_ro_paged __weak __rodata_unpaged("ops_ro_paged") = {
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_ro_paged) = {
 	.free = rop_free,
 	.load_page = rop_load_page,
 	.save_page = rop_save_page,
 };
+
+static bool is_fobj_ro_paged(struct fobj *fobj)
+{
+	return fobj->ops == &ops_ro_paged;
+}
+
+struct fobj *fobj_ro_paged_alloc(unsigned int num_pages, void *hashes,
+				 void *store)
+{
+	struct fobj_rop *rop = NULL;
+
+	assert(num_pages && hashes && store);
+
+	rop = calloc(1, sizeof(*rop));
+	if (!rop)
+		return NULL;
+
+	rop_init(rop, &ops_ro_paged, num_pages, hashes, store);
+
+	return &rop->fobj;
+}
 
 #ifdef CFG_CORE_ASLR
 /*
@@ -526,7 +529,64 @@ struct fobj_ro_reloc_paged {
 	struct fobj_rop rop;
 };
 
-const struct fobj_ops ops_ro_reloc_paged;
+/* Forward reference required for objects type assertion */
+static bool __maybe_unused is_fobj_ro_reloc_paged(struct fobj *fobj);
+
+static struct fobj_ro_reloc_paged *to_rrp(struct fobj *fobj)
+{
+	assert(is_fobj_ro_reloc_paged(struct fobj *fobj));
+
+	return container_of(fobj, struct fobj_ro_reloc_paged, rop.fobj);
+}
+
+static void rrp_free(struct fobj *fobj)
+{
+	struct fobj_ro_reloc_paged *rrp = to_rrp(fobj);
+
+	rop_uninit(&rrp->rop);
+	free(rrp);
+}
+
+static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
+				void *va)
+{
+	struct fobj_ro_reloc_paged *rrp = to_rrp(fobj);
+	unsigned int end_rel = rrp->num_relocs;
+	TEE_Result res = TEE_SUCCESS;
+	unsigned long *where = NULL;
+	unsigned int n = 0;
+
+	res = rop_load_page_helper(&rrp->rop, page_idx, va);
+	if (res)
+		return res;
+
+	/* Find the reloc index of the next page to tell when we're done */
+	for (n = page_idx + 1; n < fobj->num_pages; n++) {
+		if (rrp->page_reloc_idx[n] != UINT16_MAX) {
+			end_rel = rrp->page_reloc_idx[n];
+			break;
+		}
+	}
+
+	for (n = rrp->page_reloc_idx[page_idx]; n < end_rel; n++) {
+		where = (void *)((vaddr_t)va + rrp->relocs[n]);
+		*where += boot_mmu_config.load_offset;
+	}
+
+	return TEE_SUCCESS;
+}
+DECLARE_KEEP_PAGER(rrp_load_page);
+
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_ro_reloc_paged) = {
+	.free = rrp_free,
+	.load_page = rrp_load_page,
+	.save_page = rop_save_page, /* Direct reuse */
+};
+
+static bool __maybe_unused is_fobj_ro_reloc_paged(struct fobj *fobj)
+{
+	return fobj->ops == &ops_ro_reloc_paged;
+}
 
 static unsigned int get_num_rels(unsigned int num_pages,
 				 unsigned int reloc_offs,
@@ -620,84 +680,14 @@ struct fobj *fobj_ro_reloc_paged_alloc(unsigned int num_pages, void *hashes,
 
 	return &rrp->rop.fobj;
 }
-
-static struct fobj_ro_reloc_paged *to_rrp(struct fobj *fobj)
-{
-	assert(fobj->ops == &ops_ro_reloc_paged);
-
-	return container_of(fobj, struct fobj_ro_reloc_paged, rop.fobj);
-}
-
-static void rrp_free(struct fobj *fobj)
-{
-	struct fobj_ro_reloc_paged *rrp = to_rrp(fobj);
-
-	rop_uninit(&rrp->rop);
-	free(rrp);
-}
-
-static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
-				void *va)
-{
-	struct fobj_ro_reloc_paged *rrp = to_rrp(fobj);
-	unsigned int end_rel = rrp->num_relocs;
-	TEE_Result res = TEE_SUCCESS;
-	unsigned long *where = NULL;
-	unsigned int n = 0;
-
-	res = rop_load_page_helper(&rrp->rop, page_idx, va);
-	if (res)
-		return res;
-
-	/* Find the reloc index of the next page to tell when we're done */
-	for (n = page_idx + 1; n < fobj->num_pages; n++) {
-		if (rrp->page_reloc_idx[n] != UINT16_MAX) {
-			end_rel = rrp->page_reloc_idx[n];
-			break;
-		}
-	}
-
-	for (n = rrp->page_reloc_idx[page_idx]; n < end_rel; n++) {
-		where = (void *)((vaddr_t)va + rrp->relocs[n]);
-		*where += boot_mmu_config.load_offset;
-	}
-
-	return TEE_SUCCESS;
-}
-DECLARE_KEEP_PAGER(rrp_load_page);
-
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_ro_reloc_paged
-__weak __rodata_unpaged("ops_ro_reloc_paged") = {
-	.free = rrp_free,
-	.load_page = rrp_load_page,
-	.save_page = rop_save_page, /* Direct reuse */
-};
 #endif /*CFG_CORE_ASLR*/
 
-const struct fobj_ops ops_locked_paged;
-
-struct fobj *fobj_locked_paged_alloc(unsigned int num_pages)
-{
-	struct fobj *f = NULL;
-
-	assert(num_pages);
-
-	f = calloc(1, sizeof(*f));
-	if (!f)
-		return NULL;
-
-	fobj_init(f, &ops_locked_paged, num_pages);
-
-	return f;
-}
+/* Forward reference required for objects type assertion */
+static bool __maybe_unused is_fobj_locked_paged(struct fobj *fobj);
 
 static void lop_free(struct fobj *fobj)
 {
-	assert(fobj->ops == &ops_locked_paged);
+	assert(is_fobj_locked_paged(fobj));
 	fobj_uninit(fobj);
 	free(fobj);
 }
@@ -706,7 +696,7 @@ static TEE_Result lop_load_page(struct fobj *fobj __maybe_unused,
 				unsigned int page_idx __maybe_unused,
 				void *va)
 {
-	assert(fobj->ops == &ops_locked_paged);
+	assert(is_fobj_locked_paged(fobj));
 	assert(refcount_val(&fobj->refc));
 	assert(page_idx < fobj->num_pages);
 
@@ -724,16 +714,31 @@ static TEE_Result lop_save_page(struct fobj *fobj __unused,
 }
 DECLARE_KEEP_PAGER(lop_save_page);
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_locked_paged
-__weak __rodata_unpaged("ops_locked_paged") = {
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_locked_paged) = {
 	.free = lop_free,
 	.load_page = lop_load_page,
 	.save_page = lop_save_page,
 };
+
+static bool __maybe_unused is_fobj_locked_paged(struct fobj *fobj)
+{
+	return fobj->ops == &ops_locked_paged;
+}
+
+struct fobj *fobj_locked_paged_alloc(unsigned int num_pages)
+{
+	struct fobj *f = NULL;
+
+	assert(num_pages);
+
+	f = calloc(1, sizeof(*f));
+	if (!f)
+		return NULL;
+
+	fobj_init(f, &ops_locked_paged, num_pages);
+
+	return f;
+}
 #endif /*CFG_WITH_PAGER*/
 
 #ifndef CFG_PAGED_USER_TA
@@ -743,7 +748,43 @@ struct fobj_sec_mem {
 	struct fobj fobj;
 };
 
-const struct fobj_ops ops_sec_mem;
+/* Forward reference required for objects type assertion */
+static bool __maybe_unused is_fobj_sec_mem(struct fobj *fobj);
+
+static struct fobj_sec_mem *to_sec_mem(struct fobj *fobj)
+{
+	assert(is_fobj_sec_mem(fobj));
+	return container_of(fobj, struct fobj_sec_mem, fobj);
+}
+
+static void sec_mem_free(struct fobj *fobj)
+{
+	struct fobj_sec_mem *f = to_sec_mem(fobj);
+
+	assert(!refcount_val(&fobj->refc));
+	tee_mm_free(f->mm);
+	free(f);
+}
+
+static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
+{
+	struct fobj_sec_mem *f = to_sec_mem(fobj);
+
+	assert(refcount_val(&fobj->refc));
+	assert(page_idx < fobj->num_pages);
+
+	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
+}
+
+DEFINE_RODATA_UNPAGED(struct fobj_ops, ops_sec_mem) = {
+	.free = sec_mem_free,
+	.get_pa = sec_mem_get_pa,
+};
+
+static bool __maybe_unused is_fobj_sec_mem(struct fobj *fobj)
+{
+	return fobj->ops == &ops_sec_mem;
+}
 
 struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 {
@@ -777,40 +818,4 @@ err:
 
 	return NULL;
 }
-
-static struct fobj_sec_mem *to_sec_mem(struct fobj *fobj)
-{
-	assert(fobj->ops == &ops_sec_mem);
-
-	return container_of(fobj, struct fobj_sec_mem, fobj);
-}
-
-static void sec_mem_free(struct fobj *fobj)
-{
-	struct fobj_sec_mem *f = to_sec_mem(fobj);
-
-	assert(!refcount_val(&fobj->refc));
-	tee_mm_free(f->mm);
-	free(f);
-}
-
-static paddr_t sec_mem_get_pa(struct fobj *fobj, unsigned int page_idx)
-{
-	struct fobj_sec_mem *f = to_sec_mem(fobj);
-
-	assert(refcount_val(&fobj->refc));
-	assert(page_idx < fobj->num_pages);
-
-	return tee_mm_get_smem(f->mm) + page_idx * SMALL_PAGE_SIZE;
-}
-
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct fobj_ops ops_sec_mem __weak __rodata_unpaged("ops_sec_mem") = {
-	.free = sec_mem_free,
-	.get_pa = sec_mem_get_pa,
-};
-
 #endif /*PAGED_USER_TA*/

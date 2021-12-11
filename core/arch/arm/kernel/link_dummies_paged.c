@@ -39,10 +39,3 @@ __thread_std_smc_entry(uint32_t a0 __unused, uint32_t a1 __unused,
 {
 	return 0;
 }
-
-const struct fobj_ops ops_rwp_paged_iv __rodata_dummy;
-const struct fobj_ops ops_rwp_unpaged_iv __rodata_dummy;
-const struct fobj_ops ops_ro_paged __rodata_dummy;
-const struct fobj_ops ops_ro_reloc_paged __rodata_dummy;
-const struct fobj_ops ops_locked_paged __rodata_dummy;
-const struct fobj_ops ops_sec_mem __rodata_dummy;
