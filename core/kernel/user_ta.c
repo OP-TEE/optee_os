@@ -370,11 +370,7 @@ static uint32_t user_ta_get_instance_id(struct ts_ctx *ctx)
 	return to_user_ta_ctx(ctx)->uctx.vm_info.asid;
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct ts_ops user_ta_ops __weak __rodata_unpaged("user_ta_ops") = {
+DEFINE_RODATA_UNPAGED(struct ts_ops, user_ta_ops) = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
