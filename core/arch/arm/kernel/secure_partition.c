@@ -301,7 +301,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	uint32_t exceptions = 0;
 	uint64_t cpsr = 0;
 	struct sp_session *sp_s = to_sp_session(s);
-	struct ts_session *sess = NULL;
+	struct ts_session __maybe_unused *sess = NULL;
 	struct thread_ctx_regs *sp_regs = NULL;
 	uint32_t panicked = false;
 	uint32_t panic_code = 0;
@@ -357,9 +357,8 @@ static bool sp_handle_svc(struct thread_svc_regs *regs)
 {
 	struct ts_session *ts = ts_get_current_session();
 	struct sp_ctx *uctx = to_sp_ctx(ts->ctx);
-	struct sp_session *s = uctx->open_session;
 
-	assert(s);
+	assert(uctx->open_session);
 
 	sp_svc_store_registers(regs, &uctx->sp_regs);
 
