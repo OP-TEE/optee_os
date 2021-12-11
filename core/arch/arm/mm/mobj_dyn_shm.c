@@ -245,8 +245,7 @@ static uint64_t mobj_reg_shm_get_cookie(struct mobj *mobj)
  * When CFG_PREALLOC_RPC_CACHE is enabled, releasing RPC preallocated
  * shm mandates these resources to be unpaged.
  */
-const struct mobj_ops mobj_reg_shm_ops
-__weak __rodata_unpaged("mobj_reg_shm_ops") = {
+DEFINE_RODATA_UNPAGED(struct mobj_ops, mobj_reg_shm_ops) = {
 	.get_pa = mobj_reg_shm_get_pa,
 	.get_phys_offs = mobj_reg_shm_get_phys_offs,
 	.get_va = mobj_reg_shm_get_va,
