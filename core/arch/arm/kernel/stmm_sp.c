@@ -864,11 +864,7 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 	}
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct ts_ops stmm_sp_ops __weak __rodata_unpaged("stmm_sp_ops") = {
+DEFINE_RODATA_UNPAGED(struct ts_ops, stmm_sp) = {
 	.enter_open_session = stmm_enter_open_session,
 	.enter_invoke_cmd = stmm_enter_invoke_cmd,
 	.enter_close_session = stmm_enter_close_session,
