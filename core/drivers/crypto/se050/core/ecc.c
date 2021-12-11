@@ -375,6 +375,8 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	sss_se05x_asymmetric_t ctx = { };
 	sss_se05x_object_t kobject = { };
 	TEE_Result res = TEE_SUCCESS;
+	uint8_t *sig_der = NULL;
+	size_t sig_der_len = 0;
 	size_t key_bytes = 0;
 	size_t key_bits = 0;
 
@@ -382,10 +384,12 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	/* se050 exports DER format */
-	if (*sig_len < (2 * key_bytes + DER_SIGNATURE_SZ)) {
-		*sig_len = 2 * key_bytes + DER_SIGNATURE_SZ;
-		res = TEE_ERROR_SHORT_BUFFER;
+	/* allocate temporary buffer to retrieve the signature in DER format */
+	sig_der_len = 2 * key_bytes + DER_SIGNATURE_SZ;
+
+	sig_der = malloc(sig_der_len);
+	if (!sig_der) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto exit;
 	}
 
@@ -406,19 +410,29 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	}
 
 	st = sss_se05x_asymmetric_sign_digest(&ctx, (uint8_t *)msg, msg_len,
-					      sig, sig_len);
+					      sig_der, &sig_der_len);
 	if (st != kStatus_SSS_Success) {
 		EMSG("curve: %#"PRIx32, key->curve);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto exit;
 	}
 
-	sss_se05x_signature_der2bin(sig, sig_len);
+	sss_se05x_signature_der2bin(sig_der, &sig_der_len);
+
+	if (sig_der_len > *sig_len) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
+	memcpy(sig, sig_der, sig_der_len);
+	*sig_len = sig_der_len;
 exit:
 	if (!se050_ecc_keypair_from_nvm(key))
 		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 
 	sss_se05x_asymmetric_context_free(&ctx);
+
+	free(sig_der);
 
 	return res;
 }
