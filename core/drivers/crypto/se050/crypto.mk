@@ -13,8 +13,6 @@ CFG_CORE_SE05X_DISPLAY_INFO ?= y
 CFG_CORE_SE05X_SCP03_EARLY ?= y
 # Deletes all persistent storage from the SE050 at boot
 CFG_CORE_SE05X_INIT_NVM ?= n
-# Selects the default SCP03 keys based on the configured OEFID
-CFG_CORE_SE05X_OEFID ?= 0
 
 # I2C bus baudrate (depends on SoC)
 CFG_CORE_SE05X_BAUDRATE ?= 3400000

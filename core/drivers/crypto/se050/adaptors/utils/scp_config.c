@@ -293,10 +293,12 @@ sss_status_t se050_scp03_prepare_rotate_cmd(struct sss_se05x_ctx *ctx,
 
 static sss_status_t get_ofid_key(struct se050_scp_key *keys)
 {
+	uint32_t oefid = SHIFT_U32(se050_ctx.se_info.oefid[0], 8) |
+			 SHIFT_U32(se050_ctx.se_info.oefid[1], 0);
 	sss_status_t status = kStatus_SSS_Success;
 	uint32_t id = 0;
 
-	status = get_id_from_ofid(CFG_CORE_SE05X_OEFID, &id);
+	status = get_id_from_ofid(oefid, &id);
 	if (status != kStatus_SSS_Success)
 		return status;
 

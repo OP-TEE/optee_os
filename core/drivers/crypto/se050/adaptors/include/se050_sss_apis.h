@@ -22,8 +22,14 @@ struct sss_se05x_ctx {
 		NXSCP03_StaticCtx_t static_ctx;
 		NXSCP03_DynCtx_t dynamic_ctx;
 	} se05x_auth;
+
 	sss_user_impl_session_t host_session;
 	sss_key_store_t host_ks;
+
+	struct se05x_se_info {
+		uint8_t applet[3];
+		uint8_t oefid[2];
+	} se_info;
 };
 
 sss_status_t se050_key_store_and_object_init(struct sss_se05x_ctx *ctx);
