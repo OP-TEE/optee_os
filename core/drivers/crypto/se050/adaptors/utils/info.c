@@ -11,17 +11,16 @@
 #include <se05x_tlv.h>
 #include <smCom.h>
 #include <string.h>
+#include <util.h>
 
 /* Force the output until the P&T stack fixes its verbosity */
 #define LOG_MAU8_I(msg, buf, len) nLog_au8("Info", 0xff, msg, buf, len)
 #define LOG_I(format, ...) nLog("Info", 0xff, format, ##__VA_ARGS__)
-
 #define LOG_E(format, ...) nLog("Info", NX_LEVEL_ERROR, format, ##__VA_ARGS__)
-
 #define LOG_MAU8_E(msg, buf, len) \
 	nLog_au8("Info", NX_LEVEL_ERROR, msg, buf, len)
 
-static sss_status_t jcop4_get_id(void *ctx)
+static sss_status_t jcop4_get_id(void *ctx, bool display)
 {
 	char jcop_platform_id[17] = { 0 };
 	smStatus_t ret = SM_OK;
@@ -76,6 +75,10 @@ static sss_status_t jcop4_get_id(void *ctx)
 		return kStatus_SSS_Fail;
 	}
 
+	memcpy(se050_ctx.se_info.oefid, &rsp.vConfiguration_ID[2], 2);
+	if (!display)
+		return kStatus_SSS_Success;
+
 	LOG_I("SE050 JCOP4 Information:");
 	LOG_I("%s = 0x%02X", "Tag value - proprietary data 0xFE",
 	      rsp.vTag_value_proprietary_data);
@@ -92,7 +95,6 @@ static sss_status_t jcop4_get_id(void *ctx)
 	      rsp.vLength_configuration_ID);
 	LOG_MAU8_I("Configuration ID",
 		   rsp.vConfiguration_ID, sizeof(rsp.vConfiguration_ID));
-
 	LOG_MAU8_I("OEF ID", &rsp.vConfiguration_ID[2], 2);
 	LOG_I("%s = 0x%02X", "Tag patch ID (Must be 0x02)", rsp.vTag_patch_ID);
 	LOG_I("%s = 0x%02X", "Length patch ID 0x08", rsp.vLength_patch_ID);
@@ -149,7 +151,7 @@ static void show_config(uint16_t cfg)
 	}
 }
 
-static sss_status_t applet_get_id(sss_se05x_session_t *session)
+static sss_status_t applet_get_id(sss_se05x_session_t *session, bool display)
 {
 	SE05x_Result_t result = kSE05x_Result_NA;
 	smStatus_t ret = SM_OK;
@@ -170,8 +172,6 @@ static sss_status_t applet_get_id(sss_se05x_session_t *session)
 	if (ret != SM_OK)
 		return kStatus_SSS_Fail;
 
-	LOG_MAU8_I("Applet ID", uid, uidLen);
-
 	/*
 	 * VersionInfo is a 7 - byte value consisting of:
 	 * - 1 - byte Major applet version
@@ -181,13 +181,18 @@ static sss_status_t applet_get_id(sss_se05x_session_t *session)
 	 * - 2-byte Secure Box version: major version (MSB) concatenated with
 	 *   minor version (LSB).
 	 */
-
 	ret = Se05x_API_GetVersion(&session->s_ctx, applet_version,
 				   &applet_versionLen);
 	if (ret != SM_OK) {
 		LOG_E("Failed Se05x_API_GetVersion");
 		return kStatus_SSS_Fail;
 	}
+
+	memcpy(se050_ctx.se_info.applet, applet_version, 3);
+	if (!display)
+		return kStatus_SSS_Success;
+
+	LOG_MAU8_I("Applet ID", uid, uidLen);
 
 	LOG_I("Applet Major = %d", applet_version[0]);
 	LOG_I("Applet Minor = %d", applet_version[1]);
@@ -199,10 +204,37 @@ static sss_status_t applet_get_id(sss_se05x_session_t *session)
 	return kStatus_SSS_Success;
 }
 
-void se050_display_board_info(sss_se05x_session_t *session)
+sss_status_t se050_get_se_info(sss_se05x_session_t *session, bool display)
 {
+	sss_status_t ret = kStatus_SSS_Fail;
+	__maybe_unused uint32_t oefid = 0;
+
 	if (session) {
-		applet_get_id(session);
-		jcop4_get_id(session->s_ctx.conn_ctx);
+		ret = applet_get_id(session, display);
+		if (ret != kStatus_SSS_Success) {
+			EMSG("Can't retrieve Applet information");
+			return ret;
+		}
+
+		ret = jcop4_get_id(session->s_ctx.conn_ctx, display);
+		if (ret != kStatus_SSS_Success) {
+			EMSG("Can't retrieve JCOP information");
+			return ret;
+		}
+
+#ifdef CFG_CORE_SE05X_OEFID
+		/* validate the requested OEFID against the runtime detected */
+		oefid = SHIFT_U32(se050_ctx.se_info.oefid[0], 8) |
+			SHIFT_U32(se050_ctx.se_info.oefid[1], 0);
+
+		if (oefid != CFG_CORE_SE05X_OEFID) {
+			EMSG("OEFID configuration error, 0x%x != 0x%"PRIx32,
+			     CFG_CORE_SE05X_OEFID, oefid);
+			return kStatus_SSS_Fail;
+		}
+#endif
+		return kStatus_SSS_Success;
 	}
+
+	return kStatus_SSS_Fail;
 }

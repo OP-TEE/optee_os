@@ -39,11 +39,18 @@ TEE_Result se050_core_early_init(struct se050_scp_key *keys)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result display_info(void)
+static TEE_Result update_se_info(void)
 {
-	se050_display_board_info(se050_session);
-	/* the session must be closed after accessing board information */
+	sss_status_t status = kStatus_SSS_Success;
+
+	status = se050_get_se_info(se050_session,
+				   IS_ENABLED(CFG_CORE_SE05X_DISPLAY_INFO));
+
+	/* the session must be closed after accessing the board information */
 	sss_se05x_session_close(se050_session);
+
+	if (status != kStatus_SSS_Success)
+		return TEE_ERROR_GENERIC;
 
 	return se050_core_early_init(NULL);
 }
@@ -61,14 +68,17 @@ static TEE_Result se050_early_init(void)
 	TEE_Result ret = TEE_SUCCESS;
 
 	ret = se050_core_early_init(NULL);
+	if (ret)
+		return ret;
 
-	if (!ret && IS_ENABLED(CFG_CORE_SE05X_DISPLAY_INFO))
-		ret = display_info();
+	ret = update_se_info();
+	if (ret)
+		return ret;
 
-	if (!ret && IS_ENABLED(CFG_CORE_SE05X_SCP03_EARLY))
+	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_EARLY))
 		return enable_scp03();
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 driver_init(se050_early_init);
