@@ -90,8 +90,17 @@ BTI(	bti	c)
 	mov	sp, x16
 	cmp	w1, #0
 	cinc	w0, w1, eq
+/*
+ * clang has a bug and doesn't insert bti after setjmp
+ * causing BTI ecxception. Remove this when the bug is fixed.
+ * https://bugs.llvm.org/show_bug.cgi?id=49544
+ */
+#if defined(__clang__) && defined(CFG_TA_BTI)
+	ret
+#else
 	// use br not ret, as ret is guaranteed to mispredict
 	br	x30
+#endif
 	.size	longjmp, .-longjmp
 
 BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)
