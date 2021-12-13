@@ -144,6 +144,7 @@ SECTIONS
 	}
 
 	.got : { *(.got.plt) *(.got) }
+	.note.gnu.property : { *(.note.gnu.property) }
 	.plt : { *(.plt) }
 
 	.ctors : ALIGN(8) {
