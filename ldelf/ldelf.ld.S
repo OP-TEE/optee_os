@@ -27,6 +27,7 @@ SECTIONS {
 		*(.vfp11_veneer)
 		__text_end = .;
 	}
+	.note.gnu.property : { *(.note.gnu.property) }
         .plt : { *(.plt) }
 
 	.eh_frame : { *(.eh_frame) }
