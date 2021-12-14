@@ -5,7 +5,6 @@
 
 #if defined(__KERNEL__)
 #include <platform_config.h>
-#include <kernel/misc.h>
 #endif
 
 #include <printk.h>
@@ -85,9 +84,10 @@ static int print_core_id(char *buf, size_t bs)
 	const int num_digits = 1;
 	const char qm[] = "?";
 #endif
+	int core_id = trace_ext_get_core_id();
 
-	if (thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR)
-		return snprintk(buf, bs, "%0*zu ", num_digits, get_core_pos());
+	if (core_id >= 0)
+		return snprintk(buf, bs, "%0*u ", num_digits, core_id);
 	else
 		return snprintk(buf, bs, "%s ", qm);
 }
