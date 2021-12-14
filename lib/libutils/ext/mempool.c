@@ -15,7 +15,6 @@
 #if defined(__KERNEL__)
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
-#include <kernel/thread.h>
 #endif
 
 /*
