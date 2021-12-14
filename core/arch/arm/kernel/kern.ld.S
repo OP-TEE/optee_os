@@ -93,6 +93,9 @@ SECTIONS
 	.text : {
 		KEEP(*(.text._start))
 		__identity_map_init_start = .;
+		__text_data_start = .;
+		*(.identity_map.data)
+		__text_data_end = .;
 		*(.identity_map .identity_map.* \
 			/*
 			 * The one below is needed because it's a weak
