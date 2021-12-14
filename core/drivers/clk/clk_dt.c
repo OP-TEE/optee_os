@@ -148,7 +148,7 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 				&rate_len);
 	rate_len /= sizeof(uint32_t);
 
-	while (1) {
+	while (true) {
 		res = clk_dt_get_by_idx_prop("assigned-clocks", fdt, nodeoffset,
 					     clock_idx, &clk);
 		if (!clk)
