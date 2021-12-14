@@ -34,8 +34,10 @@ struct dt_driver_phandle_args {
  *
  * @parg: phandle argument(s) referencing the device in the FDT.
  * @data: driver private data registered in struct dt_driver.
- * @res: Output result code of the operation: TEE_ERROR_BUSY is target
- *	device is not yet initialized, otherwise any other compliant code.
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
  * driver, or NULL if not found in which case @res provides the error code.
@@ -69,8 +71,10 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @nodeoffset: node offset in the FDT
  * @prop_idx: index of the phandle data in the property
  * @type: Driver type
- * @res: Output result code of the operation: TEE_ERROR_BUSY is target
- *	device is not yet initialized, otherwise any other compliant code.
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
  * driver, or NULL if not found in which case @res provides the error code.
