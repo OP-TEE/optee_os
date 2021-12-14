@@ -729,6 +729,9 @@ CFG_DRIVERS_CLK ?= n
 CFG_DRIVERS_CLK_DT ?= $(call cfg-all-enabled,CFG_DRIVERS_CLK CFG_DT)
 CFG_DRIVERS_CLK_FIXED ?= $(CFG_DRIVERS_CLK_DT)
 
+$(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
+$(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
+
 # The purpose of this flag is to show a print when booting up the device that
 # indicates whether the board runs a standard developer configuration or not.
 # A developer configuration doesn't necessarily has to be secure. The intention
@@ -738,9 +741,6 @@ CFG_DRIVERS_CLK_FIXED ?= $(CFG_DRIVERS_CLK_DT)
 # documentation/Porting guidelines) as well as vendor specific security
 # configuration.
 CFG_WARN_INSECURE ?= y
-
-$(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
-$(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
 
 # Enables warnings for declarations mixed with statements
 CFG_WARN_DECL_AFTER_STATEMENT ?= y
