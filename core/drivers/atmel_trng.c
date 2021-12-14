@@ -128,7 +128,7 @@ static TEE_Result trng_node_probe(const void *fdt, int node,
 
 	matrix_configure_periph_secure(AT91C_ID_TRNG);
 
-	clk = clk_dt_get_by_idx(fdt, node, 0, &res);
+	res = clk_dt_get_by_index(fdt, node, 0, &clk);
 	if (res)
 		return res;
 

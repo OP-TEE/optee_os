@@ -13,36 +13,36 @@
 #include <libfdt.h>
 #include <stddef.h>
 
-struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
-			       const char *name, TEE_Result *res)
+TEE_Result clk_dt_get_by_name(const void *fdt, int nodeoffset,
+			      const char *name, struct clk **clk)
 {
 	int clk_id = 0;
 
 	clk_id = fdt_stringlist_search(fdt, nodeoffset, "clock-names", name);
 	if (clk_id < 0) {
-		*res = TEE_ERROR_GENERIC;
-		return NULL;
+		*clk = NULL;
+		return TEE_ERROR_GENERIC;
 	}
 
-	return clk_dt_get_by_idx(fdt, nodeoffset, clk_id, res);
+	return clk_dt_get_by_index(fdt, nodeoffset, clk_id, clk);
 }
 
-static struct clk *clk_dt_get_by_idx_prop(const char *prop_name,
-					  const void *fdt, int nodeoffset,
-					  unsigned int clk_idx, TEE_Result *res)
+static TEE_Result clk_dt_get_by_idx_prop(const char *prop_name, const void *fdt,
+					 int nodeoffset, unsigned int clk_idx,
+					 struct clk **clk)
 {
-	void *device = dt_driver_device_from_node_idx_prop(prop_name, fdt,
-							   nodeoffset, clk_idx,
-							   DT_DRIVER_CLK,
-							   res);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
-	return (struct clk *)device;
+	*clk = dt_driver_device_from_node_idx_prop(prop_name, fdt, nodeoffset,
+						   clk_idx, DT_DRIVER_CLK,
+						   &res);
+	return res;
 }
 
-struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
-			      unsigned int clk_idx, TEE_Result *res)
+TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
+			       unsigned int clk_idx, struct clk **clk)
 {
-	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx, res);
+	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx, clk);
 }
 
 /* Recursively called from parse_clock_property() */
@@ -142,21 +142,23 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 	unsigned long rate = 0;
 	struct clk *parent = NULL;
 	const uint32_t *rate_prop = NULL;
-	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
 
 	rate_prop = fdt_getprop(fdt, nodeoffset, "assigned-clock-rates",
 				&rate_len);
 	rate_len /= sizeof(uint32_t);
 
 	while (1) {
-		clk = clk_dt_get_by_idx_prop("assigned-clocks", fdt, nodeoffset,
-					     clock_idx, &res);
+		res = clk_dt_get_by_idx_prop("assigned-clocks", fdt, nodeoffset,
+					     clock_idx, &clk);
 		if (!clk)
 			return;
+		assert(!res);
 
-		parent = clk_dt_get_by_idx_prop("assigned-clock-parents", fdt,
-						nodeoffset, clock_idx, &res);
+		res = clk_dt_get_by_idx_prop("assigned-clock-parents", fdt,
+					     nodeoffset, clock_idx, &parent);
 		if (parent) {
+			assert(!res);
 			if (clk_set_parent(clk, parent)) {
 				EMSG("Could not set clk %s parent to clock %s",
 				     clk->name, parent->name);
