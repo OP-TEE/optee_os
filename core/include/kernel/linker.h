@@ -77,6 +77,8 @@ EMIT_SECTION_INFO_SYMBOLS(init_rx);
 #undef EMIT_SECTION_INFO_SYMBOLS
 
 extern const uint8_t __text_start[];
+extern const uint8_t __text_data_start[];
+extern const uint8_t __text_data_end[];
 extern const uint8_t __text_end[];
 extern const uint8_t __end[];
 
