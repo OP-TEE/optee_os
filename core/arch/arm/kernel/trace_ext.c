@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <trace.h>
 #include <console.h>
+#include <kernel/misc.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <mm/core_mmu.h>
@@ -50,4 +51,13 @@ void trace_ext_puts(const char *str)
 int trace_ext_get_thread_id(void)
 {
 	return thread_get_id_may_fail();
+}
+
+int trace_ext_get_core_id(void)
+{
+	/* If foreign interrupts aren't masked we report invalid core ID */
+	if (thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR)
+		return get_core_pos();
+	else
+		return -1;
 }

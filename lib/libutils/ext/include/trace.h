@@ -25,6 +25,7 @@ extern int trace_level;
 extern const char trace_ext_prefix[];
 void trace_ext_puts(const char *str);
 int trace_ext_get_thread_id(void);
+int trace_ext_get_core_id(void);
 void trace_set_level(int level);
 int trace_get_level(void);
 void plat_trace_ext_puts(const char *str);
