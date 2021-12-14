@@ -342,11 +342,11 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	if (_fdt_get_status(fdt, nodeoffset) == DT_STATUS_OK_SEC)
 		matrix_configure_periph_secure(AT91C_ID_PMC);
 
-	slow_clk = clk_dt_get_by_name(fdt, nodeoffset, "slow_clk", &res);
+	res = clk_dt_get_by_name(fdt, nodeoffset, "slow_clk", &slow_clk);
 	if (res)
 		panic();
 
-	main_xtal_clk = clk_dt_get_by_name(fdt, nodeoffset, "main_xtal", &res);
+	res = clk_dt_get_by_name(fdt, nodeoffset, "main_xtal", &main_xtal_clk);
 	if (res)
 		panic();
 

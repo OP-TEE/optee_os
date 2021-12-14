@@ -30,41 +30,34 @@
 	}
 
 /**
- * clk_dt_get_by_idx - Get a clock at a specific index in "clocks" property
+ * clk_dt_get_by_index - Get a clock at a specific index in "clocks" property
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a clock property
  * @clk_idx: Clock index to get
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
- *	Any TEE_Result compliant code in case of error.
+ * @clk: Output clock reference upon success
  *
- * Returns a clk struct pointer matching the clock at index clk_idx in clocks
- * property or NULL if no clock match the given index in which case @res
- * provides the error code.
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ * Return any other TEE_Result compliant code in case of error
  */
-struct clk *clk_dt_get_by_idx(const void *fdt, int nodeoffset,
-			      unsigned int clk_idx, TEE_Result *res);
+TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
+			       unsigned int clk_idx, struct clk **clk);
 
 /**
- * clk_dt_get_by_name - Get a clock matching a name in the "clock-names"
- * property
+ * clk_dt_get_by_name - Get a clock matching a name in "clock-names" property
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the subnode containing a clock property
  * @name: Clock name to get
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
- *	Any TEE_Result compliant code in case of error.
+ * @clk: Output clock reference upon success
  *
- * Returns a clk struct pointer matching the name in "clock-names" property or
- * NULL if no clock match the given name in which case @res provides the
- * error code.
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ * Return any other TEE_Result compliant code in case of error
  */
-struct clk *clk_dt_get_by_name(const void *fdt, int nodeoffset,
-			       const char *name, TEE_Result *res);
+TEE_Result clk_dt_get_by_name(const void *fdt, int nodeoffset,
+			      const char *name, struct clk **clk);
 
 /**
  * clk_dt_get_func - Typedef of function to get clock from devicetree properties
