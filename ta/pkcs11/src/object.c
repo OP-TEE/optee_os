@@ -85,6 +85,8 @@ static void cleanup_volatile_obj_ref(struct pkcs11_object *obj)
 	if (!obj)
 		return;
 
+	LIST_REMOVE(obj, link);
+
 	if (obj->key_handle != TEE_HANDLE_NULL)
 		TEE_FreeTransientObject(obj->key_handle);
 
@@ -119,8 +121,6 @@ void cleanup_persistent_object(struct pkcs11_object *obj,
 	obj->attribs_hdl = TEE_HANDLE_NULL;
 	destroy_object_uuid(token, obj);
 
-	LIST_REMOVE(obj, link);
-
 	cleanup_volatile_obj_ref(obj);
 }
 
@@ -139,8 +139,6 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 	if (obj->uuid)
 		MSG_RAW("[destroy] obj uuid %pUl", (void *)obj->uuid);
 #endif
-
-	LIST_REMOVE(obj, link);
 
 	if (session_only) {
 		/* Destroy object due to session closure */
