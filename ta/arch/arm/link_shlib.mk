@@ -20,6 +20,9 @@ cleanfiles += $(link-out-dir)/$(shlibuuid).ta
 shlink-ldflags  = $(LDFLAGS)
 shlink-ldflags += -shared -z max-page-size=4096
 shlink-ldflags += $(call ld-option,-z separate-loadable-segments)
+ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
+shlink-ldflags += $(call ld-option,-z force-bti) --fatal-warnings
+endif
 shlink-ldflags += --as-needed # Do not add dependency on unused shlib
 
 shlink-ldadd  = $(LDADD)
