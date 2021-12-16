@@ -31,6 +31,9 @@ link-ldflags += -T $(link-script-pp$(sm))
 link-ldflags += -Map=$(link-out-dir$(sm))/$(user-ta-uuid).map
 link-ldflags += --sort-section=alignment
 link-ldflags += -z max-page-size=4096 # OP-TEE always uses 4K alignment
+ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
+link-ldflags += $(call ld-option,-z force-bti) --fatal-warnings
+endif
 link-ldflags += --as-needed # Do not add dependency on unused shlib
 link-ldflags += $(link-ldflags$(sm))
 

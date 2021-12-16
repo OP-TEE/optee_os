@@ -13,6 +13,14 @@ link-ldflags  = $(LDFLAGS)
 ifeq ($(CFG_CORE_ASLR),y)
 link-ldflags += -pie -Bsymbolic -z notext -z norelro $(ldflag-apply-dynamic-relocs)
 endif
+ifeq ($(CFG_CORE_BTI),y)
+# force-bti tells the linker to warn if some object files lack the .note.gnu.property
+# section with the BTI flag, and to turn on the BTI flag in the output anyway. The
+# resulting executable would likely fail at runtime so we use this flag along
+# with the --fatal-warnings below to check and prevent this situation (with useful
+# diagnostics).
+link-ldflags += $(call ld-option,-z force-bti) --fatal-warnings
+endif
 link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
