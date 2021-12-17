@@ -346,8 +346,8 @@ static bool bpool_foreach(struct malloc_ctx *ctx,
 	for (bpool_foreach_iterator_init((ctx),(iterator));   \
 	     bpool_foreach((ctx),(iterator), (bp));)
 
-static void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
-			  size_t pl_size, struct malloc_ctx *ctx)
+void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
+		   size_t pl_size, struct malloc_ctx *ctx)
 {
 	void *ptr = NULL;
 	bufsize s;
@@ -372,8 +372,8 @@ out:
 	return ptr;
 }
 
-static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
-			struct malloc_ctx *ctx)
+void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
+		 struct malloc_ctx *ctx)
 {
 	/*
 	 * Note that we're feeding SizeQ as alignment, this is the smallest
@@ -382,7 +382,7 @@ static void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
 	return raw_memalign(hdr_size, ftr_size, SizeQ, pl_size, ctx);
 }
 
-static void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
+void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 {
 	raw_malloc_validate_pools(ctx);
 
@@ -390,8 +390,8 @@ static void raw_free(void *ptr, struct malloc_ctx *ctx, bool wipe)
 		brel(ptr, &ctx->poolset, wipe);
 }
 
-static void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
-			size_t pl_size, struct malloc_ctx *ctx)
+void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
+		 size_t pl_size, struct malloc_ctx *ctx)
 {
 	void *ptr = NULL;
 	bufsize s;
@@ -415,8 +415,8 @@ out:
 	return ptr;
 }
 
-static void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
-			 size_t pl_size, struct malloc_ctx *ctx)
+void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
+		  size_t pl_size, struct malloc_ctx *ctx)
 {
 	void *p = NULL;
 	bufsize s;
@@ -889,6 +889,30 @@ out:
 	malloc_unlock(ctx, exceptions);
 	return ret;
 }
+
+size_t raw_malloc_get_ctx_size(void)
+{
+	return sizeof(struct malloc_ctx);
+}
+
+void raw_malloc_init_ctx(struct malloc_ctx *ctx)
+{
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->poolset.freelist.ql.flink = &ctx->poolset.freelist;
+	ctx->poolset.freelist.ql.blink = &ctx->poolset.freelist;
+}
+
+void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
+{
+	gen_malloc_add_pool(ctx, buf, len);
+}
+
+#ifdef CFG_WITH_STATS
+void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats)
+{
+	gen_malloc_get_stats(ctx, stats);
+}
+#endif
 
 void malloc_add_pool(void *buf, size_t len)
 {
