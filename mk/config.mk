@@ -773,3 +773,6 @@ endif
 # interrupt ID must be configurged by the platform too. Currently is only
 # CFG_CORE_ASYNC_NOTIF_GIC_INTID defined.
 CFG_CORE_ASYNC_NOTIF ?= n
+
+$(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
+	 CFG_WITH_STATS))
