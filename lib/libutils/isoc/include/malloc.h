@@ -155,6 +155,8 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 size_t raw_malloc_get_ctx_size(void);
 void raw_malloc_init_ctx(struct malloc_ctx *ctx);
 void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len);
+#ifdef CFG_WITH_STATS
 void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats);
+#endif
 
 #endif /* MALLOC_H */

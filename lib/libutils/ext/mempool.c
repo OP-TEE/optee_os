@@ -54,10 +54,10 @@
 
 struct mempool {
 	size_t size;  /* size of the memory pool, in bytes */
-	ssize_t last_offset;   /* offset to the last one */
 	vaddr_t data;
+	struct malloc_ctx *mctx;
 #ifdef CFG_MEMPOOL_REPORT_LAST_OFFSET
-	ssize_t max_last_offset;
+	size_t max_allocated;
 #endif
 #if defined(__KERNEL__)
 	void (*release_mem)(void *ptr, size_t size);
@@ -69,10 +69,31 @@ struct mempool {
 struct mempool *mempool_default;
 #endif
 
+static void init_mpool(struct mempool *pool)
+{
+	size_t sz = pool->size - raw_malloc_get_ctx_size();
+	vaddr_t v = ROUNDDOWN(pool->data + sz, sizeof(long) * 2);
+
+	/*
+	 * v is the placed as close to the end of the data pool as possible
+	 * where the struct malloc_ctx can be placed. This location is selected
+	 * as an optimization for the pager case to get better data
+	 * locality since raw_malloc() starts to allocate from the end of
+	 * the supplied data pool.
+	 */
+	assert(v > pool->data);
+	pool->mctx = (struct malloc_ctx *)v;
+	raw_malloc_init_ctx(pool->mctx);
+	raw_malloc_add_pool(pool->mctx, (void *)pool->data, v - pool->data);
+}
+
 static void get_pool(struct mempool *pool __maybe_unused)
 {
 #if defined(__KERNEL__)
 	mutex_lock_recursive(&pool->mu);
+	if (!pool->mctx)
+		init_mpool(pool);
+
 #endif
 }
 
@@ -84,10 +105,10 @@ static void put_pool(struct mempool *pool __maybe_unused)
 		 * As the refcount is about to become 0 there should be no items
 		 * left
 		 */
-		if (pool->last_offset >= 0)
-			panic();
-		if (pool->release_mem)
+		if (pool->release_mem) {
+			pool->mctx = NULL;
 			pool->release_mem((void *)pool->data, pool->size);
+		}
 	}
 	mutex_unlock_recursive(&pool->mu);
 #endif
@@ -105,10 +126,11 @@ mempool_alloc_pool(void *data, size_t size,
 	if (pool) {
 		pool->size = size;
 		pool->data = (vaddr_t)data;
-		pool->last_offset = -1;
 #if defined(__KERNEL__)
 		pool->release_mem = release_mem;
 		mutex_init_recursive(&pool->mu);
+#else
+		init_mpool(pool);
 #endif
 	}
 
@@ -117,47 +139,25 @@ mempool_alloc_pool(void *data, size_t size,
 
 void *mempool_alloc(struct mempool *pool, size_t size)
 {
-	size_t offset;
-	struct mempool_item *new_item;
-	struct mempool_item *last_item = NULL;
+	void *p = NULL;
 
 	get_pool(pool);
 
-	if (pool->last_offset < 0) {
-		offset = 0;
-	} else {
-		last_item = (struct mempool_item *)(pool->data +
-						    pool->last_offset);
-		offset = pool->last_offset + last_item->size;
-
-		offset = ROUNDUP(offset, MEMPOOL_ALIGN);
-		if (offset > pool->size)
-			goto error;
-	}
-
-	size = sizeof(struct mempool_item) + size;
-	size = ROUNDUP(size, MEMPOOL_ALIGN);
-	if (offset + size > pool->size)
-		goto error;
-
-	new_item = (struct mempool_item *)(pool->data + offset);
-	new_item->size = size;
-	new_item->prev_item_offset = pool->last_offset;
-	if (last_item)
-		last_item->next_item_offset = offset;
-	new_item->next_item_offset = -1;
-	pool->last_offset = offset;
+	p = raw_malloc(0, 0, size, pool->mctx);
+	if (p) {
 #ifdef CFG_MEMPOOL_REPORT_LAST_OFFSET
-	if (pool->last_offset > pool->max_last_offset) {
-		pool->max_last_offset = pool->last_offset;
-		DMSG("Max memory usage increased to %zu",
-		     (size_t)pool->max_last_offset);
-	}
+		struct malloc_stats stats = { };
+
+		raw_malloc_get_stats(pool->mctx, &stats);
+		if (stats.max_allocated > pool->max_allocated) {
+			pool->max_allocated = stats.max_allocated;
+			DMSG("Max memory usage increased to %zu",
+			     pool->max_allocated);
+		}
 #endif
+		return p;
+	}
 
-	return new_item + 1;
-
-error:
 	EMSG("Failed to allocate %zu bytes, please tune the pool size", size);
 	put_pool(pool);
 	return NULL;
@@ -180,30 +180,6 @@ void *mempool_calloc(struct mempool *pool, size_t nmemb, size_t size)
 
 void mempool_free(struct mempool *pool, void *ptr)
 {
-	struct mempool_item *item;
-	struct mempool_item *prev_item;
-	struct mempool_item *next_item;
-	ssize_t last_offset = -1;
-
-	if (!ptr)
-		return;
-
-	item = (struct mempool_item *)((vaddr_t)ptr -
-				       sizeof(struct mempool_item));
-	if (item->prev_item_offset >= 0) {
-		prev_item = (struct mempool_item *)(pool->data +
-						    item->prev_item_offset);
-		prev_item->next_item_offset = item->next_item_offset;
-		last_offset = item->prev_item_offset;
-	}
-
-	if (item->next_item_offset >= 0) {
-		next_item = (struct mempool_item *)(pool->data +
-						    item->next_item_offset);
-		next_item->prev_item_offset = item->prev_item_offset;
-		last_offset = pool->last_offset;
-	}
-
-	pool->last_offset = last_offset;
+	raw_free(ptr, pool->mctx, false /*!wipe*/);
 	put_pool(pool);
 }
