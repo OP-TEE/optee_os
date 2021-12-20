@@ -75,7 +75,6 @@ static inline void cpu_spin_lock(unsigned int *lock)
 }
 #endif
 
-
 static inline bool cpu_spin_trylock(unsigned int *lock)
 {
 	unsigned int rc;
@@ -101,7 +100,6 @@ static inline uint32_t cpu_spin_lock_xsave_no_dldetect(unsigned int *lock)
 	cpu_spin_lock(lock);
 	return exceptions;
 }
-
 
 #ifdef CFG_TEE_CORE_DEBUG
 #define cpu_spin_lock_xsave(lock) \
