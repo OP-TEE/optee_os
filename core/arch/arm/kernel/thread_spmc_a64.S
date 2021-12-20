@@ -170,7 +170,7 @@ DECLARE_KEEP_PAGER thread_rpc
 FUNC thread_foreign_intr_exit , :
 	/* load threads[w0].tsd.rpc_target_info into w1 */
 	mov	x1, #THREAD_CTX_SIZE
-	adr	x2, threads
+	adr_l	x2, threads
 	madd	x1, x1, x0, x2
 	ldr	w1, [x1, #THREAD_CTX_TSD_RPC_TARGET_INFO]
 	mov	x2, #FFA_PARAM_MBZ
