@@ -11,7 +11,6 @@ srcs-$(CFG_ARM64_core) += timer_a64.c
 
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S
 srcs-$(CFG_ARM64_core) += spin_lock_a64.S
-srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
 srcs-$(CFG_ARM32_core) += tlb_helpers_a32.S
 srcs-$(CFG_ARM64_core) += tlb_helpers_a64.S
 srcs-$(CFG_ARM64_core) += cache_helpers_a64.S
@@ -75,7 +74,6 @@ ifeq ($(CFG_SYSCALL_FTRACE),y)
 # that are needed for ftrace framework to trace syscalls. So profiling
 # this file could create an incorrect cyclic behaviour.
 cflags-remove-thread.c-y += -pg
-cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
 # Tracing abort dump files corrupts the stack trace. So exclude them
 # from profiling.
 cflags-remove-abort.c-y += -pg
