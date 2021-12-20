@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/spinlock.h>
-#include "thread_private.h"
 
 void spinlock_count_incr(void)
 {
