@@ -9,6 +9,7 @@
 #include <keep.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread_spmc.h>
 #include <mm/mobj.h>
 #include <sys/queue.h>
 
