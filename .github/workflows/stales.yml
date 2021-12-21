@@ -3,11 +3,15 @@ on:
   schedule:
   - cron: "15 00 * * *"
 
+permissions:
+  issues: write
+  pull-requests: write
+
 jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/stale@v3.0.7
+    - uses: actions/stale@v4.0.1
 
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -20,3 +24,5 @@ jobs:
         days-before-stale: 30
         days-before-close: 5
         remove-stale-when-updated: true
+        remove-issue-stale-when-updated: true
+        remove-pr-stale-when-updated: true
