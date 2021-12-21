@@ -20,6 +20,8 @@ int snprintf(char *str, size_t size, const char *fmt, ...)
                     __attribute__ ((__format__ (__printf__, 3, 4)));
 int vsnprintf (char *str, size_t size, const char *fmt, va_list ap)
                     __attribute__ ((__format__ (__printf__, 3, 0)));
+int __sprintf_chk(char *str, int flag, size_t slen, const char *fmt, ...)
+                    __attribute__ ((__format__ (__printf__, 4, 5)));
 
 int puts(const char *str);
 int putchar(int c);
