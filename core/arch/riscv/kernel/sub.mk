@@ -1,1 +1,11 @@
 srcs-y += spinlock.S
+srcs-y += thread.c
+srcs-y += thread_rv.S
+srcs-y += boot.c
+srcs-y += tee_time.c
+srcs-y += trace_ext.c
+srcs-y += link_dummies.c
+srcs-y += idle.c
+srcs-y += abort.c
+srcs-y += entry.S
+asm-defines-y += asm-defines.c
