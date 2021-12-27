@@ -41,7 +41,7 @@ $(foreach op,$(ops),$(eval override $(op)))
 endif
 
 # Make these default for now
-$(call force,ARCH,arm)
+ARCH            ?= arm
 PLATFORM        ?= vexpress
 # Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
 ifeq ($O,)
