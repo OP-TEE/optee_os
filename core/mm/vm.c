@@ -5,8 +5,8 @@
  * Copyright (c) 2021, Arm Limited
  */
 
-#include <arm.h>
 #include <assert.h>
+#include <config.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
