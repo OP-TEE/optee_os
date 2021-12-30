@@ -299,6 +299,11 @@ static inline struct mobj *mobj_mapped_shm_alloc(paddr_t *pages __unused,
 {
 	return NULL;
 }
+
+static inline struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie __unused)
+{
+	return NULL;
+}
 #endif
 
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
