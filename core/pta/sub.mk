@@ -12,5 +12,6 @@ srcs-$(CFG_SCP03_PTA) += scp03.c
 srcs-$(CFG_APDU_PTA) += apdu.c
 srcs-$(CFG_SCMI_PTA) += scmi.c
 srcs-$(CFG_HWRNG_PTA) += hwrng.c
+srcs-$(CFG_BOOT_LOG_PTA) += boot_log.c
 
 subdirs-y += bcm

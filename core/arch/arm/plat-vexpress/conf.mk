@@ -92,6 +92,13 @@ CFG_TZDRAM_START ?= 0x0e100000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
 CFG_SHMEM_START  ?= 0x7fe00000
 CFG_SHMEM_SIZE   ?= 0x00200000
+
+CFG_BOOT_LOG_PTA ?= y
+ifeq ($(CFG_BOOT_LOG_PTA),y)
+CFG_TEE_BOOT_LOG_START ?= (CFG_TZDRAM_START + CFG_TZDRAM_SIZE)
+CFG_TEE_BOOT_LOG_SIZE ?= 0x100000U
+endif
+
 # When Secure Data Path is enable, last MByte of TZDRAM is SDP test memory.
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 # Set VA space to 2MB for Kasan offset to match LPAE and 32bit MMU configs

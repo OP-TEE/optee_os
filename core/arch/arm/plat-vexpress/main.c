@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <trace.h>
+#include <bootlog/bootlog.h>
 
 static struct gic_data gic_data __nex_bss;
 static struct pl011_data console_data __nex_bss;
@@ -47,6 +48,21 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
+
+#if defined(PLATFORM_FLAVOR_qemu_virt)
+#ifdef CFG_BOOT_LOG_PTA
+register_phys_mem(MEM_AREA_IO_SEC, CFG_TEE_BOOT_LOG_START, CFG_TEE_BOOT_LOG_SIZE);
+
+void plat_trace_ext_puts(const char *str)
+{
+	const char *p;
+
+	for (p = str; *p; p++)
+		boot_log_putchar(*p);
+}
+
+#endif
+#endif
 
 void main_init_gic(void)
 {
@@ -89,6 +105,13 @@ void console_init(void)
 	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
 		   CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
+
+#if defined(PLATFORM_FLAVOR_qemu_virt)
+#ifdef CFG_BOOT_LOG_PTA
+	boot_log_init(CFG_TEE_BOOT_LOG_START, CFG_TEE_BOOT_LOG_SIZE);
+	DMSG("Boot logging initialized\n");
+#endif
+#endif
 }
 
 #if defined(IT_CONSOLE_UART) && \
