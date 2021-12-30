@@ -29,14 +29,16 @@ static TEE_Result pta_clear_bootlog(uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START, MEM_AREA_IO_SEC, BOOT_LOG_HEADER_SIZE);
+	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START,
+			MEM_AREA_IO_SEC, BOOT_LOG_HEADER_SIZE);
 
 	if (!src_vaddr) {
 		EMSG("Not enough memory mapped");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	memcpy((char *)src_vaddr + BOOT_LOG_CUR_LEN_OFF, (char *)&clearLen, BOOT_LOG_CUR_LEN_SIZE);
+	memcpy((char *)src_vaddr + BOOT_LOG_CUR_LEN_OFF, (char *)&clearLen,
+			BOOT_LOG_CUR_LEN_SIZE);
 
 	return res;
 }
@@ -58,28 +60,33 @@ static TEE_Result pta_get_boot_log_size(uint32_t param_types,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START, MEM_AREA_IO_SEC, BOOT_LOG_HEADER_SIZE);
+	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START,
+			MEM_AREA_IO_SEC, BOOT_LOG_HEADER_SIZE);
 
 	if (!src_vaddr) {
 		EMSG("Not enough memory mapped");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	memcpy((char *)&params[0].value.a, (char *)src_vaddr + BOOT_LOG_CUR_LEN_OFF, BOOT_LOG_CUR_LEN_SIZE);
+	memcpy((char *)&params[0].value.a, (char *)src_vaddr +
+			BOOT_LOG_CUR_LEN_OFF, BOOT_LOG_CUR_LEN_SIZE);
 
 	return res;
 
 }
 
-static TEE_Result get_boot_log_message(vaddr_t src, TEE_Param params[TEE_NUM_PARAMS])
+static TEE_Result get_boot_log_message(vaddr_t src,
+		TEE_Param params[TEE_NUM_PARAMS])
 {
 	char *buf = NULL;
 	uint32_t len;
 
 	buf = params[0].memref.buffer;
 
-	memcpy((char *)&params[0].memref.size, (char *)src + BOOT_LOG_CUR_LEN_OFF, BOOT_LOG_CUR_LEN_SIZE);
-	memcpy((char *)&params[0].value.a, (char *)src + BOOT_LOG_CUR_LEN_OFF, BOOT_LOG_CUR_LEN_SIZE);
+	memcpy((char *)&params[0].memref.size, (char *)src +
+			BOOT_LOG_CUR_LEN_OFF, BOOT_LOG_CUR_LEN_SIZE);
+	memcpy((char *)&params[0].value.a, (char *)src + BOOT_LOG_CUR_LEN_OFF,
+			BOOT_LOG_CUR_LEN_SIZE);
 
 	len = params[0].value.a;
 
@@ -111,20 +118,21 @@ static TEE_Result pta_get_boot_log(uint32_t param_types,
 	}
 
 	map_size = MIN(params[0].memref.size, (BOOT_LOG_MAX_SIZE));
-	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START, MEM_AREA_IO_SEC, (map_size + BOOT_LOG_HEADER_SIZE));
+	src_vaddr = (vaddr_t)phys_to_virt(CFG_TEE_BOOT_LOG_START,
+			MEM_AREA_IO_SEC, (map_size + BOOT_LOG_HEADER_SIZE));
 
-	if (!src_vaddr) 
-	{
+	if (!src_vaddr) {
 		EMSG("Not enough memory mapped");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	/* Validate if boot logs are present or not*/
-	if ((*(uint32_t *)src_vaddr) != BOOT_LOG_SIG_VAL) 
-	{
+	if ((*(uint32_t *)src_vaddr) != BOOT_LOG_SIG_VAL) {
 		DMSG("Elog Not setup: 0x%x", (*(uint32_t *)src_vaddr));
-		memcpy((char *)src_vaddr, (char *)&signature, BOOT_LOG_SIG_OFFSET_SIZE);
-		memcpy((char *)src_vaddr + BOOT_LOG_CUR_LEN_OFF, (char *)&lenInit, BOOT_LOG_CUR_LEN_SIZE);
+		memcpy((char *)src_vaddr, (char *)&signature,
+				BOOT_LOG_SIG_OFFSET_SIZE);
+		memcpy((char *)src_vaddr + BOOT_LOG_CUR_LEN_OFF,
+				(char *)&lenInit, BOOT_LOG_CUR_LEN_SIZE);
 		DMSG("Bootlog setup done by PTA.");
 	}
 
@@ -143,19 +151,19 @@ static TEE_Result invoke_command(void *session_context __unused,
 	DMSG("command entry point[%d] for \"%s\"", cmd_id, PTA_BOOT_LOG_NAME);
 
 	switch (cmd_id) {
-		case PTA_BOOT_LOG_GET_MSG:
-			res = pta_get_boot_log(param_types, params);
-			break;
-		case PTA_BOOT_LOG_GET_SIZE:
-			res = pta_get_boot_log_size(param_types, params);
-			break;
-		case PTA_BOOT_LOG_CLEAR:
-			res = pta_clear_bootlog(param_types, params);
-			break;
-		default:
-			EMSG("cmd: %d Not supported %s", cmd_id, PTA_BOOT_LOG_NAME);
-			res = TEE_ERROR_NOT_SUPPORTED;
-			break;
+	case PTA_BOOT_LOG_GET_MSG:
+		res = pta_get_boot_log(param_types, params);
+		break;
+	case PTA_BOOT_LOG_GET_SIZE:
+		res = pta_get_boot_log_size(param_types, params);
+		break;
+	case PTA_BOOT_LOG_CLEAR:
+		res = pta_clear_bootlog(param_types, params);
+		break;
+	default:
+		EMSG("cmd: %d Not supported %s", cmd_id, PTA_BOOT_LOG_NAME);
+		res = TEE_ERROR_NOT_SUPPORTED;
+		break;
 	}
 
 	return res;

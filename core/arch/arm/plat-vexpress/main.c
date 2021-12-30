@@ -51,7 +51,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
 #if defined(PLATFORM_FLAVOR_qemu_virt)
 #ifdef CFG_BOOT_LOG_PTA
-register_phys_mem(MEM_AREA_IO_SEC, CFG_TEE_BOOT_LOG_START, CFG_TEE_BOOT_LOG_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, CFG_TEE_BOOT_LOG_START,
+					CFG_TEE_BOOT_LOG_SIZE);
 
 void plat_trace_ext_puts(const char *str)
 {
