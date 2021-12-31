@@ -4,7 +4,6 @@
  * Copyright (c) 2020, Arm Limited
  */
 
-#include <arm.h>
 #include <assert.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
