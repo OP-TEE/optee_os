@@ -8,8 +8,10 @@
 #ifndef PLATFORM_CONFIG_H
 #define PLATFORM_CONFIG_H
 
-#define TEE_RAM_START		CFG_TDDRAM_START
-#define TEE_LOAD_ADDR		TEE_RAM_START
-#define TEE_RAM_VA_SIZE		(1024 * 1024)
+#include <mm/generic_ram_layout.h>
+
+#ifndef HTIF_BASE
+#define HTIF_BASE	0x40008000
+#endif
 
 #endif
