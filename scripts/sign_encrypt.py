@@ -11,6 +11,9 @@ import math
 algo = {'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256': 0x70414930,
         'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256': 0x70004830}
 
+enc_key_type = {'SHDR_ENC_KEY_DEV_SPECIFIC': 0x0,
+                'SHDR_ENC_KEY_CLASS_WIDE': 0x1}
+
 
 def uuid_parse(s):
     from uuid import UUID
@@ -42,20 +45,21 @@ def get_args(logger):
         '     sign-enc    Generate signed and optionally encrypted loadable' +
         ' TA image file.\n' +
         '                 Takes arguments --uuid, --ta-version, --in, --out,' +
-        ' --key\n' +
-        '                 and --enc-key (optional).\n' +
+        ' --key,\n' +
+        '                 --enc-key (optional) and' +
+        ' --enc-key-type (optional).\n' +
         '     digest      Generate loadable TA binary image digest' +
         ' for offline\n' +
         '                 signing. Takes arguments --uuid, --ta-version,' +
         ' --in, --key,\n'
-        '                 --enc-key (optional), --algo (optional) and' +
-        ' --dig.\n' +
+        '                 --enc-key (optional), --enc-key-type (optional),' +
+        ' --algo (optional) and --dig.\n' +
         '     stitch      Generate loadable signed and encrypted TA binary' +
         ' image file from\n' +
         '                 TA raw image and its signature. Takes' +
-        ' arguments\n' +
-        '                 --uuid, --in, --key, --enc-key (optional), --out,' +
-        ' --algo (optional) and --sig.\n\n' +
+        ' arguments --uuid, --in, --key, --out,\n' +
+        '                 --enc-key (optional), --enc-key-type (optional),\n' +
+        '                 --algo (optional) and --sig.\n\n' +
         '   %(prog)s --help  show available commands and arguments\n\n',
         formatter_class=RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
@@ -90,6 +94,12 @@ def get_args(logger):
                         help='Name of signing key file (PEM format)')
     parser.add_argument('--enc-key', required=False,
                         help='Encryption key string')
+    parser.add_argument(
+        '--enc-key-type', required=False, default='SHDR_ENC_KEY_DEV_SPECIFIC',
+        choices=list(enc_key_type.keys()),
+        help='Encryption key type.\n' +
+        '(SHDR_ENC_KEY_DEV_SPECIFIC or SHDR_ENC_KEY_CLASS_WIDE).\n' +
+        'Defaults to SHDR_ENC_KEY_DEV_SPECIFIC.')
     parser.add_argument(
         '--ta-version', required=False, type=int_parse, default=0,
         help='TA version stored as a 32-bit unsigned integer and used for\n' +
@@ -210,8 +220,8 @@ def main():
         # Authentication Tag is always the last 16 bytes
         tag = out[-16:]
 
-        enc_algo = 0x40000810  # TEE_ALG_AES_GCM
-        flags = 0              # SHDR_ENC_KEY_DEV_SPECIFIC
+        enc_algo = 0x40000810      # TEE_ALG_AES_GCM
+        flags = enc_key_type[args.enc_key_type]
         ehdr = struct.pack('<IIHH',
                            enc_algo, flags, len(nonce), len(tag))
 
