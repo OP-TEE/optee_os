@@ -21,11 +21,11 @@
 	static const element_type element_name; \
 	DECLARE_KEEP_INIT(element_name); \
 	static const element_type element_name __used \
-		__section(section_name __SECTION_FLAGS_RODATA)
+		__section(section_name)
 
 #define __SCT_ARRAY_DEF_PG_ITEM3(element_type, element_name, section_name) \
 	static const element_type element_name __used \
-		__section(section_name __SECTION_FLAGS_RODATA)
+		__section(section_name)
 
 #define __SCT_ARRAY_DEF_ITEM2(array_name, order, id, element_type) \
 	__SCT_ARRAY_DEF_ITEM3(element_type, \
@@ -84,8 +84,7 @@
  */
 #define SCATTERED_ARRAY_BEGIN(array_name, element_type) (__extension__({ \
 		static const element_type __scattered_array_begin[0] __unused \
-		__section(".scattered_array_" #array_name "_0" \
-			  __SECTION_FLAGS_RODATA); \
+		__section(".scattered_array_" #array_name "_0"); \
 		\
 		(const element_type *)scattered_array_relax_ptr( \
 			__scattered_array_begin); \
@@ -98,8 +97,7 @@
  */
 #define SCATTERED_ARRAY_END(array_name, element_type) (__extension__({ \
 		static const element_type __scattered_array_end[0] __unused \
-		__section(".scattered_array_" #array_name "_2" \
-			  __SECTION_FLAGS_RODATA); \
+		__section(".scattered_array_" #array_name "_2"); \
 		\
 		__scattered_array_end; \
 	}))

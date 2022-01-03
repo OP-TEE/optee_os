@@ -134,12 +134,20 @@ SECTIONS
 #include <rodata_unpaged.ld.S>
 #else
 		*(.rodata .rodata.*)
+#ifndef CFG_CORE_ASLR
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
+#endif
 #endif
 		. = ALIGN(8);
 		__rodata_end = .;
 	}
+
+#if !defined(CFG_WITH_PAGER) && defined(CFG_CORE_ASLR)
+	.data.rel.ro : ALIGN(8) {
+		KEEP(*(SORT(.scattered_array*)));
+	}
+#endif
 
 	.got : { *(.got.plt) *(.got) }
 	.note.gnu.property : { *(.note.gnu.property) }
@@ -323,15 +331,20 @@ SECTIONS
 
 	.rodata_init : {
 #include <rodata_init.ld.S>
-
+#ifndef CFG_CORE_ASLR
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
-
-		. = ALIGN(8);
-		__rodata_init_end = .;
+#endif
 	}
+#ifdef CFG_CORE_ASLR
+	.data.rel.ro_init : ALIGN(8) {
+		KEEP(*(SORT(.scattered_array*)));
+	}
+#endif
+	. = ALIGN(8);
+	__ro_and_relro_data_init_end = .;
 
-	__init_end = ALIGN(__rodata_init_end, SMALL_PAGE_SIZE);
+	__init_end = ALIGN(__ro_and_relro_data_init_end, SMALL_PAGE_SIZE);
 	__get_tee_init_end = __init_end;
 	__init_size = __init_end - __init_start;
 
