@@ -60,6 +60,7 @@ __rela_end = .;
 __rela_start = .;
 __rel_end = .;
 __rel_start = .;
+__ro_and_relro_data_init_end = .;
 __rodata_early_ta_end = .;
 __rodata_early_ta_start = .;
 __rodata_end = .;
