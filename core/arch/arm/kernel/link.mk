@@ -11,7 +11,13 @@ AWK	 = awk
 
 link-ldflags  = $(LDFLAGS)
 ifeq ($(CFG_CORE_ASLR),y)
-link-ldflags += -pie -Bsymbolic -z notext -z norelro $(ldflag-apply-dynamic-relocs)
+link-ldflags += -pie -Bsymbolic -z norelro $(ldflag-apply-dynamic-relocs)
+ifeq ($(CFG_ARM64_core),y)
+link-ldflags += -z text
+else
+# Suppression of relocations in read-only segments has not been done yet
+link-ldflags += -z notext
+endif
 endif
 ifeq ($(CFG_CORE_BTI),y)
 # force-bti tells the linker to warn if some object files lack the .note.gnu.property
