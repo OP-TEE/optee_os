@@ -98,7 +98,9 @@ def get_args(logger):
     parser.add_argument('--uuid', required=True,
                         type=uuid_parse, help='String UUID of the TA')
     parser.add_argument('--key', required=True,
-                        help='Name of signing key file (PEM format)')
+                        help='Name of signing key file (PEM format) or an ' +
+                             'Amazon Resource Name (arn:) of an AWS KMS ' +
+                             'asymmetric key')
     parser.add_argument('--enc-key', required=False,
                         help='Encryption key string')
     parser.add_argument(
@@ -182,15 +184,22 @@ def main():
 
     args = get_args(logger)
 
-    with open(args.key, 'rb') as f:
-        data = f.read()
+    if args.key.startswith('arn:'):
+        from sign_helper_kms import _RSAPrivateKeyInKMS
+        key = _RSAPrivateKeyInKMS(args.key)
+    else:
+        with open(args.key, 'rb') as f:
+            data = f.read()
 
-        try:
-            key = serialization.load_pem_private_key(data, password=None,
-                                                     backend=default_backend())
-        except ValueError:
-            key = serialization.load_pem_public_key(data,
-                                                    backend=default_backend())
+            try:
+                key = serialization.load_pem_private_key(
+                          data,
+                          password=None,
+                          backend=default_backend())
+            except ValueError:
+                key = serialization.load_pem_public_key(
+                          data,
+                          backend=default_backend())
 
     with open(args.inf, 'rb') as f:
         img = f.read()
