@@ -212,6 +212,14 @@ static TEE_Result se050_inject_public_key(sss_se05x_object_t *k_object,
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	/*
+	 * This function might return an error if the curve already
+	 * exists in the secure element. An actual error creating the
+	 * curve will be caught when attempting to set the key.
+	 */
+	sss_se05x_key_store_create_curve(&se050_session->s_ctx,
+					 curve_tee2se050(key->curve));
+
 	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
@@ -239,8 +247,10 @@ static TEE_Result se050_inject_public_key(sss_se05x_object_t *k_object,
 					     &key_bin);
 	free(key_bin.x);
 	free(key_bin.y);
-	if (st != kStatus_SSS_Success)
+	if (st != kStatus_SSS_Success) {
+		EMSG("Can't inject transient key, curve: %#"PRIx32, key->curve);
 		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -267,6 +277,14 @@ static TEE_Result se050_inject_keypair(sss_se05x_object_t *k_object,
 
 		return TEE_SUCCESS;
 	}
+
+	/*
+	 * This function might return an error if the curve already
+	 * exists in the secure element. An actual error creating the
+	 * curve will be caught when attempting to set the key.
+	 */
+	sss_se05x_key_store_create_curve(&se050_session->s_ctx,
+					 curve_tee2se050(key->curve));
 
 	st = se050_get_oid(&oid);
 	if (st != kStatus_SSS_Success)
@@ -305,8 +323,10 @@ static TEE_Result se050_inject_keypair(sss_se05x_object_t *k_object,
 	free(key_bin.d);
 	free(key_bin.pub.x);
 	free(key_bin.pub.y);
-	if (st != kStatus_SSS_Success)
+	if (st != kStatus_SSS_Success) {
+		EMSG("Can't inject transient key, curve: %#"PRIx32, key->curve);
 		return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -317,54 +337,58 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 {
 	struct se050_ecc_keypub key = { };
 	sss_status_t st = kStatus_SSS_Fail;
+	sss_se05x_derive_key_t ctx = { };
+	sss_se05x_object_t kobject = { };
 	TEE_Result ret = TEE_SUCCESS;
 	size_t key_bits = 0;
 	size_t key_bytes = 0;
-	size_t x1_len = 0;
-	size_t y1_len = 0;
-	size_t x2_len = 0;
-	uint32_t kid = 0;
 
 	if (private_key->curve != public_key->curve)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	kid = se050_ecc_keypair_from_nvm(private_key);
-	if (!kid) {
-		EMSG("private key must be stored in SE050 flash");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	/* validate input parameters */
-	x1_len = crypto_bignum_num_bytes(private_key->x);
-	y1_len = crypto_bignum_num_bytes(private_key->y);
-	x2_len = crypto_bignum_num_bytes(public_key->x);
-
-	ret = ecc_get_key_size(public_key->curve, 0, &key_bytes, &key_bits);
+	ret = ecc_get_key_size(private_key->curve, 0, &key_bytes, &key_bits);
 	if (ret != TEE_SUCCESS)
-		return ret;
-
-	if (x1_len != y1_len || x1_len != key_bytes || x1_len != x2_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	ret = se050_inject_keypair(&kobject, private_key, key_bytes);
+	if (ret != TEE_SUCCESS)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	st = sss_se05x_derive_key_context_init(&ctx, se050_session, &kobject,
+					       kAlgorithm_SSS_ECDH,
+					       kMode_SSS_ComputeSharedSecret);
+	if (st != kStatus_SSS_Success) {
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
 
 	/* prepare the public key (must be in raw format) */
-	ret = set_binary_data(public_key->x, x1_len, &key.x, &key.x_len);
-	if (ret != TEE_SUCCESS)
-		return ret;
-
-	ret = set_binary_data(public_key->y, y1_len, &key.y, &key.y_len);
+	ret = set_binary_data(public_key->x, key_bytes, &key.x, &key.x_len);
 	if (ret != TEE_SUCCESS) {
-		free(key.x);
-		return ret;
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
 	}
 
-	st = se050_ecc_gen_shared_secret(&se050_session->s_ctx, kid, &key,
+	ret = set_binary_data(public_key->y, key_bytes, &key.y, &key.y_len);
+	if (ret != TEE_SUCCESS) {
+		ret = TEE_ERROR_BAD_PARAMETERS;
+		goto exit;
+	}
+
+	st = se050_ecc_gen_shared_secret(&se050_session->s_ctx,
+					 kobject.keyId, &key,
 					 secret, secret_len);
+
+	if (st != kStatus_SSS_Success)
+		ret = TEE_ERROR_BAD_PARAMETERS;
+exit:
+	if (!se050_ecc_keypair_from_nvm(private_key))
+		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
+
 	free(key.x);
 	free(key.y);
-	if (st != kStatus_SSS_Success)
-		return TEE_ERROR_BAD_PARAMETERS;
 
-	return TEE_SUCCESS;
+	return ret;
 }
 
 static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
