@@ -849,6 +849,14 @@ void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
 	if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
 		TEE_ResetOperation(operation);
 
+	if (IV && IVLen) {
+		if (operation->info.algorithm == TEE_ALG_AES_ECB_NOPAD ||
+		    operation->info.algorithm == TEE_ALG_DES_ECB_NOPAD ||
+		    operation->info.algorithm == TEE_ALG_DES3_ECB_NOPAD ||
+		    operation->info.algorithm == TEE_ALG_SM4_ECB_NOPAD)
+			TEE_Panic(0);
+	}
+
 	operation->operationState = TEE_OPERATION_STATE_ACTIVE;
 
 	res = _utee_cipher_init(operation->state, IV, IVLen);
