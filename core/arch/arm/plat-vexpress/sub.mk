@@ -13,3 +13,6 @@ ifeq ($(PLATFORM_FLAVOR_qemu_armv8a),y)
 srcs-y += fvp_spmc_pm.c
 endif
 endif
+ifeq ($(PLATFORM_FLAVOR_qemu_armv8a),y)
+srcs-$(CFG_TPM2) += tpm2_platform.c
+endif
