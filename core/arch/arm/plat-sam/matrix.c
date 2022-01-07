@@ -26,11 +26,14 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <arm32.h>
+#include <initcall.h>
 #include <io.h>
-#include <sama5d2.h>
-#include <platform_config.h>
-#include <stdint.h>
+#include <kernel/pm.h>
+#include <kernel/panic.h>
 #include <matrix.h>
+#include <platform_config.h>
+#include <sama5d2.h>
+#include <stdint.h>
 #include <tz_matrix.h>
 #include <trace.h>
 
@@ -44,6 +47,9 @@
 
 #define WORLD_NON_SECURE	0
 #define WORLD_SECURE		1
+
+#define MATRIX_SPSELR_COUNT	3
+#define MATRIX_SLAVE_COUNT	15
 
 struct peri_security {
 	unsigned int peri_id;
@@ -546,3 +552,95 @@ int matrix_configure_periph_non_secure(unsigned int *peri_id_array,
 
 	return 0;
 }
+
+#ifdef CFG_PM_ARM32
+struct matrix_state {
+	uint32_t spselr[MATRIX_SPSELR_COUNT];
+	uint32_t ssr[MATRIX_SLAVE_COUNT];
+	uint32_t srtsr[MATRIX_SLAVE_COUNT];
+	uint32_t sassr[MATRIX_SLAVE_COUNT];
+	uint32_t meier;
+	uint32_t meimr;
+};
+
+static struct matrix_state matrix32_state;
+static struct matrix_state matrix64_state;
+
+static void matrix_save_regs(vaddr_t base, struct matrix_state *state)
+{
+	int idx = 0;
+
+	for (idx = 0; idx < MATRIX_SPSELR_COUNT; idx++)
+		state->spselr[idx] = matrix_read(base, MATRIX_SPSELR(idx));
+
+	for (idx = 0; idx < MATRIX_SLAVE_COUNT; idx++) {
+		state->ssr[idx] = matrix_read(base, MATRIX_SSR(idx));
+		state->srtsr[idx] = matrix_read(base, MATRIX_SRTSR(idx));
+		state->sassr[idx] = matrix_read(base, MATRIX_SASSR(idx));
+	}
+
+	state->meier = matrix_read(base, MATRIX_MEIER);
+	state->meimr = matrix_read(base, MATRIX_MEIMR);
+}
+
+static void matrix_suspend(void)
+{
+	matrix_save_regs(matrix32_base(), &matrix32_state);
+	matrix_save_regs(matrix64_base(), &matrix64_state);
+}
+
+static void matrix_restore_regs(vaddr_t base, struct matrix_state *state)
+{
+	int idx = 0;
+
+	matrix_write_protect_disable(base);
+
+	for (idx = 0; idx < MATRIX_SPSELR_COUNT; idx++)
+		matrix_write(base, MATRIX_SPSELR(idx), state->spselr[idx]);
+
+	for (idx = 0; idx < MATRIX_SLAVE_COUNT; idx++) {
+		matrix_write(base, MATRIX_SSR(idx), state->ssr[idx]);
+		matrix_write(base, MATRIX_SRTSR(idx), state->srtsr[idx]);
+		matrix_write(base, MATRIX_SASSR(idx), state->sassr[idx]);
+	}
+
+	matrix_write(base, MATRIX_MEIER, state->meier);
+	matrix_write(base, MATRIX_MEIMR, state->meimr);
+}
+
+static void matrix_resume(void)
+{
+	matrix_restore_regs(matrix32_base(), &matrix32_state);
+	matrix_restore_regs(matrix64_base(), &matrix64_state);
+}
+
+static TEE_Result matrix_pm(enum pm_op op, uint32_t pm_hint __unused,
+			    const struct pm_callback_handle *hdl __unused)
+{
+	switch (op) {
+	case PM_OP_RESUME:
+		matrix_resume();
+		break;
+	case PM_OP_SUSPEND:
+		matrix_suspend();
+		break;
+	default:
+		panic("Invalid PM operation");
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result matrix_pm_init(void)
+{
+	/*
+	 * We can't call matrix_register_pm in matrix_init since allocator is
+	 * not ready yet so we just call it later in this driver init callback.
+	 */
+	register_pm_driver_cb(matrix_pm, NULL, "sam-matrix");
+
+	return TEE_SUCCESS;
+}
+driver_init(matrix_pm_init);
+
+#endif
