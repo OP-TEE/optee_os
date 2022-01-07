@@ -575,16 +575,16 @@ icache_inv_user_range:
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	/* Point to the vector into the reduced mapping */
-	adr_l	x2, thread_user_kcode_offset
-	ldr	x2, [x2]
+	adr_l	x7, thread_user_kcode_offset
+	ldr	x7, [x7]	/* this register must be preserved */
 	mrs	x4, vbar_el1	/* this register must be preserved */
-	sub	x3, x4, x2
+	sub	x3, x4, x7
 	msr	vbar_el1, x3
 	isb
 
 	/* Jump into the reduced mapping and continue execution */
-	ldr	x3, =1f
-	sub	x3, x3, x2
+	adr	x3, 1f
+	sub	x3, x3, x7
 	br	x3
 1:
 BTI(	bti	j)
@@ -628,7 +628,8 @@ BTI(	bti	j)
 	isb
 
 	/* Jump into the full mapping and continue execution */
-	ldr	x0, =1f
+	adr	x0, 1f
+	add	x0, x0, x7
 	br	x0
 1:
 BTI(	bti	j)
