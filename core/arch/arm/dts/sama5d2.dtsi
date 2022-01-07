@@ -92,11 +92,13 @@
 	};
 
 	ns_sram: sram@200000 {
-		compatible = "mmio-sram";
+		compatible = "atmel,sama5d2-sram", "mmio-sram";
 		reg = <0x00200000 0x20000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x00200000 0x20000>;
+		status = "disabled";
+		secure-status = "okay";
 	};
 
 	ahb {
@@ -660,6 +662,8 @@
 				#size-cells = <1>;
 				no-memory-wc;
 				ranges = <0 0xf8044000 0x1420>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			reset_controller: rstc@f8048000 {
@@ -1084,6 +1088,8 @@
 
 				gpio-controller;
 				#gpio-cells = <2>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			tdes@fc044000 {
