@@ -100,6 +100,8 @@ typedef TEE_Result (*pm_callback)(enum pm_op op, uint32_t pm_hint,
  * @callback - Registered callback function
  * @handle - Registered private handler for the callback
  * @order - Registered callback call order priority (PM_CB_ORDER_*)
+ * @flags - Flags set by pm core to keep track of execution
+ * @name - Registered callback name
  */
 struct pm_callback_handle {
 	/* Set by the caller when registering a callback */
@@ -127,6 +129,7 @@ void register_pm_cb(struct pm_callback_handle *pm_handle);
  *
  * @callback: Registered callback function
  * @handle: Registered private handle argument for the callback
+ * @name: Registered callback name
  */
 static inline void register_pm_driver_cb(pm_callback callback, void *handle,
 					 const char *name)
@@ -143,6 +146,7 @@ static inline void register_pm_driver_cb(pm_callback callback, void *handle,
  *
  * @callback: Registered callback function
  * @handle: Registered private handle argument for the callback
+ * @name: Registered callback name
  */
 static inline void register_pm_core_service_cb(pm_callback callback,
 					       void *handle, const char *name)
