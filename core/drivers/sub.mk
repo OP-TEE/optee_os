@@ -53,3 +53,4 @@ subdirs-$(CFG_DRIVERS_CLK) += clk
 subdirs-$(CFG_DRIVERS_RSTCTRL) += rstctrl
 subdirs-$(CFG_SCMI_MSG_DRIVERS) += scmi-msg
 subdirs-y += imx
+subdirs-y += pm

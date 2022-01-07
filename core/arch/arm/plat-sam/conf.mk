@@ -55,3 +55,17 @@ endif
 
 CFG_ATMEL_RSTC ?= y
 CFG_ATMEL_SHDWC ?= y
+
+CFG_ATMEL_PM ?= y
+
+ifeq ($(CFG_ATMEL_PM),y)
+# Suspend mode to be used on PSCI suspend call
+# 0 = STANDBY
+# 1 = ULP0
+# 2 = ULP0 Fast
+# 3 = ULP1
+# 4 = BACKUP
+CFG_ATMEL_PM_SUSPEND_MODE ?= 0
+
+$(call force,CFG_PM_ARM32,y)
+endif
