@@ -58,6 +58,10 @@ DEFINES
 	DEFINE(THREAD_SVC_REG_ELR, offsetof(struct thread_svc_regs, elr));
 	DEFINE(THREAD_SVC_REG_SPSR, offsetof(struct thread_svc_regs, spsr));
 	DEFINE(THREAD_SVC_REG_SP_EL0, offsetof(struct thread_svc_regs, sp_el0));
+#ifdef CFG_TA_PAUTH
+	DEFINE(THREAD_SVC_REG_APIAKEY_HI, offsetof(struct thread_svc_regs,
+						   apiakey_hi));
+#endif
 	DEFINE(THREAD_SVC_REG_SIZE, sizeof(struct thread_svc_regs));
 
 	/* struct thread_abort_regs */
@@ -81,6 +85,10 @@ DEFINES
 	DEFINE(THREAD_CTX_REGS_X19, offsetof(struct thread_ctx_regs, x[19]));
 	DEFINE(THREAD_CTX_REGS_TPIDR_EL0, offsetof(struct thread_ctx_regs,
 						   tpidr_el0));
+#ifdef CFG_TA_PAUTH
+	DEFINE(THREAD_CTX_REGS_APIAKEY_HI, offsetof(struct thread_ctx_regs,
+						    apiakey_hi));
+#endif
 
 	/* struct thread_user_mode_rec */
 	DEFINE(THREAD_USER_MODE_REC_CTX_REGS_PTR,

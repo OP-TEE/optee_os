@@ -73,6 +73,11 @@ struct thread_user_vfp_state {
 	bool saved;
 };
 
+struct thread_pauth_keys {
+	uint64_t hi;
+	uint64_t lo;
+};
+
 #ifdef ARM32
 struct thread_smc_args {
 	uint32_t a0;	/* SMC function ID */
@@ -211,6 +216,10 @@ struct thread_svc_regs {
 	uint64_t x28;
 	uint64_t x29;
 #endif
+#ifdef CFG_TA_PAUTH
+	uint64_t apiakey_hi;
+	uint64_t apiakey_lo;
+#endif
 	uint64_t pad;
 } __aligned(16);
 #endif /*ARM64*/
@@ -247,6 +256,10 @@ struct thread_ctx_regs {
 	uint64_t cpsr;
 	uint64_t x[31];
 	uint64_t tpidr_el0;
+#ifdef CFG_TA_PAUTH
+	uint64_t apiakey_hi;
+	uint64_t apiakey_lo;
+#endif
 };
 #endif /*ARM64*/
 

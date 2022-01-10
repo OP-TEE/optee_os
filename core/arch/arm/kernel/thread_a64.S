@@ -36,6 +36,28 @@
 		b.eq	\label
 	.endm
 
+	.macro disable_pauth reg
+#ifdef	CFG_TA_PAUTH
+		mrs	\reg, sctlr_el1
+		bic     \reg, \reg, #SCTLR_ENIA
+#ifdef CFG_TA_BTI
+		orr     \reg, \reg, #(SCTLR_BT0 | SCTLR_BT1)
+#endif
+		msr	sctlr_el1, \reg
+#endif
+	.endm
+
+	.macro enable_pauth reg
+#ifdef	CFG_TA_PAUTH
+		mrs	\reg, sctlr_el1
+		orr     \reg, \reg, #SCTLR_ENIA
+#ifdef CFG_TA_BTI
+		bic     \reg, \reg, #(SCTLR_BT0 | SCTLR_BT1)
+#endif
+		msr	sctlr_el1, \reg
+#endif
+	.endm
+
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 	load_xregs x0, THREAD_CTX_REGS_SP, 1, 3
@@ -52,7 +74,15 @@ FUNC thread_resume , :
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 	return_from_exception
 
-1:	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
+1:
+#ifdef	CFG_TA_PAUTH
+	/* Restore PAC keys before return to el0 */
+	load_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+	write_apiakeyhi	x1
+	write_apiakeylo	x2
+#endif
+
+	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 
 	msr	spsel, #1
@@ -126,6 +156,13 @@ FUNC __thread_enter_user_mode , :
 	msr	sp_el0, x1
 	msr	elr_el1, x2
 	msr	spsr_el1, x3
+
+#ifdef	CFG_TA_PAUTH
+	/* Load APIAKEY */
+	load_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+	write_apiakeyhi	x1
+	write_apiakeylo	x2
+#endif
 
 	/*
 	 * Save the values for x0 and x1 in struct thread_core_local to be
@@ -284,6 +321,7 @@ el1_serror_sp1:
 	.balign	128, INV_INSN
 el0_sync_a64:
 	restore_mapping
+	/* PAuth will be disabled later else check_vector_size will fail */
 
 	mrs	x2, esr_el1
 	mrs	x3, sp_el0
@@ -296,6 +334,7 @@ el0_sync_a64:
 	.balign	128, INV_INSN
 el0_irq_a64:
 	restore_mapping
+	disable_pauth x1
 
 	b	elx_irq
 	check_vector_size el0_irq_a64
@@ -303,6 +342,7 @@ el0_irq_a64:
 	.balign	128, INV_INSN
 el0_fiq_a64:
 	restore_mapping
+	disable_pauth x1
 
 	b	elx_fiq
 	check_vector_size el0_fiq_a64
@@ -466,6 +506,7 @@ workaround_el0_serror_a32:
  * that it's always available.
  */
 eret_to_el0:
+	enable_pauth x1
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	/* Point to the vector into the reduced mapping */
@@ -614,6 +655,7 @@ thread_excp_vect_end:
 END_FUNC thread_excp_vect
 
 LOCAL_FUNC el0_svc , :
+	disable_pauth x1
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
 	mrs	x1, tpidr_el0
@@ -640,6 +682,14 @@ LOCAL_FUNC el0_svc , :
 	mrs	x0, elr_el1
 	mrs	x1, spsr_el1
 	store_xregs sp, THREAD_SVC_REG_ELR, 0, 1
+
+#ifdef CFG_TA_PAUTH
+	/* Save APIAKEY */
+	read_apiakeyhi	x0
+	read_apiakeylo	x1
+	store_xregs sp, THREAD_SVC_REG_APIAKEY_HI, 0, 1
+#endif
+
 	mov	x0, sp
 
 	/*
@@ -687,7 +737,15 @@ LOCAL_FUNC el0_svc , :
 
 	return_from_exception
 
-1:	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
+1:
+#ifdef	CFG_TA_PAUTH
+	/* Restore APIAKEY */
+	load_xregs x30, THREAD_SVC_REG_APIAKEY_HI, 0, 1
+	write_apiakeyhi	x0
+	write_apiakeylo	x1
+#endif
+
+	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
 	ldr	x30, [x30, #THREAD_SVC_REG_X30]
 
 	msr	spsel, #1
@@ -779,6 +837,7 @@ END_FUNC el1_sync_abort
 
 	/* sp_el0 in x3 */
 LOCAL_FUNC el0_sync_abort , :
+	disable_pauth x1
 	/*
 	 * Update core local flags
 	 */
