@@ -402,9 +402,11 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		rsa_ssa.salt_len = salt_len;
 		rsa_ssa.mgf = &drvcrypt_rsa_mgf1;
 
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		if (rsa->optional.ssa_sign)
 			ret = rsa->optional.ssa_sign(&rsa_ssa);
-		else
+
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 			ret = drvcrypt_rsassa_sign(&rsa_ssa);
 
 		/* Set the signature length */
@@ -476,9 +478,11 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		rsa_ssa.salt_len = salt_len;
 		rsa_ssa.mgf = &drvcrypt_rsa_mgf1;
 
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		if (rsa->optional.ssa_verify)
 			ret = rsa->optional.ssa_verify(&rsa_ssa);
-		else
+
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 			ret = drvcrypt_rsassa_verify(&rsa_ssa);
 
 	} else {
