@@ -14,6 +14,11 @@ algo = {'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256': 0x70414930,
 enc_key_type = {'SHDR_ENC_KEY_DEV_SPECIFIC': 0x0,
                 'SHDR_ENC_KEY_CLASS_WIDE': 0x1}
 
+SHDR_BOOTSTRAP_TA = 1
+SHDR_ENCRYPTED_TA = 2
+SHDR_MAGIC = 0x4f545348
+SHDR_SIZE = 20
+
 
 def uuid_parse(s):
     from uuid import UUID
@@ -198,11 +203,11 @@ def main():
 
     hdr_version = args.ta_version  # struct shdr_bootstrap_ta::ta_version
 
-    magic = 0x4f545348   # SHDR_MAGIC
+    magic = SHDR_MAGIC
     if args.enc_key:
-        img_type = 2         # SHDR_ENCRYPTED_TA
+        img_type = SHDR_ENCRYPTED_TA
     else:
-        img_type = 1         # SHDR_BOOTSTRAP_TA
+        img_type = SHDR_BOOTSTRAP_TA
 
     shdr = struct.pack('<IIIIHH',
                        magic, img_type, img_size, algo[args.algo],
