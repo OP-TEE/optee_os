@@ -280,9 +280,14 @@
 	status = "okay";
 };
 
+&iwdg1 {
+	timeout-sec = <32>;
+};
+
 &iwdg2 {
 	timeout-sec = <32>;
 	status = "okay";
+	secure-status = "disabled";
 };
 
 &m4_rproc {
