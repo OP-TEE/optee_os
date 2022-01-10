@@ -125,7 +125,7 @@ $(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
 endif
 
 # Default enable some test facitilites
-CFG_TEE_CORE_EMBED_INTERNAL_TESTS ?= y
+CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
 
 # Default disable some support for pager memory size constraint
