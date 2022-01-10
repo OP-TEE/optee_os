@@ -16,6 +16,7 @@
  * @vm_info:		Virtual memory map of this context
  * @regions:		Memory regions registered by pager
  * @vfp:		State of VFP registers
+ * @keys:		Pointer authentication keys
  * @ts_ctx:		Generic TS context
  * @entry_func:		Entry address in TS
  * @dump_entry_func:	Entry address in TS for dumping address mappings
@@ -33,6 +34,9 @@ struct user_mode_ctx {
 	struct vm_paged_region_head *regions;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
+#endif
+#if defined(CFG_TA_PAUTH)
+	struct thread_pauth_keys keys;
 #endif
 	struct ts_ctx *ts_ctx;
 	uaddr_t entry_func;

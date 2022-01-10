@@ -1435,7 +1435,8 @@ static bool get_spsr(bool is_32bit, unsigned long entry_func, uint32_t *spsr)
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 			 unsigned long a1, unsigned long a2, unsigned long a3,
 			 unsigned long user_sp, unsigned long entry_func,
-			 uint32_t spsr)
+			 uint32_t spsr,
+			 struct thread_pauth_keys *keys __maybe_unused)
 {
 	/*
 	 * First clear all registers to avoid leaking information from
@@ -1461,8 +1462,26 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 	regs->cpsr = spsr;
 	regs->x[13] = user_sp;	/* Used when running TA in Aarch32 */
 	regs->sp = user_sp;	/* Used when running TA in Aarch64 */
+#ifdef CFG_TA_PAUTH
+	assert(keys);
+	regs->apiakey_hi = keys->hi;
+	regs->apiakey_lo = keys->lo;
+#endif
 	/* Set frame pointer (user stack can't be unwound past this point) */
 	regs->x[29] = 0;
+#endif
+}
+
+static struct thread_pauth_keys *thread_get_pauth_keys(void)
+{
+#if defined(CFG_TA_PAUTH)
+	struct ts_session *s = ts_get_current_session();
+	/* Only user TA's support the PAUTH keys */
+	struct user_ta_ctx *utc = to_user_ta_ctx(s->ctx);
+
+	return &utc->uctx.keys;
+#else
+	return NULL;
 #endif
 }
 
@@ -1475,8 +1494,11 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	uint32_t exceptions = 0;
 	uint32_t rc = 0;
 	struct thread_ctx_regs *regs = NULL;
+	struct thread_pauth_keys *keys = NULL;
 
 	tee_ta_update_session_utime_resume();
+
+	keys = thread_get_pauth_keys();
 
 	/* Derive SPSR from current CPSR/PSTATE readout. */
 	if (!get_spsr(is_32bit, entry_func, &spsr)) {
@@ -1493,7 +1515,7 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 	 * unmasked when user mode has been entered.
 	 */
 	regs = thread_get_ctx_regs();
-	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, spsr);
+	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, spsr, keys);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
 	thread_unmask_exceptions(exceptions);
 	return rc;

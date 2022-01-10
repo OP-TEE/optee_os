@@ -132,3 +132,19 @@
 		b	.
 #endif
 	.endm
+
+	.macro read_apiakeylo reg
+	mrs	\reg, S3_0_c2_c1_0
+	.endm
+
+	.macro read_apiakeyhi reg
+	mrs	\reg, S3_0_c2_c1_1
+	.endm
+
+	.macro write_apiakeylo reg
+	msr	S3_0_c2_c1_0, \reg
+	.endm
+
+	.macro write_apiakeyhi reg
+	msr	S3_0_c2_c1_1, \reg
+	.endm

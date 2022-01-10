@@ -442,6 +442,10 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	if (res)
 		goto out;
 
+#ifdef CFG_TA_PAUTH
+	crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
+#endif
+
 	mutex_lock(&tee_ta_mutex);
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
 	s->ts_sess.handle_svc = s->ts_sess.ctx->ops->handle_svc;
