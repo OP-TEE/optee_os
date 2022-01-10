@@ -605,18 +605,21 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 	case DRVCRYPT_RSA_PKCS_V1_5:
 		return encrypt_es(TEE_ALG_RSAES_PKCS1_V1_5,
 				  rsa_data->key.key,
-				  rsa_data->cipher.data,
-				  rsa_data->cipher.length,
 				  rsa_data->message.data,
-				  &rsa_data->message.length);
+				  rsa_data->message.length,
+				  rsa_data->cipher.data,
+				  &rsa_data->cipher.length);
 
 	case DRVCRYPT_RSA_OAEP:
-		return encrypt_es(rsa_data->hash_algo,
+		if (rsa_data->hash_algo != TEE_ALG_SHA1)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		return encrypt_es(TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1,
 				  rsa_data->key.key,
-				  rsa_data->cipher.data,
-				  rsa_data->cipher.length,
 				  rsa_data->message.data,
-				  &rsa_data->message.length);
+				  rsa_data->message.length,
+				  rsa_data->cipher.data,
+				  &rsa_data->cipher.length);
 
 	default:
 		break;
@@ -646,7 +649,10 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 				  &rsa_data->message.length);
 
 	case DRVCRYPT_RSA_OAEP:
-		return decrypt_es(rsa_data->hash_algo,
+		if (rsa_data->hash_algo != TEE_ALG_SHA1)
+			return TEE_ERROR_NOT_IMPLEMENTED;
+
+		return decrypt_es(TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1,
 				  rsa_data->key.key,
 				  rsa_data->cipher.data,
 				  rsa_data->cipher.length,
