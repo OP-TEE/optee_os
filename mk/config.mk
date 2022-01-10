@@ -780,3 +780,12 @@ CFG_CORE_ASYNC_NOTIF ?= n
 
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
+
+# Pointer Authentication (part of ARMv8.3 Extensions) provides
+# instructions for signing and authenticating pointers against secret keys.
+# These can be used to mitigate ROP (Return oriented programming) attacks.
+# This option enables these instructions for TA's at EL0. When this option is
+# enabled , TEE core will initialize secret keys per TA.
+CFG_TA_PAUTH ?= n
+
+$(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
