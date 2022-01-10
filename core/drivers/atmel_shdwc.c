@@ -7,6 +7,7 @@
 
 #include <drivers/atmel_shdwc.h>
 #include <drivers/sam/at91_ddr.h>
+#include <drivers/pm/sam/atmel_pm.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/thread.h>
@@ -166,7 +167,7 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 
 	at91_shdwc_dt_configure(fdt, node);
 
-	return TEE_SUCCESS;
+	return sama5d2_pm_init(fdt, shdwc_base);
 }
 
 static const struct dt_device_match atmel_shdwc_match_table[] = {

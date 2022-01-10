@@ -67,5 +67,6 @@ ifeq ($(CFG_ATMEL_PM),y)
 # 4 = BACKUP
 CFG_ATMEL_PM_SUSPEND_MODE ?= 0
 
+$(call force,CFG_ATMEL_SHDWC,y)
 $(call force,CFG_PM_ARM32,y)
 endif
