@@ -15,8 +15,14 @@
 #define SCTLR_C		BIT32(2)
 #define SCTLR_SA	BIT32(3)
 #define SCTLR_I		BIT32(12)
+#define SCTLR_ENDB	BIT32(13)
 #define SCTLR_WXN	BIT32(19)
 #define SCTLR_SPAN	BIT32(23)
+#define SCTLR_ENDA	BIT32(27)
+#define SCTLR_ENIB	BIT32(30)
+#define SCTLR_ENIA	BIT32(31)
+#define SCTLR_BT0	BIT32(35)
+#define SCTLR_BT1	BIT32(36)
 
 #define TTBR_ASID_MASK		U(0xff)
 #define TTBR_ASID_SHIFT		U(48)
@@ -135,11 +141,15 @@
 #define ESR_EC_AARCH32_CP14_LS	U(0x06)
 #define ESR_EC_FP_ASIMD		U(0x07)
 #define ESR_EC_AARCH32_CP10_ID	U(0x08)
+#define ESR_EC_PAUTH		U(0x09)
 #define ESR_EC_AARCH32_CP14_64	U(0x0c)
+#define ESR_EC_BTI		U(0x0d)
 #define ESR_EC_ILLEGAL		U(0x0e)
 #define ESR_EC_AARCH32_SVC	U(0x11)
 #define ESR_EC_AARCH64_SVC	U(0x15)
 #define ESR_EC_AARCH64_SYS	U(0x18)
+#define ESR_EC_ERET		U(0x1a)
+#define ESR_EC_FPAC		U(0x1c)
 #define ESR_EC_IABT_EL0		U(0x20)
 #define ESR_EC_IABT_EL1		U(0x21)
 #define ESR_EC_PC_ALIGN		U(0x22)
@@ -198,6 +208,34 @@
 
 #define ID_AA64PFR1_EL1_BT_MASK	ULL(0xf)
 #define FEAT_BTI_IMPLEMENTED	ULL(0x1)
+
+#define ID_AA64ISAR1_GPI_SHIFT		U(28)
+#define ID_AA64ISAR1_GPI_MASK		U(0xf)
+#define ID_AA64ISAR1_GPI_NI		U(0x0)
+#define ID_AA64ISAR1_GPI_IMP_DEF	U(0x1)
+
+#define ID_AA64ISAR1_GPA_SHIFT		U(24)
+#define ID_AA64ISAR1_GPA_MASK		U(0xf)
+#define ID_AA64ISAR1_GPA_NI		U(0x0)
+#define ID_AA64ISAR1_GPA_ARCHITECTED	U(0x1)
+
+#define ID_AA64ISAR1_API_SHIFT			U(8)
+#define ID_AA64ISAR1_API_MASK			U(0xf)
+#define ID_AA64ISAR1_API_NI			U(0x0)
+#define ID_AA64ISAR1_API_IMP_DEF		U(0x1)
+#define ID_AA64ISAR1_API_IMP_DEF_EPAC		U(0x2)
+#define ID_AA64ISAR1_API_IMP_DEF_EPAC2		U(0x3)
+#define ID_AA64ISAR1_API_IMP_DEF_EPAC2_FPAC	U(0x4)
+#define ID_AA64ISAR1_API_IMP_DEF_EPAC2_FPAC_CMB	U(0x5)
+
+#define ID_AA64ISAR1_APA_SHIFT			U(4)
+#define ID_AA64ISAR1_APA_MASK			U(0xf)
+#define ID_AA64ISAR1_APA_NI			U(0x0)
+#define ID_AA64ISAR1_APA_ARCHITECTED		U(0x1)
+#define ID_AA64ISAR1_APA_ARCH_EPAC		U(0x2)
+#define ID_AA64ISAR1_APA_ARCH_EPAC2		U(0x3)
+#define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC	U(0x4)
+#define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC_CMB	U(0x5)
 
 #ifndef __ASSEMBLER__
 static inline __noprof void isb(void)
@@ -327,7 +365,7 @@ DEFINE_U32_REG_READWRITE_FUNCS(fpsr)
 DEFINE_U32_REG_READ_FUNC(ctr_el0)
 #define read_ctr() read_ctr_el0()
 DEFINE_U32_REG_READ_FUNC(contextidr_el1)
-DEFINE_U32_REG_READ_FUNC(sctlr_el1)
+DEFINE_U64_REG_READ_FUNC(sctlr_el1)
 
 /* ARM Generic timer functions */
 DEFINE_REG_READ_FUNC_(cntfrq, uint32_t, cntfrq_el0)
@@ -359,6 +397,21 @@ DEFINE_U64_REG_READ_FUNC(par_el1)
 DEFINE_U64_REG_WRITE_FUNC(mair_el1)
 
 DEFINE_U64_REG_READ_FUNC(id_aa64pfr1_el1)
+DEFINE_U64_REG_READ_FUNC(id_aa64isar1_el1)
+DEFINE_REG_READ_FUNC_(apiakeylo, uint64_t, S3_0_c2_c1_0)
+DEFINE_REG_READ_FUNC_(apiakeyhi, uint64_t, S3_0_c2_c1_1)
+
+DEFINE_REG_WRITE_FUNC_(apibkeylo, uint64_t, S3_0_c2_c1_2)
+DEFINE_REG_WRITE_FUNC_(apibkeyhi, uint64_t, S3_0_c2_c1_3)
+
+DEFINE_REG_READ_FUNC_(apdakeylo, uint64_t, S3_0_c2_c2_0)
+DEFINE_REG_READ_FUNC_(apdakeyhi, uint64_t, S3_0_c2_c2_1)
+
+DEFINE_REG_WRITE_FUNC_(apdbkeylo, uint64_t, S3_0_c2_c2_2)
+DEFINE_REG_WRITE_FUNC_(apdbkeyhi, uint64_t, S3_0_c2_c2_3)
+
+DEFINE_REG_WRITE_FUNC_(apgakeylo, uint64_t, S3_0_c2_c3_0)
+DEFINE_REG_WRITE_FUNC_(apgakeyhi, uint64_t, S3_0_c2_c3_1)
 
 /* Register read/write functions for GICC registers by using system interface */
 DEFINE_REG_READ_FUNC_(icc_ctlr, uint32_t, S3_0_C12_C12_4)
