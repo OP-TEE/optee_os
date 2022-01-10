@@ -34,8 +34,12 @@
 #include <trace.h>
 #include <types_ext.h>
 #include <unw/unwind.h>
+#include <util.h>
 
 void __weak ftrace_map_lr(uint64_t *lr __unused)
+{}
+
+void __weak pauth_strip_pac(uint64_t *lr __unused)
 {}
 
 static bool copy_in_reg(uint64_t *reg, vaddr_t addr)
@@ -63,6 +67,8 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 	/* LR (X30) */
 	if (!copy_in_reg(&frame->pc, fp + 8))
 		return false;
+
+	pauth_strip_pac(&frame->pc);
 
 	ftrace_map_lr(&frame->pc);
 
