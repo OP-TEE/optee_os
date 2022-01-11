@@ -530,29 +530,45 @@ static uint64_t ffa_get_cookie(struct mobj *mobj)
 static TEE_Result ffa_inc_map(struct mobj *mobj)
 {
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t exceptions = 0;
 	struct mobj_ffa *mf = to_mobj_ffa(mobj);
+	uint32_t exceptions = 0;
+	size_t sz = 0;
 
-	if (refcount_inc(&mf->mapcount))
-		return TEE_SUCCESS;
+	while (true) {
+		if (refcount_inc(&mf->mapcount))
+			return TEE_SUCCESS;
 
-	exceptions = cpu_spin_lock_xsave(&shm_lock);
+		exceptions = cpu_spin_lock_xsave(&shm_lock);
 
-	if (refcount_val(&mf->mapcount))
-		goto out;
-
-	mf->mm = tee_mm_alloc(&tee_mm_shm, mf->mobj.size);
-	if (!mf->mm) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto out;
+		if (!refcount_val(&mf->mapcount))
+			break; /* continue to reinitialize */
+		/*
+		 * If another thread beat us to initialize mapcount,
+		 * restart to make sure we still increase it.
+		 */
+		cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 	}
 
-	res = core_mmu_map_pages(tee_mm_get_smem(mf->mm), mf->pages,
-				 get_page_count(mf), MEM_AREA_NSEC_SHM);
-	if (res) {
-		tee_mm_free(mf->mm);
-		mf->mm = NULL;
-		goto out;
+	/*
+	 * If we have beated another thread calling ffa_dec_map()
+	 * to get the lock we need only to reinitialize mapcount to 1.
+	 */
+	if (!mf->mm) {
+		sz = ROUNDUP(mobj->size + mf->page_offset, SMALL_PAGE_SIZE);
+		mf->mm = tee_mm_alloc(&tee_mm_shm, sz);
+		if (!mf->mm) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto out;
+		}
+
+		res = core_mmu_map_pages(tee_mm_get_smem(mf->mm), mf->pages,
+					 sz / SMALL_PAGE_SIZE,
+					 MEM_AREA_NSEC_SHM);
+		if (res) {
+			tee_mm_free(mf->mm);
+			mf->mm = NULL;
+			goto out;
+		}
 	}
 
 	refcount_set(&mf->mapcount, 1);
@@ -571,7 +587,8 @@ static TEE_Result ffa_dec_map(struct mobj *mobj)
 		return TEE_SUCCESS;
 
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
-	unmap_helper(mf);
+	if (!refcount_val(&mf->mapcount))
+		unmap_helper(mf);
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
 	return TEE_SUCCESS;
