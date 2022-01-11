@@ -1035,7 +1035,7 @@ static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 	if (!arg)
 		goto out_dec_map;
 
-	if (!mobj_get_va(mobj, sizeof(*arg)))
+	if (!mobj_get_va(mobj, offset + sizeof(*arg) - 1))
 		goto out_dec_map;
 
 	num_params = READ_ONCE(arg->num_params);
@@ -1043,8 +1043,12 @@ static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 		goto out_dec_map;
 
 	sz = OPTEE_MSG_GET_ARG_SIZE(num_params);
+
+	if (!mobj_get_va(mobj, offset + sz + sz_rpc - 1))
+		goto out_dec_map;
+
 	thr->rpc_arg = mobj_get_va(mobj, offset + sz);
-	if (!thr->rpc_arg || !mobj_get_va(mobj, offset + sz + sz_rpc))
+	if (!thr->rpc_arg)
 		goto out_dec_map;
 
 	rv = tee_entry_std(arg, num_params);
