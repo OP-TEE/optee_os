@@ -405,7 +405,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	if (res)
 		return res;
 
-	va = mobj_get_va(mem->mobj, mem->offs);
+	va = mobj_get_va(mem->mobj, mem->offs, mem->size);
 	if (!va) {
 		EMSG("Can't get a valid VA for NS buffer");
 		res = TEE_ERROR_BAD_PARAMETERS;

@@ -447,8 +447,8 @@ static TEE_Result tee_rpmb_alloc(size_t req_size, size_t resp_size,
 		goto out;
 	}
 
-	*req = mobj_get_va(mem->phreq_mobj, 0);
-	*resp = mobj_get_va(mem->phresp_mobj, 0);
+	*req = mobj_get_va(mem->phreq_mobj, 0, req_s);
+	*resp = mobj_get_va(mem->phresp_mobj, 0, resp_s);
 	if (!*req || !*resp) {
 		res = TEE_ERROR_GENERIC;
 		goto out;

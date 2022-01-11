@@ -79,7 +79,7 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 	if (!mobj)
 		return false;
 
-	va = mobj_get_va(mobj, 0);
+	va = mobj_get_va(mobj, 0, SMALL_PAGE_SIZE);
 	assert(va);
 
 	for (cnt = 0; cnt < num_pages; cnt++, va++) {
@@ -98,7 +98,7 @@ static bool msg_param_extract_pages(paddr_t buffer, paddr_t *pages,
 			if (!mobj)
 				goto out;
 
-			va = mobj_get_va(mobj, 0);
+			va = mobj_get_va(mobj, 0, SMALL_PAGE_SIZE);
 			assert(va);
 		}
 		pages[cnt] = *va;

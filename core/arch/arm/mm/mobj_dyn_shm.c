@@ -101,11 +101,11 @@ static size_t mobj_reg_shm_get_phys_offs(struct mobj *mobj,
 	return to_mobj_reg_shm(mobj)->page_offset;
 }
 
-static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst)
+static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst, size_t len)
 {
 	struct mobj_reg_shm *mrs = to_mobj_reg_shm(mobj);
 
-	if (!mrs->mm || offst >= mobj->size)
+	if (!mrs->mm || !mobj_check_offset_and_len(mobj, offst, len))
 		return NULL;
 
 	return (void *)(vaddr_t)(tee_mm_get_smem(mrs->mm) + offst +

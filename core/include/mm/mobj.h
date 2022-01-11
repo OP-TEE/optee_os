@@ -25,7 +25,7 @@ struct mobj {
 };
 
 struct mobj_ops {
-	void *(*get_va)(struct mobj *mobj, size_t offs);
+	void *(*get_va)(struct mobj *mobj, size_t offs, size_t len);
 	TEE_Result (*get_pa)(struct mobj *mobj, size_t offs, size_t granule,
 			     paddr_t *pa);
 	size_t (*get_phys_offs)(struct mobj *mobj, size_t granule);
@@ -43,10 +43,20 @@ extern struct mobj *mobj_sec_ddr;
 extern struct mobj *mobj_tee_ram_rx;
 extern struct mobj *mobj_tee_ram_rw;
 
-static inline void *mobj_get_va(struct mobj *mobj, size_t offset)
+/*
+ * mobj_get_va() - get virtual address of a mapped mobj
+ * @mobj:	memory object
+ * @offset:	find the va of this offset into @mobj
+ * @len:	how many bytes after @offset that must be valid, can be 1 if
+ *		the caller knows by other means that the expected buffer is
+ *		available.
+ *
+ * return a virtual address on success or NULL on error
+ */
+static inline void *mobj_get_va(struct mobj *mobj, size_t offset, size_t len)
 {
 	if (mobj && mobj->ops && mobj->ops->get_va)
-		return mobj->ops->get_va(mobj, offset);
+		return mobj->ops->get_va(mobj, offset, len);
 	return NULL;
 }
 
@@ -156,11 +166,13 @@ static inline void mobj_put(struct mobj *mobj)
  */
 static inline void mobj_put_wipe(struct mobj *mobj)
 {
-	void *buf = mobj_get_va(mobj, 0);
+	if (mobj) {
+		void *buf = mobj_get_va(mobj, 0, mobj->size);
 
-	if (buf)
-		memzero_explicit(buf, mobj->size);
-	mobj_put(mobj);
+		if (buf)
+			memzero_explicit(buf, mobj->size);
+		mobj_put(mobj);
+	}
 }
 
 static inline uint64_t mobj_get_cookie(struct mobj *mobj)
@@ -203,6 +215,15 @@ static inline size_t mobj_get_phys_granule(struct mobj *mobj)
 	if (mobj->phys_granule)
 		return mobj->phys_granule;
 	return mobj->size;
+}
+
+static inline bool mobj_check_offset_and_len(struct mobj *mobj, size_t offset,
+					     size_t len)
+{
+	size_t end_offs = 0;
+
+	return len && !ADD_OVERFLOW(offset, len - 1, &end_offs) &&
+	       end_offs < mobj->size;
 }
 
 struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,

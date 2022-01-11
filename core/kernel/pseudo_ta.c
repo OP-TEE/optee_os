@@ -81,12 +81,9 @@ static TEE_Result copy_in_param(struct ts_session *s __maybe_unused,
 				if (res)
 					return res;
 				did_map[n] = true;
-				va = mobj_get_va(mem->mobj, mem->offs);
+				va = mobj_get_va(mem->mobj, mem->offs,
+						 mem->size);
 				if (!va)
-					return TEE_ERROR_BAD_PARAMETERS;
-				if (mem->size &&
-				    !mobj_get_va(mem->mobj,
-						 mem->offs + mem->size - 1))
 					return TEE_ERROR_BAD_PARAMETERS;
 			} else {
 				va = NULL;

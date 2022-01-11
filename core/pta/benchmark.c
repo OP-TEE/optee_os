@@ -75,7 +75,8 @@ static TEE_Result alloc_benchmark_buffer(uint32_t type,
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	bench_ts_global = (struct tee_ts_global *)mobj_get_va(bench_mobj, 0);
+	bench_ts_global = (struct tee_ts_global *)mobj_get_va(bench_mobj, 0,
+							      bench_ts_size);
 	if (!bench_ts_global) {
 		thread_rpc_free_global_payload(bench_mobj);
 		bench_mobj = NULL;
