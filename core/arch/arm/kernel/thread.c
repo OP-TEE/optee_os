@@ -1505,8 +1505,8 @@ void thread_get_user_kcode(struct mobj **mobj, size_t *offset,
 {
 	core_mmu_get_user_va_range(va, NULL);
 	*mobj = mobj_tee_ram_rx;
-	*offset = thread_user_kcode_va - (vaddr_t)mobj_get_va(*mobj, 0);
 	*sz = thread_user_kcode_size;
+	*offset = thread_user_kcode_va - (vaddr_t)mobj_get_va(*mobj, 0, *sz);
 }
 #endif
 
@@ -1520,9 +1520,9 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 	core_mmu_get_user_va_range(&v, NULL);
 	*va = v + thread_user_kcode_size;
 	*mobj = mobj_tee_ram_rw;
-	*offset = (vaddr_t)thread_user_kdata_page -
-		  (vaddr_t)mobj_get_va(*mobj, 0);
 	*sz = sizeof(thread_user_kdata_page);
+	*offset = (vaddr_t)thread_user_kdata_page -
+		  (vaddr_t)mobj_get_va(*mobj, 0, *sz);
 }
 #endif
 
@@ -1681,14 +1681,14 @@ void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
 		if (!IS_ALIGNED_WITH_TYPE(p, uint64_t))
 			goto err;
 
-		va = mobj_get_va(ce->mobj, 0);
+		va = mobj_get_va(ce->mobj, 0, sz);
 		if (!va)
 			goto err;
 
 		ce->size = sz;
 		ce->type = shm_type;
 	} else {
-		va = mobj_get_va(ce->mobj, 0);
+		va = mobj_get_va(ce->mobj, 0, sz);
 		if (!va)
 			goto err;
 	}

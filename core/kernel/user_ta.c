@@ -284,7 +284,7 @@ static void user_ta_dump_ftrace(struct ts_ctx *ctx)
 		return;
 	}
 
-	buf = mobj_get_va(mobj, 0);
+	buf = mobj_get_va(mobj, 0, pl_sz);
 	if (!buf)
 		goto out_free_pl;
 

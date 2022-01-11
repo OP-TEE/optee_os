@@ -26,7 +26,7 @@ static TEE_Result gprof_send_rpc(TEE_UUID *uuid, void *buf, size_t len,
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	va = mobj_get_va(mobj, 0);
+	va = mobj_get_va(mobj, 0, sizeof(*uuid) + len);
 	if (!va)
 		goto exit;
 

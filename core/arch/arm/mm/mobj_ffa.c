@@ -470,11 +470,11 @@ static size_t ffa_get_phys_offs(struct mobj *mobj,
 	return to_mobj_ffa(mobj)->page_offset;
 }
 
-static void *ffa_get_va(struct mobj *mobj, size_t offset)
+static void *ffa_get_va(struct mobj *mobj, size_t offset, size_t len)
 {
 	struct mobj_ffa *mf = to_mobj_ffa(mobj);
 
-	if (!mf->mm || offset >= mobj->size)
+	if (!mf->mm || !mobj_check_offset_and_len(mobj, offset, len))
 		return NULL;
 
 	return (void *)(tee_mm_get_smem(mf->mm) + offset + mf->page_offset);

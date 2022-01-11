@@ -45,7 +45,7 @@ TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 
-		va = mobj_get_va(mobj, 0);
+		va = mobj_get_va(mobj, 0, len);
 		if (!va) {
 			EMSG("can't get va from mobj");
 			goto out;

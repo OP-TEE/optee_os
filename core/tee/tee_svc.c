@@ -566,16 +566,26 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 static TEE_Result alloc_temp_sec_mem(size_t size, struct mobj **mobj,
 				     uint8_t **va)
 {
+	struct mobj *m = NULL;
+	void *v = NULL;
+
 	/* Allocate section in secure DDR */
 #ifdef CFG_PAGED_USER_TA
-	*mobj = mobj_seccpy_shm_alloc(size);
+	m = mobj_seccpy_shm_alloc(size);
 #else
-	*mobj = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
+	m = mobj_mm_alloc(mobj_sec_ddr, size, &tee_mm_sec_ddr);
 #endif
-	if (!*mobj)
+	if (!m)
 		return TEE_ERROR_GENERIC;
 
-	*va = mobj_get_va(*mobj, 0);
+	v = mobj_get_va(*mobj, 0, size);
+	if (!v) {
+		mobj_put(m);
+		return TEE_ERROR_GENERIC;
+	}
+
+	*mobj = m;
+	*va = v;
 	return TEE_SUCCESS;
 }
 

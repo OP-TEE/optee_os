@@ -705,7 +705,7 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	if (!ta->ta_mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	ta->ta_buf = mobj_get_va(ta->ta_mobj, 0);
+	ta->ta_buf = mobj_get_va(ta->ta_mobj, 0, sz);
 	assert(ta->ta_buf);
 
 	params[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_FS_READ, ta->fd, 0);

@@ -101,12 +101,11 @@ static TEE_Result rpc_load(const TEE_UUID *uuid, struct shdr **ta,
 	if (!*mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	if ((*mobj)->size < params[1].u.memref.size) {
+	*ta = mobj_get_va(*mobj, 0, params[1].u.memref.size);
+	if (!*ta) {
 		res = TEE_ERROR_SHORT_BUFFER;
 		goto exit;
 	}
-
-	*ta = mobj_get_va(*mobj, 0);
 	/* We don't expect NULL as thread_rpc_alloc_payload() was successful */
 	assert(*ta);
 	*ta_size = params[1].u.memref.size;

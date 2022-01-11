@@ -126,7 +126,7 @@ static struct mobj *map_cmd_buffer(paddr_t parg, uint32_t *num_params)
 	if (!mobj)
 		return NULL;
 
-	arg = mobj_get_va(mobj, 0);
+	arg = mobj_get_va(mobj, 0, SMALL_PAGE_SIZE);
 	if (!arg)
 		goto err;
 
@@ -185,7 +185,7 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		return OPTEE_SMC_RETURN_EBADADDR;
 	}
 
-	arg = mobj_get_va(mobj, 0);
+	arg = mobj_get_va(mobj, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
 	assert(arg && mobj_is_nonsec(mobj));
 	rv = tee_entry_std(arg, num_params);
 	mobj_put(mobj);
@@ -398,7 +398,7 @@ static uint32_t get_rpc_arg(uint32_t cmd, size_t num_params,
 		if (!mobj)
 			return TEE_ERROR_OUT_OF_MEMORY;
 
-		arg = mobj_get_va(mobj, 0);
+		arg = mobj_get_va(mobj, 0, sz);
 		if (!arg) {
 			thread_rpc_free_arg(mobj_get_cookie(mobj));
 			return TEE_ERROR_OUT_OF_MEMORY;
