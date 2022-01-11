@@ -36,6 +36,7 @@ struct thread_core_local {
 	uint64_t x[4];
 #endif
 	vaddr_t tmp_stack_va_end;
+	long kcode_offset;
 	short int curr_thread;
 	uint32_t flags;
 	vaddr_t abt_stack_va_end;

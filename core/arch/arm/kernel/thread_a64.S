@@ -224,7 +224,9 @@ END_FUNC thread_unwind_user_mode
 		isb
 
 		/* Jump into the full mapping and continue execution */
-		ldr	x0, =1f
+		adr	x0, 1f
+		ldr	x1, [sp, #THREAD_CORE_LOCAL_KCODE_OFFSET]
+		add	x0, x0, x1
 		br	x0
 	1:
 BTI(		bti	j)
@@ -322,12 +324,7 @@ el0_sync_a64:
 	restore_mapping
 	/* PAuth will be disabled later else check_vector_size will fail */
 
-	mrs	x2, esr_el1
-	mrs	x3, sp_el0
-	lsr	x2, x2, #ESR_EC_SHIFT
-	cmp	x2, #ESR_EC_AARCH64_SVC
-	b.eq	el0_svc
-	b	el0_sync_abort
+	b	el0_sync_a64_finish
 	check_vector_size el0_sync_a64
 
 	.balign	128, INV_INSN
@@ -359,12 +356,7 @@ el0_serror_a64:
 el0_sync_a32:
 	restore_mapping
 
-	mrs	x2, esr_el1
-	mrs	x3, sp_el0
-	lsr	x2, x2, #ESR_EC_SHIFT
-	cmp	x2, #ESR_EC_AARCH32_SVC
-	b.eq	el0_svc
-	b	el0_sync_abort
+	b 	el0_sync_a32_finish
 	check_vector_size el0_sync_a32
 
 	.balign	128, INV_INSN
@@ -558,6 +550,22 @@ BTI(	bti	j)
 #endif /*CFG_CORE_UNMAP_CORE_AT_EL0*/
 
 	return_from_exception
+
+el0_sync_a64_finish:
+	mrs	x2, esr_el1
+	mrs	x3, sp_el0
+	lsr	x2, x2, #ESR_EC_SHIFT
+	cmp	x2, #ESR_EC_AARCH64_SVC
+	b.eq	el0_svc
+	b	el0_sync_abort
+
+el0_sync_a32_finish:
+	mrs	x2, esr_el1
+	mrs	x3, sp_el0
+	lsr	x2, x2, #ESR_EC_SHIFT
+	cmp	x2, #ESR_EC_AARCH32_SVC
+	b.eq	el0_svc
+	b	el0_sync_abort
 
 	/*
 	 * void icache_inv_user_range(void *addr, size_t size);
