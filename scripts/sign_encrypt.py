@@ -32,7 +32,7 @@ def int_parse(str):
 def get_args(logger):
     from argparse import ArgumentParser, RawDescriptionHelpFormatter
     import textwrap
-    command_base = ['sign-enc', 'digest', 'stitch']
+    command_base = ['sign-enc', 'digest', 'stitch', 'verify']
     command_aliases_digest = ['generate-digest']
     command_aliases_stitch = ['stitch-ta']
     command_aliases = command_aliases_digest + command_aliases_stitch
@@ -64,7 +64,9 @@ def get_args(logger):
         '                 TA raw image and its signature. Takes' +
         ' arguments --uuid, --in, --key, --out,\n' +
         '                 --enc-key (optional), --enc-key-type (optional),\n' +
-        '                 --algo (optional) and --sig.\n\n' +
+        '                 --algo (optional) and --sig.\n' +
+        '     verify      Verify signed TA binary\n' +
+        '                 Takes arguments --uuid, --in, --key\n\n' +
         '   %(prog)s --help  show available commands and arguments\n\n',
         formatter_class=RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''\
@@ -327,13 +329,81 @@ def main():
             write_image_with_signature(sig)
             logger.info('Successfully applied signature.')
 
+    def verify_ta():
+        # Extract header
+        [magic,
+         img_type,
+         img_size,
+         algo_value,
+         digest_len,
+         sig_len] = struct.unpack('<IIIIHH', img[:SHDR_SIZE])
+
+        # Extract digest and signature
+        start, end = SHDR_SIZE, SHDR_SIZE + digest_len
+        digest = img[start:end]
+
+        start, end = end, SHDR_SIZE + digest_len + sig_len
+        signature = img[start:end]
+
+        # Extract UUID and TA version
+        start, end = end, end + 16 + 4
+        [uuid, ta_version] = struct.unpack('<16sI', img[start:end])
+
+        if magic != SHDR_MAGIC:
+            raise Exception("Unexpected magic: 0x{:08x}".format(magic))
+
+        if img_type != SHDR_BOOTSTRAP_TA:
+            raise Exception("Unsupported image type: {}".format(img_type))
+
+        if algo_value not in algo.values():
+            raise Exception('Unrecognized algorithm: 0x{:08x}'
+                            .format(algo_value))
+
+        # Verify signature against hash digest
+        if algo_value == 0x70414930:
+            key.verify(
+                signature,
+                digest,
+                padding.PSS(
+                    mgf=padding.MGF1(chosen_hash),
+                    salt_length=digest_len
+                ),
+                utils.Prehashed(chosen_hash)
+            )
+        else:
+            key.verify(
+                signature,
+                digest,
+                padding.PKCS1v15(),
+                utils.Prehashed(chosen_hash)
+            )
+
+        h = hashes.Hash(chosen_hash, default_backend())
+
+        # sizeof(struct shdr)
+        h.update(img[:SHDR_SIZE])
+
+        # sizeof(struct shdr_bootstrap_ta)
+        h.update(img[start:end])
+
+        # raw image
+        start = end
+        end += img_size
+        h.update(img[start:end])
+
+        if digest != h.finalize():
+            raise Exception('Hash digest does not match')
+
+        logger.info('Trusted application is correctly verified.')
+
     # dispatch command
     {
         'sign-enc': sign_encrypt_ta,
         'digest': generate_digest,
         'generate-digest': generate_digest,
         'stitch': stitch_ta,
-        'stitch-ta': stitch_ta
+        'stitch-ta': stitch_ta,
+        'verify': verify_ta,
     }.get(args.command, 'sign_encrypt_ta')()
 
 
