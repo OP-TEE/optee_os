@@ -526,6 +526,15 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
+static void set_core_local_kcode_offset(struct thread_core_local *cls,
+					long offset)
+{
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		cls[n].kcode_offset = offset;
+}
+
 static void init_user_kcode(void)
 {
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
@@ -539,7 +548,11 @@ static void init_user_kcode(void)
 	core_mmu_get_user_va_range(&v, NULL);
 	thread_user_kcode_offset = thread_user_kcode_va - v;
 
+	set_core_local_kcode_offset(thread_core_local,
+				    thread_user_kcode_offset);
 #if defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
+	set_core_local_kcode_offset((void *)thread_user_kdata_page,
+				    thread_user_kcode_offset);
 	/*
 	 * When transitioning to EL0 subtract SP with this much to point to
 	 * this special kdata page instead. SP is restored by add this much

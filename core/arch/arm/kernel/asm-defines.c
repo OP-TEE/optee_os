@@ -102,6 +102,8 @@ DEFINES
 	/* struct thread_core_local */
 	DEFINE(THREAD_CORE_LOCAL_X0, offsetof(struct thread_core_local, x[0]));
 	DEFINE(THREAD_CORE_LOCAL_X2, offsetof(struct thread_core_local, x[2]));
+	DEFINE(THREAD_CORE_LOCAL_KCODE_OFFSET,
+	       offsetof(struct thread_core_local, kcode_offset));
 #endif /*ARM64*/
 
 	/* struct thread_ctx */
