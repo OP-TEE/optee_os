@@ -496,7 +496,8 @@ static void handle_blocking_call(struct thread_smc_args *args)
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
 		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
 			      swap_src_dst(args->a1), 0, 0,
-			      THREAD_RPC_MAX_NUM_PARAMS, 0);
+			      THREAD_RPC_MAX_NUM_PARAMS,
+			      OPTEE_FFA_SEC_CAP_ARG_OFFSET);
 		break;
 	case OPTEE_FFA_UNREGISTER_SHM:
 		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
