@@ -222,7 +222,7 @@ static const struct dt_device_match pl011_match_table[] = {
 	{ 0 }
 };
 
-const struct dt_driver pl011_dt_driver __dt_driver = {
+DEFINE_DT_DRIVER(pl011_dt_driver) = {
 	.name = "pl011",
 	.type = DT_DRIVER_UART,
 	.match_table = pl011_match_table,

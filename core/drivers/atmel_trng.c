@@ -147,7 +147,7 @@ static const struct dt_device_match atmel_trng_match_table[] = {
 	{ }
 };
 
-const struct dt_driver atmel_trng_dt_driver __dt_driver = {
+DEFINE_DT_DRIVER(atmel_trng_dt_driver) = {
 	.name = "atmel_trng",
 	.type = DT_DRIVER_NOTYPE,
 	.match_table = atmel_trng_match_table,

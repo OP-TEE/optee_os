@@ -758,7 +758,7 @@ static const struct dt_device_match simple_bus_match_table[] = {
 	{ }
 };
 
-const struct dt_driver simple_bus_dt_driver __dt_driver = {
+DEFINE_DT_DRIVER(simple_bus_dt_driver) = {
 	.name = "simple-bus",
 	.match_table = simple_bus_match_table,
 	.probe = simple_bus_probe,

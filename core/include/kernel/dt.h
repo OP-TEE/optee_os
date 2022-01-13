@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <scattered_array.h>
 #include <stdint.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -100,7 +101,8 @@ struct dt_driver {
 	TEE_Result (*probe)(const void *fdt, int node, const void *compat_data);
 };
 
-#define __dt_driver __section(".rodata.dtdrv" __SECTION_FLAGS_RODATA)
+#define DEFINE_DT_DRIVER(name) \
+		SCATTERED_ARRAY_DEFINE_ITEM(dt_drivers, struct dt_driver)
 
 /*
  * Find a driver that is suitable for the given DT node, that is, with
@@ -110,10 +112,6 @@ struct dt_driver {
  * @offs: node offset
  */
 const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs);
-
-const struct dt_driver *__dt_driver_start(void);
-
-const struct dt_driver *__dt_driver_end(void);
 
 /*
  * Map a device into secure or non-secure memory and return the base VA and
@@ -197,16 +195,6 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info,
 
 #else /* !CFG_DT */
 
-static inline const struct dt_driver *__dt_driver_start(void)
-{
-	return NULL;
-}
-
-static inline const struct dt_driver *__dt_driver_end(void)
-{
-	return NULL;
-}
-
 static inline const struct dt_driver *dt_find_compatible_driver(
 					const void *fdt __unused,
 					int offs __unused)
@@ -247,6 +235,8 @@ static inline void _fdt_fill_device_info(const void *fdt __unused,
 #endif /* !CFG_DT */
 
 #define for_each_dt_driver(drv) \
-	for (drv = __dt_driver_start(); drv < __dt_driver_end(); drv++)
+	for (drv = SCATTERED_ARRAY_BEGIN(dt_drivers, struct dt_driver); \
+	     drv < SCATTERED_ARRAY_END(dt_drivers, struct dt_driver); \
+	     drv++)
 
 #endif /* KERNEL_DT_H */

@@ -8,6 +8,7 @@
 
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <scattered_array.h>
 #include <stdint.h>
 #include <sys/queue.h>
 
@@ -22,7 +23,7 @@
 		{ .compatible = __compat }, \
 		{ } \
 	}; \
-	const struct dt_driver __name ## _dt_driver __dt_driver = { \
+	DEFINE_DT_DRIVER(__name ## _dt_driver) = { \
 		.name = # __name, \
 		.type = DT_DRIVER_CLK, \
 		.match_table = __name ## _match_table, \
