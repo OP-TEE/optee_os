@@ -130,11 +130,6 @@ SECTIONS
 		*(.rodata .rodata.__unpaged .rodata.__unpaged.*)
 #include <rodata_unpaged.ld.S>
 #else
-#ifdef CFG_DT
-		__rodata_dtdrv_start = .;
-		KEEP(*(.rodata.dtdrv))
-		__rodata_dtdrv_end = .;
-#endif
 		*(.rodata .rodata.*)
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
@@ -341,11 +336,6 @@ SECTIONS
 	__flatmap_init_ro_size = __init_end - __flatmap_init_ro_start;
 
 	.rodata_pageable : ALIGN(8) {
-#ifdef CFG_DT
-		__rodata_dtdrv_start = .;
-		KEEP(*(.rodata.dtdrv))
-		__rodata_dtdrv_end = .;
-#endif
 		*(.rodata*)
 	}
 

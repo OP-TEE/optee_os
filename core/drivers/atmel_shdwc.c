@@ -174,7 +174,7 @@ static const struct dt_device_match atmel_shdwc_match_table[] = {
 	{ }
 };
 
-const struct dt_driver atmel_shdwc_dt_driver __dt_driver = {
+DEFINE_DT_DRIVER(atmel_shdwc_dt_driver) = {
 	.name = "atmel_shdwc",
 	.type = DT_DRIVER_NOTYPE,
 	.match_table = atmel_shdwc_match_table,

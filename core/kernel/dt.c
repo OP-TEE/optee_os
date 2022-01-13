@@ -33,16 +33,6 @@ const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
 	return NULL;
 }
 
-const struct dt_driver *__dt_driver_start(void)
-{
-	return &__rodata_dtdrv_start;
-}
-
-const struct dt_driver *__dt_driver_end(void)
-{
-	return &__rodata_dtdrv_end;
-}
-
 bool dt_have_prop(const void *fdt, int offs, const char *propname)
 {
 	const void *prop;
