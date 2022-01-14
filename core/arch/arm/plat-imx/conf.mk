@@ -204,11 +204,13 @@ endif
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dsabresd))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_NS_ENTRY_ADDR ?= 0x80800000
+CFG_IMX_WDOG_EXT_RESET ?= y
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dclsom))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART1_BASE
+CFG_IMX_WDOG_EXT_RESET ?= y
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx7dpico_mbl))
