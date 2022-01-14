@@ -801,3 +801,7 @@ endif
 ifeq (y-y,$(CFG_FTRACE_SUPPORT)-$(CFG_TA_PAUTH))
 $(error CFG_FTRACE_SUPPORT and CFG_TA_PAUTH are currently incompatible)
 endif
+
+# Enable support for generic watchdog registration
+# This watchdog will then be usable by non-secure world through SMC calls.
+CFG_WDT ?= n
