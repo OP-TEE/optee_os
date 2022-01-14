@@ -73,3 +73,10 @@ CFG_ATMEL_PM_SUSPEND_MODE ?= 0
 $(call force,CFG_ATMEL_SHDWC,y)
 $(call force,CFG_PM_ARM32,y)
 endif
+
+CFG_WDT ?= y
+CFG_WDT_SM_HANDLER ?= y
+ifeq ($(CFG_WDT_SM_HANDLER),y)
+CFG_WDT_SM_HANDLER_ID := 0x2000500
+endif
+CFG_ATMEL_WDT ?= y
