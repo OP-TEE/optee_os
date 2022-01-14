@@ -8,6 +8,8 @@
 
 #include <assert.h>
 #include <kernel/interrupt.h>
+#include <kernel/thread.h>
+#include <sm/sm.h>
 #include <tee_api_types.h>
 
 struct wdt_chip {
@@ -94,6 +96,25 @@ static inline void watchdog_start(void) {}
 static inline void watchdog_stop(void) {}
 static inline void watchdog_ping(void) {}
 static inline void watchdog_settimeout(unsigned long timeout __unused) {}
+#endif
+
+#ifdef CFG_WDT_SM_HANDLER
+enum sm_handler_ret __wdt_sm_handler(struct thread_smc_args *args);
+
+static inline
+enum sm_handler_ret wdt_sm_handler(struct thread_smc_args *args)
+{
+	if (args->a0 != CFG_WDT_SM_HANDLER_ID)
+		return SM_HANDLER_PENDING_SMC;
+
+	return __wdt_sm_handler(args);
+}
+#else
+static inline
+enum sm_handler_ret wdt_sm_handler(struct thread_smc_args *args __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
+}
 #endif
 
 #endif /* DRIVERS_WDT_H */
