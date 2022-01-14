@@ -39,7 +39,7 @@
 #include <mm/core_mmu.h>
 #include <util.h>
 
-static bool ext_reset_output;
+static bool ext_reset_output __maybe_unused;
 static vaddr_t wdog_base;
 
 void imx_wdog_restart(bool external_reset __maybe_unused)
@@ -161,11 +161,6 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 
 static TEE_Result imx_wdog_init(void)
 {
-#if defined(PLATFORM_FLAVOR_mx7dsabresd) || \
-	defined(PLATFORM_FLAVOR_mx7dclsom)
-
-	ext_reset_output = true;
-#endif
 	return imx_wdog_base(&wdog_base);
 }
 driver_init(imx_wdog_init);
