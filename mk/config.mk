@@ -805,3 +805,12 @@ endif
 # Enable support for generic watchdog registration
 # This watchdog will then be usable by non-secure world through SMC calls.
 CFG_WDT ?= n
+
+# Enable watchdog SMC handling compatible with arm-smc-wdt Linux driver
+# When enabled, CFG_WDT_SM_HANDLER_ID must be defined with a SMC ID
+CFG_WDT_SM_HANDLER ?= n
+
+$(eval $(call cfg-enable-all-depends,CFG_WDT_SM_HANDLER,CFG_WDT))
+ifeq (y-,$(CFG_WDT_SM_HANDLER)-$(CFG_WDT_SM_HANDLER_ID))
+$(error CFG_WDT_SM_HANDLER_ID must be defined when enabling CFG_WDT_SM_HANDLER)
+endif
