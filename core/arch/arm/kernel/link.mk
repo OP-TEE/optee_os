@@ -30,10 +30,13 @@ link-ldadd  = $(LDADD)
 link-ldadd += $(ldflags-external)
 link-ldadd += $(libdeps)
 link-objs := $(filter-out \
+	       $(out-dir)/$(platform-dir)/link_dummies_paged.o \
+	       $(out-dir)/$(platform-dir)/link_dummies_init.o \
 	       $(out-dir)/$(arch-dir)/kernel/link_dummies_paged.o \
 	       $(out-dir)/$(arch-dir)/kernel/link_dummies_init.o, \
 	       $(objs))
 link-objs-init := $(filter-out \
+		    $(out-dir)/$(platform-dir)/link_dummies_init.o \
 		    $(out-dir)/$(arch-dir)/kernel/link_dummies_init.o, \
 		    $(objs))
 ldargs-tee.elf := $(link-ldflags) $(link-objs) $(link-out-dir)/version.o \
