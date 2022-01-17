@@ -95,11 +95,21 @@ endif
 ifeq ($(CFG_CORE_SEL1_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL2_SPMC,n)
+$(call force,CFG_CORE_EL3_SPMC,n)
 endif
 # SPMC configuration "S-EL2 SPMC" where SPM Core is implemented at S-EL2,
 # that is, the hypervisor sandboxing OP-TEE
 ifeq ($(CFG_CORE_SEL2_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
+$(call force,CFG_CORE_SEL1_SPMC,n)
+$(call force,CFG_CORE_EL3_SPMC,n)
+endif
+# SPMC configuration "EL3 SPMC" where SPM Core is implemented at EL3, that
+# is, in TF-A
+ifeq ($(CFG_CORE_EL3_SPMC),y)
+$(call force,CFG_CORE_FFA,y)
+$(call force,CFG_CORE_SEL2_SPMC,n)
+$(call force,CFG_CORE_SEL1_SPMC,n)
 endif
 
 # Unmaps all kernel mode code except the code needed to take exceptions

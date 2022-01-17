@@ -31,7 +31,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
 			       uint16_t endpoint_id,
 			       uint16_t execution_context);
-#if defined(CFG_CORE_SEL2_SPMC)
+#if !defined(CFG_CORE_SEL1_SPMC)
 struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie);
 void thread_spmc_relinquish(uint64_t memory_region_handle);
 #endif
