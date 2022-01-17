@@ -62,11 +62,7 @@ static uint16_t my_endpoint_id;
  * the lock.
  */
 
-#ifdef CFG_CORE_SEL2_SPMC
-static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static struct ffa_rxtx nw_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
-#else
+#ifdef CFG_CORE_SEL1_SPMC
 static struct ffa_rxtx nw_rxtx;
 
 static bool is_nw_buf(struct ffa_rxtx *rxtx)
@@ -76,6 +72,10 @@ static bool is_nw_buf(struct ffa_rxtx *rxtx)
 
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
+#else
+static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
+static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
+static struct ffa_rxtx nw_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
 #endif
 
 static uint32_t swap_src_dst(uint32_t src_dst)
@@ -1319,7 +1319,15 @@ void thread_spmc_register_secondary_ep(vaddr_t ep)
 		EMSG("FFA_SECONDARY_EP_REGISTER_64 ret %#lx", ret);
 }
 
-#ifdef CFG_CORE_SEL2_SPMC
+#if defined(CFG_CORE_SEL1_SPMC)
+static TEE_Result spmc_init(void)
+{
+	my_endpoint_id = SPMC_ENDPOINT_ID;
+	DMSG("My endpoint ID %#x", my_endpoint_id);
+
+	return TEE_SUCCESS;
+}
+#else /* !defined(CFG_CORE_SEL1_SPMC) */
 static bool is_ffa_success(uint32_t fid)
 {
 #ifdef ARM64
@@ -1481,13 +1489,13 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 	descr = (struct ffa_mem_region *)((vaddr_t)retrieve_desc + offs);
 
 	num_pages = READ_ONCE(descr->total_page_count);
-	mf = mobj_ffa_sel2_spmc_new(cookie, num_pages);
+	mf = mobj_ffa_spmc_new(cookie, num_pages);
 	if (!mf)
 		goto out;
 
 	if (set_pages(descr->address_range_array,
 		      READ_ONCE(descr->address_range_count), num_pages, mf)) {
-		mobj_ffa_sel2_spmc_delete(mf);
+		mobj_ffa_spmc_delete(mf);
 		goto out;
 	}
 
@@ -1508,16 +1516,6 @@ static TEE_Result spmc_init(void)
 
 	return TEE_SUCCESS;
 }
-#endif /*CFG_CORE_SEL2_SPMC*/
-
-#if defined(CFG_CORE_SEL1_SPMC)
-static TEE_Result spmc_init(void)
-{
-	my_endpoint_id = SPMC_ENDPOINT_ID;
-	DMSG("My endpoint ID %#x", my_endpoint_id);
-
-	return TEE_SUCCESS;
-}
-#endif /*CFG_CORE_SEL1_SPMC*/
+#endif /* !defined(CFG_CORE_SEL1_SPMC) */
 
 service_init(spmc_init);

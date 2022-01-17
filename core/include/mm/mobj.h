@@ -180,7 +180,7 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 	if (mobj && mobj->ops && mobj->ops->get_cookie)
 		return mobj->ops->get_cookie(mobj);
 
-#if defined(CFG_CORE_SEL1_SPMC) || defined(CFG_CORE_SEL2_SPMC)
+#if defined(CFG_CORE_FFA)
 	return OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
 #else
 	return 0;
@@ -243,11 +243,9 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
-#endif
-#ifdef CFG_CORE_SEL2_SPMC
-struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
-					unsigned int num_pages);
-void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mobj);
+#else
+struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages);
+void mobj_ffa_spmc_delete(struct mobj_ffa *mobj);
 #endif
 
 uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mobj);
