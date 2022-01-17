@@ -193,6 +193,8 @@ static TEE_Result decrypt_es(uint32_t algo, struct rsa_keypair *key,
 	sss_se05x_asymmetric_t ctx = { };
 	sss_se05x_object_t kobject = { };
 	TEE_Result res = TEE_SUCCESS;
+	uint8_t *buf = NULL;
+	size_t buf_len = src_len;
 
 	res = se050_inject_keypair(&kobject, key);
 	if (res)
@@ -207,14 +209,33 @@ static TEE_Result decrypt_es(uint32_t algo, struct rsa_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	st = sss_se05x_asymmetric_decrypt(&ctx, src, src_len, dst, dst_len);
-	if (st != kStatus_SSS_Success)
-		res = TEE_ERROR_BAD_PARAMETERS;
+	/* we don't know the size of the decrypted data, just the upper limit */
+	buf = mempool_calloc(mempool_default, 1, buf_len);
+	if (!buf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
+	st = sss_se05x_asymmetric_decrypt(&ctx, src, src_len, buf,  &buf_len);
+	if (st != kStatus_SSS_Success) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	if (buf_len > *dst_len) {
+		*dst_len = buf_len;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+
+	*dst_len = buf_len;
+	memcpy(dst, buf, buf_len);
+out:
 	if (!se050_rsa_keypair_from_nvm(key))
 		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 
 	sss_se05x_asymmetric_context_free(&ctx);
+	mempool_free(mempool_default, buf);
 
 	return res;
 }
