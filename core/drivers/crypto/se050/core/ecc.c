@@ -147,28 +147,42 @@ static TEE_Result ecc_get_key_size(uint32_t curve, uint32_t algo,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result ecc_get_msg_size(uint32_t algo, size_t *len)
+static TEE_Result ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
+				  size_t *msg_len, uint8_t **msg_padded)
 {
-	switch (algo) {
-	case kAlgorithm_SSS_ECDSA_SHA1:
-		*len = MIN((size_t)TEE_SHA1_HASH_SIZE, *len);
-		break;
-	case kAlgorithm_SSS_ECDSA_SHA224:
-		*len = MIN((size_t)TEE_SHA224_HASH_SIZE, *len);
-		break;
-	case kAlgorithm_SSS_ECDSA_SHA256:
-		*len = MIN((size_t)TEE_SHA256_HASH_SIZE, *len);
-		break;
-	case kAlgorithm_SSS_ECDSA_SHA384:
-		*len = MIN((size_t)TEE_SHA384_HASH_SIZE, *len);
-		break;
-	case kAlgorithm_SSS_ECDSA_SHA512:
-		*len = MIN((size_t)TEE_SHA512_HASH_SIZE, *len);
-		break;
-	default:
-		EMSG("invalid se050 %#"PRIx32" algorithm", algo);
-		return TEE_ERROR_BAD_PARAMETERS;
+	struct {
+		uint32_t algo;
+		size_t len;
+	} map[] = {
+		{ kAlgorithm_SSS_ECDSA_SHA1, TEE_SHA1_HASH_SIZE },
+		{ kAlgorithm_SSS_ECDSA_SHA224, TEE_SHA224_HASH_SIZE },
+		{ kAlgorithm_SSS_ECDSA_SHA256, TEE_SHA256_HASH_SIZE },
+		{ kAlgorithm_SSS_ECDSA_SHA384, TEE_SHA384_HASH_SIZE },
+		{ kAlgorithm_SSS_ECDSA_SHA512, TEE_SHA512_HASH_SIZE },
+	};
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(map); i++) {
+		if (algo == map[i].algo)
+			break;
 	}
+
+	if (i >= ARRAY_SIZE(map))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (*msg_len >= map[i].len) {
+		/* truncate */
+		*msg_len = map[i].len;
+		return TEE_SUCCESS;
+	}
+
+	/* pad */
+	*msg_padded = calloc(1, map[i].len);
+	if (!*msg_padded)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(*msg_padded, msg, *msg_len);
+	*msg_len = map[i].len;
 
 	return TEE_SUCCESS;
 }
@@ -403,6 +417,7 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 	size_t sig_der_len = 0;
 	size_t key_bytes = 0;
 	size_t key_bits = 0;
+	uint8_t *p = NULL;
 
 	res = ecc_get_key_size(key->curve, algo, &key_bytes, &key_bits);
 	if (res != TEE_SUCCESS)
@@ -417,7 +432,8 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 		goto exit;
 	}
 
-	res = ecc_get_msg_size(algo_tee2se050(algo), &msg_len);
+	/* truncate or pad the message as needed */
+	res = ecc_prepare_msg(algo_tee2se050(algo), msg, &msg_len, &p);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -433,8 +449,8 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 		goto exit;
 	}
 
-	st = sss_se05x_asymmetric_sign_digest(&ctx, (uint8_t *)msg, msg_len,
-					      sig_der, &sig_der_len);
+	st = sss_se05x_asymmetric_sign_digest(&ctx, p ? p : (uint8_t *)msg,
+					      msg_len, sig_der, &sig_der_len);
 	if (st != kStatus_SSS_Success) {
 		EMSG("curve: %#"PRIx32, key->curve);
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -457,6 +473,7 @@ exit:
 	sss_se05x_asymmetric_context_free(&ctx);
 
 	free(sig_der);
+	free(p);
 
 	return res;
 }
@@ -473,12 +490,14 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 	size_t signature_len = sizeof(signature);
 	size_t key_bytes = 0;
 	size_t key_bits = 0;
+	uint8_t *p = NULL;
 
 	res = ecc_get_key_size(key->curve, algo, &key_bytes, &key_bits);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = ecc_get_msg_size(algo_tee2se050(algo), &msg_len);
+	/* truncate or pad the message as needed */
+	res = ecc_prepare_msg(algo_tee2se050(algo), msg, &msg_len, &p);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -501,14 +520,15 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 		goto exit;
 	}
 
-	st = sss_se05x_asymmetric_verify_digest(&ctx, (uint8_t *)msg, msg_len,
-						(uint8_t *)signature,
+	st = sss_se05x_asymmetric_verify_digest(&ctx, p ? p : (uint8_t *)msg,
+						msg_len, (uint8_t *)signature,
 						signature_len);
 	if (st != kStatus_SSS_Success)
 		res = TEE_ERROR_SIGNATURE_INVALID;
 exit:
 	sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 	sss_se05x_asymmetric_context_free(&ctx);
+	free(p);
 
 	return res;
 }
