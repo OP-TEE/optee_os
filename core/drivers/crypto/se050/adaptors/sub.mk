@@ -1,6 +1,7 @@
 cflags-y += -Wno-strict-aliasing
-include core/drivers/crypto/se050/cflags.mk
+include ${CFG_NXP_SE05X_PLUG_AND_TRUST}/cflags.mk
 
+incdirs_ext-y += ${CFG_NXP_SE05X_PLUG_AND_TRUST}/optee_lib/include
 incdirs-y += ./include
 
 srcs-y += utils/scp_config.c
