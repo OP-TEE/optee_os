@@ -1023,6 +1023,7 @@ static enum stm32mp1_parent_id get_parent_id_parent(enum stm32mp1_parent_id id)
 	switch (id) {
 	case _ACLK:
 	case _HCLK5:
+	case _HCLK6:
 	case _PCLK4:
 	case _PCLK5:
 		s = _AXISS_SEL;
@@ -1050,7 +1051,6 @@ static enum stm32mp1_parent_id get_parent_id_parent(enum stm32mp1_parent_id id)
 	case _PCLK1:
 	case _PCLK2:
 	case _HCLK2:
-	case _HCLK6:
 	case _CK_PER:
 	case _CK_MPU:
 	case _CK_MCU:
