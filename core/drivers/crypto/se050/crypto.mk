@@ -81,6 +81,4 @@ ifeq ($(CFG_NXP_SE05X_CIPHER_DRV),y)
 $(call force,CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_NXP_SE05X_CIPHER_DRV)
 endif
 
-# Plug and Trust NXP SE050X OP-TEE enabled static library
-ldflags-external += $(CFG_NXP_SE05X_PLUG_AND_TRUST_LIB)
 endif  # CFG_NXP_SE05X
