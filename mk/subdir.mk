@@ -137,9 +137,9 @@ sub-dir-out := $(out-dir)/$(base-prefix)$1
 endif
 
 include $1/sub.mk
-sub-subdirs := $$(addprefix $1/,$$(subdirs-y))
+sub-subdirs := $$(addprefix $1/,$$(subdirs-y)) $$(subdirs_ext-y)
 incdirs$(sm) := $(incdirs$(sm)) $$(addprefix $1/,$$(global-incdirs-y))
-thissubdir-incdirs := $(out-dir)/$(base-prefix)$1 $$(addprefix $1/,$$(incdirs-y))
+thissubdir-incdirs := $(out-dir)/$(base-prefix)$1 $$(addprefix $1/,$$(incdirs-y)) $$(incdirs_ext-y)
 ifneq ($$(libname),)
 incdirs-lib$$(libname)-$$(sm) := $$(incdirs-lib$$(libname)-$$(sm)) $$(addprefix $1/,$$(incdirs-lib-y))
 cflags-lib$$(libname)-$$(sm) := $$(cflags-lib$$(libname)-$$(sm)) $$(cflags-lib-y)
@@ -164,9 +164,11 @@ cflags-remove-y :=
 cxxflags-remove-y :=
 aflags-remove-y :=
 subdirs-y :=
+subdirs_ext-y :=
 global-incdirs-y :=
 incdirs-lib-y :=
 incdirs-y :=
+incdirs_ext-y :=
 gensrcs-y :=
 this-out-dir :=
 asm-defines-y :=
