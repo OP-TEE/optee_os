@@ -126,6 +126,23 @@ static inline bool feat_bti_is_implemented(void)
 		FEAT_BTI_IMPLEMENTED);
 #endif
 }
+
+static inline bool feat_pauth_is_implemented(void)
+{
+#ifdef ARM32
+	return false;
+#else
+	uint64_t mask =
+		SHIFT_U64(ID_AA64ISAR1_GPI_MASK, ID_AA64ISAR1_GPI_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_GPA_MASK, ID_AA64ISAR1_GPA_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_API_MASK, ID_AA64ISAR1_API_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_APA_MASK, ID_AA64ISAR1_APA_SHIFT);
+
+	/* If any of the fields is not zero, PAuth is implemented by arch */
+	return (read_id_aa64isar1_el1() & mask) != 0U;
+#endif
+}
+
 #endif
 
 #endif /*ARM_H*/
