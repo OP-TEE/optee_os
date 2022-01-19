@@ -814,3 +814,8 @@ $(eval $(call cfg-enable-all-depends,CFG_WDT_SM_HANDLER,CFG_WDT))
 ifeq (y-,$(CFG_WDT_SM_HANDLER)-$(CFG_WDT_SM_HANDLER_ID))
 $(error CFG_WDT_SM_HANDLER_ID must be defined when enabling CFG_WDT_SM_HANDLER)
 endif
+
+# Allow using the udelay/mdelay function for platforms without ARM generic timer
+# extension. When set to 'n', the plat_get_freq() function must be defined by
+# the platform code
+CFG_CORE_HAS_GENERIC_TIMER ?= y
