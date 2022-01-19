@@ -315,6 +315,7 @@ SECTIONS
 		"read-write memory is not paged aligned")
 
 	.text_init : {
+		__text_init_start = .;
 /*
  * Include list of sections needed for boot initialization, this list
  * overlaps with unpaged.ld.S but since unpaged.ld.S is first all those
@@ -325,6 +326,7 @@ SECTIONS
 		/* Make sure constructor functions are available during init */
 		KEEP(*(.text._GLOBAL__sub_*));
 		. = ALIGN(8);
+		__text_init_end = .;
 	}
 
 #ifdef CFG_CORE_RODATA_NOEXEC
@@ -334,11 +336,13 @@ SECTIONS
 	__flatmap_init_ro_start = .;
 
 	.rodata_init : {
+		__rodata_init_start = .;
 #include <rodata_init.ld.S>
 #ifndef CFG_CORE_ASLR
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
 #endif
+		__rodata_init_end = .;
 	}
 #ifdef CFG_CORE_ASLR
 	.data.rel.ro_init : ALIGN(8) {
@@ -356,7 +360,9 @@ SECTIONS
 	__flatmap_init_ro_size = __init_end - __flatmap_init_ro_start;
 
 	.rodata_pageable : ALIGN(8) {
+		__rodata_pageable_start = .;
 		*(.rodata*)
+		__rodata_pageable_end = .;
 	}
 
 #ifdef CFG_CORE_RODATA_NOEXEC
@@ -364,8 +370,10 @@ SECTIONS
 #endif
 
 	.text_pageable : ALIGN(8) {
+		__text_pageable_start = .;
 		*(.text*)
 		. = ALIGN(SMALL_PAGE_SIZE);
+		__text_pageable_end = .;
 	}
 
 	__pageable_part_end = .;

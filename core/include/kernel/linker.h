@@ -111,6 +111,15 @@ extern const uint8_t __pageable_part_end[];
 extern const uint8_t __pageable_start[];
 extern const uint8_t __pageable_end[];
 
+extern const uint8_t __rodata_init_start[];
+extern const uint8_t __rodata_init_end[];
+extern const uint8_t __rodata_pageable_start[];
+extern const uint8_t __rodata_pageable_end[];
+extern const uint8_t __text_init_start[];
+extern const uint8_t __text_init_end[];
+extern const uint8_t __text_pageable_start[];
+extern const uint8_t __text_pageable_end[];
+
 #define ASAN_SHADOW_PA	((paddr_t)__asan_shadow_start)
 #define ASAN_SHADOW_SZ	((size_t)__asan_shadow_size)
 extern const uint8_t __asan_shadow_start[];
