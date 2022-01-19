@@ -377,8 +377,8 @@ static TEE_Result check_retrieve_request(struct sp_mem_receiver *receiver,
 	struct ffa_mem_access *retr_access = NULL;
 	uint8_t share_perm = receiver->perm.perm;
 	uint32_t retr_perm = 0;
-	uint32_t retr_flags = READ_ONCE(retr_dsc->tag);
-	uint64_t retr_tag = READ_ONCE(retr_dsc->flags);
+	uint32_t retr_flags = READ_ONCE(retr_dsc->flags);
+	uint64_t retr_tag = READ_ONCE(retr_dsc->tag);
 	struct sp_mem_map_region *reg = NULL;
 
 	/*
