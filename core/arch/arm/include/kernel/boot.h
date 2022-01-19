@@ -67,6 +67,7 @@ void init_tee_runtime(void);
 void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);
 unsigned long plat_get_aslr_seed(void);
+unsigned long plat_get_freq(void);
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 
