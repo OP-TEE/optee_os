@@ -354,10 +354,6 @@
 				};
 			};
 
-			watchdog@f8048040 {
-				status = "okay";
-			};
-
 			i2s0: i2s@f8050000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2s0_default>;
