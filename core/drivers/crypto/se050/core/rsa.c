@@ -420,7 +420,8 @@ static TEE_Result sign_ssa(uint32_t algo, struct rsa_keypair *key,
 	st = sss_se05x_asymmetric_context_init(&ctx, se050_session, &kobject,
 					       tee2se050(algo), kMode_SSS_Sign);
 	if (st != kStatus_SSS_Success) {
-		sss_se05x_key_store_erase_key(se050_kstore, &kobject);
+		if (!se050_rsa_keypair_from_nvm(key))
+			sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
