@@ -103,7 +103,7 @@ struct dt_driver {
 };
 
 #define DEFINE_DT_DRIVER(name) \
-		SCATTERED_ARRAY_DEFINE_ITEM(dt_drivers, struct dt_driver)
+		SCATTERED_ARRAY_DEFINE_PG_ITEM(dt_drivers, struct dt_driver)
 
 /*
  * Find a driver that is suitable for the given DT node, that is, with
