@@ -280,6 +280,13 @@ R:	Volodymyr Babchuk <vlad.babchuk@gmail.com>
 S:	Maintained
 F:	core/arch/arm/kernel/virtualization.c
 
+Aspeed AST2600
+R:	Chia-Wei Wang <chiawei_wang@aspeedtech.com> [@ChiaweiW]
+R:	Neal Liu <neal_liu@aspeedtech.com> [@Neal-liu]
+R:	[@OP-TEE/plat-aspeed]
+S:	Maintained
+F:	core/arch/arm/plat-aspeed/
+
 THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
