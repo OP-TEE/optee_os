@@ -145,10 +145,6 @@
 				};
 			};
 
-			watchdog@f8048040 {
-				status = "okay";
-			};
-
 			uart3: serial@fc008000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
