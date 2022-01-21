@@ -1390,8 +1390,7 @@ static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
 	trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
 	trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
 	trans_descr->global_handle = cookie;
-	trans_descr->flags = FFA_MEMORY_REGION_FLAG_TIME_SLICE |
-			     FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
+	trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
 			     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
 	trans_descr->mem_access_count = 1;
 	acc_descr_array = trans_descr->mem_access_array;
@@ -1400,7 +1399,7 @@ static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
 	perm_descr = &acc_descr_array->access_perm;
 	perm_descr->endpoint_id = my_endpoint_id;
 	perm_descr->perm = FFA_MEM_ACC_RW;
-	perm_descr->flags = FFA_MEMORY_REGION_FLAG_TIME_SLICE;
+	perm_descr->flags = 0;
 
 	thread_smccc(&args);
 	if (args.a0 != FFA_MEM_RETRIEVE_RESP) {
