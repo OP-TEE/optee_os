@@ -1609,6 +1609,9 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 			}
 			if (obj_size > o->info.maxKeySize)
 				return TEE_ERROR_BAD_STATE;
+			res = check_key_size(type_props, obj_size);
+			if (res != TEE_SUCCESS)
+				return TEE_ERROR_BAD_PARAMETERS;
 		}
 
 		/*
