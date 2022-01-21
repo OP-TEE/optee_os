@@ -1337,8 +1337,8 @@ static void spmc_rxtx_map(struct ffa_rxtx *rxtx)
 #else
 		.a0 = FFA_RXTX_MAP_32,
 #endif
-		.a1 = (vaddr_t)rxtx->tx,
-		.a2 = (vaddr_t)rxtx->rx,
+		.a1 = virt_to_phys(rxtx->tx),
+		.a2 = virt_to_phys(rxtx->rx),
 		.a3 = 1,
 	};
 
