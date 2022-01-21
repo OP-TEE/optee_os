@@ -91,8 +91,8 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(IT_CONSOLE_UART) && \
-	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV3))
+#if defined(IT_CONSOLE_UART) && !defined(CFG_VIRTUALIZATION) && \
+	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2))
 /*
  * This cannot be enabled with TF-A and GICv3 because TF-A then need to
  * assign the interrupt number of the UART to OP-TEE (S-EL1). Currently
