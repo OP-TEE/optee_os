@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2022, Linaro Limited
- *
  */
 
-#ifndef __TPM2_MMIO_H__
-#define __TPM2_MMIO_H__
+#ifndef __DRIVERS_TPM2_MMIO_H__
+#define __DRIVERS_TPM2_MMIO_H__
 
 #include <mm/core_memprot.h>
 #include <stdint.h>
@@ -18,5 +17,5 @@ struct tpm2_mmio_data {
 
 enum tpm2_result tpm2_mmio_init(struct tpm2_mmio_data *md, paddr_t pbase);
 
-#endif	/* __TPM2_MMIO_H__ */
+#endif	/* __DRIVERS_TPM2_MMIO_H__ */
 

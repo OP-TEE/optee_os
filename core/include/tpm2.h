@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2022, Linaro Limited
- *
  */
 
 #ifndef __TPM2_H__
@@ -15,12 +14,12 @@
 
 #define TPM2_HDR_LEN 10
 
-#define TPM2_ACCESS(l) SHIFT_U32(l, 12)
-#define TPM2_INT_ENABLE(l) (SHIFT_U32(l, 12) | BIT(3))
-#define TPM2_STS(l) (SHIFT_U32(l, 12) | SHIFT_U32(3, 3))
-#define TPM2_DATA_FIFO(l) (SHIFT_U32(l, 12) | SHIFT_U32(9, 2))
-#define TPM2_DID_VID(l) (SHIFT_U32(l, 12) | SHIFT_U32(0xF, 8))
-#define TPM2_RID(l) (SHIFT_U32(l, 12) | SHIFT_U32(0x3C1, 2))
+#define TPM2_ACCESS(v)		SHIFT_U32((v), 12)
+#define TPM2_INT_ENABLE(v)	(SHIFT_U32((v), 12) | BIT(3))
+#define TPM2_STS(v)		(SHIFT_U32((v), 12) | SHIFT_U32(3, 3))
+#define TPM2_DATA_FIFO(v)	(SHIFT_U32((v), 12) | SHIFT_U32(9, 2))
+#define TPM2_DID_VID(v)		(SHIFT_U32((v), 12) | SHIFT_U32(0xF, 8))
+#define TPM2_RID(v)		(SHIFT_U32((v), 12) | SHIFT_U32(0x3C1, 2))
 
 enum tpm2_int_flags {
 	TPM2_INT_DATA_AVAIL_INT = BIT(0),
@@ -30,6 +29,11 @@ enum tpm2_int_flags {
 	TPM2_GLOBAL_INT_ENABLE = BIT(31),
 };
 
+/*
+ * Based on:
+ * linux/errno.h (very loosely)
+ * TCG_TPM2_r1p59_Part4_SuppRoutines_code_pub (Table 2:16)
+ */
 enum tpm2_result {
 	TPM2_OK = 0,
 
@@ -103,8 +107,7 @@ enum {
 };
 
 struct tpm2_chip {
-	struct tpm2_ops *ops;
-	int32_t is_open;
+	const struct tpm2_ops *ops;
 	int32_t locality;
 	uint32_t timeout_a;
 	uint32_t timeout_b;
@@ -113,6 +116,7 @@ struct tpm2_chip {
 	uint32_t type;
 	uint32_t vend_dev;
 	uint8_t rid;
+	bool is_open;
 };
 
 struct tpm2_ops {

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2022, Linaro Limited
- *
  */
 
 #ifndef __TPM2_PLATFORM_H__
