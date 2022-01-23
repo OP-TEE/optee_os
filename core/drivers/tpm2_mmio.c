@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2022, Linaro Limited
- *
  */
 
 #include <drivers/tpm2_mmio.h>
@@ -39,10 +38,11 @@ static enum tpm2_result tpm2_mmio_tx32(struct tpm2_chip *chip, uint32_t adr,
 static enum tpm2_result tpm2_mmio_rx8(struct tpm2_chip *chip, uint32_t adr,
 				      uint16_t len, uint8_t *buf)
 {
+	uint16_t n = 0;
 	vaddr_t base = tpm2_chip_to_base(chip);
 
-	while (len--)
-		*buf++ = io_read8(base + adr);
+	for (n = 0; n < len; n++)
+		buf[n] = io_read8(base + adr);
 
 	return TPM2_OK;
 }
@@ -58,7 +58,7 @@ static enum tpm2_result tpm2_mmio_tx8(struct tpm2_chip *chip, uint32_t adr,
 	return TPM2_OK;
 }
 
-static struct tpm2_ops tpm2_mmio_ops = {
+static const struct tpm2_ops tpm2_mmio_ops = {
 	.rx32 = tpm2_mmio_rx32,
 	.tx32 = tpm2_mmio_tx32,
 	.rx8 = tpm2_mmio_rx8,
@@ -68,21 +68,29 @@ DECLARE_KEEP_PAGER(tpm2_mmio_ops);
 
 enum tpm2_result tpm2_mmio_init(struct tpm2_mmio_data *md, paddr_t pbase)
 {
+	enum tpm2_result ret = TPM2_OK;
+
+	assert(!md->base.pa);
+
 	md->base.pa = pbase;
 	md->chip.ops = &tpm2_mmio_ops;
 
-	md->base.va = io_pa_or_va(&md->base, TPM2_REG_SIZE);
+	md->base.va = io_pa_or_va_secure(&md->base, TPM2_REG_SIZE);
+	assert(md->base.va);
+
 	DMSG("TPM2 MMIO pbase: 0x%" PRIxVA, md->base.pa);
 	DMSG("TPM2 MMIO vbase: 0x%" PRIxVA, md->base.va);
 
-	if (tpm2_init(&md->chip)) {
+	ret = tpm2_init(&md->chip);
+	if (ret) {
 		EMSG("Init failed");
-		return TPM2_ERR_INIT;
+		return ret;
 	}
 
-	if (tpm2_open(&md->chip)) {
+	ret = tpm2_open(&md->chip);
+	if (ret) {
 		EMSG("Open failed");
-		return TPM2_ERR_INIT;
+		return ret;
 	}
 
 	DMSG("Init and open ok");
