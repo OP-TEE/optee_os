@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2022, Linaro Limited
- *
  */
 
 #include <kernel/delay.h>
@@ -161,7 +160,8 @@ static enum tpm2_result tpm2_get_burstcount(struct tpm2_chip *chip,
 
 uint32_t tpm2_convert2be(uint8_t *buf)
 {
-	return buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+	return SHIFT_U32(buf[0], 24) | SHIFT_U32(buf[1], 16) |
+		SHIFT_U32(buf[2], 8) | buf[3];
 }
 
 enum tpm2_result tpm2_init(struct tpm2_chip *chip)
@@ -170,10 +170,7 @@ enum tpm2_result tpm2_init(struct tpm2_chip *chip)
 	struct tpm2_ops *ops = chip->ops;
 	uint32_t flags = 0;
 
-	if (!tpm2_check_ops(ops)) {
-		EMSG("No rx tx functions defined");
-		return TPM2_ERR_INIT;
-	}
+	assert(tpm2_check_ops(ops));
 
 	/*
 	 * chip->timeout_a start out as 0 in tpm2_get_locality()
@@ -217,7 +214,7 @@ enum tpm2_result tpm2_open(struct tpm2_chip *chip)
 
 	ret = tpm2_get_locality(chip, 0);
 	if (!ret)
-		chip->is_open = 1;
+		chip->is_open = true;
 
 	return ret;
 }
@@ -228,7 +225,7 @@ enum tpm2_result tpm2_close(struct tpm2_chip *chip)
 
 	if (chip->is_open) {
 		ret = tpm2_free_locality(chip);
-		chip->is_open = 0;
+		chip->is_open = false;
 	}
 
 	return ret;
@@ -247,7 +244,7 @@ enum tpm2_result tpm2_tx(struct tpm2_chip *chip, uint8_t *buf, uint32_t len)
 	if (!chip)
 		return TPM2_ERR_GENERIC;
 
-	/* free in tpm2_rx() */
+	/* locality will be freed in tpm2_rx() */
 	ret = tpm2_get_locality(chip, 0);
 	if (ret)
 		return ret;
@@ -265,7 +262,7 @@ enum tpm2_result tpm2_tx(struct tpm2_chip *chip, uint8_t *buf, uint32_t len)
 		ret = tpm2_wait_for_status(chip, TPM2_STS_COMMAND_READY,
 					   chip->timeout_b, &status);
 		if (ret) {
-			EMSG("Module not ready\n");
+			EMSG("Module not ready");
 			goto free_locality;
 		}
 	}
@@ -310,7 +307,7 @@ enum tpm2_result tpm2_tx(struct tpm2_chip *chip, uint8_t *buf, uint32_t len)
 	if (ret)
 		goto free_locality;
 
-	return sent;
+	return TPM2_OK;
 
 free_locality:
 	tpm2_get_ready(chip);
@@ -356,7 +353,7 @@ enum tpm2_result tpm2_rx(struct tpm2_chip *chip, uint8_t *buf, uint32_t len)
 	uint32_t tmp_size = 0;
 
 	if (len < TPM2_HDR_LEN)
-		return TPM2_ERR_ARG_LIST_TOO_LONG;
+		return TPM2_ERR_INVALID_ARG;
 
 	ret = tpm2_rx_dat(chip, buf, TPM2_HDR_LEN, &size);
 	if (ret || size < TPM2_HDR_LEN) {
@@ -383,9 +380,9 @@ enum tpm2_result tpm2_rx(struct tpm2_chip *chip, uint8_t *buf, uint32_t len)
 
 out:
 	tpm2_get_ready(chip);
-	/* obtained from tpm2_tx() */
+	/* free locality obtained in tpm2_tx() */
 	tpm2_free_locality(chip);
 
-	return size;
+	return ret;
 }
 
