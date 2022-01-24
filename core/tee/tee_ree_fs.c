@@ -647,7 +647,7 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 
 out:
 	if (res)
-		put_dirh(dirh, false);
+		put_dirh(dirh, true);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
