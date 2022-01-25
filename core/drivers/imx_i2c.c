@@ -24,7 +24,7 @@
 #define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP)
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
@@ -50,6 +50,7 @@
 #error IMX_I2C driver not supported on this platform
 #endif
 
+#if !defined(CFG_MX8MP)
 static struct io_pa_va i2c_bus[4] = {
 #if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
 #if defined(I2C1_BASE)
@@ -66,6 +67,31 @@ static struct io_pa_va i2c_bus[4] = {
 #endif
 #endif
 };
+#else
+static struct io_pa_va i2c_bus[6] = {
+#if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
+#if defined(I2C1_BASE)
+	[0] = { .pa = I2C1_BASE, },
+#endif
+#if defined(I2C2_BASE)
+	[1] = { .pa = I2C2_BASE, },
+#endif
+#if defined(I2C3_BASE)
+	[2] = { .pa = I2C3_BASE, },
+#endif
+#if defined(I2C4_BASE)
+	[3] = { .pa = I2C4_BASE, },
+#endif
+#if defined(I2C5_BASE)
+	[4] = { .pa = I2C5_BASE, },
+#endif
+#if defined(I2C6_BASE)
+	[5] = { .pa = I2C6_BASE, },
+#endif
+
+#endif
+};
+#endif
 
 static struct imx_i2c_clk {
 	struct io_pa_va base;
@@ -190,7 +216,7 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
 
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP)
 	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
 	val = CCM_CCGRx_ALWAYS_ON(0);
 #elif defined(CFG_MX6ULL)
