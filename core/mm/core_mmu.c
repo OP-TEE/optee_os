@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <config.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -15,6 +16,7 @@
 #include <kernel/tlb_helpers.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -72,6 +74,8 @@ static struct memaccess_area nsec_shared[] __nex_data = {
 };
 
 #if defined(CFG_SECURE_DATA_PATH)
+static const char *tz_sdp_match = "sdp";
+static struct memaccess_area sec_sdp;
 #ifdef CFG_TEE_SDP_MEM_BASE
 register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
 #endif
@@ -254,6 +258,62 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
+#if defined(CFG_SECURE_DATA_PATH)
+static bool dtb_get_sdp_region(void)
+{
+	void *fdt = NULL;
+	int node = -1;
+	int parent = -1;
+	paddr_t tmp_addr = 0;
+	size_t tmp_size = 0;
+
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		return false;
+
+	fdt = get_embedded_dt();
+	if (!fdt)
+		panic("No DTB found");
+
+	parent = fdt_path_offset(fdt, "/reserved-memory");
+
+	if (parent < 0)
+		return false;
+
+	fdt_for_each_subnode(node, fdt, parent) {
+		const char *name = NULL;
+
+		name = fdt_get_name(fdt, node, NULL);
+
+		if (strncmp(name, tz_sdp_match, strlen(tz_sdp_match)))
+			continue;
+
+		tmp_addr = _fdt_reg_base_address(fdt, node);
+		if (tmp_addr == DT_INFO_INVALID_REG) {
+			EMSG("%s: Unable to get size of base addr from DT",
+			     tz_sdp_match);
+			return false;
+		}
+
+		tmp_size = _fdt_reg_size(fdt, node);
+		if (tmp_size == DT_INFO_INVALID_REG_SIZE) {
+			EMSG("%s: Unable to get size of base addr from DT",
+			     tz_sdp_match);
+			return false;
+		}
+
+		sec_sdp.paddr = tmp_addr;
+		sec_sdp.size = tmp_size;
+
+		return true;
+	}
+
+	EMSG("Cannot find %s node in the device tree",
+	     tz_sdp_match);
+
+	return false;
+}
+#endif
+
 #if defined(CFG_CORE_DYN_SHM) || defined(CFG_SECURE_DATA_PATH)
 static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 				const struct core_mmu_phys_mem *start,
@@ -346,6 +406,20 @@ static int cmp_pmem_by_addr(const void *a, const void *b)
 	return CMP_TRILEAN(pmem_a->addr, pmem_b->addr);
 }
 
+#ifdef CFG_SECURE_DATA_PATH
+static bool configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
+{
+	if (dtb_get_sdp_region()) {
+		DMSG("region base %p %zu", (void *)sec_sdp.paddr, sec_sdp.size);
+
+		carve_out_phys_mem(mem, nelems, sec_sdp.paddr, sec_sdp.size);
+
+		return true;
+	}
+	return false;
+}
+#endif
+
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems)
 {
@@ -372,8 +446,11 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	 */
 
 #ifdef CFG_SECURE_DATA_PATH
-	for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
-		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
+	if (!configure_sdp_dtb(&m, &num_elems)) {
+		for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
+			carve_out_phys_mem(&m, &num_elems, pmem->addr,
+					   pmem->size);
+	}
 #endif
 
 	carve_out_phys_mem(&m, &num_elems, TEE_RAM_START, TEE_RAM_PH_SIZE);
@@ -450,28 +527,47 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
+	if (sec_sdp.size != 0)
+		return core_is_buffer_inside(pbuf, len,
+					     sec_sdp.paddr,
+					     sec_sdp.size);
+
 	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
 				   phys_sdp_mem_end);
 }
 
 struct mobj **core_sdp_mem_create_mobjs(void)
 {
-	const struct core_mmu_phys_mem *mem;
-	struct mobj **mobj_base;
-	struct mobj **mobj;
-	int cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
+	const struct core_mmu_phys_mem *mem = NULL;
+	struct mobj **mobj_base = NULL;
+	struct mobj **mobj = NULL;
+	paddr_t addr = sec_sdp.paddr;
+	paddr_size_t size = sec_sdp.size;
+	int cnt = 1;
+	int i = 0;
+
+	if (!sec_sdp.size) {
+		cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
+		mem = phys_sdp_mem_begin;
+	}
 
 	/* SDP mobjs table must end with a NULL entry */
 	mobj_base = calloc(cnt + 1, sizeof(struct mobj *));
 	if (!mobj_base)
 		panic("Out of memory");
 
-	for (mem = phys_sdp_mem_begin, mobj = mobj_base;
-	     mem < phys_sdp_mem_end; mem++, mobj++) {
-		*mobj = mobj_phys_alloc(mem->addr, mem->size,
-					TEE_MATTR_CACHE_CACHED,
-					CORE_MEM_SDP_MEM);
-		if (!*mobj)
+	mobj = mobj_base;
+
+	for (i = 0; i < cnt; i++) {
+		if (mem) {
+			addr = mem[i].addr;
+			size = mem[i].size;
+		}
+
+		mobj[i] = mobj_phys_alloc(addr, size,
+					  TEE_MATTR_CACHE_CACHED,
+					  CORE_MEM_SDP_MEM);
+		if (!mobj[i])
 			panic("can't create SDP physical memory object");
 	}
 	return mobj_base;
