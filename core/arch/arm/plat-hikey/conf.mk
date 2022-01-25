@@ -44,6 +44,8 @@ CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 ifeq ($(PLATFORM_FLAVOR),hikey)
 CFG_CONSOLE_UART ?= 3
 CFG_DRAM_SIZE_GB ?= 2
+
+flavor_dts_file-hikey = hikey_sdp.dts
 endif
 
 ifeq ($(PLATFORM_FLAVOR),hikey960)
@@ -57,6 +59,8 @@ endif
 ifneq (,$(filter 4 6,$(CFG_DRAM_SIZE_GB)))
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
 endif
+
+flavor_dts_file-hikey960 = hikey_sdp.dts
 endif
 
 CFG_TZDRAM_START ?= 0x3F000000
@@ -66,3 +70,7 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000
 
 CFG_IN_TREE_EARLY_TAS += avb/023f8f1a-292a-432b-8fc4-de8471358067
+
+ifneq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
+CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
+endif

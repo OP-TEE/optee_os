@@ -10,6 +10,7 @@
 #include <config.h>
 #include <kernel/boot.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -21,6 +22,7 @@
 #include <kernel/tz_ssvce_pl310.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -78,14 +80,7 @@ static struct memaccess_area nsec_shared[] __nex_data = {
 #endif
 };
 
-#if defined(CFG_SECURE_DATA_PATH)
-#ifdef CFG_TEE_SDP_MEM_BASE
-register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
-#endif
-#ifdef TEE_SDP_TEST_MEM_BASE
-register_sdp_mem(TEE_SDP_TEST_MEM_BASE, TEE_SDP_TEST_MEM_SIZE);
-#endif
-#endif
+static const char *tz_sdp_match = "optee-sdp";
 
 #ifdef CFG_CORE_RWDATA_NOEXEC
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
@@ -271,7 +266,48 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
-#if defined(CFG_CORE_DYN_SHM) || defined(CFG_SECURE_DATA_PATH)
+static void dtb_get_sdp_region(paddr_t *base, size_t *size)
+{
+	void *fdt = NULL;
+	int node = -1;
+	paddr_t tmp_addr = 0;
+	size_t tmp_size = 0;
+
+	if (!base || !size)
+		return;
+
+	*base = 0;
+	*size = 0;
+
+	fdt = get_embedded_dt();
+	if (!fdt)
+		panic("No DTB found");
+
+	node = fdt_node_offset_by_compatible(fdt, node, tz_sdp_match);
+	if (node < 0) {
+		EMSG("Cannot find %s node in the device tree",
+		     tz_sdp_match);
+		return;
+	}
+
+	tmp_addr = _fdt_reg_base_address(fdt, node);
+	if (tmp_addr == DT_INFO_INVALID_REG) {
+		EMSG("%s: Unable to get base addr from DT", tz_sdp_match);
+		return;
+	}
+
+	tmp_size = _fdt_reg_size(fdt, node);
+	if (tmp_size == DT_INFO_INVALID_REG_SIZE) {
+		EMSG("%s: Unable to get size of base addr from DT",
+		     tz_sdp_match);
+		return;
+	}
+
+	*base = tmp_addr;
+	*size = tmp_size;
+}
+
+#ifdef CFG_CORE_DYN_SHM
 static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 				const struct core_mmu_phys_mem *start,
 				const struct core_mmu_phys_mem *end)
@@ -285,9 +321,7 @@ static bool pbuf_is_special_mem(paddr_t pbuf, size_t len,
 
 	return false;
 }
-#endif
 
-#ifdef CFG_CORE_DYN_SHM
 static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
 			       paddr_t pa, size_t size)
 {
@@ -363,6 +397,18 @@ static int cmp_pmem_by_addr(const void *a, const void *b)
 	return CMP_TRILEAN(pmem_a->addr, pmem_b->addr);
 }
 
+static void configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
+{
+	paddr_t base;
+	size_t size;
+
+	dtb_get_sdp_region(&base, &size);
+
+	DMSG("region base %p %zu", (void *)base, size);
+
+	carve_out_phys_mem(mem, nelems, base, size);
+}
+
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems)
 {
@@ -388,10 +434,8 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	 * non-secure memory is used for NSEC_SHM.
 	 */
 
-#ifdef CFG_SECURE_DATA_PATH
-	for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
-		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
-#endif
+	if (IS_ENABLED(CFG_EMBED_DTB))
+		configure_sdp_dtb(&m, &num_elems);
 
 	carve_out_phys_mem(&m, &num_elems, TEE_RAM_START, TEE_RAM_PH_SIZE);
 	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
@@ -464,91 +508,50 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 	EMSG("[%" PRIxPA " %" PRIx64 "] intersects [%" PRIxPA " %" PRIx64 "]", \
 			pa1, (uint64_t)pa1 + sz1, pa2, (uint64_t)pa2 + sz2)
 
-#ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
-				   phys_sdp_mem_end);
+	if (IS_ENABLED(CFG_EMBED_DTB)) {
+		paddr_t base;
+		size_t size;
+
+		dtb_get_sdp_region(&base, &size);
+
+		return core_is_buffer_inside(pbuf, len, base, size);
+	} else {
+		return false;
+	}
 }
 
 struct mobj **core_sdp_mem_create_mobjs(void)
 {
-	const struct core_mmu_phys_mem *mem;
 	struct mobj **mobj_base;
 	struct mobj **mobj;
-	int cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
+	paddr_t addr;
+	paddr_size_t size;
+
+	paddr_t region_base;
+	size_t region_size;
+
+	dtb_get_sdp_region(&region_base, &region_size);
 
 	/* SDP mobjs table must end with a NULL entry */
-	mobj_base = calloc(cnt + 1, sizeof(struct mobj *));
+	mobj_base = calloc(1, sizeof(struct mobj *));
 	if (!mobj_base)
 		panic("Out of memory");
 
-	for (mem = phys_sdp_mem_begin, mobj = mobj_base;
-	     mem < phys_sdp_mem_end; mem++, mobj++) {
-		*mobj = mobj_phys_alloc(mem->addr, mem->size,
-					TEE_MATTR_CACHE_CACHED,
-					CORE_MEM_SDP_MEM);
-		if (!*mobj)
-			panic("can't create SDP physical memory object");
-	}
+	mobj = mobj_base;
+	addr = region_base;
+	size = region_size;
+
+	DMSG("addr %p size %zu", (void *)region_base, region_size);
+
+	*mobj = mobj_phys_alloc(addr, size,
+				TEE_MATTR_CACHE_CACHED,
+				CORE_MEM_SDP_MEM);
+	if (!*mobj)
+		panic("can't create SDP physical memory object");
+
 	return mobj_base;
-}
-
-#else /* CFG_SECURE_DATA_PATH */
-static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
-{
-	return false;
-}
-
-#endif /* CFG_SECURE_DATA_PATH */
-
-/* Check special memories comply with registered memories */
-static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
-				     size_t len,
-				     const struct core_mmu_phys_mem *start,
-				     const struct core_mmu_phys_mem *end,
-				     const char *area_name __maybe_unused)
-{
-	const struct core_mmu_phys_mem *mem;
-	const struct core_mmu_phys_mem *mem2;
-	struct tee_mmap_region *mmap;
-	size_t n;
-
-	if (start == end) {
-		DMSG("No %s memory area defined", area_name);
-		return;
-	}
-
-	for (mem = start; mem < end; mem++)
-		DMSG("%s memory [%" PRIxPA " %" PRIx64 "]",
-		     area_name, mem->addr, (uint64_t)mem->addr + mem->size);
-
-	/* Check memories do not intersect each other */
-	for (mem = start; mem + 1 < end; mem++) {
-		for (mem2 = mem + 1; mem2 < end; mem2++) {
-			if (core_is_buffer_intersect(mem2->addr, mem2->size,
-						     mem->addr, mem->size)) {
-				MSG_MEM_INSTERSECT(mem2->addr, mem2->size,
-						   mem->addr, mem->size);
-				panic("Special memory intersection");
-			}
-		}
-	}
-
-	/*
-	 * Check memories do not intersect any mapped memory.
-	 * This is called before reserved VA space is loaded in mem_map.
-	 */
-	for (mem = start; mem < end; mem++) {
-		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
-			if (core_is_buffer_intersect(mem->addr, mem->size,
-						     mmap->pa, mmap->size)) {
-				MSG_MEM_INSTERSECT(mem->addr, mem->size,
-						   mmap->pa, mmap->size);
-				panic("Special memory intersection");
-			}
-		}
-	}
 }
 
 static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
@@ -860,10 +863,11 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
 
-	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
-		verify_special_mem_areas(memory_map, num_elems,
-					 phys_sdp_mem_begin,
-					 phys_sdp_mem_end, "SDP");
+	if (IS_ENABLED(CFG_EMBED_DTB)) {
+		/*
+		 * TODO: add verify_special_mem_areas using dtb
+		 */
+	}
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     CFG_RESERVED_VASPACE_SIZE, &last);
