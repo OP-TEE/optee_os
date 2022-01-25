@@ -678,6 +678,8 @@
 				compatible = "atmel,sama5d3-rstc";
 				reg = <0xf8048000 0x10>;
 				clocks = <&clk32k>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			shutdown_controller: shdwc@f8048010 {
@@ -687,6 +689,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				atmel,wakeup-rtc-timer;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			pit: timer@f8048030 {
