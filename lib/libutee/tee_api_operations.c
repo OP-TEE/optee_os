@@ -44,8 +44,49 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	if (!operation)
 		TEE_Panic(0);
 
-	if (algorithm == TEE_ALG_AES_XTS || algorithm == TEE_ALG_SM2_KEP)
+	switch (algorithm) {
+	case TEE_ALG_AES_ECB_NOPAD:
+	case TEE_ALG_AES_CBC_NOPAD:
+	case TEE_ALG_AES_CTR:
+	case TEE_ALG_AES_CTS:
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_AES_CMAC:
+	case TEE_ALG_AES_CCM:
+	case TEE_ALG_AES_GCM:
+	case TEE_ALG_DES_ECB_NOPAD:
+	case TEE_ALG_DES_CBC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_ECB_NOPAD:
+	case TEE_ALG_DES3_CBC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+	case TEE_ALG_SM4_ECB_NOPAD:
+	case TEE_ALG_SM4_CBC_NOPAD:
+	case TEE_ALG_SM4_CTR:
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SM3:
+		handle_state = TEE_HANDLE_FLAG_INITIALIZED;
+		break;
+
+	case TEE_ALG_SM2_KEP:
 		handle_state = TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
+		break;
+
+	case TEE_ALG_AES_XTS:
+		handle_state = TEE_HANDLE_FLAG_INITIALIZED |
+					TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
+		break;
+
+	default:
+		DMSG("handle-state defaults to 0");
+	}
 
 	/* Check algorithm max key size */
 	switch (algorithm) {
