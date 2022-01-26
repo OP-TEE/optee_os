@@ -23,6 +23,9 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
+# By default use DT address as specified by Xilinx
+CFG_DT_ADDR ?= 0x100000
+
 CFG_TZDRAM_START ?= 0x60000000
 CFG_TZDRAM_SIZE  ?= 0x10000000
 CFG_SHMEM_START  ?= 0x70000000
