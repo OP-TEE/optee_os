@@ -16,6 +16,9 @@ $(call force,CFG_CORE_ASLR,n)
 
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_WITH_LPAE,y)
+
+# ZynqMP supports up to 40 bits of physical addresses
+CFG_CORE_ARM64_PA_BITS ?= 40
 else
 $(call force,CFG_ARM32_core,y)
 endif
