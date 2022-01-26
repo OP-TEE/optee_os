@@ -23,6 +23,9 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
+# Configure DDR size either by using device tree or override it with:
+CFG_DDR_SIZE ?= 0x80000000
+
 # By default use DT address as specified by Xilinx
 CFG_DT_ADDR ?= 0x100000
 

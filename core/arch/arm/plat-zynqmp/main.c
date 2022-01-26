@@ -65,8 +65,16 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CSU_BASE, CSU_SIZE);
 #endif
 
-#ifdef DRAM0_BASE
-register_ddr(DRAM0_BASE, DRAM0_SIZE);
+#if CFG_DDR_SIZE > 0x80000000
+
+#ifdef CFG_ARM32_core
+#error DDR size over 2 GiB is not supported in 32 bit ARM mode
+#endif
+
+register_ddr(DRAM0_BASE, 0x80000000);
+register_ddr(DRAM1_BASE, CFG_DDR_SIZE - 0x80000000);
+#else
+register_ddr(DRAM0_BASE, CFG_DDR_SIZE);
 #endif
 
 void main_init_gic(void)
