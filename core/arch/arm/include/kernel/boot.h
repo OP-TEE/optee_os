@@ -48,6 +48,8 @@ void boot_init_primary_early(unsigned long pageable_part,
 			     unsigned long nsec_entry);
 void boot_init_primary_late(unsigned long fdt);
 
+void __panic_at_smc_return(void) __noreturn;
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 unsigned long cpu_on_handler(unsigned long a0, unsigned long a1);
 unsigned long boot_cpu_on_handler(unsigned long a0, unsigned long a1);

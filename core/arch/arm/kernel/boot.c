@@ -112,6 +112,15 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
+/*
+ * This function is called as a guard after each smc call which is not
+ * supposed to return.
+ */
+void __panic_at_smc_return(void)
+{
+	panic();
+}
+
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {

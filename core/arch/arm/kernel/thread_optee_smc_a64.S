@@ -46,7 +46,8 @@ LOCAL_FUNC vector_std_smc_entry , : , .identity_map
 	mov	w1, w0
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_std_smc_entry
 
 LOCAL_FUNC vector_fast_smc_entry , : , .identity_map
@@ -59,7 +60,8 @@ LOCAL_FUNC vector_fast_smc_entry , : , .identity_map
 	add	sp, sp, #THREAD_SMC_ARGS_SIZE
 	ldr	x0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_fast_smc_entry
 
 LOCAL_FUNC vector_fiq_entry , : , .identity_map
@@ -69,7 +71,8 @@ LOCAL_FUNC vector_fiq_entry , : , .identity_map
 	bl	itr_core_handler
 	ldr	x0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_fiq_entry
 
 LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
@@ -77,7 +80,8 @@ LOCAL_FUNC vector_cpu_on_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_ON_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_on_entry
 
 LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
@@ -86,7 +90,8 @@ LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_off_entry
 
 LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
@@ -95,7 +100,8 @@ LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_suspend_entry
 
 LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
@@ -104,7 +110,8 @@ LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_resume_entry
 
 LOCAL_FUNC vector_system_off_entry , : , .identity_map
@@ -113,7 +120,8 @@ LOCAL_FUNC vector_system_off_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_system_off_entry
 
 LOCAL_FUNC vector_system_reset_entry , : , .identity_map
@@ -122,7 +130,8 @@ LOCAL_FUNC vector_system_reset_entry , : , .identity_map
 	mov	x1, x0
 	ldr	x0, =TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_system_reset_entry
 
 /*
@@ -162,7 +171,8 @@ FUNC thread_std_smc_entry , :
 	mov	x3, #0
 	mov	x4, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
@@ -202,7 +212,8 @@ FUNC thread_rpc , :
 	mov	x2, x22
 	mov	x3, x23
 	smc	#0
-	b	.		/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 
 .thread_rpc_return:
 	/*
@@ -234,7 +245,8 @@ FUNC thread_foreign_intr_exit , :
 	mov	w2, #0
 	mov	w3, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC thread_foreign_intr_exit
 
 BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

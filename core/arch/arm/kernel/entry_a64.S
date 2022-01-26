@@ -287,7 +287,8 @@ clear_nex_bss:
 	sub	x1, x1, x0
 	mov	x0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 #endif
 END_FUNC _start
 DECLARE_KEEP_INIT _start

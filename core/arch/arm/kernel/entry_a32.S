@@ -626,7 +626,8 @@ shadow_stack_access_ok:
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 #endif /* CFG_CORE_FFA */
 END_FUNC reset_primary
 
@@ -918,7 +919,8 @@ UNWIND(	.cantunwind)
 	mov	r3, #0
 	mov	r4, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC reset_secondary
 DECLARE_KEEP_PAGER reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */
