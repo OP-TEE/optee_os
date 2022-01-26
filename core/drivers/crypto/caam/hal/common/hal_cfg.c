@@ -54,6 +54,7 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 		jrcfg->it_num = CFG_JR_INT;
 
 		if (IS_ENABLED(CFG_NXP_CAAM_RUNTIME_JR) &&
+		    IS_ENABLED(CFG_CAAM_JR_DISABLE_NODE) &&
 		    !is_embedded_dt(fdt)) {
 			if (fdt) {
 				/* Ensure Secure Job Ring is secure in DTB */
