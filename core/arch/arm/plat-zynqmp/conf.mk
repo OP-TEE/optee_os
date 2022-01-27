@@ -23,8 +23,20 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-# Configure DDR size either by using device tree or override it with:
+ifneq (,$(filter $(PLATFORM_FLAVOR),zcu102 zc1751_dc1 zc1751_dc2))
+# ZCU102 features 4 GiB of DDR
+ifeq ($(CFG_ARM64_core),y)
+CFG_DDR_SIZE ?= 0x100000000
+else
+# On 32 bit build limit to 2 GiB of RAM
 CFG_DDR_SIZE ?= 0x80000000
+endif
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),ultra96))
+# Ultra96 features 2 GiB of DDR
+CFG_DDR_SIZE ?= 0x80000000
+endif
 
 # By default use DT address as specified by Xilinx
 CFG_DT_ADDR ?= 0x100000
