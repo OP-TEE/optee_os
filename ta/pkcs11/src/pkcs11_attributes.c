@@ -1650,7 +1650,6 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	switch (proc_id) {
 	case PKCS11_CKM_AES_ECB:
 	case PKCS11_CKM_AES_CBC:
-	case PKCS11_CKM_AES_CBC_PAD:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
 	case PKCS11_CKM_AES_CMAC:
