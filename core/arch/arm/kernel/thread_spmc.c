@@ -1309,6 +1309,17 @@ void thread_rpc_free_global_payload(struct mobj *mobj)
 			mobj);
 }
 
+void thread_spmc_register_secondary_ep(vaddr_t ep)
+{
+	unsigned long ret = 0;
+
+	/* Let the SPM know the entry point for secondary CPUs */
+	ret = thread_smc(FFA_SECONDARY_EP_REGISTER_64, ep, 0, 0);
+
+	if (ret != FFA_SUCCESS_32 && ret != FFA_SUCCESS_64)
+		EMSG("FFA_SECONDARY_EP_REGISTER_64 ret %#lx", ret);
+}
+
 #ifdef CFG_CORE_SEL2_SPMC
 static bool is_ffa_success(uint32_t fid)
 {
