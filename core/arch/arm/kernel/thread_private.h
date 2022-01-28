@@ -246,5 +246,7 @@ void thread_svc_handler(struct thread_svc_regs *regs);
 
 /* Frees the cache of allocated FS RPC memory */
 void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache);
+
+void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/
 #endif /*THREAD_PRIVATE_H*/

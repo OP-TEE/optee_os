@@ -89,8 +89,6 @@ void *get_external_dt(void);
 
 unsigned long get_aslr_seed(void *fdt);
 
-void ffa_secondary_cpu_ep_register(vaddr_t secondary_ep);
-
 /* Returns true if passed DTB is same as Embedded DTB, otherwise false */
 static inline bool is_embedded_dt(void *fdt)
 {
