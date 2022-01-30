@@ -46,6 +46,7 @@ srcs-$(CFG_LS_DSPI) += ls_dspi.c
 srcs-$(CFG_IMX_RNGB) += imx_rngb.c
 srcs-$(CFG_IMX_OCOTP) += imx_ocotp.c
 srcs-$(CFG_IMX_SC) += imx_mu.c imx_sc_api.c
+srcs-$(CFG_XIPHERA_TRNG) += xiphera_trng.c
 srcs-$(CFG_ZYNQMP_CSU_PUF) += zynqmp_csu_puf.c
 srcs-$(CFG_ZYNQMP_CSUDMA) += zynqmp_csudma.c
 srcs-$(CFG_ZYNQMP_CSU_AES) += zynqmp_csu_aes.c
