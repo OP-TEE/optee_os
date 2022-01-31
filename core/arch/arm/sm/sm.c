@@ -6,6 +6,7 @@
 #include <arm.h>
 #include <compiler.h>
 #include <config.h>
+#include <drivers/wdt.h>
 #include <kernel/misc.h>
 #include <kernel/thread.h>
 #include <platform_config.h>
@@ -66,6 +67,9 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, sec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(offsetof(struct sm_ctx, nsec.r0) % 8));
 	COMPILE_TIME_ASSERT(!(sizeof(struct sm_ctx) % 8));
+
+	if (wdt_sm_handler(args) == SM_HANDLER_SMC_HANDLED)
+		return SM_EXIT_TO_NON_SECURE;
 
 	if (IS_ENABLED(CFG_SM_PLATFORM_HANDLER) &&
 	    sm_platform_handler(ctx) == SM_HANDLER_SMC_HANDLED)
