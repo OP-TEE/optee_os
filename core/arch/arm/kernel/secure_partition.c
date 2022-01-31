@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2021, Arm Limited.
+ * Copyright (c) 2020-2022, Arm Limited.
  */
 #include <bench.h>
 #include <crypto/crypto.h>
@@ -36,11 +36,11 @@ static struct sp_sessions_head open_sp_sessions =
 
 static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 {
-	const struct embedded_ts *sp = NULL;
+	const struct sp_image *sp = NULL;
 
 	for_each_secure_partition(sp) {
-		if (!memcmp(&sp->uuid, uuid, sizeof(*uuid)))
-			return sp;
+		if (!memcmp(&sp->image.uuid, uuid, sizeof(*uuid)))
+			return &sp->image;
 	}
 	return NULL;
 }
@@ -490,23 +490,24 @@ const struct ts_ops sp_ops __weak __relrodata_unpaged("sp_ops") = {
 static TEE_Result sp_init_all(void)
 {
 	TEE_Result res = TEE_SUCCESS;
-	const struct embedded_ts *sp = NULL;
+	const struct sp_image *sp = NULL;
 	char __maybe_unused msg[60] = { '\0', };
 
 	for_each_secure_partition(sp) {
-		if (sp->uncompressed_size)
+		if (sp->image.uncompressed_size)
 			snprintf(msg, sizeof(msg),
 				 " (compressed, uncompressed %u)",
-				 sp->uncompressed_size);
+				 sp->image.uncompressed_size);
 		else
 			msg[0] = '\0';
-		DMSG("SP %pUl size %u%s", (void *)&sp->uuid, sp->size, msg);
+		DMSG("SP %pUl size %u%s", (void *)&sp->image.uuid,
+		     sp->image.size, msg);
 
-		res = sp_init_uuid(&sp->uuid);
+		res = sp_init_uuid(&sp->image.uuid);
 
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed initializing SP(%pUl) err:%#"PRIx32,
-			     &sp->uuid, res);
+			     &sp->image.uuid, res);
 			if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
 				panic();
 		}
