@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017, 2020, Linaro Limited
-# Copyright (c) 2020, Arm Limited.
+# Copyright (c) 2020-2022, Arm Limited.
 #
 
 import argparse
@@ -43,6 +43,12 @@ def get_args():
         help='Compress the image using the DEFLATE '
         'algorithm')
 
+    parser.add_argument(
+        '--manifest',
+        dest="manifest",
+        required=False,
+        help='path to the SP manifest file')
+
     return parser.parse_args()
 
 
@@ -77,6 +83,27 @@ def sp_get_flags(sp_f):
         raise Exception('.sp_head section not found')
 
 
+def dump_bin(f, ts, compress):
+    with open(ts, 'rb') as _ts:
+        bytes = _ts.read()
+        uncompressed_size = len(bytes)
+        if compress:
+            bytes = zlib.compress(bytes)
+        size = len(bytes)
+
+    i = 0
+    while i < size:
+        if i % 8 == 0:
+            f.write('\t\t')
+        f.write(hex(bytes[i]) + ',')
+        i = i + 1
+        if i % 8 == 0 or i == size:
+            f.write('\n')
+        else:
+            f.write(' ')
+    return (size, uncompressed_size)
+
+
 def main():
     args = get_args()
     is_sp = False
@@ -97,34 +124,26 @@ def main():
 
     ts_uuid = uuid.UUID(re.sub(r'\..*', '', os.path.basename(ts)))
 
-    with open(ts, 'rb') as _ts:
-        bytes = _ts.read()
-        uncompressed_size = len(bytes)
-        if args.compress:
-            bytes = zlib.compress(bytes)
-        size = len(bytes)
-
     f = open(args.out, 'w')
     f.write('/* Generated from ' + ts + ' by ' +
             os.path.basename(__file__) + ' */\n\n')
     f.write('#include <kernel/embedded_ts.h>\n\n')
     f.write('#include <scattered_array.h>\n\n')
     f.write('const uint8_t ts_bin_' + ts_uuid.hex + '[] = {\n')
-    i = 0
-    while i < size:
-        if i % 8 == 0:
-            f.write('\t\t')
-        f.write(hex(bytes[i]) + ',')
-        i = i + 1
-        if i % 8 == 0 or i == size:
-            f.write('\n')
-        else:
-            f.write(' ')
+    ts_size, ts_uncompressed_size = dump_bin(f, ts, args.compress)
     f.write('};\n')
 
     if is_sp:
+
+        f.write('#include <kernel/secure_partition.h>\n\n')
+        f.write('const uint8_t fdt_bin_' + ts_uuid.hex + '[] = {\n')
+        dump_bin(f, args.manifest, False)
+        f.write('};\n')
         f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(sp_images, struct \
-                embedded_ts) = {\n')
+                sp_image) = {\n')
+        f.write('\t.fdt = fdt_bin_' + ts_uuid.hex + ',\n')
+
+        f.write('. image = {')
         f.write('\t.flags = 0x{:04x},\n'.format(sp_get_flags(ts)))
     else:
         f.write('SCATTERED_ARRAY_DEFINE_PG_ITEM(early_tas, struct \
@@ -142,11 +161,13 @@ def main():
     f.write(', '.join('0x' + csn[i:i + 2] for i in range(0, len(csn), 2)))
     f.write('\n\t\t},\n\t},\n')
     f.write('\t.size = sizeof(ts_bin_' + ts_uuid.hex +
-            '), /* {:d} */\n'.format(size))
+            '), /* {:d} */\n'.format(ts_size))
     f.write('\t.ts = ts_bin_' + ts_uuid.hex + ',\n')
     if args.compress:
         f.write('\t.uncompressed_size = '
-                '{:d},\n'.format(uncompressed_size))
+                '{:d},\n'.format(ts_uncompressed_size))
+    if is_sp:
+        f.write('}\n')
     f.write('};\n')
     f.close()
 

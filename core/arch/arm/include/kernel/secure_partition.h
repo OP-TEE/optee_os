@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020-2021, Arm Limited.
+ * Copyright (c) 2020-2022, Arm Limited.
  */
 #ifndef __KERNEL_SECURE_PARTITION_H
 #define __KERNEL_SECURE_PARTITION_H
@@ -51,6 +51,11 @@ struct sp_ctx {
 	struct ts_ctx ts_ctx;
 };
 
+struct sp_image {
+	struct embedded_ts image;
+	const void * const fdt;
+};
+
 #ifdef CFG_SECURE_PARTITION
 bool is_sp_ctx(struct ts_ctx *ctx);
 #else
@@ -88,6 +93,6 @@ TEE_Result sp_map_shared(struct sp_session *s,
 TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem);
 
 #define for_each_secure_partition(_sp) \
-	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct embedded_ts)
+	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct sp_image)
 
 #endif /* __KERNEL_SECURE_PARTITION_H */
