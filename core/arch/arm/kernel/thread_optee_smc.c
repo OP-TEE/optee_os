@@ -10,6 +10,7 @@
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
@@ -17,12 +18,10 @@
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <string.h>
-#include <tee/entry_std.h>
 #include <tee/entry_fast.h>
+#include <tee/entry_std.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_fs_rpc.h>
-
-#include "thread_private.h"
 
 static bool thread_prealloc_rpc_cache;
 static unsigned int thread_rpc_pnum;

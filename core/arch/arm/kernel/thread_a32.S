@@ -12,9 +12,8 @@
 #include <kernel/abort.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/thread_defs.h>
+#include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
-
-#include "thread_private.h"
 
 	.syntax unified
 	.arch_extension sec

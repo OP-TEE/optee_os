@@ -11,11 +11,10 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/thread_private.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
-
-#include "thread_private.h"
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.

@@ -4,8 +4,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef THREAD_PRIVATE_H
-#define THREAD_PRIVATE_H
+#ifndef __KERNEL_THREAD_PRIVATE_H
+#define __KERNEL_THREAD_PRIVATE_H
 
 #ifndef __ASSEMBLER__
 
@@ -249,4 +249,4 @@ void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/
-#endif /*THREAD_PRIVATE_H*/
+#endif /*__KERNEL_THREAD_PRIVATE_H*/

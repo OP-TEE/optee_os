@@ -6,10 +6,10 @@
 #include <gen-asm-defines.h>
 #include <kernel/boot.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
 #include <types_ext.h>
-#include "thread_private.h"
 
 DEFINES
 {
