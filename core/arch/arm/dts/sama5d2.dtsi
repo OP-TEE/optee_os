@@ -32,6 +32,8 @@
 			compatible = "arm,cortex-a5";
 			reg = <0>;
 			next-level-cache = <&L2>;
+			clocks = <&pmc PMC_TYPE_CORE PMC_MCK_PRES>;
+			clock-names = "cpu";
 		};
 	};
 
