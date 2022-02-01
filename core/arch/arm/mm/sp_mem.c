@@ -156,7 +156,7 @@ static void inactivate(struct mobj *mobj)
 	cpu_spin_unlock_xrestore(&sp_mem_lock, exceptions);
 }
 
-const struct mobj_ops mobj_sp_ops __weak __rodata_unpaged("mobj_sp_ops") = {
+const struct mobj_ops mobj_sp_ops __weak __relrodata_unpaged("mobj_sp_ops") = {
 	.get_pa = get_pa,
 	.get_phys_offs = get_phys_offs,
 	.get_cattr = sp_mem_get_cattr,
