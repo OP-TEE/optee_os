@@ -40,6 +40,7 @@ struct thread_specific_data {
 	unsigned int syscall_recursion;
 };
 
+void thread_init_canaries(void);
 void thread_init_primary(void);
 void thread_init_per_cpu(void);
 
@@ -66,6 +67,7 @@ void thread_init_threads(void);
  * the init CPU.
  */
 void thread_init_thread_core_local(void);
+void thread_init_core_local_stacks(void);
 
 /*
  * Initializes a thread to be used during boot

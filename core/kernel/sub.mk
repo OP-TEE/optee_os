@@ -30,6 +30,7 @@ srcs-y += mutex.c
 srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
 srcs-y += notif.c
+srcs-y += thread.c
 
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += user_ta.c

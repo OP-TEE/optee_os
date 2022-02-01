@@ -9,11 +9,64 @@
 
 #ifndef __ASSEMBLER__
 
-#include <mm/core_mmu.h>
-#include <mm/pgt_cache.h>
-#include <kernel/vfp.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>
+#include <kernel/vfp.h>
+#include <mm/core_mmu.h>
+#include <mm/pgt_cache.h>
+#include <sm/sm.h>
+
+#ifdef CFG_WITH_ARM_TRUSTED_FW
+#define STACK_TMP_OFFS		0
+#else
+#define STACK_TMP_OFFS		SM_STACK_TMP_RESERVE_SIZE
+#endif
+
+#ifdef ARM32
+#ifdef CFG_CORE_SANITIZE_KADDRESS
+#define STACK_TMP_SIZE		(3072 + STACK_TMP_OFFS)
+#else
+#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
+#endif
+#define STACK_THREAD_SIZE	8192
+
+#if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__) || \
+	!defined(CFG_CRYPTO_WITH_CE)
+#define STACK_ABT_SIZE		3072
+#else
+#define STACK_ABT_SIZE		2048
+#endif
+
+#endif /*ARM32*/
+
+#ifdef ARM64
+#if defined(__clang__) && !defined(__OPTIMIZE_SIZE__)
+#define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS)
+#else
+#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
+#endif
+#define STACK_THREAD_SIZE	8192
+
+#if TRACE_LEVEL > 0
+#define STACK_ABT_SIZE		3072
+#else
+#define STACK_ABT_SIZE		1024
+#endif
+#endif /*ARM64*/
+
+#ifdef CFG_CORE_DEBUG_CHECK_STACKS
+/*
+ * Extra space added to each stack in order to reliably detect and dump stack
+ * overflows. Should cover the maximum expected overflow size caused by any C
+ * function (say, 512 bytes; no function should have that much local variables),
+ * plus the maximum stack space needed by __cyg_profile_func_exit(): about 1 KB,
+ * a large part of which is used to print the call stack. Total: 1.5 KB.
+ */
+#define STACK_CHECK_EXTRA	1536
+#else
+#define STACK_CHECK_EXTRA	0
+#endif
+
 
 enum thread_state {
 	THREAD_STATE_FREE,
@@ -100,6 +153,7 @@ struct thread_ctx {
 extern const void *stack_tmp_export;
 extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
+extern struct thread_core_local thread_core_local[];
 
 /*
  * During boot note the part of code and data that needs to be mapped while
