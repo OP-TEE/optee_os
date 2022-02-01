@@ -23,6 +23,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread_defs.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
@@ -34,8 +35,6 @@
 #include <sm/sm.h>
 #include <trace.h>
 #include <util.h>
-
-#include "thread_private.h"
 
 struct thread_ctx threads[CFG_NUM_THREADS];
 

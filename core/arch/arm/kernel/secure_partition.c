@@ -10,6 +10,7 @@
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
+#include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/ts_store.h>
 #include <ldelf.h>
@@ -26,8 +27,6 @@
 #include <utee_defines.h>
 #include <util.h>
 #include <zlib.h>
-
-#include "thread_private.h"
 
 const struct ts_ops sp_ops;
 

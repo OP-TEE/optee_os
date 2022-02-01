@@ -10,12 +10,12 @@
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_misc.h>
+#include <kernel/thread_private.h>
 #include <mm/mobj.h>
 #include <mm/sp_mem.h>
 #include <mm/vm.h>
 #include <optee_ffa.h>
 #include <string.h>
-#include "thread_private.h"
 
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 

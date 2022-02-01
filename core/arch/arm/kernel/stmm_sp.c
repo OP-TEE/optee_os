@@ -9,6 +9,7 @@
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/stmm_sp.h>
+#include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
@@ -19,8 +20,6 @@
 #include <tee/tee_svc.h>
 #include <tee/tee_svc_storage.h>
 #include <zlib.h>
-
-#include "thread_private.h"
 
 #ifdef ARM64
 #define SVC_REGS_A0(_regs)	((_regs)->x0)

@@ -3,17 +3,16 @@
  * Copyright (c) 2015-2020, Linaro Limited
  */
 
-#include <arm.h>
 #include <arm64_macros.S>
+#include <arm.h>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/thread_defs.h>
+#include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <smccc.h>
-
-#include "thread_private.h"
 
 	.macro get_thread_ctx core_local, res, tmp0, tmp1
 		ldrh	w\tmp0, [\core_local, \

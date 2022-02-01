@@ -6,14 +6,13 @@
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/ts_manager.h>
 #include <kernel/wait_queue.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
-
-#include "thread_private.h"
 
 void __section(".text.dummy.call_preinitcalls") call_preinitcalls(void)
 {

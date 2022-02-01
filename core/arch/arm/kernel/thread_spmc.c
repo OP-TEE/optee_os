@@ -6,8 +6,8 @@
 
 #include <assert.h>
 #include <ffa.h>
-#include <io.h>
 #include <initcall.h>
+#include <io.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
@@ -15,6 +15,7 @@
 #include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -26,8 +27,6 @@
 #include <tee/entry_std.h>
 #include <tee/uuid.h>
 #include <util.h>
-
-#include "thread_private.h"
 
 #if defined(CFG_CORE_SEL1_SPMC)
 struct mem_share_state {

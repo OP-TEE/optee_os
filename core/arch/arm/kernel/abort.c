@@ -9,6 +9,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
@@ -16,8 +17,6 @@
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <unw/unwind.h>
-
-#include "thread_private.h"
 
 enum fault_type {
 	FAULT_TYPE_USER_MODE_PANIC,
