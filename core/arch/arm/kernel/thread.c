@@ -21,7 +21,6 @@
 #include <kernel/spinlock.h>
 #include <kernel/spmc_sp_handler.h>
 #include <kernel/tee_ta_manager.h>
-#include <kernel/thread_defs.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx_struct.h>

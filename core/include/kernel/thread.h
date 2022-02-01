@@ -13,7 +13,12 @@
 #include <compiler.h>
 #include <mm/pgt_cache.h>
 #endif
+#include <util.h>
 #include <kernel/thread_arch.h>
+
+#define THREAD_FLAGS_COPY_ARGS_ON_RETURN	BIT(0)
+#define THREAD_FLAGS_FOREIGN_INTR_ENABLE	BIT(1)
+#define THREAD_FLAGS_EXIT_ON_FOREIGN_INTR	BIT(2)
 
 #define THREAD_ID_0		0
 #define THREAD_ID_INVALID	-1

@@ -11,7 +11,6 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
-#include <kernel/thread_defs.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <mm/mobj.h>
