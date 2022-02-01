@@ -4,16 +4,13 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef __KERNEL_THREAD_PRIVATE_H
-#define __KERNEL_THREAD_PRIVATE_H
+#ifndef __KERNEL_THREAD_PRIVATE_ARCH_H
+#define __KERNEL_THREAD_PRIVATE_ARCH_H
 
 #ifndef __ASSEMBLER__
 
-#include <kernel/mutex.h>
 #include <kernel/thread.h>
 #include <kernel/vfp.h>
-#include <mm/core_mmu.h>
-#include <mm/pgt_cache.h>
 #include <sm/sm.h>
 
 #ifdef CFG_WITH_ARM_TRUSTED_FW
@@ -67,13 +64,6 @@
 #define STACK_CHECK_EXTRA	0
 #endif
 
-
-enum thread_state {
-	THREAD_STATE_FREE,
-	THREAD_STATE_SUSPENDED,
-	THREAD_STATE_ACTIVE,
-};
-
 #ifdef ARM64
 struct thread_user_mode_rec {
 	uint64_t ctx_regs_ptr;
@@ -95,35 +85,6 @@ struct thread_vfp_state {
 };
 
 #endif /*CFG_WITH_VFP*/
-
-struct thread_shm_cache_entry {
-	struct mobj *mobj;
-	size_t size;
-	enum thread_shm_type type;
-	enum thread_shm_cache_user user;
-	SLIST_ENTRY(thread_shm_cache_entry) link;
-};
-
-SLIST_HEAD(thread_shm_cache, thread_shm_cache_entry);
-
-struct thread_ctx {
-	struct thread_ctx_regs regs;
-	enum thread_state state;
-	vaddr_t stack_va_end;
-	uint32_t flags;
-	struct core_mmu_user_map user_map;
-	bool have_user_map;
-#ifdef ARM64
-	vaddr_t kern_sp;	/* Saved kernel SP during user TA execution */
-#endif
-#ifdef CFG_WITH_VFP
-	struct thread_vfp_state vfp_state;
-#endif
-	void *rpc_arg;
-	struct mobj *rpc_mobj;
-	struct thread_shm_cache shm_cache;
-	struct thread_specific_data tsd;
-};
 #endif /*__ASSEMBLER__*/
 
 #ifdef ARM64
@@ -135,25 +96,7 @@ struct thread_ctx {
 #endif
 #endif /*ARM64*/
 
-/* Describes the flags field of struct thread_core_local */
-#define THREAD_CLF_SAVED_SHIFT			4
-#define THREAD_CLF_CURR_SHIFT			0
-#define THREAD_CLF_MASK				0xf
-#define THREAD_CLF_TMP_SHIFT			0
-#define THREAD_CLF_ABORT_SHIFT			1
-#define THREAD_CLF_IRQ_SHIFT			2
-#define THREAD_CLF_FIQ_SHIFT			3
-
-#define THREAD_CLF_TMP				(1 << THREAD_CLF_TMP_SHIFT)
-#define THREAD_CLF_ABORT			(1 << THREAD_CLF_ABORT_SHIFT)
-#define THREAD_CLF_IRQ				(1 << THREAD_CLF_IRQ_SHIFT)
-#define THREAD_CLF_FIQ				(1 << THREAD_CLF_FIQ_SHIFT)
-
 #ifndef __ASSEMBLER__
-extern const void *stack_tmp_export;
-extern const uint32_t stack_tmp_stride;
-extern struct thread_ctx threads[];
-extern struct thread_core_local thread_core_local[];
 
 /*
  * During boot note the part of code and data that needs to be mapped while
@@ -239,16 +182,10 @@ void thread_set_fiq_sp(vaddr_t sp);
 uint32_t thread_get_usr_sp(void);
 #endif /*ARM32*/
 
-/* Checks stack canaries */
-void thread_check_canaries(void);
-
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5);
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
-void thread_lock_global(void);
-void thread_unlock_global(void);
-
 
 /*
  * Suspends current thread and temorarily exits to non-secure world.
@@ -298,9 +235,6 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 /* Called from assembly only. Handles a SVC from user mode. */
 void thread_svc_handler(struct thread_svc_regs *regs);
 
-/* Frees the cache of allocated FS RPC memory */
-void thread_rpc_shm_cache_clear(struct thread_shm_cache *cache);
-
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/
-#endif /*__KERNEL_THREAD_PRIVATE_H*/
+#endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/
