@@ -1463,7 +1463,7 @@ DECLARE_KEEP_PAGER(clk_op_disable);
 
 /* This variable is weak to break its dependency chain when linked as unpaged */
 const struct clk_ops stm32mp1_clk_ops
-__weak __rodata_unpaged("stm32mp1_clk_ops") = {
+__weak __relrodata_unpaged("stm32mp1_clk_ops") = {
 	.enable = clk_op_enable,
 	.disable = clk_op_disable,
 	.get_rate = clk_op_compute_rate,
