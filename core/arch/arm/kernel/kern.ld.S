@@ -143,9 +143,13 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-#if !defined(CFG_WITH_PAGER) && defined(CFG_CORE_ASLR)
-	.data.rel.ro : ALIGN(8) {
+#if defined(CFG_CORE_ASLR)
+	.data.rel.ro : {
+#if !defined(CFG_WITH_PAGER)
+		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
+#endif
+		*(.data.rel.ro.__unpaged .data.rel.ro.__unpaged.*)
 	}
 #endif
 
