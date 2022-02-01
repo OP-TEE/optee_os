@@ -9,7 +9,7 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/thread_defs.h>
+#include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <smccc.h>
