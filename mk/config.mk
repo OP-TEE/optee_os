@@ -789,3 +789,15 @@ $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 CFG_TA_PAUTH ?= n
 
 $(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
+
+ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_TA_PAUTH))
+$(error CFG_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
+endif
+
+ifeq (y-y,$(CFG_TA_GPROF_SUPPORT)-$(CFG_TA_PAUTH))
+$(error CFG_TA_GPROF_SUPPORT and CFG_TA_PAUTH are currently incompatible)
+endif
+
+ifeq (y-y,$(CFG_FTRACE_SUPPORT)-$(CFG_TA_PAUTH))
+$(error CFG_FTRACE_SUPPORT and CFG_TA_PAUTH are currently incompatible)
+endif
