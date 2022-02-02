@@ -18,6 +18,8 @@
 /*
  * SYSCFG register offsets (base relative)
  */
+#define SYSCFG_SRAM3ERASER			U(0x10)
+#define SYSCFG_SRAM3KR				U(0x14)
 #define SYSCFG_IOCTRLSETR			U(0x18)
 #define SYSCFG_CMPCR				U(0x20)
 #define SYSCFG_CMPENSETR			U(0x24)
@@ -35,6 +37,17 @@
 #define SYSCFG_IOCTRLSETR_HSLVEN_ETH		BIT(2)
 #define SYSCFG_IOCTRLSETR_HSLVEN_SDMMC		BIT(3)
 #define SYSCFG_IOCTRLSETR_HSLVEN_SPI		BIT(4)
+
+/*
+ * SYSCFG_SRAM3ERASE Register
+ */
+#define SYSCFG_SRAM3KR_KEY1			U(0xCA)
+#define SYSCFG_SRAM3KR_KEY2			U(0x53)
+
+#define SYSCFG_SRAM3ERASER_SRAM3EO		BIT(1)
+#define SYSCFG_SRAM3ERASER_SRAM3ER		BIT(0)
+
+#define SYSCFG_SRAM3ERASE_TIMEOUT_US		U(1000)
 
 /*
  * SYSCFG_CMPCR Register
@@ -230,3 +243,30 @@ void stm32mp_enable_fixed_vdd_hslv(void)
 	dsb();
 }
 #endif
+
+TEE_Result stm32mp_syscfg_erase_sram3(void)
+{
+	vaddr_t base = get_syscfg_base();
+	uint32_t value = 0;
+
+	if (!IS_ENABLED(CFG_STM32MP13))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	/* Unlock SYSCFG_SRAM3ERASER_SRAM3ER */
+	io_write32(base + SYSCFG_SRAM3KR, SYSCFG_SRAM3KR_KEY1);
+	io_write32(base + SYSCFG_SRAM3KR, SYSCFG_SRAM3KR_KEY2);
+
+	/* Request SRAM3 erase */
+	io_setbits32(base + SYSCFG_SRAM3ERASER, SYSCFG_SRAM3ERASER_SRAM3ER);
+
+	/* Lock SYSCFG_SRAM3ERASER_SRAM3ER */
+	io_write32(base + SYSCFG_SRAM3KR, 0);
+
+	/* Wait end of SRAM3 erase */
+	if (IO_READ32_POLL_TIMEOUT(base + SYSCFG_SRAM3ERASER, value,
+				   !(value & SYSCFG_SRAM3ERASER_SRAM3EO), 0,
+				   SYSCFG_SRAM3ERASE_TIMEOUT_US))
+		return TEE_ERROR_BUSY;
+
+	return TEE_SUCCESS;
+}
