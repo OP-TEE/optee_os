@@ -39,6 +39,9 @@ vaddr_t stm32mp_bkpreg(unsigned int idx);
 /* Platform util for the RCC drivers */
 vaddr_t stm32_rcc_base(void);
 
+/* Erase ESRAM3 */
+TEE_Result stm32mp_syscfg_erase_sram3(void);
+
 /* Platform util for the GIC */
 vaddr_t get_gicd_base(void);
 
