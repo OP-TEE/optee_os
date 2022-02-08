@@ -616,6 +616,28 @@ void core_mmu_init_virtualization(void);
 /* init some allocation pools */
 void core_mmu_init_ta_ram(void);
 
+void core_init_mmu(struct tee_mmap_region *mm);
+
+void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
+			     unsigned int level, vaddr_t va_base, void *table);
+void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
+				struct user_mode_ctx *uctx);
+void core_mmu_map_region(struct mmu_partition *prtn,
+			 struct tee_mmap_region *mm);
+
+static inline bool core_mmap_is_end_of_table(const struct tee_mmap_region *mm)
+{
+	return mm->type == MEM_AREA_END;
+}
+
+static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
+{
+	paddr_t end_pa = 0;
+
+	if (ADD_OVERFLOW(pa, len - 1, &end_pa))
+		return false;
+	return core_mmu_check_max_pa(end_pa);
+}
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */

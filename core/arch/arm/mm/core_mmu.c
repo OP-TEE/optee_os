@@ -32,8 +32,6 @@
 #include <trace.h>
 #include <util.h>
 
-#include "core_mmu_private.h"
-
 #ifndef DEBUG_XLAT_TABLE
 #define DEBUG_XLAT_TABLE 0
 #endif

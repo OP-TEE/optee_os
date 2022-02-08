@@ -175,6 +175,18 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 
 /* Do section mapping, not support on LPAE */
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
+
+static inline bool core_mmu_check_max_pa(paddr_t pa __maybe_unused)
+{
+#if defined(ARM64)
+	return pa <= (BIT64(CFG_CORE_ARM64_PA_BITS) - 1);
+#elif defined(CFG_CORE_LARGE_PHYS_ADDR)
+	return pa <= (BIT64(40) - 1);
+#else
+	COMPILE_TIME_ASSERT(sizeof(paddr_t) == sizeof(uint32_t));
+	return true;
+#endif
+}
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */
