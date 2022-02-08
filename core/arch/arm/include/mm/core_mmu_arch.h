@@ -1,0 +1,180 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2014, STMicroelectronics International N.V.
+ */
+#ifndef __CORE_MMU_ARCH_H
+#define __CORE_MMU_ARCH_H
+
+#ifndef __ASSEMBLER__
+#include <assert.h>
+#include <compiler.h>
+#include <kernel/user_ta.h>
+#include <mm/tee_mmu_types.h>
+#include <types_ext.h>
+#include <util.h>
+#endif
+
+#include <platform_config.h>
+
+#define SMALL_PAGE_SHIFT	U(12)
+
+#ifdef CFG_WITH_LPAE
+#define CORE_MMU_PGDIR_SHIFT	U(21)
+#define CORE_MMU_PGDIR_LEVEL	U(3)
+#else
+#define CORE_MMU_PGDIR_SHIFT	U(20)
+#define CORE_MMU_PGDIR_LEVEL	U(2)
+#endif
+
+#define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
+
+#define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
+
+/*
+ * Level of base table (i.e. first level of page table),
+ * depending on address space
+ */
+#if !defined(CFG_WITH_LPAE) || (CFG_LPAE_ADDR_SPACE_BITS < 40)
+#define CORE_MMU_BASE_TABLE_SHIFT	U(30)
+#define CORE_MMU_BASE_TABLE_LEVEL	U(1)
+#elif (CFG_LPAE_ADDR_SPACE_BITS <= 48)
+#define CORE_MMU_BASE_TABLE_SHIFT	U(39)
+#define CORE_MMU_BASE_TABLE_LEVEL	U(0)
+#else /* (CFG_LPAE_ADDR_SPACE_BITS > 48) */
+#error "CFG_WITH_LPAE with CFG_LPAE_ADDR_SPACE_BITS > 48 isn't supported!"
+#endif
+
+#ifdef CFG_WITH_LPAE
+/*
+ * CORE_MMU_BASE_TABLE_OFFSET is used when switching to/from reduced kernel
+ * mapping. The actual value depends on internals in core_mmu_lpae.c which
+ * we rather not expose here. There's a compile time assertion to check
+ * that these magic numbers are correct.
+ */
+#define CORE_MMU_BASE_TABLE_OFFSET \
+	(CFG_TEE_CORE_NB_CORE * \
+	 BIT(CFG_LPAE_ADDR_SPACE_BITS - CORE_MMU_BASE_TABLE_SHIFT) * \
+	 U(8))
+#endif
+/*
+ * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
+ * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
+ */
+
+/*
+ * Identify mapping constraint: virtual base address is the physical start addr.
+ * If platform did not set some macros, some get default value.
+ */
+#ifndef TEE_RAM_VA_SIZE
+#define TEE_RAM_VA_SIZE			CORE_MMU_PGDIR_SIZE
+#endif
+
+#ifndef TEE_LOAD_ADDR
+#define TEE_LOAD_ADDR			TEE_RAM_START
+#endif
+
+#define TEE_RAM_VA_START		TEE_RAM_START
+#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
+					 (TEE_LOAD_ADDR - TEE_RAM_START))
+
+#ifndef STACK_ALIGNMENT
+#define STACK_ALIGNMENT			(sizeof(long) * U(2))
+#endif
+
+#ifndef __ASSEMBLER__
+
+/*
+ * Assembly code in enable_mmu() depends on the layout of this struct.
+ */
+struct core_mmu_config {
+#if defined(ARM64)
+	uint64_t tcr_el1;
+	uint64_t mair_el1;
+	uint64_t ttbr0_el1_base;
+	uint64_t ttbr0_core_offset;
+	uint64_t load_offset;
+#elif defined(CFG_WITH_LPAE)
+	uint32_t ttbcr;
+	uint32_t mair0;
+	uint32_t ttbr0_base;
+	uint32_t ttbr0_core_offset;
+	uint32_t load_offset;
+#else
+	uint32_t prrr;
+	uint32_t nmrr;
+	uint32_t dacr;
+	uint32_t ttbcr;
+	uint32_t ttbr;
+	uint32_t load_offset;
+#endif
+};
+
+#ifdef CFG_WITH_LPAE
+/*
+ * struct core_mmu_user_map - current user mapping register state
+ * @user_map:	physical address of user map translation table
+ * @asid:	ASID for the user map
+ *
+ * Note that this struct should be treated as an opaque struct since
+ * the content depends on descriptor table format.
+ */
+struct core_mmu_user_map {
+	uint64_t user_map;
+	uint32_t asid;
+};
+#else
+/*
+ * struct core_mmu_user_map - current user mapping register state
+ * @ttbr0:	content of ttbr0
+ * @ctxid:	content of contextidr
+ *
+ * Note that this struct should be treated as an opaque struct since
+ * the content depends on descriptor table format.
+ */
+struct core_mmu_user_map {
+	uint32_t ttbr0;
+	uint32_t ctxid;
+};
+#endif
+
+#ifdef CFG_WITH_LPAE
+bool core_mmu_user_va_range_is_defined(void);
+#else
+static inline bool __noprof core_mmu_user_va_range_is_defined(void)
+{
+	return true;
+}
+#endif
+
+/* Cache maintenance operation type */
+enum cache_op {
+	DCACHE_CLEAN,
+	DCACHE_AREA_CLEAN,
+	DCACHE_INVALIDATE,
+	DCACHE_AREA_INVALIDATE,
+	ICACHE_INVALIDATE,
+	ICACHE_AREA_INVALIDATE,
+	DCACHE_CLEAN_INV,
+	DCACHE_AREA_CLEAN_INV,
+};
+
+/* L1/L2 cache maintenance */
+TEE_Result cache_op_inner(enum cache_op op, void *va, size_t len);
+#ifdef CFG_PL310
+TEE_Result cache_op_outer(enum cache_op op, paddr_t pa, size_t len);
+#else
+static inline TEE_Result cache_op_outer(enum cache_op op __unused,
+					paddr_t pa __unused,
+					size_t len __unused)
+{
+	/* Nothing to do about L2 Cache Maintenance when no PL310 */
+	return TEE_SUCCESS;
+}
+#endif
+
+/* Do section mapping, not support on LPAE */
+void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
+#endif /*__ASSEMBLER__*/
+
+#endif /* CORE_MMU_H */
