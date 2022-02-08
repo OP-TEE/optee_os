@@ -21,8 +21,6 @@
 #include <trace.h>
 #include <util.h>
 
-#include "core_mmu_private.h"
-
 #ifdef CFG_WITH_LPAE
 #error This file is not to be used with LPAE
 #endif
