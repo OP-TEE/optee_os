@@ -64,10 +64,10 @@ struct memaccess_area {
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
 
 static struct memaccess_area secure_only[] __nex_data = {
-#ifdef TZSRAM_BASE
-	MEMACCESS_AREA(TZSRAM_BASE, TZSRAM_SIZE),
+#ifdef TRUSTED_SRAM_BASE
+	MEMACCESS_AREA(TRUSTED_SRAM_BASE, TRUSTED_SRAM_SIZE),
 #endif
-	MEMACCESS_AREA(TZDRAM_BASE, TZDRAM_SIZE),
+	MEMACCESS_AREA(TRUSTED_DRAM_BASE, TRUSTED_DRAM_SIZE),
 };
 
 static struct memaccess_area nsec_shared[] __nex_data = {
@@ -114,7 +114,8 @@ register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
 #endif /*!CFG_CORE_RWDATA_NOEXEC*/
 
 #ifdef CFG_VIRTUALIZATION
-register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TZDRAM_BASE, TZDRAM_SIZE);
+register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
+		  TRUSTED_DRAM_SIZE);
 #endif
 
 #if defined(CFG_CORE_SANITIZE_KADDRESS) && defined(CFG_WITH_PAGER)
