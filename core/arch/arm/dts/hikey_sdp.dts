@@ -14,8 +14,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		sdp_mem {
-			compatible = "optee-sdp";
+		sdp@0x3e800000 {
 			reg = <0x3E800000 0x00400000>;
 		};
 	};

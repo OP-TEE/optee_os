@@ -266,15 +266,19 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 	return NULL;
 }
 
-static void dtb_get_sdp_region(paddr_t *base, size_t *size)
+static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 {
 	void *fdt = NULL;
 	int node = -1;
+	int parent = -1;
 	paddr_t tmp_addr = 0;
 	size_t tmp_size = 0;
 
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		return false;
+
 	if (!base || !size)
-		return;
+		return false;
 
 	*base = 0;
 	*size = 0;
@@ -283,28 +287,43 @@ static void dtb_get_sdp_region(paddr_t *base, size_t *size)
 	if (!fdt)
 		panic("No DTB found");
 
-	node = fdt_node_offset_by_compatible(fdt, node, tz_sdp_match);
-	if (node < 0) {
-		EMSG("Cannot find %s node in the device tree",
-		     tz_sdp_match);
-		return;
+	parent = fdt_path_offset(fdt, "/reserved-memory");
+
+	if (parent < 0)
+		return false;
+
+	fdt_for_each_subnode(node, fdt, parent) {
+		const char *name = NULL;
+
+		name = fdt_get_name(fdt, node, NULL);
+
+		if (strncmp(name, tz_sdp_match, strlen(tz_sdp_match)))
+			continue;
+
+		tmp_addr = _fdt_reg_base_address(fdt, node);
+		if (tmp_addr == DT_INFO_INVALID_REG) {
+			EMSG("%s: Unable to get size of base addr from DT",
+			     tz_sdp_match);
+			return false;
+		}
+
+		tmp_size = _fdt_reg_size(fdt, node);
+		if (tmp_size == DT_INFO_INVALID_REG_SIZE) {
+			EMSG("%s: Unable to get size of base addr from DT",
+			     tz_sdp_match);
+			return false;
+		}
+
+		*base = tmp_addr;
+		*size = tmp_size;
+
+		return true;
 	}
 
-	tmp_addr = _fdt_reg_base_address(fdt, node);
-	if (tmp_addr == DT_INFO_INVALID_REG) {
-		EMSG("%s: Unable to get base addr from DT", tz_sdp_match);
-		return;
-	}
+	EMSG("Cannot find %s node in the device tree",
+	     tz_sdp_match);
 
-	tmp_size = _fdt_reg_size(fdt, node);
-	if (tmp_size == DT_INFO_INVALID_REG_SIZE) {
-		EMSG("%s: Unable to get size of base addr from DT",
-		     tz_sdp_match);
-		return;
-	}
-
-	*base = tmp_addr;
-	*size = tmp_size;
+	return false;
 }
 
 #ifdef CFG_CORE_DYN_SHM
@@ -402,11 +421,11 @@ static void configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
 	paddr_t base;
 	size_t size;
 
-	dtb_get_sdp_region(&base, &size);
+	if (dtb_get_sdp_region(&base, &size)) {
+		DMSG("region base %p %zu", (void *)base, size);
 
-	DMSG("region base %p %zu", (void *)base, size);
-
-	carve_out_phys_mem(mem, nelems, base, size);
+		carve_out_phys_mem(mem, nelems, base, size);
+	}
 }
 
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
@@ -434,8 +453,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	 * non-secure memory is used for NSEC_SHM.
 	 */
 
-	if (IS_ENABLED(CFG_EMBED_DTB))
-		configure_sdp_dtb(&m, &num_elems);
+	configure_sdp_dtb(&m, &num_elems);
 
 	carve_out_phys_mem(&m, &num_elems, TEE_RAM_START, TEE_RAM_PH_SIZE);
 	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
@@ -510,16 +528,13 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	if (IS_ENABLED(CFG_EMBED_DTB)) {
-		paddr_t base;
-		size_t size;
+	paddr_t base;
+	size_t size;
 
-		dtb_get_sdp_region(&base, &size);
-
+	if (dtb_get_sdp_region(&base, &size))
 		return core_is_buffer_inside(pbuf, len, base, size);
-	} else {
-		return false;
-	}
+
+	return false;
 }
 
 struct mobj **core_sdp_mem_create_mobjs(void)
@@ -532,7 +547,8 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	paddr_t region_base;
 	size_t region_size;
 
-	dtb_get_sdp_region(&region_base, &region_size);
+	if (!dtb_get_sdp_region(&region_base, &region_size))
+		return NULL;
 
 	/* SDP mobjs table must end with a NULL entry */
 	mobj_base = calloc(1, sizeof(struct mobj *));

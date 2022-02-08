@@ -35,9 +35,7 @@ TAILQ_HEAD_INITIALIZER(tee_open_sessions);
 #ifdef CFG_CORE_RESERVED_SHM
 static struct mobj *shm_mobj;
 #endif
-#ifdef CFG_SECURE_DATA_PATH
 static struct mobj **sdp_mem_mobjs;
-#endif
 
 static unsigned int session_pnum;
 
@@ -131,12 +129,12 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 		return TEE_SUCCESS;
 #endif
 
-#ifdef CFG_SECURE_DATA_PATH
-	/* Handle memory reference to Secure Data Path memory areas */
-	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
-		if (param_mem_from_mobj(mem, *mobj, pa, sz))
-			return TEE_SUCCESS;
-#endif
+	if (sdp_mem_mobjs) {
+		/* Handle memory reference to Secure Data Path memory areas */
+		for (mobj = sdp_mem_mobjs; *mobj; mobj++)
+			if (param_mem_from_mobj(mem, *mobj, pa, sz))
+				return TEE_SUCCESS;
+	}
 
 	return TEE_ERROR_BAD_PARAMETERS;
 }
@@ -597,11 +595,7 @@ static TEE_Result default_mobj_init(void)
 		panic("Failed to register shared memory");
 #endif
 
-#ifdef CFG_SECURE_DATA_PATH
 	sdp_mem_mobjs = core_sdp_mem_create_mobjs();
-	if (!sdp_mem_mobjs)
-		panic("Failed to register SDP memory");
-#endif
 
 	return TEE_SUCCESS;
 }
