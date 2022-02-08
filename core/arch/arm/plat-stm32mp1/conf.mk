@@ -77,6 +77,17 @@ else
 $(call force,CFG_DRIVERS_CLK_DT,y)
 endif
 
+ifeq ($(CFG_STM32MP13),y)
+$(call force,CFG_STM32MP15,n)
+$(call force,CFG_STM32MP_CLK_CORE,y)
+$(call force,CFG_STM32MP13_CLK,y)
+$(call force,CFG_STM32MP15_CLK,n)
+CFG_STM32MP_OPP_COUNT ?= 2
+else
+$(call force,CFG_STM32MP15,y)
+$(call force,CFG_STM32MP15_CLK,y)
+endif
+
 CFG_STM32_BSEC ?= y
 CFG_STM32_CRYP ?= y
 CFG_STM32_ETZPC ?= y
@@ -85,7 +96,6 @@ CFG_STM32_I2C ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
 CFG_STM32_UART ?= y
-$(call force,CFG_STM32MP15_CLK,y)
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
 
