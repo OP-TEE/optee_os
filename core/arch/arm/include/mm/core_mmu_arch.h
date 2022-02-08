@@ -17,6 +17,27 @@
 
 #include <platform_config.h>
 
+/*
+ * Platforms can define TRUSTED_{S,D}RAM_* or TZ{S,D}RAM_*. We're helping
+ * here with the transition to TRUSTED_{S,D}RAM_* by defining these if
+ * missing based on the legacy defines.
+ */
+#ifdef TZSRAM_BASE
+#ifdef TRUSTED_SRAM_BASE
+#error TRUSTED_SRAM_BASE is already defined
+#endif
+#define TRUSTED_SRAM_BASE	TZSRAM_BASE
+#define TRUSTED_SRAM_SIZE	TZSRAM_SIZE
+#endif
+
+#ifdef TZDRAM_BASE
+#ifdef TRUSTED_DRAM_BASE
+#error TRUSTED_DRAM_BASE is already defined
+#endif
+#define TRUSTED_DRAM_BASE	TZDRAM_BASE
+#define TRUSTED_DRAM_SIZE	TZDRAM_SIZE
+#endif
+
 #define SMALL_PAGE_SHIFT	U(12)
 
 #ifdef CFG_WITH_LPAE
