@@ -625,6 +625,8 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 void core_mmu_map_region(struct mmu_partition *prtn,
 			 struct tee_mmap_region *mm);
 
+bool arch_va2pa_helper(void *va, paddr_t *pa);
+
 static inline bool core_mmap_is_end_of_table(const struct tee_mmap_region *mm)
 {
 	return mm->type == MEM_AREA_END;

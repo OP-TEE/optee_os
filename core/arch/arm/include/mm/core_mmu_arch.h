@@ -10,6 +10,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <kernel/user_ta.h>
 #include <mm/tee_mmu_types.h>
 #include <types_ext.h>
@@ -217,6 +218,21 @@ static inline bool core_mmu_check_max_pa(paddr_t pa __maybe_unused)
 static inline void core_mmu_table_write_barrier(void)
 {
 	dsb_ishst();
+}
+
+static inline bool core_mmu_entry_have_security_bit(uint32_t attr)
+{
+	return !(attr & TEE_MATTR_TABLE) || !IS_ENABLED(CFG_WITH_LPAE);
+}
+
+static inline unsigned int core_mmu_get_va_width(void)
+{
+	if (IS_ENABLED(ARM64)) {
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS >= 32);
+		COMPILE_TIME_ASSERT(CFG_LPAE_ADDR_SPACE_BITS <= 48);
+		return CFG_LPAE_ADDR_SPACE_BITS;
+	}
+	return 32;
 }
 #endif /*__ASSEMBLER__*/
 
