@@ -7,6 +7,7 @@
 #define __CORE_MMU_ARCH_H
 
 #ifndef __ASSEMBLER__
+#include <arm.h>
 #include <assert.h>
 #include <compiler.h>
 #include <kernel/user_ta.h>
@@ -207,6 +208,15 @@ static inline bool core_mmu_check_max_pa(paddr_t pa __maybe_unused)
 	COMPILE_TIME_ASSERT(sizeof(paddr_t) == sizeof(uint32_t));
 	return true;
 #endif
+}
+
+/*
+ * Special barrier to make sure all the changes to translation tables are
+ * visible before returning.
+ */
+static inline void core_mmu_table_write_barrier(void)
+{
+	dsb_ishst();
 }
 #endif /*__ASSEMBLER__*/
 
