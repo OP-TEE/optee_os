@@ -240,37 +240,37 @@
 #ifndef __ASSEMBLER__
 static inline __noprof void isb(void)
 {
-	asm volatile ("isb");
+	asm volatile ("isb" : : : "memory");
 }
 
 static inline __noprof void dsb(void)
 {
-	asm volatile ("dsb sy");
+	asm volatile ("dsb sy" : : : "memory");
 }
 
 static inline __noprof void dsb_ish(void)
 {
-	asm volatile ("dsb ish");
+	asm volatile ("dsb ish" : : : "memory");
 }
 
 static inline __noprof void dsb_ishst(void)
 {
-	asm volatile ("dsb ishst");
+	asm volatile ("dsb ishst" : : : "memory");
 }
 
 static inline __noprof void sev(void)
 {
-	asm volatile ("sev");
+	asm volatile ("sev" : : : "memory");
 }
 
 static inline __noprof void wfe(void)
 {
-	asm volatile ("wfe");
+	asm volatile ("wfe" : : : "memory");
 }
 
 static inline __noprof void wfi(void)
 {
-	asm volatile ("wfi");
+	asm volatile ("wfi" : : : "memory");
 }
 
 static inline __noprof void write_at_s1e1r(uint64_t va)
