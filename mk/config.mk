@@ -822,3 +822,6 @@ CFG_CORE_HAS_GENERIC_TIMER ?= y
 
 # Enable RTC API
 CFG_DRIVERS_RTC ?= n
+
+# Enable PTA for RTC access from non-secure world
+CFG_RTC_PTA ?= n
