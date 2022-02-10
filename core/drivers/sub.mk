@@ -57,3 +57,4 @@ subdirs-$(CFG_SCMI_MSG_DRIVERS) += scmi-msg
 subdirs-y += imx
 subdirs-y += pm
 subdirs-y += wdt
+subdirs-y += rtc
