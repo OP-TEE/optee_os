@@ -568,6 +568,7 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
 
 	if (remove_empty_attribute(pub_head, PKCS11_CKA_EC_POINT) ||
+	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_POINT) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_VALUE) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_PARAMS)) {
 		EMSG("Unexpected attribute(s) found");

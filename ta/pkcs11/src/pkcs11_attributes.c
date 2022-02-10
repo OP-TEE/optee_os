@@ -467,6 +467,7 @@ static const uint32_t ec_private_key_mandated[] = {
 
 static const uint32_t ec_private_key_opt_or_null[] = {
 	PKCS11_CKA_EC_PARAMS,
+	PKCS11_CKA_EC_POINT,
 	PKCS11_CKA_VALUE,
 };
 
