@@ -288,6 +288,9 @@ static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 	paddr_t tmp_addr = 0;
 	size_t tmp_size = 0;
 
+	if (!IS_ENABLED(CFG_EMBED_DTB))
+		return false;
+
 	if (!base || !size)
 		return false;
 
@@ -337,7 +340,7 @@ static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 	return false;
 }
 
-static void configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
+static bool configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
 {
 	paddr_t base;
 	size_t size;
@@ -346,7 +349,10 @@ static void configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
 		DMSG("region base %p %zu", (void *)base, size);
 
 		carve_out_phys_mem(mem, nelems, base, size);
+
+		return true;
 	}
+	return false;
 }
 #endif
 
@@ -467,9 +473,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	 * non-secure memory is used for NSEC_SHM.
 	 */
 #ifdef CFG_SECURE_DATA_PATH
-	if (IS_ENABLED(CFG_EMBED_DTB)) {
-		configure_sdp_dtb(&m, &num_elems);
-	} else {
+	if (!configure_sdp_dtb(&m, &num_elems)) {
 		for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
 			carve_out_phys_mem(&m,
 					   &num_elems,
@@ -552,13 +556,11 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	if (IS_ENABLED(CFG_EMBED_DTB)) {
-		paddr_t base;
-		size_t size;
+	paddr_t base;
+	size_t size;
 
-		if (dtb_get_sdp_region(&base, &size))
-			return core_is_buffer_inside(pbuf, len, base, size);
-	}
+	if (dtb_get_sdp_region(&base, &size))
+		return core_is_buffer_inside(pbuf, len, base, size);
 
 	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
 					phys_sdp_mem_end);
@@ -575,12 +577,8 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 
 	paddr_t region_base = 0;
 	size_t region_size = 0;
-	bool dtb_sdp_found = false;
 
-	if (IS_ENABLED(CFG_EMBED_DTB))
-		dtb_sdp_found = dtb_get_sdp_region(&region_base, &region_size);
-
-	if (dtb_sdp_found) {
+	if (dtb_get_sdp_region(&region_base, &region_size)) {
 		addr = region_base;
 		size = region_size;
 	} else {
@@ -983,16 +981,9 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 	}
 
 #ifdef CFG_SECURE_DATA_PATH
-	if (IS_ENABLED(CFG_EMBED_DTB)) {
-	/* TODO: add verify_special_mem_areas using dtb*/
-		// verify_special_mem_areas(memory_map, num_elems,
-		//			 phys_sdp_mem_begin,
-		//			 phys_sdp_mem_end, "SDP");
-	} else {
-		verify_special_mem_areas(memory_map, num_elems,
-					 phys_sdp_mem_begin,
-					 phys_sdp_mem_end, "SDP");
-	}
+	verify_special_mem_areas(memory_map, num_elems,
+				 phys_sdp_mem_begin,
+				 phys_sdp_mem_end, "SDP");
 #endif
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
