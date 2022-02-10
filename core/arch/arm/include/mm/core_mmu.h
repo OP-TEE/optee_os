@@ -249,6 +249,16 @@ struct core_mmu_phys_mem {
 		ROUNDUP(size + addr - ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
 			CORE_MMU_PGDIR_SIZE))
 
+#ifdef CFG_SECURE_DATA_PATH
+#define register_sdp_mem(addr, size) \
+		__register_memory(#addr, MEM_AREA_SDP_MEM, (addr), (size), \
+				  phys_sdp_mem)
+#else
+#define register_sdp_mem(addr, size) \
+		static int CONCAT(__register_sdp_mem_unused, __COUNTER__) \
+			__unused
+#endif
+
 /* register_dynamic_shm() is deprecated, please use register_ddr() instead */
 #define register_dynamic_shm(addr, size) \
 		__register_memory(#addr, MEM_AREA_DDR_OVERALL, (addr), (size), \
@@ -284,6 +294,12 @@ struct core_mmu_phys_mem {
 
 #define phys_ddr_overall_compat_end \
 	SCATTERED_ARRAY_END(phys_ddr_overall_compat, struct core_mmu_phys_mem)
+
+#define phys_sdp_mem_begin \
+	SCATTERED_ARRAY_BEGIN(phys_sdp_mem, struct core_mmu_phys_mem)
+
+#define phys_sdp_mem_end \
+	SCATTERED_ARRAY_END(phys_sdp_mem, struct core_mmu_phys_mem)
 
 #define phys_mem_map_begin \
 	SCATTERED_ARRAY_BEGIN(phys_mem_map, struct core_mmu_phys_mem)
@@ -713,8 +729,10 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm);
 unsigned int asid_alloc(void);
 void asid_free(unsigned int asid);
 
+#ifdef CFG_SECURE_DATA_PATH
 /* Alloc and fill SDP memory objects table - table is NULL terminated */
 struct mobj **core_sdp_mem_create_mobjs(void);
+#endif
 
 #ifdef CFG_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void);
