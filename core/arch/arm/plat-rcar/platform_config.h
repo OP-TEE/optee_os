@@ -36,6 +36,8 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		RCAR_CACHE_LINE_SZ
 
+#if defined(CFG_RCAR_GEN3)
+
 #define GIC_BASE		0xF1000000
 #define GICC_BASE		0xF1020000
 #define GICD_BASE		0xF1010000
@@ -43,6 +45,19 @@
 #define CONSOLE_UART_BASE	0xE6E88000
 
 #define PRR_BASE		0xFFF00000
+
+#elif defined(CFG_RCAR_GEN4)
+
+#define GICC_BASE		0xF1060000
+#define GICD_BASE		0xF1000000
+
+#if CFG_RCAR_UART == 103	/* SCIF3 */
+#define CONSOLE_UART_BASE	0xE6C50000
+#elif CFG_RCAR_UART == 200	/* HSCIF0 */
+#define CONSOLE_UART_BASE	0xE6540000
+#endif
+
+#endif	/* CFG_RCAR_GENx */
 
 #if defined(PLATFORM_FLAVOR_salvator_h3)
 #define NSEC_DDR_0_BASE		0x47E00000
@@ -77,6 +92,12 @@
 #define NSEC_DDR_1_SIZE		0x80000000
 #define NSEC_DDR_2_BASE		0x600000000U
 #define NSEC_DDR_2_SIZE		0x100000000U
+
+#elif defined(PLATFORM_FLAVOR_spider_s4)
+#define NSEC_DDR_0_BASE		0x48000000
+#define NSEC_DDR_0_SIZE		0x78000000
+#define NSEC_DDR_1_BASE		0x480000000U
+#define NSEC_DDR_1_SIZE		0x80000000U
 
 #else
 
