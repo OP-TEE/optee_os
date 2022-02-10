@@ -12,11 +12,30 @@ $(call force,CFG_TEE_CORE_NB_CORE,8)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_LPAE,y)
 
+ifeq ($(PLATFORM_FLAVOR), spider_s4)
+$(call force,CFG_RCAR_GEN4, y)
+else
+$(call force,CFG_RCAR_GEN3, y)
+endif
+
 CFG_TZDRAM_START ?= 0x44100000
 CFG_TZDRAM_SIZE	 ?= 0x03D00000
 CFG_TEE_RAM_VA_SIZE ?= 0x100000
-CFG_HWRNG_QUALITY ?= 1024
-CFG_HWRNG_PTA ?= y
 supported-ta-targets = ta_arm64
 
+ifeq ($(CFG_RCAR_GEN3), y)
+CFG_HWRNG_QUALITY ?= 1024
+CFG_HWRNG_PTA ?= y
 CFG_DT ?= y
+$(call force,CFG_RCAR_ROMAPI, y)
+endif
+
+ifeq ($(CFG_RCAR_GEN4), y)
+# 1xx - for SCIFxx
+# 2xx - for HSCIFxx
+CFG_RCAR_UART ?= 200
+$(call force,CFG_RCAR_ROMAPI, n)
+$(call force,CFG_CORE_CLUSTER_SHIFT, 1)
+$(call force,CFG_ARM_GICV3, y)
+endif
+
