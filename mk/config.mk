@@ -819,3 +819,6 @@ endif
 # extension. When set to 'n', the plat_get_freq() function must be defined by
 # the platform code
 CFG_CORE_HAS_GENERIC_TIMER ?= y
+
+# Enable RTC API
+CFG_DRIVERS_RTC ?= n
