@@ -82,6 +82,8 @@ static struct memaccess_area nsec_shared[] __nex_data = {
 
 #if defined(CFG_SECURE_DATA_PATH)
 static const char *tz_sdp_match = "sdp";
+static struct memaccess_area sec_sdp = MEMACCESS_AREA(0, 0);
+
 #ifdef CFG_TEE_SDP_MEM_BASE
 register_sdp_mem(CFG_TEE_SDP_MEM_BASE, CFG_TEE_SDP_MEM_SIZE);
 #endif
@@ -275,7 +277,7 @@ static struct tee_mmap_region *find_map_by_pa(unsigned long pa)
 }
 
 #if defined(CFG_SECURE_DATA_PATH)
-static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
+static bool dtb_get_sdp_region(void)
 {
 	void *fdt = NULL;
 	int node = -1;
@@ -286,11 +288,8 @@ static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 	if (!IS_ENABLED(CFG_EMBED_DTB))
 		return false;
 
-	if (!base || !size)
-		return false;
-
-	*base = 0;
-	*size = 0;
+	sec_sdp.paddr = 0;
+	sec_sdp.size = 0;
 
 	fdt = get_embedded_dt();
 	if (!fdt)
@@ -323,8 +322,8 @@ static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 			return false;
 		}
 
-		*base = tmp_addr;
-		*size = tmp_size;
+		sec_sdp.paddr = tmp_addr;
+		sec_sdp.size = tmp_size;
 
 		return true;
 	}
@@ -431,13 +430,10 @@ static int cmp_pmem_by_addr(const void *a, const void *b)
 #ifdef CFG_SECURE_DATA_PATH
 static bool configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
 {
-	paddr_t base;
-	size_t size;
+	if (dtb_get_sdp_region()) {
+		DMSG("region base %p %zu", (void *)sec_sdp.paddr, sec_sdp.size);
 
-	if (dtb_get_sdp_region(&base, &size)) {
-		DMSG("region base %p %zu", (void *)base, size);
-
-		carve_out_phys_mem(mem, nelems, base, size);
+		carve_out_phys_mem(mem, nelems, sec_sdp.paddr, sec_sdp.size);
 
 		return true;
 	}
@@ -553,11 +549,10 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	paddr_t base;
-	size_t size;
-
-	if (dtb_get_sdp_region(&base, &size))
-		return core_is_buffer_inside(pbuf, len, base, size);
+	if (sec_sdp.paddr != 0 && sec_sdp.size != 0)
+		return core_is_buffer_inside(pbuf, len,
+					     sec_sdp.paddr,
+					     sec_sdp.size);
 
 	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
 					phys_sdp_mem_end);
@@ -572,12 +567,9 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	paddr_size_t size;
 	int cnt = 0;
 
-	paddr_t region_base = 0;
-	size_t region_size = 0;
-
-	if (dtb_get_sdp_region(&region_base, &region_size)) {
-		addr = region_base;
-		size = region_size;
+	if (sec_sdp.paddr != 0 && sec_sdp.size != 0) {
+		addr = sec_sdp.paddr;
+		size = sec_sdp.size;
 	} else {
 		cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
 		mem = phys_sdp_mem_begin;
