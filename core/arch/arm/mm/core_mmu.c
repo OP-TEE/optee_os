@@ -42,11 +42,6 @@
 
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
-#ifdef CFG_CORE_DYN_SHM
-static void carve_out_phys_mem(struct core_mmu_phys_mem **mem, size_t *nelems,
-			       paddr_t pa, size_t size);
-#endif
-
 /*
  * These variables are initialized before .bss is cleared. To avoid
  * resetting them when .bss is cleared we're storing them in .data instead,
@@ -339,21 +334,6 @@ static bool dtb_get_sdp_region(paddr_t *base, size_t *size)
 
 	return false;
 }
-
-static bool configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
-{
-	paddr_t base;
-	size_t size;
-
-	if (dtb_get_sdp_region(&base, &size)) {
-		DMSG("region base %p %zu", (void *)base, size);
-
-		carve_out_phys_mem(mem, nelems, base, size);
-
-		return true;
-	}
-	return false;
-}
 #endif
 
 #if defined(CFG_CORE_DYN_SHM) || defined(CFG_SECURE_DATA_PATH)
@@ -447,6 +427,23 @@ static int cmp_pmem_by_addr(const void *a, const void *b)
 
 	return CMP_TRILEAN(pmem_a->addr, pmem_b->addr);
 }
+
+#ifdef CFG_SECURE_DATA_PATH
+static bool configure_sdp_dtb(struct core_mmu_phys_mem **mem, size_t *nelems)
+{
+	paddr_t base;
+	size_t size;
+
+	if (dtb_get_sdp_region(&base, &size)) {
+		DMSG("region base %p %zu", (void *)base, size);
+
+		carve_out_phys_mem(mem, nelems, base, size);
+
+		return true;
+	}
+	return false;
+}
+#endif
 
 void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 				      size_t nelems)
@@ -614,6 +611,14 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	return mobj_base;
 }
 
+#else /* CFG_SECURE_DATA_PATH */
+static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
+{
+	return false;
+}
+
+#endif /* CFG_SECURE_DATA_PATH */
+
 /* Check special memories comply with registered memories */
 static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 				     size_t len,
@@ -662,14 +667,6 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 		}
 	}
 }
-
-#else /* CFG_SECURE_DATA_PATH */
-static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
-{
-	return false;
-}
-
-#endif /* CFG_SECURE_DATA_PATH */
 
 static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 			 const struct core_mmu_phys_mem *mem, size_t *last)
@@ -980,11 +977,10 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		add_phys_mem(memory_map, num_elems, &m, &last);
 	}
 
-#ifdef CFG_SECURE_DATA_PATH
-	verify_special_mem_areas(memory_map, num_elems,
-				 phys_sdp_mem_begin,
-				 phys_sdp_mem_end, "SDP");
-#endif
+	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
+		verify_special_mem_areas(memory_map, num_elems,
+					 phys_sdp_mem_begin,
+					 phys_sdp_mem_end, "SDP");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
 		     CFG_RESERVED_VASPACE_SIZE, &last);
