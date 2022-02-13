@@ -1,6 +1,6 @@
 PLATFORM_FLAVOR ?= npcm845x
 
-$(info !**************  $$PLATFORM_FLAVOR is [${PLATFORM_FLAVOR}])
+$(info PLATFORM_FLAVOR is [${PLATFORM_FLAVOR}])
 
 ifeq ($(PLATFORM_FLAVOR),npcm845x)
 include core/arch/arm/cpu/cortex-armv8-0.mk
@@ -45,19 +45,16 @@ CFG_WITH_STATS ?= y
 
 ifeq ($(PLATFORM_FLAVOR),npcm845x)
 CFG_TEE_CORE_NB_CORE = 4
-# [3F00.0000 03Ff.ffff] is reserved to early boot
-CFG_TZDRAM_START ?= 0x3F000000
+# [3000.0000 031f.ffff] is reserved to early boot
+CFG_TZDRAM_START ?= 0x30000000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
 # SHM chosen arbitrary, in a way that it does not interfere
 # with initial location of linux kernel, dtb and initrd.
-CFG_SHMEM_START ?= 0x3e000000 #0x42000000   # Hila to check 
+CFG_SHMEM_START ?= 0x2FD00000 #0x42000000   # Hila to check 
 CFG_SHMEM_SIZE  ?= 0x00200000
 # When Secure Data Path is enable, last MByte of TZDRAM is SDP test memory.
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
-
-#tmep workaround
-#$(call force,CFG_CORE_ASLR,n)
 
 endif
