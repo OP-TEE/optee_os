@@ -27,6 +27,19 @@ $(error Error: CFG_RV64_core or CFG_RV32_core should be defined)
 endif
 endif
 
+# MMU
+ifeq ($(CFG_RV32_core),y)
+CFG_RISCV_MMU_MODE ?= 32
+ifeq ($(CFG_RISCV_MMU_MODE),48)
+$(error Error: sv48 MMU is not supported on RV32)
+endif
+ifeq ($(CFG_RISCV_MMU_MODE),39)
+$(error Error: sv39 MMU is not supported on RV32)
+endif
+else
+CFG_RISCV_MMU_MODE ?= 39
+endif
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
@@ -35,7 +48,7 @@ endif
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm) $(platform-dir)
 
 # more convenient to move it to platform instead
 rv64-platform-cppflags += -mcmodel=medany -march=rv64imafd -mabi=lp64d

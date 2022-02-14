@@ -11,8 +11,6 @@
 #include <mm/generic_ram_layout.h>
 #include <riscv.h>
 
-#define STACK_ALIGNMENT  RISCV_XLEN_BITS
-
 #ifndef HTIF_BASE
 #define HTIF_BASE	0x40008000
 #endif

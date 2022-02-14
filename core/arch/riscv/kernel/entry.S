@@ -141,6 +141,7 @@ UNWIND(	.cantunwind)
 	bne	t0, t1, 0b
 1:
 
+	csrw satp, 0
 	set_sp
 	set_tp
 
@@ -148,6 +149,11 @@ UNWIND(	.cantunwind)
 
 	jal plat_primary_init_early
 	jal console_init
+
+	mv	a0, x0
+	la	a1, boot_mmu_config
+	jal	core_init_mmu_map
+
 	jal boot_init_primary_early
 	jal boot_init_primary_late
 
@@ -190,3 +196,8 @@ END_DATA stack_tmp_export_rel
 LOCAL_DATA stack_tmp_stride_rel , :
 	.word	stack_tmp_stride - stack_tmp_stride_rel
 END_DATA stack_tmp_stride_rel
+
+	.balign	8
+LOCAL_DATA boot_mmu_config , : /* struct core_mmu_config */
+	.skip	CORE_MMU_CONFIG_SIZE
+END_DATA boot_mmu_config

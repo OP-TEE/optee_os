@@ -14,17 +14,3 @@ uint32_t thread_rpc_cmd(uint32_t cmd __unused, size_t num_params __unused,
 {
 	return 0;
 }
-
-void pgt_init(void)
-{
-}
-
-bool arch_va2pa_helper(void *va __unused, paddr_t *pa __unused)
-{
-	return false;
-}
-
-bool core_mmu_user_mapping_is_active(void)
-{
-	return false;
-}
