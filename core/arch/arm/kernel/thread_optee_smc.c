@@ -190,7 +190,10 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	arg = mobj_get_va(mobj, 0, OPTEE_MSG_GET_ARG_SIZE(num_params));
 	assert(arg && mobj_is_nonsec(mobj));
-	rv = tee_entry_std(arg, num_params);
+	if (tee_entry_std(arg, num_params))
+		rv = OPTEE_SMC_RETURN_EBADCMD;
+	else
+		rv = OPTEE_SMC_RETURN_OK;
 	mobj_put(mobj);
 
 	return rv;

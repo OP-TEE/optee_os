@@ -50,7 +50,7 @@ static bool ns_resources_ready(void)
 }
 
 /* Overriding the default __weak tee_entry_std() */
-uint32_t tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
+TEE_Result tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	boot_is_completed = 1;
 
