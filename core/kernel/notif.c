@@ -11,7 +11,6 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <optee_rpc_cmd.h>
-#include <sm/optee_smc.h>
 #include <types_ext.h>
 
 #if defined(CFG_CORE_ASYNC_NOTIF)
@@ -95,8 +94,6 @@ void notif_send_async(uint32_t value)
 {
 	uint32_t old_itr_status = 0;
 
-	COMPILE_TIME_ASSERT(NOTIF_VALUE_DO_BOTTOM_HALF ==
-			    OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF);
 	COMPILE_TIME_ASSERT(CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_SPI_BASE);
 
 	assert(value <= NOTIF_ASYNC_VALUE_MAX);

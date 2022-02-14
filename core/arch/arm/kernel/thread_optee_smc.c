@@ -9,6 +9,7 @@
 #include <io.h>
 #include <kernel/misc.h>
 #include <kernel/msg_param.h>
+#include <kernel/notif.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/virtualization.h>
@@ -25,6 +26,9 @@
 
 static bool thread_prealloc_rpc_cache;
 static unsigned int thread_rpc_pnum;
+
+static_assert(NOTIF_VALUE_DO_BOTTOM_HALF ==
+	      OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF);
 
 void thread_handle_fast_smc(struct thread_smc_args *args)
 {
