@@ -18,7 +18,6 @@
 #include <mm/tee_pager.h>
 #include <mm/vm.h>
 #include <optee_msg.h>
-#include <sm/optee_smc.h>
 #include <stdlib.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -694,7 +693,7 @@ static TEE_Result mobj_init(void)
 {
 	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
 				       tee_mm_sec_ddr.size,
-				       OPTEE_SMC_SHM_CACHED, CORE_MEM_TA_RAM);
+				       TEE_MATTR_CACHE_CACHED, CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
 
