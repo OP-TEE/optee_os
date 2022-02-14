@@ -1281,6 +1281,44 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	init_sec_mon(nsec_entry);
 }
 
+#include <fault_mitigation.h>
+
+static TEE_Result __noinline hej_func1(TEE_Result res,
+				       struct ftmn_func_arg *arg)
+{
+	FTMN_CALLEE_DONE(arg, res);
+	return res;
+}
+
+static void __noinline hej_test(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct ftmn_check check = { };
+
+	DMSG("start %s len %zu", __func__, sizeof(__func__));
+	DMSG("%s hash %#lx", __func__, FTMN_FUNC_HASH(__func__));
+	DMSG("%s hash %#lx", "hej_func1", FTMN_FUNC_HASH("hej_func1"));
+	DMSG("%#lx ^ %#lx = %#lx",
+	     FTMN_FUNC_HASH(__func__), FTMN_FUNC_HASH("hej_func1"),
+	     FTMN_FUNC_HASH(__func__) ^ FTMN_FUNC_HASH("hej_func1"));
+
+	DMSG("1");
+	ftmn_expect_not_val(&check, FTMN_INCR0, 0, 1);
+	DMSG("2");
+	ftmn_expect_val(&check, FTMN_INCR0, 0, 0);
+
+	FTMN_CALL_FUNC(res, &check, FTMN_INCR0, hej_func1, TEE_SUCCESS);
+	if (res)
+		goto err;
+
+	ftmn_expect_state(&check, FTMN_STEP_COUNT1(3), res);
+	DMSG("end OK");
+	return;
+err:
+	DMSG("end error");
+
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
@@ -1313,6 +1351,7 @@ void __weak boot_init_primary_late(unsigned long fdt)
 		init_tee_runtime();
 	}
 	call_finalcalls();
+	hej_test();
 	IMSG("Primary CPU switching to normal world boot");
 }
 
