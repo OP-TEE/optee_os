@@ -37,12 +37,15 @@ struct div_cfg {
 
 struct clk_stm32_priv {
 	uintptr_t base;
+	size_t nb_clk_refs;
+	struct clk **clk_refs;
 	const struct mux_cfg *muxes;
 	const uint32_t nb_muxes;
 	const struct gate_cfg *gates;
 	const uint32_t nb_gates;
 	const struct div_cfg *div;
 	const uint32_t nb_div;
+	bool (*is_critical)(struct clk *clk);
 	void *pdata;
 };
 
@@ -128,9 +131,127 @@ TEE_Result stm32_div_set_value(uint32_t div_id, uint32_t value);
 int clk_stm32_parse_fdt_by_name(const void *fdt, int node, const char *name,
 				uint32_t *tab, uint32_t *nb);
 
+unsigned long clk_stm32_divider_get_rate(struct clk *clk,
+					 unsigned long parent_rate);
+
+TEE_Result clk_stm32_divider_set_rate(struct clk *clk,
+				      unsigned long rate,
+				      unsigned long parent_rate);
+
+size_t clk_stm32_composite_get_parent(struct clk *clk);
+TEE_Result clk_stm32_composite_set_parent(struct clk *clk, size_t pidx);
+unsigned long clk_stm32_composite_get_rate(struct clk *clk,
+					   unsigned long parent_rate);
+TEE_Result clk_stm32_composite_set_rate(struct clk *clk, unsigned long rate,
+					unsigned long parent_rate);
+TEE_Result clk_stm32_composite_gate_enable(struct clk *clk);
+void clk_stm32_composite_gate_disable(struct clk *clk);
+
+TEE_Result clk_stm32_set_parent_by_index(struct clk *clk, size_t pidx);
+
+extern const struct clk_ops clk_fixed_factor_ops;
+extern const struct clk_ops clk_fixed_clk_ops;
+extern const struct clk_ops clk_stm32_gate_ops;
+extern const struct clk_ops clk_stm32_gate_ready_ops;
+extern const struct clk_ops clk_stm32_divider_ops;
+extern const struct clk_ops clk_stm32_mux_ops;
+extern const struct clk_ops clk_stm32_composite_ops;
+
+#define PARENT(x...) { x }
+
+#define STM32_FIXED_RATE(_name, _rate)\
+	struct clk _name = {\
+		.ops = &clk_fixed_clk_ops,\
+		.priv = &(struct clk_fixed_rate_cfg) {\
+			.rate = (_rate),\
+		},\
+		.name = #_name,\
+		.flags = 0,\
+		.num_parents = 0,\
+	}
+
+#define STM32_FIXED_FACTOR(_name, _parent, _flags, _mult, _div)\
+	struct clk _name = {\
+		.ops = &clk_fixed_factor_ops,\
+		.priv = &(struct fixed_factor_cfg) {\
+			.mult = _mult,\
+			.div = _div,\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = 1,\
+		.parents = { (_parent) },\
+	}
+
+#define STM32_GATE(_name, _parent, _flags, _gate_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_gate_ops,\
+		.priv = &(struct clk_stm32_gate_cfg) {\
+			.gate_id = _gate_id,\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = 1,\
+		.parents = { (_parent) },\
+	}
+
+#define STM32_DIVIDER(_name, _parent, _flags, _div_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_divider_ops,\
+		.priv = &(struct clk_stm32_div_cfg) {\
+			.div_id = (_div_id),\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = 1,\
+		.parents = { (_parent) },\
+	}
+
+#define STM32_MUX(_name, _nb_parents, _parents, _flags, _mux_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_mux_ops,\
+		.priv = &(struct clk_stm32_mux_cfg) {\
+			.mux_id = (_mux_id),\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = (_nb_parents),\
+		.parents = _parents,\
+	}
+
+#define STM32_GATE_READY(_name, _parent, _flags, _gate_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_gate_ready_ops,\
+		.priv = &(struct clk_stm32_gate_cfg) {\
+			.gate_id = _gate_id,\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = 1,\
+		.parents = { _parent },\
+	}
+
+#define STM32_COMPOSITE(_name, _nb_parents, _parents, _flags,\
+			_gate_id, _div_id, _mux_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_composite_ops,\
+		.priv = &(struct clk_stm32_composite_cfg) {\
+			.gate_id = (_gate_id),\
+			.div_id = (_div_id),\
+			.mux_id = (_mux_id),\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = (_nb_parents),\
+		.parents = _parents,\
+	}
+
 struct clk_stm32_priv *clk_stm32_get_priv(void);
 uintptr_t clk_stm32_get_rcc_base(void);
 
 TEE_Result clk_stm32_init(struct clk_stm32_priv *priv, uintptr_t base);
+
+void stm32mp_clk_provider_probe_final(const void *fdt, int node,
+				      struct clk_stm32_priv *priv);
 
 #endif /* CLK_STM32_CORE_H */
