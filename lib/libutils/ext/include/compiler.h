@@ -82,6 +82,10 @@
 #define __HAVE_BUILTIN_OVERFLOW 1
 #endif
 
+#if __GCC_VERSION >= 90100 && !defined(__CHECKER__)
+#define __HAVE_SINGLE_ARGUMENT_STATIC_ASSERT 1
+#endif
+
 #ifdef __HAVE_BUILTIN_OVERFLOW
 #define __compiler_add_overflow(a, b, res) \
 	__builtin_add_overflow((a), (b), (res))
