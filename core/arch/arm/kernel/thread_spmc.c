@@ -1009,11 +1009,11 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	}
 }
 
-static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
+static TEE_Result yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 {
 	size_t sz_rpc = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
 	struct thread_ctx *thr = threads + thread_get_id();
-	uint32_t rv = TEE_ERROR_BAD_PARAMETERS;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
 	struct optee_msg_arg *arg = NULL;
 	struct mobj *mobj = NULL;
 	uint32_t num_params = 0;
@@ -1025,11 +1025,11 @@ static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rv = mobj_inc_map(mobj);
-	if (rv)
+	res = mobj_inc_map(mobj);
+	if (res)
 		goto out_put_mobj;
 
-	rv = TEE_ERROR_BAD_PARAMETERS;
+	res = TEE_ERROR_BAD_PARAMETERS;
 	arg = mobj_get_va(mobj, offset, sizeof(*arg));
 	if (!arg)
 		goto out_dec_map;
@@ -1044,7 +1044,7 @@ static uint32_t yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 	if (!thr->rpc_arg)
 		goto out_dec_map;
 
-	rv = tee_entry_std(arg, num_params);
+	res = tee_entry_std(arg, num_params);
 
 	thread_rpc_shm_cache_clear(&thr->shm_cache);
 	thr->rpc_arg = NULL;
@@ -1053,7 +1053,7 @@ out_dec_map:
 	mobj_dec_map(mobj);
 out_put_mobj:
 	mobj_put(mobj);
-	return rv;
+	return res;
 }
 
 /*
