@@ -23,7 +23,6 @@
 #include <mm/tee_mmu_types.h>
 #include <mm/tee_pager.h>
 #include <mm/vm.h>
-#include <sm/optee_smc.h>
 #include <stdlib.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
