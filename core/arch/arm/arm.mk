@@ -7,7 +7,6 @@ endif
 CROSS_COMPILE_core := $(CROSS_COMPILE$(arch-bits-core))
 COMPILER_core := $(COMPILER)
 include mk/$(COMPILER_core).mk
-
 # Defines the cc-option macro using the compiler set for the core module
 include mk/cc-option.mk
 
