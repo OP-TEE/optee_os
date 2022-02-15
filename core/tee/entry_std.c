@@ -132,12 +132,10 @@ static TEE_Result set_tmem_param(const struct optee_msg_param_tmem *tmem,
 #endif
 
 #ifdef CFG_SECURE_DATA_PATH
-	if (sdp_mem_mobjs) {
-		/* Handle memory reference to Secure Data Path memory areas */
-		for (mobj = sdp_mem_mobjs; *mobj; mobj++)
-			if (param_mem_from_mobj(mem, *mobj, pa, sz))
-				return TEE_SUCCESS;
-	}
+	/* Handle memory reference to Secure Data Path memory areas */
+	for (mobj = sdp_mem_mobjs; *mobj; mobj++)
+		if (param_mem_from_mobj(mem, *mobj, pa, sz))
+			return TEE_SUCCESS;
 #endif
 
 	return TEE_ERROR_BAD_PARAMETERS;
@@ -601,6 +599,8 @@ static TEE_Result default_mobj_init(void)
 
 #ifdef CFG_SECURE_DATA_PATH
 	sdp_mem_mobjs = core_sdp_mem_create_mobjs();
+	if (!sdp_mem_mobjs)
+		panic("Failed to register SDP memory");
 #endif
 
 	return TEE_SUCCESS;

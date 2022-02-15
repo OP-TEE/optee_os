@@ -288,9 +288,6 @@ static bool dtb_get_sdp_region(void)
 	if (!IS_ENABLED(CFG_EMBED_DTB))
 		return false;
 
-	sec_sdp.paddr = 0;
-	sec_sdp.size = 0;
-
 	fdt = get_embedded_dt();
 	if (!fdt)
 		panic("No DTB found");
@@ -468,9 +465,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 #ifdef CFG_SECURE_DATA_PATH
 	if (!configure_sdp_dtb(&m, &num_elems)) {
 		for (pmem = phys_sdp_mem_begin; pmem < phys_sdp_mem_end; pmem++)
-			carve_out_phys_mem(&m,
-					   &num_elems,
-					   pmem->addr,
+			carve_out_phys_mem(&m, &num_elems, pmem->addr,
 					   pmem->size);
 	}
 #endif /* CFG_SECURE_DATA_PATH */
@@ -549,13 +544,13 @@ static bool pbuf_is_nsec_ddr(paddr_t pbuf __unused, size_t len __unused)
 #ifdef CFG_SECURE_DATA_PATH
 static bool pbuf_is_sdp_mem(paddr_t pbuf, size_t len)
 {
-	if (sec_sdp.paddr != 0 && sec_sdp.size != 0)
+	if (sec_sdp.size != 0)
 		return core_is_buffer_inside(pbuf, len,
 					     sec_sdp.paddr,
 					     sec_sdp.size);
 
 	return pbuf_is_special_mem(pbuf, len, phys_sdp_mem_begin,
-					phys_sdp_mem_end);
+				   phys_sdp_mem_end);
 }
 
 struct mobj **core_sdp_mem_create_mobjs(void)
@@ -565,17 +560,15 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	struct mobj **mobj;
 	paddr_t addr;
 	paddr_size_t size;
-	int cnt = 0;
+	int cnt = 1;
+	int i;
 
-	if (sec_sdp.paddr != 0 && sec_sdp.size != 0) {
+	if (sec_sdp.size != 0) {
 		addr = sec_sdp.paddr;
 		size = sec_sdp.size;
 	} else {
 		cnt = phys_sdp_mem_end - phys_sdp_mem_begin;
 		mem = phys_sdp_mem_begin;
-
-		addr = mem->addr;
-		size = mem->size;
 	}
 
 	/* SDP mobjs table must end with a NULL entry */
@@ -585,20 +578,18 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 
 	mobj = mobj_base;
 
-	while (cnt >= 0) {
-		*mobj = mobj_phys_alloc(addr, size,
+	for (i = 0; i < cnt; i++)
+	{
+		if (mem) {
+			addr = mem[i].addr;
+			size = mem[i].size;
+		}
+
+		mobj[i] = mobj_phys_alloc(addr, size,
 					TEE_MATTR_CACHE_CACHED,
 					CORE_MEM_SDP_MEM);
-		if (!*mobj)
+		if (!mobj[i])
 			panic("can't create SDP physical memory object");
-		cnt--;
-		mobj++;
-
-		if (mem) {
-			mem++;
-			addr = mem->addr;
-			size = mem->size;
-		}
 	}
 	return mobj_base;
 }
