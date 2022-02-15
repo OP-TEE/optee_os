@@ -182,9 +182,9 @@ void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 		/* Mark interrupts non-secure */
 		if (n == 0) {
 			/* per-CPU inerrupts config:
-                         * ID0-ID7(SGI)   for Non-secure interrupts
-                         * ID8-ID15(SGI)  for Secure interrupts.
-                         * All PPI config as Non-secure interrupts.
+			 * ID0-ID7(SGI)	  for Non-secure interrupts
+			 * ID8-ID15(SGI)  for Secure interrupts.
+			 * All PPI config as Non-secure interrupts.
 			 */
 			io_write32(gd->gicd_base + GICD_IGROUPR(n), 0xffff00ff);
 		} else {
