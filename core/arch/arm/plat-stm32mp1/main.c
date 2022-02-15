@@ -156,9 +156,7 @@ void itr_core_handler(void)
 
 void main_init_gic(void)
 {
-	assert(cpu_mmu_enabled());
-
-	gic_init(&gic_data, get_gicc_base(), get_gicd_base());
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	itr_init(&gic_data.chip);
 
 	stm32mp_register_online_cpu();
@@ -191,13 +189,6 @@ static TEE_Result init_stm32mp1_drivers(void)
 	return TEE_SUCCESS;
 }
 service_init_late(init_stm32mp1_drivers);
-
-vaddr_t get_gicc_base(void)
-{
-	struct io_pa_va base = { .pa = GIC_BASE + GICC_OFFSET };
-
-	return io_pa_or_va_secure(&base, 1);
-}
 
 vaddr_t get_gicd_base(void)
 {

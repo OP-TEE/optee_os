@@ -202,9 +202,6 @@ static void get_gic_offset(uint32_t *offsetc, uint32_t *offsetd)
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base = 0;
-	vaddr_t gicd_base = 0;
-
 	paddr_t gic_base = 0;
 	uint32_t gicc_offset = 0;
 	uint32_t gicd_offset = 0;
@@ -217,19 +214,13 @@ void main_init_gic(void)
 #endif
 	get_gic_offset(&gicc_offset, &gicd_offset);
 
-	gicc_base = (vaddr_t)phys_to_virt(gic_base + gicc_offset,
-					  MEM_AREA_IO_SEC, 1);
-	gicd_base = (vaddr_t)phys_to_virt(gic_base + gicd_offset,
-					  MEM_AREA_IO_SEC, 1);
-	if (!gicc_base || !gicd_base)
-		panic();
-
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
+	gic_init_base_addr(&gic_data, gic_base + gicc_offset,
+			   gic_base + gicd_offset);
 #else
 	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, gic_base + gicc_offset, gic_base + gicd_offset);
 #endif
 	itr_init(&gic_data.chip);
 }

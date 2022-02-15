@@ -61,17 +61,7 @@ static struct gic_data gic_data;
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base = 0;
-	vaddr_t gicd_base = 0;
-
-	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET,
-				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
-	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET,
-				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	itr_init(&gic_data.chip);
 }
 
