@@ -50,22 +50,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC, GIC_CPU_REG_SIZE);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC, GIC_DIST_REG_SIZE);
-	if (!gicc_base || !gicd_base)
-		panic();
-
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
+	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
+			   GIC_BASE + GICD_OFFSET);
 #else
-	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
 	itr_init(&gic_data.chip);
 }

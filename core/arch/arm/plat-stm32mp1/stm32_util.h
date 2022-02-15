@@ -24,7 +24,6 @@ void stm32mp_syscfg_enable_io_compensation(void);
 void stm32mp_syscfg_disable_io_compensation(void);
 
 /* Platform util for the GIC */
-vaddr_t get_gicc_base(void);
 vaddr_t get_gicd_base(void);
 
 /*

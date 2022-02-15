@@ -38,17 +38,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC,
-					  GICC_SIZE);
-	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC,
-					  GICD_SIZE);
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GICC_BASE, GICD_BASE);
 	itr_init(&gic_data.chip);
 }
 

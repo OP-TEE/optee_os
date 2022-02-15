@@ -117,33 +117,12 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-#ifdef CFG_ARM_GICV3
-	vaddr_t gicd_base;
-
-	gicd_base = core_mmu_get_va(GICD_BASE, MEM_AREA_IO_SEC, 0x10000);
-
-	if (!gicd_base)
-		panic();
-
-	/* Initialize GIC */
-	gic_init(&gic_data, 0, gicd_base);
-	itr_init(&gic_data.chip);
+#ifdef GICD_BASE
+	gic_init(&gic_data, 0, GICD_BASE);
 #else
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET, MEM_AREA_IO_SEC,
-				    1);
-	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET, MEM_AREA_IO_SEC,
-				    0x10000);
-
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
-	itr_init(&gic_data.chip);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
+	itr_init(&gic_data.chip);
 }
 
 #if CFG_TEE_CORE_NB_CORE > 1

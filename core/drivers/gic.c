@@ -12,6 +12,8 @@
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <libfdt.h>
 #include <util.h>
 #include <io.h>
@@ -164,12 +166,11 @@ void gic_cpu_init(struct gic_data *gd)
 #endif
 }
 
-void gic_init(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
-	      vaddr_t gicd_base)
+void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 {
 	size_t n;
 
-	gic_init_base_addr(gd, gicc_base, gicd_base);
+	gic_init_base_addr(gd, gicc_base_pa, gicd_base_pa);
 
 	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
@@ -239,9 +240,27 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 	return it_num;
 }
 
-void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base __maybe_unused,
-			vaddr_t gicd_base)
+void gic_init_base_addr(struct gic_data *gd,
+			paddr_t gicc_base_pa __maybe_unused,
+			paddr_t gicd_base_pa)
 {
+	vaddr_t gicc_base = 0;
+	vaddr_t gicd_base = 0;
+
+	assert(cpu_mmu_enabled());
+
+	gicd_base = core_mmu_get_va(gicd_base_pa, MEM_AREA_IO_SEC,
+				    GIC_DIST_REG_SIZE);
+	if (!gicd_base)
+		panic();
+
+	if (!IS_ENABLED(CFG_ARM_GICV3)) {
+		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
+					    GIC_CPU_REG_SIZE);
+		if (!gicc_base)
+			panic();
+	}
+
 	gd->gicc_base = gicc_base;
 	gd->gicd_base = gicd_base;
 	gd->max_it = probe_max_it(gicc_base, gicd_base);
