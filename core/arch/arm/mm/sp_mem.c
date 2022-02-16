@@ -22,6 +22,7 @@ const struct mobj_ops mobj_sp_ops;
 
 struct mobj_sp {
 	struct mobj mobj;
+	uint32_t cache_type;
 	paddr_t pages[];
 };
 
@@ -59,6 +60,8 @@ struct mobj *sp_mem_new_mobj(uint64_t pages)
 	m->mobj.size = pages * SMALL_PAGE_SIZE;
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 
+	m->cache_type = TEE_MATTR_MEM_TYPE_CACHED;
+
 	refcount_set(&m->mobj.refc, 1);
 	return &m->mobj;
 }
@@ -89,11 +92,38 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_mem_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
+TEE_Result sp_mem_ffa_dev_to_cache_type(uint8_t dev_type, uint32_t *cache_type)
 {
-	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+	*cache_type = TEE_MATTR_MEM_TYPE_DEV;
+	switch (dev_type) {
+	case FFA_DEV_MEM_nGnRnE:
+		*cache_type |= TEE_MATTR_MEM_TYPE_STRONGLY_O;
+		break;
+	case FFA_DEV_MEM_nGnRE:
+		/* Device-nGnRE doesn't have any extra bits set. */
+		break;
+	default:
+		EMSG("Only nGnRnE and nGnRE are support device types");
+		return FFA_INVALID_PARAMETERS;
+	}
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_mem_get_cattr(struct mobj *mobj, uint32_t *cattr)
+{
+	struct mobj_sp *m = to_mobj_sp(mobj);
+
+	*cattr = m->cache_type;
+
+	return TEE_SUCCESS;
+}
+
+void  sp_mem_set_cattr(struct mobj *mobj, uint32_t cache_type)
+{
+	struct mobj_sp *m = to_mobj_sp(mobj);
+
+	m->cache_type = cache_type;
 }
 
 static bool mobj_sp_matches(struct mobj *mobj __maybe_unused,
