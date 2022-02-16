@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -76,6 +76,10 @@
 
 /* Memory attributes: Normal memory, Write-Back cacheable, Inner shareable */
 #define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
+
+/* Device memory attributes */
+#define FFA_DEV_MEM_nGnRnE		U(0x0)
+#define FFA_DEV_MEM_nGnRE		U(0x1)
 
 /* Memory access permissions: Read-write */
 #define FFA_MEM_ACC_RW			BIT(1)
