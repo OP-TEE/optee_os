@@ -44,7 +44,8 @@ struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size)
 	return shdr;
 }
 
-TEE_Result shdr_verify_signature(const struct shdr *shdr)
+TEE_Result shdr_verify_signature(const struct shdr *shdr,
+				 struct ftmn_func_arg *ftmn_arg)
 {
 	struct rsa_public_key key;
 	TEE_Result res;
@@ -52,21 +53,21 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	size_t hash_size;
 
 	if (shdr->magic != SHDR_MAGIC)
-		return TEE_ERROR_SECURITY;
+		goto err;
 
 	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
-		return TEE_ERROR_SECURITY;
+		goto err;
 
 	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
 				      &hash_size);
 	if (res)
-		return TEE_ERROR_SECURITY;
+		goto err;
 	if (hash_size != shdr->hash_size)
-		return TEE_ERROR_SECURITY;
+		goto err;
 
 	res = crypto_acipher_alloc_rsa_public_key(&key, shdr->sig_size);
 	if (res)
-		return TEE_ERROR_SECURITY;
+		goto err;
 
 	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
 	if (res)
@@ -82,6 +83,10 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 out:
 	crypto_acipher_free_rsa_public_key(&key);
 	if (res)
-		return TEE_ERROR_SECURITY;
+		goto err;
+	FTMN_CALLEE_DONE(ftmn_arg, TEE_SUCCESS);
 	return TEE_SUCCESS;
+err:
+	FTMN_CALLEE_DONE(ftmn_arg, TEE_ERROR_SECURITY);
+	return TEE_ERROR_SECURITY;
 }

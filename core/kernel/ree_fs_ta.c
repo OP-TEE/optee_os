@@ -137,6 +137,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	size_t offs = 0;
 	struct shdr_bootstrap_ta *bs_hdr = NULL;
 	struct shdr_encrypted_ta *ehdr = NULL;
+	struct ftmn_check check = { };
 	size_t shdr_sz = 0;
 
 	handle = calloc(1, sizeof(*handle));
@@ -156,9 +157,11 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	}
 
 	/* Validate header signature */
-	res = shdr_verify_signature(shdr);
+	FTMN_CALL_FUNC(res, &check, FTMN_INCR0, shdr_verify_signature, shdr);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
+	ftmn_expect_state(&check, FTMN_STEP_COUNT1(1), res);
+
 	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA &&
 	    shdr->img_type != SHDR_ENCRYPTED_TA) {
 		res = TEE_ERROR_SECURITY;

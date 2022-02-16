@@ -5,6 +5,7 @@
 #ifndef SIGNED_HDR_H
 #define SIGNED_HDR_H
 
+#include <fault_mitigation.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <tee_api_types.h>
@@ -146,6 +147,7 @@ static inline void shdr_free(struct shdr *shdr)
  *
  * Returns TEE_SUCCESS on success or TEE_ERROR_SECURITY on failure
  */
-TEE_Result shdr_verify_signature(const struct shdr *shdr);
+TEE_Result shdr_verify_signature(const struct shdr *shdr,
+				 struct ftmn_func_arg *ftmn_arg);
 
 #endif /*SIGNED_HDR_H*/

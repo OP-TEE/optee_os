@@ -139,8 +139,9 @@ err:
 static TEE_Result bootstrap(uint32_t param_types,
 			    TEE_Param params[TEE_NUM_PARAMS])
 {
-	TEE_Result res;
-	struct shdr *shdr;
+	TEE_Result res = TEE_SUCCESS;
+	struct shdr *shdr = NULL;
+	struct ftmn_check check = { };
 	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
@@ -153,9 +154,10 @@ static TEE_Result bootstrap(uint32_t param_types,
 	if (!shdr)
 		return TEE_ERROR_SECURITY;
 
-	res = shdr_verify_signature(shdr);
+	FTMN_CALL_FUNC(res, &check, FTMN_INCR0, shdr_verify_signature, shdr);
 	if (res)
 		goto out;
+	ftmn_expect_state(&check, FTMN_STEP_COUNT1(1), res);
 
 	res = install_ta(shdr, params->memref.buffer, params->memref.size);
 out:
