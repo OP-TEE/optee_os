@@ -712,6 +712,8 @@
 				reg = <0xf80480b0 0x30>;
 				interrupts = <74 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&clk32k>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			i2s0: i2s@f8050000 {
