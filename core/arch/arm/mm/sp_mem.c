@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2022, Arm Limited. All rights reserved.
  */
 #include <assert.h>
 #include <bitstring.h>
@@ -22,6 +22,7 @@ const struct mobj_ops mobj_sp_ops;
 
 struct mobj_sp {
 	struct mobj mobj;
+	uint32_t mem_type;
 	paddr_t pages[];
 };
 
@@ -42,7 +43,7 @@ static size_t mobj_sp_size(size_t num_pages)
 	return s;
 }
 
-struct mobj *sp_mem_new_mobj(uint64_t pages)
+struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type)
 {
 	struct mobj_sp *m = NULL;
 	size_t s = 0;
@@ -58,6 +59,8 @@ struct mobj *sp_mem_new_mobj(uint64_t pages)
 	m->mobj.ops = &mobj_sp_ops;
 	m->mobj.size = pages * SMALL_PAGE_SIZE;
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
+
+	m->mem_type = cache_type;
 
 	refcount_set(&m->mobj.refc, 1);
 	return &m->mobj;
@@ -89,9 +92,11 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_mem_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
+static TEE_Result sp_mem_get_cattr(struct mobj *mobj, uint32_t *cattr)
 {
-	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+	struct mobj_sp *m = to_mobj_sp(mobj);
+
+	*cattr = m->mem_type;
 
 	return TEE_SUCCESS;
 }
