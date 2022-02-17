@@ -8,13 +8,8 @@
 #include <config.h>
 #ifdef __KERNEL__
 #include <kernel/panic.h>
-#include <io.h>
 #else
-#include <compiler.h>
 #include <tee_api.h>
-
-#define READ_ONCE(p)		__compiler_atomic_load(&(p))
-#define WRITE_ONCE(p, v)	__compiler_atomic_store(&(p), (v))
 #endif
 
 /*
@@ -295,13 +290,14 @@ static inline void ftmn_expect_not_null(struct ftmn_check *check,
 }
 
 static inline void ftmn_expect_state(struct ftmn_check *check,
-				     unsigned long steps, unsigned long val)
+				     enum ftmn_incr incr, unsigned long steps,
+				     unsigned long val)
 {
 	if (IS_ENABLED(CFG_CORE_FAULT_MITIGATION)) {
-		ftmn_expect_val(check, FTMN_INCR_RESERVED, check->steps, steps);
+		ftmn_expect_val(check, incr, check->steps, steps);
 		if ((check->val ^ FTMN_DEFAULT_HASH) != val)
 			ftmn_panic();
-		if (check->steps != (steps + FTMN_INCR_RESERVED))
+		if (check->steps != (steps + incr))
 			ftmn_panic();
 	}
 }
