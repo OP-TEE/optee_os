@@ -13,6 +13,15 @@ OUTPUT_FORMAT("elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
 #endif
 
+#ifdef RV32
+OUTPUT_FORMAT("elf32-littleriscv")
+OUTPUT_ARCH(riscv)
+#endif
+#ifdef RV64
+OUTPUT_FORMAT("elf64-littleriscv")
+OUTPUT_ARCH(riscv)
+#endif
+
 ENTRY(_ldelf_start)
 SECTIONS {
 	.text : {
@@ -35,11 +44,15 @@ SECTIONS {
 		*(.gnu.linkonce.r.*)
 		*(.rodata .rodata.*)
 	}
+
+#if defined (ARM32) || defined (ARM64)
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	.ARM.exidx : { *(.ARM.exidx* .gnu.linkonce.armexidx.*) }
 	.ARM.extab : { *(.ARM.extab*) }
+#endif /* ARM32 || ARM64 */
         .ctors : { *(.ctors) }
         .dtors : { *(.dtors) }
+
 	.dynsym : { *(.dynsym) }
 	.dynstr : { *(.dynstr) }
 	.hash : { *(.hash) }

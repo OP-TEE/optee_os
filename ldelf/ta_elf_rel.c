@@ -335,6 +335,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_ARM_NONE:
+		//case R_RISCV_NONE:
 			/*
 			 * One would expect linker prevents such useless entry
 			 * in the relocation table. We still handle this type
@@ -356,6 +357,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			}
 			break;
 		case R_ARM_REL32:
+		//case R_RISCV_REL32:
 			sym_idx = ELF32_R_SYM(rel->r_info);
 			if (sym_idx >= num_syms)
 				err(TEE_ERROR_BAD_FORMAT,
@@ -367,6 +369,8 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			break;
 		case R_ARM_GLOB_DAT:
 		case R_ARM_JUMP_SLOT:
+		case R_RISCV_GLOB_DAT:
+		case R_RISCV_JUMP_SLOT:
 			if (!sym_tab)
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Missing symbol table");
@@ -374,6 +378,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 					    str_tab_size, rel, where);
 			break;
 		case R_ARM_TLS_DTPMOD32:
+		case R_RISCV_TLS_DTPMOD32:
 			if (!sym_tab)
 				err(TEE_ERROR_BAD_FORMAT,
 				    "Missing symbol table");
@@ -397,7 +402,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 }
 
-#ifdef ARM64
+#if defined(ARM64) || defined(RV64)
 static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
 			     Elf64_Rela *rela, const char **name)
@@ -562,6 +567,7 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
 		case R_AARCH64_NONE:
+		//case R_RISCV_NONE:
 			/*
 			 * One would expect linker prevents such useless entry
 			 * in the relocation table. We still handle this type
@@ -588,10 +594,13 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 			break;
 		case R_AARCH64_GLOB_DAT:
 		case R_AARCH64_JUMP_SLOT:
+		case R_RISCV_GLOB_DAT:
+		case R_RISCV_JUMP_SLOT:
 			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
 					     str_tab_size, rela, where);
 			break;
 		case R_AARCH64_TLS_TPREL:
+		case R_RISCV_TLS_TPREL64:
 			e64_process_tls_tprel_rela(sym_tab, num_syms, str_tab,
 						   str_tab_size, rela, where,
 						   elf);
@@ -607,13 +616,13 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		}
 	}
 }
-#else /*ARM64*/
+#else /*defined(ARM64) || defined(RV64)*/
 static void __noreturn e64_relocate(struct ta_elf *elf __unused,
 				    unsigned int rel_sidx __unused)
 {
-	err(TEE_ERROR_NOT_SUPPORTED, "arm64 not supported");
+	err(TEE_ERROR_NOT_SUPPORTED, "arch not supported");
 }
-#endif /*ARM64*/
+#endif /*defined(ARM64) || defined(RV64)*/
 
 void ta_elf_relocate(struct ta_elf *elf)
 {

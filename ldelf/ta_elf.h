@@ -75,7 +75,7 @@ struct ta_elf {
 	vaddr_t tls_start;
 	size_t tls_filesz; /* Covers the .tdata section */
 	size_t tls_memsz; /* Covers the .tdata and .tbss sections */
-#ifdef ARM64
+#if defined (ARM64) || defined (RV64)
 	/* Offset of the copy of the TLS block in the TLS area of the TCB */
 	size_t tls_tcb_offs;
 #endif
