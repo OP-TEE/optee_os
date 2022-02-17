@@ -1,5 +1,5 @@
 CFG_RV64_core ?= y
-$(call force,CFG_WITH_USER_TA,n)
+CFG_WITH_USER_TA ?= y
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 $(call force,CFG_CORE_FFA,n)
 $(call force,CFG_CORE_DYN_SHM,n)

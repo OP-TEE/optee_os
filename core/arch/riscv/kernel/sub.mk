@@ -7,5 +7,6 @@ srcs-y += trace_ext.c
 srcs-y += link_dummies.c
 srcs-y += abort.c
 srcs-y += idle.c
+srcs-y += ldelf_loader.c
 srcs-y += entry.S
 asm-defines-y += asm-defines.c
