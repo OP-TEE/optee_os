@@ -160,7 +160,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	FTMN_CALL_FUNC(res, &check, FTMN_INCR0, shdr_verify_signature, shdr);
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
-	ftmn_expect_state(&check, FTMN_STEP_COUNT1(1), res);
+	ftmn_expect_state(&check, FTMN_INCR1, FTMN_STEP_COUNT1(1), res);
 
 	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA &&
 	    shdr->img_type != SHDR_ENCRYPTED_TA) {

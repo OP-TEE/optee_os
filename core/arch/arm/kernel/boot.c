@@ -1311,7 +1311,7 @@ static void __noinline hej_test(void)
 	if (res)
 		goto err;
 
-	ftmn_expect_state(&check, FTMN_STEP_COUNT1(3), res);
+	ftmn_expect_state(&check, FTMN_INCR1, FTMN_STEP_COUNT1(3), res);
 	DMSG("end OK");
 	return;
 err:

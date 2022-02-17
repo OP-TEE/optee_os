@@ -38,7 +38,7 @@ static TEE_Result check_install_conflict(const struct shdr_bootstrap_ta *bs_ta)
 }
 
 static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
-			     size_t nw_size)
+			     size_t nw_size, struct ftmn_check *check)
 {
 	TEE_Result res;
 	struct tee_tadb_ta_write *ta;
@@ -48,6 +48,7 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	void *buf;
 	struct tee_tadb_property property;
 	struct shdr_bootstrap_ta bs_ta;
+	unsigned int incr2_count = 0;
 
 	if (shdr->img_type != SHDR_BOOTSTRAP_TA)
 		return TEE_ERROR_SECURITY;
@@ -61,6 +62,12 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 	buf = malloc(buf_size);
 	if (!buf)
 		return TEE_ERROR_OUT_OF_MEMORY;
+
+	/*
+	 * This relates to the protected call to shdr_verify_signature()
+	 * in bootstrap() below.
+	 */
+	ftmn_expect_state(check, FTMN_INCR1, FTMN_STEP_COUNT2(1, 1), 0);
 
 	/*
 	 * Initialize a hash context and run the algorithm over the signed
@@ -113,7 +120,14 @@ static TEE_Result install_ta(struct shdr *shdr, const uint8_t *nw,
 		if (res)
 			goto err_ta_finalize;
 		offs += l;
+
+		ftmn_expect_state(check, FTMN_INCR2,
+				  FTMN_STEP_COUNT3(1, 2, incr2_count), 0);
+		incr2_count++;
 	}
+
+	ftmn_expect_state(check, FTMN_INCR2,
+			  FTMN_STEP_COUNT3(1, 2, incr2_count), 0);
 
 	res = crypto_hash_final(hash_ctx, buf, shdr->hash_size);
 	if (res)
@@ -157,9 +171,10 @@ static TEE_Result bootstrap(uint32_t param_types,
 	FTMN_CALL_FUNC(res, &check, FTMN_INCR0, shdr_verify_signature, shdr);
 	if (res)
 		goto out;
-	ftmn_expect_state(&check, FTMN_STEP_COUNT1(1), res);
+	ftmn_expect_state(&check, FTMN_INCR1, FTMN_STEP_COUNT1(1), res);
 
-	res = install_ta(shdr, params->memref.buffer, params->memref.size);
+	res = install_ta(shdr, params->memref.buffer, params->memref.size,
+			 &check);
 out:
 	shdr_free(shdr);
 	return res;
