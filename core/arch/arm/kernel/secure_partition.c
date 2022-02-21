@@ -14,6 +14,7 @@
 #include <kernel/thread_spmc.h>
 #include <kernel/ts_store.h>
 #include <ldelf.h>
+#include <libfdt.h>
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
@@ -22,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <tee_api_types.h>
+#include <tee/uuid.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <utee_defines.h>
@@ -339,11 +341,56 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_init_uuid(const TEE_UUID *uuid)
+static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
+{
+	TEE_Result res = TEE_SUCCESS;
+	int len = 0;
+	const fdt32_t *prop = NULL;
+	int i = 0;
+	const struct fdt_property *description = NULL;
+	int description_name_len = 0;
+	uint32_t uuid_array[4] = { 0 };
+	TEE_UUID fdt_uuid = {};
+
+	res = fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0");
+	if (res) {
+		EMSG("Failed loading SP, manifest not found");
+		return res;
+	}
+
+	description = fdt_get_property(fdt, 0, "description",
+				       &description_name_len);
+	if (description)
+		DMSG("Loading SP: %s", description->data);
+
+	prop = fdt_getprop(fdt, 0, "uuid", &len);
+	if (!prop || len != 16) {
+		EMSG("Missing or invalid UUID in SP manifest");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	for (i = 0; i < 4; i++)
+		uuid_array[i] = fdt32_to_cpu(prop[i]);
+	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
+
+	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
+		EMSG("Failed loading SP, UUID mismatch");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 	struct thread_smc_args args = { };
+
+	res = handle_fdt(fdt, uuid);
+
+	if (res)
+		return res;
 
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
@@ -503,7 +550,7 @@ static TEE_Result sp_init_all(void)
 		DMSG("SP %pUl size %u%s", (void *)&sp->image.uuid,
 		     sp->image.size, msg);
 
-		res = sp_init_uuid(&sp->image.uuid);
+		res = sp_init_uuid(&sp->image.uuid, sp->fdt);
 
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed initializing SP(%pUl) err:%#"PRIx32,
