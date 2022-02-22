@@ -27,6 +27,20 @@ struct dirfile_entry {
 	uint32_t file_number;
 };
 
+#define OID_EMPTY_NAME 1
+
+/*
+ * An object can have an ID of size zero. This object is represented by
+ * oidlen == 0 and oid[0] == OID_EMPTY_NAME. When both are zero, the entry is
+ * not a valid object.
+ */
+static bool is_free(struct dirfile_entry *dent)
+{
+	assert(dent->oidlen || !dent->oid[0] || dent->oid[0] == OID_EMPTY_NAME);
+
+	return !dent->oidlen && !dent->oid[0];
+}
+
 /*
  * File layout
  *
@@ -133,7 +147,7 @@ TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
 			goto out;
 		}
 
-		if (!dent.oidlen)
+		if (is_free(&dent))
 			continue;
 
 		if (test_file(dirh, dent.file_number)) {
@@ -198,31 +212,21 @@ TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
 			       const TEE_UUID *uuid, const void *oid,
 			       size_t oidlen, struct tee_fs_dirfile_fileh *dfh)
 {
-	TEE_Result res;
-	struct dirfile_entry dent;
-	int n;
-	int first_free = -1;
+	TEE_Result res = TEE_SUCCESS;
+	struct dirfile_entry dent = { };
+	int n = 0;
 
 	for (n = 0;; n++) {
 		res = read_dent(dirh, n, &dent);
-		if (res == TEE_ERROR_ITEM_NOT_FOUND && !oidlen) {
-			memset(&dent, 0, sizeof(dent));
-			if (first_free != -1)
-				n = first_free;
-			break;
-		}
 		if (res)
 			return res;
 
-		/* TODO check this loop when oidlen == 0 */
-
-		if (!dent.oidlen && first_free == -1)
-			first_free = n;
+		if (is_free(&dent))
+			continue;
 		if (dent.oidlen != oidlen)
 			continue;
 
-		assert(!oidlen || !dent.oidlen ||
-		       test_file(dirh, dent.file_number));
+		assert(test_file(dirh, dent.file_number));
 
 		if (!memcmp(&dent.uuid, uuid, sizeof(dent.uuid)) &&
 		    !memcmp(&dent.oid, oid, oidlen))
@@ -235,6 +239,26 @@ TEE_Result tee_fs_dirfile_find(struct tee_fs_dirfile_dirh *dirh,
 		memcpy(dfh->hash, dent.hash, sizeof(dent.hash));
 	}
 
+	return TEE_SUCCESS;
+}
+
+static TEE_Result find_empty_idx(struct tee_fs_dirfile_dirh *dh, int *idx)
+{
+	struct dirfile_entry dent = { };
+	TEE_Result res = TEE_SUCCESS;
+	int n = 0;
+
+	for (n = 0;; n++) {
+		res = read_dent(dh, n, &dent);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			break;
+		if (res)
+			return res;
+		if (is_free(&dent))
+			break;
+	}
+
+	*idx = n;
 	return TEE_SUCCESS;
 }
 
@@ -267,11 +291,15 @@ TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
 	TEE_Result res;
 	struct dirfile_entry dent;
 
-	if (!oidlen || oidlen > sizeof(dent.oid))
+	if (oidlen > sizeof(dent.oid))
 		return TEE_ERROR_BAD_PARAMETERS;
 	memset(&dent, 0, sizeof(dent));
 	dent.uuid = *uuid;
-	memcpy(dent.oid, oid, oidlen);
+	if (oidlen)
+		memcpy(dent.oid, oid, oidlen);
+	else
+		dent.oid[0] = OID_EMPTY_NAME;
+
 	dent.oidlen = oidlen;
 	memcpy(dent.hash, dfh->hash, sizeof(dent.hash));
 	dent.file_number = dfh->file_number;
@@ -282,8 +310,7 @@ TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
 		res = tee_fs_dirfile_find(dirh, uuid, oid, oidlen, &dfh2);
 		if (res) {
 			if (res == TEE_ERROR_ITEM_NOT_FOUND)
-				res = tee_fs_dirfile_find(dirh, uuid, NULL, 0,
-							  &dfh2);
+				res = find_empty_idx(dirh, &dfh2.idx);
 			if (res)
 				return res;
 		}
@@ -304,7 +331,7 @@ TEE_Result tee_fs_dirfile_remove(struct tee_fs_dirfile_dirh *dirh,
 	if (res)
 		return res;
 
-	if (!dent.oidlen)
+	if (is_free(&dent))
 		return TEE_SUCCESS;
 
 	file_number = dent.file_number;
@@ -352,7 +379,7 @@ TEE_Result tee_fs_dirfile_get_next(struct tee_fs_dirfile_dirh *dirh,
 		if (res)
 			return res;
 		if (!memcmp(&dent.uuid, uuid, sizeof(dent.uuid)) &&
-		    dent.oidlen)
+		    !is_free(&dent))
 			break;
 	}
 
