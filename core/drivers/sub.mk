@@ -82,6 +82,7 @@ subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_DRIVERS_CLK) += clk
 subdirs-$(CFG_DRIVERS_GPIO) += gpio
 subdirs-$(CFG_DRIVERS_I2C) += i2c
+subdirs-$(CFG_DRIVERS_PINCTRL) += pinctrl
 subdirs-$(CFG_DRIVERS_RSTCTRL) += rstctrl
 subdirs-$(CFG_SCMI_MSG_DRIVERS) += scmi-msg
 subdirs-y += imx
