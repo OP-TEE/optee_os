@@ -146,7 +146,8 @@ static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)
 
 	info = (struct sp_ffa_init_info *)ctx->uctx.stack_ptr;
 
-	info->magic = 0;
+	/* magic field is 4 bytes, we don't copy /0 byte. */
+	memcpy(&info->magic, "FF-A", 4);
 	info->count = 0;
 	args->a0 = (vaddr_t)info;
 }
