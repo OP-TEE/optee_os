@@ -106,7 +106,7 @@
 				};
 			};
 
-			pinctrl@fc038000 {
+			pinctrl@fc039000 {
 				pinctrl_i2c0_default: i2c0_default {
 					pinmux = <PIN_PD21__TWD0>,
 						 <PIN_PD22__TWCK0>;

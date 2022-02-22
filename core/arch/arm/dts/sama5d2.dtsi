@@ -1095,9 +1095,9 @@
 				status = "disabled";
 			};
 
-			pioA: pinctrl@fc038000 {
+			pioA: pinctrl@fc039000 {
 				compatible = "atmel,sama5d2-pinctrl";
-				reg = <0xfc038000 0x600>;
+				reg = <0xfc039000 0x600>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 7>,
 					     <68 IRQ_TYPE_LEVEL_HIGH 7>,
 					     <69 IRQ_TYPE_LEVEL_HIGH 7>,
