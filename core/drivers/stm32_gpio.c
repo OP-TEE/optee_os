@@ -394,9 +394,9 @@ int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
 	struct clk *clk = stm32_get_gpio_bank_clk(bank);
 	int rc = 0;
 
-	assert(valid_gpio_config(bank, pin, true));
-
 	clk_enable(clk);
+
+	assert(valid_gpio_config(bank, pin, true));
 
 	if (io_read32(base + GPIO_IDR_OFFSET) == BIT(pin))
 		rc = 1;
@@ -411,9 +411,9 @@ void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	struct clk *clk = stm32_get_gpio_bank_clk(bank);
 
-	assert(valid_gpio_config(bank, pin, false));
-
 	clk_enable(clk);
+
+	assert(valid_gpio_config(bank, pin, false));
 
 	if (level)
 		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin));
