@@ -223,7 +223,7 @@
 				status = "disabled";
 			};
 
-			pinctrl@fc038000 {
+			pinctrl@fc039000 {
 
 				pinctrl_can1_default: can1_default {
 					pinmux = <PIN_PC26__CANTX1>,
