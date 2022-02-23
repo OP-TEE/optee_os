@@ -196,4 +196,15 @@ enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 
 size_t rsa_get_input_max_byte_size(TEE_OperationHandle op);
 
+enum pkcs11_rc do_asymm_derivation(struct pkcs11_session *session,
+				   struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **head);
+
+enum pkcs11_rc pkcs2tee_param_ecdh(struct pkcs11_attribute_head *proc_params,
+				   void **pub_data, size_t *pub_size);
+
+enum pkcs11_rc pkcs2tee_algo_ecdh(uint32_t *tee_id,
+				  struct pkcs11_attribute_head *proc_params,
+				  struct pkcs11_object *obj);
+
 #endif /*PKCS11_TA_PROCESSING_H*/

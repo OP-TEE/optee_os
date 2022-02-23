@@ -979,6 +979,20 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		}
 		if (rc)
 			goto out;
+
+	} else if (processing_is_tee_asymm(proc_params->id)) {
+		assert(function == PKCS11_FUNCTION_DERIVE);
+
+		rc = init_asymm_operation(session, function, proc_params,
+					  parent);
+		if (rc)
+			goto out;
+
+		rc = do_asymm_derivation(session, proc_params, &head);
+		if (rc)
+			goto out;
+
+		goto done;
 	} else {
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 		goto out;
@@ -988,6 +1002,7 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+done:
 	TEE_Free(out_buf);
 	out_buf = NULL;
 

@@ -35,6 +35,7 @@ bool processing_is_tee_asymm(uint32_t proc_id)
 	case PKCS11_CKM_SHA512_RSA_PKCS_PSS:
 	/* EC flavors */
 	case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_ECDH1_DERIVE:
 	case PKCS11_CKM_ECDSA_SHA1:
 	case PKCS11_CKM_ECDSA_SHA224:
 	case PKCS11_CKM_ECDSA_SHA256:
@@ -90,6 +91,7 @@ pkcs2tee_algorithm(uint32_t *tee_id, uint32_t *tee_hash_id,
 		{ PKCS11_CKM_ECDSA_SHA256, 1, TEE_ALG_SHA256 },
 		{ PKCS11_CKM_ECDSA_SHA384, 1, TEE_ALG_SHA384 },
 		{ PKCS11_CKM_ECDSA_SHA512, 1, TEE_ALG_SHA512 },
+		{ PKCS11_CKM_ECDH1_DERIVE, 1, 0 },
 	};
 	size_t n = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
@@ -124,6 +126,9 @@ pkcs2tee_algorithm(uint32_t *tee_id, uint32_t *tee_hash_id,
 	case PKCS11_CKM_ECDSA_SHA384:
 	case PKCS11_CKM_ECDSA_SHA512:
 		rc = pkcs2tee_algo_ecdsa(tee_id, proc_params, obj);
+		break;
+	case PKCS11_CKM_ECDH1_DERIVE:
+		rc = pkcs2tee_algo_ecdh(tee_id, proc_params, obj);
 		break;
 	default:
 		rc = PKCS11_CKR_OK;
@@ -161,12 +166,17 @@ static enum pkcs11_rc pkcs2tee_key_type(uint32_t *tee_type,
 
 	switch (type) {
 	case PKCS11_CKK_EC:
-		assert(function != PKCS11_FUNCTION_DERIVE);
-
-		if (class == PKCS11_CKO_PRIVATE_KEY)
-			*tee_type = TEE_TYPE_ECDSA_KEYPAIR;
-		else
-			*tee_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
+		if (class == PKCS11_CKO_PRIVATE_KEY) {
+			if (function == PKCS11_FUNCTION_DERIVE)
+				*tee_type = TEE_TYPE_ECDH_KEYPAIR;
+			else
+				*tee_type = TEE_TYPE_ECDSA_KEYPAIR;
+		} else {
+			if (function == PKCS11_FUNCTION_DERIVE)
+				*tee_type = TEE_TYPE_ECDH_PUBLIC_KEY;
+			else
+				*tee_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
+		}
 		break;
 	case PKCS11_CKK_RSA:
 		if (class == PKCS11_CKO_PRIVATE_KEY)
@@ -269,6 +279,11 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 			case TEE_TYPE_ECDSA_PUBLIC_KEY:
 			case TEE_TYPE_ECDSA_KEYPAIR:
 				if (function != PKCS11_FUNCTION_DERIVE)
+					goto key_ready;
+				break;
+			case TEE_TYPE_ECDH_PUBLIC_KEY:
+			case TEE_TYPE_ECDH_KEYPAIR:
+				if (function == PKCS11_FUNCTION_DERIVE)
 					goto key_ready;
 				break;
 			default:
@@ -771,6 +786,80 @@ out:
 
 	TEE_Free(hash_buf);
 	TEE_Free(tee_attrs);
+
+	return rc;
+}
+
+enum pkcs11_rc do_asymm_derivation(struct pkcs11_session *session,
+				   struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_ObjectHandle out_handle = TEE_HANDLE_NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Attribute tee_attrs[2] = { };
+	size_t tee_attrs_count = 0;
+	uint32_t key_byte_size = 0;
+	uint32_t key_bit_size = 0;
+	void *a_ptr = NULL;
+	size_t a_size = 0;
+
+	/* Remove default attribute set at template sanitization */
+	if (remove_empty_attribute(head, PKCS11_CKA_VALUE))
+		return PKCS11_CKR_FUNCTION_FAILED;
+
+	rc = get_u32_attribute(*head, PKCS11_CKA_VALUE_LEN, &key_bit_size);
+	if (rc)
+		return rc;
+
+	key_bit_size *= 8;
+	key_byte_size = (key_bit_size + 7) / 8;
+
+	res = TEE_AllocateTransientObject(TEE_TYPE_GENERIC_SECRET,
+					  key_byte_size * 8, &out_handle);
+	if (res) {
+		DMSG("TEE_AllocateTransientObject failed, %#"PRIx32, res);
+		return tee2pkcs_error(res);
+	}
+
+	switch (proc_params->id) {
+	case PKCS11_CKM_ECDH1_DERIVE:
+		rc = pkcs2tee_param_ecdh(proc_params, &a_ptr, &a_size);
+		if (rc)
+			goto out;
+
+		TEE_InitRefAttribute(&tee_attrs[tee_attrs_count],
+				     TEE_ATTR_ECC_PUBLIC_VALUE_X,
+				     a_ptr, a_size / 2);
+		tee_attrs_count++;
+		TEE_InitRefAttribute(&tee_attrs[tee_attrs_count],
+				     TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+				     (char *)a_ptr + a_size / 2,
+				     a_size / 2);
+		tee_attrs_count++;
+		break;
+	default:
+		TEE_Panic(proc_params->id);
+		break;
+	}
+
+	TEE_DeriveKey(session->processing->tee_op_handle, &tee_attrs[0],
+		      tee_attrs_count, out_handle);
+
+	rc = alloc_get_tee_attribute_data(out_handle, TEE_ATTR_SECRET_VALUE,
+					  &a_ptr, &a_size);
+	if (rc)
+		goto out;
+
+	if (a_size * 8 < key_bit_size)
+		rc = PKCS11_CKR_KEY_SIZE_RANGE;
+	else
+		rc = add_attribute(head, PKCS11_CKA_VALUE, a_ptr,
+				   key_byte_size);
+	TEE_Free(a_ptr);
+out:
+	release_active_processing(session);
+	TEE_FreeTransientObject(out_handle);
 
 	return rc;
 }

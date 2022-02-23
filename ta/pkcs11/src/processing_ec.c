@@ -646,3 +646,103 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
 		return 0;
 	}
 }
+
+enum pkcs11_rc pkcs2tee_param_ecdh(struct pkcs11_attribute_head *proc_params,
+				   void **pub_data, size_t *pub_size)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs args = { };
+	uint32_t word = 0;
+	uint8_t byte = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	/* Skip KDF */
+	rc = serialargs_get_u32(&args, &word);
+	if (rc)
+		return rc;
+
+	/* Shared data size, shall be 0 */
+	rc = serialargs_get_u32(&args, &word);
+	if (rc || word)
+		return rc;
+
+	/* Public data size and content */
+	rc = serialargs_get_u32(&args, &word);
+	if (rc || !word)
+		return rc;
+
+	*pub_size = word;
+
+	rc = serialargs_get(&args, &byte, sizeof(uint8_t));
+	if (rc)
+		return rc;
+
+	if (byte != 0x02 && byte != 0x03 && byte != 0x04)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	if (byte != 0x04) {
+		EMSG("DER compressed public key format not yet supported");
+		return PKCS11_CKR_ARGUMENTS_BAD;
+	}
+
+	*pub_size -= sizeof(uint8_t);
+
+	if (*pub_size >= 0x80) {
+		EMSG("DER long definitive form not yet supported");
+		return PKCS11_CKR_ARGUMENTS_BAD;
+	}
+
+	rc = serialargs_get_ptr(&args, pub_data, *pub_size);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc pkcs2tee_algo_ecdh(uint32_t *tee_id,
+				  struct pkcs11_attribute_head *proc_params,
+				  struct pkcs11_object *obj)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	struct serialargs args = { };
+	uint32_t kdf = 0;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &kdf);
+	if (rc)
+		return rc;
+
+	/* Remaining arguments are extracted by pkcs2tee_param_ecdh */
+	if (kdf != PKCS11_CKD_NULL) {
+		DMSG("Only support CKD_NULL key derivation for ECDH");
+		return PKCS11_CKR_MECHANISM_PARAM_INVALID;
+	}
+
+	switch (get_object_key_bit_size(obj)) {
+	case 192:
+		*tee_id = TEE_ALG_ECDH_P192;
+		break;
+	case 224:
+		*tee_id = TEE_ALG_ECDH_P224;
+		break;
+	case 256:
+		*tee_id = TEE_ALG_ECDH_P256;
+		break;
+	case 384:
+		*tee_id = TEE_ALG_ECDH_P384;
+		break;
+	case 521:
+		*tee_id = TEE_ALG_ECDH_P521;
+		break;
+	default:
+		TEE_Panic(0);
+		break;
+	}
+
+	return PKCS11_CKR_OK;
+}
