@@ -4,6 +4,8 @@
  */
 #include <assert.h>
 #include <config.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <io.h>
@@ -1243,58 +1245,40 @@ out:
 	return res;
 }
 
-static int fdt_stm32_cryp(struct stm32_cryp_platdata *pdata)
+static TEE_Result stm32_cryp_probe(const void *fdt, int node,
+				   const void *compt_data __unused)
 {
-	int node = -1;
+	TEE_Result res = TEE_SUCCESS;
 	struct dt_node_info dt_cryp = { };
-	void *fdt = NULL;
-
-	fdt = get_embedded_dt();
-	if (!fdt)
-		return -FDT_ERR_NOTFOUND;
-
-	node = fdt_node_offset_by_compatible(fdt, node, "st,stm32mp1-cryp");
-	if (node < 0) {
-		EMSG("No CRYP entry in DT");
-		return -FDT_ERR_NOTFOUND;
-	}
+	struct rstctrl *rstctrl = NULL;
+	struct clk *clk = NULL;
 
 	_fdt_fill_device_info(fdt, &dt_cryp, node);
 
-	if (dt_cryp.status == DT_STATUS_DISABLED)
-		return -FDT_ERR_NOTFOUND;
-
-	if (dt_cryp.clock == DT_INFO_INVALID_CLOCK ||
-	    dt_cryp.reg == DT_INFO_INVALID_REG)
-		return -FDT_ERR_BADVALUE;
-
-	pdata->base.pa = dt_cryp.reg;
-	io_pa_or_va_secure(&pdata->base, 1);
-
-	pdata->clock_id = (unsigned long)dt_cryp.clock;
-
-	if (rstctrl_dt_get_by_index(fdt, node, 0, &pdata->reset) != TEE_SUCCESS)
+	if (dt_cryp.reg == DT_INFO_INVALID_REG ||
+	    dt_cryp.reg_size == DT_INFO_INVALID_REG_SIZE)
 		panic();
 
-	return 0;
-}
+	res = clk_dt_get_by_index(fdt, node, 0, &clk);
+	if (res)
+		return res;
 
-static TEE_Result stm32_cryp_driver_init(void)
-{
-	TEE_Result res = TEE_SUCCESS;
+	res = rstctrl_dt_get_by_index(fdt, node, 0, &rstctrl);
+	if (res)
+		return res;
 
-	switch (fdt_stm32_cryp(&cryp_pdata)) {
-	case 0:
-		break;
-	case -FDT_ERR_NOTFOUND:
-		return TEE_SUCCESS;
-	default:
+	cryp_pdata.clock = clk;
+	cryp_pdata.reset = rstctrl;
+	cryp_pdata.base.pa = dt_cryp.reg;
+
+	io_pa_or_va_secure(&cryp_pdata.base, dt_cryp.reg_size);
+	if (!cryp_pdata.base.va)
 		panic();
-	}
 
 	stm32mp_register_secure_periph_iomem(cryp_pdata.base.pa);
 
-	stm32_clock_enable(cryp_pdata.clock_id);
+	if (clk_enable(cryp_pdata.clock))
+		panic();
 
 	if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
@@ -1321,4 +1305,13 @@ static TEE_Result stm32_cryp_driver_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(stm32_cryp_driver_init);
+static const struct dt_device_match stm32_cryp_match_table[] = {
+	{ .compatible = "st,stm32mp1-cryp" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_cryp_dt_driver) = {
+	.name = "stm32-cryp",
+	.match_table = stm32_cryp_match_table,
+	.probe = stm32_cryp_probe,
+};
