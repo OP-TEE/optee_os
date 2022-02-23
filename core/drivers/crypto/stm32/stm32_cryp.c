@@ -198,7 +198,7 @@ static void clrsetbits(uint32_t *v, uint32_t mask, uint32_t bits)
 static bool algo_mode_needs_iv(uint32_t cr)
 {
 	return !IS_ALGOMODE(cr, TDES_ECB) && !IS_ALGOMODE(cr, DES_ECB) &&
-		!IS_ALGOMODE(cr, AES_ECB);
+	       !IS_ALGOMODE(cr, AES_ECB);
 }
 
 static bool algo_mode_is_ecb_cbc(uint32_t cr)
@@ -209,7 +209,7 @@ static bool algo_mode_is_ecb_cbc(uint32_t cr)
 static bool algo_mode_is_aes(uint32_t cr)
 {
 	return ((cr & _CRYP_CR_ALGOMODE_MSK) >> _CRYP_CR_ALGOMODE_OFF) >=
-		_CRYP_CR_ALGOMODE_AES_ECB;
+	       _CRYP_CR_ALGOMODE_AES_ECB;
 }
 
 static bool is_decrypt(uint32_t cr)
@@ -236,7 +236,7 @@ static TEE_Result wait_sr_bits(vaddr_t base, uint32_t bits)
 		if (timeout_elapsed(timeout_ref))
 			break;
 
-	if  ((io_read32(base + _CRYP_SR) & bits) != bits)
+	if ((io_read32(base + _CRYP_SR) & bits) != bits)
 		return TEE_ERROR_BUSY;
 
 	return TEE_SUCCESS;
@@ -895,7 +895,7 @@ TEE_Result stm32_cryp_update_load(struct stm32_cryp_context *ctx,
 	case _CRYP_CR_GCM_CCMPH_INIT:
 		res = do_from_init_to_phase(ctx, _CRYP_CR_GCM_CCMPH_PAYLOAD);
 		break;
-	case  _CRYP_CR_GCM_CCMPH_HEADER:
+	case _CRYP_CR_GCM_CCMPH_HEADER:
 		res = do_from_header_to_phase(ctx, _CRYP_CR_GCM_CCMPH_PAYLOAD);
 		break;
 	case _CRYP_CR_GCM_CCMPH_PAYLOAD:
@@ -959,7 +959,7 @@ TEE_Result stm32_cryp_update_load(struct stm32_cryp_context *ctx,
 	 * We saved context,
 	 * Complete block with 0 and send to CRYP to get {en,de}crypted data
 	 * Store data to resend as last block in final()
-	 *           or to complete next update_load() to get correct tag.
+	 * or to complete next update_load() to get correct tag.
 	 */
 	if (i < data_size) {
 		uint32_t block_out[MAX_BLOCK_NB_U32] = { 0 };
@@ -1015,14 +1015,14 @@ TEE_Result stm32_cryp_final(struct stm32_cryp_context *ctx, uint8_t *tag,
 
 	mutex_lock(ctx->lock);
 
-	previous_phase = (ctx->cr &  _CRYP_CR_GCM_CCMPH_MSK) >>
+	previous_phase = (ctx->cr & _CRYP_CR_GCM_CCMPH_MSK) >>
 			 _CRYP_CR_GCM_CCMPH_OFF;
 
 	switch (previous_phase) {
 	case _CRYP_CR_GCM_CCMPH_INIT:
 		res = do_from_init_to_phase(ctx, _CRYP_CR_GCM_CCMPH_FINAL);
 		break;
-	case  _CRYP_CR_GCM_CCMPH_HEADER:
+	case _CRYP_CR_GCM_CCMPH_HEADER:
 		res = do_from_header_to_phase(ctx, _CRYP_CR_GCM_CCMPH_FINAL);
 		break;
 	case _CRYP_CR_GCM_CCMPH_PAYLOAD:
