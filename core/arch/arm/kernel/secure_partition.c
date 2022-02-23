@@ -134,22 +134,55 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
-static void sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args)
+static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
+			       const void * const fdt, vaddr_t *va,
+			       size_t *num_pgs)
 {
 	struct sp_ffa_init_info *info = NULL;
+	int nvp_count = 1;
+	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
+	size_t info_size = sizeof(*info) + nvp_size;
+	size_t fdt_size = fdt_totalsize(fdt);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
+	struct fobj *fo = NULL;
+	struct mobj *m = NULL;
+	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
 
-	/*
-	 * When starting the SP for the first time a init_info struct is passed.
-	 * Store the struct on the stack and store the address in x0
-	 */
-	ctx->uctx.stack_ptr -= ROUNDUP(sizeof(*info), STACK_ALIGNMENT);
+	*num_pgs = ROUNDUP(fdt_size + info_size, SMALL_PAGE_SIZE) /
+		   SMALL_PAGE_SIZE;
 
-	info = (struct sp_ffa_init_info *)ctx->uctx.stack_ptr;
+	fo = fobj_sec_mem_alloc(*num_pgs);
+	m = mobj_with_fobj_alloc(fo, NULL);
+
+	fobj_put(fo);
+	if (!m)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = vm_map(&ctx->uctx, va, fdt_size + info_size,
+		     perm, 0, m, 0);
+	mobj_put(m);
+	if (res)
+		return res;
+
+	info = (struct sp_ffa_init_info *)*va;
 
 	/* magic field is 4 bytes, we don't copy /0 byte. */
 	memcpy(&info->magic, "FF-A", 4);
-	info->count = 0;
+	info->count = nvp_count;
 	args->a0 = (vaddr_t)info;
+
+	/*
+	 * Store the fdt after the boot_info and store the pointer in the
+	 * first element.
+	 */
+	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
+	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
+	info->nvp[0].value = *va + info_size;
+	info->nvp[0].size = fdt_size;
+	memcpy((void *)info->nvp[0].value, fdt, fdt_size);
+
+	return TEE_SUCCESS;
 }
 
 static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
@@ -344,19 +377,17 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 
 static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
 {
-	TEE_Result res = TEE_SUCCESS;
 	int len = 0;
 	const fdt32_t *prop = NULL;
 	int i = 0;
 	const struct fdt_property *description = NULL;
 	int description_name_len = 0;
 	uint32_t uuid_array[4] = { 0 };
-	TEE_UUID fdt_uuid = {};
+	TEE_UUID fdt_uuid = { };
 
-	res = fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0");
-	if (res) {
+	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
 		EMSG("Failed loading SP, manifest not found");
-		return res;
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	description = fdt_get_property(fdt, 0, "description",
@@ -387,6 +418,9 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 	struct thread_smc_args args = { };
+	vaddr_t va = 0;
+	size_t num_pgs = 0;
+	struct sp_ctx *ctx = NULL;
 
 	res = handle_fdt(fdt, uuid);
 
@@ -399,16 +433,24 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	if (res)
 		return res;
 
+	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
-	sp_init_info(to_sp_ctx(sess->ts_sess.ctx), &args);
+	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs);
 	ts_pop_current_session();
+	if (res)
+		return res;
 
 	if (sp_enter(&args, sess))
 		return FFA_ABORTED;
 
 	spmc_sp_msg_handler(&args, sess);
 
-	return TEE_SUCCESS;
+	/* Free the boot info page from the SP memory.*/
+	ts_push_current_session(&sess->ts_sess);
+	res = vm_unmap(&ctx->uctx, va, num_pgs);
+	ts_pop_current_session();
+
+	return res;
 }
 
 TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
