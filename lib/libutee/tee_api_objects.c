@@ -400,11 +400,6 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 	TEE_Result res;
 	uint32_t obj;
 
-	if (!objectID) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto exit;
-	}
-
 	__utee_check_out_annotation(object, sizeof(*object));
 
 	res = _utee_storage_obj_open(storageID, objectID, objectIDLen, flags,
@@ -412,7 +407,6 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle)(uintptr_t)obj;
 
-exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_ACCESS_CONFLICT &&
@@ -437,11 +431,6 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 	TEE_Result res;
 	uint32_t obj;
 
-	if (!objectID) {
-		res = TEE_ERROR_ITEM_NOT_FOUND;
-		goto exit;
-	}
-
 	__utee_check_out_annotation(object, sizeof(*object));
 
 	res = _utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
@@ -451,7 +440,6 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 	if (res == TEE_SUCCESS)
 		*object = (TEE_ObjectHandle)(uintptr_t)obj;
 
-exit:
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_ITEM_NOT_FOUND &&
 	    res != TEE_ERROR_ACCESS_CONFLICT &&
