@@ -4,6 +4,7 @@
  */
 #include <assert.h>
 #include <config.h>
+#include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/boot.h>
@@ -338,8 +339,10 @@ static TEE_Result __must_check read_block(struct stm32_cryp_context *ctx,
 static void cryp_end(struct stm32_cryp_context *ctx, TEE_Result prev_error)
 {
 	if (prev_error) {
-		stm32_reset_assert(cryp_pdata.reset_id, TIMEOUT_US_1MS);
-		stm32_reset_deassert(cryp_pdata.reset_id, TIMEOUT_US_1MS);
+		if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+			panic();
+		if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+			panic();
 	}
 
 	/* Disable the CRYP peripheral */
@@ -1262,7 +1265,6 @@ static int fdt_stm32_cryp(struct stm32_cryp_platdata *pdata)
 		return -FDT_ERR_NOTFOUND;
 
 	if (dt_cryp.clock == DT_INFO_INVALID_CLOCK ||
-	    dt_cryp.reset == DT_INFO_INVALID_RESET ||
 	    dt_cryp.reg == DT_INFO_INVALID_REG)
 		return -FDT_ERR_BADVALUE;
 
@@ -1270,7 +1272,9 @@ static int fdt_stm32_cryp(struct stm32_cryp_platdata *pdata)
 	io_pa_or_va_secure(&pdata->base, 1);
 
 	pdata->clock_id = (unsigned long)dt_cryp.clock;
-	pdata->reset_id = (unsigned int)dt_cryp.reset;
+
+	if (rstctrl_dt_get_by_index(fdt, node, 0, &pdata->reset) != TEE_SUCCESS)
+		panic();
 
 	return 0;
 }
@@ -1292,10 +1296,10 @@ static TEE_Result stm32_cryp_driver_init(void)
 
 	stm32_clock_enable(cryp_pdata.clock_id);
 
-	if (stm32_reset_assert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
 
-	if (stm32_reset_deassert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
 
 	if (IS_ENABLED(CFG_CRYPTO_DRV_AUTHENC)) {
