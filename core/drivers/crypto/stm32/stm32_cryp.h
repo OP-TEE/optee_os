@@ -6,6 +6,7 @@
 #ifndef STM32_CRYP_H
 #define STM32_CRYP_H
 
+#include <drivers/rstctrl.h>
 #include <kernel/mutex.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
@@ -15,7 +16,7 @@
 struct stm32_cryp_platdata {
 	struct io_pa_va base;
 	unsigned long clock_id;
-	unsigned int reset_id;
+	struct rstctrl *reset;
 };
 
 enum stm32_cryp_algo_mode {
