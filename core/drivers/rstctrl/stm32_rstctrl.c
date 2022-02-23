@@ -170,6 +170,14 @@ static struct stm32_rstline *find_or_allocate_rstline(unsigned int binding_id)
 	return stm32_rstline;
 }
 
+struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id)
+{
+	struct stm32_rstline *rstline = find_or_allocate_rstline(binding_id);
+
+	assert(rstline);
+	return &rstline->rstctrl;
+}
+
 #ifdef CFG_EMBED_DTB
 static struct rstctrl *stm32_rstctrl_get_dev(struct dt_driver_phandle_args *arg,
 					     void *priv_data __unused,
@@ -223,50 +231,3 @@ DEFINE_DT_DRIVER(stm32_rstctrl_dt_driver) = {
 	.probe = stm32_rstctrl_provider_probe,
 };
 #endif /*CFG_EMBED_DTB*/
-
-/* stm32mp1 legacy reset control API function */
-struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id)
-{
-	struct stm32_rstline *rstline = find_or_allocate_rstline(binding_id);
-
-	assert(rstline);
-	return &rstline->rstctrl;
-}
-
-TEE_Result stm32_reset_assert(unsigned int id, unsigned int to_us)
-{
-	struct rstctrl *rstctrl = stm32mp_rcc_reset_id_to_rstctrl(id);
-
-	if (!rstctrl)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	return reset_assert(rstctrl, to_us);
-}
-
-TEE_Result stm32_reset_deassert(unsigned int id, unsigned int to_us)
-{
-	struct rstctrl *rstctrl = stm32mp_rcc_reset_id_to_rstctrl(id);
-
-	if (!rstctrl)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	return reset_deassert(rstctrl, to_us);
-}
-
-void stm32_reset_assert_deassert_mcu(bool assert_not_deassert)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct rstctrl *rstctrl = NULL;
-
-	rstctrl = stm32mp_rcc_reset_id_to_rstctrl(MCU_HOLD_BOOT_R);
-	if (!rstctrl)
-		panic();
-
-	if (assert_not_deassert)
-		res = reset_assert(rstctrl, RSTCTRL_NO_TIMEOUT);
-	else
-		res = reset_deassert(rstctrl, RSTCTRL_NO_TIMEOUT);
-
-	if (res)
-		panic();
-}

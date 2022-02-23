@@ -66,9 +66,6 @@ static inline void stm32mp_register_online_cpu(void)
 uint32_t may_spin_lock(unsigned int *lock);
 void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
 
-/* Helper from platform RCC drivers */
-struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
-
 /*
  * Util for clock gating and to get clock rate for stm32 and platform drivers
  * @id: Target clock ID, ID used in clock DT bindings
@@ -96,29 +93,11 @@ static inline bool stm32mp_nsec_can_access_pmic_regu(const char *name __unused)
 }
 #endif
 
-/*
- * Util for reset signal assertion/desassertion for stm32 and platform drivers
- * @id: Target peripheral ID, ID used in reset DT bindings
- * @to_us: Timeout out in microsecond, or 0 if not waiting signal state
- */
-TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
-TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
-
-/* Specific reset to manage the MCU hold boot */
-void stm32_reset_assert_deassert_mcu(bool assert_not_deassert);
-
-static inline void stm32_reset_set(unsigned int id)
-{
-	(void)stm32_reset_assert(id, 0);
-}
-
-static inline void stm32_reset_release(unsigned int id)
-{
-	(void)stm32_reset_deassert(id, 0);
-}
-
 /* Return true if and only if @reset_id relates to a non-secure peripheral */
 bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
+
+/* Return rstctrl instance related to RCC reset controller DT binding ID */
+struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
 /*
  * Structure and API function for BSEC driver to get some platform data.
