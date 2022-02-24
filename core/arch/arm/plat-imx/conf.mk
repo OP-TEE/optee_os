@@ -216,6 +216,7 @@ CFG_DRAM_BASE ?= 0x80000000
 CFG_TEE_CORE_NB_CORE ?= 2
 $(call force,CFG_NXP_SNVS,n)
 $(call force,CFG_IMX_OCOTP,n)
+CFG_IMX_MU ?= y
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx93-flavorlist)))
 $(call force,CFG_MX93,y)
 $(call force,CFG_ARM64_core,y)
@@ -506,6 +507,7 @@ CFG_NXP_CAAM ?= n
 ifeq ($(CFG_NXP_CAAM),y)
 ifeq ($(filter y, $(CFG_MX8QM) $(CFG_MX8QX) $(CFG_MX8DXL)), y)
 CFG_IMX_SC ?= y
+CFG_IMX_MU ?= y
 endif
 
 # As NXP CAAM Driver is enabled, disable the small local CAAM driver
