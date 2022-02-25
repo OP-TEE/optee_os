@@ -839,3 +839,6 @@ CFG_DRIVERS_RTC ?= n
 
 # Enable PTA for RTC access from non-secure world
 CFG_RTC_PTA ?= n
+
+# Enable TPM2
+CFG_DRIVERS_TPM2 ?= n

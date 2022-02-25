@@ -59,3 +59,4 @@ subdirs-y += imx
 subdirs-y += pm
 subdirs-y += wdt
 subdirs-y += rtc
+subdirs-y += tpm2
