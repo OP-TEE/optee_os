@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2018, Linaro Limited
+ * Copyright (c) 2018-2022, Linaro Limited
  */
 
 #include <arm64.h>
 #include <kernel/spinlock.h>
 #include <kernel/timer.h>
+#include <tee_api_types.h>
 
 static unsigned int timer_lock = SPINLOCK_UNLOCK;
 static bool timer_running;
 
-void generic_timer_start(uint32_t time_ms)
+TEE_Result generic_timer_start(uint32_t time_ms)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	uint32_t timer_ticks;
 
 	cpu_spin_lock(&timer_lock);
 
-	if (timer_running == true)
+	if (timer_running) {
+		res = TEE_ERROR_BUSY;
 		goto exit;
+	}
 
 	/* The timer will fire time_ms from now */
 	timer_ticks = (read_cntfrq() * time_ms) / 1000;
@@ -29,12 +32,16 @@ void generic_timer_start(uint32_t time_ms)
 
 	timer_running = true;
 
+	res = TEE_SUCCESS;
+
 exit:
 	cpu_spin_unlock(&timer_lock);
 	thread_set_exceptions(exceptions);
+
+	return res;
 }
 
-void generic_timer_stop(void)
+TEE_Result generic_timer_stop(void)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -47,9 +54,11 @@ void generic_timer_stop(void)
 
 	cpu_spin_unlock(&timer_lock);
 	thread_set_exceptions(exceptions);
+
+	return TEE_SUCCESS;
 }
 
-void generic_timer_handler(uint32_t time_ms)
+TEE_Result generic_timer_handler(uint32_t time_ms)
 {
 	uint32_t timer_ticks;
 
@@ -65,4 +74,6 @@ void generic_timer_handler(uint32_t time_ms)
 
 	/* Enable the secure physical timer */
 	write_cntps_ctl(1);
+
+	return TEE_SUCCESS;
 }
