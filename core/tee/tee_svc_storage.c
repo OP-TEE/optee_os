@@ -192,10 +192,12 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto exit;
 	}
 
-	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-				     (uaddr_t)object_id, object_id_len);
-	if (res != TEE_SUCCESS)
-		goto err;
+	if (object_id_len) {
+		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+					     (uaddr_t)object_id, object_id_len);
+		if (res != TEE_SUCCESS)
+			goto err;
+	}
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, flags, TEE_POBJ_USAGE_OPEN, fops,
@@ -333,10 +335,12 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-				     (uaddr_t)object_id, object_id_len);
-	if (res != TEE_SUCCESS)
-		goto err;
+	if (object_id_len) {
+		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+					     (uaddr_t)object_id, object_id_len);
+		if (res != TEE_SUCCESS)
+			goto err;
+	}
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
 			   object_id_len, flags, TEE_POBJ_USAGE_CREATE,
@@ -488,10 +492,12 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		goto exit;
 	}
 
-	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-				     (uaddr_t)object_id, object_id_len);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	if (object_id_len) {
+		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
+					     (uaddr_t)object_id, object_id_len);
+		if (res != TEE_SUCCESS)
+			goto exit;
+	}
 
 	/* reserve dest name */
 	fops = o->pobj->fops;
