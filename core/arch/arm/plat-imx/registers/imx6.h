@@ -44,6 +44,7 @@
 #define ANATOP_BASE			0x020C8000
 #define ANATOP_SIZE			0x1000
 #define SNVS_BASE			0x020CC000
+#define SNVS_SIZE			0x4000
 #define GPC_BASE			0x020DC000
 #define GPC_SIZE			0x4000
 #define WDOG_BASE			0x020BC000
