@@ -127,4 +127,11 @@ static inline void mattr_perm_to_str(char *str, size_t size, uint32_t attr)
 	str[6] = '\0';
 }
 
+static inline bool mattr_is_cached(uint32_t mattr)
+{
+	uint32_t mem_type = (mattr >> TEE_MATTR_MEM_TYPE_SHIFT) &
+			    TEE_MATTR_MEM_TYPE_MASK;
+
+	return mem_type == TEE_MATTR_MEM_TYPE_CACHED;
+}
 #endif

@@ -697,8 +697,7 @@ static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
 	else
 		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] %s-%s-%s-%s",
 				str, mm->va, mm->va + mm->size,
-				mm->attr & (TEE_MATTR_CACHE_CACHED <<
-				TEE_MATTR_MEM_TYPE_SHIFT) ? "MEM" : "DEV",
+				mattr_is_cached(mm->attr) ? "MEM" : "DEV",
 				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
 				mm->attr & TEE_MATTR_PX ? "X" : "XN",
 				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
