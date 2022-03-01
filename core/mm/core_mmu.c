@@ -747,8 +747,7 @@ static void dump_xlat_table(vaddr_t va, unsigned int level)
 				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
 					" PA:0x%010" PRIxPA " %s-%s-%s-%s",
 					level * 2, "", level, va, pa,
-					attr & (TEE_MATTR_MEM_TYPE_CACHED <<
-					TEE_MATTR_MEM_TYPE_SHIFT) ? "MEM" :
+					mattr_is_cached(attr) ? "MEM" :
 					"DEV",
 					attr & TEE_MATTR_PW ? "RW" : "RO",
 					attr & TEE_MATTR_PX ? "X " : "XN",
@@ -1294,8 +1293,7 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		map = find_map_by_pa(pbuf);
 		if (!map || !pbuf_inside_map_area(pbuf, len, map))
 			return false;
-		return map->attr >> TEE_MATTR_MEM_TYPE_SHIFT ==
-		       TEE_MATTR_MEM_TYPE_CACHED;
+		return mattr_is_cached(map->attr);
 	default:
 		return false;
 	}
