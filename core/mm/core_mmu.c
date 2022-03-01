@@ -1249,6 +1249,7 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
 
 	switch ((mattr >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK) {
 	case TEE_MATTR_MEM_TYPE_DEV:
+	case TEE_MATTR_MEM_TYPE_STRONGLY_O:
 	case TEE_MATTR_MEM_TYPE_CACHED:
 		return true;
 	default:
