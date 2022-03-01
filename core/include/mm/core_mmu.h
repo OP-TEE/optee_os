@@ -535,7 +535,7 @@ enum teecore_memtypes core_mmu_get_type_by_pa(paddr_t pa);
 static inline bool core_mmu_is_shm_cached(void)
 {
 	return core_mmu_type_to_attr(MEM_AREA_NSEC_SHM) &
-		(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT);
+		(TEE_MATTR_MEM_TYPE_CACHED << TEE_MATTR_MEM_TYPE_SHIFT);
 }
 
 TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,

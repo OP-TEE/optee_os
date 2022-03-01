@@ -304,16 +304,17 @@ static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 
 static uint32_t texcb_to_mattr(uint32_t texcb)
 {
-	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_CACHE_NONCACHE);
-	COMPILE_TIME_ASSERT(ATTR_NORMAL_CACHED_INDEX == TEE_MATTR_CACHE_CACHED);
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
+	COMPILE_TIME_ASSERT(ATTR_NORMAL_CACHED_INDEX ==
+			    TEE_MATTR_MEM_TYPE_CACHED);
 
-	return texcb << TEE_MATTR_CACHE_SHIFT;
+	return texcb << TEE_MATTR_MEM_TYPE_SHIFT;
 }
 
 static uint32_t mattr_to_texcb(uint32_t attr)
 {
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
-	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
+	return (attr >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK;
 }
 
 
@@ -697,7 +698,7 @@ static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
 		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] %s-%s-%s-%s",
 				str, mm->va, mm->va + mm->size,
 				mm->attr & (TEE_MATTR_CACHE_CACHED <<
-					TEE_MATTR_CACHE_SHIFT) ? "MEM" : "DEV",
+				TEE_MATTR_MEM_TYPE_SHIFT) ? "MEM" : "DEV",
 				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
 				mm->attr & TEE_MATTR_PX ? "X" : "XN",
 				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");

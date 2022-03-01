@@ -630,7 +630,7 @@ static TEE_Result mobj_with_fobj_get_cattr(struct mobj *mobj __unused,
 		return TEE_ERROR_GENERIC;
 
 	/* All fobjs are mapped as normal cached memory */
-	*cattr = TEE_MATTR_CACHE_CACHED;
+	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
@@ -693,14 +693,15 @@ static TEE_Result mobj_init(void)
 {
 	mobj_sec_ddr = mobj_phys_alloc(tee_mm_sec_ddr.lo,
 				       tee_mm_sec_ddr.size,
-				       TEE_MATTR_CACHE_CACHED, CORE_MEM_TA_RAM);
+				       TEE_MATTR_MEM_TYPE_CACHED,
+				       CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
 		mobj_tee_ram_rx = mobj_phys_init(0,
 						 VCORE_UNPG_RX_SZ,
-						 TEE_MATTR_CACHE_CACHED,
+						 TEE_MATTR_MEM_TYPE_CACHED,
 						 CORE_MEM_TEE_RAM,
 						 MEM_AREA_TEE_RAM_RX);
 		if (!mobj_tee_ram_rx)
@@ -708,7 +709,7 @@ static TEE_Result mobj_init(void)
 
 		mobj_tee_ram_rw = mobj_phys_init(0,
 						 VCORE_UNPG_RW_SZ,
-						 TEE_MATTR_CACHE_CACHED,
+						 TEE_MATTR_MEM_TYPE_CACHED,
 						 CORE_MEM_TEE_RAM,
 						 MEM_AREA_TEE_RAM_RW_DATA);
 		if (!mobj_tee_ram_rw)
@@ -718,7 +719,7 @@ static TEE_Result mobj_init(void)
 						 VCORE_UNPG_RW_PA +
 						 VCORE_UNPG_RW_SZ -
 						 TEE_RAM_START,
-						 TEE_MATTR_CACHE_CACHED,
+						 TEE_MATTR_MEM_TYPE_CACHED,
 						 CORE_MEM_TEE_RAM,
 						 MEM_AREA_TEE_RAM_RW_DATA);
 		if (!mobj_tee_ram_rw)

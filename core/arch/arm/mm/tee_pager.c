@@ -565,9 +565,9 @@ static void *pager_add_alias_page(paddr_t pa)
 	unsigned idx;
 	struct core_mmu_table_info *ti;
 	/* Alias pages mapped without write permission: runtime will care */
-	uint32_t attr = TEE_MATTR_VALID_BLOCK |
-			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
-			TEE_MATTR_SECURE | TEE_MATTR_PR;
+	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			TEE_MATTR_PR | (TEE_MATTR_MEM_TYPE_CACHED <<
+					TEE_MATTR_MEM_TYPE_SHIFT);
 
 	DMSG("0x%" PRIxPA, pa);
 
@@ -694,7 +694,7 @@ static struct vm_paged_region *find_uta_region(vaddr_t va __unused)
 static uint32_t get_region_mattr(uint32_t reg_flags)
 {
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
-			TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
+			TEE_MATTR_MEM_TYPE_CACHED << TEE_MATTR_MEM_TYPE_SHIFT |
 			(reg_flags & (TEE_MATTR_PRWX | TEE_MATTR_URWX));
 
 	return attr;

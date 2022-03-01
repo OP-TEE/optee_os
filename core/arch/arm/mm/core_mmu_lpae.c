@@ -329,12 +329,12 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 	if (desc & UPPER_ATTRS(PXN))
 		a &= ~TEE_MATTR_PX;
 
-	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_CACHE_NONCACHE);
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
 	COMPILE_TIME_ASSERT(ATTR_IWBWA_OWBWA_NTR_INDEX ==
-			    TEE_MATTR_CACHE_CACHED);
+			    TEE_MATTR_MEM_TYPE_CACHED);
 
 	a |= ((desc & LOWER_ATTRS(ATTR_INDEX_MASK)) >> LOWER_ATTRS_SHIFT) <<
-	     TEE_MATTR_CACHE_SHIFT;
+	     TEE_MATTR_MEM_TYPE_SHIFT;
 
 	if (!(desc & LOWER_ATTRS(NON_GLOBAL)))
 		a |= TEE_MATTR_GLOBAL;
@@ -391,11 +391,11 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 		desc |= GP;
 
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
-	switch ((a >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK) {
-	case TEE_MATTR_CACHE_NONCACHE:
+	switch ((a >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK) {
+	case TEE_MATTR_MEM_TYPE_DEV:
 		desc |= LOWER_ATTRS(ATTR_DEVICE_INDEX | OSH);
 		break;
-	case TEE_MATTR_CACHE_CACHED:
+	case TEE_MATTR_MEM_TYPE_CACHED:
 		desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
 		break;
 	default:

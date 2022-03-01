@@ -506,7 +506,7 @@ static TEE_Result ffa_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
 	if (!cattr)
 		return TEE_ERROR_GENERIC;
 
-	*cattr = TEE_MATTR_CACHE_CACHED;
+	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
