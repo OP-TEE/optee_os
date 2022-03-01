@@ -27,7 +27,7 @@
  */
 
 /*
- * Copyright (c) 2014, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014, 2022, ARM Limited and Contributors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -118,11 +118,13 @@
 #define LOWER_ATTRS_SHIFT		2
 #define LOWER_ATTRS(x)			(((x) & 0xfff) << LOWER_ATTRS_SHIFT)
 
-#define ATTR_DEVICE_INDEX		0x0
+#define ATTR_DEVICE_nGnRE_INDEX		0x0
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x1
+#define ATTR_DEVICE_nGnRnE_INDEX	0x2
 #define ATTR_INDEX_MASK			0x7
 
-#define ATTR_DEVICE			(0x4)
+#define ATTR_DEVICE_nGnRnE		(0x0)
+#define ATTR_DEVICE_nGnRE		(0x4)
 #define ATTR_IWBWA_OWBWA_NTR		(0xff)
 
 #define MAIR_ATTR_SET(attr, index)	(((uint64_t)attr) << ((index) << 3))
@@ -329,7 +331,9 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 	if (desc & UPPER_ATTRS(PXN))
 		a &= ~TEE_MATTR_PX;
 
-	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_nGnRnE_INDEX ==
+			    TEE_MATTR_MEM_TYPE_STRONGLY_O);
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_nGnRE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
 	COMPILE_TIME_ASSERT(ATTR_IWBWA_OWBWA_NTR_INDEX ==
 			    TEE_MATTR_MEM_TYPE_CACHED);
 
@@ -392,8 +396,11 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
 	switch ((a >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK) {
+	case TEE_MATTR_MEM_TYPE_STRONGLY_O:
+		desc |= LOWER_ATTRS(ATTR_DEVICE_nGnRnE_INDEX | OSH);
+		break;
 	case TEE_MATTR_MEM_TYPE_DEV:
-		desc |= LOWER_ATTRS(ATTR_DEVICE_INDEX | OSH);
+		desc |= LOWER_ATTRS(ATTR_DEVICE_nGnRE_INDEX | OSH);
 		break;
 	case TEE_MATTR_MEM_TYPE_CACHED:
 		desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
@@ -823,8 +830,9 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	cfg->ttbr0_base = virt_to_phys(base_xlation_table[0][0]);
 	cfg->ttbr0_core_offset = sizeof(base_xlation_table[0][0]);
 
-	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
+	mair  = MAIR_ATTR_SET(ATTR_DEVICE_nGnRE, ATTR_DEVICE_nGnRE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
+	mair |= MAIR_ATTR_SET(ATTR_DEVICE_nGnRnE, ATTR_DEVICE_nGnRnE_INDEX);
 	cfg->mair0 = mair;
 
 	ttbcr = TTBCR_EAE;
@@ -884,8 +892,9 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	cfg->ttbr0_el1_base = virt_to_phys(base_xlation_table[0][0]);
 	cfg->ttbr0_core_offset = sizeof(base_xlation_table[0][0]);
 
-	mair  = MAIR_ATTR_SET(ATTR_DEVICE, ATTR_DEVICE_INDEX);
+	mair  = MAIR_ATTR_SET(ATTR_DEVICE_nGnRE, ATTR_DEVICE_nGnRE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
+	mair |= MAIR_ATTR_SET(ATTR_DEVICE_nGnRnE, ATTR_DEVICE_nGnRnE_INDEX);
 	cfg->mair_el1 = mair;
 
 	tcr = TCR_RES1;

@@ -34,8 +34,20 @@
 #define TEE_MATTR_MEM_TYPE_MASK	U(0x7)
 #define TEE_MATTR_MEM_TYPE_SHIFT	U(12)
 /* These are shifted TEE_MATTR_MEM_TYPE_SHIFT */
-#define TEE_MATTR_MEM_TYPE_DEV	        U(0)
+
+/*
+ * Device-nGnRnE most restrictive (equivalent to Strongly Ordered memory
+ * in the ARMv7 architecture).
+ * https://developer.arm.com/documentation/den0024/a/Memory-Ordering/Memory-types/Device-memory
+ *
+ * If an ARMv7 architecture operating system runs on a Cortex-A53 processor,
+ * the Device memory type matches the nGnRE encoding and the Strongly-Ordered
+ * memory type matches the nGnRnE memory type.
+ * https://developer.arm.com/documentation/den0024/a/Memory-Ordering/Memory-types/Device-memory
+ */
+#define TEE_MATTR_MEM_TYPE_DEV	        U(0) /* Device-nGnRE */
 #define TEE_MATTR_MEM_TYPE_CACHED	U(1)
+#define TEE_MATTR_MEM_TYPE_STRONGLY_O	U(2) /* Device-nGnRnE  */
 
 #define TEE_MATTR_GUARDED		BIT(15)
 
