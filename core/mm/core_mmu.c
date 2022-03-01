@@ -469,7 +469,7 @@ struct mobj **core_sdp_mem_create_mobjs(void)
 	for (mem = phys_sdp_mem_begin, mobj = mobj_base;
 	     mem < phys_sdp_mem_end; mem++, mobj++) {
 		*mobj = mobj_phys_alloc(mem->addr, mem->size,
-					TEE_MATTR_CACHE_CACHED,
+					TEE_MATTR_MEM_TYPE_CACHED,
 					CORE_MEM_SDP_MEM);
 		if (!*mobj)
 			panic("can't create SDP physical memory object");
@@ -615,9 +615,10 @@ static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK;
-	const uint32_t cached = TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT;
-	const uint32_t noncache = TEE_MATTR_CACHE_NONCACHE <<
-				  TEE_MATTR_CACHE_SHIFT;
+	const uint32_t cached = TEE_MATTR_MEM_TYPE_CACHED <<
+				TEE_MATTR_MEM_TYPE_SHIFT;
+	const uint32_t noncache = TEE_MATTR_MEM_TYPE_DEV <<
+				  TEE_MATTR_MEM_TYPE_SHIFT;
 
 	switch (t) {
 	case MEM_AREA_TEE_RAM:
@@ -746,8 +747,9 @@ static void dump_xlat_table(vaddr_t va, unsigned int level)
 				DMSG_RAW("%*s [LVL%d] VA:0x%010" PRIxVA
 					" PA:0x%010" PRIxPA " %s-%s-%s-%s",
 					level * 2, "", level, va, pa,
-					attr & (TEE_MATTR_CACHE_CACHED <<
-					TEE_MATTR_CACHE_SHIFT) ? "MEM" : "DEV",
+					attr & (TEE_MATTR_MEM_TYPE_CACHED <<
+					TEE_MATTR_MEM_TYPE_SHIFT) ? "MEM" :
+					"DEV",
 					attr & TEE_MATTR_PW ? "RW" : "RO",
 					attr & TEE_MATTR_PX ? "X " : "XN",
 					security_bit);
@@ -1246,9 +1248,9 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
 	 * core_mmu_v7.c:mattr_to_texcb
 	 */
 
-	switch ((mattr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK) {
-	case TEE_MATTR_CACHE_NONCACHE:
-	case TEE_MATTR_CACHE_CACHED:
+	switch ((mattr >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK) {
+	case TEE_MATTR_MEM_TYPE_DEV:
+	case TEE_MATTR_MEM_TYPE_CACHED:
 		return true;
 	default:
 		return false;
@@ -1292,8 +1294,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		map = find_map_by_pa(pbuf);
 		if (!map || !pbuf_inside_map_area(pbuf, len, map))
 			return false;
-		return map->attr >> TEE_MATTR_CACHE_SHIFT ==
-		       TEE_MATTR_CACHE_CACHED;
+		return map->attr >> TEE_MATTR_MEM_TYPE_SHIFT ==
+		       TEE_MATTR_MEM_TYPE_CACHED;
 	default:
 		return false;
 	}

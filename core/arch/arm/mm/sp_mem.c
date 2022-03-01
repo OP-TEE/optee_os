@@ -91,7 +91,7 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 
 static TEE_Result sp_mem_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
 {
-	*cattr = TEE_MATTR_CACHE_CACHED;
+	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }

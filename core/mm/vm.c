@@ -42,8 +42,8 @@
 					 TEE_MATTR_PRW | TEE_MATTR_URWX | \
 					 TEE_MATTR_SECURE)
 
-#define TEE_MMU_UCACHE_DEFAULT_ATTR	(TEE_MATTR_CACHE_CACHED << \
-					 TEE_MATTR_CACHE_SHIFT)
+#define TEE_MMU_UCACHE_DEFAULT_ATTR	(TEE_MATTR_MEM_TYPE_CACHED << \
+					 TEE_MATTR_MEM_TYPE_SHIFT)
 
 static vaddr_t select_va_in_range(const struct vm_region *prev_reg,
 				  const struct vm_region *next_reg,
@@ -278,7 +278,7 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 		res = mobj_get_cattr(mobj, &cattr);
 		if (res)
 			goto err_free_reg;
-		attr |= cattr << TEE_MATTR_CACHE_SHIFT;
+		attr |= cattr << TEE_MATTR_MEM_TYPE_SHIFT;
 	}
 	attr |= TEE_MATTR_VALID_BLOCK;
 	if (mobj_is_secure(mobj))

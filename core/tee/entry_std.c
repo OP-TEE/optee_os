@@ -26,7 +26,7 @@
 
 #define SHM_CACHE_ATTRS	\
 	(uint32_t)(core_mmu_is_shm_cached() ? \
-		   TEE_MATTR_CACHE_CACHED : TEE_MATTR_CACHE_NONCACHE)
+		   TEE_MATTR_MEM_TYPE_CACHED : TEE_MATTR_MEM_TYPE_DEV)
 
 /* Sessions opened from normal world */
 static struct tee_ta_session_head tee_open_sessions =

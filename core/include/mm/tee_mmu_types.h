@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2022, Arm Limited.
  */
 #ifndef TEE_MMU_TYPES_H
 #define TEE_MMU_TYPES_H
@@ -30,11 +31,11 @@
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)
 
-#define TEE_MATTR_CACHE_MASK	U(0x7)
-#define TEE_MATTR_CACHE_SHIFT	U(12)
-/* These are shifted TEE_MATTR_CACHE_SHIFT */
-#define TEE_MATTR_CACHE_NONCACHE U(0)
-#define TEE_MATTR_CACHE_CACHED	U(1)
+#define TEE_MATTR_MEM_TYPE_MASK	U(0x7)
+#define TEE_MATTR_MEM_TYPE_SHIFT	U(12)
+/* These are shifted TEE_MATTR_MEM_TYPE_SHIFT */
+#define TEE_MATTR_MEM_TYPE_DEV	        U(0)
+#define TEE_MATTR_MEM_TYPE_CACHED	U(1)
 
 #define TEE_MATTR_GUARDED		BIT(15)
 
