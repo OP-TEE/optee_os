@@ -45,7 +45,7 @@ enum snvs_ssm_mode {
 	SNVS_SSM_MODE_CHECK,
 	SNVS_SSM_MODE_NON_SECURE = 11,
 	SNVS_SSM_MODE_TRUSTED = 13,
-	SNVS_SSM_MODE_SECURE,
+	SNVS_SSM_MODE_SECURE = 15,
 };
 
 enum snvs_security_cfg {
