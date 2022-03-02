@@ -7,8 +7,10 @@ srcs-y += idle.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
+ifeq ($(CFG_CORE_HAS_GENERIC_TIMER),y)
+srcs-$(CFG_ARM32_core) += timer_a32.c
+endif
 srcs-$(CFG_ARM64_core) += timer_a64.c
-
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S
 srcs-$(CFG_ARM64_core) += spin_lock_a64.S
 srcs-$(CFG_ARM32_core) += tlb_helpers_a32.S
