@@ -734,6 +734,13 @@ TEE_Result dcp_init(void)
 	}
 
 	/*
+	 * Reset the DCP before initialization. Depending on the SoC lifecycle
+	 * state, the DCP needs to be reset to reload the OTP master key from
+	 * the SNVS.
+	 */
+	io_write32(dcp_base + DCP_CTRL_SET, DCP_CTRL_SFTRST | DCP_CTRL_CLKGATE);
+
+	/*
 	 * Initialize control register.
 	 * Enable normal DCP operation (SFTRST & CLKGATE bits set to 0)
 	 */
