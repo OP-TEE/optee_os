@@ -23,9 +23,8 @@
 #define HPSR_SSM_ST_MASK  GENMASK_32(11, 8)
 #define HPSR_SSM_ST_SHIFT 8
 
-#define SNVS_HPSR_SYS_SECURITY_BAD    BIT(14)
-#define SNVS_HPSR_SYS_SECURITY_CLOSED BIT(13)
-#define SNVS_HPSR_SYS_SECURITY_OPEN   BIT(12)
+#define SNVS_HPSR_SYS_SECURITY_CFG_OFFSET 12
+
 #define SNVS_HPSR_OTPMK_SYND	      GENMASK_32(24, 16)
 #define SNVS_HPSR_OTPMK_ZERO	      BIT(27)
 
@@ -113,25 +112,58 @@ static bool is_otpmk_valid(void)
 	return !(status & (SNVS_HPSR_OTPMK_ZERO | SNVS_HPSR_OTPMK_SYND));
 }
 
+#ifdef CFG_MX8M
+#define SNVS_HPSR_SYS_SECURITY_CFG GENMASK_32(15, 12)
+
 static enum snvs_security_cfg snvs_get_security_cfg(void)
 {
-	vaddr_t snvs = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
-				       SNVS_HPSR + sizeof(uint32_t));
 	uint32_t val = 0;
+	vaddr_t base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
+				       SNVS_SIZE);
 
-	val = io_read32(snvs + SNVS_HPSR);
-	DMSG("HPSR: 0x%"PRIx32, val);
-	if (val & SNVS_HPSR_SYS_SECURITY_BAD)
-		return SNVS_SECURITY_CFG_FIELD_RETURN;
-	else if (val & SNVS_HPSR_SYS_SECURITY_CLOSED)
+	val = io_read32(base + SNVS_HPSR) &
+	      SNVS_HPSR_SYS_SECURITY_CFG >> SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
+
+	switch (val) {
+	case 0b0000:
+	case 0b1000:
+		return SNVS_SECURITY_CFG_FAB;
+	case 0b0001:
+	case 0b0010:
+	case 0b0011:
+		return SNVS_SECURITY_CFG_OPEN;
+	case 0b1010:
+	case 0b1001:
+	case 0b1011:
 		return SNVS_SECURITY_CFG_CLOSED;
-	else if (val & SNVS_HPSR_SYS_SECURITY_OPEN)
-		return SNVS_SECURITY_CFG_OPEN;
-	else if (val > 4 && val < 8)
-		return SNVS_SECURITY_CFG_OPEN;
-
-	return SNVS_SECURITY_CFG_FAB;
+	default:
+		return SNVS_SECURITY_CFG_FIELD_RETURN;
+	}
 }
+#else
+#define SNVS_HPSR_SYS_SECURITY_CFG GENMASK_32(14, 12)
+
+static enum snvs_security_cfg snvs_get_security_cfg(void)
+{
+	uint32_t val = 0;
+	vaddr_t base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
+				       SNVS_SIZE);
+
+	val = io_read32(base + SNVS_HPSR) &
+	      SNVS_HPSR_SYS_SECURITY_CFG >> SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
+
+	switch (val) {
+	case 0b000:
+		return SNVS_SECURITY_CFG_FAB;
+	case 0b001:
+		return SNVS_SECURITY_CFG_OPEN;
+	case 0b011:
+		return SNVS_SECURITY_CFG_CLOSED;
+	default:
+		return SNVS_SECURITY_CFG_FIELD_RETURN;
+	}
+}
+#endif
 
 bool snvs_is_device_closed(void)
 {
