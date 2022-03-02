@@ -100,6 +100,36 @@ static inline void watchdog_ping(void) {}
 static inline void watchdog_settimeout(unsigned long timeout __unused) {}
 #endif
 
+#ifdef CFG_WDT_EXTEND_TIMEOUT
+/*
+ * Request OP-TEE to refresh non-secure watchdog during a given period.
+ * A non-zero period arms the refresh sequence. A zero period disables
+ * the sequence. Sequence must be explicitly disabled before it is abled
+ * again.
+ */
+TEE_Result watchdog_extend_timeout(unsigned long delay_seconds);
+
+/* Return max period in seconds OP-TEE can relay non-secure watchdog refresh */
+unsigned long watchdog_extend_timeout_max(void);
+#else
+static inline
+TEE_Result watchdog_extend_timeout(unsigned long delay_seconds __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline unsigned long watchdog_extend_timeout_max(void)
+{
+	return 0;
+}
+#endif /* CFG_WDT_EXTEND_NSEC_TIMEOUT */
+
+/*
+ * Platform cann implements this function for watchdog to check when timer
+ * resource for timeout extension is available.
+ */
+bool watchdog_extend_timeout_timer_is_available(void);
+
 #ifdef CFG_WDT_SM_HANDLER
 enum sm_handler_ret __wdt_sm_handler(struct thread_smc_args *args);
 
