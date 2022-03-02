@@ -26,6 +26,7 @@ struct wdt_chip {
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
  * @set_timeout:The routine that finds the load value that will reset system in
  * required timeout (in seconds).
+ * @get_timeout:The routine that returns programmed timeout in seconds.
  *
  * The wdt_ops structure contains a list of low-level operations
  * that control a watchdog device.
@@ -37,6 +38,7 @@ struct wdt_ops {
 	void (*stop)(struct wdt_chip *chip);
 	void (*ping)(struct wdt_chip *chip);
 	TEE_Result (*set_timeout)(struct wdt_chip *chip, unsigned long timeout);
+	unsigned long (*get_timeout)(struct wdt_chip *chip);
 };
 
 #ifdef CFG_WDT
