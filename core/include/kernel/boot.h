@@ -88,6 +88,12 @@ void *get_embedded_dt(void);
 /* Returns external DTB if present, otherwise NULL */
 void *get_external_dt(void);
 
+/*
+ * get_aslr_seed() - return a random seed for core ASLR
+ * @fdt:	Pointer to a device tree if CFG_DT_ADDR=y
+ *
+ * This function has a __weak default implementation.
+ */
 unsigned long get_aslr_seed(void *fdt);
 
 /* Returns true if passed DTB is same as Embedded DTB, otherwise false */
