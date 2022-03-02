@@ -13,10 +13,8 @@ static bool timer_running;
 
 TEE_Result generic_timer_start(uint32_t time_ms)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	uint32_t timer_ticks;
-
-	cpu_spin_lock(&timer_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&timer_lock);
+	uint32_t timer_ticks = 0;
 
 	if (timer_running) {
 		res = TEE_ERROR_BUSY;
@@ -35,32 +33,28 @@ TEE_Result generic_timer_start(uint32_t time_ms)
 	res = TEE_SUCCESS;
 
 exit:
-	cpu_spin_unlock(&timer_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&timer_lock, exceptions);
 
 	return res;
 }
 
 TEE_Result generic_timer_stop(void)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-
-	cpu_spin_lock(&timer_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&timer_lock);
 
 	/* Disable the timer */
 	write_cntps_ctl(0);
 
 	timer_running = false;
 
-	cpu_spin_unlock(&timer_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&timer_lock, exceptions);
 
 	return TEE_SUCCESS;
 }
 
 TEE_Result generic_timer_handler(uint32_t time_ms)
 {
-	uint32_t timer_ticks;
+	uint32_t timer_ticks = 0;
 
 	/* Ensure that the timer did assert the interrupt */
 	assert((read_cntps_ctl() >> 2));
