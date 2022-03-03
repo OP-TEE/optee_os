@@ -27,6 +27,27 @@
 #define GICD_OFFSET     0x0
 #define GICD_SIZE       0x10000
 #endif
+#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
+#define SEC_PROXY_DATA_BASE             0x32c00000
+#define SEC_PROXY_DATA_SIZE             0x100000
+#define SEC_PROXY_SCFG_BASE             0x32800000
+#define SEC_PROXY_SCFG_SIZE             0x100000
+#define SEC_PROXY_RT_BASE               0x32400000
+#define SEC_PROXY_RT_SIZE               0x100000
+#define SEC_PROXY_RESPONSE_THREAD       6
+#define SEC_PROXY_REQUEST_THREAD        7
+#else
+#define SEC_PROXY_DATA_BASE             0x4d000000
+#define SEC_PROXY_DATA_SIZE             0x80000
+#define SEC_PROXY_SCFG_BASE             0x4a400000
+#define SEC_PROXY_SCFG_SIZE             0x80000
+#define SEC_PROXY_RT_BASE               0x4a600000
+#define SEC_PROXY_RT_SIZE               0x80000
+#define SEC_PROXY_RESPONSE_THREAD       10
+#define SEC_PROXY_REQUEST_THREAD        11
+#endif
+#define OPTEE_HOST_ID                   11
+#define SEC_PROXY_TIMEOUT_US            1000000
 #define GICC_BASE       (SCU_BASE + GICC_OFFSET)
 #define GICD_BASE       (SCU_BASE + GICD_OFFSET)
 
