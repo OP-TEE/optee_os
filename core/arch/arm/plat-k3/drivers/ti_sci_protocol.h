@@ -15,6 +15,9 @@
 /* Generic Messages */
 #define TI_SCI_MSG_VERSION               0x0002
 
+/* Security Management Messages */
+#define TI_SCI_MSG_SA2UL_GET_DKEK        0x9029
+
 /**
  * struct ti_sci_secure_msg_hdr - Secure Message Header for All messages
  *				 and responses
@@ -84,6 +87,38 @@ struct ti_sci_msg_resp_version {
 	uint8_t abi_minor;
 	uint8_t sub_version;
 	uint8_t patch_version;
+} __packed;
+
+/**
+ * struct ti_sci_msg_sa2ul_get_dkek_req - Request for DKEK value
+ * @hdr:			Generic header
+ * @sa2ul_instance:		SA2UL instance number - set to 0
+ * @kdf_label_len:		Length of "Label" input to KDF
+ * @kdf_context_len:		Length of "Context" input to KDF
+ * @kdf_label_and_context:	"Label" and "Context" bytes
+ *
+ * Request for TI_SCI_MSG_SA2UL_GET_DKEK
+ */
+struct ti_sci_msg_req_sa2ul_get_dkek {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t sa2ul_instance;
+	uint8_t kdf_label_len;
+	uint8_t kdf_context_len;
+#define KDF_LABEL_AND_CONTEXT_LEN_MAX 41
+	uint8_t kdf_label_and_context[KDF_LABEL_AND_CONTEXT_LEN_MAX];
+} __packed;
+
+/**
+ * struct ti_sci_msg_sa2ul_get_dkek_req - Response for DKEK value
+ * @hdr:	Generic header
+ * @dkek:	Array containing Derived KEK
+ *
+ * Response to request TI_SCI_MSG_SA2UL_GET_DKEK
+ */
+struct ti_sci_msg_resp_sa2ul_get_dkek {
+	struct ti_sci_msg_hdr hdr;
+#define SA2UL_DKEK_KEY_LEN 32
+	uint8_t dkek[SA2UL_DKEK_KEY_LEN];
 } __packed;
 
 #endif

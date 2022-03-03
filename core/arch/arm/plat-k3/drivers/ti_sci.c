@@ -180,6 +180,52 @@ int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
 }
 
 /**
+ * ti_sci_get_dkek() - Get the DKEK
+ * @sa2ul_instance:	SA2UL instance to get key
+ * @context:		Context string input to KDF
+ * @label:		Label string input to KDF
+ * @dkek:		Returns with DKEK populated
+ *
+ * Updates the DKEK the internal data structure.
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_get_dkek(uint8_t sa2ul_instance,
+		    const char *context, const char *label,
+		    uint8_t dkek[SA2UL_DKEK_KEY_LEN])
+{
+	struct ti_sci_msg_req_sa2ul_get_dkek req = { };
+	struct ti_sci_msg_resp_sa2ul_get_dkek resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_SA2UL_GET_DKEK, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		return ret;
+
+	req.sa2ul_instance = sa2ul_instance;
+	req.kdf_label_len = strlen(label);
+	req.kdf_context_len = strlen(context);
+	if (req.kdf_label_len + req.kdf_context_len >
+	    KDF_LABEL_AND_CONTEXT_LEN_MAX) {
+		EMSG("Context and Label too long");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+	memcpy(req.kdf_label_and_context, label, strlen(label));
+	memcpy(req.kdf_label_and_context + strlen(label), context,
+	       strlen(context));
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	memcpy(dkek, resp.dkek, sizeof(resp.dkek));
+	memzero_explicit(&resp, sizeof(resp));
+	return 0;
+}
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message
