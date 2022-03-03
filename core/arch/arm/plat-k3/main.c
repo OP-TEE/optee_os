@@ -12,10 +12,17 @@
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
+#include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdint.h>
+#include <string_ext.h>
+
+#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
+#include "drivers/sec_proxy.h"
+#include "drivers/ti_sci.h"
+#endif
 
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
@@ -52,3 +59,31 @@ void console_init(void)
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
 }
+
+#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	uint8_t dkek[SA2UL_DKEK_KEY_LEN] = { 0 };
+	int ret = 0;
+
+	assert(SA2UL_DKEK_KEY_LEN >= HW_UNIQUE_KEY_LENGTH);
+
+	ret = k3_sec_proxy_init();
+	if (ret)
+		return ret;
+
+	ret = ti_sci_init();
+	if (ret)
+		return ret;
+
+	ret = ti_sci_get_dkek(0, "OP-TEE", "DKEK", dkek);
+	if (ret)
+		return ret;
+
+	IMSG("HUK Initialized");
+	memcpy(&hwkey->data[0], dkek, sizeof(hwkey->data));
+
+	memzero_explicit(&dkek, sizeof(dkek));
+	return TEE_SUCCESS;
+}
+#endif
