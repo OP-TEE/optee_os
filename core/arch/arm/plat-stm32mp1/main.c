@@ -10,6 +10,7 @@
 #include <drivers/gic.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32mp1_etzpc.h>
+#include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <kernel/boot.h>
@@ -188,7 +189,33 @@ static TEE_Result init_stm32mp1_drivers(void)
 
 	return TEE_SUCCESS;
 }
+
 service_init_late(init_stm32mp1_drivers);
+
+static TEE_Result init_late_stm32mp1_drivers(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	/* Set access permission to TAM backup registers */
+	if (IS_ENABLED(CFG_STM32_TAMP)) {
+		struct stm32_bkpregs_conf conf = {
+			.nb_zone1_regs = TAMP_BKP_REGISTER_ZONE1_COUNT,
+			.nb_zone2_regs = TAMP_BKP_REGISTER_ZONE2_COUNT,
+		};
+
+		res = stm32_tamp_set_secure_bkpregs(&conf);
+		if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
+			/* TAMP driver was not probed if disabled in the DT */
+			res = TEE_SUCCESS;
+		}
+		if (res)
+			panic();
+	}
+
+	return TEE_SUCCESS;
+}
+
+driver_init_late(init_late_stm32mp1_drivers);
 
 vaddr_t stm32_rcc_base(void)
 {
