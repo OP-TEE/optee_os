@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
@@ -13,6 +13,7 @@
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
+#include <stdint.h>
 #include <tee/entry_fast.h>
 
 #ifdef CFG_CORE_RESERVED_SHM
@@ -66,6 +67,18 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
 	bool res_shm_en = IS_ENABLED(CFG_CORE_RESERVED_SHM);
 	bool dyn_shm_en __maybe_unused = false;
+	unsigned int notif_it_max_lines = 0;
+	uint32_t nsec_caps_mask = OPTEE_SMC_NSEC_CAP_UNIPROCESSOR |
+				   OPTEE_SMC_SEC_CAP_IT_NOTIF;
+	uint32_t nsec_caps = args->a1;
+
+#ifdef CFG_CORE_IT_NOTIF
+	static_assert(THREAD_RPC_MAX_NUM_PARAMS <= UINT8_MAX);
+	static_assert(CFG_CORE_IT_NOTIF_MAX &&
+		      CFG_CORE_IT_NOTIF_MAX <= UINT16_MAX);
+
+	notif_it_max_lines = CFG_CORE_IT_NOTIF_MAX;
+#endif
 
 	/*
 	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
@@ -80,7 +93,7 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	 * OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
 	 */
 
-	if (args->a1 & ~OPTEE_SMC_NSEC_CAP_UNIPROCESSOR) {
+	if (nsec_caps & ~nsec_caps_mask) {
 		/* Unknown capability. */
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		return;
@@ -116,6 +129,15 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
+
+	if (IS_ENABLED(CFG_CORE_IT_NOTIF) &&
+	    nsec_caps & OPTEE_SMC_SEC_CAP_IT_NOTIF) {
+		args->a1 |= OPTEE_SMC_SEC_CAP_IT_NOTIF;
+		args->a3 |= notif_it_max_lines <<
+			    OPTEE_SMC_SEC_CAP_IT_NOTIF_MAX_SHIFT;
+	}
+	IMSG("Interrupt notifications are %sabled",
+	     args->a1 & OPTEE_SMC_SEC_CAP_IT_NOTIF ? "en" : "dis");
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
@@ -217,6 +239,50 @@ static void get_async_notif_value(struct thread_smc_args *args)
 		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_PENDING;
 }
 
+static void get_pending_notif(struct thread_smc_args *args)
+{
+	bool it_valid = false;
+	bool it_pending = false;
+	uint32_t it[5] = { };
+	size_t cnt = 0;
+
+	do {
+		it[cnt] = notif_it_get_value(&it_valid, &it_pending);
+		if (!it_valid)
+			break;
+		cnt++;
+	} while (it_pending);
+	assert(cnt <= 5);
+
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = it[0];
+	args->a2 = it[1];
+	args->a3 = it[2];
+	args->a4 = it[3];
+	args->a5 = it[4];
+	args->a6 = cnt;
+	if (it_pending)
+		args->a6 |= OPTEE_SMC_NOTIF_IT_PENDING;
+	if (notif_async_value_is_pending())
+		args->a6 |= OPTEE_SMC_NOTIF_VALUE_PENDING;
+}
+
+static void set_it_notif_mask(struct thread_smc_args *args __maybe_unused)
+{
+#ifdef CFG_CORE_IT_NOTIF
+	uint32_t it_value = args->a1;
+	bool masked = args->a2 & BIT(0);
+
+	if (it_value >= CFG_CORE_IT_NOTIF_MAX) {
+		args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+		return;
+	}
+
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	notif_it_set_mask(it_value, masked);
+#endif
+}
+
 /*
  * If tee_entry_fast() is overridden, it's still supposed to call this
  * function.
@@ -287,6 +353,20 @@ void __tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_GET_ASYNC_NOTIF_VALUE:
 		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
 			get_async_notif_value(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_GET_NOTIF_IT:
+		if (IS_ENABLED(CFG_CORE_IT_NOTIF))
+			get_pending_notif(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_SET_NOTIF_IT_MASK:
+		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+			set_it_notif_mask(args);
 		else
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;

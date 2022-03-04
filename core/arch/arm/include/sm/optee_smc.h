@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2023, Linaro Limited
  */
 #ifndef OPTEE_SMC_H
 #define OPTEE_SMC_H
@@ -289,7 +289,8 @@
  * a3	Bit[7:0]: Number of parameters needed for RPC to be supplied
  *		  as the second MSG arg struct for
  *		  OPTEE_SMC_CALL_WITH_ARG
- *	Bit[31:8]: Reserved (MBZ)
+ *	Bit[23:8]: The maximum interrupt event notification number
+ *	Bit[31:24]: Reserved (MBZ)
  * a3-7	Preserved
  *
  * Error return register usage:
@@ -316,6 +317,11 @@
 #define OPTEE_SMC_SEC_CAP_ASYNC_NOTIF		BIT(5)
 /* Secure world supports pre-allocating RPC arg struct */
 #define OPTEE_SMC_SEC_CAP_RPC_ARG		BIT(6)
+/* Secure world supports interrupt notification to normal world */
+#define OPTEE_SMC_SEC_CAP_IT_NOTIF		BIT(7)
+
+#define OPTEE_SMC_SEC_CAP_IT_NOTIF_MAX_MASK	GENMASK_32(23, 8)
+#define OPTEE_SMC_SEC_CAP_IT_NOTIF_MAX_SHIFT	8
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	U(9)
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
@@ -558,6 +564,76 @@
 
 /* See OPTEE_SMC_CALL_WITH_REGD_ARG above */
 #define OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG	U(19)
+
+/*
+ * Retrieve up to 5 pending interrupt event notified by OP-TEE world
+ * and whether threaded event are pending on OP-TEE async notif
+ * controller, all this since the last call of this function.
+ *
+ * OP-TEE keeps a record of all posted interrupt notification events.
+ * When the async notif interrupt is received by
+ * non-secure world, this function should be called until all pended
+ * interrupt events have been retrieved. When an interrupt event is
+ * retrieved it is cleared from the record in OP-TEE world.
+ *
+ * It is expected that this function is called from an interrupt handler
+ * in normal world.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_GET_NOTIF_IT
+ * a1-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	Pending interrupt line value if a6 & 0xF > 0
+ * a2	Pending interrupt line value if a6 & 0xF > 1
+ * a3	Pending interrupt line value if a6 & 0xF > 2
+ * a4	Pending interrupt line value if a6 & 0xF > 3
+ * a5	Pending interrupt line value if a6 & 0xF > 4
+ * a6	Bit[7:0]: Number of pending interrupt carried in a1..a5
+ *	Bit[8]: OPTEE_SMC_NOTIF_IT_PENDING if other interrupt(s) are pending
+ *	Bit[9]: OPTEE_SMC_NOTIF_ASYNC_PENDING if an threaded event is pending
+ *	Bit[31:10]: MBZ
+ * a7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_NOTIF_IT_COUNT_MASK		GENMASK_32(7, 0)
+#define OPTEE_SMC_NOTIF_IT_PENDING		BIT(8)
+#define OPTEE_SMC_NOTIF_VALUE_PENDING		BIT(9)
+
+#define OPTEE_SMC_FUNCID_GET_NOTIF_IT		U(20)
+#define OPTEE_SMC_GET_NOTIF_IT \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_NOTIF_IT)
+
+/*
+ * Mask or unmask an interrupt notification event.
+ *
+ * It is expected that this function is called from an interrupt handler
+ * in normal world.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_SET_IT_NOTIF_MASK
+ * a1	Interrupt identifier value
+ * a2	Bit[0]: 1 if interrupt event is to be masked, 0 if it is to be unmasked
+ * a2   Bit[31:1] Reserved for future use, MBZ
+ * a3-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_SET_NOTIF_IT_MASK	U(21)
+#define OPTEE_SMC_SET_NOTIF_IT_MASK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_SET_NOTIF_IT_MASK)
 
 /*
  * Resume from RPC (for example after processing a foreign interrupt)
