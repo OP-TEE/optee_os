@@ -218,6 +218,9 @@ static void save_hashtab_from_segment(struct ta_elf *elf, unsigned int type,
 		if (tag == DT_HASH) {
 			elf->hashtab = (void *)(val + elf->load_addr);
 			break;
+		} else if (tag == DT_GNU_HASH) {
+			elf->gnu_hashtab = (void *)(val + elf->load_addr);
+			break;
 		}
 	}
 }
@@ -262,6 +265,55 @@ static void check_hashtab(struct ta_elf *elf, void *ptr, size_t num_buckets,
 	check_range(elf, "DT_HASH", ptr, sz);
 }
 
+static void check_gnu_hashtab(struct ta_elf *elf, void *ptr)
+{
+	struct gnu_hashtab *h = ptr;
+	uint32_t *bucket = NULL;
+	size_t last_sym = 0;
+	size_t num_words = 4; /* nbuckets, symoffset, bloom_size, bloom_shift */
+	size_t bloom_words = 0;
+	size_t sz = 0;
+	size_t i = 0;
+
+	if (!IS_ALIGNED_WITH_TYPE(ptr, uint32_t))
+		err(TEE_ERROR_BAD_FORMAT, "Bad alignment of DT_GNU_HASH %p",
+		    ptr);
+
+	check_range(elf, "DT_GNU_HASH", h, sizeof(*h));
+
+	if (elf->is_32bit)
+		bloom_words = h->bloom_size;
+	else
+		bloom_words = h->bloom_size * 2;
+
+	if (ADD_OVERFLOW(num_words, h->nbuckets, &num_words) ||
+	    ADD_OVERFLOW(num_words, bloom_words, &num_words) ||
+	    MUL_OVERFLOW(num_words, sizeof(uint32_t), &sz))
+		err(TEE_ERROR_BAD_FORMAT, "DT_GNU_HASH overflow");
+
+	/*
+	 * There is no total number of exported symbols in DT_GNU_HASH,
+	 * so we have to find the highest bucket value manually.
+	 * See http://deroko.phearless.org/dt_gnu_hash.txt.
+	 */
+	bucket = (uint32_t *)h + 4 + bloom_words;
+	check_range(elf, "DT_GNU_HASH", bucket, h->nbuckets * sizeof(uint32_t));
+	last_sym = 0;
+	for (i = 0; i < h->nbuckets; i++)
+		if (bucket[i] > last_sym)
+			last_sym = bucket[i];
+
+	if (MUL_OVERFLOW(last_sym, sizeof(uint32_t), &last_sym) ||
+	    ADD_OVERFLOW(num_words, last_sym, &num_words))
+		err(TEE_ERROR_BAD_FORMAT, "DT_GNU_HASH overflow");
+
+	/* Shouldn't be less than the first dynsym offset */
+	if (last_sym < h->symoffset)
+		err(TEE_ERROR_BAD_FORMAT, "Bad DT_GNU_HASH");
+
+	check_range(elf, "DT_GNU_HASH", ptr, num_words * sizeof(uint32_t));
+}
+
 static void save_hashtab(struct ta_elf *elf)
 {
 	uint32_t *hashtab = NULL;
@@ -283,9 +335,13 @@ static void save_hashtab(struct ta_elf *elf)
 						  phdr[n].p_memsz);
 	}
 
-	check_hashtab(elf, elf->hashtab, 0, 0);
-	hashtab = elf->hashtab;
-	check_hashtab(elf, elf->hashtab, hashtab[0], hashtab[1]);
+	if (elf->hashtab) {
+		check_hashtab(elf, elf->hashtab, 0, 0);
+		hashtab = elf->hashtab;
+		check_hashtab(elf, elf->hashtab, hashtab[0], hashtab[1]);
+	}
+	if (elf->gnu_hashtab)
+		check_gnu_hashtab(elf, elf->gnu_hashtab);
 }
 
 static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
