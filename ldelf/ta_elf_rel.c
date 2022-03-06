@@ -32,10 +32,10 @@ static uint32_t elf_hash(const char *name)
 	return h;
 }
 
-static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
-			  unsigned int st_type, size_t st_shndx,
-			  size_t st_name, size_t st_value, const char *name,
-			  vaddr_t *val, bool weak_ok)
+static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
+			unsigned int st_type, size_t st_shndx,
+			size_t st_name, size_t st_value, const char *name,
+			vaddr_t *val, bool weak_ok)
 {
 	bool bind_ok = false;
 
@@ -78,63 +78,76 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
 	return true;
 }
 
+static bool __resolve_sym(struct ta_elf *elf, const char *name,
+			  vaddr_t *val, bool weak_ok,
+			  size_t n, bool is_32)
+{
+	Elf32_Sym *sym32 = NULL;
+	Elf64_Sym *sym64 = NULL;
+
+	if (n >= elf->num_dynsyms)
+		err(TEE_ERROR_BAD_FORMAT, "Index out of range");
+	/*
+	 * We're loading values from sym[] which later
+	 * will be used to load something.
+	 * => Spectre V1 pattern, need to cap the index
+	 * against speculation.
+	 */
+	n = confine_array_index(n, elf->num_dynsyms);
+
+	if (is_32) {
+		sym32 = elf->dynsymtab;
+		if (sym_compare(elf,
+				ELF32_ST_BIND(sym32[n].st_info),
+				ELF32_ST_TYPE(sym32[n].st_info),
+				sym32[n].st_shndx,
+				sym32[n].st_name,
+				sym32[n].st_value, name, val, weak_ok))
+			return true;
+	} else {
+		sym64 = elf->dynsymtab;
+		if (sym_compare(elf,
+				ELF64_ST_BIND(sym64[n].st_info),
+				ELF64_ST_TYPE(sym64[n].st_info),
+				sym64[n].st_shndx,
+				sym64[n].st_name,
+				sym64[n].st_value, name, val, weak_ok))
+			return true;
+	}
+
+	return false;
+}
+
 static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 				     vaddr_t *val, struct ta_elf *elf,
 				     bool weak_ok)
 {
-	/*
-	 * Using uint32_t here for convenience because both Elf64_Word
-	 * and Elf32_Word are 32-bit types
-	 */
-	uint32_t *hashtab = elf->hashtab;
-	uint32_t nbuckets = hashtab[0];
-	uint32_t nchains = hashtab[1];
-	uint32_t *bucket = &hashtab[2];
-	uint32_t *chain = &bucket[nbuckets];
 	size_t n = 0;
 
-	if (elf->is_32bit) {
-		Elf32_Sym *sym = elf->dynsymtab;
+	if (elf->hashtab) {
+		/*
+		 * Using uint32_t here for convenience because both Elf64_Word
+		 * and Elf32_Word are 32-bit types
+		 */
+		uint32_t *hashtab = elf->hashtab;
+		uint32_t nbuckets = hashtab[0];
+		uint32_t nchains = hashtab[1];
+		uint32_t *bucket = &hashtab[2];
+		uint32_t *chain = &bucket[nbuckets];
 
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			if (n >= nchains || n >= elf->num_dynsyms)
-				err(TEE_ERROR_BAD_FORMAT,
-				    "Index out of range");
-			/*
-			 * We're loading values from sym[] which later
-			 * will be used to load something.
-			 * => Spectre V1 pattern, need to cap the index
-			 * against speculation.
-			 */
-			n = confine_array_index(n, elf->num_dynsyms);
-			if (__resolve_sym(elf,
-					  ELF32_ST_BIND(sym[n].st_info),
-					  ELF32_ST_TYPE(sym[n].st_info),
-					  sym[n].st_shndx,
-					  sym[n].st_name,
-					  sym[n].st_value, name, val, weak_ok))
+			if (n >= nchains)
+				err(TEE_ERROR_BAD_FORMAT, "Index out of range");
+			if (__resolve_sym(elf, name,
+					  val, weak_ok,
+					  n, elf->is_32bit))
 				return TEE_SUCCESS;
 		}
 	} else {
-		Elf64_Sym *sym = elf->dynsymtab;
-
-		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			if (n >= nchains || n >= elf->num_dynsyms)
-				err(TEE_ERROR_BAD_FORMAT,
-				    "Index out of range");
-			/*
-			 * We're loading values from sym[] which later
-			 * will be used to load something.
-			 * => Spectre V1 pattern, need to cap the index
-			 * against speculation.
-			 */
-			n = confine_array_index(n, elf->num_dynsyms);
-			if (__resolve_sym(elf,
-					  ELF64_ST_BIND(sym[n].st_info),
-					  ELF64_ST_TYPE(sym[n].st_info),
-					  sym[n].st_shndx,
-					  sym[n].st_name,
-					  sym[n].st_value, name, val, weak_ok))
+		for (n = 0; n < elf->num_dynsyms; n++) {
+			if (__resolve_sym(elf, name,
+					  val, weak_ok,
+					  n, elf->is_32bit))
 				return TEE_SUCCESS;
 		}
 	}

@@ -283,9 +283,11 @@ static void save_hashtab(struct ta_elf *elf)
 						  phdr[n].p_memsz);
 	}
 
-	check_hashtab(elf, elf->hashtab, 0, 0);
-	hashtab = elf->hashtab;
-	check_hashtab(elf, elf->hashtab, hashtab[0], hashtab[1]);
+	if (elf->hashtab) {
+		check_hashtab(elf, elf->hashtab, 0, 0);
+		hashtab = elf->hashtab;
+		check_hashtab(elf, elf->hashtab, hashtab[0], hashtab[1]);
+	}
 }
 
 static void save_soname_from_segment(struct ta_elf *elf, unsigned int type,
