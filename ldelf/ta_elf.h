@@ -59,6 +59,9 @@ struct ta_elf {
 
 	/* DT_HASH hash table for faster resolution of external symbols */
 	void *hashtab;
+	/* DT_GNU_HASH table as an alternative to DT_HASH */
+	void *gnu_hashtab;
+	size_t gnu_hashtab_size;
 
 	/* DT_SONAME */
 	char *soname;
@@ -94,6 +97,21 @@ struct ta_elf {
 };
 
 TAILQ_HEAD(ta_elf_queue, ta_elf);
+
+/* Format of the DT_GNU_HASH entry in the ELF dynamic section */
+struct gnu_hashtab {
+	uint32_t nbuckets;
+	uint32_t symoffset;
+	uint32_t bloom_size;
+	uint32_t bloom_shift;
+	/*
+	 * Followed by:
+	 *
+	 * uint{32,64}_t bloom[bloom_size];
+	 * uint32_t buckets[nbuckets];
+	 * uint32_t chain[];
+	 */
+};
 
 typedef void (*print_func_t)(void *pctx, const char *fmt, va_list ap)
 	__printf(2, 0);
