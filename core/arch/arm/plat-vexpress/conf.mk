@@ -126,3 +126,10 @@ CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
 endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
+CFG_DT_DRIVER_EMBEDDED_TEST ?= y
+ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
+$(call force,CFG_EMBED_DTB_SOURCE_FILE,embedded_dtb_test.dts,Mandated for DT tests)
+endif
+endif
