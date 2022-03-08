@@ -18,7 +18,8 @@
 
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp_export + cpu_id * stack_tmp_stride
+	 * SP_EL0 is assigned:
+	 *   stack_tmp + (cpu_id + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
@@ -26,11 +27,16 @@
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
+		add	x0, x0, #1
 		adr_l	x1, stack_tmp_stride
 		ldr	w1, [x1]
 		mul	x1, x0, x1
-		adr_l	x0, stack_tmp_export
-		ldr	x0, [x0]
+
+		/* x0 = stack_tmp - STACK_TMP_GUARD */
+		adr_l	x2, stack_tmp_rel
+		ldr	w0, [x2]
+		add	x0, x0, x2
+
 		msr	spsel, #0
 		add	sp, x1, x0
 		bl	thread_get_core_local
@@ -464,6 +470,10 @@ LOCAL_FUNC unhandled_cpu , :
 	wfi
 	b	unhandled_cpu
 END_FUNC unhandled_cpu
+
+LOCAL_DATA stack_tmp_rel , :
+	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
+END_DATA stack_tmp_rel
 
 	/*
 	 * This macro verifies that the a given vector doesn't exceed the

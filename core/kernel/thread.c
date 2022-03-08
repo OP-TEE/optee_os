@@ -30,14 +30,11 @@ struct thread_core_local thread_core_local[CFG_TEE_CORE_NB_CORE] __nex_bss;
  */
 
 #ifdef CFG_WITH_STACK_CANARIES
-#define STACK_CANARY_SIZE	(4 * sizeof(long))
 #define START_CANARY_VALUE	0xdededede
 #define END_CANARY_VALUE	0xabababab
 #define GET_START_CANARY(name, stack_num) name[stack_num][0]
 #define GET_END_CANARY(name, stack_num) \
 	name[stack_num][sizeof(name[stack_num]) / sizeof(uint32_t) - 1]
-#else
-#define STACK_CANARY_SIZE	0
 #endif
 
 #define DECLARE_STACK(name, num_stacks, stack_size, linkage) \
@@ -50,7 +47,7 @@ linkage uint32_t name[num_stacks] \
 #define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
 
 DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE,
-	      STACK_TMP_SIZE + CFG_STACK_TMP_EXTRA, static);
+	      STACK_TMP_SIZE + CFG_STACK_TMP_EXTRA, /* global linkage */);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #ifndef CFG_WITH_PAGER
 DECLARE_STACK(stack_thread, CFG_NUM_THREADS,
@@ -64,16 +61,13 @@ DECLARE_STACK(stack_thread, CFG_NUM_THREADS,
 #define GET_STACK_BOTTOM(stack, n) ((vaddr_t)&(stack)[n] + sizeof(stack[n]) - \
 				    STACK_CANARY_SIZE / 2)
 
-const void *stack_tmp_export __section(".identity_map.stack_tmp_export") =
-	(void *)(GET_STACK_BOTTOM(stack_tmp, 0) - STACK_TMP_OFFS);
 const uint32_t stack_tmp_stride __section(".identity_map.stack_tmp_stride") =
 	sizeof(stack_tmp[0]);
 
 /*
- * These stack setup info are required by secondary boot cores before they
+ * This stack setup info is required by secondary boot cores before they
  * each locally enable the pager (the mmu). Hence kept in pager sections.
  */
-DECLARE_KEEP_PAGER(stack_tmp_export);
 DECLARE_KEEP_PAGER(stack_tmp_stride);
 
 static unsigned int thread_global_lock __nex_bss = SPINLOCK_UNLOCK;

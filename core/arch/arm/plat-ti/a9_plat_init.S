@@ -78,11 +78,15 @@ UNWIND(	.cantunwind)
 unhandled_cpu:
 	wfige
 	bge	unhandled_cpu
+	add	r0, r0, #1
 	ldr	r1, =stack_tmp_stride
 	ldr	r1, [r1]
 	mul	r1, r0, r1
-	ldr	r0, =stack_tmp_export
-	ldr	r0, [r0]
+	ldr	r0, =stack_tmp
+#if (STACK_TMP_GUARD != 0)
+	mov_imm	r2, STACK_TMP_GUARD
+	sub	r0, r0, r2
+#endif
 	add	sp, r1, r0
 
 	/* Push our return on the stack as sm_pm_cpu_do_resume expects */

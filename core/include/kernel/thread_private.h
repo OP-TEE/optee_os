@@ -72,6 +72,12 @@ extern const uint32_t stack_tmp_stride;
 extern struct thread_ctx threads[];
 extern struct thread_core_local thread_core_local[];
 
+#ifdef CFG_WITH_STACK_CANARIES
+#define STACK_CANARY_SIZE	(4 * sizeof(long))
+#else
+#define STACK_CANARY_SIZE	0
+#endif
+
 /* Checks stack canaries */
 void thread_check_canaries(void);
 
