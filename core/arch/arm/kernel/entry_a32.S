@@ -270,13 +270,20 @@ DECLARE_KEEP_INIT _start
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
-	 * sp is assigned stack_tmp_export + cpu_id * stack_tmp_stride
+	 * sp is assigned:
+	 *   stack_tmp + (cpu_id + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 */
 	.macro set_sp
 		bl	__get_core_pos
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
+		add	r0, r0, #1
+
+		/* r2 = stack_tmp - STACK_TMP_GUARD */
+		adr	r3, stack_tmp_rel
+		ldr	r2, [r3]
+		add	r2, r2, r3
 
 		/*
 		 * stack_tmp_stride and stack_tmp_stride_rel are the
@@ -293,15 +300,10 @@ DECLARE_KEEP_INIT _start
 		ldr	r1, [r3]
 		ldr	r1, [r1, r3]
 
-		/* Same pattern as for stack_tmp_stride above */
-		adr	r3, stack_tmp_export_rel
-		ldr	r2, [r3]
-		ldr	r2, [r2, r3]
-
 		/*
-		 * r0 is core pos
+		 * r0 is core pos + 1
 		 * r1 is value of stack_tmp_stride
-		 * r2 is value of stack_tmp_export
+		 * r2 is value of stack_tmp + guard
 		 */
 		mul	r1, r0, r1
 		add	sp, r1, r2
@@ -823,9 +825,9 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	bx	lr
 END_FUNC enable_mmu
 
-LOCAL_DATA stack_tmp_export_rel , :
-	.word	stack_tmp_export - stack_tmp_export_rel
-END_DATA stack_tmp_export_rel
+LOCAL_DATA stack_tmp_rel , :
+	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
+END_DATA stack_tmp_rel
 
 LOCAL_DATA stack_tmp_stride_rel , :
 	.word	stack_tmp_stride - stack_tmp_stride_rel
