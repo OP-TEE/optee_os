@@ -478,6 +478,11 @@ CFG_DRIVERS_CLK_EARLY_PROBE ?= n
 $(call force,CFG_DRIVERS_DT_RECURSIVE_PROBE,n,Mandated by CFG_DT_DRIVER_EMBEDDED_TEST)
 endif
 
+# CFG_DRIVERS_DT_RECURSIVE_PROBE when enabled forces a recursive subnode
+# parsing in the embedded DTB for driver probing. The alternative is
+# an exploration based on compatible drivers found. It is default disabled.
+CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
+
 # This option enables OP-TEE to respond to SMP boot request: the Rich OS
 # issues this to request OP-TEE to release secondaries cores out of reset,
 # with specific core number and non-secure entry address.
