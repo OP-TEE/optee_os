@@ -84,4 +84,5 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 void sp_mem_set_cattr(struct mobj *mobj, uint32_t cache_type);
 TEE_Result sp_mem_ffa_dev_to_cache_type(uint8_t dev_type, uint32_t *cache_type);
 void sp_mem_set_secure(struct mobj *mobj, bool is_secure);
+TEE_Result sp_mem_alloc(unsigned int num_pages, paddr_t *pa);
 #endif /*__MM_SP_MEM_H*/

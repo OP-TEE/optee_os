@@ -99,6 +99,24 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	return TEE_SUCCESS;
 }
 
+TEE_Result sp_mem_alloc(unsigned int num_pages, paddr_t *pa)
+{
+	size_t size = 0;
+	tee_mm_entry_t *mm = NULL;
+
+	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+
+	if (!mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*pa = tee_mm_get_smem(mm);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result sp_mem_ffa_dev_to_cache_type(uint8_t dev_type, uint32_t *cache_type)
 {
 	*cache_type = TEE_MATTR_MEM_TYPE_DEV;

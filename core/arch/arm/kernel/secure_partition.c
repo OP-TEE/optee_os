@@ -134,6 +134,49 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
+static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
+				uint64_t *value)
+{
+	int len = 0;
+	const fdt64_t *cuint64 = NULL;
+
+	cuint64 = fdt_getprop(fdt, node, property, &len);
+	if (!cuint64 || len != sizeof(*cuint64))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*value = fdt64_to_cpu(*cuint64);
+	return TEE_SUCCESS;
+}
+
+static size_t sp_calculate_fdt_space(const void * const fdt)
+{
+	size_t i = 0;
+	size_t extra_size = 0;
+	int node = 0;
+	int subnode = 0;
+	uint64_t pa = 0;
+	static const char * const dt_match_table[] = {
+		"arm,ffa-manifest-device-regions",
+		"arm,ffa-manifest-memory-regions"
+	};
+
+	for (i = 0; i < ARRAY_SIZE(dt_match_table); i++) {
+		node = fdt_node_offset_by_compatible(fdt, 0, dt_match_table[i]);
+
+		/*
+		 * base-address is optional. However we do need to fill in the
+		 * va. Create the space in the fdt to store the string + value.
+		 */
+		fdt_for_each_subnode(subnode, fdt, node) {
+			if (sp_dt_get_u64(fdt, subnode, "base-address", &pa))
+				extra_size += sizeof("base-address") +
+					      sizeof(fdt64_t);
+		}
+	}
+
+	return extra_size;
+}
+
 /*
  * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
  * the fdt into the allocates page(s) and return a pointer to the new location
@@ -154,6 +197,7 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	struct mobj *m = NULL;
 	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
 
+	fdt_size += sp_calculate_fdt_space(input_fdt);
 	*num_pgs = ROUNDUP(fdt_size + info_size, SMALL_PAGE_SIZE) /
 		   SMALL_PAGE_SIZE;
 
@@ -184,11 +228,16 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
 	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
 	info->nvp[0].value = *va + info_size;
-	info->nvp[0].size = fdt_size;
-	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
 	*fdt_copy = (void *)info->nvp[0].value;
+	info->nvp[0].size = fdt_size;
 
-	return TEE_SUCCESS;
+	/* Copy the fdt into the newly created page */
+	res = fdt_open_into(input_fdt, *fdt_copy, fdt_size);
+
+	if (res)
+		return res;
+
+	return res;
 }
 
 static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
@@ -383,20 +432,6 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
-				uint64_t *value)
-{
-	int len = 0;
-	const fdt64_t *cuint64 = NULL;
-
-	cuint64 = fdt_getprop(fdt, node, property, &len);
-	if (!cuint64 || len != sizeof(*cuint64))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*value = fdt64_to_cpu(*cuint64);
-	return TEE_SUCCESS;
-}
-
 static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
 				uint32_t *value)
 {
@@ -440,11 +475,6 @@ static TEE_Result handle_fdt_regions(void *fdt,
 		if (!mem_reg)
 			return TEE_ERROR_OUT_OF_MEMORY;
 
-		if (sp_dt_get_u64(fdt, subnode, "base-address", &pa)) {
-			EMSG("No base-address found!");
-			res = TEE_ERROR_BAD_FORMAT;
-		}
-
 		if (sp_dt_get_u32(fdt, subnode, "pages-count", &sz)) {
 			EMSG("No pages-count found!");
 			res = TEE_ERROR_BAD_FORMAT;
@@ -456,6 +486,16 @@ static TEE_Result handle_fdt_regions(void *fdt,
 			EMSG("No attributes found!");
 			res = TEE_ERROR_BAD_FORMAT;
 			goto err;
+		}
+
+		if (sp_dt_get_u64(fdt, subnode, "base-address", &pa)) {
+			/*
+			 * When no address is defined, we need to allocate
+			 * the memory ourself.
+			 */
+			res = sp_mem_alloc(sz, &pa);
+			if (res)
+				goto err;
 		}
 
 		/*Set read bit if enable*/
