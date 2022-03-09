@@ -383,6 +383,45 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
 	},
 };
 
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_sm2_pub_key_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	RAW_DATA(struct ecc_public_key, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	RAW_DATA(struct ecc_public_key, y)
+	},
+};
+
+static const struct tee_cryp_obj_type_attrs tee_cryp_obj_sm2_keypair_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	RAW_DATA(struct ecc_keypair, d)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_X,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	RAW_DATA(struct ecc_keypair, x)
+	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+	RAW_DATA(struct ecc_keypair, y)
+	},
+};
+
 struct tee_cryp_obj_type_props {
 	TEE_ObjectType obj_type;
 	uint16_t min_size;	/* may not be smaller than this */
@@ -490,27 +529,27 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 
 	PROP(TEE_TYPE_SM2_DSA_PUBLIC_KEY, 1, 256, 256,
 	     sizeof(struct ecc_public_key),
-	     tee_cryp_obj_ecc_pub_key_attrs),
+	     tee_cryp_obj_sm2_pub_key_attrs),
 
 	PROP(TEE_TYPE_SM2_DSA_KEYPAIR, 1, 256, 256,
 	     sizeof(struct ecc_keypair),
-	     tee_cryp_obj_ecc_keypair_attrs),
+	     tee_cryp_obj_sm2_keypair_attrs),
 
 	PROP(TEE_TYPE_SM2_PKE_PUBLIC_KEY, 1, 256, 256,
 	     sizeof(struct ecc_public_key),
-	     tee_cryp_obj_ecc_pub_key_attrs),
+	     tee_cryp_obj_sm2_pub_key_attrs),
 
 	PROP(TEE_TYPE_SM2_PKE_KEYPAIR, 1, 256, 256,
 	     sizeof(struct ecc_keypair),
-	     tee_cryp_obj_ecc_keypair_attrs),
+	     tee_cryp_obj_sm2_keypair_attrs),
 
 	PROP(TEE_TYPE_SM2_KEP_PUBLIC_KEY, 1, 256, 256,
 	     sizeof(struct ecc_public_key),
-	     tee_cryp_obj_ecc_pub_key_attrs),
+	     tee_cryp_obj_sm2_pub_key_attrs),
 
 	PROP(TEE_TYPE_SM2_KEP_KEYPAIR, 1, 256, 256,
 	     sizeof(struct ecc_keypair),
-	     tee_cryp_obj_ecc_keypair_attrs),
+	     tee_cryp_obj_sm2_keypair_attrs),
 };
 
 struct attr_ops {
