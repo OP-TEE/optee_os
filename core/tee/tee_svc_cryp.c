@@ -2024,6 +2024,8 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		res = tee_svc_obj_generate_key_ecc(o, type_props, key_size,
 						  params, param_count);
