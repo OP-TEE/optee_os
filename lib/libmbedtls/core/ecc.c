@@ -380,18 +380,21 @@ TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_dsa_keypair_ops;
 		break;
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_pke_keypair_ops;
 		break;
 	case TEE_TYPE_SM2_KEP_KEYPAIR:
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_kep_keypair_ops;
 		break;
 	default:
@@ -451,18 +454,21 @@ TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_dsa_public_key_ops;
 		break;
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_pke_public_key_ops;
 		break;
 	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
 		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
+		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_kep_public_key_ops;
 		break;
 	default:
