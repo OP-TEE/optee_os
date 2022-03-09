@@ -91,6 +91,13 @@ static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 		    (algo != TEE_ALG_ECDH_P521))
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
+	case TEE_ECC_CURVE_SM2:
+		*key_size_bits = 256;
+		*key_size_bytes = 32;
+		if (algo != 0 && algo != TEE_ALG_SM2_DSA_SM3 &&
+		    algo != TEE_ALG_SM2_KEP && algo != TEE_ALG_SM2_PKE)
+			return TEE_ERROR_BAD_PARAMETERS;
+		break;
 	default:
 		*key_size_bits = 0;
 		*key_size_bytes = 0;
