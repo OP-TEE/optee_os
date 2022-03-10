@@ -750,11 +750,6 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 			core_mmu_map_region(prtn, mm + n);
 }
 
-bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
-{
-	return paddr > 0x80000000;
-}
-
 void core_init_mmu(struct tee_mmap_region *mm)
 {
 	/* Initialize default pagetables */

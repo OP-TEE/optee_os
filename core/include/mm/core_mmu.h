@@ -276,7 +276,8 @@ extern unsigned long default_nsec_shm_size;
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
 
-bool core_mmu_place_tee_ram_at_top(paddr_t paddr);
+/* Arch specific function to help optimizing 1 MMU xlat table */
+bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr);
 
 /*
  * struct mmu_partition - stores MMU partition.

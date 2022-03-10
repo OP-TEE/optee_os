@@ -813,13 +813,16 @@ void core_init_mmu(struct tee_mmap_region *mm)
 	assert(max_va < BIT64(CFG_LPAE_ADDR_SPACE_BITS));
 }
 
-bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
+#ifdef CFG_WITH_PAGER
+/* Prefer to consume only 1 base xlat table for the whole mapping */
+bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr)
 {
 	size_t base_level_size = BASE_XLAT_BLOCK_SIZE;
 	paddr_t base_level_mask = base_level_size - 1;
 
 	return (paddr & base_level_mask) > (base_level_size / 2);
 }
+#endif
 
 #ifdef ARM32
 void core_init_mmu_regs(struct core_mmu_config *cfg)
