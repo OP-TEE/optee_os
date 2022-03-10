@@ -886,31 +886,27 @@ static void assign_mem_granularity(struct tee_mmap_region *memory_map)
 	}
 }
 
-static bool assign_mem_va(vaddr_t tee_ram_va,
-			  struct tee_mmap_region *memory_map)
+static bool place_tee_ram_at_top(paddr_t paddr)
+{
+	return paddr > BIT64(core_mmu_get_va_width()) / 2;
+}
+
+/*
+ * MMU arch driver shall override this function if it helps
+ * optimizing the memory footprint of the address translation tables.
+ */
+bool __weak core_mmu_prefer_tee_ram_at_top(paddr_t paddr)
+{
+	return place_tee_ram_at_top(paddr);
+}
+
+static bool assign_mem_va_dir(vaddr_t tee_ram_va,
+			      struct tee_mmap_region *memory_map,
+			      bool tee_ram_at_top)
 {
 	struct tee_mmap_region *map = NULL;
-	vaddr_t va = tee_ram_va;
+	vaddr_t va = 0;
 	bool va_is_secure = true;
-
-	/*
-	 * Check that we're not overlapping with the user VA range.
-	 */
-	if (IS_ENABLED(CFG_WITH_LPAE)) {
-		/*
-		 * User VA range is supposed to be defined after these
-		 * mappings have been established.
-		 */
-		assert(!core_mmu_user_va_range_is_defined());
-	} else {
-		vaddr_t user_va_base = 0;
-		size_t user_va_size = 0;
-
-		assert(core_mmu_user_va_range_is_defined());
-		core_mmu_get_user_va_range(&user_va_base, &user_va_size);
-		if (tee_ram_va < (user_va_base + user_va_size))
-			return false;
-	}
 
 	/* Clear eventual previous assignments */
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++)
@@ -923,6 +919,7 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 	 * since it handles virtual memory which covers the part of the ELF
 	 * that cannot fit directly into memory.
 	 */
+	va = tee_ram_va;
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++) {
 		if (map_is_tee_ram(map) ||
 		    map->type == MEM_AREA_PAGER_VASPACE) {
@@ -936,7 +933,7 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 		}
 	}
 
-	if (core_mmu_place_tee_ram_at_top(tee_ram_va)) {
+	if (tee_ram_at_top) {
 		/*
 		 * Map non-tee ram regions at addresses lower than the tee
 		 * ram region.
@@ -1010,6 +1007,42 @@ static bool assign_mem_va(vaddr_t tee_ram_va,
 	}
 
 	return true;
+}
+
+static bool assign_mem_va(vaddr_t tee_ram_va,
+			  struct tee_mmap_region *memory_map)
+{
+	bool tee_ram_at_top = place_tee_ram_at_top(tee_ram_va);
+
+	/*
+	 * Check that we're not overlapping with the user VA range.
+	 */
+	if (IS_ENABLED(CFG_WITH_LPAE)) {
+		/*
+		 * User VA range is supposed to be defined after these
+		 * mappings have been established.
+		 */
+		assert(!core_mmu_user_va_range_is_defined());
+	} else {
+		vaddr_t user_va_base = 0;
+		size_t user_va_size = 0;
+
+		assert(core_mmu_user_va_range_is_defined());
+		core_mmu_get_user_va_range(&user_va_base, &user_va_size);
+		if (tee_ram_va < (user_va_base + user_va_size))
+			return false;
+	}
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		bool prefered_dir = core_mmu_prefer_tee_ram_at_top(tee_ram_va);
+
+		/* Try whole mapping covered by a single base xlat entry */
+		if (prefered_dir != tee_ram_at_top &&
+		    assign_mem_va_dir(tee_ram_va, memory_map, prefered_dir))
+			return true;
+	}
+
+	return assign_mem_va_dir(tee_ram_va, memory_map, tee_ram_at_top);
 }
 
 static int cmp_init_mem_map(const void *a, const void *b)
