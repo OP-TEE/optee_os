@@ -5,6 +5,7 @@
  * All rights reserved.
  */
 
+#include <io.h>
 #include <kernel/dt.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
@@ -26,6 +27,16 @@ vaddr_t sam_sfr_base(void)
 		va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC, 1);
 
 	return (vaddr_t)va;
+}
+
+void atmel_sfr_set_usb_suspend(bool set)
+{
+	if (set)
+		io_setbits32(sam_sfr_base() + AT91_SFR_OHCIICR,
+			     AT91_OHCIICR_USB_SUSPEND);
+	else
+		io_clrbits32(sam_sfr_base() + AT91_SFR_OHCIICR,
+			     AT91_OHCIICR_USB_SUSPEND);
 }
 
 static TEE_Result atmel_sfr_probe(const void *fdt, int node,

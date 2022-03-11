@@ -6,6 +6,7 @@
 #ifndef SAM_SFR_H
 #define SAM_SFR_H
 
+#include <stdbool.h>
 #include <util.h>
 
 /* OHCI INT Configuration Register */
@@ -26,9 +27,13 @@
 /* Field definitions */
 #define AT91_UTMICKTRIM_FREQ			GENMASK_32(1, 0)
 
+#define AT91_OHCIICR_USB_SUSPEND		GENMASK_32(10, 8)
+
 #define AT91_SFR_AICREDIR_XOR_KEY		0xb6d81c4d
 #define AT91_SFR_AICREDIR_KEY_MASK		GENMASK_32(31, 1)
 
 vaddr_t sam_sfr_base(void);
+
+void atmel_sfr_set_usb_suspend(bool set);
 
 #endif
