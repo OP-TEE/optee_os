@@ -396,6 +396,17 @@ static bool mobj_shm_matches(struct mobj *mobj __unused, enum buf_is_attr attr)
 	return attr == CORE_MEM_NSEC_SHM || attr == CORE_MEM_NON_SEC;
 }
 
+static TEE_Result mobj_shm_get_cattr(struct mobj *mobj __unused,
+				     uint32_t *cattr)
+{
+	if (!cattr)
+		return TEE_ERROR_GENERIC;
+
+	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+
+	return TEE_SUCCESS;
+}
+
 static void mobj_shm_free(struct mobj *mobj)
 {
 	struct mobj_shm *m = to_mobj_shm(mobj);
@@ -417,6 +428,7 @@ __weak __relrodata_unpaged("mobj_shm_ops") = {
 	.get_va = mobj_shm_get_va,
 	.get_pa = mobj_shm_get_pa,
 	.get_phys_offs = mobj_shm_get_phys_offs,
+	.get_cattr = mobj_shm_get_cattr,
 	.matches = mobj_shm_matches,
 	.free = mobj_shm_free,
 	.get_cookie = mobj_shm_get_cookie,
@@ -441,6 +453,7 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie)
 
 	m->mobj.size = size;
 	m->mobj.ops = &mobj_shm_ops;
+	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 	refcount_set(&m->mobj.refc, 1);
 	m->pa = pa;
 	m->cookie = cookie;
