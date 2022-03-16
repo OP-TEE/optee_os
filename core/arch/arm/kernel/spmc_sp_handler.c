@@ -249,9 +249,9 @@ static TEE_Result mem_set_cache_type(struct sp_mem *smem,
 	return TEE_SUCCESS;
 }
 
-static int spmc_sp_add_nw_region(struct sp_mem *smem,
-				 struct ffa_mem_region *mem_reg,
-				 uint8_t highest_permission)
+int spmc_sp_add_nw_region(struct sp_mem *smem,
+			  struct ffa_mem_region *mem_reg,
+			  uint8_t highest_permission)
 {
 	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
 	struct sp_mem_map_region *region = NULL;
@@ -264,6 +264,7 @@ static int spmc_sp_add_nw_region(struct sp_mem *smem,
 	if (!m)
 		return FFA_NO_MEMORY;
 
+	sp_mem_set_secure(m, !(highest_permission & FFA_MEM_ACC_NSEC));
 	for (i = 0; i < address_count; i++) {
 		struct ffa_address_range *addr_range = NULL;
 
@@ -386,6 +387,8 @@ int spmc_sp_add_share(struct ffa_rxtx *rxtx,
 				goto cleanup;
 		}
 	} else {
+		highest_permission |= FFA_MEM_ACC_NSEC;
+
 		res = spmc_sp_add_nw_region(smem, mem_reg, highest_permission);
 		if (res)
 			goto cleanup;

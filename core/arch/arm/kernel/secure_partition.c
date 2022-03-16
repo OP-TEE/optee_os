@@ -134,15 +134,20 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
+/*
+ * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
+ * the fdt into the allocates page(s) and return a pointer to the new location
+ * of the fdt. This pointer can be used to update data inside the fdt.
+ */
 static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
-			       const void * const fdt, vaddr_t *va,
-			       size_t *num_pgs)
+			       const void * const input_fdt, vaddr_t *va,
+			       size_t *num_pgs, void **fdt_copy)
 {
 	struct sp_ffa_init_info *info = NULL;
 	int nvp_count = 1;
 	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
 	size_t info_size = sizeof(*info) + nvp_size;
-	size_t fdt_size = fdt_totalsize(fdt);
+	size_t fdt_size = fdt_totalsize(input_fdt);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
 	struct fobj *fo = NULL;
@@ -180,7 +185,8 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
 	info->nvp[0].value = *va + info_size;
 	info->nvp[0].size = fdt_size;
-	memcpy((void *)info->nvp[0].value, fdt, fdt_size);
+	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
+	*fdt_copy = (void *)info->nvp[0].value;
 
 	return TEE_SUCCESS;
 }
@@ -263,7 +269,6 @@ static TEE_Result sp_init_set_registers(struct sp_ctx *ctx)
 	memset(sp_regs, 0, sizeof(*sp_regs));
 	sp_regs->sp = ctx->uctx.stack_ptr;
 	sp_regs->pc = ctx->uctx.entry_func;
-
 	return TEE_SUCCESS;
 }
 
@@ -274,7 +279,7 @@ TEE_Result sp_map_shared(struct sp_session *s,
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *ctx = NULL;
-	uint32_t perm = TEE_MATTR_UR;
+	uint32_t perm = 0;
 	struct sp_mem_map_region *reg = NULL;
 
 	ctx = to_sp_ctx(s->ts_sess.ctx);
@@ -283,7 +288,10 @@ TEE_Result sp_map_shared(struct sp_session *s,
 	if (receiver->perm.perm & FFA_MEM_ACC_EXE)
 		perm |= TEE_MATTR_UX;
 
-	if (receiver->perm.perm & FFA_MEM_ACC_RW) {
+	if (receiver->perm.perm & (FFA_MEM_ACC_R | FFA_MEM_ACC_RW))
+		perm |= TEE_MATTR_UR;
+
+	if (receiver->perm.perm & (FFA_MEM_ACC_W | FFA_MEM_ACC_RW)) {
 		if (receiver->perm.perm & FFA_MEM_ACC_EXE)
 			return TEE_ERROR_ACCESS_CONFLICT;
 
@@ -375,6 +383,137 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
+				uint64_t *value)
+{
+	int len = 0;
+	const fdt64_t *cuint64 = NULL;
+
+	cuint64 = fdt_getprop(fdt, node, property, &len);
+	if (!cuint64 || len != sizeof(*cuint64))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*value = fdt64_to_cpu(*cuint64);
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
+				uint32_t *value)
+{
+	int len = 0;
+	const fdt32_t *cuint32 = NULL;
+
+	cuint32 = fdt_getprop(fdt, node, property, &len);
+	if (!cuint32 || len != sizeof(*cuint32))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*value = fdt32_to_cpu(*cuint32);
+	return TEE_SUCCESS;
+}
+
+static TEE_Result handle_fdt_regions(void *fdt,
+				     struct sp_session *s,
+				     const char *dt_match_table,
+				     bool device)
+{
+	int node = 0;
+	int subnode = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	node = fdt_node_offset_by_compatible(fdt, 0, dt_match_table);
+
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		vaddr_t va = 0;
+		uint64_t pa = 0;
+		uint32_t sz = 0;
+		uint32_t attributes = 0;
+		uint32_t man_attributes = 0;
+		struct sp_mem_receiver receiver = {0};
+		struct sp_mem smem = {0};
+		struct ffa_mem_region *mem_reg = NULL;
+
+		mem_reg = calloc(1, sizeof(struct ffa_mem_region) +
+				  sizeof(struct ffa_address_range));
+		if (!mem_reg)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		if (sp_dt_get_u64(fdt, subnode, "base-address", &pa)) {
+			EMSG("No base-address found!");
+			res = TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &sz)) {
+			EMSG("No pages-count found!");
+			res = TEE_ERROR_BAD_FORMAT;
+			goto err;
+		}
+
+		if (sp_dt_get_u32(fdt, subnode, "attributes",
+				  &man_attributes)) {
+			EMSG("No attributes found!");
+			res = TEE_ERROR_BAD_FORMAT;
+			goto err;
+		}
+
+		/*Set read bit if enable*/
+		switch (man_attributes & 0x3) {
+		case FFA_MEM_MANIFEST_R:
+			attributes = FFA_MEM_ACC_R;
+			break;
+		case FFA_MEM_MANIFEST_W:
+			attributes = FFA_MEM_ACC_W;
+			break;
+		case FFA_MEM_MANIFEST_R | FFA_MEM_MANIFEST_W:
+			attributes = FFA_MEM_ACC_RW;
+			break;
+		default:
+			EMSG("unsupported memory type");
+			res = TEE_ERROR_BAD_FORMAT;
+			goto err;
+		}
+
+		/*Device memory should not be executable*/
+		if (device && (man_attributes & FFA_MEM_MANIFEST_EXE)) {
+			EMSG("Device region mapped with EXECUTABLE_ACCESS");
+			res = TEE_ERROR_BAD_FORMAT;
+			goto err;
+		}
+
+		if (man_attributes & FFA_MEM_MANIFEST_NSEC) {
+			EMSG("Mapping non-secure memory not supported");
+			res = TEE_ERROR_BAD_FORMAT;
+			goto err;
+		}
+
+		if (device)
+			smem.mem_reg_attr = FFA_DEV_MEM_REG_ATTR |
+					    FFA_DEV_MEM_nGnRnE;
+
+		receiver.perm.perm = attributes;
+		mem_reg->total_page_count = sz;
+		mem_reg->address_range_count = 1;
+		mem_reg->address_range_array[0].address = pa;
+		mem_reg->address_range_array[0].page_count = sz;
+		spmc_sp_add_nw_region(&smem, mem_reg, attributes);
+
+		res = sp_map_shared(s, &receiver, &smem, &va);
+		if (res)
+			goto err;
+
+		res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+
+err:
+		free(mem_reg);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
 {
 	int len = 0;
@@ -421,11 +560,14 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	vaddr_t va = 0;
 	size_t num_pgs = 0;
 	struct sp_ctx *ctx = NULL;
+	void *fdt_copy = NULL;
+	const char *dt_memory_match_table = {
+		"arm,ffa-manifest-memory-regions",
+	};
+	const char *dt_device_match_table = {
+		"arm,ffa-manifest-device-regions",
+	};
 
-	res = handle_fdt(fdt, uuid);
-
-	if (res)
-		return res;
 
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
@@ -433,20 +575,37 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	if (res)
 		return res;
 
-	ctx = to_sp_ctx(sess->ts_sess.ctx);
-	ts_push_current_session(&sess->ts_sess);
-	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs);
-	ts_pop_current_session();
+	res = handle_fdt(fdt, uuid);
+
 	if (res)
 		return res;
 
-	if (sp_enter(&args, sess))
+	ctx = to_sp_ctx(sess->ts_sess.ctx);
+	ts_push_current_session(&sess->ts_sess);
+	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs, &fdt_copy);
+	if (res)
+		goto out;
+
+	res = handle_fdt_regions(fdt_copy, sess, dt_device_match_table, true);
+	if (res)
+		goto out;
+
+	res = handle_fdt_regions(fdt_copy, sess, dt_memory_match_table, false);
+	if (res)
+		goto out;
+
+	ts_pop_current_session();
+
+	if (sp_enter(&args, sess)) {
+		vm_unmap(&ctx->uctx, va, num_pgs);
 		return FFA_ABORTED;
+	}
 
 	spmc_sp_msg_handler(&args, sess);
 
-	/* Free the boot info page from the SP memory.*/
 	ts_push_current_session(&sess->ts_sess);
+out:
+	/* Free the boot info page from the SP memory.*/
 	res = vm_unmap(&ctx->uctx, va, num_pgs);
 	ts_pop_current_session();
 

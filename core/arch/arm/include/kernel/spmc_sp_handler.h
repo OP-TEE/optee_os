@@ -20,6 +20,9 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 bool ffa_mem_reclaim(struct thread_smc_args *args,
 		     struct sp_session *caller_sp);
 
+int spmc_sp_add_nw_region(struct sp_mem *smem,
+			  struct ffa_mem_region *mem_reg,
+			  uint8_t highest_permission);
 #ifdef CFG_SECURE_PARTITION
 void spmc_sp_start_thread(struct thread_smc_args *args);
 int spmc_sp_add_share(struct ffa_rxtx *rxtx,

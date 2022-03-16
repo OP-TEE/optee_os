@@ -88,11 +88,18 @@
 #define FFA_DEV_MEM_nGnRE		U(0x1)
 
 /* Memory access permissions: Read-write */
+#define FFA_MEM_ACC_R			BIT(0)
 #define FFA_MEM_ACC_RW			BIT(1)
+#define FFA_MEM_ACC_W			BIT(5)
 
 /* Memory access permissions: executable */
 #define FFA_MEM_ACC_EXE			BIT(3)
 #define FFA_MEM_ACC_NSEC		BIT(4)
+
+#define FFA_MEM_MANIFEST_R	BIT(0)
+#define FFA_MEM_MANIFEST_W	BIT(1)
+#define FFA_MEM_MANIFEST_EXE	BIT(2)
+#define FFA_MEM_MANIFEST_NSEC	BIT(7)
 
 /* Memory access permissions mask */
 #define FFA_MEM_ACC_MASK		0xf
