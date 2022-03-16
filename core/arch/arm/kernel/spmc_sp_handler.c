@@ -226,7 +226,8 @@ static int spmc_sp_add_nw_region(struct sp_mem *smem,
 {
 	uint64_t page_count = READ_ONCE(mem_reg->total_page_count);
 	struct sp_mem_map_region *region = NULL;
-	struct mobj *m = sp_mem_new_mobj(page_count, TEE_MATTR_MEM_TYPE_CACHED);
+	struct mobj *m = sp_mem_new_mobj(page_count, TEE_MATTR_MEM_TYPE_CACHED,
+					 false);
 	unsigned int i = 0;
 	unsigned int idx = 0;
 	int res = FFA_OK;

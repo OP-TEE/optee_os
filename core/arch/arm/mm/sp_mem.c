@@ -23,6 +23,7 @@ const struct mobj_ops mobj_sp_ops;
 struct mobj_sp {
 	struct mobj mobj;
 	uint32_t mem_type;
+	bool is_secure;
 	paddr_t pages[];
 };
 
@@ -43,7 +44,8 @@ static size_t mobj_sp_size(size_t num_pages)
 	return s;
 }
 
-struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type)
+struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type,
+			     bool is_secure)
 {
 	struct mobj_sp *m = NULL;
 	size_t s = 0;
@@ -61,6 +63,7 @@ struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type)
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 
 	m->mem_type = cache_type;
+	m->is_secure = is_secure;
 
 	refcount_set(&m->mobj.refc, 1);
 	return &m->mobj;
@@ -82,8 +85,17 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
-		return TEE_ERROR_BAD_PARAMETERS;
+	/* Don't check for device memory */
+	if (ms->mem_type == TEE_MATTR_MEM_TYPE_CACHED) {
+		if (ms->is_secure) {
+			if (!tee_pbuf_is_sec(pa, num_pages * SMALL_PAGE_SIZE))
+				return TEE_ERROR_BAD_PARAMETERS;
+		} else {
+			if (!tee_pbuf_is_non_sec(pa,
+						 num_pages * SMALL_PAGE_SIZE))
+				return TEE_ERROR_BAD_PARAMETERS;
+		}
+	}
 
 	for (n = 0; n < num_pages; n++)
 		ms->pages[n + *idx] = pa + n * SMALL_PAGE_SIZE;
@@ -101,12 +113,14 @@ static TEE_Result sp_mem_get_cattr(struct mobj *mobj, uint32_t *cattr)
 	return TEE_SUCCESS;
 }
 
-static bool mobj_sp_matches(struct mobj *mobj __maybe_unused,
-			    enum buf_is_attr attr)
+static bool mobj_sp_matches(struct mobj *mobj, enum buf_is_attr attr)
 {
-	assert(mobj->ops == &mobj_sp_ops);
+	struct mobj_sp *m = to_mobj_sp(mobj);
 
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+	if (m->is_secure)
+		return attr == CORE_MEM_SEC;
+	else
+		return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
 }
 
 static TEE_Result get_pa(struct mobj *mobj, size_t offset,
