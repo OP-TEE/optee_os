@@ -23,6 +23,7 @@ const struct mobj_ops mobj_sp_ops;
 struct mobj_sp {
 	struct mobj mobj;
 	uint32_t cache_type;
+	bool is_secure;
 	paddr_t pages[];
 };
 
@@ -62,6 +63,7 @@ struct mobj *sp_mem_new_mobj(uint64_t pages)
 
 	m->cache_type = TEE_MATTR_MEM_TYPE_CACHED;
 
+	m->is_secure = false;
 	refcount_set(&m->mobj.refc, 1);
 	return &m->mobj;
 }
@@ -80,9 +82,6 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	size_t tot_page_count = get_page_count(ms);
 
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
@@ -126,12 +125,25 @@ void  sp_mem_set_cattr(struct mobj *mobj, uint32_t cache_type)
 	m->cache_type = cache_type;
 }
 
+void  sp_mem_set_secure(struct mobj *mobj, bool is_secure)
+{
+	struct mobj_sp *m = to_mobj_sp(mobj);
+
+	m->is_secure = is_secure;
+}
+
 static bool mobj_sp_matches(struct mobj *mobj __maybe_unused,
 			    enum buf_is_attr attr)
 {
+	struct mobj_sp *m = to_mobj_sp(mobj);
+
 	assert(mobj->ops == &mobj_sp_ops);
 
-	return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+	if (m->is_secure)
+		return attr == CORE_MEM_SEC;
+	else
+		return attr == CORE_MEM_NON_SEC || attr == CORE_MEM_REG_SHM;
+
 }
 
 static TEE_Result get_pa(struct mobj *mobj, size_t offset,
