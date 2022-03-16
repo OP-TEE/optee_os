@@ -78,7 +78,8 @@ void *sp_mem_get_va(const struct user_mode_ctx *uctx, size_t offset,
 		    struct mobj *mobj);
 void sp_mem_remove(struct sp_mem *s_mem);
 void sp_mem_add(struct sp_mem *smem);
-struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type);
+struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type,
+			     bool is_secure);
 int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 		     paddr_t pa, unsigned int num_pages);
 #endif /*__MM_SP_MEM_H*/
