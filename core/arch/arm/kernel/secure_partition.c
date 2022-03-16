@@ -30,6 +30,11 @@
 #include <util.h>
 #include <zlib.h>
 
+#define SP_MANIFEST_ATTR_READ		BIT(0)
+#define SP_MANIFEST_ATTR_WRITE		BIT(1)
+#define SP_MANIFEST_ATTR_EXEC		BIT(2)
+#define SP_MANIFEST_ATTR_NSEC		BIT(3)
+
 const struct ts_ops sp_ops;
 
 /* List that holds all of the loaded SP's */
@@ -134,15 +139,20 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
+/*
+ * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
+ * the fdt into the allocated page(s) and return a pointer to the new location
+ * of the fdt. This pointer can be used to update data inside the fdt.
+ */
 static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
-			       const void * const fdt, vaddr_t *va,
-			       size_t *num_pgs)
+			       const void * const input_fdt, vaddr_t *va,
+			       size_t *num_pgs, void **fdt_copy)
 {
 	struct sp_ffa_init_info *info = NULL;
 	int nvp_count = 1;
 	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
 	size_t info_size = sizeof(*info) + nvp_size;
-	size_t fdt_size = fdt_totalsize(fdt);
+	size_t fdt_size = fdt_totalsize(input_fdt);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
 	struct fobj *fo = NULL;
@@ -180,7 +190,8 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
 	info->nvp[0].value = *va + info_size;
 	info->nvp[0].size = fdt_size;
-	memcpy((void *)info->nvp[0].value, fdt, fdt_size);
+	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
+	*fdt_copy = (void *)info->nvp[0].value;
 
 	return TEE_SUCCESS;
 }
@@ -375,6 +386,145 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
+				uint64_t *value)
+{
+	const fdt64_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p || len != sizeof(*p))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*value = fdt64_to_cpu(*p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
+				uint32_t *value)
+{
+	const fdt32_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p || len != sizeof(*p))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*value = fdt32_to_cpu(*p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
+{
+	int node = 0;
+	int subnode = 0;
+	TEE_Result res = TEE_SUCCESS;
+	const char *dt_device_match_table = {
+		"arm,ffa-manifest-device-regions",
+	};
+
+	/*
+	 * Device regions are optional in the SP manifest, it's not an error if
+	 * we don't find any
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0, dt_device_match_table);
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t base_addr = 0;
+		uint32_t pages_cnt = 0;
+		uint32_t attributes = 0;
+		struct mobj *m = NULL;
+		bool is_secure = true;
+		uint32_t perm = 0;
+		vaddr_t va = 0;
+		unsigned int idx = 0;
+
+		/*
+		 * Physical base address of a device MMIO region.
+		 * Currently only physically contiguous region is supported.
+		 */
+		if (sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
+			EMSG("Mandatory field is missing: base-address");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Total size of MMIO region as count of 4K pages */
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
+			EMSG("Mandatory field is missing: pages-count");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Data access, instruction access and security attributes */
+		if (sp_dt_get_u32(fdt, subnode, "attributes", &attributes)) {
+			EMSG("Mandatory field is missing: attributes");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Instruction access permission must be not executable */
+		if (attributes & SP_MANIFEST_ATTR_EXEC) {
+			EMSG("Invalid instruction access permission");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Data access permission must be read-only or read/write */
+		if (attributes & SP_MANIFEST_ATTR_READ) {
+			perm = TEE_MATTR_UR;
+
+			if (attributes & SP_MANIFEST_ATTR_WRITE)
+				perm |= TEE_MATTR_UW;
+		} else {
+			EMSG("Invalid data access permissions");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/*
+		 * The SP is a secure endpoint, security attribute can be
+		 * secure or non-secure
+		 */
+		if (attributes & SP_MANIFEST_ATTR_NSEC)
+			is_secure = false;
+
+		/* Memory attributes must be Device-nGnRnE */
+		m = sp_mem_new_mobj(pages_cnt, TEE_MATTR_MEM_TYPE_STRONGLY_O,
+				    is_secure);
+		if (!m)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		res = sp_mem_add_pages(m, &idx, (paddr_t)base_addr, pages_cnt);
+		if (res) {
+			mobj_put(m);
+			return res;
+		}
+
+		res = vm_map(&ctx->uctx, &va, pages_cnt * SMALL_PAGE_SIZE,
+			     perm, 0, m, 0);
+		mobj_put(m);
+		if (res)
+			return res;
+
+		/*
+		 * Overwrite the device region's PA in the fdt with the VA. This
+		 * fdt will be passed to the SP.
+		 */
+		res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+
+		/*
+		 * Unmap the region if the overwrite failed since the SP won't
+		 * be able to access it without knowing the VA.
+		 */
+		if (res) {
+			vm_unmap(&ctx->uctx, va, pages_cnt * SMALL_PAGE_SIZE);
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
 {
 	int len = 0;
@@ -421,11 +571,7 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	vaddr_t va = 0;
 	size_t num_pgs = 0;
 	struct sp_ctx *ctx = NULL;
-
-	res = handle_fdt(fdt, uuid);
-
-	if (res)
-		return res;
+	void *fdt_copy = NULL;
 
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
@@ -433,21 +579,34 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	if (res)
 		return res;
 
-	ctx = to_sp_ctx(sess->ts_sess.ctx);
-	ts_push_current_session(&sess->ts_sess);
-	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs);
-	ts_pop_current_session();
+	res = handle_fdt(fdt, uuid);
 	if (res)
 		return res;
 
-	if (sp_enter(&args, sess))
+	ctx = to_sp_ctx(sess->ts_sess.ctx);
+	ts_push_current_session(&sess->ts_sess);
+
+	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs, &fdt_copy);
+	if (res)
+		goto out;
+
+	res = handle_fdt_dev_regions(ctx, fdt_copy);
+	if (res)
+		goto out;
+
+	ts_pop_current_session();
+
+	if (sp_enter(&args, sess)) {
+		vm_unmap(&ctx->uctx, va, num_pgs);
 		return FFA_ABORTED;
+	}
 
 	spmc_sp_msg_handler(&args, sess);
 
-	/* Free the boot info page from the SP memory.*/
 	ts_push_current_session(&sess->ts_sess);
-	res = vm_unmap(&ctx->uctx, va, num_pgs);
+out:
+	/* Free the boot info page from the SP memory */
+	vm_unmap(&ctx->uctx, va, num_pgs);
 	ts_pop_current_session();
 
 	return res;
