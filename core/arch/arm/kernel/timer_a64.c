@@ -15,6 +15,7 @@ TEE_Result generic_timer_start(uint32_t time_ms)
 {
 	uint32_t exceptions = cpu_spin_lock_xsave(&timer_lock);
 	uint32_t timer_ticks = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (timer_running) {
 		res = TEE_ERROR_BUSY;
