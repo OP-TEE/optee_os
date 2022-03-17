@@ -84,6 +84,14 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (ms->is_secure) {
+		if (tee_pbuf_is_non_sec(pa, num_pages * SMALL_PAGE_SIZE))
+			return TEE_ERROR_BAD_PARAMETERS;
+	} else {
+		if (tee_pbuf_is_sec(pa, num_pages * SMALL_PAGE_SIZE))
+			return TEE_ERROR_BAD_PARAMETERS;
+	}
+
 	for (n = 0; n < num_pages; n++)
 		ms->pages[n + *idx] = pa + n * SMALL_PAGE_SIZE;
 
@@ -136,8 +144,6 @@ static bool mobj_sp_matches(struct mobj *mobj __maybe_unused,
 			    enum buf_is_attr attr)
 {
 	struct mobj_sp *m = to_mobj_sp(mobj);
-
-	assert(mobj->ops == &mobj_sp_ops);
 
 	if (m->is_secure)
 		return attr == CORE_MEM_SEC;
