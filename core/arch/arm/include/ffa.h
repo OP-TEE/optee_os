@@ -92,6 +92,7 @@
 
 /* Memory access permissions: executable */
 #define FFA_MEM_ACC_EXE			BIT(3)
+#define FFA_MEM_ACC_NSEC		BIT(4)
 
 /* Memory access permissions mask */
 #define FFA_MEM_ACC_MASK		0xf

@@ -276,8 +276,6 @@ TEE_Result sp_map_shared(struct sp_session *s,
 	struct sp_ctx *ctx = NULL;
 	uint32_t perm = TEE_MATTR_UR;
 	struct sp_mem_map_region *reg = NULL;
-	uint32_t cache_type = 0;
-	bool is_device = smem->mem_reg_attr & FFA_DEV_MEM_REG_ATTR;
 
 	ctx = to_sp_ctx(s->ts_sess.ctx);
 
@@ -301,28 +299,7 @@ TEE_Result sp_map_shared(struct sp_session *s,
 	if (*va)
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (is_device) {
-		uint8_t dev_type = (smem->mem_reg_attr >> FFA_DEV_MEM_SHIFT) &
-				    FFA_DEV_MEM_MASK;
-
-		if (sp_mem_ffa_dev_to_cache_type(dev_type, &cache_type))
-			return FFA_INVALID_PARAMETERS;
-	}
-
 	SLIST_FOREACH(reg, &smem->regions, link) {
-		/* Check device region attributes */
-		if (is_device) {
-			uint32_t mcache_type = 0;
-
-			if (mobj_get_cattr(reg->mobj, &mcache_type))
-				return FFA_INVALID_PARAMETERS;
-
-			if (cache_type != mcache_type) {
-				EMSG("Inccorect device type");
-				return FFA_INVALID_PARAMETERS;
-			}
-		}
-
 		res = vm_map(&ctx->uctx, va, reg->page_count * SMALL_PAGE_SIZE,
 			     perm, 0, reg->mobj, reg->page_offset);
 
