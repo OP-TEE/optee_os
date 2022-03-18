@@ -59,6 +59,8 @@ struct ta_elf {
 
 	/* DT_HASH hash table for faster resolution of external symbols */
 	void *hashtab;
+	/* DT_GNU_HASH table as an alternative to DT_HASH */
+	void *gnu_hashtab;
 
 	/* DT_SONAME */
 	char *soname;

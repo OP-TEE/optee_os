@@ -32,6 +32,17 @@ static uint32_t elf_hash(const char *name)
 	return h;
 }
 
+static uint32_t gnu_hash(const char *name)
+{
+	const unsigned char *p = (const unsigned char *)name;
+	uint32_t h = 5381;
+
+	while (*p)
+		h = (h << 5) + h + *p++;
+
+	return h;
+}
+
 static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
 			unsigned int st_type, size_t st_shndx,
 			size_t st_name, size_t st_value, const char *name,
@@ -78,9 +89,9 @@ static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
 	return true;
 }
 
-static bool __resolve_sym(struct ta_elf *elf, const char *name,
-			  vaddr_t *val, bool weak_ok,
-			  size_t n, bool is_32)
+static bool check_found_sym(struct ta_elf *elf, const char *name,
+			    vaddr_t *val, bool weak_ok,
+			    size_t n, bool is_32)
 {
 	Elf32_Sym *sym32 = NULL;
 	Elf64_Sym *sym64 = NULL;
@@ -118,13 +129,73 @@ static bool __resolve_sym(struct ta_elf *elf, const char *name,
 	return false;
 }
 
-static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
-				     vaddr_t *val, struct ta_elf *elf,
-				     bool weak_ok)
+static TEE_Result resolve_sym_helper(const char *name, vaddr_t *val,
+				     struct ta_elf *elf, bool weak_ok)
 {
-	size_t n = 0;
+	uint32_t n = 0;
+	uint32_t hash = 0;
 
-	if (elf->hashtab) {
+	if (elf->gnu_hashtab) {
+		/*
+		 * Using uint32_t here for convenience because both Elf64_Word
+		 * and Elf32_Word are 32-bit types
+		 */
+		uint32_t *hashtab = elf->gnu_hashtab;
+		uint32_t nbuckets = hashtab[0];
+		uint32_t symskip = hashtab[1];
+		uint32_t bloom_size = hashtab[2];
+		uint32_t elf_nbits = elf->is_32bit ? 32 : 64;
+		uint32_t *bucket = NULL;
+		uint32_t *chain = NULL;
+		uint32_t hashval = 0;
+
+		hash = gnu_hash(name);
+
+		if (!elf->is_32bit) {
+			uint64_t *bloom_64 = (void *)&hashtab[4];
+			uint64_t word_64 =
+				bloom_64[(hash / elf_nbits) % bloom_size];
+			uint64_t mask_64 = 0ULL
+				| 1ULL << (hash % elf_nbits)
+				| 1ULL << ((hash >> hashtab[3]) % elf_nbits);
+
+			if ((word_64 & mask_64) != mask_64)
+				return TEE_ERROR_ITEM_NOT_FOUND;
+
+			bucket = (void *)&bloom_64[bloom_size];
+			chain = &bucket[nbuckets];
+		} else {
+			uint32_t *bloom_32 = (void *)&hashtab[4];
+			uint32_t word_32 =
+				bloom_32[(hash / elf_nbits) % bloom_size];
+			uint32_t mask_32 = 0ULL
+				| 1ULL << (hash % elf_nbits)
+				| 1ULL << ((hash >> hashtab[3]) % elf_nbits);
+
+			if ((word_32 & mask_32) != mask_32)
+				return TEE_ERROR_ITEM_NOT_FOUND;
+
+			bucket = (void *)&bloom_32[bloom_size];
+			chain = &bucket[nbuckets];
+		}
+
+		n = bucket[hash % nbuckets];
+		if (n < symskip)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		hash |= 1;
+		do {
+			hashval = chain[n - symskip];
+
+			if (((hashval | 1) == hash) &&
+			    (check_found_sym(elf, name,
+					     val, weak_ok,
+					     n, elf->is_32bit)))
+				return TEE_SUCCESS;
+
+			n++;
+		} while (!(hashval & 1));
+	} else if (elf->hashtab) {
 		/*
 		 * Using uint32_t here for convenience because both Elf64_Word
 		 * and Elf32_Word are 32-bit types
@@ -135,19 +206,22 @@ static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
 		uint32_t *bucket = &hashtab[2];
 		uint32_t *chain = &bucket[nbuckets];
 
+		hash = elf_hash(name);
+
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
 			if (n >= nchains)
 				err(TEE_ERROR_BAD_FORMAT, "Index out of range");
-			if (__resolve_sym(elf, name,
-					  val, weak_ok,
-					  n, elf->is_32bit))
+			if (check_found_sym(elf, name,
+					    val, weak_ok,
+					    n, elf->is_32bit))
 				return TEE_SUCCESS;
 		}
 	} else {
+		DMSG("Falling back to bruteforce symbol lookup");
 		for (n = 0; n < elf->num_dynsyms; n++) {
-			if (__resolve_sym(elf, name,
-					  val, weak_ok,
-					  n, elf->is_32bit))
+			if (check_found_sym(elf, name,
+					    val, weak_ok,
+					    n, elf->is_32bit))
 				return TEE_SUCCESS;
 		}
 	}
@@ -167,24 +241,22 @@ TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
 			      struct ta_elf **found_elf,
 			      struct ta_elf *elf)
 {
-	uint32_t hash = elf_hash(name);
-
 	if (elf) {
 		/* Search global symbols */
-		if (!resolve_sym_helper(hash, name, val, elf,
+		if (!resolve_sym_helper(name, val, elf,
 					false /* !weak_ok */))
 			goto success;
 		/* Search weak symbols */
-		if (!resolve_sym_helper(hash, name, val, elf,
+		if (!resolve_sym_helper(name, val, elf,
 					true /* weak_ok */))
 			goto success;
 	}
 
 	TAILQ_FOREACH(elf, &main_elf_queue, link) {
-		if (!resolve_sym_helper(hash, name, val, elf,
+		if (!resolve_sym_helper(name, val, elf,
 					false /* !weak_ok */))
 			goto success;
-		if (!resolve_sym_helper(hash, name, val, elf,
+		if (!resolve_sym_helper(name, val, elf,
 					true /* weak_ok */))
 			goto success;
 	}
