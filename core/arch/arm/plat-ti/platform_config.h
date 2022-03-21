@@ -128,20 +128,10 @@
 
 #endif /* CFG_WITH_PAGER */
 
-#ifdef CFG_SECURE_DATA_PATH
-/* SDP memory at end of TZDRAM (config directives set CFG_TEE_SDP_MEM_SIZE) */
-#define TEE_SDP_TEST_MEM_BASE	(TZDRAM_BASE + TZDRAM_SIZE - \
-					CFG_TEE_SDP_MEM_SIZE)
-#define TEE_SDP_TEST_MEM_SIZE	CFG_TEE_SDP_MEM_SIZE
-#else
-#define TEE_SDP_TEST_MEM_SIZE	0
-#endif /*CFG_SECURE_DATA_PATH*/
-
 #define TA_RAM_START		ROUNDUP((TZDRAM_BASE + TEE_RAM_VA_SIZE), \
 					CORE_MMU_PGDIR_SIZE)
 
-#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE) - \
-					  TEE_SDP_TEST_MEM_SIZE, \
+#define TA_RAM_SIZE		ROUNDDOWN((TZDRAM_SIZE - TEE_RAM_VA_SIZE), \
 					  CORE_MMU_PGDIR_SIZE)
 
 /* Full GlobalPlatform test suite requires TEE_SHMEM_SIZE to be at least 2MB */

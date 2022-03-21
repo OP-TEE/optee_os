@@ -2,13 +2,6 @@ PLATFORM_FLAVOR ?= dra7xx
 
 CFG_WITH_STATS ?= y
 CFG_WITH_SOFTWARE_PRNG ?= n
-CFG_SECURE_DATA_PATH ?= y
-
-ifeq ($(CFG_SECURE_DATA_PATH),y)
-CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
-else
-CFG_TEE_SDP_MEM_SIZE ?= 0x0
-endif
 
 ifeq ($(PLATFORM_FLAVOR),dra7xx)
 include core/arch/arm/cpu/cortex-a15.mk
