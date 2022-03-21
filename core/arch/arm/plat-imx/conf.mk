@@ -161,28 +161,24 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mq-flavorlist)))
 $(call force,CFG_MX8MQ,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
-CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mm-flavorlist)))
 $(call force,CFG_MX8MM,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
-CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mn-flavorlist)))
 $(call force,CFG_MX8MN,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
-CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mp-flavorlist)))
 $(call force,CFG_MX8MP,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
-CFG_IMX_UART ?= y
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qm-flavorlist)))
@@ -441,7 +437,7 @@ CFG_SECURE_TIME_SOURCE_REE ?= y
 CFG_UART_BASE ?= UART1_BASE
 endif
 
-ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX8MM)))
+ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX8M)))
 $(call force,CFG_IMX_UART,y)
 ifeq ($(CFG_RPMB_FS),y)
 CFG_IMX_SNVS ?= y
