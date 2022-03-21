@@ -161,9 +161,6 @@ static paddr_t _fdt_read_paddr(const uint32_t *cell, int n)
 #endif
 	}
 
-	if (!addr)
-		goto bad;
-
 	return addr;
 bad:
 	return DT_INFO_INVALID_REG;
