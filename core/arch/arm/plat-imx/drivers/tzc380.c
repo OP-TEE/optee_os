@@ -21,7 +21,11 @@
  */
 #ifndef TZASC2_BASE
 #define TZASC2_BASE			0
+#else
+register_phys_mem(MEM_AREA_IO_SEC, TZASC2_BASE, TZASC_SIZE);
 #endif
+
+register_phys_mem(MEM_AREA_IO_SEC, TZASC_BASE, TZASC_SIZE);
 
 static TEE_Result imx_configure_tzasc(void)
 {
