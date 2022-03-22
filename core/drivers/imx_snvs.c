@@ -187,11 +187,9 @@ static enum snvs_ssm_mode snvs_get_ssm_mode(void)
 bool plat_rpmb_key_is_ready(void)
 {
 	enum snvs_ssm_mode mode = SNVS_SSM_MODE_INIT;
-	enum snvs_security_cfg security = SNVS_SECURITY_CFG_OPEN;
 	bool ssm_secure = false;
 
 	mode = snvs_get_ssm_mode();
-	security = snvs_get_security_cfg();
 	ssm_secure = (mode == SNVS_SSM_MODE_TRUSTED ||
 		      mode == SNVS_SSM_MODE_SECURE);
 
@@ -203,7 +201,7 @@ bool plat_rpmb_key_is_ready(void)
 	if (soc_is_imx6sdl() || soc_is_imx6dq())
 		return ssm_secure;
 
-	return ssm_secure && (security == SNVS_SECURITY_CFG_CLOSED);
+	return ssm_secure && snvs_is_device_closed();
 }
 #endif /* CFG_RPMB_FS */
 
