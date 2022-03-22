@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2016, 2022 Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
  */
 
 #include <assert.h>
@@ -642,6 +643,15 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
+		/*
+		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
+		 * tree as secure non-cached memory, otherwise, fall back to
+		 * non-secure mapping.
+		 */
+		if (IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+			return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW |
+			       noncache;
+		fallthrough;
 	case MEM_AREA_IO_NSEC:
 		return attr | TEE_MATTR_PRW | noncache;
 	case MEM_AREA_IO_SEC:

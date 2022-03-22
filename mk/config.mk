@@ -421,6 +421,9 @@ CFG_STACK_TMP_EXTRA ?= 0
 # the address of a DTB in register X2/R2 provided by the early boot stage
 # or value 0 if boot stage provides no DTB.
 #
+# When CFG_MAP_EXT_DT_SECURE is enabled the external device tree is expected to
+# be in the secure memory.
+#
 # When CFG_EMBED_DTB is enabled, CFG_EMBED_DTB_SOURCE_FILE shall define the
 # relative path of a DTS file located in core/arch/$(ARCH)/dts.
 # The DTS file is compiled into a DTB file which content is embedded in a
@@ -433,6 +436,10 @@ $(call force,CFG_DT,y)
 endif
 CFG_EMBED_DTB ?= n
 CFG_DT ?= n
+CFG_MAP_EXT_DT_SECURE ?= n
+ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
+$(call force,CFG_DT,y)
+endif
 
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
