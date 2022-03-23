@@ -280,4 +280,4 @@ static TEE_Result imx_ocotp_init(void)
 
 	return TEE_SUCCESS;
 }
-driver_init(imx_ocotp_init);
+service_init(imx_ocotp_init);
