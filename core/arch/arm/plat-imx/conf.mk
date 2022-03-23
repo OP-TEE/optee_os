@@ -78,6 +78,7 @@ mx8qm-flavorlist = \
 
 mx8qx-flavorlist = \
 	mx8qxpmek \
+	mx8dxmek \
 
 mx8dxl-flavorlist = \
 	mx8dxlevk \
@@ -396,6 +397,12 @@ CFG_UART_BASE ?= UART0_BASE
 CFG_NSEC_DDR_1_BASE ?= 0x880000000UL
 CFG_NSEC_DDR_1_SIZE  ?= 0x380000000UL
 CFG_CORE_ARM64_PA_BITS ?= 40
+endif
+
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8dxmek))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART0_BASE
+$(call force,CFG_MX8DX,y)
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8dxlevk))
