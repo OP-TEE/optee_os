@@ -7,6 +7,7 @@
  */
 #include <caam_common.h>
 #include <caam_desc_helper.h>
+#include <caam_hal_clk.h>
 #include <caam_hal_jr.h>
 #include <caam_io.h>
 #include <caam_jr.h>
