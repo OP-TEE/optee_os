@@ -122,6 +122,13 @@ TEE_Result tpm_get_event_log(void *buf, size_t *size)
 	return TEE_SUCCESS;
 }
 
+TEE_Result tpm_get_event_log_size(size_t *size)
+{
+	*size = tpm_log_size;
+
+	return TEE_SUCCESS;
+}
+
 void tpm_map_log_area(void *fdt)
 {
 	paddr_t log_addr = 0;

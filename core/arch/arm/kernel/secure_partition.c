@@ -12,6 +12,7 @@
 #include <kernel/spmc_sp_handler.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
+#include <kernel/tpm.h>
 #include <kernel/ts_store.h>
 #include <ldelf.h>
 #include <libfdt.h>
@@ -525,6 +526,79 @@ static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result handle_tpm_event_log(struct sp_ctx *ctx, void *fdt)
+{
+	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
+	uint32_t dummy_size __maybe_unused = 0;
+	TEE_Result res = TEE_SUCCESS;
+	size_t page_count = 0;
+	struct fobj *f = NULL;
+	struct mobj *m = NULL;
+	vaddr_t log_addr = 0;
+	size_t log_size = 0;
+	int node = 0;
+
+	node = fdt_node_offset_by_compatible(fdt, 0, "arm,tpm_event_log");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	/* Checking the existence and size of the event log properties */
+	if (sp_dt_get_u64(fdt, node, "tpm_event_log_addr", &log_addr)) {
+		EMSG("tpm_event_log_addr not found or has invalid size");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (sp_dt_get_u32(fdt, node, "tpm_event_log_size", &dummy_size)) {
+		EMSG("tpm_event_log_size not found or has invalid size");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	/* Validating event log */
+	res = tpm_get_event_log_size(&log_size);
+	if (res)
+		return res;
+
+	if (!log_size) {
+		EMSG("Empty TPM event log was provided");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	/* Allocating memory area for the event log to share with the SP */
+	page_count = ROUNDUP_DIV(log_size, SMALL_PAGE_SIZE);
+
+	f = fobj_sec_mem_alloc(page_count);
+	m = mobj_with_fobj_alloc(f, NULL);
+	fobj_put(f);
+	if (!m)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = vm_map(&ctx->uctx, &log_addr, log_size, perm, 0, m, 0);
+	mobj_put(m);
+	if (res)
+		return res;
+
+	/* Copy event log */
+	res = tpm_get_event_log((void *)log_addr, &log_size);
+	if (res)
+		goto err_unmap;
+
+	/* Setting event log details in the manifest */
+	res = fdt_setprop_u64(fdt, node, "tpm_event_log_addr", log_addr);
+	if (res)
+		goto err_unmap;
+
+	res = fdt_setprop_u32(fdt, node, "tpm_event_log_size", log_size);
+	if (res)
+		goto err_unmap;
+
+	return TEE_SUCCESS;
+
+err_unmap:
+	vm_unmap(&ctx->uctx, log_addr, log_size);
+
+	return res;
+}
+
 static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
 {
 	int len = 0;
@@ -593,6 +667,12 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	res = handle_fdt_dev_regions(ctx, fdt_copy);
 	if (res)
 		goto out;
+
+	if (IS_ENABLED(CFG_CORE_TPM_EVENT_LOG)) {
+		res = handle_tpm_event_log(ctx, fdt_copy);
+		if (res)
+			goto out;
+	}
 
 	ts_pop_current_session();
 
