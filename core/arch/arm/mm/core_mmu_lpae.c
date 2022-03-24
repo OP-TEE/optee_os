@@ -587,6 +587,8 @@ static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
 
 	orig_table = core_mmu_xlat_table_entry_pa2va(prtn, tbl_info->level,
 						     *entry);
+	if (!orig_table)
+		return false;
 
 	/* Copy original table content to new table */
 	memcpy(new_table, orig_table, XLAT_TABLE_ENTRIES * XLAT_ENTRY_SIZE);
