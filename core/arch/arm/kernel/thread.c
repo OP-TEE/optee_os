@@ -583,6 +583,16 @@ static uint32_t __maybe_unused get_midr_primary_part(uint32_t midr)
 	       MIDR_PRIMARY_PART_NUM_MASK;
 }
 
+static uint32_t __maybe_unused get_midr_variant(uint32_t midr)
+{
+	return (midr >> MIDR_VARIANT_SHIFT) & MIDR_VARIANT_MASK;
+}
+
+static uint32_t __maybe_unused get_midr_revision(uint32_t midr)
+{
+	return (midr >> MIDR_REVISION_SHIFT) & MIDR_REVISION_MASK;
+}
+
 #ifdef ARM64
 static bool probe_workaround_available(uint32_t wa_id)
 {
@@ -620,29 +630,105 @@ static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 }
 #endif
 
+static vaddr_t __maybe_unused
+select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
+{
+	/*
+	 * Spectre-BHB has only been analyzed for AArch64 so far. For
+	 * AArch32 fall back to the Spectre-V2 workaround which is likely
+	 * to work even if perhaps a bit more expensive than a more
+	 * optimized workaround.
+	 */
+#ifdef ARM64
+#ifdef CFG_CORE_UNMAP_CORE_AT_EL0
+	struct thread_core_local *cl = (void *)thread_user_kdata_page;
+
+	cl[get_core_pos()].bhb_loop_count = loop_count;
+#endif
+	thread_get_core_local()->bhb_loop_count = loop_count;
+
+	DMSG("Spectre-BHB CVE-2022-23960 workaround enabled with \"K\" = %u",
+	     loop_count);
+
+	return (vaddr_t)thread_excp_vect_wa_spectre_bhb;
+#else
+	return select_vector_wa_spectre_v2();
+#endif
+}
+
 static vaddr_t get_excp_vect(void)
 {
 #ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 	uint32_t midr = read_midr();
+	uint8_t vers = 0;
 
 	if (get_midr_implementer(midr) != MIDR_IMPLEMENTER_ARM)
 		return (vaddr_t)thread_excp_vect;
+	/*
+	 * Variant rx, Revision py, for instance
+	 * Variant 2 Revision 0 = r2p0 = 0x20
+	 */
+	vers = (get_midr_variant(midr) << 4) | get_midr_revision(midr);
 
+	/*
+	 * Spectre-V2 (CVE-2017-5715) software workarounds covers what's
+	 * needed for Spectre-BHB (CVE-2022-23960) too. The workaround for
+	 * Spectre-V2 is more expensive than the one for Spectre-BHB so if
+	 * possible select the workaround for Spectre-BHB.
+	 */
 	switch (get_midr_primary_part(midr)) {
 #ifdef ARM32
+	/* Spectre-V2 */
 	case CORTEX_A8_PART_NUM:
 	case CORTEX_A9_PART_NUM:
 	case CORTEX_A17_PART_NUM:
 #endif
+	/* Spectre-V2 */
 	case CORTEX_A57_PART_NUM:
-	case CORTEX_A72_PART_NUM:
 	case CORTEX_A73_PART_NUM:
 	case CORTEX_A75_PART_NUM:
 		return select_vector_wa_spectre_v2();
 #ifdef ARM32
+	/* Spectre-V2 */
 	case CORTEX_A15_PART_NUM:
 		return (vaddr_t)thread_excp_vect_wa_a15_spectre_v2;
 #endif
+	/*
+	 * Spectre-V2 for vers < r1p0
+	 * Spectre-BHB for vers >= r1p0
+	 */
+	case CORTEX_A72_PART_NUM:
+		if (vers < 0x10)
+			return select_vector_wa_spectre_v2();
+		return select_vector_wa_spectre_bhb(8);
+
+	/*
+	 * Doing the more safe but expensive Spectre-V2 workaround for CPUs
+	 * still being researched on the best mitigation sequence.
+	 */
+	case CORTEX_A65_PART_NUM:
+	case CORTEX_A65AE_PART_NUM:
+	case NEOVERSE_E1_PART_NUM:
+		return select_vector_wa_spectre_v2();
+
+	/* Spectre-BHB */
+	case CORTEX_A76_PART_NUM:
+	case CORTEX_A76AE_PART_NUM:
+	case CORTEX_A77_PART_NUM:
+		return select_vector_wa_spectre_bhb(24);
+	case CORTEX_A78_PART_NUM:
+	case CORTEX_A78AE_PART_NUM:
+	case CORTEX_A78C_PART_NUM:
+	case CORTEX_A710_PART_NUM:
+	case CORTEX_X1_PART_NUM:
+	case CORTEX_X2_PART_NUM:
+		return select_vector_wa_spectre_bhb(32);
+	case NEOVERSE_N1_PART_NUM:
+		return select_vector_wa_spectre_bhb(24);
+	case NEOVERSE_N2_PART_NUM:
+	case NEOVERSE_V1_PART_NUM:
+		return select_vector_wa_spectre_bhb(32);
+
 	default:
 		return (vaddr_t)thread_excp_vect;
 	}

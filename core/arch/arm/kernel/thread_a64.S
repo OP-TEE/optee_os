@@ -490,6 +490,122 @@ wa_spectre_v2_el0_fiq_a32:
 wa_spectre_v2_el0_serror_a32:
 	b	wa_spectre_v2_el0_serror_a32
 	check_vector_size wa_spectre_v2_el0_serror_a32
+
+	.macro discard_branch_history
+		str	x0, [sp, #THREAD_CORE_LOCAL_X0]
+		ldrb	w0, [sp, #THREAD_CORE_LOCAL_BHB_LOOP_COUNT]
+	1:	b	2f
+	2:	subs	w0, w0, #1
+		bne	1b
+		dsb	sy
+		isb
+		ldr	x0, [sp, #THREAD_CORE_LOCAL_X0]
+	.endm
+
+	.balign	2048, INV_INSN
+	.global thread_excp_vect_wa_spectre_bhb
+thread_excp_vect_wa_spectre_bhb:
+	/* -----------------------------------------------------
+	 * EL1 with SP0 : 0x0 - 0x180
+	 * -----------------------------------------------------
+	 */
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_sync_sp0:
+	b	el1_sync_sp0
+	check_vector_size wa_spectre_bhb_el1_sync_sp0
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_irq_sp0:
+	b	el1_irq_sp0
+	check_vector_size wa_spectre_bhb_el1_irq_sp0
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_fiq_sp0:
+	b	el1_fiq_sp0
+	check_vector_size wa_spectre_bhb_el1_fiq_sp0
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_serror_sp0:
+	b	el1_serror_sp0
+	check_vector_size wa_spectre_bhb_el1_serror_sp0
+
+	/* -----------------------------------------------------
+	 * Current EL with SP1: 0x200 - 0x380
+	 * -----------------------------------------------------
+	 */
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_sync_sp1:
+	b	wa_spectre_bhb_el1_sync_sp1
+	check_vector_size wa_spectre_bhb_el1_sync_sp1
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_irq_sp1:
+	b	wa_spectre_bhb_el1_irq_sp1
+	check_vector_size wa_spectre_bhb_el1_irq_sp1
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_fiq_sp1:
+	b	wa_spectre_bhb_el1_fiq_sp1
+	check_vector_size wa_spectre_bhb_el1_fiq_sp1
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el1_serror_sp1:
+	b	wa_spectre_bhb_el1_serror_sp1
+	check_vector_size wa_spectre_bhb_el1_serror_sp1
+
+	/* -----------------------------------------------------
+	 * Lower EL using AArch64 : 0x400 - 0x580
+	 * -----------------------------------------------------
+	 */
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_sync_a64:
+	discard_branch_history
+	b	el0_sync_a64
+	check_vector_size wa_spectre_bhb_el0_sync_a64
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_irq_a64:
+	discard_branch_history
+	b	el0_irq_a64
+	check_vector_size wa_spectre_bhb_el0_irq_a64
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_fiq_a64:
+	discard_branch_history
+	b	el0_fiq_a64
+	check_vector_size wa_spectre_bhb_el0_fiq_a64
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_serror_a64:
+	b   	wa_spectre_bhb_el0_serror_a64
+	check_vector_size wa_spectre_bhb_el0_serror_a64
+
+	/* -----------------------------------------------------
+	 * Lower EL using AArch32 : 0x0 - 0x180
+	 * -----------------------------------------------------
+	 */
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_sync_a32:
+	discard_branch_history
+	b	el0_sync_a32
+	check_vector_size wa_spectre_bhb_el0_sync_a32
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_irq_a32:
+	discard_branch_history
+	b	el0_irq_a32
+	check_vector_size wa_spectre_bhb_el0_irq_a32
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_fiq_a32:
+	discard_branch_history
+	b	el0_fiq_a32
+	check_vector_size wa_spectre_bhb_el0_fiq_a32
+
+	.balign	128, INV_INSN
+wa_spectre_bhb_el0_serror_a32:
+	b	wa_spectre_bhb_el0_serror_a32
+	check_vector_size wa_spectre_bhb_el0_serror_a32
 #endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
 /*
