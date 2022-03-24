@@ -272,7 +272,7 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 	va = (vaddr_t)buf->data;
 	pa = virt_to_phys((void *)va);
 	if (!pa)
-		return -1;
+		goto err;
 
 	nb_pa_area = 0;
 	if (pabufs) {
@@ -301,7 +301,7 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 		touch_page(next_va);
 		next_pa = virt_to_phys((void *)next_va);
 		if (!next_pa)
-			return -1;
+			goto err;
 
 		if (next_pa != (pa + len_tohandle)) {
 			nb_pa_area++;
@@ -324,6 +324,10 @@ int caam_mem_get_pa_area(struct caambuf *buf, struct caambuf **out_pabufs)
 
 	MEM_TRACE("Nb Physical Area %d", nb_pa_area + 1);
 	return nb_pa_area + 1;
+
+err:
+	free(pabufs);
+	return -1;
 }
 
 void caam_mem_cpy_ltrim_buf(struct caambuf *dst, struct caambuf *src)
