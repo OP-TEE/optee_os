@@ -387,109 +387,109 @@ el0_serror_a32:
 	.endm
 
 	.balign	2048, INV_INSN
-	.global thread_excp_vect_workaround
-thread_excp_vect_workaround:
+	.global thread_excp_vect_wa_spectre_v2
+thread_excp_vect_wa_spectre_v2:
 	/* -----------------------------------------------------
 	 * EL1 with SP0 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
 	.balign	128, INV_INSN
-workaround_el1_sync_sp0:
+wa_spectre_v2_el1_sync_sp0:
 	b	el1_sync_sp0
-	check_vector_size workaround_el1_sync_sp0
+	check_vector_size wa_spectre_v2_el1_sync_sp0
 
 	.balign	128, INV_INSN
-workaround_el1_irq_sp0:
+wa_spectre_v2_el1_irq_sp0:
 	b	el1_irq_sp0
-	check_vector_size workaround_el1_irq_sp0
+	check_vector_size wa_spectre_v2_el1_irq_sp0
 
 	.balign	128, INV_INSN
-workaround_el1_fiq_sp0:
+wa_spectre_v2_el1_fiq_sp0:
 	b	el1_fiq_sp0
-	check_vector_size workaround_el1_fiq_sp0
+	check_vector_size wa_spectre_v2_el1_fiq_sp0
 
 	.balign	128, INV_INSN
-workaround_el1_serror_sp0:
+wa_spectre_v2_el1_serror_sp0:
 	b	el1_serror_sp0
-	check_vector_size workaround_el1_serror_sp0
+	check_vector_size wa_spectre_v2_el1_serror_sp0
 
 	/* -----------------------------------------------------
 	 * Current EL with SP1: 0x200 - 0x380
 	 * -----------------------------------------------------
 	 */
 	.balign	128, INV_INSN
-workaround_el1_sync_sp1:
-	b	workaround_el1_sync_sp1
-	check_vector_size workaround_el1_sync_sp1
+wa_spectre_v2_el1_sync_sp1:
+	b	wa_spectre_v2_el1_sync_sp1
+	check_vector_size wa_spectre_v2_el1_sync_sp1
 
 	.balign	128, INV_INSN
-workaround_el1_irq_sp1:
-	b	workaround_el1_irq_sp1
-	check_vector_size workaround_el1_irq_sp1
+wa_spectre_v2_el1_irq_sp1:
+	b	wa_spectre_v2_el1_irq_sp1
+	check_vector_size wa_spectre_v2_el1_irq_sp1
 
 	.balign	128, INV_INSN
-workaround_el1_fiq_sp1:
-	b	workaround_el1_fiq_sp1
-	check_vector_size workaround_el1_fiq_sp1
+wa_spectre_v2_el1_fiq_sp1:
+	b	wa_spectre_v2_el1_fiq_sp1
+	check_vector_size wa_spectre_v2_el1_fiq_sp1
 
 	.balign	128, INV_INSN
-workaround_el1_serror_sp1:
-	b	workaround_el1_serror_sp1
-	check_vector_size workaround_el1_serror_sp1
+wa_spectre_v2_el1_serror_sp1:
+	b	wa_spectre_v2_el1_serror_sp1
+	check_vector_size wa_spectre_v2_el1_serror_sp1
 
 	/* -----------------------------------------------------
 	 * Lower EL using AArch64 : 0x400 - 0x580
 	 * -----------------------------------------------------
 	 */
 	.balign	128, INV_INSN
-workaround_el0_sync_a64:
+wa_spectre_v2_el0_sync_a64:
 	invalidate_branch_predictor
 	b	el0_sync_a64
-	check_vector_size workaround_el0_sync_a64
+	check_vector_size wa_spectre_v2_el0_sync_a64
 
 	.balign	128, INV_INSN
-workaround_el0_irq_a64:
+wa_spectre_v2_el0_irq_a64:
 	invalidate_branch_predictor
 	b	el0_irq_a64
-	check_vector_size workaround_el0_irq_a64
+	check_vector_size wa_spectre_v2_el0_irq_a64
 
 	.balign	128, INV_INSN
-workaround_el0_fiq_a64:
+wa_spectre_v2_el0_fiq_a64:
 	invalidate_branch_predictor
 	b	el0_fiq_a64
-	check_vector_size workaround_el0_fiq_a64
+	check_vector_size wa_spectre_v2_el0_fiq_a64
 
 	.balign	128, INV_INSN
-workaround_el0_serror_a64:
-	b   	workaround_el0_serror_a64
-	check_vector_size workaround_el0_serror_a64
+wa_spectre_v2_el0_serror_a64:
+	b   	wa_spectre_v2_el0_serror_a64
+	check_vector_size wa_spectre_v2_el0_serror_a64
 
 	/* -----------------------------------------------------
 	 * Lower EL using AArch32 : 0x0 - 0x180
 	 * -----------------------------------------------------
 	 */
 	.balign	128, INV_INSN
-workaround_el0_sync_a32:
+wa_spectre_v2_el0_sync_a32:
 	invalidate_branch_predictor
 	b	el0_sync_a32
-	check_vector_size workaround_el0_sync_a32
+	check_vector_size wa_spectre_v2_el0_sync_a32
 
 	.balign	128, INV_INSN
-workaround_el0_irq_a32:
+wa_spectre_v2_el0_irq_a32:
 	invalidate_branch_predictor
 	b	el0_irq_a32
-	check_vector_size workaround_el0_irq_a32
+	check_vector_size wa_spectre_v2_el0_irq_a32
 
 	.balign	128, INV_INSN
-workaround_el0_fiq_a32:
+wa_spectre_v2_el0_fiq_a32:
 	invalidate_branch_predictor
 	b	el0_fiq_a32
-	check_vector_size workaround_el0_fiq_a32
+	check_vector_size wa_spectre_v2_el0_fiq_a32
 
 	.balign	128, INV_INSN
-workaround_el0_serror_a32:
-	b	workaround_el0_serror_a32
-	check_vector_size workaround_el0_serror_a32
+wa_spectre_v2_el0_serror_a32:
+	b	wa_spectre_v2_el0_serror_a32
+	check_vector_size wa_spectre_v2_el0_serror_a32
 #endif /*CFG_CORE_WORKAROUND_SPECTRE_BP_SEC*/
 
 /*
