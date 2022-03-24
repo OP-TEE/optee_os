@@ -43,6 +43,9 @@ struct thread_core_local {
 #ifdef CFG_TEE_CORE_DEBUG
 	unsigned int locked_count; /* Number of spinlocks held */
 #endif
+#if defined(ARM64) && defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC)
+	uint8_t bhb_loop_count;
+#endif
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
 #endif

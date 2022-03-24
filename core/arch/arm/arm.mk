@@ -66,7 +66,8 @@ endif
 # Variant 2
 CFG_CORE_WORKAROUND_SPECTRE_BP ?= y
 # Same as CFG_CORE_WORKAROUND_SPECTRE_BP but targeting exceptions from
-# secure EL0 instead of non-secure world.
+# secure EL0 instead of non-secure world, including mitigation for
+# CVE-2022-23960.
 CFG_CORE_WORKAROUND_SPECTRE_BP_SEC ?= $(CFG_CORE_WORKAROUND_SPECTRE_BP)
 
 # Adds protection against a tool like Cachegrab

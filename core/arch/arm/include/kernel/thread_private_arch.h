@@ -114,6 +114,7 @@ void thread_init_vbar(vaddr_t addr);
 void thread_excp_vect(void);
 void thread_excp_vect_wa_spectre_v2(void);
 void thread_excp_vect_wa_a15_spectre_v2(void);
+void thread_excp_vect_wa_spectre_bhb(void);
 void thread_excp_vect_end(void);
 
 /*

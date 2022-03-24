@@ -104,6 +104,10 @@ DEFINES
 	DEFINE(THREAD_CORE_LOCAL_X2, offsetof(struct thread_core_local, x[2]));
 	DEFINE(THREAD_CORE_LOCAL_KCODE_OFFSET,
 	       offsetof(struct thread_core_local, kcode_offset));
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+	DEFINE(THREAD_CORE_LOCAL_BHB_LOOP_COUNT,
+	       offsetof(struct thread_core_local, bhb_loop_count));
+#endif
 #endif /*ARM64*/
 
 	/* struct thread_ctx */
