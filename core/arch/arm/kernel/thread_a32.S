@@ -579,8 +579,8 @@ UNWIND(	.cantunwind)
 	.endm
 
         .balign	32
-	.global thread_excp_vect_workaround_a15
-thread_excp_vect_workaround_a15:
+	.global thread_excp_vect_wa_a15_spectre_v2
+thread_excp_vect_wa_a15_spectre_v2:
 	vector_prologue_spectre
 	write_tpidrprw r0
 	mrs	r0, spsr
@@ -602,8 +602,8 @@ thread_excp_vect_workaround_a15:
 	b	1f
 
         .balign	32
-	.global thread_excp_vect_workaround
-thread_excp_vect_workaround:
+	.global thread_excp_vect_wa_spectre_v2
+thread_excp_vect_wa_spectre_v2:
 	vector_prologue_spectre
 	write_tpidrprw r0
 	mrs	r0, spsr

@@ -584,7 +584,7 @@ static uint32_t __maybe_unused get_midr_primary_part(uint32_t midr)
 }
 
 #ifdef ARM64
-static bool probe_workaround_available(void)
+static bool probe_workaround_available(uint32_t wa_id)
 {
 	int32_t r;
 
@@ -595,17 +595,17 @@ static bool probe_workaround_available(void)
 		return false;
 
 	/* Version >= 1.1, so SMCCC_ARCH_FEATURES is available */
-	r = thread_smc(SMCCC_ARCH_FEATURES, SMCCC_ARCH_WORKAROUND_1, 0, 0);
+	r = thread_smc(SMCCC_ARCH_FEATURES, wa_id, 0, 0);
 	return r >= 0;
 }
 
-static vaddr_t __maybe_unused select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 {
-	if (probe_workaround_available()) {
+	if (probe_workaround_available(SMCCC_ARCH_WORKAROUND_1)) {
 		DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") available",
 		     SMCCC_ARCH_WORKAROUND_1);
 		DMSG("SMC Workaround for CVE-2017-5715 used");
-		return a;
+		return (vaddr_t)thread_excp_vect_wa_spectre_v2;
 	}
 
 	DMSG("SMCCC_ARCH_WORKAROUND_1 (%#08" PRIx32 ") unavailable",
@@ -614,9 +614,9 @@ static vaddr_t __maybe_unused select_vector(vaddr_t a)
 	return (vaddr_t)thread_excp_vect;
 }
 #else
-static vaddr_t __maybe_unused select_vector(vaddr_t a)
+static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 {
-	return a;
+	return (vaddr_t)thread_excp_vect_wa_spectre_v2;
 }
 #endif
 
@@ -638,10 +638,10 @@ static vaddr_t get_excp_vect(void)
 	case CORTEX_A72_PART_NUM:
 	case CORTEX_A73_PART_NUM:
 	case CORTEX_A75_PART_NUM:
-		return select_vector((vaddr_t)thread_excp_vect_workaround);
+		return select_vector_wa_spectre_v2();
 #ifdef ARM32
 	case CORTEX_A15_PART_NUM:
-		return select_vector((vaddr_t)thread_excp_vect_workaround_a15);
+		return (vaddr_t)thread_excp_vect_wa_a15_spectre_v2;
 #endif
 	default:
 		return (vaddr_t)thread_excp_vect;
