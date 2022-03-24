@@ -76,6 +76,8 @@
 #define CONSOLE_UART_BASE	UART1_BASE
 #define IT_CONSOLE_UART		IT_UART1
 
+#define TPM2_BASE		0x0c000000
+
 #else
 #error "Unknown platform flavor"
 #endif
