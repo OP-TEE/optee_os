@@ -78,6 +78,9 @@ struct dt_descriptor {
 	void *blob;
 #ifdef _CFG_USE_DTB_OVERLAY
 	int frag_id;
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	bool is_overlay;
+#endif
 #endif
 };
 
@@ -652,6 +655,10 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 	int offs;
 	int ret;
 
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	if (!dt->is_overlay)
+		return ioffs;
+#endif
 	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
 	offs = fdt_add_subnode(dt->blob, ioffs, frag);
 	if (offs < 0)
@@ -670,6 +677,10 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 {
 	int fragment;
 
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	if (!dt->is_overlay)
+		return 0;
+#endif
 	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
 		if (!fdt_check_header(dt->blob)) {
 			fdt_for_each_subnode(fragment, dt->blob, 0)
@@ -1287,6 +1298,9 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
  */
 void __weak boot_init_primary_late(unsigned long fdt)
 {
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	external_dt.is_overlay = false;
+#endif
 	init_external_dt(fdt);
 	tpm_map_log_area(get_external_dt());
 	discover_nsec_memory();
@@ -1310,8 +1324,16 @@ void __weak boot_init_primary_late(unsigned long fdt)
 		IMSG("Initializing virtualization support");
 		core_mmu_init_virtualization();
 	} else {
+		/* use runtime init calls to update DTB */
 		init_tee_runtime();
 	}
+
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	release_external_dt();
+	external_dt.is_overlay = true;
+	init_external_dt(CFG_NSEC_DTB_OVERLAY_ADDR);
+	update_external_dt();
+#endif
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
 }

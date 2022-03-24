@@ -439,22 +439,52 @@ CFG_DT ?= n
 CFG_DTB_MAX_SIZE ?= 0x10000
 
 # Device Tree Overlay support.
-# CFG_EXTERNAL_DTB_OVERLAY allows to append a DTB overlay into an existing
-# external DTB. The overlay is created when no valid DTB overlay is found.
-# CFG_GENERATE_DTB_OVERLAY allows to create a DTB overlay at external
-# DTB location.
-# External DTB location (physical address) is provided either by boot
-# argument arg2 or from CFG_DT_ADDR if defined.
+#
+# Use Case 1: CFG_GENERATE_DTB_OVERLAY, creates an overlay.
+#
+# Use Case 2: CFG_EXTERNAL_DTB_OVERLAY, applies an overlay into an existing DTB
+#             overlay. If no valid overlay is found, create it.
+#
+#             The  DTB location (physical address) is provided either by
+#             1. boot argument arg2.
+#             2. CFG_DT_ADDR.
+#
+# Use Case 3: CFG_NSEC_DTB_OVERLAY_ADDR, creates an overlay at the physical address
+#             provided with this config AND updates the DTB.
+#             i,e: SPL passes the U-boot DTB address in params; and the kernel
+#                  overlay address is received in the config.
+#
+#             Condition: do NOT configure
+#             CFG_EXTERNAL_DTB_OVERLAY nor CFG_GENERATE_DTB_OVERLAY nor
+#             CFG_DT_ADDR
+#
+#
 # A subsequent boot stage can then merge the generated overlay DTB into a main
 # DTB using the standard fdt_overlay_apply() method.
+
 CFG_EXTERNAL_DTB_OVERLAY ?= n
 CFG_GENERATE_DTB_OVERLAY ?= n
 
+ifeq ($(CFG_NSEC_DTB_OVERLAY_ADDR),)
 ifeq (y-y,$(CFG_EXTERNAL_DTB_OVERLAY)-$(CFG_GENERATE_DTB_OVERLAY))
 $(error CFG_EXTERNAL_DTB_OVERLAY and CFG_GENERATE_DTB_OVERLAY are exclusive)
 endif
 _CFG_USE_DTB_OVERLAY := $(call cfg-one-enabled,CFG_EXTERNAL_DTB_OVERLAY \
 			  CFG_GENERATE_DTB_OVERLAY)
+endif
+
+ifneq ($(strip $(CFG_NSEC_DTB_OVERLAY_ADDR)),)
+ifeq ($(CFG_EXTERNAL_DTB_OVERLAY),y)
+$(error Cannot implement OVERLAY_ADDR and EXTERNAL_DTB_OVERLAY)
+endif
+ifeq ($(CFG_GENERATE_DTB_OVERLAY),y)
+$(error Cannot implement OVERLAY_ADDR and GENERATE_DTB_OVERLAY)
+endif
+ifneq ($(strip $(CFG_DT_ADDR)),)
+$(error Cannot implement OVERLAY_ADDR and CFG_DT_ADDR)
+endif
+$(call force,_CFG_USE_DTB_OVERLAY,y)
+endif
 
 # All embedded tests are supposed to be disabled by default, this flag
 # is used to control the default value of all other embedded tests
