@@ -8,7 +8,6 @@
 #include <drvcrypt.h>
 #include <drvcrypt_math.h>
 #include <string.h>
-#include <utee_defines.h>
 #include <util.h>
 
 TEE_Result drvcrypt_xor_mod_n(struct drvcrypt_mod_op *data)
