@@ -868,7 +868,7 @@ size_t caam_dmaobj_copy_to_orig(struct caamdmaobj *obj)
 	DMAOBJ_TRACE("Copy (len=%zu)", dst_rlen);
 
 	for (idx = 0; idx < obj->sgtbuf.number; idx++) {
-		struct sgtdata *sgtdata = priv->sgtdata + idx;
+		struct sgtdata *sgtdata = &priv->sgtdata[idx];
 
 		if (!sgtdata)
 			break;
@@ -940,7 +940,7 @@ do_copy:
 	 * List index must not be re-initialized before entering this loop.
 	 */
 	for (; idx < obj->sgtbuf.number; idx++) {
-		struct sgtdata *sgtdata = priv->sgtdata + idx;
+		struct sgtdata *sgtdata = &priv->sgtdata[idx];
 
 		if (!sgtdata)
 			break;
