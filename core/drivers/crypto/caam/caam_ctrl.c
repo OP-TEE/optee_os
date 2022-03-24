@@ -15,7 +15,6 @@
 #include <caam_blob.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
-#include <caam_utils_mem.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <tee_api_types.h>
