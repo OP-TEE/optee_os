@@ -115,6 +115,54 @@ static inline uint64_t get_le64(const void *p)
 	return *(const uint64_t *)p;
 }
 
+/* Unaligned accesses */
+
+struct __unaligned_u16_t { uint16_t x; } __packed;
+struct __unaligned_u32_t { uint32_t x; } __packed;
+struct __unaligned_u64_t { uint64_t x; } __packed;
+
+static inline uint64_t get_unaligned_be64(const void *p)
+{
+	const struct __unaligned_u64_t *tmp = p;
+
+	return TEE_U64_FROM_BIG_ENDIAN(tmp->x);
+}
+
+static inline void put_unaligned_be64(void *p, uint64_t val)
+{
+	struct __unaligned_u64_t *tmp = p;
+
+	tmp->x = TEE_U64_TO_BIG_ENDIAN(val);
+}
+
+static inline uint32_t get_unaligned_be32(const void *p)
+{
+	const struct __unaligned_u32_t *tmp = p;
+
+	return TEE_U32_FROM_BIG_ENDIAN(tmp->x);
+}
+
+static inline void put_unaligned_be32(void *p, uint32_t val)
+{
+	struct __unaligned_u32_t *tmp = p;
+
+	tmp->x = TEE_U32_TO_BIG_ENDIAN(val);
+}
+
+static inline uint16_t get_unaligned_be16(const void *p)
+{
+	const struct __unaligned_u16_t *tmp = p;
+
+	return TEE_U16_FROM_BIG_ENDIAN(tmp->x);
+}
+
+static inline void put_unaligned_be16(void *p, uint16_t val)
+{
+	struct __unaligned_u16_t *tmp = p;
+
+	tmp->x = TEE_U16_TO_BIG_ENDIAN(val);
+}
+
 /*
  * Set and clear bits helpers.
  *
