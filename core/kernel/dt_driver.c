@@ -671,11 +671,9 @@ static TEE_Result probe_dt_drivers_early(void)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const void *fdt = NULL;
 
-	if (!IS_ENABLED(CFG_EMBED_DTB))
+	fdt = get_dt();
+	if (!fdt)
 		return TEE_SUCCESS;
-
-	fdt = get_embedded_dt();
-	assert(fdt);
 
 	parse_node(fdt, fdt_path_offset(fdt, "/"));
 
@@ -694,11 +692,9 @@ static TEE_Result probe_dt_drivers(void)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const void *fdt = NULL;
 
-	if (!IS_ENABLED(CFG_EMBED_DTB))
+	fdt = get_dt();
+	if (!fdt)
 		return TEE_SUCCESS;
-
-	fdt = get_embedded_dt();
-	assert(fdt);
 
 	res = process_probe_list(fdt);
 	if (res || !TAILQ_EMPTY(&dt_driver_failed_list)) {
@@ -720,12 +716,11 @@ static TEE_Result release_probe_lists(void)
 	struct dt_driver_probe *next = NULL;
 	struct dt_driver_provider *prov = NULL;
 	struct dt_driver_provider *next_prov = NULL;
-	const void * __maybe_unused fdt = NULL;
+	const void *fdt = NULL;
 
-	if (!IS_ENABLED(CFG_EMBED_DTB))
+	fdt = get_dt();
+	if (!fdt)
 		return TEE_SUCCESS;
-
-	fdt = get_embedded_dt();
 
 	assert(fdt && TAILQ_EMPTY(&dt_driver_probe_list));
 
