@@ -70,6 +70,17 @@ enum dt_driver_type {
 };
 
 /*
+ * DT_MAP_AUTO: Uses status properties from device tree to determine mapping.
+ * DT_MAP_SECURE: Force mapping for device to be secure.
+ * DT_MAP_NON_SECURE: Force mapping for device to be non-secure.
+ */
+enum dt_map_dev_directive {
+	DT_MAP_AUTO,
+	DT_MAP_SECURE,
+	DT_MAP_NON_SECURE
+};
+
+/*
  * dt_driver_probe_func - Callback probe function for a driver.
  *
  * @fdt: FDT base address
@@ -125,10 +136,12 @@ const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs);
  * @base receives the base virtual address corresponding to the base physical
  * address of the "reg" property
  * @size receives the size of the mapping
+ * @mapping what kind of mapping is done for memory.
  *
  * Returns 0 on success or -1 in case of error.
  */
-int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
+	       enum dt_map_dev_directive mapping);
 
 /*
  * Check whether the node at @offs contains the property with propname or not.
@@ -234,7 +247,8 @@ static inline const struct dt_driver *dt_find_compatible_driver(
 }
 
 static inline int dt_map_dev(const void *fdt __unused, int offs __unused,
-			     vaddr_t *vbase __unused, size_t *size __unused)
+			     vaddr_t *vbase __unused, size_t *size __unused,
+			     enum dt_map_dev_directive mapping __unused)
 {
 	return -1;
 }

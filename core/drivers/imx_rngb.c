@@ -157,7 +157,7 @@ static TEE_Result map_controller(void)
 	if (dt_enable_secure_status(fdt, off))
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	if (dt_map_dev(fdt, off, &rngb.base.va, &rngb.size) < 0)
+	if (dt_map_dev(fdt, off, &rngb.base.va, &rngb.size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	rngb.base.pa = virt_to_phys((void *)rngb.base.va);

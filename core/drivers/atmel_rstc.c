@@ -43,7 +43,7 @@ static TEE_Result atmel_rstc_probe(const void *fdt, int node,
 {
 	size_t size = 0;
 
-	if (dt_map_dev(fdt, node, &rstc_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &rstc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;

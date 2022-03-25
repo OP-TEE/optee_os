@@ -172,7 +172,7 @@ static TEE_Result atmel_tcb_probe(const void *fdt, int node,
 	if (res)
 		return res;
 
-	if (dt_map_dev(fdt, node, &tcb_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &tcb_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	if (tcb_base == AT91C_BASE_TC0)

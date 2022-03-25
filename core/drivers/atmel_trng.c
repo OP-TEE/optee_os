@@ -98,7 +98,7 @@ static TEE_Result trng_node_probe(const void *fdt, int node,
 	if (res)
 		return res;
 
-	if (dt_map_dev(fdt, node, &trng_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &trng_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	clk_enable(clk);
