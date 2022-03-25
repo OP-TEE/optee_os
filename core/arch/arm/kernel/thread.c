@@ -526,8 +526,8 @@ bool thread_init_stack(uint32_t thread_id, vaddr_t sp)
 	return true;
 }
 
-static void set_core_local_kcode_offset(struct thread_core_local *cls,
-					long offset)
+static void __maybe_unused
+set_core_local_kcode_offset(struct thread_core_local *cls, long offset)
 {
 	size_t n = 0;
 
