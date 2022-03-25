@@ -48,8 +48,8 @@ def get_args():
                         'file and process it.')
     parser.add_argument('-r', '--release-to', action='store_true',
                         help='show all the recipients to be used in release '
-                        'announcement emails (i.e., maintainers and reviewers)'
-                        'and exit.')
+                        'announcement emails (i.e., maintainers, reviewers '
+                        'and OP-TEE mailing list(s)) and exit.')
     return parser.parse_args()
 
 
@@ -211,6 +211,10 @@ def get_ss_approvers(ss):
     return get_ss_maintainers(ss) + get_ss_reviewers(ss)
 
 
+def get_ss_lists(subsys):
+    return subsys.get('L') or []
+
+
 def approvers_have_approved(approved_by, approvers):
     for n in approvers:
         # Ignore anything after the email (Github ID...)
@@ -232,11 +236,12 @@ def download(pr):
     return f.name
 
 
-def show_release_to():
+def show_release_to(subsystems):
     check_cwd()
     with open("MAINTAINERS", "r") as f:
         emails = sorted(set(re.findall(r'[RM]:\t(.*[\w]*<[\w\.-]+@[\w\.-]+>)',
                                        f.read())))
+        emails += get_ss_lists(subsystems["THE REST"])
     print(*emails, sep=', ')
 
 
@@ -245,11 +250,12 @@ def main():
 
     args = get_args()
 
+    all_subsystems = parse_maintainers()
+
     if args.release_to:
-        show_release_to()
+        show_release_to(all_subsystems)
         return
 
-    all_subsystems = parse_maintainers()
     paths = []
     arglist = []
     downloads = []
