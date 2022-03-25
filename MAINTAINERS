@@ -293,7 +293,7 @@ M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 M:	Linaro <op-tee@linaro.org> [@OP-TEE/linaro]
 R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
-L:	tee-dev@lists.linaro.org
+L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	*
 F:	*/
