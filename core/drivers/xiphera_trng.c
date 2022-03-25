@@ -110,7 +110,7 @@ static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 		return TEE_ERROR_GENERIC;
 	}
 
-	if (dt_map_dev(fdt, node, &xiphera_trng_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &xiphera_trng_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	/*

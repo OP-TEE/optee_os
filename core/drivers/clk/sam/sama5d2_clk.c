@@ -344,7 +344,7 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(sama5d2_systemck) == PARENT_SIZE);
 	COMPILE_TIME_ASSERT(PARENT_SIZE >= 6);
 
-	if (dt_map_dev(fdt, nodeoffset, &base, &size) < 0)
+	if (dt_map_dev(fdt, nodeoffset, &base, &size, DT_MAP_AUTO) < 0)
 		panic();
 
 	if (_fdt_get_status(fdt, nodeoffset) == DT_STATUS_OK_SEC)

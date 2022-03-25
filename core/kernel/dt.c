@@ -86,7 +86,8 @@ int dt_enable_secure_status(void *fdt, int node)
 	return 0;
 }
 
-int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
+	       enum dt_map_dev_directive mapping)
 {
 	enum teecore_memtypes mtype;
 	paddr_t pbase;
@@ -107,10 +108,23 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 	if (sz == DT_INFO_INVALID_REG_SIZE)
 		return -1;
 
-	if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
+	switch (mapping) {
+	case DT_MAP_AUTO:
+		if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
+			mtype = MEM_AREA_IO_SEC;
+		else
+			mtype = MEM_AREA_IO_NSEC;
+		break;
+	case DT_MAP_SECURE:
 		mtype = MEM_AREA_IO_SEC;
-	else
+		break;
+	case DT_MAP_NON_SECURE:
 		mtype = MEM_AREA_IO_NSEC;
+		break;
+	default:
+		panic("Invalid mapping specified");
+		break;
+	}
 
 	/* Check if we have a mapping, create one if needed */
 	vbase = (vaddr_t)core_mmu_add_mapping(mtype, pbase, sz);

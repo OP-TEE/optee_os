@@ -99,7 +99,7 @@ static TEE_Result ls_sec_mon_init(void)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	if (dt_map_dev(fdt, node, &ctrl_base, &size) < 0) {
+	if (dt_map_dev(fdt, node, &ctrl_base, &size, DT_MAP_AUTO) < 0) {
 		EMSG("Unable to get the SecMon virtual address");
 		return TEE_ERROR_GENERIC;
 	}

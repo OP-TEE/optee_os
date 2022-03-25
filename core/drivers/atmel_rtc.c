@@ -293,7 +293,7 @@ static TEE_Result atmel_rtc_probe(const void *fdt, int node,
 
 	matrix_configure_periph_secure(AT91C_ID_SYS);
 
-	if (dt_map_dev(fdt, node, &rtc_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &rtc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	atmel_rtc_write(RTC_CR, 0);

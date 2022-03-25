@@ -138,7 +138,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	ext_reset_output = dt_have_prop(fdt, found_off,
 					"fsl,ext-reset-output");
 
-	if (dt_map_dev(fdt, found_off, &vbase, &sz) < 0) {
+	if (dt_map_dev(fdt, found_off, &vbase, &sz, DT_MAP_AUTO) < 0) {
 		EMSG("Failed to map Watchdog\n");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}

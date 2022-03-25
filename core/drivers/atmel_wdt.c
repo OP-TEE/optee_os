@@ -248,7 +248,7 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	if (!it_hdlr)
 		goto err_free_wdt;
 
-	if (dt_map_dev(fdt, node, &wdt->base, &size) < 0)
+	if (dt_map_dev(fdt, node, &wdt->base, &size, DT_MAP_AUTO) < 0)
 		goto err_free_itr_handler;
 
 	/* Get current state of the watchdog */

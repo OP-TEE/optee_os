@@ -510,7 +510,8 @@ static TEE_Result i2c_mapped(const char *i2c_match)
 			continue;
 		}
 
-		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size) < 0) {
+		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size,
+			       DT_MAP_AUTO) < 0) {
 			EMSG("i2c%zu not enabled", i + 1);
 			continue;
 		}
