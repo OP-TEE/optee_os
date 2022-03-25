@@ -125,6 +125,39 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 	return 0;
 }
 
+int dt_map_secure_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
+{
+	paddr_t pbase;
+	vaddr_t vbase;
+	size_t sz;
+	int st;
+
+	assert(cpu_mmu_enabled());
+
+	st = _fdt_get_status(fdt, offs);
+	if (st == DT_STATUS_DISABLED)
+		return -1;
+
+	pbase = _fdt_reg_base_address(fdt, offs);
+	if (pbase == DT_INFO_INVALID_REG)
+		return -1;
+	sz = _fdt_reg_size(fdt, offs);
+	if (sz == DT_INFO_INVALID_REG_SIZE)
+		return -1;
+
+	/* Check if we have a mapping, create one if needed */
+	vbase = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC, pbase, sz);
+	if (!vbase) {
+		EMSG("Failed to map %zu bytes at PA 0x%"PRIxPA,
+		     (size_t)sz, pbase);
+		return -1;
+	}
+
+	*base = vbase;
+	*size = sz;
+	return 0;
+}
+
 /* Read a physical address (n=1 or 2 cells) */
 static paddr_t _fdt_read_paddr(const uint32_t *cell, int n)
 {

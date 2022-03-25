@@ -131,6 +131,20 @@ const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs);
 int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
 
 /*
+ * Map a device into secure memory and return the base VA and the mapping size.
+ * If the mapping already exists, the function simply returns the @base and
+ * @size information.
+ *
+ * @offs is the offset of the node that describes the device in @fdt.
+ * @base receives the base virtual address corresponding to the base physical
+ * address of the "reg" property
+ * @size receives the size of the mapping
+ *
+ * Returns 0 on success or -1 in case of error.
+ */
+int dt_map_secure_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
+
+/*
  * Check whether the node at @offs contains the property with propname or not.
  *
  * @offs is the offset of the node that describes the device in @fdt.
