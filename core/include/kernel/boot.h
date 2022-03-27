@@ -59,6 +59,7 @@ void boot_init_secondary(unsigned long nsec_entry);
 
 void main_init_gic(void);
 void main_secondary_init_gic(void);
+const char * const *main_get_optee_reserved_drivers(size_t *num);
 
 void init_sec_mon(unsigned long nsec_entry);
 void init_tee_runtime(void);

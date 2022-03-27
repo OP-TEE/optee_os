@@ -115,6 +115,15 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak const char * const *main_get_optee_reserved_drivers(size_t *num)
+{
+	if (num)
+		*num = 0;
+
+	return NULL;
+}
+
 /*
  * This function is called as a guard after each smc call which is not
  * supposed to return.
@@ -1133,6 +1142,138 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 				   CFG_TZDRAM_SIZE);
 }
 
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+static int add_descriptor_node(struct dt_descriptor *dt, const char *driver)
+{
+	unsigned int i = 0;
+	unsigned int j = 0;
+	char root_name[256] = { };
+	char buffer[512] = { };
+	char *item[128] = { };
+	char *root = NULL;
+	char *p = buffer;
+	int offs = 0;
+
+	offs = fdt_path_offset(dt->blob, driver);
+	if (offs >= 0)
+		return offs;
+
+	strncpy(buffer, driver, sizeof(buffer));
+
+	/* strok modifies the buffer */
+	root = strtok_r(p, "/", &p);
+	if (!root)
+		return -1;
+
+	for (i = 0; i < ARRAY_SIZE(item); i++) {
+		item[i] = strtok_r(p, "/", &p);
+		if (!item[i])
+			break;
+	}
+
+	if (i >= ARRAY_SIZE(item))
+		return -1;
+
+	/* add the root node name */
+	snprintf(root_name, sizeof(root_name), "/%s", root);
+	offs = fdt_path_offset(dt->blob, root_name);
+	if (offs < 0) {
+		offs = add_dt_path_subnode(dt, "/", root);
+		if (offs < 0)
+			return -1;
+	}
+
+	for (j = 0; j < i; j++) {
+		offs = fdt_add_subnode(dt->blob, offs, item[j]);
+		if (offs < 0)
+			return -1;
+	}
+
+	return offs;
+}
+#endif
+
+/*
+ * Guarantee that these drivers will not be used by either EL1 or EL0: set the
+ * device tree node status in the FDT and overlay to disabled and the
+ * secure-status to okay.
+ * Return values:
+ *    0: num_drivers have been reserved (in DTB and optionally in overlay)
+ *   -1: no __symbols__ in DTB, no HEAP left, error creating overlay nodes,
+ *       driver node not found in DTB (but present as a __symbol__),
+ */
+static int reserve_platform_drivers_dt_nodes(struct dt_descriptor *dt)
+{
+	static const char **drivers;
+	static size_t num_drivers;
+	const char * const *drvs = { NULL };
+	const char *path = NULL;
+	unsigned int i = 0;
+	int offs = 0;
+	int len = 0;
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	static bool init;
+
+	if (dt->is_overlay || init) {
+		/*
+		 * OP-TEE handles first a DTB populated with a __symbols__ node
+		 * passed in parameters. On the next (and last!) call to
+		 * this method, uses those symbols to generate the FDT overlay.
+		 */
+		goto handle;
+	}
+#endif
+	drvs = main_get_optee_reserved_drivers(&num_drivers);
+	if (!drvs || !num_drivers)
+		return 0;
+
+	offs = fdt_path_offset(dt->blob, "/__symbols__");
+	if (offs < 0)
+		return -1;
+
+	drivers = malloc(num_drivers * sizeof(drivers[0]));
+	if (!drivers)
+		return -1;
+
+	for (i = 0; i < num_drivers; i++) {
+		path = fdt_getprop_namelen(dt->blob, offs,
+					   drvs[i], strlen(drvs[i]), &len);
+		if (!path)
+			return -1;
+
+		drivers[i] = malloc(len);
+		if (!drivers[i])
+			return -1;
+
+		memcpy((void *)drivers[i], (void *)path, len);
+	}
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+	init = true;
+handle:
+#endif
+	for (i = 0; i < num_drivers; i++) {
+		if (!drivers[i])
+			break;
+#ifdef CFG_NSEC_DTB_OVERLAY_ADDR
+		if (dt->is_overlay)
+			offs = add_descriptor_node(dt, drivers[i]);
+		else
+#endif
+			offs = fdt_path_offset(dt->blob, drivers[i]);
+
+		if (offs < 0)
+			return -1;
+
+		if (fdt_setprop_string(dt->blob, offs, "status", "disabled"))
+			return -1;
+
+		if (fdt_setprop_string(dt->blob, offs, "secure-status", "okay"))
+			return -1;
+	}
+
+	return 0;
+}
+
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
@@ -1145,6 +1286,9 @@ static void update_external_dt(void)
 
 	if (config_psci(dt))
 		panic("Failed to config PSCI");
+
+	if (reserve_platform_drivers_dt_nodes(dt))
+		panic("Failed to reserve drivers for OP-TEE exclusive access");
 
 #ifdef CFG_CORE_RESERVED_SHM
 	if (mark_static_shm_as_reserved(dt))
