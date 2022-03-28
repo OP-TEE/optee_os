@@ -70,6 +70,7 @@ $(call force,CFG_DRIVERS_CLK_DT,n)
 $(call force,CFG_STM32_CRYP,n)
 $(call force,CFG_STM32_GPIO,n)
 $(call force,CFG_STM32_I2C,n)
+$(call force,CFG_STM32_IWDG,n)
 $(call force,CFG_STM32_TAMP,n)
 $(call force,CFG_STPMIC1,n)
 $(call force,CFG_STM32MP1_SCMI_SIP,n)
@@ -94,6 +95,7 @@ CFG_STM32_CRYP ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_I2C ?= y
+CFG_STM32_IWDG ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
 CFG_STM32_TAMP ?= y
@@ -113,6 +115,8 @@ endif
 
 CFG_DRIVERS_RSTCTRL ?= $(CFG_STM32_RSTCTRL)
 $(eval $(call cfg-depends-all,CFG_STM32_RSTCTRL,CFG_DRIVERS_RSTCTRL))
+
+CFG_WDT ?= $(CFG_STM32_IWDG)
 
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
