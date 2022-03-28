@@ -91,6 +91,11 @@
 #define UID2_OTP			15
 #define HW2_OTP				18
 
+/* Bit map for BSEC word HW2_OTP */
+#define HW2_OTP_IWDG_HW_ENABLE_SHIFT	U(3)
+#define HW2_OTP_IWDG_FZ_STOP_SHIFT	U(5)
+#define HW2_OTP_IWDG_FZ_STANDBY_SHIFT	U(7)
+
 #define DATA0_OTP_SECURED_POS		6
 
 /* GIC resources */

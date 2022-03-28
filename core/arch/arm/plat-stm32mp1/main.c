@@ -9,9 +9,10 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/stm32_etzpc.h>
-#include <drivers/stm32mp1_etzpc.h>
+#include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
+#include <drivers/stm32mp1_etzpc.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
@@ -336,3 +337,35 @@ struct clk *stm32_get_gpio_bank_clk(unsigned int bank)
 }
 #endif
 #endif /* CFG_STM32_GPIO */
+
+#ifdef CFG_STM32_IWDG
+TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
+				     struct stm32_iwdg_otp_data *otp_data)
+{
+	unsigned int idx = 0;
+	uint32_t otp_value = 0;
+
+	switch (pbase) {
+	case IWDG1_BASE:
+		idx = 0;
+		break;
+	case IWDG2_BASE:
+		idx = 1;
+		break;
+	default:
+		panic();
+	}
+
+	if (stm32_bsec_read_otp(&otp_value, HW2_OTP))
+		panic();
+
+	otp_data->hw_enabled = otp_value &
+			       BIT(idx + HW2_OTP_IWDG_HW_ENABLE_SHIFT);
+	otp_data->disable_on_stop = otp_value &
+				    BIT(idx + HW2_OTP_IWDG_FZ_STOP_SHIFT);
+	otp_data->disable_on_standby = otp_value &
+				       BIT(idx + HW2_OTP_IWDG_FZ_STANDBY_SHIFT);
+
+	return TEE_SUCCESS;
+}
+#endif /*CFG_STM32_IWDG*/
