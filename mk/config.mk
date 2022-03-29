@@ -271,6 +271,9 @@ endif
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
 
+# Build user TAs included in this source tree
+CFG_BUILD_IN_TREE_TA ?= y
+
 # Choosing the architecture(s) of user-mode libraries (used by TAs)
 #
 # Platforms may define a list of supported architectures for user-mode code
