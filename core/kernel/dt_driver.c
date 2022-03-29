@@ -266,6 +266,13 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 	while (idx < len) {
 		idx32 = idx / sizeof(uint32_t);
 		phandle = fdt32_to_cpu(prop[idx32]);
+		if (!phandle) {
+			if (!prop_idx)
+				break;
+			idx += sizeof(phandle);
+			prop_idx--;
+			continue;
+		}
 
 		prv = dt_driver_get_provider_by_phandle(phandle, type);
 		if (!prv) {
