@@ -9,8 +9,13 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
+#if defined(CFG_ARM_GICV3)
 #define GIC_DIST_REG_SIZE	0x10000
 #define GIC_CPU_REG_SIZE	0x10000
+#else
+#define GIC_DIST_REG_SIZE	0x1000
+#define GIC_CPU_REG_SIZE	0x1000
+#endif
 
 #define GIC_PPI_BASE		U(16)
 #define GIC_SPI_BASE		U(32)
