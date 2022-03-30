@@ -167,7 +167,7 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 			}
 		}
 
-		if (rate_prop && clock_idx <= rate_len) {
+		if (rate_prop && clock_idx < rate_len) {
 			rate = fdt32_to_cpu(rate_prop[clock_idx]);
 			if (rate && clk_set_rate(clk, rate) != TEE_SUCCESS)
 				panic();
