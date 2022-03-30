@@ -56,10 +56,20 @@ enum tpm2_interface {
 	TPM2_PTP_CRB
 };
 
+struct tpm2_caps {
+	uint32_t num_pcrs;	/* Number of PCRs chip supports */
+	uint32_t pcr_select_min; /* Min octets to represent PCR bitmap */
+	uint32_t num_banks;	/* Number of banks/algs supported */
+	uint32_t num_active_banks; /* Number of active banks/algs */
+	uint32_t selection_mask;   /* Bitmap of supported banks/algs */
+	uint32_t active_mask;	/* Bitmap of active banks/algs */
+};
+
 struct tpm2_chip {
 	const struct tpm2_ptp_ops *ops;
 	const struct tpm2_ptp_phy_ops *phy_ops;
 	enum tpm2_interface ptp_type;
+	struct tpm2_caps capability;
 	int32_t locality;
 	uint32_t timeout_a;
 	uint32_t timeout_b;
@@ -89,9 +99,13 @@ struct tpm2_ptp_phy_ops {
 };
 
 enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip);
+enum tpm2_result tpm2_chip_unregister(struct tpm2_chip *chip);
 
 enum tpm2_result tpm2_chip_send(uint8_t *buf, uint32_t len);
 enum tpm2_result tpm2_chip_recv(uint8_t *buf, uint32_t *len,
 				uint32_t cmd_duration);
+
+enum tpm2_result tpm2_chip_get_caps(struct tpm2_caps *capability);
+bool tpm2_chip_is_active_bank(uint16_t alg);
 
 #endif	/* __DRIVERS_TPM2_CHIP_H */
