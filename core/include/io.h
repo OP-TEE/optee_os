@@ -163,6 +163,48 @@ static inline void put_unaligned_be16(void *p, uint16_t val)
 	tmp->x = TEE_U16_TO_BIG_ENDIAN(val);
 }
 
+static inline void put_unaligned_le64(void *p, uint64_t val)
+{
+	struct __unaligned_u64_t *tmp = p;
+
+	tmp->x = val;
+}
+
+static inline uint64_t get_unaligned_le64(const void *p)
+{
+	const struct __unaligned_u64_t *tmp = p;
+
+	return tmp->x;
+}
+
+static inline void put_unaligned_le32(void *p, uint32_t val)
+{
+	struct __unaligned_u32_t *tmp = p;
+
+	tmp->x = val;
+}
+
+static inline uint32_t get_unaligned_le32(const void *p)
+{
+	const struct __unaligned_u32_t *tmp = p;
+
+	return tmp->x;
+}
+
+static inline void put_unaligned_le16(void *p, uint16_t val)
+{
+	struct __unaligned_u16_t *tmp = p;
+
+	tmp->x = val;
+}
+
+static inline uint16_t get_unaligned_le16(const void *p)
+{
+	const struct __unaligned_u16_t *tmp = p;
+
+	return tmp->x;
+}
+
 /*
  * Set and clear bits helpers.
  *
