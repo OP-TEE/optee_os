@@ -45,7 +45,7 @@ CFG_WITH_STATS ?= y
 ifeq ($(PLATFORM_FLAVOR),npcm845x)
 CFG_TEE_CORE_NB_CORE = 4
 # [3000.0000 031f.ffff] is reserved to early boot
-CFG_TZDRAM_START ?= 0x30000000
+CFG_TZDRAM_START ?= 0x36000000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
 # SHM chosen arbitrary, in a way that it does not interfere
 # with initial location of linux kernel, dtb and initrd.
