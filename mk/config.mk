@@ -885,3 +885,7 @@ CFG_DRIVERS_TPM2_MMIO ?= n
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
 endif
+
+# Enables best effort mitigations against fault injected when the hardware
+# is tampered with. Details in lib/libutils/ext/include/fault_mitigation.h
+CFG_CORE_FAULT_MITIGATION ?= y
