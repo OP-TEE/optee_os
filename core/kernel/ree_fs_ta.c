@@ -37,12 +37,13 @@
 
 #include <assert.h>
 #include <crypto/crypto.h>
+#include <fault_mitigation.h>
 #include <initcall.h>
 #include <kernel/thread.h>
 #include <kernel/ts_store.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mm.h>
 #include <mm/mobj.h>
+#include <mm/tee_mm.h>
 #include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
@@ -521,7 +522,8 @@ static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 		res = TEE_ERROR_SECURITY;
 		goto out;
 	}
-	if (memcmp(digest, SHDR_GET_HASH(h->shdr), h->shdr->hash_size))
+	if (FTMN_CALLEE_DONE_MEMCMP(memcmp, digest, SHDR_GET_HASH(h->shdr),
+				    h->shdr->hash_size))
 		res = TEE_ERROR_SECURITY;
 out:
 	free(digest);
@@ -664,14 +666,21 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 			      struct ts_store_handle **h)
 {
 	struct buf_ree_fs_ta_handle *handle = NULL;
+	struct ftmn ftmn = { };
 	TEE_Result res = TEE_SUCCESS;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("shdr_verify_signature"));
 	res = ree_fs_ta_open(uuid, &handle->h);
+	if (!res)
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
+	FTMN_POP_LINKED_CALL(&ftmn);
 	if (res)
-		goto err2;
+		goto err_free_handle;
+	ftmn_checkpoint(&ftmn, FTMN_INCR1);
+
 	res = ree_fs_ta_get_size(handle->h, &handle->ta_size);
 	if (res)
 		goto err;
@@ -701,18 +710,26 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
+
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("check_digest"));
 	res = ree_fs_ta_read(handle->h, handle->buf, handle->ta_size);
+	if (!res)
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
+	FTMN_POP_LINKED_CALL(&ftmn);
 	if (res)
 		goto err;
+	ftmn_checkpoint(&ftmn, FTMN_INCR1);
+
 	*h = (struct ts_store_handle *)handle;
+	ree_fs_ta_close(handle->h);
+	return ftmn_return_res(&ftmn, FTMN_STEP_COUNT(2, 2), TEE_SUCCESS);
+
 err:
 	ree_fs_ta_close(handle->h);
-err2:
-	if (res) {
-		tee_mm_free(handle->mm);
-		free(handle->tag);
-		free(handle);
-	}
+	tee_mm_free(handle->mm);
+	free(handle->tag);
+err_free_handle:
+	free(handle);
 	return res;
 }
 
