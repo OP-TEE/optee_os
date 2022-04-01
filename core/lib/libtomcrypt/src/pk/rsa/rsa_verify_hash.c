@@ -7,6 +7,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  */
+#include <fault_mitigation.h>
 #include "tomcrypt_private.h"
 
 /**
@@ -37,7 +38,9 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
 {
   unsigned long modulus_bitlen, modulus_bytelen, x;
   int           err;
+  unsigned int  inc1 = 0;
   unsigned char *tmpbuf;
+  struct ftmn   ftmn = { };
 
   LTC_ARGCHK(hash  != NULL);
   LTC_ARGCHK(sig   != NULL);
@@ -46,6 +49,7 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
 
   /* default to invalid */
   *stat = 0;
+  FTMN_SET_CHECK_RES(&ftmn, FTMN_INCR0, 1);
 
   /* valid padding? */
 
@@ -93,12 +97,18 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
   if (padding == LTC_PKCS_1_PSS) {
     /* PSS decode and verify it */
 
+    FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("pkcs_1_pss_decode"));
     if(modulus_bitlen%8 == 1){
       err = pkcs_1_pss_decode(hash, hashlen, tmpbuf+1, x-1, saltlen, hash_idx, modulus_bitlen, stat);
     }
     else{
       err = pkcs_1_pss_decode(hash, hashlen, tmpbuf, x, saltlen, hash_idx, modulus_bitlen, stat);
     }
+    if (*stat) {
+      FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR1, 0);
+      inc1 = 1;
+    }
+    FTMN_POP_LINKED_CALL(&ftmn);
 
   } else {
     /* PKCS #1 v1.5 decode it */
@@ -162,15 +172,19 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
           (digestinfo[0].size == hash_descriptor[hash_idx]->OIDlen) &&
         (XMEMCMP(digestinfo[0].data, hash_descriptor[hash_idx]->OID, sizeof(unsigned long) * hash_descriptor[hash_idx]->OIDlen) == 0) &&
           (siginfo[1].size == hashlen) &&
-        (XMEMCMP(siginfo[1].data, hash, hashlen) == 0)) {
+        (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
+				   siginfo[1].data, hash, hashlen) == 0)) {
          *stat = 1;
       }
+      inc1 = 1;
     } else {
       /* only check if the hash is equal */
       if ((hashlen == outlen) &&
-          (XMEMCMP(out, hash, hashlen) == 0)) {
+          (ftmn_set_check_res_memcmp(&ftmn, FTMN_INCR1, XMEMCMP,
+				     out, hash, hashlen) == 0)) {
         *stat = 1;
       }
+      inc1 = 1;
     }
 
 #ifdef LTC_CLEAN_STACK
@@ -184,6 +198,7 @@ bail_2:
   zeromem(tmpbuf, siglen);
 #endif
   XFREE(tmpbuf);
+  FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(1, inc1), !*stat);
   return err;
 }
 

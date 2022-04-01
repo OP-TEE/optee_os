@@ -7,6 +7,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  */
+#include <fault_mitigation.h>
 #include "tomcrypt_private.h"
 
 /**
@@ -149,7 +150,7 @@ int pkcs_1_pss_decode(const unsigned char *msghash, unsigned long msghashlen,
    }
 
    /* mask == hash means valid signature */
-   if (XMEM_NEQ(mask, hash, hLen) == 0) {
+   if (FTMN_CALLEE_DONE_MEMCMP(XMEM_NEQ, mask, hash, hLen) == 0) {
       *res = 1;
    }
 
