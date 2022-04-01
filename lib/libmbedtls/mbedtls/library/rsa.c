@@ -68,6 +68,8 @@
 
 #include "mbedtls/platform.h"
 
+#include <fault_mitigation.h>
+
 #if !defined(MBEDTLS_RSA_ALT)
 
 int mbedtls_rsa_import(mbedtls_rsa_context *ctx,
@@ -2151,7 +2153,7 @@ int mbedtls_rsa_rsassa_pss_verify_ext(mbedtls_rsa_context *ctx,
         return ret;
     }
 
-    if (memcmp(hash_start, result, hlen) != 0) {
+    if (FTMN_CALLEE_DONE_MEMCMP(memcmp, hash_start, result, hlen) != 0) {
         return MBEDTLS_ERR_RSA_VERIFY_FAILED;
     }
 
