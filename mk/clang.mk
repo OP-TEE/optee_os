@@ -6,18 +6,18 @@
 clang-target	:= $(patsubst %-,%,$(notdir $(lastword $(CROSS_COMPILE_$(sm)))))
 ccache-cmd	:= $(if $(findstring ccache,$(CROSS_COMPILE_$(sm))),$(firstword $(CROSS_COMPILE_$(sm))) ,)
 
-CC$(sm)		:= $(ccache-cmd)clang --target=$(clang-target)
+CC$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang --target=$(clang-target)
 CXX$(sm)	:= false # Untested yet
 # Due to the absence of clang-cpp in AOSP's prebuilt version of clang,
 # use the equivalent command of 'clang -E'
-CPP$(sm)	:= $(ccache-cmd)clang --target=$(clang-target) -E
-LD$(sm)		:= $(ccache-cmd)ld.lld
+CPP$(sm)	:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang --target=$(clang-target) -E
+LD$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)ld.lld
 
-AR$(sm)		:= $(ccache-cmd)llvm-ar
-NM$(sm)		:= llvm-nm
-OBJCOPY$(sm)	:= llvm-objcopy
-OBJDUMP$(sm)	:= llvm-objdump
-READELF$(sm)	:= llvm-readelf
+AR$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)llvm-ar
+NM$(sm)		:= $(OPTEE_CLANG_COMPILER_PATH)llvm-nm
+OBJCOPY$(sm)	:= $(OPTEE_CLANG_COMPILER_PATH)llvm-objcopy
+OBJDUMP$(sm)	:= $(OPTEE_CLANG_COMPILER_PATH)llvm-objdump
+READELF$(sm)	:= $(OPTEE_CLANG_COMPILER_PATH)llvm-readelf
 
 nostdinc$(sm)	:= -nostdinc -isystem $(shell $(CC$(sm)) \
 			-print-file-name=include 2> /dev/null)
