@@ -66,6 +66,8 @@
 #define mbedtls_free   free
 #endif
 
+#include <fault_mitigation.h>
+
 #if !defined(MBEDTLS_RSA_ALT)
 
 /* Parameter validation macros */
@@ -2141,7 +2143,7 @@ int mbedtls_rsa_rsassa_pss_verify_ext( mbedtls_rsa_context *ctx,
     if ( ret != 0 )
         goto exit;
 
-    if( memcmp( hash_start, result, hlen ) != 0 )
+    if( FTMN_CALLEE_DONE_MEMCMP( memcmp, hash_start, result, hlen ) != 0 )
     {
         ret = MBEDTLS_ERR_RSA_VERIFY_FAILED;
         goto exit;
