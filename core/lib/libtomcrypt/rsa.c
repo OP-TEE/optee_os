@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2014-2019, Linaro Limited
+ * Copyright (c) 2014-2019, 2022 Linaro Limited
  */
 
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
+#include <fault_mitigation.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tee_api_types.h>
 #include <tee_api_defines_extensions.h>
+#include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -604,6 +605,13 @@ TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
 		.e = key->e,
 		.N = key->n
 	};
+	struct ftmn   ftmn = { };
+
+	/*
+	 * The caller expects to call crypto_acipher_rsassa_verify(),
+	 * update the hash as needed.
+	 */
+	FTMN_CALLEE_SWAP_HASH(FTMN_FUNC_HASH("crypto_acipher_rsassa_verify"));
 
 	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 		res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
@@ -654,9 +662,18 @@ TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
 		goto err;
 	}
 
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("rsa_verify_hash_ex"));
 	ltc_res = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
 				     ltc_hashindex, salt_len, &stat, &ltc_key);
 	res = convert_ltc_verify_status(ltc_res, stat);
+	if (res)
+		FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR0, res);
+	else
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, 0);
+	FTMN_POP_LINKED_CALL(&ftmn);
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(1), res);
+	return res;
 err:
+	FTMN_CALLEE_DONE_NOT_ZERO(res);
 	return res;
 }
