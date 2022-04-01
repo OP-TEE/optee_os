@@ -32,7 +32,7 @@ static struct gic_data gic_data __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
-#if defined(CFG_TPM2_MMIO)
+#if defined(CFG_DRIVERS_TPM2_MMIO)
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TPM2_BASE, TPM2_REG_SIZE);
 #endif
 #if defined(PLATFORM_FLAVOR_fvp)
@@ -170,7 +170,7 @@ static TEE_Result init_console_itr(void)
 driver_init(init_console_itr);
 #endif
 
-#if defined(CFG_TPM2_MMIO)
+#if defined(CFG_DRIVERS_TPM2_MMIO)
 static TEE_Result init_tpm2(void)
 {
 	enum tpm2_result res = TPM2_OK;
@@ -186,7 +186,7 @@ static TEE_Result init_tpm2(void)
 	return TEE_SUCCESS;
 }
 driver_init(init_tpm2);
-#endif /* defined(CFG_TPM2_MMIO) */
+#endif /* defined(CFG_DRIVERS_TPM2_MMIO) */
 
 #ifdef CFG_TZC400
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TZC400_BASE, TZC400_REG_SIZE);
