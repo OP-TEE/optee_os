@@ -48,6 +48,8 @@
 
 #include "mbedtls/platform.h"
 
+#include <fault_mitigation.h>
+
 /*
  * Wrapper around mbedtls_asn1_get_mpi() that rejects zero.
  *
@@ -2640,7 +2642,7 @@ int mbedtls_rsa_rsassa_pss_verify_ext(mbedtls_rsa_context *ctx,
         return ret;
     }
 
-    if (memcmp(hash_start, result, hlen) != 0) {
+    if (FTMN_CALLEE_DONE_MEMCMP(memcmp, hash_start, result, hlen) != 0) {
         return MBEDTLS_ERR_RSA_VERIFY_FAILED;
     }
 
