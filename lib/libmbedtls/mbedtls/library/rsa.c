@@ -2472,8 +2472,8 @@ int mbedtls_rsa_rsassa_pkcs1_v15_verify( mbedtls_rsa_context *ctx,
      * Compare
      */
 
-    if( ( ret = mbedtls_safer_memcmp( encoded, encoded_expected,
-                                      sig_len ) ) != 0 )
+    if( ( ret = FTMN_CALLEE_DONE_MEMCMP(mbedtls_safer_memcmp, encoded,
+                                        encoded_expected, sig_len ) ) != 0 )
     {
         ret = MBEDTLS_ERR_RSA_VERIFY_FAILED;
         goto cleanup;
