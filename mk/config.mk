@@ -953,3 +953,7 @@ endif
 # Developer can open a stats PTA session and then invoke command
 # STATS_CMD_TA_STATS to get the context of loaded TAs.
 CFG_TA_STATS ?= n
+
+# Enables best effort mitigations against fault injected when the hardware
+# is tampered with. Details in lib/libutils/ext/include/fault_mitigation.h
+CFG_FAULT_MITIGATION ?= y
