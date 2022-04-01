@@ -14,6 +14,7 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
+#include <fault_mitigation.h>
 
 #include "mbed_helpers.h"
 
@@ -608,6 +609,8 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	mbedtls_rsa_context rsa;
 	const mbedtls_pk_info_t *pk_info = NULL;
 	uint32_t md_algo = 0;
+	struct ftmn ftmn = { };
+	unsigned long arg_hash = 0;
 
 	memset(&rsa, 0, sizeof(rsa));
 	mbedtls_rsa_init(&rsa, 0, 0);
@@ -640,6 +643,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
+		arg_hash = FTMN_FUNC_HASH("mbedtls_rsa_rsassa_pkcs1_v15_verify");
 		lmd_padding = MBEDTLS_RSA_PKCS_V15;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
@@ -647,6 +651,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
+		arg_hash = FTMN_FUNC_HASH("mbedtls_rsa_rsassa_pss_verify_ext");
 		lmd_padding = MBEDTLS_RSA_PKCS_V21;
 		break;
 	default:
@@ -668,15 +673,24 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
 
+	FTMN_PUSH_LINKED_CALL(&ftmn, arg_hash);
 	lmd_res = pk_info->verify_func(&rsa, md_algo, msg, msg_len,
 				       sig, sig_len);
+	if (!lmd_res)
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, lmd_res);
+	FTMN_POP_LINKED_CALL(&ftmn);
 	if (lmd_res != 0) {
 		FMSG("verify_func failed, returned 0x%x", -lmd_res);
 		res = TEE_ERROR_SIGNATURE_INVALID;
 		goto err;
 	}
 	res = TEE_SUCCESS;
+	goto out;
+
 err:
+	FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR0, res);
+out:
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(1), res);
 	/* Reset mpi to skip freeing here, those mpis will be freed with key */
 	mbedtls_mpi_init(&rsa.E);
 	mbedtls_mpi_init(&rsa.N);
