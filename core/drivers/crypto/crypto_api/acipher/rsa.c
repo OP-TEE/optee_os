@@ -4,9 +4,10 @@
  *
  * Crypto RSA interface implementation to enable HW driver.
  */
-#include <drvcrypt.h>
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
+#include <drvcrypt.h>
+#include <fault_mitigation.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
@@ -436,7 +437,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	if (!key || !msg || !sig) {
 		CRYPTO_TRACE("Input parameters reference error");
-		return ret;
+		goto out;
 	}
 
 	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
@@ -447,12 +448,13 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		ret = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
 					      &rsa_ssa.digest_size);
 		if (ret != TEE_SUCCESS)
-			return ret;
+			goto out;
 
 		if (msg_len != rsa_ssa.digest_size) {
 			CRYPTO_TRACE("Input msg length (%zu expected %zu)",
 				     msg_len, rsa_ssa.digest_size);
-			return TEE_ERROR_BAD_PARAMETERS;
+			ret = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
 		}
 	} else {
 		rsa_ssa.hash_algo = 0;
@@ -467,7 +469,8 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	if (rsa_ssa.key.n_size > sig_len) {
 		CRYPTO_TRACE("Signature length expected %zu",
 			     rsa_ssa.key.n_size);
-		return TEE_ERROR_SIGNATURE_INVALID;
+		ret = TEE_ERROR_SIGNATURE_INVALID;
+		goto out;
 	}
 
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
@@ -495,5 +498,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	CRYPTO_TRACE("Signature verif algo (0x%" PRIx32 ") returned 0x%" PRIx32,
 		     algo, ret);
 
+out:
+	FTMN_CALLEE_DONE(ret);
 	return ret;
 }
