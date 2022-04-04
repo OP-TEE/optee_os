@@ -358,7 +358,7 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	if (res)
 		panic();
 
-	pmc = pmc_data_allocate(PMC_MCK_PRES + 1,
+	pmc = pmc_data_allocate(PMC_SAMA5D2_CORE_CLK_COUNT,
 				ARRAY_SIZE(sama5d2_systemck),
 				ARRAY_SIZE(sama5d2_perick) +
 				ARRAY_SIZE(sama5d2_peri32ck),
