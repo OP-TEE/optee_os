@@ -33,6 +33,10 @@ srcs-y += wait_queue.c
 srcs-y += notif.c
 srcs-y += thread.c
 
+ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
+srcs-$(CFG_CORE_TCG_PROVIDER) += tcg.c
+endif
+
 ifeq ($(CFG_WITH_USER_TA),y)
 srcs-y += user_ta.c
 srcs-$(CFG_REE_FS_TA) += ree_fs_ta.c
