@@ -11,6 +11,7 @@
 #define __DRIVERS_TPM2_CHIP_H
 
 #include <stdint.h>
+#include <tee_api_types.h>
 #include <types_ext.h>
 #include <util.h>
 
@@ -107,5 +108,14 @@ enum tpm2_result tpm2_chip_recv(uint8_t *buf, uint32_t *len,
 
 enum tpm2_result tpm2_chip_get_caps(struct tpm2_caps *capability);
 bool tpm2_chip_is_active_bank(uint16_t alg);
+
+#ifdef CFG_CORE_TCG_PROVIDER
+TEE_Result tpm2_tcg_register(void);
+#else
+static inline TEE_Result tpm2_tcg_register(void)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
 
 #endif	/* __DRIVERS_TPM2_CHIP_H */

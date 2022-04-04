@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <drivers/tpm2_chip.h>
 #include <io.h>
+#include <kernel/tcg.h>
 #include <malloc.h>
 #include <string.h>
 #include <tpm2.h>
@@ -202,7 +203,8 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	uint8_t full = 1;
 
 	/* Only 1 tpm2 device is supported */
-	assert(!tpm2_device);
+	if (tpm2_device)
+		return TPM2_ERR_GENERIC;
 
 	if (!chip || !chip->ops)
 		return TPM2_ERR_NODEV;
@@ -228,6 +230,10 @@ enum tpm2_result tpm2_chip_register(struct tpm2_chip *chip)
 	ret = tpm2_populate_capability(chip);
 	if (!ret)
 		tpm2_dump_capability(chip);
+
+	/* Register TPM2 as TCG provider */
+	if (tpm2_tcg_register())
+		return TPM2_ERR_GENERIC;
 
 	return ret;
 }
