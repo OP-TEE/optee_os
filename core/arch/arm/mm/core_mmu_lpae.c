@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (BSD-2-Clause AND BSD-3-Clause)
 /*
- * Copyright (c) 2015-2016, Linaro Limited
+ * Copyright (c) 2015-2016, 2022 Linaro Limited
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/tlb_helpers.h>
-#include <mm/core_memprot.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/pgt_cache.h>
 #include <string.h>
@@ -915,11 +915,15 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_DEVICE_nGnRnE, ATTR_DEVICE_nGnRnE_INDEX);
 	/*
-	 * MEMTAG isn't enabled yet, map tagged memory as normal memory
+	 * If MEMTAG isn't enabled, map tagged memory as normal memory
 	 * instead.
 	 */
-	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR,
-			      ATTR_TAGGED_NORMAL_MEM_INDEX);
+	if (memtag_is_enabled())
+		mair |= MAIR_ATTR_SET(ATTR_TAGGED_NORMAL_MEM,
+				      ATTR_TAGGED_NORMAL_MEM_INDEX);
+	else
+		mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR,
+				      ATTR_TAGGED_NORMAL_MEM_INDEX);
 	cfg->mair_el1 = mair;
 
 	tcr = TCR_RES1;

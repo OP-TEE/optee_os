@@ -8,6 +8,7 @@
 #include <kernel/linker.h>
 #include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
+#include <memtag.h>
 #include <mm/vm.h>
 #include <string.h>
 #include <tee_api_types.h>
@@ -73,11 +74,29 @@ TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 
 uint32_t kaddr_to_uref(void *kaddr)
 {
+	if (MEMTAG_IS_ENABLED) {
+		unsigned int uref_tag_shift = 32 - MEMTAG_TAG_WIDTH;
+		vaddr_t uref = memtag_strip_tag_vaddr(kaddr);
+
+		uref -= VCORE_START_VA;
+		assert(uref < (UINT32_MAX >> MEMTAG_TAG_WIDTH));
+		uref |= memtag_get_tag(kaddr) << uref_tag_shift;
+		return uref;
+	}
+
 	assert(((vaddr_t)kaddr - VCORE_START_VA) < UINT32_MAX);
 	return (vaddr_t)kaddr - VCORE_START_VA;
 }
 
 vaddr_t uref_to_vaddr(uint32_t uref)
 {
+	if (MEMTAG_IS_ENABLED) {
+		vaddr_t u = uref & (UINT32_MAX >> MEMTAG_TAG_WIDTH);
+		unsigned int uref_tag_shift = 32 - MEMTAG_TAG_WIDTH;
+		uint8_t tag = uref >> uref_tag_shift;
+
+		return memtag_insert_tag_vaddr(VCORE_START_VA + u, tag);
+	}
+
 	return VCORE_START_VA + uref;
 }

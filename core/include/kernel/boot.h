@@ -47,6 +47,7 @@ extern const struct core_mmu_config boot_mmu_config;
 void boot_init_primary_early(unsigned long pageable_part,
 			     unsigned long nsec_entry);
 void boot_init_primary_late(unsigned long fdt);
+void boot_init_memtag(void);
 
 void __panic_at_smc_return(void) __noreturn;
 

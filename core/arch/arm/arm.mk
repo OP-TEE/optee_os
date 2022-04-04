@@ -167,6 +167,11 @@ arm64-platform-cflags-no-hard-float ?= -mgeneral-regs-only
 arm64-platform-cflags-hard-float ?=
 arm64-platform-cflags-generic := -mstrict-align $(call cc-option,-mno-outline-atomics,)
 
+ifeq ($(CFG_MEMTAG),y)
+arm64-platform-cflags += -march=armv8.5-a+memtag
+arm64-platform-aflags += -march=armv8.5-a+memtag
+endif
+
 platform-cflags-optimization ?= -O$(CFG_CC_OPT_LEVEL)
 
 ifeq ($(CFG_DEBUG_INFO),y)

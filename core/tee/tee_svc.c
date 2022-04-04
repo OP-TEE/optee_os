@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) 2020-2022 Linaro Limited
  */
 
 #include <compiler.h>
@@ -13,6 +13,7 @@
 #include <kernel/tee_time.h>
 #include <kernel/trace_ta.h>
 #include <kernel/user_access.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -225,6 +226,25 @@ get_prop_feat_pauth_implemented(struct ts_session *sess __unused, void *buf,
 }
 #endif
 
+#if MEMTAG_IS_ENABLED
+static TEE_Result
+get_prop_feat_memtag_implemented(struct ts_session *sess __unused, void *buf,
+				 size_t *blen)
+{
+	uint32_t v = 0;
+
+	if (*blen < sizeof(v)) {
+		*blen = sizeof(v);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(v);
+	if (memtag_is_enabled())
+		v = feat_mte_implemented();
+
+	return copy_to_user(buf, &v, sizeof(v));
+}
+#endif
+
 /* Properties of the set TEE_PROPSET_CURRENT_CLIENT */
 const struct tee_props tee_propset_client[] = {
 	{
@@ -345,6 +365,13 @@ const struct tee_props tee_propset_tee[] = {
 		.name = "org.trustedfirmware.optee.cpu.feat_pauth_implemented",
 		.prop_type = USER_TA_PROP_TYPE_BOOL,
 		.get_prop_func = get_prop_feat_pauth_implemented
+	}
+#endif
+#if MEMTAG_IS_ENABLED
+	{
+		.name = "org.trustedfirmware.optee.cpu.feat_memtag_implemented",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.get_prop_func = get_prop_feat_memtag_implemented
 	}
 #endif
 
