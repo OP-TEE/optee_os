@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2022, Linaro Limited.
  */
 #include <compiler.h>
 #include <link.h>
+#include <malloc.h>
+#include <memtag.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <tee_api.h>
-#include <tee_ta_api.h>
+#include <tee_arith_internal.h>
 #include <tee_internal_api_extensions.h>
+#include <tee_ta_api.h>
 #include <user_ta_header.h>
 #include <utee_syscalls.h>
-#include <tee_arith_internal.h>
-#include <malloc.h>
 #include "tee_api_private.h"
 
 struct ta_session {
@@ -150,11 +152,22 @@ void __utee_call_elf_fini_fn(void)
 	dl_iterate_phdr(_fini_iterate_phdr_cb, NULL);
 }
 
+static unsigned int get_memtag_implementation(void)
+{
+	const char *s = "org.trustedfirmware.optee.cpu.feat_memtag_implemented";
+	uint32_t v = 0;
+
+	if (TEE_GetPropertyAsU32(TEE_PROPSET_TEE_IMPLEMENTATION, s, &v))
+		return 0;
+	return v;
+}
+
 static TEE_Result init_instance(void)
 {
 	trace_set_level(tahead_get_trace_level());
 	__utee_gprof_init();
 	malloc_add_pool(ta_heap, ta_heap_size);
+	memtag_init_ops(get_memtag_implementation());
 	_TEE_MathAPI_Init();
 	__utee_tcb_init();
 	__utee_call_elf_init_fn();

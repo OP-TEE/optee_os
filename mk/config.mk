@@ -812,6 +812,19 @@ ifeq (y-y,$(CFG_PAGED_USER_TA)-$(CFG_TA_BTI))
 $(error CFG_PAGED_USER_TA and CFG_TA_BTI are currently incompatible)
 endif
 
+# Memory Tagging Extension (part of the ARMv8.5 Extensions) implements lock
+# and key access to memory. This is a hardware supported alternative to
+# CFG_CORE_SANITIZE_KADDRESS which covers both S-EL1 and S-EL0.
+CFG_MEMTAG ?= n
+
+$(eval $(call cfg-depends-all,CFG_MEMTAG,CFG_ARM64_core))
+ifeq (y-y,$(CFG_CORE_SANITIZE_KADDRESS)-$(CFG_MEMTAG))
+$(error CFG_CORE_SANITIZE_KADDRESS and CFG_MEMTAG are not compatible)
+endif
+ifeq (y-y,$(CFG_WITH_PAGER)-$(CFG_MEMTAG))
+$(error CFG_WITH_PAGER and CFG_MEMTAG are not compatible)
+endif
+
 # CFG_CORE_ASYNC_NOTIF is defined by the platform to enable enables support
 # for sending asynchronous notifications to normal world. Note that an
 # interrupt ID must be configurged by the platform too. Currently is only

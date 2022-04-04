@@ -45,6 +45,11 @@
 		msr	spsel, #0
 	.endm
 
+	.macro read_feat_mte reg
+		mrs	\reg, id_aa64pfr1_el1
+		ubfx	\reg, \reg, #ID_AA64PFR1_EL1_MTE_SHIFT, #4
+	.endm
+
 	.macro set_sctlr_el1
 		mrs	x0, sctlr_el1
 		orr	x0, x0, #SCTLR_I
@@ -58,7 +63,65 @@
 #else
 		bic	x0, x0, #SCTLR_A
 #endif
+#ifdef CFG_MEMTAG
+		read_feat_mte x1
+		cmp	w1, #1
+		b.ls	111f
+		orr	x0, x0, #(SCTLR_ATA | SCTLR_ATA0)
+		bic	x0, x0, #SCTLR_TCF_MASK
+		bic	x0, x0, #SCTLR_TCF0_MASK
+111:
+#endif
 		msr	sctlr_el1, x0
+	.endm
+
+	.macro init_memtag_per_cpu
+		read_feat_mte x0
+		cmp	w0, #1
+		b.ls	11f
+
+#ifdef CFG_TEE_CORE_DEBUG
+		/*
+		 * This together with GCR_EL1.RRND = 0 will make the tags
+		 * acquired with the irg instruction deterministic.
+		 */
+		mov_imm	x0, 0xcafe00
+		msr	rgsr_el1, x0
+		/* Avoid tag = 0x0 and 0xf */
+		mov	x0, #0
+#else
+		/*
+		 * Still avoid tag = 0x0 and 0xf as we use that tag for
+		 * everything which isn't explicitly tagged. Setting
+		 * GCR_EL1.RRND = 1 to allow an implementation specific
+		 * method of generating the tags.
+		 */
+		mov	x0, #GCR_EL1_RRND
+#endif
+		orr	x0, x0, #1
+		orr	x0, x0, #(1 << 15)
+		msr	gcr_el1, x0
+
+		/*
+		 * Enable the tag checks on the current CPU.
+		 *
+		 * Depends on boot_init_memtag() having cleared tags for
+		 * TEE core memory. Well, not really, addresses with the
+		 * tag value 0b0000 will use unchecked access due to
+		 * TCR_TCMA0.
+		 */
+		mrs	x0, tcr_el1
+		orr	x0, x0, #TCR_TBI0
+		orr	x0, x0, #TCR_TCMA0
+		msr	tcr_el1, x0
+
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_TCF_SYNC
+		orr	x0, x0, #SCTLR_TCF0_SYNC
+		msr	sctlr_el1, x0
+
+		isb
+11:
 	.endm
 
 FUNC _start , :
@@ -184,6 +247,15 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
+#ifdef CFG_MEMTAG
+	/*
+	 * If FEAT_MTE2 is available, initializes the memtag callbacks.
+	 * Tags for OP-TEE core memory are then cleared to make it safe to
+	 * enable MEMTAG below.
+	 */
+	bl	boot_init_memtag
+#endif
+
 #ifdef CFG_CORE_ASLR
 	mov	x0, x20
 	bl	get_aslr_seed
@@ -234,6 +306,11 @@ clear_nex_bss:
 	mov	x0, x19		/* pagable part address */
 	mov	x1, #-1
 	bl	boot_init_primary_early
+
+#ifdef CFG_MEMTAG
+	init_memtag_per_cpu
+#endif
+
 #ifndef CFG_VIRTUALIZATION
 	mov	x21, sp
 	adr_l	x0, threads
@@ -455,6 +532,10 @@ FUNC cpu_on_handler , :
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
+
+#ifdef CFG_MEMTAG
+	init_memtag_per_cpu
+#endif
 
 	mov	x0, x19
 	mov	x1, x20

@@ -9,6 +9,7 @@
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
@@ -766,7 +767,7 @@ struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 	if (!va)
 		goto err;
 
-	memset(va, 0, size);
+	memtag_clear_mem(va, size);
 	f->fobj.ops = &ops_sec_mem;
 	f->fobj.num_pages = num_pages;
 	refcount_set(&f->fobj.refc, 1);

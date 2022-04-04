@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2022, Linaro Limited
  */
 
 #include <arm.h>
@@ -23,6 +23,7 @@
 #include <kernel/tpm.h>
 #include <libfdt.h>
 #include <malloc.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/fobj.h>
@@ -282,6 +283,15 @@ static void init_asan(void)
 {
 }
 #endif /*CFG_CORE_SANITIZE_KADDRESS*/
+
+#if defined(CFG_MEMTAG)
+/* Called from entry_a64.S only when MEMTAG is configured */
+void boot_init_memtag(void)
+{
+	memtag_init_ops(feat_mte_implemented());
+	memtag_set_tags((void *)TEE_RAM_START, TEE_RAM_PH_SIZE, 0);
+}
+#endif
 
 #ifdef CFG_WITH_PAGER
 
@@ -1303,6 +1313,9 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
 #endif
+	if (IS_ENABLED(CFG_MEMTAG))
+		DMSG("Memory tagging %s",
+		     memtag_is_enabled() ?  "enabled" : "disabled");
 
 	main_init_gic();
 	init_vfp_nsec();
