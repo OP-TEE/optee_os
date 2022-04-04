@@ -48,6 +48,7 @@
 #define TEE_MATTR_MEM_TYPE_DEV	        U(0) /* Device-nGnRE */
 #define TEE_MATTR_MEM_TYPE_CACHED	U(1)
 #define TEE_MATTR_MEM_TYPE_STRONGLY_O	U(2) /* Device-nGnRnE  */
+#define TEE_MATTR_MEM_TYPE_TAGGED	U(3)
 
 #define TEE_MATTR_GUARDED		BIT(15)
 
