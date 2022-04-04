@@ -481,11 +481,6 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	pmc_clk->clk = usbck;
 	pmc_clk->id = PMC_USBCK;
 
-	if (clk_set_parent(usbck, utmi_clk) != TEE_SUCCESS)
-		panic();
-
-	clk_set_rate(usbck, 48000000);
-
 	parents[0] = slow_clk;
 	parents[1] = main_clk;
 	parents[2] = plladivck;
