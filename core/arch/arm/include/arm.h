@@ -150,6 +150,16 @@ static inline bool feat_bti_is_implemented(void)
 #endif
 }
 
+static inline unsigned int feat_mte_implemented(void)
+{
+#ifdef ARM32
+	return 0;
+#else
+	return (read_id_aa64pfr1_el1() >> ID_AA64PFR1_EL1_MTE_SHIFT) &
+	       ID_AA64PFR1_EL1_MTE_MASK;
+#endif
+}
+
 static inline bool feat_pauth_is_implemented(void)
 {
 #ifdef ARM32
