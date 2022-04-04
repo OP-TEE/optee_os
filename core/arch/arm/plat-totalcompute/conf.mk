@@ -1,4 +1,4 @@
-ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1))
+ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1 tc2))
 include core/arch/arm/cpu/cortex-armv8-0.mk
 platform-debugger-arm := 1
 endif
@@ -25,7 +25,7 @@ endif
 
 $(call force,CFG_CORE_ARM64_PA_BITS,40)
 
-ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1))
+ifneq (,$(filter ${PLATFORM_FLAVOR},tc0 tc1 tc2))
 CFG_TEE_CORE_NB_CORE = 8
 
 ifeq ($(CFG_CORE_SEL1_SPMC),y)
