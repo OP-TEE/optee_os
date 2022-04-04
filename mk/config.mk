@@ -993,13 +993,6 @@ CFG_DRIVERS_RTC ?= n
 # Enable PTA for RTC access from non-secure world
 CFG_RTC_PTA ?= n
 
-# Enable TPM2
-CFG_DRIVERS_TPM2 ?= n
-CFG_DRIVERS_TPM2_MMIO ?= n
-ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
-CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
-endif
-
 # Enable the FF-A SPMC tests in xtests
 CFG_SPMC_TESTS ?= n
 
