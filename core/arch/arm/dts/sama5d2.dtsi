@@ -126,6 +126,9 @@
 			interrupts = <42 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 42>, <&pmc PMC_TYPE_CORE PMC_UTMI>;
 			clock-names = "pclk", "hclk";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
@@ -135,6 +138,9 @@
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 41>, <&pmc PMC_TYPE_PERIPHERAL 41>, <&pmc PMC_TYPE_SYSTEM 6>;
 			clock-names = "ohci_clk", "hclk", "uhpck";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
@@ -144,6 +150,9 @@
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_CORE PMC_UTMI>, <&pmc PMC_TYPE_PERIPHERAL 41>;
 			clock-names = "usb_clk", "ehci_clk";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
