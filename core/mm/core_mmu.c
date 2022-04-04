@@ -616,6 +616,8 @@ static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
 uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 {
 	const uint32_t attr = TEE_MATTR_VALID_BLOCK;
+	const uint32_t tagged = TEE_MATTR_MEM_TYPE_TAGGED <<
+				TEE_MATTR_MEM_TYPE_SHIFT;
 	const uint32_t cached = TEE_MATTR_MEM_TYPE_CACHED <<
 				TEE_MATTR_MEM_TYPE_SHIFT;
 	const uint32_t noncache = TEE_MATTR_MEM_TYPE_DEV <<
@@ -623,19 +625,19 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 
 	switch (t) {
 	case MEM_AREA_TEE_RAM:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | tagged;
 	case MEM_AREA_TEE_RAM_RX:
 	case MEM_AREA_INIT_RAM_RX:
 	case MEM_AREA_IDENTITY_MAP_RX:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRX | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRX | tagged;
 	case MEM_AREA_TEE_RAM_RO:
 	case MEM_AREA_INIT_RAM_RO:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | tagged;
 	case MEM_AREA_TEE_RAM_RW:
 	case MEM_AREA_NEX_RAM_RO: /* This has to be r/w during init runtime */
 	case MEM_AREA_NEX_RAM_RW:
 	case MEM_AREA_TEE_ASAN:
-		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_TEE_COHERENT:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRWX | noncache;
 	case MEM_AREA_TA_RAM:
@@ -1294,6 +1296,7 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
 	case TEE_MATTR_MEM_TYPE_DEV:
 	case TEE_MATTR_MEM_TYPE_STRONGLY_O:
 	case TEE_MATTR_MEM_TYPE_CACHED:
+	case TEE_MATTR_MEM_TYPE_TAGGED:
 		return true;
 	default:
 		return false;

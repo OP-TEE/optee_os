@@ -121,11 +121,14 @@
 #define ATTR_DEVICE_nGnRE_INDEX		0x0
 #define ATTR_IWBWA_OWBWA_NTR_INDEX	0x1
 #define ATTR_DEVICE_nGnRnE_INDEX	0x2
+#define ATTR_TAGGED_NORMAL_MEM_INDEX	0x3
 #define ATTR_INDEX_MASK			0x7
 
 #define ATTR_DEVICE_nGnRnE		(0x0)
 #define ATTR_DEVICE_nGnRE		(0x4)
 #define ATTR_IWBWA_OWBWA_NTR		(0xff)
+/* Same as ATTR_IWBWA_OWBWA_NTR but with memory tagging.  */
+#define ATTR_TAGGED_NORMAL_MEM		(0xf0)
 
 #define MAIR_ATTR_SET(attr, index)	(((uint64_t)attr) << ((index) << 3))
 
@@ -336,6 +339,8 @@ static uint32_t desc_to_mattr(unsigned level, uint64_t desc)
 	COMPILE_TIME_ASSERT(ATTR_DEVICE_nGnRE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
 	COMPILE_TIME_ASSERT(ATTR_IWBWA_OWBWA_NTR_INDEX ==
 			    TEE_MATTR_MEM_TYPE_CACHED);
+	COMPILE_TIME_ASSERT(ATTR_TAGGED_NORMAL_MEM_INDEX ==
+			    TEE_MATTR_MEM_TYPE_TAGGED);
 
 	a |= ((desc & LOWER_ATTRS(ATTR_INDEX_MASK)) >> LOWER_ATTRS_SHIFT) <<
 	     TEE_MATTR_MEM_TYPE_SHIFT;
@@ -404,6 +409,9 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 		break;
 	case TEE_MATTR_MEM_TYPE_CACHED:
 		desc |= LOWER_ATTRS(ATTR_IWBWA_OWBWA_NTR_INDEX | ISH);
+		break;
+	case TEE_MATTR_MEM_TYPE_TAGGED:
+		desc |= LOWER_ATTRS(ATTR_TAGGED_NORMAL_MEM_INDEX | ISH);
 		break;
 	default:
 		/*
@@ -838,6 +846,12 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE_nGnRE, ATTR_DEVICE_nGnRE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_DEVICE_nGnRnE, ATTR_DEVICE_nGnRnE_INDEX);
+	/*
+	 * Tagged memory isn't supported in 32-bit mode, map tagged memory
+	 * as normal memory instead.
+	 */
+	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR,
+			      ATTR_TAGGED_NORMAL_MEM_INDEX);
 	cfg->mair0 = mair;
 
 	ttbcr = TTBCR_EAE;
@@ -900,6 +914,12 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	mair  = MAIR_ATTR_SET(ATTR_DEVICE_nGnRE, ATTR_DEVICE_nGnRE_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR, ATTR_IWBWA_OWBWA_NTR_INDEX);
 	mair |= MAIR_ATTR_SET(ATTR_DEVICE_nGnRnE, ATTR_DEVICE_nGnRnE_INDEX);
+	/*
+	 * MEMTAG isn't enabled yet, map tagged memory as normal memory
+	 * instead.
+	 */
+	mair |= MAIR_ATTR_SET(ATTR_IWBWA_OWBWA_NTR,
+			      ATTR_TAGGED_NORMAL_MEM_INDEX);
 	cfg->mair_el1 = mair;
 
 	tcr = TCR_RES1;
