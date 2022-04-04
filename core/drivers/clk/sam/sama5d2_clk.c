@@ -410,6 +410,10 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	if (!audiopll_fracck)
 		panic();
 
+	pmc_clk = &pmc->chws[PMC_AUDIOPLL_FRACCK];
+	pmc_clk->clk = audiopll_fracck;
+	pmc_clk->id = PMC_AUDIOPLL_FRACCK;
+
 	clk = at91_clk_register_audio_pll_pad(pmc, "audiopll_padck",
 					      audiopll_fracck);
 	if (!clk)
@@ -472,6 +476,10 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	usbck = at91sam9x5_clk_register_usb(pmc, "usbck", parents, 2);
 	if (!usbck)
 		panic();
+
+	pmc_clk = &pmc->chws[PMC_USBCK];
+	pmc_clk->clk = usbck;
+	pmc_clk->id = PMC_USBCK;
 
 	if (clk_set_parent(usbck, utmi_clk) != TEE_SUCCESS)
 		panic();
