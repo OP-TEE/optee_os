@@ -51,13 +51,16 @@ $(call force,CFG_CAAM_SIZE_ALIGN,1)
 $(call force,CFG_JR_BLOCK_SIZE,0x1000)
 $(call force,CFG_JR_INDEX,2)
 $(call force,CFG_JR_INT,114)
-$(call force,CFG_CAAM_NO_ITR,y)
+$(call force,CFG_CAAM_ITR,n)
 else
 $(call force, CFG_CAAM_SIZE_ALIGN,1)
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
 $(call force, CFG_JR_INDEX,0)
 $(call force, CFG_JR_INT,137)
 endif
+
+# Enable JR interruptions
+CFG_CAAM_ITR ?= y
 
 #
 # Configuration of the Crypto Driver

@@ -136,7 +136,7 @@ void caam_hal_jr_del_job(vaddr_t baseaddr)
 	io_caam_write32(baseaddr + JRX_ORJRR, 1);
 }
 
-#ifdef CFG_CAAM_NO_ITR
+#ifdef CFG_CAAM_ITR
 void caam_hal_jr_disable_itr(vaddr_t baseaddr)
 {
 	io_setbits32(baseaddr + JRX_JRCFGR_LS, JRX_JRCFGR_LS_IMSK);
@@ -151,7 +151,7 @@ void caam_hal_jr_enable_itr(vaddr_t baseaddr)
 #else
 void caam_hal_jr_disable_itr(vaddr_t baseaddr __unused) {}
 void caam_hal_jr_enable_itr(vaddr_t baseaddr __unused) {}
-#endif /* CFG_CAAM_NO_ITR */
+#endif /* CFG_CAAM_ITR */
 
 bool caam_hal_jr_check_ack_itr(vaddr_t baseaddr)
 {
