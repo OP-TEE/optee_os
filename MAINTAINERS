@@ -274,6 +274,11 @@ R:	Ricardo Salveti <ricardo@foundries.io> [@ricardosalveti]
 S:	Maintained
 F:	core/arch/arm/plat-zynqmp/
 
+Xilinx Versal ACAP
+R:	Jorge Ramirez-Ortiz <jorge@foundries.io> [@ldts]
+S:	Maintained
+F:	core/arch/arm/plat-versal/
+
 Virtualization support
 R:	Volodymyr Babchuk <vlad.babchuk@gmail.com>
 S:	Maintained
