@@ -98,20 +98,20 @@
 
 
 #define TCR_T0SZ_SHIFT		U(0)
-#define TCR_EPD0		BIT32(7)
+#define TCR_EPD0		BIT64(7)
 #define TCR_IRGN0_SHIFT		U(8)
 #define TCR_ORGN0_SHIFT		U(10)
 #define TCR_SH0_SHIFT		U(12)
 #define TCR_T1SZ_SHIFT		U(16)
-#define TCR_A1			BIT32(22)
-#define TCR_EPD1		BIT32(23)
+#define TCR_A1			BIT64(22)
+#define TCR_EPD1		BIT64(23)
 #define TCR_IRGN1_SHIFT		U(24)
 #define TCR_ORGN1_SHIFT		U(26)
 #define TCR_SH1_SHIFT		U(28)
 #define TCR_EL1_IPS_SHIFT	U(32)
 #define TCR_EL1_IPS_MASK	UINT64_C(0x7)
-#define TCR_TG1_4KB		SHIFT_U32(2, 30)
-#define TCR_RES1		BIT32(31)
+#define TCR_TG1_4KB		SHIFT_U64(2, 30)
+#define TCR_RES1		BIT64(31)
 
 
 /* Normal memory, Inner/Outer Non-cacheable */
