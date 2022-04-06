@@ -221,6 +221,7 @@ jobs:
           _make PLATFORM=hisilicon-hi3519av100_demo
           _make PLATFORM=amlogic
           _make PLATFORM=rzn1
+          _make PLATFORM=versal
 
           upload_cache
 
