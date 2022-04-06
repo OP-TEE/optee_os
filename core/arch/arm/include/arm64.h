@@ -23,6 +23,22 @@
 #define SCTLR_ENIA	BIT64(31)
 #define SCTLR_BT0	BIT64(35)
 #define SCTLR_BT1	BIT64(36)
+#define SCTLR_ITFSB	BIT64(37)
+
+#define SCTLR_TCF_MASK	SHIFT_U64(0x3, 40)
+#define SCTLR_TCF_NONE	SHIFT_U64(0x0, 40)
+#define SCTLR_TCF_SYNC	SHIFT_U64(0x1, 40)
+#define SCTLR_TCF_ASYNC	SHIFT_U64(0x2, 40)
+#define SCTLR_TCF_ASYMM	SHIFT_U64(0x3, 40)
+
+#define SCTLR_TCF0_MASK	SHIFT_U64(0x3, 38)
+#define SCTLR_TCF0_NONE	SHIFT_U64(0x0, 38)
+#define SCTLR_TCF0_SYNC	SHIFT_U64(0x1, 38)
+#define SCTLR_TCF0_ASYNC SHIFT_U64(0x2, 38)
+#define SCTLR_TCF0_ASYMM SHIFT_U64(0x3, 38)
+
+#define SCTLR_ATA0	BIT64(42)
+#define SCTLR_ATA	BIT64(43)
 
 #define TTBR_ASID_MASK		U(0xff)
 #define TTBR_ASID_SHIFT		U(48)
@@ -112,6 +128,10 @@
 #define TCR_EL1_IPS_MASK	UINT64_C(0x7)
 #define TCR_TG1_4KB		SHIFT_U64(2, 30)
 #define TCR_RES1		BIT64(31)
+#define TCR_TBI0		BIT64(37)
+#define TCR_TBI1		BIT64(38)
+#define TCR_TCMA0		BIT64(57)
+#define TCR_TCMA1		BIT64(58)
 
 
 /* Normal memory, Inner/Outer Non-cacheable */
@@ -244,6 +264,8 @@
 #define ID_AA64ISAR1_APA_ARCH_EPAC2		U(0x3)
 #define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC	U(0x4)
 #define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC_CMB	U(0x5)
+
+#define GCR_EL1_RRND				BIT64(16)
 
 #ifndef __ASSEMBLER__
 static inline __noprof void isb(void)
