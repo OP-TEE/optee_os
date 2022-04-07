@@ -113,6 +113,8 @@ static __maybe_unused const char *fault_to_str(uint32_t abort_type,
 		return " (read permission fault)";
 	case CORE_MMU_FAULT_WRITE_PERMISSION:
 		return " (write permission fault)";
+	case CORE_MMU_FAULT_TAG_CHECK:
+		return " (tag check fault)";
 	default:
 		return "";
 	}
@@ -506,6 +508,13 @@ static enum fault_type get_fault_type(struct abort_info *ai)
 			abort_print(ai);
 		DMSG("[abort] Ignoring async external abort!");
 		return FAULT_TYPE_IGNORE;
+
+	case CORE_MMU_FAULT_TAG_CHECK:
+		if (abort_is_user_exception(ai))
+			return FAULT_TYPE_USER_MODE_PANIC;
+		abort_print_error(ai);
+		panic("[abort] Tag check fault! (trap CPU)");
+		break;
 
 	case CORE_MMU_FAULT_OTHER:
 	default:
