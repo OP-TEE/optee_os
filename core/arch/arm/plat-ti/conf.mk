@@ -34,4 +34,6 @@ $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_GIC,y)
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 $(call force,CFG_DRA7_RNG,y)
+CFG_HWRNG_QUALITY ?= 1024
+CFG_HWRNG_PTA ?= y
 endif
