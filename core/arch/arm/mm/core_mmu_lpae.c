@@ -1318,6 +1318,8 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 				return CORE_MMU_FAULT_READ_PERMISSION;
 		case ESR_FSC_ALIGN:
 			return CORE_MMU_FAULT_ALIGNMENT;
+		case ESR_FSC_TAG_CHECK:
+			return CORE_MMU_FAULT_TAG_CHECK;
 		default:
 			return CORE_MMU_FAULT_OTHER;
 		}

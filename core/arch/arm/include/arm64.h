@@ -184,6 +184,7 @@
 #define ESR_FSC_PERMF_L1	U(0x0d)
 #define ESR_FSC_PERMF_L2	U(0x0e)
 #define ESR_FSC_PERMF_L3	U(0x0f)
+#define ESR_FSC_TAG_CHECK	U(0x11)
 #define ESR_FSC_ALIGN		U(0x21)
 
 /* WnR for DABT and RES0 for IABT */
