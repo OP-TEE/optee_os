@@ -750,10 +750,6 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	panicked = ctx->panicked;
 	s->param = NULL;
 
-	tee_ta_put_session(s);
-	if (panicked || (res != TEE_SUCCESS))
-		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
-
 	/*
 	 * Origin error equal to TEE_ORIGIN_TRUSTED_APP for "regular" error,
 	 * apart from panicking.
@@ -762,6 +758,10 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 		*err = TEE_ORIGIN_TEE;
 	else
 		*err = s->err_origin;
+
+	tee_ta_put_session(s);
+	if (panicked || res != TEE_SUCCESS)
+		tee_ta_close_session(s, open_sessions, KERN_IDENTITY);
 
 	if (res != TEE_SUCCESS)
 		EMSG("Failed. Return error 0x%x", res);
