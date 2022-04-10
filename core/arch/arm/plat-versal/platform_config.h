@@ -29,6 +29,9 @@
 #define DRAM0_BASE		0
 #define DRAM0_SIZE		0x80000000
 
+#define TRNG_BASE		0xF1230000
+#define TRNG_SIZE		0x10000
+
 #ifdef ARM64
 /* DDR High area base is only available when compiling for 64 bits */
 #define DRAM1_BASE		0x800000000

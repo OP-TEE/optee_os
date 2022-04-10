@@ -32,3 +32,10 @@ $(call force,CFG_WITH_LPAE,y)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+$(call force, CFG_VERSAL_RNG_DRV,y)
+$(call force, CFG_WITH_SOFTWARE_PRNG,n)
+
+# TRNG configuration
+CFG_VERSAL_TRNG_SEED_LIFE ?= 3
+CFG_VERSAL_TRNG_DF_MUL    ?= 7
