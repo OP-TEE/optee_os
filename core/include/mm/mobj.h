@@ -29,7 +29,7 @@ struct mobj_ops {
 	TEE_Result (*get_pa)(struct mobj *mobj, size_t offs, size_t granule,
 			     paddr_t *pa);
 	size_t (*get_phys_offs)(struct mobj *mobj, size_t granule);
-	TEE_Result (*get_cattr)(struct mobj *mobj, uint32_t *cattr);
+	TEE_Result (*get_mem_type)(struct mobj *mobj, uint32_t *mt);
 	bool (*matches)(struct mobj *mobj, enum buf_is_attr attr);
 	void (*free)(struct mobj *mobj);
 	uint64_t (*get_cookie)(struct mobj *mobj);
@@ -75,10 +75,10 @@ static inline size_t mobj_get_phys_offs(struct mobj *mobj, size_t granule)
 	return 0;
 }
 
-static inline TEE_Result mobj_get_cattr(struct mobj *mobj, uint32_t *cattr)
+static inline TEE_Result mobj_get_mem_type(struct mobj *mobj, uint32_t *mt)
 {
-	if (mobj && mobj->ops && mobj->ops->get_cattr)
-		return mobj->ops->get_cattr(mobj, cattr);
+	if (mobj && mobj->ops && mobj->ops->get_mem_type)
+		return mobj->ops->get_mem_type(mobj, mt);
 	return TEE_ERROR_GENERIC;
 }
 

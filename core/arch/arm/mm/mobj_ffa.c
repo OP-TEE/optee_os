@@ -501,12 +501,12 @@ out:
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 }
 
-static TEE_Result ffa_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
+static TEE_Result ffa_get_mem_type(struct mobj *mobj __unused, uint32_t *mt)
 {
-	if (!cattr)
+	if (!mt)
 		return TEE_ERROR_GENERIC;
 
-	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+	*mt = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
@@ -617,7 +617,7 @@ __weak __relrodata_unpaged("mobj_ffa_ops") = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
 	.get_va = ffa_get_va,
-	.get_cattr = ffa_get_cattr,
+	.get_mem_type = ffa_get_mem_type,
 	.matches = ffa_matches,
 	.free = ffa_inactivate,
 	.get_cookie = ffa_get_cookie,
