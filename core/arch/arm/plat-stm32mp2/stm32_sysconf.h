@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <tee_api_types.h>
 #include <util.h>
 
 /* syscon banks */
@@ -117,6 +118,21 @@ void stm32mp_syscfg_write(uint32_t id, uint32_t value, uint32_t bitmsk);
  * @id: SYSCONF register ID, processed with SYSCON_ID() macro
  */
 uint32_t stm32mp_syscfg_read(uint32_t id);
+
+/* IO comp identifiers */
+enum syscfg_io_ids {
+	SYSFG_VDDIO1_ID,
+	SYSFG_VDDIO2_ID,
+	SYSFG_VDDIO3_ID,
+	SYSFG_VDDIO4_ID,
+	SYSFG_VDD_IO_ID,
+	SYSFG_NB_IO_ID
+};
+
+TEE_Result stm32mp25_syscfg_enable_iocomp(enum syscfg_io_ids id);
+TEE_Result stm32mp25_syscfg_disable_iocomp(enum syscfg_io_ids id);
+void stm32mp25_syscfg_fixed_iocomp(enum syscfg_io_ids id,
+				   uint32_t pmos, uint32_t nmos);
 
 /*
  * Set safe reset state
