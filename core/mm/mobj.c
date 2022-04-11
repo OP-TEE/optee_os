@@ -34,7 +34,8 @@ struct mobj *mobj_tee_ram_rw;
 struct mobj_phys {
 	struct mobj mobj;
 	enum buf_is_attr battr;
-	uint32_t cattr; /* Defined by TEE_MATTR_CACHE_* in tee_mmu_types.h */
+	/* Defined by TEE_MATTR_MEM_TYPE_* in tee_mmu_types.h */
+	uint32_t mem_type;
 	vaddr_t va;
 	paddr_t pa;
 };
@@ -74,14 +75,14 @@ static TEE_Result mobj_phys_get_pa(struct mobj *mobj, size_t offs,
 }
 DECLARE_KEEP_PAGER(mobj_phys_get_pa);
 
-static TEE_Result mobj_phys_get_cattr(struct mobj *mobj, uint32_t *cattr)
+static TEE_Result mobj_phys_get_mem_type(struct mobj *mobj, uint32_t *mem_type)
 {
 	struct mobj_phys *moph = to_mobj_phys(mobj);
 
-	if (!cattr)
+	if (!mem_type)
 		return TEE_ERROR_GENERIC;
 
-	*cattr = moph->cattr;
+	*mem_type = moph->mem_type;
 	return TEE_SUCCESS;
 }
 
@@ -124,7 +125,7 @@ __weak __relrodata_unpaged("mobj_phys_ops") = {
 	.get_va = mobj_phys_get_va,
 	.get_pa = mobj_phys_get_pa,
 	.get_phys_offs = NULL, /* only offset 0 */
-	.get_cattr = mobj_phys_get_cattr,
+	.get_mem_type = mobj_phys_get_mem_type,
 	.matches = mobj_phys_matches,
 	.free = mobj_phys_free,
 };
@@ -135,7 +136,7 @@ static struct mobj_phys *to_mobj_phys(struct mobj *mobj)
 	return container_of(mobj, struct mobj_phys, mobj);
 }
 
-static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
+static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t mem_type,
 				   enum buf_is_attr battr,
 				   enum teecore_memtypes area_type)
 {
@@ -169,7 +170,7 @@ static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
 		return NULL;
 
 	moph->battr = battr;
-	moph->cattr = cattr;
+	moph->mem_type = mem_type;
 	moph->mobj.size = size;
 	moph->mobj.ops = &mobj_phys_ops;
 	refcount_set(&moph->mobj.refc, 1);
@@ -179,7 +180,7 @@ static struct mobj *mobj_phys_init(paddr_t pa, size_t size, uint32_t cattr,
 	return &moph->mobj;
 }
 
-struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
+struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t mem_type,
 			     enum buf_is_attr battr)
 {
 	enum teecore_memtypes area_type;
@@ -202,7 +203,7 @@ struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 		return NULL;
 	}
 
-	return mobj_phys_init(pa, size, cattr, battr, area_type);
+	return mobj_phys_init(pa, size, mem_type, battr, area_type);
 }
 
 /*
@@ -275,9 +276,9 @@ static size_t mobj_mm_get_phys_offs(struct mobj *mobj, size_t granule)
 	return mobj_get_phys_offs(to_mobj_mm(mobj)->parent_mobj, granule);
 }
 
-static TEE_Result mobj_mm_get_cattr(struct mobj *mobj, uint32_t *cattr)
+static TEE_Result mobj_mm_get_mem_type(struct mobj *mobj, uint32_t *mem_type)
 {
-	return mobj_get_cattr(to_mobj_mm(mobj)->parent_mobj, cattr);
+	return mobj_get_mem_type(to_mobj_mm(mobj)->parent_mobj, mem_type);
 }
 
 static bool mobj_mm_matches(struct mobj *mobj, enum buf_is_attr attr)
@@ -301,7 +302,7 @@ const struct mobj_ops mobj_mm_ops __weak __relrodata_unpaged("mobj_mm_ops") = {
 	.get_va = mobj_mm_get_va,
 	.get_pa = mobj_mm_get_pa,
 	.get_phys_offs = mobj_mm_get_phys_offs,
-	.get_cattr = mobj_mm_get_cattr,
+	.get_mem_type = mobj_mm_get_mem_type,
 	.matches = mobj_mm_matches,
 	.free = mobj_mm_free,
 };
@@ -396,13 +397,13 @@ static bool mobj_shm_matches(struct mobj *mobj __unused, enum buf_is_attr attr)
 	return attr == CORE_MEM_NSEC_SHM || attr == CORE_MEM_NON_SEC;
 }
 
-static TEE_Result mobj_shm_get_cattr(struct mobj *mobj __unused,
-				     uint32_t *cattr)
+static TEE_Result mobj_shm_get_mem_type(struct mobj *mobj __unused,
+					uint32_t *mem_type)
 {
-	if (!cattr)
+	if (!mem_type)
 		return TEE_ERROR_GENERIC;
 
-	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+	*mem_type = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
@@ -428,7 +429,7 @@ __weak __relrodata_unpaged("mobj_shm_ops") = {
 	.get_va = mobj_shm_get_va,
 	.get_pa = mobj_shm_get_pa,
 	.get_phys_offs = mobj_shm_get_phys_offs,
-	.get_cattr = mobj_shm_get_cattr,
+	.get_mem_type = mobj_shm_get_mem_type,
 	.matches = mobj_shm_matches,
 	.free = mobj_shm_free,
 	.get_cookie = mobj_shm_get_cookie,
@@ -639,14 +640,14 @@ static struct fobj *mobj_with_fobj_get_fobj(struct mobj *mobj)
 	return fobj_get(to_mobj_with_fobj(mobj)->fobj);
 }
 
-static TEE_Result mobj_with_fobj_get_cattr(struct mobj *mobj __unused,
-					   uint32_t *cattr)
+static TEE_Result mobj_with_fobj_get_mem_type(struct mobj *mobj __unused,
+					      uint32_t *mem_type)
 {
-	if (!cattr)
+	if (!mem_type)
 		return TEE_ERROR_GENERIC;
 
 	/* All fobjs are mapped as normal cached memory */
-	*cattr = TEE_MATTR_MEM_TYPE_CACHED;
+	*mem_type = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
@@ -687,7 +688,7 @@ __weak __relrodata_unpaged("mobj_with_fobj_ops") = {
 	.matches = mobj_with_fobj_matches,
 	.free = mobj_with_fobj_free,
 	.get_fobj = mobj_with_fobj_get_fobj,
-	.get_cattr = mobj_with_fobj_get_cattr,
+	.get_mem_type = mobj_with_fobj_get_mem_type,
 	.get_pa = mobj_with_fobj_get_pa,
 };
 
