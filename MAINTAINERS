@@ -91,6 +91,11 @@ F:	core/drivers/zynqmp_csudma.c
 F:	core/drivers/zynqmp_huk.c
 F:	core/drivers/zynqmp_pm.c
 
+Core Drivers Versal TRNG
+R:	Jorge Ramirez <jorge@foundries.io>
+S:	Maintained
+F:	core/drivers/versal_trng.c
+
 Function Graph Tracer (ftrace) support
 R:	Sumit Garg <sumit.garg@linaro.org> [@b49020]
 S:	Maintained
