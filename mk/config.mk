@@ -64,10 +64,10 @@ CFG_TEE_CORE_DEBUG ?= y
 # logs from the TAs.
 # 0: none
 # 1: error
-# 2: error + warning
-# 3: error + warning + debug
-# 4: error + warning + debug + flow
-CFG_TEE_CORE_LOG_LEVEL ?= 1
+# 2: error + info
+# 3: error + info + debug
+# 4: error + info + debug + flow
+CFG_TEE_CORE_LOG_LEVEL ?= 2
 
 # TA log level
 # If user-mode library libutils.a is built with CFG_TEE_TA_LOG_LEVEL=0,
