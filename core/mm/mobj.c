@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2021, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  */
 
 #include <assert.h>
@@ -580,15 +580,21 @@ struct mobj_with_fobj {
 	struct fobj *fobj;
 	struct file *file;
 	struct mobj mobj;
+	uint8_t mem_type;
 };
 
 const struct mobj_ops mobj_with_fobj_ops;
 
-struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file)
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file,
+				  uint32_t mem_type)
 {
 	struct mobj_with_fobj *m = NULL;
 
+	assert(!(mem_type & ~TEE_MATTR_MEM_TYPE_MASK));
+
 	if (!fobj)
+		return NULL;
+	if (mem_type > UINT8_MAX)
 		return NULL;
 
 	m = calloc(1, sizeof(*m));
@@ -601,6 +607,7 @@ struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file)
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 	m->fobj = fobj_get(fobj);
 	m->file = file_get(file);
+	m->mem_type = mem_type;
 
 	return &m->mobj;
 }
@@ -640,14 +647,15 @@ static struct fobj *mobj_with_fobj_get_fobj(struct mobj *mobj)
 	return fobj_get(to_mobj_with_fobj(mobj)->fobj);
 }
 
-static TEE_Result mobj_with_fobj_get_mem_type(struct mobj *mobj __unused,
+static TEE_Result mobj_with_fobj_get_mem_type(struct mobj *mobj,
 					      uint32_t *mem_type)
 {
+	struct mobj_with_fobj *m = to_mobj_with_fobj(mobj);
+
 	if (!mem_type)
 		return TEE_ERROR_GENERIC;
 
-	/* All fobjs are mapped as normal cached memory */
-	*mem_type = TEE_MATTR_MEM_TYPE_CACHED;
+	*mem_type = m->mem_type;
 
 	return TEE_SUCCESS;
 }

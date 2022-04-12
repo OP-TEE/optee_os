@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2017, 2022 Linaro Limited
  */
 
 #ifndef __MM_MOBJ_H
@@ -319,6 +319,7 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 
 struct mobj *mobj_seccpy_shm_alloc(size_t size);
 
-struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file);
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file,
+				  uint32_t mem_type);
 
 #endif /*__MM_MOBJ_H*/

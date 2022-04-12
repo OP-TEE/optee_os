@@ -166,9 +166,10 @@ static TEE_Result alloc_and_map_sp_fobj(struct stmm_ctx *spc, size_t sz,
 {
 	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
-	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL);
 	TEE_Result res = TEE_SUCCESS;
+	struct mobj *mobj = NULL;
 
+	mobj = mobj_with_fobj_alloc(fobj, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 	fobj_put(fobj);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
