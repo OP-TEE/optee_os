@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright (c) 2015-2020, 2022 Linaro Limited
  * Copyright (c) 2020-2021, Arm Limited
  */
 
@@ -31,7 +31,8 @@ static TEE_Result alloc_and_map_ldelf_fobj(struct user_mode_ctx *uctx,
 {
 	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
-	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL);
+	struct mobj *mobj = mobj_with_fobj_alloc(fobj, NULL,
+						 TEE_MATTR_MEM_TYPE_TAGGED);
 	TEE_Result res = TEE_SUCCESS;
 
 	fobj_put(fobj);

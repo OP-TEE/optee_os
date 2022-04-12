@@ -164,7 +164,7 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 		   SMALL_PAGE_SIZE;
 
 	fo = fobj_sec_mem_alloc(*num_pgs);
-	m = mobj_with_fobj_alloc(fo, NULL);
+	m = mobj_with_fobj_alloc(fo, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 
 	fobj_put(fo);
 	if (!m)
@@ -567,7 +567,7 @@ static TEE_Result handle_tpm_event_log(struct sp_ctx *ctx, void *fdt)
 	page_count = ROUNDUP_DIV(log_size, SMALL_PAGE_SIZE);
 
 	f = fobj_sec_mem_alloc(page_count);
-	m = mobj_with_fobj_alloc(f, NULL);
+	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 	fobj_put(f);
 	if (!m)
 		return TEE_ERROR_OUT_OF_MEMORY;
