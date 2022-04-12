@@ -753,7 +753,6 @@ void *bget(requested_align, hdr_size, requested_size, poolset)
 		poolset->numget++;		  /* Increment number of bget() calls */
 #endif
                 buf = (char *)b_alloc + sizeof(struct bhead);
-		tag_asan_alloced(buf, size);
                 return buf;
 	    }
 	    b = b->ql.flink;		  /* Link to next buffer */
@@ -812,7 +811,6 @@ void *bget(requested_align, hdr_size, requested_size, poolset)
 		poolset->numget++;	  /* Increment number of bget() calls */
 		poolset->numdget++;	  /* Direct bget() call count */
 #endif
-		tag_asan_alloced(buf, size);
 		return buf;
 	    }
 
@@ -905,12 +903,12 @@ void *bgetr(buf, align, hdr_size, size, poolset)
 #endif
 	osize -= sizeof(struct bhead);
     assert(osize > 0);
-    V memcpy((char *) nbuf, (char *) buf, /* Copy the data */
+    V memcpy_unchecked((char *) nbuf, (char *) buf, /* Copy the data */
 	     (MemSize) ((size < osize) ? size : osize));
 #ifndef __KERNEL__
     /* User space reallocations are always zeroed */
     if (size > osize)
-         V memset((char *) nbuf + osize, 0, size - osize);
+         V memset_unchecked((char *) nbuf + osize, 0, size - osize);
 #endif
     brel(buf, poolset, false /* !wipe */);
     return nbuf;
@@ -924,7 +922,6 @@ void brel(buf, poolset, wipe)
   int wipe;
 {
     struct bfhead *b, *bn;
-    bufsize bs;
 
     b = BFH(((char *) buf) - sizeof(struct bhead));
 #ifdef BufStats
@@ -951,10 +948,8 @@ void brel(buf, poolset, wipe)
 				   (MemSize) (bdh->tsize -
 					      sizeof(struct bdhead)));
 	}
-	bs = bdh->tsize - sizeof(struct bdhead);
 	assert(poolset->relfcn != NULL);
 	poolset->relfcn((char *)buf - sizeof(struct bdhead) - bdh->offs);      /* Release it directly. */
-	tag_asan_free(buf, bs);
 	return;
     }
 #endif /* BECtl */
@@ -966,7 +961,6 @@ void brel(buf, poolset, wipe)
 	bn = NULL;
     }
     assert(b->bh.bsize < 0);
-    bs = -b->bh.bsize;
 
     /*	Back pointer in next buffer must be zero, indicating the
 	same thing: */
@@ -1071,7 +1065,6 @@ void brel(buf, poolset, wipe)
 #endif /* BufStats */
     }
 #endif /* BECtl */
-    tag_asan_free(buf, bs);
 }
 
 #ifdef BECtl
