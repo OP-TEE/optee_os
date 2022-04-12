@@ -158,7 +158,6 @@ $(call force,CFG_MX7ULP,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_TZC380,n)
 $(call force,CFG_CSU,n)
-$(call force,CFG_NXP_CAAM,n)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mq-flavorlist)))
 $(call force,CFG_MX8MQ,y)
