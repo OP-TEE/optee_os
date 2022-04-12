@@ -42,16 +42,8 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	vaddr_t gicd_base;
-
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC, 1);
-
-	if (!gicd_base)
-		panic();
-
 	/* On ARMv8-A, GIC configuration is initialized in TF-A */
-	gic_init_base_addr(&gic_data, 0, gicd_base);
+	gic_init_base_addr(&gic_data, 0, GIC_BASE + GICD_OFFSET);
 
 	itr_init(&gic_data.chip);
 }
