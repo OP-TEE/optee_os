@@ -81,6 +81,7 @@
 #include <compiler.h>
 #include <config.h>
 #include <malloc.h>
+#include <memtag.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib_ext.h>
@@ -213,6 +214,20 @@ static void *maybe_tag_buf(void *buf, size_t __maybe_unused requested_size)
 	if (!buf)
 		return NULL;
 
+	COMPILE_TIME_ASSERT(MEMTAG_GRANULE_SIZE <= SizeQuant);
+
+	if (MEMTAG_IS_ENABLED) {
+		size_t sz = ROUNDUP(requested_size, MEMTAG_GRANULE_SIZE);
+
+		/*
+		 * Allocated buffer can be larger than requested when
+		 * allocating with memalign(), but we should never tag more
+		 * than allocated.
+		 */
+		assert(bget_buf_size(buf) >= sz);
+		return memtag_set_random_tags(buf, sz);
+	}
+
 #if defined(__KERNEL__)
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
 		asan_tag_access(buf, (uint8_t *)buf + requested_size);
@@ -225,10 +240,25 @@ static void *maybe_untag_buf(void *buf)
 	if (!buf)
 		return NULL;
 
+	if (MEMTAG_IS_ENABLED) {
+		size_t sz = 0;
+
+		memtag_assert_tag(buf); /* Trying to catch double free early */
+		sz = bget_buf_size(memtag_strip_tag(buf));
+		return memtag_set_tags(buf, sz, 0);
+	}
+
 #if defined(__KERNEL__)
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
 		asan_tag_heap_free(buf, (uint8_t *)buf + bget_buf_size(buf));
 #endif
+	return buf;
+}
+
+static void *strip_tag(void *buf)
+{
+	if (MEMTAG_IS_ENABLED)
+		return memtag_strip_tag(buf);
 	return buf;
 }
 
@@ -840,7 +870,7 @@ static bool gen_malloc_buffer_is_within_alloced(struct malloc_ctx *ctx,
 {
 	struct bpool_iterator itr;
 	void *b;
-	uint8_t *start_buf = buf;
+	uint8_t *start_buf = strip_tag(buf);
 	uint8_t *end_buf = start_buf + len;
 	bool ret = false;
 	uint32_t exceptions = malloc_lock(ctx);
