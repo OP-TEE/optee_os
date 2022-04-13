@@ -583,7 +583,7 @@ enum caam_status caam_jr_init(struct caam_jrcfg *jrcfg)
 	jr_privdata->it_handler.handler = caam_jr_irqhandler;
 	jr_privdata->it_handler.data = jr_privdata;
 
-#ifdef CFG_NXP_CAAM_RUNTIME_JR
+#if defined(CFG_NXP_CAAM_RUNTIME_JR) && defined(CFG_CAAM_ITR)
 	itr_add(&jr_privdata->it_handler);
 #endif
 	caam_hal_jr_enable_itr(jr_privdata->baseaddr);
