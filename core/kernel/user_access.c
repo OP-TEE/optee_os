@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2020 Linaro Limited
+ * Copyright (c) 2015-2020, 2022 Linaro Limited
  */
 
 #include <initcall.h>
@@ -14,18 +14,21 @@
 #include <tee_api_types.h>
 #include <types_ext.h>
 
-static TEE_Result check_access(uint32_t flags, vaddr_t va, size_t len)
+static TEE_Result check_access(uint32_t flags, const void *uaddr, size_t len)
 {
 	struct ts_session *s = ts_get_current_session();
 
-	return vm_check_access_rights(to_user_mode_ctx(s->ctx), flags, va, len);
+	return vm_check_access_rights(to_user_mode_ctx(s->ctx), flags,
+				      (vaddr_t)uaddr, len);
 }
 
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)
 {
 	uint32_t flags = TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER;
-	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+	TEE_Result res = TEE_SUCCESS;
 
+	uaddr = memtag_strip_tag_const(uaddr);
+	res = check_access(flags, uaddr, len);
 	if (!res)
 		memcpy(kaddr, uaddr, len);
 
@@ -35,8 +38,10 @@ TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)
 TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
 {
 	uint32_t flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER;
-	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+	TEE_Result res = TEE_SUCCESS;
 
+	uaddr = memtag_strip_tag(uaddr);
+	res = check_access(flags, uaddr, len);
 	if (!res)
 		memcpy(uaddr, kaddr, len);
 
@@ -46,8 +51,10 @@ TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
 TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
 {
 	uint32_t flags = TEE_MEMORY_ACCESS_READ;
-	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+	TEE_Result res = TEE_SUCCESS;
 
+	uaddr = memtag_strip_tag_const(uaddr);
+	res = check_access(flags, uaddr, len);
 	if (!res)
 		memcpy(kaddr, uaddr, len);
 
@@ -57,8 +64,10 @@ TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
 TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
 {
 	uint32_t flags = TEE_MEMORY_ACCESS_WRITE;
-	TEE_Result res = check_access(flags, (vaddr_t)uaddr, len);
+	TEE_Result res = TEE_SUCCESS;
 
+	uaddr = memtag_strip_tag(uaddr);
+	res = check_access(flags, uaddr, len);
 	if (!res)
 		memcpy(uaddr, kaddr, len);
 

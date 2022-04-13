@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) 2020, 2022 Linaro Limited
  */
 
 #include <assert.h>
@@ -11,6 +11,7 @@
 #include <crypto/crypto.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/user_access.h>
+#include <memtag.h>
 #include <mm/vm.h>
 #include <stdlib_ext.h>
 #include <string_ext.h>
@@ -1427,6 +1428,8 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 	if (MUL_OVERFLOW(sizeof(struct utee_attribute), attr_count, &size))
 		return TEE_ERROR_OVERFLOW;
 
+	usr_attrs = memtag_strip_tag_const(usr_attrs);
+
 	res = vm_check_access_rights(&utc->uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -1444,6 +1447,8 @@ static TEE_Result copy_in_attrs(struct user_ta_ctx *utc,
 			size_t len = usr_attrs[n].b;
 			uint32_t flags = TEE_MEMORY_ACCESS_READ |
 					 TEE_MEMORY_ACCESS_ANY_OWNER;
+
+			buf = memtag_strip_tag_vaddr((void *)buf);
 
 			res = vm_check_access_rights(&utc->uctx, flags, buf,
 						     len);
@@ -2447,6 +2452,8 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	if (!chunk_size)
 		return TEE_SUCCESS;
 
+	chunk = memtag_strip_tag_const(chunk);
+
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -2492,6 +2499,9 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	/* No data, but size provided isn't valid parameters. */
 	if (!chunk && chunk_size)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	chunk = memtag_strip_tag_const(chunk);
+	hash = memtag_strip_tag(hash);
 
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -2587,6 +2597,8 @@ TEE_Result syscall_cipher_init(unsigned long state, const void *iv,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_CIPHER)
 		return TEE_ERROR_BAD_STATE;
 
+	iv = memtag_strip_tag_const(iv);
+
 	res = vm_check_access_rights(&utc->uctx,
 				     TEE_MEMORY_ACCESS_READ |
 				     TEE_MEMORY_ACCESS_ANY_OWNER,
@@ -2641,6 +2653,9 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 
 	if (cs->state != CRYP_STATE_INITIALIZED)
 		return TEE_ERROR_BAD_STATE;
+
+	src = memtag_strip_tag_const(src);
+	dst = memtag_strip_tag(dst);
 
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3240,6 +3255,8 @@ TEE_Result syscall_cryp_random_number_generate(void *buf, size_t blen)
 	struct ts_session *sess = ts_get_current_session();
 	TEE_Result res = TEE_SUCCESS;
 
+	buf = memtag_strip_tag(buf);
+
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_WRITE,
 				     (uaddr_t)buf, blen);
@@ -3262,6 +3279,8 @@ TEE_Result syscall_authenc_init(unsigned long state, const void *nonce,
 	struct tee_cryp_state *cs = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
+
+	nonce = memtag_strip_tag_const(nonce);
 
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3299,6 +3318,8 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	struct ts_session *sess = ts_get_current_session();
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_cryp_state *cs = NULL;
+
+	aad_data = memtag_strip_tag_const(aad_data);
 
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3344,6 +3365,9 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
+
+	src_data = memtag_strip_tag_const(src_data);
+	dst_data = memtag_strip_tag(dst_data);
 
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3406,6 +3430,10 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
+
+	src_data = memtag_strip_tag_const(src_data);
+	dst_data = memtag_strip_tag(dst_data);
+	tag = memtag_strip_tag(tag);
 
 	res = vm_check_access_rights(uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3490,6 +3518,10 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
+
+	src_data = memtag_strip_tag_const(src_data);
+	dst_data = memtag_strip_tag(dst_data);
+	tag = memtag_strip_tag_const(tag);
 
 	res = vm_check_access_rights(uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3581,6 +3613,9 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
 		return res;
+
+	src_data = memtag_strip_tag_const(src_data);
+	dst_data = memtag_strip_tag(dst_data);
 
 	res = vm_check_access_rights(&utc->uctx,
 				     TEE_MEMORY_ACCESS_READ |
@@ -3759,6 +3794,9 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 
 	if (cs->mode != TEE_MODE_VERIFY)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	data = memtag_strip_tag_const(data);
+	sig = memtag_strip_tag_const(sig);
 
 	res = vm_check_access_rights(&utc->uctx,
 				     TEE_MEMORY_ACCESS_READ |
