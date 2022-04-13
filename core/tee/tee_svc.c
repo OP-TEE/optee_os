@@ -585,7 +585,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 			flags |= TEE_MEMORY_ACCESS_WRITE;
 			fallthrough;
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-			p->u[n].mem.offs = a;
+			p->u[n].mem.offs = memtag_strip_tag_vaddr((void *)a);
 			p->u[n].mem.size = b;
 
 			if (!p->u[n].mem.offs) {
@@ -667,6 +667,8 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 	void *va = NULL;
 	size_t n = 0;
 	size_t s = 0;
+
+	callee_params = memtag_strip_tag(callee_params);
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
@@ -981,7 +983,7 @@ TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 	struct ts_session *s = ts_get_current_session();
 
 	return vm_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx, flags,
-				      (uaddr_t)buf, len);
+				      memtag_strip_tag_vaddr(buf), len);
 }
 
 TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)
