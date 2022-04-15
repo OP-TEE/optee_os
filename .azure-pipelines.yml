@@ -208,6 +208,7 @@ jobs:
           _make PLATFORM=poplar
           _make PLATFORM=poplar CFG_ARM64_core=y
           _make PLATFORM=rockchip-rk322x
+          _make PLATFORM=rockchip-rk3399
           _make PLATFORM=sam
           _make PLATFORM=marvell-armada7k8k
           _make PLATFORM=marvell-armada3700
