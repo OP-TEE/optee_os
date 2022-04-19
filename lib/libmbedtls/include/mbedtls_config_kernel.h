@@ -88,6 +88,8 @@
 #if defined(CFG_CRYPTO_RSA) || defined(CFG_CRYPTO_ECC)
 #define MBEDTLS_ASN1_PARSE_C
 #define MBEDTLS_ASN1_WRITE_C
+#define MBEDTLS_PK_PARSE_C
+#define MBEDTLS_PK_WRITE_C
 #endif
 
 #if defined(CFG_CRYPTO_DH)
