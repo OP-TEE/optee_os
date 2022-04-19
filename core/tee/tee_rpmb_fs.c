@@ -1094,7 +1094,7 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
 static TEE_Result tee_rpmb_init(uint16_t dev_id)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct rpmb_dev_info dev_info;
+	struct rpmb_dev_info dev_info = { };
 	uint32_t nblocks = 0;
 
 	if (rpmb_dead)
