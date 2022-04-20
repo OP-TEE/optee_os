@@ -25,6 +25,8 @@ static TEE_Result cmd_capabilities(uint32_t ptypes,
 
 	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
 		caps |= PTA_SCMI_CAPS_SMT_HEADER;
+	if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
+		caps |= PTA_SCMI_CAPS_MSG_HEADER;
 
 	param[0].value.a = caps;
 	param[0].value.b = 0;
@@ -97,6 +99,41 @@ static TEE_Result cmd_process_smt_message(uint32_t ptypes,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
+static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	unsigned int channel_id = params[0].value.a;
+	void *in_buf = params[1].memref.buffer;
+	size_t in_size = params[1].memref.size;
+	void *out_buf = params[2].memref.buffer;
+	size_t out_size = params[2].memref.size;
+
+	if (ptypes != exp_pt || !in_buf || !out_buf)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG)) {
+		struct scmi_msg_channel *channel = NULL;
+
+		channel = plat_scmi_get_channel(channel_id);
+		if (!channel)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = scmi_msg_threaded_entry(channel_id, in_buf, in_size,
+					      out_buf, &out_size);
+		if (!res)
+			params[2].memref.size = out_size;
+
+		return res;
+	}
+
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 					 TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -106,8 +143,10 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 						    TEE_PARAM_TYPE_NONE);
 	unsigned int channel_id = params[0].value.a;
 	unsigned int caps = params[0].value.b;
+	const unsigned int supported_caps = PTA_SCMI_CAPS_SMT_HEADER |
+					    PTA_SCMI_CAPS_MSG_HEADER;
 
-	if (ptypes != exp_ptypes)
+	if (ptypes != exp_ptypes || caps & ~supported_caps)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS)) {
@@ -162,6 +201,8 @@ static TEE_Result pta_scmi_invoke_command(void *session __unused, uint32_t cmd,
 		return cmd_process_smt_channel(ptypes, params);
 	case PTA_SCMI_CMD_PROCESS_SMT_CHANNEL_MESSAGE:
 		return cmd_process_smt_message(ptypes, params);
+	case PTA_SCMI_CMD_PROCESS_MSG_CHANNEL:
+		return cmd_process_msg_channel(ptypes, params);
 	case PTA_SCMI_CMD_GET_CHANNEL_HANDLE:
 		return cmd_get_channel_handle(ptypes, params);
 	default:
