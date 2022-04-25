@@ -45,7 +45,7 @@ struct scmi_msg_channel {
  * agent channel using the SMT header format.
  * This function depends on CFG_SCMI_MSG_SMT.
  *
- * @chan: Pointer to the channel shared memory to be initialized
+ * @channel: Pointer to the channel shared memory to be initialized
  */
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel);
 
@@ -180,8 +180,8 @@ const char *plat_scmi_clock_get_name(unsigned int channel_id,
  * @channel_id: SCMI channel ID
  * @scmi_id: SCMI clock ID
  * @start_index: Requested start index for the exposed rates array
- * @rates: If NULL, function returns, else output rates array
- * @nb_elts: Array size of @rates.
+ * @rates: Output rates array or NULL if only querying @nb_elts
+ * @nb_elts: [in] Array size of @rates, [out] Number of rates loaded in @rates
  * Return an SCMI compliant error code
  */
 int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
