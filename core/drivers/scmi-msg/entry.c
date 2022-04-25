@@ -48,16 +48,13 @@ void scmi_status_response(struct scmi_msg *msg, int32_t status)
 
 void scmi_write_response(struct scmi_msg *msg, void *payload, size_t size)
 {
-	/*
-	 * Output payload shall be at least the size of the status
-	 * Output buffer shall be at least be the size of the status
-	 * Output paylaod shall fit in output buffer
-	 */
-	assert(payload && size >= sizeof(int32_t) && size <= msg->out_size &&
-	       msg->out && msg->out_size >= sizeof(int32_t));
-
-	memcpy(msg->out, payload, size);
-	msg->out_size_out = size;
+	if (msg->out_size < size) {
+		DMSG("SCMI resp. payload %zu > %zu bytes", size, msg->out_size);
+		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
+	} else {
+		memcpy(msg->out, payload, size);
+		msg->out_size_out = size;
+	}
 }
 
 void scmi_process_message(struct scmi_msg *msg)
