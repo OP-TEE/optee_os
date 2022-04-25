@@ -15,7 +15,11 @@
 #define SCMI_VERSION			0x30000
 #define SCMI_IMPL_VERSION		0
 
-#define SCMI_PLAYLOAD_MAX		92
+/*
+ * Secure copy of input payload: we expect small messages, at most the legacy
+ * SMT messages that are 128 bytes (Linux kernel) including SMT header.
+ */
+#define SCMI_SEC_PAYLOAD_SIZE		92
 
 /*
  * Copy name identifier in target buffer following the SCMI specification

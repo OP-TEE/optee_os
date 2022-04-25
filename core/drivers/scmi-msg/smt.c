@@ -16,9 +16,7 @@
 
 #include "common.h"
 
-/* Legacy SMT/SCMI messages are 128 bytes at most including SMT header */
-#define SCMI_PLAYLOAD_MAX		92
-#define SCMI_PLAYLOAD_U32_MAX		(SCMI_PLAYLOAD_MAX / sizeof(uint32_t))
+#define SCMI_PAYLOAD_U32_MAX	(SCMI_SEC_PAYLOAD_SIZE / sizeof(uint32_t))
 
 /**
  * struct smt_header - SMT formatted header for SMT base shared memory transfer
@@ -94,7 +92,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	in_payload_size = READ_ONCE(smt_hdr->length) -
 			  sizeof(smt_hdr->message_header);
 
-	if (in_payload_size > SCMI_PLAYLOAD_MAX) {
+	if (in_payload_size > SCMI_SEC_PAYLOAD_SIZE) {
 		DMSG("SCMI payload too big %u", in_payload_size);
 		goto out;
 	}
@@ -139,7 +137,7 @@ out:
 
 #ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
 /* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
+static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX];
 
 void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
 {
@@ -149,7 +147,7 @@ void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
 
 #ifdef CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY
 /* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
+static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX];
 
 void scmi_smt_interrupt_entry(unsigned int channel_id)
 {
@@ -159,7 +157,7 @@ void scmi_smt_interrupt_entry(unsigned int channel_id)
 
 #ifdef CFG_SCMI_MSG_SMT_THREAD_ENTRY
 /* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PLAYLOAD_U32_MAX];
+static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PAYLOAD_U32_MAX];
 
 void scmi_smt_threaded_entry(unsigned int channel_id)
 {
@@ -172,8 +170,9 @@ void scmi_smt_threaded_entry(unsigned int channel_id)
 /* Init a SMT header for a shared memory buffer: state it a free/no-error */
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan)
 {
-	COMPILE_TIME_ASSERT(SCMI_PLAYLOAD_MAX + sizeof(struct smt_header) <=
-			    SMT_BUF_SLOT_SIZE);
+	static_assert(SCMI_SEC_PAYLOAD_SIZE + sizeof(struct smt_header) <=
+		      SMT_BUF_SLOT_SIZE &&
+		      IS_ALIGNED(SCMI_SEC_PAYLOAD_SIZE, sizeof(uint32_t)));
 
 	if (chan) {
 		struct smt_header *smt_header = channel_to_smt_hdr(chan);

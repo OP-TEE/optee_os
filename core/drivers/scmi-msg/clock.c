@@ -240,7 +240,7 @@ static void scmi_clock_config_set(struct scmi_msg *msg)
 	scmi_status_response(msg, status);
 }
 
-#define RATES_ARRAY_SIZE_MAX	(SCMI_PLAYLOAD_MAX - \
+#define RATES_ARRAY_SIZE_MAX	(SCMI_SEC_PAYLOAD_SIZE - \
 				 sizeof(struct scmi_clock_describe_rates_p2a))
 
 #define SCMI_RATES_BY_ARRAY(_nb_rates, _rem_rates) \
