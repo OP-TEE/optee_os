@@ -152,8 +152,8 @@ static TEE_Result ast2600_hace_init(struct crypto_hash_ctx *ctx)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	hace_ctx->total[0] = 0;
-	hace_ctx->total[1] = 0;
+	hctx->total[0] = 0;
+	hctx->total[1] = 0;
 
 	cache_operation(TEE_CACHEFLUSH, hctx->digest, sizeof(hctx->digest));
 
@@ -233,7 +233,7 @@ static TEE_Result ast2600_hace_final(struct crypto_hash_ctx *ctx,
 
 	last = hctx->total[0] & (hctx->blk_size - 1);
 
-	switch (hace_ctx->algo) {
+	switch (hctx->algo) {
 	case TEE_ALG_SHA1:
 	case TEE_ALG_SHA256:
 		if (last < 56)
@@ -324,9 +324,9 @@ static TEE_Result ast2600_hace_alloc(struct crypto_hash_ctx **pctx,
 	if (!hctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	hace_ctx->ops = &ast2600_hace_ops;
-	hace_ctx->algo = algo;
-	hace_ctx->cmd = HACE_HASH_CMD_ACCUM | HACE_HASH_CMD_SHA_BE;
+	hctx->hash_ctx.ops = &ast2600_hace_ops;
+	hctx->algo = algo;
+	hctx->cmd = HACE_HASH_CMD_ACCUM | HACE_HASH_CMD_SHA_BE;
 
 	switch (algo) {
 	case TEE_ALG_SHA1:
