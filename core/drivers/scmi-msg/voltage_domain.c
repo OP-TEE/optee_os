@@ -163,11 +163,6 @@ static void scmi_voltd_domain_attributes(struct scmi_msg *msg)
 					 SCMI_VOLTD_LEVELS_FORMAT_LIST, \
 					 (_rem_rates))
 
-/* List levels array by small chunks fitting in SCMI message max payload size */
-#define LEVELS_ARRAY_SIZE_MAX_2	\
-	((SCMI_PLAYLOAD_MAX - sizeof(struct scmi_voltd_describe_levels_p2a)) / \
-	 sizeof(int32_t))
-
 #define LEVELS_ARRAY_SIZE_MAX	10
 
 #define LEVELS_BY_STEP \
