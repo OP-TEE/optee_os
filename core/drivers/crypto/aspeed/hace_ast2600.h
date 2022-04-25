@@ -15,3 +15,4 @@ static inline TEE_Result ast2600_drvcrypt_register_hash(void)
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
+#endif
