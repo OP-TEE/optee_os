@@ -50,6 +50,8 @@ register_phys_mem(MEM_AREA_IO_SEC, AHBC_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_NSEC, SCU_BASE, SMALL_PAGE_SIZE);
 
 #define AHBC_REG_WR_PROT	0x204
+#define AHBC_TZP_ACCESS1	0x280
+#define AHBC_TZP_HACE		BIT(20)
 #define AHBC_TZM_ST(i)		(0x300 + ((i) * 0x10))
 #define AHBC_TZM_ED(i)		(0x304 + ((i) * 0x10))
 #define AHBC_TZM_PERM(i)	(0x308 + ((i) * 0x10))
@@ -85,14 +87,20 @@ void console_init(void)
 void plat_primary_init_early(void)
 {
 	vaddr_t ahbc_virt = 0;
+	uint32_t tzm_perm = 0;
 
 	ahbc_virt = core_mmu_get_va(AHBC_BASE,
 				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
 	if (!ahbc_virt)
 		panic();
 
-	io_write32(ahbc_virt + AHBC_TZM_PERM(0),
-		   BIT(TZM_PERM_CPU_RW));
+	tzm_perm = BIT(TZM_PERM_CPU_RW);
+	if (IS_ENABLED(CFG_ASPEED_CRYPTO_DRIVER)) {
+		tzm_perm |= BIT(TZM_PERM_ENCRYPT_RW);
+		io_write32(ahbc_virt + AHBC_TZP_ACCESS1, AHBC_TZP_HACE);
+	}
+
+	io_write32(ahbc_virt + AHBC_TZM_PERM(0), tzm_perm);
 	io_write32(ahbc_virt + AHBC_TZM_ED(0),
 		   CFG_TZDRAM_START + CFG_TZDRAM_SIZE - 1);
 	io_write32(ahbc_virt + AHBC_TZM_ST(0),
