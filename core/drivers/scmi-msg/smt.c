@@ -8,8 +8,6 @@
 #include <drivers/scmi.h>
 #include <io.h>
 #include <kernel/misc.h>
-#include <kernel/panic.h>
-#include <kernel/spinlock.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -58,28 +56,6 @@ struct smt_header {
 #define SMT_MSG_PROT_ID_MASK		GENMASK_32(17, 10)
 #define SMT_HDR_PROT_ID(_hdr)		(((_hdr) & SMT_MSG_PROT_ID_MASK) >> 10)
 
-/* SMP protection on channel access */
-static unsigned int smt_channels_lock;
-
-/* If channel is not busy, set busy and return true, otherwise return false */
-static bool channel_set_busy(struct scmi_msg_channel *chan)
-{
-	uint32_t exceptions = cpu_spin_lock_xsave(&smt_channels_lock);
-	bool channel_is_busy = chan->busy;
-
-	if (!channel_is_busy)
-		chan->busy = true;
-
-	cpu_spin_unlock_xrestore(&smt_channels_lock, exceptions);
-
-	return !channel_is_busy;
-}
-
-static void channel_release_busy(struct scmi_msg_channel *chan)
-{
-	chan->busy = false;
-}
-
 static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
 {
 	return (struct smt_header *)io_pa_or_va(&chan->shm_addr,
@@ -110,7 +86,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 
 	smt_status = READ_ONCE(smt_hdr->status);
 
-	if (!channel_set_busy(chan)) {
+	if (!scmi_msg_claim_channel(chan)) {
 		DMSG("SCMI channel %u busy", channel_id);
 		goto out;
 	}
@@ -149,7 +125,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	/* Update message length with the length of the response message */
 	smt_hdr->length = msg.out_size_out + sizeof(smt_hdr->message_header);
 
-	channel_release_busy(chan);
+	scmi_msg_release_channel(chan);
 	error = false;
 
 out:

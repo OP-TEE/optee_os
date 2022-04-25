@@ -109,4 +109,17 @@ void scmi_write_response(struct scmi_msg *msg, void *payload, size_t size);
  * @status: SCMI status value returned to caller
  */
 void scmi_status_response(struct scmi_msg *msg, int32_t status);
+
+/*
+ * Claim access to channel
+ * @channel: SCMI channel reference
+ * Return true upon success or false if the channel is already busy
+ */
+bool scmi_msg_claim_channel(struct scmi_msg_channel *channel);
+
+/*
+ * Release access channel
+ * @channel: SCMI channel reference
+ */
+void scmi_msg_release_channel(struct scmi_msg_channel *channel);
 #endif /* SCMI_MSG_COMMON_H */

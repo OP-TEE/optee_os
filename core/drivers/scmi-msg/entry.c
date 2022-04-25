@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
  * Copyright (c) 2015-2019, Arm Limited and Contributors. All rights reserved.
- * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2019-2022, Linaro Limited
  */
+#include <assert.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
+#include <kernel/spinlock.h>
+#include <string.h>
 #include <trace.h>
 
 #include "base.h"
@@ -12,6 +15,28 @@
 #include "common.h"
 #include "reset_domain.h"
 #include "voltage_domain.h"
+
+/* SMP protection on channel->busy field */
+static unsigned int smt_channels_lock;
+
+/* If channel is not busy, set busy and return true, otherwise return false */
+bool scmi_msg_claim_channel(struct scmi_msg_channel *channel)
+{
+	uint32_t exceptions = cpu_spin_lock_xsave(&smt_channels_lock);
+	bool channel_is_busy = channel->busy;
+
+	if (!channel_is_busy)
+		channel->busy = true;
+
+	cpu_spin_unlock_xrestore(&smt_channels_lock, exceptions);
+
+	return !channel_is_busy;
+}
+
+void scmi_msg_release_channel(struct scmi_msg_channel *channel)
+{
+	channel->busy = false;
+}
 
 void scmi_status_response(struct scmi_msg *msg, int32_t status)
 {
