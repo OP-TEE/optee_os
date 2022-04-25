@@ -49,8 +49,8 @@ struct ast2600_hace_ctx {
 	uint64_t total[2];
 
 	/* DMA memory to interact with HACE */
-	uint8_t buf[HASH_BLK_BUFSZ];
-	uint8_t digest[HASH_DGT_BUFSZ] __aligned((8));
+	uint8_t *buf;
+	uint8_t *digest;
 };
 
 static vaddr_t hace_virt;
@@ -90,17 +90,17 @@ static TEE_Result ast2600_hace_process(struct crypto_hash_ctx *ctx,
 	paddr_t digest_phys = 0;
 	struct ast2600_hace_ctx *hctx = NULL;
 
+	mutex_lock(&hace_mtx);
+
 	hctx = container_of(ctx, struct ast2600_hace_ctx, hash_ctx);
 
 	sts = io_read32(hace_virt + HACE_STS);
-	if (sts & HACE_STS_HASH_BUSY)
-		return TEE_ERROR_BUSY;
-
-	mutex_lock(&hace_mtx);
+	if (sts & HACE_STS_HASH_BUSY) {
+		rc = TEE_ERROR_BUSY;
+		goto out;
+	}
 
 	cache_operation(TEE_CACHEFLUSH, (void *)data, len);
-
-	io_write32(hace_virt + HACE_STS, HACE_STS_HASH_INT);
 
 	data_phys = virt_to_phys((void *)data);
 	digest_phys = virt_to_phys(hctx->digest);
@@ -123,6 +123,9 @@ static TEE_Result ast2600_hace_process(struct crypto_hash_ctx *ctx,
 		}
 	} while (!(sts & HACE_STS_HASH_INT));
 
+	io_write32(hace_virt + HACE_STS, HACE_STS_HASH_INT);
+
+	rc = TEE_SUCCESS;
 out:
 	mutex_unlock(&hace_mtx);
 
@@ -155,7 +158,7 @@ static TEE_Result ast2600_hace_init(struct crypto_hash_ctx *ctx)
 	hctx->total[0] = 0;
 	hctx->total[1] = 0;
 
-	cache_operation(TEE_CACHEFLUSH, hctx->digest, sizeof(hctx->digest));
+	cache_operation(TEE_CACHEFLUSH, hctx->digest, HASH_DGT_BUFSZ);
 
 	return TEE_SUCCESS;
 }
@@ -168,6 +171,9 @@ static TEE_Result ast2600_hace_update(struct crypto_hash_ctx *ctx,
 	uint32_t fill = 0;
 	size_t blk_size = 0;
 	struct ast2600_hace_ctx *hctx = NULL;
+
+	if (!ctx || !data || !len)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	hctx = container_of(ctx, struct ast2600_hace_ctx, hash_ctx);
 
@@ -192,7 +198,8 @@ static TEE_Result ast2600_hace_update(struct crypto_hash_ctx *ctx,
 	}
 
 	while (len >= blk_size) {
-		rc = ast2600_hace_process(ctx, data, blk_size);
+		memcpy(hctx->buf, data, blk_size);
+		rc = ast2600_hace_process(ctx, hctx->buf, blk_size);
 		if (rc)
 			return rc;
 
@@ -216,11 +223,10 @@ static TEE_Result ast2600_hace_final(struct crypto_hash_ctx *ctx,
 	uint64_t dbits[2] = { };
 	uint64_t dbits_be[2] = { };
 	struct ast2600_hace_ctx *hctx = NULL;
+	size_t length = 0;
 
 	hctx = container_of(ctx, struct ast2600_hace_ctx, hash_ctx);
-
-	if (len < hctx->dgt_size)
-		return TEE_ERROR_BAD_PARAMETERS;
+	length = MIN(len, hctx->dgt_size);
 
 	memset(pad, 0, sizeof(pad));
 	pad[0] = 0x80;
@@ -275,10 +281,9 @@ static TEE_Result ast2600_hace_final(struct crypto_hash_ctx *ctx,
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	cache_operation(TEE_CACHEINVALIDATE, hctx->digest,
-			sizeof(hctx->digest));
+	cache_operation(TEE_CACHEINVALIDATE, hctx->digest, HASH_DGT_BUFSZ);
 
-	memcpy(digest, hctx->digest, hctx->dgt_size);
+	memcpy(digest, hctx->digest, length);
 
 	return TEE_SUCCESS;
 }
@@ -289,6 +294,8 @@ static void ast2600_hace_free(struct crypto_hash_ctx *ctx)
 
 	hctx = container_of(ctx, struct ast2600_hace_ctx, hash_ctx);
 
+	free(hctx->buf);
+	free(hctx->digest);
 	free(hctx);
 }
 
@@ -301,11 +308,21 @@ static void ast2600_hace_copy_state(struct crypto_hash_ctx *dst_ctx,
 	src_hctx = container_of(src_ctx, struct ast2600_hace_ctx, hash_ctx);
 	dst_hctx = container_of(dst_ctx, struct ast2600_hace_ctx, hash_ctx);
 
-	cache_operation(TEE_CACHEINVALIDATE, src_hctx, sizeof(*src_hctx);
+	dst_hctx->hash_ctx = src_hctx->hash_ctx;
+	dst_hctx->cmd = src_hctx->cmd;
+	dst_hctx->dgt_size = src_hctx->dgt_size;
+	dst_hctx->blk_size = src_hctx->blk_size;
+	dst_hctx->pad_size = src_hctx->pad_size;
+	dst_hctx->total[0] = src_hctx->total[0];
+	dst_hctx->total[1] = src_hctx->total[1];
 
-	memcpy(dst_hctx, src_hctx, sizeof(*dst_hctx));
+	cache_operation(TEE_CACHEINVALIDATE, src_hctx->buf, HASH_BLK_BUFSZ);
+	memcpy(dst_hctx->buf, src_hctx->buf, HASH_BLK_BUFSZ);
+	cache_operation(TEE_CACHEFLUSH,	dst_hctx->buf, HASH_BLK_BUFSZ);
 
-	cache_operation(TEE_CACHEFLUSH,	dst_hctx, sizeof(*dst_hctx));
+	cache_operation(TEE_CACHEINVALIDATE, src_hctx->digest, HASH_DGT_BUFSZ);
+	memcpy(dst_hctx->digest, src_hctx->digest, HASH_DGT_BUFSZ);
+	cache_operation(TEE_CACHEFLUSH,	dst_hctx->digest, HASH_DGT_BUFSZ);
 }
 
 static const struct crypto_hash_ops ast2600_hace_ops = {
@@ -322,6 +339,13 @@ static TEE_Result ast2600_hace_alloc(struct crypto_hash_ctx **pctx,
 	struct ast2600_hace_ctx *hctx = calloc(1, sizeof(*hctx));
 
 	if (!hctx)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	hctx->buf = memalign(HASH_BLK_BUFSZ, HASH_BLK_BUFSZ);
+	if (!hctx->buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	hctx->digest = memalign(HASH_DGT_BUFSZ, HASH_DGT_BUFSZ);
+	if (!hctx->digest)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	hctx->hash_ctx.ops = &ast2600_hace_ops;
