@@ -21,7 +21,8 @@
 
 /* List of eFuse identifiers */
 enum zynqmp_efuse_id {
-	DNA = 0, IP_DISABLE, MISC_USER_CTRL, SEC_CTRL,
+	DNA = 0, IP_DISABLE, USER0, USER1, USER2, USER3, USER4, USER5, USER6,
+	USER7, MISC_USER_CTRL, SEC_CTRL,
 };
 
 /* Valid bytes in the eFuse */
