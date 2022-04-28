@@ -144,6 +144,15 @@ $(call force,CFG_SCMI_MSG_SMT,y)
 $(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
 endif
 
+# Provision enough threads to pass xtest
+ifneq (,$(filter y,$(CFG_SCMI_PTA) $(CFG_STM32MP1_SCMI_SIP)))
+ifeq ($(CFG_WITH_PAGER),y)
+CFG_NUM_THREADS ?= 3
+else
+CFG_NUM_THREADS ?= 10
+endif
+endif
+
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
