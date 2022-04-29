@@ -36,8 +36,8 @@ enum zynqmp_efuse_id {
 /*
  * Read eFuse memory
  * @buf: buffer, where eFuse date will be stored. The data is returned
- *       in LE byte order. The buffer address must be cached aligned
- * @buf_sz: buffer size in bytes, must be a multiple of the cacheline size
+ *       in LE byte order.
+ * @buf_sz: buffer size in bytes
  * @id: eFuse identifier.
  * @puf: is eFuse PUF, ZYNQMP_PUF_EFUSE/ZYNQMP_NONPUF_EFUSE
  * Return a TEE_Result compliant status
