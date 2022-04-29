@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2019, Arm Limited and Contributors. All rights reserved.
- * Copyright (c) 2019-2020, Linaro Limited
+ * Copyright (c) 2019-2022, Linaro Limited
  */
 #include <assert.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <io.h>
-#include <kernel/misc.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <trace.h>
 #include <util.h>
 
 #include "common.h"
-
-#define SCMI_PAYLOAD_U32_MAX	(SCMI_SEC_PAYLOAD_SIZE / sizeof(uint32_t))
 
 /**
  * struct smt_header - SMT formatted header for SMT base shared memory transfer
@@ -69,7 +65,7 @@ static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *channel)
  * references to input payload in secure memory and output message buffer
  * in shared memory.
  */
-static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
+void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf)
 {
 	struct scmi_msg_channel *channel = NULL;
 	struct smt_header *smt_hdr = NULL;
@@ -142,38 +138,6 @@ out:
 		smt_hdr->status |= SMT_STATUS_FREE;
 	}
 }
-
-#ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX];
-
-void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
-{
-	scmi_process_smt(channel_id, fast_smc_payload[get_core_pos()]);
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX];
-
-void scmi_smt_interrupt_entry(unsigned int channel_id)
-{
-	scmi_process_smt(channel_id, interrupt_payload[get_core_pos()]);
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_SMT_THREAD_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PAYLOAD_U32_MAX];
-
-void scmi_smt_threaded_entry(unsigned int channel_id)
-{
-	assert(plat_scmi_get_channel(channel_id)->threaded);
-
-	scmi_process_smt(channel_id, threaded_payload[thread_get_id()]);
-}
-#endif
 
 /* Init a SMT header for a shared memory buffer: state it a free/no-error */
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel)

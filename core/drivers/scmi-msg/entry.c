@@ -6,7 +6,9 @@
 #include <assert.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
+#include <kernel/misc.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <string.h>
 #include <trace.h>
 
@@ -15,6 +17,18 @@
 #include "common.h"
 #include "reset_domain.h"
 #include "voltage_domain.h"
+
+/* Provision input message payload buffers for each supported entry channel */
+#define SCMI_PAYLOAD_U32_MAX	(SCMI_SEC_PAYLOAD_SIZE / sizeof(uint32_t))
+
+static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PAYLOAD_U32_MAX]
+__maybe_unused;
+
+static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX]
+__maybe_unused;
+
+static uint32_t fastcall_payload[CFG_TEE_CORE_NB_CORE][SCMI_PAYLOAD_U32_MAX]
+__maybe_unused;
 
 /* SMP protection on channel->busy field */
 static unsigned int smt_channels_lock;
@@ -88,3 +102,30 @@ void scmi_process_message(struct scmi_msg *msg)
 
 	scmi_status_response(msg, SCMI_NOT_SUPPORTED);
 }
+
+#ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
+void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
+{
+	assert(!plat_scmi_get_channel(channel_id)->threaded);
+
+	scmi_entry_smt(channel_id, fastcall_payload[get_core_pos()]);
+}
+#endif
+
+#ifdef CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY
+void scmi_smt_interrupt_entry(unsigned int channel_id)
+{
+	assert(!plat_scmi_get_channel(channel_id)->threaded);
+
+	scmi_entry_smt(channel_id, interrupt_payload[get_core_pos()]);
+}
+#endif
+
+#ifdef CFG_SCMI_MSG_SMT_THREAD_ENTRY
+void scmi_smt_threaded_entry(unsigned int channel_id)
+{
+	assert(plat_scmi_get_channel(channel_id)->threaded);
+
+	scmi_entry_smt(channel_id, threaded_payload[thread_get_id()]);
+}
+#endif

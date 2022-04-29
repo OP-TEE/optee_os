@@ -126,4 +126,11 @@ bool scmi_msg_claim_channel(struct scmi_msg_channel *channel);
  * @channel: SCMI channel reference
  */
 void scmi_msg_release_channel(struct scmi_msg_channel *channel);
+
+/*
+ * Entry for processing a channel using SMT shared memory protocol
+ * @channel_id: SCMI channel identifier provided by client
+ * @payload_buf: Secure buffer where to copy input message
+ */
+void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf);
 #endif /* SCMI_MSG_COMMON_H */
