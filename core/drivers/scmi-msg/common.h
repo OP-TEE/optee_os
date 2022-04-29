@@ -133,4 +133,18 @@ void scmi_msg_release_channel(struct scmi_msg_channel *channel);
  * @payload_buf: Secure buffer where to copy input message
  */
 void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf);
+
+/*
+ * Entry for processing a channel using SMT shared memory protocol
+ *
+ * @channel_id: SCMI channel identifier provided by client
+ * @in_buf: Shared buffer storing input SCMI message
+ * @in_size: Byte size of @in_buf, including MSG header and message payload
+ * @out_buf: Shared buffer storing input SCMI message
+ * @out_size: [in] @out_buf max byte size
+ *            [out] @out_buf output byte size (MSG header and message payload)
+ * @sec_buf: Secure buffer where to copy input message
+ */
+TEE_Result scmi_entry_msg(unsigned int channel_id, void *in_buf, size_t in_size,
+			  void *out_buf, size_t *out_size, uint32_t *sec_buf);
 #endif /* SCMI_MSG_COMMON_H */
