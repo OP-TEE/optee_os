@@ -82,8 +82,7 @@ uint8_t hw_get_random_byte(void)
 	} random;
 	uint8_t ret;
 
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&rng_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
 
 	if (!pos) {
 		/* Is the result ready (available)? */
@@ -117,8 +116,7 @@ uint8_t hw_get_random_byte(void)
 
 	pos = (pos + 1) % 8;
 
-	cpu_spin_unlock(&rng_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
 
 	return ret;
 }
