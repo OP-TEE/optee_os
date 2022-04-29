@@ -110,10 +110,11 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 	if (ptypes != exp_ptypes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT)) {
+	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS)) {
 		struct scmi_msg_channel *channel = NULL;
 
-		if (caps != PTA_SCMI_CAPS_SMT_HEADER)
+		if (!IS_ENABLED(CFG_SCMI_MSG_SMT) &&
+		    caps & PTA_SCMI_CAPS_SMT_HEADER)
 			return TEE_ERROR_NOT_SUPPORTED;
 
 		channel = plat_scmi_get_channel(channel_id);

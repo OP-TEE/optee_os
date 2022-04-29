@@ -118,6 +118,34 @@ static inline void scmi_smt_threaded_entry(unsigned int channel_id __unused)
 }
 #endif
 
+#ifdef CFG_SCMI_MSG_SHM_MSG
+/*
+ * Process MSG formatted message in a TEE thread execution context.
+ * When returning, output message is available in shared memory for
+ * agent to read the response.
+ * This function depends on CFG_SCMI_MSG_MSG_THREAD_ENTRY.
+ *
+ * @channel_id: SCMI channel ID
+ * @in_buf: Shared buffer storing input SCMI message
+ * @in_size: Byte size of @in_buf, including MSG header and message payload
+ * @out_buf: Shared buffer storing input SCMI message
+ * @out_size: [in] @out_buf max byte size
+ *            [out] @out_buf output byte size (MSG header and message payload)
+ */
+TEE_Result scmi_msg_threaded_entry(unsigned int channel_id,
+				   void *in_buf, size_t in_size,
+				   void *out_buf, size_t *out_size);
+#else
+static inline TEE_Result scmi_msg_threaded_entry(unsigned int chan_id __unused,
+						 void *in_buf __unused,
+						 size_t in_size __unused,
+						 void *out_buf __unused,
+						 size_t *out_size __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
 /* Platform callback functions */
 
 /*

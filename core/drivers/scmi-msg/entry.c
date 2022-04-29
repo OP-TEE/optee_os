@@ -129,3 +129,15 @@ void scmi_smt_threaded_entry(unsigned int channel_id)
 	scmi_entry_smt(channel_id, threaded_payload[thread_get_id()]);
 }
 #endif
+
+#ifdef CFG_SCMI_MSG_SHM_MSG
+TEE_Result scmi_msg_threaded_entry(unsigned int channel_id,
+				   void *in_buf, size_t in_size,
+				   void *out_buf, size_t *out_size)
+{
+	assert(plat_scmi_get_channel(channel_id)->threaded);
+
+	return scmi_entry_msg(channel_id, in_buf, in_size, out_buf, out_size,
+			      threaded_payload[thread_get_id()]);
+}
+#endif
