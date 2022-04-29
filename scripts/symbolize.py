@@ -215,9 +215,16 @@ class Symbolizer(object):
             ret = '!!!'
         return ret
 
+    # Armv8.5 with Memory Tagging Extension (MTE)
+    def strip_armv85_mte_tag(self, addr):
+        i_addr = int(addr, 16)
+        i_addr &= ~(0xf << 56)
+        return '0x{:x}'.format(i_addr)
+
     def symbol_plus_offset(self, addr):
         ret = ''
         prevsize = 0
+        addr = self.strip_armv85_mte_tag(addr)
         reladdr = self.subtract_load_addr(addr)
         elf_name = self.elf_for_addr(addr)
         if elf_name is None:
