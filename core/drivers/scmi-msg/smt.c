@@ -56,6 +56,9 @@ struct smt_header {
 
 static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
 {
+	if (!chan)
+		return NULL;
+
 	return (struct smt_header *)io_pa_or_va(&chan->shm_addr,
 						sizeof(struct smt_header));
 }
@@ -76,18 +79,23 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	bool error = true;
 
 	chan = plat_scmi_get_channel(channel_id);
-	if (!chan)
+	if (!chan) {
+		DMSG("Invalid channel ID %u", channel_id);
 		return;
+	}
 
 	smt_hdr = channel_to_smt_hdr(chan);
-	assert(smt_hdr);
-
-	smt_status = READ_ONCE(smt_hdr->status);
+	if (!smt_hdr) {
+		DMSG("No shared buffer for channel ID %u", channel_id);
+		return;
+	}
 
 	if (!scmi_msg_claim_channel(chan)) {
 		DMSG("SCMI channel %u busy", channel_id);
 		goto out;
 	}
+
+	smt_status = READ_ONCE(smt_hdr->status);
 
 	in_payload_size = READ_ONCE(smt_hdr->length) -
 			  sizeof(smt_hdr->message_header);
@@ -170,22 +178,15 @@ void scmi_smt_threaded_entry(unsigned int channel_id)
 /* Init a SMT header for a shared memory buffer: state it a free/no-error */
 void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan)
 {
+	struct smt_header *smt_header = channel_to_smt_hdr(chan);
+
 	static_assert(SCMI_SEC_PAYLOAD_SIZE + sizeof(struct smt_header) <=
 		      SMT_BUF_SLOT_SIZE &&
 		      IS_ALIGNED(SCMI_SEC_PAYLOAD_SIZE, sizeof(uint32_t)));
+	assert(smt_header);
 
-	if (chan) {
-		struct smt_header *smt_header = channel_to_smt_hdr(chan);
-
-		if (smt_header) {
-			memset(smt_header, 0, sizeof(*smt_header));
-			smt_header->status = SMT_STATUS_FREE;
-
-			return;
-		}
-	}
-
-	panic();
+	memset(smt_header, 0, sizeof(*smt_header));
+	smt_header->status = SMT_STATUS_FREE;
 }
 
 void scmi_smt_set_shared_buffer(struct scmi_msg_channel *channel, void *base)
