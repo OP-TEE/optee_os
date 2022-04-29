@@ -6,6 +6,7 @@
  */
 
 #include <assert.h>
+#include <drivers/atmel_rtc.h>
 #include <drivers/rtc.h>
 #include <io.h>
 #include <kernel/dt.h>
@@ -131,6 +132,16 @@ static TEE_Result atmel_rtc_get_time(struct rtc *rtc __unused,
 				     struct optee_rtc_time *tm)
 {
 	atmel_decode_date(RTC_TIMR, RTC_CALR, tm);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result atmel_rtc_get_tamper_timestamp(struct optee_rtc_time *tm)
+{
+	if (!rtc_base)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	atmel_decode_date(RTC_TSTR0, RTC_TSDR0, tm);
 
 	return TEE_SUCCESS;
 }
