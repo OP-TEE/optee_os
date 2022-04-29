@@ -102,26 +102,30 @@ static void dra7_rng_read64(uint32_t *low_word, uint32_t *high_word)
 	io_write32(rng + RNG_INTACK, RNG_READY);
 }
 
-uint8_t hw_get_random_byte(void)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	static int pos;
 	static union {
 		uint32_t val[2];
 		uint8_t byte[8];
-	} random;
-	uint8_t ret;
+	} fifo;
+	static size_t fifo_pos;
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
 
-	uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
+	while (buffer_pos < len) {
+		uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
 
-	if (!pos)
-		dra7_rng_read64(&random.val[0], &random.val[1]);
-	ret = random.byte[pos];
+		/* Refill our FIFO */
+		if (fifo_pos == 0)
+			dra7_rng_read64(&fifo.val[0], &fifo.val[1]);
 
-	pos = (pos + 1) % 8;
+		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
+		fifo_pos %= 8;
 
-	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+		cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+	}
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result dra7_rng_init(void)
