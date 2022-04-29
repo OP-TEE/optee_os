@@ -7,17 +7,22 @@
  *
  */
 
+#include <assert.h>
+#include <config.h>
+#include <crypto/crypto.h>
 #include <kernel/pseudo_ta.h>
 #include <pta_rng.h>
 #include <rng_support.h>
 
 #define PTA_NAME "rng.pta"
 
+/* This PTA only works with hardware random number generators */
+static_assert(!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG));
+
 static TEE_Result rng_get_entropy(uint32_t types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint8_t *e = NULL;
-	uint32_t i = 0;
 
 	if (types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
 				     TEE_PARAM_TYPE_NONE,
@@ -31,10 +36,7 @@ static TEE_Result rng_get_entropy(uint32_t types,
 	if (!e)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	for (i = 0; i < params[0].memref.size; i++)
-		e[i] = hw_get_random_byte();
-
-	return TEE_SUCCESS;
+	return crypto_rng_read(e, params[0].memref.size);
 }
 
 static TEE_Result rng_get_info(uint32_t types,
