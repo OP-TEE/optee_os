@@ -704,15 +704,28 @@ CFG_CORE_TPM_EVENT_LOG ?= n
 
 # When enabled, CFG_SCMI_MSG_DRIVERS embeds SCMI message drivers in the core.
 # Refer to the supported SCMI features embedded upon CFG_SCMI_MSG_*
+#
 # CFG_SCMI_MSG_CLOCK embeds SCMI clock protocol support.
 # CFG_SCMI_MSG_RESET_DOMAIN embeds SCMI reset domain protocol support.
-# CFG_SCMI_MSG_SMT embeds SMT based message buffer of communication channel
+# CFG_SCMI_MSG_SMT embeds a SMT header in shared device memory buffers
 # CFG_SCMI_MSG_VOLTAGE_DOMAIN embeds SCMI voltage domain protocol support.
+# CFG_SCMI_MSG_SMT_FASTCALL_ENTRY embeds fastcall SMC entry with SMT memory
+# CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY embeds interrupt entry with SMT memory
+# CFG_SCMI_MSG_SMT_THREAD_ENTRY embeds threaded entry with SMT memory
 CFG_SCMI_MSG_DRIVERS ?= n
+ifeq ($(CFG_SCMI_MSG_DRIVERS),y)
 CFG_SCMI_MSG_CLOCK ?= n
 CFG_SCMI_MSG_RESET_DOMAIN ?= n
 CFG_SCMI_MSG_SMT ?= n
+CFG_SCMI_MSG_SMT_FASTCALL_ENTRY ?= n
+CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY ?= n
+CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= n
+CFG_SCMI_MSG_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,CFG_SCMI_MSG_SMT))
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT))
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
+endif
 
 # Enable SCMI PTA interface for REE SCMI agents
 CFG_SCMI_PTA ?= n
