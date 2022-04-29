@@ -106,7 +106,7 @@ CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.
-# Otherwise, you need to implement hw_get_random_byte() for your platform
+# Otherwise, you need to implement hw_get_random_bytes() for your platform
 CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
