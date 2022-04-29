@@ -22,27 +22,34 @@ static unsigned int spin_lock __nex_data = SPINLOCK_UNLOCK;
  */
 static uint8_t rng_cache[PLAT_RND_VECTOR_SZ] __nex_bss
 					__aligned(RCAR_CACHE_LINE_SZ);
-static uint8_t rng_cache_pos __nex_data = PLAT_RND_VECTOR_SZ;
+static uint8_t rng_cache_pos __nex_data;
 
-uint8_t hw_get_random_byte(void)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&spin_lock);
+	uint32_t exceptions;
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
 	uint8_t ret_val = 0;
 
-	assert(rng_cache_pos <= PLAT_RND_VECTOR_SZ);
+	assert(rng_cache_pos < PLAT_RND_VECTOR_SZ);
 
-	if (rng_cache_pos == PLAT_RND_VECTOR_SZ) {
-		uint32_t ret = plat_rom_getrndvector(rng_cache, scratch_buf,
-						     sizeof(scratch_buf));
+	while (buffer_pos < len) {
+		exceptions = cpu_spin_lock_xsave(&spin_lock);
+		/* Refill our FIFO */
+		if (rng_cache_pos == 0) {
+			uint32_t ret = plat_rom_getrndvector(rng_cache,
+							scratch_buf,
+							sizeof(scratch_buf));
+			if (ret != 0)
+				panic("ROM_GetRndVector() returned error!");
+		}
 
-		if (ret != 0)
-			panic("ROM_GetRndVector() returned error!");
+		buffer[buffer_pos++] = rng_cache[rng_cache_pos++];
+		if (rng_cache_pos == PLAT_RND_VECTOR_SZ)
+			rng_cache_pos = 0;
 
-		rng_cache_pos = 0;
+		cpu_spin_unlock_xrestore(&spin_lock, exceptions);
 	}
-
-	ret_val = rng_cache[rng_cache_pos++];
-	cpu_spin_unlock_xrestore(&spin_lock, exceptions);
 
 	return ret_val;
 }
