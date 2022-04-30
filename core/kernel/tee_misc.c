@@ -2,10 +2,12 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
+#include <kernel/cache_helpers.h>
 #include <kernel/chip_services.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
+#include <malloc.h>
 #include <mm/core_memprot.h>
 #include <stdio.h>
 #include <trace.h>
@@ -117,4 +119,23 @@ bool core_is_buffer_intersect(paddr_t b, paddr_size_t bl,
 	if ((b + bl - 1 < a) || (b > a + al - 1))
 		return false;
 	return true;
+}
+
+void *alloc_cache_aligned(size_t size)
+{
+	void *ptr = NULL;
+	size_t alloc_size = 0;
+	uint32_t cacheline_size = 0;
+
+	cacheline_size = cache_get_max_line_size();
+	if (ROUNDUP_OVERFLOW(size, cacheline_size, &alloc_size))
+		return NULL;
+
+	ptr = memalign(cacheline_size, alloc_size);
+	if (!ptr)
+		return NULL;
+
+	memset(ptr, 0, size);
+
+	return ptr;
 }
