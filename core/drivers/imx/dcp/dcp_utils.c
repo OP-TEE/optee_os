@@ -4,45 +4,11 @@
  */
 #include <dcp_utils.h>
 #include <drivers/imx/dcp.h>
-#include <kernel/cache_helpers.h>
+#include <kernel/tee_misc.h>
 #include <malloc.h>
 #include <mm/core_memprot.h>
 #include <string.h>
 #include <trace.h>
-
-/*
- * Allocate an area of given size in bytes and set it to zero. Add the memory
- * allocator information in the newly allocated area.
- * Return a cacheline aligned buffer.
- *
- * @size   Size in bytes to allocate
- */
-static void *dcp_alloc_memalign(size_t size)
-{
-	void *ptr = NULL;
-	size_t alloc_size = 0;
-	uint32_t cacheline_size = 0;
-
-	/*
-	 * Buffer must be aligned on a cache line:
-	 *  - Buffer start address aligned on a cache line
-	 *  - End of Buffer inside a cache line.
-	 *
-	 * If the size to be allocated is already aligned on a cache line add a
-	 * another cache line.
-	 */
-	cacheline_size = dcache_get_line_size();
-	if (ROUNDUP_OVERFLOW(size, cacheline_size, &alloc_size))
-		return NULL;
-
-	ptr = memalign(cacheline_size, alloc_size);
-	if (!ptr)
-		return NULL;
-
-	memset(ptr, 0, size);
-
-	return ptr;
-}
 
 TEE_Result dcp_calloc_align_buf(struct dcp_align_buf *buf, size_t size)
 {
@@ -51,7 +17,7 @@ TEE_Result dcp_calloc_align_buf(struct dcp_align_buf *buf, size_t size)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	buf->data = dcp_alloc_memalign(size);
+	buf->data = alloc_cache_aligned(size);
 	if (!buf->data)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
