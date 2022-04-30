@@ -46,6 +46,17 @@ TEE_Result zynqmp_efuse_read(uint8_t *buf, size_t buf_sz,
 			     enum zynqmp_efuse_id id, bool puf);
 
 /*
+ * Program eFuse memory
+ * @buf: buffer where eFuse data are stored in LE byte order.
+ * @buf_sz: buffer size in bytes
+ * @id: eFuse identifier.
+ * @puf: is eFuse PUF, ZYNQMP_PUF_EFUSE/ZYNQMP_NONPUF_EFUSE
+ * Return a TEE_Result compliant status
+ */
+TEE_Result zynqmp_efuse_write(uint8_t *buf, size_t buf_sz,
+			      enum zynqmp_efuse_id id, bool puf);
+
+/*
  * Read the SoC version number:
  * Different eFuse bitfields carry different meaning depending on this version.
  */

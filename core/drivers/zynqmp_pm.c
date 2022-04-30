@@ -121,6 +121,9 @@ static TEE_Result efuse_op(enum efuse_op op, uint8_t *buf, size_t buf_sz,
 		goto out;
 	}
 
+	if (op == EFUSE_WRITE)
+		memcpy(tmpbuf, buf, buf_sz);
+
 	efuse_op->size = efuse_tbl[id].bytes / sizeof(uint32_t);
 	efuse_op->offset = efuse_tbl[id].offset;
 	efuse_op->src = virt_to_phys(tmpbuf);
@@ -148,10 +151,9 @@ static TEE_Result efuse_op(enum efuse_op op, uint8_t *buf, size_t buf_sz,
 		if (res)
 			goto out;
 		memcpy(buf, tmpbuf, buf_sz);
-		res = TEE_SUCCESS;
-	} else {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
 	}
+
+	res = TEE_SUCCESS;
 
 out:
 	free(tmpbuf);
@@ -163,6 +165,12 @@ TEE_Result zynqmp_efuse_read(uint8_t *buf, size_t sz, enum zynqmp_efuse_id id,
 			     bool puf)
 {
 	return efuse_op(EFUSE_READ, buf, sz, id, puf);
+}
+
+TEE_Result zynqmp_efuse_write(uint8_t *buf, size_t sz, enum zynqmp_efuse_id id,
+			      bool puf)
+{
+	return efuse_op(EFUSE_WRITE, buf, sz, id, puf);
 }
 
 TEE_Result zynqmp_soc_version(uint32_t *version)
