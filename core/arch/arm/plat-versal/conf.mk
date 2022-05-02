@@ -34,3 +34,8 @@ $(call force,CFG_ARM32_core,y)
 endif
 
 $(call force, CFG_VERSAL_PM,y)
+$(call force, CFG_VERSAL_MBOX,y)
+
+# MBOX configuration
+CFG_VERSAL_MBOX_IPI_ID ?=3
+
