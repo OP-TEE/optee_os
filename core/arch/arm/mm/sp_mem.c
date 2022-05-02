@@ -44,8 +44,7 @@ static size_t mobj_sp_size(size_t num_pages)
 	return s;
 }
 
-struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type,
-			     bool is_secure)
+struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t mem_type, bool is_secure)
 {
 	struct mobj_sp *m = NULL;
 	size_t s = 0;
@@ -62,7 +61,7 @@ struct mobj *sp_mem_new_mobj(uint64_t pages, uint32_t cache_type,
 	m->mobj.size = pages * SMALL_PAGE_SIZE;
 	m->mobj.phys_granule = SMALL_PAGE_SIZE;
 
-	m->mem_type = cache_type;
+	m->mem_type = mem_type;
 	m->is_secure = is_secure;
 
 	refcount_set(&m->mobj.refc, 1);
@@ -104,11 +103,11 @@ int sp_mem_add_pages(struct mobj *mobj, unsigned int *idx,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_mem_get_cattr(struct mobj *mobj, uint32_t *cattr)
+static TEE_Result get_mem_type(struct mobj *mobj, uint32_t *mt)
 {
 	struct mobj_sp *m = to_mobj_sp(mobj);
 
-	*cattr = m->mem_type;
+	*mt = m->mem_type;
 
 	return TEE_SUCCESS;
 }
@@ -178,7 +177,7 @@ static void inactivate(struct mobj *mobj)
 const struct mobj_ops mobj_sp_ops __weak __relrodata_unpaged("mobj_sp_ops") = {
 	.get_pa = get_pa,
 	.get_phys_offs = get_phys_offs,
-	.get_cattr = sp_mem_get_cattr,
+	.get_mem_type = get_mem_type,
 	.matches = mobj_sp_matches,
 	.free = inactivate,
 };
