@@ -32,3 +32,5 @@ $(call force,CFG_WITH_LPAE,y)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+$(call force, CFG_VERSAL_PM,y)
