@@ -73,10 +73,25 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 static unsigned int rng_lock = SPINLOCK_UNLOCK;
 static vaddr_t rng;
 
-static void dra7_rng_read64(uint32_t *low_word, uint32_t *high_word)
+TEE_Result hw_get_max_available_entropy(size_t *blen)
 {
+	/* DRA7xx HW RNG returns 64bits(8bytes) of entropy per iteration */
+	*blen = 8;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result hw_get_available_entropy(void *buf)
+{
+	struct {
+		uint32_t low_word;
+		uint32_t high_word;
+	} *fifo = buf;
+
+	uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
+
 	/* Is the result ready (available)? */
-	while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
+	if (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
 		/* Is the shutdown threshold reached? */
 		if (io_read32(rng + RNG_STATUS) & SHUTDOWN_OFLO) {
 			uint32_t alarm = io_read32(rng + RNG_ALARMSTOP);
@@ -94,37 +109,18 @@ static void dra7_rng_read64(uint32_t *low_word, uint32_t *high_word)
 
 			DMSG("Fixed FRO shutdown\n");
 		}
-	}
-	/* Read random value */
-	*low_word = io_read32(rng + RNG_OUTPUT_L);
-	*high_word = io_read32(rng + RNG_OUTPUT_H);
-	/* Acknowledge read complete */
-	io_write32(rng + RNG_INTACK, RNG_READY);
-}
-
-TEE_Result hw_get_random_bytes(void *buf, size_t len)
-{
-	static union {
-		uint32_t val[2];
-		uint8_t byte[8];
-	} fifo;
-	static size_t fifo_pos;
-	uint8_t *buffer = buf;
-	size_t buffer_pos = 0;
-
-	while (buffer_pos < len) {
-		uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
-
-		/* Refill our FIFO */
-		if (fifo_pos == 0)
-			dra7_rng_read64(&fifo.val[0], &fifo.val[1]);
-
-		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
-		fifo_pos %= 8;
 
 		cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+		return TEE_ERROR_BUSY;
 	}
 
+	/* Read random value */
+	fifo->low_word = io_read32(rng + RNG_OUTPUT_L);
+	fifo->high_word = io_read32(rng + RNG_OUTPUT_H);
+	/* Acknowledge read complete */
+	io_write32(rng + RNG_INTACK, RNG_READY);
+
+	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
 	return TEE_SUCCESS;
 }
 
