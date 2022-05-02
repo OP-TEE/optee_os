@@ -122,6 +122,7 @@ jobs:
           _make PLATFORM=stm32mp1-157C_DK2
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
+          _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
           _make PLATFORM=vexpress-juno
           _make PLATFORM=vexpress-juno CFG_ARM64_core=y
           _make PLATFORM=hikey
