@@ -288,7 +288,7 @@
 #define TEE_ECC_CURVE_NIST_P256             0x00000003
 #define TEE_ECC_CURVE_NIST_P384             0x00000004
 #define TEE_ECC_CURVE_NIST_P521             0x00000005
-#define TEE_ECC_CURVE_SM2                   0x00000300
+#define TEE_ECC_CURVE_SM2                   0x00000400
 
 
 /* Panicked Functions Identification */
