@@ -7,6 +7,7 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/pl011.h>
+#include <drivers/versal_pm.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -56,3 +57,20 @@ void console_init(void)
 		   CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
 }
+
+static TEE_Result platform_banner(void)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	uint8_t version = 0;
+
+	ret = versal_soc_version(&version);
+	if (ret) {
+		EMSG("Failure to retrieve SoC version");
+		return ret;
+	}
+
+	IMSG("Platform Versal - Silicon Revision v%d", version);
+
+	return TEE_SUCCESS;
+}
+service_init(platform_banner);
