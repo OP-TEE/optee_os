@@ -35,6 +35,7 @@ endif
 
 $(call force, CFG_VERSAL_PM,y)
 $(call force, CFG_VERSAL_MBOX,y)
+$(call force, CFG_VERSAL_NVM,y)
 
 # MBOX configuration
 CFG_VERSAL_MBOX_IPI_ID ?=3
