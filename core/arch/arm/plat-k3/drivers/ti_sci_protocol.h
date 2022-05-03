@@ -15,6 +15,9 @@
 /* Generic Messages */
 #define TI_SCI_MSG_VERSION               0x0002
 
+/* Device requests */
+#define TI_SCI_MSG_SET_DEVICE_STATE      0x0200
+
 /* Security Management Messages */
 #define TI_SCI_MSG_SA2UL_GET_DKEK        0x9029
 
@@ -87,6 +90,53 @@ struct ti_sci_msg_resp_version {
 	uint8_t abi_minor;
 	uint8_t sub_version;
 	uint8_t patch_version;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_set_device_state - Set the desired state of the device
+ * @hdr:	Generic header
+ * @id:		Indicates which device to modify
+ * @reserved:	Reserved space in message, must be 0 for backward compatibility
+ * @state:	The desired state of the device.
+ *
+ * Certain flags can also be set to alter the device state:
+ * + MSG_FLAG_DEVICE_WAKE_ENABLED - Configure the device to be a wake source.
+ * The meaning of this flag will vary slightly from device to device and from
+ * SoC to SoC but it generally allows the device to wake the SoC out of deep
+ * suspend states.
+ * + MSG_FLAG_DEVICE_RESET_ISO - Enable reset isolation for this device.
+ * + MSG_FLAG_DEVICE_EXCLUSIVE - Claim this device exclusively. When passed
+ * with STATE_RETENTION or STATE_ON, it will claim the device exclusively.
+ * If another host already has this device set to STATE_RETENTION or STATE_ON,
+ * the message will fail. Once successful, other hosts attempting to set
+ * STATE_RETENTION or STATE_ON will fail.
+ *
+ * Request type is TI_SCI_MSG_SET_DEVICE_STATE, responded with a generic
+ * ACK/NACK message.
+ */
+struct ti_sci_msg_req_set_device_state {
+	/* Additional hdr->flags options */
+#define MSG_FLAG_DEVICE_WAKE_ENABLED	TI_SCI_MSG_FLAG(8)
+#define MSG_FLAG_DEVICE_RESET_ISO	TI_SCI_MSG_FLAG(9)
+#define MSG_FLAG_DEVICE_EXCLUSIVE	TI_SCI_MSG_FLAG(10)
+	struct ti_sci_msg_hdr hdr;
+	uint32_t id;
+	uint32_t reserved;
+
+#define MSG_DEVICE_SW_STATE_AUTO_OFF	0
+#define MSG_DEVICE_SW_STATE_RETENTION	1
+#define MSG_DEVICE_SW_STATE_ON		2
+	uint8_t state;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_set_device_state - Response for set device state
+ * @hdr:	Generic header
+ *
+ * Response to request TI_SCI_MSG_SET_DEVICE_STATE
+ */
+struct ti_sci_msg_resp_set_device_state {
+	struct ti_sci_msg_hdr hdr;
 } __packed;
 
 /**

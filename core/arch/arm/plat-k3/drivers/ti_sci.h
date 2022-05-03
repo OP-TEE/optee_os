@@ -23,6 +23,24 @@
 int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info);
 
 /**
+ * Device control operations
+ *
+ * - ti_sci_device_get - Get access to device managed by TISCI
+ * - ti_sci_device_put - Release access to device managed by TISCI
+ *
+ * NOTE: for all these functions, the following are generic in nature:
+ * @id:		Device Identifier
+ *
+ * Returns 0 for successful request, else returns corresponding error message.
+ *
+ * Request for the device - NOTE: the client MUST maintain integrity of
+ * usage count by balancing get_device with put_device. No refcounting is
+ * managed by driver for that purpose.
+ */
+int ti_sci_device_get(uint32_t id);
+int ti_sci_device_put(uint32_t id);
+
+/**
  * ti_sci_get_dkek() - Get the DKEK
  * @sa2ul_instance:	SA2UL instance to get key
  * @context:		Context string input to KDF

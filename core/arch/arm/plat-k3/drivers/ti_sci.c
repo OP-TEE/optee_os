@@ -179,6 +179,40 @@ int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
 	return 0;
 }
 
+static int ti_sci_device_set_state(uint32_t id, uint32_t flags, uint8_t state)
+{
+	struct ti_sci_msg_req_set_device_state req = { };
+	struct ti_sci_msg_resp_set_device_state resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_SET_DEVICE_STATE, flags,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.id = id;
+	req.state = state;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int ti_sci_device_get(uint32_t id)
+{
+	return ti_sci_device_set_state(id, 0, MSG_DEVICE_SW_STATE_ON);
+}
+
+int ti_sci_device_put(uint32_t id)
+{
+	return ti_sci_device_set_state(id, 0, MSG_DEVICE_SW_STATE_AUTO_OFF);
+}
+
 /**
  * ti_sci_get_dkek() - Get the DKEK
  * @sa2ul_instance:	SA2UL instance to get key
