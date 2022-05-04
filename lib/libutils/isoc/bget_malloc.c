@@ -499,7 +499,24 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 	if (!s)
 		s++;
 
-	p = bgetr(maybe_untag_buf(ptr), 0, 0, s, &ctx->poolset);
+	p = bget(0, 0, s, &ctx->poolset);
+
+	if (p && ptr) {
+		void *old_ptr = maybe_untag_buf(ptr);
+		bufsize old_sz = bget_buf_size(old_ptr);
+
+		if (old_sz < s) {
+			memcpy(p, old_ptr, old_sz);
+#ifndef __KERNEL__
+			/* User space reallocations are always zeroed */
+			memset((uint8_t *)p + old_sz, 0, s - old_sz);
+#endif
+		} else {
+			memcpy(p, old_ptr, s);
+		}
+
+		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
+	}
 out:
 	return raw_malloc_return_hook(p, pl_size, ctx);
 }
