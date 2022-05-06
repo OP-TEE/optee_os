@@ -101,6 +101,8 @@ ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
    cppflags-lib-y += -DLTC_ECC_SM2
 endif
 
+cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
+
 cppflags-lib-y += -DLTC_NO_PKCS
 
 cppflags-lib-y += -DLTC_DER
@@ -133,7 +135,7 @@ endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
-
+srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c
 endif
