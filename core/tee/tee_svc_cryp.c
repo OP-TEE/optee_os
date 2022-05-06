@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020, 2022 Linaro Limited
+ * Copyright (c) 2022, Technology Innovation Institute (TII)
  */
 
 #include <assert.h>
@@ -79,6 +80,11 @@ struct tee_cryp_obj_secret {
 #define ATTR_OPS_INDEX_BIGNUM     1
     /* Convert to/from value attribute depending on direction */
 #define ATTR_OPS_INDEX_VALUE      2
+    /* Convert to/from curve25519 attribute depending on direction */
+#define ATTR_OPS_INDEX_25519      3
+
+    /* Curve25519 key bytes size is always 32 bytes*/
+#define KEY_SIZE_BYTES_25519 UL(32)
 
 struct tee_cryp_obj_type_attrs {
 	uint32_t attr_id;
@@ -423,6 +429,23 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_sm2_keypair_attrs[] = {
 	},
 };
 
+static
+const struct tee_cryp_obj_type_attrs tee_cryp_obj_x25519_keypair_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_X25519_PRIVATE_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_25519,
+	RAW_DATA(struct x25519_keypair, priv)
+	},
+
+	{
+	.attr_id = TEE_ATTR_X25519_PUBLIC_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_25519,
+	RAW_DATA(struct x25519_keypair, pub)
+	},
+};
+
 struct tee_cryp_obj_type_props {
 	TEE_ObjectType obj_type;
 	uint16_t min_size;	/* may not be smaller than this */
@@ -551,6 +574,10 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_SM2_KEP_KEYPAIR, 1, 256, 256,
 	     sizeof(struct ecc_keypair),
 	     tee_cryp_obj_sm2_keypair_attrs),
+
+	PROP(TEE_TYPE_X25519_KEYPAIR, 1, 256, 256,
+	     sizeof(struct x25519_keypair),
+	     tee_cryp_obj_x25519_keypair_attrs),
 };
 
 struct attr_ops {
@@ -872,6 +899,114 @@ static void op_attr_value_clear(void *attr)
 	*v = 0;
 }
 
+static TEE_Result op_attr_25519_from_user(void *attr, const void *buffer,
+					  size_t size)
+{
+	uint8_t **key = attr;
+
+	if (size != KEY_SIZE_BYTES_25519 || !*key)
+		return TEE_ERROR_SECURITY;
+
+	memcpy(*key, buffer, size);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result op_attr_25519_to_user(void *attr,
+					struct ts_session *sess __unused,
+					void *buffer, uint64_t *size)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t **key = attr;
+	uint64_t s = 0;
+	uint64_t key_size = (uint64_t)KEY_SIZE_BYTES_25519;
+
+	res = copy_from_user(&s, size, sizeof(s));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	res = copy_to_user(size, &key_size, sizeof(key_size));
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (s < key_size || !buffer)
+		return TEE_ERROR_SHORT_BUFFER;
+
+	return copy_to_user(buffer, *key, key_size);
+}
+
+static TEE_Result op_attr_25519_to_binary(void *attr, void *data,
+					  size_t data_len, size_t *offs)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t **key = attr;
+	size_t next_offs = 0;
+	uint64_t key_size = (uint64_t)KEY_SIZE_BYTES_25519;
+
+	res = op_u32_to_binary_helper(key_size, data, data_len, offs);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	if (ADD_OVERFLOW(*offs, key_size, &next_offs))
+		return TEE_ERROR_OVERFLOW;
+
+	if (data && next_offs <= data_len)
+		memcpy((uint8_t *)data + *offs, *key, key_size);
+	*offs = next_offs;
+
+	return TEE_SUCCESS;
+}
+
+static bool op_attr_25519_from_binary(void *attr, const void *data,
+				      size_t data_len, size_t *offs)
+{
+	uint8_t **key = attr;
+	uint32_t s = 0;
+
+	if (!op_u32_from_binary_helper(&s, data, data_len, offs))
+		return false;
+
+	if (*offs + s > data_len)
+		return false;
+
+	if (s > (uint32_t)KEY_SIZE_BYTES_25519)
+		return false;
+
+	memcpy(*key, (const uint8_t *)data + *offs, s);
+	*offs += s;
+	return true;
+}
+
+static TEE_Result op_attr_25519_from_obj(void *attr, void *src_attr)
+{
+	uint8_t **key = attr;
+	uint8_t **src_key = src_attr;
+
+	if (!*key || !*src_key)
+		return TEE_ERROR_SECURITY;
+
+	memcpy(*key, *src_key, KEY_SIZE_BYTES_25519);
+
+	return TEE_SUCCESS;
+}
+
+static void op_attr_25519_clear(void *attr)
+{
+	uint8_t **key = attr;
+
+	assert(*key);
+
+	memzero_explicit(*key, KEY_SIZE_BYTES_25519);
+}
+
+static void op_attr_25519_free(void *attr)
+{
+	uint8_t **key = attr;
+
+	op_attr_25519_clear(attr);
+	free(*key);
+}
+
 static const struct attr_ops attr_ops[] = {
 	[ATTR_OPS_INDEX_SECRET] = {
 		.from_user = op_attr_secret_value_from_user,
@@ -899,6 +1034,15 @@ static const struct attr_ops attr_ops[] = {
 		.from_obj = op_attr_value_from_obj,
 		.free = op_attr_value_clear, /* not a typo */
 		.clear = op_attr_value_clear,
+	},
+	[ATTR_OPS_INDEX_25519] = {
+		.from_user = op_attr_25519_from_user,
+		.to_user = op_attr_25519_to_user,
+		.to_binary = op_attr_25519_to_binary,
+		.from_binary = op_attr_25519_from_binary,
+		.from_obj = op_attr_25519_from_obj,
+		.free = op_attr_25519_free,
+		.clear = op_attr_25519_clear,
 	},
 };
 
@@ -1325,6 +1469,10 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_SM2_KEP_KEYPAIR:
 		res = crypto_acipher_alloc_ecc_keypair(o->attr, obj_type,
 						       max_key_size);
+		break;
+	case TEE_TYPE_X25519_KEYPAIR:
+		res = crypto_acipher_alloc_x25519_keypair(o->attr,
+							  max_key_size);
 		break;
 	default:
 		if (obj_type != TEE_TYPE_DATA) {
@@ -1916,6 +2064,35 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
 	return TEE_SUCCESS;
 }
 
+static TEE_Result
+tee_svc_obj_generate_key_x25519(struct tee_obj *o,
+				const struct tee_cryp_obj_type_props
+							*type_props,
+				uint32_t key_size,
+				const TEE_Attribute *params,
+				uint32_t param_count)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct x25519_keypair *tee_x25519_key = NULL;
+
+	/* Copy the present attributes into the obj before starting */
+	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
+					     param_count);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	tee_x25519_key = (struct x25519_keypair *)o->attr;
+
+	res = crypto_acipher_gen_x25519_key(tee_x25519_key, key_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	/* Set bits for the generated public and private key */
+	set_attribute(o, type_props, TEE_ATTR_X25519_PRIVATE_VALUE);
+	set_attribute(o, type_props, TEE_ATTR_X25519_PUBLIC_VALUE);
+	return TEE_SUCCESS;
+}
+
 TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 			const struct utee_attribute *usr_params,
 			unsigned long param_count)
@@ -2034,6 +2211,13 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		res = tee_svc_obj_generate_key_ecc(o, type_props, key_size,
 						  params, param_count);
+		if (res != TEE_SUCCESS)
+			goto out;
+		break;
+
+	case TEE_TYPE_X25519_KEYPAIR:
+		res = tee_svc_obj_generate_key_x25519(o, type_props, key_size,
+						      params, param_count);
 		if (res != TEE_SUCCESS)
 			goto out;
 		break;
@@ -2195,6 +2379,9 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 		req_key_type = TEE_TYPE_PBKDF2_PASSWORD;
 		break;
 #endif
+	case TEE_MAIN_ALGO_X25519:
+		req_key_type = TEE_TYPE_X25519_KEYPAIR;
+		break;
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -3240,6 +3427,41 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 		crypto_acipher_free_ecc_public_key(&peer_key);
 		crypto_acipher_free_ecc_public_key(&peer_eph_key);
+	}
+#endif
+#if defined(CFG_CRYPTO_X25519)
+	else if (cs->algo == TEE_ALG_X25519) {
+		uint8_t *x25519_pub_key = NULL;
+		uint8_t *pt_secret = NULL;
+		unsigned long pt_secret_len = 0;
+
+		if (param_count != 1 ||
+		    params[0].attributeID != TEE_ATTR_X25519_PUBLIC_VALUE) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		/* X25519 public key size is 32 bytes */
+		if (params[0].content.ref.length != KEY_SIZE_BYTES_25519) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		/* Set the public key */
+		x25519_pub_key = params[0].content.ref.buffer;
+
+		pt_secret = (uint8_t *)(sk + 1);
+		pt_secret_len = sk->alloc_size;
+		res = crypto_acipher_x25519_shared_secret(ko->attr,
+							  x25519_pub_key,
+							  pt_secret,
+							  &pt_secret_len);
+
+		if (res == TEE_SUCCESS) {
+			sk->key_size = pt_secret_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
 	}
 #endif
 	else

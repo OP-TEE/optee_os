@@ -47,6 +47,10 @@ CFG_CRYPTO_ECC ?= y
 CFG_CRYPTO_SM2_PKE ?= y
 CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
+# X25519 is only supported by libtomcrypt
+ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
+CFG_CRYPTO_X25519 ?= y
+endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -163,6 +167,7 @@ core-ltc-vars += SIZE_OPTIMIZATION
 core-ltc-vars += SM2_PKE
 core-ltc-vars += SM2_DSA
 core-ltc-vars += SM2_KEP
+core-ltc-vars += X25519
 # Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
 $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
@@ -186,6 +191,7 @@ _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
 _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
+$(call force,CFG_CRYPTO_X25519,n,not supported by mbedtls)
 endif
 
 ###############################################################
@@ -226,6 +232,7 @@ _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
 _CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
 _CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)
+_CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, X25519)
 
 ###############################################################
 # Platform independent crypto-driver configuration
