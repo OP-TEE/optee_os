@@ -140,63 +140,6 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
-/*
- * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
- * the fdt into the allocated page(s) and return a pointer to the new location
- * of the fdt. This pointer can be used to update data inside the fdt.
- */
-static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
-			       const void * const input_fdt, vaddr_t *va,
-			       size_t *num_pgs, void **fdt_copy)
-{
-	struct sp_ffa_init_info *info = NULL;
-	int nvp_count = 1;
-	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
-	size_t info_size = sizeof(*info) + nvp_size;
-	size_t fdt_size = fdt_totalsize(input_fdt);
-	TEE_Result res = TEE_SUCCESS;
-	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
-	struct fobj *fo = NULL;
-	struct mobj *m = NULL;
-	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
-
-	*num_pgs = ROUNDUP(fdt_size + info_size, SMALL_PAGE_SIZE) /
-		   SMALL_PAGE_SIZE;
-
-	fo = fobj_sec_mem_alloc(*num_pgs);
-	m = mobj_with_fobj_alloc(fo, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
-
-	fobj_put(fo);
-	if (!m)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = vm_map(&ctx->uctx, va, fdt_size + info_size,
-		     perm, 0, m, 0);
-	mobj_put(m);
-	if (res)
-		return res;
-
-	info = (struct sp_ffa_init_info *)*va;
-
-	/* magic field is 4 bytes, we don't copy /0 byte. */
-	memcpy(&info->magic, "FF-A", 4);
-	info->count = nvp_count;
-	args->a0 = (vaddr_t)info;
-
-	/*
-	 * Store the fdt after the boot_info and store the pointer in the
-	 * first element.
-	 */
-	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
-	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
-	info->nvp[0].value = *va + info_size;
-	info->nvp[0].size = fdt_size;
-	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
-	*fdt_copy = (void *)info->nvp[0].value;
-
-	return TEE_SUCCESS;
-}
-
 static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
 {
 	struct sp_session *last = NULL;
@@ -417,6 +360,101 @@ static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
+{
+	int len = 0;
+	const fdt32_t *prop = NULL;
+	int i = 0;
+	const struct fdt_property *description = NULL;
+	int description_name_len = 0;
+	uint32_t uuid_array[4] = { 0 };
+	TEE_UUID fdt_uuid = { };
+
+	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
+		EMSG("Failed loading SP, manifest not found");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	description = fdt_get_property(fdt, 0, "description",
+				       &description_name_len);
+	if (description)
+		DMSG("Loading SP: %s", description->data);
+
+	prop = fdt_getprop(fdt, 0, "uuid", &len);
+	if (!prop || len != 16) {
+		EMSG("Missing or invalid UUID in SP manifest");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	for (i = 0; i < 4; i++)
+		uuid_array[i] = fdt32_to_cpu(prop[i]);
+	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
+
+	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
+		EMSG("Failed loading SP, UUID mismatch");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	return TEE_SUCCESS;
+}
+
+/*
+ * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
+ * the fdt into the allocated page(s) and return a pointer to the new location
+ * of the fdt. This pointer can be used to update data inside the fdt.
+ */
+static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
+			       const void * const input_fdt, vaddr_t *va,
+			       size_t *num_pgs, void **fdt_copy)
+{
+	struct sp_ffa_init_info *info = NULL;
+	int nvp_count = 1;
+	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
+	size_t info_size = sizeof(*info) + nvp_size;
+	size_t fdt_size = fdt_totalsize(input_fdt);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
+	struct fobj *f = NULL;
+	struct mobj *m = NULL;
+	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
+
+	*num_pgs = ROUNDUP(fdt_size + info_size, SMALL_PAGE_SIZE) /
+		   SMALL_PAGE_SIZE;
+
+	f = fobj_sec_mem_alloc(*num_pgs);
+	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
+
+	fobj_put(f);
+	if (!m)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = vm_map(&ctx->uctx, va, fdt_size + info_size,
+		     perm, 0, m, 0);
+	mobj_put(m);
+	if (res)
+		return res;
+
+	info = (struct sp_ffa_init_info *)*va;
+
+	/* magic field is 4 bytes, we don't copy /0 byte. */
+	memcpy(&info->magic, "FF-A", 4);
+	info->count = nvp_count;
+	args->a0 = (vaddr_t)info;
+
+	/*
+	 * Store the fdt after the boot_info and store the pointer in the
+	 * first element.
+	 */
+	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
+	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
+	info->nvp[0].value = *va + info_size;
+	info->nvp[0].size = fdt_size;
+	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
+	*fdt_copy = (void *)info->nvp[0].value;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
@@ -599,44 +637,6 @@ err_unmap:
 	return res;
 }
 
-static TEE_Result handle_fdt(const void * const fdt, const TEE_UUID *uuid)
-{
-	int len = 0;
-	const fdt32_t *prop = NULL;
-	int i = 0;
-	const struct fdt_property *description = NULL;
-	int description_name_len = 0;
-	uint32_t uuid_array[4] = { 0 };
-	TEE_UUID fdt_uuid = { };
-
-	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
-		EMSG("Failed loading SP, manifest not found");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	description = fdt_get_property(fdt, 0, "description",
-				       &description_name_len);
-	if (description)
-		DMSG("Loading SP: %s", description->data);
-
-	prop = fdt_getprop(fdt, 0, "uuid", &len);
-	if (!prop || len != 16) {
-		EMSG("Missing or invalid UUID in SP manifest");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	for (i = 0; i < 4; i++)
-		uuid_array[i] = fdt32_to_cpu(prop[i]);
-	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
-
-	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
-		EMSG("Failed loading SP, UUID mismatch");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -653,7 +653,7 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	if (res)
 		return res;
 
-	res = handle_fdt(fdt, uuid);
+	res = check_fdt(fdt, uuid);
 	if (res)
 		return res;
 
