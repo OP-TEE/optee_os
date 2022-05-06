@@ -38,6 +38,7 @@
 #define TEE_MAIN_ALGO_HKDF       0xC0 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_CONCAT_KDF 0xC1 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_PBKDF2     0xC2 /* OP-TEE extension */
+#define TEE_MAIN_ALGO_X25519     0x44 /* Not in v1.2 spec */
 
 
 #define TEE_CHAIN_MODE_ECB_NOPAD        0x0
@@ -75,6 +76,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 		return TEE_MAIN_ALGO_SM2_PKE;
 	case TEE_ALG_SM2_KEP:
 		return TEE_MAIN_ALGO_SM2_KEP;
+	case TEE_ALG_X25519:
+		return TEE_MAIN_ALGO_X25519;
 	default:
 		break;
 	}

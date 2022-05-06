@@ -199,6 +199,7 @@
 #define TEE_ALG_ECDH_P521                       0x80005042
 #define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_SM3                             0x50000007
+#define TEE_ALG_X25519                          0x80000044
 #define TEE_ALG_ILLEGAL_VALUE                   0xEFFFFFFF
 
 /* Object Types */
@@ -232,6 +233,8 @@
 #define TEE_TYPE_GENERIC_SECRET             0xA0000000
 #define TEE_TYPE_CORRUPTED_OBJECT           0xA00000BE
 #define TEE_TYPE_DATA                       0xA00000BF
+#define TEE_TYPE_X25519_PUBLIC_KEY          0xA0000044
+#define TEE_TYPE_X25519_KEYPAIR             0xA1000044
 
 /* List of Object or Operation Attributes */
 
@@ -268,6 +271,8 @@
 #define TEE_ATTR_SM2_KEP_CONFIRMATION_OUT   0xD0000846
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000946 /* Missing in 1.2.1 */
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000A46 /* Missing in 1.2.1 */
+#define TEE_ATTR_X25519_PUBLIC_VALUE        0xD0000944
+#define TEE_ATTR_X25519_PRIVATE_VALUE       0xC0000A44
 
 #define TEE_ATTR_FLAG_PUBLIC		(1 << 28)
 #define TEE_ATTR_FLAG_VALUE		(1 << 29)
@@ -288,8 +293,8 @@
 #define TEE_ECC_CURVE_NIST_P256             0x00000003
 #define TEE_ECC_CURVE_NIST_P384             0x00000004
 #define TEE_ECC_CURVE_NIST_P521             0x00000005
+#define TEE_ECC_CURVE_25519                 0x00000300
 #define TEE_ECC_CURVE_SM2                   0x00000400
-
 
 /* Panicked Functions Identification */
 /* TA Interface */
