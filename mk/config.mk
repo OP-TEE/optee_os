@@ -446,6 +446,9 @@ endif
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
 
+# Maximum size of the init info data passed to Secure Partitions.
+CFG_SP_INIT_INFO_MAX_SIZE ?= 0x1000
+
 # Device Tree Overlay support.
 # CFG_EXTERNAL_DTB_OVERLAY allows to append a DTB overlay into an existing
 # external DTB. The overlay is created when no valid DTB overlay is found.
