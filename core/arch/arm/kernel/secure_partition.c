@@ -418,17 +418,17 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 {
 	struct sp_ffa_init_info *info = NULL;
 	int nvp_count = 1;
+	size_t total_size = ROUNDUP(CFG_SP_INIT_INFO_MAX_SIZE, SMALL_PAGE_SIZE);
 	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
 	size_t info_size = sizeof(*info) + nvp_size;
-	size_t fdt_size = fdt_totalsize(input_fdt);
+	size_t fdt_size = total_size - info_size;
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
 	struct fobj *f = NULL;
 	struct mobj *m = NULL;
 	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
 
-	*num_pgs = ROUNDUP(fdt_size + info_size, SMALL_PAGE_SIZE) /
-		   SMALL_PAGE_SIZE;
+	*num_pgs = total_size / SMALL_PAGE_SIZE;
 
 	f = fobj_sec_mem_alloc(*num_pgs);
 	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
@@ -437,8 +437,7 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	if (!m)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = vm_map(&ctx->uctx, va, fdt_size + info_size,
-		     perm, 0, m, 0);
+	res = vm_map(&ctx->uctx, va, total_size, perm, 0, m, 0);
 	mobj_put(m);
 	if (res)
 		return res;
@@ -458,8 +457,10 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
 	info->nvp[0].value = *va + info_size;
 	info->nvp[0].size = fdt_size;
-	memcpy((void *)info->nvp[0].value, input_fdt, fdt_size);
 	*fdt_copy = (void *)info->nvp[0].value;
+
+	if (fdt_open_into(input_fdt, *fdt_copy, fdt_size))
+		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
 }
@@ -573,6 +574,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
 	int subnode = 0;
+	tee_mm_entry_t *mm = NULL;
 	TEE_Result res = TEE_SUCCESS;
 
 	/*
@@ -585,6 +587,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		return TEE_SUCCESS;
 
 	fdt_for_each_subnode(subnode, fdt, node) {
+		bool alloc_needed = false;
 		uint32_t attributes = 0;
 		uint64_t base_addr = 0;
 		uint32_t pages_cnt = 0;
@@ -595,15 +598,16 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		size_t size = 0;
 		vaddr_t va = 0;
 
+		mm = NULL;
+
 		/*
 		 * Base address of a memory region.
+		 * If not present, we have to allocate the specified memory.
 		 * If present, this field could specify a PA or VA. Currently
 		 * only a PA is supported.
 		 */
-		if (sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
-			EMSG("Mandatory field is missing: base-address");
-			return TEE_ERROR_BAD_FORMAT;
-		}
+		if (sp_dt_get_u64(fdt, subnode, "base-address", &base_addr))
+			alloc_needed = true;
 
 		/* Size of memory region as count of 4K pages */
 		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
@@ -649,29 +653,51 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		/*
 		 * The SP is a secure endpoint, security attribute can be
 		 * secure or non-secure.
+		 * The SPMC cannot allocate non-secure memory, i.e. if the base
+		 * address is missing this attribute must be secure.
 		 */
-		if (attributes & SP_MANIFEST_ATTR_NSEC)
+		if (attributes & SP_MANIFEST_ATTR_NSEC) {
+			if (alloc_needed) {
+				EMSG("Invalid memory security attribute");
+				return TEE_ERROR_BAD_FORMAT;
+			}
 			is_secure = false;
+		}
+
+		if (alloc_needed) {
+			/* Base address is missing, we have to allocate */
+			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			if (!mm)
+				return TEE_ERROR_OUT_OF_MEMORY;
+
+			base_addr = tee_mm_get_smem(mm);
+		}
 
 		m = sp_mem_new_mobj(pages_cnt, TEE_MATTR_MEM_TYPE_CACHED,
 				    is_secure);
-		if (!m)
-			return TEE_ERROR_OUT_OF_MEMORY;
+		if (!m) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err_mm_free;
+		}
 
 		res = sp_mem_add_pages(m, &idx, base_addr, pages_cnt);
 		if (res) {
 			mobj_put(m);
-			return res;
+			goto err_mm_free;
 		}
 
 		res = vm_map(&ctx->uctx, &va, size, perm, 0, m, 0);
 		mobj_put(m);
 		if (res)
-			return res;
+			goto err_mm_free;
 
 		/*
 		 * Overwrite the memory region's base address in the fdt with
 		 * the VA. This fdt will be passed to the SP.
+		 * If the base-address field was not present in the original
+		 * fdt, this function will create it. This doesn't cause issues
+		 * since the necessary extra space has been allocated when
+		 * opening the fdt.
 		 */
 		res = fdt_setprop_u64(fdt, subnode, "base-address", va);
 
@@ -681,11 +707,15 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		 */
 		if (res) {
 			vm_unmap(&ctx->uctx, va, size);
-			return res;
+			goto err_mm_free;
 		}
 	}
 
 	return TEE_SUCCESS;
+
+err_mm_free:
+	tee_mm_free(mm);
+	return res;
 }
 
 static TEE_Result handle_tpm_event_log(struct sp_ctx *ctx, void *fdt)
