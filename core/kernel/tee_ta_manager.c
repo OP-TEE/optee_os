@@ -740,7 +740,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	if (!res)
 		*sess = s;
 	else
-		EMSG("Failed. Return error 0x%x", res);
+		EMSG("Failed for TA %pUl. Return error %#"PRIx32, uuid, res);
 
 	return res;
 }
