@@ -8,7 +8,9 @@
 
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/sec_proxy.h>
 #include <drivers/serial8250_uart.h>
+#include <drivers/ti_sci.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
@@ -18,11 +20,6 @@
 #include <platform_config.h>
 #include <stdint.h>
 #include <string_ext.h>
-
-#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
-#include "drivers/sec_proxy.h"
-#include "drivers/ti_sci.h"
-#endif
 
 static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
@@ -61,30 +58,39 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static TEE_Result init_ti_sci(void)
 {
-	uint8_t dkek[SA2UL_DKEK_KEY_LEN] = { 0 };
-	int ret = 0;
-
-	assert(SA2UL_DKEK_KEY_LEN >= HW_UNIQUE_KEY_LENGTH);
+	TEE_Result ret = TEE_SUCCESS;
 
 	ret = k3_sec_proxy_init();
-	if (ret)
+	if (ret != TEE_SUCCESS)
 		return ret;
 
 	ret = ti_sci_init();
 	if (ret)
-		return ret;
+		return TEE_ERROR_GENERIC;
 
-	ret = ti_sci_get_dkek(0, "OP-TEE", "DKEK", dkek);
-	if (ret)
-		return ret;
-
-	IMSG("HUK Initialized");
-	memcpy(&hwkey->data[0], dkek, sizeof(hwkey->data));
-
-	memzero_explicit(&dkek, sizeof(dkek));
 	return TEE_SUCCESS;
 }
-#endif
+service_init(init_ti_sci);
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	uint8_t dkek[SA2UL_DKEK_KEY_LEN] = { };
+	int ret = 0;
+
+	assert(SA2UL_DKEK_KEY_LEN >= HW_UNIQUE_KEY_LENGTH);
+
+	ret = ti_sci_get_dkek(0, "OP-TEE", "DKEK", dkek);
+	if (ret) {
+		EMSG("Could not get HUK");
+		return TEE_ERROR_SECURITY;
+	}
+
+	memcpy(&hwkey->data[0], dkek, sizeof(hwkey->data));
+	memzero_explicit(&dkek, sizeof(dkek));
+
+	IMSG("HUK Initialized");
+
+	return TEE_SUCCESS;
+}
