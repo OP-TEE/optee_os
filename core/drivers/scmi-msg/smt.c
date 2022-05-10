@@ -54,12 +54,12 @@ struct smt_header {
 #define SMT_MSG_PROT_ID_MASK		GENMASK_32(17, 10)
 #define SMT_HDR_PROT_ID(_hdr)		(((_hdr) & SMT_MSG_PROT_ID_MASK) >> 10)
 
-static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
+static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *channel)
 {
-	if (!chan)
+	if (!channel)
 		return NULL;
 
-	return (struct smt_header *)io_pa_or_va(&chan->shm_addr,
+	return (struct smt_header *)io_pa_or_va(&channel->shm_addr,
 						sizeof(struct smt_header));
 }
 
@@ -71,26 +71,26 @@ static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
  */
 static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 {
-	struct scmi_msg_channel *chan = NULL;
+	struct scmi_msg_channel *channel = NULL;
 	struct smt_header *smt_hdr = NULL;
 	size_t in_payload_size = 0;
 	uint32_t smt_status = 0;
 	struct scmi_msg msg = { };
 	bool error = true;
 
-	chan = plat_scmi_get_channel(channel_id);
-	if (!chan) {
+	channel = plat_scmi_get_channel(channel_id);
+	if (!channel) {
 		DMSG("Invalid channel ID %u", channel_id);
 		return;
 	}
 
-	smt_hdr = channel_to_smt_hdr(chan);
+	smt_hdr = channel_to_smt_hdr(channel);
 	if (!smt_hdr) {
 		DMSG("No shared buffer for channel ID %u", channel_id);
 		return;
 	}
 
-	if (!scmi_msg_claim_channel(chan)) {
+	if (!scmi_msg_claim_channel(channel)) {
 		DMSG("SCMI channel %u busy", channel_id);
 		goto out;
 	}
@@ -115,7 +115,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	msg.in = (char *)payload_buf;
 	msg.in_size = in_payload_size;
 	msg.out = (char *)smt_hdr->payload;
-	msg.out_size = chan->shm_size - sizeof(*smt_hdr);
+	msg.out_size = channel->shm_size - sizeof(*smt_hdr);
 
 	assert(msg.out && msg.out_size >= sizeof(int32_t));
 
@@ -131,7 +131,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	/* Update message length with the length of the response message */
 	smt_hdr->length = msg.out_size_out + sizeof(smt_hdr->message_header);
 
-	scmi_msg_release_channel(chan);
+	scmi_msg_release_channel(channel);
 	error = false;
 
 out:
@@ -176,9 +176,9 @@ void scmi_smt_threaded_entry(unsigned int channel_id)
 #endif
 
 /* Init a SMT header for a shared memory buffer: state it a free/no-error */
-void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan)
+void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel)
 {
-	struct smt_header *smt_header = channel_to_smt_hdr(chan);
+	struct smt_header *smt_header = channel_to_smt_hdr(channel);
 
 	static_assert(SCMI_SEC_PAYLOAD_SIZE + sizeof(struct smt_header) <=
 		      SMT_BUF_SLOT_SIZE &&
