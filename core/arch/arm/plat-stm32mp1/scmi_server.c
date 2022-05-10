@@ -458,7 +458,7 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
 	assert(rd->rstctrl);
 
@@ -489,7 +489,7 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
 	assert(rd->rstctrl);
 
@@ -875,7 +875,8 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 			rstctrl = stm32mp_rcc_reset_id_to_rstctrl(rd->reset_id);
 			assert(rstctrl);
 			if (rstctrl_get_exclusive(rstctrl))
-				panic();
+				continue;
+
 			rd->rstctrl = rstctrl;
 		}
 
