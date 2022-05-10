@@ -19,6 +19,9 @@
 #define TI_SCI_MSG_SET_DEVICE_STATE      0x0200
 
 /* Security Management Messages */
+#define TI_SCI_MSG_FWL_SET               0x9000
+#define TI_SCI_MSG_FWL_GET               0x9001
+#define TI_SCI_MSG_FWL_CHANGE_OWNER      0x9002
 #define TI_SCI_MSG_SA2UL_GET_DKEK        0x9029
 
 /**
@@ -137,6 +140,128 @@ struct ti_sci_msg_req_set_device_state {
  */
 struct ti_sci_msg_resp_set_device_state {
 	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+#define FWL_MAX_PRIVID_SLOTS 3U
+
+/**
+ * struct ti_sci_msg_req_fwl_set_firewall_region - Set firewall permissions
+ * @hdr:		Generic Header
+ * @fwl_id:		Firewall ID
+ * @region:		Region or channel number to set config info.
+ *			This field is unused in case of a simple firewall and
+ *			must be initialized to zero.  In case of a region based
+ *			firewall, this field indicates the region (index
+ *			starting from 0). In case of a channel based firewall,
+ *			this field indicates the channel (index starting
+ *			from 0).
+ * @n_permission_regs:	Number of permission registers to set
+ * @control:		Contents of the firewall CONTROL register to set
+ * @permissions:	Contents of the firewall PERMISSION register to set
+ * @start_address:	Contents of the firewall START_ADDRESS register to set
+ * @end_address:	Contents of the firewall END_ADDRESS register to set
+ */
+struct ti_sci_msg_req_fwl_set_firewall_region {
+	struct ti_sci_msg_hdr hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint32_t n_permission_regs;
+	uint32_t control;
+	uint32_t permissions[FWL_MAX_PRIVID_SLOTS];
+	uint64_t start_address;
+	uint64_t end_address;
+} __packed;
+
+struct ti_sci_msg_resp_fwl_set_firewall_region {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_fwl_get_firewall_region - Retrieve firewall permissions
+ * @hdr:		Generic Header
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number to set config info.
+ *			This field is unused in case of a simple firewall and
+ *			must be initialized to zero.  In case of a region based
+ *			firewall, this field indicates the region (index
+ *			starting from 0). In case of a channel based firewall,
+ *			this field indicates the channel (index starting
+ *			from 0).
+ * @n_permission_regs:	Number of permission registers to retrieve
+ */
+struct ti_sci_msg_req_fwl_get_firewall_region {
+	struct ti_sci_msg_hdr hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint32_t n_permission_regs;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_fwl_get_firewall_region - Response for retrieving the
+ *						    firewall permissions
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number to set config info.
+ *			This field is unused in case of a simple firewall and
+ *			must be initialized to zero.  In case of a region based
+ *			firewall, this field indicates the region (index
+ *			starting from 0). In case of a channel based firewall,
+ *			this field indicates the channel (index starting
+ *			from 0).
+ * @n_permission_regs:	Number of permission registers retrieved
+ * @control:		Contents of the firewall CONTROL register
+ * @permissions:	Contents of the firewall PERMISSION registers
+ * @start_address:	Contents of the firewall START_ADDRESS register
+ * @end_address:	Contents of the firewall END_ADDRESS register
+ */
+struct ti_sci_msg_resp_fwl_get_firewall_region {
+	struct ti_sci_msg_hdr hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint32_t n_permission_regs;
+	uint32_t control;
+	uint32_t permissions[FWL_MAX_PRIVID_SLOTS];
+	uint64_t start_address;
+	uint64_t end_address;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_fwl_change_owner_info - Request change firewall owner
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID in question
+ * @region:		Region or channel number if applicable
+ * @owner_index:	New owner index to transfer ownership to
+ */
+struct ti_sci_msg_req_fwl_change_owner_info {
+	struct ti_sci_msg_hdr hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint8_t owner_index;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_fwl_change_owner_info - Response for change
+ *						  firewall owner
+ *
+ * @hdr:		Generic Header
+ *
+ * @fwl_id:		Firewall ID specified in request
+ * @region:		Region or channel number specified in request
+ * @owner_index:	Owner index specified in request
+ * @owner_privid:	New owner priv-ID returned by DMSC.
+ * @owner_permission_bits:	New owner permission bits returned by DMSC.
+ */
+struct ti_sci_msg_resp_fwl_change_owner_info {
+	struct ti_sci_msg_hdr hdr;
+	uint16_t fwl_id;
+	uint16_t region;
+	uint8_t owner_index;
+	uint8_t owner_privid;
+	uint16_t owner_permission_bits;
 } __packed;
 
 /**

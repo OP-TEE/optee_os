@@ -7,6 +7,7 @@
  *	Manorit Chawdhry <m-chawdhry@ti.com>
  */
 
+#include <assert.h>
 #include <malloc.h>
 #include <platform_config.h>
 #include <string.h>
@@ -211,6 +212,109 @@ int ti_sci_device_get(uint32_t id)
 int ti_sci_device_put(uint32_t id)
 {
 	return ti_sci_device_set_state(id, 0, MSG_DEVICE_SW_STATE_AUTO_OFF);
+}
+
+int ti_sci_set_fwl_region(uint16_t fwl_id, uint16_t region,
+			  uint32_t n_permission_regs, uint32_t control,
+			  const uint32_t permissions[FWL_MAX_PRIVID_SLOTS],
+			  uint64_t start_address, uint64_t end_address)
+{
+	struct ti_sci_msg_req_fwl_set_firewall_region req = { };
+	struct ti_sci_msg_resp_fwl_set_firewall_region resp = { };
+	struct ti_sci_xfer xfer = { };
+	unsigned int i = 0;
+	int ret = 0;
+
+	assert(n_permission_regs <= FWL_MAX_PRIVID_SLOTS);
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_FWL_SET, 0,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.fwl_id = fwl_id;
+	req.region = region;
+	req.n_permission_regs = n_permission_regs;
+	req.control = control;
+	for (i = 0; i < n_permission_regs; i++)
+		req.permissions[i] = permissions[i];
+	req.start_address = start_address;
+	req.end_address = end_address;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int ti_sci_get_fwl_region(uint16_t fwl_id, uint16_t region,
+			  uint32_t n_permission_regs, uint32_t *control,
+			  uint32_t permissions[FWL_MAX_PRIVID_SLOTS],
+			  uint64_t *start_address, uint64_t *end_address)
+{
+	struct ti_sci_msg_req_fwl_get_firewall_region req = { };
+	struct ti_sci_msg_resp_fwl_get_firewall_region resp = { };
+	struct ti_sci_xfer xfer = { };
+	unsigned int i = 0;
+	int ret = 0;
+
+	assert(n_permission_regs <= FWL_MAX_PRIVID_SLOTS);
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_FWL_GET, 0,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.fwl_id = fwl_id;
+	req.region = region;
+	req.n_permission_regs = n_permission_regs;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	*control = resp.control;
+	for (i = 0; i < n_permission_regs; i++)
+		permissions[i] = resp.permissions[i];
+	*start_address = resp.start_address;
+	*end_address = resp.end_address;
+
+	return 0;
+}
+
+int ti_sci_change_fwl_owner(uint16_t fwl_id, uint16_t region,
+			    uint8_t owner_index, uint8_t *owner_privid,
+			    uint16_t *owner_permission_bits)
+{
+	struct ti_sci_msg_req_fwl_change_owner_info req = { };
+	struct ti_sci_msg_resp_fwl_change_owner_info resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_FWL_CHANGE_OWNER, 0,
+				&req, sizeof(req),
+				&resp, sizeof(resp),
+				&xfer);
+	if (ret)
+		return ret;
+
+	req.fwl_id = fwl_id;
+	req.region = region;
+	req.owner_index = owner_index;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	*owner_privid = resp.owner_privid;
+	*owner_permission_bits = resp.owner_permission_bits;
+
+	return 0;
 }
 
 /**
