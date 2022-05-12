@@ -15,6 +15,9 @@
 #define CONSOLE_BAUDRATE        115200
 #define CONSOLE_UART_CLK_IN_HZ  48000000
 
+#define DRAM0_BASE      0x80000000
+#define DRAM0_SIZE      0x80000000
+
 #define SCU_BASE        0x01800000
 #if defined(PLATFORM_FLAVOR_j721e)
 #define GICC_OFFSET     0x100000
