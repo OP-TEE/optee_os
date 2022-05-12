@@ -36,6 +36,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_DATA_BASE,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_SCFG_BASE,
 			SEC_PROXY_SCFG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_RT_BASE, SEC_PROXY_RT_SIZE);
+register_ddr(DRAM0_BASE, DRAM0_SIZE);
 
 void main_init_gic(void)
 {
