@@ -163,7 +163,8 @@ static void discover_list_protocols(struct scmi_msg *msg)
 	memcpy(outargs, &p2a, sizeof(p2a));
 	memcpy(outargs + sizeof(p2a), list + a2p->skip, count);
 
-	scmi_write_response(msg, outargs, sizeof(outargs));
+	scmi_write_response(msg, outargs,
+			    sizeof(p2a) + ROUNDUP(count, sizeof(uint32_t)));
 }
 
 static const scmi_msg_handler_t scmi_base_handler_table[] = {
