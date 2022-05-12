@@ -3081,5 +3081,5 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 
 bool __weak plat_rpmb_key_is_ready(void)
 {
-	return true;
+	return false;
 }
