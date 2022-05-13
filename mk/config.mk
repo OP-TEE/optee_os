@@ -128,10 +128,11 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
 CFG_OPTEE_REVISION_MINOR ?= 17
+CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
 TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || \
-		      echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))
+		      echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))$(CFG_OPTEE_REVISION_EXTRA)
 ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
 TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=8 HEAD 2>/dev/null || echo 0)
 else
