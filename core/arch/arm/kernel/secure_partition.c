@@ -36,6 +36,15 @@
 #define SP_MANIFEST_ATTR_EXEC		BIT(2)
 #define SP_MANIFEST_ATTR_NSEC		BIT(3)
 
+#define SP_MANIFEST_ATTR_RO		(SP_MANIFEST_ATTR_READ)
+#define SP_MANIFEST_ATTR_RW		(SP_MANIFEST_ATTR_READ | \
+					 SP_MANIFEST_ATTR_WRITE)
+#define SP_MANIFEST_ATTR_RX		(SP_MANIFEST_ATTR_READ | \
+					 SP_MANIFEST_ATTR_EXEC)
+#define SP_MANIFEST_ATTR_RWX		(SP_MANIFEST_ATTR_READ  | \
+					 SP_MANIFEST_ATTR_WRITE | \
+					 SP_MANIFEST_ATTR_EXEC)
+
 const struct ts_ops sp_ops;
 
 /* List that holds all of the loaded SP's */
@@ -503,20 +512,16 @@ static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 			return TEE_ERROR_BAD_FORMAT;
 		}
 
-		/* Instruction access permission must be not executable */
-		if (attributes & SP_MANIFEST_ATTR_EXEC) {
-			EMSG("Invalid instruction access permission");
-			return TEE_ERROR_BAD_FORMAT;
-		}
-
-		/* Data access permission must be read-only or read/write */
-		if (attributes & SP_MANIFEST_ATTR_READ) {
+		/* Check instruction and data access permissions */
+		switch (attributes & SP_MANIFEST_ATTR_RWX) {
+		case SP_MANIFEST_ATTR_RO:
 			perm = TEE_MATTR_UR;
-
-			if (attributes & SP_MANIFEST_ATTR_WRITE)
-				perm |= TEE_MATTR_UW;
-		} else {
-			EMSG("Invalid data access permissions");
+			break;
+		case SP_MANIFEST_ATTR_RW:
+			perm = TEE_MATTR_URW;
+			break;
+		default:
+			EMSG("Invalid memory access permissions");
 			return TEE_ERROR_BAD_FORMAT;
 		}
 
