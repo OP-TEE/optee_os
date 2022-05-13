@@ -651,6 +651,14 @@ TEE_Result dcp_sha_do_final(struct dcp_hash_data *hashdata, uint8_t *digest,
 	return ret;
 }
 
+void dcp_disable_unique_key(void)
+{
+	dcp_clk_enable(true);
+	io_setbits32(dcp_base + DCP_CAPABILITY0,
+		     DCP_CAPABILITY0_DISABLE_UNIQUE_KEY);
+	dcp_clk_enable(false);
+}
+
 #ifdef CFG_DT
 static const char *const dt_ctrl_match_table[] = {
 	"fsl,imx28-dcp",
