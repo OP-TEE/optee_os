@@ -569,6 +569,125 @@ static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
+{
+	int node = 0;
+	int subnode = 0;
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * Memory regions are optional in the SP manifest, it's not an error if
+	 * we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0,
+					     "arm,ffa-manifest-memory-regions");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		uint32_t attributes = 0;
+		uint64_t base_addr = 0;
+		uint32_t pages_cnt = 0;
+		bool is_secure = true;
+		struct mobj *m = NULL;
+		unsigned int idx = 0;
+		uint32_t perm = 0;
+		size_t size = 0;
+		vaddr_t va = 0;
+
+		/*
+		 * Base address of a memory region.
+		 * If present, this field could specify a PA or VA. Currently
+		 * only a PA is supported.
+		 */
+		if (sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
+			EMSG("Mandatory field is missing: base-address");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Size of memory region as count of 4K pages */
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
+			EMSG("Mandatory field is missing: pages-count");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (MUL_OVERFLOW(pages_cnt, SMALL_PAGE_SIZE, &size))
+			return TEE_ERROR_OVERFLOW;
+
+		/*
+		 * Memory region attributes:
+		 * - Instruction/data access permissions
+		 * - Cacheability/shareability attributes
+		 * - Security attributes
+		 *
+		 * Cacheability/shareability attributes can be ignored for now.
+		 * OP-TEE only supports a single type for normal cached memory
+		 * and currently there is no use case that would require to
+		 * change this.
+		 */
+		if (sp_dt_get_u32(fdt, subnode, "attributes", &attributes)) {
+			EMSG("Mandatory field is missing: attributes");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Check instruction and data access permissions */
+		switch (attributes & SP_MANIFEST_ATTR_RWX) {
+		case SP_MANIFEST_ATTR_RO:
+			perm = TEE_MATTR_UR;
+			break;
+		case SP_MANIFEST_ATTR_RW:
+			perm = TEE_MATTR_URW;
+			break;
+		case SP_MANIFEST_ATTR_RX:
+			perm = TEE_MATTR_URX;
+			break;
+		default:
+			EMSG("Invalid memory access permissions");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/*
+		 * The SP is a secure endpoint, security attribute can be
+		 * secure or non-secure.
+		 */
+		if (attributes & SP_MANIFEST_ATTR_NSEC)
+			is_secure = false;
+
+		m = sp_mem_new_mobj(pages_cnt, TEE_MATTR_MEM_TYPE_CACHED,
+				    is_secure);
+		if (!m)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		res = sp_mem_add_pages(m, &idx, base_addr, pages_cnt);
+		if (res) {
+			mobj_put(m);
+			return res;
+		}
+
+		res = vm_map(&ctx->uctx, &va, size, perm, 0, m, 0);
+		mobj_put(m);
+		if (res)
+			return res;
+
+		/*
+		 * Overwrite the memory region's base address in the fdt with
+		 * the VA. This fdt will be passed to the SP.
+		 */
+		res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+
+		/*
+		 * Unmap the region if the overwrite failed since the SP won't
+		 * be able to access it without knowing the VA.
+		 */
+		if (res) {
+			vm_unmap(&ctx->uctx, va, size);
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result handle_tpm_event_log(struct sp_ctx *ctx, void *fdt)
 {
 	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
@@ -670,6 +789,10 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 		goto out;
 
 	res = handle_fdt_dev_regions(ctx, fdt_copy);
+	if (res)
+		goto out;
+
+	res = handle_fdt_mem_regions(ctx, fdt_copy);
 	if (res)
 		goto out;
 
