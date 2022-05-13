@@ -34,6 +34,7 @@ static struct {
  */
 static TEE_Result dcp_generate_huk(struct tee_hw_unique_key *hwkey)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dcp_cipher_init init = {
 		.key_mode = DCP_OTP,
 		.mode = DCP_ECB,
@@ -56,7 +57,11 @@ static TEE_Result dcp_generate_huk(struct tee_hw_unique_key *hwkey)
 						   'p',
 						   HUK_SIZE_BITS };
 
-	return dcp_cmac(&init, content, DCP_AES128_BLOCK_SIZE, hwkey->data);
+	res = dcp_cmac(&init, content, DCP_AES128_BLOCK_SIZE, hwkey->data);
+
+	dcp_disable_unique_key();
+
+	return res;
 }
 
 TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
