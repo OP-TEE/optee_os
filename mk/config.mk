@@ -724,7 +724,7 @@ CFG_SCMI_MSG_THREAD_ENTRY ?= n
 CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT))
-$(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
+$(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT))
 endif
 
 # Enable SCMI PTA interface for REE SCMI agents
