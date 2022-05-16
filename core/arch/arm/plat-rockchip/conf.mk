@@ -58,6 +58,5 @@ endif
 ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
-$(call force,CFG_WITH_LPAE,y)
 ta-targets = ta_arm64
 endif

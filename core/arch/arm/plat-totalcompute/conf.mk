@@ -16,7 +16,6 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_PM_STUBS,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_ARM64_core,y)
-$(call force,CFG_WITH_LPAE,y)
 
 ifeq ($(platform-debugger-arm),1)
 # ARM debugger needs this

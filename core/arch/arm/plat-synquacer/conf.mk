@@ -14,7 +14,6 @@ CFG_SHMEM_SIZE ?= 0x00400000
 
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
-$(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_ARM64_core,y)
 supported-ta-targets = ta_arm64
 

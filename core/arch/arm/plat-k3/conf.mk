@@ -18,9 +18,7 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
+ifneq ($(CFG_ARM64_core),y)
 $(call force,CFG_ARM32_core,y)
 endif
 
