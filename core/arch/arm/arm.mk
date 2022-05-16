@@ -26,6 +26,9 @@ CFG_MMAP_REGIONS ?= 13
 CFG_RESERVED_VASPACE_SIZE ?= (1024 * 1024 * 10)
 
 ifeq ($(CFG_ARM64_core),y)
+ifeq ($(CFG_ARM32_core),y)
+$(error CFG_ARM64_core and CFG_ARM32_core cannot be both 'y')
+endif
 CFG_KERN_LINKER_FORMAT ?= elf64-littleaarch64
 CFG_KERN_LINKER_ARCH ?= aarch64
 # TCR_EL1.IPS needs to be initialized according to the largest physical
@@ -37,12 +40,9 @@ CFG_KERN_LINKER_ARCH ?= aarch64
 CFG_CORE_ARM64_PA_BITS ?= 32
 $(call force,CFG_WITH_LPAE,y)
 else
-ifeq ($(CFG_ARM32_core),y)
+$(call force,CFG_ARM32_core,y)
 CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
 CFG_KERN_LINKER_ARCH ?= arm
-else
-$(error Error: CFG_ARM64_core or CFG_ARM32_core should be defined)
-endif
 endif
 
 ifeq ($(CFG_TA_FLOAT_SUPPORT),y)
