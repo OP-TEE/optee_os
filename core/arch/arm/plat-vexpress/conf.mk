@@ -48,9 +48,7 @@ CFG_TPM_LOG_BASE_ADDR ?= 0x402c951
 CFG_TPM_MAX_LOG_SIZE ?= 0x200
 endif
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
+ifneq ($(CFG_ARM64_core),y)
 $(call force,CFG_ARM32_core,y)
 endif
 

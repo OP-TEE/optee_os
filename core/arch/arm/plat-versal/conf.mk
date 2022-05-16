@@ -28,7 +28,6 @@ CFG_SHMEM_SIZE     ?= 0x10000000
 
 ifeq ($(CFG_ARM64_core),y)
 $(call force,CFG_CORE_ARM64_PA_BITS,43)
-$(call force,CFG_WITH_LPAE,y)
 else
 $(call force,CFG_ARM32_core,y)
 endif

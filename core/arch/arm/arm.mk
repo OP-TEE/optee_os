@@ -35,6 +35,7 @@ CFG_KERN_LINKER_ARCH ?= aarch64
 # 36 bits, 64GB.
 # (etc.)
 CFG_CORE_ARM64_PA_BITS ?= 32
+$(call force,CFG_WITH_LPAE,y)
 else
 ifeq ($(CFG_ARM32_core),y)
 CFG_KERN_LINKER_FORMAT ?= elf32-littlearm
