@@ -8,10 +8,6 @@ $(call force,CFG_8250_UART,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
-ifneq ($(CFG_ARM64_core),y)
-$(call force,CFG_ARM32_core,y)
-endif
-
 # default DRAM base address
 CFG_DRAM_BASE ?= 0x40000000
 

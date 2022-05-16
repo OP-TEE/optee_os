@@ -143,7 +143,6 @@ endif
 CFG_NUM_THREADS ?= CFG_TEE_CORE_NB_CORE
 
 ifneq ($(CFG_ARM64_core),y)
-$(call force,CFG_ARM32_core,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 endif
 

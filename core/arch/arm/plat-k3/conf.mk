@@ -18,8 +18,4 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
-ifneq ($(CFG_ARM64_core),y)
-$(call force,CFG_ARM32_core,y)
-endif
-
 include core/arch/arm/cpu/cortex-armv8-0.mk
