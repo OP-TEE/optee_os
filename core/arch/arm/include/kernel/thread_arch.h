@@ -27,6 +27,8 @@
 #define THREAD_CORE_LOCAL_ALIGNED __aligned(8)
 #endif
 
+struct mobj;
+
 struct thread_core_local {
 #ifdef ARM32
 	uint32_t r[2];
