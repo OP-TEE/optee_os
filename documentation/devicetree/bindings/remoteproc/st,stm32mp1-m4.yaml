@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/remoteproc/st,stm32-rproc.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: STMicroelectronics STM32 remote processor controller bindings
+
+description:
+  This document defines the binding for the remoteproc driver that configures
+  the Cortex-M4 remote processor subsystem.
+
+maintainers:
+  - Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
+
+properties:
+  compatible:
+    description: the remote processor is managed by OP-TEE
+    const: st,stm32mp1-m4-tee
+
+  resets:
+    maxItems: 1
+
+  memory-region:
+    description:
+      List of phandles to the reserved memory regions associated with the
+      remoteproc device. This is variable and describes the memories used or
+      shared with the remote processor (e.g. remoteproc firmware, rpmsg
+      vrings, ...).
+
+required:
+  - compatible
+  - memory-region
+  - resets
+  - reset-names
+
+examples:
+  - |
+    remoteproc {
+      compatible = "st,stm32mp1-m4-tee";
+      memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&m_ipc_shm>;
+      resets = <&rcc MCU_R>, <&rcc MCU_HOLD_BOOT_R>;
+      reset-names = "mcu_rst", "hold_boot";
+    };
+...
