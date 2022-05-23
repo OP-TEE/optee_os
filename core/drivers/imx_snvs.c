@@ -207,7 +207,7 @@ bool plat_rpmb_key_is_ready(void)
 
 TEE_Result imx_snvs_set_master_otpmk(void)
 {
-	if (is_otpmk_valid())
+	if (!is_otpmk_valid())
 		return TEE_ERROR_BAD_STATE;
 
 	if (is_mks_locked()) {
