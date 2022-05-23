@@ -121,8 +121,8 @@ static enum snvs_security_cfg snvs_get_security_cfg(void)
 	vaddr_t base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
 				       SNVS_SIZE);
 
-	val = io_read32(base + SNVS_HPSR) &
-	      SNVS_HPSR_SYS_SECURITY_CFG >> SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
+	val = (io_read32(base + SNVS_HPSR) & SNVS_HPSR_SYS_SECURITY_CFG) >>
+	      SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
 
 	switch (val) {
 	case 0b0000:
@@ -149,8 +149,8 @@ static enum snvs_security_cfg snvs_get_security_cfg(void)
 	vaddr_t base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC,
 				       SNVS_SIZE);
 
-	val = io_read32(base + SNVS_HPSR) &
-	      SNVS_HPSR_SYS_SECURITY_CFG >> SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
+	val = (io_read32(base + SNVS_HPSR) & SNVS_HPSR_SYS_SECURITY_CFG) >>
+	      SNVS_HPSR_SYS_SECURITY_CFG_OFFSET;
 
 	switch (val) {
 	case 0b000:
