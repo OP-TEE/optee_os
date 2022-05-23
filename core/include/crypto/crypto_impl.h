@@ -403,4 +403,158 @@ drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /* CFG_CRYPTO_DRV_ECC */
+
+#if defined(CFG_CRYPTO_DRV_RSA) && !defined(CFG_NXP_SE05X)
+#define SW(__x) sw_## __x
+
+TEE_Result
+sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+				    size_t key_size_bits);
+TEE_Result
+sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+				       size_t key_size_bits);
+
+void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s);
+
+void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s);
+
+TEE_Result
+sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size);
+
+TEE_Result
+sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+				   const uint8_t *src, size_t src_len,
+					   uint8_t *dst, size_t *dst_len);
+TEE_Result
+sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+				   const uint8_t *src, size_t src_len,
+				   uint8_t *dst, size_t *dst_len);
+
+TEE_Result
+sw_crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
+				const uint8_t *label, size_t label_len,
+				const uint8_t *src, size_t src_len,
+				uint8_t *dst, size_t *dst_len);
+
+TEE_Result
+sw_crypto_acipher_rsaes_encrypt(uint32_t algo, struct rsa_public_key *key,
+				const uint8_t *label, size_t label_len,
+				const uint8_t *src, size_t src_len,
+				uint8_t *dst, size_t *dst_len);
+
+TEE_Result
+sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+			      int salt_len, const uint8_t *msg,
+			      size_t msg_len, uint8_t *sig, size_t *sig_len);
+
+TEE_Result
+sw_crypto_acipher_rsassa_verify(uint32_t algo, struct rsa_public_key *key,
+				int salt_len, const uint8_t *msg,
+				size_t msg_len, const uint8_t *sig,
+				size_t sig_len);
+#else
+#define SW(__x) __x
+
+static inline TEE_Result
+sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s __unused,
+				    size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s __unused,
+				       size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline void
+sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s __unused)
+{
+}
+
+static inline void
+sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s __unused)
+{
+}
+
+static inline TEE_Result
+sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key __unused,
+			      size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key __unused,
+				   const uint8_t *src __unused,
+				   size_t src_len __unused,
+				   uint8_t *dst __unused,
+				   size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key __unused,
+				   const uint8_t *src __unused,
+				   size_t src_len __unused,
+				   uint8_t *dst __unused,
+				   size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsaes_decrypt(uint32_t algo __unused,
+				struct rsa_keypair *key __unused,
+				const uint8_t *label __unused,
+				size_t label_len __unused,
+				const uint8_t *src __unused,
+				size_t src_len __unused,
+				uint8_t *dst __unused,
+				size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsaes_encrypt(uint32_t algo __unused,
+				struct rsa_public_key *key __unused,
+				const uint8_t *label __unused,
+				size_t label_len __unused,
+				const uint8_t *src __unused,
+				size_t src_len __unused,
+				uint8_t *dst __unused,
+				size_t *dst_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsassa_sign(uint32_t algo __unused,
+			      struct rsa_keypair *key __unused,
+			      int salt_len __unused,
+			      const uint8_t *msg __unused,
+			      size_t msg_len __unused,
+			      uint8_t *sig __unused,
+			      size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+sw_crypto_acipher_rsassa_verify(uint32_t algo __unused,
+				struct rsa_public_key *key __unused,
+				int salt_len __unused,
+				const uint8_t *msg __unused,
+				size_t msg_len __unused,
+				const uint8_t *sig __unused,
+				size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+#endif
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/
