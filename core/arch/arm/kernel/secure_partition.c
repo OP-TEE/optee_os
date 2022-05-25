@@ -807,6 +807,20 @@ static bool sp_handle_svc(struct thread_svc_regs *regs)
 	return false;
 }
 
+static void sp_dump_state(struct ts_ctx *ctx)
+{
+	struct sp_ctx *utc = to_sp_ctx(ctx);
+
+	if (utc->uctx.dump_entry_func) {
+		TEE_Result res = ldelf_dump_state(&utc->uctx);
+
+		if (!res || res == TEE_ERROR_TARGET_DEAD)
+			return;
+	}
+
+	user_mode_ctx_print_mappings(&utc->uctx);
+}
+
 /*
  * Note: this variable is weak just to ease breaking its dependency chain
  * when added to the unpaged area.
@@ -814,6 +828,7 @@ static bool sp_handle_svc(struct thread_svc_regs *regs)
 const struct ts_ops sp_ops __weak __relrodata_unpaged("sp_ops") = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
 	.handle_svc = sp_handle_svc,
+	.dump_state = sp_dump_state,
 };
 
 static TEE_Result sp_init_all(void)
