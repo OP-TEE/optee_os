@@ -21,6 +21,12 @@
 #define TEE_ERROR_DEFER_DRIVER_INIT	0x80000000
 
 /*
+ * TEE_ERROR_NODE_DISABLED - Device driver failed to initialize because it is
+ * not allocated for TEE environment.
+ */
+#define TEE_ERROR_NODE_DISABLED		0x80000001
+
+/*
  * HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
  */
 
