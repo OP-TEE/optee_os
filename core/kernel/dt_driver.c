@@ -358,6 +358,9 @@ static TEE_Result probe_driver_node(const void *fdt,
 		DMSG("element: %s on node %s deferred %u time(s)", drv_name,
 		     node_name, elt->deferrals);
 		break;
+	case TEE_ERROR_NODE_DISABLED:
+		DMSG("element: %s on node %s is disabled", drv_name, node_name);
+		break;
 	default:
 		TAILQ_INSERT_HEAD(&dt_driver_failed_list, elt, link);
 
