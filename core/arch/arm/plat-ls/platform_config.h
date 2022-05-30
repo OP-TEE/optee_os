@@ -60,6 +60,7 @@
 #define GICC_OFFSET			0x2000
 #define GICD_OFFSET			0x1000
 #define CAAM_BASE			0x01700000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1012ardb) || defined(PLATFORM_FLAVOR_ls1012afrwy)
@@ -69,6 +70,7 @@
 #define GICC_OFFSET			0x2000
 #define GICD_OFFSET			0x1000
 #define CAAM_BASE			0x01700000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1043ardb)
@@ -79,6 +81,7 @@
 #define GICC_OFFSET_REV1_1	0x20000
 #define GICD_OFFSET_REV1_1	0x10000
 #define CAAM_BASE		0x01700000
+#define CAAM_SIZE		0x100000
 #define DCFG_BASE		0x01EE0000
 #define DCFG_SVR_OFFSET		0xA4
 #endif
@@ -90,6 +93,7 @@
 #define GICC_OFFSET			0x20000
 #define GICD_OFFSET			0x10000
 #define CAAM_BASE			0x01700000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1088ardb)
@@ -99,6 +103,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls2088ardb)
@@ -108,6 +113,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1028ardb)
@@ -117,6 +123,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_lx2160ardb)
@@ -126,6 +133,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_lx2160aqds)
@@ -135,6 +143,7 @@
 #define GICC_OFFSET                     0x0
 #define GICD_OFFSET                     0x0
 #define CAAM_BASE                       0x08000000
+#define CAAM_SIZE                       0x100000
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
