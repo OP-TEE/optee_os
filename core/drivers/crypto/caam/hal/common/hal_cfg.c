@@ -31,8 +31,7 @@ enum caam_status caam_hal_cfg_get_conf(struct caam_jrcfg *jrcfg)
 
 	if (!ctrl_base) {
 		ctrl_base = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-							  CAAM_BASE,
-							  CORE_MMU_PGDIR_SIZE);
+							  CAAM_BASE, CAAM_SIZE);
 		if (!ctrl_base) {
 			EMSG("Unable to map CAAM Registers");
 			goto exit_get_conf;
