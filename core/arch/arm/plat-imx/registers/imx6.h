@@ -96,6 +96,7 @@
 #define GICC_OFFSET			0x100
 #define CAAM_BASE			0x02100000
 #endif
+#define CAAM_SIZE			0x40000
 
 #define GIC_CPU_BASE			(GIC_BASE + GICC_OFFSET)
 #define GIC_DIST_BASE			(GIC_BASE + GICD_OFFSET)
