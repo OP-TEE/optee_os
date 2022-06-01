@@ -43,6 +43,8 @@
 #include <registers/imx8q.h>
 #elif defined(CFG_MX8ULP)
 #include <registers/imx8ulp.h>
+#elif defined(CFG_MX93)
+#include <registers/imx93.h>
 #else
 #error "CFG_MX* not defined"
 #endif
