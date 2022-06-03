@@ -20,7 +20,6 @@ int x25519_make_key(prng_state *prng, int wprng, curve25519_key *key)
 {
    int err;
 
-   LTC_ARGCHK(prng != NULL);
    LTC_ARGCHK(key  != NULL);
 
    if ((err = prng_is_valid(wprng)) != CRYPT_OK) {
