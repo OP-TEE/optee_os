@@ -195,8 +195,6 @@ static TEE_Result deserialize_key(uint8_t *buf, size_t buf_sz)
 	sz = deserialize_bignum(p, buf_sz, key->n);
 	if (!sz)
 		goto out;
-	buf_sz -= sz;
-	assert(!buf_sz);
 out:
 	return res;
 }
