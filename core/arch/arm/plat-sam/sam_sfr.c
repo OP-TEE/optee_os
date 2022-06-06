@@ -17,10 +17,11 @@ vaddr_t sam_sfr_base(void)
 {
 	static void *va;
 
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC, 1);
-		return (vaddr_t)va;
-	}
-	return SFR_BASE;
+	if (!cpu_mmu_enabled())
+		return SFR_BASE;
+
+	if (!va)
+		va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC, 1);
+
+	return (vaddr_t)va;
 }
