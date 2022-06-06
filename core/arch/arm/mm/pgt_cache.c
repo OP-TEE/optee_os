@@ -238,17 +238,16 @@ out:
 	return pgt;
 }
 
-static void pgt_free_unlocked(struct pgt_cache *pgt_cache, bool save_ctx)
+static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
 {
 	while (!SLIST_EMPTY(pgt_cache)) {
 		struct pgt *p = SLIST_FIRST(pgt_cache);
 
 		SLIST_REMOVE_HEAD(pgt_cache, link);
-		if (save_ctx && p->num_used_entries) {
+		if (p->num_used_entries) {
 			push_to_cache_list(p);
 		} else {
 			tee_pager_pgt_save_and_release_entries(p);
-			assert(!p->num_used_entries);
 			p->ctx = NULL;
 			p->vabase = 0;
 
@@ -402,8 +401,7 @@ void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 
 #else /*!CFG_PAGED_USER_TA*/
 
-static void pgt_free_unlocked(struct pgt_cache *pgt_cache,
-			      bool save_ctx __unused)
+static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
 {
 	while (!SLIST_EMPTY(pgt_cache)) {
 		struct pgt *p = SLIST_FIRST(pgt_cache);
@@ -485,7 +483,7 @@ static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 				continue;
 			p = pop_from_some_list(va, ctx);
 			if (!p) {
-				pgt_free_unlocked(pgt_cache, ctx);
+				pgt_free_unlocked(pgt_cache);
 				return false;
 			}
 			if (pp)
@@ -527,7 +525,7 @@ void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 
 	mutex_lock(&pgt_mu);
 
-	pgt_free_unlocked(pgt_cache, ctx);
+	pgt_free_unlocked(pgt_cache);
 	while (!pgt_alloc_unlocked(pgt_cache, ctx, vm_info)) {
 		assert(pgt_check_avail(vm_info));
 		DMSG("Waiting for page tables");
@@ -538,14 +536,14 @@ void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
-void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx)
+void pgt_free(struct pgt_cache *pgt_cache)
 {
 	if (SLIST_EMPTY(pgt_cache))
 		return;
 
 	mutex_lock(&pgt_mu);
 
-	pgt_free_unlocked(pgt_cache, save_ctx);
+	pgt_free_unlocked(pgt_cache);
 
 	condvar_broadcast(&pgt_cv);
 	mutex_unlock(&pgt_mu);
