@@ -5,6 +5,8 @@
  * All rights reserved.
  */
 
+#include <kernel/dt.h>
+#include <matrix.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <sam_sfr.h>
@@ -25,3 +27,24 @@ vaddr_t sam_sfr_base(void)
 
 	return (vaddr_t)va;
 }
+
+static TEE_Result atmel_sfr_probe(const void *fdt, int node,
+				  const void *compat_data __unused)
+{
+	if (_fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
+		matrix_configure_periph_secure(AT91C_ID_SFR);
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match atmel_sfr_match_table[] = {
+	{ .compatible = "atmel,sama5d2-sfr" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(atmel_sfr_dt_driver) = {
+	.name = "atmel_sfr",
+	.type = DT_DRIVER_NOTYPE,
+	.match_table = atmel_sfr_match_table,
+	.probe = atmel_sfr_probe,
+};
