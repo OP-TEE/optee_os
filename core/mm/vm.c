@@ -1264,10 +1264,8 @@ void vm_set_ctx(struct ts_ctx *ctx)
 	 * current any longer. Make sure pager is in sync with that.
 	 * This function has to be called before there's a chance that
 	 * pgt_free_unlocked() is called.
-	 *
-	 * Save translation tables in a cache if it's a user TA.
 	 */
-	pgt_free(&tsd->pgt_cache, is_user_ta_ctx(tsd->ctx));
+	pgt_free(&tsd->pgt_cache);
 
 	if (is_user_mode_ctx(ctx)) {
 		struct core_mmu_user_map map = { };
