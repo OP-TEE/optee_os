@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0+)
 /*
- * Copyright (C) 2018-2019, STMicroelectronics
+ * Copyright (C) 2018-2022, STMicroelectronics
  */
 
 #include <assert.h>
@@ -8,6 +8,7 @@
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/stm32_shared_io.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <io.h>
