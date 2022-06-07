@@ -69,10 +69,12 @@ endif
 ifeq ($(CFG_STM32MP13),y)
 $(call force,CFG_STM32MP15,n)
 $(call force,CFG_STM32MP_CLK_CORE,y)
+$(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_STM32MP15_CLK,n)
 CFG_STM32MP_OPP_COUNT ?= 2
 else
+$(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
 $(call force,CFG_STM32MP15,y)
 $(call force,CFG_STM32MP15_CLK,y)
 endif
