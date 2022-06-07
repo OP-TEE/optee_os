@@ -32,6 +32,7 @@
 struct user_mode_ctx {
 	struct vm_info vm_info;
 	struct vm_paged_region_head *regions;
+	struct pgt_cache pgt_cache;
 #if defined(CFG_WITH_VFP)
 	struct thread_user_vfp_state vfp;
 #endif

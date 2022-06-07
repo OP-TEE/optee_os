@@ -1916,7 +1916,7 @@ void tee_pager_assign_um_tables(struct user_mode_ctx *uctx)
 	if (!uctx->regions)
 		return;
 
-	pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
+	pgt = SLIST_FIRST(&uctx->pgt_cache);
 	TAILQ_FOREACH(reg, uctx->regions, link) {
 		for (n = 0; n < get_pgt_count(reg->base, reg->size); n++) {
 			vaddr_t va = reg->base + CORE_MMU_PGDIR_SIZE * n;

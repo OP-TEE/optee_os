@@ -1891,7 +1891,7 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 				struct user_mode_ctx *uctx)
 {
 	struct core_mmu_table_info pg_info = { };
-	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	struct pgt *pgt = NULL;
 	struct vm_region *r = NULL;
 

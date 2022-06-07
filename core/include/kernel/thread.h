@@ -30,7 +30,6 @@
 struct thread_specific_data {
 	TAILQ_HEAD(, ts_session) sess_stack;
 	struct ts_ctx *ctx;
-	struct pgt_cache pgt_cache;
 #ifdef CFG_CORE_FFA
 	uint32_t rpc_target_info;
 #endif

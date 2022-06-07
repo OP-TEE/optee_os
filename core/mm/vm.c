@@ -125,7 +125,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&tsd->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
+		pgt_alloc(&uctx->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
 	}
 #endif
 
@@ -134,14 +134,10 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 
 static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 {
-	struct thread_specific_data *tsd = thread_get_tsd();
-	struct pgt_cache *pgt_cache = NULL;
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	vaddr_t begin = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
 	vaddr_t last = ROUNDUP(r->va + r->size, CORE_MMU_PGDIR_SIZE);
 	struct vm_region *r2 = NULL;
-
-	if (uctx->ts_ctx == tsd->ctx)
-		pgt_cache = &tsd->pgt_cache;
 
 	if (mobj_is_paged(r->mobj)) {
 		tee_pager_rem_um_region(uctx, r->va, r->size);
@@ -805,6 +801,7 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx)
 
 	memset(uctx, 0, sizeof(*uctx));
 	TAILQ_INIT(&uctx->vm_info.regions);
+	SLIST_INIT(&uctx->pgt_cache);
 	uctx->vm_info.asid = asid;
 	uctx->ts_ctx = ts_ctx;
 
@@ -1258,20 +1255,23 @@ TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 void vm_set_ctx(struct ts_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
+	struct user_mode_ctx *uctx = NULL;
 
 	core_mmu_set_user_map(NULL);
-	/*
-	 * No matter what happens below, the current user TA will not be
-	 * current any longer. Make sure pager is in sync with that.
-	 * This function has to be called before there's a chance that
-	 * pgt_free_unlocked() is called.
-	 */
-	pgt_free(&tsd->pgt_cache);
+
+	if (is_user_mode_ctx(tsd->ctx)) {
+		/*
+		 * We're coming from a user mode context so we must make
+		 * the pgts available for reuse.
+		 */
+		uctx = to_user_mode_ctx(tsd->ctx);
+		pgt_free(&uctx->pgt_cache);
+	}
 
 	if (is_user_mode_ctx(ctx)) {
 		struct core_mmu_user_map map = { };
-		struct user_mode_ctx *uctx = to_user_mode_ctx(ctx);
 
+		uctx = to_user_mode_ctx(ctx);
 		core_mmu_create_user_map(uctx, &map);
 		core_mmu_set_user_map(&map);
 		tee_pager_assign_um_tables(uctx);

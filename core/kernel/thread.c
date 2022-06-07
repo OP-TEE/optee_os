@@ -450,10 +450,8 @@ void thread_init_threads(void)
 
 	mutex_lockdep_init();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
-		SLIST_INIT(&threads[n].tsd.pgt_cache);
-	}
 }
 
 void __nostackcheck thread_init_thread_core_local(void)
