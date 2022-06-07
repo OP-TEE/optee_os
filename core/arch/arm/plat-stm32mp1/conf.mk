@@ -31,6 +31,7 @@ endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
+$(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
@@ -44,7 +45,6 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
 CFG_TZDRAM_START ?= 0xde000000
-CFG_SHMEM_START  ?= 0xdfe00000
 CFG_DRAM_SIZE    ?= 0x20000000
 endif
 
@@ -54,8 +54,6 @@ CFG_STM32MP1_SCMI_SHM_BASE ?= 0x2ffff000
 CFG_STM32MP1_SCMI_SHM_SIZE ?= 0x00001000
 CFG_TZDRAM_START ?= 0xfe000000
 CFG_TZDRAM_SIZE  ?= 0x01e00000
-CFG_SHMEM_START  ?= 0xffe00000
-CFG_SHMEM_SIZE   ?= 0x00200000
 CFG_DRAM_SIZE    ?= 0x40000000
 
 CFG_TEE_CORE_NB_CORE ?= 2
