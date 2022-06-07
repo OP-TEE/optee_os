@@ -52,13 +52,10 @@ struct pgt {
 
 SLIST_HEAD(pgt_cache, pgt);
 
-static inline bool pgt_check_avail(size_t num_tbls)
-{
-	return num_tbls <= PGT_CACHE_SIZE;
-}
+bool pgt_check_avail(struct vm_info *vm_info);
 
 void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
-	       vaddr_t begin, vaddr_t last);
+	       struct vm_info *vm_info);
 void pgt_free(struct pgt_cache *pgt_cache, bool save_ctx);
 
 void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,

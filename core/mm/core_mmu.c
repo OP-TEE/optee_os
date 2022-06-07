@@ -1502,7 +1502,6 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			idx = core_mmu_va2idx(dir_info, r.va);
 			pg_info->va_base = core_mmu_idx2va(dir_info, idx);
 
-#ifdef CFG_PAGED_USER_TA
 			/*
 			 * Advance pgt to va_base, note that we may need to
 			 * skip multiple page tables if there are large
@@ -1515,11 +1514,6 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 			}
 			assert((*pgt)->vabase == pg_info->va_base);
 			pg_info->table = (*pgt)->tbl;
-#else
-			assert(*pgt); /* We should have allocated enough */
-			pg_info->table = (*pgt)->tbl;
-			*pgt = SLIST_NEXT(*pgt, link);
-#endif
 
 			core_mmu_set_entry(dir_info, idx,
 					   virt_to_phys(pg_info->table),
@@ -1813,19 +1807,14 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	struct pgt_cache *pgt_cache = &thread_get_tsd()->pgt_cache;
 	struct pgt *pgt = NULL;
 	struct vm_region *r = NULL;
-	struct vm_region *r_last = NULL;
 
-	/* Find the first and last valid entry */
-	r = TAILQ_FIRST(&uctx->vm_info.regions);
-	if (!r)
+	if (TAILQ_EMPTY(&uctx->vm_info.regions))
 		return; /* Nothing to map */
-	r_last = TAILQ_LAST(&uctx->vm_info.regions, vm_region_head);
 
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, uctx->ts_ctx, r->va,
-		  r_last->va + r_last->size - 1);
+	pgt_alloc(pgt_cache, uctx->ts_ctx, &uctx->vm_info);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);
