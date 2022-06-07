@@ -48,6 +48,7 @@ CFG_WITH_PAGER ?= y
 CFG_WITH_LPAE ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
+CFG_CORE_ASLR ?= n
 
 ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
 # Some drivers mandate DT support
@@ -174,7 +175,6 @@ ifeq ($(CFG_WITH_PAGER),y)
 CFG_TEE_CORE_DEBUG ?= n
 CFG_UNWIND ?= n
 CFG_LOCKDEP ?= n
-CFG_CORE_ASLR ?= n
 CFG_TA_BGET_TEST ?= n
 # Default disable early TA compression to support a smaller HEAP size
 CFG_EARLY_TA_COMPRESS ?= n
