@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2019, STMicroelectronics
+ * Copyright (c) 2019-2022, STMicroelectronics
  */
 #include <assert.h>
 #include <compiler.h>
@@ -14,9 +14,7 @@
 #include <drivers/stm32mp1_pwr.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
-#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
-#include <dt-bindings/reset/stm32mp1-resets.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>

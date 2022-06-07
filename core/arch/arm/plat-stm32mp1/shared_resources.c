@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2021, STMicroelectronics
+ * Copyright (c) 2017-2022, STMicroelectronics
  */
 
 #include <config.h>
@@ -8,8 +8,7 @@
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp1_rcc.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
-#include <dt-bindings/reset/stm32mp1-resets.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>

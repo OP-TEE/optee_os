@@ -8,7 +8,7 @@
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
