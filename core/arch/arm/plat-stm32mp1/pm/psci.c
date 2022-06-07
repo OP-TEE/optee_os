@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017-2018, STMicroelectronics
+ * Copyright (c) 2017-2022, STMicroelectronics
  */
 
 #include <arm.h>
@@ -10,7 +10,7 @@
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/stpmic1.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2019-2020, STMicroelectronics
+ * Copyright (c) 2019-2022, STMicroelectronics
  */
 
 #include <drivers/clk.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
