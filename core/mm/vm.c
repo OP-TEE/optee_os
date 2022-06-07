@@ -109,42 +109,12 @@ static vaddr_t select_va_in_range(const struct vm_region *prev_reg,
 	return 0;
 }
 
-static size_t get_num_req_pgts(struct user_mode_ctx *uctx, vaddr_t *begin,
-			       vaddr_t *end)
-{
-	vaddr_t b;
-	vaddr_t e;
-
-	if (TAILQ_EMPTY(&uctx->vm_info.regions)) {
-		core_mmu_get_user_va_range(&b, NULL);
-		e = b;
-	} else {
-		struct vm_region *r;
-
-		b = TAILQ_FIRST(&uctx->vm_info.regions)->va;
-		r = TAILQ_LAST(&uctx->vm_info.regions, vm_region_head);
-		e = r->va + r->size;
-		b = ROUNDDOWN(b, CORE_MMU_PGDIR_SIZE);
-		e = ROUNDUP(e, CORE_MMU_PGDIR_SIZE);
-	}
-
-	if (begin)
-		*begin = b;
-	if (end)
-		*end = e;
-	return (e - b) >> CORE_MMU_PGDIR_SHIFT;
-}
-
 static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 {
 	struct thread_specific_data *tsd __maybe_unused;
-	vaddr_t b;
-	vaddr_t e;
-	size_t ntbl;
 
-	ntbl = get_num_req_pgts(uctx, &b, &e);
-	if (!pgt_check_avail(ntbl)) {
-		EMSG("%zu page tables not available", ntbl);
+	if (!pgt_check_avail(&uctx->vm_info)) {
+		EMSG("Page tables are not available");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -155,7 +125,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&tsd->pgt_cache, uctx->ts_ctx, b, e - 1);
+		pgt_alloc(&tsd->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
 	}
 #endif
 

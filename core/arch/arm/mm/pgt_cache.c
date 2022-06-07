@@ -471,42 +471,65 @@ void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 }
 
 static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-			       vaddr_t begin, vaddr_t last)
+			       struct vm_info *vm_info)
 {
-	const vaddr_t base = ROUNDDOWN(begin, CORE_MMU_PGDIR_SIZE);
-	const size_t num_tbls = ((last - base) >> CORE_MMU_PGDIR_SHIFT) + 1;
-	size_t n = 0;
-	struct pgt *p;
+	struct vm_region *r = NULL;
 	struct pgt *pp = NULL;
+	struct pgt *p = NULL;
+	vaddr_t va = 0;
 
-	while (n < num_tbls) {
-		p = pop_from_some_list(base + n * CORE_MMU_PGDIR_SIZE, ctx);
-		if (!p) {
-			pgt_free_unlocked(pgt_cache, ctx);
-			return false;
+	TAILQ_FOREACH(r, &vm_info->regions, link) {
+		for (va = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     va < r->va + r->size; va += CORE_MMU_PGDIR_SIZE) {
+			if (p && p->vabase == va)
+				continue;
+			p = pop_from_some_list(va, ctx);
+			if (!p) {
+				pgt_free_unlocked(pgt_cache, ctx);
+				return false;
+			}
+			if (pp)
+				SLIST_INSERT_AFTER(pp, p, link);
+			else
+				SLIST_INSERT_HEAD(pgt_cache, p, link);
+			pp = p;
 		}
-
-		if (pp)
-			SLIST_INSERT_AFTER(pp, p, link);
-		else
-			SLIST_INSERT_HEAD(pgt_cache, p, link);
-		pp = p;
-		n++;
 	}
 
 	return true;
 }
 
-void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-	       vaddr_t begin, vaddr_t last)
+bool pgt_check_avail(struct vm_info *vm_info)
 {
-	if (last <= begin)
+	struct vm_region *r = NULL;
+	size_t tbl_count = 0;
+	vaddr_t last_va = 0;
+	vaddr_t va = 0;
+
+	TAILQ_FOREACH(r, &vm_info->regions, link) {
+		for (va = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     va < r->va + r->size; va += CORE_MMU_PGDIR_SIZE) {
+			if (va == last_va)
+				continue;
+			tbl_count++;
+			last_va = va;
+		}
+	}
+
+	return tbl_count <= PGT_CACHE_SIZE;
+}
+
+void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
+	       struct vm_info *vm_info)
+{
+	if (TAILQ_EMPTY(&vm_info->regions))
 		return;
 
 	mutex_lock(&pgt_mu);
 
 	pgt_free_unlocked(pgt_cache, ctx);
-	while (!pgt_alloc_unlocked(pgt_cache, ctx, begin, last)) {
+	while (!pgt_alloc_unlocked(pgt_cache, ctx, vm_info)) {
+		assert(pgt_check_avail(vm_info));
 		DMSG("Waiting for page tables");
 		condvar_broadcast(&pgt_cv);
 		condvar_wait(&pgt_cv, &pgt_mu);
