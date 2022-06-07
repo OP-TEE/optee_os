@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2018-2019, STMicroelectronics
+ * Copyright (c) 2018-2022, STMicroelectronics
  */
 
 #ifndef __STM32_UTIL_H__
@@ -109,24 +109,6 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
  * Return true if platform is in closed_device mode
  */
 bool stm32mp_is_closed_device(void);
-
-/*
- * Shared registers support: common lock for accessing SoC registers
- * shared between several drivers.
- */
-void io_mask32_stm32shregs(vaddr_t va, uint32_t value, uint32_t mask);
-
-static inline void io_setbits32_stm32shregs(vaddr_t va, uint32_t value)
-{
-	io_mask32_stm32shregs(va, value, value);
-}
-
-static inline void io_clrbits32_stm32shregs(vaddr_t va, uint32_t value)
-{
-	io_mask32_stm32shregs(va, 0, value);
-}
-
-void io_clrsetbits32_stm32shregs(vaddr_t va, uint32_t clr, uint32_t set);
 
 /*
  * Shared reference counter: increments by 2 on secure increment

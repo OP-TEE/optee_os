@@ -41,6 +41,7 @@ $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
+$(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 CFG_TEE_CORE_NB_CORE ?= 2

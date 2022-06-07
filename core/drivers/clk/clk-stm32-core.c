@@ -6,6 +6,7 @@
 #include <config.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/stm32_shared_io.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
