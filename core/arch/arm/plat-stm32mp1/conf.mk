@@ -167,6 +167,8 @@ CFG_UNWIND ?= n
 CFG_LOCKDEP ?= n
 CFG_CORE_ASLR ?= n
 CFG_TA_BGET_TEST ?= n
+# Default disable early TA compression to support a smaller HEAP size
+CFG_EARLY_TA_COMPRESS ?= n
 endif
 
 # Non-secure UART and GPIO/pinctrl for the output console
