@@ -69,8 +69,16 @@ void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Return true if @clock_id is shared by secure and non-secure worlds */
 bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+static inline bool stm32mp_nsec_can_access_clock(unsigned long clock_id
+						 __unused)
+{
+	return true;
+}
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 
 extern const struct clk_ops stm32mp1_clk_ops;
 
@@ -84,8 +92,15 @@ static inline bool stm32mp_nsec_can_access_pmic_regu(const char *name __unused)
 }
 #endif
 
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Return true if and only if @reset_id relates to a non-secure peripheral */
 bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+static inline bool stm32mp_nsec_can_access_reset(unsigned int reset_id __unused)
+{
+	return true;
+}
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 
 /* Return rstctrl instance related to RCC reset controller DT binding ID */
 struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
@@ -211,6 +226,7 @@ enum stm32mp_shres {
 	STM32MP1_SHRES_COUNT
 };
 
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Register resource @id as a secure peripheral */
 void stm32mp_register_secure_periph(enum stm32mp_shres id);
 
@@ -255,14 +271,64 @@ bool stm32mp_gpio_bank_is_shared(unsigned int bank);
 /* Return true if and only if GPIO bank @bank is registered as non-secure */
 bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 
-#if defined(CFG_STM32MP15)
 /* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
 void stm32mp_register_clock_parents_secure(unsigned long clock_id);
-#else
+
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+
+static inline void stm32mp_register_secure_periph(enum stm32mp_shres id
+						  __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_periph(enum stm32mp_shres id
+						      __unused)
+{
+}
+
+static inline void stm32mp_register_secure_periph_iomem(vaddr_t base __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_periph_iomem(vaddr_t base
+							    __unused)
+{
+}
+
+static inline void stm32mp_register_secure_gpio(unsigned int bank __unused,
+						unsigned int pin __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_gpio(unsigned int bank __unused,
+						    unsigned int pin __unused)
+{
+}
+
+static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
+{
+	return true;
+}
+
+static inline bool stm32mp_gpio_bank_is_secure(unsigned int bank __unused)
+{
+	return true;
+}
+
+static inline bool stm32mp_gpio_bank_is_shared(unsigned int bank __unused)
+{
+	return false;
+}
+
+static inline bool stm32mp_gpio_bank_is_non_secure(unsigned int bank __unused)
+{
+	return false;
+}
+
 static inline void stm32mp_register_clock_parents_secure(unsigned long clock_id
 							 __unused)
 {
 }
-#endif
 
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/
