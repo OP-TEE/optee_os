@@ -88,9 +88,8 @@ static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 	spc->ta_ctx.ts_ctx.uuid = *uuid;
 	spc->ta_ctx.flags = TA_FLAG_SINGLE_INSTANCE |
 			    TA_FLAG_INSTANCE_KEEP_ALIVE;
-	spc->uctx.ts_ctx = &spc->ta_ctx.ts_ctx;
 
-	res = vm_info_init(&spc->uctx);
+	res = vm_info_init(&spc->uctx, &spc->ta_ctx.ts_ctx);
 	if (res) {
 		free(spc);
 		return NULL;

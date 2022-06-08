@@ -793,7 +793,7 @@ static TEE_Result map_kinit(struct user_mode_ctx *uctx)
 	return TEE_SUCCESS;
 }
 
-TEE_Result vm_info_init(struct user_mode_ctx *uctx)
+TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx)
 {
 	TEE_Result res;
 	uint32_t asid = asid_alloc();
@@ -803,9 +803,10 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx)
 		return TEE_ERROR_GENERIC;
 	}
 
-	memset(&uctx->vm_info, 0, sizeof(uctx->vm_info));
+	memset(uctx, 0, sizeof(*uctx));
 	TAILQ_INIT(&uctx->vm_info.regions);
 	uctx->vm_info.asid = asid;
+	uctx->ts_ctx = ts_ctx;
 
 	res = map_kinit(uctx);
 	if (res)
