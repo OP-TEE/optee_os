@@ -1021,9 +1021,13 @@ out:
 TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 			vaddr_t *va)
 {
-	TEE_Result res;
-	struct vm_region *reg = calloc(1, sizeof(*reg));
+	TEE_Result res = TEE_SUCCESS;
+	struct vm_region *reg = NULL;
 
+	if (!mobj_is_secure(mobj) || !mobj_is_paged(mobj))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	reg = calloc(1, sizeof(*reg));
 	if (!reg)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -1031,10 +1035,7 @@ TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 	reg->offset = 0;
 	reg->va = 0;
 	reg->size = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
-	if (mobj_is_secure(mobj))
-		reg->attr = TEE_MATTR_SECURE;
-	else
-		reg->attr = 0;
+	reg->attr = TEE_MATTR_SECURE;
 
 	res = umap_add_region(&uctx->vm_info, reg, 0, 0, 0);
 	if (res) {
