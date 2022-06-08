@@ -194,12 +194,11 @@ static TEE_Result sp_create_ctx(const TEE_UUID *uuid, struct sp_session *s)
 	if (!spc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	spc->uctx.ts_ctx = &spc->ts_ctx;
 	spc->open_session = s;
 	s->ts_sess.ctx = &spc->ts_ctx;
 	spc->ts_ctx.uuid = *uuid;
 
-	res = vm_info_init(&spc->uctx);
+	res = vm_info_init(&spc->uctx, &spc->ts_ctx);
 	if (res)
 		goto err;
 
