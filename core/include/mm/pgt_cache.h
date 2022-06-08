@@ -24,14 +24,13 @@ struct ts_ctx;
 struct pgt {
 	void *tbl;
 	vaddr_t vabase;
-#if defined(CFG_PAGED_USER_TA)
 	struct ts_ctx *ctx;
-	size_t num_used_entries;
+	bool populated;
+#if defined(CFG_PAGED_USER_TA)
+	uint16_t num_used_entries;
 #endif
-#if defined(CFG_WITH_PAGER)
-#if !defined(CFG_WITH_LPAE)
+#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
 	struct pgt_parent *parent;
-#endif
 #endif
 	SLIST_ENTRY(pgt) link;
 };
@@ -60,23 +59,17 @@ void pgt_free(struct pgt_cache *pgt_cache);
 
 void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t end);
-#ifdef CFG_PAGED_USER_TA
 void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t last);
-#else
-static inline void pgt_flush_ctx_range(struct pgt_cache *pgt_cache __unused,
-				       struct ts_ctx *ctx __unused,
-				       vaddr_t begin __unused,
-				       vaddr_t last __unused)
-{
-}
-#endif
+
+struct pgt *pgt_pop_from_cache_list(vaddr_t vabase, struct ts_ctx *ctx);
+void pgt_push_to_cache_list(struct pgt *pgt);
 
 void pgt_init(void);
 
-#if defined(CFG_PAGED_USER_TA)
 void pgt_flush_ctx(struct ts_ctx *ctx);
 
+#if defined(CFG_PAGED_USER_TA)
 static inline void pgt_inc_used_entries(struct pgt *pgt)
 {
 	pgt->num_used_entries++;
@@ -95,10 +88,6 @@ static inline void pgt_set_used_entries(struct pgt *pgt, size_t val)
 }
 
 #else
-static inline void pgt_flush_ctx(struct ts_ctx *ctx __unused)
-{
-}
-
 static inline void pgt_inc_used_entries(struct pgt *pgt __unused)
 {
 }
