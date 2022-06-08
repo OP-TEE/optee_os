@@ -164,6 +164,73 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 	pgt_flush_ctx_range(pgt_cache, uctx->ts_ctx, r->va, r->va + r->size);
 }
 
+static void set_pa_range(struct core_mmu_table_info *ti, vaddr_t va,
+			 paddr_t pa, size_t size, uint32_t attr)
+{
+	unsigned int end = core_mmu_va2idx(ti, va + size);
+	unsigned int idx = core_mmu_va2idx(ti, va);
+
+	while (idx < end) {
+		core_mmu_set_entry(ti, idx, pa, attr);
+		idx++;
+		pa += BIT64(ti->shift);
+	}
+}
+
+static void set_reg_in_table(struct core_mmu_table_info *ti,
+			     struct vm_region *r)
+{
+	vaddr_t va = MAX(r->va, ti->va_base);
+	vaddr_t end = MIN(r->va + r->size, ti->va_base + CORE_MMU_PGDIR_SIZE);
+	size_t sz = MIN(end - va, mobj_get_phys_granule(r->mobj));
+	size_t granule = BIT(ti->shift);
+	size_t offset = 0;
+	paddr_t pa = 0;
+
+	while (va < end) {
+		offset = va - r->va + r->offset;
+		if (mobj_get_pa(r->mobj, offset, granule, &pa))
+			panic("Failed to get PA");
+		set_pa_range(ti, va, pa, sz, r->attr);
+		va += sz;
+	}
+}
+
+static void set_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
+{
+	struct pgt *p = SLIST_FIRST(&uctx->pgt_cache);
+	struct core_mmu_table_info ti = { };
+
+	assert(!mobj_is_paged(r->mobj));
+
+	core_mmu_set_info_table(&ti, CORE_MMU_PGDIR_LEVEL, 0, NULL);
+
+	if (p) {
+		/* All the pgts are already allocated, update in place */
+		do {
+			ti.va_base = p->vabase;
+			ti.table = p->tbl;
+			set_reg_in_table(&ti, r);
+			p = SLIST_NEXT(p, link);
+		} while (p);
+	} else {
+		/*
+		 * We may have a few pgts in the cache list, update the
+		 * ones found.
+		 */
+		for (ti.va_base = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     ti.va_base < r->va + r->size;
+		     ti.va_base += CORE_MMU_PGDIR_SIZE) {
+			p = pgt_pop_from_cache_list(ti.va_base, uctx->ts_ctx);
+			if (!p)
+				continue;
+			ti.table = p->tbl;
+			set_reg_in_table(&ti, r);
+			pgt_push_to_cache_list(p);
+		}
+	}
+}
+
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
 				  size_t pad_begin, size_t pad_end,
 				  size_t align)
@@ -277,6 +344,8 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 		fobj_put(fobj);
 		if (res)
 			goto err_rem_reg;
+	} else {
+		set_um_region(uctx, reg);
 	}
 
 	/*
@@ -537,13 +606,17 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 			res = umap_add_region(&uctx->vm_info, r, pad_begin,
 					      pad_end + len - r->size, 0);
 		}
-		if (!res)
+		if (!res) {
 			r_last = r;
-		if (!res)
 			res = alloc_pgt(uctx);
-		if (fobj && !res)
-			res = tee_pager_add_um_region(uctx, r->va, fobj,
-						      r->attr);
+		}
+		if (!res) {
+			if (!fobj)
+				set_um_region(uctx, r);
+			else
+				res = tee_pager_add_um_region(uctx, r->va, fobj,
+							      r->attr);
+		}
 
 		if (res) {
 			/*
@@ -596,8 +669,12 @@ err_restore_map:
 			panic("Cannot restore mapping");
 		if (alloc_pgt(uctx))
 			panic("Cannot restore mapping");
-		if (fobj && tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
-			panic("Cannot restore mapping");
+		if (fobj) {
+			if (tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
+				panic("Cannot restore mapping");
+		} else {
+			set_um_region(uctx, r);
+		}
 	}
 	fobj_put(fobj);
 	vm_set_ctx(uctx->ts_ctx);
@@ -684,16 +761,23 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		if (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))
 			was_writeable = true;
 
-		if (!mobj_is_paged(r->mobj))
-			need_sync = true;
-
 		r->attr &= ~TEE_MATTR_PROT_MASK;
 		r->attr |= prot;
-	}
 
-	if (need_sync) {
-		/* Synchronize changes to translation tables */
-		vm_set_ctx(uctx->ts_ctx);
+		if (!mobj_is_paged(r->mobj)) {
+			need_sync = true;
+			set_um_region(uctx, r);
+			/*
+			 * Normally when set_um_region() is called we
+			 * change from no mapping to some mapping, but in
+			 * this case we change the permissions on an
+			 * already present mapping so some TLB invalidation
+			 * is needed. We also depend on the dsb() performed
+			 * as part of the TLB invalidation.
+			 */
+			tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
+					    uctx->vm_info.asid);
+		}
 	}
 
 	for (r = r0; r; r = TAILQ_NEXT(r, link)) {

@@ -1610,7 +1610,7 @@ static void set_pg_region(struct core_mmu_table_info *dir_info,
 		r.size = MIN(CORE_MMU_PGDIR_SIZE - (r.va - pg_info->va_base),
 			     end - r.va);
 
-		if (!mobj_is_paged(region->mobj)) {
+		if (!(*pgt)->populated  && !mobj_is_paged(region->mobj)) {
 			size_t granule = BIT(pg_info->shift);
 			size_t offset = r.va - region->va + region->offset;
 
@@ -1893,6 +1893,7 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	struct core_mmu_table_info pg_info = { };
 	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	struct pgt *pgt = NULL;
+	struct pgt *p = NULL;
 	struct vm_region *r = NULL;
 
 	if (TAILQ_EMPTY(&uctx->vm_info.regions))
@@ -1908,6 +1909,13 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link)
 		set_pg_region(dir_info, r, &pgt, &pg_info);
+	/* Record that the translation tables now are populated. */
+	SLIST_FOREACH(p, pgt_cache, link) {
+		p->populated = true;
+		if (p == pgt)
+			break;
+	}
+	assert(p == pgt);
 }
 
 TEE_Result core_mmu_remove_mapping(enum teecore_memtypes type, void *addr,
