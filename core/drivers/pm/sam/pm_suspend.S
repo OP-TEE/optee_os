@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
+ * This file was imported from Linux arch/arm/mach-at91/pm_suspend.S and
+ * relicensed with dual GPL-2.0/BSD-2-Clause with Microchip agreement.
+ *
  * Copyright (c) 2021, Microchip
  */
 
