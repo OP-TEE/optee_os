@@ -62,6 +62,10 @@ TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
 			void *param_va[TEE_NUM_PARAMS]);
 void vm_clean_param(struct user_mode_ctx *uctx);
 
+/*
+ * These two functions are deprecated and should only be called from
+ * mobj_seccpy_shm_alloc() and mobj_seccpy_shm_free().
+ */
 TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 			vaddr_t *va);
 void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va);
