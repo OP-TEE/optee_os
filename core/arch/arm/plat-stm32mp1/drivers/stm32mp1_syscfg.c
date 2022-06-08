@@ -3,6 +3,7 @@
  * Copyright (c) 2019-2020, STMicroelectronics
  */
 
+#include <drivers/clk.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <initcall.h>
 #include <kernel/delay.h>
@@ -47,8 +48,9 @@ void stm32mp_syscfg_enable_io_compensation(void)
 	vaddr_t syscfg_base = get_syscfg_base();
 	uint64_t timeout_ref = 0;
 
-	stm32_clock_enable(CK_CSI);
-	stm32_clock_enable(SYSCFG);
+	if (clk_enable(stm32mp_rcc_clock_id_to_clk(CK_CSI)) ||
+	    clk_enable(stm32mp_rcc_clock_id_to_clk(SYSCFG)))
+		panic();
 
 	io_setbits32(syscfg_base + SYSCFG_CMPENSETR, SYSCFG_CMPENSETR_MPU_EN);
 
@@ -86,8 +88,8 @@ void stm32mp_syscfg_disable_io_compensation(void)
 
 	io_clrbits32(syscfg_base + SYSCFG_CMPENSETR, SYSCFG_CMPENSETR_MPU_EN);
 
-	stm32_clock_disable(SYSCFG);
-	stm32_clock_disable(CK_CSI);
+	clk_disable(stm32mp_rcc_clock_id_to_clk(CK_CSI));
+	clk_disable(stm32mp_rcc_clock_id_to_clk(SYSCFG));
 }
 
 static TEE_Result stm32mp1_iocomp(void)
