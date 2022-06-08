@@ -480,7 +480,6 @@ static void stmm_ctx_destroy(struct ts_ctx *ctx)
 {
 	struct stmm_ctx *spc = to_stmm_ctx(ctx);
 
-	tee_pager_rem_um_regions(&spc->uctx);
 	vm_info_final(&spc->uctx);
 	free(spc);
 }

@@ -337,7 +337,6 @@ static void user_ta_gprof_set_status(enum ts_gprof_status status)
 
 static void free_utc(struct user_ta_ctx *utc)
 {
-	tee_pager_rem_um_regions(&utc->uctx);
 
 	/*
 	 * Close sessions opened by this TA
