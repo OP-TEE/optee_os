@@ -46,15 +46,13 @@ static struct pgt_parent pgt_parents[PGT_CACHE_SIZE / PGT_NUM_PGT_PER_PAGE];
 static struct pgt_cache pgt_free_list = SLIST_HEAD_INITIALIZER(pgt_free_list);
 #endif
 
-#ifdef CFG_PAGED_USER_TA
 /*
  * When a user TA context is temporarily unmapped the used struct pgt's of
  * the context (page tables holding valid physical pages) are saved in this
- * cache in the hope that some of the valid physical pages may still be
- * valid when the context is mapped again.
+ * cache in the hope that it will remain in the cache when the context is
+ * mapped again.
  */
 static struct pgt_cache pgt_cache_list = SLIST_HEAD_INITIALIZER(pgt_cache_list);
-#endif
 
 static struct pgt pgt_entries[PGT_CACHE_SIZE];
 
@@ -62,6 +60,10 @@ static struct mutex pgt_mu = MUTEX_INITIALIZER;
 static struct condvar pgt_cv = CONDVAR_INITIALIZER;
 
 #if defined(CFG_WITH_PAGER) && defined(CFG_WITH_LPAE)
+/*
+ * Simple allocation of translation tables from pager, one translation
+ * table is one page.
+ */
 void pgt_init(void)
 {
 	size_t n;
@@ -74,6 +76,10 @@ void pgt_init(void)
 	}
 }
 #elif defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
+/*
+ * Four translation tables per page -> need to keep track of the page
+ * allocated from the pager.
+ */
 void pgt_init(void)
 {
 	size_t n;
@@ -97,6 +103,7 @@ void pgt_init(void)
 	}
 }
 #else
+/* Static allocation of translation tables */
 void pgt_init(void)
 {
 	/*
@@ -118,6 +125,7 @@ void pgt_init(void)
 #endif
 
 #if defined(CFG_WITH_LPAE) || !defined(CFG_WITH_PAGER)
+/* Simple allocation of translation tables from pager or static allocation */
 static struct pgt *pop_from_free_list(void)
 {
 	struct pgt *p = SLIST_FIRST(&pgt_free_list);
@@ -125,6 +133,7 @@ static struct pgt *pop_from_free_list(void)
 	if (p) {
 		SLIST_REMOVE_HEAD(&pgt_free_list, link);
 		memset(p->tbl, 0, PGT_SIZE);
+		p->populated = false;
 	}
 	return p;
 }
@@ -137,6 +146,10 @@ static void push_to_free_list(struct pgt *p)
 #endif
 }
 #else
+/*
+ * Four translation tables per page -> need to keep track of the page
+ * allocated from the pager.
+ */
 static struct pgt *pop_from_free_list(void)
 {
 	size_t n;
@@ -148,6 +161,7 @@ static struct pgt *pop_from_free_list(void)
 			SLIST_REMOVE_HEAD(&pgt_parents[n].pgt_cache, link);
 			pgt_parents[n].num_used++;
 			memset(p->tbl, 0, PGT_SIZE);
+			p->populated = false;
 			return p;
 		}
 	}
@@ -167,7 +181,6 @@ static void push_to_free_list(struct pgt *p)
 }
 #endif
 
-#ifdef CFG_PAGED_USER_TA
 static void push_to_cache_list(struct pgt *pgt)
 {
 	SLIST_INSERT_HEAD(&pgt_cache_list, pgt, link);
@@ -204,30 +217,38 @@ static struct pgt *pop_from_cache_list(vaddr_t vabase, void *ctx)
 	return p;
 }
 
+static uint16_t get_num_used_entries(struct pgt *pgt __maybe_unused)
+{
+#ifdef CFG_PAGED_USER_TA
+	return pgt->num_used_entries;
+#else
+	return 0;
+#endif
+}
+
 static struct pgt *pop_least_used_from_cache_list(void)
 {
-	struct pgt *pgt;
+	struct pgt *pgt = NULL;
 	struct pgt *p_prev = NULL;
-	size_t least_used;
+	size_t least_used = 0;
+	size_t next_used = 0;
 
 	pgt = SLIST_FIRST(&pgt_cache_list);
 	if (!pgt)
 		return NULL;
-	if (!pgt->num_used_entries)
-		goto out;
-	least_used = pgt->num_used_entries;
+	least_used = get_num_used_entries(pgt);
 
 	while (true) {
 		if (!SLIST_NEXT(pgt, link))
 			break;
-		if (SLIST_NEXT(pgt, link)->num_used_entries <= least_used) {
+		next_used = get_num_used_entries(SLIST_NEXT(pgt, link));
+		if (next_used <= least_used) {
 			p_prev = pgt;
-			least_used = SLIST_NEXT(pgt, link)->num_used_entries;
+			least_used = next_used;
 		}
 		pgt = SLIST_NEXT(pgt, link);
 	}
 
-out:
 	if (p_prev) {
 		pgt = SLIST_NEXT(p_prev, link);
 		SLIST_REMOVE_AFTER(p_prev, link);
@@ -244,15 +265,22 @@ static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
 		struct pgt *p = SLIST_FIRST(pgt_cache);
 
 		SLIST_REMOVE_HEAD(pgt_cache, link);
-		if (p->num_used_entries) {
-			push_to_cache_list(p);
-		} else {
+
+		/*
+		 * With paging enabled we free all tables which doesn't
+		 * refer to any paged pages any longer. This reduces the
+		 * pressure the pool of physical pages.
+		 */
+		if (IS_ENABLED(CFG_PAGED_USER_TA) && !get_num_used_entries(p)) {
 			tee_pager_pgt_save_and_release_entries(p);
 			p->ctx = NULL;
 			p->vabase = 0;
 
 			push_to_free_list(p);
+			continue;
 		}
+
+		push_to_cache_list(p);
 	}
 }
 
@@ -269,8 +297,8 @@ static struct pgt *pop_from_some_list(vaddr_t vabase, void *ctx)
 			return NULL;
 		tee_pager_pgt_save_and_release_entries(p);
 		memset(p->tbl, 0, PGT_SIZE);
+		p->populated = false;
 	}
-	assert(!p->num_used_entries);
 	p->ctx = ctx;
 	p->vabase = vabase;
 	return p;
@@ -291,7 +319,6 @@ void pgt_flush_ctx(struct ts_ctx *ctx)
 			break;
 		SLIST_REMOVE_HEAD(&pgt_cache_list, link);
 		tee_pager_pgt_save_and_release_entries(p);
-		assert(!p->num_used_entries);
 		p->ctx = NULL;
 		p->vabase = 0;
 		push_to_free_list(p);
@@ -305,7 +332,6 @@ void pgt_flush_ctx(struct ts_ctx *ctx)
 		if (p->ctx == ctx) {
 			SLIST_REMOVE_AFTER(pp, link);
 			tee_pager_pgt_save_and_release_entries(p);
-			assert(!p->num_used_entries);
 			p->ctx = NULL;
 			p->vabase = 0;
 			push_to_free_list(p);
@@ -321,7 +347,6 @@ out:
 static void flush_pgt_entry(struct pgt *p)
 {
 	tee_pager_pgt_save_and_release_entries(p);
-	assert(!p->num_used_entries);
 	p->ctx = NULL;
 	p->vabase = 0;
 }
@@ -399,33 +424,8 @@ void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
-#else /*!CFG_PAGED_USER_TA*/
-
-static void pgt_free_unlocked(struct pgt_cache *pgt_cache)
-{
-	while (!SLIST_EMPTY(pgt_cache)) {
-		struct pgt *p = SLIST_FIRST(pgt_cache);
-
-		SLIST_REMOVE_HEAD(pgt_cache, link);
-		push_to_free_list(p);
-	}
-}
-
-static struct pgt *pop_from_some_list(vaddr_t vabase,
-				      struct ts_ctx *ctx __unused)
-{
-	struct pgt *p = pop_from_free_list();
-
-	if (p)
-		p->vabase = vabase;
-
-	return p;
-}
-#endif /*!CFG_PAGED_USER_TA*/
-
 static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
-				      void *ctx __maybe_unused,
-				      vaddr_t begin, vaddr_t end)
+				      void *ctx, vaddr_t begin, vaddr_t end)
 {
 	struct pgt *p = NULL;
 #ifdef CFG_WITH_LPAE
@@ -440,10 +440,8 @@ static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
 		vaddr_t b = MAX(p->vabase, begin);
 		vaddr_t e = MIN(p->vabase + CORE_MMU_PGDIR_SIZE, end);
 
-#ifdef CFG_PAGED_USER_TA
 		if (p->ctx != ctx)
 			continue;
-#endif
 		if (b >= e)
 			continue;
 
@@ -461,9 +459,7 @@ void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 
 	if (pgt_cache)
 		clear_ctx_range_from_list(pgt_cache, ctx, begin, end);
-#ifdef CFG_PAGED_USER_TA
 	clear_ctx_range_from_list(&pgt_cache_list, ctx, begin, end);
-#endif
 
 	mutex_unlock(&pgt_mu);
 }
@@ -546,5 +542,23 @@ void pgt_free(struct pgt_cache *pgt_cache)
 	pgt_free_unlocked(pgt_cache);
 
 	condvar_broadcast(&pgt_cv);
+	mutex_unlock(&pgt_mu);
+}
+
+struct pgt *pgt_pop_from_cache_list(vaddr_t vabase, struct ts_ctx *ctx)
+{
+	struct pgt *pgt = NULL;
+
+	mutex_lock(&pgt_mu);
+	pgt = pop_from_cache_list(vabase, ctx);
+	mutex_unlock(&pgt_mu);
+
+	return pgt;
+}
+
+void pgt_push_to_cache_list(struct pgt *pgt)
+{
+	mutex_lock(&pgt_mu);
+	push_to_cache_list(pgt);
 	mutex_unlock(&pgt_mu);
 }
