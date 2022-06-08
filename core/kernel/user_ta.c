@@ -483,7 +483,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 out:
 	if (res) {
 		condvar_destroy(&utc->ta_ctx.busy_cv);
-		pgt_flush_ctx(&utc->ta_ctx.ts_ctx);
 		free_utc(utc);
 	}
 
