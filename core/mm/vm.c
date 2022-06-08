@@ -1041,6 +1041,8 @@ void vm_info_final(struct user_mode_ctx *uctx)
 	if (!uctx->vm_info.asid)
 		return;
 
+	tee_pager_rem_um_regions(uctx);
+
 	/* clear MMU entries to avoid clash when asid is reused */
 	tlbi_asid(uctx->vm_info.asid);
 
