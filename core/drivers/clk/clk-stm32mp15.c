@@ -1219,12 +1219,12 @@ static void enable_static_secure_clocks(void)
 	};
 
 	for (idx = 0; idx < ARRAY_SIZE(secure_enable); idx++) {
-		stm32_clock_enable(secure_enable[idx]);
+		clk_enable(stm32mp_rcc_clock_id_to_clk(secure_enable[idx]));
 		stm32mp_register_clock_parents_secure(secure_enable[idx]);
 	}
 
 	if (CFG_TEE_CORE_NB_CORE > 1)
-		stm32_clock_enable(RTCAPB);
+		clk_enable(stm32mp_rcc_clock_id_to_clk(RTCAPB));
 }
 
 static void __maybe_unused enable_rcc_tzen(void)
@@ -1485,41 +1485,6 @@ static TEE_Result register_stm32mp1_clocks(void)
 	}
 
 	return TEE_SUCCESS;
-}
-
-/* Route platform legacy clock functions to clk driver functions */
-bool stm32_clock_is_enabled(unsigned long clock_id)
-{
-	struct clk *clk = clock_id_to_clk(clock_id);
-
-	assert(clk);
-	return clk_is_enabled(clk);
-}
-
-void stm32_clock_enable(unsigned long clock_id)
-{
-	struct clk *clk = clock_id_to_clk(clock_id);
-	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
-
-	assert(clk);
-	res = clk_enable(clk);
-	assert(!res);
-}
-
-void stm32_clock_disable(unsigned long clock_id)
-{
-	struct clk *clk = clock_id_to_clk(clock_id);
-
-	assert(clk);
-	clk_disable(clk);
-}
-
-unsigned long stm32_clock_get_rate(unsigned long clock_id)
-{
-	struct clk *clk = clock_id_to_clk(clock_id);
-
-	assert(clk);
-	return clk_get_rate(clk);
 }
 
 #ifdef CFG_DRIVERS_CLK_DT
