@@ -878,17 +878,6 @@ UNWIND(	.cantunwind)
 	wait_primary
 
 	set_sp
-#ifdef CFG_CORE_ASLR
-	/*
-	 * stack_tmp_export which is used as base when initializing sp has
-	 * been relocated to the new offset. Since MMU isn't enabled on
-	 * this CPU yet we need to restore the corresponding physical
-	 * address.
-	 */
-	adr	r0, boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
-	sub	sp, sp, r0
-#endif
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
