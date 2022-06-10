@@ -186,7 +186,8 @@ success:
 
 static void e32_get_sym_name(const Elf32_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
-			     Elf32_Rel *rel, const char **name)
+			     Elf32_Rel *rel, const char **name,
+			     bool *weak_undef)
 {
 	size_t sym_idx = 0;
 	size_t name_idx = 0;
@@ -200,14 +201,27 @@ static void e32_get_sym_name(const Elf32_Sym *sym_tab, size_t num_syms,
 	if (name_idx >= str_tab_size)
 		err(TEE_ERROR_BAD_FORMAT, "Name index out of range");
 	*name = str_tab + name_idx;
+
+	if (!weak_undef)
+		return;
+	if (sym_tab[sym_idx].st_shndx == SHN_UNDEF &&
+	    ELF32_ST_BIND(sym_tab[sym_idx].st_info) == STB_WEAK)
+		*weak_undef = true;
+	else
+		*weak_undef = false;
 }
 
-static void resolve_sym(const char *name, vaddr_t *val, struct ta_elf **mod)
+static void resolve_sym(const char *name, vaddr_t *val, struct ta_elf **mod,
+			bool err_if_not_found)
 {
 	TEE_Result res = ta_elf_resolve_sym(name, val, mod, NULL);
 
-	if (res)
-		err(res, "Symbol %s not found", name);
+	if (res) {
+		if (err_if_not_found)
+			err(res, "Symbol %s not found", name);
+		else
+			*val = 0;
+	}
 }
 
 static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
@@ -216,9 +230,11 @@ static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 	vaddr_t val = 0;
+	bool weak_undef = false;
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, &val, NULL);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 &weak_undef);
+	resolve_sym(name, &val, NULL, !weak_undef);
 	*where = val;
 }
 
@@ -238,8 +254,9 @@ static void e32_tls_get_module(const Elf32_Sym *sym_tab, size_t num_syms,
 		return;
 	}
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, NULL, mod);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 NULL);
+	resolve_sym(name, NULL, mod, false);
 }
 
 static void e32_tls_resolve(const Elf32_Sym *sym_tab, size_t num_syms,
@@ -248,8 +265,9 @@ static void e32_tls_resolve(const Elf32_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, val, NULL);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 NULL);
+	resolve_sym(name, val, NULL, false);
 }
 
 static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
@@ -400,7 +418,8 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 #ifdef ARM64
 static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
-			     Elf64_Rela *rela, const char **name)
+			     Elf64_Rela *rela, const char **name,
+			     bool *weak_undef)
 {
 	size_t sym_idx = 0;
 	size_t name_idx = 0;
@@ -414,6 +433,12 @@ static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 	if (name_idx >= str_tab_size)
 		err(TEE_ERROR_BAD_FORMAT, "Name index out of range");
 	*name = str_tab + name_idx;
+
+	if (sym_tab[sym_idx].st_shndx == SHN_UNDEF &&
+	    ELF64_ST_BIND(sym_tab[sym_idx].st_info) == STB_WEAK)
+		*weak_undef = true;
+	else
+		*weak_undef = false;
 }
 
 static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
@@ -422,9 +447,11 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 	uintptr_t val = 0;
+	bool weak_undef = false;
 
-	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name);
-	resolve_sym(name, &val, NULL);
+	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name,
+			 &weak_undef);
+	resolve_sym(name, &val, NULL, !weak_undef);
 	*where = val;
 }
 
@@ -434,6 +461,7 @@ static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 				       Elf64_Addr *where, struct ta_elf *elf)
 {
 	struct ta_elf *mod = NULL;
+	bool weak_undef = false;
 	const char *name = NULL;
 	size_t sym_idx = 0;
 	vaddr_t symval = 0;
@@ -441,8 +469,8 @@ static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 	sym_idx = ELF64_R_SYM(rela->r_info);
 	if (sym_idx) {
 		e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela,
-				 &name);
-		resolve_sym(name, &symval, &mod);
+				 &name, &weak_undef);
+		resolve_sym(name, &symval, &mod, !weak_undef);
 	} else {
 		mod = elf;
 	}
