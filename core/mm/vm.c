@@ -586,6 +586,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 			 * the original spot.
 			 */
 			struct vm_region *r_tmp = NULL;
+			struct vm_region *r_stop = NULL;
 
 			if (r != r_last) {
 				/*
@@ -594,7 +595,9 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 				 */
 				TAILQ_INSERT_HEAD(&regs, r, link);
 			}
-			for (r = r_first; r_last && r != r_last; r = r_next) {
+			if (r_last)
+				r_stop = TAILQ_NEXT(r_last, link);
+			for (r = r_first; r != r_stop; r = r_next) {
 				r_next = TAILQ_NEXT(r, link);
 				TAILQ_REMOVE(&uctx->vm_info.regions, r, link);
 				if (r_tmp)
