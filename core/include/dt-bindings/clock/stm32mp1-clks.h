@@ -274,8 +274,4 @@
 #define CK_SCMI0_SPI6		19
 #define CK_SCMI0_USART1		20
 
-#define CK_SCMI1_PLL3_Q		0
-#define CK_SCMI1_PLL3_R		1
-#define CK_SCMI1_MCU		2
-
 #endif /* _DT_BINDINGS_STM32MP1_CLKS_H_ */

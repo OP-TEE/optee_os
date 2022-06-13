@@ -78,9 +78,8 @@ struct stm32_scmi_voltd {
 /* Locate all non-secure SMT message buffers in last page of SYSRAM */
 #define SMT_BUFFER_BASE		CFG_STM32MP1_SCMI_SHM_BASE
 #define SMT_BUFFER0_BASE	SMT_BUFFER_BASE
-#define SMT_BUFFER1_BASE	(SMT_BUFFER_BASE + 0x200)
 
-#if (SMT_BUFFER1_BASE + SMT_BUF_SLOT_SIZE > \
+#if (SMT_BUFFER0_BASE + SMT_BUF_SLOT_SIZE > \
 	CFG_STM32MP1_SCMI_SHM_BASE + CFG_STM32MP1_SCMI_SHM_SIZE)
 #error "SCMI shared memory mismatch"
 #endif
@@ -117,12 +116,6 @@ static struct stm32_scmi_clk stm32_scmi0_clock[] = {
 	CLOCK_CELL(CK_SCMI0_RTCAPB, RTCAPB, "rtcapb", true),
 	CLOCK_CELL(CK_SCMI0_SPI6, SPI6_K, "spi6_k", false),
 	CLOCK_CELL(CK_SCMI0_USART1, USART1_K, "usart1_k", false),
-};
-
-static struct stm32_scmi_clk stm32_scmi1_clock[] = {
-	CLOCK_CELL(CK_SCMI1_PLL3_Q, PLL3_Q, "pll3_q", true),
-	CLOCK_CELL(CK_SCMI1_PLL3_R, PLL3_R, "pll3_r", true),
-	CLOCK_CELL(CK_SCMI1_MCU, CK_MCU, "ck_mcu", false),
 };
 
 #define RESET_CELL(_scmi_id, _id, _name) \
@@ -202,15 +195,7 @@ static const struct channel_resources scmi_channel[] = {
 		.rd_count = ARRAY_SIZE(stm32_scmi0_reset_domain),
 		.voltd = scmi0_voltage_domain,
 		.voltd_count = ARRAY_SIZE(scmi0_voltage_domain),
-	},
-	[1] = {
-		.channel = &(struct scmi_msg_channel){
-			.shm_addr = { .pa = SMT_BUFFER1_BASE },
-			.shm_size = SMT_BUF_SLOT_SIZE,
-		},
-		.clock = stm32_scmi1_clock,
-		.clock_count = ARRAY_SIZE(stm32_scmi1_clock),
-	},
+	}
 };
 
 static const struct channel_resources *find_resource(unsigned int channel_id)
