@@ -396,7 +396,7 @@ static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
 	}
 
 	for (i = 0; i < 4; i++)
-		uuid_array[i] = fdt32_to_cpu(prop[i]);
+		uuid_array[i] = TEE_U32_FROM_BIG_ENDIAN(fdt32_to_cpu(prop[i]));
 	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
 
 	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
