@@ -13,6 +13,7 @@
 
 #ifdef CFG_STM32MP15
 #include <dt-bindings/clock/stm32mp1-clks.h>
+#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
 #endif
 
