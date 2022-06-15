@@ -26,6 +26,7 @@
 #define SA2UL_EEC_TRNG          BIT(3)
 
 #define FW_ENABLE_REGION        0x0a
+#define FW_BACKGROUND_REGION    BIT(8)
 #define FW_BIG_ARM_PRIVID       0x01
 #define FW_WILDCARD_PRIVID      0xc3
 #define FW_SECURE_ONLY          GENMASK_32(8, 0)
@@ -83,11 +84,11 @@ static TEE_Result sa2ul_init(void)
 		}
 
 		/* Modify SA2UL firewall to allow all others access*/
-		control = FW_ENABLE_REGION;
+		control = FW_BACKGROUND_REGION | FW_ENABLE_REGION;
 		permissions[0] = (FW_WILDCARD_PRIVID << 16) | FW_NON_SECURE;
 		ret = ti_sci_set_fwl_region(fwl_id, sa2ul_region, 1,
 					    control, permissions,
-					    start_address, end_address);
+					    0x0, UINT32_MAX);
 		if (ret) {
 			EMSG("Could not set firewall region information");
 			return TEE_ERROR_GENERIC;
