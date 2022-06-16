@@ -180,23 +180,26 @@ static TEE_Result deserialize_key(uint8_t *buf, size_t buf_sz)
 
 	res = allocate_key();
 	if (res)
-		goto out;
+		return res;
 
 	sz = deserialize_bignum(p, buf_sz, key->e);
 	if (!sz)
-		goto out;
+		goto err;
 	p += sz;
 	buf_sz -= sz;
 	sz = deserialize_bignum(p, buf_sz, key->d);
 	if (!sz)
-		goto out;
+		goto err;
 	p += sz;
 	buf_sz -= sz;
 	sz = deserialize_bignum(p, buf_sz, key->n);
 	if (!sz)
-		goto out;
-out:
-	return res;
+		goto err;
+
+	return TEE_SUCCESS;
+err:
+	free_key();
+	return TEE_ERROR_GENERIC;
 }
 
 static TEE_Result sec_storage_obj_read(TEE_UUID *uuid, uint32_t storage_id,
