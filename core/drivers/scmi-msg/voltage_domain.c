@@ -385,7 +385,7 @@ static const scmi_msg_handler_t handler_array[] = {
 	[SCMI_VOLTAGE_LEVEL_GET] = scmi_voltd_level_get,
 };
 
-static bool message_id_is_supported(size_t id)
+static bool message_id_is_supported(unsigned int id)
 {
 	return id < ARRAY_SIZE(handler_array) && handler_array[id];
 }
