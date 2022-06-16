@@ -182,7 +182,7 @@ static TEE_Result pta_scmi_open_session(uint32_t ptypes __unused,
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
+	if (IS_ENABLED(CFG_SCMI_MSG_SMT) || IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_NOT_SUPPORTED;
