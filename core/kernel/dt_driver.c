@@ -684,7 +684,7 @@ static TEE_Result add_node_to_probe(const void *fdt, int node,
 	if (!elt)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	DMSG("element: %s on node %s", node_name, drv_name);
+	DMSG("element: %s on node %s", drv_name, node_name);
 
 	memcpy(elt, &elt_new, sizeof(*elt));
 
