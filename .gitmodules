@@ -1,3 +1,4 @@
 [submodule "core/scmi-server/SCP-firmware"]
 	path = core/scmi-server/SCP-firmware
-	url = https://github.com/ARM-Software/SCP-firmware.git
+	url = https://github.com/etienne-lms/SCP-firmware.git
+	branch = optee-stm32mp1
