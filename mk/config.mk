@@ -757,6 +757,13 @@ endif
 # configuration mandates target product identifier is configured with
 # CFG_SCMI_SERVER_PRODUCT and the SCP-firmware source tree path with
 # CFG_SCP_FIRMWARE.
+#
+# There are several protocols supported for exchanging SCMI message through
+# shared memory.
+# CFG_SCMI_SERVER_SMT_HEADER, when set, indicates to SCMI PTA that SCMI SMT
+# protocol based statically allocated IOMEM shared memory is supported.
+# CFG_SCMI_SERVER_MSG_HEADER, when set, indicates to SCMI PTA that SCMI MSG_SMT
+# protocol based generic dynamially allocated OP-TEE shared memory is supported.
 CFG_SCMI_SERVER ?= n
 
 ifeq ($(CFG_SCMI_SERVER),y)
@@ -767,6 +774,8 @@ endif
 ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
 $(error CFG_SCMI_SERVER=y mandates CFG_SCP_FIRMWARE configuration)
 endif
+CFG_SCMI_SERVER_SMT_HEADER ?= y
+CFG_SCMI_SERVER_MSG_HEADER ?= y
 endif #CFG_SCMI_SERVER
 
 ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SERVER),y-y)
