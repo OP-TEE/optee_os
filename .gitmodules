@@ -1,0 +1,3 @@
+[submodule "core/scmi-server/SCP-firmware"]
+	path = core/scmi-server/SCP-firmware
+	url = https://github.com/ARM-Software/SCP-firmware.git
