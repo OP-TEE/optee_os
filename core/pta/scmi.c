@@ -6,6 +6,7 @@
 #include <compiler.h>
 #include <config.h>
 #include <drivers/scmi-msg.h>
+#include <scmi/scmi_server.h>
 #include <kernel/pseudo_ta.h>
 #include <pta_scmi_client.h>
 #include <stdint.h>
@@ -23,7 +24,7 @@ static TEE_Result cmd_capabilities(uint32_t ptypes,
 	if (ptypes != exp_ptypes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
+	if (IS_ENABLED(CFG_SCMI_MSG_SMT) || IS_ENABLED(CFG_SCMI_SERVER))
 		caps |= PTA_SCMI_CAPS_SMT_HEADER;
 	if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
 		caps |= PTA_SCMI_CAPS_MSG_HEADER;
@@ -57,6 +58,9 @@ static TEE_Result cmd_process_smt_channel(uint32_t ptypes,
 
 		return TEE_SUCCESS;
 	}
+
+	if (IS_ENABLED(CFG_SCMI_SERVER))
+		return scmi_server_smt_process_thread(channel_id);
 
 	return TEE_ERROR_NOT_SUPPORTED;
 }
@@ -116,8 +120,11 @@ static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
 	if (ptypes != exp_pt || !in_buf || !out_buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG)) {
+	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS)) {
 		struct scmi_msg_channel *channel = NULL;
+
+		if (!IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
+			return TEE_ERROR_NOT_SUPPORTED;
 
 		channel = plat_scmi_get_channel(channel_id);
 		if (!channel)
@@ -127,6 +134,21 @@ static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
 					      out_buf, &out_size);
 		if (!res)
 			params[2].memref.size = out_size;
+
+		return res;
+	}
+
+	if (IS_ENABLED(CFG_SCMI_SERVER)) {
+		if (!in_buf || !out_buf)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = scmi_server_msg_process_thread(channel_id, in_buf,
+						     in_size, out_buf,
+						     &out_size);
+		if (!res) {
+			params[2].memref.size = (uint32_t)out_size;
+			IMSG("scmi optee shm: out %zu", out_size);
+		}
 
 		return res;
 	}
@@ -166,6 +188,11 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 		return TEE_SUCCESS;
 	}
 
+	if (IS_ENABLED(CFG_SCMI_SERVER)) {
+		/* Only check the channel ID is known from SCP-firwmare */
+		return scmi_server_get_channel(channel_id, NULL);
+	}
+
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
@@ -182,7 +209,7 @@ static TEE_Result pta_scmi_open_session(uint32_t ptypes __unused,
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
+	if (IS_ENABLED(CFG_SCMI_MSG_SMT) || IS_ENABLED(CFG_SCMI_SERVER))
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_NOT_SUPPORTED;
