@@ -1902,7 +1902,7 @@ void core_mmu_populate_user_map(struct core_mmu_table_info *dir_info,
 	/*
 	 * Allocate all page tables in advance.
 	 */
-	pgt_alloc(pgt_cache, uctx->ts_ctx, &uctx->vm_info);
+	pgt_get_all(pgt_cache, uctx->ts_ctx, &uctx->vm_info);
 	pgt = SLIST_FIRST(pgt_cache);
 
 	core_mmu_set_info_table(&pg_info, dir_info->level + 1, 0, NULL);

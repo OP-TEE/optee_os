@@ -125,7 +125,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&uctx->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
+		pgt_get_all(&uctx->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
 	}
 #endif
 
@@ -1352,7 +1352,7 @@ void vm_set_ctx(struct ts_ctx *ctx)
 		 * the pgts available for reuse.
 		 */
 		uctx = to_user_mode_ctx(tsd->ctx);
-		pgt_free(&uctx->pgt_cache);
+		pgt_put_all(&uctx->pgt_cache);
 	}
 
 	if (is_user_mode_ctx(ctx)) {

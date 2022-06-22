@@ -53,9 +53,24 @@ SLIST_HEAD(pgt_cache, pgt);
 
 bool pgt_check_avail(struct vm_info *vm_info);
 
-void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
-	       struct vm_info *vm_info);
-void pgt_free(struct pgt_cache *pgt_cache);
+/*
+ * pgt_get_all() - makes all needed translation tables available
+ * @pgt_cache:	list of translation tables for the owning context
+ * @owning_ctx:	the context to own the tables
+ * @vm_info:	VM map for the context
+ *
+ * Guaranteed to succeed, but may need to sleep for a while to get all the
+ * needed translation tables.
+ */
+void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
+		 struct vm_info *vm_info);
+
+/*
+ * pgt_put_all() - informs the translation table manager that these tables
+ *		   will not be needed for a while
+ * @pgt_cache:	list of translation tables to make inactive
+ */
+void pgt_put_all(struct pgt_cache *pgt_cache);
 
 void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t end);

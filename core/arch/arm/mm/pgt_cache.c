@@ -513,8 +513,8 @@ bool pgt_check_avail(struct vm_info *vm_info)
 	return tbl_count <= PGT_CACHE_SIZE;
 }
 
-void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-	       struct vm_info *vm_info)
+void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
+		 struct vm_info *vm_info)
 {
 	if (TAILQ_EMPTY(&vm_info->regions))
 		return;
@@ -532,7 +532,7 @@ void pgt_alloc(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
-void pgt_free(struct pgt_cache *pgt_cache)
+void pgt_put_all(struct pgt_cache *pgt_cache)
 {
 	if (SLIST_EMPTY(pgt_cache))
 		return;
