@@ -14,7 +14,12 @@
 #define OCOTP_CTRL		    0x0
 #define OCOTP_CTRL_ERROR	    BIT32(9)
 #define OCOTP_CTRL_BUSY		    BIT32(8)
+
+#if defined(CFG_MX6) || defined(CFG_MX7ULP)
+#define OCOTP_SHADOW_OFFSET(_b, _w) ((_b) * (0x80) + (_w) * (0x10) + 0x400)
+#else
 #define OCOTP_SHADOW_OFFSET(_b, _w) ((_b) * (0x40) + (_w) * (0x10) + 0x400)
+#endif
 
 struct ocotp_instance {
 	unsigned char nb_banks;
@@ -117,22 +122,22 @@ static TEE_Result ocotp_get_die_id_mx7ulp(uint64_t *ret_uid)
 	uint32_t val = 0;
 	uint64_t uid = 0;
 
-	res = imx_ocotp_read(2, 6, &val);
+	res = imx_ocotp_read(1, 6, &val);
 	if (res)
 		goto out;
 	uid = val & GENMASK_32(15, 0);
 
-	res = imx_ocotp_read(2, 5, &val);
+	res = imx_ocotp_read(1, 5, &val);
 	if (res)
 		goto out;
 	uid = SHIFT_U64(uid, 16) | (val & GENMASK_32(15, 0));
 
-	res = imx_ocotp_read(2, 4, &val);
+	res = imx_ocotp_read(1, 4, &val);
 	if (res)
 		goto out;
 	uid = SHIFT_U64(uid, 16) | (val & GENMASK_32(15, 0));
 
-	res = imx_ocotp_read(2, 3, &val);
+	res = imx_ocotp_read(1, 3, &val);
 	if (res)
 		goto out;
 	uid = SHIFT_U64(uid, 16) | (val & GENMASK_32(15, 0));
