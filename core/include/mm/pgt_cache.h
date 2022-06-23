@@ -24,12 +24,15 @@ struct ts_ctx;
 struct pgt {
 	void *tbl;
 	vaddr_t vabase;
+#if !defined(CFG_CORE_PREALLOC_EL0_TBLS)
 	struct ts_ctx *ctx;
+#endif
 	bool populated;
 #if defined(CFG_PAGED_USER_TA)
 	uint16_t num_used_entries;
 #endif
-#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS) || \
+	(defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE))
 	struct pgt_parent *parent;
 #endif
 	SLIST_ENTRY(pgt) link;
@@ -51,7 +54,7 @@ struct pgt {
 
 SLIST_HEAD(pgt_cache, pgt);
 
-bool pgt_check_avail(struct vm_info *vm_info);
+bool pgt_check_avail(struct pgt_cache *pgt_cache, struct vm_info *vm_info);
 
 /*
  * pgt_get_all() - makes all needed translation tables available
@@ -62,25 +65,46 @@ bool pgt_check_avail(struct vm_info *vm_info);
  * Guaranteed to succeed, but may need to sleep for a while to get all the
  * needed translation tables.
  */
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+static inline void pgt_get_all(struct pgt_cache *pgt_cache __unused,
+			       struct ts_ctx *owning_ctx __unused,
+			       struct vm_info *vm_info __unused) { }
+#else
 void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
 		 struct vm_info *vm_info);
+#endif
 
 /*
  * pgt_put_all() - informs the translation table manager that these tables
  *		   will not be needed for a while
  * @pgt_cache:	list of translation tables to make inactive
  */
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+static inline void pgt_put_all(struct pgt_cache *pgt_cache __unused) { }
+#else
 void pgt_put_all(struct pgt_cache *pgt_cache);
+#endif
 
 void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t end);
 void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 			 vaddr_t begin, vaddr_t last);
 
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+static inline struct pgt *pgt_pop_from_cache_list(vaddr_t vabase __unused,
+						  struct ts_ctx *ctx __unused)
+{ return NULL; }
+static inline void pgt_push_to_cache_list(struct pgt *pgt __unused) { }
+#else
 struct pgt *pgt_pop_from_cache_list(vaddr_t vabase, struct ts_ctx *ctx);
 void pgt_push_to_cache_list(struct pgt *pgt);
+#endif
 
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+static inline void pgt_init(void) { }
+#else
 void pgt_init(void);
+#endif
 
 void pgt_flush_ctx(struct ts_ctx *ctx);
 
