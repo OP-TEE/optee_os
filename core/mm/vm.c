@@ -113,7 +113,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 {
 	struct thread_specific_data *tsd __maybe_unused;
 
-	if (!pgt_check_avail(&uctx->vm_info)) {
+	if (!pgt_check_avail(&uctx->pgt_cache, &uctx->vm_info)) {
 		EMSG("Page tables are not available");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}

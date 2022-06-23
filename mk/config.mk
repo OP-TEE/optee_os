@@ -924,3 +924,10 @@ endif
 
 # Enable the FF-A SPMC tests in xtests
 CFG_SPMC_TESTS ?= n
+
+# Allocate the translation tables needed to map the S-EL0 application
+# loaded
+CFG_CORE_PREALLOC_EL0_TBLS ?= n
+ifeq (y-y,$(CFG_CORE_PREALLOC_EL0_TBLS)-$(CFG_WITH_PAGER))
+$(error "CFG_WITH_PAGER can't support CFG_CORE_PREALLOC_EL0_TBLS")
+endif

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016, Linaro Limited
+ * Copyright (c) 2016, 2022 Linaro Limited
  */
 
 #include <assert.h>
 #include <kernel/mutex.h>
+#include <kernel/spinlock.h>
 #include <kernel/tee_misc.h>
+#include <kernel/user_mode_ctx.h>
+#include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/pgt_cache.h>
 #include <mm/tee_pager.h>
@@ -34,12 +37,313 @@
  * turn if needed.
  */
 
-#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS) || \
+	(defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE))
 struct pgt_parent {
 	size_t num_used;
 	struct pgt_cache pgt_cache;
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+	tee_mm_entry_t *mm;
+	SLIST_ENTRY(pgt_parent) link;
+#endif
 };
+#endif
 
+#if defined(CFG_CORE_PREALLOC_EL0_TBLS)
+
+/*
+ * Pick something large enough that tee_mm_alloc() doesn't have to be
+ * called for each needed translation table.
+ */
+#define PGT_PARENT_SIZE		(4 * SMALL_PAGE_SIZE)
+#define PGT_PARENT_TBL_COUNT	(PGT_PARENT_SIZE / PGT_SIZE)
+
+SLIST_HEAD(pgt_parent_list, pgt_parent);
+static struct pgt_parent_list parent_list = SLIST_HEAD_INITIALIZER(parent_list);
+static unsigned int parent_spinlock = SPINLOCK_UNLOCK;
+
+static void free_pgt(struct pgt *pgt)
+{
+	struct pgt_parent *parent = NULL;
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&parent_spinlock);
+
+	assert(pgt && pgt->parent);
+	parent = pgt->parent;
+	assert(parent->num_used <= PGT_PARENT_TBL_COUNT &&
+	       parent->num_used > 0);
+	if (parent->num_used == PGT_PARENT_TBL_COUNT)
+		SLIST_INSERT_HEAD(&parent_list, parent, link);
+	parent->num_used--;
+
+	if (!parent->num_used && SLIST_NEXT(SLIST_FIRST(&parent_list), link)) {
+		/*
+		 * If this isn't the last pgt_parent with free entries we
+		 * can free this.
+		 */
+		SLIST_REMOVE(&parent_list, parent, pgt_parent, link);
+		tee_mm_free(parent->mm);
+		free(parent);
+	} else {
+		SLIST_INSERT_HEAD(&parent->pgt_cache, pgt, link);
+		pgt->vabase = 0;
+		pgt->populated = false;
+	}
+
+	cpu_spin_unlock_xrestore(&parent_spinlock, exceptions);
+}
+
+static struct pgt_parent *alloc_pgt_parent(void)
+{
+	struct pgt_parent *parent = NULL;
+	struct pgt *pgt = NULL;
+	uint8_t *tbl = NULL;
+	size_t sz = 0;
+	size_t n = 0;
+
+	sz = sizeof(*parent) + sizeof(*pgt) * PGT_PARENT_TBL_COUNT;
+	parent = calloc(1, sz);
+	if (!parent)
+		return NULL;
+	parent->mm = tee_mm_alloc(&tee_mm_sec_ddr, PGT_PARENT_SIZE);
+	if (!parent->mm) {
+		free(parent);
+		return NULL;
+	}
+	tbl = phys_to_virt(tee_mm_get_smem(parent->mm), MEM_AREA_TA_RAM,
+			   PGT_PARENT_SIZE);
+	assert(tbl); /* "can't fail" */
+
+	SLIST_INIT(&parent->pgt_cache);
+	pgt = (struct pgt *)(parent + 1);
+	for (n = 0; n < PGT_PARENT_TBL_COUNT; n++) {
+		pgt[n].parent = parent;
+		pgt[n].tbl = tbl + n * PGT_SIZE;
+		SLIST_INSERT_HEAD(&parent->pgt_cache, pgt + n, link);
+	}
+
+	return parent;
+}
+
+static struct pgt *alloc_pgt(vaddr_t vabase)
+{
+	struct pgt_parent *parent = NULL;
+	uint32_t exceptions = 0;
+	struct pgt *pgt = NULL;
+
+	exceptions = cpu_spin_lock_xsave(&parent_spinlock);
+
+	parent = SLIST_FIRST(&parent_list);
+	if (!parent) {
+		parent = alloc_pgt_parent();
+		if (!parent)
+			goto out;
+
+		SLIST_INSERT_HEAD(&parent_list, parent, link);
+	}
+
+	pgt = SLIST_FIRST(&parent->pgt_cache);
+	SLIST_REMOVE_HEAD(&parent->pgt_cache, link);
+	parent->num_used++;
+	assert(pgt && parent->num_used <= PGT_PARENT_TBL_COUNT);
+	if (parent->num_used == PGT_PARENT_TBL_COUNT)
+		SLIST_REMOVE_HEAD(&parent_list, link);
+
+	pgt->vabase = vabase;
+out:
+	cpu_spin_unlock_xrestore(&parent_spinlock, exceptions);
+	return pgt;
+}
+
+static bool pgt_entry_matches(struct pgt *p, vaddr_t begin, vaddr_t last)
+{
+	if (!p)
+		return false;
+	if (last <= begin)
+		return false;
+	return core_is_buffer_inside(p->vabase, CORE_MMU_PGDIR_SIZE, begin,
+				     last - begin);
+}
+
+void pgt_flush_ctx_range(struct pgt_cache *pgt_cache,
+			 struct ts_ctx *ctx __unused,
+			 vaddr_t begin, vaddr_t last)
+{
+	if (pgt_cache) {
+		struct pgt *p;
+		struct pgt *next_p;
+
+		/*
+		 * Do the special case where the first element in the list is
+		 * removed first.
+		 */
+		p = SLIST_FIRST(pgt_cache);
+		while (pgt_entry_matches(p, begin, last)) {
+			SLIST_REMOVE_HEAD(pgt_cache, link);
+			free_pgt(p);
+			p = SLIST_FIRST(pgt_cache);
+		}
+
+		/*
+		 * p either points to the first element in the list or it's
+		 * NULL, if NULL the list is empty and we're done.
+		 */
+		if (!p)
+			return;
+
+		/*
+		 * Do the common case where the next element in the list is
+		 * removed.
+		 */
+		while (true) {
+			next_p = SLIST_NEXT(p, link);
+			if (!next_p)
+				break;
+			if (pgt_entry_matches(next_p, begin, last)) {
+				SLIST_REMOVE_AFTER(p, link);
+				free_pgt(next_p);
+				continue;
+			}
+
+			p = SLIST_NEXT(p, link);
+		}
+	}
+}
+
+void pgt_flush_ctx(struct ts_ctx *ctx)
+{
+	struct pgt_cache *pgt_cache = NULL;
+	struct pgt *p = NULL;
+
+	pgt_cache = &to_user_mode_ctx(ctx)->pgt_cache;
+	while (true) {
+		p = SLIST_FIRST(pgt_cache);
+		if (!p)
+			break;
+		SLIST_REMOVE_HEAD(pgt_cache, link);
+		free_pgt(p);
+	}
+}
+
+void pgt_clear_ctx_range(struct pgt_cache *pgt_cache,
+			 struct ts_ctx *ctx __unused,
+			 vaddr_t begin, vaddr_t end)
+{
+	if (pgt_cache) {
+		struct pgt *p = NULL;
+	#ifdef CFG_WITH_LPAE
+		uint64_t *tbl = NULL;
+	#else
+		uint32_t *tbl = NULL;
+	#endif
+		unsigned int idx = 0;
+		unsigned int n = 0;
+
+		SLIST_FOREACH(p, pgt_cache, link) {
+			vaddr_t b = MAX(p->vabase, begin);
+			vaddr_t e = MIN(p->vabase + CORE_MMU_PGDIR_SIZE, end);
+
+			if (b >= e)
+				continue;
+
+			tbl = p->tbl;
+			idx = (b - p->vabase) / SMALL_PAGE_SIZE;
+			n = (e - b) / SMALL_PAGE_SIZE;
+			memset(tbl + idx, 0, n * sizeof(*tbl));
+		}
+	}
+}
+
+static struct pgt *prune_before_va(struct pgt_cache *pgt_cache, struct pgt *p,
+				   struct pgt *pp, vaddr_t va)
+{
+	while (p && p->vabase < va) {
+		if (pp) {
+			assert(p == SLIST_NEXT(pp, link));
+			SLIST_REMOVE_AFTER(pp, link);
+			free_pgt(p);
+			p = SLIST_NEXT(pp, link);
+		} else {
+			assert(p == SLIST_FIRST(pgt_cache));
+			SLIST_REMOVE_HEAD(pgt_cache, link);
+			free_pgt(p);
+			p = SLIST_FIRST(pgt_cache);
+		}
+	}
+
+	return p;
+}
+
+bool pgt_check_avail(struct pgt_cache *pgt_cache, struct vm_info *vm_info)
+{
+	struct pgt *p = SLIST_FIRST(pgt_cache);
+	struct vm_region *r = NULL;
+	struct pgt *pp = NULL;
+	vaddr_t va = 0;
+	bool p_used = false;
+
+	/*
+	 * Prune unused tables. This is normally not needed since
+	 * pgt_flush_ctx_range() does this too, but in the error path of
+	 * for instance vm_remap() such calls may not be done. So for
+	 * increased robustness remove all unused translation tables before
+	 * we may allocate new ones.
+	 */
+	TAILQ_FOREACH(r, &vm_info->regions, link) {
+		for (va = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     va < r->va + r->size; va += CORE_MMU_PGDIR_SIZE) {
+			if (!p_used)
+				p = prune_before_va(pgt_cache, p, pp, va);
+			if (!p)
+				goto prune_done;
+
+			if (p->vabase < va) {
+				pp = p;
+				p = SLIST_NEXT(pp, link);
+				if (!p)
+					goto prune_done;
+				p_used = false;
+			}
+
+			if (p->vabase == va)
+				p_used = true;
+		}
+	}
+prune_done:
+
+	p = SLIST_FIRST(pgt_cache);
+	pp = NULL;
+	TAILQ_FOREACH(r, &vm_info->regions, link) {
+		for (va = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     va < r->va + r->size; va += CORE_MMU_PGDIR_SIZE) {
+			if (p && p->vabase < va) {
+				pp = p;
+				p = SLIST_NEXT(pp, link);
+			}
+
+			if (p) {
+				if (p->vabase == va)
+					continue;
+				assert(p->vabase > va);
+			}
+
+			p = alloc_pgt(va);
+			if (!p)
+				return false;
+
+			if (pp)
+				SLIST_INSERT_AFTER(pp, p, link);
+			else
+				SLIST_INSERT_HEAD(pgt_cache, p, link);
+		}
+	}
+
+	return true;
+}
+#else /* !CFG_CORE_PREALLOC_EL0_TBLS */
+
+#if defined(CFG_WITH_PAGER) && !defined(CFG_WITH_LPAE)
 static struct pgt_parent pgt_parents[PGT_CACHE_SIZE / PGT_NUM_PGT_PER_PAGE];
 #else
 
@@ -493,7 +797,8 @@ static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	return true;
 }
 
-bool pgt_check_avail(struct vm_info *vm_info)
+bool pgt_check_avail(struct pgt_cache *pgt_cache __unused,
+		     struct vm_info *vm_info)
 {
 	struct vm_region *r = NULL;
 	size_t tbl_count = 0;
@@ -523,7 +828,7 @@ void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 
 	pgt_free_unlocked(pgt_cache);
 	while (!pgt_alloc_unlocked(pgt_cache, ctx, vm_info)) {
-		assert(pgt_check_avail(vm_info));
+		assert(pgt_check_avail(pgt_cache, vm_info));
 		DMSG("Waiting for page tables");
 		condvar_broadcast(&pgt_cv);
 		condvar_wait(&pgt_cv, &pgt_mu);
@@ -562,3 +867,5 @@ void pgt_push_to_cache_list(struct pgt *pgt)
 	push_to_cache_list(pgt);
 	mutex_unlock(&pgt_mu);
 }
+
+#endif /* !CFG_CORE_PREALLOC_EL0_TBLS */
