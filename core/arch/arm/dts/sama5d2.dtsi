@@ -405,6 +405,8 @@
 				interrupts = <36 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 36>, <&pmc PMC_TYPE_GCK 36>, <&clk32k>;
 				clock-names = "t0_clk", "gclk", "slow_clk";
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			hsmc: hsmc@f8014000 {
