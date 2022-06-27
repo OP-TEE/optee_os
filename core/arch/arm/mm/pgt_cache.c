@@ -166,57 +166,53 @@ static bool pgt_entry_matches(struct pgt *p, vaddr_t begin, vaddr_t last)
 				     last - begin);
 }
 
-void pgt_flush_ctx_range(struct pgt_cache *pgt_cache,
-			 struct ts_ctx *ctx __unused,
-			 vaddr_t begin, vaddr_t last)
+void pgt_flush_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t last)
 {
-	if (pgt_cache) {
-		struct pgt *p;
-		struct pgt *next_p;
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct pgt *next_p = NULL;
+	struct pgt *p = NULL;
 
-		/*
-		 * Do the special case where the first element in the list is
-		 * removed first.
-		 */
+	/*
+	 * Do the special case where the first element in the list is
+	 * removed first.
+	 */
+	p = SLIST_FIRST(pgt_cache);
+	while (pgt_entry_matches(p, begin, last)) {
+		SLIST_REMOVE_HEAD(pgt_cache, link);
+		free_pgt(p);
 		p = SLIST_FIRST(pgt_cache);
-		while (pgt_entry_matches(p, begin, last)) {
-			SLIST_REMOVE_HEAD(pgt_cache, link);
-			free_pgt(p);
-			p = SLIST_FIRST(pgt_cache);
+	}
+
+	/*
+	 * p either points to the first element in the list or it's NULL,
+	 * if NULL the list is empty and we're done.
+	 */
+	if (!p)
+		return;
+
+	/*
+	 * Do the common case where the next element in the list is
+	 * removed.
+	 */
+	while (true) {
+		next_p = SLIST_NEXT(p, link);
+		if (!next_p)
+			break;
+		if (pgt_entry_matches(next_p, begin, last)) {
+			SLIST_REMOVE_AFTER(p, link);
+			free_pgt(next_p);
+			continue;
 		}
 
-		/*
-		 * p either points to the first element in the list or it's
-		 * NULL, if NULL the list is empty and we're done.
-		 */
-		if (!p)
-			return;
-
-		/*
-		 * Do the common case where the next element in the list is
-		 * removed.
-		 */
-		while (true) {
-			next_p = SLIST_NEXT(p, link);
-			if (!next_p)
-				break;
-			if (pgt_entry_matches(next_p, begin, last)) {
-				SLIST_REMOVE_AFTER(p, link);
-				free_pgt(next_p);
-				continue;
-			}
-
-			p = SLIST_NEXT(p, link);
-		}
+		p = SLIST_NEXT(p, link);
 	}
 }
 
-void pgt_flush_ctx(struct ts_ctx *ctx)
+void pgt_flush(struct user_mode_ctx *uctx)
 {
-	struct pgt_cache *pgt_cache = NULL;
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	struct pgt *p = NULL;
 
-	pgt_cache = &to_user_mode_ctx(ctx)->pgt_cache;
 	while (true) {
 		p = SLIST_FIRST(pgt_cache);
 		if (!p)
@@ -226,32 +222,29 @@ void pgt_flush_ctx(struct ts_ctx *ctx)
 	}
 }
 
-void pgt_clear_ctx_range(struct pgt_cache *pgt_cache,
-			 struct ts_ctx *ctx __unused,
-			 vaddr_t begin, vaddr_t end)
+void pgt_clear_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t end)
 {
-	if (pgt_cache) {
-		struct pgt *p = NULL;
-	#ifdef CFG_WITH_LPAE
-		uint64_t *tbl = NULL;
-	#else
-		uint32_t *tbl = NULL;
-	#endif
-		unsigned int idx = 0;
-		unsigned int n = 0;
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct pgt *p = NULL;
+#ifdef CFG_WITH_LPAE
+	uint64_t *tbl = NULL;
+#else
+	uint32_t *tbl = NULL;
+#endif
+	unsigned int idx = 0;
+	unsigned int n = 0;
 
-		SLIST_FOREACH(p, pgt_cache, link) {
-			vaddr_t b = MAX(p->vabase, begin);
-			vaddr_t e = MIN(p->vabase + CORE_MMU_PGDIR_SIZE, end);
+	SLIST_FOREACH(p, pgt_cache, link) {
+		vaddr_t b = MAX(p->vabase, begin);
+		vaddr_t e = MIN(p->vabase + CORE_MMU_PGDIR_SIZE, end);
 
-			if (b >= e)
-				continue;
+		if (b >= e)
+			continue;
 
-			tbl = p->tbl;
-			idx = (b - p->vabase) / SMALL_PAGE_SIZE;
-			n = (e - b) / SMALL_PAGE_SIZE;
-			memset(tbl + idx, 0, n * sizeof(*tbl));
-		}
+		tbl = p->tbl;
+		idx = (b - p->vabase) / SMALL_PAGE_SIZE;
+		n = (e - b) / SMALL_PAGE_SIZE;
+		memset(tbl + idx, 0, n * sizeof(*tbl));
 	}
 }
 
@@ -275,8 +268,10 @@ static struct pgt *prune_before_va(struct pgt_cache *pgt_cache, struct pgt *p,
 	return p;
 }
 
-bool pgt_check_avail(struct pgt_cache *pgt_cache, struct vm_info *vm_info)
+bool pgt_check_avail(struct user_mode_ctx *uctx)
 {
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct vm_info *vm_info = &uctx->vm_info;
 	struct pgt *p = SLIST_FIRST(pgt_cache);
 	struct vm_region *r = NULL;
 	struct pgt *pp = NULL;
@@ -285,10 +280,10 @@ bool pgt_check_avail(struct pgt_cache *pgt_cache, struct vm_info *vm_info)
 
 	/*
 	 * Prune unused tables. This is normally not needed since
-	 * pgt_flush_ctx_range() does this too, but in the error path of
-	 * for instance vm_remap() such calls may not be done. So for
-	 * increased robustness remove all unused translation tables before
-	 * we may allocate new ones.
+	 * pgt_flush_range() does this too, but in the error path of for
+	 * instance vm_remap() such calls may not be done. So for increased
+	 * robustness remove all unused translation tables before we may
+	 * allocate new ones.
 	 */
 	TAILQ_FOREACH(r, &vm_info->regions, link) {
 		for (va = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
@@ -608,10 +603,11 @@ static struct pgt *pop_from_some_list(vaddr_t vabase, void *ctx)
 	return p;
 }
 
-void pgt_flush_ctx(struct ts_ctx *ctx)
+void pgt_flush(struct user_mode_ctx *uctx)
 {
-	struct pgt *p;
+	struct ts_ctx *ctx = uctx->ts_ctx;
 	struct pgt *pp = NULL;
+	struct pgt *p = NULL;
 
 	mutex_lock(&pgt_mu);
 
@@ -715,13 +711,14 @@ static void flush_ctx_range_from_list(struct pgt_cache *pgt_cache, void *ctx,
 	}
 }
 
-void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-			 vaddr_t begin, vaddr_t last)
+void pgt_flush_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t last)
 {
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct ts_ctx *ctx = uctx->ts_ctx;
+
 	mutex_lock(&pgt_mu);
 
-	if (pgt_cache)
-		flush_ctx_range_from_list(pgt_cache, ctx, begin, last);
+	flush_ctx_range_from_list(pgt_cache, ctx, begin, last);
 	flush_ctx_range_from_list(&pgt_cache_list, ctx, begin, last);
 
 	condvar_broadcast(&pgt_cv);
@@ -756,13 +753,14 @@ static void clear_ctx_range_from_list(struct pgt_cache *pgt_cache,
 	}
 }
 
-void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-			 vaddr_t begin, vaddr_t end)
+void pgt_clear_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t end)
 {
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct ts_ctx *ctx = uctx->ts_ctx;
+
 	mutex_lock(&pgt_mu);
 
-	if (pgt_cache)
-		clear_ctx_range_from_list(pgt_cache, ctx, begin, end);
+	clear_ctx_range_from_list(pgt_cache, ctx, begin, end);
 	clear_ctx_range_from_list(&pgt_cache_list, ctx, begin, end);
 
 	mutex_unlock(&pgt_mu);
@@ -797,9 +795,9 @@ static bool pgt_alloc_unlocked(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	return true;
 }
 
-bool pgt_check_avail(struct pgt_cache *pgt_cache __unused,
-		     struct vm_info *vm_info)
+bool pgt_check_avail(struct user_mode_ctx *uctx)
 {
+	struct vm_info *vm_info = &uctx->vm_info;
 	struct vm_region *r = NULL;
 	size_t tbl_count = 0;
 	vaddr_t last_va = 0;
@@ -818,17 +816,19 @@ bool pgt_check_avail(struct pgt_cache *pgt_cache __unused,
 	return tbl_count <= PGT_CACHE_SIZE;
 }
 
-void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-		 struct vm_info *vm_info)
+void pgt_get_all(struct user_mode_ctx *uctx)
 {
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+	struct vm_info *vm_info = &uctx->vm_info;
+
 	if (TAILQ_EMPTY(&vm_info->regions))
 		return;
 
 	mutex_lock(&pgt_mu);
 
 	pgt_free_unlocked(pgt_cache);
-	while (!pgt_alloc_unlocked(pgt_cache, ctx, vm_info)) {
-		assert(pgt_check_avail(pgt_cache, vm_info));
+	while (!pgt_alloc_unlocked(pgt_cache, uctx->ts_ctx, vm_info)) {
+		assert(pgt_check_avail(uctx));
 		DMSG("Waiting for page tables");
 		condvar_broadcast(&pgt_cv);
 		condvar_wait(&pgt_cv, &pgt_mu);
@@ -837,8 +837,10 @@ void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
 	mutex_unlock(&pgt_mu);
 }
 
-void pgt_put_all(struct pgt_cache *pgt_cache)
+void pgt_put_all(struct user_mode_ctx *uctx)
 {
+	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
+
 	if (SLIST_EMPTY(pgt_cache))
 		return;
 

@@ -53,42 +53,36 @@ struct pgt {
 #endif
 
 SLIST_HEAD(pgt_cache, pgt);
+struct user_mode_ctx;
 
-bool pgt_check_avail(struct pgt_cache *pgt_cache, struct vm_info *vm_info);
+bool pgt_check_avail(struct user_mode_ctx *uctx);
 
 /*
  * pgt_get_all() - makes all needed translation tables available
- * @pgt_cache:	list of translation tables for the owning context
- * @owning_ctx:	the context to own the tables
- * @vm_info:	VM map for the context
+ * @uctx:	the context to own the tables
  *
  * Guaranteed to succeed, but may need to sleep for a while to get all the
  * needed translation tables.
  */
 #if defined(CFG_CORE_PREALLOC_EL0_TBLS)
-static inline void pgt_get_all(struct pgt_cache *pgt_cache __unused,
-			       struct ts_ctx *owning_ctx __unused,
-			       struct vm_info *vm_info __unused) { }
+static inline void pgt_get_all(struct user_mode_ctx *uctx __unused) { }
 #else
-void pgt_get_all(struct pgt_cache *pgt_cache, struct ts_ctx *owning_ctx,
-		 struct vm_info *vm_info);
+void pgt_get_all(struct user_mode_ctx *uctx);
 #endif
 
 /*
  * pgt_put_all() - informs the translation table manager that these tables
  *		   will not be needed for a while
- * @pgt_cache:	list of translation tables to make inactive
+ * @uctx:	the context owning the tables to make inactive
  */
 #if defined(CFG_CORE_PREALLOC_EL0_TBLS)
-static inline void pgt_put_all(struct pgt_cache *pgt_cache __unused) { }
+static inline void pgt_put_all(struct user_mode_ctx *uctx __unused) { }
 #else
-void pgt_put_all(struct pgt_cache *pgt_cache);
+void pgt_put_all(struct user_mode_ctx *uctx);
 #endif
 
-void pgt_clear_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-			 vaddr_t begin, vaddr_t end);
-void pgt_flush_ctx_range(struct pgt_cache *pgt_cache, struct ts_ctx *ctx,
-			 vaddr_t begin, vaddr_t last);
+void pgt_clear_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t end);
+void pgt_flush_range(struct user_mode_ctx *uctx, vaddr_t begin, vaddr_t last);
 
 #if defined(CFG_CORE_PREALLOC_EL0_TBLS)
 static inline struct pgt *pgt_pop_from_cache_list(vaddr_t vabase __unused,
@@ -106,7 +100,7 @@ static inline void pgt_init(void) { }
 void pgt_init(void);
 #endif
 
-void pgt_flush_ctx(struct ts_ctx *ctx);
+void pgt_flush(struct user_mode_ctx *uctx);
 
 #if defined(CFG_PAGED_USER_TA)
 static inline void pgt_inc_used_entries(struct pgt *pgt)
