@@ -113,7 +113,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 {
 	struct thread_specific_data *tsd __maybe_unused;
 
-	if (!pgt_check_avail(&uctx->pgt_cache, &uctx->vm_info)) {
+	if (!pgt_check_avail(uctx)) {
 		EMSG("Page tables are not available");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
@@ -125,7 +125,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_get_all(&uctx->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
+		pgt_get_all(uctx);
 	}
 #endif
 
@@ -134,7 +134,6 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 
 static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 {
-	struct pgt_cache *pgt_cache = &uctx->pgt_cache;
 	vaddr_t begin = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
 	vaddr_t last = ROUNDUP(r->va + r->size, CORE_MMU_PGDIR_SIZE);
 	struct vm_region *r2 = NULL;
@@ -142,8 +141,7 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 	if (mobj_is_paged(r->mobj)) {
 		tee_pager_rem_um_region(uctx, r->va, r->size);
 	} else {
-		pgt_clear_ctx_range(pgt_cache, uctx->ts_ctx, r->va,
-				    r->va + r->size);
+		pgt_clear_range(uctx, r->va, r->va + r->size);
 		tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
 				    uctx->vm_info.asid);
 	}
@@ -160,8 +158,7 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 	/* If there's no unused page tables, there's nothing left to do */
 	if (begin >= last)
 		return;
-
-	pgt_flush_ctx_range(pgt_cache, uctx->ts_ctx, r->va, r->va + r->size);
+	pgt_flush_range(uctx, r->va, r->va + r->size);
 }
 
 static void set_pa_range(struct core_mmu_table_info *ti, vaddr_t va,
@@ -1125,7 +1122,7 @@ void vm_info_final(struct user_mode_ctx *uctx)
 	if (!uctx->vm_info.asid)
 		return;
 
-	pgt_flush_ctx(uctx->ts_ctx);
+	pgt_flush(uctx);
 	tee_pager_rem_um_regions(uctx);
 
 	/* clear MMU entries to avoid clash when asid is reused */
@@ -1352,7 +1349,7 @@ void vm_set_ctx(struct ts_ctx *ctx)
 		 * the pgts available for reuse.
 		 */
 		uctx = to_user_mode_ctx(tsd->ctx);
-		pgt_put_all(&uctx->pgt_cache);
+		pgt_put_all(uctx);
 	}
 
 	if (is_user_mode_ctx(ctx)) {
