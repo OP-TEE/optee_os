@@ -102,6 +102,7 @@ jobs:
           _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
           _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
           _make CFG_WITH_LPAE=y
+          _make CFG_CORE_PREALLOC_EL0_TBLS=y
           _make CFG_RPMB_FS=y
           _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
           _make CFG_REE_FS=n CFG_RPMB_FS=y
@@ -120,6 +121,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_VIRTUALIZATION=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
           _make PLATFORM=stm-b2260
