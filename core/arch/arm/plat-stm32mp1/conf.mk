@@ -31,7 +31,6 @@ endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
-$(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
@@ -67,6 +66,7 @@ $(call force,CFG_DRIVERS_CLK_DT,y)
 endif
 
 ifeq ($(CFG_STM32MP13),y)
+$(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_STM32MP15,n)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
@@ -75,6 +75,7 @@ $(call force,CFG_STM32MP15_CLK,n)
 CFG_STM32MP_OPP_COUNT ?= 2
 else
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
+CFG_CORE_RESERVED_SHM ?= y
 $(call force,CFG_STM32MP15,y)
 $(call force,CFG_STM32MP15_CLK,y)
 endif
@@ -93,6 +94,10 @@ CFG_STM32MP1_SCMI_SHM_SIZE ?= 0x00001000
 ifeq ($(CFG_STM32MP15),y)
 CFG_TZDRAM_START ?= 0xfe000000
 CFG_TZDRAM_SIZE  ?= 0x01e00000
+ifeq ($(CFG_CORE_RESERVED_SHM),y)
+CFG_SHMEM_START  ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
+CFG_SHMEM_SIZE   ?= ($(CFG_DRAM_BASE) + $(CFG_DRAM_SIZE) - $(CFG_SHMEM_START))
+endif
 else
 CFG_TZDRAM_SIZE  ?= 0x02000000
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + $(CFG_DRAM_SIZE) - $(CFG_TZDRAM_SIZE))
