@@ -34,7 +34,7 @@
 #define RNG_SR_CEIS		BIT(5)
 #define RNG_SR_SEIS		BIT(6)
 
-#define RNG_TIMEOUT_US		10000
+#define RNG_TIMEOUT_US		U(100000)
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
@@ -78,40 +78,37 @@ static void conceal_seed_error(vaddr_t rng_base)
 
 #define RNG_FIFO_BYTE_DEPTH		16u
 
-static TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out,
-				     size_t *size)
+static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 {
-	TEE_Result rc = TEE_ERROR_SECURITY;
-	uint64_t timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+	uint8_t *buf = NULL;
+	size_t req_size = 0;
+	size_t len = 0;
 
-	/* Wait RNG has produced well seeded random samples */
-	while (!timeout_elapsed(timeout_ref)) {
-		conceal_seed_error(rng_base);
+	conceal_seed_error(rng_base);
 
-		if (io_read32(rng_base + RNG_SR) & RNG_SR_DRDY)
-			break;
+	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
+		return TEE_ERROR_NO_DATA;
+
+	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+		return TEE_ERROR_NO_DATA;
+
+	buf = out;
+	req_size = MIN(RNG_FIFO_BYTE_DEPTH, *size);
+	len = req_size;
+
+	/* RNG is ready: read up to 4 32bit words */
+	while (len) {
+		uint32_t data32 = io_read32(rng_base + RNG_DR);
+		size_t sz = MIN(len, sizeof(uint32_t));
+
+		memcpy(buf, &data32, sz);
+		buf += sz;
+		len -= sz;
 	}
 
-	if (io_read32(rng_base + RNG_SR) & RNG_SR_DRDY) {
-		uint8_t *buf = out;
-		size_t req_size = MIN(RNG_FIFO_BYTE_DEPTH, *size);
-		size_t len = req_size;
+	*size = req_size;
 
-		/* RNG is ready: read up to 4 32bit words */
-		while (len) {
-			uint32_t data32 = io_read32(rng_base + RNG_DR);
-			size_t sz = MIN(len, sizeof(uint32_t));
-
-			memcpy(buf, &data32, sz);
-			buf += sz;
-			len -= sz;
-		}
-		rc = TEE_SUCCESS;
-		*size = req_size;
-	}
-
-
-	return rc;
+	return TEE_SUCCESS;
 }
 
 static void gate_rng(bool enable, struct stm32_rng_instance *dev)
@@ -139,10 +136,12 @@ static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 
 TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 {
-	TEE_Result rc = 0;
+	TEE_Result rc = TEE_ERROR_GENERIC;
+	bool burst_timeout = false;
+	uint64_t timeout_ref = 0;
 	uint32_t exceptions = 0;
-	vaddr_t rng_base = io_pa_or_va(&stm32_rng->base, 1);
 	uint8_t *out_ptr = out;
+	vaddr_t rng_base = 0;
 	size_t out_size = 0;
 
 	if (!stm32_rng) {
@@ -151,6 +150,11 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 	}
 
 	gate_rng(true, stm32_rng);
+	rng_base = io_pa_or_va(&stm32_rng->base, 1);
+
+	/* Arm timeout */
+	timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+	burst_timeout = false;
 
 	while (out_size < size) {
 		/* Read by chunks of the size the RNG FIFO depth */
@@ -158,21 +162,32 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 
 		exceptions = may_spin_lock(&stm32_rng->lock);
 
-		rc = stm32_rng_read_raw(rng_base, out_ptr, &sz);
+		rc = read_available(rng_base, out_ptr, &sz);
+
+		/* Raise timeout only if we failed to get some samples */
+		assert(!rc || rc == TEE_ERROR_NO_DATA);
+		if (rc)
+			burst_timeout = timeout_elapsed(timeout_ref);
 
 		may_spin_unlock(&stm32_rng->lock, exceptions);
 
-		if (rc)
-			goto bail;
+		if (burst_timeout) {
+			rc = TEE_ERROR_GENERIC;
+			goto out;
+		}
 
-		out_size += sz;
-		out_ptr += sz;
+		if (!rc) {
+			out_size += sz;
+			out_ptr += sz;
+			/* Re-arm timeout */
+			timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+			burst_timeout = false;
+		}
 	}
 
-bail:
+out:
+	assert(!rc || rc == TEE_ERROR_GENERIC);
 	gate_rng(false, stm32_rng);
-	if (rc)
-		memset(out, 0, size);
 
 	return rc;
 }
