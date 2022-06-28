@@ -1086,7 +1086,7 @@ static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id)
 static TEE_Result tee_rpmb_write_and_verify_key(uint16_t dev_id __unused)
 {
 	DMSG("RPMB INIT: CFG_RPMB_WRITE_KEY is not set");
-	return TEE_ERROR_BAD_STATE;
+	return TEE_ERROR_STORAGE_NOT_AVAILABLE;
 }
 #endif
 
