@@ -15,6 +15,7 @@
 #include <kernel/thread.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
+#include <rng_support.h>
 #include <stdbool.h>
 #include <stm32_util.h>
 #include <string.h>
@@ -197,6 +198,23 @@ out:
 
 	return rc;
 }
+
+#ifndef CFG_WITH_SOFTWARE_PRNG
+TEE_Result crypto_rng_read(void *out, size_t size)
+{
+	return stm32_rng_read(out, size);
+}
+
+uint8_t hw_get_random_byte(void)
+{
+	uint8_t byte = 0;
+
+	if (stm32_rng_read(&byte, sizeof(byte)))
+		panic();
+
+	return byte;
+}
+#endif
 
 #ifdef CFG_EMBED_DTB
 static TEE_Result stm32_rng_init(void)
