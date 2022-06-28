@@ -41,11 +41,11 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_STM32_SHARED_IO,y)
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 CFG_WITH_LPAE ?= y
+CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
@@ -160,6 +160,15 @@ CFG_SCMI_MSG_SHM_MSG ?= y
 CFG_SCMI_MSG_SMT ?= y
 CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= y
 $(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
+endif
+
+ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
+CFG_HWRNG_PTA ?= y
+endif
+ifeq ($(CFG_HWRNG_PTA),y)
+$(call force,CFG_STM32_RNG,y,Mandated by CFG_HWRNG_PTA)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n,Mandated by CFG_HWRNG_PTA)
+$(call force,CFG_HWRNG_QUALITY,1024)
 endif
 
 # Provision enough threads to pass xtest
