@@ -8,7 +8,7 @@
  */
 
 #include <kernel/pseudo_ta.h>
-#include <rng_pta_client.h>
+#include <pta_rng.h>
 #include <rng_support.h>
 
 #define PTA_NAME "rng.pta"
