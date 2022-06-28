@@ -41,6 +41,7 @@ struct stm32_rng_instance {
 	struct clk *clock;
 	unsigned int lock;
 	unsigned int refcount;
+	bool release_post_boot;
 };
 
 static struct stm32_rng_instance *stm32_rng;
@@ -190,7 +191,6 @@ static TEE_Result stm32_rng_init(void)
 	void *fdt = NULL;
 	int node = -1;
 	struct dt_node_info dt_info;
-	enum teecore_memtypes mtype = MEM_AREA_END;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	memset(&dt_info, 0, sizeof(dt_info));
@@ -222,15 +222,14 @@ static TEE_Result stm32_rng_init(void)
 
 		if (dt_info.status & DT_STATUS_OK_NSEC) {
 			stm32mp_register_non_secure_periph_iomem(dt_info.reg);
-			mtype = MEM_AREA_IO_NSEC;
+			stm32_rng->release_post_boot = true;
 		} else {
 			stm32mp_register_secure_periph_iomem(dt_info.reg);
-			mtype = MEM_AREA_IO_SEC;
 		}
 
 		stm32_rng->base.pa = dt_info.reg;
-		stm32_rng->base.va = (vaddr_t)phys_to_virt(dt_info.reg, mtype,
-							   dt_info.reg_size);
+		if (!io_pa_or_va_secure(&stm32_rng->base, dt_info.reg_size))
+			panic();
 
 		res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
 		if (res)
@@ -244,5 +243,19 @@ static TEE_Result stm32_rng_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(stm32_rng_init);
+early_init_late(stm32_rng_init);
+
+static TEE_Result stm32_rng_release(void)
+{
+	if (stm32_rng && stm32_rng->release_post_boot) {
+		DMSG("Release RNG driver");
+		assert(!stm32_rng->refcount);
+		free(stm32_rng);
+		stm32_rng = NULL;
+	}
+
+	return TEE_SUCCESS;
+}
+
+release_init_resource(stm32_rng_release);
 #endif /*CFG_EMBED_DTB*/
