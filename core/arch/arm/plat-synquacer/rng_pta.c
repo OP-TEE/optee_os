@@ -83,7 +83,8 @@
 #include <io.h>
 #include <pta_rng.h>
 #include <string.h>
-#include <rng_pta.h>
+
+#include "synquacer_rng_pta.h"
 
 #define PTA_NAME "rng.pta"
 

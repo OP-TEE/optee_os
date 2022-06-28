@@ -16,8 +16,9 @@
 #include <kernel/timer.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
-#include <rng_pta.h>
 #include <sm/optee_smc.h>
+
+#include "synquacer_rng_pta.h"
 
 static struct gic_data gic_data;
 static struct pl011_data console_data;
