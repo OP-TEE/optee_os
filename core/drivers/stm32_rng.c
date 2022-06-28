@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stm32_util.h>
 #include <string.h>
+#include <tee/tee_cryp_utl.h>
 
 #define DT_RNG_COMPAT		"st,stm32-rng"
 #define RNG_CR			0x00U
@@ -199,7 +200,21 @@ out:
 	return rc;
 }
 
-#ifndef CFG_WITH_SOFTWARE_PRNG
+#ifdef CFG_WITH_SOFTWARE_PRNG
+/* Override weak plat_rng_init with platform handler to seed PRNG */
+void plat_rng_init(void)
+{
+	uint8_t seed[RNG_FIFO_BYTE_DEPTH] = { };
+
+	if (stm32_rng_read(seed, sizeof(seed)))
+		panic();
+
+	if (crypto_rng_init(seed, sizeof(seed)))
+		panic();
+
+	DMSG("PRNG seeded with RNG");
+}
+#else
 TEE_Result crypto_rng_read(void *out, size_t size)
 {
 	return stm32_rng_read(out, size);
