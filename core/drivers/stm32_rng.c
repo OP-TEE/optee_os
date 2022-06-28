@@ -78,17 +78,11 @@ static void conceal_seed_error(vaddr_t rng_base)
 
 #define RNG_FIFO_BYTE_DEPTH		16u
 
-TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out, size_t *size)
+static TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out,
+				     size_t *size)
 {
-	bool enabled = false;
 	TEE_Result rc = TEE_ERROR_SECURITY;
 	uint64_t timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
-
-	if (!(io_read32(rng_base + RNG_CR) & RNG_CR_RNGEN)) {
-		/* Enable RNG if not, clock error is disabled */
-		io_write32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
-		enabled = true;
-	}
 
 	/* Wait RNG has produced well seeded random samples */
 	while (!timeout_elapsed(timeout_ref)) {
@@ -116,8 +110,6 @@ TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out, size_t *size)
 		*size = req_size;
 	}
 
-	if (enabled)
-		io_write32(rng_base + RNG_CR, 0);
 
 	return rc;
 }
