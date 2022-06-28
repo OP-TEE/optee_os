@@ -63,7 +63,7 @@
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	265
 #define SA2UL_TI_SCI_FW_ID	1196
-#else
+#elif defined(PLATFORM_FLAVOR_am64x)
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	133
 #define SA2UL_TI_SCI_FW_ID	35

@@ -1,6 +1,5 @@
 CFG_WITH_STATS ?= y
 CFG_CRYPTO_WITH_CE ?= n
-CFG_WITH_SOFTWARE_PRNG ?= n
 CFG_CONSOLE_UART ?= 0
 
 CFG_TZDRAM_START ?= 0x9e800000
@@ -16,6 +15,12 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
+
+ifeq (,$(filter ${PLATFORM_FLAVOR},am65x j721e am64x))
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+else
+CFG_WITH_SOFTWARE_PRNG ?= n
+endif
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 $(call force,CFG_SA2UL,y)
