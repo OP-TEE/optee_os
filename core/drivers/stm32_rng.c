@@ -81,7 +81,6 @@ TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out, size_t *size)
 {
 	bool enabled = false;
 	TEE_Result rc = TEE_ERROR_SECURITY;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	uint64_t timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
 
 	if (!(io_read32(rng_base + RNG_CR) & RNG_CR_RNGEN)) {
@@ -118,8 +117,6 @@ TEE_Result stm32_rng_read_raw(vaddr_t rng_base, uint8_t *out, size_t *size)
 
 	if (enabled)
 		io_write32(rng_base + RNG_CR, 0);
-
-	thread_unmask_exceptions(exceptions);
 
 	return rc;
 }
