@@ -688,9 +688,9 @@ static void close_ck_session(struct pkcs11_session *session)
 	if (pkcs11_session_is_read_write(session))
 		session->token->rw_session_count--;
 
-	TEE_Free(session);
-
 	DMSG("Close PKCS11 session %"PRIu32, session->handle);
+
+	TEE_Free(session);
 }
 
 enum pkcs11_rc entry_ck_close_session(struct pkcs11_client *client,
