@@ -86,11 +86,15 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 
 	conceal_seed_error(rng_base);
 
-	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
+	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY)) {
+		FMSG("RNG not ready");
 		return TEE_ERROR_NO_DATA;
+	}
 
-	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS) {
+		FMSG("RNG noise error");
 		return TEE_ERROR_NO_DATA;
+	}
 
 	buf = out;
 	req_size = MIN(RNG_FIFO_BYTE_DEPTH, *size);
@@ -119,6 +123,7 @@ static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 	if (enable) {
 		/* incr_refcnt return non zero if resource shall be enabled */
 		if (incr_refcnt(&dev->refcount)) {
+			FMSG("enable RNG");
 			clk_enable(dev->clock);
 			io_write32(rng_cr, 0);
 			io_write32(rng_cr, RNG_CR_RNGEN | RNG_CR_CED);
@@ -126,6 +131,7 @@ static void gate_rng(bool enable, struct stm32_rng_instance *dev)
 	} else {
 		/* decr_refcnt return non zero if resource shall be disabled */
 		if (decr_refcnt(&dev->refcount)) {
+			FMSG("disable RNG");
 			io_write32(rng_cr, 0);
 			clk_disable(dev->clock);
 		}
