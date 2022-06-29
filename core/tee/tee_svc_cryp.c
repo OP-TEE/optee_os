@@ -755,6 +755,8 @@ static TEE_Result op_attr_bignum_to_user(void *attr,
 	if (s < req_size || !buffer)
 		return TEE_ERROR_SHORT_BUFFER;
 
+	buffer = memtag_strip_tag(buffer);
+
 	/* Check we can access data using supplied user mode pointer */
 	res = vm_check_access_rights(&to_user_ta_ctx(sess->ctx)->uctx,
 				     TEE_MEMORY_ACCESS_READ |
