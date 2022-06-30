@@ -2060,10 +2060,15 @@ void *core_mmu_add_mapping(enum teecore_memtypes type, paddr_t addr, size_t len)
 }
 
 #ifdef CFG_WITH_PAGER
-static vaddr_t get_linear_map_end(void)
+static vaddr_t get_linear_map_end_va(void)
 {
 	/* this is synced with the generic linker file kern.ld.S */
 	return (vaddr_t)__heap2_end;
+}
+
+static paddr_t get_linear_map_end_pa(void)
+{
+	return get_linear_map_end_va() - VCORE_START_VA + TEE_LOAD_ADDR;
 }
 #endif
 
@@ -2196,8 +2201,8 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 	if (SUB_OVERFLOW(len, 1, &end_pa) || ADD_OVERFLOW(pa, end_pa, &end_pa))
 		return NULL;
 
-	if (pa >= TEE_LOAD_ADDR && pa < get_linear_map_end()) {
-		if (end_pa > get_linear_map_end())
+	if (pa >= TEE_LOAD_ADDR && pa < get_linear_map_end_pa()) {
+		if (end_pa > get_linear_map_end_pa())
 			return NULL;
 		return (void *)(vaddr_t)(pa + boot_mmu_config.load_offset);
 	}
@@ -2284,7 +2289,7 @@ bool is_unpaged(void *va)
 {
 	vaddr_t v = (vaddr_t)va;
 
-	return v >= VCORE_START_VA && v < get_linear_map_end();
+	return v >= VCORE_START_VA && v < get_linear_map_end_va();
 }
 #else
 bool is_unpaged(void *va __unused)
