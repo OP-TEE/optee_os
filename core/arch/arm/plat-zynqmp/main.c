@@ -47,8 +47,8 @@
 #include <tee/tee_fs.h>
 #include <trace.h>
 
-static struct gic_data gic_data;
-static struct cdns_uart_data console_data;
+static struct gic_data gic_data __nex_bss;
+static struct cdns_uart_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			ROUNDDOWN(CONSOLE_UART_BASE, CORE_MMU_PGDIR_SIZE),
