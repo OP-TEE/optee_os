@@ -417,7 +417,8 @@ static void init_runtime(unsigned long pageable_part)
 	size_t pageable_start = (size_t)__pageable_start;
 	size_t pageable_end = (size_t)__pageable_end;
 	size_t pageable_size = pageable_end - pageable_start;
-	size_t tzsram_end = TZSRAM_BASE + TZSRAM_SIZE;
+	vaddr_t tzsram_end = TZSRAM_BASE + TZSRAM_SIZE - TEE_LOAD_ADDR +
+			     VCORE_START_VA;
 	size_t hash_size = (pageable_size / SMALL_PAGE_SIZE) *
 			   TEE_SHA256_HASH_SIZE;
 	const struct boot_embdata *embdata = (const void *)__init_end;
