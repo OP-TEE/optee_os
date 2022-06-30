@@ -913,9 +913,15 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 	thread_check_canaries();
 	do {
 		switch (args->a0) {
+#ifdef ARM64
+		case FFA_MSG_SEND_DIRECT_REQ_64:
+#endif
 		case FFA_MSG_SEND_DIRECT_REQ_32:
 			caller_sp = ffa_handle_sp_direct_req(args, caller_sp);
 			break;
+#ifdef ARM64
+		case FFA_MSG_SEND_DIRECT_RESP_64:
+#endif
 		case FFA_MSG_SEND_DIRECT_RESP_32:
 			caller_sp = ffa_handle_sp_direct_resp(args, caller_sp);
 			break;

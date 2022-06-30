@@ -975,6 +975,9 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		itr_core_handler();
 		spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
 		break;
+#ifdef ARM64
+	case FFA_MSG_SEND_DIRECT_REQ_64:
+#endif
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 		if (IS_ENABLED(CFG_SECURE_PARTITION) &&
 		    FFA_DST(args->a1) != my_endpoint_id) {
