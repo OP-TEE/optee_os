@@ -216,6 +216,7 @@ static TEE_Result rsassa_pkcs1_v1_5_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	rsa_data.message.length = ssa_data->signature.length;
 	rsa_data.cipher.data = EM.data;
 	rsa_data.cipher.length = EM.length;
+	rsa_data.hash_algo = ssa_data->hash_algo;
 
 	ret = rsa->decrypt(&rsa_data);
 
@@ -269,7 +270,7 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		rsa_data.message.length = ssa_data->signature.length;
 		rsa_data.cipher.data = EM.data;
 		rsa_data.cipher.length = EM.length;
-
+		rsa_data.hash_algo = ssa_data->hash_algo;
 		ret = rsa->encrypt(&rsa_data);
 
 		/* Set the cipher size */
