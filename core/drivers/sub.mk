@@ -57,6 +57,7 @@ srcs-$(CFG_ZYNQMP_PM) += zynqmp_pm.c
 srcs-$(CFG_ZYNQMP_HUK) += zynqmp_huk.c
 srcs-$(CFG_ARM_SMCCC_TRNG) += smccc_trng.c
 srcs-$(CFG_VERSAL_RNG_DRV) += versal_trng.c
+srcs-$(CFG_VERSAL_GPIO) += versal_gpio.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
