@@ -860,7 +860,8 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		CRYPTO_TRACE("EMSA PSS Verify returned 0x%08" PRIx32, ret);
 	} else {
 		CRYPTO_TRACE("RSA NO PAD returned 0x%08" PRIx32, ret);
-		ret = TEE_ERROR_SIGNATURE_INVALID;
+		if (ret != TEE_ERROR_NOT_IMPLEMENTED)
+			ret = TEE_ERROR_SIGNATURE_INVALID;
 	}
 
 end_pss_verify:
