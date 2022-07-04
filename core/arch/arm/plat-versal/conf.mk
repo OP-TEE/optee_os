@@ -52,3 +52,6 @@ $(call force, CFG_WITH_SOFTWARE_PRNG,n)
 # TRNG configuration
 CFG_VERSAL_TRNG_SEED_LIFE ?= 3
 CFG_VERSAL_TRNG_DF_MUL ?= 2
+
+# eFuse and BBRAM driver
+$(call force, CFG_VERSAL_NVM,y)

@@ -62,6 +62,7 @@ srcs-$(CFG_VERSAL_MBOX) += versal_mbox.c
 srcs-$(CFG_VERSAL_PM) += versal_pm.c
 srcs-$(CFG_STM32MP15_HUK) += stm32mp15_huk.c
 srcs-$(CFG_VERSAL_RNG_DRV) += versal_trng.c
+srcs-$(CFG_VERSAL_NVM) += versal_nvm.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
