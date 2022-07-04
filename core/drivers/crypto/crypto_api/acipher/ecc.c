@@ -39,6 +39,29 @@ static size_t get_ecc_key_size_bytes(uint32_t curve)
 }
 
 /*
+ * Returns the key size in bits for the given ECC curve
+ *
+ * @curve   ECC Curve ID
+ */
+
+static size_t get_ecc_key_size_bits(uint32_t curve)
+{
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+	case TEE_ECC_CURVE_NIST_P224:
+	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_NIST_P384:
+		return get_ecc_key_size_bytes(curve) * 8;
+
+	case TEE_ECC_CURVE_NIST_P521:
+		return 521;
+
+	default:
+		return 0;
+	}
+}
+
+/*
  * Verify if the cryptographic algorithm @algo is valid for
  * the ECC curve
  *
@@ -106,7 +129,7 @@ static TEE_Result ecc_generate_keypair(struct ecc_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	key_size_bits = get_ecc_key_size_bytes(key->curve) * 8;
+	key_size_bits = get_ecc_key_size_bits(key->curve);
 
 	ecc = drvcrypt_get_ops(CRYPTO_ECC);
 	if (ecc)
