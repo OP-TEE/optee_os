@@ -67,3 +67,6 @@ CFG_VERSAL_SHA3_384 ?= y
 
 # PM driver
 CFG_VERSAL_PM ?= y
+
+# Physical Unclonable Function
+CFG_VERSAL_PUF ?= y
