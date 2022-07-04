@@ -18,11 +18,29 @@
 
 #define CRYPTO_API_ID(__x) ((SEC_MODULE_ID << SEC_MODULE_SHIFT) | (__x))
 
+static TEE_Result versal_aes_update_aad_request(enum versal_crypto_api id,
+						struct cmd_args *arg)
+{
+	struct ipi_cmd cmd = { };
+
+	cmd.data[0] = CRYPTO_API_ID(id);
+	cmd.data[1] = virt_to_phys(arg->ibuf[0].mem.buf);
+	cmd.data[2] = virt_to_phys(arg->ibuf[0].mem.buf) >> 32;
+	cmd.data[3] = arg->data[0];
+
+	cmd.ibuf[0].mem = arg->ibuf[0].mem;
+
+	return versal_mbox_notify(&cmd, NULL, NULL);
+}
+
 TEE_Result versal_crypto_request(enum versal_crypto_api id,
 				 struct cmd_args *arg, uint32_t *err)
 {
 	struct ipi_cmd cmd = { };
 	size_t i = 0;
+
+	if (id == AES_UPDATE_AAD)
+		return versal_aes_update_aad_request(id, arg);
 
 	cmd.data[i] = CRYPTO_API_ID(id);
 	for (i = 1; i < arg->dlen + 1; i++)
