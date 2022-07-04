@@ -6,6 +6,7 @@
  */
 #include <drvcrypt.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
@@ -29,6 +30,9 @@ TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *key,
 	if (rsa)
 		ret = rsa->alloc_keypair(key, size_bits);
 
+	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+		ret = sw_crypto_acipher_alloc_rsa_keypair(key, size_bits);
+
 	CRYPTO_TRACE("RSA Keypair (%zu bits) alloc ret = 0x%" PRIx32, size_bits,
 		     ret);
 	return ret;
@@ -49,6 +53,9 @@ TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *key,
 	rsa = drvcrypt_get_ops(CRYPTO_RSA);
 	if (rsa)
 		ret = rsa->alloc_publickey(key, size_bits);
+
+	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+		ret = sw_crypto_acipher_alloc_rsa_public_key(key, size_bits);
 
 	CRYPTO_TRACE("RSA Public Key (%zu bits) alloc ret = 0x%" PRIx32,
 		     size_bits, ret);
@@ -96,6 +103,9 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t size_bits)
 	if (rsa)
 		ret = rsa->gen_keypair(key, size_bits);
 
+	if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+		ret = sw_crypto_acipher_gen_rsa_key(key, size_bits);
+
 	CRYPTO_TRACE("RSA Keypair (%zu bits) generate ret = 0x%" PRIx32,
 		     size_bits, ret);
 
@@ -134,7 +144,12 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 
 		ret = rsa->decrypt(&rsa_data);
 
-		*msg_len = rsa_data.message.length;
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsanopad_decrypt(key, cipher,
+								 cipher_len,
+								 msg, msg_len);
+		else
+			*msg_len = rsa_data.message.length;
 	}
 
 	CRYPTO_TRACE("RSA Decrypt NO PAD ret = 0x%" PRIx32, ret);
@@ -186,8 +201,14 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 
 		ret = rsa->encrypt(&rsa_data);
 
-		/* Set the cipher size */
-		*cipher_len = rsa_data.cipher.length;
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsanopad_encrypt(key, msg,
+								 msg_len,
+								 cipher,
+								 cipher_len);
+		else
+			/* Set the cipher size */
+			*cipher_len = rsa_data.cipher.length;
 	}
 
 	CRYPTO_TRACE("RSA Encrypt NO PAD ret = 0x%" PRIx32, ret);
@@ -245,9 +266,14 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		rsa_data.label.length = label_len;
 
 		ret = rsa->decrypt(&rsa_data);
-
-		/* Set the message size */
-		*msg_len = rsa_data.message.length;
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsaes_decrypt(algo, key, label,
+							      label_len, cipher,
+							      cipher_len, msg,
+							      msg_len);
+		else
+			/* Set the message size */
+			*msg_len = rsa_data.message.length;
 	}
 
 	CRYPTO_TRACE("RSAES Decrypt ret = 0x%" PRIx32, ret);
@@ -331,8 +357,14 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 
 		ret = rsa->encrypt(&rsa_data);
 
-		/* Set the cipher size */
-		*cipher_len = rsa_data.cipher.length;
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsaes_encrypt(algo, key, label,
+							      label_len, msg,
+							      msg_len, cipher,
+							      cipher_len);
+		else
+			/* Set the cipher size */
+			*cipher_len = rsa_data.cipher.length;
 	}
 
 	CRYPTO_TRACE("RSAES Encrypt ret = 0x%" PRIx32, ret);
@@ -409,6 +441,10 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 			ret = drvcrypt_rsassa_sign(&rsa_ssa);
 
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsassa_sign(algo, key, salt_len,
+							    msg, msg_len, sig,
+							    sig_len);
 		/* Set the signature length */
 		*sig_len = rsa_ssa.signature.length;
 	} else {
@@ -485,6 +521,11 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
 			ret = drvcrypt_rsassa_verify(&rsa_ssa);
 
+		if (ret == TEE_ERROR_NOT_IMPLEMENTED)
+			ret = sw_crypto_acipher_rsassa_verify(algo, key,
+							      salt_len, msg,
+							      msg_len, sig,
+							      sig_len);
 	} else {
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
 	}
