@@ -4,6 +4,7 @@
  */
 
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
@@ -84,6 +85,10 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
 					    size_t key_size_bits __unused)
+__attribute__((weak, alias("sw_crypto_acipher_alloc_rsa_keypair")));
+
+TEE_Result sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+					       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
@@ -109,8 +114,13 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+
 TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
 					       size_t key_size_bits __unused)
+__attribute__((weak, alias("sw_crypto_acipher_alloc_rsa_public_key")));
+
+TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+						  size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
@@ -123,7 +133,11 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+
 void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
+__attribute__((weak, alias("sw_crypto_acipher_free_rsa_public_key")));
+
+void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
@@ -131,7 +145,11 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 	crypto_bignum_free(s->e);
 }
 
+
 void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
+__attribute__((weak, alias("sw_crypto_acipher_free_rsa_keypair")));
+
+void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 {
 	if (!s)
 		return;
@@ -145,7 +163,12 @@ void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 	crypto_bignum_free(s->dq);
 }
 
-TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
+TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+				      size_t key_size)
+__attribute__((weak, alias("sw_crypto_acipher_gen_rsa_key")));
+
+TEE_Result sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+					 size_t key_size)
 {
 	TEE_Result res;
 	rsa_key ltc_tmp_key;
@@ -239,8 +262,15 @@ out:
 }
 
 TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
-					   const uint8_t *src, size_t src_len,
-					   uint8_t *dst, size_t *dst_len)
+					   const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsanopad_encrypt")));
+
+TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -254,8 +284,15 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 }
 
 TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
-					   const uint8_t *src, size_t src_len,
-					   uint8_t *dst, size_t *dst_len)
+					   const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsanopad_decrypt")));
+
+TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -276,10 +313,20 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	return res;
 }
 
-TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
-					const uint8_t *label, size_t label_len,
-					const uint8_t *src, size_t src_len,
-					uint8_t *dst, size_t *dst_len)
+TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo,
+					struct rsa_keypair *key,
+					const uint8_t *label,
+					size_t label_len, const uint8_t *src,
+					size_t src_len, uint8_t *dst,
+					size_t *dst_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsaes_decrypt")));
+
+TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
+					   struct rsa_keypair *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
@@ -374,9 +421,18 @@ out:
 
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
-					const uint8_t *label, size_t label_len,
-					const uint8_t *src, size_t src_len,
-					uint8_t *dst, size_t *dst_len)
+					const uint8_t *label,
+					size_t label_len, const uint8_t *src,
+					size_t src_len, uint8_t *dst,
+					size_t *dst_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsaes_encrypt")));
+
+TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
+					   struct rsa_public_key *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
 {
 	TEE_Result res;
 	uint32_t mod_size;
@@ -433,6 +489,12 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 				      int salt_len, const uint8_t *msg,
 				      size_t msg_len, uint8_t *sig,
 				      size_t *sig_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsassa_sign")));
+
+TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+					 int salt_len, const uint8_t *msg,
+					 size_t msg_len, uint8_t *sig,
+					 size_t *sig_len)
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
@@ -525,6 +587,13 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 					int salt_len, const uint8_t *msg,
 					size_t msg_len, const uint8_t *sig,
 					size_t sig_len)
+__attribute__((weak, alias("sw_crypto_acipher_rsassa_verify")));
+
+TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
+					   struct rsa_public_key *key,
+					   int salt_len, const uint8_t *msg,
+					   size_t msg_len, const uint8_t *sig,
+					   size_t sig_len)
 {
 	TEE_Result res;
 	uint32_t bigint_size;
