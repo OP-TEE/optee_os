@@ -57,9 +57,10 @@ struct drvcrypt_rsa_ssa {
 };
 
 /*
- * RSA Encrypt/Decript data
+ * RSA Encrypt/Decrypt data
  */
 struct drvcrypt_rsa_ed {
+	uint32_t algo;		     /* Operation algorithm */
 	enum drvcrypt_rsa_id rsa_id; /* RSA Algorithm Id */
 	uint32_t hash_algo;	     /* HASH Algorithm */
 	size_t digest_size;	     /* Hash Digest Size */
