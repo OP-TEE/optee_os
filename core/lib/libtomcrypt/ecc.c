@@ -393,6 +393,30 @@ static const struct crypto_ecc_public_ops sm2_kep_public_key_ops = {
 	.free = _ltc_ecc_free_public_key,
 };
 
+const struct crypto_ecc_keypair_ops *
+crypto_asym_get_ecc_keypair_ops( uint32_t key_type)
+{
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+		return &ecc_keypair_ops;
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+			return NULL;
+		return &sm2_dsa_keypair_ops;
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+			return NULL;
+		return &sm2_pke_keypair_ops;
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+			return NULL;
+		return &sm2_kep_keypair_ops;
+	default:
+		return NULL;
+	}
+}
+
 TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 					 uint32_t key_type,
 					 size_t key_size_bits __unused)
@@ -447,6 +471,30 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+const struct crypto_ecc_public_ops*
+crypto_asym_get_ecc_public_ops(uint32_t key_type)
+{
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_PUBLIC_KEY:
+	case TEE_TYPE_ECDH_PUBLIC_KEY:
+		return &ecc_public_key_ops;
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+			return NULL;
+		return &sm2_dsa_public_key_ops;
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+			return NULL;
+		return &sm2_pke_public_key_ops;
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
+		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+			return NULL;
+		return &sm2_kep_public_key_ops;
+	default:
+		return NULL;
+	}
+}
+
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 					    uint32_t key_type,
 					    size_t key_size_bits __unused)
@@ -497,3 +545,5 @@ err:
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
+
+

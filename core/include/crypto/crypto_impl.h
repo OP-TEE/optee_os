@@ -355,6 +355,12 @@ struct crypto_ecc_keypair_ops {
 };
 
 #ifdef CFG_CRYPTO_ECC
+const struct crypto_ecc_keypair_ops *
+crypto_asym_get_ecc_keypair_ops(uint32_t key_type);
+
+const struct crypto_ecc_public_ops*
+crypto_asym_get_ecc_public_ops(uint32_t key_type);
+
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 					    uint32_t key_type,
 					    size_t key_size_bits);
@@ -368,6 +374,18 @@ crypto_asym_alloc_ecc_public_key(struct ecc_public_key *key __unused,
 				 size_t key_size_bits __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline const struct crypto_ecc_keypair_ops*
+crypto_asym_get_keypair_ops(uint32_t key_type __unused)
+{
+	return NULL;
+}
+
+static inline const struct crypto_ecc_public_ops*
+crypto_asym_get_ecc_public_ops(uint32_t key_type __unused)
+{
+	return NULL;
 }
 
 static inline TEE_Result
