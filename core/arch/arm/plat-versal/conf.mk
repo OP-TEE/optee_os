@@ -31,3 +31,6 @@ $(call force,CFG_CORE_ARM64_PA_BITS,43)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+# GPIO
+CFG_VERSAL_GPIO ?= y
