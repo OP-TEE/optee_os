@@ -7,6 +7,8 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/pl011.h>
+#include <drivers/versal_nvm.h>
+#include <drivers/versal_pm.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -15,6 +17,7 @@
 #include <platform_config.h>
 #include <stdint.h>
 #include <string.h>
+#include <tee/tee_fs.h>
 #include <trace.h>
 
 static struct gic_data gic_data;
@@ -56,3 +59,36 @@ void console_init(void)
 		   CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
 }
+
+static TEE_Result platform_banner(void)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	uint8_t version = 0;
+
+	ret = versal_soc_version(&version);
+	if (ret) {
+		EMSG("Failure to retrieve SoC version");
+		return ret;
+	}
+
+	IMSG("Platform Versal - Silicon Revision v%d", version);
+
+	if (IS_ENABLED(CFG_VERSAL_FPGA_INIT)) {
+		ret = versal_write_fpga(CFG_VERSAL_FPGA_DDR_ADDR);
+		if (ret) {
+			EMSG("Failure to load the FPGA bitstream");
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+#if defined(CFG_RPMB_FS)
+bool plat_rpmb_key_is_ready(void)
+{
+	return false;
+}
+#endif
+
+service_init(platform_banner);

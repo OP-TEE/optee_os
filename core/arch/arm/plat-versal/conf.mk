@@ -2,6 +2,8 @@ PLATFORM_FLAVOR ?= generic
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_MMAP_REGIONS ?= 24
+
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
@@ -31,3 +33,49 @@ $(call force,CFG_CORE_ARM64_PA_BITS,43)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+$(call force, CFG_VERSAL_RNG_DRV, y)
+$(call force, CFG_WITH_SOFTWARE_PRNG,n)
+$(call force, CFG_VERSAL_PM, y)
+$(call force, CFG_VERSAL_MBOX, y)
+$(call force, CFG_VERSAL_NVM, y)
+
+# Debug information
+CFG_VERSAL_TRACE_PLM      ?= n
+CFG_VERSAL_TRACE_MBOX     ?= n
+
+# TRNG configuration
+CFG_VERSAL_TRNG_SEED_LIFE ?= 3
+CFG_VERSAL_TRNG_DF_MUL    ?= 7
+
+# MBOX configuration
+CFG_VERSAL_MBOX_IPI_ID    ?= 3
+
+# Crypto
+CFG_VERSAL_CRYPTO_DRIVER  ?= y
+
+# FPGA
+# By default request the PLM to program the FPGA (not TF-A)
+CFG_VERSAL_FPGA_INIT      ?= n
+CFG_VERSAL_FPGA_DDR_ADDR  ?= 0x40000000
+CFG_VERSAL_FPGA_PM_DRIVER ?= n
+
+# PUF
+CFG_VERSAL_PUF            ?= y
+
+# GPIO
+CFG_VERSAL_GPIO           ?= y
+
+# HUK AES-GCM key selection:
+#     6  : eFUSE USR 0
+#     7  : eFuse USR 1
+#    11  : PUF KEK
+#    12  : AES development key for tests
+CFG_VERSAL_HUK_KEY        ?= 12
+CFG_VERSAL_HUK            ?= y
+
+# XSECURE_AES_USER_KEY_0 (12) to XSECURE_AES_USER_KEY_7 (19)
+CFG_VERSAL_AES_GCM_KEY    ?= 12
+
+# AES GCM replay feature requires extra heap allocations
+CFG_CORE_HEAP_SIZE        ?= 524288
