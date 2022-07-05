@@ -64,6 +64,38 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 static unsigned int rng_lock = SPINLOCK_UNLOCK;
 static vaddr_t rng;
 
+static void sa2ul_rng_read128(uint32_t *word0, uint32_t *word1,
+			      uint32_t *word2, uint32_t *word3)
+{
+	/* Is the result ready (available)? */
+	while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
+		/* Is the shutdown threshold reached? */
+		if (io_read32(rng + RNG_STATUS) & SHUTDOWN_OFLO) {
+			uint32_t alarm = io_read32(rng + RNG_ALARMSTOP);
+			uint32_t tune = io_read32(rng + RNG_FRODETUNE);
+
+			/* Clear the alarm events */
+			io_write32(rng + RNG_ALARMMASK, 0x0);
+			io_write32(rng + RNG_ALARMSTOP, 0x0);
+			/* De-tune offending FROs */
+			io_write32(rng + RNG_FRODETUNE, tune ^ alarm);
+			/* Re-enable the shut down FROs */
+			io_write32(rng + RNG_FROENABLE, RNG_FRO_MASK);
+			/* Clear the shutdown overflow event */
+			io_write32(rng + RNG_INTACK, SHUTDOWN_OFLO);
+
+			DMSG("Fixed FRO shutdown");
+		}
+	}
+	/* Read random value */
+	*word0 = io_read32(rng + RNG_OUTPUT_0);
+	*word1 = io_read32(rng + RNG_OUTPUT_1);
+	*word2 = io_read32(rng + RNG_OUTPUT_2);
+	*word3 = io_read32(rng + RNG_OUTPUT_3);
+	/* Acknowledge read complete */
+	io_write32(rng + RNG_INTACK, RNG_READY);
+}
+
 uint8_t hw_get_random_byte(void)
 {
 	static int pos;
@@ -78,35 +110,9 @@ uint8_t hw_get_random_byte(void)
 
 	exceptions = cpu_spin_lock_xsave(&rng_lock);
 
-	if (!pos) {
-		/* Is the result ready (available)? */
-		while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
-			/* Is the shutdown threshold reached? */
-			if (io_read32(rng + RNG_STATUS) & SHUTDOWN_OFLO) {
-				uint32_t alarm = io_read32(rng + RNG_ALARMSTOP);
-				uint32_t tune = io_read32(rng + RNG_FRODETUNE);
-
-				/* Clear the alarm events */
-				io_write32(rng + RNG_ALARMMASK, 0x0);
-				io_write32(rng + RNG_ALARMSTOP, 0x0);
-				/* De-tune offending FROs */
-				io_write32(rng + RNG_FRODETUNE, tune ^ alarm);
-				/* Re-enable the shut down FROs */
-				io_write32(rng + RNG_FROENABLE, RNG_FRO_MASK);
-				/* Clear the shutdown overflow event */
-				io_write32(rng + RNG_INTACK, SHUTDOWN_OFLO);
-
-				DMSG("Fixed FRO shutdown");
-			}
-		}
-		/* Read random value */
-		random.val[0] = io_read32(rng + RNG_OUTPUT_0);
-		random.val[1] = io_read32(rng + RNG_OUTPUT_1);
-		random.val[2] = io_read32(rng + RNG_OUTPUT_2);
-		random.val[3] = io_read32(rng + RNG_OUTPUT_3);
-		/* Acknowledge read complete */
-		io_write32(rng + RNG_INTACK, RNG_READY);
-	}
+	if (!pos)
+		sa2ul_rng_read128(&random.val[0], &random.val[1],
+				  &random.val[2], &random.val[3]);
 
 	ret = random.byte[pos];
 
