@@ -96,31 +96,31 @@ static void sa2ul_rng_read128(uint32_t *word0, uint32_t *word1,
 	io_write32(rng + RNG_INTACK, RNG_READY);
 }
 
-uint8_t hw_get_random_byte(void)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	static int pos;
 	static union {
 		uint32_t val[4];
 		uint8_t byte[16];
-	} random;
-	uint32_t exceptions = 0;
-	uint8_t ret = 0;
+	} fifo;
+	static size_t fifo_pos;
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
 
-	assert(rng);
+	while (buffer_pos < len) {
+		uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
 
-	exceptions = cpu_spin_lock_xsave(&rng_lock);
+		/* Refill our FIFO */
+		if (fifo_pos == 0)
+			sa2ul_rng_read128(&fifo.val[0], &fifo.val[1],
+					  &fifo.val[2], &fifo.val[3]);
 
-	if (!pos)
-		sa2ul_rng_read128(&random.val[0], &random.val[1],
-				  &random.val[2], &random.val[3]);
+		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
+		fifo_pos %= 16;
 
-	ret = random.byte[pos];
+		cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+	}
 
-	pos = (pos + 1) % 16;
-
-	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
-
-	return ret;
+	return TEE_SUCCESS;
 }
 
 TEE_Result sa2ul_rng_init(void)
