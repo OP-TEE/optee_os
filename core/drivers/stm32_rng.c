@@ -215,19 +215,9 @@ void plat_rng_init(void)
 	DMSG("PRNG seeded with RNG");
 }
 #else
-TEE_Result crypto_rng_read(void *out, size_t size)
+TEE_Result hw_get_random_bytes(void *out, size_t size)
 {
 	return stm32_rng_read(out, size);
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t byte = 0;
-
-	if (stm32_rng_read(&byte, sizeof(byte)))
-		panic();
-
-	return byte;
 }
 #endif
 
