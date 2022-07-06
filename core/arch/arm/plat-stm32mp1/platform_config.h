@@ -22,11 +22,21 @@
 #define APB4_SIZE			0x00008000
 #define APB5_BASE			0x5c000000
 #define APB5_SIZE			0x0000b000
+#ifdef CFG_STM32MP13
+#define APB6_BASE			0x4c000000
+#define APB6_SIZE			0x0000d000
+#endif
 
 #define AHB4_BASE			0x50000000
 #define AHB4_SIZE			0x00020000
+#ifdef CFG_STM32MP13
+#define AHB5_BASE			0x54000000
+#define AHB5_SIZE			0x00008000
+#endif
+#ifdef CFG_STM32MP15
 #define AHB5_BASE			0x54000000
 #define AHB5_SIZE			0x00005000
+#endif
 
 /* SoC interface registers base address */
 #define BSEC_BASE			0x5c005000
@@ -53,15 +63,31 @@
 #define IWDG2_BASE			0x5a002000
 #define PWR_BASE			0x50001000
 #define RCC_BASE			0x50000000
+#ifdef CFG_STM32MP13
+#define RNG1_BASE			0x54004000
+#endif
+#ifdef CFG_STM32MP15
 #define RNG1_BASE			0x54003000
+#endif
 #define RTC_BASE			0x5c004000
 #define SPI6_BASE			0x5c001000
 #define SYSCFG_BASE			0x50020000
+#ifdef CFG_STM32MP13
+#define SYSRAM_BASE			0x2ffe0000
+#endif
+#ifdef CFG_STM32MP15
 #define SYSRAM_BASE			0x2ffc0000
+#endif
 #define TAMP_BASE			0x5c00a000
 #define TZC_BASE			0x5c006000
+#ifdef CFG_STM32MP13
+#define UART1_BASE			0x4c000000
+#define UART2_BASE			0x4c001000
+#endif
+#ifdef CFG_STM32MP15
 #define UART1_BASE			0x5c000000
 #define UART2_BASE			0x4000e000
+#endif
 #define UART3_BASE			0x4000f000
 #define UART4_BASE			0x40010000
 #define UART5_BASE			0x40011000
