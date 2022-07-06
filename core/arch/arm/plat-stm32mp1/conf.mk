@@ -4,7 +4,10 @@ flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
 flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
 flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
 
-flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2)
+flavor_dts_file-135F_DK = stm32mp135f-dk.dts
+
+flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2) \
+		       $(flavor_dts_file-135F_DK)
 
 flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
 
@@ -18,6 +21,13 @@ flavorlist-512M = $(flavorlist-cryp-512M) \
 
 flavorlist-1G = $(flavorlist-cryp-1G)
 
+flavorlist-MP15 = $(flavor_dts_file-157A_DK1) \
+		  $(flavor_dts_file-157C_DK2) \
+		  $(flavor_dts_file-157C_ED1) \
+		  $(flavor_dts_file-157C_EV1)
+
+flavorlist-MP13 = $(flavor_dts_file-135F_DK)
+
 ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
@@ -27,6 +37,14 @@ endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP13)),)
+$(call force,CFG_STM32MP13,y)
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
+$(call force,CFG_STM32MP15,y)
 endif
 
 include core/arch/arm/cpu/cortex-a7.mk
