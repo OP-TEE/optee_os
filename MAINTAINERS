@@ -82,6 +82,22 @@ R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 S:	Maintained
 F:	core/drivers/crypto/se050
 
+Core Drivers Versal ACAP
+R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
+S:	Maintained
+F:	core/drivers/crypto/versal/authenc.c
+F:	core/drivers/crypto/versal/ecc.c
+F:	core/drivers/crypto/versal/hash.c
+F:	core/drivers/crypto/versal/ipi.c
+F:	core/drivers/crypto/versal/rsa.c
+F:	core/drivers/versal_gpio.c
+F:	core/drivers/versal_huk.c
+F:	core/drivers/versal_mbox.c
+F:	core/drivers/versal_nvm.c
+F:	core/drivers/versal_pm.c
+F:	core/drivers/versal_puf.c
+F:	core/drivers/versal_trng.c
+
 Core Drivers ZYNQMP
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 S:	Maintained
