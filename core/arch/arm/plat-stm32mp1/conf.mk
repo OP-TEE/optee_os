@@ -151,6 +151,7 @@ CFG_CORE_ASLR ?= n
 
 CFG_STM32MP_REMOTEPROC ?= n
 CFG_DRIVERS_REMOTEPROC ?= $(CFG_STM32MP_REMOTEPROC)
+CFG_REMOTEPROC_PTA ?= $(CFG_STM32MP_REMOTEPROC)
 
 ifneq ($(CFG_WITH_LPAE),y)
 # Without LPAE, default TEE virtual address range is 1MB, we need at least 2MB.
