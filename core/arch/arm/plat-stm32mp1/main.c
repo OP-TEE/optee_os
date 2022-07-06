@@ -251,6 +251,41 @@ static TEE_Result set_etzpc_secure_configuration(void)
 
 driver_init_late(set_etzpc_secure_configuration);
 #endif /* CFG_STM32_ETZPC */
+
+#ifdef CFG_STM32_GPIO
+
+#define NB_PINS_PER_BANK		U(16)
+#define NB_PINS_BANK_H			U(14)
+#define NB_PINS_BANK_I			U(8)
+
+static TEE_Result set_all_gpios_non_secure(void)
+{
+	unsigned int bank = 0;
+	unsigned int pin = 0;
+	unsigned int nb_pin_bank = 0;
+
+	for (bank = 0; bank <= GPIO_BANK_I; bank++) {
+		switch (bank) {
+		case GPIO_BANK_H:
+			nb_pin_bank = NB_PINS_BANK_H;
+			break;
+		case GPIO_BANK_I:
+			nb_pin_bank = NB_PINS_BANK_I;
+			break;
+		default:
+			nb_pin_bank = NB_PINS_PER_BANK;
+			break;
+		}
+
+		for (pin = 0; pin <= nb_pin_bank; pin++)
+			stm32_gpio_set_secure_cfg(bank, pin, false);
+	}
+
+	return TEE_SUCCESS;
+}
+
+early_init_late(set_all_gpios_non_secure);
+#endif /* CFG_STM32_GPIO */
 #endif /* CFG_STM32MP13 */
 
 static TEE_Result init_stm32mp1_drivers(void)
