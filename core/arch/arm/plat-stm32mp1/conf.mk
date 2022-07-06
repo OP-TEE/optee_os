@@ -76,6 +76,19 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 
+ifeq ($(CFG_STM32MP13),y)
+$(call force,CFG_CORE_RESERVED_SHM,n)
+$(call force,CFG_STM32MP_CLK_CORE,y)
+$(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
+$(call force,CFG_STM32MP13_CLK,y)
+$(call force,CFG_STM32MP15_CLK,n)
+CFG_STM32MP_OPP_COUNT ?= 2
+else # Default to STM32MP15
+$(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
+$(call force,CFG_STM32MP15_CLK,y)
+CFG_CORE_RESERVED_SHM ?= y
+endif
+
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 CFG_WITH_LPAE ?= y
@@ -97,21 +110,6 @@ $(call force,CFG_STM32MP1_SCMI_SIP,n)
 $(call force,CFG_SCMI_PTA,n)
 else
 $(call force,CFG_DRIVERS_CLK_DT,y)
-endif
-
-ifeq ($(CFG_STM32MP13),y)
-$(call force,CFG_CORE_RESERVED_SHM,n)
-$(call force,CFG_STM32MP15,n)
-$(call force,CFG_STM32MP_CLK_CORE,y)
-$(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
-$(call force,CFG_STM32MP13_CLK,y)
-$(call force,CFG_STM32MP15_CLK,n)
-CFG_STM32MP_OPP_COUNT ?= 2
-else
-$(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
-CFG_CORE_RESERVED_SHM ?= y
-$(call force,CFG_STM32MP15,y)
-$(call force,CFG_STM32MP15_CLK,y)
 endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
