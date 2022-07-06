@@ -8,6 +8,7 @@
 #ifdef CFG_STM32MP13
 #include <dt-bindings/clock/stm32mp13-clks.h>
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
+#include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/reset/stm32mp13-resets.h>
 #endif
 
