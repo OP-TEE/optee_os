@@ -65,32 +65,41 @@ endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
-$(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK,y)
-$(call force,CFG_DRIVERS_CLK_FIXED,n)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
-$(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 
 ifeq ($(CFG_STM32MP13),y)
+$(call force,CFG_BOOT_SECONDARY_REQUEST,n)
 $(call force,CFG_CORE_RESERVED_SHM,n)
+$(call force,CFG_DRIVERS_CLK_FIXED,y)
+$(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
+$(call force,CFG_STM32_GPIO,y)
+$(call force,CFG_STM32_RNG,n)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
-$(call force,CFG_STM32MP15_CLK,n)
+$(call force,CFG_TEE_CORE_NB_CORE,1)
+$(call force,CFG_WITH_NSEC_GPIOS,n)
 CFG_STM32MP_OPP_COUNT ?= 2
-else # Default to STM32MP15
+CFG_WITH_PAGER ?= n
+endif # CFG_STM32MP13
+
+ifeq ($(CFG_STM32MP15),y)
+$(call force,CFG_BOOT_SECONDARY_REQUEST,y)
+$(call force,CFG_DRIVERS_CLK_FIXED,n)
+$(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_CORE_RESERVED_SHM ?= y
-endif
-
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
+endif # CFG_STM32MP15
+
 CFG_WITH_LPAE ?= y
 CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_MMAP_REGIONS ?= 23
@@ -235,3 +244,8 @@ CFG_WITH_NSEC_GPIOS ?= y
 CFG_WITH_NSEC_UARTS ?= y
 # UART instance used for early console (0 disables early console)
 CFG_STM32_EARLY_CONSOLE_UART ?= 4
+
+# Sanity on choice config switches
+ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
+$(error CFG_STM32MP13_CLK and CFG_STM32MP15_CLK are exclusive)
+endif
