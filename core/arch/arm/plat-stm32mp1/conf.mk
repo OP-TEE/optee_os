@@ -47,6 +47,22 @@ ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
 $(call force,CFG_STM32MP15,y)
 endif
 
+# CFG_STM32MP1x switches are exclusive.
+# - CFG_STM32MP15 is enabled for STM32MP15x-* targets (default)
+# - CFG_STM32MP13 is enabled for STM32MP13x-* targets
+ifeq ($(CFG_STM32MP13),y)
+$(call force,CFG_STM32MP15,n)
+else
+$(call force,CFG_STM32MP15,y)
+$(call force,CFG_STM32MP13,n)
+endif
+ifeq ($(call cfg-one-enabled,CFG_STM32MP15 CFG_STM32MP13),n)
+$(error One of CFG_STM32MP15 CFG_STM32MP13 must be enabled)
+endif
+ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
+$(error Only one of CFG_STM32MP15 CFG_STM32MP13 must be enabled)
+endif
+
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
