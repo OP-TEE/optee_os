@@ -2567,7 +2567,8 @@ static bool clk_stm32_clock_is_critical(struct clk *clk __maybe_unused)
 		&ck_bkpsram,
 		&ck_mce,
 		&ck_mco1,
-		&ck_rng1_k
+		&ck_rng1_k,
+		&ck_mlahb,
 	};
 	size_t i = 0;
 
