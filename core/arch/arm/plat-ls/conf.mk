@@ -133,7 +133,7 @@ CFG_SHMEM_START ?= ((CFG_DRAM0_BASE + CFG_DRAM0_SIZE) - (2*CFG_SHMEM_SIZE))
 endif
 
 #Keeping Number of TEE thread equal to number of cores on the SoC
-CFG_NUM_THREADS ?= CFG_TEE_CORE_NB_CORE
+CFG_NUM_THREADS ?= $(CFG_TEE_CORE_NB_CORE)
 
 ifneq ($(CFG_ARM64_core),y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
