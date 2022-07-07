@@ -182,9 +182,11 @@ static TEE_Result init_stm32mp1_drivers(void)
 	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
 	etzpc_lock_tzma(0);
 
+#ifdef CFG_TZSRAM_START
 	COMPILE_TIME_ASSERT(((SYSRAM_BASE + SYSRAM_SIZE) <= CFG_TZSRAM_START) ||
 			    ((SYSRAM_BASE <= CFG_TZSRAM_START) &&
 			     (SYSRAM_SEC_SIZE >= CFG_TZSRAM_SIZE)));
+#endif /* CFG_TZSRAM_START */
 
 	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
