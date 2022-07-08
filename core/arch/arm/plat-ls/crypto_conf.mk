@@ -42,10 +42,7 @@ $(call force, CFG_CAAM_SIZE_ALIGN,1)
 $(call force,CFG_JR_BLOCK_SIZE,0x10000)
 $(call force,CFG_JR_INDEX,2)  # Default JR index used
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),ls1012afrwy))
-$(call force,CFG_CAAM_BIG_ENDIAN,y)
-$(call force,CFG_JR_INT,105)
-else ifneq (,$(filter $(PLATFORM_FLAVOR),ls1012ardb))
+ifneq (,$(filter $(PLATFORM_FLAVOR),ls1012ardb))
 $(call force,CFG_CAAM_BIG_ENDIAN,y)
 $(call force,CFG_JR_INT,105)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),ls1021atwr))
