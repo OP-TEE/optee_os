@@ -401,7 +401,6 @@ out:
 
 	return result;
 }
-#endif /*CFG_STM32_BSEC_WRITE*/
 
 TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 {
@@ -476,6 +475,7 @@ out:
 
 	return result;
 }
+#endif /*CFG_STM32_BSEC_WRITE*/
 
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
