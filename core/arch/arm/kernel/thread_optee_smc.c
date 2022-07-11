@@ -133,14 +133,12 @@ static uint32_t get_msg_arg(struct mobj *mobj, size_t offset,
 	return OPTEE_SMC_RETURN_OK;
 }
 
-static void maybe_clear_prealloc_rpc_cache(struct thread_ctx *thr)
+static void clear_prealloc_rpc_cache(struct thread_ctx *thr)
 {
-	if (IS_ENABLED(CFG_PREALLOC_RPC_CACHE) && thread_prealloc_rpc_cache) {
-		thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
-		mobj_put(thr->rpc_mobj);
-		thr->rpc_arg = NULL;
-		thr->rpc_mobj = NULL;
-	}
+	thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
+	mobj_put(thr->rpc_mobj);
+	thr->rpc_arg = NULL;
+	thr->rpc_mobj = NULL;
 }
 
 static uint32_t call_entry_std(struct optee_msg_arg *arg, size_t num_params,
@@ -159,7 +157,9 @@ static uint32_t call_entry_std(struct optee_msg_arg *arg, size_t num_params,
 		 * struct. But if it is we must use the supplied struct and
 		 * at the same time make sure to not break anything.
 		 */
-		maybe_clear_prealloc_rpc_cache(thr);
+		if (IS_ENABLED(CFG_PREALLOC_RPC_CACHE) &&
+		    thread_prealloc_rpc_cache)
+			clear_prealloc_rpc_cache(thr);
 		thr->rpc_arg = rpc_arg;
 	}
 
@@ -172,8 +172,9 @@ static uint32_t call_entry_std(struct optee_msg_arg *arg, size_t num_params,
 	if (rpc_arg)
 		thr->rpc_arg = NULL;
 
-	if (rv == OPTEE_SMC_RETURN_OK)
-		maybe_clear_prealloc_rpc_cache(thr);
+	if (rv == OPTEE_SMC_RETURN_OK &&
+	    !(IS_ENABLED(CFG_PREALLOC_RPC_CACHE) && thread_prealloc_rpc_cache))
+		clear_prealloc_rpc_cache(thr);
 
 	return rv;
 }
