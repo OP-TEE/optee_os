@@ -82,7 +82,14 @@ static inline TEE_Result stm32_bsec_program_otp(uint32_t value __unused,
  * @otp_id: OTP number
  * Return a TEE_Result compliant return value
  */
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id);
+#else
+static inline TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /*
  * Enable/disable debug service
