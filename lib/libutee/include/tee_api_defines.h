@@ -169,6 +169,10 @@
 #define TEE_ALG_SHA256                          0x50000004
 #define TEE_ALG_SHA384                          0x50000005
 #define TEE_ALG_SHA512                          0x50000006
+#define TEE_ALG_SHA3_224                        0x50000008
+#define	TEE_ALG_SHA3_256                        0x50000009
+#define	TEE_ALG_SHA3_384                        0x5000000A
+#define	TEE_ALG_SHA3_512                        0x5000000B
 #define TEE_ALG_MD5SHA1                         0x5000000F
 #define TEE_ALG_HMAC_MD5                        0x30000001
 #define TEE_ALG_HMAC_SHA1                       0x30000002
