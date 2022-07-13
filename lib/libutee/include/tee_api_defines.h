@@ -83,6 +83,8 @@
 
 /* Memory Management Constant */
 #define TEE_MALLOC_FILL_ZERO               0x00000000
+#define TEE_MALLOC_NO_FILL                 0x00000001
+#define TEE_MALLOC_NO_SHARE                0x00000010
 
 /* Other constants */
 #define TEE_STORAGE_PRIVATE                0x00000001

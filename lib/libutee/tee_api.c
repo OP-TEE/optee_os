@@ -401,12 +401,20 @@ void *TEE_Malloc(uint32_t len, uint32_t hint)
 	if (!len)
 		return TEE_NULL_SIZED_VA;
 
-	if (hint == TEE_MALLOC_FILL_ZERO)
+	switch (hint) {
+	case TEE_MALLOC_FILL_ZERO:
 		return calloc(1, len);
-	else if (hint == TEE_USER_MEM_HINT_NO_FILL_ZERO)
+	case TEE_MALLOC_NO_FILL:
+		/* SHALL be used with TEE_MALLOC_NO_SHARE */
+		TEE_Panic(TEE_ERROR_BAD_PARAMETERS);
+		break;
+	case TEE_MALLOC_NO_FILL | TEE_MALLOC_NO_SHARE:
+	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		return malloc(len);
-
-	EMSG("Invalid hint %#" PRIx32, hint);
+	default:
+		EMSG("Invalid hint %#" PRIx32, hint);
+		break;
+	}
 
 	return NULL;
 }
