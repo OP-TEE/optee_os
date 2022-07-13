@@ -18,6 +18,30 @@
 
 #define CRYPTO_API_ID(__x) ((SEC_MODULE_ID << SEC_MODULE_SHIFT) | (__x))
 
+static TEE_Result versal_sha3_request(enum versal_crypto_api id,
+				      struct cmd_args *arg)
+{
+	struct ipi_cmd cmd = { };
+
+	cmd.data[0] = CRYPTO_API_ID(id);
+	if (arg->data[0]) {
+		/* write */
+		cmd.data[1] = virt_to_phys(arg->ibuf[0].mem.buf);
+		cmd.data[2] = virt_to_phys(arg->ibuf[0].mem.buf) >> 32;
+		cmd.data[3] = arg->data[0];
+
+		cmd.ibuf[0].mem = arg->ibuf[0].mem;
+	} else {
+		/* read */
+		cmd.data[4] = virt_to_phys(arg->ibuf[0].mem.buf);
+		cmd.data[5] = virt_to_phys(arg->ibuf[0].mem.buf) >> 32;
+
+		cmd.ibuf[0].mem = arg->ibuf[0].mem;
+	}
+
+	return versal_mbox_notify(&cmd, NULL, NULL);
+}
+
 static TEE_Result versal_aes_update_aad_request(enum versal_crypto_api id,
 						struct cmd_args *arg)
 {
@@ -38,6 +62,9 @@ TEE_Result versal_crypto_request(enum versal_crypto_api id,
 {
 	struct ipi_cmd cmd = { };
 	size_t i = 0;
+
+	if (id == SHA3_UPDATE)
+		return versal_sha3_request(id, arg);
 
 	if (id == AES_UPDATE_AAD)
 		return versal_aes_update_aad_request(id, arg);
