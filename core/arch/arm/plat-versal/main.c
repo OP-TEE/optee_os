@@ -9,9 +9,11 @@
 #include <drivers/pl011.h>
 #include <drivers/versal_nvm.h>
 #include <drivers/versal_pm.h>
+#include<io.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
+#include <kernel/panic.h>
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -20,6 +22,13 @@
 #include <tee/tee_fs.h>
 #include <trace.h>
 
+#define SECURE_BOOT_STATE_AHWROT_REG 0x14C
+#define SECURED_AHWROT 0xA5A5A5A5
+
+#define SECURE_BOOT_STATE_SHWROT_REG 0x150
+#define SECURED_SHWROT 0x96969696
+
+static bool secure_boot;
 static struct gic_data gic_data;
 static struct pl011_data console_data;
 
@@ -32,6 +41,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			GIC_BASE + GICD_OFFSET, CORE_MMU_PGDIR_SIZE);
+
+register_phys_mem(MEM_AREA_IO_SEC, PLM_RTCA, PLM_RTCA_LEN);
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 
@@ -60,6 +71,31 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
+static void check_secure_boot(void)
+{
+	vaddr_t plm_rtca = (vaddr_t)phys_to_virt(PLM_RTCA, MEM_AREA_IO_SEC,
+						 PLM_RTCA_LEN);
+	bool ahwrot = false;
+	bool shwrot = false;
+	uint32_t val = 0;
+
+	assert(plm_rtca);
+
+	val = io_read32(plm_rtca + SECURE_BOOT_STATE_AHWROT_REG);
+	if (val == SECURED_AHWROT)
+		ahwrot = true;
+
+	val = io_read32(plm_rtca + SECURE_BOOT_STATE_SHWROT_REG);
+	if (val == SECURED_SHWROT)
+		shwrot = true;
+
+	IMSG("Hardware Root of Trust:\t"
+	     "Asymmetric %s Enabled, Symmetric %s Enabled",
+	     ahwrot ? "" : "NOT", shwrot ? "" : "NOT");
+
+	secure_boot = ahwrot || shwrot;
+}
+
 static TEE_Result platform_banner(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
@@ -71,7 +107,9 @@ static TEE_Result platform_banner(void)
 		return ret;
 	}
 
-	IMSG("Platform Versal - Silicon Revision v%d", version);
+	IMSG("Platform Versal:\tSilicon Revision v%d", version);
+
+	check_secure_boot();
 
 	if (IS_ENABLED(CFG_VERSAL_FPGA_INIT)) {
 		ret = versal_write_fpga(CFG_VERSAL_FPGA_DDR_ADDR);
@@ -87,7 +125,7 @@ static TEE_Result platform_banner(void)
 #if defined(CFG_RPMB_FS)
 bool plat_rpmb_key_is_ready(void)
 {
-	return false;
+	return secure_boot;
 }
 #endif
 
