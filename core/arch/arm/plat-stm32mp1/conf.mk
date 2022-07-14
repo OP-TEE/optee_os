@@ -1,5 +1,6 @@
 # 1GB and 512MB DDR targets do not locate secure DDR at the same place.
 flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
+flavor_dts_file-157C_DHCOM_PDK2 = stm32mp157c-dhcom-pdk2.dts
 flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
 flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
 flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
@@ -11,7 +12,8 @@ flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2) \
 
 flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
 
-flavorlist-cryp-1G = $(flavor_dts_file-157C_ED1) \
+flavorlist-cryp-1G = $(flavor_dts_file-157C_DHCOM_PDK2) \
+		     $(flavor_dts_file-157C_ED1) \
 		     $(flavor_dts_file-157C_EV1)
 
 flavorlist-no_cryp = $(flavorlist-no_cryp-512M)
@@ -22,6 +24,7 @@ flavorlist-512M = $(flavorlist-cryp-512M) \
 flavorlist-1G = $(flavorlist-cryp-1G)
 
 flavorlist-MP15 = $(flavor_dts_file-157A_DK1) \
+		  $(flavor_dts_file-157C_DHCOM_PDK2) \
 		  $(flavor_dts_file-157C_DK2) \
 		  $(flavor_dts_file-157C_ED1) \
 		  $(flavor_dts_file-157C_EV1)
