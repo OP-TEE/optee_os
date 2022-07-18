@@ -172,6 +172,27 @@ static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
 	*reg0 = val >> 32;
 	*reg1 = val;
 }
+
+/* Get and set bit fields  */
+static inline uint32_t get_field_u32(uint32_t reg, uint32_t mask)
+{
+	return (reg & mask) / (mask & ~(mask - 1));
+}
+
+static inline uint32_t set_field_u32(uint32_t reg, uint32_t mask, uint32_t val)
+{
+	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
+}
+
+static inline uint64_t get_field_u64(uint64_t reg, uint64_t mask)
+{
+	return (reg & mask) / (mask & ~(mask - 1));
+}
+
+static inline uint64_t set_field_u64(uint64_t reg, uint64_t mask, uint64_t val)
+{
+	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
+}
 #endif
 
 #endif /*UTIL_H*/
