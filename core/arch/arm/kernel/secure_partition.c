@@ -94,23 +94,6 @@ static void set_sp_ctx_ops(struct ts_ctx *ctx)
 	ctx->ops = &sp_ops;
 }
 
-TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
-{
-	struct sp_session *s = NULL;
-
-	TAILQ_FOREACH(s, &open_sp_sessions, link) {
-		if (!memcmp(&s->ts_sess.ctx->uuid, uuid, sizeof(*uuid))) {
-			if (s->state == sp_dead)
-				return TEE_ERROR_TARGET_DEAD;
-
-			*session_id  = s->endpoint_id;
-			return TEE_SUCCESS;
-		}
-	}
-
-	return TEE_ERROR_ITEM_NOT_FOUND;
-}
-
 struct sp_session *sp_get_session(uint32_t session_id)
 {
 	struct sp_session *s = NULL;
@@ -123,18 +106,23 @@ struct sp_session *sp_get_session(uint32_t session_id)
 	return NULL;
 }
 
-TEE_Result sp_partition_info_get_all(struct ffa_partition_info *fpi,
-				     size_t *elem_count)
+TEE_Result sp_partition_info_get(struct ffa_partition_info *fpi,
+				 const TEE_UUID *ffa_uuid, size_t *elem_count)
 {
 	size_t in_count = *elem_count;
 	struct sp_session *s = NULL;
 	size_t count = 0;
 
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		if (ffa_uuid &&
+		    memcmp(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid)))
+			continue;
+
 		if (s->state == sp_dead)
 			continue;
 		if (count < in_count) {
-			spmc_fill_partition_entry(fpi, s->endpoint_id, 1);
+			spmc_fill_partition_entry(fpi, s->endpoint_id,
+						  1);
 			fpi++;
 		}
 		count++;
@@ -184,7 +172,7 @@ static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
 	return id;
 }
 
-static TEE_Result sp_create_ctx(const TEE_UUID *uuid, struct sp_session *s)
+static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *spc = NULL;
@@ -196,7 +184,7 @@ static TEE_Result sp_create_ctx(const TEE_UUID *uuid, struct sp_session *s)
 
 	spc->open_session = s;
 	s->ts_sess.ctx = &spc->ts_ctx;
-	spc->ts_ctx.uuid = *uuid;
+	spc->ts_ctx.uuid = *bin_uuid;
 
 	res = vm_info_init(&spc->uctx, &spc->ts_ctx);
 	if (res)
@@ -212,7 +200,7 @@ err:
 }
 
 static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
-				    const TEE_UUID *uuid,
+				    const TEE_UUID *bin_uuid,
 				    struct sp_session **sess)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -227,8 +215,8 @@ static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
 		goto err;
 	}
 
-	DMSG("Loading Secure Partition %pUl", (void *)uuid);
-	res = sp_create_ctx(uuid, s);
+	DMSG("Loading Secure Partition %pUl", (void *)bin_uuid);
+	res = sp_create_ctx(bin_uuid, s);
 	if (res)
 		goto err;
 
@@ -319,16 +307,17 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem)
 
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
-				  const TEE_UUID *uuid)
+				  const TEE_UUID *ffa_uuid,
+				  const TEE_UUID *bin_uuid)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *s = NULL;
 	struct sp_ctx *ctx = NULL;
 
-	if (!find_secure_partition(uuid))
+	if (!find_secure_partition(bin_uuid))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	res = sp_create_session(open_sessions, uuid, &s);
+	res = sp_create_session(open_sessions, bin_uuid, &s);
 	if (res != TEE_SUCCESS) {
 		DMSG("sp_create_session failed %#"PRIx32, res);
 		return res;
@@ -355,6 +344,8 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	s->state = sp_idle;
 	s->caller_id = 0;
 	sp_init_set_registers(ctx);
+
+	memcpy(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid));
 	ts_pop_current_session();
 
 	return TEE_SUCCESS;
@@ -410,11 +401,10 @@ static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
+static TEE_Result fdt_get_uuid(const void * const fdt, TEE_UUID *uuid)
 {
 	const struct fdt_property *description = NULL;
 	int description_name_len = 0;
-	TEE_UUID fdt_uuid = { };
 
 	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
 		EMSG("Failed loading SP, manifest not found");
@@ -426,13 +416,8 @@ static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
 	if (description)
 		DMSG("Loading SP: %s", description->data);
 
-	if (sp_dt_get_uuid(fdt, 0, "uuid", &fdt_uuid)) {
+	if (sp_dt_get_uuid(fdt, 0, "uuid", uuid)) {
 		EMSG("Missing or invalid UUID in SP manifest");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
-		EMSG("Failed loading SP, UUID mismatch");
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
@@ -885,18 +870,19 @@ err_unmap:
 	return res;
 }
 
-static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
+static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
+	TEE_UUID ffa_uuid = {};
 
-	res = sp_open_session(&sess,
-			      &open_sp_sessions,
-			      uuid);
+	res = fdt_get_uuid(fdt, &ffa_uuid);
 	if (res)
 		return res;
 
-	res = check_fdt(fdt, uuid);
+	res = sp_open_session(&sess,
+			      &open_sp_sessions,
+			      &ffa_uuid, bin_uuid);
 	if (res)
 		return res;
 

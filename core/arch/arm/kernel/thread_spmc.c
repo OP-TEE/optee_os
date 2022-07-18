@@ -351,7 +351,7 @@ static uint32_t handle_partition_info_get_all(size_t *elem_count,
 	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		size_t count = (rxtx->size / sizeof(*fpi)) - 1;
 
-		if (sp_partition_info_get_all(fpi, &count))
+		if (sp_partition_info_get(fpi, NULL, &count))
 			return FFA_NO_MEMORY;
 		*elem_count += count;
 	}
@@ -404,10 +404,12 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	if (is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
 		spmc_fill_partition_entry(fpi, endpoint_id,
 					  CFG_TEE_CORE_NB_CORE);
+		rc = 1;
 	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		uint32_t uuid_array[4] = { 0 };
 		TEE_UUID uuid = { };
 		TEE_Result res = TEE_SUCCESS;
+		size_t count = (rxtx->size / sizeof(*fpi));
 
 		uuid_array[0] = args->a1;
 		uuid_array[1] = args->a2;
@@ -415,13 +417,13 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		uuid_array[3] = args->a4;
 		tee_uuid_from_octets(&uuid, (uint8_t *)uuid_array);
 
-		res = sp_find_session_id(&uuid, &endpoint_id);
+		res = sp_partition_info_get(fpi, &uuid, &count);
 		if (res != TEE_SUCCESS) {
 			ret_fid = FFA_ERROR;
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-		spmc_fill_partition_entry(fpi, endpoint_id, 1);
+		rc = count;
 	} else {
 		ret_fid = FFA_ERROR;
 		rc = FFA_INVALID_PARAMETERS;
@@ -430,7 +432,6 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 
 	ret_fid = FFA_SUCCESS_32;
 	rxtx->tx_is_mine = false;
-	rc = 1;
 
 out:
 	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
