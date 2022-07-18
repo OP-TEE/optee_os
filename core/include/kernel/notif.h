@@ -107,6 +107,11 @@ void notif_free_async_value(uint32_t value);
 TEE_Result notif_wait(uint32_t value);
 
 /*
+ * Wait timeout in normal world for a value to be sent by notif_send()
+ */
+TEE_Result notif_wait_timeout(uint32_t value, uint32_t tmo);
+
+/*
  * Send an asynchronous value, note that it must be <= NOTIF_ASYNC_VALUE_MAX
  */
 #if defined(CFG_CORE_ASYNC_NOTIF)
@@ -123,6 +128,13 @@ static inline void notif_send_async(uint32_t value __unused)
  * asynchronous range.
  */
 TEE_Result notif_send_sync(uint32_t value);
+
+/*
+ * Send a sychronous value with timeout, note that it must be <= NOTIF_VALUE_MAX. The
+ * notification is synchronous even if the value happens to belong in the
+ * asynchronous range.
+ */
+TEE_Result notif_send_sync_timeout(uint32_t value, uint32_t tmo);
 
 /*
  * Called by device drivers.

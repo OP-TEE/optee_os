@@ -95,10 +95,15 @@ void condvar_broadcast_debug(struct condvar *cv, const char *fname, int lineno);
 void condvar_wait_debug(struct condvar *cv, struct mutex *m,
 			const char *fname, int lineno);
 #define condvar_wait(cv, m) condvar_wait_debug((cv), (m), __FILE__, __LINE__)
+uint32_t condvar_wait_timeout_debug(struct condvar *cv, struct mutex *m, uint32_t tmo,
+			const char *fname, int lineno);
+#define condvar_wait_timeout(cv, m, tmo) \
+			condvar_wait_timeout_debug((cv), (m), tmo, __FILE__, __LINE__)
 #else
 void condvar_signal(struct condvar *cv);
 void condvar_broadcast(struct condvar *cv);
 void condvar_wait(struct condvar *cv, struct mutex *m);
+uint32_t condvar_wait_timeout(struct condvar *cv, struct mutex *m, uint32_t tmo);
 #endif
 
 #endif /*KERNEL_MUTEX_H*/

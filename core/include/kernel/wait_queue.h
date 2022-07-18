@@ -48,6 +48,11 @@ static inline void wq_wait_init(struct wait_queue *wq,
 void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
 		   const void *sync_obj, const char *fname, int lineno);
 
+/* Waits for the wait queue element to the awakened or timed out */
+uint32_t wq_wait_final_timeout(struct wait_queue *wq, struct wait_queue_elem *wqe,
+			       uint32_t tmo, const void *sync_obj, const char *fname,
+			       int lineno);
+
 /* Wakes up the first wait queue element in the wait queue, if there is one */
 void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
 		const char *fname, int lineno);

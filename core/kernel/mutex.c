@@ -393,13 +393,14 @@ void condvar_broadcast(struct condvar *cv)
 }
 #endif /*CFG_MUTEX_DEBUG*/
 
-static void __condvar_wait(struct condvar *cv, struct mutex *m,
+static uint32_t __condvar_wait_timeout(struct condvar *cv, struct mutex *m, uint32_t tmo,
 			const char *fname, int lineno)
 {
 	uint32_t old_itr_status;
 	struct wait_queue_elem wqe;
 	short old_state;
 	short new_state;
+	uint32_t ret = 0;
 
 	mutex_unlock_check(m);
 
@@ -434,23 +435,36 @@ static void __condvar_wait(struct condvar *cv, struct mutex *m,
 	if (!new_state)
 		wq_wake_next(&m->wq, m, fname, lineno);
 
-	wq_wait_final(&m->wq, &wqe, m, fname, lineno);
+	ret = wq_wait_final_timeout(&m->wq, &wqe, tmo, m, fname, lineno);
 
 	if (old_state > 0)
 		mutex_read_lock(m);
 	else
 		mutex_lock(m);
+
+	return ret;
 }
 
 #ifdef CFG_MUTEX_DEBUG
 void condvar_wait_debug(struct condvar *cv, struct mutex *m,
 			const char *fname, int lineno)
 {
-	__condvar_wait(cv, m, fname, lineno);
+	__condvar_wait_timeout(cv, m, 0, fname, lineno);
+}
+
+uint32_t condvar_wait_timeout_debug(struct condvar *cv, struct mutex *m, uint32_t tmo,
+				const char *fname, int lineno)
+{
+	return __condvar_wait_timeout(cv, m, tmo, fname, lineno);
 }
 #else
 void condvar_wait(struct condvar *cv, struct mutex *m)
 {
-	__condvar_wait(cv, m, NULL, -1);
+	__condvar_wait_timeout(cv, m, 0, NULL, -1);
+}
+
+uint32_t condvar_wait_timeout(struct condvar *cv, struct mutex *m, uint32_t tmo)
+{
+	return __condvar_wait_timeout(cv, m, tmo, NULL, -1);
 }
 #endif
