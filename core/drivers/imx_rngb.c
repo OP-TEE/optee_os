@@ -166,7 +166,7 @@ static TEE_Result map_controller(void)
 }
 #endif
 
-TEE_Result crypto_rng_read(void *buf, size_t len)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	uint32_t *rngbuf = buf;
 	uint32_t status = 0;
@@ -174,8 +174,6 @@ TEE_Result crypto_rng_read(void *buf, size_t len)
 
 	if (!rngb.ready)
 		return TEE_ERROR_BAD_STATE;
-
-	assert(buf);
 
 	while (len) {
 		status = io_read32(rngb.base.va + RNG_SR);
@@ -196,16 +194,6 @@ TEE_Result crypto_rng_read(void *buf, size_t len)
 	}
 
 	return TEE_SUCCESS;
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t data = 0;
-
-	if (crypto_rng_read(&data, 1))
-		panic();
-
-	return data;
 }
 
 void plat_rng_init(void)

@@ -213,18 +213,8 @@ void plat_rng_init(void)
 
 /* If CFG_WITH_SOFTWARE_PRNG is disabled, TRNG is our HW RNG */
 #ifndef CFG_WITH_SOFTWARE_PRNG
-TEE_Result crypto_rng_read(void *buf, size_t len)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	return smccc_trng_read(buf, len);
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t data = 0;
-
-	if (smccc_trng_read(&data, 1))
-		panic();
-
-	return data;
 }
 #endif

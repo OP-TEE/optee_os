@@ -24,6 +24,7 @@ CFG_TEE_RAM_VA_SIZE ?= 0x100000
 supported-ta-targets = ta_arm64
 
 ifeq ($(CFG_RCAR_GEN3), y)
+CFG_WITH_SOFTWARE_PRNG ?= n
 CFG_HWRNG_QUALITY ?= 1024
 CFG_HWRNG_PTA ?= y
 CFG_DT ?= y

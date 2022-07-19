@@ -106,7 +106,7 @@ CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 # PRNG configuration
 # If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
 # software PRNG implementation is used.
-# Otherwise, you need to implement hw_get_random_byte() for your platform
+# Otherwise, you need to implement hw_get_random_bytes() for your platform
 CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
@@ -127,7 +127,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 17
+CFG_OPTEE_REVISION_MINOR ?= 18
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version

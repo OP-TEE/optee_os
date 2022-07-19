@@ -46,7 +46,7 @@ static inline int hwrng_waithost_fifo_full(void)
 	return 0;
 }
 
-uint8_t hw_get_random_byte(void)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	/*
 	 * Only the HW RNG IP is used to generate the value through the
@@ -85,41 +85,47 @@ uint8_t hw_get_random_byte(void)
 #define _LOCAL_FIFO_SIZE 8     /* min 2, 4, 6, max 8 */
 
 	static uint8_t lfifo[_LOCAL_FIFO_SIZE];     /* local fifo */
-	static int pos = -1;
+	static int pos;
 
 	static int nbcall;  /* debug purpose - 0 is the initial value*/
 
 	volatile uint32_t tmpval[_LOCAL_FIFO_SIZE/2];
-	uint8_t value;
 	int i;
+
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
 
 	nbcall++;
 
-	/* Retrieve data from local fifo */
-	if (pos >= 0) {
-		pos++;
-		value = lfifo[pos];
-		if (pos == (_LOCAL_FIFO_SIZE - 1))
-			pos = -1;
-		return value;
+	while (buffer_pos < len) {
+		/* Refill our FIFO */
+		if (pos == 0) {
+			if (hwrng_waithost_fifo_full())
+				return TEE_ERROR_GENERIC;
+
+			/*
+			 * Read the FIFO according to the number of
+			 * expected elements
+			 */
+			for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++)
+				tmpval[i] = io_read32(rng_base() +
+						      RNG_VAL_OFFSET) & 0xFFFF;
+
+			/* Update the local SW fifo for next request */
+			pos = 0;
+			for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++) {
+				lfifo[pos] = tmpval[i] & 0xFF;
+				pos++;
+				lfifo[pos] = (tmpval[i] >> 8) & 0xFF;
+				pos++;
+			}
+			pos = 0;
+		}
+
+		buffer[buffer_pos++] = lfifo[pos++];
+		if (pos == _LOCAL_FIFO_SIZE)
+			pos = 0;
 	}
 
-	if (hwrng_waithost_fifo_full())
-		return 0;
-
-	/* Read the FIFO according the number of expected element */
-	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++)
-		tmpval[i] = io_read32(rng_base() + RNG_VAL_OFFSET) & 0xFFFF;
-
-	/* Update the local SW fifo for next request */
-	pos = 0;
-	for (i = 0; i < _LOCAL_FIFO_SIZE / 2; i++) {
-		lfifo[pos] = tmpval[i] & 0xFF;
-		pos++;
-		lfifo[pos] = (tmpval[i] >> 8) & 0xFF;
-		pos++;
-	};
-
-	pos = 0;
-	return lfifo[pos];
+	return TEE_SUCCESS;
 }

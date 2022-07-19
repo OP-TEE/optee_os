@@ -43,8 +43,6 @@ static uint32_t xiphera_trng_read32(void)
 	uint32_t exceptions = 0;
 	uint32_t status = 0;
 
-	exceptions = cpu_spin_lock_xsave(&trng_lock);
-
 	while (true) {
 		/* Wait until we have value available */
 		status = io_read32(xiphera_trng_base + STATUS_REG);
@@ -64,8 +62,6 @@ static uint32_t xiphera_trng_read32(void)
 		break;
 	}
 
-	cpu_spin_unlock_xrestore(&trng_lock, exceptions);
-
 	return value;
 }
 
@@ -74,35 +70,32 @@ void plat_rng_init(void)
 {
 }
 
-TEE_Result crypto_rng_read(void *buf, size_t len)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	uint8_t *rngbuf = buf;
-	uint32_t val = 0;
-	size_t len_to_copy = 0;
+	static union {
+		uint32_t val;
+		uint8_t byte[4];
+	} fifo;
+	static size_t fifo_pos;
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
 
-	assert(buf);
 	assert(xiphera_trng_base);
 
-	while (len) {
-		val = xiphera_trng_read32();
-		len_to_copy = MIN(len, sizeof(uint32_t));
-		memcpy(rngbuf, &val, len_to_copy);
-		rngbuf += len_to_copy;
-		len -= len_to_copy;
+	while (buffer_pos < len) {
+		uint32_t exceptions = cpu_spin_lock_xsave(&trng_lock);
+
+		/* Refill our FIFO */
+		if (fifo_pos == 0)
+			fifo.val = xiphera_trng_read32();
+
+		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
+		fifo_pos %= 4;
+
+		cpu_spin_unlock_xrestore(&trng_lock, exceptions);
 	}
 
 	return TEE_SUCCESS;
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t data = 0;
-
-	assert(xiphera_trng_base);
-
-	data = xiphera_trng_read32() & 0xFF;
-
-	return data;
 }
 
 static TEE_Result xiphera_trng_probe(const void *fdt, int node,

@@ -62,7 +62,7 @@ static TEE_Result hi16xx_rng_init(void)
 	return TEE_SUCCESS;
 }
 
-uint8_t hw_get_random_byte(void)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	static vaddr_t r;
 	static int pos;
@@ -70,26 +70,31 @@ uint8_t hw_get_random_byte(void)
 		uint32_t val;
 		uint8_t byte[4];
 	} random;
-	uint8_t ret;
+	size_t buffer_pos = 0;
+	uint8_t *buffer = buf;
 	uint32_t exceptions;
 
 	exceptions = cpu_spin_lock_xsave(&rng_lock);
-
 	if (!r)
 		r = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, 1) +
 			RNG_NUM;
-
-	if (!pos)
-		random.val = io_read32(r);
-
-	ret = random.byte[pos++];
-
-	if (pos == 4)
-		pos = 0;
-
 	cpu_spin_unlock_xrestore(&rng_lock, exceptions);
 
-	return ret;
+	while (buffer_pos < len) {
+		exceptions = cpu_spin_lock_xsave(&rng_lock);
+
+		/* Refill our FIFO */
+		if (pos == 0)
+			random.val = io_read32(r);
+
+		buffer[buffer_pos++] = random.byte[pos++];
+		if (pos == 4)
+			pos = 0;
+
+		cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+	}
+
+	return TEE_SUCCESS;
 }
 
 driver_init(hi16xx_rng_init);
