@@ -15,54 +15,6 @@ static size_t rng_fifo_size;
 static size_t rng_fifo_pos;
 static struct mutex rng_fifo_mutex = MUTEX_INITIALIZER;
 
-TEE_Result __weak hw_get_max_available_entropy(size_t *blen)
-{
-	*blen = sizeof(size_t);
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result __weak hw_get_available_entropy(void *buf)
-{
-	TEE_Result ret;
-
-	ret = hw_get_random_bytes(buf, sizeof(size_t));
-	if (ret != TEE_SUCCESS)
-		return ret;
-
-	return TEE_SUCCESS;
-}
-
-TEE_Result __weak hw_get_random_bytes(void *buf, size_t blen)
-{
-	uint8_t *buffer = buf;
-	size_t buffer_pos = 0;
-	TEE_Result ret = TEE_SUCCESS;
-
-	mutex_lock(&rng_fifo_mutex);
-
-	while (buffer_pos < blen) {
-		/* Refill our FIFO */
-		if (rng_fifo_pos == 0) {
-			while (true) {
-				ret = hw_get_available_entropy(rng_fifo);
-				if (ret == TEE_SUCCESS)
-					break;
-				else if (ret != TEE_ERROR_BUSY)
-					goto out;
-			}
-		}
-
-		buffer[buffer_pos++] = rng_fifo[rng_fifo_pos++];
-		if (rng_fifo_pos == rng_fifo_size)
-			rng_fifo_pos = 0;
-	}
-
-out:
-	mutex_unlock(&rng_fifo_mutex);
-	return ret;
-}
-
 /* This is a HW RNG, no need for seeding */
 TEE_Result crypto_rng_init(const void *data __unused, size_t dlen __unused)
 {
@@ -95,8 +47,33 @@ void crypto_rng_add_event(enum crypto_rng_src sid __unused,
 
 TEE_Result crypto_rng_read(void *buf, size_t blen)
 {
+	uint8_t *buffer = buf;
+	size_t buffer_pos = 0;
+	TEE_Result ret = TEE_SUCCESS;
+
 	if (!buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return hw_get_random_bytes(buf, blen);
+	mutex_lock(&rng_fifo_mutex);
+
+	while (buffer_pos < blen) {
+		/* Refill our FIFO */
+		if (rng_fifo_pos == 0) {
+			while (true) {
+				ret = hw_get_available_entropy(rng_fifo);
+				if (ret == TEE_SUCCESS)
+					break;
+				else if (ret != TEE_ERROR_BUSY)
+					goto out;
+			}
+		}
+
+		buffer[buffer_pos++] = rng_fifo[rng_fifo_pos++];
+		if (rng_fifo_pos == rng_fifo_size)
+			rng_fifo_pos = 0;
+	}
+
+out:
+	mutex_unlock(&rng_fifo_mutex);
+	return ret;
 }

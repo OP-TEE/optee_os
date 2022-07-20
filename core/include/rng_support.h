@@ -7,8 +7,6 @@
 
 #include <stdint.h>
 
-TEE_Result hw_get_random_bytes(void *buf, size_t blen);
-
 /*
  * hw_get_max_available_entropy() - Get the maximum bytes of entropy per call
  * @blen:  [out] Maximum number of bytes of entropy that can be returned
