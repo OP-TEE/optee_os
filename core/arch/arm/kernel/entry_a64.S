@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2022, Arm Limited
  */
 
 #include <platform_config.h>
@@ -128,11 +128,11 @@ FUNC _start , :
 #if defined(CFG_CORE_SEL1_SPMC)
 	/*
 	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
-	 * the DTB in x0, pagaeble part in x1 and the rest of the registers
-	 * are unused
+	 * the SPMC manifest in x0, HW_CONFIG DT in x1 and the rest of the
+	 * registers are unused
 	 */
-	mov	x19, x1		/* Save pagable part */
-	mov	x20, x0		/* Save DT address */
+	mov	x19, x0		/* Save SPMC manifest */
+	mov	x20, x1		/* Save DT address */
 #else
 	mov	x19, x0		/* Save pagable part address */
 #if defined(CFG_DT_ADDR)
@@ -303,7 +303,11 @@ clear_nex_bss:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
+#if defined(CFG_CORE_SEL1_SPMC)
+	mov	x0, #0		/* pager not used */
+#else
 	mov	x0, x19		/* pagable part address */
+#endif
 	mov	x1, #-1
 	bl	boot_init_primary_early
 
@@ -321,6 +325,11 @@ clear_nex_bss:
 	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	x0, x20		/* DT address */
+#if defined(CFG_CORE_SEL1_SPMC)
+	mov	x1, x19		/* SPMC manifest */
+#else
+	mov	x1, #0		/* unused */
+#endif
 	bl	boot_init_primary_late
 #ifndef CFG_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP

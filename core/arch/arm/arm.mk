@@ -98,6 +98,7 @@ ifeq ($(CFG_CORE_SEL1_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_EL3_SPMC,n)
+$(call force,CFG_DT,y)
 endif
 # SPMC configuration "S-EL2 SPMC" where SPM Core is implemented at S-EL2,
 # that is, the hypervisor sandboxing OP-TEE

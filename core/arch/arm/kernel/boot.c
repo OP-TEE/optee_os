@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2022, Arm Limited
  */
 
 #include <arm.h>
@@ -83,6 +84,9 @@ struct dt_descriptor {
 };
 
 static struct dt_descriptor external_dt __nex_bss;
+#ifdef CFG_CORE_SEL1_SPMC
+static struct dt_descriptor spmc_manifest_dt __nex_bss;
+#endif
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -586,6 +590,43 @@ static void init_runtime(unsigned long pageable_part __unused)
 #endif
 
 	IMSG_RAW("\n");
+}
+#endif
+
+#if defined(CFG_CORE_SEL1_SPMC)
+void *get_spmc_manifest_dt(void)
+{
+	assert(cpu_mmu_enabled());
+	return spmc_manifest_dt.blob;
+}
+
+static void init_spmc_manifest_dt(unsigned long pa)
+{
+	struct dt_descriptor *dt = &spmc_manifest_dt;
+	void *fdt;
+
+	if (!pa)
+		panic("No SPMC manifest DT");
+
+	fdt = core_mmu_add_mapping(MEM_AREA_RAM_SEC, pa, CFG_DTB_MAX_SIZE);
+	if (!fdt)
+		panic("Failed to map SPMC manifest DT");
+
+	if (fdt_check_header(fdt))
+		panic("Invalid SPMC manifest DT");
+
+	dt->blob = fdt;
+
+	IMSG("SPMC manifest DT found");
+}
+#else
+void *get_spmc_manifest_dt(void)
+{
+	return NULL;
+}
+
+static void init_spmc_manifest_dt(unsigned long pa __unused)
+{
 }
 #endif
 
@@ -1296,10 +1337,16 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak boot_init_primary_late(unsigned long fdt)
+void __weak boot_init_primary_late(unsigned long fdt,
+				   unsigned long spmc_manifest)
 {
 	init_external_dt(fdt);
+	init_spmc_manifest_dt(spmc_manifest);
+#ifdef CFG_CORE_SEL1_SPMC
+	tpm_map_log_area(get_spmc_manifest_dt());
+#else
 	tpm_map_log_area(get_external_dt());
+#endif
 	discover_nsec_memory();
 	update_external_dt();
 	configure_console_from_dt();

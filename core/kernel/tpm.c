@@ -31,7 +31,7 @@ static int read_dt_tpm_log_info(void *fdt, int node, paddr_t *buf,
 	int len_prop = 0;
 	paddr_t log_addr = 0;
 	int err = 0;
-#ifdef CFG_MAP_EXT_DT_SECURE
+#if defined CFG_MAP_EXT_DT_SECURE || defined CFG_CORE_SEL1_SPMC
 	const char *dt_tpm_event_log_addr = "tpm_event_log_addr";
 #else
 	const char *dt_tpm_event_log_addr = "tpm_event_log_sm_addr";

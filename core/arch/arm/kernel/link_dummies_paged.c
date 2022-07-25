@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2017-2021, Linaro Limited
+ * Copyright (c) 2022, Arm Limited
  */
 #include <compiler.h>
 #include <initcall.h>
@@ -27,7 +28,8 @@ void __section(".text.dummy.call_finalcalls") call_finalcalls(void)
 }
 
 void __section(".text.dummy.boot_init_primary_late")
-boot_init_primary_late(unsigned long fdt __unused)
+boot_init_primary_late(unsigned long fdt __unused,
+		       unsigned long spmc_manifest __unused)
 {
 }
 
