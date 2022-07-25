@@ -1000,6 +1000,13 @@ static bool assign_mem_va_dir(vaddr_t tee_ram_va,
 	vaddr_t va = 0;
 	bool va_is_secure = true;
 
+	/*
+	 * tee_ram_va might equals 0 when CFG_CORE_ASLR=y.
+	 * 0 is by design an invalid va, so return false directly.
+	 */
+	if (!tee_ram_va)
+		return false;
+
 	/* Clear eventual previous assignments */
 	for (map = memory_map; !core_mmap_is_end_of_table(map); map++)
 		map->va = 0;
