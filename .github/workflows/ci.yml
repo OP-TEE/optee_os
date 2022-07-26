@@ -9,7 +9,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 50 # >= the highest number of commits expected in a single PR
+          fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
       - name: Update Git config
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
       - name: Run checkpatch
