@@ -1,0 +1,16 @@
+# Cancel previous CI workflow when the branch that triggered it is updated
+# See https://github.com/marketplace/actions/cancel-workflow-action#advanced-pull-requests-from-forks
+name: Cancel CI
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - requested
+jobs:
+  cancel:
+    name: Cancel previous CI workflow
+    runs-on: ubuntu-latest
+    steps:
+    - uses: styfle/cancel-workflow-action@0.10.0
+      with:
+        workflow_id: ${{ github.event.workflow.id }}
