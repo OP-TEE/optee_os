@@ -465,7 +465,7 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].sda_inp)
 		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
-			   I2C_INP_VAL(bid + 1));
+			   I2C_INP_VAL(bid + 2));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
