@@ -140,6 +140,15 @@ ifeq ($(CFG_ARM32_core),y)
 # CFG_DT_ADDR:       if defined, forces Device Tree data physical address.
 endif
 
+# CFG_MAX_CACHE_LINE_SHIFT is used to define platform specific maximum cache
+# line size in address lines. This must cover all inner and outer cache levels.
+# When data is aligned with this and cache operations are performed then those
+# only affect correct data.
+#
+# Default value (6 lines or 64 bytes) should cover most architectures, override
+# this in platform config if different.
+CFG_MAX_CACHE_LINE_SHIFT ?= 6
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel crypto mm tee) $(platform-dir)
