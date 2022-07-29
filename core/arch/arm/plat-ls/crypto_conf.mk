@@ -86,6 +86,9 @@ ifneq ($(CFG_NXP_CAAM_SGT_V2),y)
 $(call force,CFG_NXP_CAAM_SGT_V1,y)
 endif
 
+# Enable JR interruptions
+CFG_CAAM_ITR ?= y
+
 #
 # Configuration of the Crypto Driver
 #
