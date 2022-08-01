@@ -352,9 +352,11 @@ int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
  * Get current voltage domain level in microvolt
  * @channel_id: SCMI channel ID
  * @scmi_id: SCMI voltage domain ID
- * Return clock rate or 0 if not supported
+ * @level: Out parameter for the current voltage level
+ * Return an SCMI compliant error code
  */
-long plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id);
+int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
+				  long *level);
 
 /*
  * Set voltage domain level voltage domain
