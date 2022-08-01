@@ -812,18 +812,27 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 	}
 }
 
-long plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id)
+int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
+				  long *level)
 {
 	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
+	long voltage = 0;
 
 	if (!voltd)
-		return 0;
+		return SCMI_INVALID_PARAMETERS;
 
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
-		return pwr_get_level(voltd);
+		*level = pwr_get_level(voltd);
+		return SCMI_SUCCESS;
 	case VOLTD_PMIC:
-		return pmic_get_level(voltd);
+		voltage = pmic_get_level(voltd);
+		if (voltage > 0) {
+			*level = voltage;
+			return SCMI_SUCCESS;
+		} else {
+			return SCMI_GENERIC_ERROR;
+		}
 	default:
 		panic();
 	}

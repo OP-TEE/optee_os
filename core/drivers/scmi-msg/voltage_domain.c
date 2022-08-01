@@ -43,10 +43,11 @@ int32_t __weak plat_scmi_voltd_levels_by_step(unsigned int channel_id __unused,
 	return SCMI_NOT_SUPPORTED;
 }
 
-long __weak plat_scmi_voltd_get_level(unsigned int channel_id __unused,
-				      unsigned int scmi_id __unused)
+int32_t __weak plat_scmi_voltd_get_level(unsigned int channel_id __unused,
+					 unsigned int scmi_id __unused,
+					 long *level __unused)
 {
-	return 0;
+	return SCMI_NOT_SUPPORTED;
 }
 
 int32_t __weak plat_scmi_voltd_set_level(unsigned int channel_id __unused,
@@ -353,6 +354,7 @@ static void scmi_voltd_level_get(struct scmi_msg *msg)
 		.status = SCMI_SUCCESS,
 	};
 	unsigned int domain_id = 0;
+	long level = 0;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
@@ -367,8 +369,9 @@ static void scmi_voltd_level_get(struct scmi_msg *msg)
 	domain_id = confine_array_index(in_args->domain_id,
 					plat_scmi_voltd_count(msg->channel_id));
 
-	out_args.voltage_level = plat_scmi_voltd_get_level(msg->channel_id,
-							   domain_id);
+	out_args.status = plat_scmi_voltd_get_level(msg->channel_id, domain_id,
+						    &level);
+	out_args.voltage_level = level;
 
 	scmi_write_response(msg, &out_args, sizeof(out_args));
 }
