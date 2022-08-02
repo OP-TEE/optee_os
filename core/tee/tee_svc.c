@@ -365,7 +365,7 @@ const struct tee_props tee_propset_tee[] = {
 		.name = "org.trustedfirmware.optee.cpu.feat_pauth_implemented",
 		.prop_type = USER_TA_PROP_TYPE_BOOL,
 		.get_prop_func = get_prop_feat_pauth_implemented
-	}
+	},
 #endif
 #if MEMTAG_IS_ENABLED
 	{
