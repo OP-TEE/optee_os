@@ -41,8 +41,10 @@
 #include "mbedtls/md.h"
 #endif
 
-#define MBEDTLS_ERR_OID_NOT_FOUND                         -0x002E  /**< OID is not found. */
-#define MBEDTLS_ERR_OID_BUF_TOO_SMALL                     -0x000B  /**< output buffer is too small */
+/** OID is not found. */
+#define MBEDTLS_ERR_OID_NOT_FOUND                         -0x002E
+/** output buffer is too small */
+#define MBEDTLS_ERR_OID_BUF_TOO_SMALL                     -0x000B
 
 /* This is for the benefit of X.509, but defined here in order to avoid
  * having a "backwards" include of x.509.h here */
@@ -141,7 +143,7 @@
 #define MBEDTLS_OID_AT_GIVEN_NAME               MBEDTLS_OID_AT "\x2A" /**< id-at-givenName AttributeType:= {id-at 42} */
 #define MBEDTLS_OID_AT_INITIALS                 MBEDTLS_OID_AT "\x2B" /**< id-at-initials AttributeType:= {id-at 43} */
 #define MBEDTLS_OID_AT_GENERATION_QUALIFIER     MBEDTLS_OID_AT "\x2C" /**< id-at-generationQualifier AttributeType:= {id-at 44} */
-#define MBEDTLS_OID_AT_UNIQUE_IDENTIFIER        MBEDTLS_OID_AT "\x2D" /**< id-at-uniqueIdentifier AttributType:= {id-at 45} */
+#define MBEDTLS_OID_AT_UNIQUE_IDENTIFIER        MBEDTLS_OID_AT "\x2D" /**< id-at-uniqueIdentifier AttributeType:= {id-at 45} */
 #define MBEDTLS_OID_AT_DN_QUALIFIER             MBEDTLS_OID_AT "\x2E" /**< id-at-dnQualifier AttributeType:= {id-at 46} */
 #define MBEDTLS_OID_AT_PSEUDONYM                MBEDTLS_OID_AT "\x41" /**< id-at-pseudonym AttributeType:= {id-at 65} */
 

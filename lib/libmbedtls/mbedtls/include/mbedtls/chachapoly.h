@@ -41,8 +41,10 @@
 /* for shared error codes */
 #include "mbedtls/poly1305.h"
 
-#define MBEDTLS_ERR_CHACHAPOLY_BAD_STATE            -0x0054 /**< The requested operation is not permitted in the current state. */
-#define MBEDTLS_ERR_CHACHAPOLY_AUTH_FAILED          -0x0056 /**< Authenticated decryption failed: data was not authentic. */
+/** The requested operation is not permitted in the current state. */
+#define MBEDTLS_ERR_CHACHAPOLY_BAD_STATE            -0x0054
+/** Authenticated decryption failed: data was not authentic. */
+#define MBEDTLS_ERR_CHACHAPOLY_AUTH_FAILED          -0x0056
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,7 +161,7 @@ int mbedtls_chachapoly_setkey( mbedtls_chachapoly_context *ctx,
  * \param ctx       The ChaCha20-Poly1305 context. This must be initialized
  *                  and bound to a key.
  * \param nonce     The nonce/IV to use for the message.
- *                  This must be a redable buffer of length \c 12 Bytes.
+ *                  This must be a readable buffer of length \c 12 Bytes.
  * \param mode      The operation to perform: #MBEDTLS_CHACHAPOLY_ENCRYPT or
  *                  #MBEDTLS_CHACHAPOLY_DECRYPT (discouraged, see warning).
  *

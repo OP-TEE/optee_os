@@ -54,16 +54,24 @@
 #define inline __inline
 #endif
 
-#define MBEDTLS_ERR_CIPHER_FEATURE_UNAVAILABLE  -0x6080  /**< The selected feature is not available. */
-#define MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA       -0x6100  /**< Bad input parameters. */
-#define MBEDTLS_ERR_CIPHER_ALLOC_FAILED         -0x6180  /**< Failed to allocate memory. */
-#define MBEDTLS_ERR_CIPHER_INVALID_PADDING      -0x6200  /**< Input data contains invalid padding and is rejected. */
-#define MBEDTLS_ERR_CIPHER_FULL_BLOCK_EXPECTED  -0x6280  /**< Decryption of block requires a full block. */
-#define MBEDTLS_ERR_CIPHER_AUTH_FAILED          -0x6300  /**< Authentication failed (for AEAD modes). */
-#define MBEDTLS_ERR_CIPHER_INVALID_CONTEXT      -0x6380  /**< The context is invalid. For example, because it was freed. */
+/** The selected feature is not available. */
+#define MBEDTLS_ERR_CIPHER_FEATURE_UNAVAILABLE  -0x6080
+/** Bad input parameters. */
+#define MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA       -0x6100
+/** Failed to allocate memory. */
+#define MBEDTLS_ERR_CIPHER_ALLOC_FAILED         -0x6180
+/** Input data contains invalid padding and is rejected. */
+#define MBEDTLS_ERR_CIPHER_INVALID_PADDING      -0x6200
+/** Decryption of block requires a full block. */
+#define MBEDTLS_ERR_CIPHER_FULL_BLOCK_EXPECTED  -0x6280
+/** Authentication failed (for AEAD modes). */
+#define MBEDTLS_ERR_CIPHER_AUTH_FAILED          -0x6300
+/** The context is invalid. For example, because it was freed. */
+#define MBEDTLS_ERR_CIPHER_INVALID_CONTEXT      -0x6380
 
 /* MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED is deprecated and should not be used. */
-#define MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED      -0x6400  /**< Cipher hardware accelerator failed. */
+/** Cipher hardware accelerator failed. */
+#define MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED      -0x6400
 
 #define MBEDTLS_CIPHER_VARIABLE_IV_LEN     0x01    /**< Cipher accepts IVs of variable length. */
 #define MBEDTLS_CIPHER_VARIABLE_KEY_LEN    0x02    /**< Cipher accepts keys of variable length. */
@@ -438,20 +446,6 @@ void mbedtls_cipher_init( mbedtls_cipher_context_t *ctx );
  */
 void mbedtls_cipher_free( mbedtls_cipher_context_t *ctx );
 
-/**
- * \brief           Clone the state of an cipher context
- *
- * \note            The two contexts must have been setup to the same type
- *                  (cloning from AES to DES make no sense).
- *
- * \param dst       The destination context
- * \param src       The context to be cloned
- *
- * \return          \c 0 on success,
- *                  \c MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure.
- */
-int mbedtls_cipher_clone( mbedtls_cipher_context_t *dst,
-                          const mbedtls_cipher_context_t *src );
 
 /**
  * \brief               This function initializes a cipher context for
@@ -499,17 +493,6 @@ int mbedtls_cipher_setup_psa( mbedtls_cipher_context_t *ctx,
                               const mbedtls_cipher_info_t *cipher_info,
                               size_t taglen );
 #endif /* MBEDTLS_USE_PSA_CRYPTO */
-
-/**
- * \brief               setup the cipher info structure.
- *
- * \param ctx           cipher's context. Must have been initialised.
- * \param cipher_info   cipher to use.
- *
- * \return              0 on success,
- *                      MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA on parameter failure
- */
-int mbedtls_cipher_setup_info( mbedtls_cipher_context_t *ctx, const mbedtls_cipher_info_t *cipher_info );
 
 /**
  * \brief        This function returns the block size of the given cipher.
