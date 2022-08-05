@@ -31,6 +31,7 @@ link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
 link-ldflags += --gc-sections
+link-ldflags += $(call ld-option,--no-warn-rwx-segments)
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(ldflags-external)
@@ -55,6 +56,7 @@ link-script-cppflags := \
 		$(cppflagscore))
 
 ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
+		   $(call ld-option,--no-warn-rwx-segments) \
 		   $(link-objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
@@ -67,7 +69,8 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
-unpaged-ldargs = -T $(link-script-dummy) --no-check-sections --gc-sections
+unpaged-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections \
+		 $(call ld-option,--no-warn-rwx-segments)
 unpaged-ldadd := $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
@@ -95,7 +98,8 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
-init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
+init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections \
+	       $(call ld-option,--no-warn-rwx-segments)
 init-ldadd := $(link-objs-init) $(link-out-dir)/version.o  $(link-ldadd) \
 	      $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
