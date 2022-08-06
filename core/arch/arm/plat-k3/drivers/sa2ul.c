@@ -115,6 +115,8 @@ static TEE_Result sa2ul_init(void)
 	/* Modify TRNG firewall to block all others access */
 	control = FW_ENABLE_REGION;
 	permissions[0] = (FW_BIG_ARM_PRIVID << 16) | FW_SECURE_ONLY;
+	start_address = RNG_BASE;
+	end_address = RNG_BASE + RNG_REG_SIZE - 1;
 	ret = ti_sci_set_fwl_region(fwl_id, rng_region, 1,
 				    control, permissions,
 				    start_address, end_address);
