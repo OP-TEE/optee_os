@@ -29,6 +29,7 @@
 #include "mbedtls/cipher_internal.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
+#include "mbedtls/constant_time.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -73,27 +74,6 @@
     MBEDTLS_INTERNAL_VALIDATE_RET( cond, MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA )
 #define CIPHER_VALIDATE( cond )        \
     MBEDTLS_INTERNAL_VALIDATE( cond )
-
-#if defined(MBEDTLS_GCM_C) || defined(MBEDTLS_CHACHAPOLY_C)
-/* Compare the contents of two buffers in constant time.
- * Returns 0 if the contents are bitwise identical, otherwise returns
- * a non-zero value.
- * This is currently only used by GCM and ChaCha20+Poly1305.
- */
-static int mbedtls_constant_time_memcmp( const void *v1, const void *v2,
-                                         size_t len )
-{
-    const unsigned char *p1 = (const unsigned char*) v1;
-    const unsigned char *p2 = (const unsigned char*) v2;
-    size_t i;
-    unsigned char diff;
-
-    for( diff = 0, i = 0; i < len; i++ )
-        diff |= p1[i] ^ p2[i];
-
-    return( (int)diff );
-}
-#endif /* MBEDTLS_GCM_C || MBEDTLS_CHACHAPOLY_C */
 
 static int supported_init = 0;
 
@@ -445,6 +425,12 @@ int mbedtls_cipher_set_iv( mbedtls_cipher_context_t *ctx,
 #if defined(MBEDTLS_CHACHA20_C)
     if ( ctx->cipher_info->type == MBEDTLS_CIPHER_CHACHA20 )
     {
+        /* Even though the actual_iv_size is overwritten with a correct value
+         * of 12 from the cipher info, return an error to indicate that
+         * the input iv_len is wrong. */
+        if( iv_len != 12 )
+            return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+
         if ( 0 != mbedtls_chacha20_starts( (mbedtls_chacha20_context*)ctx->cipher_ctx,
                                            iv,
                                            0U ) ) /* Initial counter value */
@@ -452,6 +438,11 @@ int mbedtls_cipher_set_iv( mbedtls_cipher_context_t *ctx,
             return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
         }
     }
+#if defined(MBEDTLS_CHACHAPOLY_C)
+    if ( ctx->cipher_info->type == MBEDTLS_CIPHER_CHACHA20_POLY1305 &&
+         iv_len != 12 )
+        return( MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA );
+#endif
 #endif
 
     if ( actual_iv_size != 0 )
@@ -1184,6 +1175,12 @@ int mbedtls_cipher_check_tag( mbedtls_cipher_context_t *ctx,
     }
 #endif /* MBEDTLS_USE_PSA_CRYPTO */
 
+    /* Status to return on a non-authenticated algorithm. It would make sense
+     * to return MBEDTLS_ERR_CIPHER_INVALID_CONTEXT or perhaps
+     * MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA, but at the time I write this our
+     * unit tests assume 0. */
+    ret = 0;
+
 #if defined(MBEDTLS_GCM_C)
     if( MBEDTLS_MODE_GCM == ctx->cipher_info->mode )
     {
@@ -1198,10 +1195,11 @@ int mbedtls_cipher_check_tag( mbedtls_cipher_context_t *ctx,
         }
 
         /* Check the tag in "constant-time" */
-        if( mbedtls_constant_time_memcmp( tag, check_tag, tag_len ) != 0 )
-            return( MBEDTLS_ERR_CIPHER_AUTH_FAILED );
-
-        return( 0 );
+        if( mbedtls_ct_memcmp( tag, check_tag, tag_len ) != 0 )
+        {
+            ret = MBEDTLS_ERR_CIPHER_AUTH_FAILED;
+            goto exit;
+        }
     }
 #endif /* MBEDTLS_GCM_C */
 
@@ -1220,14 +1218,17 @@ int mbedtls_cipher_check_tag( mbedtls_cipher_context_t *ctx,
         }
 
         /* Check the tag in "constant-time" */
-        if( mbedtls_constant_time_memcmp( tag, check_tag, tag_len ) != 0 )
-            return( MBEDTLS_ERR_CIPHER_AUTH_FAILED );
-
-        return( 0 );
+        if( mbedtls_ct_memcmp( tag, check_tag, tag_len ) != 0 )
+        {
+            ret = MBEDTLS_ERR_CIPHER_AUTH_FAILED;
+            goto exit;
+        }
     }
 #endif /* MBEDTLS_CHACHAPOLY_C */
 
-    return( 0 );
+exit:
+    mbedtls_platform_zeroize( check_tag, tag_len );
+    return( ret );
 }
 #endif /* MBEDTLS_GCM_C || MBEDTLS_CHACHAPOLY_C */
 
@@ -1285,9 +1286,12 @@ int mbedtls_cipher_crypt( mbedtls_cipher_context_t *ctx,
         if( status != PSA_SUCCESS )
             return( MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED );
 
-        status = psa_cipher_set_iv( &cipher_op, iv, iv_len );
-        if( status != PSA_SUCCESS )
-            return( MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED );
+        if( ctx->cipher_info->mode != MBEDTLS_MODE_ECB )
+        {
+            status = psa_cipher_set_iv( &cipher_op, iv, iv_len );
+            if( status != PSA_SUCCESS )
+                return( MBEDTLS_ERR_CIPHER_HW_ACCEL_FAILED );
+        }
 
         status = psa_cipher_update( &cipher_op,
                                     input, ilen,
