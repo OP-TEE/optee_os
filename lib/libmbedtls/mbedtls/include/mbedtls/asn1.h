@@ -46,15 +46,22 @@
  * ASN1 is a standard to specify data structures.
  * \{
  */
-#define MBEDTLS_ERR_ASN1_OUT_OF_DATA                      -0x0060  /**< Out of data when parsing an ASN1 data structure. */
-#define MBEDTLS_ERR_ASN1_UNEXPECTED_TAG                   -0x0062  /**< ASN1 tag was of an unexpected value. */
-#define MBEDTLS_ERR_ASN1_INVALID_LENGTH                   -0x0064  /**< Error when trying to determine the length or invalid length. */
-#define MBEDTLS_ERR_ASN1_LENGTH_MISMATCH                  -0x0066  /**< Actual length differs from expected length. */
-#define MBEDTLS_ERR_ASN1_INVALID_DATA                     -0x0068  /**< Data is invalid. */
-#define MBEDTLS_ERR_ASN1_ALLOC_FAILED                     -0x006A  /**< Memory allocation failed */
-#define MBEDTLS_ERR_ASN1_BUF_TOO_SMALL                    -0x006C  /**< Buffer too small when writing ASN.1 data structure. */
+/** Out of data when parsing an ASN1 data structure. */
+#define MBEDTLS_ERR_ASN1_OUT_OF_DATA                      -0x0060
+/** ASN1 tag was of an unexpected value. */
+#define MBEDTLS_ERR_ASN1_UNEXPECTED_TAG                   -0x0062
+/** Error when trying to determine the length or invalid length. */
+#define MBEDTLS_ERR_ASN1_INVALID_LENGTH                   -0x0064
+/** Actual length differs from expected length. */
+#define MBEDTLS_ERR_ASN1_LENGTH_MISMATCH                  -0x0066
+/** Data is invalid. */
+#define MBEDTLS_ERR_ASN1_INVALID_DATA                     -0x0068
+/** Memory allocation failed */
+#define MBEDTLS_ERR_ASN1_ALLOC_FAILED                     -0x006A
+/** Buffer too small when writing ASN.1 data structure. */
+#define MBEDTLS_ERR_ASN1_BUF_TOO_SMALL                    -0x006C
 
-/* \} name */
+/** \} name ASN1 Error codes */
 
 /**
  * \name DER constants
@@ -114,8 +121,7 @@
 #define MBEDTLS_ASN1_TAG_PC_MASK             0x20
 #define MBEDTLS_ASN1_TAG_VALUE_MASK          0x1F
 
-/* \} name */
-/* \} addtogroup asn1_module */
+/** \} name DER constants */
 
 /** Returns the size of the binary string, without the trailing \\0 */
 #define MBEDTLS_OID_SIZE(x) (sizeof(x) - 1)
@@ -203,7 +209,7 @@ mbedtls_asn1_named_data;
  * \return      0 if successful.
  * \return      #MBEDTLS_ERR_ASN1_OUT_OF_DATA if the ASN.1 element
  *              would end beyond \p end.
- * \return      #MBEDTLS_ERR_ASN1_INVALID_LENGTH if the length is unparseable.
+ * \return      #MBEDTLS_ERR_ASN1_INVALID_LENGTH if the length is unparsable.
  */
 int mbedtls_asn1_get_len( unsigned char **p,
                           const unsigned char *end,
@@ -228,7 +234,7 @@ int mbedtls_asn1_get_len( unsigned char **p,
  *              with the requested tag.
  * \return      #MBEDTLS_ERR_ASN1_OUT_OF_DATA if the ASN.1 element
  *              would end beyond \p end.
- * \return      #MBEDTLS_ERR_ASN1_INVALID_LENGTH if the length is unparseable.
+ * \return      #MBEDTLS_ERR_ASN1_INVALID_LENGTH if the length is unparsable.
  */
 int mbedtls_asn1_get_tag( unsigned char **p,
                           const unsigned char *end,
@@ -599,6 +605,9 @@ void mbedtls_asn1_free_named_data( mbedtls_asn1_named_data *entry );
  *              sets \c *head to \c NULL.
  */
 void mbedtls_asn1_free_named_data_list( mbedtls_asn1_named_data **head );
+
+/** \} name Functions to parse ASN.1 data structures */
+/** \} addtogroup asn1_module */
 
 #ifdef __cplusplus
 }

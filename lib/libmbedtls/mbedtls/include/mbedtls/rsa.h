@@ -44,22 +44,33 @@
 /*
  * RSA Error codes
  */
-#define MBEDTLS_ERR_RSA_BAD_INPUT_DATA                    -0x4080  /**< Bad input parameters to function. */
-#define MBEDTLS_ERR_RSA_INVALID_PADDING                   -0x4100  /**< Input data contains invalid padding and is rejected. */
-#define MBEDTLS_ERR_RSA_KEY_GEN_FAILED                    -0x4180  /**< Something failed during generation of a key. */
-#define MBEDTLS_ERR_RSA_KEY_CHECK_FAILED                  -0x4200  /**< Key failed to pass the validity check of the library. */
-#define MBEDTLS_ERR_RSA_PUBLIC_FAILED                     -0x4280  /**< The public key operation failed. */
-#define MBEDTLS_ERR_RSA_PRIVATE_FAILED                    -0x4300  /**< The private key operation failed. */
-#define MBEDTLS_ERR_RSA_VERIFY_FAILED                     -0x4380  /**< The PKCS#1 verification failed. */
-#define MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE                  -0x4400  /**< The output buffer for decryption is not large enough. */
-#define MBEDTLS_ERR_RSA_RNG_FAILED                        -0x4480  /**< The random generator failed to generate non-zeros. */
+/** Bad input parameters to function. */
+#define MBEDTLS_ERR_RSA_BAD_INPUT_DATA                    -0x4080
+/** Input data contains invalid padding and is rejected. */
+#define MBEDTLS_ERR_RSA_INVALID_PADDING                   -0x4100
+/** Something failed during generation of a key. */
+#define MBEDTLS_ERR_RSA_KEY_GEN_FAILED                    -0x4180
+/** Key failed to pass the validity check of the library. */
+#define MBEDTLS_ERR_RSA_KEY_CHECK_FAILED                  -0x4200
+/** The public key operation failed. */
+#define MBEDTLS_ERR_RSA_PUBLIC_FAILED                     -0x4280
+/** The private key operation failed. */
+#define MBEDTLS_ERR_RSA_PRIVATE_FAILED                    -0x4300
+/** The PKCS#1 verification failed. */
+#define MBEDTLS_ERR_RSA_VERIFY_FAILED                     -0x4380
+/** The output buffer for decryption is not large enough. */
+#define MBEDTLS_ERR_RSA_OUTPUT_TOO_LARGE                  -0x4400
+/** The random generator failed to generate non-zeros. */
+#define MBEDTLS_ERR_RSA_RNG_FAILED                        -0x4480
 
 /* MBEDTLS_ERR_RSA_UNSUPPORTED_OPERATION is deprecated and should not be used.
  */
-#define MBEDTLS_ERR_RSA_UNSUPPORTED_OPERATION             -0x4500  /**< The implementation does not offer the requested operation, for example, because of security violations or lack of functionality. */
+/** The implementation does not offer the requested operation, for example, because of security violations or lack of functionality. */
+#define MBEDTLS_ERR_RSA_UNSUPPORTED_OPERATION             -0x4500
 
 /* MBEDTLS_ERR_RSA_HW_ACCEL_FAILED is deprecated and should not be used. */
-#define MBEDTLS_ERR_RSA_HW_ACCEL_FAILED                   -0x4580  /**< RSA hardware accelerator failed. */
+/** RSA hardware accelerator failed. */
+#define MBEDTLS_ERR_RSA_HW_ACCEL_FAILED                   -0x4580
 
 /*
  * RSA constants
@@ -77,7 +88,7 @@
 
 /*
  * The above constants may be used even if the RSA module is compile out,
- * eg for alternative (PKCS#11) RSA implemenations in the PK layers.
+ * eg for alternative (PKCS#11) RSA implementations in the PK layers.
  */
 
 #ifdef __cplusplus
@@ -541,7 +552,7 @@ int mbedtls_rsa_public( mbedtls_rsa_context *ctx,
  *
  * \note           Blinding is used if and only if a PRNG is provided.
  *
- * \note           If blinding is used, both the base of exponentation
+ * \note           If blinding is used, both the base of exponentiation
  *                 and the exponent are blinded, providing protection
  *                 against some side-channel attacks.
  *
@@ -676,7 +687,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt( mbedtls_rsa_context *ctx,
  *                   mode being set to #MBEDTLS_RSA_PRIVATE and might instead
  *                   return #MBEDTLS_ERR_PLATFORM_FEATURE_UNSUPPORTED.
  *
- * \param ctx        The initnialized RSA context to use.
+ * \param ctx        The initialized RSA context to use.
  * \param f_rng      The RNG function to use. This is needed for padding
  *                   generation and must be provided.
  * \param p_rng      The RNG context to be passed to \p f_rng. This may

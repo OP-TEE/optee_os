@@ -1164,8 +1164,7 @@ int mbedtls_ecp_tls_write_group( const mbedtls_ecp_group *grp, size_t *olen,
     /*
      * Next two bytes are the namedcurve value
      */
-    buf[0] = curve_info->tls_id >> 8;
-    buf[1] = curve_info->tls_id & 0xFF;
+    MBEDTLS_PUT_UINT16_BE( curve_info->tls_id, buf, 0 );
 
     return( 0 );
 }
@@ -1312,7 +1311,7 @@ cleanup:
  * For curves in short Weierstrass form, we do all the internal operations in
  * Jacobian coordinates.
  *
- * For multiplication, we'll use a comb method with coutermeasueres against
+ * For multiplication, we'll use a comb method with countermeasures against
  * SPA, hence timing attacks.
  */
 
@@ -2256,7 +2255,7 @@ static unsigned char ecp_pick_window_size( const mbedtls_ecp_group *grp,
  * This function is mainly responsible for administrative work:
  * - managing the restart context if enabled
  * - managing the table of precomputed points (passed between the below two
- *   functions): allocation, computation, ownership tranfer, freeing.
+ *   functions): allocation, computation, ownership transfer, freeing.
  *
  * It delegates the actual arithmetic work to:
  *      ecp_precompute_comb() and ecp_mul_comb_with_precomp()
@@ -2427,7 +2426,7 @@ cleanup:
 /*
  * For Montgomery curves, we do all the internal arithmetic in projective
  * coordinates. Import/export of points uses only the x coordinates, which is
- * internaly represented as X / Z.
+ * internally represented as X / Z.
  *
  * For scalar multiplication, we'll use a Montgomery ladder.
  */
@@ -2597,7 +2596,7 @@ static int ecp_mul_mxz( mbedtls_ecp_group *grp, mbedtls_ecp_point *R,
     MBEDTLS_MPI_CHK( mbedtls_mpi_lset( &R->Z, 0 ) );
     mbedtls_mpi_free( &R->Y );
 
-    /* RP.X might be sligtly larger than P, so reduce it */
+    /* RP.X might be slightly larger than P, so reduce it */
     MOD_ADD( RP.X );
 
     /* Randomize coordinates of the starting point */

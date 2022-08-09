@@ -152,11 +152,8 @@ static int block_cipher_df( unsigned char *output,
      *     (Total is padded to a multiple of 16-bytes with zeroes)
      */
     p = buf + MBEDTLS_CTR_DRBG_BLOCKSIZE;
-    *p++ = ( data_len >> 24 ) & 0xff;
-    *p++ = ( data_len >> 16 ) & 0xff;
-    *p++ = ( data_len >> 8  ) & 0xff;
-    *p++ = ( data_len       ) & 0xff;
-    p += 3;
+    MBEDTLS_PUT_UINT32_BE( data_len, p, 0);
+    p += 4 + 3;
     *p++ = MBEDTLS_CTR_DRBG_SEEDLEN;
     memcpy( p, data, data_len );
     p[data_len] = 0x80;
@@ -831,7 +828,7 @@ static int ctr_drbg_self_test_entropy( void *data, unsigned char *buf,
                         return( 1 );                        \
                     }
 
-#define SELF_TEST_OUPUT_DISCARD_LENGTH 64
+#define SELF_TEST_OUTPUT_DISCARD_LENGTH 64
 
 /*
  * Checkup routine
@@ -857,7 +854,7 @@ int mbedtls_ctr_drbg_self_test( int verbose )
                                 (void *) entropy_source_pr,
                                 pers_pr, MBEDTLS_CTR_DRBG_KEYSIZE ) );
     mbedtls_ctr_drbg_set_prediction_resistance( &ctx, MBEDTLS_CTR_DRBG_PR_ON );
-    CHK( mbedtls_ctr_drbg_random( &ctx, buf, SELF_TEST_OUPUT_DISCARD_LENGTH ) );
+    CHK( mbedtls_ctr_drbg_random( &ctx, buf, SELF_TEST_OUTPUT_DISCARD_LENGTH ) );
     CHK( mbedtls_ctr_drbg_random( &ctx, buf, sizeof( result_pr ) ) );
     CHK( memcmp( buf, result_pr, sizeof( result_pr ) ) );
 
@@ -882,7 +879,7 @@ int mbedtls_ctr_drbg_self_test( int verbose )
                                 (void *) entropy_source_nopr,
                                 pers_nopr, MBEDTLS_CTR_DRBG_KEYSIZE ) );
     CHK( mbedtls_ctr_drbg_reseed( &ctx, NULL, 0 ) );
-    CHK( mbedtls_ctr_drbg_random( &ctx, buf, SELF_TEST_OUPUT_DISCARD_LENGTH ) );
+    CHK( mbedtls_ctr_drbg_random( &ctx, buf, SELF_TEST_OUTPUT_DISCARD_LENGTH ) );
     CHK( mbedtls_ctr_drbg_random( &ctx, buf, sizeof( result_nopr ) ) );
     CHK( memcmp( buf, result_nopr, sizeof( result_nopr ) ) );
 
