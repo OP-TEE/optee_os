@@ -7,3 +7,5 @@ subdirs-$(_CFG_CORE_LTC_DH) += dh
 subdirs-$(_CFG_CORE_LTC_ECC) += ecc
 subdirs-$(_CFG_CORE_LTC_X25519) += ec25519
 subdirs-$(_CFG_CORE_LTC_X25519) += x25519
+subdirs-$(_CFG_CORE_LTC_ED25519) += ec25519
+subdirs-$(_CFG_CORE_LTC_ED25519) += ed25519
