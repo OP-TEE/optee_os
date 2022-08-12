@@ -203,8 +203,13 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	mbedtls_rsa_context rsa;
+	mbedtls_ctr_drbg_context rngctx;
 	int lmd_res = 0;
 	uint32_t e = 0;
+
+	mbedtls_ctr_drbg_init(&rngctx);
+	if (mbedtls_ctr_drbg_seed(&rngctx, mbd_rand, NULL, NULL, 0))
+		return TEE_ERROR_BAD_STATE;
 
 	memset(&rsa, 0, sizeof(rsa));
 	mbedtls_rsa_init(&rsa, 0, 0);
@@ -214,7 +219,9 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 				 (unsigned char *)&e, sizeof(uint32_t));
 
 	e = TEE_U32_FROM_BIG_ENDIAN(e);
-	lmd_res = mbedtls_rsa_gen_key(&rsa, mbd_rand, NULL, key_size, (int)e);
+	lmd_res = mbedtls_rsa_gen_key(&rsa, mbedtls_ctr_drbg_random, &rngctx,
+				      key_size, (int)e);
+	mbedtls_ctr_drbg_free(&rngctx);
 	if (lmd_res != 0) {
 		res = get_tee_result(lmd_res);
 	} else if ((size_t)mbedtls_mpi_bitlen(&rsa.N) != key_size) {
