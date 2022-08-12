@@ -95,6 +95,7 @@ ifeq ($(_CFG_CORE_LTC_ECC),y)
    cppflags-lib-y += -DLTC_ECC256
    cppflags-lib-y += -DLTC_ECC384
    cppflags-lib-y += -DLTC_ECC521
+   cppflags-lib-y += -DLTC_CURVE25519
 
    # ECC 521 bits is the max supported key size
    cppflags-lib-y += -DLTC_MAX_ECC=521
@@ -104,6 +105,7 @@ ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
 endif
 
 cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
+cppflags-lib-$(_CFG_CORE_LTC_ED25519) += -DLTC_CURVE25519
 
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 
@@ -134,6 +136,7 @@ srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
 srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
+srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c
 endif
