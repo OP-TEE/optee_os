@@ -242,6 +242,12 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	if (*sig_len < 2 * key_size_bytes) {
+		*sig_len = 2 * key_size_bytes;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
+
 	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_ECDSA);
 	if (pk_info == NULL) {
 		res = TEE_ERROR_NOT_SUPPORTED;
