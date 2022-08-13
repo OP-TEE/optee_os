@@ -18,6 +18,8 @@ CFG_CORE_SE05X_INIT_NVM ?= n
 CFG_CORE_SE05X_BAUDRATE ?= 3400000
 # I2C bus [0..2] (depends on board)
 CFG_CORE_SE05X_I2C_BUS ?= 2
+# I2C access via REE after TEE boot
+CFG_CORE_SE05X_I2C_TRAMPOLINE ?= y
 
 # Extra stacks required to support the Plug and Trust external library
 ifeq ($(shell test $(CFG_STACK_THREAD_EXTRA) -lt 8192; echo $$?), 0)
