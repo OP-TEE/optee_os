@@ -72,7 +72,7 @@ static TEE_Result sa2ul_init(void)
 		 */
 		DMSG("Could not change SA2UL firewall owner");
 	} else {
-		DMSG("Fixing SA2UL firewall owner for GP device");
+		IMSG("Fixing SA2UL firewall owner for GP device");
 
 		/* Get current SA2UL firewall configuration */
 		ret = ti_sci_get_fwl_region(fwl_id, sa2ul_region, 1,

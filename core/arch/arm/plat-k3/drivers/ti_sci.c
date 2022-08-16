@@ -117,8 +117,8 @@ static inline int ti_sci_get_response(struct ti_sci_xfer *xfer)
 	}
 
 	if (!(hdr->flags & TI_SCI_FLAG_RESP_GENERIC_ACK)) {
-		EMSG("Message not acknowledged");
-		return TEE_ERROR_GENERIC;
+		DMSG("Message not acknowledged");
+		return TEE_ERROR_ACCESS_DENIED;
 	}
 
 	return 0;
@@ -146,7 +146,8 @@ static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	/* Get the response */
 	ret = ti_sci_get_response(xfer);
 	if (ret) {
-		EMSG("Failed to get response (%d)", ret);
+		if ((TEE_Result)ret != TEE_ERROR_ACCESS_DENIED)
+			EMSG("Failed to get response (%d)", ret);
 		return ret;
 	}
 
