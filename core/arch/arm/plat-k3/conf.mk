@@ -16,10 +16,10 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
-ifeq (,$(filter ${PLATFORM_FLAVOR},am65x j721e am64x))
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
-else
+ifneq (,$(filter ${PLATFORM_FLAVOR},am65x j721e am64x))
 CFG_WITH_SOFTWARE_PRNG ?= n
+else
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
