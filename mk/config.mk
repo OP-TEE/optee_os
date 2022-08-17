@@ -157,6 +157,11 @@ CFG_REE_FS ?= y
 # RPMB file system support
 CFG_RPMB_FS ?= n
 
+# Enable roll-back protection of REE file system using RPMB.
+# Roll-back protection only works if CFG_RPMB_FS = y.
+CFG_REE_FS_INTEGRITY_RPMB ?= $(CFG_RPMB_FS)
+$(eval $(call cfg-depends-all,CFG_REE_FS_INTEGRITY_RPMB,CFG_RPMB_FS))
+
 # Device identifier used when CFG_RPMB_FS = y.
 # The exact meaning of this value is platform-dependent. On Linux, the
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
