@@ -47,11 +47,8 @@ CFG_CRYPTO_ECC ?= y
 CFG_CRYPTO_SM2_PKE ?= y
 CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
-# X25519 and Ed25519 are only supported by libtomcrypt
-ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
 CFG_CRYPTO_ED25519 ?= y
 CFG_CRYPTO_X25519 ?= y
-endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -192,8 +189,8 @@ _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
 _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
-$(call force,CFG_CRYPTO_X25519,n,not supported by mbedtls)
-$(call force,CFG_CRYPTO_ED25519,n,not supported by mbedtls)
+_CFG_CORE_LTC_X25519 := $(CFG_CRYPTO_X25519)
+_CFG_CORE_LTC_ED25519 := $(CFG_CRYPTO_ED25519)
 endif
 
 ###############################################################
