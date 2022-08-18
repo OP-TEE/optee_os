@@ -15,6 +15,8 @@ $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
+$(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
 
 ifneq (,$(filter ${PLATFORM_FLAVOR},am65x j721e am64x))
 CFG_WITH_SOFTWARE_PRNG ?= n
