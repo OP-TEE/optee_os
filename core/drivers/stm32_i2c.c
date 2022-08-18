@@ -1383,6 +1383,10 @@ static int i2c_read(struct i2c_handle_s *hi2c, struct i2c_request *request,
 	if (i2c_wait_stop(hi2c, timeout_ref))
 		goto bail;
 
+	/* Clear the NACK generated at the end of the transfer */
+	if ((io_read32(get_base(hi2c) + I2C_ISR) & I2C_ISR_NACKF))
+		io_write32(get_base(hi2c) + I2C_ICR, I2C_ICR_NACKCF);
+
 	io_write32(base + I2C_ICR, I2C_ISR_STOPF);
 
 	io_clrbits32(base + I2C_CR2, CR2_RESET_MASK);
