@@ -7,7 +7,6 @@
 
 #include "stm32mp157c-ed1.dts"
 #include <dt-bindings/gpio/gpio.h>
-/* #include <dt-bindings/input/input.h> Remove due to BSD license issue */
 
 / {
 	model = "STMicroelectronics STM32MP157C eval daughter on eval mother";
@@ -37,31 +36,26 @@
 		pinctrl-names = "default";
 		button-0 {
 			label = "JoySel";
-			/* linux,code = <KEY_ENTER>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <0 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-1 {
 			label = "JoyDown";
-			/* linux,code = <KEY_DOWN>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <1 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-2 {
 			label = "JoyLeft";
-			/* linux,code = <KEY_LEFT>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <2 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-3 {
 			label = "JoyRight";
-			/* linux,code = <KEY_RIGHT>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-4 {
 			label = "JoyUp";
-			/* linux,code = <KEY_UP>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <4 IRQ_TYPE_EDGE_RISING>;
 		};
