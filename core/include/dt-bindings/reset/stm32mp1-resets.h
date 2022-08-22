@@ -31,6 +31,7 @@
 #define CRC1_R		3284
 #define USBH_R		3288
 #define MDMA_R		3328
+#define MPSYST_R	8224
 #define MCU_R		8225
 #define TIM2_R		19456
 #define TIM3_R		19457

@@ -7,6 +7,7 @@
 #ifndef _DT_BINDINGS_STM32MP13_RESET_H_
 #define _DT_BINDINGS_STM32MP13_RESET_H_
 
+#define MPSYST_R	2208
 #define TIM2_R		13568
 #define TIM3_R		13569
 #define TIM4_R		13570
