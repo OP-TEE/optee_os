@@ -7,6 +7,7 @@
 #include <boot_api.h>
 #include <console.h>
 #include <drivers/clk.h>
+#include <drivers/rstctrl.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/stpmic1.h>
@@ -239,11 +240,7 @@ void __noreturn psci_system_off(void)
 /* Override default psci_system_reset() with platform specific sequence */
 void __noreturn psci_system_reset(void)
 {
-	vaddr_t rcc_base = stm32_rcc_base();
-
-	DMSG("core %u", get_core_pos());
-
-	io_write32(rcc_base + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
+	rstctrl_assert(stm32mp_rcc_reset_id_to_rstctrl(MPSYST_R));
 	udelay(100);
 	panic();
 }
