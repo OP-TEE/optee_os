@@ -5,6 +5,8 @@
 
 #include <asm.S>
 
+	.section .note.GNU-stack,"",%progbits
+
 /*
  * This function is the bottom of the user call stack. Mark it as such so that
  * the unwinding code won't try to go further down.

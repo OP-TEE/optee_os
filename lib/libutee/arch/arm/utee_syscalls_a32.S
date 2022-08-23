@@ -7,6 +7,8 @@
 #include <tee_syscall_numbers.h>
 #include <asm.S>
 
+	.section .note.GNU-stack,"",%progbits
+
         .section .text
         .balign 4
         .code 32

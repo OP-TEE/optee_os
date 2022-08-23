@@ -5,6 +5,8 @@
 
 #include <asm.S>
 
+	.section .note.GNU-stack,"",%progbits
+
 /*
  * signed ret_idivmod_values(signed quot, signed rem);
  * return quotient and remaining the EABI way (regs r0,r1)
