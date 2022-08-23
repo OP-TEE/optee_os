@@ -65,6 +65,7 @@ endif
 
 include core/arch/arm/cpu/cortex-a7.mk
 
+$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
