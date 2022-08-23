@@ -20,6 +20,9 @@ link-ldflags += -z max-page-size=4096 # OP-TEE always uses 4K alignment
 ifeq ($(CFG_CORE_BTI),y)
 link-ldflags += $(call ld-option,-z force-bti) --fatal-warnings
 endif
+ifeq ($(CFG_ARM32_$(sm)), y)
+link-ldflags += $(call ld-option,--no-warn-execstack)
+endif
 link-ldflags += $(link-ldflags$(sm))
 
 link-ldadd  = $(addprefix -L,$(libdirs))
