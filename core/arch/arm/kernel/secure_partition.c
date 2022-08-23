@@ -369,14 +369,30 @@ static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
+				 const char *property, TEE_UUID *uuid)
+{
+	uint32_t uuid_array[4] = { 0 };
+	const fdt32_t *p = NULL;
+	int len = 0;
+	int i = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p || len != sizeof(TEE_UUID))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	for (i = 0; i < 4; i++)
+		uuid_array[i] = fdt32_to_cpu(p[i]);
+
+	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
 {
-	int len = 0;
-	const fdt32_t *prop = NULL;
-	int i = 0;
 	const struct fdt_property *description = NULL;
 	int description_name_len = 0;
-	uint32_t uuid_array[4] = { 0 };
 	TEE_UUID fdt_uuid = { };
 
 	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
@@ -389,15 +405,10 @@ static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
 	if (description)
 		DMSG("Loading SP: %s", description->data);
 
-	prop = fdt_getprop(fdt, 0, "uuid", &len);
-	if (!prop || len != 16) {
+	if (sp_dt_get_uuid(fdt, 0, "uuid", &fdt_uuid)) {
 		EMSG("Missing or invalid UUID in SP manifest");
 		return TEE_ERROR_BAD_FORMAT;
 	}
-
-	for (i = 0; i < 4; i++)
-		uuid_array[i] = fdt32_to_cpu(prop[i]);
-	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
 
 	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
 		EMSG("Failed loading SP, UUID mismatch");
