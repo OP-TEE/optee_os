@@ -185,7 +185,7 @@ static void print_stack_limits(void)
 	}
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		end = threads[n].stack_va_end;
-		start = end - STACK_THREAD_SIZE;
+		start = end - STACK_THREAD_SIZE + STACK_CHECK_EXTRA;
 		DMSG("thr [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
 	}
 }
@@ -200,7 +200,9 @@ static void check_stack_limits(void)
 	if (!get_stack_soft_limits(&stack_start, &stack_end))
 		panic("Unknown stack limits");
 	if (current_sp < stack_start || current_sp > stack_end) {
-		DMSG("Stack pointer out of range (0x%" PRIxVA ")", current_sp);
+		EMSG("Stack pointer out of range: 0x%" PRIxVA " not in [0x%"
+		     PRIxVA " .. 0x%" PRIxVA "]", current_sp, stack_start,
+		     stack_end);
 		print_stack_limits();
 		panic();
 	}
