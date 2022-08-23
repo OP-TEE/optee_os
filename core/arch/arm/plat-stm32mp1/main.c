@@ -139,9 +139,9 @@ static TEE_Result init_console_from_dt(void)
 	/* Replace early console with the new one */
 	console_flush();
 	console_data = *pd;
-	free(pd);
 	register_serial_console(&console_data.chip);
 	IMSG("DTB enables console (%ssecure)", pd->secure ? "" : "non-");
+	free(pd);
 
 	return TEE_SUCCESS;
 }
