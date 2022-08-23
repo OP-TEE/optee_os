@@ -25,7 +25,12 @@
 #else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
 #endif
+
+#ifdef CFG_WITH_PAGER
+#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
+#else
 #define STACK_THREAD_SIZE	8192
+#endif
 
 #if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__) || \
 	!defined(CFG_CRYPTO_WITH_CE)
@@ -42,7 +47,12 @@
 #else
 #define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
 #endif
+
+#ifdef CFG_WITH_PAGER
+#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
+#else
 #define STACK_THREAD_SIZE	8192
+#endif
 
 #if TRACE_LEVEL > 0
 #define STACK_ABT_SIZE		3072
