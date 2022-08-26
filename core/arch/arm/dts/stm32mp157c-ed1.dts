@@ -116,7 +116,7 @@
 };
 
 &crc1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dac {
@@ -133,7 +133,7 @@
 };
 
 &dts {
-	status = "okay";
+	status = "disabled";
 };
 
 &gpu {
@@ -141,7 +141,7 @@
 };
 
 &hash1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c4 {
@@ -287,7 +287,7 @@
 			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 0>;
 			interrupt-names = "onkey-falling", "onkey-rising";
 			power-off-time-sec = <10>;
-			status = "okay";
+			status = "disabled";
 		};
 
 		watchdog {
@@ -298,7 +298,7 @@
 };
 
 &ipcc {
-	status = "okay";
+	status = "disabled";
 };
 
 &iwdg1 {
@@ -318,7 +318,7 @@
 	mbox-names = "vq0", "vq1", "shutdown", "detach";
 	interrupt-parent = <&exti>;
 	interrupts = <68 1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pwr_regulators {
@@ -331,7 +331,7 @@
 };
 
 &rtc {
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc1 {
@@ -351,7 +351,7 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-ddr50;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc2 {
@@ -367,11 +367,11 @@
 	vmmc-supply = <&v3v3>;
 	vqmmc-supply = <&vdd>;
 	mmc-ddr-3_3v;
-	status = "okay";
+	status = "disabled";
 };
 
 &timers6 {
-	status = "okay";
+	status = "disabled";
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;

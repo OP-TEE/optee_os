@@ -67,6 +67,7 @@
 			gpios = <&gpiod 11 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "off";
+			status = "disabled";
 		};
 	};
 
@@ -78,7 +79,7 @@
 			"Capture" , "MCLK",
 			"MICL" , "Mic Bias";
 		dais = <&sai2a_port &sai2b_port &i2s2_port>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	vin: vin {
@@ -121,19 +122,19 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cec_pins_b>;
 	pinctrl-1 = <&cec_sleep_pins_b>;
-	status = "okay";
+	status = "disabled";
 };
 
 &crc1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dts {
-	status = "okay";
+	status = "disabled";
 };
 
 &ethernet0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&ethernet0_rgmii_pins_a>;
 	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_a>;
 	pinctrl-names = "default", "sleep";
@@ -156,7 +157,7 @@
 };
 
 &hash1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c1 {
@@ -165,7 +166,7 @@
 	pinctrl-1 = <&i2c1_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <100>;
 	i2c-scl-falling-time-ns = <7>;
-	status = "okay";
+	status = "disabled";
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
@@ -433,7 +434,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2s2_pins_a>;
 	pinctrl-1 = <&i2s2_sleep_pins_a>;
-	status = "okay";
+	status = "disabled";
 
 	i2s2_port: port {
 		i2s2_endpoint: endpoint {
@@ -445,7 +446,7 @@
 };
 
 &ipcc {
-	status = "okay";
+	status = "disabled";
 };
 
 &iwdg1 {
@@ -462,7 +463,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&ltdc_pins_a>;
 	pinctrl-1 = <&ltdc_sleep_pins_a>;
-	status = "okay";
+	status = "disabled";
 
 	port {
 		ltdc_ep0_out: endpoint@0 {
@@ -501,7 +502,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sai2a_pins_a>, <&sai2b_pins_b>;
 	pinctrl-1 = <&sai2a_sleep_pins_a>, <&sai2b_sleep_pins_b>;
-	status = "okay";
+	status = "disabled";
 
 	sai2a: audio-controller@4400b004 {
 		#clock-cells = <0>;
@@ -550,7 +551,7 @@
 	st,neg-edge;
 	bus-width = <4>;
 	vmmc-supply = <&v3v3>;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc3 {
@@ -681,14 +682,14 @@
 
 &usbh_ehci {
 	phys = <&usbphyc_port0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg_hs {
 	phys = <&usbphyc_port1 0>;
 	phy-names = "usb2-phy";
 	usb-role-switch;
-	status = "okay";
+	status = "disabled";
 
 	port {
 		usbotg_hs_ep: endpoint {
@@ -698,7 +699,7 @@
 };
 
 &usbphyc {
-	status = "okay";
+	status = "disabled";
 };
 
 &usbphyc_port0 {
