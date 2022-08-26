@@ -30,7 +30,7 @@
 };
 
 &dsi {
-	status = "okay";
+	status = "disabled";
 	phy-dsi-supply = <&reg18>;
 
 	ports {
@@ -78,7 +78,7 @@
 };
 
 &ltdc {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		ltdc_ep1_out: endpoint@1 {
