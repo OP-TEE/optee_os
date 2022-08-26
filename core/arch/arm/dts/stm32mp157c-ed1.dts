@@ -116,7 +116,7 @@
 };
 
 &crc1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dac {
@@ -133,7 +133,7 @@
 };
 
 &dts {
-	status = "okay";
+	status = "disabled";
 };
 
 &gpu {
@@ -141,7 +141,7 @@
 };
 
 &hash1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c4 {
@@ -298,7 +298,7 @@
 };
 
 &ipcc {
-	status = "okay";
+	status = "disabled";
 };
 
 &iwdg1 {
@@ -351,7 +351,7 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-ddr50;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc2 {
@@ -367,11 +367,11 @@
 	vmmc-supply = <&v3v3>;
 	vqmmc-supply = <&vdd>;
 	mmc-ddr-3_3v;
-	status = "okay";
+	status = "disabled";
 };
 
 &timers6 {
-	status = "okay";
+	status = "disabled";
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
