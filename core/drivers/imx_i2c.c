@@ -24,7 +24,8 @@
 #define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP) || \
+	defined(CFG_MX8MN)
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
@@ -216,7 +217,8 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
 
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP) || \
+	defined(CFG_MX8MN)
 	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
 	val = CCM_CCGRx_ALWAYS_ON(0);
 #elif defined(CFG_MX6ULL)
