@@ -36,7 +36,7 @@
 #define DIGPROG_OFFSET	0x800
 #endif
 
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MN)
 #define I2C1_BASE		0x30a20000
 #define I2C2_BASE		0x30a30000
 #define I2C3_BASE		0x30a40000
