@@ -349,7 +349,7 @@ static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
 	if (!p || len != sizeof(*p))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	*value = fdt64_to_cpu(*p);
+	*value = fdt64_ld(p);
 
 	return TEE_SUCCESS;
 }
