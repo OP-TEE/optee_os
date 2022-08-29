@@ -2,6 +2,8 @@ PLATFORM_FLAVOR ?= generic
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_MMAP_REGIONS ?= 24
+
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
