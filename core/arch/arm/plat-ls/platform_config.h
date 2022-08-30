@@ -38,7 +38,7 @@
 #define CONSOLE_UART_BASE		UART0_BASE
 
 /* Platform specific defines */
-#if defined(PLATFORM_FLAVOR_ls1021aqds) || defined(PLATFORM_FLAVOR_ls1021atwr)
+#if defined(PLATFORM_FLAVOR_ls1021aqds)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
 #define DCFG_BASE			0x01EE0000
