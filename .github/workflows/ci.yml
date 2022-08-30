@@ -189,7 +189,6 @@ jobs:
           _make PLATFORM=ti-am43xx
           _make PLATFORM=sprd-sc9860
           _make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
-          _make PLATFORM=ls-ls1021aqds
           _make PLATFORM=ls-ls1043ardb
           _make PLATFORM=ls-ls1046ardb
           _make PLATFORM=ls-ls1012ardb
