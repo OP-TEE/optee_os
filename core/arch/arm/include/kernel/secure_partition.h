@@ -53,7 +53,7 @@ struct sp_ctx {
 
 struct sp_image {
 	struct embedded_ts image;
-	const void * const fdt;
+	const void *fdt;
 };
 
 #ifdef CFG_SECURE_PARTITION
@@ -94,5 +94,18 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct sp_image)
+
+struct fip_sp {
+	tee_mm_entry_t *mm;
+	struct sp_image sp_img;
+
+	STAILQ_ENTRY(fip_sp) link;
+};
+
+STAILQ_HEAD(fip_sp_head, fip_sp);
+extern struct fip_sp_head fip_sp_list;
+
+#define for_each_fip_sp(_sp) \
+	STAILQ_FOREACH(_sp, &fip_sp_list, link)
 
 #endif /* __KERNEL_SECURE_PARTITION_H */
