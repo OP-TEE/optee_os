@@ -64,9 +64,10 @@ FUNC get_core_pos_mpidr , :
 1:	mov	w2, #PRR_PRODUCT_M3W
 	and	w3, w3, #PRR_PRODUCT_MASK
 	cmp	w2, w3
-	bne	2f	/* if (IsM3W) { x1 <<= 1; } */
+	beq	2f	/* if (!IsM3W) { x1 <<= 2; } else { x1 <<= 1} */
 	lsl	x1, x1, #1
-2:	add	x0, x0, x1
+2:	lsl	x1, x1, #1
+	add	x0, x0, x1
 
 	ret
 END_FUNC get_core_pos_mpidr
