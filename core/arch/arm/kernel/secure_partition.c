@@ -5,6 +5,7 @@
 #include <bench.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
+#include <kernel/boot.h>
 #include <kernel/embedded_ts.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/secure_partition.h>
@@ -45,6 +46,20 @@
 					 SP_MANIFEST_ATTR_WRITE | \
 					 SP_MANIFEST_ATTR_EXEC)
 
+#define SP_PKG_HEADER_MAGIC (0x474b5053)
+#define SP_PKG_HEADER_VERSION (0x1)
+
+struct sp_pkg_header {
+	uint32_t magic;
+	uint32_t version;
+	uint32_t pm_offset;
+	uint32_t pm_size;
+	uint32_t img_offset;
+	uint32_t img_size;
+};
+
+struct fip_sp_head fip_sp_list = STAILQ_HEAD_INITIALIZER(fip_sp_list);
+
 const struct ts_ops sp_ops;
 
 /* List that holds all of the loaded SP's */
@@ -54,11 +69,18 @@ static struct sp_sessions_head open_sp_sessions =
 static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 {
 	const struct sp_image *sp = NULL;
+	const struct fip_sp *fip_sp = NULL;
 
 	for_each_secure_partition(sp) {
 		if (!memcmp(&sp->image.uuid, uuid, sizeof(*uuid)))
 			return &sp->image;
 	}
+
+	for_each_fip_sp(fip_sp) {
+		if (!memcmp(&fip_sp->sp_img.image.uuid, uuid, sizeof(*uuid)))
+			return &fip_sp->sp_img.image;
+	}
+
 	return NULL;
 }
 
@@ -1000,10 +1022,181 @@ const struct ts_ops sp_ops __weak __relrodata_unpaged("sp_ops") = {
 	.dump_state = sp_dump_state,
 };
 
+static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
+{
+	enum teecore_memtypes mtype = MEM_AREA_RAM_SEC;
+	struct sp_pkg_header *sp_pkg_hdr = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	tee_mm_entry_t *mm = NULL;
+	struct fip_sp *sp = NULL;
+	uint64_t sp_fdt_end = 0;
+	size_t sp_pkg_size = 0;
+	vaddr_t sp_pkg_va = 0;
+	size_t num_pages = 0;
+
+	/* Map only the first page of the SP package to parse the header */
+	if (!tee_pbuf_is_sec(sp_pkg_pa, SMALL_PAGE_SIZE))
+		return TEE_ERROR_GENERIC;
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, SMALL_PAGE_SIZE);
+	if (!mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	sp_pkg_va = tee_mm_get_smem(mm);
+
+	if (core_mmu_map_contiguous_pages(sp_pkg_va, sp_pkg_pa, 1, mtype)) {
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	sp_pkg_hdr = (struct sp_pkg_header *)sp_pkg_va;
+
+	if (sp_pkg_hdr->magic != SP_PKG_HEADER_MAGIC) {
+		EMSG("Invalid SP package magic");
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err_unmap;
+	}
+
+	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION) {
+		EMSG("Invalid SP header version");
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err_unmap;
+	}
+
+	if (ADD_OVERFLOW(sp_pkg_hdr->img_offset, sp_pkg_hdr->img_size,
+			 &sp_pkg_size)) {
+		EMSG("Invalid SP package size");
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err_unmap;
+	}
+
+	if (ADD_OVERFLOW(sp_pkg_hdr->pm_offset, sp_pkg_hdr->pm_size,
+			 &sp_fdt_end) || sp_fdt_end > sp_pkg_hdr->img_offset) {
+		EMSG("Invalid SP manifest size");
+		res = TEE_ERROR_BAD_FORMAT;
+		goto err_unmap;
+	}
+
+	core_mmu_unmap_pages(sp_pkg_va, 1);
+	tee_mm_free(mm);
+
+	/* Map the whole package */
+	if (!tee_pbuf_is_sec(sp_pkg_pa, sp_pkg_size))
+		return TEE_ERROR_GENERIC;
+
+	num_pages = ROUNDUP_DIV(sp_pkg_size, SMALL_PAGE_SIZE);
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, sp_pkg_size);
+	if (!mm)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	sp_pkg_va = tee_mm_get_smem(mm);
+
+	if (core_mmu_map_contiguous_pages(sp_pkg_va, sp_pkg_pa, num_pages,
+					  mtype)) {
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	sp_pkg_hdr = (struct sp_pkg_header *)tee_mm_get_smem(mm);
+
+	sp = calloc(1, sizeof(struct fip_sp));
+	if (!sp) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err_unmap;
+	}
+
+	memcpy(&sp->sp_img.image.uuid, sp_uuid, sizeof(*sp_uuid));
+	sp->sp_img.image.ts = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->img_offset);
+	sp->sp_img.image.size = sp_pkg_hdr->img_size;
+	sp->sp_img.image.flags = 0;
+	sp->sp_img.fdt = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->pm_offset);
+	sp->mm = mm;
+
+	STAILQ_INSERT_TAIL(&fip_sp_list, sp, link);
+
+	return TEE_SUCCESS;
+
+err_unmap:
+	core_mmu_unmap_pages(tee_mm_get_smem(mm),
+			     ROUNDUP_DIV(tee_mm_get_bytes(mm),
+					 SMALL_PAGE_SIZE));
+err:
+	tee_mm_free(mm);
+
+	return res;
+}
+
+static TEE_Result fip_sp_map_all(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t sp_pkg_addr = 0;
+	const void *fdt = NULL;
+	TEE_UUID sp_uuid = { };
+	int sp_pkgs_node = 0;
+	int subnode = 0;
+	int root = 0;
+
+	fdt = get_external_dt();
+	if (!fdt) {
+		EMSG("No SPMC manifest found");
+		return TEE_ERROR_GENERIC;
+	}
+
+	root = fdt_path_offset(fdt, "/");
+	if (root < 0)
+		return TEE_ERROR_BAD_FORMAT;
+
+	if (fdt_node_check_compatible(fdt, root, "arm,ffa-core-manifest-1.0"))
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* SP packages are optional, it's not an error if we don't find any */
+	sp_pkgs_node = fdt_node_offset_by_compatible(fdt, root, "arm,sp_pkg");
+	if (sp_pkgs_node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, sp_pkgs_node) {
+		res = sp_dt_get_u64(fdt, subnode, "load-address", &sp_pkg_addr);
+		if (res) {
+			EMSG("Invalid FIP SP load address");
+			return res;
+		}
+
+		res = sp_dt_get_uuid(fdt, subnode, "uuid", &sp_uuid);
+		if (res) {
+			EMSG("Invalid FIP SP uuid");
+			return res;
+		}
+
+		res = process_sp_pkg(sp_pkg_addr, &sp_uuid);
+		if (res) {
+			EMSG("Invalid FIP SP package");
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void fip_sp_unmap_all(void)
+{
+	while (!STAILQ_EMPTY(&fip_sp_list)) {
+		struct fip_sp *sp = STAILQ_FIRST(&fip_sp_list);
+
+		STAILQ_REMOVE_HEAD(&fip_sp_list, link);
+		core_mmu_unmap_pages(tee_mm_get_smem(sp->mm),
+				     ROUNDUP_DIV(tee_mm_get_bytes(sp->mm),
+						 SMALL_PAGE_SIZE));
+		tee_mm_free(sp->mm);
+		free(sp);
+	}
+}
+
 static TEE_Result sp_init_all(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	const struct sp_image *sp = NULL;
+	const struct fip_sp *fip_sp = NULL;
 	char __maybe_unused msg[60] = { '\0', };
 
 	for_each_secure_partition(sp) {
@@ -1025,6 +1218,32 @@ static TEE_Result sp_init_all(void)
 				panic();
 		}
 	}
+
+	res = fip_sp_map_all();
+	if (res)
+		panic("Failed mapping FIP SPs");
+
+	for_each_fip_sp(fip_sp) {
+		sp = &fip_sp->sp_img;
+
+		DMSG("SP %pUl size %u", (void *)&sp->image.uuid,
+		     sp->image.size);
+
+		res = sp_init_uuid(&sp->image.uuid, sp->fdt);
+
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed initializing SP(%pUl) err:%#"PRIx32,
+			     &sp->image.uuid, res);
+			if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+				panic();
+		}
+	}
+
+	/*
+	 * At this point all FIP SPs are loaded by ldelf so the original images
+	 * (loaded by BL2 earlier) can be unmapped
+	 */
+	fip_sp_unmap_all();
 
 	return TEE_SUCCESS;
 }
