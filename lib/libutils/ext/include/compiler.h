@@ -20,6 +20,7 @@
 #define __packed	__attribute__((packed))
 #endif
 #define __weak		__attribute__((weak))
+#define __weak_alias(x) __attribute__((weak, alias(x)))
 #ifndef __noreturn
 #define __noreturn	__attribute__((__noreturn__))
 #endif
