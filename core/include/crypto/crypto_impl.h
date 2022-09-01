@@ -403,4 +403,50 @@ drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /* CFG_CRYPTO_DRV_ECC */
+
+TEE_Result sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+					       size_t key_size_bits);
+
+TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+						  size_t key_size_bits);
+
+void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s);
+
+void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s);
+
+TEE_Result sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+					 size_t key_size);
+
+TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len);
+TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len);
+TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
+					   struct rsa_keypair *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len);
+
+TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
+					   struct rsa_public_key *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len);
+
+TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+					 int salt_len, const uint8_t *msg,
+					 size_t msg_len, uint8_t *sig,
+					 size_t *sig_len);
+
+TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
+					   struct rsa_public_key *key,
+					   int salt_len, const uint8_t *msg,
+					   size_t msg_len, const uint8_t *sig,
+					   size_t sig_len);
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/
