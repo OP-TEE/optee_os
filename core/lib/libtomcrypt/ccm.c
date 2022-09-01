@@ -85,6 +85,10 @@ static TEE_Result crypto_aes_ccm_init(struct crypto_authenc_ctx *aectx,
 	if (nonce_len > TEE_CCM_NONCE_MAX_LENGTH)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	/* Check that payload_len and aad_len will fit into ints */
+	if (payload_len > INT_MAX || aad_len > INT_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	/* check the tag len */
 	if ((tag_len < 4) || (tag_len > TEE_CCM_TAG_MAX_LENGTH) ||
 	    (tag_len % 2 != 0))
