@@ -80,6 +80,13 @@ ifeq ($(CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME),y)
 $(call force,CFG_CORE_WORKAROUND_SPECTRE_BP,y,Required by CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME)
 endif
 
+# Adds workarounds against if ARM core is configured with Non-maskable FIQ
+# (NMFI) support. This is indicated by SCTLR.NMFI being true. NMFI cannot be
+# disabled by software and as it affects atomic context end result will be
+# prohibiting FIQ signal usage in OP-TEE and applying some tweaks to make sure
+# FIQ is enabled in critical places.
+CFG_CORE_WORKAROUND_ARM_NMFI ?= n
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
