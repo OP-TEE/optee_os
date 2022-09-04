@@ -1312,6 +1312,16 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	init_sec_mon(nsec_entry);
 }
 
+static bool cpu_nmfi_enabled(void)
+{
+#if defined(ARM32)
+	return read_sctlr() & SCTLR_NMFI;
+#else
+	/* Note: ARM64 does not feature non-maskable FIQ support. */
+	return false;
+#endif
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
@@ -1337,6 +1347,15 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",
 		     memtag_is_enabled() ?  "enabled" : "disabled");
+
+	/* Check if platform needs NMFI workaround */
+	if (cpu_nmfi_enabled())	{
+		if (!IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core has NMFI enabled, please apply workaround!");
+	} else {
+		if (IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
+	}
 
 	main_init_gic();
 	init_vfp_nsec();
