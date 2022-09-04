@@ -1161,3 +1161,15 @@ unsigned long __weak thread_system_reset_handler(unsigned long a0 __unused,
 }
 DECLARE_KEEP_PAGER(thread_system_reset_handler);
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
+
+#ifdef CFG_CORE_WORKAROUND_ARM_NMFI
+void __noreturn itr_core_handler(void)
+{
+	/*
+	 * Note: overrides the default implementation of this function so that
+	 * if there would be another handler defined there would be duplicate
+	 * symbol error during linking.
+	 */
+	panic("Secure interrupt received but it is not supported");
+}
+#endif
