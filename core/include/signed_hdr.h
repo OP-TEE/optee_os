@@ -130,7 +130,7 @@ static inline size_t shdr_enc_get_size(const struct shdr_encrypted_ta *ehdr)
  * Allocates a struct shdr large enough to hold the entire header,
  * excluding a subheader like struct shdr_bootstrap_ta.
  */
-struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size);
+struct shdr *shdr_alloc_and_copy(size_t offs, const void *img, size_t img_size);
 
 /* Frees a previously allocated struct shdr */
 static inline void shdr_free(struct shdr *shdr)
