@@ -48,7 +48,7 @@ $(link-out-dir)/$(shlibuuid).elf: $(link-out-dir)/$(shlibname).so
 	$(q)ln -sf $(<F) $@
 
 $(link-out-dir)/$(shlibuuid).ta: $(link-out-dir)/$(shlibname).stripped.so \
-				$(TA_SIGN_KEY)
+				$(TA_SIGN_KEY) $(TA_SUBKEY_DEPS)
 	@$(cmd-echo-silent) '  SIGN    $@'
-	$(q)$(PYTHON3) $(SIGN) --key $(TA_SIGN_KEY) --uuid $(shlibuuid) \
-		--in $< --out $@
+	$(q)$(PYTHON3) $(SIGN) --key $(TA_SIGN_KEY) $(TA_SUBKEY_ARGS) \
+		--uuid $(shlibuuid) --in $< --out $@
