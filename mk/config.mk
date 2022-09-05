@@ -228,6 +228,16 @@ _CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS)
 TA_SIGN_KEY ?= keys/default_ta.pem
 TA_PUBLIC_KEY ?= $(TA_SIGN_KEY)
 
+# Subkeys is a complement to the normal TA_SIGN_KEY where a subkey is used
+# to verify a TA instead. To sign a TA using a previously prepared subkey
+# two new options are added, TA_SUBKEY_ARGS and TA_SUBKEY_DEPS.  It is
+# typically used by assigning the following in the TA Makefile:
+# BINARY = <TA-uuid-string>
+# TA_SIGN_KEY = subkey.pem
+# TA_SUBKEY_ARGS = --subkey subkey.bin --name subkey_ta
+# TA_SUBKEY_DEPS = subkey.bin
+# See the documentation for more details on subkeys.
+
 # Include lib/libutils/isoc in the build? Most platforms need this, but some
 # may not because they obtain the isoc functions from elsewhere
 CFG_LIBUTILS_WITH_ISOC ?= y
