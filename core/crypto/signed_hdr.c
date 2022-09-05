@@ -13,18 +13,19 @@
 #include <utee_defines.h>
 #include <util.h>
 
-struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size)
+struct shdr *shdr_alloc_and_copy(size_t offs, const void *img, size_t img_size)
 {
 	size_t shdr_size;
 	struct shdr *shdr;
 	vaddr_t img_va = (vaddr_t)img;
 	vaddr_t tmp = 0;
+	size_t end = 0;
 
-	if (img_size < sizeof(struct shdr))
+	if (ADD_OVERFLOW(offs, sizeof(struct shdr), &end) || end > img_size)
 		return NULL;
 
-	shdr_size = SHDR_GET_SIZE(img);
-	if (img_size < shdr_size)
+	shdr_size = SHDR_GET_SIZE((const struct shdr *)(img_va + offs));
+	if (ADD_OVERFLOW(offs, shdr_size, &end) || end > img_size)
 		return NULL;
 
 	if (ADD_OVERFLOW(img_va, shdr_size, &tmp))
@@ -33,7 +34,7 @@ struct shdr *shdr_alloc_and_copy(const struct shdr *img, size_t img_size)
 	shdr = malloc(shdr_size);
 	if (!shdr)
 		return NULL;
-	memcpy(shdr, img, shdr_size);
+	memcpy(shdr, (const uint8_t *)img + offs, shdr_size);
 
 	/* Check that the data wasn't modified before the copy was completed */
 	if (shdr_size != SHDR_GET_SIZE(shdr)) {

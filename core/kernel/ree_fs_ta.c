@@ -149,7 +149,7 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		goto error;
 
 	/* Make secure copy of signed header */
-	shdr = shdr_alloc_and_copy(ta, ta_size);
+	shdr = shdr_alloc_and_copy(0, ta, ta_size);
 	if (!shdr) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
