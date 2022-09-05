@@ -909,3 +909,6 @@ CFG_DRIVERS_TPM2_MMIO ?= n
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
 endif
+
+# Enable the FF-A SPMC tests in xtests
+CFG_SPMC_TESTS ?= n
