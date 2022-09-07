@@ -244,7 +244,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&m_can1_pins_a>;
 	pinctrl-1 = <&m_can1_sleep_pins_a>;
-	s	status = "disabled";atus = "okay";
+	status = "disabled";
 };
 
 &qspi {
