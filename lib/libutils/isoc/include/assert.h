@@ -33,6 +33,7 @@ void _assert_log(const char *expr, const char *file, const int line,
 
 #endif
 
+#if !defined(__cplusplus) || (__cplusplus < 201103L)
 #if defined(__HAVE_SINGLE_ARGUMENT_STATIC_ASSERT)
 #define static_assert _Static_assert
 #else
@@ -51,4 +52,5 @@ void _assert_log(const char *expr, const char *file, const int line,
 
 #define static_assert(...) \
 	__static_assert(__args_count(__VA_ARGS__), __VA_ARGS__)
+#endif
 #endif
