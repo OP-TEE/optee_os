@@ -510,15 +510,12 @@ CFG_IMX_SC ?= y
 CFG_IMX_MU ?= y
 endif
 
-# As NXP CAAM Driver is enabled, disable the small local CAAM driver
-# used just to release Job Rings to Non-Secure world
-$(call force,CFG_IMX_CAAM,n)
 else
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7) $(CFG_MX7ULP)))
 CFG_IMX_CAAM ?= y
 endif
+
+CFG_WITH_SOFTWARE_PRNG ?= y
 endif
 
-# Cryptographic configuration
-include core/arch/arm/plat-imx/crypto_conf.mk

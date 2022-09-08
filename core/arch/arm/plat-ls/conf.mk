@@ -125,15 +125,6 @@ CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 # on the command line
 CFG_NXP_CAAM ?= n
 
-ifeq ($(CFG_NXP_CAAM),y)
-# If NXP CAAM Driver is supported, the Crypto Driver interfacing
-# it with generic crypto API can be enabled.
-CFG_CRYPTO_DRIVER ?= y
-CFG_CRYPTO_DRIVER_DEBUG ?= 0
-else
-$(call force,CFG_CRYPTO_DRIVER,n)
+ifneq ($(CFG_NXP_CAAM),y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
-
-# Cryptographic configuration
-include core/arch/arm/plat-ls/crypto_conf.mk
