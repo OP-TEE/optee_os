@@ -616,18 +616,18 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 	paddr_t p = 0;
 
 	if (arg->ret || arg->num_params != 1)
-		return NULL;
+		goto err;
 
 	if (arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT  &&
 	    arg->params[0].attr != (OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 				    OPTEE_MSG_ATTR_NONCONTIG))
-		return NULL;
+		goto err;
 
 	p = arg->params[0].u.tmem.buf_ptr;
 	sz = READ_ONCE(arg->params[0].u.tmem.size);
 	cookie = arg->params[0].u.tmem.shm_ref;
 	if (sz < size)
-		return NULL;
+		goto err;
 
 	if (arg->params[0].attr == OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT)
 		mobj = rpc_shm_mobj_alloc(p, sz, cookie);
@@ -636,12 +636,15 @@ static struct mobj *get_rpc_alloc_res(struct optee_msg_arg *arg,
 
 	if (!mobj) {
 		thread_rpc_free(bt, cookie, mobj);
-		return NULL;
+		goto err;
 	}
 
 	assert(mobj_is_nonsec(mobj));
-
 	return mobj;
+err:
+	EMSG("RPC allocation failed. Non-secure world result: ret=%#"
+	     PRIx32" ret_origin=%#"PRIx32, arg->ret, arg->ret_origin);
+	return NULL;
 }
 
 /**
