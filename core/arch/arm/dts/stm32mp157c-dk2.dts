@@ -34,6 +34,9 @@
 		reg = <0xec 0x4>;
 		st,non-secure-otp;
 	};
+	huk_otp: huk-otp@f0 {
+		reg = <0xf0 0x10>;
+	};
 };
 
 &dsi {
