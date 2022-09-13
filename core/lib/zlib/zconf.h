@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Zlib */
 /* zconf.h -- configuration of the zlib compression library
  * Copyright (C) 1995-2016 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
@@ -8,10 +7,6 @@
 
 #ifndef ZCONF_H
 #define ZCONF_H
-
-#define Z_SOLO
-#define ZLIB_CONST
-#define NO_GZIP
 
 /*
  * If you *really* need a unique prefix for all types and library functions,
@@ -485,11 +480,6 @@ typedef uLong FAR uLongf;
 #      define z_off_t off_t
 #    endif
 #  endif
-#endif
-
-/* Other places expect _LFS64_LARGEFILE to be defined with a valid value */
-#ifndef _LFS64_LARGEFILE
-#define _LFS64_LARGEFILE	0
 #endif
 
 #if defined(_LFS64_LARGEFILE) && _LFS64_LARGEFILE-0
