@@ -485,6 +485,8 @@
 /* Include ASN.1 DER (required by DSA/RSA) */
 #define LTC_DER
 
+#define LTC_MPI
+
 #endif /* LTC_NO_PKCS */
 
 /* misc stuff */
@@ -574,9 +576,6 @@
 #endif
 
 #if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || defined(LTC_SSH)
-   /* Include the MPI functionality?  (required by the PK algorithms) */
-   #define LTC_MPI
-
    #ifndef LTC_PK_MAX_RETRIES
       /* iterations limit for retry-loops */
       #define LTC_PK_MAX_RETRIES  20
