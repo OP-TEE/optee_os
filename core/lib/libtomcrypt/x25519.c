@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <utee_defines.h>
