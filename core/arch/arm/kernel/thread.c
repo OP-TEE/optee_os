@@ -601,6 +601,7 @@ static uint32_t __maybe_unused get_midr_revision(uint32_t midr)
 	return (midr >> MIDR_REVISION_SHIFT) & MIDR_REVISION_MASK;
 }
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 #ifdef ARM64
 static bool probe_workaround_available(uint32_t wa_id)
 {
@@ -637,9 +638,10 @@ static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 	return (vaddr_t)thread_excp_vect_wa_spectre_v2;
 }
 #endif
+#endif
 
-static vaddr_t __maybe_unused
-select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+static vaddr_t select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 {
 	/*
 	 * Spectre-BHB has only been analyzed for AArch64 so far. For
@@ -663,6 +665,7 @@ select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 	return select_vector_wa_spectre_v2();
 #endif
 }
+#endif
 
 static vaddr_t get_excp_vect(void)
 {
