@@ -1071,6 +1071,12 @@ END_FUNC el0_sync_abort
 	/* Save original x0..x3 */
 	store_xregs x0, THREAD_CTX_REGS_X0, 10, 13
 
+#ifdef CFG_TA_PAUTH
+	/* Save APIAKEY */
+	read_apiakeyhi	x1
+	read_apiakeylo	x2
+	store_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+#endif
 	/* load tmp_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	/* Switch to SP_EL0 */
