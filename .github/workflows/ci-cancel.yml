@@ -9,8 +9,11 @@ on:
     workflows: [CI]
     types: [requested]
     branches-ignore: [master]
+permissions: {}
 jobs:
   cancel:
+    permissions:
+      actions: write # to cancel/stop running workflows (styfle/cancel-workflow-action)
     name: Cancel obsolete CI workflows
     runs-on: ubuntu-latest
     steps:
