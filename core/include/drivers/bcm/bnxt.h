@@ -42,4 +42,12 @@ struct bnxt_images_info {
 int get_bnxt_images_info(struct bnxt_images_info *bnxt_info,
 			 int chip_type, vaddr_t ddr_dest);
 
-#endif
+/**
+ * apply_nitro_hot_patch() - Verify that the bnxt image in the Nitro hot patch
+ *			     staging area is valid and write it to memory.
+ *
+ * Return:		TEE_SUCCESS or > 0 on error.
+ */
+TEE_Result apply_nitro_hot_patch(void);
+
+#endif /* BNXT_H */

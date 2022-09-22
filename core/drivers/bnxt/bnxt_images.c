@@ -9,6 +9,10 @@
 #include <string.h>
 #include <util.h>
 
+#ifdef CFG_BCM_NITRO_HOT_PATCH
+#include <bnxt_nitro_hot_patch.h>
+#endif
+
 #define BNXT_FW_NS3_IMAGE_SIG		0xFF12345A
 #define BNXT_NS3_CFG_IMAGE_SIG		0xCF54321A
 
@@ -120,3 +124,39 @@ int get_bnxt_images_info(struct bnxt_images_info *bnxt_info, int chip_type,
 
 	return BNXT_SUCCESS;
 }
+
+#ifdef CFG_BCM_NITRO_HOT_PATCH
+TEE_Result apply_nitro_hot_patch(void)
+{
+	TEE_Result hot_patch_status = TEE_SUCCESS;
+	struct bnxt_images_info bnxt_info = {0};
+	vaddr_t staging_addr = 0;
+	vaddr_t bnxt_image_addr = 0;
+
+	hot_patch_status = verify_nitro_hot_patch(&staging_addr);
+	if (!hot_patch_status) {
+		EMSG("Failed to verify the nitro hot patch");
+		return hot_patch_status;
+	}
+
+	bnxt_image_addr = (vaddr_t)phys_to_virt((paddr_t)BNXT_BUFFER_SEC_MEM,
+						MEM_AREA_RAM_SEC, 1);
+	if (!bnxt_image_addr) {
+		EMSG("Failed to translate bnxt image address");
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	if (!verify_header(staging_addr)) {
+		EMSG("No valid bnxt image in staging memory");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+	bnxt_info.bnxt_bspd_cfg_len = BNXT_BSPD_CFG_LEN;
+	bnxt_info.bnxt_bspd_cfg_vaddr = staging_addr;
+
+	DMSG("Flashing nitro hot patch");
+	set_bnxt_images_info(&bnxt_info, BCM_NS3, staging_addr,
+			     bnxt_image_addr + BNXT_IMG_SECMEM_OFFSET);
+
+	return nitro_hot_patch_deinit();
+}
+#endif /* CFG_BCM_NITRO_HOT_PATCH */
