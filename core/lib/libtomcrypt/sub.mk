@@ -4,8 +4,10 @@ global-incdirs-y += src/headers
 cflags-lib-y += -Wno-declaration-after-statement
 
 cppflags-lib-y += -DARGTYPE=4  # Make LTC_ARGCHK() return on error
-cppflags-lib-y += -DLTC_CLEAN_STACK -DLTC_NO_TEST -DLTC_NO_PROTOTYPES
+cppflags-lib-y += -DLTC_NO_TEST -DLTC_NO_PROTOTYPES
 cppflags-lib-y += -DLTC_NO_TABLES -DLTC_HASH_HELPERS
+cppflags-lib-y += -DLTC_NO_MISC
+cppflags-lib-y += -DLTC_HMAC
 cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 
 cppflags-lib-y += -DLTC_NO_CIPHERS
@@ -102,10 +104,6 @@ ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
 endif
 
 cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
-
-cppflags-lib-y += -DLTC_NO_PKCS
-
-cppflags-lib-y += -DLTC_DER
 
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 

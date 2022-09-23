@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -24,54 +17,54 @@ typedef struct {
     const int value;
 } crypt_constant;
 
-#define _C_STRINGIFY(s) { #s, s }
+#define C_STRINGIFY(s) { #s, s }
 
-static const crypt_constant _crypt_constants[] = {
+static const crypt_constant s_crypt_constants[] = {
 
-    _C_STRINGIFY(CRYPT_OK),
-    _C_STRINGIFY(CRYPT_ERROR),
-    _C_STRINGIFY(CRYPT_NOP),
-    _C_STRINGIFY(CRYPT_INVALID_KEYSIZE),
-    _C_STRINGIFY(CRYPT_INVALID_ROUNDS),
-    _C_STRINGIFY(CRYPT_FAIL_TESTVECTOR),
-    _C_STRINGIFY(CRYPT_BUFFER_OVERFLOW),
-    _C_STRINGIFY(CRYPT_INVALID_PACKET),
-    _C_STRINGIFY(CRYPT_INVALID_PRNGSIZE),
-    _C_STRINGIFY(CRYPT_ERROR_READPRNG),
-    _C_STRINGIFY(CRYPT_INVALID_CIPHER),
-    _C_STRINGIFY(CRYPT_INVALID_HASH),
-    _C_STRINGIFY(CRYPT_INVALID_PRNG),
-    _C_STRINGIFY(CRYPT_MEM),
-    _C_STRINGIFY(CRYPT_PK_TYPE_MISMATCH),
-    _C_STRINGIFY(CRYPT_PK_NOT_PRIVATE),
-    _C_STRINGIFY(CRYPT_INVALID_ARG),
-    _C_STRINGIFY(CRYPT_FILE_NOTFOUND),
-    _C_STRINGIFY(CRYPT_PK_INVALID_TYPE),
-    _C_STRINGIFY(CRYPT_OVERFLOW),
-    _C_STRINGIFY(CRYPT_PK_ASN1_ERROR),
-    _C_STRINGIFY(CRYPT_INPUT_TOO_LONG),
-    _C_STRINGIFY(CRYPT_PK_INVALID_SIZE),
-    _C_STRINGIFY(CRYPT_INVALID_PRIME_SIZE),
-    _C_STRINGIFY(CRYPT_PK_INVALID_PADDING),
-    _C_STRINGIFY(CRYPT_HASH_OVERFLOW),
+    C_STRINGIFY(CRYPT_OK),
+    C_STRINGIFY(CRYPT_ERROR),
+    C_STRINGIFY(CRYPT_NOP),
+    C_STRINGIFY(CRYPT_INVALID_KEYSIZE),
+    C_STRINGIFY(CRYPT_INVALID_ROUNDS),
+    C_STRINGIFY(CRYPT_FAIL_TESTVECTOR),
+    C_STRINGIFY(CRYPT_BUFFER_OVERFLOW),
+    C_STRINGIFY(CRYPT_INVALID_PACKET),
+    C_STRINGIFY(CRYPT_INVALID_PRNGSIZE),
+    C_STRINGIFY(CRYPT_ERROR_READPRNG),
+    C_STRINGIFY(CRYPT_INVALID_CIPHER),
+    C_STRINGIFY(CRYPT_INVALID_HASH),
+    C_STRINGIFY(CRYPT_INVALID_PRNG),
+    C_STRINGIFY(CRYPT_MEM),
+    C_STRINGIFY(CRYPT_PK_TYPE_MISMATCH),
+    C_STRINGIFY(CRYPT_PK_NOT_PRIVATE),
+    C_STRINGIFY(CRYPT_INVALID_ARG),
+    C_STRINGIFY(CRYPT_FILE_NOTFOUND),
+    C_STRINGIFY(CRYPT_PK_INVALID_TYPE),
+    C_STRINGIFY(CRYPT_OVERFLOW),
+    C_STRINGIFY(CRYPT_PK_ASN1_ERROR),
+    C_STRINGIFY(CRYPT_INPUT_TOO_LONG),
+    C_STRINGIFY(CRYPT_PK_INVALID_SIZE),
+    C_STRINGIFY(CRYPT_INVALID_PRIME_SIZE),
+    C_STRINGIFY(CRYPT_PK_INVALID_PADDING),
+    C_STRINGIFY(CRYPT_HASH_OVERFLOW),
 
-    _C_STRINGIFY(PK_PUBLIC),
-    _C_STRINGIFY(PK_PRIVATE),
+    C_STRINGIFY(PK_PUBLIC),
+    C_STRINGIFY(PK_PRIVATE),
 
-    _C_STRINGIFY(LTC_ENCRYPT),
-    _C_STRINGIFY(LTC_DECRYPT),
+    C_STRINGIFY(LTC_ENCRYPT),
+    C_STRINGIFY(LTC_DECRYPT),
 
 #ifdef LTC_PKCS_1
     {"LTC_PKCS_1", 1},
     /* Block types */
-    _C_STRINGIFY(LTC_PKCS_1_EMSA),
-    _C_STRINGIFY(LTC_PKCS_1_EME),
+    C_STRINGIFY(LTC_PKCS_1_EMSA),
+    C_STRINGIFY(LTC_PKCS_1_EME),
 
     /* Padding types */
-    _C_STRINGIFY(LTC_PKCS_1_V1_5),
-    _C_STRINGIFY(LTC_PKCS_1_OAEP),
-    _C_STRINGIFY(LTC_PKCS_1_PSS),
-    _C_STRINGIFY(LTC_PKCS_1_V1_5_NA1),
+    C_STRINGIFY(LTC_PKCS_1_V1_5),
+    C_STRINGIFY(LTC_PKCS_1_OAEP),
+    C_STRINGIFY(LTC_PKCS_1_PSS),
+    C_STRINGIFY(LTC_PKCS_1_V1_5_NA1),
 #else
     {"LTC_PKCS_1", 0},
 #endif
@@ -79,14 +72,14 @@ static const crypt_constant _crypt_constants[] = {
 #ifdef LTC_PADDING
     {"LTC_PADDING", 1},
 
-    _C_STRINGIFY(LTC_PAD_PKCS7),
+    C_STRINGIFY(LTC_PAD_PKCS7),
 #ifdef LTC_RNG_GET_BYTES
-    _C_STRINGIFY(LTC_PAD_ISO_10126),
+    C_STRINGIFY(LTC_PAD_ISO_10126),
 #endif
-    _C_STRINGIFY(LTC_PAD_ANSI_X923),
-    _C_STRINGIFY(LTC_PAD_ONE_AND_ZERO),
-    _C_STRINGIFY(LTC_PAD_ZERO),
-    _C_STRINGIFY(LTC_PAD_ZERO_ALWAYS),
+    C_STRINGIFY(LTC_PAD_ANSI_X923),
+    C_STRINGIFY(LTC_PAD_ONE_AND_ZERO),
+    C_STRINGIFY(LTC_PAD_ZERO),
+    C_STRINGIFY(LTC_PAD_ZERO_ALWAYS),
 #else
     {"LTC_PADDING", 0},
 #endif
@@ -99,76 +92,77 @@ static const crypt_constant _crypt_constants[] = {
 
 #ifdef LTC_MECC
     {"LTC_MECC", 1},
-    _C_STRINGIFY(ECC_BUF_SIZE),
-    _C_STRINGIFY(ECC_MAXSIZE),
+    C_STRINGIFY(ECC_BUF_SIZE),
+    C_STRINGIFY(ECC_MAXSIZE),
 #else
     {"LTC_MECC", 0},
 #endif
 
 #ifdef LTC_MDSA
     {"LTC_MDSA", 1},
-    _C_STRINGIFY(LTC_MDSA_DELTA),
-    _C_STRINGIFY(LTC_MDSA_MAX_GROUP),
+    C_STRINGIFY(LTC_MDSA_DELTA),
+    C_STRINGIFY(LTC_MDSA_MAX_GROUP),
+    C_STRINGIFY(LTC_MDSA_MAX_MODULUS),
 #else
     {"LTC_MDSA", 0},
 #endif
 
 #ifdef LTC_MILLER_RABIN_REPS
-    _C_STRINGIFY(LTC_MILLER_RABIN_REPS),
+    C_STRINGIFY(LTC_MILLER_RABIN_REPS),
 #endif
 
 #ifdef LTC_DER
 /* DER handling */
     {"LTC_DER", 1},
-    _C_STRINGIFY(LTC_ASN1_EOL),
-    _C_STRINGIFY(LTC_ASN1_BOOLEAN),
-    _C_STRINGIFY(LTC_ASN1_INTEGER),
-    _C_STRINGIFY(LTC_ASN1_SHORT_INTEGER),
-    _C_STRINGIFY(LTC_ASN1_BIT_STRING),
-    _C_STRINGIFY(LTC_ASN1_OCTET_STRING),
-    _C_STRINGIFY(LTC_ASN1_NULL),
-    _C_STRINGIFY(LTC_ASN1_OBJECT_IDENTIFIER),
-    _C_STRINGIFY(LTC_ASN1_IA5_STRING),
-    _C_STRINGIFY(LTC_ASN1_PRINTABLE_STRING),
-    _C_STRINGIFY(LTC_ASN1_UTF8_STRING),
-    _C_STRINGIFY(LTC_ASN1_UTCTIME),
-    _C_STRINGIFY(LTC_ASN1_CHOICE),
-    _C_STRINGIFY(LTC_ASN1_SEQUENCE),
-    _C_STRINGIFY(LTC_ASN1_SET),
-    _C_STRINGIFY(LTC_ASN1_SETOF),
-    _C_STRINGIFY(LTC_ASN1_RAW_BIT_STRING),
-    _C_STRINGIFY(LTC_ASN1_TELETEX_STRING),
-    _C_STRINGIFY(LTC_ASN1_GENERALIZEDTIME),
-    _C_STRINGIFY(LTC_ASN1_CUSTOM_TYPE),
-    _C_STRINGIFY(LTC_DER_MAX_RECURSION),
+    C_STRINGIFY(LTC_ASN1_EOL),
+    C_STRINGIFY(LTC_ASN1_BOOLEAN),
+    C_STRINGIFY(LTC_ASN1_INTEGER),
+    C_STRINGIFY(LTC_ASN1_SHORT_INTEGER),
+    C_STRINGIFY(LTC_ASN1_BIT_STRING),
+    C_STRINGIFY(LTC_ASN1_OCTET_STRING),
+    C_STRINGIFY(LTC_ASN1_NULL),
+    C_STRINGIFY(LTC_ASN1_OBJECT_IDENTIFIER),
+    C_STRINGIFY(LTC_ASN1_IA5_STRING),
+    C_STRINGIFY(LTC_ASN1_PRINTABLE_STRING),
+    C_STRINGIFY(LTC_ASN1_UTF8_STRING),
+    C_STRINGIFY(LTC_ASN1_UTCTIME),
+    C_STRINGIFY(LTC_ASN1_CHOICE),
+    C_STRINGIFY(LTC_ASN1_SEQUENCE),
+    C_STRINGIFY(LTC_ASN1_SET),
+    C_STRINGIFY(LTC_ASN1_SETOF),
+    C_STRINGIFY(LTC_ASN1_RAW_BIT_STRING),
+    C_STRINGIFY(LTC_ASN1_TELETEX_STRING),
+    C_STRINGIFY(LTC_ASN1_GENERALIZEDTIME),
+    C_STRINGIFY(LTC_ASN1_CUSTOM_TYPE),
+    C_STRINGIFY(LTC_DER_MAX_RECURSION),
 #else
     {"LTC_DER", 0},
 #endif
 
 #ifdef LTC_CTR_MODE
     {"LTC_CTR_MODE", 1},
-    _C_STRINGIFY(CTR_COUNTER_LITTLE_ENDIAN),
-    _C_STRINGIFY(CTR_COUNTER_BIG_ENDIAN),
-    _C_STRINGIFY(LTC_CTR_RFC3686),
+    C_STRINGIFY(CTR_COUNTER_LITTLE_ENDIAN),
+    C_STRINGIFY(CTR_COUNTER_BIG_ENDIAN),
+    C_STRINGIFY(LTC_CTR_RFC3686),
 #else
     {"LTC_CTR_MODE", 0},
 #endif
 #ifdef LTC_GCM_MODE
-    _C_STRINGIFY(LTC_GCM_MODE_IV),
-    _C_STRINGIFY(LTC_GCM_MODE_AAD),
-    _C_STRINGIFY(LTC_GCM_MODE_TEXT),
+    C_STRINGIFY(LTC_GCM_MODE_IV),
+    C_STRINGIFY(LTC_GCM_MODE_AAD),
+    C_STRINGIFY(LTC_GCM_MODE_TEXT),
 #endif
 
-    _C_STRINGIFY(LTC_MP_LT),
-    _C_STRINGIFY(LTC_MP_EQ),
-    _C_STRINGIFY(LTC_MP_GT),
+    C_STRINGIFY(LTC_MP_LT),
+    C_STRINGIFY(LTC_MP_EQ),
+    C_STRINGIFY(LTC_MP_GT),
 
-    _C_STRINGIFY(LTC_MP_NO),
-    _C_STRINGIFY(LTC_MP_YES),
+    C_STRINGIFY(LTC_MP_NO),
+    C_STRINGIFY(LTC_MP_YES),
 
-    _C_STRINGIFY(MAXBLOCKSIZE),
-    _C_STRINGIFY(TAB_SIZE),
-    _C_STRINGIFY(ARGTYPE),
+    C_STRINGIFY(MAXBLOCKSIZE),
+    C_STRINGIFY(TAB_SIZE),
+    C_STRINGIFY(ARGTYPE),
 
 #ifdef LTM_DESC
     {"LTM_DESC", 1},
@@ -236,10 +230,10 @@ static const crypt_constant _crypt_constants[] = {
  */
 int crypt_get_constant(const char* namein, int *valueout) {
     int i;
-    int _crypt_constants_len = sizeof(_crypt_constants) / sizeof(_crypt_constants[0]);
-    for (i=0; i<_crypt_constants_len; i++) {
-        if (XSTRCMP(_crypt_constants[i].name, namein) == 0) {
-            *valueout = _crypt_constants[i].value;
+    int count = sizeof(s_crypt_constants) / sizeof(s_crypt_constants[0]);
+    for (i=0; i<count; i++) {
+        if (XSTRCMP(s_crypt_constants[i].name, namein) == 0) {
+            *valueout = s_crypt_constants[i].value;
             return 0;
         }
     }
@@ -261,11 +255,11 @@ int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
     unsigned int total_len = 0;
     char *ptr;
     int number_len;
-    int count = sizeof(_crypt_constants) / sizeof(_crypt_constants[0]);
+    int count = sizeof(s_crypt_constants) / sizeof(s_crypt_constants[0]);
 
     /* calculate amount of memory required for the list */
     for (i=0; i<count; i++) {
-        number_len = snprintf(NULL, 0, "%s,%d\n", _crypt_constants[i].name, _crypt_constants[i].value);
+        number_len = snprintf(NULL, 0, "%s,%d\n", s_crypt_constants[i].name, s_crypt_constants[i].value);
         if (number_len < 0) {
           return -1;
         }
@@ -281,7 +275,7 @@ int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
         /* build the names list */
         ptr = names_list;
         for (i=0; i<count; i++) {
-            number_len = snprintf(ptr, total_len, "%s,%d\n", _crypt_constants[i].name, _crypt_constants[i].value);
+            number_len = snprintf(ptr, total_len, "%s,%d\n", s_crypt_constants[i].name, s_crypt_constants[i].value);
             if (number_len < 0) return -1;
             if ((unsigned int)number_len > total_len) return -1;
             total_len -= number_len;
@@ -294,7 +288,3 @@ int crypt_list_all_constants(char *names_list, unsigned int *names_list_size) {
     return 0;
 }
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -53,7 +46,7 @@ int ecc_recover_key(const unsigned char *sig,  unsigned long siglen,
    }
 
    /* allocate ints */
-   if ((err = mp_init_multi(&r, &s, &v, &w, &t1, &t2, &u1, &u2, &v1, &v2, &e, &x, &y, &a_plus3, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&r, &s, &v, &w, &t1, &t2, &u1, &u2, &v1, &v2, &e, &x, &y, &a_plus3, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
 
@@ -79,7 +72,7 @@ int ecc_recover_key(const unsigned char *sig,  unsigned long siglen,
       if ((err = der_decode_sequence_multi_ex(sig, siglen, LTC_DER_SEQ_SEQUENCE | LTC_DER_SEQ_STRICT,
                                      LTC_ASN1_INTEGER, 1UL, r,
                                      LTC_ASN1_INTEGER, 1UL, s,
-                                     LTC_ASN1_EOL, 0UL, NULL)) != CRYPT_OK)                             { goto error; }
+                                     LTC_ASN1_EOL, 0UL, LTC_NULL)) != CRYPT_OK)                         { goto error; }
    }
    else if (sigformat == LTC_ECCSIG_RFC7518) {
       /* RFC7518 format - raw (r,s) */
@@ -115,19 +108,20 @@ int ecc_recover_key(const unsigned char *sig,  unsigned long siglen,
 #ifdef LTC_SSH
    else if (sigformat == LTC_ECCSIG_RFC5656) {
       char name[64], name2[64];
-      unsigned long namelen = sizeof(name2);
+      unsigned long namelen = sizeof(name);
+      unsigned long name2len = sizeof(name2);
 
       /* Decode as SSH data sequence, per RFC4251 */
-      if ((err = ssh_decode_sequence_multi(sig, siglen,
-                                           LTC_SSHDATA_STRING, name, 64,
+      if ((err = ssh_decode_sequence_multi(sig, &siglen,
+                                           LTC_SSHDATA_STRING, name, &namelen,
                                            LTC_SSHDATA_MPINT,  r,
                                            LTC_SSHDATA_MPINT,  s,
                                            LTC_SSHDATA_EOL,    NULL)) != CRYPT_OK)                      { goto error; }
 
 
       /* Check curve matches identifier string */
-      if ((err = ecc_ssh_ecdsa_encode_name(name2, &namelen, key)) != CRYPT_OK)                                { goto error; }
-      if (XSTRCMP(name,name2) != 0) {
+      if ((err = ecc_ssh_ecdsa_encode_name(name2, &name2len, key)) != CRYPT_OK)                         { goto error; }
+      if ((namelen != name2len) || (XSTRCMP(name, name2) != 0)) {
          err = CRYPT_INVALID_ARG;
          goto error;
       }
@@ -220,7 +214,7 @@ int ecc_recover_key(const unsigned char *sig,  unsigned long siglen,
 
    /* for curves with a == -3 keep ma == NULL */
    if (mp_cmp(a_plus3, m) != LTC_MP_EQ) {
-      if ((err = mp_init_multi(&mu, &ma, NULL)) != CRYPT_OK)                                            { goto error; }
+      if ((err = mp_init_multi(&mu, &ma, LTC_NULL)) != CRYPT_OK)                                        { goto error; }
       if ((err = mp_montgomery_normalization(mu, m)) != CRYPT_OK)                                       { goto error; }
       if ((err = mp_mulmod(a, mu, m, ma)) != CRYPT_OK)                                                  { goto error; }
    }
@@ -258,13 +252,9 @@ error:
    if (mR != NULL) ltc_ecc_del_point(mR);
    if (mQ != NULL) ltc_ecc_del_point(mQ);
    if (mG != NULL) ltc_ecc_del_point(mG);
-   mp_clear_multi(a_plus3, y, x, e, v2, v1, u2, u1, t2, t1, w, v, s, r, NULL);
+   mp_clear_multi(a_plus3, y, x, e, v2, v1, u2, u1, t2, t1, w, v, s, r, LTC_NULL);
    return err;
 }
 
 #endif
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

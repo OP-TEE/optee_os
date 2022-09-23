@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -17,7 +10,7 @@
 */
 #ifdef LTC_CRC32
 
-static const ulong32 _CRC32_NEGL = 0xffffffffUL;
+static const ulong32 CRC32_NEGL = 0xffffffffUL;
 
 #if defined(ENDIAN_LITTLE)
 #define CRC32_INDEX(c) (c & 0xff)
@@ -144,7 +137,7 @@ static const ulong32 crc32_m_tab[] =
 void crc32_init(crc32_state *ctx)
 {
    LTC_ARGCHKVD(ctx != NULL);
-   ctx->crc = _CRC32_NEGL;
+   ctx->crc = CRC32_NEGL;
 }
 
 void crc32_update(crc32_state *ctx, const unsigned char *input, unsigned long length)
@@ -171,7 +164,7 @@ void crc32_finish(const crc32_state *ctx, void *hash, unsigned long size)
 
    h = hash;
    crc = ctx->crc;
-   crc ^= _CRC32_NEGL;
+   crc ^= CRC32_NEGL;
 
    if (size > 4) size = 4;
    for (i = 0; i < size; i++) {
@@ -189,7 +182,7 @@ int crc32_test(void)
    unsigned char out[4];
    crc32_state ctx;
    crc32_init(&ctx);
-   crc32_update(&ctx, in, strlen(in));
+   crc32_update(&ctx, in, XSTRLEN(in));
    crc32_finish(&ctx, out, 4);
    if (compare_testvector(crc32, 4, out, 4, "CRC32", 0)) {
       return CRYPT_FAIL_TESTVECTOR;
@@ -198,7 +191,3 @@ int crc32_test(void)
 #endif
 }
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

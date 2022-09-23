@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -18,11 +11,11 @@
 #ifdef LTC_DER
 
 /**
-  Store a UTF8 STRING
+  Decode a UTF8 STRING and recover an array of unicode characters.
   @param in      The DER encoded UTF8 STRING
   @param inlen   The size of the DER UTF8 STRING
-  @param out     [out] The array of utf8s stored (one per char)
-  @param outlen  [in/out] The number of utf8s stored
+  @param out     [out] The array of unicode characters (wchar_t*)
+  @param outlen  [in/out] The number of unicode characters in the array
   @return CRYPT_OK if successful
 */
 int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
@@ -58,23 +51,47 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
       return CRYPT_INVALID_PACKET;
    }
 
-   /* proceed to decode */
+   /* proceed to recover unicode characters from utf8 data.
+      for reference see Section 3 of RFC 3629:
+
+        https://tools.ietf.org/html/rfc3629#section-3
+    */
    for (y = 0; x < inlen; ) {
-      /* get first byte */
+      /* read first byte */
       tmp = in[x++];
 
-      /* count number of bytes */
+      /* a unicode character is recovered from a sequence of 1 to 4 utf8 bytes.
+         the form of those bytes must match a row in the following table:
+
+           0xxxxxxx
+           110xxxxx 10xxxxxx
+           1110xxxx 10xxxxxx 10xxxxxx
+           11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+
+         the number of leading ones in the first byte (0,2,3,4) determines the
+         number of remaining bytes to read (0,1,2,3)
+       */
+
+      /* determine z, the number of leading ones.
+         this is done by left-shifting tmp, which clears the ms-bits */
       for (z = 0; (tmp & 0x80) && (z <= 4); z++, tmp = (tmp << 1) & 0xFF);
 
-      if (z == 1 || z > 4 || (x + (z - 1) > inlen)) {
+      /* z should be in {0,2,3,4} */
+      if (z == 1 || z > 4) {
          return CRYPT_INVALID_PACKET;
       }
 
-      /* decode, grab upper bits */
+      /* right-shift tmp to restore least-sig bits */
       tmp >>= z;
 
-      /* grab remaining bytes */
-      if (z > 1) { --z; }
+      /* now update z so it equals the number of additional bytes to read */
+      if (z > 0) { --z; }
+
+      if (x + z > inlen) {
+         return CRYPT_INVALID_PACKET;
+      }
+
+      /* read remaining bytes */
       while (z-- != 0) {
          if ((in[x] & 0xC0) != 0x80) {
             return CRYPT_INVALID_PACKET;
@@ -98,7 +115,3 @@ int der_decode_utf8_string(const unsigned char *in,  unsigned long inlen,
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

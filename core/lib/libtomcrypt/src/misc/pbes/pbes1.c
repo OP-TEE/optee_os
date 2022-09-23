@@ -1,17 +1,10 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 #ifdef LTC_PBES
 
-static int _pkcs_5_alg1_wrap(const unsigned char *password, unsigned long password_len,
+static int s_pkcs_5_alg1_wrap(const unsigned char *password, unsigned long password_len,
                               const unsigned char *salt,     unsigned long salt_len,
                               int iteration_count,  int hash_idx,
                               unsigned char *out,   unsigned long *outlen)
@@ -20,7 +13,7 @@ static int _pkcs_5_alg1_wrap(const unsigned char *password, unsigned long passwo
    return pkcs_5_alg1(password, password_len, salt, iteration_count, hash_idx, out, outlen);
 }
 
-static int _pkcs_12_wrap(const unsigned char *password, unsigned long password_len,
+static int s_pkcs_12_wrap(const unsigned char *password, unsigned long password_len,
                               const unsigned char *salt,     unsigned long salt_len,
                               int iteration_count,  int hash_idx,
                               unsigned char *out,   unsigned long *outlen)
@@ -47,14 +40,14 @@ LBL_ERROR:
    return err;
 }
 
-static const pbes_properties _pbes1_types[] = {
-   { _pkcs_5_alg1_wrap, "md2",   "des",   8, 8 },
-   { _pkcs_5_alg1_wrap, "md2",   "rc2",   8, 8 },
-   { _pkcs_5_alg1_wrap, "md5",   "des",   8, 8 },
-   { _pkcs_5_alg1_wrap, "md5",   "rc2",   8, 8 },
-   { _pkcs_5_alg1_wrap, "sha1",  "des",   8, 8 },
-   { _pkcs_5_alg1_wrap, "sha1",  "rc2",   8, 8 },
-   { _pkcs_12_wrap,     "sha1",  "3des", 24, 8 },
+static const pbes_properties s_pbes1_types[] = {
+   { s_pkcs_5_alg1_wrap, "md2",   "des",   8, 8 },
+   { s_pkcs_5_alg1_wrap, "md2",   "rc2",   8, 8 },
+   { s_pkcs_5_alg1_wrap, "md5",   "des",   8, 8 },
+   { s_pkcs_5_alg1_wrap, "md5",   "rc2",   8, 8 },
+   { s_pkcs_5_alg1_wrap, "sha1",  "des",   8, 8 },
+   { s_pkcs_5_alg1_wrap, "sha1",  "rc2",   8, 8 },
+   { s_pkcs_12_wrap,     "sha1",  "3des", 24, 8 },
 };
 
 typedef struct {
@@ -62,23 +55,23 @@ typedef struct {
    const char *oid;
 } oid_to_pbes;
 
-static const oid_to_pbes _pbes1_list[] = {
-   { &_pbes1_types[0], "1.2.840.113549.1.5.1"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.1    pbeWithMD2AndDES-CBC */
-   { &_pbes1_types[1], "1.2.840.113549.1.5.4"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.4    pbeWithMD2AndRC2-CBC */
-   { &_pbes1_types[2], "1.2.840.113549.1.5.3"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.3    pbeWithMD5AndDES-CBC */
-   { &_pbes1_types[3], "1.2.840.113549.1.5.6"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.6    pbeWithMD5AndRC2-CBC */
-   { &_pbes1_types[4], "1.2.840.113549.1.5.10"   },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.10   pbeWithSHA1AndDES-CBC */
-   { &_pbes1_types[5], "1.2.840.113549.1.5.11"   },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.11   pbeWithSHA1AndRC2-CBC */
-   { &_pbes1_types[6], "1.2.840.113549.1.12.1.3" },  /* http://www.oid-info.com/get/1.2.840.113549.1.12.1.3 pbeWithSHAAnd3-KeyTripleDES-CBC */
+static const oid_to_pbes s_pbes1_list[] = {
+   { &s_pbes1_types[0], "1.2.840.113549.1.5.1"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.1    pbeWithMD2AndDES-CBC */
+   { &s_pbes1_types[1], "1.2.840.113549.1.5.4"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.4    pbeWithMD2AndRC2-CBC */
+   { &s_pbes1_types[2], "1.2.840.113549.1.5.3"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.3    pbeWithMD5AndDES-CBC */
+   { &s_pbes1_types[3], "1.2.840.113549.1.5.6"    },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.6    pbeWithMD5AndRC2-CBC */
+   { &s_pbes1_types[4], "1.2.840.113549.1.5.10"   },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.10   pbeWithSHA1AndDES-CBC */
+   { &s_pbes1_types[5], "1.2.840.113549.1.5.11"   },  /* http://www.oid-info.com/get/1.2.840.113549.1.5.11   pbeWithSHA1AndRC2-CBC */
+   { &s_pbes1_types[6], "1.2.840.113549.1.12.1.3" },  /* http://www.oid-info.com/get/1.2.840.113549.1.12.1.3 pbeWithSHAAnd3-KeyTripleDES-CBC */
    { 0 },
 };
 
-static int _pbes1_from_oid(const ltc_asn1_list *oid, pbes_properties *res)
+static int s_pbes1_from_oid(const ltc_asn1_list *oid, pbes_properties *res)
 {
    unsigned int i;
-   for (i = 0; _pbes1_list[i].data != NULL; ++i) {
-      if (pk_oid_cmp_with_asn1(_pbes1_list[i].oid, oid) == CRYPT_OK) {
-         if (res != NULL) *res = *_pbes1_list[i].data;
+   for (i = 0; s_pbes1_list[i].data != NULL; ++i) {
+      if (pk_oid_cmp_with_asn1(s_pbes1_list[i].oid, oid) == CRYPT_OK) {
+         if (res != NULL) *res = *s_pbes1_list[i].data;
          return CRYPT_OK;
       }
    }
@@ -99,7 +92,7 @@ int pbes1_extract(const ltc_asn1_list *s, pbes_arg *res)
    LTC_ARGCHK(s   != NULL);
    LTC_ARGCHK(res != NULL);
 
-   if ((err = _pbes1_from_oid(s, &res->type)) != CRYPT_OK) return err;
+   if ((err = s_pbes1_from_oid(s, &res->type)) != CRYPT_OK) return err;
 
    if (!LTC_ASN1_IS_TYPE(s->next, LTC_ASN1_SEQUENCE) ||
        !LTC_ASN1_IS_TYPE(s->next->child, LTC_ASN1_OCTET_STRING) ||
@@ -122,7 +115,3 @@ int pbes1_extract(const ltc_asn1_list *s, pbes_arg *res)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -29,7 +22,7 @@ int sosemanuk_test(void)
                               0xda, 0x8e, 0x7f, 0x61, 0x70, 0x81, 0xe3, 0xbb, 0x99, 0xaf, 0x19, 0x9f, 0x20, 0x45 };
        char pt[]          = "Kilroy was here, and there. ...and everywhere!";    /* len = 46 bytes */
        unsigned long len;
-       len = strlen(pt);
+       len = XSTRLEN(pt);
        /* crypt piece by piece */
        if ((err = sosemanuk_setup(&st, k, sizeof(k)))                                != CRYPT_OK) return err;
        if ((err = sosemanuk_setiv(&st, n, sizeof(n)))                                != CRYPT_OK) return err;
@@ -84,7 +77,3 @@ int sosemanuk_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

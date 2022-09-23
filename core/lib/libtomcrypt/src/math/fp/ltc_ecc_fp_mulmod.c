@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -573,7 +566,7 @@ static const struct {
 };
 
 /* find a hole and free as required, return -1 if no hole found */
-static int _find_hole(void)
+static int s_find_hole(void)
 {
    unsigned x;
    int      y, z;
@@ -609,7 +602,7 @@ static int _find_hole(void)
 }
 
 /* determine if a base is already in the cache and if so, where */
-static int _find_base(ecc_point *g)
+static int s_find_base(ecc_point *g)
 {
    int x;
    for (x = 0; x < FP_ENTRIES; x++) {
@@ -627,7 +620,7 @@ static int _find_base(ecc_point *g)
 }
 
 /* add a new base to the cache */
-static int _add_entry(int idx, ecc_point *g)
+static int s_add_entry(int idx, ecc_point *g)
 {
    unsigned x, y;
 
@@ -669,7 +662,7 @@ static int _add_entry(int idx, ecc_point *g)
  * The algorithm builds patterns in increasing bit order by first making all
  * single bit input patterns, then all two bit input patterns and so on
  */
-static int _build_lut(int idx, void *a, void *modulus, void *mp, void *mu)
+static int s_build_lut(int idx, void *a, void *modulus, void *mp, void *mu)
 {
    unsigned x, y, err, bitlen, lut_gap;
    void    *tmp;
@@ -776,7 +769,7 @@ DONE:
 }
 
 /* perform a fixed point ECC mulmod */
-static int _accel_fp_mul(int idx, void *k, ecc_point *R, void *a, void *modulus, void *mp, int map)
+static int s_accel_fp_mul(int idx, void *k, ecc_point *R, void *a, void *modulus, void *mp, int map)
 {
    unsigned char kb[128];
    int      x;
@@ -899,7 +892,7 @@ static int _accel_fp_mul(int idx, void *k, ecc_point *R, void *a, void *modulus,
 
 #ifdef LTC_ECC_SHAMIR
 /* perform a fixed point ECC mulmod */
-static int _accel_fp_mul2add(int idx1, int idx2,
+static int ss_accel_fp_mul2add(int idx1, int idx2,
                             void *kA, void *kB,
                             ecc_point *R, void *a, void *modulus, void *mp)
 {
@@ -1122,13 +1115,13 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
    mu = NULL;
    LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
       /* find point */
-      idx1 = _find_base(A);
+      idx1 = s_find_base(A);
 
       /* no entry? */
       if (idx1 == -1) {
          /* find hole and add it */
-         if ((idx1 = _find_hole()) >= 0) {
-            if ((err = _add_entry(idx1, A)) != CRYPT_OK) {
+         if ((idx1 = s_find_hole()) >= 0) {
+            if ((err = s_add_entry(idx1, A)) != CRYPT_OK) {
                goto LBL_ERR;
             }
          }
@@ -1139,13 +1132,13 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
       }
 
       /* find point */
-      idx2 = _find_base(B);
+      idx2 = s_find_base(B);
 
       /* no entry? */
       if (idx2 == -1) {
          /* find hole and add it */
-         if ((idx2 = _find_hole()) >= 0) {
-            if ((err = _add_entry(idx2, B)) != CRYPT_OK) {
+         if ((idx2 = s_find_hole()) >= 0) {
+            if ((err = s_add_entry(idx2, B)) != CRYPT_OK) {
                goto LBL_ERR;
             }
          }
@@ -1169,7 +1162,7 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
          }
 
          /* build the LUT */
-         if ((err = _build_lut(idx1, a, modulus, mp, mu)) != CRYPT_OK) {
+         if ((err = s_build_lut(idx1, a, modulus, mp, mu)) != CRYPT_OK) {
              goto LBL_ERR;;
          }
       }
@@ -1190,7 +1183,7 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
          }
 
          /* build the LUT */
-         if ((err = _build_lut(idx2, a, modulus, mp, mu)) != CRYPT_OK) {
+         if ((err = s_build_lut(idx2, a, modulus, mp, mu)) != CRYPT_OK) {
              goto LBL_ERR;;
          }
       }
@@ -1201,7 +1194,7 @@ int ltc_ecc_fp_mul2add(ecc_point *A, void *kA,
             /* compute mp */
             if ((err = mp_montgomery_setup(modulus, &mp)) != CRYPT_OK) { goto LBL_ERR; }
          }
-         err = _accel_fp_mul2add(idx1, idx2, kA, kB, C, a, modulus, mp);
+         err = ss_accel_fp_mul2add(idx1, idx2, kA, kB, C, a, modulus, mp);
       } else {
          err = ltc_ecc_mul2add(A, kA, B, kB, C, a, modulus);
       }
@@ -1235,15 +1228,15 @@ int ltc_ecc_fp_mulmod(void *k, ecc_point *G, ecc_point *R, void *a, void *modulu
    mu = NULL;
    LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
       /* find point */
-      idx = _find_base(G);
+      idx = s_find_base(G);
 
       /* no entry? */
       if (idx == -1) {
          /* find hole and add it */
-         idx = _find_hole();
+         idx = s_find_hole();
 
          if (idx >= 0) {
-            if ((err = _add_entry(idx, G)) != CRYPT_OK) {
+            if ((err = s_add_entry(idx, G)) != CRYPT_OK) {
                goto LBL_ERR;
             }
          }
@@ -1268,7 +1261,7 @@ int ltc_ecc_fp_mulmod(void *k, ecc_point *G, ecc_point *R, void *a, void *modulu
          }
 
          /* build the LUT */
-         if ((err = _build_lut(idx, a, modulus, mp, mu)) != CRYPT_OK) {
+         if ((err = s_build_lut(idx, a, modulus, mp, mu)) != CRYPT_OK) {
              goto LBL_ERR;;
          }
       }
@@ -1278,7 +1271,7 @@ int ltc_ecc_fp_mulmod(void *k, ecc_point *G, ecc_point *R, void *a, void *modulu
             /* compute mp */
             if ((err = mp_montgomery_setup(modulus, &mp)) != CRYPT_OK) { goto LBL_ERR; }
          }
-         err = _accel_fp_mul(idx, k, R, a, modulus, mp, map);
+         err = s_accel_fp_mul(idx, k, R, a, modulus, mp, map);
       } else {
          err = ltc_ecc_mulmod(k, G, R, a, modulus, map);
       }
@@ -1294,7 +1287,7 @@ LBL_ERR:
 }
 
 /* helper function for freeing the cache ... must be called with the cache mutex locked */
-static void _ltc_ecc_fp_free_cache(void)
+static void s_ltc_ecc_fp_free_cache(void)
 {
    unsigned x, y;
    for (x = 0; x < FP_ENTRIES; x++) {
@@ -1319,7 +1312,7 @@ static void _ltc_ecc_fp_free_cache(void)
 void ltc_ecc_fp_free(void)
 {
    LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
-   _ltc_ecc_fp_free_cache();
+   s_ltc_ecc_fp_free_cache();
    LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
 }
 
@@ -1338,7 +1331,7 @@ ltc_ecc_fp_add_point(ecc_point *g, void *modulus, int lock)
    void *mu = NULL;
 
    LTC_MUTEX_LOCK(&ltc_ecc_fp_lock);
-   if ((idx = _find_base(g)) >= 0) {
+   if ((idx = s_find_base(g)) >= 0) {
       /* it is already in the cache ... just check that the LUT is initialized */
       if(fp_cache[idx].lru_count >= 2) {
          LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
@@ -1346,11 +1339,11 @@ ltc_ecc_fp_add_point(ecc_point *g, void *modulus, int lock)
       }
    }
 
-   if(idx == -1 && (idx = _find_hole()) == -1) {
+   if(idx == -1 && (idx = s_find_hole()) == -1) {
       err = CRYPT_BUFFER_OVERFLOW;
       goto LBL_ERR;
    }
-   if ((err = _add_entry(idx, g)) != CRYPT_OK) {
+   if ((err = s_add_entry(idx, g)) != CRYPT_OK) {
       goto LBL_ERR;
    }
    /* compute mp */
@@ -1367,7 +1360,7 @@ ltc_ecc_fp_add_point(ecc_point *g, void *modulus, int lock)
    }
 
    /* build the LUT */
-   if ((err = _build_lut(idx, a, modulus, mp, mu)) != CRYPT_OK) {
+   if ((err = s_build_lut(idx, a, modulus, mp, mu)) != CRYPT_OK) {
        goto LBL_ERR;
    }
    fp_cache[idx].lru_count = 2;
@@ -1507,7 +1500,7 @@ int ltc_ecc_fp_restore_state(unsigned char *in, unsigned long inlen)
    /*
     * start with an empty cache
     */
-   _ltc_ecc_fp_free_cache();
+   s_ltc_ecc_fp_free_cache();
 
    /*
     * decode the input packet: It consists of a sequence with a few
@@ -1553,7 +1546,7 @@ int ltc_ecc_fp_restore_state(unsigned char *in, unsigned long inlen)
             goto ERR_OUT;
          }
          fp_cache[i].LUT[x] = p;
-         if ((err = mp_init_multi(&p->x, &p->y, NULL)) != CRYPT_OK) {
+         if ((err = mp_init_multi(&p->x, &p->y, LTC_NULL)) != CRYPT_OK) {
             goto ERR_OUT;
          }
          p->z = NULL;
@@ -1577,15 +1570,11 @@ int ltc_ecc_fp_restore_state(unsigned char *in, unsigned long inlen)
 ERR_OUT:
    if(asn1_list)
       XFREE(asn1_list);
-   _ltc_ecc_fp_free_cache();
+   s_ltc_ecc_fp_free_cache();
    LTC_MUTEX_UNLOCK(&ltc_ecc_fp_lock);
    return err;
 }
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */
 
