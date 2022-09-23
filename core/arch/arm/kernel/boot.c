@@ -1252,6 +1252,14 @@ void init_tee_runtime(void)
 	if (!IS_ENABLED(CFG_VIRTUALIZATION))
 		call_preinitcalls();
 	call_initcalls();
+
+	/*
+	 * These two functions uses crypto_rng_read() to initialize the
+	 * pauth keys. Once call_initcalls() returns we're guaranteed that
+	 * crypto_rng_read() is ready to be used.
+	 */
+	thread_init_core_local_pauth_keys();
+	thread_init_thread_pauth_keys();
 }
 
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2015-2022, Linaro Limited
  * Copyright (c) 2021, Arm Limited
  */
 
@@ -72,6 +72,12 @@
 		bic	x0, x0, #SCTLR_TCF0_MASK
 111:
 #endif
+#if defined(CFG_TA_PAUTH) && defined(CFG_TA_BTI)
+		orr	x0, x0, #SCTLR_BT0
+#endif
+#if defined(CFG_CORE_PAUTH) && defined(CFG_CORE_BTI)
+		orr	x0, x0, #SCTLR_BT1
+#endif
 		msr	sctlr_el1, x0
 	.endm
 
@@ -122,6 +128,17 @@
 
 		isb
 11:
+	.endm
+
+	.macro init_pauth_per_cpu
+		msr	spsel, #1
+		ldp	x0, x1, [sp, #THREAD_CORE_LOCAL_KEYS]
+		msr	spsel, #0
+		write_apiakeyhi x0
+		write_apiakeylo x1
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_ENIA
+		msr	sctlr_el1, x0
 	.endm
 
 FUNC _start , :
@@ -322,6 +339,10 @@ clear_nex_bss:
 #endif
 	mov	x0, x20		/* DT address */
 	bl	boot_init_primary_late
+#ifdef CFG_CORE_PAUTH
+	init_pauth_per_cpu
+#endif
+
 #ifndef CFG_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP
 	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
@@ -535,6 +556,9 @@ FUNC cpu_on_handler , :
 
 #ifdef CFG_MEMTAG
 	init_memtag_per_cpu
+#endif
+#ifdef CFG_CORE_PAUTH
+	init_pauth_per_cpu
 #endif
 
 	mov	x0, x19

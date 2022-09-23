@@ -42,6 +42,9 @@ struct thread_ctx {
 #ifdef ARM64
 	vaddr_t kern_sp;	/* Saved kernel SP during user TA execution */
 #endif
+#ifdef CFG_CORE_PAUTH
+	struct thread_pauth_keys keys;
+#endif
 #ifdef CFG_WITH_VFP
 	struct thread_vfp_state vfp_state;
 #endif

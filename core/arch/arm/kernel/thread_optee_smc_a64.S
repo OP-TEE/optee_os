@@ -192,6 +192,13 @@ FUNC thread_rpc , :
 	store_xregs x0, THREAD_CTX_REGS_X19, 19, 30
 	mov	x19, x0
 
+#if defined(CFG_CORE_PAUTH)
+	/* Save APIAKEY */
+	read_apiakeyhi  x1
+	read_apiakeylo  x2
+	store_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+#endif
+
 	bl	thread_get_tmp_sp
 	pop	x1, xzr		/* Match "push x1, x30" above */
 	mov	x2, sp

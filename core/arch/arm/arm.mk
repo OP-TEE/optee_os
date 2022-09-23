@@ -200,12 +200,23 @@ ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
 endif
 
-ifeq ($(CFG_CORE_BTI),y)
-bti-opt := $(call cc-option,-mbranch-protection=bti)
-ifeq (,$(bti-opt))
-$(error -mbranch-protection=bti not supported)
+ifeq ($(CFG_CORE_PAUTH),y)
+bp-core-opt := $(call cc-option,-mbranch-protection=pac-ret+leaf)
 endif
-core-platform-cflags += $(bti-opt)
+
+ifeq ($(CFG_CORE_BTI),y)
+bp-core-opt := $(call cc-option,-mbranch-protection=bti)
+endif
+
+ifeq (y-y,$(CFG_CORE_PAUTH)-$(CFG_CORE_BTI))
+bp-core-opt := $(call cc-option,-mbranch-protection=pac-ret+leaf+bti)
+endif
+
+ifeq (y,$(filter $(CFG_CORE_BTI) $(CFG_CORE_PAUTH),y))
+ifeq (,$(bp-core-opt))
+$(error -mbranch-protection not supported)
+endif
+core-platform-cflags += $(bp-core-opt)
 endif
 
 ifeq ($(CFG_ARM64_core),y)
