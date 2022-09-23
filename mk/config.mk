@@ -858,15 +858,27 @@ CFG_CORE_ASYNC_NOTIF ?= n
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
 
-# Pointer Authentication (part of ARMv8.3 Extensions) provides
-# instructions for signing and authenticating pointers against secret keys.
-# These can be used to mitigate ROP (Return oriented programming) attacks.
-# This option enables these instructions for TA's at EL0. When this option is
-# enabled , TEE core will initialize secret keys per TA.
-CFG_TA_PAUTH ?= n
+# Pointer Authentication (part of ARMv8.3 Extensions) provides instructions
+# for signing and authenticating pointers against secret keys. These can
+# be used to mitigate ROP (Return oriented programming) attacks. This is
+# currently done by instructing the compiler to add paciasp/autiasp at the
+# begging and end of functions to sign and verify ELR.
+#
+# The CFG_CORE_PAUTH enables these instructions for the core parts
+# executing at EL1, with one secret key per thread and one secret key per
+# physical CPU.
+#
+# The CFG_TA_PAUTH option enables these instructions for TA's at EL0. When
+# this option is enabled, TEE core will initialize secret keys per TA.
+CFG_CORE_PAUTH ?= n
+CFG_TA_PAUTH ?= $(CFG_CORE_PAUTH)
 
+$(eval $(call cfg-depends-all,CFG_CORE_PAUTH,CFG_ARM64_core))
 $(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
 
+ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
+$(error CFG_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
+endif
 ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_TA_PAUTH))
 $(error CFG_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
 endif

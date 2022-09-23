@@ -74,6 +74,14 @@ void thread_init_threads(void);
 void thread_init_thread_core_local(void);
 void thread_init_core_local_stacks(void);
 
+#if defined(CFG_CORE_PAUTH)
+void thread_init_thread_pauth_keys(void);
+void thread_init_core_local_pauth_keys(void);
+#else
+static inline void thread_init_thread_pauth_keys(void) { }
+static inline void thread_init_core_local_pauth_keys(void) { }
+#endif
+
 /*
  * Initializes a thread to be used during boot
  */
