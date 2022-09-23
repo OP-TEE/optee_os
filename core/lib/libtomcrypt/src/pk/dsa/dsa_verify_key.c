@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -69,7 +62,7 @@ int dsa_int_validate_pqg(const dsa_key *key, int *stat)
       return CRYPT_OK;
    }
 
-   if ((err = mp_init_multi(&tmp1, &tmp2, NULL)) != CRYPT_OK)        { return err; }
+   if ((err = mp_init_multi(&tmp1, &tmp2, LTC_NULL)) != CRYPT_OK)    { return err; }
 
    /* FIPS 186-4 chapter 4.1: q is a divisor of (p - 1) */
    if ((err = mp_sub_d(key->p, 1, tmp1)) != CRYPT_OK)                { goto error; }
@@ -91,7 +84,7 @@ int dsa_int_validate_pqg(const dsa_key *key, int *stat)
    err   = CRYPT_OK;
    *stat = 1;
 error:
-   mp_clear_multi(tmp2, tmp1, NULL);
+   mp_clear_multi(tmp2, tmp1, LTC_NULL);
    return err;
 }
 
@@ -194,7 +187,3 @@ error:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

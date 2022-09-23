@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -128,7 +121,7 @@ int chc_init(hash_state *md)
    T0     <= encrypt T0
    state  <= state xor T0 xor T1
 */
-static int chc_compress(hash_state *md, const unsigned char *buf)
+static int s_chc_compress(hash_state *md, const unsigned char *buf)
 {
    unsigned char  T[2][MAXBLOCKSIZE];
    symmetric_key *key;
@@ -161,8 +154,8 @@ static int chc_compress(hash_state *md, const unsigned char *buf)
    @param len  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-static int _chc_process(hash_state * md, const unsigned char *in, unsigned long inlen);
-static HASH_PROCESS(_chc_process, chc_compress, chc, (unsigned long)cipher_blocksize)
+static int ss_chc_process(hash_state * md, const unsigned char *in, unsigned long inlen);
+static HASH_PROCESS(ss_chc_process, s_chc_compress, chc, (unsigned long)cipher_blocksize)
 
 /**
    Process a block of memory though the hash
@@ -186,7 +179,7 @@ int chc_process(hash_state * md, const unsigned char *in, unsigned long inlen)
       return CRYPT_INVALID_CIPHER;
    }
 
-   return _chc_process(md, in, inlen);
+   return ss_chc_process(md, in, inlen);
 }
 
 /**
@@ -228,7 +221,7 @@ int chc_done(hash_state *md, unsigned char *out)
         while (md->chc.curlen < (unsigned long)cipher_blocksize) {
             md->chc.buf[md->chc.curlen++] = (unsigned char)0;
         }
-        chc_compress(md, md->chc.buf);
+        s_chc_compress(md, md->chc.buf);
         md->chc.curlen = 0;
     }
 
@@ -239,7 +232,7 @@ int chc_done(hash_state *md, unsigned char *out)
 
     /* store length */
     STORE64L(md->chc.length, md->chc.buf+(cipher_blocksize-8));
-    chc_compress(md, md->chc.buf);
+    s_chc_compress(md, md->chc.buf);
 
     /* copy output */
     XMEMCPY(out, md->chc.state, cipher_blocksize);
@@ -271,7 +264,7 @@ int chc_test(void)
    16
 }
 };
-   int i, oldhashidx, idx;
+   int i, oldhashidx, idx, err;
    unsigned char tmp[MAXBLOCKSIZE];
    hash_state md;
 
@@ -285,9 +278,15 @@ int chc_test(void)
    chc_register(idx);
 
    for (i = 0; i < (int)(sizeof(tests)/sizeof(tests[0])); i++) {
-       chc_init(&md);
-       chc_process(&md, tests[i].msg, strlen((char *)tests[i].msg));
-       chc_done(&md, tmp);
+       if ((err = chc_init(&md)) != CRYPT_OK) {
+          return err;
+       }
+       if ((err = chc_process(&md, tests[i].msg, XSTRLEN((char *)tests[i].msg))) != CRYPT_OK) {
+          return err;
+       }
+       if ((err = chc_done(&md, tmp)) != CRYPT_OK) {
+          return err;
+       }
        if (compare_testvector(tmp, tests[i].len, tests[i].hash, tests[i].len, "CHC", i)) {
           return CRYPT_FAIL_TESTVECTOR;
        }
@@ -301,7 +300,3 @@ int chc_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

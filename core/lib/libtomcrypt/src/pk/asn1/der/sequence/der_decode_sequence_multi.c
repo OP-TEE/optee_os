@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 #include <stdarg.h>
 
@@ -27,7 +20,7 @@
   @param flags    c.f. enum ltc_der_seq
   @return CRYPT_OK on success
 */
-static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen, va_list a1, va_list a2, unsigned int flags)
+static int s_der_decode_sequence_va(const unsigned char *in, unsigned long inlen, va_list a1, va_list a2, unsigned int flags)
 {
    int           err;
    ltc_asn1_type type;
@@ -41,14 +34,15 @@ static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen,
    x = 0;
    for (;;) {
        type = (ltc_asn1_type)va_arg(a1, int);
-       size = va_arg(a1, unsigned long);
-       data = va_arg(a1, void*);
-       LTC_UNUSED_PARAM(size);
-       LTC_UNUSED_PARAM(data);
 
        if (type == LTC_ASN1_EOL) {
           break;
        }
+
+       size = va_arg(a1, unsigned long);
+       data = va_arg(a1, void*);
+       LTC_UNUSED_PARAM(size);
+       LTC_UNUSED_PARAM(data);
 
        switch (type) {
            case LTC_ASN1_BOOLEAN:
@@ -151,7 +145,7 @@ int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...)
    va_start(a1, inlen);
    va_start(a2, inlen);
 
-   err = _der_decode_sequence_va(in, inlen, a1, a2, LTC_DER_SEQ_SEQUENCE | LTC_DER_SEQ_RELAXED);
+   err = s_der_decode_sequence_va(in, inlen, a1, a2, LTC_DER_SEQ_SEQUENCE | LTC_DER_SEQ_RELAXED);
 
    va_end(a2);
    va_end(a1);
@@ -177,7 +171,7 @@ int der_decode_sequence_multi_ex(const unsigned char *in, unsigned long inlen, u
    va_start(a1, flags);
    va_start(a2, flags);
 
-   err = _der_decode_sequence_va(in, inlen, a1, a2, flags);
+   err = s_der_decode_sequence_va(in, inlen, a1, a2, flags);
 
    va_end(a2);
    va_end(a1);
@@ -187,7 +181,3 @@ int der_decode_sequence_multi_ex(const unsigned char *in, unsigned long inlen, u
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

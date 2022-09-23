@@ -1,12 +1,5 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* ---- LTC_BASE64 Routines ---- */
 #ifdef LTC_BASE64
@@ -60,6 +53,13 @@ int base16_decode(const          char *in,  unsigned long  inlen,
                         unsigned char *out, unsigned long *outlen);
 #endif
 
+#ifdef LTC_BCRYPT
+int bcrypt_pbkdf_openbsd(const          void *secret, unsigned long secret_len,
+                         const unsigned char *salt,   unsigned long salt_len,
+                               unsigned int  rounds,            int hash_idx,
+                               unsigned char *out,    unsigned long *outlen);
+#endif
+
 /* ===> LTC_HKDF -- RFC5869 HMAC-based Key Derivation Function <=== */
 #ifdef LTC_HKDF
 
@@ -93,7 +93,7 @@ const char *error_to_string(int err);
 extern const char *crypt_build_settings;
 
 /* ---- HMM ---- */
-int crypt_fsa(void *mp, ...);
+int crypt_fsa(void *mp, ...) LTC_NULL_TERMINATED;
 
 /* ---- Dynamic language support ---- */
 int crypt_get_constant(const char* namein, int *valueout);
@@ -103,13 +103,13 @@ int crypt_get_size(const char* namein, unsigned int *sizeout);
 int crypt_list_all_sizes(char *names_list, unsigned int *names_list_size);
 
 #ifdef LTM_DESC
-LTC_DEPRECATED void init_LTM(void);
+LTC_DEPRECATED(crypt_mp_init) void init_LTM(void);
 #endif
 #ifdef TFM_DESC
-LTC_DEPRECATED void init_TFM(void);
+LTC_DEPRECATED(crypt_mp_init) void init_TFM(void);
 #endif
 #ifdef GMP_DESC
-LTC_DEPRECATED void init_GMP(void);
+LTC_DEPRECATED(crypt_mp_init) void init_GMP(void);
 #endif
 int crypt_mp_init(const char* mpi);
 
@@ -146,6 +146,10 @@ enum padding_type {
    LTC_PAD_ISO_10126    = 0x1000U,
 #endif
    LTC_PAD_ANSI_X923    = 0x2000U,
+   LTC_PAD_SSH          = 0x3000U,
+   /* The following padding modes don't contain the padding
+    * length as last byte of the padding.
+    */
    LTC_PAD_ONE_AND_ZERO = 0x8000U,
    LTC_PAD_ZERO         = 0x9000U,
    LTC_PAD_ZERO_ALWAYS  = 0xA000U,
@@ -157,6 +161,7 @@ int padding_depad(const unsigned char *data, unsigned long *length, unsigned lon
 
 #ifdef LTC_SSH
 typedef enum ssh_data_type_ {
+   LTC_SSHDATA_EOL,
    LTC_SSHDATA_BYTE,
    LTC_SSHDATA_BOOLEAN,
    LTC_SSHDATA_UINT32,
@@ -164,16 +169,11 @@ typedef enum ssh_data_type_ {
    LTC_SSHDATA_STRING,
    LTC_SSHDATA_MPINT,
    LTC_SSHDATA_NAMELIST,
-   LTC_SSHDATA_EOL
 } ssh_data_type;
 
 /* VA list handy helpers with tuples of <type, data> */
-int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...);
-int ssh_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...);
+int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...) LTC_NULL_TERMINATED;
+int ssh_decode_sequence_multi(const unsigned char *in, unsigned long *inlen, ...) LTC_NULL_TERMINATED;
 #endif /* LTC_SSH */
 
 int compare_testvector(const void* is, const unsigned long is_len, const void* should, const unsigned long should_len, const char* what, int which);
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

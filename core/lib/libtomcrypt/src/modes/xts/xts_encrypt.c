@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -15,7 +8,7 @@
 
 #ifdef LTC_XTS_MODE
 
-static int _tweak_crypt(const unsigned char *P, unsigned char *C, unsigned char *T, const symmetric_xts *xts)
+static int s_tweak_crypt(const unsigned char *P, unsigned char *C, unsigned char *T, const symmetric_xts *xts)
 {
    unsigned long x;
    int err;
@@ -112,7 +105,7 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
       }
 
       for (i = 0; i < lim; i++) {
-         if ((err = _tweak_crypt(pt, ct, T, xts)) != CRYPT_OK) {
+         if ((err = s_tweak_crypt(pt, ct, T, xts)) != CRYPT_OK) {
             return err;
          }
          ct += 16;
@@ -123,7 +116,7 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
    /* if ptlen not divide 16 then */
    if (mo > 0) {
       /* CC = tweak encrypt block m-1 */
-      if ((err = _tweak_crypt(pt, CC, T, xts)) != CRYPT_OK) {
+      if ((err = s_tweak_crypt(pt, CC, T, xts)) != CRYPT_OK) {
          return err;
       }
 
@@ -138,7 +131,7 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
       }
 
       /* Cm-1 = Tweak encrypt PP */
-      if ((err = _tweak_crypt(PP, ct, T, xts)) != CRYPT_OK) {
+      if ((err = s_tweak_crypt(PP, ct, T, xts)) != CRYPT_OK) {
          return err;
       }
    }
@@ -152,7 +145,3 @@ int xts_encrypt(const unsigned char *pt, unsigned long ptlen, unsigned char *ct,
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -102,7 +102,7 @@ TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
 	void *r, *s;
 	dsa_key ltc_key = {
 		.type = PK_PRIVATE,
-		.qord = mp_unsigned_bin_size(key->g),
+		.qord = mp_unsigned_bin_size(key->q),
 		.g = key->g,
 		.p = key->p,
 		.q = key->q,
@@ -170,7 +170,7 @@ TEE_Result crypto_acipher_dsa_verify(uint32_t algo, struct dsa_public_key *key,
 	void *r, *s;
 	dsa_key ltc_key = {
 		.type = PK_PUBLIC,
-		.qord = mp_unsigned_bin_size(key->g),
+		.qord = mp_unsigned_bin_size(key->q),
 		.g = key->g,
 		.p = key->p,
 		.q = key->q,

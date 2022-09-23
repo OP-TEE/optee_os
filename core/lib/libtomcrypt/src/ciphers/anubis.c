@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
   @file anubis.c
@@ -883,7 +876,7 @@ static const ulong32 rc[] = {
     @return CRYPT_OK if successful
  */
 #ifdef LTC_CLEAN_STACK
-static int _anubis_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
+static int s_anubis_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 #else
 int  anubis_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 #endif
@@ -1020,7 +1013,7 @@ int  anubis_setup(const unsigned char *key, int keylen, int num_rounds, symmetri
 int  anubis_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 {
   int err;
-  err = _anubis_setup(key, keylen, num_rounds, skey);
+  err = s_anubis_setup(key, keylen, num_rounds, skey);
   burn_stack(sizeof(int) * 5 + sizeof(ulong32) * (MAX_N + MAX_N + 5));
   return err;
 }
@@ -1132,6 +1125,11 @@ int anubis_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetr
    LTC_ARGCHK(pt   != NULL);
    LTC_ARGCHK(ct   != NULL);
    LTC_ARGCHK(skey != NULL);
+
+   if (skey->anubis.R < 12 || skey->anubis.R > 18) {
+       return CRYPT_INVALID_ROUNDS;
+   }
+
    anubis_crypt(pt, ct, skey->anubis.roundKeyEnc, skey->anubis.R);
    return CRYPT_OK;
 }
@@ -1148,6 +1146,11 @@ int anubis_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetr
    LTC_ARGCHK(pt   != NULL);
    LTC_ARGCHK(ct   != NULL);
    LTC_ARGCHK(skey != NULL);
+
+   if (skey->anubis.R < 12 || skey->anubis.R > 18) {
+       return CRYPT_INVALID_ROUNDS;
+   }
+
    anubis_crypt(ct, pt, skey->anubis.roundKeyDec, skey->anubis.R);
    return CRYPT_OK;
 }
@@ -1545,7 +1548,3 @@ int anubis_keysize(int *keysize)
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

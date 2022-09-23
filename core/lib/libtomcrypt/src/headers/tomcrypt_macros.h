@@ -1,12 +1,5 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* ---- HELPER MACROS ---- */
 #ifdef ENDIAN_NEUTRAL
@@ -61,8 +54,8 @@ do { x = (((ulong64)((y)[0] & 255))<<56)|(((ulong64)((y)[1] & 255))<<48) | \
 #ifdef LTC_HAVE_BSWAP_BUILTIN
 
 #define STORE32H(x, y)                          \
-do { ulong32 __t = __builtin_bswap32 ((x));     \
-      XMEMCPY ((y), &__t, 4); } while(0)
+do { ulong32 ttt = __builtin_bswap32 ((x));     \
+      XMEMCPY ((y), &ttt, 4); } while(0)
 
 #define LOAD32H(x, y)                           \
 do { XMEMCPY (&(x), (y), 4);                    \
@@ -75,13 +68,13 @@ asm __volatile__ (               \
    "bswapl %0     \n\t"          \
    "movl   %0,(%1)\n\t"          \
    "bswapl %0     \n\t"          \
-      ::"r"(x), "r"(y));
+      ::"r"(x), "r"(y): "memory");
 
 #define LOAD32H(x, y)          \
 asm __volatile__ (             \
    "movl (%1),%0\n\t"          \
    "bswapl %0\n\t"             \
-   :"=r"(x): "r"(y));
+   :"=r"(x): "r"(y): "memory");
 
 #else
 
@@ -100,8 +93,8 @@ asm __volatile__ (             \
 #ifdef LTC_HAVE_BSWAP_BUILTIN
 
 #define STORE64H(x, y)                          \
-do { ulong64 __t = __builtin_bswap64 ((x));     \
-      XMEMCPY ((y), &__t, 8); } while(0)
+do { ulong64 ttt = __builtin_bswap64 ((x));     \
+      XMEMCPY ((y), &ttt, 8); } while(0)
 
 #define LOAD64H(x, y)                           \
 do { XMEMCPY (&(x), (y), 8);                    \
@@ -142,7 +135,7 @@ do { x = (((ulong64)((y)[0] & 255))<<56)|(((ulong64)((y)[1] & 255))<<48) | \
 #ifdef ENDIAN_32BITWORD
 
 #define STORE32L(x, y)        \
-  do { ulong32  __t = (x); XMEMCPY(y, &__t, 4); } while(0)
+  do { ulong32  ttt = (x); XMEMCPY(y, &ttt, 4); } while(0)
 
 #define LOAD32L(x, y)         \
   do { XMEMCPY(&(x), y, 4); } while(0)
@@ -162,13 +155,13 @@ do { x = (((ulong64)((y)[0] & 255))<<56)|(((ulong64)((y)[1] & 255))<<48) | \
 #else /* 64-bit words then  */
 
 #define STORE32L(x, y)        \
-  do { ulong32 __t = (x); XMEMCPY(y, &__t, 4); } while(0)
+  do { ulong32 ttt = (x); XMEMCPY(y, &ttt, 4); } while(0)
 
 #define LOAD32L(x, y)         \
   do { XMEMCPY(&(x), y, 4); x &= 0xFFFFFFFF; } while(0)
 
 #define STORE64L(x, y)        \
-  do { ulong64 __t = (x); XMEMCPY(y, &__t, 8); } while(0)
+  do { ulong64 ttt = (x); XMEMCPY(y, &ttt, 8); } while(0)
 
 #define LOAD64L(x, y)         \
   do { XMEMCPY(&(x), y, 8); } while(0)
@@ -202,7 +195,7 @@ do { x = (((ulong64)((y)[7] & 255))<<56)|(((ulong64)((y)[6] & 255))<<48) | \
 #ifdef ENDIAN_32BITWORD
 
 #define STORE32H(x, y)        \
-  do { ulong32 __t = (x); XMEMCPY(y, &__t, 4); } while(0)
+  do { ulong32 ttt = (x); XMEMCPY(y, &ttt, 4); } while(0)
 
 #define LOAD32H(x, y)         \
   do { XMEMCPY(&(x), y, 4); } while(0)
@@ -222,13 +215,13 @@ do { x = (((ulong64)((y)[7] & 255))<<56)|(((ulong64)((y)[6] & 255))<<48) | \
 #else /* 64-bit words then  */
 
 #define STORE32H(x, y)        \
-  do { ulong32 __t = (x); XMEMCPY(y, &__t, 4); } while(0)
+  do { ulong32 ttt = (x); XMEMCPY(y, &ttt, 4); } while(0)
 
 #define LOAD32H(x, y)         \
   do { XMEMCPY(&(x), y, 4); x &= 0xFFFFFFFF; } while(0)
 
 #define STORE64H(x, y)        \
-  do { ulong64 __t = (x); XMEMCPY(y, &__t, 8); } while(0)
+  do { ulong64 ttt = (x); XMEMCPY(y, &ttt, 8); } while(0)
 
 #define LOAD64H(x, y)         \
   do { XMEMCPY(&(x), y, 8); } while(0)
@@ -242,15 +235,23 @@ do { x = (((ulong64)((y)[7] & 255))<<56)|(((ulong64)((y)[6] & 255))<<48) | \
 
 /* 32-bit Rotates */
 #if defined(_MSC_VER)
-#define LTC_ROx_ASM
+#define LTC_ROx_BUILTIN
 
 /* instrinsic rotate */
 #include <stdlib.h>
-#pragma intrinsic(_lrotr,_lrotl)
-#define ROR(x,n) _lrotr(x,n)
-#define ROL(x,n) _lrotl(x,n)
-#define RORc(x,n) _lrotr(x,n)
-#define ROLc(x,n) _lrotl(x,n)
+#pragma intrinsic(_rotr,_rotl)
+#define ROR(x,n) _rotr(x,n)
+#define ROL(x,n) _rotl(x,n)
+#define RORc(x,n) ROR(x,n)
+#define ROLc(x,n) ROL(x,n)
+
+#elif defined(LTC_HAVE_ROTATE_BUILTIN)
+#define LTC_ROx_BUILTIN
+
+#define ROR(x,n) __builtin_rotateright32(x,n)
+#define ROL(x,n) __builtin_rotateleft32(x,n)
+#define ROLc(x,n) ROL(x,n)
+#define RORc(x,n) ROR(x,n)
 
 #elif !defined(__STRICT_ANSI__) && defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__)) && !defined(INTEL_CC) && !defined(LTC_NO_ASM)
 #define LTC_ROx_ASM
@@ -274,20 +275,20 @@ static inline ulong32 ROR(ulong32 word, int i)
 #ifndef LTC_NO_ROLC
 
 #define ROLc(word,i) ({ \
-   ulong32 __ROLc_tmp = (word); \
+   ulong32 ROLc_tmp = (word); \
    __asm__ ("roll %2, %0" : \
-            "=r" (__ROLc_tmp) : \
-            "0" (__ROLc_tmp), \
+            "=r" (ROLc_tmp) : \
+            "0" (ROLc_tmp), \
             "I" (i)); \
-            __ROLc_tmp; \
+            ROLc_tmp; \
    })
 #define RORc(word,i) ({ \
-   ulong32 __RORc_tmp = (word); \
+   ulong32 RORc_tmp = (word); \
    __asm__ ("rorl %2, %0" : \
-            "=r" (__RORc_tmp) : \
-            "0" (__RORc_tmp), \
+            "=r" (RORc_tmp) : \
+            "0" (RORc_tmp), \
             "I" (i)); \
-            __RORc_tmp; \
+            RORc_tmp; \
    })
 
 #else
@@ -354,7 +355,24 @@ static inline ulong32 RORc(ulong32 word, const int i)
 
 
 /* 64-bit Rotates */
-#if !defined(__STRICT_ANSI__) && defined(__GNUC__) && defined(__x86_64__) && !defined(_WIN64) && !defined(LTC_NO_ASM)
+#if defined(_MSC_VER)
+
+/* instrinsic rotate */
+#include <stdlib.h>
+#pragma intrinsic(_rotr64,_rotr64)
+#define ROR64(x,n) _rotr64(x,n)
+#define ROL64(x,n) _rotl64(x,n)
+#define ROR64c(x,n) ROR64(x,n)
+#define ROL64c(x,n) ROL64(x,n)
+
+#elif defined(LTC_HAVE_ROTATE_BUILTIN)
+
+#define ROR64(x,n) __builtin_rotateright64(x,n)
+#define ROL64(x,n) __builtin_rotateleft64(x,n)
+#define ROR64c(x,n) ROR64(x,n)
+#define ROL64c(x,n) ROL64(x,n)
+
+#elif !defined(__STRICT_ANSI__) && defined(__GNUC__) && defined(__x86_64__) && !defined(INTEL_CC) && !defined(LTC_NO_ASM)
 
 static inline ulong64 ROL64(ulong64 word, int i)
 {
@@ -375,20 +393,20 @@ static inline ulong64 ROR64(ulong64 word, int i)
 #ifndef LTC_NO_ROLC
 
 #define ROL64c(word,i) ({ \
-   ulong64 __ROL64c_tmp = word; \
+   ulong64 ROL64c_tmp = word; \
    __asm__ ("rolq %2, %0" : \
-            "=r" (__ROL64c_tmp) : \
-            "0" (__ROL64c_tmp), \
+            "=r" (ROL64c_tmp) : \
+            "0" (ROL64c_tmp), \
             "J" (i)); \
-            __ROL64c_tmp; \
+            ROL64c_tmp; \
    })
 #define ROR64c(word,i) ({ \
-   ulong64 __ROR64c_tmp = word; \
+   ulong64 ROR64c_tmp = word; \
    __asm__ ("rorq %2, %0" : \
-            "=r" (__ROR64c_tmp) : \
-            "0" (__ROR64c_tmp), \
+            "=r" (ROR64c_tmp) : \
+            "0" (ROR64c_tmp), \
             "J" (i)); \
-            __ROR64c_tmp; \
+            ROR64c_tmp; \
    })
 
 #else /* LTC_NO_ROLC */
@@ -434,7 +452,3 @@ static inline ulong64 ROR64(ulong64 word, int i)
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define snprintf _snprintf
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 #if defined(LTC_MDSA) || defined(LTC_MECC)
@@ -26,7 +19,7 @@ int rand_bn_bits(void *N, int bits, prng_state *prng, int wprng)
    if ((res = prng_is_valid(wprng)) != CRYPT_OK) return res;
 
    bytes = (bits+7) >> 3;
-   mask = 0xff << (8 - bits % 8);
+   mask = 0xff >> (bits % 8 == 0 ? 0 : 8 - bits % 8);
 
    /* allocate buffer */
    if ((buf = XCALLOC(1, bytes)) == NULL) return CRYPT_MEM;
@@ -37,7 +30,7 @@ int rand_bn_bits(void *N, int bits, prng_state *prng, int wprng)
       goto cleanup;
    }
    /* mask bits */
-   buf[0] &= ~mask;
+   buf[0] &= mask;
    /* load value */
    if ((res = mp_read_unsigned_bin(N, buf, bytes)) != CRYPT_OK) goto cleanup;
 
@@ -70,7 +63,3 @@ int rand_bn_upto(void *N, void *limit, prng_state *prng, int wprng)
    return CRYPT_OK;
 }
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

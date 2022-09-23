@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -65,9 +58,9 @@ static const ulong32 K[64] = {
 
 /* compress 512-bits */
 #ifdef LTC_CLEAN_STACK
-static int _sha256_compress(hash_state * md, const unsigned char *buf)
+static int ss_sha256_compress(hash_state * md, const unsigned char *buf)
 #else
-static int  sha256_compress(hash_state * md, const unsigned char *buf)
+static int s_sha256_compress(hash_state * md, const unsigned char *buf)
 #endif
 {
     ulong32 S[8], W[64], t0, t1;
@@ -175,10 +168,8 @@ static int  sha256_compress(hash_state * md, const unsigned char *buf)
     RND(S[3],S[4],S[5],S[6],S[7],S[0],S[1],S[2],61,0xa4506ceb);
     RND(S[2],S[3],S[4],S[5],S[6],S[7],S[0],S[1],62,0xbef9a3f7);
     RND(S[1],S[2],S[3],S[4],S[5],S[6],S[7],S[0],63,0xc67178f2);
-
-#undef RND
-
 #endif
+#undef RND
 
     /* feedback */
     for (i = 0; i < 8; i++) {
@@ -188,10 +179,10 @@ static int  sha256_compress(hash_state * md, const unsigned char *buf)
 }
 
 #ifdef LTC_CLEAN_STACK
-static int sha256_compress(hash_state * md, const unsigned char *buf)
+static int s_sha256_compress(hash_state * md, const unsigned char *buf)
 {
     int err;
-    err = _sha256_compress(md, buf);
+    err = ss_sha256_compress(md, buf);
     burn_stack(sizeof(ulong32) * 74);
     return err;
 }
@@ -226,7 +217,7 @@ int sha256_init(hash_state * md)
    @param inlen  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-HASH_PROCESS(sha256_process, sha256_compress, sha256, 64)
+HASH_PROCESS(sha256_process,s_sha256_compress, sha256, 64)
 
 /**
    Terminate the hash to get the digest
@@ -260,7 +251,7 @@ int sha256_done(hash_state * md, unsigned char *out)
         while (md->sha256.curlen < 64) {
             md->sha256.buf[md->sha256.curlen++] = (unsigned char)0;
         }
-        sha256_compress(md, md->sha256.buf);
+        s_sha256_compress(md, md->sha256.buf);
         md->sha256.curlen = 0;
     }
 
@@ -271,7 +262,7 @@ int sha256_done(hash_state * md, unsigned char *out)
 
     /* store length */
     STORE64H(md->sha256.length, md->sha256.buf+56);
-    sha256_compress(md, md->sha256.buf);
+    s_sha256_compress(md, md->sha256.buf);
 
     /* copy output */
     for (i = 0; i < 8; i++) {
@@ -316,7 +307,7 @@ int  sha256_test(void)
 
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
       sha256_init(&md);
-      sha256_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      sha256_process(&md, (unsigned char*)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       sha256_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "SHA256", i)) {
          return CRYPT_FAIL_TESTVECTOR;
@@ -329,7 +320,3 @@ int  sha256_test(void)
 #endif
 
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */
