@@ -22,6 +22,7 @@
 #ifndef __CRYPTO_CRYPTO_H
 #define __CRYPTO_CRYPTO_H
 
+#include <tee/tee_obj.h>
 #include <tee_api_types.h>
 
 TEE_Result crypto_init(void);
@@ -82,7 +83,7 @@ void crypto_authenc_free_ctx(void *ctx);
 void crypto_authenc_copy_state(void *dst_ctx, void *src_ctx);
 
 /* Informs crypto that the data in the buffer will be removed from storage */
-void crypto_storage_obj_del(uint8_t *data, size_t len);
+TEE_Result crypto_storage_obj_del(struct tee_obj *obj);
 
 /* Implementation-defined big numbers */
 

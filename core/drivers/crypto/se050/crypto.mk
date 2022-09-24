@@ -13,6 +13,10 @@ CFG_CORE_SE05X_DISPLAY_INFO ?= y
 CFG_CORE_SE05X_SCP03_EARLY ?= y
 # Deletes all persistent storage from the SE050 at boot
 CFG_CORE_SE05X_INIT_NVM ?= n
+# Prevents the deletion of the secure storage object holding a reference to a
+# Secure Element (SE) Non Volatile Memory object unless there is explicit
+# confirmation from the SE that the NVM object has been removed.
+CFG_CORE_SE05X_BLOCK_OBJ_DEL_ON_ERROR ?= n
 
 # I2C bus baudrate (depends on SoC)
 CFG_CORE_SE05X_BAUDRATE ?= 3400000
