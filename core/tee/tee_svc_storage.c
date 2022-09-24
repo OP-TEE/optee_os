@@ -431,8 +431,6 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
-	uint8_t *data = NULL;
-	size_t len = 0;
 
 	res = tee_obj_get(utc, uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -445,16 +443,10 @@ TEE_Result syscall_storage_obj_del(unsigned long obj)
 		return TEE_ERROR_BAD_STATE;
 
 	if (IS_ENABLED(CFG_NXP_SE05X)) {
-		len = o->info.dataSize;
-		data = calloc(1, len);
-		if (!data)
-			return TEE_ERROR_OUT_OF_MEMORY;
-
-		res = o->pobj->fops->read(o->fh, o->info.dataPosition,
-					  data, &len);
-		if (res == TEE_SUCCESS)
-			crypto_storage_obj_del(data, len);
-		free(data);
+		/* Cryptographic layer house-keeping */
+		res = crypto_storage_obj_del(o);
+		if (res)
+			return res;
 	}
 
 	res = o->pobj->fops->remove(o->pobj);

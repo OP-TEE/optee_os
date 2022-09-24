@@ -883,6 +883,7 @@ TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_keypair *key
 }
 #endif
 
-__weak void crypto_storage_obj_del(uint8_t *data __unused, size_t len __unused)
+__weak TEE_Result crypto_storage_obj_del(struct tee_obj *obj __unused)
 {
+	return TEE_ERROR_NOT_IMPLEMENTED;
 }
