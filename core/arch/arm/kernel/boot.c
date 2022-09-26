@@ -627,6 +627,9 @@ void *get_embedded_dt(void)
 #if defined(CFG_DT)
 void *get_external_dt(void)
 {
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
 	assert(cpu_mmu_enabled());
 	return external_dt.blob;
 }
@@ -634,6 +637,9 @@ void *get_external_dt(void)
 static TEE_Result release_external_dt(void)
 {
 	int ret = 0;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return TEE_SUCCESS;
 
 	if (!external_dt.blob)
 		return TEE_SUCCESS;
@@ -1092,6 +1098,9 @@ static void init_external_dt(unsigned long phys_dt)
 	void *fdt;
 	int ret;
 
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
 	if (!phys_dt) {
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
@@ -1136,6 +1145,9 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
 
 	if (!dt->blob)
 		return;

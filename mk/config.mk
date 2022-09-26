@@ -427,6 +427,10 @@ CFG_STACK_TMP_EXTRA ?= 0
 # the address of a DTB in register X2/R2 provided by the early boot stage
 # or value 0 if boot stage provides no DTB.
 #
+# When CFG_EXTERNAL_DT is enabled, the external device tree ABI is implemented
+# and the external device tree is expected to be used/modified. Its value
+# defaults to CFG_DT.
+#
 # When CFG_MAP_EXT_DT_SECURE is enabled the external device tree is expected to
 # be in the secure memory.
 #
@@ -442,6 +446,7 @@ $(call force,CFG_DT,y)
 endif
 CFG_EMBED_DTB ?= n
 CFG_DT ?= n
+CFG_EXTERNAL_DT ?= $(CFG_DT)
 CFG_MAP_EXT_DT_SECURE ?= n
 ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
 $(call force,CFG_DT,y)
