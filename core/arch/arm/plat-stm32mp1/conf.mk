@@ -56,6 +56,9 @@ ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
 $(call force,CFG_STM32MP15,y)
 endif
 
+# Default do not access external DT passed to non-secure boot stage
+CFG_EXTERNAL_DT ?= n
+
 # CFG_STM32MP1x switches are exclusive.
 # - CFG_STM32MP15 is enabled for STM32MP15x-* targets (default)
 # - CFG_STM32MP13 is enabled for STM32MP13x-* targets
