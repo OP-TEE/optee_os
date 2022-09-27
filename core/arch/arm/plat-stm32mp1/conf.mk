@@ -261,6 +261,9 @@ CFG_WITH_NSEC_UARTS ?= y
 # UART instance used for early console (0 disables early console)
 CFG_STM32_EARLY_CONSOLE_UART ?= 4
 
+# Disable the HUK by default as it requires a product specific configuration
+CFG_STM32MP15_HUK ?= n
+
 # Sanity on choice config switches
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
 $(error CFG_STM32MP13_CLK and CFG_STM32MP15_CLK are exclusive)
