@@ -34,6 +34,7 @@ bool processing_is_tee_asymm(uint32_t proc_id)
 	case PKCS11_CKM_SHA384_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA512_RSA_PKCS_PSS:
 	/* EC flavors */
+	case PKCS11_CKM_EDDSA:
 	case PKCS11_CKM_ECDSA:
 	case PKCS11_CKM_ECDH1_DERIVE:
 	case PKCS11_CKM_ECDSA_SHA1:
@@ -92,6 +93,7 @@ pkcs2tee_algorithm(uint32_t *tee_id, uint32_t *tee_hash_id,
 		{ PKCS11_CKM_ECDSA_SHA384, 1, TEE_ALG_SHA384 },
 		{ PKCS11_CKM_ECDSA_SHA512, 1, TEE_ALG_SHA512 },
 		{ PKCS11_CKM_ECDH1_DERIVE, 1, 0 },
+		{ PKCS11_CKM_EDDSA, TEE_ALG_ED25519, 0 },
 	};
 	size_t n = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
@@ -183,6 +185,12 @@ static enum pkcs11_rc pkcs2tee_key_type(uint32_t *tee_type,
 			*tee_type = TEE_TYPE_RSA_KEYPAIR;
 		else
 			*tee_type = TEE_TYPE_RSA_PUBLIC_KEY;
+		break;
+	case PKCS11_CKK_EC_EDWARDS:
+		if (class == PKCS11_CKO_PRIVATE_KEY)
+			*tee_type = TEE_TYPE_ED25519_KEYPAIR;
+		else
+			*tee_type = TEE_TYPE_ED25519_PUBLIC_KEY;
 		break;
 	default:
 		TEE_Panic(type);
@@ -315,6 +323,10 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 	case PKCS11_CKK_EC:
 		rc = load_tee_ec_key_attrs(&tee_attrs, &tee_attrs_count, obj);
 		break;
+	case PKCS11_CKK_EC_EDWARDS:
+		rc = load_tee_eddsa_key_attrs(&tee_attrs, &tee_attrs_count,
+					      obj);
+		break;
 	default:
 		break;
 	}
@@ -381,6 +393,9 @@ init_tee_operation(struct pkcs11_session *session,
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 		rc = pkcs2tee_proc_params_rsa_oaep(proc, proc_params);
 		break;
+	case PKCS11_CKM_EDDSA:
+		rc = pkcs2tee_proc_params_eddsa(proc, proc_params);
+		break;
 	default:
 		break;
 	}
@@ -438,6 +453,7 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 	struct active_processing *proc = session->processing;
 	struct rsa_oaep_processing_ctx *rsa_oaep_ctx = NULL;
 	struct rsa_pss_processing_ctx *rsa_pss_ctx = NULL;
+	struct eddsa_processing_ctx *eddsa_ctx = NULL;
 	size_t sz = 0;
 
 	if (TEE_PARAM_TYPE_GET(ptypes, 1) == TEE_PARAM_TYPE_MEMREF_INPUT) {
@@ -491,6 +507,29 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 				       TEE_ATTR_RSA_PSS_SALT_LENGTH,
 				       rsa_pss_ctx->salt_len, 0);
 		tee_attrs_count++;
+		break;
+	case PKCS11_CKM_EDDSA:
+		eddsa_ctx = proc->extra_ctx;
+
+		tee_attrs = TEE_Malloc(2 * sizeof(TEE_Attribute),
+				       TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!tee_attrs) {
+			rc = PKCS11_CKR_DEVICE_MEMORY;
+			goto out;
+		}
+
+		if (eddsa_ctx->flag) {
+			TEE_InitValueAttribute(&tee_attrs[tee_attrs_count],
+					       TEE_ATTR_EDDSA_PREHASH, 0, 0);
+			tee_attrs_count++;
+		}
+
+		if (eddsa_ctx->ctx_len > 0) {
+			TEE_InitRefAttribute(&tee_attrs[tee_attrs_count],
+					     TEE_ATTR_EDDSA_CTX, eddsa_ctx->ctx,
+					     eddsa_ctx->ctx_len);
+			tee_attrs_count++;
+		}
 		break;
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 		rsa_oaep_ctx = proc->extra_ctx;
@@ -672,6 +711,7 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 	/* Next perform actual signing operation */
 	switch (proc->mecha_type) {
 	case PKCS11_CKM_ECDSA:
+	case PKCS11_CKM_EDDSA:
 	case PKCS11_CKM_RSA_PKCS:
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 	case PKCS11_CKM_RSA_PKCS_PSS:

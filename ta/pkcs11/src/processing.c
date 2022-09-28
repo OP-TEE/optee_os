@@ -146,6 +146,7 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 
 		return a_size * 8;
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 		if (get_attribute_ptr(attrs, PKCS11_CKA_EC_PARAMS,
 				      &a_ptr, &a_size) || !a_ptr)
 			return 0;
@@ -503,6 +504,9 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 
 	/* Generate key pair */
 	switch (proc_params->id) {
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		rc = generate_eddsa_keys(proc_params, &pub_head, &priv_head);
+		break;
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		rc = generate_ec_keys(proc_params, &pub_head, &priv_head);
 		break;

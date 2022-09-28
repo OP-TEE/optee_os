@@ -336,6 +336,8 @@ static const struct any_id __maybe_unused string_key_type[] = {
 	PKCS11_ID(PKCS11_CKK_SHA384_HMAC),
 	PKCS11_ID(PKCS11_CKK_SHA512_HMAC),
 	PKCS11_ID(PKCS11_CKK_EC),
+	PKCS11_ID(PKCS11_CKK_EC_EDWARDS),
+	PKCS11_ID(PKCS11_CKK_EDDSA),
 	PKCS11_ID(PKCS11_CKK_RSA),
 	PKCS11_ID(PKCS11_CKK_UNDEFINED_ID)
 };
@@ -495,6 +497,7 @@ bool key_type_is_asymm_key(uint32_t id)
 
 	switch (key_type) {
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 	case PKCS11_CKK_RSA:
 		return true;
 	default:
