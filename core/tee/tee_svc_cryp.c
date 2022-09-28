@@ -473,6 +473,13 @@ const struct tee_cryp_obj_type_attrs tee_cryp_obj_ed25519_keypair_attrs[] = {
 	.ops_index = ATTR_OPS_INDEX_25519,
 	RAW_DATA(struct ed25519_keypair, pub)
 	},
+
+	{
+	.attr_id = TEE_ATTR_ECC_CURVE,
+	.flags = TEE_TYPE_ATTR_SIZE_INDICATOR | TEE_TYPE_ATTR_GEN_KEY_REQ,
+	.ops_index = ATTR_OPS_INDEX_VALUE,
+	RAW_DATA(struct ed25519_keypair, curve)
+	},
 };
 
 struct tee_cryp_obj_type_props {
@@ -1765,6 +1772,7 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 		*key_size = 521;
 		break;
 	case TEE_ECC_CURVE_SM2:
+	case TEE_ECC_CURVE_25519:
 		*key_size = 256;
 		break;
 	default:

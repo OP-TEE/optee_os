@@ -175,6 +175,7 @@ struct x25519_keypair {
 struct ed25519_keypair {
 	uint8_t *priv;
 	uint8_t *pub;
+	uint32_t curve;
 };
 
 /*

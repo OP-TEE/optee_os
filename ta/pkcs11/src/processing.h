@@ -45,6 +45,19 @@ struct rsa_oaep_processing_ctx {
 	uint8_t source_data[];
 };
 
+/**
+ * EDDSA processing context
+ *
+ * @flag: Prehash flag
+ * @ctx_len: Length of the context data
+ * @ctx: Context data
+ */
+struct eddsa_processing_ctx {
+	uint32_t flag;
+	uint32_t ctx_len;
+	uint8_t ctx[];
+};
+
 /*
  * Entry points from PKCS11 TA invocation commands
  */
@@ -152,6 +165,10 @@ enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
 				     size_t *tee_count,
 				     struct pkcs11_object *obj);
 
+enum pkcs11_rc load_tee_eddsa_key_attrs(TEE_Attribute **tee_attrs,
+					size_t *tee_count,
+					struct pkcs11_object *obj);
+
 size_t ec_params2tee_keysize(void *attr, size_t size);
 
 uint32_t ec_params2tee_curve(void *attr, size_t size);
@@ -163,6 +180,10 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 				struct obj_attrs **pub_head,
 				struct obj_attrs **priv_head);
+
+enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **pub_head,
+				   struct obj_attrs **priv_head);
 
 size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 
@@ -186,6 +207,10 @@ enum pkcs11_rc pkcs2tee_algo_rsa_pss(uint32_t *tee_id,
 enum pkcs11_rc
 pkcs2tee_proc_params_rsa_oaep(struct active_processing *proc,
 			      struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc
+pkcs2tee_proc_params_eddsa(struct active_processing *proc,
+			   struct pkcs11_attribute_head *proc_params);
 
 enum pkcs11_rc pkcs2tee_algo_rsa_oaep(uint32_t *tee_id, uint32_t *tee_hash_id,
 				      struct pkcs11_attribute_head *params);

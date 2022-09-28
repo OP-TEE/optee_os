@@ -12,6 +12,7 @@
 
 #include "attributes.h"
 #include "object.h"
+#include "pkcs11_token.h"
 #include "processing.h"
 
 /*
@@ -244,6 +245,22 @@ static const uint8_t secp521r1_oid_der[] = {
 	0x91, 0x38, 0x64, 0x09, 0x02, 0x01, 0x01,
 };
 
+/*
+ * Edwards curves may be specified in two flavours:
+ * - as a PrintableString 'edwards25519' or 'edwards448'
+ * - as an OID, DER encoded ASN.1 Object
+ */
+
+static const uint8_t ed25519_name_der[] = {
+	0x13, 0x0c, 'e', 'd', 'w', 'a', 'r', 'd', 's',
+	'2', '5', '5', '1', '9',
+};
+
+static const uint8_t ed25519_oid_der[] = {
+	0x06, 0x09, 0x2b, 0x06, 0x01, 0x04, 0x01, 0xda,
+	0x47, 0x0f, 0x01,
+};
+
 struct supported_ecc_curve {
 	const uint8_t *oid_der;
 	size_t oid_size;
@@ -273,6 +290,7 @@ static const struct supported_ecc_curve ec_curve_param[] = {
 	ECC_CURVE(TEE_ECC_CURVE_NIST_P256, 256, prime256v1),
 	ECC_CURVE(TEE_ECC_CURVE_NIST_P384, 384, secp384r1),
 	ECC_CURVE(TEE_ECC_CURVE_NIST_P521, 521, secp521r1),
+	ECC_CURVE(TEE_ECC_CURVE_25519, 256, ed25519),
 };
 
 static const struct supported_ecc_curve *get_curve(void *attr, size_t size)
@@ -622,6 +640,193 @@ out:
 		TEE_CloseObject(tee_obj);
 
 	return rc;
+}
+
+enum pkcs11_rc load_tee_eddsa_key_attrs(TEE_Attribute **tee_attrs,
+					size_t *tee_count,
+					struct pkcs11_object *obj)
+{
+	TEE_Attribute *attrs = NULL;
+	size_t count = 0;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+
+	assert(get_key_type(obj->attributes) == PKCS11_CKK_EC_EDWARDS);
+
+	switch (get_class(obj->attributes)) {
+	case PKCS11_CKO_PUBLIC_KEY:
+		attrs = TEE_Malloc(sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ED25519_PUBLIC_VALUE,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (count == 1)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	case PKCS11_CKO_PRIVATE_KEY:
+		attrs = TEE_Malloc(2 * sizeof(TEE_Attribute),
+				   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+		if (!attrs)
+			return PKCS11_CKR_DEVICE_MEMORY;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ED25519_PRIVATE_VALUE,
+				       obj, PKCS11_CKA_VALUE))
+			count++;
+
+		if (pkcs2tee_load_attr(&attrs[count],
+				       TEE_ATTR_ED25519_PUBLIC_VALUE,
+				       obj, PKCS11_CKA_EC_POINT))
+			count++;
+
+		if (count == 2)
+			rc = PKCS11_CKR_OK;
+
+		break;
+
+	default:
+		assert(0);
+		break;
+	}
+
+	if (rc == PKCS11_CKR_OK) {
+		*tee_attrs = attrs;
+		*tee_count = count;
+	} else {
+		TEE_Free(attrs);
+	}
+
+	return rc;
+}
+
+enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **pub_head,
+				   struct obj_attrs **priv_head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+	uint32_t tee_size = 0;
+	uint32_t tee_curve = 0;
+	TEE_ObjectHandle tee_obj = TEE_HANDLE_NULL;
+	TEE_Attribute tee_key_attr[1] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!proc_params || !*pub_head || !*priv_head)
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+	if (remove_empty_attribute(pub_head, PKCS11_CKA_EC_POINT) ||
+	    remove_empty_attribute(priv_head, PKCS11_CKA_VALUE) ||
+	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_PARAMS)) {
+		EMSG("Unexpected attribute(s) found");
+		trace_attributes("public-key", *pub_head);
+		trace_attributes("private-key", *priv_head);
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+	}
+
+	if (get_attribute_ptr(*pub_head, PKCS11_CKA_EC_PARAMS,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No EC_PARAMS attribute found in public key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	tee_size = ec_params2tee_keysize(a_ptr, a_size);
+	if (!tee_size)
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+
+	tee_curve = ec_params2tee_curve(a_ptr, a_size);
+
+	TEE_InitValueAttribute(tee_key_attr, TEE_ATTR_ECC_CURVE, tee_curve, 1);
+
+	res = TEE_AllocateTransientObject(TEE_TYPE_ED25519_KEYPAIR, tee_size,
+					  &tee_obj);
+	if (res) {
+		EMSG("Transient alloc failed with %#"PRIx32, res);
+		return tee2pkcs_error(res);
+	}
+
+	res = TEE_RestrictObjectUsage1(tee_obj, TEE_USAGE_EXTRACTABLE);
+	if (res) {
+		rc = tee2pkcs_error(res);
+		goto out;
+	}
+
+	res = TEE_GenerateKey(tee_obj, tee_size, tee_key_attr, 1);
+	if (res) {
+		rc = tee2pkcs_error(res);
+		goto out;
+	}
+
+	/* Private key needs the same EC_PARAMS as used by the public key */
+	rc = add_attribute(priv_head, PKCS11_CKA_EC_PARAMS, a_ptr, a_size);
+	if (rc)
+		goto out;
+
+	rc = tee2pkcs_add_attribute(priv_head, PKCS11_CKA_VALUE,
+				    tee_obj, TEE_ATTR_ED25519_PRIVATE_VALUE);
+	if (rc)
+		goto out;
+
+	rc = tee2pkcs_add_attribute(priv_head, PKCS11_CKA_EC_POINT,
+				    tee_obj, TEE_ATTR_ED25519_PUBLIC_VALUE);
+	if (rc)
+		goto out;
+
+	rc = tee2pkcs_add_attribute(pub_head, PKCS11_CKA_EC_POINT,
+				    tee_obj, TEE_ATTR_ED25519_PUBLIC_VALUE);
+
+out:
+	if (tee_obj != TEE_HANDLE_NULL)
+		TEE_CloseObject(tee_obj);
+
+	return rc;
+}
+
+enum pkcs11_rc
+pkcs2tee_proc_params_eddsa(struct active_processing *proc,
+			   struct pkcs11_attribute_head *proc_params)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t ctx_len = 0;
+	uint32_t flag = 0;
+	void *ctx_data = NULL;
+	struct serialargs args = { };
+	struct eddsa_processing_ctx *ctx = NULL;
+
+	serialargs_init(&args, proc_params->data, proc_params->size);
+
+	rc = serialargs_get_u32(&args, &flag);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_u32(&args, &ctx_len);
+	if (rc)
+		return rc;
+
+	rc = serialargs_get_ptr(&args, &ctx_data, ctx_len);
+	if (rc)
+		return rc;
+
+	if (serialargs_remaining_bytes(&args))
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	proc->extra_ctx = TEE_Malloc(sizeof(*ctx) + ctx_len,
+				     TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!proc->extra_ctx)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	ctx = proc->extra_ctx;
+	ctx->ctx_len = ctx_len;
+	ctx->flag = flag;
+	TEE_MemMove(ctx->ctx, ctx_data, ctx_len);
+
+	return PKCS11_CKR_OK;
 }
 
 size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
