@@ -30,51 +30,111 @@ def int_parse(str):
 
 
 def get_args():
-    from argparse import ArgumentParser, RawDescriptionHelpFormatter
+    def arg_add_uuid(parser):
+        parser.add_argument(
+            '--uuid', required=True, type=uuid_parse,
+            help='String UUID of the TA')
+
+    def arg_add_key(parser):
+        parser.add_argument(
+            '--key', required=True, help='''
+                Name of signing and verification key file (PEM format) or an
+                Amazon Resource Name (arn:) of an AWS KMS asymmetric key.
+                At least public key for the commands digest, stitch, and
+                verify, else a private key''')
+
+    def arg_add_enc_key(parser):
+        parser.add_argument(
+            '--enc-key', required=False, help='Encryption key string')
+
+    def arg_add_enc_key_type(parser):
+        parser.add_argument(
+            '--enc-key-type', required=False,
+            default='SHDR_ENC_KEY_DEV_SPECIFIC',
+            choices=list(enc_key_type.keys()), help='''
+                Encryption key type,
+                Defaults to SHDR_ENC_KEY_DEV_SPECIFIC.''')
+
+    def arg_add_ta_version(parser):
+        parser.add_argument(
+            '--ta-version', required=False, type=int_parse, default=0, help='''
+                TA version stored as a 32-bit unsigned integer and used for
+                rollback protection of TA install in the secure database.
+                Defaults to 0.''')
+
+    def arg_add_sig(parser):
+        parser.add_argument(
+            '--sig', required=True, dest='sigf',
+            help='Name of signature input file, defaults to <UUID>.sig')
+
+    def arg_add_dig(parser):
+        parser.add_argument(
+            '--dig', required=True, dest='digf',
+            help='Name of digest output file, defaults to <UUID>.dig')
+
+    def arg_add_in(parser):
+        parser.add_argument(
+            '--in', required=False, dest='inf', help='''
+                Name of application input file, defaults to
+                <UUID>.stripped.elf''')
+
+    def arg_add_out(parser):
+        parser.add_argument(
+            '--out', required=True, dest='outf',
+            help='Name of application output file, defaults to <UUID>.ta')
+
+    def arg_add_algo(parser):
+        parser.add_argument(
+            '--algo', required=False, choices=list(algo.keys()),
+            default='TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256', help='''
+                The hash and signature algorithm.
+                Defaults to TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256.''')
+
+    def get_outf_default(parsed):
+        return str(parsed.uuid) + '.ta'
+
+    def get_inf_default(parsed):
+        return str(parsed.uuid) + '.stripped.elf'
+
+    def get_sigf_default(parsed):
+        return str(parsed.uuid) + '.sig'
+
+    def get_digf_default(parsed):
+        return str(parsed.uuid) + '.dig'
+
+    def assign_default_value(parsed, attr, func):
+        if hasattr(parsed, attr) and getattr(parsed, attr) is None:
+            setattr(parsed, attr, func(parsed))
+
+    import argparse
     import textwrap
-    command_base = ['sign-enc', 'digest', 'stitch', 'verify']
-    command_aliases_digest = ['generate-digest']
-    command_aliases_stitch = ['stitch-ta']
-    command_aliases = command_aliases_digest + command_aliases_stitch
-    command_choices = command_base + command_aliases
 
-    dat = '[' + ', '.join(command_aliases_digest) + ']'
-    sat = '[' + ', '.join(command_aliases_stitch) + ']'
+    parser = argparse.ArgumentParser(
+        description='Sign and encrypt (optional) a Trusted Application ' +
+        ' for OP-TEE.',
+        usage='%(prog)s <command> ...',
+        epilog='<command> -h for detailed help')
+    subparsers = parser.add_subparsers(
+            title='valid commands, with possible aliases in ()',
+            dest='command', metavar='')
 
-    parser = ArgumentParser(
-        description='Sign and encrypt (optional) a Trusted Application for' +
-        ' OP-TEE.',
-        usage='\n   %(prog)s command [ arguments ]\n\n'
+    parser_sign_enc = subparsers.add_parser(
+        'sign-enc', prog=parser.prog + ' sign-enc',
+        help='Generate signed and optionally encrypted loadable TA image file')
+    arg_add_uuid(parser_sign_enc)
+    arg_add_ta_version(parser_sign_enc)
+    arg_add_in(parser_sign_enc)
+    arg_add_out(parser_sign_enc)
+    arg_add_key(parser_sign_enc)
+    arg_add_enc_key(parser_sign_enc)
+    arg_add_enc_key_type(parser_sign_enc)
+    arg_add_algo(parser_sign_enc)
 
-        '   command:\n' +
-        '     sign-enc    Generate signed and optionally encrypted loadable' +
-        ' TA image file.\n' +
-        '                 Takes arguments --uuid, --ta-version, --in, --out,' +
-        ' --key,\n' +
-        '                 --enc-key (optional) and' +
-        ' --enc-key-type (optional).\n' +
-        '     digest      Generate loadable TA binary image digest' +
-        ' for offline\n' +
-        '                 signing. Takes arguments --uuid, --ta-version,' +
-        ' --in, --key,\n'
-        '                 --enc-key (optional), --enc-key-type (optional),' +
-        ' --algo (optional) and --dig.\n' +
-        '     stitch      Generate loadable signed and encrypted TA binary' +
-        ' image file from\n' +
-        '                 TA raw image and its signature. Takes' +
-        ' arguments --uuid, --in, --key, --out,\n' +
-        '                 --enc-key (optional), --enc-key-type (optional),\n' +
-        '                 --algo (optional) and --sig.\n' +
-        '     verify      Verify signed TA binary\n' +
-        '                 Takes arguments --uuid, --in, --key\n\n' +
-        '   %(prog)s --help  show available commands and arguments\n\n',
-        formatter_class=RawDescriptionHelpFormatter,
+    parser_digest = subparsers.add_parser(
+        'digest', aliases=['generate-digest'], prog=parser.prog + ' digest',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help='Generate loadable TA binary image digest for offline signing',
         epilog=textwrap.dedent('''\
-            If no command is given, the script will default to "sign-enc".
-
-            command aliases:
-              The command \'digest\' can be aliased by ''' + dat + '''
-              The command \'stitch\' can be aliased by ''' + sat + '\n' + '''
             example offline signing command using OpenSSL for algorithm
             TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
               base64 -d <UUID>.dig | \\
@@ -82,7 +142,8 @@ def get_args():
                   -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pss \\
                   -pkeyopt rsa_pss_saltlen:digest \\
                   -pkeyopt rsa_mgf1_md:sha256 | \\
-              base64 > <UUID>.sig\n
+              base64 > <UUID>.sig
+
             example offline signing command using OpenSSL for algorithm
             TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
               base64 -d <UUID>.dig | \\
@@ -90,78 +151,54 @@ def get_args():
                   -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1 | \\
               base64 > <UUID>.sig
             '''))
+    arg_add_uuid(parser_digest)
+    arg_add_ta_version(parser_digest)
+    arg_add_in(parser_digest)
+    arg_add_key(parser_digest)
+    arg_add_enc_key(parser_digest)
+    arg_add_enc_key_type(parser_digest)
+    arg_add_algo(parser_digest)
+    arg_add_dig(parser_digest)
 
-    parser.add_argument(
-        'command', choices=command_choices, nargs='?',
-        default='sign-enc',
-        help='Command, one of [' + ', '.join(command_base) + ']')
-    parser.add_argument('--uuid', required=True,
-                        type=uuid_parse, help='String UUID of the TA')
-    parser.add_argument('--key', required=True,
-                        help='Name of signing key file (PEM format) or an ' +
-                             'Amazon Resource Name (arn:) of an AWS KMS ' +
-                             'asymmetric key')
-    parser.add_argument('--enc-key', required=False,
-                        help='Encryption key string')
-    parser.add_argument(
-        '--enc-key-type', required=False, default='SHDR_ENC_KEY_DEV_SPECIFIC',
-        choices=list(enc_key_type.keys()),
-        help='Encryption key type.\n' +
-        '(SHDR_ENC_KEY_DEV_SPECIFIC or SHDR_ENC_KEY_CLASS_WIDE).\n' +
-        'Defaults to SHDR_ENC_KEY_DEV_SPECIFIC.')
-    parser.add_argument(
-        '--ta-version', required=False, type=int_parse, default=0,
-        help='TA version stored as a 32-bit unsigned integer and used for\n' +
-        'rollback protection of TA install in the secure database.\n' +
-        'Defaults to 0.')
-    parser.add_argument(
-        '--sig', required=False, dest='sigf',
-        help='Name of signature input file, defaults to <UUID>.sig')
-    parser.add_argument(
-        '--dig', required=False, dest='digf',
-        help='Name of digest output file, defaults to <UUID>.dig')
-    parser.add_argument(
-        '--in', required=True, dest='inf',
-        help='Name of application input file, defaults to <UUID>.stripped.elf')
-    parser.add_argument(
-        '--out', required=False, dest='outf',
-        help='Name of application output file, defaults to <UUID>.ta')
-    parser.add_argument('--algo', required=False, choices=list(algo.keys()),
-                        default='TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256',
-                        help='The hash and signature algorithm, ' +
-                        'defaults to TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256. ' +
-                        'Allowed values are: ' +
-                        ', '.join(list(algo.keys())), metavar='')
+    parser_stitch = subparsers.add_parser(
+        'stitch', aliases=['stitch-ta'], prog=parser.prog + ' stich',
+        help='Generate loadable signed and encrypted TA binary image file' +
+        ' from TA raw image and its signature')
+    arg_add_uuid(parser_stitch)
+    arg_add_ta_version(parser_stitch)
+    arg_add_in(parser_stitch)
+    arg_add_key(parser_stitch)
+    arg_add_out(parser_stitch)
+    arg_add_enc_key(parser_stitch)
+    arg_add_enc_key_type(parser_stitch)
+    arg_add_algo(parser_stitch)
+    arg_add_sig(parser_stitch)
 
-    parsed = parser.parse_args()
+    parser_verify = subparsers.add_parser(
+        'verify', prog=parser.prog + ' verify',
+        help='Verify signed TA binary')
+    arg_add_uuid(parser_verify)
+    arg_add_in(parser_verify)
+    arg_add_key(parser_verify)
 
-    # Check parameter combinations
+    argv = sys.argv[1:]
+    if (len(argv) > 0 and argv[0][0] == '-' and
+            argv[0] != '-h' and argv[0] != '--help'):
+        # The default sub-command is 'sign-enc' so add it to the parser
+        # if one is missing
+        argv = ['sign-enc'] + argv
 
-    if parsed.digf is None and \
-       parsed.outf is not None and \
-       parsed.command in ['digest'] + command_aliases_digest:
-        logger.error('A digest was requested, but argument --out was given.' +
-                     '  Did you mean:\n  ' +
-                     parser.prog+' --dig ' + parsed.outf + ' ...')
+    parsed = parser.parse_args(argv)
+
+    if parsed.command is None:
+        parser.print_help()
         sys.exit(1)
 
-    if parsed.digf is not None \
-       and parsed.outf is not None \
-       and parsed.command in ['digest'] + command_aliases_digest:
-        logger.warn('A digest was requested, but arguments --dig and ' +
-                    '--out were given.\n' +
-                    '  --out will be ignored.')
-
-    # Set defaults for optional arguments.
-
-    if parsed.sigf is None:
-        parsed.sigf = str(parsed.uuid)+'.sig'
-    if parsed.digf is None:
-        parsed.digf = str(parsed.uuid)+'.dig'
-    if parsed.inf is None:
-        parsed.inf = str(parsed.uuid)+'.stripped.elf'
-    if parsed.outf is None:
-        parsed.outf = str(parsed.uuid)+'.ta'
+    # Set a few defaults if defined for the current command
+    assign_default_value(parsed, 'inf', get_inf_default)
+    assign_default_value(parsed, 'outf', get_outf_default)
+    assign_default_value(parsed, 'sigf', get_sigf_default)
+    assign_default_value(parsed, 'digf', get_digf_default)
 
     return parsed
 
