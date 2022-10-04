@@ -79,7 +79,7 @@ jobs:
           export CFG_WERROR=y
 
           function _make() { make -j$(nproc) -s O=out $*; }
-          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.1.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.0 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
 
           ccache -s -v
           download_plug_and_trust
