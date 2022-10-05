@@ -13,6 +13,8 @@
 
 struct tee_hw_unique_key {
 	uint8_t data[HW_UNIQUE_KEY_LENGTH];
+	/* The hardware unique key is now inmmutable */
+	bool locked;
 };
 
 TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey);
