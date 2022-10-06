@@ -198,6 +198,12 @@ def get_args():
     arg_add_in(parser_verify)
     arg_add_key(parser_verify)
 
+    parser_display = subparsers.add_parser(
+        'display', prog=parser.prog + ' display',
+        help='Parses and displays a signed TA binary')
+    parser_display.set_defaults(func=command_display)
+    arg_add_in(parser_display)
+
     argv = sys.argv[1:]
     if (len(argv) > 0 and argv[0][0] == '-' and
             argv[0] != '-h' and argv[0] != '--help'):
@@ -249,11 +255,14 @@ class BinaryImage:
         with open(arg_inf, 'rb') as f:
             self.inf = f.read()
 
-        self.key = load_asymmetric_key(arg_key)
+        if arg_key is None:
+            self.key = None
+        else:
+            self.key = load_asymmetric_key(arg_key)
+            self.sig_len = math.ceil(self.key.key_size / 8)
 
         self.chosen_hash = hashes.SHA256()
         self.digest_len = self.chosen_hash.digest_size
-        self.sig_len = math.ceil(self.key.key_size / 8)
 
     def __pack_img(self, img_type, sign_algo):
         import struct
@@ -369,6 +378,120 @@ class BinaryImage:
                 if len(self.img) != img_size:
                     raise Exception("Unexpected img size: got {}, expected {}"
                                     .format(len(self.img), img_size))
+        else:
+            raise Exception("Unsupported image type: {}".format(img_type))
+
+    def display(self):
+        import binascii
+        import struct
+        import uuid
+
+        offs = 0
+        shdr = self.inf[offs:offs + SHDR_SIZE]
+        [magic, img_type, img_size, algo_value, digest_len,
+         sig_len] = struct.unpack('<IIIIHH', shdr)
+        offs += SHDR_SIZE
+
+        if magic != SHDR_MAGIC:
+            Exception("Unexpected magic: 0x{:08x}".format(magic))
+
+        img_type_name = 'Unknown'
+        if img_type == SHDR_BOOTSTRAP_TA:
+            print('Bootstrap TA')
+            img_type_name = 'SHDR_BOOTSTRAP_TA'
+        if img_type == SHDR_ENCRYPTED_TA:
+            print('Encrypted TA')
+            img_type_name = 'SHDR_ENCRYPTED_TA'
+
+        algo_name = 'Unknown'
+        if algo_value in sig_tee_alg.values():
+            algo_name = value_to_key(sig_tee_alg, algo_value)
+
+        print(' struct shdr')
+        print('  magic:      0x{:08x}'.format(magic))
+        print('  img_type:   {} ({})'.format(img_type, img_type_name))
+        print('  img_size:   {} bytes'.format(img_size))
+        print('  algo:       0x{:08x} ({})'.format(algo_value, algo_name))
+        print('  hash_size:  {} bytes'.format(digest_len))
+        print('  sig_size:   {} bytes'.format(sig_len))
+
+        if algo_value not in sig_tee_alg.values():
+            raise Exception('Unrecognized algorithm: 0x{:08x}'
+                            .format(algo_value))
+
+        if digest_len != self.digest_len:
+            raise Exception("Unexpected digest len: {}".format(digest_len))
+
+        img_digest = self.inf[offs:offs + digest_len]
+        print('  hash:       {}'
+              .format(binascii.hexlify(img_digest).decode('ascii')))
+        offs += digest_len
+        sig = self.inf[offs:offs + sig_len]
+        offs += sig_len
+
+        if img_type == SHDR_BOOTSTRAP_TA or img_type == SHDR_ENCRYPTED_TA:
+            print(' struct shdr_bootstrap_ta')
+            ta_uuid = self.inf[offs:offs + UUID_SIZE]
+            print('  uuid:       {}'.format(uuid.UUID(bytes=ta_uuid)))
+            offs += UUID_SIZE
+            [ta_version] = struct.unpack('<I', self.inf[offs:offs + 4])
+            print('  ta_version: {}'.format(ta_version))
+
+            offs += 4
+            if img_type == SHDR_ENCRYPTED_TA:
+                ehdr = self.inf[offs: offs + EHDR_SIZE]
+                offs += EHDR_SIZE
+                [enc_algo, flags, nonce_len,
+                 tag_len] = struct.unpack('<IIHH', ehdr)
+
+                print(' struct shdr_encrypted_ta')
+                enc_algo_name = 'Unkown'
+                if enc_algo in enc_tee_alg.values():
+                    enc_algo_name = value_to_key(enc_tee_alg, enc_algo)
+                print('  enc_algo:   0x{:08x} ({})'
+                      .format(enc_algo, enc_algo_name))
+
+                if enc_algo not in enc_tee_alg.values():
+                    raise Exception('Unrecognized encrypt algorithm: 0x{:08x}'
+                                    .format(enc_value))
+
+                flags_name = 'Unkown'
+                if flags in enc_key_type.values():
+                    flags_name = value_to_key(enc_key_type, flags)
+                print('  flags:      0x{:x} ({})'.format(flags, flags_name))
+
+                print('  iv_size:    {} (bytes)'.format(nonce_len))
+                if nonce_len != NONCE_SIZE:
+                    raise Exception("Unexpected nonce len: {}"
+                                    .format(nonce_len))
+                nonce = self.inf[offs:offs + nonce_len]
+                print('  iv:         {}'
+                      .format(binascii.hexlify(nonce).decode('ascii')))
+                offs += nonce_len
+
+                print('  tag_size:   {} (bytes)'.format(tag_len))
+                if tag_len != TAG_SIZE:
+                    raise Exception("Unexpected tag len: {}".format(tag_len))
+                tag = self.inf[-tag_len:]
+                print('  tag:        {}'
+                      .format(binascii.hexlify(tag).decode('ascii')))
+                ciphertext = self.inf[offs:-tag_len]
+                print(' TA offset:  {} (0x{:x}) bytes'.format(offs, offs))
+                print(' TA size:    {} (0x{:x}) bytes'
+                      .format(len(ciphertext), len(ciphertext)))
+                if len(ciphertext) != img_size:
+                    raise Exception("Unexpected ciphertext size: ",
+                                    "got {}, expected {}"
+                                    .format(len(ciphertext), img_size))
+                offs += tag_len
+            else:
+                img = self.inf[offs:]
+                print(' TA offset:  {} (0x{:x}) bytes'.format(offs, offs))
+                print(' TA size:    {} (0x{:x}) bytes'
+                      .format(len(img), len(img)))
+                if len(img) != img_size:
+                    raise Exception("Unexpected img size: got {}, expected {}"
+                                    .format(len(img), img_size))
         else:
             raise Exception("Unsupported image type: {}".format(img_type))
 
@@ -505,6 +628,11 @@ def command_verify(args):
     ta_image.verify_digest()
     ta_image.verify_uuid(args.uuid)
     logger.info('Trusted application is correctly verified.')
+
+
+def command_display(args):
+    ta_image = BinaryImage(args.inf, None)
+    ta_image.display()
 
 
 def main():
