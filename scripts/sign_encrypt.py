@@ -29,7 +29,7 @@ def int_parse(str):
     return int(str, 0)
 
 
-def get_args(logger):
+def get_args():
     from argparse import ArgumentParser, RawDescriptionHelpFormatter
     import textwrap
     command_base = ['sign-enc', 'digest', 'stitch', 'verify']
@@ -180,9 +180,10 @@ def main():
     import struct
 
     logging.basicConfig()
+    global logger
     logger = logging.getLogger(os.path.basename(__file__))
 
-    args = get_args(logger)
+    args = get_args()
 
     if args.key.startswith('arn:'):
         from sign_helper_kms import _RSAPrivateKeyInKMS
