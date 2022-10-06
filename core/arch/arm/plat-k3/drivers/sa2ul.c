@@ -52,11 +52,13 @@ static TEE_Result sa2ul_init(void)
 	TEE_Result result = TEE_SUCCESS;
 	int ret = 0;
 
-	/* Power on the SA2UL device */
-	ret = ti_sci_device_get(SA2UL_TI_SCI_DEV_ID);
-	if (ret) {
-		EMSG("Failed to get SA2UL device");
-		return TEE_ERROR_GENERIC;
+	if (SA2UL_TI_SCI_DEV_ID != -1) {
+		/* Power on the SA2UL device */
+		ret = ti_sci_device_get(SA2UL_TI_SCI_DEV_ID);
+		if (ret) {
+			EMSG("Failed to get SA2UL device");
+			return TEE_ERROR_GENERIC;
+		}
 	}
 
 	IMSG("Activated SA2UL device");

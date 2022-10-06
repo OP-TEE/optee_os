@@ -22,7 +22,7 @@
 #define DRAM1_SIZE      0x80000000
 
 #define SCU_BASE        0x01800000
-#if defined(PLATFORM_FLAVOR_j721e)
+#if defined(PLATFORM_FLAVOR_j721e) || defined(PLATFORM_FLAVOR_j784s4)
 #define GICC_OFFSET     0x100000
 #define GICC_SIZE       0x100000
 #define GICD_OFFSET     0x0
@@ -33,7 +33,7 @@
 #define GICD_OFFSET     0x0
 #define GICD_SIZE       0x10000
 #endif
-#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e)
+#if defined(PLATFORM_FLAVOR_am65x) || defined(PLATFORM_FLAVOR_j721e) || defined(PLATFORM_FLAVOR_j784s4)
 #define SEC_PROXY_DATA_BASE             0x32c00000
 #define SEC_PROXY_DATA_SIZE             0x100000
 #define SEC_PROXY_SCFG_BASE             0x32800000
@@ -65,6 +65,10 @@
 #elif defined(PLATFORM_FLAVOR_j721e)
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	265
+#define SA2UL_TI_SCI_FW_ID	1196
+#elif defined(PLATFORM_FLAVOR_j784s4)
+#define SA2UL_BASE		0x40900000
+#define SA2UL_TI_SCI_DEV_ID	-1
 #define SA2UL_TI_SCI_FW_ID	1196
 #elif defined(PLATFORM_FLAVOR_am64x)
 #define SA2UL_BASE		0x40900000
