@@ -134,6 +134,7 @@ def get_args():
     parser_sign_enc = subparsers.add_parser(
         'sign-enc', prog=parser.prog + ' sign-enc',
         help='Generate signed and optionally encrypted loadable TA image file')
+    parser_sign_enc.set_defaults(func=command_sign_enc)
     arg_add_uuid(parser_sign_enc)
     arg_add_ta_version(parser_sign_enc)
     arg_add_in(parser_sign_enc)
@@ -164,6 +165,7 @@ def get_args():
                   -pkeyopt digest:sha256 -pkeyopt rsa_padding_mode:pkcs1 | \\
               base64 > <UUID>.sig
             '''))
+    parser_digest.set_defaults(func=command_digest)
     arg_add_uuid(parser_digest)
     arg_add_ta_version(parser_digest)
     arg_add_in(parser_digest)
@@ -177,6 +179,7 @@ def get_args():
         'stitch', aliases=['stitch-ta'], prog=parser.prog + ' stich',
         help='Generate loadable signed and encrypted TA binary image file' +
         ' from TA raw image and its signature')
+    parser_stitch.set_defaults(func=command_stitch)
     arg_add_uuid(parser_stitch)
     arg_add_ta_version(parser_stitch)
     arg_add_in(parser_stitch)
@@ -190,6 +193,7 @@ def get_args():
     parser_verify = subparsers.add_parser(
         'verify', prog=parser.prog + ' verify',
         help='Verify signed TA binary')
+    parser_verify.set_defaults(func=command_verify)
     arg_add_uuid(parser_verify)
     arg_add_in(parser_verify)
     arg_add_key(parser_verify)
@@ -466,6 +470,43 @@ def load_ta_image(args):
     return ta_image
 
 
+def command_sign_enc(args):
+    ta_image = load_ta_image(args)
+    ta_image.sign()
+    ta_image.write(args.outf)
+    logger.info('Successfully signed application.')
+
+
+def command_digest(args):
+    import base64
+
+    ta_image = load_ta_image(args)
+    with open(args.digf, 'wb+') as digfile:
+        digfile.write(base64.b64encode(ta_image.img_digest))
+
+
+def command_stitch(args):
+    ta_image = load_ta_image(args)
+    ta_image.add_signature(args.sigf)
+    ta_image.verify_signature()
+    ta_image.write(args.outf)
+    logger.info('Successfully applied signature.')
+
+
+def command_verify(args):
+    ta_image = BinaryImage(args.inf, args.key)
+    ta_image.parse()
+    if hasattr(ta_image, 'ciphertext'):
+        if args.enc_key is None:
+            logger.error('--enc_key needed to decrypt TA')
+            sys.exit(1)
+        ta_image.decrypt_ta(args.enc_key)
+    ta_image.verify_signature()
+    ta_image.verify_digest()
+    ta_image.verify_uuid(args.uuid)
+    logger.info('Trusted application is correctly verified.')
+
+
 def main():
     import logging
     import os
@@ -475,47 +516,7 @@ def main():
     logger = logging.getLogger(os.path.basename(__file__))
 
     args = get_args()
-
-    def sign_encrypt_ta():
-        ta_image = load_ta_image(args)
-        ta_image.sign()
-        ta_image.write(args.outf)
-        logger.info('Successfully signed application.')
-
-    def generate_digest():
-        ta_image = load_ta_image(args)
-        with open(args.digf, 'wb+') as digfile:
-            digfile.write(base64.b64encode(binary_image.img_digest))
-
-    def stitch_ta():
-        ta_image = load_ta_image(args)
-        ta_image.add_signature(args.sigf)
-        ta_image.verify_signature()
-        ta_image.write(args.outf)
-        logger.info('Successfully applied signature.')
-
-    def verify_ta():
-        ta_image = BinaryImage(args.inf, args.key)
-        ta_image.parse()
-        if hasattr(ta_image, 'ciphertext'):
-            if args.enc_key is None:
-                logger.error('--enc_key needed to decrypt TA')
-                sys.exit(1)
-            ta_image.decrypt_ta(args.enc_key)
-        ta_image.verify_signature()
-        ta_image.verify_digest()
-        ta_image.verify_uuid(args.uuid)
-        logger.info('Trusted application is correctly verified.')
-
-    # dispatch command
-    {
-        'sign-enc': sign_encrypt_ta,
-        'digest': generate_digest,
-        'generate-digest': generate_digest,
-        'stitch': stitch_ta,
-        'stitch-ta': stitch_ta,
-        'verify': verify_ta,
-    }.get(args.command, 'sign_encrypt_ta')()
+    args.func(args)
 
 
 if __name__ == "__main__":
