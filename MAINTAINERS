@@ -242,7 +242,7 @@ R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp1/
 
-Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x, J721E, AM64x, AM62x
+Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x, J721E, J784S4, AM64x, AM62x
 R:	Andrew Davis <afd@ti.com> [@glneo]
 S:	Maintained
 F:	core/arch/arm/plat-ti/
