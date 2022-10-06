@@ -182,6 +182,8 @@ jobs:
           _make PLATFORM=imx-mx93evk
           _make PLATFORM=k3-j721e
           _make PLATFORM=k3-j721e CFG_ARM64_core=y
+          _make PLATFORM=k3-j784s4
+          _make PLATFORM=k3-j784s4 CFG_ARM64_core=y
           _make PLATFORM=k3-am65x
           _make PLATFORM=k3-am65x CFG_ARM64_core=y
           _make PLATFORM=k3-am64x
