@@ -713,9 +713,7 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 	void *a_ptr = NULL;
 	uint32_t a_size = 0;
 	uint32_t tee_size = 0;
-	uint32_t tee_curve = 0;
 	TEE_ObjectHandle tee_obj = TEE_HANDLE_NULL;
-	TEE_Attribute tee_key_attr[1] = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!proc_params || !*pub_head || !*priv_head)
@@ -723,6 +721,7 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 
 	if (remove_empty_attribute(pub_head, PKCS11_CKA_EC_POINT) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_VALUE) ||
+	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_POINT) ||
 	    remove_empty_attribute(priv_head, PKCS11_CKA_EC_PARAMS)) {
 		EMSG("Unexpected attribute(s) found");
 		trace_attributes("public-key", *pub_head);
@@ -740,10 +739,6 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 	if (!tee_size)
 		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
 
-	tee_curve = ec_params2tee_curve(a_ptr, a_size);
-
-	TEE_InitValueAttribute(tee_key_attr, TEE_ATTR_ECC_CURVE, tee_curve, 1);
-
 	res = TEE_AllocateTransientObject(TEE_TYPE_ED25519_KEYPAIR, tee_size,
 					  &tee_obj);
 	if (res) {
@@ -757,7 +752,7 @@ enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
 		goto out;
 	}
 
-	res = TEE_GenerateKey(tee_obj, tee_size, tee_key_attr, 1);
+	res = TEE_GenerateKey(tee_obj, tee_size, NULL, 0);
 	if (res) {
 		rc = tee2pkcs_error(res);
 		goto out;
