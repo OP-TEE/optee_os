@@ -19,6 +19,7 @@
 
 __weak TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
+	huk.locked = false;
 	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
 	return TEE_SUCCESS;
 }

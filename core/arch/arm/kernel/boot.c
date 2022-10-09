@@ -18,6 +18,7 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/tee_common_otp.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/tpm.h>
@@ -1298,6 +1299,8 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
  */
 void __weak boot_init_primary_late(unsigned long fdt)
 {
+	struct tee_hw_unique_key huk = { };
+
 	init_external_dt(fdt);
 	tpm_map_log_area(get_external_dt());
 	discover_nsec_memory();
@@ -1305,10 +1308,6 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
-	if (IS_ENABLED(CFG_WARN_INSECURE)) {
-		IMSG("WARNING: This OP-TEE configuration might be insecure!");
-		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
-	}
 	IMSG("Primary CPU initializing");
 #ifdef CFG_CORE_ASLR
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
@@ -1328,6 +1327,15 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	}
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
+
+	if (IS_ENABLED(CFG_WARN_INSECURE)) {
+		/* Check drivers for unsafe configurations */
+		if (tee_otp_get_hw_unique_key(&huk))
+			huk.locked = false;
+
+		IMSG("WARNING: This OP-TEE configuration %s insecure!", !huk.locked ? "IS" : "might be");
+		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
+	}
 }
 
 static void init_secondary_helper(unsigned long nsec_entry)
