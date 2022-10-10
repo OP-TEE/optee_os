@@ -1543,6 +1543,7 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 /*
  * Registration of the RSA Driver
  */
+static const struct drvcrypt_rsa *driver_rsa_ptr;
 static const struct drvcrypt_rsa driver_rsa = {
 	.alloc_keypair = do_allocate_keypair,
 	.alloc_publickey = do_allocate_publickey,
@@ -1555,6 +1556,11 @@ static const struct drvcrypt_rsa driver_rsa = {
 	.optional.ssa_verify = NULL,
 };
 
+const struct drvcrypt_rsa *drvcrypt_get_rsa_ops(size_t key_size_bytes __unused)
+{
+	return driver_rsa_ptr;
+}
+
 enum caam_status caam_rsa_init(struct caam_jrcfg *caam_jrcfg)
 {
 	enum caam_status retstatus = CAAM_FAILURE;
@@ -1564,8 +1570,8 @@ enum caam_status caam_rsa_init(struct caam_jrcfg *caam_jrcfg)
 		caam_era = caam_hal_ctrl_era(jr_base);
 		RSA_TRACE("CAAM Era %d", caam_era);
 
-		if (!drvcrypt_register_rsa(&driver_rsa))
-			retstatus = CAAM_NO_ERROR;
+		driver_rsa_ptr = &driver_rsa;
+		retstatus = CAAM_NO_ERROR;
 	}
 
 	return retstatus;

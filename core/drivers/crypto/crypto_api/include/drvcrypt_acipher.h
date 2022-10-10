@@ -101,15 +101,7 @@ struct drvcrypt_rsa {
 	} optional;
 };
 
-/*
- * Register a RSA processing driver in the crypto API
- *
- * @ops - Driver operations in the HW layer
- */
-static inline TEE_Result drvcrypt_register_rsa(const struct drvcrypt_rsa *ops)
-{
-	return drvcrypt_register(CRYPTO_RSA, (void *)ops);
-}
+const struct drvcrypt_rsa *drvcrypt_get_rsa_ops(size_t key_size_bytes);
 
 /*
  * Signature data

@@ -12,12 +12,18 @@
 
 #include "local.h"
 
+const struct drvcrypt_rsa __weak *
+drvcrypt_get_rsa_ops(size_t key_size_bytes __unused)
+{
+	return NULL;
+}
+
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *key,
 					    size_t size_bits)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
 
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	if (!key || !size_bits) {
 		CRYPTO_TRACE("Parameters error (key @%p) (size %zu bits)", key,
@@ -25,7 +31,7 @@ TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(size_bits / 8);
 	if (rsa)
 		ret = rsa->alloc_keypair(key, size_bits);
 
@@ -38,7 +44,7 @@ TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *key,
 					       size_t size_bits)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	if (!key || !size_bits) {
 		CRYPTO_TRACE("Parameters error (key @%p) (size %zu bits)", key,
@@ -46,7 +52,7 @@ TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(size_bits / 8);
 	if (rsa)
 		ret = rsa->alloc_publickey(key, size_bits);
 
@@ -57,10 +63,10 @@ TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *key,
 
 void crypto_acipher_free_rsa_public_key(struct rsa_public_key *key)
 {
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	if (key) {
-		rsa = drvcrypt_get_ops(CRYPTO_RSA);
+		rsa = drvcrypt_get_rsa_ops(crypto_bignum_num_bytes(key->n));
 		if (rsa) {
 			CRYPTO_TRACE("RSA Public Key free");
 			rsa->free_publickey(key);
@@ -70,10 +76,10 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *key)
 
 void crypto_acipher_free_rsa_keypair(struct rsa_keypair *key)
 {
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	if (key) {
-		rsa = drvcrypt_get_ops(CRYPTO_RSA);
+		rsa = drvcrypt_get_rsa_ops(crypto_bignum_num_bytes(key->n));
 		if (rsa) {
 			CRYPTO_TRACE("RSA Keypair free");
 			rsa->free_keypair(key);
@@ -84,7 +90,7 @@ void crypto_acipher_free_rsa_keypair(struct rsa_keypair *key)
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t size_bits)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	if (!key || !size_bits) {
 		CRYPTO_TRACE("Parameters error (key @%p) (size %zu bits) ",
@@ -92,7 +98,7 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t size_bits)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(size_bits / 8);
 	if (rsa)
 		ret = rsa->gen_keypair(key, size_bits);
 
@@ -108,7 +114,7 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 					   size_t *msg_len)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
 	if (!key || !msg || !cipher || !msg_len) {
@@ -124,7 +130,7 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	rsa_data.key.isprivate = true;
 	rsa_data.key.n_size = crypto_bignum_num_bytes(key->n);
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (rsa) {
 		rsa_data.rsa_id = DRVCRYPT_RSA_NOPAD;
 		rsa_data.message.data = msg;
@@ -147,7 +153,7 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 					   uint8_t *cipher, size_t *cipher_len)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
 	if (!key || !msg || !cipher_len) {
@@ -175,7 +181,7 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (rsa) {
 		/* Prepare the encryption data parameters */
 		rsa_data.rsa_id = DRVCRYPT_RSA_NOPAD;
@@ -202,7 +208,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 					size_t *msg_len)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
 	if (!key || !msg || !cipher || !msg_len || (!label && label_len)) {
@@ -215,7 +221,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(crypto_bignum_num_bytes(key->n));
 	if (rsa) {
 		/* Prepare the encryption data parameters */
 		if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
@@ -262,7 +268,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					uint8_t *cipher, size_t *cipher_len)
 {
 	TEE_Result ret = TEE_ERROR_NOT_IMPLEMENTED;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ed rsa_data = { };
 
 	if (!key || !msg || !cipher_len || (!label && label_len)) {
@@ -292,7 +298,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (rsa) {
 		/* Prepare the encryption data parameters */
 		if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
@@ -346,7 +352,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 				      size_t *sig_len)
 {
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ssa rsa_ssa = { };
 
 	if (!key || !msg || !sig_len) {
@@ -391,7 +397,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_ssa.key.n_size);
 	if (rsa) {
 		/* Prepare the Encoded Signature structure data */
 		rsa_ssa.algo = algo;
@@ -428,7 +434,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 					size_t sig_len)
 {
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 	struct drvcrypt_rsa_ssa rsa_ssa = { };
 
 	if (!key || !msg || !sig) {
@@ -467,7 +473,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		return TEE_ERROR_SIGNATURE_INVALID;
 	}
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_ssa.key.n_size);
 	if (rsa) {
 		/* Prepare the Encoded Signature structure data */
 		rsa_ssa.algo = algo;

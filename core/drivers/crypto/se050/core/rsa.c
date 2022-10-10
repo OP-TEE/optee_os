@@ -744,6 +744,7 @@ static TEE_Result do_ssa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 			ssa_data->signature.length);
 }
 
+static const struct drvcrypt_rsa *driver_rsa_ptr;
 static const struct drvcrypt_rsa driver_rsa = {
 	.alloc_keypair = do_alloc_keypair,
 	.alloc_publickey = do_alloc_publickey,
@@ -756,9 +757,16 @@ static const struct drvcrypt_rsa driver_rsa = {
 	.optional.ssa_verify = do_ssa_verify,
 };
 
+const struct drvcrypt_rsa *drvcrypt_get_rsa_ops(size_t key_size_bytes __unused)
+{
+	return driver_rsa_ptr;
+}
+
 static TEE_Result rsa_init(void)
 {
-	return drvcrypt_register_rsa(&driver_rsa);
+	driver_rsa_ptr = &driver_rsa;
+
+	return TEE_SUCCESS;
 }
 
 driver_init_late(rsa_init);

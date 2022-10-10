@@ -180,7 +180,7 @@ static TEE_Result rsassa_pkcs1_v1_5_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
 	struct drvcrypt_buf EM = { };
 	struct drvcrypt_rsa_ed rsa_data = { };
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	EM.length = ssa_data->key.n_size;
 	EM.data = malloc(EM.length);
@@ -204,7 +204,7 @@ static TEE_Result rsassa_pkcs1_v1_5_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	rsa_data.key.isprivate = true;
 	rsa_data.key.n_size = ssa_data->key.n_size;
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (!rsa) {
 		ret = TEE_ERROR_NOT_IMPLEMENTED;
 		goto out;
@@ -241,7 +241,7 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	struct drvcrypt_buf EM = { };
 	struct drvcrypt_buf EM_gen = { };
 	struct drvcrypt_rsa_ed rsa_data = { };
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	EM.length = ssa_data->key.n_size;
 	EM.data = malloc(EM.length);
@@ -262,7 +262,7 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	rsa_data.key.isprivate = false;
 	rsa_data.key.n_size = ssa_data->key.n_size;
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (rsa) {
 		/* Prepare the encryption data parameters */
 		rsa_data.rsa_id = DRVCRYPT_RSASSA_PKCS_V1_5;
@@ -728,7 +728,7 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	struct drvcrypt_buf EM = { };
 	size_t modBits = 0;
 	struct drvcrypt_rsa_ed rsa_data = { };
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	key = ssa_data->key.key;
 
@@ -767,7 +767,7 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 		rsa_data.key.isprivate = true;
 		rsa_data.key.n_size = ssa_data->key.n_size;
 
-		rsa = drvcrypt_get_ops(CRYPTO_RSA);
+		rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 		if (rsa) {
 			/* Prepare the decryption data parameters */
 			rsa_data.rsa_id = DRVCRYPT_RSASSA_PSS;
@@ -802,7 +802,7 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	struct drvcrypt_buf EM = { };
 	size_t modBits = 0;
 	struct drvcrypt_rsa_ed rsa_data = { };
-	struct drvcrypt_rsa *rsa = NULL;
+	const struct drvcrypt_rsa *rsa = NULL;
 
 	key = ssa_data->key.key;
 
@@ -836,7 +836,7 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	rsa_data.key.isprivate = false;
 	rsa_data.key.n_size = ssa_data->key.n_size;
 
-	rsa = drvcrypt_get_ops(CRYPTO_RSA);
+	rsa = drvcrypt_get_rsa_ops(rsa_data.key.n_size);
 	if (rsa) {
 		/* Prepare the encryption data parameters */
 		rsa_data.rsa_id = DRVCRYPT_RSASSA_PSS;
