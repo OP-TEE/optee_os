@@ -4,13 +4,48 @@
  *
  * Crypto RSA interface implementation to enable HW driver.
  */
+#include <assert.h>
 #include <drvcrypt.h>
+#include <drvcrypt_acipher.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 #include "local.h"
+
+static TEE_Result sw_rsa_encrypt(struct drvcrypt_rsa_ed *rsa_data)
+{
+	assert(!rsa_data->key.isprivate);
+
+	return sw_crypto_acipher_rsanopad_encrypt(rsa_data->key.key,
+						  rsa_data->message.data,
+						  rsa_data->message.length,
+						  rsa_data->cipher.data,
+						  &rsa_data->cipher.length);
+}
+
+static TEE_Result sw_rsa_decrypt(struct drvcrypt_rsa_ed *rsa_data)
+{
+	assert(rsa_data->key.isprivate);
+
+	return sw_crypto_acipher_rsanopad_decrypt(rsa_data->key.key,
+						  rsa_data->cipher.data,
+						  rsa_data->cipher.length,
+						  rsa_data->message.data,
+						  &rsa_data->message.length);
+}
+
+const struct drvcrypt_rsa drvcrypt_rsa_sw_ops = {
+	.alloc_keypair = sw_crypto_acipher_alloc_rsa_keypair,
+	.alloc_publickey = sw_crypto_acipher_alloc_rsa_public_key,
+	.free_publickey = sw_crypto_acipher_free_rsa_public_key,
+	.free_keypair = sw_crypto_acipher_free_rsa_keypair,
+	.gen_keypair = sw_crypto_acipher_gen_rsa_key,
+	.encrypt = sw_rsa_encrypt,
+	.decrypt = sw_rsa_decrypt,
+};
 
 const struct drvcrypt_rsa __weak *
 drvcrypt_get_rsa_ops(size_t key_size_bytes __unused)

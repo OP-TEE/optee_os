@@ -101,6 +101,7 @@ struct drvcrypt_rsa {
 	} optional;
 };
 
+extern const struct drvcrypt_rsa drvcrypt_rsa_sw_ops;
 const struct drvcrypt_rsa *drvcrypt_get_rsa_ops(size_t key_size_bytes);
 
 /*
