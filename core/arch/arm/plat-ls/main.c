@@ -215,7 +215,9 @@ void boot_primary_init_intc(void)
 	gic_init(gic_base + gicc_offset, gic_base + gicd_offset);
 }
 
+#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 void boot_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }
+#endif
