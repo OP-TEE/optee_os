@@ -34,7 +34,7 @@ static vaddr_t rng_base(void)
 
 static inline int hwrng_waithost_fifo_full(void)
 {
-	uint32_t status;
+	uint32_t status = 0;
 
 	do {
 		status = io_read32(rng_base() + RNG_STATUS_OFFSET);
@@ -89,8 +89,8 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 	static int nbcall;  /* debug purpose - 0 is the initial value*/
 
-	volatile uint32_t tmpval[_LOCAL_FIFO_SIZE/2];
-	int i;
+	volatile uint32_t tmpval[_LOCAL_FIFO_SIZE / 2] = { 0 };
+	int i = 0;
 
 	uint8_t *buffer = buf;
 	size_t buffer_pos = 0;
