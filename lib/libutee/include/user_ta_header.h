@@ -32,7 +32,16 @@
 #define TA_FLAG_DEVICE_ENUM		(1 << 9)  /* without tee-supplicant */
 #define TA_FLAG_DEVICE_ENUM_SUPP	(1 << 10) /* with tee-supplicant */
 
-#define TA_FLAGS_MASK			GENMASK_32(10, 0)
+	/*
+	 * The flag is to determine if TA get panic when an unsupported function
+	 * ID is called. If this flag is set, it returns an error --
+	 * TEE_ERROR_NOT_IMPLEMENTED instead of calling TEE_Panic().
+	 *
+	 * This is to ensure backward compatible when add new function to user TA
+	 * entry.
+	 */
+#define TA_FLAG_ENTRY_NO_PANIC		(1 << 11)	/* no panic in user TA entry */
+#define TA_FLAGS_MASK			GENMASK_32(11, 0)
 
 struct ta_head {
 	TEE_UUID uuid;

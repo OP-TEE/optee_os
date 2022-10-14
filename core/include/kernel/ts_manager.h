@@ -43,6 +43,7 @@ struct ts_ops {
 	TEE_Result (*enter_open_session)(struct ts_session *s);
 	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd);
 	void (*enter_close_session)(struct ts_session *s);
+	TEE_Result (*dump_mem_stats)(struct ts_session *s);
 	void (*dump_state)(struct ts_ctx *ctx);
 	void (*dump_ftrace)(struct ts_ctx *ctx);
 	void (*destroy)(struct ts_ctx *ctx);

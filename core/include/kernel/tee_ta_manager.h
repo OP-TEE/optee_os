@@ -93,6 +93,42 @@ struct tee_ta_session {
 	bool unlink;		/* True if session is to be unlinked */
 };
 
+struct tee_ta_session_dump_stats {
+	uint32_t id;		/* Session handle (0 is invalid) */
+	uint32_t clnt_id;	/* Identify of client */
+	bool cancel;		/* True if TA invocation is cancelled */
+	bool cancel_mask;	/* True if cancel is masked */
+	uint32_t ref_count;	/* reference counter */
+	short int lock_thread;	/* Id of thread holding the lock */
+	bool unlink;		/* True if session is to be unlinked */
+	struct malloc_stats stats;
+};
+
+struct tee_ta_dump_stats {
+	TEE_UUID uuid;
+	uint32_t flags;		/* TA_FLAGS from TA header */
+	uint32_t panicked;	/* True if TA has panicked, written from asm */
+	uint32_t panic_code;	/* Code supplied for panic */
+	uint32_t ref_count;	/* Reference counter for multi session TA */
+	bool busy;		/* Context is busy and cannot be entered */
+	bool is_user_ta;	/* True if it's user TA */
+
+	/*
+	 * user_ta_ctx
+	 */
+	uint32_t ldelf_stack_ptr;	/* Stack pointer Base */
+	bool is_32bit;				/* True if 32-bit TS */
+	uint32_t stack_ptr;			/* Stack pointer */
+
+	/*
+	 * session context
+	 */
+	uint32_t sess_num;  /* Number of opened session */
+
+	/* context of the opened session, dump the 16 sessions as maximum. */
+	struct tee_ta_session_dump_stats sess_stats[16];
+};
+
 /* Registered contexts */
 extern struct tee_ta_ctx_head tee_ctxes;
 
@@ -166,4 +202,7 @@ static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
 	assert(is_ta_ctx(ctx));
 	return container_of(ctx, struct tee_ta_ctx, ts_ctx);
 }
+
+TEE_Result tee_ta_dump_stats(void *buff, uint32_t *buff_size);
+
 #endif

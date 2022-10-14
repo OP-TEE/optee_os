@@ -374,6 +374,33 @@ static TEE_Result entry_invoke_command(unsigned long session_id,
 	return res;
 }
 
+static TEE_Result entry_dump_memstats(unsigned long session_id __unused,
+					struct utee_params *up)
+{
+	uint32_t param_types;
+	TEE_Param params[TEE_NUM_PARAMS];
+	struct malloc_stats stats;
+
+	from_utee_params(params, &param_types, up);
+	ta_header_save_params(param_types, params);
+
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+			    TEE_PARAM_TYPE_VALUE_OUTPUT,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE) != param_types) {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	malloc_get_stats(&stats);
+	params[0].value.a = stats.allocated;
+	params[0].value.b = stats.max_allocated;
+	params[1].value.a = stats.size;
+
+	to_utee_params(up, param_types, params);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 			struct utee_params *up, unsigned long cmd_id)
 {
@@ -388,6 +415,9 @@ TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 		break;
 	case UTEE_ENTRY_FUNC_INVOKE_COMMAND:
 		res = entry_invoke_command(session_id, up, cmd_id);
+		break;
+	case UTEE_ENTRY_FUNC_DUMP_MEMSTATS:
+		res = entry_dump_memstats(session_id, up);
 		break;
 	default:
 		res = 0xffffffff;
