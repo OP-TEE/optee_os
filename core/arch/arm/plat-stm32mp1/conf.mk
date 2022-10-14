@@ -56,9 +56,6 @@ ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
 $(call force,CFG_STM32MP15,y)
 endif
 
-# Default do not access external DT passed to non-secure boot stage
-CFG_EXTERNAL_DT ?= n
-
 # CFG_STM32MP1x switches are exclusive.
 # - CFG_STM32MP15 is enabled for STM32MP15x-* targets (default)
 # - CFG_STM32MP13 is enabled for STM32MP13x-* targets
@@ -97,6 +94,7 @@ $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
+CFG_EXTERNAL_DT ?= n
 CFG_STM32MP_OPP_COUNT ?= 2
 CFG_WITH_PAGER ?= n
 endif # CFG_STM32MP13
@@ -108,6 +106,7 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_CORE_RESERVED_SHM ?= y
+CFG_EXTERNAL_DT ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 endif # CFG_STM32MP15
