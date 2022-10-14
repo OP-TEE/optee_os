@@ -139,6 +139,7 @@
 		mrs	x0, sctlr_el1
 		orr	x0, x0, #SCTLR_ENIA
 		msr	sctlr_el1, x0
+		isb
 	.endm
 
 FUNC _start , :
