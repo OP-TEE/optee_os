@@ -128,6 +128,25 @@ static void dec_recursion(void)
 	tsd->syscall_recursion--;
 }
 
+static bool safe_to_call_utee_ta_entry(enum utee_entry_func func,
+				       uint32_t ta_flags)
+{
+	//! Previous functions are always allowed.
+	if (func == UTEE_ENTRY_FUNC_OPEN_SESSION ||
+	    func == UTEE_ENTRY_FUNC_CLOSE_SESSION ||
+	    func == UTEE_ENTRY_FUNC_INVOKE_COMMAND) {
+		return true;
+	}
+
+	//! New functions is allowed only when ENTRY_NO_PANIC flag is on.
+	if (func == UTEE_ENTRY_FUNC_DUMP_MEMSTATS &&
+	    (ta_flags & TA_FLAG_ENTRY_NO_PANIC)) {
+		return true;
+	}
+
+	return false;
+}
+
 static TEE_Result user_ta_enter(struct ts_session *session,
 				enum utee_entry_func func, uint32_t cmd)
 {
@@ -138,6 +157,10 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	struct tee_ta_session *ta_sess = to_ta_session(session);
 	struct ts_session *ts_sess __maybe_unused = NULL;
 	void *param_va[TEE_NUM_PARAMS] = { NULL };
+
+	if (!safe_to_call_utee_ta_entry(func, utc->ta_ctx.flags)) {
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
 
 	if (!inc_recursion()) {
 		/* Using this error code since we've run out of resources. */
@@ -227,6 +250,11 @@ static void user_ta_enter_close_session(struct ts_session *s)
 	/* Only if the TA was fully initialized by ldelf */
 	if (!to_user_ta_ctx(s->ctx)->uctx.is_initializing)
 		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
+}
+
+static TEE_Result user_ta_enter_dump_memstats(struct ts_session *s)
+{
+	return user_ta_enter(s, UTEE_ENTRY_FUNC_DUMP_MEMSTATS, 0);
 }
 
 static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
@@ -377,6 +405,7 @@ const struct ts_ops user_ta_ops __weak __relrodata_unpaged("user_ta_ops") = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
+	.dump_mem_stats = user_ta_enter_dump_memstats,
 	.dump_state = user_ta_dump_state,
 #ifdef CFG_FTRACE_SUPPORT
 	.dump_ftrace = user_ta_dump_ftrace,

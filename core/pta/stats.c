@@ -21,6 +21,7 @@
 #define STATS_CMD_PAGER_STATS		0
 #define STATS_CMD_ALLOC_STATS		1
 #define STATS_CMD_MEMLEAK_STATS		2
+#define STATS_CMD_TA_STATS			3
 
 #define STATS_NB_POOLS			4
 
@@ -137,6 +138,32 @@ static TEE_Result get_memleak_stats(uint32_t type,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_user_ta_stats(uint32_t type,
+				    TEE_Param p[TEE_NUM_PARAMS])
+{
+	uint32_t res = TEE_SUCCESS;
+
+	/*
+	 * p[0].memref.buffer = output buffer to struct malloc_stats
+	 */
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
+			    TEE_PARAM_TYPE_MEMREF_OUTPUT,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE) != type) {
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (p[0].value.a == 0)
+		res = tee_ta_dump_stats(NULL, &p[0].value.a);
+	else
+		res = tee_ta_dump_stats(p[1].memref.buffer, &p[1].memref.size);
+
+	if (res != TEE_SUCCESS)
+		EMSG("tee_ta_dump_stats return: 0x%x\n", res);
+
+	return res;
+}
+
 /*
  * Trusted Application Entry Points
  */
@@ -152,6 +179,8 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_alloc_stats(ptypes, params);
 	case STATS_CMD_MEMLEAK_STATS:
 		return get_memleak_stats(ptypes, params);
+	case STATS_CMD_TA_STATS:
+		return get_user_ta_stats(ptypes, params);
 	default:
 		break;
 	}

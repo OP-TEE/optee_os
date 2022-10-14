@@ -823,6 +823,133 @@ TEE_Result tee_ta_invoke_command(TEE_ErrorOrigin *err,
 	return res;
 }
 
+static TEE_Result tee_ta_dump_memstats(struct tee_ta_session *s,
+				       uint32_t cancel_req_to,
+				       struct tee_ta_param *param)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ta_ctx *ctx = NULL;
+	struct ts_ctx *ts_ctx = NULL;
+
+	if (!check_params(s, param))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ts_ctx = s->ts_sess.ctx;
+	if (ts_ctx)
+		ctx = ts_to_ta_ctx(ts_ctx);
+
+	if (tee_ta_try_set_busy(ctx)) {
+		s->param = param;
+		set_invoke_timeout(s, cancel_req_to);
+		res = ts_ctx->ops->dump_mem_stats(&s->ts_sess);
+		tee_ta_clear_busy(ctx);
+	} else {
+		/* Deadlock avoided */
+		res = TEE_ERROR_BUSY;
+	}
+	s->param = NULL;
+
+	return res;
+}
+
+TEE_Result tee_ta_dump_stats(void *buff, uint32_t *buff_size)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct tee_ta_param param;
+	struct tee_ta_dump_stats *dump_stats = NULL;
+	struct tee_ta_session *sess = NULL;
+	struct tee_ta_session_head *open_sessions = NULL;
+	struct tee_ta_ctx *ctx = NULL;
+	struct user_ta_ctx *utc = NULL;
+	uint32_t count = 0;
+	uint32_t size = 0;
+
+	if (!buff_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!buff || *buff_size == 0) {
+		/*
+		 * Buff is null or pass size with 0 means caller want to get
+		 * the size of buff.
+		 * Go through all available TA and calc out the buffer size.
+		 */
+		TAILQ_FOREACH(ctx, &tee_ctxes, link) {
+			count++;
+		}
+		*buff_size = sizeof(struct tee_ta_dump_stats) * count;
+		goto out;
+	}
+
+	dump_stats = (struct tee_ta_dump_stats *)buff;
+	size = *buff_size;
+	nsec_sessions_list_head(&open_sessions);
+	/*
+	 * Scan all sessions opened from secure side by searching through
+	 * all available TA instances and for each context, scan all opened
+	 * sessions.
+	 */
+	/* Context of a loaded TA */
+	TAILQ_FOREACH(ctx, &tee_ctxes, link) {
+		if (size < sizeof(struct tee_ta_dump_stats)) {
+			res = TEE_ERROR_SHORT_BUFFER;
+			goto out;
+		}
+		memcpy(&dump_stats->uuid, &ctx->ts_ctx.uuid,
+		       sizeof(ctx->ts_ctx.uuid));
+		dump_stats->flags = ctx->flags;
+		dump_stats->panicked = ctx->panicked;
+		dump_stats->panic_code = ctx->panic_code;
+		dump_stats->ref_count = ctx->ref_count;
+		dump_stats->busy = ctx->busy;
+		dump_stats->is_user_ta = is_user_ta_ctx(&ctx->ts_ctx);
+		if (is_user_ta_ctx(&ctx->ts_ctx)) {
+			utc = to_user_ta_ctx(&ctx->ts_ctx);
+			dump_stats->ldelf_stack_ptr = utc->uctx.ldelf_stack_ptr;
+			dump_stats->is_32bit = utc->uctx.is_32bit;
+			dump_stats->stack_ptr = utc->uctx.stack_ptr;
+		}
+
+		count = 0;
+		TAILQ_FOREACH(sess, open_sessions, link) {
+			if (sess->ts_sess.ctx == &ctx->ts_ctx && count < 16) {
+				struct tee_ta_session_dump_stats *sess_stats =
+					&dump_stats->sess_stats[count];
+				count++;
+				sess_stats->id = sess->id;
+				sess_stats->clnt_id = sess->clnt_id.login;
+				sess_stats->cancel = sess->cancel;
+				sess_stats->cancel_mask = sess->cancel_mask;
+				sess_stats->ref_count = sess->ref_count;
+				sess_stats->lock_thread = sess->lock_thread;
+				sess_stats->unlink = sess->unlink;
+				if (!is_user_ta_ctx(&ctx->ts_ctx))
+					continue;
+				/*heap info*/
+				memset(&param, 0, sizeof(struct tee_ta_param));
+				param.types =
+				TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+				tee_ta_dump_memstats(sess,
+						     TEE_TIMEOUT_INFINITE,
+						     &param);
+				sess_stats->heap.allocated = param.u[0].val.a;
+				sess_stats->heap.max_allocated =
+						param.u[0].val.b;
+				sess_stats->heap.size = param.u[1].val.a;
+			}
+		}
+
+		dump_stats->sess_num = count;
+		dump_stats++;
+		size -= sizeof(struct tee_ta_dump_stats);
+	}
+
+out:
+	return res;
+}
+
 TEE_Result tee_ta_cancel_command(TEE_ErrorOrigin *err,
 				 struct tee_ta_session *sess,
 				 const TEE_Identity *clnt_id)
