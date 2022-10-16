@@ -93,6 +93,7 @@ S:	Maintained
 F:	core/drivers/versal_gpio.c
 F:	core/drivers/versal_mbox.c
 F:	core/drivers/versal_pm.c
+F:	core/drivers/versal_trng.c
 
 Core Drivers ZYNQMP
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
