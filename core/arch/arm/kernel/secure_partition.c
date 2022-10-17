@@ -941,12 +941,15 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	ts_pop_current_session();
 
+	sess->is_initialized = false;
 	if (sp_enter(&args, sess)) {
 		vm_unmap(&ctx->uctx, va, num_pgs);
 		return FFA_ABORTED;
 	}
 
 	spmc_sp_msg_handler(&args, sess);
+
+	sess->is_initialized = true;
 
 	ts_push_current_session(&sess->ts_sess);
 out:

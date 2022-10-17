@@ -42,6 +42,7 @@ struct sp_session {
 	struct sp_ffa_init_info *info;
 	unsigned int spinlock;
 	const void *fdt;
+	bool is_initialized;
 	TAILQ_ENTRY(sp_session) link;
 };
 

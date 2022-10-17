@@ -902,6 +902,119 @@ static void handle_features(struct thread_smc_args *args)
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
+static void handle_mem_perm_get(struct thread_smc_args *args,
+				struct sp_session *sp_s)
+{
+	struct sp_ctx *sp_ctx = NULL;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint16_t attrs = 0;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+
+	/*
+	 * The FFA_MEM_PERM_GET interface is only allowed during initialization
+	 */
+	if (sp_s->is_initialized) {
+		ret_val = FFA_DENIED;
+		goto out;
+	}
+
+	sp_ctx = to_sp_ctx(sp_s->ts_sess.ctx);
+	if (!sp_ctx)
+		goto out;
+
+	/* Query memory attributes */
+	ts_push_current_session(&sp_s->ts_sess);
+	res = vm_get_prot(&sp_ctx->uctx, args->a1, SMALL_PAGE_SIZE, &attrs);
+	ts_pop_current_session();
+	if (res)
+		goto out;
+
+	/* Build response value */
+	ret_fid = FFA_SUCCESS_32;
+	ret_val = 0;
+	if ((attrs & TEE_MATTR_URW) == TEE_MATTR_URW)
+		ret_val |= FFA_MEM_PERM_RW;
+	else if (attrs & TEE_MATTR_UR)
+		ret_val |= FFA_MEM_PERM_RO;
+
+	if ((attrs & TEE_MATTR_UX) == 0)
+		ret_val |= FFA_MEM_PERM_NX;
+
+out:
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_val, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
+static void handle_mem_perm_set(struct thread_smc_args *args,
+				struct sp_session *sp_s)
+{
+	struct sp_ctx *sp_ctx = NULL;
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	size_t region_size = 0;
+	uint32_t data_perm = 0;
+	uint32_t instruction_perm = 0;
+	uint16_t attrs = 0;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+
+	/*
+	 * The FFA_MEM_PERM_GET interface is only allowed during initialization
+	 */
+	if (sp_s->is_initialized) {
+		ret_val = FFA_DENIED;
+		goto out;
+	}
+
+	sp_ctx = to_sp_ctx(sp_s->ts_sess.ctx);
+	if (!sp_ctx)
+		goto out;
+
+	if (MUL_OVERFLOW(args->a2, SMALL_PAGE_SIZE, &region_size))
+		goto out;
+
+	if (args->a3 & FFA_MEM_PERM_RESERVED) {
+		/* Non-zero reserved bits */
+		goto out;
+	}
+
+	data_perm = args->a3 & FFA_MEM_PERM_DATA_PERM;
+	instruction_perm = args->a3 & FFA_MEM_PERM_INSTRUCTION_PERM;
+
+	/* RWX access right configuration is not permitted */
+	if (data_perm == FFA_MEM_PERM_RW && instruction_perm == FFA_MEM_PERM_X)
+		goto out;
+
+	switch (data_perm) {
+	case FFA_MEM_PERM_RO:
+		attrs = TEE_MATTR_UR;
+		break;
+	case FFA_MEM_PERM_RW:
+		attrs = TEE_MATTR_URW;
+		break;
+	default:
+		/* Invalid permission value */
+		goto out;
+	}
+
+	if (instruction_perm == FFA_MEM_PERM_X)
+		attrs |= TEE_MATTR_UX;
+
+	/* Set access rights */
+	ts_push_current_session(&sp_s->ts_sess);
+	res = vm_set_prot(&sp_ctx->uctx, args->a1, region_size, attrs);
+	ts_pop_current_session();
+	if (res != TEE_SUCCESS)
+		goto out;
+
+	ret_fid = FFA_SUCCESS_32;
+	ret_val = FFA_PARAM_MBZ;
+
+out:
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_val, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
 /*
  * FF-A messages handler for SP. Every messages for or from a SP is handled
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
@@ -1002,6 +1115,21 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			break;
 		case FFA_MEM_RECLAIM:
 			ffa_mem_reclaim(args, caller_sp);
+			sp_enter(args, caller_sp);
+			break;
+#ifdef ARM64
+		case FFA_MEM_PERM_GET_64:
+#endif
+		case FFA_MEM_PERM_GET_32:
+			handle_mem_perm_get(args, caller_sp);
+			sp_enter(args, caller_sp);
+			break;
+
+#ifdef ARM64
+		case FFA_MEM_PERM_SET_64:
+#endif
+		case FFA_MEM_PERM_SET_32:
+			handle_mem_perm_set(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
 		default:
