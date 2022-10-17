@@ -922,6 +922,8 @@ void brel(buf, poolset, wipe)
   int wipe;
 {
     struct bfhead *b, *bn;
+    char *wipe_start;
+    bufsize wipe_size;
 
     b = BFH(((char *) buf) - sizeof(struct bhead));
 #ifdef BufStats
@@ -984,6 +986,10 @@ void brel(buf, poolset, wipe)
 
 	register bufsize size = b->bh.bsize;
 
+	/* Only wipe the current buffer, including bfhead. */
+	wipe_start = (char *)b;
+	wipe_size = -size;
+
         /* Make the previous buffer the one we're working on. */
 	assert(BH((char *) b - b->bh.prevfree)->bsize == b->bh.prevfree);
 	b = BFH(((char *) b) - b->bh.prevfree);
@@ -1000,6 +1006,9 @@ void brel(buf, poolset, wipe)
 	poolset->freelist.ql.blink = b;
 	b->ql.blink->ql.flink = b;
 	b->bh.bsize = -b->bh.bsize;
+
+	wipe_start = (char *)b + sizeof(struct bfhead);
+	wipe_size = b->bh.bsize - sizeof(struct bfhead);
     }
 
     /* Now we look at the next buffer in memory, located by advancing from
@@ -1028,10 +1037,11 @@ void brel(buf, poolset, wipe)
 	   memory.  */
 
 	bn = BFH(((char *) b) + b->bh.bsize);
+	/* Only bfhead of next buffer needs to be wiped */
+	wipe_size += sizeof(struct bfhead);
     }
     if (wipe) {
-	V memset_unchecked(((char *) b) + sizeof(struct bfhead), 0x55,
-			   (MemSize) (b->bh.bsize - sizeof(struct bfhead)));
+	V memset_unchecked(wipe_start, 0x55, wipe_size);
     }
     assert(bn->bh.bsize < 0);
 
