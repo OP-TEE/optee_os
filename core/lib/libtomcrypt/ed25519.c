@@ -63,14 +63,16 @@ TEE_Result crypto_acipher_ed25519_sign(struct ed25519_keypair *key,
 				       uint8_t *sig, size_t *sig_len)
 {
 	int err;
-	unsigned long siglen;
+	unsigned long siglen = 0;
 	curve25519_key private_key = {
 		.type = PK_PRIVATE,
 		.algo = LTC_OID_ED25519,
 	};
 
-	if (!key)
+	if (!key || !sig_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	siglen = *sig_len;
 
 	memcpy(private_key.priv, key->priv, sizeof(private_key.priv));
 	memcpy(private_key.pub, key->pub, sizeof(private_key.pub));
@@ -92,14 +94,16 @@ TEE_Result crypto_acipher_ed25519ctx_sign(struct ed25519_keypair *key,
 					  const uint8_t *ctx, size_t ctxlen)
 {
 	int err = CRYPT_ERROR;
-	unsigned long siglen;
+	unsigned long siglen = 0;
 	curve25519_key private_key = {
 		.type = PK_PRIVATE,
 		.algo = LTC_OID_ED25519,
 	};
 
-	if (!key)
+	if (!key || !sig_len)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	siglen = *sig_len;
 
 	memcpy(private_key.priv, key->priv, sizeof(private_key.priv));
 	memcpy(private_key.pub, key->pub, sizeof(private_key.pub));
