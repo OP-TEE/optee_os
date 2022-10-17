@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -11,6 +11,7 @@
 
 #include <smccc.h>
 #include <stdint.h>
+#include <util.h>
 
 /* Error codes */
 #define FFA_OK			0
@@ -70,6 +71,10 @@
 #define FFA_MEM_FRAG_RX			U(0x8400007A)
 #define FFA_MEM_FRAG_TX			U(0x8400007B)
 #define FFA_SECONDARY_EP_REGISTER_64	U(0xC4000087)
+#define FFA_MEM_PERM_GET_32		U(0x84000088)
+#define FFA_MEM_PERM_GET_64		U(0xC4000088)
+#define FFA_MEM_PERM_SET_32		U(0x84000089)
+#define FFA_MEM_PERM_SET_64		U(0xC4000089)
 
 /* Special value for traffic targeted to the Hypervisor or SPM */
 #define FFA_TARGET_INFO_MBZ		U(0x0)
@@ -97,6 +102,16 @@
 #define FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE SHIFT_U32(1, 3)
 /* Relayer must choose the alignment boundary */
 #define FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT	0
+
+#define FFA_MEM_PERM_DATA_PERM		GENMASK_32(1, 0)
+#define FFA_MEM_PERM_RW			U(0x1)
+#define FFA_MEM_PERM_RO			U(0x3)
+
+#define FFA_MEM_PERM_INSTRUCTION_PERM	BIT(2)
+#define FFA_MEM_PERM_NX			BIT(2)
+#define FFA_MEM_PERM_X			U(0)
+
+#define FFA_MEM_PERM_RESERVED		GENMASK_32(31, 3)
 
 /* Special value for MBZ parameters */
 #define FFA_PARAM_MBZ			U(0x0)
