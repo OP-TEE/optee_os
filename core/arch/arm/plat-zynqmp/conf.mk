@@ -27,9 +27,13 @@ CFG_UART_BASE ?= UART0_BASE
 CFG_UART_IT ?= IT_UART0
 CFG_UART_CLK_HZ ?= UART0_CLK_IN_HZ
 
-# ZCU102 features 4 GiB of DDR
+# ZCU102 can be configured with 4GB or 16GB RAM modules.
 ifeq ($(CFG_ARM64_core),y)
+ifeq ($(CFG_DRAM_SIZE_GB),16)
+CFG_DDR_SIZE ?= 0x400000000
+else
 CFG_DDR_SIZE ?= 0x100000000
+endif
 else
 # On 32 bit build limit to 2 GiB of RAM
 CFG_DDR_SIZE ?= 0x80000000
