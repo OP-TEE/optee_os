@@ -126,6 +126,11 @@
 
 #elif defined(PLATFORM_FLAVOR_qemu_armv8a)
 
+#ifdef CFG_CORE_SEL2_SPMC
+#define DRAM0_BASE             0x40000000
+#define DRAM0_SIZE             0xC0000000
+#endif
+
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
 

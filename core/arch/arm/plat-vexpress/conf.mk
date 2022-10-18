@@ -115,8 +115,13 @@ endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 CFG_TEE_CORE_NB_CORE = 4
 # [0e00.0000 0e0f.ffff] is reserved to early boot
+ifeq ($(CFG_CORE_SEL2_SPMC),y)
+CFG_TZDRAM_START ?= 0x0e704000
+CFG_TZDRAM_SIZE  ?= 0x00900000
+else
 CFG_TZDRAM_START ?= 0x0e100000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
+endif
 # SHM chosen arbitrary, in a way that it does not interfere
 # with initial location of linux kernel, dtb and initrd.
 CFG_SHMEM_START ?= 0x42000000
