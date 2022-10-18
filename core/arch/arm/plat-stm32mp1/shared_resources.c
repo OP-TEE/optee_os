@@ -142,7 +142,8 @@ static unsigned int get_gpioz_nbpin(void)
 static TEE_Result set_gpioz_nbpin_from_dt(void)
 {
 	void *fdt = get_embedded_dt();
-	int node = fdt_path_offset(fdt, "/soc/pin-controller-z");
+	int node = fdt_node_offset_by_compatible(fdt, -1,
+						 "st,stm32mp157-z-pinctrl");
 	int count = stm32_get_gpio_count(fdt, node, GPIO_BANK_Z);
 
 	if (count < 0 || count > STM32MP1_GPIOZ_PIN_MAX_COUNT)
