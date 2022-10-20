@@ -55,3 +55,9 @@ CFG_VERSAL_TRNG_DF_MUL ?= 2
 
 # eFuse and BBRAM driver
 $(call force, CFG_VERSAL_NVM,y)
+
+# Crypto driver
+$(call force,CFG_CRYPTO_DRIVER,y)
+CFG_CRYPTO_DRIVER_DEBUG ?= 0
+
+CFG_VERSAL_CRYPTO_DRIVER ?= y
