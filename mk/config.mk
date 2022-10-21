@@ -946,3 +946,10 @@ CFG_CORE_PREALLOC_EL0_TBLS ?= n
 ifeq (y-y,$(CFG_CORE_PREALLOC_EL0_TBLS)-$(CFG_WITH_PAGER))
 $(error "CFG_WITH_PAGER can't support CFG_CORE_PREALLOC_EL0_TBLS")
 endif
+
+# User TA runtime context dump.
+# When this option is enabled, OP-TEE provides a debug method for
+# developer to dump user TA's runtime context, including TA's heap stats.
+# Developer can open a stats PTA session and then invoke command
+# STATS_CMD_TA_STATS to get the context of loaded TAs.
+CFG_TA_STATS ?= n

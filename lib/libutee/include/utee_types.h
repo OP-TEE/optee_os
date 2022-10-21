@@ -19,6 +19,16 @@ enum utee_entry_func {
 	UTEE_ENTRY_FUNC_OPEN_SESSION = 0,
 	UTEE_ENTRY_FUNC_CLOSE_SESSION,
 	UTEE_ENTRY_FUNC_INVOKE_COMMAND,
+	/*
+	 * UTEE_ENTRY_FUNC_DUMP_MEMSTATS
+	 * [out] value[0].a  Byte size currently allocated
+	 * [out] value[0].b  Max bytes allocated since stats reset
+	 * [out] value[1].a  Pool byte size
+	 * [out] value[1].b  Number of failed allocation requests
+	 * [out] value[2].a  Biggest byte size which allocation failed
+	 * [out] value[2].b  Biggest byte size which allocation succeeded
+	 */
+	UTEE_ENTRY_FUNC_DUMP_MEMSTATS,
 };
 
 /*

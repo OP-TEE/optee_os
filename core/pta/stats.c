@@ -21,6 +21,22 @@
 #define STATS_CMD_PAGER_STATS		0
 #define STATS_CMD_ALLOC_STATS		1
 #define STATS_CMD_MEMLEAK_STATS		2
+/*
+ * UTEE_ENTRY_FUNC_DUMP_MEMSTATS
+ * [out]    memref[0]        Array of context information of loaded TAs
+ *
+ * Each cell of the TA information array contains:
+ * TEE_UUID    TA UUID
+ * uint32_t    Non zero if TA panicked, 0 otherwise
+ * uint32_t    Number of sessions opened by the TA
+ * uint32_t    Byte size currently allocated in TA heap
+ * uint32_t    Max bytes allocated since last stats reset
+ * uint32_t    TA heap pool byte size
+ * uint32_t    Number of failed allocation requests
+ * uint32_t    Biggest byte size which allocation failed
+ * uint32_t    Biggest byte size which allocation succeeded
+ */
+#define STATS_CMD_TA_STATS		3
 
 #define STATS_NB_POOLS			4
 
@@ -125,7 +141,7 @@ static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 }
 
 static TEE_Result get_memleak_stats(uint32_t type,
-				    TEE_Param p[TEE_NUM_PARAMS] __unused)
+				    TEE_Param p[TEE_NUM_PARAMS] __maybe_unused)
 {
 
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE, TEE_PARAM_TYPE_NONE,
@@ -135,6 +151,28 @@ static TEE_Result get_memleak_stats(uint32_t type,
 	mdbg_check(1);
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result get_user_ta_stats(uint32_t type,
+				    TEE_Param p[TEE_NUM_PARAMS] __maybe_unused)
+{
+	uint32_t res = TEE_SUCCESS;
+
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE) != type)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+#if defined(CFG_TA_STATS)
+	res = tee_ta_instance_stats(p[0].memref.buffer,
+				    &p[0].memref.size);
+	if (res != TEE_SUCCESS)
+		DMSG("tee_ta_dump_stats return: 0x%"PRIx32, res);
+#else
+	res = TEE_ERROR_NOT_SUPPORTED;
+#endif
+	return res;
 }
 
 /*
@@ -152,6 +190,8 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_alloc_stats(ptypes, params);
 	case STATS_CMD_MEMLEAK_STATS:
 		return get_memleak_stats(ptypes, params);
+	case STATS_CMD_TA_STATS:
+		return get_user_ta_stats(ptypes, params);
 	default:
 		break;
 	}

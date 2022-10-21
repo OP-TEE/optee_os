@@ -229,6 +229,13 @@ static void user_ta_enter_close_session(struct ts_session *s)
 		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
 }
 
+#if defined(CFG_TA_STATS)
+static TEE_Result user_ta_enter_dump_memstats(struct ts_session *s)
+{
+	return user_ta_enter(s, UTEE_ENTRY_FUNC_DUMP_MEMSTATS, 0);
+}
+#endif
+
 static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
 {
 	user_mode_ctx_print_mappings(&utc->uctx);
@@ -377,6 +384,9 @@ const struct ts_ops user_ta_ops __weak __relrodata_unpaged("user_ta_ops") = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
+#if defined(CFG_TA_STATS)
+	.dump_mem_stats = user_ta_enter_dump_memstats,
+#endif
 	.dump_state = user_ta_dump_state,
 #ifdef CFG_FTRACE_SUPPORT
 	.dump_ftrace = user_ta_dump_ftrace,
