@@ -139,10 +139,23 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (ret)
 		goto out;
 
-	ret = aes_gcm_encrypt_uid((uint8_t *)otp_key, len, hwkey->data, &len);
+	if (IS_ENABLED(CFG_STM32MP15_HUK_BSEC_KEY)) {
+		static_assert(sizeof(otp_key) == HW_UNIQUE_KEY_LENGTH);
+		memcpy(hwkey->data, otp_key, HW_UNIQUE_KEY_LENGTH);
+		ret = TEE_SUCCESS;
+		goto out;
+	}
 
-	if (len != HW_UNIQUE_KEY_LENGTH)
-		ret = TEE_ERROR_GENERIC;
+	if (IS_ENABLED(CFG_STM32MP15_HUK_BSEC_DERIVE_UID)) {
+		ret = aes_gcm_encrypt_uid((uint8_t *)otp_key, len, hwkey->data,
+					  &len);
+		if (len != HW_UNIQUE_KEY_LENGTH)
+			ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	panic();
+
 out:
 	memzero_explicit(otp_key, HW_UNIQUE_KEY_LENGTH);
 

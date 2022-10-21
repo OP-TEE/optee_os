@@ -260,8 +260,39 @@ CFG_WITH_NSEC_UARTS ?= y
 # UART instance used for early console (0 disables early console)
 CFG_STM32_EARLY_CONSOLE_UART ?= 4
 
-# Disable the HUK by default as it requires a product specific configuration
+# CFG_STM32MP15_HUK enables use of a HUK read from BSEC fuses.
+# Disable the HUK by default as it requires a product specific configuration.
+#
+# Configuration must provide the HUK generation scheme. The following switches
+# are exclusive and at least one must be eable when CFG_STM32MP15_HUK is enable.
+# CFG_STM32MP15_HUK_BSEC_KEY makes platform HUK to be the raw fuses content.
+# CFG_STM32MP15_HUK_BSEC_DERIVE_UID makes platform HUK to be the HUK fuses
+# content derived with the device UID fuses content. See derivation scheme
+# in stm32mp15_huk.c implementation.
 CFG_STM32MP15_HUK ?= n
+
+ifeq ($(CFG_STM32MP15_HUK),y)
+ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_0))
+$(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_0)
+endif
+ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_1))
+$(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_1)
+endif
+ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_2))
+$(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_2)
+endif
+ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_3))
+$(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_3)
+endif
+
+CFG_STM32MP15_HUK_BSEC_KEY ?= y
+CFG_STM32MP15_HUK_BSEC_DERIVE_UID ?= n
+ifneq (y,$(call cfg-one-enabled,CFG_STM32MP15_HUK_BSEC_KEY CFG_STM32MP15_HUK_BSEC_DERIVE_UID))
+$(error CFG_STM32MP15_HUK mandates one of CFG_STM32MP15_HUK_BSEC_KEY CFG_STM32MP15_HUK_BSEC_DERIVE_UID)
+else ifeq ($(CFG_STM32MP15_HUK_BSEC_KEY)-$(CFG_STM32MP15_HUK_BSEC_DERIVE_UID),y-y)
+$(error CFG_STM32MP15_HUK_BSEC_KEY and CFG_STM32MP15_HUK_BSEC_DERIVE_UID are exclusive)
+endif
+endif # CFG_STM32MP15_HUK
 
 # Sanity on choice config switches
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
