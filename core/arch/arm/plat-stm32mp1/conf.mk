@@ -263,6 +263,10 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 4
 # CFG_STM32MP15_HUK enables use of a HUK read from BSEC fuses.
 # Disable the HUK by default as it requires a product specific configuration.
 #
+# Configuration must provide OTP indices where HUK is loaded.
+# Either with CFG_STM32MP15_HUK_OTP_BASE, in which case the 4 words are used,
+# Or with CFG_STM32MP15_HUK_BSEC_KEY_0/1/2/3 each locating one BSEC word.
+#
 # Configuration must provide the HUK generation scheme. The following switches
 # are exclusive and at least one must be eable when CFG_STM32MP15_HUK is enable.
 # CFG_STM32MP15_HUK_BSEC_KEY makes platform HUK to be the raw fuses content.
@@ -272,6 +276,12 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 4
 CFG_STM32MP15_HUK ?= n
 
 ifeq ($(CFG_STM32MP15_HUK),y)
+ifneq (,$(CFG_STM32MP15_HUK_OTP_BASE))
+$(call force,CFG_STM32MP15_HUK_BSEC_KEY_0,CFG_STM32MP15_HUK_OTP_BASE)
+$(call force,CFG_STM32MP15_HUK_BSEC_KEY_1,(CFG_STM32MP15_HUK_OTP_BASE + 1))
+$(call force,CFG_STM32MP15_HUK_BSEC_KEY_2,(CFG_STM32MP15_HUK_OTP_BASE + 2))
+$(call force,CFG_STM32MP15_HUK_BSEC_KEY_3,(CFG_STM32MP15_HUK_OTP_BASE + 3))
+endif
 ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_0))
 $(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_0)
 endif
