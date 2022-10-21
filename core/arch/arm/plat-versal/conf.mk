@@ -36,3 +36,12 @@ endif
 
 # GPIO
 CFG_VERSAL_GPIO ?= y
+
+# Debug information
+CFG_VERSAL_TRACE_MBOX ?= n
+CFG_VERSAL_TRACE_PLM ?= n
+
+$(call force, CFG_VERSAL_MBOX,y)
+
+# MBOX configuration
+CFG_VERSAL_MBOX_IPI_ID ?= 3

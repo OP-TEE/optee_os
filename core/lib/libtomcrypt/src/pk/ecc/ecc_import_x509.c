@@ -1,17 +1,10 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 #ifdef LTC_MECC
 
-static int _ecc_import_x509_with_oid(const unsigned char *in, unsigned long inlen, ecc_key *key)
+static int s_ecc_import_x509_with_oid(const unsigned char *in, unsigned long inlen, ecc_key *key)
 {
    unsigned char bin_xy[2*ECC_MAXSIZE+2];
    unsigned long curveoid[16];
@@ -22,7 +15,7 @@ static int _ecc_import_x509_with_oid(const unsigned char *in, unsigned long inle
 
    len_xy = sizeof(bin_xy);
    len_oid = 16;
-   err = x509_decode_subject_public_key_info(in, inlen, PKA_EC, bin_xy, &len_xy,
+   err = x509_decode_subject_public_key_info(in, inlen, LTC_OID_EC, bin_xy, &len_xy,
                                              LTC_ASN1_OBJECT_IDENTIFIER, (void *)curveoid, &len_oid);
    if (err == CRYPT_OK) {
       /* load curve parameters for given curve OID */
@@ -37,7 +30,7 @@ error:
    return err;
 }
 
-static int _ecc_import_x509_with_curve(const unsigned char *in, unsigned long inlen, ecc_key *key)
+static int s_ecc_import_x509_with_curve(const unsigned char *in, unsigned long inlen, ecc_key *key)
 {
    void *prime, *order, *a, *b, *gx, *gy;
    ltc_asn1_list seq_fieldid[2], seq_curve[3], seq_ecparams[6];
@@ -47,7 +40,7 @@ static int _ecc_import_x509_with_curve(const unsigned char *in, unsigned long in
    unsigned long cofactor = 0, ecver = 0, tmpoid[16];
    int err;
 
-   if ((err = mp_init_multi(&prime, &order, &a, &b, &gx, &gy, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&prime, &order, &a, &b, &gx, &gy, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
 
@@ -70,7 +63,7 @@ static int _ecc_import_x509_with_curve(const unsigned char *in, unsigned long in
    /* try to load public key */
    len_xy = sizeof(bin_xy);
    len = 6;
-   err = x509_decode_subject_public_key_info(in, inlen, PKA_EC, bin_xy, &len_xy, LTC_ASN1_SEQUENCE, seq_ecparams, &len);
+   err = x509_decode_subject_public_key_info(in, inlen, LTC_OID_EC, bin_xy, &len_xy, LTC_ASN1_SEQUENCE, seq_ecparams, &len);
 
    if (err == CRYPT_OK) {
       len_a = seq_curve[0].size;
@@ -86,7 +79,7 @@ static int _ecc_import_x509_with_curve(const unsigned char *in, unsigned long in
       err = ecc_set_key(bin_xy, len_xy, PK_PUBLIC, key);
    }
 error:
-   mp_clear_multi(prime, order, a, b, gx, gy, NULL);
+   mp_clear_multi(prime, order, a, b, gx, gy, LTC_NULL);
    return err;
 }
 
@@ -94,11 +87,11 @@ int ecc_import_subject_public_key_info(const unsigned char *in, unsigned long in
 {
    int err;
 
-   if ((err = _ecc_import_x509_with_oid(in, inlen, key)) == CRYPT_OK) {
+   if ((err = s_ecc_import_x509_with_oid(in, inlen, key)) == CRYPT_OK) {
       goto success;
    }
 
-   err = _ecc_import_x509_with_curve(in, inlen, key);
+   err = s_ecc_import_x509_with_curve(in, inlen, key);
 
 success:
    return err;
@@ -113,12 +106,11 @@ success:
 */
 int ecc_import_x509(const unsigned char *in, unsigned long inlen, ecc_key *key)
 {
-   return x509_decode_public_key_from_certificate(in, inlen, PKA_EC, LTC_ASN1_EOL, NULL, NULL, NULL, key);
+   return x509_decode_public_key_from_certificate(in, inlen,
+                                                  LTC_OID_EC,
+                                                  LTC_ASN1_EOL, NULL, NULL,
+                                                  (public_key_decode_cb)ecc_import_subject_public_key_info, key);
 }
 
 #endif /* LTC_MECC */
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

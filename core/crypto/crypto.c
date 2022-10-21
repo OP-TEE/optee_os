@@ -825,6 +825,65 @@ TEE_Result crypto_acipher_x25519_shared_secret(struct x25519_keypair
 }
 #endif
 
-__weak void crypto_storage_obj_del(uint8_t *data __unused, size_t len __unused)
+#if !defined(CFG_CRYPTO_ED25519)
+TEE_Result crypto_acipher_alloc_ed25519_keypair(struct ed25519_keypair *key
+								 __unused,
+						size_t key_size_bits __unused)
 {
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_gen_ed25519_key(struct ed25519_keypair *key __unused,
+					  size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ed25519_sign(struct ed25519_keypair *key __unused,
+				       const uint8_t *msg __unused,
+				       size_t msg_len __unused,
+				       uint8_t *sig __unused,
+				       size_t *sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ed25519_verify(struct ed25519_keypair *key __unused,
+					 const uint8_t *msg __unused,
+					 size_t msg_len __unused,
+					 const uint8_t *sig __unused,
+					 size_t sig_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ed25519ctx_sign(struct ed25519_keypair *key __unused,
+					  const uint8_t *msg __unused,
+					  size_t msg_len __unused,
+					  uint8_t *sig __unused,
+					  size_t *sig_len __unused,
+					  bool ph_flag __unused,
+					  const uint8_t *ctx __unused,
+					  size_t ctxlen __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_keypair *key
+							 __unused,
+					    const uint8_t *msg __unused,
+					    size_t msg_len __unused,
+					    const uint8_t *sig __unused,
+					    size_t sig_len __unused,
+					    bool ph_flag __unused,
+					    const uint8_t *ctx __unused,
+					    size_t ctxlen __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
+__weak TEE_Result crypto_storage_obj_del(struct tee_obj *obj __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
 }

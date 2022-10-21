@@ -470,6 +470,12 @@ static const uint32_t ec_private_key_opt_or_null[] = {
 	PKCS11_CKA_VALUE,
 };
 
+static const uint32_t eddsa_private_key_opt_or_null[] = {
+	PKCS11_CKA_EC_PARAMS,
+	PKCS11_CKA_VALUE,
+	PKCS11_CKA_EC_POINT,
+};
+
 static enum pkcs11_rc create_storage_attributes(struct obj_attrs **out,
 						struct obj_attrs *temp)
 {
@@ -767,6 +773,7 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 		}
 		break;
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 		mandated = ec_public_key_mandated;
 		oon = ec_public_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_public_key_mandated);
@@ -828,6 +835,12 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 		oon = ec_private_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
 		oon_count = ARRAY_SIZE(ec_private_key_opt_or_null);
+		break;
+	case PKCS11_CKK_EC_EDWARDS:
+		mandated = ec_private_key_mandated;
+		oon = eddsa_private_key_opt_or_null;
+		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
+		oon_count = ARRAY_SIZE(eddsa_private_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -978,6 +991,10 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	 */
 	if (function == PKCS11_FUNCTION_GENERATE_PAIR) {
 		switch (mecha) {
+		case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+			class = template_class;
+			type = PKCS11_CKK_EDDSA;
+			break;
 		case PKCS11_CKM_EC_KEY_PAIR_GEN:
 			class = template_class;
 			type = PKCS11_CKK_EC;
@@ -1051,6 +1068,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
 		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
 		    get_key_type(temp) != PKCS11_CKK_EC) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
+		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
+		    get_key_type(temp) != PKCS11_CKK_EC_EDWARDS) {
 			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 			goto out;
 		}
@@ -1382,6 +1407,7 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 	case PKCS11_CKM_AES_KEY_GEN:
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, true));
@@ -1397,6 +1423,9 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_AES_KEY_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_AES);
+		break;
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_EC_EDWARDS);
 		break;
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_EC);
@@ -1447,6 +1476,9 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 		break;
 	case PKCS11_CKK_EC:
 		mechanism = PKCS11_CKM_EC_KEY_PAIR_GEN;
+		break;
+	case PKCS11_CKK_EDDSA:
+		mechanism = PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN;
 		break;
 	case PKCS11_CKK_RSA:
 		mechanism = PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN;
@@ -1539,6 +1571,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 			key_length = ROUNDUP(key_length, 8) / 8;
 			break;
 		case PKCS11_CKK_EC:
+		case PKCS11_CKK_EC_EDWARDS:
 			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
@@ -1548,6 +1581,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 		switch (get_key_type(private)) {
 		case PKCS11_CKK_RSA:
 		case PKCS11_CKK_EC:
+		case PKCS11_CKK_EC_EDWARDS:
 			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
@@ -1560,6 +1594,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	 */
 	switch (get_key_type(key1)) {
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 		return PKCS11_CKR_OK;
 	default:
 		break;
@@ -1738,6 +1773,22 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 				break;
 			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 		default:
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
+		break;
+
+	case PKCS11_CKM_EDDSA:
+		if (key_type != PKCS11_CKK_EC_EDWARDS) {
+			EMSG("Invalid key %s for mechanism %s",
+			     id2str_type(key_type, key_class),
+			     id2str_proc(proc_id));
+			return PKCS11_CKR_KEY_TYPE_INCONSISTENT;
+		}
+		if (key_class != PKCS11_CKO_PUBLIC_KEY &&
+		    key_class != PKCS11_CKO_PRIVATE_KEY) {
+			EMSG("Invalid key class for mechanism %s",
+			     id2str_proc(proc_id));
+
 			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
 		}
 		break;

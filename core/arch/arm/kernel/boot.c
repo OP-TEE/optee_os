@@ -627,6 +627,9 @@ void *get_embedded_dt(void)
 #if defined(CFG_DT)
 void *get_external_dt(void)
 {
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
 	assert(cpu_mmu_enabled());
 	return external_dt.blob;
 }
@@ -634,6 +637,9 @@ void *get_external_dt(void)
 static TEE_Result release_external_dt(void)
 {
 	int ret = 0;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return TEE_SUCCESS;
 
 	if (!external_dt.blob)
 		return TEE_SUCCESS;
@@ -1092,6 +1098,9 @@ static void init_external_dt(unsigned long phys_dt)
 	void *fdt;
 	int ret;
 
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
 	if (!phys_dt) {
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
@@ -1136,6 +1145,9 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
 
 	if (!dt->blob)
 		return;
@@ -1252,6 +1264,14 @@ void init_tee_runtime(void)
 	if (!IS_ENABLED(CFG_VIRTUALIZATION))
 		call_preinitcalls();
 	call_initcalls();
+
+	/*
+	 * These two functions uses crypto_rng_read() to initialize the
+	 * pauth keys. Once call_initcalls() returns we're guaranteed that
+	 * crypto_rng_read() is ready to be used.
+	 */
+	thread_init_core_local_pauth_keys();
+	thread_init_thread_pauth_keys();
 }
 
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)

@@ -85,6 +85,7 @@ enum stm32mp1_parent_id {
  */
 enum stm32mp1_parent_sel {
 	_STGEN_SEL,
+	_I2C35_SEL,
 	_I2C46_SEL,
 	_SPI6_SEL,
 	_USART1_SEL,
@@ -376,6 +377,10 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 	_CLK_SELEC(SEC, RCC_BDCR, RCC_BDCR_RTCCKEN_POS, RTC, _RTC_SEL),
 
 	/* Non-secure clocks */
+#ifdef CFG_WITH_NSEC_I2CS
+	_CLK_SC2_SELEC(N_S, RCC_MP_APB1ENSETR, I2C5EN, I2C5_K, _I2C35_SEL),
+#endif
+
 #ifdef CFG_WITH_NSEC_GPIOS
 	_CLK_SC_FIXED(N_S, RCC_MP_AHB4ENSETR, 0, GPIOA, _UNKNOWN_ID),
 	_CLK_SC_FIXED(N_S, RCC_MP_AHB4ENSETR, 1, GPIOB, _UNKNOWN_ID),
@@ -420,6 +425,12 @@ const uint8_t stm32mp1_clk_on[] = {
 static const uint8_t stgen_parents[] = {
 	_HSI_KER, _HSE_KER
 };
+
+#ifdef CFG_WITH_NSEC_I2CS
+static const uint8_t i2c35_parents[] = {
+	_PCLK1, _PLL4_R, _HSI_KER, _CSI_KER
+};
+#endif
 
 static const uint8_t i2c46_parents[] = {
 	_PCLK5, _PLL3_Q, _HSI_KER, _CSI_KER
@@ -474,6 +485,9 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_RTC_SEL, RCC_BDCR, 16, 0x3, rtc_parents),
 	_CLK_PARENT(_MPU_SEL, RCC_MPCKSELR, 0, 0x3, mpu_parents),
 	/* Always non-secure clocks (maybe used in some way in secure world) */
+#ifdef CFG_WITH_NSEC_I2CS
+	_CLK_PARENT(_I2C35_SEL, RCC_I2C35CKSELR, 0, 0x7, i2c35_parents),
+#endif
 #ifdef CFG_WITH_NSEC_UARTS
 	_CLK_PARENT(_UART6_SEL, RCC_UART6CKSELR, 0, 0x7, uart6_parents),
 	_CLK_PARENT(_UART24_SEL, RCC_UART24CKSELR, 0, 0x7, uart234578_parents),

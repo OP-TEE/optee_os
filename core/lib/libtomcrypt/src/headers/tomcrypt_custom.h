@@ -1,12 +1,5 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #ifndef TOMCRYPT_CUSTOM_H_
 #define TOMCRYPT_CUSTOM_H_
@@ -41,11 +34,13 @@
  * c.f. mem_neq() API summary.
  */
 #ifndef XMEM_NEQ
-#include <string_ext.h>
-#define XMEM_NEQ consttime_memcmp
+#define XMEM_NEQ  mem_neq
 #endif
 #ifndef XSTRCMP
 #define XSTRCMP  strcmp
+#endif
+#ifndef XSTRLEN
+#define XSTRLEN  strlen
 #endif
 #ifndef XSTRNCPY
 #define XSTRNCPY strncpy
@@ -61,7 +56,8 @@
 
 #if ( defined(malloc) || defined(realloc) || defined(calloc) || defined(free) || \
       defined(memset) || defined(memcpy) || defined(memcmp) || defined(strcmp) || \
-      defined(strncpy) || defined(clock) || defined(qsort) ) && !defined(LTC_NO_PROTOTYPES)
+      defined(strlen) || defined(strncpy) || defined(clock) || defined(qsort) ) \
+      && !defined(LTC_NO_PROTOTYPES)
 #define LTC_NO_PROTOTYPES
 #endif
 
@@ -118,7 +114,7 @@
 
    #define LTC_NO_MISC
    #define LTC_BASE64
-#endif
+#endif /* LTC_EASY */
 
 /* The minimal set of functionality to run the tests */
 #ifdef LTC_MINIMAL
@@ -133,7 +129,7 @@
    #define LTC_TRY_URANDOM_FIRST
 
    #undef LTC_NO_FILE
-#endif
+#endif /* LTC_MINIMAL */
 
 /* Enable self-test test vector checking */
 #ifndef LTC_NO_TEST
@@ -209,6 +205,7 @@
 #define LTC_CAMELLIA
 #define LTC_IDEA
 #define LTC_SERPENT
+#define LTC_TEA
 
 /* stream ciphers */
 #define LTC_CHACHA
@@ -360,7 +357,7 @@
   #define LTC_YARROW_AES 2
 #endif
 
-#endif
+#endif /* LTC_YARROW */
 
 #ifdef LTC_FORTUNA
 
@@ -477,6 +474,8 @@
 /* Include ASN.1 DER (required by DSA/RSA) */
 #define LTC_DER
 
+#define LTC_MPI
+
 #endif /* LTC_NO_PKCS */
 
 /* misc stuff */
@@ -490,6 +489,12 @@
 #define LTC_BASE32
 /* Base16/hex encoding/decoding */
 #define LTC_BASE16
+
+#define LTC_BCRYPT
+
+#ifndef LTC_BCRYPT_DEFAULT_ROUNDS
+#define LTC_BCRYPT_DEFAULT_ROUNDS 10
+#endif
 
 /* Keep LTC_NO_HKDF for compatibility reasons
  * superseeded by LTC_NO_MISC*/
@@ -550,7 +555,7 @@
    #define LTC_ECC_SECP384R1
    #define LTC_ECC_SECP521R1
 #endif
-#endif
+#endif /* LTC_MECC */
 
 #if defined(LTC_DER)
    #ifndef LTC_DER_MAX_RECURSION
@@ -560,9 +565,6 @@
 #endif
 
 #if defined(LTC_MECC) || defined(LTC_MRSA) || defined(LTC_MDSA) || defined(LTC_SSH)
-   /* Include the MPI functionality?  (required by the PK algorithms) */
-   #define LTC_MPI
-
    #ifndef LTC_PK_MAX_RETRIES
       /* iterations limit for retry-loops */
       #define LTC_PK_MAX_RETRIES  20
@@ -580,6 +582,27 @@
 #ifdef LTC_PKCS_8
    #define LTC_PADDING
    #define LTC_PBES
+#endif
+
+#if defined(LTC_CLEAN_STACK)
+/* if you're sure that you want to use it, remove the line below */
+   #error LTC_CLEAN_STACK is considered as broken
+#endif
+
+#if defined(LTC_PBES) && !defined(LTC_PKCS_5)
+   #error LTC_PBES requires LTC_PKCS_5
+#endif
+
+#if defined(LTC_PBES) && !defined(LTC_PKCS_12)
+   #error LTC_PBES requires LTC_PKCS_12
+#endif
+
+#if defined(LTC_PKCS_5) && !defined(LTC_HMAC)
+   #error LTC_PKCS_5 requires LTC_HMAC
+#endif
+
+#if defined(LTC_PKCS_5) && !defined(LTC_HASH_HELPERS)
+   #error LTC_PKCS_5 requires LTC_HASH_HELPERS
 #endif
 
 #if defined(LTC_PELICAN) && !defined(LTC_RIJNDAEL)
@@ -600,6 +623,10 @@
 
 #if (defined(LTC_MDSA) || defined(LTC_MRSA) || defined(LTC_MECC)) && !defined(LTC_DER)
    #error PK requires ASN.1 DER functionality, make sure LTC_DER is enabled
+#endif
+
+#if defined(LTC_BCRYPT) && !defined(LTC_BLOWFISH)
+   #error LTC_BCRYPT requires LTC_BLOWFISH
 #endif
 
 #if defined(LTC_CHACHA20POLY1305_MODE) && (!defined(LTC_CHACHA) || !defined(LTC_POLY1305))
@@ -673,14 +700,12 @@
 #define LTC_MUTEX_UNLOCK(x)
 #define LTC_MUTEX_DESTROY(x)
 
-#endif
+#endif /* LTC_PTHREAD */
 
 /* Debuggers */
 
 /* define this if you use Valgrind, note: it CHANGES the way SOBER-128 and RC4 work (see the code) */
 /* #define LTC_VALGRIND */
-
-#endif
 
 #ifndef LTC_NO_FILE
    /* buffer size for reading from a file via fread(..) */
@@ -723,6 +748,4 @@
 #undef LTC_ECC521
 #endif
 
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */
+#endif /* TOMCRYPT_CUSTOM_H_ */

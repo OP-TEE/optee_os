@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #define DESC_DEF_ONLY
 #include "tomcrypt_private.h"
@@ -14,13 +7,21 @@
 #ifdef LTM_DESC
 
 #include <tommath.h>
+#if !defined(PRIVATE_MP_WARRAY) && !defined(BN_MP_PRIME_IS_PRIME_C)
+#include <stdbool.h>
+#endif
 
 static const struct {
-    int mpi_code, ltc_code;
+    mp_err mpi_code;
+    int ltc_code;
 } mpi_to_ltc_codes[] = {
    { MP_OKAY ,  CRYPT_OK},
    { MP_MEM  ,  CRYPT_MEM},
    { MP_VAL  ,  CRYPT_INVALID_ARG},
+#if defined(MP_BUF) || defined(MP_USE_ENUMS)
+   { MP_ITER ,  CRYPT_INVALID_PACKET},
+   { MP_BUF  ,  CRYPT_BUFFER_OVERFLOW},
+#endif
 };
 
 /**
@@ -28,16 +29,28 @@ static const struct {
    @param err    The error to convert
    @return The equivalent LTC error code or CRYPT_ERROR if none found
 */
-static int mpi_to_ltc_error(int err)
+static int mpi_to_ltc_error(mp_err err)
 {
-   int x;
+   size_t x;
 
-   for (x = 0; x < (int)(sizeof(mpi_to_ltc_codes)/sizeof(mpi_to_ltc_codes[0])); x++) {
+   for (x = 0; x < sizeof(mpi_to_ltc_codes)/sizeof(mpi_to_ltc_codes[0]); x++) {
        if (err == mpi_to_ltc_codes[x].mpi_code) {
           return mpi_to_ltc_codes[x].ltc_code;
        }
    }
    return CRYPT_ERROR;
+}
+
+static int init_mpi(void **a)
+{
+   LTC_ARGCHK(a != NULL);
+
+   *a = XCALLOC(1, sizeof(mp_int));
+   if (*a == NULL) {
+      return CRYPT_MEM;
+   } else {
+      return CRYPT_OK;
+   }
 }
 
 static int init(void **a)
@@ -46,11 +59,9 @@ static int init(void **a)
 
    LTC_ARGCHK(a != NULL);
 
-   *a = XCALLOC(1, sizeof(mp_int));
-   if (*a == NULL) {
-      return CRYPT_MEM;
+   if ((err = init_mpi(a)) != CRYPT_OK) {
+      return err;
    }
-
    if ((err = mpi_to_ltc_error(mp_init(*a))) != CRYPT_OK) {
       XFREE(*a);
    }
@@ -80,10 +91,11 @@ static int copy(void *a, void *b)
 
 static int init_copy(void **a, void *b)
 {
-   if (init(a) != CRYPT_OK) {
-      return CRYPT_MEM;
-   }
-   return copy(b, *a);
+   int err;
+   LTC_ARGCHK(a  != NULL);
+   LTC_ARGCHK(b  != NULL);
+   if ((err = init_mpi(a)) != CRYPT_OK) return err;
+   return mpi_to_ltc_error(mp_init_copy(*a, b));
 }
 
 /* ---- trivial ---- */
@@ -126,11 +138,9 @@ static int get_digit_count(void *a)
 
 static int compare(void *a, void *b)
 {
-   int ret;
    LTC_ARGCHK(a != NULL);
    LTC_ARGCHK(b != NULL);
-   ret = mp_cmp(a, b);
-   switch (ret) {
+   switch (mp_cmp(a, b)) {
       case MP_LT: return LTC_MP_LT;
       case MP_EQ: return LTC_MP_EQ;
       case MP_GT: return LTC_MP_GT;
@@ -140,10 +150,8 @@ static int compare(void *a, void *b)
 
 static int compare_d(void *a, ltc_mp_digit b)
 {
-   int ret;
    LTC_ARGCHK(a != NULL);
-   ret = mp_cmp_d(a, b);
-   switch (ret) {
+   switch (mp_cmp_d(a, b)) {
       case MP_LT: return LTC_MP_LT;
       case MP_EQ: return LTC_MP_EQ;
       case MP_GT: return LTC_MP_GT;
@@ -185,14 +193,22 @@ static int write_radix(void *a, char *b, int radix)
 {
    LTC_ARGCHK(a != NULL);
    LTC_ARGCHK(b != NULL);
+#ifdef BN_MP_TORADIX_C
    return mpi_to_ltc_error(mp_toradix(a, b, radix));
+#else
+   return mpi_to_ltc_error(mp_to_radix(a, b, SIZE_MAX, NULL, radix));
+#endif
 }
 
 /* get size as unsigned char string */
 static unsigned long unsigned_size(void *a)
 {
    LTC_ARGCHK(a != NULL);
+#ifdef BN_MP_UNSIGNED_BIN_SIZE_C
    return mp_unsigned_bin_size(a);
+#else
+   return (unsigned long)mp_ubin_size(a);
+#endif
 }
 
 /* store */
@@ -200,7 +216,11 @@ static int unsigned_write(void *a, unsigned char *b)
 {
    LTC_ARGCHK(a != NULL);
    LTC_ARGCHK(b != NULL);
+#ifdef BN_MP_TO_UNSIGNED_BIN_C
    return mpi_to_ltc_error(mp_to_unsigned_bin(a, b));
+#else
+   return mpi_to_ltc_error(mp_to_ubin(a, b, SIZE_MAX, NULL));
+#endif
 }
 
 /* read */
@@ -208,7 +228,11 @@ static int unsigned_read(void *a, unsigned char *b, unsigned long len)
 {
    LTC_ARGCHK(a != NULL);
    LTC_ARGCHK(b != NULL);
+#ifdef BN_MP_READ_UNSIGNED_BIN_C
    return mpi_to_ltc_error(mp_read_unsigned_bin(a, b, len));
+#else
+   return mpi_to_ltc_error(mp_from_ubin(a, b, (size_t)len));
+#endif
 }
 
 /* add */
@@ -420,11 +444,16 @@ static int exptmod(void *a, void *b, void *c, void *d)
 static int isprime(void *a, int b, int *c)
 {
    int err;
+#if defined(PRIVATE_MP_WARRAY) || defined(BN_MP_PRIME_IS_PRIME_C)
+   int res;
+#else
+   bool res;
+#endif
    LTC_ARGCHK(a != NULL);
    LTC_ARGCHK(c != NULL);
    b = mp_prime_rabin_miller_trials(mp_count_bits(a));
-   err = mpi_to_ltc_error(mp_prime_is_prime(a, b, c));
-   *c = (*c == MP_YES) ? LTC_MP_YES : LTC_MP_NO;
+   err = mpi_to_ltc_error(mp_prime_is_prime(a, b, &res));
+   *c = res ? LTC_MP_YES : LTC_MP_NO;
    return err;
 }
 
@@ -529,7 +558,3 @@ const ltc_math_descriptor ltm_desc = {
 
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

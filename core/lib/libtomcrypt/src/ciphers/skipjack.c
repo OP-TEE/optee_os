@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
   @file skipjack.c
@@ -140,7 +133,7 @@ static unsigned ig_func(unsigned w, int *kp, const unsigned char *key)
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
+static int s_skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #else
 int skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #endif
@@ -190,7 +183,7 @@ int skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symme
 #ifdef LTC_CLEAN_STACK
 int skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 {
-   int err = _skipjack_ecb_encrypt(pt, ct, skey);
+   int err = s_skipjack_ecb_encrypt(pt, ct, skey);
    burn_stack(sizeof(unsigned) * 8 + sizeof(int) * 2);
    return err;
 }
@@ -204,7 +197,7 @@ int skipjack_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symme
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _skipjack_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
+static int s_skipjack_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #else
 int skipjack_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #endif
@@ -258,7 +251,7 @@ int skipjack_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symme
 #ifdef LTC_CLEAN_STACK
 int skipjack_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 {
-   int err = _skipjack_ecb_decrypt(ct, pt, skey);
+   int err = s_skipjack_ecb_decrypt(ct, pt, skey);
    burn_stack(sizeof(unsigned) * 7 + sizeof(int) * 2);
    return err;
 }
@@ -339,7 +332,3 @@ int skipjack_keysize(int *keysize)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

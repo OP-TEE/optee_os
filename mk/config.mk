@@ -127,7 +127,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 18
+CFG_OPTEE_REVISION_MINOR ?= 19
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
@@ -427,6 +427,10 @@ CFG_STACK_TMP_EXTRA ?= 0
 # the address of a DTB in register X2/R2 provided by the early boot stage
 # or value 0 if boot stage provides no DTB.
 #
+# When CFG_EXTERNAL_DT is enabled, the external device tree ABI is implemented
+# and the external device tree is expected to be used/modified. Its value
+# defaults to CFG_DT.
+#
 # When CFG_MAP_EXT_DT_SECURE is enabled the external device tree is expected to
 # be in the secure memory.
 #
@@ -442,6 +446,7 @@ $(call force,CFG_DT,y)
 endif
 CFG_EMBED_DTB ?= n
 CFG_DT ?= n
+CFG_EXTERNAL_DT ?= $(CFG_DT)
 CFG_MAP_EXT_DT_SECURE ?= n
 ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
 $(call force,CFG_DT,y)
@@ -858,15 +863,27 @@ CFG_CORE_ASYNC_NOTIF ?= n
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
 
-# Pointer Authentication (part of ARMv8.3 Extensions) provides
-# instructions for signing and authenticating pointers against secret keys.
-# These can be used to mitigate ROP (Return oriented programming) attacks.
-# This option enables these instructions for TA's at EL0. When this option is
-# enabled , TEE core will initialize secret keys per TA.
-CFG_TA_PAUTH ?= n
+# Pointer Authentication (part of ARMv8.3 Extensions) provides instructions
+# for signing and authenticating pointers against secret keys. These can
+# be used to mitigate ROP (Return oriented programming) attacks. This is
+# currently done by instructing the compiler to add paciasp/autiasp at the
+# begging and end of functions to sign and verify ELR.
+#
+# The CFG_CORE_PAUTH enables these instructions for the core parts
+# executing at EL1, with one secret key per thread and one secret key per
+# physical CPU.
+#
+# The CFG_TA_PAUTH option enables these instructions for TA's at EL0. When
+# this option is enabled, TEE core will initialize secret keys per TA.
+CFG_CORE_PAUTH ?= n
+CFG_TA_PAUTH ?= $(CFG_CORE_PAUTH)
 
+$(eval $(call cfg-depends-all,CFG_CORE_PAUTH,CFG_ARM64_core))
 $(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
 
+ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
+$(error CFG_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
+endif
 ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_TA_PAUTH))
 $(error CFG_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
 endif
@@ -908,4 +925,14 @@ CFG_DRIVERS_TPM2 ?= n
 CFG_DRIVERS_TPM2_MMIO ?= n
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
+endif
+
+# Enable the FF-A SPMC tests in xtests
+CFG_SPMC_TESTS ?= n
+
+# Allocate the translation tables needed to map the S-EL0 application
+# loaded
+CFG_CORE_PREALLOC_EL0_TBLS ?= n
+ifeq (y-y,$(CFG_CORE_PREALLOC_EL0_TBLS)-$(CFG_WITH_PAGER))
+$(error "CFG_WITH_PAGER can't support CFG_CORE_PREALLOC_EL0_TBLS")
 endif

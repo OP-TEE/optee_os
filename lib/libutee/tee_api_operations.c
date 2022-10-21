@@ -105,6 +105,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		if (maxKeySize != 521)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
+	case TEE_ALG_ED25519:
 	case TEE_ALG_X25519:
 		if (maxKeySize != 256)
 			return TEE_ERROR_NOT_SUPPORTED;
@@ -169,6 +170,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_ECDSA_P384:
 	case TEE_ALG_ECDSA_P521:
 	case TEE_ALG_SM2_DSA_SM3:
+	case TEE_ALG_ED25519:
 		if (mode == TEE_MODE_SIGN) {
 			with_private_key = true;
 			req_key_usage = TEE_USAGE_SIGN;
@@ -2073,6 +2075,10 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 	}
 	if (IS_ENABLED(CFG_CRYPTO_X25519)) {
 		if (alg == TEE_ALG_X25519 && element == TEE_ECC_CURVE_25519)
+			return TEE_SUCCESS;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_ED25519)) {
+		if (alg == TEE_ALG_ED25519 && element == TEE_ECC_CURVE_25519)
 			return TEE_SUCCESS;
 	}
 

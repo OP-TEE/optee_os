@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2021, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
  */
@@ -220,9 +220,9 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a6, uint32_t a7,
 				   void *pc)
 {
-	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
+	size_t n = 0;
 
 	assert(l->curr_thread == THREAD_ID_INVALID);
 
@@ -245,6 +245,14 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+#ifdef CFG_CORE_PAUTH
+	/*
+	 * Copy the APIA key into the registers to be restored with
+	 * thread_resume().
+	 */
+	threads[n].regs.apiakey_hi = threads[n].keys.apia_hi;
+	threads[n].regs.apiakey_lo = threads[n].keys.apia_lo;
+#endif
 
 	thread_lazy_save_ns_vfp();
 
@@ -593,6 +601,7 @@ static uint32_t __maybe_unused get_midr_revision(uint32_t midr)
 	return (midr >> MIDR_REVISION_SHIFT) & MIDR_REVISION_MASK;
 }
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 #ifdef ARM64
 static bool probe_workaround_available(uint32_t wa_id)
 {
@@ -629,9 +638,10 @@ static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 	return (vaddr_t)thread_excp_vect_wa_spectre_v2;
 }
 #endif
+#endif
 
-static vaddr_t __maybe_unused
-select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+static vaddr_t select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 {
 	/*
 	 * Spectre-BHB has only been analyzed for AArch64 so far. For
@@ -655,6 +665,7 @@ select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 	return select_vector_wa_spectre_v2();
 #endif
 }
+#endif
 
 static vaddr_t get_excp_vect(void)
 {
@@ -961,8 +972,8 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 	regs->sp = user_sp;	/* Used when running TA in Aarch64 */
 #ifdef CFG_TA_PAUTH
 	assert(keys);
-	regs->apiakey_hi = keys->hi;
-	regs->apiakey_lo = keys->lo;
+	regs->apiakey_hi = keys->apia_hi;
+	regs->apiakey_lo = keys->apia_lo;
 #endif
 	/* Set frame pointer (user stack can't be unwound past this point) */
 	regs->x[29] = 0;

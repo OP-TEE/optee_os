@@ -32,6 +32,7 @@
 #define TEE_MAIN_ALGO_DH         0x32
 #define TEE_MAIN_ALGO_ECDSA      0x41
 #define TEE_MAIN_ALGO_ECDH       0x42
+#define TEE_MAIN_ALGO_ED25519    0x43
 #define TEE_MAIN_ALGO_SM2_DSA_SM3 0x45 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_SM2_KEP    0x46 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_SM2_PKE    0x47 /* Not in v1.2 spec */
@@ -78,6 +79,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 		return TEE_MAIN_ALGO_SM2_KEP;
 	case TEE_ALG_X25519:
 		return TEE_MAIN_ALGO_X25519;
+	case TEE_ALG_ED25519:
+		return TEE_MAIN_ALGO_ED25519;
 	default:
 		break;
 	}

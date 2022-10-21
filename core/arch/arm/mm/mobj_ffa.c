@@ -599,7 +599,8 @@ static TEE_Result mapped_shm_init(void)
 	if (!pool_start || !pool_end)
 		panic("Can't find region for shmem pool");
 
-	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end, SMALL_PAGE_SHIFT,
+	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end - pool_start,
+			 SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 

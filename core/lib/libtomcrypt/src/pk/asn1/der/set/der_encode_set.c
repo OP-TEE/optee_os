@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -17,18 +10,18 @@
 #ifdef LTC_DER
 
 /* LTC define to ASN.1 TAG */
-static int _ltc_to_asn1(ltc_asn1_type v)
+static int s_ltc_to_asn1(ltc_asn1_type v)
 {
    return der_asn1_type_to_identifier_map[v];
 }
 
 
-static int _qsort_helper(const void *a, const void *b)
+static int s_qsort_helper(const void *a, const void *b)
 {
    ltc_asn1_list *A = (ltc_asn1_list *)a, *B = (ltc_asn1_list *)b;
    int            r;
 
-   r = _ltc_to_asn1(A->type) - _ltc_to_asn1(B->type);
+   r = s_ltc_to_asn1(A->type) - s_ltc_to_asn1(B->type);
 
    /* for QSORT the order is UNDEFINED if they are "equal" which means it is NOT DETERMINISTIC.  So we force it to be :-) */
    if (r == 0) {
@@ -66,7 +59,7 @@ int der_encode_set(const ltc_asn1_list *list, unsigned long inlen,
    }
 
    /* sort it by the "type" field */
-   XQSORT(copy, inlen, sizeof(*copy), &_qsort_helper);
+   XQSORT(copy, inlen, sizeof(*copy), &s_qsort_helper);
 
    /* call der_encode_sequence_ex() */
    err = der_encode_sequence_ex(copy, inlen, out, outlen, LTC_ASN1_SET);
@@ -79,7 +72,3 @@ int der_encode_set(const ltc_asn1_list *list, unsigned long inlen,
 
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

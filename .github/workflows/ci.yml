@@ -1,5 +1,7 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read # to fetch code (actions/checkout)
 jobs:
   code_style:
     name: Code style
@@ -77,7 +79,7 @@ jobs:
           export CFG_WERROR=y
 
           function _make() { make -j$(nproc) -s O=out $*; }
-          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.1.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.0 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
 
           ccache -s -v
           download_plug_and_trust
@@ -100,6 +102,7 @@ jobs:
           _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
           _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
           _make CFG_WITH_LPAE=y
+          _make CFG_CORE_PREALLOC_EL0_TBLS=y
           _make CFG_RPMB_FS=y
           _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
           _make CFG_REE_FS=n CFG_RPMB_FS=y
@@ -118,6 +121,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_VIRTUALIZATION=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
           _make PLATFORM=stm-b2260
@@ -178,6 +182,8 @@ jobs:
           _make PLATFORM=imx-mx93evk
           _make PLATFORM=k3-j721e
           _make PLATFORM=k3-j721e CFG_ARM64_core=y
+          _make PLATFORM=k3-j784s4
+          _make PLATFORM=k3-j784s4 CFG_ARM64_core=y
           _make PLATFORM=k3-am65x
           _make PLATFORM=k3-am65x CFG_ARM64_core=y
           _make PLATFORM=k3-am64x
@@ -251,17 +257,20 @@ jobs:
           # make check task
           set -e
           export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
           WD=$(pwd)
           sudo -E bash -c "cd /root/optee_repo_qemu_v8/.repo/repo && git pull"
           sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
           sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
           sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) CFG_TEE_CORE_LOG_LEVEL=0 check
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check
+
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check CFG_CRYPTO_WITH_CE=y
 
           sudo -E rm -rf /root/optee_repo_qemu_v8/out-br/build/optee_test*
           sudo -E make -C /root/optee_repo_qemu_v8/build arm-tf-clean
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) CFG_TEE_CORE_LOG_LEVEL=0 check XEN_BOOT=y
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check XEN_BOOT=y
 
   QEMUv8_check_rust:
     name: make check-rust (QEMUv8)
@@ -279,6 +288,7 @@ jobs:
           WD=$(pwd)
           sudo -E bash -c "cd /root/optee_repo_qemu_v8/.repo/repo && git pull"
           sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
+          sudo -E bash -c "cd /root/optee_repo_qemu_v8/optee_rust && curl https://github.com/apache/incubator-teaclave-trustzone-sdk/commit/6af7f7eb3c1910866598a82b66537fd539ee150b.patch | git am"
           sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
           sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
 

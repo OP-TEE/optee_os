@@ -140,7 +140,7 @@ void virt_init_memory(struct tee_mmap_region *memory_map)
 
 	/* Init page pool that covers all secure RAM */
 	if (!tee_mm_init(&virt_mapper_pool, TEE_RAM_START,
-			 TA_RAM_START + TA_RAM_SIZE,
+			 TA_RAM_START + TA_RAM_SIZE - TEE_RAM_START,
 			 SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NEX_MALLOC))
 		panic("Can't create pool with free pages");

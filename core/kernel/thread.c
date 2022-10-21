@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2021, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
  */
 
 #include <config.h>
+#include <crypto/crypto.h>
 #include <kernel/asan.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -449,10 +450,8 @@ void thread_init_threads(void)
 
 	mutex_lockdep_init();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
-		SLIST_INIT(&threads[n].tsd.pgt_cache);
-	}
 }
 
 void __nostackcheck thread_init_thread_core_local(void)
@@ -478,6 +477,27 @@ void thread_init_core_local_stacks(void)
 		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
 	}
 }
+
+#if defined(CFG_CORE_PAUTH)
+void thread_init_thread_pauth_keys(void)
+{
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		if (crypto_rng_read(&threads[n].keys, sizeof(threads[n].keys)))
+			panic("Failed to init thread pauth keys");
+}
+
+void thread_init_core_local_pauth_keys(void)
+{
+	struct thread_core_local *tcl = thread_core_local;
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		if (crypto_rng_read(&tcl[n].keys, sizeof(tcl[n].keys)))
+			panic("Failed to init core local pauth keys");
+}
+#endif
 
 struct thread_specific_data *thread_get_tsd(void)
 {

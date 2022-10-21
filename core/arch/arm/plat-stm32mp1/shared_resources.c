@@ -308,7 +308,7 @@ static void register_periph_iomem(vaddr_t base, enum shres_state state)
 	case GPIOI_BASE:
 	case GPIOJ_BASE:
 	case GPIOK_BASE:
-	/* Fall through */
+	fallthrough;
 #endif
 #ifdef CFG_WITH_NSEC_UARTS
 	case USART2_BASE:
@@ -318,7 +318,11 @@ static void register_periph_iomem(vaddr_t base, enum shres_state state)
 	case USART6_BASE:
 	case UART7_BASE:
 	case UART8_BASE:
-	/* Fall through */
+	fallthrough;
+#endif
+#ifdef CFG_WITH_NSEC_I2CS
+	case I2C5_BASE:
+	fallthrough;
 #endif
 	case IWDG2_BASE:
 		/* Allow drivers to register some non-secure resources */

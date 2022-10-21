@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* Based on idea.cpp - originally written and placed in the public domain by Wei Dai
    https://github.com/weidai11/cryptopp/blob/master/idea.cpp
@@ -42,38 +35,38 @@ const struct ltc_cipher_descriptor idea_desc = {
 
 typedef unsigned short int ushort16;
 
-#define _LOW16(x)     ((x)&0xffff)  /* compiler should be able to optimize this away if x is 16 bits */
-#define _HIGH16(x)    ((x)>>16)
-#define _MUL(a,b)     {                                               \
-                         ulong32 p = (ulong32)_LOW16(a) * b;          \
+#define LOW16(x)     ((x)&0xffff)  /* compiler should be able to optimize this away if x is 16 bits */
+#define HIGH16(x)    ((x)>>16)
+#define MUL(a,b)     {                                               \
+                         ulong32 p = (ulong32)LOW16(a) * b;          \
                          if (p) {                                     \
-                            p = _LOW16(p) - _HIGH16(p);               \
-                            a = (ushort16)p - (ushort16)_HIGH16(p);   \
+                            p = LOW16(p) - HIGH16(p);               \
+                            a = (ushort16)p - (ushort16)HIGH16(p);   \
                          }                                            \
                          else                                         \
                             a = 1 - a - b;                            \
                       }
-#define _STORE16(x,y) { (y)[0] = (unsigned char)(((x)>>8)&255); (y)[1] = (unsigned char)((x)&255); }
-#define _LOAD16(x,y)  { x = ((ushort16)((y)[0] & 255)<<8) | ((ushort16)((y)[1] & 255)); }
+#define STORE16(x,y) { (y)[0] = (unsigned char)(((x)>>8)&255); (y)[1] = (unsigned char)((x)&255); }
+#define LOAD16(x,y)  { x = ((ushort16)((y)[0] & 255)<<8) | ((ushort16)((y)[1] & 255)); }
 
-static ushort16 _mul_inv(ushort16 x)
+static ushort16 s_mul_inv(ushort16 x)
 {
    ushort16 y = x;
    unsigned i;
 
    for (i = 0; i < 15; i++) {
-      _MUL(y, _LOW16(y));
-      _MUL(y, x);
+      MUL(y, LOW16(y));
+      MUL(y, x);
    }
-   return _LOW16(y);
+   return LOW16(y);
 }
 
-static ushort16 _add_inv(ushort16 x)
+static ushort16 s_add_inv(ushort16 x)
 {
-   return _LOW16(0 - x);
+   return LOW16(0 - x);
 }
 
-static int _setup_key(const unsigned char *key, symmetric_key *skey)
+static int s_setup_key(const unsigned char *key, symmetric_key *skey)
 {
    int i, j;
    ushort16 *e_key = skey->idea.ek;
@@ -81,49 +74,49 @@ static int _setup_key(const unsigned char *key, symmetric_key *skey)
 
    /* prepare enc key */
    for (i = 0; i < 8; i++) {
-      _LOAD16(e_key[i], key + 2 * i);
+      LOAD16(e_key[i], key + 2 * i);
    }
    for (; i < LTC_IDEA_KEYLEN; i++) {
       j = (i - i % 8) - 8;
-      e_key[i] = _LOW16((e_key[j+(i+1)%8] << 9) | (e_key[j+(i+2)%8] >> 7));
+      e_key[i] = LOW16((e_key[j+(i+1)%8] << 9) | (e_key[j+(i+2)%8] >> 7));
    }
 
    /* prepare dec key */
    for (i = 0; i < LTC_IDEA_ROUNDS; i++) {
-      d_key[i*6+0] = _mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+0]);
-      d_key[i*6+1] = _add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+1+(i>0 ? 1 : 0)]);
-      d_key[i*6+2] = _add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+2-(i>0 ? 1 : 0)]);
-      d_key[i*6+3] = _mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+3]);
-      d_key[i*6+4] =          e_key[(LTC_IDEA_ROUNDS-1-i)*6+4];
-      d_key[i*6+5] =          e_key[(LTC_IDEA_ROUNDS-1-i)*6+5];
+      d_key[i*6+0] = s_mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+0]);
+      d_key[i*6+1] = s_add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+1+(i>0 ? 1 : 0)]);
+      d_key[i*6+2] = s_add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+2-(i>0 ? 1 : 0)]);
+      d_key[i*6+3] = s_mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+3]);
+      d_key[i*6+4] =           e_key[(LTC_IDEA_ROUNDS-1-i)*6+4];
+      d_key[i*6+5] =           e_key[(LTC_IDEA_ROUNDS-1-i)*6+5];
    }
-   d_key[i*6+0] = _mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+0]);
-   d_key[i*6+1] = _add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+1]);
-   d_key[i*6+2] = _add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+2]);
-   d_key[i*6+3] = _mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+3]);
+   d_key[i*6+0] = s_mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+0]);
+   d_key[i*6+1] = s_add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+1]);
+   d_key[i*6+2] = s_add_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+2]);
+   d_key[i*6+3] = s_mul_inv(e_key[(LTC_IDEA_ROUNDS-i)*6+3]);
 
    return CRYPT_OK;
 }
 
-static int _process_block(const unsigned char *in, unsigned char *out, const ushort16 *m_key)
+static int s_process_block(const unsigned char *in, unsigned char *out, const ushort16 *m_key)
 {
    int i;
    ushort16 x0, x1, x2, x3, t0, t1;
 
-   _LOAD16(x0, in + 0);
-   _LOAD16(x1, in + 2);
-   _LOAD16(x2, in + 4);
-   _LOAD16(x3, in + 6);
+   LOAD16(x0, in + 0);
+   LOAD16(x1, in + 2);
+   LOAD16(x2, in + 4);
+   LOAD16(x3, in + 6);
 
    for (i = 0; i < LTC_IDEA_ROUNDS; i++) {
-      _MUL(x0, m_key[i*6+0]);
+      MUL(x0, m_key[i*6+0]);
       x1 += m_key[i*6+1];
       x2 += m_key[i*6+2];
-      _MUL(x3, m_key[i*6+3]);
+      MUL(x3, m_key[i*6+3]);
       t0 = x0^x2;
-      _MUL(t0, m_key[i*6+4]);
+      MUL(t0, m_key[i*6+4]);
       t1 = t0 + (x1^x3);
-      _MUL(t1, m_key[i*6+5]);
+      MUL(t1, m_key[i*6+5]);
       t0 += t1;
       x0 ^= t1;
       x3 ^= t0;
@@ -132,15 +125,15 @@ static int _process_block(const unsigned char *in, unsigned char *out, const ush
       x2 = t0;
    }
 
-   _MUL(x0, m_key[LTC_IDEA_ROUNDS*6+0]);
+   MUL(x0, m_key[LTC_IDEA_ROUNDS*6+0]);
    x2 += m_key[LTC_IDEA_ROUNDS*6+1];
    x1 += m_key[LTC_IDEA_ROUNDS*6+2];
-   _MUL(x3, m_key[LTC_IDEA_ROUNDS*6+3]);
+   MUL(x3, m_key[LTC_IDEA_ROUNDS*6+3]);
 
-   _STORE16(x0, out + 0);
-   _STORE16(x2, out + 2);
-   _STORE16(x1, out + 4);
-   _STORE16(x3, out + 6);
+   STORE16(x0, out + 0);
+   STORE16(x2, out + 2);
+   STORE16(x1, out + 4);
+   STORE16(x3, out + 6);
 
    return CRYPT_OK;
 }
@@ -153,12 +146,12 @@ int idea_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_k
    if (num_rounds != 0 && num_rounds != 8) return CRYPT_INVALID_ROUNDS;
    if (keylen != 16) return CRYPT_INVALID_KEYSIZE;
 
-   return _setup_key(key, skey);
+   return s_setup_key(key, skey);
 }
 
 int idea_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 {
-   int err = _process_block(pt, ct, skey->idea.ek);
+   int err = s_process_block(pt, ct, skey->idea.ek);
 #ifdef LTC_CLEAN_STACK
    burn_stack(sizeof(ushort16) * 6 + sizeof(int));
 #endif
@@ -167,7 +160,7 @@ int idea_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric
 
 int idea_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 {
-   int err = _process_block(ct, pt, skey->idea.dk);
+   int err = s_process_block(ct, pt, skey->idea.dk);
 #ifdef LTC_CLEAN_STACK
    burn_stack(sizeof(ushort16) * 6 + sizeof(int));
 #endif
@@ -255,7 +248,3 @@ int idea_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

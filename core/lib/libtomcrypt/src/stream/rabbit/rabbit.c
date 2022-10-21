@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /******************************************************************************
  * This Rabbit C source code was morphed fm the EU eSTREAM ECRYPT submission
@@ -68,15 +61,15 @@
 #ifdef LTC_RABBIT
 
 /* local/private prototypes  (NB: rabbit_ctx and rabbit_state are different)  */
-static LTC_INLINE ulong32 _rabbit_g_func(ulong32 x);
-static LTC_INLINE void _rabbit_next_state(rabbit_ctx *p_instance);
-static LTC_INLINE void _rabbit_gen_1_block(rabbit_state* st, unsigned char *out);
+static LTC_INLINE ulong32 ss_rabbit_g_func(ulong32 x);
+static LTC_INLINE void ss_rabbit_next_state(rabbit_ctx *p_instance);
+static LTC_INLINE void ss_rabbit_gen_1_block(rabbit_state* st, unsigned char *out);
 
 /* -------------------------------------------------------------------------- */
 
 /* Square a 32-bit unsigned integer to obtain the 64-bit result and return */
 /* the upper 32 bits XOR the lower 32 bits */
-static LTC_INLINE ulong32 _rabbit_g_func(ulong32 x)
+static LTC_INLINE ulong32 ss_rabbit_g_func(ulong32 x)
 {
    ulong32 a, b, h, l;
 
@@ -95,7 +88,7 @@ static LTC_INLINE ulong32 _rabbit_g_func(ulong32 x)
 /* -------------------------------------------------------------------------- */
 
 /* Calculate the next internal state */
-static LTC_INLINE void _rabbit_next_state(rabbit_ctx *p_instance)
+static LTC_INLINE void ss_rabbit_next_state(rabbit_ctx *p_instance)
 {
    ulong32 g[8], c_old[8], i;
 
@@ -117,7 +110,7 @@ static LTC_INLINE void _rabbit_next_state(rabbit_ctx *p_instance)
 
    /* Calculate the g-values */
    for (i=0;i<8;i++) {
-      g[i] = _rabbit_g_func((ulong32)(p_instance->x[i] + p_instance->c[i]));
+      g[i] = ss_rabbit_g_func((ulong32)(p_instance->x[i] + p_instance->c[i]));
    }
 
    /* Calculate new state values */
@@ -133,12 +126,12 @@ static LTC_INLINE void _rabbit_next_state(rabbit_ctx *p_instance)
 
 /* ------------------------------------------------------------------------- */
 
-static LTC_INLINE void _rabbit_gen_1_block(rabbit_state* st, unsigned char *out)
+static LTC_INLINE void ss_rabbit_gen_1_block(rabbit_state* st, unsigned char *out)
 {
     ulong32 *ptr;
 
     /* Iterate the work context once */
-    _rabbit_next_state(&(st->work_ctx));
+    ss_rabbit_next_state(&(st->work_ctx));
 
     /* Generate 16 bytes of pseudo-random data */
     ptr = (ulong32*)&(st->work_ctx.x);
@@ -202,7 +195,7 @@ int rabbit_setup(rabbit_state* st, const unsigned char *key, unsigned long keyle
 
    /* Iterate the master context four times */
    for (i=0; i<4; i++) {
-      _rabbit_next_state(&(st->master_ctx));
+      ss_rabbit_next_state(&(st->master_ctx));
    }
 
    /* Modify the counters */
@@ -262,7 +255,7 @@ int rabbit_setiv(rabbit_state* st, const unsigned char *iv, unsigned long ivlen)
 
    /* Iterate the work context four times */
    for (i=0; i<4; i++) {
-      _rabbit_next_state(&(st->work_ctx));
+      ss_rabbit_next_state(&(st->work_ctx));
    }
 
    /* reset keystream buffer and unused count */
@@ -296,7 +289,7 @@ int rabbit_crypt(rabbit_state* st, const unsigned char *in, unsigned long inlen,
    }
    for (;;) {
      /* gen a block for buf */
-     _rabbit_gen_1_block(st, buf);
+     ss_rabbit_gen_1_block(st, buf);
      if (inlen <= 16) {
        /* XOR and send to out */
        for (i = 0; i < inlen; ++i) out[i] = in[i] ^ buf[i];
@@ -411,7 +404,7 @@ int rabbit_test(void)
                                 0xea, 0xec, 0x34, 0x9d,   0x8f, 0xb4, 0x6b, 0x60,
                                 0x79, 0x1b, 0xea, 0x16,   0xcb, 0xef, 0x46, 0x87,
                                 0x60, 0xa6, 0x55, 0x14,   0xff, 0xca, 0xac };
-         unsigned long ptlen = strlen(pt);
+         unsigned long ptlen = XSTRLEN(pt);
          unsigned char out2[1000] = { 0 };
          unsigned char nulls[1000] = { 0 };
 
@@ -452,7 +445,3 @@ int rabbit_test(void)
 /* -------------------------------------------------------------------------- */
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

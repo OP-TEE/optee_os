@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* Based on serpent.cpp - originally written and placed in the public domain by Wei Dai
    https://github.com/weidai11/cryptopp/blob/master/serpent.cpp
@@ -34,7 +27,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
 };
 
 /* linear transformation */
-#define _LT(i,a,b,c,d,e)  {                                 \
+#define s_lt(i,a,b,c,d,e)  {                                 \
                             a = ROLc(a, 13);                \
                             c = ROLc(c, 3);                 \
                             d = ROLc(d ^ c ^ (a << 3), 7);  \
@@ -44,7 +37,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
                           }
 
 /* inverse linear transformation */
-#define _ILT(i,a,b,c,d,e) {                                 \
+#define s_ilt(i,a,b,c,d,e) {                                 \
                             c = RORc(c, 22);                \
                             a = RORc(a, 5);                 \
                             c ^= d ^ (b << 7);              \
@@ -57,32 +50,32 @@ const struct ltc_cipher_descriptor serpent_desc = {
                           }
 
 /* order of output from S-box functions */
-#define _beforeS0(f) f(0,a,b,c,d,e)
-#define _afterS0(f)  f(1,b,e,c,a,d)
-#define _afterS1(f)  f(2,c,b,a,e,d)
-#define _afterS2(f)  f(3,a,e,b,d,c)
-#define _afterS3(f)  f(4,e,b,d,c,a)
-#define _afterS4(f)  f(5,b,a,e,c,d)
-#define _afterS5(f)  f(6,a,c,b,e,d)
-#define _afterS6(f)  f(7,a,c,d,b,e)
-#define _afterS7(f)  f(8,d,e,b,a,c)
+#define s_beforeS0(f) f(0,a,b,c,d,e)
+#define s_afterS0(f)  f(1,b,e,c,a,d)
+#define s_afterS1(f)  f(2,c,b,a,e,d)
+#define s_afterS2(f)  f(3,a,e,b,d,c)
+#define s_afterS3(f)  f(4,e,b,d,c,a)
+#define s_afterS4(f)  f(5,b,a,e,c,d)
+#define s_afterS5(f)  f(6,a,c,b,e,d)
+#define s_afterS6(f)  f(7,a,c,d,b,e)
+#define s_afterS7(f)  f(8,d,e,b,a,c)
 
 /* order of output from inverse S-box functions */
-#define _beforeI7(f) f(8,a,b,c,d,e)
-#define _afterI7(f)  f(7,d,a,b,e,c)
-#define _afterI6(f)  f(6,a,b,c,e,d)
-#define _afterI5(f)  f(5,b,d,e,c,a)
-#define _afterI4(f)  f(4,b,c,e,a,d)
-#define _afterI3(f)  f(3,a,b,e,c,d)
-#define _afterI2(f)  f(2,b,d,e,c,a)
-#define _afterI1(f)  f(1,a,b,c,e,d)
-#define _afterI0(f)  f(0,a,d,b,e,c)
+#define s_beforeI7(f) f(8,a,b,c,d,e)
+#define s_afterI7(f)  f(7,d,a,b,e,c)
+#define s_afterI6(f)  f(6,a,b,c,e,d)
+#define s_afterI5(f)  f(5,b,d,e,c,a)
+#define s_afterI4(f)  f(4,b,c,e,a,d)
+#define s_afterI3(f)  f(3,a,b,e,c,d)
+#define s_afterI2(f)  f(2,b,d,e,c,a)
+#define s_afterI1(f)  f(1,a,b,c,e,d)
+#define s_afterI0(f)  f(0,a,d,b,e,c)
 
 /* The instruction sequences for the S-box functions
  * come from Dag Arne Osvik's paper "Speeding up Serpent".
  */
 
-#define _S0(i, r0, r1, r2, r3, r4) { \
+#define s_s0(i, r0, r1, r2, r3, r4) { \
    r3 ^= r0;   \
    r4 = r1;    \
    r1 &= r3;   \
@@ -103,7 +96,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 ^= r3;   \
 }
 
-#define _I0(i, r0, r1, r2, r3, r4) { \
+#define s_i0(i, r0, r1, r2, r3, r4) { \
    r2 = ~r2;   \
    r4 = r1;    \
    r1 |= r0;   \
@@ -125,7 +118,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 ^= r2;   \
 }
 
-#define _S1(i, r0, r1, r2, r3, r4) { \
+#define s_s1(i, r0, r1, r2, r3, r4) { \
    r0 = ~r0;   \
    r2 = ~r2;   \
    r4 = r0;    \
@@ -146,7 +139,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r0 ^= r4;   \
 }
 
-#define _I1(i, r0, r1, r2, r3, r4) { \
+#define s_i1(i, r0, r1, r2, r3, r4) { \
    r4 = r1;    \
    r1 ^= r3;   \
    r3 &= r1;   \
@@ -168,7 +161,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r3 ^= r1;   \
 }
 
-#define _S2(i, r0, r1, r2, r3, r4) { \
+#define s_s2(i, r0, r1, r2, r3, r4) { \
    r4 = r0;    \
    r0 &= r2;   \
    r0 ^= r3;   \
@@ -187,7 +180,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 = ~r4;   \
 }
 
-#define _I2(i, r0, r1, r2, r3, r4) { \
+#define s_i2(i, r0, r1, r2, r3, r4) { \
    r2 ^= r3;   \
    r3 ^= r0;   \
    r4 = r3;    \
@@ -209,7 +202,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r3 ^= r0;   \
 }
 
-#define _S3(i, r0, r1, r2, r3, r4) { \
+#define s_s3(i, r0, r1, r2, r3, r4) { \
    r4 = r0;    \
    r0 |= r3;   \
    r3 ^= r1;   \
@@ -231,7 +224,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r1 ^= r0;   \
 }
 
-#define _I3(i, r0, r1, r2, r3, r4) { \
+#define s_i3(i, r0, r1, r2, r3, r4) { \
    r4 = r2;    \
    r2 ^= r1;   \
    r1 &= r2;   \
@@ -252,7 +245,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r2 ^= r4;   \
 }
 
-#define _S4(i, r0, r1, r2, r3, r4) { \
+#define s_s4(i, r0, r1, r2, r3, r4) { \
    r1 ^= r3;   \
    r3 = ~r3;   \
    r2 ^= r3;   \
@@ -275,7 +268,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 ^= r2;   \
 }
 
-#define _I4(i, r0, r1, r2, r3, r4) { \
+#define s_i4(i, r0, r1, r2, r3, r4) { \
    r4 = r2;    \
    r2 &= r3;   \
    r2 ^= r1;   \
@@ -298,7 +291,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r2 ^= r1;   \
 }
 
-#define _S5(i, r0, r1, r2, r3, r4) { \
+#define s_s5(i, r0, r1, r2, r3, r4) { \
    r0 ^= r1;   \
    r1 ^= r3;   \
    r3 = ~r3;   \
@@ -320,7 +313,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r2 ^= r4;   \
 }
 
-#define _I5(i, r0, r1, r2, r3, r4) { \
+#define s_i5(i, r0, r1, r2, r3, r4) { \
    r1 = ~r1;   \
    r4 = r3;    \
    r2 ^= r1;   \
@@ -342,7 +335,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 = ~r4;   \
 }
 
-#define _S6(i, r0, r1, r2, r3, r4) { \
+#define s_s6(i, r0, r1, r2, r3, r4) { \
    r2 = ~r2;   \
    r4 = r3;    \
    r3 &= r0;   \
@@ -363,7 +356,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r2 ^= r3;   \
 }
 
-#define _I6(i, r0, r1, r2, r3, r4) { \
+#define s_i6(i, r0, r1, r2, r3, r4) { \
    r0 ^= r2;   \
    r4 = r2;    \
    r2 &= r0;   \
@@ -383,7 +376,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 ^= r0;   \
 }
 
-#define _S7(i, r0, r1, r2, r3, r4) { \
+#define s_s7(i, r0, r1, r2, r3, r4) { \
    r4 = r2;    \
    r2 &= r1;   \
    r2 ^= r3;   \
@@ -406,7 +399,7 @@ const struct ltc_cipher_descriptor serpent_desc = {
    r4 ^= r1;   \
 }
 
-#define _I7(i, r0, r1, r2, r3, r4) { \
+#define s_i7(i, r0, r1, r2, r3, r4) { \
    r4 = r2;    \
    r2 ^= r0;   \
    r0 &= r3;   \
@@ -429,28 +422,28 @@ const struct ltc_cipher_descriptor serpent_desc = {
 }
 
 /* key xor */
-#define _KX(r, a, b, c, d, e) { \
+#define s_kx(r, a, b, c, d, e) { \
    a ^= k[4 * r + 0];   \
    b ^= k[4 * r + 1];   \
    c ^= k[4 * r + 2];   \
    d ^= k[4 * r + 3];   \
 }
 
-#define _LK(r, a, b, c, d, e) { \
+#define s_lk(r, a, b, c, d, e) { \
    a = k[(8-r)*4 + 0];  \
    b = k[(8-r)*4 + 1];  \
    c = k[(8-r)*4 + 2];  \
    d = k[(8-r)*4 + 3];  \
 }
 
-#define _SK(r, a, b, c, d, e) { \
+#define s_sk(r, a, b, c, d, e) { \
    k[(8-r)*4 + 4] = a;  \
    k[(8-r)*4 + 5] = b;  \
    k[(8-r)*4 + 6] = c;  \
    k[(8-r)*4 + 7] = d;  \
 }
 
-static int _setup_key(const unsigned char *key, int keylen, int rounds, ulong32 *k)
+static int s_setup_key(const unsigned char *key, int keylen, int rounds, ulong32 *k)
 {
    int i;
    ulong32 t;
@@ -474,22 +467,22 @@ static int _setup_key(const unsigned char *key, int keylen, int rounds, ulong32 
    k -= 20;
 
    for (i = 0; i < rounds/8; i++) {
-      _afterS2(_LK);  _afterS2(_S3);  _afterS3(_SK);
-      _afterS1(_LK);  _afterS1(_S2);  _afterS2(_SK);
-      _afterS0(_LK);  _afterS0(_S1);  _afterS1(_SK);
-      _beforeS0(_LK); _beforeS0(_S0); _afterS0(_SK);
+      s_afterS2(s_lk);  s_afterS2(s_s3);  s_afterS3(s_sk);
+      s_afterS1(s_lk);  s_afterS1(s_s2);  s_afterS2(s_sk);
+      s_afterS0(s_lk);  s_afterS0(s_s1);  s_afterS1(s_sk);
+      s_beforeS0(s_lk); s_beforeS0(s_s0); s_afterS0(s_sk);
       k += 8*4;
-      _afterS6(_LK); _afterS6(_S7); _afterS7(_SK);
-      _afterS5(_LK); _afterS5(_S6); _afterS6(_SK);
-      _afterS4(_LK); _afterS4(_S5); _afterS5(_SK);
-      _afterS3(_LK); _afterS3(_S4); _afterS4(_SK);
+      s_afterS6(s_lk); s_afterS6(s_s7); s_afterS7(s_sk);
+      s_afterS5(s_lk); s_afterS5(s_s6); s_afterS6(s_sk);
+      s_afterS4(s_lk); s_afterS4(s_s5); s_afterS5(s_sk);
+      s_afterS3(s_lk); s_afterS3(s_s4); s_afterS4(s_sk);
    }
-   _afterS2(_LK); _afterS2(_S3); _afterS3(_SK);
+   s_afterS2(s_lk); s_afterS2(s_s3); s_afterS3(s_sk);
 
    return CRYPT_OK;
 }
 
-static int _enc_block(const unsigned char *in, unsigned char *out, const ulong32 *k)
+static int s_enc_block(const unsigned char *in, unsigned char *out, const ulong32 *k)
 {
    ulong32 a, b, c, d, e;
    unsigned int i = 1;
@@ -500,14 +493,14 @@ static int _enc_block(const unsigned char *in, unsigned char *out, const ulong32
    LOAD32L(d, in + 12);
 
    do {
-      _beforeS0(_KX); _beforeS0(_S0); _afterS0(_LT);
-      _afterS0(_KX);  _afterS0(_S1);  _afterS1(_LT);
-      _afterS1(_KX);  _afterS1(_S2);  _afterS2(_LT);
-      _afterS2(_KX);  _afterS2(_S3);  _afterS3(_LT);
-      _afterS3(_KX);  _afterS3(_S4);  _afterS4(_LT);
-      _afterS4(_KX);  _afterS4(_S5);  _afterS5(_LT);
-      _afterS5(_KX);  _afterS5(_S6);  _afterS6(_LT);
-      _afterS6(_KX);  _afterS6(_S7);
+      s_beforeS0(s_kx); s_beforeS0(s_s0); s_afterS0(s_lt);
+       s_afterS0(s_kx);  s_afterS0(s_s1); s_afterS1(s_lt);
+       s_afterS1(s_kx);  s_afterS1(s_s2); s_afterS2(s_lt);
+       s_afterS2(s_kx);  s_afterS2(s_s3); s_afterS3(s_lt);
+       s_afterS3(s_kx);  s_afterS3(s_s4); s_afterS4(s_lt);
+       s_afterS4(s_kx);  s_afterS4(s_s5); s_afterS5(s_lt);
+       s_afterS5(s_kx);  s_afterS5(s_s6); s_afterS6(s_lt);
+       s_afterS6(s_kx);  s_afterS6(s_s7);
 
       if (i == 4) break;
 
@@ -518,10 +511,10 @@ static int _enc_block(const unsigned char *in, unsigned char *out, const ulong32
       d = a;
       a = e;
       k += 32;
-      _beforeS0(_LT);
+      s_beforeS0(s_lt);
    } while (1);
 
-   _afterS7(_KX);
+   s_afterS7(s_kx);
 
    STORE32L(d, out + 0);
    STORE32L(e, out + 4);
@@ -531,7 +524,7 @@ static int _enc_block(const unsigned char *in, unsigned char *out, const ulong32
    return CRYPT_OK;
 }
 
-static int _dec_block(const unsigned char *in, unsigned char *out, const ulong32 *k)
+static int s_dec_block(const unsigned char *in, unsigned char *out, const ulong32 *k)
 {
    ulong32 a, b, c, d, e;
    unsigned int i;
@@ -544,7 +537,7 @@ static int _dec_block(const unsigned char *in, unsigned char *out, const ulong32
    i = 4;
    k += 96;
 
-   _beforeI7(_KX);
+   s_beforeI7(s_kx);
    goto start;
 
    do {
@@ -552,16 +545,16 @@ static int _dec_block(const unsigned char *in, unsigned char *out, const ulong32
       b = d;
       d = e;
       k -= 32;
-      _beforeI7(_ILT);
+      s_beforeI7(s_ilt);
 start:
-                      _beforeI7(_I7); _afterI7(_KX);
-      _afterI7(_ILT); _afterI7(_I6);  _afterI6(_KX);
-      _afterI6(_ILT); _afterI6(_I5);  _afterI5(_KX);
-      _afterI5(_ILT); _afterI5(_I4);  _afterI4(_KX);
-      _afterI4(_ILT); _afterI4(_I3);  _afterI3(_KX);
-      _afterI3(_ILT); _afterI3(_I2);  _afterI2(_KX);
-      _afterI2(_ILT); _afterI2(_I1);  _afterI1(_KX);
-      _afterI1(_ILT); _afterI1(_I0);  _afterI0(_KX);
+                      s_beforeI7(s_i7); s_afterI7(s_kx);
+      s_afterI7(s_ilt); s_afterI7(s_i6); s_afterI6(s_kx);
+      s_afterI6(s_ilt); s_afterI6(s_i5); s_afterI5(s_kx);
+      s_afterI5(s_ilt); s_afterI5(s_i4); s_afterI4(s_kx);
+      s_afterI4(s_ilt); s_afterI4(s_i3); s_afterI3(s_kx);
+      s_afterI3(s_ilt); s_afterI3(s_i2); s_afterI2(s_kx);
+      s_afterI2(s_ilt); s_afterI2(s_i1); s_afterI1(s_kx);
+      s_afterI1(s_ilt); s_afterI1(s_i0); s_afterI0(s_kx);
    } while (--i != 0);
 
    STORE32L(a, out + 0);
@@ -582,7 +575,7 @@ int serpent_setup(const unsigned char *key, int keylen, int num_rounds, symmetri
    if (num_rounds != 0 && num_rounds != 32) return CRYPT_INVALID_ROUNDS;
    if (keylen != 16 && keylen != 24 && keylen != 32) return CRYPT_INVALID_KEYSIZE;
 
-   err = _setup_key(key, keylen, 32, skey->serpent.k);
+   err = s_setup_key(key, keylen, 32, skey->serpent.k);
 #ifdef LTC_CLEAN_STACK
    burn_stack(sizeof(ulong32) * 14 + sizeof(int));
 #endif
@@ -591,7 +584,7 @@ int serpent_setup(const unsigned char *key, int keylen, int num_rounds, symmetri
 
 int serpent_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 {
-   int err = _enc_block(pt, ct, skey->serpent.k);
+   int err = s_enc_block(pt, ct, skey->serpent.k);
 #ifdef LTC_CLEAN_STACK
    burn_stack(sizeof(ulong32) * 5 + sizeof(int));
 #endif
@@ -600,7 +593,7 @@ int serpent_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmet
 
 int serpent_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 {
-   int err = _dec_block(ct, pt, skey->serpent.k);
+   int err = s_dec_block(ct, pt, skey->serpent.k);
 #ifdef LTC_CLEAN_STACK
    burn_stack(sizeof(ulong32) * 5 + sizeof(int));
 #endif
@@ -722,7 +715,3 @@ int serpent_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -94,6 +94,7 @@ $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
+CFG_EXTERNAL_DT ?= n
 CFG_STM32MP_OPP_COUNT ?= 2
 CFG_WITH_PAGER ?= n
 endif # CFG_STM32MP13
@@ -105,6 +106,7 @@ $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_CORE_RESERVED_SHM ?= y
+CFG_EXTERNAL_DT ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
 endif # CFG_STM32MP15
@@ -141,7 +143,11 @@ CFG_STM32MP1_SCMI_SHM_BASE ?= 0x2ffff000
 CFG_STM32MP1_SCMI_SHM_SIZE ?= 0x00001000
 ifeq ($(CFG_STM32MP15),y)
 CFG_TZDRAM_START ?= 0xfe000000
+ifeq ($(CFG_CORE_RESERVED_SHM),y)
 CFG_TZDRAM_SIZE  ?= 0x01e00000
+else
+CFG_TZDRAM_SIZE  ?= 0x02000000
+endif
 CFG_TZSRAM_START ?= 0x2ffc0000
 CFG_TZSRAM_SIZE  ?= 0x0003f000
 ifeq ($(CFG_CORE_RESERVED_SHM),y)
@@ -253,6 +259,9 @@ CFG_WITH_NSEC_GPIOS ?= y
 CFG_WITH_NSEC_UARTS ?= y
 # UART instance used for early console (0 disables early console)
 CFG_STM32_EARLY_CONSOLE_UART ?= 4
+
+# Disable the HUK by default as it requires a product specific configuration
+CFG_STM32MP15_HUK ?= n
 
 # Sanity on choice config switches
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)

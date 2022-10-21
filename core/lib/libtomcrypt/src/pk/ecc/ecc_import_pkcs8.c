@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -24,7 +17,7 @@ typedef struct {
       list[LTC_SDFC_temp##__LINE__].pp = P;    \
    } while (0)
 
-static int _der_flexi_sequence_cmp(const ltc_asn1_list *flexi, der_flexi_check *check)
+static int s_der_flexi_sequence_cmp(const ltc_asn1_list *flexi, der_flexi_check *check)
 {
    const ltc_asn1_list *cur;
    if (flexi->type != LTC_ASN1_SEQUENCE) {
@@ -42,7 +35,7 @@ static int _der_flexi_sequence_cmp(const ltc_asn1_list *flexi, der_flexi_check *
    return CRYPT_OK;
 }
 
-/* NOTE: _der_decode_pkcs8_flexi & related stuff can be shared with rsa_import_pkcs8() */
+/* NOTE: s_der_decode_pkcs8_flexi & related stuff can be shared with rsa_import_pkcs8() */
 
 int ecc_import_pkcs8(const unsigned char *in, unsigned long inlen,
                      const void *pwd, unsigned long pwdlen,
@@ -63,11 +56,11 @@ int ecc_import_pkcs8(const unsigned char *in, unsigned long inlen,
    LTC_ARGCHK(ltc_mp.name != NULL);
 
    /* get EC alg oid */
-   err = pk_get_oid(PKA_EC, &pka_ec_oid);
+   err = pk_get_oid(LTC_OID_EC, &pka_ec_oid);
    if (err != CRYPT_OK) return err;
 
    /* init key */
-   err = mp_init_multi(&a, &b, &gx, &gy, NULL);
+   err = mp_init_multi(&a, &b, &gx, &gy, LTC_NULL);
    if (err != CRYPT_OK) return err;
 
 
@@ -80,7 +73,7 @@ int ecc_import_pkcs8(const unsigned char *in, unsigned long inlen,
       LTC_SET_DER_FLEXI_CHECK(flexi_should, n++, LTC_ASN1_OCTET_STRING, &priv_key);
       LTC_SET_DER_FLEXI_CHECK(flexi_should, n, LTC_ASN1_EOL, NULL);
 
-      if (((err = _der_flexi_sequence_cmp(l, flexi_should)) == CRYPT_OK) &&
+      if (((err = s_der_flexi_sequence_cmp(l, flexi_should)) == CRYPT_OK) &&
             (pk_oid_cmp_with_asn1(pka_ec_oid, seq->child) == CRYPT_OK)) {
          ltc_asn1_list *version, *field, *point, *point_g, *order, *p_cofactor;
 
@@ -109,7 +102,7 @@ int ecc_import_pkcs8(const unsigned char *in, unsigned long inlen,
             if ((err = ecc_find_curve(OID, &curve)) != CRYPT_OK)                          { goto LBL_DONE; }
             if ((err = ecc_set_curve(curve, key)) != CRYPT_OK)                            { goto LBL_DONE; }
          }
-         else if ((err = _der_flexi_sequence_cmp(seq->child->next, flexi_should)) == CRYPT_OK) {
+         else if ((err = s_der_flexi_sequence_cmp(seq->child->next, flexi_should)) == CRYPT_OK) {
             /* CASE 2: explicit curve parameters (AKA long variant):
              *   0:d=0  hl=3 l= 227 cons: SEQUENCE
              *   3:d=1  hl=2 l=   1 prim:   INTEGER              :00
@@ -184,14 +177,10 @@ int ecc_import_pkcs8(const unsigned char *in, unsigned long inlen,
 LBL_ECCFREE:
    ecc_free(key);
 LBL_DONE:
-   mp_clear_multi(a, b, gx, gy, NULL);
+   mp_clear_multi(a, b, gx, gy, LTC_NULL);
    if (l) der_free_sequence_flexi(l);
    if (p) der_free_sequence_flexi(p);
    return err;
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

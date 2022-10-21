@@ -307,7 +307,6 @@ static void destroy_context(struct tee_ta_ctx *ctx)
 	DMSG("Destroy TA ctx (0x%" PRIxVA ")",  (vaddr_t)ctx);
 
 	condvar_destroy(&ctx->busy_cv);
-	pgt_flush_ctx(&ctx->ts_ctx);
 	ctx->ts_ctx.ops->destroy(&ctx->ts_ctx);
 }
 
