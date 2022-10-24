@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019-2021, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
  */
 
 #ifndef __KERNEL_USER_MODE_CTX_STRUCT_H
@@ -41,6 +41,7 @@ struct user_mode_ctx {
 #endif
 	struct ts_ctx *ts_ctx;
 	uaddr_t entry_func;
+	uaddr_t load_addr;
 	uaddr_t dump_entry_func;
 #ifdef CFG_FTRACE_SUPPORT
 	uaddr_t ftrace_entry_func;

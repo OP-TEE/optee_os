@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2022-2023, Arm Limited
  */
 
 #include <assert.h>
@@ -156,7 +157,7 @@ void ldelf(struct ldelf_arg *arg)
 		ta_elf_finalize_mappings(elf);
 	}
 
-	ta_elf_finalize_load_main(&arg->entry_func);
+	ta_elf_finalize_load_main(&arg->entry_func, &arg->load_addr);
 
 	arg->ftrace_entry = 0;
 #ifdef CFG_FTRACE_SUPPORT

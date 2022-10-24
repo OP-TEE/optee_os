@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2015-2020, 2022 Linaro Limited
- * Copyright (c) 2020-2021, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
  */
 
 #include <assert.h>
@@ -152,6 +152,7 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 
 	uctx->is_32bit = arg->is_32bit;
 	uctx->entry_func = arg->entry_func;
+	uctx->load_addr = arg->load_addr;
 	uctx->stack_ptr = arg->stack_ptr;
 	uctx->dump_entry_func = arg->dump_entry;
 #ifdef CFG_FTRACE_SUPPORT

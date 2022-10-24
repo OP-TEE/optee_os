@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
  */
 
 #include <assert.h>
@@ -1274,7 +1274,7 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	ta_stack_size = elf->head->stack_size;
 }
 
-void ta_elf_finalize_load_main(uint64_t *entry)
+void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr)
 {
 	struct ta_elf *elf = TAILQ_FIRST(&main_elf_queue);
 	TEE_Result res = TEE_SUCCESS;
@@ -1292,6 +1292,8 @@ void ta_elf_finalize_load_main(uint64_t *entry)
 		*entry = elf->head->depr_entry;
 	else
 		*entry = elf->e_entry + elf->load_addr;
+
+	*load_addr = elf->load_addr;
 }
 
 
