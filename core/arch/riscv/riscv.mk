@@ -33,6 +33,8 @@ ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 endif
 
+CFG_MAX_CACHE_LINE_SHIFT ?= 6
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
