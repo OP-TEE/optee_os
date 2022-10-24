@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
  * Copyright 2022-2023 NXP
  */
 
@@ -33,6 +33,7 @@ struct ldelf_arg {
 	uint32_t is_32bit;
 	uint32_t flags;
 	uint64_t entry_func;
+	uint64_t load_addr;
 	uint64_t stack_ptr;
 	uint64_t dump_entry;
 	uint64_t ftrace_entry;
