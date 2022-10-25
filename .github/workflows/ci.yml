@@ -49,6 +49,7 @@ jobs:
           fi
           [ -z "$failed" ]
       - name: Run pycodestyle
+        if: success() || failure()
         run: |
           # pycodestyle task
           sudo -E bash -c "apt update -qq -y && apt install -qq -y pycodestyle"
