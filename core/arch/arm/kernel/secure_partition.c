@@ -368,8 +368,11 @@ static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
 	int len = 0;
 
 	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
+	if (!p)
 		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
 
 	*value = fdt64_ld(p);
 
@@ -383,8 +386,11 @@ static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
 	int len = 0;
 
 	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
+	if (!p)
 		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
 
 	*value = fdt32_to_cpu(*p);
 
@@ -400,8 +406,11 @@ static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
 	int i = 0;
 
 	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(TEE_UUID))
+	if (!p)
 		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(TEE_UUID))
+		return TEE_ERROR_BAD_FORMAT;
 
 	for (i = 0; i < 4; i++)
 		uuid_array[i] = fdt32_to_cpu(p[i]);
