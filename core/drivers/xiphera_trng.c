@@ -37,30 +37,27 @@ static unsigned int trng_lock = SPINLOCK_UNLOCK;
 
 static vaddr_t xiphera_trng_base;
 
+static bool xiphera_trng_random_available(void)
+{
+	uint32_t status = 0;
+
+	status = io_read32(xiphera_trng_base + STATUS_REG);
+
+	return status == TRNG_NEW_RAND_AVAILABLE;
+}
+
 static uint32_t xiphera_trng_read32(void)
 {
 	uint32_t value = 0;
-	uint32_t exceptions = 0;
-	uint32_t status = 0;
 
-	while (true) {
-		/* Wait until we have value available */
-		status = io_read32(xiphera_trng_base + STATUS_REG);
-		if (status != TRNG_NEW_RAND_AVAILABLE)
-			continue;
+	value = io_read32(xiphera_trng_base + RAND_REG);
 
-		value = io_read32(xiphera_trng_base + RAND_REG);
-
-		/*
-		 * Ack that RNG value has been consumed and trigger new one to
-		 * be generated
-		 */
-		io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_READ);
-		io_write32(xiphera_trng_base + CONTROL_REG,
-			   HOST_TO_TRNG_ENABLE);
-
-		break;
-	}
+	/*
+	 * Ack that RNG value has been consumed and trigger new one to be
+	 * generated
+	 */
+	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_READ);
+	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_ENABLE);
 
 	return value;
 }
@@ -72,25 +69,24 @@ void plat_rng_init(void)
 
 TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
-	static union {
-		uint32_t val;
-		uint8_t byte[4];
-	} fifo;
-	static size_t fifo_pos;
-	uint8_t *buffer = buf;
-	size_t buffer_pos = 0;
+	uint8_t *rngbuf = buf;
+	uint32_t val = 0;
+	size_t len_to_copy = 0;
 
+	assert(buf);
 	assert(xiphera_trng_base);
 
-	while (buffer_pos < len) {
+	while (len) {
 		uint32_t exceptions = cpu_spin_lock_xsave(&trng_lock);
 
-		/* Refill our FIFO */
-		if (fifo_pos == 0)
-			fifo.val = xiphera_trng_read32();
+		if (xiphera_trng_random_available()) {
+			val = xiphera_trng_read32();
 
-		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
-		fifo_pos %= 4;
+			len_to_copy = MIN(len, sizeof(uint32_t));
+			memcpy(rngbuf, &val, len_to_copy);
+			rngbuf += len_to_copy;
+			len -= len_to_copy;
+		}
 
 		cpu_spin_unlock_xrestore(&trng_lock, exceptions);
 	}

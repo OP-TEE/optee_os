@@ -206,6 +206,7 @@ jobs:
           _make PLATFORM=zynq7k-zc702
           _make PLATFORM=zynqmp-zcu102
           _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
+          _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y CFG_WITH_SOFTWARE_PRNG=n CFG_XIPHERA_TRNG=y CFG_ZYNQMP_HUK=y
           _make PLATFORM=d02
           _make PLATFORM=d02 CFG_ARM64_core=y
           _make PLATFORM=rcar
