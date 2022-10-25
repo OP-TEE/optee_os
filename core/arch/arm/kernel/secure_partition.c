@@ -320,49 +320,6 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_open_session(struct sp_session **sess,
-				  struct sp_sessions_head *open_sessions,
-				  const TEE_UUID *uuid)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct sp_session *s = NULL;
-	struct sp_ctx *ctx = NULL;
-
-	if (!find_secure_partition(uuid))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	res = sp_create_session(open_sessions, uuid, &s);
-	if (res != TEE_SUCCESS) {
-		DMSG("sp_create_session failed %#"PRIx32, res);
-		return res;
-	}
-
-	ctx = to_sp_ctx(s->ts_sess.ctx);
-	assert(ctx);
-	if (!ctx)
-		return TEE_ERROR_TARGET_DEAD;
-	*sess = s;
-
-	ts_push_current_session(&s->ts_sess);
-	/* Load the SP using ldelf. */
-	ldelf_load_ldelf(&ctx->uctx);
-	res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
-
-	if (res != TEE_SUCCESS) {
-		EMSG("Failed. loading SP using ldelf %#"PRIx32, res);
-		ts_pop_current_session();
-		return TEE_ERROR_TARGET_DEAD;
-	}
-
-	/* Make the SP ready for its first run */
-	s->state = sp_idle;
-	s->caller_id = 0;
-	sp_init_set_registers(ctx);
-	ts_pop_current_session();
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
 				uint64_t *value)
 {
@@ -418,6 +375,196 @@ static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
 		uuid_array[i] = fdt32_to_cpu(p[i]);
 
 	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_is_elf_format(const void *fdt, int sp_node,
+				   bool *is_elf_format)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t elf_format = 0;
+
+	res = sp_dt_get_u32(fdt, sp_node, "elf-format", &elf_format);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
+
+	*is_elf_format = (elf_format != 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_binary_open(const TEE_UUID *uuid,
+				 const struct ts_store_ops **ops,
+				 struct ts_store_handle **handle)
+{
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+
+	SCATTERED_ARRAY_FOREACH(*ops, sp_stores, struct ts_store_ops) {
+		res = (*ops)->open(uuid, handle);
+		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+		    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+			break;
+	}
+
+	return res;
+}
+
+static TEE_Result load_binary_sp(struct ts_session *s,
+				 struct user_mode_ctx *uctx)
+{
+	size_t bin_size = 0, bin_size_rounded = 0, bin_page_count = 0;
+	const struct ts_store_ops *store_ops = NULL;
+	struct ts_store_handle *handle = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	tee_mm_entry_t *mm = NULL;
+	struct mobj *mobj = NULL;
+	uaddr_t base_addr = 0;
+	uint32_t vm_flags = 0;
+	unsigned int idx = 0;
+	vaddr_t va = 0;
+
+	if (!s || !uctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	DMSG("Loading raw binary format SP %pUl", &uctx->ts_ctx->uuid);
+
+	vm_set_ctx(uctx->ts_ctx);
+
+	/* Find TS store and open SP binary */
+	res = sp_binary_open(&uctx->ts_ctx->uuid, &store_ops, &handle);
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to open SP binary");
+		return res;
+	}
+
+	/* Query binary size and calculate page count */
+	res = store_ops->get_size(handle, &bin_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+
+	if (ROUNDUP_OVERFLOW(bin_size, SMALL_PAGE_SIZE, &bin_size_rounded)) {
+		res = TEE_ERROR_OVERFLOW;
+		goto err;
+	}
+
+	bin_page_count = bin_size_rounded / SMALL_PAGE_SIZE;
+
+	/* Allocate memory */
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, bin_size_rounded);
+	if (!mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	base_addr = tee_mm_get_smem(mm);
+
+	/* Create mobj */
+	mobj = sp_mem_new_mobj(bin_page_count, TEE_MATTR_MEM_TYPE_CACHED, true);
+	if (!mobj) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err_free_tee_mm;
+	}
+
+	res = sp_mem_add_pages(mobj, &idx, base_addr, bin_page_count);
+	if (res)
+		goto err_free_mobj;
+
+	/* Map memory area for the SP binary */
+	res = vm_map(uctx, &va, bin_size_rounded, TEE_MATTR_URWX,
+		     vm_flags, mobj, 0);
+	if (res)
+		goto err_free_mobj;
+
+	/* Read SP binary into the previously mapped memory area */
+	res = store_ops->read(handle, (void *)va, bin_size);
+	if (res)
+		goto err_unmap;
+
+	/* Set memory protection to allow execution */
+	res = vm_set_prot(uctx, va, bin_size_rounded, TEE_MATTR_UX);
+	if (res)
+		goto err_unmap;
+
+	mobj_put(mobj);
+	store_ops->close(handle);
+
+	/* The entry point must be at the beginning of the SP binary. */
+	uctx->entry_func = va;
+	uctx->load_addr = va;
+	uctx->is_32bit = false;
+
+	s->handle_scall = s->ctx->ops->handle_scall;
+
+	return TEE_SUCCESS;
+
+err_unmap:
+	vm_unmap(uctx, va, bin_size_rounded);
+
+err_free_mobj:
+	mobj_put(mobj);
+
+err_free_tee_mm:
+	tee_mm_free(mm);
+
+err:
+	store_ops->close(handle);
+
+	return res;
+}
+
+static TEE_Result sp_open_session(struct sp_session **sess,
+				  struct sp_sessions_head *open_sessions,
+				  const TEE_UUID *uuid,
+				  const void *fdt)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct sp_session *s = NULL;
+	struct sp_ctx *ctx = NULL;
+	bool is_elf_format = false;
+
+	if (!find_secure_partition(uuid))
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	res = sp_create_session(open_sessions, uuid, &s);
+	if (res != TEE_SUCCESS) {
+		DMSG("sp_create_session failed %#"PRIx32, res);
+		return res;
+	}
+
+	ctx = to_sp_ctx(s->ts_sess.ctx);
+	assert(ctx);
+	if (!ctx)
+		return TEE_ERROR_TARGET_DEAD;
+	*sess = s;
+
+	ts_push_current_session(&s->ts_sess);
+
+	res = sp_is_elf_format(fdt, 0, &is_elf_format);
+	if (res == TEE_SUCCESS) {
+		if (is_elf_format) {
+			/* Load the SP using ldelf. */
+			ldelf_load_ldelf(&ctx->uctx);
+			res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
+		} else {
+			/* Raw binary format SP */
+			res = load_binary_sp(&s->ts_sess, &ctx->uctx);
+		}
+	} else {
+		EMSG("Failed to detect SP format");
+	}
+
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed loading SP  %#"PRIx32, res);
+		ts_pop_current_session();
+		return TEE_ERROR_TARGET_DEAD;
+	}
+
+	/* Make the SP ready for its first run */
+	s->state = sp_idle;
+	s->caller_id = 0;
+	sp_init_set_registers(ctx);
+	ts_pop_current_session();
 
 	return TEE_SUCCESS;
 }
@@ -1056,13 +1203,11 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 
-	res = sp_open_session(&sess,
-			      &open_sp_sessions,
-			      uuid);
+	res = check_fdt(fdt, uuid);
 	if (res)
 		return res;
 
-	res = check_fdt(fdt, uuid);
+	res = sp_open_session(&sess, &open_sp_sessions, uuid, fdt);
 	if (res)
 		return res;
 
