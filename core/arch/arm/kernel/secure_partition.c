@@ -46,6 +46,8 @@
 					 SP_MANIFEST_ATTR_WRITE | \
 					 SP_MANIFEST_ATTR_EXEC)
 
+#define SP_MANIFEST_FLAG_NOBITS	BIT(0)
+
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
 #define SP_PKG_HEADER_VERSION_V1 (0x1)
 #define SP_PKG_HEADER_VERSION_V2 (0x2)
@@ -507,6 +509,142 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
+						       const void *fdt)
+{
+	int node = 0;
+	int subnode = 0;
+	tee_mm_entry_t *mm = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * Memory regions are optional in the SP manifest, it's not an error if
+	 * we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0,
+					     "arm,ffa-manifest-memory-regions");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
+		uint32_t attributes = 0;
+		uint64_t base_addr = 0;
+		uint32_t pages_cnt = 0;
+		uint32_t flags = 0;
+		uint32_t perm = 0;
+		size_t size = 0;
+		vaddr_t va = 0;
+
+		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			va = ctx->uctx.load_addr + load_rel_offset;
+		} else {
+			/* Skip non load address relative memory regions */
+			continue;
+		}
+
+		if (!sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
+			EMSG("Both base-address and load-address-relative-offset fields are set");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Size of memory region as count of 4K pages */
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
+			EMSG("Mandatory field is missing: pages-count");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (MUL_OVERFLOW(pages_cnt, SMALL_PAGE_SIZE, &size))
+			return TEE_ERROR_OVERFLOW;
+
+		/* Memory region attributes  */
+		if (sp_dt_get_u32(fdt, subnode, "attributes", &attributes)) {
+			EMSG("Mandatory field is missing: attributes");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Check instruction and data access permissions */
+		switch (attributes & SP_MANIFEST_ATTR_RWX) {
+		case SP_MANIFEST_ATTR_RO:
+			perm = TEE_MATTR_UR;
+			break;
+		case SP_MANIFEST_ATTR_RW:
+			perm = TEE_MATTR_URW;
+			break;
+		case SP_MANIFEST_ATTR_RX:
+			perm = TEE_MATTR_URX;
+			break;
+		default:
+			EMSG("Invalid memory access permissions");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		res = sp_dt_get_u32(fdt, subnode, "load-flags", &flags);
+		if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND) {
+			EMSG("Optional field with invalid value: flags");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Load relative regions must be secure */
+		if (attributes & SP_MANIFEST_ATTR_NSEC) {
+			EMSG("Invalid memory security attribute");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (flags & SP_MANIFEST_FLAG_NOBITS) {
+			/*
+			 * NOBITS flag is set, which means that loaded binary
+			 * doesn't contain this area, so it's need to be
+			 * allocated.
+			 */
+			struct mobj *m = NULL;
+			unsigned int idx = 0;
+
+			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			if (!mm)
+				return TEE_ERROR_OUT_OF_MEMORY;
+
+			base_addr = tee_mm_get_smem(mm);
+
+			m = sp_mem_new_mobj(pages_cnt,
+					    TEE_MATTR_MEM_TYPE_CACHED, true);
+			if (!m) {
+				res = TEE_ERROR_OUT_OF_MEMORY;
+				goto err_mm_free;
+			}
+
+			res = sp_mem_add_pages(m, &idx, base_addr, pages_cnt);
+			if (res) {
+				mobj_put(m);
+				goto err_mm_free;
+			}
+
+			res = vm_map(&ctx->uctx, &va, size, perm, 0, m, 0);
+			mobj_put(m);
+			if (res)
+				goto err_mm_free;
+		} else {
+			/*
+			 * If NOBITS is not present the memory area is already
+			 * mapped and only need to set the correct permissions.
+			 */
+			res = vm_set_prot(&ctx->uctx, va, size, perm);
+			if (res)
+				return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+
+err_mm_free:
+	tee_mm_free(mm);
+	return res;
+}
+
 static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
@@ -691,6 +829,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		return TEE_SUCCESS;
 
 	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
 		bool alloc_needed = false;
 		uint32_t attributes = 0;
 		uint64_t base_addr = 0;
@@ -703,6 +842,23 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		vaddr_t va = 0;
 
 		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			/*
+			 * At this point the memory region is already mapped by
+			 * handle_fdt_load_relative_mem_regions.
+			 * Only need to set the base-address in the manifest and
+			 * then skip the rest of the mapping process.
+			 */
+			va = ctx->uctx.load_addr + load_rel_offset;
+			res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+			if (res)
+				return res;
+
+			continue;
+		}
 
 		/*
 		 * Base address of a memory region.
@@ -930,6 +1086,16 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
+
+	/*
+	 * Load relative memory regions must be handled before doing any other
+	 * mapping to prevent conflicts in the VA space.
+	 */
+	res = handle_fdt_load_relative_mem_regions(ctx, sess->fdt);
+	if (res) {
+		ts_pop_current_session();
+		return res;
+	}
 
 	res = sp_init_info(ctx, &args, sess->fdt, &va, &num_pgs, &fdt_copy);
 	if (res)
