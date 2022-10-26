@@ -1852,6 +1852,11 @@ static void *chacha20_ctx_alloc(void)
     return ctx;
 }
 
+static void chacha20_ctx_clone(void *dst, const void *src)
+{
+    memcpy(dst, src, sizeof(mbedtls_chacha20_context));
+}
+
 static void chacha20_ctx_free(void *ctx)
 {
     mbedtls_chacha20_free((mbedtls_chacha20_context *) ctx);
@@ -1882,6 +1887,7 @@ static const mbedtls_cipher_base_t chacha20_base_info = {
     chacha20_setkey_wrap,
     chacha20_setkey_wrap,
     chacha20_ctx_alloc,
+    chacha20_ctx_clone,
     chacha20_ctx_free
 };
 static const mbedtls_cipher_info_t chacha20_info = {
@@ -1927,6 +1933,11 @@ static void *chachapoly_ctx_alloc(void)
     return ctx;
 }
 
+static void chachapoly_ctx_clone(void *dst, const void *src)
+{
+    memcpy(dst, src, sizeof(mbedtls_chachapoly_context));
+}
+
 static void chachapoly_ctx_free(void *ctx)
 {
     mbedtls_chachapoly_free((mbedtls_chachapoly_context *) ctx);
@@ -1957,6 +1968,7 @@ static const mbedtls_cipher_base_t chachapoly_base_info = {
     chachapoly_setkey_wrap,
     chachapoly_setkey_wrap,
     chachapoly_ctx_alloc,
+    chachapoly_ctx_clone,
     chachapoly_ctx_free
 };
 static const mbedtls_cipher_info_t chachapoly_info = {
