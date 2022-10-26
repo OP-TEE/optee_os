@@ -356,10 +356,10 @@ class BinaryImage:
                 self.key = load_asymmetric_key(arg_key)
             else:
                 self.key = arg_key
-            self.sig_len = math.ceil(self.key.key_size / 8)
+            self.sig_size = math.ceil(self.key.key_size / 8)
 
         self.chosen_hash = hashes.SHA256()
-        self.digest_len = self.chosen_hash.digest_size
+        self.hash_size = self.chosen_hash.digest_size
 
     def __pack_img(self, img_type, sign_algo):
         import struct
@@ -367,8 +367,8 @@ class BinaryImage:
         self.sig_algo = sign_algo
         self.img_type = img_type
         self.shdr = struct.pack('<IIIIHH', SHDR_MAGIC, img_type, len(self.img),
-                                sig_tee_alg[sign_algo], self.digest_len,
-                                self.sig_len)
+                                sig_tee_alg[sign_algo], self.hash_size,
+                                self.sig_size)
 
     def __calc_digest(self):
         from cryptography.hazmat.backends import default_backend
@@ -475,8 +475,8 @@ class BinaryImage:
 
         offs = 0
         self.shdr = self.inf[offs:offs + SHDR_SIZE]
-        [magic, img_type, img_size, algo_value, digest_len,
-         sig_len] = struct.unpack('<IIIIHH', self.shdr)
+        [magic, img_type, img_size, algo_value, hash_size,
+         sig_size] = struct.unpack('<IIIIHH', self.shdr)
         offs += SHDR_SIZE
 
         if magic != SHDR_MAGIC:
@@ -487,13 +487,13 @@ class BinaryImage:
                             .format(algo_value))
         self.sig_algo = value_to_key(sig_tee_alg, algo_value)
 
-        if digest_len != self.digest_len:
-            raise Exception("Unexpected digest len: {}".format(digest_len))
+        if hash_size != self.hash_size:
+            raise Exception("Unexpected digest len: {}".format(hash_size))
 
-        self.img_digest = self.inf[offs:offs + digest_len]
-        offs += digest_len
-        self.sig = self.inf[offs:offs + sig_len]
-        offs += sig_len
+        self.img_digest = self.inf[offs:offs + hash_size]
+        offs += hash_size
+        self.sig = self.inf[offs:offs + sig_size]
+        offs += sig_size
 
         if img_type == SHDR_BOOTSTRAP_TA or img_type == SHDR_ENCRYPTED_TA:
             self.ta_uuid = self.inf[offs:offs + UUID_SIZE]
@@ -650,8 +650,8 @@ class BinaryImage:
                       .format(offs, offs))
 
             shdr = self.inf[offs:offs + SHDR_SIZE]
-            [magic, img_type, img_size, algo_value, digest_len,
-             sig_len] = struct.unpack('<IIIIHH', shdr)
+            [magic, img_type, img_size, algo_value, hash_size,
+             sig_size] = struct.unpack('<IIIIHH', shdr)
             offs += SHDR_SIZE
 
             if magic != SHDR_MAGIC:
@@ -677,22 +677,22 @@ class BinaryImage:
             print('  img_type:   {} ({})'.format(img_type, img_type_name))
             print('  img_size:   {} bytes'.format(img_size))
             print('  algo:       0x{:08x} ({})'.format(algo_value, algo_name))
-            print('  hash_size:  {} bytes'.format(digest_len))
-            print('  sig_size:   {} bytes'.format(sig_len))
+            print('  hash_size:  {} bytes'.format(hash_size))
+            print('  sig_size:   {} bytes'.format(sig_size))
 
             if algo_value not in sig_tee_alg.values():
                 raise Exception('Unrecognized algorithm: 0x{:08x}'
                                 .format(algo_value))
 
-            if digest_len != self.digest_len:
-                raise Exception("Unexpected digest len: {}".format(digest_len))
+            if hash_size != self.hash_size:
+                raise Exception("Unexpected digest len: {}".format(hash_size))
 
-            img_digest = self.inf[offs:offs + digest_len]
+            img_digest = self.inf[offs:offs + hash_size]
             print('  hash:       {}'
                   .format(binascii.hexlify(img_digest).decode('ascii')))
-            offs += digest_len
-            sig = self.inf[offs:offs + sig_len]
-            offs += sig_len
+            offs += hash_size
+            sig = self.inf[offs:offs + sig_size]
+            offs += sig_size
 
             if img_type == SHDR_BOOTSTRAP_TA or img_type == SHDR_ENCRYPTED_TA:
                 display_ta()
@@ -728,7 +728,7 @@ class BinaryImage:
 
         if self.sig_algo == 'TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256':
             pad = padding.PSS(mgf=padding.MGF1(self.chosen_hash),
-                              salt_length=self.digest_len)
+                              salt_length=self.hash_size)
         elif self.sig_algo == 'TEE_ALG_RSASSA_PKCS1_V1_5_SHA256':
             pad = padding.PKCS1v15()
 
@@ -746,10 +746,10 @@ class BinaryImage:
             self.sig = self.key.sign(self.img_digest, self.__get_padding(),
                                      utils.Prehashed(self.chosen_hash))
 
-            if len(self.sig) != self.sig_len:
+            if len(self.sig) != self.sig_size:
                 raise Exception(("Actual signature length is not equal to ",
                                  "the computed one: {} != {}").
-                                format(len(self.sig), self.sig_len))
+                                format(len(self.sig), self.sig_size))
 
     def add_signature(self, sigf):
         import base64
@@ -757,10 +757,10 @@ class BinaryImage:
         with open(sigf, 'r') as f:
             self.sig = base64.b64decode(f.read())
 
-        if len(self.sig) != self.sig_len:
+        if len(self.sig) != self.sig_size:
             raise Exception(("Actual signature length is not equal to ",
                              "the expected one: {} != {}").
-                            format(len(self.sig), self.sig_len))
+                            format(len(self.sig), self.sig_size))
 
     def verify_signature(self):
         from cryptography.hazmat.primitives.asymmetric import utils
