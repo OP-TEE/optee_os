@@ -135,7 +135,7 @@ sss_status_t se050_enable_scp03(sss_se05x_session_t *session)
 {
 	struct se050_scp_key keys = { };
 	sss_status_t status = kStatus_SSS_Success;
-	enum se050_scp03_ksrc key_src[] = { SCP03_CFG, SCP03_DERIVED,
+	enum se050_scp03_ksrc key_src[] = { SCP03_DERIVED, SCP03_CFG,
 		SCP03_OFID };
 	size_t i = 0;
 

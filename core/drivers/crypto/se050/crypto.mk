@@ -8,6 +8,11 @@ CFG_CRYPTO_DRIVER_DEBUG ?= 0
 CFG_CORE_SE05X_SCP03_PROVISION ?= n
 # Displays the SE050 device information on the console at boot (i.e. OEFID)
 CFG_CORE_SE05X_DISPLAY_INFO ?= y
+# Communicate with the Secure Element only over an SCP03 authenticated session.
+# When this option is not enabled, the driver first queries the device on an
+# un-authenticated channel. IF SCP03 is then required, the user should enable
+# CFG_CORE_SE05X_SCP03_EARLY or use libseteec.
+CFG_CORE_SCP03_ONLY ?= n
 # Enables the SCP03 before the REE: notice that if SCP03_PROVISION is enabled,
 # it will also attempt to rotate the keys
 CFG_CORE_SE05X_SCP03_EARLY ?= y

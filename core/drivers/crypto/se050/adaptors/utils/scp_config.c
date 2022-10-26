@@ -413,8 +413,13 @@ sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
 	uint8_t msg[SE050_SCP03_KEY_SZ + 3] = { 0 };
 	size_t i = 0;
 
-	if (tee_otp_get_die_id(msg + 3, SE050_SCP03_KEY_SZ))
-		return kStatus_SSS_Fail;
+	if (IS_ENABLED(CFG_CORE_SCP03_ONLY)) {
+		memset(msg, 0x55, sizeof(msg));
+	} else {
+		/* add some randomness */
+		if (tee_otp_get_die_id(msg + 3, SE050_SCP03_KEY_SZ))
+			return kStatus_SSS_Fail;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(key); i++) {
 		memcpy(msg, key[i].name, 3);

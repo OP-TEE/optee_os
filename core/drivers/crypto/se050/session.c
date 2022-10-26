@@ -49,9 +49,13 @@ static TEE_Result update_se_info(void)
 
 	/* the session must be closed after accessing the board information */
 	sss_se05x_session_close(se050_session);
+	se050_scp03_set_disable();
 
 	if (status != kStatus_SSS_Success)
 		return TEE_ERROR_GENERIC;
+
+	if (IS_ENABLED(CFG_CORE_SCP03_ONLY))
+		return TEE_SUCCESS;
 
 	return se050_core_early_init(NULL);
 }
@@ -64,32 +68,62 @@ static TEE_Result enable_scp03(void)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result se050_early_init(void)
+static TEE_Result se050_early_init_default(void)
 {
-	TEE_Result ret = TEE_SUCCESS;
-
-	ret = se050_core_early_init(NULL);
-	if (ret) {
+	if (se050_core_early_init(NULL)) {
 		EMSG("Failed to open the default session");
-		goto out;
+		panic();
 	}
 
-	ret = update_se_info();
-	if (ret) {
+	if (update_se_info()) {
 		EMSG("Failed to read the secure element configuration");
-		goto out;
+		panic();
 	}
 
 	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_EARLY)) {
-		ret = enable_scp03();
-		if (ret)
+		if (enable_scp03()) {
 			EMSG("Failed to open the SCP03 session");
+			panic();
+		}
 	}
-out:
-	if (ret)
-		panic();
 
-	return ret;
+	return TEE_SUCCESS;
 }
 
-driver_init(se050_early_init);
+static TEE_Result se050_early_init_scp03(void)
+{
+	/* Initialize session */
+	se050_session = (sss_se05x_session_t *)((void *)&se050_ctx.session);
+	se050_kstore = (sss_se05x_key_store_t *)((void *)&se050_ctx.ks);
+
+#ifdef CFG_CORE_SE05X_OEFID
+	se050_ctx.se_info.oefid[0] = CFG_CORE_SE05X_OEFID >> 8;
+	se050_ctx.se_info.oefid[1] = CFG_CORE_SE05X_OEFID & 0xff;
+#endif
+	if (enable_scp03()) {
+		EMSG("Failed to enable SCP03 session");
+		panic();
+	}
+
+	if (update_se_info()) {
+		EMSG("Failed to read the secure element configuration");
+		panic();
+	}
+
+	if (enable_scp03()) {
+		EMSG("Failed to re-open the SCP03 session");
+		panic();
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result se050_session_init(void)
+{
+	if (IS_ENABLED(CFG_CORE_SCP03_ONLY))
+		return se050_early_init_scp03();
+
+	return se050_early_init_default();
+}
+
+driver_init(se050_session_init);
