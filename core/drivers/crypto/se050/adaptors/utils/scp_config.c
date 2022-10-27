@@ -36,7 +36,7 @@ static bool scp03_enabled;
 #define SE050DV_ID 0xA1F4
 #define SE051A2_ID 0xA565
 #define SE051C2_ID 0xA564
-#define SE050F2_ID 0xA92A
+#define SE050F2_ID 0xA77E
 #define SE050E_ID 0xA921
 #define SE051A_ID 0xA920
 #define SE051C_ID 0xA8FA
