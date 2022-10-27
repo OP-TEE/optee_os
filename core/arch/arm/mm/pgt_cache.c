@@ -660,7 +660,7 @@ static bool pgt_entry_matches(struct pgt *p, void *ctx, vaddr_t begin,
 		return false;
 	if (last <= begin)
 		return false;
-	if (!core_is_buffer_inside(p->vabase, SMALL_PAGE_SIZE, begin,
+	if (!core_is_buffer_inside(p->vabase, CORE_MMU_PGDIR_SIZE, begin,
 				   last - begin))
 		return false;
 
