@@ -599,6 +599,16 @@ void *get_dt(void)
 	return fdt;
 }
 
+void *get_secure_dt(void)
+{
+	void *fdt = get_embedded_dt();
+
+	if (!fdt && IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		fdt = get_external_dt();
+
+	return fdt;
+}
+
 #if defined(CFG_EMBED_DTB)
 void *get_embedded_dt(void)
 {

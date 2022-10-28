@@ -83,6 +83,17 @@ struct ns_entry_context *boot_core_hpen(void);
 /* Returns embedded DTB if present, then external DTB if found, then NULL */
 void *get_dt(void);
 
+/*
+ * get_secure_dt() - returns secure DTB for drivers
+ *
+ * Returns device tree that is considered secure for drivers to use.
+ *
+ * 1. Returns embedded DTB if available,
+ * 2. Secure external DTB if available,
+ * 3. If neither then NULL
+ */
+void *get_secure_dt(void);
+
 /* Returns embedded DTB location if present, otherwise NULL */
 void *get_embedded_dt(void);
 
