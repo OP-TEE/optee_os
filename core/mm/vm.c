@@ -146,6 +146,14 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 				    uctx->vm_info.asid);
 	}
 
+	/*
+	 * Figure out how much virtual memory on a CORE_MMU_PGDIR_SIZE
+	 * grunalarity can be freed. Only completely unused
+	 * CORE_MMU_PGDIR_SIZE ranges can be supplied to pgt_flush_range().
+	 *
+	 * Note that there's is no margin for error here, both flushing too
+	 * many or too few translation tables can be fatal.
+	 */
 	r2 = TAILQ_NEXT(r, link);
 	if (r2)
 		last = MIN(last, ROUNDDOWN(r2->va, CORE_MMU_PGDIR_SIZE));
@@ -155,10 +163,8 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 		begin = MAX(begin,
 			    ROUNDUP(r2->va + r2->size, CORE_MMU_PGDIR_SIZE));
 
-	/* If there's no unused page tables, there's nothing left to do */
-	if (begin >= last)
-		return;
-	pgt_flush_range(uctx, r->va, r->va + r->size);
+	if (begin < last)
+		pgt_flush_range(uctx, begin, last);
 }
 
 static void set_pa_range(struct core_mmu_table_info *ti, vaddr_t va,

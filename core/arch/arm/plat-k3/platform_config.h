@@ -63,26 +63,38 @@
 #define SA2UL_BASE		0x04e00000
 #define SA2UL_TI_SCI_DEV_ID	136
 #define SA2UL_TI_SCI_FW_ID	2112
+#define SA2UL_TI_SCI_FW_RGN_ID	0
 #elif defined(PLATFORM_FLAVOR_j721e)
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	265
 #define SA2UL_TI_SCI_FW_ID	1196
+#define SA2UL_TI_SCI_FW_RGN_ID	0
 #elif defined(PLATFORM_FLAVOR_j784s4)
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	-1
 #define SA2UL_TI_SCI_FW_ID	1196
+#define SA2UL_TI_SCI_FW_RGN_ID	0
 #elif defined(PLATFORM_FLAVOR_am64x)
 #define SA2UL_BASE		0x40900000
 #define SA2UL_TI_SCI_DEV_ID	133
 #define SA2UL_TI_SCI_FW_ID	35
+#define SA2UL_TI_SCI_FW_RGN_ID	0
+#elif defined(PLATFORM_FLAVOR_am62x)
+#define SA2UL_BASE		0x40900000
+#define SA2UL_TI_SCI_DEV_ID	-1
+#define SA2UL_TI_SCI_FW_ID	66
+#define SA2UL_TI_SCI_FW_RGN_ID	1
 #endif
 #define SA2UL_REG_SIZE		0x1000
-#define SA2UL_TI_SCI_FW_RGN_ID	0
 
 /* RNG */
 #define RNG_BASE		(SA2UL_BASE + 0x10000)
 #define RNG_REG_SIZE		0x1000
+#if defined(PLATFORM_FLAVOR_am62x)
+#define RNG_TI_SCI_FW_RGN_ID	2
+#else
 #define RNG_TI_SCI_FW_RGN_ID	3
+#endif
 
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64

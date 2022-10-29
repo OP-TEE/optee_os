@@ -6,6 +6,7 @@
  */
 #include <drvcrypt.h>
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
 #include <tee_api_defines_extensions.h>
 #include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
@@ -243,6 +244,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		rsa_data.label.data =
 			((label_len > 0) ? (uint8_t *)label : NULL);
 		rsa_data.label.length = label_len;
+		rsa_data.algo = algo;
 
 		ret = rsa->decrypt(&rsa_data);
 
@@ -328,6 +330,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		rsa_data.cipher.length = rsa_data.key.n_size;
 		rsa_data.label.data = (label_len > 0) ? (uint8_t *)label : NULL;
 		rsa_data.label.length = label_len;
+		rsa_data.algo = algo;
 
 		ret = rsa->encrypt(&rsa_data);
 
