@@ -4,6 +4,8 @@
  */
 
 #include <console.h>
+#include <kernel/tee_common_otp.h>
+#include <kernel/huk_subkey.h>
 #include <platform_config.h>
 
 #include "drivers/htif.h"
@@ -16,4 +18,10 @@ void console_init(void)
 	htif_console_init(&console_data, HTIF_BASE);
 	register_serial_console(&console_data.chip);
 #endif
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	memset(&hwkey->data[0], 0, sizeof(hwkey->data));
+	return TEE_SUCCESS;
 }
