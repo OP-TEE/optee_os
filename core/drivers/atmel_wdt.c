@@ -174,6 +174,8 @@ static void atmel_wdt_init_hw(struct atmel_wdt *wdt)
 
 	/* Enable interrupt, and disable watchdog in debug and idle */
 	wdt->mr |= WDT_MR_WDFIEN | WDT_MR_WDDBGHLT | WDT_MR_WDIDLEHLT;
+	/* Enable watchdog reset */
+	wdt->mr |= WDT_MR_WDRSTEN;
 	wdt->mr |= WDT_MR_WDD_SET(SEC_TO_WDT(WDT_MAX_TIMEOUT));
 	wdt->mr |= WDT_MR_WDV_SET(SEC_TO_WDT(WDT_DEFAULT_TIMEOUT));
 
