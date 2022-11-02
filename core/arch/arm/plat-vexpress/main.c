@@ -28,7 +28,7 @@
 #include <string.h>
 #include <trace.h>
 
-static struct gic_data gic_data __nex_bss;
+static struct gic_data gic_data __maybe_unused __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
@@ -48,8 +48,7 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
-#ifdef GIC_BASE
-
+#ifdef CFG_GIC
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
@@ -72,12 +71,11 @@ void main_secondary_init_gic(void)
 }
 #endif
 
-#endif
-
 void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }
+#endif /*CFG_GIC*/
 
 void console_init(void)
 {
@@ -86,7 +84,8 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(IT_CONSOLE_UART) && !defined(CFG_VIRTUALIZATION) && \
+#if defined(CFG_GIC) && defined(IT_CONSOLE_UART) && \
+	!defined(CFG_VIRTUALIZATION) && \
 	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2))
 /*
  * This cannot be enabled with TF-A and GICv3 because TF-A then need to
