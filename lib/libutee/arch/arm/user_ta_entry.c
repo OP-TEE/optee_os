@@ -390,8 +390,7 @@ TEE_Result __utee_entry(unsigned long func, unsigned long session_id,
 		res = entry_invoke_command(session_id, up, cmd_id);
 		break;
 	default:
-		res = 0xffffffff;
-		TEE_Panic(0);
+		res = TEE_ERROR_NOT_SUPPORTED;
 		break;
 	}
 	ta_header_save_params(0, NULL);
