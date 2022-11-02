@@ -58,7 +58,7 @@ endif
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm) $(platform-dir)
 
 # more convenient to move it to platform instead
 rv64-platform-cppflags += -mcmodel=medany -march=rv64imafd -mabi=lp64d
