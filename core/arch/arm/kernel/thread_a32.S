@@ -218,6 +218,20 @@ UNWIND(	.cantunwind)
 	bx	lr
 END_FUNC thread_save_state
 
+#ifdef CFG_CORE_SEL2_SPMC
+/*
+ * unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
+ *			    unsigned long a2, unsigned long a3)
+ */
+FUNC thread_hvc , :
+	push	{r4-r7}
+UNWIND(	.save	{r4-r7})
+	hvc	#0
+	pop	{r4-r7}
+	bx	lr
+END_FUNC thread_hvc
+#endif /*CFG_CORE_SEL2_SPMC*/
+
 /*
  * unsigned long thread_smc(unsigned long func_id, unsigned long a1,
  *			    unsigned long a2, unsigned long a3)

@@ -97,6 +97,13 @@ FUNC thread_resume , :
 	b	eret_to_el0
 END_FUNC thread_resume
 
+#ifdef CFG_CORE_SEL2_SPMC
+FUNC thread_hvc , :
+	hvc	#0
+	ret
+END_FUNC thread_hvc
+#endif
+
 FUNC thread_smc , :
 	smc	#0
 	ret

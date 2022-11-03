@@ -449,6 +449,8 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
  */
 bool thread_enable_prealloc_rpc_cache(void);
 
+unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
+			 unsigned long a2, unsigned long a3);
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
 void thread_smccc(struct thread_smc_args *arg_res);
