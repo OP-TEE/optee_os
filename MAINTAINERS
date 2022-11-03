@@ -115,6 +115,11 @@ HiSilicon D02
 S:	Orphan
 F:	core/arch/arm/plat-d02/
 
+HiSilicon D06
+R:	Xiaoxu Zeng <zengxiaoxu@huawei.com> [@xiaoxuZeng]
+S:	Maintained
+F:	core/arch/arm/plat-d06/
+
 HiSilicon HiKey (Kirin 620), HiKey960 (Kirin 960)
 R:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 S:	Maintained
