@@ -6,6 +6,9 @@ CFG_CRYPTO_DRIVER_DEBUG ?= 0
 # SE050 initialization
 # Enables the SCP03 key rotation
 CFG_CORE_SE05X_SCP03_PROVISION ?= n
+# Rotate the SCP03 keys back to the factory settings instead of using a secret
+# set of keys derived from the HUK.
+CFG_CORE_SE05X_SCP03_PROVISION_WITH_FACTORY_KEYS ?= n
 # Displays the SE050 device information on the console at boot (i.e. OEFID)
 CFG_CORE_SE05X_DISPLAY_INFO ?= y
 # Communicate with the Secure Element only over an SCP03 authenticated session.
