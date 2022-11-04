@@ -59,9 +59,17 @@ sss_status_t se050_rotate_scp03_keys(struct sss_se05x_ctx *ctx)
 	if (!ctx)
 		return kStatus_SSS_Fail;
 
-	status = se050_scp03_subkey_derive(&new_keys);
-	if (status != kStatus_SSS_Success)
-		return status;
+	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_PROVISION_WITH_FACTORY_KEYS)) {
+		/* Public */
+		status = se050_scp03_get_keys(&new_keys, SCP03_OFID);
+		if (status != kStatus_SSS_Success)
+			return status;
+	} else {
+		/* Secret */
+		status = se050_scp03_subkey_derive(&new_keys);
+		if (status != kStatus_SSS_Success)
+			return status;
+	}
 
 	status = se050_scp03_get_current_keys(&cur_keys);
 	if (status != kStatus_SSS_Success)
@@ -121,7 +129,11 @@ sss_status_t se050_rotate_scp03_keys(struct sss_se05x_ctx *ctx)
 	memset(ctx, 0, sizeof(*ctx));
 
 	/* open session with new keys */
-	se050_scp03_set_enable(SCP03_DERIVED);
+	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_PROVISION_WITH_FACTORY_KEYS))
+		se050_scp03_set_enable(SCP03_OFID);
+	else
+		se050_scp03_set_enable(SCP03_DERIVED);
+
 	if (se050_core_early_init(&new_keys)) {
 		se050_scp03_set_disable();
 		EMSG("scp03 keys rejected, session lost");
