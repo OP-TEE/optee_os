@@ -9,6 +9,7 @@
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
@@ -400,6 +401,22 @@ static sss_status_t get_config_key(struct se050_scp_key *keys __maybe_unused)
 #endif
 }
 
+static const char *get_scp03_ksrc_name(enum se050_scp03_ksrc ksrc)
+{
+	switch (ksrc) {
+	case SCP03_DERIVED:
+		return "derived";
+	case SCP03_CFG:
+		return "build-int";
+	case SCP03_OFID:
+		return "factory";
+	default:
+		panic();
+	}
+
+	return NULL;
+}
+
 sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
 {
 	struct {
@@ -440,6 +457,8 @@ void se050_scp03_set_enable(enum se050_scp03_ksrc ksrc)
 {
 	scp03_enabled = true;
 	scp03_ksrc = ksrc;
+
+	IMSG("SE05X SCP03 using %s keys", get_scp03_ksrc_name(ksrc));
 }
 
 void se050_scp03_set_disable(void)
