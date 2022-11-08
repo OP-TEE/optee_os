@@ -801,7 +801,7 @@ __thread_svc_handler:
 	/* end thread_svc_handler */
 
 __thread_fiq_handler:
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	foreign_intr_handler	fiq
 #else
 	native_intr_handler	fiq
@@ -809,7 +809,7 @@ __thread_fiq_handler:
 	/* end thread_fiq_handler */
 
 __thread_irq_handler:
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	native_intr_handler	irq
 #else
 	foreign_intr_handler	irq

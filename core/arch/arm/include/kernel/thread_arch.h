@@ -294,7 +294,7 @@ unsigned long thread_system_reset_handler(unsigned long a0, unsigned long a1);
  * thread_*_exceptions() functions below.
  * These definitions are compatible with both ARM32 and ARM64.
  */
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 #define THREAD_EXCP_FOREIGN_INTR	(ARM32_CPSR_F >> ARM32_CPSR_F_SHIFT)
 #define THREAD_EXCP_NATIVE_INTR		(ARM32_CPSR_I >> ARM32_CPSR_F_SHIFT)
 #else
