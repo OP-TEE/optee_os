@@ -33,7 +33,7 @@ FUNC __cpu_spin_unlock , :
 END_FUNC __cpu_spin_unlock
 
 /* unsigned int __cpu_spin_trylock(unsigned int *lock) */
-LOCAL_FUNC __cpu_spin_trylock , :
+FUNC __cpu_spin_trylock , :
 	li	t0, SPINLOCK_LOCK
 	amoswap.w	a0, t0, 0(a0)
 	fence	r,rw
