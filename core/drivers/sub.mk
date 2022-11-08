@@ -5,6 +5,7 @@ srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_TZC400) += tzc400.c
 srcs-$(CFG_TZC380) += tzc380.c
 srcs-$(CFG_GIC) += gic.c
+srcs-$(CFG_CORE_HAFNIUM_INTC) += hfic.c
 srcs-$(CFG_PL061) += pl061_gpio.c
 srcs-$(CFG_PL022) += pl022_spi.c
 srcs-$(CFG_SP805_WDT) += sp805_wdt.c

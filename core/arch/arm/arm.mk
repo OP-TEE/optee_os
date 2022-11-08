@@ -112,6 +112,7 @@ ifeq ($(CFG_CORE_SEL2_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 $(call force,CFG_CORE_EL3_SPMC,n)
+CFG_CORE_HAFNIUM_INTC ?= y
 endif
 # SPMC configuration "EL3 SPMC" where SPM Core is implemented at EL3, that
 # is, in TF-A
@@ -130,6 +131,11 @@ $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
 else
 $(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
 endif
+endif
+
+CFG_CORE_HAFNIUM_INTC ?= n
+ifeq ($(CFG_CORE_HAFNIUM_INTC),y)
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
 endif
 
 # Selects if IRQ is used to signal native interrupt
