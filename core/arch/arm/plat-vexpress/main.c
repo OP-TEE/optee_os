@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/hfic.h>
 #include <drivers/pl011.h>
 #include <drivers/tpm2_mmio.h>
 #include <drivers/tpm2_ptp_fifo.h>
@@ -29,6 +30,7 @@
 #include <trace.h>
 
 static struct gic_data gic_data __maybe_unused __nex_bss;
+static struct hfic_data hfic_data __maybe_unused __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
@@ -77,6 +79,19 @@ void itr_core_handler(void)
 }
 #endif /*CFG_GIC*/
 
+#ifdef CFG_CORE_HAFNIUM_INTC
+void main_init_gic(void)
+{
+	hfic_init(&hfic_data);
+	itr_init(&hfic_data.chip);
+}
+
+void itr_core_handler(void)
+{
+	hfic_it_handle(&hfic_data);
+}
+#endif
+
 void console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
@@ -84,7 +99,8 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(CFG_GIC) && defined(IT_CONSOLE_UART) && \
+#if (defined(CFG_GIC) || defined(CFG_CORE_HAFNIUM_INTC)) && \
+	defined(IT_CONSOLE_UART) && \
 	!defined(CFG_VIRTUALIZATION) && \
 	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2))
 /*
