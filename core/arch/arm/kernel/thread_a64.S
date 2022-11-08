@@ -846,7 +846,7 @@ LOCAL_FUNC el0_svc , :
 	 * nothing left in sp_el1. Note that the SVC handler is excepted to
 	 * re-enable foreign interrupts by itself.
 	 */
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	msr	daifclr, #(DAIFBIT_IRQ | DAIFBIT_ABT | DAIFBIT_DBG)
 #else
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
@@ -1318,7 +1318,7 @@ END_FUNC el0_sync_abort
 .endm
 
 LOCAL_FUNC elx_irq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	native_intr_handler	irq
 #else
 	foreign_intr_handler	irq
@@ -1326,7 +1326,7 @@ LOCAL_FUNC elx_irq , :
 END_FUNC elx_irq
 
 LOCAL_FUNC elx_fiq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	foreign_intr_handler	fiq
 #else
 	native_intr_handler	fiq

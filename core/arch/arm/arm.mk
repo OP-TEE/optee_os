@@ -124,6 +124,22 @@ endif
 ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_FFA and CFG_WITH_PAGER are not compatible)
 endif
+ifeq ($(CFG_GIC),y)
+ifeq ($(CFG_ARM_GICV3),y)
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
+else
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
+endif
+endif
+
+# Selects if IRQ is used to signal native interrupt
+# if CFG_CORE_IRQ_IS_NATIVE_INTR == y:
+#   IRQ signals a native interrupt pending
+#   FIQ signals a foreign non-secure interrupt or a managed exit pending
+# else: (vice versa)
+#   IRQ signals a foreign non-secure interrupt or a managed exit pending
+#   FIQ signals a native interrupt pending
+CFG_CORE_IRQ_IS_NATIVE_INTR ?= n
 
 # Unmaps all kernel mode code except the code needed to take exceptions
 # from user space and restore kernel mode mapping again. This gives more
