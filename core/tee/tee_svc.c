@@ -29,25 +29,26 @@
 
 vaddr_t tee_svc_uref_base;
 
-void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
+void syscall_log(const void *buf, size_t len)
 {
-#ifdef CFG_TEE_CORE_TA_TRACE
-	char *kbuf;
+	if (IS_ENABLED(CFG_TEE_CORE_TA_TRACE)) {
+		char *kbuf = NULL;
+		size_t sz = 0;
 
-	if (len == 0)
-		return;
+		if (!len || ADD_OVERFLOW(len, 1, &sz))
+			return;
 
-	kbuf = malloc(len + 1);
-	if (kbuf == NULL)
-		return;
+		kbuf = malloc(sz);
+		if (!kbuf)
+			return;
 
-	if (copy_from_user(kbuf, buf, len) == TEE_SUCCESS) {
-		kbuf[len] = '\0';
-		trace_ext_puts(kbuf);
+		if (copy_from_user(kbuf, buf, len) == TEE_SUCCESS) {
+			kbuf[len] = '\0';
+			trace_ext_puts(kbuf);
+		}
+
+		free_wipe(kbuf);
 	}
-
-	free_wipe(kbuf);
-#endif
 }
 
 TEE_Result syscall_not_supported(void)
