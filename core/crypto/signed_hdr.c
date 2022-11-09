@@ -48,12 +48,19 @@ struct shdr *shdr_alloc_and_copy(size_t offs, const void *img, size_t img_size)
 	return shdr;
 }
 
+static bool is_weak_hash_algo(uint32_t algo)
+{
+	return algo == TEE_ALG_MD5 || algo == TEE_ALG_SHA1 ||
+	       algo == TEE_ALG_MD5SHA1;
+}
+
 TEE_Result shdr_verify_signature(const struct shdr *shdr)
 {
-	struct rsa_public_key key;
-	TEE_Result res;
+	struct rsa_public_key key = { };
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t e = TEE_U32_TO_BIG_ENDIAN(ta_pub_key_exponent);
-	size_t hash_size;
+	size_t hash_size = 0;
+	size_t hash_algo = 0;
 
 	if (shdr->magic != SHDR_MAGIC)
 		return TEE_ERROR_SECURITY;
@@ -61,8 +68,11 @@ TEE_Result shdr_verify_signature(const struct shdr *shdr)
 	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != TEE_MAIN_ALGO_RSA)
 		return TEE_ERROR_SECURITY;
 
-	res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
-				      &hash_size);
+	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
+	if (is_weak_hash_algo(hash_algo))
+		return TEE_ERROR_SECURITY;
+
+	res = tee_alg_get_digest_size(hash_algo, &hash_size);
 	if (res)
 		return TEE_ERROR_SECURITY;
 	if (hash_size != shdr->hash_size)
@@ -325,6 +335,7 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 				  const struct shdr *shdr)
 {
 	size_t hash_size = 0;
+	size_t hash_algo = 0;
 
 	if (shdr->magic != SHDR_MAGIC)
 		return TEE_ERROR_SECURITY;
@@ -332,8 +343,11 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
 	if (TEE_ALG_GET_MAIN_ALG(shdr->algo) != key->main_algo)
 		return TEE_ERROR_SECURITY;
 
-	if (tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(shdr->algo),
-				    &hash_size) ||
+	hash_algo = TEE_DIGEST_HASH_TO_ALGO(shdr->algo);
+	if (is_weak_hash_algo(hash_algo))
+		return TEE_ERROR_SECURITY;
+
+	if (tee_alg_get_digest_size(hash_algo, &hash_size) ||
 	    hash_size != shdr->hash_size)
 		return TEE_ERROR_SECURITY;
 
