@@ -164,13 +164,18 @@ sss_status_t se050_enable_scp03(sss_se05x_session_t *session)
 
 		if (!se050_core_early_init(&keys)) {
 			se050_scp03_set_enable(key_src[i]);
-			return kStatus_SSS_Success;
+			goto out;
 		}
 
 		sss_host_session_close(&se050_ctx.host_session);
 	}
 
 	return kStatus_SSS_Fail;
+out:
+	if (IS_ENABLED(CFG_CORE_SE05X_SCP03_PROVISION_ON_INIT))
+		return se050_rotate_scp03_keys(&se050_ctx);
+
+	return kStatus_SSS_Success;
 }
 
 sss_status_t se050_session_open(struct sss_se05x_ctx *ctx,
