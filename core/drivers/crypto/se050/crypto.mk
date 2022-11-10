@@ -8,6 +8,9 @@ CFG_CRYPTO_DRIVER_DEBUG ?= 0
 # Some of the NXP SE05X devices fall in this category (i.e NXP SE050F).
 # Only enable this configuration to support those systems.
 CFG_CORE_SCP03_ONLY ?= n
+# Rotate the SCP03 keys during SCP03 init (does not require user intervention).
+# CAUTION: the provisioning configuration chosen might require a stable HUK.
+CFG_CORE_SE05X_SCP03_PROVISION_ON_INIT ?= n
 # Rotate the SCP03 keys via PTA (request from Normal World).
 CFG_CORE_SE05X_SCP03_PROVISION ?= n
 # The Provision request will rotate the SCP03 keys back to its factory settings.
