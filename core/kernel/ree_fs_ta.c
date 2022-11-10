@@ -424,6 +424,14 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 			goto error_free_hash;
 		}
 
+		/*
+		 * This is checked further down too, but we must sanity
+		 * check shdr->img_size before it's used below.
+		 */
+		if (ta_size != sz + shdr->img_size) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_hash;
+		}
 
 		ehdr = malloc(ehdr_sz);
 		if (!ehdr) {
