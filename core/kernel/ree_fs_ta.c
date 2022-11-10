@@ -439,7 +439,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 			goto error_free_hash;
 		}
 
-		memcpy(ehdr, ((uint8_t *)ta + offs), ehdr_sz);
+		*ehdr = img_ehdr;
+		memcpy((uint8_t *)ehdr + sizeof(img_ehdr),
+		       (uint8_t *)ta + offs + sizeof(img_ehdr),
+		       ehdr_sz - sizeof(img_ehdr));
 
 		res = crypto_hash_update(hash_ctx, (uint8_t *)ehdr, ehdr_sz);
 		if (res != TEE_SUCCESS)
