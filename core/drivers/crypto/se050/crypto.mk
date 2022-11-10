@@ -4,22 +4,22 @@ $(call force,CFG_CRYPTO_DRIVER,y)
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 
 # SE050 initialization
-# Enables the SCP03 key rotation
+# Some secure elements can only be accessed over an SCP03 enabled session.
+# Some of the NXP SE05X devices fall in this category (i.e NXP SE050F).
+# Only enable this configuration to support those systems.
+CFG_CORE_SCP03_ONLY ?= n
+# Rotate the SCP03 keys via PTA (request from Normal World).
 CFG_CORE_SE05X_SCP03_PROVISION ?= n
-# Rotate the SCP03 keys back to the factory settings instead of using a secret
-# set of keys derived from the HUK.
+# The Provision request will rotate the SCP03 keys back to its factory settings.
 CFG_CORE_SE05X_SCP03_PROVISION_WITH_FACTORY_KEYS ?= n
+# CAUTION: Leaks the SCP03 keys that are going to be programmed on the device's
+# NVM during a provisioning operation.
+CFG_CORE_SE05X_DISPLAY_SCP03_KEYS ?= n
 # Displays the SE050 device information on the console at boot (i.e. OEFID)
 CFG_CORE_SE05X_DISPLAY_INFO ?= y
-# Communicate with the Secure Element only over an SCP03 authenticated session.
-# When this option is not enabled, the driver first queries the device on an
-# un-authenticated channel. IF SCP03 is then required, the user should enable
-# CFG_CORE_SE05X_SCP03_EARLY or use libseteec.
-CFG_CORE_SCP03_ONLY ?= n
-# Enables the SCP03 before the REE: notice that if SCP03_PROVISION is enabled,
-# it will also attempt to rotate the keys
+# Enables SCP03 protocol during boot (does not require user intervention)
 CFG_CORE_SE05X_SCP03_EARLY ?= y
-# Deletes all persistent storage from the SE050 at boot
+# CAUTION: Deletes all persistent storage (keys/certs) from the SE05X at boot
 CFG_CORE_SE05X_INIT_NVM ?= n
 # Prevents the deletion of the secure storage object holding a reference to a
 # Secure Element (SE) Non Volatile Memory object unless there is explicit
