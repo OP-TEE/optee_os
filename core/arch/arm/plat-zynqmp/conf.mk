@@ -21,7 +21,7 @@ else
 $(call force,CFG_ARM32_core,y)
 endif
 
-ifneq (,$(filter $(PLATFORM_FLAVOR),zcu102 zc1751_dc1 zc1751_dc2))
+ifneq (,$(filter $(PLATFORM_FLAVOR),zcu102 zcu104 zcu106 zc1751_dc1 zc1751_dc2))
 
 CFG_UART_BASE ?= UART0_BASE
 CFG_UART_IT ?= IT_UART0
