@@ -55,7 +55,9 @@
 
 #if defined(PLATFORM_FLAVOR_zc1751_dc1) || \
 	defined(PLATFORM_FLAVOR_zc1751_dc2) || \
-	defined(PLATFORM_FLAVOR_zcu102)
+	defined(PLATFORM_FLAVOR_zcu102) || \
+	defined(PLATFORM_FLAVOR_zcu104) || \
+	defined(PLATFORM_FLAVOR_zcu106)
 
 #define GIC_BASE		0xF9010000
 #define UART0_BASE		0xFF000000
