@@ -247,6 +247,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	struct shdr_encrypted_ta *ehdr = NULL;
 	size_t shdr_sz = 0;
 	uint32_t max_depth = UINT32_MAX;
+	struct ftmn ftmn = { };
+	unsigned int incr0_count = 0;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
@@ -265,7 +267,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	}
 
 	/* Validate header signature */
-	res = shdr_verify_signature(shdr);
+	FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0, shdr_verify_signature, shdr);
+	incr0_count++;
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
 
@@ -311,8 +314,11 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		shdr_free(shdr);
 		shdr = shdr_alloc_and_copy(offs, ta, ta_size);
 		res = TEE_ERROR_SECURITY;
-		if (shdr)
-			res = shdr_verify_signature2(&pub_key, shdr);
+		if (shdr) {
+			FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
+				       shdr_verify_signature2, &pub_key, shdr);
+			incr0_count++;
+		}
 		shdr_free_pub_key(&pub_key);
 		if (res)
 			goto error_free_payload;
@@ -470,6 +476,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	handle->shdr = shdr;
 	handle->mobj = mobj;
 	*h = (struct ts_store_handle *)handle;
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR1,
+			       FTMN_STEP_COUNT(incr0_count), TEE_SUCCESS);
 	return TEE_SUCCESS;
 
 error_free_hash:
@@ -481,6 +489,9 @@ error:
 	free(bs_hdr);
 	shdr_free(shdr);
 	free(handle);
+	FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR1, res);
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR1,
+			       FTMN_STEP_COUNT(incr0_count, 1), res);
 	return res;
 }
 
@@ -672,7 +683,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("shdr_verify_signature"));
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("ree_fs_ta_open"));
 	res = ree_fs_ta_open(uuid, &handle->h);
 	if (!res)
 		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
