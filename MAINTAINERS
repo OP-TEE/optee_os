@@ -91,6 +91,7 @@ Core Drivers Versal ACAP
 R:	Jorge Ramirez <jorge@foundries.io> [@ldts]
 S:	Maintained
 F:	core/drivers/crypto/versal/authenc.c
+F:	core/drivers/crypto/versal/ecc.c
 F:	core/drivers/crypto/versal/ipi.c
 F:	core/drivers/versal_gpio.c
 F:	core/drivers/versal_mbox.c
