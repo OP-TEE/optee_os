@@ -35,12 +35,14 @@ endif
 
 CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
+CFG_RISCV_SBI	 ?= n
 CFG_RISCV_M_MODE ?= y
 ifeq ($(CFG_RISCV_M_MODE),y)
 ifeq ($(CFG_RISCV_S_MODE),y)
 $(error CFG_RISCV_M_MODE and CFG_RISCV_S_MODE cannot be both 'y')
 else
 $(call force,CFG_RISCV_S_MODE,n)
+$(call force,CFG_RISCV_SBI,n)
 endif
 endif
 ifeq ($(CFG_RISCV_S_MODE),y)
