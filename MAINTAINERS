@@ -93,6 +93,7 @@ S:	Maintained
 F:	core/drivers/crypto/versal/authenc.c
 F:	core/drivers/crypto/versal/ecc.c
 F:	core/drivers/crypto/versal/ipi.c
+F:	core/drivers/crypto/versal/rsa.c
 F:	core/drivers/versal_gpio.c
 F:	core/drivers/versal_mbox.c
 F:	core/drivers/versal_nvm.c
