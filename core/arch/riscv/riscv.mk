@@ -35,6 +35,21 @@ endif
 
 CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
+CFG_RISCV_M_MODE ?= y
+ifeq ($(CFG_RISCV_M_MODE),y)
+ifeq ($(CFG_RISCV_S_MODE),y)
+$(error CFG_RISCV_M_MODE and CFG_RISCV_S_MODE cannot be both 'y')
+else
+$(call force,CFG_RISCV_S_MODE,n)
+endif
+endif
+ifeq ($(CFG_RISCV_S_MODE),y)
+$(call force,CFG_RISCV_M_MODE,n)
+endif
+ifneq (y,$(call cfg-one-enabled,CFG_RISCV_M_MODE M CFG_RISCV_S_MODE))
+$(error Either CFG_RISCV_M_MODE or CFG_RISCV_S_MODE must be 'y')
+endif
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
