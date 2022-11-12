@@ -115,12 +115,12 @@ __weak void plat_primary_init_early(void)
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void main_init_plic(void)
+__weak void primary_init_intc(void)
 {
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void main_secondary_init_plic(void)
+__weak void secondary_init_intc(void)
 {
 }
 
@@ -144,7 +144,7 @@ void boot_init_primary_late(unsigned long fdt,
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
 	IMSG("Primary CPU initializing");
-	main_init_plic();
+	primary_init_intc();
 	init_tee_runtime();
 	call_finalcalls();
 	IMSG("Primary CPU initialized");
@@ -171,7 +171,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	main_secondary_init_plic();
+	secondary_init_intc();
 
 	IMSG("Secondary CPU %zu initialized", pos);
 }
