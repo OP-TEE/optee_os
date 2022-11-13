@@ -96,6 +96,7 @@ F:	core/drivers/versal_gpio.c
 F:	core/drivers/versal_mbox.c
 F:	core/drivers/versal_nvm.c
 F:	core/drivers/versal_pm.c
+F:	core/drivers/versal_sha3_384.c
 F:	core/drivers/versal_trng.c
 
 Core Drivers ZYNQMP
