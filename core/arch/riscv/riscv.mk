@@ -52,6 +52,10 @@ ifneq (y,$(call cfg-one-enabled,CFG_RISCV_M_MODE M CFG_RISCV_S_MODE))
 $(error Either CFG_RISCV_M_MODE or CFG_RISCV_S_MODE must be 'y')
 endif
 
+ifeq ($(CFG_RISCV_SBI_CONSOLE),y)
+$(call force,CFG_RISCV_SBI,y)
+endif
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
