@@ -25,6 +25,25 @@
 #define LDR       ld
 #endif
 
+#if defined(CFG_RISCV_M_MODE)
+#define CSR_MODE_OFFSET	PRV_M
+#define XRET			mret
+#elif defined(CFG_RISCV_S_MODE)
+#define CSR_MODE_OFFSET	PRV_S
+#define XRET			sret
+#endif
+
+#define CSR_MODE_BITS	SHIFT_U64(CSR_MODE_OFFSET, 8)
+
+#define CSR_XSTATUS		(CSR_MODE_BITS | 0x000)
+#define CSR_XIE			(CSR_MODE_BITS | 0x004)
+#define CSR_XTVEC		(CSR_MODE_BITS | 0x005)
+#define CSR_XSCRATCH		(CSR_MODE_BITS | 0x040)
+#define CSR_XEPC		(CSR_MODE_BITS | 0x041)
+#define CSR_XCAUSE		(CSR_MODE_BITS | 0x042)
+#define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
+#define CSR_XIP			(CSR_MODE_BITS | 0x044)
+
 #ifndef __ASSEMBLER__
 
 static inline __noprof void mb(void)
