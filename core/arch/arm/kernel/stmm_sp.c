@@ -11,6 +11,7 @@
 #include <kernel/stmm_sp.h>
 #include <kernel/thread_private.h>
 #include <kernel/user_mode_ctx.h>
+#include <mempool.h>
 #include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
@@ -195,12 +196,12 @@ static TEE_Result alloc_and_map_sp_fobj(struct stmm_ctx *spc, size_t sz,
 static void *zalloc(void *opaque __unused, unsigned int items,
 		    unsigned int size)
 {
-	return malloc(items * size);
+	return mempool_alloc(mempool_default, items * size);
 }
 
 static void zfree(void *opaque __unused, void *address)
 {
-	free(address);
+	mempool_free(mempool_default, address);
 }
 
 static void uncompress_image(void *dst, size_t dst_size, void *src,
