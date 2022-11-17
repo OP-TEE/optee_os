@@ -181,6 +181,8 @@ void thread_set_fiq_sp(vaddr_t sp);
 
 /* Read usr_sp banked CPU register */
 uint32_t thread_get_usr_sp(void);
+uint32_t thread_get_usr_lr(void);
+void thread_set_usr_lr(uint32_t usr_lr);
 #endif /*ARM32*/
 
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,

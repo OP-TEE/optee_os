@@ -71,6 +71,24 @@ FUNC thread_get_usr_sp , :
 	bx	lr
 END_FUNC thread_get_usr_sp
 
+FUNC thread_get_usr_lr , :
+	mrs	r1, cpsr
+	cpsid	aif
+	cps	#CPSR_MODE_SYS
+	mov	r0, lr
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_get_usr_lr
+
+FUNC thread_set_usr_lr , :
+	mrs	r1, cpsr
+	cpsid	aif
+	cps	#CPSR_MODE_SYS
+	mov	lr, r0
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_set_usr_lr
+
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 UNWIND(	.cantunwind)
