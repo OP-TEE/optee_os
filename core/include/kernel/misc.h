@@ -6,8 +6,8 @@
 #ifndef KERNEL_MISC_H
 #define KERNEL_MISC_H
 
-#include <arm.h>
 #include <assert.h>
+#include <kernel/misc_arch.h>
 #include <kernel/thread.h>
 #include <types_ext.h>
 
@@ -23,12 +23,4 @@ static inline size_t __noprof get_core_pos(void)
 	return __get_core_pos();
 }
 
-size_t get_core_pos_mpidr(uint32_t mpidr);
-
-uint32_t read_mode_sp(int cpu_mode);
-uint32_t read_mode_lr(int cpu_mode);
-
-void wait_cycles(unsigned long cycles);
-
 #endif /*KERNEL_MISC_H*/
-
