@@ -111,7 +111,18 @@ static TEE_Result stmm_enter_user_mode(struct stmm_ctx *spc)
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	cntkctl = read_cntkctl();
 	write_cntkctl(cntkctl | CNTKCTL_PL0PCTEN);
+
+#ifdef ARM32
+	/* Handle usr_lr in place of __thread_enter_user_mode() */
+	thread_set_usr_lr(spc->regs.usr_lr);
+#endif
+
 	__thread_enter_user_mode(&spc->regs, &panicked, &panic_code);
+
+#ifdef ARM32
+	spc->regs.usr_lr = thread_get_usr_lr();
+#endif
+
 	write_cntkctl(cntkctl);
 	thread_unmask_exceptions(exceptions);
 
