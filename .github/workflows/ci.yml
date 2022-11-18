@@ -81,9 +81,11 @@ jobs:
 
           function _make() { make -j$(nproc) -s O=out $*; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.0 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_scp_firmware() { git clone --single-branch -b add-optee-arch https://github.com/etienne-lms/SCP-firmware.git $HOME/scp-firmware || echo Nervermind; }
 
           ccache -s -v
           download_plug_and_trust
+          download_scp_firmware
 
           _make
           _make COMPILER=clang
@@ -130,6 +132,7 @@ jobs:
           _make PLATFORM=stm32mp1
           _make PLATFORM=stm32mp1-135F_DK
           _make PLATFORM=stm32mp1-157C_DK2
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SERVER=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
