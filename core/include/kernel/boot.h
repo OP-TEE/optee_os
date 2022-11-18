@@ -69,6 +69,9 @@ void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);
 unsigned long plat_get_aslr_seed(void);
 unsigned long plat_get_freq(void);
+#if defined(_CFG_CORE_STACK_PROTECTOR)
+uintptr_t plat_get_random_stack_canary(void);
+#endif
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);
 

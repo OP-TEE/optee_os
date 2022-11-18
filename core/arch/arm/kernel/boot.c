@@ -113,6 +113,31 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
+#if defined(_CFG_CORE_STACK_PROTECTOR)
+/* Generate random stack canary value on boot up */
+__weak uintptr_t plat_get_random_stack_canary(void)
+{
+	uintptr_t canary = 0xbaaaad00;
+	TEE_Result ret = TEE_ERROR_GENERIC;
+
+	/*
+	 * With virtualization the RNG is not initialized in Nexus core.
+	 * Need to override with platform specific implementation.
+	 */
+	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+		IMSG("WARNING: Using fixed value for stack canary");
+		return canary;
+	}
+
+	ret = crypto_rng_read(&canary, sizeof(canary));
+	if (ret != TEE_SUCCESS)
+		panic("Failed to generate random stack canary");
+
+	/* Leave null byte in canary to prevent string base exploit */
+	return canary & ~0xffUL;
+}
+#endif /*_CFG_CORE_STACK_PROTECTOR*/
+
 /*
  * This function is called as a guard after each smc call which is not
  * supposed to return.

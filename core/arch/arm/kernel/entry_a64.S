@@ -350,6 +350,13 @@ clear_nex_bss:
 	mov	sp, x21
 #endif
 
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	bl	plat_get_random_stack_canary
+	adr_l	x5, __stack_chk_guard
+	str	x0, [x5]
+#endif
+
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
 	 * they have turned on their D-cache, clean and invalidate the

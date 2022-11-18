@@ -567,6 +567,13 @@ shadow_stack_access_ok:
 	mov	sp, r9
 #endif
 
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	bl	plat_get_random_stack_canary
+	ldr	r1, =__stack_chk_guard
+	str	r0, [r1]
+#endif
+
 	/*
 	 * In case we've touched memory that secondary CPUs will use before
 	 * they have turned on their D-cache, clean and invalidate the

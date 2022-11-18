@@ -24,6 +24,12 @@ cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include
 cppflags$(sm)	+= $(core-platform-cppflags)
 cflags$(sm)	+= $(core-platform-cflags)
+
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR) := -fstack-protector
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR_STRONG) := -fstack-protector-strong
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR_ALL) := -fstack-protector-all
+cflags$(sm)	+= $(core-stackp-cflags-y)
+
 ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
 cflags$(sm)	+= -fsanitize=undefined
 endif
