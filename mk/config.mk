@@ -313,6 +313,37 @@ CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 128
 # corruption vulnerabilities more difficult.
 CFG_CORE_ASLR ?= y
 
+# Stack Protection for TEE Core
+# This flag enables the compiler stack protection mechanisms -fstack-protector.
+# It will check the stack canary value before returning from a function to
+# prevent buffer overflow attacks. Stack protector canary logic will be added
+# for vulnerable functions that contain:
+# - A character array larger than 8 bytes.
+# - An 8-bit integer array larger than 8 bytes.
+# - A call to alloca() with either a variable size or a constant size bigger
+#   than 8 bytes.
+CFG_CORE_STACK_PROTECTOR ?= n
+# This enable stack protector flag -fstack-protector-strong. Stack protector
+# canary logic will be added for vulnerable functions that contain:
+# - An array of any size and type.
+# - A call to alloca().
+# - A local variable that has its address taken.
+CFG_CORE_STACK_PROTECTOR_STRONG ?= y
+# This enable stack protector flag -fstack-protector-all. Stack protector canary
+# logic will be added to all functions regardless of their vulnerability.
+CFG_CORE_STACK_PROTECTOR_ALL ?= n
+# Stack Protection for TA
+CFG_TA_STACK_PROTECTOR ?= n
+CFG_TA_STACK_PROTECTOR_STRONG ?= y
+CFG_TA_STACK_PROTECTOR_ALL ?= n
+
+_CFG_CORE_STACK_PROTECTOR := $(call cfg-one-enabled, CFG_CORE_STACK_PROTECTOR \
+						     CFG_CORE_STACK_PROTECTOR_STRONG \
+						     CFG_CORE_STACK_PROTECTOR_ALL)
+_CFG_TA_STACK_PROTECTOR := $(call cfg-one-enabled, CFG_TA_STACK_PROTECTOR \
+						   CFG_TA_STACK_PROTECTOR_STRONG \
+						   CFG_TA_STACK_PROTECTOR_ALL)
+
 # Load user TAs from the REE filesystem via tee-supplicant
 CFG_REE_FS_TA ?= y
 

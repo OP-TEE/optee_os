@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include <compiler.h>
+#include <config.h>
 #include <malloc.h>
 #include <tee_ta_api.h>
 #include <tee_internal_api_extensions.h>
@@ -10,6 +11,8 @@
 #include <user_ta_header.h>
 #include <user_ta_header_defines.h>
 #include <utee_syscalls.h>
+
+extern void *__stack_chk_guard;
 
 int trace_level = TRACE_LEVEL;
 
@@ -46,7 +49,25 @@ void __noreturn _C_FUNCTION(__ta_entry)(unsigned long func,
 					struct utee_params *up,
 					unsigned long cmd_id)
 {
-	TEE_Result res = __utee_entry(func, session_id, up, cmd_id);
+	static bool stack_canary_inited;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (IS_ENABLED(_CFG_TA_STACK_PROTECTOR) && !stack_canary_inited) {
+		uintptr_t canary = 0;
+
+		res = _utee_cryp_random_number_generate(&canary,
+							sizeof(canary));
+		if (res != TEE_SUCCESS)
+			_utee_return(res);
+
+		/* Leave null byte in canary to prevent string base exploit */
+		canary &= ~0xffUL;
+
+		__stack_chk_guard = (void *)canary;
+		stack_canary_inited = true;
+	}
+
+	res = __utee_entry(func, session_id, up, cmd_id);
 
 #if defined(CFG_FTRACE_SUPPORT)
 	/*
