@@ -18,6 +18,7 @@
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <npcm845x_utils.h>
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stdint.h>
@@ -48,6 +49,8 @@ void main_init_gic(void)
 {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
+
+	print_version();
 
 	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
 					  MEM_AREA_IO_SEC,1);
