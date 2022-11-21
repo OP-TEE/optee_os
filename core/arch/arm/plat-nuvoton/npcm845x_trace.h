@@ -25,8 +25,8 @@
 
 #include <trace.h>
 
-void trace_ext_printf(const char *fmt, ...);
-void trace_ext_vprintf(const char *fmt, va_list ap);
+void trace_ext_printf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+void __attribute__((format(printf, 1, 0))) trace_ext_vprintf(const char *fmt, va_list ap);
 
 #define trace_ext_printf_helper(...) trace_ext_printf(__VA_ARGS__)
 
