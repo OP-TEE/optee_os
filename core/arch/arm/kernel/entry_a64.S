@@ -143,21 +143,20 @@
 	.endm
 
 FUNC _start , :
-#if defined(CFG_CORE_SEL1_SPMC)
 	/*
-	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
-	 * the DTB in x0, pagaeble part in x1 and the rest of the registers
-	 * are unused
+	 * If CFG_CORE_FFA is enabled, then x0 if non-NULL holds the TOS FW
+	 * config [1] address, else x0 if non-NULL holds the pagable part
+	 * address.
+	 *
+	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
+	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
+	 * here.
 	 */
-	mov	x19, x1		/* Save pagable part */
-	mov	x20, x0		/* Save DT address */
-#else
-	mov	x19, x0		/* Save pagable part address */
+	mov	x19, x0
 #if defined(CFG_DT_ADDR)
 	ldr     x20, =CFG_DT_ADDR
 #else
 	mov	x20, x2		/* Save DT address */
-#endif
 #endif
 
 	adr	x0, reset_vect_table
