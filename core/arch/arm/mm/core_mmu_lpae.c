@@ -197,17 +197,12 @@
 #endif
 
 /*
- * Number of provisioned translation tables is set by
- * CFG_MMU_XLAT_TABLES if defined, or fallback to
- * MAX_XLAT_TABLES if defined, or fallback to a generic
- * value depending on system features enabled.
+ * Number of provisioned translation tables is set by CFG_MMU_XLAT_TABLES if
+ * defined or fallback to a generic value depending on system features enabled.
  */
 #ifdef CFG_MMU_XLAT_TABLES
-#define _MAX_XLAT_TABLES	CFG_MMU_XLAT_TABLES
-#else /*CFG_MMU_XLAT_TABLES*/
-#ifdef MAX_XLAT_TABLES
-#define _MAX_XLAT_TABLES	MAX_XLAT_TABLES
-#else /*MAX_XLAT_TABLES*/
+#define MAX_XLAT_TABLES		CFG_MMU_XLAT_TABLES
+#else
 #ifdef CFG_VIRTUALIZATION
 #	define XLAT_TABLE_VIRTUALIZATION_EXTRA 3
 #else
@@ -225,20 +220,19 @@
 #	define XLAT_TABLE_TEE_EXTRA 5
 #	define XLAT_TABLE_USER_EXTRA 0
 #endif
-#define _MAX_XLAT_TABLES	(XLAT_TABLE_TEE_EXTRA + \
+#define MAX_XLAT_TABLES		(XLAT_TABLE_TEE_EXTRA + \
 				 XLAT_TABLE_VIRTUALIZATION_EXTRA + \
 				 XLAT_TABLE_ASLR_EXTRA + \
 				 XLAT_TABLE_USER_EXTRA)
-#endif /*MAX_XLAT_TABLES*/
 #endif /*CFG_MMU_XLAT_TABLES*/
 
 #if (CORE_MMU_BASE_TABLE_LEVEL == 0)
-#if (_MAX_XLAT_TABLES <= UINT8_MAX)
+#if (MAX_XLAT_TABLES <= UINT8_MAX)
 typedef uint8_t l1_idx_t;
-#elif (_MAX_XLAT_TABLES <= UINT16_MAX)
+#elif (MAX_XLAT_TABLES <= UINT16_MAX)
 typedef uint16_t l1_idx_t;
 #else
-#error _MAX_XLAT_TABLES is suspiciously large, please check
+#error MAX_XLAT_TABLES is suspiciously large, please check
 #endif
 #endif
 
@@ -249,10 +243,10 @@ static base_xlat_tbls_t base_xlation_table[NUM_BASE_TABLES]
 	__aligned(NUM_BASE_LEVEL_ENTRIES * XLAT_ENTRY_SIZE)
 	__section(".nozi.mmu.base_table");
 
-static xlat_tbl_t xlat_tables[_MAX_XLAT_TABLES]
+static xlat_tbl_t xlat_tables[MAX_XLAT_TABLES]
 	__aligned(XLAT_TABLE_SIZE) __section(".nozi.mmu.l2");
 
-#define XLAT_TABLES_SIZE	(sizeof(xlat_tbl_t) * _MAX_XLAT_TABLES)
+#define XLAT_TABLES_SIZE	(sizeof(xlat_tbl_t) * MAX_XLAT_TABLES)
 
 /* MMU L2 table for TAs, one for each thread */
 static xlat_tbl_t xlat_tables_ul1[CFG_NUM_THREADS]
@@ -527,8 +521,8 @@ static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 {
 	uint64_t *new_table = NULL;
 
-	if (prtn->xlat_tables_used >= _MAX_XLAT_TABLES) {
-		EMSG("%u xlat tables exhausted", _MAX_XLAT_TABLES);
+	if (prtn->xlat_tables_used >= MAX_XLAT_TABLES) {
+		EMSG("%u xlat tables exhausted", MAX_XLAT_TABLES);
 
 		return NULL;
 	}
@@ -536,7 +530,7 @@ static uint64_t *core_mmu_xlat_table_alloc(struct mmu_partition *prtn)
 	new_table = prtn->xlat_tables[prtn->xlat_tables_used++];
 
 	DMSG("xlat tables used %u / %u",
-	     prtn->xlat_tables_used, _MAX_XLAT_TABLES);
+	     prtn->xlat_tables_used, MAX_XLAT_TABLES);
 
 	return new_table;
 }
@@ -742,7 +736,7 @@ static void core_init_mmu_prtn_ta_core(struct mmu_partition *prtn
 	uintptr_t idx = 0;
 
 	assert(user_va_idx != -1);
-	COMPILE_TIME_ASSERT(_MAX_XLAT_TABLES <
+	COMPILE_TIME_ASSERT(MAX_XLAT_TABLES <
 			    (1 << (8 * sizeof(prtn->user_l1_table_idx[0][0]))));
 
 	tbl = prtn->base_tables[base_idx][core];

@@ -953,3 +953,8 @@ endif
 # Developer can open a stats PTA session and then invoke command
 # STATS_CMD_TA_STATS to get the context of loaded TAs.
 CFG_TA_STATS ?= n
+
+# CFG_MMU_XLAT_TABLES defines the number of MMU translation tables
+# provisioned for core memory static mapping. When using a negative
+# value, OP-TEE core uses the default tables count value.
+CFG_MMU_XLAT_TABLES ?= -1

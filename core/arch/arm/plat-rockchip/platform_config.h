@@ -89,8 +89,4 @@
 #error "Unknown platform flavor"
 #endif
 
-#ifdef CFG_WITH_LPAE
-#define MAX_XLAT_TABLES		5
-#endif
-
 #endif

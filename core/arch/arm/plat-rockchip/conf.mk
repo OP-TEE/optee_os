@@ -61,3 +61,7 @@ $(call force,CFG_ARM64_core,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 ta-targets = ta_arm64
 endif
+
+ifeq ($(CFG_WITH_LPAE),y)
+CFG_MMU_XLAT_TABLES ?= 5
+endif

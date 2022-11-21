@@ -183,24 +183,18 @@
 #define TTB_L1_MASK		(~(L1_ALIGNMENT - 1))
 
 /*
- * Number of provisioned translation tables is set by
- * CFG_MMU_XLAT_TABLES if defined, or fallback to
- * MAX_XLAT_TABLES if defined, or fallback to a generic
- * value depending on system features enabled.
+ * Number of provisioned translation tables is set by CFG_MMU_XLAT_TABLES if
+ * defined, or fallback to a generic value depending on system features enabled.
  */
 #ifdef CFG_MMU_XLAT_TABLES
-#define _MAX_XLAT_TABLES	CFG_MMU_XLAT_TABLES
-#else /*CFG_MMU_XLAT_TABLES*/
-#ifdef MAX_XLAT_TABLES
-#define _MAX_XLAT_TABLES	MAX_XLAT_TABLES
-#else /*MAX_XLAT_TABLES*/
+#define MAX_XLAT_TABLES		CFG_MMU_XLAT_TABLES
+#else
 #ifdef CFG_CORE_ASLR
 #	define XLAT_TABLE_ASLR_EXTRA 2
 #else
 #	define XLAT_TABLE_ASLR_EXTRA 0
 #endif
-#define _MAX_XLAT_TABLES	(4 + XLAT_TABLE_ASLR_EXTRA)
-#endif /*MAX_XLAT_TABLES*/
+#define MAX_XLAT_TABLES		(4 + XLAT_TABLE_ASLR_EXTRA)
 #endif /*CFG_MMU_XLAT_TABLES*/
 
 enum desc_type {
@@ -220,7 +214,7 @@ static l1_xlat_tbl_t main_mmu_l1_ttb
 		__aligned(L1_ALIGNMENT) __section(".nozi.mmu.l1");
 
 /* L2 MMU tables */
-static l2_xlat_tbl_t main_mmu_l2_ttb[_MAX_XLAT_TABLES]
+static l2_xlat_tbl_t main_mmu_l2_ttb[MAX_XLAT_TABLES]
 		__aligned(L2_ALIGNMENT) __section(".nozi.mmu.l2");
 
 /* MMU L1 table for TAs, one for each thread */
@@ -296,8 +290,8 @@ static void *core_mmu_alloc_l2(struct mmu_partition *prtn, size_t size)
 		(NUM_L2_ENTRIES * SMALL_PAGE_SIZE);
 
 	DMSG("L2 table used: %d/%d", prtn->tables_used + to_alloc,
-	     _MAX_XLAT_TABLES);
-	if (prtn->tables_used + to_alloc > _MAX_XLAT_TABLES)
+	     MAX_XLAT_TABLES);
+	if (prtn->tables_used + to_alloc > MAX_XLAT_TABLES)
 		return NULL;
 
 	memset(prtn->l2_tables[prtn->tables_used], 0,
