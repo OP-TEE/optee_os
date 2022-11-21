@@ -1502,11 +1502,17 @@ struct ns_entry_context *boot_core_hpen(void)
 #if defined(CFG_DT)
 unsigned long __weak get_aslr_seed(void *fdt)
 {
-	int rc = fdt_check_header(fdt);
+	int rc = 0;
 	const uint64_t *seed = NULL;
 	int offs = 0;
 	int len = 0;
 
+	if (!fdt) {
+		DMSG("No fdt");
+		goto err;
+	}
+
+	rc = fdt_check_header(fdt);
 	if (rc) {
 		DMSG("Bad fdt: %d", rc);
 		goto err;
