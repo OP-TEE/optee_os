@@ -178,7 +178,6 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 	struct tee_obj *o = NULL;
-	char *file = NULL;
 
 	if (flags & ~valid_flags)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -245,8 +244,6 @@ err:
 		tee_svc_storage_remove_corrupt_obj(sess, o);
 
 exit:
-	free(file);
-	file = NULL;
 	return res;
 }
 
