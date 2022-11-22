@@ -134,6 +134,17 @@ struct drvcrypt_secret_data {
 };
 
 /*
+ * ECC Encrypt data
+ */
+struct drvcrypt_encrypt_data {
+	uint32_t algo;
+	void *key;
+	size_t size_sec;
+	struct drvcrypt_buf plaintext;
+	struct drvcrypt_buf ciphertext;
+};
+
+/*
  * Crypto ECC driver operations
  */
 struct drvcrypt_ecc {
@@ -152,6 +163,10 @@ struct drvcrypt_ecc {
 	TEE_Result (*verify)(struct drvcrypt_sign_data *sdata);
 	/* ECC Shared Secret */
 	TEE_Result (*shared_secret)(struct drvcrypt_secret_data *sdata);
+	/* ECC Encrypt */
+	TEE_Result (*encrypt)(struct drvcrypt_encrypt_data *edata);
+	/* ECC Decrypt */
+	TEE_Result (*decrypt)(struct drvcrypt_encrypt_data *edata);
 };
 
 /*

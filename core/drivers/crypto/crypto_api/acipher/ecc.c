@@ -25,6 +25,7 @@ static size_t get_ecc_key_size_bytes(uint32_t curve)
 		return 28;
 
 	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_SM2:
 		return 32;
 
 	case TEE_ECC_CURVE_NIST_P384:
@@ -340,10 +341,139 @@ static TEE_Result ecc_shared_secret(struct ecc_keypair *private_key,
 	return ret;
 }
 
+static TEE_Result ecc_encrypt(struct ecc_public_key *key,
+			  const uint8_t *src, size_t src_len,
+			  uint8_t *dst, size_t *dst_len)
+{
+	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
+	struct drvcrypt_encrypt_data edata = { };
+	struct drvcrypt_ecc *ecc = NULL;
+	size_t size_bytes = 0;
+
+	if (!key || !src || !dst) {
+		CRYPTO_TRACE("Input parameters reference error!\n");
+		return ret;
+	}
+
+	key->curve = TEE_ECC_CURVE_SM2;
+	size_bytes = get_ecc_key_size_bytes(key->curve);
+	if (!size_bytes) {
+		CRYPTO_TRACE("Invalid size_bytes!\n");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Verify the ciphertext length function of the key size */
+	if (*dst_len < 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE) {
+		CRYPTO_TRACE("Length (%zu) too short expected %zu bytes",
+			 *dst_len, 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE);
+		*dst_len = 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE;
+		CRYPTO_TRACE("Invalid src_len or dst_len!\n");
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	/* Uncompressed form indicator */
+	dst[0] = 0x04;
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+	if (ecc && ecc->encrypt) {
+		/*
+		 * Prepare the encrypt structure data
+		 */
+		edata.key = key;
+		edata.size_sec = size_bytes;
+		edata.plaintext.data = (uint8_t *)src;
+		edata.plaintext.length = src_len;
+		edata.ciphertext.data = (uint8_t *)dst + 1;
+		edata.ciphertext.length = *dst_len;
+
+		ret = ecc->encrypt(&edata);
+
+		/* Set the ciphertext length */
+		*dst_len = edata.ciphertext.length + 1;
+	} else {
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	return ret;
+}
+
+static TEE_Result ecc_decrypt(struct ecc_keypair *key,
+			  const uint8_t *src, size_t src_len,
+			  uint8_t *dst, size_t *dst_len)
+{
+	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
+	struct drvcrypt_encrypt_data edata = { };
+	struct drvcrypt_ecc *ecc = NULL;
+	uint8_t *ciphertext = NULL;
+	size_t ciphertext_len = 0;
+	size_t size_bytes = 0;
+	size_t C1_len = 0;
+	size_t C2_len = 0;
+	/* Point Compression */
+	uint8_t PC = 0;
+
+	if (!key || !src || !dst) {
+		CRYPTO_TRACE("Input parameters reference error!\n");
+		return ret;
+	}
+
+	key->curve = TEE_ECC_CURVE_SM2;
+	size_bytes = get_ecc_key_size_bytes(key->curve);
+	if (!size_bytes) {
+		CRYPTO_TRACE("Invalid size_bytes!\n");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	PC = src[0];
+	switch (PC) {
+	case 0x02:
+	case 0x03:
+		/* Compressed form */
+		return TEE_ERROR_NOT_SUPPORTED;
+	case 0x04:
+		/* UNcompressed form */
+		ciphertext = src + 1;
+		ciphertext_len = src_len - 1;
+		C1_len = 2 * size_bytes;
+		break;
+	case 0x06:
+	case 0x07:
+		/* Hybrid form */
+		return TEE_ERROR_NOT_SUPPORTED;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	C2_len = ciphertext_len - C1_len - TEE_SM3_HASH_SIZE;
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+	if (ecc && ecc->encrypt) {
+		/*
+		 * Prepare the decrypt structure data
+		 */
+		edata.key = key;
+		edata.size_sec = size_bytes;
+		edata.ciphertext.data = (uint8_t *)ciphertext;
+		edata.ciphertext.length = ciphertext_len;
+		edata.plaintext.data = (uint8_t *)dst;
+		edata.plaintext.length = C2_len;
+
+		ret = ecc->decrypt(&edata);
+
+		/* Set the plaintext length */
+		*dst_len = edata.plaintext.length;
+	} else {
+		ret = TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	return ret;
+}
+
 static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
 	.generate = ecc_generate_keypair,
 	.sign = ecc_sign,
 	.shared_secret = ecc_shared_secret,
+	.decrypt = ecc_decrypt,
 };
 
 TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
@@ -361,6 +491,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	switch (type) {
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
@@ -381,6 +512,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = ecc_free_public_key,
 	.verify = ecc_verify,
+	.encrypt = ecc_encrypt,
 };
 
 TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
@@ -398,6 +530,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	switch (type) {
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
