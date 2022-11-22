@@ -29,6 +29,13 @@
 	};
 };
 
+&bsec {
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		st,non-secure-otp;
+	};
+};
+
 &dsi {
 	status = "disabled";
 	phy-dsi-supply = <&reg18>;
@@ -88,21 +95,14 @@
 	};
 };
 
+&rcc {
+	status = "okay";
+};
+
 &usart2 {
 	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&usart2_pins_c>;
 	pinctrl-1 = <&usart2_sleep_pins_c>;
 	pinctrl-2 = <&usart2_idle_pins_c>;
 	status = "disabled";
-};
-
-&rcc {
-	status = "okay";
-};
-
-&bsec {
-	board_id: board_id@ec {
-		reg = <0xec 0x4>;
-		st,non-secure-otp;
-	};
 };

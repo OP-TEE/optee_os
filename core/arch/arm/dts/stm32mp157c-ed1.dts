@@ -115,6 +115,13 @@
 	};
 };
 
+&bsec {
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		st,non-secure-otp;
+	};
+};
+
 &crc1 {
 	status = "disabled";
 };
@@ -326,6 +333,10 @@
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
 };
 
+&rcc {
+	status = "okay";
+};
+
 &rng1 {
 	status = "okay";
 };
@@ -400,15 +411,4 @@
 
 &usbphyc_port1 {
 	phy-supply = <&vdd_usb>;
-};
-
-&rcc {
-	status = "okay";
-};
-
-&bsec {
-	board_id: board_id@ec {
-		reg = <0xec 0x4>;
-		st,non-secure-otp;
-	};
 };
