@@ -739,6 +739,17 @@ void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 	return gen_mdbg_memalign(&malloc_ctx, fname, lineno, alignment, size);
 }
 
+#if __STDC_VERSION__ >= 201112L
+void *mdbg_aligned_alloc(const char *fname, int lineno, size_t alignment,
+			 size_t size)
+{
+	if (size % alignment)
+		return NULL;
+
+	return gen_mdbg_memalign(&malloc_ctx, fname, lineno, alignment, size);
+}
+#endif /* __STDC_VERSION__ */
+
 void mdbg_check(int bufdump)
 {
 	gen_mdbg_check(&malloc_ctx, bufdump);
@@ -823,6 +834,16 @@ void *memalign(size_t alignment, size_t size)
 	malloc_unlock(&malloc_ctx, exceptions);
 	return p;
 }
+
+#if __STDC_VERSION__ >= 201112L
+void *aligned_alloc(size_t alignment, size_t size)
+{
+	if (size % alignment)
+		return NULL;
+
+	return memalign(alignment, size);
+}
+#endif /* __STDC_VERSION__ */
 
 static void *get_payload_start_size(void *ptr, size_t *size)
 {

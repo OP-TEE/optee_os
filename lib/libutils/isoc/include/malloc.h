@@ -20,6 +20,10 @@ void *realloc(void *ptr, size_t size);
 void *memalign(size_t alignment, size_t size);
 void free(void *ptr);
 
+#if __STDC_VERSION__ >= 201112L
+void *aligned_alloc(size_t alignment, size_t size);
+#endif
+
 #ifdef ENABLE_MDBG
 
 void *mdbg_malloc(const char *fname, int lineno, size_t size);
@@ -27,6 +31,11 @@ void *mdbg_calloc(const char *fname, int lineno, size_t nmemb, size_t size);
 void *mdbg_realloc(const char *fname, int lineno, void *ptr, size_t size);
 void *mdbg_memalign(const char *fname, int lineno, size_t alignment,
 		    size_t size);
+
+#if __STDC_VERSION__ >= 201112L
+void *mdbg_aligned_alloc(const char *fname, int lineno, size_t alignment,
+			 size_t size);
+#endif
 
 void mdbg_check(int bufdump);
 
@@ -37,6 +46,11 @@ void mdbg_check(int bufdump);
 		mdbg_realloc(__FILE__, __LINE__, (ptr), (size))
 #define memalign(alignment, size) \
 		mdbg_memalign(__FILE__, __LINE__, (alignment), (size))
+
+#if __STDC_VERSION__ >= 201112L
+#define aligned_alloc(alignment, size) \
+		mdbg_aligned_alloc(__FILE__, __LINE__, (alignment), (size))
+#endif /* __STDC_VERSION__ */
 
 #else
 
