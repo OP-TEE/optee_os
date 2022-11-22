@@ -72,6 +72,7 @@ TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size)
 	case TEE_ALG_AES_GCM:
 	case TEE_ALG_SM4_ECB_NOPAD:
 	case TEE_ALG_SM4_CBC_NOPAD:
+	case TEE_ALG_SM4_XTS:
 	case TEE_ALG_SM4_CTR:
 		*size = 16;
 		break;
@@ -130,6 +131,7 @@ TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 		case TEE_ALG_AES_CTR:
 		case TEE_ALG_AES_XTS:
 		case TEE_ALG_AES_CTS:
+		case TEE_ALG_SM4_XTS:
 			/*
 			 * These modes doesn't require padding for the last
 			 * block.
