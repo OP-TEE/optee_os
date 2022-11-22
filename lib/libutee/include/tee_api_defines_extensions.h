@@ -88,6 +88,11 @@
 #define TEE_ALG_DES3_CMAC	0xF0000613
 
 /*
+ *  SM4-XTS
+ */
+#define TEE_ALG_SM4_XTS 0xF0000414
+
+/*
  * Implementation-specific object storage constants
  */
 

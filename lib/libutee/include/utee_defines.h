@@ -64,6 +64,8 @@ static inline uint32_t __tee_alg_get_class(uint32_t algo)
 		return TEE_OPERATION_ASYMMETRIC_SIGNATURE;
 	if (algo == TEE_ALG_DES3_CMAC)
 		return TEE_OPERATION_MAC;
+	if (algo == TEE_ALG_SM4_XTS)
+		return TEE_OPERATION_CIPHER;
 
 	return (algo >> 28) & 0xF; /* Bits [31:28] */
 }

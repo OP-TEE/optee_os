@@ -44,7 +44,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	if (!operation)
 		TEE_Panic(0);
 
-	if (algorithm == TEE_ALG_AES_XTS || algorithm == TEE_ALG_SM2_KEP)
+	if (algorithm == TEE_ALG_AES_XTS || algorithm == TEE_ALG_SM2_KEP ||
+	    algorithm == TEE_ALG_SM4_XTS)
 		handle_state = TEE_HANDLE_FLAG_EXPECT_TWO_KEYS;
 
 	/* Check algorithm max key size */
@@ -118,6 +119,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	switch (algorithm) {
 	case TEE_ALG_AES_CTS:
 	case TEE_ALG_AES_XTS:
+	case TEE_ALG_SM4_XTS:
 		buffer_two_blocks = true;
 		fallthrough;
 	case TEE_ALG_AES_ECB_NOPAD:
@@ -1977,6 +1979,10 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 		}
 		if (IS_ENABLED(CFG_CRYPTO_CTR)) {
 			if (alg == TEE_ALG_SM4_CTR)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_XTS)) {
+			if (alg == TEE_ALG_SM4_XTS)
 				goto check_element_none;
 		}
 	}

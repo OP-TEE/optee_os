@@ -2623,8 +2623,10 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 
 	switch (TEE_ALG_GET_CLASS(algo)) {
 	case TEE_OPERATION_CIPHER:
-		if ((algo == TEE_ALG_AES_XTS && (key1 == 0 || key2 == 0)) ||
-		    (algo != TEE_ALG_AES_XTS && (key1 == 0 || key2 != 0))) {
+		if ((TEE_ALG_GET_CHAIN_MODE(algo) == TEE_CHAIN_MODE_XTS &&
+		     (key1 == 0 || key2 == 0)) ||
+		    (TEE_ALG_GET_CHAIN_MODE(algo) != TEE_CHAIN_MODE_XTS &&
+		    (key1 == 0 || key2 != 0))) {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		} else {
 			res = crypto_cipher_alloc_ctx(&cs->ctx, algo);
