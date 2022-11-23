@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TYPES_EXT_H
-#define TYPES_EXT_H
+#ifndef __TYPES_EXT_H
+#define __TYPES_EXT_H
 
 #include <limits.h>
 #include <stddef.h>
@@ -34,4 +34,4 @@ typedef uintptr_t paddr_size_t;
 #define PRIxVA_WIDTH	((int)(sizeof(vaddr_t) * 2))
 #define PRIxPA_WIDTH	((int)(sizeof(paddr_t) * 2))
 
-#endif /* TYPES_EXT_H */
+#endif /* __TYPES_EXT_H */

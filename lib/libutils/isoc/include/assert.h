@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef ASSERT_H
-#define ASSERT_H
+#ifndef __ASSERT_H
+#define __ASSERT_H
 
 #include <compiler.h>
 #include <trace.h>
@@ -53,4 +53,4 @@ void _assert_log(const char *expr, const char *file, const int line,
 #define static_assert(...) \
 	__static_assert(__args_count(__VA_ARGS__), __VA_ARGS__)
 #endif
-#endif
+#endif /* __ASSERT_H */

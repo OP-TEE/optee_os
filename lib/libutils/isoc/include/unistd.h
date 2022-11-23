@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef UNISTD_H
-#define UNISTD_H
+#ifndef __UNISTD_H
+#define __UNISTD_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -14,4 +14,4 @@ typedef intptr_t ssize_t;
 /* @fd must be 1 or 2. Writes to the secure console. */
 ssize_t write(int fd, const void *buf, size_t count);
 
-#endif
+#endif /* __UNISTD_H */

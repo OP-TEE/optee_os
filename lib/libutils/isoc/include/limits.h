@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef LIMITS_H
-#define LIMITS_H
+#ifndef __LIMITS_H
+#define __LIMITS_H
 
 #define CHAR_BIT __CHAR_BIT__
 
@@ -49,4 +49,4 @@
 #define ULONG_MAX (LONG_MAX * 2UL + 1UL)
 #define ULLONG_MAX (LLONG_MAX * 2ULL + 1ULL)
 
-#endif /* LIMITS_H */
+#endif /* __LIMITS_H */

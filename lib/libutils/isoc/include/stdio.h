@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef STDIO_H
-#define STDIO_H
+#ifndef __STDIO_H
+#define __STDIO_H
 
 #include <stddef.h>
 #include <stdarg.h>
@@ -42,4 +42,4 @@ int fputs(const char *s, FILE *stream);
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 #endif
 
-#endif /*STDIO_H*/
+#endif /*__STDIO_H*/
