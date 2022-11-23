@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef MALLOC_H
-#define MALLOC_H
+#ifndef __MALLOC_H
+#define __MALLOC_H
 
 #include <stddef.h>
 #include <types_ext.h>
@@ -173,4 +173,4 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len);
 void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats);
 #endif
 
-#endif /* MALLOC_H */
+#endif /* __MALLOC_H */
