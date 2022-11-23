@@ -7,7 +7,6 @@
 #include <bitstring.h>
 #include <ffa.h>
 #include <initcall.h>
-#include <keep.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread_spmc.h>
@@ -41,7 +40,7 @@ static struct mobj_ffa_head shm_inactive_head =
 
 static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
-const struct mobj_ops mobj_ffa_ops;
+static const struct mobj_ops mobj_ffa_ops;
 
 static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
@@ -456,7 +455,6 @@ static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(ffa_get_pa);
 
 static size_t ffa_get_phys_offs(struct mobj *mobj,
 				size_t granule __maybe_unused)
@@ -609,12 +607,7 @@ static TEE_Result mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct mobj_ops mobj_ffa_ops
-__weak __relrodata_unpaged("mobj_ffa_ops") = {
+static const struct mobj_ops mobj_ffa_ops = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
 	.get_va = ffa_get_va,

@@ -10,7 +10,6 @@
 #include <asm.S>
 #include <ffa.h>
 #include <generated/asm-defines.h>
-#include <keep.h>
 #include <kernel/thread.h>
 #include <optee_ffa.h>
 
@@ -112,7 +111,6 @@ UNWIND(	.save	{r0, lr})
 	stm	r12, {r0-r3}		/* Store r0-r3 into rv[] */
 	bx	lr
 END_FUNC thread_rpc
-DECLARE_KEEP_PAGER thread_rpc
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)

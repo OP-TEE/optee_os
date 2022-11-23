@@ -11,7 +11,6 @@
 #include <asm.S>
 #include <ffa.h>
 #include <generated/asm-defines.h>
-#include <keep.h>
 #include <kernel/thread.h>
 #include <optee_ffa.h>
 
@@ -164,7 +163,6 @@ FUNC thread_rpc , :
 	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
 END_FUNC thread_rpc
-DECLARE_KEEP_PAGER thread_rpc
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)

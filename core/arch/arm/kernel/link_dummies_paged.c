@@ -40,7 +40,6 @@ __thread_std_smc_entry(uint32_t a0 __unused, uint32_t a1 __unused,
 }
 
 const struct mobj_ops mobj_reg_shm_ops __rodata_dummy;
-const struct mobj_ops mobj_ffa_ops __rodata_dummy;
 const struct mobj_ops mobj_phys_ops __rodata_dummy;
 const struct mobj_ops mobj_virt_ops __rodata_dummy;
 const struct mobj_ops mobj_mm_ops __rodata_dummy;
@@ -55,4 +54,3 @@ const struct fobj_ops ops_locked_paged __rodata_dummy;
 const struct fobj_ops ops_sec_mem __rodata_dummy;
 const struct ts_ops user_ta_ops __rodata_dummy;
 const struct ts_ops stmm_sp_ops __rodata_dummy;
-const struct ts_ops sp_ops __rodata_dummy;

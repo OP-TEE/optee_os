@@ -121,6 +121,10 @@ $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 endif
 
+ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
+$(error CFG_CORE_FFA and CFG_WITH_PAGER are not compatible)
+endif
+
 # Unmaps all kernel mode code except the code needed to take exceptions
 # from user space and restore kernel mode mapping again. This gives more
 # strict control over what is accessible while in user mode.

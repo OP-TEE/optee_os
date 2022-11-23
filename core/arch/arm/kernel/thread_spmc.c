@@ -1063,8 +1063,7 @@ out_put_mobj:
 /*
  * Helper routine for the assembly function thread_std_smc_entry()
  *
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
+ * Note: this function is weak just to make link_dummies_paged.c happy.
  */
 uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
 				       uint32_t a2, uint32_t a3,

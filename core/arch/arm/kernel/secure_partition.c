@@ -60,7 +60,7 @@ struct sp_pkg_header {
 
 struct fip_sp_head fip_sp_list = STAILQ_HEAD_INITIALIZER(fip_sp_list);
 
-const struct ts_ops sp_ops;
+static const struct ts_ops sp_ops;
 
 /* List that holds all of the loaded SP's */
 static struct sp_sessions_head open_sp_sessions =
@@ -1089,11 +1089,7 @@ static void sp_dump_state(struct ts_ctx *ctx)
 	user_mode_ctx_print_mappings(&utc->uctx);
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct ts_ops sp_ops __weak __relrodata_unpaged("sp_ops") = {
+static const struct ts_ops sp_ops = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
 	.handle_svc = sp_handle_svc,
 	.dump_state = sp_dump_state,
