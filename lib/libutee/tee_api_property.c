@@ -46,6 +46,11 @@ const struct user_ta_property tee_props[] = {
 		USER_TA_PROP_TYPE_U32,
 		&(const uint32_t){TEE_ISOCKET_VERSION}
 	},
+	{
+		"gpd.tee.internalCore.version",
+		USER_TA_PROP_TYPE_U32,
+		&(const uint32_t){TEE_CORE_API_VERSION}
+	},
 };
 
 static TEE_Result propset_get(TEE_PropSetHandle h,
