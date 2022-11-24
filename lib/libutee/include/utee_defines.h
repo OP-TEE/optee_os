@@ -83,6 +83,12 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 		return TEE_MAIN_ALGO_X25519;
 	case TEE_ALG_ED25519:
 		return TEE_MAIN_ALGO_ED25519;
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
+		return TEE_MAIN_ALGO_ECDSA;
 	default:
 		break;
 	}

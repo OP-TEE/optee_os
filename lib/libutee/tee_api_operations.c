@@ -69,20 +69,23 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_P192:
-	case TEE_ALG_ECDH_P192:
+	case TEE_ALG_ECDSA_SHA1:
+	case __OPTEE_ALG_ECDSA_P192:
+	case __OPTEE_ALG_ECDH_P192:
 		if (maxKeySize != 192)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_P224:
-	case TEE_ALG_ECDH_P224:
+	case TEE_ALG_ECDSA_SHA224:
+	case __OPTEE_ALG_ECDSA_P224:
+	case __OPTEE_ALG_ECDH_P224:
 		if (maxKeySize != 224)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_P256:
-	case TEE_ALG_ECDH_P256:
+	case TEE_ALG_ECDSA_SHA256:
+	case __OPTEE_ALG_ECDSA_P256:
+	case __OPTEE_ALG_ECDH_P256:
 	case TEE_ALG_SM2_PKE:
 	case TEE_ALG_SM2_DSA_SM3:
 		if (maxKeySize != 256)
@@ -95,17 +98,25 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_P384:
-	case TEE_ALG_ECDH_P384:
+	case TEE_ALG_ECDSA_SHA384:
+	case __OPTEE_ALG_ECDSA_P384:
+	case __OPTEE_ALG_ECDH_P384:
 		if (maxKeySize != 384)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_P521:
-	case TEE_ALG_ECDH_P521:
+	case TEE_ALG_ECDSA_SHA512:
+	case __OPTEE_ALG_ECDSA_P521:
+	case __OPTEE_ALG_ECDH_P521:
 		if (maxKeySize != 521)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
+
+	case TEE_ALG_ECDH_DERIVE_SHARED_SECRET:
+		if (maxKeySize > 521)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
 	case TEE_ALG_ED25519:
 	case TEE_ALG_X25519:
 		if (maxKeySize != 256)
@@ -166,11 +177,16 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
-	case TEE_ALG_ECDSA_P192:
-	case TEE_ALG_ECDSA_P224:
-	case TEE_ALG_ECDSA_P256:
-	case TEE_ALG_ECDSA_P384:
-	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
+	case __OPTEE_ALG_ECDSA_P192:
+	case __OPTEE_ALG_ECDSA_P224:
+	case __OPTEE_ALG_ECDSA_P256:
+	case __OPTEE_ALG_ECDSA_P384:
+	case __OPTEE_ALG_ECDSA_P521:
 	case TEE_ALG_SM2_DSA_SM3:
 	case TEE_ALG_ED25519:
 		if (mode == TEE_MODE_SIGN) {
@@ -212,11 +228,12 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_DH_DERIVE_SHARED_SECRET:
-	case TEE_ALG_ECDH_P192:
-	case TEE_ALG_ECDH_P224:
-	case TEE_ALG_ECDH_P256:
-	case TEE_ALG_ECDH_P384:
-	case TEE_ALG_ECDH_P521:
+	case TEE_ALG_ECDH_DERIVE_SHARED_SECRET:
+	case __OPTEE_ALG_ECDH_P192:
+	case __OPTEE_ALG_ECDH_P224:
+	case __OPTEE_ALG_ECDH_P256:
+	case __OPTEE_ALG_ECDH_P384:
+	case __OPTEE_ALG_ECDH_P521:
 	case TEE_ALG_HKDF_MD5_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA1_DERIVE_KEY:
 	case TEE_ALG_HKDF_SHA224_DERIVE_KEY:
@@ -2051,19 +2068,34 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 			goto check_element_none;
 	}
 	if (IS_ENABLED(CFG_CRYPTO_ECC)) {
-		if ((alg == TEE_ALG_ECDH_P192 || alg == TEE_ALG_ECDSA_P192) &&
+		if ((alg == __OPTEE_ALG_ECDH_P192 ||
+		     alg == __OPTEE_ALG_ECDSA_P192 ||
+		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
+		     alg == TEE_ALG_ECDSA_SHA1) &&
 		    element == TEE_ECC_CURVE_NIST_P192)
 			return TEE_SUCCESS;
-		if ((alg == TEE_ALG_ECDH_P224 || alg == TEE_ALG_ECDSA_P224) &&
+		if ((alg == __OPTEE_ALG_ECDH_P224 ||
+		     alg == __OPTEE_ALG_ECDSA_P224 ||
+		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
+		     alg == TEE_ALG_ECDSA_SHA224) &&
 		    element == TEE_ECC_CURVE_NIST_P224)
 			return TEE_SUCCESS;
-		if ((alg == TEE_ALG_ECDH_P256 || alg == TEE_ALG_ECDSA_P256) &&
+		if ((alg == __OPTEE_ALG_ECDH_P256 ||
+		     alg == __OPTEE_ALG_ECDSA_P256 ||
+		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
+		     alg == TEE_ALG_ECDSA_SHA256) &&
 		    element == TEE_ECC_CURVE_NIST_P256)
 			return TEE_SUCCESS;
-		if ((alg == TEE_ALG_ECDH_P384 || alg == TEE_ALG_ECDSA_P384) &&
+		if ((alg == __OPTEE_ALG_ECDH_P384 ||
+		     alg == __OPTEE_ALG_ECDSA_P384 ||
+		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
+		     alg == TEE_ALG_ECDSA_SHA384) &&
 		    element == TEE_ECC_CURVE_NIST_P384)
 			return TEE_SUCCESS;
-		if ((alg == TEE_ALG_ECDH_P521 || alg == TEE_ALG_ECDSA_P521) &&
+		if ((alg == __OPTEE_ALG_ECDH_P521 ||
+		     alg == __OPTEE_ALG_ECDSA_P521 ||
+		     alg == TEE_ALG_ECDH_DERIVE_SHARED_SECRET ||
+		     alg == TEE_ALG_ECDSA_SHA512) &&
 		    element == TEE_ECC_CURVE_NIST_P521)
 			return TEE_SUCCESS;
 	}
