@@ -263,27 +263,52 @@
 #define TEE_ALG_HMAC_SHA384                     0x30000005
 #define TEE_ALG_HMAC_SHA512                     0x30000006
 #define TEE_ALG_HMAC_SM3                        0x30000007
+
 /*
- * Fix GP Internal Core API v1.1
+ * These are used in the OP-TEE ABI, due to an inconsistency in the v1.1
+ * specification the wrong values we assumed and now we're stuck with those.
+ *
+ * In GP Internal Core API v1.1
  *     "Table 6-12:  Structure of Algorithm Identifier"
  *     indicates ECDSA have the algorithm "0x41" and ECDH "0x42"
  * whereas
  *     "Table 6-11:  List of Algorithm Identifiers" defines
  *     TEE_ALG_ECDSA_P192 as 0x70001042
  *
- * We chose to define TEE_ALG_ECDSA_P192 as 0x70001041 (conform to table 6-12)
+ * We chose to define __OPTEE_TEE_ALG_ECDSA_P192 as 0x70001041 and so on
+ * to conform to table 6-12.
  */
-#define TEE_ALG_ECDSA_P192                      0x70001041
-#define TEE_ALG_ECDSA_P224                      0x70002041
-#define TEE_ALG_ECDSA_P256                      0x70003041
-#define TEE_ALG_ECDSA_P384                      0x70004041
-#define TEE_ALG_ECDSA_P521                      0x70005041
+#define __OPTEE_ALG_ECDSA_P192			0x70001041
+#define __OPTEE_ALG_ECDSA_P224			0x70002041
+#define __OPTEE_ALG_ECDSA_P256			0x70003041
+#define __OPTEE_ALG_ECDSA_P384			0x70004041
+#define __OPTEE_ALG_ECDSA_P521			0x70005041
+#define __OPTEE_ALG_ECDH_P192			0x80001042
+#define __OPTEE_ALG_ECDH_P224			0x80002042
+#define __OPTEE_ALG_ECDH_P256			0x80003042
+#define __OPTEE_ALG_ECDH_P384			0x80004042
+#define __OPTEE_ALG_ECDH_P521			0x80005042
+
+/* TEE_ALG_ECDSA_P* and TEE_ALG_ECDH_P* are deprecated */
+#define TEE_ALG_ECDSA_P192			TEE_ALG_ECDSA_SHA1
+#define TEE_ALG_ECDSA_P224			TEE_ALG_ECDSA_SHA224
+#define TEE_ALG_ECDSA_P256			TEE_ALG_ECDSA_SHA256
+#define TEE_ALG_ECDSA_P384			TEE_ALG_ECDSA_SHA384
+#define TEE_ALG_ECDSA_P521			TEE_ALG_ECDSA_SHA512
+#define TEE_ALG_ECDH_P192		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P224		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P256		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P384		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+#define TEE_ALG_ECDH_P521		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
+
+#define TEE_ALG_ECDH_DERIVE_SHARED_SECRET	0x80000042 /* v1.1.2 spec */
+#define TEE_ALG_ECDSA_SHA1			0x70001042 /* v1.1.2 spec */
+#define TEE_ALG_ECDSA_SHA224			0x70002042 /* v1.1.2 spec */
+#define TEE_ALG_ECDSA_SHA256			0x70003042 /* v1.1.2 spec */
+#define TEE_ALG_ECDSA_SHA384			0x70004042 /* v1.1.2 spec */
+#define TEE_ALG_ECDSA_SHA512			0x70005042 /* v1.1.2 spec */
+
 #define TEE_ALG_ED25519                         0x70006043 /* v1.3.1 spec */
-#define TEE_ALG_ECDH_P192                       0x80001042
-#define TEE_ALG_ECDH_P224                       0x80002042
-#define TEE_ALG_ECDH_P256                       0x80003042
-#define TEE_ALG_ECDH_P384                       0x80004042
-#define TEE_ALG_ECDH_P521                       0x80005042
 #define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_SM3                             0x50000007
 #define TEE_ALG_X25519                          0x80000044

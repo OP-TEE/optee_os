@@ -2591,6 +2591,30 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	return TEE_SUCCESS;
 }
 
+static uint32_t translate_compat_algo(uint32_t algo)
+{
+	switch (algo) {
+	case __OPTEE_ALG_ECDSA_P192:
+		return TEE_ALG_ECDSA_SHA1;
+	case __OPTEE_ALG_ECDSA_P224:
+		return TEE_ALG_ECDSA_SHA224;
+	case __OPTEE_ALG_ECDSA_P256:
+		return TEE_ALG_ECDSA_SHA256;
+	case __OPTEE_ALG_ECDSA_P384:
+		return TEE_ALG_ECDSA_SHA384;
+	case __OPTEE_ALG_ECDSA_P521:
+		return TEE_ALG_ECDSA_SHA512;
+	case __OPTEE_ALG_ECDH_P192:
+	case __OPTEE_ALG_ECDH_P224:
+	case __OPTEE_ALG_ECDH_P256:
+	case __OPTEE_ALG_ECDH_P384:
+	case __OPTEE_ALG_ECDH_P521:
+		return TEE_ALG_ECDH_DERIVE_SHARED_SECRET;
+	default:
+		return algo;
+	}
+}
+
 TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 			unsigned long key1, unsigned long key2,
 			uint32_t *state)
@@ -2601,6 +2625,8 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	struct tee_cryp_state *cs = NULL;
 	struct tee_obj *o1 = NULL;
 	struct tee_obj *o2 = NULL;
+
+	algo = translate_compat_algo(algo);
 
 	if (key1 != 0) {
 		res = tee_obj_get(utc, uref_to_vaddr(key1), &o1);
@@ -3447,10 +3473,11 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 		crypto_bignum_free(pub);
 		crypto_bignum_free(ss);
-	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
-		struct ecc_public_key key_public;
-		uint8_t *pt_secret;
-		unsigned long pt_secret_len;
+	} else if (cs->algo == TEE_ALG_ECDH_DERIVE_SHARED_SECRET) {
+		uint32_t curve = ((struct ecc_keypair *)ko->attr)->curve;
+		struct ecc_public_key key_public = { };
+		uint8_t *pt_secret = NULL;
+		unsigned long pt_secret_len = 0;
 		uint32_t key_type = TEE_TYPE_ECDH_PUBLIC_KEY;
 
 		if (param_count != 2 ||
@@ -3460,20 +3487,20 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		switch (cs->algo) {
-		case TEE_ALG_ECDH_P192:
+		switch (curve) {
+		case TEE_ECC_CURVE_NIST_P192:
 			alloc_size = 192;
 			break;
-		case TEE_ALG_ECDH_P224:
+		case TEE_ECC_CURVE_NIST_P224:
 			alloc_size = 224;
 			break;
-		case TEE_ALG_ECDH_P256:
+		case TEE_ECC_CURVE_NIST_P256:
 			alloc_size = 256;
 			break;
-		case TEE_ALG_ECDH_P384:
+		case TEE_ECC_CURVE_NIST_P384:
 			alloc_size = 384;
 			break;
-		case TEE_ALG_ECDH_P521:
+		case TEE_ECC_CURVE_NIST_P521:
 			alloc_size = 521;
 			break;
 		default:
@@ -3486,7 +3513,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 							  alloc_size);
 		if (res != TEE_SUCCESS)
 			goto out;
-		key_public.curve = ((struct ecc_keypair *)ko->attr)->curve;
+		key_public.curve = curve;
 		crypto_bignum_bin2bn(params[0].content.ref.buffer,
 				     params[0].content.ref.length,
 				     key_public.x);
@@ -4177,11 +4204,11 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 					       num_params);
 		break;
 
-	case TEE_ALG_ECDSA_P192:
-	case TEE_ALG_ECDSA_P224:
-	case TEE_ALG_ECDSA_P256:
-	case TEE_ALG_ECDSA_P384:
-	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
 	case TEE_ALG_SM2_DSA_SM3:
 		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);
