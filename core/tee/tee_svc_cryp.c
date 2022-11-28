@@ -1454,7 +1454,7 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		return TEE_ERROR_BAD_STATE;
 
 	/*
-	 * Verify that maxKeySize is supported and find out how
+	 * Verify that maxObjectSize is supported and find out how
 	 * much should be allocated.
 	 */
 
@@ -1535,7 +1535,7 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 		return res;
 
 	o->info.objectType = obj_type;
-	o->info.maxKeySize = max_key_size;
+	o->info.maxObjectSize = max_key_size;
 	o->info.objectUsage = TEE_USAGE_DEFAULT;
 
 	return TEE_SUCCESS;
@@ -1600,7 +1600,7 @@ TEE_Result syscall_cryp_obj_reset(unsigned long obj)
 
 	if ((o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) == 0) {
 		tee_obj_attr_clear(o);
-		o->info.keySize = 0;
+		o->info.objectSize = 0;
 		o->info.objectUsage = TEE_USAGE_DEFAULT;
 	} else {
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -1840,14 +1840,14 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 					return res;
 			} else {
 				TEE_ObjectType obj_type = o->info.objectType;
-				size_t sz = o->info.maxKeySize;
+				size_t sz = o->info.maxObjectSize;
 
 				obj_size = attrs[n].content.ref.length * 8;
 				/* Drop the parity bits for legacy objects */
 				if (is_gp_legacy_des_key_size(obj_type, sz))
 					obj_size -= obj_size / 8;
 			}
-			if (obj_size > o->info.maxKeySize)
+			if (obj_size > o->info.maxObjectSize)
 				return TEE_ERROR_BAD_STATE;
 			res = check_key_size(type_props, obj_size);
 			if (res != TEE_SUCCESS)
@@ -1856,25 +1856,26 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 
 		/*
 		 * Bignum attributes limited by the number of bits in
-		 * o->info.keySize are flagged with
+		 * o->info.objectSize are flagged with
 		 * TEE_TYPE_ATTR_BIGNUM_MAXBITS.
 		 */
 		if (type_props->type_attrs[idx].flags &
 		    TEE_TYPE_ATTR_BIGNUM_MAXBITS) {
-			if (get_used_bits(attrs + n) > o->info.maxKeySize)
+			if (get_used_bits(attrs + n) > o->info.maxObjectSize)
 				return TEE_ERROR_BAD_STATE;
 		}
 	}
 
 	o->have_attrs = have_attrs;
-	o->info.keySize = obj_size;
+	o->info.objectSize = obj_size;
 	/*
 	 * In GP Internal API Specification 1.0 the partity bits aren't
 	 * counted when telling the size of the key in bits so remove the
 	 * parity bits here.
 	 */
-	if (is_gp_legacy_des_key_size(o->info.objectType, o->info.maxKeySize))
-		o->info.keySize -= o->info.keySize / 8;
+	if (is_gp_legacy_des_key_size(o->info.objectType,
+				      o->info.maxObjectSize))
+		o->info.objectSize -= o->info.objectSize / 8;
 
 	return TEE_SUCCESS;
 }
@@ -1961,7 +1962,7 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 		return res;
 
 	dst_o->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
-	dst_o->info.keySize = src_o->info.keySize;
+	dst_o->info.objectSize = src_o->info.objectSize;
 	dst_o->info.objectUsage = src_o->info.objectUsage;
 	return TEE_SUCCESS;
 }
@@ -2403,7 +2404,7 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 out:
 	free_wipe(params);
 	if (res == TEE_SUCCESS) {
-		o->info.keySize = key_size;
+		o->info.objectSize = key_size;
 		o->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
 	}
 	return res;
@@ -3578,7 +3579,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		struct ecc_public_key peer_key = { };
 		struct sm2_kep_parms kep_parms = {
 			.out = (uint8_t *)(sk + 1),
-			.out_len = so->info.maxKeySize,
+			.out_len = so->info.maxObjectSize,
 		};
 		struct tee_obj *ko2 = NULL;
 

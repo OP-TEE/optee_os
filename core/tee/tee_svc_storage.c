@@ -27,8 +27,8 @@
 /* Header of GP formated secure storage files */
 struct tee_svc_storage_head {
 	uint32_t attr_size;
-	uint32_t keySize;
-	uint32_t maxKeySize;
+	uint32_t objectSize;
+	uint32_t maxObjectSize;
 	uint32_t objectUsage;
 	uint32_t objectType;
 	uint32_t have_attrs;
@@ -121,7 +121,7 @@ static TEE_Result tee_svc_storage_read_head(struct tee_obj *o)
 		goto exit;
 	}
 
-	res = tee_obj_set_type(o, head.objectType, head.maxKeySize);
+	res = tee_obj_set_type(o, head.objectType, head.maxObjectSize);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -151,7 +151,7 @@ static TEE_Result tee_svc_storage_read_head(struct tee_obj *o)
 		goto exit;
 
 	o->info.dataSize = size - sizeof(head) - head.attr_size;
-	o->info.keySize = head.keySize;
+	o->info.objectSize = head.objectSize;
 	o->info.objectUsage = head.objectUsage;
 	o->info.objectType = head.objectType;
 	o->have_attrs = head.have_attrs;
@@ -262,7 +262,7 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 
 	if (attr_o) {
 		res = tee_obj_set_type(o, attr_o->info.objectType,
-				       attr_o->info.maxKeySize);
+				       attr_o->info.maxObjectSize);
 		if (res)
 			return res;
 		res = tee_obj_attr_copy_from(o, attr_o);
@@ -270,7 +270,7 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 			return res;
 		o->have_attrs = attr_o->have_attrs;
 		o->info.objectUsage = attr_o->info.objectUsage;
-		o->info.keySize = attr_o->info.keySize;
+		o->info.objectSize = attr_o->info.objectSize;
 		res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 		if (res)
 			return res;
@@ -292,8 +292,8 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 
 	/* write head */
 	head.attr_size = attr_size;
-	head.keySize = o->info.keySize;
-	head.maxKeySize = o->info.maxKeySize;
+	head.objectSize = o->info.objectSize;
+	head.maxObjectSize = o->info.maxObjectSize;
 	head.objectUsage = o->info.objectUsage;
 	head.objectType = o->info.objectType;
 	head.have_attrs = o->have_attrs;
