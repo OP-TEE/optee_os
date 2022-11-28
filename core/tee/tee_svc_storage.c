@@ -605,7 +605,8 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 }
 
 TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
-			TEE_ObjectInfo *info, void *obj_id, uint64_t *len)
+				     struct utee_object_info *info,
+				     void *obj_id, uint64_t *len)
 {
 	struct ts_session *sess = ts_get_current_session();
 	struct user_ta_ctx *utc = to_user_ta_ctx(sess->ctx);
@@ -624,7 +625,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 
 	/* check rights of the provided buffers */
 	res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_WRITE,
-				     (uaddr_t)info, sizeof(TEE_ObjectInfo));
+				     (uaddr_t)info, sizeof(*info));
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -660,7 +661,15 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	memcpy(info, &o->info, sizeof(TEE_ObjectInfo));
+	*info = (struct utee_object_info){
+		.obj_type = o->info.objectType,
+		.obj_size = o->info.objectSize,
+		.max_obj_size = o->info.maxObjectSize,
+		.obj_usage = o->info.objectUsage,
+		.data_size = o->info.dataSize,
+		.data_pos = o->info.dataPosition,
+		.handle_flags = o->info.handleFlags,
+	};
 	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
 
 	l = o->pobj->obj_id_len;

@@ -37,33 +37,51 @@ void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
  */
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 {
-	TEE_Result res;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
-	res = _utee_cryp_obj_get_info((unsigned long)object, objectInfo);
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 
-	if (objectInfo->objectType == TEE_TYPE_CORRUPTED_OBJECT) {
+	if (info.obj_type == TEE_TYPE_CORRUPTED_OBJECT) {
 		objectInfo->keySize = 0;
 		objectInfo->maxKeySize = 0;
 		objectInfo->objectUsage = 0;
 		objectInfo->dataSize = 0;
 		objectInfo->dataPosition = 0;
 		objectInfo->handleFlags = 0;
+	} else {
+		objectInfo->objectType = info.obj_type;
+		objectInfo->keySize = info.obj_size;
+		objectInfo->maxKeySize = info.max_obj_size;
+		objectInfo->objectUsage = info.obj_usage;
+		objectInfo->dataSize = info.data_size;
+		objectInfo->dataPosition = info.data_pos;
+		objectInfo->handleFlags = info.handle_flags;
 	}
 }
 
 TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 {
-	TEE_Result res;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
-	res = _utee_cryp_obj_get_info((unsigned long)object, objectInfo);
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
 
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
+
+	objectInfo->objectType = info.obj_type;
+	objectInfo->keySize = info.obj_size;
+	objectInfo->maxKeySize = info.max_obj_size;
+	objectInfo->objectUsage = info.obj_usage;
+	objectInfo->dataSize = info.data_size;
+	objectInfo->dataPosition = info.data_pos;
+	objectInfo->handleFlags = info.handle_flags;
 
 	return res;
 }
@@ -76,11 +94,11 @@ TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInf
  */
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage)
 {
-	TEE_Result res;
-	TEE_ObjectInfo objectInfo;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
-	res = _utee_cryp_obj_get_info((unsigned long)object, &objectInfo);
-	if (objectInfo.objectType == TEE_TYPE_CORRUPTED_OBJECT)
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
+	if (info.obj_type == TEE_TYPE_CORRUPTED_OBJECT)
 		return;
 
 	res = TEE_RestrictObjectUsage1(object, objectUsage);
@@ -108,9 +126,9 @@ TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
 					uint32_t *size)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
-	uint64_t sz;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t sz = 0;
 
 	__utee_check_inout_annotation(size, sizeof(*size));
 
@@ -144,8 +162,8 @@ TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 				       uint32_t attributeID, uint32_t *a,
 				       uint32_t *b)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t buf[2];
 	uint64_t size = sizeof(buf);
 
@@ -225,8 +243,8 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 
 void TEE_FreeTransientObject(TEE_ObjectHandle object)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	if (object == TEE_HANDLE_NULL)
 		return;
@@ -235,7 +253,7 @@ void TEE_FreeTransientObject(TEE_ObjectHandle object)
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 
-	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
+	if ((info.handle_flags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
 		TEE_Panic(0);
 
 	res = _utee_cryp_obj_close((unsigned long)object);
@@ -245,8 +263,8 @@ void TEE_FreeTransientObject(TEE_ObjectHandle object)
 
 void TEE_ResetTransientObject(TEE_ObjectHandle object)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	if (object == TEE_HANDLE_NULL)
 		return;
@@ -255,7 +273,7 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object)
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 
-	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
+	if ((info.handle_flags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
 		TEE_Panic(0);
 
 	res = _utee_cryp_obj_reset((unsigned long)object);
@@ -267,9 +285,9 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 				       const TEE_Attribute *attrs,
 				       uint32_t attrCount)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
 	struct utee_attribute ua[attrCount];
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	__utee_check_attr_in_annotation(attrs, attrCount);
 
@@ -278,11 +296,11 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 		TEE_Panic(res);
 
 	/* Must be a transient object */
-	if ((info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
+	if ((info.handle_flags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
 		TEE_Panic(0);
 
 	/* Must not be initialized already */
-	if ((info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
+	if ((info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
 		TEE_Panic(0);
 
 	__utee_from_attr(ua, attrs, attrCount);
@@ -325,11 +343,11 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject)
 {
-	TEE_Result res;
-	TEE_ObjectInfo src_info;
+	struct utee_object_info src_info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	res = _utee_cryp_obj_get_info((unsigned long)srcObject, &src_info);
-	if (src_info.objectType == TEE_TYPE_CORRUPTED_OBJECT)
+	if (src_info.obj_type == TEE_TYPE_CORRUPTED_OBJECT)
 		return;
 
 	res = TEE_CopyObjectAttributes1(destObject, srcObject);
@@ -340,9 +358,9 @@ void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject)
 {
-	TEE_Result res;
-	TEE_ObjectInfo dst_info;
-	TEE_ObjectInfo src_info;
+	struct utee_object_info dst_info = { };
+	struct utee_object_info src_info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	res = _utee_cryp_obj_get_info((unsigned long)destObject, &dst_info);
 	if (res != TEE_SUCCESS)
@@ -352,13 +370,13 @@ TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	if (!(src_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
+	if (!(src_info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED))
 		TEE_Panic(0);
 
-	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT))
+	if ((dst_info.handle_flags & TEE_HANDLE_FLAG_PERSISTENT))
 		TEE_Panic(0);
 
-	if ((dst_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED))
+	if ((dst_info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED))
 		TEE_Panic(0);
 
 	res = _utee_cryp_obj_copy((unsigned long)destObject,
@@ -585,10 +603,9 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
 				       void *objectID, uint32_t *objectIDLen)
 {
-	TEE_Result res;
-	uint64_t len;
-	TEE_ObjectInfo local_info;
-	TEE_ObjectInfo *pt_info;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t len = 0;
 
 	if (objectInfo)
 		__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
@@ -599,13 +616,18 @@ TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 		goto out;
 	}
 
-	if (objectInfo)
-		pt_info = objectInfo;
-	else
-		pt_info = &local_info;
 	len = *objectIDLen;
 	res = _utee_storage_next_enum((unsigned long)objectEnumerator,
-				      pt_info, objectID, &len);
+				      &info, objectID, &len);
+	if (objectInfo) {
+		objectInfo->objectType = info.obj_type;
+		objectInfo->keySize = info.obj_size;
+		objectInfo->maxKeySize = info.max_obj_size;
+		objectInfo->objectUsage = info.obj_usage;
+		objectInfo->dataSize = info.data_size;
+		objectInfo->dataPosition = info.data_pos;
+		objectInfo->handleFlags = info.handle_flags;
+	}
 	*objectIDLen = len;
 
 out:
@@ -698,8 +720,8 @@ out:
 TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 			      TEE_Whence whence)
 {
-	TEE_Result res;
-	TEE_ObjectInfo info;
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	if (object == TEE_HANDLE_NULL) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -719,18 +741,17 @@ TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 		break;
 	case TEE_DATA_SEEK_CUR:
 		if (offset > 0 &&
-		    ((uint32_t)offset + info.dataPosition >
-		     TEE_DATA_MAX_POSITION ||
-		     (uint32_t)offset + info.dataPosition <
-		     info.dataPosition)) {
+		    ((uint32_t)offset + info.data_pos > TEE_DATA_MAX_POSITION ||
+		     (uint32_t)offset + info.data_pos < info.data_pos)) {
 			res = TEE_ERROR_OVERFLOW;
 			goto out;
 		}
 		break;
 	case TEE_DATA_SEEK_END:
 		if (offset > 0 &&
-		    ((uint32_t)offset + info.dataSize > TEE_DATA_MAX_POSITION ||
-		     (uint32_t)offset + info.dataSize < info.dataSize)) {
+		    ((uint32_t)offset + info.data_size >
+		     TEE_DATA_MAX_POSITION ||
+		     (uint32_t)offset + info.data_size < info.data_size)) {
 			res = TEE_ERROR_OVERFLOW;
 			goto out;
 		}

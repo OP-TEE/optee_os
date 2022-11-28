@@ -1782,9 +1782,9 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 		   const TEE_Attribute *params, uint32_t paramCount,
 		   TEE_ObjectHandle derivedKey)
 {
-	TEE_Result res;
-	TEE_ObjectInfo key_info;
 	struct utee_attribute ua[paramCount];
+	struct utee_object_info key_info = { };
+	TEE_Result res = TEE_SUCCESS;
 
 	if (operation == TEE_HANDLE_NULL || derivedKey == 0)
 		TEE_Panic(0);
@@ -1808,9 +1808,9 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
 
-	if (key_info.objectType != TEE_TYPE_GENERIC_SECRET)
+	if (key_info.obj_type != TEE_TYPE_GENERIC_SECRET)
 		TEE_Panic(0);
-	if ((key_info.handleFlags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
+	if ((key_info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
 		TEE_Panic(0);
 
 	__utee_from_attr(ua, params, paramCount);

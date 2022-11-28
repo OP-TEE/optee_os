@@ -102,7 +102,8 @@ TEE_Result _utee_cipher_final(unsigned long state, const void *src,
 			      size_t src_len, void *dest, uint64_t *dest_len);
 
 /* Generic Object Functions */
-TEE_Result _utee_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
+TEE_Result _utee_cryp_obj_get_info(unsigned long obj,
+				   struct utee_object_info *info);
 TEE_Result _utee_cryp_obj_restrict_usage(unsigned long obj,
 					 unsigned long usage);
 TEE_Result _utee_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
@@ -198,7 +199,8 @@ TEE_Result _utee_storage_start_enum(unsigned long obj_enum,
 				    unsigned long storage_id);
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
-TEE_Result _utee_storage_next_enum(unsigned long obj_enum, TEE_ObjectInfo *info,
+TEE_Result _utee_storage_next_enum(unsigned long obj_enum,
+				   struct utee_object_info *info,
 				   void *obj_id, uint64_t *len);
 
 /* Data Stream Access Functions */

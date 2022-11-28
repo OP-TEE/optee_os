@@ -1107,9 +1107,11 @@ static TEE_Result put_user_u64(uint64_t *dst, size_t value)
 	return copy_to_user(dst, &v, sizeof(v));
 }
 
-TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
+TEE_Result syscall_cryp_obj_get_info(unsigned long obj,
+				     struct utee_object_info *info)
 {
 	struct ts_session *sess = ts_get_current_session();
+	struct utee_object_info o_info = { };
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
 
@@ -1118,7 +1120,14 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info)
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	res = copy_to_user_private(info, &o->info, sizeof(o->info));
+	o_info.obj_type = o->info.objectType;
+	o_info.obj_size = o->info.objectSize;
+	o_info.max_obj_size = o->info.maxObjectSize;
+	o_info.obj_usage = o->info.objectUsage;
+	o_info.data_size = o->info.dataSize;
+	o_info.data_pos = o->info.dataPosition;
+	o_info.handle_flags = o->info.handleFlags;
+	res = copy_to_user_private(info, &o_info, sizeof(o_info));
 
 exit:
 	return res;

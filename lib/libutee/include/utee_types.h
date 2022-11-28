@@ -57,4 +57,14 @@ struct utee_attribute {
 	uint32_t attribute_id;
 };
 
+struct utee_object_info {
+	uint32_t obj_type;
+	uint32_t obj_size;
+	uint32_t max_obj_size;
+	uint32_t obj_usage;
+	uint32_t data_size;
+	uint32_t data_pos;
+	uint32_t handle_flags;
+};
+
 #endif /* UTEE_TYPES_H */
