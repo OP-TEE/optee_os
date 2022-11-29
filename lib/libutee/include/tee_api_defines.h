@@ -1,14 +1,96 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2022, Linaro Limited
  */
 
-/* Based on GP TEE Internal Core API Specification Version 1.1 */
+/* Based on GP TEE Internal Core API Specification Version 1.3.1 */
 
 #ifndef TEE_API_DEFINES_H
 #define TEE_API_DEFINES_H
 
-#define TEE_INT_CORE_API_SPEC_VERSION     0x0000000A
+#define TEE_CORE_API_MAJOR_VERSION		1U
+#define TEE_CORE_API_MINOR_VERSION		3U
+#define TEE_CORE_API_MAINTENANCE_VERSION	1U
+#define TEE_CORE_API_VERSION \
+			((TEE_CORE_API_MAJOR_VERSION << 24) | \
+			 (TEE_CORE_API_MINOR_VERSION << 16) | \
+			 (TEE_CORE_API_MAINTENANCE_VERSION << 8))
+#define TEE_CORE_API_1_3_1
+
+/*
+ * Below follows the GP defined way of letting a TA define that it wants an
+ * API compatible with version 1.1 or the latest. An alternative approach
+ * is to set __OPTEE_CORE_API_COMPAT_1_1, but that's an OP-TEE extension.
+ *
+ * The GP specs (>= 1.2) requires that only APIs defined in the indicated
+ * version SHALL be made available when using this mechanism. However, that
+ * is far beyond what ordinary standards requires as they permit
+ * extensions. With this, in OP-TEE, extensions and new API that doesn't
+ * interfere with the selected version of the standard will be permitted.
+ */
+#if defined(TEE_CORE_API_REQUIRED_MAINTENANCE_VERSION) && \
+	!defined(TEE_CORE_API_REQUIRED_MINOR_VERSION)
+#error "Required TEE_CORE_API_REQUIRED_MINOR_VERSION undefined"
+#endif
+#if defined(TEE_CORE_API_REQUIRED_MINOR_VERSION) && \
+	!defined(TEE_CORE_API_REQUIRED_MAJOR_VERSION)
+#error "Required TEE_CORE_API_REQUIRED_MAJOR_VERSION undefined"
+#endif
+
+#if defined(TEE_CORE_API_REQUIRED_MAJOR_VERSION)
+#if TEE_CORE_API_REQUIRED_MAJOR_VERSION != 1 && \
+	TEE_CORE_API_REQUIRED_MAJOR_VERSION != 0
+#error "Required major version not supported"
+#endif
+#ifdef TEE_CORE_API_REQUIRED_MINOR_VERSION
+#if TEE_CORE_API_REQUIRED_MINOR_VERSION == 1
+#define __OPTEE_CORE_API_COMPAT_1_1 1
+#else
+#error "Required minor version not supported"
+#endif
+#if defined(TEE_CORE_API_REQUIRED_MAINTENANCE_VERSION) && \
+	TEE_CORE_API_REQUIRED_MAINTENANCE_VERSION != 0
+#error "Required maintenance version not supported"
+#endif
+#endif
+#endif
+
+/*
+ * For backwards compatibility with v1.1 as provided by up to OP-TEE
+ * version 3.19.0, define __OPTEE_CORE_API_COMPAT_1_1 to 1.
+ *
+ * Some versions of the GP specs have introduced backwards incompatible
+ * changes. For example the v1.0:
+ *
+ * TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation,
+ *				const void *chunk, uint32_t chunkLen,
+ *				void *hash, uint32_t *hashLen);
+ *
+ * Was changed in v1.1.1 to this:
+ *
+ * TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation,
+ *				 const void *chunk, size_t chunkLen,
+ *				 void *hash, size_t *hashLen);
+ *
+ * Note the type change for "hashLen", a source of problem especially on
+ * platforms where size_t is a 64-bit unsigned integer.
+ *
+ * As a way of allowing older TAs to be compiled with a newer version of
+ * the API we can turn off or hide different incompatible changes. New
+ * features which are not interfering with older versions of the API are
+ * not disabled. So by enabling __OPTEE_CORE_API_COMPAT_1_1 will not result
+ * in pure 1.1 API, it will be a hybrid API that should work with most TAs
+ * not yet updated to the new API.
+ *
+ * Backwards compatibility is provided by duplicating all functions that
+ * has changed since v1.1. The original function is given a "__GP11_"
+ * prefix and preprocessor macros are used to let a legacy TA use the old
+ * function instead. The same principle applies to defined types.
+ */
+#ifndef __OPTEE_CORE_API_COMPAT_1_1
+#define __OPTEE_CORE_API_COMPAT_1_1	0
+#endif
 
 #define TEE_HANDLE_NULL                   0
 
