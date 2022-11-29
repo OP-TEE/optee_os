@@ -44,6 +44,14 @@
 #define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
 #define CSR_XIP			(CSR_MODE_BITS | 0x044)
 
+#define IRQ_XSOFT		(CSR_MODE_OFFSET + 0)
+#define IRQ_XTIMER		(CSR_MODE_OFFSET + 4)
+#define IRQ_XEXT		(CSR_MODE_OFFSET + 8)
+
+#define CSR_XIE_SIE		BIT64(IRQ_XSOFT)
+#define CSR_XIE_TIE		BIT64(IRQ_XTIMER)
+#define CSR_XIE_EIE		BIT64(IRQ_XEXT)
+
 #ifndef __ASSEMBLER__
 
 static inline __noprof void mb(void)

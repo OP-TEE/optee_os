@@ -34,6 +34,9 @@
 
 extern long thread_user_kcode_offset;
 
+void thread_trap_handler(long cause, unsigned long epc,
+			 struct thread_trap_regs *regs,
+			 bool core);
 /*
  * Initializes TVEC for current hart. Called by thread_init_per_cpu()
  */

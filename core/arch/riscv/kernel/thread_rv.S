@@ -18,9 +18,82 @@
 .equ TRAP_MODE_USER, 1
 
 .macro save_regs, mode
+	addi	sp, sp, -RISCV_TRAP_REGS_SIZE
+.if \mode == TRAP_MODE_USER
+	STR	tp, RISCV_TRAP_REG_TP(sp)
+	LDR	tp, (RISCV_TRAP_REGS_SIZE - RISCV_XLEN_BYTES)(sp)
+	STR	gp, RISCV_TRAP_REG_GP(sp)
+	csrrw	gp, CSR_MSCRATCH, zero
+	STR	gp, RISCV_TRAP_REG_SP(sp)
+.endif
+#ifdef RV64
+	STR	t6, RISCV_TRAP_REG_T6(sp)
+	STR	t5, RISCV_TRAP_REG_T5(sp)
+	STR	t4, RISCV_TRAP_REG_T4(sp)
+	STR	t3, RISCV_TRAP_REG_T3(sp)
+	STR	a7, RISCV_TRAP_REG_A7(sp)
+	STR	a6, RISCV_TRAP_REG_A6(sp)
+#endif
+	STR	t2, RISCV_TRAP_REG_T2(sp)
+	STR	t1, RISCV_TRAP_REG_T1(sp)
+	STR	t0, RISCV_TRAP_REG_T0(sp)
+
+	STR	a5, RISCV_TRAP_REG_A5(sp)
+	STR	a4, RISCV_TRAP_REG_A4(sp)
+	STR	a3, RISCV_TRAP_REG_A3(sp)
+	STR	a2, RISCV_TRAP_REG_A2(sp)
+	STR	a1, RISCV_TRAP_REG_A1(sp)
+	STR	a0, RISCV_TRAP_REG_A0(sp)
+	STR	ra, RISCV_TRAP_REG_RA(sp)
+
+	csrr	t0, CSR_MSTATUS
+	STR	t0, RISCV_TRAP_REG_STATUS(sp)
+	csrr	a0, CSR_MCAUSE
+	csrr	a1, CSR_MEPC
+	STR	a1, RISCV_TRAP_REG_EPC(sp)
+	mv	a2, sp
+    /* a0 = CSR_MCAUSE
+     * a1 = CSR_MEPC
+     * a2 = sp
+     * thread_trap_handler(CSR_MCAUSE, CSR_MEPC, sp)
+	 */
 .endm
 
 .macro restore_regs, mode
+	LDR	t0, RISCV_TRAP_REG_EPC(sp)
+	csrw	CSR_MEPC, t0
+	LDR	t0, RISCV_TRAP_REG_STATUS(sp)
+	csrw	CSR_MSTATUS, t0
+
+	LDR	ra, RISCV_TRAP_REG_RA(sp)
+	LDR	a0, RISCV_TRAP_REG_A0(sp)
+	LDR	a1, RISCV_TRAP_REG_A1(sp)
+	LDR	a2, RISCV_TRAP_REG_A2(sp)
+	LDR	a3, RISCV_TRAP_REG_A3(sp)
+	LDR	a4, RISCV_TRAP_REG_A4(sp)
+	LDR	a5, RISCV_TRAP_REG_A5(sp)
+	LDR	t0, RISCV_TRAP_REG_T0(sp)
+	LDR	t1, RISCV_TRAP_REG_T1(sp)
+	LDR	t2, RISCV_TRAP_REG_T2(sp)
+#ifdef RV64
+	LDR	a6, RISCV_TRAP_REG_A6(sp)
+	LDR	a7, RISCV_TRAP_REG_A7(sp)
+	LDR	t3, RISCV_TRAP_REG_T3(sp)
+	LDR	t4, RISCV_TRAP_REG_T4(sp)
+	LDR	t5, RISCV_TRAP_REG_T5(sp)
+	LDR	t6, RISCV_TRAP_REG_T6(sp)
+#endif
+.if \mode == TRAP_MODE_USER
+	addi	gp, sp, RISCV_TRAP_REGS_SIZE
+	STR	tp, REGOFF(-1)(gp)
+	csrw	CSR_MSCRATCH, gp
+
+	LDR	tp, RISCV_TRAP_REG_TP(sp)
+	LDR	gp, RISCV_TRAP_REG_GP(sp)
+	LDR	sp, RISCV_TRAP_REG_SP(sp)
+.else
+	addi	sp, sp, RISCV_TRAP_REGS_SIZE
+.endif
 .endm
 
 /* size_t __get_core_pos(void); */
@@ -54,9 +127,6 @@ LOCAL_FUNC trap_from_user, :
 	restore_regs	TRAP_MODE_USER
 	mret
 END_FUNC trap_from_user
-
-FUNC thread_trap_handler , :
-END_FUNC thread_trap_handler
 
 /*
  * uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
