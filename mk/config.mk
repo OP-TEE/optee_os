@@ -988,3 +988,6 @@ CFG_TA_STATS ?= n
 # Enables best effort mitigations against fault injected when the hardware
 # is tampered with. Details in lib/libutils/ext/include/fault_mitigation.h
 CFG_FAULT_MITIGATION ?= y
+
+# Enable TEE Internal Core API v1.1 compatibility for in-tree TAs
+CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= y

@@ -7,6 +7,10 @@
 #ifndef TEE_INTERNAL_API_H
 #define TEE_INTERNAL_API_H
 
+#ifdef __TEE_API_COMPAT_H
+#error "<tee_api_compat.h> must not be included before <tee_internal_api.h>"
+#endif
+
 #include <compiler.h>
 #include <stddef.h>
 #include <tee_api_defines.h>
