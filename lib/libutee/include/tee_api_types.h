@@ -82,6 +82,16 @@ typedef uint32_t TEE_ObjectType;
 
 typedef struct {
 	uint32_t objectType;
+	uint32_t objectSize;
+	uint32_t maxObjectSize;
+	uint32_t objectUsage;
+	size_t dataSize;
+	size_t dataPosition;
+	uint32_t handleFlags;
+} TEE_ObjectInfo;
+
+typedef struct {
+	uint32_t objectType;
 	__extension__ union {
 		uint32_t keySize;	/* used in 1.1 spec */
 		uint32_t objectSize;	/* used in 1.1.1 spec */
@@ -94,7 +104,7 @@ typedef struct {
 	uint32_t dataSize;
 	uint32_t dataPosition;
 	uint32_t handleFlags;
-} TEE_ObjectInfo;
+} __GP11_TEE_ObjectInfo;
 
 typedef enum {
 	TEE_DATA_SEEK_SET = 0,

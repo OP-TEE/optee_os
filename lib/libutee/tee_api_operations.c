@@ -468,7 +468,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 		if (res)
 			goto out;
 
-		op_info->keyInformation[0].keySize = kinfo.keySize;
+		op_info->keyInformation[0].keySize = kinfo.objectSize;
 		op_info->keyInformation[0].requiredKeyUsage =
 			op->info.requiredKeyUsage;
 		op_info->numberOfKeys = 1;
@@ -483,7 +483,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 		if (res)
 			goto out;
 
-		op_info->keyInformation[0].keySize = kinfo.keySize;
+		op_info->keyInformation[0].keySize = kinfo.objectSize;
 		op_info->keyInformation[0].requiredKeyUsage =
 			op->info.requiredKeyUsage;
 
@@ -492,7 +492,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 		if (res)
 			goto out;
 
-		op_info->keyInformation[1].keySize = kinfo.keySize;
+		op_info->keyInformation[1].keySize = kinfo.objectSize;
 		op_info->keyInformation[1].requiredKeyUsage =
 			op->info.requiredKeyUsage;
 
@@ -586,12 +586,12 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	if (operation->info.maxKeySize < key_info.keySize) {
+	if (operation->info.maxKeySize < key_info.objectSize) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	key_size = key_info.keySize;
+	key_size = key_info.objectSize;
 
 	TEE_ResetTransientObject(operation->key1);
 	operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
@@ -691,13 +691,13 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	 * All the multi key algorithm currently supported requires the keys to
 	 * be of equal size.
 	 */
-	if (key_info1.keySize != key_info2.keySize) {
+	if (key_info1.objectSize != key_info2.objectSize) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 
 	}
 
-	if (operation->info.maxKeySize < key_info1.keySize) {
+	if (operation->info.maxKeySize < key_info1.objectSize) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -706,7 +706,7 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	 * Odd that only the size of one key should be reported while
 	 * size of two key are used when allocating the operation.
 	 */
-	key_size = key_info1.keySize;
+	key_size = key_info1.objectSize;
 
 	TEE_ResetTransientObject(operation->key1);
 	TEE_ResetTransientObject(operation->key2);

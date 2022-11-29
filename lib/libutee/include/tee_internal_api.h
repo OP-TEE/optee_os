@@ -111,8 +111,13 @@ void TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 /* Data and Key Storage API  - Generic Object Functions */
 
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
+void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
+			      __GP11_TEE_ObjectInfo *objectInfo);
+
 TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
 			      TEE_ObjectInfo *objectInfo);
+TEE_Result __GP11_TEE_GetObjectInfo1(TEE_ObjectHandle object,
+				     __GP11_TEE_ObjectInfo *objectInfo);
 
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage);
 TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object,
@@ -192,6 +197,10 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
 				       void *objectID, uint32_t *objectIDLen);
+TEE_Result
+__GP11_TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
+				   __GP11_TEE_ObjectInfo *objectInfo,
+				   void *objectID, uint32_t *objectIDLen);
 
 /* Data and Key Storage API  - Data Stream Access Functions */
 
@@ -629,5 +638,7 @@ TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
  * TA_DestroyEntryPoint is called. Otherwise, the instance is kept until
  * the TEE shuts down.
  */
+
+#include <tee_api_compat.h>
 
 #endif /*TEE_INTERNAL_API_H*/

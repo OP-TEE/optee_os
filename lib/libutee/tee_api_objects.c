@@ -46,6 +46,35 @@ void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 		TEE_Panic(res);
 
 	if (info.obj_type == TEE_TYPE_CORRUPTED_OBJECT) {
+		objectInfo->objectSize = 0;
+		objectInfo->maxObjectSize = 0;
+		objectInfo->objectUsage = 0;
+		objectInfo->dataSize = 0;
+		objectInfo->dataPosition = 0;
+		objectInfo->handleFlags = 0;
+	} else {
+		objectInfo->objectType = info.obj_type;
+		objectInfo->objectSize = info.obj_size;
+		objectInfo->maxObjectSize = info.max_obj_size;
+		objectInfo->objectUsage = info.obj_usage;
+		objectInfo->dataSize = info.data_size;
+		objectInfo->dataPosition = info.data_pos;
+		objectInfo->handleFlags = info.handle_flags;
+	}
+}
+
+void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
+			      __GP11_TEE_ObjectInfo *objectInfo)
+{
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
+
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+
+	if (info.obj_type == TEE_TYPE_CORRUPTED_OBJECT) {
 		objectInfo->keySize = 0;
 		objectInfo->maxKeySize = 0;
 		objectInfo->objectUsage = 0;
@@ -63,7 +92,32 @@ void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 	}
 }
 
-TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
+TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
+			      TEE_ObjectInfo *objectInfo)
+{
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
+
+	objectInfo->objectType = info.obj_type;
+	objectInfo->objectSize = info.obj_size;
+	objectInfo->maxObjectSize = info.max_obj_size;
+	objectInfo->objectUsage = info.obj_usage;
+	objectInfo->dataSize = info.data_size;
+	objectInfo->dataPosition = info.data_pos;
+	objectInfo->handleFlags = info.handle_flags;
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_GetObjectInfo1(TEE_ObjectHandle object,
+				     __GP11_TEE_ObjectInfo *objectInfo)
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
@@ -602,6 +656,48 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
 				       void *objectID, uint32_t *objectIDLen)
+{
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t len = 0;
+
+	if (objectInfo)
+		__utee_check_out_annotation(objectInfo, sizeof(*objectInfo));
+	__utee_check_out_annotation(objectIDLen, sizeof(*objectIDLen));
+
+	if (!objectID) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	len = *objectIDLen;
+	res = _utee_storage_next_enum((unsigned long)objectEnumerator,
+				      &info, objectID, &len);
+	if (objectInfo) {
+		objectInfo->objectType = info.obj_type;
+		objectInfo->objectSize = info.obj_size;
+		objectInfo->maxObjectSize = info.max_obj_size;
+		objectInfo->objectUsage = info.obj_usage;
+		objectInfo->dataSize = info.data_size;
+		objectInfo->dataPosition = info.data_pos;
+		objectInfo->handleFlags = info.handle_flags;
+	}
+	*objectIDLen = len;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_ITEM_NOT_FOUND &&
+	    res != TEE_ERROR_CORRUPT_OBJECT &&
+	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result
+__GP11_TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
+				   __GP11_TEE_ObjectInfo *objectInfo,
+				   void *objectID, uint32_t *objectIDLen)
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
