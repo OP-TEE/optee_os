@@ -7,6 +7,7 @@
 #include <initcall.h>
 #include <kernel/embedded_ts.h>
 #include <kernel/ts_store.h>
+#include <mempool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,12 +25,12 @@ struct ts_store_handle {
 static void *zalloc(void *opaque __unused, unsigned int items,
 		    unsigned int size)
 {
-	return malloc(items * size);
+	return mempool_alloc(mempool_default, items * size);
 }
 
 static void zfree(void *opaque __unused, void *address)
 {
-	free(address);
+	mempool_free(mempool_default, address);
 }
 
 static bool decompression_init(z_stream *strm,
