@@ -1687,6 +1687,43 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 	return res;
 }
 
+TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_attribute ua[paramCount];
+	uint64_t dl = 0;
+
+	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen))
+		TEE_Panic(0);
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+
+	if (!operation->key1)
+		TEE_Panic(0);
+	if (operation->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_ENCRYPT)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
+	dl = *destLen;
+	res = _utee_asymm_operate(operation->state, ua, paramCount, srcData,
+				  srcLen, destData, &dl);
+	*destLen = dl;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_BAD_PARAMETERS)
+		TEE_Panic(res);
+
+	return res;
+}
+
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
@@ -1711,6 +1748,43 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_from_attr(ua, params, paramCount);
+	dl = *destLen;
+	res = _utee_asymm_operate(operation->state, ua, paramCount, srcData,
+				  srcLen, destData, &dl);
+	*destLen = dl;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER &&
+	    res != TEE_ERROR_BAD_PARAMETERS)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_attribute ua[paramCount];
+	uint64_t dl = 0;
+
+	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen))
+		TEE_Panic(0);
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+
+	if (!operation->key1)
+		TEE_Panic(0);
+	if (operation->info.operationClass != TEE_OPERATION_ASYMMETRIC_CIPHER)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_DECRYPT)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
 	dl = *destLen;
 	res = _utee_asymm_operate(operation->state, ua, paramCount, srcData,
 				  srcLen, destData, &dl);
@@ -1760,6 +1834,43 @@ TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 	return res;
 }
 
+TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
+					   const __GP11_TEE_Attribute *params,
+					   uint32_t paramCount,
+					   const void *digest,
+					   uint32_t digestLen, void *signature,
+					   uint32_t *signatureLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_attribute ua[paramCount];
+	uint64_t sl = 0;
+
+	if (operation == TEE_HANDLE_NULL || (!digest && digestLen))
+		TEE_Panic(0);
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+	__utee_check_inout_annotation(signatureLen, sizeof(*signatureLen));
+
+	if (!operation->key1)
+		TEE_Panic(0);
+	if (operation->info.operationClass !=
+	    TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_SIGN)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
+	sl = *signatureLen;
+	res = _utee_asymm_operate(operation->state, ua, paramCount, digest,
+				  digestLen, signature, &sl);
+	*signatureLen = sl;
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(res);
+
+	return res;
+}
+
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
@@ -1786,6 +1897,41 @@ TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_from_attr(ua, params, paramCount);
+	res = _utee_asymm_verify(operation->state, ua, paramCount, digest,
+				 digestLen, signature, signatureLen);
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_SIGNATURE_INVALID)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
+					     const __GP11_TEE_Attribute *params,
+					     uint32_t paramCount,
+					     const void *digest,
+					     uint32_t digestLen,
+					     const void *signature,
+					     uint32_t signatureLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_attribute ua[paramCount];
+
+	if (operation == TEE_HANDLE_NULL || (!digest && digestLen) ||
+	    (!signature && signatureLen))
+		TEE_Panic(0);
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+
+	if (!operation->key1)
+		TEE_Panic(0);
+	if (operation->info.operationClass !=
+	    TEE_OPERATION_ASYMMETRIC_SIGNATURE)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_VERIFY)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
 	res = _utee_asymm_verify(operation->state, ua, paramCount, digest,
 				 digestLen, signature, signatureLen);
 
@@ -1833,6 +1979,48 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 		TEE_Panic(0);
 
 	__utee_from_attr(ua, params, paramCount);
+	res = _utee_cryp_derive_key(operation->state, ua, paramCount,
+				    (unsigned long)derivedKey);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+}
+
+void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
+			  const __GP11_TEE_Attribute *params,
+			  uint32_t paramCount, TEE_ObjectHandle derivedKey)
+{
+	struct utee_attribute ua[paramCount];
+	struct utee_object_info key_info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	if (operation == TEE_HANDLE_NULL || derivedKey == 0)
+		TEE_Panic(0);
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+
+	if (TEE_ALG_GET_CLASS(operation->info.algorithm) !=
+	    TEE_OPERATION_KEY_DERIVATION)
+		TEE_Panic(0);
+
+	if (operation->info.operationClass != TEE_OPERATION_KEY_DERIVATION)
+		TEE_Panic(0);
+	if (!operation->key1)
+		TEE_Panic(0);
+	if (operation->info.mode != TEE_MODE_DERIVE)
+		TEE_Panic(0);
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_KEY_SET) == 0)
+		TEE_Panic(0);
+
+	res = _utee_cryp_obj_get_info((unsigned long)derivedKey, &key_info);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+
+	if (key_info.obj_type != TEE_TYPE_GENERIC_SECRET)
+		TEE_Panic(0);
+	if ((key_info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
 	res = _utee_cryp_derive_key(operation->state, ua, paramCount,
 				    (unsigned long)derivedKey);
 	if (res != TEE_SUCCESS)

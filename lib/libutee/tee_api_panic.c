@@ -83,6 +83,14 @@ void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count)
 		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));
 }
 
+void __utee_check_gp11_attr_in_annotation(const __GP11_TEE_Attribute *attr,
+					  size_t count)
+
+{
+	check_res("[in] attr",
+		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));
+}
+
 void __utee_check_inout_annotation(void *buf, const size_t len)
 {
 	check_res("[inout]",

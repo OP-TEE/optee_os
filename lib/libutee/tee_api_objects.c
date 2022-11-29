@@ -28,6 +28,24 @@ void __utee_from_attr(struct utee_attribute *ua, const TEE_Attribute *attrs,
 	}
 }
 
+void __utee_from_gp11_attr(struct utee_attribute *ua,
+			   const __GP11_TEE_Attribute *attrs,
+			   uint32_t attr_count)
+{
+	size_t n = 0;
+
+	for (n = 0; n < attr_count; n++) {
+		ua[n].attribute_id = attrs[n].attributeID;
+		if (attrs[n].attributeID & TEE_ATTR_FLAG_VALUE) {
+			ua[n].a = attrs[n].content.value.a;
+			ua[n].b = attrs[n].content.value.b;
+		} else {
+			ua[n].a = (uintptr_t)attrs[n].content.ref.buffer;
+			ua[n].b = attrs[n].content.ref.length;
+		}
+	}
+}
+
 /* Data and Key Storage API  - Generic Object Functions */
 /*
  * Use of this function is deprecated
@@ -364,6 +382,35 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 	return res;
 }
 
+TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
+					      const __GP11_TEE_Attribute *attrs,
+					      uint32_t attrCount)
+{
+	struct utee_attribute ua[attrCount];
+	struct utee_object_info info = { };
+	TEE_Result res = TEE_SUCCESS;
+
+	__utee_check_gp11_attr_in_annotation(attrs, attrCount);
+
+	res = _utee_cryp_obj_get_info((unsigned long)object, &info);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+
+	/* Must be a transient object */
+	if ((info.handle_flags & TEE_HANDLE_FLAG_PERSISTENT) != 0)
+		TEE_Panic(0);
+
+	/* Must not be initialized already */
+	if ((info.handle_flags & TEE_HANDLE_FLAG_INITIALIZED) != 0)
+		TEE_Panic(0);
+
+	__utee_from_gp11_attr(ua, attrs, attrCount);
+	res = _utee_cryp_obj_populate((unsigned long)object, ua, attrCount);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_BAD_PARAMETERS)
+		TEE_Panic(res);
+	return res;
+}
+
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			  const void *buffer, uint32_t length)
 {
@@ -376,8 +423,34 @@ void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 	attr->content.ref.length = length;
 }
 
+void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
+				 uint32_t attributeID,
+				 const void *buffer, uint32_t length)
+{
+	__utee_check_out_annotation(attr, sizeof(*attr));
+
+	if ((attributeID & TEE_ATTR_FLAG_VALUE) != 0)
+		TEE_Panic(0);
+	attr->attributeID = attributeID;
+	attr->content.ref.buffer = (void *)buffer;
+	attr->content.ref.length = length;
+}
+
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b)
+{
+	__utee_check_out_annotation(attr, sizeof(*attr));
+
+	if ((attributeID & TEE_ATTR_FLAG_VALUE) == 0)
+		TEE_Panic(0);
+	attr->attributeID = attributeID;
+	attr->content.value.a = a;
+	attr->content.value.b = b;
+}
+
+void __GP11_TEE_InitValueAttribute(__GP11_TEE_Attribute *attr,
+				   uint32_t attributeID,
+				   uint32_t a, uint32_t b)
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
 
@@ -454,6 +527,25 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 	__utee_check_attr_in_annotation(params, paramCount);
 
 	__utee_from_attr(ua, params, paramCount);
+	res = _utee_cryp_obj_generate_key((unsigned long)object, keySize,
+					  ua, paramCount);
+
+	if (res != TEE_SUCCESS && res != TEE_ERROR_BAD_PARAMETERS)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
+				  const __GP11_TEE_Attribute *params,
+				  uint32_t paramCount)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_attribute ua[paramCount];
+
+	__utee_check_gp11_attr_in_annotation(params, paramCount);
+
+	__utee_from_gp11_attr(ua, params, paramCount);
 	res = _utee_cryp_obj_generate_key((unsigned long)object, keySize,
 					  ua, paramCount);
 
