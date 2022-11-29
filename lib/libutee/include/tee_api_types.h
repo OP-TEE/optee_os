@@ -117,13 +117,26 @@ typedef struct {
 	union {
 		struct {
 			void *buffer;
-			uint32_t length;
+			size_t length;
 		} ref;
 		struct {
 			uint32_t a, b;
 		} value;
 	} content;
 } TEE_Attribute;
+
+typedef struct {
+	uint32_t attributeID;
+	union {
+		struct {
+			void *buffer;
+			uint32_t length;
+		} ref;
+		struct {
+			uint32_t a, b;
+		} value;
+	} content;
+} __GP11_TEE_Attribute;
 
 /* Cryptographic Operations API */
 

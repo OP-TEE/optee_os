@@ -146,12 +146,21 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object);
 TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 				       const TEE_Attribute *attrs,
 				       uint32_t attrCount);
+TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
+					      const __GP11_TEE_Attribute *attrs,
+					      uint32_t attrCount);
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			  const void *buffer, uint32_t length);
+void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
+				 uint32_t attributeID,
+				 const void *buffer, uint32_t length);
 
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b);
+void __GP11_TEE_InitValueAttribute(__GP11_TEE_Attribute *attr,
+				   uint32_t attributeID,
+				   uint32_t a, uint32_t b);
 
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject);
@@ -161,6 +170,9 @@ TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 			   const TEE_Attribute *params, uint32_t paramCount);
+TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
+				  const __GP11_TEE_Attribute *params,
+				  uint32_t paramCount);
 
 /* Data and Key Storage API  - Persistent Object Functions */
 
@@ -309,30 +321,56 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 				 uint32_t paramCount, const void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
+TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
 				 uint32_t srcLen, void *destData,
 				 uint32_t *destLen);
+TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
 				    uint32_t digestLen, void *signature,
 				    uint32_t *signatureLen);
+TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
+					   const __GP11_TEE_Attribute *params,
+					   uint32_t paramCount,
+					   const void *digest,
+					   uint32_t digestLen, void *signature,
+					   uint32_t *signatureLen);
 
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
 				      uint32_t digestLen, const void *signature,
 				      uint32_t signatureLen);
+TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
+					     const __GP11_TEE_Attribute *params,
+					     uint32_t paramCount,
+					     const void *digest,
+					     uint32_t digestLen,
+					     const void *signature,
+					     uint32_t signatureLen);
 
 /* Cryptographic Operations API - Key Derivation Functions */
 
 void TEE_DeriveKey(TEE_OperationHandle operation,
 		   const TEE_Attribute *params, uint32_t paramCount,
 		   TEE_ObjectHandle derivedKey);
+void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
+			  const __GP11_TEE_Attribute *params,
+			  uint32_t paramCount, TEE_ObjectHandle derivedKey);
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
