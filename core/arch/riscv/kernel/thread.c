@@ -122,6 +122,11 @@ static void thread_exception_handler(unsigned long cause,
 	}
 }
 
+static void thread_irq_handler(void)
+{
+	itr_core_handler();
+}
+
 static void thread_interrupt_handler(unsigned long cause,
 				     struct thread_trap_regs *regs)
 {
@@ -130,8 +135,10 @@ static void thread_interrupt_handler(unsigned long cause,
 		clear_csr(CSR_XIE, CSR_XIE_TIE);
 		break;
 	case IRQ_XSOFT:
-	case IRQ_XEXT:
 		thread_unhandled_trap(regs);
+		break;
+	case IRQ_XEXT:
+		thread_irq_handler();
 		break;
 	default:
 		thread_unhandled_trap(regs);

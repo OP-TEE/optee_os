@@ -61,6 +61,11 @@ void boot_init_secondary(unsigned long nsec_entry);
 void main_init_gic(void);
 void main_secondary_init_gic(void);
 
+#if defined(RV64) || defined(RV32)
+void main_init_plic(void);
+void main_secondary_init_plic(void);
+#endif
+
 void init_sec_mon(unsigned long nsec_entry);
 void init_tee_runtime(void);
 
