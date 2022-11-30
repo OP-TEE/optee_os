@@ -12,4 +12,9 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
+/* UART */
+#define UART_BASE		0x2f8
+#define CONSOLE_BAUDRATE	115200
+#define CONSOLE_UART_CLK_IN_HZ	200
+
 #endif /* PLATFORM_CONFIG_H */
