@@ -12,6 +12,9 @@ OUTPUT_ARCH(arm)
 OUTPUT_FORMAT("elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
 #endif
+#ifdef RV64
+OUTPUT_ARCH(riscv)
+#endif
 
 ENTRY(_ldelf_start)
 SECTIONS {
