@@ -168,6 +168,12 @@
 /* Memory Management Constant */
 #define TEE_MALLOC_FILL_ZERO               0x00000000
 
+/* TEE_Whence Constants */
+#define TEE_DATA_SEEK_SET		   0x00000000
+#define TEE_DATA_SEEK_CUR		   0x00000001
+#define TEE_DATA_SEEK_END		   0x00000002
+#define TEE_WHENCE_ILLEGAL_VALUE	   0x7FFFFFFF
+
 /* Other constants */
 #define TEE_STORAGE_PRIVATE                0x00000001
 

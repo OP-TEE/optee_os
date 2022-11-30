@@ -117,11 +117,7 @@ typedef struct {
 	uint32_t handleFlags;
 } __GP11_TEE_ObjectInfo;
 
-typedef enum {
-	TEE_DATA_SEEK_SET = 0,
-	TEE_DATA_SEEK_CUR = 1,
-	TEE_DATA_SEEK_END = 2
-} TEE_Whence;
+typedef uint32_t TEE_Whence;
 
 typedef struct {
 	uint32_t attributeID;
