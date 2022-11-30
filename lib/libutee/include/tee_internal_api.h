@@ -65,6 +65,12 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 			     TEE_Param params[TEE_NUM_PARAMS],
 			     TEE_TASessionHandle *session,
 			     uint32_t *returnOrigin);
+TEE_Result __GP11_TEE_OpenTASession(const TEE_UUID *destination,
+				    uint32_t cancellationRequestTimeout,
+				    uint32_t paramTypes,
+				    __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				    TEE_TASessionHandle *session,
+				    uint32_t *returnOrigin);
 
 void TEE_CloseTASession(TEE_TASessionHandle session);
 
@@ -73,6 +79,11 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 			       uint32_t commandID, uint32_t paramTypes,
 			       TEE_Param params[TEE_NUM_PARAMS],
 			       uint32_t *returnOrigin);
+TEE_Result __GP11_TEE_InvokeTACommand(TEE_TASessionHandle session,
+				      uint32_t cancellationRequestTimeout,
+				      uint32_t commandID, uint32_t paramTypes,
+				      __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				      uint32_t *returnOrigin);
 
 /* System API - Cancellations */
 
@@ -604,6 +615,10 @@ void TA_EXPORT TA_DestroyEntryPoint(void);
 TEE_Result TA_EXPORT TA_OpenSessionEntryPoint(uint32_t paramTypes,
 					      TEE_Param params[TEE_NUM_PARAMS],
 					      void **sessionContext);
+TEE_Result TA_EXPORT
+__GP11_TA_OpenSessionEntryPoint(uint32_t paramTypes,
+				__GP11_TEE_Param params[TEE_NUM_PARAMS],
+				void **sessionContext);
 
 /*
  * The Framework calls this function to close a client session. During the
@@ -657,6 +672,10 @@ TEE_Result TA_EXPORT
 TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
 			   uint32_t paramTypes,
 			   TEE_Param params[TEE_NUM_PARAMS]);
+TEE_Result TA_EXPORT
+__GP11_TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
+				  uint32_t paramTypes,
+				  __GP11_TEE_Param params[TEE_NUM_PARAMS]);
 
 /*
  * Matching Client Functions <--> TA Functions

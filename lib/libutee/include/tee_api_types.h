@@ -49,13 +49,24 @@ typedef struct {
 typedef union {
 	struct {
 		void *buffer;
-		uint32_t size;
+		size_t size;
 	} memref;
 	struct {
 		uint32_t a;
 		uint32_t b;
 	} value;
 } TEE_Param;
+
+typedef union {
+	struct {
+		void *buffer;
+		uint32_t size;
+	} memref;
+	struct {
+		uint32_t a;
+		uint32_t b;
+	} value;
+} __GP11_TEE_Param;
 
 /*
  * The type of opaque handles on TA Session. These handles are returned by

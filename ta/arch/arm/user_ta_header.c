@@ -173,3 +173,24 @@ int tahead_get_trace_level(void)
 	 */
 	return TRACE_LEVEL;
 }
+
+#if __OPTEE_CORE_API_COMPAT_1_1
+#undef TA_OpenSessionEntryPoint
+#undef TA_InvokeCommandEntryPoint
+#undef TEE_Param
+TEE_Result TA_OpenSessionEntryPoint(uint32_t pt,
+				    TEE_Param params[TEE_NUM_PARAMS],
+				    void **sess_ctx)
+{
+	return __ta_open_sess(pt, params, sess_ctx,
+			      __GP11_TA_OpenSessionEntryPoint);
+}
+
+TEE_Result TA_InvokeCommandEntryPoint(void *sess_ctx, uint32_t cmd_id,
+				      uint32_t pt,
+				      TEE_Param params[TEE_NUM_PARAMS])
+{
+	return __ta_invoke_cmd(sess_ctx, cmd_id, pt, params,
+			       __GP11_TA_InvokeCommandEntryPoint);
+}
+#endif
