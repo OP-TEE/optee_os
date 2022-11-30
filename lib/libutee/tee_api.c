@@ -22,10 +22,68 @@ static const void *tee_api_instance_data;
 
 /* System API - Internal Client API */
 
-static TEE_Result copy_param(struct utee_params *up, uint32_t param_types,
-			     const TEE_Param params[TEE_NUM_PARAMS],
-			     void **tmp_buf, size_t *tmp_len,
-			     void *tmp_va[TEE_NUM_PARAMS])
+static void copy_param(struct utee_params *up, uint32_t param_types,
+		       const TEE_Param params[TEE_NUM_PARAMS])
+{
+	size_t n = 0;
+	uint64_t a = 0;
+	uint64_t b = 0;
+
+	up->types = param_types;
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(up->types, n)) {
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			a = params[n].value.a;
+			b = params[n].value.b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+			a = (vaddr_t)params[n].memref.buffer;
+			b = params[n].memref.size;
+			break;
+		default:
+			a = 0;
+			b = 0;
+		}
+		up->vals[n * 2] = a;
+		up->vals[n * 2 + 1] = b;
+	}
+}
+
+static void copy_gp11_param(struct utee_params *up, uint32_t param_types,
+			    const __GP11_TEE_Param params[TEE_NUM_PARAMS])
+{
+	size_t n = 0;
+	uint64_t a = 0;
+	uint64_t b = 0;
+
+	up->types = param_types;
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		switch (TEE_PARAM_TYPE_GET(up->types, n)) {
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			a = params[n].value.a;
+			b = params[n].value.b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+			a = (vaddr_t)params[n].memref.buffer;
+			b = params[n].memref.size;
+			break;
+		default:
+			a = 0;
+			b = 0;
+		}
+		up->vals[n * 2] = a;
+		up->vals[n * 2 + 1] = b;
+	}
+}
+
+static TEE_Result map_tmp_param(struct utee_params *up, void **tmp_buf,
+				size_t *tmp_len, void *tmp_va[TEE_NUM_PARAMS])
 {
 	size_t n = 0;
 	uint8_t *tb = NULL;
@@ -46,12 +104,12 @@ static TEE_Result copy_param(struct utee_params *up, uint32_t param_types,
 	*tmp_len = 0;
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		tmp_va[n] = NULL;
-		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
+		switch (TEE_PARAM_TYPE_GET(up->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
-			b = params[n].memref.buffer;
-			s = params[n].memref.size;
+			b = (void *)(vaddr_t)up->vals[n * 2];
+			s = up->vals[n * 2 + 1];
 			/*
 			 * We're only allocating temporary memory if the
 			 * buffer is completely within TA memory. If it's
@@ -80,39 +138,29 @@ static TEE_Result copy_param(struct utee_params *up, uint32_t param_types,
 		*tmp_len = tbl;
 	}
 
-	up->types = param_types;
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
-		switch (TEE_PARAM_TYPE_GET(param_types, n)) {
-		case TEE_PARAM_TYPE_VALUE_INPUT:
-		case TEE_PARAM_TYPE_VALUE_INOUT:
-			up->vals[n * 2] = params[n].value.a;
-			up->vals[n * 2 + 1] = params[n].value.b;
-			break;
+		switch (TEE_PARAM_TYPE_GET(up->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-			s = params[n].memref.size;
-			if (is_tmp_mem[n]) {
-				b = tb;
-				tmp_va[n] = tb;
-				tb += ROUNDUP(s, tmp_align);
-				if (TEE_PARAM_TYPE_GET(param_types, n) !=
-				    TEE_PARAM_TYPE_MEMREF_OUTPUT)
-					memcpy(b, params[n].memref.buffer, s);
-			} else {
-				b = params[n].memref.buffer;
-			}
-			up->vals[n * 2] = (vaddr_t)b;
-			up->vals[n * 2 + 1] = s;
+			if (!is_tmp_mem[n])
+				break;
+			s = up->vals[n * 2 + 1];
+			b = (void *)(vaddr_t)up->vals[n * 2];
+			tmp_va[n] = tb;
+			tb += ROUNDUP(s, tmp_align);
+			up->vals[n * 2] = (vaddr_t)tmp_va[n];
+			if (TEE_PARAM_TYPE_GET(up->types, n) !=
+			    TEE_PARAM_TYPE_MEMREF_OUTPUT)
+				memcpy(tmp_va[n], b, s);
 			break;
 		default:
-			up->vals[n * 2] = 0;
-			up->vals[n * 2 + 1] = 0;
 			break;
 		}
 	}
 
 	return TEE_SUCCESS;
+
 }
 
 static void update_out_param(TEE_Param params[TEE_NUM_PARAMS],
@@ -120,6 +168,36 @@ static void update_out_param(TEE_Param params[TEE_NUM_PARAMS],
 			     const struct utee_params *up)
 {
 	size_t n;
+	uint32_t types = up->types;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uintptr_t a = up->vals[n * 2];
+		uintptr_t b = up->vals[n * 2 + 1];
+
+		switch (TEE_PARAM_TYPE_GET(types, n)) {
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			params[n].value.a = a;
+			params[n].value.b = b;
+			break;
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			if (tmp_va[n])
+				memcpy(params[n].memref.buffer, tmp_va[n],
+				       MIN(b, params[n].memref.size));
+			params[n].memref.size = b;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void update_out_gp11_param(__GP11_TEE_Param params[TEE_NUM_PARAMS],
+				  void *tmp_va[TEE_NUM_PARAMS],
+				  const struct utee_params *up)
+{
+	size_t n = 0;
 	uint32_t types = up->types;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
@@ -153,7 +231,7 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 				uint32_t *returnOrigin)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct utee_params up;
+	struct utee_params up = { };
 	uint32_t s = 0;
 	void *tmp_buf = NULL;
 	size_t tmp_len = 0;
@@ -165,7 +243,8 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 					      TEE_NUM_PARAMS);
 	__utee_check_out_annotation(session, sizeof(*session));
 
-	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
+	copy_param(&up, paramTypes, params);
+	res = map_tmp_param(&up, &tmp_buf, &tmp_len, tmp_va);
 	if (res)
 		goto out;
 	res = _utee_open_ta_session(destination, cancellationRequestTimeout,
@@ -181,6 +260,53 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 out:
 	/*
 	 * Specification says that *session must hold TEE_HANDLE_NULL is
+	 * TEE_SUCCESS isn't returned. Set it here explicitly in case
+	 * the syscall fails before out parameters has been updated.
+	 */
+	if (res != TEE_SUCCESS)
+		s = TEE_HANDLE_NULL;
+
+	*session = (TEE_TASessionHandle)(uintptr_t)s;
+	return res;
+}
+
+TEE_Result __GP11_TEE_OpenTASession(const TEE_UUID *destination,
+				    uint32_t cancellationRequestTimeout,
+				    uint32_t paramTypes,
+				    __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				    TEE_TASessionHandle *session,
+				    uint32_t *returnOrigin)
+{
+	TEE_Result res = TEE_SUCCESS;
+	struct utee_params up = { };
+	uint32_t s = 0;
+	void *tmp_buf = NULL;
+	size_t tmp_len = 0;
+	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
+
+	if (paramTypes)
+		__utee_check_inout_annotation(params,
+					      sizeof(__GP11_TEE_Param) *
+					      TEE_NUM_PARAMS);
+	__utee_check_out_annotation(session, sizeof(*session));
+
+	copy_gp11_param(&up, paramTypes, params);
+	res = map_tmp_param(&up, &tmp_buf, &tmp_len, tmp_va);
+	if (res)
+		goto out;
+	res = _utee_open_ta_session(destination, cancellationRequestTimeout,
+				    &up, &s, returnOrigin);
+	update_out_gp11_param(params, tmp_va, &up);
+	if (tmp_buf) {
+		TEE_Result res2 = tee_unmap(tmp_buf, tmp_len);
+
+		if (res2)
+			TEE_Panic(res2);
+	}
+
+out:
+	/*
+	 * Specification says that *session must hold TEE_HANDLE_NULL if
 	 * TEE_SUCCESS isn't returned. Set it here explicitly in case
 	 * the syscall fails before out parameters has been updated.
 	 */
@@ -209,7 +335,7 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t ret_origin = TEE_ORIGIN_TEE;
-	struct utee_params up;
+	struct utee_params up = { };
 	void *tmp_buf = NULL;
 	size_t tmp_len = 0;
 	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
@@ -222,7 +348,8 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 		__utee_check_out_annotation(returnOrigin,
 					    sizeof(*returnOrigin));
 
-	res = copy_param(&up, paramTypes, params, &tmp_buf, &tmp_len, tmp_va);
+	copy_param(&up, paramTypes, params);
+	res = map_tmp_param(&up, &tmp_buf, &tmp_len, tmp_va);
 	if (res)
 		goto out;
 	res = _utee_invoke_ta_command((uintptr_t)session,
@@ -238,6 +365,57 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 
 out:
 	if (returnOrigin != NULL)
+		*returnOrigin = ret_origin;
+
+	if (ret_origin == TEE_ORIGIN_TRUSTED_APP)
+		return res;
+
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_OUT_OF_MEMORY &&
+	    res != TEE_ERROR_TARGET_DEAD)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_InvokeTACommand(TEE_TASessionHandle session,
+				      uint32_t cancellationRequestTimeout,
+				      uint32_t commandID, uint32_t paramTypes,
+				      __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				      uint32_t *returnOrigin)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t ret_origin = TEE_ORIGIN_TEE;
+	struct utee_params up = { };
+	void *tmp_buf = NULL;
+	size_t tmp_len = 0;
+	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
+
+	if (paramTypes)
+		__utee_check_inout_annotation(params,
+					      sizeof(__GP11_TEE_Param) *
+					      TEE_NUM_PARAMS);
+	if (returnOrigin)
+		__utee_check_out_annotation(returnOrigin,
+					    sizeof(*returnOrigin));
+
+	copy_gp11_param(&up, paramTypes, params);
+	res = map_tmp_param(&up, &tmp_buf, &tmp_len, tmp_va);
+	if (res)
+		goto out;
+	res = _utee_invoke_ta_command((uintptr_t)session,
+				      cancellationRequestTimeout,
+				      commandID, &up, &ret_origin);
+	update_out_gp11_param(params, tmp_va, &up);
+	if (tmp_buf) {
+		TEE_Result res2 = tee_unmap(tmp_buf, tmp_len);
+
+		if (res2)
+			TEE_Panic(res2);
+	}
+
+out:
+	if (returnOrigin)
 		*returnOrigin = ret_origin;
 
 	if (ret_origin == TEE_ORIGIN_TRUSTED_APP)
