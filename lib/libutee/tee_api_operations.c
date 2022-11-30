@@ -441,7 +441,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 		goto out;
 	}
 
-	__utee_check_outbuf_annotation(op_info, size);
+	__utee_check_gp11_outbuf_annotation(op_info, size);
 
 	if (*size < sizeof(*op_info)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
