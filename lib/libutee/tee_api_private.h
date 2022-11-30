@@ -37,8 +37,10 @@ void __utee_check_inout_annotation(void *buf, const size_t len);
 void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count);
 void __utee_check_gp11_attr_in_annotation(const __GP11_TEE_Attribute *attr,
 					  size_t count);
-void __utee_check_outbuf_annotation(void *buf, uint32_t *len);
+void __utee_check_outbuf_annotation(void *buf, size_t *len);
+void __utee_check_gp11_outbuf_annotation(void *buf, uint32_t *len);
 void __utee_check_instring_annotation(const char *buf);
-void __utee_check_outstring_annotation(char *buf, uint32_t *len);
+void __utee_check_outstring_annotation(char *buf, size_t *len);
+void __utee_check_gp11_outstring_annotation(char *buf, uint32_t *len);
 
 #endif /*TEE_API_PRIVATE*/
