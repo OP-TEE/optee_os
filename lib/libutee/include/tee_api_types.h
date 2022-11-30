@@ -147,15 +147,7 @@ typedef struct {
 
 /* Cryptographic Operations API */
 
-typedef enum {
-	TEE_MODE_ENCRYPT = 0,
-	TEE_MODE_DECRYPT = 1,
-	TEE_MODE_SIGN = 2,
-	TEE_MODE_VERIFY = 3,
-	TEE_MODE_MAC = 4,
-	TEE_MODE_DIGEST = 5,
-	TEE_MODE_DERIVE = 6
-} TEE_OperationMode;
+typedef uint32_t TEE_OperationMode;
 
 typedef struct {
 	uint32_t algorithm;

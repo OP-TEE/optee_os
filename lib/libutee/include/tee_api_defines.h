@@ -174,6 +174,16 @@
 #define TEE_DATA_SEEK_END		   0x00000002
 #define TEE_WHENCE_ILLEGAL_VALUE	   0x7FFFFFFF
 
+/* TEE_OperationMode Values */
+#define TEE_MODE_ENCRYPT		   0x00000000
+#define TEE_MODE_DECRYPT		   0x00000001
+#define TEE_MODE_SIGN			   0x00000002
+#define TEE_MODE_VERIFY			   0x00000003
+#define TEE_MODE_MAC			   0x00000004
+#define TEE_MODE_DIGEST			   0x00000005
+#define TEE_MODE_DERIVE			   0x00000006
+#define TEE_MODE_ILLEGAL_VALUE		   0x7FFFFFFF
+
 /* Other constants */
 #define TEE_STORAGE_PRIVATE                0x00000001
 
