@@ -1,3 +1,5 @@
+incdirs-$(CFG_VERSAL_SHA3_384) += crypto/versal/include
+
 srcs-$(CFG_CDNS_UART) += cdns_uart.c
 srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_TZC400) += tzc400.c
@@ -63,6 +65,7 @@ srcs-$(CFG_VERSAL_PM) += versal_pm.c
 srcs-$(CFG_STM32MP15_HUK) += stm32mp15_huk.c
 srcs-$(CFG_VERSAL_RNG_DRV) += versal_trng.c
 srcs-$(CFG_VERSAL_NVM) += versal_nvm.c
+srcs-$(CFG_VERSAL_SHA3_384) += versal_sha3_384.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
