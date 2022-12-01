@@ -17,6 +17,7 @@ endif
 srcs-y += panic.c
 srcs-y += trace_ext.c
 srcs-y += refcount.c
+srcs-y += delay.c
 srcs-y += tee_time.c
 srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 srcs-y += tee_misc.c
