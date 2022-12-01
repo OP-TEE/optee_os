@@ -83,4 +83,5 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # core/arch/arm/kernel/generic_boot.c to check that we got it right
 CFG_ASAN_SHADOW_OFFSET = 0xc6a71c0
 endif
-CFG_SECURE_TIME_SOURCE_REE ?= y
+$(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
+CFG_RISCV_MTIME_RATE ?= 10000000

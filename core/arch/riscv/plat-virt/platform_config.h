@@ -83,5 +83,11 @@
 #define VIRTIO_MMIO8_IRQ	0x08
 #endif
 
+#ifdef CFG_RISCV_MTIME_RATE
+#define RISCV_MTIME_RATE CFG_RISCV_MTIME_RATE
+#else
+#define RISCV_MTIME_RATE 1000000
+#endif
+
 #endif /*PLATFORM_CONFIG_H*/
 
