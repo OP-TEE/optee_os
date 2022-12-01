@@ -580,22 +580,41 @@ void TEE_GetREETime(TEE_Time *time)
 		TEE_Panic(res);
 }
 
-void *TEE_Malloc(uint32_t len, uint32_t hint)
+void *TEE_Malloc(size_t len, uint32_t hint)
 {
-	if (!len)
-		return TEE_NULL_SIZED_VA;
-
-	if (hint == TEE_MALLOC_FILL_ZERO)
+	switch (hint) {
+	case TEE_MALLOC_FILL_ZERO:
+		if (!len)
+			return TEE_NULL_SIZED_VA;
 		return calloc(1, len);
-	else if (hint == TEE_USER_MEM_HINT_NO_FILL_ZERO)
+
+	case TEE_MALLOC_NO_FILL:
+		TEE_Panic(0);
+		break;
+
+	case TEE_MALLOC_NO_FILL | TEE_MALLOC_NO_SHARE:
+		return NULL; /* TEE_MALLOC_NO_SHARE is not yet supported */
+
+	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
+		if (!len)
+			return TEE_NULL_SIZED_VA;
 		return malloc(len);
+
+	default:
+		break;
+	}
 
 	EMSG("Invalid hint %#" PRIx32, hint);
 
 	return NULL;
 }
 
-void *TEE_Realloc(void *buffer, uint32_t newSize)
+void *__GP11_TEE_Malloc(uint32_t size, uint32_t hint)
+{
+	return TEE_Malloc(size, hint);
+}
+
+void *TEE_Realloc(void *buffer, size_t newSize)
 {
 	if (!newSize) {
 		TEE_Free(buffer);
@@ -606,6 +625,11 @@ void *TEE_Realloc(void *buffer, uint32_t newSize)
 		return calloc(1, newSize);
 
 	return realloc(buffer, newSize);
+}
+
+void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize)
+{
+	return TEE_Realloc(buffer, newSize);
 }
 
 void TEE_Free(void *buffer)
