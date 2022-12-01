@@ -437,7 +437,7 @@ TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
 }
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  const void *buffer, uint32_t length)
+			  const void *buffer, size_t length)
 {
 	__utee_check_out_annotation(attr, sizeof(*attr));
 
