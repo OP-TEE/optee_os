@@ -583,7 +583,7 @@ TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 /* Data and Key Storage API  - Persistent Object Functions */
 
 TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
-				    uint32_t objectIDLen, uint32_t flags,
+				    size_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object)
 {
 	TEE_Result res;
@@ -608,6 +608,15 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 		*object = TEE_HANDLE_NULL;
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
+					   const void *objectID,
+					   uint32_t objectIDLen, uint32_t flags,
+					   TEE_ObjectHandle *object)
+{
+	return TEE_OpenPersistentObject(storageID, objectID, objectIDLen,
+					flags, object);
 }
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
