@@ -300,6 +300,29 @@ static inline __noprof void uret(void)
 	asm volatile("uret");
 }
 
+static inline __noprof uint64_t read_time(void)
+{
+	uint64_t time;
+	uint32_t hi __maybe_unused, lo __maybe_unused;
+
+#ifdef CFG_RISCV_M_MODE
+	time = clint_get_mtime();
+#else /*CFG_RISCV_S_MODE*/
+#ifdef RV32
+	do {
+		hi = read_csr(timeh);
+		lo = read_csr(time);
+	} while (hi != read_csr(timeh));
+
+	time =  SHIFT_U32((uint64_t)hi, 32) | lo;
+#else /*RV64*/
+	time = read_csr(time);
+#endif /*RV32*/
+#endif /*CFG_RISCV_M_MODE*/
+
+	return time;
+}
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*RISCV_H*/
