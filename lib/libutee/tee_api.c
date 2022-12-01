@@ -502,19 +502,35 @@ const void *TEE_GetInstanceData(void)
 	return tee_api_instance_data;
 }
 
-void *TEE_MemMove(void *dest, const void *src, uint32_t size)
+void *TEE_MemMove(void *dest, const void *src, size_t size)
 {
 	return memmove(dest, src, size);
 }
 
-int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size)
+void *__GP11_TEE_MemMove(void *dest, const void *src, uint32_t size)
+{
+	return TEE_MemMove(dest, src, size);
+}
+
+int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, size_t size)
 {
 	return consttime_memcmp(buffer1, buffer2, size);
 }
 
-void TEE_MemFill(void *buff, uint32_t x, uint32_t size)
+int32_t __GP11_TEE_MemCompare(const void *buffer1, const void *buffer2,
+			      uint32_t size)
+{
+	return TEE_MemCompare(buffer1, buffer2, size);
+}
+
+void TEE_MemFill(void *buff, uint32_t x, size_t size)
 {
 	memset(buff, x, size);
+}
+
+void __GP11_TEE_MemFill(void *buff, uint32_t x, uint32_t size)
+{
+	TEE_MemFill(buff, x, size);
 }
 
 /* Date & Time API */
