@@ -196,7 +196,7 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsag
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
-					uint32_t *size)
+					size_t *size)
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;
@@ -227,6 +227,20 @@ exit:
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
+	return res;
+}
+
+TEE_Result __GP11_TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
+					       uint32_t attributeID,
+					       void *buffer, uint32_t *size)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t l = 0;
+
+	__utee_check_inout_annotation(size, sizeof(*size));
+	l = *size;
+	res = TEE_GetObjectBufferAttribute(object, attributeID, buffer, &l);
+	*size = l;
 	return res;
 }
 
