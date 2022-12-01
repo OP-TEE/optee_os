@@ -106,7 +106,7 @@ void *TEE_MemMove(void *dest, const void *src, uint32_t size);
  */
 int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size);
 
-void *TEE_MemFill(void *buff, uint32_t x, uint32_t size);
+void TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 
 /* Data and Key Storage API  - Generic Object Functions */
 
