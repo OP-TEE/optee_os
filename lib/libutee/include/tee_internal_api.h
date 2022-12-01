@@ -189,7 +189,7 @@ TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
 					      uint32_t attrCount);
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  const void *buffer, uint32_t length);
+			  const void *buffer, size_t length);
 void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
 				 uint32_t attributeID,
 				 const void *buffer, uint32_t length);
