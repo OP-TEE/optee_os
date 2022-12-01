@@ -328,9 +328,9 @@ int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size)
 	return consttime_memcmp(buffer1, buffer2, size);
 }
 
-void *TEE_MemFill(void *buff, uint32_t x, uint32_t size)
+void TEE_MemFill(void *buff, uint32_t x, uint32_t size)
 {
-	return memset(buff, x, size);
+	memset(buff, x, size);
 }
 
 /* Date & Time API */
