@@ -620,22 +620,26 @@ TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
 }
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
-				      uint32_t objectIDLen, uint32_t flags,
+				      size_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
-				      uint32_t initialDataLen,
+				      size_t initialDataLen,
 				      TEE_ObjectHandle *object)
 {
-	TEE_Result res;
-	uint32_t obj;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t *obj_ptr = NULL;
+	uint32_t obj = 0;
 
-	__utee_check_out_annotation(object, sizeof(*object));
+	if (object) {
+		__utee_check_out_annotation(object, sizeof(*object));
+		obj_ptr = &obj;
+	}
 
 	res = _utee_storage_obj_create(storageID, objectID, objectIDLen, flags,
 				       (unsigned long)attributes, initialData,
-				       initialDataLen, &obj);
+				       initialDataLen, obj_ptr);
 
-	if (res == TEE_SUCCESS)
+	if (res == TEE_SUCCESS && object)
 		*object = (TEE_ObjectHandle)(uintptr_t)obj;
 
 	if (res != TEE_SUCCESS &&
@@ -647,10 +651,26 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 	    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
 		TEE_Panic(res);
 
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS && object)
 		*object = TEE_HANDLE_NULL;
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_CreatePersistentObject(uint32_t storageID,
+					     const void *objectID,
+					     uint32_t objectIDLen,
+					     uint32_t flags,
+					     TEE_ObjectHandle attributes,
+					     const void *initialData,
+					     uint32_t initialDataLen,
+					     TEE_ObjectHandle *object)
+{
+	__utee_check_out_annotation(object, sizeof(*object));
+
+	return TEE_CreatePersistentObject(storageID, objectID, objectIDLen,
+					  flags, attributes, initialData,
+					  initialDataLen, object);
 }
 
 /*

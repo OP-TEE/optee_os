@@ -223,11 +223,19 @@ TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
 					   TEE_ObjectHandle *object);
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
-				      uint32_t objectIDLen, uint32_t flags,
+				      size_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
-				      uint32_t initialDataLen,
+				      size_t initialDataLen,
 				      TEE_ObjectHandle *object);
+TEE_Result __GP11_TEE_CreatePersistentObject(uint32_t storageID,
+					     const void *objectID,
+					     uint32_t objectIDLen,
+					     uint32_t flags,
+					     TEE_ObjectHandle attributes,
+					     const void *initialData,
+					     uint32_t initialDataLen,
+					     TEE_ObjectHandle *object);
 
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object);
 
