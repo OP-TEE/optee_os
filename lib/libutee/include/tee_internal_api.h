@@ -117,9 +117,11 @@ void TEE_SetInstanceData(const void *instanceData);
 
 const void *TEE_GetInstanceData(void);
 
-void *TEE_Malloc(uint32_t size, uint32_t hint);
+void *TEE_Malloc(size_t size, uint32_t hint);
+void *__GP11_TEE_Malloc(uint32_t size, uint32_t hint);
 
-void *TEE_Realloc(void *buffer, uint32_t newSize);
+void *TEE_Realloc(void *buffer, size_t newSize);
+void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize);
 
 void TEE_Free(void *buffer);
 
