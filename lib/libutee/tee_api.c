@@ -464,7 +464,7 @@ bool TEE_MaskCancellation(void)
 /* System API - Memory Management */
 
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
-				       uint32_t size)
+				       size_t size)
 {
 	TEE_Result res;
 
@@ -484,6 +484,12 @@ TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
 	res = TEE_SUCCESS;
 out:
 	return res;
+}
+
+TEE_Result __GP11_TEE_CheckMemoryAccessRights(uint32_t accessFlags,
+					      void *buffer, uint32_t size)
+{
+	return TEE_CheckMemoryAccessRights(accessFlags, buffer, size);
 }
 
 void TEE_SetInstanceData(const void *instanceData)
