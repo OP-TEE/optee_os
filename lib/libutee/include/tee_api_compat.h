@@ -39,6 +39,7 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 /* Functions */
 #define TA_InvokeCommandEntryPoint __GP11_TA_InvokeCommandEntryPoint
 #define TA_OpenSessionEntryPoint __GP11_TA_OpenSessionEntryPoint
+#define TEE_AllocateTransientObject __GP11_TEE_AllocateTransientObject
 #define TEE_AsymmetricDecrypt __GP11_TEE_AsymmetricDecrypt
 #define TEE_AsymmetricEncrypt __GP11_TEE_AsymmetricEncrypt
 #define TEE_AsymmetricSignDigest __GP11_TEE_AsymmetricSignDigest
