@@ -306,8 +306,19 @@ void TEE_CloseObject(TEE_ObjectHandle object)
 /* Data and Key Storage API  - Transient Object Functions */
 
 TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
-				       uint32_t maxKeySize,
+				       uint32_t maxObjectSize,
 				       TEE_ObjectHandle *object)
+{
+	if (objectType == TEE_TYPE_DATA)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return __GP11_TEE_AllocateTransientObject(objectType, maxObjectSize,
+						  object);
+}
+
+TEE_Result __GP11_TEE_AllocateTransientObject(TEE_ObjectType objectType,
+					      uint32_t maxKeySize,
+					      TEE_ObjectHandle *object)
 {
 	TEE_Result res;
 	uint32_t obj;
