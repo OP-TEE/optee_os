@@ -252,22 +252,24 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 					    uint32_t len)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct tee_svc_storage_head head;
+	struct tee_svc_storage_head head = { };
 	const struct tee_file_operations *fops = o->pobj->fops;
 	void *attr = NULL;
 	size_t attr_size = 0;
 
 	if (attr_o) {
-		res = tee_obj_set_type(o, attr_o->info.objectType,
-				       attr_o->info.maxObjectSize);
-		if (res)
-			return res;
-		res = tee_obj_attr_copy_from(o, attr_o);
-		if (res)
-			return res;
-		o->have_attrs = attr_o->have_attrs;
-		o->info.objectUsage = attr_o->info.objectUsage;
-		o->info.objectSize = attr_o->info.objectSize;
+		if (o != attr_o) {
+			res = tee_obj_set_type(o, attr_o->info.objectType,
+					       attr_o->info.maxObjectSize);
+			if (res)
+				return res;
+			res = tee_obj_attr_copy_from(o, attr_o);
+			if (res)
+				return res;
+			o->have_attrs = attr_o->have_attrs;
+			o->info.objectUsage = attr_o->info.objectUsage;
+			o->info.objectSize = attr_o->info.objectSize;
+		}
 		res = tee_obj_attr_to_binary(o, NULL, &attr_size);
 		if (res)
 			return res;
@@ -298,7 +300,9 @@ static TEE_Result tee_svc_storage_init_file(struct tee_obj *o, bool overwrite,
 	res = fops->create(o->pobj, overwrite, &head, sizeof(head), attr,
 			   attr_size, data, len, &o->fh);
 
-	if (!res)
+	if (res)
+		o->ds_pos = 0;
+	else
 		o->info.dataSize = len;
 exit:
 	free(attr);
@@ -367,16 +371,6 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		}
 	}
 
-	o = tee_obj_alloc();
-	if (o == NULL) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
-
-	o->info.handleFlags = TEE_HANDLE_FLAG_PERSISTENT |
-			      TEE_HANDLE_FLAG_INITIALIZED | flags;
-	o->pobj = po;
-
 	if (attr != TEE_HANDLE_NULL) {
 		res = tee_obj_get(utc, uref_to_vaddr(attr), &attr_o);
 		if (res != TEE_SUCCESS)
@@ -388,19 +382,57 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 		}
 	}
 
-	res = tee_svc_storage_init_file(o, flags & TEE_DATA_FLAG_OVERWRITE,
-					attr_o, data, len);
-	if (res != TEE_SUCCESS)
-		goto err;
+	if (!obj && attr_o &&
+	    !(attr_o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT)) {
+		/*
+		 * The caller expects the supplied attributes handle to be
+		 * transformed into a persistent object.
+		 */
+		uint32_t saved_flags = attr_o->info.handleFlags;
 
-	po = NULL; /* o owns it from now on */
-	tee_obj_add(utc, o);
+		attr_o->info.handleFlags = TEE_HANDLE_FLAG_PERSISTENT |
+					   TEE_HANDLE_FLAG_INITIALIZED | flags;
+		attr_o->pobj = po;
+		res = tee_svc_storage_init_file(attr_o,
+						flags & TEE_DATA_FLAG_OVERWRITE,
+						attr_o, data, len);
+		if (res) {
+			attr_o->info.handleFlags = saved_flags;
+			attr_o->pobj = NULL;
+			goto err;
+		}
+	} else {
+		o = tee_obj_alloc();
+		if (!o) {
+			res = TEE_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
 
-	res = copy_kaddr_to_uref(obj, o);
-	if (res != TEE_SUCCESS)
-		goto oclose;
+		o->info.handleFlags = TEE_HANDLE_FLAG_PERSISTENT |
+				      TEE_HANDLE_FLAG_INITIALIZED | flags;
+		o->pobj = po;
 
-	tee_pobj_create_final(o->pobj);
+		res = tee_svc_storage_init_file(o,
+						flags & TEE_DATA_FLAG_OVERWRITE,
+						attr_o, data, len);
+		if (res != TEE_SUCCESS)
+			goto err;
+
+		po = NULL; /* o owns it from now on */
+		tee_obj_add(utc, o);
+
+		if (obj) {
+			res = copy_kaddr_to_uref(obj, o);
+			if (res != TEE_SUCCESS)
+				goto oclose;
+		}
+
+		tee_pobj_create_final(o->pobj);
+
+		if (!obj)
+			tee_obj_close(utc, o);
+	}
+
 	return TEE_SUCCESS;
 
 oclose:

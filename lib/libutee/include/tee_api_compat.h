@@ -45,6 +45,7 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_AsymmetricSignDigest __GP11_TEE_AsymmetricSignDigest
 #define TEE_AsymmetricVerifyDigest __GP11_TEE_AsymmetricVerifyDigest
 #define TEE_CheckMemoryAccessRights __GP11_TEE_CheckMemoryAccessRights
+#define TEE_CreatePersistentObject __GP11_TEE_CreatePersistentObject
 #define TEE_DeriveKey __GP11_TEE_DeriveKey
 #define TEE_GenerateKey __GP11_TEE_GenerateKey
 #define TEE_GetNextPersistentObject __GP11_TEE_GetNextPersistentObject
