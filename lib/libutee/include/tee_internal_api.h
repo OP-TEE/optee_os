@@ -125,16 +125,20 @@ void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize);
 
 void TEE_Free(void *buffer);
 
-void *TEE_MemMove(void *dest, const void *src, uint32_t size);
+void *TEE_MemMove(void *dest, const void *src, size_t size);
+void *__GP11_TEE_MemMove(void *dest, const void *src, uint32_t size);
 
 /*
  * Note: TEE_MemCompare() has a constant-time implementation (execution time
  * does not depend on buffer content but only on buffer size). It is the main
  * difference with memcmp().
  */
-int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size);
+int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, size_t size);
+int32_t __GP11_TEE_MemCompare(const void *buffer1, const void *buffer2,
+			      uint32_t size);
 
-void TEE_MemFill(void *buff, uint32_t x, uint32_t size);
+void TEE_MemFill(void *buff, uint32_t x, size_t size);
+void __GP11_TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 
 /* Data and Key Storage API  - Generic Object Functions */
 

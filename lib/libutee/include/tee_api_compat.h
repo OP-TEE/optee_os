@@ -56,6 +56,9 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_InitValueAttribute __GP11_TEE_InitValueAttribute
 #define TEE_InvokeTACommand __GP11_TEE_InvokeTACommand
 #define TEE_Malloc __GP11_TEE_Malloc
+#define TEE_MemCompare __GP11_TEE_MemCompare
+#define TEE_MemFill __GP11_TEE_MemFill
+#define TEE_MemMove __GP11_TEE_MemMove
 #define TEE_OpenTASession __GP11_TEE_OpenTASession
 #define TEE_PopulateTransientObject __GP11_TEE_PopulateTransientObject
 #define TEE_Realloc __GP11_TEE_Realloc
