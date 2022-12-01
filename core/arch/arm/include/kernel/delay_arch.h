@@ -27,15 +27,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __KERNEL_DELAY_H
-#define __KERNEL_DELAY_H
+#ifndef __KERNEL_DELAY_ARCH_H
+#define __KERNEL_DELAY_ARCH_H
 
 #include <arm.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-void udelay(uint32_t us);
-void mdelay(uint32_t ms);
 
 static inline uint64_t arm_cnt_us2cnt(uint32_t us)
 {
