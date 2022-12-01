@@ -157,7 +157,10 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object,
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
-					uint32_t *size);
+					size_t *size);
+TEE_Result __GP11_TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
+					       uint32_t attributeID,
+					       void *buffer, uint32_t *size);
 
 TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 				       uint32_t attributeID, uint32_t *a,
