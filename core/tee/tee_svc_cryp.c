@@ -4169,6 +4169,31 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 				label_len = params[n].content.ref.length;
 				break;
 			}
+			/*
+			 * If the optional TEE_ATTR_RSA_OAEP_MGF_HASH is
+			 * provided for algorithm
+			 * TEE_ALG_RSAES_PKCS1_OAEP_MGF1_x it must match
+			 * the internal hash x since we don't support using
+			 * a different hash for MGF1 yet.
+			 */
+			if (cs->algo != TEE_ALG_RSAES_PKCS1_V1_5 &&
+			    params[n].attributeID ==
+			    TEE_ATTR_RSA_OAEP_MGF_HASH) {
+				uint32_t hash = 0;
+
+				if (params[n].content.ref.length !=
+				    sizeof(hash)) {
+					res = TEE_ERROR_BAD_PARAMETERS;
+					break;
+				}
+				memcpy(&hash, params[n].content.ref.buffer,
+				       sizeof(hash));
+				if (hash !=
+				    TEE_INTERNAL_HASH_TO_ALGO(cs->algo)) {
+					res = TEE_ERROR_NOT_SUPPORTED;
+					break;
+				}
+			}
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
