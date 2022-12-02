@@ -302,7 +302,11 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 TEE_Result
 TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
 			     TEE_OperationInfoMultiple *operationInfoMultiple,
-			     uint32_t *operationSize);
+			     size_t *operationSize);
+TEE_Result
+__GP11_TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
+				    TEE_OperationInfoMultiple *info,
+				    uint32_t *operationSize);
 
 void TEE_ResetOperation(TEE_OperationHandle operation);
 

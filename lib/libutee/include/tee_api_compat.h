@@ -52,6 +52,7 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_GetObjectBufferAttribute __GP11_TEE_GetObjectBufferAttribute
 #define TEE_GetObjectInfo1 __GP11_TEE_GetObjectInfo1
 #define TEE_GetObjectInfo __GP11_TEE_GetObjectInfo
+#define TEE_GetOperationInfoMultiple __GP11_TEE_GetOperationInfoMultiple
 #define TEE_GetPropertyAsBinaryBlock __GP11_TEE_GetPropertyAsBinaryBlock
 #define TEE_GetPropertyAsString __GP11_TEE_GetPropertyAsString
 #define TEE_GetPropertyName __GP11_TEE_GetPropertyName
