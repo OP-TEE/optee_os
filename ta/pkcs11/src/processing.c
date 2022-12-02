@@ -555,12 +555,11 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 	TEE_MemMove(hdl_ptr, &pubkey_handle, sizeof(pubkey_handle));
 	TEE_MemMove(hdl_ptr + 1, &privkey_handle, sizeof(privkey_handle));
 
-	pubkey_handle = 0;
-	privkey_handle = 0;
-
 	DMSG("PKCS11 session %"PRIu32": create key pair %#"PRIx32"/%#"PRIx32,
 	     session->handle, privkey_handle, pubkey_handle);
 
+	pubkey_handle = 0;
+	privkey_handle = 0;
 out:
 	if (pubkey_handle) {
 		object = pkcs11_handle2object(pubkey_handle, session);
