@@ -45,6 +45,24 @@ TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)
 		case TEE_ALG_SHA512:
 			res = crypto_sha512_alloc_ctx(&c);
 			break;
+		case TEE_ALG_SHA3_224:
+			res = crypto_sha3_224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA3_256:
+			res = crypto_sha3_256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA3_384:
+			res = crypto_sha3_384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHA3_512:
+			res = crypto_sha3_512_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHAKE128:
+			res = crypto_shake128_alloc_ctx(&c);
+			break;
+		case TEE_ALG_SHAKE256:
+			res = crypto_shake256_alloc_ctx(&c);
+			break;
 		case TEE_ALG_SM3:
 			res = crypto_sm3_alloc_ctx(&c);
 			break;
@@ -255,6 +273,18 @@ TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo)
 			break;
 		case TEE_ALG_HMAC_SHA512:
 			res = crypto_hmac_sha512_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA3_224:
+			res = crypto_hmac_sha3_224_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA3_256:
+			res = crypto_hmac_sha3_256_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA3_384:
+			res = crypto_hmac_sha3_384_alloc_ctx(&c);
+			break;
+		case TEE_ALG_HMAC_SHA3_512:
+			res = crypto_hmac_sha3_512_alloc_ctx(&c);
 			break;
 		case TEE_ALG_HMAC_SM3:
 			res = crypto_hmac_sm3_alloc_ctx(&c);
