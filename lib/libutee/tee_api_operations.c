@@ -429,7 +429,7 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 
 TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 					TEE_OperationInfoMultiple *op_info,
-					uint32_t *size)
+					size_t *size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectInfo kinfo = { };
@@ -441,7 +441,7 @@ TEE_Result TEE_GetOperationInfoMultiple(TEE_OperationHandle op,
 		goto out;
 	}
 
-	__utee_check_gp11_outbuf_annotation(op_info, size);
+	__utee_check_outbuf_annotation(op_info, size);
 
 	if (*size < sizeof(*op_info)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -512,6 +512,21 @@ out:
 	    res != TEE_ERROR_SHORT_BUFFER)
 		TEE_Panic(res);
 
+	return res;
+}
+
+TEE_Result
+__GP11_TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
+				    TEE_OperationInfoMultiple *info,
+				    uint32_t *operationSize)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t s = 0;
+
+	__utee_check_gp11_outbuf_annotation(info, operationSize);
+	s = *operationSize;
+	res = TEE_GetOperationInfoMultiple(operation, info, &s);
+	*operationSize = s;
 	return res;
 }
 
