@@ -710,7 +710,7 @@ TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object)
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
-				      uint32_t newObjectIDLen)
+				      size_t newObjectIDLen)
 {
 	TEE_Result res;
 
@@ -730,6 +730,13 @@ out:
 		TEE_Panic(res);
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_RenamePersistentObject(TEE_ObjectHandle object,
+					     const void *newObjectID,
+					     uint32_t newObjectIDLen)
+{
+	return TEE_RenamePersistentObject(object, newObjectID, newObjectIDLen);
 }
 
 TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
@@ -801,7 +808,7 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
-				       void *objectID, uint32_t *objectIDLen)
+				       void *objectID, size_t *objectIDLen)
 {
 	struct utee_object_info info = { };
 	TEE_Result res = TEE_SUCCESS;

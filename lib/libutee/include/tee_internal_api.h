@@ -243,7 +243,10 @@ TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object);
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
-				      uint32_t newObjectIDLen);
+				      size_t newObjectIDLen);
+TEE_Result __GP11_TEE_RenamePersistentObject(TEE_ObjectHandle object,
+					     const void *newObjectID,
+					     uint32_t newObjectIDLen);
 
 TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 						  objectEnumerator);
@@ -258,7 +261,7 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
-				       void *objectID, uint32_t *objectIDLen);
+				       void *objectID, size_t *objectIDLen);
 TEE_Result
 __GP11_TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				   __GP11_TEE_ObjectInfo *objectInfo,
