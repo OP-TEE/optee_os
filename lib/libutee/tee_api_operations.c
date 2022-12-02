@@ -284,6 +284,10 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_HMAC_SHA256:
 	case TEE_ALG_HMAC_SHA384:
 	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SHA3_224:
+	case TEE_ALG_HMAC_SHA3_256:
+	case TEE_ALG_HMAC_SHA3_384:
+	case TEE_ALG_HMAC_SHA3_512:
 	case TEE_ALG_HMAC_SM3:
 		if (mode != TEE_MODE_MAC)
 			return TEE_ERROR_NOT_SUPPORTED;
@@ -2365,6 +2369,22 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 		if (alg == TEE_ALG_SHA512)
 			goto check_element_none;
 	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA3_224)) {
+		if (alg == TEE_ALG_SHA3_224)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA3_256)) {
+		if (alg == TEE_ALG_SHA3_256)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA3_384)) {
+		if (alg == TEE_ALG_SHA3_384)
+			goto check_element_none;
+	}
+	if (IS_ENABLED(CFG_CRYPTO_SHA3_512)) {
+		if (alg == TEE_ALG_SHA3_512)
+			goto check_element_none;
+	}
 	if (IS_ENABLED(CFG_CRYPTO_MD5) && IS_ENABLED(CFG_CRYPTO_SHA1)) {
 		if (alg == TEE_ALG_MD5SHA1)
 			goto check_element_none;
@@ -2392,6 +2412,22 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 		}
 		if (IS_ENABLED(CFG_CRYPTO_SHA512)) {
 			if (alg == TEE_ALG_HMAC_SHA512)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA3_224)) {
+			if (alg == TEE_ALG_HMAC_SHA3_224)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA3_256)) {
+			if (alg == TEE_ALG_HMAC_SHA3_256)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA3_384)) {
+			if (alg == TEE_ALG_HMAC_SHA3_384)
+				goto check_element_none;
+		}
+		if (IS_ENABLED(CFG_CRYPTO_SHA3_512)) {
+			if (alg == TEE_ALG_HMAC_SHA3_512)
 				goto check_element_none;
 		}
 		if (IS_ENABLED(CFG_CRYPTO_SM3)) {
