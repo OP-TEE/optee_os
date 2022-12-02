@@ -324,38 +324,61 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t algId, uint32_t element);
 /* Cryptographic Operations API - Message Digest Functions */
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,
-		      const void *chunk, uint32_t chunkSize);
+		      const void *chunk, size_t chunkSize);
+void __GP11_TEE_DigestUpdate(TEE_OperationHandle operation,
+			     const void *chunk, uint32_t chunkSize);
 
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
-			     uint32_t chunkLen, void *hash, uint32_t *hashLen);
+			     size_t chunkLen, void *hash, size_t *hashLen);
+TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
+				    const void *chunk, uint32_t chunkLen,
+				    void *hash, uint32_t *hashLen);
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
-		    uint32_t IVLen);
+		    size_t IVLen);
+void __GP11_TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
+			   uint32_t IVLen);
 
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
-			    uint32_t srcLen, void *destData, uint32_t *destLen);
+			    size_t srcLen, void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
+				   const void *srcData, uint32_t srcLen,
+				   void *destData, uint32_t *destLen);
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
-			     const void *srcData, uint32_t srcLen,
-			     void *destData, uint32_t *destLen);
+			     const void *srcData, size_t srcLen,
+			     void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
+				    const void *srcData, uint32_t srcLen,
+				    void *destData, uint32_t *destLen);
 
 /* Cryptographic Operations API - MAC Functions */
 
 void TEE_MACInit(TEE_OperationHandle operation, const void *IV,
-		 uint32_t IVLen);
+		 size_t IVLen);
+void __GP11_TEE_MACInit(TEE_OperationHandle operation, const void *IV,
+			uint32_t IVLen);
 
 void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
-		   uint32_t chunkSize);
+		   size_t chunkSize);
+void __GP11_TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
+			  uint32_t chunkSize);
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       void *mac, uint32_t *macLen);
+			       const void *message, size_t messageLen,
+			       void *mac, size_t *macLen);
+TEE_Result __GP11_TEE_MACComputeFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      void *mac, uint32_t *macLen);
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen);
+			       const void *message, size_t messageLen,
+			       const void *mac, size_t macLen);
+TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      const void *mac, uint32_t macLen);
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 

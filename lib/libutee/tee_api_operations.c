@@ -821,7 +821,7 @@ static void init_hash_operation(TEE_OperationHandle operation, const void *IV,
 }
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,
-		      const void *chunk, uint32_t chunkSize)
+		      const void *chunk, size_t chunkSize)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -836,8 +836,14 @@ void TEE_DigestUpdate(TEE_OperationHandle operation,
 		TEE_Panic(res);
 }
 
+void __GP11_TEE_DigestUpdate(TEE_OperationHandle operation,
+			     const void *chunk, uint32_t chunkSize)
+{
+	return TEE_DigestUpdate(operation, chunk, chunkSize);
+}
+
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
-			     uint32_t chunkLen, void *hash, uint32_t *hashLen)
+			     size_t chunkLen, void *hash, size_t *hashLen)
 {
 	TEE_Result res;
 	uint64_t hl;
@@ -869,10 +875,24 @@ out:
 	return res;
 }
 
+TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
+				    const void *chunk, uint32_t chunkLen,
+				    void *hash, uint32_t *hashLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t l = 0;
+
+	__utee_check_inout_annotation(hashLen, sizeof(*hashLen));
+	l = *hashLen;
+	res = TEE_DigestDoFinal(operation, chunk, chunkLen, hash, &l);
+	*hashLen = l;
+	return res;
+}
+
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
-		    uint32_t IVLen)
+		    size_t IVLen)
 {
 	TEE_Result res;
 
@@ -905,6 +925,12 @@ void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
 
 	operation->buffer_offs = 0;
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+}
+
+void __GP11_TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
+			   uint32_t IVLen)
+{
+	return TEE_CipherInit(operation, IV, IVLen);
 }
 
 static TEE_Result tee_buffer_update(
@@ -1006,7 +1032,7 @@ out:
 }
 
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
-			    uint32_t srcLen, void *destData, uint32_t *destLen)
+			    size_t srcLen, void *destData, size_t *destLen)
 {
 	TEE_Result res;
 	size_t req_dlen;
@@ -1086,9 +1112,23 @@ out:
 	return res;
 }
 
+TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
+				   const void *srcData, uint32_t srcLen,
+				   void *destData, uint32_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t dl = 0;
+
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	dl = *destLen;
+	res = TEE_CipherUpdate(operation, srcData, srcLen, destData, &dl);
+	*destLen = dl;
+	return res;
+}
+
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
-			     const void *srcData, uint32_t srcLen,
-			     void *destData, uint32_t *destLen)
+			     const void *srcData, size_t srcLen,
+			     void *destData, size_t *destLen)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t *dst = destData;
@@ -1195,9 +1235,26 @@ out:
 	return res;
 }
 
+TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
+				    const void *srcData, uint32_t srcLen,
+				    void *destData, uint32_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t dl = 0;
+
+	if (destLen) {
+		__utee_check_inout_annotation(destLen, sizeof(*destLen));
+		dl = *destLen;
+	}
+	res = TEE_CipherDoFinal(operation, srcData, srcLen, destData, &dl);
+	if (destLen)
+		*destLen = dl;
+	return res;
+}
+
 /* Cryptographic Operations API - MAC Functions */
 
-void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
+void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
 {
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
@@ -1217,8 +1274,14 @@ void TEE_MACInit(TEE_OperationHandle operation, const void *IV, uint32_t IVLen)
 	init_hash_operation(operation, IV, IVLen);
 }
 
+void __GP11_TEE_MACInit(TEE_OperationHandle operation, const void *IV,
+			uint32_t IVLen)
+{
+	return TEE_MACInit(operation, IV, IVLen);
+}
+
 void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
-		   uint32_t chunkSize)
+		   size_t chunkSize)
 {
 	TEE_Result res;
 
@@ -1239,9 +1302,15 @@ void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
 		TEE_Panic(res);
 }
 
+void __GP11_TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
+			  uint32_t chunkSize)
+{
+	return TEE_MACUpdate(operation, chunk, chunkSize);
+}
+
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       void *mac, uint32_t *macLen)
+			       const void *message, size_t messageLen,
+			       void *mac, size_t *macLen)
 {
 	TEE_Result res;
 	uint64_t ml;
@@ -1285,13 +1354,27 @@ out:
 	return res;
 }
 
+TEE_Result __GP11_TEE_MACComputeFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      void *mac, uint32_t *macLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t ml = 0;
+
+	__utee_check_inout_annotation(macLen, sizeof(*macLen));
+	ml = *macLen;
+	res = TEE_MACComputeFinal(operation, message, messageLen, mac, &ml);
+	*macLen = ml;
+	return res;
+}
+
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen)
+			       const void *message, size_t messageLen,
+			       const void *mac, size_t macLen)
 {
 	TEE_Result res;
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE] = { 0 };
-	uint32_t computed_mac_size = TEE_MAX_HASH_SIZE;
+	size_t computed_mac_size = TEE_MAX_HASH_SIZE;
 
 	if (operation->info.operationClass != TEE_OPERATION_MAC) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1331,6 +1414,13 @@ out:
 		TEE_Panic(res);
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      const void *mac, uint32_t macLen)
+{
+	return TEE_MACCompareFinal(operation, message, messageLen, mac, macLen);
 }
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
