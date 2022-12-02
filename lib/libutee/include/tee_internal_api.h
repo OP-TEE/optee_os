@@ -423,8 +423,8 @@ TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 uint32_t srcLen, void *destData,
-				 uint32_t *destLen);
+				 size_t srcLen, void *destData,
+				 size_t *destLen);
 TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 					const __GP11_TEE_Attribute *params,
 					uint32_t paramCount,
@@ -434,8 +434,8 @@ TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 uint32_t srcLen, void *destData,
-				 uint32_t *destLen);
+				 size_t srcLen, void *destData,
+				 size_t *destLen);
 TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 					const __GP11_TEE_Attribute *params,
 					uint32_t paramCount,
