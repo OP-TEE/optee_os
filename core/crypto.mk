@@ -163,6 +163,7 @@ $(eval $(call cryp-dep-all, DSA, SHA256 SHA384 SHA512))
 core-ltc-vars = AES DES
 core-ltc-vars += ECB CBC CTR CTS XTS
 core-ltc-vars += MD5 SHA1 SHA224 SHA256 SHA384 SHA512 SHA512_256
+core-ltc-vars += SHA3_224 SHA3_256 SHA3_384 SHA3_512 SHAKE128 SHAKE256
 core-ltc-vars += HMAC CMAC CBC_MAC
 core-ltc-vars += CCM
 ifeq ($(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB),y)
@@ -200,6 +201,15 @@ _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_X25519 := $(CFG_CRYPTO_X25519)
 _CFG_CORE_LTC_ED25519 := $(CFG_CRYPTO_ED25519)
+_CFG_CORE_LTC_SHA3_224 := $(CFG_CRYPTO_SHA3_224)
+_CFG_CORE_LTC_SHA3_256 := $(CFG_CRYPTO_SHA3_256)
+_CFG_CORE_LTC_SHA3_384 := $(CFG_CRYPTO_SHA3_384)
+_CFG_CORE_LTC_SHA3_512 := $(CFG_CRYPTO_SHA3_512)
+_CFG_CORE_LTC_SHAKE128 := $(CFG_CRYPTO_SHAKE128)
+_CFG_CORE_LTC_SHAKE256 := $(CFG_CRYPTO_SHAKE256)
+_CFG_CORE_LTC_HMAC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA3_224 \
+			_CFG_CORE_LTC_SHA3_256 _CFG_CORE_LTC_SHA3_384 \
+			_CFG_CORE_LTC_SHA3_512)
 endif
 
 ###############################################################
@@ -216,6 +226,11 @@ _CFG_CORE_LTC_SHA512_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA512_DESC \
 						     _CFG_CORE_LTC_SHA512)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_AES_DESC \
 						  _CFG_CORE_LTC_AES)
+
+_CFG_CORE_LTC_SHA3 := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA3_224 \
+			_CFG_CORE_LTC_SHA3_256 _CFG_CORE_LTC_SHA3_384 \
+			_CFG_CORE_LTC_SHA3_512 _CFG_CORE_LTC_SHAKE128 \
+			_CFG_CORE_LTC_SHAKE256)
 
 # Assign system variables
 _CFG_CORE_LTC_CE := $(CFG_CRYPTO_WITH_CE)
@@ -236,7 +251,8 @@ _CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES_DESC)), \
 			       $(filter y,$(call ltc-one-enabled, CCM GCM)))
 _CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES_DESC DES)
 _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
-					      SHA512)
+					      SHA512 SHA3_224 SHA3_256 \
+					      SHA3_384 SHA3_512)
 _CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
 _CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)

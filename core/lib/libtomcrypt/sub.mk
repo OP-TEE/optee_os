@@ -107,6 +107,8 @@ endif
 cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
 cppflags-lib-$(_CFG_CORE_LTC_ED25519) += -DLTC_CURVE25519
 
+cppflags-lib-$(_CFG_CORE_LTC_SHA3) += -DLTC_SHA3
+
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 
 cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
@@ -114,6 +116,7 @@ cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
 subdirs-y += src
 
 srcs-$(_CFG_CORE_LTC_HASH) += hash.c
+srcs-$(_CFG_CORE_LTC_SHA3) += shake.c
 srcs-$(_CFG_CORE_LTC_HMAC) += hmac.c
 srcs-$(_CFG_CORE_LTC_CMAC) += cmac.c
 srcs-$(_CFG_CORE_LTC_ECB) += ecb.c

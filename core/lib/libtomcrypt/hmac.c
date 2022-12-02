@@ -101,32 +101,72 @@ static TEE_Result ltc_hmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
 	return TEE_SUCCESS;
 }
 
+#if defined(_CFG_CORE_LTC_MD5)
 TEE_Result crypto_hmac_md5_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("md5"));
 }
+#endif
 
+#if defined(_CFG_CORE_LTC_SHA1)
 TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("sha1"));
 }
+#endif
 
+#if defined(_CFG_CORE_LTC_SHA224)
 TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("sha224"));
 }
+#endif
 
+#if defined(_CFG_CORE_LTC_SHA256)
 TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("sha256"));
 }
+#endif
 
+#if defined(_CFG_CORE_LTC_SHA384)
 TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("sha384"));
 }
+#endif
 
+#if defined(_CFG_CORE_LTC_SHA512)
 TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return ltc_hmac_alloc_ctx(ctx, find_hash("sha512"));
 }
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_224)
+TEE_Result crypto_hmac_sha3_224_alloc_ctx(struct crypto_mac_ctx **ctx)
+{
+	return ltc_hmac_alloc_ctx(ctx, find_hash("sha3-224"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_256)
+TEE_Result crypto_hmac_sha3_256_alloc_ctx(struct crypto_mac_ctx **ctx)
+{
+	return ltc_hmac_alloc_ctx(ctx, find_hash("sha3-256"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_384)
+TEE_Result crypto_hmac_sha3_384_alloc_ctx(struct crypto_mac_ctx **ctx)
+{
+	return ltc_hmac_alloc_ctx(ctx, find_hash("sha3-384"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_512)
+TEE_Result crypto_hmac_sha3_512_alloc_ctx(struct crypto_mac_ctx **ctx)
+{
+	return ltc_hmac_alloc_ctx(ctx, find_hash("sha3-512"));
+}
+#endif

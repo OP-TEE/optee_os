@@ -6,5 +6,6 @@ srcs-y += sha1.c
 endif
 endif
 
+srcs-$(_CFG_CORE_LTC_SHA3) += sha3.c sha3_test.c
 subdirs-y += helper
 subdirs-y += sha2

@@ -204,3 +204,30 @@ TEE_Result hash_sha512_256_compute(uint8_t *digest, const uint8_t *data,
 }
 #endif
 
+#if defined(_CFG_CORE_LTC_SHA3_224)
+TEE_Result crypto_sha3_224_alloc_ctx(struct crypto_hash_ctx **ctx)
+{
+	return ltc_hash_alloc_ctx(ctx, find_hash("sha3-224"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_256)
+TEE_Result crypto_sha3_256_alloc_ctx(struct crypto_hash_ctx **ctx)
+{
+	return ltc_hash_alloc_ctx(ctx, find_hash("sha3-256"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_384)
+TEE_Result crypto_sha3_384_alloc_ctx(struct crypto_hash_ctx **ctx)
+{
+	return ltc_hash_alloc_ctx(ctx, find_hash("sha3-384"));
+}
+#endif
+
+#if defined(_CFG_CORE_LTC_SHA3_512)
+TEE_Result crypto_sha3_512_alloc_ctx(struct crypto_hash_ctx **ctx)
+{
+	return ltc_hash_alloc_ctx(ctx, find_hash("sha3-512"));
+}
+#endif
