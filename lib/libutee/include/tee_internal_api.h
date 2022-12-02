@@ -445,8 +445,8 @@ TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
-				    uint32_t digestLen, void *signature,
-				    uint32_t *signatureLen);
+				    size_t digestLen, void *signature,
+				    size_t *signatureLen);
 TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 					   const __GP11_TEE_Attribute *params,
 					   uint32_t paramCount,
@@ -457,8 +457,8 @@ TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen, const void *signature,
-				      uint32_t signatureLen);
+				      size_t digestLen, const void *signature,
+				      size_t signatureLen);
 TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 					     const __GP11_TEE_Attribute *params,
 					     uint32_t paramCount,
