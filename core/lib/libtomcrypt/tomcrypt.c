@@ -117,6 +117,18 @@ static void tee_ltc_reg_algs(void)
 #if defined(_CFG_CORE_LTC_SHA512) || defined(_CFG_CORE_LTC_SHA512_DESC)
 	register_hash(&sha512_desc);
 #endif
+#if defined(_CFG_CORE_LTC_SHA3_224)
+	register_hash(&sha3_224_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_256)
+	register_hash(&sha3_256_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_384)
+	register_hash(&sha3_384_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_512)
+	register_hash(&sha3_512_desc);
+#endif
 #if defined(_CFG_CORE_LTC_ACIPHER) || defined(_CFG_CORE_LTC_EC25519)
 	register_prng(&prng_crypto_desc);
 #endif
