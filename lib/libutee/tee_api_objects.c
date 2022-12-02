@@ -892,7 +892,7 @@ out:
 /* Data and Key Storage API  - Data Stream Access Functions */
 
 TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
-			      uint32_t size, uint32_t *count)
+			      size_t size, size_t *count)
 {
 	TEE_Result res;
 	uint64_t cnt64;
@@ -917,8 +917,21 @@ out:
 	return res;
 }
 
+TEE_Result __GP11_TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
+				     uint32_t size, uint32_t *count)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t cnt = 0;
+
+	__utee_check_out_annotation(count, sizeof(*count));
+	cnt = *count;
+	res = TEE_ReadObjectData(object, buffer, size, &cnt);
+	*count = cnt;
+	return res;
+}
+
 TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
-			       uint32_t size)
+			       size_t size)
 {
 	TEE_Result res;
 
@@ -943,6 +956,12 @@ out:
 		TEE_Panic(res);
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_WriteObjectData(TEE_ObjectHandle object,
+				      const void *buffer, uint32_t size)
+{
+	return TEE_WriteObjectData(object, buffer, size);
 }
 
 TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, uint32_t size)
