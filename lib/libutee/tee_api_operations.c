@@ -1426,8 +1426,8 @@ TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
 TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
-		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
-		      uint32_t payloadLen)
+		      size_t nonceLen, uint32_t tagLen, size_t AADLen,
+		      size_t payloadLen)
 {
 	TEE_Result res;
 
@@ -1479,10 +1479,40 @@ out:
 	return res;
 }
 
-void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
-		     uint32_t AADdataLen)
+TEE_Result __GP11_TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
+			     uint32_t nonceLen, uint32_t tagLen,
+			     uint32_t AADLen, uint32_t payloadLen)
 {
-	TEE_Result res;
+	return TEE_AEInit(operation, nonce, nonceLen, tagLen, AADLen,
+			  payloadLen);
+}
+
+void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+		     size_t AADdataLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	if (operation == TEE_HANDLE_NULL || (!AADdata && AADdataLen))
+		TEE_Panic(0);
+
+	if (operation->info.operationClass != TEE_OPERATION_AE)
+		TEE_Panic(0);
+
+	if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		TEE_Panic(0);
+
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0)
+		TEE_Panic(0);
+
+	res = _utee_authenc_update_aad(operation->state, AADdata, AADdataLen);
+	if (res != TEE_SUCCESS)
+		TEE_Panic(res);
+}
+
+void __GP11_TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+			    uint32_t AADdataLen)
+{
+	TEE_Result res = TEE_SUCCESS;
 
 	if (operation == TEE_HANDLE_NULL ||
 	    (AADdata == NULL && AADdataLen != 0))
@@ -1502,18 +1532,66 @@ void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
 		TEE_Panic(res);
 }
 
-TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
-			uint32_t srcLen, void *destData, uint32_t *destLen)
+static TEE_Result ae_update_helper(TEE_OperationHandle operation,
+				   const void *src, size_t slen, void *dst,
+				   size_t *dlen)
 {
 	TEE_Result res = TEE_SUCCESS;
 	size_t req_dlen = 0;
 	uint64_t dl = 0;
 
+	if (!src && !slen) {
+		*dlen = 0;
+		return TEE_SUCCESS;
+	}
+
+	/*
+	 * Check that required destLen is big enough before starting to feed
+	 * data to the algorithm. Errors during feeding of data are fatal as we
+	 * can't restore sync with this API.
+	 */
+	if (operation->block_size > 1) {
+		req_dlen = ROUNDDOWN(operation->buffer_offs + slen,
+				     operation->block_size);
+	} else {
+		req_dlen = slen;
+	}
+
+	dl = *dlen;
+	if (dl < req_dlen) {
+		*dlen = req_dlen;
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+
+	if (operation->block_size > 1) {
+		res = tee_buffer_update(operation, _utee_authenc_update_payload,
+					src, slen, dst, &dl);
+	} else {
+		if (slen > 0) {
+			res = _utee_authenc_update_payload(operation->state,
+							   src, slen, dst, &dl);
+		} else {
+			dl = 0;
+			res = TEE_SUCCESS;
+		}
+	}
+
+	if (!res)
+		*dlen = dl;
+
+	return res;
+}
+
+TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
+			size_t srcLen, void *destData, size_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
-	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_outbuf_annotation(destData, destLen);
 
 	if (operation->info.operationClass != TEE_OPERATION_AE) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1525,48 +1603,47 @@ TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
 		goto out;
 	}
 
-	if (!srcData && !srcLen) {
-		*destLen = 0;
-		res = TEE_SUCCESS;
+	res = ae_update_helper(operation, srcData, srcLen, destData, destLen);
+	if (res != TEE_ERROR_SHORT_BUFFER && srcLen)
+		operation->operationState = TEE_OPERATION_STATE_ACTIVE;
+
+out:
+	if (res != TEE_SUCCESS &&
+	    res != TEE_ERROR_SHORT_BUFFER)
+		TEE_Panic(res);
+
+	return res;
+}
+
+TEE_Result __GP11_TEE_AEUpdate(TEE_OperationHandle operation,
+			       const void *srcData, uint32_t srcLen,
+			       void *destData, uint32_t *destLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t dl = 0;
+
+	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+	__utee_check_gp11_outbuf_annotation(destData, destLen);
+
+	if (operation->info.operationClass != TEE_OPERATION_AE) {
+		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
-	/*
-	 * Check that required destLen is big enough before starting to feed
-	 * data to the algorithm. Errors during feeding of data are fatal as we
-	 * can't restore sync with this API.
-	 */
-	if (operation->block_size > 1) {
-		req_dlen = ROUNDDOWN(operation->buffer_offs + srcLen,
-				     operation->block_size);
-	} else {
-		req_dlen = srcLen;
+	if ((operation->info.handleState & TEE_HANDLE_FLAG_INITIALIZED) == 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
 	}
 
 	dl = *destLen;
-	if (dl < req_dlen) {
-		*destLen = req_dlen;
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto out;
-	}
+	res = ae_update_helper(operation, srcData, srcLen, destData, &dl);
+	*destLen = dl;
 
-	if (operation->block_size > 1) {
-		res = tee_buffer_update(operation, _utee_authenc_update_payload,
-					srcData, srcLen, destData, &dl);
-	} else {
-		if (srcLen > 0) {
-			res = _utee_authenc_update_payload(operation->state,
-							   srcData, srcLen,
-							   destData, &dl);
-		} else {
-			dl = 0;
-			res = TEE_SUCCESS;
-		}
-	}
 	if (res != TEE_SUCCESS)
 		goto out;
-
-	*destLen = dl;
 
 	operation->operationState = TEE_OPERATION_STATE_ACTIVE;
 
@@ -1579,16 +1656,16 @@ out:
 }
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t *tagLen)
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t *tagLen)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	uint8_t *dst = destData;
 	size_t acc_dlen = 0;
-	uint64_t tmp_dlen;
-	size_t req_dlen;
-	uint64_t tl;
+	uint64_t tmp_dlen = 0;
+	size_t req_dlen = 0;
+	uint64_t tl = 0;
 
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1671,16 +1748,36 @@ out:
 	return res;
 }
 
-TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t tagLen)
+TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t *tagLen)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+	size_t dl = 0;
+	size_t tl = 0;
+
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	__utee_check_inout_annotation(tagLen, sizeof(*tagLen));
+	dl = *destLen;
+	tl = *tagLen;
+	res = TEE_AEEncryptFinal(operation, srcData, srcLen, destData, &dl,
+				 tag, &tl);
+	*destLen = dl;
+	*tagLen = tl;
+	return res;
+}
+
+TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t tagLen)
+{
+	TEE_Result res = TEE_SUCCESS;
 	uint8_t *dst = destData;
 	size_t acc_dlen = 0;
-	uint64_t tmp_dlen;
-	size_t req_dlen;
+	uint64_t tmp_dlen = 0;
+	size_t req_dlen = 0;
 
 	if (operation == TEE_HANDLE_NULL || (!srcData && srcLen)) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1750,6 +1847,22 @@ out:
 	    res != TEE_ERROR_MAC_INVALID)
 			TEE_Panic(res);
 
+	return res;
+}
+
+TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t tagLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t dl = 0;
+
+	__utee_check_inout_annotation(destLen, sizeof(*destLen));
+	dl = *destLen;
+	res = TEE_AEDecryptFinal(operation, srcData, srcLen, destData, &dl,
+				 tag, tagLen);
+	*destLen = dl;
 	return res;
 }
 

@@ -383,24 +383,40 @@ TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
 TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
-		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
-		      uint32_t payloadLen);
+		      size_t nonceLen, uint32_t tagLen, size_t AADLen,
+		      size_t payloadLen);
+TEE_Result __GP11_TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
+			     uint32_t nonceLen, uint32_t tagLen,
+			     uint32_t AADLen, uint32_t payloadLen);
 
 void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
-		     uint32_t AADdataLen);
+		     size_t AADdataLen);
+void __GP11_TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+			    uint32_t AADdataLen);
 
 TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
-			uint32_t srcLen, void *destData, uint32_t *destLen);
+			size_t srcLen, void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_AEUpdate(TEE_OperationHandle operation,
+			       const void *srcData, uint32_t srcLen,
+			       void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t *tagLen);
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t *tagLen);
+TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t *tagLen);
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t tagLen);
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t tagLen);
+TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t tagLen);
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
