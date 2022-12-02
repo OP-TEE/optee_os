@@ -2247,13 +2247,18 @@ void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
-void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
+void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen)
 {
 	TEE_Result res;
 
 	res = _utee_cryp_random_number_generate(randomBuffer, randomBufferLen);
 	if (res != TEE_SUCCESS)
 		TEE_Panic(res);
+}
+
+void __GP11_TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
+{
+	TEE_GenerateRandom(randomBuffer, randomBufferLen);
 }
 
 int rand(void)
