@@ -314,6 +314,13 @@
 #define TEE_ALG_X25519                          0x80000044
 #define TEE_ALG_ILLEGAL_VALUE                   0xEFFFFFFF
 
+#define TEE_ALG_SHA3_224                        0x50000008
+#define TEE_ALG_SHA3_256                        0x50000009
+#define TEE_ALG_SHA3_384                        0x5000000A
+#define TEE_ALG_SHA3_512                        0x5000000B
+#define TEE_ALG_SHAKE128                        0x50000101
+#define TEE_ALG_SHAKE256                        0x50000102
+
 /* Object Types */
 
 #define TEE_TYPE_AES                        0xA0000010
