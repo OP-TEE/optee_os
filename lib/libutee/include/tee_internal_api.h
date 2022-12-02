@@ -283,8 +283,10 @@ TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, size_t size);
 TEE_Result __GP11_TEE_TruncateObjectData(TEE_ObjectHandle object,
 					 uint32_t size);
 
-TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, intmax_t offset,
 			      TEE_Whence whence);
+TEE_Result __GP11_TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+				     TEE_Whence whence);
 
 /* Cryptographic Operations API - Generic Operation Functions */
 
