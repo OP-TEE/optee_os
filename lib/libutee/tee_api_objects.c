@@ -991,7 +991,7 @@ TEE_Result __GP11_TEE_TruncateObjectData(TEE_ObjectHandle object,
 	return TEE_TruncateObjectData(object, size);
 }
 
-TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, intmax_t offset,
 			      TEE_Whence whence)
 {
 	struct utee_object_info info = { };
@@ -1045,4 +1045,10 @@ out:
 		TEE_Panic(res);
 
 	return res;
+}
+
+TEE_Result __GP11_TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+				     TEE_Whence whence)
+{
+	return TEE_SeekObjectData(object, offset, whence);
 }
