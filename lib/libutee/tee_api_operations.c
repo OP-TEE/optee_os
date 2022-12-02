@@ -2019,8 +2019,8 @@ TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
-				    uint32_t digestLen, void *signature,
-				    uint32_t *signatureLen)
+				    size_t digestLen, void *signature,
+				    size_t *signatureLen)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct utee_attribute ua[paramCount];
@@ -2092,9 +2092,9 @@ TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen,
+				      size_t digestLen,
 				      const void *signature,
-				      uint32_t signatureLen)
+				      size_t signatureLen)
 {
 	TEE_Result res;
 	struct utee_attribute ua[paramCount];
