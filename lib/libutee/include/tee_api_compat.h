@@ -68,6 +68,7 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_ReadObjectData __GP11_TEE_ReadObjectData
 #define TEE_Realloc __GP11_TEE_Realloc
 #define TEE_RenamePersistentObject __GP11_TEE_RenamePersistentObject
+#define TEE_TruncateObjectData __GP11_TEE_TruncateObjectData
 #define TEE_WriteObjectData __GP11_TEE_WriteObjectData
 #endif
 

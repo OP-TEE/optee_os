@@ -279,7 +279,9 @@ TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
 TEE_Result __GP11_TEE_WriteObjectData(TEE_ObjectHandle object,
 				      const void *buffer, uint32_t size);
 
-TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, uint32_t size);
+TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, size_t size);
+TEE_Result __GP11_TEE_TruncateObjectData(TEE_ObjectHandle object,
+					 uint32_t size);
 
 TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 			      TEE_Whence whence);
