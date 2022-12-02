@@ -45,8 +45,13 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_AsymmetricSignDigest __GP11_TEE_AsymmetricSignDigest
 #define TEE_AsymmetricVerifyDigest __GP11_TEE_AsymmetricVerifyDigest
 #define TEE_CheckMemoryAccessRights __GP11_TEE_CheckMemoryAccessRights
+#define TEE_CipherDoFinal __GP11_TEE_CipherDoFinal
+#define TEE_CipherInit __GP11_TEE_CipherInit
+#define TEE_CipherUpdate __GP11_TEE_CipherUpdate
 #define TEE_CreatePersistentObject __GP11_TEE_CreatePersistentObject
 #define TEE_DeriveKey __GP11_TEE_DeriveKey
+#define TEE_DigestDoFinal __GP11_TEE_DigestDoFinal
+#define TEE_DigestUpdate __GP11_TEE_DigestUpdate
 #define TEE_GenerateKey __GP11_TEE_GenerateKey
 #define TEE_GetNextPersistentObject __GP11_TEE_GetNextPersistentObject
 #define TEE_GetObjectBufferAttribute __GP11_TEE_GetObjectBufferAttribute
@@ -59,6 +64,10 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_InitRefAttribute __GP11_TEE_InitRefAttribute
 #define TEE_InitValueAttribute __GP11_TEE_InitValueAttribute
 #define TEE_InvokeTACommand __GP11_TEE_InvokeTACommand
+#define TEE_MACCompareFinal __GP11_TEE_MACCompareFinal
+#define TEE_MACComputeFinal __GP11_TEE_MACComputeFinal
+#define TEE_MACInit __GP11_TEE_MACInit
+#define TEE_MACUpdate __GP11_TEE_MACUpdate
 #define TEE_Malloc __GP11_TEE_Malloc
 #define TEE_MemCompare __GP11_TEE_MemCompare
 #define TEE_MemFill __GP11_TEE_MemFill
