@@ -78,4 +78,7 @@
 /* Channel supports shared memory using the MSG header protocol */
 #define PTA_SCMI_CAPS_MSG_HEADER			BIT32(1)
 
+/* Mask of defined capabilities */
+#define PTA_SCMI_CAPS_MASK				GENMASK_32(1, 0)
+
 #endif /* SCMI_PTA_SCMI_CLIENT_H */
