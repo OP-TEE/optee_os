@@ -495,28 +495,44 @@ void TEE_GetREETime(TEE_Time *time);
 
 /* TEE Arithmetical API - Memory allocation and size of objects */
 
-uint32_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
+size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits);
+uint32_t __GP11_TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
 
-uint32_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
+size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits);
+uint32_t __GP11_TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
 
 /* TEE Arithmetical API - Initialization functions */
 
-void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
+void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len);
+void __GP11_TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
 
-void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, uint32_t len,
+void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, size_t len,
 			      const TEE_BigInt *modulus);
+void __GP11_TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
+				     uint32_t len, const TEE_BigInt *modulus);
 
-void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len);
+TEE_Result TEE_BigIntInitFMMContext1(TEE_BigIntFMMContext *context,
+				     size_t len, const TEE_BigInt *modulus);
+
+void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, size_t len);
+void __GP11_TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len);
 
 /* TEE Arithmetical API - Converter functions */
 
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
-					    uint32_t bufferLen,
+					    size_t bufferLen,
 					    int32_t sign);
+TEE_Result __GP11_TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
+						   const uint8_t *buffer,
+						   uint32_t bufferLen,
+						   int32_t sign);
 
-TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
+TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 					  const TEE_BigInt *bigInt);
+TEE_Result __GP11_TEE_BigIntConvertToOctetString(uint8_t *buffer,
+						 uint32_t *bufferLen,
+						 const TEE_BigInt *bigInt);
 
 void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal);
 
@@ -530,6 +546,8 @@ int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal);
 
 void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
 			  size_t bits);
+void __GP11_TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
+				 uint32_t bits);
 
 bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex);
 
