@@ -1243,7 +1243,7 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 		}
 	}
 
-	rc = get_key_data_to_wrap(key->attributes, &key_data, &key_sz);
+	rc = alloc_key_data_to_wrap(key->attributes, &key_data, &key_sz);
 	if (rc)
 		goto out;
 
@@ -1267,6 +1267,7 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 out:
 	release_active_processing(session);
 out_free:
+	TEE_Free(key_data);
 	TEE_Free(proc_params);
 	return rc;
 }
