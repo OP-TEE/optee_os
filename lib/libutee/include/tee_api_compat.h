@@ -64,6 +64,7 @@ TEE_Result __ta_invoke_cmd(void *sess_ctx, uint32_t cmd_id, uint32_t pt,
 #define TEE_DeriveKey __GP11_TEE_DeriveKey
 #define TEE_DigestDoFinal __GP11_TEE_DigestDoFinal
 #define TEE_DigestUpdate __GP11_TEE_DigestUpdate
+#define TEE_FreeOperation __GP11_TEE_FreeOperation
 #define TEE_GenerateKey __GP11_TEE_GenerateKey
 #define TEE_GenerateRandom __GP11_TEE_GenerateRandom
 #define TEE_GetNextPersistentObject __GP11_TEE_GetNextPersistentObject

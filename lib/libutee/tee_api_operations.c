@@ -397,7 +397,7 @@ void TEE_FreeOperation(TEE_OperationHandle operation)
 	TEE_Result res;
 
 	if (operation == TEE_HANDLE_NULL)
-		TEE_Panic(0);
+		return;
 
 	/*
 	 * Note that keys should not be freed here, since they are
@@ -410,6 +410,13 @@ void TEE_FreeOperation(TEE_OperationHandle operation)
 
 	TEE_Free(operation->buffer);
 	TEE_Free(operation);
+}
+
+void __GP11_TEE_FreeOperation(TEE_OperationHandle operation)
+{
+	if (operation == TEE_HANDLE_NULL)
+		TEE_Panic(0);
+	TEE_FreeOperation(operation);
 }
 
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
