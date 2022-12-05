@@ -83,14 +83,13 @@ static const bool crypto_ecc_en;
 
 /*
  * Trusted storage anti rollback protection level
- * 0 (or missing): No antirollback protection (default)
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
 #ifdef CFG_RPMB_FS
 static const uint32_t ts_antiroll_prot_lvl = 1000;
 #else
-static const uint32_t ts_antiroll_prot_lvl;
+static const uint32_t ts_antiroll_prot_lvl = 100;
 #endif
 
 /* Trusted OS implementation version */
