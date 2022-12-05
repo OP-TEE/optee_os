@@ -46,6 +46,25 @@ struct rsa_oaep_processing_ctx {
 };
 
 /**
+ * RSA AES key wrap processing context
+ *
+ * @hash_alg: Hash algorithm mechanism
+ * @mgf_type: Mask generator function
+ * @aes_key_bits: Length of AES key in bits
+ * @source_type: Type of source.
+ * @source_data_len: Length of the source data.
+ * @source_data: Source data.
+ */
+struct rsa_aes_key_wrap_processing_ctx {
+	enum pkcs11_mechanism_id hash_alg;
+	enum pkcs11_mgf_id mgf_type;
+	uint32_t aes_key_bits;
+	uint32_t source_type;
+	uint32_t source_data_len;
+	uint8_t source_data[];
+};
+
+/**
  * EDDSA processing context
  *
  * @flag: Prehash flag
@@ -116,6 +135,14 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 				    enum processing_func function,
 				    enum processing_step step,
 				    uint32_t ptypes, TEE_Param *params);
+
+enum pkcs11_rc wrap_data_by_asymm_enc(struct pkcs11_session *session,
+				      void *data, uint32_t data_sz,
+				      void *out_buf, uint32_t *out_sz);
+
+enum pkcs11_rc unwrap_key_by_asymm(struct pkcs11_session *session, void *data,
+				   uint32_t data_sz, void **out_buf,
+				   uint32_t *out_sz);
 
 /*
  * Symmetric crypto algorithm specific functions
@@ -209,11 +236,19 @@ pkcs2tee_proc_params_rsa_oaep(struct active_processing *proc,
 			      struct pkcs11_attribute_head *proc_params);
 
 enum pkcs11_rc
+pkcs2tee_proc_params_rsa_aes_wrap(struct active_processing *proc,
+				  struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc
 pkcs2tee_proc_params_eddsa(struct active_processing *proc,
 			   struct pkcs11_attribute_head *proc_params);
 
 enum pkcs11_rc pkcs2tee_algo_rsa_oaep(uint32_t *tee_id, uint32_t *tee_hash_id,
 				      struct pkcs11_attribute_head *params);
+
+enum pkcs11_rc
+pkcs2tee_algo_rsa_aes_wrap(uint32_t *tee_id, uint32_t *tee_hash_id,
+			   struct pkcs11_attribute_head *params);
 
 enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 				 struct obj_attrs **pub_head,
