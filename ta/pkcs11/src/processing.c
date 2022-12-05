@@ -989,18 +989,34 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 			goto out;
 
 	} else if (processing_is_tee_asymm(proc_params->id)) {
-		assert(function == PKCS11_FUNCTION_DERIVE);
+		session->processing->mecha_type = proc_params->id;
 
-		rc = init_asymm_operation(session, function, proc_params,
-					  parent);
+		switch (function) {
+		case PKCS11_FUNCTION_DERIVE:
+			rc = init_asymm_operation(session, function,
+						  proc_params, parent);
+			if (rc)
+				goto out;
+
+			rc = do_asymm_derivation(session, proc_params, &head);
+			if (!rc)
+				goto done;
+			break;
+		case PKCS11_FUNCTION_UNWRAP:
+			rc = init_asymm_operation(session, operation,
+						  proc_params, parent);
+			if (rc)
+				goto out;
+
+			rc = unwrap_key_by_asymm(session, in_buf, in_size,
+						 &out_buf, &out_size);
+			break;
+		default:
+			TEE_Panic(function);
+		}
+
 		if (rc)
 			goto out;
-
-		rc = do_asymm_derivation(session, proc_params, &head);
-		if (rc)
-			goto out;
-
-		goto done;
 	} else {
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 		goto out;
@@ -1208,9 +1224,8 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 
 	switch (get_class(key->attributes)) {
 	case PKCS11_CKO_SECRET_KEY:
-		break;
-	/* Key type not supported as yet */
 	case PKCS11_CKO_PRIVATE_KEY:
+		break;
 	default:
 		rc = PKCS11_CKR_KEY_NOT_WRAPPABLE;
 		goto out;
@@ -1247,18 +1262,24 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	session->processing->mecha_type = proc_params->id;
+
 	if (processing_is_tee_symm(proc_params->id)) {
 		rc = init_symm_operation(session, PKCS11_FUNCTION_ENCRYPT,
 					 proc_params, wrapping_key);
 		if (rc)
 			goto out;
 
-		session->processing->mecha_type = proc_params->id;
-
 		rc = wrap_data_by_symm_enc(session, key_data, key_sz, out_buf,
 					   &out_size);
 	} else {
-		rc = PKCS11_CKR_MECHANISM_INVALID;
+		rc = init_asymm_operation(session, PKCS11_FUNCTION_ENCRYPT,
+					  proc_params, wrapping_key);
+		if (rc)
+			goto out;
+
+		rc = wrap_data_by_asymm_enc(session, key_data, key_sz, out_buf,
+					    &out_size);
 	}
 
 	if (rc == PKCS11_CKR_OK || rc == PKCS11_CKR_BUFFER_TOO_SMALL)
