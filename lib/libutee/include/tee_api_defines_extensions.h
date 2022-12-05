@@ -40,8 +40,12 @@
 #define TEE_TYPE_HKDF_IKM               0xA10000C0
 
 #define TEE_ATTR_HKDF_IKM               0xC00001C0
-#define TEE_ATTR_HKDF_SALT              0xD00002C0
-#define TEE_ATTR_HKDF_INFO              0xD00003C0
+/*
+ * There is a name clash with the  official attributes TEE_ATTR_HKDF_SALT
+ * and TEE_ATTR_HKDF_INFO so define these alternative ID.
+ */
+#define __OPTEE_TEE_ATTR_HKDF_SALT      0xD00002C0
+#define __OPTEE_ATTR_HKDF_INFO          0xD00003C0
 #define TEE_ATTR_HKDF_OKM_LENGTH        0xF00004C0
 
 /*

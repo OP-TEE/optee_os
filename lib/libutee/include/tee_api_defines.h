@@ -312,6 +312,7 @@
 
 #define TEE_ALG_ED25519                         0x70006043 /* v1.3.1 spec */
 #define TEE_ALG_SM2_PKE                         0x80000045
+#define TEE_ALG_HKDF                            0x80000047
 #define TEE_ALG_SM3                             0x50000007
 #define TEE_ALG_X25519                          0x80000044
 #define TEE_ALG_ILLEGAL_VALUE                   0xEFFFFFFF
@@ -413,6 +414,10 @@
 #define TEE_ATTR_EDDSA_PREHASH              0xF0000004   /* v1.3.1 spec */
 #define TEE_ATTR_X448_PUBLIC_VALUE          0xD0000A45
 #define TEE_ATTR_X448_PRIVATE_VALUE         0xC0000A46
+#define TEE_ATTR_HKDF_SALT                  0xD0000946
+#define TEE_ATTR_HKDF_INFO                  0xD0000A46
+#define TEE_ATTR_HKDF_HASH_ALGORITHM        0xF0000B46
+#define TEE_ATTR_KDF_KEY_SIZE               0xF0000C46
 
 #define TEE_ATTR_FLAG_PUBLIC		(1 << 28)
 #define TEE_ATTR_FLAG_VALUE		(1 << 29)
