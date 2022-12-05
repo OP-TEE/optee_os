@@ -2237,14 +2237,33 @@ enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 	}
 }
 
-enum pkcs11_rc get_key_data_to_wrap(struct obj_attrs *head, void **data,
-				    uint32_t *sz)
+static enum pkcs11_rc alloc_copy_attribute_value(struct obj_attrs *head,
+						 void **data, uint32_t *sz)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *buffer = NULL;
+	void *value = NULL;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_VALUE, &value, sz);
+	if (rc)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	buffer = TEE_Malloc(*sz, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!buffer)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	TEE_MemMove(buffer, value, *sz);
+	*data = buffer;
+
+	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc alloc_key_data_to_wrap(struct obj_attrs *head, void **data,
+				      uint32_t *sz)
 {
 	switch (get_class(head)) {
 	case PKCS11_CKO_SECRET_KEY:
-		if (get_attribute_ptr(head, PKCS11_CKA_VALUE, data, sz))
-			return PKCS11_CKR_ARGUMENTS_BAD;
-		break;
+		return alloc_copy_attribute_value(head, data, sz);
 	default:
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
