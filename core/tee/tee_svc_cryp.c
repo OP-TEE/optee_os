@@ -3298,12 +3298,14 @@ static TEE_Result get_sm2_kep_params(const TEE_Attribute *params,
 					     peer_key->y);
 			found |= BIT(PEER_KEY_Y);
 			break;
+		case __OPTEE_SM2_KEP_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X:
 		case TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X:
 			crypto_bignum_bin2bn(p->content.ref.buffer,
 					     p->content.ref.length,
 					     peer_eph_key->x);
 			found |= BIT(PEER_EPH_KEY_X);
 			break;
+		case __OPTEE_SM2_KEP_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y:
 		case TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y:
 			crypto_bignum_bin2bn(p->content.ref.buffer,
 					     p->content.ref.length,
