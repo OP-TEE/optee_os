@@ -358,8 +358,19 @@
 #define TEE_ATTR_SM2_KEP_USER               0xF0000646
 #define TEE_ATTR_SM2_KEP_CONFIRMATION_IN    0xD0000746
 #define TEE_ATTR_SM2_KEP_CONFIRMATION_OUT   0xD0000846
-#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000946 /* Missing in 1.2.1 */
-#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000A46 /* Missing in 1.2.1 */
+
+/*
+ * Commit 5b385b3f835d ("core: crypto: add support for SM2 KEP") defined by
+ * mistake the wrong values for these two. OP-TEE recognizes these two as
+ * alternative IDs in parallel with the correct official values when
+ * supplied as parameters when deriving a key using the TEE_ALG_SM2_KEP
+ * algorithm.
+ */
+#define __OPTEE_SM2_KEP_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000946
+#define __OPTEE_SM2_KEP_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000A46
+
+#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000146
+#define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000246
 #define TEE_ATTR_EDDSA_CTX                  0xD0000643   /* v1.3.1 spec */
 #define TEE_ATTR_ED25519_PUBLIC_VALUE       0xD0000743   /* v1.3.1 spec */
 #define TEE_ATTR_ED25519_PRIVATE_VALUE      0xC0000843   /* v1.3.1 spec */
