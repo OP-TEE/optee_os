@@ -18,6 +18,7 @@
 #include <kernel/tee_time.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <npcm845x_utils.h>
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stdint.h>
@@ -46,6 +47,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
 void main_init_gic(void)
 {
+print_version();
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
 	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
