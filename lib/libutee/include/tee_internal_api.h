@@ -295,6 +295,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 				 uint32_t maxKeySize);
 
 void TEE_FreeOperation(TEE_OperationHandle operation);
+void __GP11_TEE_FreeOperation(TEE_OperationHandle operation);
 
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
 			  TEE_OperationInfo *operationInfo);
