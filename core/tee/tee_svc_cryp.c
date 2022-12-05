@@ -3139,20 +3139,29 @@ TEE_Result syscall_cipher_final(unsigned long state, const void *src,
 }
 
 #if defined(CFG_CRYPTO_HKDF)
-static TEE_Result get_hkdf_params(const TEE_Attribute *params,
+static TEE_Result get_hkdf_params(uint32_t algo, const TEE_Attribute *params,
 				  uint32_t param_count,
 				  void **salt, size_t *salt_len, void **info,
-				  size_t *info_len, size_t *okm_len)
+				  size_t *info_len, size_t *okm_len,
+				  uint32_t *hash_id)
 {
 	size_t n;
-	enum { SALT = 0x1, LENGTH = 0x2, INFO = 0x4 };
+	enum { SALT = 0x1, LENGTH = 0x2, INFO = 0x4, HASH = 0x8 };
 	uint8_t found = 0;
 
 	*salt = *info = NULL;
 	*salt_len = *info_len = *okm_len = 0;
 
+	if (algo == TEE_ALG_HKDF) {
+		*hash_id = TEE_ALG_SHA256;
+	} else {
+		*hash_id = TEE_ALG_GET_DIGEST_HASH(algo);
+		found |= HASH;
+	}
+
 	for (n = 0; n < param_count; n++) {
 		switch (params[n].attributeID) {
+		case __OPTEE_TEE_ATTR_HKDF_SALT:
 		case TEE_ATTR_HKDF_SALT:
 			if (!(found & SALT)) {
 				*salt = params[n].content.ref.buffer;
@@ -3160,17 +3169,25 @@ static TEE_Result get_hkdf_params(const TEE_Attribute *params,
 				found |= SALT;
 			}
 			break;
+		case TEE_ATTR_KDF_KEY_SIZE:
 		case TEE_ATTR_HKDF_OKM_LENGTH:
 			if (!(found & LENGTH)) {
 				*okm_len = params[n].content.value.a;
 				found |= LENGTH;
 			}
 			break;
+		case __OPTEE_ATTR_HKDF_INFO:
 		case TEE_ATTR_HKDF_INFO:
 			if (!(found & INFO)) {
 				*info = params[n].content.ref.buffer;
 				*info_len = params[n].content.ref.length;
 				found |= INFO;
+			}
+			break;
+		case TEE_ATTR_HKDF_HASH_ALGORITHM:
+			if (!(found & HASH)) {
+				*hash_id = params[n].content.value.a;
+				found |= HASH;
 			}
 			break;
 		default:
@@ -3540,12 +3557,13 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_HKDF) {
 		void *salt, *info;
 		size_t salt_len, info_len, okm_len;
-		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
+		uint32_t hash_id = 0;
 		struct tee_cryp_obj_secret *ik = ko->attr;
 		const uint8_t *ikm = (const uint8_t *)(ik + 1);
 
-		res = get_hkdf_params(params, param_count, &salt, &salt_len,
-				      &info, &info_len, &okm_len);
+		res = get_hkdf_params(cs->algo, params, param_count, &salt,
+				      &salt_len, &info, &info_len, &okm_len,
+				      &hash_id);
 		if (res != TEE_SUCCESS)
 			goto out;
 
