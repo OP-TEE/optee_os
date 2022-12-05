@@ -141,6 +141,9 @@ const struct user_ta_property ta_props[] = {
 	{TA_PROP_STR_DESCRIPTION, USER_TA_PROP_TYPE_STRING,
 	 TA_DESCRIPTION},
 
+	/* Only little-endian supported */
+	{TA_PROP_STR_ENDIAN, USER_TA_PROP_TYPE_U32, &(const uint32_t){0}},
+
 /*
  * Extended propietary properties, name of properties must not begin with
  * "gpd."
