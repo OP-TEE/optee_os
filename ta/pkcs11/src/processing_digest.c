@@ -88,9 +88,15 @@ allocate_tee_operation(struct pkcs11_session *session,
 enum pkcs11_rc init_digest_operation(struct pkcs11_session *session,
 				     struct pkcs11_attribute_head *proc_params)
 {
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+
 	assert(processing_is_tee_digest(proc_params->id));
 
-	return allocate_tee_operation(session, proc_params);
+	rc = allocate_tee_operation(session, proc_params);
+	if (!rc)
+		session->processing->mecha_type = proc_params->id;
+
+	return rc;
 }
 
 /*
