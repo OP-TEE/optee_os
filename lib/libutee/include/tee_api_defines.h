@@ -208,6 +208,7 @@
 #define TEE_HANDLE_FLAG_INITIALIZED        0x00020000
 #define TEE_HANDLE_FLAG_KEY_SET            0x00040000
 #define TEE_HANDLE_FLAG_EXPECT_TWO_KEYS    0x00080000
+#define TEE_HANDLE_FLAG_EXTRACTING         0x00100000
 #define TEE_OPERATION_CIPHER               1
 #define TEE_OPERATION_MAC                  3
 #define TEE_OPERATION_AE                   4
@@ -217,6 +218,7 @@
 #define TEE_OPERATION_KEY_DERIVATION       8
 #define TEE_OPERATION_STATE_INITIAL        0x00000000
 #define TEE_OPERATION_STATE_ACTIVE         0x00000001
+#define TEE_OPERATION_STATE_EXTRACTING     0x00000002
 
 /* Algorithm Identifiers */
 #define TEE_ALG_AES_ECB_NOPAD                   0x10000010

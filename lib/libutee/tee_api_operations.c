@@ -3,6 +3,7 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2021, SumUp Services GmbH
  */
+#include <assert.h>
 #include <config.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,12 @@ struct __TEE_OperationHandle {
 	TEE_ObjectHandle key1;
 	TEE_ObjectHandle key2;
 	uint32_t operationState;/* Operation state : INITIAL or ACTIVE */
-	uint8_t *buffer;	/* buffer to collect complete blocks */
+
+	/*
+	 * buffer to collect complete blocks or to keep a complete digest
+	 * for TEE_DigestExtract().
+	 */
+	uint8_t *buffer;
 	bool buffer_two_blocks;	/* True if two blocks need to be buffered */
 	size_t block_size;	/* Block size of cipher */
 	size_t buffer_offs;	/* Offset in buffer */
@@ -260,6 +266,12 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	case TEE_ALG_SHA256:
 	case TEE_ALG_SHA384:
 	case TEE_ALG_SHA512:
+	case TEE_ALG_SHA3_224:
+	case TEE_ALG_SHA3_256:
+	case TEE_ALG_SHA3_384:
+	case TEE_ALG_SHA3_512:
+	case TEE_ALG_SHAKE128:
+	case TEE_ALG_SHAKE256:
 	case TEE_ALG_SM3:
 		if (mode != TEE_MODE_DIGEST)
 			return TEE_ERROR_NOT_SUPPORTED;
@@ -313,6 +325,13 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 	op->info.maxKeySize = maxKeySize;
 	op->info.requiredKeyUsage = req_key_usage;
 	op->info.handleState = handle_state;
+
+	/*
+	 * Needed to buffer the digest if TEE_DigestExtract() doesn't
+	 * retrieve the entire digest in one go.
+	 */
+	if (op->info.operationClass == TEE_OPERATION_DIGEST)
+		block_size = op->info.digestLength;
 
 	if (block_size > 1) {
 		size_t buffer_size = block_size;
@@ -799,10 +818,14 @@ void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
 		TEE_Panic(0);
 
 	if (dst_op->buffer != NULL) {
+		size_t sz = src_op->block_size;
+
 		if (src_op->buffer == NULL)
 			TEE_Panic(0);
 
-		memcpy(dst_op->buffer, src_op->buffer, src_op->buffer_offs);
+		if (src_op->buffer_two_blocks)
+			sz *= 2;
+		memcpy(dst_op->buffer, src_op->buffer, sz);
 		dst_op->buffer_offs = src_op->buffer_offs;
 	} else if (src_op->buffer != NULL) {
 		TEE_Panic(0);
@@ -856,8 +879,9 @@ void __GP11_TEE_DigestUpdate(TEE_OperationHandle operation,
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 			     size_t chunkLen, void *hash, size_t *hashLen)
 {
-	TEE_Result res;
-	uint64_t hl;
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t hl = 0;
+	size_t len = 0;
 
 	if ((operation == TEE_HANDLE_NULL) ||
 	    (!chunk && chunkLen) ||
@@ -865,13 +889,31 @@ TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
+	if (operation->operationState == TEE_OPERATION_STATE_EXTRACTING &&
+	    chunkLen) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
 	__utee_check_inout_annotation(hashLen, sizeof(*hashLen));
 
-	hl = *hashLen;
-	res = _utee_hash_final(operation->state, chunk, chunkLen, hash, &hl);
-	*hashLen = hl;
-	if (res != TEE_SUCCESS)
-		goto out;
+	if (operation->operationState == TEE_OPERATION_STATE_EXTRACTING &&
+	    operation->buffer) {
+		/*
+		 * This is not an Extendable-Output Function and we have
+		 * already started extracting
+		 */
+		len = MIN(operation->block_size - operation->buffer_offs,
+			  *hashLen);
+		memcpy(hash, operation->buffer + operation->buffer_offs, len);
+		*hashLen = len;
+	} else {
+		hl = *hashLen;
+		res = _utee_hash_final(operation->state, chunk, chunkLen, hash,
+				       &hl);
+		*hashLen = hl;
+		if (res)
+			goto out;
+	}
 
 	/* Reset operation state */
 	init_hash_operation(operation, NULL, 0);
@@ -898,6 +940,52 @@ TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
 	res = TEE_DigestDoFinal(operation, chunk, chunkLen, hash, &l);
 	*hashLen = l;
 	return res;
+}
+
+TEE_Result TEE_DigestExtract(TEE_OperationHandle operation, void *hash,
+			     size_t *hashLen)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t hl = 0;
+	size_t len = 0;
+
+	if (operation == TEE_HANDLE_NULL ||
+	    operation->info.operationClass != TEE_OPERATION_DIGEST)
+		TEE_Panic(0);
+	__utee_check_inout_annotation(hashLen, sizeof(*hashLen));
+
+	if (!operation->buffer) {
+		/* This is an Extendable-Output Function */
+		operation->info.handleState |= TEE_HANDLE_FLAG_EXTRACTING;
+		operation->operationState = TEE_OPERATION_STATE_EXTRACTING;
+		hl = *hashLen;
+		res = _utee_hash_final(operation->state, NULL, 0, hash, &hl);
+		if (res)
+			TEE_Panic(0);
+		*hashLen = hl;
+
+		return TEE_SUCCESS;
+	}
+
+	if (operation->operationState != TEE_OPERATION_STATE_EXTRACTING) {
+		hl = operation->block_size;
+		res = _utee_hash_final(operation->state, NULL, 0,
+				       operation->buffer, &hl);
+		if (res)
+			TEE_Panic(0);
+		if (hl != operation->block_size)
+			TEE_Panic(0);
+		assert(!operation->buffer_offs);
+		operation->info.handleState |= TEE_HANDLE_FLAG_EXTRACTING;
+		operation->operationState = TEE_OPERATION_STATE_EXTRACTING;
+	}
+
+	len = MIN(operation->block_size - operation->buffer_offs, *hashLen);
+	memcpy(hash, operation->buffer + operation->buffer_offs, len);
+	*hashLen = len;
+	operation->buffer_offs += len;
+
+	return TEE_SUCCESS;
 }
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */

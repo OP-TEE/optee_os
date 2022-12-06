@@ -335,6 +335,9 @@ TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
 				    const void *chunk, uint32_t chunkLen,
 				    void *hash, uint32_t *hashLen);
 
+TEE_Result TEE_DigestExtract(TEE_OperationHandle operation, void *hash,
+			     size_t *hashLen);
+
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
