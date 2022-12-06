@@ -25,10 +25,6 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 	return io_pa_or_va(&pd->base, UART_SIZE);
 }
 
-static void imx_lpuart_flush(struct serial_chip *chip __unused)
-{
-}
-
 static int imx_lpuart_getchar(struct serial_chip *chip)
 {
 	int ch = 0;
@@ -56,7 +52,6 @@ static void imx_lpuart_putc(struct serial_chip *chip, int ch)
 }
 
 static const struct serial_ops imx_lpuart_ops = {
-	.flush = imx_lpuart_flush,
 	.getchar = imx_lpuart_getchar,
 	.putc = imx_lpuart_putc,
 };
