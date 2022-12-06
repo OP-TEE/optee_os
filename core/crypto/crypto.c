@@ -143,6 +143,9 @@ TEE_Result crypto_cipher_alloc_ctx(void **ctx, uint32_t algo)
 		case TEE_ALG_SM4_CTR:
 			res = crypto_sm4_ctr_alloc_ctx(&c);
 			break;
+		case TEE_ALG_SM4_XTS:
+			res = crypto_sm4_xts_alloc_ctx(&c);
+			break;
 		default:
 			return TEE_ERROR_NOT_IMPLEMENTED;
 		}

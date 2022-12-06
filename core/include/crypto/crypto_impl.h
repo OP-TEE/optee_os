@@ -229,6 +229,12 @@ TEE_Result crypto_sm4_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ctr, cipher)
 #endif
 
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_XTS)
+TEE_Result crypto_sm4_xts_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_xts, cipher)
+#endif
+
 /*
  * The crypto context used by the crypto_authen_*() functions below is
  * defined by struct crypto_authenc_ctx.
