@@ -624,7 +624,11 @@ enum pkcs11_rc init_symm_operation(struct pkcs11_session *session,
 	if (rc)
 		return rc;
 
-	return init_tee_operation(session, proc_params);
+	rc = init_tee_operation(session, proc_params);
+	if (!rc)
+		session->processing->mecha_type = proc_params->id;
+
+	return rc;
 }
 
 /* Validate input buffer size as per PKCS#11 constraints */

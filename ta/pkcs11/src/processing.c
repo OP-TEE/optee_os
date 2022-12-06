@@ -669,7 +669,6 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 
 	if (rc == PKCS11_CKR_OK) {
-		session->processing->mecha_type = proc_params->id;
 		DMSG("PKCS11 session %"PRIu32": init processing %s %s",
 		     session->handle, id2str_proc(proc_params->id),
 		     id2str_function(function));
@@ -971,8 +970,6 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		if (rc)
 			goto out;
 
-		session->processing->mecha_type = proc_params->id;
-
 		switch (function) {
 		case PKCS11_FUNCTION_DERIVE:
 			rc = derive_key_by_symm_enc(session, &out_buf,
@@ -989,8 +986,6 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 			goto out;
 
 	} else if (processing_is_tee_asymm(proc_params->id)) {
-		session->processing->mecha_type = proc_params->id;
-
 		switch (function) {
 		case PKCS11_FUNCTION_DERIVE:
 			rc = init_asymm_operation(session, function,
@@ -1261,8 +1256,6 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 	rc = alloc_key_data_to_wrap(key->attributes, &key_data, &key_sz);
 	if (rc)
 		goto out;
-
-	session->processing->mecha_type = proc_params->id;
 
 	if (processing_is_tee_symm(proc_params->id)) {
 		rc = init_symm_operation(session, PKCS11_FUNCTION_ENCRYPT,
