@@ -101,6 +101,9 @@ static void read_console(void)
 {
 	struct serial_chip *cons = &console_data.chip;
 
+	if (!cons->ops->getchar || !cons->ops->have_rx_data)
+		return;
+
 	while (cons->ops->have_rx_data(cons)) {
 		int ch __maybe_unused = cons->ops->getchar(cons);
 
