@@ -553,6 +553,45 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 	       nsec_access_granted(otp_id - otp_upper_base());
 }
 
+struct nvmem_layout {
+	char *name;
+	uint32_t otp_id;
+	size_t bit_len;
+};
+
+static struct nvmem_layout *nvmem_layout;
+static size_t nvmem_layout_count;
+
+TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
+					       uint32_t *otp_id,
+					       size_t *otp_bit_len)
+{
+	size_t i = 0;
+
+	if (!name)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < nvmem_layout_count; i++) {
+		if (!nvmem_layout[i].name || strcmp(name, nvmem_layout[i].name))
+			continue;
+
+		if (otp_id)
+			*otp_id = nvmem_layout[i].otp_id;
+
+		if (otp_bit_len)
+			*otp_bit_len = nvmem_layout[i].bit_len;
+
+		DMSG("nvmem %s = %zu: %"PRId32" %zu", name, i,
+		     nvmem_layout[i].otp_id, nvmem_layout[i].bit_len);
+
+		return TEE_SUCCESS;
+	}
+
+	DMSG("nvmem %s failed", name);
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
 #ifdef CFG_EMBED_DTB
 static void enable_nsec_access(unsigned int otp_id)
 {
@@ -631,6 +670,72 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 	}
 }
 
+static void save_dt_nvmem_layout(void *fdt, int bsec_node)
+{
+	int cell_max = 0;
+	int cell_cnt = 0;
+	int node = 0;
+
+	fdt_for_each_subnode(node, fdt, bsec_node)
+		cell_max++;
+	if (!cell_max)
+		return;
+
+	nvmem_layout = calloc(cell_max, sizeof(*nvmem_layout));
+	if (!nvmem_layout)
+		panic();
+
+	fdt_for_each_subnode(node, fdt, bsec_node) {
+		unsigned int reg_offset = 0;
+		unsigned int reg_length = 0;
+		const char *string = NULL;
+		const char *s = NULL;
+		int len = 0;
+		struct nvmem_layout *layout_cell = &nvmem_layout[cell_cnt];
+
+		string = fdt_get_name(fdt, node, &len);
+		if (!string || !len)
+			continue;
+
+		reg_offset = _fdt_reg_base_address(fdt, node);
+		reg_length = _fdt_reg_size(fdt, node);
+
+		if (reg_offset == DT_INFO_INVALID_REG ||
+		    reg_length == DT_INFO_INVALID_REG_SIZE) {
+			DMSG("Malformed nvmem %s: ignored", string);
+			continue;
+		}
+
+		if (reg_offset % sizeof(uint32_t)) {
+			DMSG("Misaligned nvmem %s: ignored", string);
+			continue;
+		}
+		layout_cell->otp_id = reg_offset / sizeof(uint32_t);
+		layout_cell->bit_len = reg_length * CHAR_BIT;
+
+		s = strchr(string, '@');
+		if (s)
+			len = s - string;
+
+		layout_cell->name = strndup(string, len);
+		if (!layout_cell->name)
+			panic();
+		cell_cnt++;
+		DMSG("nvmem[%d] = %s %"PRId32" %zu", cell_cnt,
+		     layout_cell->name, layout_cell->otp_id,
+		     layout_cell->bit_len);
+	}
+
+	if (cell_cnt != cell_max) {
+		nvmem_layout = realloc(nvmem_layout,
+				       cell_cnt * sizeof(*nvmem_layout));
+		if (!nvmem_layout)
+			panic();
+	}
+
+	nvmem_layout_count = cell_cnt;
+}
+
 static void initialize_bsec_from_dt(void)
 {
 	void *fdt = NULL;
@@ -649,6 +754,8 @@ static void initialize_bsec_from_dt(void)
 		panic();
 
 	bsec_dt_otp_nsec_access(fdt, node);
+
+	save_dt_nvmem_layout(fdt, node);
 }
 #else
 static void initialize_bsec_from_dt(void)
