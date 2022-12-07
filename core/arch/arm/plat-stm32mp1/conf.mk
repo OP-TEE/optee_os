@@ -199,6 +199,12 @@ $(call force,CFG_SCMI_MSG_SMT,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 endif
 
+# Enable BSEC PTA for fuses access management
+CFG_STM32_BSEC_PTA ?= y
+ifeq ($(CFG_STM32_BSEC_PTA),y)
+$(call force,CFG_STM32_BSEC,y,Mandated by CFG_BSEC_PTA)
+endif
+
 # Default enable SCMI PTA support
 CFG_SCMI_PTA ?= y
 ifeq ($(CFG_SCMI_PTA),y)
