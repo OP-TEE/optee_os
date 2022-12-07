@@ -2928,6 +2928,11 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	return TEE_SUCCESS;
 }
 
+static bool is_xof_algo(uint32_t algo)
+{
+	return algo == TEE_ALG_SHAKE128 || algo == TEE_ALG_SHAKE256;
+}
+
 TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 			size_t chunk_size, void *hash, uint64_t *hash_len)
 {
@@ -2973,6 +2978,21 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
+		if (is_xof_algo(cs->algo)) {
+			if (chunk_size) {
+				res = crypto_hash_update(cs->ctx, chunk,
+							 chunk_size);
+				if (res)
+					return res;
+			}
+
+			/*
+			 * hash_size is supposed to be unchanged for XOF
+			 * algorithms so return directly.
+			 */
+			return crypto_hash_final(cs->ctx, hash, hlen);
+		}
+
 		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
