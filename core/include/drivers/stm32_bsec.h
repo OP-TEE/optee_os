@@ -160,4 +160,15 @@ TEE_Result stm32_bsec_otp_lock(uint32_t service);
  */
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 
+/*
+ * Find and get OTP location from its name.
+ * @name: sub-node name to look up.
+ * @otp_id: pointer to output OTP number or NULL.
+ * @otp_bit_len: pointer to output OTP length in bits or NULL.
+ * Return a TEE_Result compliant status
+ */
+TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
+					       uint32_t *otp_id,
+					       size_t *otp_bit_len);
+
 #endif /*__STM32_BSEC_H*/
