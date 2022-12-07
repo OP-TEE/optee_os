@@ -1600,13 +1600,38 @@
 			reg = <0x5c005000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			cfg0_otp: cfg0_otp@0 {
+				reg = <0x0 0x1>;
+			};
+			part_number_otp: part_number_otp@4 {
+				reg = <0x4 0x1>;
+			};
+			monotonic_otp: monotonic_otp@10 {
+				reg = <0x10 0x4>;
+			};
+			nand_otp: nand_otp@24 {
+				reg = <0x24 0x4>;
+			};
+			uid_otp: uid_otp@34 {
+				reg = <0x34 0xc>;
+			};
+			package_otp: package_otp@40 {
+				reg = <0x40 0x4>;
+			};
+			hw2_otp: hw2_otp@48 {
+				reg = <0x48 0x4>;
+			};
 			ts_cal1: calib@5c {
 				reg = <0x5c 0x2>;
 			};
 			ts_cal2: calib@5e {
 				reg = <0x5e 0x2>;
 			};
-			mac_addr: mac_addr@e4 {
+			pkh_otp: pkh_otp@60 {
+				reg = <0x60 0x20>;
+			};
+			ethernet_mac_address: mac@e4 {
 				reg = <0xe4 0x8>;
 				st,non-secure-otp;
 			};

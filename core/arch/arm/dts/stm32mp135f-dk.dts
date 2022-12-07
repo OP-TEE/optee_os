@@ -58,6 +58,13 @@
 	};
 };
 
+&bsec {
+	board_id: board_id@f0 {
+		reg = <0xf0 0x4>;
+		st,non-secure-otp;
+	};
+};
+
 &rcc {
 	compatible = "st,stm32mp13-rcc", "syscon";
 
