@@ -23,6 +23,9 @@
 #define TI_SCI_MSG_FWL_GET               0x9001
 #define TI_SCI_MSG_FWL_CHANGE_OWNER      0x9002
 #define TI_SCI_MSG_SA2UL_GET_DKEK        0x9029
+#define TI_SCI_MSG_READ_OTP_MMR          0x9022
+#define TI_SCI_MSG_WRITE_OTP_ROW         0x9023
+#define TI_SCI_MSG_LOCK_OTP_ROW          0x9024
 
 /**
  * struct ti_sci_secure_msg_hdr - Secure Message Header for All messages
@@ -294,6 +297,86 @@ struct ti_sci_msg_resp_sa2ul_get_dkek {
 	struct ti_sci_msg_hdr hdr;
 #define SA2UL_DKEK_KEY_LEN 32
 	uint8_t dkek[SA2UL_DKEK_KEY_LEN];
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_read_otp_mmr - Request for reading extended OTP
+ * @hdr:	Generic header
+ * @mmr_idx:	Index of 32 bit MMR
+ *
+ * Request for TI_SCI_MSG_READ_OTP_MMR
+ */
+struct ti_sci_msg_req_read_otp_mmr {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t mmr_idx;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_read_otp_mmr - Response for reading extended OTP
+ * @hdr:	Generic header
+ * @mmr_val:	Value written in the OTP
+ *
+ * Response to request TI_SCI_MSG_READ_OTP_MMR
+ */
+struct ti_sci_msg_resp_read_otp_mmr {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t mmr_val;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_write_otp_row - Request for writing Extended OTP
+ * @hdr:	Generic header
+ * @row_idx:		Index of the OTP row. Zero indexing
+ * @row_val:		Value to be written
+ * @row_mask:		Mask bits for row_val to be written
+ *
+ * Request for TI_SCI_MSG_WRITE_OTP_ROW
+ */
+struct ti_sci_msg_req_write_otp_row {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t row_idx;
+	uint32_t row_val;
+	uint32_t row_mask;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_write_otp_row - Response for writing Extended OTP
+ * @hdr:		Generic header
+ * @row_val:		Value that is written
+ *
+ * Response to request TI_SCI_MSG_WRITE_OTP_ROW
+ */
+struct ti_sci_msg_resp_write_otp_row {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t row_val;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_lock_otp_row - Request for Lock OTP row
+ * @hdr:		Generic header
+ * @row_idx:		Index of the OTP row. Zero indexing
+ * @hw_write_lock:	0x5A indicates row will be write protected
+ * @hw_read_lock:	0x5A indicates row will be read protected
+ * @row_soft_lock:	Software write lock
+ *
+ * Request for TI_SCI_MSG_LOCK_OTP_ROW
+ */
+struct ti_sci_msg_req_lock_otp_row {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t row_idx;
+	uint8_t hw_write_lock;
+	uint8_t hw_read_lock;
+	uint8_t row_soft_lock;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_lock_otp_row - Response for Lock OTP row
+ * @hdr:	Generic header
+ *
+ * Response to request TI_SCI_MSG_LOCK_OTP_ROW
+ */
+struct ti_sci_msg_resp_lock_otp_row {
+	struct ti_sci_msg_hdr hdr;
 } __packed;
 
 #endif
