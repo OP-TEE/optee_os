@@ -241,7 +241,7 @@ static TEE_Result power_down_safmem(void)
 	return TEE_ERROR_GENERIC;
 }
 
-TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
+static TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 {
 	TEE_Result result = 0;
 	uint32_t exceptions = 0;
@@ -569,30 +569,6 @@ TEE_Result stm32_bsec_read_sp_lock(uint32_t otp_id, bool *locked)
 TEE_Result stm32_bsec_read_permanent_lock(uint32_t otp_id, bool *locked)
 {
 	return read_bsec_lock(otp_id, locked, BSEC_WRLOCK_OFF);
-}
-
-TEE_Result stm32_bsec_otp_lock(uint32_t service)
-{
-	vaddr_t addr = bsec_base() + BSEC_OTP_LOCK_OFF;
-
-	if (state_is_invalid_mode())
-		return TEE_ERROR_SECURITY;
-
-	switch (service) {
-	case BSEC_LOCK_UPPER_OTP:
-		io_write32(addr, BIT(BSEC_LOCK_UPPER_OTP));
-		break;
-	case BSEC_LOCK_DEBUG:
-		io_write32(addr, BIT(BSEC_LOCK_DEBUG));
-		break;
-	case BSEC_LOCK_PROGRAM:
-		io_write32(addr, BIT(BSEC_LOCK_PROGRAM));
-		break;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	return TEE_SUCCESS;
 }
 
 static size_t nsec_access_array_size(void)
