@@ -16,6 +16,17 @@
 #include <tee/tee_cryp_utl.h>
 #include <tee_api_defines_extensions.h>
 
+static sss_cipher_type_t oefid_cipher_type(void)
+{
+	switch (se050_get_oefid()) {
+	case SE050F_ID:
+		return kSSS_CipherType_RSA_CRT;
+	default:
+		break;
+	}
+	return kSSS_CipherType_RSA;
+}
+
 static uint32_t tee2se050(uint32_t algo)
 {
 	switch (algo) {
@@ -105,7 +116,7 @@ static TEE_Result se050_inject_public_key(sss_se05x_object_t *k_object,
 	 */
 	st = sss_se05x_key_object_allocate_handle(k_object, oid,
 						  kSSS_KeyPart_Public,
-						  kSSS_CipherType_RSA, 0,
+						  oefid_cipher_type(), 0,
 						  kKeyObject_Mode_Persistent);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -152,7 +163,7 @@ static TEE_Result se050_inject_keypair(sss_se05x_object_t *k_object,
 	/* Keys 2048 and above need to be placed on persistent storage */
 	st = sss_se05x_key_object_allocate_handle(k_object, oid,
 						  kSSS_KeyPart_Pair,
-						  kSSS_CipherType_RSA, 0,
+						  oefid_cipher_type(), 0,
 						  kKeyObject_Mode_Persistent);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -575,7 +586,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t kb)
 
 	st = sss_se05x_key_object_allocate_handle(&k_object, oid,
 						  kSSS_KeyPart_Pair,
-						  kSSS_CipherType_RSA, 0,
+						  oefid_cipher_type(), 0,
 						  kKeyObject_Mode_Persistent);
 	if (st != kStatus_SSS_Success)
 		return TEE_ERROR_BAD_PARAMETERS;
