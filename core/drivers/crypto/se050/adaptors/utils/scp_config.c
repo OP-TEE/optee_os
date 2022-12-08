@@ -28,22 +28,6 @@
 static enum se050_scp03_ksrc scp03_ksrc;
 static bool scp03_enabled;
 
-#define SE050A1_ID 0xA204
-#define SE050A2_ID 0xA205
-#define SE050B1_ID 0xA202
-#define SE050B2_ID 0xA203
-#define SE050C1_ID 0xA200
-#define SE050C2_ID 0xA201
-#define SE050DV_ID 0xA1F4
-#define SE051A2_ID 0xA565
-#define SE051C2_ID 0xA564
-#define SE050F2_ID 0xA77E
-#define SE050E_ID 0xA921
-#define SE051A_ID 0xA920
-#define SE051C_ID 0xA8FA
-#define SE051W_ID 0xA739
-#define SE050F_ID 0xA92A
-
 #define SE050A1 0
 #define SE050A2 1
 #define SE050B1 2
