@@ -69,6 +69,7 @@ se050-one-enabled = $(call cfg-one-enabled, \
                         $(foreach v,$(1), CFG_NXP_SE05X_$(v)_DRV))
 # Asymmetric ciphers
 CFG_NXP_SE05X_RSA_DRV ?= y
+CFG_NXP_SE05X_RSA_DRV_FALLBACK ?= n
 CFG_NXP_SE05X_ECC_DRV ?= y
 $(call force,CFG_NXP_SE05X_ACIPHER_DRV,$(call se050-one-enabled,RSA ECC))
 
@@ -82,7 +83,6 @@ endif
 ifeq ($(CFG_NXP_SE05X_RSA_DRV),y)
 $(call force,CFG_CRYPTO_DRV_RSA,y)
 CFG_CRYPTO_RSASSA_NA1 ?= y
-_CFG_CORE_LTC_RSA = n
 endif
 # - ECC
 ifeq ($(CFG_NXP_SE05X_ECC_DRV),y)
