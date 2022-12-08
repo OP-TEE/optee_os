@@ -23,14 +23,35 @@
 static const struct crypto_ecc_keypair_ops *pair_ops;
 static const struct crypto_ecc_public_ops *pub_ops;
 
-static bool oefid_key_supported(size_t bits __unused)
+static bool oefid_key_supported(size_t bits)
 {
-	return true;
+	switch (se050_get_oefid()) {
+	case SE050F_ID:
+		return bits >= 224;
+	default:
+		return true;
+	}
 }
 
-static bool oefid_algo_supported(uint32_t algo __unused)
+static bool oefid_algo_supported(uint32_t algo)
 {
-	return true;
+	if (!algo)
+		return true;
+
+	switch (se050_get_oefid()) {
+	case SE050F_ID:
+		switch (algo) {
+		case TEE_ALG_ECDSA_P224:
+		case TEE_ALG_ECDSA_P256:
+		case TEE_ALG_ECDSA_P384:
+		case TEE_ALG_ECDSA_P521:
+			return true;
+		default:
+			return false;
+		}
+	default:
+		return true;
+	}
 }
 
 static uint32_t algo_tee2se050(uint32_t algo)
