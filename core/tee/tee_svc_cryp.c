@@ -1392,6 +1392,9 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 		} else if (o->info.objectType == TEE_TYPE_ED25519_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_ED25519_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
+		} else if (o->info.objectType == TEE_TYPE_X25519_PUBLIC_KEY) {
+			if (src->info.objectType != TEE_TYPE_X25519_KEYPAIR)
+				return TEE_ERROR_BAD_PARAMETERS;
 		} else {
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
