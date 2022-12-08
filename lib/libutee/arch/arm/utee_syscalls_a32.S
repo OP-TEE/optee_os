@@ -57,4 +57,4 @@ UNWIND(	.save	{lr})
 	/* Not reached */
 	END_FUNC _utee_panic
 
-#include "utee_syscalls_asm.S"
+#include <utee_syscalls_asm.S>
