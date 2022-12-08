@@ -71,6 +71,7 @@ se050-one-enabled = $(call cfg-one-enabled, \
 CFG_NXP_SE05X_RSA_DRV ?= y
 CFG_NXP_SE05X_RSA_DRV_FALLBACK ?= n
 CFG_NXP_SE05X_ECC_DRV ?= y
+CFG_NXP_SE05X_ECC_DRV_FALLBACK ?= n
 $(call force,CFG_NXP_SE05X_ACIPHER_DRV,$(call se050-one-enabled,RSA ECC))
 
 # Asymmetric driver
