@@ -223,6 +223,52 @@ static void update_out_gp11_param(__GP11_TEE_Param params[TEE_NUM_PARAMS],
 	}
 }
 
+static bool bufs_intersect(void *buf1, size_t sz1, void *buf2, size_t sz2)
+{
+	vaddr_t b1 = (vaddr_t)buf1;
+	vaddr_t b2 = (vaddr_t)buf2;
+	vaddr_t e1 = b1 + sz1 - 1;
+	vaddr_t e2 = b2 + sz2 - 1;
+
+	if (!sz1 || !sz2)
+		return false;
+
+	if (e1 < b2 || e2 < b1)
+		return false;
+
+	return true;
+}
+
+static TEE_Result check_mem_access_rights_params(uint32_t flags, void *buf,
+						 size_t len)
+{
+	size_t n = 0;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uint32_t f = TEE_MEMORY_ACCESS_ANY_OWNER;
+
+		switch (TEE_PARAM_TYPE_GET(ta_param_types, n)) {
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			f |= TEE_MEMORY_ACCESS_WRITE;
+			fallthrough;
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+			f |= TEE_MEMORY_ACCESS_READ;
+			if (bufs_intersect(buf, len,
+					   ta_params[n].memref.buffer,
+					   ta_params[n].memref.size)) {
+				if ((flags & f) != flags)
+					return TEE_ERROR_ACCESS_DENIED;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 				uint32_t cancellationRequestTimeout,
 				uint32_t paramTypes,
@@ -466,24 +512,34 @@ bool TEE_MaskCancellation(void)
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
 				       size_t size)
 {
-	TEE_Result res;
+	uint32_t flags = accessFlags;
 
-	if (size == 0)
+	if (!size)
 		return TEE_SUCCESS;
 
-	/* Check access rights against memory mapping */
-	res = _utee_check_access_rights(accessFlags, buffer, size);
-	if (res != TEE_SUCCESS)
-		goto out;
+	/*
+	 * Check access rights against memory mapping. If this check is
+	 * OK the size can't cause an overflow when added with buffer.
+	 */
+	if (_utee_check_access_rights(accessFlags, buffer, size))
+		return TEE_ERROR_ACCESS_DENIED;
 
 	/*
-	* Check access rights against input parameters
-	* Previous legacy code was removed and will need to be restored
-	*/
+	 * Check access rights against input parameters.
+	 *
+	 * Clear eventual extension flags like TEE_MEMORY_ACCESS_NONSECURE
+	 * and TEE_MEMORY_ACCESS_SECURE.
+	 */
+	flags &= TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_WRITE |
+		 TEE_MEMORY_ACCESS_ANY_OWNER;
+	if (check_mem_access_rights_params(flags, buffer, size))
+		return TEE_ERROR_ACCESS_DENIED;
 
-	res = TEE_SUCCESS;
-out:
-	return res;
+	if (malloc_buffer_overlaps_heap(buffer, size) &&
+	    !malloc_buffer_is_within_alloced(buffer, size))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result __GP11_TEE_CheckMemoryAccessRights(uint32_t accessFlags,
