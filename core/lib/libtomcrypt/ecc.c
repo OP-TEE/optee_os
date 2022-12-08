@@ -429,21 +429,21 @@ TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 		s->ops = &ecc_keypair_ops;
 		break;
 	case TEE_TYPE_SM2_DSA_KEYPAIR:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_DSA))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_dsa_keypair_ops;
 		break;
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_PKE))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_pke_keypair_ops;
 		break;
 	case TEE_TYPE_SM2_KEP_KEYPAIR:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_KEP))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
@@ -507,21 +507,21 @@ TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 		s->ops = &ecc_public_key_ops;
 		break;
 	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_DSA))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_DSA))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_dsa_public_key_ops;
 		break;
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_PKE))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_PKE))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
 		s->ops = &sm2_pke_public_key_ops;
 		break;
 	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
-		if (!IS_ENABLED(_CFG_CORE_LTC_SM2_KEP))
+		if (!IS_ENABLED2(_CFG_CORE_LTC_SM2_KEP))
 			return TEE_ERROR_NOT_IMPLEMENTED;
 
 		s->curve = TEE_ECC_CURVE_SM2;
