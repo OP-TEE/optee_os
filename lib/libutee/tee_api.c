@@ -269,6 +269,31 @@ static TEE_Result check_mem_access_rights_params(uint32_t flags, void *buf,
 	return TEE_SUCCESS;
 }
 
+static void check_invoke_param(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
+{
+	size_t n = 0;
+
+	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		uint32_t f = TEE_MEMORY_ACCESS_ANY_OWNER;
+		void *buf = params[n].memref.buffer;
+		size_t size = params[n].memref.size;
+
+		switch (TEE_PARAM_TYPE_GET(pt, n)) {
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			f |= TEE_MEMORY_ACCESS_WRITE;
+			fallthrough;
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+			f |= TEE_MEMORY_ACCESS_READ;
+			if (check_mem_access_rights_params(f, buf, size))
+				TEE_Panic(0);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 				uint32_t cancellationRequestTimeout,
 				uint32_t paramTypes,
@@ -283,10 +308,12 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 	size_t tmp_len = 0;
 	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
 
-	if (paramTypes)
+	if (paramTypes) {
 		__utee_check_inout_annotation(params,
 					      sizeof(TEE_Param) *
 					      TEE_NUM_PARAMS);
+		check_invoke_param(paramTypes, params);
+	}
 	__utee_check_out_annotation(session, sizeof(*session));
 
 	copy_param(&up, paramTypes, params);
@@ -386,10 +413,12 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 	size_t tmp_len = 0;
 	void *tmp_va[TEE_NUM_PARAMS] = { NULL };
 
-	if (paramTypes)
+	if (paramTypes) {
 		__utee_check_inout_annotation(params,
 					      sizeof(TEE_Param) *
 					      TEE_NUM_PARAMS);
+		check_invoke_param(paramTypes, params);
+	}
 	if (returnOrigin)
 		__utee_check_out_annotation(returnOrigin,
 					    sizeof(*returnOrigin));
