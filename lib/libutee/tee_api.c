@@ -16,7 +16,18 @@
  * return a known non-NULL invalid pointer when the
  * requested size is zero
  */
-#define TEE_NULL_SIZED_VA	((void *)1)
+#define TEE_NULL_SIZED_VA		((void *)1)
+#define TEE_NULL_SIZED_NO_SHARE_VA	((void *)2)
+
+/*
+ * Workaround build error in Teaclave TrustZone SDK
+ *
+ * These are supposed to be provided by ta/arch/arm/user_ta_header.c, but
+ * Teaclave TrustZone SDK seems to roll their own in Rust.
+ */
+uint8_t __ta_no_share_heap[0] __weak;
+const size_t __ta_no_share_heap_size __weak;
+struct malloc_ctx *__ta_no_share_malloc_ctx __weak;
 
 static const void *tee_api_instance_data;
 
@@ -269,6 +280,13 @@ static TEE_Result check_mem_access_rights_params(uint32_t flags, void *buf,
 	return TEE_SUCCESS;
 }
 
+static bool buf_overlaps_no_share_heap(void *buf, size_t size)
+{
+	struct malloc_ctx *ctx = __ta_no_share_malloc_ctx;
+
+	return ctx && raw_malloc_buffer_overlaps_heap(ctx, buf, size);
+}
+
 static void check_invoke_param(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 {
 	size_t n = 0;
@@ -286,6 +304,8 @@ static void check_invoke_param(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
 			f |= TEE_MEMORY_ACCESS_READ;
 			if (check_mem_access_rights_params(f, buf, size))
+				TEE_Panic(0);
+			if (buf_overlaps_no_share_heap(buf, size))
 				TEE_Panic(0);
 			break;
 		default:
@@ -693,8 +713,19 @@ void *TEE_Malloc(size_t len, uint32_t hint)
 		TEE_Panic(0);
 		break;
 
+	case TEE_MALLOC_NO_SHARE:
+		if (!len)
+			return TEE_NULL_SIZED_NO_SHARE_VA;
+		if (!__ta_no_share_malloc_ctx)
+			return NULL;
+		return raw_calloc(0, 0, 1, len, __ta_no_share_malloc_ctx);
+
 	case TEE_MALLOC_NO_FILL | TEE_MALLOC_NO_SHARE:
-		return NULL; /* TEE_MALLOC_NO_SHARE is not yet supported */
+		if (!len)
+			return TEE_NULL_SIZED_NO_SHARE_VA;
+		if (!__ta_no_share_malloc_ctx)
+			return NULL;
+		return raw_malloc(0, 0, len, __ta_no_share_malloc_ctx);
 
 	case TEE_USER_MEM_HINT_NO_FILL_ZERO:
 		if (!len)
@@ -715,17 +746,35 @@ void *__GP11_TEE_Malloc(uint32_t size, uint32_t hint)
 	return TEE_Malloc(size, hint);
 }
 
+static bool addr_is_in_no_share_heap(void *p)
+{
+	return buf_overlaps_no_share_heap(p, 1);
+}
+
 void *TEE_Realloc(void *buffer, size_t newSize)
 {
 	if (!newSize) {
 		TEE_Free(buffer);
-		return TEE_NULL_SIZED_VA;
+
+		if (addr_is_in_no_share_heap(buffer))
+			return TEE_NULL_SIZED_NO_SHARE_VA;
+		else
+			return TEE_NULL_SIZED_VA;
 	}
 
 	if (buffer == TEE_NULL_SIZED_VA)
 		return calloc(1, newSize);
+	if (buffer == TEE_NULL_SIZED_NO_SHARE_VA) {
+		if (!__ta_no_share_malloc_ctx)
+			return NULL;
+		return raw_calloc(0, 0, 1, newSize, __ta_no_share_malloc_ctx);
+	}
 
-	return realloc(buffer, newSize);
+	if (addr_is_in_no_share_heap(buffer))
+		return raw_realloc(buffer, 0, 0, newSize,
+				   __ta_no_share_malloc_ctx);
+	else
+		return realloc(buffer, newSize);
 }
 
 void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize)
@@ -735,8 +784,13 @@ void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize)
 
 void TEE_Free(void *buffer)
 {
-	if (buffer != TEE_NULL_SIZED_VA)
-		free(buffer);
+	if (buffer != TEE_NULL_SIZED_VA &&
+	    buffer != TEE_NULL_SIZED_NO_SHARE_VA) {
+		if (addr_is_in_no_share_heap(buffer))
+			raw_free(buffer, __ta_no_share_malloc_ctx, false);
+		else
+			free(buffer);
+	}
 }
 
 /* Cache maintenance support (TA requires the CACHE_MAINTENANCE property) */
