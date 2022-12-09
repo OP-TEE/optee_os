@@ -119,6 +119,17 @@ const struct ta_head ta_head __section(".ta_head") = {
 uint8_t ta_heap[TA_DATA_SIZE];
 const size_t ta_heap_size = sizeof(ta_heap);
 
+#ifndef TA_NO_SHARE_DATA_SIZE
+#define TA_NO_SHARE_DATA_SIZE	0
+#endif
+#if TA_NO_SHARE_DATA_SIZE && \
+	TA_NO_SHARE_DATA_SIZE < MALLOC_INITIAL_POOL_MIN_SIZE
+#error TA_NO_SHARE_DATA_SIZE too small
+#endif
+
+uint8_t __ta_no_share_heap[TA_NO_SHARE_DATA_SIZE];
+const size_t __ta_no_share_heap_size = sizeof(__ta_no_share_heap);
+
 const struct user_ta_property ta_props[] = {
 	{TA_PROP_STR_SINGLE_INSTANCE, USER_TA_PROP_TYPE_BOOL,
 	 &(const bool){(TA_FLAGS & TA_FLAG_SINGLE_INSTANCE) != 0}},

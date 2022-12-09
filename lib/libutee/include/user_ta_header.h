@@ -136,9 +136,12 @@ struct user_ta_property {
 extern const struct user_ta_property ta_props[];
 extern const size_t ta_num_props;
 
+extern uint8_t __ta_no_share_heap[];
+extern const size_t __ta_no_share_heap_size;
 /* Needed by TEE_CheckMemoryAccessRights() */
 extern uint32_t ta_param_types;
 extern TEE_Param ta_params[TEE_NUM_PARAMS];
+extern struct malloc_ctx *__ta_no_share_malloc_ctx;
 
 int tahead_get_trace_level(void);
 
