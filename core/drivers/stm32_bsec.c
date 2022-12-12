@@ -79,12 +79,11 @@
 #define BSEC_LOCK			U(0x200)
 
 /* BSEC_STATUS Register */
-#define BSEC_MODE_STATUS_MASK		GENMASK_32(2, 0)
-#define BSEC_MODE_BUSY_MASK		BIT(3)
-#define BSEC_MODE_PROGFAIL_MASK		BIT(4)
-#define BSEC_MODE_PWR_MASK		BIT(5)
-#define BSEC_MODE_BIST1_LOCK_MASK	BIT(6)
-#define BSEC_MODE_BIST2_LOCK_MASK	BIT(7)
+#define BSEC_MODE_SECURED		BIT(0)
+#define BSEC_MODE_INVALID		BIT(2)
+#define BSEC_MODE_BUSY			BIT(3)
+#define BSEC_MODE_PROGFAIL		BIT(4)
+#define BSEC_MODE_PWR			BIT(5)
 
 /*
  * OTP Lock services definition
@@ -148,6 +147,26 @@ static uint32_t bsec_status(void)
 	return io_read32(bsec_base() + BSEC_OTP_STATUS_OFF);
 }
 
+static bool state_is_invalid_mode(void)
+{
+	return bsec_status() & BSEC_MODE_INVALID;
+}
+
+static bool state_is_secured_mode(void)
+{
+	return bsec_status() & BSEC_MODE_SECURED;
+}
+
+static bool state_is_closed_mode(void)
+{
+	uint32_t close_mode = 0;
+
+	if (stm32_bsec_read_otp(&close_mode, CFG0_OTP))
+		panic("Unable to read OTP");
+
+	return close_mode & CFG0_OTP_CLOSED_DEVICE;
+}
+
 /*
  * Check that BSEC interface does not report an error
  * @otp_id : OTP number
@@ -181,10 +200,10 @@ static TEE_Result power_up_safmem(void)
 	 * cases where timeout is due to the executing TEE thread rescheduling.
 	 */
 	while (!timeout_elapsed(timeout_ref))
-		if (bsec_status() & BSEC_MODE_PWR_MASK)
+		if (bsec_status() & BSEC_MODE_PWR)
 			break;
 
-	if (bsec_status() & BSEC_MODE_PWR_MASK)
+	if (bsec_status() & BSEC_MODE_PWR)
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_GENERIC;
@@ -201,10 +220,10 @@ static TEE_Result power_down_safmem(void)
 	 * cases where timeout is due to the executing TEE thread rescheduling.
 	 */
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_PWR_MASK))
+		if (!(bsec_status() & BSEC_MODE_PWR))
 			break;
 
-	if (!(bsec_status() & BSEC_MODE_PWR_MASK))
+	if (!(bsec_status() & BSEC_MODE_PWR))
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_GENERIC;
@@ -225,6 +244,9 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 	if (locked)
 		DMSG("BSEC shadow warning: OTP locked");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	result = power_up_safmem();
@@ -235,10 +257,10 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
@@ -255,6 +277,9 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 {
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	*value = io_read32(bsec_base() + BSEC_OTP_DATA_OFF +
 			   (otp_id * sizeof(uint32_t)));
@@ -294,6 +319,9 @@ TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id)
 	if (locked)
 		DMSG("BSEC write warning: OTP locked");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	io_write32(otp_data_base + (otp_id * sizeof(uint32_t)), value);
@@ -322,6 +350,9 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 	if (io_read32(bsec_base() + BSEC_OTP_LOCK_OFF) & BIT(BSEC_LOCK_PROGRAM))
 		DMSG("BSEC program warning: GPLOCK activated");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	result = power_up_safmem();
@@ -333,12 +364,12 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
-	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
+	else if (bsec_status() & BSEC_MODE_PROGFAIL)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
@@ -390,6 +421,9 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 		data = DATA_UPPER_OTP_PERLOCK_BIT << (otp_id & 0xF);
 	}
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	result = power_up_safmem();
@@ -401,12 +435,12 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
-	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
+	else if (bsec_status() & BSEC_MODE_PROGFAIL)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, false /* not-disturbed */);
@@ -424,6 +458,9 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
@@ -452,6 +489,9 @@ static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
 
 	if (otp_id > STM32MP1_OTP_MAX_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
@@ -487,6 +527,9 @@ static TEE_Result read_bsec_lock(uint32_t otp_id, bool *locked,
 	if (otp_id > STM32MP1_OTP_MAX_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	*locked = (io_read32(lock_addr) & otp_mask) != 0;
 
 	return TEE_SUCCESS;
@@ -515,6 +558,9 @@ TEE_Result stm32_bsec_read_permanent_lock(uint32_t otp_id, bool *locked)
 TEE_Result stm32_bsec_otp_lock(uint32_t service)
 {
 	vaddr_t addr = bsec_base() + BSEC_OTP_LOCK_OFF;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	switch (service) {
 	case BSEC_LOCK_UPPER_OTP:
@@ -548,6 +594,11 @@ static bool nsec_access_granted(unsigned int index)
 	       (index / BSEC_BITS_PER_WORD) < nsec_access_array_size() &&
 	       array[index / BSEC_BITS_PER_WORD] &
 	       BIT(index % BSEC_BITS_PER_WORD);
+}
+
+bool stm32_bsec_can_access_otp(uint32_t otp_id)
+{
+	return (otp_id <= otp_max_id()) && !state_is_invalid_mode();
 }
 
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
@@ -593,6 +644,23 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 	DMSG("nvmem %s failed", name);
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
+};
+
+TEE_Result stm32_bsec_get_state(uint32_t *state)
+{
+	if (!state)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode() || !state_is_secured_mode()) {
+		*state = BSEC_STATE_INVALID;
+	} else {
+		if (state_is_closed_mode())
+			*state = BSEC_STATE_SEC_CLOSED;
+		else
+			*state = BSEC_STATE_SEC_OPEN;
+	}
+
+	return TEE_SUCCESS;
 }
 
 #ifdef CFG_EMBED_DTB
@@ -664,7 +732,7 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 
 		size = reg_size / sizeof(uint32_t);
 
-		if (otp_id + size > STM32MP1_OTP_MAX_ID)
+		if (otp_id + size > OTP_MAX_SIZE)
 			panic("OTP range oversized");
 
 		for (i = otp_id; i < otp_id + size; i++)
@@ -774,6 +842,9 @@ static TEE_Result initialize_bsec(void)
 	bsec_dev.base.pa = cfg.base;
 	bsec_dev.upper_base = cfg.upper_start;
 	bsec_dev.max_id = cfg.max_id;
+
+	if (state_is_invalid_mode())
+		panic();
 
 	if (IS_ENABLED(CFG_EMBED_DTB))
 		initialize_bsec_from_dt();

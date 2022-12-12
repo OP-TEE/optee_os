@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2017-2020, STMicroelectronics
+ * Copyright (c) 2017-2022, STMicroelectronics
  */
 
 #ifndef __STM32_BSEC_H
@@ -22,6 +22,13 @@
 
 #define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
 #define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
+
+/* BSEC different global states */
+enum stm32_bsec_sec_state {
+	BSEC_STATE_SEC_CLOSED,
+	BSEC_STATE_SEC_OPEN,
+	BSEC_STATE_INVALID
+};
 
 /*
  * Load OTP from SAFMEM and provide its value
@@ -155,6 +162,12 @@ TEE_Result stm32_bsec_read_permanent_lock(uint32_t otp_id, bool *locked);
 TEE_Result stm32_bsec_otp_lock(uint32_t service);
 
 /*
+ * Return true if OTP can be read, false otherwise
+ * @otp_id: OTP number
+ */
+bool stm32_bsec_can_access_otp(uint32_t otp_id);
+
+/*
  * Return true if non-secure world is allowed to read the target OTP
  * @otp_id: OTP number
  */
@@ -170,5 +183,12 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 					       uint32_t *otp_id,
 					       size_t *otp_bit_len);
+
+/*
+ * Get BSEC global sec state.
+ * @sec_state: Global BSEC current sec state
+ * Return a TEE_Result compliant status
+ */
+TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *sec_state);
 
 #endif /*__STM32_BSEC_H*/
