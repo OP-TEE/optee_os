@@ -65,6 +65,10 @@
 	};
 };
 
+&oem_enc_key {
+	st,non-secure-otp-provisioning;
+};
+
 &rcc {
 	compatible = "st,stm32mp13-rcc", "syscon";
 
