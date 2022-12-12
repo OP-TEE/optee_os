@@ -119,7 +119,12 @@
 #define HW2_OTP				18
 
 /* Bit map for BSEC word CFG0_OTP */
+#ifdef CFG_STM32MP13
+#define CFG0_OTP_CLOSED_DEVICE		U(0x3F)
+#endif
+#ifdef CFG_STM32MP15
 #define CFG0_OTP_CLOSED_DEVICE		BIT(6)
+#endif
 
 /* Bit map for BSEC word HW2_OTP */
 #define HW2_OTP_IWDG_HW_ENABLE_SHIFT	U(3)
