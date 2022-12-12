@@ -25,11 +25,14 @@ static TEE_Result stm32mp15_read_uid(uint32_t *uid)
 	uint32_t *q = uid;
 	uint32_t otp_idx = 0;
 	size_t __maybe_unused sz = 0;
+	uint8_t __maybe_unused offset = 0;
 
-	ret = stm32_bsec_find_otp_in_nvmem_layout("uid_otp", &otp_idx, &sz);
+	ret = stm32_bsec_find_otp_in_nvmem_layout("uid_otp", &otp_idx, &offset,
+						  &sz);
 	if (ret)
 		return ret;
 	assert(sz == 3 * 32);
+	assert(offset == 0);
 
 	/*
 	 * Shadow memory for UID words might not be locked: to guarante that
@@ -128,14 +131,16 @@ static __maybe_unused TEE_Result pos_from_dt(uint32_t otp_id[HUK_NB_OTP])
 {
 	TEE_Result ret = TEE_SUCCESS;
 	uint32_t otp_start = 0;
-	size_t tmp = 0;
+	size_t sz = 0;
+	uint8_t offset = 0;
 	size_t i = 0;
 
-	ret = stm32_bsec_find_otp_in_nvmem_layout("huk-otp", &otp_start, &tmp);
+	ret = stm32_bsec_find_otp_in_nvmem_layout("huk-otp", &otp_start,
+						  &offset, &sz);
 	if (ret)
 		return ret;
 
-	if (tmp != (HW_UNIQUE_KEY_LENGTH * CHAR_BIT))
+	if (sz != (HW_UNIQUE_KEY_LENGTH * CHAR_BIT) || offset != 0)
 		return TEE_ERROR_SECURITY;
 
 	for (i = 0; i < HUK_NB_OTP; i++)
