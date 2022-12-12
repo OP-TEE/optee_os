@@ -385,9 +385,9 @@ static sss_status_t get_config_key(struct se050_scp_key *keys __maybe_unused)
 #endif
 }
 
-static const char *get_scp03_ksrc_name(enum se050_scp03_ksrc ksrc)
+static const char * __maybe_unused get_scp03_ksrc_name(enum se050_scp03_ksrc k)
 {
-	switch (ksrc) {
+	switch (k) {
 	case SCP03_DERIVED:
 		return "derived";
 	case SCP03_CFG:
