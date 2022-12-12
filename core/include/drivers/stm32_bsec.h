@@ -82,14 +82,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id);
  * @value: Value to write
  * Return a TEE_Result compliant return value
  */
-#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
-#else
-static inline TEE_Result stm32_bsec_write_debug_conf(uint32_t value __unused)
-{
-	return TEE_ERROR_NOT_SUPPORTED;
-}
-#endif
 
 /* Return debug configuration read from BSEC */
 uint32_t stm32_bsec_read_debug_conf(void);

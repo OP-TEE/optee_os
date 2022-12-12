@@ -246,8 +246,8 @@ endif
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
 
-# Enable to allow debug
-CFG_STM32_BSEC_WRITE ?= $(CFG_TEE_CORE_DEBUG)
+# Enable OTP update with BSEC driver
+CFG_STM32_BSEC_WRITE ?= y
 
 # Default disable some support for pager memory size constraint
 ifeq ($(CFG_WITH_PAGER),y)
