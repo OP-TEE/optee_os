@@ -86,13 +86,6 @@
 #define BSEC_MODE_BIST1_LOCK_MASK	BIT(6)
 #define BSEC_MODE_BIST2_LOCK_MASK	BIT(7)
 
-/* BSEC_DEBUG */
-#define BSEC_HDPEN			BIT(4)
-#define BSEC_SPIDEN			BIT(5)
-#define BSEC_SPINDEN			BIT(6)
-#define BSEC_DBGSWGEN			BIT(10)
-#define BSEC_DEN_ALL_MSK		GENMASK_32(10, 0)
-
 /*
  * OTP Lock services definition
  * Value must corresponding to the bit position in the register
@@ -430,14 +423,13 @@ out:
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
-	uint32_t masked_val = value & BSEC_DEN_ALL_MSK;
 	uint32_t exceptions = 0;
 
 	exceptions = bsec_lock();
 
 	io_write32(bsec_base() + BSEC_DEN_OFF, value);
 
-	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ masked_val) == 0U)
+	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ value) == 0U)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
