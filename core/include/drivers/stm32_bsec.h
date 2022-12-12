@@ -10,6 +10,16 @@
 #include <stdint.h>
 #include <tee_api.h>
 
+/* BSEC_DEBUG */
+#define BSEC_HDPEN			BIT(4)
+#define BSEC_SPIDEN			BIT(5)
+#define BSEC_SPINDEN			BIT(6)
+#define BSEC_DBGSWGEN			BIT(10)
+#define BSEC_DEBUG_ALL			(BSEC_HDPEN | \
+					 BSEC_SPIDEN | \
+					 BSEC_SPINDEN | \
+					 BSEC_DBGSWGEN)
+
 #define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
 #define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
 
