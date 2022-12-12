@@ -170,11 +170,13 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
  * Find and get OTP location from its name.
  * @name: sub-node name to look up.
  * @otp_id: pointer to output OTP number or NULL.
+ * @otp_bit_offset: pointer to output OTP bit offset in the NVMEM cell or NULL.
  * @otp_bit_len: pointer to output OTP length in bits or NULL.
  * Return a TEE_Result compliant status
  */
 TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 					       uint32_t *otp_id,
+					       uint8_t *otp_bit_offset,
 					       size_t *otp_bit_len);
 
 /*

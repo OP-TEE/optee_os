@@ -516,6 +516,7 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 	unsigned int idx = 0;
 	uint32_t otp_id = 0;
 	size_t bit_len = 0;
+	uint8_t bit_offset = 0;
 	uint32_t otp_value = 0;
 
 	switch (pbase) {
@@ -529,8 +530,9 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 		panic();
 	}
 
-	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_len) ||
-	    bit_len != 32)
+	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_offset,
+						&bit_len) ||
+	    bit_len != 32 || bit_offset != 0)
 		panic();
 
 	if (stm32_bsec_read_otp(&otp_value, otp_id))
