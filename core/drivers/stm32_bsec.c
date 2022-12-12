@@ -469,7 +469,6 @@ out:
 	return result;
 }
 
-#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
@@ -489,7 +488,6 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 
 	return result;
 }
-#endif /*CFG_STM32_BSEC_WRITE*/
 
 uint32_t stm32_bsec_read_debug_conf(void)
 {
