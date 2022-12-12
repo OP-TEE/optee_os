@@ -131,8 +131,6 @@
 #define HW2_OTP_IWDG_FZ_STOP_SHIFT	U(5)
 #define HW2_OTP_IWDG_FZ_STANDBY_SHIFT	U(7)
 
-#define DATA0_OTP_SECURED_POS		6
-
 /* GIC resources */
 #define GIC_SIZE			0x2000
 #define GICC_OFFSET			0x1000
