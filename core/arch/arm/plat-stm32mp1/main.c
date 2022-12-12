@@ -359,19 +359,6 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->max_id = STM32MP1_OTP_MAX_ID;
 }
 
-bool stm32mp_is_closed_device(void)
-{
-	uint32_t otp = 0;
-	TEE_Result result = TEE_ERROR_GENERIC;
-
-	/* Non closed_device platform expects fuse well programmed to 0 */
-	result = stm32_bsec_shadow_read_otp(&otp, CFG0_OTP);
-	if (!result && !(otp & BIT(DATA0_OTP_SECURED_POS)))
-		return false;
-
-	return true;
-}
-
 bool __weak stm32mp_with_pmic(void)
 {
 	return false;

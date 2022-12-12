@@ -623,9 +623,13 @@ static void check_rcc_secure_configuration(void)
 	bool mckprot = stm32_rcc_is_mckprot();
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 	bool have_error = false;
+	uint32_t state = 0;
 
-	if (stm32mp_is_closed_device() && !secure)
+	if (stm32_bsec_get_state(&state))
 		panic();
+
+	if (state == BSEC_STATE_SEC_CLOSED && !secure)
+		panic("Closed device mandates secure RCC");
 
 	for (id = 0; id < STM32MP1_SHRES_COUNT; id++) {
 		if  (shres_state[id] != SHRES_SECURE)
