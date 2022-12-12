@@ -19,22 +19,30 @@ static bool stm32mp15_huk_init;
 
 static TEE_Result stm32mp15_read_uid(uint32_t *uid)
 {
+	TEE_Result ret = TEE_ERROR_GENERIC;
 	uint32_t *q = uid;
+	uint32_t otp_idx = 0;
+	size_t __maybe_unused sz = 0;
+
+	ret = stm32_bsec_find_otp_in_nvmem_layout("uid_otp", &otp_idx, &sz);
+	if (ret)
+		return ret;
+	assert(sz == 3 * 32);
 
 	/*
 	 * Shadow memory for UID words might not be locked: to guarante that
 	 * the final values are read we must lock them.
 	 */
-	if (stm32_bsec_set_sw_lock(UID0_OTP) ||
-	    stm32_bsec_shadow_read_otp(q++, UID0_OTP))
+	if (stm32_bsec_set_sw_lock(otp_idx) ||
+	    stm32_bsec_shadow_read_otp(q++, otp_idx))
 		return TEE_ERROR_GENERIC;
 
-	if (stm32_bsec_set_sw_lock(UID1_OTP) ||
-	    stm32_bsec_shadow_read_otp(q++, UID1_OTP))
+	if (stm32_bsec_set_sw_lock(otp_idx + 1) ||
+	    stm32_bsec_shadow_read_otp(q++, otp_idx + 1))
 		return TEE_ERROR_GENERIC;
 
-	if (stm32_bsec_set_sw_lock(UID2_OTP) ||
-	    stm32_bsec_shadow_read_otp(q++, UID2_OTP))
+	if (stm32_bsec_set_sw_lock(otp_idx + 2) ||
+	    stm32_bsec_shadow_read_otp(q++, otp_idx + 2))
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;

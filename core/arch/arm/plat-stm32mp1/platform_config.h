@@ -109,15 +109,6 @@
 
 #define OTP_MAX_SIZE			(STM32MP1_OTP_MAX_ID + 1U)
 
-#define CFG0_OTP			0
-#define PART_NUMBER_OTP			1
-#define MONOTONIC_OTP			4
-#define NAND_OTP			9
-#define UID0_OTP			13
-#define UID1_OTP			14
-#define UID2_OTP			15
-#define HW2_OTP				18
-
 /* Bit map for BSEC word CFG0_OTP */
 #ifdef CFG_STM32MP13
 #define CFG0_OTP_CLOSED_DEVICE		U(0x3F)

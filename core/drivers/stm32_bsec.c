@@ -168,12 +168,18 @@ static bool state_is_secured_mode(void)
 
 static bool state_is_closed_mode(void)
 {
+	uint32_t otp_cfg = 0;
 	uint32_t close_mode = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (IS_ENABLED(CFG_STM32MP13))
 		return bsec_status() & BSEC_MODE_CLOSED;
 
-	if (stm32_bsec_read_otp(&close_mode, CFG0_OTP))
+	res = stm32_bsec_find_otp_in_nvmem_layout("cfg0_otp", &otp_cfg, NULL);
+	if (res)
+		panic("CFG0 OTP not found");
+
+	if (stm32_bsec_read_otp(&close_mode, otp_cfg))
 		panic("Unable to read OTP");
 
 	return close_mode & CFG0_OTP_CLOSED_DEVICE;
