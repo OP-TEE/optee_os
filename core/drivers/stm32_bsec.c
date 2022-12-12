@@ -10,6 +10,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <limits.h>
@@ -833,6 +834,22 @@ static void initialize_bsec_from_dt(void)
 }
 #endif /*CFG_EMBED_DTB*/
 
+static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
+			  const struct pm_callback_handle *hdl __unused)
+{
+	static uint32_t debug_conf;
+
+	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
+
+	if (op == PM_OP_SUSPEND)
+		debug_conf = stm32_bsec_read_debug_conf();
+	else
+		stm32_bsec_write_debug_conf(debug_conf);
+
+	return TEE_SUCCESS;
+}
+DECLARE_KEEP_PAGER(bsec_pm);
+
 static TEE_Result initialize_bsec(void)
 {
 	struct stm32_bsec_static_cfg cfg = { };
@@ -848,6 +865,8 @@ static TEE_Result initialize_bsec(void)
 
 	if (IS_ENABLED(CFG_EMBED_DTB))
 		initialize_bsec_from_dt();
+
+	register_pm_core_service_cb(bsec_pm, NULL, "stm32_bsec");
 
 	return TEE_SUCCESS;
 }
