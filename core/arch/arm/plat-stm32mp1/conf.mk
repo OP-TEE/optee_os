@@ -310,6 +310,9 @@ $(error CFG_STM32MP15_HUK_BSEC_KEY and CFG_STM32MP15_HUK_BSEC_DERIVE_UID are exc
 endif
 endif # CFG_STM32MP15_HUK
 
+CFG_TEE_CORE_DEBUG ?= y
+CFG_STM32_DEBUG_ACCESS ?= $(CFG_TEE_CORE_DEBUG)
+
 # Sanity on choice config switches
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
 $(error CFG_STM32MP13_CLK and CFG_STM32MP15_CLK are exclusive)
