@@ -16,3 +16,4 @@ srcs-$(CFG_HWRNG_PTA) += hwrng.c
 srcs-$(CFG_RTC_PTA) += rtc.c
 
 subdirs-y += bcm
+subdirs-y += stm32mp
