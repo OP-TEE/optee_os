@@ -24,19 +24,40 @@ static sss_cipher_type_t oefid_cipher_type(void)
 	case SE050F_ID:
 		return kSSS_CipherType_RSA_CRT;
 	default:
-		break;
+		return kSSS_CipherType_RSA;
 	}
-	return kSSS_CipherType_RSA;
 }
 
-static bool oefid_keylen_supported(size_t bits __unused)
+static bool oefid_keylen_supported(size_t bits)
 {
-	return true;
+	switch (se050_get_oefid()) {
+	case SE050F_ID:
+		return bits >= 2048;
+	default:
+		return true;
+	}
 }
 
-static bool keypair_supported(struct rsa_keypair *key __unused,
-			      sss_cipher_type_t ctype __unused)
+static bool rsa_keypair_has_crt(struct rsa_keypair *key)
 {
+	if (key->p && crypto_bignum_num_bytes(key->p) &&
+	    key->q && crypto_bignum_num_bytes(key->q) &&
+	    key->qp && crypto_bignum_num_bytes(key->qp) &&
+	    key->dp && crypto_bignum_num_bytes(key->dp) &&
+	    key->dq && crypto_bignum_num_bytes(key->dq))
+		return true;
+
+	return false;
+}
+
+static bool keypair_supported(struct rsa_keypair *key, sss_cipher_type_t ctype)
+{
+	if (se050_rsa_keypair_from_nvm(key))
+		return true;
+
+	if (ctype == kSSS_CipherType_RSA_CRT)
+		return rsa_keypair_has_crt(key);
+
 	return true;
 }
 
