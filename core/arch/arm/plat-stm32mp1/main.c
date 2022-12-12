@@ -504,3 +504,35 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 	return TEE_SUCCESS;
 }
 #endif /*CFG_STM32_IWDG*/
+
+#ifdef CFG_STM32_DEBUG_ACCESS
+static TEE_Result init_debug(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t conf = stm32_bsec_read_debug_conf();
+	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_DBG);
+	uint32_t state = 0;
+
+	res = stm32_bsec_get_state(&state);
+	if (res)
+		return res;
+
+	if (state != BSEC_STATE_SEC_CLOSED && conf) {
+		if (IS_ENABLED(CFG_WARN_INSECURE))
+			IMSG("WARNING: All debug accesses are allowed");
+
+		res = stm32_bsec_write_debug_conf(conf | BSEC_DEBUG_ALL);
+		if (res)
+			return res;
+
+		/*
+		 * Enable DBG clock as used to access coprocessor
+		 * debug registers
+		 */
+		clk_enable(dbg_clk);
+	}
+
+	return TEE_SUCCESS;
+}
+early_init_late(init_debug);
+#endif /* CFG_STM32_DEBUG_ACCESS */
