@@ -365,7 +365,7 @@ bool stm32mp_is_closed_device(void)
 	TEE_Result result = TEE_ERROR_GENERIC;
 
 	/* Non closed_device platform expects fuse well programmed to 0 */
-	result = stm32_bsec_shadow_read_otp(&otp, DATA0_OTP);
+	result = stm32_bsec_shadow_read_otp(&otp, CFG0_OTP);
 	if (!result && !(otp & BIT(DATA0_OTP_SECURED_POS)))
 		return false;
 
