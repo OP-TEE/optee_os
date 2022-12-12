@@ -22,6 +22,13 @@
 #include <types_ext.h>
 #include <util.h>
 
+#ifdef CFG_STM32MP13
+#define DT_BSEC_COMPAT "st,stm32mp13-bsec"
+#endif
+#ifdef CFG_STM32MP15
+#define DT_BSEC_COMPAT "st,stm32mp15-bsec"
+#endif
+
 #define BSEC_OTP_MASK			GENMASK_32(4, 0)
 #define BSEC_OTP_BANK_SHIFT		U(5)
 
@@ -85,6 +92,7 @@
 #define BSEC_MODE_BUSY			BIT(3)
 #define BSEC_MODE_PROGFAIL		BIT(4)
 #define BSEC_MODE_PWR			BIT(5)
+#define BSEC_MODE_CLOSED		BIT(8)
 
 /*
  * OTP Lock services definition
@@ -161,6 +169,9 @@ static bool state_is_secured_mode(void)
 static bool state_is_closed_mode(void)
 {
 	uint32_t close_mode = 0;
+
+	if (IS_ENABLED(CFG_STM32MP13))
+		return bsec_status() & BSEC_MODE_CLOSED;
 
 	if (stm32_bsec_read_otp(&close_mode, CFG0_OTP))
 		panic("Unable to read OTP");
@@ -445,6 +456,10 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, false /* not-disturbed */);
+
+#ifdef CFG_STM32MP13
+	io_write32(base + BSEC_OTP_CTRL_OFF, addr | BSEC_READ | BSEC_LOCK);
+#endif
 
 	power_down_safmem();
 
@@ -814,7 +829,7 @@ static void initialize_bsec_from_dt(void)
 	struct dt_node_info bsec_info = { };
 
 	fdt = get_embedded_dt();
-	node = fdt_node_offset_by_compatible(fdt, 0, "st,stm32mp15-bsec");
+	node = fdt_node_offset_by_compatible(fdt, 0, DT_BSEC_COMPAT);
 	if (node < 0)
 		panic();
 
