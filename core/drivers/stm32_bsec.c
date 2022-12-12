@@ -588,26 +588,24 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 		panic();
 
 	fdt_for_each_subnode(bsec_subnode, fdt, bsec_node) {
-		const fdt32_t *cuint = NULL;
+		unsigned int reg_offset = 0;
+		unsigned int reg_size = 0;
 		unsigned int otp_id = 0;
 		unsigned int i = 0;
 		size_t size = 0;
-		uint32_t offset = 0;
-		uint32_t length = 0;
 
-		cuint = fdt_getprop(fdt, bsec_subnode, "reg", NULL);
-		assert(cuint);
+		reg_offset = _fdt_reg_base_address(fdt, bsec_subnode);
+		reg_size = _fdt_reg_size(fdt, bsec_subnode);
 
-		offset = fdt32_to_cpu(*cuint);
-		cuint++;
-		length = fdt32_to_cpu(*cuint);
+		assert(reg_offset != DT_INFO_INVALID_REG &&
+		       reg_size != DT_INFO_INVALID_REG_SIZE);
 
-		otp_id = offset / sizeof(uint32_t);
+		otp_id = reg_offset / sizeof(uint32_t);
 
 		if (otp_id < STM32MP1_UPPER_OTP_START) {
-			unsigned int otp_end = ROUNDUP(offset + length,
-						       sizeof(uint32_t)) /
-					       sizeof(uint32_t);
+			unsigned int otp_end =
+				ROUNDUP_DIV(reg_offset + reg_size,
+					    sizeof(uint32_t));
 
 			if (otp_end > STM32MP1_UPPER_OTP_START) {
 				/*
@@ -615,10 +613,10 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 				 * only the upper part.
 				 */
 				otp_id = STM32MP1_UPPER_OTP_START;
-				length -= (STM32MP1_UPPER_OTP_START *
-					   sizeof(uint32_t)) - offset;
-				offset = STM32MP1_UPPER_OTP_START *
-					 sizeof(uint32_t);
+				reg_size -= (STM32MP1_UPPER_OTP_START *
+					     sizeof(uint32_t)) - reg_offset;
+				reg_offset = STM32MP1_UPPER_OTP_START *
+					     sizeof(uint32_t);
 
 				DMSG("OTP crosses Lower/Upper boundary");
 			} else {
@@ -629,10 +627,11 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 		if (!fdt_getprop(fdt, bsec_subnode, "st,non-secure-otp", NULL))
 			continue;
 
-		if ((offset % sizeof(uint32_t)) || (length % sizeof(uint32_t)))
+		if ((reg_offset % sizeof(uint32_t)) ||
+		    (reg_size % sizeof(uint32_t)))
 			panic("Unaligned non-secure OTP");
 
-		size = length / sizeof(uint32_t);
+		size = reg_size / sizeof(uint32_t);
 
 		if (otp_id + size > STM32MP1_OTP_MAX_ID)
 			panic("OTP range oversized");
