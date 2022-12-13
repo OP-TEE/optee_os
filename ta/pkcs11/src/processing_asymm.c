@@ -459,8 +459,8 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 	void *hash_buf = NULL;
 	uint32_t in_size = 0;
 	uint32_t in2_size = 0;
-	uint32_t out_size = 0;
-	uint32_t hash_size = 0;
+	size_t out_size = 0;
+	size_t hash_size = 0;
 	TEE_Attribute *tee_attrs = NULL;
 	size_t tee_attrs_count = 0;
 	bool output_data = false;
@@ -949,7 +949,7 @@ static enum pkcs11_rc wrap_rsa_aes_key(struct active_processing *proc,
 	mbedtls_nist_kw_context kw_ctx = { };
 	uint8_t aes_key_value[32] = { };
 	uint32_t aes_key_size = ctx->aes_key_bits / 8;
-	uint32_t aes_wrapped_size = *out_sz;
+	size_t aes_wrapped_size = *out_sz;
 	uint32_t expected_size = 0;
 	size_t target_key_size = 0;
 	const size_t kw_semiblock_len = 8;
@@ -1022,7 +1022,7 @@ static enum pkcs11_rc unwrap_rsa_aes_key(struct active_processing *proc,
 	struct rsa_aes_key_wrap_processing_ctx *ctx = proc->extra_ctx;
 	mbedtls_nist_kw_context kw_ctx = { };
 	uint8_t aes_key_value[32] = { };
-	uint32_t aes_key_size = ctx->aes_key_bits / 8;
+	size_t aes_key_size = ctx->aes_key_bits / 8;
 	uint32_t wrapped_key_size = 0;
 	uint32_t rsa_key_size = 0;
 	size_t target_key_size = 0;

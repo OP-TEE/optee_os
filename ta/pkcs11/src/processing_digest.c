@@ -118,7 +118,7 @@ enum pkcs11_rc step_digest_operation(struct pkcs11_session *session,
 	void *in_buf = NULL;
 	size_t in_size = 0;
 	void *out_buf = NULL;
-	uint32_t out_size = 0;
+	size_t out_size = 0;
 	void *secret_value = NULL;
 	uint32_t secret_value_size = 0;
 	enum pkcs11_key_type key_type = PKCS11_CKK_UNDEFINED_ID;

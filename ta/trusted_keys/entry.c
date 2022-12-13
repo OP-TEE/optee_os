@@ -93,13 +93,13 @@ static TEE_Result derive_unique_key(uint8_t *key, uint16_t key_size,
 }
 
 static TEE_Result huk_ae_encrypt(TEE_OperationHandle crypto_op, uint8_t *in,
-				 uint32_t in_sz, uint8_t *out, uint32_t *out_sz)
+				 size_t in_sz, uint8_t *out, size_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tk_blob_hdr *hdr = (struct tk_blob_hdr *)out;
 	uint8_t iv[IV_SIZE] = { 0 };
-	uint32_t enc_key_len = in_sz;
-	uint32_t tag_len = TAG_SIZE;
+	size_t enc_key_len = in_sz;
+	size_t tag_len = TAG_SIZE;
 
 	hdr->reserved = 0;
 	TEE_GenerateRandom(iv, IV_SIZE);
@@ -121,12 +121,12 @@ static TEE_Result huk_ae_encrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 }
 
 static TEE_Result huk_ae_decrypt(TEE_OperationHandle crypto_op, uint8_t *in,
-				 uint32_t in_sz, uint8_t *out, uint32_t *out_sz)
+				 size_t in_sz, uint8_t *out, size_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct tk_blob_hdr *hdr = (struct tk_blob_hdr *)in;
 	uint8_t tag[TAG_SIZE] = { 0 };
-	uint32_t enc_key_len = 0;
+	size_t enc_key_len = 0;
 
 	if (SUB_OVERFLOW(in_sz, sizeof(*hdr), &enc_key_len))
 		return TEE_ERROR_SECURITY;
@@ -144,8 +144,8 @@ static TEE_Result huk_ae_decrypt(TEE_OperationHandle crypto_op, uint8_t *in,
 	return res;
 }
 
-static TEE_Result huk_crypt(TEE_OperationMode mode, uint8_t *in, uint32_t in_sz,
-			    uint8_t *out, uint32_t *out_sz)
+static TEE_Result huk_crypt(TEE_OperationMode mode, uint8_t *in, size_t in_sz,
+			    uint8_t *out, size_t *out_sz)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	TEE_OperationHandle crypto_op = TEE_HANDLE_NULL;
@@ -206,9 +206,9 @@ static TEE_Result seal_trusted_key(uint32_t types,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t *in = NULL;
-	uint32_t in_sz = 0;
+	size_t in_sz = 0;
 	uint8_t *out = NULL;
-	uint32_t out_sz = 0;
+	size_t out_sz = 0;
 
 	DMSG("Invoked TA_CMD_SEAL");
 
@@ -249,9 +249,9 @@ static TEE_Result unseal_trusted_key(uint32_t types,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t *in = NULL;
-	uint32_t in_sz = 0;
+	size_t in_sz = 0;
 	uint8_t *out = NULL;
-	uint32_t out_sz = 0;
+	size_t out_sz = 0;
 
 	DMSG("Invoked TA_CMD_UNSEAL");
 
