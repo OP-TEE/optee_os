@@ -67,25 +67,42 @@
 #define RISCV_PGLEVELS		((RISCV_MMU_VA_WIDTH - RISCV_PGSHIFT) / \
 							 RISCV_PGLEVEL_BITS)
 #define RISCV_MMU_VPN_MASK	(BIT(RISCV_PGLEVEL_BITS) - 1)
+#define RISCV_MMU_MAX_PGTS	16
 
 #define SMALL_PAGE_SHIFT	U(12)
 
 /*
- * Level 0: shift = 12 4K pages
- * Level 1: shift = 21 2M pages
- * Level 2: shift = 30 1G pages
+ * Level 0, shift = 12, 4 KiB pages
+ * Level 1, shift = 21, 2 MiB pages (4 MiB pages in Sv32)
+ * Level 2, shift = 30, 1 GiB pages
+ * Level 3, shift = 39, 512 GiB pages
+ * Level 4, shift = 48, 256 TiB pages
  */
+#define CORE_MMU_SHIFT_OF_LEVEL(level) (RISCV_PGLEVEL_BITS * \
+					(level) + \
+					RISCV_PGSHIFT)
 
 #define CORE_MMU_USER_CODE_SHIFT	SMALL_PAGE_SHIFT
 #define CORE_MMU_USER_PARAM_SHIFT	SMALL_PAGE_SHIFT
 
-#define CORE_MMU_PGDIR_LEVEL		U(0)
-#define CORE_MMU_PGDIR_SHIFT		U(12)
+/*
+ * In all MMU modes, the megapage is always at level 1:
+ * Sv32: 4 KiB, 4 MiB
+ * Sv39: 4 KiB, 2 MiB, 1 GiB
+ * Sv48: 4 KiB, 2 MiB, 1 GiB, 512 GiB
+ * Sv57: 4 KiB, 2 MiB, 1 GiB, 512 GiB, 256 TiB
+ */
+#define CORE_MMU_PGDIR_LEVEL		U(1)
+#define CORE_MMU_PGDIR_SHIFT \
+		CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_PGDIR_LEVEL)
 
-#define CORE_MMU_BASE_TABLE_LEVEL	0
-#define CORE_MMU_BASE_TABLE_SHIFT	(RISCV_PGLEVEL_BITS * \
-					 CORE_MMU_BASE_TABLE_LEVEL + \
-					 RISCV_PGSHIFT)
+#define CORE_MMU_BASE_TABLE_LEVEL	(RISCV_PGLEVELS - 1)
+#define CORE_MMU_BASE_TABLE_SHIFT \
+		CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_BASE_TABLE_LEVEL)
+
+#define CORE_MMU_USER_TABLE_LEVEL	U(2)
+#define CORE_MMU_USER_TABLE_SHIFT \
+		CORE_MMU_SHIFT_OF_LEVEL(CORE_MMU_USER_TABLE_LEVEL)
 
 #ifndef __ASSEMBLER__
 
@@ -95,7 +112,7 @@ struct core_mmu_config {
 };
 
 struct core_mmu_user_map {
-	uint64_t user_map;
+	unsigned long user_map;
 	uint32_t asid;
 };
 
