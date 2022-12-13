@@ -339,7 +339,7 @@ enum pkcs11_rc alloc_get_tee_attribute_data(TEE_ObjectHandle tee_obj,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	void *ptr = NULL;
-	uint32_t sz = 0;
+	size_t sz = 0;
 
 	res = TEE_GetObjectBufferAttribute(tee_obj, attribute, NULL, &sz);
 	if (res != TEE_ERROR_SHORT_BUFFER)

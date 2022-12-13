@@ -1020,5 +1020,9 @@ CFG_TA_STATS ?= n
 # is tampered with. Details in lib/libutils/ext/include/fault_mitigation.h
 CFG_FAULT_MITIGATION ?= y
 
-# Enable TEE Internal Core API v1.1 compatibility for in-tree TAs
-CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= y
+# Enables TEE Internal Core API v1.1 compatibility for in-tree TAs. Note
+# that this doesn't affect libutee itself, it's only the TAs compiled with
+# this set that are affected. Each out-of-tree must set this if to enable
+# compatibility with version v1.1 as the value of this variable is not
+# preserved in the TA dev-kit.
+CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n
