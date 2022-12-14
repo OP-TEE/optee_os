@@ -74,13 +74,11 @@ static TEE_Result tee_svc_close_enum(struct user_ta_ctx *utc,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result tee_svc_storage_remove_corrupt_obj(struct ts_session *sess,
-						     struct tee_obj *o)
+static void remove_corrupt_obj(struct user_ta_ctx *utc, struct tee_obj *o)
 {
 	o->pobj->fops->remove(o->pobj);
-	tee_obj_close(to_user_ta_ctx(sess->ctx), o);
-
-	return TEE_SUCCESS;
+	if (!(utc->ta_ctx.flags & TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT))
+		tee_obj_close(utc, o);
 }
 
 static TEE_Result tee_svc_storage_read_head(struct tee_obj *o)
@@ -241,7 +239,7 @@ err:
 	if (res == TEE_ERROR_NO_DATA || res == TEE_ERROR_BAD_FORMAT)
 		res = TEE_ERROR_CORRUPT_OBJECT;
 	if (res == TEE_ERROR_CORRUPT_OBJECT && o)
-		tee_svc_storage_remove_corrupt_obj(sess, o);
+		remove_corrupt_obj(utc, o);
 
 exit:
 	return res;
@@ -763,7 +761,7 @@ TEE_Result syscall_storage_obj_read(unsigned long obj, void *data, size_t len,
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
 			EMSG("Object corrupt");
-			tee_svc_storage_remove_corrupt_obj(sess, o);
+			remove_corrupt_obj(utc, o);
 		}
 		goto exit;
 	}
@@ -819,7 +817,7 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 	if (res != TEE_SUCCESS) {
 		if (res == TEE_ERROR_CORRUPT_OBJECT) {
 			EMSG("Object corrupt");
-			tee_svc_storage_remove_corrupt_obj(sess, o);
+			remove_corrupt_obj(utc, o);
 		}
 		goto exit;
 	}
@@ -874,7 +872,7 @@ TEE_Result syscall_storage_obj_trunc(unsigned long obj, size_t len)
 		break;
 	case TEE_ERROR_CORRUPT_OBJECT:
 		EMSG("Object corruption");
-		(void)tee_svc_storage_remove_corrupt_obj(sess, o);
+		remove_corrupt_obj(to_user_ta_ctx(sess->ctx), o);
 		break;
 	default:
 		res = TEE_ERROR_GENERIC;

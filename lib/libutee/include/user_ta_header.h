@@ -10,27 +10,30 @@
 #include <tee_api_types.h>
 #include <util.h>
 
-#define TA_FLAG_USER_MODE		0	 /* Deprecated, was (1 << 0) */
-#define TA_FLAG_EXEC_DDR		0	 /* Deprecated, was (1 << 1) */
-#define TA_FLAG_SINGLE_INSTANCE		(1 << 2)
-#define TA_FLAG_MULTI_SESSION		(1 << 3)
-#define TA_FLAG_INSTANCE_KEEP_ALIVE	(1 << 4) /* remains after last close */
-#define TA_FLAG_SECURE_DATA_PATH	(1 << 5) /* accesses SDP memory */
-#define TA_FLAG_REMAP_SUPPORT		0	 /* Deprecated, was (1 << 6) */
-#define TA_FLAG_CACHE_MAINTENANCE	(1 << 7) /* use cache flush syscall */
+#define TA_FLAG_USER_MODE		0	 /* Deprecated, was BIT32(0) */
+#define TA_FLAG_EXEC_DDR		0	 /* Deprecated, was BIT32(1) */
+#define TA_FLAG_SINGLE_INSTANCE		BIT32(2)
+#define TA_FLAG_MULTI_SESSION		BIT32(3)
+#define TA_FLAG_INSTANCE_KEEP_ALIVE	BIT32(4) /* remains after last close */
+#define TA_FLAG_SECURE_DATA_PATH	BIT32(5) /* accesses SDP memory */
+#define TA_FLAG_REMAP_SUPPORT		0	 /* Deprecated, was BIT32(6) */
+#define TA_FLAG_CACHE_MAINTENANCE	BIT32(7) /* use cache flush syscall */
 	/*
 	 * TA instance can execute multiple sessions concurrently
 	 * (pseudo-TAs only).
 	 */
-#define TA_FLAG_CONCURRENT		(1 << 8)
+#define TA_FLAG_CONCURRENT		BIT32(8)
 	/*
 	 * Device enumeration is done in two stages by the normal world, first
 	 * before the tee-supplicant has started and then once more when the
 	 * tee-supplicant is started. The flags below control if the TA should
 	 * be reported in the first or second or case.
 	 */
-#define TA_FLAG_DEVICE_ENUM		(1 << 9)  /* without tee-supplicant */
-#define TA_FLAG_DEVICE_ENUM_SUPP	(1 << 10) /* with tee-supplicant */
+#define TA_FLAG_DEVICE_ENUM		BIT32(9)  /* without tee-supplicant */
+#define TA_FLAG_DEVICE_ENUM_SUPP	BIT32(10) /* with tee-supplicant */
+	/* See also "gpd.ta.doesNotCloseHandleOnCorruptObject" */
+#define TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
+					BIT32(11)
 
 #define TA_FLAGS_MASK			GENMASK_32(10, 0)
 
@@ -116,6 +119,8 @@ extern struct __elf_phdr_info __elf_phdr_info;
 #define TA_PROP_STR_VERSION		"gpd.ta.version"
 #define TA_PROP_STR_DESCRIPTION		"gpd.ta.description"
 #define TA_PROP_STR_ENDIAN		"gpd.ta.endian"
+#define TA_PROP_STR_DOES_NOT_CLOSE_HANDLE_ON_CORRUPT_OBJECT \
+	"gpd.ta.doesNotCloseHandleOnCorruptObject"
 
 enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_BOOL,	/* bool */
