@@ -4,21 +4,26 @@
  * Copyright (c) 2022, Linaro Limited
  */
 
-/* Based on GP TEE Internal Core API Specification Version 1.3.1 */
+/* Based on GP TEE Internal Core API Specification Version 1.1 */
 
 #ifndef TEE_API_DEFINES_H
 #define TEE_API_DEFINES_H
 
 #define TEE_CORE_API_MAJOR_VERSION		1U
-#define TEE_CORE_API_MINOR_VERSION		3U
-#define TEE_CORE_API_MAINTENANCE_VERSION	1U
+#define TEE_CORE_API_MINOR_VERSION		1U
+#define TEE_CORE_API_MAINTENANCE_VERSION	0U
 #define TEE_CORE_API_VERSION \
 			((TEE_CORE_API_MAJOR_VERSION << 24) | \
 			 (TEE_CORE_API_MINOR_VERSION << 16) | \
 			 (TEE_CORE_API_MAINTENANCE_VERSION << 8))
-#define TEE_CORE_API_1_3_1
+#define TEE_CORE_API_1_1
 
 /*
+ * The things that follows below to select compatibility version 1.1 doesn't
+ * do much useful at the moment since OP-TEE is already compatible with that
+ * version by default. However, that will change when a newer version of
+ * this API is provided.
+ *
  * Below follows the GP defined way of letting a TA define that it wants an
  * API compatible with version 1.1 or the latest. An alternative approach
  * is to set __OPTEE_CORE_API_COMPAT_1_1, but that's an OP-TEE extension.
