@@ -1116,6 +1116,8 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			pioBU: secumod@fc040000 {
