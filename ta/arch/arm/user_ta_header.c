@@ -155,6 +155,10 @@ const struct user_ta_property ta_props[] = {
 	/* Only little-endian supported */
 	{TA_PROP_STR_ENDIAN, USER_TA_PROP_TYPE_U32, &(const uint32_t){0}},
 
+	{TA_PROP_STR_DOES_NOT_CLOSE_HANDLE_ON_CORRUPT_OBJECT,
+	 USER_TA_PROP_TYPE_BOOL,
+	 &(const bool){TA_FLAGS & TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT}},
+
 /*
  * Extended propietary properties, name of properties must not begin with
  * "gpd."
