@@ -62,7 +62,11 @@ ifeq ($(CFG_ULIBS_SHARED),y)
 ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
 lib-ldflags$(libuuid) += $$(call ld-option,-z force-bti) --fatal-warnings
 endif
-$(lib-shlibfile): $(objs) $(lib-needed-so-files)
+ifneq ($(wildcard $(libname).map),)
+lib-ldflags$(libuuid) += --version-script=$(libname).map
+libdeps += $(shlibname).map
+endif
+$(lib-shlibfile): $(objs) $(lib-needed-so-files) $(libdeps)
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) -shared -z max-page-size=4096 \

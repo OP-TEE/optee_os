@@ -18,6 +18,10 @@ cleanfiles += $(link-out-dir)/$(shlibuuid).elf
 cleanfiles += $(link-out-dir)/$(shlibuuid).ta
 
 shlink-ldflags  = $(LDFLAGS)
+ifneq ($(wildcard $(shlibname).map),)
+shlink-ldflags += --version-script=$(shlibname).map
+libdeps += $(shlibname).map
+endif
 shlink-ldflags += -shared -z max-page-size=4096
 shlink-ldflags += $(call ld-option,-z separate-loadable-segments)
 ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
