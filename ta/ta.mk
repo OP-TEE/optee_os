@@ -100,7 +100,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 
 libname = utee
 libdir = lib/libutee
-libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
+libuuid = 4b3d937e-d57e-418b-8673-1c04f2420226
 libl = mbedtls utils
 include mk/lib.mk
 
