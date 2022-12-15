@@ -680,6 +680,52 @@ static bool mpi_is_even(mbedtls_mpi *x)
 	return !mpi_is_odd(x);
 }
 
+TEE_Result TEE_BigIntExpMod(TEE_BigInt *dest, const TEE_BigInt *op1,
+			    const TEE_BigInt *op2, const TEE_BigInt *n,
+			    const TEE_BigIntFMMContext *context __unused)
+{
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_mpi mpi_dest = { };
+	mbedtls_mpi mpi_op1 = { };
+	mbedtls_mpi mpi_op2 = { };
+	mbedtls_mpi mpi_n = { };
+	mbedtls_mpi *pop1 = &mpi_op1;
+	mbedtls_mpi *pop2 = &mpi_op2;
+
+	get_mpi(&mpi_dest, dest);
+	get_mpi(&mpi_n, n);
+	if (op1 == dest)
+		pop1 = &mpi_dest;
+	else
+		get_mpi(&mpi_op1, op1);
+
+	if (op2 == dest)
+		pop2 = &mpi_dest;
+	else if (op2 == op1)
+		pop2 = pop1;
+	else
+		get_mpi(&mpi_op2, op2);
+
+	if (mbedtls_mpi_cmp_int(&mpi_n, 2) <= 0)
+		API_PANIC("too small modulus");
+	if (!mpi_is_odd(&mpi_n)) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	MPI_CHECK(mbedtls_mpi_exp_mod(&mpi_dest, pop1, pop2, &mpi_n, NULL));
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+out:
+	mbedtls_mpi_free(&mpi_dest);
+	mbedtls_mpi_free(&mpi_n);
+	if (pop1 == &mpi_op1)
+		mbedtls_mpi_free(&mpi_op1);
+	if (pop2 == &mpi_op2)
+		mbedtls_mpi_free(&mpi_op2);
+
+	return res;
+}
+
 /*
  * Based on libmpa implementation __mpa_egcd(), modified to work with MPI
  * instead.
