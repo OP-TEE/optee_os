@@ -64,3 +64,6 @@ CFG_VERSAL_CRYPTO_DRIVER ?= y
 
 # SHA3-384 crypto engine
 CFG_VERSAL_SHA3_384 ?= y
+
+# PM driver
+CFG_VERSAL_PM ?= y
