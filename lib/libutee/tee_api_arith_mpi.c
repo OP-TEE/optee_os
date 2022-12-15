@@ -348,6 +348,25 @@ uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
 	return rc;
 }
 
+TEE_Result TEE_BigIntSetBit(TEE_BigInt *op, uint32_t bitIndex, bool value)
+{
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_mpi mpi = { };
+	int rc = 0;
+
+	get_mpi(&mpi, op);
+
+	rc = mbedtls_mpi_set_bit(&mpi, bitIndex, value);
+	if (rc)
+		res = TEE_ERROR_OVERFLOW;
+	else
+		res = copy_mpi_to_bigint(&mpi, op);
+
+	mbedtls_mpi_free(&mpi);
+
+	return res;
+}
+
 TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src)
 {
 	const struct bigint_hdr *src_hdr = (struct bigint_hdr *)src;
