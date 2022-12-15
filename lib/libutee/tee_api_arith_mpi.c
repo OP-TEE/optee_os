@@ -385,6 +385,16 @@ TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src)
 	return TEE_SUCCESS;
 }
 
+TEE_Result TEE_BigIntAbs(TEE_BigInt *dest, const TEE_BigInt *src)
+{
+	TEE_Result res = TEE_BigIntAssign(dest, src);
+
+	if (!res)
+		((struct bigint_hdr *)dest)->sign = 1;
+
+	return res;
+}
+
 static void bigint_binary(TEE_BigInt *dest, const TEE_BigInt *op1,
 			  const TEE_BigInt *op2,
 			  int (*func)(mbedtls_mpi *X, const mbedtls_mpi *A,
