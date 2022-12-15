@@ -348,6 +348,24 @@ uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
 	return rc;
 }
 
+TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src)
+{
+	const struct bigint_hdr *src_hdr = (struct bigint_hdr *)src;
+	struct bigint_hdr *dst_hdr = (struct bigint_hdr *)dest;
+
+	if (dst_hdr == src_hdr)
+		return TEE_SUCCESS;
+
+	if (dst_hdr->alloc_size < src_hdr->nblimbs)
+		return TEE_ERROR_OVERFLOW;
+
+	dst_hdr->nblimbs = src_hdr->nblimbs;
+	dst_hdr->sign = src_hdr->sign;
+	memcpy(dst_hdr + 1, src_hdr + 1, src_hdr->nblimbs * sizeof(uint32_t));
+
+	return TEE_SUCCESS;
+}
+
 static void bigint_binary(TEE_BigInt *dest, const TEE_BigInt *op1,
 			  const TEE_BigInt *op2,
 			  int (*func)(mbedtls_mpi *X, const mbedtls_mpi *A,

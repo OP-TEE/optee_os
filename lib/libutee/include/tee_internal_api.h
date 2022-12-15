@@ -562,6 +562,8 @@ bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex);
 
 uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src);
 
+TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src);
+
 void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
 		   const TEE_BigInt *op2);
 
