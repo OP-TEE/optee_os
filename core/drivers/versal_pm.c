@@ -134,7 +134,7 @@ static uint32_t versal_sip_call(uint32_t smc_fid, uint32_t arg0, uint32_t arg1,
 /* SIP call to program the FPGA has been obsoleted, use the PLM */
 TEE_Result versal_write_fpga(paddr_t pa)
 {
-	struct ipi_cmd cmd = { };
+	struct versal_ipi_cmd cmd = { };
 
 	cmd.data[0] = PM_LOAD_PDI;
 	cmd.data[1] = PDI_SRC_DDR;
@@ -178,8 +178,8 @@ static bool uuid_is_versal_pm(void)
 static TEE_Result versal_check_pm_abi(void)
 {
 	struct versal_sip_payload p = { };
-	struct ipi_cmd cmd = { };
-	struct ipi_cmd rsp = { };
+	struct versal_ipi_cmd cmd = { };
+	struct versal_ipi_cmd rsp = { };
 	unsigned int major = 0;
 	unsigned int minor = 0;
 
