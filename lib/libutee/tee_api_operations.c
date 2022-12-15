@@ -560,26 +560,30 @@ __GP11_TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
 	return res;
 }
 
+static void reset_operation_state(TEE_OperationHandle op)
+{
+	op->operationState = TEE_OPERATION_STATE_INITIAL;
+
+	if (op->info.operationClass == TEE_OPERATION_DIGEST) {
+		TEE_Result res = _utee_hash_init(op->state, NULL, 0);
+
+		if (res != TEE_SUCCESS)
+			TEE_Panic(res);
+		op->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
+	} else {
+		op->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
+	}
+}
+
 void TEE_ResetOperation(TEE_OperationHandle operation)
 {
-	TEE_Result res;
-
 	if (operation == TEE_HANDLE_NULL)
 		TEE_Panic(0);
 
 	if (!(operation->info.handleState & TEE_HANDLE_FLAG_KEY_SET))
-			TEE_Panic(0);
+		TEE_Panic(0);
 
-	operation->operationState = TEE_OPERATION_STATE_INITIAL;
-
-	if (operation->info.operationClass == TEE_OPERATION_DIGEST) {
-		res = _utee_hash_init(operation->state, NULL, 0);
-		if (res != TEE_SUCCESS)
-			TEE_Panic(res);
-		operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
-	} else {
-		operation->info.handleState &= ~TEE_HANDLE_FLAG_INITIALIZED;
-	}
+	reset_operation_state(operation);
 }
 
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
@@ -594,15 +598,12 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 		goto out;
 	}
 
-	if (operation->operationState != TEE_OPERATION_STATE_INITIAL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
 	if (key == TEE_HANDLE_NULL) {
 		/* Operation key cleared */
 		TEE_ResetTransientObject(operation->key1);
 		operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
+		if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+			reset_operation_state(operation);
 		return TEE_SUCCESS;
 	}
 
@@ -649,6 +650,9 @@ TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 
 	operation->info.keySize = key_size;
 
+	if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		reset_operation_state(operation);
+
 out:
 	if (res != TEE_SUCCESS  &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
@@ -658,8 +662,19 @@ out:
 	return res;
 }
 
-TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
-				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
+TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
+				      TEE_ObjectHandle key)
+{
+	if (operation == TEE_HANDLE_NULL ||
+	    operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		TEE_Panic(0);
+
+	return TEE_SetOperationKey(operation, key);
+}
+
+static TEE_Result set_operation_key2(TEE_OperationHandle operation,
+				     TEE_ObjectHandle key1,
+				     TEE_ObjectHandle key2)
 {
 	TEE_Result res;
 	uint32_t key_size = 0;
@@ -667,11 +682,6 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	TEE_ObjectInfo key_info2;
 
 	if (operation == TEE_HANDLE_NULL) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	}
-
-	if (operation->operationState != TEE_OPERATION_STATE_INITIAL) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
@@ -685,6 +695,8 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 		TEE_ResetTransientObject(operation->key1);
 		TEE_ResetTransientObject(operation->key2);
 		operation->info.handleState &= ~TEE_HANDLE_FLAG_KEY_SET;
+		if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+			reset_operation_state(operation);
 		return TEE_SUCCESS;
 	} else if (!key1 || !key2) {
 		/* Both keys are obviously not valid. */
@@ -771,6 +783,8 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 
 	operation->info.keySize = key_size;
 
+	if (operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		reset_operation_state(operation);
 out:
 	if (res != TEE_SUCCESS  &&
 	    res != TEE_ERROR_CORRUPT_OBJECT &&
@@ -780,6 +794,26 @@ out:
 		TEE_Panic(res);
 
 	return res;
+}
+
+TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
+				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
+{
+	if (operation != TEE_HANDLE_NULL && key1 && key1 == key2)
+		return TEE_ERROR_SECURITY;
+
+	return set_operation_key2(operation, key1, key2);
+}
+
+TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
+				       TEE_ObjectHandle key1,
+				       TEE_ObjectHandle key2)
+{
+	if (operation == TEE_HANDLE_NULL ||
+	    operation->operationState != TEE_OPERATION_STATE_INITIAL)
+		TEE_Panic(0);
+
+	return set_operation_key2(operation, key1, key2);
 }
 
 void TEE_CopyOperation(TEE_OperationHandle dst_op, TEE_OperationHandle src_op)
