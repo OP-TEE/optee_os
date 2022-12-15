@@ -94,6 +94,8 @@ ifeq ($(PLATFORM_FLAVOR),sama5d27_wlsom1_ek)
 CFG_DRIVERS_GPIO ?= y
 CFG_DRIVERS_I2C ?= y
 CFG_ATMEL_I2C ?= y
+CFG_DRIVERS_PINCTRL ?= y
+CFG_ATMEL_PIO ?= y
 endif
 
 # SCMI related configuration
