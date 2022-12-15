@@ -10,6 +10,9 @@
 #include <stdint.h>
 #include <tee_api.h>
 
+#define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
+#define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
+
 /*
  * Load OTP from SAFMEM and provide its value
  * @value: Output read value

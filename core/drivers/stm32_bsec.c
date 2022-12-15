@@ -108,7 +108,6 @@
 /* Timeout when polling on status */
 #define BSEC_TIMEOUT_US			10000
 
-#define BITS_PER_WORD		(CHAR_BIT * sizeof(uint32_t))
 
 struct bsec_dev {
 	struct io_pa_va base;
@@ -535,7 +534,7 @@ static size_t nsec_access_array_size(void)
 {
 	size_t upper_count = otp_max_id() - otp_upper_base() + 1;
 
-	return ROUNDUP(upper_count, BITS_PER_WORD) / BITS_PER_WORD;
+	return ROUNDUP_DIV(upper_count, BSEC_BITS_PER_WORD);
 }
 
 static bool nsec_access_granted(unsigned int index)
@@ -543,8 +542,9 @@ static bool nsec_access_granted(unsigned int index)
 	uint32_t *array = bsec_dev.nsec_access;
 
 	return array &&
-	       (index / BITS_PER_WORD) < nsec_access_array_size() &&
-	       array[index / BITS_PER_WORD] & BIT(index % BITS_PER_WORD);
+	       (index / BSEC_BITS_PER_WORD) < nsec_access_array_size() &&
+	       array[index / BSEC_BITS_PER_WORD] &
+	       BIT(index % BSEC_BITS_PER_WORD);
 }
 
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
@@ -556,7 +556,7 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 #ifdef CFG_EMBED_DTB
 static void enable_nsec_access(unsigned int otp_id)
 {
-	unsigned int idx = (otp_id - otp_upper_base()) / BITS_PER_WORD;
+	unsigned int idx = (otp_id - otp_upper_base()) / BSEC_BITS_PER_WORD;
 
 	if (otp_id < otp_upper_base())
 		return;
@@ -564,7 +564,7 @@ static void enable_nsec_access(unsigned int otp_id)
 	if (otp_id > otp_max_id() || stm32_bsec_shadow_register(otp_id))
 		panic();
 
-	bsec_dev.nsec_access[idx] |= BIT(otp_id % BITS_PER_WORD);
+	bsec_dev.nsec_access[idx] |= BIT(otp_id % BSEC_BITS_PER_WORD);
 }
 
 static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
