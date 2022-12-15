@@ -313,9 +313,14 @@ void TEE_ResetOperation(TEE_OperationHandle operation);
 
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 			       TEE_ObjectHandle key);
+TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
+				      TEE_ObjectHandle key);
 
 TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 				TEE_ObjectHandle key1, TEE_ObjectHandle key2);
+TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
+				       TEE_ObjectHandle key1,
+				       TEE_ObjectHandle key2);
 
 void TEE_CopyOperation(TEE_OperationHandle dstOperation,
 		       TEE_OperationHandle srcOperation);
