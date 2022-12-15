@@ -2192,7 +2192,14 @@ tee_svc_obj_ed25519_parse_params(const TEE_Attribute *params, size_t num_params,
 	for (n = 0; n < num_params; n++) {
 		switch (params[n].attributeID) {
 		case TEE_ATTR_EDDSA_PREHASH:
-			*ph_flag = true;
+			if (params[n].content.value.b)
+				return TEE_ERROR_BAD_PARAMETERS;
+			if (!params[n].content.value.a)
+				*ph_flag = false;
+			else if (params[n].content.value.a == 1)
+				*ph_flag = true;
+			else
+				return TEE_ERROR_BAD_PARAMETERS;
 			break;
 
 		case TEE_ATTR_EDDSA_CTX:
