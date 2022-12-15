@@ -604,6 +604,10 @@ void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
 void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 		      const TEE_BigInt *n);
 
+TEE_Result TEE_BigIntExpMod(TEE_BigInt *dest, const TEE_BigInt *op1,
+			    const TEE_BigInt *op2, const TEE_BigInt *n,
+			    const TEE_BigIntFMMContext *context);
+
 /* TEE Arithmetical API - Other arithmetic operations */
 
 bool TEE_BigIntRelativePrime(const TEE_BigInt *op1, const TEE_BigInt *op2);
