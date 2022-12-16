@@ -2631,7 +2631,8 @@ static struct clk_stm32_priv stm32mp13_clock_data = {
 };
 
 static TEE_Result stm32mp13_clk_probe(const void *fdt, int node,
-				      const void *compat_data __unused)
+				      const void *compat_data __unused,
+				      const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int fdt_rc = 0;

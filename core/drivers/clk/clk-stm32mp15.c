@@ -1521,7 +1521,8 @@ static struct clk *stm32mp1_clk_dt_get_clk(struct dt_driver_phandle_args *pargs,
 static const uint8_t non_secure_rcc;
 
 static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
-						const void *compat_data)
+						const void *compat_data,
+						const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 

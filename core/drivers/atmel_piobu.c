@@ -350,7 +350,8 @@ static void piobu_register_pm(void) {}
 #endif
 
 static TEE_Result atmel_secumod_probe(const void *fdt, int node,
-				      const void *compat_data __unused)
+				      const void *compat_data __unused,
+				      const struct dt_driver *dt_drv __unused)
 {
 	size_t size = 0;
 

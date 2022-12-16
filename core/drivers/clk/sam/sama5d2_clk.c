@@ -310,7 +310,8 @@ vaddr_t at91_pmc_get_base(void)
 }
 
 static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
-			    const void *data __unused)
+			    const void *data __unused,
+			    const struct dt_driver *dt_drv __unused)
 {
 	size_t size = 0;
 	vaddr_t base = 0;

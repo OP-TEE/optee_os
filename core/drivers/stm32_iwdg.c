@@ -375,7 +375,8 @@ static TEE_Result stm32_iwdg_register(struct stm32_iwdg_device *iwdg)
 }
 
 static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
-				   const void *compat_data __unused)
+				   const void *compat_data __unused,
+				   const struct dt_driver *dt_drv __unused)
 {
 	struct stm32_iwdg_device *iwdg = NULL;
 	TEE_Result res = TEE_SUCCESS;

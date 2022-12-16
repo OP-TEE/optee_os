@@ -281,7 +281,8 @@ static struct rtc atmel_rtc = {
 };
 
 static TEE_Result atmel_rtc_probe(const void *fdt, int node,
-				  const void *compat_data __unused)
+				  const void *compat_data __unused,
+				  const struct dt_driver *dt_drv __unused)
 {
 	size_t size = 0;
 

@@ -40,7 +40,8 @@ void __noreturn atmel_rstc_reset(void)
 }
 
 static TEE_Result atmel_rstc_probe(const void *fdt, int node,
-				   const void *compat_data __unused)
+				   const void *compat_data __unused,
+				   const struct dt_driver *dt_drv __unused)
 
 {
 	size_t size = 0;

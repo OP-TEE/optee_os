@@ -1246,7 +1246,8 @@ out:
 }
 
 static TEE_Result stm32_cryp_probe(const void *fdt, int node,
-				   const void *compt_data __unused)
+				   const void *compt_data __unused,
++                                  const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct dt_node_info dt_cryp = { };

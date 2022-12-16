@@ -69,6 +69,8 @@ enum dt_driver_type {
 	DT_DRIVER_RSTCTRL,
 };
 
+struct dt_driver;
+
 /*
  * DT_MAP_AUTO: Uses status properties from device tree to determine mapping.
  * DT_MAP_SECURE: Force mapping for device to be secure.
@@ -93,7 +95,8 @@ enum dt_map_dev_directive {
  *	Any other TEE_ERROR_* compliant code.
  */
 typedef TEE_Result (*dt_driver_probe_func)(const void *fdt, int nodeoffset,
-					   const void *compat_data);
+					   const void *compat_data,
+					   const struct dt_driver *dt_drv);
 
 #if defined(CFG_DT)
 /*
@@ -110,7 +113,7 @@ struct dt_driver {
 	enum dt_driver_type type;
 	const struct dt_device_match *match_table; /* null-terminated */
 	const void *driver;
-	TEE_Result (*probe)(const void *fdt, int node, const void *compat_data);
+	dt_driver_probe_func probe;
 };
 
 #define DEFINE_DT_DRIVER(name) \

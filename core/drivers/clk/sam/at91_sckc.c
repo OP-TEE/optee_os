@@ -20,7 +20,8 @@ static const struct clk_ops sckc_clk_ops = {
 };
 
 static TEE_Result sckc_pmc_setup(const void *fdt __unused, int offs,
-				 const void *data __unused)
+				 const void *data __unused,
+				 const struct dt_driver *drv __unused)
 {
 	struct clk *clk = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;

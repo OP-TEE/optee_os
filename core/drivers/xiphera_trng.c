@@ -95,7 +95,9 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 }
 
 static TEE_Result xiphera_trng_probe(const void *fdt, int node,
-				     const void *compat_data __unused)
+				     const void *compat_data __unused,
+				     const struct dt_driver *dt_drv __unused)
+
 {
 	int dt_status = _fdt_get_status(fdt, node);
 	uint32_t status = 0;

@@ -221,7 +221,8 @@ static void atmel_wdt_register_pm(struct atmel_wdt *wdt __unused)
 #endif
 
 static TEE_Result wdt_node_probe(const void *fdt, int node,
-				 const void *compat_data __unused)
+				 const void *compat_data __unused,
+				 const struct dt_driver *dt_drv __unused)
 {
 	size_t size = 0;
 	struct atmel_wdt *wdt;

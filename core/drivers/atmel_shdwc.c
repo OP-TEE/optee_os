@@ -140,7 +140,8 @@ static void at91_shdwc_dt_configure(const void *fdt, int np)
 }
 
 static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
-				    const void *compat_data __unused)
+				    const void *compat_data __unused,
+				    const struct dt_driver *dt_drv __unused)
 {
 	int ddr_node = 0;
 	size_t size = 0;

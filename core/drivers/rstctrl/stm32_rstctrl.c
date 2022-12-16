@@ -202,7 +202,8 @@ static struct rstctrl *stm32_rstctrl_get_dev(struct dt_driver_phandle_args *arg,
 }
 
 static TEE_Result stm32_rstctrl_provider_probe(const void *fdt, int offs,
-					       const void *compat_data __unused)
+					       const void *compat_data __unused,
+					       const struct dt_driver *dt_drv __unused)
 {
 	struct dt_node_info info = { };
 

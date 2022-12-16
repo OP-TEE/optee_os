@@ -26,7 +26,8 @@ static const struct clk_ops fixed_clk_clk_ops = {
 };
 
 static TEE_Result fixed_clock_probe(const void *fdt, int offs,
-				    const void *compat_data __unused)
+				    const void *compat_data __unused,
+				    const struct dt_driver *dt_drv __unused)
 {
 	const uint32_t *freq = NULL;
 	const char *name = NULL;

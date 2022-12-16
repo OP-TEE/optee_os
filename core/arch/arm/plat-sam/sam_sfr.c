@@ -40,7 +40,8 @@ void atmel_sfr_set_usb_suspend(bool set)
 }
 
 static TEE_Result atmel_sfr_probe(const void *fdt, int node,
-				  const void *compat_data __unused)
+				  const void *compat_data __unused,
+				  const struct dt_driver *dt_drv __unused)
 {
 	if (_fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
 		matrix_configure_periph_secure(AT91C_ID_SFR);

@@ -347,7 +347,8 @@ static TEE_Result probe_driver_node(const void *fdt,
 
 	FMSG("Probing %s on node %s", drv_name, node_name);
 
-	res = elt->dt_drv->probe(fdt, elt->nodeoffset, elt->dm->compat_data);
+	res = elt->dt_drv->probe(fdt, elt->nodeoffset, elt->dm->compat_data,
+				 elt->dt_drv);
 	switch (res) {
 	case TEE_SUCCESS:
 		TAILQ_INSERT_HEAD(&dt_driver_ready_list, elt, link);
@@ -748,7 +749,8 @@ release_init_resource(release_probe_lists);
  * Simple bus support: handy to parse subnodes
  */
 static TEE_Result simple_bus_probe(const void *fdt, int node,
-				   const void *compat_data __unused)
+				   const void *compat_data __unused,
+				   const struct dt_driver *drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	int subnode = 0;

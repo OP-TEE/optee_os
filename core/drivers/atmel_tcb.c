@@ -150,7 +150,8 @@ static TEE_Result atmel_tcb_check(void)
 boot_final(atmel_tcb_check);
 
 static TEE_Result atmel_tcb_probe(const void *fdt, int node,
-				  const void *compat_data __unused)
+				  const void *compat_data __unused,
+				  const struct dt_driver *dt_drv __unused)
 {
 	size_t size = 0;
 	struct clk *clk = NULL;

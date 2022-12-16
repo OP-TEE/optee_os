@@ -233,7 +233,8 @@ static TEE_Result stm32_tamp_parse_fdt(struct stm32_tamp_instance *tamp,
 }
 
 static TEE_Result stm32_tamp_probe(const void *fdt, int node,
-				   const void *compat_data)
+				   const void *compat_data,
+				   const struct dt_driver *dt_drv __unused)
 {
 	struct stm32_tamp_instance *tamp = NULL;
 	uint32_t __maybe_unused revision = 0;

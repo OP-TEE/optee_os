@@ -155,7 +155,8 @@ TEE_Result dt_driver_test_status(void)
  * are found.
  */
 static TEE_Result dt_test_consumer_probe(const void *fdt, int node,
-					 const void *compat_data __unused)
+					 const void *compat_data __unused,
+					 const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -283,7 +284,8 @@ DEFINE_DT_DRIVER(dt_test_consumer_driver) = {
 
 static TEE_Result dt_test_crypt_consumer_probe(const void *fdt __unused,
 					       int node __unused,
-					       const void *compat_data __unused)
+					       const void *compat_data __unused,
+					       const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = dt_driver_get_crypto();
 	uint8_t __maybe_unused byte = 0;
@@ -368,7 +370,8 @@ static struct clk *dt_test_get_clk(struct dt_driver_phandle_args *args,
 }
 
 static TEE_Result dt_test_clock_provider_probe(const void *fdt, int node,
-					       const void *compat_data __unused)
+					       const void *compat_data __unused,
+					       const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct clk *clk = NULL;
@@ -491,7 +494,8 @@ static struct rstctrl *dt_test_get_rstctrl(struct dt_driver_phandle_args *args,
 }
 
 static TEE_Result dt_test_rstctrl_provider_probe(const void *fdt, int offs,
-						 const void *data __unused)
+						 const void *data __unused,
+						 const struct dt_driver *dt_drv __unused)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_test_rstctrl *devices = NULL;
