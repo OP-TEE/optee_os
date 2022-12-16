@@ -2032,7 +2032,9 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
-	    res != TEE_ERROR_BAD_PARAMETERS)
+	    res != TEE_ERROR_BAD_PARAMETERS &&
+	    res != TEE_ERROR_CIPHERTEXT_INVALID &&
+	    res != TEE_ERROR_NOT_SUPPORTED)
 		TEE_Panic(res);
 
 	return res;
@@ -2106,7 +2108,9 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 
 	if (res != TEE_SUCCESS &&
 	    res != TEE_ERROR_SHORT_BUFFER &&
-	    res != TEE_ERROR_BAD_PARAMETERS)
+	    res != TEE_ERROR_BAD_PARAMETERS &&
+	    res != TEE_ERROR_CIPHERTEXT_INVALID &&
+	    res != TEE_ERROR_NOT_SUPPORTED)
 		TEE_Panic(res);
 
 	return res;
