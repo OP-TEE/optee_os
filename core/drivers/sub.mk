@@ -75,6 +75,7 @@ srcs-$(CFG_VERSAL_HUK) += versal_huk.c
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_DRIVERS_CLK) += clk
+subdirs-$(CFG_DRIVERS_I2C) += i2c
 subdirs-$(CFG_DRIVERS_RSTCTRL) += rstctrl
 subdirs-$(CFG_SCMI_MSG_DRIVERS) += scmi-msg
 subdirs-y += imx
