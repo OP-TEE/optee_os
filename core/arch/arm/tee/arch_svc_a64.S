@@ -26,21 +26,21 @@ struct sc_rec {
 #define SC_REC_SIZE		(SC_REC_X30 + 8)
 
 /*
- * uint32_t tee_svc_do_call(struct thread_svc_regs *regs, tee_svc_func func);
+ * uint32_t scall_do_call(struct thread_scall_regs *regs, syscall_t func);
  *
- * Called from user_ta_handle_svc()
+ * Called from scall_handle_user_ta()
  */
-FUNC tee_svc_do_call , :
+FUNC scall_do_call , :
 	sub	sp, sp, #SC_REC_SIZE
 	stp	x0, x1, [sp, #SC_REC_X0]
 	stp	x19, x30, [sp, #SC_REC_X19]
 	mov	x19, sp
 
-	ldr	x2, [x0, #THREAD_SVC_REG_SPSR]
+	ldr	x2, [x0, #THREAD_SCALL_REG_SPSR]
 	tst	x2, #(SPSR_MODE_RW_32 << SPSR_MODE_RW_SHIFT)
 	b.eq	.Lcall_a64
 
-	ldp	x5, x6, [x0, #THREAD_SVC_REG_X5]
+	ldp	x5, x6, [x0, #THREAD_SCALL_REG_X5]
 	cmp	x6, #0
 	b.eq	.Lno_args_a32
 
@@ -68,7 +68,7 @@ FUNC tee_svc_do_call , :
 	/*
 	 * Find location on stack where to copy the Aarch32 arguments
 	 * and do the copy.
-	 * tee_svc_copy_from_user(sp, x5, nargs_on_stack * 4)
+	 * copy_from_user(sp, x5, nargs_on_stack * 4)
 	 */
 	mov	x0, sp
 	mov	x1, x5
@@ -85,7 +85,7 @@ FUNC tee_svc_do_call , :
 	 */
 	/* x0 = nargs_on_stack */
 	ldr	x0, [x19, #SC_REC_X0]
-	ldr	x0, [x0, #THREAD_SVC_REG_X6]
+	ldr	x0, [x0, #THREAD_SCALL_REG_X6]
 	load_wregs sp, 0, 4, 7
 
 	/*
@@ -121,22 +121,22 @@ FUNC tee_svc_do_call , :
 
 .Lno_args_a32: /* Load the first 4 arguments to function */
 	ldr	x9, [x19, #SC_REC_X0]
-	load_xregs x9, THREAD_SVC_REG_X0, 0, 3
+	load_xregs x9, THREAD_SCALL_REG_X0, 0, 3
 	mov	w0, w0
 	mov	w1, w1
 	mov	w2, w2
 	mov	w3, w3
 
-	/* Call the svc function */
+	/* Call the syscall function */
 	ldr	x16, [x19, #SC_REC_X1]
 	blr	x16
 	b	.Lret
 
 .Lcall_a64: /* Load the first 8 arguments to function */
 	ldr	x9, [x19, #SC_REC_X0]
-	load_xregs x9, THREAD_SVC_REG_X0, 0, 8
+	load_xregs x9, THREAD_SCALL_REG_X0, 0, 8
 
-	/* Call the svc function */
+	/* Call the syscall function */
 	ldr	x16, [x19, #SC_REC_X1]
 	blr	x16
 
@@ -145,7 +145,7 @@ FUNC tee_svc_do_call , :
 	ldp	x19, x30, [sp, #SC_REC_X19]
 	add	sp, sp, #SC_REC_SIZE
 	ret
-END_FUNC tee_svc_do_call
+END_FUNC scall_do_call
 
 /*
  * syscall_sys_return() and syscall_panic() are two special cases for syscalls
@@ -153,11 +153,11 @@ END_FUNC tee_svc_do_call
  * as if __thread_enter_user_mode() had returned to thread_enter_user_mode().
  *
  * In order to do this the functions need a way to get hold of a pointer to
- * the struct thread_svc_regs provided by storing relevant registers on the
+ * the struct thread_scall_regs provided by storing relevant registers on the
  * stack in el0_svc() and later load them into registers again when el0_svc()
  * is returning.
  *
- * tee_svc_do_call() is supplied the pointer to struct thread_svc_regs in
+ * scall_do_call() is supplied the pointer to struct thread_scall_regs in
  * x0. This pointer can later be retrieved by chasing x19.
  */
 
@@ -166,18 +166,17 @@ END_FUNC tee_svc_do_call
  * void syscall_sys_return(uint32_t ret) __noreturn;
  *
  * But internally the function depends on being called from
- * tee_svc_do_call() to be able to chase x19 in order to get hold of a
- * pointer to struct thread_svc_regs.
+ * scall_do_call() to be able to chase x19 in order to get hold of a
+ * pointer to struct thread_scall_regs.
  *
  * The argument ret is already in x0 so we don't touch that and let it
- * propagate as return value of the called
- * tee_svc_unwind_enter_user_mode().
+ * propagate as return value of the called scall_sys_return_helper().
  */
 FUNC syscall_sys_return , :
 	mov	x1, #0  /* panic = false */
 	mov	x2, #0  /* panic_code = 0 */
-	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_svc_regs */
-	b	tee_svc_sys_return_helper
+	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_scall_regs */
+	b	scall_sys_return_helper
 END_FUNC syscall_sys_return
 
 /*
@@ -185,15 +184,15 @@ END_FUNC syscall_sys_return
  * void syscall_panic(uint32_t code) __noreturn;
  *
  * But internally the function depends on being called from
- * tee_svc_do_call() to be able to chase x19 in order to get hold of a
- * pointer to struct thread_svc_regs.
+ * scall_do_call() to be able to chase x19 in order to get hold of a
+ * pointer to struct thread_scall_regs.
  */
 FUNC syscall_panic , :
 	mov	x1, #1  /* panic = true */
 	mov	x2, x0  /* code */
 	ldr	w0, =TEE_ERROR_TARGET_DEAD
-	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_svc_regs */
-	b	tee_svc_sys_return_helper
+	ldr	x3, [x19, #SC_REC_X0] /* pointer to struct thread_scall_regs */
+	b	scall_sys_return_helper
 END_FUNC syscall_panic
 
 BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

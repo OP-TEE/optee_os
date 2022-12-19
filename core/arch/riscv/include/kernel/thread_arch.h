@@ -68,7 +68,7 @@ struct thread_abort_regs {
 	unsigned long status;
 };
 
-struct thread_svc_regs {
+struct thread_scall_regs {
 	unsigned long a0;
 	unsigned long a1;
 	unsigned long a2;

@@ -393,7 +393,7 @@ const struct ts_ops user_ta_ops __weak __relrodata_unpaged("user_ta_ops") = {
 #endif
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
-	.handle_svc = user_ta_handle_svc,
+	.handle_scall = scall_handle_user_ta,
 #ifdef CFG_TA_GPROF_SUPPORT
 	.gprof_set_status = user_ta_gprof_set_status,
 #endif
@@ -455,7 +455,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	mutex_lock(&tee_ta_mutex);
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
-	s->ts_sess.handle_svc = s->ts_sess.ctx->ops->handle_svc;
+	s->ts_sess.handle_scall = s->ts_sess.ctx->ops->handle_scall;
 	/*
 	 * Another thread trying to load this same TA may need to wait
 	 * until this context is fully initialized. This is needed to

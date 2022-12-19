@@ -267,16 +267,16 @@ DECLARE_KEEP_PAGER thread_init_vbar
  * user TA calls _utee_return, user TA calls _utee_panic or through an abort.
  *
  * Calls to _utee_return or _utee_panic are handled as:
- * __thread_svc_handler() -> thread_svc_handler() ->tee_svc_do_call() which
+ * __thread_svc_handler() -> thread_scall_handler() -> scall_do_call() which
  * calls syscall_return() or syscall_panic().
  *
- * These function calls returns normally except thread_svc_handler() which
+ * These function calls returns normally except thread_scall_handler() which
  * which is an exception handling routine so it reads return address and
  * SPSR to restore from the stack. syscall_return() and syscall_panic()
- * changes return address and SPSR used by thread_svc_handler() to instead of
+ * changes return address and SPSR used by thread_scall_handler() to instead of
  * returning into user mode as with other syscalls it returns into
  * thread_unwind_user_mode() in kernel mode instead.  When
- * thread_svc_handler() returns the stack pointer at the point where
+ * thread_scall_handler() returns the stack pointer at the point where
  * thread_enter_user_mode() left it so this is where
  * thread_unwind_user_mode() can operate.
  *
@@ -776,7 +776,7 @@ __thread_svc_handler:
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
-	bl	thread_svc_handler
+	bl	thread_scall_handler
 	cpsid	aif	/* In case something was unmasked */
 	pop	{r0}
 	msr	spsr_fsxc, r0

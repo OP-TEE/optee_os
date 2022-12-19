@@ -194,8 +194,8 @@ static void __noprof ftrace_syscall_leave(void)
 #endif
 
 #ifdef ARM32
-static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
-		size_t *max_args)
+static void get_scn_max_args(struct thread_scall_regs *regs, size_t *scn,
+			     size_t *max_args)
 {
 	*scn = regs->r7;
 	*max_args = regs->r6;
@@ -203,8 +203,8 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 #endif /*ARM32*/
 
 #ifdef ARM64
-static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
-		size_t *max_args)
+static void get_scn_max_args(struct thread_scall_regs *regs, size_t *scn,
+			     size_t *max_args)
 {
 	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
 	     SPSR_MODE_RW_32) {
@@ -218,14 +218,14 @@ static void get_scn_max_args(struct thread_svc_regs *regs, size_t *scn,
 #endif /*ARM64*/
 
 #ifdef ARM32
-static void set_svc_retval(struct thread_svc_regs *regs, uint32_t ret_val)
+static void set_svc_retval(struct thread_scall_regs *regs, uint32_t ret_val)
 {
 	regs->r0 = ret_val;
 }
 #endif /*ARM32*/
 
 #ifdef ARM64
-static void set_svc_retval(struct thread_svc_regs *regs, uint64_t ret_val)
+static void set_svc_retval(struct thread_scall_regs *regs, uint64_t ret_val)
 {
 	regs->x0 = ret_val;
 }
@@ -246,7 +246,7 @@ static syscall_t get_tee_syscall_func(size_t num)
 				 &sc_table[TEE_SCN_MAX].fn + 1);
 }
 
-bool user_ta_handle_svc(struct thread_svc_regs *regs)
+bool scall_handle_user_ta(struct thread_scall_regs *regs)
 {
 	size_t scn = 0;
 	size_t max_args = 0;
@@ -266,13 +266,13 @@ bool user_ta_handle_svc(struct thread_svc_regs *regs)
 
 	ftrace_syscall_enter(scn);
 
-	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+	set_svc_retval(regs, scall_do_call(regs, scf));
 
 	ftrace_syscall_leave();
 
 	/*
 	 * Return true if we're to return to user mode,
-	 * thread_svc_handler() will take care of the rest.
+	 * thread_scall_handler() will take care of the rest.
 	 */
 	return scn != TEE_SCN_RETURN && scn != TEE_SCN_PANIC;
 }
@@ -292,7 +292,7 @@ static syscall_t get_ldelf_syscall_func(size_t num)
 				 &sc_table[LDELF_SCN_MAX].fn + 1);
 }
 
-bool ldelf_handle_svc(struct thread_svc_regs *regs)
+bool scall_handle_ldelf(struct thread_scall_regs *regs)
 {
 	size_t scn = 0;
 	size_t max_args = 0;
@@ -312,13 +312,13 @@ bool ldelf_handle_svc(struct thread_svc_regs *regs)
 
 	ftrace_syscall_enter(scn);
 
-	set_svc_retval(regs, tee_svc_do_call(regs, scf));
+	set_svc_retval(regs, scall_do_call(regs, scf));
 
 	ftrace_syscall_leave();
 
 	/*
 	 * Return true if we're to return to user mode,
-	 * thread_svc_handler() will take care of the rest.
+	 * thread_scall_handler() will take care of the rest.
 	 */
 	return scn != LDELF_RETURN && scn != LDELF_PANIC;
 }
@@ -352,7 +352,7 @@ static void save_panic_regs_a32_ta(struct thread_specific_data *tsd,
 	};
 }
 
-static void save_panic_stack(struct thread_svc_regs *regs)
+static void save_panic_stack(struct thread_scall_regs *regs)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct ts_session *s = ts_get_current_session();
@@ -375,7 +375,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 	save_panic_regs_a32_ta(tsd, (uint32_t *)regs->r1);
 }
 #else /* CFG_UNWIND */
-static void save_panic_stack(struct thread_svc_regs *regs __unused)
+static void save_panic_stack(struct thread_scall_regs *regs __unused)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
@@ -421,7 +421,7 @@ static void save_panic_regs_a64_ta(struct thread_specific_data *tsd,
 	};
 }
 
-static void save_panic_stack(struct thread_svc_regs *regs)
+static void save_panic_stack(struct thread_scall_regs *regs)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct ts_session *s = ts_get_current_session();
@@ -450,7 +450,7 @@ static void save_panic_stack(struct thread_svc_regs *regs)
 		save_panic_regs_a64_ta(tsd, (uint64_t *)regs->x1);
 }
 #else /* CFG_UNWIND */
-static void save_panic_stack(struct thread_svc_regs *regs __unused)
+static void save_panic_stack(struct thread_scall_regs *regs __unused)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
 
@@ -459,9 +459,8 @@ static void save_panic_stack(struct thread_svc_regs *regs __unused)
 #endif /* CFG_UNWIND */
 #endif /*ARM64*/
 
-uint32_t tee_svc_sys_return_helper(uint32_t ret, bool panic,
-				   uint32_t panic_code,
-				   struct thread_svc_regs *regs)
+uint32_t scall_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
+				 struct thread_scall_regs *regs)
 {
 	if (panic) {
 		TAMSG_RAW("");

@@ -112,13 +112,13 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	arg = (struct ldelf_arg *)usr_stack;
 	memset(arg, 0, sizeof(*arg));
 	arg->uuid = uctx->ts_ctx->uuid;
-	sess->handle_svc = ldelf_handle_svc;
+	sess->handle_scall = scall_handle_ldelf;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	sess->handle_svc = sess->ctx->ops->handle_svc;
+	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
 	ldelf_sess_cleanup(sess);
 
@@ -265,13 +265,13 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 #endif /*ARM64*/
 
 	sess = ts_get_current_session();
-	sess->handle_svc = ldelf_handle_svc;
+	sess->handle_scall = scall_handle_ldelf;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dump_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	sess->handle_svc = sess->ctx->ops->handle_svc;
+	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
 	ldelf_sess_cleanup(sess);
 
@@ -314,13 +314,13 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 	*arg = *blen;
 
 	sess = ts_get_current_session();
-	sess->handle_svc = ldelf_handle_svc;
+	sess->handle_scall = scall_handle_ldelf;
 
 	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
 				     usr_stack, uctx->ftrace_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	sess->handle_svc = sess->ctx->ops->handle_svc;
+	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
 	ldelf_sess_cleanup(sess);
 
@@ -372,13 +372,13 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	arg->dlopen.flags = flags;
 
 	sess = ts_get_current_session();
-	sess->handle_svc = ldelf_handle_svc;
+	sess->handle_scall = scall_handle_ldelf;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	sess->handle_svc = sess->ctx->ops->handle_svc;
+	sess->handle_scall = sess->ctx->ops->handle_scall;
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {
@@ -426,13 +426,13 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	arg->dlsym.symbol[len] = '\0';
 
 	sess = ts_get_current_session();
-	sess->handle_svc = ldelf_handle_svc;
+	sess->handle_scall = scall_handle_ldelf;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_arm32, &panicked, &panic_code);
 
-	sess->handle_svc = sess->ctx->ops->handle_svc;
+	sess->handle_scall = sess->ctx->ops->handle_scall;
 	ldelf_sess_cleanup(sess);
 
 	if (panicked) {

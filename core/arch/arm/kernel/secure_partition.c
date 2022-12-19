@@ -1039,7 +1039,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 
 /* We currently don't support 32 bits */
 #ifdef ARM64
-static void sp_svc_store_registers(struct thread_svc_regs *regs,
+static void sp_svc_store_registers(struct thread_scall_regs *regs,
 				   struct thread_ctx_regs *sp_regs)
 {
 	COMPILE_TIME_ASSERT(sizeof(sp_regs->x[0]) == sizeof(regs->x0));
@@ -1049,7 +1049,7 @@ static void sp_svc_store_registers(struct thread_svc_regs *regs,
 }
 #endif
 
-static bool sp_handle_svc(struct thread_svc_regs *regs)
+static bool sp_handle_scall(struct thread_scall_regs *regs)
 {
 	struct ts_session *ts = ts_get_current_session();
 	struct sp_ctx *uctx = to_sp_ctx(ts->ctx);
@@ -1092,7 +1092,7 @@ static void sp_dump_state(struct ts_ctx *ctx)
 
 static const struct ts_ops sp_ops = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
-	.handle_svc = sp_handle_svc,
+	.handle_scall = sp_handle_scall,
 	.dump_state = sp_dump_state,
 };
 

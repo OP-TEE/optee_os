@@ -236,7 +236,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 			       uint32_t a6, uint32_t a7);
 
 /* Called from assembly only. Handles a SVC from user mode. */
-void thread_svc_handler(struct thread_svc_regs *regs);
+void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/

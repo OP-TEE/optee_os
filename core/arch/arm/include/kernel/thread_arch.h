@@ -177,7 +177,7 @@ struct thread_abort_regs {
 #endif /*ARM64*/
 
 #ifdef ARM32
-struct thread_svc_regs {
+struct thread_scall_regs {
 	uint32_t spsr;
 	uint32_t r0;
 	uint32_t r1;
@@ -191,7 +191,7 @@ struct thread_svc_regs {
 };
 #endif /*ARM32*/
 #ifdef ARM64
-struct thread_svc_regs {
+struct thread_scall_regs {
 	uint64_t elr;
 	uint64_t spsr;
 	uint64_t x0;	/* r0_usr */
