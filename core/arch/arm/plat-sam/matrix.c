@@ -28,6 +28,7 @@
 #include <arm32.h>
 #include <initcall.h>
 #include <io.h>
+#include <kernel/dt.h>
 #include <kernel/pm.h>
 #include <kernel/panic.h>
 #include <matrix.h>
@@ -55,6 +56,7 @@ struct peri_security {
 	unsigned int peri_id;
 	unsigned int matrix;
 	unsigned int security_type;
+	paddr_t addr;
 };
 
 static const struct peri_security peri_security_array[] = {
@@ -62,6 +64,7 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_PMC,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PMC,
 	},
 	{
 		.peri_id = AT91C_ID_ARM,
@@ -72,181 +75,217 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_PIT,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PITC,
 	},
 	{
 		.peri_id = AT91C_ID_WDT,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_WDT,
 	},
 	{
 		.peri_id = AT91C_ID_GMAC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_GMAC,
 	},
 	{
 		.peri_id = AT91C_ID_XDMAC0,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_XDMAC0,
 	},
 	{
 		.peri_id = AT91C_ID_XDMAC1,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_XDMAC1,
 	},
 	{
 		.peri_id = AT91C_ID_ICM,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ICM,
 	},
 	{
 		.peri_id = AT91C_ID_AES,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_AES,
 	},
 	{
 		.peri_id = AT91C_ID_AESB,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_AESB,
 	},
 	{
 		.peri_id = AT91C_ID_TDES,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TDES,
 	},
 	{
 		.peri_id = AT91C_ID_SHA,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SHA,
 	},
 	{
 		.peri_id = AT91C_ID_MPDDRC,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_MPDDRC,
 	},
 	{
 		.peri_id = AT91C_ID_MATRIX1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_MATRIX32,
 	},
 	{
 		.peri_id = AT91C_ID_MATRIX0,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_MATRIX64,
 	},
 	{
 		.peri_id = AT91C_ID_SECUMOD,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SECUMOD,
 	},
 	{
 		.peri_id = AT91C_ID_HSMC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_HSMC,
 	},
 	{
 		.peri_id = AT91C_ID_PIOA,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOA,
 	},
 	{
 		.peri_id = AT91C_ID_FLEXCOM0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM0,
 	},
 	{
 		.peri_id = AT91C_ID_FLEXCOM1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM1,
 	},
 	{
 		.peri_id = AT91C_ID_FLEXCOM2,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM2,
 	},
 	{
 		.peri_id = AT91C_ID_FLEXCOM3,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM3,
 	},
 	{
 		.peri_id = AT91C_ID_FLEXCOM4,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM4,
 	},
 	{
 		.peri_id = AT91C_ID_UART0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART0,
 	},
 	{
 		.peri_id = AT91C_ID_UART1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART1,
 	},
 	{
 		.peri_id = AT91C_ID_UART2,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART2,
 	},
 	{
 		.peri_id = AT91C_ID_UART3,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART3,
 	},
 	{
 		.peri_id = AT91C_ID_UART4,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART4,
 	},
 	{
 		.peri_id = AT91C_ID_TWI0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TWI0,
 	},
 	{
 		.peri_id = AT91C_ID_TWI1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TWI1,
 	},
 	{
 		.peri_id = AT91C_ID_SDMMC0,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SDHC0,
 	},
 	{
 		.peri_id = AT91C_ID_SDMMC1,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SDHC1,
 	},
 	{
 		.peri_id = AT91C_ID_SPI0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SPI0,
 	},
 	{
 		.peri_id = AT91C_ID_SPI1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SPI1,
 	},
 	{
 		.peri_id = AT91C_ID_TC0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TC0,
 	},
 	{
 		.peri_id = AT91C_ID_TC1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TC1,
 	},
 	{
 		.peri_id = AT91C_ID_PWM,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PWMC,
 	},
 	{
 		.peri_id = AT91C_ID_ADC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ADC,
 	},
 	{
 		.peri_id = AT91C_ID_UHPHS,
@@ -257,36 +296,43 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_UDPHS,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UDPHS,
 	},
 	{
 		.peri_id = AT91C_ID_SSC0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SSC0,
 	},
 	{
 		.peri_id = AT91C_ID_SSC1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SSC1,
 	},
 	{
 		.peri_id = AT91C_ID_LCDC,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_LCDC,
 	},
 	{
 		.peri_id = AT91C_ID_ISI,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_HXISI,
 	},
 	{
 		.peri_id = AT91C_ID_TRNG,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TRNG,
 	},
 	{
 		.peri_id = AT91C_ID_PDMIC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PDMIC,
 	},
 	{
 		.peri_id = AT91C_ID_IRQ,
@@ -297,31 +343,37 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_SFC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFC,
 	},
 	{
 		.peri_id = AT91C_ID_SECURAM,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SECURAM,
 	},
 	{
 		.peri_id = AT91C_ID_QSPI0,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_QSPI0,
 	},
 	{
 		.peri_id = AT91C_ID_QSPI1,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_QSPI1,
 	},
 	{
 		.peri_id = AT91C_ID_I2SC0,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_I2SC0,
 	},
 	{
 		.peri_id = AT91C_ID_I2SC1,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_I2SC1,
 	},
 	{
 		.peri_id = AT91C_ID_CAN0_INT0,
@@ -337,26 +389,31 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_CLASSD,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_CLASSD,
 	},
 	{
 		.peri_id = AT91C_ID_SFR,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFR,
 	},
 	{
 		.peri_id = AT91C_ID_SAIC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SAIC,
 	},
 	{
 		.peri_id = AT91C_ID_AIC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_NS,
+		.addr = AT91C_BASE_AIC,
 	},
 	{
 		.peri_id = AT91C_ID_L2CC,
 		.matrix = MATRIX_H64MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_L2CC,
 	},
 	{
 		.peri_id = AT91C_ID_CAN0_INT1,
@@ -382,16 +439,19 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_PIOB,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOB,
 	},
 	{
 		.peri_id = AT91C_ID_PIOC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOC,
 	},
 	{
 		.peri_id = AT91C_ID_PIOD,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOD,
 	},
 	{
 		.peri_id = AT91C_ID_SDMMC0_TIMER,
@@ -407,26 +467,31 @@ static const struct peri_security peri_security_array[] = {
 		.peri_id = AT91C_ID_SYS,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SYSC,
 	},
 	{
 		.peri_id = AT91C_ID_ACC,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ACC,
 	},
 	{
 		.peri_id = AT91C_ID_RXLP,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_RXLP,
 	},
 	{
 		.peri_id = AT91C_ID_SFRBU,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFRBU,
 	},
 	{
 		.peri_id = AT91C_ID_CHIPID,
 		.matrix = MATRIX_H32MX,
 		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_CHIPID,
 	},
 };
 
@@ -505,6 +570,25 @@ static int matrix_set_periph_world(unsigned int matrix, unsigned int peri_id,
 	matrix_write(base, MATRIX_SPSELR(idx), spselr);
 
 	return 0;
+}
+
+TEE_Result matrix_dt_get_id(const void *fdt, int node, unsigned int *id)
+{
+	unsigned int i = 0;
+	paddr_t pbase = 0;
+
+	pbase = _fdt_reg_base_address(fdt, node);
+	if (pbase == DT_INFO_INVALID_REG)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < ARRAY_SIZE(peri_security_array); i++) {
+		if (peri_security_array[i].addr == pbase) {
+			*id = peri_security_array[i].peri_id;
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
 int matrix_configure_periph_secure(unsigned int peri_id)

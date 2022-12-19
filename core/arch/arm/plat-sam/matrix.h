@@ -29,6 +29,8 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include <tee_api_types.h>
+
 extern void matrix_write_protect_enable(unsigned int matrix_base);
 extern void matrix_write_protect_disable(unsigned int matrix_base);
 extern void matrix_configure_slave_security(unsigned int matrix_base,
@@ -40,6 +42,7 @@ extern void matrix_configure_slave_security(unsigned int matrix_base,
 int matrix_configure_periph_non_secure(unsigned int *peri_id_array,
 				       unsigned int size);
 int matrix_configure_periph_secure(unsigned int peri_id);
+TEE_Result matrix_dt_get_id(const void *fdt, int node, unsigned int *id);
 
 vaddr_t matrix32_base(void);
 vaddr_t matrix64_base(void);
