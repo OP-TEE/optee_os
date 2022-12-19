@@ -5,11 +5,11 @@
  */
 
 #include <kernel/abort.h>
+#include <kernel/scall.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
 #include <kernel/user_ta.h>
 #include <mm/vm.h>
-#include <tee/arch_svc.h>
 #include <types_ext.h>
 
 #define TA32_CONTEXT_MAX_SIZE		(14 * sizeof(uint32_t))

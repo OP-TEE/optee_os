@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2021 Linaro Limited
+ * Copyright (c) 2015-2022 Linaro Limited
  * Copyright (c) 2020, Arm Limited.
  */
 
@@ -14,6 +14,7 @@
 #include <kernel/ldelf_loader.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
+#include <kernel/scall.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
@@ -37,7 +38,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <ta_pub_key.h>
-#include <tee/arch_svc.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_cryp.h>

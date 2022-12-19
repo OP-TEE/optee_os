@@ -1,12 +1,23 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2022, Linaro Limited
  * Copyright (c) 2020, Arm Limited
  */
-#ifndef TEE_ARCH_SVC_H
-#define TEE_ARCH_SVC_H
+#ifndef __KERNEL_SCALL_H
+#define __KERNEL_SCALL_H
+
+#include <types_ext.h>
+
+/*
+ * Generic "pointer to function" type. Actual syscalls take zero or more
+ * arguments and return TEE_Result.
+ */
+typedef void (*syscall_t)(void);
 
 struct thread_scall_regs;
+
+/* Helper function for scall_handle_user_ta() and scall_handle_ldelf() */
+uint32_t scall_do_call(struct thread_scall_regs *regs, syscall_t func);
 
 /* Registered as .handle_scall in struct tee_ta_ops for user TAs. */
 bool scall_handle_user_ta(struct thread_scall_regs *regs);
@@ -26,4 +37,4 @@ uint32_t scall_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
 /* Saves TA panic stack, arch-specific implementation */
 void scall_save_panic_stack(struct thread_scall_regs *regs);
 
-#endif /*TEE_ARCH_SVC_H*/
+#endif /*__KERNEL_SCALL_H*/
