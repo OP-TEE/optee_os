@@ -23,4 +23,7 @@ bool scall_handle_ldelf(struct thread_scall_regs *regs);
 uint32_t scall_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
 				 struct thread_scall_regs *regs);
 
+/* Saves TA panic stack, arch-specific implementation */
+void scall_save_panic_stack(struct thread_scall_regs *regs);
+
 #endif /*TEE_ARCH_SVC_H*/
