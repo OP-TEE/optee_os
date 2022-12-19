@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <kernel/abort.h>
+#include <kernel/arch_scall.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -193,44 +194,6 @@ static void __noprof ftrace_syscall_leave(void)
 }
 #endif
 
-#ifdef ARM32
-static void get_scn_max_args(struct thread_scall_regs *regs, size_t *scn,
-			     size_t *max_args)
-{
-	*scn = regs->r7;
-	*max_args = regs->r6;
-}
-#endif /*ARM32*/
-
-#ifdef ARM64
-static void get_scn_max_args(struct thread_scall_regs *regs, size_t *scn,
-			     size_t *max_args)
-{
-	if (((regs->spsr >> SPSR_MODE_RW_SHIFT) & SPSR_MODE_RW_MASK) ==
-	     SPSR_MODE_RW_32) {
-		*scn = regs->x7;
-		*max_args = regs->x6;
-	} else {
-		*scn = regs->x8;
-		*max_args = 0;
-	}
-}
-#endif /*ARM64*/
-
-#ifdef ARM32
-static void set_svc_retval(struct thread_scall_regs *regs, uint32_t ret_val)
-{
-	regs->r0 = ret_val;
-}
-#endif /*ARM32*/
-
-#ifdef ARM64
-static void set_svc_retval(struct thread_scall_regs *regs, uint64_t ret_val)
-{
-	regs->x0 = ret_val;
-}
-#endif /*ARM64*/
-
 static syscall_t get_tee_syscall_func(size_t num)
 {
 	/* Cast away const */
@@ -252,13 +215,13 @@ bool scall_handle_user_ta(struct thread_scall_regs *regs)
 	size_t max_args = 0;
 	syscall_t scf = NULL;
 
-	get_scn_max_args(regs, &scn, &max_args);
+	scall_get_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
 
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
-		set_svc_retval(regs, TEE_ERROR_GENERIC);
+		scall_set_retval(regs, TEE_ERROR_GENERIC);
 		return true; /* return to user mode */
 	}
 
@@ -266,7 +229,7 @@ bool scall_handle_user_ta(struct thread_scall_regs *regs)
 
 	ftrace_syscall_enter(scn);
 
-	set_svc_retval(regs, scall_do_call(regs, scf));
+	scall_set_retval(regs, scall_do_call(regs, scf));
 
 	ftrace_syscall_leave();
 
@@ -298,13 +261,13 @@ bool scall_handle_ldelf(struct thread_scall_regs *regs)
 	size_t max_args = 0;
 	syscall_t scf = NULL;
 
-	get_scn_max_args(regs, &scn, &max_args);
+	scall_get_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
 
 	if (max_args > TEE_SVC_MAX_ARGS) {
 		DMSG("Too many arguments for SCN %zu (%zu)", scn, max_args);
-		set_svc_retval(regs, TEE_ERROR_GENERIC);
+		scall_set_retval(regs, TEE_ERROR_GENERIC);
 		return true; /* return to user mode */
 	}
 
@@ -312,7 +275,7 @@ bool scall_handle_ldelf(struct thread_scall_regs *regs)
 
 	ftrace_syscall_enter(scn);
 
-	set_svc_retval(regs, scall_do_call(regs, scf));
+	scall_set_retval(regs, scall_do_call(regs, scf));
 
 	ftrace_syscall_leave();
 
@@ -468,14 +431,7 @@ uint32_t scall_sys_return_helper(uint32_t ret, bool panic, uint32_t panic_code,
 		save_panic_stack(regs);
 	}
 
-#ifdef ARM32
-	regs->r1 = panic;
-	regs->r2 = panic_code;
-#endif
-#ifdef ARM64
-	regs->x1 = panic;
-	regs->x2 = panic_code;
-#endif
+	scall_set_sys_return_regs(regs, panic, panic_code);
 
 	return ret;
 }
