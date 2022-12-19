@@ -641,7 +641,7 @@ TEE_Result dt_driver_maybe_add_probe_node(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
-static void parse_node(const void *fdt, int node)
+void dt_driver_probe_node(const void *fdt, int node)
 {
 	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
 	int subnode = 0;
@@ -663,7 +663,7 @@ static void parse_node(const void *fdt, int node)
 			if (_fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
 				continue;
 
-			parse_node(fdt, subnode);
+			dt_driver_probe_node(fdt, subnode);
 		}
 	}
 }
@@ -681,7 +681,7 @@ static TEE_Result probe_dt_drivers_early(void)
 	if (!fdt)
 		return TEE_SUCCESS;
 
-	parse_node(fdt, fdt_path_offset(fdt, "/"));
+	dt_driver_probe_node(fdt, fdt_path_offset(fdt, "/"));
 
 	res = process_probe_list(fdt);
 	if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
