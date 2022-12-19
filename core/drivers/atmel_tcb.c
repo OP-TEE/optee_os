@@ -172,13 +172,12 @@ static TEE_Result atmel_tcb_probe(const void *fdt, int node,
 	if (res)
 		return res;
 
+	res = matrix_dt_get_id(fdt, node, &peri_id);
+	if (res)
+		return res;
+
 	if (dt_map_dev(fdt, node, &tcb_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
-
-	if (tcb_base == AT91C_BASE_TC0)
-		peri_id = AT91C_ID_TC0;
-	else
-		peri_id = AT91C_ID_TC1;
 
 	matrix_configure_periph_secure(peri_id);
 
