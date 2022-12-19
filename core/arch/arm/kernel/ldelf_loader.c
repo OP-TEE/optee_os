@@ -8,10 +8,10 @@
 #include <assert.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/ldelf_syscalls.h>
+#include <kernel/scall.h>
 #include <ldelf.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
-#include <tee/arch_svc.h>
 
 extern uint8_t ldelf_data[];
 extern const unsigned int ldelf_code_size;

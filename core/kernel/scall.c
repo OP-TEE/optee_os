@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2022, Linaro Limited
  * Copyright (c) 2020, Arm Limited
  */
 
-#include <arm.h>
 #include <assert.h>
 #include <kernel/abort.h>
 #include <kernel/arch_scall.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <kernel/scall.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
@@ -19,7 +19,6 @@
 #include <mm/vm.h>
 #include <speculation_barrier.h>
 #include <string.h>
-#include <tee/arch_svc.h>
 #include <tee/svc_cache.h>
 #include <tee_syscall_numbers.h>
 #include <tee/tee_svc_cryp.h>
@@ -27,8 +26,6 @@
 #include <tee/tee_svc_storage.h>
 #include <trace.h>
 #include <util.h>
-
-#include "arch_svc_private.h"
 
 #if (TRACE_LEVEL == TRACE_FLOW) && defined(CFG_TEE_CORE_TA_TRACE)
 #define TRACE_SYSCALLS
@@ -50,7 +47,7 @@ struct syscall_entry {
 /*
  * This array is ordered according to the SYSCALL ids TEE_SCN_xxx
  */
-static const struct syscall_entry tee_svc_syscall_table[] = {
+static const struct syscall_entry tee_syscall_table[] = {
 	SYSCALL_ENTRY(syscall_sys_return),
 	SYSCALL_ENTRY(syscall_log),
 	SYSCALL_ENTRY(syscall_panic),
@@ -149,7 +146,7 @@ static void trace_syscall(size_t num)
 {
 	if (num == TEE_SCN_RETURN || num == TEE_SCN_LOG || num > TEE_SCN_MAX)
 		return;
-	FMSG("syscall #%zu (%s)", num, tee_svc_syscall_table[num].name);
+	FMSG("syscall #%zu (%s)", num, tee_syscall_table[num].name);
 }
 #else
 static void trace_syscall(size_t num __unused)
@@ -197,10 +194,9 @@ static void __noprof ftrace_syscall_leave(void)
 static syscall_t get_tee_syscall_func(size_t num)
 {
 	/* Cast away const */
-	struct syscall_entry *sc_table = (void *)tee_svc_syscall_table;
+	struct syscall_entry *sc_table = (void *)tee_syscall_table;
 
-	COMPILE_TIME_ASSERT(ARRAY_SIZE(tee_svc_syscall_table) ==
-			    (TEE_SCN_MAX + 1));
+	static_assert(ARRAY_SIZE(tee_syscall_table) == (TEE_SCN_MAX + 1));
 
 	if (num > TEE_SCN_MAX)
 		return (syscall_t)syscall_not_supported;
