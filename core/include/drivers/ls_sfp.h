@@ -16,7 +16,7 @@
 /* SFP is big endian */
 #define SFP_INGR_PROGFB_CMD 0x2
 #define SFP_INGR_ERROR_MASK 0x100
-#define SFP_INGR_FUSE_TIMEOUT 10000
+#define SFP_INGR_FUSE_TIMEOUT_US 150000
 
 /* SFP configuration register */
 #define SFP_SFPCR_SB 0x20000000
