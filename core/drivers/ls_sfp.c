@@ -149,6 +149,7 @@ static TEE_Result ls_sfp_init(void)
  */
 static TEE_Result ls_sfp_program_fuses(void)
 {
+	TEE_Result ret = TEE_SUCCESS;
 	struct gpio_chip *gc = NULL;
 	uint32_t pin = gpio_info.gpio_pin;
 	vaddr_t sfp_ingr_va = (vaddr_t)&sfp_regs->ingr;
@@ -178,9 +179,19 @@ static TEE_Result ls_sfp_program_fuses(void)
 	while (io_read32(sfp_ingr_va) & SFP_INGR_PROGFB_CMD) {
 		if (timeout_elapsed(timeout)) {
 			EMSG("SFP fusing timed out");
-			return TEE_ERROR_GENERIC;
+			ret = TEE_ERROR_GENERIC;
+			break;
 		}
 	}
+
+	/* Disable POVDD */
+	DMSG("Set GPIO %"PRIu8" pin %"PRIu32" to LOW",
+	     gpio_info.gpio_chip.gpio_controller, pin);
+	gc->ops->set_value(gc, pin, GPIO_LEVEL_LOW);
+	gc->ops->set_direction(gc, pin, GPIO_DIR_IN);
+
+	if (ret)
+		return ret;
 
 	/* Check for SFP fuse programming error */
 	if (io_read32(sfp_ingr_va) & SFP_INGR_ERROR_MASK) {
@@ -189,12 +200,6 @@ static TEE_Result ls_sfp_program_fuses(void)
 	}
 
 	DMSG("Programmed fuse successfully");
-
-	/* Disable POVDD */
-	DMSG("Set GPIO %"PRIu32" pin %"PRIu32" to LOW",
-	     (uint32_t)gpio_info.gpio_chip.gpio_controller, pin);
-	gc->ops->set_value(gc, pin, GPIO_LEVEL_LOW);
-	gc->ops->set_direction(gc, pin, GPIO_DIR_IN);
 
 	return TEE_SUCCESS;
 }
