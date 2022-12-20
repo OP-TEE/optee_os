@@ -174,7 +174,7 @@ static TEE_Result ls_sfp_program_fuses(void)
 	io_write32(sfp_ingr_va, SFP_INGR_PROGFB_CMD);
 
 	/* Wait until fuse programming is successful */
-	timeout = timeout_init_us(SFP_INGR_FUSE_TIMEOUT);
+	timeout = timeout_init_us(SFP_INGR_FUSE_TIMEOUT_US);
 	while (io_read32(sfp_ingr_va) & SFP_INGR_PROGFB_CMD) {
 		if (timeout_elapsed(timeout)) {
 			EMSG("SFP fusing timed out");
