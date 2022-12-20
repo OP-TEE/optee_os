@@ -784,8 +784,13 @@ TEE_Result syscall_storage_obj_write(unsigned long obj, void *data, size_t len)
 		goto exit;
 	}
 	res = o->pobj->fops->write(o->fh, pos_tmp, data, len);
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS) {
+		if (res == TEE_ERROR_CORRUPT_OBJECT) {
+			EMSG("Object corrupt");
+			tee_svc_storage_remove_corrupt_obj(sess, o);
+		}
 		goto exit;
+	}
 
 	o->info.dataPosition += len;
 	if (o->info.dataPosition > o->info.dataSize)
