@@ -10,6 +10,7 @@
 static struct lpc_uart_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, LPC_BASE, LPC_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_BASE, SEC_SIZE);
 
 void console_init(void)
 {

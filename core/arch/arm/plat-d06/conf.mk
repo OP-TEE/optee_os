@@ -16,6 +16,7 @@ $(call force,CFG_WITH_LPAE,y)
 $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_LPAE_ADDR_SPACE_BITS,48)
 $(call force,CFG_LPC_UART,y)
+$(call force,CFG_HISILICON_PLAT_ACC,y)
 
 CFG_TEE_CORE_LOG_LEVEL ?= 4
 
