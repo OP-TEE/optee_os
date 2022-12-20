@@ -264,7 +264,8 @@ TEE_Result ls_sfp_get_its(uint32_t *its)
 	if (!its)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	*its = io_read32((vaddr_t)&sfp_regs->ospr0) & SFP_OSPR0_ITS;
+	*its = (io_read32((vaddr_t)&sfp_regs->ospr0) & SFP_OSPR0_ITS_MASK) >>
+	       SFP_OSPR0_ITS_OFFSET;
 
 	return TEE_SUCCESS;
 }
@@ -300,7 +301,8 @@ TEE_Result ls_sfp_get_sb(uint32_t *sb)
 	if (!sb)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	*sb = io_read32((vaddr_t)&sfp_regs->sfpcr) & SFP_SFPCR_SB;
+	*sb = (io_read32((vaddr_t)&sfp_regs->sfpcr) & SFP_SFPCR_SB_MASK) >>
+	      SFP_SFPCR_SB_OFFSET;
 
 	return TEE_SUCCESS;
 }
@@ -359,12 +361,12 @@ TEE_Result ls_sfp_set_its_wp(void)
 	}
 
 	ospr0 = io_read32((vaddr_t)&sfp_regs->ospr0);
-	if (ospr0 & (SFP_OSPR0_WP | SFP_OSPR0_ITS)) {
+	if (ospr0 & (SFP_OSPR0_WP_MASK | SFP_OSPR0_ITS_MASK)) {
 		DMSG("SFP is already fused");
 		return TEE_ERROR_SECURITY;
 	}
 
-	ospr0 |= SFP_OSPR0_WP | SFP_OSPR0_ITS;
+	ospr0 |= SFP_OSPR0_WP_MASK | SFP_OSPR0_ITS_MASK;
 	io_write32((vaddr_t)&sfp_regs->ospr0, ospr0);
 
 	return ls_sfp_program_fuses();
