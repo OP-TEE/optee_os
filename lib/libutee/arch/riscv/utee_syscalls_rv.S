@@ -14,14 +14,15 @@
 	.if \num_args > TEE_SVC_MAX_ARGS || \num_args > 8
 	.error "Too many arguments for syscall"
 	.endif
-	mv	t0, (\scn)
+	li	t0, \scn
+	li	t1, \num_args
 	ecall
 	ret
 	END_FUNC \name
 	.endm
 
 	FUNC _utee_panic, :
-	j __utee_panic
+	j	__utee_panic
 	END_FUNC _utee_panic
 
 #include <utee_syscalls_asm.S>
