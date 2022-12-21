@@ -189,7 +189,7 @@ static uint32_t std_entry_with_parg(paddr_t parg, bool with_rpc_arg)
 	uint32_t rv = 0;
 
 	/* Check if this region is in static shared space */
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, parg, sz)) {
+	if (tee_pbuf_is_nsec_shm(parg, sz)) {
 		if (!IS_ALIGNED_WITH_TYPE(parg, struct optee_msg_arg))
 			goto bad_addr;
 
@@ -207,7 +207,7 @@ static uint32_t std_entry_with_parg(paddr_t parg, bool with_rpc_arg)
 			rpc_arg = (void *)((uint8_t *)arg + sz);
 			sz += OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
 		}
-		if (!core_pbuf_is(CORE_MEM_NSEC_SHM, parg, sz))
+		if (!tee_pbuf_is_nsec_shm(parg, sz))
 			goto bad_addr;
 
 		return call_entry_std(arg, num_params, rpc_arg);
@@ -369,7 +369,7 @@ out:
 static struct mobj *rpc_shm_mobj_alloc(paddr_t pa, size_t sz, uint64_t cookie)
 {
 	/* Check if this region is in static shared space */
-	if (core_pbuf_is(CORE_MEM_NSEC_SHM, pa, sz))
+	if (tee_pbuf_is_nsec_shm(pa, sz))
 		return mobj_shm_alloc(pa, sz, cookie);
 
 	if (IS_ENABLED(CFG_CORE_DYN_SHM) &&

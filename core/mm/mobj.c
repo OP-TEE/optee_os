@@ -445,7 +445,7 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie)
 {
 	struct mobj_shm *m;
 
-	if (!core_pbuf_is(CORE_MEM_NSEC_SHM, pa, size))
+	if (!tee_pbuf_is_nsec_shm(pa, size))
 		return NULL;
 
 	m = calloc(1, sizeof(*m));

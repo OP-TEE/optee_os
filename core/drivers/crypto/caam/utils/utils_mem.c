@@ -190,7 +190,7 @@ bool caam_mem_is_cached_buf(void *buf, size_t size)
 	if (mtype == MEM_AREA_MAXTYPE)
 		is_cached = true;
 	else
-		is_cached = core_vbuf_is(CORE_MEM_CACHED, buf, size);
+		is_cached = tee_vbuf_is_cached(buf, size);
 
 	return is_cached;
 }

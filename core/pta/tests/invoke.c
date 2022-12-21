@@ -267,8 +267,7 @@ static TEE_Result test_inject_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-	if (!core_vbuf_is(CORE_MEM_NON_SEC, src, sz) ||
-	    !core_vbuf_is(CORE_MEM_SDP_MEM, dst, sz)) {
+	if (!tee_vbuf_is_non_sec(src, sz) || !tee_vbuf_is_sdp(dst, sz)) {
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -305,7 +304,7 @@ static TEE_Result test_transform_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (!core_vbuf_is(CORE_MEM_SDP_MEM, buf, sz)) {
+	if (!tee_vbuf_is_sdp(buf, sz)) {
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
@@ -349,8 +348,7 @@ static TEE_Result test_dump_sdp(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
-	if (!core_vbuf_is(CORE_MEM_SDP_MEM, src, sz) ||
-	    !core_vbuf_is(CORE_MEM_NON_SEC, dst, sz)) {
+	if (!tee_vbuf_is_sdp(src, sz) || !tee_vbuf_is_non_sec(dst, sz)) {
 		DMSG("bad memref secure attribute");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}

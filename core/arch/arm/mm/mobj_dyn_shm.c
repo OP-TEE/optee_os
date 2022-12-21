@@ -326,8 +326,8 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 			goto err;
 
 		/* Only Non-secure memory can be mapped there */
-		if (!core_pbuf_is(CORE_MEM_NON_SEC, mobj_reg_shm->pages[i],
-				  SMALL_PAGE_SIZE))
+		if (!tee_pbuf_is_non_sec(mobj_reg_shm->pages[i],
+					 SMALL_PAGE_SIZE))
 			goto err;
 	}
 

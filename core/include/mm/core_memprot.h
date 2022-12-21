@@ -38,6 +38,9 @@ enum buf_is_attr {
 #define tee_vbuf_is     core_vbuf_is
 
 /* Convenience macros */
+#define tee_pbuf_is_nsec_shm(buf, len) \
+		core_pbuf_is(CORE_MEM_NSEC_SHM, (paddr_t)(buf), (len))
+
 #define tee_pbuf_is_non_sec(buf, len) \
 		core_pbuf_is(CORE_MEM_NON_SEC, (paddr_t)(buf), (len))
 
@@ -49,6 +52,12 @@ enum buf_is_attr {
 
 #define tee_vbuf_is_sec(buf, len) \
 		core_vbuf_is(CORE_MEM_SEC, (void *)(buf), (len))
+
+#define tee_vbuf_is_sdp(buf, len) \
+		core_vbuf_is(CORE_MEM_SDP_MEM, (void *)(buf), (len))
+
+#define tee_vbuf_is_cached(buf, len) \
+		core_vbuf_is(CORE_MEM_CACHED, (void *)(buf), (len))
 
 /*
  * This function return true if the buf complies with supplied flags.

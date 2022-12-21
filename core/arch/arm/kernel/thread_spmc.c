@@ -161,7 +161,7 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 {
 	tee_mm_entry_t *mm = NULL;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, sz))
+	if (!tee_pbuf_is_non_sec(pa, sz))
 		return FFA_INVALID_PARAMETERS;
 
 	mm = tee_mm_alloc(&tee_mm_shm, sz);
@@ -735,7 +735,7 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 
 	if (MUL_OVERFLOW(page_count, SMALL_PAGE_SIZE, &len))
 		return FFA_INVALID_PARAMETERS;
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pbuf, len))
+	if (!tee_pbuf_is_non_sec(pbuf, len))
 		return FFA_INVALID_PARAMETERS;
 
 	/*
