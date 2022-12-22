@@ -24,7 +24,9 @@ hash $CHECKPATCH 2>/dev/null ||
 usage() {
   SCR=$(basename "$0")
   echo "Usage: $SCR [--working]                 Check working area"
-  echo "       $SCR <commit>...                 Check specific commit(s)"
+  echo "       $SCR <commit>...                 Check specific commits,
+                                                symbolic names, and/or revision
+                                                selections"
   echo "       $SCR --diff <commit1> <commit2>  Check diff commit1...commit2"
   echo "       $SCR --cached                    Check staging area"
   echo "       $SCR --help                      This help"
@@ -50,7 +52,23 @@ case "$op" in
 		;;
 	*)
 		echo "Checking commit(s):"
-		for c in $*; do checkpatch $c; done
-		;;
+    read -r MAJOR MINOR < <(git --version | awk -F '[. ]' '{print $3, $4}')
+    if (( MAJOR < 2 )) || (( MAJOR == 2 && MINOR < 19 )); then
+      for c in "$@"; do checkpatch "$c"; done
+    else
+      for arg in "$@"; do
+        # parse the argument into a git object or list of git objects
+        object="$(git rev-parse "${arg}")" || continue
+        # run checkpatch if the parsed argument represents a single commit hash
+        if git cat-file -e "${object}" 2>/dev/null; then
+          checkpatch "${object}"
+        else
+          # expand the object list and run checkpatch on each commit id
+          commits="$(echo "${object}" | git rev-list --stdin)"
+          for c in ${commits}; do checkpatch "$c"; done
+        fi
+      done
+    fi
+    ;;
 
 esac
