@@ -67,6 +67,12 @@ endif
 
 $(eval $(call cryp-enable-all-depends,CFG_WITH_SOFTWARE_PRNG, AES ECB SHA256))
 
+ifeq ($(CFG_CRYPTO_WITH_CE82),y)
+$(call force,CFG_CRYPTO_WITH_CE,y,required with CFG_CRYPTO_WITH_CE82)
+CFG_CRYPTO_SHA512_ARM_CE ?= $(CFG_CRYPTO_SHA512)
+CFG_CORE_CRYPTO_SHA512_ACCEL ?= $(CFG_CRYPTO_SHA512_ARM_CE)
+endif
+
 ifeq ($(CFG_CRYPTO_WITH_CE),y)
 
 $(call force,CFG_AES_GCM_TABLE_BASED,n,conflicts with CFG_CRYPTO_WITH_CE)
