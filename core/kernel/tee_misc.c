@@ -95,7 +95,7 @@ bool core_is_buffer_inside(paddr_t b, paddr_size_t bl,
 	return false;
 }
 
-/* Returns true when buffer 'b' is fully contained in area 'a' */
+/* Returns true when buffer 'b' is fully outside area 'a' */
 bool core_is_buffer_outside(paddr_t b, paddr_size_t bl,
 			    paddr_t a, paddr_size_t al)
 {
