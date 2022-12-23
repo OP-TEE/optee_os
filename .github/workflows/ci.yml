@@ -268,7 +268,7 @@ jobs:
 
           sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check CFG_CRYPTO_WITH_CE=y
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
 
           sudo -E rm -rf /root/optee_repo_qemu_v8/out-br/build/optee_test*
           sudo -E make -C /root/optee_repo_qemu_v8/build arm-tf-clean
