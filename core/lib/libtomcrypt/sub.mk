@@ -132,6 +132,9 @@ srcs-$(_CFG_CORE_LTC_SHA1_ACCEL) += sha1_accel.c
 ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
 srcs-$(_CFG_CORE_LTC_SHA256_ACCEL) += sha256_accel.c
 endif
+ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
+srcs-$(_CFG_CORE_LTC_SHA512_ACCEL) += sha512_accel.c
+endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
