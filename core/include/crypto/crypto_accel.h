@@ -46,4 +46,6 @@ void crypto_accel_sha256_compress(uint32_t state[8], const void *src,
 				  unsigned int block_count);
 void crypto_accel_sha512_compress(uint64_t state[8], const void *src,
 				  unsigned int block_count);
+void crypto_accel_sm3_compress(uint32_t state[8], const void *src,
+			       unsigned int block_count);
 #endif /*__CRYPTO_CRYPTO_ACCEL_H*/
