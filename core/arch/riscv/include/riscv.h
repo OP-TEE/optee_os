@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #ifndef RISCV_H
@@ -33,7 +33,7 @@
 #define XRET			sret
 #endif
 
-#define CSR_MODE_BITS	SHIFT_U64(CSR_MODE_OFFSET, 8)
+#define CSR_MODE_BITS		SHIFT_U64(CSR_MODE_OFFSET, 8)
 
 #define CSR_XSTATUS		(CSR_MODE_BITS | 0x000)
 #define CSR_XIE			(CSR_MODE_BITS | 0x004)
@@ -43,6 +43,20 @@
 #define CSR_XCAUSE		(CSR_MODE_BITS | 0x042)
 #define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
 #define CSR_XIP			(CSR_MODE_BITS | 0x044)
+
+#define IRQ_XSOFT		(CSR_MODE_OFFSET + 0)
+#define IRQ_XTIMER		(CSR_MODE_OFFSET + 4)
+#define IRQ_XEXT		(CSR_MODE_OFFSET + 8)
+
+#define CSR_XIE_SIE		BIT64(IRQ_XSOFT)
+#define CSR_XIE_TIE		BIT64(IRQ_XTIMER)
+#define CSR_XIE_EIE		BIT64(IRQ_XEXT)
+
+#define CSR_XSTATUS_IE		BIT(CSR_MODE_OFFSET + 0)
+#define CSR_XSTATUS_PIE		BIT(CSR_MODE_OFFSET + 4)
+#define CSR_XSTATUS_SPP		BIT(8)
+#define CSR_XSTATUS_SUM		BIT(18)
+#define CSR_XSTATUS_MXR		BIT(19)
 
 #ifndef __ASSEMBLER__
 
