@@ -56,6 +56,17 @@ ifeq ($(CFG_RISCV_SBI_CONSOLE),y)
 $(call force,CFG_RISCV_SBI,y)
 endif
 
+# Disable unsupported and other arch-specific flags
+$(call force,CFG_CORE_FFA,n)
+$(call force,CFG_SECURE_PARTITION,n)
+$(call force,CFG_PAGED_USER_TA,n)
+$(call force,CFG_WITH_PAGER,n)
+$(call force,CFG_GIC,n)
+$(call force,CFG_ARM_GICV3,n)
+$(call force,CFG_WITH_VFP,n)
+$(call force,CFG_WITH_STMM_SP,n)
+$(call force,CFG_TA_BTI,n)
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
 	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
