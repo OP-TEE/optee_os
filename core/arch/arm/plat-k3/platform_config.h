@@ -19,7 +19,7 @@
 #define DRAM0_SIZE      0x80000000
 
 #define DRAM1_BASE      0x880000000
-#define DRAM1_SIZE      0x80000000
+#define DRAM1_SIZE      0x780000000
 
 #define SCU_BASE        0x01800000
 #if defined(PLATFORM_FLAVOR_j721e) || defined(PLATFORM_FLAVOR_j784s4)
