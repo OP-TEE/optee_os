@@ -25,6 +25,26 @@
 #define LDR       ld
 #endif
 
+/* Bind registers to their ABI names */
+#define REG_RA	1
+#define REG_SP	2
+#define REG_GP	3
+#define REG_TP	4
+#define REG_T0	5
+#define REG_T2	7
+#define REG_S0	8
+#define REG_S1	9
+#define REG_A0	10
+#define REG_A1	11
+#define REG_A2	12
+#define REG_A3	13
+#define REG_A5	15
+#define REG_A7	17
+#define REG_S2	18
+#define REG_S11	27
+#define REG_T3	28
+#define REG_T6	31
+
 #if defined(CFG_RISCV_M_MODE)
 #define CSR_MODE_OFFSET	PRV_M
 #define XRET			mret
