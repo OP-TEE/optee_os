@@ -14,6 +14,9 @@
 
 #if defined(PLATFORM_FLAVOR_generic)
 
+#define PLM_RTCA		0xF2014000
+#define PLM_RTCA_LEN		0x1000
+
 #define GIC_BASE		0xF9000000
 #define UART0_BASE		0xFF000000
 #define UART1_BASE		0xFF010000
