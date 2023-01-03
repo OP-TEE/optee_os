@@ -391,7 +391,7 @@ static const char * __maybe_unused get_scp03_ksrc_name(enum se050_scp03_ksrc k)
 	case SCP03_DERIVED:
 		return "derived";
 	case SCP03_CFG:
-		return "build-int";
+		return "built-in";
 	case SCP03_OFID:
 		return "factory";
 	default:
