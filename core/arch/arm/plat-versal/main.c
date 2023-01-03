@@ -18,6 +18,7 @@
 #include <platform_config.h>
 #include <stdint.h>
 #include <string.h>
+#include <tee/tee_fs.h>
 #include <trace.h>
 
 #define VERSAL_AHWROT_SECURED 0xA5A5A5A5
@@ -95,5 +96,23 @@ static TEE_Result platform_banner(void)
 
 	return TEE_SUCCESS;
 }
+
+#if defined(CFG_RPMB_FS)
+bool plat_rpmb_key_is_ready(void)
+{
+	vaddr_t plm_rtca = (vaddr_t)phys_to_virt(PLM_RTCA, MEM_AREA_IO_SEC,
+						 PLM_RTCA_LEN);
+
+	assert(plm_rtca);
+
+	if (io_read32(plm_rtca + VERSAL_AHWROT_REG) == VERSAL_AHWROT_SECURED)
+		return true;
+
+	if (io_read32(plm_rtca + VERSAL_SHWROT_REG) == VERSAL_SHWROT_SECURED)
+		return true;
+
+	return false;
+}
+#endif
 
 service_init(platform_banner);
