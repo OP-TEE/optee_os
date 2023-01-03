@@ -116,3 +116,12 @@ bool plat_rpmb_key_is_ready(void)
 #endif
 
 service_init(platform_banner);
+
+#if defined(CFG_VERSAL_FPGA_DDR_ADDR)
+static TEE_Result program_fpga(void)
+{
+	return versal_write_fpga(CFG_VERSAL_FPGA_DDR_ADDR);
+}
+
+service_init(program_fpga);
+#endif
