@@ -6,21 +6,28 @@
 #define __KERNEL_INTERRUPT_H
 
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <types_ext.h>
 #include <sys/queue.h>
+#include <tee_api_types.h>
+#include <types_ext.h>
 #include <util.h>
 
 #define ITRF_TRIGGER_LEVEL	BIT(0)
 #define ITRF_SHARED		BIT(1)
 
+struct itr_handler;
+
 /*
  * struct itr_chip - Interrupt controller
  *
  * @ops Operation callback functions
+ * @name Controller name, for debug purpose
+ * @handlers Registered handlers list head
  * @dt_get_irq Device tree node parsing function
  */
 struct itr_chip {
 	const struct itr_ops *ops;
+	const char *name;
+	SLIST_HEAD(, itr_handler) handlers;
 	/*
 	 * dt_get_irq - parse a device tree interrupt property
 	 *
@@ -39,6 +46,8 @@ struct itr_chip {
  * @add		Register and configure an interrupt
  * @enable	Enable an interrupt
  * @disable	Disable an interrupt
+ * @mask	Mask an interrupt, may be called from an interrupt context
+ * @unmask	Unmask an interrupt, may be called from an interrupt context
  * @raise_pi	Raise per-cpu interrupt or NULL if not applicable
  * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
  * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
@@ -48,6 +57,8 @@ struct itr_ops {
 		    uint32_t prio);
 	void (*enable)(struct itr_chip *chip, size_t it);
 	void (*disable)(struct itr_chip *chip, size_t it);
+	void (*mask)(struct itr_chip *chip, size_t it);
+	void (*unmask)(struct itr_chip *chip, size_t it);
 	void (*raise_pi)(struct itr_chip *chip, size_t it);
 	void (*raise_sgi)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
@@ -61,16 +72,15 @@ enum itr_return {
 	ITRR_HANDLED,
 };
 
-struct itr_handler;
-
 /* Interrupt handler signature */
 typedef enum itr_return (*itr_handler_t)(struct itr_handler *h);
 
 /*
  * struct itr_handler - Interrupt handler reference
  * @it Interrupt number
- * @flags Property bit flags ITR_FLAG_*
+ * @flags Property bit flags (ITRF_*) or 0
  * @data Private data for that interrupt handler
+ * @chip Interrupt controller chip device
  * @link Reference in controller handler list
  */
 struct itr_handler {
@@ -78,8 +88,31 @@ struct itr_handler {
 	uint32_t flags;
 	itr_handler_t handler;
 	void *data;
+	struct itr_chip *chip;
 	SLIST_ENTRY(itr_handler) link;
 };
+
+#define ITR_HANDLER(_chip, _itr_num, _flags, _fn, _priv) \
+	((struct itr_handler){ \
+		.chip = (_chip), .it = (_itr_num), .flags = (_flags), \
+		.handler = (_fn), .data = (_priv), \
+	})
+
+/*
+ * Return true only if interrupt chip provides required handlers
+ * @chip: Interrupt controller reference
+ */
+static inline bool itr_chip_is_valid(struct itr_chip *chip)
+{
+	return chip && chip->ops && chip->ops->mask && chip->ops->unmask &&
+	       chip->ops->add;
+}
+
+/*
+ * Initialise an interrupt controller handle
+ * @chip	Interrupt controller
+ */
+TEE_Result itr_chip_init(struct itr_chip *chip);
 
 /*
  * Initialise main interrupt controller driver
@@ -164,4 +197,129 @@ static inline struct itr_handler *itr_alloc_add(size_t it,
 				       0);
 }
 
+/*
+ * Interrupt controller chip API functions
+ */
+
+/*
+ * interrupt_call_handlers() - Call registered handlers for an interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ *
+ * This function is called from an interrupt context by a primary interrupt
+ * handler. This function calls the handlers registered for that interrupt
+ */
+void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num);
+
+/*
+ * interrupt_mask() - Mask an interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ * This function may be called in interrupt context
+ */
+static inline void interrupt_mask(struct itr_chip *chip, size_t itr_num)
+{
+	chip->ops->mask(chip, itr_num);
+}
+
+/*
+ * interrupt_unmask() - Unmask an interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ * This function may be called in interrupt context
+ */
+static inline void interrupt_unmask(struct itr_chip *chip, size_t itr_num)
+{
+	chip->ops->unmask(chip, itr_num);
+}
+
+/*
+ * interrupt_enable() - Enable an interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ */
+static inline void interrupt_enable(struct itr_chip *chip, size_t itr_num)
+{
+	if (chip->ops->enable)
+		chip->ops->enable(chip, itr_num);
+	else
+		interrupt_unmask(chip, itr_num);
+}
+
+/*
+ * interrupt_disable() - Disable an interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ */
+static inline void interrupt_disable(struct itr_chip *chip, size_t itr_num)
+{
+	if (chip->ops->disable)
+		chip->ops->disable(chip, itr_num);
+	else
+		interrupt_mask(chip, itr_num);
+}
+
+/*
+ * interrupt_configure() - Configure an interrupt in an interrupt controller
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ * @type	Trigger type ITR_TYPE_* of ITR_TYPE_NONE
+ * @prio	Interrupt priority
+ *
+ * Interrupt consumer that get their interrupt from the DT do not need to
+ * call interrupt_configure() since the interrupt configuration has already
+ * been done by interrupt controller based on the DT bidings.
+ */
+TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
+			       uint32_t type, uint32_t prio);
+
+/*
+ * interrupt_add_handler() - Register an interrupt handler
+ * @hdl		Interrupt handler to register
+ */
+TEE_Result interrupt_add_handler(struct itr_handler *hdl);
+
+/*
+ * interrupt_add_handler_with_chip() - Register an interrupt handler providing
+ *	the interrupt chip reference in specific argument @chip.
+ *
+ * @chip	Interrupt controller
+ * @h		Interrupt handler to register
+ */
+static inline TEE_Result interrupt_add_handler_with_chip(struct itr_chip *chip,
+							 struct itr_handler *h)
+{
+	h->chip = chip;
+	return interrupt_add_handler(h);
+}
+
+/*
+ * interrupt_remove_handler() - Remove a registered interrupt handler
+ * @hdl		Interrupt handler to remove
+ * This function is the counterpart of interrupt_add_handler().
+ * This function may panic on non-NULL invalid @hdl reference.
+ */
+void interrupt_remove_handler(struct itr_handler *hdl);
+
+/*
+ * interrupt_alloc_add_handler() - Allocate and register an interrupt handler
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ * @handler	Handler function
+ * @flags	Bitmask flag ITRF_*
+ * @data	Private data reference passed to @handler
+ * @out_hdl	NULL or output pointer to allocated struct itr_handler
+ */
+TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t it_num,
+				       itr_handler_t handler, uint32_t flags,
+				       void *data,
+				       struct itr_handler **out_hdl);
+
+/*
+ * interrupt_remove_free_handler() - Remove/free a registered interrupt handler
+ * @hdl		Interrupt handlers
+ * This function is the counterpart of interrupt_alloc_add_handler().
+ * This function may panic on non-NULL invalid @hdl reference.
+ */
+void interrupt_remove_free_handler(struct itr_handler *hdl);
 #endif /*__KERNEL_INTERRUPT_H*/

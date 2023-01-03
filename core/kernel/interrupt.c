@@ -23,8 +23,19 @@ static struct itr_chip *itr_main_chip __nex_bss;
 static SLIST_HEAD(, itr_handler) handlers __nex_data =
 	SLIST_HEAD_INITIALIZER(handlers);
 
+TEE_Result itr_chip_init(struct itr_chip *chip)
+{
+	if (!itr_chip_is_valid(chip))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	SLIST_INIT(&chip->handlers);
+
+	return TEE_SUCCESS;
+}
+
 void interrupt_main_init(struct itr_chip *chip)
 {
+	assert(itr_chip_is_valid(chip));
 	itr_main_chip = chip;
 }
 
@@ -143,4 +154,126 @@ void itr_set_affinity(size_t it, uint8_t cpu_mask)
 void __weak __noreturn interrupt_main_handler(void)
 {
 	panic("Secure interrupt handler not defined");
+}
+
+/*
+ * Interrupt controller chip support
+ */
+void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num)
+{
+	struct itr_handler *h = NULL;
+	bool was_handled = false;
+
+	assert(chip);
+
+	SLIST_FOREACH(h, &chip->handlers, link) {
+		if (h->it == itr_num) {
+			if (h->handler(h) == ITRR_HANDLED)
+				was_handled = true;
+			else if (!(h->flags & ITRF_SHARED))
+				break;
+		}
+	}
+
+	if (!was_handled) {
+		EMSG("Disable unhandled interrupt %s:%zu", chip->name, itr_num);
+		interrupt_disable(chip, itr_num);
+	}
+}
+
+TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
+			       uint32_t type, uint32_t prio)
+{
+	chip->ops->add(chip, itr_num, type, prio);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result interrupt_add_handler(struct itr_handler *hdl)
+{
+	struct itr_handler *h = NULL;
+
+	assert(hdl && hdl->chip->ops);
+
+	SLIST_FOREACH(h, &hdl->chip->handlers, link)
+		if (h->it == hdl->it &&
+		    (!(hdl->flags & ITRF_SHARED) || !(h->flags & ITRF_SHARED)))
+			return TEE_ERROR_GENERIC;
+
+	interrupt_configure(hdl->chip, hdl->it, IRQ_TYPE_NONE, 0);
+
+	SLIST_INSERT_HEAD(&hdl->chip->handlers, hdl, link);
+
+	return TEE_SUCCESS;
+}
+
+void interrupt_remove_handler(struct itr_handler *hdl)
+{
+	struct itr_handler *h = NULL;
+	bool disable_itr = true;
+
+	if (!hdl)
+		return;
+
+	SLIST_FOREACH(h, &hdl->chip->handlers, link)
+		if (h == hdl)
+			break;
+	if (!h) {
+		DMSG("Invalid %s:%zu", hdl->chip->name, hdl->it);
+		assert(false);
+		return;
+	}
+
+	if (hdl->flags & ITRF_SHARED) {
+		SLIST_FOREACH(h, &hdl->chip->handlers, link) {
+			if (h != hdl && h->it == hdl->it) {
+				disable_itr = false;
+				break;
+			}
+		}
+	}
+
+	if (disable_itr)
+		interrupt_disable(hdl->chip, hdl->it);
+
+	SLIST_REMOVE(&hdl->chip->handlers, hdl, itr_handler, link);
+}
+
+TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t itr_num,
+				       itr_handler_t handler, uint32_t flags,
+				       void *data, struct itr_handler **out_hdl)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct itr_handler *hdl = NULL;
+
+	hdl = calloc(1, sizeof(*hdl));
+	if (!hdl)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*hdl = (struct itr_handler){
+		.chip = chip,
+		.it = itr_num,
+		.handler = handler,
+		.flags = flags,
+		.data = data,
+	};
+
+	res = interrupt_add_handler(hdl);
+	if (res) {
+		free(hdl);
+		return res;
+	}
+
+	if (out_hdl)
+		*out_hdl = hdl;
+
+	return TEE_SUCCESS;
+}
+
+void interrupt_remove_free_handler(struct itr_handler *hdl)
+{
+	if (hdl) {
+		interrupt_remove_handler(hdl);
+		free(hdl);
+	}
 }
