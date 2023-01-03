@@ -241,7 +241,7 @@ jobs:
           _make PLATFORM=hisilicon-hi3519av100_demo
           _make PLATFORM=amlogic
           _make PLATFORM=rzn1
-          _make PLATFORM=versal
+          _make PLATFORM=versal CFG_VERSAL_FPGA_DDR_ADDR=0x40000000
           _make PLATFORM=corstone1000
 
   QEMUv8_check:
