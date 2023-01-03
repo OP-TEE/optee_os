@@ -70,3 +70,15 @@ CFG_VERSAL_PM ?= y
 
 # Physical Unclonable Function
 CFG_VERSAL_PUF ?= y
+
+# Enable Hardware Unique Key driver
+CFG_VERSAL_HUK ?= y
+# AES-GCM supported key sources for HUK:
+#     6  : eFUSE USR 0
+#     7  : eFuse USR 1
+#    11  : PUF KEK
+#    12  : AES User Key 0 (devel)
+CFG_VERSAL_HUK_KEY ?= 12
+ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY))))
+$(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
+endif
