@@ -20,6 +20,7 @@
  * Return codes:
  * TEE_SUCCESS - Invoke command success
  * TEE_ERROR_BAD_PARAMETERS - Incorrect input param
+ * TEE_ERROR_ACCESS_DENIED - OTP not accessible by caller
  */
 #define PTA_BSEC_CMD_READ_OTP		0x0
 
