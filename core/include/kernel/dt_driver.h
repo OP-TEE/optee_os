@@ -74,6 +74,7 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
  *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	TEE_ERROR_ITEM_NOT_FOUND if prop_name does not match a property's name
  *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
