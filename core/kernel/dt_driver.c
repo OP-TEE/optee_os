@@ -262,7 +262,7 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 	if (!prop) {
 		DMSG("Property %s missing in node %s", prop_name,
 		     fdt_get_name(fdt, nodeoffset, NULL));
-		*res = TEE_ERROR_GENERIC;
+		*res = TEE_ERROR_ITEM_NOT_FOUND;
 		return NULL;
 	}
 
@@ -294,7 +294,7 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 		return device_from_provider_prop(prv, prop + idx32, res);
 	}
 
-	*res = TEE_ERROR_GENERIC;
+	*res = TEE_ERROR_ITEM_NOT_FOUND;
 	return NULL;
 }
 
