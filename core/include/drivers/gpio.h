@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
-#ifndef __GPIO_H__
-#define __GPIO_H__
+#ifndef DRIVERS_GPIO_H
+#define DRIVERS_GPIO_H
 
 enum gpio_dir {
 	GPIO_DIR_OUT,
@@ -37,7 +37,7 @@ struct gpio_ops {
 	enum gpio_interrupt (*get_interrupt)(struct gpio_chip *chip,
 					     unsigned int gpio_pin);
 	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
-			      enum gpio_interrupt ena_dis);
+			      enum gpio_interrupt enable_disable);
 };
 
-#endif	/* __GPIO_H__ */
+#endif	/* DRIVERS_GPIO_H */

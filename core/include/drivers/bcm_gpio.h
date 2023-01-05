@@ -6,7 +6,7 @@
 #ifndef BCM_GPIO_H
 #define BCM_GPIO_H
 
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <stdlib.h>
 #include <sys/queue.h>
 

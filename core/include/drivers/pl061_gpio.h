@@ -6,7 +6,7 @@
 #ifndef __PL061_GPIO_H__
 #define __PL061_GPIO_H__
 
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <types_ext.h>
 
 #define PL061_REG_SIZE	0x1000
