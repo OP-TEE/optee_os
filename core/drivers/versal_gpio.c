@@ -95,8 +95,8 @@ static void versal_gpio_get_pin(struct versal_gpio_chip *chip, uint32_t gpio,
 	panic();
 }
 
-static enum gpio_level gpio_get_value(struct versal_gpio_chip *chip,
-				      uint32_t gpio)
+static enum gpio_level versal_gpio_get_value(struct versal_gpio_chip *chip,
+					     uint32_t gpio)
 {
 	uint32_t bank = 0;
 	uint32_t pin = 0;
@@ -106,8 +106,8 @@ static enum gpio_level gpio_get_value(struct versal_gpio_chip *chip,
 	return (io_read32(chip->base + DATA_RO_OFFSET(bank)) >> pin) & 1;
 }
 
-static void gpio_set_value(struct versal_gpio_chip *chip, uint32_t gpio,
-			   enum gpio_level val)
+static void versal_gpio_set_value(struct versal_gpio_chip *chip, uint32_t gpio,
+				  enum gpio_level val)
 {
 	uint32_t bank = 0;
 	uint32_t off = 0;
@@ -133,8 +133,8 @@ static void gpio_set_value(struct versal_gpio_chip *chip, uint32_t gpio,
 	io_write32(chip->base + off, val);
 }
 
-static void gpio_set_direction(struct versal_gpio_chip *chip, uint32_t gpio,
-			       enum gpio_dir direction)
+static void versal_gpio_set_direction(struct versal_gpio_chip *chip,
+				      uint32_t gpio, enum gpio_dir direction)
 {
 	uint32_t bank = 0;
 	uint32_t reg = 0;
@@ -155,7 +155,7 @@ static void gpio_set_direction(struct versal_gpio_chip *chip, uint32_t gpio,
 		io_write32(chip->base + OUTEN_OFFSET(bank), reg);
 
 		/* set the state of the pin */
-		gpio_set_value(chip, gpio, GPIO_LEVEL_LOW);
+		versal_gpio_set_value(chip, gpio, GPIO_LEVEL_LOW);
 	} else {
 		/* bnk 0 pins 7 and 8 cannot be used as inputs */
 		assert(!(bank == 0 && (pin == 7 || pin == 8)));
@@ -166,8 +166,8 @@ static void gpio_set_direction(struct versal_gpio_chip *chip, uint32_t gpio,
 	}
 }
 
-static enum gpio_dir gpio_get_direction(struct versal_gpio_chip *chip,
-					uint32_t gpio)
+static enum gpio_dir versal_gpio_get_direction(struct versal_gpio_chip *chip,
+					       uint32_t gpio)
 {
 	uint32_t pin = 0;
 	uint32_t bank = 0;
@@ -184,7 +184,7 @@ static enum gpio_level do_get_value(struct gpio_chip *chip, uint32_t gpio)
 {
 	struct versal_gpio_chip *p = container_of(chip,
 						struct versal_gpio_chip, chip);
-	return gpio_get_value(p, gpio);
+	return versal_gpio_get_value(p, gpio);
 }
 
 static void do_set_value(struct gpio_chip *chip, uint32_t gpio,
@@ -192,7 +192,7 @@ static void do_set_value(struct gpio_chip *chip, uint32_t gpio,
 {
 	struct versal_gpio_chip *p = container_of(chip,
 						struct versal_gpio_chip, chip);
-	return gpio_set_value(p, gpio, val);
+	return versal_gpio_set_value(p, gpio, val);
 }
 
 static void do_set_dir(struct gpio_chip *chip, uint32_t gpio,
@@ -200,14 +200,14 @@ static void do_set_dir(struct gpio_chip *chip, uint32_t gpio,
 {
 	struct versal_gpio_chip *p = container_of(chip,
 						struct versal_gpio_chip, chip);
-	return gpio_set_direction(p, gpio, direction);
+	return versal_gpio_set_direction(p, gpio, direction);
 }
 
 static enum gpio_dir do_get_dir(struct gpio_chip *chip, uint32_t gpio)
 {
 	struct versal_gpio_chip *p = container_of(chip,
 						struct versal_gpio_chip, chip);
-	return gpio_get_direction(p, gpio);
+	return versal_gpio_get_direction(p, gpio);
 }
 
 static const struct gpio_ops versal_gpio_ops = {
