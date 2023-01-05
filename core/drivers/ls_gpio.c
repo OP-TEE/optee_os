@@ -26,8 +26,8 @@ static const char * const gpio_controller_map[] = {
  * chip:        pointer to GPIO controller chip instance
  * gpio_pin:    pin from which value needs to be read
  */
-static enum gpio_level gpio_get_value(struct gpio_chip *chip,
-				      unsigned int gpio_pin)
+static enum gpio_level ls_gpio_get_value(struct gpio_chip *chip,
+					 unsigned int gpio_pin)
 {
 	vaddr_t gpio_data_addr = 0;
 	uint32_t data = 0;
@@ -52,8 +52,8 @@ static enum gpio_level gpio_get_value(struct gpio_chip *chip,
  * gpio_pin:    pin to which value needs to be write
  * value:       value needs to be written to the pin
  */
-static void gpio_set_value(struct gpio_chip *chip, unsigned int gpio_pin,
-			   enum gpio_level value)
+static void ls_gpio_set_value(struct gpio_chip *chip, unsigned int gpio_pin,
+			      enum gpio_level value)
 {
 	vaddr_t gpio_data_addr = 0;
 	struct ls_gpio_chip_data *gc_data = container_of(chip,
@@ -77,8 +77,8 @@ static void gpio_set_value(struct gpio_chip *chip, unsigned int gpio_pin,
  * chip:        pointer to GPIO controller chip instance
  * gpio_pin:    pin from which direction needs to be read
  */
-static enum gpio_dir gpio_get_direction(struct gpio_chip *chip,
-					unsigned int gpio_pin)
+static enum gpio_dir ls_gpio_get_direction(struct gpio_chip *chip,
+					   unsigned int gpio_pin)
 {
 	vaddr_t gpio_dir_addr = 0;
 	uint32_t data = 0;
@@ -103,8 +103,8 @@ static enum gpio_dir gpio_get_direction(struct gpio_chip *chip,
  * gpio_pin:    pin on which direction needs to be set
  * direction:   direction which needs to be set on pin
  */
-static void gpio_set_direction(struct gpio_chip *chip, unsigned int gpio_pin,
-			       enum gpio_dir direction)
+static void ls_gpio_set_direction(struct gpio_chip *chip, unsigned int gpio_pin,
+				  enum gpio_dir direction)
 {
 	vaddr_t gpio_dir_addr = 0;
 	struct ls_gpio_chip_data *gc_data = container_of(chip,
@@ -210,10 +210,10 @@ static TEE_Result get_info_from_device_tree(struct ls_gpio_chip_data *gpio_data)
 }
 
 static const struct gpio_ops ls_gpio_ops = {
-	.get_direction = gpio_get_direction,
-	.set_direction = gpio_set_direction,
-	.get_value = gpio_get_value,
-	.set_value = gpio_set_value,
+	.get_direction = ls_gpio_get_direction,
+	.set_direction = ls_gpio_set_direction,
+	.get_value = ls_gpio_get_value,
+	.set_value = ls_gpio_set_value,
 	.get_interrupt = gpio_get_interrupt,
 	.set_interrupt = gpio_set_interrupt,
 };
