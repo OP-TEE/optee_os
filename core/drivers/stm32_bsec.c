@@ -241,7 +241,7 @@ static TEE_Result power_down_safmem(void)
 	return TEE_ERROR_GENERIC;
 }
 
-static TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
+TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 {
 	TEE_Result result = 0;
 	uint32_t exceptions = 0;
