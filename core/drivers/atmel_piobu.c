@@ -204,6 +204,26 @@ static const struct gpio_ops atmel_piobu_ops = {
 	.set_interrupt = secumod_gpio_set_interrupt,
 };
 
+static struct gpio *secumod_dt_get(struct dt_driver_phandle_args *a, void *data,
+				   TEE_Result *res)
+{
+	struct gpio *gpio = NULL;
+	struct gpio_chip *chip = data;
+
+	gpio = gpio_dt_alloc_pin(a, res);
+	if (*res)
+		return NULL;
+
+	if (gpio_protected & BIT32(gpio->pin)) {
+		free(gpio);
+		return NULL;
+	}
+
+	gpio->chip = chip;
+
+	return gpio;
+}
+
 static enum itr_return secumod_it_handler(struct itr_handler *handler __unused)
 {
 	int i = 0;
@@ -371,7 +391,9 @@ static TEE_Result atmel_secumod_probe(const void *fdt, int node,
 
 	piobu_register_pm();
 
-	return TEE_SUCCESS;
+	assert(gpio_ops_is_valid(&atmel_piobu_ops));
+
+	return gpio_register_provider(fdt, node, secumod_dt_get, &secumod_chip);
 }
 
 static const struct dt_device_match atmel_secumod_match_table[] = {
