@@ -7,8 +7,8 @@
 
 #include <assert.h>
 #include <drivers/atmel_rtc.h>
+#include <drivers/gpio.h>
 #include <dt-bindings/gpio/atmel,piobu.h>
-#include <gpio.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>

@@ -7,7 +7,7 @@
 #ifndef __PL022_SPI_H__
 #define __PL022_SPI_H__
 
-#include <gpio.h>
+#include <drivers/gpio.h>
 #include <spi.h>
 
 #define PL022_REG_SIZE	0x1000
