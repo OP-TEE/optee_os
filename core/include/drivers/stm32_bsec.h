@@ -39,6 +39,13 @@ enum stm32_bsec_sec_state {
 TEE_Result stm32_bsec_shadow_read_otp(uint32_t *value, uint32_t otp_id);
 
 /*
+ * Copy SAFMEM OTP to BSEC data.
+ * @otp_id: OTP number.
+ * Return a TEE_Result compliant return value
+ */
+TEE_Result stm32_bsec_shadow_register(uint32_t otp_id);
+
+/*
  * Read an OTP data value
  * @value: Output read value
  * @otp_id: OTP number
