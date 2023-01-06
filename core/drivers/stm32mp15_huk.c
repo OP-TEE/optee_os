@@ -43,8 +43,12 @@ static TEE_Result stm32mp15_read_uid(uint32_t *uid)
 static TEE_Result stm32mp15_read_otp(uint32_t otp, uint32_t *key, bool *locked)
 {
 	bool tmp = true;
+	uint32_t state = 0;
 
-	if (!stm32mp_is_closed_device()) {
+	if (stm32_bsec_get_state(&state))
+		panic();
+
+	if (state != BSEC_STATE_SEC_CLOSED) {
 		/*
 		 * When the device is not closed, the shadow memory for these
 		 * words might not be locked: check and report them
