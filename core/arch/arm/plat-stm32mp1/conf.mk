@@ -43,6 +43,7 @@ $(error Invalid platform flavor $(PLATFORM_FLAVOR))
 endif
 CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
 endif
+CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp157c-dk2.dts
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
@@ -75,6 +76,7 @@ endif
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_DRIVERS_CLK,y)
+$(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
@@ -117,21 +119,6 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
-
-ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
-# Some drivers mandate DT support
-$(call force,CFG_DRIVERS_CLK_DT,n)
-$(call force,CFG_STM32_CRYP,n)
-$(call force,CFG_STM32_GPIO,n)
-$(call force,CFG_STM32_I2C,n)
-$(call force,CFG_STM32_IWDG,n)
-$(call force,CFG_STM32_TAMP,n)
-$(call force,CFG_STPMIC1,n)
-$(call force,CFG_STM32MP1_SCMI_SIP,n)
-$(call force,CFG_SCMI_PTA,n)
-else
-$(call force,CFG_DRIVERS_CLK_DT,y)
-endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
 CFG_TZDRAM_START ?= 0xde000000
