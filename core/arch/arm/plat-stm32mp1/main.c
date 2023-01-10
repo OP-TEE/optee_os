@@ -59,14 +59,9 @@ register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
 static TEE_Result platform_banner(void)
 {
-#ifdef CFG_EMBED_DTB
 	IMSG("Platform stm32mp1: flavor %s - DT %s",
 		ID2STR(PLATFORM_FLAVOR),
 		ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
-#else
-	IMSG("Platform stm32mp1: flavor %s - no device tree",
-		ID2STR(PLATFORM_FLAVOR));
-#endif
 
 	return TEE_SUCCESS;
 }
@@ -118,7 +113,6 @@ void console_init(void)
 	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
 
-#ifdef CFG_EMBED_DTB
 static TEE_Result init_console_from_dt(void)
 {
 	struct stm32_uart_pdata *pd = NULL;
@@ -156,7 +150,6 @@ static TEE_Result init_console_from_dt(void)
 
 /* Probe console from DT once clock inits (service init level) are completed */
 service_init_late(init_console_from_dt);
-#endif
 
 /*
  * GIC init, used also for primary/secondary boot core wake completion
@@ -298,10 +291,6 @@ early_init_late(set_all_gpios_non_secure);
 
 static TEE_Result init_stm32mp1_drivers(void)
 {
-	/* Without secure DTB support, some drivers must be inited */
-	if (!IS_ENABLED(CFG_EMBED_DTB))
-		stm32_etzpc_init(ETZPC_BASE);
-
 	/* Secure internal memories for the platform, once ETZPC is ready */
 	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
 	etzpc_lock_tzma(0);
