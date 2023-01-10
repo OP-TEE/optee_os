@@ -926,7 +926,7 @@ ifeq (y-y,$(CFG_WITH_PAGER)-$(CFG_MEMTAG))
 $(error CFG_WITH_PAGER and CFG_MEMTAG are not compatible)
 endif
 
-# CFG_CORE_ASYNC_NOTIF is defined by the platform to enable enables support
+# CFG_CORE_ASYNC_NOTIF is defined by the platform to enable support
 # for sending asynchronous notifications to normal world. Note that an
 # interrupt ID must be configurged by the platform too. Currently is only
 # CFG_CORE_ASYNC_NOTIF_GIC_INTID defined.
