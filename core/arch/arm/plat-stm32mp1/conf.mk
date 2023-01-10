@@ -106,6 +106,8 @@ $(call force,CFG_REGULATOR_FIXED,y)
 
 ifeq ($(CFG_STM32MP13),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
+$(call force,CFG_CORE_ASYNC_NOTIF,y)
+$(call force,CFG_CORE_ASYNC_NOTIF_GIC_INTID,31)
 $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
