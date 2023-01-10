@@ -162,7 +162,6 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 			     &pinctrl[n].standby_cfg);
 }
 
-#ifdef CFG_DT
 /* Panic if GPIO bank information from platform do not match DTB description */
 static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 {
@@ -370,7 +369,6 @@ int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
 
 	return -1;
 }
-#endif /*CFG_DT*/
 
 static __maybe_unused bool valid_gpio_config(unsigned int bank,
 					     unsigned int pin, bool input)
