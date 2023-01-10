@@ -108,7 +108,6 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 	pd->chip.ops = &stm32_uart_serial_ops;
 }
 
-#ifdef CFG_DT
 static void register_secure_uart(struct stm32_uart_pdata *pd)
 {
 	size_t n = 0;
@@ -190,4 +189,3 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 
 	return pd;
 }
-#endif /*CFG_DT*/

@@ -659,7 +659,6 @@ TEE_Result stm32_bsec_get_state(uint32_t *state)
 	return TEE_SUCCESS;
 }
 
-#ifdef CFG_EMBED_DTB
 static void enable_nsec_access(unsigned int otp_id)
 {
 	unsigned int idx = (otp_id - otp_upper_base()) / BSEC_BITS_PER_WORD;
@@ -855,11 +854,6 @@ static void initialize_bsec_from_dt(void)
 
 	save_dt_nvmem_layout(fdt, node);
 }
-#else
-static void initialize_bsec_from_dt(void)
-{
-}
-#endif /*CFG_EMBED_DTB*/
 
 static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
 			  const struct pm_callback_handle *hdl __unused)
@@ -890,8 +884,7 @@ static TEE_Result initialize_bsec(void)
 	if (state_is_invalid_mode())
 		panic();
 
-	if (IS_ENABLED(CFG_EMBED_DTB))
-		initialize_bsec_from_dt();
+	initialize_bsec_from_dt();
 
 	register_pm_core_service_cb(bsec_pm, NULL, "stm32_bsec");
 

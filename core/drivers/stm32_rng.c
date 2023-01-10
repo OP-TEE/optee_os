@@ -423,7 +423,6 @@ stm32_rng_pm(enum pm_op op, unsigned int pm_hint __unused,
 }
 DECLARE_KEEP_PAGER(stm32_rng_pm);
 
-#ifdef CFG_EMBED_DTB
 static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -548,4 +547,3 @@ static TEE_Result stm32_rng_release(void)
 }
 
 release_init_resource(stm32_rng_release);
-#endif /*CFG_EMBED_DTB*/
