@@ -530,7 +530,7 @@
  * a0	OPTEE_SMC_RETURN_OK
  * a1	value
  * a2	Bit[0]: OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID if the value in a1 is
- *		valid, else 0 if no values where pending
+ *		valid, else 0 if no values were pending
  * a2	Bit[1]: OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING if another value is
  *		pending, else 0.
  *	Bit[31:2]: MBZ
