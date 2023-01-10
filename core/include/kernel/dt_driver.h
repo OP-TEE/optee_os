@@ -36,7 +36,7 @@ struct dt_driver_phandle_args {
  * @data: driver private data registered in struct dt_driver.
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
  *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
@@ -73,7 +73,7 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @type: Driver type
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
  *	TEE_ERROR_ITEM_NOT_FOUND if prop_name does not match a property's name
  *	Any TEE_Result compliant code in case of error.
  *
@@ -141,7 +141,6 @@ TEE_Result dt_driver_probe_device_by_node(const void *fdt, int nodeoffset,
  * @nodeoffset: Node offset on the FDT for the device
  * @type: One of the supported DT_DRIVER_* value.
  *
- * Currently supports type DT_DRIVER_CLK.
  * Return a positive cell count value (>= 0) or a negative FDT_ error code
  */
 int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
