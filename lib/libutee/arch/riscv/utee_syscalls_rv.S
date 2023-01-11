@@ -5,6 +5,8 @@
 
 #include <tee_syscall_numbers.h>
 #include <asm.S>
+#include <riscv.h>
+#include <riscv_macros.S>
 
         .section .text
 
@@ -22,6 +24,10 @@
 	.endm
 
 	FUNC _utee_panic, :
+	addi	sp, sp , -(30*RISCV_XLEN_BYTES)
+	STR	ra, 0(sp)
+	store_xregs sp, RISCV_XLEN_BYTES, 3, 31
+	mv a1, sp
 	j	__utee_panic
 	END_FUNC _utee_panic
 
