@@ -209,7 +209,7 @@ static __maybe_unused bufsize bget_buf_size(void *buf)
 	return osize;
 }
 
-static void *maybe_tag_buf(void *buf, size_t __maybe_unused requested_size)
+static void *maybe_tag_buf(uint8_t *buf, size_t hdr_size, size_t requested_size)
 {
 	if (!buf)
 		return NULL;
@@ -224,13 +224,13 @@ static void *maybe_tag_buf(void *buf, size_t __maybe_unused requested_size)
 		 * allocating with memalign(), but we should never tag more
 		 * than allocated.
 		 */
-		assert(bget_buf_size(buf) >= sz);
-		return memtag_set_random_tags(buf, sz);
+		assert(bget_buf_size(buf) >= sz + hdr_size);
+		return memtag_set_random_tags(buf, sz + hdr_size);
 	}
 
 #if defined(__KERNEL__)
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS))
-		asan_tag_access(buf, (uint8_t *)buf + requested_size);
+		asan_tag_access(buf, buf + hdr_size + requested_size);
 #endif
 	return buf;
 }
@@ -271,8 +271,9 @@ static void tag_asan_free(void *buf __maybe_unused, size_t len __maybe_unused)
 
 #ifdef BufStats
 
-static void *raw_malloc_return_hook(void *p, size_t requested_size,
-				   struct malloc_ctx *ctx)
+static void *raw_malloc_return_hook(void *p, size_t hdr_size,
+				    size_t requested_size,
+				    struct malloc_ctx *ctx)
 {
 	if (ctx->poolset.totalloc > ctx->mstats.max_allocated)
 		ctx->mstats.max_allocated = ctx->poolset.totalloc;
@@ -287,7 +288,7 @@ static void *raw_malloc_return_hook(void *p, size_t requested_size,
 		}
 	}
 
-	return maybe_tag_buf(p, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
 }
 
 static void gen_malloc_reset_stats(struct malloc_ctx *ctx)
@@ -322,13 +323,14 @@ void malloc_get_stats(struct malloc_stats *stats)
 
 #else /* BufStats */
 
-static void *raw_malloc_return_hook(void *p, size_t requested_size,
+static void *raw_malloc_return_hook(void *p, size_t hdr_size,
+				    size_t requested_size,
 				    struct malloc_ctx *ctx )
 {
 	if (!p)
 		print_oom(requested_size, ctx);
 
-	return maybe_tag_buf(p, MAX(SizeQuant, requested_size));
+	return maybe_tag_buf(p, hdr_size, MAX(SizeQuant, requested_size));
 }
 
 #endif /* BufStats */
@@ -436,7 +438,7 @@ void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,
 
 	ptr = bget(alignment, hdr_size, s, &ctx->poolset);
 out:
-	return raw_malloc_return_hook(ptr, pl_size, ctx);
+	return raw_malloc_return_hook(ptr, hdr_size, pl_size, ctx);
 }
 
 void *raw_malloc(size_t hdr_size, size_t ftr_size, size_t pl_size,
@@ -477,7 +479,7 @@ void *raw_calloc(size_t hdr_size, size_t ftr_size, size_t pl_nmemb,
 
 	ptr = bgetz(0, hdr_size, s, &ctx->poolset);
 out:
-	return raw_malloc_return_hook(ptr, pl_nmemb * pl_size, ctx);
+	return raw_malloc_return_hook(ptr, hdr_size, pl_nmemb * pl_size, ctx);
 }
 
 void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
@@ -517,7 +519,7 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
 	}
 out:
-	return raw_malloc_return_hook(p, pl_size, ctx);
+	return raw_malloc_return_hook(p, hdr_size, pl_size, ctx);
 }
 
 #ifdef ENABLE_MDBG
@@ -549,7 +551,7 @@ static uint32_t *mdbg_get_footer(struct mdbg_hdr *hdr)
 	footer = (uint32_t *)((uint8_t *)(hdr + 1) + hdr->pl_size +
 			      mdbg_get_ftr_size(hdr->pl_size));
 	footer--;
-	return footer;
+	return strip_tag(footer);
 }
 
 static void mdbg_update_hdr(struct mdbg_hdr *hdr, const char *fname,
@@ -944,7 +946,7 @@ void raw_malloc_add_pool(struct malloc_ctx *ctx, void *buf, size_t len)
 bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,
 				     void *buf, size_t len)
 {
-	uintptr_t buf_start = (uintptr_t) buf;
+	uintptr_t buf_start = (uintptr_t)strip_tag(buf);
 	uintptr_t buf_end = buf_start + len;
 	size_t n = 0;
 
