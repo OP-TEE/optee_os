@@ -64,6 +64,7 @@ static void tee_entry_fastcall_l2cc_mutex(struct thread_smc_args *args)
 
 static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
+	bool res_shm_en = IS_ENABLED(CFG_CORE_RESERVED_SHM);
 	bool dyn_shm_en __maybe_unused = false;
 
 	/*
@@ -87,26 +88,31 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	args->a0 = OPTEE_SMC_RETURN_OK;
 	args->a1 = 0;
-#ifdef CFG_CORE_RESERVED_SHM
-	args->a1 |= OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
-#endif
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
-		args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
-	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
-	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
-		args->a1 |= OPTEE_SMC_SEC_CAP_ASYNC_NOTIF;
-		args->a2 = NOTIF_VALUE_MAX;
-	}
-	DMSG("Asynchronous notifications are %sabled",
-	     IS_ENABLED(CFG_CORE_ASYNC_NOTIF) ? "en" : "dis");
+
+	if (res_shm_en)
+		args->a1 |= OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM;
+	IMSG("Reserved shared memory is %sabled", res_shm_en ? "en" : "dis");
 
 #if defined(CFG_CORE_DYN_SHM)
 	dyn_shm_en = core_mmu_nsec_ddr_is_defined();
 	if (dyn_shm_en)
 		args->a1 |= OPTEE_SMC_SEC_CAP_DYNAMIC_SHM;
 #endif
+	IMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
 
-	DMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
+	if (IS_ENABLED(CFG_VIRTUALIZATION))
+		args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
+	IMSG("Normal World virtualization support is %sabled",
+	     IS_ENABLED(CFG_VIRTUALIZATION) ? "en" : "dis");
+
+	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
+
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		args->a1 |= OPTEE_SMC_SEC_CAP_ASYNC_NOTIF;
+		args->a2 = NOTIF_VALUE_MAX;
+	}
+	IMSG("Asynchronous notifications are %sabled",
+	     IS_ENABLED(CFG_CORE_ASYNC_NOTIF) ? "en" : "dis");
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
