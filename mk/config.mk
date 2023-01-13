@@ -112,6 +112,10 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 # Number of threads
 CFG_NUM_THREADS ?= 2
 
+# Number of threads among CFG_NUM_THREADS provisioned for system invocation
+# as for an SCMI service.
+CFG_NUM_SYSTEM_THREADS ?= 0
+
 # API implementation version
 CFG_TEE_API_VERSION ?= GPD-1.1-dev
 

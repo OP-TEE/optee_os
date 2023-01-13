@@ -215,65 +215,78 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 }
 #endif /*ARM64*/
 
-static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
-				   uint32_t a3, uint32_t a4, uint32_t a5,
-				   uint32_t a6, uint32_t a7,
+static int find_free_thread(size_t start_idx, size_t count)
+{
+	size_t n = 0;
+
+	for (n = start_idx; n < start_idx + count; n++)
+		if (threads[n].state == THREAD_STATE_FREE)
+			return n;
+
+	return -1;
+}
+
+static void __thread_alloc_and_run(bool sys_thread, uint32_t a0, uint32_t a1,
+				   uint32_t a2, uint32_t a3, uint32_t a4,
+				   uint32_t a5, uint32_t a6, uint32_t a7,
 				   void *pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
-	bool found_thread = false;
-	size_t n = 0;
+	int i = -1;
 
 	assert(l->curr_thread == THREAD_ID_INVALID);
 
 	thread_lock_global();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
-		if (threads[n].state == THREAD_STATE_FREE) {
-			threads[n].state = THREAD_STATE_ACTIVE;
-			found_thread = true;
-			break;
-		}
-	}
+	if (sys_thread)
+		i = find_free_thread(CFG_NUM_THREADS - CFG_NUM_SYSTEM_THREADS,
+				     CFG_NUM_SYSTEM_THREADS);
+
+	if (i < 0)
+		i = find_free_thread(0,
+				     CFG_NUM_THREADS - CFG_NUM_SYSTEM_THREADS);
+
+	if (i >= 0)
+		threads[i].state = THREAD_STATE_ACTIVE;
 
 	thread_unlock_global();
 
-	if (!found_thread)
+	if (i < 0)
 		return;
 
-	l->curr_thread = n;
+	l->curr_thread = i;
 
-	threads[n].flags = 0;
-	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+	threads[i].flags = 0;
+	init_regs(threads + i, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 #ifdef CFG_CORE_PAUTH
 	/*
 	 * Copy the APIA key into the registers to be restored with
 	 * thread_resume().
 	 */
-	threads[n].regs.apiakey_hi = threads[n].keys.apia_hi;
-	threads[n].regs.apiakey_lo = threads[n].keys.apia_lo;
+	threads[i].regs.apiakey_hi = threads[i].keys.apia_hi;
+	threads[i].regs.apiakey_lo = threads[i].keys.apia_lo;
 #endif
 
 	thread_lazy_save_ns_vfp();
 
 	l->flags &= ~THREAD_CLF_TMP;
-	thread_resume(&threads[n].regs);
+	thread_resume(&threads[i].regs);
 	/*NOTREACHED*/
 	panic();
 }
 
-void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
-			  uint32_t a4, uint32_t a5)
+void thread_alloc_and_run(bool sys_thread, uint32_t a0, uint32_t a1,
+			  uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
-	__thread_alloc_and_run(a0, a1, a2, a3, a4, a5, 0, 0,
+	__thread_alloc_and_run(sys_thread, a0, a1, a2, a3, a4, a5, 0, 0,
 			       thread_std_smc_entry);
 }
 
 #ifdef CFG_SECURE_PARTITION
 void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)
 {
-	__thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3, args->a4,
-			       args->a5, args->a6, args->a7,
+	__thread_alloc_and_run(false, args->a0, args->a1, args->a2, args->a3,
+			       args->a4, args->a5, args->a6, args->a7,
 			       spmc_sp_thread_entry);
 }
 #endif

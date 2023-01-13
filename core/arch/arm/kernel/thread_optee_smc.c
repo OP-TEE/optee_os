@@ -70,7 +70,9 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 		thread_resume_from_rpc(a3, a1, a2, a4, a5);
 		rv = OPTEE_SMC_RETURN_ERESUME;
 	} else {
-		thread_alloc_and_run(a0, a1, a2, a3, 0, 0);
+		bool sys_thread = (a0 == OPTEE_SMC_CALL_SYSTEM_WITH_REGD_ARG);
+
+		thread_alloc_and_run(sys_thread, a0, a1, a2, a3, 0, 0);
 		rv = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 	}
 
@@ -279,6 +281,7 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		return std_entry_with_parg(reg_pair_to_64(a1, a2),
 					   with_rpc_arg);
 	case OPTEE_SMC_CALL_WITH_REGD_ARG:
+	case OPTEE_SMC_CALL_SYSTEM_WITH_REGD_ARG:
 		return std_entry_with_regd_arg(reg_pair_to_64(a1, a2), a3);
 	default:
 		EMSG("Unknown SMC 0x%"PRIx32, a0);

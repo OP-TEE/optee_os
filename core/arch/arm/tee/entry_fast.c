@@ -116,6 +116,9 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
+
+	if (CFG_NUM_SYSTEM_THREADS)
+		args->a1 |= OPTEE_SMC_SEC_CAP_SYSTEM_THREAD;
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)

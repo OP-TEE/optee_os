@@ -451,8 +451,8 @@ static void handle_yielding_call(struct thread_smc_args *args)
 				       0);
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
-		thread_alloc_and_run(args->a1, args->a3, args->a4, args->a5,
-				     args->a6, args->a7);
+		thread_alloc_and_run(false, args->a1, args->a3, args->a4,
+				     args->a5, args->a6, args->a7);
 		res = TEE_ERROR_BUSY;
 	}
 	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
