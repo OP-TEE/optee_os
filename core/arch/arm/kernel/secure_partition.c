@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2022, Arm Limited.
+ * Copyright (c) 2020-2023, Arm Limited.
  */
 #include <bench.h>
 #include <crypto/crypto.h>
@@ -47,7 +47,8 @@
 					 SP_MANIFEST_ATTR_EXEC)
 
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
-#define SP_PKG_HEADER_VERSION (0x1)
+#define SP_PKG_HEADER_VERSION_V1 (0x1)
+#define SP_PKG_HEADER_VERSION_V2 (0x2)
 
 struct sp_pkg_header {
 	uint32_t magic;
@@ -1130,7 +1131,8 @@ static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
 		goto err_unmap;
 	}
 
-	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION) {
+	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V1 &&
+	    sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V2) {
 		EMSG("Invalid SP header version");
 		res = TEE_ERROR_BAD_FORMAT;
 		goto err_unmap;
