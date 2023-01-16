@@ -154,13 +154,6 @@ static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	return 0;
 }
 
-/**
- * ti_sci_get_revision() - Get the revision of the SCI entity
- *
- * Updates the SCI information in the internal data structure.
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
 {
 	struct ti_sci_msg_req_version req = { };
@@ -318,17 +311,6 @@ int ti_sci_change_fwl_owner(uint16_t fwl_id, uint16_t region,
 	return 0;
 }
 
-/**
- * ti_sci_get_dkek() - Get the DKEK
- * @sa2ul_instance:	SA2UL instance to get key
- * @context:		Context string input to KDF
- * @label:		Label string input to KDF
- * @dkek:		Returns with DKEK populated
- *
- * Updates the DKEK the internal data structure.
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_get_dkek(uint8_t sa2ul_instance,
 		    const char *context, const char *label,
 		    uint8_t dkek[SA2UL_DKEK_KEY_LEN])
@@ -364,15 +346,6 @@ int ti_sci_get_dkek(uint8_t sa2ul_instance,
 	return 0;
 }
 
-/**
- * ti_sci_read_otp_mmr() - Get the Extended OTP
- * @mmr_idx:		32-bit MMR index
- * @val:		Value of the 32-bit MMR
- *
- * Reads the extended OTP bits from efuse
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_read_otp_mmr(uint8_t mmr_idx, uint32_t *val)
 {
 	struct ti_sci_msg_req_read_otp_mmr req = { };
@@ -398,16 +371,6 @@ exit:
 	return ret;
 }
 
-/**
- * ti_sci_write_otp_row() - Write the extended OTP row
- * @row_idx:		Index of the OTP row. Zero indexing
- * @row_val:		Value to be written
- * @row_mask:		Mask bits for row_val to be written
- *
- * Writes a Row in the extended OTP field
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_write_otp_row(uint8_t row_idx, uint32_t row_val, uint32_t row_mask)
 {
 	struct ti_sci_msg_req_write_otp_row req = { };
@@ -443,17 +406,6 @@ exit:
 	return ret;
 }
 
-/**
- * ti_sci_lock_otp_row - Locking the Extended OTP row
- * @row_idx:		Index of the OTP row. Zero indexing
- * @hw_write_lock:	Hardware write lock
- * @hw_read_lock:	Hardware read lock
- * @row_soft_lock:	Software write lock
- *
- * Locks a Row in the extended OTP field to prevent read/writes
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 			uint8_t hw_read_lock, uint8_t row_soft_lock)
 {
@@ -479,11 +431,6 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 	return 0;
 }
 
-/**
- * ti_sci_init() - Basic initialization
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_init(void)
 {
 	struct ti_sci_msg_resp_version rev_info = { };
