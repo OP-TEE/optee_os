@@ -197,7 +197,11 @@
 #define USART6_BASE			UART6_BASE
 
 /* SYSRAM layout */
+#ifdef CFG_STM32MP13
+#define SYSRAM_SIZE			0x20000
+#else /* Assume CFG_STM32MP15 */
 #define SYSRAM_SIZE			0x40000
+#endif
 #define SYSRAM_NS_SIZE			(SYSRAM_SIZE - SYSRAM_SEC_SIZE)
 
 /* Non-secure SYSRAM must be above (higher addresses) secure SYSRAM */
