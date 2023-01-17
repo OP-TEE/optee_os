@@ -37,6 +37,8 @@ static const sss_policy_u common = {
 	.policy = {
 		.common = {
 			.can_Delete = 1,
+			.can_Read = 1,
+			.can_Write = 1,
 			.req_Sm = 1,
 		},
 	},
