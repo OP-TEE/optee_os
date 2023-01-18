@@ -40,6 +40,7 @@
  *
  * Return TEE_SUCCESS in case of success
  * Return TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not provide a clock reference
  * Return any other TEE_Result compliant code in case of error
  */
 TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
@@ -55,6 +56,7 @@ TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
  *
  * Return TEE_SUCCESS in case of success
  * Return TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not provide a clock reference
  * Return any other TEE_Result compliant code in case of error
  */
 TEE_Result clk_dt_get_by_name(const void *fdt, int nodeoffset,
