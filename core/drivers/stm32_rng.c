@@ -7,7 +7,6 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
-#include <drivers/stm32_rng.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
@@ -294,7 +293,7 @@ static TEE_Result init_rng(void)
 	return TEE_SUCCESS;
 }
 
-TEE_Result stm32_rng_read(uint8_t *out, size_t size)
+static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 {
 	TEE_Result rc = TEE_ERROR_GENERIC;
 	bool burst_timeout = false;
