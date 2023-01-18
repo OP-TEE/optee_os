@@ -14,6 +14,7 @@
 #include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <kernel/thread.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -366,6 +367,53 @@ TEE_Result hw_get_random_bytes(void *out, size_t size)
 }
 #endif
 
+static TEE_Result stm32_rng_pm_resume(uint32_t pm_cr)
+{
+	vaddr_t base = get_base();
+
+	/* Clean error indications */
+	io_write32(base + RNG_SR, 0);
+
+	if (stm32_rng->ddata->has_cond_reset) {
+		/*
+		 * Correct configuration in bits [29:4] must be set in the same
+		 * access that set RNG_CR_CONDRST bit. Else config setting is
+		 * not taken into account.
+		 */
+		io_write32(base + RNG_CR, pm_cr | RNG_CR_CONDRST);
+
+		io_clrsetbits32(base + RNG_CR, RNG_CR_CONDRST, RNG_CR_RNGEN);
+	} else {
+		io_write32(base + RNG_CR, RNG_CR_RNGEN | pm_cr);
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
+stm32_rng_pm(enum pm_op op, unsigned int pm_hint __unused,
+	     const struct pm_callback_handle *pm_handle __unused)
+{
+	static uint32_t pm_cr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(stm32_rng && (op == PM_OP_SUSPEND || op == PM_OP_RESUME));
+
+	res = clk_enable(stm32_rng->clock);
+	if (res)
+		return res;
+
+	if (op == PM_OP_SUSPEND)
+		pm_cr = io_read32(get_base() + RNG_CR);
+	else
+		res = stm32_rng_pm_resume(pm_cr);
+
+	clk_disable(stm32_rng->clock);
+
+	return res;
+}
+DECLARE_KEEP_PAGER(stm32_rng_pm);
+
 #ifdef CFG_EMBED_DTB
 static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
@@ -444,6 +492,8 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
 	else
 		stm32mp_register_secure_periph_iomem(stm32_rng->base.pa);
+
+	register_pm_core_service_cb(stm32_rng_pm, &stm32_rng, "rng-service");
 
 	return TEE_SUCCESS;
 
