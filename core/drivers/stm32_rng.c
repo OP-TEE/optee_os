@@ -45,12 +45,18 @@ struct stm32_rng_instance {
 	struct clk *clock;
 	struct rstctrl *rstctrl;
 	unsigned int lock;
-	unsigned int refcount;
 	bool release_post_boot;
 };
 
 /* Expect at most a single RNG instance */
 static struct stm32_rng_instance *stm32_rng;
+
+static vaddr_t get_base(void)
+{
+	assert(stm32_rng);
+
+	return io_pa_or_va(&stm32_rng->base, 1);
+}
 
 /*
  * Extracts from the STM32 RNG specification:
@@ -121,29 +127,25 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 	return TEE_SUCCESS;
 }
 
-static void gate_rng(bool enable, struct stm32_rng_instance *dev)
+static TEE_Result init_rng(void)
 {
-	vaddr_t rng_cr = io_pa_or_va(&dev->base, 1) + RNG_CR;
-	uint32_t exceptions = may_spin_lock(&dev->lock);
+	vaddr_t rng_base = get_base();
+	uint64_t timeout_ref = 0;
 
-	if (enable) {
-		/* incr_refcnt return non zero if resource shall be enabled */
-		if (incr_refcnt(&dev->refcount)) {
-			FMSG("enable RNG");
-			clk_enable(dev->clock);
-			io_write32(rng_cr, 0);
-			io_write32(rng_cr, RNG_CR_RNGEN | RNG_CR_CED);
-		}
-	} else {
-		/* decr_refcnt return non zero if resource shall be disabled */
-		if (decr_refcnt(&dev->refcount)) {
-			FMSG("disable RNG");
-			io_write32(rng_cr, 0);
-			clk_disable(dev->clock);
-		}
-	}
+	/* Clean error indications */
+	io_write32(rng_base + RNG_SR, 0);
 
-	may_spin_unlock(&dev->lock, exceptions);
+	io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
+
+	timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+	while (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
+		if (timeout_elapsed(timeout_ref))
+			break;
+
+	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
+		return TEE_ERROR_GENERIC;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_rng_read(uint8_t *out, size_t size)
@@ -161,8 +163,8 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	gate_rng(true, stm32_rng);
-	rng_base = io_pa_or_va(&stm32_rng->base, 1);
+	clk_enable(stm32_rng->clock);
+	rng_base = get_base();
 
 	/* Arm timeout */
 	timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
@@ -199,7 +201,7 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 
 out:
 	assert(!rc || rc == TEE_ERROR_GENERIC);
-	gate_rng(false, stm32_rng);
+	clk_disable(stm32_rng->clock);
 
 	return rc;
 }
@@ -287,6 +289,10 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 		goto err_clk;
 	}
 
+	res = init_rng();
+	if (res)
+		goto err_clk;
+
 	clk_disable(stm32_rng->clock);
 
 	if (stm32_rng->release_post_boot)
@@ -321,7 +327,6 @@ static TEE_Result stm32_rng_release(void)
 {
 	if (stm32_rng && stm32_rng->release_post_boot) {
 		DMSG("Release RNG driver");
-		assert(!stm32_rng->refcount);
 		free(stm32_rng);
 		stm32_rng = NULL;
 	}
