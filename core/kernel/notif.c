@@ -152,7 +152,7 @@ uint32_t notif_it_get_value(bool *it_valid, bool *it_pending)
 	res = bit;
 	bit_clear(notif_it_pending, res);
 	bit_ffs(notif_it_pending, (int)NOTIF_IT_VALUE_MAX + 1, &bit);
-	*it_pending = true;
+	*it_pending = (bit >= 0);
 out:
 	cpu_spin_unlock_xrestore(&it_lock, old_itr_status);
 
