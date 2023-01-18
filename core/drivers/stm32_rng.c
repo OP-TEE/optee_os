@@ -79,19 +79,18 @@ static vaddr_t get_base(void)
  * 3. Confirm that SEIS is still cleared. Random number generation is
  * back to normal.
  */
-static void conceal_seed_error(vaddr_t rng_base)
+static void conceal_seed_error(void)
 {
-	if (io_read32(rng_base + RNG_SR) & (RNG_SR_SECS | RNG_SR_SEIS)) {
-		size_t i = 0;
+	vaddr_t rng_base = get_base();
+	size_t i = 0;
 
-		io_mask32(rng_base + RNG_SR, 0, RNG_SR_SEIS);
+	io_clrbits32(rng_base + RNG_SR, RNG_SR_SEIS);
 
-		for (i = 12; i != 0; i--)
-			(void)io_read32(rng_base + RNG_DR);
+	for (i = 12; i != 0; i--)
+		(void)io_read32(rng_base + RNG_DR);
 
-		if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
-			panic("RNG noise");
-	}
+	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+		panic("RNG noise");
 }
 
 static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
@@ -100,7 +99,8 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 	size_t req_size = 0;
 	size_t len = 0;
 
-	conceal_seed_error(rng_base);
+	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+		conceal_seed_error();
 
 	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY)) {
 		FMSG("RNG not ready");
