@@ -66,6 +66,7 @@ struct stm32_rng_instance {
 	const struct stm32_rng_driver_data *ddata;
 	unsigned int lock;
 	bool release_post_boot;
+	bool clock_error;
 	bool error_conceal;
 	uint64_t error_to_ref;
 };
@@ -250,6 +251,10 @@ static TEE_Result init_rng(void)
 {
 	vaddr_t rng_base = get_base();
 	uint64_t timeout_ref = 0;
+	uint32_t cr_ced_mask = 0;
+
+	if (!stm32_rng->clock_error)
+		cr_ced_mask = RNG_CR_CED;
 
 	/* Clean error indications */
 	io_write32(rng_base + RNG_SR, 0);
@@ -260,7 +265,7 @@ static TEE_Result init_rng(void)
 		/* Update configuration fields */
 		io_clrsetbits32(rng_base + RNG_CR, RNG_NIST_CONFIG_MASK,
 				RNG_NIST_CONFIG_B | RNG_CR_CONDRST |
-				RNG_CR_CED);
+				cr_ced_mask);
 		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CLKDIV,
 				clock_div << RNG_CR_CLKDIV_SHIFT);
 
@@ -268,7 +273,7 @@ static TEE_Result init_rng(void)
 		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CONDRST,
 				RNG_CR_RNGEN);
 	} else {
-		io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
+		io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | cr_ced_mask);
 	}
 
 	timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
@@ -383,6 +388,9 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
 	if (res)
 		return res;
+
+	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
+		stm32_rng->clock_error = true;
 
 	/* Release device if not used at runtime or for pm transitions */
 	stm32_rng->release_post_boot = IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
