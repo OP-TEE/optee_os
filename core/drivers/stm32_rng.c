@@ -217,6 +217,12 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 		uint32_t data32 = io_read32(rng_base + RNG_DR);
 		size_t sz = MIN(len, sizeof(uint32_t));
 
+		/* Late seed error case: DR being 0 is an error status */
+		if (!data32) {
+			conceal_seed_error();
+			return TEE_ERROR_NO_DATA;
+		}
+
 		memcpy(buf, &data32, sz);
 		buf += sz;
 		len -= sz;
