@@ -23,9 +23,9 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 
-#define RNG_CR			0x00U
-#define RNG_SR			0x04U
-#define RNG_DR			0x08U
+#define RNG_CR			U(0x00)
+#define RNG_SR			U(0x04)
+#define RNG_DR			U(0x08)
 
 #define RNG_CR_RNGEN		BIT(2)
 #define RNG_CR_IE		BIT(3)
@@ -37,8 +37,14 @@
 #define RNG_SR_CEIS		BIT(5)
 #define RNG_SR_SEIS		BIT(6)
 
-#define RNG_TIMEOUT_US		U(100000)
+#if TRACE_LEVEL > TRACE_DEBUG
+#define RNG_READY_TIMEOUT_US	U(100000)
+#else
+#define RNG_READY_TIMEOUT_US	U(10000)
+#endif
 #define RNG_RESET_TIMEOUT_US	U(1000)
+
+#define RNG_FIFO_BYTE_DEPTH	U(16)
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
@@ -88,8 +94,6 @@ static void conceal_seed_error(vaddr_t rng_base)
 	}
 }
 
-#define RNG_FIFO_BYTE_DEPTH		16u
-
 static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 {
 	uint8_t *buf = NULL;
@@ -137,7 +141,7 @@ static TEE_Result init_rng(void)
 
 	io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
 
-	timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+	timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
 	while (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
 		if (timeout_elapsed(timeout_ref))
 			break;
@@ -167,7 +171,7 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 	rng_base = get_base();
 
 	/* Arm timeout */
-	timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+	timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
 	burst_timeout = false;
 
 	while (out_size < size) {
@@ -194,7 +198,7 @@ TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 			out_size += sz;
 			out_ptr += sz;
 			/* Re-arm timeout */
-			timeout_ref = timeout_init_us(RNG_TIMEOUT_US);
+			timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
 			burst_timeout = false;
 		}
 	}
