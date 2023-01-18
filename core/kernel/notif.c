@@ -65,6 +65,18 @@ void notif_free_async_value(uint32_t val)
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
 }
 
+bool notif_async_value_is_pending(void)
+{
+	uint32_t old_itr_status = 0;
+	int bit = 0;
+
+	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
+	bit_ffs(notif_values, (int)NOTIF_ASYNC_VALUE_MAX + 1, &bit);
+	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
+
+	return bit >= 0;
+}
+
 uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 {
 	uint32_t old_itr_status = 0;

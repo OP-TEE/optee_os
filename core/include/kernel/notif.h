@@ -111,9 +111,19 @@ TEE_Result notif_wait(uint32_t value);
  */
 #if defined(CFG_CORE_ASYNC_NOTIF)
 void notif_send_async(uint32_t value);
+
+/*
+ * Return true is async any value is pending, false otherwise
+ */
+bool notif_async_value_is_pending(void);
 #else
 static inline void notif_send_async(uint32_t value __unused)
 {
+}
+
+static inline bool notif_async_value_is_pending(void)
+{
+	return false;
 }
 #endif
 
