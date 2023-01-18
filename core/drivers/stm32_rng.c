@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2018-2019, STMicroelectronics
+ * Copyright (c) 2018-2023, STMicroelectronics
  */
 
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/rstctrl.h>
 #include <drivers/stm32_rng.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
@@ -21,7 +23,6 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 
-#define DT_RNG_COMPAT		"st,stm32-rng"
 #define RNG_CR			0x00U
 #define RNG_SR			0x04U
 #define RNG_DR			0x08U
@@ -37,15 +38,18 @@
 #define RNG_SR_SEIS		BIT(6)
 
 #define RNG_TIMEOUT_US		U(100000)
+#define RNG_RESET_TIMEOUT_US	U(1000)
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
 	struct clk *clock;
+	struct rstctrl *rstctrl;
 	unsigned int lock;
 	unsigned int refcount;
 	bool release_post_boot;
 };
 
+/* Expect at most a single RNG instance */
 static struct stm32_rng_instance *stm32_rng;
 
 /*
@@ -222,64 +226,96 @@ TEE_Result hw_get_random_bytes(void *out, size_t size)
 #endif
 
 #ifdef CFG_EMBED_DTB
-static TEE_Result stm32_rng_init(void)
+static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
-	void *fdt = NULL;
-	int node = -1;
-	struct dt_node_info dt_info;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dt_node_info dt_rng = { };
 
-	memset(&dt_info, 0, sizeof(dt_info));
+	_fdt_fill_device_info(fdt, &dt_rng, node);
+	if (dt_rng.reg == DT_INFO_INVALID_REG)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	fdt = get_embedded_dt();
-	if (!fdt)
-		panic();
+	stm32_rng->base.pa = dt_rng.reg;
+	stm32_rng->base.va = io_pa_or_va_secure(&stm32_rng->base,
+						dt_rng.reg_size);
+	assert(stm32_rng->base.va);
 
-	while (true) {
-		node = fdt_node_offset_by_compatible(fdt, node, DT_RNG_COMPAT);
-		if (node < 0)
-			break;
+	res = rstctrl_dt_get_by_index(fdt, node, 0, &stm32_rng->rstctrl);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
 
-		_fdt_fill_device_info(fdt, &dt_info, node);
+	res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
+	if (res)
+		return res;
 
-		if (!(dt_info.status & DT_STATUS_OK_SEC))
-			continue;
-
-		if (stm32_rng)
-			panic();
-
-		stm32_rng = calloc(1, sizeof(*stm32_rng));
-		if (!stm32_rng)
-			panic();
-
-		assert(dt_info.clock != DT_INFO_INVALID_CLOCK &&
-		       dt_info.reg != DT_INFO_INVALID_REG &&
-		       dt_info.reg_size != DT_INFO_INVALID_REG_SIZE);
-
-		if (dt_info.status & DT_STATUS_OK_NSEC) {
-			stm32mp_register_non_secure_periph_iomem(dt_info.reg);
-			stm32_rng->release_post_boot = true;
-		} else {
-			stm32mp_register_secure_periph_iomem(dt_info.reg);
-		}
-
-		stm32_rng->base.pa = dt_info.reg;
-		if (!io_pa_or_va_secure(&stm32_rng->base, dt_info.reg_size))
-			panic();
-
-		res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
-		if (res)
-			return res;
-
-		assert(stm32_rng->clock);
-
-		DMSG("RNG init");
-	}
+	/* Release device if not used at runtime or for pm transitions */
+	stm32_rng->release_post_boot = IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
+				       !IS_ENABLED(CFG_PM);
 
 	return TEE_SUCCESS;
 }
 
-early_init_late(stm32_rng_init);
+static TEE_Result stm32_rng_probe(const void *fdt, int offs,
+				  const void *compat_data __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	/* Expect a single RNG instance */
+	assert(!stm32_rng);
+
+	stm32_rng = calloc(1, sizeof(*stm32_rng));
+	if (!stm32_rng)
+		panic();
+
+	res = stm32_rng_parse_fdt(fdt, offs);
+	if (res)
+		goto err;
+
+	res = clk_enable(stm32_rng->clock);
+	if (res)
+		goto err;
+
+	if (stm32_rng->rstctrl &&
+	    rstctrl_assert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
+		res = TEE_ERROR_GENERIC;
+		goto err_clk;
+	}
+
+	if (stm32_rng->rstctrl &&
+	    rstctrl_deassert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
+		res = TEE_ERROR_GENERIC;
+		goto err_clk;
+	}
+
+	clk_disable(stm32_rng->clock);
+
+	if (stm32_rng->release_post_boot)
+		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
+	else
+		stm32mp_register_secure_periph_iomem(stm32_rng->base.pa);
+
+	return TEE_SUCCESS;
+
+err_clk:
+	clk_disable(stm32_rng->clock);
+err:
+	free(stm32_rng);
+	stm32_rng = NULL;
+
+	return res;
+}
+
+static const struct dt_device_match rng_match_table[] = {
+	{ .compatible = "st,stm32-rng" },
+	{ .compatible = "st,stm32mp13-rng" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_rng_dt_driver) = {
+	.name = "stm32_rng",
+	.match_table = rng_match_table,
+	.probe = stm32_rng_probe,
+};
 
 static TEE_Result stm32_rng_release(void)
 {
