@@ -30,6 +30,9 @@
 #define RNG_CR_RNGEN		BIT(2)
 #define RNG_CR_IE		BIT(3)
 #define RNG_CR_CED		BIT(5)
+#define RNG_CR_CLKDIV		GENMASK_32(19, 16)
+#define RNG_CR_CLKDIV_SHIFT	U(16)
+#define RNG_CR_CONDRST		BIT(30)
 
 #define RNG_SR_DRDY		BIT(0)
 #define RNG_SR_CECS		BIT(1)
@@ -46,12 +49,25 @@
 
 #define RNG_FIFO_BYTE_DEPTH	U(16)
 
+#define RNG_NIST_CONFIG_A	U(0x0F00D00)
+#define RNG_NIST_CONFIG_B	U(0x1801000)
+#define RNG_NIST_CONFIG_MASK	GENMASK_32(25, 8)
+
+#define RNG_MAX_NOISE_CLK_FREQ	U(3000000)
+
+struct stm32_rng_driver_data {
+	bool has_cond_reset;
+};
+
 struct stm32_rng_instance {
 	struct io_pa_va base;
 	struct clk *clock;
 	struct rstctrl *rstctrl;
+	const struct stm32_rng_driver_data *ddata;
 	unsigned int lock;
 	bool release_post_boot;
+	bool error_conceal;
+	uint64_t error_to_ref;
 };
 
 /* Expect at most a single RNG instance */
@@ -65,12 +81,81 @@ static vaddr_t get_base(void)
 }
 
 /*
- * Extracts from the STM32 RNG specification:
+ * Extracts from the STM32 RNG specification when RNG supports CONDRST.
  *
  * When a noise source (or seed) error occurs, the RNG stops generating
  * random numbers and sets to “1” both SEIS and SECS bits to indicate
  * that a seed error occurred. (...)
+ *
+ * 1. Software reset by writing CONDRST at 1 and at 0 (see bitfield
+ * description for details). This step is needed only if SECS is set.
+ * Indeed, when SEIS is set and SECS is cleared it means RNG performed
+ * the reset automatically (auto-reset).
+ * 2. If SECS was set in step 1 (no auto-reset) wait for CONDRST
+ * to be cleared in the RNG_CR register, then confirm that SEIS is
+ * cleared in the RNG_SR register. Otherwise just clear SEIS bit in
+ * the RNG_SR register.
+ * 3. If SECS was set in step 1 (no auto-reset) wait for SECS to be
+ * cleared by RNG. The random number generation is now back to normal.
+ */
+static void conceal_seed_error_cond_reset(void)
+{
+	struct stm32_rng_instance *dev = stm32_rng;
+	vaddr_t rng_base = get_base();
 
+	if (!dev->error_conceal) {
+		uint32_t sr = io_read32(rng_base + RNG_SR);
+
+		if (sr & RNG_SR_SECS) {
+			/* Conceal by resetting the subsystem (step 1.) */
+			io_setbits32(rng_base + RNG_CR, RNG_CR_CONDRST);
+			io_clrbits32(rng_base + RNG_CR, RNG_CR_CONDRST);
+
+			/* Arm timeout for error_conceal sequence */
+			dev->error_to_ref =
+				timeout_init_us(RNG_READY_TIMEOUT_US);
+			dev->error_conceal = true;
+		} else {
+			/* RNG auto-reset (step 2.) */
+			io_clrbits32(rng_base + RNG_SR, RNG_SR_SEIS);
+		}
+	} else {
+		/* Measure time before possible reschedule */
+		bool timed_out = timeout_elapsed(dev->error_to_ref);
+
+		/* Wait CONDRST is cleared (step 2.) */
+		if (io_read32(rng_base + RNG_CR) & RNG_CR_CONDRST) {
+			if (timed_out)
+				panic();
+
+			/* Wait subsystem reset cycle completes */
+			return;
+		}
+
+		/* Check SEIS is cleared (step 2.) */
+		if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+			panic();
+
+		/* Wait SECS is cleared (step 3.) */
+		if (io_read32(rng_base + RNG_SR) & RNG_SR_SECS) {
+			if (timed_out)
+				panic();
+
+			/* Wait subsystem reset cycle completes */
+			return;
+		}
+
+		dev->error_conceal = false;
+	}
+}
+
+/*
+ * Extracts from the STM32 RNG specification, when CONDRST is not supported
+ *
+ * When a noise source (or seed) error occurs, the RNG stops generating
+ * random numbers and sets to “1” both SEIS and SECS bits to indicate
+ * that a seed error occurred. (...)
+ *
  * The following sequence shall be used to fully recover from a seed
  * error after the RNG initialization:
  * 1. Clear the SEIS bit by writing it to “0”.
@@ -79,7 +164,7 @@ static vaddr_t get_base(void)
  * 3. Confirm that SEIS is still cleared. Random number generation is
  * back to normal.
  */
-static void conceal_seed_error(void)
+static void conceal_seed_error_sw_reset(void)
 {
 	vaddr_t rng_base = get_base();
 	size_t i = 0;
@@ -93,13 +178,22 @@ static void conceal_seed_error(void)
 		panic("RNG noise");
 }
 
+static void conceal_seed_error(void)
+{
+	if (stm32_rng->ddata->has_cond_reset)
+		conceal_seed_error_cond_reset();
+	else
+		conceal_seed_error_sw_reset();
+}
+
 static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 {
+	struct stm32_rng_instance *dev = stm32_rng;
 	uint8_t *buf = NULL;
 	size_t req_size = 0;
 	size_t len = 0;
 
-	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
+	if (dev->error_conceal || io_read32(rng_base + RNG_SR) & RNG_SR_SEIS)
 		conceal_seed_error();
 
 	if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY)) {
@@ -131,6 +225,27 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 	return TEE_SUCCESS;
 }
 
+static uint32_t stm32_rng_clock_freq_restrain(void)
+{
+	struct stm32_rng_instance *dev = stm32_rng;
+	unsigned long clock_rate = 0;
+	uint32_t clock_div = 0;
+
+	clock_rate = clk_get_rate(dev->clock);
+
+	/*
+	 * Get the exponent to apply on the CLKDIV field in RNG_CR register
+	 * No need to handle the case when clock-div > 0xF as it is physically
+	 * impossible
+	 */
+	while ((clock_rate >> clock_div) > RNG_MAX_NOISE_CLK_FREQ)
+		clock_div++;
+
+	DMSG("RNG clk rate : %lu", clk_get_rate(dev->clock) >> clock_div);
+
+	return clock_div;
+}
+
 static TEE_Result init_rng(void)
 {
 	vaddr_t rng_base = get_base();
@@ -139,7 +254,22 @@ static TEE_Result init_rng(void)
 	/* Clean error indications */
 	io_write32(rng_base + RNG_SR, 0);
 
-	io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
+	if (stm32_rng->ddata->has_cond_reset) {
+		uint32_t clock_div = stm32_rng_clock_freq_restrain();
+
+		/* Update configuration fields */
+		io_clrsetbits32(rng_base + RNG_CR, RNG_NIST_CONFIG_MASK,
+				RNG_NIST_CONFIG_B | RNG_CR_CONDRST |
+				RNG_CR_CED);
+		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CLKDIV,
+				clock_div << RNG_CR_CLKDIV_SHIFT);
+
+		/* No need to wait for RNG_CR_CONDRST toggle as we enable clk */
+		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CONDRST,
+				RNG_CR_RNGEN);
+	} else {
+		io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | RNG_CR_CED);
+	}
 
 	timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
 	while (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
@@ -277,6 +407,9 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	if (res)
 		goto err;
 
+	stm32_rng->ddata = compat_data;
+	assert(stm32_rng->ddata);
+
 	res = clk_enable(stm32_rng->clock);
 	if (res)
 		goto err;
@@ -315,9 +448,18 @@ err:
 	return res;
 }
 
+static const struct stm32_rng_driver_data mp13_data[] = {
+	{ .has_cond_reset = true },
+};
+
+static const struct stm32_rng_driver_data mp15_data[] = {
+	{ .has_cond_reset = false },
+};
+DECLARE_KEEP_PAGER(mp15_data);
+
 static const struct dt_device_match rng_match_table[] = {
-	{ .compatible = "st,stm32-rng" },
-	{ .compatible = "st,stm32mp13-rng" },
+	{ .compatible = "st,stm32-rng", .compat_data = &mp15_data },
+	{ .compatible = "st,stm32mp13-rng", .compat_data = &mp13_data },
 	{ }
 };
 
