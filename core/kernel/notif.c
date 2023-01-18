@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2021-2023, Linaro Limited
  */
 
 #include <bitstring.h>
@@ -11,7 +11,15 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <optee_rpc_cmd.h>
+#include <sm/optee_smc.h>
+#include <stdint.h>
 #include <types_ext.h>
+
+/*
+ * Notification of non-secure interrupt events identified by an IT number
+ * from 0 to CFG_CORE_IT_NOTIF_MAX.
+ */
+#define NOTIF_IT_VALUE_MAX		CFG_CORE_IT_NOTIF_MAX
 
 #if defined(CFG_CORE_ASYNC_NOTIF)
 static struct mutex notif_mutex = MUTEX_INITIALIZER;
@@ -24,6 +32,12 @@ static struct notif_driver_head notif_driver_head =
 static bitstr_t bit_decl(notif_values, NOTIF_ASYNC_VALUE_MAX + 1);
 static bitstr_t bit_decl(notif_alloc_values, NOTIF_ASYNC_VALUE_MAX + 1);
 static bool notif_started;
+
+#if defined(CFG_CORE_IT_NOTIF)
+static bitstr_t bit_decl(notif_it_pending, NOTIF_IT_VALUE_MAX + 1);
+static bitstr_t bit_decl(notif_it_masked, NOTIF_IT_VALUE_MAX + 1);
+static unsigned int it_lock = SPINLOCK_UNLOCK;
+#endif
 
 TEE_Result notif_alloc_async_value(uint32_t *val)
 {
@@ -118,6 +132,73 @@ void notif_send_async(uint32_t value)
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
 }
 
+#if defined(CFG_CORE_IT_NOTIF)
+uint32_t notif_it_get_value(bool *it_valid, bool *it_pending)
+{
+	uint32_t old_itr_status = 0;
+	uint32_t res = 0;
+	int bit = 0;
+
+	old_itr_status = cpu_spin_lock_xsave(&it_lock);
+
+	bit_ffs(notif_it_pending, (int)NOTIF_IT_VALUE_MAX + 1, &bit);
+
+	*it_valid = (bit >= 0);
+	if (!*it_valid) {
+		*it_pending = false;
+		goto out;
+	}
+
+	res = bit;
+	bit_clear(notif_it_pending, res);
+	bit_ffs(notif_it_pending, (int)NOTIF_IT_VALUE_MAX + 1, &bit);
+	*it_pending = true;
+out:
+	cpu_spin_unlock_xrestore(&it_lock, old_itr_status);
+
+	return res;
+}
+
+void notif_it_set_mask(uint32_t it_number, bool masked)
+{
+	uint32_t exceptions = 0;
+
+	if (it_number > NOTIF_IT_VALUE_MAX)
+		return;
+
+	DMSG("%"PRIu32" %smasked", it_number, masked ? "" : "un");
+
+	exceptions = cpu_spin_lock_xsave(&it_lock);
+
+	if (masked) {
+		bit_set(notif_it_masked, it_number);
+	} else {
+		bit_clear(notif_it_masked, it_number);
+
+		if (bit_test(notif_it_pending, it_number))
+			itr_raise_pi(CFG_CORE_ASYNC_NOTIF_GIC_INTID);
+	}
+
+	cpu_spin_unlock_xrestore(&it_lock, exceptions);
+}
+
+void notif_send_it(uint32_t it_number)
+{
+	uint32_t old_itr_status = 0;
+
+	assert(it_number <= NOTIF_IT_VALUE_MAX);
+	old_itr_status = cpu_spin_lock_xsave(&it_lock);
+
+	DMSG("%"PRIu32, it_number);
+	bit_set(notif_it_pending, it_number);
+
+	if (!bit_test(notif_it_masked, it_number))
+		itr_raise_pi(CFG_CORE_ASYNC_NOTIF_GIC_INTID);
+
+	cpu_spin_unlock_xrestore(&it_lock, old_itr_status);
+}
+#endif /*CFG_CORE_IT_NOTIF*/
+
 bool notif_async_is_started(void)
 {
 	uint32_t old_itr_status = 0;
@@ -139,6 +220,14 @@ void notif_register_driver(struct notif_driver *ndrv)
 	SLIST_INSERT_HEAD(&notif_driver_head, ndrv, link);
 
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
+
+#if defined(CFG_CORE_IT_NOTIF)
+	old_itr_status = cpu_spin_lock_xsave(&it_lock);
+
+	bit_nset(notif_it_masked, 0, (int)NOTIF_IT_VALUE_MAX);
+
+	cpu_spin_unlock_xrestore(&it_lock, old_itr_status);
+#endif
 }
 
 void notif_unregister_driver(struct notif_driver *ndrv)

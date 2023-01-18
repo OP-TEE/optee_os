@@ -932,6 +932,19 @@ endif
 # CFG_CORE_ASYNC_NOTIF_GIC_INTID defined.
 CFG_CORE_ASYNC_NOTIF ?= n
 
+# CFG_CORE_IT_NOTIF is defined by the platform to enable support
+# for sending asynchronous notifications to normal world of dedicated
+# interrupt events to be handle in an interrupt context in normal world.
+# CFG_CORE_IT_NOTIF depends on CFG_CORE_ASYNC_NOTIF.
+# When enabled, OP-TEE can notify interrupt events identified by an
+# interrupt number from 0 to CFG_CORE_IT_NOTIF_MAX.
+CFG_CORE_IT_NOTIF ?= n
+
+$(eval $(call cfg-depends-all,CFG_CORE_IT_NOTIF,CFG_CORE_ASYNC_NOTIF))
+ifeq ($(CFG_CORE_IT_NOTIF),y)
+CFG_CORE_IT_NOTIF_MAX ?= 31
+endif
+
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))
 

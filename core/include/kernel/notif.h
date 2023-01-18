@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2021-2023, Linaro Limited
  */
 
 #ifndef __KERNEL_NOTIF_H
@@ -106,10 +106,10 @@ void notif_free_async_value(uint32_t value);
  */
 TEE_Result notif_wait(uint32_t value);
 
+#if defined(CFG_CORE_ASYNC_NOTIF)
 /*
  * Send an asynchronous value, note that it must be <= NOTIF_ASYNC_VALUE_MAX
  */
-#if defined(CFG_CORE_ASYNC_NOTIF)
 void notif_send_async(uint32_t value);
 
 /*
@@ -124,6 +124,17 @@ static inline void notif_send_async(uint32_t value __unused)
 static inline bool notif_async_value_is_pending(void)
 {
 	return false;
+}
+#endif
+
+#if defined(CFG_CORE_IT_NOTIF)
+/*
+ * Notify an interrupt event to normal world, must be <= CFG_CORE_NOTIF_IT_MAX
+ */
+void notif_send_it(uint32_t it_value);
+#else
+static inline void notif_send_it(uint32_t it_value __unused)
+{
 }
 #endif
 
@@ -159,6 +170,23 @@ static inline uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 	*value_valid = false;
 	*value_pending = false;
 	return UINT32_MAX;
+}
+#endif
+
+#if defined(CFG_CORE_IT_NOTIF)
+uint32_t notif_it_get_value(bool *it_valid, bool *it_pending);
+void notif_it_set_mask(uint32_t it_value, bool masked);
+#else
+static inline uint32_t notif_it_get_value(bool *it_valid, bool *it_pending)
+{
+	*it_valid = false;
+	*it_pending = false;
+	return UINT32_MAX;
+}
+
+static inline void notif_it_set_mask(uint32_t it_value __unused,
+				     bool masked __unused)
+{
 }
 #endif
 
