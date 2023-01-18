@@ -49,6 +49,11 @@ ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
 endif
 
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_rng)),)
+$(call force,CFG_HWRNG_PTA,n)
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
+endif
+
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP13)),)
 $(call force,CFG_STM32MP13,y)
 endif
@@ -90,7 +95,6 @@ $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
 $(call force,CFG_STM32_GPIO,y)
-$(call force,CFG_STM32_RNG,n)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
@@ -112,10 +116,10 @@ CFG_EXTERNAL_DT ?= y
 CFG_STM32_BSEC_SIP ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
+CFG_WITH_SOFTWARE_PRNG ?= y
 endif # CFG_STM32MP15
 
 CFG_WITH_LPAE ?= y
-CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
@@ -159,6 +163,11 @@ CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
+
+CFG_WITH_SOFTWARE_PRNG ?= n
+ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
+$(call force,CFG_STM32_RNG,y,Required by HW RNG when CFG_WITH_SOFTWARE_PRNG=n)
+endif
 
 ifeq ($(CFG_STPMIC1),y)
 $(call force,CFG_STM32_I2C,y)
