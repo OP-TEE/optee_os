@@ -349,6 +349,12 @@
 #define PROT_BLOB_FORMAT_NORMAL		0
 
 /*
+ * MP Protocol Information
+ */
+#define PROT_MP_PUBK_SGT	BIT32(31)
+#define PROT_MP_CURVE(curve)	SHIFT_U32((curve) & 0xF, 17)
+
+/*
  * Algorithm Identifier
  */
 #define OP_ALGO(algo)		SHIFT_U32((ALGO_##algo) & 0xFF, 16)
@@ -644,6 +650,9 @@
 #define PDB_RSA_KEY_N_SIZE(len)	SHIFT_U32((len) & 0x3FF, 16)
 
 /* Manufacturing Curve Select */
+#define PDB_SGT_MP_SIGN_MSG		SHIFT_U32(1, 31)
+#define PDB_SGT_MP_SIGN_C		SHIFT_U32(1, 29)
+#define PDB_SGT_MP_SIGN_D		SHIFT_U32(1, 28)
 #define PDB_MP_CSEL_P256	0x03
 #define PDB_MP_CSEL_P384	0x04
 #define PDB_MP_CSEL_P521	0x05

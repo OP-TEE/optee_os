@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2019 NXP
+ * Copyright 2018-2019, 2021, 2023 NXP
  *
  * Brief   CAAM Power state management.
  */
@@ -8,7 +8,10 @@
 #include <caam_hal_clk.h>
 #include <caam_io.h>
 #include <caam_jr.h>
+#include <caam_mp.h>
 #include <caam_pwr.h>
+#include <caam_status.h>
+#include <caam_utils_status.h>
 #include <kernel/pm.h>
 #include <kernel/panic.h>
 #include <malloc.h>
@@ -141,6 +144,8 @@ static TEE_Result pm_enter(uint32_t pm_hint)
  */
 static TEE_Result pm_resume(uint32_t pm_hint)
 {
+	enum caam_status ret = CAAM_FAILURE;
+
 	PWR_TRACE("CAAM power mode %" PRIu32 " resume", pm_hint);
 	if (pm_hint == PM_HINT_CONTEXT_STATE) {
 		caam_hal_clk_enable(true);
@@ -149,7 +154,9 @@ static TEE_Result pm_resume(uint32_t pm_hint)
 
 	caam_jr_resume(pm_hint);
 
-	return TEE_SUCCESS;
+	ret = caam_mp_resume(pm_hint);
+
+	return caam_status_to_tee_result(ret);
 }
 
 /*

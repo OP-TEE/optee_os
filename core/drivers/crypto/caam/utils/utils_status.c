@@ -49,6 +49,9 @@ TEE_Result caam_status_to_tee_result(enum caam_status status)
 	case CAAM_SHORT_BUFFER:
 		return TEE_ERROR_SHORT_BUFFER;
 
+	case CAAM_NOT_SUPPORTED:
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	default:
 		break;
 	}

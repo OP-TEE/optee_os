@@ -20,6 +20,7 @@ ifeq ($(CFG_NXP_CAAM),y)
 # DBG_ECC    BIT32(12) // ECC trace
 # DBG_DH     BIT32(13) // DH Trace
 # DBG_DSA    BIT32(14) // DSA trace
+# DBG_MP     BIT32(15) // MP trace
 
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
@@ -162,6 +163,10 @@ $(eval $(call cryphw-enable-drv-hw, DSA))
 #   Format #2: (p, q, d)
 #   Format #3: (p, q, dp, dq, qp)
 CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
+endif
+
+ifneq ($(filter y, $(CFG_MX8QM) $(CFG_MX8QX) $(CFG_MX8DXL)), y)
+$(eval $(call cryphw-enable-drv-hw, MP))
 endif
 
 endif # !CFG_LS

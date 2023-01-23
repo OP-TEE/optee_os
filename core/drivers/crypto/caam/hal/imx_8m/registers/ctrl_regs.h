@@ -36,6 +36,6 @@
 
 /* Manufacturing Protection Message */
 #define MPMR				0x0380
-#define MPMR_NB_REG			0x20
+#define MPMR_NB_REG			U(32)
 
 #endif /* __CTRL_REGS_H__ */
