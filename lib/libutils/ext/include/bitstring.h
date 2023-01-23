@@ -126,22 +126,34 @@ typedef	unsigned char bitstr_t;
 } while (0)
 
 				/* find first bit set in name */
-#define	bit_ffs(name, nbits, value) do { \
-	register bitstr_t *_name = (name); \
-	register int _byte, _nbits = (nbits); \
-	register int _stopbyte = _bit_byte(_nbits - 1), _value = -1; \
-	if (_nbits > 0) \
-		for (_byte = 0; _byte <= _stopbyte; ++_byte) \
-			if (_name[_byte]) { \
-				bitstr_t _lb; \
+#define	bit_ffs_from(name, nbits, startbit, value) do { \
+	bitstr_t *_name = (name); \
+	int _byte = 0; \
+	int _nbits = (nbits); \
+	int _startbyte = _bit_byte(startbit); \
+	int _stopbyte = _bit_byte(_nbits - 1), _value = -1; \
+	bitstr_t _test_bit_mask = 0xff << ((startbit) % 8); \
+	\
+	if (_nbits > 0) { \
+		for (_byte = _startbyte; _byte <= _stopbyte; ++_byte) { \
+			if (_name[_byte] & _test_bit_mask) { \
+				bitstr_t _lb = 0; \
+				\
 				_value = _byte << 3; \
-				for (_lb = _name[_byte]; !(_lb&0x1); \
-				    ++_value, _lb >>= 1); \
+				for (_lb = _name[_byte]  & _test_bit_mask; \
+				     !(_lb&0x1); ++_value, _lb >>= 1) \
+						; \
 				break; \
 			} \
+			_test_bit_mask = 0xff; \
+		} \
+	} \
 	if (_value >= nbits) \
 		_value = -1; \
 	*(value) = _value; \
 } while (0)
+
+#define	bit_ffs(name, nbits, value) \
+	bit_ffs_from((name), (nbits), 0, (value))
 
 #endif /* !_SYS_BITSTRING_H_ */
