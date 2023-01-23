@@ -198,7 +198,7 @@ static void set_itr_mask(unsigned int itr_num, bool do_mask)
 	cpu_spin_unlock_xrestore(&notif_itr_lock, exceptions);
 }
 
-static struct notif_itr __maybe_unused *find_notif_itr(unsigned int itr_num)
+static struct notif_itr *find_notif_itr(unsigned int itr_num)
 {
 	assert(itr_num <= NOTIF_ITR_VALUE_MAX);
 	return notif_itr_handler[itr_num];
@@ -239,6 +239,22 @@ void notif_itr_set_mask(unsigned int itr_num, bool do_mask)
 		if (notif->ops && notif->ops->set_mask)
 			notif->ops->set_mask(notif, do_mask);
 	}
+}
+
+bool notif_itr_is_masked(unsigned int itr_num)
+{
+	if (!find_notif_itr(itr_num))
+		panic("Invalid interrupt number");
+
+	return bit_test(notif_itr_masked, itr_num);
+}
+
+bool notif_itr_is_pending(unsigned int itr_num)
+{
+	if (!find_notif_itr(itr_num))
+		panic("Invalid interrupt number");
+
+	return bit_test(notif_itr_pending, itr_num);
 }
 
 TEE_Result notif_itr_set_state(unsigned int itr_num, bool do_enable)

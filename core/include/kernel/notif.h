@@ -249,6 +249,26 @@ TEE_Result notif_itr_register(struct notif_itr *notif);
  * @notif Registered notifier
  */
 TEE_Result notif_itr_unregister(struct notif_itr *notif);
+
+/*
+ * Return whether interrupt notification is masked or unmasked
+ *
+ * @itr_num Interrupt identifier
+ * Return true if notifier is masked, false otherwise
+ *
+ * Panics if @itr_num is not a valid value
+ */
+bool notif_itr_is_masked(unsigned int itr_num);
+
+/*
+ * Return whether interrupt notif event is pending or not
+ *
+ * @itr_num Interrupt identifier
+ * Return true if notifier event is pending, false otherwise
+ *
+ * Panics if @itr_num is not a valid value
+ */
+bool notif_itr_is_pending(unsigned int itr_num);
 #else
 static inline void notif_get_pending(bool *do_bottom_half, bool *value_pending,
 				     uint16_t *itr_nums __unused,
