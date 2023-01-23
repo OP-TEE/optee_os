@@ -10,6 +10,7 @@
 #include <console.h>
 #include <crypto/crypto.h>
 #include <drivers/gic.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <initcall.h>
 #include <inttypes.h>
 #include <keep.h>
@@ -790,6 +791,7 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 	ret = fdt_setprop_string(dt->blob, offs, "method", "smc");
 	if (ret < 0)
 		return -1;
+
 	if (CFG_CORE_ASYNC_NOTIF_GIC_INTID) {
 		/*
 		 * The format of the interrupt property is defined by the
@@ -798,22 +800,40 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 		 * these.
 		 *
 		 * An SPI type of interrupt is indicated with a 0 in the
-		 * first cell.
+		 * first cell. A PPI type is indicated with value 1.
 		 *
 		 * The interrupt number goes in the second cell where
-		 * SPIs ranges from 0 to 987.
+		 * SPIs ranges from 0 to 987 and PPI ranges from 0 to 15.
 		 *
-		 * Flags are passed in the third cell where a 1 means edge
-		 * triggered.
+		 * Flags are passed in the third cells.
 		 */
-		const uint32_t gic_spi = 0;
-		const uint32_t irq_type_edge = 1;
-		uint32_t val[] = {
-			TEE_U32_TO_BIG_ENDIAN(gic_spi),
-			TEE_U32_TO_BIG_ENDIAN(CFG_CORE_ASYNC_NOTIF_GIC_INTID -
-					      GIC_SPI_BASE),
-			TEE_U32_TO_BIG_ENDIAN(irq_type_edge),
-		};
+		uint32_t itr_trigger = 0;
+		uint32_t itr_type = 0;
+		uint32_t itr_id = 0;
+		uint32_t val[3] = { };
+
+		/* PPI are visible only in current CPU cluster */
+		static_assert(!CFG_CORE_ASYNC_NOTIF_GIC_INTID ||
+			      (CFG_CORE_ASYNC_NOTIF_GIC_INTID >=
+			       GIC_SPI_BASE) ||
+			      ((CFG_TEE_CORE_NB_CORE <= 8) &&
+			       (CFG_CORE_ASYNC_NOTIF_GIC_INTID >=
+				GIC_PPI_BASE)));
+
+		if (CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_SPI_BASE) {
+			itr_type = GIC_SPI;
+			itr_id = CFG_CORE_ASYNC_NOTIF_GIC_INTID - GIC_SPI_BASE;
+			itr_trigger = IRQ_TYPE_EDGE_RISING;
+		} else {
+			itr_type = GIC_PPI;
+			itr_id = CFG_CORE_ASYNC_NOTIF_GIC_INTID - GIC_PPI_BASE;
+			itr_trigger = IRQ_TYPE_EDGE_RISING |
+				      GIC_CPU_MASK_SIMPLE(CFG_TEE_CORE_NB_CORE);
+		}
+
+		val[0] = TEE_U32_TO_BIG_ENDIAN(itr_type);
+		val[1] = TEE_U32_TO_BIG_ENDIAN(itr_id);
+		val[2] = TEE_U32_TO_BIG_ENDIAN(itr_trigger);
 
 		ret = fdt_setprop(dt->blob, offs, "interrupts", val,
 				  sizeof(val));
