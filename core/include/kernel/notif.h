@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2021-2023, Linaro Limited
  */
 
 #ifndef __KERNEL_NOTIF_H
@@ -89,6 +89,30 @@ struct notif_driver {
 	SLIST_ENTRY(notif_driver) link;
 };
 
+/*
+ * struct notif_itr - Interrupt notifier: notifying normal world of an event
+ *
+ * @itr_num Interrupt number used as identifier for the interrupt event
+ * @ops Notifier unpaged callback operations or NULL if none
+ */
+struct notif_itr {
+	unsigned int itr_num;
+	const struct notif_itr_ops *ops;
+};
+
+/*
+ * struct notif_itr_ops - Interrupt notifier operations
+ *
+ * @set_mask Fasctcall callback for (un)masking the event or NULL if not used
+ * @set_state Callback for enabling/disabling the event or NULL if not used
+ * @set_wakeup Callback for enabling/disabling standby wakeup source or NULL
+ */
+struct notif_itr_ops {
+	void (*set_mask)(struct notif_itr *notif, bool do_mask);
+	TEE_Result (*set_state)(struct notif_itr *notif, bool do_enable);
+	TEE_Result (*set_wakeup)(struct notif_itr *notif, bool do_enable);
+};
+
 #if defined(CFG_CORE_ASYNC_NOTIF)
 bool notif_async_is_started(void);
 #else
@@ -149,6 +173,98 @@ static inline uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 	*value_valid = false;
 	*value_pending = false;
 	return UINT32_MAX;
+}
+#endif
+
+#if defined(CFG_CORE_ITR_NOTIF)
+/*
+ * Notify an interrupt event to normal world
+ *
+ * @notif Reference to registered notifier
+ */
+void notif_itr_raise_event(struct notif_itr *notif);
+
+/*
+ * Mask/unmask an interrupt notification
+ *
+ * @itr_num Interrupt identifier provided by normal world
+ * @do_mask True to mask the event, false to unmask the event
+ *
+ * This function is called from a fastcall context
+ */
+void notif_itr_set_mask(unsigned int itr_num, bool do_mask);
+
+/*
+ * Activate (enable) or deactivate (disable) an interrupt notification
+ *
+ * @itr_num Interrupt identifier provided by normal world
+ * @do_enable True to enable the event detection, false disable it
+ */
+TEE_Result notif_itr_set_state(unsigned int itr_num, bool do_enable);
+
+/*
+ * Enable or disable the low power wakeup capability of the interrupt event
+ *
+ * @itr_num Interrupt identifier provided by normal world
+ * @do_enable True to enable the event detection, false disable it
+ */
+TEE_Result notif_itr_set_wakeup(unsigned int itr_num, bool do_enable);
+
+/*
+ * Report pending interrupts and asynchronous notification values.
+ * @do_bottom_half: Set to true if NOTIF_VALUE_DO_BOTTOM_HALF was pending and
+ *		has been cleared in the record as delivered.
+ * @async_value: Set to true if any other asynchronous notification value
+ *		is pending.
+ * @itr_nums:	Array of size *@it_count used to report pending interrupts
+ * @itr_count:	(Input) array size of @itr_num[]
+ *		(Output) number of cells retrieving an interrupt number, or
+ *		input @itr_count + 1 if all cells are used and another
+ *		interrupt notif is pending.
+ *
+ * This function is called from a fastcall context.
+ */
+void notif_get_pending(bool *do_bottom_half, bool *async_value,
+		       uint16_t *itr_nums, size_t *itr_count);
+
+/*
+ * Register an interrupt notifier
+ *
+ * @notif Preloaded notifier structure to register
+ */
+TEE_Result notif_itr_register(struct notif_itr *notif);
+
+/*
+ * Unregister an interrupt notifier
+ *
+ * @notif Registered notifier
+ */
+TEE_Result notif_itr_unregister(struct notif_itr *notif);
+#else
+static inline void notif_get_pending(bool *do_bottom_half, bool *value_pending,
+				     uint16_t *itr_nums __unused,
+				     size_t *itr_count)
+{
+	*do_bottom_half = false;
+	*value_pending = false;
+	*itr_count = 0;
+}
+
+static inline void notif_itr_set_mask(unsigned int itr_num __unused,
+				      bool do_enable __unused)
+{
+}
+
+static inline TEE_Result notif_itr_set_state(unsigned int itr_num __unused,
+					     bool do_enable __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result notif_itr_set_wakeup(unsigned int itr_num __unused,
+					      bool do_enable __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
 

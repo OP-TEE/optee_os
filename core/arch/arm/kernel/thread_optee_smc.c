@@ -266,6 +266,28 @@ out:
 	return rv;
 }
 
+static uint32_t std_entry_notif_itr_set_state(uint32_t a1, uint32_t a2)
+{
+	uint32_t itr_num = a1;
+	bool do_enable = a2;
+
+	if (a2 > 1 || notif_itr_set_state(itr_num, do_enable))
+		return OPTEE_SMC_RETURN_EBADCMD;
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
+static uint32_t std_entry_notif_itr_set_wakeup(uint32_t a1, uint32_t a2)
+{
+	uint32_t itr_num = a1;
+	bool do_enable = a2;
+
+	if (a2 > 1 || notif_itr_set_wakeup(itr_num, do_enable))
+		return OPTEE_SMC_RETURN_EBADCMD;
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
 static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 			      uint32_t a3 __unused)
 {
@@ -280,6 +302,10 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 					   with_rpc_arg);
 	case OPTEE_SMC_CALL_WITH_REGD_ARG:
 		return std_entry_with_regd_arg(reg_pair_to_64(a1, a2), a3);
+	case OPTEE_SMC_NOTIF_ITR_SET_STATE:
+		return std_entry_notif_itr_set_state(a1, a2);
+	case OPTEE_SMC_NOTIF_ITR_SET_WAKEUP:
+		return std_entry_notif_itr_set_wakeup(a1, a2);
 	default:
 		EMSG("Unknown SMC 0x%"PRIx32, a0);
 		return OPTEE_SMC_RETURN_EBADCMD;

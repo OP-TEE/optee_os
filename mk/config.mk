@@ -1045,3 +1045,25 @@ CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n
 #              - PerInstance/AttestationTest#
 # Note that this violates GP requirements of HMAC size range.
 CFG_HMAC_64_1024_RANGE ?= n
+
+# CFG_CORE_ITR_NOTIF is defined by the platform to enable support
+# for sending asynchronous notifications to normal world for dedicated
+# interrupt events to be handle in an interrupt context in normal world.
+# CFG_CORE_ITR_NOTIF depends on CFG_CORE_ASYNC_NOTIF.
+# When enabled, OP-TEE can notify interrupt events identified by an
+# interrupt number from 0 to CFG_CORE_ITR_NOTIF_MAX. Assignment of the
+# interrupt numbers is platform specific and shall be found in the
+# platform OP-TEE firmware documentation.
+
+# CFG_CORE_ITR_NOTIF_MAX selects CFG_CORE_ITR_NOTIF
+ifneq ($(CFG_CORE_ITR_NOTIF_MAX),)
+CFG_CORE_ITR_NOTIF ?= y
+endif
+CFG_CORE_ITR_NOTIF ?= n
+
+ifeq ($(CFG_CORE_ITR_NOTIF),y)
+ifeq ($(CFG_CORE_ITR_NOTIF_MAX),)
+$(error CFG_CORE_ITR_NOTIF requires a value for CFG_CORE_ITR_NOTIF_MAX)
+endif
+endif
+$(eval $(call cfg-depends-all,CFG_CORE_ITR_NOTIF,CFG_CORE_ASYNC_NOTIF))

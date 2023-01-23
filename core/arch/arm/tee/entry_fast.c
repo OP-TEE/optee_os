@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#include <assert.h>
 #include <config.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
@@ -13,6 +14,7 @@
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
+#include <stdint.h>
 #include <tee/entry_fast.h>
 
 #ifdef CFG_CORE_RESERVED_SHM
@@ -66,6 +68,14 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 {
 	bool res_shm_en = IS_ENABLED(CFG_CORE_RESERVED_SHM);
 	bool dyn_shm_en __maybe_unused = false;
+	unsigned int notif_itr_max_number = 0;
+
+	static_assert(THREAD_RPC_MAX_NUM_PARAMS <= UINT8_MAX);
+#ifdef CFG_CORE_ITR_NOTIF
+	static_assert(CFG_CORE_ITR_NOTIF_MAX <= UINT16_MAX);
+
+	notif_itr_max_number = CFG_CORE_ITR_NOTIF_MAX;
+#endif
 
 	/*
 	 * Currently we ignore OPTEE_SMC_NSEC_CAP_UNIPROCESSOR.
@@ -116,6 +126,14 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
+
+	if (IS_ENABLED(CFG_CORE_ITR_NOTIF)) {
+		args->a1 |= OPTEE_SMC_SEC_CAP_ITR_NOTIF;
+		args->a3 |= notif_itr_max_number <<
+			    OPTEE_SMC_SEC_CAP_ITR_NOTIF_MAX_SHIFT;
+	}
+	IMSG("Interrupt notifications are %sabled",
+	     args->a1 & OPTEE_SMC_SEC_CAP_ITR_NOTIF ? "en" : "dis");
 }
 
 static void tee_entry_disable_shm_cache(struct thread_smc_args *args)
@@ -217,6 +235,57 @@ static void get_async_notif_value(struct thread_smc_args *args)
 		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_PENDING;
 }
 
+static void get_pending_notif(struct thread_smc_args *args)
+{
+	bool do_bottom_half = false;
+	bool value_pending = false;
+	bool itr_pending = false;
+	uint16_t itr[5] = { 0 };
+	size_t count = ARRAY_SIZE(itr);
+
+	notif_get_pending(&do_bottom_half, &value_pending, itr, &count);
+
+	assert(count <= ARRAY_SIZE(itr) + 1);
+	if (count == ARRAY_SIZE(itr) + 1) {
+		count = ARRAY_SIZE(itr);
+		itr_pending = true;
+	}
+
+	args->a0 = OPTEE_SMC_RETURN_OK;
+	args->a1 = count | SHIFT_U32((uint32_t)itr[0], 16);
+	args->a2 = itr[1] | SHIFT_U32((uint32_t)itr[2], 16);
+	args->a3 = itr[3] | SHIFT_U32((uint32_t)itr[4], 16);
+
+	if (itr_pending)
+		args->a1 |= OPTEE_SMC_NOTIF_ITR_PENDING;
+	if (value_pending)
+		args->a1 |= OPTEE_SMC_NOTIF_VALUE_PENDING;
+	if (do_bottom_half)
+		args->a1 |= OPTEE_SMC_NOTIF_DO_BOTTOM_HALF;
+
+	count = args->a1 & OPTEE_SMC_NOTIF_ITR_COUNT_MASK;
+	FMSG("Pending notif: do bottom half %u, async events %u, %zu it: %"
+	     PRId16" %"PRId16" %"PRId16" %"PRId16" %"PRId16", pending %u",
+	     do_bottom_half, value_pending, count, itr[0], itr[1], itr[2],
+	     itr[3], itr[4], itr_pending);
+}
+
+static void set_itr_notif_mask(struct thread_smc_args *args __maybe_unused)
+{
+#ifdef CFG_CORE_ITR_NOTIF
+	uint32_t itr_num = args->a1;
+	bool masked = args->a2;
+
+	if (args->a2 > 1 || itr_num > CFG_CORE_ITR_NOTIF_MAX) {
+		args->a0 = OPTEE_SMC_RETURN_EBADCMD;
+		return;
+	}
+
+	notif_itr_set_mask(itr_num, masked);
+	args->a0 = OPTEE_SMC_RETURN_OK;
+#endif
+}
+
 /*
  * If tee_entry_fast() is overridden, it's still supposed to call this
  * function.
@@ -287,6 +356,20 @@ void __tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_GET_ASYNC_NOTIF_VALUE:
 		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
 			get_async_notif_value(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_GET_NOTIF_ITR:
+		if (IS_ENABLED(CFG_CORE_ITR_NOTIF))
+			get_pending_notif(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_NOTIF_ITR_SET_MASK:
+		if (IS_ENABLED(CFG_CORE_ITR_NOTIF))
+			set_itr_notif_mask(args);
 		else
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
