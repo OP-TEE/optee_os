@@ -14,6 +14,7 @@
 enum caam_status {
 	CAAM_NO_ERROR = 0,   /* No Error */
 	CAAM_FAILURE,        /* General failure */
+	CAAM_NOT_SUPPORTED,  /* Feature not supported */
 	CAAM_OUT_MEMORY,     /* Out of memory */
 	CAAM_BAD_PARAM,      /* Bad parameters */
 	CAAM_SHORT_BUFFER,   /* Buffer is too short */
