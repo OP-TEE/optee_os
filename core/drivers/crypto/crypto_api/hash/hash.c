@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <drvcrypt.h>
 #include <drvcrypt_hash.h>
-#include <utee_defines.h>
 #include <util.h>
 
 TEE_Result drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx, uint32_t algo)
