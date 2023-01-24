@@ -247,10 +247,15 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	EM.length = ssa_data->key.n_size;
 	EM.data = malloc(EM.length);
 
+	if (!EM.data) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto end_verify;
+	}
+
 	EM_gen.length = ssa_data->key.n_size;
 	EM_gen.data = malloc(EM.length);
 
-	if (!EM.data || !EM_gen.data) {
+	if (!EM_gen.data) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto end_verify;
 	}
