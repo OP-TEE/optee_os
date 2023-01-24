@@ -4,7 +4,11 @@
  */
 #include <assert.h>
 #include <config.h>
+#include <initcall.h>
+#include <kernel/delay.h>
 #include <kernel/dt_driver.h>
+#include <kernel/notif.h>
+#include <kernel/spinlock.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <trace.h>
@@ -20,6 +24,338 @@
  * #define LOG(...)
  */
 #define LOG(...)
+
+#ifdef CFG_ITR_NOTIF_TEST
+/*
+ * Register TEST_ITR_NOTIF_COUNT interrupt notifiers with interrupt number IDs
+ * starting from CFG_CORE_ITR_NOTIF_MAX + 1.
+ */
+static struct notif_itr test_itr_notif[TEST_ITR_NOTIF_COUNT];
+/* Helper to release only registered resources in case of error */
+static bool test_itr_notif_registered[TEST_ITR_NOTIF_COUNT];
+
+struct mutex itr_notif_test_lock = MUTEX_INITIALIZER;
+
+static TEE_Result register_test_itr_notif(unsigned int test_itr_index,
+					  const struct notif_itr_ops *ops)
+{
+	struct notif_itr *notif = test_itr_notif + test_itr_index;
+	TEE_Result res = TEE_SUCCESS;
+	unsigned int itr_num = 0;
+
+	assert(test_itr_index < TEST_ITR_NOTIF_COUNT);
+	itr_num = CFG_CORE_ITR_NOTIF_MAX + 1 + test_itr_index;
+
+	if (test_itr_notif_registered[test_itr_index])
+		return TEE_ERROR_GENERIC;
+
+	notif->itr_num = itr_num;
+	notif->ops = ops;
+
+	res = notif_itr_register(notif);
+	if (res) {
+		EMSG("Registering itr notif %u failed %#"PRIx32, itr_num, res);
+		return res;
+	}
+
+	if (notif_itr_is_pending(itr_num)) {
+		EMSG("Bad itr notifier #%u state: event pending", itr_num);
+		res = TEE_ERROR_GENERIC;
+	}
+	if (!notif_itr_is_masked(itr_num)) {
+		EMSG("Bad itr notifier #%u state: not masked", itr_num);
+		res = TEE_ERROR_GENERIC;
+	}
+
+	if (res)
+		notif_itr_unregister(notif);
+	else
+		test_itr_notif_registered[test_itr_index] = true;
+
+	return res;
+}
+
+static void unregister_test_all_notif(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t test_index = 0;
+
+	for (test_index = 0; test_index < TEST_ITR_NOTIF_COUNT; test_index++) {
+		struct notif_itr *notif = test_itr_notif + test_index;
+
+		if (test_itr_notif_registered[test_index]) {
+			res = notif_itr_unregister(notif);
+			if (res) {
+				EMSG("Can't unregister itr notif %u: %#"PRIx32,
+				     notif->itr_num, res);
+				panic();
+			}
+
+			test_itr_notif_registered[test_index] = false;
+		}
+	}
+}
+
+/*
+ * Test1: simple test on maksing and raising interrupts
+ */
+static TEE_Result register_test1_itr_notif(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t test_index = 0;
+
+	for (test_index = 0; test_index < TEST_ITR_NOTIF_COUNT; test_index++) {
+		res = register_test_itr_notif(test_index, NULL);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result test1_itr_notif_do(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t excep = 0;
+	size_t n = 0;
+
+	static_assert(TEST_ITR_NOTIF_COUNT >= 8);
+
+	mutex_lock(&itr_notif_test_lock);
+
+	res = register_test1_itr_notif();
+	if (res)
+		goto out;
+
+	IMSG("Itr-notif test1: check all test interrupt notifs are masked");
+	for (n = 0; n < TEST_ITR_NOTIF_COUNT; n++) {
+		if (!notif_itr_is_masked(test_itr_notif[n].itr_num)) {
+			DMSG("ITR notifier %zu is not default masked", n);
+			res = TEE_ERROR_GENERIC;
+		}
+	}
+	if (res)
+		goto out;
+
+	/* Unmask test itr number 2, raise itr and check it's been retrieved */
+	IMSG("Itr-notif test1: test single interrupt on itr notif %u",
+	     test_itr_notif[2].itr_num);
+
+	notif_itr_set_mask(test_itr_notif[2].itr_num, 0);
+	if (notif_itr_is_masked(test_itr_notif[2].itr_num)) {
+		DMSG("Unmasking notification has no effect");
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	notif_itr_raise_event(test_itr_notif + 2);
+	mdelay(10);
+
+	if (notif_itr_is_pending(test_itr_notif[2].itr_num)) {
+		EMSG("Itr-notif test1: notif %u still pending",
+		     test_itr_notif[2].itr_num);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+	notif_itr_set_mask(test_itr_notif[2].itr_num, 1);
+
+	/*
+	 * Unmask test interrupt 1 to 6, raise test interrupts 0 to 6 in 1 shot
+	 * and check state of test interrupts 0 to 7.
+	 */
+	IMSG("Itr-notif test1: test notification of 7 interrupt events");
+
+	/* Unmask test interrupts 1 to 6 */
+	for (n = 1; n <= 6; n++)
+		notif_itr_set_mask(test_itr_notif[n].itr_num, 0);
+
+	/* Test itr 0 and 7 should be masked, and 1 to 6 unmasked */
+	if (notif_itr_is_pending(test_itr_notif[0].itr_num) ||
+	    !notif_itr_is_masked(test_itr_notif[0].itr_num)) {
+		EMSG("Itr-notif test1: notif %u in bad state",
+		     test_itr_notif[0].itr_num);
+		res = TEE_ERROR_GENERIC;
+	}
+	for (n = 1; n <= 6; n++) {
+		if (notif_itr_is_pending(test_itr_notif[n].itr_num) ||
+		    notif_itr_is_masked(test_itr_notif[n].itr_num)) {
+			EMSG("Itr-notif test1: notif %u in bad state",
+			     test_itr_notif[n].itr_num);
+			res = TEE_ERROR_GENERIC;
+		}
+	}
+	if (notif_itr_is_pending(test_itr_notif[7].itr_num) ||
+	    !notif_itr_is_masked(test_itr_notif[7].itr_num)) {
+		EMSG("Itr-notif test1: notif %u in bad state",
+		     test_itr_notif[7].itr_num);
+		res = TEE_ERROR_GENERIC;
+	}
+	if (res)
+		goto out;
+
+	/* Throw a round of notif (in 1 burst if there only 1 core) */
+	excep = thread_mask_exceptions(THREAD_EXCP_ALL);
+	for (n = 0; n <= 6; n++)
+		notif_itr_raise_event(test_itr_notif + n);
+	thread_unmask_exceptions(excep);
+	mdelay(10);
+
+	/* Check 0 is pending/masked, 1 to 7 are not pending, 7 is masked */
+	if (!notif_itr_is_pending(test_itr_notif[0].itr_num) ||
+	    !notif_itr_is_masked(test_itr_notif[0].itr_num)) {
+		EMSG("Itr-notif test1: notif %u in bad state",
+		     test_itr_notif[0].itr_num);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+	for (n = 1; n <= 6; n++) {
+		if (notif_itr_is_pending(test_itr_notif[n].itr_num)) {
+			EMSG("Itr-notif test1: notif %u bad state",
+			     test_itr_notif[n].itr_num);
+			res = TEE_ERROR_GENERIC;
+		}
+	}
+	if (notif_itr_is_pending(test_itr_notif[7].itr_num) ||
+	    !notif_itr_is_masked(test_itr_notif[7].itr_num)) {
+		EMSG("Itr-notif test1: notif %u bad state",
+		     test_itr_notif[7].itr_num);
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+	if (res)
+		goto out;
+
+	IMSG("Itr-notif test1: test unmasking pending event delivers it");
+
+	/* Unmake test interrupt 0 to get it delivered */
+	notif_itr_set_mask(test_itr_notif[0].itr_num, 0);
+	mdelay(10);
+
+	/* Check 0 is no more pending */
+	if (notif_itr_is_pending(test_itr_notif[0].itr_num)) {
+		EMSG("Itr-notif test1: notif %u in bad state",
+		     test_itr_notif[0].itr_num);
+		res = TEE_ERROR_GENERIC;
+	}
+
+out:
+	unregister_test_all_notif();
+	mutex_unlock(&itr_notif_test_lock);
+
+	if (res)
+		EMSG("Itr-notif test1: failed with %#"PRIx32, res);
+	else
+		IMSG("Itr-notif test1: success");
+
+	return res;
+}
+
+/*
+ * Test2: test interrupt event during REE interrupt context
+ *
+ * Use REE mask operation on triggered unused interrupts, which is
+ * executed from REE async notif interrupt context, to check notification
+ * of interrupt events are not lost when happening during REE interrupt
+ * retrieve sequence that is executed from normal world interrupt context.
+ */
+
+static void test2_notif_set_mask(struct notif_itr *notif, bool do_mask)
+{
+	if (!do_mask)
+		return;
+
+	if (notif == test_itr_notif)
+		notif_itr_raise_event(test_itr_notif + 1);
+	else if (notif == test_itr_notif + 1)
+		notif_itr_raise_event(test_itr_notif + 2);
+	else if (notif == test_itr_notif + 2)
+		notif_itr_raise_event(test_itr_notif + 3);
+}
+DECLARE_KEEP_PAGER(test2_notif_set_mask);
+
+const struct notif_itr_ops test2_notif_ops = {
+	.set_mask = test2_notif_set_mask,
+};
+
+static TEE_Result test2_itr_notif_do(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+
+	static_assert(TEST_ITR_NOTIF_COUNT >= 4);
+
+	mutex_lock(&itr_notif_test_lock);
+
+	for (n = 0; n <= 3; n++) {
+		res = register_test_itr_notif(n, &test2_notif_ops);
+		if (res)
+			goto out;
+	}
+
+	IMSG("Itr-notif test2: test interrupt during interrupt ");
+
+	for (n = 0; n <= 3; n++)
+		notif_itr_set_mask(test_itr_notif[n].itr_num, 0);
+
+	/*
+	 * This test simulates cases where an interrupt is notified and
+	 * under processing in REE, in an interrupt context, while another
+	 * OP-TEE event raises a notification. The goal is to check the 2nd
+	 * notification is well signaled to REE and not pending.
+	 *
+	 * Raise test interrupt #0. In return, REE will mask it because
+	 * it has no consumer in Linux kernel. During mask operation,
+	 * test interrupt #0 raises #1, #1 raises #2, #2 raises #3.
+	 * So raising #n makes #n to #3 be raised and masked back by REE.
+	 *
+	 * Check that all interrupts are consumed, with 2, 3 or 4 linked
+	 * interrupts.
+	 */
+	notif_itr_raise_event(test_itr_notif + 0);
+	mdelay(10);
+
+	for (n = 0; n <= 3; n++)
+		if (notif_itr_is_pending(test_itr_notif[n].itr_num))
+			break;
+
+	if (n < 4) {
+		EMSG("Itr-notif test2: events are still pending");
+		res = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
+	for (n = 0; n <= 3; n++)
+		notif_itr_set_mask(test_itr_notif[n].itr_num, 1);
+
+out:
+	unregister_test_all_notif();
+	mutex_unlock(&itr_notif_test_lock);
+
+	if (res)
+		EMSG("Itr-notif test2: failed with %#"PRIx32, res);
+	else
+		IMSG("Itr-notif test2: success");
+
+	return res;
+}
+
+static TEE_Result test_itr_notif_do(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = test1_itr_notif_do();
+	if (res)
+		return res;
+
+	return test2_itr_notif_do();
+}
+#else
+static TEE_Result test_itr_notif_do(void)
+{
+	/* Interrupt notifucation not embedded so nothing to test */
+	return TEE_SUCCESS;
+}
+#endif /* CFG_ITR_NOTIF_TEST */
 
 static int self_test_add_overflow(void)
 {
@@ -577,4 +913,11 @@ TEE_Result core_dt_driver_tests(uint32_t nParamTypes __unused,
 	}
 
 	return TEE_SUCCESS;
+}
+
+/* Exported entrypoint for ITR_NOTIF tests */
+TEE_Result core_itr_notif_tests(uint32_t nParamTypes __unused,
+				TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+{
+	return test_itr_notif_do();
 }

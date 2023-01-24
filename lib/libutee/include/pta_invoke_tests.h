@@ -108,5 +108,10 @@
  */
 #define PTA_INVOKE_TESTS_CMD_DT_DRIVER_TESTS	11
 
+/*
+ * Run interrupt notification tests
+ */
+#define PTA_INVOKE_TESTS_CMD_ITR_NOTIF_TESTS	12
+
 #endif /*__PTA_INVOKE_TESTS_H*/
 

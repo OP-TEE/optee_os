@@ -1054,6 +1054,9 @@ CFG_HMAC_64_1024_RANGE ?= n
 # interrupt number from 0 to CFG_CORE_ITR_NOTIF_MAX. Assignment of the
 # interrupt numbers is platform specific and shall be found in the
 # platform OP-TEE firmware documentation.
+#
+# CFG_ITR_NOTIF_TEST enables interrupt notification tests using invoke test PTA.
+# that expects not being consumed by normal world.
 
 # CFG_CORE_ITR_NOTIF_MAX selects CFG_CORE_ITR_NOTIF
 ifneq ($(CFG_CORE_ITR_NOTIF_MAX),)
@@ -1065,5 +1068,7 @@ ifeq ($(CFG_CORE_ITR_NOTIF),y)
 ifeq ($(CFG_CORE_ITR_NOTIF_MAX),)
 $(error CFG_CORE_ITR_NOTIF requires a value for CFG_CORE_ITR_NOTIF_MAX)
 endif
+CFG_ITR_NOTIF_TEST ?= $(CFG_TEE_CORE_EMBED_INTERNAL_TESTS)
 endif
 $(eval $(call cfg-depends-all,CFG_CORE_ITR_NOTIF,CFG_CORE_ASYNC_NOTIF))
+$(eval $(call cfg-depends-all,CFG_ITR_NOTIF_TEST,CFG_TEE_CORE_EMBED_INTERNAL_TESTS CFG_CORE_ITR_NOTIF))

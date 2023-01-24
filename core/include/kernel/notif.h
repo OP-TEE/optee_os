@@ -39,7 +39,11 @@
 #define NOTIF_VALUE_DO_BOTTOM_HALF	0
 
 /* Number of extra interrupt notifiers for embedded test purpose */
+#if defined(CFG_ITR_NOTIF_TEST)
+#define TEST_ITR_NOTIF_COUNT		9
+#else
 #define TEST_ITR_NOTIF_COUNT		0
+#endif
 
 /*
  * Notification of non-secure interrupt identified by an number from 0
