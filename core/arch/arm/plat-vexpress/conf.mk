@@ -146,6 +146,9 @@ ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
 CFG_DT_DRIVER_EMBEDDED_TEST ?= y
 ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,embedded_dtb_test.dts,Mandated for DT tests)
+# Default enable CFG_CORE_ITR_NOTIF for test purpose as denoted by max value 0
+CFG_CORE_ITR_NOTIF ?= $(CFG_CORE_ASYNC_NOTIF)
+CFG_CORE_ITR_NOTIF_MAX ?= 0
 endif
 endif
 
