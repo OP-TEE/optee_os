@@ -592,8 +592,8 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 	sss_se05x_asymmetric_t ctx = { };
 	sss_se05x_object_t kobject = { };
 	TEE_Result res = TEE_SUCCESS;
-	uint8_t signature[128];
-	size_t signature_len = sizeof(signature);
+	uint8_t *signature = NULL;
+	size_t signature_len = sig_len + DER_SIGNATURE_SZ;
 	size_t key_bytes = 0;
 	size_t key_bits = 0;
 	uint8_t *p = NULL;
@@ -623,6 +623,12 @@ static TEE_Result verify(uint32_t algo, struct ecc_public_key *key,
 		goto exit;
 	}
 
+	signature = calloc(1, signature_len);
+	if (!signature) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto exit;
+	}
+
 	st = sss_se05x_signature_bin2der(signature, &signature_len,
 					 (uint8_t *)sig, sig_len);
 	if (st != kStatus_SSS_Success) {
@@ -639,6 +645,7 @@ exit:
 	sss_se05x_key_store_erase_key(se050_kstore, &kobject);
 	sss_se05x_asymmetric_context_free(&ctx);
 	free(p);
+	free(signature);
 
 	return res;
 }
