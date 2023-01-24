@@ -7,7 +7,6 @@
 #include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 /*
