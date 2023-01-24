@@ -36,12 +36,9 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
-#include <kernel/misc.h>
-#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
-#include <sm/optee_smc.h>
 #include <stdint.h>
 
 static struct gic_data gic_data __nex_bss;
