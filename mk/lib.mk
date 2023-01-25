@@ -36,6 +36,7 @@ lib-shlibfile-$(libname)-$(sm) := $(lib-shlibfile)
 lib-libdir-$(libname)-$(sm) := $(out-dir)/$(base-prefix)$(libdir)
 lib-needed-so-files := $(foreach l,$(libl),$(lib-shlibfile-$(l)-$(sm)))
 lib-Ll-args := $(foreach l,$(libl),-L$(lib-libdir-$(l)-$(sm)) -l$(l))
+lib-verscript  := $(libdir)/lib$(libname).ver
 endif
 cleanfiles	:= $(lib-libfile) $(lib-shlibfile) $(lib-shlibstrippedfile) $(lib-shlibtafile) $(lib-libuuidln) $(cleanfiles)
 libfiles	:= $(lib-libfile) $(lib-shlibfile) $(lib-shlibstrippedfile) $(lib-shlibtafile) $(lib-libuuidln) $(libfiles)
@@ -62,13 +63,17 @@ ifeq ($(CFG_ULIBS_SHARED),y)
 ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
 lib-ldflags$(lib-shlibfile) += $$(call ld-option,-z force-bti) --fatal-warnings
 endif
-$(lib-shlibfile): $(objs) $(lib-needed-so-files)
+ifneq (,$(wildcard $(lib-verscript)))
+lib-ldflags$(lib-shlibfile) += --version-script $(lib-verscript)
+verscript$(lib-shlibfile) := $(lib-verscript)
+endif
+$(lib-shlibfile): $(objs) $(lib-needed-so-files) $(verscript$(lib-shlibfile))
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) -shared -z max-page-size=4096 \
 		$(call ld-option,-z separate-loadable-segments) \
 		$$(lib-ldflags$(lib-shlibfile)) \
-		--soname=$(libuuid) -o $$@ $$(filter-out %.so,$$^) $(lib-Ll-args)
+		--soname=$(libuuid) -o $$@ $$(filter-out %.so %.ver,$$^) $(lib-Ll-args)
 
 $(lib-shlibstrippedfile): $(lib-shlibfile)
 	@$(cmd-echo-silent) '  OBJCOPY $$@'
