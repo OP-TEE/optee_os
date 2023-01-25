@@ -76,6 +76,11 @@ extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
 extern const unsigned int stmm_image_uncompressed_size;
 
+const TEE_UUID *stmm_get_uuid(void)
+{
+	return &stmm_uuid;
+}
+
 static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 {
 	TEE_Result res = TEE_SUCCESS;
