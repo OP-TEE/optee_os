@@ -53,6 +53,7 @@ void __utee_from_gp11_attr(struct utee_attribute *ua,
  * These functions will be removed at some future major revision of
  * this specification
  */
+SYMVER_GP131(TEE_GetObjectInfo);
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 {
 	struct utee_object_info info = { };
@@ -81,6 +82,7 @@ void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo)
 	}
 }
 
+SYMVER_COMPAT_GP11(TEE_GetObjectInfo);
 void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
 			      __GP11_TEE_ObjectInfo *objectInfo)
 {
@@ -110,6 +112,7 @@ void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
 	}
 }
 
+SYMVER_GP131(TEE_GetObjectInfo1);
 TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
 			      TEE_ObjectInfo *objectInfo)
 {
@@ -134,6 +137,7 @@ TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetObjectInfo1);
 TEE_Result __GP11_TEE_GetObjectInfo1(TEE_ObjectHandle object,
 				     __GP11_TEE_ObjectInfo *objectInfo)
 {
@@ -194,6 +198,7 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object, uint32_t objectUsag
 	return res;
 }
 
+SYMVER_GP131(TEE_GetObjectBufferAttribute);
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
 					size_t *size)
@@ -230,6 +235,7 @@ exit:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetObjectBufferAttribute);
 TEE_Result __GP11_TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					       uint32_t attributeID,
 					       void *buffer, uint32_t *size)
@@ -244,6 +250,7 @@ TEE_Result __GP11_TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 	return res;
 }
 
+SYMVER_GP131(TEE_GetObjectValueAttribute);
 TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 				       uint32_t attributeID, uint32_t *a,
 				       uint32_t *b)
@@ -305,6 +312,7 @@ void TEE_CloseObject(TEE_ObjectHandle object)
 
 /* Data and Key Storage API  - Transient Object Functions */
 
+SYMVER_GP131(TEE_AllocateTransientObject);
 TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 				       uint32_t maxObjectSize,
 				       TEE_ObjectHandle *object)
@@ -316,6 +324,7 @@ TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
 						  object);
 }
 
+SYMVER_COMPAT_GP11(TEE_AllocateTransientObject);
 TEE_Result __GP11_TEE_AllocateTransientObject(TEE_ObjectType objectType,
 					      uint32_t maxKeySize,
 					      TEE_ObjectHandle *object)
@@ -378,6 +387,7 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object)
 		TEE_Panic(res);
 }
 
+SYMVER_GP131(TEE_PopulateTransientObject);
 TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 				       const TEE_Attribute *attrs,
 				       uint32_t attrCount)
@@ -407,6 +417,7 @@ TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_PopulateTransientObject);
 TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
 					      const __GP11_TEE_Attribute *attrs,
 					      uint32_t attrCount)
@@ -436,6 +447,7 @@ TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
 	return res;
 }
 
+SYMVER_GP131(TEE_InitRefAttribute);
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			  const void *buffer, size_t length)
 {
@@ -448,6 +460,7 @@ void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
 	attr->content.ref.length = length;
 }
 
+SYMVER_COMPAT_GP11(TEE_InitRefAttribute);
 void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
 				 uint32_t attributeID,
 				 const void *buffer, uint32_t length)
@@ -461,6 +474,7 @@ void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
 	attr->content.ref.length = length;
 }
 
+SYMVER_GP131(TEE_InitValueAttribute);
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b)
 {
@@ -473,6 +487,7 @@ void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 	attr->content.value.b = b;
 }
 
+SYMVER_COMPAT_GP11(TEE_InitValueAttribute);
 void __GP11_TEE_InitValueAttribute(__GP11_TEE_Attribute *attr,
 				   uint32_t attributeID,
 				   uint32_t a, uint32_t b)
@@ -543,6 +558,7 @@ exit:
 	return res;
 }
 
+SYMVER_GP131(TEE_GenerateKey);
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 			   const TEE_Attribute *params, uint32_t paramCount)
 {
@@ -561,6 +577,7 @@ TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GenerateKey);
 TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 				  const __GP11_TEE_Attribute *params,
 				  uint32_t paramCount)
@@ -582,6 +599,7 @@ TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 
 /* Data and Key Storage API  - Persistent Object Functions */
 
+SYMVER_GP131(TEE_OpenPersistentObject);
 TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 				    size_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object)
@@ -610,6 +628,7 @@ TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_OpenPersistentObject);
 TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
 					   const void *objectID,
 					   uint32_t objectIDLen, uint32_t flags,
@@ -619,6 +638,7 @@ TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
 					flags, object);
 }
 
+SYMVER_GP131(TEE_CreatePersistentObject);
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 				      size_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
@@ -657,6 +677,7 @@ TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_CreatePersistentObject);
 TEE_Result __GP11_TEE_CreatePersistentObject(uint32_t storageID,
 					     const void *objectID,
 					     uint32_t objectIDLen,
@@ -732,6 +753,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_RenamePersistentObject);
 TEE_Result __GP11_TEE_RenamePersistentObject(TEE_ObjectHandle object,
 					     const void *newObjectID,
 					     uint32_t newObjectIDLen)
@@ -806,6 +828,7 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 	return res;
 }
 
+SYMVER_GP131(TEE_GetNextPersistentObject);
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
 				       void *objectID, size_t *objectIDLen)
@@ -847,6 +870,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetNextPersistentObject);
 TEE_Result
 __GP11_TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				   __GP11_TEE_ObjectInfo *objectInfo,
@@ -891,6 +915,7 @@ out:
 
 /* Data and Key Storage API  - Data Stream Access Functions */
 
+SYMVER_GP131(TEE_ReadObjectData);
 TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 			      size_t size, size_t *count)
 {
@@ -917,6 +942,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_ReadObjectData);
 TEE_Result __GP11_TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 				     uint32_t size, uint32_t *count)
 {
@@ -930,6 +956,7 @@ TEE_Result __GP11_TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
 	return res;
 }
 
+SYMVER_GP131(TEE_WriteObjectData);
 TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
 			       size_t size)
 {
@@ -958,12 +985,14 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_WriteObjectData);
 TEE_Result __GP11_TEE_WriteObjectData(TEE_ObjectHandle object,
 				      const void *buffer, uint32_t size)
 {
 	return TEE_WriteObjectData(object, buffer, size);
 }
 
+SYMVER_GP131(TEE_TruncateObjectData);
 TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, size_t size)
 {
 	TEE_Result res;
@@ -985,12 +1014,14 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_TruncateObjectData);
 TEE_Result __GP11_TEE_TruncateObjectData(TEE_ObjectHandle object,
 					 uint32_t size)
 {
 	return TEE_TruncateObjectData(object, size);
 }
 
+SYMVER_GP131(TEE_SeekObjectData);
 TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, intmax_t offset,
 			      TEE_Whence whence)
 {
@@ -1047,6 +1078,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_SeekObjectData);
 TEE_Result __GP11_TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
 				     TEE_Whence whence)
 {

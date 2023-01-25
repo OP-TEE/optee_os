@@ -115,6 +115,7 @@ static void get_mpi(mbedtls_mpi *mpi, const TEE_BigInt *bigInt)
 	}
 }
 
+SYMVER_GP131(TEE_BigIntInit);
 void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
 {
 	struct bigint_hdr *hdr = (struct bigint_hdr *)bigInt;
@@ -131,11 +132,13 @@ void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
 	hdr->alloc_size = len - BIGINT_HDR_SIZE_IN_U32;
 }
 
+SYMVER_COMPAT_GP11(TEE_BigIntInit);
 void __GP11_TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
 {
 	TEE_BigIntInit(bigInt, len);
 }
 
+SYMVER_GP131(TEE_BigIntConvertFromOctetString);
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
 					    size_t bufferLen, int32_t sign)
@@ -161,6 +164,7 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_BigIntConvertFromOctetString);
 TEE_Result __GP11_TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 						   const uint8_t *buffer,
 						   uint32_t bufferLen,
@@ -169,6 +173,7 @@ TEE_Result __GP11_TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	return TEE_BigIntConvertFromOctetString(dest, buffer, bufferLen, sign);
 }
 
+SYMVER_GP131(TEE_BigIntConvertToOctetString);
 TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 					  const TEE_BigInt *bigInt)
 {
@@ -191,6 +196,7 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_BigIntConvertToOctetString);
 TEE_Result __GP11_TEE_BigIntConvertToOctetString(uint8_t *buffer,
 						 uint32_t *bufferLen,
 						 const TEE_BigInt *bigInt)
