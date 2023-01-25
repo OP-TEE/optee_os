@@ -343,18 +343,18 @@
 #define TEE_ALG_ECDH_P384		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
 #define TEE_ALG_ECDH_P521		TEE_ALG_ECDH_DERIVE_SHARED_SECRET
 
-#define TEE_ALG_ECDH_DERIVE_SHARED_SECRET	0x80000042 /* v1.1.2 spec */
-#define TEE_ALG_ECDSA_SHA1			0x70001042 /* v1.1.2 spec */
-#define TEE_ALG_ECDSA_SHA224			0x70002042 /* v1.1.2 spec */
-#define TEE_ALG_ECDSA_SHA256			0x70003042 /* v1.1.2 spec */
-#define TEE_ALG_ECDSA_SHA384			0x70004042 /* v1.1.2 spec */
-#define TEE_ALG_ECDSA_SHA512			0x70005042 /* v1.1.2 spec */
+#define TEE_ALG_ECDH_DERIVE_SHARED_SECRET	0x80000042
+#define TEE_ALG_ECDSA_SHA1			0x70001042
+#define TEE_ALG_ECDSA_SHA224			0x70002042
+#define TEE_ALG_ECDSA_SHA256			0x70003042
+#define TEE_ALG_ECDSA_SHA384			0x70004042
+#define TEE_ALG_ECDSA_SHA512			0x70005042
 #define TEE_ALG_ECDSA_SHA3_224                  0x70006042
 #define TEE_ALG_ECDSA_SHA3_256                  0x70007042
 #define TEE_ALG_ECDSA_SHA3_384                  0x70008042
 #define TEE_ALG_ECDSA_SHA3_512                  0x70009042
 
-#define TEE_ALG_ED25519                         0x70006043 /* v1.3.1 spec */
+#define TEE_ALG_ED25519                         0x70006043
 #define TEE_ALG_ED448                           0x70006044
 #define TEE_ALG_SM2_PKE                         0x80000045
 #define TEE_ALG_HKDF                            0x80000047
@@ -384,7 +384,7 @@
 #define TEE_TYPE_HMAC_SHA256                0xA0000004
 #define TEE_TYPE_HMAC_SHA384                0xA0000005
 #define TEE_TYPE_HMAC_SHA512                0xA0000006
-#define TEE_TYPE_HMAC_SM3                   0xA0000007 /* Not in spec */
+#define TEE_TYPE_HMAC_SM3                   0xA0000007
 #define TEE_TYPE_HMAC_SHA3_224              0xA0000008
 #define TEE_TYPE_HMAC_SHA3_256              0xA0000009
 #define TEE_TYPE_HMAC_SHA3_384              0xA000000A
@@ -398,8 +398,8 @@
 #define TEE_TYPE_ECDSA_KEYPAIR              0xA1000041
 #define TEE_TYPE_ECDH_PUBLIC_KEY            0xA0000042
 #define TEE_TYPE_ECDH_KEYPAIR               0xA1000042
-#define TEE_TYPE_ED25519_PUBLIC_KEY         0xA0000043 /* v1.3.1 spec */
-#define TEE_TYPE_ED25519_KEYPAIR            0xA1000043 /* v1.3.1 spec */
+#define TEE_TYPE_ED25519_PUBLIC_KEY         0xA0000043
+#define TEE_TYPE_ED25519_KEYPAIR            0xA1000043
 #define TEE_TYPE_ED448_PUBLIC_KEY           0xA0000048
 #define TEE_TYPE_ED448_KEYPAIR              0xA1000048
 #define TEE_TYPE_X448_PUBLIC_KEY            0xA0000049
@@ -465,12 +465,12 @@
 
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_X 0xD0000146
 #define TEE_ATTR_ECC_EPHEMERAL_PUBLIC_VALUE_Y 0xD0000246
-#define TEE_ATTR_EDDSA_CTX                  0xD0000643   /* v1.3.1 spec */
-#define TEE_ATTR_ED25519_PUBLIC_VALUE       0xD0000743   /* v1.3.1 spec */
-#define TEE_ATTR_ED25519_PRIVATE_VALUE      0xC0000843   /* v1.3.1 spec */
+#define TEE_ATTR_EDDSA_CTX                  0xD0000643
+#define TEE_ATTR_ED25519_PUBLIC_VALUE       0xD0000743
+#define TEE_ATTR_ED25519_PRIVATE_VALUE      0xC0000843
 #define TEE_ATTR_X25519_PUBLIC_VALUE        0xD0000944
 #define TEE_ATTR_X25519_PRIVATE_VALUE       0xC0000A44
-#define TEE_ATTR_EDDSA_PREHASH              0xF0000004   /* v1.3.1 spec */
+#define TEE_ATTR_EDDSA_PREHASH              0xF0000004
 #define TEE_ATTR_X448_PUBLIC_VALUE          0xD0000A45
 #define TEE_ATTR_X448_PRIVATE_VALUE         0xC0000A46
 #define TEE_ATTR_HKDF_SALT                  0xD0000946
