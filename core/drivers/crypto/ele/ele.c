@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2023, 2025 NXP
  */
 #include <drivers/imx_mu.h>
+#include <ele.h>
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
@@ -22,10 +23,9 @@
 #define ELE_BASE_SIZE MU_SIZE
 
 #define ELE_VERSION_BASELINE 0x06
-#define ELE_VERSION_HSM	     0x07
-#define ELE_COMMAND_SUCCEED  0xd6
-#define ELE_REQUEST_TAG	     0x17
-#define ELE_RESPONSE_TAG     0xe1
+#define ELE_COMMAND_SUCCEED 0xd6
+#define ELE_COMMAND_FAILED  0x29
+#define ELE_RESPONSE_TAG    0xe1
 
 #define ELE_CMD_SESSION_OPEN	    0x10
 #define ELE_CMD_SESSION_CLOSE	    0x11
@@ -50,9 +50,7 @@
 #error "Platform DID is not defined"
 #endif
 
-#define SIZE_MSG_32(_msg) size_msg_32(sizeof(_msg))
-
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, ELE_BASE_ADDR, ELE_BASE_SIZE);
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, MU_BASE, MU_SIZE);
 
 struct get_info_msg_rsp {
 	uint32_t rsp_code;
@@ -123,17 +121,6 @@ static void dump_message(const struct imx_mu_msg *msg __maybe_unused)
 }
 
 /*
- * Return the number of 32 bits words of the given message.
- *
- * @cmd command size in byte
- */
-static size_t size_msg_32(size_t cmd)
-{
-	/* Roundup and add header size */
-	return ROUNDUP_DIV(cmd, sizeof(uint32_t)) + 1;
-}
-
-/*
  * The CRC for the message is computed xor-ing all the words of the message:
  * the header and all the words except the word storing the CRC.
  *
@@ -153,12 +140,7 @@ static uint32_t compute_crc(const struct imx_mu_msg *msg)
 	return crc;
 }
 
-/*
- * Compute message CRC and update CRC in message header.
- *
- * @msg MU message to hash
- */
-static void update_crc(struct imx_mu_msg *msg)
+void update_crc(struct imx_mu_msg *msg)
 {
 	assert(msg);
 	/*
@@ -210,13 +192,7 @@ static struct response_code get_response_code(uint32_t word)
 	return rsp;
 }
 
-/*
- * Initiate a communication with the EdgeLock Enclave. It sends a message
- * and expects an answer.
- *
- * @msg MU message
- */
-static TEE_Result imx_ele_call(struct imx_mu_msg *msg)
+TEE_Result imx_ele_call(struct imx_mu_msg *msg)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct response_code rsp = { };
