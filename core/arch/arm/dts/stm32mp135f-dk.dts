@@ -29,17 +29,17 @@
 		reg = <0xc0000000 0x20000000>;
 	};
 
-        reserved-memory {
-                #address-cells = <1>;
-                #size-cells = <1>;
-                ranges;
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
 
-                optee_framebuffer: optee-framebuffer@dd000000 {
-                        /* Secure framebuffer memory */
-                        reg = <0xdd000000 0x1000000>;
-                        no-map;
-                };
-        };
+		optee_framebuffer: optee-framebuffer@dd000000 {
+			/* Secure framebuffer memory */
+			reg = <0xdd000000 0x1000000>;
+			no-map;
+		};
+	};
 
 	vin: vin {
 		compatible = "regulator-fixed";
@@ -233,11 +233,5 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usart1_pins_a>;
 	uart-has-rtscts;
-	status = "disabled";
-};
-
-&uart8 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart8_pins_a>;
 	status = "disabled";
 };
