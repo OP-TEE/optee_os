@@ -356,7 +356,7 @@
 
 #define TEE_ALG_ED25519                         0x70006043
 #define TEE_ALG_ED448                           0x70006044
-#define TEE_ALG_SM2_PKE                         0x80000045
+#define TEE_ALG_SM2_PKE                         0x80000046
 #define TEE_ALG_HKDF                            0x80000047
 #define TEE_ALG_SM3                             0x50000007
 #define TEE_ALG_X25519                          0x80000044
