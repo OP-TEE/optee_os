@@ -57,10 +57,12 @@ CFG_VERSAL_TRNG_DF_MUL ?= 2
 $(call force, CFG_VERSAL_NVM,y)
 
 # Crypto driver
-$(call force,CFG_CRYPTO_DRIVER,y)
-CFG_CRYPTO_DRIVER_DEBUG ?= 0
-
 CFG_VERSAL_CRYPTO_DRIVER ?= y
+ifeq ($(CFG_VERSAL_CRYPTO_DRIVER),y)
+# Disable Fault Mitigation: triggers false positives due to
+# the driver's software fallback operations - need further work
+CFG_FAULT_MITIGATION ?= n
+endif
 
 # SHA3-384 crypto engine
 CFG_VERSAL_SHA3_384 ?= y
