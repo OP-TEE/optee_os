@@ -94,6 +94,14 @@
 #define BSEC_MODE_PWR			BIT(5)
 #define BSEC_MODE_CLOSED		BIT(8)
 
+/* BSEC_DEBUG bitfields */
+#ifdef CFG_STM32MP13
+#define BSEC_DEN_ALL_MSK		(GENMASK_32(11, 10) | GENMASK_32(8, 1))
+#endif
+#ifdef CFG_STM32MP15
+#define BSEC_DEN_ALL_MSK		GENMASK_32(11, 1)
+#endif
+
 /*
  * OTP Lock services definition
  * Value must corresponding to the bit position in the register
@@ -474,14 +482,16 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
 
+	assert(!(value & ~BSEC_DEN_ALL_MSK));
+
 	if (state_is_invalid_mode())
 		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
-	io_write32(bsec_base() + BSEC_DEN_OFF, value);
+	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, value);
 
-	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ value) == 0U)
+	if (stm32_bsec_read_debug_conf() == value)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
@@ -491,7 +501,7 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 
 uint32_t stm32_bsec_read_debug_conf(void)
 {
-	return io_read32(bsec_base() + BSEC_DEN_OFF);
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
 }
 
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
