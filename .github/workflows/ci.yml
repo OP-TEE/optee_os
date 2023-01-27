@@ -261,7 +261,7 @@ jobs:
       - shell: bash
         run: |
           # make check task
-          set -e
+          set -e -v
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
@@ -292,7 +292,7 @@ jobs:
       - shell: bash
         run: |
           # make check task
-          set -e
+          set -e -v
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
