@@ -302,6 +302,44 @@ jobs:
 
           sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check XEN_BOOT=y
 
+  QEMUv8_check_BTI_MTE_PAC:
+    name: make check (QEMUv8, BTI+MTE+PAC)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_bti_mte_pac-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_bti_mte_pac-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
+          export PATH=/usr/local/bin:$PATH
+          export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
+          # TF-A v2.6 fails to build with the above toolchain so override it
+          export TF_A_EXPORTS="CROSS_COMPILE=/root/optee_repo_qemu_v8/toolchains/aarch64/bin/aarch64-linux-gnu-"
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_USER_TA_TARGETS=ta_arm64
+          WD=$(pwd)
+          sudo -E /root/get_optee_qemuv8.sh
+          # QEMU v7.2.0 has an issue with MTE
+          # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
+          sudo -E bash -c "cd /root/optee_repo_qemu_v8/qemu && git fetch github && git checkout 13356edb87"
+          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
+          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+
+          # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
+          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
+
   QEMUv8_check_rust:
     name: make check-rust (QEMUv8)
     runs-on: ubuntu-latest
