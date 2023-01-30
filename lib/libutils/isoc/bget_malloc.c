@@ -953,7 +953,7 @@ bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,
 	raw_malloc_validate_pools(ctx);
 
 	for (n = 0; n < ctx->pool_len; n++) {
-		uintptr_t pool_start = (uintptr_t)ctx->pool[n].buf;
+		uintptr_t pool_start = (uintptr_t)strip_tag(ctx->pool[n].buf);
 		uintptr_t pool_end = pool_start + ctx->pool[n].len;
 
 		if (buf_start > buf_end || pool_start > pool_end)
@@ -986,7 +986,7 @@ bool raw_malloc_buffer_is_within_alloced(struct malloc_ctx *ctx,
 		uint8_t *end_b = NULL;
 		size_t s = 0;
 
-		start_b = get_payload_start_size(b, &s);
+		start_b = strip_tag(get_payload_start_size(b, &s));
 		end_b = start_b + s;
 		if (start_buf >= start_b && end_buf <= end_b)
 			return true;
