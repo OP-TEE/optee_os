@@ -266,13 +266,16 @@ jobs:
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           WD=$(pwd)
-          sudo -E /root/get_optee_qemuv8.sh
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check
+          make -j$(nproc) check
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
+          make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
 
   QEMUv8_Xen_check:
     name: make check (QEMUv8, Xen)
@@ -296,11 +299,14 @@ jobs:
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
-          sudo -E /root/get_optee_qemuv8.sh
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check XEN_BOOT=y
+          make -j$(nproc) check XEN_BOOT=y
 
   QEMUv8_check_BTI_MTE_PAC:
     name: make check (QEMUv8, BTI+MTE+PAC)
@@ -324,21 +330,24 @@ jobs:
           # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
           export PATH=/usr/local/bin:$PATH
           export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
-          # TF-A v2.6 fails to build with the above toolchain so override it
-          export TF_A_EXPORTS="CROSS_COMPILE=/root/optee_repo_qemu_v8/toolchains/aarch64/bin/aarch64-linux-gnu-"
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           export CFG_USER_TA_TARGETS=ta_arm64
           WD=$(pwd)
-          sudo -E /root/get_optee_qemuv8.sh
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          # TF-A v2.6 fails to build with the above toolchain so override it
+          export TF_A_EXPORTS="CROSS_COMPILE=${TOP}/toolchains/aarch64/bin/aarch64-linux-gnu-"
+          /root/get_optee_qemuv8.sh ${TOP}
           # QEMU v7.2.0 has an issue with MTE
           # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
-          sudo -E bash -c "cd /root/optee_repo_qemu_v8/qemu && git fetch github && git checkout 13356edb87"
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ${TOP}/qemu && git fetch github && git checkout 13356edb87
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
+          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
 
   QEMUv8_check_rust:
     name: make check-rust (QEMUv8)
@@ -361,10 +370,13 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
-          sudo -E /root/get_optee_qemuv8.sh
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
           # Without this line, the following one fails with "ld: cannot find -lteec" when building acipher-rs
-          sudo -E bash -c "make -C /root/optee_repo_qemu_v8/build -j$(nproc)"
-          sudo -E bash -c "make -C /root/optee_repo_qemu_v8/build -j$(nproc) OPTEE_RUST_ENABLE=y check-rust"
+          make -j$(nproc)
+          make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust
