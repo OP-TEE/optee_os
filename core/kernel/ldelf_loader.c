@@ -263,6 +263,11 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 		arg->arm64.sp = tsd->abort_regs.sp_el0;
 	}
 #endif /*ARM64*/
+#if defined(RV64) || defined(RV32)
+	arg->rv.fp = tsd->abort_regs.s0;
+	arg->rv.pc = tsd->abort_regs.epc;
+	arg->rv.sp = tsd->abort_regs.sp;
+#endif /*RV64||RV32*/
 
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;
