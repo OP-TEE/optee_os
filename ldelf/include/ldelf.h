@@ -60,7 +60,7 @@ struct dump_entry_arg {
 			uint64_t pc;
 		} arm64;
 	};
-	bool is_arm32;
+	bool is_32bit;
 	size_t num_maps;
 	struct dump_map {
 		vaddr_t va;
