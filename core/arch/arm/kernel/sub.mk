@@ -1,4 +1,3 @@
-srcs-$(CFG_WITH_USER_TA) += ldelf_loader.c
 srcs-y += rpc_io_i2c.c
 srcs-y += idle.c
 
