@@ -19,10 +19,10 @@ extern const unsigned int ldelf_data_size;
 extern const unsigned int ldelf_entry;
 
 /* ldelf has the same architecture/register width as the kernel */
-#ifdef ARM32
-static const bool is_arm32 = true;
+#if defined(ARM32) || defined(RV32)
+static const bool is_32bit = true;
 #else
-static const bool is_arm32;
+static const bool is_32bit;
 #endif
 
 static TEE_Result alloc_and_map_ldelf_fobj(struct user_mode_ctx *uctx,
@@ -58,7 +58,7 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	vaddr_t rw_addr = 0;
 	uint32_t prot = 0;
 
-	uctx->is_32bit = is_arm32;
+	uctx->is_32bit = is_32bit;
 
 	res = alloc_and_map_ldelf_fobj(uctx, LDELF_STACK_SIZE,
 				       TEE_MATTR_URW | TEE_MATTR_PRW,
@@ -116,7 +116,7 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->entry_func,
-				     is_arm32, &panicked, &panic_code);
+				     is_32bit, &panicked, &panic_code);
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
@@ -220,7 +220,7 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 		}
 	}
 
-	arg->is_arm32 = uctx->is_32bit;
+	arg->is_32bit = uctx->is_32bit;
 #ifdef ARM32
 	arg->arm32.regs[0] = tsd->abort_regs.r0;
 	arg->arm32.regs[1] = tsd->abort_regs.r1;
@@ -269,7 +269,7 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dump_entry_func,
-				     is_arm32, &panicked, &panic_code);
+				     is_32bit, &panicked, &panic_code);
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
@@ -318,7 +318,7 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 
 	res = thread_enter_user_mode((vaddr_t)buf, (vaddr_t)arg, 0, 0,
 				     usr_stack, uctx->ftrace_entry_func,
-				     is_arm32, &panicked, &panic_code);
+				     is_32bit, &panicked, &panic_code);
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	thread_user_clear_vfp(uctx);
@@ -376,7 +376,7 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
-				     is_arm32, &panicked, &panic_code);
+				     is_32bit, &panicked, &panic_code);
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	ldelf_sess_cleanup(sess);
@@ -430,7 +430,7 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
-				     is_arm32, &panicked, &panic_code);
+				     is_32bit, &panicked, &panic_code);
 
 	sess->handle_scall = sess->ctx->ops->handle_scall;
 	ldelf_sess_cleanup(sess);
