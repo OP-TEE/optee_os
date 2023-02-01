@@ -40,9 +40,6 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
-		if (rsa_data->key.n_size != 128)
-			break;
-
 		return sw_crypto_acipher_rsaes_encrypt(rsa_data->algo,
 						rsa_data->key.key,
 						rsa_data->label.data,
@@ -132,9 +129,6 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	switch (rsa_data->rsa_id) {
 	case DRVCRYPT_RSA_PKCS_V1_5:
-		if (rsa_data->key.n_size != 128)
-			break;
-
 		return sw_crypto_acipher_rsaes_decrypt(rsa_data->algo,
 						rsa_data->key.key,
 						rsa_data->label.data,
