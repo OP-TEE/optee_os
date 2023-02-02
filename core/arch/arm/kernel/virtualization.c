@@ -42,6 +42,10 @@ struct guest_partition {
 	bool runtime_initialized;
 	uint16_t id;
 	struct refcount refc;
+#ifdef CFG_CORE_SEL1_SPMC
+	uint64_t cookies[64];
+	uint8_t cookie_count;
+#endif
 };
 
 struct guest_partition *current_partition[CFG_TEE_CORE_NB_CORE] __nex_bss;
@@ -432,3 +436,83 @@ void virt_get_ta_ram(vaddr_t *start, vaddr_t *end)
 				       tee_mm_get_bytes(prtn->ta_ram));
 	*end = *start + tee_mm_get_bytes(prtn->ta_ram);
 }
+
+#ifdef CFG_CORE_SEL1_SPMC
+static int find_cookie(struct guest_partition *prtn, uint64_t cookie)
+{
+	int i = 0;
+
+	for (i = 0; i < prtn->cookie_count; i++)
+		if (prtn->cookies[i] == cookie)
+			return i;
+	return -1;
+}
+
+static struct guest_partition *find_prtn_cookie(uint64_t cookie, int *idx)
+{
+	struct guest_partition *prtn = NULL;
+	int i = 0;
+
+	LIST_FOREACH(prtn, &prtn_list, link) {
+		i = find_cookie(prtn, cookie);
+		if (i >= 0) {
+			if (idx)
+				*idx = i;
+			return prtn;
+		}
+	}
+
+	return NULL;
+}
+
+TEE_Result virt_add_cookie_to_current_guest(uint64_t cookie)
+{
+	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
+	struct guest_partition *prtn = NULL;
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+
+	if (find_prtn_cookie(cookie, NULL))
+		goto out;
+
+	prtn = current_partition[get_core_pos()];
+	if (prtn->cookie_count < ARRAY_SIZE(prtn->cookies)) {
+		prtn->cookies[prtn->cookie_count] = cookie;
+		prtn->cookie_count++;
+		res = TEE_SUCCESS;
+	}
+out:
+	thread_unmask_exceptions(exceptions);
+
+	return res;
+}
+
+void virt_remove_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct guest_partition *prtn = NULL;
+	int i = 0;
+
+	prtn = find_prtn_cookie(cookie, &i);
+	if (prtn) {
+		memmove(prtn->cookies + i, prtn->cookies + i + 1,
+			sizeof(uint64_t) * (prtn->cookie_count - i - 1));
+		prtn->cookie_count--;
+	}
+	thread_unmask_exceptions(exceptions);
+}
+
+uint16_t virt_find_guest_by_cookie(uint64_t cookie)
+{
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct guest_partition *prtn = NULL;
+	uint16_t ret = 0;
+
+	prtn = find_prtn_cookie(cookie, NULL);
+	if (prtn)
+		ret = prtn->id;
+
+	thread_unmask_exceptions(exceptions);
+
+	return ret;
+}
+#endif /*CFG_CORE_SEL1_SPMC*/

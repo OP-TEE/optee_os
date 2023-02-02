@@ -17,6 +17,7 @@
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
 #include <kernel/thread_spmc.h>
+#include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <optee_ffa.h>
@@ -49,6 +50,10 @@ static uint16_t my_endpoint_id __nex_bss;
 #ifdef CFG_CORE_SEL1_SPMC
 static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
 				      FFA_PART_PROP_DIRECT_REQ_SEND |
+#ifdef CFG_NS_VIRTUALIZATION
+				      FFA_PART_PROP_NOTIF_CREATED |
+				      FFA_PART_PROP_NOTIF_DESTROYED |
+#endif
 #ifdef ARM64
 				      FFA_PART_PROP_AARCH64_STATE |
 #endif
@@ -81,7 +86,7 @@ static uint32_t my_uuid_words[] = {
  * the lock.
  */
 
-static struct ffa_rxtx nw_rxtx;
+static struct ffa_rxtx nw_rxtx __nex_bss;
 
 static bool is_nw_buf(struct ffa_rxtx *rxtx)
 {
@@ -99,6 +104,11 @@ static struct ffa_rxtx nw_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
 static uint32_t swap_src_dst(uint32_t src_dst)
 {
 	return (src_dst >> 16) | (src_dst << 16);
+}
+
+static uint16_t get_sender_id(uint32_t src_dst)
+{
+	return src_dst >> 16;
 }
 
 void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
@@ -256,13 +266,54 @@ void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	 * mapped.
 	 */
 	if (is_nw_buf(rxtx)) {
-		rc = map_buf(tx_pa, sz, &tx);
-		if (rc)
-			goto out;
-		rc = map_buf(rx_pa, sz, &rx);
-		if (rc) {
-			unmap_buf(tx, sz);
-			goto out;
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			enum teecore_memtypes mt = MEM_AREA_NEX_NSEC_SHM;
+			bool tx_alloced = false;
+
+			/*
+			 * With virtualization we establish this mapping in
+			 * the nexus mapping which then is replicated to
+			 * each partition.
+			 *
+			 * This means that this mapping must be done before
+			 * any partition is created and then must not be
+			 * changed.
+			 */
+
+			/*
+			 * core_mmu_add_mapping() may reuse previous
+			 * mappings. First check if there's any mappings to
+			 * reuse so we know how to clean up in case of
+			 * failure.
+			 */
+			tx = phys_to_virt(tx_pa, mt, sz);
+			rx = phys_to_virt(rx_pa, mt, sz);
+			if (!tx) {
+				tx = core_mmu_add_mapping(mt, tx_pa, sz);
+				if (!tx) {
+					rc = FFA_NO_MEMORY;
+					goto out;
+				}
+				tx_alloced = true;
+			}
+			if (!rx)
+				rx = core_mmu_add_mapping(mt, rx_pa, sz);
+
+			if (!rx) {
+				if (tx_alloced && tx)
+					core_mmu_remove_mapping(mt, tx, sz);
+				rc = FFA_NO_MEMORY;
+				goto out;
+			}
+		} else {
+			rc = map_buf(tx_pa, sz, &tx);
+			if (rc)
+				goto out;
+			rc = map_buf(rx_pa, sz, &rx);
+			if (rc) {
+				unmap_buf(tx, sz);
+				goto out;
+			}
 		}
 		rxtx->tx = tx;
 		rxtx->rx = rx;
@@ -580,6 +631,22 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 	uint32_t w3 = FFA_PARAM_MBZ;
 
 	switch (args->a2 & FFA_MSG_TYPE_MASK) {
+	case FFA_MSG_SEND_VM_CREATED:
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			uint16_t guest_id = args->a5;
+			TEE_Result res = virt_guest_created(guest_id);
+
+			w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+			w1 = swap_src_dst(args->a1);
+			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_CREATED;
+			if (res == TEE_SUCCESS)
+				w3 = FFA_OK;
+			else if (res == TEE_ERROR_OUT_OF_MEMORY)
+				w3 = FFA_DENIED;
+			else
+				w3 = FFA_INVALID_PARAMETERS;
+		}
+		break;
 	case FFA_MSG_VERSION_REQ:
 		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
 		w1 = swap_src_dst(args->a1);
@@ -606,10 +673,25 @@ static void handle_direct_request(struct thread_smc_args *args,
 		return;
 	}
 
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_set_guest(get_sender_id(args->a1))) {
+		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+			      swap_src_dst(args->a1), 0,
+			      TEE_ERROR_ITEM_NOT_FOUND, 0, 0);
+		return;
+	}
+
 	if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
 		handle_yielding_call(args);
 	else
 		handle_blocking_call(args);
+
+	/*
+	 * Note that handle_yielding_call() typically only returns if a
+	 * thread cannot be allocated or found. virt_unset_guest() is also
+	 * called from thread_state_suspend() and thread_state_free().
+	 */
+	virt_unset_guest();
 }
 
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
@@ -829,6 +911,7 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 	int rc = 0;
 	struct mem_share_state share = { };
 	size_t addr_range_offs = 0;
+	uint64_t cookie = OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
 	size_t n = 0;
 
 	rc = mem_share_init(mem_trans, buf, flen, &share.page_count,
@@ -841,7 +924,9 @@ static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
 	    ADD_OVERFLOW(n, addr_range_offs, &n) || n > blen)
 		return FFA_INVALID_PARAMETERS;
 
-	share.mf = mobj_ffa_sel1_spmc_new(share.page_count);
+	if (mem_trans->global_handle)
+		cookie = mem_trans->global_handle;
+	share.mf = mobj_ffa_sel1_spmc_new(cookie, share.page_count);
 	if (!share.mf)
 		return FFA_NO_MEMORY;
 
@@ -921,9 +1006,13 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 
 	cpu_spin_lock(&rxtx->spinlock);
 	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, flen, &mem_trans);
+	if (!rc && IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_set_guest(mem_trans.sender_id))
+		rc = FFA_DENIED;
 	if (!rc)
 		rc = add_mem_share(&mem_trans, mm, buf, blen, flen,
 				   global_handle);
+	virt_unset_guest();
 	cpu_spin_unlock(&rxtx->spinlock);
 	if (rc > 0)
 		return rc;
@@ -956,8 +1045,14 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 		goto out;
 	}
 
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_set_guest(mem_trans.sender_id))
+		goto out;
+
 	rc = add_mem_share(&mem_trans, NULL, rxtx->rx, blen, flen,
 			   global_handle);
+
+	virt_unset_guest();
 
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
@@ -1032,10 +1127,9 @@ static struct mem_frag_state *get_frag_state(uint64_t global_handle)
 static void handle_mem_frag_tx(struct thread_smc_args *args,
 			       struct ffa_rxtx *rxtx)
 {
-	int rc = 0;
-	uint64_t global_handle = reg_pair_to_64(READ_ONCE(args->a2),
-						READ_ONCE(args->a1));
-	size_t flen = READ_ONCE(args->a3);
+	uint64_t global_handle = reg_pair_to_64(args->a2, args->a1);
+	size_t flen = args->a3;
+	uint32_t endpoint_id = args->a4;
 	struct mem_frag_state *s = NULL;
 	tee_mm_entry_t *mm = NULL;
 	unsigned int page_count = 0;
@@ -1044,6 +1138,16 @@ static void handle_mem_frag_tx(struct thread_smc_args *args,
 	uint32_t ret_w2 = 0;
 	uint32_t ret_w3 = 0;
 	uint32_t ret_fid = 0;
+	int rc = 0;
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		uint16_t guest_id = endpoint_id >> 16;
+
+		if (!guest_id || virt_set_guest(guest_id)) {
+			rc = FFA_INVALID_PARAMETERS;
+			goto out_set_rc;
+		}
+	}
 
 	/*
 	 * Currently we're only doing this for fragmented FFA_MEM_SHARE_*
@@ -1076,6 +1180,7 @@ static void handle_mem_frag_tx(struct thread_smc_args *args,
 
 	rc = add_mem_share_frag(s, buf, flen);
 out:
+	virt_unset_guest();
 	cpu_spin_unlock(&rxtx->spinlock);
 
 	if (rc <= 0 && mm) {
@@ -1083,6 +1188,7 @@ out:
 		tee_mm_free(mm);
 	}
 
+out_set_rc:
 	if (rc < 0) {
 		ret_fid = FFA_ERROR;
 		ret_w2 = rc;
@@ -1108,6 +1214,19 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 		goto out;
 
 	cookie = reg_pair_to_64(args->a2, args->a1);
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		uint16_t guest_id = 0;
+
+		if (cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT) {
+			guest_id = virt_find_guest_by_cookie(cookie);
+		} else {
+			guest_id = (cookie >> FFA_MEMORY_HANDLE_PRTN_SHIFT) &
+				   FFA_MEMORY_HANDLE_PRTN_MASK;
+		}
+		if (!guest_id || virt_set_guest(guest_id))
+			goto out;
+	}
+
 	switch (mobj_ffa_sel1_spmc_reclaim(cookie)) {
 	case TEE_SUCCESS:
 		ret_fid = FFA_SUCCESS_32;
@@ -1122,6 +1241,9 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 		ret_val = FFA_DENIED;
 		break;
 	}
+
+	virt_unset_guest();
+
 out:
 	spmc_set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
 }
@@ -1224,6 +1346,7 @@ static TEE_Result yielding_call_with_arg(uint64_t cookie, uint32_t offset)
 	if (!thr->rpc_arg)
 		goto out_dec_map;
 
+	virt_on_stdcall();
 	res = tee_entry_std(arg, num_params);
 
 	thread_rpc_shm_cache_clear(&thr->shm_cache);
@@ -1782,7 +1905,7 @@ static TEE_Result spmc_init(void)
  * to initialize via boot_final() to make sure we have a value assigned
  * before it's used the first time.
  */
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 boot_final(spmc_init);
 #else
 service_init(spmc_init);
