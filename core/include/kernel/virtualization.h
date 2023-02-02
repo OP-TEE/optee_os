@@ -91,6 +91,13 @@ struct tee_mmap_region *virt_get_memory_map(void);
  */
 void virt_get_ta_ram(vaddr_t *start, vaddr_t *end);
 
+/**
+ * virt_get_current_guest_id() - return current guest ID
+ *
+ * Returns current guest ID or 0 if none is set.
+ */
+uint16_t virt_get_current_guest_id(void);
+
 #else
 static inline TEE_Result virt_guest_created(uint16_t guest_id __unused)
 { return TEE_ERROR_NOT_SUPPORTED; }
@@ -111,6 +118,7 @@ static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
 				    paddr_size_t secmem0_size __unused,
 				    paddr_t secmem1_base __unused,
 				    paddr_size_t secmem1_size __unused) { }
+static inline uint16_t virt_get_current_guest_id(void) { return 0; }
 #endif /*CFG_NS_VIRTUALIZATION*/
 
 #endif	/* KERNEL_VIRTUALIZATION_H */

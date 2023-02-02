@@ -58,6 +58,15 @@ static struct guest_partition *get_current_prtn(void)
 	return ret;
 }
 
+uint16_t virt_get_current_guest_id(void)
+{
+	struct guest_partition *prtn = get_current_prtn();
+
+	if (!prtn)
+		return 0;
+	return prtn->id;
+}
+
 static void set_current_prtn(struct guest_partition *prtn)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
