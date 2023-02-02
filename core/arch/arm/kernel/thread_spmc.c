@@ -45,7 +45,7 @@ struct mem_frag_state {
 #endif
 
 /* Initialized in spmc_init() below */
-static uint16_t my_endpoint_id;
+static uint16_t my_endpoint_id __nex_bss;
 #ifdef CFG_CORE_SEL1_SPMC
 static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
 				      FFA_PART_PROP_DIRECT_REQ_SEND |
@@ -1775,4 +1775,15 @@ static TEE_Result spmc_init(void)
 }
 #endif /* !defined(CFG_CORE_SEL1_SPMC) */
 
+/*
+ * boot_final() is always done before exiting at end of boot
+ * initialization.  In case of virtualization the init-calls are done only
+ * once a OP-TEE partition has been created. So with virtualization we have
+ * to initialize via boot_final() to make sure we have a value assigned
+ * before it's used the first time.
+ */
+#ifdef CFG_VIRTUALIZATION
+boot_final(spmc_init);
+#else
 service_init(spmc_init);
+#endif
