@@ -670,9 +670,6 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 	size_t addr_range_offs = 0;
 	size_t n = 0;
 
-	if (flen > blen)
-		return FFA_INVALID_PARAMETERS;
-
 	rc = mem_share_init(buf, flen, &share.page_count, &share.region_count,
 			    &addr_range_offs);
 	if (rc)
@@ -742,10 +739,10 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 		return FFA_INVALID_PARAMETERS;
 
 	/*
-	 * Check that the length reported in blen is covered by len even
+	 * Check that the length reported in flen is covered by len even
 	 * if the offset is taken into account.
 	 */
-	if (len < blen || len - offs < blen)
+	if (len < flen || len - offs < flen)
 		return FFA_INVALID_PARAMETERS;
 
 	mm = tee_mm_alloc(&tee_mm_shm, len);
@@ -797,6 +794,10 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 static void handle_mem_share(struct thread_smc_args *args,
 			     struct ffa_rxtx *rxtx)
 {
+	uint32_t tot_len = args->a1;
+	uint32_t frag_len = args->a2;
+	uint64_t addr = args->a3;
+	uint32_t page_count = args->a4;
 	uint32_t ret_w1 = 0;
 	uint32_t ret_w2 = FFA_INVALID_PARAMETERS;
 	uint32_t ret_w3 = 0;
@@ -808,18 +809,26 @@ static void handle_mem_share(struct thread_smc_args *args,
 	if (args->a5 || args->a6 || args->a7)
 		goto out;
 
-	if (!args->a3) {
+	/* Check that fragment length doesn't exceed total length */
+	if (frag_len > tot_len)
+		goto out;
+
+	/* Check for 32-bit calling convention */
+	if (args->a0 == FFA_MEM_SHARE_32)
+		addr &= UINT32_MAX;
+
+	if (!addr) {
 		/*
 		 * The memory transaction descriptor is passed via our rx
 		 * buffer.
 		 */
-		if (args->a4)
+		if (page_count)
 			goto out;
-		rc = handle_mem_share_rxbuf(args->a1, args->a2, &global_handle,
+		rc = handle_mem_share_rxbuf(tot_len, frag_len, &global_handle,
 					    rxtx);
 	} else {
-		rc = handle_mem_share_tmem(args->a3, args->a1, args->a2,
-					   args->a4, &global_handle, rxtx);
+		rc = handle_mem_share_tmem(addr, tot_len, frag_len, page_count,
+					   &global_handle, rxtx);
 	}
 	if (rc < 0) {
 		ret_w2 = rc;
