@@ -83,9 +83,9 @@ static inline struct sp_ctx *to_sp_ctx(struct ts_ctx *ctx)
 
 struct sp_session *sp_get_session(uint32_t session_id);
 TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp);
-TEE_Result sp_partition_info_get(struct ffa_partition_info *fpi,
-				 const TEE_UUID *ffa_uuid, size_t *elem_count);
-
+TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
+				 const TEE_UUID *ffa_uuid, size_t *elem_count,
+				 bool count_only);
 bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 			     struct user_mode_ctx *uctx);
 TEE_Result sp_map_shared(struct sp_session *s,

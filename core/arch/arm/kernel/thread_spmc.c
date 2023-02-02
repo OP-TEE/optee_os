@@ -46,6 +46,25 @@ struct mem_frag_state {
 
 /* Initialized in spmc_init() below */
 static uint16_t my_endpoint_id;
+#ifdef CFG_CORE_SEL1_SPMC
+static const uint32_t my_part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
+				      FFA_PART_PROP_DIRECT_REQ_SEND |
+#ifdef ARM64
+				      FFA_PART_PROP_AARCH64_STATE |
+#endif
+				      FFA_PART_PROP_IS_PE_ID;
+
+static uint32_t my_uuid_words[] = {
+	/*
+	 * - if the SPMC is in S-EL2 this UUID describes OP-TEE as a S-EL1
+	 *   SP, or
+	 * - if the SPMC is in S-EL1 then this UUID is for OP-TEE as a
+	 *   logical partition, residing in the same exception level as the
+	 *   SPMC
+	 * UUID 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
+	 */
+	0xe0786148, 0xe311f8e7, 0x02005ebc, 0x1bc5d5a5,
+};
 
 /*
  * If struct ffa_rxtx::size is 0 RX/TX buffers are not mapped or initialized.
@@ -62,7 +81,6 @@ static uint16_t my_endpoint_id;
  * the lock.
  */
 
-#ifdef CFG_CORE_SEL1_SPMC
 static struct ffa_rxtx nw_rxtx;
 
 static bool is_nw_buf(struct ffa_rxtx *rxtx)
@@ -94,17 +112,28 @@ void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 					  .a5 = w5, };
 }
 
-#if defined(CFG_CORE_SEL1_SPMC)
-void spmc_handle_version(struct thread_smc_args *args)
+static uint32_t exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
 	/*
-	 * We currently only support one version, 1.0 so let's keep it
-	 * simple.
+	 * No locking, if the caller does concurrent calls to this it's
+	 * only making a mess for itself. We must be able to renegotiate
+	 * the FF-A version in order to support differing versions between
+	 * the loader and the driver.
 	 */
-	spmc_set_args(args,
-		      MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR),
+	if (vers < FFA_VERSION_1_1)
+		rxtx->ffa_vers = FFA_VERSION_1_0;
+	else
+		rxtx->ffa_vers = FFA_VERSION_1_1;
+
+	return rxtx->ffa_vers;
+}
+
+#if defined(CFG_CORE_SEL1_SPMC)
+void spmc_handle_version(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
+{
+	spmc_set_args(args, exchange_version(args->a0, rxtx), FFA_PARAM_MBZ,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+		      FFA_PARAM_MBZ);
 }
 
 static void handle_features(struct thread_smc_args *args)
@@ -139,12 +168,15 @@ static void handle_features(struct thread_smc_args *args)
 #ifdef ARM64
 	case FFA_SUCCESS_64:
 #endif
+	case FFA_FEATURES:
 	case FFA_MEM_FRAG_TX:
 	case FFA_MEM_RECLAIM:
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 	case FFA_INTERRUPT:
 	case FFA_PARTITION_INFO_GET:
+	case FFA_RXTX_UNMAP:
 	case FFA_RX_RELEASE:
+	case FFA_FEATURE_MANAGED_EXIT_INTR:
 		ret_fid = FFA_SUCCESS_32;
 		break;
 	default:
@@ -322,38 +354,59 @@ static bool is_my_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
 	 * The test below is for the hard coded UUID
 	 * 486178e0-e7f8-11e3-bc5e-0002a5d5c51b
 	 */
-	return w0 == 0xe0786148 && w1 == 0xe311f8e7 &&
-	       w2 == 0x02005ebc && w3 == 0x1bc5d5a5;
+	return w0 == my_uuid_words[0] && w1 == my_uuid_words[1] &&
+	       w2 == my_uuid_words[2] && w3 == my_uuid_words[3];
 }
 
-void spmc_fill_partition_entry(struct ffa_partition_info *fpi,
-			       uint16_t endpoint_id, uint16_t execution_context)
+TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
+				     size_t idx, uint16_t endpoint_id,
+				     uint16_t execution_context,
+				     uint32_t part_props,
+				     const uint32_t uuid_words[4])
 {
+	struct ffa_partition_info_x *fpi = NULL;
+	size_t fpi_size = sizeof(*fpi);
+
+	if (ffa_vers >= FFA_VERSION_1_1)
+		fpi_size += FFA_UUID_SIZE;
+
+	if ((idx + 1) * fpi_size > blen)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	fpi = (void *)((vaddr_t)buf + idx * fpi_size);
 	fpi->id = endpoint_id;
 	/* Number of execution contexts implemented by this partition */
 	fpi->execution_context = execution_context;
 
-	fpi->partition_properties = FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT |
-				    FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT;
+	fpi->partition_properties = part_props;
+
+	if (ffa_vers >= FFA_VERSION_1_1) {
+		if (uuid_words)
+			memcpy(fpi->uuid, uuid_words, FFA_UUID_SIZE);
+		else
+			memset(fpi->uuid, 0, FFA_UUID_SIZE);
+	}
+
+	return TEE_SUCCESS;
 }
 
-static uint32_t handle_partition_info_get_all(size_t *elem_count,
-					      struct ffa_rxtx *rxtx)
+static int handle_partition_info_get_all(size_t *elem_count,
+					 struct ffa_rxtx *rxtx, bool count_only)
 {
-	struct ffa_partition_info *fpi = rxtx->tx;
-
-	/* Add OP-TEE SP */
-	spmc_fill_partition_entry(fpi, my_endpoint_id, CFG_TEE_CORE_NB_CORE);
-	rxtx->tx_is_mine = false;
+	if (!count_only) {
+		/* Add OP-TEE SP */
+		if (spmc_fill_partition_entry(rxtx->ffa_vers, rxtx->tx,
+					      rxtx->size, 0, my_endpoint_id,
+					      CFG_TEE_CORE_NB_CORE,
+					      my_part_props, my_uuid_words))
+			return FFA_NO_MEMORY;
+	}
 	*elem_count = 1;
-	fpi++;
 
 	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
-		size_t count = (rxtx->size / sizeof(*fpi)) - 1;
-
-		if (sp_partition_info_get(fpi, NULL, &count))
+		if (sp_partition_info_get(rxtx->ffa_vers, rxtx->tx, rxtx->size,
+					  NULL, elem_count, count_only))
 			return FFA_NO_MEMORY;
-		*elem_count += count;
 	}
 
 	return FFA_OK;
@@ -362,33 +415,25 @@ static uint32_t handle_partition_info_get_all(size_t *elem_count,
 void spmc_handle_partition_info_get(struct thread_smc_args *args,
 				    struct ffa_rxtx *rxtx)
 {
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t rc = 0;
-	uint32_t endpoint_id = my_endpoint_id;
-	struct ffa_partition_info *fpi = NULL;
+	bool count_only = args->a5 & FFA_PARTITION_INFO_GET_COUNT_FLAG;
 
-	cpu_spin_lock(&rxtx->spinlock);
+	if (!count_only) {
+		cpu_spin_lock(&rxtx->spinlock);
 
-	if (!rxtx->size || !rxtx->tx_is_mine) {
-		if (rxtx->size)
+		if (!rxtx->size || !rxtx->tx_is_mine) {
 			rc = FFA_BUSY;
-		else
-			rc = FFA_DENIED; /* TX buffer not setup yet */
-		goto out;
-	}
-
-	fpi = rxtx->tx;
-
-	if (rxtx->size < sizeof(*fpi)) {
-		ret_fid = FFA_ERROR;
-		rc = FFA_NO_MEMORY;
-		goto out;
+			goto out;
+		}
 	}
 
 	if (is_nil_uuid(args->a1, args->a2, args->a3, args->a4)) {
 		size_t elem_count = 0;
 
-		ret_fid = handle_partition_info_get_all(&elem_count, rxtx);
+		ret_fid = handle_partition_info_get_all(&elem_count, rxtx,
+							count_only);
 
 		if (ret_fid) {
 			rc = ret_fid;
@@ -402,14 +447,24 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	}
 
 	if (is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
-		spmc_fill_partition_entry(fpi, endpoint_id,
-					  CFG_TEE_CORE_NB_CORE);
+		if (!count_only) {
+			res = spmc_fill_partition_entry(rxtx->ffa_vers,
+							rxtx->tx, rxtx->size, 0,
+							my_endpoint_id,
+							CFG_TEE_CORE_NB_CORE,
+							my_part_props,
+							my_uuid_words);
+			if (res) {
+				ret_fid = FFA_ERROR;
+				rc = FFA_INVALID_PARAMETERS;
+				goto out;
+			}
+		}
 		rc = 1;
 	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		uint32_t uuid_array[4] = { 0 };
 		TEE_UUID uuid = { };
-		TEE_Result res = TEE_SUCCESS;
-		size_t count = (rxtx->size / sizeof(*fpi));
+		size_t count = 0;
 
 		uuid_array[0] = args->a1;
 		uuid_array[1] = args->a2;
@@ -417,7 +472,9 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		uuid_array[3] = args->a4;
 		tee_uuid_from_octets(&uuid, (uint8_t *)uuid_array);
 
-		res = sp_partition_info_get(fpi, &uuid, &count);
+		res = sp_partition_info_get(rxtx->ffa_vers, rxtx->tx,
+					    rxtx->size, &uuid, &count,
+					    count_only);
 		if (res != TEE_SUCCESS) {
 			ret_fid = FFA_ERROR;
 			rc = FFA_INVALID_PARAMETERS;
@@ -431,12 +488,14 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	}
 
 	ret_fid = FFA_SUCCESS_32;
-	rxtx->tx_is_mine = false;
 
 out:
 	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
-	cpu_spin_unlock(&rxtx->spinlock);
+	if (!count_only) {
+		rxtx->tx_is_mine = false;
+		cpu_spin_unlock(&rxtx->spinlock);
+	}
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
@@ -512,16 +571,124 @@ static void handle_blocking_call(struct thread_smc_args *args)
 	}
 }
 
+static void handle_framework_direct_request(struct thread_smc_args *args,
+					    struct ffa_rxtx *rxtx)
+{
+	uint32_t w0 = FFA_ERROR;
+	uint32_t w1 = FFA_PARAM_MBZ;
+	uint32_t w2 = FFA_NOT_SUPPORTED;
+	uint32_t w3 = FFA_PARAM_MBZ;
+
+	switch (args->a2 & FFA_MSG_TYPE_MASK) {
+	case FFA_MSG_VERSION_REQ:
+		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+		w1 = swap_src_dst(args->a1);
+		w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_VERSION_RESP;
+		w3 = exchange_version(args->a3, rxtx);
+		break;
+	default:
+		break;
+	}
+	spmc_set_args(args, w0, w1, w2, w3, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
+static void handle_direct_request(struct thread_smc_args *args,
+				  struct ffa_rxtx *rxtx)
+{
+	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
+	    FFA_DST(args->a1) != my_endpoint_id) {
+		spmc_sp_start_thread(args);
+		return;
+	}
+
+	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
+		handle_framework_direct_request(args, rxtx);
+		return;
+	}
+
+	if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
+		handle_yielding_call(args);
+	else
+		handle_blocking_call(args);
+}
+
+int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
+			      struct ffa_mem_transaction_x *trans)
+{
+	uint16_t mem_reg_attr = 0;
+	uint32_t flags = 0;
+	uint32_t count = 0;
+	uint32_t offs = 0;
+	uint32_t size = 0;
+	size_t n = 0;
+
+	if (!IS_ALIGNED_WITH_TYPE(buf, uint64_t))
+		return FFA_INVALID_PARAMETERS;
+
+	if (ffa_vers >= FFA_VERSION_1_1) {
+		struct ffa_mem_transaction_1_1 *descr = NULL;
+
+		if (blen < sizeof(*descr))
+			return FFA_INVALID_PARAMETERS;
+
+		descr = buf;
+		trans->sender_id = READ_ONCE(descr->sender_id);
+		mem_reg_attr = READ_ONCE(descr->mem_reg_attr);
+		flags = READ_ONCE(descr->flags);
+		trans->global_handle = READ_ONCE(descr->global_handle);
+		trans->tag = READ_ONCE(descr->tag);
+
+		count = READ_ONCE(descr->mem_access_count);
+		size = READ_ONCE(descr->mem_access_size);
+		offs = READ_ONCE(descr->mem_access_offs);
+	} else {
+		struct ffa_mem_transaction_1_0 *descr = NULL;
+
+		if (blen < sizeof(*descr))
+			return FFA_INVALID_PARAMETERS;
+
+		descr = buf;
+		trans->sender_id = READ_ONCE(descr->sender_id);
+		mem_reg_attr = READ_ONCE(descr->mem_reg_attr);
+		flags = READ_ONCE(descr->flags);
+		trans->global_handle = READ_ONCE(descr->global_handle);
+		trans->tag = READ_ONCE(descr->tag);
+
+		count = READ_ONCE(descr->mem_access_count);
+		size = sizeof(struct ffa_mem_access);
+		offs = offsetof(struct ffa_mem_transaction_1_0,
+				mem_access_array);
+	}
+
+	if (mem_reg_attr > UINT8_MAX || flags > UINT8_MAX ||
+	    size > UINT8_MAX || count > UINT8_MAX || offs > UINT16_MAX)
+		return FFA_INVALID_PARAMETERS;
+
+	/* Check that the endpoint memory access descriptor array fits */
+	if (MUL_OVERFLOW(size, count, &n) || ADD_OVERFLOW(offs, n, &n) ||
+	    n > blen)
+		return FFA_INVALID_PARAMETERS;
+
+	trans->mem_reg_attr = mem_reg_attr;
+	trans->flags = flags;
+	trans->mem_access_size = size;
+	trans->mem_access_count = count;
+	trans->mem_access_offs = offs;
+	return 0;
+}
+
 #if defined(CFG_CORE_SEL1_SPMC)
-static int get_acc_perms(struct ffa_mem_access *mem_acc,
-			 unsigned int num_mem_accs, uint8_t *acc_perms,
+static int get_acc_perms(vaddr_t mem_acc_base, unsigned int mem_access_size,
+			 unsigned int mem_access_count, uint8_t *acc_perms,
 			 unsigned int *region_offs)
 {
+	struct ffa_mem_access_perm *descr = NULL;
+	struct ffa_mem_access *mem_acc = NULL;
 	unsigned int n = 0;
 
-	for (n = 0; n < num_mem_accs; n++) {
-		struct ffa_mem_access_perm *descr = &mem_acc[n].access_perm;
-
+	for (n = 0; n < mem_access_count; n++) {
+		mem_acc = (void *)(mem_acc_base + mem_access_size * n);
+		descr = &mem_acc->access_perm;
 		if (READ_ONCE(descr->endpoint_id) == my_endpoint_id) {
 			*acc_perms = READ_ONCE(descr->perm);
 			*region_offs = READ_ONCE(mem_acc[n].region_offs);
@@ -532,36 +699,25 @@ static int get_acc_perms(struct ffa_mem_access *mem_acc,
 	return FFA_INVALID_PARAMETERS;
 }
 
-static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
+static int mem_share_init(struct ffa_mem_transaction_x *mem_trans, void *buf,
+			  size_t blen, unsigned int *page_count,
 			  unsigned int *region_count, size_t *addr_range_offs)
 {
-	const uint8_t exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+	const uint16_t exp_mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
 	const uint8_t exp_mem_acc_perm = FFA_MEM_ACC_RW;
 	struct ffa_mem_region *region_descr = NULL;
-	struct ffa_mem_transaction *descr = NULL;
-	unsigned int num_mem_accs = 0;
-	uint8_t mem_acc_perm = 0;
 	unsigned int region_descr_offs = 0;
+	uint8_t mem_acc_perm = 0;
 	size_t n = 0;
 
-	if (!IS_ALIGNED_WITH_TYPE(buf, struct ffa_mem_transaction) ||
-	    blen < sizeof(struct ffa_mem_transaction))
-		return FFA_INVALID_PARAMETERS;
-
-	descr = buf;
-
-	/* Check that the endpoint memory access descriptor array fits */
-	num_mem_accs = READ_ONCE(descr->mem_access_count);
-	if (MUL_OVERFLOW(sizeof(struct ffa_mem_access), num_mem_accs, &n) ||
-	    ADD_OVERFLOW(sizeof(*descr), n, &n) || n > blen)
-		return FFA_INVALID_PARAMETERS;
-
-	if (READ_ONCE(descr->mem_reg_attr) != exp_mem_reg_attr)
+	if (mem_trans->mem_reg_attr != exp_mem_reg_attr)
 		return FFA_INVALID_PARAMETERS;
 
 	/* Check that the access permissions matches what's expected */
-	if (get_acc_perms(descr->mem_access_array,
-			  num_mem_accs, &mem_acc_perm, &region_descr_offs) ||
+	if (get_acc_perms((vaddr_t)buf + mem_trans->mem_access_offs,
+			  mem_trans->mem_access_size,
+			  mem_trans->mem_access_count,
+			  &mem_acc_perm, &region_descr_offs) ||
 	    mem_acc_perm != exp_mem_acc_perm)
 		return FFA_INVALID_PARAMETERS;
 
@@ -570,11 +726,11 @@ static int mem_share_init(void *buf, size_t blen, unsigned int *page_count,
 	    n > blen)
 		return FFA_INVALID_PARAMETERS;
 
-	if (!IS_ALIGNED_WITH_TYPE((vaddr_t)descr + region_descr_offs,
+	if (!IS_ALIGNED_WITH_TYPE((vaddr_t)buf + region_descr_offs,
 				  struct ffa_mem_region))
 		return FFA_INVALID_PARAMETERS;
 
-	region_descr = (struct ffa_mem_region *)((vaddr_t)descr +
+	region_descr = (struct ffa_mem_region *)((vaddr_t)buf +
 						 region_descr_offs);
 	*page_count = READ_ONCE(region_descr->total_page_count);
 	*region_count = READ_ONCE(region_descr->address_range_count);
@@ -643,16 +799,20 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 	return rc;
 }
 
-static bool is_sp_share(void *buf)
+static bool is_sp_share(struct ffa_mem_transaction_x *mem_trans,
+			void *buf)
 {
-	struct ffa_mem_transaction *input_descr = NULL;
 	struct ffa_mem_access_perm *perm = NULL;
+	struct ffa_mem_access *mem_acc = NULL;
 
 	if (!IS_ENABLED(CFG_SECURE_PARTITION))
 		return false;
 
-	input_descr = buf;
-	perm = &input_descr->mem_access_array[0].access_perm;
+	if (mem_trans->mem_access_count < 1)
+		return false;
+
+	mem_acc = (void *)((vaddr_t)buf + mem_trans->mem_access_offs);
+	perm = &mem_acc->access_perm;
 
 	/*
 	 * perm->endpoint_id is read here only to check if the endpoint is
@@ -662,7 +822,8 @@ static bool is_sp_share(void *buf)
 	return READ_ONCE(perm->endpoint_id) != my_endpoint_id;
 }
 
-static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
+static int add_mem_share(struct ffa_mem_transaction_x *mem_trans,
+			 tee_mm_entry_t *mm, void *buf, size_t blen,
 			 size_t flen, uint64_t *global_handle)
 {
 	int rc = 0;
@@ -670,8 +831,8 @@ static int add_mem_share(tee_mm_entry_t *mm, void *buf, size_t blen,
 	size_t addr_range_offs = 0;
 	size_t n = 0;
 
-	rc = mem_share_init(buf, flen, &share.page_count, &share.region_count,
-			    &addr_range_offs);
+	rc = mem_share_init(mem_trans, buf, flen, &share.page_count,
+			    &share.region_count, &addr_range_offs);
 	if (rc)
 		return rc;
 
@@ -728,8 +889,10 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 				 unsigned int page_count,
 				 uint64_t *global_handle, struct ffa_rxtx *rxtx)
 {
+	struct ffa_mem_transaction_x mem_trans = { };
 	int rc = 0;
 	size_t len = 0;
+	void *buf = NULL;
 	tee_mm_entry_t *mm = NULL;
 	vaddr_t offs = pbuf & SMALL_PAGE_MASK;
 
@@ -754,10 +917,13 @@ static int handle_mem_share_tmem(paddr_t pbuf, size_t blen, size_t flen,
 		rc = FFA_INVALID_PARAMETERS;
 		goto out;
 	}
+	buf = (void *)(tee_mm_get_smem(mm) + offs);
 
 	cpu_spin_lock(&rxtx->spinlock);
-	rc = add_mem_share(mm, (void *)(tee_mm_get_smem(mm) + offs), blen, flen,
-			   global_handle);
+	rc = spmc_read_mem_transaction(rxtx->ffa_vers, buf, flen, &mem_trans);
+	if (!rc)
+		rc = add_mem_share(&mem_trans, mm, buf, blen, flen,
+				   global_handle);
 	cpu_spin_unlock(&rxtx->spinlock);
 	if (rc > 0)
 		return rc;
@@ -772,20 +938,28 @@ static int handle_mem_share_rxbuf(size_t blen, size_t flen,
 				  uint64_t *global_handle,
 				  struct ffa_rxtx *rxtx)
 {
+	struct ffa_mem_transaction_x mem_trans = { };
 	int rc = FFA_DENIED;
 
 	cpu_spin_lock(&rxtx->spinlock);
 
-	if (rxtx->rx && flen <= rxtx->size) {
-		if (is_sp_share(rxtx->rx)) {
-			rc = spmc_sp_add_share(rxtx, blen,
-					       global_handle, NULL);
-		} else {
-			rc = add_mem_share(NULL, rxtx->rx, blen, flen,
-					   global_handle);
-		}
+	if (!rxtx->rx || flen > rxtx->size)
+		goto out;
+
+	rc = spmc_read_mem_transaction(rxtx->ffa_vers, rxtx->rx, flen,
+				       &mem_trans);
+	if (rc)
+		goto out;
+	if (is_sp_share(&mem_trans, rxtx->rx)) {
+		rc = spmc_sp_add_share(&mem_trans, rxtx, blen,
+				       global_handle, NULL);
+		goto out;
 	}
 
+	rc = add_mem_share(&mem_trans, NULL, rxtx->rx, blen, flen,
+			   global_handle);
+
+out:
 	cpu_spin_unlock(&rxtx->spinlock);
 
 	return rc;
@@ -961,7 +1135,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	switch (args->a0) {
 #if defined(CFG_CORE_SEL1_SPMC)
 	case FFA_VERSION:
-		spmc_handle_version(args);
+		spmc_handle_version(args, &nw_rxtx);
 		break;
 	case FFA_FEATURES:
 		handle_features(args);
@@ -990,16 +1164,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MSG_SEND_DIRECT_REQ_64:
 #endif
 	case FFA_MSG_SEND_DIRECT_REQ_32:
-		if (IS_ENABLED(CFG_SECURE_PARTITION) &&
-		    FFA_DST(args->a1) != my_endpoint_id) {
-			spmc_sp_start_thread(args);
-			break;
-		}
-
-		if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
-			handle_yielding_call(args);
-		else
-			handle_blocking_call(args);
+		handle_direct_request(args, &nw_rxtx);
 		break;
 #if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
@@ -1339,6 +1504,18 @@ static TEE_Result spmc_init(void)
 	my_endpoint_id = SPMC_ENDPOINT_ID;
 	DMSG("My endpoint ID %#x", my_endpoint_id);
 
+	/*
+	 * If SPMD think we are version 1.0 it will report version 1.0 to
+	 * normal world regardless of what version we query the SPM with.
+	 * However, if SPMD think we are version 1.1 it will forward
+	 * queries from normal world to let us negotiate version. So by
+	 * setting version 1.0 here we should be compatible.
+	 *
+	 * Note that disagreement on negotiated version means that we'll
+	 * have communication problems with normal world.
+	 */
+	nw_rxtx.ffa_vers = FFA_VERSION_1_0;
+
 	return TEE_SUCCESS;
 }
 #else /* !defined(CFG_CORE_SEL1_SPMC) */
@@ -1392,29 +1569,63 @@ static uint16_t spmc_get_id(void)
 	return args.a2;
 }
 
-static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
+static uint32_t get_ffa_version(uint32_t my_version)
 {
-	struct ffa_mem_transaction *trans_descr = nw_rxtx.tx;
+	struct thread_smc_args args = {
+		.a0 = FFA_VERSION,
+		.a1 = my_version,
+	};
+
+	thread_smccc(&args);
+	if (args.a0 & BIT(31)) {
+		EMSG("FF-A version failed with error %ld", args.a0);
+		panic();
+	}
+
+	return args.a0;
+}
+
+static void *spmc_retrieve_req(uint64_t cookie,
+			       struct ffa_mem_transaction_x *trans)
+{
 	struct ffa_mem_access *acc_descr_array = NULL;
 	struct ffa_mem_access_perm *perm_descr = NULL;
-	size_t size = sizeof(*trans_descr) +
-		      1 * sizeof(struct ffa_mem_access);
 	struct thread_smc_args args = {
 		.a0 = FFA_MEM_RETRIEVE_REQ_32,
-		.a1 =   size,	/* Total Length */
-		.a2 =	size,	/* Frag Length == Total length */
 		.a3 =	0,	/* Address, Using TX -> MBZ */
 		.a4 =   0,	/* Using TX -> MBZ */
 	};
+	size_t size = 0;
+	int rc = 0;
 
-	memset(trans_descr, 0, size);
-	trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
-	trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
-	trans_descr->global_handle = cookie;
-	trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
-			     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
-	trans_descr->mem_access_count = 1;
-	acc_descr_array = trans_descr->mem_access_array;
+	if (nw_rxtx.ffa_vers == FFA_VERSION_1_0) {
+		struct ffa_mem_transaction_1_0 *trans_descr = nw_rxtx.tx;
+
+		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
+		memset(trans_descr, 0, size);
+		trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
+		trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+		trans_descr->global_handle = cookie;
+		trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
+				     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+		trans_descr->mem_access_count = 1;
+		acc_descr_array = trans_descr->mem_access_array;
+	} else {
+		struct ffa_mem_transaction_1_1 *trans_descr = nw_rxtx.tx;
+
+		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
+		memset(trans_descr, 0, size);
+		trans_descr->sender_id = thread_get_tsd()->rpc_target_info;
+		trans_descr->mem_reg_attr = FFA_NORMAL_MEM_REG_ATTR;
+		trans_descr->global_handle = cookie;
+		trans_descr->flags = FFA_MEMORY_REGION_TRANSACTION_TYPE_SHARE |
+				     FFA_MEMORY_REGION_FLAG_ANY_ALIGNMENT;
+		trans_descr->mem_access_count = 1;
+		trans_descr->mem_access_offs = sizeof(*trans_descr);
+		trans_descr->mem_access_size = sizeof(struct ffa_mem_access);
+		acc_descr_array = (void *)((vaddr_t)nw_rxtx.tx +
+					   sizeof(*trans_descr));
+	}
 	acc_descr_array->region_offs = 0;
 	acc_descr_array->reserved = 0;
 	perm_descr = &acc_descr_array->access_perm;
@@ -1422,6 +1633,8 @@ static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
 	perm_descr->perm = FFA_MEM_ACC_RW;
 	perm_descr->flags = 0;
 
+	args.a1 = size; /* Total Length */
+	args.a2 = size; /* Frag Length == Total length */
 	thread_smccc(&args);
 	if (args.a0 != FFA_MEM_RETRIEVE_RESP) {
 		if (args.a0 == FFA_ERROR)
@@ -1430,6 +1643,13 @@ static struct ffa_mem_transaction *spmc_retrieve_req(uint64_t cookie)
 		else
 			EMSG("Failed to fetch cookie %#"PRIx64" a0 %#"PRIx64,
 			     cookie, args.a0);
+		return NULL;
+	}
+	rc = spmc_read_mem_transaction(nw_rxtx.ffa_vers, nw_rxtx.tx,
+				       nw_rxtx.size, trans);
+	if (rc) {
+		EMSG("Memory transaction failure for cookie %#"PRIx64" rc %d",
+		     cookie, rc);
 		return NULL;
 	}
 
@@ -1477,12 +1697,13 @@ static int set_pages(struct ffa_address_range *regions,
 struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 {
 	struct mobj_ffa *ret = NULL;
-	struct ffa_mem_transaction *retrieve_desc = NULL;
+	struct ffa_mem_transaction_x retrieve_desc = { };
 	struct ffa_mem_access *descr_array = NULL;
 	struct ffa_mem_region *descr = NULL;
 	struct mobj_ffa *mf = NULL;
 	unsigned int num_pages = 0;
 	unsigned int offs = 0;
+	void *buf = NULL;
 	struct thread_smc_args ffa_rx_release_args = {
 		.a0 = FFA_RX_RELEASE
 	};
@@ -1491,16 +1712,16 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 	 * OP-TEE is only supporting a single mem_region while the
 	 * specification allows for more than one.
 	 */
-	retrieve_desc = spmc_retrieve_req(cookie);
-	if (!retrieve_desc) {
+	buf = spmc_retrieve_req(cookie, &retrieve_desc);
+	if (!buf) {
 		EMSG("Failed to retrieve cookie from rx buffer %#"PRIx64,
 		     cookie);
 		return NULL;
 	}
 
-	descr_array = retrieve_desc->mem_access_array;
+	descr_array = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
 	offs = READ_ONCE(descr_array->region_offs);
-	descr = (struct ffa_mem_region *)((vaddr_t)retrieve_desc + offs);
+	descr = (struct ffa_mem_region *)((vaddr_t)buf + offs);
 
 	num_pages = READ_ONCE(descr->total_page_count);
 	mf = mobj_ffa_spmc_new(cookie, num_pages);
@@ -1524,6 +1745,28 @@ out:
 
 static TEE_Result spmc_init(void)
 {
+	unsigned int major = 0;
+	unsigned int minor __maybe_unused = 0;
+	uint32_t my_vers = 0;
+	uint32_t vers = 0;
+
+	my_vers = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
+	vers = get_ffa_version(my_vers);
+	major = (vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK;
+	minor = (vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK;
+	DMSG("SPMC reported version %u.%u", major, minor);
+	if (major != FFA_VERSION_MAJOR) {
+		EMSG("Incompatible major version %u, expected %u",
+		     major, FFA_VERSION_MAJOR);
+		panic();
+	}
+	if (vers < my_vers)
+		my_vers = vers;
+	DMSG("Using version %u.%u",
+	     (my_vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK,
+	     (my_vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK);
+	nw_rxtx.ffa_vers = my_vers;
+
 	spmc_rxtx_map(&nw_rxtx);
 	my_endpoint_id = spmc_get_id();
 	DMSG("My endpoint ID %#x", my_endpoint_id);

@@ -109,12 +109,14 @@ struct sp_session *sp_get_session(uint32_t session_id)
 	return NULL;
 }
 
-TEE_Result sp_partition_info_get(struct ffa_partition_info *fpi,
-				 const TEE_UUID *ffa_uuid, size_t *elem_count)
+TEE_Result sp_partition_info_get(uint32_t ffa_vers, void *buf, size_t buf_size,
+				 const TEE_UUID *ffa_uuid, size_t *elem_count,
+				 bool count_only)
 {
-	size_t in_count = *elem_count;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t part_props = FFA_PART_PROP_DIRECT_REQ_RECV |
+			      FFA_PART_PROP_DIRECT_REQ_SEND;
 	struct sp_session *s = NULL;
-	size_t count = 0;
 
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
 		if (ffa_uuid &&
@@ -123,18 +125,19 @@ TEE_Result sp_partition_info_get(struct ffa_partition_info *fpi,
 
 		if (s->state == sp_dead)
 			continue;
-		if (count < in_count) {
-			spmc_fill_partition_entry(fpi, s->endpoint_id, 1);
-			fpi++;
+		if (!count_only && !res) {
+			uint32_t uuid_words[4] = { 0 };
+
+			tee_uuid_to_octets((uint8_t *)uuid_words, &s->ffa_uuid);
+			res = spmc_fill_partition_entry(ffa_vers, buf, buf_size,
+							*elem_count,
+							s->endpoint_id, 1,
+							part_props, uuid_words);
 		}
-		count++;
+		*elem_count += 1;
 	}
 
-	*elem_count = count;
-	if (count > in_count)
-		return TEE_ERROR_SHORT_BUFFER;
-
-	return TEE_SUCCESS;
+	return res;
 }
 
 bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
