@@ -28,12 +28,15 @@
 #define FFA_VERSION_MAJOR		U(1)
 #define FFA_VERSION_MAJOR_SHIFT		U(16)
 #define FFA_VERSION_MAJOR_MASK		U(0x7FFF)
-#define FFA_VERSION_MINOR		U(0)
+#define FFA_VERSION_MINOR		U(1)
 #define FFA_VERSION_MINOR_SHIFT		U(0)
 #define FFA_VERSION_MINOR_MASK		U(0xFFFF)
 #define MAKE_FFA_VERSION(major, minor)	\
 	((((major) & FFA_VERSION_MAJOR_MASK) << FFA_VERSION_MAJOR_SHIFT) | \
 	 ((minor) & FFA_VERSION_MINOR_MASK))
+
+#define FFA_VERSION_1_0			MAKE_FFA_VERSION(1, 0)
+#define FFA_VERSION_1_1			MAKE_FFA_VERSION(1, 1)
 
 /* Function IDs */
 #define FFA_ERROR			U(0x84000060)
@@ -48,9 +51,11 @@
 #define FFA_RXTX_UNMAP			U(0x84000067)
 #define FFA_PARTITION_INFO_GET		U(0x84000068)
 #define FFA_ID_GET			U(0x84000069)
+#define FFA_SPM_ID_GET			U(0x84000085)
 #define FFA_MSG_WAIT			U(0x8400006B)
 #define FFA_MSG_YIELD			U(0x8400006C)
 #define FFA_MSG_RUN			U(0x8400006D)
+#define FFA_MSG_SEND2			U(0x84000086)
 #define FFA_MSG_SEND			U(0x8400006E)
 #define FFA_MSG_SEND_DIRECT_REQ_32	U(0x8400006F)
 #define FFA_MSG_SEND_DIRECT_REQ_64	U(0xC400006F)
@@ -70,14 +75,42 @@
 #define FFA_MEM_RECLAIM			U(0x84000077)
 #define FFA_MEM_FRAG_RX			U(0x8400007A)
 #define FFA_MEM_FRAG_TX			U(0x8400007B)
+#define FFA_NOTIFICATION_BITMAP_CREATE	U(0x8400007D)
+#define FFA_NOTIFICATION_BITMAP_DESTROY	U(0x8400007E)
+#define FFA_NOTIFICATION_BIND		U(0x8400007F)
+#define FFA_NOTIFICATION_UNBIND		U(0x84000080)
+#define FFA_NOTIFICATION_SET		U(0x84000081)
+#define FFA_NOTIFICATION_GET		U(0x84000082)
+#define FFA_NOTIFICATION_INFO_GET_32	U(0x84000083)
+#define FFA_NOTIFICATION_INFO_GET_64	U(0xC4000083)
 #define FFA_SECONDARY_EP_REGISTER_64	U(0xC4000087)
 #define FFA_MEM_PERM_GET_32		U(0x84000088)
 #define FFA_MEM_PERM_GET_64		U(0xC4000088)
 #define FFA_MEM_PERM_SET_32		U(0x84000089)
 #define FFA_MEM_PERM_SET_64		U(0xC4000089)
 
+#define FFA_FEATURE_NOTIF_PEND_INTR	U(0x1)
+#define FFA_FEATURE_SCHEDULE_RECV_INTR	U(0x2)
+#define FFA_FEATURE_MANAGED_EXIT_INTR	U(0x3)
+
 /* Special value for traffic targeted to the Hypervisor or SPM */
 #define FFA_TARGET_INFO_MBZ		U(0x0)
+
+#define FFA_MSG_FLAG_FRAMEWORK		BIT(31)
+#define FFA_MSG_TYPE_MASK		GENMASK_32(7, 0)
+#define FFA_MSG_PSCI			U(0x0)
+#define FFA_MSG_SEND_VM_CREATED		U(0x4)
+#define FFA_MSG_RESP_VM_CREATED		U(0x5)
+#define FFA_MSG_SEND_VM_DESTROYED	U(0x6)
+#define FFA_MSG_RESP_VM_DESTROYED	U(0x7)
+#define FFA_MSG_VERSION_REQ		U(0x8)
+#define FFA_MSG_VERSION_RESP		U(0x9)
+
+/*
+ * Flag used as parameter to FFA_PARTITION_INFO_GET to return partition
+ * count only.
+ */
+#define FFA_PARTITION_INFO_GET_COUNT_FLAG	BIT(0)
 
 /* Memory attributes: Normal memory, Write-Back cacheable, Inner shareable */
 #define FFA_NORMAL_MEM_REG_ATTR		U(0x2f)
@@ -120,12 +153,22 @@
  * Flags used for the FFA_PARTITION_INFO_GET return message:
  * BIT(0): Supports receipt of direct requests
  * BIT(1): Can send direct requests
- * BIT(2): Cannot send and receive indirect messages
- * BIT(3): Does not support receipt of notifications
+ * BIT(2): Can send and receive indirect messages
+ * BIT(3): Supports receipt of notifications
  * BIT(4-5): Partition ID is a PE endpoint ID
  */
-#define FFA_PARTITION_DIRECT_REQ_RECV_SUPPORT BIT(0)
-#define FFA_PARTITION_DIRECT_REQ_SEND_SUPPORT BIT(1)
+#define FFA_PART_PROP_DIRECT_REQ_RECV	BIT(0)
+#define FFA_PART_PROP_DIRECT_REQ_SEND	BIT(1)
+#define FFA_PART_PROP_INDIRECT_MSGS	BIT(2)
+#define FFA_PART_PROP_RECV_NOTIF	BIT(3)
+#define FFA_PART_PROP_IS_PE_ID		SHIFT_U32(0, 4)
+#define FFA_PART_PROP_IS_SEPID_INDEP	SHIFT_U32(1, 4)
+#define FFA_PART_PROP_IS_SEPID_DEP	SHIFT_U32(2, 4)
+#define FFA_PART_PROP_IS_AUX_ID		SHIFT_U32(3, 4)
+#define FFA_PART_PROP_NOTIF_CREATED	BIT(6)
+#define FFA_PART_PROP_NOTIF_DESTROYED	BIT(7)
+#define FFA_PART_PROP_AARCH64_STATE	BIT(8)
+
 
 #define FFA_MEMORY_HANDLE_SECURE_BIT	BIT64(45)
 #define FFA_MEMORY_HANDLE_NONE_SECURE_BIT	BIT64(44)
@@ -183,7 +226,7 @@ struct ffa_mem_access {
 };
 
 /* Lend, donate or share memory transaction descriptor */
-struct ffa_mem_transaction {
+struct ffa_mem_transaction_1_0 {
 	uint16_t sender_id;
 	uint8_t mem_reg_attr;
 	uint8_t reserved0;
@@ -195,11 +238,47 @@ struct ffa_mem_transaction {
 	struct ffa_mem_access mem_access_array[];
 };
 
+struct ffa_mem_transaction_1_1 {
+	uint16_t sender_id;
+	uint16_t mem_reg_attr;
+	uint32_t flags;
+	uint64_t global_handle;
+	uint64_t tag;
+	uint32_t mem_access_size;
+	uint32_t mem_access_count;
+	uint32_t mem_access_offs;
+	uint8_t reserved[12];
+};
+
+/*
+ * The parts needed from struct ffa_mem_transaction_1_0 or struct
+ * ffa_mem_transaction_1_1, used to provide an abstraction of difference in
+ * data structures between version 1.0 and 1.1. This is just an internal
+ * interface and can be changed without changing any ABI.
+ */
+struct ffa_mem_transaction_x {
+	uint16_t sender_id;
+	uint8_t mem_reg_attr;
+	uint8_t flags;
+	uint8_t mem_access_size;
+	uint8_t mem_access_count;
+	uint16_t mem_access_offs;
+	uint64_t global_handle;
+	uint64_t tag;
+};
+
+#define FFA_UUID_SIZE		16
+
 /* Partition information descriptor */
-struct ffa_partition_info {
+struct ffa_partition_info_x {
 	uint16_t id;
 	uint16_t execution_context;
 	uint32_t partition_properties;
+	/*
+	 * The uuid field is absent in FF-A 1.0, and an array of 16
+	 * (FFA_UUID_SIZE) from FF-A 1.1
+	 */
+	uint8_t uuid[];
 };
 
 /* Descriptor to relinquish a memory region (FFA_MEM_RELINQUISH) */
