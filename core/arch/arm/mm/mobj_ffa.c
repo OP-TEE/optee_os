@@ -5,11 +5,13 @@
 
 #include <assert.h>
 #include <bitstring.h>
+#include <config.h>
 #include <ffa.h>
 #include <initcall.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread_spmc.h>
+#include <kernel/virtualization.h>
 #include <mm/mobj.h>
 #include <sys/queue.h>
 
@@ -83,26 +85,44 @@ static struct mobj_ffa *ffa_new(unsigned int num_pages)
 }
 
 #ifdef CFG_CORE_SEL1_SPMC
-struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages)
+struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
+					unsigned int num_pages)
 {
 	struct mobj_ffa *mf = NULL;
 	uint32_t exceptions = 0;
 	int i = 0;
 
+	if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID) {
+		if (!(cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT))
+			return NULL;
+		if (virt_add_cookie_to_current_guest(cookie))
+			return NULL;
+	}
+
 	mf = ffa_new(num_pages);
-	if (!mf)
+	if (!mf) {
+		if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID)
+			virt_remove_cookie(cookie);
 		return NULL;
+	}
+
+	if (cookie != OPTEE_MSG_FMEM_INVALID_GLOBAL_ID) {
+		mf->cookie = cookie;
+		return mf;
+	}
 
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
 	bit_ffc(shm_bits, NUM_SHMS, &i);
 	if (i != -1) {
 		bit_set(shm_bits, i);
+		mf->cookie = i;
+		mf->cookie |= FFA_MEMORY_HANDLE_NON_SECURE_BIT;
 		/*
-		 * Setting bit 44 to use one of the upper 32 bits too for
-		 * testing.
+		 * Encode the partition ID into the handle so we know which
+		 * partition to switch to when reclaiming a handle.
 		 */
-		mf->cookie = i | FFA_MEMORY_HANDLE_NONE_SECURE_BIT;
-
+		mf->cookie |= SHIFT_U64(virt_get_current_guest_id(),
+					FFA_MEMORY_HANDLE_PRTN_SHIFT);
 	}
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 
@@ -175,17 +195,26 @@ static struct mobj_ffa *find_in_list(struct mobj_ffa_head *head,
 #if defined(CFG_CORE_SEL1_SPMC)
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 {
-	int i = mf->cookie & ~BIT64(44);
-	uint32_t exceptions = 0;
 
-	assert(i >= 0 && i < NUM_SHMS);
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) ||
+	    !(mf->cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT)) {
+		uint64_t mask = FFA_MEMORY_HANDLE_NON_SECURE_BIT;
+		uint32_t exceptions = 0;
+		int64_t i = 0;
 
-	exceptions = cpu_spin_lock_xsave(&shm_lock);
-	assert(bit_test(shm_bits, i));
-	bit_clear(shm_bits, i);
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+			mask |= SHIFT_U64(FFA_MEMORY_HANDLE_PRTN_MASK,
+					  FFA_MEMORY_HANDLE_PRTN_SHIFT);
+		i = mf->cookie & ~mask;
+		assert(i >= 0 && i < NUM_SHMS);
+
+		exceptions = cpu_spin_lock_xsave(&shm_lock);
+		assert(bit_test(shm_bits, i));
+		bit_clear(shm_bits, i);
+		cpu_spin_unlock_xrestore(&shm_lock, exceptions);
+	}
+
 	assert(!mf->mm);
-	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
-
 	free(mf);
 }
 #else /* !defined(CFG_CORE_SEL1_SPMC) */
@@ -295,8 +324,10 @@ TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie)
 	res = TEE_SUCCESS;
 out:
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
-	if (!res)
+	if (!res) {
 		mobj_ffa_sel1_spmc_delete(mf);
+		virt_remove_cookie(cookie);
+	}
 	return res;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/

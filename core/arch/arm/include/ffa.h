@@ -169,9 +169,17 @@
 #define FFA_PART_PROP_NOTIF_DESTROYED	BIT(7)
 #define FFA_PART_PROP_AARCH64_STATE	BIT(8)
 
+#define FFA_MEMORY_HANDLE_HYPERVISOR_BIT	BIT64(63)
+#define FFA_MEMORY_HANDLE_SECURE_BIT		BIT64(45)
+#define FFA_MEMORY_HANDLE_NON_SECURE_BIT	BIT64(44)
+/*
+ * Codes the OP-TEE partition/guest ID into a cookie in order to know which
+ * partition to activate when reclaiming the shared memory. This field is 0
+ * unless CFG_NS_VIRTUALIZATION is enabled.
+ */
+#define FFA_MEMORY_HANDLE_PRTN_SHIFT		16
+#define FFA_MEMORY_HANDLE_PRTN_MASK		GENMASK_32(16, 0)
 
-#define FFA_MEMORY_HANDLE_SECURE_BIT	BIT64(45)
-#define FFA_MEMORY_HANDLE_NONE_SECURE_BIT	BIT64(44)
 
 #define FFA_BOOT_INFO_NAME_LEN		U(16)
 

@@ -121,4 +121,18 @@ static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
 static inline uint16_t virt_get_current_guest_id(void) { return 0; }
 #endif /*CFG_NS_VIRTUALIZATION*/
 
+#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_NS_VIRTUALIZATION)
+TEE_Result virt_add_cookie_to_current_guest(uint64_t cookie);
+void virt_remove_cookie(uint64_t cookie);
+uint16_t virt_find_guest_by_cookie(uint64_t cookie);
+
+#else
+static inline TEE_Result
+virt_add_cookie_to_current_guest(uint64_t cookie __unused)
+{ return TEE_ERROR_NOT_SUPPORTED; }
+static inline void virt_remove_cookie(uint64_t cookie __unused) { }
+static inline uint16_t virt_find_guest_by_cookie(uint64_t cookie __unused)
+{ return 0; }
+#endif
+
 #endif	/* KERNEL_VIRTUALIZATION_H */
