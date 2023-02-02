@@ -753,6 +753,7 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_TA_RAM:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | tagged;
 	case MEM_AREA_NSEC_SHM:
+	case MEM_AREA_NEX_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
 		/*
