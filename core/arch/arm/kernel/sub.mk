@@ -52,7 +52,7 @@ srcs-$(CFG_ARM32_core) += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 
-srcs-$(CFG_VIRTUALIZATION) += virtualization.c
+srcs-$(CFG_NS_VIRTUALIZATION) += virtualization.c
 
 srcs-y += link_dummies_paged.c
 srcs-y += link_dummies_init.c

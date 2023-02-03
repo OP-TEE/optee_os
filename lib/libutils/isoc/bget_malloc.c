@@ -175,7 +175,7 @@ static void malloc_unlock(struct malloc_ctx *ctx __unused,
 
 static DEFINE_CTX(malloc_ctx);
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 static __nex_data DEFINE_CTX(nex_malloc_ctx);
 #endif
 
@@ -1018,7 +1018,7 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len)
 	return gen_malloc_buffer_overlaps_heap(&malloc_ctx, buf, len);
 }
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 
 #ifndef ENABLE_MDBG
 

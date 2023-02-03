@@ -229,7 +229,7 @@ clear_bss:
 	cmp	x0, x1
 	b.lt	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -312,7 +312,7 @@ clear_nex_bss:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -328,7 +328,7 @@ clear_nex_bss:
 	init_memtag_per_cpu
 #endif
 
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x21, sp
 	adr_l	x0, threads
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
@@ -343,7 +343,7 @@ clear_nex_bss:
 	init_pauth_per_cpu
 #endif
 
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP
 	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, x21
@@ -372,7 +372,7 @@ clear_nex_bss:
 	 * next entry. Matches the thread_init_boot_thread in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 

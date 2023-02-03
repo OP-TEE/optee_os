@@ -100,7 +100,7 @@ void malloc_reset_stats(void);
 #endif /* CFG_WITH_STATS */
 
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 
 void nex_free(void *ptr);
 
@@ -146,7 +146,7 @@ void nex_malloc_get_stats(struct malloc_stats *stats);
 void nex_malloc_reset_stats(void);
 
 #endif	/* CFG_WITH_STATS */
-#else  /* CFG_VIRTUALIZATION */
+#else  /* CFG_NS_VIRTUALIZATION */
 
 #define nex_free(ptr) free(ptr)
 #define nex_malloc(size) malloc(size)
@@ -154,7 +154,7 @@ void nex_malloc_reset_stats(void);
 #define nex_realloc(ptr, size) realloc(ptr, size)
 #define nex_memalign(alignment, size) memalign(alignment, size)
 
-#endif	/* CFG_VIRTUALIZATION */
+#endif	/* CFG_NS_VIRTUALIZATION */
 
 struct malloc_ctx;
 void *raw_memalign(size_t hdr_size, size_t ftr_size, size_t alignment,

@@ -429,7 +429,7 @@ clear_bss:
 	cmp	r0, r1
 	bls	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -538,7 +538,7 @@ shadow_stack_access_ok:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -549,7 +549,7 @@ shadow_stack_access_ok:
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
@@ -561,7 +561,7 @@ shadow_stack_access_ok:
 #endif
 	mov	r0, r6		/* DT address */
 	bl	boot_init_primary_late
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, r9
@@ -602,7 +602,7 @@ shadow_stack_access_ok:
 	 * next entry. Matches the thread_init_boot_thread() in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 

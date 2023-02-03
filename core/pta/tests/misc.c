@@ -425,7 +425,7 @@ static int self_test_malloc(void)
 	return ret;
 }
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 /* test nex_malloc support. resulting trace shall be manually checked */
 static int self_test_nex_malloc(void)
 {
@@ -544,7 +544,7 @@ static int self_test_nex_malloc(void)
 
 	return ret;
 }
-#else  /* CFG_VIRTUALIZATION */
+#else  /* CFG_NS_VIRTUALIZATION */
 static int self_test_nex_malloc(void)
 {
 	return 0;

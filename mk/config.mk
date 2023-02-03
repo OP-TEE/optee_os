@@ -556,7 +556,7 @@ CFG_BOOT_SECONDARY_REQUEST ?= n
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
 
-# Default size of nexus heap. 16 kB. Used only if CFG_VIRTUALIZATION
+# Default size of nexus heap. 16 kB. Used only if CFG_NS_VIRTUALIZATION
 # is enabled
 CFG_CORE_NEX_HEAP_SIZE ?= 16384
 
@@ -733,9 +733,10 @@ $(call force,CFG_CORE_MBEDTLS_MPI,y)
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
-CFG_VIRTUALIZATION ?= n
+CFG_NS_VIRTUALIZATION ?= $(CFG_VIRTUALIZATION)
+CFG_NS_VIRTUALIZATION ?= n
 
-ifeq ($(CFG_VIRTUALIZATION),y)
+ifeq ($(CFG_NS_VIRTUALIZATION),y)
 $(call force,CFG_CORE_RODATA_NOEXEC,y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 
@@ -908,8 +909,8 @@ CFG_TA_BTI ?= $(CFG_CORE_BTI)
 
 $(eval $(call cfg-depends-all,CFG_TA_BTI,CFG_ARM64_core))
 
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(call cfg-one-enabled, CFG_TA_BTI CFG_CORE_BTI))
-$(error CFG_VIRTUALIZATION and BTI are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(call cfg-one-enabled, CFG_TA_BTI CFG_CORE_BTI))
+$(error CFG_NS_VIRTUALIZATION and BTI are currently incompatible)
 endif
 
 ifeq (y-y,$(CFG_PAGED_USER_TA)-$(CFG_TA_BTI))
@@ -956,11 +957,11 @@ CFG_TA_PAUTH ?= $(CFG_CORE_PAUTH)
 $(eval $(call cfg-depends-all,CFG_CORE_PAUTH,CFG_ARM64_core))
 $(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
 
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
-$(error CFG_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
+$(error CFG_NS_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
 endif
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_TA_PAUTH))
-$(error CFG_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(CFG_TA_PAUTH))
+$(error CFG_NS_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
 endif
 
 ifeq (y-y,$(CFG_TA_GPROF_SUPPORT)-$(CFG_TA_PAUTH))

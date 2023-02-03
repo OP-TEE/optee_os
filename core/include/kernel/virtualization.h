@@ -11,7 +11,7 @@
 
 #define HYP_CLNT_ID 0
 
-#if defined(CFG_VIRTUALIZATION)
+#if defined(CFG_NS_VIRTUALIZATION)
 /**
  * virt_guest_created() - create new VM partition
  * @guest_id: VM id provided by hypervisor
@@ -102,6 +102,6 @@ static inline void
 virt_get_ta_ram(vaddr_t *start __unused, vaddr_t *end __unused) { }
 static inline void
 virt_init_memory(struct tee_mmap_region *memory_map __unused) { }
-#endif /*CFG_VIRTUALIZATION*/
+#endif /*CFG_NS_VIRTUALIZATION*/
 
 #endif	/* KERNEL_VIRTUALIZATION_H */

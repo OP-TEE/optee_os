@@ -100,10 +100,10 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 #endif
 	IMSG("Dynamic shared memory is %sabled", dyn_shm_en ? "en" : "dis");
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		args->a1 |= OPTEE_SMC_SEC_CAP_VIRTUALIZATION;
 	IMSG("Normal World virtualization support is %sabled",
-	     IS_ENABLED(CFG_VIRTUALIZATION) ? "en" : "dis");
+	     IS_ENABLED(CFG_NS_VIRTUALIZATION) ? "en" : "dis");
 
 	args->a1 |= OPTEE_SMC_SEC_CAP_MEMREF_NULL;
 
@@ -163,7 +163,7 @@ static void tee_entry_get_thread_count(struct thread_smc_args *args)
 	args->a1 = CFG_NUM_THREADS;
 }
 
-#if defined(CFG_VIRTUALIZATION)
+#if defined(CFG_NS_VIRTUALIZATION)
 static void tee_entry_vm_created(struct thread_smc_args *args)
 {
 	uint16_t guest_id = args->a1;
@@ -267,7 +267,7 @@ void __tee_entry_fast(struct thread_smc_args *args)
 		tee_entry_get_thread_count(args);
 		break;
 
-#if defined(CFG_VIRTUALIZATION)
+#if defined(CFG_NS_VIRTUALIZATION)
 	case OPTEE_SMC_VM_CREATED:
 		tee_entry_vm_created(args);
 		break;
@@ -306,7 +306,7 @@ size_t tee_entry_generic_get_api_call_count(void)
 	 */
 	size_t ret = 12;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		ret += 2;
 
 	return ret;
