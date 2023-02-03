@@ -265,6 +265,8 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_PKCS11_TA=y
+          export CFG_USER_TA_TARGET_pkcs11=ta_arm64
           WD=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
@@ -297,6 +299,8 @@ jobs:
           set -e -v
           export LC_ALL=C
           export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_PKCS11_TA=y
+          export CFG_USER_TA_TARGET_pkcs11=ta_arm64
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
           cd ..
@@ -332,6 +336,7 @@ jobs:
           export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_PKCS11_TA=y
           export CFG_USER_TA_TARGETS=ta_arm64
           WD=$(pwd)
           cd ..
