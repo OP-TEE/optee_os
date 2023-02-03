@@ -87,7 +87,7 @@ void thread_init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
 	INIT_CANARY(stack_thread);
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -123,7 +123,7 @@ void thread_check_canaries(void)
 		if (*canary != END_CANARY_VALUE)
 			CANARY_DIED(stack_abt, end, n, canary);
 	}
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
 		canary = &GET_START_CANARY(stack_thread, n);
 		if (*canary != START_CANARY_VALUE)

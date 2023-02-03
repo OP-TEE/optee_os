@@ -125,7 +125,7 @@ __weak uintptr_t plat_get_random_stack_canary(void)
 	 * With virtualization the RNG is not initialized in Nexus core.
 	 * Need to override with platform specific implementation.
 	 */
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		IMSG("WARNING: Using fixed value for stack canary");
 		return canary;
 	}
@@ -604,7 +604,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 	 * every virtual partition separately. Core code uses nex_malloc
 	 * instead.
 	 */
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
 					      __nex_heap_start);
 #else
@@ -1295,7 +1295,7 @@ static void discover_nsec_memory(void)
 }
 #endif /*!CFG_CORE_DYN_SHM*/
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 static TEE_Result virt_init_heap(void)
 {
 	/* We need to initialize pool for every virtual guest partition */
@@ -1316,7 +1316,7 @@ void init_tee_runtime(void)
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.
 	 */
-	if (!IS_ENABLED(CFG_VIRTUALIZATION))
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_preinitcalls();
 	call_initcalls();
 
@@ -1351,7 +1351,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	thread_get_core_local()->curr_thread = 0;
 	init_runtime(pageable_part);
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		/*
 		 * Virtualization: We can't initialize threads right now because
 		 * threads belong to "tee" part and will be initialized
@@ -1414,7 +1414,7 @@ void __weak boot_init_primary_late(unsigned long fdt)
 
 	main_init_gic();
 	init_vfp_nsec();
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		IMSG("Initializing virtualization support");
 		core_mmu_init_virtualization();
 	} else {

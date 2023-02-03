@@ -93,7 +93,7 @@ register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
 register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
 		     VCORE_UNPG_RO_SZ_UNSAFE);
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 register_phys_mem_ul(MEM_AREA_NEX_RAM_RO, VCORE_UNPG_RW_PA,
 		     VCORE_UNPG_RW_SZ_UNSAFE);
 register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
@@ -113,7 +113,7 @@ register_phys_mem_ul(MEM_AREA_INIT_RAM_RO, VCORE_INIT_RO_PA,
 register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
 #endif /*!CFG_CORE_RWDATA_NOEXEC*/
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
 		  TRUSTED_DRAM_SIZE);
 #endif
@@ -123,7 +123,7 @@ register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
 register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
 #endif
 
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 /* Every guest will have own TA RAM if virtualization support is enabled */
 register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
 #endif
@@ -145,7 +145,7 @@ static void mmu_unlock(uint32_t exceptions)
 
 static struct tee_mmap_region *get_memory_map(void)
 {
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		struct tee_mmap_region *map = virt_get_memory_map();
 
 		if (map)
@@ -1336,7 +1336,7 @@ static struct tee_mmap_region *get_tmp_mmap(void)
  */
 void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 {
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	vaddr_t start = ROUNDDOWN((vaddr_t)__nozi_start, SMALL_PAGE_SIZE);
 #else
 	vaddr_t start = ROUNDDOWN((vaddr_t)__vcore_nex_rw_start,
@@ -2398,7 +2398,7 @@ void core_mmu_init_ta_ram(void)
 	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
 	 * shared mem allocated from teecore.
 	 */
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_get_ta_ram(&s, &e);
 	else
 		core_mmu_get_mem_by_type(MEM_AREA_TA_RAM, &s, &e);

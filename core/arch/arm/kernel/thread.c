@@ -48,7 +48,7 @@ static uint8_t thread_user_kdata_page[
 	ROUNDUP(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
 		SMALL_PAGE_SIZE)]
 	__aligned(SMALL_PAGE_SIZE)
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	__section(".nozi.kdata_page");
 #else
 	__section(".nex_nozi.kdata_page");
@@ -447,7 +447,7 @@ void thread_state_free(void)
 	threads[ct].flags = 0;
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 	thread_unlock_global();
 }
@@ -518,7 +518,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 
 	thread_unlock_global();

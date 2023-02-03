@@ -67,13 +67,13 @@
 #else
 #define __relrodata_unpaged(x) __rodata_unpaged(x)
 #endif
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 #define __nex_bss		__section(".nex_bss")
 #define __nex_data		__section(".nex_data")
-#else  /* CFG_VIRTUALIZATION */
+#else  /* CFG_NS_VIRTUALIZATION */
 #define __nex_bss
 #define __nex_data
-#endif	/* CFG_VIRTUALIZATION */
+#endif	/* CFG_NS_VIRTUALIZATION */
 #define __noprof	__attribute__((no_instrument_function))
 #define __nostackcheck	__attribute__((no_instrument_function))
 
