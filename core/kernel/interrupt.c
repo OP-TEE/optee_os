@@ -19,19 +19,19 @@
  * we begin to modify settings after boot initialization.
  */
 
-static struct itr_chip *itr_chip __nex_bss;
+static struct itr_chip *itr_main_chip __nex_bss;
 static SLIST_HEAD(, itr_handler) handlers __nex_data =
 	SLIST_HEAD_INITIALIZER(handlers);
 
 void interrupt_main_init(struct itr_chip *chip)
 {
-	itr_chip = chip;
+	itr_main_chip = chip;
 }
 
 struct itr_chip *interrupt_get_main_chip(void)
 {
-	assert(itr_chip);
-	return itr_chip;
+	assert(itr_main_chip);
+	return itr_main_chip;
 }
 
 #ifdef CFG_DT
@@ -42,14 +42,14 @@ int dt_get_irq_type_prio(const void *fdt, int node, uint32_t *type,
 	int count = 0;
 	int it_num = DT_INFO_INVALID_INTERRUPT;
 
-	if (!itr_chip || !itr_chip->dt_get_irq)
+	if (!itr_main_chip || !itr_main_chip->dt_get_irq)
 		return it_num;
 
 	prop = fdt_getprop(fdt, node, "interrupts", &count);
 	if (!prop)
 		return it_num;
 
-	return itr_chip->dt_get_irq(prop, count, type, prio);
+	return itr_main_chip->dt_get_irq(prop, count, type, prio);
 }
 #endif
 
@@ -69,7 +69,7 @@ void itr_handle(size_t it)
 
 	if (!was_handled) {
 		EMSG("Disabling unhandled interrupt %zu", it);
-		itr_chip->ops->disable(itr_chip, it);
+		itr_main_chip->ops->disable(itr_main_chip, it);
 	}
 }
 
@@ -95,7 +95,7 @@ void itr_free(struct itr_handler *hdl)
 	if (!hdl)
 		return;
 
-	itr_chip->ops->disable(itr_chip, hdl->it);
+	itr_main_chip->ops->disable(itr_main_chip, hdl->it);
 
 	SLIST_REMOVE(&handlers, hdl, itr_handler, link);
 	free(hdl);
@@ -110,33 +110,33 @@ void itr_add_type_prio(struct itr_handler *h, uint32_t type, uint32_t prio)
 			assert((hdl->flags & ITRF_SHARED) &&
 			       (h->flags & ITRF_SHARED));
 
-	itr_chip->ops->add(itr_chip, h->it, type, prio);
+	itr_main_chip->ops->add(itr_main_chip, h->it, type, prio);
 	SLIST_INSERT_HEAD(&handlers, h, link);
 }
 
 void itr_enable(size_t it)
 {
-	itr_chip->ops->enable(itr_chip, it);
+	itr_main_chip->ops->enable(itr_main_chip, it);
 }
 
 void itr_disable(size_t it)
 {
-	itr_chip->ops->disable(itr_chip, it);
+	itr_main_chip->ops->disable(itr_main_chip, it);
 }
 
 void itr_raise_pi(size_t it)
 {
-	itr_chip->ops->raise_pi(itr_chip, it);
+	itr_main_chip->ops->raise_pi(itr_main_chip, it);
 }
 
 void itr_raise_sgi(size_t it, uint8_t cpu_mask)
 {
-	itr_chip->ops->raise_sgi(itr_chip, it, cpu_mask);
+	itr_main_chip->ops->raise_sgi(itr_main_chip, it, cpu_mask);
 }
 
 void itr_set_affinity(size_t it, uint8_t cpu_mask)
 {
-	itr_chip->ops->set_affinity(itr_chip, it, cpu_mask);
+	itr_main_chip->ops->set_affinity(itr_main_chip, it, cpu_mask);
 }
 
 /* This function is supposed to be overridden in platform specific code */
