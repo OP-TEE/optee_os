@@ -11,6 +11,7 @@
 #include <drivers/gic.h>
 #include <keep.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
@@ -585,3 +586,61 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 
 	gic_it_set_cpu_mask(gd, it, cpu_mask);
 }
+
+#ifdef CFG_DT
+/* Callback for "interrupt-extended" GIC interrupts in consumer DT nodes */
+static struct itr_desc *dt_get_gic_chip_cb(struct dt_pargs *arg,
+					   void *priv_data, TEE_Result *res)
+{
+	int itr_num = DT_INFO_INVALID_INTERRUPT;
+	struct itr_chip *chip = priv_data;
+	struct itr_desc *desc = NULL;
+	uint32_t type = 0;
+	uint32_t prio = 0;
+
+	itr_num = gic_dt_get_irq(arg->args, arg->args_count, &type, &prio);
+	if (itr_num == DT_INFO_INVALID_INTERRUPT) {
+		*res = TEE_ERROR_GENERIC;
+		return NULL;
+	}
+
+	/* Allocate returned itr_desc as required by dt_get_itr_func type */
+	desc = calloc(1, sizeof(*desc));
+	if (!desc) {
+		*res = TEE_ERROR_OUT_OF_MEMORY;
+		return NULL;
+	}
+
+	gic_op_add(chip, itr_num, type, prio);
+
+	desc->chip = chip;
+	desc->itr_num = itr_num;
+
+	*res = TEE_SUCCESS;
+	return desc;
+}
+
+static TEE_Result gic_probe(const void *fdt, int offs, const void *cd __unused)
+{
+	if (dt_register_interrupt_provider(fdt, offs, dt_get_gic_chip_cb,
+					   &gic_data.chip))
+		panic();
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match gic_match_table[] = {
+	{ .compatible = "arm,cortex-a15-gic" },
+	{ .compatible = "arm,cortex-a7-gic" },
+	{ .compatible = "arm,cortex-a5-gic" },
+	{ .compatible = "arm,cortex-a9-gic" },
+	{ .compatible = "arm,gic-400" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(gic_dt_driver) = {
+	.name = "gic",
+	.match_table = gic_match_table,
+	.probe = gic_probe,
+};
+#endif /*CFG_DT*/
