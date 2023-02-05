@@ -11,8 +11,14 @@
 #include <util.h>
 
 #define ITRF_TRIGGER_LEVEL	BIT(0)
-#define ITRF_SHARED			BIT(1)
+#define ITRF_SHARED		BIT(1)
 
+/*
+ * struct itr_chip - Interrupt controller
+ *
+ * @ops Operation callback functions
+ * @dt_get_irq Device tree node parsing function
+ */
 struct itr_chip {
 	const struct itr_ops *ops;
 	/*
@@ -28,6 +34,15 @@ struct itr_chip {
 			  uint32_t *prio);
 };
 
+/*
+ * struct itr_ops - Interrupt controller operations
+ * @add		Register and configure an interrupt
+ * @enable	Enable an interrupt
+ * @disable	Disable an interrupt
+ * @raise_pi	Raise per-cpu interrupt or NULL if not applicable
+ * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
+ * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
+ */
 struct itr_ops {
 	void (*add)(struct itr_chip *chip, size_t it, uint32_t type,
 		    uint32_t prio);
@@ -40,6 +55,7 @@ struct itr_ops {
 		uint8_t cpu_mask);
 };
 
+/* Interrupt handler return value */
 enum itr_return {
 	ITRR_NONE,
 	ITRR_HANDLED,
@@ -47,8 +63,16 @@ enum itr_return {
 
 struct itr_handler;
 
+/* Interrupt handler signature */
 typedef enum itr_return (*itr_handler_t)(struct itr_handler *h);
 
+/*
+ * struct itr_handler - Interrupt handler reference
+ * @it Interrupt number
+ * @flags Property bit flags ITR_FLAG_*
+ * @data Private data for that interrupt handler
+ * @link Reference in controller handler list
+ */
 struct itr_handler {
 	size_t it;
 	uint32_t flags;
@@ -58,11 +82,15 @@ struct itr_handler {
 };
 
 /*
- * Initialise core interrupt controller driver
- * @data Core controller main data reference to register
+ * Initialise main interrupt controller driver
+ * @data Main controller main data reference to register
  */
 void interrupt_main_init(struct itr_chip *data);
 
+/*
+ * Call handlers registered for that interrupt in core interrupt controller
+ * @it Interrupt line number
+ */
 void itr_handle(size_t it);
 
 /* Retrieve main interrupt controller reference */
