@@ -277,3 +277,123 @@ void interrupt_remove_free_handler(struct itr_handler *hdl)
 		free(hdl);
 	}
 }
+
+#ifdef CFG_DT
+TEE_Result dt_register_interrupt_provider(const void *fdt, int node,
+					  dt_get_itr_func dt_get_itr,
+					  void *data)
+{
+	return dt_driver_register_provider(fdt, node,
+					   (get_of_device_func)dt_get_itr,
+					   data, DT_DRIVER_INTERRUPT);
+}
+
+/*
+ * Provide an itr_desc reference based on "interrupts" property bindings.
+ * May return TEE_ERROR_DEFER_DRIVER_INIT if parent controller is found but
+ * not yet initialized.
+ */
+static TEE_Result get_legacy_interrupt_by_index(const void *fdt, int node,
+						unsigned int index,
+						struct itr_desc **desc)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const uint32_t *prop = NULL;
+	uint32_t phandle = 0;
+	int pnode = 0;
+	int len = 0;
+
+	prop = fdt_getprop(fdt, node, "interrupts", &len);
+	if (!prop)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	/* Find "interrupt-parent" in node or its parents */
+	pnode = node;
+	prop = fdt_getprop(fdt, pnode, "interrupt-parent", &len);
+
+	while (!prop) {
+		pnode = fdt_parent_offset(fdt, pnode);
+		if (pnode < 0)
+			break;
+
+		prop = fdt_getprop(fdt, pnode, "interrupt-parent", &len);
+		if (!prop && len != -FDT_ERR_NOTFOUND)
+			break;
+	}
+	if (!prop) {
+		DMSG("No interrupt parent for node %s",
+		     fdt_get_name(fdt, node, NULL));
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* "interrupt-parent" provides interrupt controller phandle */
+	phandle = fdt32_to_cpu(prop[0]);
+
+	/* Get interrupt chip/number from phandle and "interrupts" property */
+	*desc = dt_driver_device_from_node_idx_prop_phandle("interrupts", fdt,
+							    node, index,
+							    DT_DRIVER_INTERRUPT,
+							    phandle, &res);
+	return res;
+}
+
+/*
+ * Provide an itr_desc based on "interrupts-extended" property bindings.
+ * May return TEE_ERROR_DEFER_DRIVER_INIT if parent controller is found
+ * but not yet initialized.
+ * With this function, provider is expected to have allocated itr_desc
+ * with malloc() or like.
+ */
+static TEE_Result get_extended_interrupt_by_index(const void *fdt, int node,
+						  unsigned int index,
+						  struct itr_desc **desc)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	*desc = dt_driver_device_from_node_idx_prop("interrupts-extended",
+						    fdt, node, index,
+						    DT_DRIVER_INTERRUPT, &res);
+
+	return res;
+}
+
+TEE_Result dt_get_interrupt_by_index(const void *fdt, int node,
+				     unsigned int index, struct itr_chip **chip,
+				     size_t *itr_num)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct itr_desc *desc = NULL;
+
+	assert(chip && itr_num);
+
+	/* "interrupts-extended" takes precedence over "interrupts" */
+	if (fdt_getprop(fdt, node, "interrupts-extended", NULL))
+		res = get_extended_interrupt_by_index(fdt, node, index, &desc);
+	else
+		res = get_legacy_interrupt_by_index(fdt, node, index, &desc);
+
+	assert((!res && desc) || (res && !desc));
+
+	if (!res) {
+		*chip = desc->chip;
+		*itr_num = desc->itr_num;
+
+		/* Balance malloc() or like from dt_get_itr_func callback */
+		free(desc);
+	}
+
+	return res;
+}
+
+TEE_Result dt_get_interrupt_by_name(const void *fdt, int node, const char *name,
+				    struct itr_chip **chip, size_t *itr_num)
+{
+	int idx = 0;
+
+	idx = fdt_stringlist_search(fdt, node, "interrupt-names", name);
+	if (idx < 0)
+		return TEE_ERROR_GENERIC;
+
+	return dt_get_interrupt_by_index(fdt, node, idx, chip, itr_num);
+}
+#endif /*CFG_DT*/
