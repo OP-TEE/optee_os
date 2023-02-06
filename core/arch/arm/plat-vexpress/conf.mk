@@ -148,3 +148,5 @@ ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,embedded_dtb_test.dts,Mandated for DT tests)
 endif
 endif
+
+CFG_PKCS11_TA ?= y
