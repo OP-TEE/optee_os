@@ -24,6 +24,7 @@ static size_t get_ecc_key_size_bytes(uint32_t curve)
 		return 28;
 
 	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_SM2:
 		return 32;
 
 	case TEE_ECC_CURVE_NIST_P384:
