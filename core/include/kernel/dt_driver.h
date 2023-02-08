@@ -172,6 +172,22 @@ void *dt_driver_device_from_parent(const void *fdt, int nodeoffset,
 				   enum dt_driver_type type, TEE_Result *res);
 
 /*
+ * dt_driver_device_from_node_idx_prop_phandle() - Same as
+ *	dt_driver_device_from_node_idx_prop() but phandle is not the first
+ *	cells in property @prop_name but is passed as an argument.
+ *
+ * This function is used for DT bindings as "interrupts" property where the
+ * property carries the interrupt information but not the interrupt controller
+ * phandle which is found in a specific property (here "interrupt-parent").
+ */
+void *dt_driver_device_from_node_idx_prop_phandle(const char *prop_name,
+						  const void *fdt, int nodeoffs,
+						  unsigned int prop_index,
+						  enum dt_driver_type type,
+						  uint32_t phandle,
+						  TEE_Result *res);
+
+/*
  * dt_driver_get_crypto() - Request crypto support for driver initialization
  *
  * Return TEE_SUCCESS if cryptography services are initialized, otherwise return
