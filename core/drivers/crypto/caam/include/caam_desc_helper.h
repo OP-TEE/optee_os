@@ -32,7 +32,7 @@ void caam_desc_add_dmaobj(uint32_t *desc, struct caamdmaobj *data,
 #define caam_desc_store(desc, data, cla, src)                                  \
 	caam_desc_add_dmaobj(desc, data, ST_NOIMM(cla, src, 0))
 #define caam_desc_fifo_store(desc, data, src)                                  \
-	caam_desc_add_dmaobj(desc, data, FIFO_ST(src, 0))
+	caam_desc_add_dmaobj(desc, data, FIFO_ST(CLASS_NO, src, 0))
 #define caam_desc_seq_out(desc, data)                                          \
 	caam_desc_add_dmaobj(desc, data, SEQ_OUT_PTR(0))
 
@@ -234,8 +234,9 @@ static inline void dump_desc(uint32_t *desc)
 /*
  * FIFO Store from register src of length len
  */
-#define FIFO_ST(src, len)                                                      \
-	(CMD_FIFO_STORE_TYPE | FIFO_STORE_OUTPUT(src) | FIFO_STORE_LENGTH(len))
+#define FIFO_ST(cla, src, len)                                                 \
+	(CMD_FIFO_STORE_TYPE | CMD_CLASS(cla) | FIFO_STORE_OUTPUT(src) |       \
+	 FIFO_STORE_LENGTH(len))
 
 /*
  * FIFO Store from register src.

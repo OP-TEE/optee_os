@@ -174,7 +174,7 @@ static enum caam_status prepare_gen_desc(struct rngdata *rng)
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, op);
-	caam_desc_add_word(desc, FIFO_ST(RNG_TO_MEM, rng->size));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, RNG_TO_MEM, rng->size));
 	caam_desc_add_ptr(desc, paddr);
 
 	RNG_DUMPDESC(desc);
