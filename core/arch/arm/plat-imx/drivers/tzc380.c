@@ -12,6 +12,7 @@
 #include <imx-regs.h>
 #include <initcall.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <mm/core_memprot.h>
 #include <mm/generic_ram_layout.h>
 
@@ -82,3 +83,21 @@ static TEE_Result imx_configure_tzasc(void)
 	return TEE_SUCCESS;
 }
 driver_init(imx_configure_tzasc);
+
+static TEE_Result
+pm_enter_resume(enum pm_op op, uint32_t pm_hint __unused,
+		const struct pm_callback_handle *pm_handle __unused)
+{
+	if (op == PM_OP_RESUME)
+		return imx_configure_tzasc();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result tzasc_init(void)
+{
+	register_pm_driver_cb(pm_enter_resume, NULL, "imx-tzasc");
+
+	return imx_configure_tzasc();
+}
+driver_init(tzasc_init);
