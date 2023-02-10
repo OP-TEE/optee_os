@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015-2022, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <platform_config.h>
@@ -320,7 +320,11 @@ clear_nex_bss:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x0, xzr		/* pager not used */
+#else
 	mov	x0, x19		/* pagable part address */
+#endif
 	mov	x1, #-1
 	bl	boot_init_primary_early
 
@@ -337,7 +341,12 @@ clear_nex_bss:
 	mov	x22, x0
 	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	mov	x0, x20		/* DT address */
+	mov	x0, x20		/* DT address also known as HW_CONFIG */
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x1, x19		/* TOS_FW_CONFIG DT address */
+#else
+	mov	x1, xzr		/* unused */
+#endif
 	bl	boot_init_primary_late
 #ifdef CFG_CORE_PAUTH
 	init_pauth_per_cpu

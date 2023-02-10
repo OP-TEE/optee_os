@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015-2020, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 #ifndef __KERNEL_BOOT_H
 #define __KERNEL_BOOT_H
@@ -46,7 +46,7 @@ extern const struct core_mmu_config boot_mmu_config;
 /* @nsec_entry is unused if using CFG_WITH_ARM_TRUSTED_FW */
 void boot_init_primary_early(unsigned long pageable_part,
 			     unsigned long nsec_entry);
-void boot_init_primary_late(unsigned long fdt);
+void boot_init_primary_late(unsigned long fdt, unsigned long tos_fw_config);
 void boot_init_memtag(void);
 
 void __panic_at_smc_return(void) __noreturn;
@@ -102,6 +102,9 @@ void *get_embedded_dt(void);
 
 /* Returns external DTB if present, otherwise NULL */
 void *get_external_dt(void);
+
+/* Returns TOS_FW_CONFIG DTB if present, otherwise NULL */
+void *get_tos_fw_config_dt(void);
 
 /*
  * get_aslr_seed() - return a random seed for core ASLR

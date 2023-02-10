@@ -1532,7 +1532,7 @@ static TEE_Result fip_sp_map_all(void)
 	int subnode = 0;
 	int root = 0;
 
-	fdt = get_external_dt();
+	fdt = get_tos_fw_config_dt();
 	if (!fdt) {
 		EMSG("No SPMC manifest found");
 		return TEE_ERROR_GENERIC;
