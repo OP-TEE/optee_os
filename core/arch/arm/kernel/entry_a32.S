@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <arm32_macros.S>
@@ -560,6 +560,7 @@ shadow_stack_access_ok:
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	r0, r6		/* DT address */
+	mov	r1, #0		/* unused */
 	bl	boot_init_primary_late
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP

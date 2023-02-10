@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2023, Arm Limited
  */
 
 #include <arm.h>
@@ -84,6 +85,9 @@ struct dt_descriptor {
 };
 
 static struct dt_descriptor external_dt __nex_bss;
+#ifdef CFG_CORE_SEL1_SPMC
+static struct dt_descriptor tos_fw_config_dt __nex_bss;
+#endif
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -1244,6 +1248,54 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 #endif /*CFG_CORE_DYN_SHM*/
 #endif /*!CFG_DT*/
 
+#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_DT)
+void *get_tos_fw_config_dt(void)
+{
+	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		return NULL;
+
+	assert(cpu_mmu_enabled());
+
+	return tos_fw_config_dt.blob;
+}
+
+static void init_tos_fw_config_dt(unsigned long pa)
+{
+	struct dt_descriptor *dt = &tos_fw_config_dt;
+	void *fdt = NULL;
+	int ret = 0;
+
+	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		return;
+
+	if (!pa)
+		panic("No TOS_FW_CONFIG DT found");
+
+	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, pa, CFG_DTB_MAX_SIZE);
+	if (!fdt)
+		panic("Failed to map TOS_FW_CONFIG DT");
+
+	dt->blob = fdt;
+
+	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at %#lx: error %d", pa, ret);
+		panic();
+	}
+
+	IMSG("TOS_FW_CONFIG DT found");
+}
+#else
+void *get_tos_fw_config_dt(void)
+{
+	return NULL;
+}
+
+static void init_tos_fw_config_dt(unsigned long pa __unused)
+{
+}
+#endif /*CFG_CORE_SEL1_SPMC && CFG_DT*/
+
 #ifdef CFG_CORE_DYN_SHM
 static void discover_nsec_memory(void)
 {
@@ -1381,10 +1433,16 @@ static bool cpu_nmfi_enabled(void)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak boot_init_primary_late(unsigned long fdt)
+void __weak boot_init_primary_late(unsigned long fdt,
+				   unsigned long tos_fw_config)
 {
 	init_external_dt(fdt);
+	init_tos_fw_config_dt(tos_fw_config);
+#ifdef CFG_CORE_SEL1_SPMC
+	tpm_map_log_area(get_tos_fw_config_dt());
+#else
 	tpm_map_log_area(get_external_dt());
+#endif
 	discover_nsec_memory();
 	update_external_dt();
 	configure_console_from_dt();
