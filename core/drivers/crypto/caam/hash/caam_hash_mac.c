@@ -176,7 +176,8 @@ static TEE_Result do_hmac_init(struct crypto_mac_ctx *ctx, const uint8_t *inkey,
 	caam_desc_add_word(desc, HMAC_INIT_DECRYPT(alg->type));
 	caam_desc_add_word(desc, FIFO_LD_IMM(CLASS_2, MSG, LAST_C2, 0));
 	/* Store the split key */
-	caam_desc_add_word(desc, FIFO_ST(C2_MDHA_SPLIT_KEY_AES_ECB_JKEK,
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO,
+					 C2_MDHA_SPLIT_KEY_AES_ECB_JKEK,
 					 hmac_ctx->key.length));
 	caam_desc_add_ptr(desc, hmac_ctx->key.paddr);
 	HASH_DUMPDESC(desc);
