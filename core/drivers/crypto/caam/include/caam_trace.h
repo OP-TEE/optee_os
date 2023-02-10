@@ -240,7 +240,7 @@
 #if CAAM_DBG_DESC(DSA)
 #define DSA_DUMPDESC(desc)                                                     \
 	do {                                                                   \
-		MP_TRACE("DSA Descriptor");                                    \
+		DSA_TRACE("DSA Descriptor");                                   \
 		DRV_DUMPDESC(desc);                                            \
 	} while (0)
 #else
