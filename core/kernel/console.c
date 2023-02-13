@@ -5,6 +5,7 @@
 
 #include <compiler.h>
 #include <console.h>
+#include <drivers/cbmem_console.h>
 #include <drivers/serial.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
@@ -128,6 +129,10 @@ void configure_console_from_dt(void)
 	int offs;
 
 	fdt = get_dt();
+
+	if (IS_ENABLED(CFG_CBMEM_CONSOLE) && cbmem_console_init_from_dt(fdt))
+		return;
+
 	if (get_console_node_from_dt(fdt, &offs, &uart, &parms))
 		return;
 
