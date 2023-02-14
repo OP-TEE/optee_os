@@ -41,10 +41,10 @@ static bool oefid_algo_supported(uint32_t algo)
 	switch (se050_get_oefid()) {
 	case SE050F_ID:
 		switch (algo) {
-		case TEE_ALG_ECDSA_P224:
-		case TEE_ALG_ECDSA_P256:
-		case TEE_ALG_ECDSA_P384:
-		case TEE_ALG_ECDSA_P521:
+		case TEE_ALG_ECDSA_SHA224:
+		case TEE_ALG_ECDSA_SHA256:
+		case TEE_ALG_ECDSA_SHA384:
+		case TEE_ALG_ECDSA_SHA512:
 			return true;
 		default:
 			return false;
@@ -57,15 +57,15 @@ static bool oefid_algo_supported(uint32_t algo)
 static uint32_t algo_tee2se050(uint32_t algo)
 {
 	switch (algo) {
-	case TEE_ALG_ECDSA_P192:
+	case TEE_ALG_ECDSA_SHA1:
 		return kAlgorithm_SSS_ECDSA_SHA1;
-	case TEE_ALG_ECDSA_P224:
+	case TEE_ALG_ECDSA_SHA224:
 		return kAlgorithm_SSS_ECDSA_SHA224;
-	case TEE_ALG_ECDSA_P256:
+	case TEE_ALG_ECDSA_SHA256:
 		return kAlgorithm_SSS_ECDSA_SHA256;
-	case TEE_ALG_ECDSA_P384:
+	case TEE_ALG_ECDSA_SHA384:
 		return kAlgorithm_SSS_ECDSA_SHA384;
-	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDSA_SHA512:
 		return kAlgorithm_SSS_ECDSA_SHA512;
 	default:
 		EMSG("algorithm %#"PRIx32" not enabled", algo);
@@ -144,36 +144,36 @@ static TEE_Result ecc_get_key_size(uint32_t curve, uint32_t algo,
 	case TEE_ECC_CURVE_NIST_P192:
 		*bits = 192;
 		*bytes = 24;
-		if (algo && algo != TEE_ALG_ECDSA_P192 &&
-		    algo != TEE_ALG_ECDH_P192)
+		if (algo && algo != TEE_ALG_ECDSA_SHA1 &&
+		    algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET)
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P224:
 		*bits = 224;
 		*bytes = 28;
-		if (algo && algo != TEE_ALG_ECDSA_P224 &&
-		    algo != TEE_ALG_ECDH_P224)
+		if (algo && algo != TEE_ALG_ECDSA_SHA224 &&
+		    algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET)
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P256:
 		*bits = 256;
 		*bytes = 32;
-		if (algo && algo != TEE_ALG_ECDSA_P256 &&
-		    algo != TEE_ALG_ECDH_P256)
+		if (algo && algo != TEE_ALG_ECDSA_SHA256 &&
+		    algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET)
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
 		*bits = 384;
 		*bytes = 48;
-		if (algo && algo != TEE_ALG_ECDSA_P384 &&
-		    algo != TEE_ALG_ECDH_P384)
+		if (algo && algo != TEE_ALG_ECDSA_SHA384 &&
+		    algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET)
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
 		*bits = 521;
 		*bytes = 66;
-		if (algo && algo != TEE_ALG_ECDSA_P521 &&
-		    algo != TEE_ALG_ECDH_P521)
+		if (algo && algo != TEE_ALG_ECDSA_SHA512 &&
+		    algo != TEE_ALG_ECDH_DERIVE_SHARED_SECRET)
 			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	default:
