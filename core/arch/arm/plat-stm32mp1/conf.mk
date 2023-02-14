@@ -235,7 +235,7 @@ endif
 
 # Provision enough threads to pass xtest
 ifneq (,$(filter y,$(CFG_SCMI_PTA) $(CFG_STM32MP1_SCMI_SIP)))
-CFG_NUM_SYSTEM_THREADS ?= 1
+CFG_RESERVED_SYSTEM_THREAD ?= y
 ifeq ($(CFG_WITH_PAGER),y)
 CFG_NUM_THREADS ?= 3
 else
