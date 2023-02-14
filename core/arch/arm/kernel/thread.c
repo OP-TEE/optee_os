@@ -35,27 +35,13 @@
 #include <trace.h>
 #include <util.h>
 
-/*
- * struct thread_counts - Cached count of allocated threads
- * @free        Number of free thread context in the pool
- * @sys_free    Number of free reserved system thread context
- * @sys_reserved Number of contexts reserved system thread
- */
-struct thread_counts {
-	size_t free;
-	size_t sys_free;
-	size_t sys_reserved;
-};
-
-static struct thread_counts thread_counts = {
-	.free = CFG_NUM_THREADS,
-};
-
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 static vaddr_t thread_user_kcode_va __nex_bss;
 long thread_user_kcode_offset __nex_bss;
 static size_t thread_user_kcode_size __nex_bss;
 #endif
+
+static size_t __maybe_unused reserved_sys_thread;
 
 #if defined(CFG_CORE_UNMAP_CORE_AT_EL0) && \
 	defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC) && defined(ARM64)
@@ -237,12 +223,10 @@ TEE_Result reserve_sys_thread(void)
 
 	thread_lock_global();
 
-	/* Add a reserved context if at least 1 generic context remains */
+	/* Reserved a context if at least 1 generic context remains */
 	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD) &&
-	    (thread_counts.free - thread_counts.sys_free) > 1 &&
-	    thread_counts.sys_reserved < UINT_MAX) {
-		thread_counts.sys_reserved++;
-		thread_counts.sys_free++;
+	    (CFG_NUM_THREADS - reserved_sys_thread) > 1) {
+		reserved_sys_thread++;
 		res = TEE_SUCCESS;
 	}
 
@@ -257,10 +241,8 @@ TEE_Result unreserve_sys_thread(void)
 
 	thread_lock_global();
 
-	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD) &&
-	    thread_counts.sys_reserved && thread_counts.sys_free) {
-		thread_counts.sys_reserved--;
-		thread_counts.sys_free--;
+	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD) && reserved_sys_thread) {
+		reserved_sys_thread--;
 		res = TEE_SUCCESS;
 	}
 
@@ -269,52 +251,47 @@ TEE_Result unreserve_sys_thread(void)
 	return res;
 }
 
+static int find_free_thread(size_t start_idx, size_t count)
+{
+	size_t n = 0;
+
+	for (n = start_idx; n < start_idx + count; n++)
+		if (threads[n].state == THREAD_STATE_FREE)
+			return n;
+
+	return -1;
+}
+
 static void __thread_alloc_and_run(bool sys_thread, uint32_t a0, uint32_t a1,
 				   uint32_t a2, uint32_t a3, uint32_t a4,
 				   uint32_t a5, uint32_t a6, uint32_t a7,
 				   void *pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
-	bool find_sys_thread = false;
-	bool find_thread = false;
 	int i = -1;
 
 	assert(l->curr_thread == THREAD_ID_INVALID);
 
 	thread_lock_global();
 
-	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD)) {
-		if (sys_thread && thread_counts.sys_free) {
-			thread_counts.sys_free--;
-			thread_counts.free--;
-			find_sys_thread = true;
-		} else if (thread_counts.free > thread_counts.sys_free) {
-			thread_counts.free--;
-			find_thread = true;
-		}
-	} else if (thread_counts.free) {
-		thread_counts.free--;
-		find_thread = true;
-	}
+	if (sys_thread)
+		i = find_free_thread(CFG_NUM_THREADS - reserved_sys_thread,
+				     reserved_sys_thread);
+
+	if (i < 0)
+		i = find_free_thread(0, CFG_NUM_THREADS - reserved_sys_thread);
+
+	if (i >= 0)
+		threads[i].state = THREAD_STATE_ACTIVE;
 
 	thread_unlock_global();
 
-	if (!find_thread && !find_sys_thread)
+	if (i < 0)
 		return;
-
-	for (i = 0; i < CFG_NUM_THREADS; i++)
-		if (threads[i].state == THREAD_STATE_FREE)
-			break;
-
-	assert(i < CFG_NUM_THREADS);
 
 	l->curr_thread = i;
 
-	threads[i].state = THREAD_STATE_ACTIVE;
 	threads[i].flags = 0;
-	if (find_sys_thread)
-		threads[i].flags |= THREAD_FLAGS_SYSTEM_CONTEXT;
-
 	init_regs(threads + i, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 #ifdef CFG_CORE_PAUTH
 	/*
@@ -514,11 +491,6 @@ void thread_state_free(void)
 	thread_lock_global();
 
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
-
-	thread_counts.free++;
-	if (threads[ct].flags & THREAD_FLAGS_SYSTEM_CONTEXT)
-		thread_counts.sys_free++;
-
 	threads[ct].state = THREAD_STATE_FREE;
 	threads[ct].flags = 0;
 	l->curr_thread = THREAD_ID_INVALID;
