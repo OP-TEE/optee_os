@@ -9,6 +9,7 @@
 #include <kernel/misc.h>
 #include <kernel/notif.h>
 #include <kernel/tee_l2cc_mutex.h>
+#include <kernel/thread_private_arch.h>
 #include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
@@ -117,7 +118,7 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 	args->a1 |= OPTEE_SMC_SEC_CAP_RPC_ARG;
 	args->a3 = THREAD_RPC_MAX_NUM_PARAMS;
 
-	if (CFG_NUM_SYSTEM_THREADS)
+	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD))
 		args->a1 |= OPTEE_SMC_SEC_CAP_SYSTEM_THREAD;
 }
 
@@ -220,6 +221,32 @@ static void get_async_notif_value(struct thread_smc_args *args)
 		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_PENDING;
 }
 
+static void request_system_thread_context(struct thread_smc_args *args)
+{
+	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD)) {
+		if (reserve_sys_thread())
+			args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
+		else
+			args->a0 = OPTEE_SMC_RETURN_OK;
+
+	} else {
+		args->a0 = OPTEE_SMC_RETURN_OK;
+	}
+}
+
+static void release_system_thread_context(struct thread_smc_args *args)
+{
+	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD)) {
+		if (unreserve_sys_thread())
+			args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
+		else
+			args->a0 = OPTEE_SMC_RETURN_OK;
+
+	} else {
+		args->a0 = OPTEE_SMC_RETURN_OK;
+	}
+}
+
 /*
  * If tee_entry_fast() is overridden, it's still supposed to call this
  * function.
@@ -292,6 +319,13 @@ void __tee_entry_fast(struct thread_smc_args *args)
 			get_async_notif_value(args);
 		else
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_FUNCID_CALL_RESERVE_SYS_THREAD:
+		request_system_thread_context(args);
+		break;
+	case OPTEE_SMC_FUNCID_CALL_UNRESERVE_SYS_THREAD:
+		release_system_thread_context(args);
 		break;
 
 	default:

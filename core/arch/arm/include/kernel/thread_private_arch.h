@@ -239,5 +239,10 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
+
+/* Reservation of system thread context */
+TEE_Result reserve_sys_thread(void);
+TEE_Result unreserve_sys_thread(void);
+
 #endif /*__ASSEMBLER__*/
 #endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/

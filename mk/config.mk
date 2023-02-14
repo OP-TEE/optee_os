@@ -112,9 +112,10 @@ CFG_WITH_SOFTWARE_PRNG ?= y
 # Number of threads
 CFG_NUM_THREADS ?= 2
 
-# Number of threads among CFG_NUM_THREADS provisioned for system invocation
-# as for an SCMI service.
-CFG_NUM_SYSTEM_THREADS ?= 0
+# CFG_RESERVED_SYSTEM_THREAD when enabled, allows normal world to reservation
+# system thread contexts reached with a specific invocation, as needed by
+# OP-TEE SCMI services.
+CFG_RESERVED_SYSTEM_THREAD ?= n
 
 # API implementation version
 CFG_TEE_API_VERSION ?= GPD-1.1-dev
