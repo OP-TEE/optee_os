@@ -241,8 +241,8 @@ void thread_scall_handler(struct thread_scall_regs *regs);
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 
 /* Reservation of system thread context */
-TEE_Result reserve_sys_thread(void);
-TEE_Result unreserve_sys_thread(void);
+TEE_Result thread_reserve_sys_ctx(void);
+TEE_Result thread_unreserve_sys_ctx(void);
 
 #endif /*__ASSEMBLER__*/
 #endif /*__KERNEL_THREAD_PRIVATE_ARCH_H*/

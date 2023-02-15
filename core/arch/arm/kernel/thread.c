@@ -217,7 +217,7 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 }
 #endif /*ARM64*/
 
-TEE_Result reserve_sys_thread(void)
+TEE_Result thread_reserve_sys_ctx(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -235,7 +235,7 @@ TEE_Result reserve_sys_thread(void)
 	return res;
 }
 
-TEE_Result unreserve_sys_thread(void)
+TEE_Result thread_unreserve_sys_ctx(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 

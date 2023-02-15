@@ -224,26 +224,26 @@ static void get_async_notif_value(struct thread_smc_args *args)
 static void request_system_thread_context(struct thread_smc_args *args)
 {
 	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD)) {
-		if (reserve_sys_thread())
+		if (thread_reserve_sys_ctx())
 			args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 		else
 			args->a0 = OPTEE_SMC_RETURN_OK;
 
 	} else {
-		args->a0 = OPTEE_SMC_RETURN_OK;
+		args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
 }
 
 static void release_system_thread_context(struct thread_smc_args *args)
 {
 	if (IS_ENABLED(CFG_RESERVED_SYSTEM_THREAD)) {
-		if (unreserve_sys_thread())
+		if (thread_unreserve_sys_ctx())
 			args->a0 = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 		else
 			args->a0 = OPTEE_SMC_RETURN_OK;
 
 	} else {
-		args->a0 = OPTEE_SMC_RETURN_OK;
+		args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 	}
 }
 
