@@ -321,10 +321,10 @@ void __tee_entry_fast(struct thread_smc_args *args)
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
 
-	case OPTEE_SMC_FUNCID_CALL_RESERVE_SYS_THREAD:
+	case OPTEE_SMC_RESERVE_SYS_THREAD:
 		request_system_thread_context(args);
 		break;
-	case OPTEE_SMC_FUNCID_CALL_UNRESERVE_SYS_THREAD:
+	case OPTEE_SMC_UNRESERVE_SYS_THREAD:
 		release_system_thread_context(args);
 		break;
 

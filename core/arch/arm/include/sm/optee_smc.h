@@ -579,7 +579,7 @@
  * Request reservation of a system invocation thread context in OP-TEE
  *
  * Call register usage:
- * a0	SMC Function ID: OPTEE_SMC_CALL_RESERVE_SYS_THREAD
+ * a0	SMC Function ID: OPTEE_SMC_RESERVE_SYS_THREAD
  * a1-6	Not used
  * a7	Hypervisor Client ID register
  *
@@ -595,15 +595,15 @@
  * OPTEE_SMC_RETURN_ETHREAD_LIMIT	Number of Trusted OS threads exceeded
  *                                      for the request.
  */
-#define OPTEE_SMC_FUNCID_CALL_RESERVE_SYS_THREAD	U(21)
-#define OPTEE_SMC_CALL_RESERVE_SYS_THREAD \
-	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_RESERVE_SYS_THREAD)
+#define OPTEE_SMC_FUNCID_RESERVE_SYS_THREAD	U(21)
+#define OPTEE_SMC_RESERVE_SYS_THREAD \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_RESERVE_SYS_THREAD)
 
 /*
  * Unregister reservation of a system invocation thread context in OP-TEE
  *
  * Call register usage:
- * a0	SMC Function ID: OPTEE_SMC_CALL_UNRESERVE_SYS_THREAD
+ * a0	SMC Function ID: OPTEE_SMC_UNRESERVE_SYS_THREAD
  * a1-6	Not used
  * a7	Hypervisor Client ID register
  *
@@ -617,9 +617,9 @@
  *                                      function.
  * OPTEE_SMC_RETURN_OK			Call successfully completed.
  */
-#define OPTEE_SMC_FUNCID_CALL_UNRESERVE_SYS_THREAD	U(22)
-#define OPTEE_SMC_CALL_UNRESERVE_SYS_THREAD \
-	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_UNRESERVE_SYS_THREAD)
+#define OPTEE_SMC_FUNCID_UNRESERVE_SYS_THREAD	U(22)
+#define OPTEE_SMC_UNRESERVE_SYS_THREAD \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_UNRESERVE_SYS_THREAD)
 
 /*
  * Resume from RPC (for example after processing a foreign interrupt)
