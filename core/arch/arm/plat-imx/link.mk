@@ -1,7 +1,5 @@
 include core/arch/arm/kernel/link.mk
 
-all: $(link-out-dir)/tee-raw.bin
-
 .PHONY: uTee
 uTee: $(link-out-dir)/uTee
 cleanfiles += $(link-out-dir)/uTee

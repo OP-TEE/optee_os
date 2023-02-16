@@ -251,6 +251,7 @@ $(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
 	$(q)$(PYTHON3) ./scripts/mem_usage.py $< > $@
 endif
 
+all: $(link-out-dir)/tee-raw.bin
 cleanfiles += $(link-out-dir)/tee-raw.bin
 $(link-out-dir)/tee-raw.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'
