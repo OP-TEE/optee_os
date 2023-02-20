@@ -195,6 +195,7 @@ static TEE_Result propget_get_property(TEE_PropSetHandle h, const char *name,
 	return res;
 }
 
+SYMVER_GP131(TEE_GetPropertyAsString);
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   const char *name, char *value,
 				   size_t *value_len)
@@ -296,6 +297,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetPropertyAsString);
 TEE_Result __GP11_TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 					  const char *name, char *valueBuffer,
 					  uint32_t *valueBufferLen)
@@ -389,6 +391,7 @@ TEE_Result TEE_GetPropertyAsU64(TEE_PropSetHandle propsetOrEnumerator,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetPropertyAsBinaryBlock);
 TEE_Result
 __GP11_TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 				    const char *name, void *value,
@@ -416,6 +419,7 @@ __GP11_TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 	return res;
 }
 
+SYMVER_GP131(TEE_GetPropertyAsBinaryBlock);
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 					const char *name, void *value,
 					size_t *value_len)
@@ -534,6 +538,7 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 	pe->prop_set = propSet;
 }
 
+SYMVER_COMPAT_GP11(TEE_GetPropertyName);
 TEE_Result __GP11_TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 				      void *name, uint32_t *name_len)
 {
@@ -577,6 +582,7 @@ err:
 	return res;
 }
 
+SYMVER_GP131(TEE_GetPropertyName);
 TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
 			       void *nameBuffer, size_t *nameBufferLen)
 {

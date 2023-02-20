@@ -586,6 +586,7 @@ void TEE_ResetOperation(TEE_OperationHandle operation)
 	reset_operation_state(operation);
 }
 
+SYMVER_GP131(TEE_SetOperationKey);
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 			       TEE_ObjectHandle key)
 {
@@ -662,6 +663,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_SetOperationKey);
 TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
 				      TEE_ObjectHandle key)
 {
@@ -796,6 +798,7 @@ out:
 	return res;
 }
 
+SYMVER_GP131(TEE_SetOperationKey2);
 TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 				TEE_ObjectHandle key1, TEE_ObjectHandle key2)
 {
@@ -805,6 +808,7 @@ TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 	return set_operation_key2(operation, key1, key2);
 }
 
+SYMVER_COMPAT_GP11(TEE_SetOperationKey2);
 TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
 				       TEE_ObjectHandle key1,
 				       TEE_ObjectHandle key2)
@@ -888,6 +892,7 @@ static void init_hash_operation(TEE_OperationHandle operation, const void *IV,
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 }
 
+SYMVER_GP131(TEE_DigestUpdate);
 void TEE_DigestUpdate(TEE_OperationHandle operation,
 		      const void *chunk, size_t chunkSize)
 {
@@ -904,12 +909,14 @@ void TEE_DigestUpdate(TEE_OperationHandle operation,
 		TEE_Panic(res);
 }
 
+SYMVER_COMPAT_GP11(TEE_DigestUpdate);
 void __GP11_TEE_DigestUpdate(TEE_OperationHandle operation,
 			     const void *chunk, uint32_t chunkSize)
 {
 	return TEE_DigestUpdate(operation, chunk, chunkSize);
 }
 
+SYMVER_GP131(TEE_DigestDoFinal);
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
 			     size_t chunkLen, void *hash, size_t *hashLen)
 {
@@ -962,6 +969,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_DigestDoFinal);
 TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
 				    const void *chunk, uint32_t chunkLen,
 				    void *hash, uint32_t *hashLen)
@@ -1024,6 +1032,7 @@ TEE_Result TEE_DigestExtract(TEE_OperationHandle operation, void *hash,
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
+SYMVER_GP131(TEE_CipherInit);
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
 		    size_t IVLen)
 {
@@ -1060,6 +1069,7 @@ void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
 	operation->info.handleState |= TEE_HANDLE_FLAG_INITIALIZED;
 }
 
+SYMVER_COMPAT_GP11(TEE_CipherInit);
 void __GP11_TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
 			   uint32_t IVLen)
 {
@@ -1164,6 +1174,7 @@ out:
 	return TEE_SUCCESS;
 }
 
+SYMVER_GP131(TEE_CipherUpdate);
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
 			    size_t srcLen, void *destData, size_t *destLen)
 {
@@ -1245,6 +1256,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_CipherUpdate);
 TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
 				   const void *srcData, uint32_t srcLen,
 				   void *destData, uint32_t *destLen)
@@ -1259,6 +1271,7 @@ TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_CipherDoFinal);
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 			     const void *srcData, size_t srcLen,
 			     void *destData, size_t *destLen)
@@ -1368,6 +1381,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_CipherDoFinal);
 TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
 				    const void *srcData, uint32_t srcLen,
 				    void *destData, uint32_t *destLen)
@@ -1387,6 +1401,7 @@ TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - MAC Functions */
 
+SYMVER_GP131(TEE_MACInit);
 void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
 {
 	if (operation == TEE_HANDLE_NULL)
@@ -1407,12 +1422,14 @@ void TEE_MACInit(TEE_OperationHandle operation, const void *IV, size_t IVLen)
 	init_hash_operation(operation, IV, IVLen);
 }
 
+SYMVER_COMPAT_GP11(TEE_MACInit);
 void __GP11_TEE_MACInit(TEE_OperationHandle operation, const void *IV,
 			uint32_t IVLen)
 {
 	return TEE_MACInit(operation, IV, IVLen);
 }
 
+SYMVER_GP131(TEE_MACUpdate);
 void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
 		   size_t chunkSize)
 {
@@ -1435,12 +1452,14 @@ void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
 		TEE_Panic(res);
 }
 
+SYMVER_COMPAT_GP11(TEE_MACUpdate);
 void __GP11_TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
 			  uint32_t chunkSize)
 {
 	return TEE_MACUpdate(operation, chunk, chunkSize);
 }
 
+SYMVER_GP131(TEE_MACComputeFinal);
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
 			       const void *message, size_t messageLen,
 			       void *mac, size_t *macLen)
@@ -1487,6 +1506,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_MACComputeFinal);
 TEE_Result __GP11_TEE_MACComputeFinal(TEE_OperationHandle operation,
 				      const void *message, uint32_t messageLen,
 				      void *mac, uint32_t *macLen)
@@ -1501,6 +1521,7 @@ TEE_Result __GP11_TEE_MACComputeFinal(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_MACCompareFinal);
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
 			       const void *message, size_t messageLen,
 			       const void *mac, size_t macLen)
@@ -1549,6 +1570,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_MACCompareFinal);
 TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
 				      const void *message, uint32_t messageLen,
 				      const void *mac, uint32_t macLen)
@@ -1558,6 +1580,7 @@ TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
+SYMVER_GP131(TEE_AEInit);
 TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 		      size_t nonceLen, uint32_t tagLen, size_t AADLen,
 		      size_t payloadLen)
@@ -1612,6 +1635,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AEInit);
 TEE_Result __GP11_TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 			     uint32_t nonceLen, uint32_t tagLen,
 			     uint32_t AADLen, uint32_t payloadLen)
@@ -1620,6 +1644,7 @@ TEE_Result __GP11_TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
 			  payloadLen);
 }
 
+SYMVER_GP131(TEE_AEUpdateAAD);
 void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
 		     size_t AADdataLen)
 {
@@ -1642,6 +1667,7 @@ void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
 		TEE_Panic(res);
 }
 
+SYMVER_COMPAT_GP11(TEE_AEUpdateAAD);
 void __GP11_TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
 			    uint32_t AADdataLen)
 {
@@ -1715,6 +1741,7 @@ static TEE_Result ae_update_helper(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_AEUpdate);
 TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
 			size_t srcLen, void *destData, size_t *destLen)
 {
@@ -1748,6 +1775,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AEUpdate);
 TEE_Result __GP11_TEE_AEUpdate(TEE_OperationHandle operation,
 			       const void *srcData, uint32_t srcLen,
 			       void *destData, uint32_t *destLen)
@@ -1788,6 +1816,7 @@ out:
 	return res;
 }
 
+SYMVER_GP131(TEE_AEEncryptFinal);
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
 			      const void *srcData, size_t srcLen,
 			      void *destData, size_t *destLen, void *tag,
@@ -1881,6 +1910,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AEEncryptFinal);
 TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
 				     const void *srcData, uint32_t srcLen,
 				     void *destData, uint32_t *destLen,
@@ -1901,6 +1931,7 @@ TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_AEDecryptFinal);
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
 			      const void *srcData, size_t srcLen,
 			      void *destData, size_t *destLen, void *tag,
@@ -1983,6 +2014,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AEDecryptFinal);
 TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
 				     const void *srcData, uint32_t srcLen,
 				     void *destData, uint32_t *destLen,
@@ -2001,6 +2033,7 @@ TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
+SYMVER_GP131(TEE_AsymmetricEncrypt);
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
@@ -2040,6 +2073,7 @@ TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AsymmetricEncrypt);
 TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 					const __GP11_TEE_Attribute *params,
 					uint32_t paramCount,
@@ -2077,6 +2111,7 @@ TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_AsymmetricDecrypt);
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
@@ -2116,6 +2151,7 @@ TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AsymmetricDecrypt);
 TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 					const __GP11_TEE_Attribute *params,
 					uint32_t paramCount,
@@ -2153,6 +2189,7 @@ TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_AsymmetricSignDigest);
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
@@ -2189,6 +2226,7 @@ TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AsymmetricSignDigest);
 TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 					   const __GP11_TEE_Attribute *params,
 					   uint32_t paramCount,
@@ -2226,6 +2264,7 @@ TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_GP131(TEE_AsymmetricVerifyDigest);
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
@@ -2261,6 +2300,7 @@ TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_AsymmetricVerifyDigest);
 TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 					     const __GP11_TEE_Attribute *params,
 					     uint32_t paramCount,
@@ -2298,6 +2338,7 @@ TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Key Derivation Functions */
 
+SYMVER_GP131(TEE_DeriveKey);
 void TEE_DeriveKey(TEE_OperationHandle operation,
 		   const TEE_Attribute *params, uint32_t paramCount,
 		   TEE_ObjectHandle derivedKey)
@@ -2340,6 +2381,7 @@ void TEE_DeriveKey(TEE_OperationHandle operation,
 		TEE_Panic(res);
 }
 
+SYMVER_COMPAT_GP11(TEE_DeriveKey);
 void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
 			  const __GP11_TEE_Attribute *params,
 			  uint32_t paramCount, TEE_ObjectHandle derivedKey)
@@ -2384,6 +2426,7 @@ void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
+SYMVER_GP131(TEE_GenerateRandom);
 void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen)
 {
 	TEE_Result res;
@@ -2393,6 +2436,7 @@ void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen)
 		TEE_Panic(res);
 }
 
+SYMVER_COMPAT_GP11(TEE_GenerateRandom);
 void __GP11_TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
 {
 	TEE_GenerateRandom(randomBuffer, randomBufferLen);

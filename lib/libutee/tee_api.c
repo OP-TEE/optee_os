@@ -314,6 +314,7 @@ static void check_invoke_param(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 	}
 }
 
+SYMVER_GP131(TEE_OpenTASession);
 TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 				uint32_t cancellationRequestTimeout,
 				uint32_t paramTypes,
@@ -363,6 +364,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_OpenTASession);
 TEE_Result __GP11_TEE_OpenTASession(const TEE_UUID *destination,
 				    uint32_t cancellationRequestTimeout,
 				    uint32_t paramTypes,
@@ -420,6 +422,7 @@ void TEE_CloseTASession(TEE_TASessionHandle session)
 	}
 }
 
+SYMVER_GP131(TEE_InvokeTACommand);
 TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 				uint32_t cancellationRequestTimeout,
 				uint32_t commandID, uint32_t paramTypes,
@@ -473,6 +476,7 @@ out:
 	return res;
 }
 
+SYMVER_COMPAT_GP11(TEE_InvokeTACommand);
 TEE_Result __GP11_TEE_InvokeTACommand(TEE_TASessionHandle session,
 				      uint32_t cancellationRequestTimeout,
 				      uint32_t commandID, uint32_t paramTypes,
@@ -558,6 +562,7 @@ bool TEE_MaskCancellation(void)
 
 /* System API - Memory Management */
 
+SYMVER_GP131(TEE_CheckMemoryAccessRights);
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
 				       size_t size)
 {
@@ -591,6 +596,7 @@ TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
 	return TEE_SUCCESS;
 }
 
+SYMVER_COMPAT_GP11(TEE_CheckMemoryAccessRights);
 TEE_Result __GP11_TEE_CheckMemoryAccessRights(uint32_t accessFlags,
 					      void *buffer, uint32_t size)
 {
@@ -701,6 +707,7 @@ void TEE_GetREETime(TEE_Time *time)
 		TEE_Panic(res);
 }
 
+SYMVER_GP131(TEE_Malloc);
 void *TEE_Malloc(size_t len, uint32_t hint)
 {
 	switch (hint) {
@@ -741,6 +748,7 @@ void *TEE_Malloc(size_t len, uint32_t hint)
 	return NULL;
 }
 
+SYMVER_COMPAT_GP11(TEE_Malloc);
 void *__GP11_TEE_Malloc(uint32_t size, uint32_t hint)
 {
 	return TEE_Malloc(size, hint);

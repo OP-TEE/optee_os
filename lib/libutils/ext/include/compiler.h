@@ -276,4 +276,8 @@
 #define fallthrough do {} while (0) /* fallthrough */
 #endif
 
+#define SYMVER_GP131(_sym) asm (".symver " #_sym ", " #_sym "@@@GP_1.3.1");
+#define SYMVER_COMPAT_GP11(_sym) \
+	asm(".symver __GP11_" #_sym ", " #_sym "@GP_1.1");
+
 #endif /*COMPILER_H*/
