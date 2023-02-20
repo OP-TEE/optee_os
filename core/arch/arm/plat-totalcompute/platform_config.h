@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+<<<<<<< HEAD
  * Copyright (c) 2021, Arm Limited. All rights reserved.
+=======
+ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
+>>>>>>> 72bf5ec4... plat-totalcompute: Remap console logs
  */
 
 #ifndef PLATFORM_CONFIG_H
@@ -20,8 +24,8 @@
 #define GICC_OFFSET		0x0
 #endif
 
-#define UART0_BASE		0x7FF70000
-#define UART1_BASE		0x7FF80000
+#define UART0_BASE		0x2A410000
+#define UART1_BASE		0x2A400000
 
 #define CONSOLE_UART_BASE	UART0_BASE
 
