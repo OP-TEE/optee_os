@@ -11,6 +11,7 @@
 #include <crypto/crypto.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/gpio.h>
 #include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <kernel/dt_driver.h>
@@ -33,6 +34,7 @@ enum dt_test_sid { DEFAULT = 0, IN_PROGRESS, SUCCESS, FAILED };
 struct dt_test_state {
 	enum dt_test_sid probe_deferral;
 	enum dt_test_sid probe_clocks;
+	enum dt_test_sid probe_gpios;
 	enum dt_test_sid probe_resets;
 	enum dt_test_sid crypto_dependencies;
 };
@@ -111,6 +113,8 @@ static TEE_Result dt_test_release(void)
 		    dt_test_str_sid[dt_test_state.probe_deferral]);
 	DT_TEST_MSG("Clocks probe: %s",
 		    dt_test_str_sid[dt_test_state.probe_clocks]);
+	DT_TEST_MSG("GPIO ctrl probe: %s",
+		    dt_test_str_sid[dt_test_state.probe_gpios]);
 	DT_TEST_MSG("Reset ctrl probe: %s",
 		    dt_test_str_sid[dt_test_state.probe_resets]);
 	DT_TEST_MSG("Crypto deps.: %s",
@@ -132,6 +136,11 @@ TEE_Result dt_driver_test_status(void)
 	if (IS_ENABLED(CFG_DRIVERS_CLK) &&
 	    dt_test_state.probe_clocks != SUCCESS) {
 		EMSG("Clocks probing test failed");
+		res = TEE_ERROR_GENERIC;
+	}
+	if (IS_ENABLED(CFG_DRIVERS_GPIOS) &&
+	    dt_test_state.probe_gpios != SUCCESS) {
+		EMSG("GPIO controllers probing test failed");
 		res = TEE_ERROR_GENERIC;
 	}
 	if (IS_ENABLED(CFG_DRIVERS_RSTCTRL) &&
@@ -246,6 +255,43 @@ static TEE_Result dt_test_consumer_probe(const void *fdt, int node,
 		}
 
 		dt_test_state.probe_resets = SUCCESS;
+	}
+
+	if (IS_ENABLED(CFG_DRIVERS_GPIO)) {
+		struct gpio *gpio = NULL;
+
+		DT_TEST_MSG("Probe GPIO controllers");
+
+		res = gpio_dt_get_by_index(fdt, node, 0, "test", &gpio);
+		if (res)
+			goto err_probe;
+
+		if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
+			EMSG("Unexpected gpio_get_direction() return value");
+			return TEE_ERROR_GENERIC;
+		}
+
+		/* GPIO is declared as ACTIVE_LOW in device-tree */
+		if (gpio_get_value(gpio) != GPIO_LEVEL_LOW) {
+			EMSG("Unexpected gpio_get_value() return value");
+			return TEE_ERROR_GENERIC;
+		}
+
+		res = gpio_dt_get_by_index(fdt, node, 1, "test", &gpio);
+		if (res)
+			goto err_probe;
+
+		if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
+			EMSG("Unexpected gpio_get_direction() return value");
+			return TEE_ERROR_GENERIC;
+		}
+
+		if (gpio_get_value(gpio) != GPIO_LEVEL_HIGH) {
+			EMSG("Unexpected gpio_get_value() return value");
+			return TEE_ERROR_GENERIC;
+		}
+
+		dt_test_state.probe_gpios = SUCCESS;
 	}
 
 	if (dt_test_state.probe_deferral != IN_PROGRESS) {
@@ -522,3 +568,145 @@ static TEE_Result dt_test_rstctrl_provider_probe(const void *fdt, int offs,
 RSTCTRL_DT_DECLARE(dt_test_rstctrl_provider, "linaro,dt-test-provider",
 		   dt_test_rstctrl_provider_probe);
 #endif /* CFG_DRIVERS_RSTCTRL */
+
+#ifdef CFG_DRIVERS_GPIO
+#define DT_TEST_GPIO_COUNT	2
+
+#define DT_TEST_GPIO0_PIN	1
+#define DT_TEST_GPIO0_FLAGS	GPIO_ACTIVE_LOW
+#define DT_TEST_GPIO1_PIN	2
+#define DT_TEST_GPIO1_FLAGS	GPIO_PULL_UP
+
+struct dt_test_gpio {
+	unsigned int pin;
+	unsigned int flags;
+	struct gpio_chip gpio_chip;
+};
+
+static struct dt_test_gpio *to_test_gpio(struct gpio_chip *chip)
+{
+	return container_of(chip, struct dt_test_gpio, gpio_chip);
+}
+
+static enum gpio_dir dt_test_gpio_get_direction(struct gpio_chip *chip,
+						unsigned int gpio_pin)
+{
+	struct dt_test_gpio *dtg = to_test_gpio(chip);
+
+	if (dtg->pin != gpio_pin)
+		panic("Invalid GPIO number");
+
+	return GPIO_DIR_IN;
+}
+
+static void dt_test_gpio_set_direction(struct gpio_chip *chip,
+				       unsigned int gpio_pin,
+				       enum gpio_dir direction __unused)
+{
+	struct dt_test_gpio *dtg = to_test_gpio(chip);
+
+	if (dtg->pin != gpio_pin)
+		panic("Invalid GPIO number");
+}
+
+static enum gpio_level dt_test_gpio_get_value(struct gpio_chip *chip,
+					      unsigned int gpio_pin)
+{
+	struct dt_test_gpio *dtg = to_test_gpio(chip);
+
+	if (dtg->pin != gpio_pin)
+		panic("Invalid GPIO number");
+
+	return GPIO_LEVEL_HIGH;
+}
+
+static void dt_test_gpio_set_value(struct gpio_chip *chip,
+				   unsigned int gpio_pin,
+				   enum gpio_level value __unused)
+{
+	struct dt_test_gpio *dtg = to_test_gpio(chip);
+
+	if (dtg->pin != gpio_pin)
+		panic("Invalid GPIO number");
+}
+
+static const struct gpio_ops dt_test_gpio_ops = {
+	.get_direction = dt_test_gpio_get_direction,
+	.set_direction = dt_test_gpio_set_direction,
+	.get_value = dt_test_gpio_get_value,
+	.set_value = dt_test_gpio_set_value,
+};
+
+static struct gpio *dt_test_gpio_get_dt(struct dt_driver_phandle_args *a,
+					void *data, TEE_Result *res)
+{
+	struct gpio *gpio = NULL;
+	struct dt_test_gpio *gpios = (struct dt_test_gpio *)data;
+
+	gpio = gpio_dt_alloc_pin(a, res);
+	if (*res)
+		return NULL;
+
+	switch (gpio->pin) {
+	case DT_TEST_GPIO0_PIN:
+		gpio->chip = &gpios[0].gpio_chip;
+		if (gpio->dt_flags != gpios[0].flags) {
+			EMSG("Unexpected dt_flags %#"PRIx32, gpio->dt_flags);
+			*res = TEE_ERROR_GENERIC;
+			free(gpio);
+			return NULL;
+		}
+		break;
+	case DT_TEST_GPIO1_PIN:
+		gpio->chip = &gpios[1].gpio_chip;
+		if (gpio->dt_flags != gpios[1].flags) {
+			EMSG("Unexpected dt_flags %#"PRIx32, gpio->dt_flags);
+			*res = TEE_ERROR_GENERIC;
+			free(gpio);
+			return NULL;
+		}
+		break;
+	default:
+		EMSG("Unexpected pin ID %u", gpio->pin);
+		*res = TEE_ERROR_BAD_PARAMETERS;
+		free(gpio);
+		return NULL;
+	};
+
+	return gpio;
+}
+
+static TEE_Result dt_test_gpio_provider_probe(const void *fdt, int offs,
+					      const void *data __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dt_test_gpio *gpios = NULL;
+
+	DT_TEST_MSG("Register GPIO controllers");
+
+	assert(gpio_ops_is_valid(&dt_test_gpio_ops));
+
+	gpios = dt_test_alloc(DT_TEST_GPIO_COUNT * sizeof(*gpios));
+	if (!gpios)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	gpios[0].gpio_chip.ops = &dt_test_gpio_ops;
+	gpios[0].pin = DT_TEST_GPIO0_PIN;
+	gpios[0].flags = DT_TEST_GPIO0_FLAGS;
+
+	gpios[1].gpio_chip.ops = &dt_test_gpio_ops;
+	gpios[1].pin = DT_TEST_GPIO1_PIN;
+	gpios[1].flags = DT_TEST_GPIO1_FLAGS;
+
+	res = gpio_register_provider(fdt, offs, dt_test_gpio_get_dt, gpios);
+	if (res) {
+		dt_test_free(gpios);
+		return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+GPIO_DT_DECLARE(dt_test_gpio_provider, "linaro,dt-test-provider",
+		dt_test_gpio_provider_probe);
+#endif /* CFG_DRIVERS_GPIO */
