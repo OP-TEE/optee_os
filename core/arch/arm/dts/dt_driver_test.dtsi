@@ -2,6 +2,7 @@
 /*
  *  Copyright (c) 2022, Linaro Limited
  */
+ #include <dt-bindings/gpio/gpio.h>
 
 / {
 	/*
@@ -14,6 +15,8 @@
 		clock-names = "clk0", "clk1";
 		resets = <&dt_test_provider 35>, <&dt_test_provider 5>;
 		reset-names = "rst0", "rst1";
+		test-gpios = <&dt_test_provider 1 GPIO_ACTIVE_LOW>,
+			     <&dt_test_provider 2 GPIO_PULL_UP>;
 	};
 
 	/*
@@ -39,6 +42,7 @@
 						reg = <0>;
 						#clock-cells = <1>;
 						#reset-cells = <1>;
+						#gpio-cells = <2>;
 					};
 				};
 			};
