@@ -1456,6 +1456,14 @@ static TEE_Result do_caam_decrypt(struct drvcrypt_rsa_ed *rsa_data,
 			cache_operation(TEE_CACHEINVALIDATE, size_msg.data,
 					size_msg.length);
 
+			/* Check if the original buffer size is large enough */
+			if (msg.orig.length < caam_read_val32(size_msg.data)) {
+				rsa_data->message.length =
+						caam_read_val32(size_msg.data);
+				ret = TEE_ERROR_SHORT_BUFFER;
+				goto exit_decrypt;
+			}
+
 			msg.orig.length = caam_read_val32(size_msg.data);
 			RSA_TRACE("New length %zu", msg.orig.length);
 		}
