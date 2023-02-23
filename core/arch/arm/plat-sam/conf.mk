@@ -88,6 +88,7 @@ CFG_ATMEL_RTC ?= y
 CFG_ATMEL_PIOBU ?= y
 
 ifeq ($(PLATFORM_FLAVOR),sama5d27_wlsom1_ek)
+CFG_DRIVERS_GPIO ?= y
 CFG_DRIVERS_I2C ?= y
 CFG_ATMEL_I2C ?= y
 endif
