@@ -13,7 +13,7 @@
 #define IMX_MU_DATA_U16(mesg, idx) ((mesg)->data.u16[(idx)])
 #define IMX_MU_DATA_U8(mesg, idx)  ((mesg)->data.u8[(idx)])
 
-#define IMX_MU_MSG_SIZE	  7
+#define IMX_MU_MSG_SIZE	  17
 #define IMX_MU_NB_CHANNEL 4
 
 #if defined(CFG_MX8ULP) || defined(CFG_MX93)
