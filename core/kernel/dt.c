@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <libfdt.h>

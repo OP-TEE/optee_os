@@ -10,6 +10,7 @@
 #include <drivers/rtc.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
 #include <sama5d2.h>

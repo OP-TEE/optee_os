@@ -10,6 +10,7 @@
 #include <drivers/pm/sam/atmel_pm.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/thread.h>
 #include <libfdt.h>
 #include <matrix.h>

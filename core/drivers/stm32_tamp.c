@@ -8,6 +8,7 @@
 #include <drivers/stm32_tamp.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>

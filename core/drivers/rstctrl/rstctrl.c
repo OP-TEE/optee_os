@@ -6,8 +6,6 @@
 #include <assert.h>
 #include <drivers/rstctrl.h>
 #include <io.h>
-#include <kernel/dt.h>
-#include <kernel/dt_driver.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <stdint.h>

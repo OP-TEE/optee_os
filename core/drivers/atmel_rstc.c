@@ -6,6 +6,7 @@
 #include <drivers/atmel_rstc.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <sama5d2.h>
 #include <tee_api_defines.h>

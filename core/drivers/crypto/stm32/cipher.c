@@ -8,7 +8,6 @@
 #include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_cipher.h>
-#include <kernel/dt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>

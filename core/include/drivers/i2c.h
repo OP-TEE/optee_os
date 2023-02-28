@@ -6,7 +6,6 @@
 #ifndef __DRIVERS_I2C_H
 #define __DRIVERS_I2C_H
 
-#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <libfdt.h>
 #include <tee_api_types.h>

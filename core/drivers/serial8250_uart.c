@@ -8,8 +8,9 @@
 #include <drivers/serial8250_uart.h>
 #include <io.h>
 #include <keep.h>
-#include <util.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
+#include <util.h>
 
 /* uart register defines */
 #define UART_RHR	0x0
