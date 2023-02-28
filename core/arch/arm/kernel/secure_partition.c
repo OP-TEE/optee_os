@@ -1418,111 +1418,70 @@ static const struct ts_ops sp_ops = {
 
 static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
 {
-	enum teecore_memtypes mtype = MEM_AREA_RAM_SEC;
+	enum teecore_memtypes mtype = MEM_AREA_TA_RAM;
 	struct sp_pkg_header *sp_pkg_hdr = NULL;
-	TEE_Result res = TEE_SUCCESS;
-	tee_mm_entry_t *mm = NULL;
 	struct fip_sp *sp = NULL;
 	uint64_t sp_fdt_end = 0;
 	size_t sp_pkg_size = 0;
 	vaddr_t sp_pkg_va = 0;
-	size_t num_pages = 0;
 
-	/* Map only the first page of the SP package to parse the header */
-	if (!tee_pbuf_is_sec(sp_pkg_pa, SMALL_PAGE_SIZE))
+	/* Process the first page which contains the SP package header */
+	sp_pkg_va = (vaddr_t)phys_to_virt(sp_pkg_pa, mtype, SMALL_PAGE_SIZE);
+	if (!sp_pkg_va) {
+		EMSG("Cannot find mapping for PA %#" PRIxPA, sp_pkg_pa);
 		return TEE_ERROR_GENERIC;
-
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, SMALL_PAGE_SIZE);
-	if (!mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	sp_pkg_va = tee_mm_get_smem(mm);
-
-	if (core_mmu_map_contiguous_pages(sp_pkg_va, sp_pkg_pa, 1, mtype)) {
-		res = TEE_ERROR_GENERIC;
-		goto err;
 	}
 
 	sp_pkg_hdr = (struct sp_pkg_header *)sp_pkg_va;
 
 	if (sp_pkg_hdr->magic != SP_PKG_HEADER_MAGIC) {
 		EMSG("Invalid SP package magic");
-		res = TEE_ERROR_BAD_FORMAT;
-		goto err_unmap;
+		return TEE_ERROR_BAD_FORMAT;
 	}
 
 	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V1 &&
 	    sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V2) {
 		EMSG("Invalid SP header version");
-		res = TEE_ERROR_BAD_FORMAT;
-		goto err_unmap;
+		return TEE_ERROR_BAD_FORMAT;
 	}
 
 	if (ADD_OVERFLOW(sp_pkg_hdr->img_offset, sp_pkg_hdr->img_size,
 			 &sp_pkg_size)) {
 		EMSG("Invalid SP package size");
-		res = TEE_ERROR_BAD_FORMAT;
-		goto err_unmap;
+		return TEE_ERROR_BAD_FORMAT;
 	}
 
 	if (ADD_OVERFLOW(sp_pkg_hdr->pm_offset, sp_pkg_hdr->pm_size,
 			 &sp_fdt_end) || sp_fdt_end > sp_pkg_hdr->img_offset) {
 		EMSG("Invalid SP manifest size");
-		res = TEE_ERROR_BAD_FORMAT;
-		goto err_unmap;
+		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	core_mmu_unmap_pages(sp_pkg_va, 1);
-	tee_mm_free(mm);
-
-	/* Map the whole package */
-	if (!tee_pbuf_is_sec(sp_pkg_pa, sp_pkg_size))
+	/* Process the whole SP package now that the size is known */
+	sp_pkg_va = (vaddr_t)phys_to_virt(sp_pkg_pa, mtype, sp_pkg_size);
+	if (!sp_pkg_va) {
+		EMSG("Cannot find mapping for PA %#" PRIxPA, sp_pkg_pa);
 		return TEE_ERROR_GENERIC;
-
-	num_pages = ROUNDUP_DIV(sp_pkg_size, SMALL_PAGE_SIZE);
-
-	mm = tee_mm_alloc(&tee_mm_sec_ddr, sp_pkg_size);
-	if (!mm)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	sp_pkg_va = tee_mm_get_smem(mm);
-
-	if (core_mmu_map_contiguous_pages(sp_pkg_va, sp_pkg_pa, num_pages,
-					  mtype)) {
-		res = TEE_ERROR_GENERIC;
-		goto err;
 	}
 
-	sp_pkg_hdr = (struct sp_pkg_header *)tee_mm_get_smem(mm);
+	sp_pkg_hdr = (struct sp_pkg_header *)sp_pkg_va;
 
 	sp = calloc(1, sizeof(struct fip_sp));
-	if (!sp) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err_unmap;
-	}
+	if (!sp)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memcpy(&sp->sp_img.image.uuid, sp_uuid, sizeof(*sp_uuid));
 	sp->sp_img.image.ts = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->img_offset);
 	sp->sp_img.image.size = sp_pkg_hdr->img_size;
 	sp->sp_img.image.flags = 0;
 	sp->sp_img.fdt = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->pm_offset);
-	sp->mm = mm;
 
 	STAILQ_INSERT_TAIL(&fip_sp_list, sp, link);
 
 	return TEE_SUCCESS;
-
-err_unmap:
-	core_mmu_unmap_pages(tee_mm_get_smem(mm),
-			     ROUNDUP_DIV(tee_mm_get_bytes(mm),
-					 SMALL_PAGE_SIZE));
-err:
-	tee_mm_free(mm);
-
-	return res;
 }
 
-static TEE_Result fip_sp_map_all(void)
+static TEE_Result fip_sp_init_all(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint64_t sp_pkg_addr = 0;
@@ -1573,16 +1532,12 @@ static TEE_Result fip_sp_map_all(void)
 	return TEE_SUCCESS;
 }
 
-static void fip_sp_unmap_all(void)
+static void fip_sp_deinit_all(void)
 {
 	while (!STAILQ_EMPTY(&fip_sp_list)) {
 		struct fip_sp *sp = STAILQ_FIRST(&fip_sp_list);
 
 		STAILQ_REMOVE_HEAD(&fip_sp_list, link);
-		core_mmu_unmap_pages(tee_mm_get_smem(sp->mm),
-				     ROUNDUP_DIV(tee_mm_get_bytes(sp->mm),
-						 SMALL_PAGE_SIZE));
-		tee_mm_free(sp->mm);
 		free(sp);
 	}
 }
@@ -1615,9 +1570,9 @@ static TEE_Result sp_init_all(void)
 		}
 	}
 
-	res = fip_sp_map_all();
+	res = fip_sp_init_all();
 	if (res)
-		panic("Failed mapping FIP SPs");
+		panic("Failed initializing FIP SPs");
 
 	for_each_fip_sp(fip_sp) {
 		sp = &fip_sp->sp_img;
@@ -1645,11 +1600,12 @@ static TEE_Result sp_init_all(void)
 				panic();
 		}
 	}
+
 	/*
-	 * At this point all FIP SPs are loaded by ldelf so the original images
-	 * (loaded by BL2 earlier) can be unmapped
+	 * At this point all FIP SPs are loaded by ldelf or by the raw binary SP
+	 * loader, so the original images (loaded by BL2) are not needed anymore
 	 */
-	fip_sp_unmap_all();
+	fip_sp_deinit_all();
 
 	return TEE_SUCCESS;
 }
