@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020-2022, Arm Limited.
+ * Copyright (c) 2020-2023, Arm Limited.
  */
 #ifndef __KERNEL_SECURE_PARTITION_H
 #define __KERNEL_SECURE_PARTITION_H
@@ -98,9 +98,7 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem);
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct sp_image)
 
 struct fip_sp {
-	tee_mm_entry_t *mm;
 	struct sp_image sp_img;
-
 	STAILQ_ENTRY(fip_sp) link;
 };
 
