@@ -6,7 +6,6 @@
 #ifndef __DRIVERS_CLK_DT_H
 #define __DRIVERS_CLK_DT_H
 
-#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <scattered_array.h>
 #include <stdint.h>

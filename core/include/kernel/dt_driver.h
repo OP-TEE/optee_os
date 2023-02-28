@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2021, Linaro Limited
  * Copyright (c) 2021, Bootlin
- * Copyright (c) 2021, Linaro Limited
  * Copyright (c) 2021, STMicroelectronics
  */
 
@@ -13,6 +12,63 @@
 #include <stdint.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
+
+/*
+ * Type indentifiers for registered device drivers consumer can query
+ *
+ * DT_DRIVER_NOTYPE Generic type for when no generic FDT parsing is supported
+ * DT_DRIVER_UART   UART driver currently designed for console means
+ * DT_DRIVER_CLK    Clock controller using generic clock DT bindings
+ * DT_DRIVER_RSTCTRL Reset controller using generic reset DT bindings
+ * DT_DRIVER_I2C    I2C bus controlle using generic I2C bus DT bindings
+ */
+enum dt_driver_type {
+	DT_DRIVER_NOTYPE,
+	DT_DRIVER_UART,
+	DT_DRIVER_CLK,
+	DT_DRIVER_RSTCTRL,
+	DT_DRIVER_I2C,
+};
+
+/*
+ * dt_driver_probe_func - Callback probe function for a driver.
+ *
+ * @fdt: FDT base address
+ * @nodeoffset: Offset of the node in the FDT
+ * @compat_data: Data registered for the compatible that probed the device
+ *
+ * Return TEE_SUCCESS on successful probe,
+ *	TEE_ERROR_DEFER_DRIVER_INIT if probe must be deferred
+ *	TEE_ERROR_ITEM_NOT_FOUND when no driver matched node's compatible string
+ *	Any other TEE_ERROR_* compliant code.
+ */
+typedef TEE_Result (*dt_driver_probe_func)(const void *fdt, int nodeoffset,
+					   const void *compat_data);
+
+/*
+ * Driver instance registered to be probed on compatible node found in the DT.
+ *
+ * @name: Driver name
+ * @type: Drive type
+ * @match_table: Compatible matching identifiers, null terminated
+ * @driver: Driver private reference or NULL
+ * @probe: Probe callback (see dt_driver_probe_func) or NULL
+ */
+struct dt_driver {
+	const char *name;
+	enum dt_driver_type type;
+	const struct dt_device_match *match_table; /* null-terminated */
+	const void *driver;
+	TEE_Result (*probe)(const void *fdt, int node, const void *compat_data);
+};
+
+#define DEFINE_DT_DRIVER(name) \
+		SCATTERED_ARRAY_DEFINE_PG_ITEM(dt_drivers, struct dt_driver)
+
+#define for_each_dt_driver(drv) \
+	for (drv = SCATTERED_ARRAY_BEGIN(dt_drivers, struct dt_driver); \
+	     drv < SCATTERED_ARRAY_END(dt_drivers, struct dt_driver); \
+	     drv++)
 
 /* Opaque reference to DT driver device provider instance */
 struct dt_driver_provider;

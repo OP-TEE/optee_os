@@ -10,7 +10,6 @@
 #include <drvcrypt.h>
 #include <drvcrypt_authenc.h>
 #include <initcall.h>
-#include <kernel/dt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>

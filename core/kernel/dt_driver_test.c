@@ -13,7 +13,6 @@
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
 #include <initcall.h>
-#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <libfdt.h>
 #include <malloc.h>

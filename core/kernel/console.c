@@ -7,6 +7,7 @@
 #include <console.h>
 #include <drivers/serial.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <libfdt.h>

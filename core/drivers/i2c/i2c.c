@@ -5,7 +5,6 @@
 
 #include <drivers/i2c.h>
 #include <kernel/dt.h>
-#include <kernel/dt_driver.h>
 #include <libfdt.h>
 #include <malloc.h>
 #include <tee_api_defines_extensions.h>

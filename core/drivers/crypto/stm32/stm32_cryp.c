@@ -12,6 +12,7 @@
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/mutex.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>

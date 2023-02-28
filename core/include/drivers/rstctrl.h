@@ -6,7 +6,6 @@
 #ifndef __DRIVERS_RSTCTRL_H
 #define __DRIVERS_RSTCTRL_H
 
-#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <stdint.h>
 #include <tee_api_types.h>

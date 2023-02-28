@@ -32,6 +32,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <util.h>
 
 /* Register definitions */

@@ -8,6 +8,7 @@
 #include <drivers/clk_dt.h>
 #include <drivers/i2c.h>
 #include <io.h>
+#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <libfdt.h>
 #include <matrix.h>
