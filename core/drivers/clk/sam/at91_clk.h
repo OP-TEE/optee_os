@@ -118,6 +118,12 @@ extern const struct clk_master_layout at91sam9x5_master_layout;
 
 vaddr_t at91_pmc_get_base(void);
 
+TEE_Result at91_pmc_clk_get(unsigned int type, unsigned int idx,
+			    struct clk **clk);
+
+TEE_Result pmc_clk_get(struct pmc_data *pmc, unsigned int type,
+		       unsigned int idx, struct clk **clk);
+
 struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 				   unsigned int nperiph, unsigned int ngck,
 				   unsigned int npck);

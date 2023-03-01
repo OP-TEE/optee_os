@@ -309,6 +309,12 @@ vaddr_t at91_pmc_get_base(void)
 	return pmc->base;
 }
 
+TEE_Result at91_pmc_clk_get(unsigned int type, unsigned int idx,
+			    struct clk **clk)
+{
+	return pmc_clk_get(pmc, type, idx, clk);
+}
+
 static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 			    const void *data __unused)
 {
