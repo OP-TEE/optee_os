@@ -42,50 +42,58 @@ struct clk *pmc_clk_get_by_name(struct pmc_clk *clks, unsigned int nclk,
 	return NULL;
 }
 
+TEE_Result pmc_clk_get(struct pmc_data *pmc, unsigned int type,
+		       unsigned int idx, struct clk **clk)
+{
+	unsigned int nclk = 0;
+	struct pmc_clk *clks = NULL;
+
+	switch (type) {
+	case PMC_TYPE_CORE:
+		nclk = pmc->ncore;
+		clks = pmc->chws;
+		break;
+	case PMC_TYPE_SYSTEM:
+		nclk = pmc->nsystem;
+		clks = pmc->shws;
+		break;
+	case PMC_TYPE_PERIPHERAL:
+		nclk = pmc->nperiph;
+		clks = pmc->phws;
+		break;
+	case PMC_TYPE_GCK:
+		nclk = pmc->ngck;
+		clks = pmc->ghws;
+		break;
+	case PMC_TYPE_PROGRAMMABLE:
+		nclk = pmc->npck;
+		clks = pmc->pchws;
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	*clk = pmc_clk_get_by_id(clks, nclk, idx);
+	if (!*clk)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 struct clk *clk_dt_pmc_get(struct dt_driver_phandle_args *clkspec, void *data,
 			   TEE_Result *res)
 {
 	unsigned int type = clkspec->args[0];
 	unsigned int idx = clkspec->args[1];
 	struct pmc_data *pmc_data = data;
-	struct pmc_clk *clks = NULL;
 	struct clk *clk = NULL;
-	unsigned int nclk = 0;
-	*res = TEE_ERROR_GENERIC;
 
 	if (clkspec->args_count != 2) {
 		*res = TEE_ERROR_BAD_PARAMETERS;
 		return NULL;
 	}
 
-	switch (type) {
-	case PMC_TYPE_CORE:
-		nclk = pmc_data->ncore;
-		clks = pmc_data->chws;
-		break;
-	case PMC_TYPE_SYSTEM:
-		nclk = pmc_data->nsystem;
-		clks = pmc_data->shws;
-		break;
-	case PMC_TYPE_PERIPHERAL:
-		nclk = pmc_data->nperiph;
-		clks = pmc_data->phws;
-		break;
-	case PMC_TYPE_GCK:
-		nclk = pmc_data->ngck;
-		clks = pmc_data->ghws;
-		break;
-	case PMC_TYPE_PROGRAMMABLE:
-		nclk = pmc_data->npck;
-		clks = pmc_data->pchws;
-		break;
-	default:
-		return NULL;
-	}
-
-	clk = pmc_clk_get_by_id(clks, nclk, idx);
-	if (clk)
-		*res = TEE_SUCCESS;
+	*res = pmc_clk_get(pmc_data, type, idx, &clk);
 
 	return clk;
 }
