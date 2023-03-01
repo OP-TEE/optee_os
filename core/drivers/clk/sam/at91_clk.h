@@ -124,6 +124,8 @@ TEE_Result at91_pmc_clk_get(unsigned int type, unsigned int idx,
 TEE_Result pmc_clk_get(struct pmc_data *pmc, unsigned int type,
 		       unsigned int idx, struct clk **clk);
 
+struct clk *at91_sckc_clk_get(void);
+
 struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 				   unsigned int nperiph, unsigned int ngck,
 				   unsigned int npck);
