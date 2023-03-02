@@ -22,6 +22,7 @@
  * DT_DRIVER_RSTCTRL Reset controller using generic reset DT bindings
  * DT_DRIVER_I2C    I2C bus controller using generic I2C bus DT bindings
  * DT_DRIVER_GPIO   GPIO controller using generic GPIO DT bindings
+ * DT_DRIVER_PINCTRL Pin controller using generic reset DT bindings
  */
 enum dt_driver_type {
 	DT_DRIVER_NOTYPE,
@@ -29,7 +30,8 @@ enum dt_driver_type {
 	DT_DRIVER_CLK,
 	DT_DRIVER_RSTCTRL,
 	DT_DRIVER_I2C,
-	DT_DRIVER_GPIO
+	DT_DRIVER_GPIO,
+	DT_DRIVER_PINCTRL
 };
 
 /*

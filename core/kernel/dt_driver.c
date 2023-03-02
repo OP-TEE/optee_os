@@ -108,6 +108,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_UART:
 	case DT_DRIVER_GPIO:
 	case DT_DRIVER_I2C:
+	case DT_DRIVER_PINCTRL:
 		return;
 	default:
 		assert(0);
@@ -156,6 +157,16 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 	return TEE_SUCCESS;
 }
 
+static bool dt_driver_use_parent_controller(enum dt_driver_type type)
+{
+	switch (type) {
+	case DT_DRIVER_PINCTRL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
  * Helper functions for dt_drivers querying driver provider information
  */
@@ -166,6 +177,9 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 	const char *cells_name = NULL;
 	const fdt32_t *c = NULL;
 	int len = 0;
+
+	if (dt_driver_use_parent_controller(type))
+		return 0;
 
 	switch (type) {
 	case DT_DRIVER_CLK:
@@ -308,11 +322,37 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 			continue;
 		}
 
-		prv = dt_driver_get_provider_by_phandle(phandle, type);
-		if (!prv) {
-			/* No provider registered yet */
-			*res = TEE_ERROR_DEFER_DRIVER_INIT;
-			return NULL;
+		/*
+		 * In some cases, pinctrl, i2c, nvmem, etc, the consumer phandle
+		 * points directly to a subnode of the parent. In such cases,
+		 * the provider does not have any "-cells" property and
+		 * potentially no "phandle" property.
+		 */
+		if (dt_driver_use_parent_controller(type)) {
+			phandle_node = fdt_node_offset_by_phandle(fdt, phandle);
+			if (phandle_node < 0) {
+				*res = TEE_ERROR_GENERIC;
+				return NULL;
+			}
+
+			nodeoffset = fdt_parent_offset(fdt, phandle_node);
+			if (nodeoffset < 0) {
+				*res = TEE_ERROR_GENERIC;
+				return NULL;
+			}
+
+			prv = dt_driver_get_provider_by_node(nodeoffset, type);
+			if (!prv) {
+				*res = TEE_ERROR_DEFER_DRIVER_INIT;
+				return NULL;
+			}
+		} else {
+			prv = dt_driver_get_provider_by_phandle(phandle, type);
+			if (!prv) {
+				/* No provider registered yet */
+				*res = TEE_ERROR_DEFER_DRIVER_INIT;
+				return NULL;
+			}
 		}
 
 		prv_cells = dt_driver_provider_cells(prv);
