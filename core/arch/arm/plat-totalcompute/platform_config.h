@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
-<<<<<<< HEAD
- * Copyright (c) 2021, Arm Limited. All rights reserved.
-=======
  * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
->>>>>>> 72bf5ec4... plat-totalcompute: Remap console logs
  */
 
 #ifndef PLATFORM_CONFIG_H
