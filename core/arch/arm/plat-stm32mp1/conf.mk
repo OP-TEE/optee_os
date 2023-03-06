@@ -119,10 +119,18 @@ CFG_WITH_PAGER ?= y
 CFG_WITH_SOFTWARE_PRNG ?= y
 endif # CFG_STM32MP15
 
+ifeq ($(CFG_WITH_PAGER),y)
+CFG_WITH_LPAE ?= n
+endif
 CFG_WITH_LPAE ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
+
+ifneq ($(CFG_WITH_LPAE),y)
+# Without LPAE, default TEE virtual address range is 1MB, we need at least 2MB.
+CFG_TEE_RAM_VA_SIZE ?= 0x00200000
+endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
 CFG_TZDRAM_START ?= 0xde000000

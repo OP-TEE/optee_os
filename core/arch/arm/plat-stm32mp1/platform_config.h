@@ -11,6 +11,13 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			32
 
+/* Translation table */
+#ifdef CFG_WITH_LPAE
+#define MAX_XLAT_TABLES			4
+#else
+#define MAX_XLAT_TABLES			8
+#endif
+
 /* SoC interface registers base address ranges */
 #define APB1_BASE			0x40000000
 #define APB1_SIZE			0x0001d000
