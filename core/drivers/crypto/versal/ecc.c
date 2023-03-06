@@ -131,9 +131,9 @@ static TEE_Result ecc_prepare_msg(uint32_t algo, const uint8_t *msg,
 	if (msg_len > TEE_SHA512_HASH_SIZE + 2)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (algo == TEE_ALG_ECDSA_P384)
+	if (algo == TEE_ALG_ECDSA_SHA384)
 		len = TEE_SHA384_HASH_SIZE;
-	else if (algo == TEE_ALG_ECDSA_P521)
+	else if (algo == TEE_ALG_ECDSA_SHA512)
 		len = TEE_SHA512_HASH_SIZE + 2;
 	else
 		return TEE_ERROR_NOT_SUPPORTED;
