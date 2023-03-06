@@ -44,52 +44,29 @@ static void ecc_free_public_key(struct ecc_public_key *s)
 	crypto_bignum_free(s->y);
 }
 
-/*
- * curve is part of TEE_ECC_CURVE_NIST_P192,...
- * algo is part of TEE_ALG_ECDSA_P192,..., and 0 if we do not have it
- */
 static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 				  size_t *key_size_bytes, size_t *key_size_bits)
 {
-	/*
-	 * Note GPv1.1 indicates TEE_ALG_ECDH_NIST_P192_DERIVE_SHARED_SECRET
-	 * but defines TEE_ALG_ECDH_P192
-	 */
 	switch (curve) {
 	case TEE_ECC_CURVE_NIST_P192:
 		*key_size_bits = 192;
 		*key_size_bytes = 24;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P192) &&
-		    (algo != TEE_ALG_ECDH_P192))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P224:
 		*key_size_bits = 224;
 		*key_size_bytes = 28;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P224) &&
-		    (algo != TEE_ALG_ECDH_P224))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P256:
 		*key_size_bits = 256;
 		*key_size_bytes = 32;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P256) &&
-		    (algo != TEE_ALG_ECDH_P256))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
 		*key_size_bits = 384;
 		*key_size_bytes = 48;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P384) &&
-		    (algo != TEE_ALG_ECDH_P384))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
 		*key_size_bits = 521;
 		*key_size_bytes = 66;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P521) &&
-		    (algo != TEE_ALG_ECDH_P521))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_SM2:
 		*key_size_bits = 256;
