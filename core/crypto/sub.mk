@@ -33,7 +33,11 @@ srcs-y += sm3-hash.c
 srcs-$(CFG_CRYPTO_HMAC) += sm3-hmac.c
 endif
 ifeq ($(CFG_CRYPTO_SM4),y)
+ifeq ($(CFG_CORE_CRYPTO_SM4_ACCEL)-$(CFG_ARM64_core),y-y)
+srcs-$(CFG_ARM64_core) += sm4_accel.c
+else
 srcs-y += sm4.c
+endif
 srcs-$(CFG_CRYPTO_ECB) += sm4-ecb.c
 srcs-$(CFG_CRYPTO_CBC) += sm4-cbc.c
 srcs-$(CFG_CRYPTO_CTR) += sm4-ctr.c
