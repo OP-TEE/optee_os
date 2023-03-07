@@ -48,4 +48,20 @@ void crypto_accel_sha512_compress(uint64_t state[8], const void *src,
 				  unsigned int block_count);
 void crypto_accel_sm3_compress(uint32_t state[8], const void *src,
 			       unsigned int block_count);
+
+void crypto_accel_sm4_setkey_enc(uint32_t sk[32], const uint8_t key[16]);
+void crypto_accel_sm4_setkey_dec(uint32_t sk[32], const uint8_t key[16]);
+void crypto_accel_sm4_ecb_enc(void *out, const void *in, const void *key,
+			      unsigned int len);
+void crypto_accel_sm4_cbc_enc(void *out, const void *in, const void *key,
+			      unsigned int len, void *iv);
+void crypto_accel_sm4_cbc_dec(void *out, const void *in, const void *key,
+			      unsigned int len, void *iv);
+void crypto_accel_sm4_ctr_enc(void *out, const void *in, const void *key,
+			      unsigned int len, void *iv);
+void crypto_accel_sm4_xts_enc(void *out, const void *in, const void *key1,
+			      const void *key2, unsigned int len, void *iv);
+void crypto_accel_sm4_xts_dec(void *out, const void *in, const void *key1,
+			      const void *key2, unsigned int len, void *iv);
+
 #endif /*__CRYPTO_CRYPTO_ACCEL_H*/
