@@ -154,13 +154,6 @@ static inline int ti_sci_do_xfer(struct ti_sci_xfer *xfer)
 	return 0;
 }
 
-/**
- * ti_sci_get_revision() - Get the revision of the SCI entity
- *
- * Updates the SCI information in the internal data structure.
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_get_revision(struct ti_sci_msg_resp_version *rev_info)
 {
 	struct ti_sci_msg_req_version req = { };
@@ -318,17 +311,6 @@ int ti_sci_change_fwl_owner(uint16_t fwl_id, uint16_t region,
 	return 0;
 }
 
-/**
- * ti_sci_get_dkek() - Get the DKEK
- * @sa2ul_instance:	SA2UL instance to get key
- * @context:		Context string input to KDF
- * @label:		Label string input to KDF
- * @dkek:		Returns with DKEK populated
- *
- * Updates the DKEK the internal data structure.
- *
- * Return: 0 if all goes well, else appropriate error message
- */
 int ti_sci_get_dkek(uint8_t sa2ul_instance,
 		    const char *context, const char *label,
 		    uint8_t dkek[SA2UL_DKEK_KEY_LEN])
@@ -364,11 +346,91 @@ int ti_sci_get_dkek(uint8_t sa2ul_instance,
 	return 0;
 }
 
-/**
- * ti_sci_init() - Basic initialization
- *
- * Return: 0 if all goes well, else appropriate error message
- */
+int ti_sci_read_otp_mmr(uint8_t mmr_idx, uint32_t *val)
+{
+	struct ti_sci_msg_req_read_otp_mmr req = { };
+	struct ti_sci_msg_resp_read_otp_mmr resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_READ_OTP_MMR, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		goto exit;
+
+	req.mmr_idx = mmr_idx;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		goto exit;
+
+	*val = resp.mmr_val;
+
+exit:
+	memzero_explicit(&resp, sizeof(resp));
+	return ret;
+}
+
+int ti_sci_write_otp_row(uint8_t row_idx, uint32_t row_val, uint32_t row_mask)
+{
+	struct ti_sci_msg_req_write_otp_row req = { };
+	struct ti_sci_msg_resp_write_otp_row resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_WRITE_OTP_ROW, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		goto exit;
+
+	req.row_idx = row_idx;
+	req.row_val = row_val;
+	req.row_mask = row_mask;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		goto exit;
+
+	DMSG("resp.row_val: 0x%08x", resp.row_val);
+
+	if (resp.row_val != (req.row_val & req.row_mask)) {
+		EMSG("Value not written correctly");
+		DMSG("req.row_val : 0x%08"PRIx32, req.row_val);
+		DMSG("req.row_mask: 0x%08"PRIx32, req.row_mask);
+		ret = TEE_ERROR_BAD_STATE;
+	}
+
+exit:
+	memzero_explicit(&resp, sizeof(resp));
+	memzero_explicit(&req, sizeof(req));
+	return ret;
+}
+
+int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
+			uint8_t hw_read_lock, uint8_t row_soft_lock)
+{
+	struct ti_sci_msg_req_lock_otp_row req = { };
+	struct ti_sci_msg_resp_lock_otp_row resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_LOCK_OTP_ROW, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		return ret;
+
+	req.row_idx = row_idx;
+	req.hw_write_lock = hw_write_lock;
+	req.hw_read_lock = hw_read_lock;
+	req.row_soft_lock = row_soft_lock;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int ti_sci_init(void)
 {
 	struct ti_sci_msg_resp_version rev_info = { };

@@ -3,7 +3,7 @@
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * Copyright (c) 2016, Wind River Systems.
  * All rights reserved.
- * Copyright 2019 NXP
+ * Copyright 2019, 2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,12 +36,9 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/interrupt.h>
-#include <kernel/misc.h>
-#include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
-#include <sm/optee_smc.h>
 #include <stdint.h>
 
 static struct gic_data gic_data __nex_bss;
@@ -97,9 +94,11 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			CORE_MMU_PGDIR_SIZE);
 #endif
 
-register_dynamic_shm(CFG_NSEC_DDR_0_BASE, CFG_NSEC_DDR_0_SIZE);
-#if defined(CFG_NSEC_DDR_1_BASE) && defined(CFG_NSEC_DDR_1_SIZE)
-register_dynamic_shm(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
+#ifdef CFG_DRAM_BASE
+register_ddr(CFG_DRAM_BASE, CFG_DDR_SIZE);
+#endif
+#ifdef CFG_NSEC_DDR_1_BASE
+register_ddr(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
 #endif
 
 void itr_core_handler(void)

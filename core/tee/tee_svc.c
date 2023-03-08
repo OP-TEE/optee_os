@@ -83,14 +83,13 @@ static const bool crypto_ecc_en;
 
 /*
  * Trusted storage anti rollback protection level
- * 0 (or missing): No antirollback protection (default)
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
 #ifdef CFG_RPMB_FS
 static const uint32_t ts_antiroll_prot_lvl = 1000;
 #else
-static const uint32_t ts_antiroll_prot_lvl;
+static const uint32_t ts_antiroll_prot_lvl = 100;
 #endif
 
 /* Trusted OS implementation version */
@@ -180,6 +179,19 @@ static TEE_Result get_prop_client_id(struct ts_session *sess,
 			    sizeof(TEE_Identity));
 }
 
+static TEE_Result get_prop_client_endian(struct ts_session *sess __unused,
+					 void *buf, size_t *blen)
+{
+	const uint32_t endian = 0; /* assume little-endian */
+
+	if (*blen < sizeof(endian)) {
+		*blen = sizeof(endian);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(endian);
+	return copy_to_user(buf, &endian, sizeof(endian));
+}
+
 static TEE_Result get_prop_ta_app_id(struct ts_session *sess,
 				     void *buf, size_t *blen)
 {
@@ -252,6 +264,11 @@ const struct tee_props tee_propset_client[] = {
 		.name = "gpd.client.identity",
 		.prop_type = USER_TA_PROP_TYPE_IDENTITY,
 		.get_prop_func = get_prop_client_id
+	},
+	{
+		.name = "gpd.client.endian",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.get_prop_func = get_prop_client_endian
 	},
 };
 

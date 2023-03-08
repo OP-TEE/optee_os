@@ -17,6 +17,10 @@ PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 $(eval $(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA))
 include core/crypto.mk
 
+ifeq ($(CFG_SCMI_SCPFW),y)
+include core/lib/scmi-server/conf.mk
+endif
+
 cppflags$(sm)	+= -D__KERNEL__
 
 cppflags$(sm)	+= -Icore/include
@@ -151,6 +155,12 @@ endif
 libname = unw
 libdir = lib/libunw
 include mk/lib.mk
+
+ifeq ($(CFG_SCMI_SCPFW),y)
+libname = scmi-server
+libdir = core/lib/scmi-server
+include mk/lib.mk
+endif
 
 #
 # Do main source

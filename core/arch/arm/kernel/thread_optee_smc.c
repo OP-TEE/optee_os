@@ -34,7 +34,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 {
 	thread_check_canaries();
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION) &&
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
 	    virt_set_guest(args->a7)) {
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		goto out;
@@ -42,7 +42,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 
 	tee_entry_fast(args);
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 
 out:
@@ -58,7 +58,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	thread_check_canaries();
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION) && virt_set_guest(a7))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) && virt_set_guest(a7))
 		return OPTEE_SMC_RETURN_ENOTAVAIL;
 
 	/*
@@ -74,7 +74,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 		rv = OPTEE_SMC_RETURN_ETHREAD_LIMIT;
 	}
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 
 	return rv;
@@ -296,7 +296,7 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 				       uint32_t a3, uint32_t a4 __unused,
 				       uint32_t a5 __unused)
 {
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_on_stdcall();
 
 	return std_smc_entry(a0, a1, a2, a3);

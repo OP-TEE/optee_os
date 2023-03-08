@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <fault_mitigation.h>
+#include <mempool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
@@ -215,7 +216,7 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	 * We know the upper bound though.
 	 */
 	blen = _CFG_CORE_LTC_BIGNUM_MAX_BITS / sizeof(uint8_t);
-	buf = malloc(blen);
+	buf = mempool_alloc(mempool_default, blen);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -256,8 +257,7 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	memcpy(dst, (char *)buf + offset, *dst_len);
 
 out:
-	if (buf)
-		free(buf);
+	mempool_free(mempool_default, buf);
 
 	return res;
 }
@@ -370,7 +370,7 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 		ltc_rsa_algo = LTC_PKCS_1_OAEP;
 	}
 
-	buf = malloc(blen);
+	buf = mempool_alloc(mempool_default, blen);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -414,8 +414,7 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 	memcpy(dst, buf, blen);
 
 out:
-	if (buf)
-		free(buf);
+	mempool_free(mempool_default, buf);
 
 	return res;
 }

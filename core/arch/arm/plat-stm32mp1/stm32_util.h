@@ -121,11 +121,6 @@ struct stm32_bsec_static_cfg {
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
 
 /*
- * Return true if platform is in closed_device mode
- */
-bool stm32mp_is_closed_device(void);
-
-/*
  * Shared reference counter: increments by 2 on secure increment
  * request, decrements by 2 on secure decrement request. Bit #0
  * is set to 1 on non-secure increment request and reset to 0 on

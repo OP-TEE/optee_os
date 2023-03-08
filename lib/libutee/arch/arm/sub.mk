@@ -6,6 +6,7 @@ srcs-$(CFG_ARM64_$(sm)) += utee_syscalls_a64.S
 ifneq ($(sm),ldelf)
 srcs-y += tcb.c
 srcs-y += user_ta_entry.c
+srcs-y += user_ta_entry_compat.c
 subdirs-y += gprof
 endif #$(sm-$(sm)-is-ld)
 

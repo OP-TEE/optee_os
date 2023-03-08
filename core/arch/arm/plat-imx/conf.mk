@@ -488,9 +488,6 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - $(CFG_TZDRAM_SIZE) - $(CFG_SHMEM_SIZE) + $(CFG_DDR_SIZE))
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 
-CFG_NSEC_DDR_0_BASE ?= $(CFG_DRAM_BASE)
-CFG_NSEC_DDR_0_SIZE ?= ($(CFG_DDR_SIZE) - $(CFG_TZDRAM_SIZE) - $(CFG_SHMEM_SIZE))
-
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_MMAP_REGIONS ?= 24
 
@@ -499,6 +496,7 @@ ifeq ($(CFG_NXP_SE05X),y)
 $(call force,CFG_IMX_OCOTP,n)
 endif
 CFG_IMX_OCOTP ?= y
+CFG_IMX_DIGPROG ?= y
 
 # Almost all platforms include CAAM HW Modules, except the
 # ones forced to be disabled

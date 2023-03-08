@@ -23,9 +23,9 @@ DEFINES
 	DEFINE(SM_CTX_NSEC, offsetof(struct sm_ctx, nsec));
 	DEFINE(SM_CTX_SEC, offsetof(struct sm_ctx, sec));
 
-	DEFINE(THREAD_SVC_REG_R0, offsetof(struct thread_svc_regs, r0));
-	DEFINE(THREAD_SVC_REG_R5, offsetof(struct thread_svc_regs, r5));
-	DEFINE(THREAD_SVC_REG_R6, offsetof(struct thread_svc_regs, r6));
+	DEFINE(THREAD_SCALL_REG_R0, offsetof(struct thread_scall_regs, r0));
+	DEFINE(THREAD_SCALL_REG_R5, offsetof(struct thread_scall_regs, r5));
+	DEFINE(THREAD_SCALL_REG_R6, offsetof(struct thread_scall_regs, r6));
 
 	/* struct thread_ctx */
 	DEFINE(THREAD_CTX_STACK_VA_END, offsetof(struct thread_ctx,
@@ -50,19 +50,20 @@ DEFINES
 	DEFINE(THREAD_SMC_ARGS_X0, offsetof(struct thread_smc_args, a0));
 	DEFINE(THREAD_SMC_ARGS_SIZE, sizeof(struct thread_smc_args));
 
-	DEFINE(THREAD_SVC_REG_X0, offsetof(struct thread_svc_regs, x0));
-	DEFINE(THREAD_SVC_REG_X2, offsetof(struct thread_svc_regs, x2));
-	DEFINE(THREAD_SVC_REG_X5, offsetof(struct thread_svc_regs, x5));
-	DEFINE(THREAD_SVC_REG_X6, offsetof(struct thread_svc_regs, x6));
-	DEFINE(THREAD_SVC_REG_X30, offsetof(struct thread_svc_regs, x30));
-	DEFINE(THREAD_SVC_REG_ELR, offsetof(struct thread_svc_regs, elr));
-	DEFINE(THREAD_SVC_REG_SPSR, offsetof(struct thread_svc_regs, spsr));
-	DEFINE(THREAD_SVC_REG_SP_EL0, offsetof(struct thread_svc_regs, sp_el0));
+	DEFINE(THREAD_SCALL_REG_X0, offsetof(struct thread_scall_regs, x0));
+	DEFINE(THREAD_SCALL_REG_X2, offsetof(struct thread_scall_regs, x2));
+	DEFINE(THREAD_SCALL_REG_X5, offsetof(struct thread_scall_regs, x5));
+	DEFINE(THREAD_SCALL_REG_X6, offsetof(struct thread_scall_regs, x6));
+	DEFINE(THREAD_SCALL_REG_X30, offsetof(struct thread_scall_regs, x30));
+	DEFINE(THREAD_SCALL_REG_ELR, offsetof(struct thread_scall_regs, elr));
+	DEFINE(THREAD_SCALL_REG_SPSR, offsetof(struct thread_scall_regs, spsr));
+	DEFINE(THREAD_SCALL_REG_SP_EL0, offsetof(struct thread_scall_regs,
+						 sp_el0));
 #ifdef CFG_TA_PAUTH
-	DEFINE(THREAD_SVC_REG_APIAKEY_HI, offsetof(struct thread_svc_regs,
-						   apiakey_hi));
+	DEFINE(THREAD_SCALL_REG_APIAKEY_HI, offsetof(struct thread_scall_regs,
+						     apiakey_hi));
 #endif
-	DEFINE(THREAD_SVC_REG_SIZE, sizeof(struct thread_svc_regs));
+	DEFINE(THREAD_SCALL_REG_SIZE, sizeof(struct thread_scall_regs));
 
 	/* struct thread_abort_regs */
 	DEFINE(THREAD_ABT_REG_X0, offsetof(struct thread_abort_regs, x0));

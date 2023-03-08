@@ -22,3 +22,13 @@ srcs-y += sha256_armv8a_ce.c
 srcs-$(CFG_ARM64_core) += sha256_armv8a_ce_a64.S
 srcs-$(CFG_ARM32_core) += sha256_armv8a_ce_a32.S
 endif
+
+ifeq ($(CFG_CRYPTO_SHA512_ARM_CE),y)
+srcs-y += sha512_armv8a_ce.c
+srcs-$(CFG_ARM64_core) += sha512_armv8a_ce_a64.S
+endif
+
+ifeq ($(CFG_CRYPTO_SM3_ARM_CE),y)
+srcs-y += sm3_armv8a_ce.c
+srcs-$(CFG_ARM64_core) += sm3_armv8a_ce_a64.S
+endif

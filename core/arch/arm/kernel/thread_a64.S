@@ -97,6 +97,13 @@ FUNC thread_resume , :
 	b	eret_to_el0
 END_FUNC thread_resume
 
+#ifdef CFG_CORE_SEL2_SPMC
+FUNC thread_hvc , :
+	hvc	#0
+	ret
+END_FUNC thread_hvc
+#endif
+
 FUNC thread_smc , :
 	smc	#0
 	ret
@@ -801,15 +808,15 @@ LOCAL_FUNC el0_svc , :
 	mov	x2, sp	/* Save SP_EL0 */
 	mov	sp, x3
 
-	/* Make room for struct thread_svc_regs */
-	sub	sp, sp, #THREAD_SVC_REG_SIZE
-	stp	x30, x2, [sp, #THREAD_SVC_REG_X30]
+	/* Make room for struct thread_scall_regs */
+	sub	sp, sp, #THREAD_SCALL_REG_SIZE
+	stp	x30, x2, [sp, #THREAD_SCALL_REG_X30]
 
 #ifdef CFG_TA_PAUTH
 	/* Save APIAKEY */
 	read_apiakeyhi	x2
 	read_apiakeylo	x3
-	stp	x2, x3, [sp, #THREAD_SVC_REG_APIAKEY_HI]
+	stp	x2, x3, [sp, #THREAD_SCALL_REG_APIAKEY_HI]
 #endif
 
 #ifdef CFG_CORE_PAUTH
@@ -827,10 +834,10 @@ LOCAL_FUNC el0_svc , :
 	ldp	x0, x1, [x1, #THREAD_CORE_LOCAL_X0]
 
 	/* Prepare the argument for the handler */
-	store_xregs sp, THREAD_SVC_REG_X0, 0, 14
+	store_xregs sp, THREAD_SCALL_REG_X0, 0, 14
 	mrs	x0, elr_el1
 	mrs	x1, spsr_el1
-	store_xregs sp, THREAD_SVC_REG_ELR, 0, 1
+	store_xregs sp, THREAD_SCALL_REG_ELR, 0, 1
 
 	mov	x0, sp
 
@@ -839,14 +846,14 @@ LOCAL_FUNC el0_svc , :
 	 * nothing left in sp_el1. Note that the SVC handler is excepted to
 	 * re-enable foreign interrupts by itself.
 	 */
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	msr	daifclr, #(DAIFBIT_IRQ | DAIFBIT_ABT | DAIFBIT_DBG)
 #else
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
 #endif
 
 	/* Call the handler */
-	bl	thread_svc_handler
+	bl	thread_scall_handler
 
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
@@ -860,35 +867,35 @@ LOCAL_FUNC el0_svc , :
 	msr	spsel, #1
 	get_thread_ctx sp, 0, 1, 2
 	msr	spsel, #0
-	add	x1, sp, #THREAD_SVC_REG_SIZE
+	add	x1, sp, #THREAD_SCALL_REG_SIZE
 	str	x1, [x0, #THREAD_CTX_KERN_SP]
 
 	/* Restore registers to the required state and return*/
 	ldr	x1, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
 	msr	tpidr_el0, x1
-	load_xregs sp, THREAD_SVC_REG_ELR, 0, 1
+	load_xregs sp, THREAD_SCALL_REG_ELR, 0, 1
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
-	load_xregs sp, THREAD_SVC_REG_X2, 2, 14
+	load_xregs sp, THREAD_SCALL_REG_X2, 2, 14
 	mov	x30, sp
-	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0]
+	ldr	x0, [x30, #THREAD_SCALL_REG_SP_EL0]
 	mov	sp, x0
 	b_if_spsr_is_el0 w1, 1f
-	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
-	ldr	x30, [x30, #THREAD_SVC_REG_X30]
+	ldp	x0, x1, [x30, THREAD_SCALL_REG_X0]
+	ldr	x30, [x30, #THREAD_SCALL_REG_X30]
 
 	return_from_exception
 
 1:
 #ifdef	CFG_TA_PAUTH
 	/* Restore APIAKEY */
-	load_xregs x30, THREAD_SVC_REG_APIAKEY_HI, 0, 1
+	load_xregs x30, THREAD_SCALL_REG_APIAKEY_HI, 0, 1
 	write_apiakeyhi	x0
 	write_apiakeylo	x1
 #endif
 
-	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
-	ldr	x30, [x30, #THREAD_SVC_REG_X30]
+	ldp	x0, x1, [x30, THREAD_SCALL_REG_X0]
+	ldr	x30, [x30, #THREAD_SCALL_REG_X30]
 
 	msr	spsel, #1
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
@@ -1311,7 +1318,7 @@ END_FUNC el0_sync_abort
 .endm
 
 LOCAL_FUNC elx_irq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	native_intr_handler	irq
 #else
 	foreign_intr_handler	irq
@@ -1319,7 +1326,7 @@ LOCAL_FUNC elx_irq , :
 END_FUNC elx_irq
 
 LOCAL_FUNC elx_fiq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	foreign_intr_handler	fiq
 #else
 	native_intr_handler	fiq

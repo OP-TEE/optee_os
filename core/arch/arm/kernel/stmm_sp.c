@@ -76,6 +76,11 @@ extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
 extern const unsigned int stmm_image_uncompressed_size;
 
+const TEE_UUID *stmm_get_uuid(void)
+{
+	return &stmm_uuid;
+}
+
 static struct stmm_ctx *stmm_alloc_ctx(const TEE_UUID *uuid)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -342,7 +347,7 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 
 	mutex_lock(&tee_ta_mutex);
 	sess->ts_sess.ctx = &spc->ta_ctx.ts_ctx;
-	sess->ts_sess.handle_svc = sess->ts_sess.ctx->ops->handle_svc;
+	sess->ts_sess.handle_scall = sess->ts_sess.ctx->ops->handle_scall;
 	mutex_unlock(&tee_ta_mutex);
 
 	ts_push_current_session(&sess->ts_sess);
@@ -560,39 +565,41 @@ static int sp_svc_set_mem_attr(vaddr_t va, unsigned int nr_pages, uint32_t perm)
 }
 
 #ifdef ARM64
-static void save_sp_ctx(struct stmm_ctx *spc, struct thread_svc_regs *svc_regs)
+static void save_sp_ctx(struct stmm_ctx *spc,
+			struct thread_scall_regs *regs)
 {
 	size_t n = 0;
 
 	/* Save the return values from StMM */
 	for (n = 0; n <= 7; n++)
-		spc->regs.x[n] = *(&svc_regs->x0 + n);
+		spc->regs.x[n] = *(&regs->x0 + n);
 
-	spc->regs.sp = svc_regs->sp_el0;
-	spc->regs.pc = svc_regs->elr;
-	spc->regs.cpsr = svc_regs->spsr;
+	spc->regs.sp = regs->sp_el0;
+	spc->regs.pc = regs->elr;
+	spc->regs.cpsr = regs->spsr;
 }
 #endif
 
 #ifdef ARM32
-static void save_sp_ctx(struct stmm_ctx *spc, struct thread_svc_regs *svc_regs)
+static void save_sp_ctx(struct stmm_ctx *spc,
+			struct thread_scall_regs *regs)
 {
-	spc->regs.r0 = svc_regs->r0;
-	spc->regs.r1 = svc_regs->r1;
-	spc->regs.r2 = svc_regs->r2;
-	spc->regs.r3 = svc_regs->r3;
-	spc->regs.r4 = svc_regs->r4;
-	spc->regs.r5 = svc_regs->r5;
-	spc->regs.r6 = svc_regs->r6;
-	spc->regs.r7 = svc_regs->r7;
-	spc->regs.pc = svc_regs->lr;
-	spc->regs.cpsr = svc_regs->spsr;
+	spc->regs.r0 = regs->r0;
+	spc->regs.r1 = regs->r1;
+	spc->regs.r2 = regs->r2;
+	spc->regs.r3 = regs->r3;
+	spc->regs.r4 = regs->r4;
+	spc->regs.r5 = regs->r5;
+	spc->regs.r6 = regs->r6;
+	spc->regs.r7 = regs->r7;
+	spc->regs.pc = regs->lr;
+	spc->regs.cpsr = regs->spsr;
 	spc->regs.usr_sp = thread_get_usr_sp();
 }
 #endif
 
 static void return_from_sp_helper(bool panic, uint32_t panic_code,
-				  struct thread_svc_regs *svc_regs)
+				  struct thread_scall_regs *regs)
 {
 	struct ts_session *sess = ts_get_current_session();
 	struct stmm_ctx *spc = to_stmm_ctx(sess->ctx);
@@ -600,14 +607,14 @@ static void return_from_sp_helper(bool panic, uint32_t panic_code,
 	if (panic)
 		spc->ta_ctx.panicked = true;
 	else
-		save_sp_ctx(spc, svc_regs);
+		save_sp_ctx(spc, regs);
 
-	SVC_REGS_A0(svc_regs) = 0;
-	SVC_REGS_A1(svc_regs) = panic;
-	SVC_REGS_A2(svc_regs) = panic_code;
+	SVC_REGS_A0(regs) = 0;
+	SVC_REGS_A1(regs) = panic;
+	SVC_REGS_A2(regs) = panic_code;
 }
 
-static void service_compose_direct_resp(struct thread_svc_regs *regs,
+static void service_compose_direct_resp(struct thread_scall_regs *regs,
 					uint32_t ret_val)
 {
 	uint16_t src_id = 0;
@@ -741,7 +748,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	return res;
 }
 
-static void stmm_handle_mem_mgr_service(struct thread_svc_regs *regs)
+static void stmm_handle_mem_mgr_service(struct thread_scall_regs *regs)
 {
 	uint32_t action = SVC_REGS_A3(regs);
 	uintptr_t va = SVC_REGS_A4(regs);
@@ -782,7 +789,7 @@ static uint32_t tee2stmm_ret_val(TEE_Result res)
 }
 
 #define FILENAME "EFI_VARS"
-static void stmm_handle_storage_service(struct thread_svc_regs *regs)
+static void stmm_handle_storage_service(struct thread_scall_regs *regs)
 {
 	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
 			 TEE_DATA_FLAG_ACCESS_WRITE |
@@ -818,7 +825,7 @@ static void stmm_handle_storage_service(struct thread_svc_regs *regs)
 	service_compose_direct_resp(regs, stmm_rc);
 }
 
-static void spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
+static void spm_eret_error(int32_t error_code, struct thread_scall_regs *regs)
 {
 	SVC_REGS_A0(regs) = FFA_ERROR;
 	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
@@ -830,7 +837,7 @@ static void spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
 	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
 }
 
-static void spm_handle_direct_req(struct thread_svc_regs *regs)
+static void spm_handle_direct_req(struct thread_scall_regs *regs)
 {
 	uint16_t dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
 
@@ -845,7 +852,7 @@ static void spm_handle_direct_req(struct thread_svc_regs *regs)
 }
 
 /* Return true if returning to SP, false if returning to caller */
-static bool spm_handle_svc(struct thread_svc_regs *regs)
+static bool spm_handle_scall(struct thread_scall_regs *regs)
 {
 #ifdef ARM64
 	uint64_t *a0 = &regs->x0;
@@ -885,5 +892,5 @@ const struct ts_ops stmm_sp_ops __weak __relrodata_unpaged("stmm_sp_ops") = {
 	.dump_state = stmm_dump_state,
 	.destroy = stmm_ctx_destroy,
 	.get_instance_id = stmm_get_instance_id,
-	.handle_svc = spm_handle_svc,
+	.handle_scall = spm_handle_scall,
 };

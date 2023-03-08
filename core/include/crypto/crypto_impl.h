@@ -76,6 +76,42 @@ TEE_Result crypto_sm3_alloc_ctx(struct crypto_hash_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm3, hash)
 #endif
 
+#if defined(CFG_CRYPTO_SHA3_224)
+TEE_Result crypto_sha3_224_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_224, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_256)
+TEE_Result crypto_sha3_256_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_256, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_384)
+TEE_Result crypto_sha3_384_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_384, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_512)
+TEE_Result crypto_sha3_512_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_512, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHAKE128)
+TEE_Result crypto_shake128_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(shake128, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHAKE256)
+TEE_Result crypto_shake256_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(shake256, hash)
+#endif
+
 /*
  * The crypto context used by the crypto_mac_*() functions is defined by
  * struct crypto_mac_ctx.
@@ -96,20 +132,64 @@ struct crypto_mac_ops {
 			   struct crypto_mac_ctx *src_ctx);
 };
 
-#if defined(CFG_CRYPTO_HMAC)
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_MD5)
 TEE_Result crypto_hmac_md5_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx);
 #else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_md5, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA1)
+TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha1, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA224)
+TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha224, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA256)
+TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha256, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA384)
+TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha384, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA512)
+TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_224)
+TEE_Result crypto_hmac_sha3_224_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_224, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_256)
+TEE_Result crypto_hmac_sha3_256_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_256, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_384)
+TEE_Result crypto_hmac_sha3_384_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_384, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_512)
+TEE_Result crypto_hmac_sha3_512_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_512, mac)
 #endif
 
 #if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_HMAC)

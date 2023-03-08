@@ -5,6 +5,7 @@ srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_TZC400) += tzc400.c
 srcs-$(CFG_TZC380) += tzc380.c
 srcs-$(CFG_GIC) += gic.c
+srcs-$(CFG_CORE_HAFNIUM_INTC) += hfic.c
 srcs-$(CFG_PL061) += pl061_gpio.c
 srcs-$(CFG_PL022) += pl022_spi.c
 srcs-$(CFG_SP805_WDT) += sp805_wdt.c
@@ -68,6 +69,8 @@ srcs-$(CFG_STM32MP15_HUK) += stm32mp15_huk.c
 srcs-$(CFG_VERSAL_RNG_DRV) += versal_trng.c
 srcs-$(CFG_VERSAL_NVM) += versal_nvm.c
 srcs-$(CFG_VERSAL_SHA3_384) += versal_sha3_384.c
+srcs-$(CFG_VERSAL_PUF) += versal_puf.c
+srcs-$(CFG_VERSAL_HUK) += versal_huk.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt

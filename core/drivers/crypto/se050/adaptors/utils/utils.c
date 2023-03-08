@@ -77,7 +77,12 @@ static sss_status_t generate_oid(uint32_t *val)
 			return kStatus_SSS_Fail;
 
 		oid = OID_MIN + (random & OID_MAX);
-		if (oid > OID_MAX)
+
+		/*
+		 * The less significant byte different than zero prevents bignum
+		 * conversions from discarding it
+		 */
+		if (oid > OID_MAX || !(oid & 0xFF))
 			continue;
 
 		if (!se050_key_exists(oid, &se050_session->s_ctx)) {

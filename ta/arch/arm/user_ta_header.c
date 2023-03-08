@@ -119,6 +119,17 @@ const struct ta_head ta_head __section(".ta_head") = {
 uint8_t ta_heap[TA_DATA_SIZE];
 const size_t ta_heap_size = sizeof(ta_heap);
 
+#ifndef TA_NO_SHARE_DATA_SIZE
+#define TA_NO_SHARE_DATA_SIZE	0
+#endif
+#if TA_NO_SHARE_DATA_SIZE && \
+	TA_NO_SHARE_DATA_SIZE < MALLOC_INITIAL_POOL_MIN_SIZE
+#error TA_NO_SHARE_DATA_SIZE too small
+#endif
+
+uint8_t __ta_no_share_heap[TA_NO_SHARE_DATA_SIZE];
+const size_t __ta_no_share_heap_size = sizeof(__ta_no_share_heap);
+
 const struct user_ta_property ta_props[] = {
 	{TA_PROP_STR_SINGLE_INSTANCE, USER_TA_PROP_TYPE_BOOL,
 	 &(const bool){(TA_FLAGS & TA_FLAG_SINGLE_INSTANCE) != 0}},
@@ -140,6 +151,13 @@ const struct user_ta_property ta_props[] = {
 
 	{TA_PROP_STR_DESCRIPTION, USER_TA_PROP_TYPE_STRING,
 	 TA_DESCRIPTION},
+
+	/* Only little-endian supported */
+	{TA_PROP_STR_ENDIAN, USER_TA_PROP_TYPE_U32, &(const uint32_t){0}},
+
+	{TA_PROP_STR_DOES_NOT_CLOSE_HANDLE_ON_CORRUPT_OBJECT,
+	 USER_TA_PROP_TYPE_BOOL,
+	 &(const bool){TA_FLAGS & TA_FLAG_DONT_CLOSE_HANDLE_ON_CORRUPT_OBJECT}},
 
 /*
  * Extended propietary properties, name of properties must not begin with
@@ -173,3 +191,24 @@ int tahead_get_trace_level(void)
 	 */
 	return TRACE_LEVEL;
 }
+
+#if __OPTEE_CORE_API_COMPAT_1_1
+#undef TA_OpenSessionEntryPoint
+#undef TA_InvokeCommandEntryPoint
+#undef TEE_Param
+TEE_Result TA_OpenSessionEntryPoint(uint32_t pt,
+				    TEE_Param params[TEE_NUM_PARAMS],
+				    void **sess_ctx)
+{
+	return __ta_open_sess(pt, params, sess_ctx,
+			      __GP11_TA_OpenSessionEntryPoint);
+}
+
+TEE_Result TA_InvokeCommandEntryPoint(void *sess_ctx, uint32_t cmd_id,
+				      uint32_t pt,
+				      TEE_Param params[TEE_NUM_PARAMS])
+{
+	return __ta_invoke_cmd(sess_ctx, cmd_id, pt, params,
+			       __GP11_TA_InvokeCommandEntryPoint);
+}
+#endif

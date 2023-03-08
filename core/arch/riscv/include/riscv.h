@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #ifndef RISCV_H
@@ -25,6 +25,26 @@
 #define LDR       ld
 #endif
 
+/* Bind registers to their ABI names */
+#define REG_RA	1
+#define REG_SP	2
+#define REG_GP	3
+#define REG_TP	4
+#define REG_T0	5
+#define REG_T2	7
+#define REG_S0	8
+#define REG_S1	9
+#define REG_A0	10
+#define REG_A1	11
+#define REG_A2	12
+#define REG_A3	13
+#define REG_A5	15
+#define REG_A7	17
+#define REG_S2	18
+#define REG_S11	27
+#define REG_T3	28
+#define REG_T6	31
+
 #if defined(CFG_RISCV_M_MODE)
 #define CSR_MODE_OFFSET	PRV_M
 #define XRET			mret
@@ -33,7 +53,7 @@
 #define XRET			sret
 #endif
 
-#define CSR_MODE_BITS	SHIFT_U64(CSR_MODE_OFFSET, 8)
+#define CSR_MODE_BITS		SHIFT_U64(CSR_MODE_OFFSET, 8)
 
 #define CSR_XSTATUS		(CSR_MODE_BITS | 0x000)
 #define CSR_XIE			(CSR_MODE_BITS | 0x004)
@@ -43,6 +63,20 @@
 #define CSR_XCAUSE		(CSR_MODE_BITS | 0x042)
 #define CSR_XTVAL		(CSR_MODE_BITS | 0x043)
 #define CSR_XIP			(CSR_MODE_BITS | 0x044)
+
+#define IRQ_XSOFT		(CSR_MODE_OFFSET + 0)
+#define IRQ_XTIMER		(CSR_MODE_OFFSET + 4)
+#define IRQ_XEXT		(CSR_MODE_OFFSET + 8)
+
+#define CSR_XIE_SIE		BIT64(IRQ_XSOFT)
+#define CSR_XIE_TIE		BIT64(IRQ_XTIMER)
+#define CSR_XIE_EIE		BIT64(IRQ_XEXT)
+
+#define CSR_XSTATUS_IE		BIT(CSR_MODE_OFFSET + 0)
+#define CSR_XSTATUS_PIE		BIT(CSR_MODE_OFFSET + 4)
+#define CSR_XSTATUS_SPP		BIT(8)
+#define CSR_XSTATUS_SUM		BIT(18)
+#define CSR_XSTATUS_MXR		BIT(19)
 
 #ifndef __ASSEMBLER__
 

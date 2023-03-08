@@ -149,6 +149,7 @@ static TEE_Result ls_sfp_init(void)
  */
 static TEE_Result ls_sfp_program_fuses(void)
 {
+	TEE_Result ret = TEE_SUCCESS;
 	struct gpio_chip *gc = NULL;
 	uint32_t pin = gpio_info.gpio_pin;
 	vaddr_t sfp_ingr_va = (vaddr_t)&sfp_regs->ingr;
@@ -174,13 +175,23 @@ static TEE_Result ls_sfp_program_fuses(void)
 	io_write32(sfp_ingr_va, SFP_INGR_PROGFB_CMD);
 
 	/* Wait until fuse programming is successful */
-	timeout = timeout_init_us(SFP_INGR_FUSE_TIMEOUT);
+	timeout = timeout_init_us(SFP_INGR_FUSE_TIMEOUT_US);
 	while (io_read32(sfp_ingr_va) & SFP_INGR_PROGFB_CMD) {
 		if (timeout_elapsed(timeout)) {
 			EMSG("SFP fusing timed out");
-			return TEE_ERROR_GENERIC;
+			ret = TEE_ERROR_GENERIC;
+			break;
 		}
 	}
+
+	/* Disable POVDD */
+	DMSG("Set GPIO %"PRIu8" pin %"PRIu32" to LOW",
+	     gpio_info.gpio_chip.gpio_controller, pin);
+	gc->ops->set_value(gc, pin, GPIO_LEVEL_LOW);
+	gc->ops->set_direction(gc, pin, GPIO_DIR_IN);
+
+	if (ret)
+		return ret;
 
 	/* Check for SFP fuse programming error */
 	if (io_read32(sfp_ingr_va) & SFP_INGR_ERROR_MASK) {
@@ -189,12 +200,6 @@ static TEE_Result ls_sfp_program_fuses(void)
 	}
 
 	DMSG("Programmed fuse successfully");
-
-	/* Disable POVDD */
-	DMSG("Set GPIO %"PRIu32" pin %"PRIu32" to LOW",
-	     (uint32_t)gpio_info.gpio_chip.gpio_controller, pin);
-	gc->ops->set_value(gc, pin, GPIO_LEVEL_LOW);
-	gc->ops->set_direction(gc, pin, GPIO_DIR_IN);
 
 	return TEE_SUCCESS;
 }
@@ -264,7 +269,8 @@ TEE_Result ls_sfp_get_its(uint32_t *its)
 	if (!its)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	*its = io_read32((vaddr_t)&sfp_regs->ospr0) & SFP_OSPR0_ITS;
+	*its = (io_read32((vaddr_t)&sfp_regs->ospr0) & SFP_OSPR0_ITS_MASK) >>
+	       SFP_OSPR0_ITS_OFFSET;
 
 	return TEE_SUCCESS;
 }
@@ -300,7 +306,8 @@ TEE_Result ls_sfp_get_sb(uint32_t *sb)
 	if (!sb)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	*sb = io_read32((vaddr_t)&sfp_regs->sfpcr) & SFP_SFPCR_SB;
+	*sb = (io_read32((vaddr_t)&sfp_regs->sfpcr) & SFP_SFPCR_SB_MASK) >>
+	      SFP_SFPCR_SB_OFFSET;
 
 	return TEE_SUCCESS;
 }
@@ -359,12 +366,12 @@ TEE_Result ls_sfp_set_its_wp(void)
 	}
 
 	ospr0 = io_read32((vaddr_t)&sfp_regs->ospr0);
-	if (ospr0 & (SFP_OSPR0_WP | SFP_OSPR0_ITS)) {
+	if (ospr0 & (SFP_OSPR0_WP_MASK | SFP_OSPR0_ITS_MASK)) {
 		DMSG("SFP is already fused");
 		return TEE_ERROR_SECURITY;
 	}
 
-	ospr0 |= SFP_OSPR0_WP | SFP_OSPR0_ITS;
+	ospr0 |= SFP_OSPR0_WP_MASK | SFP_OSPR0_ITS_MASK;
 	io_write32((vaddr_t)&sfp_regs->ospr0, ospr0);
 
 	return ls_sfp_program_fuses();

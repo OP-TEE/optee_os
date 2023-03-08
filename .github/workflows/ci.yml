@@ -80,10 +80,12 @@ jobs:
           export CFG_WERROR=y
 
           function _make() { make -j$(nproc) -s O=out $*; }
-          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.0 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.1 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_scp_firmware() { git clone --single-branch https://github.com/ARM-software/SCP-firmware.git $HOME/scp-firmware || echo Nervermind; }
 
           ccache -s -v
           download_plug_and_trust
+          download_scp_firmware
 
           _make
           _make COMPILER=clang
@@ -118,21 +120,24 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a
           _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
           _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
-          _make PLATFORM=vexpress-qemu_armv8a CFG_VIRTUALIZATION=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_NS_VIRTUALIZATION=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-qemu_armv8a CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=stm-b2260
           _make PLATFORM=stm-cannes
           _make PLATFORM=stm32mp1
           _make PLATFORM=stm32mp1-135F_DK
-          _make PLATFORM=stm32mp1-157C_DK2
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-fvp CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
           _make PLATFORM=vexpress-juno
           _make PLATFORM=vexpress-juno CFG_ARM64_core=y
           _make PLATFORM=hikey
@@ -145,7 +150,7 @@ jobs:
           _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
           _make PLATFORM=imx-mx6ul9x9evk
           _make PLATFORM=imx-mx6ullevk CFG_WITH_SOFTWARE_PRNG=n CFG_IMX_RNGB=y
-          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx6ullevk CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RNG,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
+          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx6ullevk CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RNG,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
           _make PLATFORM=imx-mx6ulzevk
           _make PLATFORM=imx-mx6slevk
           _make PLATFORM=imx-mx6sllevk
@@ -171,7 +176,7 @@ jobs:
           _make PLATFORM=imx-mx7ulpevk
           _make PLATFORM=imx-mx8mmevk
           _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
-          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
+          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
           _make PLATFORM=imx-mx8mnevk
           _make PLATFORM=imx-mx8mqevk
           _make PLATFORM=imx-mx8mpevk
@@ -237,13 +242,13 @@ jobs:
           _make PLATFORM=hisilicon-hi3519av100_demo
           _make PLATFORM=amlogic
           _make PLATFORM=rzn1
-          _make PLATFORM=versal
+          _make PLATFORM=versal CFG_VERSAL_FPGA_DDR_ADDR=0x40000000
           _make PLATFORM=corstone1000
 
   QEMUv8_check:
     name: make check (QEMUv8)
     runs-on: ubuntu-latest
-    container: jforissier/optee_os_ci:qemuv8_check
+    container: jforissier/optee_os_ci:qemuv8_check2
     steps:
       - name: Restore build cache
         uses: actions/cache@v3
@@ -257,40 +262,123 @@ jobs:
       - shell: bash
         run: |
           # make check task
-          set -e
+          set -e -v
           export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           WD=$(pwd)
-          sudo -E bash -c "cd /root/optee_repo_qemu_v8/.repo/repo && git pull"
-          sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check
+          make -j$(nproc) check
 
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check CFG_CRYPTO_WITH_CE=y
+          make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
 
-          sudo -E rm -rf /root/optee_repo_qemu_v8/out-br/build/optee_test*
-          sudo -E make -C /root/optee_repo_qemu_v8/build arm-tf-clean
-          sudo -E make -C /root/optee_repo_qemu_v8/build -j$(nproc) check XEN_BOOT=y
+  QEMUv8_Xen_check:
+    name: make check (QEMUv8, Xen)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_xen_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_xen_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check XEN_BOOT=y
+
+  QEMUv8_check_BTI_MTE_PAC:
+    name: make check (QEMUv8, BTI+MTE+PAC)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_bti_mte_pac-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_bti_mte_pac-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
+          export PATH=/usr/local/bin:$PATH
+          export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_USER_TA_TARGETS=ta_arm64
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          # TF-A v2.6 fails to build with the above toolchain so override it
+          export TF_A_EXPORTS="CROSS_COMPILE=${TOP}/toolchains/aarch64/bin/aarch64-linux-gnu-"
+          /root/get_optee_qemuv8.sh ${TOP}
+          # QEMU v7.2.0 has an issue with MTE
+          # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
+          cd ${TOP}/qemu && git fetch github && git checkout 13356edb87
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
+          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
 
   QEMUv8_check_rust:
     name: make check-rust (QEMUv8)
+    if: false # disabled until https://github.com/OP-TEE/optee_os/pull/5688#issuecomment-1370608865 is addressed
     runs-on: ubuntu-latest
-    container: jforissier/optee_os_ci:qemuv8_check
+    container: jforissier/optee_os_ci:qemuv8_check2
     steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_rust-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_rust-cache-
       - name: Checkout
         uses: actions/checkout@v3
       - shell: bash
         run: |
           # make check-rust task
           set -e -v
-          export HOME=/root
           export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
-          sudo -E bash -c "cd /root/optee_repo_qemu_v8/.repo/repo && git pull"
-          sudo -E bash -c "cd /root/optee_repo_qemu_v8 && repo sync -j 10"
-          sudo mv /root/optee_repo_qemu_v8/optee_os /root/optee_repo_qemu_v8/optee_os_old
-          sudo ln -s ${WD} /root/optee_repo_qemu_v8/optee_os
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
 
-          sudo -E bash -c "make -C /root/optee_repo_qemu_v8/build -j$(nproc) CFG_TEE_CORE_LOG_LEVEL=0 OPTEE_RUST_ENABLE=y check-rust"
+          # Without this line, the following one fails with "ld: cannot find -lteec" when building acipher-rs
+          make -j$(nproc)
+          make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust

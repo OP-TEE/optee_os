@@ -621,10 +621,12 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 	rc = add_mem_share_helper(&s->share, buf, flen);
 	if (rc >= 0) {
 		if (!ADD_OVERFLOW(s->frag_offset, rc, &s->frag_offset)) {
+			/* We're not at the end of the descriptor yet */
 			if (s->share.region_count)
 				return s->frag_offset;
-			/* We're done, return the number of consumed bytes */
-			rc = s->frag_offset;
+
+			/* We're done */
+			rc = 0;
 		} else {
 			rc = FFA_INVALID_PARAMETERS;
 		}
@@ -820,15 +822,14 @@ static void handle_mem_share(struct thread_smc_args *args,
 	}
 	if (rc < 0) {
 		ret_w2 = rc;
-		goto out;
-	}
-	if (rc > 0) {
+	} else if (rc > 0) {
 		ret_fid = FFA_MEM_FRAG_RX;
 		ret_w3 = rc;
 		reg_pair_from_64(global_handle, &ret_w2, &ret_w1);
+	} else {
+		ret_fid = FFA_SUCCESS_32;
+		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 	}
-	ret_fid = FFA_SUCCESS_32;
-	reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 out:
 	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }

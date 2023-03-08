@@ -454,7 +454,7 @@ const struct tee_cryp_obj_type_attrs tee_cryp_obj_ed25519_pub_key_attrs[] = {
 	.attr_id = TEE_ATTR_ED25519_PUBLIC_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
 	.ops_index = ATTR_OPS_INDEX_25519,
-	RAW_DATA(struct ed25519_keypair, pub)
+	RAW_DATA(struct ed25519_public_key, pub)
 	},
 };
 
@@ -523,6 +523,18 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_HMAC_SHA512, 8, 256, 1024,
 		1024 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_HMAC_SHA3_224, 8, 192, 1024,
+	     1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_HMAC_SHA3_256, 8, 256, 1024,
+	     1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_HMAC_SHA3_384, 8, 256, 1024,
+	     1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
+	PROP(TEE_TYPE_HMAC_SHA3_512, 8, 256, 1024,
+	     1024 / 8 + sizeof(struct tee_cryp_obj_secret),
+	     tee_cryp_obj_secret_value_attrs),
 	PROP(TEE_TYPE_HMAC_SM3, 8, 80, 1024,
 		512 / 8 + sizeof(struct tee_cryp_obj_secret),
 		tee_cryp_obj_secret_value_attrs),
@@ -609,7 +621,7 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	     tee_cryp_obj_x25519_keypair_attrs),
 
 	PROP(TEE_TYPE_ED25519_PUBLIC_KEY, 1, 256, 256,
-	     sizeof(struct ed25519_keypair),
+	     sizeof(struct ed25519_public_key),
 	     tee_cryp_obj_ed25519_pub_key_attrs),
 
 	PROP(TEE_TYPE_ED25519_KEYPAIR, 1, 256, 256,
@@ -1529,9 +1541,12 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 							  max_key_size);
 		break;
 	case TEE_TYPE_ED25519_KEYPAIR:
-	case TEE_TYPE_ED25519_PUBLIC_KEY:
 		res = crypto_acipher_alloc_ed25519_keypair(o->attr,
 							   max_key_size);
+		break;
+	case TEE_TYPE_ED25519_PUBLIC_KEY:
+		res = crypto_acipher_alloc_ed25519_public_key(o->attr,
+							      max_key_size);
 		break;
 	default:
 		if (obj_type != TEE_TYPE_DATA) {
@@ -2195,7 +2210,14 @@ tee_svc_obj_ed25519_parse_params(const TEE_Attribute *params, size_t num_params,
 	for (n = 0; n < num_params; n++) {
 		switch (params[n].attributeID) {
 		case TEE_ATTR_EDDSA_PREHASH:
-			*ph_flag = true;
+			if (params[n].content.value.b)
+				return TEE_ERROR_BAD_PARAMETERS;
+			if (!params[n].content.value.a)
+				*ph_flag = false;
+			else if (params[n].content.value.a == 1)
+				*ph_flag = true;
+			else
+				return TEE_ERROR_BAD_PARAMETERS;
 			break;
 
 		case TEE_ATTR_EDDSA_CTX:
@@ -2249,7 +2271,7 @@ tee_svc_obj_ed25519_sign(struct ed25519_keypair *key,
 }
 
 static TEE_Result
-tee_svc_obj_ed25519_verify(struct ed25519_keypair *key,
+tee_svc_obj_ed25519_verify(struct ed25519_public_key *key,
 			   const uint8_t *msg, size_t msg_len,
 			   const uint8_t *sig, size_t sig_len,
 			   const TEE_Attribute *params, size_t num_params)
@@ -2335,6 +2357,10 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 	case TEE_TYPE_HMAC_SHA256:
 	case TEE_TYPE_HMAC_SHA384:
 	case TEE_TYPE_HMAC_SHA512:
+	case TEE_TYPE_HMAC_SHA3_224:
+	case TEE_TYPE_HMAC_SHA3_256:
+	case TEE_TYPE_HMAC_SHA3_384:
+	case TEE_TYPE_HMAC_SHA3_512:
 	case TEE_TYPE_HMAC_SM3:
 	case TEE_TYPE_GENERIC_SECRET:
 		byte_size = key_size / 8;
@@ -2497,6 +2523,18 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	case TEE_MAIN_ALGO_SHA512:
 		req_key_type = TEE_TYPE_HMAC_SHA512;
 		break;
+	case TEE_MAIN_ALGO_SHA3_224:
+		req_key_type = TEE_TYPE_HMAC_SHA3_224;
+		break;
+	case TEE_MAIN_ALGO_SHA3_256:
+		req_key_type = TEE_TYPE_HMAC_SHA3_256;
+		break;
+	case TEE_MAIN_ALGO_SHA3_384:
+		req_key_type = TEE_TYPE_HMAC_SHA3_384;
+		break;
+	case TEE_MAIN_ALGO_SHA3_512:
+		req_key_type = TEE_TYPE_HMAC_SHA3_512;
+		break;
 	case TEE_MAIN_ALGO_SM3:
 		req_key_type = TEE_TYPE_HMAC_SM3;
 		break;
@@ -2584,6 +2622,30 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 	return TEE_SUCCESS;
 }
 
+static uint32_t translate_compat_algo(uint32_t algo)
+{
+	switch (algo) {
+	case __OPTEE_ALG_ECDSA_P192:
+		return TEE_ALG_ECDSA_SHA1;
+	case __OPTEE_ALG_ECDSA_P224:
+		return TEE_ALG_ECDSA_SHA224;
+	case __OPTEE_ALG_ECDSA_P256:
+		return TEE_ALG_ECDSA_SHA256;
+	case __OPTEE_ALG_ECDSA_P384:
+		return TEE_ALG_ECDSA_SHA384;
+	case __OPTEE_ALG_ECDSA_P521:
+		return TEE_ALG_ECDSA_SHA512;
+	case __OPTEE_ALG_ECDH_P192:
+	case __OPTEE_ALG_ECDH_P224:
+	case __OPTEE_ALG_ECDH_P256:
+	case __OPTEE_ALG_ECDH_P384:
+	case __OPTEE_ALG_ECDH_P521:
+		return TEE_ALG_ECDH_DERIVE_SHARED_SECRET;
+	default:
+		return algo;
+	}
+}
+
 TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 			unsigned long key1, unsigned long key2,
 			uint32_t *state)
@@ -2594,6 +2656,8 @@ TEE_Result syscall_cryp_state_alloc(unsigned long algo, unsigned long mode,
 	struct tee_cryp_state *cs = NULL;
 	struct tee_obj *o1 = NULL;
 	struct tee_obj *o2 = NULL;
+
+	algo = translate_compat_algo(algo);
 
 	if (key1 != 0) {
 		res = tee_obj_get(utc, uref_to_vaddr(key1), &o1);
@@ -2867,6 +2931,11 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 	return TEE_SUCCESS;
 }
 
+static bool is_xof_algo(uint32_t algo)
+{
+	return algo == TEE_ALG_SHAKE128 || algo == TEE_ALG_SHAKE256;
+}
+
 TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 			size_t chunk_size, void *hash, uint64_t *hash_len)
 {
@@ -2912,6 +2981,21 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
+		if (is_xof_algo(cs->algo)) {
+			if (chunk_size) {
+				res = crypto_hash_update(cs->ctx, chunk,
+							 chunk_size);
+				if (res)
+					return res;
+			}
+
+			/*
+			 * hash_size is supposed to be unchanged for XOF
+			 * algorithms so return directly.
+			 */
+			return crypto_hash_final(cs->ctx, hash, hlen);
+		}
+
 		res = tee_alg_get_digest_size(cs->algo, &hash_size);
 		if (res != TEE_SUCCESS)
 			return res;
@@ -3106,20 +3190,29 @@ TEE_Result syscall_cipher_final(unsigned long state, const void *src,
 }
 
 #if defined(CFG_CRYPTO_HKDF)
-static TEE_Result get_hkdf_params(const TEE_Attribute *params,
+static TEE_Result get_hkdf_params(uint32_t algo, const TEE_Attribute *params,
 				  uint32_t param_count,
 				  void **salt, size_t *salt_len, void **info,
-				  size_t *info_len, size_t *okm_len)
+				  size_t *info_len, size_t *okm_len,
+				  uint32_t *hash_id)
 {
 	size_t n;
-	enum { SALT = 0x1, LENGTH = 0x2, INFO = 0x4 };
+	enum { SALT = 0x1, LENGTH = 0x2, INFO = 0x4, HASH = 0x8 };
 	uint8_t found = 0;
 
 	*salt = *info = NULL;
 	*salt_len = *info_len = *okm_len = 0;
 
+	if (algo == TEE_ALG_HKDF) {
+		*hash_id = TEE_ALG_SHA256;
+	} else {
+		*hash_id = TEE_ALG_GET_DIGEST_HASH(algo);
+		found |= HASH;
+	}
+
 	for (n = 0; n < param_count; n++) {
 		switch (params[n].attributeID) {
+		case __OPTEE_TEE_ATTR_HKDF_SALT:
 		case TEE_ATTR_HKDF_SALT:
 			if (!(found & SALT)) {
 				*salt = params[n].content.ref.buffer;
@@ -3127,17 +3220,25 @@ static TEE_Result get_hkdf_params(const TEE_Attribute *params,
 				found |= SALT;
 			}
 			break;
+		case TEE_ATTR_KDF_KEY_SIZE:
 		case TEE_ATTR_HKDF_OKM_LENGTH:
 			if (!(found & LENGTH)) {
 				*okm_len = params[n].content.value.a;
 				found |= LENGTH;
 			}
 			break;
+		case __OPTEE_ATTR_HKDF_INFO:
 		case TEE_ATTR_HKDF_INFO:
 			if (!(found & INFO)) {
 				*info = params[n].content.ref.buffer;
 				*info_len = params[n].content.ref.length;
 				found |= INFO;
+			}
+			break;
+		case TEE_ATTR_HKDF_HASH_ALGORITHM:
+			if (!(found & HASH)) {
+				*hash_id = params[n].content.value.a;
+				found |= HASH;
 			}
 			break;
 		default:
@@ -3440,10 +3541,11 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		}
 		crypto_bignum_free(pub);
 		crypto_bignum_free(ss);
-	} else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_ECDH) {
-		struct ecc_public_key key_public;
-		uint8_t *pt_secret;
-		unsigned long pt_secret_len;
+	} else if (cs->algo == TEE_ALG_ECDH_DERIVE_SHARED_SECRET) {
+		uint32_t curve = ((struct ecc_keypair *)ko->attr)->curve;
+		struct ecc_public_key key_public = { };
+		uint8_t *pt_secret = NULL;
+		unsigned long pt_secret_len = 0;
 		uint32_t key_type = TEE_TYPE_ECDH_PUBLIC_KEY;
 
 		if (param_count != 2 ||
@@ -3453,20 +3555,20 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 			goto out;
 		}
 
-		switch (cs->algo) {
-		case TEE_ALG_ECDH_P192:
+		switch (curve) {
+		case TEE_ECC_CURVE_NIST_P192:
 			alloc_size = 192;
 			break;
-		case TEE_ALG_ECDH_P224:
+		case TEE_ECC_CURVE_NIST_P224:
 			alloc_size = 224;
 			break;
-		case TEE_ALG_ECDH_P256:
+		case TEE_ECC_CURVE_NIST_P256:
 			alloc_size = 256;
 			break;
-		case TEE_ALG_ECDH_P384:
+		case TEE_ECC_CURVE_NIST_P384:
 			alloc_size = 384;
 			break;
-		case TEE_ALG_ECDH_P521:
+		case TEE_ECC_CURVE_NIST_P521:
 			alloc_size = 521;
 			break;
 		default:
@@ -3479,7 +3581,7 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 							  alloc_size);
 		if (res != TEE_SUCCESS)
 			goto out;
-		key_public.curve = ((struct ecc_keypair *)ko->attr)->curve;
+		key_public.curve = curve;
 		crypto_bignum_bin2bn(params[0].content.ref.buffer,
 				     params[0].content.ref.length,
 				     key_public.x);
@@ -3506,12 +3608,13 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 	else if (TEE_ALG_GET_MAIN_ALG(cs->algo) == TEE_MAIN_ALGO_HKDF) {
 		void *salt, *info;
 		size_t salt_len, info_len, okm_len;
-		uint32_t hash_id = TEE_ALG_GET_DIGEST_HASH(cs->algo);
+		uint32_t hash_id = 0;
 		struct tee_cryp_obj_secret *ik = ko->attr;
 		const uint8_t *ikm = (const uint8_t *)(ik + 1);
 
-		res = get_hkdf_params(params, param_count, &salt, &salt_len,
-				      &info, &info_len, &okm_len);
+		res = get_hkdf_params(cs->algo, params, param_count, &salt,
+				      &salt_len, &info, &info_len, &okm_len,
+				      &hash_id);
 		if (res != TEE_SUCCESS)
 			goto out;
 
@@ -4117,6 +4220,31 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 				label_len = params[n].content.ref.length;
 				break;
 			}
+			/*
+			 * If the optional TEE_ATTR_RSA_OAEP_MGF_HASH is
+			 * provided for algorithm
+			 * TEE_ALG_RSAES_PKCS1_OAEP_MGF1_x it must match
+			 * the internal hash x since we don't support using
+			 * a different hash for MGF1 yet.
+			 */
+			if (cs->algo != TEE_ALG_RSAES_PKCS1_V1_5 &&
+			    params[n].attributeID ==
+			    TEE_ATTR_RSA_OAEP_MGF_HASH) {
+				uint32_t hash = 0;
+
+				if (params[n].content.ref.length !=
+				    sizeof(hash)) {
+					res = TEE_ERROR_BAD_PARAMETERS;
+					break;
+				}
+				memcpy(&hash, params[n].content.ref.buffer,
+				       sizeof(hash));
+				if (hash !=
+				    TEE_INTERNAL_HASH_TO_ALGO(cs->algo)) {
+					res = TEE_ERROR_NOT_SUPPORTED;
+					break;
+				}
+			}
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
@@ -4170,11 +4298,11 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 					       num_params);
 		break;
 
-	case TEE_ALG_ECDSA_P192:
-	case TEE_ALG_ECDSA_P224:
-	case TEE_ALG_ECDSA_P256:
-	case TEE_ALG_ECDSA_P384:
-	case TEE_ALG_ECDSA_P521:
+	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
 	case TEE_ALG_SM2_DSA_SM3:
 		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015-2022, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <platform_config.h>
@@ -143,21 +143,20 @@
 	.endm
 
 FUNC _start , :
-#if defined(CFG_CORE_SEL1_SPMC)
 	/*
-	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
-	 * the DTB in x0, pagaeble part in x1 and the rest of the registers
-	 * are unused
+	 * If CFG_CORE_FFA is enabled, then x0 if non-NULL holds the TOS FW
+	 * config [1] address, else x0 if non-NULL holds the pagable part
+	 * address.
+	 *
+	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
+	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
+	 * here.
 	 */
-	mov	x19, x1		/* Save pagable part */
-	mov	x20, x0		/* Save DT address */
-#else
-	mov	x19, x0		/* Save pagable part address */
+	mov	x19, x0
 #if defined(CFG_DT_ADDR)
 	ldr     x20, =CFG_DT_ADDR
 #else
 	mov	x20, x2		/* Save DT address */
-#endif
 #endif
 
 	adr	x0, reset_vect_table
@@ -230,7 +229,7 @@ clear_bss:
 	cmp	x0, x1
 	b.lt	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -313,7 +312,7 @@ clear_nex_bss:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -321,7 +320,11 @@ clear_nex_bss:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x0, xzr		/* pager not used */
+#else
 	mov	x0, x19		/* pagable part address */
+#endif
 	mov	x1, #-1
 	bl	boot_init_primary_early
 
@@ -329,7 +332,7 @@ clear_nex_bss:
 	init_memtag_per_cpu
 #endif
 
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x21, sp
 	adr_l	x0, threads
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
@@ -338,13 +341,18 @@ clear_nex_bss:
 	mov	x22, x0
 	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	mov	x0, x20		/* DT address */
+	mov	x0, x20		/* DT address also known as HW_CONFIG */
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x1, x19		/* TOS_FW_CONFIG DT address */
+#else
+	mov	x1, xzr		/* unused */
+#endif
 	bl	boot_init_primary_late
 #ifdef CFG_CORE_PAUTH
 	init_pauth_per_cpu
 #endif
 
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP
 	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, x21
@@ -373,7 +381,7 @@ clear_nex_bss:
 	 * next entry. Matches the thread_init_boot_thread in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 

@@ -12,7 +12,7 @@ $(call force,CFG_CORE_ASLR,n)
 $(call force,CFG_LIBUTILS_WITH_ISOC,y)
 $(call force,CFG_UNWIND,n)
 $(call force,CFG_DT,n)
-$(call force,CFG_VIRTUALIZATION,n)
+$(call force,CFG_NS_VIRTUALIZATION,n)
 $(call force,CFG_WITH_VFP,n)
 $(call force,CFG_WITH_STATS,n)
 $(call force,CFG_WITH_STMM_SP,n)
@@ -68,6 +68,8 @@ $(call force,CFG_SHOW_CONF_ON_BOOT,n)
 $(call force,CFG_SYSCALL_WRAPPERS_MCOUNT,n)
 $(call force,CFG_BOOT_SYNC_CPU,y)
 $(call force,CFG_WARN_INSECURE,y)
+$(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
+CFG_RISCV_MTIME_RATE ?= 10000000
 CFG_TDDRAM_START ?= 0xbdb00000
 CFG_TDDRAM_SIZE  ?= 0x00f00000
 CFG_SHMEM_START  ?= 0x7fe00000

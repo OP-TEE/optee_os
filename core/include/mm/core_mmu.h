@@ -289,7 +289,7 @@ bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr);
  * v7 and LPAE MMUs
  *
  * This structure used mostly when virtualization is enabled.
- * When CFG_VIRTUALIZATION==n only default partition exists.
+ * When CFG_NS_VIRTUALIZATION==n only default partition exists.
  */
 struct mmu_partition;
 
@@ -374,7 +374,7 @@ struct core_mmu_table_info {
 	unsigned level;
 	unsigned shift;
 	unsigned num_entries;
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	struct mmu_partition *prtn;
 #endif
 };
@@ -604,7 +604,7 @@ void asid_free(unsigned int asid);
 struct mobj **core_sdp_mem_create_mobjs(void);
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void);
 struct mmu_partition *core_alloc_mmu_prtn(void *tables);
 void core_free_mmu_prtn(struct mmu_partition *prtn);

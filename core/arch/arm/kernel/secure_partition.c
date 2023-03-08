@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2022, Arm Limited.
+ * Copyright (c) 2020-2023, Arm Limited.
  */
 #include <bench.h>
 #include <crypto/crypto.h>
@@ -46,8 +46,11 @@
 					 SP_MANIFEST_ATTR_WRITE | \
 					 SP_MANIFEST_ATTR_EXEC)
 
+#define SP_MANIFEST_FLAG_NOBITS	BIT(0)
+
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
-#define SP_PKG_HEADER_VERSION (0x1)
+#define SP_PKG_HEADER_VERSION_V1 (0x1)
+#define SP_PKG_HEADER_VERSION_V2 (0x2)
 
 struct sp_pkg_header {
 	uint32_t magic;
@@ -317,13 +320,208 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
+				uint64_t *value)
+{
+	const fdt64_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value = fdt64_ld(p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
+				uint32_t *value)
+{
+	const fdt32_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value = fdt32_to_cpu(*p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
+				 const char *property, TEE_UUID *uuid)
+{
+	uint32_t uuid_array[4] = { 0 };
+	const fdt32_t *p = NULL;
+	int len = 0;
+	int i = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(TEE_UUID))
+		return TEE_ERROR_BAD_FORMAT;
+
+	for (i = 0; i < 4; i++)
+		uuid_array[i] = fdt32_to_cpu(p[i]);
+
+	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_is_elf_format(const void *fdt, int sp_node,
+				   bool *is_elf_format)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t elf_format = 0;
+
+	res = sp_dt_get_u32(fdt, sp_node, "elf-format", &elf_format);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
+
+	*is_elf_format = (elf_format != 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_binary_open(const TEE_UUID *uuid,
+				 const struct ts_store_ops **ops,
+				 struct ts_store_handle **handle)
+{
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+
+	SCATTERED_ARRAY_FOREACH(*ops, sp_stores, struct ts_store_ops) {
+		res = (*ops)->open(uuid, handle);
+		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+		    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+			break;
+	}
+
+	return res;
+}
+
+static TEE_Result load_binary_sp(struct ts_session *s,
+				 struct user_mode_ctx *uctx)
+{
+	size_t bin_size = 0, bin_size_rounded = 0, bin_page_count = 0;
+	const struct ts_store_ops *store_ops = NULL;
+	struct ts_store_handle *handle = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	tee_mm_entry_t *mm = NULL;
+	struct mobj *mobj = NULL;
+	uaddr_t base_addr = 0;
+	uint32_t vm_flags = 0;
+	unsigned int idx = 0;
+	vaddr_t va = 0;
+
+	if (!s || !uctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	DMSG("Loading raw binary format SP %pUl", &uctx->ts_ctx->uuid);
+
+	vm_set_ctx(uctx->ts_ctx);
+
+	/* Find TS store and open SP binary */
+	res = sp_binary_open(&uctx->ts_ctx->uuid, &store_ops, &handle);
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to open SP binary");
+		return res;
+	}
+
+	/* Query binary size and calculate page count */
+	res = store_ops->get_size(handle, &bin_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+
+	if (ROUNDUP_OVERFLOW(bin_size, SMALL_PAGE_SIZE, &bin_size_rounded)) {
+		res = TEE_ERROR_OVERFLOW;
+		goto err;
+	}
+
+	bin_page_count = bin_size_rounded / SMALL_PAGE_SIZE;
+
+	/* Allocate memory */
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, bin_size_rounded);
+	if (!mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	base_addr = tee_mm_get_smem(mm);
+
+	/* Create mobj */
+	mobj = sp_mem_new_mobj(bin_page_count, TEE_MATTR_MEM_TYPE_CACHED, true);
+	if (!mobj) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err_free_tee_mm;
+	}
+
+	res = sp_mem_add_pages(mobj, &idx, base_addr, bin_page_count);
+	if (res)
+		goto err_free_mobj;
+
+	/* Map memory area for the SP binary */
+	res = vm_map(uctx, &va, bin_size_rounded, TEE_MATTR_URWX,
+		     vm_flags, mobj, 0);
+	if (res)
+		goto err_free_mobj;
+
+	/* Read SP binary into the previously mapped memory area */
+	res = store_ops->read(handle, (void *)va, bin_size);
+	if (res)
+		goto err_unmap;
+
+	/* Set memory protection to allow execution */
+	res = vm_set_prot(uctx, va, bin_size_rounded, TEE_MATTR_UX);
+	if (res)
+		goto err_unmap;
+
+	mobj_put(mobj);
+	store_ops->close(handle);
+
+	/* The entry point must be at the beginning of the SP binary. */
+	uctx->entry_func = va;
+	uctx->load_addr = va;
+	uctx->is_32bit = false;
+
+	s->handle_scall = s->ctx->ops->handle_scall;
+
+	return TEE_SUCCESS;
+
+err_unmap:
+	vm_unmap(uctx, va, bin_size_rounded);
+
+err_free_mobj:
+	mobj_put(mobj);
+
+err_free_tee_mm:
+	tee_mm_free(mm);
+
+err:
+	store_ops->close(handle);
+
+	return res;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
-				  const TEE_UUID *uuid)
+				  const TEE_UUID *uuid,
+				  const void *fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *s = NULL;
 	struct sp_ctx *ctx = NULL;
+	bool is_elf_format = false;
 
 	if (!find_secure_partition(uuid))
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -341,12 +539,23 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	*sess = s;
 
 	ts_push_current_session(&s->ts_sess);
-	/* Load the SP using ldelf. */
-	ldelf_load_ldelf(&ctx->uctx);
-	res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
+
+	res = sp_is_elf_format(fdt, 0, &is_elf_format);
+	if (res == TEE_SUCCESS) {
+		if (is_elf_format) {
+			/* Load the SP using ldelf. */
+			ldelf_load_ldelf(&ctx->uctx);
+			res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
+		} else {
+			/* Raw binary format SP */
+			res = load_binary_sp(&s->ts_sess, &ctx->uctx);
+		}
+	} else {
+		EMSG("Failed to detect SP format");
+	}
 
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed. loading SP using ldelf %#"PRIx32, res);
+		EMSG("Failed loading SP  %#"PRIx32, res);
 		ts_pop_current_session();
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -356,56 +565,6 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	s->caller_id = 0;
 	sp_init_set_registers(ctx);
 	ts_pop_current_session();
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
-				uint64_t *value)
-{
-	const fdt64_t *p = NULL;
-	int len = 0;
-
-	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*value = fdt64_ld(p);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
-				uint32_t *value)
-{
-	const fdt32_t *p = NULL;
-	int len = 0;
-
-	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*value = fdt32_to_cpu(*p);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
-				 const char *property, TEE_UUID *uuid)
-{
-	uint32_t uuid_array[4] = { 0 };
-	const fdt32_t *p = NULL;
-	int len = 0;
-	int i = 0;
-
-	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(TEE_UUID))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	for (i = 0; i < 4; i++)
-		uuid_array[i] = fdt32_to_cpu(p[i]);
-
-	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
 
 	return TEE_SUCCESS;
 }
@@ -495,6 +654,142 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
+						       const void *fdt)
+{
+	int node = 0;
+	int subnode = 0;
+	tee_mm_entry_t *mm = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * Memory regions are optional in the SP manifest, it's not an error if
+	 * we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0,
+					     "arm,ffa-manifest-memory-regions");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
+		uint32_t attributes = 0;
+		uint64_t base_addr = 0;
+		uint32_t pages_cnt = 0;
+		uint32_t flags = 0;
+		uint32_t perm = 0;
+		size_t size = 0;
+		vaddr_t va = 0;
+
+		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			va = ctx->uctx.load_addr + load_rel_offset;
+		} else {
+			/* Skip non load address relative memory regions */
+			continue;
+		}
+
+		if (!sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
+			EMSG("Both base-address and load-address-relative-offset fields are set");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Size of memory region as count of 4K pages */
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
+			EMSG("Mandatory field is missing: pages-count");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (MUL_OVERFLOW(pages_cnt, SMALL_PAGE_SIZE, &size))
+			return TEE_ERROR_OVERFLOW;
+
+		/* Memory region attributes  */
+		if (sp_dt_get_u32(fdt, subnode, "attributes", &attributes)) {
+			EMSG("Mandatory field is missing: attributes");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Check instruction and data access permissions */
+		switch (attributes & SP_MANIFEST_ATTR_RWX) {
+		case SP_MANIFEST_ATTR_RO:
+			perm = TEE_MATTR_UR;
+			break;
+		case SP_MANIFEST_ATTR_RW:
+			perm = TEE_MATTR_URW;
+			break;
+		case SP_MANIFEST_ATTR_RX:
+			perm = TEE_MATTR_URX;
+			break;
+		default:
+			EMSG("Invalid memory access permissions");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		res = sp_dt_get_u32(fdt, subnode, "load-flags", &flags);
+		if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND) {
+			EMSG("Optional field with invalid value: flags");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Load relative regions must be secure */
+		if (attributes & SP_MANIFEST_ATTR_NSEC) {
+			EMSG("Invalid memory security attribute");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (flags & SP_MANIFEST_FLAG_NOBITS) {
+			/*
+			 * NOBITS flag is set, which means that loaded binary
+			 * doesn't contain this area, so it's need to be
+			 * allocated.
+			 */
+			struct mobj *m = NULL;
+			unsigned int idx = 0;
+
+			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			if (!mm)
+				return TEE_ERROR_OUT_OF_MEMORY;
+
+			base_addr = tee_mm_get_smem(mm);
+
+			m = sp_mem_new_mobj(pages_cnt,
+					    TEE_MATTR_MEM_TYPE_CACHED, true);
+			if (!m) {
+				res = TEE_ERROR_OUT_OF_MEMORY;
+				goto err_mm_free;
+			}
+
+			res = sp_mem_add_pages(m, &idx, base_addr, pages_cnt);
+			if (res) {
+				mobj_put(m);
+				goto err_mm_free;
+			}
+
+			res = vm_map(&ctx->uctx, &va, size, perm, 0, m, 0);
+			mobj_put(m);
+			if (res)
+				goto err_mm_free;
+		} else {
+			/*
+			 * If NOBITS is not present the memory area is already
+			 * mapped and only need to set the correct permissions.
+			 */
+			res = vm_set_prot(&ctx->uctx, va, size, perm);
+			if (res)
+				return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+
+err_mm_free:
+	tee_mm_free(mm);
+	return res;
 }
 
 static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
@@ -681,6 +976,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		return TEE_SUCCESS;
 
 	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
 		bool alloc_needed = false;
 		uint32_t attributes = 0;
 		uint64_t base_addr = 0;
@@ -693,6 +989,23 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		vaddr_t va = 0;
 
 		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			/*
+			 * At this point the memory region is already mapped by
+			 * handle_fdt_load_relative_mem_regions.
+			 * Only need to set the base-address in the manifest and
+			 * then skip the rest of the mapping process.
+			 */
+			va = ctx->uctx.load_addr + load_rel_offset;
+			res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+			if (res)
+				return res;
+
+			continue;
+		}
 
 		/*
 		 * Base address of a memory region.
@@ -890,13 +1203,11 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 
-	res = sp_open_session(&sess,
-			      &open_sp_sessions,
-			      uuid);
+	res = check_fdt(fdt, uuid);
 	if (res)
 		return res;
 
-	res = check_fdt(fdt, uuid);
+	res = sp_open_session(&sess, &open_sp_sessions, uuid, fdt);
 	if (res)
 		return res;
 
@@ -920,6 +1231,16 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
+
+	/*
+	 * Load relative memory regions must be handled before doing any other
+	 * mapping to prevent conflicts in the VA space.
+	 */
+	res = handle_fdt_load_relative_mem_regions(ctx, sess->fdt);
+	if (res) {
+		ts_pop_current_session();
+		return res;
+	}
 
 	res = sp_init_info(ctx, &args, sess->fdt, &va, &num_pgs, &fdt_copy);
 	if (res)
@@ -1038,7 +1359,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 
 /* We currently don't support 32 bits */
 #ifdef ARM64
-static void sp_svc_store_registers(struct thread_svc_regs *regs,
+static void sp_svc_store_registers(struct thread_scall_regs *regs,
 				   struct thread_ctx_regs *sp_regs)
 {
 	COMPILE_TIME_ASSERT(sizeof(sp_regs->x[0]) == sizeof(regs->x0));
@@ -1048,7 +1369,7 @@ static void sp_svc_store_registers(struct thread_svc_regs *regs,
 }
 #endif
 
-static bool sp_handle_svc(struct thread_svc_regs *regs)
+static bool sp_handle_scall(struct thread_scall_regs *regs)
 {
 	struct ts_session *ts = ts_get_current_session();
 	struct sp_ctx *uctx = to_sp_ctx(ts->ctx);
@@ -1091,7 +1412,7 @@ static void sp_dump_state(struct ts_ctx *ctx)
 
 static const struct ts_ops sp_ops = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
-	.handle_svc = sp_handle_svc,
+	.handle_scall = sp_handle_scall,
 	.dump_state = sp_dump_state,
 };
 
@@ -1130,7 +1451,8 @@ static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
 		goto err_unmap;
 	}
 
-	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION) {
+	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V1 &&
+	    sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V2) {
 		EMSG("Invalid SP header version");
 		res = TEE_ERROR_BAD_FORMAT;
 		goto err_unmap;
@@ -1210,7 +1532,7 @@ static TEE_Result fip_sp_map_all(void)
 	int subnode = 0;
 	int root = 0;
 
-	fdt = get_external_dt();
+	fdt = get_tos_fw_config_dt();
 	if (!fdt) {
 		EMSG("No SPMC manifest found");
 		return TEE_ERROR_GENERIC;

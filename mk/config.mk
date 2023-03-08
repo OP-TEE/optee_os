@@ -127,7 +127,7 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
 CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 19
+CFG_OPTEE_REVISION_MINOR ?= 20
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
@@ -270,6 +270,9 @@ endif
 
 # Enable support for dynamically loaded user TAs
 CFG_WITH_USER_TA ?= y
+
+# Build user TAs included in this source tree
+CFG_BUILD_IN_TREE_TA ?= y
 
 # Choosing the architecture(s) of user-mode libraries (used by TAs)
 #
@@ -553,7 +556,7 @@ CFG_BOOT_SECONDARY_REQUEST ?= n
 # Default heap size for Core, 64 kB
 CFG_CORE_HEAP_SIZE ?= 65536
 
-# Default size of nexus heap. 16 kB. Used only if CFG_VIRTUALIZATION
+# Default size of nexus heap. 16 kB. Used only if CFG_NS_VIRTUALIZATION
 # is enabled
 CFG_CORE_NEX_HEAP_SIZE ?= 16384
 
@@ -730,9 +733,10 @@ $(call force,CFG_CORE_MBEDTLS_MPI,y)
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.
-CFG_VIRTUALIZATION ?= n
+CFG_NS_VIRTUALIZATION ?= $(CFG_VIRTUALIZATION)
+CFG_NS_VIRTUALIZATION ?= n
 
-ifeq ($(CFG_VIRTUALIZATION),y)
+ifeq ($(CFG_NS_VIRTUALIZATION),y)
 $(call force,CFG_CORE_RODATA_NOEXEC,y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 
@@ -781,10 +785,41 @@ CFG_SCMI_MSG_VOLTAGE_DOMAIN ?= n
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-all,CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY,CFG_SCMI_MSG_SMT))
 $(eval $(call cfg-depends-one,CFG_SCMI_MSG_SMT_THREAD_ENTRY,CFG_SCMI_MSG_SMT CFG_SCMI_MSG_SHM_MSG))
+ifeq ($(CFG_SCMI_MSG_SMT),y)
+_CFG_SCMI_PTA_SMT_HEADER := y
+endif
+ifeq ($(CFG_SCMI_MSG_SHM_MSG),y)
+_CFG_SCMI_PTA_MSG_HEADER := y
+endif
+endif
+
+# CFG_SCMI_SCPFW, when enabled, embeds the reference SCMI server implementation
+# from SCP-firmware package as an built-in SCMI stack in core. This
+# configuration mandates target product identifier is configured with
+# CFG_SCMI_SCPFW_PRODUCT and the SCP-firmware source tree path with
+# CFG_SCP_FIRMWARE.
+CFG_SCMI_SCPFW ?= n
+
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_PTA,y,Required by CFG_SCMI_SCPFW)
+ifeq (,$(CFG_SCMI_SCPFW_PRODUCT))
+$(error CFG_SCMI_SCPFW=y requires CFG_SCMI_SCPFW_PRODUCT configuration)
+endif
+ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
+$(error CFG_SCMI_SCPFW=y requires CFG_SCP_FIRMWARE configuration)
+endif
+endif #CFG_SCMI_SCPFW
+
+ifeq ($(CFG_SCMI_MSG_DRIVERS)-$(CFG_SCMI_SCPFW),y-y)
+$(error CFG_SCMI_MSG_DRIVERS=y and CFG_SCMI_SCPFW=y are mutually exclusive)
 endif
 
 # Enable SCMI PTA interface for REE SCMI agents
 CFG_SCMI_PTA ?= n
+ifeq ($(CFG_SCMI_PTA),y)
+_CFG_SCMI_PTA_SMT_HEADER ?= n
+_CFG_SCMI_PTA_MSG_HEADER ?= n
+endif
 
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
@@ -874,8 +909,8 @@ CFG_TA_BTI ?= $(CFG_CORE_BTI)
 
 $(eval $(call cfg-depends-all,CFG_TA_BTI,CFG_ARM64_core))
 
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(call cfg-one-enabled, CFG_TA_BTI CFG_CORE_BTI))
-$(error CFG_VIRTUALIZATION and BTI are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(call cfg-one-enabled, CFG_TA_BTI CFG_CORE_BTI))
+$(error CFG_NS_VIRTUALIZATION and BTI are currently incompatible)
 endif
 
 ifeq (y-y,$(CFG_PAGED_USER_TA)-$(CFG_TA_BTI))
@@ -922,11 +957,11 @@ CFG_TA_PAUTH ?= $(CFG_CORE_PAUTH)
 $(eval $(call cfg-depends-all,CFG_CORE_PAUTH,CFG_ARM64_core))
 $(eval $(call cfg-depends-all,CFG_TA_PAUTH,CFG_ARM64_core))
 
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
-$(error CFG_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(CFG_CORE_PAUTH))
+$(error CFG_NS_VIRTUALIZATION and CFG_CORE_PAUTH are currently incompatible)
 endif
-ifeq (y-y,$(CFG_VIRTUALIZATION)-$(CFG_TA_PAUTH))
-$(error CFG_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
+ifeq (y-y,$(CFG_NS_VIRTUALIZATION)-$(CFG_TA_PAUTH))
+$(error CFG_NS_VIRTUALIZATION and CFG_TA_PAUTH are currently incompatible)
 endif
 
 ifeq (y-y,$(CFG_TA_GPROF_SUPPORT)-$(CFG_TA_PAUTH))
@@ -989,5 +1024,9 @@ CFG_TA_STATS ?= n
 # is tampered with. Details in lib/libutils/ext/include/fault_mitigation.h
 CFG_FAULT_MITIGATION ?= y
 
-# Enable TEE Internal Core API v1.1 compatibility for in-tree TAs
-CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= y
+# Enables TEE Internal Core API v1.1 compatibility for in-tree TAs. Note
+# that this doesn't affect libutee itself, it's only the TAs compiled with
+# this set that are affected. Each out-of-tree must set this if to enable
+# compatibility with version v1.1 as the value of this variable is not
+# preserved in the TA dev-kit.
+CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n

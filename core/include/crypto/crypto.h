@@ -179,6 +179,11 @@ struct ed25519_keypair {
 	uint32_t curve;
 };
 
+struct ed25519_public_key {
+	uint8_t *pub;
+	uint32_t curve;
+};
+
 /*
  * Key allocation functions
  * Allocate the bignum's inside a key structure.
@@ -207,6 +212,9 @@ TEE_Result crypto_acipher_alloc_x25519_keypair(struct x25519_keypair *s,
 					       size_t key_size_bits);
 TEE_Result crypto_acipher_alloc_ed25519_keypair(struct ed25519_keypair *s,
 						size_t key_size_bits);
+TEE_Result
+crypto_acipher_alloc_ed25519_public_key(struct ed25519_public_key *key,
+					size_t key_size);
 
 /*
  * Key generation functions
@@ -228,10 +236,10 @@ TEE_Result crypto_acipher_ed25519ctx_sign(struct ed25519_keypair *key,
 					  uint8_t *sig, size_t *sig_len,
 					  bool ph_flag,
 					  const uint8_t *ctx, size_t ctxlen);
-TEE_Result crypto_acipher_ed25519_verify(struct ed25519_keypair *key,
+TEE_Result crypto_acipher_ed25519_verify(struct ed25519_public_key *key,
 					 const uint8_t *msg, size_t msg_len,
 					 const uint8_t *sig, size_t sig_len);
-TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_keypair *key,
+TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_public_key *key,
 					    const uint8_t *msg, size_t msg_len,
 					    const uint8_t *sig, size_t sig_len,
 					    bool ph_flag,

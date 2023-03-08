@@ -36,6 +36,23 @@ TEE_Result crypto_acipher_alloc_ed25519_keypair(struct ed25519_keypair *key,
 	return TEE_SUCCESS;
 }
 
+TEE_Result
+crypto_acipher_alloc_ed25519_public_key(struct ed25519_public_key *key,
+					size_t key_size)
+{
+	if (!key || key_size != ED25519_KEY_SIZE)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	memset(key, 0, sizeof(*key));
+
+	key->pub = calloc(1, key_size >> 3);
+
+	if (!key->pub)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result crypto_acipher_gen_ed25519_key(struct ed25519_keypair *key,
 					  size_t key_size)
 {
@@ -124,7 +141,7 @@ TEE_Result crypto_acipher_ed25519ctx_sign(struct ed25519_keypair *key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_ed25519_verify(struct ed25519_keypair *key,
+TEE_Result crypto_acipher_ed25519_verify(struct ed25519_public_key *key,
 					 const uint8_t *msg, size_t msg_len,
 					 const uint8_t *sig, size_t sig_len)
 {
@@ -149,7 +166,7 @@ TEE_Result crypto_acipher_ed25519_verify(struct ed25519_keypair *key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_keypair *key,
+TEE_Result crypto_acipher_ed25519ctx_verify(struct ed25519_public_key *key,
 					    const uint8_t *msg, size_t msg_len,
 					    const uint8_t *sig, size_t sig_len,
 					    bool ph_flag,

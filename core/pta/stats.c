@@ -98,7 +98,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			break;
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 		case 4:
 			nex_malloc_get_stats(stats);
 			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));

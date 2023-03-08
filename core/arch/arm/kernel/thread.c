@@ -48,7 +48,7 @@ static uint8_t thread_user_kdata_page[
 	ROUNDUP(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
 		SMALL_PAGE_SIZE)]
 	__aligned(SMALL_PAGE_SIZE)
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	__section(".nozi.kdata_page");
 #else
 	__section(".nex_nozi.kdata_page");
@@ -447,7 +447,7 @@ void thread_state_free(void)
 	threads[ct].flags = 0;
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 	thread_unlock_global();
 }
@@ -518,7 +518,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 
 	thread_unlock_global();
@@ -1056,7 +1056,7 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 }
 #endif
 
-static void setup_unwind_user_mode(struct thread_svc_regs *regs)
+static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 #ifdef ARM32
 	regs->lr = (uintptr_t)thread_unwind_user_mode;
@@ -1090,7 +1090,7 @@ static void gprof_set_status(struct ts_session *s __maybe_unused,
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak thread_svc_handler(struct thread_svc_regs *regs)
+void __weak thread_scall_handler(struct thread_scall_regs *regs)
 {
 	struct ts_session *sess = NULL;
 	uint32_t state = 0;
@@ -1111,8 +1111,8 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	assert(sess && sess->handle_svc);
-	if (sess->handle_svc(regs)) {
+	assert(sess && sess->handle_scall);
+	if (sess->handle_scall(regs)) {
 		/* We're about to switch back to user mode */
 		gprof_set_status(sess, TS_GPROF_RESUME);
 	} else {

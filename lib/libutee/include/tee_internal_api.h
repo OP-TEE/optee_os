@@ -21,7 +21,10 @@
 
 TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   const char *name, char *valueBuffer,
-				   uint32_t *valueBufferLen);
+				   size_t *valueBufferLen);
+TEE_Result __GP11_TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
+					  const char *name, char *valueBuffer,
+					  uint32_t *valueBufferLen);
 
 TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 				 const char *name, bool *value);
@@ -29,9 +32,16 @@ TEE_Result TEE_GetPropertyAsBool(TEE_PropSetHandle propsetOrEnumerator,
 TEE_Result TEE_GetPropertyAsU32(TEE_PropSetHandle propsetOrEnumerator,
 				const char *name, uint32_t *value);
 
+TEE_Result TEE_GetPropertyAsU64(TEE_PropSetHandle propsetOrEnumerator,
+				const char *name, uint64_t *value);
+
 TEE_Result TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
 					const char *name, void *valueBuffer,
-					uint32_t *valueBufferLen);
+					size_t *valueBufferLen);
+TEE_Result
+__GP11_TEE_GetPropertyAsBinaryBlock(TEE_PropSetHandle propsetOrEnumerator,
+				    const char *name, void *valueBuffer,
+				    uint32_t *valueBufferLen);
 
 TEE_Result TEE_GetPropertyAsUUID(TEE_PropSetHandle propsetOrEnumerator,
 				 const char *name, TEE_UUID *value);
@@ -49,7 +59,10 @@ void TEE_StartPropertyEnumerator(TEE_PropSetHandle enumerator,
 void TEE_ResetPropertyEnumerator(TEE_PropSetHandle enumerator);
 
 TEE_Result TEE_GetPropertyName(TEE_PropSetHandle enumerator,
-			       void *nameBuffer, uint32_t *nameBufferLen);
+			       void *nameBuffer, size_t *nameBufferLen);
+TEE_Result __GP11_TEE_GetPropertyName(TEE_PropSetHandle enumerator,
+				      void *nameBuffer,
+				      uint32_t *nameBufferLen);
 
 TEE_Result TEE_GetNextProperty(TEE_PropSetHandle enumerator);
 
@@ -65,6 +78,12 @@ TEE_Result TEE_OpenTASession(const TEE_UUID *destination,
 			     TEE_Param params[TEE_NUM_PARAMS],
 			     TEE_TASessionHandle *session,
 			     uint32_t *returnOrigin);
+TEE_Result __GP11_TEE_OpenTASession(const TEE_UUID *destination,
+				    uint32_t cancellationRequestTimeout,
+				    uint32_t paramTypes,
+				    __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				    TEE_TASessionHandle *session,
+				    uint32_t *returnOrigin);
 
 void TEE_CloseTASession(TEE_TASessionHandle session);
 
@@ -73,6 +92,11 @@ TEE_Result TEE_InvokeTACommand(TEE_TASessionHandle session,
 			       uint32_t commandID, uint32_t paramTypes,
 			       TEE_Param params[TEE_NUM_PARAMS],
 			       uint32_t *returnOrigin);
+TEE_Result __GP11_TEE_InvokeTACommand(TEE_TASessionHandle session,
+				      uint32_t cancellationRequestTimeout,
+				      uint32_t commandID, uint32_t paramTypes,
+				      __GP11_TEE_Param params[TEE_NUM_PARAMS],
+				      uint32_t *returnOrigin);
 
 /* System API - Cancellations */
 
@@ -85,34 +109,47 @@ bool TEE_MaskCancellation(void);
 /* System API - Memory Management */
 
 TEE_Result TEE_CheckMemoryAccessRights(uint32_t accessFlags, void *buffer,
-				       uint32_t size);
+				       size_t size);
+TEE_Result __GP11_TEE_CheckMemoryAccessRights(uint32_t accessFlags,
+					      void *buffer, uint32_t size);
 
 void TEE_SetInstanceData(const void *instanceData);
 
 const void *TEE_GetInstanceData(void);
 
-void *TEE_Malloc(uint32_t size, uint32_t hint);
+void *TEE_Malloc(size_t size, uint32_t hint);
+void *__GP11_TEE_Malloc(uint32_t size, uint32_t hint);
 
-void *TEE_Realloc(void *buffer, uint32_t newSize);
+void *TEE_Realloc(void *buffer, size_t newSize);
+void *__GP11_TEE_Realloc(void *buffer, uint32_t newSize);
 
 void TEE_Free(void *buffer);
 
-void *TEE_MemMove(void *dest, const void *src, uint32_t size);
+void *TEE_MemMove(void *dest, const void *src, size_t size);
+void *__GP11_TEE_MemMove(void *dest, const void *src, uint32_t size);
 
 /*
  * Note: TEE_MemCompare() has a constant-time implementation (execution time
  * does not depend on buffer content but only on buffer size). It is the main
  * difference with memcmp().
  */
-int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, uint32_t size);
+int32_t TEE_MemCompare(const void *buffer1, const void *buffer2, size_t size);
+int32_t __GP11_TEE_MemCompare(const void *buffer1, const void *buffer2,
+			      uint32_t size);
 
-void TEE_MemFill(void *buff, uint32_t x, uint32_t size);
+void TEE_MemFill(void *buff, uint32_t x, size_t size);
+void __GP11_TEE_MemFill(void *buff, uint32_t x, uint32_t size);
 
 /* Data and Key Storage API  - Generic Object Functions */
 
 void TEE_GetObjectInfo(TEE_ObjectHandle object, TEE_ObjectInfo *objectInfo);
+void __GP11_TEE_GetObjectInfo(TEE_ObjectHandle object,
+			      __GP11_TEE_ObjectInfo *objectInfo);
+
 TEE_Result TEE_GetObjectInfo1(TEE_ObjectHandle object,
 			      TEE_ObjectInfo *objectInfo);
+TEE_Result __GP11_TEE_GetObjectInfo1(TEE_ObjectHandle object,
+				     __GP11_TEE_ObjectInfo *objectInfo);
 
 void TEE_RestrictObjectUsage(TEE_ObjectHandle object, uint32_t objectUsage);
 TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object,
@@ -120,7 +157,10 @@ TEE_Result TEE_RestrictObjectUsage1(TEE_ObjectHandle object,
 
 TEE_Result TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
 					uint32_t attributeID, void *buffer,
-					uint32_t *size);
+					size_t *size);
+TEE_Result __GP11_TEE_GetObjectBufferAttribute(TEE_ObjectHandle object,
+					       uint32_t attributeID,
+					       void *buffer, uint32_t *size);
 
 TEE_Result TEE_GetObjectValueAttribute(TEE_ObjectHandle object,
 				       uint32_t attributeID, uint32_t *a,
@@ -131,8 +171,11 @@ void TEE_CloseObject(TEE_ObjectHandle object);
 /* Data and Key Storage API  - Transient Object Functions */
 
 TEE_Result TEE_AllocateTransientObject(TEE_ObjectType objectType,
-				       uint32_t maxKeySize,
+				       uint32_t maxObjectSize,
 				       TEE_ObjectHandle *object);
+TEE_Result __GP11_TEE_AllocateTransientObject(TEE_ObjectType objectType,
+					      uint32_t maxKeySize,
+					      TEE_ObjectHandle *object);
 
 void TEE_FreeTransientObject(TEE_ObjectHandle object);
 
@@ -141,12 +184,21 @@ void TEE_ResetTransientObject(TEE_ObjectHandle object);
 TEE_Result TEE_PopulateTransientObject(TEE_ObjectHandle object,
 				       const TEE_Attribute *attrs,
 				       uint32_t attrCount);
+TEE_Result __GP11_TEE_PopulateTransientObject(TEE_ObjectHandle object,
+					      const __GP11_TEE_Attribute *attrs,
+					      uint32_t attrCount);
 
 void TEE_InitRefAttribute(TEE_Attribute *attr, uint32_t attributeID,
-			  const void *buffer, uint32_t length);
+			  const void *buffer, size_t length);
+void __GP11_TEE_InitRefAttribute(__GP11_TEE_Attribute *attr,
+				 uint32_t attributeID,
+				 const void *buffer, uint32_t length);
 
 void TEE_InitValueAttribute(TEE_Attribute *attr, uint32_t attributeID,
 			    uint32_t a, uint32_t b);
+void __GP11_TEE_InitValueAttribute(__GP11_TEE_Attribute *attr,
+				   uint32_t attributeID,
+				   uint32_t a, uint32_t b);
 
 void TEE_CopyObjectAttributes(TEE_ObjectHandle destObject,
 			      TEE_ObjectHandle srcObject);
@@ -156,19 +208,34 @@ TEE_Result TEE_CopyObjectAttributes1(TEE_ObjectHandle destObject,
 
 TEE_Result TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
 			   const TEE_Attribute *params, uint32_t paramCount);
+TEE_Result __GP11_TEE_GenerateKey(TEE_ObjectHandle object, uint32_t keySize,
+				  const __GP11_TEE_Attribute *params,
+				  uint32_t paramCount);
 
 /* Data and Key Storage API  - Persistent Object Functions */
 
 TEE_Result TEE_OpenPersistentObject(uint32_t storageID, const void *objectID,
-				    uint32_t objectIDLen, uint32_t flags,
+				    size_t objectIDLen, uint32_t flags,
 				    TEE_ObjectHandle *object);
+TEE_Result __GP11_TEE_OpenPersistentObject(uint32_t storageID,
+					   const void *objectID,
+					   uint32_t objectIDLen, uint32_t flags,
+					   TEE_ObjectHandle *object);
 
 TEE_Result TEE_CreatePersistentObject(uint32_t storageID, const void *objectID,
-				      uint32_t objectIDLen, uint32_t flags,
+				      size_t objectIDLen, uint32_t flags,
 				      TEE_ObjectHandle attributes,
 				      const void *initialData,
-				      uint32_t initialDataLen,
+				      size_t initialDataLen,
 				      TEE_ObjectHandle *object);
+TEE_Result __GP11_TEE_CreatePersistentObject(uint32_t storageID,
+					     const void *objectID,
+					     uint32_t objectIDLen,
+					     uint32_t flags,
+					     TEE_ObjectHandle attributes,
+					     const void *initialData,
+					     uint32_t initialDataLen,
+					     TEE_ObjectHandle *object);
 
 void TEE_CloseAndDeletePersistentObject(TEE_ObjectHandle object);
 
@@ -176,7 +243,10 @@ TEE_Result TEE_CloseAndDeletePersistentObject1(TEE_ObjectHandle object);
 
 TEE_Result TEE_RenamePersistentObject(TEE_ObjectHandle object,
 				      const void *newObjectID,
-				      uint32_t newObjectIDLen);
+				      size_t newObjectIDLen);
+TEE_Result __GP11_TEE_RenamePersistentObject(TEE_ObjectHandle object,
+					     const void *newObjectID,
+					     uint32_t newObjectIDLen);
 
 TEE_Result TEE_AllocatePersistentObjectEnumerator(TEE_ObjectEnumHandle *
 						  objectEnumerator);
@@ -191,20 +261,32 @@ TEE_Result TEE_StartPersistentObjectEnumerator(TEE_ObjectEnumHandle
 
 TEE_Result TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
 				       TEE_ObjectInfo *objectInfo,
-				       void *objectID, uint32_t *objectIDLen);
+				       void *objectID, size_t *objectIDLen);
+TEE_Result
+__GP11_TEE_GetNextPersistentObject(TEE_ObjectEnumHandle objectEnumerator,
+				   __GP11_TEE_ObjectInfo *objectInfo,
+				   void *objectID, uint32_t *objectIDLen);
 
 /* Data and Key Storage API  - Data Stream Access Functions */
 
 TEE_Result TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
-			      uint32_t size, uint32_t *count);
+			      size_t size, size_t *count);
+TEE_Result __GP11_TEE_ReadObjectData(TEE_ObjectHandle object, void *buffer,
+				     uint32_t size, uint32_t *count);
 
 TEE_Result TEE_WriteObjectData(TEE_ObjectHandle object, const void *buffer,
-			       uint32_t size);
+			       size_t size);
+TEE_Result __GP11_TEE_WriteObjectData(TEE_ObjectHandle object,
+				      const void *buffer, uint32_t size);
 
-TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, uint32_t size);
+TEE_Result TEE_TruncateObjectData(TEE_ObjectHandle object, size_t size);
+TEE_Result __GP11_TEE_TruncateObjectData(TEE_ObjectHandle object,
+					 uint32_t size);
 
-TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+TEE_Result TEE_SeekObjectData(TEE_ObjectHandle object, intmax_t offset,
 			      TEE_Whence whence);
+TEE_Result __GP11_TEE_SeekObjectData(TEE_ObjectHandle object, int32_t offset,
+				     TEE_Whence whence);
 
 /* Cryptographic Operations API - Generic Operation Functions */
 
@@ -213,6 +295,7 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 				 uint32_t maxKeySize);
 
 void TEE_FreeOperation(TEE_OperationHandle operation);
+void __GP11_TEE_FreeOperation(TEE_OperationHandle operation);
 
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
 			  TEE_OperationInfo *operationInfo);
@@ -220,15 +303,24 @@ void TEE_GetOperationInfo(TEE_OperationHandle operation,
 TEE_Result
 TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
 			     TEE_OperationInfoMultiple *operationInfoMultiple,
-			     uint32_t *operationSize);
+			     size_t *operationSize);
+TEE_Result
+__GP11_TEE_GetOperationInfoMultiple(TEE_OperationHandle operation,
+				    TEE_OperationInfoMultiple *info,
+				    uint32_t *operationSize);
 
 void TEE_ResetOperation(TEE_OperationHandle operation);
 
 TEE_Result TEE_SetOperationKey(TEE_OperationHandle operation,
 			       TEE_ObjectHandle key);
+TEE_Result __GP11_TEE_SetOperationKey(TEE_OperationHandle operation,
+				      TEE_ObjectHandle key);
 
 TEE_Result TEE_SetOperationKey2(TEE_OperationHandle operation,
 				TEE_ObjectHandle key1, TEE_ObjectHandle key2);
+TEE_Result __GP11_TEE_SetOperationKey2(TEE_OperationHandle operation,
+				       TEE_ObjectHandle key1,
+				       TEE_ObjectHandle key2);
 
 void TEE_CopyOperation(TEE_OperationHandle dstOperation,
 		       TEE_OperationHandle srcOperation);
@@ -238,96 +330,165 @@ TEE_Result TEE_IsAlgorithmSupported(uint32_t algId, uint32_t element);
 /* Cryptographic Operations API - Message Digest Functions */
 
 void TEE_DigestUpdate(TEE_OperationHandle operation,
-		      const void *chunk, uint32_t chunkSize);
+		      const void *chunk, size_t chunkSize);
+void __GP11_TEE_DigestUpdate(TEE_OperationHandle operation,
+			     const void *chunk, uint32_t chunkSize);
 
 TEE_Result TEE_DigestDoFinal(TEE_OperationHandle operation, const void *chunk,
-			     uint32_t chunkLen, void *hash, uint32_t *hashLen);
+			     size_t chunkLen, void *hash, size_t *hashLen);
+TEE_Result __GP11_TEE_DigestDoFinal(TEE_OperationHandle operation,
+				    const void *chunk, uint32_t chunkLen,
+				    void *hash, uint32_t *hashLen);
+
+TEE_Result TEE_DigestExtract(TEE_OperationHandle operation, void *hash,
+			     size_t *hashLen);
 
 /* Cryptographic Operations API - Symmetric Cipher Functions */
 
 void TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
-		    uint32_t IVLen);
+		    size_t IVLen);
+void __GP11_TEE_CipherInit(TEE_OperationHandle operation, const void *IV,
+			   uint32_t IVLen);
 
 TEE_Result TEE_CipherUpdate(TEE_OperationHandle operation, const void *srcData,
-			    uint32_t srcLen, void *destData, uint32_t *destLen);
+			    size_t srcLen, void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_CipherUpdate(TEE_OperationHandle operation,
+				   const void *srcData, uint32_t srcLen,
+				   void *destData, uint32_t *destLen);
 
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
-			     const void *srcData, uint32_t srcLen,
-			     void *destData, uint32_t *destLen);
+			     const void *srcData, size_t srcLen,
+			     void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_CipherDoFinal(TEE_OperationHandle operation,
+				    const void *srcData, uint32_t srcLen,
+				    void *destData, uint32_t *destLen);
 
 /* Cryptographic Operations API - MAC Functions */
 
 void TEE_MACInit(TEE_OperationHandle operation, const void *IV,
-		 uint32_t IVLen);
+		 size_t IVLen);
+void __GP11_TEE_MACInit(TEE_OperationHandle operation, const void *IV,
+			uint32_t IVLen);
 
 void TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
-		   uint32_t chunkSize);
+		   size_t chunkSize);
+void __GP11_TEE_MACUpdate(TEE_OperationHandle operation, const void *chunk,
+			  uint32_t chunkSize);
 
 TEE_Result TEE_MACComputeFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       void *mac, uint32_t *macLen);
+			       const void *message, size_t messageLen,
+			       void *mac, size_t *macLen);
+TEE_Result __GP11_TEE_MACComputeFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      void *mac, uint32_t *macLen);
 
 TEE_Result TEE_MACCompareFinal(TEE_OperationHandle operation,
-			       const void *message, uint32_t messageLen,
-			       const void *mac, uint32_t macLen);
+			       const void *message, size_t messageLen,
+			       const void *mac, size_t macLen);
+TEE_Result __GP11_TEE_MACCompareFinal(TEE_OperationHandle operation,
+				      const void *message, uint32_t messageLen,
+				      const void *mac, uint32_t macLen);
 
 /* Cryptographic Operations API - Authenticated Encryption Functions */
 
 TEE_Result TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
-		      uint32_t nonceLen, uint32_t tagLen, uint32_t AADLen,
-		      uint32_t payloadLen);
+		      size_t nonceLen, uint32_t tagLen, size_t AADLen,
+		      size_t payloadLen);
+TEE_Result __GP11_TEE_AEInit(TEE_OperationHandle operation, const void *nonce,
+			     uint32_t nonceLen, uint32_t tagLen,
+			     uint32_t AADLen, uint32_t payloadLen);
 
 void TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
-		     uint32_t AADdataLen);
+		     size_t AADdataLen);
+void __GP11_TEE_AEUpdateAAD(TEE_OperationHandle operation, const void *AADdata,
+			    uint32_t AADdataLen);
 
 TEE_Result TEE_AEUpdate(TEE_OperationHandle operation, const void *srcData,
-			uint32_t srcLen, void *destData, uint32_t *destLen);
+			size_t srcLen, void *destData, size_t *destLen);
+TEE_Result __GP11_TEE_AEUpdate(TEE_OperationHandle operation,
+			       const void *srcData, uint32_t srcLen,
+			       void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AEEncryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t *tagLen);
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t *tagLen);
+TEE_Result __GP11_TEE_AEEncryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t *tagLen);
 
 TEE_Result TEE_AEDecryptFinal(TEE_OperationHandle operation,
-			      const void *srcData, uint32_t srcLen,
-			      void *destData, uint32_t *destLen, void *tag,
-			      uint32_t tagLen);
+			      const void *srcData, size_t srcLen,
+			      void *destData, size_t *destLen, void *tag,
+			      size_t tagLen);
+TEE_Result __GP11_TEE_AEDecryptFinal(TEE_OperationHandle operation,
+				     const void *srcData, uint32_t srcLen,
+				     void *destData, uint32_t *destLen,
+				     void *tag, uint32_t tagLen);
 
 /* Cryptographic Operations API - Asymmetric Functions */
 
 TEE_Result TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 uint32_t srcLen, void *destData,
-				 uint32_t *destLen);
+				 size_t srcLen, void *destData,
+				 size_t *destLen);
+TEE_Result __GP11_TEE_AsymmetricEncrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
 				 const TEE_Attribute *params,
 				 uint32_t paramCount, const void *srcData,
-				 uint32_t srcLen, void *destData,
-				 uint32_t *destLen);
+				 size_t srcLen, void *destData,
+				 size_t *destLen);
+TEE_Result __GP11_TEE_AsymmetricDecrypt(TEE_OperationHandle operation,
+					const __GP11_TEE_Attribute *params,
+					uint32_t paramCount,
+					const void *srcData, uint32_t srcLen,
+					void *destData, uint32_t *destLen);
 
 TEE_Result TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
 				    const TEE_Attribute *params,
 				    uint32_t paramCount, const void *digest,
-				    uint32_t digestLen, void *signature,
-				    uint32_t *signatureLen);
+				    size_t digestLen, void *signature,
+				    size_t *signatureLen);
+TEE_Result __GP11_TEE_AsymmetricSignDigest(TEE_OperationHandle operation,
+					   const __GP11_TEE_Attribute *params,
+					   uint32_t paramCount,
+					   const void *digest,
+					   uint32_t digestLen, void *signature,
+					   uint32_t *signatureLen);
 
 TEE_Result TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
 				      const TEE_Attribute *params,
 				      uint32_t paramCount, const void *digest,
-				      uint32_t digestLen, const void *signature,
-				      uint32_t signatureLen);
+				      size_t digestLen, const void *signature,
+				      size_t signatureLen);
+TEE_Result __GP11_TEE_AsymmetricVerifyDigest(TEE_OperationHandle operation,
+					     const __GP11_TEE_Attribute *params,
+					     uint32_t paramCount,
+					     const void *digest,
+					     uint32_t digestLen,
+					     const void *signature,
+					     uint32_t signatureLen);
 
 /* Cryptographic Operations API - Key Derivation Functions */
 
 void TEE_DeriveKey(TEE_OperationHandle operation,
 		   const TEE_Attribute *params, uint32_t paramCount,
 		   TEE_ObjectHandle derivedKey);
+void __GP11_TEE_DeriveKey(TEE_OperationHandle operation,
+			  const __GP11_TEE_Attribute *params,
+			  uint32_t paramCount, TEE_ObjectHandle derivedKey);
 
 /* Cryptographic Operations API - Random Number Generation Functions */
 
-void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen);
+void TEE_GenerateRandom(void *randomBuffer, size_t randomBufferLen);
+void __GP11_TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen);
 
 /* Date & Time API */
 
@@ -343,28 +504,44 @@ void TEE_GetREETime(TEE_Time *time);
 
 /* TEE Arithmetical API - Memory allocation and size of objects */
 
-uint32_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
+size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits);
+uint32_t __GP11_TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits);
 
-uint32_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
+size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits);
+uint32_t __GP11_TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits);
 
 /* TEE Arithmetical API - Initialization functions */
 
-void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
+void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len);
+void __GP11_TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len);
 
-void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, uint32_t len,
+void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context, size_t len,
 			      const TEE_BigInt *modulus);
+void __GP11_TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
+				     uint32_t len, const TEE_BigInt *modulus);
 
-void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len);
+TEE_Result TEE_BigIntInitFMMContext1(TEE_BigIntFMMContext *context,
+				     size_t len, const TEE_BigInt *modulus);
+
+void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, size_t len);
+void __GP11_TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len);
 
 /* TEE Arithmetical API - Converter functions */
 
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
-					    uint32_t bufferLen,
+					    size_t bufferLen,
 					    int32_t sign);
+TEE_Result __GP11_TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
+						   const uint8_t *buffer,
+						   uint32_t bufferLen,
+						   int32_t sign);
 
-TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
+TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 					  const TEE_BigInt *bigInt);
+TEE_Result __GP11_TEE_BigIntConvertToOctetString(uint8_t *buffer,
+						 uint32_t *bufferLen,
+						 const TEE_BigInt *bigInt);
 
 void TEE_BigIntConvertFromS32(TEE_BigInt *dest, int32_t shortVal);
 
@@ -378,10 +555,18 @@ int32_t TEE_BigIntCmpS32(const TEE_BigInt *op, int32_t shortVal);
 
 void TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
 			  size_t bits);
+void __GP11_TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
+				 uint32_t bits);
 
 bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex);
 
 uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src);
+
+TEE_Result TEE_BigIntSetBit(TEE_BigInt *op, uint32_t bitIndex, bool value);
+
+TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src);
+
+TEE_Result TEE_BigIntAbs(TEE_BigInt *dest, const TEE_BigInt *src);
 
 void TEE_BigIntAdd(TEE_BigInt *dest, const TEE_BigInt *op1,
 		   const TEE_BigInt *op2);
@@ -418,6 +603,10 @@ void TEE_BigIntSquareMod(TEE_BigInt *dest, const TEE_BigInt *op,
 
 void TEE_BigIntInvMod(TEE_BigInt *dest, const TEE_BigInt *op,
 		      const TEE_BigInt *n);
+
+TEE_Result TEE_BigIntExpMod(TEE_BigInt *dest, const TEE_BigInt *op1,
+			    const TEE_BigInt *op2, const TEE_BigInt *n,
+			    const TEE_BigIntFMMContext *context);
 
 /* TEE Arithmetical API - Other arithmetic operations */
 
@@ -557,6 +746,10 @@ void TA_EXPORT TA_DestroyEntryPoint(void);
 TEE_Result TA_EXPORT TA_OpenSessionEntryPoint(uint32_t paramTypes,
 					      TEE_Param params[TEE_NUM_PARAMS],
 					      void **sessionContext);
+TEE_Result TA_EXPORT
+__GP11_TA_OpenSessionEntryPoint(uint32_t paramTypes,
+				__GP11_TEE_Param params[TEE_NUM_PARAMS],
+				void **sessionContext);
 
 /*
  * The Framework calls this function to close a client session. During the
@@ -610,6 +803,10 @@ TEE_Result TA_EXPORT
 TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
 			   uint32_t paramTypes,
 			   TEE_Param params[TEE_NUM_PARAMS]);
+TEE_Result TA_EXPORT
+__GP11_TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
+				  uint32_t paramTypes,
+				  __GP11_TEE_Param params[TEE_NUM_PARAMS]);
 
 /*
  * Matching Client Functions <--> TA Functions
@@ -629,5 +826,7 @@ TA_InvokeCommandEntryPoint(void *sessionContext, uint32_t commandID,
  * TA_DestroyEntryPoint is called. Otherwise, the instance is kept until
  * the TEE shuts down.
  */
+
+#include <tee_api_compat.h>
 
 #endif /*TEE_INTERNAL_API_H*/

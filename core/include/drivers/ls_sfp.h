@@ -16,14 +16,16 @@
 /* SFP is big endian */
 #define SFP_INGR_PROGFB_CMD 0x2
 #define SFP_INGR_ERROR_MASK 0x100
-#define SFP_INGR_FUSE_TIMEOUT 10000
+#define SFP_INGR_FUSE_TIMEOUT_US 150000
 
 /* SFP configuration register */
-#define SFP_SFPCR_SB 0x20000000
+#define SFP_SFPCR_SB_MASK 0x20000000
+#define SFP_SFPCR_SB_OFFSET 29
 
 /* SFP OEM security policy register 0 */
-#define SFP_OSPR0_WP 0x1
-#define SFP_OSPR0_ITS 0x4
+#define SFP_OSPR0_WP_MASK 0x1
+#define SFP_OSPR0_ITS_MASK 0x4
+#define SFP_OSPR0_ITS_OFFSET 0x2
 
 /* SFP OEM security policy register 1 */
 #define SFP_OSPR1_DBLEV_MASK 0x7

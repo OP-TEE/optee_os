@@ -14,6 +14,7 @@
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp1_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
@@ -24,6 +25,7 @@
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stm32_util.h>
+#include <string.h>
 #include <trace.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
@@ -45,6 +47,11 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB4_BASE, AHB4_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB5_BASE, AHB5_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
+#ifdef CFG_STM32MP1_SCMI_SHM_BASE
+register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
+		  CFG_STM32MP1_SCMI_SHM_SIZE);
+#endif
+
 register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
 #define _ID2STR(id)		(#id)
@@ -52,14 +59,9 @@ register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
 static TEE_Result platform_banner(void)
 {
-#ifdef CFG_EMBED_DTB
 	IMSG("Platform stm32mp1: flavor %s - DT %s",
 		ID2STR(PLATFORM_FLAVOR),
 		ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
-#else
-	IMSG("Platform stm32mp1: flavor %s - no device tree",
-		ID2STR(PLATFORM_FLAVOR));
-#endif
 
 	return TEE_SUCCESS;
 }
@@ -111,7 +113,6 @@ void console_init(void)
 	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
 
-#ifdef CFG_EMBED_DTB
 static TEE_Result init_console_from_dt(void)
 {
 	struct stm32_uart_pdata *pd = NULL;
@@ -149,7 +150,6 @@ static TEE_Result init_console_from_dt(void)
 
 /* Probe console from DT once clock inits (service init level) are completed */
 service_init_late(init_console_from_dt);
-#endif
 
 /*
  * GIC init, used also for primary/secondary boot core wake completion
@@ -291,10 +291,6 @@ early_init_late(set_all_gpios_non_secure);
 
 static TEE_Result init_stm32mp1_drivers(void)
 {
-	/* Without secure DTB support, some drivers must be inited */
-	if (!IS_ENABLED(CFG_EMBED_DTB))
-		stm32_etzpc_init(ETZPC_BASE);
-
 	/* Secure internal memories for the platform, once ETZPC is ready */
 	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
 	etzpc_lock_tzma(0);
@@ -307,6 +303,18 @@ static TEE_Result init_stm32mp1_drivers(void)
 
 	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
+
+	if (SYSRAM_SIZE > SYSRAM_SEC_SIZE) {
+		size_t nsec_size = SYSRAM_SIZE - SYSRAM_SEC_SIZE;
+		paddr_t nsec_start = SYSRAM_BASE + SYSRAM_SEC_SIZE;
+		uint8_t *va = phys_to_virt(nsec_start, MEM_AREA_IO_NSEC,
+					   nsec_size);
+
+		IMSG("Non-secure SYSRAM [%p %p]", va, va + nsec_size - 1);
+
+		/* Clear content from the non-secure part */
+		memset(va, 0, nsec_size);
+	}
 
 	return TEE_SUCCESS;
 }
@@ -357,19 +365,6 @@ void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->base = BSEC_BASE;
 	cfg->upper_start = STM32MP1_UPPER_OTP_START;
 	cfg->max_id = STM32MP1_OTP_MAX_ID;
-}
-
-bool stm32mp_is_closed_device(void)
-{
-	uint32_t otp = 0;
-	TEE_Result result = TEE_ERROR_GENERIC;
-
-	/* Non closed_device platform expects fuse well programmed to 0 */
-	result = stm32_bsec_shadow_read_otp(&otp, DATA0_OTP);
-	if (!result && !(otp & BIT(DATA0_OTP_SECURED_POS)))
-		return false;
-
-	return true;
 }
 
 bool __weak stm32mp_with_pmic(void)
@@ -485,6 +480,8 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 				     struct stm32_iwdg_otp_data *otp_data)
 {
 	unsigned int idx = 0;
+	uint32_t otp_id = 0;
+	size_t bit_len = 0;
 	uint32_t otp_value = 0;
 
 	switch (pbase) {
@@ -498,7 +495,11 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 		panic();
 	}
 
-	if (stm32_bsec_read_otp(&otp_value, HW2_OTP))
+	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_len) ||
+	    bit_len != 32)
+		panic();
+
+	if (stm32_bsec_read_otp(&otp_value, otp_id))
 		panic();
 
 	otp_data->hw_enabled = otp_value &
@@ -511,3 +512,35 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 	return TEE_SUCCESS;
 }
 #endif /*CFG_STM32_IWDG*/
+
+#ifdef CFG_STM32_DEBUG_ACCESS
+static TEE_Result init_debug(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t conf = stm32_bsec_read_debug_conf();
+	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_DBG);
+	uint32_t state = 0;
+
+	res = stm32_bsec_get_state(&state);
+	if (res)
+		return res;
+
+	if (state != BSEC_STATE_SEC_CLOSED && conf) {
+		if (IS_ENABLED(CFG_WARN_INSECURE))
+			IMSG("WARNING: All debug accesses are allowed");
+
+		res = stm32_bsec_write_debug_conf(conf | BSEC_DEBUG_ALL);
+		if (res)
+			return res;
+
+		/*
+		 * Enable DBG clock as used to access coprocessor
+		 * debug registers
+		 */
+		clk_enable(dbg_clk);
+	}
+
+	return TEE_SUCCESS;
+}
+early_init_late(init_debug);
+#endif /* CFG_STM32_DEBUG_ACCESS */

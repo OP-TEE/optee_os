@@ -12,17 +12,19 @@ void __noreturn _assert_break(void);
 void _assert_log(const char *expr, const char *file, const int line,
 			const char *func);
 
-/* assert() specs: generates a log but does not panic if NDEBUG is defined */
+static inline void __noreturn _assert_trap(const char *expr_str,
+					   const char *file, const int line,
+					   const char *func)
+{
+	_assert_log(expr_str, file, line, func);
+	_assert_break();
+}
+
 #ifdef NDEBUG
-#define assert(expr)	do { } while (0)
+#define assert(expr)	((void)0)
 #else
-#define assert(expr) \
-	do { \
-		if (!(expr)) { \
-			_assert_log(#expr, __FILE__, __LINE__, __func__); \
-			_assert_break(); \
-		} \
-	} while (0)
+#define assert(expr)	\
+	((expr) ? (void)0 : _assert_trap(#expr, __FILE__, __LINE__, __func__))
 #endif
 
 /* This macro is deprecated, please use static_assert instead */

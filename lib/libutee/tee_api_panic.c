@@ -49,7 +49,15 @@ static TEE_Result check_access(uint32_t flags, void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void __utee_check_outbuf_annotation(void *buf, uint32_t *len)
+void __utee_check_outbuf_annotation(void *buf, size_t *len)
+{
+	check_res("[outbuf] len",
+		  check_access(ACCESS_RW, len, sizeof(*len)));
+	check_res("[outbuf] buf",
+		  check_access(ACCESS_W_ANY, buf, *len));
+}
+
+void __utee_check_gp11_outbuf_annotation(void *buf, uint32_t *len)
 {
 	check_res("[outbuf] len",
 		  check_access(ACCESS_RW, len, sizeof(*len)));
@@ -63,7 +71,15 @@ void __utee_check_instring_annotation(const char *buf)
 		  check_access(ACCESS_R, (char *)buf, strlen(buf) + 1));
 }
 
-void __utee_check_outstring_annotation(char *buf, uint32_t *len)
+void __utee_check_outstring_annotation(char *buf, size_t *len)
+{
+	check_res("[outstring] len",
+		  check_access(ACCESS_RW, len, sizeof(*len)));
+	check_res("[outstring] buf",
+		  check_access(ACCESS_W_ANY, buf, *len));
+}
+
+void __utee_check_gp11_outstring_annotation(char *buf, uint32_t *len)
 {
 	check_res("[outstring] len",
 		  check_access(ACCESS_RW, len, sizeof(*len)));
@@ -78,6 +94,14 @@ void __utee_check_out_annotation(void *buf, const size_t len)
 }
 
 void __utee_check_attr_in_annotation(const TEE_Attribute *attr, size_t count)
+{
+	check_res("[in] attr",
+		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));
+}
+
+void __utee_check_gp11_attr_in_annotation(const __GP11_TEE_Attribute *attr,
+					  size_t count)
+
 {
 	check_res("[in] attr",
 		  check_access(ACCESS_R, (void *)attr, sizeof(*attr) * count));

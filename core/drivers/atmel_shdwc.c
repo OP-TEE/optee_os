@@ -12,6 +12,8 @@
 #include <kernel/dt.h>
 #include <kernel/thread.h>
 #include <libfdt.h>
+#include <matrix.h>
+#include <sama5d2.h>
 #include <stdbool.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
@@ -149,6 +151,11 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 	 * any other one to invalidate TLB/I-Cache.
 	 */
 	COMPILE_TIME_ASSERT(CFG_TEE_CORE_NB_CORE == 1);
+
+	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	matrix_configure_periph_secure(AT91C_ID_SYS);
 
 	if (dt_map_dev(fdt, node, &shdwc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;

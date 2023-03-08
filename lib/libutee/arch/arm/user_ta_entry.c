@@ -37,6 +37,9 @@ extern struct ta_head ta_head;
 
 uint32_t ta_param_types;
 TEE_Param ta_params[TEE_NUM_PARAMS];
+
+struct malloc_ctx *__ta_no_share_malloc_ctx;
+
 struct __elf_phdr_info __elf_phdr_info;
 
 struct phdr_info {
@@ -167,6 +170,15 @@ static TEE_Result init_instance(void)
 	trace_set_level(tahead_get_trace_level());
 	__utee_gprof_init();
 	malloc_add_pool(ta_heap, ta_heap_size);
+	if (__ta_no_share_heap_size) {
+		__ta_no_share_malloc_ctx = malloc(raw_malloc_get_ctx_size());
+		if (__ta_no_share_malloc_ctx) {
+			raw_malloc_init_ctx(__ta_no_share_malloc_ctx);
+			raw_malloc_add_pool(__ta_no_share_malloc_ctx,
+					    __ta_no_share_heap,
+					    __ta_no_share_heap_size);
+		}
+	}
 	memtag_init_ops(get_memtag_implementation());
 	_TEE_MathAPI_Init();
 	__utee_tcb_init();

@@ -197,7 +197,7 @@
 #endif
 
 #ifndef MAX_XLAT_TABLES
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 #	define XLAT_TABLE_VIRTUALIZATION_EXTRA 3
 #else
 #	define XLAT_TABLE_VIRTUALIZATION_EXTRA 0
@@ -283,13 +283,13 @@ static struct mmu_partition default_partition __nex_data = {
 	.asid = 0
 };
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE] __nex_bss;
 #endif
 
 static struct mmu_partition *get_prtn(void)
 {
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	struct mmu_partition *ret;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -432,7 +432,7 @@ static uint64_t mattr_to_desc(unsigned level, uint32_t attr)
 	return desc;
 }
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void)
 {
 	return ROUNDUP(sizeof(base_xlation_table), SMALL_PAGE_SIZE) +
@@ -546,7 +546,7 @@ static void *core_mmu_xlat_table_entry_pa2va(struct mmu_partition *prtn,
 
 	pa = entry & OUTPUT_ADDRESS_MASK;
 
-	if (!IS_ENABLED(CFG_VIRTUALIZATION) || prtn == &default_partition)
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) || prtn == &default_partition)
 		va = phys_to_virt(pa, MEM_AREA_TEE_RAM_RW_DATA,
 				  XLAT_TABLE_SIZE);
 	else
@@ -572,7 +572,7 @@ static bool core_mmu_entry_copy(struct core_mmu_table_info *tbl_info,
 	uint64_t *entry = NULL;
 	struct mmu_partition *prtn = NULL;
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	prtn = tbl_info->prtn;
 #else
 	prtn = &default_partition;
@@ -740,7 +740,7 @@ static void core_init_mmu_prtn_ta_core(struct mmu_partition *prtn
 	 * level 1 page table that's in base level 0 entry 0.
 	 */
 	core_mmu_set_info_table(&tbl_info, 0, 0, tbl);
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	tbl_info.prtn = prtn;
 #endif
 
@@ -1030,7 +1030,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			tbl_info->level = level;
 			tbl_info->shift = level_size_shift;
 			tbl_info->num_entries = num_entries;
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 			tbl_info->prtn = prtn;
 #endif
 			ret = true;
@@ -1062,7 +1062,7 @@ bool core_mmu_entry_to_finer_grained(struct core_mmu_table_info *tbl_info,
 	paddr_t block_size_on_next_lvl = XLAT_BLOCK_SIZE(tbl_info->level + 1);
 	struct mmu_partition *prtn;
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	prtn = tbl_info->prtn;
 #else
 	prtn = &default_partition;

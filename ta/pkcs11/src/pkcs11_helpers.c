@@ -660,6 +660,7 @@ enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
 	uint32_t a_size = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t tmp_sz = 0;
 
 	rc = get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size);
 	if (rc)
@@ -671,7 +672,9 @@ enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
 		return tee2pkcs_error(res);
 	}
 
-	res = TEE_DigestDoFinal(handle, a_ptr, a_size, hash_ptr, hash_size);
+	tmp_sz = *hash_size;
+	res = TEE_DigestDoFinal(handle, a_ptr, a_size, hash_ptr, &tmp_sz);
+	*hash_size = tmp_sz;
 	TEE_FreeOperation(handle);
 	if (res) {
 		EMSG("TEE_DigestDoFinal() failed %#"PRIx32, tee_algo);

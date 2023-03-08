@@ -127,7 +127,6 @@ static __maybe_unused const char *shres2str_state(enum shres_state id)
 }
 
 /* GPIOZ bank pin count depends on SoC variants */
-#ifdef CFG_EMBED_DTB
 /* A light count routine for unpaged context to not depend on DTB support */
 static int gpioz_nbpin = -1;
 
@@ -155,12 +154,6 @@ static TEE_Result set_gpioz_nbpin_from_dt(void)
 }
 /* Get GPIOZ pin count before drivers initialization, hence service_init() */
 service_init(set_gpioz_nbpin_from_dt);
-#else
-static unsigned int get_gpioz_nbpin(void)
-{
-	return STM32MP1_GPIOZ_PIN_MAX_COUNT;
-}
-#endif
 
 static void register_periph(enum stm32mp_shres id, enum shres_state state)
 {
@@ -623,9 +616,13 @@ static void check_rcc_secure_configuration(void)
 	bool mckprot = stm32_rcc_is_mckprot();
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
 	bool have_error = false;
+	uint32_t state = 0;
 
-	if (stm32mp_is_closed_device() && !secure)
+	if (stm32_bsec_get_state(&state))
 		panic();
+
+	if (state == BSEC_STATE_SEC_CLOSED && !secure)
+		panic("Closed device mandates secure RCC");
 
 	for (id = 0; id < STM32MP1_SHRES_COUNT; id++) {
 		if  (shres_state[id] != SHRES_SECURE)

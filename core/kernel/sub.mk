@@ -9,7 +9,11 @@ srcs-$(CFG_DT_DRIVER_EMBEDDED_TEST) += dt_driver_test.c
 srcs-y += pm.c
 srcs-y += handle.c
 srcs-y += interrupt.c
-srcs-$(CFG_WITH_USER_TA) += ldelf_syscalls.c
+ifeq ($(CFG_WITH_USER_TA),y)
+srcs-y += ldelf_loader.c
+srcs-y += ldelf_syscalls.c
+srcs-y += scall.c
+endif
 srcs-$(CFG_LOCKDEP) += lockdep.c
 ifneq ($(CFG_CORE_FFA),y)
 srcs-$(CFG_CORE_DYN_SHM) += msg_param.c
@@ -17,6 +21,10 @@ endif
 srcs-y += panic.c
 srcs-y += trace_ext.c
 srcs-y += refcount.c
+srcs-y += delay.c
+srcs-y += tee_time.c
+srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
+srcs-y += otp_stubs.c
 srcs-y += tee_misc.c
 srcs-y += tee_ta_manager.c
 srcs-y += ts_manager.c

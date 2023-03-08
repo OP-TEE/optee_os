@@ -83,9 +83,6 @@ struct stm32_scmi_voltd {
 #error "SCMI shared memory mismatch"
 #endif
 
-register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
-		  CFG_STM32MP1_SCMI_SHM_SIZE);
-
 #define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled) \
 	[(_scmi_id)] = { \
 		.clock_id = (_id), \

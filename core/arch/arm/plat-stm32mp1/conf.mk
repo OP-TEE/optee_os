@@ -43,9 +43,15 @@ $(error Invalid platform flavor $(PLATFORM_FLAVOR))
 endif
 CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
 endif
+CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp157c-dk2.dts
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_rng)),)
+$(call force,CFG_HWRNG_PTA,n)
+$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP13)),)
@@ -75,6 +81,7 @@ endif
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_DRIVERS_CLK,y)
+$(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
@@ -88,7 +95,6 @@ $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
 $(call force,CFG_STM32_GPIO,y)
-$(call force,CFG_STM32_RNG,n)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
@@ -107,30 +113,16 @@ $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_CORE_RESERVED_SHM ?= y
 CFG_EXTERNAL_DT ?= y
+CFG_STM32_BSEC_SIP ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_PAGER ?= y
+CFG_WITH_SOFTWARE_PRNG ?= y
 endif # CFG_STM32MP15
 
 CFG_WITH_LPAE ?= y
-CFG_WITH_SOFTWARE_PRNG ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
-
-ifeq ($(CFG_EMBED_DTB_SOURCE_FILE),)
-# Some drivers mandate DT support
-$(call force,CFG_DRIVERS_CLK_DT,n)
-$(call force,CFG_STM32_CRYP,n)
-$(call force,CFG_STM32_GPIO,n)
-$(call force,CFG_STM32_I2C,n)
-$(call force,CFG_STM32_IWDG,n)
-$(call force,CFG_STM32_TAMP,n)
-$(call force,CFG_STPMIC1,n)
-$(call force,CFG_STM32MP1_SCMI_SIP,n)
-$(call force,CFG_SCMI_PTA,n)
-else
-$(call force,CFG_DRIVERS_CLK_DT,y)
-endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
 CFG_TZDRAM_START ?= 0xde000000
@@ -172,6 +164,11 @@ CFG_STM32_UART ?= y
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
 
+CFG_WITH_SOFTWARE_PRNG ?= n
+ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
+$(call force,CFG_STM32_RNG,y,Required by HW RNG when CFG_WITH_SOFTWARE_PRNG=n)
+endif
+
 ifeq ($(CFG_STPMIC1),y)
 $(call force,CFG_STM32_I2C,y)
 $(call force,CFG_STM32_GPIO,y)
@@ -190,8 +187,13 @@ CFG_WDT ?= $(CFG_STM32_IWDG)
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
+# Default enable scmi-msg server if SCP-firmware SCMI server is disabled
+ifneq ($(CFG_SCMI_SCPFW),y)
+CFG_SCMI_MSG_DRIVERS ?= y
+endif
+
 # SiP/OEM service for non-secure world
-CFG_STM32_BSEC_SIP ?= y
+CFG_STM32_BSEC_SIP ?= n
 CFG_STM32MP1_SCMI_SIP ?= n
 ifeq ($(CFG_STM32MP1_SCMI_SIP),y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_STM32MP1_SCMI_SIP)
@@ -199,13 +201,26 @@ $(call force,CFG_SCMI_MSG_SMT,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y,Mandated by CFG_STM32MP1_SCMI_SIP)
 endif
 
+# Enable BSEC PTA for fuses access management
+CFG_STM32_BSEC_PTA ?= y
+ifeq ($(CFG_STM32_BSEC_PTA),y)
+$(call force,CFG_STM32_BSEC,y,Mandated by CFG_BSEC_PTA)
+endif
+
 # Default enable SCMI PTA support
 CFG_SCMI_PTA ?= y
 ifeq ($(CFG_SCMI_PTA),y)
+ifneq ($(CFG_SCMI_SCPFW),y)
 $(call force,CFG_SCMI_MSG_DRIVERS,y,Mandated by CFG_SCMI_PTA)
 $(call force,CFG_SCMI_MSG_SMT_THREAD_ENTRY,y,Mandated by CFG_SCMI_PTA)
 CFG_SCMI_MSG_SHM_MSG ?= y
 CFG_SCMI_MSG_SMT ?= y
+endif # !CFG_SCMI_SCPFW
+endif # CFG_SCMI_PTA
+
+CFG_SCMI_SCPFW ?= n
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-stm32mp1)
 endif
 
 CFG_SCMI_MSG_DRIVERS ?= n
@@ -240,8 +255,8 @@ endif
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
 
-# Enable to allow debug
-CFG_STM32_BSEC_WRITE ?= $(CFG_TEE_CORE_DEBUG)
+# Enable OTP update with BSEC driver
+CFG_STM32_BSEC_WRITE ?= y
 
 # Default disable some support for pager memory size constraint
 ifeq ($(CFG_WITH_PAGER),y)
@@ -303,6 +318,9 @@ else ifeq ($(CFG_STM32MP15_HUK_BSEC_KEY)-$(CFG_STM32MP15_HUK_BSEC_DERIVE_UID),y-
 $(error CFG_STM32MP15_HUK_BSEC_KEY and CFG_STM32MP15_HUK_BSEC_DERIVE_UID are exclusive)
 endif
 endif # CFG_STM32MP15_HUK
+
+CFG_TEE_CORE_DEBUG ?= y
+CFG_STM32_DEBUG_ACCESS ?= $(CFG_TEE_CORE_DEBUG)
 
 # Sanity on choice config switches
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
