@@ -24,7 +24,7 @@
 
 #define PUF_CFG0_DEFAULT		0x02
 #define PUF_SHUT_DEFAULT		0x01000100
-#define PUF_REGEN_TIME_MS		3
+#define PUF_REGEN_TIME_MS		6
 
 TEE_Result zynqmp_csu_puf_regenerate(void)
 {
