@@ -15,6 +15,8 @@
 #include <string.h>
 #include <string_ext.h>
 
+#define HUK_NB_OTP (HW_UNIQUE_KEY_LENGTH / sizeof(uint32_t))
+
 static bool stm32mp15_huk_init;
 
 static TEE_Result stm32mp15_read_uid(uint32_t *uid)
@@ -122,34 +124,65 @@ out:
 	return ret;
 }
 
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static __maybe_unused TEE_Result pos_from_dt(uint32_t otp_id[HUK_NB_OTP])
 {
-	uint32_t otp_key[4] = { 0 };
-	size_t len = sizeof(otp_key);
 	TEE_Result ret = TEE_SUCCESS;
-	uint32_t *key = otp_key;
-	bool lock = true;
+	uint32_t otp_start = 0;
+	size_t tmp = 0;
+	size_t i = 0;
+
+	ret = stm32_bsec_find_otp_in_nvmem_layout("huk-otp", &otp_start, &tmp);
+	if (ret)
+		return ret;
+
+	if (tmp != (HW_UNIQUE_KEY_LENGTH * CHAR_BIT))
+		return TEE_ERROR_SECURITY;
+
+	for (i = 0; i < HUK_NB_OTP; i++)
+		otp_id[i] = otp_start + i;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result get_otp_pos(uint32_t otp_id[HUK_NB_OTP])
+{
+#ifdef CFG_STM32_HUK_FROM_DT
+	return pos_from_dt(otp_id);
+#else /* CFG_STM32_HUK_FROM_DT */
 
 	static_assert(CFG_STM32MP15_HUK_BSEC_KEY_0 < STM32MP1_OTP_MAX_ID);
 	static_assert(CFG_STM32MP15_HUK_BSEC_KEY_1 < STM32MP1_OTP_MAX_ID);
 	static_assert(CFG_STM32MP15_HUK_BSEC_KEY_2 < STM32MP1_OTP_MAX_ID);
 	static_assert(CFG_STM32MP15_HUK_BSEC_KEY_3 < STM32MP1_OTP_MAX_ID);
 
-	ret = stm32mp15_read_otp(CFG_STM32MP15_HUK_BSEC_KEY_0, key++, &lock);
-	if (ret)
-		goto out;
+	otp_id[0] = CFG_STM32MP15_HUK_BSEC_KEY_0;
+	otp_id[1] = CFG_STM32MP15_HUK_BSEC_KEY_1;
+	otp_id[2] = CFG_STM32MP15_HUK_BSEC_KEY_2;
+	otp_id[3] = CFG_STM32MP15_HUK_BSEC_KEY_3;
 
-	ret = stm32mp15_read_otp(CFG_STM32MP15_HUK_BSEC_KEY_1, key++, &lock);
-	if (ret)
-		goto out;
+	return TEE_SUCCESS;
+#endif /* CFG_STM32_HUK_FROM_DT */
+}
 
-	ret = stm32mp15_read_otp(CFG_STM32MP15_HUK_BSEC_KEY_2, key++, &lock);
-	if (ret)
-		goto out;
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	uint32_t otp_key[HUK_NB_OTP] = { };
+	uint32_t otp_id[HUK_NB_OTP] = { };
+	size_t len = HW_UNIQUE_KEY_LENGTH;
+	TEE_Result ret = TEE_SUCCESS;
+	uint32_t *key = otp_key;
+	bool lock = true;
+	size_t i = 0;
 
-	ret = stm32mp15_read_otp(CFG_STM32MP15_HUK_BSEC_KEY_3, key++, &lock);
+	ret = get_otp_pos(otp_id);
 	if (ret)
-		goto out;
+		return ret;
+
+	for (i = 0; i < HUK_NB_OTP; i++) {
+		ret = stm32mp15_read_otp(otp_id[i], key++, &lock);
+		if (ret)
+			goto out;
+	}
 
 	if (IS_ENABLED(CFG_STM32MP15_HUK_BSEC_KEY)) {
 		static_assert(sizeof(otp_key) == HW_UNIQUE_KEY_LENGTH);

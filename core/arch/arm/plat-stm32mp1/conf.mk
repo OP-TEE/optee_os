@@ -28,6 +28,11 @@ flavorlist-512M = $(flavorlist-cryp-512M) \
 flavorlist-1G = $(flavorlist-cryp-1G) \
 		  $(flavorlist-no_cryp-1G)
 
+flavorlist-MP15-HUK-DT = $(flavor_dts_file-157A_DK1) \
+			 $(flavor_dts_file-157C_DK2) \
+			 $(flavor_dts_file-157C_ED1) \
+			 $(flavor_dts_file-157C_EV1)
+
 flavorlist-MP15 = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 		  $(flavor_dts_file-157A_DK1) \
 		  $(flavor_dts_file-157C_DHCOM_PDK2) \
@@ -52,6 +57,11 @@ endif
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_rng)),)
 $(call force,CFG_HWRNG_PTA,n)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
+endif
+
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15-HUK-DT)),)
+CFG_STM32MP15_HUK ?= y
+CFG_STM32_HUK_FROM_DT ?= y
 endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP13)),)
@@ -279,6 +289,8 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 4
 # Disable the HUK by default as it requires a product specific configuration.
 #
 # Configuration must provide OTP indices where HUK is loaded.
+# When CFG_STM32_HUK_FROM_DT is enabled, HUK OTP location is found in the DT.
+# When CFG_STM32_HUK_FROM_DT is disabled, configuration sets each HUK location.
 # Either with CFG_STM32MP15_HUK_OTP_BASE, in which case the 4 words are used,
 # Or with CFG_STM32MP15_HUK_BSEC_KEY_0/1/2/3 each locating one BSEC word.
 #
@@ -289,8 +301,10 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 4
 # content derived with the device UID fuses content. See derivation scheme
 # in stm32mp15_huk.c implementation.
 CFG_STM32MP15_HUK ?= n
+CFG_STM32_HUK_FROM_DT ?= n
 
 ifeq ($(CFG_STM32MP15_HUK),y)
+ifneq ($(CFG_STM32_HUK_FROM_DT),y)
 ifneq (,$(CFG_STM32MP15_HUK_OTP_BASE))
 $(call force,CFG_STM32MP15_HUK_BSEC_KEY_0,CFG_STM32MP15_HUK_OTP_BASE)
 $(call force,CFG_STM32MP15_HUK_BSEC_KEY_1,(CFG_STM32MP15_HUK_OTP_BASE + 1))
@@ -309,6 +323,7 @@ endif
 ifeq (,$(CFG_STM32MP15_HUK_BSEC_KEY_3))
 $(error Missing configuration switch CFG_STM32MP15_HUK_BSEC_KEY_3)
 endif
+endif # CFG_STM32_HUK_FROM_DT
 
 CFG_STM32MP15_HUK_BSEC_KEY ?= y
 CFG_STM32MP15_HUK_BSEC_DERIVE_UID ?= n
