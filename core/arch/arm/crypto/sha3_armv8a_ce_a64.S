@@ -68,8 +68,10 @@ FUNC sha3_ce_transform , :
 	eor	v5.8b, v5.8b, v30.8b
 	eor	v6.8b, v6.8b, v31.8b
 
-	tbnz	x3, #6, 2f		// SHA3-512
+	/* Bit 6 set? -> SHA3-512 */
+	tbnz	x3, #6, 3f
 
+	/* SHA3-384, SHA3-256, SHA3-224 or SHA3-128 */
 	ld1	{v25.8b-v28.8b}, [x1], #32
 	ld1	{v29.8b-v30.8b}, [x1], #16
 	eor	 v7.8b,  v7.8b, v25.8b
@@ -79,34 +81,50 @@ FUNC sha3_ce_transform , :
 	eor	v11.8b, v11.8b, v29.8b
 	eor	v12.8b, v12.8b, v30.8b
 
-	tbnz	x3, #4, 1f		// SHA3-384 or SHA3-224
+	/* bit 4 set? -> SHA3-384, SHA3-224 or SHA3-128 */
+	tbnz	x3, #4, 1f
 
-	// SHA3-256
+	/* SHA3-256: digest size 32 bytes, block size 136 bytes */
 	ld1	{v25.8b-v28.8b}, [x1], #32
 	eor	v13.8b, v13.8b, v25.8b
 	eor	v14.8b, v14.8b, v26.8b
 	eor	v15.8b, v15.8b, v27.8b
 	eor	v16.8b, v16.8b, v28.8b
-	b	3f
+	b	4f
 
-1:	tbz	x3, #2, 3f		// bit 2 cleared? SHA-384
+	/* bit 5 set? -> SHA-384 */
+1:	tbnz	x3, #5, 4f
 
-	// SHA3-224
+	/* SHA3-224 or SHA3-128 */
 	ld1	{v25.8b-v28.8b}, [x1], #32
-	ld1	{v29.8b}, [x1], #8
 	eor	v13.8b, v13.8b, v25.8b
 	eor	v14.8b, v14.8b, v26.8b
 	eor	v15.8b, v15.8b, v27.8b
 	eor	v16.8b, v16.8b, v28.8b
-	eor	v17.8b, v17.8b, v29.8b
-	b	3f
 
-	// SHA3-512
+	/* bit 2 set? -> SHA-224 */
+	tbnz	x3, #2, 2f
+
+	/* SHA3-128: digest size 16 bytes, block size 168 bytes */
+	ld1	{v25.8b-v28.8b}, [x1], #32
+	eor	v17.8b, v17.8b, v25.8b
+	eor	v18.8b, v18.8b, v26.8b
+	eor	v19.8b, v19.8b, v27.8b
+	eor	v20.8b, v20.8b, v28.8b
+	b	4f
+
+	/* SHA3-224: digest size 28 bytes, block size 144 bytes */
 2:	ld1	{v25.8b-v26.8b}, [x1], #16
+	eor	v17.8b, v17.8b, v25.8b
+	eor	v18.8b, v18.8b, v26.8b
+	b	4f
+
+	/* SHA3-512: digest size 64 bytes , block size 72 bytes */
+3:	ld1	{v25.8b-v26.8b}, [x1], #16
 	eor	 v7.8b,  v7.8b, v25.8b
 	eor	 v8.8b,  v8.8b, v26.8b
 
-3:	sub	w8, w8, #1
+4:	sub	w8, w8, #1
 
 	eor3	v29.16b,  v4.16b,  v9.16b, v14.16b
 	eor3	v26.16b,  v1.16b,  v6.16b, v11.16b
@@ -185,11 +203,11 @@ FUNC sha3_ce_transform , :
 
 	eor	 v0.16b,  v0.16b, v31.16b
 
-	cbnz	w8, 3b
+	cbnz	w8, 4b
 	cbnz	w2, 0b
 
 	/* save state */
-4:	st1	{ v0.1d- v3.1d}, [x0], #32
+	st1	{ v0.1d- v3.1d}, [x0], #32
 	st1	{ v4.1d- v7.1d}, [x0], #32
 	st1	{ v8.1d-v11.1d}, [x0], #32
 	st1	{v12.1d-v15.1d}, [x0], #32
