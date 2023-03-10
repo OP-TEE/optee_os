@@ -1304,6 +1304,7 @@ static unsigned long clk_op_compute_rate(struct clk *clk,
 {
 	return _stm32_clock_get_rate(clk_to_clock_id(clk));
 }
+DECLARE_KEEP_PAGER(clk_op_compute_rate);
 
 static TEE_Result clk_op_enable(struct clk *clk)
 {
