@@ -57,6 +57,8 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA512_256),y)
 	cppflags-lib-y += -DLTC_SHA512_256
 endif
+cppflags-lib-$(_CFG_CORE_LTC_SHA3_DESC) += -DLTC_SHA3
+
 
 cppflags-lib-y += -DLTC_NO_MACS
 
@@ -107,8 +109,6 @@ endif
 cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
 cppflags-lib-$(_CFG_CORE_LTC_ED25519) += -DLTC_CURVE25519
 
-cppflags-lib-$(_CFG_CORE_LTC_SHA3) += -DLTC_SHA3
-
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 
 cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
@@ -116,7 +116,6 @@ cflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -Os
 subdirs-y += src
 
 srcs-$(_CFG_CORE_LTC_HASH) += hash.c
-srcs-$(_CFG_CORE_LTC_SHA3) += shake.c
 srcs-$(_CFG_CORE_LTC_HMAC) += hmac.c
 srcs-$(_CFG_CORE_LTC_CMAC) += cmac.c
 srcs-$(_CFG_CORE_LTC_ECB) += ecb.c
@@ -137,6 +136,10 @@ srcs-$(_CFG_CORE_LTC_SHA256_ACCEL) += sha256_accel.c
 endif
 ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
 srcs-$(_CFG_CORE_LTC_SHA512_ACCEL) += sha512_accel.c
+endif
+ifeq ($(_CFG_CORE_LTC_SHA3_DESC),y)
+srcs-y += shake.c
+srcs-$(_CFG_CORE_LTC_SHA3_ACCEL) += sha3_accel.c
 endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
