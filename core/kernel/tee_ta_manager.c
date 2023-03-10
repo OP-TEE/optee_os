@@ -982,7 +982,10 @@ TEE_Result tee_ta_instance_stats(void *buf, uint32_t *buf_size)
 			ta_count++;
 
 	sz = sizeof(struct tee_ta_dump_stats) * ta_count;
-	if (!buf || *buf_size < sz) {
+	if (!sz) {
+		/* sz = 0 means there is no UTA, return no item found. */
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+	} else if (!buf || *buf_size < sz) {
 		/*
 		 * buf is null or pass size less than actual size
 		 * means caller try to query the buffer size.
