@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) 2020-2023, Linaro Limited
  */
 
 #ifndef __CRYPTO_CRYPTO_ACCEL_H
@@ -46,6 +46,9 @@ void crypto_accel_sha256_compress(uint32_t state[8], const void *src,
 				  unsigned int block_count);
 void crypto_accel_sha512_compress(uint64_t state[8], const void *src,
 				  unsigned int block_count);
+void crypto_accel_sha3_compress(uint64_t state[25], const void *src,
+				unsigned int block_count,
+				unsigned int digest_size);
 void crypto_accel_sm3_compress(uint32_t state[8], const void *src,
 			       unsigned int block_count);
 
