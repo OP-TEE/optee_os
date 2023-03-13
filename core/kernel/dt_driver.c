@@ -219,8 +219,8 @@ dt_driver_get_provider_by_phandle(uint32_t phandle, enum dt_driver_type type)
 }
 
 static void *device_from_provider_prop(struct dt_driver_provider *prv,
-					  const uint32_t *prop,
-					  TEE_Result *res)
+				       const void *fdt, int phandle_node,
+				       const uint32_t *prop, TEE_Result *res)
 {
 	struct dt_driver_phandle_args *pargs = NULL;
 	unsigned int n = 0;
@@ -233,6 +233,8 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 		return NULL;
 	}
 
+	pargs->fdt = fdt;
+	pargs->phandle_node = phandle_node;
 	pargs->args_count = prv->provider_cells;
 	for (n = 0; n < prv->provider_cells; n++)
 		pargs->args[n] = fdt32_to_cpu(prop[n + 1]);
@@ -254,6 +256,7 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 	int idx = 0;
 	int idx32 = 0;
 	int prv_cells = 0;
+	int phandle_node = -1;
 	uint32_t phandle = 0;
 	const uint32_t *prop = NULL;
 	struct dt_driver_provider *prv = NULL;
@@ -291,7 +294,8 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 			continue;
 		}
 
-		return device_from_provider_prop(prv, prop + idx32, res);
+		return device_from_provider_prop(prv, fdt, phandle_node,
+						 prop + idx32, res);
 	}
 
 	*res = TEE_ERROR_ITEM_NOT_FOUND;
