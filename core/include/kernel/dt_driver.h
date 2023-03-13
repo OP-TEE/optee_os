@@ -19,10 +19,14 @@ struct dt_driver_provider;
 
 /**
  * struct dt_driver_phandle_args - Devicetree phandle arguments
+ * @fdt: Device-tree to work on
+ * @phandle_node: Node pointed by the specifier phandle
  * @args_count: Count of cells for the device
  * @args: Device consumer specifiers
  */
 struct dt_driver_phandle_args {
+	const void *fdt;
+	int phandle_node;
 	int args_count;
 	uint32_t args[];
 };
