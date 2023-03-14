@@ -91,6 +91,25 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  TEE_Result *res);
 
 /*
+ * dt_driver_device_from_parent - Return a device instance based on the parent.
+ *	This is mainly used for the devices that are children of a controller
+ *	such as I2C, SPI and so on.
+ *
+ * @fdt: FDT base address
+ * @nodeoffset: node offset in the FDT
+ * @type: Driver type
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
+ *	Any TEE_Result compliant code in case of error.
+ *
+ * Return a device opaque reference, e.g. a struct i2c_dev pointer for a I2C bus
+ * driver, or NULL if not found in which case @res provides the error code.
+ */
+void *dt_driver_device_from_parent(const void *fdt, int nodeoffset,
+				   enum dt_driver_type type, TEE_Result *res);
+
+/*
  * dt_driver_get_crypto() - Request crypto support for driver initialization
  *
  * Return TEE_SUCCESS if cryptography services are initialized, otherwise return
