@@ -67,6 +67,7 @@ enum dt_driver_type {
 	DT_DRIVER_UART,
 	DT_DRIVER_CLK,
 	DT_DRIVER_RSTCTRL,
+	DT_DRIVER_I2C,
 };
 
 /*

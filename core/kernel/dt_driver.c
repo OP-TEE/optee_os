@@ -106,6 +106,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_CLK:
 	case DT_DRIVER_RSTCTRL:
 	case DT_DRIVER_UART:
+	case DT_DRIVER_I2C:
 		return;
 	default:
 		assert(0);
@@ -172,6 +173,8 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 	case DT_DRIVER_RSTCTRL:
 		cells_name = "#reset-cells";
 		break;
+	case DT_DRIVER_I2C:
+		return 0;
 	default:
 		panic();
 	}
@@ -241,6 +244,30 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 	free(pargs);
 
 	return device;
+}
+
+void *dt_driver_device_from_parent(const void *fdt, int nodeoffset,
+				   enum dt_driver_type type, TEE_Result *res)
+{
+	int parent = -1;
+	struct dt_driver_provider *prv = NULL;
+
+	assert(fdt == get_secure_dt());
+
+	parent = fdt_parent_offset(fdt, nodeoffset);
+	if (parent < 0) {
+		*res =  TEE_ERROR_GENERIC;
+		return NULL;
+	}
+
+	prv = dt_driver_get_provider_by_node(parent, type);
+	if (!prv) {
+		/* No provider registered yet */
+		*res = TEE_ERROR_DEFER_DRIVER_INIT;
+		return NULL;
+	}
+
+	return device_from_provider_prop(prv, fdt, nodeoffset, NULL, res);
 }
 
 void *dt_driver_device_from_node_idx_prop(const char *prop_name,
