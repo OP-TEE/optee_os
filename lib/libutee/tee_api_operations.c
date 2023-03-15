@@ -76,20 +76,26 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 		break;
 
 	case TEE_ALG_ECDSA_SHA1:
+	case TEE_ALG_ECDSA_SHA224:
+	case TEE_ALG_ECDSA_SHA256:
+	case TEE_ALG_ECDSA_SHA384:
+	case TEE_ALG_ECDSA_SHA512:
+		if (maxKeySize < 160 || maxKeySize > 521)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+
 	case __OPTEE_ALG_ECDSA_P192:
 	case __OPTEE_ALG_ECDH_P192:
 		if (maxKeySize != 192)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_SHA224:
 	case __OPTEE_ALG_ECDSA_P224:
 	case __OPTEE_ALG_ECDH_P224:
 		if (maxKeySize != 224)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_SHA256:
 	case __OPTEE_ALG_ECDSA_P256:
 	case __OPTEE_ALG_ECDH_P256:
 	case TEE_ALG_SM2_PKE:
@@ -104,14 +110,12 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_SHA384:
 	case __OPTEE_ALG_ECDSA_P384:
 	case __OPTEE_ALG_ECDH_P384:
 		if (maxKeySize != 384)
 			return TEE_ERROR_NOT_SUPPORTED;
 		break;
 
-	case TEE_ALG_ECDSA_SHA512:
 	case __OPTEE_ALG_ECDSA_P521:
 	case __OPTEE_ALG_ECDH_P521:
 		if (maxKeySize != 521)
