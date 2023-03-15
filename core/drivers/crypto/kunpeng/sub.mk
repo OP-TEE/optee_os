@@ -1,4 +1,3 @@
-cppflags$(sm) += -Icore/include/drivers
 cppflags$(sm) += -Icore/drivers/crypto/kunpeng/sec
 cppflags$(sm) += -Icore/drivers/crypto/kunpeng/qm
 

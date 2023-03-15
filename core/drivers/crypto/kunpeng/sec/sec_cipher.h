@@ -65,14 +65,4 @@ struct sec_cipher_ctx {
 	bool encrypt;
 };
 
-int32_t sec_cipher_bd_parse(void *bd, void *msg);
-int32_t sec_cipher_bd3_parse(void *bd, void *msg);
-
-TEE_Result sec_cipher_ctx_allocate(void **ctx, uint32_t algo);
-void sec_cipher_ctx_free(void *ctx);
-TEE_Result sec_cipher_initialize(struct drvcrypt_cipher_init *dinit);
-TEE_Result sec_cipher_update(struct drvcrypt_cipher_update *dupdate);
-void sec_cipher_final(void *ctx __unused);
-void sec_cipher_copy_state(void *dst_ctx, void *src_ctx);
-
 #endif

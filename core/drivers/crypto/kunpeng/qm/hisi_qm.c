@@ -174,18 +174,18 @@ static int32_t qm_mb(struct hisi_qm *qm, uint8_t cmd, uintptr_t dma_addr,
 	mb.token = 0;
 
 	if (qm_wait_mb_ready(qm)) {
-		EMSG("QM mailbox is busy!\n");
+		EMSG("QM mailbox is busy");
 		return -DRVCRYPT_EBUSY;
 	}
 
 	qm_mb_write(qm, &mb);
 
 	if (qm_wait_mb_ready(qm)) {
-		EMSG("QM mailbox operation timeout!\n");
+		EMSG("QM mailbox operation timeout");
 		return -DRVCRYPT_EBUSY;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static void qm_cfg_vft_data(struct hisi_qm *qm, uint8_t vft_type,
@@ -203,7 +203,7 @@ static void qm_cfg_vft_data(struct hisi_qm *qm, uint8_t vft_type,
 		data = QM_CQC_VFT_VALID;
 		break;
 	default:
-		EMSG("Invalid vft type!\n");
+		EMSG("Invalid vft type");
 		break;
 	}
 
@@ -215,12 +215,12 @@ static int32_t qm_set_vft_common(struct hisi_qm *qm, uint8_t vft_type,
 				 uint32_t function, uint32_t base, uint32_t num)
 {
 	uint32_t val = 0;
-	int32_t ret;
+	int32_t ret = 0;
 
 	ret = readl_relaxed_poll_timeout(qm->io_base + QM_VFT_CFG_RDY, val,
 					 val & 0x1, POLL_PERIOD, POLL_TIMEOUT);
 	if (ret) {
-		EMSG("QM VFT is not ready!\n");
+		EMSG("QM VFT is not ready");
 		return ret;
 	}
 
@@ -241,7 +241,7 @@ static int32_t qm_set_xqc_vft(struct hisi_qm *qm, uint32_t function,
 	int32_t ret, i;
 
 	if (!num) {
-		EMSG("Invalid sq num!\n");
+		EMSG("Invalid sq num");
 		return -DRVCRYPT_EINVAL;
 	}
 
@@ -253,13 +253,13 @@ static int32_t qm_set_xqc_vft(struct hisi_qm *qm, uint32_t function,
 		}
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int32_t qm_get_vft(struct hisi_qm *qm, uint32_t *base, uint32_t *num)
 {
 	uint64_t sqc_vft;
-	int32_t ret;
+	int32_t ret = 0;
 
 	ret = qm_mb(qm, QM_MB_CMD_SQC_VFT, 0, 0, QM_MB_OP_RD);
 	if (ret)
@@ -269,7 +269,7 @@ static int32_t qm_get_vft(struct hisi_qm *qm, uint32_t *base, uint32_t *num)
 	*base = (sqc_vft >> QM_SQC_VFT_START_SQN_SHIFT) & QM_SQC_VFT_BASE_MASK;
 	*num = ((sqc_vft >> QM_SQC_VFT_SQ_NUM_SHIFT) & QM_SQC_VFT_NUM_MASK) + 1;
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static void hisi_qp_memory_uninit(struct hisi_qm *qm, uint32_t id)
@@ -285,7 +285,7 @@ static int32_t hisi_qp_memory_init(struct hisi_qm *qm, uint32_t id)
 	size_t sq_size = qm->sqe_size * QM_Q_DEPTH;
 	size_t cq_size = sizeof(struct qm_cqe) * QM_Q_DEPTH;
 	struct hisi_qp *qp = &qm->qp_array[id];
-	int32_t ret;
+	int32_t ret = 0;
 
 	qp->sqe = memalign(QM_ALIGN128, sq_size);
 	if (!qp->sqe) {
@@ -293,7 +293,7 @@ static int32_t hisi_qp_memory_init(struct hisi_qm *qm, uint32_t id)
 		return -DRVCRYPT_ENOMEM;
 	}
 	qp->sqe_dma = virt_to_phys(qp->sqe);
-
+	assert(qp->sqe_dma);
 	qp->cqe = (struct qm_cqe *)memalign(QM_ALIGN32, cq_size);
 	if (!qp->cqe) {
 		EMSG("Fail to malloc cq[%u]!\n", id);
@@ -301,16 +301,11 @@ static int32_t hisi_qp_memory_init(struct hisi_qm *qm, uint32_t id)
 		goto free_sqe;
 	}
 	qp->cqe_dma = virt_to_phys(qp->cqe);
-
-	if (!qp->sqe_dma || !qp->cqe_dma) {
-		EMSG("Fail to get queue[%u] dma addr!\n", id);
-		ret = -DRVCRYPT_EFAULT;
-		goto free_cqe;
-	}
+	assert(qp->cqe_dma);
 
 	qp->qp_id = id;
 	qp->qm = qm;
-	return 0;
+	return TEE_SUCCESS;
 
 free_cqe:
 	free(qp->cqe);
@@ -343,28 +338,23 @@ static int32_t qm_memory_init(struct hisi_qm *qm)
 
 	qm->sqc = (struct qm_sqc *)memalign(QM_ALIGN32, sqc_size);
 	if (!qm->sqc) {
-		EMSG("Fail to malloc sqc!\n");
+		EMSG("Fail to malloc sqc");
 		return -DRVCRYPT_ENOMEM;
 	}
 	qm->sqc_dma = virt_to_phys(qm->sqc);
-
+	assert(qm->sqc_dma);
 	qm->cqc = (struct qm_cqc *)memalign(QM_ALIGN32, cqc_size);
 	if (!qm->cqc) {
-		EMSG("Fail to malloc cqc!\n");
+		EMSG("Fail to malloc cqc");
 		ret = -DRVCRYPT_ENOMEM;
 		goto free_sqc;
 	}
 	qm->cqc_dma = virt_to_phys(qm->cqc);
-
-	if (!qm->sqc_dma || !qm->cqc_dma) {
-		EMSG("Fail to get xqc dma addr!\n");
-		ret = -DRVCRYPT_EFAULT;
-		goto free_cqc;
-	}
+	assert(qm->cqc_dma);
 
 	qm->qp_array = (struct hisi_qp *)malloc(qp_size);
 	if (!qm->qp_array) {
-		EMSG("Fail to malloc qp_array!\n");
+		EMSG("Fail to malloc qp_array");
 		ret = -DRVCRYPT_ENOMEM;
 		goto free_cqc;
 	}
@@ -377,7 +367,7 @@ static int32_t qm_memory_init(struct hisi_qm *qm)
 		}
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 
 free_qp_mem:
 	for (j = (int32_t)i - 1; j >= 0; j--)
@@ -392,18 +382,18 @@ free_sqc:
 
 int32_t hisi_qm_init(struct hisi_qm *qm)
 {
-	int32_t ret;
+	int32_t ret = 0;
 
 	if (qm->fun_type == QM_HW_VF) {
 		ret = qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
 		if (ret) {
-			EMSG("Fail to get function vft config!\n");
+			EMSG("Fail to get function vft config");
 			return ret;
 		}
 	}
 
 	if (qm->qp_num == 0 || qm->sqe_size == 0) {
-		EMSG("Invalid qm parameters!\n");
+		EMSG("Invalid qm parameters");
 		return -DRVCRYPT_EINVAL;
 	}
 
@@ -415,7 +405,7 @@ int32_t hisi_qm_init(struct hisi_qm *qm)
 	qm->qp_idx = 0;
 	mutex_init(&qm->qp_lock);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static void qm_cache_writeback(struct hisi_qm *qm)
@@ -426,7 +416,7 @@ static void qm_cache_writeback(struct hisi_qm *qm)
 
 	if (readl_relaxed_poll_timeout(qm->io_base + QM_CACHE_WB_DONE, val,
 				       val & 0x1, POLL_PERIOD, POLL_TIMEOUT))
-		EMSG("QM writeback sqc cache fail!\n");
+		EMSG("QM writeback sqc cache fail");
 }
 
 void hisi_qm_uninit(struct hisi_qm *qm)
@@ -450,14 +440,16 @@ static int32_t qm_hw_mem_reset(struct hisi_qm *qm)
 static int32_t qm_func_vft_cfg(struct hisi_qm *qm)
 {
 	uint32_t q_base = qm->qp_num;
-	uint32_t i, j, act_q_num;
-	int32_t ret;
+	uint32_t act_q_num = 0;
+	uint32_t i = 0;
+	uint32_t j = 0;
+	int32_t ret = 0;
 
 	if (qm->vfs_num == 0)
-		return 0;
+		return TEE_SUCCESS;
 
 	if (qm->vfs_num > QM_MAX_VFS_NUM) {
-		EMSG("Invalid QM vfs_num!\n");
+		EMSG("Invalid QM vfs_num");
 		return -DRVCRYPT_EINVAL;
 	}
 
@@ -472,42 +464,42 @@ static int32_t qm_func_vft_cfg(struct hisi_qm *qm)
 		q_base += act_q_num;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 int32_t hisi_qm_start(struct hisi_qm *qm)
 {
-	int32_t ret;
+	int32_t ret = 0;
 
 	if (qm->fun_type == QM_HW_PF) {
 		ret = qm_hw_mem_reset(qm);
 		if (ret) {
-			EMSG("Fail to reset qm hardware mem!\n");
+			EMSG("Fail to reset qm hardware mem");
 			return ret;
 		}
 
 		ret = qm_set_xqc_vft(qm, 0, qm->qp_base, qm->qp_num);
 		if (ret) {
-			EMSG("Fail to set PF xqc_vft!\n");
+			EMSG("Fail to set PF xqc_vft");
 			return ret;
 		}
 
 		ret = qm_func_vft_cfg(qm);
 		if (ret) {
-			EMSG("Fail to set VF xqc_vft!\n");
+			EMSG("Fail to set VF xqc_vft");
 			return ret;
 		}
 	}
 
 	ret = qm_mb(qm, QM_MB_CMD_SQC_BT, qm->sqc_dma, 0, QM_MB_OP_WR);
 	if (ret) {
-		EMSG("Fail to set sqc_bt!\n");
+		EMSG("Fail to set sqc_bt");
 		return ret;
 	}
 
 	ret = qm_mb(qm, QM_MB_CMD_CQC_BT, qm->cqc_dma, 0, QM_MB_OP_WR);
 	if (ret) {
-		EMSG("Fail to set cqc_bt!\n");
+		EMSG("Fail to set cqc_bt");
 		return ret;
 	}
 
@@ -515,7 +507,7 @@ int32_t hisi_qm_start(struct hisi_qm *qm)
 	io_write32(qm->io_base + QM_VF_AEQ_INT_MASK, 0x1);
 	io_write32(qm->io_base + QM_VF_EQ_INT_MASK, 0x1);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 void hisi_qm_dev_init(struct hisi_qm *qm)
@@ -553,10 +545,7 @@ static int32_t qm_sqc_cfg(struct hisi_qp *qp)
 		return -DRVCRYPT_ENOMEM;
 
 	sqc_dma = virt_to_phys(sqc);
-	if (!sqc_dma) {
-		free(sqc);
-		return -DRVCRYPT_EFAULT;
-	}
+	assert(sqc_dma);
 
 	memset(sqc, 0, sizeof(struct qm_sqc));
 	sqc->base_l = lower_32_bits(qp->sqe_dma);
@@ -585,10 +574,7 @@ static int32_t qm_cqc_cfg(struct hisi_qp *qp)
 		return -DRVCRYPT_ENOMEM;
 
 	cqc_dma = virt_to_phys(cqc);
-	if (!cqc_dma) {
-		free(cqc);
-		return -DRVCRYPT_EFAULT;
-	}
+	assert(cqc_dma);
 
 	memset(cqc, 0, sizeof(struct qm_cqc));
 	cqc->base_l = lower_32_bits(qp->cqe_dma);
@@ -649,7 +635,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	struct hisi_qm *qm;
 
 	if (!qp) {
-		EMSG("qp is NULL!\n");
+		EMSG("qp is NULL");
 		return;
 	}
 
@@ -673,13 +659,13 @@ static void qm_sq_tail_update(struct hisi_qp *qp)
  */
 int32_t hisi_qp_send(struct hisi_qp *qp, void *msg)
 {
-	struct hisi_qm *qm;
-	uintptr_t tmp;
-	int32_t ret;
-	void *sqe;
+	struct hisi_qm *qm = NULL;
+	uintptr_t tmp = 0;
+	int32_t ret = 0;
+	void *sqe = NULL;
 
 	if (!qp) {
-		EMSG("qp is NULL!\n");
+		EMSG("qp is NULL");
 		return -DRVCRYPT_EINVAL;
 	}
 
@@ -694,7 +680,7 @@ int32_t hisi_qp_send(struct hisi_qp *qp, void *msg)
 
 	ret = qp->fill_sqe(sqe, msg);
 	if (ret) {
-		EMSG("Fail to fill sqe!\n");
+		EMSG("Fail to fill sqe");
 		return ret;
 	}
 
@@ -703,7 +689,7 @@ int32_t hisi_qp_send(struct hisi_qp *qp, void *msg)
 	__asm__ volatile("dsb sy");
 	qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_SQ, qp->sq_tail, 0);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static void qm_cq_head_update(struct hisi_qp *qp)
@@ -721,7 +707,7 @@ static int32_t hisi_qp_recv(struct hisi_qp *qp, void *msg)
 	struct hisi_qm *qm = qp->qm;
 	struct qm_cqe *cqe;
 	uintptr_t tmp;
-	int32_t ret;
+	int32_t ret = 0;
 	void *sqe;
 
 	ret = qm->dev_status_check(qm);
@@ -737,11 +723,11 @@ static int32_t hisi_qp_recv(struct hisi_qp *qp, void *msg)
 		qm_cq_head_update(qp);
 		qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_CQ, qp->cq_head, 0);
 		if (ret) {
-			EMSG("Fail to parse sqe!\n");
+			EMSG("Fail to parse sqe");
 			return ret;
 		}
 	} else {
-		return 0;
+		return TEE_SUCCESS;
 	}
 
 	return 1;
@@ -766,10 +752,10 @@ static void qm_dfx_dump(struct hisi_qm *qm)
 int32_t hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 {
 	uint32_t cnt = 0;
-	int32_t ret;
+	int32_t ret = 0;
 
 	if (!qp) {
-		EMSG("qp is NULL!\n");
+		EMSG("qp is NULL");
 		return -DRVCRYPT_EINVAL;
 	}
 
@@ -777,17 +763,17 @@ int32_t hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 		ret = hisi_qp_recv(qp, msg);
 		if (ret == 0) {
 			if (++cnt > QM_RECV_SYNC_TIMEOUT) {
-				EMSG("qm recv task timeout!\n");
+				EMSG("qm recv task timeout");
 				qm_dfx_dump(qp->qm);
 				ret = -DRVCRYPT_ETMOUT;
 				break;
 			}
 		} else if (ret < 0) {
-			EMSG("qm recv task error!\n");
+			EMSG("qm recv task error");
 			qm_dfx_dump(qp->qm);
 			break;
 		} else if (ret > 0) {
-			return 0;
+			return TEE_SUCCESS;
 		}
 	}
 

@@ -67,7 +67,7 @@ struct hisi_qp *sec_create_qp(uint8_t sq_type)
 	}
 
 	if (!sec_dev) {
-		EMSG("No available sec device!\n");
+		EMSG("No available sec device");
 		return NULL;
 	}
 
@@ -105,7 +105,7 @@ static int32_t sec_engine_init(struct acc_device *sec_dev)
 	int32_t ret;
 
 	if (qm->fun_type == QM_HW_VF)
-		return 0;
+		return TEE_SUCCESS;
 
 	sec_disable_clock_gate(qm);
 	hisi_qm_dev_init(qm);
@@ -114,7 +114,7 @@ static int32_t sec_engine_init(struct acc_device *sec_dev)
 	ret = readl_relaxed_poll_timeout(qm->io_base + SEC_MEM_INIT_DONE, val,
 					 val & 0x1, POLL_PERIOD, POLL_TIMEOUT);
 	if (ret) {
-		EMSG("Fail to init sec mem!\n");
+		EMSG("Fail to init sec mem");
 		return ret;
 	}
 
@@ -156,7 +156,7 @@ static int32_t sec_engine_init(struct acc_device *sec_dev)
 
 	sec_enable_clock_gate(qm);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int32_t sec_dev_status_check(struct hisi_qm *qm)
@@ -183,7 +183,7 @@ static int32_t sec_dev_status_check(struct hisi_qm *qm)
 		return -DRVCRYPT_HW_EACCESS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int32_t sec_qm_init(struct acc_device *sec_dev)
@@ -194,7 +194,7 @@ static int32_t sec_qm_init(struct acc_device *sec_dev)
 		qm->io_base = (uintptr_t)phys_to_virt_io(sec_dev->io_base,
 							 sec_dev->io_size);
 		if (!qm->io_base) {
-			EMSG("Fail to get qm io_base!\n");
+			EMSG("Fail to get qm io_base");
 			return -DRVCRYPT_EFAULT;
 		}
 	} else {
@@ -222,7 +222,7 @@ static struct acc_device *sec_pre_init(void)
 
 	sec_dev = (struct acc_device *)calloc(1, sizeof(*sec_dev));
 	if (!sec_dev) {
-		EMSG("Fail to alloc sec_dev!\n");
+		EMSG("Fail to alloc sec_dev");
 		return NULL;
 	}
 
@@ -266,8 +266,8 @@ static uint32_t sec_probe(void)
 		goto err_with_qm_init;
 	}
 
-	IMSG("SEC driver init done!\n");
-	return 0;
+	IMSG("SEC driver init done");
+	return TEE_SUCCESS;
 
 err_with_qm_init:
 	hisi_qm_uninit(qm);

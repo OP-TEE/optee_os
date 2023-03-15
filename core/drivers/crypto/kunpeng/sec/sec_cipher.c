@@ -129,11 +129,11 @@ static int sec_cipher_des_get_c_key_len(const int key_len, uint8_t *c_key_len)
 	if (key_len == DES_KEY_SIZE)
 		*c_key_len = CKEY_LEN_DES;
 	else {
-		EMSG("Invalid DES key size!\n");
+		EMSG("Invalid DES key size");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int sec_cipher_3des_get_c_key_len(const int key_len, uint8_t *c_key_len)
@@ -143,11 +143,11 @@ static int sec_cipher_3des_get_c_key_len(const int key_len, uint8_t *c_key_len)
 	else if (key_len == SEC_3DES_3KEY_SIZE)
 		*c_key_len = CKEY_LEN_3DES_3KEY;
 	else {
-		EMSG("Invalid 3DES key size!\n");
+		EMSG("Invalid 3DES key size");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int sec_cipher_aes_get_c_key_len(const int key_len,
@@ -169,7 +169,7 @@ static int sec_cipher_aes_get_c_key_len(const int key_len,
 			*c_key_len = CKEY_LEN_256_BIT;
 			break;
 		default:
-			EMSG("Invalid AES key size!\n");
+			EMSG("Invalid AES key size");
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
 		break;
@@ -182,7 +182,7 @@ static int sec_cipher_aes_get_c_key_len(const int key_len,
 			*c_key_len = CKEY_LEN_256_BIT;
 			break;
 		default:
-			EMSG("Invalid AES-XTS key size!\n");
+			EMSG("Invalid AES-XTS key size");
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
 		break;
@@ -191,7 +191,7 @@ static int sec_cipher_aes_get_c_key_len(const int key_len,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int sec_cipher_sm4_get_c_key_len(const int key_len, const uint8_t mode,
@@ -202,14 +202,14 @@ static int sec_cipher_sm4_get_c_key_len(const int key_len, const uint8_t mode,
 	case C_MODE_CBC:
 	case C_MODE_CTR:
 		if (key_len != AES_KEYSIZE_128) {
-			EMSG("Invalid SM4 key size!\n");
+			EMSG("Invalid SM4 key size");
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
 		*c_key_len = CKEY_LEN_128_BIT;
 		break;
 	case C_MODE_XTS:
 		if (key_len != XTS_KEYSIZE_128) {
-			EMSG("Invalid SM4-XTS key size!\n");
+			EMSG("Invalid SM4-XTS key size");
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
 		*c_key_len = CKEY_LEN_128_BIT;
@@ -219,7 +219,7 @@ static int sec_cipher_sm4_get_c_key_len(const int key_len, const uint8_t mode,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int sec_cipher_set_key(struct sec_cipher_ctx *c_ctx,
@@ -255,10 +255,7 @@ static int sec_cipher_set_key(struct sec_cipher_ctx *c_ctx,
 		return ret;
 
 	c_ctx->key_dma = virt_to_phys(c_ctx->key);
-	if (!c_ctx->key_dma) {
-		EMSG("c_key_dma is NULL!\n");
-		return TEE_ERROR_STORAGE_NO_SPACE;
-	}
+	assert(c_ctx->key_dma);
 
 	c_ctx->key_len = key_len;
 	c_ctx->c_key_len = c_key_len;
@@ -309,7 +306,7 @@ static int sec_cipher_set_iv(struct sec_cipher_ctx *c_ctx, const uint8_t *iv,
 	int ret;
 
 	if (!iv && iv_len != 0) {
-		EMSG("Iv is NULL!\n");
+		EMSG("Iv is NULL");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -319,14 +316,11 @@ static int sec_cipher_set_iv(struct sec_cipher_ctx *c_ctx, const uint8_t *iv,
 
 	c_ctx->iv_len = iv_len;
 	c_ctx->iv_dma = virt_to_phys(c_ctx->iv);
-	if (!c_ctx->iv_dma) {
-		EMSG("c_iv_dma is NULL!\n");
-		return TEE_ERROR_STORAGE_NO_SPACE;
-	}
+	assert(c_ctx->iv_dma);
 
 	memcpy(c_ctx->iv, iv, c_ctx->iv_len);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int32_t sec_cipher_bd_fill(void *bd, void *msg)
@@ -357,15 +351,15 @@ static int32_t sec_cipher_bd_fill(void *bd, void *msg)
 	sqe->type2.c_key_addr_h = upper_32_bits(c_ctx->key_dma);
 
 	if (c_ctx->iv_len == 0)
-		return 0;
+		return TEE_SUCCESS;
 
 	sqe->type2.c_ivin_addr_l = lower_32_bits(c_ctx->iv_dma);
 	sqe->type2.c_ivin_addr_h = upper_32_bits(c_ctx->iv_dma);
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
-int32_t sec_cipher_bd_parse(void *bd, void *msg __unused)
+static int32_t sec_cipher_bd_parse(void *bd, void *msg __unused)
 {
 	struct hisi_sec_sqe *sqe = (struct hisi_sec_sqe *)bd;
 
@@ -375,7 +369,7 @@ int32_t sec_cipher_bd_parse(void *bd, void *msg __unused)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int32_t sec_cipher_bd3_fill(void *bd, void *msg)
@@ -406,14 +400,14 @@ static int32_t sec_cipher_bd3_fill(void *bd, void *msg)
 	sqe->c_key_addr_h = upper_32_bits(c_ctx->key_dma);
 
 	if (c_ctx->iv_len == 0)
-		return 0;
+		return TEE_SUCCESS;
 
 	sqe->ipsec_scene.c_ivin_addr_l = lower_32_bits(c_ctx->iv_dma);
 	sqe->ipsec_scene.c_ivin_addr_h = upper_32_bits(c_ctx->iv_dma);
-	return 0;
+	return TEE_SUCCESS;
 }
 
-int32_t sec_cipher_bd3_parse(void *bd, void *msg __unused)
+static int32_t sec_cipher_bd3_parse(void *bd, void *msg __unused)
 {
 	struct hisi_sec_bd3_sqe *sqe = (struct hisi_sec_bd3_sqe *)bd;
 
@@ -423,7 +417,7 @@ int32_t sec_cipher_bd3_parse(void *bd, void *msg __unused)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result cipher_algo_check(uint32_t algo)
@@ -445,7 +439,7 @@ static TEE_Result cipher_algo_check(uint32_t algo)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int crypto_set_calg(struct sec_cipher_ctx *c_ctx, const uint32_t alg)
@@ -500,13 +494,13 @@ static int crypto_set_cmode(struct sec_cipher_ctx *c_ctx, const uint32_t mode)
 	return ret;
 }
 
-TEE_Result sec_cipher_ctx_allocate(void **ctx, uint32_t algo)
+static TEE_Result sec_cipher_ctx_allocate(void **ctx, uint32_t algo)
 {
 	struct sec_cipher_ctx *c_ctx;
 	int ret;
 
 	if (!ctx) {
-		EMSG("Ctx is NULL!\n");
+		EMSG("Ctx is NULL");
 		return TEE_ERROR_STORAGE_NO_SPACE;
 	}
 
@@ -516,7 +510,7 @@ TEE_Result sec_cipher_ctx_allocate(void **ctx, uint32_t algo)
 
 	c_ctx = (struct sec_cipher_ctx *)malloc(sizeof(struct sec_cipher_ctx));
 	if (!c_ctx) {
-		EMSG("c_ctx is NULL!\n");
+		EMSG("c_ctx is NULL");
 		return TEE_ERROR_STORAGE_NO_SPACE;
 	}
 
@@ -545,7 +539,7 @@ TEE_Result sec_cipher_ctx_allocate(void **ctx, uint32_t algo)
 	c_ctx->offs = 0;
 	(*ctx) = c_ctx;
 
-	return 0;
+	return TEE_SUCCESS;
 
 free_c_ctx:
 	free(c_ctx);
@@ -553,7 +547,7 @@ free_c_ctx:
 	return ret;
 }
 
-void sec_cipher_ctx_free(void *ctx)
+static void sec_cipher_ctx_free(void *ctx)
 {
 	struct sec_cipher_ctx *c_ctx = (struct sec_cipher_ctx *)ctx;
 
@@ -567,13 +561,13 @@ void sec_cipher_ctx_free(void *ctx)
 	IMSG("Cipher free ctx done!");
 }
 
-TEE_Result sec_cipher_initialize(struct drvcrypt_cipher_init *dinit)
+static TEE_Result sec_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 {
 	struct sec_cipher_ctx *c_ctx;
 	TEE_Result ret;
 
 	if (!dinit || !dinit->ctx || !dinit->key1.data) {
-		EMSG("drvcrypt_cipher init param error!\n");
+		EMSG("drvcrypt_cipher init param error");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -590,23 +584,23 @@ TEE_Result sec_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 
 	c_ctx->encrypt = dinit->encrypt;
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result sec_cipher_cryptlen_check(struct sec_cipher_ctx *c_ctx,
 					    size_t length)
 {
 	if (c_ctx->mode == C_MODE_XTS && length < AES_SM4_BLOCK_SIZE) {
-		EMSG("Invalid src len!\n");
+		EMSG("Invalid src len");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 	if ((c_ctx->mode == C_MODE_ECB || c_ctx->mode == C_MODE_CBC) &&
 	    (length & (AES_SM4_BLOCK_SIZE - 1)) != 0) {
-		EMSG("Invalid src len!\n");
+		EMSG("Invalid src len");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static TEE_Result sec_cipher_param_check(struct drvcrypt_cipher_update *dupdate)
@@ -617,7 +611,7 @@ static TEE_Result sec_cipher_param_check(struct drvcrypt_cipher_update *dupdate)
 	    dupdate->src.length != dupdate->dst.length ||
 	    dupdate->src.length > MAX_CIPHER_LENGTH ||
 	    !dupdate->src.length) {
-		EMSG("Dupdate input param error!\n");
+		EMSG("Dupdate input param error");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -631,7 +625,7 @@ static TEE_Result sec_cipher_param_check(struct drvcrypt_cipher_update *dupdate)
 	case C_ALG_DES:
 	case C_ALG_3DES:
 		if (dupdate->src.length % TEE_DES_BLOCK_SIZE != 0) {
-			EMSG("Invalid src len!\n");
+			EMSG("Invalid src len");
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
 		break;
@@ -639,7 +633,7 @@ static TEE_Result sec_cipher_param_check(struct drvcrypt_cipher_update *dupdate)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	return 0;
+	return TEE_SUCCESS;
 }
 
 static int sec_alloc_buffer(struct sec_cipher_ctx *c_ctx)
@@ -651,10 +645,7 @@ static int sec_alloc_buffer(struct sec_cipher_ctx *c_ctx)
 	}
 
 	c_ctx->in_dma = virt_to_phys(c_ctx->in);
-	if (!c_ctx->in_dma) {
-		EMSG("Failed to map c_in_dma.\n");
-		goto free_c_in;
-	}
+	assert(c_ctx->in_dma);
 
 	c_ctx->out = (uint8_t *)malloc(c_ctx->len);
 	if (!c_ctx->out) {
@@ -663,12 +654,9 @@ static int sec_alloc_buffer(struct sec_cipher_ctx *c_ctx)
 	}
 
 	c_ctx->out_dma = virt_to_phys(c_ctx->out);
-	if (!c_ctx->out_dma) {
-		EMSG("Failed to map c_out_dma.\n");
-		goto free_c_out;
-	}
+	assert(c_ctx->out_dma);
 
-	return 0;
+	return TEE_SUCCESS;
 
 free_c_out:
 	free(c_ctx->out);
@@ -683,7 +671,7 @@ static void sec_free_buffer(struct sec_cipher_ctx *c_ctx)
 	free(c_ctx->out);
 }
 
-TEE_Result sec_cipher_update(struct drvcrypt_cipher_update *dupdate)
+static TEE_Result sec_cipher_update(struct drvcrypt_cipher_update *dupdate)
 {
 	struct sec_cipher_ctx *c_ctx = NULL;
 	size_t padding_size = 0;
@@ -730,11 +718,11 @@ free_buffer:
  *
  * @ctx	Caller context variable or NULL
  */
-void sec_cipher_final(void *ctx __unused)
+static void sec_cipher_final(void *ctx __unused)
 {
 }
 
-void sec_cipher_copy_state(void *dst_ctx, void *src_ctx)
+static void sec_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct sec_cipher_ctx *dst_c_ctx = (struct sec_cipher_ctx *)dst_ctx;
 	struct sec_cipher_ctx *src_c_ctx = (struct sec_cipher_ctx *)src_ctx;
@@ -749,12 +737,14 @@ void sec_cipher_copy_state(void *dst_ctx, void *src_ctx)
 		dst_c_ctx->c_key_len = src_c_ctx->c_key_len;
 		memcpy(dst_c_ctx->key, src_c_ctx->key, dst_c_ctx->key_len);
 		dst_c_ctx->key_dma = virt_to_phys(dst_c_ctx->key);
+		assert(dst_c_ctx->key_dma);
 	}
 
 	if (src_c_ctx->iv_len) {
 		dst_c_ctx->iv_len = src_c_ctx->iv_len;
 		memcpy(dst_c_ctx->iv, src_c_ctx->iv, dst_c_ctx->iv_len);
 		dst_c_ctx->iv_dma = virt_to_phys(dst_c_ctx->iv);
+		assert(dst_c_ctx->iv_dma);
 	}
 }
 

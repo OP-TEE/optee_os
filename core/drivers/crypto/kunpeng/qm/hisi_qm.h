@@ -2,18 +2,18 @@
 /*
  * Copyright (c) 2022, Huawei Technologies Co., Ltd
  */
-#ifndef __ACC_QM_H__
-#define __ACC_QM_H__
+#ifndef __QM_H__
+#define __QM_H__
 
+#include <initcall.h>
+#include <io.h>
+#include <kernel/delay.h>
+#include <kernel/mutex.h>
+#include <mm/core_memprot.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
-#include <initcall.h>
-#include <io.h>
 #include <sys/queue.h>
-#include <kernel/mutex.h>
-#include <kernel/delay.h>
-#include <mm/core_memprot.h>
 
 #define QM_HW_V2 0x21
 #define QM_HW_V3 0x30
@@ -208,14 +208,63 @@ struct acc_device {
 	SLIST_ENTRY(acc_device) link;
 };
 
+/**
+ *@Description: Get the version information of QM hardward
+ *@param qm: Handle of Queue Management module
+ */
 void hisi_qm_get_version(struct hisi_qm *qm);
+
+/**
+ *@Description: Init QM for Kunpeng drv
+ *@param qm: Handle of Queue Management module
+ *@return success: 0，fail: -DRVCRYPT_EBUSY/DRVCRYPT_EINVAL
+ */
 int32_t hisi_qm_init(struct hisi_qm *qm);
+
+/**
+ *@Description:deinit QM for Kunpeng drv
+ *@param qm: Handle of Queue Management module
+ */
 void hisi_qm_uninit(struct hisi_qm *qm);
+
+/**
+ *@Description: Start QM for Kunpeng drv
+ *@param qm: Handle of Queue Management module
+ */
 int32_t hisi_qm_start(struct hisi_qm *qm);
+
+/**
+ *@Description: Config QM for Kunpeng drv
+ *@param qm: Handle of Queue Management module
+ */
 void hisi_qm_dev_init(struct hisi_qm *qm);
+
+/**
+ *@Description: Create Queue Pair, allocated to PF/VF for configure
+ * and service use. Each QP includes one SQ and one CQ
+ *@param qm: Handle of Queue Management module
+ *@return success: Handle of QP，fail: NULL
+ */
 struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, uint8_t sq_type);
+
+/**
+ *@Description:Release Queue Pair
+ *@param qm: Handle of Queue Management module
+ */
 void hisi_qm_release_qp(struct hisi_qp *qp);
+
+/**
+ *@Description: Send SQE(Submmision Queue Element) to Kunpeng dev
+ *@param qm: Handle of Queue Management module
+ *@return success: 0，fail: -DRVCRYPT_EINVAL
+ */
 int32_t hisi_qp_send(struct hisi_qp *qp, void *msg);
+
+/**
+ *@Description: Recevice result from Kunpeng dev
+ *@param qm: Handle of Queue Management module
+ *@return success: 0，fail: -DRVCRYPT_EINVAL
+ */
 int32_t hisi_qp_recv_sync(struct hisi_qp *qp, void *msg);
 
 #endif
