@@ -425,11 +425,10 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 	switch (proc_params->id) {
 	case PKCS11_CKM_ECDSA:
 		/*
-		 * FIXME
 		 * ECDSA without hashing. The TEE algo to use is unknown at this
-		 * point.
+		 * point. Return the one with the largest digest size.
 		 */
-		return PKCS11_CKR_GENERAL_ERROR;
+		return TEE_ALG_ECDSA_SHA512;
 	case PKCS11_CKM_ECDSA_SHA1:
 		*tee_id = TEE_ALG_ECDSA_SHA1;
 		break;
