@@ -352,7 +352,6 @@ jobs:
 
   QEMUv8_check_rust:
     name: make check-rust (QEMUv8)
-    if: false # disabled until https://github.com/OP-TEE/optee_os/pull/5688#issuecomment-1370608865 is addressed
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci:qemuv8_check2
     steps:
