@@ -3,8 +3,8 @@
  * Copyright (c) 2021, Microchip
  */
 
-#include <drivers/pm/sam/atmel_pm.h>
 #include <console.h>
+#include <drivers/pm/sam/atmel_pm.h>
 #include <io.h>
 #include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
