@@ -519,9 +519,9 @@ static inline void dump_desc(uint32_t *desc)
 /*
  * DH/ECC Shared Secret
  */
-#define SHARED_SECRET(type)                                                    \
+#define SHARED_SECRET(type, alg)                                               \
 	(CMD_OP_TYPE | OP_TYPE(UNI) | PROTID(SHARED_SECRET) |                  \
-	 PROT_PK_TYPE(type))
+	 PROT_PK_TYPE(type) | PROT_PRI(alg))
 
 /*
  * Blob Master Key Verification
