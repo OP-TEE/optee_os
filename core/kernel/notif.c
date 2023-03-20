@@ -19,12 +19,6 @@
 #include <string.h>
 #include <types_ext.h>
 
-/*
- * Notification of non-secure interrupt events identified by an IT number
- * from 0 to CFG_CORE_ITR_NOTIF_MAX.
- */
-#define NOTIF_ITR_VALUE_MAX		CFG_CORE_ITR_NOTIF_MAX
-
 #if defined(CFG_CORE_ASYNC_NOTIF)
 static struct mutex notif_mutex = MUTEX_INITIALIZER;
 static unsigned int notif_lock = SPINLOCK_UNLOCK;

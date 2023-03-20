@@ -38,6 +38,15 @@
 
 #define NOTIF_VALUE_DO_BOTTOM_HALF	0
 
+/* Number of extra interrupt notifiers for embedded test purpose */
+#define TEST_ITR_NOTIF_COUNT		0
+
+/*
+ * Notification of non-secure interrupt identified by an number from 0
+ * to CFG_CORE_ITR_NOTIF_MAX plus possibly test purpose notifiers.
+ */
+#define NOTIF_ITR_VALUE_MAX	(CFG_CORE_ITR_NOTIF_MAX + TEST_ITR_NOTIF_COUNT)
+
 /*
  * enum notif_event - Notification of an event
  * @NOTIF_EVENT_STARTED:	Delivered in an atomic context to inform

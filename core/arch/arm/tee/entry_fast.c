@@ -72,9 +72,9 @@ static void tee_entry_exchange_capabilities(struct thread_smc_args *args)
 
 	static_assert(THREAD_RPC_MAX_NUM_PARAMS <= UINT8_MAX);
 #ifdef CFG_CORE_ITR_NOTIF
-	static_assert(CFG_CORE_ITR_NOTIF_MAX <= UINT16_MAX);
+	static_assert(NOTIF_ITR_VALUE_MAX <= UINT16_MAX);
 
-	notif_itr_max_number = CFG_CORE_ITR_NOTIF_MAX;
+	notif_itr_max_number = NOTIF_ITR_VALUE_MAX;
 #endif
 
 	/*
@@ -276,7 +276,7 @@ static void set_itr_notif_mask(struct thread_smc_args *args __maybe_unused)
 	uint32_t itr_num = args->a1;
 	bool masked = args->a2;
 
-	if (args->a2 > 1 || itr_num > CFG_CORE_ITR_NOTIF_MAX) {
+	if (args->a2 > 1 || itr_num > NOTIF_ITR_VALUE_MAX) {
 		args->a0 = OPTEE_SMC_RETURN_EBADCMD;
 		return;
 	}
