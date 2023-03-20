@@ -8,13 +8,17 @@
 #include <caam_common.h>
 #include <caam_hal_ctrl.h>
 #include <caam_jr.h>
+#include <caam_key.h>
+#include <caam_trace.h>
 #include <caam_utils_mem.h>
 #include <caam_utils_status.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <mm/core_memprot.h>
+#include <stdint.h>
 #include <string.h>
 #include <tee/cache.h>
+#include <utee_types.h>
 
 #ifdef CFG_CAAM_64BIT
 #define MAX_DESC_KEY_GEN 8
@@ -35,7 +39,7 @@
  */
 struct caam_ecc_keypair {
 	struct caambuf xy;
-	struct caambuf d;
+	struct caamkey d;
 };
 
 /*
@@ -46,7 +50,7 @@ struct caam_ecc_keypair {
 static void do_keypair_free(struct caam_ecc_keypair *key)
 {
 	caam_free_buf(&key->xy);
-	caam_free_buf(&key->d);
+	caam_key_free(&key->d);
 }
 
 /*
@@ -96,20 +100,18 @@ static enum caam_status do_keypair_conv(struct caam_ecc_keypair *outkey,
 					size_t size_sec)
 {
 	enum caam_status retstatus = CAAM_OUT_MEMORY;
-	size_t d_size = 0;
 
 	ECC_TRACE("ECC Convert Keypair size %zu bytes", size_sec);
 
 	/* Private key is only scalar d of sec_size bytes */
-	retstatus = caam_calloc_buf(&outkey->d, size_sec);
-	if (retstatus != CAAM_NO_ERROR)
+	retstatus = caam_key_deserialize_from_bn(inkey->d, &outkey->d,
+						 size_sec);
+	if (retstatus)
 		return retstatus;
 
-	/* Get the number of bytes of d to pad with 0's */
-	d_size = crypto_bignum_num_bytes(inkey->d);
-	crypto_bignum_bn2bin(inkey->d, outkey->d.data + size_sec - d_size);
+	caam_key_cache_op(TEE_CACHEFLUSH, &outkey->d);
 
-	cache_operation(TEE_CACHECLEAN, outkey->d.data, outkey->d.length);
+	ECC_DUMPBUF("Outkey", outkey->d.buf.data, outkey->d.buf.length);
 
 	return CAAM_NO_ERROR;
 }
@@ -161,7 +163,7 @@ static TEE_Result do_allocate_keypair(struct ecc_keypair *key,
 	memset(key, 0, sizeof(*key));
 
 	/* Allocate Secure Scalar */
-	key->d = crypto_bignum_allocate(size_bits);
+	key->d = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->d)
 		goto err;
 
@@ -252,11 +254,12 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	enum caam_status retstatus = CAAM_FAILURE;
 	enum caam_ecc_curve curve = CAAM_ECC_UNKNOWN;
-	struct caambuf d = { };
+	struct caamkey d = { };
 	struct caambuf xy = { };
 	struct caam_jobctx jobctx = { };
 	uint32_t *desc = NULL;
 	uint32_t desclen = 0;
+	enum caam_key_type key_type = caam_key_default_key_gen_type();
 
 	ECC_TRACE("Generate Keypair of %zu bits", key_size);
 
@@ -276,28 +279,47 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 	}
 
 	/*
-	 * Allocate secure and public keys in one buffer
+	 * Allocate secure and public keys in two buffers
 	 * Secure key size = key_size align in bytes
 	 * Public key size = (key_size * 2) align in bytes
 	 */
-	retstatus = caam_alloc_align_buf(&d, (key_size / 8) * 3);
+	d.key_type = key_type;
+	d.sec_size = ROUNDUP_DIV(key_size, 8);
+	d.is_blob = false;
+
+	retstatus = caam_key_alloc(&d);
 	if (retstatus != CAAM_NO_ERROR) {
 		ret = caam_status_to_tee_result(retstatus);
 		goto out;
 	}
 
-	/* Build the xy buffer to simplify the code */
-	xy.data = d.data + key_size / 8;
-	xy.length = 2 * (key_size / 8);
-	xy.paddr = d.paddr + key_size / 8;
+	retstatus = caam_alloc_align_buf(&xy, (key_size / 8) * 2);
+	if (retstatus != CAAM_NO_ERROR) {
+		ret = caam_status_to_tee_result(retstatus);
+		goto out;
+	}
 
 	/* Build the descriptor using Predifined ECC curve */
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
 	caam_desc_add_word(desc, PDB_PKGEN_PD1 | PDB_ECC_ECDSEL(curve));
-	caam_desc_add_ptr(desc, d.paddr);
+	caam_desc_add_ptr(desc, d.buf.paddr);
 	caam_desc_add_ptr(desc, xy.paddr);
-	caam_desc_add_word(desc, PK_KEYPAIR_GEN(ECC));
+
+	switch (key_type) {
+	case CAAM_KEY_PLAIN_TEXT:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(ECC, NONE));
+		break;
+	case CAAM_KEY_BLACK_ECB:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(ECC, ECB));
+		break;
+	case CAAM_KEY_BLACK_CCM:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(ECC, CCM));
+		break;
+	default:
+		ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
 
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
@@ -305,16 +327,21 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 	ECC_DUMPDESC(desc);
 
 	jobctx.desc = desc;
-	cache_operation(TEE_CACHEFLUSH, d.data, d.length);
+	caam_key_cache_op(TEE_CACHEFLUSH, &d);
+	cache_operation(TEE_CACHEFLUSH, xy.data, xy.length);
+
 	retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 	if (retstatus == CAAM_NO_ERROR) {
-		cache_operation(TEE_CACHEINVALIDATE, d.data, d.length);
+		caam_key_cache_op(TEE_CACHEINVALIDATE, &d);
+		cache_operation(TEE_CACHEINVALIDATE, xy.data, xy.length);
 
 		/* Copy all keypair parameters */
-		ret = crypto_bignum_bin2bn(d.data, key_size / 8, key->d);
-		if (ret != TEE_SUCCESS)
+		retstatus = caam_key_serialize_to_bn(key->d, &d);
+		if (retstatus) {
+			ret = caam_status_to_tee_result(retstatus);
 			goto out;
+		}
 
 		ret = crypto_bignum_bin2bn(xy.data, xy.length / 2, key->x);
 		if (ret != TEE_SUCCESS)
@@ -325,7 +352,7 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 		if (ret != TEE_SUCCESS)
 			goto out;
 
-		ECC_DUMPBUF("D", d.data, key_size / 8);
+		ECC_DUMPBUF("D", d.buf.data, key_size / 8);
 		ECC_DUMPBUF("X", xy.data, xy.length / 2);
 		ECC_DUMPBUF("Y", xy.data + xy.length / 2, xy.length / 2);
 	} else {
@@ -335,7 +362,8 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 
 out:
 	caam_free_desc(&desc);
-	caam_free_buf(&d);
+	caam_key_free(&d);
+	caam_free_buf(&xy);
 
 	return ret;
 }
@@ -505,7 +533,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 	caam_desc_add_word(desc, PDB_PKSIGN_PD1 | PDB_ECC_ECDSEL(curve) |
 				 pdb_sgt_flags);
 	/* Secret key */
-	caam_desc_add_ptr(desc, ecckey.d.paddr);
+	caam_desc_add_ptr(desc, ecckey.d.buf.paddr);
 	/* Input message */
 	caam_desc_add_ptr(desc, msg.sgtbuf.paddr);
 	/* Signature 1st part */
@@ -514,12 +542,38 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 	caam_desc_add_ptr(desc, sign_d.sgtbuf.paddr);
 
 	if (msg_mes_rep(sdata->message.length, sdata->size_sec)) {
-		caam_desc_add_word(desc, DSA_SIGN(ECC, MES_REP));
+		switch (ecckey.d.key_type) {
+		case CAAM_KEY_PLAIN_TEXT:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, MES_REP, NONE));
+			break;
+		case CAAM_KEY_BLACK_ECB:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, MES_REP, ECB));
+			break;
+		case CAAM_KEY_BLACK_CCM:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, MES_REP, CCM));
+			break;
+		default:
+			ret = TEE_ERROR_GENERIC;
+			goto out;
+		}
 	} else {
 		/* Message length */
 		caam_desc_add_word(desc, sdata->message.length);
 
-		caam_desc_add_word(desc, DSA_SIGN(ECC, HASHED));
+		switch (ecckey.d.key_type) {
+		case CAAM_KEY_PLAIN_TEXT:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, HASHED, NONE));
+			break;
+		case CAAM_KEY_BLACK_ECB:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, HASHED, ECB));
+			break;
+		case CAAM_KEY_BLACK_CCM:
+			caam_desc_add_word(desc, DSA_SIGN(ECC, HASHED, CCM));
+			break;
+		default:
+			ret = TEE_ERROR_GENERIC;
+			goto out;
+		}
 	}
 
 	desclen = caam_desc_get_len(desc);
@@ -578,6 +632,9 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 	struct caambuf caambuf_msg = { };
 
 	ECC_TRACE("ECC Verify");
+	ECC_DUMPBUF("Message", sdata->message.data, sdata->message.length);
+	ECC_DUMPBUF("Signature", sdata->signature.data,
+		    sdata->signature.length);
 
 	/* Verify first if the curve is supported */
 	curve = get_caam_curve(inkey->curve);
@@ -686,6 +743,8 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 	jobctx.desc = desc;
 
 	cache_operation(TEE_CACHEFLUSH, tmp.data, tmp.length);
+	cache_operation(TEE_CACHEFLUSH, ecckey.xy.data, ecckey.xy.length);
+
 	retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 	if (retstatus == CAAM_JOB_STATUS && !jobctx.status) {
@@ -779,11 +838,25 @@ static TEE_Result do_shared_secret(struct drvcrypt_secret_data *sdata)
 	/* Public key */
 	caam_desc_add_ptr(desc, ecckey.xy.paddr);
 	/* Private key */
-	caam_desc_add_ptr(desc, ecckey.d.paddr);
+	caam_desc_add_ptr(desc, ecckey.d.buf.paddr);
 	/* Output secret */
 	caam_desc_add_ptr(desc, secret.sgtbuf.paddr);
 
-	caam_desc_add_word(desc, SHARED_SECRET(ECC));
+	switch (ecckey.d.key_type) {
+	case CAAM_KEY_PLAIN_TEXT:
+		caam_desc_add_word(desc, SHARED_SECRET(ECC, NONE));
+		break;
+	case CAAM_KEY_BLACK_ECB:
+		caam_desc_add_word(desc, SHARED_SECRET(ECC, ECB));
+		break;
+	case CAAM_KEY_BLACK_CCM:
+		caam_desc_add_word(desc, SHARED_SECRET(ECC, CCM));
+		break;
+	default:
+		ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
+
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
 
