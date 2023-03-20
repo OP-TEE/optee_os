@@ -396,6 +396,12 @@ static inline void dump_desc(uint32_t *desc)
 	 KEY_LENGTH(len))
 
 /*
+ * Load a class cla key of length len to register dst.
+ */
+#define LD_KEY(cla, dst, len)                                                  \
+	(CMD_KEY_TYPE | CMD_CLASS(cla) | KEY_DEST(dst) | KEY_LENGTH(len))
+
+/*
  * MPPRIVK generation function.
  */
 #define MPPRIVK (CMD_OP_TYPE | OP_TYPE(ENCAPS) | PROTID(MPKEY))
