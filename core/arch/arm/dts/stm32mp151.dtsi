@@ -1839,8 +1839,8 @@
 			reg = <0x10000000 0x40000>,
 			      <0x30000000 0x40000>,
 			      <0x38000000 0x10000>;
-			resets = <&rcc MCU_R>;
-			st,syscfg-holdboot = <&rcc 0x10C 0x1>;
+			resets = <&rcc MCU_R>, <&rcc MCU_HOLD_BOOT_R>;
+			reset-names = "mcu_rst", "hold_boot";
 			st,syscfg-tz = <&rcc 0x000 0x1>;
 			st,syscfg-pdds = <&pwr_mcu 0x0 0x1>;
 			st,syscfg-rsc-tbl = <&tamp 0x144 0xFFFFFFFF>;
