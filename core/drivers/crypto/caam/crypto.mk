@@ -145,6 +145,12 @@ CFG_NXP_CAAM_RSA_KEY_FORMAT ?= 3
 # Disable device tree status of the secure job ring
 CFG_CAAM_JR_DISABLE_NODE ?= y
 
+# Define the default CAAM private key encryption generation and the bignum
+# maximum size needed.
+# CAAM_KEY_PLAIN_TEXT    -> 4096 bits
+# CAAM_KEY_BLACK_ECB|CCM -> 4156 bits
+CFG_CORE_BIGNUM_MAX_BITS ?= 4156
+
 # Enable CAAM non-crypto drivers
 $(foreach drv, $(caam-drivers), $(eval CFG_NXP_CAAM_$(drv)_DRV ?= y))
 
