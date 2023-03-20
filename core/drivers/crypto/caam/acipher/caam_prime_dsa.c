@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2020-2021 NXP
+ * Copyright 2020-2021, 2023 NXP
  *
  * CAAM DSA Prime Numbering.
  * Implementation of Prime Number functions
@@ -98,7 +98,7 @@ static void do_desc_prime_q(uint32_t *desc, struct caambuf *seed,
 	}
 
 	caam_desc_add_word(desc, MOVE(C1_ALIGN, OFIFO, 0, seed->length));
-	caam_desc_add_word(desc, FIFO_ST(MSG_DATA, seed->length));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, MSG_DATA, seed->length));
 	caam_desc_add_ptr(desc, seed->paddr);
 
 	/*
@@ -143,7 +143,7 @@ static void do_desc_prime_q(uint32_t *desc, struct caambuf *seed,
 	caam_desc_add_word(desc, prime->q->length);
 
 	/* Store the Prime q here because Miller-Rabin test affect PKHA N */
-	caam_desc_add_word(desc, FIFO_ST(PKHA_N, prime->q->length));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, PKHA_N, prime->q->length));
 	caam_desc_add_ptr(desc, prime->q->paddr);
 
 	/*
@@ -265,7 +265,7 @@ static void do_desc_gen_x(uint32_t *desc, struct caambuf *x,
 			   FIFO_LD(CLASS_1, PKHA_A, NOACTION, seed->length));
 	caam_desc_add_ptr(desc, seed->paddr);
 	caam_desc_add_word(desc, PKHA_OP(MOD_ADD_A_B, A));
-	caam_desc_add_word(desc, FIFO_ST(PKHA_A, seed->length));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, PKHA_A, seed->length));
 	caam_desc_add_ptr(desc, seed->paddr);
 
 	caam_desc_add_word(desc, PKHA_CPY_NSIZE(A0, B1));
@@ -419,7 +419,7 @@ static void do_desc_prime_p(uint32_t *desc, struct prime_data_dsa *prime,
 	 * affected by the Miller-Rabin test
 	 */
 	caam_desc_add_word(desc, PKHA_CPY_SSIZE(A0, N0));
-	caam_desc_add_word(desc, FIFO_ST(PKHA_N, prime->p->length));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, PKHA_N, prime->p->length));
 	caam_desc_add_ptr(desc, prime->p->paddr);
 	caam_desc_add_word(desc, FIFO_ST_SEQ(MSG_DATA, 0));
 
@@ -648,7 +648,7 @@ static enum caam_status do_generator(uint32_t *desc,
 					  retry_new_h - desclen));
 
 	/* g is good save it */
-	caam_desc_add_word(desc, FIFO_ST(PKHA_A, prime->g->length));
+	caam_desc_add_word(desc, FIFO_ST(CLASS_NO, PKHA_A, prime->g->length));
 	caam_desc_add_ptr(desc, prime->g->paddr);
 
 	DSA_DUMPDESC(desc);
