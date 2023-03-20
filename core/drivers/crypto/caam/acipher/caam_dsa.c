@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2019-2021 NXP
+ * Copyright 2019-2021, 2023 NXP
  *
  * Implementation of DSA functions
  */
@@ -8,6 +8,7 @@
 #include <caam_common.h>
 #include <caam_hal_ctrl.h>
 #include <caam_jr.h>
+#include <caam_key.h>
 #include <caam_utils_mem.h>
 #include <caam_utils_status.h>
 #include <drvcrypt.h>
@@ -17,6 +18,7 @@
 #include <string.h>
 
 #include "local.h"
+#include "utee_types.h"
 
 #ifdef CFG_CAAM_64BIT
 #define MAX_DESC_KEY_GEN 14
@@ -38,7 +40,7 @@ struct caam_dsa_keypair {
 	struct caambuf g; /* Generator */
 	struct caambuf p; /* Prime Number (L bits) */
 	struct caambuf q; /* Subprime Number (N bits) */
-	struct caambuf x; /* Private key */
+	struct caamkey x; /* Private key */
 	struct caambuf y; /* Public key */
 };
 
@@ -52,7 +54,7 @@ static void do_keypair_free(struct caam_dsa_keypair *key)
 	caam_free_buf(&key->g);
 	caam_free_buf(&key->p);
 	caam_free_buf(&key->q);
-	caam_free_buf(&key->x);
+	caam_key_free(&key->x);
 	caam_free_buf(&key->y);
 }
 
@@ -184,19 +186,14 @@ static enum caam_status do_keypriv_conv(struct caam_dsa_keypair *outkey,
 	field_size = crypto_bignum_num_bytes(inkey->q);
 	crypto_bignum_bn2bin(inkey->q, outkey->q.data + n_bytes - field_size);
 
-	/* Private key is only scalar x of n bytes */
-	retstatus = caam_calloc_buf(&outkey->x, n_bytes);
+	retstatus = caam_key_deserialize_from_bn(inkey->x, &outkey->x, n_bytes);
 	if (retstatus != CAAM_NO_ERROR)
 		return retstatus;
-
-	/* Get the number of bytes of x to pad with 0's */
-	field_size = crypto_bignum_num_bytes(inkey->x);
-	crypto_bignum_bn2bin(inkey->x, outkey->x.data + n_bytes - field_size);
 
 	cache_operation(TEE_CACHECLEAN, outkey->g.data, outkey->g.length);
 	cache_operation(TEE_CACHECLEAN, outkey->p.data, outkey->p.length);
 	cache_operation(TEE_CACHECLEAN, outkey->q.data, outkey->q.length);
-	cache_operation(TEE_CACHECLEAN, outkey->x.data, outkey->x.length);
+	caam_key_cache_op(TEE_CACHECLEAN, &outkey->x);
 
 	return CAAM_NO_ERROR;
 }
@@ -295,7 +292,7 @@ static TEE_Result do_allocate_keypair(struct dsa_keypair *key, size_t l_bits,
 		goto err;
 
 	/* Allocate Private key X */
-	key->x = crypto_bignum_allocate(n_bits);
+	key->x = crypto_bignum_allocate(CFG_CORE_BIGNUM_MAX_BITS);
 	if (!key->x)
 		goto err;
 
@@ -385,6 +382,7 @@ static TEE_Result do_gen_keypair(struct dsa_keypair *key, size_t l_bits,
 	uint32_t desclen = 0;
 	size_t l_bytes = l_bits / 8;
 	size_t n_bytes = n_bits / 8;
+	enum caam_key_type key_type = caam_key_default_key_gen_type();
 
 	DSA_TRACE("Generate Key - Private (%zu bits) and Public (%zu bits)",
 		  n_bits, l_bits);
@@ -397,13 +395,17 @@ static TEE_Result do_gen_keypair(struct dsa_keypair *key, size_t l_bits,
 	}
 
 	/* Allocate Private Key to be generated */
-	retstatus = caam_calloc_align_buf(&caam_dsa_key.x, n_bytes);
+	caam_dsa_key.x.key_type = caam_key_default_key_gen_type();
+	caam_dsa_key.x.sec_size = n_bytes;
+	caam_dsa_key.x.is_blob = false;
+
+	retstatus = caam_key_alloc(&caam_dsa_key.x);
 	if (retstatus != CAAM_NO_ERROR) {
 		ret = caam_status_to_tee_result(retstatus);
 		goto out;
 	}
-	cache_operation(TEE_CACHEFLUSH, caam_dsa_key.x.data,
-			caam_dsa_key.x.length);
+
+	caam_key_cache_op(TEE_CACHEFLUSH, &caam_dsa_key.x);
 
 	/* Allocate Public Key to be generated */
 	retstatus = caam_calloc_align_buf(&caam_dsa_key.y, l_bytes);
@@ -430,9 +432,23 @@ static TEE_Result do_gen_keypair(struct dsa_keypair *key, size_t l_bits,
 	caam_desc_add_ptr(desc, caam_dsa_key.p.paddr);
 	caam_desc_add_ptr(desc, caam_dsa_key.q.paddr);
 	caam_desc_add_ptr(desc, caam_dsa_key.g.paddr);
-	caam_desc_add_ptr(desc, caam_dsa_key.x.paddr);
+	caam_desc_add_ptr(desc, caam_dsa_key.x.buf.paddr);
 	caam_desc_add_ptr(desc, caam_dsa_key.y.paddr);
-	caam_desc_add_word(desc, PK_KEYPAIR_GEN(DL));
+
+	switch (key_type) {
+	case CAAM_KEY_PLAIN_TEXT:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(DL, NONE));
+		break;
+	case CAAM_KEY_BLACK_ECB:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(DL, ECB));
+		break;
+	case CAAM_KEY_BLACK_CCM:
+		caam_desc_add_word(desc, PK_KEYPAIR_GEN(DL, CCM));
+		break;
+	default:
+		ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
 
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
@@ -443,14 +459,13 @@ static TEE_Result do_gen_keypair(struct dsa_keypair *key, size_t l_bits,
 	retstatus = caam_jr_enqueue(&jobctx, NULL);
 
 	if (retstatus == CAAM_NO_ERROR) {
-		cache_operation(TEE_CACHEINVALIDATE, caam_dsa_key.x.data,
-				caam_dsa_key.x.length);
+		caam_key_cache_op(TEE_CACHEINVALIDATE, &caam_dsa_key.x);
+
 		cache_operation(TEE_CACHEINVALIDATE, caam_dsa_key.y.data,
 				caam_dsa_key.y.length);
 
 		/* Copy Private and Public keypair */
-		ret = crypto_bignum_bin2bn(caam_dsa_key.x.data,
-					   caam_dsa_key.x.length, key->x);
+		ret = caam_key_serialize_to_bn(key->x, &caam_dsa_key.x);
 		if (ret != TEE_SUCCESS)
 			goto out;
 
@@ -459,7 +474,8 @@ static TEE_Result do_gen_keypair(struct dsa_keypair *key, size_t l_bits,
 		if (ret != TEE_SUCCESS)
 			goto out;
 
-		DSA_DUMPBUF("X", caam_dsa_key.x.data, caam_dsa_key.x.length);
+		DSA_DUMPBUF("X", caam_dsa_key.x.buf.data,
+			    caam_dsa_key.x.buf.length);
 		DSA_DUMPBUF("Y", caam_dsa_key.y.data, caam_dsa_key.y.length);
 	} else {
 		DSA_TRACE("CAAM Status 0x%08" PRIx32, jobctx.status);
@@ -569,7 +585,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata, size_t l_bytes,
 	/* Generator */
 	caam_desc_add_ptr(desc, dsakey.g.paddr);
 	/* Secret key */
-	caam_desc_add_ptr(desc, dsakey.x.paddr);
+	caam_desc_add_ptr(desc, dsakey.x.buf.paddr);
 	/* Input message */
 	caam_desc_add_ptr(desc, msg.sgtbuf.paddr);
 	/* Signature 1st part */
@@ -579,7 +595,20 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata, size_t l_bytes,
 	/* Message length */
 	caam_desc_add_word(desc, sdata->message.length);
 
-	caam_desc_add_word(desc, DSA_SIGN(DL, HASHED));
+	switch (dsakey.x.key_type) {
+	case CAAM_KEY_PLAIN_TEXT:
+		caam_desc_add_word(desc, DSA_SIGN(DL, HASHED, NONE));
+		break;
+	case CAAM_KEY_BLACK_ECB:
+		caam_desc_add_word(desc, DSA_SIGN(DL, HASHED, ECB));
+		break;
+	case CAAM_KEY_BLACK_CCM:
+		caam_desc_add_word(desc, DSA_SIGN(DL, HASHED, CCM));
+		break;
+	default:
+		ret = TEE_ERROR_GENERIC;
+		goto out;
+	}
 
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));

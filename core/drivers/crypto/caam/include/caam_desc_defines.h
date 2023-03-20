@@ -354,6 +354,16 @@
 #define PROT_PK_TYPE(type)	SHIFT_U32(PROT_PK_##type, 1)
 #define PROT_PK_DL		0
 #define PROT_PK_ECC		1
+#define PROT_PRI_ENC(alg)	PROT_PRI_ENC_##alg
+#define PROT_PRI_ENC_ECB	BIT32(2)
+#define PROT_PRI_ENC_CCM	BIT32(2)
+#define PROT_PRI_EXT(type)	PROT_PRI_EXT_##type
+#define PROT_PRI_EXT_ECB	0
+#define PROT_PRI_EXT_CCM	BIT32(4)
+#define PROT_PRI(alg)		PROT_PRI_##alg
+#define PROT_PRI_NONE		0
+#define PROT_PRI_ECB		(PROT_PRI_ENC(ECB) | PROT_PRI_EXT(ECB))
+#define PROT_PRI_CCM		(PROT_PRI_ENC(CCM) | PROT_PRI_EXT(CCM))
 
 /*
  * BLOB Protocol Information

@@ -498,15 +498,16 @@ static inline void dump_desc(uint32_t *desc)
 /*
  * Public Keypair generation
  */
-#define PK_KEYPAIR_GEN(type)                                                   \
-	(CMD_OP_TYPE | OP_TYPE(UNI) | PROTID(PKKEY) | PROT_PK_TYPE(type))
+#define PK_KEYPAIR_GEN(type, alg)                                              \
+	(CMD_OP_TYPE | OP_TYPE(UNI) | PROTID(PKKEY) | PROT_PK_TYPE(type) |     \
+	 PROT_PRI(alg))
 
 /*
  * DSA/ECDSA signature of message of msg_type
  */
-#define DSA_SIGN(type, msg_type)                        \
+#define DSA_SIGN(type, msg_type, alg) \
 	(CMD_OP_TYPE | OP_TYPE(UNI) | PROTID(DSASIGN) | \
-	 PROT_PK_MSG(msg_type) | PROT_PK_TYPE(type))
+	 PROT_PK_MSG(msg_type) | PROT_PK_TYPE(type) | PROT_PRI(alg))
 
 /*
  * DSA/ECDSA signature verify message of msg_type
