@@ -491,8 +491,9 @@ static inline void dump_desc(uint32_t *desc)
 /*
  * RSA Finalize Key in format
  */
-#define RSA_FINAL_KEY(format)                                                  \
-	(CMD_OP_TYPE | PROTID(RSA_FINISH_KEY) | PROT_RSA_KEY(format))
+#define RSA_FINAL_KEY(format, alg)                                             \
+	(CMD_OP_TYPE | PROTID(RSA_FINISH_KEY) | PROT_RSA_KEY(format) |         \
+	 PROT_RSA_FINISH_KEY(alg))
 
 /*
  * Public Keypair generation

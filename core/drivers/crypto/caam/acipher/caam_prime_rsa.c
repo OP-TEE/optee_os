@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2021, 2023 NXP
  *
  * CAAM Prime Numbering.
  * Implementation of Prime Number functions
@@ -373,6 +373,8 @@ static void do_desc_setup(uint32_t *desc, struct prime_data_rsa *data,
 			  const struct caambuf *small_prime,
 			  const paddr_t desc_prime)
 {
+	size_t key_size = data->key_size / 8;
+
 	/*
 	 * Referring to FIPS.186-4, B.3.3 (step 4.7)
 	 * Maximum tries = 5 * (nlen / 2)
@@ -390,7 +392,7 @@ static void do_desc_setup(uint32_t *desc, struct prime_data_rsa *data,
 	 * of the prime number size
 	 */
 	caam_desc_add_word(desc, MATH(ADD, IMM_DATA, ZERO, SIL, 4));
-	if (data->p->length > (MR_PRIME_SIZE / 8))
+	if ((key_size / 2) > (MR_PRIME_SIZE / 8))
 		caam_desc_add_word(desc, 0x4);
 	else
 		caam_desc_add_word(desc, 0x5);
@@ -400,7 +402,7 @@ static void do_desc_setup(uint32_t *desc, struct prime_data_rsa *data,
 	 * Do it once, not at each loop
 	 */
 	caam_desc_add_word(desc, FIFO_LD(CLASS_1, PKHA_A2, NOACTION,
-					 data->p->length));
+					 key_size / 2));
 	caam_desc_add_ptr(desc, virt_to_phys((void *)sqrt_value));
 
 	if (data->era >= 8 && small_prime->paddr) {
@@ -422,7 +424,7 @@ static void do_desc_setup(uint32_t *desc, struct prime_data_rsa *data,
 
 	/* Load PKHA N Size with the prime size */
 	caam_desc_add_word(desc, LD_IMM(CLASS_1, REG_PKHA_N_SIZE, 4));
-	caam_desc_add_word(desc, data->p->length);
+	caam_desc_add_word(desc, key_size / 2);
 
 	/*
 	 * Set the number of maximum tries because of generated value
@@ -514,7 +516,7 @@ static void do_desc_prime(uint32_t *desc, struct prime_data_rsa *data,
 	 */
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_NFIFO, 8));
 	caam_desc_add_word(desc, NFIFO_PAD(C1, 0, PKHA_N, RND, 0));
-	caam_desc_add_word(desc, data->p->length - 16);
+	caam_desc_add_word(desc, (data->key_size / 8 / 2) - 16);
 
 	/* And send the 8 LSB into PKHA N */
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_NFIFO, 4));
@@ -580,7 +582,7 @@ static void do_desc_prime(uint32_t *desc, struct prime_data_rsa *data,
 	retry_mr_test = caam_desc_get_len(desc);
 	caam_desc_add_word(desc, LD_IMM(CLASS_NO, REG_NFIFO, 8));
 	caam_desc_add_word(desc, NFIFO_PAD(C1, NFIFO_FC1, PKHA_A, RND, 0));
-	caam_desc_add_word(desc, data->p->length);
+	caam_desc_add_word(desc, (data->key_size / 8 / 2));
 	caam_desc_add_word(desc, FIFO_LD_IMM(CLASS_1, PKHA_B, NOACTION, 1));
 	caam_desc_add_word(desc, 0x01);
 	caam_desc_add_word(desc, PKHA_OP(MR_PRIMER_TEST, B));
@@ -598,7 +600,8 @@ static void do_desc_prime(uint32_t *desc, struct prime_data_rsa *data,
 					  retry_mr_test - desclen));
 
 	/* Save prime generated */
-	caam_desc_add_word(desc, FIFO_ST(PKHA_N, data->p->length));
+	caam_desc_add_word(desc,
+			   FIFO_ST(CLASS_NO, PKHA_N, (data->key_size / 8 / 2)));
 
 	if (do_prime_q)
 		caam_desc_add_ptr(desc, data->q->paddr);
@@ -627,7 +630,8 @@ static void do_desc_prime(uint32_t *desc, struct prime_data_rsa *data,
  */
 static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
 			     const struct caambuf *max_n,
-			     const paddr_t desc_new_q)
+			     const paddr_t desc_new_q,
+			     size_t key_size)
 {
 	const uint8_t check_len = 16; /* Check 128 bits */
 
@@ -635,7 +639,7 @@ static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
 	caam_desc_add_word(desc, DESC_HEADER(0));
 
 	/* Load prime p */
-	caam_desc_add_word(desc, FIFO_LD(CLASS_1, PKHA_B, NOACTION, p->length));
+	caam_desc_add_word(desc, FIFO_LD(CLASS_1, PKHA_B, NOACTION, key_size));
 	caam_desc_add_ptr(desc, p->paddr);
 
 	/* Retrieve Q from PKHA N, previously computed */
@@ -661,13 +665,13 @@ static void do_checks_primes(uint32_t *desc, const struct caambuf *p,
 	 * We started with 128, 192, or 256 bytes in the OFIFO before we moved
 	 * check_len bytes into MATH registers.
 	 */
-	if (p->length > 128 + (size_t)check_len) {
+	if (key_size > 128 + (size_t)check_len) {
 		caam_desc_add_word(desc, MOVE(OFIFO, C1_CTX_REG, 0, check_len));
 		caam_desc_add_word(desc, MOVE(OFIFO, C1_CTX_REG, 0,
-					      (p->length - 128 - check_len)));
-	} else if (p->length > check_len) {
+					      (key_size - 128 - check_len)));
+	} else if (key_size > check_len) {
 		caam_desc_add_word(desc, MOVE(OFIFO, C1_CTX_REG, 0,
-					      (p->length - check_len)));
+					      (key_size - check_len)));
 	}
 
 	/*
@@ -779,6 +783,7 @@ enum caam_status caam_prime_rsa_gen(struct prime_data_rsa *data)
 	paddr_t paddr_desc_check_p_q = 0;
 	size_t size_all_descs = 0;
 	size_t nb_tries = RSA_MAX_TRIES_PRIMES;
+	size_t key_size = data->key_size / 8 / 2;
 
 	/* Allocate the job used to prepare the operation */
 	if (data->q) {
@@ -786,7 +791,7 @@ enum caam_status caam_prime_rsa_gen(struct prime_data_rsa *data)
 				 GEN_RSA_DESC_ENTRIES * 2 +
 				 CHECK_P_Q_DESC_ENTRIES;
 
-		retstatus = caam_calloc_buf(&max_n, data->p->length + 1);
+		retstatus = caam_calloc_buf(&max_n, key_size + 1);
 		if (retstatus != CAAM_NO_ERROR)
 			goto end_gen_prime;
 
@@ -816,11 +821,11 @@ enum caam_status caam_prime_rsa_gen(struct prime_data_rsa *data)
 	 * small prime is not found in the list, continue anyway
 	 * but prime will be probably not so strong
 	 */
-	search_smallprime(data->p->length, &small_prime);
+	search_smallprime(key_size, &small_prime);
 
 	RSA_TRACE("Do prime of %zu bytes (security len %zu bits) (ERA=%" PRId8
 		  ")",
-		  data->p->length, data->key_size, data->era);
+		  key_size, data->key_size, data->era);
 
 	do_desc_setup(all_descs, data, &small_prime, paddr_desc_p);
 
@@ -841,7 +846,8 @@ enum caam_status caam_prime_rsa_gen(struct prime_data_rsa *data)
 		do_desc_prime(desc_q, data, &small_prime, true,
 			      paddr_desc_check_p_q);
 
-		do_checks_primes(desc_check_p_q, data->p, &max_n, paddr_desc_q);
+		do_checks_primes(desc_check_p_q, data->p, &max_n, paddr_desc_q,
+				 key_size);
 	} else {
 		do_desc_prime(desc_p, data, &small_prime, false, 0);
 	}
