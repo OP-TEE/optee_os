@@ -236,15 +236,6 @@ uint32_t fdt_read_uint32_default(const void *fdt, int node,
 				 const char *prop_name, uint32_t dflt_value);
 
 /*
- * Check whether the node at @node has a reference name.
- *
- * @node is the offset of the node that describes the device in @fdt.
- *
- * Returns true on success or false if no property
- */
-bool fdt_check_node(const void *fdt, int node);
-
-/*
  * This function fills reg node info (base & size) with an index.
  *
  * Returns 0 on success and a negative FDT error code on failure.
