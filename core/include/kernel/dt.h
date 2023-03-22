@@ -216,6 +216,13 @@ int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
 			  uint32_t *array, size_t count);
 
 /*
+ * Read one cell from a given multi-value property of the given node.
+ * Returns 0 on success, or a negative FDT error value otherwise.
+ */
+int fdt_read_uint32_index(const void *fdt, int node, const char *prop_name,
+			  int index, uint32_t *value);
+
+/*
  * Read one cell from a given property of the given node.
  * Returns 0 on success, or a negative FDT error value otherwise.
  */
@@ -302,6 +309,15 @@ static inline uint32_t fdt_read_uint32_default(const void *fdt __unused,
 					       uint32_t dflt_value __unused)
 {
 	return dflt_value;
+}
+
+static inline int fdt_read_uint32_index(const void *fdt __unused,
+					int node __unused,
+					const char *prop_name __unused,
+					int index __unused,
+					uint32_t *value __unused)
+{
+	return -1;
 }
 
 #endif /* !CFG_DT */
