@@ -110,6 +110,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_I2C:
 	case DT_DRIVER_PINCTRL:
 	case DT_DRIVER_INTERRUPT:
+	case DT_DRIVER_NVMEM:
 		return;
 	default:
 		assert(0);
@@ -162,6 +163,7 @@ static bool dt_driver_use_parent_controller(enum dt_driver_type type)
 {
 	switch (type) {
 	case DT_DRIVER_PINCTRL:
+	case DT_DRIVER_NVMEM:
 		return true;
 	default:
 		return false;
