@@ -316,6 +316,24 @@ int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
 	return 0;
 }
 
+int fdt_read_uint32_index(const void *fdt, int node, const char *prop_name,
+			  int index, uint32_t *value)
+{
+	const fdt32_t *cuint = NULL;
+	int len = 0;
+
+	cuint = fdt_getprop(fdt, node, prop_name, &len);
+	if (!cuint)
+		return len;
+
+	if ((uint32_t)len < (sizeof(uint32_t) * (index + 1)))
+		return -FDT_ERR_BADLAYOUT;
+
+	*value = fdt32_to_cpu(cuint[index]);
+
+	return 0;
+}
+
 int fdt_read_uint32(const void *fdt, int node, const char *prop_name,
 		    uint32_t *value)
 {
@@ -325,10 +343,9 @@ int fdt_read_uint32(const void *fdt, int node, const char *prop_name,
 uint32_t fdt_read_uint32_default(const void *fdt, int node,
 				 const char *prop_name, uint32_t dflt_value)
 {
-	uint32_t value = 0;
+	uint32_t ret = dflt_value;
 
-	if (fdt_read_uint32(fdt, node, prop_name, &value) < 0)
-		return dflt_value;
+	fdt_read_uint32_index(fdt, node, prop_name, 0, &ret);
 
-	return value;
+	return ret;
 }
