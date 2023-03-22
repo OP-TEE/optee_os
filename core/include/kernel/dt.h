@@ -244,6 +244,23 @@ uint32_t fdt_read_uint32_default(const void *fdt, int node,
  */
 bool fdt_check_node(const void *fdt, int node);
 
+/*
+ * This function fills reg node info (base & size) with an index.
+ *
+ * Returns 0 on success and a negative FDT error code on failure.
+ */
+int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
+			       paddr_t *base, size_t *size);
+
+/*
+ * This function fills reg node info (base & size) with an index found by
+ * checking the reg-names node.
+ *
+ * Returns 0 on success and a negative FDT error code on failure.
+ */
+int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
+			      paddr_t *base, size_t *size);
+
 #else /* !CFG_DT */
 
 static inline const struct dt_driver *dt_find_compatible_driver(
@@ -315,6 +332,24 @@ static inline int fdt_read_uint32_index(const void *fdt __unused,
 					const char *prop_name __unused,
 					int index __unused,
 					uint32_t *value __unused)
+{
+	return -1;
+}
+
+static inline int fdt_get_reg_props_by_index(const void *fdt __unused,
+					     int node __unused,
+					     int index __unused,
+					     paddr_t *base __unused,
+					     size_t *size __unused)
+{
+	return -1;
+}
+
+static inline int fdt_get_reg_props_by_name(const void *fdt __unused,
+					    int node __unused,
+					    const char *name __unused,
+					    paddr_t *base __unused,
+					    size_t *size __unused)
 {
 	return -1;
 }
