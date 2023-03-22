@@ -189,10 +189,25 @@ paddr_t fdt_reg_base_address(const void *fdt, int offs)
 	return fdt_read_paddr(reg, ncells);
 }
 
+static size_t fdt_read_size(const uint32_t *cell, int n)
+{
+	uint32_t sz = 0;
+
+	sz = fdt32_to_cpu(*cell);
+	if (n == 2) {
+		if (sz)
+			return DT_INFO_INVALID_REG_SIZE;
+
+		cell++;
+		sz = fdt32_to_cpu(*cell);
+	}
+
+	return sz;
+}
+
 size_t fdt_reg_size(const void *fdt, int offs)
 {
 	const uint32_t *reg;
-	uint32_t sz;
 	int n;
 	int len;
 	int parent;
@@ -215,15 +230,7 @@ size_t fdt_reg_size(const void *fdt, int offs)
 	if (n < 1 || n > 2)
 		return DT_INFO_INVALID_REG_SIZE;
 
-	sz = fdt32_to_cpu(*reg);
-	if (n == 2) {
-		if (sz)
-			return DT_INFO_INVALID_REG_SIZE;
-		reg++;
-		sz = fdt32_to_cpu(*reg);
-	}
-
-	return sz;
+	return fdt_read_size(reg, n);
 }
 
 static bool is_okay(const char *st, int len)
