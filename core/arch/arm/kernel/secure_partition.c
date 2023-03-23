@@ -1590,6 +1590,12 @@ static TEE_Result sp_init_all(void)
 		}
 	}
 
+	/*
+	 * At this point all FIP SPs are loaded by ldelf or by the raw binary SP
+	 * loader, so the original images (loaded by BL2) are not needed anymore
+	 */
+	fip_sp_deinit_all();
+
 	/* Continue the initialization and run the SP */
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
 		res = sp_first_run(s);
@@ -1600,12 +1606,6 @@ static TEE_Result sp_init_all(void)
 				panic();
 		}
 	}
-
-	/*
-	 * At this point all FIP SPs are loaded by ldelf or by the raw binary SP
-	 * loader, so the original images (loaded by BL2) are not needed anymore
-	 */
-	fip_sp_deinit_all();
 
 	return TEE_SUCCESS;
 }
