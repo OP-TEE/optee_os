@@ -36,9 +36,6 @@ static bool oefid_key_supported(size_t bits)
 
 static bool oefid_algo_supported(uint32_t algo)
 {
-	if (!algo)
-		return true;
-
 	switch (se050_get_oefid()) {
 	case SE050F_ID:
 		switch (algo) {
