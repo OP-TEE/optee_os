@@ -51,6 +51,7 @@ static size_t get_ecc_key_size_bits(uint32_t curve)
 	case TEE_ECC_CURVE_NIST_P224:
 	case TEE_ECC_CURVE_NIST_P256:
 	case TEE_ECC_CURVE_NIST_P384:
+	case TEE_ECC_CURVE_SM2:
 		return get_ecc_key_size_bytes(curve) * 8;
 
 	case TEE_ECC_CURVE_NIST_P521:
@@ -84,6 +85,12 @@ static bool algo_is_valid(uint32_t curve, uint32_t algo)
 				     " is valid", algo, curve);
 			return true;
 		}
+	}
+
+	if (algo_op == TEE_OPERATION_ASYMMETRIC_SIGNATURE &&
+	    algo_id == TEE_MAIN_ALGO_SM2_DSA_SM3) {
+		if (curve == TEE_ECC_CURVE_SM2)
+			return true;
 	}
 
 	CRYPTO_TRACE("Algo 0x%" PRIx32 " curve 0x%" PRIx32 " is not valid",
@@ -508,6 +515,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
 	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
@@ -520,8 +528,10 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	if (!ret) {
 		key->ops = &ecc_keypair_ops;
 
+		/* ecc->alloc_keypair() can not get type to set curve */
 		switch (type) {
 		case TEE_TYPE_SM2_PKE_KEYPAIR:
+		case TEE_TYPE_SM2_DSA_KEYPAIR:
 			key->curve = TEE_ECC_CURVE_SM2;
 			break;
 		default:
@@ -556,6 +566,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
 	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
@@ -568,8 +579,10 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	if (!ret) {
 		key->ops = &ecc_public_key_ops;
 
+		/* ecc->alloc_publickey() can not get type to set curve */
 		switch (type) {
 		case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 			key->curve = TEE_ECC_CURVE_SM2;
 			break;
 		default:
