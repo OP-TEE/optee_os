@@ -900,9 +900,28 @@ enum pkcs11_user_type {
  * Once TEE Identity based authentication is activated following operational
  * changes happen:
  * - PIN failure counters are disabled to prevent token authentication lockups
- * - Switching to different authentication mode is not possible
  * - When C_Login() or so is performed actual PIN value is ignored and active
  *   client TEE Identity will be used
+ *
+ * After a successful call to C_InitToken(), one can switch authentication
+ * mode as user credentials have been cleared. After user credentials has been
+ * set authentication mode switching is protected.
+ *
+ * To switch the authentication mode from PIN to TEE Identity:
+ * - Make sure active TEE Identity is set for the TA connection
+ * - Login as SO so that PIN change affects SO
+ * - Call C_SetPIN() with empty PIN to capture current TEE Identity as SO
+ *   credential
+ * - Optional: Successive call to C_SetPIN() can be used for change to other
+ *   TEE Identity vs. current TA connection
+ *
+ * To switch the authentication mode from TEE Identity to PIN:
+ * - Make sure SO's TEE Identity is set for the TA connection
+ * - Login as SO so that PIN change affects SO
+ * - Call C_SetPIN() with any PIN that does not match TEE Identity PIN syntax
+ * - Optional: Successive call to C_SetPIN() can be used to change SO
+ *   credential to any valid PIN if there was collision with TEE Identity PIN
+ *   syntax
  *
  * Different types of TEE Identity authentication methods can be configured:
  * - Configured with C_InitToken(), C_InitPIN() or by C_SetPIN()
