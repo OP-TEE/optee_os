@@ -900,7 +900,7 @@ enum pkcs11_user_type {
  * Once TEE Identity based authentication is activated following operational
  * changes happen:
  * - PIN failure counters are disabled to prevent token authentication lockups
- * - Switching to different authentication mode needs C_InitToken()
+ * - Switching to different authentication mode is not possible
  * - When C_Login() or so is performed actual PIN value is ignored and active
  *   client TEE Identity will be used
  *
