@@ -859,52 +859,27 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 			if (sess->token == token)
 				return PKCS11_CKR_SESSION_EXISTS;
 
-#if defined(CFG_PKCS11_TA_AUTH_TEE_IDENTITY)
-	/* Check TEE Identity based authentication if enabled */
-	if (token->db_main->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH) {
-		rc = verify_identity_auth(token, PKCS11_CKU_SO);
-		if (rc)
-			return rc;
-	}
-
-	/* Detect TEE Identity based ACL usage activation with NULL PIN */
-	if (!pin) {
-		rc = setup_so_identity_auth_from_client(token);
-		if (rc)
-			return rc;
-
-		goto inited;
-	} else {
-		/* De-activate TEE Identity based authentication */
-		token->db_main->flags &=
-			~PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH;
-	}
-#endif /* CFG_PKCS11_TA_AUTH_TEE_IDENTITY */
-
-	if (!token->db_main->so_pin_salt) {
-		/*
-		 * The spec doesn't permit returning
-		 * PKCS11_CKR_PIN_LEN_RANGE for this function, take another
-		 * error code.
-		 */
-		if (pin_size < PKCS11_TOKEN_PIN_SIZE_MIN ||
-		    pin_size > PKCS11_TOKEN_PIN_SIZE_MAX)
-			return PKCS11_CKR_ARGUMENTS_BAD;
-
-		rc = hash_pin(PKCS11_CKU_SO, pin, pin_size,
-			      &token->db_main->so_pin_salt,
-			      token->db_main->so_pin_hash);
-		if (rc)
-			return rc;
-
-		goto inited;
-	}
-
-	rc = verify_pin(PKCS11_CKU_SO, pin, pin_size,
-			token->db_main->so_pin_salt,
-			token->db_main->so_pin_hash);
-	if (rc) {
+	/* Verify authentication if token is already initialized */
+	if (token->db_main->flags & PKCS11_CKFT_TOKEN_INITIALIZED) {
 		unsigned int pin_count = 0;
+
+		if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
+		    (token->db_main->flags &
+		     PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH)) {
+			/* Check TEE Identity based authentication if enabled */
+			rc = verify_identity_auth(token, PKCS11_CKU_SO);
+			if (rc)
+				return rc;
+
+			goto inited;
+		}
+
+		/* Check PIN based authentication */
+		rc = verify_pin(PKCS11_CKU_SO, pin, pin_size,
+				token->db_main->so_pin_salt,
+				token->db_main->so_pin_hash);
+		if (!rc)
+			goto inited;
 
 		if (rc != PKCS11_CKR_PIN_INCORRECT)
 			return rc;
@@ -921,6 +896,28 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 		update_persistent_db(token);
 
 		return PKCS11_CKR_PIN_INCORRECT;
+	}
+
+	/* Initialize SO's authentication */
+	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) && !pin) {
+		rc = setup_so_identity_auth_from_client(token);
+		if (rc)
+			return rc;
+	} else {
+		/*
+		 * The spec doesn't permit returning
+		 * PKCS11_CKR_PIN_LEN_RANGE for this function, take another
+		 * error code.
+		 */
+		if (pin_size < PKCS11_TOKEN_PIN_SIZE_MIN ||
+		    pin_size > PKCS11_TOKEN_PIN_SIZE_MAX)
+			return PKCS11_CKR_ARGUMENTS_BAD;
+
+		rc = hash_pin(PKCS11_CKU_SO, pin, pin_size,
+			      &token->db_main->so_pin_salt,
+			      token->db_main->so_pin_hash);
+		if (rc)
+			return rc;
 	}
 
 inited:
