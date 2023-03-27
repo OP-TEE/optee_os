@@ -4,7 +4,9 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
+#include <dt-bindings/clock/st,stm32mp25-rcc.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/st,stm32mp25-rcc.h>
 
 / {
 	#address-cells = <2>;
@@ -75,12 +77,10 @@
 			clock-frequency = <0>;
 		};
 
-		clocks {
-			clk_rcbsec: clk-rcbsec {
-				#clock-cells = <0>;
-				compatible = "fixed-clock";
-				clock-frequency = <64000000>;
-			};
+		clk_rcbsec: clk-rcbsec {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <64000000>;
 		};
 	};
 
@@ -130,6 +130,31 @@
 			};
 		};
 
+		rcc: rcc@44200000 {
+			compatible = "st,stm32mp25-rcc", "syscon";
+			reg = <0x44200000 0x10000>;
+			interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
+
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			clocks = <&clk_hse>, <&clk_hsi>, <&clk_lse>,
+				 <&clk_lsi>, <&clk_msi>, <&clk_i2sin>;
+			clock-names = "clk-hse", "clk-hsi", "clk-lse",
+				      "clk-lsi", "clk-msi", "clk-i2sin";
+
+			hsi_calibration: hsi-calibration {
+				compatible = "st,hsi-cal";
+				st,cal_hsi_dev = <31>;
+				st,cal_hsi_ref = <1953>;
+				status = "disabled";
+			};
+
+			msi_calibration: msi-calibration {
+				compatible = "st,msi-cal";
+				status = "disabled";
+			};
+		};
+
 		pinctrl: pinctrl@44240000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -143,6 +168,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x0 0x400>;
+				clocks = <&rcc CK_BUS_GPIOA>;
 				st,bank-name = "GPIOA";
 				status = "disabled";
 			};
@@ -153,6 +179,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x10000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOB>;
 				st,bank-name = "GPIOB";
 				status = "disabled";
 			};
@@ -163,6 +190,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x20000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOC>;
 				st,bank-name = "GPIOC";
 				status = "disabled";
 			};
@@ -173,6 +201,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x30000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOD>;
 				st,bank-name = "GPIOD";
 				status = "disabled";
 			};
@@ -183,6 +212,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x40000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOE>;
 				st,bank-name = "GPIOE";
 				status = "disabled";
 			};
@@ -193,6 +223,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x50000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOF>;
 				st,bank-name = "GPIOF";
 				status = "disabled";
 			};
@@ -203,6 +234,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x60000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOG>;
 				st,bank-name = "GPIOG";
 				status = "disabled";
 			};
@@ -213,6 +245,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x70000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOH>;
 				st,bank-name = "GPIOH";
 				status = "disabled";
 			};
@@ -223,6 +256,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x80000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOI>;
 				st,bank-name = "GPIOI";
 				status = "disabled";
 			};
@@ -233,6 +267,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0x90000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOJ>;
 				st,bank-name = "GPIOJ";
 				status = "disabled";
 			};
@@ -243,6 +278,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0xa0000 0x400>;
+				clocks = <&rcc CK_BUS_GPIOK>;
 				st,bank-name = "GPIOK";
 				status = "disabled";
 			};
@@ -261,6 +297,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0 0x400>;
+				clocks = <&rcc CK_BUS_GPIOZ>;
 				st,bank-name = "GPIOZ";
 				st,bank-ioport = <11>;
 				status = "disabled";
