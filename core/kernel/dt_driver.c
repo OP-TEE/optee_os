@@ -133,9 +133,6 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
 	}
 
 	phandle = fdt_get_phandle(fdt, nodeoffset);
-	if (!phandle)
-		return TEE_SUCCESS;
-
 	if (phandle == (uint32_t)-1) {
 		DMSG("Failed to find provide phandle");
 		return TEE_ERROR_GENERIC;
