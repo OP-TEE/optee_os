@@ -108,3 +108,6 @@ $(call force,CFG_SCMI_MSG_CLOCK,y)
 $(call force,CFG_SCMI_MSG_USE_CLK,y)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y)
 endif
+
+CFG_DRIVERS_NVMEM ?= y
+CFG_ATMEL_SFC ?= y
