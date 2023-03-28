@@ -40,7 +40,7 @@ caam_dh_init(struct caam_jrcfg *caam_jrcfg __unused)
 }
 #endif /* CFG_NXP_CAAM_DH_DRV */
 
-#ifdef CFG_NXP_CAAM_ACIPHER_DRV
+#ifdef CFG_NXP_CAAM_MATH_DRV
 /*
  * Initialize the MATH module
  *
@@ -53,7 +53,7 @@ caam_math_init(struct caam_jrcfg *caam_jrcfg __unused)
 {
 	return CAAM_NO_ERROR;
 }
-#endif /* CFG_NXP_CAAM_ACIPHER_DRV */
+#endif /* CFG_NXP_CAAM_MATH_DRV */
 
 #ifdef CFG_NXP_CAAM_ECC_DRV
 /*
