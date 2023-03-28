@@ -82,7 +82,6 @@ static TEE_Result imx_configure_tzasc(void)
 	}
 	return TEE_SUCCESS;
 }
-driver_init(imx_configure_tzasc);
 
 static TEE_Result
 pm_enter_resume(enum pm_op op, uint32_t pm_hint __unused,
