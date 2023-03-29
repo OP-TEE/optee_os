@@ -854,6 +854,10 @@ static TEE_Result dump_ta_memstats(struct tee_ta_session *s,
 	if (!ts_ctx)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
+	if (is_user_ta_ctx(ts_ctx) &&
+	    to_user_ta_ctx(ts_ctx)->uctx.is_initializing)
+		return TEE_ERROR_BAD_STATE;
+
 	ctx = ts_to_ta_ctx(ts_ctx);
 
 	if (ctx->panicked)
