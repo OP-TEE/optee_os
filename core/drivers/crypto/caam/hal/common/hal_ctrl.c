@@ -131,6 +131,7 @@ void caam_hal_ctrl_inc_priblob(vaddr_t baseaddr)
 		panic("Written PRIBLOB and read PRIBLOB do not match!");
 }
 
+#ifdef CFG_NXP_CAAM_MP_DRV
 uint8_t caam_hal_ctrl_get_mpcurve(vaddr_t ctrl_addr)
 {
 	uint32_t val_scfgr = 0;
@@ -252,3 +253,4 @@ void caam_hal_ctrl_fill_mpmr(vaddr_t ctrl_addr, struct caambuf *msg_mpmr)
 		DMSG("val_scfgr = %#"PRIx32, io_caam_read32(ctrl_addr + SCFGR));
 	}
 }
+#endif /* CFG_NXP_CAAM_MP_DRV */
