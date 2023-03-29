@@ -60,6 +60,7 @@ uint8_t caam_hal_ctrl_era(vaddr_t baseaddr);
  */
 void caam_hal_ctrl_inc_priblob(vaddr_t baseaddr);
 
+#ifdef CFG_NXP_CAAM_MP_DRV
 /*
  * Get the SCFGR content and check the MPCURVE fields.
  * The function returns either:
@@ -93,4 +94,5 @@ void caam_hal_ctrl_fill_mpmr(vaddr_t ctrl_addr, struct caambuf *msg_mpmr);
  * @ctrl_addr  Controller base address
  */
 bool caam_hal_ctrl_is_mp_set(vaddr_t ctrl_addr);
+#endif /* CFG_NXP_CAAM_MP_DRV */
 #endif /* __CAAM_HAL_CTRL_H__ */
