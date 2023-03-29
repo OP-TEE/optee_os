@@ -153,7 +153,7 @@ $(foreach f, $(libfiles), \
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
 	mk/cc-option.mk \
-	ta/arch/$(ARCH)/link.mk ta/arch/$(ARCH)/link_shlib.mk \
+	ta/link.mk ta/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 
 $(foreach f, $(ta-mkfiles), \
@@ -175,7 +175,7 @@ $(foreach f, $(incfiles-extra-host), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/host_include)))
 
 # Copy the src files
-ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
+ta-srcfiles = ta/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
 ifeq ($(ta-target),ta_arm32)
 ta-srcfiles += ta/arch/$(ARCH)/ta_entry_a32.S
 endif
