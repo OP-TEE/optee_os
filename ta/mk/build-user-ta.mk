@@ -66,7 +66,7 @@ additional-compile-deps := $(ta_dev_kit-files-include)
 include mk/compile.mk
 # Install TA libraries before in-tree TAs can be linked
 additional-link-deps := $(ta_dev_kit-files-lib)
-include  ta/arch/$(ARCH)/link.mk
+include  ta/link.mk
 
 ta_dev_kit: $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta
 
