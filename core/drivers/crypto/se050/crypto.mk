@@ -28,6 +28,8 @@ CFG_CORE_SE05X_INIT_NVM ?= n
 # Secure Element (SE) Non Volatile Memory object unless there is explicit
 # confirmation from the SE that the NVM object has been removed.
 CFG_CORE_SE05X_BLOCK_OBJ_DEL_ON_ERROR ?= n
+# Select the SE05X applet version for aligning the built-in features
++CFG_CORE_SE05X_VER ?= 03_XX
 
 # I2C bus baudrate (depends on SoC)
 CFG_CORE_SE05X_BAUDRATE ?= 3400000
