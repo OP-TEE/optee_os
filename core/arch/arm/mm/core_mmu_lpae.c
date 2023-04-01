@@ -1138,7 +1138,7 @@ static uint64_t *core_mmu_get_user_mapping_entry(struct mmu_partition *prtn,
 						 unsigned int base_idx)
 {
 #if (CORE_MMU_BASE_TABLE_LEVEL == 0)
-	uint8_t idx = 0;
+	l1_idx_t idx = 0;
 	uint64_t *tbl = NULL;
 #endif
 
