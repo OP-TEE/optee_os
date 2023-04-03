@@ -347,7 +347,6 @@ static TEE_Result ecc_sm2_encrypt(struct ecc_public_key *key,
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
 	struct drvcrypt_ecc_ed cdata = { };
 	struct drvcrypt_ecc *ecc = NULL;
-	size_t ciphertext_len = 0;
 	size_t size_bytes = 0;
 
 	ecc = drvcrypt_get_ops(CRYPTO_ECC);
@@ -358,22 +357,17 @@ static TEE_Result ecc_sm2_encrypt(struct ecc_public_key *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* Uncompressed form indicator */
-	dst[0] = 0x04;
-
-	ciphertext_len = 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE;
-
 	cdata.key = key;
 	cdata.size_sec = size_bytes;
 	cdata.plaintext.data = (uint8_t *)src;
 	cdata.plaintext.length = src_len;
-	cdata.ciphertext.data = dst + 1;
-	cdata.ciphertext.length = ciphertext_len;
+	cdata.ciphertext.data = dst;
+	cdata.ciphertext.length = *dst_len;
 
 	ret = ecc->encrypt(&cdata);
 
 	if (!ret || ret == TEE_ERROR_SHORT_BUFFER)
-		*dst_len = cdata.ciphertext.length + 1;
+		*dst_len = cdata.ciphertext.length;
 
 	return ret;
 }
@@ -408,12 +402,7 @@ static TEE_Result ecc_sm2_decrypt(struct ecc_keypair *key,
 	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
 	struct drvcrypt_ecc_ed cdata = { };
 	struct drvcrypt_ecc *ecc = NULL;
-	uint8_t *ciphertext = NULL;
-	size_t ciphertext_len = 0;
 	size_t size_bytes = 0;
-	size_t plaintext_len = 0;
-	/* Point Compression */
-	uint8_t pc = 0;
 
 	ecc = drvcrypt_get_ops(CRYPTO_ECC);
 
@@ -423,35 +412,12 @@ static TEE_Result ecc_sm2_decrypt(struct ecc_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	pc = src[0];
-	switch (pc) {
-	case 0x02:
-	case 0x03:
-		/* Compressed form */
-		return TEE_ERROR_NOT_SUPPORTED;
-	case 0x04:
-		/* Uncompressed form */
-		ciphertext = (uint8_t *)src + 1;
-		ciphertext_len = src_len - 1;
-		break;
-	case 0x06:
-	case 0x07:
-		/* Hybrid form */
-		return TEE_ERROR_NOT_SUPPORTED;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	if (SUB_OVERFLOW(ciphertext_len, 2 * size_bytes + TEE_SM3_HASH_SIZE,
-			 &plaintext_len))
-		return TEE_ERROR_BAD_PARAMETERS;
-
 	cdata.key = key;
 	cdata.size_sec = size_bytes;
-	cdata.ciphertext.data = ciphertext;
-	cdata.ciphertext.length = ciphertext_len;
+	cdata.ciphertext.data = (uint8_t *)src;
+	cdata.ciphertext.length = src_len;
 	cdata.plaintext.data = dst;
-	cdata.plaintext.length = plaintext_len;
+	cdata.plaintext.length = *dst_len;
 
 	ret = ecc->decrypt(&cdata);
 
