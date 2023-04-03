@@ -10,6 +10,7 @@
 #include <caam_jr.h>
 #include <caam_utils_mem.h>
 #include <caam_utils_status.h>
+#include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
 #include <mm/core_memprot.h>
@@ -690,6 +691,41 @@ out:
 	return ret;
 }
 
+static TEE_Result do_encrypt(struct drvcrypt_ecc_ed *cdata)
+{
+	const struct crypto_ecc_public_ops *ops = NULL;
+	TEE_Result res = 0;
+
+	ops = crypto_asym_get_ecc_public_ops(TEE_TYPE_SM2_PKE_PUBLIC_KEY);
+	if (!ops)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	res = ops->encrypt(cdata->key, cdata->plaintext.data,
+			    cdata->plaintext.length,
+			    cdata->ciphertext.data,
+			    &cdata->ciphertext.length);
+
+	return res;
+}
+
+static TEE_Result do_decrypt(struct drvcrypt_ecc_ed *cdata)
+{
+	const struct crypto_ecc_keypair_ops *ops = NULL;
+	TEE_Result res = 0;
+
+	ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_SM2_PKE_KEYPAIR);
+	if (!ops)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	res = ops->decrypt(cdata->key,
+			    cdata->ciphertext.data,
+			    cdata->ciphertext.length,
+			    cdata->plaintext.data,
+			    &cdata->plaintext.length);
+
+	return res;
+}
+
 /*
  * Registration of the ECC Driver
  */
@@ -701,6 +737,8 @@ static struct drvcrypt_ecc driver_ecc = {
 	.sign = do_sign,
 	.verify = do_verify,
 	.shared_secret = do_shared_secret,
+	.encrypt = do_encrypt,
+	.decrypt = do_decrypt,
 };
 
 enum caam_status caam_ecc_init(struct caam_jrcfg *caam_jrcfg)
