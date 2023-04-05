@@ -505,7 +505,7 @@ static TEE_Result i2c_mapped(const char *i2c_match)
 		if (off < 0)
 			break;
 
-		if (!(_fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
+		if (!(fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
 			EMSG("i2c%zu not enabled", i + 1);
 			continue;
 		}

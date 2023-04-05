@@ -97,14 +97,14 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
 
 	assert(cpu_mmu_enabled());
 
-	st = _fdt_get_status(fdt, offs);
+	st = fdt_get_status(fdt, offs);
 	if (st == DT_STATUS_DISABLED)
 		return -1;
 
-	pbase = _fdt_reg_base_address(fdt, offs);
+	pbase = fdt_reg_base_address(fdt, offs);
 	if (pbase == DT_INFO_INVALID_REG)
 		return -1;
-	sz = _fdt_reg_size(fdt, offs);
+	sz = fdt_reg_size(fdt, offs);
 	if (sz == DT_INFO_INVALID_REG_SIZE)
 		return -1;
 
@@ -140,7 +140,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
 }
 
 /* Read a physical address (n=1 or 2 cells) */
-static paddr_t _fdt_read_paddr(const uint32_t *cell, int n)
+static paddr_t fdt_read_paddr(const uint32_t *cell, int n)
 {
 	paddr_t addr;
 
@@ -167,7 +167,7 @@ bad:
 
 }
 
-paddr_t _fdt_reg_base_address(const void *fdt, int offs)
+paddr_t fdt_reg_base_address(const void *fdt, int offs)
 {
 	const void *reg;
 	int ncells;
@@ -186,10 +186,10 @@ paddr_t _fdt_reg_base_address(const void *fdt, int offs)
 	if (ncells < 0)
 		return DT_INFO_INVALID_REG;
 
-	return _fdt_read_paddr(reg, ncells);
+	return fdt_read_paddr(reg, ncells);
 }
 
-size_t _fdt_reg_size(const void *fdt, int offs)
+size_t fdt_reg_size(const void *fdt, int offs)
 {
 	const uint32_t *reg;
 	uint32_t sz;
@@ -231,7 +231,7 @@ static bool is_okay(const char *st, int len)
 	return !strncmp(st, "ok", len) || !strncmp(st, "okay", len);
 }
 
-int _fdt_get_status(const void *fdt, int offs)
+int fdt_get_status(const void *fdt, int offs)
 {
 	const char *prop;
 	int st = 0;
@@ -259,7 +259,7 @@ int _fdt_get_status(const void *fdt, int offs)
 	return st;
 }
 
-void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
+void fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 {
 	struct dt_node_info dinfo = {
 		.reg = DT_INFO_INVALID_REG,
@@ -270,8 +270,8 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 	};
 	const fdt32_t *cuint;
 
-	dinfo.reg = _fdt_reg_base_address(fdt, offs);
-	dinfo.reg_size = _fdt_reg_size(fdt, offs);
+	dinfo.reg = fdt_reg_base_address(fdt, offs);
+	dinfo.reg_size = fdt_reg_size(fdt, offs);
 
 	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
 	if (cuint) {
@@ -288,13 +288,13 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 	dinfo.interrupt = dt_get_irq_type_prio(fdt, offs, &dinfo.type,
 					       &dinfo.prio);
 
-	dinfo.status = _fdt_get_status(fdt, offs);
+	dinfo.status = fdt_get_status(fdt, offs);
 
 	*info = dinfo;
 }
 
-int _fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
-			   uint32_t *array, size_t count)
+int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
+			  uint32_t *array, size_t count)
 {
 	const fdt32_t *cuint = NULL;
 	int len = 0;
@@ -316,18 +316,18 @@ int _fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
 	return 0;
 }
 
-int _fdt_read_uint32(const void *fdt, int node, const char *prop_name,
-		     uint32_t *value)
+int fdt_read_uint32(const void *fdt, int node, const char *prop_name,
+		    uint32_t *value)
 {
-	return _fdt_read_uint32_array(fdt, node, prop_name, value, 1);
+	return fdt_read_uint32_array(fdt, node, prop_name, value, 1);
 }
 
-uint32_t _fdt_read_uint32_default(const void *fdt, int node,
-				  const char *prop_name, uint32_t dflt_value)
+uint32_t fdt_read_uint32_default(const void *fdt, int node,
+				 const char *prop_name, uint32_t dflt_value)
 {
 	uint32_t value = 0;
 
-	if (_fdt_read_uint32(fdt, node, prop_name, &value) < 0)
+	if (fdt_read_uint32(fdt, node, prop_name, &value) < 0)
 		return dflt_value;
 
 	return value;

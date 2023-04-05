@@ -61,7 +61,7 @@ static int dt_pmic_status(void)
 		int node = dt_get_pmic_node(fdt);
 
 		if (node > 0)
-			return _fdt_get_status(fdt, node);
+			return fdt_get_status(fdt, node);
 	}
 
 	return -1;
@@ -430,7 +430,7 @@ static void parse_regulator_fdt_nodes(void)
 		panic();
 
 	fdt_for_each_subnode(regu_node, fdt, regulators_node) {
-		int status = _fdt_get_status(fdt, regu_node);
+		int status = fdt_get_status(fdt, regu_node);
 		const char *regu_name = NULL;
 		size_t n = 0;
 
@@ -489,7 +489,7 @@ static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
 	if (i2c_node < 0)
 		return -FDT_ERR_NOTFOUND;
 
-	_fdt_fill_device_info(fdt, i2c_info, i2c_node);
+	fdt_fill_device_info(fdt, i2c_info, i2c_node);
 	if (!i2c_info->reg)
 		return -FDT_ERR_NOTFOUND;
 

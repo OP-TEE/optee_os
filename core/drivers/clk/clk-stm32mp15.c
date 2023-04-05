@@ -1178,7 +1178,7 @@ static unsigned int clk_freq_prop(const void *fdt, int node)
 	int ret = 0;
 
 	/* Disabled clocks report null rate */
-	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
 		return 0;
 
 	cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);

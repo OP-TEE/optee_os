@@ -39,9 +39,9 @@ static paddr_t find_jr_offset(void *fdt, int status, int *find_node)
 	     node = fdt_node_offset_by_compatible(fdt, node,
 						  dt_jr_match_table)) {
 		HAL_TRACE("Found Job Ring node status @%" PRId32, node);
-		if (_fdt_get_status(fdt, node) == status) {
+		if (fdt_get_status(fdt, node) == status) {
 			HAL_TRACE("Found Job Ring node @%" PRId32, node);
-			jr_offset = _fdt_reg_base_address(fdt, node);
+			jr_offset = fdt_reg_base_address(fdt, node);
 			*find_node = node;
 			break;
 		}
@@ -69,13 +69,13 @@ void caam_hal_cfg_get_ctrl_dt(void *fdt, vaddr_t *ctrl_base)
 	 * already present in the MMU table.
 	 * Then get the virtual address of the CAAM controller
 	 */
-	pctrl_base = _fdt_reg_base_address(fdt, node);
+	pctrl_base = fdt_reg_base_address(fdt, node);
 	if (pctrl_base == DT_INFO_INVALID_REG) {
 		HAL_TRACE("CAAM control base address not defined");
 		return;
 	}
 
-	size = _fdt_reg_size(fdt, node);
+	size = fdt_reg_size(fdt, node);
 	if (size == DT_INFO_INVALID_REG_SIZE) {
 		HAL_TRACE("CAAM control base address size not defined");
 		return;
@@ -127,7 +127,7 @@ void caam_hal_cfg_disable_jobring_dt(void *fdt, struct caam_jrcfg *jrcfg)
 	     node = fdt_node_offset_by_compatible(fdt, node,
 						  dt_jr_match_table)) {
 		HAL_TRACE("Found Job Ring node @%" PRId32, node);
-		if (_fdt_reg_base_address(fdt, node) == jrcfg->offset) {
+		if (fdt_reg_base_address(fdt, node) == jrcfg->offset) {
 			HAL_TRACE("Disable Job Ring node @%" PRId32, node);
 			if (dt_enable_secure_status(fdt, node))
 				panic();

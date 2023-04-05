@@ -165,7 +165,7 @@ static TEE_Result atmel_tcb_probe(const void *fdt, int node,
 	if (tcb_base)
 		return TEE_SUCCESS;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_SUCCESS;
 
 	res = clk_dt_get_by_name(fdt, node, "slow_clk", &clk);

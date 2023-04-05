@@ -136,7 +136,7 @@ struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
 	struct stm32_pinctrl *pinctrl_cfg = NULL;
 	int count = 0;
 
-	_fdt_fill_device_info(fdt, &info, node);
+	fdt_fill_device_info(fdt, &info, node);
 
 	if (info.status == DT_STATUS_DISABLED)
 		return NULL;

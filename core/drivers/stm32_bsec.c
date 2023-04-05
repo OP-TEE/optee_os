@@ -688,8 +688,8 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 		unsigned int i = 0;
 		size_t size = 0;
 
-		reg_offset = _fdt_reg_base_address(fdt, bsec_subnode);
-		reg_size = _fdt_reg_size(fdt, bsec_subnode);
+		reg_offset = fdt_reg_base_address(fdt, bsec_subnode);
+		reg_size = fdt_reg_size(fdt, bsec_subnode);
 
 		assert(reg_offset != DT_INFO_INVALID_REG &&
 		       reg_size != DT_INFO_INVALID_REG_SIZE);
@@ -794,8 +794,8 @@ static void save_dt_nvmem_layout(void *fdt, int bsec_node)
 		if (!string || !len)
 			continue;
 
-		reg_offset = _fdt_reg_base_address(fdt, node);
-		reg_length = _fdt_reg_size(fdt, node);
+		reg_offset = fdt_reg_base_address(fdt, node);
+		reg_length = fdt_reg_size(fdt, node);
 
 		if (reg_offset == DT_INFO_INVALID_REG ||
 		    reg_length == DT_INFO_INVALID_REG_SIZE) {
@@ -844,7 +844,7 @@ static void initialize_bsec_from_dt(void)
 	if (node < 0)
 		panic();
 
-	_fdt_fill_device_info(fdt, &bsec_info, node);
+	fdt_fill_device_info(fdt, &bsec_info, node);
 
 	if (bsec_info.reg != bsec_dev.base.pa ||
 	    !(bsec_info.status & DT_STATUS_OK_SEC))

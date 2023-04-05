@@ -428,7 +428,7 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_node_info dt_rng = { };
 
-	_fdt_fill_device_info(fdt, &dt_rng, node);
+	fdt_fill_device_info(fdt, &dt_rng, node);
 	if (dt_rng.reg == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
 

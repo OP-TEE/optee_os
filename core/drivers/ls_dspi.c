@@ -550,7 +550,7 @@ static TEE_Result get_info_from_device_tree(struct ls_dspi_data *dspi_data)
 	while (node != -FDT_ERR_NOTFOUND) {
 		node = fdt_node_offset_by_compatible(fdt, node,
 						     "fsl,lx2160a-dspi");
-		if (!(_fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
+		if (!(fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
 			continue;
 
 		bus_num = fdt_getprop(fdt, node, "bus-num", NULL);

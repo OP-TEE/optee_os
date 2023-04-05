@@ -577,7 +577,7 @@ TEE_Result matrix_dt_get_id(const void *fdt, int node, unsigned int *id)
 	unsigned int i = 0;
 	paddr_t pbase = 0;
 
-	pbase = _fdt_reg_base_address(fdt, node);
+	pbase = fdt_reg_base_address(fdt, node);
 	if (pbase == DT_INFO_INVALID_REG)
 		return TEE_ERROR_BAD_PARAMETERS;
 

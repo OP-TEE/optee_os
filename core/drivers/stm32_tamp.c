@@ -218,7 +218,7 @@ static TEE_Result stm32_tamp_parse_fdt(struct stm32_tamp_instance *tamp,
 {
 	struct dt_node_info dt_tamp = { };
 
-	_fdt_fill_device_info(fdt, &dt_tamp, node);
+	fdt_fill_device_info(fdt, &dt_tamp, node);
 
 	if (dt_tamp.reg == DT_INFO_INVALID_REG ||
 	    dt_tamp.reg_size == DT_INFO_INVALID_REG_SIZE)

@@ -695,7 +695,7 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	/* Default STM32 specific configs caller may need to overwrite */
 	memset(init, 0, sizeof(*init));
 
-	_fdt_fill_device_info(fdt, &info, node);
+	fdt_fill_device_info(fdt, &info, node);
 	assert(info.reg != DT_INFO_INVALID_REG &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 

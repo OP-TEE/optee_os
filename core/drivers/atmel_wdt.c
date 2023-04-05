@@ -230,7 +230,7 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	int it = DT_INFO_INVALID_INTERRUPT;
 	struct itr_handler *it_hdlr;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	matrix_configure_periph_secure(AT91C_ID_WDT);

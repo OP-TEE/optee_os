@@ -84,7 +84,7 @@ static void atmel_trng_reset(void)
 static TEE_Result trng_node_probe(const void *fdt, int node,
 				  const void *compat_data __unused)
 {
-	int status = _fdt_get_status(fdt, node);
+	int status = fdt_get_status(fdt, node);
 	size_t size = 0;
 	struct clk *clk = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
