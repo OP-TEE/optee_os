@@ -288,7 +288,7 @@ static TEE_Result atmel_rtc_probe(const void *fdt, int node,
 	if (rtc_base)
 		return TEE_ERROR_GENERIC;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	matrix_configure_periph_secure(AT91C_ID_SYS);

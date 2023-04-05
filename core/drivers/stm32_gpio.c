@@ -187,7 +187,7 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 			panic();
 
 		/* Check controller is enabled */
-		if (_fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
+		if (fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
 			panic();
 
 		return;

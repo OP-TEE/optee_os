@@ -328,11 +328,11 @@ static TEE_Result init_etzpc_from_dt(void)
 		panic();
 	assert(fdt_node_offset_by_compatible(fdt, node, ETZPC_COMPAT) < 0);
 
-	status = _fdt_get_status(fdt, node);
+	status = fdt_get_status(fdt, node);
 	if (!(status & DT_STATUS_OK_SEC))
 		panic();
 
-	pbase = _fdt_reg_base_address(fdt, node);
+	pbase = fdt_reg_base_address(fdt, node);
 	if (pbase == (paddr_t)-1)
 		panic();
 

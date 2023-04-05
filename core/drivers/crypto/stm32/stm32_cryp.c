@@ -1253,7 +1253,7 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 	struct rstctrl *rstctrl = NULL;
 	struct clk *clk = NULL;
 
-	_fdt_fill_device_info(fdt, &dt_cryp, node);
+	fdt_fill_device_info(fdt, &dt_cryp, node);
 
 	if (dt_cryp.reg == DT_INFO_INVALID_REG ||
 	    dt_cryp.reg_size == DT_INFO_INVALID_REG_SIZE)

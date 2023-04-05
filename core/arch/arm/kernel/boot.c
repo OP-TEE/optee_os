@@ -1081,7 +1081,7 @@ static int get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
 		if (offs < 0)
 			break;
 
-		if (_fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
+		if (fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
 						   DT_STATUS_OK_SEC))
 			continue;
 

@@ -208,7 +208,7 @@ static TEE_Result stm32_rstctrl_provider_probe(const void *fdt, int offs,
 
 	assert(rstctrl_ops_is_valid(&stm32_rstctrl_ops));
 
-	_fdt_fill_device_info(fdt, &info, offs);
+	fdt_fill_device_info(fdt, &info, offs);
 
 	assert(info.reg == RCC_BASE &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);

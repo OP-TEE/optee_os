@@ -648,7 +648,7 @@ TEE_Result dt_driver_maybe_add_probe_node(const void *fdt, int node)
 	const char *compat = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
 		return TEE_SUCCESS;
 
 	count = fdt_stringlist_count(fdt, node, "compatible");
@@ -688,7 +688,7 @@ static void parse_node(const void *fdt, int node)
 		 * stack depth to possibly parse all DT nodes.
 		 */
 		if (IS_ENABLED(CFG_DRIVERS_DT_RECURSIVE_PROBE)) {
-			if (_fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
+			if (fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
 				continue;
 
 			parse_node(fdt, subnode);

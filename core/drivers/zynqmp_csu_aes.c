@@ -403,7 +403,7 @@ TEE_Result zynqmp_csu_aes_dt_enable_secure_status(void)
 	if (node < 0)
 		return TEE_SUCCESS;
 
-	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
 		return TEE_SUCCESS;
 
 	if (dt_enable_secure_status(fdt, node)) {

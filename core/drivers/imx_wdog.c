@@ -116,7 +116,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 		while (off >= 0) {
 			off = fdt_node_offset_by_compatible(fdt, off, match);
 			if (off > 0) {
-				st = _fdt_get_status(fdt, off);
+				st = fdt_get_status(fdt, off);
 				if (st & DT_STATUS_OK_SEC) {
 					DMSG("Wdog found at %u", off);
 					found_off = off;
