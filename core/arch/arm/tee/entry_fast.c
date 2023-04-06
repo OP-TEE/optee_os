@@ -5,6 +5,7 @@
  */
 
 #include <config.h>
+#include <drivers/wdt.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/notif.h>
@@ -287,6 +288,13 @@ void __tee_entry_fast(struct thread_smc_args *args)
 	case OPTEE_SMC_GET_ASYNC_NOTIF_VALUE:
 		if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
 			get_async_notif_value(args);
+		else
+			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	case OPTEE_SMC_WDT_HANDLER_MASK:
+		if (IS_ENABLED(CFG_WDT_SM_HANDLER))
+			__wdt_sm_handler(args);
 		else
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;

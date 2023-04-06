@@ -560,6 +560,37 @@
 #define OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG	U(19)
 
 /*
+ * Access to the secure watchdog.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_FUNCID_WATCHDOG
+ * a1	Watchdog command
+ *	0 : Init watchdog
+ *	1 : Set timeout
+ *	2 : Enable watchdog
+ *	3 : Ping the watchdog for refresh
+ *	4 : Get time left
+ * a2-6	Not use
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	if a1 == 0, the minimal timeout value supported by watchdog
+ *	if a1 == 4, the remaining time before watchdog expires
+ *	preserved otherwise.
+ * a2	if a1 == 0, the maximum timeout value supported by watchdog
+ *	preserved otherwise.
+ * a3-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_WATCHDOG		U(20)
+#define OPTEE_SMC_FUNCID_WATCHDOG_MASK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_WATCHDOG)
+
+/*
  * Resume from RPC (for example after processing a foreign interrupt)
  *
  * Call register usage:
