@@ -309,7 +309,7 @@ int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
 
 	cuint = fdt_getprop(fdt, node, prop_name, &len);
 	if (!cuint)
-		return -FDT_ERR_NOTFOUND;
+		return len;
 
 	if ((uint32_t)len != (count * sizeof(uint32_t)))
 		return -FDT_ERR_BADLAYOUT;
