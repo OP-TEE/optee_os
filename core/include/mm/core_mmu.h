@@ -478,6 +478,22 @@ static inline bool core_mmu_is_dynamic_vaspace(struct tee_mmap_region *mm)
 		mm->type == MEM_AREA_SHM_VASPACE;
 }
 
+#ifdef CFG_CORE_PIC
+/*
+ * core_mmu_is_PIC_vaspace() - Check if memory region belongs to
+ *  empty virtual address space that is used for PIC mappings
+ * @mm:		memory region to be checked
+ * @returns result of the check
+ */
+static inline bool core_mmu_is_PIC_vaspace(struct tee_mmap_region *mm)
+{
+	return mm->type == MEM_AREA_TEE_RAM_RX ||
+		mm->type == MEM_AREA_TEE_RAM_RO ||
+		mm->type == MEM_AREA_TEE_RAM_RW ||
+		mm->type == MEM_AREA_TA_RAM;
+}
+#endif
+
 /*
  * core_mmu_map_pages() - map list of pages at given virtual address
  * @vstart:	Virtual address where mapping begins

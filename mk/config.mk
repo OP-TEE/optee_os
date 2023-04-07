@@ -316,6 +316,12 @@ CFG_TA_ASLR_MAX_OFFSET_PAGES ?= 128
 # corruption vulnerabilities more difficult.
 CFG_CORE_ASLR ?= y
 
+# When this flag is enabled, OPTEE will support PIC booting.
+# The loading address of OPTEE does not need to be equal to the link address.
+ifeq ($(CFG_ARM64_core),y)
+CFG_CORE_PIC ?= y
+endif
+
 # Stack Protection for TEE Core
 # This flag enables the compiler stack protection mechanisms -fstack-protector.
 # It will check the stack canary value before returning from a function to

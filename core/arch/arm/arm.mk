@@ -229,7 +229,14 @@ core-platform-cflags += $(platform-cflags-debug-info)
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
 
+ENABLE_PIE =
 ifeq ($(CFG_CORE_ASLR),y)
+ENABLE_PIE = yes
+endif
+ifeq ($(CFG_CORE_PIC),y)
+ENABLE_PIE = yes
+endif
+ifeq ($(ENABLE_PIE),yes)
 core-platform-cflags += -fpie
 endif
 

@@ -133,6 +133,14 @@ register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
 
 static unsigned int mmu_spinlock;
 
+#ifdef CFG_CORE_PIC
+/*
+ * Before final page table is created, the virtual address of IO is equal
+ * to the physical address.
+ */
+static unsigned int io_va_equal_pa = 1;
+#endif
+
 static uint32_t mmu_lock(void)
 {
 	return cpu_spin_lock_xsave(&mmu_spinlock);
@@ -1201,8 +1209,28 @@ static bool mem_map_add_id_map(struct tee_mmap_region *memory_map,
 	return true;
 }
 
-static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
-				  size_t num_elems, unsigned long seed)
+#ifdef CFG_CORE_PIC
+static void adjust_secure_mem_address(void)
+{
+	/*
+	 * After PIC is enabled, the loading address of the kernel image may be
+	 * different from the link address. The address of the secure_only need
+	 * to be adjusted to the physical address.
+	 */
+	paddr_t pa;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(secure_only); i++) {
+		secure_only[i].paddr += boot_mmu_config.link_offset;
+		arch_va2pa_helper((void *)secure_only[i].paddr, &pa);
+		secure_only[i].paddr = pa;
+	}
+}
+#endif
+
+static void init_mem_map(struct tee_mmap_region *memory_map,
+			 size_t num_elems, unsigned long seed,
+			 struct core_mmu_config *cfg)
 {
 	/*
 	 * @id_map_start and @id_map_end describes a physical memory range
@@ -1213,8 +1241,26 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 	vaddr_t id_map_end = (vaddr_t)__identity_map_init_end;
 	unsigned long offs = 0;
 	size_t last = 0;
+#ifdef CFG_CORE_PIC
+	paddr_t pa;
+	size_t m;
+#endif
 
 	last = collect_mem_ranges(memory_map, num_elems);
+#ifdef CFG_CORE_PIC
+	/*
+	 * After PIC is enabled, the loading address of the kernel image may be
+	 * different from the link address. The base address of the tee memory
+	 * block collected by macro definition is the link address and needs to
+	 * be converted to the actual loading address.
+	 */
+	for (m = 0; !core_mmap_is_end_of_table(memory_map + m); m++)
+		if (core_mmu_is_PIC_vaspace(memory_map + m)) {
+			memory_map[m].pa += boot_mmu_config.link_offset;
+			arch_va2pa_helper((void *)memory_map[m].pa, &pa);
+			memory_map[m].pa = pa;
+		}
+#endif
 	assign_mem_granularity(memory_map);
 
 	/*
@@ -1226,7 +1272,8 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 
 	add_pager_vaspace(memory_map, num_elems, &last);
 	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
-		vaddr_t base_addr = TEE_RAM_START + seed;
+		vaddr_t base_addr = TEE_RAM_START + seed + \
+					boot_mmu_config.link_offset;
 		const unsigned int va_width = core_mmu_get_va_width();
 		const vaddr_t va_mask = GENMASK_64(va_width - 1,
 						   SMALL_PAGE_SHIFT);
@@ -1240,7 +1287,8 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 			if (assign_mem_va(ba, memory_map) &&
 			    mem_map_add_id_map(memory_map, num_elems, &last,
 					       id_map_start, id_map_end)) {
-				offs = ba - TEE_RAM_START;
+				offs = ba - TEE_RAM_START - \
+					boot_mmu_config.link_offset;
 				DMSG("Mapping core at %#"PRIxVA" offs %#lx",
 				     ba, offs);
 				goto out;
@@ -1251,16 +1299,59 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 		EMSG("Failed to map core with seed %#lx", seed);
 	}
 
-	if (!assign_mem_va(TEE_RAM_START, memory_map))
+	if (!assign_mem_va(TEE_RAM_START + boot_mmu_config.link_offset,
+			   memory_map))
 		panic();
 
 out:
+#ifdef CFG_CORE_PIC
+	/*
+	 * When CFG_CORE_PIC and CFG_CORE_ASLR both are enabled, we need adjust
+	 * link offset and the va of identity mapping. The identity mapping is
+	 * used for ttbr0_el1 switching.
+	 */
+	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
+		cfg->link_offset = offs;
+		for (m = 0; !core_mmap_is_end_of_table(memory_map + m); m++)
+			if (memory_map[m].type == MEM_AREA_IDENTITY_MAP_RX) {
+				arch_va2pa_helper( \
+					(void *)__identity_map_init_start,
+					&id_map_start);
+				memory_map[m].pa = ROUNDDOWN(id_map_start,
+							     SMALL_PAGE_SIZE);
+				break;
+			}
+	} else {
+		cfg->link_offset = 0;
+	}
+	/*
+	 * In the CFG_CORE_PIC scenario, need to calculate the offset between
+	 * the loading address and the link address for updating vbar and sp.
+	 */
+	for (m = 0; !core_mmap_is_end_of_table(memory_map + m); m++)
+		if (memory_map[m].type == MEM_AREA_TEE_RAM_RX) {
+			offs = memory_map[m].va - memory_map[m].pa;
+			break;
+		}
+
+	/*
+	 * The loading address may be different from the link address.
+	 * Therefore, when enabling the slave core MMU, the identity mapping
+	 * needs to be established to prevent CPU pipeline conflicts.
+	 */
+	arch_va2pa_helper((void *)__identity_map_init_start, &id_map_start);
+	arch_va2pa_helper((void *)__identity_map_init_end, &id_map_end);
+	mem_map_add_id_map(memory_map, num_elems, &last, id_map_start,
+			   id_map_end);
+#else
+	cfg->link_offset = offs;
+#endif
 	qsort(memory_map, last, sizeof(struct tee_mmap_region),
 	      cmp_mmap_by_lower_va);
 
 	dump_mmap_table(memory_map);
 
-	return offs;
+	cfg->load_offset = offs;
 }
 
 static void check_mem_map(struct tee_mmap_region *map)
@@ -1344,7 +1435,17 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 #endif
 	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
 	struct tee_mmap_region *tmp_mmap = get_tmp_mmap();
-	unsigned long offs = 0;
+
+#ifdef CFG_CORE_PIC
+	/*
+	 * When the PIC is enabled, the address needs to be changed to the
+	 * actual physical address.
+	 */
+	paddr_t pstart;
+
+	arch_va2pa_helper((void *)start, &pstart);
+	adjust_secure_mem_address();
+#endif
 
 	check_sec_nsec_mem_config();
 
@@ -1355,21 +1456,30 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	static_memory_map[0] = (struct tee_mmap_region){
 		.type = MEM_AREA_TEE_RAM,
 		.region_size = SMALL_PAGE_SIZE,
+#ifdef CFG_CORE_PIC
+		.pa = pstart,
+#else
 		.pa = start,
+#endif
 		.va = start,
 		.size = len,
 		.attr = core_mmu_type_to_attr(MEM_AREA_IDENTITY_MAP_RX),
 	};
 
 	COMPILE_TIME_ASSERT(CFG_MMAP_REGIONS >= 13);
-	offs = init_mem_map(tmp_mmap, ARRAY_SIZE(static_memory_map), seed);
-
+	init_mem_map(tmp_mmap, ARRAY_SIZE(static_memory_map), seed, cfg);
 	check_mem_map(tmp_mmap);
 	core_init_mmu(tmp_mmap);
 	dump_xlat_table(0x0, CORE_MMU_BASE_TABLE_LEVEL);
 	core_init_mmu_regs(cfg);
-	cfg->load_offset = offs;
 	memcpy(static_memory_map, tmp_mmap, sizeof(static_memory_map));
+#ifdef CFG_CORE_PIC
+	/*
+	 * After final page table is created, the virtual address of IO is not
+	 * equal to the physical address.
+	 */
+	io_va_equal_pa = 0;
+#endif
 }
 
 bool core_mmu_mattr_is_ok(uint32_t mattr)
@@ -2281,6 +2391,11 @@ void *phys_to_virt_io(paddr_t pa, size_t len)
 	struct tee_mmap_region *map = NULL;
 	void *va = NULL;
 
+#ifdef CFG_CORE_PIC
+	if (io_va_equal_pa)
+		return (void *)pa;
+#endif
+
 	map = find_map_by_type_and_pa(MEM_AREA_IO_SEC, pa, len);
 	if (!map)
 		map = find_map_by_type_and_pa(MEM_AREA_IO_NSEC, pa, len);
@@ -2321,6 +2436,12 @@ void core_mmu_init_virtualization(void)
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len)
 {
 	assert(p->pa);
+
+#ifdef CFG_CORE_PIC
+	if (io_va_equal_pa)
+		return p->pa;
+#endif
+
 	if (cpu_mmu_enabled()) {
 		if (!p->va)
 			p->va = (vaddr_t)phys_to_virt_io(p->pa, len);

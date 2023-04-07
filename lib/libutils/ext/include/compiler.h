@@ -62,7 +62,7 @@
 #define __rodata_dummy	__section(".rodata.dummy" __SECTION_FLAGS_RODATA)
 #define __rodata_unpaged(x) \
 	__section(".rodata.__unpaged." x __SECTION_FLAGS_RODATA)
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 #define __relrodata_unpaged(x) __section(".data.rel.ro.__unpaged." x)
 #else
 #define __relrodata_unpaged(x) __rodata_unpaged(x)

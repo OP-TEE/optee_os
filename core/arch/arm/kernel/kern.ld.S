@@ -62,6 +62,11 @@
 					(TEE_LOAD_ADDR - TEE_RAM_START))
 
 /*
+ * TEMP_PAGE_TABLES_SIZE:        The memory size of temporery page tables
+ */
+#define TEMP_PAGE_TABLES_SIZE (65536)
+
+/*
  * Note:
  * Clang 11 (ld.lld) generates non-relocatable reference when using ROUNDDOWN()
  * from <util.h>, which does not work with ASLR.
@@ -134,7 +139,7 @@ SECTIONS
 #include <rodata_unpaged.ld.S>
 #else
 		*(.rodata .rodata.*)
-#ifndef CFG_CORE_ASLR
+#if !defined(CFG_CORE_ASLR) && !defined(CFG_CORE_PIC)
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
 #endif
@@ -143,7 +148,7 @@ SECTIONS
 		__rodata_end = .;
 	}
 
-#if defined(CFG_CORE_ASLR)
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 	.data.rel.ro : {
 #if !defined(CFG_WITH_PAGER)
 		. = ALIGN(8);
@@ -254,6 +259,13 @@ SECTIONS
 		__bss_end = .;
 	}
 
+	.table : {
+		. = ALIGN(0x1000);
+		__temp_pagetable_start = .;
+		. += TEMP_PAGE_TABLES_SIZE;
+		__temp_pagetable_end = .;
+	}
+
 	.heap1 (NOLOAD) : {
 		/*
 		 * We're keeping track of the padding added before the
@@ -338,13 +350,13 @@ SECTIONS
 	.rodata_init : {
 		__rodata_init_start = .;
 #include <rodata_init.ld.S>
-#ifndef CFG_CORE_ASLR
+#if !defined(CFG_CORE_ASLR) && !defined(CFG_CORE_PIC)
 		. = ALIGN(8);
 		KEEP(*(SORT(.scattered_array*)));
 #endif
 		__rodata_init_end = .;
 	}
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 	.data.rel.ro_init : ALIGN(8) {
 		KEEP(*(SORT(.scattered_array*)));
 	}
@@ -438,7 +450,7 @@ SECTIONS
 	.rela : {
 		*(.rela.*)
 	}
-#ifndef CFG_CORE_ASLR
+#if !defined(CFG_CORE_ASLR) && !defined(CFG_CORE_PIC)
 	ASSERT(SIZEOF(.rel) == 0, "Relocation entries not expected")
 	ASSERT(SIZEOF(.rela) == 0, "Relocation entries not expected")
 #endif

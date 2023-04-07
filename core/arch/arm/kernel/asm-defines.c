@@ -143,8 +143,22 @@ DEFINES
 
 	/* struct core_mmu_config */
 	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
+#if defined(ARM64)
+	DEFINE(CORE_MMU_CONFIG_TCR_EL1,
+	       offsetof(struct core_mmu_config, tcr_el1));
+	DEFINE(CORE_MMU_CONFIG_MAIR_EL1,
+	       offsetof(struct core_mmu_config, mair_el1));
+	DEFINE(CORE_MMU_CONFIG_TTBR0_EL1_BASE,
+	       offsetof(struct core_mmu_config, ttbr0_el1_base));
+	DEFINE(CORE_MMU_CONFIG_TTBR0_CORE_OFFSET,
+	       offsetof(struct core_mmu_config, ttbr0_core_offset));
+#endif
 	DEFINE(CORE_MMU_CONFIG_LOAD_OFFSET,
 	       offsetof(struct core_mmu_config, load_offset));
+#if defined(ARM64)
+	DEFINE(CORE_MMU_CONFIG_LINK_OFFSET,
+	       offsetof(struct core_mmu_config, link_offset));
+#endif
 
 	/* struct boot_embdata */
 	DEFINE(BOOT_EMBDATA_HASHES_OFFSET,

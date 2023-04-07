@@ -15,7 +15,14 @@ link-ldflags-common += $(call ld-option,--no-warn-execstack)
 endif
 
 link-ldflags  = $(LDFLAGS)
+ENABLE_PIC =
 ifeq ($(CFG_CORE_ASLR),y)
+ENABLE_PIC = yes
+endif
+ifeq ($(CFG_CORE_PIC),y)
+ENABLE_PIC = yes
+endif
+ifeq ($(ENABLE_PIC),yes)
 link-ldflags += -pie -Bsymbolic -z norelro $(ldflag-apply-dynamic-relocs)
 ifeq ($(CFG_ARM64_core),y)
 link-ldflags += -z text

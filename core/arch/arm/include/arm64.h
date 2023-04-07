@@ -267,6 +267,30 @@
 
 #define GCR_EL1_RRND				BIT64(16)
 
+#ifdef CFG_CORE_PIC
+
+#define TEMP_PAGE_SIZE			U(0x1000)
+#define TEMP_BLOCK_SIZE			U(0x200000)
+#define PGD_INDEX_OFFSET		U(39)
+#define PUD_INDEX_OFFSET		U(30)
+#define PMD_INDEX_OFFSET		U(21)
+#define PD_INDEX_OFFSET			U(12)
+#define MMU_VALID_TABLE_FLAG		U(3)
+#define LOW_BLOCK_RO			U(0xfc5)
+#define LOW_BLOCK_RW			U(0xf05)
+#define LOW_BLOCK_DEVICE		U(0xe21)
+#define PTRS_PER_PGD			U(512)
+#define PTRS_PER_PUD			U(512)
+#define PTRS_PER_PMD			U(512)
+#define PTRS_PER_PD			U(512)
+
+#define MAIR_DEVICE_NGNRE		U(4)
+#define MAIR_NORMAL			(0xff << 8)
+
+#define TCR_T0SZ(x)			(64 - x)
+#define MMU_VA_BITS			U(48)
+#endif /* CFG_CORE_PIC */
+
 #ifndef __ASSEMBLER__
 static inline __noprof void isb(void)
 {

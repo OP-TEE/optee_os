@@ -55,9 +55,6 @@
 		orr	x0, x0, #SCTLR_I
 		orr	x0, x0, #SCTLR_SA
 		orr	x0, x0, #SCTLR_SPAN
-#if defined(CFG_CORE_RWDATA_NOEXEC)
-		orr	x0, x0, #SCTLR_WXN
-#endif
 #if defined(CFG_SCTLR_ALIGNMENT_CHECK)
 		orr	x0, x0, #SCTLR_A
 #else
@@ -141,6 +138,393 @@
 		msr	sctlr_el1, x0
 		isb
 	.endm
+
+#ifdef CFG_CORE_PIC
+	/*
+	 * The identity mapping and console mapping both map pa to pa, and
+	 * kernel image mapping maps link address to loading address(pa).
+	 * So when the link address overlaps the loading address and console
+	 * address, the same va may map to different pa. And We can avoid
+	 * this by using the link address offset to relocate the link address.
+	 *
+	 * Macro to calculate link address offset
+	 *
+	 * pstart:	physical address start
+	 * lstart:	link address start
+	 * ksize:	kernel image size
+	 * bsize:	memory block size(2M)
+	 * offset:	link address offset
+	 * tmp1, tmp2:	temporary variable
+	 *
+	 * return:	offset
+	 */
+	.macro calculate_link_address_offset pstart, lstart, ksize, bsize,\
+					     offset, tmp1, tmp2
+		add	\tmp1, \lstart, \ksize
+		subs	\tmp2, \pstart, \tmp1
+		b.ge	1f
+		add	\tmp1, \pstart, \bsize
+		subs	\tmp2, \lstart, \tmp1
+		b.ge	1f
+		sub	\tmp2, \tmp1, \lstart
+		add	\offset, \offset, \tmp2
+	1:
+	.endm
+
+	/*
+	 * Macro to calculate all link address offset, that includes identity
+	 * mapping offset, console mapping offset, and LPC mapping offset.
+	 */
+	.macro calculate_all_link_address_offset
+		mov	x16, #0
+		adrp	x1, __text_start
+		ldr	x2, =CFG_TZDRAM_START
+		ldr	x3, =CFG_TZDRAM_SIZE
+		ldr	x4, =TEMP_BLOCK_SIZE
+		calculate_link_address_offset x1, x2, x3, x4, x16, x5, x6
+		ldr	x1, =CONSOLE_UART_BASE
+		add	x2, x2, x16
+		calculate_link_address_offset x1, x2, x3, x4, x16, x5, x6
+#ifdef CFG_SUPPORT_LPC
+		ldr	x1, =LPC_BASE
+		ldr	x2, =CFG_TZDRAM_START
+		add	x2, x2, x16
+		ldr	x4, =LPC_SIZE
+		calculate_link_address_offset x1, x2, x3, x4, x16, x5, x6
+#endif
+		/*
+		 * The difference between the link address and the loading
+		 * address must be 2 MB aligned.
+		 */
+		ldr	x4, =TEMP_BLOCK_SIZE
+		sub	x4, x4, #1
+		add	x16, x16, x4
+		bic	x16, x16, #TEMP_BLOCK_SIZE - 1
+		adrp	x1, __text_start
+		and	x1, x1, x4
+		ldr	x2, =CFG_TZDRAM_START
+		and	x2, x2, x4
+		sub	x15, x1, x2
+		add	x16, x16, x15
+	.endm
+
+	/*
+	 * Macro to populate page table entries, these entries are pointers to
+	 * the next level page table.
+	 *
+	 * tbl:	page table address
+	 * rtbl:	pointer to page table
+	 * index:	start index to write
+	 * eindex:	end index to write - [index, eindex] written to
+	 * flags:	flags for pagetable entry to or in
+	 * inc:	increment to rtbl between each entry
+	 * sv:	save the start address of the page table of the current level
+	 * tmp:	temporary variable
+	 *
+	 * Preserves:	tbl, eindex, flags, inc
+	 * Corrupts:	index, rtbl, tmp
+	 * Returns:	sv
+	 */
+	.macro populate_entries, tbl, rtbl, index, eindex, flags, inc, sv, tmp
+		mov	\sv, #0
+	1:
+		ldr	\tmp, [\tbl, \index, lsl #3]
+		cbnz	\tmp, 2f
+		mov	\tmp, \rtbl
+		orr	\tmp, \tmp, \flags
+		str	\tmp, [\tbl, \index, lsl #3]
+		add	\rtbl, \rtbl, \inc
+	2:
+		cbnz	\sv, 3f
+		mov	\sv, \tmp
+	3:
+		add	\index, \index, #1
+		cmp	\index, \eindex
+		b.ls	1b
+	.endm
+
+	/*
+	 * Macro to populate page table entries, these entries are pointers to
+	 * the last level entries pointing to physical memory.
+	 *
+	 * tbl:	page table address
+	 * phys:	pointer to physical memory
+	 * index:	start index to write
+	 * eindex:	end index to write - [index, eindex] written to
+	 * flags:	flags for pagetable entry to or in
+	 * inc:	increment to phys between each entry
+	 * tmp:	temporary variable
+	 *
+	 * Preserves:	tbl, eindex, flags, inc
+	 * Corrupts:	index, phys, tmp
+	 */
+	.macro populate_last_entries tbl, phys, index, eindex, flags, inc, tmp
+	1:
+		ldr	\tmp, [\tbl, \index, lsl #3]
+		cbnz	\tmp, 2f
+		mov	\tmp, \phys
+		orr	\tmp, \tmp, \flags
+		str	\tmp, [\tbl, \index, lsl #3]
+	2:
+		add	\index, \index, #1
+		add	\phys, \phys, \inc
+		cmp	\index, \eindex
+		b.ls	1b
+	.endm
+
+	/*
+	 * Compute the indices of table entries from virtual address range.
+	 * If multiple entries were needed in the previous page table level
+	 * then the next page table level is assumed to be composed of
+	 * multiple pages. (This effectively scales the end index).
+	 *
+	 * vstart:	virtual address of start of range
+	 * vend:	virtual address of end of range - we map [vstart, vend]
+	 * shift:	shift used to transform virtual address into index
+	 * ptrs:	number of entries in page table
+	 * istart:	index in table corresponding to vstart
+	 * iend:	index in table corresponding to vend
+	 * count:	On entry: how many extra entries were required in
+	 * 			previous level, scales our end index.
+	 * On exit: returns how many extra entries required for next page table
+	 * level
+	 *
+	 * Preserves:	vstart, vend, shift, ptrs
+	 * Returns:	istart, iend, count
+	 */
+	.macro compute_indices, vstart, vend, shift, ptrs, istart, iend, count
+		lsr	\iend, \vend, \shift
+		mov	\istart, \ptrs
+		sub	\istart, \istart, #1
+		and	\iend, \iend, \istart
+		mov	\istart, \ptrs
+		mul	\istart, \istart, \count
+		add	\iend, \iend, \istart
+		lsr	\istart, \vstart, \shift
+		mov	\count, \ptrs
+		sub	\count, \count, #1
+		and	\istart, \istart, \count
+
+		sub	\count, \iend, \istart
+	.endm
+
+
+	/*
+	 * Create 3 level page tables, the last level page table map to
+	 * 2M block, and va is 48 bits.
+	 * Page tables layout is as follows:
+	 * Table level    0           1           2            2M block
+	 *            -------------------------------------------------------
+         *           |   9bits   |   9bits   |   9bits   |      21bits      |
+         *            -------------------------------------------------------
+	 *    va         47-39       38-30       29-21           20-0
+	 *
+	 * Map memory for specified virtual address range. Each level of page
+	 * table needed supports multiple entries. If a level requires n
+	 * entries the next page table level is assumed to be formed from n
+	 * pages.
+	 *
+	 * tbl:	location of page table
+	 * rtbl:	address to be used for first level page table entry
+	 * vstart:	start of virtual address range
+	 * vend:	end of virtual address range
+	 * flags:	flags to use to map last level entries
+	 * phys:	physical address corresponding to vstart
+	 *
+	 * Temporaries:	istart, iend, tmp, count, sv
+	 * Preserves:	vstart, flags
+	 * Corrupts:	tbl, rtbl, vend, istart, iend, tmp, count, sv
+	 */
+	.macro map_temp_memory_block tbl, rtbl, vstart, vend, flags, phys,\
+				     istart, iend, tmp, count, sv
+		sub	\vend, \vend, #1
+		mov	\count, #0
+
+		compute_indices \vstart, \vend, #PGD_INDEX_OFFSET,\
+				#PTRS_PER_PGD, \istart, \iend, \count
+		populate_entries \tbl, \rtbl, \istart, \iend,\
+				 #MMU_VALID_TABLE_FLAG, #TEMP_PAGE_SIZE,\
+				 \sv, \tmp
+		bic	\sv, \sv, #TEMP_PAGE_SIZE - 1
+		mov	\tbl, \sv
+
+		compute_indices \vstart, \vend, #PUD_INDEX_OFFSET,\
+				#PTRS_PER_PUD, \istart, \iend, \count
+		populate_entries \tbl, \rtbl, \istart, \iend,\
+				 #MMU_VALID_TABLE_FLAG, #TEMP_PAGE_SIZE,\
+				 \sv, \tmp
+		bic	\sv, \sv, #TEMP_PAGE_SIZE - 1
+		mov	\tbl, \sv
+
+		compute_indices \vstart, \vend, #PMD_INDEX_OFFSET,\
+				#PTRS_PER_PMD, \istart, \iend, \count
+		bic	\count, \phys, #TEMP_BLOCK_SIZE - 1
+		populate_last_entries \tbl, \count, \istart, \iend, \flags,\
+				      #TEMP_BLOCK_SIZE, \tmp
+	.endm
+
+	/*
+	 * Create the temporary page tables to solve the problem that the link
+	 * address is different the load address. The temporary page tables
+	 * consists of three parts of the memory mapping: the identity mapping,
+	 * the kernel image mapping, and the console mapping.
+	 * The identity mapping can solve the problem that physical addresses
+	 * are regarded as virtual addresses due to the CPU pipeline mechanism
+	 * when the MMU is enabled. The kernel mapping maps the link address to
+	 * the load address to solve the problem that the link address is
+	 * inconsistent with the load address in the PIC scenario. The console
+	 * mapping can help to use console printing after the MMU is enabled.
+	 * If console printing needs LPC, we needs to map LPC.
+	 * The base address of The temporary page tables is
+	 * __temp_pagetable_start, and the following page table`s base address
+	 * is obtained thought the TEMP_PAGE_SIZE offset.
+	 */
+
+	.macro create_temp_pagetables
+		/* Clear the pagetables */
+		adrp	x0, __temp_pagetable_start
+		adrp	x1, __temp_pagetable_end
+	clear_pagetables:
+		str	xzr, [x0], #8
+		cmp	x0, x1
+		b.lt	clear_pagetables
+		/*
+		 * Create the identity mapping.
+		 * vstart:	__identity_map_init_start
+		 * vend:	__identity_map_init_end
+		 * pstart:	__identity_map_init_start
+		 */
+		adrp	x0, __temp_pagetable_start
+		add	x1, x0, #TEMP_PAGE_SIZE
+		adrp	x3, __identity_map_init_start
+		adrp	x6, __identity_map_init_end
+		ldr	x7, =LOW_BLOCK_RW
+		map_temp_memory_block x0, x1, x3, x6, x7, x3, x10, x11, x2,\
+				      x13, x14
+
+		/*
+		 * Create the kernel image mapping.
+		 * vstart:	CFG_TZDRAM_START
+		 * vend:	CFG_TZDRAM_START + CFG_TZDRAM_SIZE
+		 * pstart:	__text_start
+		 */
+		adrp	x0, __temp_pagetable_start
+		adrp	x3, __text_start
+		ldr	x5, =CFG_TZDRAM_START
+		add	x5, x5, x16	/* link address need to offset */
+		ldr	x6, =CFG_TZDRAM_SIZE
+		add	x6, x5, x6
+		ldr	x7, =LOW_BLOCK_RW
+		map_temp_memory_block x0, x1, x5, x6, x7, x3, x10, x11, x2,\
+				      x13, x14
+
+		/*
+		 * Create the console mapping.
+		 * vstart:	CONSOLE_UART_BASE
+	         * vend:	CONSOLE_UART_BASE + TEMP_BLOCK_SIZE
+		 * pstart:	CONSOLE_UART_BASE
+		 */
+		adrp	x0, __temp_pagetable_start
+		ldr	x5, =CONSOLE_UART_BASE
+		ldr	x6, =TEMP_BLOCK_SIZE
+		add	x6, x5, x6
+		mov	x3, x5
+		ldr	x7, =LOW_BLOCK_DEVICE
+		map_temp_memory_block x0, x1, x5, x6, x7, x3, x10, x11, x2,\
+				      x13, x14
+
+#ifdef CFG_SUPPORT_LPC
+		/*
+		 * create the LPC mapping.
+		 * vstart:	LPC_BASE
+		 * vend:	LPC_BASE + LPC_SIZE
+		 * pstart:	LPC_BASE
+		 */
+		adrp	x0, __temp_pagetable_start
+		ldr	x5, =LPC_BASE
+		ldr	x6, =LPC_SIZE
+		add	x6, x5, x6
+		mov	x3, x5
+		ldr	x7, =LOW_BLOCK_DEVICE
+		map_temp_memory_block x0, x1, x5, x6, x7, x3, x10, x11, x12,\
+				      x13, x14
+#endif
+	.endm
+
+	/*
+	 * Macro to get Intermediate Physical Address Size(ips) through
+	 * CFG_CORE_ARM64_PA_BITS.
+	 *
+	 * ips:	keep ips
+	 * tmp:	temporary
+	 * return:	ips
+	 *
+	 * Intermediate Physical Address Size.
+	 * 0b000      32 bits, 4GB.
+	 * 0b001      36 bits, 64GB.
+	 * 0b010      40 bits, 1TB.
+	 * 0b011      42 bits, 4TB.
+	 * 0b100      44 bits, 16TB.
+	 * 0b101      48 bits, 256TB.
+	 * 0b110      52 bits, 4PB (not supported)
+	 */
+	.macro get_tcr_ips ips, tmp
+#if	(CFG_CORE_ARM64_PA_BITS >= 32) && (CFG_CORE_ARM64_PA_BITS <=48)
+		ldr	\tmp, =CFG_CORE_ARM64_PA_BITS
+		mov	\ips, #0
+		cmp	\tmp, #32
+		b.ls	1f
+		mov	\ips, #1
+		cmp	\tmp, #36
+		b.ls	1f
+		mov	\ips, #2
+		cmp	\tmp, #40
+		b.ls	1f
+		mov	\ips, #3
+		cmp	\tmp, #42
+		b.ls	1f
+		mov	\ips, #4
+		cmp	\tmp, #44
+		b.ls	1f
+		mov	\ips, #5
+		cmp	\tmp, #48
+		b.ls	1f
+	1:
+		lsl	\ips, \ips, #TCR_EL1_IPS_SHIFT
+#else
+		static_assert(0);
+#endif
+	.endm
+
+	/*
+	 * Initialize TCR_EL1, MAIR_EL1, TTBR0_EL1, load offset, and save them
+	 * in boot_mmu_config.
+	 */
+	.macro init_mmu_config
+		adr	x1, boot_mmu_config + CORE_MMU_CONFIG_TCR_EL1
+		ldr	x0, =(TCR_T0SZ(MMU_VA_BITS) |\
+			     (TCR_XRGNX_WBWA << TCR_IRGN0_SHIFT) |\
+			     (TCR_XRGNX_WBWA << TCR_ORGN0_SHIFT) |\
+			     (TCR_SHX_ISH << TCR_SH0_SHIFT))
+		get_tcr_ips x2, x3
+		orr	x0, x0, x2
+		str	x0, [x1]
+		adr	x1, boot_mmu_config + CORE_MMU_CONFIG_MAIR_EL1
+		ldr	x0, =(MAIR_DEVICE_NGNRE | MAIR_NORMAL)
+		str	x0, [x1]
+		adr	x1, boot_mmu_config + CORE_MMU_CONFIG_TTBR0_EL1_BASE
+		adrp	x0, __temp_pagetable_start
+		str	x0, [x1]
+		ldr	x0, =CFG_TZDRAM_START
+		add	x0, x0, x16
+		adrp	x1, __text_start
+		sub	x0, x0, x1
+		adr	x1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+		str	x0, [x1]
+		adr	x1, boot_mmu_config + CORE_MMU_CONFIG_LINK_OFFSET
+		str	x16, [x1]
+	.endm
+#endif /* CFG_CORE_PIC */
 
 FUNC _start , :
 	/*
@@ -261,6 +645,22 @@ clear_nex_bss:
 	sub	x1, x1, x0
 	bl	dcache_cleaninv_range
 
+#ifdef CFG_CORE_PIC
+	/*
+	 * If CFG_CORE_PIC is enabled, creates the temporary page tables
+	 * and enable MMU.
+	 */
+	calculate_all_link_address_offset
+	create_temp_pagetables
+	init_mmu_config
+	cbz	x16, 22f
+	mov	x0, x16
+	bl	relocate
+22:
+	bl	__get_core_pos
+	bl	enable_mmu
+#endif
+
 	/* Enable Console */
 	bl	console_init
 
@@ -283,7 +683,7 @@ clear_nex_bss:
 	adr	x1, boot_mmu_config
 	bl	core_init_mmu_map
 
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 	/*
 	 * Process relocation information again updating for the new
 	 * offset. We're doing this now before MMU is enabled as some of
@@ -298,12 +698,26 @@ clear_nex_bss:
 	ldr	x6, [x5]
 	add	x6, x6, x0
 	str	x6, [x5]
+
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LINK_OFFSET
 	bl	relocate
 #endif
 
 	bl	__get_core_pos
+#ifdef CFG_CORE_PIC
+	bl	switch_pagetable
+#else
 	bl	enable_mmu
-#ifdef CFG_CORE_ASLR
+#endif
+
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+	mrs	x1, sctlr_el1
+	orr	x1, x1, #SCTLR_WXN
+	msr	sctlr_el1, x1
+	isb
+#endif
+
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 	/*
 	 * Reinitialize console, since register_serial_console() has
 	 * previously registered a PA and with ASLR the VA is different
@@ -418,7 +832,7 @@ LOCAL_DATA cached_mem_end , :
 	.skip	8
 END_DATA cached_mem_end
 
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 LOCAL_FUNC relocate , :
 	/* x0 holds load offset */
 #ifdef CFG_WITH_PAGER
@@ -428,7 +842,7 @@ LOCAL_FUNC relocate , :
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
-	mov_imm	x1, TEE_RAM_START
+	adrp	x1, __text_start
 	add	x2, x2, x6	/* start of relocations */
 	add	x3, x3, x2	/* end of relocations */
 
@@ -470,6 +884,64 @@ LOCAL_FUNC relocate , :
 END_FUNC relocate
 #endif
 
+#ifdef CFG_CORE_PIC
+/*
+ * void switch_pagetable(unsigned long core_pos);
+ *
+ * This function depends on being mapped with in the identity map where
+ * physical address and virtual address is the same. In the PIC scenario,
+ * after the final page table is created, related registers need to be
+ * modified to convert the page table.
+ */
+LOCAL_FUNC switch_pagetable , : , .identity_map
+	adr	x1, boot_mmu_config
+	load_xregs x1, 0, 2, 7
+	/*
+	 * x0 = core_pos
+	 * x2 = tcr_el1
+	 * x3 = mair_el1
+	 * x4 = ttbr0_el1_base
+	 * x5 = ttbr0_core_offset
+	 * x6 = load_offset
+	 * x7 = link_offset
+	 */
+	msr	tcr_el1, x2
+	msr	mair_el1, x3
+
+	/*
+	 * ttbr0_el1 = ttbr0_el1_base + ttbr0_core_offset * core_pos
+	 */
+	madd	x1, x5, x0, x4
+	msr	ttbr0_el1, x1
+	msr	ttbr1_el1, xzr
+	isb
+
+	/* Invalidate TLB */
+	tlbi	vmalle1
+
+	/*
+	 * Make sure translation table writes have drained into memory and
+	 * the TLB invalidation is complete.
+	 */
+	dsb	sy
+	isb
+
+	/* Update vbar */
+	mrs	x1, vbar_el1
+	add	x1, x1, x7
+	msr	vbar_el1, x1
+	isb
+
+	/* Adjust stack pointers and return address */
+	msr	spsel, #1
+	add	sp, sp, x7
+	msr	spsel, #0
+	add	sp, sp, x7
+	add	x30, x30, x7
+	ret
+END_FUNC switch_pagetable
+#endif /* CFG_CORE_PIC */
+
 /*
  * void enable_mmu(unsigned long core_pos);
  *
@@ -501,7 +973,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	isb
 
 	/* Invalidate TLB */
-	tlbi	vmalle1
+	tlbi	vmalle1is
 
 	/*
 	 * Make sure translation table writes have drained into memory and
@@ -539,7 +1011,6 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	msr	spsel, #0
 	add	sp, sp, x6
 	add	x30, x30, x6
-
 	ret
 END_FUNC enable_mmu
 
@@ -566,6 +1037,12 @@ FUNC cpu_on_handler , :
 
 	bl	__get_core_pos
 	bl	enable_mmu
+#if defined(CFG_CORE_RWDATA_NOEXEC)
+	mrs	x1, sctlr_el1
+	orr	x1, x1, #SCTLR_WXN
+	msr	sctlr_el1, x1
+	isb
+#endif
 
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp

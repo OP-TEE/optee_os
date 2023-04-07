@@ -26,7 +26,7 @@
  * only differ if ASLR is configured.
  */
 	.macro readjust_pc
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PIC)
 	adr	x16, 1111f
 	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
 	add	x16, x16, x17
