@@ -6,6 +6,13 @@ CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 
 ifeq (y,$(CFG_CRYPTO))
 
+###############################################################
+# Platform crypto-driver configuration. It has a higher priority over the
+# generic crypto configuration below.
+###############################################################
+CRYPTO_MAKEFILES := $(sort $(wildcard core/drivers/crypto/*/crypto.mk))
+include $(CRYPTO_MAKEFILES)
+
 # Ciphers
 CFG_CRYPTO_AES ?= y
 CFG_CRYPTO_DES ?= y
@@ -283,12 +290,6 @@ _CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
 _CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)
 _CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, ED25519 X25519)
-
-###############################################################
-# Platform independent crypto-driver configuration
-###############################################################
-CRYPTO_MAKEFILES := $(sort $(wildcard core/drivers/crypto/*/crypto.mk))
-include $(CRYPTO_MAKEFILES)
 
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
 # without ASN.1 around the hash.
