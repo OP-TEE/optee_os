@@ -977,8 +977,10 @@ endif
 CFG_WDT ?= n
 
 # Enable watchdog SMC handling compatible with arm-smc-wdt Linux driver
-# When enabled, CFG_WDT_SM_HANDLER_ID could be defined to override
-# OPTEE_SMC_WATCHDOG ID
+# When CFG_WDT_SM_HANDLER=y, SMC function ID 0xb2000014 implements
+# arm-smc-wdt service. Platform can also define an additional platform
+# specific SMC function ID to access arm-smc-wdt service thanks to optional
+# config switch CFG_WDT_SM_HANDLER_ID.
 CFG_WDT_SM_HANDLER ?= n
 
 $(eval $(call cfg-enable-all-depends,CFG_WDT_SM_HANDLER,CFG_WDT))
