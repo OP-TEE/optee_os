@@ -100,7 +100,15 @@ static inline void watchdog_settimeout(unsigned long timeout __unused) {}
 
 #ifdef CFG_WDT_SM_HANDLER
 enum sm_handler_ret __wdt_sm_handler(struct thread_smc_args *args);
+#else
+static inline enum sm_handler_ret
+__wdt_sm_handler(struct thread_smc_args *args __unused)
+{
+	return SM_HANDLER_PENDING_SMC;
+}
+#endif /* CFG_WDT_SM_HANDLER */
 
+#ifdef CFG_WDT_SM_HANDLER_ID
 static inline
 enum sm_handler_ret wdt_sm_handler(struct thread_smc_args *args)
 {
@@ -115,6 +123,6 @@ enum sm_handler_ret wdt_sm_handler(struct thread_smc_args *args __unused)
 {
 	return SM_HANDLER_PENDING_SMC;
 }
-#endif
+#endif /* CFG_WDT_SM_HANDLER_ID */
 
 #endif /* DRIVERS_WDT_H */
