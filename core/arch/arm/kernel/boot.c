@@ -407,8 +407,8 @@ static void undo_init_relocation(uint8_t *paged_store __maybe_unused)
 	const uint32_t *reloc_end = NULL;
 	unsigned long offs = boot_mmu_config.map_offset;
 	const struct boot_embdata *embdata = (const void *)__init_end;
-	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_RAM_START;
-	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_RAM_START;
+	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_LOAD_ADDR;
+	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_LOAD_ADDR;
 
 	reloc = (const void *)((vaddr_t)embdata + embdata->reloc_offset);
 	reloc_end = reloc + embdata->reloc_len / sizeof(*reloc);
