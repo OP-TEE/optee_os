@@ -6,6 +6,11 @@
 #include <kernel/boot.h>
 #include <mm/core_mmu.h>
 
+void __section(".text.dummy.boot_save_boot_info")
+boot_save_boot_info(void *boot_info __unused)
+{
+}
+
 unsigned long __section(".text.dummy.get_aslr_seed")
 get_aslr_seed(void *fdt __unused)
 {

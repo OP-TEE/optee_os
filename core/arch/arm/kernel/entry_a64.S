@@ -145,9 +145,18 @@
 
 FUNC _start , :
 	/*
-	 * If CFG_CORE_FFA is enabled, then x0 if non-NULL holds the TOS FW
-	 * config [1] address, else x0 if non-NULL holds the pagable part
-	 * address.
+	 * Register use:
+	 * x0	- CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=n:
+	 *	  if non-NULL holds the TOS FW config [1] address
+	 *	- CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=y:
+	 *	  address of FF-A Boot Information Blob
+	 *	- CFG_CORE_FFA=n:
+	 *	  if non-NULL holds the pagable part address
+	 * x2	- CFG_CORE_SEL2_SPMC=n:
+	 *	  if non-NULL holds the system DTB address
+	 *
+	 * x19 - saved x0
+	 * x20 - saved x2
 	 *
 	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
 	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
@@ -265,6 +274,11 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
+#if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
+	mov	x0, x19		/* boot info */
+	bl	boot_save_boot_info
+#endif
+
 #ifdef CFG_MEMTAG
 	/*
 	 * If FEAT_MTE2 is available, initializes the memtag callbacks.
@@ -275,7 +289,7 @@ clear_nex_bss:
 #endif
 
 #ifdef CFG_CORE_ASLR
-	mov	x0, x20
+	mov	x0, x20		/* DT address */
 	bl	get_aslr_seed
 #else
 	mov	x0, #0
