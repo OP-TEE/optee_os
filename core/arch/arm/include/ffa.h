@@ -130,6 +130,28 @@
 #define FFA_MEMORY_HANDLE_SECURE_BIT	BIT64(45)
 #define FFA_MEMORY_HANDLE_NONE_SECURE_BIT	BIT64(44)
 
+#define FFA_BOOT_INFO_NAME_LEN		U(16)
+
+/* Boot Info descriptors type */
+#define FFA_BOOT_INFO_TYPE_IMDEF	BIT(7)
+#define FFA_BOOT_INFO_TYPE_ID_MASK	GENMASK_32(6, 0)
+#define FFA_BOOT_INFO_TYPE_ID_FDT	U(0)
+#define FFA_BOOT_INFO_TYPE_ID_HOB	U(1)
+
+/* Boot Info descriptors flags */
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_MASK	GENMASK_32(1, 0)
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_STRING	U(0)
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_UUID	U(1)
+
+/** Bits [3:2] encode the format of the content field in ffa_boot_info_desc. */
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_SHIFT U(2)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_MASK	GENMASK_32(3, 2)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_VALUE	U(1)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR	U(0)
+
+#define FFA_BOOT_INFO_SIGNATURE		U(0xFFA)
+#define FFA_BOOT_INFO_VERSION		U(0x10001)
+
 #ifndef __ASSEMBLER__
 /* Constituent memory region descriptor */
 struct ffa_address_range {
@@ -187,5 +209,27 @@ struct ffa_mem_relinquish {
 	uint32_t endpoint_count;
 	uint16_t endpoint_id_array[];
 };
+
+/* FF-A v1.1 boot information descriptor */
+struct ffa_boot_info {
+	char name[FFA_BOOT_INFO_NAME_LEN];
+	uint8_t type;
+	uint8_t reserved;
+	uint16_t flags;
+	uint32_t size;
+	uint64_t contents;
+};
+
+/* FF-A v1.1 boot information header */
+struct ffa_boot_info_header {
+	uint32_t signature;
+	uint32_t version;
+	uint32_t blob_size;
+	uint32_t desc_size;
+	uint32_t desc_count;
+	uint32_t desc_offset;
+	uint64_t reserved;
+};
+
 #endif /*__ASSEMBLER__*/
 #endif /* __FFA_H */
