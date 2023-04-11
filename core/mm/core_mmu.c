@@ -2326,7 +2326,16 @@ bool is_unpaged(void *va __unused)
 
 void core_mmu_init_virtualization(void)
 {
-	virt_init_memory(static_memory_map);
+	paddr_t b1 = 0;
+	paddr_size_t s1 = 0;
+
+	static_assert(ARRAY_SIZE(secure_only) <= 2);
+	if (ARRAY_SIZE(secure_only) == 2) {
+		b1 = secure_only[1].paddr;
+		s1 = secure_only[1].size;
+	}
+	virt_init_memory(static_memory_map, secure_only[0].paddr,
+			 secure_only[0].size, b1, s1);
 }
 
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len)
