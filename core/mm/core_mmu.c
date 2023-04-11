@@ -415,6 +415,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	size_t num_elems = nelems;
 	struct tee_mmap_region *map = static_memory_map;
 	const struct core_mmu_phys_mem __maybe_unused *pmem;
+	size_t n = 0;
 
 	assert(!discovered_nsec_ddr_start);
 	assert(m && num_elems);
@@ -441,8 +442,9 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 		carve_out_phys_mem(&m, &num_elems, pmem->addr, pmem->size);
 #endif
 
-	carve_out_phys_mem(&m, &num_elems, TEE_RAM_START, TEE_RAM_PH_SIZE);
-	carve_out_phys_mem(&m, &num_elems, TA_RAM_START, TA_RAM_SIZE);
+	for (n = 0; n < ARRAY_SIZE(secure_only); n++)
+		carve_out_phys_mem(&m, &num_elems, secure_only[n].paddr,
+				   secure_only[n].size);
 
 	for (map = static_memory_map; !core_mmap_is_end_of_table(map); map++) {
 		switch (map->type) {
@@ -935,6 +937,7 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 				 size_t num_elems)
 {
 	const struct core_mmu_phys_mem *mem = NULL;
+	vaddr_t ram_start = secure_only[0].paddr;
 	size_t last = 0;
 
 
@@ -943,8 +946,8 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 			     (_addr), (_size),  &last)
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
-		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
-			     VCORE_UNPG_RX_PA - TEE_RAM_START);
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, ram_start,
+			     VCORE_UNPG_RX_PA - ram_start);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
 			     VCORE_UNPG_RX_SZ);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
@@ -978,7 +981,11 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		 * Every guest will have own TA RAM if virtualization
 		 * support is enabled.
 		 */
-		ADD_PHYS_MEM(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
+		paddr_t ta_base = 0;
+		size_t ta_size = 0;
+
+		core_mmu_get_ta_range(&ta_base, &ta_size);
+		ADD_PHYS_MEM(MEM_AREA_TA_RAM, ta_base, ta_size);
 	}
 
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) &&
@@ -1272,6 +1279,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 	 */
 	vaddr_t id_map_start = (vaddr_t)__identity_map_init_start;
 	vaddr_t id_map_end = (vaddr_t)__identity_map_init_end;
+	vaddr_t start_addr = secure_only[0].paddr;
 	unsigned long offs = 0;
 	size_t last = 0;
 
@@ -1287,7 +1295,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 
 	add_pager_vaspace(memory_map, num_elems, &last);
 	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
-		vaddr_t base_addr = TEE_RAM_START + seed;
+		vaddr_t base_addr = start_addr + seed;
 		const unsigned int va_width = core_mmu_get_va_width();
 		const vaddr_t va_mask = GENMASK_64(va_width - 1,
 						   SMALL_PAGE_SHIFT);
@@ -1301,7 +1309,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 			if (assign_mem_va(ba, memory_map) &&
 			    mem_map_add_id_map(memory_map, num_elems, &last,
 					       id_map_start, id_map_end)) {
-				offs = ba - TEE_RAM_START;
+				offs = ba - start_addr;
 				DMSG("Mapping core at %#"PRIxVA" offs %#lx",
 				     ba, offs);
 				goto out;
@@ -1312,7 +1320,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 		EMSG("Failed to map core with seed %#lx", seed);
 	}
 
-	if (!assign_mem_va(TEE_RAM_START, memory_map))
+	if (!assign_mem_va(start_addr, memory_map))
 		panic();
 
 out:
@@ -1459,6 +1467,8 @@ bool core_mmu_mattr_is_ok(uint32_t mattr)
  */
 bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 {
+	paddr_t ta_base = 0;
+	size_t ta_size = 0;
 	struct tee_mmap_region *map;
 
 	/* Empty buffers complies with anything */
@@ -1475,8 +1485,8 @@ bool core_pbuf_is(uint32_t attr, paddr_t pbuf, size_t len)
 		return core_is_buffer_inside(pbuf, len, TEE_RAM_START,
 							TEE_RAM_PH_SIZE);
 	case CORE_MEM_TA_RAM:
-		return core_is_buffer_inside(pbuf, len, TA_RAM_START,
-							TA_RAM_SIZE);
+		core_mmu_get_ta_range(&ta_base, &ta_size);
+		return core_is_buffer_inside(pbuf, len, ta_base, ta_size);
 #ifdef CFG_CORE_RESERVED_SHM
 	case CORE_MEM_NSEC_SHM:
 		return core_is_buffer_inside(pbuf, len, TEE_SHMEM_START,
