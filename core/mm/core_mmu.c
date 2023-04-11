@@ -906,9 +906,8 @@ static void add_pager_vaspace(struct tee_mmap_region *mmap, size_t num_elems,
 	}
 
 	end = mmap[pos - 1].pa + mmap[pos - 1].size;
+	assert(end - begin < TEE_RAM_VA_SIZE);
 	size = TEE_RAM_VA_SIZE - (end - begin);
-	if (!size)
-		return;
 
 	assert(pos <= *last);
 	memmove(mmap + pos + 1, mmap + pos,
@@ -1293,7 +1292,9 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 	qsort(memory_map, last, sizeof(struct tee_mmap_region),
 	      cmp_init_mem_map);
 
-	add_pager_vaspace(memory_map, num_elems, &last);
+	if (IS_ENABLED(CFG_WITH_PAGER))
+		add_pager_vaspace(memory_map, num_elems, &last);
+
 	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
 		vaddr_t base_addr = start_addr + seed;
 		const unsigned int va_width = core_mmu_get_va_width();
