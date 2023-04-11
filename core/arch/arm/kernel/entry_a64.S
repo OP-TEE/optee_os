@@ -285,11 +285,11 @@ clear_nex_bss:
 
 #ifdef CFG_CORE_ASLR
 	/*
-	 * Process relocation information again updating for the new
-	 * offset. We're doing this now before MMU is enabled as some of
-	 * the memory will become write protected.
+	 * Process relocation information again updating for the virtual
+	 * map offset. We're doing this now before MMU is enabled as some
+	 * of the memory will become write protected.
 	 */
-	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -388,20 +388,20 @@ clear_nex_bss:
 #ifdef CFG_CORE_FFA
 	adr	x0, cpu_on_handler
 	/*
-	 * Compensate for the load offset since cpu_on_handler() is
+	 * Compensate for the virtual map offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	x1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x1, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	sub	x0, x0, x1
 	bl	thread_spmc_register_secondary_ep
 	b	thread_ffa_msg_wait
 #else
 	/*
-	 * Pass the vector address returned from main_init
-	 * Compensate for the load offset since cpu_on_handler() is
-	 * called with MMU off.
+	 * Pass the vector address returned from main_init Compensate for
+	 * the virtual map offset since cpu_on_handler() is called with MMU
+	 * off.
 	 */
-	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	adr	x1, thread_vector_table
 	sub	x1, x1, x0
 	mov	x0, #TEESMC_OPTEED_RETURN_ENTRY_DONE

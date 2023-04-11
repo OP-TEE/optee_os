@@ -1379,7 +1379,7 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	core_init_mmu(tmp_mmap);
 	dump_xlat_table(0x0, CORE_MMU_BASE_TABLE_LEVEL);
 	core_init_mmu_regs(cfg);
-	cfg->load_offset = offs;
+	cfg->map_offset = offs;
 	memcpy(static_memory_map, tmp_mmap, sizeof(static_memory_map));
 }
 
@@ -2132,7 +2132,7 @@ static void check_pa_matches_va(void *va, paddr_t pa)
 	}
 #ifdef CFG_WITH_PAGER
 	if (is_unpaged(va)) {
-		if (v - boot_mmu_config.load_offset != pa)
+		if (v - boot_mmu_config.map_offset != pa)
 			panic("issue in linear address space");
 		return;
 	}
@@ -2230,7 +2230,7 @@ static void *phys_to_virt_tee_ram(paddr_t pa, size_t len)
 	if (pa >= TEE_LOAD_ADDR && pa < get_linear_map_end_pa()) {
 		if (end_pa > get_linear_map_end_pa())
 			return NULL;
-		return (void *)(vaddr_t)(pa + boot_mmu_config.load_offset);
+		return (void *)(vaddr_t)(pa + boot_mmu_config.map_offset);
 	}
 
 	return tee_pager_phys_to_virt(pa, len);

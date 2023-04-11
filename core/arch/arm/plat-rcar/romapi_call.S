@@ -35,7 +35,7 @@ FUNC __plat_romapi_wrapper , : , .identity_map
 	 * which is not identity mapped.
 	 */
 	adr_l   x9, virt_to_phys
-	ldr     x10, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr     x10, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	add     x9, x9, x10
 	blr	x9
 #else
@@ -48,7 +48,7 @@ FUNC __plat_romapi_wrapper , : , .identity_map
 #ifdef CFG_CORE_ASLR
 	/* See the comment above */
 	adr_l   x9, dcache_op_all
-	ldr     x10, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr     x10, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	add     x9, x9, x10
 	blr	x9
 #else

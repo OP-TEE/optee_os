@@ -143,8 +143,8 @@ DEFINES
 
 	/* struct core_mmu_config */
 	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
-	DEFINE(CORE_MMU_CONFIG_LOAD_OFFSET,
-	       offsetof(struct core_mmu_config, load_offset));
+	DEFINE(CORE_MMU_CONFIG_MAP_OFFSET,
+	       offsetof(struct core_mmu_config, map_offset));
 
 	/* struct boot_embdata */
 	DEFINE(BOOT_EMBDATA_HASHES_OFFSET,

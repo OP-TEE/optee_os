@@ -91,7 +91,7 @@
 
 struct core_mmu_config {
 	unsigned long satp;
-	uint32_t load_offset;
+	uint32_t map_offset;
 };
 
 struct core_mmu_user_map {

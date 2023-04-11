@@ -510,12 +510,12 @@ shadow_stack_access_ok:
 
 #ifdef CFG_CORE_ASLR
 	/*
-	 * Process relocation information for updating with the new offset.
-	 * We're doing this now before MMU is enabled as some of the memory
-	 * will become write protected.
+	 * Process relocation information for updating with the virtual map
+	 * offset.  We're doing this now before MMU is enabled as some of
+	 * the memory will become write protected.
 	 */
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -610,10 +610,10 @@ shadow_stack_access_ok:
 #ifdef CFG_CORE_FFA
 	ldr	r0, =cpu_on_handler
 	/*
-	 * Compensate for the load offset since cpu_on_handler() is
+	 * Compensate for the virtual map offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	sub	r0, r0, r1
 	bl	thread_spmc_register_secondary_ep
 	b	thread_ffa_msg_wait
@@ -621,7 +621,7 @@ shadow_stack_access_ok:
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	ldr	r1, =thread_vector_table
 	/* Pass the vector address returned from main_init */
 	sub	r1, r1, r0

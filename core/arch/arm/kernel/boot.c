@@ -405,7 +405,7 @@ static void undo_init_relocation(uint8_t *paged_store __maybe_unused)
 	unsigned long *ptr = NULL;
 	const uint32_t *reloc = NULL;
 	const uint32_t *reloc_end = NULL;
-	unsigned long offs = boot_mmu_config.load_offset;
+	unsigned long offs = boot_mmu_config.map_offset;
 	const struct boot_embdata *embdata = (const void *)__init_end;
 	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_RAM_START;
 	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_RAM_START;
@@ -1455,7 +1455,7 @@ void __weak boot_init_primary_late(unsigned long fdt,
 	IMSG("Primary CPU initializing");
 #ifdef CFG_CORE_ASLR
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
-	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
+	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",
