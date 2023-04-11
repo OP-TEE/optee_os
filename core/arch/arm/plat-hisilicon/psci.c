@@ -80,7 +80,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	/* set secondary core's NS entry addresses */
 	boot_set_core_ns_entry(pos, entry, context_id);
 
-	val = virt_to_phys((void *)TEE_TEXT_VA_START);
+	val = virt_to_phys((void *)TEE_LOAD_ADDR);
 	io_write32(bootsram + REG_CPU_START_ADDR, val);
 	io_write32(bootsram + REG_CPU_START_COMMAND, 0xe51ff004);
 

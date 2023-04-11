@@ -49,10 +49,6 @@
 #define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
-#define TEE_RAM_VA_START		TEE_RAM_START
-#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
-					 (TEE_LOAD_ADDR - TEE_RAM_START))
-
 #ifndef STACK_ALIGNMENT
 #define STACK_ALIGNMENT			(sizeof(long) * U(2))
 #endif
