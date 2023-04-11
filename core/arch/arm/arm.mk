@@ -113,6 +113,9 @@ $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 $(call force,CFG_CORE_EL3_SPMC,n)
 CFG_CORE_HAFNIUM_INTC ?= y
+# Enable support in OP-TEE to relocate itself to allow it to run from a
+# physical address that differs from the link address
+CFG_CORE_PHYS_RELOCATABLE ?= y
 endif
 # SPMC configuration "EL3 SPMC" where SPM Core is implemented at EL3, that
 # is, in TF-A
@@ -120,6 +123,15 @@ ifeq ($(CFG_CORE_EL3_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
+endif
+
+ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
+$(error CFG_CORE_PHYS_RELOCATABLE and CFG_WITH_PAGER are not compatible)
+endif
+ifeq ($(CFG_CORE_PHYS_RELOCATABLE),y)
+ifneq ($(CFG_CORE_SEL2_SPMC),y)
+$(error CFG_CORE_PHYS_RELOCATABLE depends on CFG_CORE_SEL2_SPMC)
+endif
 endif
 
 ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
@@ -229,7 +241,7 @@ core-platform-cflags += $(platform-cflags-debug-info)
 core-platform-aflags += $(platform-aflags-generic)
 core-platform-aflags += $(platform-aflags-debug-info)
 
-ifeq ($(CFG_CORE_ASLR),y)
+ifeq ($(call cfg-one-enabled, CFG_CORE_ASLR CFG_CORE_PHYS_RELOCATABLE),y)
 core-platform-cflags += -fpie
 endif
 

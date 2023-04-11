@@ -15,7 +15,7 @@ link-ldflags-common += $(call ld-option,--no-warn-execstack)
 endif
 
 link-ldflags  = $(LDFLAGS)
-ifeq ($(CFG_CORE_ASLR),y)
+ifeq ($(call cfg-one-enabled, CFG_CORE_ASLR CFG_CORE_PHYS_RELOCATABLE),y)
 link-ldflags += -pie -Bsymbolic -z norelro $(ldflag-apply-dynamic-relocs)
 ifeq ($(CFG_ARM64_core),y)
 link-ldflags += -z text

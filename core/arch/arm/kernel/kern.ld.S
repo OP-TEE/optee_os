@@ -426,7 +426,7 @@ SECTIONS
 	.rela : {
 		*(.rela.*)
 	}
-#ifndef CFG_CORE_ASLR
+#if !defined(CFG_CORE_ASLR) && !defined(CFG_CORE_PHYS_RELOCATABLE)
 	ASSERT(SIZEOF(.rel) == 0, "Relocation entries not expected")
 	ASSERT(SIZEOF(.rela) == 0, "Relocation entries not expected")
 #endif
