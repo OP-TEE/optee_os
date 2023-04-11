@@ -415,3 +415,25 @@ int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
 
 	return fdt_get_reg_props_by_index(fdt, node, index, base, size);
 }
+
+int dt_getprop_as_number(const void *fdt, int nodeoffset, const char *name,
+			 uint64_t *num)
+{
+	const void *prop = NULL;
+	int len = 0;
+
+	prop = fdt_getprop(fdt, nodeoffset, name, &len);
+	if (!prop)
+		return len;
+
+	switch (len) {
+	case sizeof(uint32_t):
+		*num = fdt32_ld(prop);
+		return 0;
+	case sizeof(uint64_t):
+		*num = fdt64_ld(prop);
+		return 0;
+	default:
+		return -FDT_ERR_BADVALUE;
+	}
+}

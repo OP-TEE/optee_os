@@ -73,6 +73,20 @@ enum dt_map_dev_directive {
 	DT_MAP_NON_SECURE
 };
 
+/*
+ * dt_getprop_as_number() - get a DT property a unsigned number
+ * @fdt: DT base address
+ * @nodeoffset: node offset
+ * @name: property string name
+ * @num: output number read
+ * Return 0 on success and a negative FDT error value on error
+ *
+ * The size of the property determines if it is read as an unsigned 32-bit
+ * or 64-bit integer.
+ */
+int dt_getprop_as_number(const void *fdt, int nodeoffset, const char *name,
+			 uint64_t *num);
+
 #ifdef CFG_DT
 /*
  * Find a driver that is suitable for the given DT node, that is, with
