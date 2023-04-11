@@ -318,8 +318,12 @@ static void init_asan(void)
 /* Called from entry_a64.S only when MEMTAG is configured */
 void boot_init_memtag(void)
 {
+	paddr_t base = 0;
+	paddr_size_t size = 0;
+
 	memtag_init_ops(feat_mte_implemented());
-	memtag_set_tags((void *)TEE_RAM_START, TEE_RAM_PH_SIZE, 0);
+	core_mmu_get_secure_memory(&base, &size);
+	memtag_set_tags((void *)(vaddr_t)base, size, 0);
 }
 #endif
 
