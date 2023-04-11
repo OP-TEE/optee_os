@@ -12,6 +12,7 @@
 #include <generated/asm-defines.h>
 #include <keep.h>
 #include <kernel/thread_private.h>
+#include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
@@ -428,7 +429,7 @@ LOCAL_FUNC relocate , :
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
-	mov_imm	x1, TEE_RAM_START
+	mov_imm	x1, TEE_LOAD_ADDR
 	add	x2, x2, x6	/* start of relocations */
 	add	x3, x3, x2	/* end of relocations */
 
@@ -438,8 +439,8 @@ LOCAL_FUNC relocate , :
 	 * scripts/gen_tee_bin.py
 	 *
 	 * All the R_AARCH64_RELATIVE relocations are translated into a
-	 * list list of 32-bit offsets from TEE_RAM_START. At each address
-	 * a 64-bit value pointed out which increased with the load offset.
+	 * list of 32-bit offsets from TEE_LOAD_ADDR. At each address a
+	 * 64-bit value pointed out which increased with the load offset.
 	 */
 
 #ifdef CFG_WITH_PAGER
