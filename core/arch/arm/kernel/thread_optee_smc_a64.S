@@ -28,7 +28,7 @@
 	.macro readjust_pc
 #ifdef CFG_CORE_ASLR
 	adr	x16, 1111f
-	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	add	x16, x16, x17
 	br	x16
 1111:

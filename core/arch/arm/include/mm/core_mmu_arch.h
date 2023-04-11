@@ -92,20 +92,20 @@ struct core_mmu_config {
 	uint64_t mair_el1;
 	uint64_t ttbr0_el1_base;
 	uint64_t ttbr0_core_offset;
-	uint64_t load_offset;
+	uint64_t map_offset;
 #elif defined(CFG_WITH_LPAE)
 	uint32_t ttbcr;
 	uint32_t mair0;
 	uint32_t ttbr0_base;
 	uint32_t ttbr0_core_offset;
-	uint32_t load_offset;
+	uint32_t map_offset;
 #else
 	uint32_t prrr;
 	uint32_t nmrr;
 	uint32_t dacr;
 	uint32_t ttbcr;
 	uint32_t ttbr;
-	uint32_t load_offset;
+	uint32_t map_offset;
 #endif
 };
 
