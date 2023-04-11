@@ -54,7 +54,7 @@ unsigned long default_nsec_shm_paddr __nex_bss;
 #endif
 
 static struct tee_mmap_region static_memory_map[CFG_MMAP_REGIONS
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
 						+ 1
 #endif
 						+ 1] __nex_bss;
@@ -1432,6 +1432,10 @@ void __weak core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg)
 	vaddr_t len = ROUNDUP((vaddr_t)__nozi_end, SMALL_PAGE_SIZE) - start;
 	struct tee_mmap_region *tmp_mmap = get_tmp_mmap();
 	unsigned long offs = 0;
+
+	if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+	    (core_mmu_tee_load_pa & SMALL_PAGE_MASK))
+		panic("OP-TEE load address is not page aligned");
 
 	check_sec_nsec_mem_config();
 

@@ -252,6 +252,24 @@ clear_nex_bss:
 	b.lt	clear_nex_bss
 #endif
 
+
+#if defined(CFG_CORE_PHYS_RELOCATABLE)
+	/*
+	 * Save the base physical address, it will not change after this
+	 * point.
+	 */
+	adr_l	x2, core_mmu_tee_load_pa
+	adr	x1, _start		/* Load address */
+	str	x1, [x2]
+
+	mov_imm	x0, TEE_LOAD_ADDR	/* Compiled load address */
+	sub	x0, x1, x0		/* Relocatation offset */
+
+	cbz	x0, 1f
+	bl	relocate
+1:
+#endif
+
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
@@ -305,6 +323,7 @@ clear_nex_bss:
 	 * of the memory will become write protected.
 	 */
 	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
+	cbz	x0, 1f
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -313,7 +332,9 @@ clear_nex_bss:
 	ldr	x6, [x5]
 	add	x6, x6, x0
 	str	x6, [x5]
+	adr	x1, _start		/* Load address */
 	bl	relocate
+1:
 #endif
 
 	bl	__get_core_pos
@@ -433,9 +454,12 @@ LOCAL_DATA cached_mem_end , :
 	.skip	8
 END_DATA cached_mem_end
 
-#ifdef CFG_CORE_ASLR
+#if defined(CFG_CORE_ASLR) || defined(CFG_CORE_PHYS_RELOCATABLE)
 LOCAL_FUNC relocate , :
-	/* x0 holds load offset */
+	/*
+	 * x0 holds relocate offset
+	 * x1 holds load address
+	 */
 #ifdef CFG_WITH_PAGER
 	adr_l	x6, __init_end
 #else
@@ -443,7 +467,6 @@ LOCAL_FUNC relocate , :
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
-	mov_imm	x1, TEE_LOAD_ADDR
 	add	x2, x2, x6	/* start of relocations */
 	add	x3, x3, x2	/* end of relocations */
 
