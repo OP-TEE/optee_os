@@ -639,6 +639,18 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 		return false;
 	return core_mmu_check_max_pa(end_pa);
 }
+
+/*
+ * core_mmu_get_secure_memory() - get physical secure memory range
+ * @base: base address of secure memory
+ * @size: size of secure memory
+ *
+ * The physical secure memory range returned covers at least the memory
+ * range used by OP-TEE Core, but may cover more memory depending on the
+ * configuration.
+ */
+void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size);
+
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */

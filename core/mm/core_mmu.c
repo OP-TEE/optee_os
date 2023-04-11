@@ -100,6 +100,16 @@ static void mmu_unlock(uint32_t exceptions)
 	cpu_spin_unlock_xrestore(&mmu_spinlock, exceptions);
 }
 
+void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size)
+{
+	/*
+	 * The first range is always used to cover OP-TEE core memory, but
+	 * depending on configuration it may cover more than that.
+	 */
+	*base = secure_only[0].paddr;
+	*size = secure_only[0].size;
+}
+
 static struct tee_mmap_region *get_memory_map(void)
 {
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
