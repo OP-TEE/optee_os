@@ -68,10 +68,14 @@ struct memaccess_area {
 #define MEMACCESS_AREA(a, s) { .paddr = a, .size = s }
 
 static struct memaccess_area secure_only[] __nex_data = {
+#ifdef CFG_CORE_PHYS_RELOCATABLE
+	MEMACCESS_AREA(0, 0),
+#else
 #ifdef TRUSTED_SRAM_BASE
 	MEMACCESS_AREA(TRUSTED_SRAM_BASE, TRUSTED_SRAM_SIZE),
 #endif
 	MEMACCESS_AREA(TRUSTED_DRAM_BASE, TRUSTED_DRAM_SIZE),
+#endif
 };
 
 static struct memaccess_area nsec_shared[] __nex_data = {
@@ -115,6 +119,19 @@ void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size)
 	*base = secure_only[0].paddr;
 	*size = secure_only[0].size;
 }
+
+#ifdef CFG_CORE_PHYS_RELOCATABLE
+void core_mmu_set_secure_memory(paddr_t base, size_t size)
+{
+	static_assert(ARRAY_SIZE(secure_only) == 1);
+	assert(!secure_only[0].size);
+	assert(base && size);
+
+	DMSG("Physical secure memory base %#"PRIxPA" size %#zx", base, size);
+	secure_only[0].paddr = base;
+	secure_only[0].size = size;
+}
+#endif
 
 void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 {
