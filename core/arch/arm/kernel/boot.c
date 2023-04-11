@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2015-2023, Linaro Limited
  * Copyright (c) 2023, Arm Limited
  */
 
@@ -12,11 +12,13 @@
 #include <crypto/crypto.h>
 #include <drivers/gic.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <ffa.h>
 #include <initcall.h>
 #include <inttypes.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -1625,3 +1627,91 @@ unsigned long __weak get_aslr_seed(void *fdt __unused)
 }
 #endif /*!CFG_DT*/
 #endif /*CFG_CORE_ASLR*/
+
+#if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
+static void *get_fdt_from_boot_info(struct ffa_boot_info_header *hdr)
+{
+	struct ffa_boot_info *desc = NULL;
+	uint8_t content_fmt = 0;
+	uint8_t name_fmt = 0;
+	void *fdt = NULL;
+	int ret = 0;
+
+	if (hdr->signature != FFA_BOOT_INFO_SIGNATURE) {
+		EMSG("Bad boot info signature %#"PRIx32, hdr->signature);
+		panic();
+	}
+	if (hdr->version != FFA_BOOT_INFO_VERSION) {
+		EMSG("Bad boot info version %#"PRIx32, hdr->version);
+		panic();
+	}
+	if (hdr->desc_count != 1) {
+		EMSG("Bad boot info descriptor count %#"PRIx32,
+		     hdr->desc_count);
+		panic();
+	}
+	desc = (void *)((vaddr_t)hdr + hdr->desc_offset);
+	name_fmt = desc->flags & FFA_BOOT_INFO_FLAG_NAME_FORMAT_MASK;
+	if (name_fmt == FFA_BOOT_INFO_FLAG_NAME_FORMAT_STRING)
+		DMSG("Boot info descriptor name \"%16s\"", desc->name);
+	else if (name_fmt == FFA_BOOT_INFO_FLAG_NAME_FORMAT_UUID)
+		DMSG("Boot info descriptor UUID %pUl", (void *)desc->name);
+	else
+		DMSG("Boot info descriptor: unknown name format %"PRIu8,
+		     name_fmt);
+
+	content_fmt = (desc->flags & FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_MASK) >>
+		      FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_SHIFT;
+	if (content_fmt != FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR) {
+		EMSG("Bad boot info content format %"PRIu8", expected %u (address)",
+		     content_fmt, FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR);
+		panic();
+	}
+
+	fdt = (void *)(vaddr_t)desc->contents;
+	ret = fdt_check_full(fdt, desc->size);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at %p: error %d", fdt, ret);
+		panic();
+	}
+	return fdt;
+}
+
+static void get_sec_mem_from_manifest(void *fdt, paddr_t *base, size_t *size)
+{
+	int ret = 0;
+	uint64_t num = 0;
+
+	ret = fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0");
+	if (ret < 0) {
+		EMSG("Invalid FF-A manifest at %p: error %d", fdt, ret);
+		panic();
+	}
+	ret = dt_getprop_as_number(fdt, 0, "load-address", &num);
+	if (ret < 0) {
+		EMSG("Can't read \"load-address\" from FF-A manifest at %p: error %d",
+		     fdt, ret);
+		panic();
+	}
+	*base = num;
+	/* "mem-size" is currently an undocumented extension to the spec. */
+	ret = dt_getprop_as_number(fdt, 0, "mem-size", &num);
+	if (ret < 0) {
+		EMSG("Can't read \"mem-size\" from FF-A manifest at %p: error %d",
+		     fdt, ret);
+		panic();
+	}
+	*size = num;
+}
+
+void __weak boot_save_boot_info(void *boot_info)
+{
+	void *fdt = NULL;
+	paddr_t base = 0;
+	size_t size = 0;
+
+	fdt = get_fdt_from_boot_info(boot_info);
+	get_sec_mem_from_manifest(fdt, &base, &size);
+	core_mmu_set_secure_memory(base, size);
+}
+#endif /*CFG_CORE_SEL2_SPMC && CFG_CORE_PHYS_RELOCATABLE*/
