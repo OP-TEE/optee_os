@@ -2094,7 +2094,7 @@ static vaddr_t get_linear_map_end_va(void)
 
 static paddr_t get_linear_map_end_pa(void)
 {
-	return get_linear_map_end_va() - VCORE_START_VA + TEE_LOAD_ADDR;
+	return get_linear_map_end_va() - boot_mmu_config.map_offset;
 }
 #endif
 
