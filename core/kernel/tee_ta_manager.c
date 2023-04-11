@@ -1002,7 +1002,7 @@ TEE_Result tee_ta_instance_stats(void *buf, uint32_t *buf_size)
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
 		dump_stats = (struct tee_ta_dump_stats *)buf;
-		dump_ctx = malloc(sz);
+		dump_ctx = malloc(sizeof(struct tee_ta_dump_ctx) * ta_count);
 		if (!dump_ctx)
 			res = TEE_ERROR_OUT_OF_MEMORY;
 		else
