@@ -58,14 +58,6 @@
 #include <util.h>
 
 /*
- * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
- * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
- */
-#define TEE_RAM_VA_START        TEE_RAM_START
-#define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
-					(TEE_LOAD_ADDR - TEE_RAM_START))
-
-/*
  * Note:
  * Clang 11 (ld.lld) generates non-relocatable reference when using ROUNDDOWN()
  * from <util.h>, which does not work with ASLR.
@@ -78,15 +70,15 @@ OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 ENTRY(_start)
 SECTIONS
 {
-	. = TEE_TEXT_VA_START;
+	. = TEE_LOAD_ADDR;
 	/* Ensure text section is page aligned */
-	ASSERT(!(TEE_TEXT_VA_START & (SMALL_PAGE_SIZE - 1)),
+	ASSERT(!(TEE_LOAD_ADDR & (SMALL_PAGE_SIZE - 1)),
 	       "text start should align to 4Kb")
 
 	__text_start = .;
 
 	/*
-	 * Memory between TEE_TEXT_VA_START and page aligned rounded down
+	 * Memory between TEE_LOAD_ADDR and page aligned rounded down
 	 * value will be mapped with unpaged "text" section attributes:
 	 * likely to be read-only/executable.
 	 */
@@ -200,7 +192,7 @@ SECTIONS
 	}
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-	. = TEE_RAM_VA_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
+	. = TEE_RAM_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
 	. = ALIGN(8);
 	.asan_shadow : {
 		__asan_shadow_start = .;
@@ -211,15 +203,15 @@ SECTIONS
 #endif /*CFG_CORE_SANITIZE_KADDRESS*/
 
 	__end = .;
-	__init_size = __data_end - TEE_TEXT_VA_START;
+	__init_size = __data_end - TEE_LOAD_ADDR;
 
 	/*
 	 * Guard against moving the location counter backwards in the assignment
 	 * below.
 	 */
-	ASSERT(. <= (TEE_RAM_VA_START + TEE_RAM_VA_SIZE),
+	ASSERT(. <= (TEE_RAM_START + TEE_RAM_VA_SIZE),
 		"TEE_RAM_VA_SIZE is too small")
-	. = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
+	. = TEE_RAM_START + TEE_RAM_VA_SIZE;
 
 	_end_of_ram = .;
 
