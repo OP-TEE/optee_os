@@ -205,9 +205,10 @@ struct core_mmu_phys_mem {
 
 /* Same as register_phys_mem() but with PGDIR_SIZE granularity */
 #define register_phys_mem_pgdir(type, addr, size) \
-	register_phys_mem(type, ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
-		ROUNDUP(size + addr - ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
-			CORE_MMU_PGDIR_SIZE))
+	__register_memory(#addr, type, ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+			  ROUNDUP(size + addr - \
+					ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+				  CORE_MMU_PGDIR_SIZE), phys_mem_map)
 
 #ifdef CFG_SECURE_DATA_PATH
 #define register_sdp_mem(addr, size) \
