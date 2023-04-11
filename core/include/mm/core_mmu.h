@@ -661,6 +661,13 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
  */
 void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size);
 
+/*
+ * core_mmu_get_ta_range() - get physical memory range reserved for TAs
+ * @base: [out] range base address ref or NULL
+ * @size: [out] range size ref or NULL
+ */
+void core_mmu_get_ta_range(paddr_t *base, size_t *size);
+
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */
