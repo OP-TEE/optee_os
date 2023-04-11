@@ -85,52 +85,9 @@ register_sdp_mem(TEE_SDP_TEST_MEM_BASE, TEE_SDP_TEST_MEM_SIZE);
 #endif
 #endif
 
-#ifdef CFG_CORE_RWDATA_NOEXEC
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
-		     VCORE_UNPG_RX_PA - TEE_RAM_START);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
-		     VCORE_UNPG_RX_SZ_UNSAFE);
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
-		     VCORE_UNPG_RO_SZ_UNSAFE);
-
-#ifdef CFG_NS_VIRTUALIZATION
-register_phys_mem_ul(MEM_AREA_NEX_RAM_RO, VCORE_UNPG_RW_PA,
-		     VCORE_UNPG_RW_SZ_UNSAFE);
-register_phys_mem_ul(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
-		     VCORE_NEX_RW_SZ_UNSAFE);
-#else
-register_phys_mem_ul(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA,
-		     VCORE_UNPG_RW_SZ_UNSAFE);
-#endif
-
-#ifdef CFG_WITH_PAGER
-register_phys_mem_ul(MEM_AREA_INIT_RAM_RX, VCORE_INIT_RX_PA,
-		     VCORE_INIT_RX_SZ_UNSAFE);
-register_phys_mem_ul(MEM_AREA_INIT_RAM_RO, VCORE_INIT_RO_PA,
-		     VCORE_INIT_RO_SZ_UNSAFE);
-#endif /*CFG_WITH_PAGER*/
-#else /*!CFG_CORE_RWDATA_NOEXEC*/
-register_phys_mem(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
-#endif /*!CFG_CORE_RWDATA_NOEXEC*/
-
-#ifdef CFG_NS_VIRTUALIZATION
-register_phys_mem(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
-		  TRUSTED_DRAM_SIZE);
-#endif
-
-#if defined(CFG_CORE_SANITIZE_KADDRESS) && defined(CFG_WITH_PAGER)
-/* Asan ram is part of MEM_AREA_TEE_RAM_RW when pager is disabled */
-register_phys_mem_ul(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
-#endif
-
-#ifndef CFG_NS_VIRTUALIZATION
-/* Every guest will have own TA RAM if virtualization support is enabled */
-register_phys_mem(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
-#endif
 #ifdef CFG_CORE_RESERVED_SHM
 register_phys_mem(MEM_AREA_NSEC_SHM, TEE_SHMEM_START, TEE_SHMEM_SIZE);
 #endif
-
 static unsigned int mmu_spinlock;
 
 static uint32_t mmu_lock(void)
@@ -616,12 +573,16 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 }
 
 static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
-			 const struct core_mmu_phys_mem *mem, size_t *last)
+			 const char *mem_name __maybe_unused,
+			 enum teecore_memtypes mem_type,
+			 paddr_t mem_addr, paddr_size_t mem_size, size_t *last)
 {
 	size_t n = 0;
 	paddr_t pa;
 	paddr_size_t size;
 
+	if (!mem_size)	/* Discard null size entries */
+		return;
 	/*
 	 * If some ranges of memory of the same type do overlap
 	 * each others they are coalesced into one entry. To help this
@@ -633,7 +594,7 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 	 * happen often in practice.
 	 */
 	DMSG("%s type %s 0x%08" PRIxPA " size 0x%08" PRIxPASZ,
-	     mem->name, teecore_memtype_name(mem->type), mem->addr, mem->size);
+	     mem_name, teecore_memtype_name(mem_type), mem_addr, mem_size);
 	while (true) {
 		if (n >= (num_elems - 1)) {
 			EMSG("Out of entries (%zu) in memory_map", num_elems);
@@ -643,17 +604,17 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 			break;
 		pa = memory_map[n].pa;
 		size = memory_map[n].size;
-		if (mem->type == memory_map[n].type &&
-		    ((pa <= (mem->addr + (mem->size - 1))) &&
-		    (mem->addr <= (pa + (size - 1))))) {
-			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem->addr);
-			memory_map[n].pa = MIN(pa, mem->addr);
-			memory_map[n].size = MAX(size, mem->size) +
+		if (mem_type == memory_map[n].type &&
+		    ((pa <= (mem_addr + (mem_size - 1))) &&
+		    (mem_addr <= (pa + (size - 1))))) {
+			DMSG("Physical mem map overlaps 0x%" PRIxPA, mem_addr);
+			memory_map[n].pa = MIN(pa, mem_addr);
+			memory_map[n].size = MAX(size, mem_size) +
 					     (pa - memory_map[n].pa);
 			return;
 		}
-		if (mem->type < memory_map[n].type ||
-		    (mem->type == memory_map[n].type && mem->addr < pa))
+		if (mem_type < memory_map[n].type ||
+		    (mem_type == memory_map[n].type && mem_addr < pa))
 			break; /* found the spot where to insert this memory */
 		n++;
 	}
@@ -662,9 +623,9 @@ static void add_phys_mem(struct tee_mmap_region *memory_map, size_t num_elems,
 		sizeof(struct tee_mmap_region) * (*last - n));
 	(*last)++;
 	memset(memory_map + n, 0, sizeof(memory_map[0]));
-	memory_map[n].type = mem->type;
-	memory_map[n].pa = mem->addr;
-	memory_map[n].size = mem->size;
+	memory_map[n].type = mem_type;
+	memory_map[n].pa = mem_addr;
+	memory_map[n].size = mem_size;
 }
 
 static void add_va_space(struct tee_mmap_region *memory_map, size_t num_elems,
@@ -926,17 +887,67 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 	const struct core_mmu_phys_mem *mem = NULL;
 	size_t last = 0;
 
+
+#define ADD_PHYS_MEM(_type, _addr, _size) \
+		add_phys_mem(memory_map, num_elems, #_addr, (_type), \
+			     (_addr), (_size),  &last)
+
+	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, TEE_RAM_START,
+			     VCORE_UNPG_RX_PA - TEE_RAM_START);
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
+			     VCORE_UNPG_RX_SZ);
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
+			     VCORE_UNPG_RO_SZ);
+
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			ADD_PHYS_MEM(MEM_AREA_NEX_RAM_RO, VCORE_UNPG_RW_PA,
+				     VCORE_UNPG_RW_SZ);
+			ADD_PHYS_MEM(MEM_AREA_NEX_RAM_RW, VCORE_NEX_RW_PA,
+				     VCORE_NEX_RW_SZ);
+		} else {
+			ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RW, VCORE_UNPG_RW_PA,
+				     VCORE_UNPG_RW_SZ);
+		}
+
+		if (IS_ENABLED(CFG_WITH_PAGER)) {
+			ADD_PHYS_MEM(MEM_AREA_INIT_RAM_RX, VCORE_INIT_RX_PA,
+				     VCORE_INIT_RX_SZ);
+			ADD_PHYS_MEM(MEM_AREA_INIT_RAM_RO, VCORE_INIT_RO_PA,
+				     VCORE_INIT_RO_SZ);
+		}
+	} else {
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM, TEE_RAM_START, TEE_RAM_PH_SIZE);
+	}
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		ADD_PHYS_MEM(MEM_AREA_SEC_RAM_OVERALL, TRUSTED_DRAM_BASE,
+			     TRUSTED_DRAM_SIZE);
+	} else {
+		/*
+		 * Every guest will have own TA RAM if virtualization
+		 * support is enabled.
+		 */
+		ADD_PHYS_MEM(MEM_AREA_TA_RAM, TA_RAM_START, TA_RAM_SIZE);
+	}
+
+	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) &&
+	    IS_ENABLED(CFG_WITH_PAGER)) {
+		/*
+		 * Asan ram is part of MEM_AREA_TEE_RAM_RW when pager is
+		 * disabled.
+		 */
+		ADD_PHYS_MEM(MEM_AREA_TEE_ASAN, ASAN_MAP_PA, ASAN_MAP_SZ);
+	}
+
+#undef ADD_PHYS_MEM
+
 	for (mem = phys_mem_map_begin; mem < phys_mem_map_end; mem++) {
-		struct core_mmu_phys_mem m = *mem;
-
-		/* Discard null size entries */
-		if (!m.size)
-			continue;
-
 		/* Only unmapped virtual range may have a null phys addr */
-		assert(m.addr || !core_mmu_type_to_attr(m.type));
+		assert(mem->addr || !core_mmu_type_to_attr(mem->type));
 
-		add_phys_mem(memory_map, num_elems, &m, &last);
+		add_phys_mem(memory_map, num_elems, mem->name, mem->type,
+			     mem->addr, mem->size, &last);
 	}
 
 	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
