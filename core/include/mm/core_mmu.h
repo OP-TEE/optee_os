@@ -650,6 +650,19 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 	return core_mmu_check_max_pa(end_pa);
 }
 
+#ifdef CFG_CORE_PHYS_RELOCATABLE
+/*
+ * core_mmu_set_secure_memory() - set physical secure memory range
+ * @base: base address of secure memory
+ * @size: size of secure memory
+ *
+ * The physical secure memory range is not known in advance when OP-TEE is
+ * relocatable, this information must be supplied once during boot before
+ * the translation tables can be initialized and the MMU enabled.
+ */
+void core_mmu_set_secure_memory(paddr_t base, size_t size);
+#endif
+
 /*
  * core_mmu_get_secure_memory() - get physical secure memory range
  * @base: base address of secure memory
