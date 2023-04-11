@@ -67,12 +67,8 @@ ENTRY(_start)
 SECTIONS
 {
 	. = TEE_LOAD_ADDR;
-#ifdef ARM32
-	ASSERT(!(TEE_LOAD_ADDR & 31), "text start should align to 32bytes")
-#endif
-#ifdef ARM64
-	ASSERT(!(TEE_LOAD_ADDR & 127), "text start should align to 128bytes")
-#endif
+	ASSERT(!(TEE_LOAD_ADDR & (SMALL_PAGE_SIZE - 1)),
+	       "text start should be page aligned")
 	__text_start = .;
 
 	/*
