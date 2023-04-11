@@ -35,6 +35,12 @@
 
 #define SHM_VASPACE_SIZE	(1024 * 1024 * 32)
 
+#ifdef CFG_CORE_PHYS_RELOCATABLE
+unsigned long core_mmu_tee_load_pa __nex_bss;
+#else
+const unsigned long core_mmu_tee_load_pa = TEE_LOAD_ADDR;
+#endif
+
 /*
  * These variables are initialized before .bss is cleared. To avoid
  * resetting them when .bss is cleared we're storing them in .data instead,

@@ -270,6 +270,16 @@ extern unsigned long default_nsec_shm_paddr;
 extern unsigned long default_nsec_shm_size;
 #endif
 
+/*
+ * Physical load address of OP-TEE updated during boot if needed to reflect
+ * the value used.
+ */
+#ifdef CFG_CORE_PHYS_RELOCATABLE
+extern unsigned long core_mmu_tee_load_pa;
+#else
+extern const unsigned long core_mmu_tee_load_pa;
+#endif
+
 void core_init_mmu_map(unsigned long seed, struct core_mmu_config *cfg);
 void core_init_mmu_regs(struct core_mmu_config *cfg);
 
