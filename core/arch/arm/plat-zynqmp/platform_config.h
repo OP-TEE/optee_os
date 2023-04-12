@@ -70,7 +70,7 @@
 #define UART1_CLK_IN_HZ		100000000
 
 #define GICD_OFFSET		0
-#define GICC_OFFSET		0x20000
+#define GICC_OFFSET		0x10000
 
 #elif defined(PLATFORM_FLAVOR_ultra96)
 
@@ -85,7 +85,7 @@
 #define UART1_CLK_IN_HZ		100000000
 
 #define GICD_OFFSET		0
-#define GICC_OFFSET		0x20000
+#define GICC_OFFSET		0x10000
 
 #else
 #error "Unknown platform flavor"
