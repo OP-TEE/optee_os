@@ -103,12 +103,6 @@ CFG_CORE_DUMP_OOM ?= $(CFG_TEE_CORE_MALLOC_DEBUG)
 # Levels: 0=none 1=error 2=info 3=debug 4=flow
 CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 
-# PRNG configuration
-# If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
-# software PRNG implementation is used.
-# Otherwise, you need to implement hw_get_random_bytes() for your platform
-CFG_WITH_SOFTWARE_PRNG ?= y
-
 # Number of threads
 CFG_NUM_THREADS ?= 2
 
