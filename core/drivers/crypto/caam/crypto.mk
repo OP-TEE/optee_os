@@ -171,9 +171,8 @@ endif
 
 endif # !CFG_LS
 
-$(call force, CFG_NXP_CAAM_ACIPHER_DRV, $(call cryphw-one-enabled, RSA ECC DH DSA))
+$(call force, CFG_CRYPTO_DRV_ACIPHER , $(call cryphw-one-enabled, RSA ECC DH DSA))
 $(call force, CFG_CRYPTO_DRV_MAC, $(call cryphw-one-enabled, HMAC CMAC))
-CFG_CRYPTO_DRV_ACIPHER ?= $(CFG_NXP_CAAM_ACIPHER_DRV)
 
 # Disable SM2 as it is not supported by the CAAM driver
 ifeq ($(CFG_NXP_CAAM_ECC_DRV),y)
