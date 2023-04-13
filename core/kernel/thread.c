@@ -366,7 +366,7 @@ bool __weak thread_is_in_normal_mode(void)
 	return ret;
 }
 
-short int thread_get_id_may_fail(void)
+short int __noprof thread_get_id_may_fail(void)
 {
 	/*
 	 * thread_get_core_local() requires foreign interrupts to be disabled
