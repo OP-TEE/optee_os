@@ -43,3 +43,4 @@ srcs-$(CFG_CRYPTO_CBC) += sm4-cbc.c
 srcs-$(CFG_CRYPTO_CTR) += sm4-ctr.c
 srcs-$(CFG_CRYPTO_XTS) += sm4-xts.c
 endif
+srcs-$(CFG_CRYPTO_HW_PBKDF2) += pbkdf2_hw.c

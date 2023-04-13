@@ -8,8 +8,10 @@
 #include <string.h>
 #include <tee/tee_cryp_pbkdf2.h>
 #include <tee/tee_cryp_utl.h>
+#include <crypto/pbkdf2_support.h>
 #include <utee_defines.h>
 
+#if !defined(CFG_CRYPTO_HW_PBKDF2)
 struct hmac_parms {
 	uint32_t algo;
 	size_t hash_len;
@@ -112,3 +114,13 @@ out:
 	crypto_mac_free_ctx(hmac_parms.ctx);
 	return res;
 }
+#else
+TEE_Result tee_cryp_pbkdf2(uint32_t hash_id, const uint8_t *password,
+			   size_t password_len, const uint8_t *salt,
+			   size_t salt_len, uint32_t iteration_count,
+			   uint8_t *derived_key, size_t derived_key_len)
+{
+	return hw_pbkdf2(hash_id, password, password_len, salt, salt_len,
+			 iteration_count, derived_key, derived_key_len);
+}
+#endif
