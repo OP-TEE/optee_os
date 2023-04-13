@@ -73,6 +73,12 @@ CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB ?= n
 
 endif
 
+# PRNG configuration
+# If CFG_WITH_SOFTWARE_PRNG is enabled, crypto provider provided
+# software PRNG implementation is used.
+# Otherwise, you need to implement hw_get_random_bytes() for your platform
+CFG_WITH_SOFTWARE_PRNG ?= y
+
 ifeq ($(CFG_WITH_PAGER),y)
 ifneq ($(CFG_CRYPTO_SHA256),y)
 $(warning Warning: Enabling CFG_CRYPTO_SHA256 [required by CFG_WITH_PAGER])
