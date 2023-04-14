@@ -466,7 +466,7 @@ void __nostackcheck thread_init_thread_core_local(void)
 	tcl[0].tmp_stack_va_end = GET_STACK_BOTTOM(stack_tmp, 0);
 }
 
-void thread_init_core_local_stacks(void)
+void __nostackcheck thread_init_core_local_stacks(void)
 {
 	size_t n = 0;
 	struct thread_core_local *tcl = thread_core_local;
