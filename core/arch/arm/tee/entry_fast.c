@@ -292,7 +292,7 @@ void __tee_entry_fast(struct thread_smc_args *args)
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
 
-	case OPTEE_SMC_WDT_HANDLER_MASK:
+	case OPTEE_SMC_WATCHDOG:
 		if (IS_ENABLED(CFG_WDT_SM_HANDLER))
 			__wdt_sm_handler(args);
 		else

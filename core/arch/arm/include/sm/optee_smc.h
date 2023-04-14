@@ -563,18 +563,21 @@
  * Access to the secure watchdog.
  *
  * Call requests usage:
- * a0	SMC Function ID, OPTEE_SMC_FUNCID_WATCHDOG
+ * a0	SMC Function ID, OPTEE_SMC_WATCHDOG
  * a1	Watchdog command
  *	0 : Init watchdog
  *	1 : Set timeout
  *	2 : Enable watchdog
  *	3 : Ping the watchdog for refresh
  *	4 : Get time left
- * a2-6	Not use
+ * a2	if a1 == 1, the timeout value to set
+ *	if a1 == 2, 0 to stop the watchdog, 1 to enable it.
+ *	preserved otherwise
+ * a3-6	Not used
  * a7	Hypervisor Client ID register
  *
  * Normal return register usage:
- * a0	OPTEE_SMC_RETURN_OK
+ * a0 PSCI_RET_SUCCESS
  * a1	if a1 == 0, the minimal timeout value supported by watchdog
  *	if a1 == 4, the remaining time before watchdog expires
  *	preserved otherwise.
@@ -582,12 +585,21 @@
  *	preserved otherwise.
  * a3-7	Preserved
  *
- * Not supported return register usage:
- * a0	OPTEE_SMC_RETURN_UNKNOWN_FUNCTION
- * a1-7	Preserved
+ * Error return:
+ * a0	PSCI_RET_NOT_SUPPORTED		Function not supported
+ *	PSCI_RET_INVALID_PARAMETERS	Invalid arguments
+ *	PSCI_RET_INTERNAL_FAILURE	Device error
+ * a1-7 Preserved
+ *
+ * By SMCCC convention:
+ * PSCI_RET_SUCCESS, OPTEE_SMC_RETURN_OK and ARM_SMCCC_RET_SUCCESS
+ * are equal.
+ * PSCI_RET_NOT_SUPPORTED, OPTEE_SMC_RETURN_UNKNOWN_FUNCTION and
+ * ARM_SMCCC_RET_NOT_SUPPORTED are equal.
+ *
  */
 #define OPTEE_SMC_FUNCID_WATCHDOG		U(20)
-#define OPTEE_SMC_FUNCID_WATCHDOG_MASK \
+#define OPTEE_SMC_WATCHDOG \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_WATCHDOG)
 
 /*
