@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
- * Copyright (c) 2019, Arm Limited. All rights reserved.
+ * Copyright (c) 2019-2023, Arm Limited. All rights reserved.
  */
 #ifndef ARM_H
 #define ARM_H
@@ -157,6 +157,16 @@ static inline unsigned int feat_mte_implemented(void)
 #else
 	return (read_id_aa64pfr1_el1() >> ID_AA64PFR1_EL1_MTE_SHIFT) &
 	       ID_AA64PFR1_EL1_MTE_MASK;
+#endif
+}
+
+static inline bool feat_crc32_implemented(void)
+{
+#ifdef ARM32
+	return false;
+#else
+	return ((read_id_aa64isar0_el1() >> ID_AA64ISAR0_EL1_CRC32_SHIFT) &
+		ID_AA64ISAR0_EL1_CRC32_MASK) == FEAT_CRC32_IMPLEMENTED;
 #endif
 }
 

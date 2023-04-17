@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2015, Linaro Limited
+ * Copyright (c) 2023, Arm Limited
  */
 #ifndef ARM64_H
 #define ARM64_H
@@ -237,6 +238,11 @@
 #define FEAT_MTE2_IMPLEMENTED		U(0x2)
 #define FEAT_MTE3_IMPLEMENTED		U(0x3)
 
+#define ID_AA64ISAR0_EL1_CRC32_MASK	UL(0xf)
+#define ID_AA64ISAR0_EL1_CRC32_SHIFT	U(16)
+#define FEAT_CRC32_NOT_IMPLEMENTED	U(0x0)
+#define FEAT_CRC32_IMPLEMENTED		U(0x1)
+
 #define ID_AA64ISAR1_GPI_SHIFT		U(28)
 #define ID_AA64ISAR1_GPI_MASK		U(0xf)
 #define ID_AA64ISAR1_GPI_NI		U(0x0)
@@ -427,6 +433,7 @@ DEFINE_U64_REG_READ_FUNC(par_el1)
 DEFINE_U64_REG_WRITE_FUNC(mair_el1)
 
 DEFINE_U64_REG_READ_FUNC(id_aa64pfr1_el1)
+DEFINE_U64_REG_READ_FUNC(id_aa64isar0_el1)
 DEFINE_U64_REG_READ_FUNC(id_aa64isar1_el1)
 DEFINE_REG_READ_FUNC_(apiakeylo, uint64_t, S3_0_c2_c1_0)
 DEFINE_REG_READ_FUNC_(apiakeyhi, uint64_t, S3_0_c2_c1_1)
