@@ -7,8 +7,13 @@
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <trace.h>
-#include "imx_sip.h"
 #include "imx_pl310.h"
+
+#define IMX_SIP_PL310_ENABLE			1
+#define IMX_SIP_PL310_DISABLE			2
+#define IMX_SIP_PL310_ENABLE_WRITEBACK		3
+#define IMX_SIP_PL310_DISABLE_WRITEBACK		4
+#define IMX_SIP_PL310_ENABLE_WFLZ		5
 
 static enum sm_handler_ret imx_sip_handler(struct thread_smc_args *smc_args)
 {
