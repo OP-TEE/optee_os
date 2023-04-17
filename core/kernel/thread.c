@@ -379,7 +379,7 @@ short int __noprof thread_get_id_may_fail(void)
 	return ct;
 }
 
-short int thread_get_id(void)
+short int __noprof thread_get_id(void)
 {
 	short int ct = thread_get_id_may_fail();
 
@@ -499,7 +499,7 @@ void thread_init_core_local_pauth_keys(void)
 }
 #endif
 
-struct thread_specific_data *thread_get_tsd(void)
+struct thread_specific_data * __noprof thread_get_tsd(void)
 {
 	return &threads[thread_get_id()].tsd;
 }
