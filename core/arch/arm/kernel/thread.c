@@ -218,7 +218,7 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a3, uint32_t a4, uint32_t a5,
 				   uint32_t a6, uint32_t a7,
-				   void *pc)
+				   void *pc, uint32_t flags)
 {
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
@@ -243,7 +243,7 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	l->curr_thread = n;
 
-	threads[n].flags = 0;
+	threads[n].flags = flags;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
 #ifdef CFG_CORE_PAUTH
 	/*
@@ -266,7 +266,7 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5)
 {
 	__thread_alloc_and_run(a0, a1, a2, a3, a4, a5, 0, 0,
-			       thread_std_smc_entry);
+			       thread_std_smc_entry, 0);
 }
 
 #ifdef CFG_SECURE_PARTITION
@@ -274,7 +274,7 @@ void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)
 {
 	__thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3, args->a4,
 			       args->a5, args->a6, args->a7,
-			       spmc_sp_thread_entry);
+			       spmc_sp_thread_entry, THREAD_FLAGS_FFA_ONLY);
 }
 #endif
 
@@ -514,6 +514,13 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 			tee_ta_ftrace_update_times_suspend();
 		core_mmu_get_user_map(&threads[ct].user_map);
 		core_mmu_set_user_map(NULL);
+	}
+
+	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
+		struct ts_session *ts_sess =
+			TAILQ_FIRST(&threads[ct].tsd.sess_stack);
+
+		spmc_sp_set_to_preempted(ts_sess);
 	}
 
 	l->curr_thread = THREAD_ID_INVALID;

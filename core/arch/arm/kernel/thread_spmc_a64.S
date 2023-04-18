@@ -14,6 +14,20 @@
 #include <kernel/thread.h>
 #include <optee_ffa.h>
 
+#if CFG_SECURE_PARTITION
+LOCAL_FUNC thread_ffa_interrupt , :
+	mov_imm	x0, FFA_INTERRUPT		/* FID */
+	/* X1: Endpoint/vCPU IDs is set by caller */
+	mov	x2, #FFA_PARAM_MBZ		/* Param MBZ */
+	mov	x3, #FFA_PARAM_MBZ		/* Param MBZ */
+	mov	x4, #FFA_PARAM_MBZ		/* Param MBZ */
+	mov	x5, #FFA_PARAM_MBZ		/* Param MBZ */
+	mov	x6, #FFA_PARAM_MBZ		/* Param MBZ */
+	mov	x7, #FFA_PARAM_MBZ		/* Param MBZ */
+	b	.ffa_msg_loop
+END_FUNC thread_ffa_interrupt
+#endif /* CFG_SECURE_PARTITION */
+
 FUNC thread_ffa_msg_wait , :
 	mov_imm	x0, FFA_MSG_WAIT		/* FID */
 	mov	x1, #FFA_TARGET_INFO_MBZ	/* Target info MBZ */
@@ -171,13 +185,28 @@ END_FUNC thread_rpc
  * The current thread as indicated by @thread_index has just been
  * suspended.  The job here is just to inform normal world the thread id to
  * resume when returning.
+ * If the active FF-A endpoint is OP-TEE (or a TA) then an this function send an
+ * OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT message to the normal world via the
+ * FFA_MSG_SEND_DIRECT_RESP interface. This is handled by the OP-TEE
+ * driver in Linux so it can schedule task to the thread.
+ * If the active endpoint is an SP the function sends an FFA_INTERRUPT. This is
+ * handled by the FF-A driver and after taking care of the NWd interrupts it
+ * returns via an FFA_RUN call.
+ * The active endpoint is determined by checking the THREAD_FLAGS_FFA_ONLY flag
+ * in threads[w0].flags. This is only set for the thread which handles SPs.
  */
 FUNC thread_foreign_intr_exit , :
 	/* load threads[w0].tsd.rpc_target_info into w1 */
 	mov	x1, #THREAD_CTX_SIZE
 	adr_l	x2, threads
-	madd	x1, x1, x0, x2
-	ldr	w1, [x1, #THREAD_CTX_TSD_RPC_TARGET_INFO]
+	madd	x2, x1, x0, x2
+	ldr	w1, [x2, #THREAD_CTX_TSD_RPC_TARGET_INFO]
+#if CFG_SECURE_PARTITION
+	/* load threads[w0].flags into w2 */
+	ldr	w2, [x2, #THREAD_CTX_FLAGS]
+	and     w2, w2, #THREAD_FLAGS_FFA_ONLY
+	cbnz	w2, thread_ffa_interrupt
+#endif /* CFG_SECURE_PARTITION */
 	mov	x2, #FFA_PARAM_MBZ
 	mov	w3, #FFA_PARAM_MBZ
 	mov	w4, #OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT
