@@ -127,6 +127,8 @@ DEFINES
 #ifdef CFG_CORE_FFA
 	DEFINE(THREAD_CTX_TSD_RPC_TARGET_INFO,
 	       offsetof(struct thread_ctx, tsd.rpc_target_info))
+	DEFINE(THREAD_CTX_FLAGS,
+	       offsetof(struct thread_ctx, flags))
 #endif
 
 	/* struct thread_core_local */

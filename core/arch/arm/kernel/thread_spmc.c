@@ -552,6 +552,32 @@ out:
 		cpu_spin_unlock(&rxtx->spinlock);
 	}
 }
+
+static void spmc_handle_run(struct thread_smc_args *args)
+{
+	uint16_t endpoint = FFA_TARGET_INFO_GET_SP_ID(args->a1);
+	uint16_t thread_id = FFA_TARGET_INFO_GET_VCPU_ID(args->a1);
+	uint32_t rc = FFA_OK;
+
+	if (endpoint != my_endpoint_id) {
+		/*
+		 * The endpoint should be an SP, try to resume the SP from
+		 * preempted into busy state.
+		 */
+		rc = spmc_sp_resume_from_preempted(endpoint);
+		if (rc)
+			goto out;
+	}
+
+	thread_resume_from_rpc(thread_id, 0, 0, 0, 0);
+
+	/* thread_resume_from_rpc return only of the thread_id is invalid */
+	rc = FFA_INVALID_PARAMETERS;
+
+out:
+	spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
 #endif /*CFG_CORE_SEL1_SPMC*/
 
 static void handle_yielding_call(struct thread_smc_args *args)
@@ -1280,6 +1306,9 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 	case FFA_PARTITION_INFO_GET:
 		spmc_handle_partition_info_get(args, &my_rxtx);
+		break;
+	case FFA_RUN:
+		spmc_handle_run(args);
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:

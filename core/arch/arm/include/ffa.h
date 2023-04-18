@@ -54,7 +54,7 @@
 #define FFA_SPM_ID_GET			U(0x84000085)
 #define FFA_MSG_WAIT			U(0x8400006B)
 #define FFA_MSG_YIELD			U(0x8400006C)
-#define FFA_MSG_RUN			U(0x8400006D)
+#define FFA_RUN				U(0x8400006D)
 #define FFA_MSG_SEND2			U(0x84000086)
 #define FFA_MSG_SEND			U(0x8400006E)
 #define FFA_MSG_SEND_DIRECT_REQ_32	U(0x8400006F)
@@ -148,6 +148,16 @@
 
 /* Special value for MBZ parameters */
 #define FFA_PARAM_MBZ			U(0x0)
+
+/*
+ * The W1 register in FFA_INTERRUPT and FFA_RUN interfaces contains the target
+ * information. This value has two parts, the SP ID and vCPU ID. The SP ID
+ * identifies the SP to resume and the vCPU ID identifies the vCPU or execution
+ * context to resume (FF-A v1.1 section 4.8).
+ */
+#define FFA_TARGET_INFO_SET(sp_id, vcpu_id)	(((sp_id) << 16) | (vcpu_id))
+#define FFA_TARGET_INFO_GET_SP_ID(info)		(((info) >> 16) & 0xffff)
+#define FFA_TARGET_INFO_GET_VCPU_ID(info)	((info) & 0xffff)
 
 /*
  * Flags used for the FFA_PARTITION_INFO_GET return message:

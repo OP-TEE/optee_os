@@ -1342,6 +1342,8 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	struct sp_session *sp_s = to_sp_session(s);
 	struct ts_session *sess = NULL;
 	struct thread_ctx_regs *sp_regs = NULL;
+	uint32_t thread_id = THREAD_ID_INVALID;
+	uint32_t rpc_target_info = 0;
 	uint32_t panicked = false;
 	uint32_t panic_code = 0;
 
@@ -1354,8 +1356,24 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	sp_regs->cpsr = read_daif() & (SPSR_64_DAIF_MASK << SPSR_64_DAIF_SHIFT);
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	/*
+	 * Store endpoint ID and thread ID in rpc_target_info. This will be used
+	 * as w1 in FFA_INTERRUPT in case of a foreign interrupt.
+	 */
+	rpc_target_info = thread_get_tsd()->rpc_target_info;
+	thread_id = thread_get_id();
+	assert(thread_id <= UINT16_MAX);
+	thread_get_tsd()->rpc_target_info =
+		FFA_TARGET_INFO_SET(sp_s->endpoint_id, thread_id);
+
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
+
 	sp_regs->cpsr = cpsr;
+
+	/* Restore rpc_target_info */
+	thread_get_tsd()->rpc_target_info = rpc_target_info;
+
 	thread_unmask_exceptions(exceptions);
 
 	thread_user_clear_vfp(&ctx->uctx);

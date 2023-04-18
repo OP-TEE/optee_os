@@ -378,6 +378,31 @@ cleanup:
 	return res;
 }
 
+void spmc_sp_set_to_preempted(struct ts_session *ts_sess)
+{
+	if (ts_sess && is_sp_ctx(ts_sess->ctx)) {
+		struct sp_session *sp_sess = to_sp_session(ts_sess);
+
+		assert(sp_sess->state == sp_busy);
+		sp_sess->state = sp_preempted;
+	}
+}
+
+int spmc_sp_resume_from_preempted(uint16_t endpoint_id)
+{
+	struct sp_session *sp_sess = sp_get_session(endpoint_id);
+
+	if (!sp_sess)
+		return FFA_INVALID_PARAMETERS;
+
+	if (sp_sess->state != sp_preempted)
+		return FFA_DENIED;
+
+	sp_sess->state = sp_busy;
+
+	return FFA_OK;
+}
+
 static bool check_rxtx(struct ffa_rxtx *rxtx)
 {
 	return rxtx && rxtx->rx && rxtx->tx && rxtx->size > 0;
