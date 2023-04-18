@@ -43,7 +43,7 @@ S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
 ARM Corstone1000
-R:	Vishnu Banavath <vishnu.banavath@arm.com> [@vishnu-banavath]
+R:	Emekcan.Aras@arm.com <emekcan.aras@arm.com> [@ememarar]
 S:	Maintained
 F:	core/arch/arm/plat-corstone1000/
 
