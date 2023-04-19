@@ -4090,7 +4090,10 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 		goto out;
 	}
 
-	res = vm_check_access_rights(uctx, TEE_MEMORY_ACCESS_READ,
+	/* Despite TEE Internal Core API up to v1.3, tag is [inbuf], not [in] */
+	res = vm_check_access_rights(uctx,
+				     TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER,
 				     (uaddr_t)tag, tag_len);
 	if (res != TEE_SUCCESS)
 		return res;
