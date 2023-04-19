@@ -1181,6 +1181,36 @@ err_unmap:
 	return res;
 }
 
+/*
+ * Note: this function is called only on the primary CPU. It assumes that the
+ * features present on the primary CPU are available on all of the secondary
+ * CPUs as well.
+ */
+static TEE_Result handle_hw_features(void *fdt)
+{
+	uint32_t val __maybe_unused = 0;
+	TEE_Result res = TEE_SUCCESS;
+	int node = 0;
+
+	/*
+	 * HW feature descriptions are optional in the SP manifest, it's not an
+	 * error if we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0, "arm,hw-features");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	/* Modify the crc32 property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "crc32", &val)) {
+		res = fdt_setprop_u32(fdt, node, "crc32",
+				      feat_crc32_implemented());
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1245,6 +1275,10 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 		if (res)
 			goto out;
 	}
+
+	res = handle_hw_features(fdt_copy);
+	if (res)
+		goto out;
 
 	ts_pop_current_session();
 
