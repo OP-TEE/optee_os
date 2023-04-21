@@ -396,9 +396,15 @@ clear_nex_bss:
 
 #ifdef _CFG_CORE_STACK_PROTECTOR
 	/* Update stack canary value */
-	bl	plat_get_random_stack_canary
+	sub	sp, sp, #0x10
+	mov	x0, sp
+	mov	x1, #1
+	mov	x2, #0x8
+	bl	plat_get_random_stack_canaries
+	ldr	x0, [sp]
 	adr_l	x5, __stack_chk_guard
 	str	x0, [x5]
+	add	sp, sp, #0x10
 #endif
 
 	/*

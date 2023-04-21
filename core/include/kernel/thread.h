@@ -52,6 +52,12 @@ void thread_init_canaries(void);
 void thread_init_primary(void);
 void thread_init_per_cpu(void);
 
+#if defined(CFG_WITH_STACK_CANARIES)
+void thread_update_canaries(void);
+#else
+static inline void thread_update_canaries(void) { }
+#endif
+
 struct thread_core_local *thread_get_core_local(void);
 
 /*
