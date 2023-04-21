@@ -70,8 +70,16 @@ void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);
 unsigned long plat_get_aslr_seed(void);
 unsigned long plat_get_freq(void);
-#if defined(_CFG_CORE_STACK_PROTECTOR)
-uintptr_t plat_get_random_stack_canary(void);
+#if defined(_CFG_CORE_STACK_PROTECTOR) || defined(CFG_WITH_STACK_CANARIES)
+/*
+ * plat_get_random_stack_canaries() - Get random values for stack canaries.
+ * @buf:	Pointer to the buffer where to store canaries
+ * @ncan:	The number of canaries to generate.
+ * @size:	The size (in bytes) of each canary.
+ *
+ * This function has a __weak default implementation.
+ */
+void plat_get_random_stack_canaries(void *buf, size_t ncan, size_t size);
 #endif
 void arm_cl2_config(vaddr_t pl310);
 void arm_cl2_enable(vaddr_t pl310);

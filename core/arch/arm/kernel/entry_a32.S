@@ -571,9 +571,15 @@ shadow_stack_access_ok:
 
 #ifdef _CFG_CORE_STACK_PROTECTOR
 	/* Update stack canary value */
-	bl	plat_get_random_stack_canary
+	sub	sp, sp, #0x8
+	mov	r0, sp
+	mov	r1, #1
+	mov	r2, #0x4
+	bl	plat_get_random_stack_canaries
+	ldr	r0, [sp]
 	ldr	r1, =__stack_chk_guard
 	str	r0, [r1]
+	add	sp, sp, #0x8
 #endif
 
 	/*
