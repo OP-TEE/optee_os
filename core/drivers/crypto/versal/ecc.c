@@ -21,7 +21,7 @@
 #define XSECURE_ECDSA_KAT_NIST_P521	2
 
 /* Software based ECDSA operations */
-static const struct crypto_ecc_keypair_ops *keypair_ops;
+static const struct crypto_ecc_keypair_ops *pair_ops;
 static const struct crypto_ecc_public_ops *pub_ops;
 
 enum versal_ecc_err {
@@ -246,7 +246,7 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 			return ret;
 
 		/* Fallback to software */
-		return keypair_ops->sign(algo, key, msg, msg_len, sig, sig_len);
+		return pair_ops->sign(algo, key, msg, msg_len, sig, sig_len);
 	}
 
 	/* Hash and update the length */
@@ -324,7 +324,7 @@ static TEE_Result shared_secret(struct ecc_keypair *private_key,
 				struct ecc_public_key *public_key,
 				void *secret, size_t *secret_len)
 {
-	return keypair_ops->shared_secret(private_key, public_key,
+	return pair_ops->shared_secret(private_key, public_key,
 					  secret, secret_len);
 }
 
@@ -363,36 +363,52 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *s, size_t size_bits)
 	 * We chose not to do it here because some tests might be using
 	 * their own keys
 	 */
-	return keypair_ops->generate(s, size_bits);
+	return pair_ops->generate(s, size_bits);
 }
 
 static TEE_Result do_alloc_keypair(struct ecc_keypair *s,
-				   uint32_t type __unused,
-				   size_t size_bits)
+				   uint32_t type, size_t size_bits)
 {
 	TEE_Result ret = TEE_SUCCESS;
+
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_KEYPAIR &&
+	    type != TEE_TYPE_ECDH_KEYPAIR)
+		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	ret = crypto_asym_alloc_ecc_keypair(s, TEE_TYPE_ECDSA_KEYPAIR,
 					    size_bits);
 	if (ret)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
+	/*
+	 * Ignore the software operations, the crypto API will populate
+	 * this interface.
+	 */
 	s->ops = NULL;
 
 	return TEE_SUCCESS;
 }
 
 static TEE_Result do_alloc_publickey(struct ecc_public_key *s,
-				     uint32_t type __unused,
-				     size_t size_bits)
+				     uint32_t type, size_t size_bits)
 {
 	TEE_Result ret = TEE_SUCCESS;
+
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_PUBLIC_KEY &&
+	    type != TEE_TYPE_ECDH_PUBLIC_KEY)
+		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	ret = crypto_asym_alloc_ecc_public_key(s, TEE_TYPE_ECDSA_PUBLIC_KEY,
 					       size_bits);
 	if (ret)
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
+	/*
+	 * Ignore the software operations, the crypto API will populate
+	 * this interface.
+	 */
 	s->ops = NULL;
 
 	return TEE_SUCCESS;
@@ -433,13 +449,19 @@ static TEE_Result ecc_init(void)
 		return TEE_ERROR_GENERIC;
 	}
 
-	keypair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
-	if (!keypair_ops)
+	pair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
+	if (!pair_ops)
 		return TEE_ERROR_GENERIC;
 
 	pub_ops = crypto_asym_get_ecc_public_ops(TEE_TYPE_ECDSA_PUBLIC_KEY);
 	if (!pub_ops)
 		return TEE_ERROR_GENERIC;
+
+	/* This driver supports both ECDH and ECDSA */
+	assert((pub_ops ==
+		crypto_asym_get_ecc_public_ops(TEE_TYPE_ECDH_PUBLIC_KEY)) &&
+	       (pair_ops ==
+		crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDH_KEYPAIR)));
 
 	return drvcrypt_register_ecc(&driver_ecc);
 }
