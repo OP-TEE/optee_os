@@ -523,7 +523,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	}
 
 	if (ecc)
-		ret = ecc->alloc_keypair(key, size_bits);
+		ret = ecc->alloc_keypair(key, type, size_bits);
 
 	if (!ret) {
 		key->ops = &ecc_keypair_ops;
@@ -574,7 +574,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	}
 
 	if (ecc)
-		ret = ecc->alloc_publickey(key, size_bits);
+		ret = ecc->alloc_publickey(key, type, size_bits);
 
 	if (!ret) {
 		key->ops = &ecc_public_key_ops;

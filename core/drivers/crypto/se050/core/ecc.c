@@ -727,6 +727,7 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 }
 
 static TEE_Result do_alloc_keypair(struct ecc_keypair *s,
+				   uint32_t type __unused,
 				   size_t size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
@@ -745,7 +746,9 @@ err:
 }
 
 static TEE_Result do_alloc_publickey(struct ecc_public_key *s,
+				     uint32_t type __unused,
 				     size_t size_bits __unused)
+
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->x))
