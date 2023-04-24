@@ -726,10 +726,14 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 		      sdata->signature.length);
 }
 
-static TEE_Result do_alloc_keypair(struct ecc_keypair *s,
-				   uint32_t type __unused,
+static TEE_Result do_alloc_keypair(struct ecc_keypair *s, uint32_t type,
 				   size_t size_bits __unused)
 {
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_KEYPAIR &&
+	    type != TEE_TYPE_ECDH_KEYPAIR)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->d))
 		goto err;
@@ -745,11 +749,14 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
-static TEE_Result do_alloc_publickey(struct ecc_public_key *s,
-				     uint32_t type __unused,
+static TEE_Result do_alloc_publickey(struct ecc_public_key *s, uint32_t type,
 				     size_t size_bits __unused)
-
 {
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_PUBLIC_KEY &&
+	    type != TEE_TYPE_ECDH_PUBLIC_KEY)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->x))
 		goto err;
@@ -790,6 +797,12 @@ static TEE_Result ecc_init(void)
 	pair_ops = crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDSA_KEYPAIR);
 	if (!pair_ops)
 		return TEE_ERROR_GENERIC;
+
+	/* This driver supports both ECDH and ECDSA */
+	assert((pub_ops ==
+		crypto_asym_get_ecc_public_ops(TEE_TYPE_ECDH_PUBLIC_KEY)) &&
+	       (pair_ops ==
+		crypto_asym_get_ecc_keypair_ops(TEE_TYPE_ECDH_KEYPAIR)));
 
 	return drvcrypt_register_ecc(&driver_ecc);
 }
