@@ -34,7 +34,8 @@ void __weak console_flush(void)
 	struct serial_chip *curr_console = serial_console;
 
 	while (curr_console) {
-		curr_console->ops->flush(curr_console);
+		if (curr_console->ops->flush)
+			curr_console->ops->flush(curr_console);
 		curr_console = curr_console->next;
 	}
 }
