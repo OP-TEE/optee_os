@@ -44,6 +44,8 @@ struct sp_session {
 	const void *fdt;
 	bool is_initialized;
 	TEE_UUID ffa_uuid;
+	uint32_t ns_int_mode;
+	uint32_t ns_int_mode_inherited;
 	TAILQ_ENTRY(sp_session) link;
 };
 

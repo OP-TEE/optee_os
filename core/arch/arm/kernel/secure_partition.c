@@ -48,6 +48,10 @@
 
 #define SP_MANIFEST_FLAG_NOBITS	BIT(0)
 
+#define SP_MANIFEST_NS_INT_QUEUED	(0x0)
+#define SP_MANIFEST_NS_INT_MANAGED_EXIT	(0x1)
+#define SP_MANIFEST_NS_INT_SIGNALED	(0x2)
+
 #define SP_PKG_HEADER_MAGIC (0x474b5053)
 #define SP_PKG_HEADER_VERSION_V1 (0x1)
 #define SP_PKG_HEADER_VERSION_V2 (0x2)
@@ -1214,6 +1218,37 @@ static TEE_Result handle_hw_features(void *fdt)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_ns_interrupts_action(const void *fdt,
+					    struct sp_session *s)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+
+	res = sp_dt_get_u32(fdt, 0, "ns-interrupts-action", &s->ns_int_mode);
+
+	if (res) {
+		EMSG("Mandatory property is missing: ns-interrupts-action");
+		return res;
+	}
+
+	switch (s->ns_int_mode) {
+	case SP_MANIFEST_NS_INT_QUEUED:
+	case SP_MANIFEST_NS_INT_SIGNALED:
+		/* OK */
+		break;
+
+	case SP_MANIFEST_NS_INT_MANAGED_EXIT:
+		EMSG("Managed exit is not implemented");
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	default:
+		EMSG("Invalid ns-interrupts-action value: %"PRIu32,
+		     s->ns_int_mode);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1235,6 +1270,10 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 	if (res)
 		return res;
 	DMSG("endpoint is 0x%"PRIx16, sess->endpoint_id);
+
+	res = read_ns_interrupts_action(fdt, sess);
+	if (res)
+		return res;
 
 	return TEE_SUCCESS;
 }
@@ -1332,17 +1371,46 @@ TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
 	return res;
 }
 
+/*
+ * According to FF-A v1.1 section 8.3.1.4 if a caller requires less permissive
+ * active on NS interrupt than the callee, the callee must inherit the caller's
+ * configuration.
+ * Each SP's own NS action setting is stored in ns_int_mode. The effective
+ * action will be MIN([self action], [caller's action]) which is stored in the
+ * ns_int_mode_inherited field.
+ */
+static void sp_cpsr_configure_foreign_interrupts(struct sp_session *s,
+						 struct ts_session *caller,
+						 uint64_t *cpsr)
+{
+	if (caller) {
+		struct sp_session *caller_sp = to_sp_session(caller);
+
+		s->ns_int_mode_inherited = MIN(caller_sp->ns_int_mode_inherited,
+					       s->ns_int_mode);
+	} else {
+		s->ns_int_mode_inherited = s->ns_int_mode;
+	}
+
+	if (s->ns_int_mode_inherited == SP_MANIFEST_NS_INT_QUEUED)
+		*cpsr |= SHIFT_U32(THREAD_EXCP_FOREIGN_INTR,
+				   ARM32_CPSR_F_SHIFT);
+	else
+		*cpsr &= ~SHIFT_U32(THREAD_EXCP_FOREIGN_INTR,
+				    ARM32_CPSR_F_SHIFT);
+}
+
 static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 				      uint32_t cmd __unused)
 {
 	struct sp_ctx *ctx = to_sp_ctx(s->ctx);
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t exceptions = 0;
-	uint64_t cpsr = 0;
 	struct sp_session *sp_s = to_sp_session(s);
 	struct ts_session *sess = NULL;
 	struct thread_ctx_regs *sp_regs = NULL;
 	uint32_t thread_id = THREAD_ID_INVALID;
+	struct ts_session *caller = NULL;
 	uint32_t rpc_target_info = 0;
 	uint32_t panicked = false;
 	uint32_t panic_code = 0;
@@ -1352,10 +1420,11 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	sp_regs = &ctx->sp_regs;
 	ts_push_current_session(s);
 
-	cpsr = sp_regs->cpsr;
-	sp_regs->cpsr = read_daif() & (SPSR_64_DAIF_MASK << SPSR_64_DAIF_SHIFT);
-
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	/* Enable/disable foreign interrupts in CPSR/SPSR */
+	caller = ts_get_calling_session();
+	sp_cpsr_configure_foreign_interrupts(sp_s, caller, &sp_regs->cpsr);
 
 	/*
 	 * Store endpoint ID and thread ID in rpc_target_info. This will be used
@@ -1368,8 +1437,6 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 		FFA_TARGET_INFO_SET(sp_s->endpoint_id, thread_id);
 
 	__thread_enter_user_mode(sp_regs, &panicked, &panic_code);
-
-	sp_regs->cpsr = cpsr;
 
 	/* Restore rpc_target_info */
 	thread_get_tsd()->rpc_target_info = rpc_target_info;
