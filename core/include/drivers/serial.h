@@ -13,6 +13,7 @@
 
 struct serial_chip {
 	const struct serial_ops *ops;
+	struct serial_chip *next;
 };
 
 struct serial_ops {

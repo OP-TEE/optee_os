@@ -19,25 +19,44 @@ static struct serial_chip *serial_console __nex_bss;
 
 void __weak console_putc(int ch)
 {
-	if (!serial_console)
-		return;
+	struct serial_chip *curr_console = serial_console;
 
-	if (ch == '\n')
-		serial_console->ops->putc(serial_console, '\r');
-	serial_console->ops->putc(serial_console, ch);
+	while (curr_console) {
+		if (ch == '\n')
+			curr_console->ops->putc(curr_console, '\r');
+		curr_console->ops->putc(curr_console, ch);
+		curr_console = curr_console->next;
+	}
 }
 
 void __weak console_flush(void)
 {
-	if (!serial_console || !serial_console->ops->flush)
-		return;
+	struct serial_chip *curr_console = serial_console;
 
-	serial_console->ops->flush(serial_console);
+	while (curr_console) {
+		curr_console->ops->flush(curr_console);
+		curr_console = curr_console->next;
+	}
 }
 
 void register_serial_console(struct serial_chip *chip)
 {
-	serial_console = chip;
+	struct serial_chip *curr_console;
+
+	if (!serial_console) {
+		serial_console = chip;
+		return;
+	}
+	curr_console = serial_console;
+	while (true) {
+		if (curr_console == chip)
+			return;
+		if (!curr_console->next) {
+			curr_console->next = chip;
+			return;
+		}
+		curr_console = curr_console->next;
+	}
 }
 
 #ifdef CFG_DT
