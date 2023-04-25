@@ -14,7 +14,7 @@
 #include <util.h>
 
 #define CURSOR_MASK (BIT(28) - 1)
-#define BIT(31)
+#define OVERFLOW BIT(31)
 
 /*
  * Structures describing coreboot's in-memory descriptor tables. See
@@ -84,17 +84,17 @@ DECLARE_KEEP_PAGER(cbmem_console_ops);
 static paddr_t get_cbmem_console_from_coreboot_table(paddr_t table_addr,
 						     size_t table_size)
 {
-	struct cb_header_t *header;
+	struct cb_header *header;
 	void *ptr;
 	uint32_t i;
-	struct cb_entry_t *entry;
+	struct cb_entry *entry;
 	paddr_t cbmem_console_base = 0;
 	void *base = core_mmu_add_mapping(MEM_AREA_RAM_NSEC, table_addr,
 					     table_size);
 	if (!base)
 		return 0;
 
-	header = (struct cb_header_t *)base;
+	header = (struct cb_header *)base;
 	if (strncmp(header->signature, "LBIO", 4))
 		goto done;
 
@@ -103,9 +103,9 @@ static paddr_t get_cbmem_console_from_coreboot_table(paddr_t table_addr,
 
 	ptr = (uint8_t *)base + header->header_bytes;
 	for (i = 0; i < header->table_entries; ++i) {
-		entry = (struct cb_entry_t *)ptr;
+		entry = (struct cb_entry *)ptr;
 		if ((uint8_t *)ptr >= (uint8_t *)base + table_size -
-				sizeof(cb_entry_t)) {
+				sizeof(struct cb_entry)) {
 			goto done;
 		}
 
