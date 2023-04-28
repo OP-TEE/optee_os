@@ -48,16 +48,6 @@
 #include <config/imx6qdlsolo.h>
 #elif defined(CFG_MX6SX)
 #include <config/imx6sx.h>
-
-/* For i.MX 6UltraLite and 6ULL EVK board */
-#elif defined(CFG_MX6UL) || defined(CFG_MX6ULL)
-
-#ifdef CFG_WITH_PAGER
-#error "Pager not supported for platform mx6ulevk"
-#endif
-#ifdef CFG_WITH_LPAE
-#error "LPAE not supported for now"
-#endif
 /* For i.MX 6SL */
 #elif defined(CFG_MX6SL)
 #include <config/imx6sl.h>
