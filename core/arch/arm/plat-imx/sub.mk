@@ -21,4 +21,4 @@ endif
 
 subdirs-$(CFG_PSCI_ARM32) += pm
 
-subdirs-y += drivers
+srcs-$(CFG_TZC380) += tzc380.c
