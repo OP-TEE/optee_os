@@ -966,7 +966,7 @@ static TEE_Result dump_ta_stats(struct tee_ta_dump_ctx *dump_ctx,
 	return TEE_SUCCESS;
 }
 
-TEE_Result tee_ta_instance_stats(void *buf, uint32_t *buf_size)
+TEE_Result tee_ta_instance_stats(void *buf, size_t *buf_size)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_ta_dump_stats *dump_stats = NULL;
