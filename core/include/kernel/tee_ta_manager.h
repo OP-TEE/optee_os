@@ -168,7 +168,7 @@ static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
 }
 
 #if defined(CFG_TA_STATS)
-TEE_Result tee_ta_instance_stats(void *buff, uint32_t *buff_size);
+TEE_Result tee_ta_instance_stats(void *buff, size_t *buff_size);
 #endif
 
 #endif
