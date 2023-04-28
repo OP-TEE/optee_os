@@ -54,6 +54,7 @@ srcs-$(CFG_LS_SEC_MON) += ls_sec_mon.c
 srcs-$(CFG_LS_SFP) += ls_sfp.c
 srcs-$(CFG_IMX_RNGB) += imx_rngb.c
 srcs-$(CFG_IMX_OCOTP) += imx_ocotp.c
+srcs-$(CFG_IMX_CAAM) += imx_caam.c
 srcs-$(CFG_XIPHERA_TRNG) += xiphera_trng.c
 srcs-$(CFG_IMX_SC) += imx_sc_api.c
 srcs-$(CFG_IMX_ELE) += imx_ele.c
