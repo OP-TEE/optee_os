@@ -70,24 +70,4 @@
  * Standby mode enabled
  */
 #define PL310_POWER_CTRL_INIT		0x00000003
-
-/*
- * SCU Invalidate Register
- *
- * Invalidate all registers
- */
-#define	SCU_INV_CTRL_INIT		0xFFFFFFFF
-
-/*
- * SCU Access Register
- * - both secure CPU access SCU
- */
-#define SCU_SAC_CTRL_INIT		0x0000000F
-
-/*
- * SCU NonSecure Access Register
- * - both nonsec cpu access SCU, private and global timer
- */
-#define SCU_NSAC_CTRL_INIT		0x00000FFF
-
 #endif

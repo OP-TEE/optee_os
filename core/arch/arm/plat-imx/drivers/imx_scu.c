@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2019, 2023 NXP
  *
  */
 
@@ -9,6 +9,13 @@
 #include <io.h>
 #include <kernel/tz_ssvce_def.h>
 #include <mm/core_memprot.h>
+
+/* Invalidate all registers */
+#define	SCU_INV_CTRL_INIT	0xFFFFFFFF
+/* Both secure CPU access SCU */
+#define SCU_SAC_CTRL_INIT	0x0000000F
+/* Both non-secure CPU access SCU, private and global timer */
+#define SCU_NSAC_CTRL_INIT	0x00000FFF
 
 static TEE_Result scu_init(void)
 {
@@ -28,5 +35,4 @@ static TEE_Result scu_init(void)
 
 	return TEE_SUCCESS;
 }
-
 driver_init(scu_init);
