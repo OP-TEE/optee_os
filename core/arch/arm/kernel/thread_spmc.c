@@ -179,6 +179,7 @@ static void handle_features(struct thread_smc_args *args)
 	case FFA_SUCCESS_64:
 #endif
 	case FFA_FEATURES:
+	case FFA_SPM_ID_GET:
 	case FFA_MEM_FRAG_TX:
 	case FFA_MEM_RECLAIM:
 	case FFA_MSG_SEND_DIRECT_REQ_32:
@@ -219,6 +220,12 @@ static int map_buf(paddr_t pa, unsigned int sz, void **va_ret)
 
 	*va_ret = (void *)tee_mm_get_smem(mm);
 	return 0;
+}
+
+static void handle_spm_id_get(struct thread_smc_args *args)
+{
+	spmc_set_args(args, FFA_SUCCESS_32, FFA_PARAM_MBZ, my_endpoint_id,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
 static void unmap_buf(void *va, size_t sz)
@@ -1261,6 +1268,9 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 	case FFA_FEATURES:
 		handle_features(args);
+		break;
+	case FFA_SPM_ID_GET:
+		handle_spm_id_get(args);
 		break;
 #ifdef ARM64
 	case FFA_RXTX_MAP_64:
