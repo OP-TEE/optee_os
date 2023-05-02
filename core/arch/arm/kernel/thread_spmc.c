@@ -1674,7 +1674,7 @@ static void spmc_rxtx_map(struct ffa_rxtx *rxtx)
 	}
 }
 
-static uint16_t spmc_get_id(void)
+static uint16_t get_my_id(void)
 {
 	struct thread_smc_args args = {
 		.a0 = FFA_ID_GET,
@@ -1891,7 +1891,7 @@ static TEE_Result spmc_init(void)
 	nw_rxtx.ffa_vers = my_vers;
 
 	spmc_rxtx_map(&nw_rxtx);
-	my_endpoint_id = spmc_get_id();
+	my_endpoint_id = get_my_id();
 	DMSG("My endpoint ID %#x", my_endpoint_id);
 
 	return TEE_SUCCESS;
