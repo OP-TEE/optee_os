@@ -44,16 +44,7 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base = 0;
-	vaddr_t gicd_base = 0;
-
-	gicc_base = (vaddr_t)phys_to_virt(GICC_BASE, MEM_AREA_IO_SEC, 1);
-	gicd_base = (vaddr_t)phys_to_virt(GICD_BASE, MEM_AREA_IO_SEC, 1);
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, gicc_base, gicd_base);
-
+	gic_init(&gic_data, GICC_BASE, GICD_BASE);
 	itr_init(&gic_data.chip);
 }
 

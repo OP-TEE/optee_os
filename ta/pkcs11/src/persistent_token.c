@@ -77,7 +77,7 @@ static enum pkcs11_rc do_hash(uint32_t user, const uint8_t *pin,
 {
 	TEE_Result res = TEE_SUCCESS;
 	TEE_OperationHandle oh = TEE_HANDLE_NULL;
-	uint32_t sz = TEE_MAX_HASH_SIZE;
+	size_t sz = TEE_MAX_HASH_SIZE;
 
 	res = TEE_AllocateOperation(&oh, TEE_ALG_SHA256, TEE_MODE_DIGEST, 0);
 	if (res)
@@ -472,7 +472,7 @@ enum pkcs11_rc load_persistent_object_attributes(struct pkcs11_object *obj)
 	TEE_ObjectHandle hdl = obj->attribs_hdl;
 	TEE_ObjectInfo info = { };
 	struct obj_attrs *attr = NULL;
-	uint32_t read_bytes = 0;
+	size_t read_bytes = 0;
 
 	if (obj->attributes)
 		return PKCS11_CKR_OK;
@@ -510,12 +510,12 @@ enum pkcs11_rc load_persistent_object_attributes(struct pkcs11_object *obj)
 
 	if (res) {
 		rc = tee2pkcs_error(res);
-		EMSG("Read %"PRIu32" bytes, failed %#"PRIx32,
+		EMSG("Read %zu bytes, failed %#"PRIx32,
 		     read_bytes, res);
 		goto out;
 	}
 	if (read_bytes != info.dataSize) {
-		EMSG("Read %"PRIu32" bytes, expected %"PRIu32,
+		EMSG("Read %zu bytes, expected %zu",
 		     read_bytes, info.dataSize);
 		rc = PKCS11_CKR_GENERAL_ERROR;
 		goto out;
@@ -598,7 +598,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 	res = open_db_file(token, &db_hdl);
 
 	if (res == TEE_SUCCESS) {
-		uint32_t size = 0;
+		size_t size = 0;
 		size_t idx = 0;
 
 		IMSG("PKCS11 token %u: load db", token_id);

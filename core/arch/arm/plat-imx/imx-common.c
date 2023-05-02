@@ -66,6 +66,8 @@ uint32_t imx_get_digprog(void)
 		imx_digprog = SOC_MX8DXL << 16;
 	else if (IS_ENABLED(CFG_MX8ULP))
 		imx_digprog = SOC_MX8ULP << 16;
+	else if (IS_ENABLED(CFG_MX93))
+		imx_digprog = SOC_MX93 << 16;
 
 	return imx_digprog;
 }
@@ -140,11 +142,12 @@ bool soc_is_imx6dqp(void)
 
 bool soc_is_imx6(void)
 {
-	return ((imx_soc_type() == SOC_MX6SX) ||
-			(imx_soc_type() == SOC_MX6UL) ||
-			(imx_soc_type() == SOC_MX6ULL) ||
-			(imx_soc_type() == SOC_MX6DL) ||
-			(imx_soc_type() == SOC_MX6Q));
+	uint32_t soc = imx_soc_type();
+
+	return (soc == SOC_MX6SLL) || (soc == SOC_MX6SL) ||
+	       (soc == SOC_MX6D) || (soc == SOC_MX6SX) ||
+	       (soc == SOC_MX6UL) || (soc == SOC_MX6ULL) ||
+	       (soc == SOC_MX6DL) || (soc == SOC_MX6Q);
 }
 
 bool soc_is_imx7ds(void)

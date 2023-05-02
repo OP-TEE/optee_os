@@ -1,29 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2017, Texas Instruments
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES// LOSS OF USE, DATA, OR PROFITS// OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ *	Andrew Davis <afd@ti.com>
  */
 
 /*
@@ -78,11 +56,15 @@ UNWIND(	.cantunwind)
 unhandled_cpu:
 	wfige
 	bge	unhandled_cpu
+	add	r0, r0, #1
 	ldr	r1, =stack_tmp_stride
 	ldr	r1, [r1]
 	mul	r1, r0, r1
-	ldr	r0, =stack_tmp_export
-	ldr	r0, [r0]
+	ldr	r0, =stack_tmp
+#if (STACK_TMP_GUARD != 0)
+	mov_imm	r2, STACK_TMP_GUARD
+	sub	r0, r0, r2
+#endif
 	add	sp, r1, r0
 
 	/* Push our return on the stack as sm_pm_cpu_do_resume expects */

@@ -1,38 +1,42 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017, Texas Instruments
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES// LOSS OF USE, DATA, OR PROFITS// OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ *	Andrew Davis <afd@ti.com>
  */
 
 #include <arm32.h>
+#include <io.h>
 #include <kernel/thread.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
 #include <trace.h>
 
 #include "api_monitor_index_a15.h"
+
+#define WUGEN_MPU_AMBA_IF_MODE 0x80c
+
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, WUGEN_MPU_BASE, WUGEN_MPU_SIZE);
+
+static vaddr_t wugen_mpu_base(void)
+{
+	static void *va;
+
+	if (cpu_mmu_enabled()) {
+		if (!va)
+			va = phys_to_virt(WUGEN_MPU_BASE, MEM_AREA_IO_SEC,
+					  WUGEN_MPU_SIZE);
+		return (vaddr_t)va;
+	}
+
+	return WUGEN_MPU_BASE;
+}
+
+static void write_wugen_mpu_amba_if_mode(uint32_t val)
+{
+	io_write32(wugen_mpu_base() + WUGEN_MPU_AMBA_IF_MODE, val);
+}
 
 static enum sm_handler_ret ti_sip_handler(struct thread_smc_args *smc_args)
 {
@@ -47,6 +51,10 @@ static enum sm_handler_ret ti_sip_handler(struct thread_smc_args *smc_args)
 	case API_MONITOR_TIMER_SETCNTFRQ_INDEX:
 		write_cntfrq(smc_args->a1);
 		isb();
+		smc_args->a0 = OPTEE_SMC_RETURN_OK;
+		break;
+	case API_MONITOR_WUGEN_MPU_SETAMBAIF_INDEX:
+		write_wugen_mpu_amba_if_mode(smc_args->a1);
 		smc_args->a0 = OPTEE_SMC_RETURN_OK;
 		break;
 	default:

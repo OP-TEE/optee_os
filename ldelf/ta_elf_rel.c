@@ -32,10 +32,21 @@ static uint32_t elf_hash(const char *name)
 	return h;
 }
 
-static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
-			  unsigned int st_type, size_t st_shndx,
-			  size_t st_name, size_t st_value, const char *name,
-			  vaddr_t *val, bool weak_ok)
+static uint32_t gnu_hash(const char *name)
+{
+	const unsigned char *p = (const unsigned char *)name;
+	uint32_t h = 5381;
+
+	while (*p)
+		h = (h << 5) + h + *p++;
+
+	return h;
+}
+
+static bool sym_compare(struct ta_elf *elf, unsigned int st_bind,
+			unsigned int st_type, size_t st_shndx,
+			size_t st_name, size_t st_value, const char *name,
+			vaddr_t *val, bool weak_ok)
 {
 	bool bind_ok = false;
 
@@ -78,63 +89,121 @@ static bool __resolve_sym(struct ta_elf *elf, unsigned int st_bind,
 	return true;
 }
 
-static TEE_Result resolve_sym_helper(uint32_t hash, const char *name,
-				     vaddr_t *val, struct ta_elf *elf,
-				     bool weak_ok)
+static bool check_found_sym(struct ta_elf *elf, const char *name, vaddr_t *val,
+			    bool weak_ok, size_t n)
 {
+	Elf32_Sym *sym32 = NULL;
+	Elf64_Sym *sym64 = NULL;
+	unsigned int st_bind = 0;
+	unsigned int st_type = 0;
+	size_t st_shndx = 0;
+	size_t st_name = 0;
+	size_t st_value = 0;
+
+	if (n >= elf->num_dynsyms)
+		err(TEE_ERROR_BAD_FORMAT, "Index out of range");
+
 	/*
-	 * Using uint32_t here for convenience because both Elf64_Word
-	 * and Elf32_Word are 32-bit types
+	 * We're loading values from sym[] which later
+	 * will be used to load something.
+	 * => Spectre V1 pattern, need to cap the index
+	 * against speculation.
 	 */
-	uint32_t *hashtab = elf->hashtab;
-	uint32_t nbuckets = hashtab[0];
-	uint32_t nchains = hashtab[1];
-	uint32_t *bucket = &hashtab[2];
-	uint32_t *chain = &bucket[nbuckets];
-	size_t n = 0;
+	n = confine_array_index(n, elf->num_dynsyms);
 
 	if (elf->is_32bit) {
-		Elf32_Sym *sym = elf->dynsymtab;
-
-		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			if (n >= nchains || n >= elf->num_dynsyms)
-				err(TEE_ERROR_BAD_FORMAT,
-				    "Index out of range");
-			/*
-			 * We're loading values from sym[] which later
-			 * will be used to load something.
-			 * => Spectre V1 pattern, need to cap the index
-			 * against speculation.
-			 */
-			n = confine_array_index(n, elf->num_dynsyms);
-			if (__resolve_sym(elf,
-					  ELF32_ST_BIND(sym[n].st_info),
-					  ELF32_ST_TYPE(sym[n].st_info),
-					  sym[n].st_shndx,
-					  sym[n].st_name,
-					  sym[n].st_value, name, val, weak_ok))
-				return TEE_SUCCESS;
-		}
+		sym32 = elf->dynsymtab;
+		st_bind = ELF32_ST_BIND(sym32[n].st_info);
+		st_type = ELF32_ST_TYPE(sym32[n].st_info);
+		st_shndx = sym32[n].st_shndx;
+		st_name = sym32[n].st_name;
+		st_value = sym32[n].st_value;
 	} else {
-		Elf64_Sym *sym = elf->dynsymtab;
+		sym64 = elf->dynsymtab;
+		st_bind = ELF64_ST_BIND(sym64[n].st_info);
+		st_type = ELF64_ST_TYPE(sym64[n].st_info);
+		st_shndx = sym64[n].st_shndx;
+		st_name = sym64[n].st_name;
+		st_value = sym64[n].st_value;
+	}
+
+	return sym_compare(elf, st_bind, st_type, st_shndx, st_name, st_value,
+			   name, val, weak_ok);
+}
+
+static TEE_Result resolve_sym_helper(const char *name, vaddr_t *val,
+				     struct ta_elf *elf, bool weak_ok)
+{
+	uint32_t n = 0;
+	uint32_t hash = 0;
+
+	if (elf->gnu_hashtab) {
+		struct gnu_hashtab *h = elf->gnu_hashtab;
+		uint32_t *end = (void *)((uint8_t *)elf->gnu_hashtab +
+					 elf->gnu_hashtab_size);
+		uint32_t *bucket = NULL;
+		uint32_t *chain = NULL;
+		uint32_t hashval = 0;
+
+		hash = gnu_hash(name);
+
+		if (elf->is_32bit) {
+			uint32_t *bloom = (void *)(h + 1);
+			uint32_t word = bloom[(hash / 32) % h->bloom_size];
+			uint32_t mask = BIT32(hash % 32) |
+					BIT32((hash >> h->bloom_shift) % 32);
+
+			if ((word & mask) != mask)
+				return TEE_ERROR_ITEM_NOT_FOUND;
+			bucket = bloom + h->bloom_size;
+		} else {
+			uint64_t *bloom = (void *)(h + 1);
+			uint64_t word = bloom[(hash / 64) % h->bloom_size];
+			uint64_t mask = BIT64(hash % 64) |
+					BIT64((hash >> h->bloom_shift) % 64);
+
+			if ((word & mask) != mask)
+				return TEE_ERROR_ITEM_NOT_FOUND;
+			bucket = (uint32_t *)(bloom + h->bloom_size);
+		}
+		chain = bucket + h->nbuckets;
+
+		n = bucket[hash % h->nbuckets];
+		if (n < h->symoffset)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		hash |= 1;
+		do {
+			size_t idx = n - h->symoffset;
+
+			if (chain + idx > end)
+				return TEE_ERROR_ITEM_NOT_FOUND;
+
+			hashval = chain[idx];
+
+			if ((hashval | 1) == hash &&
+			    check_found_sym(elf, name, val, weak_ok, n))
+				return TEE_SUCCESS;
+
+			n++;
+		} while (!(hashval & 1));
+	} else if (elf->hashtab) {
+		/*
+		 * Using uint32_t here for convenience because both Elf64_Word
+		 * and Elf32_Word are 32-bit types
+		 */
+		uint32_t *hashtab = elf->hashtab;
+		uint32_t nbuckets = hashtab[0];
+		uint32_t nchains = hashtab[1];
+		uint32_t *bucket = &hashtab[2];
+		uint32_t *chain = &bucket[nbuckets];
+
+		hash = elf_hash(name);
 
 		for (n = bucket[hash % nbuckets]; n; n = chain[n]) {
-			if (n >= nchains || n >= elf->num_dynsyms)
-				err(TEE_ERROR_BAD_FORMAT,
-				    "Index out of range");
-			/*
-			 * We're loading values from sym[] which later
-			 * will be used to load something.
-			 * => Spectre V1 pattern, need to cap the index
-			 * against speculation.
-			 */
-			n = confine_array_index(n, elf->num_dynsyms);
-			if (__resolve_sym(elf,
-					  ELF64_ST_BIND(sym[n].st_info),
-					  ELF64_ST_TYPE(sym[n].st_info),
-					  sym[n].st_shndx,
-					  sym[n].st_name,
-					  sym[n].st_value, name, val, weak_ok))
+			if (n >= nchains)
+				err(TEE_ERROR_BAD_FORMAT, "Index out of range");
+			if (check_found_sym(elf, name, val, weak_ok, n))
 				return TEE_SUCCESS;
 		}
 	}
@@ -154,25 +223,19 @@ TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
 			      struct ta_elf **found_elf,
 			      struct ta_elf *elf)
 {
-	uint32_t hash = elf_hash(name);
-
 	if (elf) {
 		/* Search global symbols */
-		if (!resolve_sym_helper(hash, name, val, elf,
-					false /* !weak_ok */))
+		if (!resolve_sym_helper(name, val, elf, false /* !weak_ok */))
 			goto success;
 		/* Search weak symbols */
-		if (!resolve_sym_helper(hash, name, val, elf,
-					true /* weak_ok */))
+		if (!resolve_sym_helper(name, val, elf, true /* weak_ok */))
 			goto success;
 	}
 
 	TAILQ_FOREACH(elf, &main_elf_queue, link) {
-		if (!resolve_sym_helper(hash, name, val, elf,
-					false /* !weak_ok */))
+		if (!resolve_sym_helper(name, val, elf, false /* !weak_ok */))
 			goto success;
-		if (!resolve_sym_helper(hash, name, val, elf,
-					true /* weak_ok */))
+		if (!resolve_sym_helper(name, val, elf, true /* weak_ok */))
 			goto success;
 	}
 
@@ -186,7 +249,8 @@ success:
 
 static void e32_get_sym_name(const Elf32_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
-			     Elf32_Rel *rel, const char **name)
+			     Elf32_Rel *rel, const char **name,
+			     bool *weak_undef)
 {
 	size_t sym_idx = 0;
 	size_t name_idx = 0;
@@ -200,14 +264,27 @@ static void e32_get_sym_name(const Elf32_Sym *sym_tab, size_t num_syms,
 	if (name_idx >= str_tab_size)
 		err(TEE_ERROR_BAD_FORMAT, "Name index out of range");
 	*name = str_tab + name_idx;
+
+	if (!weak_undef)
+		return;
+	if (sym_tab[sym_idx].st_shndx == SHN_UNDEF &&
+	    ELF32_ST_BIND(sym_tab[sym_idx].st_info) == STB_WEAK)
+		*weak_undef = true;
+	else
+		*weak_undef = false;
 }
 
-static void resolve_sym(const char *name, vaddr_t *val, struct ta_elf **mod)
+static void resolve_sym(const char *name, vaddr_t *val, struct ta_elf **mod,
+			bool err_if_not_found)
 {
 	TEE_Result res = ta_elf_resolve_sym(name, val, mod, NULL);
 
-	if (res)
-		err(res, "Symbol %s not found", name);
+	if (res) {
+		if (err_if_not_found)
+			err(res, "Symbol %s not found", name);
+		else
+			*val = 0;
+	}
 }
 
 static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
@@ -216,9 +293,11 @@ static void e32_process_dyn_rel(const Elf32_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 	vaddr_t val = 0;
+	bool weak_undef = false;
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, &val, NULL);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 &weak_undef);
+	resolve_sym(name, &val, NULL, !weak_undef);
 	*where = val;
 }
 
@@ -238,8 +317,9 @@ static void e32_tls_get_module(const Elf32_Sym *sym_tab, size_t num_syms,
 		return;
 	}
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, NULL, mod);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 NULL);
+	resolve_sym(name, NULL, mod, false);
 }
 
 static void e32_tls_resolve(const Elf32_Sym *sym_tab, size_t num_syms,
@@ -248,8 +328,9 @@ static void e32_tls_resolve(const Elf32_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 
-	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name);
-	resolve_sym(name, val, NULL);
+	e32_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rel, &name,
+			 NULL);
+	resolve_sym(name, val, NULL, false);
 }
 
 static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
@@ -397,10 +478,11 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 }
 
-#ifdef ARM64
+#if defined(ARM64) || defined(RV64)
 static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
-			     Elf64_Rela *rela, const char **name)
+			     Elf64_Rela *rela, const char **name,
+			     bool *weak_undef)
 {
 	size_t sym_idx = 0;
 	size_t name_idx = 0;
@@ -414,6 +496,12 @@ static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 	if (name_idx >= str_tab_size)
 		err(TEE_ERROR_BAD_FORMAT, "Name index out of range");
 	*name = str_tab + name_idx;
+
+	if (sym_tab[sym_idx].st_shndx == SHN_UNDEF &&
+	    ELF64_ST_BIND(sym_tab[sym_idx].st_info) == STB_WEAK)
+		*weak_undef = true;
+	else
+		*weak_undef = false;
 }
 
 static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
@@ -422,18 +510,22 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 {
 	const char *name = NULL;
 	uintptr_t val = 0;
+	bool weak_undef = false;
 
-	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name);
-	resolve_sym(name, &val, NULL);
+	e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela, &name,
+			 &weak_undef);
+	resolve_sym(name, &val, NULL, !weak_undef);
 	*where = val;
 }
 
+#ifdef ARM64
 static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 				       size_t num_syms, const char *str_tab,
 				       size_t str_tab_size, Elf64_Rela *rela,
 				       Elf64_Addr *where, struct ta_elf *elf)
 {
 	struct ta_elf *mod = NULL;
+	bool weak_undef = false;
 	const char *name = NULL;
 	size_t sym_idx = 0;
 	vaddr_t symval = 0;
@@ -441,8 +533,8 @@ static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 	sym_idx = ELF64_R_SYM(rela->r_info);
 	if (sym_idx) {
 		e64_get_sym_name(sym_tab, num_syms, str_tab, str_tab_size, rela,
-				 &name);
-		resolve_sym(name, &symval, &mod);
+				 &name, &weak_undef);
+		resolve_sym(name, &symval, &mod, !weak_undef);
 	} else {
 		mod = elf;
 	}
@@ -479,6 +571,7 @@ static void e64_process_tlsdesc_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	e64_process_tls_tprel_rela(sym_tab, num_syms, str_tab, str_tab_size,
 				   rela, where + 1, elf);
 }
+#endif /*ARM64*/
 
 static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 {
@@ -561,6 +654,7 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
+#ifdef ARM64
 		case R_AARCH64_NONE:
 			/*
 			 * One would expect linker prevents such useless entry
@@ -601,19 +695,41 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 						 str_tab_size, rela, where,
 						 elf);
 			break;
+#endif /*ARM64*/
+#ifdef RV64
+		case R_RISCV_NONE:
+			/*
+			 * One would expect linker prevents such useless entry
+			 * in the relocation table. We still handle this type
+			 * here in case such entries exist.
+			 */
+			break;
+		case R_RISCV_RELATIVE:
+			*where = rela->r_addend + elf->load_addr;
+			break;
+		case R_RISCV_64:
+			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			*where += rela->r_addend;
+			break;
+		case R_RISCV_JUMP_SLOT:
+			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			break;
+#endif /*RV64*/
 		default:
 			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %zd",
 			     ELF64_R_TYPE(rela->r_info));
 		}
 	}
 }
-#else /*ARM64*/
+#else /*ARM64 || RV64*/
 static void __noreturn e64_relocate(struct ta_elf *elf __unused,
 				    unsigned int rel_sidx __unused)
 {
 	err(TEE_ERROR_NOT_SUPPORTED, "arm64 not supported");
 }
-#endif /*ARM64*/
+#endif /*ARM64 || RV64*/
 
 void ta_elf_relocate(struct ta_elf *elf)
 {

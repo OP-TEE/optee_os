@@ -29,6 +29,12 @@
  */
 #define IS_ENABLED(config_macro) Z_IS_ENABLED1(config_macro)
 
+/**
+ * @brief As IS_ENABLED() but to be used with _CFG_* internal switches
+ * to avoid triggering false positives with checkpatch.
+ */
+#define IS_ENABLED2(config_macro) IS_ENABLED(config_macro)
+
 /* Now stick on a "_XXXX" prefix, it will now be "_XXXX1" if config_macro
  * is "1", or just "_XXXX" if it's undefined.
  *   ENABLED:   Z_IS_ENABLED2(_XXXX1)

@@ -17,6 +17,10 @@ PLATFORM_FLAVOR_$(PLATFORM_FLAVOR) := y
 $(eval $(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA))
 include core/crypto.mk
 
+ifeq ($(CFG_SCMI_SCPFW),y)
+include core/lib/scmi-server/conf.mk
+endif
+
 cppflags$(sm)	+= -D__KERNEL__
 
 cppflags$(sm)	+= -Icore/include
@@ -24,6 +28,12 @@ cppflags$(sm)	+= -include $(conf-file)
 cppflags$(sm)	+= -I$(out-dir)/core/include
 cppflags$(sm)	+= $(core-platform-cppflags)
 cflags$(sm)	+= $(core-platform-cflags)
+
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR) := -fstack-protector
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR_STRONG) := -fstack-protector-strong
+core-stackp-cflags-$(CFG_CORE_STACK_PROTECTOR_ALL) := -fstack-protector-all
+cflags$(sm)	+= $(core-stackp-cflags-y)
+
 ifeq ($(CFG_CORE_SANITIZE_UNDEFINED),y)
 cflags$(sm)	+= -fsanitize=undefined
 endif
@@ -145,6 +155,12 @@ endif
 libname = unw
 libdir = lib/libunw
 include mk/lib.mk
+
+ifeq ($(CFG_SCMI_SCPFW),y)
+libname = scmi-server
+libdir = core/lib/scmi-server
+include mk/lib.mk
+endif
 
 #
 # Do main source

@@ -162,7 +162,6 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
 			     &pinctrl[n].standby_cfg);
 }
 
-#ifdef CFG_DT
 /* Panic if GPIO bank information from platform do not match DTB description */
 static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 {
@@ -188,7 +187,7 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 			panic();
 
 		/* Check controller is enabled */
-		if (_fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
+		if (fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
 			panic();
 
 		return;
@@ -370,7 +369,6 @@ int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
 
 	return -1;
 }
-#endif /*CFG_DT*/
 
 static __maybe_unused bool valid_gpio_config(unsigned int bank,
 					     unsigned int pin, bool input)
@@ -394,9 +392,9 @@ int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
 	struct clk *clk = stm32_get_gpio_bank_clk(bank);
 	int rc = 0;
 
-	assert(valid_gpio_config(bank, pin, true));
-
 	clk_enable(clk);
+
+	assert(valid_gpio_config(bank, pin, true));
 
 	if (io_read32(base + GPIO_IDR_OFFSET) == BIT(pin))
 		rc = 1;
@@ -411,9 +409,9 @@ void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
 	vaddr_t base = stm32_get_gpio_bank_base(bank);
 	struct clk *clk = stm32_get_gpio_bank_clk(bank);
 
-	assert(valid_gpio_config(bank, pin, false));
-
 	clk_enable(clk);
+
+	assert(valid_gpio_config(bank, pin, false));
 
 	if (level)
 		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin));

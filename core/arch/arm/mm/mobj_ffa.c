@@ -7,7 +7,6 @@
 #include <bitstring.h>
 #include <ffa.h>
 #include <initcall.h>
-#include <keep.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread_spmc.h>
@@ -41,7 +40,7 @@ static struct mobj_ffa_head shm_inactive_head =
 
 static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
-const struct mobj_ops mobj_ffa_ops;
+static const struct mobj_ops mobj_ffa_ops;
 
 static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
@@ -173,7 +172,7 @@ static struct mobj_ffa *find_in_list(struct mobj_ffa_head *head,
 	return NULL;
 }
 
-#ifdef CFG_CORE_SEL1_SPMC
+#if defined(CFG_CORE_SEL1_SPMC)
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 {
 	int i = mf->cookie & ~BIT64(44);
@@ -189,11 +188,8 @@ void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 
 	free(mf);
 }
-#endif /*CFG_CORE_SEL1_SPMC*/
-
-#ifdef CFG_CORE_SEL2_SPMC
-struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
-					unsigned int num_pages)
+#else /* !defined(CFG_CORE_SEL1_SPMC) */
+struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages)
 {
 	struct mobj_ffa *mf = NULL;
 
@@ -204,11 +200,11 @@ struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
 	return mf;
 }
 
-void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mf)
+void mobj_ffa_spmc_delete(struct mobj_ffa *mf)
 {
 	free(mf);
 }
-#endif /*CFG_CORE_SEL2_SPMC*/
+#endif /* !defined(CFG_CORE_SEL1_SPMC) */
 
 TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 				 paddr_t pa, unsigned int num_pages)
@@ -219,7 +215,8 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
+	if (!IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
+	    !core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
@@ -327,21 +324,20 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie)
 	/*
 	 * If the mobj isn't found or if it already has been unregistered.
 	 */
-#ifdef CFG_CORE_SEL2_SPMC
-	if (!mf) {
-#else
+#if defined(CFG_CORE_SEL1_SPMC)
 	if (!mf || mf->unregistered_by_cookie) {
-#endif
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto out;
 	}
-
-#ifdef CFG_CORE_SEL2_SPMC
-	mf = pop_from_list(&shm_inactive_head, cmp_cookie, cookie);
-	mobj_ffa_sel2_spmc_delete(mf);
-	thread_spmc_relinquish(cookie);
-#else
 	mf->unregistered_by_cookie = true;
+#else
+	if (!mf) {
+		res = TEE_ERROR_ITEM_NOT_FOUND;
+		goto out;
+	}
+	mf = pop_from_list(&shm_inactive_head, cmp_cookie, cookie);
+	mobj_ffa_spmc_delete(mf);
+	thread_spmc_relinquish(cookie);
 #endif
 	res = TEE_SUCCESS;
 
@@ -380,7 +376,7 @@ struct mobj *mobj_ffa_get_by_cookie(uint64_t cookie,
 		}
 	} else {
 		mf = pop_from_list(&shm_inactive_head, cmp_cookie, cookie);
-#if defined(CFG_CORE_SEL2_SPMC)
+#if !defined(CFG_CORE_SEL1_SPMC)
 		/* Try to retrieve it from the SPM at S-EL2 */
 		if (mf) {
 			DMSG("cookie %#"PRIx64" resurrecting", cookie);
@@ -460,7 +456,6 @@ static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(ffa_get_pa);
 
 static size_t ffa_get_phys_offs(struct mobj *mobj,
 				size_t granule __maybe_unused)
@@ -505,12 +500,12 @@ out:
 	cpu_spin_unlock_xrestore(&shm_lock, exceptions);
 }
 
-static TEE_Result ffa_get_cattr(struct mobj *mobj __unused, uint32_t *cattr)
+static TEE_Result ffa_get_mem_type(struct mobj *mobj __unused, uint32_t *mt)
 {
-	if (!cattr)
+	if (!mt)
 		return TEE_ERROR_GENERIC;
 
-	*cattr = TEE_MATTR_CACHE_CACHED;
+	*mt = TEE_MATTR_MEM_TYPE_CACHED;
 
 	return TEE_SUCCESS;
 }
@@ -603,7 +598,8 @@ static TEE_Result mapped_shm_init(void)
 	if (!pool_start || !pool_end)
 		panic("Can't find region for shmem pool");
 
-	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end, SMALL_PAGE_SHIFT,
+	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end - pool_start,
+			 SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 
@@ -612,15 +608,11 @@ static TEE_Result mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct mobj_ops mobj_ffa_ops __weak __rodata_unpaged("mobj_ffa_ops") = {
+static const struct mobj_ops mobj_ffa_ops = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
 	.get_va = ffa_get_va,
-	.get_cattr = ffa_get_cattr,
+	.get_mem_type = ffa_get_mem_type,
 	.matches = ffa_matches,
 	.free = ffa_inactivate,
 	.get_cookie = ffa_get_cookie,

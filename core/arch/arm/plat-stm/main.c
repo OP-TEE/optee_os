@@ -50,7 +50,7 @@ static bool ns_resources_ready(void)
 }
 
 /* Overriding the default __weak tee_entry_std() */
-uint32_t tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
+TEE_Result tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	boot_is_completed = 1;
 
@@ -80,7 +80,8 @@ void console_flush(void)
 	if (ns_resources_ready()) {
 		struct serial_chip *cons = &console_data.chip;
 
-		cons->ops->flush(cons);
+		if (cons->ops->flush)
+			cons->ops->flush(cons);
 	}
 }
 
@@ -135,16 +136,7 @@ void plat_primary_init_early(void)
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GIC_CPU_BASE, MEM_AREA_IO_SEC, 1);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_DIST_BASE, MEM_AREA_IO_SEC, 1);
-
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_CPU_BASE, GIC_DIST_BASE);
 	itr_init(&gic_data.chip);
 }
 

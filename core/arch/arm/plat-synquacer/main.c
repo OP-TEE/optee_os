@@ -16,8 +16,9 @@
 #include <kernel/timer.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
-#include <rng_pta.h>
 #include <sm/optee_smc.h>
+
+#include "synquacer_rng_pta.h"
 
 static struct gic_data gic_data;
 static struct pl011_data console_data;
@@ -42,16 +43,8 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	vaddr_t gicd_base;
-
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC, 1);
-
-	if (!gicd_base)
-		panic();
-
 	/* On ARMv8-A, GIC configuration is initialized in TF-A */
-	gic_init_base_addr(&gic_data, 0, gicd_base);
+	gic_init_base_addr(&gic_data, 0, GIC_BASE + GICD_OFFSET);
 
 	itr_init(&gic_data.chip);
 }

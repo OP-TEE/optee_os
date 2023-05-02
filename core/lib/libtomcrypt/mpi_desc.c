@@ -495,7 +495,7 @@ static int invmod(void *a, void *b, void *c)
 /* setup */
 static int montgomery_setup(void *a, void **b)
 {
-	*b = malloc(sizeof(mbedtls_mpi_uint));
+	*b = mempool_alloc(mbedtls_mpi_mempool, sizeof(mbedtls_mpi_uint));
 	if (!*b)
 		return CRYPT_MEM;
 
@@ -561,7 +561,7 @@ out:
 /* clean up */
 static void montgomery_deinit(void *a)
 {
-	free(a);
+	mempool_free(mbedtls_mpi_mempool, a);
 }
 
 /*

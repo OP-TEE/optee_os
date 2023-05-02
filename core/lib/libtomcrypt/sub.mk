@@ -4,8 +4,10 @@ global-incdirs-y += src/headers
 cflags-lib-y += -Wno-declaration-after-statement
 
 cppflags-lib-y += -DARGTYPE=4  # Make LTC_ARGCHK() return on error
-cppflags-lib-y += -DLTC_CLEAN_STACK -DLTC_NO_TEST -DLTC_NO_PROTOTYPES
+cppflags-lib-y += -DLTC_NO_TEST -DLTC_NO_PROTOTYPES
 cppflags-lib-y += -DLTC_NO_TABLES -DLTC_HASH_HELPERS
+cppflags-lib-y += -DLTC_NO_MISC
+cppflags-lib-y += -DLTC_HMAC
 cppflags-lib-$(_CFG_CORE_LTC_SIZE_OPTIMIZATION) += -DLTC_SMALL_CODE
 
 cppflags-lib-y += -DLTC_NO_CIPHERS
@@ -55,6 +57,8 @@ endif
 ifeq ($(_CFG_CORE_LTC_SHA512_256),y)
 	cppflags-lib-y += -DLTC_SHA512_256
 endif
+cppflags-lib-$(_CFG_CORE_LTC_SHA3_DESC) += -DLTC_SHA3
+
 
 cppflags-lib-y += -DLTC_NO_MACS
 
@@ -93,6 +97,7 @@ ifeq ($(_CFG_CORE_LTC_ECC),y)
    cppflags-lib-y += -DLTC_ECC256
    cppflags-lib-y += -DLTC_ECC384
    cppflags-lib-y += -DLTC_ECC521
+   cppflags-lib-y += -DLTC_CURVE25519
 
    # ECC 521 bits is the max supported key size
    cppflags-lib-y += -DLTC_MAX_ECC=521
@@ -101,9 +106,8 @@ ifneq (,$(filter y,$(_CFG_CORE_LTC_SM2_DSA) $(_CFG_CORE_LTC_SM2_PKE)))
    cppflags-lib-y += -DLTC_ECC_SM2
 endif
 
-cppflags-lib-y += -DLTC_NO_PKCS
-
-cppflags-lib-y += -DLTC_DER
+cppflags-lib-$(_CFG_CORE_LTC_X25519) += -DLTC_CURVE25519
+cppflags-lib-$(_CFG_CORE_LTC_ED25519) += -DLTC_CURVE25519
 
 cppflags-lib-y += -DLTC_NO_PRNGS -DLTC_FORTUNA
 
@@ -130,10 +134,18 @@ srcs-$(_CFG_CORE_LTC_SHA1_ACCEL) += sha1_accel.c
 ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
 srcs-$(_CFG_CORE_LTC_SHA256_ACCEL) += sha256_accel.c
 endif
+ifeq ($(_CFG_CORE_LTC_SHA512_DESC),y)
+srcs-$(_CFG_CORE_LTC_SHA512_ACCEL) += sha512_accel.c
+endif
+ifeq ($(_CFG_CORE_LTC_SHA3_DESC),y)
+srcs-y += shake.c
+srcs-$(_CFG_CORE_LTC_SHA3_ACCEL) += sha3_accel.c
+endif
 srcs-$(_CFG_CORE_LTC_SM2_DSA) += sm2-dsa.c
 srcs-$(_CFG_CORE_LTC_SM2_PKE) += sm2-pke.c
 srcs-$(_CFG_CORE_LTC_SM2_KEP) += sm2-kep.c
-
+srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
+srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c
 endif

@@ -19,10 +19,14 @@ struct dt_driver_provider;
 
 /**
  * struct dt_driver_phandle_args - Devicetree phandle arguments
+ * @fdt: Device-tree to work on
+ * @phandle_node: Node pointed by the specifier phandle
  * @args_count: Count of cells for the device
  * @args: Device consumer specifiers
  */
 struct dt_driver_phandle_args {
+	const void *fdt;
+	int phandle_node;
 	int args_count;
 	uint32_t args[];
 };
@@ -36,7 +40,7 @@ struct dt_driver_phandle_args {
  * @data: driver private data registered in struct dt_driver.
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
  *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
@@ -73,7 +77,8 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @type: Driver type
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
+ *	TEE_ERROR_ITEM_NOT_FOUND if prop_name does not match a property's name
  *	Any TEE_Result compliant code in case of error.
  *
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
@@ -84,6 +89,25 @@ void *dt_driver_device_from_node_idx_prop(const char *prop_name,
 					  unsigned int prop_idx,
 					  enum dt_driver_type type,
 					  TEE_Result *res);
+
+/*
+ * dt_driver_device_from_parent - Return a device instance based on the parent.
+ *	This is mainly used for the devices that are children of a controller
+ *	such as I2C, SPI and so on.
+ *
+ * @fdt: FDT base address
+ * @nodeoffset: node offset in the FDT
+ * @type: Driver type
+ * @res: Output result code of the operation:
+ *	TEE_SUCCESS in case of success
+ *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
+ *	Any TEE_Result compliant code in case of error.
+ *
+ * Return a device opaque reference, e.g. a struct i2c_dev pointer for a I2C bus
+ * driver, or NULL if not found in which case @res provides the error code.
+ */
+void *dt_driver_device_from_parent(const void *fdt, int nodeoffset,
+				   enum dt_driver_type type, TEE_Result *res);
 
 /*
  * dt_driver_get_crypto() - Request crypto support for driver initialization
@@ -140,7 +164,6 @@ TEE_Result dt_driver_probe_device_by_node(const void *fdt, int nodeoffset,
  * @nodeoffset: Node offset on the FDT for the device
  * @type: One of the supported DT_DRIVER_* value.
  *
- * Currently supports type DT_DRIVER_CLK.
  * Return a positive cell count value (>= 0) or a negative FDT_ error code
  */
 int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
@@ -153,4 +176,19 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
  * @nodeoffset: Node offset on the FDT for the device
  */
 TEE_Result dt_driver_maybe_add_probe_node(const void *fdt, int nodeoffset);
+
+#ifdef CFG_DT_DRIVER_EMBEDDED_TEST
+/*
+ * Return TEE_ERROR_NOT_IMPLEMENTED if test are not implemented
+ * otherwise return TEE_ERROR_GENERIC if some test has failed
+ * otherwise return TEE_SUCCESS (tests succeed or skipped)
+ */
+TEE_Result dt_driver_test_status(void);
+#else
+static inline TEE_Result dt_driver_test_status(void)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
 #endif /* __DT_DRIVER_H */

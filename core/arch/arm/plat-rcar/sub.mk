@@ -1,6 +1,6 @@
 global-incdirs-y += .
 srcs-y += main.c
-srcs-y += core_pos_a64.S
-srcs-y += romapi.c
-srcs-y += romapi_call.S
-srcs-y += hw_rng.c
+srcs-${CFG_RCAR_GEN3} += core_pos_a64.S
+srcs-${CFG_RCAR_ROMAPI} += romapi.c
+srcs-${CFG_RCAR_ROMAPI} += romapi_call.S
+srcs-${CFG_RCAR_ROMAPI} += hw_rng.c

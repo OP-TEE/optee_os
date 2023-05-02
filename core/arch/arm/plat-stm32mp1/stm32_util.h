@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2018-2019, STMicroelectronics
+ * Copyright (c) 2018-2022, STMicroelectronics
  */
 
 #ifndef __STM32_UTIL_H__
@@ -23,8 +23,10 @@ vaddr_t stm32mp_bkpreg(unsigned int idx);
 void stm32mp_syscfg_enable_io_compensation(void);
 void stm32mp_syscfg_disable_io_compensation(void);
 
+/* Platform util for the RCC drivers */
+vaddr_t stm32_rcc_base(void);
+
 /* Platform util for the GIC */
-vaddr_t get_gicc_base(void);
 vaddr_t get_gicd_base(void);
 
 /*
@@ -64,20 +66,19 @@ static inline void stm32mp_register_online_cpu(void)
 uint32_t may_spin_lock(unsigned int *lock);
 void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
 
-/*
- * Util for clock gating and to get clock rate for stm32 and platform drivers
- * @id: Target clock ID, ID used in clock DT bindings
- */
-void stm32_clock_enable(unsigned long id);
-void stm32_clock_disable(unsigned long id);
-unsigned long stm32_clock_get_rate(unsigned long id);
-bool stm32_clock_is_enabled(unsigned long id);
-
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Return true if @clock_id is shared by secure and non-secure worlds */
 bool stm32mp_nsec_can_access_clock(unsigned long clock_id);
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+static inline bool stm32mp_nsec_can_access_clock(unsigned long clock_id
+						 __unused)
+{
+	return true;
+}
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 
 extern const struct clk_ops stm32mp1_clk_ops;
 
@@ -91,29 +92,18 @@ static inline bool stm32mp_nsec_can_access_pmic_regu(const char *name __unused)
 }
 #endif
 
-/*
- * Util for reset signal assertion/desassertion for stm32 and platform drivers
- * @id: Target peripheral ID, ID used in reset DT bindings
- * @to_us: Timeout out in microsecond, or 0 if not waiting signal state
- */
-TEE_Result stm32_reset_assert(unsigned int id, unsigned int timeout_us);
-TEE_Result stm32_reset_deassert(unsigned int id, unsigned int timeout_us);
-
-/* Specific reset to manage the MCU hold boot */
-void stm32_reset_assert_deassert_mcu(bool assert_not_deassert);
-
-static inline void stm32_reset_set(unsigned int id)
-{
-	(void)stm32_reset_assert(id, 0);
-}
-
-static inline void stm32_reset_release(unsigned int id)
-{
-	(void)stm32_reset_deassert(id, 0);
-}
-
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Return true if and only if @reset_id relates to a non-secure peripheral */
 bool stm32mp_nsec_can_access_reset(unsigned int reset_id);
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+static inline bool stm32mp_nsec_can_access_reset(unsigned int reset_id __unused)
+{
+	return true;
+}
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
+
+/* Return rstctrl instance related to RCC reset controller DT binding ID */
+struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
 /*
  * Structure and API function for BSEC driver to get some platform data.
@@ -129,29 +119,6 @@ struct stm32_bsec_static_cfg {
 };
 
 void stm32mp_get_bsec_static_cfg(struct stm32_bsec_static_cfg *cfg);
-
-/*
- * Return true if platform is in closed_device mode
- */
-bool stm32mp_is_closed_device(void);
-
-/*
- * Shared registers support: common lock for accessing SoC registers
- * shared between several drivers.
- */
-void io_mask32_stm32shregs(vaddr_t va, uint32_t value, uint32_t mask);
-
-static inline void io_setbits32_stm32shregs(vaddr_t va, uint32_t value)
-{
-	io_mask32_stm32shregs(va, value, value);
-}
-
-static inline void io_clrbits32_stm32shregs(vaddr_t va, uint32_t value)
-{
-	io_mask32_stm32shregs(va, 0, value);
-}
-
-void io_clrsetbits32_stm32shregs(vaddr_t va, uint32_t clr, uint32_t set);
 
 /*
  * Shared reference counter: increments by 2 on secure increment
@@ -254,6 +221,7 @@ enum stm32mp_shres {
 	STM32MP1_SHRES_COUNT
 };
 
+#ifdef CFG_STM32MP1_SHARED_RESOURCES
 /* Register resource @id as a secure peripheral */
 void stm32mp_register_secure_periph(enum stm32mp_shres id);
 
@@ -301,4 +269,61 @@ bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 /* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
 void stm32mp_register_clock_parents_secure(unsigned long clock_id);
 
+#else /* CFG_STM32MP1_SHARED_RESOURCES */
+
+static inline void stm32mp_register_secure_periph(enum stm32mp_shres id
+						  __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_periph(enum stm32mp_shres id
+						      __unused)
+{
+}
+
+static inline void stm32mp_register_secure_periph_iomem(vaddr_t base __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_periph_iomem(vaddr_t base
+							    __unused)
+{
+}
+
+static inline void stm32mp_register_secure_gpio(unsigned int bank __unused,
+						unsigned int pin __unused)
+{
+}
+
+static inline void stm32mp_register_non_secure_gpio(unsigned int bank __unused,
+						    unsigned int pin __unused)
+{
+}
+
+static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
+{
+	return true;
+}
+
+static inline bool stm32mp_gpio_bank_is_secure(unsigned int bank __unused)
+{
+	return true;
+}
+
+static inline bool stm32mp_gpio_bank_is_shared(unsigned int bank __unused)
+{
+	return false;
+}
+
+static inline bool stm32mp_gpio_bank_is_non_secure(unsigned int bank __unused)
+{
+	return false;
+}
+
+static inline void stm32mp_register_clock_parents_secure(unsigned long clock_id
+							 __unused)
+{
+}
+
+#endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/

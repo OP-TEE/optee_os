@@ -3,6 +3,7 @@
  * Copyright (c) 2019, Broadcom
  */
 
+#include <config.h>
 #include <drivers/bcm_sotp.h>
 #include <io.h>
 #include <kernel/misc.h>
@@ -18,6 +19,20 @@ enum pta_bcm_sotp_cmd {
 };
 
 #define SOTP_TA_NAME		"pta_bcm_sotp.ta"
+
+static bool sotp_access_disabled;
+
+/**
+ * close_session() - Print a debug message when closing a session and set the
+ *		     driver to disallow any more pta sessions to connect.
+ * @pSessionContext	Unused.
+ */
+static void close_session(void *pSessionContext __unused)
+{
+	DMSG("close entry point for \"%s\"", SOTP_TA_NAME);
+	if (IS_ENABLED(CFG_BCM_SOTP_SINGLE_SESSION))
+		sotp_access_disabled = true;
+}
 
 static TEE_Result pta_sotp_read(uint32_t param_types,
 				TEE_Param params[TEE_NUM_PARAMS])
@@ -35,7 +50,7 @@ static TEE_Result pta_sotp_read(uint32_t param_types,
 
 	val = params[0].value.a;
 
-	bcm_iproc_sotp_mem_read(val, 1, &sotp_row_value);
+	bcm_iproc_sotp_mem_read(val, true, &sotp_row_value);
 	reg_pair_from_64(sotp_row_value, &params[1].value.a,
 			 &params[1].value.b);
 
@@ -58,6 +73,11 @@ static TEE_Result invoke_command(void *session_context __unused,
 
 	DMSG("command entry point[%d] for \"%s\"", cmd_id, SOTP_TA_NAME);
 
+	if (IS_ENABLED(CFG_BCM_SOTP_SINGLE_SESSION) && sotp_access_disabled) {
+		DMSG("bcm sotp pta access disabled");
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
 	switch (cmd_id) {
 	case PTA_BCM_SOTP_CMD_READ:
 		res = pta_sotp_read(param_types, params);
@@ -77,4 +97,5 @@ static TEE_Result invoke_command(void *session_context __unused,
 pseudo_ta_register(.uuid = SOTP_SERVICE_UUID,
 		   .name = SOTP_TA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS,
+		   .close_session_entry_point = close_session,
 		   .invoke_command_entry_point = invoke_command);

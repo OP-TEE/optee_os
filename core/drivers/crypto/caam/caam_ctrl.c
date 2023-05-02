@@ -13,9 +13,10 @@
 #include <caam_hash.h>
 #include <caam_jr.h>
 #include <caam_blob.h>
+#include <caam_mp.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
-#include <caam_utils_mem.h>
+#include <drivers/imx_snvs.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <tee_api_types.h>
@@ -29,6 +30,13 @@ static TEE_Result crypto_driver_init(void)
 
 	/* Enable the CAAM Clock */
 	caam_hal_clk_enable(true);
+
+	/* Set OTP as master key if the platform is closed */
+	if (snvs_is_device_closed()) {
+		retresult = imx_snvs_set_master_otpmk();
+		if (retresult && retresult != TEE_ERROR_NOT_IMPLEMENTED)
+			goto exit_init;
+	}
 
 	retstatus = caam_hal_cfg_get_conf(&jrcfg);
 	if (retstatus != CAAM_NO_ERROR) {
@@ -119,6 +127,13 @@ static TEE_Result crypto_driver_init(void)
 	/* Initialize the DSA Module */
 	retstatus = caam_dsa_init(&jrcfg);
 	if (retstatus != CAAM_NO_ERROR) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the Manufacturing Protection Module */
+	retstatus = caam_mp_init(jrcfg.base);
+	if (retstatus != CAAM_NO_ERROR && retstatus != CAAM_NOT_SUPPORTED) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;
 	}

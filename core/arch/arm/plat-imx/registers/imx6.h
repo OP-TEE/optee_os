@@ -44,6 +44,7 @@
 #define ANATOP_BASE			0x020C8000
 #define ANATOP_SIZE			0x1000
 #define SNVS_BASE			0x020CC000
+#define SNVS_SIZE			0x4000
 #define GPC_BASE			0x020DC000
 #define GPC_SIZE			0x4000
 #define WDOG_BASE			0x020BC000
@@ -55,6 +56,7 @@
 #define MMDC_P1_BASE			0x021B4000
 #define MMDC_P1_SIZE			0x4000
 #define TZASC_BASE			0x21D0000
+#define TZASC_SIZE			0x4000
 #define TZASC2_BASE			0x21D4000
 #define UART2_BASE			0x021E8000
 #define UART3_BASE			0x021EC000
@@ -94,6 +96,7 @@
 #define GICC_OFFSET			0x100
 #define CAAM_BASE			0x02100000
 #endif
+#define CAAM_SIZE			0x40000
 
 #define GIC_CPU_BASE			(GIC_BASE + GICC_OFFSET)
 #define GIC_DIST_BASE			(GIC_BASE + GICD_OFFSET)

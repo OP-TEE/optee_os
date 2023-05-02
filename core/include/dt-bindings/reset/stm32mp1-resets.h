@@ -31,6 +31,7 @@
 #define CRC1_R		3284
 #define USBH_R		3288
 #define MDMA_R		3328
+#define MPSYST_R	8224
 #define MCU_R		8225
 #define TIM2_R		19456
 #define TIM3_R		19457
@@ -107,17 +108,17 @@
 #define GPIOK_R		19786
 
 /* SCMI reset domain identifiers */
-#define RST_SCMI0_SPI6		0
-#define RST_SCMI0_I2C4		1
-#define RST_SCMI0_I2C6		2
-#define RST_SCMI0_USART1	3
-#define RST_SCMI0_STGEN		4
-#define RST_SCMI0_GPIOZ		5
-#define RST_SCMI0_CRYP1		6
-#define RST_SCMI0_HASH1		7
-#define RST_SCMI0_RNG1		8
-#define RST_SCMI0_MDMA		9
-#define RST_SCMI0_MCU		10
-#define RST_SCMI0_MCU_HOLD_BOOT	11
+#define RST_SCMI_SPI6		0
+#define RST_SCMI_I2C4		1
+#define RST_SCMI_I2C6		2
+#define RST_SCMI_USART1	3
+#define RST_SCMI_STGEN		4
+#define RST_SCMI_GPIOZ		5
+#define RST_SCMI_CRYP1		6
+#define RST_SCMI_HASH1		7
+#define RST_SCMI_RNG1		8
+#define RST_SCMI_MDMA		9
+#define RST_SCMI_MCU		10
+#define RST_SCMI_MCU_HOLD_BOOT	11
 
 #endif /* _DT_BINDINGS_STM32MP1_RESET_H_ */

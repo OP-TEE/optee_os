@@ -247,11 +247,11 @@ void *tee_pager_phys_to_virt(paddr_t pa, size_t len)
 		return (void *)core_mmu_idx2va(&ti, idx);
 
 	n = 0;
-	idx = core_mmu_va2idx(&pager_tables[n].tbl_info, TEE_RAM_VA_START);
+	idx = core_mmu_va2idx(&pager_tables[n].tbl_info, TEE_RAM_START);
 	while (true) {
 		while (idx < TBL_NUM_ENTRIES) {
 			v = core_mmu_idx2va(&pager_tables[n].tbl_info, idx);
-			if (v >= (TEE_RAM_VA_START + TEE_RAM_VA_SIZE))
+			if (v >= (TEE_RAM_START + TEE_RAM_VA_SIZE))
 				return NULL;
 
 			core_mmu_get_entry(&pager_tables[n].tbl_info,
@@ -565,9 +565,9 @@ static void *pager_add_alias_page(paddr_t pa)
 	unsigned idx;
 	struct core_mmu_table_info *ti;
 	/* Alias pages mapped without write permission: runtime will care */
-	uint32_t attr = TEE_MATTR_VALID_BLOCK |
-			(TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT) |
-			TEE_MATTR_SECURE | TEE_MATTR_PR;
+	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
+			TEE_MATTR_PR | (TEE_MATTR_MEM_TYPE_CACHED <<
+					TEE_MATTR_MEM_TYPE_SHIFT);
 
 	DMSG("0x%" PRIxPA, pa);
 
@@ -694,7 +694,7 @@ static struct vm_paged_region *find_uta_region(vaddr_t va __unused)
 static uint32_t get_region_mattr(uint32_t reg_flags)
 {
 	uint32_t attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_SECURE |
-			TEE_MATTR_CACHE_CACHED << TEE_MATTR_CACHE_SHIFT |
+			TEE_MATTR_MEM_TYPE_CACHED << TEE_MATTR_MEM_TYPE_SHIFT |
 			(reg_flags & (TEE_MATTR_PRWX | TEE_MATTR_URWX));
 
 	return attr;
@@ -1916,7 +1916,7 @@ void tee_pager_assign_um_tables(struct user_mode_ctx *uctx)
 	if (!uctx->regions)
 		return;
 
-	pgt = SLIST_FIRST(&thread_get_tsd()->pgt_cache);
+	pgt = SLIST_FIRST(&uctx->pgt_cache);
 	TAILQ_FOREACH(reg, uctx->regions, link) {
 		for (n = 0; n < get_pgt_count(reg->base, reg->size); n++) {
 			vaddr_t va = reg->base + CORE_MMU_PGDIR_SIZE * n;

@@ -1,26 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2019, Arm Limited and Contributors. All rights reserved.
- * Copyright (c) 2019-2020, Linaro Limited
+ * Copyright (c) 2019-2022, Linaro Limited
  */
 #include <assert.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <io.h>
-#include <kernel/misc.h>
-#include <kernel/panic.h>
-#include <kernel/spinlock.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <trace.h>
 #include <util.h>
 
 #include "common.h"
-
-/* Legacy SMT/SCMI messages are 128 bytes at most including SMT header */
-#define SCMI_PLAYLOAD_MAX		92
-#define SCMI_PLAYLOAD_U32_MAX		(SCMI_PLAYLOAD_MAX / sizeof(uint32_t))
 
 /**
  * struct smt_header - SMT formatted header for SMT base shared memory transfer
@@ -58,31 +50,12 @@ struct smt_header {
 #define SMT_MSG_PROT_ID_MASK		GENMASK_32(17, 10)
 #define SMT_HDR_PROT_ID(_hdr)		(((_hdr) & SMT_MSG_PROT_ID_MASK) >> 10)
 
-/* SMP protection on channel access */
-static unsigned int smt_channels_lock;
-
-/* If channel is not busy, set busy and return true, otherwise return false */
-static bool channel_set_busy(struct scmi_msg_channel *chan)
+static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *channel)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&smt_channels_lock);
-	bool channel_is_busy = chan->busy;
+	if (!channel)
+		return NULL;
 
-	if (!channel_is_busy)
-		chan->busy = true;
-
-	cpu_spin_unlock_xrestore(&smt_channels_lock, exceptions);
-
-	return !channel_is_busy;
-}
-
-static void channel_release_busy(struct scmi_msg_channel *chan)
-{
-	chan->busy = false;
-}
-
-static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
-{
-	return (struct smt_header *)io_pa_or_va(&chan->shm_addr,
+	return (struct smt_header *)io_pa_or_va(&channel->shm_addr,
 						sizeof(struct smt_header));
 }
 
@@ -92,33 +65,38 @@ static struct smt_header *channel_to_smt_hdr(struct scmi_msg_channel *chan)
  * references to input payload in secure memory and output message buffer
  * in shared memory.
  */
-static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
+void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf)
 {
-	struct scmi_msg_channel *chan = NULL;
+	struct scmi_msg_channel *channel = NULL;
 	struct smt_header *smt_hdr = NULL;
 	size_t in_payload_size = 0;
 	uint32_t smt_status = 0;
 	struct scmi_msg msg = { };
 	bool error = true;
 
-	chan = plat_scmi_get_channel(channel_id);
-	if (!chan)
+	channel = plat_scmi_get_channel(channel_id);
+	if (!channel) {
+		DMSG("Invalid channel ID %u", channel_id);
 		return;
+	}
 
-	smt_hdr = channel_to_smt_hdr(chan);
-	assert(smt_hdr);
+	smt_hdr = channel_to_smt_hdr(channel);
+	if (!smt_hdr) {
+		DMSG("No shared buffer for channel ID %u", channel_id);
+		return;
+	}
 
-	smt_status = READ_ONCE(smt_hdr->status);
-
-	if (!channel_set_busy(chan)) {
+	if (!scmi_msg_claim_channel(channel)) {
 		DMSG("SCMI channel %u busy", channel_id);
 		goto out;
 	}
 
+	smt_status = READ_ONCE(smt_hdr->status);
+
 	in_payload_size = READ_ONCE(smt_hdr->length) -
 			  sizeof(smt_hdr->message_header);
 
-	if (in_payload_size > SCMI_PLAYLOAD_MAX) {
+	if (in_payload_size > SCMI_SEC_PAYLOAD_SIZE) {
 		DMSG("SCMI payload too big %u", in_payload_size);
 		goto out;
 	}
@@ -133,7 +111,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	msg.in = (char *)payload_buf;
 	msg.in_size = in_payload_size;
 	msg.out = (char *)smt_hdr->payload;
-	msg.out_size = chan->shm_size - sizeof(*smt_hdr);
+	msg.out_size = channel->shm_size - sizeof(*smt_hdr);
 
 	assert(msg.out && msg.out_size >= sizeof(int32_t));
 
@@ -149,7 +127,7 @@ static void scmi_process_smt(unsigned int channel_id, uint32_t *payload_buf)
 	/* Update message length with the length of the response message */
 	smt_hdr->length = msg.out_size_out + sizeof(smt_hdr->message_header);
 
-	channel_release_busy(chan);
+	scmi_msg_release_channel(channel);
 	error = false;
 
 out:
@@ -161,56 +139,18 @@ out:
 	}
 }
 
-#ifdef CFG_SCMI_MSG_SMT_FASTCALL_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t fast_smc_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
-
-void scmi_smt_fastcall_smc_entry(unsigned int channel_id)
-{
-	scmi_process_smt(channel_id, fast_smc_payload[get_core_pos()]);
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_SMT_INTERRUPT_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t interrupt_payload[CFG_TEE_CORE_NB_CORE][SCMI_PLAYLOAD_U32_MAX];
-
-void scmi_smt_interrupt_entry(unsigned int channel_id)
-{
-	scmi_process_smt(channel_id, interrupt_payload[get_core_pos()]);
-}
-#endif
-
-#ifdef CFG_SCMI_MSG_SMT_THREAD_ENTRY
-/* Provision input message payload buffers for fastcall SMC context entries */
-static uint32_t threaded_payload[CFG_NUM_THREADS][SCMI_PLAYLOAD_U32_MAX];
-
-void scmi_smt_threaded_entry(unsigned int channel_id)
-{
-	assert(plat_scmi_get_channel(channel_id)->threaded);
-
-	scmi_process_smt(channel_id, threaded_payload[thread_get_id()]);
-}
-#endif
-
 /* Init a SMT header for a shared memory buffer: state it a free/no-error */
-void scmi_smt_init_agent_channel(struct scmi_msg_channel *chan)
+void scmi_smt_init_agent_channel(struct scmi_msg_channel *channel)
 {
-	COMPILE_TIME_ASSERT(SCMI_PLAYLOAD_MAX + sizeof(struct smt_header) <=
-			    SMT_BUF_SLOT_SIZE);
+	struct smt_header *smt_header = channel_to_smt_hdr(channel);
 
-	if (chan) {
-		struct smt_header *smt_header = channel_to_smt_hdr(chan);
+	static_assert(SCMI_SEC_PAYLOAD_SIZE + sizeof(struct smt_header) <=
+		      SMT_BUF_SLOT_SIZE &&
+		      IS_ALIGNED(SCMI_SEC_PAYLOAD_SIZE, sizeof(uint32_t)));
+	assert(smt_header);
 
-		if (smt_header) {
-			memset(smt_header, 0, sizeof(*smt_header));
-			smt_header->status = SMT_STATUS_FREE;
-
-			return;
-		}
-	}
-
-	panic();
+	memset(smt_header, 0, sizeof(*smt_header));
+	smt_header->status = SMT_STATUS_FREE;
 }
 
 void scmi_smt_set_shared_buffer(struct scmi_msg_channel *channel, void *base)

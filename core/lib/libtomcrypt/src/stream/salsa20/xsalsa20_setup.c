@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* The implementation is based on:
  * "Extending the Salsa20 nonce", https://cr.yp.to/snuffle/xsalsa-20081128.pdf
@@ -28,7 +21,7 @@ static const char * const constants = "expand 32-byte k";
     x[a] ^= (ROL((x[d] + x[c]), 18));
 
 /* use modified salsa20 doubleround (no final addition as in salsa20) */
-static void _xsalsa20_doubleround(ulong32 *x, int rounds)
+static void s_xsalsa20_doubleround(ulong32 *x, int rounds)
 {
    int i;
 
@@ -94,7 +87,7 @@ int xsalsa20_setup(salsa20_state *st, const unsigned char *key, unsigned long ke
    LOAD32L(x[ 9], nonce + 12);
 
    /* use modified salsa20 doubleround (no final addition) */
-   _xsalsa20_doubleround(x, rounds);
+   s_xsalsa20_doubleround(x, rounds);
 
    /* extract the subkey */
    for (i = 0; i < 8; ++i) {
@@ -132,7 +125,3 @@ int xsalsa20_setup(salsa20_state *st, const unsigned char *key, unsigned long ke
 
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

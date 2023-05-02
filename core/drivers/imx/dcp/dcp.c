@@ -362,7 +362,7 @@ TEE_Result dcp_cipher_do_init(struct dcp_cipher_data *data,
 		desc->ctrl0 |= DCP_CONTROL0_CIPHER_ENCRYPT;
 
 	if (init->key_mode == DCP_OTP) {
-		desc->ctrl0 |= DCP_CONTROL0_OTP_KEY;
+		desc->ctrl0 &= ~DCP_CONTROL0_OTP_KEY;
 		desc->ctrl1 |= DCP_CONTROL1_KEY_SELECT_OTP_CRYPTO;
 	} else if (init->key_mode == DCP_PAYLOAD) {
 		desc->ctrl0 |= DCP_CONTROL0_PAYLOAD_KEY;
@@ -651,6 +651,14 @@ TEE_Result dcp_sha_do_final(struct dcp_hash_data *hashdata, uint8_t *digest,
 	return ret;
 }
 
+void dcp_disable_unique_key(void)
+{
+	dcp_clk_enable(true);
+	io_setbits32(dcp_base + DCP_CAPABILITY0,
+		     DCP_CAPABILITY0_DISABLE_UNIQUE_KEY);
+	dcp_clk_enable(false);
+}
+
 #ifdef CFG_DT
 static const char *const dt_ctrl_match_table[] = {
 	"fsl,imx28-dcp",
@@ -686,7 +694,7 @@ static TEE_Result dcp_pbase(paddr_t *base)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	/* Force secure-status = "okay" and status="disabled" */
@@ -695,7 +703,7 @@ static TEE_Result dcp_pbase(paddr_t *base)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	*base = _fdt_reg_base_address(fdt, node);
+	*base = fdt_reg_base_address(fdt, node);
 	if (*base == DT_INFO_INVALID_REG) {
 		EMSG("Unable to get the DCP Base address");
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -732,6 +740,13 @@ TEE_Result dcp_init(void)
 		EMSG("hw_context_buffer allocation failed");
 		return ret;
 	}
+
+	/*
+	 * Reset the DCP before initialization. Depending on the SoC lifecycle
+	 * state, the DCP needs to be reset to reload the OTP master key from
+	 * the SNVS.
+	 */
+	io_write32(dcp_base + DCP_CTRL_SET, DCP_CTRL_SFTRST | DCP_CTRL_CLKGATE);
 
 	/*
 	 * Initialize control register.

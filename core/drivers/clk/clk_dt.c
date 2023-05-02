@@ -45,6 +45,7 @@ TEE_Result clk_dt_get_by_index(const void *fdt, int nodeoffset,
 	return clk_dt_get_by_idx_prop("clocks", fdt, nodeoffset, clk_idx, clk);
 }
 
+#ifdef CFG_DRIVERS_CLK_EARLY_PROBE
 /* Recursively called from parse_clock_property() */
 static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node);
 
@@ -96,7 +97,7 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 	int status = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	status = _fdt_get_status(fdt, node);
+	status = fdt_get_status(fdt, node);
 	if (!(status & DT_STATUS_OK_SEC))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
@@ -123,7 +124,7 @@ static void clk_probe_node(const void *fdt, int parent_node)
 	__maybe_unused TEE_Result res = TEE_ERROR_GENERIC;
 
 	fdt_for_each_subnode(child, fdt, parent_node) {
-		status = _fdt_get_status(fdt, child);
+		status = fdt_get_status(fdt, child);
 		if (status == DT_STATUS_DISABLED)
 			continue;
 
@@ -166,7 +167,7 @@ static void parse_assigned_clock(const void *fdt, int nodeoffset)
 			}
 		}
 
-		if (rate_prop && clock_idx <= rate_len) {
+		if (rate_prop && clock_idx < rate_len) {
 			rate = fdt32_to_cpu(rate_prop[clock_idx]);
 			if (rate && clk_set_rate(clk, rate) != TEE_SUCCESS)
 				panic();
@@ -185,7 +186,7 @@ static void clk_probe_assigned(const void *fdt, int parent_node)
 	fdt_for_each_subnode(child, fdt, parent_node) {
 		clk_probe_assigned(fdt, child);
 
-		status = _fdt_get_status(fdt, child);
+		status = fdt_get_status(fdt, child);
 		if (status == DT_STATUS_DISABLED)
 			continue;
 
@@ -196,7 +197,7 @@ static void clk_probe_assigned(const void *fdt, int parent_node)
 
 static TEE_Result clk_dt_probe(void)
 {
-	const void *fdt = get_embedded_dt();
+	const void *fdt = get_secure_dt();
 
 	DMSG("Probing clocks from devicetree");
 	if (!fdt)
@@ -209,3 +210,4 @@ static TEE_Result clk_dt_probe(void)
 	return TEE_SUCCESS;
 }
 early_init(clk_dt_probe);
+#endif

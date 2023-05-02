@@ -465,6 +465,11 @@
 #define RCC_APB5RSTSETR_USART1RST	BIT(4)
 #define RCC_APB5RSTSETR_STGENRST	BIT(20)
 
+/* RCC_MP_APB1EN(SET|CLR)R bit fields */
+#define RCC_MP_APB1ENSETR_I2C5EN_POS		24
+
+#define RCC_MP_APB1ENSETR_I2C5EN	BIT(RCC_MP_APB1ENSETR_I2C5EN_POS)
+
 /* RCC_MP_APB5EN(SET|CLR)R bit fields */
 #define RCC_MP_APB5ENSETR_SPI6EN_POS		0
 #define RCC_MP_APB5ENSETR_I2C4EN_POS		2
@@ -545,7 +550,7 @@
 #define DT_RCC_SECURE_CLK_COMPAT	"st,stm32mp1-rcc-secure"
 
 #ifndef __ASSEMBLER__
-vaddr_t stm32_rcc_base(void);
+#include <stm32_util.h>
 
 static inline bool stm32_rcc_is_secure(void)
 {

@@ -19,6 +19,9 @@
 	aliases {
 		ethernet0 = &ethernet0;
 		serial0 = &uart4;
+		serial1 = &usart3;
+		serial2 = &uart7;
+		serial3 = &usart2;
 	};
 
 	chosen {
@@ -26,16 +29,21 @@
 	};
 };
 
+&bsec {
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		st,non-secure-otp;
+	};
+	huk_otp: huk-otp@f0 {
+		reg = <0xf0 0x10>;
+	};
+};
+
 &dsi {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "okay";
+	status = "disabled";
 	phy-dsi-supply = <&reg18>;
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			dsi_in: endpoint {
@@ -80,12 +88,9 @@
 };
 
 &ltdc {
-	status = "okay";
+	status = "disabled";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ltdc_ep1_out: endpoint@1 {
 			reg = <1>;
 			remote-endpoint = <&dsi_in>;
@@ -97,9 +102,10 @@
 	status = "okay";
 };
 
-&bsec {
-	board_id: board_id@ec {
-		reg = <0xec 0x4>;
-		st,non-secure-otp;
-	};
+&usart2 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&usart2_pins_c>;
+	pinctrl-1 = <&usart2_sleep_pins_c>;
+	pinctrl-2 = <&usart2_idle_pins_c>;
+	status = "disabled";
 };

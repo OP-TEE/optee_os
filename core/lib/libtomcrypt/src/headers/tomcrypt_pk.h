@@ -1,12 +1,5 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* ---- NUMBER THEORY ---- */
 
@@ -63,20 +56,20 @@ int rsa_exptmod(const unsigned char *in,   unsigned long inlen,
 void rsa_free(rsa_key *key);
 
 /* These use PKCS #1 v2.0 padding */
-#define rsa_encrypt_key(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _prng, _prng_idx, _hash_idx, _key) \
-  rsa_encrypt_key_ex(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _prng, _prng_idx, _hash_idx, LTC_PKCS_1_OAEP, _key)
+#define rsa_encrypt_key(in, inlen, out, outlen, lparam, lparamlen, prng, prng_idx, hash_idx, key) \
+  rsa_encrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, prng, prng_idx, hash_idx, LTC_PKCS_1_OAEP, key)
 
-#define rsa_decrypt_key(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _hash_idx, _stat, _key) \
-  rsa_decrypt_key_ex(_in, _inlen, _out, _outlen, _lparam, _lparamlen, _hash_idx, LTC_PKCS_1_OAEP, _stat, _key)
+#define rsa_decrypt_key(in, inlen, out, outlen, lparam, lparamlen, hash_idx, stat, key) \
+  rsa_decrypt_key_ex(in, inlen, out, outlen, lparam, lparamlen, hash_idx, LTC_PKCS_1_OAEP, stat, key)
 
-#define rsa_sign_hash(_in, _inlen, _out, _outlen, _prng, _prng_idx, _hash_idx, _saltlen, _key) \
-  rsa_sign_hash_ex(_in, _inlen, _out, _outlen, LTC_PKCS_1_PSS, _prng, _prng_idx, _hash_idx, _saltlen, _key)
+#define rsa_sign_hash(in, inlen, out, outlen, prng, prng_idx, hash_idx, saltlen, key) \
+  rsa_sign_hash_ex(in, inlen, out, outlen, LTC_PKCS_1_PSS, prng, prng_idx, hash_idx, saltlen, key)
 
-#define rsa_verify_hash(_sig, _siglen, _hash, _hashlen, _hash_idx, _saltlen, _stat, _key) \
-  rsa_verify_hash_ex(_sig, _siglen, _hash, _hashlen, LTC_PKCS_1_PSS, _hash_idx, _saltlen, _stat, _key)
+#define rsa_verify_hash(sig, siglen, hash, hashlen, hash_idx, saltlen, stat, key) \
+  rsa_verify_hash_ex(sig, siglen, hash, hashlen, LTC_PKCS_1_PSS, hash_idx, saltlen, stat, key)
 
-#define rsa_sign_saltlen_get_max(_hash_idx, _key) \
-  rsa_sign_saltlen_get_max_ex(LTC_PKCS_1_PSS, _hash_idx, _key)
+#define rsa_sign_saltlen_get_max(hash_idx, key) \
+  rsa_sign_saltlen_get_max_ex(LTC_PKCS_1_PSS, hash_idx, key)
 
 /* These can be switched between PKCS #1 v2.x and PKCS #1 v1.5 paddings */
 int rsa_encrypt_key_ex(const unsigned char *in,       unsigned long  inlen,
@@ -351,40 +344,52 @@ typedef struct {
 /** Ed25519 Signature API */
 int ed25519_make_key(prng_state *prng, int wprng, curve25519_key *key);
 
-int ed25519_set_key(const unsigned char *sk, unsigned long sklen,
-                    const unsigned char *pk, unsigned long pklen,
-                         curve25519_key *key);
-
 int ed25519_export(       unsigned char *out, unsigned long *outlen,
                                     int  which,
                    const curve25519_key *key);
 
 int ed25519_import(const unsigned char *in, unsigned long inlen, curve25519_key *key);
+int ed25519_import_raw(const unsigned char *in, unsigned long inlen, int which, curve25519_key *key);
 int ed25519_import_x509(const unsigned char *in, unsigned long inlen, curve25519_key *key);
 int ed25519_import_pkcs8(const unsigned char *in, unsigned long inlen,
                                   const void *pwd, unsigned long pwdlen,
                               curve25519_key *key);
 
-int ed25519_sign(const unsigned char  *msg, unsigned long msglen,
-                       unsigned char  *sig, unsigned long *siglen,
+int ed25519_sign(const  unsigned char *msg, unsigned long msglen,
+                        unsigned char *sig, unsigned long *siglen,
                  const curve25519_key *private_key);
-
+int ed25519ctx_sign(const  unsigned char *msg, unsigned long  msglen,
+                           unsigned char *sig, unsigned long *siglen,
+                    const  unsigned char *ctx, unsigned long  ctxlen,
+                    const curve25519_key *private_key);
+int ed25519ph_sign(const  unsigned char *msg, unsigned long  msglen,
+                          unsigned char *sig, unsigned long *siglen,
+                   const  unsigned char *ctx, unsigned long  ctxlen,
+                   const curve25519_key *private_key);
 int ed25519_verify(const  unsigned char *msg, unsigned long msglen,
                    const  unsigned char *sig, unsigned long siglen,
-                   int *stat, const curve25519_key *public_key);
+                                    int *stat,
+                   const curve25519_key *public_key);
+int ed25519ctx_verify(const  unsigned char *msg, unsigned long msglen,
+                      const  unsigned char *sig, unsigned long siglen,
+                      const  unsigned char *ctx, unsigned long ctxlen,
+                                       int *stat,
+                      const curve25519_key *public_key);
+int ed25519ph_verify(const  unsigned char *msg, unsigned long msglen,
+                     const  unsigned char *sig, unsigned long siglen,
+                     const  unsigned char *ctx, unsigned long ctxlen,
+                                      int *stat,
+                     const curve25519_key *public_key);
 
 /** X25519 Key-Exchange API */
 int x25519_make_key(prng_state *prng, int wprng, curve25519_key *key);
-
-int x25519_set_key(const unsigned char *k,  unsigned long klen,
-                   const unsigned char *u,  unsigned long ulen,
-                        curve25519_key *key);
 
 int x25519_export(       unsigned char *out, unsigned long *outlen,
                                    int  which,
                   const curve25519_key *key);
 
 int x25519_import(const unsigned char *in, unsigned long inlen, curve25519_key *key);
+int x25519_import_raw(const unsigned char *in, unsigned long inlen, int which, curve25519_key *key);
 int x25519_import_x509(const unsigned char *in, unsigned long inlen, curve25519_key *key);
 int x25519_import_pkcs8(const unsigned char *in, unsigned long inlen,
                                  const void *pwd, unsigned long pwdlen,
@@ -398,11 +403,14 @@ int x25519_shared_secret(const curve25519_key *private_key,
 
 #ifdef LTC_MDSA
 
-/* Max diff between group and modulus size in bytes */
-#define LTC_MDSA_DELTA     512
+/* Max diff between group and modulus size in bytes (max case: L=8192bits, N=256bits) */
+#define LTC_MDSA_DELTA 992
 
-/* Max DSA group size in bytes (default allows 4k-bit groups) */
-#define LTC_MDSA_MAX_GROUP 512
+/* Max DSA group size in bytes */
+#define LTC_MDSA_MAX_GROUP 64
+
+/* Max DSA modulus size in bytes (the actual DSA size, max 8192 bits) */
+#define LTC_MDSA_MAX_MODULUS 1024
 
 /** DSA key structure */
 typedef struct {
@@ -554,7 +562,7 @@ typedef struct ltc_asn1_list_ {
       LTC_MACRO_list[LTC_MACRO_temp].tag = 0;        \
    } while (0)
 
-#define __LTC_SET_ASN1_IDENTIFIER(list, index, Class, Pc, Tag)      \
+#define LTC_SET_ASN1_IDENTIFIER(list, index, Class, Pc, Tag)      \
    do {                                                           \
       int LTC_MACRO_temp            = (index);                    \
       ltc_asn1_list *LTC_MACRO_list = (list);                     \
@@ -568,14 +576,14 @@ typedef struct ltc_asn1_list_ {
    do {                                                           \
       int LTC_MACRO_temp##__LINE__ = (index);                     \
       LTC_SET_ASN1(list, LTC_MACRO_temp##__LINE__, LTC_ASN1_CUSTOM_TYPE, Data, 1);   \
-      __LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_CONSTRUCTED, Tag);       \
+      LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_CONSTRUCTED, Tag);       \
    } while (0)
 
 #define LTC_SET_ASN1_CUSTOM_PRIMITIVE(list, index, Class, Tag, Type, Data, Size)    \
    do {                                                           \
       int LTC_MACRO_temp##__LINE__ = (index);                     \
       LTC_SET_ASN1(list, LTC_MACRO_temp##__LINE__, LTC_ASN1_CUSTOM_TYPE, Data, Size);   \
-      __LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_PRIMITIVE, Tag);       \
+      LTC_SET_ASN1_IDENTIFIER(list, LTC_MACRO_temp##__LINE__, Class, LTC_ASN1_PC_PRIMITIVE, Tag);       \
       list[LTC_MACRO_temp##__LINE__].used = (int)(Type);       \
    } while (0)
 
@@ -646,8 +654,8 @@ int der_encode_setof(const ltc_asn1_list *list, unsigned long inlen,
                      unsigned char *out,        unsigned long *outlen);
 
 /* VA list handy helpers with triplets of <type, size, data> */
-int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...);
-int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...);
+int der_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...) LTC_NULL_TERMINATED;
+int der_decode_sequence_multi(const unsigned char *in, unsigned long inlen, ...) LTC_NULL_TERMINATED;
 
 /* FLEXI DECODER handle unknown list decoder */
 int  der_decode_sequence_flexi(const unsigned char *in, unsigned long *inlen, ltc_asn1_list **out);
@@ -793,7 +801,3 @@ int der_decode_generalizedtime(const unsigned char *in, unsigned long *inlen,
 int der_length_generalizedtime(const ltc_generalizedtime *gtime, unsigned long *outlen);
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

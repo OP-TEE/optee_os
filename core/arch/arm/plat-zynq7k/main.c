@@ -144,19 +144,7 @@ void arm_cl2_enable(vaddr_t pl310_base)
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC, 1);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC, 1);
-
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	itr_init(&gic_data.chip);
 }
 

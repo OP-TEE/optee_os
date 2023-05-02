@@ -28,8 +28,12 @@
 #define TRNG_SDCTL_ENT_DLY(val)		SHIFT_U32(((val) & 0xFFFF), 16)
 #define TRNG_SDCTL_SAMP_SIZE(val)	((val) & 0xFFFF)
 
+#ifdef CFG_MX6SX
+#define TRNG_SDCTL_ENT_DLY_MIN 12000
+#else
 #define TRNG_SDCTL_ENT_DLY_MIN		3200
-#define TRNG_SDCTL_ENT_DLY_MAX		12800
+#endif
+#define TRNG_SDCTL_ENT_DLY_MAX 12800
 
 /* Frequency Count Minimum Limit */
 #define TRNG_FRQMIN			0x0618

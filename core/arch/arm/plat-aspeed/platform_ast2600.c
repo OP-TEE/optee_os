@@ -43,23 +43,15 @@ enum TZM_PERM {
 	TZM_PERM_ECC_RSA_RW,
 };
 
-register_phys_mem(MEM_AREA_IO_NSEC,
-		  CONSOLE_UART_BASE,
-		  SMALL_PAGE_SIZE);
-
-register_phys_mem(MEM_AREA_IO_SEC,
-		  GIC_BASE + GICD_OFFSET,
-		  SMALL_PAGE_SIZE);
-
-register_phys_mem(MEM_AREA_IO_SEC,
-		  GIC_BASE + GICC_OFFSET,
-		  SMALL_PAGE_SIZE);
-
-register_phys_mem(MEM_AREA_IO_SEC,
-		  AHBC_BASE,
-		  SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE + GICD_OFFSET, GIC_DIST_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE + GICC_OFFSET, GIC_CPU_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, AHBC_BASE, SMALL_PAGE_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, SCU_BASE, SMALL_PAGE_SIZE);
 
 #define AHBC_REG_WR_PROT	0x204
+#define AHBC_TZP_ACCESS1	0x280
+#define AHBC_TZP_HACE		BIT(20)
 #define AHBC_TZM_ST(i)		(0x300 + ((i) * 0x10))
 #define AHBC_TZM_ED(i)		(0x304 + ((i) * 0x10))
 #define AHBC_TZM_PERM(i)	(0x308 + ((i) * 0x10))
@@ -71,17 +63,7 @@ static struct gic_data gic_data;
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base = 0;
-	vaddr_t gicd_base = 0;
-
-	gicc_base = core_mmu_get_va(GIC_BASE + GICC_OFFSET,
-				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
-	gicd_base = core_mmu_get_va(GIC_BASE + GICD_OFFSET,
-				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
-	if (!gicc_base || !gicd_base)
-		panic();
-
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 	itr_init(&gic_data.chip);
 }
 
@@ -105,14 +87,20 @@ void console_init(void)
 void plat_primary_init_early(void)
 {
 	vaddr_t ahbc_virt = 0;
+	uint32_t tzm_perm = 0;
 
 	ahbc_virt = core_mmu_get_va(AHBC_BASE,
 				    MEM_AREA_IO_SEC, SMALL_PAGE_SIZE);
 	if (!ahbc_virt)
 		panic();
 
-	io_write32(ahbc_virt + AHBC_TZM_PERM(0),
-		   BIT(TZM_PERM_CPU_RW));
+	tzm_perm = BIT(TZM_PERM_CPU_RW);
+	if (IS_ENABLED(CFG_ASPEED_CRYPTO_DRIVER)) {
+		tzm_perm |= BIT(TZM_PERM_ENCRYPT_RW);
+		io_write32(ahbc_virt + AHBC_TZP_ACCESS1, AHBC_TZP_HACE);
+	}
+
+	io_write32(ahbc_virt + AHBC_TZM_PERM(0), tzm_perm);
 	io_write32(ahbc_virt + AHBC_TZM_ED(0),
 		   CFG_TZDRAM_START + CFG_TZDRAM_SIZE - 1);
 	io_write32(ahbc_virt + AHBC_TZM_ST(0),

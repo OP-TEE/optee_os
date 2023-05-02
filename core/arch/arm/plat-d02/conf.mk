@@ -18,7 +18,6 @@ $(call force,CFG_WITH_LPAE,y)
 ifeq ($(CFG_ARM64_core),y)
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 655360
 else
-$(call force,CFG_ARM32_core,y)
 CFG_CORE_TZSRAM_EMUL_SIZE ?= 524288
 endif
 

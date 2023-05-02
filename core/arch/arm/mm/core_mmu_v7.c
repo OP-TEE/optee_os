@@ -21,13 +21,11 @@
 #include <trace.h>
 #include <util.h>
 
-#include "core_mmu_private.h"
-
 #ifdef CFG_WITH_LPAE
 #error This file is not to be used with LPAE
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 #error Currently V7 MMU code does not support virtualization
 #endif
 
@@ -98,6 +96,8 @@
 #define SECTION_DEVICE			SECTION_TEXCB(ATTR_DEVICE_INDEX)
 #define SECTION_NORMAL			SECTION_TEXCB(ATTR_DEVICE_INDEX)
 #define SECTION_NORMAL_CACHED		SECTION_TEXCB(ATTR_NORMAL_CACHED_INDEX)
+#define SECTION_STRONG_O		SECTION_TEXCB(ATTR_STRONG_O_INDEX)
+#define SECTION_TAGGED_CACHED		SECTION_TEXCB(ATTR_TAGGED_CACHED_INDEX)
 
 #define SECTION_XN			(1 << 4)
 #define SECTION_PXN			(1 << 0)
@@ -116,7 +116,11 @@
 					 (((texcb) & 0x1) << 2))
 #define SMALL_PAGE_DEVICE		SMALL_PAGE_TEXCB(ATTR_DEVICE_INDEX)
 #define SMALL_PAGE_NORMAL		SMALL_PAGE_TEXCB(ATTR_DEVICE_INDEX)
-#define SMALL_PAGE_NORMAL_CACHED	SMALL_PAGE_TEXCB(ATTR_NORMAL_CACHED_INDEX)
+#define SMALL_PAGE_NORMAL_CACHED \
+	SMALL_PAGE_TEXCB(ATTR_NORMAL_CACHED_INDEX)
+#define SMALL_PAGE_STRONG_O		SMALL_PAGE_TEXCB(ATTR_STRONG_O_INDEX)
+#define SMALL_PAGE_TAGGED_CACHED \
+	SMALL_PAGE_TEXCB(ATTR_TAGGED_CACHED_INDEX)
 #define SMALL_PAGE_ACCESS_FLAG		(1 << 4)
 #define SMALL_PAGE_UNPRIV		(1 << 5)
 #define SMALL_PAGE_RO			(1 << 9)
@@ -126,6 +130,9 @@
 /* The TEX, C and B bits concatenated */
 #define ATTR_DEVICE_INDEX		0x0
 #define ATTR_NORMAL_CACHED_INDEX	0x1
+#define ATTR_STRONG_O_INDEX		0x2
+/* Compat with TEE_MATTR_MEM_TYPE_TAGGED */
+#define ATTR_TAGGED_CACHED_INDEX	0x3
 
 #define PRRR_IDX(idx, tr, nos)		(((tr) << (2 * (idx))) | \
 					 ((uint32_t)(nos) << ((idx) + 24)))
@@ -139,12 +146,19 @@
 #define ATTR_DEVICE_PRRR		PRRR_IDX(ATTR_DEVICE_INDEX, 1, 0)
 #define ATTR_DEVICE_NMRR		NMRR_IDX(ATTR_DEVICE_INDEX, 0, 0)
 
+#define ATTR_STRONGLY_O_PRRR		PRRR_IDX(ATTR_STRONG_O_INDEX, 0, 0)
+#define ATTR_STRONGLY_O_NMRR		NMRR_IDX(ATTR_STRONG_O_INDEX, 0, 0)
+
 #ifndef CFG_NO_SMP
 #define ATTR_NORMAL_CACHED_PRRR		PRRR_IDX(ATTR_NORMAL_CACHED_INDEX, 2, 1)
 #define ATTR_NORMAL_CACHED_NMRR		NMRR_IDX(ATTR_NORMAL_CACHED_INDEX, 1, 1)
+#define ATTR_TAGGED_CACHED_PRRR		PRRR_IDX(ATTR_TAGGED_CACHED_INDEX, 2, 1)
+#define ATTR_TAGGED_CACHED_NMRR		NMRR_IDX(ATTR_TAGGED_CACHED_INDEX, 1, 1)
 #else
 #define ATTR_NORMAL_CACHED_PRRR		PRRR_IDX(ATTR_NORMAL_CACHED_INDEX, 2, 0)
 #define ATTR_NORMAL_CACHED_NMRR		NMRR_IDX(ATTR_NORMAL_CACHED_INDEX, 3, 3)
+#define ATTR_TAGGED_CACHED_PRRR		PRRR_IDX(ATTR_TAGGED_CACHED_INDEX, 2, 0)
+#define ATTR_TAGGED_CACHED_NMRR		NMRR_IDX(ATTR_TAGGED_CACHED_INDEX, 3, 3)
 #endif
 
 #define NUM_L1_ENTRIES		4096
@@ -215,7 +229,7 @@ static struct mmu_partition default_partition = {
 	.tables_used = 0,
 };
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 static struct mmu_partition *current_prtn[CFG_TEE_CORE_NB_CORE];
 
 void core_mmu_set_default_prtn_tbl(void)
@@ -229,7 +243,7 @@ void core_mmu_set_default_prtn_tbl(void)
 
 static struct mmu_partition *get_prtn(void)
 {
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	return current_prtn[get_core_pos()];
 #else
 	return &default_partition;
@@ -306,16 +320,21 @@ static enum desc_type get_desc_type(unsigned level, uint32_t desc)
 
 static uint32_t texcb_to_mattr(uint32_t texcb)
 {
-	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_CACHE_NONCACHE);
-	COMPILE_TIME_ASSERT(ATTR_NORMAL_CACHED_INDEX == TEE_MATTR_CACHE_CACHED);
+	COMPILE_TIME_ASSERT(ATTR_DEVICE_INDEX == TEE_MATTR_MEM_TYPE_DEV);
+	COMPILE_TIME_ASSERT(ATTR_NORMAL_CACHED_INDEX ==
+			    TEE_MATTR_MEM_TYPE_CACHED);
+	COMPILE_TIME_ASSERT(ATTR_STRONG_O_INDEX ==
+			    TEE_MATTR_MEM_TYPE_STRONGLY_O);
+	COMPILE_TIME_ASSERT(ATTR_TAGGED_CACHED_INDEX ==
+			    TEE_MATTR_MEM_TYPE_TAGGED);
 
-	return texcb << TEE_MATTR_CACHE_SHIFT;
+	return texcb << TEE_MATTR_MEM_TYPE_SHIFT;
 }
 
 static uint32_t mattr_to_texcb(uint32_t attr)
 {
 	/* Keep in sync with core_mmu.c:core_mmu_mattr_is_ok */
-	return (attr >> TEE_MATTR_CACHE_SHIFT) & TEE_MATTR_CACHE_MASK;
+	return (attr >> TEE_MATTR_MEM_TYPE_SHIFT) & TEE_MATTR_MEM_TYPE_MASK;
 }
 
 
@@ -698,8 +717,7 @@ static void print_mmap_area(const struct tee_mmap_region *mm __maybe_unused,
 	else
 		debug_print("%s [%08" PRIxVA " %08" PRIxVA "] %s-%s-%s-%s",
 				str, mm->va, mm->va + mm->size,
-				mm->attr & (TEE_MATTR_CACHE_CACHED <<
-					TEE_MATTR_CACHE_SHIFT) ? "MEM" : "DEV",
+				mattr_is_cached(mm->attr) ? "MEM" : "DEV",
 				mm->attr & TEE_MATTR_PW ? "RW" : "RO",
 				mm->attr & TEE_MATTR_PX ? "X" : "XN",
 				mm->attr & TEE_MATTR_SECURE ? "S" : "NS");
@@ -744,11 +762,6 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 			core_mmu_map_region(prtn, mm + n);
 }
 
-bool core_mmu_place_tee_ram_at_top(paddr_t paddr)
-{
-	return paddr > 0x80000000;
-}
-
 void core_init_mmu(struct tee_mmap_region *mm)
 {
 	/* Initialize default pagetables */
@@ -760,8 +773,10 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	cfg->ttbr = core_mmu_get_main_ttb_pa(&default_partition) |
 		    TEE_MMU_DEFAULT_ATTRS;
 
-	cfg->prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR;
-	cfg->nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR;
+	cfg->prrr = ATTR_DEVICE_PRRR | ATTR_NORMAL_CACHED_PRRR |
+		    ATTR_STRONGLY_O_PRRR | ATTR_TAGGED_CACHED_PRRR;
+	cfg->nmrr = ATTR_DEVICE_NMRR | ATTR_NORMAL_CACHED_NMRR |
+		    ATTR_STRONGLY_O_NMRR | ATTR_TAGGED_CACHED_NMRR;
 
 	cfg->prrr |= PRRR_NS1 | PRRR_DS1;
 
@@ -779,7 +794,6 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 	 */
 	cfg->ttbcr = TTBCR_N_VALUE;
 }
-DECLARE_KEEP_PAGER(core_init_mmu_regs);
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 {

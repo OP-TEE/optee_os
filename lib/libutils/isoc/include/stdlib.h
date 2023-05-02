@@ -8,8 +8,8 @@
  * 7.20.3 Memory management functions
  */
 
-#ifndef STDLIB_H
-#define STDLIB_H
+#ifndef __STDLIB_H
+#define __STDLIB_H
 
 #include <compiler.h>
 #include <stddef.h>
@@ -29,4 +29,4 @@ int rand(void);
 unsigned long _strtoul (const char *nptr, char **endptr, int base);
 unsigned long strtoul (const char *s, char **ptr, int base);
 
-#endif /* STDLIB_H */
+#endif /* __STDLIB_H */

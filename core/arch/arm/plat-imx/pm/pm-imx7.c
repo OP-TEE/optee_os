@@ -115,7 +115,8 @@ int pm_imx7_iram_tbl_init(void)
 		map.type = MEM_AREA_IO_SEC;
 		map.attr = TEE_MATTR_VALID_BLOCK | TEE_MATTR_PRW |
 			   TEE_MATTR_SECURE |
-			   (TEE_MATTR_CACHE_NONCACHE << TEE_MATTR_CACHE_SHIFT);
+			   (TEE_MATTR_MEM_TYPE_DEV <<
+			    TEE_MATTR_MEM_TYPE_SHIFT);
 		map_memarea_sections(&map, (uint32_t *)iram_tbl_virt_addr);
 	}
 

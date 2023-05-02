@@ -63,10 +63,12 @@
 #include "mbedtls/threading.h"
 #endif
 
+#if defined(MBEDTLS_HAVE_TIME)
 #if defined(_WIN32) && !defined(EFIX64) && !defined(EFI32)
 #include <windows.h>
 #else
 #include <time.h>
+#endif
 #endif
 
 #if defined(MBEDTLS_FS_IO)
@@ -95,10 +97,6 @@ typedef struct {
  * concerns. */
 const mbedtls_x509_crt_profile mbedtls_x509_crt_profile_default =
 {
-#if defined(MBEDTLS_TLS_DEFAULT_ALLOW_SHA1_IN_CERTIFICATES)
-    /* Allow SHA-1 (weak, but still safe in controlled environments) */
-    MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA1 ) |
-#endif
     /* Only SHA-2 hashes */
     MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA224 ) |
     MBEDTLS_X509_ID_FLAG( MBEDTLS_MD_SHA256 ) |

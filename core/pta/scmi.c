@@ -6,10 +6,24 @@
 #include <compiler.h>
 #include <config.h>
 #include <drivers/scmi-msg.h>
+#include <scmi/scmi_server.h>
 #include <kernel/pseudo_ta.h>
 #include <pta_scmi_client.h>
 #include <stdint.h>
 #include <string.h>
+
+static uint32_t supported_caps(void)
+{
+	uint32_t caps = 0;
+
+	if (IS_ENABLED2(_CFG_SCMI_PTA_SMT_HEADER))
+		caps |= PTA_SCMI_CAPS_SMT_HEADER;
+
+	if (IS_ENABLED2(_CFG_SCMI_PTA_MSG_HEADER))
+		caps |= PTA_SCMI_CAPS_MSG_HEADER;
+
+	return caps;
+}
 
 static TEE_Result cmd_capabilities(uint32_t ptypes,
 				   TEE_Param param[TEE_NUM_PARAMS])
@@ -18,15 +32,11 @@ static TEE_Result cmd_capabilities(uint32_t ptypes,
 						    TEE_PARAM_TYPE_NONE,
 						    TEE_PARAM_TYPE_NONE,
 						    TEE_PARAM_TYPE_NONE);
-	uint32_t caps = 0;
 
 	if (ptypes != exp_ptypes)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
-		caps |= PTA_SCMI_CAPS_SMT_HEADER;
-
-	param[0].value.a = caps;
+	param[0].value.a = supported_caps();
 	param[0].value.b = 0;
 
 	return TEE_SUCCESS;
@@ -55,6 +65,9 @@ static TEE_Result cmd_process_smt_channel(uint32_t ptypes,
 
 		return TEE_SUCCESS;
 	}
+
+	if (IS_ENABLED(CFG_SCMI_SCPFW))
+		return scmi_server_smt_process_thread(channel_id);
 
 	return TEE_ERROR_NOT_SUPPORTED;
 }
@@ -97,6 +110,59 @@ static TEE_Result cmd_process_smt_message(uint32_t ptypes,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
+static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
+					  TEE_Param params[TEE_NUM_PARAMS])
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_MEMREF_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	unsigned int channel_id = params[0].value.a;
+	void *in_buf = params[1].memref.buffer;
+	size_t in_size = params[1].memref.size;
+	void *out_buf = params[2].memref.buffer;
+	size_t out_size = params[2].memref.size;
+
+	if (ptypes != exp_pt || !in_buf || !out_buf)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS)) {
+		struct scmi_msg_channel *channel = NULL;
+
+		if (!IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
+			return TEE_ERROR_NOT_SUPPORTED;
+
+		channel = plat_scmi_get_channel(channel_id);
+		if (!channel)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = scmi_msg_threaded_entry(channel_id, in_buf, in_size,
+					      out_buf, &out_size);
+		if (!res)
+			params[2].memref.size = out_size;
+
+		return res;
+	}
+
+	if (IS_ENABLED(CFG_SCMI_SCPFW)) {
+		if (!in_buf || !out_buf)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		res = scmi_server_msg_process_thread(channel_id, in_buf,
+						     in_size, out_buf,
+						     &out_size);
+		if (!res) {
+			params[2].memref.size = (uint32_t)out_size;
+			IMSG("scmi optee shm: out %zu", out_size);
+		}
+
+		return res;
+	}
+
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 					 TEE_Param params[TEE_NUM_PARAMS])
 {
@@ -107,14 +173,14 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 	unsigned int channel_id = params[0].value.a;
 	unsigned int caps = params[0].value.b;
 
-	if (ptypes != exp_ptypes)
+	if (ptypes != exp_ptypes || caps & ~PTA_SCMI_CAPS_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT)) {
-		struct scmi_msg_channel *channel = NULL;
+	if (!(caps & supported_caps()))
+		return TEE_ERROR_NOT_SUPPORTED;
 
-		if (caps != PTA_SCMI_CAPS_SMT_HEADER)
-			return TEE_ERROR_NOT_SUPPORTED;
+	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS)) {
+		struct scmi_msg_channel *channel = NULL;
 
 		channel = plat_scmi_get_channel(channel_id);
 		if (!channel)
@@ -124,6 +190,11 @@ static TEE_Result cmd_get_channel_handle(uint32_t ptypes,
 		params[0].value.a = scmi_smt_channel_handle(channel_id);
 
 		return TEE_SUCCESS;
+	}
+
+	if (IS_ENABLED(CFG_SCMI_SCPFW)) {
+		/* Only check the channel ID is known from SCP-firwmare */
+		return scmi_server_get_channel(channel_id, NULL);
 	}
 
 	return TEE_ERROR_NOT_SUPPORTED;
@@ -142,7 +213,7 @@ static TEE_Result pta_scmi_open_session(uint32_t ptypes __unused,
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
-	if (IS_ENABLED(CFG_SCMI_MSG_SMT))
+	if (IS_ENABLED(CFG_SCMI_MSG_DRIVERS) || IS_ENABLED(CFG_SCMI_SCPFW))
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_NOT_SUPPORTED;
@@ -161,6 +232,8 @@ static TEE_Result pta_scmi_invoke_command(void *session __unused, uint32_t cmd,
 		return cmd_process_smt_channel(ptypes, params);
 	case PTA_SCMI_CMD_PROCESS_SMT_CHANNEL_MESSAGE:
 		return cmd_process_smt_message(ptypes, params);
+	case PTA_SCMI_CMD_PROCESS_MSG_CHANNEL:
+		return cmd_process_msg_channel(ptypes, params);
 	case PTA_SCMI_CMD_GET_CHANNEL_HANDLE:
 		return cmd_get_channel_handle(ptypes, params);
 	default:

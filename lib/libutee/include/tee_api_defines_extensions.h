@@ -8,6 +8,13 @@
 #define TEE_API_DEFINES_EXTENSIONS_H
 
 /*
+ * RSA signatures with MD5 hash
+ * Values prefixed with vendor ID bit31 with by TEE bitfields IDs
+ */
+#define TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5       0xF0111930
+#define TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5       0xF0110230
+
+/*
  * API extended result codes as per TEE_Result IDs defined in GPD TEE
  * Internal Core API specification v1.1:
  *
@@ -19,6 +26,12 @@
  * the driver depends on a device not yet initialized.
  */
 #define TEE_ERROR_DEFER_DRIVER_INIT	0x80000000
+
+/*
+ * TEE_ERROR_NODE_DISABLED - Device driver failed to initialize because it is
+ * not allocated for TEE environment.
+ */
+#define TEE_ERROR_NODE_DISABLED		0x80000001
 
 /*
  * HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
@@ -34,8 +47,12 @@
 #define TEE_TYPE_HKDF_IKM               0xA10000C0
 
 #define TEE_ATTR_HKDF_IKM               0xC00001C0
-#define TEE_ATTR_HKDF_SALT              0xD00002C0
-#define TEE_ATTR_HKDF_INFO              0xD00003C0
+/*
+ * There is a name clash with the  official attributes TEE_ATTR_HKDF_SALT
+ * and TEE_ATTR_HKDF_INFO so define these alternative ID.
+ */
+#define __OPTEE_TEE_ATTR_HKDF_SALT      0xD00002C0
+#define __OPTEE_ATTR_HKDF_INFO          0xD00003C0
 #define TEE_ATTR_HKDF_OKM_LENGTH        0xF00004C0
 
 /*
@@ -80,6 +97,11 @@
  *  TDEA CMAC (NIST SP800-38B)
  */
 #define TEE_ALG_DES3_CMAC	0xF0000613
+
+/*
+ *  SM4-XTS
+ */
+#define TEE_ALG_SM4_XTS 0xF0000414
 
 /*
  * Implementation-specific object storage constants

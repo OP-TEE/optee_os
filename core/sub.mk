@@ -4,6 +4,7 @@ subdirs-y += kernel
 subdirs-y += mm
 subdirs-y += pta
 subdirs-y += tee
+subdirs-$(CFG_TEE_CORE_EMBED_INTERNAL_TESTS) += tests
 
 ifeq ($(CFG_WITH_USER_TA),y)
 gensrcs-y += ta_pub_key
@@ -41,8 +42,11 @@ sp-$1-uuid := $(firstword $(subst ., ,$(notdir $1)))
 gensrcs-y += sp-$1
 produce-sp-$1 = sp_$$(sp-$1-uuid).c
 depends-sp-$1 = $1 scripts/ts_bin_to_c.py
+dtb-$1-path = $(dir $1)
+dtb-$1 = $$(dtb-$1-path)../manifest/$$(sp-$1-uuid).dtb
 recipe-sp-$1 = $(PYTHON3) scripts/ts_bin_to_c.py --compress --sp $1 \
-		--out $(sub-dir-out)/sp_$$(sp-$1-uuid).c
+		--out $(sub-dir-out)/sp_$$(sp-$1-uuid).c \
+		--manifest $$(dtb-$1)
 endef
 $(foreach f, $(SP_PATHS), $(eval $(call process_secure_partition,$(f))))
 

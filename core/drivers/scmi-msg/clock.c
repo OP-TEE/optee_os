@@ -240,9 +240,6 @@ static void scmi_clock_config_set(struct scmi_msg *msg)
 	scmi_status_response(msg, status);
 }
 
-#define RATES_ARRAY_SIZE_MAX	(SCMI_PLAYLOAD_MAX - \
-				 sizeof(struct scmi_clock_describe_rates_p2a))
-
 #define SCMI_RATES_BY_ARRAY(_nb_rates, _rem_rates) \
 	SCMI_CLOCK_DESCRIBE_RATES_NUM_RATES_FLAGS((_nb_rates), \
 						SCMI_CLOCK_RATE_FORMAT_LIST, \
@@ -277,6 +274,7 @@ static void scmi_clock_describe_rates(struct scmi_msg *msg)
 	size_t nb_rates = 0;
 	int32_t status = SCMI_GENERIC_ERROR;
 	unsigned int clock_id = 0;
+	unsigned int out_count = 0;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
@@ -295,54 +293,66 @@ static void scmi_clock_describe_rates(struct scmi_msg *msg)
 	status = plat_scmi_clock_rates_array(msg->channel_id, clock_id, 0, NULL,
 					     &nb_rates);
 	if (status == SCMI_SUCCESS) {
-		/* Currently 12 cells mex, so it's affordable for the stack */
-		unsigned long plat_rates[RATES_ARRAY_SIZE_MAX / RATE_DESC_SIZE];
-		size_t max_nb = RATES_ARRAY_SIZE_MAX / RATE_DESC_SIZE;
-		size_t ret_nb = MIN(nb_rates - in_args->rate_index, max_nb);
-		size_t rem_nb = nb_rates - in_args->rate_index - ret_nb;
+		unsigned int rate_index = in_args->rate_index;
+		unsigned int remaining = 0;
+		size_t avail_sz = msg->out_size - sizeof(p2a);
+		char *out_rates = msg->out + sizeof(p2a);
 
-		status =  plat_scmi_clock_rates_array(msg->channel_id, clock_id,
-						      in_args->rate_index,
-						      plat_rates, &ret_nb);
-		if (status == SCMI_SUCCESS) {
-			write_rate_desc_array_in_buffer(msg->out + sizeof(p2a),
-							plat_rates, ret_nb);
-
-			p2a.num_rates_flags = SCMI_RATES_BY_ARRAY(ret_nb,
-								  rem_nb);
-			p2a.status = SCMI_SUCCESS;
-
-			memcpy(msg->out, &p2a, sizeof(p2a));
-			msg->out_size_out = sizeof(p2a) +
-					    ret_nb * RATE_DESC_SIZE;
+		if (avail_sz < RATE_DESC_SIZE && nb_rates) {
+			status = SCMI_PROTOCOL_ERROR;
+			goto out;
 		}
+
+		while (avail_sz >= RATE_DESC_SIZE && rate_index < nb_rates) {
+			unsigned long rate = 0;
+			size_t cnt = 1;
+
+			status = plat_scmi_clock_rates_array(msg->channel_id,
+							     clock_id,
+							     rate_index,
+							     &rate, &cnt);
+			if (status)
+				goto out;
+
+			write_rate_desc_array_in_buffer(out_rates, &rate, cnt);
+			avail_sz -= RATE_DESC_SIZE;
+			out_rates += RATE_DESC_SIZE;
+			rate_index++;
+		}
+
+		out_count = rate_index - in_args->rate_index;
+		remaining = nb_rates - in_args->rate_index;
+		p2a.num_rates_flags = SCMI_RATES_BY_ARRAY(out_count, remaining);
 	} else if (status == SCMI_NOT_SUPPORTED) {
 		unsigned long triplet[3] = { 0, 0, 0 };
+
+		if (msg->out_size < sizeof(p2a) + 3 * RATE_DESC_SIZE) {
+			status = SCMI_PROTOCOL_ERROR;
+			goto out;
+		}
 
 		/* Platform may support min/max/step triplet description */
 		status =  plat_scmi_clock_rates_by_step(msg->channel_id,
 							clock_id, triplet);
-		if (status == SCMI_SUCCESS) {
-			write_rate_desc_array_in_buffer(msg->out + sizeof(p2a),
-							triplet, 3);
+		if (status)
+			goto out;
 
-			p2a.num_rates_flags = SCMI_RATES_BY_STEP;
-			p2a.status = SCMI_SUCCESS;
+		write_rate_desc_array_in_buffer(msg->out + sizeof(p2a),
+						triplet, 3);
 
-			memcpy(msg->out, &p2a, sizeof(p2a));
-			msg->out_size_out = sizeof(p2a) + (3 * RATE_DESC_SIZE);
-		}
+		out_count = 3;
+		p2a.num_rates_flags = SCMI_RATES_BY_STEP;
 	} else {
 		/* Fallthrough generic exit sequence below with error status */
 	}
 
+out:
 	if (status) {
 		scmi_status_response(msg, status);
 	} else {
-		/*
-		 * Message payload is already writen to msg->out, and
-		 * msg->out_size_out updated.
-		 */
+		p2a.status = SCMI_SUCCESS;
+		memcpy(msg->out, &p2a, sizeof(p2a));
+		msg->out_size_out = sizeof(p2a) + out_count * RATE_DESC_SIZE;
 	}
 }
 
@@ -357,7 +367,7 @@ static const scmi_msg_handler_t scmi_clock_handler_table[] = {
 	[SCMI_CLOCK_CONFIG_SET] = scmi_clock_config_set,
 };
 
-static bool message_id_is_supported(size_t message_id)
+static bool message_id_is_supported(unsigned int message_id)
 {
 	return message_id < ARRAY_SIZE(scmi_clock_handler_table) &&
 	       scmi_clock_handler_table[message_id];

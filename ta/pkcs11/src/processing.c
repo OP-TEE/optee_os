@@ -151,6 +151,12 @@ size_t get_object_key_bit_size(struct pkcs11_object *obj)
 			return 0;
 
 		return ec_params2tee_keysize(a_ptr, a_size);
+	case PKCS11_CKK_EC_EDWARDS:
+		if (get_attribute_ptr(attrs, PKCS11_CKA_EC_POINT, NULL,
+				      &a_size))
+			return 0;
+
+		return a_size * 8;
 	default:
 		TEE_Panic(0);
 		return 0;
@@ -333,7 +339,7 @@ enum pkcs11_rc alloc_get_tee_attribute_data(TEE_ObjectHandle tee_obj,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	void *ptr = NULL;
-	uint32_t sz = 0;
+	size_t sz = 0;
 
 	res = TEE_GetObjectBufferAttribute(tee_obj, attribute, NULL, &sz);
 	if (res != TEE_ERROR_SHORT_BUFFER)
@@ -503,6 +509,9 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 
 	/* Generate key pair */
 	switch (proc_params->id) {
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		rc = generate_eddsa_keys(proc_params, &pub_head, &priv_head);
+		break;
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		rc = generate_ec_keys(proc_params, &pub_head, &priv_head);
 		break;
@@ -546,12 +555,11 @@ enum pkcs11_rc entry_generate_key_pair(struct pkcs11_client *client,
 	TEE_MemMove(hdl_ptr, &pubkey_handle, sizeof(pubkey_handle));
 	TEE_MemMove(hdl_ptr + 1, &privkey_handle, sizeof(privkey_handle));
 
-	pubkey_handle = 0;
-	privkey_handle = 0;
-
 	DMSG("PKCS11 session %"PRIu32": create key pair %#"PRIx32"/%#"PRIx32,
 	     session->handle, privkey_handle, pubkey_handle);
 
+	pubkey_handle = 0;
+	privkey_handle = 0;
 out:
 	if (pubkey_handle) {
 		object = pkcs11_handle2object(pubkey_handle, session);
@@ -661,7 +669,6 @@ enum pkcs11_rc entry_processing_init(struct pkcs11_client *client,
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 
 	if (rc == PKCS11_CKR_OK) {
-		session->processing->mecha_type = proc_params->id;
 		DMSG("PKCS11 session %"PRIu32": init processing %s %s",
 		     session->handle, id2str_proc(proc_params->id),
 		     id2str_function(function));
@@ -963,8 +970,6 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		if (rc)
 			goto out;
 
-		session->processing->mecha_type = proc_params->id;
-
 		switch (function) {
 		case PKCS11_FUNCTION_DERIVE:
 			rc = derive_key_by_symm_enc(session, &out_buf,
@@ -979,6 +984,34 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 		}
 		if (rc)
 			goto out;
+
+	} else if (processing_is_tee_asymm(proc_params->id)) {
+		switch (function) {
+		case PKCS11_FUNCTION_DERIVE:
+			rc = init_asymm_operation(session, function,
+						  proc_params, parent);
+			if (rc)
+				goto out;
+
+			rc = do_asymm_derivation(session, proc_params, &head);
+			if (!rc)
+				goto done;
+			break;
+		case PKCS11_FUNCTION_UNWRAP:
+			rc = init_asymm_operation(session, operation,
+						  proc_params, parent);
+			if (rc)
+				goto out;
+
+			rc = unwrap_key_by_asymm(session, in_buf, in_size,
+						 &out_buf, &out_size);
+			break;
+		default:
+			TEE_Panic(function);
+		}
+
+		if (rc)
+			goto out;
 	} else {
 		rc = PKCS11_CKR_MECHANISM_INVALID;
 		goto out;
@@ -988,6 +1021,7 @@ enum pkcs11_rc entry_processing_key(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+done:
 	TEE_Free(out_buf);
 	out_buf = NULL;
 
@@ -1185,9 +1219,8 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 
 	switch (get_class(key->attributes)) {
 	case PKCS11_CKO_SECRET_KEY:
-		break;
-	/* Key type not supported as yet */
 	case PKCS11_CKO_PRIVATE_KEY:
+		break;
 	default:
 		rc = PKCS11_CKR_KEY_NOT_WRAPPABLE;
 		goto out;
@@ -1220,7 +1253,7 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 		}
 	}
 
-	rc = get_key_data_to_wrap(key->attributes, &key_data, &key_sz);
+	rc = alloc_key_data_to_wrap(key->attributes, &key_data, &key_sz);
 	if (rc)
 		goto out;
 
@@ -1230,12 +1263,16 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 		if (rc)
 			goto out;
 
-		session->processing->mecha_type = proc_params->id;
-
 		rc = wrap_data_by_symm_enc(session, key_data, key_sz, out_buf,
 					   &out_size);
 	} else {
-		rc = PKCS11_CKR_MECHANISM_INVALID;
+		rc = init_asymm_operation(session, PKCS11_FUNCTION_ENCRYPT,
+					  proc_params, wrapping_key);
+		if (rc)
+			goto out;
+
+		rc = wrap_data_by_asymm_enc(session, key_data, key_sz, out_buf,
+					    &out_size);
 	}
 
 	if (rc == PKCS11_CKR_OK || rc == PKCS11_CKR_BUFFER_TOO_SMALL)
@@ -1244,6 +1281,7 @@ enum pkcs11_rc entry_wrap_key(struct pkcs11_client *client,
 out:
 	release_active_processing(session);
 out_free:
+	TEE_Free(key_data);
 	TEE_Free(proc_params);
 	return rc;
 }

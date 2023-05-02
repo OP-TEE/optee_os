@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <arm32_macros.S>
@@ -11,12 +11,12 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/thread_private.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
-
-#include "thread_private.h"
 
 .arch_extension sec
 
@@ -271,13 +271,20 @@ DECLARE_KEEP_INIT _start
 
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
-	 * sp is assigned stack_tmp_export + cpu_id * stack_tmp_stride
+	 * sp is assigned:
+	 *   stack_tmp + (cpu_id + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 */
 	.macro set_sp
 		bl	__get_core_pos
 		cmp	r0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
+		add	r0, r0, #1
+
+		/* r2 = stack_tmp - STACK_TMP_GUARD */
+		adr	r3, stack_tmp_rel
+		ldr	r2, [r3]
+		add	r2, r2, r3
 
 		/*
 		 * stack_tmp_stride and stack_tmp_stride_rel are the
@@ -294,15 +301,10 @@ DECLARE_KEEP_INIT _start
 		ldr	r1, [r3]
 		ldr	r1, [r1, r3]
 
-		/* Same pattern as for stack_tmp_stride above */
-		adr	r3, stack_tmp_export_rel
-		ldr	r2, [r3]
-		ldr	r2, [r2, r3]
-
 		/*
-		 * r0 is core pos
+		 * r0 is core pos + 1
 		 * r1 is value of stack_tmp_stride
-		 * r2 is value of stack_tmp_export
+		 * r2 is value of stack_tmp + guard
 		 */
 		mul	r1, r0, r1
 		add	sp, r1, r2
@@ -428,7 +430,7 @@ clear_bss:
 	cmp	r0, r1
 	bls	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -509,12 +511,12 @@ shadow_stack_access_ok:
 
 #ifdef CFG_CORE_ASLR
 	/*
-	 * Process relocation information for updating with the new offset.
-	 * We're doing this now before MMU is enabled as some of the memory
-	 * will become write protected.
+	 * Process relocation information for updating with the virtual map
+	 * offset.  We're doing this now before MMU is enabled as some of
+	 * the memory will become write protected.
 	 */
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -537,7 +539,7 @@ shadow_stack_access_ok:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -548,7 +550,7 @@ shadow_stack_access_ok:
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
@@ -559,11 +561,19 @@ shadow_stack_access_ok:
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	r0, r6		/* DT address */
+	mov	r1, #0		/* unused */
 	bl	boot_init_primary_late
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, r9
+#endif
+
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	bl	plat_get_random_stack_canary
+	ldr	r1, =__stack_chk_guard
+	str	r0, [r1]
 #endif
 
 	/*
@@ -594,25 +604,25 @@ shadow_stack_access_ok:
 	 * next entry. Matches the thread_init_boot_thread() in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 
 #ifdef CFG_CORE_FFA
 	ldr	r0, =cpu_on_handler
 	/*
-	 * Compensate for the load offset since cpu_on_handler() is
+	 * Compensate for the virtual map offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	sub	r0, r0, r1
-	bl	ffa_secondary_cpu_ep_register
+	bl	thread_spmc_register_secondary_ep
 	b	thread_ffa_msg_wait
 #else /* CFG_CORE_FFA */
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	ldr	r1, =thread_vector_table
 	/* Pass the vector address returned from main_init */
 	sub	r1, r1, r0
@@ -626,7 +636,8 @@ shadow_stack_access_ok:
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 #endif /* CFG_CORE_FFA */
 END_FUNC reset_primary
 
@@ -665,7 +676,7 @@ LOCAL_FUNC relocate , :
 	ldr	r2, [r12, #BOOT_EMBDATA_RELOC_OFFSET]
 	ldr	r3, [r12, #BOOT_EMBDATA_RELOC_LEN]
 
-	mov_imm	r1, TEE_RAM_START
+	mov_imm	r1, TEE_LOAD_ADDR
 	add	r2, r2, r12	/* start of relocations */
 	add	r3, r3, r2	/* end of relocations */
 
@@ -674,9 +685,9 @@ LOCAL_FUNC relocate , :
 	 * compressed format created by get_reloc_bin() in
 	 * scripts/gen_tee_bin.py
 	 *
-	 * All the R_ARM_RELATIVE relocations are translated into a list
-	 * list of 32-bit offsets from TEE_RAM_START. At each address a
-	 * 32-bit value pointed out which increased with the load offset.
+	 * All the R_ARM_RELATIVE relocations are translated into a list of
+	 * 32-bit offsets from TEE_LOAD_ADDR. At each address a 32-bit
+	 * value pointed out which increased with the load offset.
 	 */
 
 #ifdef CFG_WITH_PAGER
@@ -823,9 +834,9 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	bx	lr
 END_FUNC enable_mmu
 
-LOCAL_DATA stack_tmp_export_rel , :
-	.word	stack_tmp_export - stack_tmp_export_rel
-END_DATA stack_tmp_export_rel
+LOCAL_DATA stack_tmp_rel , :
+	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
+END_DATA stack_tmp_rel
 
 LOCAL_DATA stack_tmp_stride_rel , :
 	.word	stack_tmp_stride - stack_tmp_stride_rel
@@ -876,17 +887,6 @@ UNWIND(	.cantunwind)
 	wait_primary
 
 	set_sp
-#ifdef CFG_CORE_ASLR
-	/*
-	 * stack_tmp_export which is used as base when initializing sp has
-	 * been relocated to the new offset. Since MMU isn't enabled on
-	 * this CPU yet we need to restore the corresponding physical
-	 * address.
-	 */
-	adr	r0, boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
-	sub	sp, sp, r0
-#endif
 
 #if defined (CFG_BOOT_SECONDARY_REQUEST)
 	/* if L1 is not invalidated before, do it here */
@@ -918,7 +918,8 @@ UNWIND(	.cantunwind)
 	mov	r3, #0
 	mov	r4, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC reset_secondary
 DECLARE_KEEP_PAGER reset_secondary
 #endif /* defined(CFG_WITH_ARM_TRUSTED_FW) */

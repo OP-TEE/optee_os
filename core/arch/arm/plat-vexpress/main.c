@@ -7,7 +7,10 @@
 #include <arm.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/hfic.h>
 #include <drivers/pl011.h>
+#include <drivers/tpm2_mmio.h>
+#include <drivers/tpm2_ptp_fifo.h>
 #include <drivers/tzc400.h>
 #include <initcall.h>
 #include <keep.h>
@@ -26,10 +29,14 @@
 #include <string.h>
 #include <trace.h>
 
-static struct gic_data gic_data __nex_bss;
+static struct gic_data gic_data __maybe_unused __nex_bss;
+static struct hfic_data hfic_data __maybe_unused __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
+#if defined(CFG_DRIVERS_TPM2_MMIO)
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, TPM2_BASE, TPM2_REG_SIZE);
+#endif
 #if defined(PLATFORM_FLAVOR_fvp)
 register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
 #endif
@@ -43,29 +50,18 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
-#ifdef GIC_BASE
-
+#ifdef CFG_GIC
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
 void main_init_gic(void)
 {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-
-	gicc_base = (vaddr_t)phys_to_virt(GIC_BASE + GICC_OFFSET,
-					  MEM_AREA_IO_SEC, GIC_CPU_REG_SIZE);
-	gicd_base = (vaddr_t)phys_to_virt(GIC_BASE + GICD_OFFSET,
-					  MEM_AREA_IO_SEC, GIC_DIST_REG_SIZE);
-	if (!gicc_base || !gicd_base)
-		panic();
-
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(&gic_data, gicc_base, gicd_base);
+	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
+			   GIC_BASE + GICD_OFFSET);
 #else
-	/* Initialize GIC */
-	gic_init(&gic_data, gicc_base, gicd_base);
+	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
 	itr_init(&gic_data.chip);
 }
@@ -77,12 +73,24 @@ void main_secondary_init_gic(void)
 }
 #endif
 
-#endif
-
 void itr_core_handler(void)
 {
 	gic_it_handle(&gic_data);
 }
+#endif /*CFG_GIC*/
+
+#ifdef CFG_CORE_HAFNIUM_INTC
+void main_init_gic(void)
+{
+	hfic_init(&hfic_data);
+	itr_init(&hfic_data.chip);
+}
+
+void itr_core_handler(void)
+{
+	hfic_it_handle(&hfic_data);
+}
+#endif
 
 void console_init(void)
 {
@@ -91,8 +99,10 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-#if defined(IT_CONSOLE_UART) && \
-	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV3))
+#if (defined(CFG_GIC) || defined(CFG_CORE_HAFNIUM_INTC)) && \
+	defined(IT_CONSOLE_UART) && \
+	!defined(CFG_NS_VIRTUALIZATION) && \
+	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2))
 /*
  * This cannot be enabled with TF-A and GICv3 because TF-A then need to
  * assign the interrupt number of the UART to OP-TEE (S-EL1). Currently
@@ -105,6 +115,9 @@ void console_init(void)
 static void read_console(void)
 {
 	struct serial_chip *cons = &console_data.chip;
+
+	if (!cons->ops->getchar || !cons->ops->have_rx_data)
+		return;
 
 	while (cons->ops->have_rx_data(cons)) {
 		int ch __maybe_unused = cons->ops->getchar(cons);
@@ -174,6 +187,24 @@ static TEE_Result init_console_itr(void)
 }
 driver_init(init_console_itr);
 #endif
+
+#if defined(CFG_DRIVERS_TPM2_MMIO)
+static TEE_Result init_tpm2(void)
+{
+	enum tpm2_result res = TPM2_OK;
+
+	res = tpm2_mmio_init(TPM2_BASE);
+	if (res) {
+		EMSG("Failed to initialize TPM2 MMIO");
+		return TEE_ERROR_GENERIC;
+	}
+
+	DMSG("TPM2 Chip initialized");
+
+	return TEE_SUCCESS;
+}
+driver_init(init_tpm2);
+#endif /* defined(CFG_DRIVERS_TPM2_MMIO) */
 
 #ifdef CFG_TZC400
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TZC400_BASE, TZC400_REG_SIZE);

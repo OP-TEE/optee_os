@@ -21,7 +21,8 @@
 
 /* List of eFuse identifiers */
 enum zynqmp_efuse_id {
-	DNA = 0, IP_DISABLE, MISC_USER_CTRL, SEC_CTRL,
+	DNA = 0, IP_DISABLE, USER0, USER1, USER2, USER3, USER4, USER5, USER6,
+	USER7, MISC_USER_CTRL, SEC_CTRL,
 };
 
 /* Valid bytes in the eFuse */
@@ -36,14 +37,25 @@ enum zynqmp_efuse_id {
 /*
  * Read eFuse memory
  * @buf: buffer, where eFuse date will be stored. The data is returned
- *       in LE byte order. The buffer address must be cached aligned
- * @buf_sz: buffer size in bytes, must be a multiple of the cacheline size
+ *       in LE byte order.
+ * @buf_sz: buffer size in bytes
  * @id: eFuse identifier.
  * @puf: is eFuse PUF, ZYNQMP_PUF_EFUSE/ZYNQMP_NONPUF_EFUSE
  * Return a TEE_Result compliant status
  */
 TEE_Result zynqmp_efuse_read(uint8_t *buf, size_t buf_sz,
 			     enum zynqmp_efuse_id id, bool puf);
+
+/*
+ * Program eFuse memory
+ * @buf: buffer where eFuse data are stored in LE byte order.
+ * @buf_sz: buffer size in bytes
+ * @id: eFuse identifier.
+ * @puf: is eFuse PUF, ZYNQMP_PUF_EFUSE/ZYNQMP_NONPUF_EFUSE
+ * Return a TEE_Result compliant status
+ */
+TEE_Result zynqmp_efuse_write(uint8_t *buf, size_t buf_sz,
+			      enum zynqmp_efuse_id id, bool puf);
 
 /*
  * Read the SoC version number:

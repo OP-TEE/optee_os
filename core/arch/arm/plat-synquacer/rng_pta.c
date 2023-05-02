@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (C) 2018, Linaro Limited
+ * Copyright (C) 2018-2022, Linaro Limited
  */
 
 /*
@@ -81,9 +81,10 @@
 #include <kernel/timer.h>
 #include <mm/core_memprot.h>
 #include <io.h>
+#include <pta_rng.h>
 #include <string.h>
-#include <rng_pta.h>
-#include <rng_pta_client.h>
+
+#include "synquacer_rng_pta.h"
 
 #define PTA_NAME "rng.pta"
 

@@ -76,6 +76,42 @@ TEE_Result crypto_sm3_alloc_ctx(struct crypto_hash_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm3, hash)
 #endif
 
+#if defined(CFG_CRYPTO_SHA3_224)
+TEE_Result crypto_sha3_224_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_224, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_256)
+TEE_Result crypto_sha3_256_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_256, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_384)
+TEE_Result crypto_sha3_384_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_384, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHA3_512)
+TEE_Result crypto_sha3_512_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sha3_512, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHAKE128)
+TEE_Result crypto_shake128_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(shake128, hash)
+#endif
+
+#if defined(CFG_CRYPTO_SHAKE256)
+TEE_Result crypto_shake256_alloc_ctx(struct crypto_hash_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(shake256, hash)
+#endif
+
 /*
  * The crypto context used by the crypto_mac_*() functions is defined by
  * struct crypto_mac_ctx.
@@ -96,20 +132,64 @@ struct crypto_mac_ops {
 			   struct crypto_mac_ctx *src_ctx);
 };
 
-#if defined(CFG_CRYPTO_HMAC)
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_MD5)
 TEE_Result crypto_hmac_md5_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx);
-TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx);
 #else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_md5, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA1)
+TEE_Result crypto_hmac_sha1_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha1, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA224)
+TEE_Result crypto_hmac_sha224_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha224, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA256)
+TEE_Result crypto_hmac_sha256_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha256, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA384)
+TEE_Result crypto_hmac_sha384_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha384, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA512)
+TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha512, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_224)
+TEE_Result crypto_hmac_sha3_224_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_224, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_256)
+TEE_Result crypto_hmac_sha3_256_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_256, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_384)
+TEE_Result crypto_hmac_sha3_384_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_384, mac)
+#endif
+
+#if defined(CFG_CRYPTO_HMAC) && defined(CFG_CRYPTO_SHA3_512)
+TEE_Result crypto_hmac_sha3_512_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(hmac_sha3_512, mac)
 #endif
 
 #if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_HMAC)
@@ -227,6 +307,12 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_cbc, cipher)
 TEE_Result crypto_sm4_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
 #else
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ctr, cipher)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_XTS)
+TEE_Result crypto_sm4_xts_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_xts, cipher)
 #endif
 
 /*
@@ -355,6 +441,12 @@ struct crypto_ecc_keypair_ops {
 };
 
 #ifdef CFG_CRYPTO_ECC
+const struct crypto_ecc_keypair_ops *
+crypto_asym_get_ecc_keypair_ops(uint32_t key_type);
+
+const struct crypto_ecc_public_ops *
+crypto_asym_get_ecc_public_ops(uint32_t key_type);
+
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 					    uint32_t key_type,
 					    size_t key_size_bits);
@@ -368,6 +460,18 @@ crypto_asym_alloc_ecc_public_key(struct ecc_public_key *key __unused,
 				 size_t key_size_bits __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline const struct crypto_ecc_keypair_ops *
+crypto_asym_get_keypair_ops(uint32_t key_type __unused)
+{
+	return NULL;
+}
+
+static inline const struct crypto_ecc_public_ops *
+crypto_asym_get_ecc_public_ops(uint32_t key_type __unused)
+{
+	return NULL;
 }
 
 static inline TEE_Result
@@ -403,4 +507,50 @@ drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif /* CFG_CRYPTO_DRV_ECC */
+
+TEE_Result sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+					       size_t key_size_bits);
+
+TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+						  size_t key_size_bits);
+
+void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s);
+
+void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s);
+
+TEE_Result sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+					 size_t key_size);
+
+TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len);
+TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len);
+TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
+					   struct rsa_keypair *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len);
+
+TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
+					   struct rsa_public_key *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len);
+
+TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+					 int salt_len, const uint8_t *msg,
+					 size_t msg_len, uint8_t *sig,
+					 size_t *sig_len);
+
+TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
+					   struct rsa_public_key *key,
+					   int salt_len, const uint8_t *msg,
+					   size_t msg_len, const uint8_t *sig,
+					   size_t sig_len);
 #endif /*__CRYPTO_CRYPTO_IMPL_H*/

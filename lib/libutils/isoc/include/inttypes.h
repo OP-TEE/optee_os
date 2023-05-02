@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef INTTYPES_H
-#define INTTYPES_H
+#ifndef __INTTYPES_H
+#define __INTTYPES_H
 
 #include <stdint.h>
 
@@ -51,4 +51,4 @@
 #define PRIX64		__PRI64_PREFIX "X"
 #define PRIXPTR		__PRIPTR_PREFIX "X"
 
-#endif /*INTTYPES_H*/
+#endif /*__INTTYPES_H*/

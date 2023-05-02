@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2014, Linaro Limited
+ * Copyright (c) 2014-2023, Linaro Limited
  */
 
 #include <crypto/crypto.h>
@@ -16,7 +16,7 @@
 #include <kernel/thread.h>
 #endif
 
-#if defined(_CFG_CORE_LTC_ACIPHER)
+#if defined(_CFG_CORE_LTC_ACIPHER) || defined(_CFG_CORE_LTC_EC25519)
 /* Random generator */
 static int prng_crypto_start(prng_state *prng __unused)
 {
@@ -117,7 +117,19 @@ static void tee_ltc_reg_algs(void)
 #if defined(_CFG_CORE_LTC_SHA512) || defined(_CFG_CORE_LTC_SHA512_DESC)
 	register_hash(&sha512_desc);
 #endif
-#if defined(_CFG_CORE_LTC_ACIPHER)
+#if defined(_CFG_CORE_LTC_SHA3_224) || defined(_CFG_CORE_LTC_SHA3_224_DESC)
+	register_hash(&sha3_224_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_256) || defined(_CFG_CORE_LTC_SHA3_256_DESC)
+	register_hash(&sha3_256_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_384) || defined(_CFG_CORE_LTC_SHA3_384_DESC)
+	register_hash(&sha3_384_desc);
+#endif
+#if defined(_CFG_CORE_LTC_SHA3_512) || defined(_CFG_CORE_LTC_SHA3_512_DESC)
+	register_hash(&sha3_512_desc);
+#endif
+#if defined(_CFG_CORE_LTC_ACIPHER) || defined(_CFG_CORE_LTC_EC25519)
 	register_prng(&prng_crypto_desc);
 #endif
 }

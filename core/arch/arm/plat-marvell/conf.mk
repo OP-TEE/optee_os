@@ -98,10 +98,4 @@ $(call force,CFG_GIC,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
-$(call force,CFG_ARM32_core,y)
-endif
-
 CFG_WITH_STATS ?= y

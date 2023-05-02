@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <platform_config.h>
@@ -11,15 +11,16 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/thread_private.h>
+#include <mm/core_mmu.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
 
-#include "thread_private.h"
-
 	/*
 	 * Setup SP_EL0 and SPEL1, SP will be set to SP_EL0.
-	 * SP_EL0 is assigned stack_tmp_export + cpu_id * stack_tmp_stride
+	 * SP_EL0 is assigned:
+	 *   stack_tmp + (cpu_id + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 * SP_EL1 is assigned thread_core_local[cpu_id]
 	 */
 	.macro set_sp
@@ -27,17 +28,27 @@
 		cmp	x0, #CFG_TEE_CORE_NB_CORE
 		/* Unsupported CPU, park it before it breaks something */
 		bge	unhandled_cpu
+		add	x0, x0, #1
 		adr_l	x1, stack_tmp_stride
 		ldr	w1, [x1]
 		mul	x1, x0, x1
-		adr_l	x0, stack_tmp_export
-		ldr	x0, [x0]
+
+		/* x0 = stack_tmp - STACK_TMP_GUARD */
+		adr_l	x2, stack_tmp_rel
+		ldr	w0, [x2]
+		add	x0, x0, x2
+
 		msr	spsel, #0
 		add	sp, x1, x0
 		bl	thread_get_core_local
 		msr	spsel, #1
 		mov	sp, x0
 		msr	spsel, #0
+	.endm
+
+	.macro read_feat_mte reg
+		mrs	\reg, id_aa64pfr1_el1
+		ubfx	\reg, \reg, #ID_AA64PFR1_EL1_MTE_SHIFT, #4
 	.endm
 
 	.macro set_sctlr_el1
@@ -53,25 +64,100 @@
 #else
 		bic	x0, x0, #SCTLR_A
 #endif
+#ifdef CFG_MEMTAG
+		read_feat_mte x1
+		cmp	w1, #1
+		b.ls	111f
+		orr	x0, x0, #(SCTLR_ATA | SCTLR_ATA0)
+		bic	x0, x0, #SCTLR_TCF_MASK
+		bic	x0, x0, #SCTLR_TCF0_MASK
+111:
+#endif
+#if defined(CFG_TA_PAUTH) && defined(CFG_TA_BTI)
+		orr	x0, x0, #SCTLR_BT0
+#endif
+#if defined(CFG_CORE_PAUTH) && defined(CFG_CORE_BTI)
+		orr	x0, x0, #SCTLR_BT1
+#endif
 		msr	sctlr_el1, x0
 	.endm
 
-FUNC _start , :
-#if defined(CFG_CORE_SEL1_SPMC)
-	/*
-	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
-	 * the DTB in x0, pagaeble part in x1 and the rest of the registers
-	 * are unused
-	 */
-	mov	x19, x1		/* Save pagable part */
-	mov	x20, x0		/* Save DT address */
+	.macro init_memtag_per_cpu
+		read_feat_mte x0
+		cmp	w0, #1
+		b.ls	11f
+
+#ifdef CFG_TEE_CORE_DEBUG
+		/*
+		 * This together with GCR_EL1.RRND = 0 will make the tags
+		 * acquired with the irg instruction deterministic.
+		 */
+		mov_imm	x0, 0xcafe00
+		msr	rgsr_el1, x0
+		/* Avoid tag = 0x0 and 0xf */
+		mov	x0, #0
 #else
-	mov	x19, x0		/* Save pagable part address */
+		/*
+		 * Still avoid tag = 0x0 and 0xf as we use that tag for
+		 * everything which isn't explicitly tagged. Setting
+		 * GCR_EL1.RRND = 1 to allow an implementation specific
+		 * method of generating the tags.
+		 */
+		mov	x0, #GCR_EL1_RRND
+#endif
+		orr	x0, x0, #1
+		orr	x0, x0, #(1 << 15)
+		msr	gcr_el1, x0
+
+		/*
+		 * Enable the tag checks on the current CPU.
+		 *
+		 * Depends on boot_init_memtag() having cleared tags for
+		 * TEE core memory. Well, not really, addresses with the
+		 * tag value 0b0000 will use unchecked access due to
+		 * TCR_TCMA0.
+		 */
+		mrs	x0, tcr_el1
+		orr	x0, x0, #TCR_TBI0
+		orr	x0, x0, #TCR_TCMA0
+		msr	tcr_el1, x0
+
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_TCF_SYNC
+		orr	x0, x0, #SCTLR_TCF0_SYNC
+		msr	sctlr_el1, x0
+
+		isb
+11:
+	.endm
+
+	.macro init_pauth_per_cpu
+		msr	spsel, #1
+		ldp	x0, x1, [sp, #THREAD_CORE_LOCAL_KEYS]
+		msr	spsel, #0
+		write_apiakeyhi x0
+		write_apiakeylo x1
+		mrs	x0, sctlr_el1
+		orr	x0, x0, #SCTLR_ENIA
+		msr	sctlr_el1, x0
+		isb
+	.endm
+
+FUNC _start , :
+	/*
+	 * If CFG_CORE_FFA is enabled, then x0 if non-NULL holds the TOS FW
+	 * config [1] address, else x0 if non-NULL holds the pagable part
+	 * address.
+	 *
+	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
+	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
+	 * here.
+	 */
+	mov	x19, x0
 #if defined(CFG_DT_ADDR)
 	ldr     x20, =CFG_DT_ADDR
 #else
 	mov	x20, x2		/* Save DT address */
-#endif
 #endif
 
 	adr	x0, reset_vect_table
@@ -144,7 +230,7 @@ clear_bss:
 	cmp	x0, x1
 	b.lt	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -179,6 +265,15 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
+#ifdef CFG_MEMTAG
+	/*
+	 * If FEAT_MTE2 is available, initializes the memtag callbacks.
+	 * Tags for OP-TEE core memory are then cleared to make it safe to
+	 * enable MEMTAG below.
+	 */
+	bl	boot_init_memtag
+#endif
+
 #ifdef CFG_CORE_ASLR
 	mov	x0, x20
 	bl	get_aslr_seed
@@ -191,11 +286,11 @@ clear_nex_bss:
 
 #ifdef CFG_CORE_ASLR
 	/*
-	 * Process relocation information again updating for the new
-	 * offset. We're doing this now before MMU is enabled as some of
-	 * the memory will become write protected.
+	 * Process relocation information again updating for the virtual
+	 * map offset. We're doing this now before MMU is enabled as some
+	 * of the memory will become write protected.
 	 */
-	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -218,7 +313,7 @@ clear_nex_bss:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -226,10 +321,19 @@ clear_nex_bss:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x0, xzr		/* pager not used */
+#else
 	mov	x0, x19		/* pagable part address */
+#endif
 	mov	x1, #-1
 	bl	boot_init_primary_early
-#ifndef CFG_VIRTUALIZATION
+
+#ifdef CFG_MEMTAG
+	init_memtag_per_cpu
+#endif
+
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x21, sp
 	adr_l	x0, threads
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
@@ -238,12 +342,28 @@ clear_nex_bss:
 	mov	x22, x0
 	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	mov	x0, x20		/* DT address */
+	mov	x0, x20		/* DT address also known as HW_CONFIG */
+#ifdef CFG_CORE_SEL1_SPMC
+	mov	x1, x19		/* TOS_FW_CONFIG DT address */
+#else
+	mov	x1, xzr		/* unused */
+#endif
 	bl	boot_init_primary_late
-#ifndef CFG_VIRTUALIZATION
+#ifdef CFG_CORE_PAUTH
+	init_pauth_per_cpu
+#endif
+
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP
 	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, x21
+#endif
+
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	bl	plat_get_random_stack_canary
+	adr_l	x5, __stack_chk_guard
+	str	x0, [x5]
 #endif
 
 	/*
@@ -262,36 +382,38 @@ clear_nex_bss:
 	 * next entry. Matches the thread_init_boot_thread in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 
 #ifdef CFG_CORE_FFA
 	adr	x0, cpu_on_handler
 	/*
-	 * Compensate for the load offset since cpu_on_handler() is
+	 * Compensate for the virtual map offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	x1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x1, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	sub	x0, x0, x1
-	bl	ffa_secondary_cpu_ep_register
+	bl	thread_spmc_register_secondary_ep
 	b	thread_ffa_msg_wait
 #else
 	/*
-	 * Pass the vector address returned from main_init
-	 * Compensate for the load offset since cpu_on_handler() is
-	 * called with MMU off.
+	 * Pass the vector address returned from main_init Compensate for
+	 * the virtual map offset since cpu_on_handler() is called with MMU
+	 * off.
 	 */
-	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x0, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	adr	x1, thread_vector_table
 	sub	x1, x1, x0
 	mov	x0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 #endif
 END_FUNC _start
 DECLARE_KEEP_INIT _start
 
+	.section .identity_map.data
 	.balign	8
 LOCAL_DATA cached_mem_end , :
 	.skip	8
@@ -307,7 +429,7 @@ LOCAL_FUNC relocate , :
 #endif
 	ldp	w2, w3, [x6, #BOOT_EMBDATA_RELOC_OFFSET]
 
-	mov_imm	x1, TEE_RAM_START
+	mov_imm	x1, TEE_LOAD_ADDR
 	add	x2, x2, x6	/* start of relocations */
 	add	x3, x3, x2	/* end of relocations */
 
@@ -317,8 +439,8 @@ LOCAL_FUNC relocate , :
 	 * scripts/gen_tee_bin.py
 	 *
 	 * All the R_AARCH64_RELATIVE relocations are translated into a
-	 * list list of 32-bit offsets from TEE_RAM_START. At each address
-	 * a 64-bit value pointed out which increased with the load offset.
+	 * list of 32-bit offsets from TEE_LOAD_ADDR. At each address a
+	 * 64-bit value pointed out which increased with the load offset.
 	 */
 
 #ifdef CFG_WITH_PAGER
@@ -422,6 +544,7 @@ LOCAL_FUNC enable_mmu , : , .identity_map
 	ret
 END_FUNC enable_mmu
 
+	.section .identity_map.data
 	.balign	8
 DATA boot_mmu_config , : /* struct core_mmu_config */
 	.skip	CORE_MMU_CONFIG_SIZE
@@ -448,6 +571,13 @@ FUNC cpu_on_handler , :
 	/* Setup SP_EL0 and SP_EL1, SP will be set to SP_EL0 */
 	set_sp
 
+#ifdef CFG_MEMTAG
+	init_memtag_per_cpu
+#endif
+#ifdef CFG_CORE_PAUTH
+	init_pauth_per_cpu
+#endif
+
 	mov	x0, x19
 	mov	x1, x20
 #ifdef CFG_CORE_FFA
@@ -464,6 +594,10 @@ LOCAL_FUNC unhandled_cpu , :
 	wfi
 	b	unhandled_cpu
 END_FUNC unhandled_cpu
+
+LOCAL_DATA stack_tmp_rel , :
+	.word	stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
+END_DATA stack_tmp_rel
 
 	/*
 	 * This macro verifies that the a given vector doesn't exceed the

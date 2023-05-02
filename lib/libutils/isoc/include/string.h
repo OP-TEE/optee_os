@@ -8,8 +8,8 @@
  * for some functions
  */
 
-#ifndef STRING_H
-#define STRING_H
+#ifndef __STRING_H
+#define __STRING_H
 
 #include <stddef.h>
 #include <sys/cdefs.h>
@@ -30,7 +30,8 @@ char *strstr(const char *big, const char *little);
 char *strcpy(char *dest, const char *src);
 char *strncpy(char *dest, const char *src, size_t n);
 char *strrchr(const char *s, int i);
+char *strtok_r(char *str, const char *delim, char **saveptr);
 
 void *memchr(const void *buf, int c, size_t length);
 
-#endif /* STRING_H */
+#endif /* __STRING_H */

@@ -25,6 +25,7 @@
 #define SOC_MX8DXL	0xE4
 #define SOC_MX8M	0x82
 #define SOC_MX8ULP	0x83
+#define SOC_MX93	0xC1
 
 #ifndef __ASSEMBLER__
 uint32_t imx_get_src_gpr(int cpu);

@@ -3,11 +3,12 @@
  * Copyright (c) 2019, Linaro Limited
  */
 
+#include <arm32_macros.S>
 #include <arm.h>
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
-#include <kernel/thread_defs.h>
+#include <kernel/thread.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
 #include <sm/teesmc_opteed_macros.h>
@@ -49,7 +50,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_std_smc_entry
 
 FUNC vector_fast_smc_entry , : , .identity_map
@@ -61,7 +63,8 @@ UNWIND(	.cantunwind)
 	pop	{r1-r8}
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_fast_smc_entry
 
 FUNC vector_fiq_entry , : , .identity_map
@@ -72,7 +75,8 @@ UNWIND(	.cantunwind)
 	bl	itr_core_handler
 	ldr	r0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_fiq_entry
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -83,7 +87,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_ON_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_on_entry
 
 LOCAL_FUNC vector_cpu_off_entry , : , .identity_map
@@ -93,7 +98,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_OFF_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_off_entry
 
 LOCAL_FUNC vector_cpu_suspend_entry , : , .identity_map
@@ -103,7 +109,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SUSPEND_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_suspend_entry
 
 LOCAL_FUNC vector_cpu_resume_entry , : , .identity_map
@@ -113,7 +120,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_RESUME_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_cpu_resume_entry
 
 LOCAL_FUNC vector_system_off_entry , : , .identity_map
@@ -123,7 +131,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_OFF_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_system_off_entry
 
 LOCAL_FUNC vector_system_reset_entry , : , .identity_map
@@ -133,7 +142,8 @@ UNWIND(	.cantunwind)
 	mov	r1, r0
 	ldr	r0, =TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC vector_system_reset_entry
 
 /*
@@ -179,7 +189,8 @@ UNWIND(	.cantunwind)
 	mov	r3, #0
 	mov	r4, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC thread_std_smc_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
@@ -206,7 +217,8 @@ UNWIND(	.save	{r0, lr})
 	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
 	ldm	r5, {r1-r3}		/* Load rv[] into r0-r2 */
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 
 .thread_rpc_return:
 	/*
@@ -238,5 +250,6 @@ FUNC thread_foreign_intr_exit , :
 	mov	r2, #0
 	mov	r3, #0
 	smc	#0
-	b	.	/* SMC should not return */
+	/* SMC should not return */
+	panic_at_smc_return
 END_FUNC thread_foreign_intr_exit

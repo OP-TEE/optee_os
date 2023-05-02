@@ -1,12 +1,5 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /* ---- SYMMETRIC KEY STUFF -----
  *
@@ -172,6 +165,12 @@ struct serpent_key {
 };
 #endif
 
+#ifdef LTC_TEA
+struct tea_key {
+   ulong32 k[4];
+};
+#endif
+
 typedef union Symmetric_key {
 #ifdef LTC_DES
    struct des_key des;
@@ -236,6 +235,9 @@ typedef union Symmetric_key {
 #endif
 #ifdef LTC_SERPENT
    struct serpent_key  serpent;
+#endif
+#ifdef LTC_TEA
+   struct tea_key      tea;
 #endif
    void   *data;
 } symmetric_key;
@@ -316,9 +318,9 @@ typedef struct {
                        ctrlen;
 
    /** The counter */
-   unsigned char       ctr[MAXBLOCKSIZE],
+   unsigned char       ctr[MAXBLOCKSIZE];
    /** The pad used to encrypt/decrypt */
-                       pad[MAXBLOCKSIZE];
+   unsigned char       pad[MAXBLOCKSIZE] LTC_ALIGN(16);
    /** The scheduled key */
    symmetric_key       key;
 } symmetric_CTR;
@@ -860,6 +862,16 @@ int serpent_keysize(int *keysize);
 extern const struct ltc_cipher_descriptor serpent_desc;
 #endif
 
+#ifdef LTC_TEA
+int tea_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey);
+int tea_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey);
+int tea_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey);
+int tea_test(void);
+void tea_done(symmetric_key *skey);
+int tea_keysize(int *keysize);
+extern const struct ltc_cipher_descriptor tea_desc;
+#endif
+
 #ifdef LTC_ECB_MODE
 int ecb_start(int cipher, const unsigned char *key,
               int keylen, int num_rounds, symmetric_ECB *ecb);
@@ -1146,7 +1158,3 @@ int sober128_stream_memory(const unsigned char *key,    unsigned long keylen,
                            unsigned char *dataout);
 
 #endif /* LTC_SOBER128_STREAM */
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

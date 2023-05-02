@@ -7,10 +7,13 @@
 
 #include <drivers/atmel_shdwc.h>
 #include <drivers/sam/at91_ddr.h>
+#include <drivers/pm/sam/atmel_pm.h>
 #include <io.h>
 #include <kernel/dt.h>
 #include <kernel/thread.h>
 #include <libfdt.h>
+#include <matrix.h>
+#include <sama5d2.h>
 #include <stdbool.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
@@ -149,7 +152,12 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 	 */
 	COMPILE_TIME_ASSERT(CFG_TEE_CORE_NB_CORE == 1);
 
-	if (dt_map_dev(fdt, node, &shdwc_base, &size) < 0)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	matrix_configure_periph_secure(AT91C_ID_SYS);
+
+	if (dt_map_dev(fdt, node, &shdwc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	ddr_node = fdt_node_offset_by_compatible(fdt, -1,
@@ -157,7 +165,7 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 	if (ddr_node < 0)
 		return TEE_ERROR_GENERIC;
 
-	if (dt_map_dev(fdt, ddr_node, &mpddrc_base, &size) < 0)
+	if (dt_map_dev(fdt, ddr_node, &mpddrc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	ddr = io_read32(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
@@ -166,7 +174,7 @@ static TEE_Result atmel_shdwc_probe(const void *fdt, int node,
 
 	at91_shdwc_dt_configure(fdt, node);
 
-	return TEE_SUCCESS;
+	return sama5d2_pm_init(fdt, shdwc_base);
 }
 
 static const struct dt_device_match atmel_shdwc_match_table[] = {

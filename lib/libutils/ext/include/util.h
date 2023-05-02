@@ -54,7 +54,7 @@
 	typeof(v) __roundup_mask = (typeof(v))(size) - 1; \
 	\
 	ADD_OVERFLOW((v), __roundup_mask, &__roundup_tmp) ? 1 : \
-		(void)(*(res) = __roundup_tmp & ~__roundup_mask), 0; \
+		((void)(*(res) = __roundup_tmp & ~__roundup_mask), 0); \
 }))
 
 /*
@@ -171,6 +171,27 @@ static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
 {
 	*reg0 = val >> 32;
 	*reg1 = val;
+}
+
+/* Get and set bit fields  */
+static inline uint32_t get_field_u32(uint32_t reg, uint32_t mask)
+{
+	return (reg & mask) / (mask & ~(mask - 1));
+}
+
+static inline uint32_t set_field_u32(uint32_t reg, uint32_t mask, uint32_t val)
+{
+	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
+}
+
+static inline uint64_t get_field_u64(uint64_t reg, uint64_t mask)
+{
+	return (reg & mask) / (mask & ~(mask - 1));
+}
+
+static inline uint64_t set_field_u64(uint64_t reg, uint64_t mask, uint64_t val)
+{
+	return (reg & ~mask) | (val * (mask & ~(mask - 1)));
 }
 #endif
 

@@ -41,7 +41,7 @@ $(foreach op,$(ops),$(eval override $(op)))
 endif
 
 # Make these default for now
-$(call force,ARCH,arm)
+ARCH            ?= arm
 PLATFORM        ?= vexpress
 # Default value for PLATFORM_FLAVOR is set in plat-$(PLATFORM)/conf.mk
 ifeq ($O,)
@@ -90,11 +90,13 @@ endef
 $(foreach t, $(ta-targets), $(eval $(call build-ta-target, $(t))))
 
 # Build user TAs included in this git
+ifeq ($(CFG_BUILD_IN_TREE_TA),y)
 define build-user-ta
 ta-mk-file := $(1)
 include ta/mk/build-user-ta.mk
 endef
 $(foreach t, $(sort $(wildcard ta/*/user_ta.mk)), $(eval $(call build-user-ta,$(t))))
+endif
 endif
 
 include mk/cleandirs.mk
@@ -111,7 +113,8 @@ clean:
 cscope:
 	@echo '  CSCOPE  .'
 	${q}rm -f cscope.*
-	${q}find $(PWD) -name "*.[chSs]" | grep -v export-ta_ > cscope.files
+	${q}find $(PWD) -name "*.[chSs]" | grep -v export-ta_ | \
+		grep -v -F _init.ld.S | grep -v -F _unpaged.ld.S > cscope.files
 	${q}cscope -b -q -k
 
 .PHONY: checkpatch checkpatch-staging checkpatch-working

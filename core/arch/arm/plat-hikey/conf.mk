@@ -7,12 +7,6 @@ $(call force,CFG_PL011,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
-$(call force,CFG_ARM32_core,y)
-endif
-
 CFG_NUM_THREADS ?= 8
 CFG_CRYPTO_WITH_CE ?= y
 
@@ -66,3 +60,5 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000
 
 CFG_IN_TREE_EARLY_TAS += avb/023f8f1a-292a-432b-8fc4-de8471358067
+
+CFG_EMBED_DTB_SOURCE_FILE ?= hikey.dts

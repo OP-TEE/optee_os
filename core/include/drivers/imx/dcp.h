@@ -177,6 +177,11 @@ TEE_Result dcp_sha_do_update(struct dcp_hash_data *hashdata,
 TEE_Result dcp_sha_do_final(struct dcp_hash_data *hashdata, uint8_t *digest,
 			    size_t digest_size);
 
+/*
+ * Disable the use of the DCP unique key (0xFE in the DCP key-select field).
+ */
+void dcp_disable_unique_key(void);
+
 /* Initialize DCP */
 TEE_Result dcp_init(void);
 

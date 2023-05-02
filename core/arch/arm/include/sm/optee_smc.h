@@ -135,19 +135,35 @@
 /*
  * Call with struct optee_msg_arg as argument
  *
- * When calling this function normal world has a few responsibilities:
+ * When called with OPTEE_SMC_CALL_WITH_RPC_ARG or
+ * OPTEE_SMC_CALL_WITH_REGD_ARG in a0 there is one RPC struct optee_msg_arg
+ * following after the first struct optee_msg_arg. The RPC struct
+ * optee_msg_arg has reserved space for the number of RPC parameters as
+ * returned by OPTEE_SMC_EXCHANGE_CAPABILITIES.
+ *
+ * When calling these functions normal world has a few responsibilities:
  * 1. It must be able to handle eventual RPCs
  * 2. Non-secure interrupts should not be masked
- * 3. If asynchronous notifications has be negotiated successfully, then
+ * 3. If asynchronous notifications has been negotiated successfully, then
  *    the interrupt for asynchronous notifications should be unmasked
  *    during this call.
  *
- * Call register usage:
- * a0	SMC Function ID, OPTEE_SMC*CALL_WITH_ARG
+ * Call register usage, OPTEE_SMC_CALL_WITH_ARG and
+ * OPTEE_SMC_CALL_WITH_RPC_ARG:
+ * a0	SMC Function ID, OPTEE_SMC_CALL_WITH_ARG or OPTEE_SMC_CALL_WITH_RPC_ARG
  * a1	Upper 32 bits of a 64-bit physical pointer to a struct optee_msg_arg
  * a2	Lower 32 bits of a 64-bit physical pointer to a struct optee_msg_arg
  * a3	Cache settings, not used if physical pointer is in a predefined shared
  *	memory area else per OPTEE_SMC_SHM_*
+ * a4-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Call register usage, OPTEE_SMC_CALL_WITH_REGD_ARG:
+ * a0	SMC Function ID, OPTEE_SMC_CALL_WITH_REGD_ARG
+ * a1	Upper 32 bits of a 64-bit shared memory cookie
+ * a2	Lower 32 bits of a 64-bit shared memory cookie
+ * a3	Offset of the struct optee_msg_arg in the shared memory with the
+ *	supplied cookie
  * a4-6	Not used
  * a7	Hypervisor Client ID register
  *
@@ -183,6 +199,10 @@
 #define OPTEE_SMC_FUNCID_CALL_WITH_ARG OPTEE_MSG_FUNCID_CALL_WITH_ARG
 #define OPTEE_SMC_CALL_WITH_ARG \
 	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_ARG)
+#define OPTEE_SMC_CALL_WITH_RPC_ARG \
+	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_RPC_ARG)
+#define OPTEE_SMC_CALL_WITH_REGD_ARG \
+	OPTEE_SMC_STD_CALL_VAL(OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG)
 
 /*
  * Get Shared Memory Config
@@ -266,6 +286,10 @@
  * a0	OPTEE_SMC_RETURN_OK
  * a1	bitfield of secure world capabilities OPTEE_SMC_SEC_CAP_*
  * a2	The maximum secure world notification number
+ * a3	Bit[7:0]: Number of parameters needed for RPC to be supplied
+ *		  as the second MSG arg struct for
+ *		  OPTEE_SMC_CALL_WITH_ARG
+ *	Bit[31:8]: Reserved (MBZ)
  * a3-7	Preserved
  *
  * Error return register usage:
@@ -290,6 +314,8 @@
 #define OPTEE_SMC_SEC_CAP_MEMREF_NULL		BIT(4)
 /* Secure world supports asynchronous notification of normal world */
 #define OPTEE_SMC_SEC_CAP_ASYNC_NOTIF		BIT(5)
+/* Secure world supports pre-allocating RPC arg struct */
+#define OPTEE_SMC_SEC_CAP_RPC_ARG		BIT(6)
 
 #define OPTEE_SMC_FUNCID_EXCHANGE_CAPABILITIES	U(9)
 #define OPTEE_SMC_EXCHANGE_CAPABILITIES \
@@ -490,7 +516,7 @@
  * OP-TEE keeps a record of all posted values. When an interrupt is
  * received which indicates that there are posted values this function
  * should be called until all pended values have been retrieved. When a
- * value is retrieved it's cleared from the record in secure world.
+ * value is retrieved, it's cleared from the record in secure world.
  *
  * It is expected that this function is called from an interrupt handler
  * in normal world.
@@ -526,6 +552,12 @@
 #define OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE	17
 #define OPTEE_SMC_GET_ASYNC_NOTIF_VALUE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE)
+
+/* See OPTEE_SMC_CALL_WITH_RPC_ARG above */
+#define OPTEE_SMC_FUNCID_CALL_WITH_RPC_ARG	U(18)
+
+/* See OPTEE_SMC_CALL_WITH_REGD_ARG above */
+#define OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG	U(19)
 
 /*
  * Resume from RPC (for example after processing a foreign interrupt)

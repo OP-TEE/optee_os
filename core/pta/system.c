@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2018-2019, Linaro Limited
+ * Copyright (c) 2018-2022 Linaro Limited
  * Copyright (c) 2020, Arm Limited.
  * Copyright (c) 2020, Open Mobile Platform LLC
  */
@@ -148,7 +148,7 @@ static TEE_Result system_map_zi(struct user_mode_ctx *uctx,
 	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	mobj = mobj_with_fobj_alloc(f, NULL);
+	mobj = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 	fobj_put(f);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;

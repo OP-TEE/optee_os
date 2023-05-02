@@ -11,10 +11,9 @@
 #include <keep.h>
 #include <kernel/abort.h>
 #include <kernel/cache_helpers.h>
-#include <kernel/thread_defs.h>
+#include <kernel/thread.h>
+#include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
-
-#include "thread_private.h"
 
 	.syntax unified
 	.arch_extension sec
@@ -71,6 +70,24 @@ FUNC thread_get_usr_sp , :
 	msr	cpsr, r1
 	bx	lr
 END_FUNC thread_get_usr_sp
+
+FUNC thread_get_usr_lr , :
+	mrs	r1, cpsr
+	cpsid	aif
+	cps	#CPSR_MODE_SYS
+	mov	r0, lr
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_get_usr_lr
+
+FUNC thread_set_usr_lr , :
+	mrs	r1, cpsr
+	cpsid	aif
+	cps	#CPSR_MODE_SYS
+	mov	lr, r0
+	msr	cpsr, r1
+	bx	lr
+END_FUNC thread_set_usr_lr
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
@@ -201,6 +218,20 @@ UNWIND(	.cantunwind)
 	bx	lr
 END_FUNC thread_save_state
 
+#ifdef CFG_CORE_SEL2_SPMC
+/*
+ * unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
+ *			    unsigned long a2, unsigned long a3)
+ */
+FUNC thread_hvc , :
+	push	{r4-r7}
+UNWIND(	.save	{r4-r7})
+	hvc	#0
+	pop	{r4-r7}
+	bx	lr
+END_FUNC thread_hvc
+#endif /*CFG_CORE_SEL2_SPMC*/
+
 /*
  * unsigned long thread_smc(unsigned long func_id, unsigned long a1,
  *			    unsigned long a2, unsigned long a3)
@@ -250,16 +281,16 @@ DECLARE_KEEP_PAGER thread_init_vbar
  * user TA calls _utee_return, user TA calls _utee_panic or through an abort.
  *
  * Calls to _utee_return or _utee_panic are handled as:
- * __thread_svc_handler() -> thread_svc_handler() ->tee_svc_do_call() which
+ * __thread_svc_handler() -> thread_scall_handler() -> scall_do_call() which
  * calls syscall_return() or syscall_panic().
  *
- * These function calls returns normally except thread_svc_handler() which
+ * These function calls returns normally except thread_scall_handler() which
  * which is an exception handling routine so it reads return address and
  * SPSR to restore from the stack. syscall_return() and syscall_panic()
- * changes return address and SPSR used by thread_svc_handler() to instead of
+ * changes return address and SPSR used by thread_scall_handler() to instead of
  * returning into user mode as with other syscalls it returns into
  * thread_unwind_user_mode() in kernel mode instead.  When
- * thread_svc_handler() returns the stack pointer at the point where
+ * thread_scall_handler() returns the stack pointer at the point where
  * thread_enter_user_mode() left it so this is where
  * thread_unwind_user_mode() can operate.
  *
@@ -580,8 +611,8 @@ UNWIND(	.cantunwind)
 	.endm
 
         .balign	32
-	.global thread_excp_vect_workaround_a15
-thread_excp_vect_workaround_a15:
+	.global thread_excp_vect_wa_a15_spectre_v2
+thread_excp_vect_wa_a15_spectre_v2:
 	vector_prologue_spectre
 	write_tpidrprw r0
 	mrs	r0, spsr
@@ -603,8 +634,8 @@ thread_excp_vect_workaround_a15:
 	b	1f
 
         .balign	32
-	.global thread_excp_vect_workaround
-thread_excp_vect_workaround:
+	.global thread_excp_vect_wa_spectre_v2
+thread_excp_vect_wa_spectre_v2:
 	vector_prologue_spectre
 	write_tpidrprw r0
 	mrs	r0, spsr
@@ -759,7 +790,7 @@ __thread_svc_handler:
 	mrs	r0, spsr
 	push	{r0}
 	mov	r0, sp
-	bl	thread_svc_handler
+	bl	thread_scall_handler
 	cpsid	aif	/* In case something was unmasked */
 	pop	{r0}
 	msr	spsr_fsxc, r0
@@ -770,7 +801,7 @@ __thread_svc_handler:
 	/* end thread_svc_handler */
 
 __thread_fiq_handler:
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	foreign_intr_handler	fiq
 #else
 	native_intr_handler	fiq
@@ -778,7 +809,7 @@ __thread_fiq_handler:
 	/* end thread_fiq_handler */
 
 __thread_irq_handler:
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	native_intr_handler	irq
 #else
 	foreign_intr_handler	irq

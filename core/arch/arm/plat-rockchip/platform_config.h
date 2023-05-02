@@ -47,6 +47,7 @@
 
 #define GIC_BASE		(MMIO_BASE + 0x06E00000)
 #define GIC_SIZE		SIZE_M(2)
+#define GICC_BASE		(MMIO_BASE + 0x07F00000)
 #define GICD_BASE		GIC_BASE
 #define GICR_BASE		(GIC_BASE + SIZE_M(1))
 

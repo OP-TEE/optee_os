@@ -16,7 +16,7 @@ struct ts_ctx {
 	const struct ts_ops *ops;
 };
 
-struct thread_svc_regs;
+struct thread_scall_regs;
 struct ts_session {
 	TAILQ_ENTRY(ts_session) link_tsd;
 	struct ts_ctx *ctx;	/* Generic TS context */
@@ -31,7 +31,7 @@ struct ts_session {
 	 * syscalls to store handlers of opened TA/SP binaries.
 	 */
 	void *user_ctx;
-	bool (*handle_svc)(struct thread_svc_regs *regs);
+	bool (*handle_scall)(struct thread_scall_regs *regs);
 };
 
 enum ts_gprof_status {
@@ -43,11 +43,14 @@ struct ts_ops {
 	TEE_Result (*enter_open_session)(struct ts_session *s);
 	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd);
 	void (*enter_close_session)(struct ts_session *s);
+#if defined(CFG_TA_STATS)
+	TEE_Result (*dump_mem_stats)(struct ts_session *s);
+#endif
 	void (*dump_state)(struct ts_ctx *ctx);
 	void (*dump_ftrace)(struct ts_ctx *ctx);
 	void (*destroy)(struct ts_ctx *ctx);
 	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
-	bool (*handle_svc)(struct thread_svc_regs *regs);
+	bool (*handle_scall)(struct thread_scall_regs *regs);
 #ifdef CFG_TA_GPROF_SUPPORT
 	void (*gprof_set_status)(enum ts_gprof_status status);
 #endif

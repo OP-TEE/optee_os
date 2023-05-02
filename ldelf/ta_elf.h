@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2022-2023, Arm Limited
  */
 
 #ifndef TA_ELF_H
@@ -59,6 +60,9 @@ struct ta_elf {
 
 	/* DT_HASH hash table for faster resolution of external symbols */
 	void *hashtab;
+	/* DT_GNU_HASH table as an alternative to DT_HASH */
+	void *gnu_hashtab;
+	size_t gnu_hashtab_size;
 
 	/* DT_SONAME */
 	char *soname;
@@ -95,6 +99,21 @@ struct ta_elf {
 
 TAILQ_HEAD(ta_elf_queue, ta_elf);
 
+/* Format of the DT_GNU_HASH entry in the ELF dynamic section */
+struct gnu_hashtab {
+	uint32_t nbuckets;
+	uint32_t symoffset;
+	uint32_t bloom_size;
+	uint32_t bloom_shift;
+	/*
+	 * Followed by:
+	 *
+	 * uint{32,64}_t bloom[bloom_size];
+	 * uint32_t buckets[nbuckets];
+	 * uint32_t chain[];
+	 */
+};
+
 typedef void (*print_func_t)(void *pctx, const char *fmt, va_list ap)
 	__printf(2, 0);
 
@@ -103,7 +122,7 @@ struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid);
 
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		      uint32_t *ta_flags);
-void ta_elf_finalize_load_main(uint64_t *entry);
+void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr);
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
 void ta_elf_finalize_mappings(struct ta_elf *elf);

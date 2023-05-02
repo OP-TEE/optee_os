@@ -176,11 +176,10 @@ static TEE_Result test_entry_params(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_SUCCESS;
 	}
 
-	DMSG("expect memref params: %p/%" PRIu32 " - %p/%" PRIu32 "zu - %p/%" PRIu32 "zu - %p/%" PRIu32 "zu",
-			p[0].memref.buffer, p[0].memref.size,
-			p[1].memref.buffer, p[1].memref.size,
-			p[2].memref.buffer, p[2].memref.size,
-			p[3].memref.buffer, p[3].memref.size);
+	DMSG("expect memref params: %p/%zu - %p/%zu - %p/%zu - %p/%zu",
+	     p[0].memref.buffer, p[0].memref.size, p[1].memref.buffer,
+	     p[1].memref.size, p[2].memref.buffer, p[2].memref.size,
+	     p[3].memref.buffer, p[3].memref.size);
 
 	/* case 3a: 1 in/out memref argument */
 	if ((TEE_PARAM_TYPE_GET(type, 0) == TEE_PARAM_TYPE_MEMREF_INOUT) &&
@@ -432,6 +431,8 @@ static TEE_Result invoke_command(void *pSessionContext __unused,
 		return core_lockdep_tests(nParamTypes, pParams);
 	case PTA_INVOKE_TEST_CMD_AES_PERF:
 		return core_aes_perf_tests(nParamTypes, pParams);
+	case PTA_INVOKE_TESTS_CMD_DT_DRIVER_TESTS:
+		return core_dt_driver_tests(nParamTypes, pParams);
 	default:
 		break;
 	}

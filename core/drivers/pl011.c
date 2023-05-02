@@ -190,7 +190,7 @@ static int pl011_dev_init(struct serial_chip *chip, const void *fdt, int offs,
 	if (parms && parms[0])
 		IMSG("pl011: device parameters ignored (%s)", parms);
 
-	if (dt_map_dev(fdt, offs, &vbase, &size) < 0)
+	if (dt_map_dev(fdt, offs, &vbase, &size, DT_MAP_AUTO) < 0)
 		return -1;
 
 	if (size != 0x1000) {

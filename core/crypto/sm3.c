@@ -10,10 +10,14 @@
  * 2011-10-26
  */
 
-#include <string.h>
+#include <compiler.h>
+#include <crypto/crypto_accel.h>
 #include <string_ext.h>
+#include <string.h>
 
 #include "sm3.h"
+
+#define SM3_BLOCK_SIZE	64
 
 #define GET_UINT32_BE(n, b, i)				\
 	do {						\
@@ -46,7 +50,8 @@ void sm3_init(struct sm3_context *ctx)
 	ctx->state[7] = 0xB0FB0E4E;
 }
 
-static void sm3_process(struct sm3_context *ctx, const uint8_t data[64])
+static void __maybe_unused sm3_process(struct sm3_context *ctx,
+				       const uint8_t data[64])
 {
 	uint32_t SS1, SS2, TT1, TT2, W[68], W1[64];
 	uint32_t A, B, C, D, E, F, G, H;
@@ -154,10 +159,25 @@ static void sm3_process(struct sm3_context *ctx, const uint8_t data[64])
 	ctx->state[7] ^= H;
 }
 
+static void sm3_process_blocks(struct sm3_context *ctx, const uint8_t *input,
+			       unsigned int block_count)
+{
+#ifdef CFG_CRYPTO_SM3_ARM_CE
+	if (block_count)
+		crypto_accel_sm3_compress(ctx->state, input, block_count);
+#else
+	unsigned int n = 0;
+
+	for (n = 0; n < block_count; n++)
+		sm3_process(ctx, input + n * SM3_BLOCK_SIZE);
+#endif
+}
+
 void sm3_update(struct sm3_context *ctx, const uint8_t *input, size_t ilen)
 {
-	size_t fill;
-	size_t left;
+	unsigned int block_count = 0;
+	size_t fill = 0;
+	size_t left = 0;
 
 	if (!ilen)
 		return;
@@ -172,17 +192,16 @@ void sm3_update(struct sm3_context *ctx, const uint8_t *input, size_t ilen)
 
 	if (left && ilen >= fill) {
 		memcpy(ctx->buffer + left, input, fill);
-		sm3_process(ctx, ctx->buffer);
+		sm3_process_blocks(ctx, ctx->buffer, 1);
 		input += fill;
 		ilen -= fill;
 		left = 0;
 	}
 
-	while (ilen >= 64) {
-		sm3_process(ctx, input);
-		input += 64;
-		ilen -= 64;
-	}
+	block_count = ilen / SM3_BLOCK_SIZE;
+	sm3_process_blocks(ctx, input, block_count);
+	ilen -= block_count * SM3_BLOCK_SIZE;
+	input += block_count * SM3_BLOCK_SIZE;
 
 	if (ilen > 0)
 		memcpy(ctx->buffer + left, input, ilen);

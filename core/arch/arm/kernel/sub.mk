@@ -1,17 +1,11 @@
-srcs-$(CFG_WITH_USER_TA) += ldelf_loader.c
-srcs-y += tee_time.c
 srcs-y += rpc_io_i2c.c
-srcs-y += otp_stubs.c
-srcs-y += delay.c
 srcs-y += idle.c
 
 srcs-$(CFG_SECURE_TIME_SOURCE_CNTPCT) += tee_time_arm_cntpct.c
-srcs-$(CFG_SECURE_TIME_SOURCE_REE) += tee_time_ree.c
 srcs-$(CFG_ARM64_core) += timer_a64.c
 
 srcs-$(CFG_ARM32_core) += spin_lock_a32.S
 srcs-$(CFG_ARM64_core) += spin_lock_a64.S
-srcs-$(CFG_TEE_CORE_DEBUG) += spin_lock_debug.c
 srcs-$(CFG_ARM32_core) += tlb_helpers_a32.S
 srcs-$(CFG_ARM64_core) += tlb_helpers_a64.S
 srcs-$(CFG_ARM64_core) += cache_helpers_a64.S
@@ -22,6 +16,11 @@ srcs-$(CFG_PL310) += tee_l2cc_mutex.c
 srcs-$(CFG_ARM32_core) += thread_a32.S
 srcs-$(CFG_ARM64_core) += thread_a64.S
 srcs-y += thread.c
+ifeq ($(CFG_WITH_USER_TA),y)
+srcs-y += arch_scall.c
+srcs-$(CFG_ARM32_core) += arch_scall_a32.S
+srcs-$(CFG_ARM64_core) += arch_scall_a64.S
+endif
 ifeq ($(CFG_CORE_FFA),y)
 srcs-y += thread_spmc.c
 cppflags-thread_spmc.c-y += -DTEE_IMPL_GIT_SHA1=$(TEE_IMPL_GIT_SHA1)
@@ -38,7 +37,6 @@ ifeq ($(CFG_WITH_VFP),y)
 srcs-$(CFG_ARM32_core) += vfp_a32.S
 srcs-$(CFG_ARM64_core) += vfp_a64.S
 endif
-srcs-y += trace_ext.c
 srcs-$(CFG_ARM32_core) += misc_a32.S
 srcs-$(CFG_ARM64_core) += misc_a64.S
 srcs-$(CFG_WITH_STMM_SP) += stmm_sp.c
@@ -54,7 +52,7 @@ srcs-$(CFG_ARM32_core) += unwind_arm32.c
 srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 
-srcs-$(CFG_VIRTUALIZATION) += virtualization.c
+srcs-$(CFG_NS_VIRTUALIZATION) += virtualization.c
 
 srcs-y += link_dummies_paged.c
 srcs-y += link_dummies_init.c
@@ -75,7 +73,6 @@ ifeq ($(CFG_SYSCALL_FTRACE),y)
 # that are needed for ftrace framework to trace syscalls. So profiling
 # this file could create an incorrect cyclic behaviour.
 cflags-remove-thread.c-y += -pg
-cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
 # Tracing abort dump files corrupts the stack trace. So exclude them
 # from profiling.
 cflags-remove-abort.c-y += -pg

@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2019, STMicroelectronics
+ * Copyright (c) 2019-2022, STMicroelectronics
  */
 #include <assert.h>
 #include <compiler.h>
 #include <confine_array_index.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/rstctrl.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_pwr.h>
 #include <drivers/stpmic1.h>
-#include <dt-bindings/clock/stm32mp1-clks.h>
-#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
-#include <dt-bindings/reset/stm32mp1-resets.h>
+#include <drivers/stpmic1_regulator.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <initcall.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -49,10 +49,12 @@ struct stm32_scmi_clk {
  * struct stm32_scmi_rd - Data for the exposed reset controller
  * @reset_id: Reset identifier in RCC reset driver
  * @name: Reset string ID exposed to channel
+ * @rstctrl: Reset controller device
  */
 struct stm32_scmi_rd {
 	unsigned long reset_id;
 	const char *name;
+	struct rstctrl *rstctrl;
 };
 
 enum voltd_device {
@@ -75,91 +77,179 @@ struct stm32_scmi_voltd {
 
 /* Locate all non-secure SMT message buffers in last page of SYSRAM */
 #define SMT_BUFFER_BASE		CFG_STM32MP1_SCMI_SHM_BASE
-#define SMT_BUFFER0_BASE	SMT_BUFFER_BASE
-#define SMT_BUFFER1_BASE	(SMT_BUFFER_BASE + 0x200)
 
-#if (SMT_BUFFER1_BASE + SMT_BUF_SLOT_SIZE > \
+#if (SMT_BUFFER_BASE + SMT_BUF_SLOT_SIZE > \
 	CFG_STM32MP1_SCMI_SHM_BASE + CFG_STM32MP1_SCMI_SHM_SIZE)
 #error "SCMI shared memory mismatch"
 #endif
 
-register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
-		  CFG_STM32MP1_SCMI_SHM_SIZE);
-
 #define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled) \
-	[_scmi_id] = { \
-		.clock_id = _id, \
-		.name = _name, \
-		.enabled = _init_enabled, \
+	[(_scmi_id)] = { \
+		.clock_id = (_id), \
+		.name = (_name), \
+		.enabled = (_init_enabled), \
 	}
-
-static struct stm32_scmi_clk stm32_scmi0_clock[] = {
-	CLOCK_CELL(CK_SCMI0_HSE, CK_HSE, "ck_hse", true),
-	CLOCK_CELL(CK_SCMI0_HSI, CK_HSI, "ck_hsi", true),
-	CLOCK_CELL(CK_SCMI0_CSI, CK_CSI, "ck_csi", true),
-	CLOCK_CELL(CK_SCMI0_LSE, CK_LSE, "ck_lse", true),
-	CLOCK_CELL(CK_SCMI0_LSI, CK_LSI, "ck_lsi", true),
-	CLOCK_CELL(CK_SCMI0_PLL2_Q, PLL2_Q, "pll2_q", true),
-	CLOCK_CELL(CK_SCMI0_PLL2_R, PLL2_R, "pll2_r", true),
-	CLOCK_CELL(CK_SCMI0_MPU, CK_MPU, "ck_mpu", true),
-	CLOCK_CELL(CK_SCMI0_AXI, CK_AXI, "ck_axi", true),
-	CLOCK_CELL(CK_SCMI0_BSEC, BSEC, "bsec", true),
-	CLOCK_CELL(CK_SCMI0_CRYP1, CRYP1, "cryp1", false),
-	CLOCK_CELL(CK_SCMI0_GPIOZ, GPIOZ, "gpioz", false),
-	CLOCK_CELL(CK_SCMI0_HASH1, HASH1, "hash1", false),
-	CLOCK_CELL(CK_SCMI0_I2C4, I2C4_K, "i2c4_k", false),
-	CLOCK_CELL(CK_SCMI0_I2C6, I2C6_K, "i2c6_k", false),
-	CLOCK_CELL(CK_SCMI0_IWDG1, IWDG1, "iwdg1", false),
-	CLOCK_CELL(CK_SCMI0_RNG1, RNG1_K, "rng1_k", true),
-	CLOCK_CELL(CK_SCMI0_RTC, RTC, "ck_rtc", true),
-	CLOCK_CELL(CK_SCMI0_RTCAPB, RTCAPB, "rtcapb", true),
-	CLOCK_CELL(CK_SCMI0_SPI6, SPI6_K, "spi6_k", false),
-	CLOCK_CELL(CK_SCMI0_USART1, USART1_K, "usart1_k", false),
-};
-
-static struct stm32_scmi_clk stm32_scmi1_clock[] = {
-	CLOCK_CELL(CK_SCMI1_PLL3_Q, PLL3_Q, "pll3_q", true),
-	CLOCK_CELL(CK_SCMI1_PLL3_R, PLL3_R, "pll3_r", true),
-	CLOCK_CELL(CK_SCMI1_MCU, CK_MCU, "ck_mcu", false),
-};
 
 #define RESET_CELL(_scmi_id, _id, _name) \
-	[_scmi_id] = { \
-		.reset_id = _id, \
-		.name = _name, \
+	[(_scmi_id)] = { \
+		.reset_id = (_id), \
+		.name = (_name), \
 	}
 
-static struct stm32_scmi_rd stm32_scmi0_reset_domain[] = {
-	RESET_CELL(RST_SCMI0_SPI6, SPI6_R, "spi6"),
-	RESET_CELL(RST_SCMI0_I2C4, I2C4_R, "i2c4"),
-	RESET_CELL(RST_SCMI0_I2C6, I2C6_R, "i2c6"),
-	RESET_CELL(RST_SCMI0_USART1, USART1_R, "usart1"),
-	RESET_CELL(RST_SCMI0_STGEN, STGEN_R, "stgen"),
-	RESET_CELL(RST_SCMI0_GPIOZ, GPIOZ_R, "gpioz"),
-	RESET_CELL(RST_SCMI0_CRYP1, CRYP1_R, "cryp1"),
-	RESET_CELL(RST_SCMI0_HASH1, HASH1_R, "hash1"),
-	RESET_CELL(RST_SCMI0_RNG1, RNG1_R, "rng1"),
-	RESET_CELL(RST_SCMI0_MDMA, MDMA_R, "mdma"),
-	RESET_CELL(RST_SCMI0_MCU, MCU_R, "mcu"),
-	RESET_CELL(RST_SCMI0_MCU_HOLD_BOOT, MCU_HOLD_BOOT_R, "mcu_hold_boot"),
-};
-
 #define VOLTD_CELL(_scmi_id, _dev_id, _priv_id, _name) \
-	[_scmi_id] = { \
+	[(_scmi_id)] = { \
 		.priv_id = (_priv_id), \
 		.priv_dev = (_dev_id), \
 		.name = (_name), \
 	}
 
+#ifdef CFG_STM32MP13
+static struct stm32_scmi_clk stm32_scmi_clock[] = {
+	CLOCK_CELL(CK_SCMI_HSE, CK_HSE, "ck_hse", true),
+	CLOCK_CELL(CK_SCMI_HSI, CK_HSI, "ck_hsi", true),
+	CLOCK_CELL(CK_SCMI_CSI, CK_CSI, "ck_csi", true),
+	CLOCK_CELL(CK_SCMI_LSE, CK_LSE, "ck_lse", true),
+	CLOCK_CELL(CK_SCMI_LSI, CK_LSI, "ck_lsi", true),
+	CLOCK_CELL(CK_SCMI_HSE_DIV2, CK_HSE_DIV2, "clk-hse-div2", true),
+	CLOCK_CELL(CK_SCMI_PLL2_Q, PLL2_Q, "pll2_q", true),
+	CLOCK_CELL(CK_SCMI_PLL2_R, PLL2_R, "pll2_r", true),
+	CLOCK_CELL(CK_SCMI_PLL3_P, PLL3_P, "pll3_p", true),
+	CLOCK_CELL(CK_SCMI_PLL3_Q, PLL3_Q, "pll3_q", true),
+	CLOCK_CELL(CK_SCMI_PLL3_R, PLL3_R, "pll3_r", true),
+	CLOCK_CELL(CK_SCMI_PLL4_P, PLL4_P, "pll4_p", true),
+	CLOCK_CELL(CK_SCMI_PLL4_Q, PLL4_Q, "pll4_q", true),
+	CLOCK_CELL(CK_SCMI_PLL4_R, PLL4_R, "pll4_r", true),
+	CLOCK_CELL(CK_SCMI_MPU, CK_MPU, "ck_mpu", true),
+	CLOCK_CELL(CK_SCMI_AXI, CK_AXI, "ck_axi", true),
+	CLOCK_CELL(CK_SCMI_MLAHB, CK_MLAHB, "ck_mlahb", true),
+	CLOCK_CELL(CK_SCMI_CKPER, CK_PER, "ck_per", true),
+	CLOCK_CELL(CK_SCMI_PCLK1, PCLK1, "pclk1", true),
+	CLOCK_CELL(CK_SCMI_PCLK2, PCLK2, "pclk2", true),
+	CLOCK_CELL(CK_SCMI_PCLK3, PCLK3, "pclk3", true),
+	CLOCK_CELL(CK_SCMI_PCLK4, PCLK4, "pclk4", true),
+	CLOCK_CELL(CK_SCMI_PCLK5, PCLK5, "pclk5", true),
+	CLOCK_CELL(CK_SCMI_PCLK6, PCLK6, "pclk6", true),
+	CLOCK_CELL(CK_SCMI_CKTIMG1, CK_TIMG1, "timg1_ck", true),
+	CLOCK_CELL(CK_SCMI_CKTIMG2, CK_TIMG2, "timg2_ck", true),
+	CLOCK_CELL(CK_SCMI_CKTIMG3, CK_TIMG3, "timg3_ck", true),
+	CLOCK_CELL(CK_SCMI_RTC, RTC, "ck_rtc", true),
+	CLOCK_CELL(CK_SCMI_RTCAPB, RTCAPB, "rtcapb", true),
+	CLOCK_CELL(CK_SCMI_BSEC, BSEC, "bsec", true),
+};
+#endif
+
+#ifdef CFG_STM32MP15
+static struct stm32_scmi_clk stm32_scmi_clock[] = {
+	CLOCK_CELL(CK_SCMI_HSE, CK_HSE, "ck_hse", true),
+	CLOCK_CELL(CK_SCMI_HSI, CK_HSI, "ck_hsi", true),
+	CLOCK_CELL(CK_SCMI_CSI, CK_CSI, "ck_csi", true),
+	CLOCK_CELL(CK_SCMI_LSE, CK_LSE, "ck_lse", true),
+	CLOCK_CELL(CK_SCMI_LSI, CK_LSI, "ck_lsi", true),
+	CLOCK_CELL(CK_SCMI_PLL2_Q, PLL2_Q, "pll2_q", true),
+	CLOCK_CELL(CK_SCMI_PLL2_R, PLL2_R, "pll2_r", true),
+	CLOCK_CELL(CK_SCMI_MPU, CK_MPU, "ck_mpu", true),
+	CLOCK_CELL(CK_SCMI_AXI, CK_AXI, "ck_axi", true),
+	CLOCK_CELL(CK_SCMI_BSEC, BSEC, "bsec", true),
+	CLOCK_CELL(CK_SCMI_CRYP1, CRYP1, "cryp1", false),
+	CLOCK_CELL(CK_SCMI_GPIOZ, GPIOZ, "gpioz", false),
+	CLOCK_CELL(CK_SCMI_HASH1, HASH1, "hash1", false),
+	CLOCK_CELL(CK_SCMI_I2C4, I2C4_K, "i2c4_k", false),
+	CLOCK_CELL(CK_SCMI_I2C6, I2C6_K, "i2c6_k", false),
+	CLOCK_CELL(CK_SCMI_IWDG1, IWDG1, "iwdg1", false),
+	CLOCK_CELL(CK_SCMI_RNG1, RNG1_K, "rng1_k", true),
+	CLOCK_CELL(CK_SCMI_RTC, RTC, "ck_rtc", true),
+	CLOCK_CELL(CK_SCMI_RTCAPB, RTCAPB, "rtcapb", true),
+	CLOCK_CELL(CK_SCMI_SPI6, SPI6_K, "spi6_k", false),
+	CLOCK_CELL(CK_SCMI_USART1, USART1_K, "usart1_k", false),
+};
+#endif
+
+#ifdef CFG_STM32MP13
+static struct stm32_scmi_rd stm32_scmi_reset_domain[] = {
+	RESET_CELL(RST_SCMI_LTDC, LTDC_R, "ltdc"),
+	RESET_CELL(RST_SCMI_MDMA, MDMA_R, "mdma"),
+};
+#endif
+
+#ifdef CFG_STM32MP15
+static struct stm32_scmi_rd stm32_scmi_reset_domain[] = {
+	RESET_CELL(RST_SCMI_SPI6, SPI6_R, "spi6"),
+	RESET_CELL(RST_SCMI_I2C4, I2C4_R, "i2c4"),
+	RESET_CELL(RST_SCMI_I2C6, I2C6_R, "i2c6"),
+	RESET_CELL(RST_SCMI_USART1, USART1_R, "usart1"),
+	RESET_CELL(RST_SCMI_STGEN, STGEN_R, "stgen"),
+	RESET_CELL(RST_SCMI_GPIOZ, GPIOZ_R, "gpioz"),
+	RESET_CELL(RST_SCMI_CRYP1, CRYP1_R, "cryp1"),
+	RESET_CELL(RST_SCMI_HASH1, HASH1_R, "hash1"),
+	RESET_CELL(RST_SCMI_RNG1, RNG1_R, "rng1"),
+	RESET_CELL(RST_SCMI_MDMA, MDMA_R, "mdma"),
+	RESET_CELL(RST_SCMI_MCU, MCU_R, "mcu"),
+	RESET_CELL(RST_SCMI_MCU_HOLD_BOOT, MCU_HOLD_BOOT_R, "mcu_hold_boot"),
+};
+#endif
+
 #define PWR_REG11_NAME_ID		"0"
 #define PWR_REG18_NAME_ID		"1"
 #define PWR_USB33_NAME_ID		"2"
+#define PWR_SDMMC1_IO_NAME_ID		"3"
+#define PWR_SDMMC2_IO_NAME_ID		"4"
+#define PWR_VREFBUF_NAME_ID		"5"
 
-struct stm32_scmi_voltd scmi0_voltage_domain[] = {
-	VOLTD_CELL(VOLTD_SCMI0_REG11, VOLTD_PWR, PWR_REG11_NAME_ID, "reg11"),
-	VOLTD_CELL(VOLTD_SCMI0_REG18, VOLTD_PWR, PWR_REG18_NAME_ID, "reg18"),
-	VOLTD_CELL(VOLTD_SCMI0_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
+#ifdef CFG_STM32MP13
+struct stm32_scmi_voltd scmi_voltage_domain[] = {
+	VOLTD_CELL(VOLTD_SCMI_REG11, VOLTD_PWR, PWR_REG11_NAME_ID, "reg11"),
+	VOLTD_CELL(VOLTD_SCMI_REG18, VOLTD_PWR, PWR_REG18_NAME_ID, "reg18"),
+	VOLTD_CELL(VOLTD_SCMI_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
+	VOLTD_CELL(VOLTD_SCMI_SDMMC1_IO, VOLTD_PWR, PWR_SDMMC1_IO_NAME_ID,
+		   "sdmmc1"),
+	VOLTD_CELL(VOLTD_SCMI_SDMMC2_IO, VOLTD_PWR, PWR_SDMMC2_IO_NAME_ID,
+		   "sdmmc2"),
+	VOLTD_CELL(VOLTD_SCMI_VREFBUF, VOLTD_PWR, PWR_VREFBUF_NAME_ID,
+		   "vrefbuf"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK1, VOLTD_PMIC, "buck1", "buck1"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK2, VOLTD_PMIC, "buck2", "buck2"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK3, VOLTD_PMIC, "buck3", "buck3"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK4, VOLTD_PMIC, "buck4", "buck4"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO1, VOLTD_PMIC, "ldo1", "ldo1"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO2, VOLTD_PMIC, "ldo2", "ldo2"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO3, VOLTD_PMIC, "ldo3", "ldo3"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO4, VOLTD_PMIC, "ldo4", "ldo4"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO5, VOLTD_PMIC, "ldo5", "ldo5"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO6, VOLTD_PMIC, "ldo6", "ldo6"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_VREFDDR, VOLTD_PMIC, "vref_ddr",
+		   "vref_ddr"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BOOST, VOLTD_PMIC, "boost", "bst_out"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW1, VOLTD_PMIC, "pwr_sw1",
+		   "pwr_sw1"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW2, VOLTD_PMIC, "pwr_sw2",
+		   "pwr_sw2"),
 };
+#endif
+
+#ifdef CFG_STM32MP15
+struct stm32_scmi_voltd scmi_voltage_domain[] = {
+	VOLTD_CELL(VOLTD_SCMI_REG11, VOLTD_PWR, PWR_REG11_NAME_ID, "reg11"),
+	VOLTD_CELL(VOLTD_SCMI_REG18, VOLTD_PWR, PWR_REG18_NAME_ID, "reg18"),
+	VOLTD_CELL(VOLTD_SCMI_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK1, VOLTD_PMIC, "buck1", "vddcore"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK2, VOLTD_PMIC, "buck2", "vdd_ddr"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK3, VOLTD_PMIC, "buck3", "vdd"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK4, VOLTD_PMIC, "buck4", "v3v3"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO1, VOLTD_PMIC, "ldo1", "v1v8_audio"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO2, VOLTD_PMIC, "ldo2", "v3v3_hdmi"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO3, VOLTD_PMIC, "ldo3", "vtt_ddr"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO4, VOLTD_PMIC, "ldo4", "vdd_usb"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO5, VOLTD_PMIC, "ldo5", "vdda"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO6, VOLTD_PMIC, "ldo6", "v1v2_hdmi"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_VREFDDR, VOLTD_PMIC, "vref_ddr",
+		   "vref_ddr"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BOOST, VOLTD_PMIC, "boost", "bst_out"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW1, VOLTD_PMIC, "pwr_sw1",
+		   "vbus_otg"),
+	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW2, VOLTD_PMIC, "pwr_sw2",
+		   "vbus_sw"),
+};
+#endif
 
 struct channel_resources {
 	struct scmi_msg_channel *channel;
@@ -174,23 +264,15 @@ struct channel_resources {
 static const struct channel_resources scmi_channel[] = {
 	[0] = {
 		.channel = &(struct scmi_msg_channel){
-			.shm_addr = { .pa = SMT_BUFFER0_BASE },
+			.shm_addr = { .pa = SMT_BUFFER_BASE },
 			.shm_size = SMT_BUF_SLOT_SIZE,
 		},
-		.clock = stm32_scmi0_clock,
-		.clock_count = ARRAY_SIZE(stm32_scmi0_clock),
-		.rd = stm32_scmi0_reset_domain,
-		.rd_count = ARRAY_SIZE(stm32_scmi0_reset_domain),
-		.voltd = scmi0_voltage_domain,
-		.voltd_count = ARRAY_SIZE(scmi0_voltage_domain),
-	},
-	[1] = {
-		.channel = &(struct scmi_msg_channel){
-			.shm_addr = { .pa = SMT_BUFFER1_BASE },
-			.shm_size = SMT_BUF_SLOT_SIZE,
-		},
-		.clock = stm32_scmi1_clock,
-		.clock_count = ARRAY_SIZE(stm32_scmi1_clock),
+		.clock = stm32_scmi_clock,
+		.clock_count = ARRAY_SIZE(stm32_scmi_clock),
+		.rd = stm32_scmi_reset_domain,
+		.rd_count = ARRAY_SIZE(stm32_scmi_reset_domain),
+		.voltd = scmi_voltage_domain,
+		.voltd_count = ARRAY_SIZE(scmi_voltage_domain),
 	},
 };
 
@@ -437,11 +519,14 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
+	assert(rd->rstctrl);
 
+#ifdef CFG_STM32MP15
 	if (rd->reset_id == MCU_HOLD_BOOT_R)
 		return SCMI_NOT_SUPPORTED;
+#endif
 
 	/* Supports only reset with context loss */
 	if (state)
@@ -449,10 +534,10 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 
 	DMSG("SCMI reset %u cycle", scmi_id);
 
-	if (stm32_reset_assert(rd->reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_assert_to(rd->rstctrl, TIMEOUT_US_1MS))
 		return SCMI_HARDWARE_ERROR;
 
-	if (stm32_reset_deassert(rd->reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_deassert_to(rd->rstctrl, TIMEOUT_US_1MS))
 		return SCMI_HARDWARE_ERROR;
 
 	return SCMI_SUCCESS;
@@ -462,27 +547,25 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 			       bool assert_not_deassert)
 {
 	const struct stm32_scmi_rd *rd = find_rd(channel_id, scmi_id);
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (!rd)
 		return SCMI_NOT_FOUND;
 
-	if (!stm32mp_nsec_can_access_reset(rd->reset_id))
+	if (!rd->rstctrl || !stm32mp_nsec_can_access_reset(rd->reset_id))
 		return SCMI_DENIED;
-
-	if (rd->reset_id == MCU_HOLD_BOOT_R) {
-		DMSG("SCMI MCU hold boot %s",
-		     assert_not_deassert ? "set" : "release");
-		stm32_reset_assert_deassert_mcu(assert_not_deassert);
-		return SCMI_SUCCESS;
-	}
+	assert(rd->rstctrl);
 
 	if (assert_not_deassert) {
 		DMSG("SCMI reset %u set", scmi_id);
-		stm32_reset_set(rd->reset_id);
+		res = rstctrl_assert(rd->rstctrl);
 	} else {
 		DMSG("SCMI reset %u release", scmi_id);
-		stm32_reset_release(rd->reset_id);
+		res = rstctrl_deassert(rd->rstctrl);
 	}
+
+	if (res)
+		return SCMI_HARDWARE_ERROR;
 
 	return SCMI_SUCCESS;
 }
@@ -726,18 +809,27 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 	}
 }
 
-long plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id)
+int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
+				  long *level)
 {
 	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
+	long voltage = 0;
 
 	if (!voltd)
-		return 0;
+		return SCMI_INVALID_PARAMETERS;
 
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
-		return pwr_get_level(voltd);
+		*level = pwr_get_level(voltd);
+		return SCMI_SUCCESS;
 	case VOLTD_PMIC:
-		return pmic_get_level(voltd);
+		voltage = pmic_get_level(voltd);
+		if (voltage > 0) {
+			*level = voltage;
+			return SCMI_SUCCESS;
+		} else {
+			return SCMI_GENERIC_ERROR;
+		}
 	default:
 		panic();
 	}
@@ -843,10 +935,21 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 
 		for (j = 0; j < res->rd_count; j++) {
 			struct stm32_scmi_rd *rd = &res->rd[j];
+			struct rstctrl *rstctrl = NULL;
 
 			if (!rd->name ||
 			    strlen(rd->name) >= SCMI_RD_NAME_SIZE)
 				panic("SCMI reset domain name invalid");
+
+			if (stm32mp_nsec_can_access_clock(rd->reset_id))
+				continue;
+
+			rstctrl = stm32mp_rcc_reset_id_to_rstctrl(rd->reset_id);
+			assert(rstctrl);
+			if (rstctrl_get_exclusive(rstctrl))
+				continue;
+
+			rd->rstctrl = rstctrl;
 		}
 
 		for (j = 0; j < res->voltd_count; j++) {

@@ -118,4 +118,7 @@ static inline void print_stack_arm64(struct unwind_state_arm64 *state __unused,
  */
 void ftrace_map_lr(uint64_t *lr);
 
+/* Strip out PAuth tags from LR content if applicable */
+void pauth_strip_pac(uint64_t *lr);
+
 #endif /*UNW_UNWIND_H*/

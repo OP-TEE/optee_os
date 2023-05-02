@@ -86,7 +86,8 @@ int dt_enable_secure_status(void *fdt, int node)
 	return 0;
 }
 
-int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
+	       enum dt_map_dev_directive mapping)
 {
 	enum teecore_memtypes mtype;
 	paddr_t pbase;
@@ -96,21 +97,34 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 
 	assert(cpu_mmu_enabled());
 
-	st = _fdt_get_status(fdt, offs);
+	st = fdt_get_status(fdt, offs);
 	if (st == DT_STATUS_DISABLED)
 		return -1;
 
-	pbase = _fdt_reg_base_address(fdt, offs);
+	pbase = fdt_reg_base_address(fdt, offs);
 	if (pbase == DT_INFO_INVALID_REG)
 		return -1;
-	sz = _fdt_reg_size(fdt, offs);
+	sz = fdt_reg_size(fdt, offs);
 	if (sz == DT_INFO_INVALID_REG_SIZE)
 		return -1;
 
-	if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
+	switch (mapping) {
+	case DT_MAP_AUTO:
+		if ((st & DT_STATUS_OK_SEC) && !(st & DT_STATUS_OK_NSEC))
+			mtype = MEM_AREA_IO_SEC;
+		else
+			mtype = MEM_AREA_IO_NSEC;
+		break;
+	case DT_MAP_SECURE:
 		mtype = MEM_AREA_IO_SEC;
-	else
+		break;
+	case DT_MAP_NON_SECURE:
 		mtype = MEM_AREA_IO_NSEC;
+		break;
+	default:
+		panic("Invalid mapping specified");
+		break;
+	}
 
 	/* Check if we have a mapping, create one if needed */
 	vbase = (vaddr_t)core_mmu_add_mapping(mtype, pbase, sz);
@@ -126,7 +140,7 @@ int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size)
 }
 
 /* Read a physical address (n=1 or 2 cells) */
-static paddr_t _fdt_read_paddr(const uint32_t *cell, int n)
+static paddr_t fdt_read_paddr(const uint32_t *cell, int n)
 {
 	paddr_t addr;
 
@@ -147,16 +161,13 @@ static paddr_t _fdt_read_paddr(const uint32_t *cell, int n)
 #endif
 	}
 
-	if (!addr)
-		goto bad;
-
 	return addr;
 bad:
 	return DT_INFO_INVALID_REG;
 
 }
 
-paddr_t _fdt_reg_base_address(const void *fdt, int offs)
+paddr_t fdt_reg_base_address(const void *fdt, int offs)
 {
 	const void *reg;
 	int ncells;
@@ -175,13 +186,28 @@ paddr_t _fdt_reg_base_address(const void *fdt, int offs)
 	if (ncells < 0)
 		return DT_INFO_INVALID_REG;
 
-	return _fdt_read_paddr(reg, ncells);
+	return fdt_read_paddr(reg, ncells);
 }
 
-size_t _fdt_reg_size(const void *fdt, int offs)
+static size_t fdt_read_size(const uint32_t *cell, int n)
+{
+	uint32_t sz = 0;
+
+	sz = fdt32_to_cpu(*cell);
+	if (n == 2) {
+		if (sz)
+			return DT_INFO_INVALID_REG_SIZE;
+
+		cell++;
+		sz = fdt32_to_cpu(*cell);
+	}
+
+	return sz;
+}
+
+size_t fdt_reg_size(const void *fdt, int offs)
 {
 	const uint32_t *reg;
-	uint32_t sz;
 	int n;
 	int len;
 	int parent;
@@ -204,15 +230,7 @@ size_t _fdt_reg_size(const void *fdt, int offs)
 	if (n < 1 || n > 2)
 		return DT_INFO_INVALID_REG_SIZE;
 
-	sz = fdt32_to_cpu(*reg);
-	if (n == 2) {
-		if (sz)
-			return DT_INFO_INVALID_REG_SIZE;
-		reg++;
-		sz = fdt32_to_cpu(*reg);
-	}
-
-	return sz;
+	return fdt_read_size(reg, n);
 }
 
 static bool is_okay(const char *st, int len)
@@ -220,7 +238,7 @@ static bool is_okay(const char *st, int len)
 	return !strncmp(st, "ok", len) || !strncmp(st, "okay", len);
 }
 
-int _fdt_get_status(const void *fdt, int offs)
+int fdt_get_status(const void *fdt, int offs)
 {
 	const char *prop;
 	int st = 0;
@@ -248,7 +266,7 @@ int _fdt_get_status(const void *fdt, int offs)
 	return st;
 }
 
-void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
+void fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 {
 	struct dt_node_info dinfo = {
 		.reg = DT_INFO_INVALID_REG,
@@ -259,8 +277,8 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 	};
 	const fdt32_t *cuint;
 
-	dinfo.reg = _fdt_reg_base_address(fdt, offs);
-	dinfo.reg_size = _fdt_reg_size(fdt, offs);
+	dinfo.reg = fdt_reg_base_address(fdt, offs);
+	dinfo.reg_size = fdt_reg_size(fdt, offs);
 
 	cuint = fdt_getprop(fdt, offs, "clocks", NULL);
 	if (cuint) {
@@ -277,7 +295,122 @@ void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info, int offs)
 	dinfo.interrupt = dt_get_irq_type_prio(fdt, offs, &dinfo.type,
 					       &dinfo.prio);
 
-	dinfo.status = _fdt_get_status(fdt, offs);
+	dinfo.status = fdt_get_status(fdt, offs);
 
 	*info = dinfo;
+}
+
+int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
+			  uint32_t *array, size_t count)
+{
+	const fdt32_t *cuint = NULL;
+	int len = 0;
+	uint32_t i = 0;
+
+	cuint = fdt_getprop(fdt, node, prop_name, &len);
+	if (!cuint)
+		return len;
+
+	if ((uint32_t)len != (count * sizeof(uint32_t)))
+		return -FDT_ERR_BADLAYOUT;
+
+	for (i = 0; i < ((uint32_t)len / sizeof(uint32_t)); i++) {
+		*array = fdt32_to_cpu(*cuint);
+		array++;
+		cuint++;
+	}
+
+	return 0;
+}
+
+int fdt_read_uint32_index(const void *fdt, int node, const char *prop_name,
+			  int index, uint32_t *value)
+{
+	const fdt32_t *cuint = NULL;
+	int len = 0;
+
+	cuint = fdt_getprop(fdt, node, prop_name, &len);
+	if (!cuint)
+		return len;
+
+	if ((uint32_t)len < (sizeof(uint32_t) * (index + 1)))
+		return -FDT_ERR_BADLAYOUT;
+
+	*value = fdt32_to_cpu(cuint[index]);
+
+	return 0;
+}
+
+int fdt_read_uint32(const void *fdt, int node, const char *prop_name,
+		    uint32_t *value)
+{
+	return fdt_read_uint32_array(fdt, node, prop_name, value, 1);
+}
+
+uint32_t fdt_read_uint32_default(const void *fdt, int node,
+				 const char *prop_name, uint32_t dflt_value)
+{
+	uint32_t ret = dflt_value;
+
+	fdt_read_uint32_index(fdt, node, prop_name, 0, &ret);
+
+	return ret;
+}
+
+int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
+			       paddr_t *base, size_t *size)
+{
+	const fdt32_t *prop = NULL;
+	int parent = 0;
+	int len = 0;
+	int address_cells = 0;
+	int size_cells = 0;
+	int cell = 0;
+
+	parent = fdt_parent_offset(fdt, node);
+	if (parent < 0)
+		return parent;
+
+	address_cells = fdt_address_cells(fdt, parent);
+	if (address_cells < 0)
+		return address_cells;
+
+	size_cells = fdt_size_cells(fdt, parent);
+	if (size_cells < 0)
+		return size_cells;
+
+	cell = index * (address_cells + size_cells);
+
+	prop = fdt_getprop(fdt, node, "reg", &len);
+	if (!prop)
+		return len;
+
+	if (((cell + address_cells + size_cells) * (int)sizeof(uint32_t)) > len)
+		return -FDT_ERR_BADVALUE;
+
+	if (base) {
+		*base = fdt_read_paddr(&prop[cell], address_cells);
+		if (*base == DT_INFO_INVALID_REG)
+			return -FDT_ERR_BADVALUE;
+	}
+
+	if (size) {
+		*size = fdt_read_size(&prop[cell + address_cells], size_cells);
+		if (*size == DT_INFO_INVALID_REG_SIZE)
+			return -FDT_ERR_BADVALUE;
+	}
+
+	return 0;
+}
+
+int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
+			      paddr_t *base, size_t *size)
+{
+	int index = 0;
+
+	index = fdt_stringlist_search(fdt, node, "reg-names", name);
+	if (index < 0)
+		return index;
+
+	return fdt_get_reg_props_by_index(fdt, node, index, base, size);
 }

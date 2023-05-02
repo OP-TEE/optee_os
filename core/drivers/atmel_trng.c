@@ -26,13 +26,7 @@
 #define TRNG_ODATA		0x50
 
 static unsigned int trng_lock = SPINLOCK_UNLOCK;
-static unsigned int trng_random_val_lock = SPINLOCK_UNLOCK;
 static vaddr_t trng_base;
-static uint8_t random_byte_pos;
-static union {
-	uint32_t val;
-	uint8_t byte[sizeof(uint32_t)];
-} random_data;
 
 static uint32_t atmel_trng_read32(void)
 {
@@ -51,13 +45,12 @@ static uint32_t atmel_trng_read32(void)
 	return value;
 }
 
-TEE_Result crypto_rng_read(void *buf, size_t len)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	uint8_t *rngbuf = buf;
 	uint32_t val = 0;
 	size_t len_to_copy = 0;
 
-	assert(buf);
 	assert(trng_base);
 
 	while (len) {
@@ -69,33 +62,6 @@ TEE_Result crypto_rng_read(void *buf, size_t len)
 	}
 
 	return TEE_SUCCESS;
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint32_t exceptions = 0;
-	uint8_t data = 0;
-
-	assert(trng_base);
-
-	exceptions = cpu_spin_lock_xsave(&trng_random_val_lock);
-
-	/*
-	 * The TRNG generates a whole 32 bits word every 84 cycles. To avoid
-	 * discarding 3 bytes at each request, request 4 bytes of random data
-	 * and return only 1 at each request until there is no more bytes in the
-	 * random_data "cache".
-	 */
-	if (!random_byte_pos)
-		random_data.val = atmel_trng_read32();
-
-	data = random_data.byte[random_byte_pos++];
-	if (random_byte_pos == sizeof(uint32_t))
-		random_byte_pos = 0;
-
-	cpu_spin_unlock_xrestore(&trng_random_val_lock, exceptions);
-
-	return data;
 }
 
 /* This is a true RNG, no need for seeding */
@@ -118,7 +84,7 @@ static void atmel_trng_reset(void)
 static TEE_Result trng_node_probe(const void *fdt, int node,
 				  const void *compat_data __unused)
 {
-	int status = _fdt_get_status(fdt, node);
+	int status = fdt_get_status(fdt, node);
 	size_t size = 0;
 	struct clk *clk = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -132,7 +98,7 @@ static TEE_Result trng_node_probe(const void *fdt, int node,
 	if (res)
 		return res;
 
-	if (dt_map_dev(fdt, node, &trng_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &trng_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	clk_enable(clk);

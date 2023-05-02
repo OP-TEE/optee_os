@@ -43,10 +43,11 @@ int32_t __weak plat_scmi_voltd_levels_by_step(unsigned int channel_id __unused,
 	return SCMI_NOT_SUPPORTED;
 }
 
-long __weak plat_scmi_voltd_get_level(unsigned int channel_id __unused,
-				      unsigned int scmi_id __unused)
+int32_t __weak plat_scmi_voltd_get_level(unsigned int channel_id __unused,
+					 unsigned int scmi_id __unused,
+					 long *level __unused)
 {
-	return 0;
+	return SCMI_NOT_SUPPORTED;
 }
 
 int32_t __weak plat_scmi_voltd_set_level(unsigned int channel_id __unused,
@@ -163,22 +164,20 @@ static void scmi_voltd_domain_attributes(struct scmi_msg *msg)
 					 SCMI_VOLTD_LEVELS_FORMAT_LIST, \
 					 (_rem_rates))
 
-/* List levels array by small chunks fitting in SCMI message max payload size */
-#define LEVELS_ARRAY_SIZE_MAX_2	\
-	((SCMI_PLAYLOAD_MAX - sizeof(struct scmi_voltd_describe_levels_p2a)) / \
-	 sizeof(int32_t))
-
-#define LEVELS_ARRAY_SIZE_MAX	10
-
 #define LEVELS_BY_STEP \
 	SCMI_VOLTAGE_DOMAIN_LEVELS_FLAGS(3, SCMI_VOLTD_LEVELS_FORMAT_RANGE, 0)
+
+#define LEVEL_DESC_SIZE		sizeof(int32_t)
 
 static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 {
 	const struct scmi_voltd_describe_levels_a2p *in_args = (void *)msg->in;
-	size_t nb_levels = 0;
-	unsigned int domain_id = 0;
+	struct scmi_voltd_describe_levels_p2a out_args = { };
 	int32_t status = SCMI_GENERIC_ERROR;
+	unsigned int out_count = 0;
+	unsigned int domain_id = 0;
+	int32_t *out_levels = NULL;
+	size_t nb_levels = 0;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		status = SCMI_PROTOCOL_ERROR;
@@ -190,6 +189,13 @@ static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 		goto out;
 	}
 
+	if (msg->out_size < sizeof(out_args)) {
+		status = SCMI_INVALID_PARAMETERS;
+		goto out;
+	}
+	assert(IS_ALIGNED_WITH_TYPE(msg->out + sizeof(out_args), int32_t));
+	out_levels = (int32_t *)(uintptr_t)(msg->out + sizeof(out_args));
+
 	domain_id = confine_array_index(in_args->domain_id,
 					plat_scmi_voltd_count(msg->channel_id));
 
@@ -197,75 +203,68 @@ static void scmi_voltd_describe_levels(struct scmi_msg *msg)
 	status = plat_scmi_voltd_levels_array(msg->channel_id, domain_id, 0,
 					      NULL, &nb_levels);
 	if (status == SCMI_SUCCESS) {
-		/* Use the stack to get the returned portion of levels array */
-		long plat_levels[LEVELS_ARRAY_SIZE_MAX];
-		size_t ret_nb = 0;
-		size_t rem_nb = 0;
+		size_t avail_sz = msg->out_size - sizeof(out_args);
+		unsigned int level_index = in_args->level_index;
+		unsigned int remaining = 0;
 
-		if (in_args->level_index >= nb_levels) {
-			status = SCMI_INVALID_PARAMETERS;
+		if (avail_sz < LEVEL_DESC_SIZE && nb_levels) {
+			status = SCMI_PROTOCOL_ERROR;
 			goto out;
 		}
 
-		ret_nb = MIN(ARRAY_SIZE(plat_levels),
-			     nb_levels - in_args->level_index);
-		rem_nb = nb_levels - in_args->level_index - ret_nb;
+		while (avail_sz >= LEVEL_DESC_SIZE && level_index < nb_levels) {
+			long plat_level = 0;
+			size_t cnt = 1;
 
-		status =  plat_scmi_voltd_levels_array(msg->channel_id,
-						       domain_id,
-						       in_args->level_index,
-						       plat_levels,
-						       &ret_nb);
-		if (status == SCMI_SUCCESS) {
-			struct scmi_voltd_describe_levels_p2a out_args = {
-				.flags = LEVELS_BY_ARRAY(ret_nb, rem_nb),
-				.status = SCMI_SUCCESS,
-			};
-			int32_t *voltage = NULL;
-			size_t i = 0;
+			status = plat_scmi_voltd_levels_array(msg->channel_id,
+							      domain_id,
+							      level_index,
+							      &plat_level,
+							      &cnt);
+			if (status)
+				goto out;
 
-			/* By construction these values are 32bit aligned */
-			voltage = (int32_t *)(uintptr_t)(msg->out +
-							 sizeof(out_args));
+			*out_levels = plat_level;
 
-			for (i = 0; i < ret_nb; i++)
-				voltage[i] = plat_levels[i];
-
-			memcpy(msg->out, &out_args, sizeof(out_args));
-
-			msg->out_size_out = sizeof(out_args) +
-					    ret_nb * sizeof(uint32_t);
+			avail_sz -= LEVEL_DESC_SIZE;
+			out_levels++;
+			level_index++;
 		}
+
+		remaining = nb_levels - in_args->level_index;
+		out_count = level_index - in_args->level_index;
+		out_args.flags = LEVELS_BY_ARRAY(out_count, remaining);
 	} else if (status == SCMI_NOT_SUPPORTED) {
 		long triplet[3] = { 0, 0, 0 };
+
+		if (msg->out_size < sizeof(out_args) + 3 * LEVEL_DESC_SIZE) {
+			status = SCMI_PROTOCOL_ERROR;
+			goto out;
+		}
 
 		/* Platform may support min/max/step triplet description */
 		status =  plat_scmi_voltd_levels_by_step(msg->channel_id,
 							 domain_id, triplet);
-		if (status == SCMI_SUCCESS) {
-			struct scmi_voltd_describe_levels_p2a out_args = {
-				.flags = LEVELS_BY_STEP,
-				.status = SCMI_SUCCESS,
-			};
-			int32_t *voltage = NULL;
+		if (status)
+			goto out;
 
-			/* By construction these values are 32bit aligned */
-			voltage = (int32_t *)(uintptr_t)(msg->out +
-							 sizeof(out_args));
-			voltage[0] = triplet[0];
-			voltage[1] = triplet[1];
-			voltage[2] = triplet[2];
+		out_levels[0] = triplet[0];
+		out_levels[1] = triplet[1];
+		out_levels[2] = triplet[2];
 
-			memcpy(msg->out, &out_args, sizeof(out_args));
-
-			msg->out_size_out = sizeof(out_args) +
-					    3 * sizeof(int32_t);
-		}
+		out_count = 3;
+		out_args.flags = LEVELS_BY_STEP;
 	}
 
 out:
-	if (status)
+	if (status) {
 		scmi_status_response(msg, status);
+	} else {
+		out_args.status = SCMI_SUCCESS;
+		memcpy(msg->out, &out_args, sizeof(out_args));
+		msg->out_size_out = sizeof(out_args) +
+				    out_count * LEVEL_DESC_SIZE;
+	}
 }
 
 static void scmi_voltd_config_set(struct scmi_msg *msg)
@@ -355,6 +354,7 @@ static void scmi_voltd_level_get(struct scmi_msg *msg)
 		.status = SCMI_SUCCESS,
 	};
 	unsigned int domain_id = 0;
+	long level = 0;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
@@ -369,8 +369,9 @@ static void scmi_voltd_level_get(struct scmi_msg *msg)
 	domain_id = confine_array_index(in_args->domain_id,
 					plat_scmi_voltd_count(msg->channel_id));
 
-	out_args.voltage_level = plat_scmi_voltd_get_level(msg->channel_id,
-							   domain_id);
+	out_args.status = plat_scmi_voltd_get_level(msg->channel_id, domain_id,
+						    &level);
+	out_args.voltage_level = level;
 
 	scmi_write_response(msg, &out_args, sizeof(out_args));
 }
@@ -387,7 +388,7 @@ static const scmi_msg_handler_t handler_array[] = {
 	[SCMI_VOLTAGE_LEVEL_GET] = scmi_voltd_level_get,
 };
 
-static bool message_id_is_supported(size_t id)
+static bool message_id_is_supported(unsigned int id)
 {
 	return id < ARRAY_SIZE(handler_array) && handler_array[id];
 }

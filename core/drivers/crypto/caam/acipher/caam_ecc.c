@@ -239,6 +239,9 @@ static TEE_Result do_gen_keypair(struct ecc_keypair *key, size_t key_size)
 
 	ECC_TRACE("Generate Keypair of %zu bits", key_size);
 
+	/* The key size must be a multiple of 8 bits */
+	key_size = ROUNDUP(key_size, 8);
+
 	/* Verify first if the curve is supported */
 	curve = get_caam_curve(key->curve);
 	if (curve == CAAM_ECC_UNKNOWN)

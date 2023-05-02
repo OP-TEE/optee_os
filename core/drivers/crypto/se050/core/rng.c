@@ -28,20 +28,10 @@ void plat_rng_init(void)
 {
 }
 
-TEE_Result crypto_rng_read(void *buf, size_t blen)
+TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 {
 	if (!buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	return do_rng_read(buf, blen);
-}
-
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t data = 0;
-
-	if (do_rng_read(&data, 1))
-		return 0;
-
-	return data;
 }

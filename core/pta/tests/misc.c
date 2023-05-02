@@ -3,6 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 #include <assert.h>
+#include <config.h>
+#include <kernel/dt_driver.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <trace.h>
@@ -423,7 +425,7 @@ static int self_test_malloc(void)
 	return ret;
 }
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 /* test nex_malloc support. resulting trace shall be manually checked */
 static int self_test_nex_malloc(void)
 {
@@ -542,12 +544,13 @@ static int self_test_nex_malloc(void)
 
 	return ret;
 }
-#else  /* CFG_VIRTUALIZATION */
+#else  /* CFG_NS_VIRTUALIZATION */
 static int self_test_nex_malloc(void)
 {
 	return 0;
 }
 #endif
+
 /* exported entry points for some basic test */
 TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		TEE_Param pParams[TEE_NUM_PARAMS] __unused)
@@ -559,5 +562,19 @@ TEE_Result core_self_tests(uint32_t nParamTypes __unused,
 		EMSG("some self_test_xxx failed! you should enable local LOG");
 		return TEE_ERROR_GENERIC;
 	}
+	return TEE_SUCCESS;
+}
+
+/* Exported entrypoint for dt_driver tests */
+TEE_Result core_dt_driver_tests(uint32_t nParamTypes __unused,
+				TEE_Param pParams[TEE_NUM_PARAMS] __unused)
+{
+	if (IS_ENABLED(CFG_DT_DRIVER_EMBEDDED_TEST)) {
+		if (dt_driver_test_status())
+			return TEE_ERROR_GENERIC;
+	} else {
+		IMSG("dt_driver tests are not embedded");
+	}
+
 	return TEE_SUCCESS;
 }

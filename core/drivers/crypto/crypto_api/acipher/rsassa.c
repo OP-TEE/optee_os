@@ -216,6 +216,8 @@ static TEE_Result rsassa_pkcs1_v1_5_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	rsa_data.message.length = ssa_data->signature.length;
 	rsa_data.cipher.data = EM.data;
 	rsa_data.cipher.length = EM.length;
+	rsa_data.hash_algo = ssa_data->hash_algo;
+	rsa_data.algo = ssa_data->algo;
 
 	ret = rsa->decrypt(&rsa_data);
 
@@ -245,10 +247,15 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	EM.length = ssa_data->key.n_size;
 	EM.data = malloc(EM.length);
 
+	if (!EM.data) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto end_verify;
+	}
+
 	EM_gen.length = ssa_data->key.n_size;
 	EM_gen.data = malloc(EM.length);
 
-	if (!EM.data || !EM_gen.data) {
+	if (!EM_gen.data) {
 		ret = TEE_ERROR_OUT_OF_MEMORY;
 		goto end_verify;
 	}
@@ -269,7 +276,7 @@ static TEE_Result rsassa_pkcs1_v1_5_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		rsa_data.message.length = ssa_data->signature.length;
 		rsa_data.cipher.data = EM.data;
 		rsa_data.cipher.length = EM.length;
-
+		rsa_data.hash_algo = ssa_data->hash_algo;
 		ret = rsa->encrypt(&rsa_data);
 
 		/* Set the cipher size */
@@ -743,6 +750,9 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	modBits--;
 	EM.length = ROUNDUP(modBits, 8) / 8;
 
+	if (EM.length < ssa_data->digest_size + ssa_data->salt_len + 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	EM.data = malloc(EM.length);
 	if (!EM.data)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -771,6 +781,7 @@ static TEE_Result rsassa_pss_sign(struct drvcrypt_rsa_ssa *ssa_data)
 			rsa_data.message.length = ssa_data->signature.length;
 			rsa_data.cipher.data = EM.data;
 			rsa_data.cipher.length = EM.length;
+			rsa_data.algo = ssa_data->algo;
 
 			ret = rsa->decrypt(&rsa_data);
 
@@ -814,6 +825,9 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	modBits--;
 	EM.length = ROUNDUP(modBits, 8) / 8;
 
+	if (EM.length < ssa_data->digest_size + ssa_data->salt_len + 2)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	EM.data = malloc(EM.length);
 	if (!EM.data)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -837,6 +851,7 @@ static TEE_Result rsassa_pss_verify(struct drvcrypt_rsa_ssa *ssa_data)
 		rsa_data.message.length = ssa_data->signature.length;
 		rsa_data.cipher.data = EM.data;
 		rsa_data.cipher.length = EM.length;
+		rsa_data.algo = ssa_data->algo;
 
 		ret = rsa->encrypt(&rsa_data);
 
@@ -874,6 +889,7 @@ TEE_Result drvcrypt_rsassa_sign(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 		return rsassa_pkcs1_v1_5_sign(ssa_data);
 
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
@@ -900,6 +916,7 @@ TEE_Result drvcrypt_rsassa_verify(struct drvcrypt_rsa_ssa *ssa_data)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 		return rsassa_pkcs1_v1_5_verify(ssa_data);
 
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:

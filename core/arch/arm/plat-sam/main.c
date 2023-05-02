@@ -28,9 +28,11 @@
 
 #include <arm32.h>
 #include <console.h>
+#include <drivers/atmel_saic.h>
 #include <drivers/atmel_uart.h>
 #include <io.h>
 #include <kernel/boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tz_ssvce_def.h>
@@ -39,7 +41,6 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sama5d2.h>
-#include <sam_sfr.h>
 #include <stdint.h>
 #include <sm/optee_smc.h>
 #include <tz_matrix.h>
@@ -52,20 +53,6 @@ void console_init(void)
 {
 	atmel_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);
-}
-
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, SFR_BASE, CORE_MMU_PGDIR_SIZE);
-
-vaddr_t sam_sfr_base(void)
-{
-	static void *va;
-
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(SFR_BASE, MEM_AREA_IO_SEC, 1);
-		return (vaddr_t)va;
-	}
-	return SFR_BASE;
 }
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX32,
@@ -163,16 +150,18 @@ static void matrix_configure_slave_h64mx(void)
 					ssr_setting);
 	}
 
-	/* 10: Internal SRAM 128K: Non-Secure */
+	/*
+	 * 10: Internal SRAM 128K:
+	 * - First 64K are reserved for suspend code in Secure World
+	 * - Last 64K are for Non-Secure world (used by CAN)
+	 */
 	srtop_setting = MATRIX_SRTOP(0, MATRIX_SRTOP_VALUE_128K);
-	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SASPLIT_VALUE_128K);
-	ssr_setting = (MATRIX_LANSECH_NS(0)
-			| MATRIX_RDNSECH_NS(0)
-			| MATRIX_WRNSECH_NS(0));
+	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SRTOP_VALUE_64K);
+	ssr_setting = (MATRIX_LANSECH_S(0) | MATRIX_RDNSECH_S(0) |
+		       MATRIX_WRNSECH_S(0));
 	matrix_configure_slave_security(matrix64_base(),
 					H64MX_SLAVE_INTERNAL_SRAM,
-					srtop_setting,
-					sasplit_setting,
+					srtop_setting, sasplit_setting,
 					ssr_setting);
 
 	/* 11:  Internal SRAM 128K (Cache L2): Default */
@@ -348,4 +337,15 @@ static int matrix_init(void)
 void plat_primary_init_early(void)
 {
 	matrix_init();
+}
+
+void itr_core_handler(void)
+{
+	atmel_saic_it_handle();
+}
+
+void main_init_gic(void)
+{
+	if (atmel_saic_setup())
+		panic("Failed to init interrupts\n");
 }

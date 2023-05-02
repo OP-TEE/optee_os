@@ -4,6 +4,9 @@
  */
 #include <assert.h>
 #include <config.h>
+#include <drivers/clk.h>
+#include <drivers/clk_dt.h>
+#include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/boot.h>
@@ -195,7 +198,7 @@ static void clrsetbits(uint32_t *v, uint32_t mask, uint32_t bits)
 static bool algo_mode_needs_iv(uint32_t cr)
 {
 	return !IS_ALGOMODE(cr, TDES_ECB) && !IS_ALGOMODE(cr, DES_ECB) &&
-		!IS_ALGOMODE(cr, AES_ECB);
+	       !IS_ALGOMODE(cr, AES_ECB);
 }
 
 static bool algo_mode_is_ecb_cbc(uint32_t cr)
@@ -206,7 +209,7 @@ static bool algo_mode_is_ecb_cbc(uint32_t cr)
 static bool algo_mode_is_aes(uint32_t cr)
 {
 	return ((cr & _CRYP_CR_ALGOMODE_MSK) >> _CRYP_CR_ALGOMODE_OFF) >=
-		_CRYP_CR_ALGOMODE_AES_ECB;
+	       _CRYP_CR_ALGOMODE_AES_ECB;
 }
 
 static bool is_decrypt(uint32_t cr)
@@ -233,7 +236,7 @@ static TEE_Result wait_sr_bits(vaddr_t base, uint32_t bits)
 		if (timeout_elapsed(timeout_ref))
 			break;
 
-	if  ((io_read32(base + _CRYP_SR) & bits) != bits)
+	if ((io_read32(base + _CRYP_SR) & bits) != bits)
 		return TEE_ERROR_BUSY;
 
 	return TEE_SUCCESS;
@@ -338,8 +341,10 @@ static TEE_Result __must_check read_block(struct stm32_cryp_context *ctx,
 static void cryp_end(struct stm32_cryp_context *ctx, TEE_Result prev_error)
 {
 	if (prev_error) {
-		stm32_reset_assert(cryp_pdata.reset_id, TIMEOUT_US_1MS);
-		stm32_reset_deassert(cryp_pdata.reset_id, TIMEOUT_US_1MS);
+		if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+			panic();
+		if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+			panic();
 	}
 
 	/* Disable the CRYP peripheral */
@@ -890,7 +895,7 @@ TEE_Result stm32_cryp_update_load(struct stm32_cryp_context *ctx,
 	case _CRYP_CR_GCM_CCMPH_INIT:
 		res = do_from_init_to_phase(ctx, _CRYP_CR_GCM_CCMPH_PAYLOAD);
 		break;
-	case  _CRYP_CR_GCM_CCMPH_HEADER:
+	case _CRYP_CR_GCM_CCMPH_HEADER:
 		res = do_from_header_to_phase(ctx, _CRYP_CR_GCM_CCMPH_PAYLOAD);
 		break;
 	case _CRYP_CR_GCM_CCMPH_PAYLOAD:
@@ -954,7 +959,7 @@ TEE_Result stm32_cryp_update_load(struct stm32_cryp_context *ctx,
 	 * We saved context,
 	 * Complete block with 0 and send to CRYP to get {en,de}crypted data
 	 * Store data to resend as last block in final()
-	 *           or to complete next update_load() to get correct tag.
+	 * or to complete next update_load() to get correct tag.
 	 */
 	if (i < data_size) {
 		uint32_t block_out[MAX_BLOCK_NB_U32] = { 0 };
@@ -1010,14 +1015,14 @@ TEE_Result stm32_cryp_final(struct stm32_cryp_context *ctx, uint8_t *tag,
 
 	mutex_lock(ctx->lock);
 
-	previous_phase = (ctx->cr &  _CRYP_CR_GCM_CCMPH_MSK) >>
+	previous_phase = (ctx->cr & _CRYP_CR_GCM_CCMPH_MSK) >>
 			 _CRYP_CR_GCM_CCMPH_OFF;
 
 	switch (previous_phase) {
 	case _CRYP_CR_GCM_CCMPH_INIT:
 		res = do_from_init_to_phase(ctx, _CRYP_CR_GCM_CCMPH_FINAL);
 		break;
-	case  _CRYP_CR_GCM_CCMPH_HEADER:
+	case _CRYP_CR_GCM_CCMPH_HEADER:
 		res = do_from_header_to_phase(ctx, _CRYP_CR_GCM_CCMPH_FINAL);
 		break;
 	case _CRYP_CR_GCM_CCMPH_PAYLOAD:
@@ -1240,62 +1245,45 @@ out:
 	return res;
 }
 
-static int fdt_stm32_cryp(struct stm32_cryp_platdata *pdata)
-{
-	int node = -1;
-	struct dt_node_info dt_cryp = { };
-	void *fdt = NULL;
-
-	fdt = get_embedded_dt();
-	if (!fdt)
-		return -FDT_ERR_NOTFOUND;
-
-	node = fdt_node_offset_by_compatible(fdt, node, "st,stm32mp1-cryp");
-	if (node < 0) {
-		EMSG("No CRYP entry in DT");
-		return -FDT_ERR_NOTFOUND;
-	}
-
-	_fdt_fill_device_info(fdt, &dt_cryp, node);
-
-	if (dt_cryp.status == DT_STATUS_DISABLED)
-		return -FDT_ERR_NOTFOUND;
-
-	if (dt_cryp.clock == DT_INFO_INVALID_CLOCK ||
-	    dt_cryp.reset == DT_INFO_INVALID_RESET ||
-	    dt_cryp.reg == DT_INFO_INVALID_REG)
-		return -FDT_ERR_BADVALUE;
-
-	pdata->base.pa = dt_cryp.reg;
-	io_pa_or_va_secure(&pdata->base, 1);
-
-	pdata->clock_id = (unsigned long)dt_cryp.clock;
-	pdata->reset_id = (unsigned int)dt_cryp.reset;
-
-	return 0;
-}
-
-static TEE_Result stm32_cryp_driver_init(void)
+static TEE_Result stm32_cryp_probe(const void *fdt, int node,
+				   const void *compt_data __unused)
 {
 	TEE_Result res = TEE_SUCCESS;
+	struct dt_node_info dt_cryp = { };
+	struct rstctrl *rstctrl = NULL;
+	struct clk *clk = NULL;
 
-	switch (fdt_stm32_cryp(&cryp_pdata)) {
-	case 0:
-		break;
-	case -FDT_ERR_NOTFOUND:
-		return TEE_SUCCESS;
-	default:
+	fdt_fill_device_info(fdt, &dt_cryp, node);
+
+	if (dt_cryp.reg == DT_INFO_INVALID_REG ||
+	    dt_cryp.reg_size == DT_INFO_INVALID_REG_SIZE)
 		panic();
-	}
+
+	res = clk_dt_get_by_index(fdt, node, 0, &clk);
+	if (res)
+		return res;
+
+	res = rstctrl_dt_get_by_index(fdt, node, 0, &rstctrl);
+	if (res)
+		return res;
+
+	cryp_pdata.clock = clk;
+	cryp_pdata.reset = rstctrl;
+	cryp_pdata.base.pa = dt_cryp.reg;
+
+	io_pa_or_va_secure(&cryp_pdata.base, dt_cryp.reg_size);
+	if (!cryp_pdata.base.va)
+		panic();
 
 	stm32mp_register_secure_periph_iomem(cryp_pdata.base.pa);
 
-	stm32_clock_enable(cryp_pdata.clock_id);
-
-	if (stm32_reset_assert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
+	if (clk_enable(cryp_pdata.clock))
 		panic();
 
-	if (stm32_reset_deassert(cryp_pdata.reset_id, TIMEOUT_US_1MS))
+	if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+		panic();
+
+	if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
 
 	if (IS_ENABLED(CFG_CRYPTO_DRV_AUTHENC)) {
@@ -1317,4 +1305,13 @@ static TEE_Result stm32_cryp_driver_init(void)
 	return TEE_SUCCESS;
 }
 
-driver_init(stm32_cryp_driver_init);
+static const struct dt_device_match stm32_cryp_match_table[] = {
+	{ .compatible = "st,stm32mp1-cryp" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_cryp_dt_driver) = {
+	.name = "stm32-cryp",
+	.match_table = stm32_cryp_match_table,
+	.probe = stm32_cryp_probe,
+};

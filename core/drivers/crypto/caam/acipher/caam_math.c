@@ -15,8 +15,6 @@
 #include <drvcrypt_math.h>
 #include <mm/core_memprot.h>
 
-#include "local.h"
-
 /*
  * MATH operation A xor B modulus n
  *

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2021, Linaro Limited
+ * Copyright (c) 2022, Arm Limited.
  */
 #ifndef TEE_MMU_TYPES_H
 #define TEE_MMU_TYPES_H
@@ -30,11 +31,24 @@
 #define TEE_MATTR_GLOBAL		BIT(10)
 #define TEE_MATTR_SECURE		BIT(11)
 
-#define TEE_MATTR_CACHE_MASK	U(0x7)
-#define TEE_MATTR_CACHE_SHIFT	U(12)
-/* These are shifted TEE_MATTR_CACHE_SHIFT */
-#define TEE_MATTR_CACHE_NONCACHE U(0)
-#define TEE_MATTR_CACHE_CACHED	U(1)
+#define TEE_MATTR_MEM_TYPE_MASK	U(0x7)
+#define TEE_MATTR_MEM_TYPE_SHIFT	U(12)
+/* These are shifted TEE_MATTR_MEM_TYPE_SHIFT */
+
+/*
+ * Device-nGnRnE most restrictive (equivalent to Strongly Ordered memory
+ * in the ARMv7 architecture).
+ * https://developer.arm.com/documentation/den0024/a/Memory-Ordering/Memory-types/Device-memory
+ *
+ * If an ARMv7 architecture operating system runs on a Cortex-A53 processor,
+ * the Device memory type matches the nGnRE encoding and the Strongly-Ordered
+ * memory type matches the nGnRnE memory type.
+ * https://developer.arm.com/documentation/den0024/a/Memory-Ordering/Memory-types/Device-memory
+ */
+#define TEE_MATTR_MEM_TYPE_DEV	        U(0) /* Device-nGnRE */
+#define TEE_MATTR_MEM_TYPE_CACHED	U(1)
+#define TEE_MATTR_MEM_TYPE_STRONGLY_O	U(2) /* Device-nGnRnE  */
+#define TEE_MATTR_MEM_TYPE_TAGGED	U(3)
 
 #define TEE_MATTR_GUARDED		BIT(15)
 
@@ -126,4 +140,12 @@ static inline void mattr_perm_to_str(char *str, size_t size, uint32_t attr)
 	str[6] = '\0';
 }
 
+static inline bool mattr_is_cached(uint32_t mattr)
+{
+	uint32_t mem_type = (mattr >> TEE_MATTR_MEM_TYPE_SHIFT) &
+			    TEE_MATTR_MEM_TYPE_MASK;
+
+	return mem_type == TEE_MATTR_MEM_TYPE_CACHED ||
+	       mem_type == TEE_MATTR_MEM_TYPE_TAGGED;
+}
 #endif

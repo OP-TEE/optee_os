@@ -24,7 +24,8 @@
 #define I2C_CFG_SDA(__x)	(IOMUXC_I2C1_SDA_CFG_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SCL(__x)	(IOMUXC_I2C1_SCL_MUX_OFF + ((__x) - 1) * 0x8)
 #define I2C_MUX_SDA(__x)	(IOMUXC_I2C1_SDA_MUX_OFF + ((__x) - 1) * 0x8)
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP) || \
+	defined(CFG_MX8MN)
 /* IOMUX */
 #define I2C_INP_SCL(__x)	0 /* Not implemented */
 #define I2C_INP_SDA(__x)	0 /* Not implemented */
@@ -50,6 +51,7 @@
 #error IMX_I2C driver not supported on this platform
 #endif
 
+#if !defined(CFG_MX8MP)
 static struct io_pa_va i2c_bus[4] = {
 #if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
 #if defined(I2C1_BASE)
@@ -66,6 +68,31 @@ static struct io_pa_va i2c_bus[4] = {
 #endif
 #endif
 };
+#else
+static struct io_pa_va i2c_bus[6] = {
+#if !defined(CFG_DT) || defined(CFG_EXTERNAL_DTB_OVERLAY)
+#if defined(I2C1_BASE)
+	[0] = { .pa = I2C1_BASE, },
+#endif
+#if defined(I2C2_BASE)
+	[1] = { .pa = I2C2_BASE, },
+#endif
+#if defined(I2C3_BASE)
+	[2] = { .pa = I2C3_BASE, },
+#endif
+#if defined(I2C4_BASE)
+	[3] = { .pa = I2C4_BASE, },
+#endif
+#if defined(I2C5_BASE)
+	[4] = { .pa = I2C5_BASE, },
+#endif
+#if defined(I2C6_BASE)
+	[5] = { .pa = I2C6_BASE, },
+#endif
+
+#endif
+};
+#endif
 
 static struct imx_i2c_clk {
 	struct io_pa_va base;
@@ -190,7 +217,8 @@ static void i2c_set_bus_speed(uint8_t bid, int bps)
 	vaddr_t addr = i2c_clk.base.va;
 	uint32_t val = 0;
 
-#if defined(CFG_MX8MM) || defined(CFG_MX8MQ)
+#if defined(CFG_MX8MM) || defined(CFG_MX8MQ) || defined(CFG_MX8MP) || \
+	defined(CFG_MX8MN)
 	addr += CCM_CCGRx_SET(i2c_clk.i2c[bid]);
 	val = CCM_CCGRx_ALWAYS_ON(0);
 #elif defined(CFG_MX6ULL)
@@ -332,7 +360,12 @@ static TEE_Result i2c_init_transfer(uint8_t bid, uint8_t chip)
 		return ret;
 
 	/* Enable the interface */
-	i2c_io_write8(bid, I2CR, I2CR_IEN);
+	tmp = !(i2c_io_read8(bid, I2CR) & I2CR_IEN);
+	if (tmp) {
+		i2c_io_write8(bid, I2CR, I2CR_IEN);
+		udelay(50);
+	}
+	i2c_io_write8(bid, I2SR, 0);
 
 	tmp = i2c_io_read8(bid, I2CR) | I2CR_MSTA;
 	i2c_io_write8(bid, I2CR, tmp);
@@ -434,7 +467,7 @@ TEE_Result imx_i2c_init(uint8_t bid, int bps)
 	io_write32(mux->base.va + mux->i2c[bid].sda_cfg, I2C_CFG_VAL(bid));
 	if (mux->i2c[bid].sda_inp)
 		io_write32(mux->base.va + mux->i2c[bid].sda_inp,
-			   I2C_INP_VAL(bid + 1));
+			   I2C_INP_VAL(bid + 2));
 
 	/* Baud rate in bits per second */
 	i2c_set_bus_speed(bid, bps);
@@ -472,12 +505,13 @@ static TEE_Result i2c_mapped(const char *i2c_match)
 		if (off < 0)
 			break;
 
-		if (!(_fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
+		if (!(fdt_get_status(fdt, off) & DT_STATUS_OK_SEC)) {
 			EMSG("i2c%zu not enabled", i + 1);
 			continue;
 		}
 
-		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size) < 0) {
+		if (dt_map_dev(fdt, off, &i2c_bus[i].va, &size,
+			       DT_MAP_AUTO) < 0) {
 			EMSG("i2c%zu not enabled", i + 1);
 			continue;
 		}

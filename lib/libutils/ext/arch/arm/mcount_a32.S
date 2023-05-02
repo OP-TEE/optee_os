@@ -7,6 +7,8 @@
 
 #if defined(CFG_TA_GPROF_SUPPORT) || defined(CFG_FTRACE_SUPPORT)
 
+	.section .note.GNU-stack,"",%progbits
+
 /*
  * Convert return address to call site address by subtracting the size of the
  * mcount call instruction (blx __gnu_mcount_nc).

@@ -49,4 +49,23 @@ bool core_is_buffer_outside(paddr_t b, paddr_size_t bl,
 bool core_is_buffer_intersect(paddr_t b, paddr_size_t bl,
 			      paddr_t a, paddr_size_t al);
 
+/**
+ * Allocate maximum cache line aligned memory buffer.
+ *
+ * Both size and base address of the memory buffer will be maximum cache line
+ * aligned to make it safe to perform cache maintenance operations over the
+ * allocated area.
+ *
+ * This is needed when non-cache coherent peripherals are used and memory area
+ * is shared between CPU and peripheral.
+ *
+ * Allocated memory is zeroed.
+ *
+ * Release memory with free().
+ *
+ * @size   Size in bytes to allocate
+ * @return NULL on failure or a pointer to allocated memory on success.
+ */
+void *alloc_cache_aligned(size_t size);
+
 #endif /* TEE_MISC_H */

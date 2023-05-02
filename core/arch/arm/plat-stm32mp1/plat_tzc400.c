@@ -14,6 +14,13 @@
 #include <trace.h>
 #include <util.h>
 
+#ifdef CFG_STM32MP15
+#define TZC_FILTERS_MASK	GENMASK_32(1, 0)
+#endif
+#ifdef CFG_STM32MP13
+#define TZC_FILTERS_MASK	GENMASK_32(0, 0)
+#endif
+
 static enum itr_return tzc_it_handler(struct itr_handler *handler __unused)
 {
 	EMSG("TZC permission failure");
@@ -37,7 +44,7 @@ static bool tzc_region_is_non_secure(unsigned int i, vaddr_t base, size_t size)
 {
 	struct tzc_region_config region_cfg = { };
 	uint32_t ns_cpu_mask = TZC_REGION_ACCESS_RDWR(STM32MP1_TZC_A7_ID);
-	uint32_t filters_mask = GENMASK_32(1, 0);
+	uint32_t filters_mask = TZC_FILTERS_MASK;
 
 	if (tzc_get_region_config(i, &region_cfg))
 		panic();
@@ -51,7 +58,7 @@ static bool tzc_region_is_non_secure(unsigned int i, vaddr_t base, size_t size)
 static bool tzc_region_is_secure(unsigned int i, vaddr_t base, size_t size)
 {
 	struct tzc_region_config region_cfg = { };
-	uint32_t filters_mask = GENMASK_32(1, 0);
+	uint32_t filters_mask = TZC_FILTERS_MASK;
 
 	if (tzc_get_region_config(i, &region_cfg))
 		panic();

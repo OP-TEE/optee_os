@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2016-2020, STMicroelectronics
+ * Copyright (c) 2016-2022, STMicroelectronics
  * Copyright (c) 2018, Linaro Limited
  */
 #ifndef __STM32MP1_SMC_H__
@@ -72,7 +72,7 @@
 #define STM32_SIP_SVC_FUNC_VERSION		0xff03
 
 /*
- * SIP functions STM32_SIP_SVC_FUNC_BSEC
+ * SIP functions STM32_SIP_SVC_FUNC_BSEC - Deprecated
  *
  * Argument a0: (input) SMCCC function ID
  *		(output) status return code

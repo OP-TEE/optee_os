@@ -10,7 +10,7 @@
 #include <kernel/user_ta.h>
 
 /* Allocate context resources like ASID and MMU table information */
-TEE_Result vm_info_init(struct user_mode_ctx *uctx);
+TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx);
 
 /* Release context resources like ASID */
 void vm_info_final(struct user_mode_ctx *uctx);
@@ -62,6 +62,10 @@ TEE_Result vm_map_param(struct user_mode_ctx *uctx, struct tee_ta_param *param,
 			void *param_va[TEE_NUM_PARAMS]);
 void vm_clean_param(struct user_mode_ctx *uctx);
 
+/*
+ * These two functions are deprecated and should only be called from
+ * mobj_seccpy_shm_alloc() and mobj_seccpy_shm_free().
+ */
 TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
 			vaddr_t *va);
 void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va);

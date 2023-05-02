@@ -11,8 +11,7 @@
 #include <asm.S>
 #include <ffa.h>
 #include <generated/asm-defines.h>
-#include <keep.h>
-#include <kernel/thread_defs.h>
+#include <kernel/thread.h>
 #include <optee_ffa.h>
 
 FUNC thread_ffa_msg_wait , :
@@ -117,6 +116,13 @@ FUNC thread_rpc , :
 	store_xregs x0, THREAD_CTX_REGS_X19, 19, 30
 	mov	x19, x0
 
+#if defined(CFG_CORE_PAUTH)
+	/* Save APIAKEY */
+	read_apiakeyhi  x1
+	read_apiakeylo  x2
+	store_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+#endif
+
 	bl	thread_get_tmp_sp
 	pop	x1, xzr		/* Match "push x1, x30" above */
 	mov	x2, sp
@@ -157,7 +163,6 @@ FUNC thread_rpc , :
 	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
 END_FUNC thread_rpc
-DECLARE_KEEP_PAGER thread_rpc
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)

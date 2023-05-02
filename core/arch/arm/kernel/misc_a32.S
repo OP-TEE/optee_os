@@ -93,3 +93,16 @@ UNWIND(	.save	{r4, lr})
 	msr	cpsr, r4		/* back to the old mode */
 	pop	{r4, pc}
 END_FUNC read_mode_lr
+
+/* void wait_cycles(unsigned long cycles) */
+FUNC wait_cycles , :
+	/* Divide by 4 since each loop will take 4 cycles to complete */
+	lsrs	r0, r0, #2
+	bxeq	lr
+loop:
+	subs	r0, r0, #1
+	nop
+	bne	loop
+
+	bx lr
+END_FUNC wait_cycles

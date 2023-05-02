@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2020, ARM Limited. All rights reserved.
+ * Copyright (c) 2020-2022, ARM Limited. All rights reserved.
  */
 
 #ifndef __KERNEL_TPM_H__
@@ -18,6 +18,8 @@
  */
 TEE_Result tpm_get_event_log(void *buf, size_t *size);
 
+TEE_Result tpm_get_event_log_size(size_t *size);
+
 /*
  * Reads the TPM Event log information and store it internally.
  * If support for DTB is enabled, it will read the parameters there.
@@ -32,6 +34,11 @@ void tpm_map_log_area(void *fdt);
 
 static inline TEE_Result tpm_get_event_log(void *buf __unused,
 					   size_t *size __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result tpm_get_event_log_size(size_t *size __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }

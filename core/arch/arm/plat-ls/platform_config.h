@@ -38,46 +38,37 @@
 #define CONSOLE_UART_BASE		UART0_BASE
 
 /* Platform specific defines */
-#if defined(PLATFORM_FLAVOR_ls1021aqds) || defined(PLATFORM_FLAVOR_ls1021atwr)
-/*  DUART 1 */
-#define UART0_BASE			0x021C0500
-#define DCFG_BASE			0x01EE0000
-#define DCFG_CCSR_BRR			0xE4
-#define DCFG_SCRATCHRW1			0x200
-
-#define CSU_BASE			0x01510000
-#define CSU_CSL_START			0x0
-#define CSU_CSL_END			0xE8
-#define CSU_CSL30			0x78
-#define CSU_CSL37			0x94
-
-/* Central Security Unit register values */
-#define	CSU_ACCESS_ALL			0x00FF00FF
-#define	CSU_ACCESS_SEC_ONLY		0x003F003F
-#define CSU_SETTING_LOCK		0x01000100
-
-#define GIC_BASE			0x01400000
-#define GICC_OFFSET			0x2000
-#define GICD_OFFSET			0x1000
-#define CAAM_BASE			0x01700000
-#endif
-
-#if defined(PLATFORM_FLAVOR_ls1012ardb) || defined(PLATFORM_FLAVOR_ls1012afrwy)
+#if defined(PLATFORM_FLAVOR_ls1012ardb)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
 #define GIC_BASE			0x01400000
 #define GICC_OFFSET			0x2000
 #define GICD_OFFSET			0x1000
 #define CAAM_BASE			0x01700000
+#define CAAM_SIZE			0x100000
 #endif
 
-#if defined(PLATFORM_FLAVOR_ls1043ardb) || defined(PLATFORM_FLAVOR_ls1046ardb)
+#if defined(PLATFORM_FLAVOR_ls1043ardb)
+#define UART0_BASE		0x021C0500
+#define GIC_BASE		0x01400000
+#define GICC_OFFSET_REV1	0x2000
+#define GICD_OFFSET_REV1	0x1000
+#define GICC_OFFSET_REV1_1	0x20000
+#define GICD_OFFSET_REV1_1	0x10000
+#define CAAM_BASE		0x01700000
+#define CAAM_SIZE		0x100000
+#define DCFG_BASE		0x01EE0000
+#define DCFG_SVR_OFFSET		0xA4
+#endif
+
+#if defined(PLATFORM_FLAVOR_ls1046ardb)
 /*  DUART 1 */
 #define UART0_BASE			0x021C0500
 #define GIC_BASE			0x01400000
 #define GICC_OFFSET			0x20000
 #define GICD_OFFSET			0x10000
 #define CAAM_BASE			0x01700000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1088ardb)
@@ -87,6 +78,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls2088ardb)
@@ -96,6 +88,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_ls1028ardb)
@@ -105,6 +98,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_lx2160ardb)
@@ -114,6 +108,7 @@
 #define GICC_OFFSET			0x0
 #define GICD_OFFSET			0x0
 #define CAAM_BASE			0x08000000
+#define CAAM_SIZE			0x100000
 #endif
 
 #if defined(PLATFORM_FLAVOR_lx2160aqds)
@@ -123,6 +118,7 @@
 #define GICC_OFFSET                     0x0
 #define GICD_OFFSET                     0x0
 #define CAAM_BASE                       0x08000000
+#define CAAM_SIZE                       0x100000
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/

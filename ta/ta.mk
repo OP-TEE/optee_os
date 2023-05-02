@@ -12,6 +12,11 @@ include mk/$(COMPILER_$(sm)).mk
 # Config flags from mk/config.mk
 #
 
+ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR) := -fstack-protector
+ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_STRONG) := -fstack-protector-strong
+ta-stackp-cflags-$(CFG_TA_STACK_PROTECTOR_ALL) := -fstack-protector-all
+$(sm)-platform-cflags += $(ta-stackp-cflags-y)
+
 ifeq ($(CFG_TA_MBEDTLS_SELF_TEST),y)
 $(sm)-platform-cppflags += -DMBEDTLS_SELF_TEST
 endif
@@ -34,9 +39,12 @@ ta-mk-file-export-vars-$(sm) += CFG_FTRACE_SUPPORT
 ta-mk-file-export-vars-$(sm) += CFG_UNWIND
 ta-mk-file-export-vars-$(sm) += CFG_TA_MCOUNT
 ta-mk-file-export-vars-$(sm) += CFG_TA_BTI
+ta-mk-file-export-vars-$(sm) += CFG_TA_PAUTH
 ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
 ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_nl_
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
+ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
+ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -92,7 +100,7 @@ ta-mk-file-export-vars-$(sm) += CFG_TA_MBEDTLS
 
 libname = utee
 libdir = lib/libutee
-libuuid = 527f1a47-b92c-4a74-95bd-72f19f4a6f74
+libuuid = 4b3d937e-d57e-418b-8673-1c04f2420226
 libl = mbedtls utils
 include mk/lib.mk
 
@@ -117,7 +125,10 @@ incfiles-extra-host += core/include/signed_hdr.h
 ifeq ($(ta-target),ta_arm32)
 incfiles-extra-host += $(out-dir)/include/generated/arm32_user_sysreg.h
 endif
-
+ifeq ($(CFG_SPMC_TESTS),y)
+incfiles-extra-host += core/arch/arm/include/ffa.h
+incfiles-extra-host += core/arch/arm/include/smccc.h
+endif
 #
 # Copy lib files and exported headers from each lib
 #
@@ -142,7 +153,7 @@ $(foreach f, $(libfiles), \
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
 	mk/cc-option.mk \
-	ta/arch/$(ARCH)/link.mk ta/arch/$(ARCH)/link_shlib.mk \
+	ta/link.mk ta/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 
 $(foreach f, $(ta-mkfiles), \
@@ -164,7 +175,7 @@ $(foreach f, $(incfiles-extra-host), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/host_include)))
 
 # Copy the src files
-ta-srcfiles = ta/arch/$(ARCH)/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
+ta-srcfiles = ta/user_ta_header.c ta/arch/$(ARCH)/ta.ld.S
 ifeq ($(ta-target),ta_arm32)
 ta-srcfiles += ta/arch/$(ARCH)/ta_entry_a32.S
 endif

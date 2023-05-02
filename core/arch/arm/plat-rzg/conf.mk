@@ -37,10 +37,7 @@ CFG_TZDRAM_START ?= 0x44100000
 CFG_TZDRAM_SIZE ?= 0x03D00000
 CFG_TEE_RAM_VA_SIZE ?= 0x100000
 ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
 supported-ta-targets = ta_arm64
-else
-$(call force,CFG_ARM32_core,y)
 endif
 
 CFG_DT ?= y

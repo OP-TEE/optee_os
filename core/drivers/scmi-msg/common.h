@@ -15,7 +15,11 @@
 #define SCMI_VERSION			0x30000
 #define SCMI_IMPL_VERSION		0
 
-#define SCMI_PLAYLOAD_MAX		92
+/*
+ * Secure copy of input payload: we expect small messages, at most the legacy
+ * SMT messages that are 128 bytes (Linux kernel) including SMT header.
+ */
+#define SCMI_SEC_PAYLOAD_SIZE		92
 
 /*
  * Copy name identifier in target buffer following the SCMI specification
@@ -109,4 +113,38 @@ void scmi_write_response(struct scmi_msg *msg, void *payload, size_t size);
  * @status: SCMI status value returned to caller
  */
 void scmi_status_response(struct scmi_msg *msg, int32_t status);
+
+/*
+ * Claim access to channel
+ * @channel: SCMI channel reference
+ * Return true upon success or false if the channel is already busy
+ */
+bool scmi_msg_claim_channel(struct scmi_msg_channel *channel);
+
+/*
+ * Release access channel
+ * @channel: SCMI channel reference
+ */
+void scmi_msg_release_channel(struct scmi_msg_channel *channel);
+
+/*
+ * Entry for processing a channel using SMT shared memory protocol
+ * @channel_id: SCMI channel identifier provided by client
+ * @payload_buf: Secure buffer where to copy input message
+ */
+void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf);
+
+/*
+ * Entry for processing a channel using SMT shared memory protocol
+ *
+ * @channel_id: SCMI channel identifier provided by client
+ * @in_buf: Shared buffer storing input SCMI message
+ * @in_size: Byte size of @in_buf, including MSG header and message payload
+ * @out_buf: Shared buffer storing input SCMI message
+ * @out_size: [in] @out_buf max byte size
+ *            [out] @out_buf output byte size (MSG header and message payload)
+ * @sec_buf: Secure buffer where to copy input message
+ */
+TEE_Result scmi_entry_msg(unsigned int channel_id, void *in_buf, size_t in_size,
+			  void *out_buf, size_t *out_size, uint32_t *sec_buf);
 #endif /* SCMI_MSG_COMMON_H */

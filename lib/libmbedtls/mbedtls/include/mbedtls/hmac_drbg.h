@@ -41,10 +41,14 @@
 /*
  * Error codes
  */
-#define MBEDTLS_ERR_HMAC_DRBG_REQUEST_TOO_BIG              -0x0003  /**< Too many random requested in single call. */
-#define MBEDTLS_ERR_HMAC_DRBG_INPUT_TOO_BIG                -0x0005  /**< Input too large (Entropy + additional). */
-#define MBEDTLS_ERR_HMAC_DRBG_FILE_IO_ERROR                -0x0007  /**< Read/write error in file. */
-#define MBEDTLS_ERR_HMAC_DRBG_ENTROPY_SOURCE_FAILED        -0x0009  /**< The entropy source failed. */
+/** Too many random requested in single call. */
+#define MBEDTLS_ERR_HMAC_DRBG_REQUEST_TOO_BIG              -0x0003
+/** Input too large (Entropy + additional). */
+#define MBEDTLS_ERR_HMAC_DRBG_INPUT_TOO_BIG                -0x0005
+/** Read/write error in file. */
+#define MBEDTLS_ERR_HMAC_DRBG_FILE_IO_ERROR                -0x0007
+/** The entropy source failed. */
+#define MBEDTLS_ERR_HMAC_DRBG_ENTROPY_SOURCE_FAILED        -0x0009
 
 /**
  * \name SECTION: Module settings
@@ -70,7 +74,7 @@
 #define MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT    384     /**< Maximum size of (re)seed buffer */
 #endif
 
-/* \} name SECTION: Module settings */
+/** \} name SECTION: Module settings */
 
 #define MBEDTLS_HMAC_DRBG_PR_OFF   0   /**< No prediction resistance       */
 #define MBEDTLS_HMAC_DRBG_PR_ON    1   /**< Prediction resistance enabled  */
@@ -203,7 +207,7 @@ int mbedtls_hmac_drbg_seed( mbedtls_hmac_drbg_context *ctx,
                     size_t len );
 
 /**
- * \brief               Initilisation of simpified HMAC_DRBG (never reseeds).
+ * \brief               Initialisation of simplified HMAC_DRBG (never reseeds).
  *
  * This function is meant for use in algorithms that need a pseudorandom
  * input such as deterministic ECDSA.

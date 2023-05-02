@@ -7,6 +7,8 @@
 #include <tee_syscall_numbers.h>
 #include <asm.S>
 
+	.section .note.GNU-stack,"",%progbits
+
         .section .text
         .balign 4
         .code 32
@@ -55,4 +57,4 @@ UNWIND(	.save	{lr})
 	/* Not reached */
 	END_FUNC _utee_panic
 
-#include "utee_syscalls_asm.S"
+#include <utee_syscalls_asm.S>

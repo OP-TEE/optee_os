@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2018-2019, Linaro Limited
+ * Copyright (c) 2018-2019, 2022 Linaro Limited
  * Copyright (c) 2020-2021, Arm Limited
  */
 
@@ -46,7 +46,7 @@ TEE_Result ldelf_syscall_map_zi(vaddr_t *va, size_t num_bytes, size_t pad_begin,
 	f = fobj_ta_mem_alloc(ROUNDUP_DIV(num_bytes, SMALL_PAGE_SIZE));
 	if (!f)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	mobj = mobj_with_fobj_alloc(f, NULL);
+	mobj = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 	fobj_put(f);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -340,7 +340,8 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 			goto err;
 		}
 
-		mobj = mobj_with_fobj_alloc(fs->fobj, binh->f);
+		mobj = mobj_with_fobj_alloc(fs->fobj, binh->f,
+					    TEE_MATTR_MEM_TYPE_TAGGED);
 		if (!mobj) {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 			goto err;
@@ -365,7 +366,7 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 			vm_flags |= VM_FLAG_READONLY;
 		}
 
-		mobj = mobj_with_fobj_alloc(f, file);
+		mobj = mobj_with_fobj_alloc(f, file, TEE_MATTR_MEM_TYPE_TAGGED);
 		fobj_put(f);
 		if (!mobj) {
 			res = TEE_ERROR_OUT_OF_MEMORY;

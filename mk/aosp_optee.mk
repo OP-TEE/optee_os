@@ -8,6 +8,7 @@
 ##    OPTEE_PLATFORM                                    ##
 ##    OPTEE_PLATFORM_FLAVOR                             ##
 ##    OPTEE_EXTRA_FLAGS (optional)                      ##
+##    OPTEE_EXTRA_TA_FLAGS (optional)                   ##
 ## And BUILD_OPTEE_MK needs to be defined in optee*.mk  ##
 ## to point to this file                                ##
 ##                                                      ##
@@ -56,10 +57,10 @@ OPTEE_OS_OUT_DIR ?= $(OPTEE_OUT_DIR)/arm-plat-$(OPTEE_PLATFORM)
 ABS_OPTEE_OS_OUT_DIR := $(ABS_OPTEE_OUT_DIR)/arm-plat-$(OPTEE_PLATFORM)
 TA_DEV_KIT_DIR := $(ABS_OPTEE_OS_OUT_DIR)/export-${OPTEE_TA_TARGETS}
 
-CROSS_COMPILE64 := $(TOP_ROOT_ABS)/$(TARGET_TOOLS_PREFIX)
+CROSS_COMPILE64 ?= $(TOP_ROOT_ABS)/$(TARGET_TOOLS_PREFIX)
 CROSS_COMPILE_LINE := CROSS_COMPILE64="$(CROSS_COMPILE64)"
 ifneq ($(strip $($(combo_2nd_arch_prefix)TARGET_TOOLS_PREFIX)),)
-CROSS_COMPILE32 := $(TOP_ROOT_ABS)/$($(combo_2nd_arch_prefix)TARGET_TOOLS_PREFIX)
+CROSS_COMPILE32 ?= $(TOP_ROOT_ABS)/$($(combo_2nd_arch_prefix)TARGET_TOOLS_PREFIX)
 CROSS_COMPILE_LINE += CROSS_COMPILE32="$(CROSS_COMPILE32)"
 endif
 
@@ -126,7 +127,8 @@ $(TA_TMP_FILE): $(OPTEE_BIN)
 	@echo "Start building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(ABS_OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
 		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
-		$(CROSS_COMPILE_LINE)
+		$(CROSS_COMPILE_LINE) \
+		$(OPTEE_EXTRA_TA_FLAGS)
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 
 include $(BUILD_PREBUILT)

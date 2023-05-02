@@ -89,6 +89,14 @@
 		states = <1800000 0x1>,
 			 <2900000 0x0>;
 	};
+
+	vin: vin {
+		compatible = "regulator-fixed";
+		regulator-name = "vin";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
 };
 
 &adc {
@@ -107,6 +115,20 @@
 	};
 };
 
+&bsec {
+	board_id: board_id@ec {
+		reg = <0xec 0x4>;
+		st,non-secure-otp;
+	};
+	huk_otp: huk-otp@f0 {
+		reg = <0xf0 0x10>;
+	};
+};
+
+&crc1 {
+	status = "disabled";
+};
+
 &dac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dac_ch1_pins_a &dac_ch2_pins_a>;
@@ -121,19 +143,24 @@
 };
 
 &dts {
-	status = "okay";
+	status = "disabled";
 };
 
 &gpu {
 	contiguous-area = <&gpu_reserved>;
-	status = "okay";
+};
+
+&hash1 {
+	status = "disabled";
 };
 
 &i2c4 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c4_pins_a>;
+	pinctrl-1 = <&i2c4_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
+	clock-frequency = <400000>;
 	status = "okay";
 	/* spare dmas for other usage */
 	/delete-property/dmas;
@@ -149,11 +176,18 @@
 
 		regulators {
 			compatible = "st,stpmic1-regulators";
+			buck1-supply = <&vin>;
+			buck2-supply = <&vin>;
+			buck3-supply = <&vin>;
+			buck4-supply = <&vin>;
 			ldo1-supply = <&v3v3>;
 			ldo2-supply = <&v3v3>;
 			ldo3-supply = <&vdd_ddr>;
+			ldo4-supply = <&vin>;
 			ldo5-supply = <&v3v3>;
 			ldo6-supply = <&v3v3>;
+			vref_ddr-supply = <&vin>;
+			boost-supply = <&vin>;
 			pwr_sw1-supply = <&bst_out>;
 			pwr_sw2-supply = <&bst_out>;
 
@@ -218,8 +252,6 @@
 
 			vdd_usb: ldo4 {
 				regulator-name = "vdd_usb";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
 				interrupts = <IT_CURLIM_LDO4 0>;
 			};
 
@@ -241,7 +273,6 @@
 			vref_ddr: vref_ddr {
 				regulator-name = "vref_ddr";
 				regulator-always-on;
-				regulator-over-current-protection;
 			};
 
 			bst_out: boost {
@@ -266,7 +297,7 @@
 			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 0>;
 			interrupt-names = "onkey-falling", "onkey-rising";
 			power-off-time-sec = <10>;
-			status = "okay";
+			status = "disabled";
 		};
 
 		watchdog {
@@ -277,22 +308,27 @@
 };
 
 &ipcc {
-	status = "okay";
+	status = "disabled";
+};
+
+&iwdg1 {
+	timeout-sec = <32>;
 };
 
 &iwdg2 {
 	timeout-sec = <32>;
 	status = "okay";
+	secure-status = "disabled";
 };
 
 &m4_rproc {
 	memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
 			<&vdev0vring1>, <&vdev0buffer>;
-	mboxes = <&ipcc 0>, <&ipcc 1>, <&ipcc 2>;
-	mbox-names = "vq0", "vq1", "shutdown";
+	mboxes = <&ipcc 0>, <&ipcc 1>, <&ipcc 2>, <&ipcc 3>;
+	mbox-names = "vq0", "vq1", "shutdown", "detach";
 	interrupt-parent = <&exti>;
 	interrupts = <68 1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pwr_regulators {
@@ -300,12 +336,16 @@
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
 };
 
+&rcc {
+	status = "okay";
+};
+
 &rng1 {
 	status = "okay";
 };
 
 &rtc {
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc1 {
@@ -313,14 +353,19 @@
 	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
 	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
-	broken-cd;
+	cd-gpios = <&gpiog 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	disable-wp;
 	st,sig-dir;
 	st,neg-edge;
 	st,use-ckin;
 	bus-width = <4>;
 	vmmc-supply = <&vdd_sd>;
 	vqmmc-supply = <&sd_switch>;
-	status = "okay";
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-ddr50;
+	status = "disabled";
 };
 
 &sdmmc2 {
@@ -334,13 +379,13 @@
 	st,neg-edge;
 	bus-width = <8>;
 	vmmc-supply = <&v3v3>;
-	vqmmc-supply = <&v3v3>;
+	vqmmc-supply = <&vdd>;
 	mmc-ddr-3_3v;
-	status = "okay";
+	status = "disabled";
 };
 
 &timers6 {
-	status = "okay";
+	status = "disabled";
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
@@ -350,30 +395,23 @@
 };
 
 &uart4 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&uart4_pins_a>;
+	pinctrl-1 = <&uart4_sleep_pins_a>;
+	pinctrl-2 = <&uart4_idle_pins_a>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
 	status = "okay";
+};
+
+&usbotg_hs {
+	vbus-supply = <&vbus_otg>;
 };
 
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };
 
 &usbphyc_port1 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
-};
-
-&rcc {
-	status = "okay";
-};
-
-&bsec {
-	board_id: board_id@ec {
-		reg = <0xec 0x4>;
-		st,non-secure-otp;
-	};
 };

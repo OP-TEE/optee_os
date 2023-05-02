@@ -20,6 +20,15 @@
 #define MIDR_IMPLEMENTER_MASK		(BIT(MIDR_IMPLEMENTER_WIDTH) - 1)
 #define MIDR_IMPLEMENTER_ARM		U(0x41)
 
+#define MIDR_VARIANT_SHIFT		U(20)
+#define MIDR_VARIANT_WIDTH		U(4)
+#define MIDR_VARIANT_MASK		(BIT(MIDR_VARIANT_WIDTH) - 1)
+
+#define MIDR_REVISION_SHIFT		U(0)
+#define MIDR_REVISION_WIDTH		U(4)
+#define MIDR_REVISION_MASK		(BIT(MIDR_REVISION_WIDTH) - 1)
+
+#define CORTEX_A5_PART_NUM		U(0xC05)
 #define CORTEX_A7_PART_NUM		U(0xC07)
 #define CORTEX_A8_PART_NUM		U(0xC08)
 #define CORTEX_A9_PART_NUM		U(0xC09)
@@ -29,6 +38,21 @@
 #define CORTEX_A72_PART_NUM		U(0xD08)
 #define CORTEX_A73_PART_NUM		U(0xD09)
 #define CORTEX_A75_PART_NUM		U(0xD0A)
+#define CORTEX_A65_PART_NUM		U(0xD06)
+#define CORTEX_A65AE_PART_NUM		U(0xD43)
+#define CORTEX_A76_PART_NUM		U(0xD0B)
+#define CORTEX_A76AE_PART_NUM		U(0xD0E)
+#define CORTEX_A77_PART_NUM		U(0xD0D)
+#define CORTEX_A78_PART_NUM		U(0xD41)
+#define CORTEX_A78AE_PART_NUM		U(0xD42)
+#define CORTEX_A78C_PART_NUM		U(0xD4B)
+#define CORTEX_A710_PART_NUM		U(0xD47)
+#define CORTEX_X1_PART_NUM		U(0xD44)
+#define CORTEX_X2_PART_NUM		U(0xD48)
+#define NEOVERSE_E1_PART_NUM		U(0xD4A)
+#define NEOVERSE_N1_PART_NUM		U(0xD0C)
+#define NEOVERSE_N2_PART_NUM		U(0xD49)
+#define NEOVERSE_V1_PART_NUM		U(0xD40)
 
 /* MPIDR definitions */
 #define MPIDR_AFFINITY_BITS	U(8)
@@ -125,6 +149,33 @@ static inline bool feat_bti_is_implemented(void)
 		FEAT_BTI_IMPLEMENTED);
 #endif
 }
+
+static inline unsigned int feat_mte_implemented(void)
+{
+#ifdef ARM32
+	return 0;
+#else
+	return (read_id_aa64pfr1_el1() >> ID_AA64PFR1_EL1_MTE_SHIFT) &
+	       ID_AA64PFR1_EL1_MTE_MASK;
+#endif
+}
+
+static inline bool feat_pauth_is_implemented(void)
+{
+#ifdef ARM32
+	return false;
+#else
+	uint64_t mask =
+		SHIFT_U64(ID_AA64ISAR1_GPI_MASK, ID_AA64ISAR1_GPI_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_GPA_MASK, ID_AA64ISAR1_GPA_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_API_MASK, ID_AA64ISAR1_API_SHIFT) |
+		SHIFT_U64(ID_AA64ISAR1_APA_MASK, ID_AA64ISAR1_APA_SHIFT);
+
+	/* If any of the fields is not zero, PAuth is implemented by arch */
+	return (read_id_aa64isar1_el1() & mask) != 0U;
+#endif
+}
+
 #endif
 
 #endif /*ARM_H*/

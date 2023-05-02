@@ -1,25 +1,18 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 #ifdef LTC_PBES
 
-static const char * const _oid_pbes2 =  "1.2.840.113549.1.5.13";
-static const char * const _oid_pbkdf2 = "1.2.840.113549.1.5.12";
+static const char * const s_oid_pbes2 =  "1.2.840.113549.1.5.13";
+static const char * const s_oid_pbkdf2 = "1.2.840.113549.1.5.12";
 
 typedef struct {
    const char *oid;
    const char *id;
 } oid_id_st;
 
-static const oid_id_st _hmac_oid_names[] = {
+static const oid_id_st s_hmac_oid_names[] = {
    { "1.2.840.113549.2.7",  "sha1" },
    { "1.2.840.113549.2.8",  "sha224" },
    { "1.2.840.113549.2.9",  "sha256" },
@@ -29,7 +22,7 @@ static const oid_id_st _hmac_oid_names[] = {
    { "1.2.840.113549.2.13", "sha512-256" },
 };
 
-static const pbes_properties _pbes2_default_types[] = {
+static const pbes_properties s_pbes2_default_types[] = {
    { pkcs_5_alg2, "sha1",   "des",   8, 0 },
    { pkcs_5_alg2, "sha1",   "rc2",   4, 0 },
    { pkcs_5_alg2, "sha1",   "3des", 24, 0 },
@@ -43,29 +36,29 @@ typedef struct {
    const char* oid;
 } oid_to_pbes;
 
-static const oid_to_pbes _pbes2_list[] = {
-   { &_pbes2_default_types[0], "1.3.14.3.2.7"            },  /* http://www.oid-info.com/get/1.3.14.3.2.7            desCBC */
-   { &_pbes2_default_types[1], "1.2.840.113549.3.2"      },  /* http://www.oid-info.com/get/1.2.840.113549.3.2      rc2CBC */
-   { &_pbes2_default_types[2], "1.2.840.113549.3.7"      },  /* http://www.oid-info.com/get/1.2.840.113549.3.7      des-EDE3-CBC */
-   { &_pbes2_default_types[3], "2.16.840.1.101.3.4.1.2"  },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.2  aes128-CBC */
-   { &_pbes2_default_types[4], "2.16.840.1.101.3.4.1.22" },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.22 aes192-CBC */
-   { &_pbes2_default_types[5], "2.16.840.1.101.3.4.1.42" },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.42 aes256-CBC */
+static const oid_to_pbes s_pbes2_list[] = {
+   { &s_pbes2_default_types[0], "1.3.14.3.2.7"            },  /* http://www.oid-info.com/get/1.3.14.3.2.7            desCBC */
+   { &s_pbes2_default_types[1], "1.2.840.113549.3.2"      },  /* http://www.oid-info.com/get/1.2.840.113549.3.2      rc2CBC */
+   { &s_pbes2_default_types[2], "1.2.840.113549.3.7"      },  /* http://www.oid-info.com/get/1.2.840.113549.3.7      des-EDE3-CBC */
+   { &s_pbes2_default_types[3], "2.16.840.1.101.3.4.1.2"  },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.2  aes128-CBC */
+   { &s_pbes2_default_types[4], "2.16.840.1.101.3.4.1.22" },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.22 aes192-CBC */
+   { &s_pbes2_default_types[5], "2.16.840.1.101.3.4.1.42" },  /* http://www.oid-info.com/get/2.16.840.1.101.3.4.1.42 aes256-CBC */
 };
 
-static int _pbes2_from_oid(const ltc_asn1_list *cipher_oid, const ltc_asn1_list *hmac_oid, pbes_properties *res)
+static int s_pbes2_from_oid(const ltc_asn1_list *cipher_oid, const ltc_asn1_list *hmac_oid, pbes_properties *res)
 {
    unsigned int i;
-   for (i = 0; i < sizeof(_pbes2_list)/sizeof(_pbes2_list[0]); ++i) {
-      if (pk_oid_cmp_with_asn1(_pbes2_list[i].oid, cipher_oid) == CRYPT_OK) {
-         *res = *_pbes2_list[i].data;
+   for (i = 0; i < sizeof(s_pbes2_list)/sizeof(s_pbes2_list[0]); ++i) {
+      if (pk_oid_cmp_with_asn1(s_pbes2_list[i].oid, cipher_oid) == CRYPT_OK) {
+         *res = *s_pbes2_list[i].data;
          break;
       }
    }
    if (res->c == NULL) return CRYPT_INVALID_CIPHER;
    if (hmac_oid != NULL) {
-      for (i = 0; i < sizeof(_hmac_oid_names)/sizeof(_hmac_oid_names[0]); ++i) {
-         if (pk_oid_cmp_with_asn1(_hmac_oid_names[i].oid, hmac_oid) == CRYPT_OK) {
-            res->h = _hmac_oid_names[i].id;
+      for (i = 0; i < sizeof(s_hmac_oid_names)/sizeof(s_hmac_oid_names[0]); ++i) {
+         if (pk_oid_cmp_with_asn1(s_hmac_oid_names[i].oid, hmac_oid) == CRYPT_OK) {
+            res->h = s_hmac_oid_names[i].id;
             return CRYPT_OK;
          }
       }
@@ -91,7 +84,7 @@ int pbes2_extract(const ltc_asn1_list *s, pbes_arg *res)
    LTC_ARGCHK(s   != NULL);
    LTC_ARGCHK(res != NULL);
 
-   if ((err = pk_oid_cmp_with_asn1(_oid_pbes2, s)) != CRYPT_OK) return err;
+   if ((err = pk_oid_cmp_with_asn1(s_oid_pbes2, s)) != CRYPT_OK) return err;
 
    if (!LTC_ASN1_IS_TYPE(s->next, LTC_ASN1_SEQUENCE) ||
        !LTC_ASN1_IS_TYPE(s->next->child, LTC_ASN1_SEQUENCE) ||
@@ -122,7 +115,7 @@ int pbes2_extract(const ltc_asn1_list *s, pbes_arg *res)
    lkdf = s->next->child->child;
    lenc = s->next->child->next->child;
 
-   if ((err = pk_oid_cmp_with_asn1(_oid_pbkdf2, lkdf)) != CRYPT_OK) return err;
+   if ((err = pk_oid_cmp_with_asn1(s_oid_pbkdf2, lkdf)) != CRYPT_OK) return err;
 
    if (!LTC_ASN1_IS_TYPE(lkdf->next, LTC_ASN1_SEQUENCE) ||
        !LTC_ASN1_IS_TYPE(lkdf->next->child, LTC_ASN1_OCTET_STRING) ||
@@ -147,7 +140,7 @@ int pbes2_extract(const ltc_asn1_list *s, pbes_arg *res)
        LTC_ASN1_IS_TYPE(loptseq->child, LTC_ASN1_OBJECT_IDENTIFIER)) {
       lhmac = loptseq->child;
    }
-   if ((err = _pbes2_from_oid(lenc, lhmac, &res->type)) != CRYPT_OK) return err;
+   if ((err = s_pbes2_from_oid(lenc, lhmac, &res->type)) != CRYPT_OK) return err;
 
    if (LTC_ASN1_IS_TYPE(lenc->next, LTC_ASN1_OCTET_STRING)) {
       /* 'NON-RC2'-CBC */
@@ -203,7 +196,3 @@ int pbes2_extract(const ltc_asn1_list *s, pbes_arg *res)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

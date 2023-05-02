@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -30,13 +23,9 @@ int ed25519_export(       unsigned char *out, unsigned long *outlen,
 {
    LTC_ARGCHK(key != NULL);
 
-   if (key->algo != PKA_ED25519) return CRYPT_PK_INVALID_TYPE;
+   if (key->algo != LTC_OID_ED25519) return CRYPT_PK_INVALID_TYPE;
 
    return ec25519_export(out, outlen, which, key);
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -15,6 +15,7 @@
 #define ASAN_BLOCK_MASK		(ASAN_BLOCK_SIZE - 1)
 
 #ifndef __ASSEMBLER__
+#include <compiler.h>
 #include <string.h>
 #include <types_ext.h>
 

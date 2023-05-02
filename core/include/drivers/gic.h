@@ -9,15 +9,20 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
+#if defined(CFG_ARM_GICV3)
 #define GIC_DIST_REG_SIZE	0x10000
 #define GIC_CPU_REG_SIZE	0x10000
+#else
+#define GIC_DIST_REG_SIZE	0x1000
+#define GIC_CPU_REG_SIZE	0x1000
+#endif
 
 #define GIC_PPI_BASE		U(16)
 #define GIC_SPI_BASE		U(32)
 
-#define GIC_SGI(x)		(x)
-#define GIC_PPI(x)		((x) + GIC_PPI_BASE)
-#define GIC_SPI(x)		((x) + GIC_SPI_BASE)
+#define GIC_SGI_TO_ITNUM(x)	(x)
+#define GIC_PPI_TO_ITNUM(x)	((x) + GIC_PPI_BASE)
+#define GIC_SPI_TO_ITNUM(x)	((x) + GIC_SPI_BASE)
 
 struct gic_data {
 	vaddr_t gicc_base;
@@ -31,10 +36,10 @@ struct gic_data {
  * then used by the other functions.
  */
 
-void gic_init(struct gic_data *gd, vaddr_t gicc_base, vaddr_t gicd_base);
+void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa);
 /* initial base address only */
-void gic_init_base_addr(struct gic_data *gd, vaddr_t gicc_base,
-			vaddr_t gicd_base);
+void gic_init_base_addr(struct gic_data *gd, paddr_t gicc_base_pa,
+			paddr_t gicd_base_pa);
 /* initial cpu if only, mainly use for secondary cpu setup cpu interface */
 void gic_cpu_init(struct gic_data *gd);
 

@@ -142,4 +142,16 @@ static inline size_t confine_array_index(size_t index, size_t size) {
   return safe_index;
 }
 #endif
+
+#ifdef __riscv
+static inline size_t confine_array_index(size_t index, size_t size) {
+	/*
+	 * The naive C implementation without protection
+	 * against side-channel attacks.
+	 */
+	if (index < size)
+		return index;
+	return 0;
+}
+#endif
 #endif  // FBL_CONFINE_ARRAY_INDEX_H_

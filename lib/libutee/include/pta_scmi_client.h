@@ -59,10 +59,26 @@
 #define PTA_SCMI_CMD_GET_CHANNEL_HANDLE		3
 
 /*
+ * PTA_SCMI_CMD_PROCESS_MSG_CHANNEL - Process SCMI message in a MSG
+ * buffer pointed by memref parameters
+ *
+ * [in]     value[0].a: Channel handle
+ * [in]     memref[1]: Input message shared buffer
+ * [out]    memref[2]: Output message shared buffer
+ */
+#define PTA_SCMI_CMD_PROCESS_MSG_CHANNEL	4
+
+/*
  * Capabilities
  */
 
 /* Channel supports shared memory using the SMT header protocol */
 #define PTA_SCMI_CAPS_SMT_HEADER			BIT32(0)
+
+/* Channel supports shared memory using the MSG header protocol */
+#define PTA_SCMI_CAPS_MSG_HEADER			BIT32(1)
+
+/* Mask of defined capabilities */
+#define PTA_SCMI_CAPS_MASK				GENMASK_32(1, 0)
 
 #endif /* SCMI_PTA_SCMI_CLIENT_H */

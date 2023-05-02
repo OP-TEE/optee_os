@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -554,14 +547,8 @@ static const ulong64 table[4*256] = {
     CONST64(0xCD56D9430EA8280E) /* 1020 */, CONST64(0xC12591D7535F5065) /* 1021 */,
     CONST64(0xC83223F1720AEF96) /* 1022 */, CONST64(0xC3A0396F7363A51F) /* 1023 */};
 
-#ifdef _MSC_VER
-   #define INLINE __inline
-#else
-   #define INLINE
-#endif
-
 /* one round of the hash function */
-INLINE static void tiger_round(ulong64 *a, ulong64 *b, ulong64 *c, ulong64 x, int mul)
+LTC_INLINE static void tiger_round(ulong64 *a, ulong64 *b, ulong64 *c, ulong64 x, int mul)
 {
     ulong64 tmp;
     tmp = (*c ^= x);
@@ -575,7 +562,7 @@ INLINE static void tiger_round(ulong64 *a, ulong64 *b, ulong64 *c, ulong64 x, in
 }
 
 /* one complete pass */
-static void pass(ulong64 *a, ulong64 *b, ulong64 *c, const ulong64 *x, int mul)
+static void s_pass(ulong64 *a, ulong64 *b, ulong64 *c, const ulong64 *x, int mul)
 {
    tiger_round(a,b,c,x[0],mul);
    tiger_round(b,c,a,x[1],mul);
@@ -588,7 +575,7 @@ static void pass(ulong64 *a, ulong64 *b, ulong64 *c, const ulong64 *x, int mul)
 }
 
 /* The key mixing schedule */
-static void key_schedule(ulong64 *x)
+static void s_key_schedule(ulong64 *x)
 {
     x[0] -= x[7] ^ CONST64(0xA5A5A5A5A5A5A5A5);
     x[1] ^= x[0];
@@ -609,9 +596,9 @@ static void key_schedule(ulong64 *x)
 }
 
 #ifdef LTC_CLEAN_STACK
-static int _tiger_compress(hash_state *md, const unsigned char *buf)
+static int ss_tiger_compress(hash_state *md, const unsigned char *buf)
 #else
-static int  tiger_compress(hash_state *md, const unsigned char *buf)
+static int  s_tiger_compress(hash_state *md, const unsigned char *buf)
 #endif
 {
     ulong64 a, b, c, x[8];
@@ -625,11 +612,11 @@ static int  tiger_compress(hash_state *md, const unsigned char *buf)
     b = md->tiger.state[1];
     c = md->tiger.state[2];
 
-    pass(&a,&b,&c,x,5);
-    key_schedule(x);
-    pass(&c,&a,&b,x,7);
-    key_schedule(x);
-    pass(&b,&c,&a,x,9);
+    s_pass(&a,&b,&c,x,5);
+    s_key_schedule(x);
+    s_pass(&c,&a,&b,x,7);
+    s_key_schedule(x);
+    s_pass(&b,&c,&a,x,9);
 
     /* store state */
     md->tiger.state[0] = a ^ md->tiger.state[0];
@@ -640,10 +627,10 @@ static int  tiger_compress(hash_state *md, const unsigned char *buf)
 }
 
 #ifdef LTC_CLEAN_STACK
-static int tiger_compress(hash_state *md, const unsigned char *buf)
+static int s_tiger_compress(hash_state *md, const unsigned char *buf)
 {
    int err;
-   err = _tiger_compress(md, buf);
+   err = ss_tiger_compress(md, buf);
    burn_stack(sizeof(ulong64) * 11 + sizeof(unsigned long));
    return err;
 }
@@ -672,7 +659,7 @@ int tiger_init(hash_state *md)
    @param inlen  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-HASH_PROCESS(tiger_process, tiger_compress, tiger, 64)
+HASH_PROCESS(tiger_process, s_tiger_compress, tiger, 64)
 
 /**
    Terminate the hash to get the digest
@@ -702,7 +689,7 @@ int tiger_done(hash_state * md, unsigned char *out)
         while (md->tiger.curlen < 64) {
             md->tiger.buf[md->tiger.curlen++] = (unsigned char)0;
         }
-        tiger_compress(md, md->tiger.buf);
+        s_tiger_compress(md, md->tiger.buf);
         md->tiger.curlen = 0;
     }
 
@@ -713,7 +700,7 @@ int tiger_done(hash_state * md, unsigned char *out)
 
     /* store length */
     STORE64L(md->tiger.length, md->tiger.buf+56);
-    tiger_compress(md, md->tiger.buf);
+    s_tiger_compress(md, md->tiger.buf);
 
     /* copy output */
     STORE64L(md->tiger.state[0], &out[0]);
@@ -772,7 +759,7 @@ int  tiger_test(void)
 
   for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
       tiger_init(&md);
-      tiger_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      tiger_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       tiger_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "TIGER", i)) {
           return CRYPT_FAIL_TESTVECTOR;
@@ -807,7 +794,3 @@ Hash of "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-ABCDEFG
 
 
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

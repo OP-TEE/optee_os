@@ -8,12 +8,6 @@ $(call force,CFG_8250_UART,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
-$(call force,CFG_ARM32_core,y)
-endif
-
 # default DRAM base address
 CFG_DRAM_BASE ?= 0x40000000
 
@@ -57,6 +51,18 @@ $(call force,CFG_ARM_GICV3,y)
 $(call force,CFG_GIC,y)
 CFG_TZDRAM_START ?= 0x4fd00000
 CFG_TZDRAM_SIZE ?=  0x00300000
+CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
+CFG_SHMEM_SIZE ?= 0x00200000
+endif
+
+ifeq ($(PLATFORM_FLAVOR),mt8195)
+$(call force,CFG_TEE_CORE_NB_CORE,8)
+$(call force,CFG_CORE_CLUSTER_SHIFT,2)
+$(call force,CFG_ARM_GICV3,y)
+$(call force,CFG_GIC,y)
+$(call force,CFG_CORE_ARM64_PA_BITS,36)
+CFG_TZDRAM_START ?= 0x43200000
+CFG_TZDRAM_SIZE ?=  0x00a00000
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 CFG_SHMEM_SIZE ?= 0x00200000
 endif

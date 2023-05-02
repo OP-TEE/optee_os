@@ -28,7 +28,7 @@ void __weak console_putc(int ch)
 
 void __weak console_flush(void)
 {
-	if (!serial_console)
+	if (!serial_console || !serial_console->ops->flush)
 		return;
 
 	serial_console->ops->flush(serial_console);

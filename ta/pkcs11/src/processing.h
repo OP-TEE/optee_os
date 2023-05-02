@@ -45,6 +45,38 @@ struct rsa_oaep_processing_ctx {
 	uint8_t source_data[];
 };
 
+/**
+ * RSA AES key wrap processing context
+ *
+ * @hash_alg: Hash algorithm mechanism
+ * @mgf_type: Mask generator function
+ * @aes_key_bits: Length of AES key in bits
+ * @source_type: Type of source.
+ * @source_data_len: Length of the source data.
+ * @source_data: Source data.
+ */
+struct rsa_aes_key_wrap_processing_ctx {
+	enum pkcs11_mechanism_id hash_alg;
+	enum pkcs11_mgf_id mgf_type;
+	uint32_t aes_key_bits;
+	uint32_t source_type;
+	uint32_t source_data_len;
+	uint8_t source_data[];
+};
+
+/**
+ * EDDSA processing context
+ *
+ * @flag: Prehash flag
+ * @ctx_len: Length of the context data
+ * @ctx: Context data
+ */
+struct eddsa_processing_ctx {
+	uint32_t flag;
+	uint32_t ctx_len;
+	uint8_t ctx[];
+};
+
 /*
  * Entry points from PKCS11 TA invocation commands
  */
@@ -104,6 +136,14 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 				    enum processing_step step,
 				    uint32_t ptypes, TEE_Param *params);
 
+enum pkcs11_rc wrap_data_by_asymm_enc(struct pkcs11_session *session,
+				      void *data, uint32_t data_sz,
+				      void *out_buf, uint32_t *out_sz);
+
+enum pkcs11_rc unwrap_key_by_asymm(struct pkcs11_session *session, void *data,
+				   uint32_t data_sz, void **out_buf,
+				   uint32_t *out_sz);
+
 /*
  * Symmetric crypto algorithm specific functions
  */
@@ -152,6 +192,10 @@ enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
 				     size_t *tee_count,
 				     struct pkcs11_object *obj);
 
+enum pkcs11_rc load_tee_eddsa_key_attrs(TEE_Attribute **tee_attrs,
+					size_t *tee_count,
+					struct pkcs11_object *obj);
+
 size_t ec_params2tee_keysize(void *attr, size_t size);
 
 uint32_t ec_params2tee_curve(void *attr, size_t size);
@@ -163,6 +207,10 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
 				struct obj_attrs **pub_head,
 				struct obj_attrs **priv_head);
+
+enum pkcs11_rc generate_eddsa_keys(struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **pub_head,
+				   struct obj_attrs **priv_head);
 
 size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op);
 
@@ -187,13 +235,36 @@ enum pkcs11_rc
 pkcs2tee_proc_params_rsa_oaep(struct active_processing *proc,
 			      struct pkcs11_attribute_head *proc_params);
 
+enum pkcs11_rc
+pkcs2tee_proc_params_rsa_aes_wrap(struct active_processing *proc,
+				  struct pkcs11_attribute_head *proc_params);
+
+enum pkcs11_rc
+pkcs2tee_proc_params_eddsa(struct active_processing *proc,
+			   struct pkcs11_attribute_head *proc_params);
+
 enum pkcs11_rc pkcs2tee_algo_rsa_oaep(uint32_t *tee_id, uint32_t *tee_hash_id,
 				      struct pkcs11_attribute_head *params);
+
+enum pkcs11_rc
+pkcs2tee_algo_rsa_aes_wrap(uint32_t *tee_id, uint32_t *tee_hash_id,
+			   struct pkcs11_attribute_head *params);
 
 enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
 				 struct obj_attrs **pub_head,
 				 struct obj_attrs **priv_head);
 
 size_t rsa_get_input_max_byte_size(TEE_OperationHandle op);
+
+enum pkcs11_rc do_asymm_derivation(struct pkcs11_session *session,
+				   struct pkcs11_attribute_head *proc_params,
+				   struct obj_attrs **head);
+
+enum pkcs11_rc pkcs2tee_param_ecdh(struct pkcs11_attribute_head *proc_params,
+				   void **pub_data, size_t *pub_size);
+
+enum pkcs11_rc pkcs2tee_algo_ecdh(uint32_t *tee_id,
+				  struct pkcs11_attribute_head *proc_params,
+				  struct pkcs11_object *obj);
 
 #endif /*PKCS11_TA_PROCESSING_H*/

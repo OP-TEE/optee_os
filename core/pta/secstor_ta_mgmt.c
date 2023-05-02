@@ -149,7 +149,8 @@ static TEE_Result bootstrap(uint32_t param_types,
 	if (param_types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	shdr = shdr_alloc_and_copy(params->memref.buffer, params->memref.size);
+	shdr = shdr_alloc_and_copy(0, params->memref.buffer,
+				   params->memref.size);
 	if (!shdr)
 		return TEE_ERROR_SECURITY;
 

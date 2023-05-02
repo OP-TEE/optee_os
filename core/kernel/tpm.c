@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2020, ARM Limited. All rights reserved.
+ * Copyright (c) 2020-2022, ARM Limited. All rights reserved.
  */
 
 #include <compiler.h>
@@ -31,18 +31,23 @@ static int read_dt_tpm_log_info(void *fdt, int node, paddr_t *buf,
 	int len_prop = 0;
 	paddr_t log_addr = 0;
 	int err = 0;
+#ifdef CFG_MAP_EXT_DT_SECURE
+	const char *dt_tpm_event_log_addr = "tpm_event_log_addr";
+#else
+	const char *dt_tpm_event_log_addr = "tpm_event_log_sm_addr";
+#endif
 
 	/*
 	 * Get the TPM Log address.
 	 */
-	property = fdt_getprop(fdt, node, "tpm_event_log_sm_addr", &len_prop);
+	property = fdt_getprop(fdt, node, dt_tpm_event_log_addr, &len_prop);
 
 	if (!property  || len_prop != sizeof(uint32_t) * 2)
 		return -1;
 
 	log_addr = fdt32_to_cpu(property[1]);
 
-	err = fdt_setprop(fdt, node, "tpm_event_log_sm_addr", &zero_addr,
+	err = fdt_setprop(fdt, node, dt_tpm_event_log_addr, &zero_addr,
 			  sizeof(uint32_t) * 2);
 	if (err < 0) {
 		EMSG("Error setting property DTB to zero\n");
@@ -107,12 +112,19 @@ TEE_Result tpm_get_event_log(void *buf, size_t *size)
 	}
 
 	if (buf_size < tpm_log_size) {
-		EMSG("TPM: Not enough space for the log: %zu, %lu",
+		EMSG("TPM: Not enough space for the log: %zu, %zu",
 		     buf_size, tpm_log_size);
 		return TEE_ERROR_SHORT_BUFFER;
 	}
 
 	memcpy(buf, tpm_log_addr, tpm_log_size);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result tpm_get_event_log_size(size_t *size)
+{
+	*size = tpm_log_size;
 
 	return TEE_SUCCESS;
 }

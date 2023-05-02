@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2017, 2022 Linaro Limited
  */
 
 #ifndef __MM_MOBJ_H
@@ -29,7 +29,7 @@ struct mobj_ops {
 	TEE_Result (*get_pa)(struct mobj *mobj, size_t offs, size_t granule,
 			     paddr_t *pa);
 	size_t (*get_phys_offs)(struct mobj *mobj, size_t granule);
-	TEE_Result (*get_cattr)(struct mobj *mobj, uint32_t *cattr);
+	TEE_Result (*get_mem_type)(struct mobj *mobj, uint32_t *mt);
 	bool (*matches)(struct mobj *mobj, enum buf_is_attr attr);
 	void (*free)(struct mobj *mobj);
 	uint64_t (*get_cookie)(struct mobj *mobj);
@@ -75,10 +75,10 @@ static inline size_t mobj_get_phys_offs(struct mobj *mobj, size_t granule)
 	return 0;
 }
 
-static inline TEE_Result mobj_get_cattr(struct mobj *mobj, uint32_t *cattr)
+static inline TEE_Result mobj_get_mem_type(struct mobj *mobj, uint32_t *mt)
 {
-	if (mobj && mobj->ops && mobj->ops->get_cattr)
-		return mobj->ops->get_cattr(mobj, cattr);
+	if (mobj && mobj->ops && mobj->ops->get_mem_type)
+		return mobj->ops->get_mem_type(mobj, mt);
 	return TEE_ERROR_GENERIC;
 }
 
@@ -180,7 +180,7 @@ static inline uint64_t mobj_get_cookie(struct mobj *mobj)
 	if (mobj && mobj->ops && mobj->ops->get_cookie)
 		return mobj->ops->get_cookie(mobj);
 
-#if defined(CFG_CORE_SEL1_SPMC) || defined(CFG_CORE_SEL2_SPMC)
+#if defined(CFG_CORE_FFA)
 	return OPTEE_MSG_FMEM_INVALID_GLOBAL_ID;
 #else
 	return 0;
@@ -243,11 +243,9 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie);
 struct mobj_ffa *mobj_ffa_sel1_spmc_new(unsigned int num_pages);
 void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mobj);
 TEE_Result mobj_ffa_sel1_spmc_reclaim(uint64_t cookie);
-#endif
-#ifdef CFG_CORE_SEL2_SPMC
-struct mobj_ffa *mobj_ffa_sel2_spmc_new(uint64_t cookie,
-					unsigned int num_pages);
-void mobj_ffa_sel2_spmc_delete(struct mobj_ffa *mobj);
+#else
+struct mobj_ffa *mobj_ffa_spmc_new(uint64_t cookie, unsigned int num_pages);
+void mobj_ffa_spmc_delete(struct mobj_ffa *mobj);
 #endif
 
 uint64_t mobj_ffa_get_cookie(struct mobj_ffa *mobj);
@@ -301,6 +299,11 @@ static inline struct mobj *mobj_mapped_shm_alloc(paddr_t *pages __unused,
 {
 	return NULL;
 }
+
+static inline struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie __unused)
+{
+	return NULL;
+}
 #endif
 
 struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie);
@@ -316,6 +319,7 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 
 struct mobj *mobj_seccpy_shm_alloc(size_t size);
 
-struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file);
+struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file,
+				  uint32_t mem_type);
 
 #endif /*__MM_MOBJ_H*/

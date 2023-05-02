@@ -242,7 +242,7 @@ int tzc_auto_configure(vaddr_t addr, vaddr_t size, uint32_t attr,
 	 */
 	pow = tzc.addr_width;
 
-	while (lsize != 0 && pow > 15) {
+	while (lsize != 0 && pow >= 15) {
 		region_size = 1ULL << pow;
 
 		/* Case region fits alignment and covers requested area */
@@ -300,7 +300,7 @@ TEE_Result tzc_regions_lockdown(void)
 	uint32_t val = 0;
 	uint32_t check = 0;
 
-	val = LOCKDOWN_RANGE_ENABLE | tzc.num_regions;
+	val = LOCKDOWN_RANGE_ENABLE | (tzc.num_regions - 1);
 	io_write32(tzc.base + LOCKDOWN_RANGE_OFF, val);
 	check = io_read32(tzc.base + LOCKDOWN_RANGE_OFF);
 	if (check != val)

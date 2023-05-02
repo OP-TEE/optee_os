@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020, Linaro Limited
+ * Copyright (c) 2020-2022 Linaro Limited
  */
 
 #include <compiler.h>
@@ -13,6 +13,7 @@
 #include <kernel/tee_time.h>
 #include <kernel/trace_ta.h>
 #include <kernel/user_access.h>
+#include <memtag.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -28,25 +29,26 @@
 
 vaddr_t tee_svc_uref_base;
 
-void syscall_log(const void *buf __maybe_unused, size_t len __maybe_unused)
+void syscall_log(const void *buf, size_t len)
 {
-#ifdef CFG_TEE_CORE_TA_TRACE
-	char *kbuf;
+	if (IS_ENABLED(CFG_TEE_CORE_TA_TRACE)) {
+		char *kbuf = NULL;
+		size_t sz = 0;
 
-	if (len == 0)
-		return;
+		if (!len || ADD_OVERFLOW(len, 1, &sz))
+			return;
 
-	kbuf = malloc(len + 1);
-	if (kbuf == NULL)
-		return;
+		kbuf = malloc(sz);
+		if (!kbuf)
+			return;
 
-	if (copy_from_user(kbuf, buf, len) == TEE_SUCCESS) {
-		kbuf[len] = '\0';
-		trace_ext_puts(kbuf);
+		if (copy_from_user(kbuf, buf, len) == TEE_SUCCESS) {
+			kbuf[len] = '\0';
+			trace_ext_puts(kbuf);
+		}
+
+		free_wipe(kbuf);
 	}
-
-	free_wipe(kbuf);
-#endif
 }
 
 TEE_Result syscall_not_supported(void)
@@ -81,14 +83,13 @@ static const bool crypto_ecc_en;
 
 /*
  * Trusted storage anti rollback protection level
- * 0 (or missing): No antirollback protection (default)
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
 #ifdef CFG_RPMB_FS
 static const uint32_t ts_antiroll_prot_lvl = 1000;
 #else
-static const uint32_t ts_antiroll_prot_lvl;
+static const uint32_t ts_antiroll_prot_lvl = 100;
 #endif
 
 /* Trusted OS implementation version */
@@ -178,6 +179,19 @@ static TEE_Result get_prop_client_id(struct ts_session *sess,
 			    sizeof(TEE_Identity));
 }
 
+static TEE_Result get_prop_client_endian(struct ts_session *sess __unused,
+					 void *buf, size_t *blen)
+{
+	const uint32_t endian = 0; /* assume little-endian */
+
+	if (*blen < sizeof(endian)) {
+		*blen = sizeof(endian);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(endian);
+	return copy_to_user(buf, &endian, sizeof(endian));
+}
+
 static TEE_Result get_prop_ta_app_id(struct ts_session *sess,
 				     void *buf, size_t *blen)
 {
@@ -207,12 +221,54 @@ get_prop_feat_bti_implemented(struct ts_session *sess __unused, void *buf,
 }
 #endif
 
+#ifdef CFG_TA_PAUTH
+static TEE_Result
+get_prop_feat_pauth_implemented(struct ts_session *sess __unused, void *buf,
+				size_t *blen)
+{
+	bool pauth_impl = false;
+
+	if (*blen < sizeof(pauth_impl)) {
+		*blen = sizeof(pauth_impl);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(pauth_impl);
+	pauth_impl = feat_pauth_is_implemented();
+
+	return copy_to_user(buf, &pauth_impl, sizeof(pauth_impl));
+}
+#endif
+
+#if MEMTAG_IS_ENABLED
+static TEE_Result
+get_prop_feat_memtag_implemented(struct ts_session *sess __unused, void *buf,
+				 size_t *blen)
+{
+	uint32_t v = 0;
+
+	if (*blen < sizeof(v)) {
+		*blen = sizeof(v);
+		return TEE_ERROR_SHORT_BUFFER;
+	}
+	*blen = sizeof(v);
+	if (memtag_is_enabled())
+		v = feat_mte_implemented();
+
+	return copy_to_user(buf, &v, sizeof(v));
+}
+#endif
+
 /* Properties of the set TEE_PROPSET_CURRENT_CLIENT */
 const struct tee_props tee_propset_client[] = {
 	{
 		.name = "gpd.client.identity",
 		.prop_type = USER_TA_PROP_TYPE_IDENTITY,
 		.get_prop_func = get_prop_client_id
+	},
+	{
+		.name = "gpd.client.endian",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.get_prop_func = get_prop_client_endian
 	},
 };
 
@@ -321,6 +377,20 @@ const struct tee_props tee_propset_tee[] = {
 		.prop_type = USER_TA_PROP_TYPE_BOOL,
 		.get_prop_func = get_prop_feat_bti_implemented
 	},
+#endif
+#ifdef CFG_TA_PAUTH
+	{
+		.name = "org.trustedfirmware.optee.cpu.feat_pauth_implemented",
+		.prop_type = USER_TA_PROP_TYPE_BOOL,
+		.get_prop_func = get_prop_feat_pauth_implemented
+	},
+#endif
+#if MEMTAG_IS_ENABLED
+	{
+		.name = "org.trustedfirmware.optee.cpu.feat_memtag_implemented",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.get_prop_func = get_prop_feat_memtag_implemented
+	}
 #endif
 
 	/*
@@ -533,7 +603,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 			flags |= TEE_MEMORY_ACCESS_WRITE;
 			fallthrough;
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-			p->u[n].mem.offs = a;
+			p->u[n].mem.offs = memtag_strip_tag_vaddr((void *)a);
 			p->u[n].mem.size = b;
 
 			if (!p->u[n].mem.offs) {
@@ -615,6 +685,8 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 	void *va = NULL;
 	size_t n = 0;
 	size_t s = 0;
+
+	callee_params = memtag_strip_tag(callee_params);
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
@@ -929,7 +1001,7 @@ TEE_Result syscall_check_access_rights(unsigned long flags, const void *buf,
 	struct ts_session *s = ts_get_current_session();
 
 	return vm_check_access_rights(&to_user_ta_ctx(s->ctx)->uctx, flags,
-				      (uaddr_t)buf, len);
+				      memtag_strip_tag_vaddr(buf), len);
 }
 
 TEE_Result syscall_get_cancellation_flag(uint32_t *cancel)

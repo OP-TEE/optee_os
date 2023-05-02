@@ -67,6 +67,18 @@ enum dt_driver_type {
 	DT_DRIVER_UART,
 	DT_DRIVER_CLK,
 	DT_DRIVER_RSTCTRL,
+	DT_DRIVER_I2C,
+};
+
+/*
+ * DT_MAP_AUTO: Uses status properties from device tree to determine mapping.
+ * DT_MAP_SECURE: Force mapping for device to be secure.
+ * DT_MAP_NON_SECURE: Force mapping for device to be non-secure.
+ */
+enum dt_map_dev_directive {
+	DT_MAP_AUTO,
+	DT_MAP_SECURE,
+	DT_MAP_NON_SECURE
 };
 
 /*
@@ -125,10 +137,12 @@ const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs);
  * @base receives the base virtual address corresponding to the base physical
  * address of the "reg" property
  * @size receives the size of the mapping
+ * @mapping what kind of mapping is done for memory.
  *
  * Returns 0 on success or -1 in case of error.
  */
-int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size);
+int dt_map_dev(const void *fdt, int offs, vaddr_t *base, size_t *size,
+	       enum dt_map_dev_directive mapping);
 
 /*
  * Check whether the node at @offs contains the property with propname or not.
@@ -168,20 +182,20 @@ int dt_enable_secure_status(void *fdt, int node);
  * Return the base address for the "reg" property of the specified node or
  * (paddr_t)-1 in case of error
  */
-paddr_t _fdt_reg_base_address(const void *fdt, int offs);
+paddr_t fdt_reg_base_address(const void *fdt, int offs);
 
 /*
  * Return the reg size for the reg property of the specified node or -1 in case
  * of error
  */
-size_t _fdt_reg_size(const void *fdt, int offs);
+size_t fdt_reg_size(const void *fdt, int offs);
 
 /*
  * Read the status and secure-status properties into a bitfield.
  * Return -1 on failure, DT_STATUS_DISABLED if the node is disabled,
  * otherwise return a combination of DT_STATUS_OK_NSEC and DT_STATUS_OK_SEC.
  */
-int _fdt_get_status(const void *fdt, int offs);
+int fdt_get_status(const void *fdt, int offs);
 
 /*
  * fdt_fill_device_info - Get generic device info from a node
@@ -191,8 +205,53 @@ int _fdt_get_status(const void *fdt, int offs);
  * a single reset ID line and a single interrupt ID.
  * Default DT_INFO_* macros are used when the relate property is not found.
  */
-void _fdt_fill_device_info(const void *fdt, struct dt_node_info *info,
-			   int node);
+void fdt_fill_device_info(const void *fdt, struct dt_node_info *info,
+			  int node);
+/*
+ * Read cells from a given property of the given node. Any number of 32-bit
+ * cells of the property can be read. Returns 0 on success, or a negative
+ * FDT error value otherwise.
+ */
+int fdt_read_uint32_array(const void *fdt, int node, const char *prop_name,
+			  uint32_t *array, size_t count);
+
+/*
+ * Read one cell from a given multi-value property of the given node.
+ * Returns 0 on success, or a negative FDT error value otherwise.
+ */
+int fdt_read_uint32_index(const void *fdt, int node, const char *prop_name,
+			  int index, uint32_t *value);
+
+/*
+ * Read one cell from a given property of the given node.
+ * Returns 0 on success, or a negative FDT error value otherwise.
+ */
+int fdt_read_uint32(const void *fdt, int node, const char *prop_name,
+		    uint32_t *value);
+
+/*
+ * Read one cell from a property of a cell or default to a given value
+ * Returns the 32bit cell value or @dflt_value on failure.
+ */
+uint32_t fdt_read_uint32_default(const void *fdt, int node,
+				 const char *prop_name, uint32_t dflt_value);
+
+/*
+ * This function fills reg node info (base & size) with an index.
+ *
+ * Returns 0 on success and a negative FDT error code on failure.
+ */
+int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
+			       paddr_t *base, size_t *size);
+
+/*
+ * This function fills reg node info (base & size) with an index found by
+ * checking the reg-names node.
+ *
+ * Returns 0 on success and a negative FDT error code on failure.
+ */
+int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
+			      paddr_t *base, size_t *size);
 
 #else /* !CFG_DT */
 
@@ -204,35 +263,89 @@ static inline const struct dt_driver *dt_find_compatible_driver(
 }
 
 static inline int dt_map_dev(const void *fdt __unused, int offs __unused,
-			     vaddr_t *vbase __unused, size_t *size __unused)
+			     vaddr_t *vbase __unused, size_t *size __unused,
+			     enum dt_map_dev_directive mapping __unused)
 {
 	return -1;
 }
 
-static inline paddr_t _fdt_reg_base_address(const void *fdt __unused,
-					    int offs __unused)
+static inline paddr_t fdt_reg_base_address(const void *fdt __unused,
+					   int offs __unused)
 {
 	return (paddr_t)-1;
 }
 
-static inline size_t _fdt_reg_size(const void *fdt __unused,
-				   int offs __unused)
+static inline size_t fdt_reg_size(const void *fdt __unused,
+				  int offs __unused)
 {
 	return (size_t)-1;
 }
 
-static inline int _fdt_get_status(const void *fdt __unused, int offs __unused)
+static inline int fdt_get_status(const void *fdt __unused, int offs __unused)
 {
 	return -1;
 }
 
 __noreturn
-static inline void _fdt_fill_device_info(const void *fdt __unused,
-					 struct dt_node_info *info __unused,
-					 int node __unused)
+static inline void fdt_fill_device_info(const void *fdt __unused,
+					struct dt_node_info *info __unused,
+					int node __unused)
 {
 	panic();
 }
+
+static inline int fdt_read_uint32_array(const void *fdt __unused,
+					int node __unused,
+					const char *prop_name __unused,
+					uint32_t *array __unused,
+					size_t count __unused)
+{
+	return -1;
+}
+
+static inline int fdt_read_uint32(const void *fdt __unused,
+				  int node __unused,
+				  const char *prop_name __unused,
+				  uint32_t *value __unused)
+{
+	return -1;
+}
+
+static inline uint32_t fdt_read_uint32_default(const void *fdt __unused,
+					       int node __unused,
+					       const char *prop_name __unused,
+					       uint32_t dflt_value __unused)
+{
+	return dflt_value;
+}
+
+static inline int fdt_read_uint32_index(const void *fdt __unused,
+					int node __unused,
+					const char *prop_name __unused,
+					int index __unused,
+					uint32_t *value __unused)
+{
+	return -1;
+}
+
+static inline int fdt_get_reg_props_by_index(const void *fdt __unused,
+					     int node __unused,
+					     int index __unused,
+					     paddr_t *base __unused,
+					     size_t *size __unused)
+{
+	return -1;
+}
+
+static inline int fdt_get_reg_props_by_name(const void *fdt __unused,
+					    int node __unused,
+					    const char *name __unused,
+					    paddr_t *base __unused,
+					    size_t *size __unused)
+{
+	return -1;
+}
+
 #endif /* !CFG_DT */
 
 #define for_each_dt_driver(drv) \

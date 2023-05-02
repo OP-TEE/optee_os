@@ -12,12 +12,6 @@ $(call force,CFG_8250_UART,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 
-ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
-else
-$(call force,CFG_ARM32_core,y)
-endif
-
 CFG_NUM_THREADS ?= 4
 CFG_CRYPTO_WITH_CE ?= n
 

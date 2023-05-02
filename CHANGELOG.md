@@ -1,3 +1,154 @@
+# OP-TEE - version 3.21.0 (2023-04-14)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_3_21], [commits][OP_TEE_optee_os_commits_3_21] and [pull requests][OP_TEE_optee_os_pr_3_21]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_3_21], [commits][OP_TEE_optee_client_commits_3_21] and [pull requests][OP_TEE_optee_client_pr_3_21]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_3_21], [commits][OP_TEE_optee_test_commits_3_21] and [pull requests][OP_TEE_optee_test_pr_3_21]
+  - OP-TEE/build: [release page][OP_TEE_build_release_3_21], [commits][OP_TEE_build_commits_3_21] and [pull requests][OP_TEE_build_pr_3_21]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_3_21], [commits][linaro_swg_optee_examples_commits_3_21] and [pull requests][linaro_swg_optee_examples_pr_3_21]
+
+
+[OP_TEE_optee_os_release_3_21]: https://github.com/OP-TEE/optee_os/releases/tag/3.21.0
+[OP_TEE_optee_os_commits_3_21]: https://github.com/OP-TEE/optee_os/compare/3.20.0...3.21.0
+[OP_TEE_optee_os_pr_3_21]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2023-01-20..2023-04-14
+
+[OP_TEE_optee_client_release_3_21]: https://github.com/OP-TEE/optee_client/releases/tag/3.21.0
+[OP_TEE_optee_client_commits_3_21]: https://github.com/OP-TEE/optee_client/compare/3.20.0...3.21.0
+[OP_TEE_optee_client_pr_3_21]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2023-01-20..2023-04-14
+
+[OP_TEE_optee_test_release_3_21]: https://github.com/OP-TEE/optee_test/releases/tag/3.21.0
+[OP_TEE_optee_test_commits_3_21]: https://github.com/OP-TEE/optee_test/compare/3.20.0...3.21.0
+[OP_TEE_optee_test_pr_3_21]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2023-01-20..2023-04-14
+
+[OP_TEE_build_release_3_21]: https://github.com/OP-TEE/build/releases/tag/3.21.0
+[OP_TEE_build_commits_3_21]: https://github.com/OP-TEE/build/compare/3.20.0...3.21.0
+[OP_TEE_build_pr_3_21]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2023-01-20..2023-04-14
+
+[linaro_swg_optee_examples_release_3_21]: https://github.com/linaro-swg/optee_examples/releases/tag/3.21.0
+[linaro_swg_optee_examples_commits_3_21]: https://github.com/linaro-swg/optee_examples/compare/3.20.0...3.21.0
+[linaro_swg_optee_examples_pr_3_21]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2023-01-20..2023-04-14
+
+# OP-TEE - version 3.20.0 (2023-01-20)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_3_20], [commits][OP_TEE_optee_os_commits_3_20] and [pull requests][OP_TEE_optee_os_pr_3_20]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_3_20], [commits][OP_TEE_optee_client_commits_3_20] and [pull requests][OP_TEE_optee_client_pr_3_20]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_3_20], [commits][OP_TEE_optee_test_commits_3_20] and [pull requests][OP_TEE_optee_test_pr_3_20]
+  - OP-TEE/build: [release page][OP_TEE_build_release_3_20], [commits][OP_TEE_build_commits_3_20] and [pull requests][OP_TEE_build_pr_3_20]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_3_20], [commits][linaro_swg_optee_examples_commits_3_20] and [pull requests][linaro_swg_optee_examples_pr_3_20]
+
+
+[OP_TEE_optee_os_release_3_20]: https://github.com/OP-TEE/optee_os/releases/tag/3.20.0
+[OP_TEE_optee_os_commits_3_20]: https://github.com/OP-TEE/optee_os/compare/3.19.0...3.20.0
+[OP_TEE_optee_os_pr_3_20]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-10-14..2023-01-20
+
+[OP_TEE_optee_client_release_3_20]: https://github.com/OP-TEE/optee_client/releases/tag/3.20.0
+[OP_TEE_optee_client_commits_3_20]: https://github.com/OP-TEE/optee_client/compare/3.19.0...3.20.0
+[OP_TEE_optee_client_pr_3_20]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-10-14..2023-01-20
+
+[OP_TEE_optee_test_release_3_20]: https://github.com/OP-TEE/optee_test/releases/tag/3.20.0
+[OP_TEE_optee_test_commits_3_20]: https://github.com/OP-TEE/optee_test/compare/3.19.0...3.20.0
+[OP_TEE_optee_test_pr_3_20]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-10-14..2023-01-20
+
+[OP_TEE_build_release_3_20]: https://github.com/OP-TEE/build/releases/tag/3.20.0
+[OP_TEE_build_commits_3_20]: https://github.com/OP-TEE/build/compare/3.19.0...3.20.0
+[OP_TEE_build_pr_3_20]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-10-14..2023-01-20
+
+[linaro_swg_optee_examples_release_3_20]: https://github.com/linaro-swg/optee_examples/releases/tag/3.20.0
+[linaro_swg_optee_examples_commits_3_20]: https://github.com/linaro-swg/optee_examples/compare/3.19.0...3.20.0
+[linaro_swg_optee_examples_pr_3_20]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-10-14..2023-01-20
+
+# OP-TEE - version 3.19.0 (2022-10-14)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_3_19], [commits][OP_TEE_optee_os_commits_3_19] and [
+pull requests][OP_TEE_optee_os_pr_3_19]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_3_19], [commits][OP_TEE_optee_client_commits_3_19] and [pull requests][OP_TEE_optee_client_pr_3_19]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_3_19], [commits][OP_TEE_optee_test_commits_3_19] and [pull requests][OP_TEE_optee_test_pr_3_19]
+  - OP-TEE/build: [release page][OP_TEE_build_release_3_19], [commits][OP_TEE_build_commits_3_19] and [pull requests][OP_TEE_build_pr_3_19]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_3_19], [commits][linaro_swg_optee_examples_commits_3_19] and [pull requests][linaro_swg_optee_examples_pr_3_19]
+
+
+[OP_TEE_optee_os_release_3_19]: https://github.com/OP-TEE/optee_os/releases/tag/3.19.0
+[OP_TEE_optee_os_commits_3_19]: https://github.com/OP-TEE/optee_os/compare/3.18.0...3.19.0
+[OP_TEE_optee_os_pr_3_19]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-07-15..2022-10-14
+
+[OP_TEE_optee_client_release_3_19]: https://github.com/OP-TEE/optee_client/releases/tag/3.19.0
+[OP_TEE_optee_client_commits_3_19]: https://github.com/OP-TEE/optee_client/compare/3.18.0...3.19.0
+[OP_TEE_optee_client_pr_3_19]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-07-15..2022-10-14
+
+[OP_TEE_optee_test_release_3_19]: https://github.com/OP-TEE/optee_test/releases/tag/3.19.0
+[OP_TEE_optee_test_commits_3_19]: https://github.com/OP-TEE/optee_test/compare/3.18.0...3.19.0
+[OP_TEE_optee_test_pr_3_19]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-07-15..2022-10-14
+
+[OP_TEE_build_release_3_19]: https://github.com/OP-TEE/build/releases/tag/3.19.0
+[OP_TEE_build_commits_3_19]: https://github.com/OP-TEE/build/compare/3.18.0...3.19.0
+[OP_TEE_build_pr_3_19]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-07-15..2022-10-14
+
+[linaro_swg_optee_examples_release_3_19]: https://github.com/linaro-swg/optee_examples/releases/tag/3.19.0
+[linaro_swg_optee_examples_commits_3_19]: https://github.com/linaro-swg/optee_examples/compare/3.18.0...3.19.0
+[linaro_swg_optee_examples_pr_3_19]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-07-15..2022-10-14
+
+# OP-TEE - version 3.18.0 (2022-07-15)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_3_18_0], [commits][OP_TEE_optee_os_commits_3_18_0] and [pull requests][OP_TEE_optee_os_pr_3_18_0]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_3_18_0], [commits][OP_TEE_optee_client_commits_3_18_0] and [pull requests][OP_TEE_optee_client_pr_3_18_0]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_3_18_0], [commits][OP_TEE_optee_test_commits_3_18_0] and [pull requests][OP_TEE_optee_test_pr_3_18_0]
+  - OP-TEE/build: [release page][OP_TEE_build_release_3_18_0], [commits][OP_TEE_build_commits_3_18_0] and [pull requests][OP_TEE_build_pr_3_18_0]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_3_18_0], [commits][linaro_swg_optee_examples_commits_3_18_0] and [pull requests][linaro_swg_optee_examples_pr_3_18_0]
+
+
+[OP_TEE_optee_os_release_3_18_0]: https://github.com/OP-TEE/optee_os/releases/tag/3.18.0
+[OP_TEE_optee_os_commits_3_18_0]: https://github.com/OP-TEE/optee_os/compare/3.17.0...3.18.0
+[OP_TEE_optee_os_pr_3_18_0]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-04-15..2022-07-15
+
+[OP_TEE_optee_client_release_3_18_0]: https://github.com/OP-TEE/optee_client/releases/tag/3.18.0
+[OP_TEE_optee_client_commits_3_18_0]: https://github.com/OP-TEE/optee_client/compare/3.17.0...3.18.0
+[OP_TEE_optee_client_pr_3_18_0]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-04-15..2022-07-15
+
+[OP_TEE_optee_test_release_3_18_0]: https://github.com/OP-TEE/optee_test/releases/tag/3.18.0
+[OP_TEE_optee_test_commits_3_18_0]: https://github.com/OP-TEE/optee_test/compare/3.17.0...3.18.0
+[OP_TEE_optee_test_pr_3_18_0]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-04-15..2022-07-15
+
+[OP_TEE_build_release_3_18_0]: https://github.com/OP-TEE/build/releases/tag/3.18.0
+[OP_TEE_build_commits_3_18_0]: https://github.com/OP-TEE/build/compare/3.17.0...3.18.0
+[OP_TEE_build_pr_3_18_0]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-04-15..2022-07-15
+
+[linaro_swg_optee_examples_release_3_18_0]: https://github.com/linaro-swg/optee_examples/releases/tag/3.18.0
+[linaro_swg_optee_examples_commits_3_18_0]: https://github.com/linaro-swg/optee_examples/compare/3.17.0...3.18.0
+[linaro_swg_optee_examples_pr_3_18_0]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-04-15..2022-07-15
+
+# OP-TEE - version 3.17.0 (2022-04-15)
+
+- Links to the release pages, commits and pull requests merged into this release for:
+  - OP-TEE/optee_os: [release page][OP_TEE_optee_os_release_3_17_0], [commits][OP_TEE_optee_os_commits_3_17_0] and [pull requests][OP_TEE_optee_os_pr_3_17_0]
+  - OP-TEE/optee_client: [release page][OP_TEE_optee_client_release_3_17_0], [commits][OP_TEE_optee_client_commits_3_17_0] and [pull requests][OP_TEE_optee_client_pr_3_17_0]
+  - OP-TEE/optee_test: [release page][OP_TEE_optee_test_release_3_17_0], [commits][OP_TEE_optee_test_commits_3_17_0] and [pull requests][OP_TEE_optee_test_pr_3_17_0]
+  - OP-TEE/build: [release page][OP_TEE_build_release_3_17_0], [commits][OP_TEE_build_commits_3_17_0] and [pull requests][OP_TEE_build_pr_3_17_0]
+  - linaro-swg/optee_examples: [release page][linaro_swg_optee_examples_release_3_17_0], [commits][linaro_swg_optee_examples_commits_3_17_0] and [pull requests][linaro_swg_optee_examples_pr_3_17_0]
+
+
+[OP_TEE_optee_os_release_3_17_0]: https://github.com/OP-TEE/optee_os/releases/tag/3.17.0
+[OP_TEE_optee_os_commits_3_17_0]: https://github.com/OP-TEE/optee_os/compare/3.16.0...3.17.0
+[OP_TEE_optee_os_pr_3_17_0]: https://github.com/OP-TEE/optee_os/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2021-01-28..2022-04-15
+
+[OP_TEE_optee_client_release_3_17_0]: https://github.com/OP-TEE/optee_client/releases/tag/3.17.0
+[OP_TEE_optee_client_commits_3_17_0]: https://github.com/OP-TEE/optee_client/compare/3.16.0...3.17.0
+[OP_TEE_optee_client_pr_3_17_0]: https://github.com/OP-TEE/optee_client/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-01-28..2022-04-15
+
+[OP_TEE_optee_test_release_3_17_0]: https://github.com/OP-TEE/optee_test/releases/tag/3.17.0
+[OP_TEE_optee_test_commits_3_17_0]: https://github.com/OP-TEE/optee_test/compare/3.16.0...3.17.0
+[OP_TEE_optee_test_pr_3_17_0]: https://github.com/OP-TEE/optee_test/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-01-28..2022-04-15
+
+[OP_TEE_build_release_3_17_0]: https://github.com/OP-TEE/build/releases/tag/3.17.0
+[OP_TEE_build_commits_3_17_0]: https://github.com/OP-TEE/build/compare/3.16.0...3.17.0
+[OP_TEE_build_pr_3_17_0]: https://github.com/OP-TEE/build/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2021-01-28..2022-04-15
+
+[linaro_swg_optee_examples_release_3_17_0]: https://github.com/linaro-swg/optee_examples/releases/tag/3.17.0
+[linaro_swg_optee_examples_commits_3_17_0]: https://github.com/linaro-swg/optee_examples/compare/3.16.0...3.17.0
+[linaro_swg_optee_examples_pr_3_17_0]: https://github.com/linaro-swg/optee_examples/pulls?q=is%3Apr+is%3Amerged+base%3Amaster+merged%3A2022-01-28..2022-04-15
+
 # OP-TEE - version 3.16.0 (2022-01-28)
 
 - Links to the release pages, commits and pull requests merged into this release for:
