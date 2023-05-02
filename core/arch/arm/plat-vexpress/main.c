@@ -9,8 +9,6 @@
 #include <drivers/gic.h>
 #include <drivers/hfic.h>
 #include <drivers/pl011.h>
-#include <drivers/tpm2_mmio.h>
-#include <drivers/tpm2_ptp_fifo.h>
 #include <drivers/tzc400.h>
 #include <initcall.h>
 #include <keep.h>
@@ -34,9 +32,6 @@ static struct hfic_data hfic_data __maybe_unused __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
-#if defined(CFG_DRIVERS_TPM2_MMIO)
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, TPM2_BASE, TPM2_REG_SIZE);
-#endif
 #if defined(PLATFORM_FLAVOR_fvp)
 register_phys_mem(MEM_AREA_RAM_SEC, TZCDRAM_BASE, TZCDRAM_SIZE);
 #endif
@@ -187,24 +182,6 @@ static TEE_Result init_console_itr(void)
 }
 driver_init(init_console_itr);
 #endif
-
-#if defined(CFG_DRIVERS_TPM2_MMIO)
-static TEE_Result init_tpm2(void)
-{
-	enum tpm2_result res = TPM2_OK;
-
-	res = tpm2_mmio_init(TPM2_BASE);
-	if (res) {
-		EMSG("Failed to initialize TPM2 MMIO");
-		return TEE_ERROR_GENERIC;
-	}
-
-	DMSG("TPM2 Chip initialized");
-
-	return TEE_SUCCESS;
-}
-driver_init(init_tpm2);
-#endif /* defined(CFG_DRIVERS_TPM2_MMIO) */
 
 #ifdef CFG_TZC400
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, TZC400_BASE, TZC400_REG_SIZE);
