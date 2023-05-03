@@ -595,7 +595,7 @@ static TEE_Result fdt_get_uuid(const void * const fdt, TEE_UUID *uuid)
  */
 static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 			       const void * const input_fdt, vaddr_t *va,
-			       size_t *num_pgs, void **fdt_copy)
+			       size_t *size, void **fdt_copy)
 {
 	struct sp_ffa_init_info *info = NULL;
 	int nvp_count = 1;
@@ -609,9 +609,7 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	struct mobj *m = NULL;
 	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
 
-	*num_pgs = total_size / SMALL_PAGE_SIZE;
-
-	f = fobj_sec_mem_alloc(*num_pgs);
+	f = fobj_sec_mem_alloc(total_size / SMALL_PAGE_SIZE);
 	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 
 	fobj_put(f);
@@ -622,6 +620,8 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	mobj_put(m);
 	if (res)
 		return res;
+
+	*size = total_size;
 
 	info = (struct sp_ffa_init_info *)*va;
 
@@ -1283,7 +1283,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_smc_args args = { };
 	vaddr_t va = 0;
-	size_t num_pgs = 0;
+	size_t sz = 0;
 	struct sp_ctx *ctx = NULL;
 	void *fdt_copy = NULL;
 
@@ -1300,7 +1300,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 		return res;
 	}
 
-	res = sp_init_info(ctx, &args, sess->fdt, &va, &num_pgs, &fdt_copy);
+	res = sp_init_info(ctx, &args, sess->fdt, &va, &sz, &fdt_copy);
 	if (res)
 		goto out;
 
@@ -1326,7 +1326,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	sess->is_initialized = false;
 	if (sp_enter(&args, sess)) {
-		vm_unmap(&ctx->uctx, va, num_pgs);
+		vm_unmap(&ctx->uctx, va, sz);
 		return FFA_ABORTED;
 	}
 
@@ -1337,7 +1337,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 	ts_push_current_session(&sess->ts_sess);
 out:
 	/* Free the boot info page from the SP memory */
-	vm_unmap(&ctx->uctx, va, num_pgs);
+	vm_unmap(&ctx->uctx, va, sz);
 	ts_pop_current_session();
 
 	return res;
