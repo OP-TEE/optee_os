@@ -23,7 +23,7 @@ struct ffa_rxtx {
 void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *buf);
 void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *buf);
-void spmc_handle_version(struct thread_smc_args *args, struct ffa_rxtx *buf);
+uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx);
 
 void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 		   uint32_t w2, uint32_t w3, uint32_t w4, uint32_t w5);

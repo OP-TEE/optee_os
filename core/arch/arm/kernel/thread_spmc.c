@@ -122,7 +122,7 @@ void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 					  .a5 = w5, };
 }
 
-static uint32_t exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
+uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
 	/*
 	 * No locking, if the caller does concurrent calls to this it's
@@ -139,13 +139,6 @@ static uint32_t exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 }
 
 #if defined(CFG_CORE_SEL1_SPMC)
-void spmc_handle_version(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
-{
-	spmc_set_args(args, exchange_version(args->a0, rxtx), FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ);
-}
-
 static void handle_features(struct thread_smc_args *args)
 {
 	uint32_t ret_fid = 0;
@@ -658,7 +651,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
 		w1 = swap_src_dst(args->a1);
 		w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_VERSION_RESP;
-		w3 = exchange_version(args->a3, rxtx);
+		w3 = spmc_exchange_version(args->a3, rxtx);
 		break;
 	default:
 		break;
@@ -1263,9 +1256,6 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	assert((thread_get_exceptions() & THREAD_EXCP_ALL) == THREAD_EXCP_ALL);
 	switch (args->a0) {
 #if defined(CFG_CORE_SEL1_SPMC)
-	case FFA_VERSION:
-		spmc_handle_version(args, &nw_rxtx);
-		break;
 	case FFA_FEATURES:
 		handle_features(args);
 		break;

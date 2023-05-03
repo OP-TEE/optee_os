@@ -1073,6 +1073,14 @@ out:
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
+static void spmc_handle_version(struct thread_smc_args *args,
+				struct ffa_rxtx *rxtx)
+{
+	spmc_set_args(args, spmc_exchange_version(args->a1, rxtx),
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
 /*
  * FF-A messages handler for SP. Every messages for or from a SP is handled
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
