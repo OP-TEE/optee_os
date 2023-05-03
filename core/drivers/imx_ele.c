@@ -8,9 +8,12 @@
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <rng_support.h>
 #include <stdint.h>
+#include <string_ext.h>
 #include <tee/cache.h>
 #include <tee_api_defines.h>
 #include <trace.h>
@@ -413,10 +416,22 @@ static TEE_Result imx_ele_rng_get_trng_state(void)
 		return TEE_SUCCESS;
 }
 
-unsigned long plat_get_aslr_seed(void)
+/*
+ * Get random data from the EdgeLock Enclave.
+ *
+ * This function can be called when the MMU is off or on.
+ * virtual/physical address translation and cache maintenance
+ * is performed if needed.
+ *
+ * @buffer: data output
+ * @size: RNG data size
+ */
+static TEE_Result imx_ele_rng_get_random(void *buffer, size_t size)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint64_t timeout = timeout_init_us(10 * 1000);
+	paddr_t pa;
+	void *buf = NULL;
+
 	struct rng_get_random_cmd {
 		uint32_t addr_msb;
 		uint32_t addr_lsb;
@@ -429,6 +444,44 @@ unsigned long plat_get_aslr_seed(void)
 		.header.tag = ELE_REQUEST_TAG,
 		.header.command = ELE_CMD_RNG_GET,
 	};
+
+	if (!buffer || !size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (cpu_mmu_enabled()) {
+		buf = alloc_cache_aligned(size);
+		if (!buf)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		cache_operation(TEE_CACHEFLUSH, buf, size);
+
+		pa = virt_to_phys(buf);
+	} else {
+		pa = (paddr_t)buffer;
+	}
+
+	reg_pair_from_64((uint64_t)pa, &cmd.addr_msb, &cmd.addr_lsb);
+
+	cmd.size = (uint32_t)size;
+
+	memcpy(msg.data.u8, &cmd, sizeof(cmd));
+	update_crc(&msg);
+
+	res = imx_ele_call(&msg);
+
+	if (cpu_mmu_enabled()) {
+		cache_operation(TEE_CACHEINVALIDATE, buf, size);
+		if (res == TEE_SUCCESS)
+			memcpy(buffer, buf, size);
+		free(buf);
+	}
+
+	return res;
+}
+
+unsigned long plat_get_aslr_seed(void)
+{
+	uint64_t timeout = timeout_init_us(10 * 1000);
 	unsigned long aslr __aligned(CACHELINE_SIZE) = 0;
 
 	/*
@@ -437,9 +490,6 @@ unsigned long plat_get_aslr_seed(void)
 	 * maintenance.
 	 */
 	assert(!cpu_mmu_enabled());
-
-	reg_pair_from_64((uint64_t)&aslr, &cmd.addr_msb, &cmd.addr_lsb);
-	cmd.size = sizeof(aslr);
 
 	/*
 	 * Check the current TRNG state of the ELE. The TRNG must be
@@ -450,11 +500,7 @@ unsigned long plat_get_aslr_seed(void)
 		if (timeout_elapsed(timeout))
 			panic("ELE RNG is busy");
 
-	memcpy(msg.data.u8, &cmd, sizeof(cmd));
-	update_crc(&msg);
-
-	res = imx_ele_call(&msg);
-	if (res)
+	if (imx_ele_rng_get_random((uint8_t *)&aslr, sizeof(aslr)))
 		panic("Cannot retrieve random data from ELE");
 
 	return aslr;
