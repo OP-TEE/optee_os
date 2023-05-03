@@ -588,30 +588,95 @@ static TEE_Result fdt_get_uuid(const void * const fdt, TEE_UUID *uuid)
 	return TEE_SUCCESS;
 }
 
-/*
- * sp_init_info allocates and maps the sp_ffa_init_info for the SP. It will copy
- * the fdt into the allocated page(s) and return a pointer to the new location
- * of the fdt. This pointer can be used to update data inside the fdt.
- */
-static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
-			       const void * const input_fdt, vaddr_t *va,
-			       size_t *size, void **fdt_copy)
+static TEE_Result copy_and_map_fdt(struct sp_ctx *ctx, const void * const fdt,
+				   void **fdt_copy, size_t *mapped_size)
 {
-	struct sp_ffa_init_info *info = NULL;
-	int nvp_count = 1;
-	size_t total_size = ROUNDUP(CFG_SP_INIT_INFO_MAX_SIZE, SMALL_PAGE_SIZE);
-	size_t nvp_size = sizeof(struct sp_name_value_pair) * nvp_count;
-	size_t info_size = sizeof(*info) + nvp_size;
-	size_t fdt_size = total_size - info_size;
+	size_t total_size = ROUNDUP(fdt_totalsize(fdt), SMALL_PAGE_SIZE);
+	size_t num_pages = total_size / SMALL_PAGE_SIZE;
+	uint32_t perm = TEE_MATTR_UR | TEE_MATTR_PRW;
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t perm = TEE_MATTR_URW | TEE_MATTR_PRW;
-	struct fobj *f = NULL;
 	struct mobj *m = NULL;
+	struct fobj *f = NULL;
+	vaddr_t va = 0;
+
+	f = fobj_sec_mem_alloc(num_pages);
+	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
+	fobj_put(f);
+	if (!m)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = vm_map(&ctx->uctx, &va, total_size, perm, 0, m, 0);
+	mobj_put(m);
+	if (res)
+		return res;
+
+	if (fdt_open_into(fdt, (void *)va, total_size))
+		return TEE_ERROR_GENERIC;
+
+	*fdt_copy = (void *)va;
+	*mapped_size = total_size;
+
+	return res;
+}
+
+static void fill_boot_info_1_0(vaddr_t buf, const void *fdt)
+{
+	struct ffa_boot_info_1_0 *info = (struct ffa_boot_info_1_0 *)buf;
 	static const char fdt_name[16] = "TYPE_DT\0\0\0\0\0\0\0\0";
 
-	f = fobj_sec_mem_alloc(total_size / SMALL_PAGE_SIZE);
-	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
+	memcpy(&info->magic, "FF-A", 4);
+	info->count = 1;
 
+	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
+	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
+	info->nvp[0].value = (uintptr_t)fdt;
+	info->nvp[0].size = fdt_totalsize(fdt);
+}
+
+static void fill_boot_info_1_1(vaddr_t buf, const void *fdt)
+{
+	size_t desc_offs = ROUNDUP(sizeof(struct ffa_boot_info_header_1_1), 8);
+	struct ffa_boot_info_header_1_1 *header =
+		(struct ffa_boot_info_header_1_1 *)buf;
+	struct ffa_boot_info_1_1 *desc =
+		(struct ffa_boot_info_1_1 *)(buf + desc_offs);
+
+	header->signature = FFA_BOOT_INFO_SIGNATURE;
+	header->version = FFA_BOOT_INFO_VERSION;
+	header->blob_size = desc_offs + sizeof(struct ffa_boot_info_1_1);
+	header->desc_size = sizeof(struct ffa_boot_info_1_1);
+	header->desc_count = 1;
+	header->desc_offset = desc_offs;
+
+	memset(&desc[0].name, 0, sizeof(desc[0].name));
+	/* Type: Standard boot info (bit[7] == 0), FDT type */
+	desc[0].type = FFA_BOOT_INFO_TYPE_ID_FDT;
+	/* Flags: Contents field contains an address */
+	desc[0].flags = FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR <<
+			FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_SHIFT;
+	desc[0].size = fdt_totalsize(fdt);
+	desc[0].contents = (uintptr_t)fdt;
+}
+
+static TEE_Result create_and_map_boot_info(struct sp_ctx *ctx, const void *fdt,
+					   struct thread_smc_args *args,
+					   vaddr_t *va, size_t *mapped_size)
+{
+	size_t total_size = ROUNDUP(CFG_SP_INIT_INFO_MAX_SIZE, SMALL_PAGE_SIZE);
+	size_t num_pages = total_size / SMALL_PAGE_SIZE;
+	uint32_t perm = TEE_MATTR_UR | TEE_MATTR_PRW;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t sp_ffa_version = 0;
+	struct fobj *f = NULL;
+	struct mobj *m = NULL;
+	uint32_t info_reg = 0;
+
+	res = sp_dt_get_u32(fdt, 0, "ffa-version", &sp_ffa_version);
+	if (res)
+		return res;
+
+	f = fobj_sec_mem_alloc(num_pages);
+	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
 	fobj_put(f);
 	if (!m)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -621,27 +686,47 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 	if (res)
 		return res;
 
-	*size = total_size;
+	*mapped_size = total_size;
 
-	info = (struct sp_ffa_init_info *)*va;
+	switch (sp_ffa_version) {
+	case MAKE_FFA_VERSION(1, 0):
+		fill_boot_info_1_0(*va, fdt);
+		break;
+	case MAKE_FFA_VERSION(1, 1):
+		fill_boot_info_1_1(*va, fdt);
+		break;
+	default:
+		EMSG("Unknown FF-A version: %#"PRIx32, sp_ffa_version);
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
 
-	/* magic field is 4 bytes, we don't copy /0 byte. */
-	memcpy(&info->magic, "FF-A", 4);
-	info->count = nvp_count;
-	args->a0 = (vaddr_t)info;
+	res = sp_dt_get_u32(fdt, 0, "gp-register-num", &info_reg);
+	if (res) {
+		if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+			/* If the property is not present, set default to x0 */
+			info_reg = 0;
+		} else {
+			return TEE_ERROR_BAD_FORMAT;
+		}
+	}
 
-	/*
-	 * Store the fdt after the boot_info and store the pointer in the
-	 * first element.
-	 */
-	COMPILE_TIME_ASSERT(sizeof(info->nvp[0].name) == sizeof(fdt_name));
-	memcpy(info->nvp[0].name, fdt_name, sizeof(fdt_name));
-	info->nvp[0].value = *va + info_size;
-	info->nvp[0].size = fdt_size;
-	*fdt_copy = (void *)info->nvp[0].value;
-
-	if (fdt_open_into(input_fdt, *fdt_copy, fdt_size))
-		return TEE_ERROR_GENERIC;
+	switch (info_reg) {
+	case 0:
+		args->a0 = *va;
+		break;
+	case 1:
+		args->a1 = *va;
+		break;
+	case 2:
+		args->a2 = *va;
+		break;
+	case 3:
+		args->a3 = *va;
+		break;
+	default:
+		EMSG("Invalid register selected for passing boot info");
+		return TEE_ERROR_BAD_FORMAT;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -1282,10 +1367,11 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct thread_smc_args args = { };
-	vaddr_t va = 0;
-	size_t sz = 0;
 	struct sp_ctx *ctx = NULL;
+	vaddr_t boot_info_va = 0;
+	size_t boot_info_size = 0;
 	void *fdt_copy = NULL;
+	size_t fdt_size = 0;
 
 	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
@@ -1301,7 +1387,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 		return res;
 	}
 
-	res = sp_init_info(ctx, &args, sess->fdt, &va, &sz, &fdt_copy);
+	res = copy_and_map_fdt(ctx, sess->fdt, &fdt_copy, &fdt_size);
 	if (res)
 		goto out;
 
@@ -1323,6 +1409,11 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 	if (res)
 		goto out;
 
+	res = create_and_map_boot_info(ctx, fdt_copy, &args, &boot_info_va,
+				       &boot_info_size);
+	if (res)
+		goto out;
+
 	ts_pop_current_session();
 
 	res = sp_enter(&args, sess);
@@ -1338,7 +1429,8 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 out:
 	/* Free the boot info page from the SP memory */
-	vm_unmap(&ctx->uctx, va, sz);
+	vm_unmap(&ctx->uctx, boot_info_va, boot_info_size);
+	vm_unmap(&ctx->uctx, (vaddr_t)fdt_copy, fdt_size);
 	ts_pop_current_session();
 
 	return res;

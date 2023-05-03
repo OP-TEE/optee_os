@@ -18,19 +18,6 @@
 
 TAILQ_HEAD(sp_sessions_head, sp_session);
 
-struct sp_name_value_pair {
-	uint32_t name[4];
-	uint64_t value;
-	uint64_t size;
-};
-
-/* SP entry arguments passed to SP image: see ABI in FF-A specification */
-struct sp_ffa_init_info {
-	uint32_t magic; /* FF-A */
-	uint32_t count; /* Count of name value size pairs */
-	struct sp_name_value_pair nvp[]; /* Array of name value size pairs */
-};
-
 enum sp_status { sp_idle, sp_busy, sp_preempted, sp_dead };
 
 struct sp_session {
@@ -39,7 +26,6 @@ struct sp_session {
 	uint16_t endpoint_id;
 	uint16_t caller_id;
 	struct ts_session ts_sess;
-	struct sp_ffa_init_info *info;
 	unsigned int spinlock;
 	const void *fdt;
 	bool is_initialized;

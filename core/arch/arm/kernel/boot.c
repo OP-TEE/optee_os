@@ -1629,9 +1629,9 @@ unsigned long __weak get_aslr_seed(void *fdt __unused)
 #endif /*CFG_CORE_ASLR*/
 
 #if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
-static void *get_fdt_from_boot_info(struct ffa_boot_info_header *hdr)
+static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 {
-	struct ffa_boot_info *desc = NULL;
+	struct ffa_boot_info_1_1 *desc = NULL;
 	uint8_t content_fmt = 0;
 	uint8_t name_fmt = 0;
 	void *fdt = NULL;

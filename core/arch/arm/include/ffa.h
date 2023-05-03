@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2020, Linaro Limited
- * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2018-2023, Arm Limited. All rights reserved.
  */
 
 #ifndef __FFA_H
@@ -307,8 +307,22 @@ struct ffa_mem_relinquish {
 	uint16_t endpoint_id_array[];
 };
 
+/* FF-A v1.0 boot information name-value pairs */
+struct ffa_boot_info_nvp_1_0 {
+	uint32_t name[4];
+	uint64_t value;
+	uint64_t size;
+};
+
+/* FF-A v1.0 boot information descriptor */
+struct ffa_boot_info_1_0 {
+	uint32_t magic;
+	uint32_t count;
+	struct ffa_boot_info_nvp_1_0 nvp[];
+};
+
 /* FF-A v1.1 boot information descriptor */
-struct ffa_boot_info {
+struct ffa_boot_info_1_1 {
 	char name[FFA_BOOT_INFO_NAME_LEN];
 	uint8_t type;
 	uint8_t reserved;
@@ -318,7 +332,7 @@ struct ffa_boot_info {
 };
 
 /* FF-A v1.1 boot information header */
-struct ffa_boot_info_header {
+struct ffa_boot_info_header_1_1 {
 	uint32_t signature;
 	uint32_t version;
 	uint32_t blob_size;
