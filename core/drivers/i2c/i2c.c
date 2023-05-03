@@ -17,7 +17,7 @@ struct i2c_dev *i2c_create_dev(struct i2c_ctrl *i2c_ctrl, const void *fdt,
 			       int node)
 {
 	struct i2c_dev *i2c_dev = NULL;
-	paddr_t addr = _fdt_reg_base_address(fdt, node);
+	paddr_t addr = fdt_reg_base_address(fdt, node);
 
 	if (addr == DT_INFO_INVALID_REG)
 		return NULL;
