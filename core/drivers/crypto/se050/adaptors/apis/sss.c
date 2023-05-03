@@ -9,6 +9,7 @@
 #include <se050.h>
 #include <se050_utils.h>
 #include <string.h>
+#include <string_ext.h>
 
 static const sss_policy_u asym_key = {
 	.type = KPolicy_Asym_Key,
@@ -94,9 +95,9 @@ sss_status_t se050_rotate_scp03_keys(struct sss_se05x_ctx *ctx)
 			 new_keys.enc, SE050_SCP03_KEY_SZ);
 	}
 
-	if (!memcmp(new_keys.enc, cur_keys.enc, SE050_SCP03_KEY_SZ) &&
-	    !memcmp(new_keys.mac, cur_keys.mac, SE050_SCP03_KEY_SZ) &&
-	    !memcmp(new_keys.dek, cur_keys.dek, SE050_SCP03_KEY_SZ))
+	if (!consttime_memcmp(new_keys.enc, cur_keys.enc, SE050_SCP03_KEY_SZ) &&
+	    !consttime_memcmp(new_keys.mac, cur_keys.mac, SE050_SCP03_KEY_SZ) &&
+	    !consttime_memcmp(new_keys.dek, cur_keys.dek, SE050_SCP03_KEY_SZ))
 		return kStatus_SSS_Success;
 
 	connect_ctx = &ctx->open_ctx;
