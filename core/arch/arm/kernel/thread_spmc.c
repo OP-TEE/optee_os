@@ -86,11 +86,11 @@ static uint32_t my_uuid_words[] = {
  * the lock.
  */
 
-static struct ffa_rxtx nw_rxtx __nex_bss;
+static struct ffa_rxtx my_rxtx __nex_bss;
 
 static bool is_nw_buf(struct ffa_rxtx *rxtx)
 {
-	return rxtx == &nw_rxtx;
+	return rxtx == &my_rxtx;
 }
 
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
@@ -98,7 +98,7 @@ static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 #else
 static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
 static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static struct ffa_rxtx nw_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
+static struct ffa_rxtx my_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
 #endif
 
 static uint32_t swap_src_dst(uint32_t src_dst)
@@ -1266,16 +1266,16 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_RXTX_MAP_64:
 #endif
 	case FFA_RXTX_MAP_32:
-		spmc_handle_rxtx_map(args, &nw_rxtx);
+		spmc_handle_rxtx_map(args, &my_rxtx);
 		break;
 	case FFA_RXTX_UNMAP:
-		spmc_handle_rxtx_unmap(args, &nw_rxtx);
+		spmc_handle_rxtx_unmap(args, &my_rxtx);
 		break;
 	case FFA_RX_RELEASE:
-		spmc_handle_rx_release(args, &nw_rxtx);
+		spmc_handle_rx_release(args, &my_rxtx);
 		break;
 	case FFA_PARTITION_INFO_GET:
-		spmc_handle_partition_info_get(args, &nw_rxtx);
+		spmc_handle_partition_info_get(args, &my_rxtx);
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
@@ -1286,14 +1286,14 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MSG_SEND_DIRECT_REQ_64:
 #endif
 	case FFA_MSG_SEND_DIRECT_REQ_32:
-		handle_direct_request(args, &nw_rxtx);
+		handle_direct_request(args, &my_rxtx);
 		break;
 #if defined(CFG_CORE_SEL1_SPMC)
 #ifdef ARM64
 	case FFA_MEM_SHARE_64:
 #endif
 	case FFA_MEM_SHARE_32:
-		handle_mem_share(args, &nw_rxtx);
+		handle_mem_share(args, &my_rxtx);
 		break;
 	case FFA_MEM_RECLAIM:
 		if (!IS_ENABLED(CFG_SECURE_PARTITION) ||
@@ -1301,7 +1301,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 			handle_mem_reclaim(args);
 		break;
 	case FFA_MEM_FRAG_TX:
-		handle_mem_frag_tx(args, &nw_rxtx);
+		handle_mem_frag_tx(args, &my_rxtx);
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	default:
@@ -1637,7 +1637,7 @@ static TEE_Result spmc_init(void)
 	 * Note that disagreement on negotiated version means that we'll
 	 * have communication problems with normal world.
 	 */
-	nw_rxtx.ffa_vers = FFA_VERSION_1_0;
+	my_rxtx.ffa_vers = FFA_VERSION_1_0;
 
 	return TEE_SUCCESS;
 }
@@ -1721,8 +1721,8 @@ static void *spmc_retrieve_req(uint64_t cookie,
 	size_t size = 0;
 	int rc = 0;
 
-	if (nw_rxtx.ffa_vers == FFA_VERSION_1_0) {
-		struct ffa_mem_transaction_1_0 *trans_descr = nw_rxtx.tx;
+	if (my_rxtx.ffa_vers == FFA_VERSION_1_0) {
+		struct ffa_mem_transaction_1_0 *trans_descr = my_rxtx.tx;
 
 		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
 		memset(trans_descr, 0, size);
@@ -1734,7 +1734,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 		trans_descr->mem_access_count = 1;
 		acc_descr_array = trans_descr->mem_access_array;
 	} else {
-		struct ffa_mem_transaction_1_1 *trans_descr = nw_rxtx.tx;
+		struct ffa_mem_transaction_1_1 *trans_descr = my_rxtx.tx;
 
 		size = sizeof(*trans_descr) + 1 * sizeof(struct ffa_mem_access);
 		memset(trans_descr, 0, size);
@@ -1746,7 +1746,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 		trans_descr->mem_access_count = 1;
 		trans_descr->mem_access_offs = sizeof(*trans_descr);
 		trans_descr->mem_access_size = sizeof(struct ffa_mem_access);
-		acc_descr_array = (void *)((vaddr_t)nw_rxtx.tx +
+		acc_descr_array = (void *)((vaddr_t)my_rxtx.tx +
 					   sizeof(*trans_descr));
 	}
 	acc_descr_array->region_offs = 0;
@@ -1768,20 +1768,20 @@ static void *spmc_retrieve_req(uint64_t cookie,
 			     cookie, args.a0);
 		return NULL;
 	}
-	rc = spmc_read_mem_transaction(nw_rxtx.ffa_vers, nw_rxtx.tx,
-				       nw_rxtx.size, trans);
+	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.tx,
+				       my_rxtx.size, trans);
 	if (rc) {
 		EMSG("Memory transaction failure for cookie %#"PRIx64" rc %d",
 		     cookie, rc);
 		return NULL;
 	}
 
-	return nw_rxtx.rx;
+	return my_rxtx.rx;
 }
 
 void thread_spmc_relinquish(uint64_t cookie)
 {
-	struct ffa_mem_relinquish *relinquish_desc = nw_rxtx.tx;
+	struct ffa_mem_relinquish *relinquish_desc = my_rxtx.tx;
 	struct thread_smc_args args = {
 		.a0 = FFA_MEM_RELINQUISH,
 	};
@@ -1888,9 +1888,9 @@ static TEE_Result spmc_init(void)
 	DMSG("Using version %u.%u",
 	     (my_vers >> FFA_VERSION_MAJOR_SHIFT) & FFA_VERSION_MAJOR_MASK,
 	     (my_vers >> FFA_VERSION_MINOR_SHIFT) & FFA_VERSION_MINOR_MASK);
-	nw_rxtx.ffa_vers = my_vers;
+	my_rxtx.ffa_vers = my_vers;
 
-	spmc_rxtx_map(&nw_rxtx);
+	spmc_rxtx_map(&my_rxtx);
 	my_endpoint_id = get_my_id();
 	DMSG("My endpoint ID %#x", my_endpoint_id);
 
