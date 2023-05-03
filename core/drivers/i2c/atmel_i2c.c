@@ -302,7 +302,7 @@ static TEE_Result atmel_i2c_node_probe(const void *fdt, int node,
 	struct i2c_ctrl *i2c_ctrl = NULL;
 	struct atmel_i2c *atmel_i2c = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	int status = _fdt_get_status(fdt, node);
+	int status = fdt_get_status(fdt, node);
 
 	if (status != DT_STATUS_OK_SEC)
 		return TEE_SUCCESS;
