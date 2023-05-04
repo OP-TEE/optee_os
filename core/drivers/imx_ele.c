@@ -497,6 +497,7 @@ err:
 TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	const char pattern[16] __aligned(CACHELINE_SIZE) = "TEE_for_HUK_ELE";
 	static uint8_t key[CACHELINE_SIZE] __aligned(CACHELINE_SIZE);
 	static bool is_fetched;
 	uint32_t msb = 0;
@@ -504,8 +505,11 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	struct key_derive_cmd {
 		uint32_t key_addr_msb;
 		uint32_t key_addr_lsb;
+		uint32_t ctx_addr_msb;
+		uint32_t ctx_addr_lsb;
 		uint16_t key_size;
-		uint8_t res;
+		uint16_t ctx_size;
+		uint32_t crc;
 	} __packed cmd = { };
 	struct imx_mu_msg msg = {
 		.header.version = ELE_VERSION_BASELINE,
@@ -528,9 +532,17 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	cmd.key_addr_msb = msb;
 	cmd.key_size = HW_UNIQUE_KEY_LENGTH;
 
+	reg_pair_from_64((uint64_t)virt_to_phys((void *)pattern), &msb, &lsb);
+
+	cmd.ctx_addr_lsb = lsb;
+	cmd.ctx_addr_msb = msb;
+	cmd.ctx_size = sizeof(pattern);
+
 	memcpy(msg.data.u8, &cmd, sizeof(cmd));
+	update_crc(&msg);
 
 	cache_operation(TEE_CACHEFLUSH, key, HW_UNIQUE_KEY_LENGTH);
+	cache_operation(TEE_CACHECLEAN, (void *)pattern, sizeof(pattern));
 
 	res = imx_ele_call(&msg);
 	if (res)
