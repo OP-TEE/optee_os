@@ -98,7 +98,11 @@ static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 #else
 static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
 static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
-static struct ffa_rxtx my_rxtx = { .rx = __rx_buf, .tx = __tx_buf };
+static struct ffa_rxtx my_rxtx = {
+	.rx = __rx_buf,
+	.tx = __tx_buf,
+	.size = sizeof(__rx_buf),
+};
 #endif
 
 static uint32_t swap_src_dst(uint32_t src_dst)
