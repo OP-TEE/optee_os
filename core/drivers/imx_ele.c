@@ -30,7 +30,7 @@
 #define ELE_CMD_SESSION_OPEN	    0x10
 #define ELE_CMD_SESSION_CLOSE	    0x11
 #define ELE_CMD_SESSION_DEVICE_INFO 0x16
-#define ELE_CMD_RNG_GET		    0x22
+#define ELE_CMD_RNG_GET		    0xCD
 #define ELE_CMD_TRNG_STATE	    0xA4
 #define ELE_CMD_GET_INFO	    0xDA
 #define ELE_CMD_DERIVE_KEY	    0xA9
