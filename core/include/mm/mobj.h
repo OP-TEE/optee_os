@@ -226,9 +226,6 @@ static inline bool mobj_check_offset_and_len(struct mobj *mobj, size_t offset,
 	       end_offs < mobj->size;
 }
 
-struct mobj *mobj_mm_alloc(struct mobj *mobj_parent, size_t size,
-			   tee_mm_pool_t *pool);
-
 struct mobj *mobj_phys_alloc(paddr_t pa, size_t size, uint32_t cattr,
 			     enum buf_is_attr battr);
 
