@@ -51,7 +51,8 @@ endef
 $(foreach f, $(SP_PATHS), $(eval $(call process_secure_partition,$(f))))
 
 ifeq ($(CFG_EMBED_DTB),y)
-core-embed-fdt-dts = $(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE)
+dts-source-path = $(arch-dir)/dts
+core-embed-fdt-dts = $(dts-source-path)/$(CFG_EMBED_DTB_SOURCE_FILE)
 core-embed-fdt-dtb = $(out-dir)/$(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE:.dts=.dtb)
 core-embed-fdt-c = $(out-dir)/$(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE:.dts=.c)
 gensrcs-y += embedded_secure_dtb
