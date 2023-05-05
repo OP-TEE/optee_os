@@ -462,120 +462,6 @@ struct mobj *mobj_shm_alloc(paddr_t pa, size_t size, uint64_t cookie)
 	return &m->mobj;
 }
 
-#ifdef CFG_PAGED_USER_TA
-/*
- * mobj_seccpy_shm implementation
- */
-
-struct mobj_seccpy_shm {
-	struct user_ta_ctx *utc;
-	vaddr_t va;
-	struct mobj mobj;
-	struct fobj *fobj;
-};
-
-static bool __maybe_unused mobj_is_seccpy_shm(struct mobj *mobj);
-
-static struct mobj_seccpy_shm *to_mobj_seccpy_shm(struct mobj *mobj)
-{
-	assert(mobj_is_seccpy_shm(mobj));
-	return container_of(mobj, struct mobj_seccpy_shm, mobj);
-}
-
-static void *mobj_seccpy_shm_get_va(struct mobj *mobj, size_t offs, size_t len)
-{
-	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
-
-	if (&m->utc->ta_ctx.ts_ctx != thread_get_tsd()->ctx)
-		return NULL;
-
-	if (!mobj_check_offset_and_len(mobj, offs, len))
-		return NULL;
-	return (void *)(m->va + offs);
-}
-
-static bool mobj_seccpy_shm_matches(struct mobj *mobj __maybe_unused,
-				 enum buf_is_attr attr)
-{
-	assert(mobj_is_seccpy_shm(mobj));
-
-	return attr == CORE_MEM_SEC || attr == CORE_MEM_TEE_RAM;
-}
-
-static void mobj_seccpy_shm_free(struct mobj *mobj)
-{
-	struct mobj_seccpy_shm *m = to_mobj_seccpy_shm(mobj);
-
-	tee_pager_rem_um_region(&m->utc->uctx, m->va, mobj->size);
-	vm_rem_rwmem(&m->utc->uctx, mobj, m->va);
-	fobj_put(m->fobj);
-	free(m);
-}
-
-static struct fobj *mobj_seccpy_shm_get_fobj(struct mobj *mobj)
-{
-	return fobj_get(to_mobj_seccpy_shm(mobj)->fobj);
-}
-
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct mobj_ops mobj_seccpy_shm_ops
-__weak __relrodata_unpaged("mobj_seccpy_shm_ops") = {
-	.get_va = mobj_seccpy_shm_get_va,
-	.matches = mobj_seccpy_shm_matches,
-	.free = mobj_seccpy_shm_free,
-	.get_fobj = mobj_seccpy_shm_get_fobj,
-};
-
-static bool mobj_is_seccpy_shm(struct mobj *mobj)
-{
-	return mobj && mobj->ops == &mobj_seccpy_shm_ops;
-}
-
-struct mobj *mobj_seccpy_shm_alloc(size_t size)
-{
-	struct thread_specific_data *tsd = thread_get_tsd();
-	struct mobj_seccpy_shm *m;
-	struct user_ta_ctx *utc;
-	vaddr_t va = 0;
-
-	if (!is_user_ta_ctx(tsd->ctx))
-		return NULL;
-	utc = to_user_ta_ctx(tsd->ctx);
-
-	m = calloc(1, sizeof(*m));
-	if (!m)
-		return NULL;
-
-	m->mobj.size = size;
-	m->mobj.ops = &mobj_seccpy_shm_ops;
-	refcount_set(&m->mobj.refc, 1);
-
-	if (vm_add_rwmem(&utc->uctx, &m->mobj, &va) != TEE_SUCCESS)
-		goto bad;
-
-	m->fobj = fobj_rw_paged_alloc(ROUNDUP(size, SMALL_PAGE_SIZE) /
-				      SMALL_PAGE_SIZE);
-	if (tee_pager_add_um_region(&utc->uctx, va, m->fobj,
-				    TEE_MATTR_PRW | TEE_MATTR_URW))
-		goto bad;
-
-	m->va = va;
-	m->utc = to_user_ta_ctx(tsd->ctx);
-	return &m->mobj;
-bad:
-	if (va)
-		vm_rem_rwmem(&utc->uctx, &m->mobj, va);
-	fobj_put(m->fobj);
-	free(m);
-	return NULL;
-}
-
-
-#endif /*CFG_PAGED_USER_TA*/
-
 struct mobj_with_fobj {
 	struct fobj *fobj;
 	struct file *file;
@@ -703,9 +589,6 @@ __weak __relrodata_unpaged("mobj_with_fobj_ops") = {
 #ifdef CFG_PAGED_USER_TA
 bool mobj_is_paged(struct mobj *mobj)
 {
-	if (mobj->ops == &mobj_seccpy_shm_ops)
-		return true;
-
 	if (mobj->ops == &mobj_with_fobj_ops &&
 	    !to_mobj_with_fobj(mobj)->fobj->ops->get_pa)
 		return true;

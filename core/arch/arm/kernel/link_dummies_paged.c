@@ -46,7 +46,6 @@ const struct mobj_ops mobj_phys_ops __rodata_dummy;
 const struct mobj_ops mobj_virt_ops __rodata_dummy;
 const struct mobj_ops mobj_mm_ops __rodata_dummy;
 const struct mobj_ops mobj_shm_ops __rodata_dummy;
-const struct mobj_ops mobj_seccpy_shm_ops __rodata_dummy;
 const struct mobj_ops mobj_with_fobj_ops __rodata_dummy;
 const struct fobj_ops ops_rwp_paged_iv __rodata_dummy;
 const struct fobj_ops ops_rwp_unpaged_iv __rodata_dummy;
