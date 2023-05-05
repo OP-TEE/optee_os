@@ -105,7 +105,8 @@ void boot_init_primary_early(unsigned long pageable_part __unused,
 	init_primary(e);
 }
 
-void boot_init_primary_late(unsigned long fdt __unused)
+void boot_init_primary_late(unsigned long fdt __unused,
+			    unsigned long tos_fw_config __unused)
 {
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_WARN_INSECURE)) {
