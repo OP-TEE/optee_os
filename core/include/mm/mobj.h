@@ -318,8 +318,6 @@ static inline bool mobj_is_paged(struct mobj *mobj __unused)
 }
 #endif
 
-struct mobj *mobj_seccpy_shm_alloc(size_t size);
-
 struct mobj *mobj_with_fobj_alloc(struct fobj *fobj, struct file *file,
 				  uint32_t mem_type);
 
