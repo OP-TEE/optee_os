@@ -1076,53 +1076,6 @@ out:
 	return res;
 }
 
-TEE_Result vm_add_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj,
-			vaddr_t *va)
-{
-	TEE_Result res = TEE_SUCCESS;
-	struct vm_region *reg = NULL;
-
-	if (!mobj_is_secure(mobj) || !mobj_is_paged(mobj))
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	reg = calloc(1, sizeof(*reg));
-	if (!reg)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	reg->mobj = mobj;
-	reg->offset = 0;
-	reg->va = 0;
-	reg->size = ROUNDUP(mobj->size, SMALL_PAGE_SIZE);
-	reg->attr = TEE_MATTR_SECURE;
-
-	res = umap_add_region(&uctx->vm_info, reg, 0, 0, 0);
-	if (res) {
-		free(reg);
-		return res;
-	}
-
-	res = alloc_pgt(uctx);
-	if (res)
-		umap_remove_region(&uctx->vm_info, reg);
-	else
-		*va = reg->va;
-
-	return res;
-}
-
-void vm_rem_rwmem(struct user_mode_ctx *uctx, struct mobj *mobj, vaddr_t va)
-{
-	struct vm_region *r = NULL;
-
-	TAILQ_FOREACH(r, &uctx->vm_info.regions, link) {
-		if (r->mobj == mobj && r->va == va) {
-			rem_um_region(uctx, r);
-			umap_remove_region(&uctx->vm_info, r);
-			return;
-		}
-	}
-}
-
 void vm_info_final(struct user_mode_ctx *uctx)
 {
 	if (!uctx->vm_info.asid)
