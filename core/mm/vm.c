@@ -113,7 +113,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 {
 	struct thread_specific_data *tsd __maybe_unused;
 
-	if (!pgt_check_avail(&uctx->vm_info)) {
+	if (!pgt_check_avail(uctx)) {
 		EMSG("Page tables are not available");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
@@ -125,7 +125,7 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 		 * The supplied utc is the current active utc, allocate the
 		 * page tables too as the pager needs to use them soon.
 		 */
-		pgt_alloc(&tsd->pgt_cache, uctx->ts_ctx, &uctx->vm_info);
+		pgt_get_all(uctx);
 	}
 #endif
 
@@ -134,24 +134,26 @@ static TEE_Result alloc_pgt(struct user_mode_ctx *uctx)
 
 static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 {
-	struct thread_specific_data *tsd = thread_get_tsd();
-	struct pgt_cache *pgt_cache = NULL;
 	vaddr_t begin = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
 	vaddr_t last = ROUNDUP(r->va + r->size, CORE_MMU_PGDIR_SIZE);
 	struct vm_region *r2 = NULL;
 
-	if (uctx->ts_ctx == tsd->ctx)
-		pgt_cache = &tsd->pgt_cache;
-
 	if (mobj_is_paged(r->mobj)) {
 		tee_pager_rem_um_region(uctx, r->va, r->size);
 	} else {
-		pgt_clear_ctx_range(pgt_cache, uctx->ts_ctx, r->va,
-				    r->va + r->size);
+		pgt_clear_range(uctx, r->va, r->va + r->size);
 		tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
 				    uctx->vm_info.asid);
 	}
 
+	/*
+	 * Figure out how much virtual memory on a CORE_MMU_PGDIR_SIZE
+	 * grunalarity can be freed. Only completely unused
+	 * CORE_MMU_PGDIR_SIZE ranges can be supplied to pgt_flush_range().
+	 *
+	 * Note that there's is no margin for error here, both flushing too
+	 * many or too few translation tables can be fatal.
+	 */
 	r2 = TAILQ_NEXT(r, link);
 	if (r2)
 		last = MIN(last, ROUNDDOWN(r2->va, CORE_MMU_PGDIR_SIZE));
@@ -161,11 +163,75 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 		begin = MAX(begin,
 			    ROUNDUP(r2->va + r2->size, CORE_MMU_PGDIR_SIZE));
 
-	/* If there's no unused page tables, there's nothing left to do */
-	if (begin >= last)
-		return;
+	if (begin < last)
+		pgt_flush_range(uctx, begin, last);
+}
 
-	pgt_flush_ctx_range(pgt_cache, uctx->ts_ctx, r->va, r->va + r->size);
+static void set_pa_range(struct core_mmu_table_info *ti, vaddr_t va,
+			 paddr_t pa, size_t size, uint32_t attr)
+{
+	unsigned int end = core_mmu_va2idx(ti, va + size);
+	unsigned int idx = core_mmu_va2idx(ti, va);
+
+	while (idx < end) {
+		core_mmu_set_entry(ti, idx, pa, attr);
+		idx++;
+		pa += BIT64(ti->shift);
+	}
+}
+
+static void set_reg_in_table(struct core_mmu_table_info *ti,
+			     struct vm_region *r)
+{
+	vaddr_t va = MAX(r->va, ti->va_base);
+	vaddr_t end = MIN(r->va + r->size, ti->va_base + CORE_MMU_PGDIR_SIZE);
+	size_t sz = MIN(end - va, mobj_get_phys_granule(r->mobj));
+	size_t granule = BIT(ti->shift);
+	size_t offset = 0;
+	paddr_t pa = 0;
+
+	while (va < end) {
+		offset = va - r->va + r->offset;
+		if (mobj_get_pa(r->mobj, offset, granule, &pa))
+			panic("Failed to get PA");
+		set_pa_range(ti, va, pa, sz, r->attr);
+		va += sz;
+	}
+}
+
+static void set_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
+{
+	struct pgt *p = SLIST_FIRST(&uctx->pgt_cache);
+	struct core_mmu_table_info ti = { };
+
+	assert(!mobj_is_paged(r->mobj));
+
+	core_mmu_set_info_table(&ti, CORE_MMU_PGDIR_LEVEL, 0, NULL);
+
+	if (p) {
+		/* All the pgts are already allocated, update in place */
+		do {
+			ti.va_base = p->vabase;
+			ti.table = p->tbl;
+			set_reg_in_table(&ti, r);
+			p = SLIST_NEXT(p, link);
+		} while (p);
+	} else {
+		/*
+		 * We may have a few pgts in the cache list, update the
+		 * ones found.
+		 */
+		for (ti.va_base = ROUNDDOWN(r->va, CORE_MMU_PGDIR_SIZE);
+		     ti.va_base < r->va + r->size;
+		     ti.va_base += CORE_MMU_PGDIR_SIZE) {
+			p = pgt_pop_from_cache_list(ti.va_base, uctx->ts_ctx);
+			if (!p)
+				continue;
+			ti.table = p->tbl;
+			set_reg_in_table(&ti, r);
+			pgt_push_to_cache_list(p);
+		}
+	}
 }
 
 static TEE_Result umap_add_region(struct vm_info *vmi, struct vm_region *reg,
@@ -281,6 +347,8 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 		fobj_put(fobj);
 		if (res)
 			goto err_rem_reg;
+	} else {
+		set_um_region(uctx, reg);
 	}
 
 	/*
@@ -541,13 +609,17 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 			res = umap_add_region(&uctx->vm_info, r, pad_begin,
 					      pad_end + len - r->size, 0);
 		}
-		if (!res)
+		if (!res) {
 			r_last = r;
-		if (!res)
 			res = alloc_pgt(uctx);
-		if (fobj && !res)
-			res = tee_pager_add_um_region(uctx, r->va, fobj,
-						      r->attr);
+		}
+		if (!res) {
+			if (!fobj)
+				set_um_region(uctx, r);
+			else
+				res = tee_pager_add_um_region(uctx, r->va, fobj,
+							      r->attr);
+		}
 
 		if (res) {
 			/*
@@ -600,8 +672,12 @@ err_restore_map:
 			panic("Cannot restore mapping");
 		if (alloc_pgt(uctx))
 			panic("Cannot restore mapping");
-		if (fobj && tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
-			panic("Cannot restore mapping");
+		if (fobj) {
+			if (tee_pager_add_um_region(uctx, r->va, fobj, r->attr))
+				panic("Cannot restore mapping");
+		} else {
+			set_um_region(uctx, r);
+		}
 	}
 	fobj_put(fobj);
 	vm_set_ctx(uctx->ts_ctx);
@@ -688,16 +764,23 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 		if (r->attr & (TEE_MATTR_UW | TEE_MATTR_PW))
 			was_writeable = true;
 
-		if (!mobj_is_paged(r->mobj))
-			need_sync = true;
-
 		r->attr &= ~TEE_MATTR_PROT_MASK;
 		r->attr |= prot;
-	}
 
-	if (need_sync) {
-		/* Synchronize changes to translation tables */
-		vm_set_ctx(uctx->ts_ctx);
+		if (!mobj_is_paged(r->mobj)) {
+			need_sync = true;
+			set_um_region(uctx, r);
+			/*
+			 * Normally when set_um_region() is called we
+			 * change from no mapping to some mapping, but in
+			 * this case we change the permissions on an
+			 * already present mapping so some TLB invalidation
+			 * is needed. We also depend on the dsb() performed
+			 * as part of the TLB invalidation.
+			 */
+			tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
+					    uctx->vm_info.asid);
+		}
 	}
 
 	for (r = r0; r; r = TAILQ_NEXT(r, link)) {
@@ -793,7 +876,7 @@ static TEE_Result map_kinit(struct user_mode_ctx *uctx)
 	return TEE_SUCCESS;
 }
 
-TEE_Result vm_info_init(struct user_mode_ctx *uctx)
+TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx)
 {
 	TEE_Result res;
 	uint32_t asid = asid_alloc();
@@ -803,9 +886,11 @@ TEE_Result vm_info_init(struct user_mode_ctx *uctx)
 		return TEE_ERROR_GENERIC;
 	}
 
-	memset(&uctx->vm_info, 0, sizeof(uctx->vm_info));
+	memset(uctx, 0, sizeof(*uctx));
 	TAILQ_INIT(&uctx->vm_info.regions);
+	SLIST_INIT(&uctx->pgt_cache);
 	uctx->vm_info.asid = asid;
+	uctx->ts_ctx = ts_ctx;
 
 	res = map_kinit(uctx);
 	if (res)
@@ -1043,6 +1128,9 @@ void vm_info_final(struct user_mode_ctx *uctx)
 	if (!uctx->vm_info.asid)
 		return;
 
+	pgt_flush(uctx);
+	tee_pager_rem_um_regions(uctx);
+
 	/* clear MMU entries to avoid clash when asid is reused */
 	tlbi_asid(uctx->vm_info.asid);
 
@@ -1257,22 +1345,23 @@ TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
 void vm_set_ctx(struct ts_ctx *ctx)
 {
 	struct thread_specific_data *tsd = thread_get_tsd();
+	struct user_mode_ctx *uctx = NULL;
 
 	core_mmu_set_user_map(NULL);
-	/*
-	 * No matter what happens below, the current user TA will not be
-	 * current any longer. Make sure pager is in sync with that.
-	 * This function has to be called before there's a chance that
-	 * pgt_free_unlocked() is called.
-	 *
-	 * Save translation tables in a cache if it's a user TA.
-	 */
-	pgt_free(&tsd->pgt_cache, is_user_ta_ctx(tsd->ctx));
+
+	if (is_user_mode_ctx(tsd->ctx)) {
+		/*
+		 * We're coming from a user mode context so we must make
+		 * the pgts available for reuse.
+		 */
+		uctx = to_user_mode_ctx(tsd->ctx);
+		pgt_put_all(uctx);
+	}
 
 	if (is_user_mode_ctx(ctx)) {
 		struct core_mmu_user_map map = { };
-		struct user_mode_ctx *uctx = to_user_mode_ctx(ctx);
 
+		uctx = to_user_mode_ctx(ctx);
 		core_mmu_create_user_map(uctx, &map);
 		core_mmu_set_user_map(&map);
 		tee_pager_assign_um_tables(uctx);

@@ -17,7 +17,7 @@ objs		:=
 # Disable all builtin rules
 .SUFFIXES:
 
-comp-cflags$(sm) = -std=gnu99
+comp-cflags$(sm) = -std=gnu11
 comp-aflags$(sm) =
 comp-cppflags$(sm) =
 
@@ -268,7 +268,7 @@ cleanfiles := $$(cleanfiles) $2 \
 		$$(dtb-predts-$2) $$(dtb-predep-$2) \
 		$$(dtb-dep-$2) $$(dtb-cmd-file-$2)
 
-dtb-cppflags-$2	:= -Icore/include/ -x assembler-with-cpp \
+dtb-cppflags-$2 := -Icore/include/ -x assembler-with-cpp -Ulinux -Uunix \
 		   -E -ffreestanding $$(CPPFLAGS) \
 		   -MD -MF $$(dtb-predep-$2) -MT $2
 

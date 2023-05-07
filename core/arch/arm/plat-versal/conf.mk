@@ -2,6 +2,8 @@ PLATFORM_FLAVOR ?= generic
 
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
+CFG_MMAP_REGIONS ?= 24
+
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_TEE_CORE_NB_CORE,2)
@@ -31,3 +33,56 @@ $(call force,CFG_CORE_ARM64_PA_BITS,43)
 else
 $(call force,CFG_ARM32_core,y)
 endif
+
+# GPIO
+CFG_VERSAL_GPIO ?= y
+
+# Debug information
+CFG_VERSAL_TRACE_MBOX ?= n
+CFG_VERSAL_TRACE_PLM ?= n
+
+$(call force, CFG_VERSAL_MBOX,y)
+
+# MBOX configuration
+CFG_VERSAL_MBOX_IPI_ID ?= 3
+
+$(call force, CFG_VERSAL_RNG_DRV,y)
+$(call force, CFG_WITH_SOFTWARE_PRNG,n)
+
+# TRNG configuration
+CFG_VERSAL_TRNG_SEED_LIFE ?= 3
+CFG_VERSAL_TRNG_DF_MUL ?= 2
+
+# eFuse and BBRAM driver
+$(call force, CFG_VERSAL_NVM,y)
+
+# Crypto driver
+CFG_VERSAL_CRYPTO_DRIVER ?= y
+ifeq ($(CFG_VERSAL_CRYPTO_DRIVER),y)
+# Disable Fault Mitigation: triggers false positives due to
+# the driver's software fallback operations - need further work
+CFG_FAULT_MITIGATION ?= n
+endif
+
+# SHA3-384 crypto engine
+CFG_VERSAL_SHA3_384 ?= y
+
+# PM driver
+CFG_VERSAL_PM ?= y
+
+# Physical Unclonable Function
+CFG_VERSAL_PUF ?= y
+
+# Enable Hardware Unique Key driver
+CFG_VERSAL_HUK ?= y
+# AES-GCM supported key sources for HUK:
+#     6  : eFUSE USR 0
+#     7  : eFuse USR 1
+#    11  : PUF KEK
+#    12  : AES User Key 0 (devel)
+CFG_VERSAL_HUK_KEY ?= 12
+ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY))))
+$(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
+endif
+
+CFG_CORE_HEAP_SIZE ?= 262144

@@ -14,6 +14,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -85,6 +86,7 @@ enum stm32mp1_parent_id {
  */
 enum stm32mp1_parent_sel {
 	_STGEN_SEL,
+	_I2C35_SEL,
 	_I2C46_SEL,
 	_SPI6_SEL,
 	_USART1_SEL,
@@ -376,6 +378,10 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 	_CLK_SELEC(SEC, RCC_BDCR, RCC_BDCR_RTCCKEN_POS, RTC, _RTC_SEL),
 
 	/* Non-secure clocks */
+#ifdef CFG_WITH_NSEC_I2CS
+	_CLK_SC2_SELEC(N_S, RCC_MP_APB1ENSETR, I2C5EN, I2C5_K, _I2C35_SEL),
+#endif
+
 #ifdef CFG_WITH_NSEC_GPIOS
 	_CLK_SC_FIXED(N_S, RCC_MP_AHB4ENSETR, 0, GPIOA, _UNKNOWN_ID),
 	_CLK_SC_FIXED(N_S, RCC_MP_AHB4ENSETR, 1, GPIOB, _UNKNOWN_ID),
@@ -420,6 +426,12 @@ const uint8_t stm32mp1_clk_on[] = {
 static const uint8_t stgen_parents[] = {
 	_HSI_KER, _HSE_KER
 };
+
+#ifdef CFG_WITH_NSEC_I2CS
+static const uint8_t i2c35_parents[] = {
+	_PCLK1, _PLL4_R, _HSI_KER, _CSI_KER
+};
+#endif
 
 static const uint8_t i2c46_parents[] = {
 	_PCLK5, _PLL3_Q, _HSI_KER, _CSI_KER
@@ -474,6 +486,9 @@ static const struct stm32mp1_clk_sel stm32mp1_clk_sel[_PARENT_SEL_NB] = {
 	_CLK_PARENT(_RTC_SEL, RCC_BDCR, 16, 0x3, rtc_parents),
 	_CLK_PARENT(_MPU_SEL, RCC_MPCKSELR, 0, 0x3, mpu_parents),
 	/* Always non-secure clocks (maybe used in some way in secure world) */
+#ifdef CFG_WITH_NSEC_I2CS
+	_CLK_PARENT(_I2C35_SEL, RCC_I2C35CKSELR, 0, 0x7, i2c35_parents),
+#endif
 #ifdef CFG_WITH_NSEC_UARTS
 	_CLK_PARENT(_UART6_SEL, RCC_UART6CKSELR, 0, 0x7, uart6_parents),
 	_CLK_PARENT(_UART24_SEL, RCC_UART24CKSELR, 0, 0x7, uart234578_parents),
@@ -1148,7 +1163,6 @@ void stm32mp_register_clock_parents_secure(unsigned long clock_id)
 	secure_parent_clocks(parent_id);
 }
 
-#ifdef CFG_EMBED_DTB
 static const char *stm32mp_osc_node_label[NB_OSC] = {
 	[OSC_LSI] = "clk-lsi",
 	[OSC_LSE] = "clk-lse",
@@ -1165,7 +1179,7 @@ static unsigned int clk_freq_prop(const void *fdt, int node)
 	int ret = 0;
 
 	/* Disabled clocks report null rate */
-	if (_fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
 		return 0;
 
 	cuint = fdt_getprop(fdt, node, "clock-frequency", &ret);
@@ -1208,7 +1222,6 @@ static void get_osc_freq_from_dt(const void *fdt)
 			DMSG("Osc %s: no frequency info", name);
 	}
 }
-#endif /*CFG_EMBED_DTB*/
 
 static void enable_static_secure_clocks(void)
 {
@@ -1239,7 +1252,6 @@ static void __maybe_unused disable_rcc_tzen(void)
 	io_clrbits32(stm32_rcc_base() + RCC_TZCR, RCC_TZCR_TZEN);
 }
 
-#ifdef CFG_EMBED_DTB
 static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 {
 	unsigned int i = 0;
@@ -1287,7 +1299,6 @@ static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 
 	return TEE_SUCCESS;
 }
-#endif /*CFG_EMBED_DTB*/
 
 /*
  * Conversion between clk references and clock gates and clock on internals
@@ -1369,7 +1380,7 @@ struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id)
 	return clock_id_to_clk(clock_id);
 }
 
-#if CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG
+#if (CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG) && defined(CFG_TEE_CORE_DEBUG)
 struct clk_name {
 	unsigned int clock_id;
 	const char *name;
@@ -1488,7 +1499,6 @@ static TEE_Result register_stm32mp1_clocks(void)
 	return TEE_SUCCESS;
 }
 
-#ifdef CFG_DRIVERS_CLK_DT
 static struct clk *stm32mp1_clk_dt_get_clk(struct dt_driver_phandle_args *pargs,
 					   void *data __unused, TEE_Result *res)
 {
@@ -1557,21 +1567,3 @@ DEFINE_DT_DRIVER(stm32mp1_clock_dt_driver) = {
 	.match_table = stm32mp1_clock_match_table,
 	.probe = stm32mp1_clock_provider_probe,
 };
-#else /*CFG_DRIVERS_CLK_DT*/
-static TEE_Result stm32mp1_clk_early_init(void)
-{
-	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
-
-	res = register_stm32mp1_clocks();
-	if (res) {
-		EMSG("Failed to register clocks: %#"PRIx32, res);
-		panic();
-	}
-
-	enable_static_secure_clocks();
-
-	return TEE_SUCCESS;
-}
-
-service_init(stm32mp1_clk_early_init);
-#endif /*CFG_DRIVERS_CLK_DT*/

@@ -355,9 +355,9 @@ static TEE_Result cmd_get_pubkey(uint32_t param_types,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *e = params[0].memref.buffer;
-	uint32_t *e_out_sz = &params[0].memref.size;
+	size_t *e_out_sz = &params[0].memref.size;
 	uint8_t *n = params[1].memref.buffer;
-	uint32_t *n_out_sz = &params[1].memref.size;
+	size_t *n_out_sz = &params[1].memref.size;
 	size_t sz = 0;
 
 	if (param_types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_OUTPUT,

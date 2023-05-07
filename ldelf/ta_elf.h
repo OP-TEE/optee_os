@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2022-2023, Arm Limited
  */
 
 #ifndef TA_ELF_H
@@ -121,7 +122,7 @@ struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid);
 
 void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 		      uint32_t *ta_flags);
-void ta_elf_finalize_load_main(uint64_t *entry);
+void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr);
 void ta_elf_load_dependency(struct ta_elf *elf, bool is_32bit);
 void ta_elf_relocate(struct ta_elf *elf);
 void ta_elf_finalize_mappings(struct ta_elf *elf);

@@ -336,6 +336,8 @@ static const struct any_id __maybe_unused string_key_type[] = {
 	PKCS11_ID(PKCS11_CKK_SHA384_HMAC),
 	PKCS11_ID(PKCS11_CKK_SHA512_HMAC),
 	PKCS11_ID(PKCS11_CKK_EC),
+	PKCS11_ID(PKCS11_CKK_EC_EDWARDS),
+	PKCS11_ID(PKCS11_CKK_EDDSA),
 	PKCS11_ID(PKCS11_CKK_RSA),
 	PKCS11_ID(PKCS11_CKK_UNDEFINED_ID)
 };
@@ -495,6 +497,7 @@ bool key_type_is_asymm_key(uint32_t id)
 
 	switch (key_type) {
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 	case PKCS11_CKK_RSA:
 		return true;
 	default:
@@ -657,6 +660,7 @@ enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
 	uint32_t a_size = 0;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t tmp_sz = 0;
 
 	rc = get_attribute_ptr(obj->attributes, pkcs11_id, &a_ptr, &a_size);
 	if (rc)
@@ -668,7 +672,9 @@ enum pkcs11_rc pkcs2tee_load_hashed_attr(TEE_Attribute *tee_ref,
 		return tee2pkcs_error(res);
 	}
 
-	res = TEE_DigestDoFinal(handle, a_ptr, a_size, hash_ptr, hash_size);
+	tmp_sz = *hash_size;
+	res = TEE_DigestDoFinal(handle, a_ptr, a_size, hash_ptr, &tmp_sz);
+	*hash_size = tmp_sz;
 	TEE_FreeOperation(handle);
 	if (res) {
 		EMSG("TEE_DigestDoFinal() failed %#"PRIx32, tee_algo);

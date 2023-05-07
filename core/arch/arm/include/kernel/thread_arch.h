@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2020-2021, Arm Limited
  */
 
@@ -29,6 +29,16 @@
 
 struct mobj;
 
+/*
+ * Storage of keys used for pointer authentication. FEAT_PAuth supports a
+ * number of keys of which only the APIA key is currently used, depending on
+ * configuration.
+ */
+struct thread_pauth_keys {
+	uint64_t apia_hi;
+	uint64_t apia_lo;
+};
+
 struct thread_core_local {
 #ifdef ARM32
 	uint32_t r[2];
@@ -36,6 +46,9 @@ struct thread_core_local {
 #endif
 #ifdef ARM64
 	uint64_t x[4];
+#endif
+#ifdef CFG_CORE_PAUTH
+	struct thread_pauth_keys keys;
 #endif
 	vaddr_t tmp_stack_va_end;
 	long kcode_offset;
@@ -71,11 +84,6 @@ struct thread_user_vfp_state {
 	struct vfp_state vfp;
 	bool lazy_saved;
 	bool saved;
-};
-
-struct thread_pauth_keys {
-	uint64_t hi;
-	uint64_t lo;
 };
 
 #ifdef ARM32
@@ -161,11 +169,15 @@ struct thread_abort_regs {
 	uint64_t elr;
 	uint64_t spsr;
 	uint64_t sp_el0;
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	uint64_t apiakey_hi;
+	uint64_t apiakey_lo;
+#endif
 };
 #endif /*ARM64*/
 
 #ifdef ARM32
-struct thread_svc_regs {
+struct thread_scall_regs {
 	uint32_t spsr;
 	uint32_t r0;
 	uint32_t r1;
@@ -179,7 +191,7 @@ struct thread_svc_regs {
 };
 #endif /*ARM32*/
 #ifdef ARM64
-struct thread_svc_regs {
+struct thread_scall_regs {
 	uint64_t elr;
 	uint64_t spsr;
 	uint64_t x0;	/* r0_usr */
@@ -216,7 +228,7 @@ struct thread_svc_regs {
 	uint64_t x28;
 	uint64_t x29;
 #endif
-#ifdef CFG_TA_PAUTH
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
 	uint64_t apiakey_hi;
 	uint64_t apiakey_lo;
 #endif
@@ -256,7 +268,7 @@ struct thread_ctx_regs {
 	uint64_t cpsr;
 	uint64_t x[31];
 	uint64_t tpidr_el0;
-#ifdef CFG_TA_PAUTH
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
 	uint64_t apiakey_hi;
 	uint64_t apiakey_lo;
 #endif
@@ -282,7 +294,7 @@ unsigned long thread_system_reset_handler(unsigned long a0, unsigned long a1);
  * thread_*_exceptions() functions below.
  * These definitions are compatible with both ARM32 and ARM64.
  */
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 #define THREAD_EXCP_FOREIGN_INTR	(ARM32_CPSR_F >> ARM32_CPSR_F_SHIFT)
 #define THREAD_EXCP_NATIVE_INTR		(ARM32_CPSR_I >> ARM32_CPSR_F_SHIFT)
 #else
@@ -437,6 +449,8 @@ bool thread_disable_prealloc_rpc_cache(uint64_t *cookie);
  */
 bool thread_enable_prealloc_rpc_cache(void);
 
+unsigned long thread_hvc(unsigned long func_id, unsigned long a1,
+			 unsigned long a2, unsigned long a3);
 unsigned long thread_smc(unsigned long func_id, unsigned long a1,
 			 unsigned long a2, unsigned long a3);
 void thread_smccc(struct thread_smc_args *arg_res);

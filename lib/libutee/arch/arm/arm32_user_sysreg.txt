@@ -11,3 +11,4 @@
 @ B8.2 Generic Timer registers summary
 CNTFRQ    c14 0 c0  0 RW Counter Frequency register
 CNTPCT    -   0 c14 - RO Physical Count register
+CNTVCT    -   1 c14 - RO Virtual Count register

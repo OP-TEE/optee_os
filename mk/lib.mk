@@ -60,14 +60,14 @@ $(lib-libfile): $(objs)
 endif
 ifeq ($(CFG_ULIBS_SHARED),y)
 ifeq ($(sm)-$(CFG_TA_BTI),ta_arm64-y)
-lib-ldflags$(libuuid) += $$(call ld-option,-z force-bti) --fatal-warnings
+lib-ldflags$(lib-shlibfile) += $$(call ld-option,-z force-bti) --fatal-warnings
 endif
 $(lib-shlibfile): $(objs) $(lib-needed-so-files)
 	@$(cmd-echo-silent) '  LD      $$@'
 	@mkdir -p $$(dir $$@)
 	$$(q)$$(LD$(sm)) $(lib-ldflags) -shared -z max-page-size=4096 \
 		$(call ld-option,-z separate-loadable-segments) \
-		$$(lib-ldflags$(libuuid)) \
+		$$(lib-ldflags$(lib-shlibfile)) \
 		--soname=$(libuuid) -o $$@ $$(filter-out %.so,$$^) $(lib-Ll-args)
 
 $(lib-shlibstrippedfile): $(lib-shlibfile)

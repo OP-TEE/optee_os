@@ -7,6 +7,7 @@
 
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -42,7 +43,7 @@ void atmel_sfr_set_usb_suspend(bool set)
 static TEE_Result atmel_sfr_probe(const void *fdt, int node,
 				  const void *compat_data __unused)
 {
-	if (_fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
 		matrix_configure_periph_secure(AT91C_ID_SFR);
 
 	return TEE_SUCCESS;

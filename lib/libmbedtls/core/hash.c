@@ -14,6 +14,7 @@
 #include <mbedtls/platform_util.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
+#include <mbedtls/sha512.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>
@@ -225,3 +226,18 @@ int mbedtls_internal_sha256_process(mbedtls_sha256_context *ctx,
 	return 0;
 }
 #endif /*MBEDTLS_SHA256_PROCESS_ALT*/
+
+#if defined(MBEDTLS_SHA512_PROCESS_ALT)
+int mbedtls_internal_sha512_process(mbedtls_sha512_context *ctx,
+				    const unsigned char data[64])
+{
+	MBEDTLS_INTERNAL_VALIDATE_RET(ctx != NULL,
+				      MBEDTLS_ERR_SHA512_BAD_INPUT_DATA);
+	MBEDTLS_INTERNAL_VALIDATE_RET((const unsigned char *)data != NULL,
+				      MBEDTLS_ERR_SHA512_BAD_INPUT_DATA);
+
+	crypto_accel_sha512_compress(ctx->state, data, 1);
+
+	return 0;
+}
+#endif /*MBEDTLS_SHA512_PROCESS_ALT*/

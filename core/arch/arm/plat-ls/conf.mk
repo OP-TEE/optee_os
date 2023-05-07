@@ -1,4 +1,4 @@
-PLATFORM_FLAVOR ?= ls1021atwr
+PLATFORM_FLAVOR ?= ls1012ardb
 
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_GIC,y)
@@ -7,26 +7,6 @@ $(call force,CFG_LS,y)
 
 $(call force,CFG_DRAM0_BASE,0x80000000)
 $(call force,CFG_TEE_OS_DRAM0_SIZE,0x4000000)
-
-ifeq ($(PLATFORM_FLAVOR),ls1021atwr)
-include core/arch/arm/cpu/cortex-a7.mk
-$(call force,CFG_TEE_CORE_NB_CORE,2)
-$(call force,CFG_DRAM0_SIZE,0x40000000)
-$(call force,CFG_CORE_CLUSTER_SHIFT,2)
-CFG_SHMEM_SIZE ?= 0x00100000
-CFG_BOOT_SYNC_CPU ?= y
-CFG_BOOT_SECONDARY_REQUEST ?= y
-endif
-
-ifeq ($(PLATFORM_FLAVOR),ls1021aqds)
-include core/arch/arm/cpu/cortex-a7.mk
-$(call force,CFG_TEE_CORE_NB_CORE,2)
-$(call force,CFG_DRAM0_SIZE,0x80000000)
-$(call force,CFG_CORE_CLUSTER_SHIFT,2)
-CFG_SHMEM_SIZE ?= 0x00100000
-CFG_BOOT_SYNC_CPU ?= y
-CFG_BOOT_SECONDARY_REQUEST ?= y
-endif
 
 ifeq ($(PLATFORM_FLAVOR),ls1012ardb)
 include core/arch/arm/cpu/cortex-armv8-0.mk
@@ -145,15 +125,6 @@ CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 # on the command line
 CFG_NXP_CAAM ?= n
 
-ifeq ($(CFG_NXP_CAAM),y)
-# If NXP CAAM Driver is supported, the Crypto Driver interfacing
-# it with generic crypto API can be enabled.
-CFG_CRYPTO_DRIVER ?= y
-CFG_CRYPTO_DRIVER_DEBUG ?= 0
-else
-$(call force,CFG_CRYPTO_DRIVER,n)
+ifneq ($(CFG_NXP_CAAM),y)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
-
-# Cryptographic configuration
-include core/arch/arm/plat-ls/crypto_conf.mk

@@ -10,6 +10,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <limits.h>
@@ -21,94 +22,88 @@
 #include <types_ext.h>
 #include <util.h>
 
+#ifdef CFG_STM32MP13
+#define DT_BSEC_COMPAT "st,stm32mp13-bsec"
+#endif
+#ifdef CFG_STM32MP15
+#define DT_BSEC_COMPAT "st,stm32mp15-bsec"
+#endif
+
 #define BSEC_OTP_MASK			GENMASK_32(4, 0)
-#define BSEC_OTP_BANK_SHIFT		5
+#define BSEC_OTP_BANK_SHIFT		U(5)
 
 /* Permanent lock bitmasks */
-#define ADDR_LOWER_OTP_PERLOCK_SHIFT	3
-#define DATA_LOWER_OTP_PERLOCK_BIT	3
-#define DATA_LOWER_OTP_PERLOCK_MASK	GENMASK_32(2, 0)
-#define ADDR_UPPER_OTP_PERLOCK_SHIFT	4
-#define DATA_UPPER_OTP_PERLOCK_BIT	1
-#define DATA_UPPER_OTP_PERLOCK_MASK	GENMASK_32(3, 0)
+#define DATA_LOWER_OTP_PERLOCK_BIT	U(3)
+#define DATA_UPPER_OTP_PERLOCK_BIT	U(1)
 
 /* BSEC register offset */
-#define BSEC_OTP_CONF_OFF		0x000U
-#define BSEC_OTP_CTRL_OFF		0x004U
-#define BSEC_OTP_WRDATA_OFF		0x008U
-#define BSEC_OTP_STATUS_OFF		0x00CU
-#define BSEC_OTP_LOCK_OFF		0x010U
-#define BSEC_DEN_OFF			0x014U
-#define BSEC_FEN_OFF			0x018U
-#define BSEC_DISTURBED_OFF		0x01CU
-#define BSEC_DISTURBED1_OFF		0x020U
-#define BSEC_DISTURBED2_OFF		0x024U
-#define BSEC_ERROR_OFF			0x034U
-#define BSEC_ERROR1_OFF			0x038U
-#define BSEC_ERROR2_OFF			0x03CU
-#define BSEC_WRLOCK_OFF			0x04CU
-#define BSEC_WRLOCK1_OFF		0x050U
-#define BSEC_WRLOCK2_OFF		0x054U
-#define BSEC_SPLOCK_OFF			0x064U
-#define BSEC_SPLOCK1_OFF		0x068U
-#define BSEC_SPLOCK2_OFF		0x06CU
-#define BSEC_SWLOCK_OFF			0x07CU
-#define BSEC_SWLOCK1_OFF		0x080U
-#define BSEC_SWLOCK2_OFF		0x084U
-#define BSEC_SRLOCK_OFF			0x094U
-#define BSEC_SRLOCK1_OFF		0x098U
-#define BSEC_SRLOCK2_OFF		0x09CU
-#define BSEC_JTAG_IN_OFF		0x0ACU
-#define BSEC_JTAG_OUT_OFF		0x0B0U
-#define BSEC_SCRATCH_OFF		0x0B4U
-#define BSEC_OTP_DATA_OFF		0x200U
-#define BSEC_IPHW_CFG_OFF		0xFF0U
-#define BSEC_IPVR_OFF			0xFF4U
-#define BSEC_IP_ID_OFF			0xFF8U
-#define BSEC_IP_MAGIC_ID_OFF		0xFFCU
+#define BSEC_OTP_CONF_OFF		U(0x000)
+#define BSEC_OTP_CTRL_OFF		U(0x004)
+#define BSEC_OTP_WRDATA_OFF		U(0x008)
+#define BSEC_OTP_STATUS_OFF		U(0x00C)
+#define BSEC_OTP_LOCK_OFF		U(0x010)
+#define BSEC_DEN_OFF			U(0x014)
+#define BSEC_FEN_OFF			U(0x018)
+#define BSEC_DISTURBED_OFF		U(0x01C)
+#define BSEC_DISTURBED1_OFF		U(0x020)
+#define BSEC_DISTURBED2_OFF		U(0x024)
+#define BSEC_ERROR_OFF			U(0x034)
+#define BSEC_ERROR1_OFF			U(0x038)
+#define BSEC_ERROR2_OFF			U(0x03C)
+#define BSEC_WRLOCK_OFF			U(0x04C)
+#define BSEC_WRLOCK1_OFF		U(0x050)
+#define BSEC_WRLOCK2_OFF		U(0x054)
+#define BSEC_SPLOCK_OFF			U(0x064)
+#define BSEC_SPLOCK1_OFF		U(0x068)
+#define BSEC_SPLOCK2_OFF		U(0x06C)
+#define BSEC_SWLOCK_OFF			U(0x07C)
+#define BSEC_SWLOCK1_OFF		U(0x080)
+#define BSEC_SWLOCK2_OFF		U(0x084)
+#define BSEC_SRLOCK_OFF			U(0x094)
+#define BSEC_SRLOCK1_OFF		U(0x098)
+#define BSEC_SRLOCK2_OFF		U(0x09C)
+#define BSEC_JTAG_IN_OFF		U(0x0AC)
+#define BSEC_JTAG_OUT_OFF		U(0x0B0)
+#define BSEC_SCRATCH_OFF		U(0x0B4)
+#define BSEC_OTP_DATA_OFF		U(0x200)
+#define BSEC_IPHW_CFG_OFF		U(0xFF0)
+#define BSEC_IPVR_OFF			U(0xFF4)
+#define BSEC_IP_ID_OFF			U(0xFF8)
+#define BSEC_IP_MAGIC_ID_OFF		U(0xFFC)
 
 /* BSEC_CONFIGURATION Register */
 #define BSEC_CONF_POWER_UP_MASK		BIT(0)
-#define BSEC_CONF_POWER_UP_SHIFT	0
+#define BSEC_CONF_POWER_UP_SHIFT	U(0)
 #define BSEC_CONF_FRQ_MASK		GENMASK_32(2, 1)
-#define BSEC_CONF_FRQ_SHIFT		1
+#define BSEC_CONF_FRQ_SHIFT		U(1)
 #define BSEC_CONF_PRG_WIDTH_MASK	GENMASK_32(6, 3)
-#define BSEC_CONF_PRG_WIDTH_SHIFT	3
+#define BSEC_CONF_PRG_WIDTH_SHIFT	U(3)
 #define BSEC_CONF_TREAD_MASK		GENMASK_32(8, 7)
-#define BSEC_CONF_TREAD_SHIFT		7
+#define BSEC_CONF_TREAD_SHIFT		U(7)
 
 /* BSEC_CONTROL Register */
-#define BSEC_READ			0x000U
-#define BSEC_WRITE			0x100U
-#define BSEC_LOCK			0x200U
+#define BSEC_READ			U(0x000)
+#define BSEC_WRITE			U(0x100)
+#define BSEC_LOCK			U(0x200)
 
 /* BSEC_STATUS Register */
-#define BSEC_MODE_STATUS_MASK		GENMASK_32(2, 0)
-#define BSEC_MODE_BUSY_MASK		BIT(3)
-#define BSEC_MODE_PROGFAIL_MASK		BIT(4)
-#define BSEC_MODE_PWR_MASK		BIT(5)
-#define BSEC_MODE_BIST1_LOCK_MASK	BIT(6)
-#define BSEC_MODE_BIST2_LOCK_MASK	BIT(7)
-
-/* BSEC_DEBUG */
-#define BSEC_HDPEN			BIT(4)
-#define BSEC_SPIDEN			BIT(5)
-#define BSEC_SPINDEN			BIT(6)
-#define BSEC_DBGSWGEN			BIT(10)
-#define BSEC_DEN_ALL_MSK		GENMASK_32(10, 0)
+#define BSEC_MODE_SECURED		BIT(0)
+#define BSEC_MODE_INVALID		BIT(2)
+#define BSEC_MODE_BUSY			BIT(3)
+#define BSEC_MODE_PROGFAIL		BIT(4)
+#define BSEC_MODE_PWR			BIT(5)
+#define BSEC_MODE_CLOSED		BIT(8)
 
 /*
  * OTP Lock services definition
  * Value must corresponding to the bit position in the register
  */
-#define BSEC_LOCK_UPPER_OTP		0x00
-#define BSEC_LOCK_DEBUG			0x02
-#define BSEC_LOCK_PROGRAM		0x04
+#define BSEC_LOCK_UPPER_OTP		U(0x00)
+#define BSEC_LOCK_DEBUG			U(0x02)
+#define BSEC_LOCK_PROGRAM		U(0x04)
 
 /* Timeout when polling on status */
-#define BSEC_TIMEOUT_US			10000
-
-#define BITS_PER_WORD		(CHAR_BIT * sizeof(uint32_t))
+#define BSEC_TIMEOUT_US			U(10000)
 
 struct bsec_dev {
 	struct io_pa_va base;
@@ -161,6 +156,35 @@ static uint32_t bsec_status(void)
 	return io_read32(bsec_base() + BSEC_OTP_STATUS_OFF);
 }
 
+static bool state_is_invalid_mode(void)
+{
+	return bsec_status() & BSEC_MODE_INVALID;
+}
+
+static bool state_is_secured_mode(void)
+{
+	return bsec_status() & BSEC_MODE_SECURED;
+}
+
+static bool state_is_closed_mode(void)
+{
+	uint32_t otp_cfg = 0;
+	uint32_t close_mode = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (IS_ENABLED(CFG_STM32MP13))
+		return bsec_status() & BSEC_MODE_CLOSED;
+
+	res = stm32_bsec_find_otp_in_nvmem_layout("cfg0_otp", &otp_cfg, NULL);
+	if (res)
+		panic("CFG0 OTP not found");
+
+	if (stm32_bsec_read_otp(&close_mode, otp_cfg))
+		panic("Unable to read OTP");
+
+	return close_mode & CFG0_OTP_CLOSED_DEVICE;
+}
+
 /*
  * Check that BSEC interface does not report an error
  * @otp_id : OTP number
@@ -194,10 +218,10 @@ static TEE_Result power_up_safmem(void)
 	 * cases where timeout is due to the executing TEE thread rescheduling.
 	 */
 	while (!timeout_elapsed(timeout_ref))
-		if (bsec_status() & BSEC_MODE_PWR_MASK)
+		if (bsec_status() & BSEC_MODE_PWR)
 			break;
 
-	if (bsec_status() & BSEC_MODE_PWR_MASK)
+	if (bsec_status() & BSEC_MODE_PWR)
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_GENERIC;
@@ -214,10 +238,10 @@ static TEE_Result power_down_safmem(void)
 	 * cases where timeout is due to the executing TEE thread rescheduling.
 	 */
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_PWR_MASK))
+		if (!(bsec_status() & BSEC_MODE_PWR))
 			break;
 
-	if (!(bsec_status() & BSEC_MODE_PWR_MASK))
+	if (!(bsec_status() & BSEC_MODE_PWR))
 		return TEE_SUCCESS;
 
 	return TEE_ERROR_GENERIC;
@@ -238,6 +262,9 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 	if (locked)
 		DMSG("BSEC shadow warning: OTP locked");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	result = power_up_safmem();
@@ -248,10 +275,10 @@ TEE_Result stm32_bsec_shadow_register(uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
@@ -268,6 +295,9 @@ TEE_Result stm32_bsec_read_otp(uint32_t *value, uint32_t otp_id)
 {
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	*value = io_read32(bsec_base() + BSEC_OTP_DATA_OFF +
 			   (otp_id * sizeof(uint32_t)));
@@ -307,6 +337,9 @@ TEE_Result stm32_bsec_write_otp(uint32_t value, uint32_t otp_id)
 	if (locked)
 		DMSG("BSEC write warning: OTP locked");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	io_write32(otp_data_base + (otp_id * sizeof(uint32_t)), value);
@@ -335,6 +368,9 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 	if (io_read32(bsec_base() + BSEC_OTP_LOCK_OFF) & BIT(BSEC_LOCK_PROGRAM))
 		DMSG("BSEC program warning: GPLOCK activated");
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	exceptions = bsec_lock();
 
 	result = power_up_safmem();
@@ -346,12 +382,12 @@ TEE_Result stm32_bsec_program_otp(uint32_t value, uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
-	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
+	else if (bsec_status() & BSEC_MODE_PROGFAIL)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, true /* check-disturbed */);
@@ -373,19 +409,38 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 	uint32_t exceptions = 0;
 	vaddr_t base = bsec_base();
 	uint64_t timeout_ref = 0;
+	uint32_t upper_base = otp_upper_base();
 
 	if (otp_id > otp_max_id())
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (otp_id < otp_upper_base()) {
-		addr = otp_id >> ADDR_LOWER_OTP_PERLOCK_SHIFT;
-		data = DATA_LOWER_OTP_PERLOCK_BIT <<
-		       ((otp_id & DATA_LOWER_OTP_PERLOCK_MASK) << 1U);
+	/*
+	 * 2 bits per words for lower OTPs: 2:1 Redundancy
+	 * 1 bit per word for upper OTPs : ECC support
+	 * e.g with 32 lower and 64 upper OTPs:
+	 * OTP word to be    ADDR[6:0]   WRDATA[31:0]
+	 *     locked
+	 *       0             0x00      0x0000 0003
+	 *       1             0x00      0x0000 000C
+	 *      ...             ...              ...
+	 *       7             0x00      0x0000 C000
+	 *       8             0x01      0x0000 0003
+	 *      ...             ...              ...
+	 *      31             0x03      0x0000 C000
+	 *      32             0x04      0x0000 0001
+	 *      33             0x04      0x0000 0002
+	 *      95             0x07      0x0000 8000
+	 */
+	if (otp_id < upper_base) {
+		addr = otp_id / 8U;
+		data = DATA_LOWER_OTP_PERLOCK_BIT << ((otp_id * 2U) & 0xF);
 	} else {
-		addr = (otp_id >> ADDR_UPPER_OTP_PERLOCK_SHIFT) + 2U;
-		data = DATA_UPPER_OTP_PERLOCK_BIT <<
-		       (otp_id & DATA_UPPER_OTP_PERLOCK_MASK);
+		addr = upper_base / 8U + (otp_id - upper_base) / 16U;
+		data = DATA_UPPER_OTP_PERLOCK_BIT << (otp_id & 0xF);
 	}
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
@@ -398,15 +453,19 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 
 	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
-		if (!(bsec_status() & BSEC_MODE_BUSY_MASK))
+		if (!(bsec_status() & BSEC_MODE_BUSY))
 			break;
 
-	if (bsec_status() & BSEC_MODE_BUSY_MASK)
+	if (bsec_status() & BSEC_MODE_BUSY)
 		result = TEE_ERROR_BUSY;
-	else if (bsec_status() & BSEC_MODE_PROGFAIL_MASK)
+	else if (bsec_status() & BSEC_MODE_PROGFAIL)
 		result = TEE_ERROR_BAD_PARAMETERS;
 	else
 		result = check_no_error(otp_id, false /* not-disturbed */);
+
+#ifdef CFG_STM32MP13
+	io_write32(base + BSEC_OTP_CTRL_OFF, addr | BSEC_READ | BSEC_LOCK);
+#endif
 
 	power_down_safmem();
 
@@ -416,25 +475,25 @@ out:
 	return result;
 }
 
-#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
-	uint32_t masked_val = value & BSEC_DEN_ALL_MSK;
 	uint32_t exceptions = 0;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
 	io_write32(bsec_base() + BSEC_DEN_OFF, value);
 
-	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ masked_val) == 0U)
+	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ value) == 0U)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
 
 	return result;
 }
-#endif /*CFG_STM32_BSEC_WRITE*/
 
 uint32_t stm32_bsec_read_debug_conf(void)
 {
@@ -450,6 +509,9 @@ static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
 
 	if (otp_id > STM32MP1_OTP_MAX_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
@@ -485,6 +547,9 @@ static TEE_Result read_bsec_lock(uint32_t otp_id, bool *locked,
 	if (otp_id > STM32MP1_OTP_MAX_ID)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (state_is_invalid_mode())
+		return TEE_ERROR_SECURITY;
+
 	*locked = (io_read32(lock_addr) & otp_mask) != 0;
 
 	return TEE_SUCCESS;
@@ -510,32 +575,11 @@ TEE_Result stm32_bsec_read_permanent_lock(uint32_t otp_id, bool *locked)
 	return read_bsec_lock(otp_id, locked, BSEC_WRLOCK_OFF);
 }
 
-TEE_Result stm32_bsec_otp_lock(uint32_t service)
-{
-	vaddr_t addr = bsec_base() + BSEC_OTP_LOCK_OFF;
-
-	switch (service) {
-	case BSEC_LOCK_UPPER_OTP:
-		io_write32(addr, BIT(BSEC_LOCK_UPPER_OTP));
-		break;
-	case BSEC_LOCK_DEBUG:
-		io_write32(addr, BIT(BSEC_LOCK_DEBUG));
-		break;
-	case BSEC_LOCK_PROGRAM:
-		io_write32(addr, BIT(BSEC_LOCK_PROGRAM));
-		break;
-	default:
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	return TEE_SUCCESS;
-}
-
 static size_t nsec_access_array_size(void)
 {
 	size_t upper_count = otp_max_id() - otp_upper_base() + 1;
 
-	return ROUNDUP(upper_count, BITS_PER_WORD) / BITS_PER_WORD;
+	return ROUNDUP_DIV(upper_count, BSEC_BITS_PER_WORD);
 }
 
 static bool nsec_access_granted(unsigned int index)
@@ -543,8 +587,14 @@ static bool nsec_access_granted(unsigned int index)
 	uint32_t *array = bsec_dev.nsec_access;
 
 	return array &&
-	       (index / BITS_PER_WORD) < nsec_access_array_size() &&
-	       array[index / BITS_PER_WORD] & BIT(index % BITS_PER_WORD);
+	       (index / BSEC_BITS_PER_WORD) < nsec_access_array_size() &&
+	       array[index / BSEC_BITS_PER_WORD] &
+	       BIT(index % BSEC_BITS_PER_WORD);
+}
+
+bool stm32_bsec_can_access_otp(uint32_t otp_id)
+{
+	return (otp_id <= otp_max_id()) && !state_is_invalid_mode();
 }
 
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
@@ -553,10 +603,65 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 	       nsec_access_granted(otp_id - otp_upper_base());
 }
 
-#ifdef CFG_EMBED_DTB
+struct nvmem_layout {
+	char *name;
+	uint32_t otp_id;
+	size_t bit_len;
+};
+
+static struct nvmem_layout *nvmem_layout;
+static size_t nvmem_layout_count;
+
+TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
+					       uint32_t *otp_id,
+					       size_t *otp_bit_len)
+{
+	size_t i = 0;
+
+	if (!name)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	for (i = 0; i < nvmem_layout_count; i++) {
+		if (!nvmem_layout[i].name || strcmp(name, nvmem_layout[i].name))
+			continue;
+
+		if (otp_id)
+			*otp_id = nvmem_layout[i].otp_id;
+
+		if (otp_bit_len)
+			*otp_bit_len = nvmem_layout[i].bit_len;
+
+		DMSG("nvmem %s = %zu: %"PRId32" %zu", name, i,
+		     nvmem_layout[i].otp_id, nvmem_layout[i].bit_len);
+
+		return TEE_SUCCESS;
+	}
+
+	DMSG("nvmem %s failed", name);
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+};
+
+TEE_Result stm32_bsec_get_state(uint32_t *state)
+{
+	if (!state)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (state_is_invalid_mode() || !state_is_secured_mode()) {
+		*state = BSEC_STATE_INVALID;
+	} else {
+		if (state_is_closed_mode())
+			*state = BSEC_STATE_SEC_CLOSED;
+		else
+			*state = BSEC_STATE_SEC_OPEN;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static void enable_nsec_access(unsigned int otp_id)
 {
-	unsigned int idx = (otp_id - otp_upper_base()) / BITS_PER_WORD;
+	unsigned int idx = (otp_id - otp_upper_base()) / BSEC_BITS_PER_WORD;
 
 	if (otp_id < otp_upper_base())
 		return;
@@ -564,7 +669,7 @@ static void enable_nsec_access(unsigned int otp_id)
 	if (otp_id > otp_max_id() || stm32_bsec_shadow_register(otp_id))
 		panic();
 
-	bsec_dev.nsec_access[idx] |= BIT(otp_id % BITS_PER_WORD);
+	bsec_dev.nsec_access[idx] |= BIT(otp_id % BSEC_BITS_PER_WORD);
 }
 
 static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
@@ -577,26 +682,24 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 		panic();
 
 	fdt_for_each_subnode(bsec_subnode, fdt, bsec_node) {
-		const fdt32_t *cuint = NULL;
+		unsigned int reg_offset = 0;
+		unsigned int reg_size = 0;
 		unsigned int otp_id = 0;
 		unsigned int i = 0;
 		size_t size = 0;
-		uint32_t offset = 0;
-		uint32_t length = 0;
 
-		cuint = fdt_getprop(fdt, bsec_subnode, "reg", NULL);
-		assert(cuint);
+		reg_offset = fdt_reg_base_address(fdt, bsec_subnode);
+		reg_size = fdt_reg_size(fdt, bsec_subnode);
 
-		offset = fdt32_to_cpu(*cuint);
-		cuint++;
-		length = fdt32_to_cpu(*cuint);
+		assert(reg_offset != DT_INFO_INVALID_REG &&
+		       reg_size != DT_INFO_INVALID_REG_SIZE);
 
-		otp_id = offset / sizeof(uint32_t);
+		otp_id = reg_offset / sizeof(uint32_t);
 
 		if (otp_id < STM32MP1_UPPER_OTP_START) {
-			unsigned int otp_end = ROUNDUP(offset + length,
-						       sizeof(uint32_t)) /
-					       sizeof(uint32_t);
+			unsigned int otp_end =
+				ROUNDUP_DIV(reg_offset + reg_size,
+					    sizeof(uint32_t));
 
 			if (otp_end > STM32MP1_UPPER_OTP_START) {
 				/*
@@ -604,10 +707,10 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 				 * only the upper part.
 				 */
 				otp_id = STM32MP1_UPPER_OTP_START;
-				length -= (STM32MP1_UPPER_OTP_START *
-					   sizeof(uint32_t)) - offset;
-				offset = STM32MP1_UPPER_OTP_START *
-					 sizeof(uint32_t);
+				reg_size -= (STM32MP1_UPPER_OTP_START *
+					     sizeof(uint32_t)) - reg_offset;
+				reg_offset = STM32MP1_UPPER_OTP_START *
+					     sizeof(uint32_t);
 
 				DMSG("OTP crosses Lower/Upper boundary");
 			} else {
@@ -615,20 +718,119 @@ static void bsec_dt_otp_nsec_access(void *fdt, int bsec_node)
 			}
 		}
 
-		if (!fdt_getprop(fdt, bsec_subnode, "st,non-secure-otp", NULL))
-			continue;
+		/* Handle different kinds of non-secure accesses */
+		if (fdt_getprop(fdt, bsec_subnode,
+				"st,non-secure-otp-provisioning", NULL)) {
+			bool locked = false;
+			bool locked_2 = false;
 
-		if ((offset % sizeof(uint32_t)) || (length % sizeof(uint32_t)))
+			/* Check if write of OTP is locked */
+			if (stm32_bsec_read_permanent_lock(otp_id, &locked))
+				panic("Cannot read permanent lock");
+
+			/*
+			 * Check if fuses of the subnode
+			 * have the same lock status
+			 */
+			for (i = 1; i < (reg_size / sizeof(uint32_t)); i++) {
+				if (stm32_bsec_read_permanent_lock(otp_id + i,
+								   &locked_2))
+					panic("Cannot read permanent lock");
+
+				if (locked != locked_2) {
+					EMSG("Inconsistent status OTP ID %u",
+					     otp_id + i);
+					locked = true;
+				}
+			}
+
+			if (locked) {
+				DMSG("BSEC: OTP locked");
+				continue;
+			}
+		} else if (!fdt_getprop(fdt, bsec_subnode, "st,non-secure-otp",
+					NULL)) {
+			continue;
+		}
+
+		if ((reg_offset % sizeof(uint32_t)) ||
+		    (reg_size % sizeof(uint32_t)))
 			panic("Unaligned non-secure OTP");
 
-		size = length / sizeof(uint32_t);
+		size = reg_size / sizeof(uint32_t);
 
-		if (otp_id + size > STM32MP1_OTP_MAX_ID)
+		if (otp_id + size > OTP_MAX_SIZE)
 			panic("OTP range oversized");
 
 		for (i = otp_id; i < otp_id + size; i++)
 			enable_nsec_access(i);
 	}
+}
+
+static void save_dt_nvmem_layout(void *fdt, int bsec_node)
+{
+	int cell_max = 0;
+	int cell_cnt = 0;
+	int node = 0;
+
+	fdt_for_each_subnode(node, fdt, bsec_node)
+		cell_max++;
+	if (!cell_max)
+		return;
+
+	nvmem_layout = calloc(cell_max, sizeof(*nvmem_layout));
+	if (!nvmem_layout)
+		panic();
+
+	fdt_for_each_subnode(node, fdt, bsec_node) {
+		unsigned int reg_offset = 0;
+		unsigned int reg_length = 0;
+		const char *string = NULL;
+		const char *s = NULL;
+		int len = 0;
+		struct nvmem_layout *layout_cell = &nvmem_layout[cell_cnt];
+
+		string = fdt_get_name(fdt, node, &len);
+		if (!string || !len)
+			continue;
+
+		reg_offset = fdt_reg_base_address(fdt, node);
+		reg_length = fdt_reg_size(fdt, node);
+
+		if (reg_offset == DT_INFO_INVALID_REG ||
+		    reg_length == DT_INFO_INVALID_REG_SIZE) {
+			DMSG("Malformed nvmem %s: ignored", string);
+			continue;
+		}
+
+		if (reg_offset % sizeof(uint32_t)) {
+			DMSG("Misaligned nvmem %s: ignored", string);
+			continue;
+		}
+		layout_cell->otp_id = reg_offset / sizeof(uint32_t);
+		layout_cell->bit_len = reg_length * CHAR_BIT;
+
+		s = strchr(string, '@');
+		if (s)
+			len = s - string;
+
+		layout_cell->name = strndup(string, len);
+		if (!layout_cell->name)
+			panic();
+		cell_cnt++;
+		DMSG("nvmem[%d] = %s %"PRId32" %zu", cell_cnt,
+		     layout_cell->name, layout_cell->otp_id,
+		     layout_cell->bit_len);
+	}
+
+	if (cell_cnt != cell_max) {
+		nvmem_layout = realloc(nvmem_layout,
+				       cell_cnt * sizeof(*nvmem_layout));
+		if (!nvmem_layout)
+			panic();
+	}
+
+	nvmem_layout_count = cell_cnt;
 }
 
 static void initialize_bsec_from_dt(void)
@@ -638,23 +840,36 @@ static void initialize_bsec_from_dt(void)
 	struct dt_node_info bsec_info = { };
 
 	fdt = get_embedded_dt();
-	node = fdt_node_offset_by_compatible(fdt, 0, "st,stm32mp15-bsec");
+	node = fdt_node_offset_by_compatible(fdt, 0, DT_BSEC_COMPAT);
 	if (node < 0)
 		panic();
 
-	_fdt_fill_device_info(fdt, &bsec_info, node);
+	fdt_fill_device_info(fdt, &bsec_info, node);
 
 	if (bsec_info.reg != bsec_dev.base.pa ||
 	    !(bsec_info.status & DT_STATUS_OK_SEC))
 		panic();
 
 	bsec_dt_otp_nsec_access(fdt, node);
+
+	save_dt_nvmem_layout(fdt, node);
 }
-#else
-static void initialize_bsec_from_dt(void)
+
+static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
+			  const struct pm_callback_handle *hdl __unused)
 {
+	static uint32_t debug_conf;
+
+	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
+
+	if (op == PM_OP_SUSPEND)
+		debug_conf = stm32_bsec_read_debug_conf();
+	else
+		stm32_bsec_write_debug_conf(debug_conf);
+
+	return TEE_SUCCESS;
 }
-#endif /*CFG_EMBED_DTB*/
+DECLARE_KEEP_PAGER(bsec_pm);
 
 static TEE_Result initialize_bsec(void)
 {
@@ -666,8 +881,12 @@ static TEE_Result initialize_bsec(void)
 	bsec_dev.upper_base = cfg.upper_start;
 	bsec_dev.max_id = cfg.max_id;
 
-	if (IS_ENABLED(CFG_EMBED_DTB))
-		initialize_bsec_from_dt();
+	if (state_is_invalid_mode())
+		panic();
+
+	initialize_bsec_from_dt();
+
+	register_pm_core_service_cb(bsec_pm, NULL, "stm32_bsec");
 
 	return TEE_SUCCESS;
 }

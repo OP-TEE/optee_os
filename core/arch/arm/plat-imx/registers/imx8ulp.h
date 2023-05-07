@@ -19,5 +19,7 @@
 #define AIPS3_SIZE  0x400000
 #define SECMEM_BASE 0x00100000
 #define SECMEM_SIZE 0x80000
+#define MU_BASE	    0x27020000
+#define MU_SIZE	    0x10000
 
 #endif /* __IMX8ULP_H__ */

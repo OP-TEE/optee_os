@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -41,41 +34,6 @@ int ecc_export_openssl(unsigned char *out, unsigned long *outlen, int type, cons
 
    if (key->type != PK_PRIVATE && flag_pri) return CRYPT_PK_TYPE_MISMATCH;
 
-   prime = key->dp.prime;
-   order = key->dp.order;
-   b     = key->dp.B;
-   a     = key->dp.A;
-   gx    = key->dp.base.x;
-   gy    = key->dp.base.y;
-
-   /* curve param a */
-   len_a = mp_unsigned_bin_size(a);
-   if (len_a > sizeof(bin_a))                                   { err = CRYPT_BUFFER_OVERFLOW; goto error; }
-   if ((err = mp_to_unsigned_bin(a, bin_a)) != CRYPT_OK)        { goto error; }
-   if (len_a == 0) { len_a = 1; bin_a[0] = 0; } /* handle case a == 0 */
-
-   /* curve param b */
-   len_b = mp_unsigned_bin_size(b);
-   if (len_b > sizeof(bin_b))                                   { err = CRYPT_BUFFER_OVERFLOW; goto error; }
-   if ((err = mp_to_unsigned_bin(b, bin_b)) != CRYPT_OK)        { goto error; }
-   if (len_b == 0) { len_b = 1; bin_b[0] = 0; } /* handle case b == 0 */
-
-   /* base point - (un)compressed based on flag_com */
-   len_g = sizeof(bin_g);
-   err = ltc_ecc_export_point(bin_g, &len_g, gx, gy, key->dp.size, flag_com);
-   if (err != CRYPT_OK)                                         { goto error; }
-
-   /* public key - (un)compressed based on flag_com */
-   len_xy = sizeof(bin_xy);
-   err = ltc_ecc_export_point(bin_xy, &len_xy, key->pubkey.x, key->pubkey.y, key->dp.size, flag_com);
-   if (err != CRYPT_OK)                                         { goto error; }
-
-   /* co-factor */
-   cofactor = key->dp.cofactor;
-
-   /* we support only prime-field EC */
-   if ((err = pk_get_oid(PKA_EC_PRIMEF, &OID)) != CRYPT_OK)     { goto error; }
-
    if (flag_oid) {
       /* http://tools.ietf.org/html/rfc5912
          ECParameters ::= CHOICE {
@@ -86,6 +44,34 @@ int ecc_export_openssl(unsigned char *out, unsigned long *outlen, int type, cons
       LTC_SET_ASN1(&ecparams, 0, LTC_ASN1_OBJECT_IDENTIFIER, key->dp.oid, key->dp.oidlen);
    }
    else {
+      prime    = key->dp.prime;
+      order    = key->dp.order;
+      a        = key->dp.A;
+      b        = key->dp.B;
+      gx       = key->dp.base.x;
+      gy       = key->dp.base.y;
+      cofactor = key->dp.cofactor;
+
+      /* curve param a */
+      len_a = mp_unsigned_bin_size(a);
+      if (len_a > sizeof(bin_a))                                   { err = CRYPT_BUFFER_OVERFLOW; goto error; }
+      if ((err = mp_to_unsigned_bin(a, bin_a)) != CRYPT_OK)        { goto error; }
+      if (len_a == 0) { len_a = 1; bin_a[0] = 0; } /* handle case a == 0 */
+
+      /* curve param b */
+      len_b = mp_unsigned_bin_size(b);
+      if (len_b > sizeof(bin_b))                                   { err = CRYPT_BUFFER_OVERFLOW; goto error; }
+      if ((err = mp_to_unsigned_bin(b, bin_b)) != CRYPT_OK)        { goto error; }
+      if (len_b == 0) { len_b = 1; bin_b[0] = 0; } /* handle case b == 0 */
+
+      /* base point - (un)compressed based on flag_com */
+      len_g = sizeof(bin_g);
+      err = ltc_ecc_export_point(bin_g, &len_g, gx, gy, key->dp.size, flag_com);
+      if (err != CRYPT_OK)                                         { goto error; }
+
+      /* we support only prime-field EC */
+      if ((err = pk_get_oid(LTC_OID_EC_PRIMEF, &OID)) != CRYPT_OK) { goto error; }
+
       /* http://tools.ietf.org/html/rfc3279
          ECParameters ::= SEQUENCE {                              # SEQUENCE
            version         INTEGER { ecpVer1(1) } (ecpVer1)       # INTEGER       :01
@@ -129,7 +115,15 @@ int ecc_export_openssl(unsigned char *out, unsigned long *outlen, int type, cons
       LTC_SET_ASN1(&ecparams,    0, LTC_ASN1_SEQUENCE, seq_ecparams, 6UL);
    }
 
+   /* public key - (un)compressed based on flag_com */
+   len_xy = sizeof(bin_xy);
+   err = ltc_ecc_export_point(bin_xy, &len_xy, key->pubkey.x, key->pubkey.y, key->dp.size, flag_com);
+   if (err != CRYPT_OK) {
+      goto error;
+   }
+
    if (flag_pri) {
+
       /* http://tools.ietf.org/html/rfc5915
          ECPrivateKey ::= SEQUENCE {                                    # SEQUENCE
            version        INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1)  # INTEGER       :01
@@ -162,7 +156,7 @@ int ecc_export_openssl(unsigned char *out, unsigned long *outlen, int type, cons
            subjectPublicKey  BIT STRING                                 # BIT STRING
          }
       */
-      err = x509_encode_subject_public_key_info( out, outlen, PKA_EC, bin_xy, len_xy,
+      err = x509_encode_subject_public_key_info( out, outlen, LTC_OID_EC, bin_xy, len_xy,
                                                  ecparams.type, ecparams.data, ecparams.size );
    }
 
@@ -171,7 +165,3 @@ error:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

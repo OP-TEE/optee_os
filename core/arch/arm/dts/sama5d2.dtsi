@@ -126,6 +126,9 @@
 			interrupts = <42 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 42>, <&pmc PMC_TYPE_CORE PMC_UTMI>;
 			clock-names = "pclk", "hclk";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
@@ -135,6 +138,9 @@
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 41>, <&pmc PMC_TYPE_PERIPHERAL 41>, <&pmc PMC_TYPE_SYSTEM 6>;
 			clock-names = "ohci_clk", "hclk", "uhpck";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
@@ -144,6 +150,9 @@
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
 			clocks = <&pmc PMC_TYPE_CORE PMC_UTMI>, <&pmc PMC_TYPE_PERIPHERAL 41>;
 			clock-names = "usb_clk", "ehci_clk";
+			assigned-clocks = <&pmc PMC_TYPE_CORE PMC_USBCK>;
+			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_UTMI>;
+			assigned-clock-rates = <48000000>;
 			status = "disabled";
 		};
 
@@ -286,6 +295,8 @@
 				#clock-cells = <2>;
 				clocks = <&clk32k>, <&main_xtal>;
 				clock-names = "slow_clk", "main_xtal";
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			qspi0: spi@f0020000 {
@@ -516,6 +527,8 @@
 			sfr: sfr@f8030000 {
 				compatible = "atmel,sama5d2-sfr", "syscon";
 				reg = <0xf8030000 0x98>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			flx0: flexcom@f8034000 {
@@ -674,6 +687,8 @@
 				compatible = "atmel,sama5d3-rstc";
 				reg = <0xf8048000 0x10>;
 				clocks = <&clk32k>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			shutdown_controller: shdwc@f8048010 {
@@ -683,6 +698,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				atmel,wakeup-rtc-timer;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			pit: timer@f8048030 {
@@ -707,6 +724,8 @@
 
 				clocks = <&slow_xtal>;
 				#clock-cells = <0>;
+				status = "disabled";
+				secure-status = "okay";
 			};
 
 			rtc: rtc@f80480b0 {
@@ -1085,9 +1104,9 @@
 				status = "disabled";
 			};
 
-			pioA: pinctrl@fc038000 {
+			pioA: pinctrl@fc039000 {
 				compatible = "atmel,sama5d2-pinctrl";
-				reg = <0xfc038000 0x600>;
+				reg = <0xfc039000 0x600>;
 				interrupts = <18 IRQ_TYPE_LEVEL_HIGH 7>,
 					     <68 IRQ_TYPE_LEVEL_HIGH 7>,
 					     <69 IRQ_TYPE_LEVEL_HIGH 7>,

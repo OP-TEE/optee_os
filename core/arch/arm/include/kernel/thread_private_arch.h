@@ -21,11 +21,11 @@
 
 #ifdef ARM32
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-#define STACK_TMP_SIZE		(3072 + STACK_TMP_OFFS)
+#define STACK_TMP_SIZE		(3072 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #else
-#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
+#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #endif
-#define STACK_THREAD_SIZE	8192
+#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
 
 #if defined(CFG_CORE_SANITIZE_KADDRESS) || defined(__clang__) || \
 	!defined(CFG_CRYPTO_WITH_CE)
@@ -38,11 +38,11 @@
 
 #ifdef ARM64
 #if defined(__clang__) && !defined(__OPTIMIZE_SIZE__)
-#define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS)
+#define STACK_TMP_SIZE		(4096 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #else
-#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS)
+#define STACK_TMP_SIZE		(2048 + STACK_TMP_OFFS + CFG_STACK_TMP_EXTRA)
 #endif
-#define STACK_THREAD_SIZE	8192
+#define STACK_THREAD_SIZE	(8192 + CFG_STACK_THREAD_EXTRA)
 
 #if TRACE_LEVEL > 0
 #define STACK_ABT_SIZE		3072
@@ -181,6 +181,8 @@ void thread_set_fiq_sp(vaddr_t sp);
 
 /* Read usr_sp banked CPU register */
 uint32_t thread_get_usr_sp(void);
+uint32_t thread_get_usr_lr(void);
+void thread_set_usr_lr(uint32_t usr_lr);
 #endif /*ARM32*/
 
 void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
@@ -234,7 +236,7 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 			       uint32_t a6, uint32_t a7);
 
 /* Called from assembly only. Handles a SVC from user mode. */
-void thread_svc_handler(struct thread_svc_regs *regs);
+void thread_scall_handler(struct thread_scall_regs *regs);
 
 void thread_spmc_register_secondary_ep(vaddr_t ep);
 #endif /*__ASSEMBLER__*/

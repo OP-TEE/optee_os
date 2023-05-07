@@ -23,6 +23,7 @@ endif #juno
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_ARM64_core ?= y
+default-user-ta-target ?= ta_arm64
 endif
 
 
@@ -36,7 +37,6 @@ ifeq ($(platform-flavor-armv8),1)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 endif
 
-$(call force,CFG_GIC,y)
 $(call force,CFG_PL011,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 
@@ -55,6 +55,13 @@ endif
 CFG_WITH_STATS ?= y
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 
+ifeq ($(CFG_CORE_SEL2_SPMC),y)
+$(call force,CFG_CORE_RESERVED_SHM,n)
+CFG_GIC ?= n
+else
+$(call force,CFG_GIC,y)
+endif
+
 ifeq ($(PLATFORM_FLAVOR),fvp)
 CFG_TEE_CORE_NB_CORE = 8
 ifeq ($(CFG_CORE_SEL2_SPMC),y)
@@ -69,6 +76,9 @@ CFG_SHMEM_SIZE   ?= 0x00200000
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+endif
 endif
 
 ifeq ($(PLATFORM_FLAVOR),juno)
@@ -114,6 +124,7 @@ endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 CFG_TEE_CORE_NB_CORE = 4
+ifneq ($(CFG_CORE_SEL2_SPMC),y)
 # [0e00.0000 0e0f.ffff] is reserved to early boot
 CFG_TZDRAM_START ?= 0x0e100000
 CFG_TZDRAM_SIZE  ?= 0x00f00000
@@ -123,8 +134,12 @@ CFG_SHMEM_START ?= 0x42000000
 CFG_SHMEM_SIZE  ?= 0x00200000
 # When Secure Data Path is enable, last MByte of TZDRAM is SDP test memory.
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
+endif
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
+ifeq ($(CFG_SCMI_SCPFW),y)
+$(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
+endif
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
@@ -133,3 +148,5 @@ ifeq ($(CFG_DT_DRIVER_EMBEDDED_TEST),y)
 $(call force,CFG_EMBED_DTB_SOURCE_FILE,embedded_dtb_test.dts,Mandated for DT tests)
 endif
 endif
+
+CFG_PKCS11_TA ?= y

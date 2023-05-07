@@ -30,6 +30,8 @@ TEE_BigIntFMM
 TEE_BigInt
 TEE_Attribute
 TAILQ_ENTRY\(.*\)
+STAILQ_HEAD\(.*\)
+STAILQ_ENTRY\(.*\)
 SLIST_HEAD\(.*\)
 SLIST_ENTRY\(.*\)
 mbedtls_mpi_uint

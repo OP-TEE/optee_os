@@ -63,8 +63,8 @@ struct gpio_cfg {
  *
  * @bank: GPIO bank identifier as assigned by the platform
  * @pin: Pin number in the GPIO bank
- * @active_cfg: Configuratioh in active state
- * @standby_cfg: Configuratioh in standby state
+ * @active_cfg: Configuration in active state
+ * @standby_cfg: Configuration in standby state
  */
 struct stm32_pinctrl {
 	uint8_t bank;

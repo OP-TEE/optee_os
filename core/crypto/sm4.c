@@ -268,3 +268,84 @@ void sm4_crypt_ctr(struct sm4_context *ctx, size_t length, uint8_t ctr[16],
 		length -= 16;
 	}
 }
+
+static void xts_multi(unsigned char *in, unsigned char *out)
+{
+	uint8_t tt = 0;
+	uint8_t t = 0;
+	int i = 0;
+
+	for (i = 0; i < 16; i++) {
+		tt = in[i] >> 7;
+		out[i] = ((in[i] << 1) | t) & 0xFF;
+		t = tt;
+	}
+
+	out[0] ^= (0x87 & (0 - tt));
+}
+
+static void xor_128(const uint8_t a[16], const uint8_t b[16], uint8_t c[16])
+{
+	int i = 0;
+
+	for (i = 0; i < 16; i++)
+		c[i] = a[i] ^ b[i];
+}
+
+void sm4_crypt_xts(struct sm4_context *ctx, struct sm4_context *ctx_ek,
+		   struct sm4_context *ctx_dk, size_t len, uint8_t *iv,
+		   const uint8_t *input, uint8_t *output)
+{
+	uint8_t tweak[16] = { };
+	uint8_t tweak1[16] = { };
+	uint8_t ct[16] = { };
+	size_t i = 0;
+
+	assert(len >= 16);
+
+	sm4_one_round(ctx_ek->sk, iv, tweak);
+
+	if (ctx->mode == SM4_DECRYPT && (len % 16))
+		len -= 16;
+
+	while (len >= 16) {
+		xor_128(input, tweak, ct);
+		sm4_one_round(ctx->sk, ct, ct);
+		xor_128(ct, tweak, output);
+
+		xts_multi(tweak, tweak);
+		len -= 16;
+		if (len == 0) {
+			sm4_one_round(ctx_dk->sk, tweak, iv);
+			return;
+		}
+		input += 16;
+		output += 16;
+	}
+
+	if (ctx->mode == SM4_ENCRYPT) {
+		memcpy(ct, output - 16, 16);
+		for (i = 0; i < len; i++) {
+			output[i] = ct[i];
+			ct[i] = input[i];
+		}
+
+		xor_128(ct, tweak, ct);
+		sm4_one_round(ctx->sk, ct, ct);
+		xor_128(ct, tweak, ct);
+		memcpy(output - 16, ct, 16);
+	} else {
+		xts_multi(tweak, tweak1);
+		xor_128(input, tweak1, ct);
+		sm4_one_round(ctx->sk, ct, ct);
+		xor_128(ct, tweak1, ct);
+
+		for (i = 0; i < len; ++i) {
+			output[16 + i] = ct[i];
+			ct[i] = input[16 + i];
+		}
+		xor_128(ct, tweak, ct);
+		sm4_one_round(ctx->sk, ct, ct);
+		xor_128(ct, tweak, output);
+	}
+}

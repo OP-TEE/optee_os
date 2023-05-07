@@ -102,7 +102,8 @@ TEE_Result _utee_cipher_final(unsigned long state, const void *src,
 			      size_t src_len, void *dest, uint64_t *dest_len);
 
 /* Generic Object Functions */
-TEE_Result _utee_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
+TEE_Result _utee_cryp_obj_get_info(unsigned long obj,
+				   struct utee_object_info *info);
 TEE_Result _utee_cryp_obj_restrict_usage(unsigned long obj,
 					 unsigned long usage);
 TEE_Result _utee_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
@@ -198,7 +199,8 @@ TEE_Result _utee_storage_start_enum(unsigned long obj_enum,
 				    unsigned long storage_id);
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
-TEE_Result _utee_storage_next_enum(unsigned long obj_enum, TEE_ObjectInfo *info,
+TEE_Result _utee_storage_next_enum(unsigned long obj_enum,
+				   struct utee_object_info *info,
 				   void *obj_id, uint64_t *len);
 
 /* Data Stream Access Functions */
@@ -217,71 +219,6 @@ TEE_Result _utee_storage_obj_trunc(unsigned long obj, size_t len);
 /* whence is of type TEE_Whence */
 TEE_Result _utee_storage_obj_seek(unsigned long obj, int32_t offset,
 				  unsigned long whence);
-
-/* seServiceHandle is of type TEE_SEServiceHandle */
-TEE_Result _utee_se_service_open(uint32_t *seServiceHandle);
-
-/* seServiceHandle is of type TEE_SEServiceHandle */
-TEE_Result _utee_se_service_close(unsigned long seServiceHandle);
-
-/*
- * seServiceHandle is of type TEE_SEServiceHandle
- * r is of type TEE_SEReaderHandle
- */
-TEE_Result _utee_se_service_get_readers(unsigned long seServiceHandle,
-					uint32_t *r, uint64_t *len);
-
-/*
- * r is of type TEE_SEReaderHandle
- * p is defined with defines UTEE_SE_READER_*
- */
-TEE_Result _utee_se_reader_get_prop(unsigned long r, uint32_t *p);
-
-/* r is of type TEE_SEReaderHandle */
-TEE_Result _utee_se_reader_get_name(unsigned long r, char *name,
-				    uint64_t *name_len);
-
-/*
- * r is of type TEE_SEReaderHandle
- * s if of type TEE_SESessionHandle
- */
-TEE_Result _utee_se_reader_open_session(unsigned long r, uint32_t *s);
-
-/* r is of type TEE_SEReaderHandle */
-TEE_Result _utee_se_reader_close_sessions(unsigned long r);
-
-/* s is of type TEE_SESessionHandle */
-TEE_Result _utee_se_session_is_closed(unsigned long s);
-
-/* s is of type TEE_SESessionHandle */
-TEE_Result _utee_se_session_get_atr(unsigned long s, void *atr,
-				    uint64_t *atr_len);
-
-/*
- * s is of type TEE_SESessionHandle
- * c is of type TEE_SEChannelHandle
- */
-TEE_Result _utee_se_session_open_channel(unsigned long s,
-					 unsigned long is_logical,
-					 const void *aid_buffer,
-					 size_t aid_buffer_len, uint32_t *c);
-
-/* s is of type TEE_SESessionHandle */
-TEE_Result _utee_se_session_close(unsigned long s);
-
-/* c is of type TEE_SEChannelHandle */
-TEE_Result _utee_se_channel_select_next(unsigned long c);
-
-/* c is of type TEE_SEChannelHandle */
-TEE_Result _utee_se_channel_get_select_resp(unsigned long c, void *resp,
-					    uint64_t *resp_len);
-
-/* c is of type TEE_SEChannelHandle */
-TEE_Result _utee_se_channel_transmit(unsigned long c, void *cmd, size_t cmd_len,
-				     void *resp, uint64_t *resp_len);
-
-/* c is of type TEE_SEChannelHandle */
-TEE_Result _utee_se_channel_close(unsigned long c);
 
 /* op is of type enum _utee_cache_operation */
 TEE_Result _utee_cache_operation(void *va, size_t l, unsigned long op);

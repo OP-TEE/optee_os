@@ -7,7 +7,6 @@
 #include <crypto/crypto_impl.h>
 #include <drvcrypt.h>
 #include <drvcrypt_acipher.h>
-#include <tee/tee_cryp_utl.h>
 #include <utee_defines.h>
 
 /*
@@ -25,6 +24,7 @@ static size_t get_ecc_key_size_bytes(uint32_t curve)
 		return 28;
 
 	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_SM2:
 		return 32;
 
 	case TEE_ECC_CURVE_NIST_P384:
@@ -32,6 +32,30 @@ static size_t get_ecc_key_size_bytes(uint32_t curve)
 
 	case TEE_ECC_CURVE_NIST_P521:
 		return 66;
+
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Returns the key size in bits for the given ECC curve
+ *
+ * @curve   ECC Curve ID
+ */
+
+static size_t get_ecc_key_size_bits(uint32_t curve)
+{
+	switch (curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+	case TEE_ECC_CURVE_NIST_P224:
+	case TEE_ECC_CURVE_NIST_P256:
+	case TEE_ECC_CURVE_NIST_P384:
+	case TEE_ECC_CURVE_SM2:
+		return get_ecc_key_size_bytes(curve) * 8;
+
+	case TEE_ECC_CURVE_NIST_P521:
+		return 521;
 
 	default:
 		return 0;
@@ -61,6 +85,12 @@ static bool algo_is_valid(uint32_t curve, uint32_t algo)
 				     " is valid", algo, curve);
 			return true;
 		}
+	}
+
+	if (algo_op == TEE_OPERATION_ASYMMETRIC_SIGNATURE &&
+	    algo_id == TEE_MAIN_ALGO_SM2_DSA_SM3) {
+		if (curve == TEE_ECC_CURVE_SM2)
+			return true;
 	}
 
 	CRYPTO_TRACE("Algo 0x%" PRIx32 " curve 0x%" PRIx32 " is not valid",
@@ -106,7 +136,7 @@ static TEE_Result ecc_generate_keypair(struct ecc_keypair *key,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	key_size_bits = get_ecc_key_size_bytes(key->curve) * 8;
+	key_size_bits = get_ecc_key_size_bits(key->curve);
 
 	ecc = drvcrypt_get_ops(CRYPTO_ECC);
 	if (ecc)
@@ -317,10 +347,156 @@ static TEE_Result ecc_shared_secret(struct ecc_keypair *private_key,
 	return ret;
 }
 
+static TEE_Result ecc_sm2_encrypt(struct ecc_public_key *key,
+				  const uint8_t *src, size_t src_len,
+				  uint8_t *dst, size_t *dst_len)
+{
+	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
+	struct drvcrypt_ecc_ed cdata = { };
+	struct drvcrypt_ecc *ecc = NULL;
+	size_t ciphertext_len = 0;
+	size_t size_bytes = 0;
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+
+	size_bytes = get_ecc_key_size_bytes(key->curve);
+	if (!size_bytes) {
+		CRYPTO_TRACE("Curve 0x%08"PRIx32" not supported", key->curve);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	/* Uncompressed form indicator */
+	dst[0] = 0x04;
+
+	ciphertext_len = 2 * size_bytes + src_len + TEE_SM3_HASH_SIZE;
+
+	cdata.key = key;
+	cdata.size_sec = size_bytes;
+	cdata.plaintext.data = (uint8_t *)src;
+	cdata.plaintext.length = src_len;
+	cdata.ciphertext.data = dst + 1;
+	cdata.ciphertext.length = ciphertext_len;
+
+	ret = ecc->encrypt(&cdata);
+
+	if (!ret || ret == TEE_ERROR_SHORT_BUFFER)
+		*dst_len = cdata.ciphertext.length + 1;
+
+	return ret;
+}
+
+static TEE_Result ecc_encrypt(struct ecc_public_key *key,
+			      const uint8_t *src, size_t src_len,
+			      uint8_t *dst, size_t *dst_len)
+{
+	struct drvcrypt_ecc *ecc = NULL;
+
+	if (!key || !src || !dst) {
+		CRYPTO_TRACE("Input parameters reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+	if (!ecc || !ecc->encrypt)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	switch (key->curve) {
+	case TEE_ECC_CURVE_SM2:
+		return ecc_sm2_encrypt(key, src, src_len, dst, dst_len);
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+}
+
+static TEE_Result ecc_sm2_decrypt(struct ecc_keypair *key,
+				  const uint8_t *src, size_t src_len,
+				  uint8_t *dst, size_t *dst_len)
+{
+	TEE_Result ret = TEE_ERROR_BAD_PARAMETERS;
+	struct drvcrypt_ecc_ed cdata = { };
+	struct drvcrypt_ecc *ecc = NULL;
+	uint8_t *ciphertext = NULL;
+	size_t ciphertext_len = 0;
+	size_t size_bytes = 0;
+	size_t plaintext_len = 0;
+	/* Point Compression */
+	uint8_t pc = 0;
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+
+	size_bytes = get_ecc_key_size_bytes(key->curve);
+	if (!size_bytes) {
+		CRYPTO_TRACE("Curve 0x%08"PRIx32" not supported", key->curve);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	pc = src[0];
+	switch (pc) {
+	case 0x02:
+	case 0x03:
+		/* Compressed form */
+		return TEE_ERROR_NOT_SUPPORTED;
+	case 0x04:
+		/* Uncompressed form */
+		ciphertext = (uint8_t *)src + 1;
+		ciphertext_len = src_len - 1;
+		break;
+	case 0x06:
+	case 0x07:
+		/* Hybrid form */
+		return TEE_ERROR_NOT_SUPPORTED;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (SUB_OVERFLOW(ciphertext_len, 2 * size_bytes + TEE_SM3_HASH_SIZE,
+			 &plaintext_len))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	cdata.key = key;
+	cdata.size_sec = size_bytes;
+	cdata.ciphertext.data = ciphertext;
+	cdata.ciphertext.length = ciphertext_len;
+	cdata.plaintext.data = dst;
+	cdata.plaintext.length = plaintext_len;
+
+	ret = ecc->decrypt(&cdata);
+
+	/* Set the plaintext length */
+	if (!ret || ret == TEE_ERROR_SHORT_BUFFER)
+		*dst_len = cdata.plaintext.length;
+
+	return ret;
+}
+
+static TEE_Result ecc_decrypt(struct ecc_keypair *key,
+			      const uint8_t *src, size_t src_len,
+			      uint8_t *dst, size_t *dst_len)
+{
+	struct drvcrypt_ecc *ecc = NULL;
+
+	if (!key || !src || !dst) {
+		CRYPTO_TRACE("Input parameters reference error");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	ecc = drvcrypt_get_ops(CRYPTO_ECC);
+	if (!ecc || !ecc->decrypt)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	switch (key->curve) {
+	case TEE_ECC_CURVE_SM2:
+		return ecc_sm2_decrypt(key, src, src_len, dst, dst_len);
+	default:
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+}
+
 static const struct crypto_ecc_keypair_ops ecc_keypair_ops = {
 	.generate = ecc_generate_keypair,
 	.sign = ecc_sign,
 	.shared_secret = ecc_shared_secret,
+	.decrypt = ecc_decrypt,
 };
 
 TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
@@ -338,6 +514,8 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	switch (type) {
 	case TEE_TYPE_ECDSA_KEYPAIR:
 	case TEE_TYPE_ECDH_KEYPAIR:
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
@@ -345,10 +523,21 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 	}
 
 	if (ecc)
-		ret = ecc->alloc_keypair(key, size_bits);
+		ret = ecc->alloc_keypair(key, type, size_bits);
 
-	if (!ret)
+	if (!ret) {
 		key->ops = &ecc_keypair_ops;
+
+		/* ecc->alloc_keypair() can not get type to set curve */
+		switch (type) {
+		case TEE_TYPE_SM2_PKE_KEYPAIR:
+		case TEE_TYPE_SM2_DSA_KEYPAIR:
+			key->curve = TEE_ECC_CURVE_SM2;
+			break;
+		default:
+			break;
+		}
+	}
 
 	CRYPTO_TRACE("ECC Keypair (%zu bits) alloc ret = 0x%" PRIx32, size_bits,
 		     ret);
@@ -358,6 +547,7 @@ TEE_Result drvcrypt_asym_alloc_ecc_keypair(struct ecc_keypair *key,
 static const struct crypto_ecc_public_ops ecc_public_key_ops = {
 	.free = ecc_free_public_key,
 	.verify = ecc_verify,
+	.encrypt = ecc_encrypt,
 };
 
 TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
@@ -375,6 +565,8 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	switch (type) {
 	case TEE_TYPE_ECDSA_PUBLIC_KEY:
 	case TEE_TYPE_ECDH_PUBLIC_KEY:
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
 		ecc = drvcrypt_get_ops(CRYPTO_ECC);
 		break;
 	default:
@@ -382,10 +574,21 @@ TEE_Result drvcrypt_asym_alloc_ecc_public_key(struct ecc_public_key *key,
 	}
 
 	if (ecc)
-		ret = ecc->alloc_publickey(key, size_bits);
+		ret = ecc->alloc_publickey(key, type, size_bits);
 
-	if (!ret)
+	if (!ret) {
 		key->ops = &ecc_public_key_ops;
+
+		/* ecc->alloc_publickey() can not get type to set curve */
+		switch (type) {
+		case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+			key->curve = TEE_ECC_CURVE_SM2;
+			break;
+		default:
+			break;
+		}
+	}
 
 	CRYPTO_TRACE("ECC Public Key (%zu bits) alloc ret = 0x%" PRIx32,
 		     size_bits, ret);

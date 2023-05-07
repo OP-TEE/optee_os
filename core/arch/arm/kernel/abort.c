@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2022, Linaro Limited
  */
 
 #include <arm.h>
@@ -349,7 +349,8 @@ static void handle_user_mode_panic(struct abort_info *ai)
 #ifdef ARM64
 static void handle_user_mode_panic(struct abort_info *ai)
 {
-	uint32_t daif;
+	struct thread_ctx *tc __maybe_unused = NULL;
+	uint32_t daif = 0;
 
 	/*
 	 * It was a user exception, stop user execution and return
@@ -360,6 +361,16 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	ai->regs->x2 = 0xdeadbeef;
 	ai->regs->elr = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp_el0 = thread_get_saved_thread_sp();
+
+#if defined(CFG_CORE_PAUTH)
+	/*
+	 * We're going to return to the privileged core thread, update the
+	 * APIA key to match the key used by the thread.
+	 */
+	tc = threads + thread_get_id();
+	ai->regs->apiakey_hi = tc->keys.apia_hi;
+	ai->regs->apiakey_lo = tc->keys.apia_lo;
+#endif
 
 	daif = (ai->regs->spsr >> SPSR_32_AIF_SHIFT) & SPSR_32_AIF_MASK;
 	/* XXX what about DAIF_D? */

@@ -8,6 +8,7 @@
 #include <crypto/crypto_impl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee_api_types.h>
 #include <tomcrypt_private.h>
 #include <util.h>
@@ -82,6 +83,10 @@ static TEE_Result crypto_aes_ccm_init(struct crypto_authenc_ctx *aectx,
 
 	/* check the nonce */
 	if (nonce_len > TEE_CCM_NONCE_MAX_LENGTH)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Check that payload_len and aad_len will fit into ints */
+	if (payload_len > INT_MAX || aad_len > INT_MAX)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* check the tag len */

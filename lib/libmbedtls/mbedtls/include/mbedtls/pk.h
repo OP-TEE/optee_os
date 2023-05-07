@@ -52,23 +52,38 @@
 #define inline __inline
 #endif
 
-#define MBEDTLS_ERR_PK_ALLOC_FAILED        -0x3F80  /**< Memory allocation failed. */
-#define MBEDTLS_ERR_PK_TYPE_MISMATCH       -0x3F00  /**< Type mismatch, eg attempt to encrypt with an ECDSA key */
-#define MBEDTLS_ERR_PK_BAD_INPUT_DATA      -0x3E80  /**< Bad input parameters to function. */
-#define MBEDTLS_ERR_PK_FILE_IO_ERROR       -0x3E00  /**< Read/write of file failed. */
-#define MBEDTLS_ERR_PK_KEY_INVALID_VERSION -0x3D80  /**< Unsupported key version */
-#define MBEDTLS_ERR_PK_KEY_INVALID_FORMAT  -0x3D00  /**< Invalid key tag or value. */
-#define MBEDTLS_ERR_PK_UNKNOWN_PK_ALG      -0x3C80  /**< Key algorithm is unsupported (only RSA and EC are supported). */
-#define MBEDTLS_ERR_PK_PASSWORD_REQUIRED   -0x3C00  /**< Private key password can't be empty. */
-#define MBEDTLS_ERR_PK_PASSWORD_MISMATCH   -0x3B80  /**< Given private key password does not allow for correct decryption. */
-#define MBEDTLS_ERR_PK_INVALID_PUBKEY      -0x3B00  /**< The pubkey tag or value is invalid (only RSA and EC are supported). */
-#define MBEDTLS_ERR_PK_INVALID_ALG         -0x3A80  /**< The algorithm tag or value is invalid. */
-#define MBEDTLS_ERR_PK_UNKNOWN_NAMED_CURVE -0x3A00  /**< Elliptic curve is unsupported (only NIST curves are supported). */
-#define MBEDTLS_ERR_PK_FEATURE_UNAVAILABLE -0x3980  /**< Unavailable feature, e.g. RSA disabled for RSA key. */
-#define MBEDTLS_ERR_PK_SIG_LEN_MISMATCH    -0x3900  /**< The buffer contains a valid signature followed by more data. */
+/** Memory allocation failed. */
+#define MBEDTLS_ERR_PK_ALLOC_FAILED        -0x3F80
+/** Type mismatch, eg attempt to encrypt with an ECDSA key */
+#define MBEDTLS_ERR_PK_TYPE_MISMATCH       -0x3F00
+/** Bad input parameters to function. */
+#define MBEDTLS_ERR_PK_BAD_INPUT_DATA      -0x3E80
+/** Read/write of file failed. */
+#define MBEDTLS_ERR_PK_FILE_IO_ERROR       -0x3E00
+/** Unsupported key version */
+#define MBEDTLS_ERR_PK_KEY_INVALID_VERSION -0x3D80
+/** Invalid key tag or value. */
+#define MBEDTLS_ERR_PK_KEY_INVALID_FORMAT  -0x3D00
+/** Key algorithm is unsupported (only RSA and EC are supported). */
+#define MBEDTLS_ERR_PK_UNKNOWN_PK_ALG      -0x3C80
+/** Private key password can't be empty. */
+#define MBEDTLS_ERR_PK_PASSWORD_REQUIRED   -0x3C00
+/** Given private key password does not allow for correct decryption. */
+#define MBEDTLS_ERR_PK_PASSWORD_MISMATCH   -0x3B80
+/** The pubkey tag or value is invalid (only RSA and EC are supported). */
+#define MBEDTLS_ERR_PK_INVALID_PUBKEY      -0x3B00
+/** The algorithm tag or value is invalid. */
+#define MBEDTLS_ERR_PK_INVALID_ALG         -0x3A80
+/** Elliptic curve is unsupported (only NIST curves are supported). */
+#define MBEDTLS_ERR_PK_UNKNOWN_NAMED_CURVE -0x3A00
+/** Unavailable feature, e.g. RSA disabled for RSA key. */
+#define MBEDTLS_ERR_PK_FEATURE_UNAVAILABLE -0x3980
+/** The buffer contains a valid signature followed by more data. */
+#define MBEDTLS_ERR_PK_SIG_LEN_MISMATCH    -0x3900
 
 /* MBEDTLS_ERR_PK_HW_ACCEL_FAILED is deprecated and should not be used. */
-#define MBEDTLS_ERR_PK_HW_ACCEL_FAILED     -0x3880  /**< PK hardware accelerator failed. */
+/** PK hardware accelerator failed. */
+#define MBEDTLS_ERR_PK_HW_ACCEL_FAILED     -0x3880
 
 #ifdef __cplusplus
 extern "C" {
@@ -201,32 +216,6 @@ typedef struct
 /* Now we can declare functions that take a pointer to that */
 typedef void mbedtls_pk_restart_ctx;
 #endif /* MBEDTLS_ECDSA_C && MBEDTLS_ECP_RESTARTABLE */
-
-#if defined(MBEDTLS_RSA_C)
-/**
- * Quick access to an RSA context inside a PK context.
- *
- * \warning You must make sure the PK context actually holds an RSA context
- * before using this function!
- */
-static inline mbedtls_rsa_context *mbedtls_pk_rsa( const mbedtls_pk_context pk )
-{
-    return( (mbedtls_rsa_context *) (pk).pk_ctx );
-}
-#endif /* MBEDTLS_RSA_C */
-
-#if defined(MBEDTLS_ECP_C)
-/**
- * Quick access to an EC context inside a PK context.
- *
- * \warning You must make sure the PK context actually holds an EC context
- * before using this function!
- */
-static inline mbedtls_ecp_keypair *mbedtls_pk_ec( const mbedtls_pk_context pk )
-{
-    return( (mbedtls_ecp_keypair *) (pk).pk_ctx );
-}
-#endif /* MBEDTLS_ECP_C */
 
 #if defined(MBEDTLS_PK_RSA_ALT_SUPPORT)
 /**
@@ -640,6 +629,55 @@ const char * mbedtls_pk_get_name( const mbedtls_pk_context *ctx );
  * \return          #MBEDTLS_PK_NONE for a context that has not been set up.
  */
 mbedtls_pk_type_t mbedtls_pk_get_type( const mbedtls_pk_context *ctx );
+
+#if defined(MBEDTLS_RSA_C)
+/**
+ * Quick access to an RSA context inside a PK context.
+ *
+ * \warning This function can only be used when the type of the context, as
+ * returned by mbedtls_pk_get_type(), is #MBEDTLS_PK_RSA.
+ * Ensuring that is the caller's responsibility.
+ * Alternatively, you can check whether this function returns NULL.
+ *
+ * \return The internal RSA context held by the PK context, or NULL.
+ */
+static inline mbedtls_rsa_context *mbedtls_pk_rsa( const mbedtls_pk_context pk )
+{
+    switch( mbedtls_pk_get_type( &pk ) )
+    {
+        case MBEDTLS_PK_RSA:
+            return( (mbedtls_rsa_context *) (pk).pk_ctx );
+        default:
+            return( NULL );
+    }
+}
+#endif /* MBEDTLS_RSA_C */
+
+#if defined(MBEDTLS_ECP_C)
+/**
+ * Quick access to an EC context inside a PK context.
+ *
+ * \warning This function can only be used when the type of the context, as
+ * returned by mbedtls_pk_get_type(), is #MBEDTLS_PK_ECKEY,
+ * #MBEDTLS_PK_ECKEY_DH, or #MBEDTLS_PK_ECDSA.
+ * Ensuring that is the caller's responsibility.
+ * Alternatively, you can check whether this function returns NULL.
+ *
+ * \return The internal EC context held by the PK context, or NULL.
+ */
+static inline mbedtls_ecp_keypair *mbedtls_pk_ec( const mbedtls_pk_context pk )
+{
+    switch( mbedtls_pk_get_type( &pk ) )
+    {
+        case MBEDTLS_PK_ECKEY:
+        case MBEDTLS_PK_ECKEY_DH:
+        case MBEDTLS_PK_ECDSA:
+            return( (mbedtls_ecp_keypair *) (pk).pk_ctx );
+        default:
+            return( NULL );
+    }
+}
+#endif /* MBEDTLS_ECP_C */
 
 #if defined(MBEDTLS_PK_PARSE_C)
 /** \ingroup pk_module */

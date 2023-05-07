@@ -2310,6 +2310,7 @@ static TEE_Result rpmb_fs_open_internal(struct rpmb_file_handle *fh,
 {
 	tee_mm_pool_t p;
 	bool pool_result;
+	paddr_size_t pool_sz = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	/* We need to do setup in order to make sure fs_par is filled in */
@@ -2320,9 +2321,10 @@ static TEE_Result rpmb_fs_open_internal(struct rpmb_file_handle *fh,
 	fh->uuid = uuid;
 	if (create) {
 		/* Upper memory allocation must be used for RPMB_FS. */
+		pool_sz = fs_par->max_rpmb_address - RPMB_STORAGE_START_ADDRESS;
 		pool_result = tee_mm_init(&p,
 					  RPMB_STORAGE_START_ADDRESS,
-					  fs_par->max_rpmb_address,
+					  pool_sz,
 					  RPMB_BLOCK_SIZE_SHIFT,
 					  TEE_MM_POOL_HI_ALLOC);
 
@@ -2502,6 +2504,7 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 	bool pool_result = false;
 	size_t end = 0;
 	uint32_t start_addr = 0;
+	paddr_size_t pool_sz = 0;
 
 	if (!size)
 		return TEE_SUCCESS;
@@ -2514,9 +2517,10 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 	dump_fh(fh);
 
 	/* Upper memory allocation must be used for RPMB_FS. */
+	pool_sz = fs_par->max_rpmb_address - RPMB_STORAGE_START_ADDRESS;
 	pool_result = tee_mm_init(&p,
 				  RPMB_STORAGE_START_ADDRESS,
-				  fs_par->max_rpmb_address,
+				  pool_sz,
 				  RPMB_BLOCK_SIZE_SHIFT,
 				  TEE_MM_POOL_HI_ALLOC);
 	if (!pool_result) {
@@ -2709,6 +2713,7 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 	uint8_t *newbuf = NULL;
 	uintptr_t newaddr;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	paddr_size_t pool_sz = 0;
 
 	mutex_lock(&rpmb_mutex);
 
@@ -2725,9 +2730,10 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 	if (newsize > fh->fat_entry.data_size) {
 		/* Extend file */
 
+		pool_sz = fs_par->max_rpmb_address - RPMB_STORAGE_START_ADDRESS;
 		pool_result = tee_mm_init(&p,
 					  RPMB_STORAGE_START_ADDRESS,
-					  fs_par->max_rpmb_address,
+					  pool_sz,
 					  RPMB_BLOCK_SIZE_SHIFT,
 					  TEE_MM_POOL_HI_ALLOC);
 		if (!pool_result) {

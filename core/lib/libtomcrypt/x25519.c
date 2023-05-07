@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_ext.h>
 #include <tee_api_types.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -72,11 +73,11 @@ TEE_Result crypto_acipher_x25519_shared_secret(struct x25519_keypair
 {
 	curve25519_key ltc_private_key = {
 		.type = PK_PRIVATE,
-		.algo = PKA_X25519,
+		.algo = LTC_OID_X25519,
 	};
 	curve25519_key ltc_public_key = {
 		.type = PK_PUBLIC,
-		.algo = PKA_X25519,
+		.algo = LTC_OID_X25519,
 	};
 
 	if (!private_key || !public_key || !secret || !secret_len)

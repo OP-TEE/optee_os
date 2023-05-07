@@ -12,7 +12,8 @@ CHECKPATCH_IGNORE=$(echo \
 		core/arch/arm/include/arm{32,64}.h \
 		core/arch/arm/plat-ti/api_monitor_index_a{9,15}.h \
 		core/arch/arm/dts \
-		ta/pkcs11/scripts/verify-helpers.sh )
+		ta/pkcs11/scripts/verify-helpers.sh \
+		core/arch/riscv/include/encoding.h )
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 
 function _checkpatch() {

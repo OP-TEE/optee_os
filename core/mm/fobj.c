@@ -661,7 +661,7 @@ static TEE_Result rrp_load_page(struct fobj *fobj, unsigned int page_idx,
 
 	for (n = rrp->page_reloc_idx[page_idx]; n < end_rel; n++) {
 		where = (void *)((vaddr_t)va + rrp->relocs[n]);
-		*where += boot_mmu_config.load_offset;
+		*where += boot_mmu_config.map_offset;
 	}
 
 	return TEE_SUCCESS;

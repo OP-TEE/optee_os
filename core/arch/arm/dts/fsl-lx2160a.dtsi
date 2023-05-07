@@ -525,6 +525,18 @@
 			little-endian;
 		};
 
+		sfp: sfp@1e80000 {
+			compatible = "fsl,lx2160a-sfp";
+			reg = <0x0 0x1e80000 0x0 0x1000>;
+		};
+
+		sec_mon: sec-mon@1e90000 {
+			compatible = "fsl,lx2160a-sec-mon";
+			reg = <0x0 0x1e90000 0x0 0x1000>;
+			status = "disabled";
+			secure-status = "okay";
+		};
+
 		/* WRIOP0: 0x8b8_0000, E-MDIO1: 0x1_6000 */
 		emdio1: mdio@8b96000 {
 			compatible = "fsl,fman-memac-mdio";

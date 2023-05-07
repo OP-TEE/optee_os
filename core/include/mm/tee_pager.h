@@ -223,6 +223,11 @@ void *tee_pager_alloc(size_t size);
  * This function is called when a translation table needs to be recycled
  */
 void tee_pager_pgt_save_and_release_entries(struct pgt *pgt);
+#else
+static inline void
+tee_pager_pgt_save_and_release_entries(struct pgt *pgt __unused)
+{
+}
 #endif
 
 /*

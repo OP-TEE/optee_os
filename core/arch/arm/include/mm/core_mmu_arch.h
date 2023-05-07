@@ -80,30 +80,6 @@
 	 BIT(CFG_LPAE_ADDR_SPACE_BITS - CORE_MMU_BASE_TABLE_SHIFT) * \
 	 U(8))
 #endif
-/*
- * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
- * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
- */
-
-/*
- * Identify mapping constraint: virtual base address is the physical start addr.
- * If platform did not set some macros, some get default value.
- */
-#ifndef TEE_RAM_VA_SIZE
-#define TEE_RAM_VA_SIZE			CORE_MMU_PGDIR_SIZE
-#endif
-
-#ifndef TEE_LOAD_ADDR
-#define TEE_LOAD_ADDR			TEE_RAM_START
-#endif
-
-#define TEE_RAM_VA_START		TEE_RAM_START
-#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
-					 (TEE_LOAD_ADDR - TEE_RAM_START))
-
-#ifndef STACK_ALIGNMENT
-#define STACK_ALIGNMENT			(sizeof(long) * U(2))
-#endif
 
 #ifndef __ASSEMBLER__
 
@@ -116,20 +92,20 @@ struct core_mmu_config {
 	uint64_t mair_el1;
 	uint64_t ttbr0_el1_base;
 	uint64_t ttbr0_core_offset;
-	uint64_t load_offset;
+	uint64_t map_offset;
 #elif defined(CFG_WITH_LPAE)
 	uint32_t ttbcr;
 	uint32_t mair0;
 	uint32_t ttbr0_base;
 	uint32_t ttbr0_core_offset;
-	uint32_t load_offset;
+	uint32_t map_offset;
 #else
 	uint32_t prrr;
 	uint32_t nmrr;
 	uint32_t dacr;
 	uint32_t ttbcr;
 	uint32_t ttbr;
-	uint32_t load_offset;
+	uint32_t map_offset;
 #endif
 };
 

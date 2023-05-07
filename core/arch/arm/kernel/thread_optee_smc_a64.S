@@ -28,7 +28,7 @@
 	.macro readjust_pc
 #ifdef CFG_CORE_ASLR
 	adr	x16, 1111f
-	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	x17, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	add	x16, x16, x17
 	br	x16
 1111:
@@ -191,6 +191,13 @@ FUNC thread_rpc , :
 	ldr	x30, [sp, #8]
 	store_xregs x0, THREAD_CTX_REGS_X19, 19, 30
 	mov	x19, x0
+
+#if defined(CFG_CORE_PAUTH)
+	/* Save APIAKEY */
+	read_apiakeyhi  x1
+	read_apiakeylo  x2
+	store_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+#endif
 
 	bl	thread_get_tmp_sp
 	pop	x1, xzr		/* Match "push x1, x30" above */

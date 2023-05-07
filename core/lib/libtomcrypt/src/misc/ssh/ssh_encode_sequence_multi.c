@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 #include <stdarg.h>
 
@@ -21,7 +14,7 @@
   Encode a SSH sequence using a VA list
   @param out    [out] Destination for data
   @param outlen [in/out] Length of buffer and resulting length of output
-  @remark <...> is of the form <type, data> (int, void*)
+  @remark <...> is of the form <type, data> (int, <int,ulong32,ulong64>) except for string&name-list <type, data, size> (int, void*, unsigned long)
   @return CRYPT_OK on success
 */
 int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
@@ -30,8 +23,8 @@ int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
    va_list       args;
    ulong32       size;
    ssh_data_type type;
-   void         *vdata;
-   const char   *sdata;
+   void          *vdata;
+   const char    *sdata;
    int           idata;
    ulong32       u32data;
    ulong64       u64data;
@@ -59,9 +52,9 @@ int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
             break;
          case LTC_SSHDATA_STRING:
          case LTC_SSHDATA_NAMELIST:
-            sdata = va_arg(args, char*);
+            LTC_UNUSED_PARAM( va_arg(args, char*) );
+            size += va_arg(args, unsigned long);
             size += 4;
-            size += strlen(sdata);
             break;
          case LTC_SSHDATA_MPINT:
             vdata = va_arg(args, void*);
@@ -104,7 +97,7 @@ int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
             /*
                The value 0 represents FALSE, and the value 1 represents TRUE.  All non-zero values MUST be
                interpreted as TRUE; however, applications MUST NOT store values other than 0 and 1.
-            */
+             */
             *out++ = (idata)?1:0;
             break;
          case LTC_SSHDATA_UINT32:
@@ -120,7 +113,7 @@ int ssh_encode_sequence_multi(unsigned char *out, unsigned long *outlen, ...)
          case LTC_SSHDATA_STRING:
          case LTC_SSHDATA_NAMELIST:
             sdata = va_arg(args, char*);
-            size = strlen(sdata);
+            size = va_arg(args, unsigned long);
             STORE32H(size, out);
             out += 4;
             XMEMCPY(out, sdata, size);
@@ -165,7 +158,3 @@ errornoargs:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

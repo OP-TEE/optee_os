@@ -125,6 +125,43 @@ int ti_sci_get_dkek(uint8_t sa2ul_instance,
 		    uint8_t dkek[SA2UL_DKEK_KEY_LEN]);
 
 /**
+ * ti_sci_read_otp_mmr() - Get the Extended OTP
+ * @mmr_idx:	        32-bit MMR index
+ * @val:		Value of the 32-bit MMR
+ *
+ * Reads the extended OTP bits from efuse
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_read_otp_mmr(uint8_t mmr_idx, uint32_t *val);
+
+/**
+ * ti_sci_write_otp_row() - Write the extended OTP row
+ * @row_idx:		Index of the OTP row. Zero indexing
+ * @row_val:		Value to be written
+ * @row_mask:		Mask bits for row_val to be written
+ *
+ * Writes a Row in the extended OTP field
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_write_otp_row(uint8_t row_idx, uint32_t row_val, uint32_t row_mask);
+
+/**
+ * ti_sci_lock_otp_row - Locking the Extended OTP row
+ * @row_idx:		Index of the OTP row. Zero indexing
+ * @hw_write_lock:	Hardware write lock
+ * @hw_read_lock:	Hardware read lock
+ * @row_soft_lock:	Software write lock
+ *
+ * Lockes a Row in the extended OTP field to prevent read/writes
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
+			uint8_t hw_read_lock, uint8_t row_soft_lock);
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message

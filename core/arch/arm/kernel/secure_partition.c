@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2022, Arm Limited.
+ * Copyright (c) 2020-2023, Arm Limited.
  */
 #include <bench.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
+#include <kernel/boot.h>
 #include <kernel/embedded_ts.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/secure_partition.h>
@@ -45,7 +46,24 @@
 					 SP_MANIFEST_ATTR_WRITE | \
 					 SP_MANIFEST_ATTR_EXEC)
 
-const struct ts_ops sp_ops;
+#define SP_MANIFEST_FLAG_NOBITS	BIT(0)
+
+#define SP_PKG_HEADER_MAGIC (0x474b5053)
+#define SP_PKG_HEADER_VERSION_V1 (0x1)
+#define SP_PKG_HEADER_VERSION_V2 (0x2)
+
+struct sp_pkg_header {
+	uint32_t magic;
+	uint32_t version;
+	uint32_t pm_offset;
+	uint32_t pm_size;
+	uint32_t img_offset;
+	uint32_t img_size;
+};
+
+struct fip_sp_head fip_sp_list = STAILQ_HEAD_INITIALIZER(fip_sp_list);
+
+static const struct ts_ops sp_ops;
 
 /* List that holds all of the loaded SP's */
 static struct sp_sessions_head open_sp_sessions =
@@ -54,11 +72,18 @@ static struct sp_sessions_head open_sp_sessions =
 static const struct embedded_ts *find_secure_partition(const TEE_UUID *uuid)
 {
 	const struct sp_image *sp = NULL;
+	const struct fip_sp *fip_sp = NULL;
 
 	for_each_secure_partition(sp) {
 		if (!memcmp(&sp->image.uuid, uuid, sizeof(*uuid)))
 			return &sp->image;
 	}
+
+	for_each_fip_sp(fip_sp) {
+		if (!memcmp(&fip_sp->sp_img.image.uuid, uuid, sizeof(*uuid)))
+			return &fip_sp->sp_img.image;
+	}
+
 	return NULL;
 }
 
@@ -70,23 +95,6 @@ bool is_sp_ctx(struct ts_ctx *ctx)
 static void set_sp_ctx_ops(struct ts_ctx *ctx)
 {
 	ctx->ops = &sp_ops;
-}
-
-TEE_Result sp_find_session_id(const TEE_UUID *uuid, uint32_t *session_id)
-{
-	struct sp_session *s = NULL;
-
-	TAILQ_FOREACH(s, &open_sp_sessions, link) {
-		if (!memcmp(&s->ts_sess.ctx->uuid, uuid, sizeof(*uuid))) {
-			if (s->state == sp_dead)
-				return TEE_ERROR_TARGET_DEAD;
-
-			*session_id  = s->endpoint_id;
-			return TEE_SUCCESS;
-		}
-	}
-
-	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
 struct sp_session *sp_get_session(uint32_t session_id)
@@ -101,14 +109,18 @@ struct sp_session *sp_get_session(uint32_t session_id)
 	return NULL;
 }
 
-TEE_Result sp_partition_info_get_all(struct ffa_partition_info *fpi,
-				     size_t *elem_count)
+TEE_Result sp_partition_info_get(struct ffa_partition_info *fpi,
+				 const TEE_UUID *ffa_uuid, size_t *elem_count)
 {
 	size_t in_count = *elem_count;
 	struct sp_session *s = NULL;
 	size_t count = 0;
 
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		if (ffa_uuid &&
+		    memcmp(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid)))
+			continue;
+
 		if (s->state == sp_dead)
 			continue;
 		if (count < in_count) {
@@ -162,7 +174,7 @@ static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
 	return id;
 }
 
-static TEE_Result sp_create_ctx(const TEE_UUID *uuid, struct sp_session *s)
+static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *spc = NULL;
@@ -172,12 +184,11 @@ static TEE_Result sp_create_ctx(const TEE_UUID *uuid, struct sp_session *s)
 	if (!spc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	spc->uctx.ts_ctx = &spc->ts_ctx;
 	spc->open_session = s;
 	s->ts_sess.ctx = &spc->ts_ctx;
-	spc->ts_ctx.uuid = *uuid;
+	spc->ts_ctx.uuid = *bin_uuid;
 
-	res = vm_info_init(&spc->uctx);
+	res = vm_info_init(&spc->uctx, &spc->ts_ctx);
 	if (res)
 		goto err;
 
@@ -191,7 +202,7 @@ err:
 }
 
 static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
-				    const TEE_UUID *uuid,
+				    const TEE_UUID *bin_uuid,
 				    struct sp_session **sess)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -206,8 +217,8 @@ static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
 		goto err;
 	}
 
-	DMSG("Loading Secure Partition %pUl", (void *)uuid);
-	res = sp_create_ctx(uuid, s);
+	DMSG("Loading Secure Partition %pUl", (void *)bin_uuid);
+	res = sp_create_ctx(bin_uuid, s);
 	if (res)
 		goto err;
 
@@ -296,18 +307,214 @@ TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
+				uint64_t *value)
+{
+	const fdt64_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value = fdt64_ld(p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
+				uint32_t *value)
+{
+	const fdt32_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value = fdt32_to_cpu(*p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_uuid(const void *fdt, int node,
+				 const char *property, TEE_UUID *uuid)
+{
+	uint32_t uuid_array[4] = { 0 };
+	const fdt32_t *p = NULL;
+	int len = 0;
+	int i = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(TEE_UUID))
+		return TEE_ERROR_BAD_FORMAT;
+
+	for (i = 0; i < 4; i++)
+		uuid_array[i] = fdt32_to_cpu(p[i]);
+
+	tee_uuid_from_octets(uuid, (uint8_t *)uuid_array);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_is_elf_format(const void *fdt, int sp_node,
+				   bool *is_elf_format)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t elf_format = 0;
+
+	res = sp_dt_get_u32(fdt, sp_node, "elf-format", &elf_format);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
+
+	*is_elf_format = (elf_format != 0);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_binary_open(const TEE_UUID *uuid,
+				 const struct ts_store_ops **ops,
+				 struct ts_store_handle **handle)
+{
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+
+	SCATTERED_ARRAY_FOREACH(*ops, sp_stores, struct ts_store_ops) {
+		res = (*ops)->open(uuid, handle);
+		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+		    res != TEE_ERROR_STORAGE_NOT_AVAILABLE)
+			break;
+	}
+
+	return res;
+}
+
+static TEE_Result load_binary_sp(struct ts_session *s,
+				 struct user_mode_ctx *uctx)
+{
+	size_t bin_size = 0, bin_size_rounded = 0, bin_page_count = 0;
+	const struct ts_store_ops *store_ops = NULL;
+	struct ts_store_handle *handle = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	tee_mm_entry_t *mm = NULL;
+	struct mobj *mobj = NULL;
+	uaddr_t base_addr = 0;
+	uint32_t vm_flags = 0;
+	unsigned int idx = 0;
+	vaddr_t va = 0;
+
+	if (!s || !uctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	DMSG("Loading raw binary format SP %pUl", &uctx->ts_ctx->uuid);
+
+	vm_set_ctx(uctx->ts_ctx);
+
+	/* Find TS store and open SP binary */
+	res = sp_binary_open(&uctx->ts_ctx->uuid, &store_ops, &handle);
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to open SP binary");
+		return res;
+	}
+
+	/* Query binary size and calculate page count */
+	res = store_ops->get_size(handle, &bin_size);
+	if (res != TEE_SUCCESS)
+		goto err;
+
+	if (ROUNDUP_OVERFLOW(bin_size, SMALL_PAGE_SIZE, &bin_size_rounded)) {
+		res = TEE_ERROR_OVERFLOW;
+		goto err;
+	}
+
+	bin_page_count = bin_size_rounded / SMALL_PAGE_SIZE;
+
+	/* Allocate memory */
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, bin_size_rounded);
+	if (!mm) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+
+	base_addr = tee_mm_get_smem(mm);
+
+	/* Create mobj */
+	mobj = sp_mem_new_mobj(bin_page_count, TEE_MATTR_MEM_TYPE_CACHED, true);
+	if (!mobj) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto err_free_tee_mm;
+	}
+
+	res = sp_mem_add_pages(mobj, &idx, base_addr, bin_page_count);
+	if (res)
+		goto err_free_mobj;
+
+	/* Map memory area for the SP binary */
+	res = vm_map(uctx, &va, bin_size_rounded, TEE_MATTR_URWX,
+		     vm_flags, mobj, 0);
+	if (res)
+		goto err_free_mobj;
+
+	/* Read SP binary into the previously mapped memory area */
+	res = store_ops->read(handle, (void *)va, bin_size);
+	if (res)
+		goto err_unmap;
+
+	/* Set memory protection to allow execution */
+	res = vm_set_prot(uctx, va, bin_size_rounded, TEE_MATTR_UX);
+	if (res)
+		goto err_unmap;
+
+	mobj_put(mobj);
+	store_ops->close(handle);
+
+	/* The entry point must be at the beginning of the SP binary. */
+	uctx->entry_func = va;
+	uctx->load_addr = va;
+	uctx->is_32bit = false;
+
+	s->handle_scall = s->ctx->ops->handle_scall;
+
+	return TEE_SUCCESS;
+
+err_unmap:
+	vm_unmap(uctx, va, bin_size_rounded);
+
+err_free_mobj:
+	mobj_put(mobj);
+
+err_free_tee_mm:
+	tee_mm_free(mm);
+
+err:
+	store_ops->close(handle);
+
+	return res;
+}
+
 static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
-				  const TEE_UUID *uuid)
+				  const TEE_UUID *ffa_uuid,
+				  const TEE_UUID *bin_uuid,
+				  const void *fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *s = NULL;
 	struct sp_ctx *ctx = NULL;
+	bool is_elf_format = false;
 
-	if (!find_secure_partition(uuid))
+	if (!find_secure_partition(bin_uuid))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	res = sp_create_session(open_sessions, uuid, &s);
+	res = sp_create_session(open_sessions, bin_uuid, &s);
 	if (res != TEE_SUCCESS) {
 		DMSG("sp_create_session failed %#"PRIx32, res);
 		return res;
@@ -320,12 +527,23 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	*sess = s;
 
 	ts_push_current_session(&s->ts_sess);
-	/* Load the SP using ldelf. */
-	ldelf_load_ldelf(&ctx->uctx);
-	res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
+
+	res = sp_is_elf_format(fdt, 0, &is_elf_format);
+	if (res == TEE_SUCCESS) {
+		if (is_elf_format) {
+			/* Load the SP using ldelf. */
+			ldelf_load_ldelf(&ctx->uctx);
+			res = ldelf_init_with_ldelf(&s->ts_sess, &ctx->uctx);
+		} else {
+			/* Raw binary format SP */
+			res = load_binary_sp(&s->ts_sess, &ctx->uctx);
+		}
+	} else {
+		EMSG("Failed to detect SP format");
+	}
 
 	if (res != TEE_SUCCESS) {
-		EMSG("Failed. loading SP using ldelf %#"PRIx32, res);
+		EMSG("Failed loading SP  %#"PRIx32, res);
 		ts_pop_current_session();
 		return TEE_ERROR_TARGET_DEAD;
 	}
@@ -334,50 +552,16 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	s->state = sp_idle;
 	s->caller_id = 0;
 	sp_init_set_registers(ctx);
+	memcpy(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid));
 	ts_pop_current_session();
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result sp_dt_get_u64(const void *fdt, int node, const char *property,
-				uint64_t *value)
+static TEE_Result fdt_get_uuid(const void * const fdt, TEE_UUID *uuid)
 {
-	const fdt64_t *p = NULL;
-	int len = 0;
-
-	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*value = fdt64_to_cpu(*p);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
-				uint32_t *value)
-{
-	const fdt32_t *p = NULL;
-	int len = 0;
-
-	p = fdt_getprop(fdt, node, property, &len);
-	if (!p || len != sizeof(*p))
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	*value = fdt32_to_cpu(*p);
-
-	return TEE_SUCCESS;
-}
-
-static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
-{
-	int len = 0;
-	const fdt32_t *prop = NULL;
-	int i = 0;
 	const struct fdt_property *description = NULL;
 	int description_name_len = 0;
-	uint32_t uuid_array[4] = { 0 };
-	TEE_UUID fdt_uuid = { };
 
 	if (fdt_node_check_compatible(fdt, 0, "arm,ffa-manifest-1.0")) {
 		EMSG("Failed loading SP, manifest not found");
@@ -389,18 +573,8 @@ static TEE_Result check_fdt(const void * const fdt, const TEE_UUID *uuid)
 	if (description)
 		DMSG("Loading SP: %s", description->data);
 
-	prop = fdt_getprop(fdt, 0, "uuid", &len);
-	if (!prop || len != 16) {
+	if (sp_dt_get_uuid(fdt, 0, "uuid", uuid)) {
 		EMSG("Missing or invalid UUID in SP manifest");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	for (i = 0; i < 4; i++)
-		uuid_array[i] = fdt32_to_cpu(prop[i]);
-	tee_uuid_from_octets(&fdt_uuid, (uint8_t *)uuid_array);
-
-	if (memcmp(uuid, &fdt_uuid, sizeof(fdt_uuid))) {
-		EMSG("Failed loading SP, UUID mismatch");
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
@@ -463,6 +637,142 @@ static TEE_Result sp_init_info(struct sp_ctx *ctx, struct thread_smc_args *args,
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result handle_fdt_load_relative_mem_regions(struct sp_ctx *ctx,
+						       const void *fdt)
+{
+	int node = 0;
+	int subnode = 0;
+	tee_mm_entry_t *mm = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	/*
+	 * Memory regions are optional in the SP manifest, it's not an error if
+	 * we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0,
+					     "arm,ffa-manifest-memory-regions");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
+		uint32_t attributes = 0;
+		uint64_t base_addr = 0;
+		uint32_t pages_cnt = 0;
+		uint32_t flags = 0;
+		uint32_t perm = 0;
+		size_t size = 0;
+		vaddr_t va = 0;
+
+		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			va = ctx->uctx.load_addr + load_rel_offset;
+		} else {
+			/* Skip non load address relative memory regions */
+			continue;
+		}
+
+		if (!sp_dt_get_u64(fdt, subnode, "base-address", &base_addr)) {
+			EMSG("Both base-address and load-address-relative-offset fields are set");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Size of memory region as count of 4K pages */
+		if (sp_dt_get_u32(fdt, subnode, "pages-count", &pages_cnt)) {
+			EMSG("Mandatory field is missing: pages-count");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (MUL_OVERFLOW(pages_cnt, SMALL_PAGE_SIZE, &size))
+			return TEE_ERROR_OVERFLOW;
+
+		/* Memory region attributes  */
+		if (sp_dt_get_u32(fdt, subnode, "attributes", &attributes)) {
+			EMSG("Mandatory field is missing: attributes");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Check instruction and data access permissions */
+		switch (attributes & SP_MANIFEST_ATTR_RWX) {
+		case SP_MANIFEST_ATTR_RO:
+			perm = TEE_MATTR_UR;
+			break;
+		case SP_MANIFEST_ATTR_RW:
+			perm = TEE_MATTR_URW;
+			break;
+		case SP_MANIFEST_ATTR_RX:
+			perm = TEE_MATTR_URX;
+			break;
+		default:
+			EMSG("Invalid memory access permissions");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		res = sp_dt_get_u32(fdt, subnode, "load-flags", &flags);
+		if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND) {
+			EMSG("Optional field with invalid value: flags");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		/* Load relative regions must be secure */
+		if (attributes & SP_MANIFEST_ATTR_NSEC) {
+			EMSG("Invalid memory security attribute");
+			return TEE_ERROR_BAD_FORMAT;
+		}
+
+		if (flags & SP_MANIFEST_FLAG_NOBITS) {
+			/*
+			 * NOBITS flag is set, which means that loaded binary
+			 * doesn't contain this area, so it's need to be
+			 * allocated.
+			 */
+			struct mobj *m = NULL;
+			unsigned int idx = 0;
+
+			mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+			if (!mm)
+				return TEE_ERROR_OUT_OF_MEMORY;
+
+			base_addr = tee_mm_get_smem(mm);
+
+			m = sp_mem_new_mobj(pages_cnt,
+					    TEE_MATTR_MEM_TYPE_CACHED, true);
+			if (!m) {
+				res = TEE_ERROR_OUT_OF_MEMORY;
+				goto err_mm_free;
+			}
+
+			res = sp_mem_add_pages(m, &idx, base_addr, pages_cnt);
+			if (res) {
+				mobj_put(m);
+				goto err_mm_free;
+			}
+
+			res = vm_map(&ctx->uctx, &va, size, perm, 0, m, 0);
+			mobj_put(m);
+			if (res)
+				goto err_mm_free;
+		} else {
+			/*
+			 * If NOBITS is not present the memory area is already
+			 * mapped and only need to set the correct permissions.
+			 */
+			res = vm_set_prot(&ctx->uctx, va, size, perm);
+			if (res)
+				return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+
+err_mm_free:
+	tee_mm_free(mm);
+	return res;
 }
 
 static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
@@ -570,6 +880,68 @@ static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result swap_sp_endpoints(uint32_t endpoint_id,
+				    uint32_t new_endpoint_id)
+{
+	struct sp_session *session = sp_get_session(endpoint_id);
+	uint32_t manifest_endpoint_id = 0;
+
+	/*
+	 * We don't know in which order the SPs are loaded. The endpoint ID
+	 * defined in the manifest could already be generated by
+	 * new_session_id() and used by another SP. If this is the case, we swap
+	 * the ID's of the two SPs. We also have to make sure that the ID's are
+	 * not defined twice in the manifest.
+	 */
+
+	/* The endpoint ID was not assigned yet */
+	if (!session)
+		return TEE_SUCCESS;
+
+	/*
+	 * Read the manifest file from the SP who originally had the endpoint.
+	 * We can safely swap the endpoint ID's if the manifest file doesn't
+	 * have an endpoint ID defined.
+	 */
+	if (!sp_dt_get_u32(session->fdt, 0, "id", &manifest_endpoint_id)) {
+		assert(manifest_endpoint_id == endpoint_id);
+		EMSG("SP: Found duplicated endpoint ID %#"PRIx32, endpoint_id);
+		return TEE_ERROR_ACCESS_CONFLICT;
+	}
+
+	session->endpoint_id = new_endpoint_id;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result read_manifest_endpoint_id(struct sp_session *s)
+{
+	uint32_t endpoint_id = 0;
+
+	/*
+	 * The endpoint ID can be optionally defined in the manifest file. We
+	 * have to map the ID inside the manifest to the SP if it's defined.
+	 * If not, the endpoint ID generated inside new_session_id() will be
+	 * used.
+	 */
+	if (!sp_dt_get_u32(s->fdt, 0, "id", &endpoint_id)) {
+		TEE_Result res = TEE_ERROR_GENERIC;
+
+		if (endpoint_id <= SPMC_ENDPOINT_ID)
+			return TEE_ERROR_BAD_FORMAT;
+
+		res = swap_sp_endpoints(endpoint_id, s->endpoint_id);
+		if (res)
+			return res;
+
+		DMSG("SP: endpoint ID (0x%"PRIx32") found in manifest",
+		     endpoint_id);
+		/* Assign the endpoint ID to the current SP */
+		s->endpoint_id = endpoint_id;
+	}
+	return TEE_SUCCESS;
+}
+
 static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
@@ -587,6 +959,7 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		return TEE_SUCCESS;
 
 	fdt_for_each_subnode(subnode, fdt, node) {
+		uint64_t load_rel_offset = 0;
 		bool alloc_needed = false;
 		uint32_t attributes = 0;
 		uint64_t base_addr = 0;
@@ -599,6 +972,23 @@ static TEE_Result handle_fdt_mem_regions(struct sp_ctx *ctx, void *fdt)
 		vaddr_t va = 0;
 
 		mm = NULL;
+
+		/* Load address relative offset of a memory region */
+		if (!sp_dt_get_u64(fdt, subnode, "load-address-relative-offset",
+				   &load_rel_offset)) {
+			/*
+			 * At this point the memory region is already mapped by
+			 * handle_fdt_load_relative_mem_regions.
+			 * Only need to set the base-address in the manifest and
+			 * then skip the rest of the mapping process.
+			 */
+			va = ctx->uctx.load_addr + load_rel_offset;
+			res = fdt_setprop_u64(fdt, subnode, "base-address", va);
+			if (res)
+				return res;
+
+			continue;
+		}
 
 		/*
 		 * Base address of a memory region.
@@ -791,30 +1181,84 @@ err_unmap:
 	return res;
 }
 
-static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
+/*
+ * Note: this function is called only on the primary CPU. It assumes that the
+ * features present on the primary CPU are available on all of the secondary
+ * CPUs as well.
+ */
+static TEE_Result handle_hw_features(void *fdt)
+{
+	uint32_t val __maybe_unused = 0;
+	TEE_Result res = TEE_SUCCESS;
+	int node = 0;
+
+	/*
+	 * HW feature descriptions are optional in the SP manifest, it's not an
+	 * error if we don't find any.
+	 */
+	node = fdt_node_offset_by_compatible(fdt, 0, "arm,hw-features");
+	if (node < 0)
+		return TEE_SUCCESS;
+
+	/* Modify the crc32 property only if it's already present */
+	if (!sp_dt_get_u32(fdt, node, "crc32", &val)) {
+		res = fdt_setprop_u32(fdt, node, "crc32",
+				      feat_crc32_implemented());
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
+	TEE_UUID ffa_uuid = {};
+
+	res = fdt_get_uuid(fdt, &ffa_uuid);
+	if (res)
+		return res;
+
+	res = sp_open_session(&sess,
+			      &open_sp_sessions,
+			      &ffa_uuid, bin_uuid, fdt);
+	if (res)
+		return res;
+
+	sess->fdt = fdt;
+	res = read_manifest_endpoint_id(sess);
+	if (res)
+		return res;
+	DMSG("endpoint is 0x%"PRIx16, sess->endpoint_id);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_first_run(struct sp_session *sess)
+{
+	TEE_Result res = TEE_SUCCESS;
 	struct thread_smc_args args = { };
 	vaddr_t va = 0;
 	size_t num_pgs = 0;
 	struct sp_ctx *ctx = NULL;
 	void *fdt_copy = NULL;
 
-	res = sp_open_session(&sess,
-			      &open_sp_sessions,
-			      uuid);
-	if (res)
-		return res;
-
-	res = check_fdt(fdt, uuid);
-	if (res)
-		return res;
-
 	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
 
-	res = sp_init_info(ctx, &args, fdt, &va, &num_pgs, &fdt_copy);
+	/*
+	 * Load relative memory regions must be handled before doing any other
+	 * mapping to prevent conflicts in the VA space.
+	 */
+	res = handle_fdt_load_relative_mem_regions(ctx, sess->fdt);
+	if (res) {
+		ts_pop_current_session();
+		return res;
+	}
+
+	res = sp_init_info(ctx, &args, sess->fdt, &va, &num_pgs, &fdt_copy);
 	if (res)
 		goto out;
 
@@ -832,14 +1276,21 @@ static TEE_Result sp_init_uuid(const TEE_UUID *uuid, const void * const fdt)
 			goto out;
 	}
 
+	res = handle_hw_features(fdt_copy);
+	if (res)
+		goto out;
+
 	ts_pop_current_session();
 
+	sess->is_initialized = false;
 	if (sp_enter(&args, sess)) {
 		vm_unmap(&ctx->uctx, va, num_pgs);
 		return FFA_ABORTED;
 	}
 
 	spmc_sp_msg_handler(&args, sess);
+
+	sess->is_initialized = true;
 
 	ts_push_current_session(&sess->ts_sess);
 out:
@@ -928,7 +1379,7 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 
 /* We currently don't support 32 bits */
 #ifdef ARM64
-static void sp_svc_store_registers(struct thread_svc_regs *regs,
+static void sp_svc_store_registers(struct thread_scall_regs *regs,
 				   struct thread_ctx_regs *sp_regs)
 {
 	COMPILE_TIME_ASSERT(sizeof(sp_regs->x[0]) == sizeof(regs->x0));
@@ -938,7 +1389,7 @@ static void sp_svc_store_registers(struct thread_svc_regs *regs,
 }
 #endif
 
-static bool sp_handle_svc(struct thread_svc_regs *regs)
+static bool sp_handle_scall(struct thread_scall_regs *regs)
 {
 	struct ts_session *ts = ts_get_current_session();
 	struct sp_ctx *uctx = to_sp_ctx(ts->ctx);
@@ -979,21 +1430,145 @@ static void sp_dump_state(struct ts_ctx *ctx)
 	user_mode_ctx_print_mappings(&utc->uctx);
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct ts_ops sp_ops __weak __relrodata_unpaged("sp_ops") = {
+static const struct ts_ops sp_ops = {
 	.enter_invoke_cmd = sp_enter_invoke_cmd,
-	.handle_svc = sp_handle_svc,
+	.handle_scall = sp_handle_scall,
 	.dump_state = sp_dump_state,
 };
+
+static TEE_Result process_sp_pkg(uint64_t sp_pkg_pa, TEE_UUID *sp_uuid)
+{
+	enum teecore_memtypes mtype = MEM_AREA_TA_RAM;
+	struct sp_pkg_header *sp_pkg_hdr = NULL;
+	struct fip_sp *sp = NULL;
+	uint64_t sp_fdt_end = 0;
+	size_t sp_pkg_size = 0;
+	vaddr_t sp_pkg_va = 0;
+
+	/* Process the first page which contains the SP package header */
+	sp_pkg_va = (vaddr_t)phys_to_virt(sp_pkg_pa, mtype, SMALL_PAGE_SIZE);
+	if (!sp_pkg_va) {
+		EMSG("Cannot find mapping for PA %#" PRIxPA, sp_pkg_pa);
+		return TEE_ERROR_GENERIC;
+	}
+
+	sp_pkg_hdr = (struct sp_pkg_header *)sp_pkg_va;
+
+	if (sp_pkg_hdr->magic != SP_PKG_HEADER_MAGIC) {
+		EMSG("Invalid SP package magic");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V1 &&
+	    sp_pkg_hdr->version != SP_PKG_HEADER_VERSION_V2) {
+		EMSG("Invalid SP header version");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (ADD_OVERFLOW(sp_pkg_hdr->img_offset, sp_pkg_hdr->img_size,
+			 &sp_pkg_size)) {
+		EMSG("Invalid SP package size");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (ADD_OVERFLOW(sp_pkg_hdr->pm_offset, sp_pkg_hdr->pm_size,
+			 &sp_fdt_end) || sp_fdt_end > sp_pkg_hdr->img_offset) {
+		EMSG("Invalid SP manifest size");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	/* Process the whole SP package now that the size is known */
+	sp_pkg_va = (vaddr_t)phys_to_virt(sp_pkg_pa, mtype, sp_pkg_size);
+	if (!sp_pkg_va) {
+		EMSG("Cannot find mapping for PA %#" PRIxPA, sp_pkg_pa);
+		return TEE_ERROR_GENERIC;
+	}
+
+	sp_pkg_hdr = (struct sp_pkg_header *)sp_pkg_va;
+
+	sp = calloc(1, sizeof(struct fip_sp));
+	if (!sp)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(&sp->sp_img.image.uuid, sp_uuid, sizeof(*sp_uuid));
+	sp->sp_img.image.ts = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->img_offset);
+	sp->sp_img.image.size = sp_pkg_hdr->img_size;
+	sp->sp_img.image.flags = 0;
+	sp->sp_img.fdt = (uint8_t *)(sp_pkg_va + sp_pkg_hdr->pm_offset);
+
+	STAILQ_INSERT_TAIL(&fip_sp_list, sp, link);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result fip_sp_init_all(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint64_t sp_pkg_addr = 0;
+	const void *fdt = NULL;
+	TEE_UUID sp_uuid = { };
+	int sp_pkgs_node = 0;
+	int subnode = 0;
+	int root = 0;
+
+	fdt = get_tos_fw_config_dt();
+	if (!fdt) {
+		EMSG("No SPMC manifest found");
+		return TEE_ERROR_GENERIC;
+	}
+
+	root = fdt_path_offset(fdt, "/");
+	if (root < 0)
+		return TEE_ERROR_BAD_FORMAT;
+
+	if (fdt_node_check_compatible(fdt, root, "arm,ffa-core-manifest-1.0"))
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* SP packages are optional, it's not an error if we don't find any */
+	sp_pkgs_node = fdt_node_offset_by_compatible(fdt, root, "arm,sp_pkg");
+	if (sp_pkgs_node < 0)
+		return TEE_SUCCESS;
+
+	fdt_for_each_subnode(subnode, fdt, sp_pkgs_node) {
+		res = sp_dt_get_u64(fdt, subnode, "load-address", &sp_pkg_addr);
+		if (res) {
+			EMSG("Invalid FIP SP load address");
+			return res;
+		}
+
+		res = sp_dt_get_uuid(fdt, subnode, "uuid", &sp_uuid);
+		if (res) {
+			EMSG("Invalid FIP SP uuid");
+			return res;
+		}
+
+		res = process_sp_pkg(sp_pkg_addr, &sp_uuid);
+		if (res) {
+			EMSG("Invalid FIP SP package");
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+static void fip_sp_deinit_all(void)
+{
+	while (!STAILQ_EMPTY(&fip_sp_list)) {
+		struct fip_sp *sp = STAILQ_FIRST(&fip_sp_list);
+
+		STAILQ_REMOVE_HEAD(&fip_sp_list, link);
+		free(sp);
+	}
+}
 
 static TEE_Result sp_init_all(void)
 {
 	TEE_Result res = TEE_SUCCESS;
 	const struct sp_image *sp = NULL;
+	const struct fip_sp *fip_sp = NULL;
 	char __maybe_unused msg[60] = { '\0', };
+	struct sp_session *s = NULL;
 
 	for_each_secure_partition(sp) {
 		if (sp->image.uncompressed_size)
@@ -1010,6 +1585,43 @@ static TEE_Result sp_init_all(void)
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed initializing SP(%pUl) err:%#"PRIx32,
 			     &sp->image.uuid, res);
+			if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+				panic();
+		}
+	}
+
+	res = fip_sp_init_all();
+	if (res)
+		panic("Failed initializing FIP SPs");
+
+	for_each_fip_sp(fip_sp) {
+		sp = &fip_sp->sp_img;
+
+		DMSG("SP %pUl size %u", (void *)&sp->image.uuid,
+		     sp->image.size);
+
+		res = sp_init_uuid(&sp->image.uuid, sp->fdt);
+
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed initializing SP(%pUl) err:%#"PRIx32,
+			     &sp->image.uuid, res);
+			if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
+				panic();
+		}
+	}
+
+	/*
+	 * At this point all FIP SPs are loaded by ldelf or by the raw binary SP
+	 * loader, so the original images (loaded by BL2) are not needed anymore
+	 */
+	fip_sp_deinit_all();
+
+	/* Continue the initialization and run the SP */
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		res = sp_first_run(s);
+		if (res != TEE_SUCCESS) {
+			EMSG("Failed starting SP(0x%"PRIx16") err:%#"PRIx32,
+			     s->endpoint_id, res);
 			if (!IS_ENABLED(CFG_SP_SKIP_FAILED))
 				panic();
 		}

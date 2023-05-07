@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 /**
    @file noekeon.c
    Implementation of the Noekeon block cipher by Tom St Denis
@@ -109,7 +102,7 @@ int noekeon_setup(const unsigned char *key, int keylen, int num_rounds, symmetri
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
+static int s_noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #else
 int noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #endif
@@ -149,7 +142,7 @@ int noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmet
 #ifdef LTC_CLEAN_STACK
 int noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 {
-   int err = _noekeon_ecb_encrypt(pt, ct, skey);
+   int err = s_noekeon_ecb_encrypt(pt, ct, skey);
    burn_stack(sizeof(ulong32) * 5 + sizeof(int));
    return err;
 }
@@ -163,7 +156,7 @@ int noekeon_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmet
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _noekeon_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
+static int s_noekeon_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #else
 int noekeon_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #endif
@@ -202,7 +195,7 @@ int noekeon_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmet
 #ifdef LTC_CLEAN_STACK
 int noekeon_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 {
-   int err = _noekeon_ecb_decrypt(ct, pt, skey);
+   int err = s_noekeon_ecb_decrypt(ct, pt, skey);
    burn_stack(sizeof(ulong32) * 5 + sizeof(int));
    return err;
 }
@@ -322,7 +315,3 @@ int noekeon_keysize(int *keysize)
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

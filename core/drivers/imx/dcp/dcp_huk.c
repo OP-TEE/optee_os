@@ -68,7 +68,7 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 
-	if (!hwkey || !hwkey->data) {
+	if (!hwkey) {
 		EMSG("HUK generation failed, hwkey structure is NULL");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}

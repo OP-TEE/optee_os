@@ -9,6 +9,7 @@
 #include <crypto/crypto.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/mutex.h>
+#include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/thread.h>
@@ -27,21 +28,6 @@
 static enum se050_scp03_ksrc scp03_ksrc;
 static bool scp03_enabled;
 
-#define SE050A1_ID 0xA204
-#define SE050A2_ID 0xA205
-#define SE050B1_ID 0xA202
-#define SE050B2_ID 0xA203
-#define SE050C1_ID 0xA200
-#define SE050C2_ID 0xA201
-#define SE050DV_ID 0xA1F4
-#define SE051A2_ID 0xA565
-#define SE051C2_ID 0xA564
-#define SE050F2_ID 0xA92A
-#define SE050E_ID 0xA921
-#define SE051A_ID 0xA920
-#define SE051C_ID 0xA8FA
-#define SE051W_ID 0xA739
-
 #define SE050A1 0
 #define SE050A2 1
 #define SE050B1 2
@@ -56,6 +42,7 @@ static bool scp03_enabled;
 #define SE051A 11
 #define SE051C 12
 #define SE051W 13
+#define SE050F 14
 
 static const struct se050_scp_key se050_default_keys[] = {
 	[SE050A1] = {
@@ -170,6 +157,14 @@ static const struct se050_scp_key se050_default_keys[] = {
 		.dek = { 0x68, 0x06, 0x83, 0xf9, 0x4e, 0x6b, 0xcb, 0x94,
 			0x73, 0xec, 0xc1, 0x56, 0x7a, 0x1b, 0xd1, 0x09 },
 	},
+	[SE050F] = {
+		.enc = { 0xB5, 0x0E, 0x1F, 0x12, 0xB8, 0x1F, 0xE5, 0x3B,
+			0x6C, 0x3B, 0x53, 0x87, 0x91, 0x2A, 0x1A, 0x5A, },
+		.mac = { 0x71, 0x93, 0x69, 0x59, 0xD3, 0x7F, 0x2B, 0x22,
+			0xC5, 0xA0, 0xC3, 0x49, 0x19, 0xA2, 0xBC, 0x1F, },
+		.dek = { 0x86, 0x95, 0x93, 0x23, 0x98, 0x54, 0xDC, 0x0D,
+			0x86, 0x99, 0x00, 0x50, 0x0C, 0xA7, 0x9C, 0x15, },
+	},
 };
 
 static sss_status_t get_id_from_ofid(uint32_t ofid, uint32_t *id)
@@ -216,6 +211,9 @@ static sss_status_t get_id_from_ofid(uint32_t ofid, uint32_t *id)
 		break;
 	case SE051W_ID:
 		*id = SE051W;
+		break;
+	case SE050F_ID:
+		*id = SE050F;
 		break;
 	default:
 		return kStatus_SSS_Fail;
@@ -387,6 +385,22 @@ static sss_status_t get_config_key(struct se050_scp_key *keys __maybe_unused)
 #endif
 }
 
+static const char * __maybe_unused get_scp03_ksrc_name(enum se050_scp03_ksrc k)
+{
+	switch (k) {
+	case SCP03_DERIVED:
+		return "derived";
+	case SCP03_CFG:
+		return "built-in";
+	case SCP03_OFID:
+		return "factory";
+	default:
+		panic();
+	}
+
+	return NULL;
+}
+
 sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
 {
 	struct {
@@ -400,8 +414,13 @@ sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
 	uint8_t msg[SE050_SCP03_KEY_SZ + 3] = { 0 };
 	size_t i = 0;
 
-	if (tee_otp_get_die_id(msg + 3, SE050_SCP03_KEY_SZ))
-		return kStatus_SSS_Fail;
+	if (IS_ENABLED(CFG_CORE_SCP03_ONLY)) {
+		memset(msg, 0x55, sizeof(msg));
+	} else {
+		/* add some randomness */
+		if (tee_otp_get_die_id(msg + 3, SE050_SCP03_KEY_SZ))
+			return kStatus_SSS_Fail;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(key); i++) {
 		memcpy(msg, key[i].name, 3);
@@ -422,6 +441,8 @@ void se050_scp03_set_enable(enum se050_scp03_ksrc ksrc)
 {
 	scp03_enabled = true;
 	scp03_ksrc = ksrc;
+
+	IMSG("SE05X SCP03 using %s keys", get_scp03_ksrc_name(ksrc));
 }
 
 void se050_scp03_set_disable(void)

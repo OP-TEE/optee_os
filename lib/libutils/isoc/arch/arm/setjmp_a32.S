@@ -51,6 +51,8 @@
 #define SIZE(x)
 #endif
 
+	.section .note.GNU-stack,"",%progbits
+
 /* Arm/Thumb interworking support:
 
    The interworking scheme expects functions to use a BX instruction

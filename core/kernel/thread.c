@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2021, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
  */
 
 #include <config.h>
+#include <crypto/crypto.h>
 #include <kernel/asan.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -46,12 +47,11 @@ linkage uint32_t name[num_stacks] \
 
 #define GET_STACK(stack) ((vaddr_t)(stack) + STACK_SIZE(stack))
 
-DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE,
-	      STACK_TMP_SIZE + CFG_STACK_TMP_EXTRA, /* global linkage */);
+DECLARE_STACK(stack_tmp, CFG_TEE_CORE_NB_CORE, STACK_TMP_SIZE,
+	      /* global linkage */);
 DECLARE_STACK(stack_abt, CFG_TEE_CORE_NB_CORE, STACK_ABT_SIZE, static);
 #ifndef CFG_WITH_PAGER
-DECLARE_STACK(stack_thread, CFG_NUM_THREADS,
-	      STACK_THREAD_SIZE + CFG_STACK_THREAD_EXTRA, static);
+DECLARE_STACK(stack_thread, CFG_NUM_THREADS, STACK_THREAD_SIZE, static);
 #endif
 
 #define GET_STACK_TOP_HARD(stack, n) \
@@ -87,7 +87,7 @@ void thread_init_canaries(void)
 
 	INIT_CANARY(stack_tmp);
 	INIT_CANARY(stack_abt);
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
 	INIT_CANARY(stack_thread);
 #endif
 #endif/*CFG_WITH_STACK_CANARIES*/
@@ -123,7 +123,7 @@ void thread_check_canaries(void)
 		if (*canary != END_CANARY_VALUE)
 			CANARY_DIED(stack_abt, end, n, canary);
 	}
-#if !defined(CFG_WITH_PAGER) && !defined(CFG_VIRTUALIZATION)
+#if !defined(CFG_WITH_PAGER) && !defined(CFG_NS_VIRTUALIZATION)
 	for (n = 0; n < ARRAY_SIZE(stack_thread); n++) {
 		canary = &GET_START_CANARY(stack_thread, n);
 		if (*canary != START_CANARY_VALUE)
@@ -186,7 +186,7 @@ static void print_stack_limits(void)
 	}
 	for (n = 0; n < CFG_NUM_THREADS; n++) {
 		end = threads[n].stack_va_end;
-		start = end - STACK_THREAD_SIZE;
+		start = end - STACK_THREAD_SIZE + STACK_CHECK_EXTRA;
 		DMSG("thr [%zu] 0x%" PRIxVA "..0x%" PRIxVA, n, start, end);
 	}
 }
@@ -201,7 +201,9 @@ static void check_stack_limits(void)
 	if (!get_stack_soft_limits(&stack_start, &stack_end))
 		panic("Unknown stack limits");
 	if (current_sp < stack_start || current_sp > stack_end) {
-		DMSG("Stack pointer out of range (0x%" PRIxVA ")", current_sp);
+		EMSG("Stack pointer out of range: 0x%" PRIxVA " not in [0x%"
+		     PRIxVA " .. 0x%" PRIxVA "]", current_sp, stack_start,
+		     stack_end);
 		print_stack_limits();
 		panic();
 	}
@@ -448,10 +450,8 @@ void thread_init_threads(void)
 
 	mutex_lockdep_init();
 
-	for (n = 0; n < CFG_NUM_THREADS; n++) {
+	for (n = 0; n < CFG_NUM_THREADS; n++)
 		TAILQ_INIT(&threads[n].tsd.sess_stack);
-		SLIST_INIT(&threads[n].tsd.pgt_cache);
-	}
 }
 
 void __nostackcheck thread_init_thread_core_local(void)
@@ -477,6 +477,27 @@ void thread_init_core_local_stacks(void)
 		tcl[n].abt_stack_va_end = GET_STACK_BOTTOM(stack_abt, n);
 	}
 }
+
+#if defined(CFG_CORE_PAUTH)
+void thread_init_thread_pauth_keys(void)
+{
+	size_t n = 0;
+
+	for (n = 0; n < CFG_NUM_THREADS; n++)
+		if (crypto_rng_read(&threads[n].keys, sizeof(threads[n].keys)))
+			panic("Failed to init thread pauth keys");
+}
+
+void thread_init_core_local_pauth_keys(void)
+{
+	struct thread_core_local *tcl = thread_core_local;
+	size_t n = 0;
+
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		if (crypto_rng_read(&tcl[n].keys, sizeof(tcl[n].keys)))
+			panic("Failed to init core local pauth keys");
+}
+#endif
 
 struct thread_specific_data *thread_get_tsd(void)
 {

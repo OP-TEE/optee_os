@@ -97,7 +97,7 @@ static TEE_Result clk_probe_clock_provider_node(const void *fdt, int node)
 	int status = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	status = _fdt_get_status(fdt, node);
+	status = fdt_get_status(fdt, node);
 	if (!(status & DT_STATUS_OK_SEC))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
@@ -124,7 +124,7 @@ static void clk_probe_node(const void *fdt, int parent_node)
 	__maybe_unused TEE_Result res = TEE_ERROR_GENERIC;
 
 	fdt_for_each_subnode(child, fdt, parent_node) {
-		status = _fdt_get_status(fdt, child);
+		status = fdt_get_status(fdt, child);
 		if (status == DT_STATUS_DISABLED)
 			continue;
 
@@ -186,7 +186,7 @@ static void clk_probe_assigned(const void *fdt, int parent_node)
 	fdt_for_each_subnode(child, fdt, parent_node) {
 		clk_probe_assigned(fdt, child);
 
-		status = _fdt_get_status(fdt, child);
+		status = fdt_get_status(fdt, child);
 		if (status == DT_STATUS_DISABLED)
 			continue;
 
@@ -197,7 +197,7 @@ static void clk_probe_assigned(const void *fdt, int parent_node)
 
 static TEE_Result clk_dt_probe(void)
 {
-	const void *fdt = get_embedded_dt();
+	const void *fdt = get_secure_dt();
 
 	DMSG("Probing clocks from devicetree");
 	if (!fdt)

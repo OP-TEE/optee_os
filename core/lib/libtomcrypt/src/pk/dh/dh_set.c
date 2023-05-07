@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -33,7 +26,7 @@ int dh_set_pg(const unsigned char *p, unsigned long plen,
    LTC_ARGCHK(g           != NULL);
    LTC_ARGCHK(ltc_mp.name != NULL);
 
-   if ((err = mp_init_multi(&key->x, &key->y, &key->base, &key->prime, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&key->x, &key->y, &key->base, &key->prime, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
 
@@ -65,7 +58,7 @@ int dh_set_pg_groupsize(int groupsize, dh_key *key)
    for (i = 0; (groupsize > ltc_dh_sets[i].size) && (ltc_dh_sets[i].size != 0); i++);
    if (ltc_dh_sets[i].size == 0) return CRYPT_INVALID_KEYSIZE;
 
-   if ((err = mp_init_multi(&key->x, &key->y, &key->base, &key->prime, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&key->x, &key->y, &key->base, &key->prime, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
    if ((err = mp_read_radix(key->base, ltc_dh_sets[i].base, 16)) != CRYPT_OK)  { goto LBL_ERR; }
@@ -119,7 +112,3 @@ LBL_ERR:
 }
 
 #endif /* LTC_MDH */
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -30,7 +30,6 @@
 struct thread_specific_data {
 	TAILQ_HEAD(, ts_session) sess_stack;
 	struct ts_ctx *ctx;
-	struct pgt_cache pgt_cache;
 #ifdef CFG_CORE_FFA
 	uint32_t rpc_target_info;
 #endif
@@ -43,6 +42,9 @@ struct thread_specific_data {
 	bool stackcheck_recursion;
 #endif
 	unsigned int syscall_recursion;
+#ifdef CFG_FAULT_MITIGATION
+	struct ftmn_func_arg *ftmn_arg;
+#endif
 };
 
 void thread_init_canaries(void);
@@ -73,6 +75,14 @@ void thread_init_threads(void);
  */
 void thread_init_thread_core_local(void);
 void thread_init_core_local_stacks(void);
+
+#if defined(CFG_CORE_PAUTH)
+void thread_init_thread_pauth_keys(void);
+void thread_init_core_local_pauth_keys(void);
+#else
+static inline void thread_init_thread_pauth_keys(void) { }
+static inline void thread_init_core_local_pauth_keys(void) { }
+#endif
 
 /*
  * Initializes a thread to be used during boot

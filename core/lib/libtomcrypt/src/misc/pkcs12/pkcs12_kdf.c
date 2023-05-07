@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -46,7 +39,7 @@ int pkcs12_kdf(               int   hash_id,
 
    for (i = 0; i < c; i++) {
       Alen = sizeof(A);
-      err = hash_memory_multi(hash_id, A, &Alen, D, v, I, Slen + Plen, NULL); /* A = HASH(D || I) */
+      err = hash_memory_multi(hash_id, A, &Alen, D, v, I, Slen + Plen, LTC_NULL); /* A = HASH(D || I) */
       if (err != CRYPT_OK) goto DONE;
       for (j = 1; j < iterations; j++) {
          err = hash_memory(hash_id, A, Alen, A, &Alen); /* A = HASH(A) */
@@ -87,7 +80,3 @@ DONE:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

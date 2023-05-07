@@ -24,5 +24,8 @@ void sm4_crypt_cbc(struct sm4_context *ctx, size_t length, uint8_t iv[16],
 		   const uint8_t *input, uint8_t *output);
 void sm4_crypt_ctr(struct sm4_context *ctx, size_t length, uint8_t ctr[16],
 		   const uint8_t *input, uint8_t *output);
+void sm4_crypt_xts(struct sm4_context *ctx, struct sm4_context *ctx_ek,
+		   struct sm4_context *ctx_dk, size_t length, uint8_t *iv,
+		   const uint8_t *input, uint8_t *output);
 
 #endif /* CORE_CRYPTO_SM4_H */

@@ -301,3 +301,12 @@ out:
 
 	return res;
 }
+
+TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
+			       unsigned long *rates, size_t *nb_elts)
+{
+	if (!clk->ops->get_rates_array)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return clk->ops->get_rates_array(clk, start_index, rates, nb_elts);
+}

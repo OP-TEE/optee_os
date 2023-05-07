@@ -7,7 +7,6 @@
 
 #include "stm32mp157c-ed1.dts"
 #include <dt-bindings/gpio/gpio.h>
-/* #include <dt-bindings/input/input.h> Remove due to BSD license issue */
 
 / {
 	model = "STMicroelectronics STM32MP157C eval daughter on eval mother";
@@ -19,6 +18,7 @@
 
 	aliases {
 		serial0 = &uart4;
+		serial1 = &usart3;
 		ethernet0 = &ethernet0;
 	};
 
@@ -36,31 +36,26 @@
 		pinctrl-names = "default";
 		button-0 {
 			label = "JoySel";
-			/* linux,code = <KEY_ENTER>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <0 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-1 {
 			label = "JoyDown";
-			/* linux,code = <KEY_DOWN>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <1 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-2 {
 			label = "JoyLeft";
-			/* linux,code = <KEY_LEFT>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <2 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-3 {
 			label = "JoyRight";
-			/* linux,code = <KEY_RIGHT>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <3 IRQ_TYPE_EDGE_RISING>;
 		};
 		button-4 {
 			label = "JoyUp";
-			/* linux,code = <KEY_UP>; BSD license issue */
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <4 IRQ_TYPE_EDGE_RISING>;
 		};
@@ -77,11 +72,11 @@
 &cec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cec_pins_a>;
-	status = "okay";
+	status = "disabled";
 };
 
 &dcmi {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dcmi_pins_a>;
 	pinctrl-1 = <&dcmi_sleep_pins_a>;
@@ -89,6 +84,7 @@
 	port {
 		dcmi_0: endpoint {
 			remote-endpoint = <&ov5640_0>;
+			bus-type = <5>;
 			bus-width = <8>;
 			hsync-active = <0>;
 			vsync-active = <0>;
@@ -98,15 +94,10 @@
 };
 
 &dsi {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	phy-dsi-supply = <&reg18>;
-	status = "okay";
+	status = "disabled";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			dsi_in: endpoint {
@@ -139,9 +130,9 @@
 };
 
 &ethernet0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&ethernet0_rgmii_pins_a>;
-	pinctrl-1 = <&ethernet0_rgmii_pins_sleep_a>;
+	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_a>;
 	pinctrl-names = "default", "sleep";
 	phy-mode = "rgmii-id";
 	max-speed = <1000>;
@@ -161,24 +152,27 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&fmc_pins_a>;
 	pinctrl-1 = <&fmc_sleep_pins_a>;
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
+	status = "disabled";
 
-	nand@0 {
-		reg = <0>;
-		nand-on-flash-bbt;
-		#address-cells = <1>;
-		#size-cells = <1>;
+	nand-controller@4,0 {
+		status = "okay";
+
+		nand@0 {
+			reg = <0>;
+			nand-on-flash-bbt;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
 	};
 };
 
 &i2c2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c2_pins_a>;
+	pinctrl-1 = <&i2c2_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
-	status = "okay";
+	status = "disabled";
 
 	ov5640: camera@3c {
 		compatible = "ovti,ov5640";
@@ -210,7 +204,7 @@
 		interrupt-parent = <&gpioi>;
 		vdd-supply = <&v3v3>;
 
-		stmfx_pinctrl: stmfx-pin-controller {
+		stmfx_pinctrl: pinctrl {
 			compatible = "st,stmfx-0300-pinctrl";
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -218,7 +212,7 @@
 			#interrupt-cells = <2>;
 			gpio-ranges = <&stmfx_pinctrl 0 0 24>;
 
-			joystick_pins: joystick {
+			joystick_pins: joystick-pins {
 				pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4";
 				bias-pull-down;
 			};
@@ -227,20 +221,18 @@
 };
 
 &i2c5 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c5_pins_a>;
+	pinctrl-1 = <&i2c5_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
-	status = "okay";
+	status = "disabled";
 };
 
 &ltdc {
-	status = "okay";
+	status = "disabled";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ltdc_ep0_out: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&dsi_in>;
@@ -252,7 +244,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&m_can1_pins_a>;
 	pinctrl-1 = <&m_can1_sleep_pins_a>;
-	status = "okay";
+	status = "disabled";
 };
 
 &qspi {
@@ -262,9 +254,9 @@
 	reg = <0x58003000 0x1000>, <0x70000000 0x4000000>;
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "okay";
+	status = "disabled";
 
-	flash0: mx66l51235l@0 {
+	flash0: flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-rx-bus-width = <4>;
@@ -273,7 +265,7 @@
 		#size-cells = <1>;
 	};
 
-	flash1: mx66l51235l@1 {
+	flash1: flash@1 {
 		compatible = "jedec,spi-nor";
 		reg = <1>;
 		spi-rx-bus-width = <4>;
@@ -347,18 +339,55 @@
 	};
 };
 
+&usart3 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&usart3_pins_b>;
+	pinctrl-1 = <&usart3_sleep_pins_b>;
+	pinctrl-2 = <&usart3_idle_pins_b>;
+	/*
+	 * HW flow control USART3_RTS is optional, and isn't default wired to
+	 * the connector. SB23 needs to be soldered in order to use it, and R77
+	 * (ETH_CLK) should be removed.
+	 */
+	uart-has-rtscts;
+	status = "disabled";
+};
+
 &usbh_ehci {
 	phys = <&usbphyc_port0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg_hs {
-	dr_mode = "peripheral";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
 	phys = <&usbphyc_port1 0>;
 	phy-names = "usb2-phy";
-	status = "okay";
+	status = "disabled";
 };
 
 &usbphyc {
-	status = "okay";
+	status = "disabled";
+};
+
+&usbphyc_port0 {
+	st,tune-hs-dc-level = <2>;
+	st,enable-fs-rftime-tuning;
+	st,enable-hs-rftime-reduction;
+	st,trim-hs-current = <15>;
+	st,trim-hs-impedance = <1>;
+	st,tune-squelch-level = <3>;
+	st,tune-hs-rx-offset = <2>;
+	st,no-lsfs-sc;
+};
+
+&usbphyc_port1 {
+	st,tune-hs-dc-level = <2>;
+	st,enable-fs-rftime-tuning;
+	st,enable-hs-rftime-reduction;
+	st,trim-hs-current = <15>;
+	st,trim-hs-impedance = <1>;
+	st,tune-squelch-level = <3>;
+	st,tune-hs-rx-offset = <2>;
+	st,no-lsfs-sc;
 };

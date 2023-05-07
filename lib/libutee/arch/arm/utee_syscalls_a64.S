@@ -44,6 +44,6 @@
 	/* Not reached */
 	END_FUNC _utee_panic
 
-#include "utee_syscalls_asm.S"
+#include <utee_syscalls_asm.S>
 
 BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

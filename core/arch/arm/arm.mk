@@ -80,6 +80,13 @@ ifeq ($(CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME),y)
 $(call force,CFG_CORE_WORKAROUND_SPECTRE_BP,y,Required by CFG_CORE_WORKAROUND_NSITR_CACHE_PRIME)
 endif
 
+# Adds workarounds against if ARM core is configured with Non-maskable FIQ
+# (NMFI) support. This is indicated by SCTLR.NMFI being true. NMFI cannot be
+# disabled by software and as it affects atomic context end result will be
+# prohibiting FIQ signal usage in OP-TEE and applying some tweaks to make sure
+# FIQ is enabled in critical places.
+CFG_CORE_WORKAROUND_ARM_NMFI ?= n
+
 CFG_CORE_RWDATA_NOEXEC ?= y
 CFG_CORE_RODATA_NOEXEC ?= n
 ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
@@ -105,6 +112,7 @@ ifeq ($(CFG_CORE_SEL2_SPMC),y)
 $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 $(call force,CFG_CORE_EL3_SPMC,n)
+CFG_CORE_HAFNIUM_INTC ?= y
 endif
 # SPMC configuration "EL3 SPMC" where SPM Core is implemented at EL3, that
 # is, in TF-A
@@ -113,6 +121,31 @@ $(call force,CFG_CORE_FFA,y)
 $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 endif
+
+ifeq ($(CFG_CORE_FFA)-$(CFG_WITH_PAGER),y-y)
+$(error CFG_CORE_FFA and CFG_WITH_PAGER are not compatible)
+endif
+ifeq ($(CFG_GIC),y)
+ifeq ($(CFG_ARM_GICV3),y)
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
+else
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,n)
+endif
+endif
+
+CFG_CORE_HAFNIUM_INTC ?= n
+ifeq ($(CFG_CORE_HAFNIUM_INTC),y)
+$(call force,CFG_CORE_IRQ_IS_NATIVE_INTR,y)
+endif
+
+# Selects if IRQ is used to signal native interrupt
+# if CFG_CORE_IRQ_IS_NATIVE_INTR == y:
+#   IRQ signals a native interrupt pending
+#   FIQ signals a foreign non-secure interrupt or a managed exit pending
+# else: (vice versa)
+#   IRQ signals a foreign non-secure interrupt or a managed exit pending
+#   FIQ signals a native interrupt pending
+CFG_CORE_IRQ_IS_NATIVE_INTR ?= n
 
 # Unmaps all kernel mode code except the code needed to take exceptions
 # from user space and restore kernel mode mapping again. This gives more
@@ -139,6 +172,15 @@ ifeq ($(CFG_ARM32_core),y)
 # CFG_NS_ENTRY_ADDR: if defined, forces NS World physical entry address.
 # CFG_DT_ADDR:       if defined, forces Device Tree data physical address.
 endif
+
+# CFG_MAX_CACHE_LINE_SHIFT is used to define platform specific maximum cache
+# line size in address lines. This must cover all inner and outer cache levels.
+# When data is aligned with this and cache operations are performed then those
+# only affect correct data.
+#
+# Default value (6 lines or 64 bytes) should cover most architectures, override
+# this in platform config if different.
+CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
@@ -191,12 +233,23 @@ ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
 endif
 
-ifeq ($(CFG_CORE_BTI),y)
-bti-opt := $(call cc-option,-mbranch-protection=bti)
-ifeq (,$(bti-opt))
-$(error -mbranch-protection=bti not supported)
+ifeq ($(CFG_CORE_PAUTH),y)
+bp-core-opt := $(call cc-option,-mbranch-protection=pac-ret+leaf)
 endif
-core-platform-cflags += $(bti-opt)
+
+ifeq ($(CFG_CORE_BTI),y)
+bp-core-opt := $(call cc-option,-mbranch-protection=bti)
+endif
+
+ifeq (y-y,$(CFG_CORE_PAUTH)-$(CFG_CORE_BTI))
+bp-core-opt := $(call cc-option,-mbranch-protection=pac-ret+leaf+bti)
+endif
+
+ifeq (y,$(filter $(CFG_CORE_BTI) $(CFG_CORE_PAUTH),y))
+ifeq (,$(bp-core-opt))
+$(error -mbranch-protection not supported)
+endif
+core-platform-cflags += $(bp-core-opt)
 endif
 
 ifeq ($(CFG_ARM64_core),y)

@@ -8,6 +8,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <util.h>
 
 #define STAT		0x14
@@ -23,10 +24,6 @@ static vaddr_t chip_to_base(struct serial_chip *chip)
 		container_of(chip, struct imx_uart_data, chip);
 
 	return io_pa_or_va(&pd->base, UART_SIZE);
-}
-
-static void imx_lpuart_flush(struct serial_chip *chip __unused)
-{
 }
 
 static int imx_lpuart_getchar(struct serial_chip *chip)
@@ -56,7 +53,6 @@ static void imx_lpuart_putc(struct serial_chip *chip, int ch)
 }
 
 static const struct serial_ops imx_lpuart_ops = {
-	.flush = imx_lpuart_flush,
 	.getchar = imx_lpuart_getchar,
 	.putc = imx_lpuart_putc,
 };
@@ -96,7 +92,7 @@ static int imx_lpuart_dev_init(struct serial_chip *chip, const void *fdt,
 	if (parms && parms[0])
 		IMSG("imx_lpuart: device parameters ignored (%s)", parms);
 
-	if (dt_map_dev(fdt, offs, &vbase, &size) < 0)
+	if (dt_map_dev(fdt, offs, &vbase, &size, DT_MAP_AUTO) < 0)
 		return -1;
 
 	pbase = virt_to_phys((void *)vbase);

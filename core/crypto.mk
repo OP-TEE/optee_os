@@ -6,6 +6,13 @@ CFG_CRYPTO_SIZE_OPTIMIZATION ?= y
 
 ifeq (y,$(CFG_CRYPTO))
 
+###############################################################
+# Platform crypto-driver configuration. It has a higher priority over the
+# generic crypto configuration below.
+###############################################################
+CRYPTO_MAKEFILES := $(sort $(wildcard core/drivers/crypto/*/crypto.mk))
+include $(CRYPTO_MAKEFILES)
+
 # Ciphers
 CFG_CRYPTO_AES ?= y
 CFG_CRYPTO_DES ?= y
@@ -37,6 +44,14 @@ CFG_CRYPTO_SHA384 ?= y
 CFG_CRYPTO_SHA512 ?= y
 CFG_CRYPTO_SHA512_256 ?= y
 CFG_CRYPTO_SM3 ?= y
+CFG_CRYPTO_SHA3_224 ?= y
+CFG_CRYPTO_SHA3_256 ?= y
+CFG_CRYPTO_SHA3_384 ?= y
+CFG_CRYPTO_SHA3_512 ?= y
+
+# Extendable-Output Functions (XOF)
+CFG_CRYPTO_SHAKE128 ?= y
+CFG_CRYPTO_SHAKE256 ?= y
 
 # Asymmetric ciphers
 CFG_CRYPTO_DSA ?= y
@@ -47,10 +62,8 @@ CFG_CRYPTO_ECC ?= y
 CFG_CRYPTO_SM2_PKE ?= y
 CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
-# X25519 is only supported by libtomcrypt
-ifeq ($(CFG_CRYPTOLIB_NAME),tomcrypt)
+CFG_CRYPTO_ED25519 ?= y
 CFG_CRYPTO_X25519 ?= y
-endif
 
 # Authenticated encryption
 CFG_CRYPTO_CCM ?= y
@@ -69,6 +82,23 @@ endif
 
 $(eval $(call cryp-enable-all-depends,CFG_WITH_SOFTWARE_PRNG, AES ECB SHA256))
 
+ifeq ($(CFG_CRYPTO_WITH_CE82),y)
+$(call force,CFG_CRYPTO_WITH_CE,y,required with CFG_CRYPTO_WITH_CE82)
+CFG_CRYPTO_SHA512_ARM_CE ?= $(CFG_CRYPTO_SHA512)
+CFG_CORE_CRYPTO_SHA512_ACCEL ?= $(CFG_CRYPTO_SHA512_ARM_CE)
+CFG_CRYPTO_SHA3_ARM_CE ?= $(call cfg-one-enabled, CFG_CRYPTO_SHA3_224 \
+			    CFG_CRYPTO_SHA3_256 CFG_CRYPTO_SHA3_384 \
+			    CFG_CRYPTO_SHA3_512 CFG_CRYPTO_SHAKE128 \
+			    CFG_CRYPTO_SHAKE256)
+CFG_CORE_CRYPTO_SHA3_ACCEL ?= $(CFG_CRYPTO_SHA3_ARM_CE)
+CFG_CRYPTO_SM3_ARM_CE ?= $(CFG_CRYPTO_SM3)
+CFG_CORE_CRYPTO_SM3_ACCEL ?= $(CFG_CRYPTO_SM3_ARM_CE)
+
+# CFG_CRYPTO_SM4_ARM_CE defines whether we use SM4E to optimize SM4
+CFG_CRYPTO_SM4_ARM_CE ?= $(CFG_CRYPTO_SM4)
+CFG_CORE_CRYPTO_SM4_ACCEL ?= $(CFG_CRYPTO_SM4_ARM_CE)
+endif
+
 ifeq ($(CFG_CRYPTO_WITH_CE),y)
 
 $(call force,CFG_AES_GCM_TABLE_BASED,n,conflicts with CFG_CRYPTO_WITH_CE)
@@ -86,6 +116,9 @@ CFG_CORE_CRYPTO_SHA1_ACCEL ?= $(CFG_CRYPTO_SHA1_ARM_CE)
 CFG_CRYPTO_AES_ARM_CE ?= $(CFG_CRYPTO_AES)
 CFG_CORE_CRYPTO_AES_ACCEL ?= $(CFG_CRYPTO_AES_ARM_CE)
 
+# CFG_CRYPTO_SM4_ARM_AESE defines whether we use AESE to optimize SM4
+CFG_CRYPTO_SM4_ARM_AESE ?= $(CFG_CRYPTO_SM4)
+CFG_CORE_CRYPTO_SM4_ACCEL ?= $(CFG_CRYPTO_SM4_ARM_AESE)
 else #CFG_CRYPTO_WITH_CE
 
 CFG_AES_GCM_TABLE_BASED ?= y
@@ -107,7 +140,9 @@ endif
 ifeq ($(CFG_CRYPTO_AES_ARM_CE),y)
 $(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM_CE)
 endif
-
+ifeq ($(CFG_CORE_CRYPTO_SM4_ACCEL),y)
+$(call force,CFG_WITH_VFP,y,required by CFG_CORE_CRYPTO_SM4_ACCEL)
+endif
 cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
 $(eval $(call cryp-enable-all-depends,CFG_REE_FS, AES ECB CTR HMAC SHA256 GCM))
 $(eval $(call cryp-enable-all-depends,CFG_RPMB_FS, AES ECB CTR HMAC SHA256 GCM))
@@ -157,6 +192,7 @@ $(eval $(call cryp-dep-all, DSA, SHA256 SHA384 SHA512))
 core-ltc-vars = AES DES
 core-ltc-vars += ECB CBC CTR CTS XTS
 core-ltc-vars += MD5 SHA1 SHA224 SHA256 SHA384 SHA512 SHA512_256
+core-ltc-vars += SHA3_224 SHA3_256 SHA3_384 SHA3_512 SHAKE128 SHAKE256
 core-ltc-vars += HMAC CMAC CBC_MAC
 core-ltc-vars += CCM
 ifeq ($(CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB),y)
@@ -167,13 +203,15 @@ core-ltc-vars += SIZE_OPTIMIZATION
 core-ltc-vars += SM2_PKE
 core-ltc-vars += SM2_DSA
 core-ltc-vars += SM2_KEP
-core-ltc-vars += X25519
+core-ltc-vars += ED25519 X25519
 # Assigned selected CFG_CRYPTO_xxx as _CFG_CORE_LTC_xxx
 $(foreach v, $(core-ltc-vars), $(eval _CFG_CORE_LTC_$(v) := $(CFG_CRYPTO_$(v))))
 _CFG_CORE_LTC_MPI := $(CFG_CORE_MBEDTLS_MPI)
 _CFG_CORE_LTC_AES_ACCEL := $(CFG_CORE_CRYPTO_AES_ACCEL)
 _CFG_CORE_LTC_SHA1_ACCEL := $(CFG_CORE_CRYPTO_SHA1_ACCEL)
 _CFG_CORE_LTC_SHA256_ACCEL := $(CFG_CORE_CRYPTO_SHA256_ACCEL)
+_CFG_CORE_LTC_SHA512_ACCEL := $(CFG_CORE_CRYPTO_SHA512_ACCEL)
+_CFG_CORE_LTC_SHA3_ACCEL := $(CFG_CORE_CRYPTO_SHA3_ACCEL)
 endif
 
 ###############################################################
@@ -191,7 +229,14 @@ _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
 _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
-$(call force,CFG_CRYPTO_X25519,n,not supported by mbedtls)
+_CFG_CORE_LTC_X25519 := $(CFG_CRYPTO_X25519)
+_CFG_CORE_LTC_ED25519 := $(CFG_CRYPTO_ED25519)
+_CFG_CORE_LTC_SHA3_224 := $(CFG_CRYPTO_SHA3_224)
+_CFG_CORE_LTC_SHA3_256 := $(CFG_CRYPTO_SHA3_256)
+_CFG_CORE_LTC_SHA3_384 := $(CFG_CRYPTO_SHA3_384)
+_CFG_CORE_LTC_SHA3_512 := $(CFG_CRYPTO_SHA3_512)
+_CFG_CORE_LTC_SHAKE128 := $(CFG_CRYPTO_SHAKE128)
+_CFG_CORE_LTC_SHAKE256 := $(CFG_CRYPTO_SHAKE256)
 endif
 
 ###############################################################
@@ -208,6 +253,11 @@ _CFG_CORE_LTC_SHA512_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA512_DESC \
 						     _CFG_CORE_LTC_SHA512)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_AES_DESC \
 						  _CFG_CORE_LTC_AES)
+
+_CFG_CORE_LTC_SHA3_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA3_224 \
+			     _CFG_CORE_LTC_SHA3_256 _CFG_CORE_LTC_SHA3_384 \
+			     _CFG_CORE_LTC_SHA3_512 _CFG_CORE_LTC_SHAKE128 \
+			     _CFG_CORE_LTC_SHAKE256)
 
 # Assign system variables
 _CFG_CORE_LTC_CE := $(CFG_CRYPTO_WITH_CE)
@@ -228,17 +278,18 @@ _CFG_CORE_LTC_AUTHENC := $(and $(filter y,$(_CFG_CORE_LTC_AES_DESC)), \
 			       $(filter y,$(call ltc-one-enabled, CCM GCM)))
 _CFG_CORE_LTC_CIPHER := $(call ltc-one-enabled, AES_DESC DES)
 _CFG_CORE_LTC_HASH := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
-					      SHA512)
+					      SHA512 SHA3_224 SHA3_256 \
+					      SHA3_384 SHA3_512)
+ifeq ($(CFG_CRYPTO_HMAC),y)
+_CFG_CORE_LTC_HMAC := $(call ltc-one-enabled, MD5 SHA1 SHA224 SHA256 SHA384 \
+					      SHA512 SHA3_224 SHA3_256 \
+					      SHA3_384 SHA3_512)
+endif
+
 _CFG_CORE_LTC_MAC := $(call ltc-one-enabled, HMAC CMAC CBC_MAC)
 _CFG_CORE_LTC_CBC := $(call ltc-one-enabled, CBC CBC_MAC)
 _CFG_CORE_LTC_ASN1 := $(call ltc-one-enabled, RSA DSA ECC)
-_CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, X25519)
-
-###############################################################
-# Platform independent crypto-driver configuration
-###############################################################
-CRYPTO_MAKEFILES := $(sort $(wildcard core/drivers/crypto/*/crypto.mk))
-include $(CRYPTO_MAKEFILES)
+_CFG_CORE_LTC_EC25519 := $(call ltc-one-enabled, ED25519 X25519)
 
 # Enable TEE_ALG_RSASSA_PKCS1_V1_5 algorithm for signing with PKCS#1 v1.5 EMSA
 # without ASN.1 around the hash.

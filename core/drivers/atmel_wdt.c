@@ -10,6 +10,7 @@
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/pm.h>
 #include <matrix.h>
 #include <sama5d2.h>
@@ -174,6 +175,8 @@ static void atmel_wdt_init_hw(struct atmel_wdt *wdt)
 
 	/* Enable interrupt, and disable watchdog in debug and idle */
 	wdt->mr |= WDT_MR_WDFIEN | WDT_MR_WDDBGHLT | WDT_MR_WDIDLEHLT;
+	/* Enable watchdog reset */
+	wdt->mr |= WDT_MR_WDRSTEN;
 	wdt->mr |= WDT_MR_WDD_SET(SEC_TO_WDT(WDT_MAX_TIMEOUT));
 	wdt->mr |= WDT_MR_WDV_SET(SEC_TO_WDT(WDT_DEFAULT_TIMEOUT));
 
@@ -228,7 +231,7 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	int it = DT_INFO_INVALID_INTERRUPT;
 	struct itr_handler *it_hdlr;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	matrix_configure_periph_secure(AT91C_ID_WDT);
@@ -248,7 +251,7 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	if (!it_hdlr)
 		goto err_free_wdt;
 
-	if (dt_map_dev(fdt, node, &wdt->base, &size) < 0)
+	if (dt_map_dev(fdt, node, &wdt->base, &size, DT_MAP_AUTO) < 0)
 		goto err_free_itr_handler;
 
 	/* Get current state of the watchdog */

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
    @file ocb3_init.c
@@ -16,7 +9,7 @@
 
 #ifdef LTC_OCB3_MODE
 
-static void _ocb3_int_calc_offset_zero(ocb3_state *ocb, const unsigned char *nonce, unsigned long noncelen, unsigned long taglen)
+static void s_ocb3_int_calc_offset_zero(ocb3_state *ocb, const unsigned char *nonce, unsigned long noncelen, unsigned long taglen)
 {
    int x, y, bottom;
    int idx, shift;
@@ -173,7 +166,7 @@ int ocb3_init(ocb3_state *ocb, int cipher,
    }
 
    /* initialize ocb->Offset_current = Offset_0 */
-   _ocb3_int_calc_offset_zero(ocb, nonce, noncelen, taglen);
+   s_ocb3_int_calc_offset_zero(ocb, nonce, noncelen, taglen);
 
    /* initialize checksum to all zeros */
    zeromem(ocb->checksum, ocb->block_len);
@@ -191,7 +184,3 @@ int ocb3_init(ocb3_state *ocb, int cipher,
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

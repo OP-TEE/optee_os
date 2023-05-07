@@ -7,6 +7,8 @@
 #ifndef __CAAM_HAL_JR_H__
 #define __CAAM_HAL_JR_H__
 
+#include <caam_common.h>
+
 /*
  * Configures the Job Ring Owner and lock it.
  * If the configuration is already locked, checks the configuration

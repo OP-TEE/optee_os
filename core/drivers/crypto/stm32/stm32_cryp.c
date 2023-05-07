@@ -12,6 +12,7 @@
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/mutex.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -1253,7 +1254,7 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 	struct rstctrl *rstctrl = NULL;
 	struct clk *clk = NULL;
 
-	_fdt_fill_device_info(fdt, &dt_cryp, node);
+	fdt_fill_device_info(fdt, &dt_cryp, node);
 
 	if (dt_cryp.reg == DT_INFO_INVALID_REG ||
 	    dt_cryp.reg_size == DT_INFO_INVALID_REG_SIZE)

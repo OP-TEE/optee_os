@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
+ * Copyright (c) 2022-2023, Arm Limited
  */
 
 #include <assert.h>
@@ -40,7 +41,7 @@ static void __noreturn __maybe_unused dump_ta_state(struct dump_entry_arg *arg)
 	ta_elf_print_mappings(NULL, print_to_console, &main_elf_queue,
 			      arg->num_maps, arg->maps, mpool_base);
 
-	if (arg->is_arm32)
+	if (arg->is_32bit)
 		ta_elf_stack_trace_a32(arg->arm32.regs);
 	else
 		ta_elf_stack_trace_a64(arg->arm64.fp, arg->arm64.sp,
@@ -156,7 +157,7 @@ void ldelf(struct ldelf_arg *arg)
 		ta_elf_finalize_mappings(elf);
 	}
 
-	ta_elf_finalize_load_main(&arg->entry_func);
+	ta_elf_finalize_load_main(&arg->entry_func, &arg->load_addr);
 
 	arg->ftrace_entry = 0;
 #ifdef CFG_FTRACE_SUPPORT

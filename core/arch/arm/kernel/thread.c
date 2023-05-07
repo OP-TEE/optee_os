@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2021, Linaro Limited
+ * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  * Copyright (c) 2020-2021, Arm Limited
  */
@@ -48,7 +48,7 @@ static uint8_t thread_user_kdata_page[
 	ROUNDUP(sizeof(struct thread_core_local) * CFG_TEE_CORE_NB_CORE,
 		SMALL_PAGE_SIZE)]
 	__aligned(SMALL_PAGE_SIZE)
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	__section(".nozi.kdata_page");
 #else
 	__section(".nex_nozi.kdata_page");
@@ -220,9 +220,9 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 				   uint32_t a6, uint32_t a7,
 				   void *pc)
 {
-	size_t n;
 	struct thread_core_local *l = thread_get_core_local();
 	bool found_thread = false;
+	size_t n = 0;
 
 	assert(l->curr_thread == THREAD_ID_INVALID);
 
@@ -245,6 +245,14 @@ static void __thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2,
 
 	threads[n].flags = 0;
 	init_regs(threads + n, a0, a1, a2, a3, a4, a5, a6, a7, pc);
+#ifdef CFG_CORE_PAUTH
+	/*
+	 * Copy the APIA key into the registers to be restored with
+	 * thread_resume().
+	 */
+	threads[n].regs.apiakey_hi = threads[n].keys.apia_hi;
+	threads[n].regs.apiakey_lo = threads[n].keys.apia_lo;
+#endif
 
 	thread_lazy_save_ns_vfp();
 
@@ -439,7 +447,7 @@ void thread_state_free(void)
 	threads[ct].flags = 0;
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 	thread_unlock_global();
 }
@@ -510,7 +518,7 @@ int thread_state_suspend(uint32_t flags, uint32_t cpsr, vaddr_t pc)
 
 	l->curr_thread = THREAD_ID_INVALID;
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION))
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		virt_unset_guest();
 
 	thread_unlock_global();
@@ -593,6 +601,7 @@ static uint32_t __maybe_unused get_midr_revision(uint32_t midr)
 	return (midr >> MIDR_REVISION_SHIFT) & MIDR_REVISION_MASK;
 }
 
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
 #ifdef ARM64
 static bool probe_workaround_available(uint32_t wa_id)
 {
@@ -629,9 +638,10 @@ static vaddr_t __maybe_unused select_vector_wa_spectre_v2(void)
 	return (vaddr_t)thread_excp_vect_wa_spectre_v2;
 }
 #endif
+#endif
 
-static vaddr_t __maybe_unused
-select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
+#ifdef CFG_CORE_WORKAROUND_SPECTRE_BP_SEC
+static vaddr_t select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 {
 	/*
 	 * Spectre-BHB has only been analyzed for AArch64 so far. For
@@ -655,6 +665,7 @@ select_vector_wa_spectre_bhb(uint8_t loop_count __maybe_unused)
 	return select_vector_wa_spectre_v2();
 #endif
 }
+#endif
 
 static vaddr_t get_excp_vect(void)
 {
@@ -961,8 +972,8 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 	regs->sp = user_sp;	/* Used when running TA in Aarch64 */
 #ifdef CFG_TA_PAUTH
 	assert(keys);
-	regs->apiakey_hi = keys->hi;
-	regs->apiakey_lo = keys->lo;
+	regs->apiakey_hi = keys->apia_hi;
+	regs->apiakey_lo = keys->apia_lo;
 #endif
 	/* Set frame pointer (user stack can't be unwound past this point) */
 	regs->x[29] = 0;
@@ -1045,7 +1056,7 @@ void thread_get_user_kdata(struct mobj **mobj, size_t *offset,
 }
 #endif
 
-static void setup_unwind_user_mode(struct thread_svc_regs *regs)
+static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 #ifdef ARM32
 	regs->lr = (uintptr_t)thread_unwind_user_mode;
@@ -1079,7 +1090,7 @@ static void gprof_set_status(struct ts_session *s __maybe_unused,
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak thread_svc_handler(struct thread_svc_regs *regs)
+void __weak thread_scall_handler(struct thread_scall_regs *regs)
 {
 	struct ts_session *sess = NULL;
 	uint32_t state = 0;
@@ -1100,8 +1111,8 @@ void __weak thread_svc_handler(struct thread_svc_regs *regs)
 	/* Restore foreign interrupts which are disabled on exception entry */
 	thread_restore_foreign_intr();
 
-	assert(sess && sess->handle_svc);
-	if (sess->handle_svc(regs)) {
+	assert(sess && sess->handle_scall);
+	if (sess->handle_scall(regs)) {
 		/* We're about to switch back to user mode */
 		gprof_set_status(sess, TS_GPROF_RESUME);
 	} else {
@@ -1150,3 +1161,15 @@ unsigned long __weak thread_system_reset_handler(unsigned long a0 __unused,
 }
 DECLARE_KEEP_PAGER(thread_system_reset_handler);
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
+
+#ifdef CFG_CORE_WORKAROUND_ARM_NMFI
+void __noreturn itr_core_handler(void)
+{
+	/*
+	 * Note: overrides the default implementation of this function so that
+	 * if there would be another handler defined there would be duplicate
+	 * symbol error during linking.
+	 */
+	panic("Secure interrupt received but it is not supported");
+}
+#endif

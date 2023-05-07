@@ -165,4 +165,10 @@ stmm_init_session(const TEE_UUID *uuid __unused,
 }
 #endif
 
+#ifdef CFG_WITH_STMM_SP
+const TEE_UUID *stmm_get_uuid(void);
+#else
+static inline const TEE_UUID *stmm_get_uuid(void) { return NULL; }
+#endif
+
 #endif /*__KERNEL_STMM_SP_H*/

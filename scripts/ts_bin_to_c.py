@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2017, 2020, Linaro Limited
-# Copyright (c) 2020-2022, Arm Limited.
+# Copyright (c) 2020-2023, Arm Limited.
 #
 
 import argparse
 import array
-from elftools.elf.elffile import ELFFile
+from elftools.elf.elffile import ELFFile, ELFError
 import os
 import re
 import struct
@@ -74,7 +74,11 @@ def ta_get_flags(ta_f):
 
 def sp_get_flags(sp_f):
     with open(sp_f, 'rb') as f:
-        elffile = ELFFile(f)
+        try:
+            elffile = ELFFile(f)
+        except ELFError:
+            # Binary format SP, return zero flags
+            return 0
 
         for s in elffile.iter_sections():
             if get_name(s) == '.sp_head':

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /*
    BLAKE2 reference source code package - reference C implementations
@@ -154,26 +147,26 @@ static const unsigned char blake2b_sigma[12][16] =
   { 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 }
 };
 
-static void blake2b_set_lastnode(hash_state *md) { md->blake2b.f[1] = CONST64(0xffffffffffffffff); }
+static void s_blake2b_set_lastnode(hash_state *md) { md->blake2b.f[1] = CONST64(0xffffffffffffffff); }
 
 /* Some helper functions, not necessarily useful */
-static int blake2b_is_lastblock(const hash_state *md) { return md->blake2b.f[0] != 0; }
+static int s_blake2b_is_lastblock(const hash_state *md) { return md->blake2b.f[0] != 0; }
 
-static void blake2b_set_lastblock(hash_state *md)
+static void s_blake2b_set_lastblock(hash_state *md)
 {
    if (md->blake2b.last_node) {
-      blake2b_set_lastnode(md);
+      s_blake2b_set_lastnode(md);
    }
    md->blake2b.f[0] = CONST64(0xffffffffffffffff);
 }
 
-static void blake2b_increment_counter(hash_state *md, ulong64 inc)
+static void s_blake2b_increment_counter(hash_state *md, ulong64 inc)
 {
    md->blake2b.t[0] += inc;
    if (md->blake2b.t[0] < inc) md->blake2b.t[1]++;
 }
 
-static void blake2b_init0(hash_state *md)
+static void s_blake2b_init0(hash_state *md)
 {
    unsigned long i;
    XMEMSET(&md->blake2b, 0, sizeof(md->blake2b));
@@ -184,11 +177,11 @@ static void blake2b_init0(hash_state *md)
 }
 
 /* init xors IV with input parameter block */
-static int blake2b_init_param(hash_state *md, const unsigned char *P)
+static int s_blake2b_init_param(hash_state *md, const unsigned char *P)
 {
    unsigned long i;
 
-   blake2b_init0(md);
+   s_blake2b_init0(md);
 
    /* IV XOR ParamBlock */
    for (i = 0; i < 8; ++i) {
@@ -235,7 +228,7 @@ int blake2b_init(hash_state *md, unsigned long outlen, const unsigned char *key,
    P[O_FANOUT] = 1;
    P[O_DEPTH] = 1;
 
-   err = blake2b_init_param(md, P);
+   err = s_blake2b_init_param(md, P);
    if (err != CRYPT_OK) return err;
 
    if (key) {
@@ -306,9 +299,9 @@ int blake2b_512_init(hash_state *md) { return blake2b_init(md, 64, NULL, 0); }
    } while (0)
 
 #ifdef LTC_CLEAN_STACK
-static int _blake2b_compress(hash_state *md, const unsigned char *buf)
+static int ss_blake2b_compress(hash_state *md, const unsigned char *buf)
 #else
-static int blake2b_compress(hash_state *md, const unsigned char *buf)
+static int s_blake2b_compress(hash_state *md, const unsigned char *buf)
 #endif
 {
    ulong64 m[16];
@@ -355,10 +348,10 @@ static int blake2b_compress(hash_state *md, const unsigned char *buf)
 #undef ROUND
 
 #ifdef LTC_CLEAN_STACK
-static int blake2b_compress(hash_state *md, const unsigned char *buf)
+static int s_blake2b_compress(hash_state *md, const unsigned char *buf)
 {
    int err;
-   err = _blake2b_compress(md, buf);
+   err = ss_blake2b_compress(md, buf);
    burn_stack(sizeof(ulong64) * 32 + sizeof(unsigned long));
    return err;
 }
@@ -386,13 +379,13 @@ int blake2b_process(hash_state *md, const unsigned char *in, unsigned long inlen
       if (inlen > fill) {
          md->blake2b.curlen = 0;
          XMEMCPY(md->blake2b.buf + (left % sizeof(md->blake2b.buf)), in, fill); /* Fill buffer */
-         blake2b_increment_counter(md, BLAKE2B_BLOCKBYTES);
-         blake2b_compress(md, md->blake2b.buf); /* Compress */
+         s_blake2b_increment_counter(md, BLAKE2B_BLOCKBYTES);
+         s_blake2b_compress(md, md->blake2b.buf); /* Compress */
          in += fill;
          inlen -= fill;
          while (inlen > BLAKE2B_BLOCKBYTES) {
-            blake2b_increment_counter(md, BLAKE2B_BLOCKBYTES);
-            blake2b_compress(md, in);
+            s_blake2b_increment_counter(md, BLAKE2B_BLOCKBYTES);
+            s_blake2b_compress(md, in);
             in += BLAKE2B_BLOCKBYTES;
             inlen -= BLAKE2B_BLOCKBYTES;
          }
@@ -419,14 +412,14 @@ int blake2b_done(hash_state *md, unsigned char *out)
 
    /* if(md->blakebs.outlen != outlen) return CRYPT_INVALID_ARG; */
 
-   if (blake2b_is_lastblock(md)) {
+   if (s_blake2b_is_lastblock(md)) {
       return CRYPT_ERROR;
    }
 
-   blake2b_increment_counter(md, md->blake2b.curlen);
-   blake2b_set_lastblock(md);
+   s_blake2b_increment_counter(md, md->blake2b.curlen);
+   s_blake2b_set_lastblock(md);
    XMEMSET(md->blake2b.buf + md->blake2b.curlen, 0, BLAKE2B_BLOCKBYTES - md->blake2b.curlen); /* Padding */
-   blake2b_compress(md, md->blake2b.buf);
+   s_blake2b_compress(md, md->blake2b.buf);
 
    for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
       STORE64L(md->blake2b.h[i], buffer + i * 8);
@@ -481,7 +474,7 @@ int blake2b_512_test(void)
 
    for (i = 0; tests[i].msg != NULL; i++) {
       blake2b_512_init(&md);
-      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       blake2b_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "BLAKE2B_512", i)) {
          return CRYPT_FAIL_TESTVECTOR;
@@ -528,7 +521,7 @@ int blake2b_384_test(void)
 
    for (i = 0; tests[i].msg != NULL; i++) {
       blake2b_384_init(&md);
-      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       blake2b_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "BLAKE2B_384", i)) {
          return CRYPT_FAIL_TESTVECTOR;
@@ -581,7 +574,7 @@ int blake2b_256_test(void)
 
    for (i = 0; tests[i].msg != NULL; i++) {
       blake2b_256_init(&md);
-      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       blake2b_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "BLAKE2B_256", i)) {
          return CRYPT_FAIL_TESTVECTOR;
@@ -622,7 +615,7 @@ int blake2b_160_test(void)
 
    for (i = 0; tests[i].msg != NULL; i++) {
       blake2b_160_init(&md);
-      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+      blake2b_process(&md, (unsigned char *)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
       blake2b_done(&md, tmp);
       if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "BLAKE2B_160", i)) {
          return CRYPT_FAIL_TESTVECTOR;
@@ -633,7 +626,3 @@ int blake2b_160_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

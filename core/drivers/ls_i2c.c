@@ -139,7 +139,8 @@ TEE_Result i2c_init(struct ls_i2c_data *i2c_data)
 	node = fdt_path_offset(fdt,
 			       i2c_controller_map[i2c_data->i2c_controller]);
 	if (node > 0) {
-		if (dt_map_dev(fdt, node, &ctrl_base, &size) < 0) {
+		if (dt_map_dev(fdt, node, &ctrl_base, &size,
+			       DT_MAP_AUTO) < 0) {
 			EMSG("Unable to get virtual address");
 			return TEE_ERROR_GENERIC;
 		}

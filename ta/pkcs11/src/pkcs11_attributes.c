@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <mbedtls/pk.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
 #include <string_ext.h>
@@ -470,6 +471,12 @@ static const uint32_t ec_private_key_opt_or_null[] = {
 	PKCS11_CKA_VALUE,
 };
 
+static const uint32_t eddsa_private_key_opt_or_null[] = {
+	PKCS11_CKA_EC_PARAMS,
+	PKCS11_CKA_VALUE,
+	PKCS11_CKA_EC_POINT,
+};
+
 static enum pkcs11_rc create_storage_attributes(struct obj_attrs **out,
 						struct obj_attrs *temp)
 {
@@ -767,6 +774,7 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 		}
 		break;
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 		mandated = ec_public_key_mandated;
 		oon = ec_public_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_public_key_mandated);
@@ -828,6 +836,12 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 		oon = ec_private_key_opt_or_null;
 		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
 		oon_count = ARRAY_SIZE(ec_private_key_opt_or_null);
+		break;
+	case PKCS11_CKK_EC_EDWARDS:
+		mandated = ec_private_key_mandated;
+		oon = eddsa_private_key_opt_or_null;
+		mandated_count = ARRAY_SIZE(ec_private_key_mandated);
+		oon_count = ARRAY_SIZE(eddsa_private_key_opt_or_null);
 		break;
 	default:
 		EMSG("Invalid key type %#"PRIx32"/%s",
@@ -978,6 +992,10 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 	 */
 	if (function == PKCS11_FUNCTION_GENERATE_PAIR) {
 		switch (mecha) {
+		case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+			class = template_class;
+			type = PKCS11_CKK_EDDSA;
+			break;
 		case PKCS11_CKM_EC_KEY_PAIR_GEN:
 			class = template_class;
 			type = PKCS11_CKK_EC;
@@ -1051,6 +1069,14 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
 		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
 		    get_key_type(temp) != PKCS11_CKK_EC) {
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			goto out;
+		}
+		break;
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		if ((get_class(temp) != PKCS11_CKO_PUBLIC_KEY &&
+		     get_class(temp) != PKCS11_CKO_PRIVATE_KEY) ||
+		    get_key_type(temp) != PKCS11_CKK_EC_EDWARDS) {
 			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
 			goto out;
 		}
@@ -1378,10 +1404,12 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
+	case PKCS11_CKM_RSA_AES_KEY_WRAP:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, false));
 		break;
 	case PKCS11_CKM_GENERIC_SECRET_KEY_GEN:
 	case PKCS11_CKM_AES_KEY_GEN:
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 	case PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN:
 		assert(check_attr_bval(proc_id, head, PKCS11_CKA_LOCAL, true));
@@ -1397,6 +1425,9 @@ enum pkcs11_rc check_created_attrs_against_processing(uint32_t proc_id,
 		break;
 	case PKCS11_CKM_AES_KEY_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_AES);
+		break;
+	case PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN:
+		assert(get_key_type(head) == PKCS11_CKK_EC_EDWARDS);
 		break;
 	case PKCS11_CKM_EC_KEY_PAIR_GEN:
 		assert(get_key_type(head) == PKCS11_CKK_EC);
@@ -1447,6 +1478,9 @@ static void get_key_min_max_sizes(enum pkcs11_key_type key_type,
 		break;
 	case PKCS11_CKK_EC:
 		mechanism = PKCS11_CKM_EC_KEY_PAIR_GEN;
+		break;
+	case PKCS11_CKK_EDDSA:
+		mechanism = PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN;
 		break;
 	case PKCS11_CKK_RSA:
 		mechanism = PKCS11_CKM_RSA_PKCS_KEY_PAIR_GEN;
@@ -1539,6 +1573,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 			key_length = ROUNDUP(key_length, 8) / 8;
 			break;
 		case PKCS11_CKK_EC:
+		case PKCS11_CKK_EC_EDWARDS:
 			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
@@ -1548,6 +1583,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 		switch (get_key_type(private)) {
 		case PKCS11_CKK_RSA:
 		case PKCS11_CKK_EC:
+		case PKCS11_CKK_EC_EDWARDS:
 			break;
 		default:
 			return PKCS11_CKR_TEMPLATE_INCONSISTENT;
@@ -1560,6 +1596,7 @@ enum pkcs11_rc check_created_attrs(struct obj_attrs *key1,
 	 */
 	switch (get_key_type(key1)) {
 	case PKCS11_CKK_EC:
+	case PKCS11_CKK_EC_EDWARDS:
 		return PKCS11_CKR_OK;
 	default:
 		break;
@@ -1742,6 +1779,22 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 		}
 		break;
 
+	case PKCS11_CKM_EDDSA:
+		if (key_type != PKCS11_CKK_EC_EDWARDS) {
+			EMSG("Invalid key %s for mechanism %s",
+			     id2str_type(key_type, key_class),
+			     id2str_proc(proc_id));
+			return PKCS11_CKR_KEY_TYPE_INCONSISTENT;
+		}
+		if (key_class != PKCS11_CKO_PUBLIC_KEY &&
+		    key_class != PKCS11_CKO_PRIVATE_KEY) {
+			EMSG("Invalid key class for mechanism %s",
+			     id2str_proc(proc_id));
+
+			return PKCS11_CKR_KEY_FUNCTION_NOT_PERMITTED;
+		}
+		break;
+
 	case PKCS11_CKM_ECDSA:
 	case PKCS11_CKM_ECDSA_SHA1:
 	case PKCS11_CKM_ECDSA_SHA224:
@@ -1771,6 +1824,7 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_SHA256_RSA_PKCS:
 	case PKCS11_CKM_SHA384_RSA_PKCS:
 	case PKCS11_CKM_SHA512_RSA_PKCS:
+	case PKCS11_CKM_RSA_AES_KEY_WRAP:
 	case PKCS11_CKM_RSA_PKCS_OAEP:
 	case PKCS11_CKM_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA1_RSA_PKCS_PSS:
@@ -2175,30 +2229,305 @@ static enum pkcs11_rc set_secret_key_data(struct obj_attrs **head, void *data,
 	return add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
 }
 
+static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
+					       void *data,
+					       size_t key_size)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	int mbedtls_rc = 0;
+	uint32_t key_bits = 0;
+	uint32_t size = 0;
+	uint32_t buffer_size = 0;
+	void *buffer = NULL;
+	mbedtls_pk_context pk = { };
+	mbedtls_rsa_context *rsa = NULL;
+	mbedtls_mpi n = { };
+	mbedtls_mpi e = { };
+	mbedtls_mpi d = { };
+	mbedtls_mpi p = { };
+	mbedtls_mpi q = { };
+
+	rc = get_u32_attribute(*head, PKCS11_CKA_MODULUS_BITS, &key_bits);
+	if (rc && rc != PKCS11_RV_NOT_FOUND)
+		return rc;
+
+	if (remove_empty_attribute(head, PKCS11_CKA_MODULUS) ||
+	    remove_empty_attribute(head, PKCS11_CKA_PUBLIC_EXPONENT) ||
+	    remove_empty_attribute(head, PKCS11_CKA_PRIVATE_EXPONENT) ||
+	    remove_empty_attribute(head, PKCS11_CKA_PRIME_1) ||
+	    remove_empty_attribute(head, PKCS11_CKA_PRIME_2))
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	mbedtls_pk_init(&pk);
+	mbedtls_mpi_init(&n);
+	mbedtls_mpi_init(&e);
+	mbedtls_mpi_init(&d);
+	mbedtls_mpi_init(&p);
+	mbedtls_mpi_init(&q);
+
+	mbedtls_rc = mbedtls_pk_parse_key(&pk, data, key_size, NULL, 0);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	rsa = mbedtls_pk_rsa(pk);
+	mbedtls_rc = mbedtls_rsa_export(rsa, &n, &p, &q, &d, &e);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	if (key_bits && mbedtls_mpi_bitlen(&n) != key_bits) {
+		rc = PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+		goto out;
+	}
+
+	size = ROUNDUP_DIV(mbedtls_mpi_bitlen(&n), 8);
+	buffer_size = size;
+	buffer = TEE_Malloc(buffer_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!buffer) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_mpi_write_binary(&n, buffer, size);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_WRAPPED_KEY_INVALID;
+		goto out;
+	}
+
+	rc = add_attribute(head, PKCS11_CKA_MODULUS, buffer, size);
+	if (rc)
+		goto out;
+
+	size = ROUNDUP_DIV(mbedtls_mpi_bitlen(&e), 8);
+	if (buffer_size < size) {
+		rc = PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_mpi_write_binary(&e, buffer, size);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_WRAPPED_KEY_INVALID;
+		goto out;
+	}
+
+	rc = add_attribute(head, PKCS11_CKA_PUBLIC_EXPONENT, buffer, size);
+	if (rc)
+		goto out;
+
+	size = ROUNDUP_DIV(mbedtls_mpi_bitlen(&d), 8);
+	if (buffer_size < size) {
+		rc = PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_mpi_write_binary(&d, buffer, size);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_WRAPPED_KEY_INVALID;
+		goto out;
+	}
+
+	rc = add_attribute(head, PKCS11_CKA_PRIVATE_EXPONENT, buffer, size);
+	if (rc)
+		goto out;
+
+	size = ROUNDUP_DIV(mbedtls_mpi_bitlen(&p), 8);
+	if (buffer_size < size) {
+		rc = PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_mpi_write_binary(&p, buffer, size);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_WRAPPED_KEY_INVALID;
+		goto out;
+	}
+
+	rc = add_attribute(head, PKCS11_CKA_PRIME_1, buffer, size);
+	if (rc)
+		goto out;
+
+	size = ROUNDUP_DIV(mbedtls_mpi_bitlen(&q), 8);
+	if (buffer_size < size) {
+		rc = PKCS11_CKR_WRAPPED_KEY_LEN_RANGE;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_mpi_write_binary(&q, buffer, size);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_WRAPPED_KEY_INVALID;
+		goto out;
+	}
+
+	rc = add_attribute(head, PKCS11_CKA_PRIME_2, buffer, size);
+
+out:
+	mbedtls_pk_free(&pk);
+	mbedtls_mpi_free(&n);
+	mbedtls_mpi_free(&e);
+	mbedtls_mpi_free(&d);
+	mbedtls_mpi_free(&p);
+	mbedtls_mpi_free(&q);
+	TEE_Free(buffer);
+	return rc;
+}
+
 enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 			    size_t key_size)
 {
 	switch (get_class(*head)) {
 	case PKCS11_CKO_SECRET_KEY:
 		return set_secret_key_data(head, data, key_size);
-	default:
-		return PKCS11_CKR_GENERAL_ERROR;
-	}
-}
-
-enum pkcs11_rc get_key_data_to_wrap(struct obj_attrs *head, void **data,
-				    uint32_t *sz)
-{
-	switch (get_class(head)) {
-	case PKCS11_CKO_SECRET_KEY:
-		if (get_attribute_ptr(head, PKCS11_CKA_VALUE, data, sz))
-			return PKCS11_CKR_ARGUMENTS_BAD;
+	case PKCS11_CKO_PRIVATE_KEY:
+		if (get_key_type(*head) == PKCS11_CKK_RSA)
+			return set_private_key_data_rsa(head, data, key_size);
 		break;
 	default:
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
 
+	return PKCS11_CKR_GENERAL_ERROR;
+}
+
+static enum pkcs11_rc alloc_copy_attribute_value(struct obj_attrs *head,
+						 void **data, uint32_t *sz)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	void *buffer = NULL;
+	void *value = NULL;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_VALUE, &value, sz);
+	if (rc)
+		return PKCS11_CKR_ARGUMENTS_BAD;
+
+	buffer = TEE_Malloc(*sz, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!buffer)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	TEE_MemMove(buffer, value, *sz);
+	*data = buffer;
+
 	return PKCS11_CKR_OK;
+}
+
+static enum pkcs11_rc
+encode_rsa_private_key_der(struct obj_attrs *head, void **data, uint32_t *sz)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	int i = 0;
+	int mbedtls_rc = 0;
+	int start = 0;
+	int der_size = 0;
+	void *n = NULL;
+	void *p = NULL;
+	void *q = NULL;
+	void *d = NULL;
+	void *e = NULL;
+	uint32_t n_len = 0;
+	uint32_t p_len = 0;
+	uint32_t q_len = 0;
+	uint32_t d_len = 0;
+	uint32_t e_len = 0;
+	uint8_t *buffer = NULL;
+	mbedtls_pk_context pk = { };
+	mbedtls_rsa_context *rsa = NULL;
+	const mbedtls_pk_info_t *pk_info = NULL;
+
+	mbedtls_pk_init(&pk);
+	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+	if (mbedtls_pk_setup(&pk, pk_info)) {
+		rc = PKCS11_CKR_GENERAL_ERROR;
+		goto out;
+	}
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_MODULUS, &n, &n_len);
+	if (rc)
+		goto out;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_PRIME_1, &p, &p_len);
+	if (rc)
+		goto out;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_PRIME_2, &q, &q_len);
+	if (rc)
+		goto out;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_PRIVATE_EXPONENT, &d, &d_len);
+	if (rc)
+		goto out;
+
+	rc = get_attribute_ptr(head, PKCS11_CKA_PUBLIC_EXPONENT, &e, &e_len);
+	if (rc)
+		goto out;
+
+	rsa = mbedtls_pk_rsa(pk);
+	mbedtls_rc = mbedtls_rsa_import_raw(rsa, n, n_len, p, p_len,
+					    q, q_len, d, d_len, e, e_len);
+	if (mbedtls_rc) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	if (mbedtls_rsa_complete(rsa)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	if (mbedtls_rsa_check_privkey(rsa)) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	der_size = n_len * 8;
+	buffer = TEE_Malloc(der_size, TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!buffer) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	mbedtls_rc = mbedtls_pk_write_key_der(&pk, buffer, der_size);
+	if (mbedtls_rc < 0) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
+	start = der_size - mbedtls_rc;
+	for (i = 0; i < mbedtls_rc; i++) {
+		buffer[i] = buffer[i + start];
+		buffer[i + start] = 0;
+	}
+
+	*data = buffer;
+	*sz = mbedtls_rc;
+out:
+	mbedtls_pk_free(&pk);
+
+	if (rc)
+		TEE_Free(buffer);
+
+	return rc;
+}
+
+enum pkcs11_rc alloc_key_data_to_wrap(struct obj_attrs *head, void **data,
+				      uint32_t *sz)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+
+	switch (get_class(head)) {
+	case PKCS11_CKO_SECRET_KEY:
+		rc = alloc_copy_attribute_value(head, data, sz);
+		break;
+	case PKCS11_CKO_PRIVATE_KEY:
+		if (get_key_type(head) == PKCS11_CKK_RSA)
+			rc = encode_rsa_private_key_der(head, data, sz);
+		break;
+	default:
+		break;
+	}
+
+	return rc;
 }
 
 enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,

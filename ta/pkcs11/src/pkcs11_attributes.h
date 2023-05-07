@@ -188,8 +188,15 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 enum pkcs11_rc set_key_data(struct obj_attrs **head, void *data,
 			    size_t key_size);
 
-enum pkcs11_rc get_key_data_to_wrap(struct obj_attrs *head, void **data,
-				    uint32_t *sz);
+/*
+ * Get an allocated copy of key data to be wrapped from @head
+ * @head: Object attribute where to find key data to be wrapped
+ * @data: Output allocated and filled buffer upon success
+ * @sz: Key output data size in bytes upon success
+ * Return a pkcs11_rv compliant value
+ */
+enum pkcs11_rc alloc_key_data_to_wrap(struct obj_attrs *head, void **data,
+				      uint32_t *sz);
 
 /*
  * Adds CKA_ID attribute from paired object if missing.

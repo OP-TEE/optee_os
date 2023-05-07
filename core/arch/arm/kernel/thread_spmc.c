@@ -351,7 +351,7 @@ static uint32_t handle_partition_info_get_all(size_t *elem_count,
 	if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		size_t count = (rxtx->size / sizeof(*fpi)) - 1;
 
-		if (sp_partition_info_get_all(fpi, &count))
+		if (sp_partition_info_get(fpi, NULL, &count))
 			return FFA_NO_MEMORY;
 		*elem_count += count;
 	}
@@ -404,10 +404,12 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	if (is_my_uuid(args->a1, args->a2, args->a3, args->a4)) {
 		spmc_fill_partition_entry(fpi, endpoint_id,
 					  CFG_TEE_CORE_NB_CORE);
+		rc = 1;
 	} else if (IS_ENABLED(CFG_SECURE_PARTITION)) {
 		uint32_t uuid_array[4] = { 0 };
 		TEE_UUID uuid = { };
 		TEE_Result res = TEE_SUCCESS;
+		size_t count = (rxtx->size / sizeof(*fpi));
 
 		uuid_array[0] = args->a1;
 		uuid_array[1] = args->a2;
@@ -415,13 +417,13 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 		uuid_array[3] = args->a4;
 		tee_uuid_from_octets(&uuid, (uint8_t *)uuid_array);
 
-		res = sp_find_session_id(&uuid, &endpoint_id);
+		res = sp_partition_info_get(fpi, &uuid, &count);
 		if (res != TEE_SUCCESS) {
 			ret_fid = FFA_ERROR;
 			rc = FFA_INVALID_PARAMETERS;
 			goto out;
 		}
-		spmc_fill_partition_entry(fpi, endpoint_id, 1);
+		rc = count;
 	} else {
 		ret_fid = FFA_ERROR;
 		rc = FFA_INVALID_PARAMETERS;
@@ -430,7 +432,6 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 
 	ret_fid = FFA_SUCCESS_32;
 	rxtx->tx_is_mine = false;
-	rc = 1;
 
 out:
 	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
@@ -621,10 +622,12 @@ static int add_mem_share_frag(struct mem_frag_state *s, void *buf, size_t flen)
 	rc = add_mem_share_helper(&s->share, buf, flen);
 	if (rc >= 0) {
 		if (!ADD_OVERFLOW(s->frag_offset, rc, &s->frag_offset)) {
+			/* We're not at the end of the descriptor yet */
 			if (s->share.region_count)
 				return s->frag_offset;
-			/* We're done, return the number of consumed bytes */
-			rc = s->frag_offset;
+
+			/* We're done */
+			rc = 0;
 		} else {
 			rc = FFA_INVALID_PARAMETERS;
 		}
@@ -820,15 +823,14 @@ static void handle_mem_share(struct thread_smc_args *args,
 	}
 	if (rc < 0) {
 		ret_w2 = rc;
-		goto out;
-	}
-	if (rc > 0) {
+	} else if (rc > 0) {
 		ret_fid = FFA_MEM_FRAG_RX;
 		ret_w3 = rc;
 		reg_pair_from_64(global_handle, &ret_w2, &ret_w1);
+	} else {
+		ret_fid = FFA_SUCCESS_32;
+		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 	}
-	ret_fid = FFA_SUCCESS_32;
-	reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
 out:
 	spmc_set_args(args, ret_fid, ret_w1, ret_w2, ret_w3, 0, 0);
 }
@@ -1063,8 +1065,7 @@ out_put_mobj:
 /*
  * Helper routine for the assembly function thread_std_smc_entry()
  *
- * Note: this function is weak just to make it possible to exclude it from
- * the unpaged area.
+ * Note: this function is weak just to make link_dummies_paged.c happy.
  */
 uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1,
 				       uint32_t a2, uint32_t a3,

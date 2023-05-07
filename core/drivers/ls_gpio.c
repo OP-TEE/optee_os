@@ -194,7 +194,8 @@ static TEE_Result get_info_from_device_tree(struct ls_gpio_chip_data *gpio_data)
 	node = fdt_path_offset(fdt, gpio_controller_map
 			       [gpio_data->gpio_controller]);
 	if (node > 0) {
-		if (dt_map_dev(fdt, node, &ctrl_base, &size) < 0) {
+		if (dt_map_dev(fdt, node, &ctrl_base, &size,
+			       DT_MAP_AUTO) < 0) {
 			EMSG("Unable to get virtual address");
 			return TEE_ERROR_GENERIC;
 		}

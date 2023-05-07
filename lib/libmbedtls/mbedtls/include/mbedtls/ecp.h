@@ -45,19 +45,29 @@
 /*
  * ECP error codes
  */
-#define MBEDTLS_ERR_ECP_BAD_INPUT_DATA                    -0x4F80  /**< Bad input parameters to function. */
-#define MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL                  -0x4F00  /**< The buffer is too small to write to. */
-#define MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE               -0x4E80  /**< The requested feature is not available, for example, the requested curve is not supported. */
-#define MBEDTLS_ERR_ECP_VERIFY_FAILED                     -0x4E00  /**< The signature is not valid. */
-#define MBEDTLS_ERR_ECP_ALLOC_FAILED                      -0x4D80  /**< Memory allocation failed. */
-#define MBEDTLS_ERR_ECP_RANDOM_FAILED                     -0x4D00  /**< Generation of random value, such as ephemeral key, failed. */
-#define MBEDTLS_ERR_ECP_INVALID_KEY                       -0x4C80  /**< Invalid private or public key. */
-#define MBEDTLS_ERR_ECP_SIG_LEN_MISMATCH                  -0x4C00  /**< The buffer contains a valid signature followed by more data. */
+/** Bad input parameters to function. */
+#define MBEDTLS_ERR_ECP_BAD_INPUT_DATA                    -0x4F80
+/** The buffer is too small to write to. */
+#define MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL                  -0x4F00
+/** The requested feature is not available, for example, the requested curve is not supported. */
+#define MBEDTLS_ERR_ECP_FEATURE_UNAVAILABLE               -0x4E80
+/** The signature is not valid. */
+#define MBEDTLS_ERR_ECP_VERIFY_FAILED                     -0x4E00
+/** Memory allocation failed. */
+#define MBEDTLS_ERR_ECP_ALLOC_FAILED                      -0x4D80
+/** Generation of random value, such as ephemeral key, failed. */
+#define MBEDTLS_ERR_ECP_RANDOM_FAILED                     -0x4D00
+/** Invalid private or public key. */
+#define MBEDTLS_ERR_ECP_INVALID_KEY                       -0x4C80
+/** The buffer contains a valid signature followed by more data. */
+#define MBEDTLS_ERR_ECP_SIG_LEN_MISMATCH                  -0x4C00
 
 /* MBEDTLS_ERR_ECP_HW_ACCEL_FAILED is deprecated and should not be used. */
-#define MBEDTLS_ERR_ECP_HW_ACCEL_FAILED                   -0x4B80  /**< The ECP hardware accelerator failed. */
+/** The ECP hardware accelerator failed. */
+#define MBEDTLS_ERR_ECP_HW_ACCEL_FAILED                   -0x4B80
 
-#define MBEDTLS_ERR_ECP_IN_PROGRESS                       -0x4B00  /**< Operation in progress, call again with the same parameters to continue. */
+/** Operation in progress, call again with the same parameters to continue. */
+#define MBEDTLS_ERR_ECP_IN_PROGRESS                       -0x4B00
 
 /* Flags indicating whether to include code that is specific to certain
  * types of curves. These flags are for internal library use only. */
@@ -309,7 +319,7 @@ mbedtls_ecp_group;
 #if !defined(MBEDTLS_ECP_WINDOW_SIZE)
 /*
  * Maximum "window" size used for point multiplication.
- * Default: a point where higher memory usage yields disminishing performance
+ * Default: a point where higher memory usage yields diminishing performance
  *          returns.
  * Minimum value: 2. Maximum value: 7.
  *
@@ -345,7 +355,7 @@ mbedtls_ecp_group;
 #define MBEDTLS_ECP_FIXED_POINT_OPTIM  1   /**< Enable fixed-point speed-up. */
 #endif /* MBEDTLS_ECP_FIXED_POINT_OPTIM */
 
-/* \} name SECTION: Module settings */
+/** \} name SECTION: Module settings */
 
 #else  /* MBEDTLS_ECP_ALT */
 #include "ecp_alt.h"

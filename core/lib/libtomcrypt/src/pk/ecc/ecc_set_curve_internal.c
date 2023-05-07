@@ -1,25 +1,18 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
 #ifdef LTC_MECC
 
-static int _ecc_cmp_hex_bn(const char *left_hex, void *right_bn, void *tmp_bn)
+static int s_ecc_cmp_hex_bn(const char *left_hex, void *right_bn, void *tmp_bn)
 {
    if (mp_read_radix(tmp_bn, left_hex, 16) != CRYPT_OK) return 0;
    if (mp_cmp(tmp_bn, right_bn) != LTC_MP_EQ)           return 0;
    return 1;
 }
 
-static void _ecc_oid_lookup(ecc_key *key)
+static void s_ecc_oid_lookup(ecc_key *key)
 {
    void *bn;
    const ltc_ecc_curve *curve;
@@ -27,12 +20,12 @@ static void _ecc_oid_lookup(ecc_key *key)
    key->dp.oidlen = 0;
    if (mp_init(&bn) != CRYPT_OK) return;
    for (curve = ltc_ecc_curves; curve->prime != NULL; curve++) {
-      if (_ecc_cmp_hex_bn(curve->prime, key->dp.prime,  bn) != 1) continue;
-      if (_ecc_cmp_hex_bn(curve->order, key->dp.order,  bn) != 1) continue;
-      if (_ecc_cmp_hex_bn(curve->A,     key->dp.A,      bn) != 1) continue;
-      if (_ecc_cmp_hex_bn(curve->B,     key->dp.B,      bn) != 1) continue;
-      if (_ecc_cmp_hex_bn(curve->Gx,    key->dp.base.x, bn) != 1) continue;
-      if (_ecc_cmp_hex_bn(curve->Gy,    key->dp.base.y, bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->prime, key->dp.prime,  bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->order, key->dp.order,  bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->A,     key->dp.A,      bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->B,     key->dp.B,      bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->Gx,    key->dp.base.x, bn) != 1) continue;
+      if (s_ecc_cmp_hex_bn(curve->Gy,    key->dp.base.y, bn) != 1) continue;
       if (key->dp.cofactor != curve->cofactor)                    continue;
       break; /* found */
    }
@@ -73,7 +66,7 @@ int ecc_copy_curve(const ecc_key *srckey, ecc_key *key)
      for (i = 0; i < key->dp.oidlen; i++) key->dp.oid[i] = srckey->dp.oid[i];
    }
    else {
-     _ecc_oid_lookup(key); /* try to find OID in ltc_ecc_curves */
+     s_ecc_oid_lookup(key); /* try to find OID in ltc_ecc_curves */
    }
    /* success */
    return CRYPT_OK;
@@ -114,7 +107,7 @@ int ecc_set_curve_from_mpis(void *a, void *b, void *prime, void *order, void *gx
    key->dp.cofactor = cofactor;
    key->dp.size = mp_unsigned_bin_size(prime);
    /* try to find OID in ltc_ecc_curves */
-   _ecc_oid_lookup(key);
+   s_ecc_oid_lookup(key);
    /* success */
    return CRYPT_OK;
 
@@ -124,7 +117,3 @@ error:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */
