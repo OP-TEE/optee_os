@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2020, Linaro Limited.
+ * Copyright (C) 2022-2023 Nuvoton Ltd.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #include <kernel/tee_common_otp.h>
@@ -26,7 +27,7 @@
  * size == device ID size for convenience.
  */
 static TEE_Result get_prop_endorsement(struct ts_session *sess,
-				       void *buf, size_t *blen)
+					void *buf, size_t *blen)
 {
 	TEE_Result res;
 	uint32_t ta_endorsement_seed_size = 32;
@@ -39,18 +40,22 @@ static TEE_Result get_prop_endorsement(struct ts_session *sess,
 		*blen = sizeof(bin);
 		return TEE_ERROR_SHORT_BUFFER;
 	}
+
 	*blen = sizeof(bin);
 
 	memcpy(data, &sess->ctx->uuid, sizeof(TEE_UUID));
 
 	if (tee_otp_get_die_id(&data[sizeof(TEE_UUID)],
-			       ta_endorsement_seed_size))
+				ta_endorsement_seed_size)) {
 		return TEE_ERROR_BAD_STATE;
+	}
 
 	res = tee_hash_createdigest(TEE_ALG_SHA256, data, sizeof(data),
-				    bin_val, ta_endorsement_seed_size);
-	if (res != TEE_SUCCESS)
+				bin_val, ta_endorsement_seed_size);
+
+	if (res != TEE_SUCCESS) {
 		return TEE_ERROR_BAD_STATE;
+	}
 
 	*bin_len = ta_endorsement_seed_size;
 
