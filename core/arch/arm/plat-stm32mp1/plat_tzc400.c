@@ -71,6 +71,7 @@ static bool tzc_region_is_secure(unsigned int i, vaddr_t base, size_t size)
 
 static TEE_Result init_stm32mp1_tzc(void)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	void *base = phys_to_virt(TZC_BASE, MEM_AREA_IO_SEC, 1);
 	unsigned int region_index = 1;
 	const uint64_t dram_start = DDR_BASE;
@@ -108,8 +109,12 @@ static TEE_Result init_stm32mp1_tzc(void)
 			panic("Unexpected TZC area on non-secure region");
 	}
 
-	itr_add(&tzc_itr_handler);
-	itr_enable(tzc_itr_handler.it);
+	res = interrupt_add_handler_with_chip(interrupt_get_main_chip(),
+					      &tzc_itr_handler);
+	if (res)
+		panic();
+
+	interrupt_enable(tzc_itr_handler.chip, tzc_itr_handler.it);
 	tzc_set_action(TZC_ACTION_INT);
 
 	return TEE_SUCCESS;
