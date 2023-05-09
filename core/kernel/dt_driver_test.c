@@ -51,7 +51,7 @@ struct dt_test_free_ref {
 static struct dt_test_state dt_test_state;
 
 static const char __maybe_unused * const dt_test_str_sid[] = {
-	[DEFAULT] = "not passed",
+	[DEFAULT] = "not run",
 	[IN_PROGRESS] = "in-progress",
 	[SUCCESS] = "successful",
 	[FAILED] = "failed",
