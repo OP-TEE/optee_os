@@ -157,7 +157,7 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx7ulp-flavorlist)))
 $(call force,CFG_MX7ULP,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_TZC380,n)
-$(call force,CFG_CSU,n)
+$(call force,CFG_IMX_CSU,n)
 include core/arch/arm/cpu/cortex-a7.mk
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mq-flavorlist)))
 $(call force,CFG_MX8MQ,y)
@@ -423,7 +423,7 @@ $(call force,CFG_PL310,y)
 
 CFG_PL310_LOCKED ?= y
 CFG_ENABLE_SCTLR_RR ?= y
-CFG_SCU ?= y
+CFG_IMX_SCU ?= y
 endif
 
 ifeq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S)), y)
@@ -465,7 +465,7 @@ CFG_IMX_SNVS ?= y
 endif
 
 ifneq (,$(filter y, $(CFG_MX6) $(CFG_MX7)))
-CFG_CSU ?= y
+CFG_IMX_CSU ?= y
 endif
 
 ifeq ($(filter y, $(CFG_PSCI_ARM32)), y)
