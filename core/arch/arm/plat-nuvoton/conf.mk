@@ -1,7 +1,5 @@
 PLATFORM_FLAVOR ?= npcm845x
 
-$(info PLATFORM_FLAVOR is [${PLATFORM_FLAVOR}])
-
 ifeq ($(PLATFORM_FLAVOR),npcm845x)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_ARM64_core = y
@@ -16,14 +14,13 @@ platform-aflags-debug-info = -gdwarf-2
 endif
 
 ifeq ($(platform-flavor-armv8),1)
-$(call force,CFG_WITH_ARM_TRUSTED_FW,y)
+CFG_WITH_ARM_TRUSTED_FW = y
 endif
 
-$(call force,CFG_GIC,y)
-$(call force,CFG_ARM_GICV2,y)
-#$(call force,CFG_PL011,y)
-$(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
-$(call force,CFG_16550_UART,y)
+CFG_GIC = y
+CFG_ARM_GICV2 = y
+CFG_SECURE_TIME_SOURCE_CNTPCT = y
+CFG_16550_UART = y
 
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 # NOTE: Below values for the TPM event log are implementation
@@ -34,13 +31,12 @@ ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 endif
 
 ifeq ($(CFG_ARM64_core),y)
-$(call force,CFG_WITH_LPAE,y)
+CFG_WITH_LPAE = y
 else
-$(call force,CFG_ARM32_core,y)
+CFG_ARM32_core = y
 endif
 
 CFG_WITH_STATS ?= y
-
 
 ifeq ($(PLATFORM_FLAVOR),npcm845x)
 CFG_TEE_CORE_NB_CORE = 4
@@ -55,5 +51,4 @@ CFG_SHMEM_SIZE  ?= 0x00200000
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 $(call force,CFG_DT,y)
 CFG_DTB_MAX_SIZE ?= 0x100000
-
 endif
