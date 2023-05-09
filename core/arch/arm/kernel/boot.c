@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2015-2022, Linaro Limited
+ * Copyright (c) 2023, Arm Limited
  */
 
 #include <arm.h>
@@ -10,6 +11,7 @@
 #include <console.h>
 #include <crypto/crypto.h>
 #include <drivers/gic.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <initcall.h>
 #include <inttypes.h>
 #include <keep.h>
@@ -83,6 +85,9 @@ struct dt_descriptor {
 };
 
 static struct dt_descriptor external_dt __nex_bss;
+#ifdef CFG_CORE_SEL1_SPMC
+static struct dt_descriptor tos_fw_config_dt __nex_bss;
+#endif
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -112,6 +117,31 @@ __weak unsigned long plat_get_aslr_seed(void)
 
 	return 0;
 }
+
+#if defined(_CFG_CORE_STACK_PROTECTOR)
+/* Generate random stack canary value on boot up */
+__weak uintptr_t plat_get_random_stack_canary(void)
+{
+	uintptr_t canary = 0xbaaaad00;
+	TEE_Result ret = TEE_ERROR_GENERIC;
+
+	/*
+	 * With virtualization the RNG is not initialized in Nexus core.
+	 * Need to override with platform specific implementation.
+	 */
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		IMSG("WARNING: Using fixed value for stack canary");
+		return canary;
+	}
+
+	ret = crypto_rng_read(&canary, sizeof(canary));
+	if (ret != TEE_SUCCESS)
+		panic("Failed to generate random stack canary");
+
+	/* Leave null byte in canary to prevent string base exploit */
+	return canary & ~0xffUL;
+}
+#endif /*_CFG_CORE_STACK_PROTECTOR*/
 
 /*
  * This function is called as a guard after each smc call which is not
@@ -246,10 +276,10 @@ static void init_asan(void)
 	 */
 
 #define __ASAN_SHADOW_START \
-	ROUNDUP(TEE_RAM_VA_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
+	ROUNDUP(TEE_RAM_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8, 8)
 	assert(__ASAN_SHADOW_START == (vaddr_t)&__asan_shadow_start);
 #define __CFG_ASAN_SHADOW_OFFSET \
-	(__ASAN_SHADOW_START - (TEE_RAM_VA_START / 8))
+	(__ASAN_SHADOW_START - (TEE_RAM_START / 8))
 	COMPILE_TIME_ASSERT(CFG_ASAN_SHADOW_OFFSET == __CFG_ASAN_SHADOW_OFFSET);
 #undef __ASAN_SHADOW_START
 #undef __CFG_ASAN_SHADOW_OFFSET
@@ -258,7 +288,7 @@ static void init_asan(void)
 	 * Assign area covered by the shadow area, everything from start up
 	 * to the beginning of the shadow area.
 	 */
-	asan_set_shadowed((void *)TEE_TEXT_VA_START, &__asan_shadow_start);
+	asan_set_shadowed((void *)TEE_LOAD_ADDR, &__asan_shadow_start);
 
 	/*
 	 * Add access to areas that aren't opened automatically by a
@@ -288,8 +318,12 @@ static void init_asan(void)
 /* Called from entry_a64.S only when MEMTAG is configured */
 void boot_init_memtag(void)
 {
+	paddr_t base = 0;
+	paddr_size_t size = 0;
+
 	memtag_init_ops(feat_mte_implemented());
-	memtag_set_tags((void *)TEE_RAM_START, TEE_RAM_PH_SIZE, 0);
+	core_mmu_get_secure_memory(&base, &size);
+	memtag_set_tags((void *)(vaddr_t)base, size, 0);
 }
 #endif
 
@@ -375,10 +409,10 @@ static void undo_init_relocation(uint8_t *paged_store __maybe_unused)
 	unsigned long *ptr = NULL;
 	const uint32_t *reloc = NULL;
 	const uint32_t *reloc_end = NULL;
-	unsigned long offs = boot_mmu_config.load_offset;
+	unsigned long offs = boot_mmu_config.map_offset;
 	const struct boot_embdata *embdata = (const void *)__init_end;
-	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_RAM_START;
-	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_RAM_START;
+	vaddr_t addr_end = (vaddr_t)__init_end - offs - TEE_LOAD_ADDR;
+	vaddr_t addr_start = (vaddr_t)__init_start - offs - TEE_LOAD_ADDR;
 
 	reloc = (const void *)((vaddr_t)embdata + embdata->reloc_offset);
 	reloc_end = reloc + embdata->reloc_len / sizeof(*reloc);
@@ -578,7 +612,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 	 * every virtual partition separately. Core code uses nex_malloc
 	 * instead.
 	 */
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	nex_malloc_add_pool(__nex_heap_start, __nex_heap_end -
 					      __nex_heap_start);
 #else
@@ -594,6 +628,16 @@ void *get_dt(void)
 	void *fdt = get_embedded_dt();
 
 	if (!fdt)
+		fdt = get_external_dt();
+
+	return fdt;
+}
+
+void *get_secure_dt(void)
+{
+	void *fdt = get_embedded_dt();
+
+	if (!fdt && IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
 		fdt = get_external_dt();
 
 	return fdt;
@@ -627,6 +671,9 @@ void *get_embedded_dt(void)
 #if defined(CFG_DT)
 void *get_external_dt(void)
 {
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
 	assert(cpu_mmu_enabled());
 	return external_dt.blob;
 }
@@ -634,6 +681,9 @@ void *get_external_dt(void)
 static TEE_Result release_external_dt(void)
 {
 	int ret = 0;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return TEE_SUCCESS;
 
 	if (!external_dt.blob)
 		return TEE_SUCCESS;
@@ -749,6 +799,7 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 	ret = fdt_setprop_string(dt->blob, offs, "method", "smc");
 	if (ret < 0)
 		return -1;
+
 	if (CFG_CORE_ASYNC_NOTIF_GIC_INTID) {
 		/*
 		 * The format of the interrupt property is defined by the
@@ -757,22 +808,40 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 		 * these.
 		 *
 		 * An SPI type of interrupt is indicated with a 0 in the
-		 * first cell.
+		 * first cell. A PPI type is indicated with value 1.
 		 *
 		 * The interrupt number goes in the second cell where
-		 * SPIs ranges from 0 to 987.
+		 * SPIs ranges from 0 to 987 and PPI ranges from 0 to 15.
 		 *
-		 * Flags are passed in the third cell where a 1 means edge
-		 * triggered.
+		 * Flags are passed in the third cells.
 		 */
-		const uint32_t gic_spi = 0;
-		const uint32_t irq_type_edge = 1;
-		uint32_t val[] = {
-			TEE_U32_TO_BIG_ENDIAN(gic_spi),
-			TEE_U32_TO_BIG_ENDIAN(CFG_CORE_ASYNC_NOTIF_GIC_INTID -
-					      GIC_SPI_BASE),
-			TEE_U32_TO_BIG_ENDIAN(irq_type_edge),
-		};
+		uint32_t itr_trigger = 0;
+		uint32_t itr_type = 0;
+		uint32_t itr_id = 0;
+		uint32_t val[3] = { };
+
+		/* PPI are visible only in current CPU cluster */
+		static_assert(!CFG_CORE_ASYNC_NOTIF_GIC_INTID ||
+			      (CFG_CORE_ASYNC_NOTIF_GIC_INTID >=
+			       GIC_SPI_BASE) ||
+			      ((CFG_TEE_CORE_NB_CORE <= 8) &&
+			       (CFG_CORE_ASYNC_NOTIF_GIC_INTID >=
+				GIC_PPI_BASE)));
+
+		if (CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_SPI_BASE) {
+			itr_type = GIC_SPI;
+			itr_id = CFG_CORE_ASYNC_NOTIF_GIC_INTID - GIC_SPI_BASE;
+			itr_trigger = IRQ_TYPE_EDGE_RISING;
+		} else {
+			itr_type = GIC_PPI;
+			itr_id = CFG_CORE_ASYNC_NOTIF_GIC_INTID - GIC_PPI_BASE;
+			itr_trigger = IRQ_TYPE_EDGE_RISING |
+				      GIC_CPU_MASK_SIMPLE(CFG_TEE_CORE_NB_CORE);
+		}
+
+		val[0] = TEE_U32_TO_BIG_ENDIAN(itr_type);
+		val[1] = TEE_U32_TO_BIG_ENDIAN(itr_id);
+		val[2] = TEE_U32_TO_BIG_ENDIAN(itr_trigger);
 
 		ret = fdt_setprop(dt->blob, offs, "interrupts", val,
 				  sizeof(val));
@@ -908,7 +977,7 @@ static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 		offs = 0;
 	}
 
-	if (IS_ENABLED(_CFG_USE_DTB_OVERLAY)) {
+	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
 		len_size = sizeof(paddr_t) / sizeof(uint32_t);
 		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
 	} else {
@@ -1016,7 +1085,7 @@ static int get_nsec_memory_helper(void *fdt, struct core_mmu_phys_mem *mem)
 		if (offs < 0)
 			break;
 
-		if (_fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
+		if (fdt_get_status(fdt, offs) != (DT_STATUS_OK_NSEC |
 						   DT_STATUS_OK_SEC))
 			continue;
 
@@ -1092,6 +1161,9 @@ static void init_external_dt(unsigned long phys_dt)
 	void *fdt;
 	int ret;
 
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
 	if (!phys_dt) {
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
@@ -1137,6 +1209,9 @@ static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
 
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
 	if (!dt->blob)
 		return;
 
@@ -1176,6 +1251,54 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 }
 #endif /*CFG_CORE_DYN_SHM*/
 #endif /*!CFG_DT*/
+
+#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_DT)
+void *get_tos_fw_config_dt(void)
+{
+	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		return NULL;
+
+	assert(cpu_mmu_enabled());
+
+	return tos_fw_config_dt.blob;
+}
+
+static void init_tos_fw_config_dt(unsigned long pa)
+{
+	struct dt_descriptor *dt = &tos_fw_config_dt;
+	void *fdt = NULL;
+	int ret = 0;
+
+	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		return;
+
+	if (!pa)
+		panic("No TOS_FW_CONFIG DT found");
+
+	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, pa, CFG_DTB_MAX_SIZE);
+	if (!fdt)
+		panic("Failed to map TOS_FW_CONFIG DT");
+
+	dt->blob = fdt;
+
+	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at %#lx: error %d", pa, ret);
+		panic();
+	}
+
+	IMSG("TOS_FW_CONFIG DT found");
+}
+#else
+void *get_tos_fw_config_dt(void)
+{
+	return NULL;
+}
+
+static void init_tos_fw_config_dt(unsigned long pa __unused)
+{
+}
+#endif /*CFG_CORE_SEL1_SPMC && CFG_DT*/
 
 #ifdef CFG_CORE_DYN_SHM
 static void discover_nsec_memory(void)
@@ -1228,7 +1351,7 @@ static void discover_nsec_memory(void)
 }
 #endif /*!CFG_CORE_DYN_SHM*/
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 static TEE_Result virt_init_heap(void)
 {
 	/* We need to initialize pool for every virtual guest partition */
@@ -1249,9 +1372,17 @@ void init_tee_runtime(void)
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.
 	 */
-	if (!IS_ENABLED(CFG_VIRTUALIZATION))
+	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION))
 		call_preinitcalls();
 	call_initcalls();
+
+	/*
+	 * These two functions uses crypto_rng_read() to initialize the
+	 * pauth keys. Once call_initcalls() returns we're guaranteed that
+	 * crypto_rng_read() is ready to be used.
+	 */
+	thread_init_core_local_pauth_keys();
+	thread_init_thread_pauth_keys();
 }
 
 static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
@@ -1276,7 +1407,7 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	thread_get_core_local()->curr_thread = 0;
 	init_runtime(pageable_part);
 
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		/*
 		 * Virtualization: We can't initialize threads right now because
 		 * threads belong to "tee" part and will be initialized
@@ -1292,14 +1423,30 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	init_sec_mon(nsec_entry);
 }
 
+static bool cpu_nmfi_enabled(void)
+{
+#if defined(ARM32)
+	return read_sctlr() & SCTLR_NMFI;
+#else
+	/* Note: ARM64 does not feature non-maskable FIQ support. */
+	return false;
+#endif
+}
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak boot_init_primary_late(unsigned long fdt)
+void __weak boot_init_primary_late(unsigned long fdt,
+				   unsigned long tos_fw_config)
 {
 	init_external_dt(fdt);
+	init_tos_fw_config_dt(tos_fw_config);
+#ifdef CFG_CORE_SEL1_SPMC
+	tpm_map_log_area(get_tos_fw_config_dt());
+#else
 	tpm_map_log_area(get_external_dt());
+#endif
 	discover_nsec_memory();
 	update_external_dt();
 	configure_console_from_dt();
@@ -1312,15 +1459,24 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	IMSG("Primary CPU initializing");
 #ifdef CFG_CORE_ASLR
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
-	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
+	     (unsigned long)boot_mmu_config.map_offset, VCORE_START_VA);
 #endif
 	if (IS_ENABLED(CFG_MEMTAG))
 		DMSG("Memory tagging %s",
 		     memtag_is_enabled() ?  "enabled" : "disabled");
 
+	/* Check if platform needs NMFI workaround */
+	if (cpu_nmfi_enabled())	{
+		if (!IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core has NMFI enabled, please apply workaround!");
+	} else {
+		if (IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI))
+			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
+	}
+
 	main_init_gic();
 	init_vfp_nsec();
-	if (IS_ENABLED(CFG_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		IMSG("Initializing virtualization support");
 		core_mmu_init_virtualization();
 	} else {
@@ -1428,11 +1584,17 @@ struct ns_entry_context *boot_core_hpen(void)
 #if defined(CFG_DT)
 unsigned long __weak get_aslr_seed(void *fdt)
 {
-	int rc = fdt_check_header(fdt);
+	int rc = 0;
 	const uint64_t *seed = NULL;
 	int offs = 0;
 	int len = 0;
 
+	if (!fdt) {
+		DMSG("No fdt");
+		goto err;
+	}
+
+	rc = fdt_check_header(fdt);
 	if (rc) {
 		DMSG("Bad fdt: %d", rc);
 		goto err;

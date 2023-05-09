@@ -44,52 +44,29 @@ static void ecc_free_public_key(struct ecc_public_key *s)
 	crypto_bignum_free(s->y);
 }
 
-/*
- * curve is part of TEE_ECC_CURVE_NIST_P192,...
- * algo is part of TEE_ALG_ECDSA_P192,..., and 0 if we do not have it
- */
 static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
 				  size_t *key_size_bytes, size_t *key_size_bits)
 {
-	/*
-	 * Note GPv1.1 indicates TEE_ALG_ECDH_NIST_P192_DERIVE_SHARED_SECRET
-	 * but defines TEE_ALG_ECDH_P192
-	 */
 	switch (curve) {
 	case TEE_ECC_CURVE_NIST_P192:
 		*key_size_bits = 192;
 		*key_size_bytes = 24;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P192) &&
-		    (algo != TEE_ALG_ECDH_P192))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P224:
 		*key_size_bits = 224;
 		*key_size_bytes = 28;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P224) &&
-		    (algo != TEE_ALG_ECDH_P224))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P256:
 		*key_size_bits = 256;
 		*key_size_bytes = 32;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P256) &&
-		    (algo != TEE_ALG_ECDH_P256))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P384:
 		*key_size_bits = 384;
 		*key_size_bytes = 48;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P384) &&
-		    (algo != TEE_ALG_ECDH_P384))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_NIST_P521:
 		*key_size_bits = 521;
 		*key_size_bytes = 66;
-		if ((algo != 0) && (algo != TEE_ALG_ECDSA_P521) &&
-		    (algo != TEE_ALG_ECDH_P521))
-			return TEE_ERROR_BAD_PARAMETERS;
 		break;
 	case TEE_ECC_CURVE_SM2:
 		*key_size_bits = 256;
@@ -241,6 +218,12 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 			      &key_size_bits);
 	if (res != TEE_SUCCESS)
 		goto out;
+
+	if (*sig_len < 2 * key_size_bytes) {
+		*sig_len = 2 * key_size_bytes;
+		res = TEE_ERROR_SHORT_BUFFER;
+		goto out;
+	}
 
 	pk_info = mbedtls_pk_info_from_type(MBEDTLS_PK_ECDSA);
 	if (pk_info == NULL) {
@@ -405,6 +388,30 @@ static const struct crypto_ecc_keypair_ops sm2_dsa_keypair_ops = {
 	.sign = sm2_mbedtls_dsa_sign,
 };
 
+const struct crypto_ecc_keypair_ops *
+crypto_asym_get_ecc_keypair_ops(uint32_t key_type)
+{
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_KEYPAIR:
+	case TEE_TYPE_ECDH_KEYPAIR:
+		return &ecc_keypair_ops;
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
+			return NULL;
+		return &sm2_dsa_keypair_ops;
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
+			return NULL;
+		return &sm2_pke_keypair_ops;
+	case TEE_TYPE_SM2_KEP_KEYPAIR:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
+			return NULL;
+		return &sm2_kep_keypair_ops;
+	default:
+		return NULL;
+	}
+}
+
 TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 					 uint32_t key_type,
 					 size_t key_size_bits)
@@ -478,6 +485,32 @@ static const struct crypto_ecc_public_ops sm2_dsa_public_key_ops = {
 	.free = ecc_free_public_key,
 	.verify = sm2_mbedtls_dsa_verify,
 };
+
+const struct crypto_ecc_public_ops*
+crypto_asym_get_ecc_public_ops(uint32_t key_type)
+{
+	switch (key_type) {
+	case TEE_TYPE_ECDSA_PUBLIC_KEY:
+	case TEE_TYPE_ECDH_PUBLIC_KEY:
+		return &ecc_public_key_ops;
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_DSA))
+			return NULL;
+
+		return &sm2_dsa_public_key_ops;
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_PKE))
+			return NULL;
+
+		return &sm2_pke_public_key_ops;
+	case TEE_TYPE_SM2_KEP_PUBLIC_KEY:
+		if (!IS_ENABLED(CFG_CRYPTO_SM2_KEP))
+			return NULL;
+		return &sm2_kep_public_key_ops;
+	default:
+		return NULL;
+	}
+}
 
 TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 					    uint32_t key_type,

@@ -140,7 +140,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *tee_session, uint32_t cmd,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	DMSG("%s p#0 %"PRIu32"@%p, p#1 %s %"PRIu32"@%p, p#2 %s %"PRIu32"@%p",
+	DMSG("%s p#0 %zu@%p, p#1 %s %zu@%p, p#2 %s %zu@%p",
 	     id2str_ta_cmd(cmd),
 	     params[0].memref.size, params[0].memref.buffer,
 	     param_is_input(ptypes, 1) ? "in" :

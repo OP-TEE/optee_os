@@ -82,6 +82,7 @@ void main_init_gic(void)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
 	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
 			   GIC_BASE + GICD_OFFSET);
+	itr_init(&gic_data.chip);
 }
 
 void itr_core_handler(void)

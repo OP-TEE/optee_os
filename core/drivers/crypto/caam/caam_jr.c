@@ -5,8 +5,10 @@
  * Brief   CAAM Job Rings manager.
  *         Implementation of functions to enqueue/dequeue CAAM Job Descriptor
  */
+#include <caam_hal_clk.h>
 #include <caam_common.h>
 #include <caam_desc_helper.h>
+#include <caam_hal_clk.h>
 #include <caam_hal_jr.h>
 #include <caam_io.h>
 #include <caam_jr.h>
@@ -298,6 +300,8 @@ static enum caam_status do_jr_enqueue(struct caam_jobctx *jobctx,
 	bool found = false;
 
 	exceptions = cpu_spin_lock_xsave(&jr_privdata->inlock);
+
+	caam_hal_clk_enable(true);
 
 	/*
 	 * Stay locked until a job is available

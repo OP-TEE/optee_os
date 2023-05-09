@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -82,7 +75,7 @@ int ccm_memory(int cipher,
    }
 
    /* make sure the taglen is valid */
-   if (*taglen < 4 || *taglen > 16 || (*taglen % 2) == 1) {
+   if (*taglen < 4 || *taglen > 16 || (*taglen % 2) == 1 || headerlen > 0x7fffffffu) {
       return CRYPT_INVALID_ARG;
    }
 
@@ -114,6 +107,9 @@ int ccm_memory(int cipher,
    noncelen = (noncelen > 13) ? 13 : noncelen;
    if ((15 - noncelen) > L) {
       L = 15 - noncelen;
+   }
+   if (L > 8) {
+      return CRYPT_INVALID_ARG;
    }
 
    /* allocate mem for the symmetric key */
@@ -148,7 +144,7 @@ int ccm_memory(int cipher,
             (L-1));
 
    /* nonce */
-   for (y = 0; y < (16 - (L + 1)); y++) {
+   for (y = 0; y < 15 - L; y++) {
        PAD[x++] = nonce[y];
    }
 
@@ -374,7 +370,3 @@ error:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -9,9 +9,13 @@
 #include <mm/generic_ram_layout.h>
 
 /* Make stacks aligned to data cache line length */
-#define STACK_ALIGNMENT		64
+#define CACHELINE_LEN		64
+#define STACK_ALIGNMENT		CACHELINE_LEN
 
 #if defined(PLATFORM_FLAVOR_generic)
+
+#define PLM_RTCA		0xF2014000
+#define PLM_RTCA_LEN		0x1000
 
 #define GIC_BASE		0xF9000000
 #define UART0_BASE		0xFF000000

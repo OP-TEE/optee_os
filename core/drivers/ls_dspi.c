@@ -550,13 +550,14 @@ static TEE_Result get_info_from_device_tree(struct ls_dspi_data *dspi_data)
 	while (node != -FDT_ERR_NOTFOUND) {
 		node = fdt_node_offset_by_compatible(fdt, node,
 						     "fsl,lx2160a-dspi");
-		if (!(_fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
+		if (!(fdt_get_status(fdt, node) & DT_STATUS_OK_SEC))
 			continue;
 
 		bus_num = fdt_getprop(fdt, node, "bus-num", NULL);
 		if (bus_num && dspi_data->slave_bus ==
 			(unsigned int)fdt32_to_cpu(*bus_num)) {
-			if (dt_map_dev(fdt, node, &ctrl_base, &size) < 0) {
+			if (dt_map_dev(fdt, node, &ctrl_base, &size,
+				       DT_MAP_AUTO) < 0) {
 				EMSG("Unable to get virtual address");
 				return TEE_ERROR_GENERIC;
 			}

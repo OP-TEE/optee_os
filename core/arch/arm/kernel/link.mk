@@ -9,6 +9,11 @@ link-script-dep = $(link-out-dir)/.kern.ld.d
 
 AWK	 = awk
 
+link-ldflags-common += $(call ld-option,--no-warn-rwx-segments)
+ifeq ($(CFG_ARM32_core),y)
+link-ldflags-common += $(call ld-option,--no-warn-execstack)
+endif
+
 link-ldflags  = $(LDFLAGS)
 ifeq ($(CFG_CORE_ASLR),y)
 link-ldflags += -pie -Bsymbolic -z norelro $(ldflag-apply-dynamic-relocs)
@@ -31,6 +36,7 @@ link-ldflags += -T $(link-script-pp) -Map=$(link-out-dir)/tee.map
 link-ldflags += --sort-section=alignment
 link-ldflags += --fatal-warnings
 link-ldflags += --gc-sections
+link-ldflags += $(link-ldflags-common)
 
 link-ldadd  = $(LDADD)
 link-ldadd += $(ldflags-external)
@@ -55,6 +61,7 @@ link-script-cppflags := \
 		$(cppflagscore))
 
 ldargs-all_objs := -T $(link-script-dummy) --no-check-sections \
+		   $(link-ldflags-common) \
 		   $(link-objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/all_objs.o
 $(link-out-dir)/all_objs.o: $(objs) $(libdeps) $(MAKEFILE_LIST)
@@ -67,7 +74,8 @@ $(link-out-dir)/unpaged_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_pager/ { printf "-u%s ", $$3 }' > $@
 
-unpaged-ldargs = -T $(link-script-dummy) --no-check-sections --gc-sections
+unpaged-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections \
+		 $(link-ldflags-common)
 unpaged-ldadd := $(objs) $(link-ldadd) $(libgcccore)
 cleanfiles += $(link-out-dir)/unpaged.o
 $(link-out-dir)/unpaged.o: $(link-out-dir)/unpaged_entries.txt
@@ -95,7 +103,8 @@ $(link-out-dir)/init_entries.txt: $(link-out-dir)/all_objs.o
 	$(q)$(NMcore) $< | \
 		$(AWK) '/ ____keep_init/ { printf "-u%s ", $$3 }' > $@
 
-init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections
+init-ldargs := -T $(link-script-dummy) --no-check-sections --gc-sections \
+	       $(link-ldflags-common)
 init-ldadd := $(link-objs-init) $(link-out-dir)/version.o  $(link-ldadd) \
 	      $(libgcccore)
 cleanfiles += $(link-out-dir)/init.o
@@ -242,6 +251,7 @@ $(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
 	$(q)$(PYTHON3) ./scripts/mem_usage.py $< > $@
 endif
 
+all: $(link-out-dir)/tee-raw.bin
 cleanfiles += $(link-out-dir)/tee-raw.bin
 $(link-out-dir)/tee-raw.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'

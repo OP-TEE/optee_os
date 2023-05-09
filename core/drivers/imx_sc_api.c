@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2021 NXP
+ * Copyright 2017-2022 NXP
  */
 #include <drivers/imx_mu.h>
 #include <drivers/imx_sc_api.h>
@@ -16,11 +16,6 @@
 
 #define SC_RPC_VERSION 1
 #define SC_RPC_MAX_MSG 8
-
-/* Macros to fill struct sc_rpc_msg data field */
-#define RPC_U32(mesg, idx) ((mesg)->data.u32[(idx)])
-#define RPC_U16(mesg, idx) ((mesg)->data.u16[(idx)])
-#define RPC_U8(mesg, idx)  ((mesg)->data.u8[(idx)])
 
 /* Defines for struct sc_rpc_msg svc field */
 #define SC_RPC_SVC_PM	2
@@ -88,126 +83,9 @@ enum sc_power_mode {
 	SC_PM_PW_MODE_ON
 };
 
-/* RPC message header */
-struct sc_rpc_msg_header {
-	uint8_t version;	/* SC RPC version */
-	uint8_t size;		/* Size of the message */
-	uint8_t svc;		/* Type of service: one of SC_RPC_SVC_* */
-	uint8_t func;		/* Function ID or Error code */
-};
-
-/* RPC message format */
-struct sc_rpc_msg {
-	struct sc_rpc_msg_header header;
-	union {
-		uint32_t u32[SC_RPC_MAX_MSG - 1];
-		uint16_t u16[(SC_RPC_MAX_MSG - 1) * 2];
-		uint8_t u8[(SC_RPC_MAX_MSG - 1) * 4];
-	} data;
-};
-
-static struct mutex scu_mu_mutex = MUTEX_INITIALIZER;
 static vaddr_t secure_ipc_addr;
 
 register_phys_mem(MEM_AREA_IO_SEC, SC_IPC_BASE_SECURE, SC_IPC_SIZE);
-
-/*
- * Read a message from an IPC channel
- *
- * @ipc	IPC channel
- * @msg	Received message
- */
-static TEE_Result sc_ipc_read(vaddr_t ipc, struct sc_rpc_msg *msg)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	unsigned int count = 0;
-
-	if (!msg) {
-		EMSG("msg is NULL");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	assert(ipc);
-
-	res = mu_receive_msg(ipc, 0, (uint32_t *)msg);
-	if (res)
-		return res;
-
-	/* Check the size of the message to receive */
-	if (msg->header.size > SC_RPC_MAX_MSG) {
-		EMSG("Size of the message is > than SC_RPC_MAX_MSG");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	for (count = 1; count < msg->header.size; count++) {
-		res = mu_receive_msg(ipc, count % MU_NB_RR,
-				     &msg->data.u32[count - 1]);
-		if (res)
-			return res;
-	}
-
-	return TEE_SUCCESS;
-}
-
-/*
- * Write a message to an IPC channel
- *
- * @ipc	IPC channel
- * @msg	Send message pointer
- */
-static TEE_Result sc_ipc_write(vaddr_t ipc, struct sc_rpc_msg *msg)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	unsigned int count = 0;
-
-	if (!msg) {
-		EMSG("msg is NULL");
-		return TEE_ERROR_BAD_PARAMETERS;
-	}
-
-	if (msg->header.size > SC_RPC_MAX_MSG) {
-		EMSG("msg->size is > than SC_RPC_MAX_MSG");
-		return TEE_ERROR_BAD_FORMAT;
-	}
-
-	assert(ipc);
-
-	res = mu_send_msg(ipc, 0, *(uint32_t *)msg);
-	if (res)
-		return res;
-
-	for (count = 1; count < msg->header.size; count++) {
-		res = mu_send_msg(ipc, count % MU_NB_TR,
-				  msg->data.u32[count - 1]);
-		if (res)
-			return res;
-	}
-
-	return TEE_SUCCESS;
-}
-
-/*
- * Send an RPC message over the secure world IPC channel
- *
- * @msg		Message to send. This pointer will also return the answer
- *		message if expected.
- * @wait_resp	Set to true if an answer is expected.
- */
-static TEE_Result sc_call_rpc(struct sc_rpc_msg *msg, bool wait_resp)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	mutex_lock(&scu_mu_mutex);
-
-	res = sc_ipc_write(secure_ipc_addr, msg);
-
-	if (res == TEE_SUCCESS && wait_resp)
-		res = sc_ipc_read(secure_ipc_addr, msg);
-
-	mutex_unlock(&scu_mu_mutex);
-
-	return res;
-}
 
 /*
  * Get the partition ID of secure world
@@ -218,26 +96,26 @@ static TEE_Result sc_rm_get_partition(uint8_t *partition)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	enum sc_error err = SC_ERR_LAST;
-	struct sc_rpc_msg msg = {
+	struct imx_mu_msg msg = {
 		.header.version = SC_RPC_VERSION,
 		.header.size = 1,
-		.header.svc = SC_RPC_SVC_RM,
-		.header.func = SC_RM_FUNC_GET_PARTITION,
+		.header.tag = SC_RPC_SVC_RM,
+		.header.command = SC_RM_FUNC_GET_PARTITION,
 	};
 
-	res = sc_call_rpc(&msg, true);
+	res = imx_mu_call(secure_ipc_addr, &msg, true);
 	if (res != TEE_SUCCESS) {
 		EMSG("Communication error");
 		return res;
 	}
 
-	err = msg.header.func;
+	err = msg.header.command;
 	if (err != SC_ERR_NONE) {
 		EMSG("Unable to get partition ID, sc_error: %d", err);
 		return TEE_ERROR_GENERIC;
 	}
 
-	*partition = RPC_U8(&msg, 0);
+	*partition = IMX_MU_DATA_U8(&msg, 0);
 
 	return TEE_SUCCESS;
 }
@@ -253,23 +131,23 @@ static TEE_Result sc_pm_set_resource_power_mode(enum sc_resource resource,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	enum sc_error scu_error = SC_ERR_LAST;
-	struct sc_rpc_msg msg = {
+	struct imx_mu_msg msg = {
 		.header.version = SC_RPC_VERSION,
 		.header.size = 2,
-		.header.svc = SC_RPC_SVC_PM,
-		.header.func = SC_PM_FUNC_SET_RESOURCE_POWER_MODE,
+		.header.tag = SC_RPC_SVC_PM,
+		.header.command = SC_PM_FUNC_SET_RESOURCE_POWER_MODE,
 	};
 
-	RPC_U16(&msg, 0) = (uint16_t)resource;
-	RPC_U8(&msg, 2) = (uint8_t)mode;
+	IMX_MU_DATA_U16(&msg, 0) = (uint16_t)resource;
+	IMX_MU_DATA_U8(&msg, 2) = (uint8_t)mode;
 
-	res = sc_call_rpc(&msg, true);
+	res = imx_mu_call(secure_ipc_addr, &msg, true);
 	if (res != TEE_SUCCESS) {
 		EMSG("Communication error");
 		return res;
 	}
 
-	scu_error = msg.header.func;
+	scu_error = msg.header.command;
 	if (scu_error != SC_ERR_NONE) {
 		EMSG("Unable to set resource power mode sc_error: %d",
 		     scu_error);
@@ -289,11 +167,11 @@ static TEE_Result sc_rm_assign_resource(enum sc_resource resource)
 	TEE_Result res = TEE_ERROR_GENERIC;
 	enum sc_error err = SC_ERR_LAST;
 	uint8_t secure_partition = 0;
-	struct sc_rpc_msg msg = {
+	struct imx_mu_msg msg = {
 		.header.version = SC_RPC_VERSION,
 		.header.size = 2,
-		.header.svc = SC_RPC_SVC_RM,
-		.header.func = SC_RM_FUNC_ASSIGN_RESOURCE,
+		.header.tag = SC_RPC_SVC_RM,
+		.header.command = SC_RM_FUNC_ASSIGN_RESOURCE,
 	};
 
 	res = sc_rm_get_partition(&secure_partition);
@@ -302,16 +180,16 @@ static TEE_Result sc_rm_assign_resource(enum sc_resource resource)
 		return res;
 	}
 
-	RPC_U16(&msg, 0) = (uint16_t)resource;
-	RPC_U8(&msg, 2) = secure_partition;
+	IMX_MU_DATA_U16(&msg, 0) = (uint16_t)resource;
+	IMX_MU_DATA_U8(&msg, 2) = secure_partition;
 
-	res = sc_call_rpc(&msg, true);
+	res = imx_mu_call(secure_ipc_addr, &msg, true);
 	if (res != TEE_SUCCESS) {
 		EMSG("Communication error");
 		return res;
 	}
 
-	err = msg.header.func;
+	err = msg.header.command;
 	if (err != SC_ERR_NONE) {
 		EMSG("Unable to assign resource, sc_error: %d", err);
 		return TEE_ERROR_GENERIC;
@@ -387,27 +265,27 @@ TEE_Result imx_sc_seco_start_rng(void)
 	enum sc_error err = SC_ERR_LAST;
 	enum sc_seco_rng_status status = SC_SECO_RNG_STAT_UNAVAILABLE;
 	unsigned int retry = 0;
-	struct sc_rpc_msg msg = {
+	struct imx_mu_msg msg = {
 		.header.version = SC_RPC_VERSION,
 		.header.size = 1,
-		.header.svc = SC_RPC_SVC_SECO,
-		.header.func = SC_SECO_FUNC_START_RNG,
+		.header.tag = SC_RPC_SVC_SECO,
+		.header.command = SC_SECO_FUNC_START_RNG,
 	};
 
 	for (retry = RNG_INIT_RETRY; retry; retry--) {
-		res = sc_call_rpc(&msg, true);
+		res = imx_mu_call(secure_ipc_addr, &msg, true);
 		if (res != TEE_SUCCESS) {
 			EMSG("Configuration error");
 			return res;
 		}
 
-		err = msg.header.func;
+		err = msg.header.command;
 		if (err != SC_ERR_NONE) {
 			EMSG("RNG status: %d", err);
 			return TEE_ERROR_GENERIC;
 		}
 
-		status = RPC_U32(&msg, 0);
+		status = IMX_MU_DATA_U32(&msg, 0);
 
 		if (status == SC_SECO_RNG_STAT_READY)
 			return TEE_SUCCESS;
@@ -424,10 +302,8 @@ TEE_Result imx_sc_driver_init(void)
 	if (!va)
 		return TEE_ERROR_GENERIC;
 
-	mutex_lock(&scu_mu_mutex);
-	mu_init(va);
+	imx_mu_init(va);
 	secure_ipc_addr = va;
-	mutex_unlock(&scu_mu_mutex);
 
 	return TEE_SUCCESS;
 }

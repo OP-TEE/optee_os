@@ -165,20 +165,19 @@ static TEE_Result atmel_tcb_probe(const void *fdt, int node,
 	if (tcb_base)
 		return TEE_SUCCESS;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_SUCCESS;
 
 	res = clk_dt_get_by_name(fdt, node, "slow_clk", &clk);
 	if (res)
 		return res;
 
-	if (dt_map_dev(fdt, node, &tcb_base, &size) < 0)
-		return TEE_ERROR_GENERIC;
+	res = matrix_dt_get_id(fdt, node, &peri_id);
+	if (res)
+		return res;
 
-	if (tcb_base == AT91C_BASE_TC0)
-		peri_id = AT91C_ID_TC0;
-	else
-		peri_id = AT91C_ID_TC1;
+	if (dt_map_dev(fdt, node, &tcb_base, &size, DT_MAP_AUTO) < 0)
+		return TEE_ERROR_GENERIC;
 
 	matrix_configure_periph_secure(peri_id);
 

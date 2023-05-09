@@ -344,10 +344,10 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	COMPILE_TIME_ASSERT(ARRAY_SIZE(sama5d2_systemck) == PARENT_SIZE);
 	COMPILE_TIME_ASSERT(PARENT_SIZE >= 6);
 
-	if (dt_map_dev(fdt, nodeoffset, &base, &size) < 0)
+	if (dt_map_dev(fdt, nodeoffset, &base, &size, DT_MAP_AUTO) < 0)
 		panic();
 
-	if (_fdt_get_status(fdt, nodeoffset) == DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, nodeoffset) == DT_STATUS_OK_SEC)
 		matrix_configure_periph_secure(AT91C_ID_PMC);
 
 	res = clk_dt_get_by_name(fdt, nodeoffset, "slow_clk", &slow_clk);
@@ -358,7 +358,7 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	if (res)
 		panic();
 
-	pmc = pmc_data_allocate(PMC_MCK_PRES + 1,
+	pmc = pmc_data_allocate(PMC_SAMA5D2_CORE_CLK_COUNT,
 				ARRAY_SIZE(sama5d2_systemck),
 				ARRAY_SIZE(sama5d2_perick) +
 				ARRAY_SIZE(sama5d2_peri32ck),
@@ -409,6 +409,10 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 							   main_clk);
 	if (!audiopll_fracck)
 		panic();
+
+	pmc_clk = &pmc->chws[PMC_AUDIOPLL_FRACCK];
+	pmc_clk->clk = audiopll_fracck;
+	pmc_clk->id = PMC_AUDIOPLL_FRACCK;
 
 	clk = at91_clk_register_audio_pll_pad(pmc, "audiopll_padck",
 					      audiopll_fracck);
@@ -473,10 +477,9 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 	if (!usbck)
 		panic();
 
-	if (clk_set_parent(usbck, utmi_clk) != TEE_SUCCESS)
-		panic();
-
-	clk_set_rate(usbck, 48000000);
+	pmc_clk = &pmc->chws[PMC_USBCK];
+	pmc_clk->clk = usbck;
+	pmc_clk->id = PMC_USBCK;
 
 	parents[0] = slow_clk;
 	parents[1] = main_clk;

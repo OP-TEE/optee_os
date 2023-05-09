@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -27,15 +20,16 @@
   @param g             [out] bignum where generated 'g' is stored (must be initialized by caller)
   @return CRYPT_OK if successful, upon error this function will free all allocated memory
 */
-static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int modulus_size, void *p, void *q, void *g)
+static int s_dsa_make_params(prng_state *prng, int wprng, int group_size, int modulus_size, void *p, void *q, void *g)
 {
   unsigned long L, N, n, outbytes, seedbytes, counter, j, i;
   int err, res, mr_tests_q, mr_tests_p, found_p, found_q, hash;
   unsigned char *wbuf, *sbuf, digest[MAXBLOCKSIZE];
   void *t2L1, *t2N1, *t2q, *t2seedlen, *U, *W, *X, *c, *h, *e, *seedinc;
+  const char *accepted_hashes[] = { "sha3-512", "sha512", "sha3-384", "sha384", "sha3-256", "sha256" };
 
   /* check size */
-  if (group_size >= LTC_MDSA_MAX_GROUP || group_size < 1 || group_size >= modulus_size) {
+  if (group_size > LTC_MDSA_MAX_GROUP || group_size < 1 || group_size >= modulus_size || modulus_size > LTC_MDSA_MAX_MODULUS) {
     return CRYPT_INVALID_ARG;
   }
 
@@ -94,16 +88,15 @@ static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int mod
   else                { mr_tests_q = 64; }
 #endif
 
-  if (N <= 256) {
-    hash = register_hash(&sha256_desc);
+  hash = -1;
+  for (i = 0; i < sizeof(accepted_hashes)/sizeof(accepted_hashes[0]); ++i) {
+    hash = find_hash(accepted_hashes[i]);
+    if (hash != -1) break;
   }
-  else if (N <= 384) {
-    hash = register_hash(&sha384_desc);
+  if (hash == -1) {
+    return CRYPT_INVALID_ARG; /* no appropriate hash function found */
   }
-  else if (N <= 512) {
-    hash = register_hash(&sha512_desc);
-  }
-  else {
+  if (N > hash_descriptor[hash]->hashsize * 8) {
     return CRYPT_INVALID_ARG; /* group_size too big */
   }
 
@@ -115,7 +108,7 @@ static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int mod
   if ((wbuf = XMALLOC((n+1)*outbytes)) == NULL)                                  { err = CRYPT_MEM; goto cleanup3; }
   if ((sbuf = XMALLOC(seedbytes)) == NULL)                                       { err = CRYPT_MEM; goto cleanup2; }
 
-  err = mp_init_multi(&t2L1, &t2N1, &t2q, &t2seedlen, &U, &W, &X, &c, &h, &e, &seedinc, NULL);
+  err = mp_init_multi(&t2L1, &t2N1, &t2q, &t2seedlen, &U, &W, &X, &c, &h, &e, &seedinc, LTC_NULL);
   if (err != CRYPT_OK)                                                           { goto cleanup1; }
 
   if ((err = mp_2expt(t2L1, L-1)) != CRYPT_OK)                                   { goto cleanup; }
@@ -194,7 +187,7 @@ static int _dsa_make_params(prng_state *prng, int wprng, int group_size, int mod
 
   err = CRYPT_OK;
 cleanup:
-  mp_clear_multi(t2L1, t2N1, t2q, t2seedlen, U, W, X, c, h, e, seedinc, NULL);
+  mp_clear_multi(t2L1, t2N1, t2q, t2seedlen, U, W, X, c, h, e, seedinc, LTC_NULL);
 cleanup1:
   XFREE(sbuf);
 cleanup2:
@@ -220,11 +213,11 @@ int dsa_generate_pqg(prng_state *prng, int wprng, int group_size, int modulus_si
    LTC_ARGCHK(ltc_mp.name != NULL);
 
    /* init mp_ints */
-   if ((err = mp_init_multi(&key->p, &key->g, &key->q, &key->x, &key->y, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&key->p, &key->g, &key->q, &key->x, &key->y, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
    /* generate params */
-   err = _dsa_make_params(prng, wprng, group_size, modulus_size, key->p, key->q, key->g);
+   err = s_dsa_make_params(prng, wprng, group_size, modulus_size, key->p, key->q, key->g);
    if (err != CRYPT_OK) {
       goto cleanup;
    }
@@ -239,7 +232,3 @@ cleanup:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

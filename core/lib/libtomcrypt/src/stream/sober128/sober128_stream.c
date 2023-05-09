@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -17,7 +10,7 @@
 
 #ifdef LTC_SOBER128
 
-#define __LTC_SOBER128TAB_C__
+#define LTC_SOBER128TAB_C
 #include "sober128tab.c"
 
 /* don't change these... */
@@ -333,12 +326,8 @@ int sober128_stream_keystream(sober128_state *st, unsigned char *out, unsigned l
 int sober128_stream_done(sober128_state *st)
 {
    LTC_ARGCHK(st != NULL);
-   XMEMSET(st, 0, sizeof(sober128_state));
+   zeromem(st, sizeof(sober128_state));
    return CRYPT_OK;
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /*
  * This LTC implementation was adapted from:
@@ -586,7 +579,7 @@ static const ulong32 mul_ia[] = {
  * Compute the next block of bits of output stream. This is equivalent
  * to one full rotation of the shift register.
  */
-static LTC_INLINE void _sosemanuk_internal(sosemanuk_state *st)
+static LTC_INLINE void s_sosemanuk_internal(sosemanuk_state *st)
 {
     /*
      * MUL_A(x) computes alpha * x (in F_{2^32}).
@@ -724,7 +717,7 @@ static LTC_INLINE void _sosemanuk_internal(sosemanuk_state *st)
  * or in2[] is not allowed. Total overlap (out == in1 and/or out == in2)
  * is allowed.
  */
-static LTC_INLINE void _xorbuf(const unsigned char *in1, const unsigned char *in2,
+static LTC_INLINE void s_xorbuf(const unsigned char *in1, const unsigned char *in2,
     unsigned char *out, unsigned long datalen)
 {
     while (datalen -- > 0) {
@@ -757,21 +750,21 @@ int sosemanuk_crypt(sosemanuk_state *st,
         if (rlen > inlen) {
             rlen = inlen;
         }
-        _xorbuf(st->buf + st->ptr, in, out, rlen);
+        s_xorbuf(st->buf + st->ptr, in, out, rlen);
         in += rlen;
         out += rlen;
         inlen -= rlen;
         st->ptr += rlen;
     }
     while (inlen > 0) {
-        _sosemanuk_internal(st);
+        s_sosemanuk_internal(st);
         if (inlen >= sizeof(st->buf)) {
-            _xorbuf(st->buf, in, out, sizeof(st->buf));
+            s_xorbuf(st->buf, in, out, sizeof(st->buf));
             in += sizeof(st->buf);
             out += sizeof(st->buf);
             inlen -= sizeof(st->buf);
         } else {
-            _xorbuf(st->buf, in, out, inlen);
+            s_xorbuf(st->buf, in, out, inlen);
             st->ptr = inlen;
             inlen = 0;
         }
@@ -806,13 +799,9 @@ int sosemanuk_keystream(sosemanuk_state *st, unsigned char *out, unsigned long o
 int sosemanuk_done(sosemanuk_state *st)
 {
    LTC_ARGCHK(st != NULL);
-   XMEMSET(st, 0, sizeof(sosemanuk_state));
+   zeromem(st, sizeof(sosemanuk_state));
    return CRYPT_OK;
 }
 
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

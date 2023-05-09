@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 
@@ -159,6 +152,22 @@ int der_decode_custom_type_ex(const unsigned char *in,   unsigned long  inlen,
        if (root != NULL && root->pc == LTC_ASN1_PC_PRIMITIVE && i != 0) {
           err = CRYPT_PK_ASN1_ERROR;
           goto LBL_ERR;
+       }
+
+       switch (type) {
+          case LTC_ASN1_CUSTOM_TYPE:
+          case LTC_ASN1_SET:
+          case LTC_ASN1_SETOF:
+          case LTC_ASN1_SEQUENCE:
+             break;
+          default:
+             /* Verify that all basic types are indeed UNIVERSAL&PRIMITIVE */
+             if (((flags & LTC_DER_SEQ_STRICT) == LTC_DER_SEQ_STRICT) && (inlen > 0)) {
+                if (in[x] & 0xE0u) {
+                   err = CRYPT_PK_ASN1_ERROR;
+                   goto LBL_ERR;
+                }
+             }
        }
 
        switch (type) {
@@ -416,7 +425,3 @@ LBL_ERR:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

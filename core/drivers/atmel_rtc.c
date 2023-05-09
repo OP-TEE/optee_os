@@ -10,6 +10,7 @@
 #include <drivers/rtc.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
 #include <sama5d2.h>
@@ -288,12 +289,12 @@ static TEE_Result atmel_rtc_probe(const void *fdt, int node,
 	if (rtc_base)
 		return TEE_ERROR_GENERIC;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	matrix_configure_periph_secure(AT91C_ID_SYS);
 
-	if (dt_map_dev(fdt, node, &rtc_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &rtc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	atmel_rtc_write(RTC_CR, 0);

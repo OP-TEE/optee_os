@@ -8,8 +8,9 @@
 #include <drivers/serial8250_uart.h>
 #include <io.h>
 #include <keep.h>
-#include <util.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
+#include <util.h>
 
 /* uart register defines */
 #define UART_RHR	0x0
@@ -125,7 +126,7 @@ static int serial8250_uart_dev_init(struct serial_chip *chip,
 	if (parms && parms[0])
 		IMSG("serial8250_uart: device parameters ignored (%s)", parms);
 
-	if (dt_map_dev(fdt, offs, &vbase, &size) < 0)
+	if (dt_map_dev(fdt, offs, &vbase, &size, DT_MAP_AUTO) < 0)
 		return -1;
 
 	if (size < SERIAL8250_UART_REG_SIZE) {

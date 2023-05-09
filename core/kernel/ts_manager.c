@@ -57,11 +57,7 @@ struct ts_session *ts_pop_current_session(void)
 
 struct ts_session *ts_get_calling_session(void)
 {
-	struct ts_session *s = ts_get_current_session();
-
-	if (s)
-		s = TAILQ_NEXT(s, link_tsd);
-	return s;
+	return TAILQ_NEXT(ts_get_current_session(), link_tsd);
 }
 
 struct ts_session *ts_get_current_session_may_fail(void)

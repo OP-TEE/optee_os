@@ -65,6 +65,9 @@ ifneq (,$(shlibname))
 cxxflags$(sm)  += -fno-exceptions
 endif
 
+ifeq ($(CFG_TA_OPTEE_CORE_API_COMPAT_1_1),y)
+cppflags$(sm)	+= -D__OPTEE_CORE_API_COMPAT_1_1=1
+endif
 CFG_TEE_TA_LOG_LEVEL ?= 2
 cppflags$(sm) += -DTRACE_LEVEL=$(CFG_TEE_TA_LOG_LEVEL)
 

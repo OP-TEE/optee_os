@@ -67,7 +67,7 @@ int psci_cpu_on(uint32_t core_idx, uint32_t entry,
 	/* set secondary cores' NS entry addresses */
 	boot_set_core_ns_entry(core_idx, entry, context_id);
 
-	val = virt_to_phys((void *)TEE_TEXT_VA_START);
+	val = virt_to_phys((void *)TEE_LOAD_ADDR);
 
 #ifdef CFG_MX7
 	io_write32(va + SRC_GPR1_MX7 + core_idx * 8, val);

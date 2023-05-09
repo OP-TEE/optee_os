@@ -7,8 +7,8 @@
  * This file provides extensions for functions not defined in <string.h>
  */
 
-#ifndef STRING_EXT_H
-#define STRING_EXT_H
+#ifndef __STRING_EXT_H
+#define __STRING_EXT_H
 
 #include <stddef.h>
 #include <sys/cdefs.h>
@@ -52,4 +52,4 @@ char *nex_strdup(const char *s);
  */
 void memzero_explicit(void *s, size_t count);
 
-#endif /* STRING_EXT_H */
+#endif /* __STRING_EXT_H */

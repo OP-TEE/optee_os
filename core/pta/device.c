@@ -12,6 +12,7 @@
 #include <kernel/early_ta.h>
 #include <kernel/linker.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/stmm_sp.h>
 #include <kernel/tee_ta_manager.h>
 #include <pta_device.h>
 #include <string.h>
@@ -61,6 +62,10 @@ static TEE_Result get_devices(uint32_t types,
 
 	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head)
 		add_ta(ta->flags, &ta->uuid, buf, blen, &pos, rflags);
+
+	if (stmm_get_uuid())
+		add_ta(TA_FLAG_DEVICE_ENUM_SUPP, stmm_get_uuid(), buf, blen,
+		       &pos, rflags);
 
 	if (IS_ENABLED(CFG_EARLY_TA))
 		for_each_early_ta(eta)

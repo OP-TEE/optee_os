@@ -4,6 +4,9 @@
 # instance "/some/path/ccache /other/path/arm-linux-gnueabihf-").
 # We try to extract any ccache command if present.
 clang-target	:= $(patsubst %-,%,$(notdir $(lastword $(CROSS_COMPILE_$(sm)))))
+ifeq ($(clang-target),aarch64-linux)
+clang-target	:= aarch64-linux-gnu
+endif
 ccache-cmd	:= $(if $(findstring ccache,$(CROSS_COMPILE_$(sm))),$(firstword $(CROSS_COMPILE_$(sm))) ,)
 
 CC$(sm)		:= $(ccache-cmd)$(OPTEE_CLANG_COMPILER_PATH)clang --target=$(clang-target)

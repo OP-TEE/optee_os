@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -56,7 +49,7 @@ static const unsigned char PI_SUBST[256] = {
 };
 
 /* adds 16 bytes to the checksum */
-static void md2_update_chksum(hash_state *md)
+static void s_md2_update_chksum(hash_state *md)
 {
    int j;
    unsigned char L;
@@ -70,7 +63,7 @@ static void md2_update_chksum(hash_state *md)
    }
 }
 
-static void md2_compress(hash_state *md)
+static void s_md2_compress(hash_state *md)
 {
    int j, k;
    unsigned char t;
@@ -133,8 +126,8 @@ int md2_process(hash_state *md, const unsigned char *in, unsigned long inlen)
 
         /* is 16 bytes full? */
         if (md->md2.curlen == 16) {
-            md2_compress(md);
-            md2_update_chksum(md);
+            s_md2_compress(md);
+            s_md2_update_chksum(md);
             md->md2.curlen = 0;
         }
     }
@@ -166,12 +159,12 @@ int md2_done(hash_state * md, unsigned char *out)
     }
 
     /* hash and update */
-    md2_compress(md);
-    md2_update_chksum(md);
+    s_md2_compress(md);
+    s_md2_update_chksum(md);
 
     /* hash checksum */
     XMEMCPY(md->md2.buf, md->md2.chksum, 16);
-    md2_compress(md);
+    s_md2_compress(md);
 
     /* output is lower 16 bytes of X */
     XMEMCPY(out, md->md2.X, 16);
@@ -233,7 +226,7 @@ int md2_test(void)
 
    for (i = 0; i < (int)(sizeof(tests) / sizeof(tests[0])); i++) {
        md2_init(&md);
-       md2_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
+       md2_process(&md, (unsigned char*)tests[i].msg, (unsigned long)XSTRLEN(tests[i].msg));
        md2_done(&md, tmp);
        if (compare_testvector(tmp, sizeof(tmp), tests[i].hash, sizeof(tests[i].hash), "MD2", i)) {
           return CRYPT_FAIL_TESTVECTOR;
@@ -245,7 +238,3 @@ int md2_test(void)
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

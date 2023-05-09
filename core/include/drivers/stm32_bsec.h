@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2017-2020, STMicroelectronics
+ * Copyright (c) 2017-2022, STMicroelectronics
  */
 
 #ifndef __STM32_BSEC_H
@@ -9,6 +9,26 @@
 #include <compiler.h>
 #include <stdint.h>
 #include <tee_api.h>
+
+/* BSEC_DEBUG */
+#define BSEC_HDPEN			BIT(4)
+#define BSEC_SPIDEN			BIT(5)
+#define BSEC_SPINDEN			BIT(6)
+#define BSEC_DBGSWGEN			BIT(10)
+#define BSEC_DEBUG_ALL			(BSEC_HDPEN | \
+					 BSEC_SPIDEN | \
+					 BSEC_SPINDEN | \
+					 BSEC_DBGSWGEN)
+
+#define BSEC_BITS_PER_WORD		(8U * sizeof(uint32_t))
+#define BSEC_BYTES_PER_WORD		sizeof(uint32_t)
+
+/* BSEC different global states */
+enum stm32_bsec_sec_state {
+	BSEC_STATE_SEC_CLOSED,
+	BSEC_STATE_SEC_OPEN,
+	BSEC_STATE_INVALID
+};
 
 /*
  * Load OTP from SAFMEM and provide its value
@@ -69,14 +89,7 @@ TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id);
  * @value: Value to write
  * Return a TEE_Result compliant return value
  */
-#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value);
-#else
-static inline TEE_Result stm32_bsec_write_debug_conf(uint32_t value __unused)
-{
-	return TEE_ERROR_NOT_SUPPORTED;
-}
-#endif
 
 /* Return debug configuration read from BSEC */
 uint32_t stm32_bsec_read_debug_conf(void);
@@ -135,16 +148,33 @@ TEE_Result stm32_bsec_read_sp_lock(uint32_t otp_id, bool *locked);
 TEE_Result stm32_bsec_read_permanent_lock(uint32_t otp_id, bool *locked);
 
 /*
- * Lock Upper OTP or Global programming or debug enable
- * @service: Service to lock, see header file
- * Return a TEE_Result compliant return value
+ * Return true if OTP can be read, false otherwise
+ * @otp_id: OTP number
  */
-TEE_Result stm32_bsec_otp_lock(uint32_t service);
+bool stm32_bsec_can_access_otp(uint32_t otp_id);
 
 /*
  * Return true if non-secure world is allowed to read the target OTP
  * @otp_id: OTP number
  */
 bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
+
+/*
+ * Find and get OTP location from its name.
+ * @name: sub-node name to look up.
+ * @otp_id: pointer to output OTP number or NULL.
+ * @otp_bit_len: pointer to output OTP length in bits or NULL.
+ * Return a TEE_Result compliant status
+ */
+TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
+					       uint32_t *otp_id,
+					       size_t *otp_bit_len);
+
+/*
+ * Get BSEC global sec state.
+ * @sec_state: Global BSEC current sec state
+ * Return a TEE_Result compliant status
+ */
+TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *sec_state);
 
 #endif /*__STM32_BSEC_H*/

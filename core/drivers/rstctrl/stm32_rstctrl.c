@@ -10,6 +10,7 @@
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <stm32_util.h>
@@ -178,7 +179,6 @@ struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id)
 	return &rstline->rstctrl;
 }
 
-#ifdef CFG_EMBED_DTB
 static struct rstctrl *stm32_rstctrl_get_dev(struct dt_driver_phandle_args *arg,
 					     void *priv_data __unused,
 					     TEE_Result *res)
@@ -209,7 +209,7 @@ static TEE_Result stm32_rstctrl_provider_probe(const void *fdt, int offs,
 
 	assert(rstctrl_ops_is_valid(&stm32_rstctrl_ops));
 
-	_fdt_fill_device_info(fdt, &info, offs);
+	fdt_fill_device_info(fdt, &info, offs);
 
 	assert(info.reg == RCC_BASE &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
@@ -230,4 +230,3 @@ DEFINE_DT_DRIVER(stm32_rstctrl_dt_driver) = {
 	.match_table = stm32_rstctrl_match_table,
 	.probe = stm32_rstctrl_provider_probe,
 };
-#endif /*CFG_EMBED_DTB*/

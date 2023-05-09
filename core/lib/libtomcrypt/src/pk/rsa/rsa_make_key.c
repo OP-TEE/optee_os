@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -29,7 +22,7 @@ static int s_rsa_make_key(prng_state *prng, int wprng, int size, void *e, rsa_ke
       return err;
    }
 
-   if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, NULL)) != CRYPT_OK) {
+   if ((err = mp_init_multi(&p, &q, &tmp1, &tmp2, LTC_NULL)) != CRYPT_OK) {
       return err;
    }
 
@@ -55,7 +48,7 @@ static int s_rsa_make_key(prng_state *prng, int wprng, int size, void *e, rsa_ke
    if ((err = mp_lcm( tmp1,  tmp2,  tmp1)) != CRYPT_OK)              { goto cleanup; } /* tmp1 = lcm(p-1, q-1) */
 
    /* make key */
-   if ((err = mp_init_multi(&key->e, &key->d, &key->N, &key->dQ, &key->dP, &key->qP, &key->p, &key->q, NULL)) != CRYPT_OK) {
+   if ((err = rsa_init(key)) != CRYPT_OK) {
       goto errkey;
    }
 
@@ -65,8 +58,8 @@ static int s_rsa_make_key(prng_state *prng, int wprng, int size, void *e, rsa_ke
 
    /* optimize for CRT now */
    /* find d mod q-1 and d mod p-1 */
-   if ((err = mp_sub_d( p, 1,  tmp1)) != CRYPT_OK)                     { goto errkey; } /* tmp1 = q-1 */
-   if ((err = mp_sub_d( q, 1,  tmp2)) != CRYPT_OK)                     { goto errkey; } /* tmp2 = p-1 */
+   if ((err = mp_sub_d( p, 1,  tmp1)) != CRYPT_OK)                     { goto errkey; } /* tmp1 = p-1 */
+   if ((err = mp_sub_d( q, 1,  tmp2)) != CRYPT_OK)                     { goto errkey; } /* tmp2 = q-1 */
    if ((err = mp_mod( key->d,  tmp1,  key->dP)) != CRYPT_OK)           { goto errkey; } /* dP = d mod p-1 */
    if ((err = mp_mod( key->d,  tmp2,  key->dQ)) != CRYPT_OK)           { goto errkey; } /* dQ = d mod q-1 */
    if ((err = mp_invmod( q,  p,  key->qP)) != CRYPT_OK)                { goto errkey; } /* qP = 1/q mod p */
@@ -83,7 +76,7 @@ static int s_rsa_make_key(prng_state *prng, int wprng, int size, void *e, rsa_ke
 errkey:
    rsa_free(key);
 cleanup:
-   mp_clear_multi(tmp2, tmp1, q, p, NULL);
+   mp_clear_multi(tmp2, tmp1, q, p, LTC_NULL);
    return err;
 }
 
@@ -170,7 +163,3 @@ int rsa_make_key_bn_e(prng_state *prng, int wprng, int size, void *e, rsa_key *k
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

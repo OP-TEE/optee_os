@@ -25,38 +25,22 @@ extern const uint8_t __extab_end[];
 
 #endif
 
-/*
- * Warning! (ASLR) Do not use any of the _SZ_UNSAFE defines or _size[] variables
- * below in code that runs after dynamic relocations have been applied. Their
- * value could be *wrong* after relocation (for instance Aarch64 GCC 9.2
- * generates dynamic relocations for the _size[] symbols, but Clang 11.0.0 does
- * not). The _SZ_UNSAFE macros are mostly here for use in register_phys_mem()
- * where the _SZ macros would be rejected by the compiler ('initializer element
- * is not constant'). Other uses are likely to be incorrect.
- */
-
 #define VCORE_UNPG_RX_PA	((unsigned long)__vcore_unpg_rx_start)
-#define VCORE_UNPG_RX_SZ_UNSAFE	((size_t)__vcore_unpg_rx_size)
 #define VCORE_UNPG_RX_SZ	((size_t)(__vcore_unpg_rx_end - \
 					  __vcore_unpg_rx_start))
 #define VCORE_UNPG_RO_PA	((unsigned long)__vcore_unpg_ro_start)
-#define VCORE_UNPG_RO_SZ_UNSAFE	((size_t)__vcore_unpg_ro_size)
 #define VCORE_UNPG_RO_SZ	((size_t)(__vcore_unpg_ro_end - \
 					  __vcore_unpg_ro_start))
 #define VCORE_UNPG_RW_PA	((unsigned long)__vcore_unpg_rw_start)
-#define VCORE_UNPG_RW_SZ_UNSAFE	((size_t)__vcore_unpg_rw_size)
 #define VCORE_UNPG_RW_SZ	((size_t)(__vcore_unpg_rw_end - \
 					  __vcore_unpg_rw_start))
 #define VCORE_NEX_RW_PA	((unsigned long)__vcore_nex_rw_start)
-#define VCORE_NEX_RW_SZ_UNSAFE	((size_t)__vcore_nex_rw_size)
-#define VCORE_NEX_RW_SZ	((size_t)__vcore_nex_rw_end - \
-					 __vcore_nex_rw_start)
+#define VCORE_NEX_RW_SZ	((size_t)(__vcore_nex_rw_end - \
+					 __vcore_nex_rw_start))
 #define VCORE_INIT_RX_PA	((unsigned long)__vcore_init_rx_start)
-#define VCORE_INIT_RX_SZ_UNSAFE	((size_t)__vcore_init_rx_size)
 #define VCORE_INIT_RX_SZ	((size_t)(__vcore_init_rx_end - \
 					  __vcore_init_rx_start))
 #define VCORE_INIT_RO_PA	((unsigned long)__vcore_init_ro_start)
-#define VCORE_INIT_RO_SZ_UNSAFE	((size_t)__vcore_init_ro_size)
 #define VCORE_INIT_RO_SZ	((size_t)(__vcore_init_ro_end - \
 					  __vcore_init_ro_start))
 
@@ -120,13 +104,13 @@ extern const uint8_t __text_init_end[];
 extern const uint8_t __text_pageable_start[];
 extern const uint8_t __text_pageable_end[];
 
-#define ASAN_SHADOW_PA	((paddr_t)__asan_shadow_start)
+#define ASAN_SHADOW_PA	((paddr_t)(vaddr_t)__asan_shadow_start)
 #define ASAN_SHADOW_SZ	((size_t)__asan_shadow_size)
 extern const uint8_t __asan_shadow_start[];
 extern const uint8_t __asan_shadow_end[];
 extern const uint8_t __asan_shadow_size[];
 
-#define ASAN_MAP_PA	((paddr_t)__asan_map_start)
+#define ASAN_MAP_PA	((paddr_t)(vaddr_t)__asan_map_start)
 #define ASAN_MAP_SZ	((size_t)__asan_map_size)
 extern const uint8_t __asan_map_start[];
 extern const uint8_t __asan_map_end[];

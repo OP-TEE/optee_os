@@ -189,11 +189,53 @@
 			reg = <0x50020000 0x400>;
 		};
 
+		rng: rng@54004000 {
+			compatible = "st,stm32mp13-rng";
+			reg = <0x54004000 0x400>;
+			clocks = <&rcc RNG1_K>;
+			status = "disabled";
+		};
+
 		bsec: efuse@5c005000 {
-			compatible = "st,stm32mp15-bsec";
+			compatible = "st,stm32mp13-bsec";
 			reg = <0x5c005000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			cfg0_otp: cfg0_otp@0 {
+				reg = <0x0 0x2>;
+			};
+			part_number_otp: part_number_otp@4 {
+				reg = <0x4 0x2>;
+			};
+			monotonic_otp: monotonic_otp@10 {
+				reg = <0x10 0x4>;
+			};
+			nand_otp: cfg9_otp@24 {
+				reg = <0x24 0x4>;
+			};
+			uid_otp: uid_otp@34 {
+				reg = <0x34 0xc>;
+			};
+			hw2_otp: hw2_otp@48 {
+				reg = <0x48 0x4>;
+			};
+			ts_cal1: calib@5c {
+				reg = <0x5c 0x2>;
+			};
+			ts_cal2: calib@5e {
+				reg = <0x5e 0x2>;
+			};
+			pkh_otp: pkh_otp@60 {
+				reg = <0x60 0x20>;
+			};
+			ethernet_mac1_address: mac1@e4 {
+				reg = <0xe4 0xc>;
+				st,non-secure-otp;
+			};
+			oem_enc_key: oem_enc_key@170 {
+				reg = <0x170 0x10>;
+			};
 		};
 
 		tzc400: tzc@5c006000 {

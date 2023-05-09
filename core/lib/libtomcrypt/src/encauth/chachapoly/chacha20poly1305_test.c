@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #include "tomcrypt_private.h"
 
@@ -32,7 +25,7 @@ int chacha20poly1305_test(void)
                            0x61, 0x16 };
    unsigned char tag[] = { 0x1A, 0xE1, 0x0B, 0x59, 0x4F, 0x09, 0xE2, 0x6A, 0x7E, 0x90, 0x2E, 0xCB, 0xD0, 0x60, 0x06, 0x91 };
    char m[] = "Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
-   unsigned long mlen = strlen(m);
+   unsigned long mlen = XSTRLEN(m);
    unsigned long len;
    unsigned char rfc7905_pt[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
    unsigned char rfc7905_enc[] = { 0xE4, 0x62, 0x85, 0xB4, 0x29, 0x95, 0x34, 0x96, 0xAB, 0xFB, 0x67, 0xCD, 0xAE, 0xAC, 0x94, 0x1E };
@@ -164,7 +157,3 @@ int chacha20poly1305_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

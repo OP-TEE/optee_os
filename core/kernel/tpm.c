@@ -112,7 +112,7 @@ TEE_Result tpm_get_event_log(void *buf, size_t *size)
 	}
 
 	if (buf_size < tpm_log_size) {
-		EMSG("TPM: Not enough space for the log: %zu, %lu",
+		EMSG("TPM: Not enough space for the log: %zu, %zu",
 		     buf_size, tpm_log_size);
 		return TEE_ERROR_SHORT_BUFFER;
 	}

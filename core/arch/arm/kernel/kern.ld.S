@@ -54,14 +54,6 @@
 #include <util.h>
 
 /*
- * TEE_RAM_VA_START:            The start virtual address of the TEE RAM
- * TEE_TEXT_VA_START:           The start virtual address of the OP-TEE text
- */
-#define TEE_RAM_VA_START        TEE_RAM_START
-#define TEE_TEXT_VA_START       (TEE_RAM_VA_START + \
-					(TEE_LOAD_ADDR - TEE_RAM_START))
-
-/*
  * Note:
  * Clang 11 (ld.lld) generates non-relocatable reference when using ROUNDDOWN()
  * from <util.h>, which does not work with ASLR.
@@ -74,17 +66,13 @@ OUTPUT_ARCH(CFG_KERN_LINKER_ARCH)
 ENTRY(_start)
 SECTIONS
 {
-	. = TEE_TEXT_VA_START;
-#ifdef ARM32
-	ASSERT(!(TEE_TEXT_VA_START & 31), "text start should align to 32bytes")
-#endif
-#ifdef ARM64
-	ASSERT(!(TEE_TEXT_VA_START & 127), "text start should align to 128bytes")
-#endif
+	. = TEE_LOAD_ADDR;
+	ASSERT(!(TEE_LOAD_ADDR & (SMALL_PAGE_SIZE - 1)),
+	       "text start should be page aligned")
 	__text_start = .;
 
 	/*
-	 * Memory between TEE_TEXT_VA_START and page aligned rounded down
+	 * Memory between TEE_LOAD_ADDR and page aligned rounded down
 	 * value will be mapped with unpaged "text" section attributes:
 	 * likely to be read-only/executable.
 	 */
@@ -187,7 +175,7 @@ SECTIONS
 #endif
 	__flatmap_unpg_ro_size = . - __flatmap_unpg_ro_start;
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	__flatmap_nex_rw_start = . ;
 	.nex_data : ALIGN(8) {
 		*(.nex_data .nex_data.*)
@@ -385,14 +373,14 @@ SECTIONS
 		"Load address before start of physical memory")
 	ASSERT(TEE_LOAD_ADDR < (TEE_RAM_START + TEE_RAM_PH_SIZE),
 		"Load address after end of physical memory")
-	ASSERT((TEE_RAM_VA_START + TEE_RAM_PH_SIZE - __init_end) >
+	ASSERT((TEE_RAM_START + TEE_RAM_PH_SIZE - __init_end) >
 		SMALL_PAGE_SIZE, "Too few free pages to initialize paging")
 
 
 #endif /*CFG_WITH_PAGER*/
 
 #ifdef CFG_CORE_SANITIZE_KADDRESS
-	. = TEE_RAM_VA_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
+	. = TEE_RAM_START + (TEE_RAM_VA_SIZE * 8) / 9 - 8;
 	. = ALIGN(8);
 	.asan_shadow : {
 		__asan_shadow_start = .;
@@ -405,15 +393,15 @@ SECTIONS
 	__end = .;
 
 #ifndef CFG_WITH_PAGER
-	__init_size = __data_end - TEE_TEXT_VA_START;
+	__init_size = __data_end - TEE_LOAD_ADDR;
 #endif
 	/*
 	 * Guard against moving the location counter backwards in the assignment
 	 * below.
 	 */
-	ASSERT(. <= (TEE_RAM_VA_START + TEE_RAM_VA_SIZE),
+	ASSERT(. <= (TEE_RAM_START + TEE_RAM_VA_SIZE),
 		"TEE_RAM_VA_SIZE is too small")
-	. = TEE_RAM_VA_START + TEE_RAM_VA_SIZE;
+	. = TEE_RAM_START + TEE_RAM_VA_SIZE;
 
 	_end_of_ram = .;
 
@@ -470,7 +458,7 @@ __vcore_unpg_rw_start = __flatmap_unpg_rw_start;
 __vcore_unpg_rw_size = __flatmap_unpg_rw_size;
 __vcore_unpg_rw_end = __vcore_unpg_rw_start + __vcore_unpg_rw_size;
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 /* Nexus read-write memory */
 __vcore_nex_rw_start = __flatmap_nex_rw_start;
 __vcore_nex_rw_size = __flatmap_nex_rw_size;

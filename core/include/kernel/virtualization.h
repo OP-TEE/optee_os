@@ -11,7 +11,7 @@
 
 #define HYP_CLNT_ID 0
 
-#if defined(CFG_VIRTUALIZATION)
+#if defined(CFG_NS_VIRTUALIZATION)
 /**
  * virt_guest_created() - create new VM partition
  * @guest_id: VM id provided by hypervisor
@@ -70,8 +70,14 @@ void virt_on_stdcall(void);
 /**
  * virt_init_memory() - initialize memory for virtualization subsystem
  * @memory_map: current OP-TEE memory map
+ * @secmem0_base: base of first secure memory range
+ * @secmem0_size: size of first secure memory range
+ * @secmem1_base: base of an eventual second secure memory range, 0 if unused
+ * @secmem1_size: size of an eventual second secure memory range, 0 if unused
  */
-void virt_init_memory(struct tee_mmap_region *memory_map);
+void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
+		      paddr_size_t secmem0_size, paddr_t secmem1_base,
+		      paddr_size_t secmem1_size);
 
 /**
  * virt_get_memory_map() - get current memory map
@@ -100,8 +106,11 @@ static inline void virt_on_stdcall(void) { }
 static inline struct tee_mmap_region *virt_get_memory_map(void) { return NULL; }
 static inline void
 virt_get_ta_ram(vaddr_t *start __unused, vaddr_t *end __unused) { }
-static inline void
-virt_init_memory(struct tee_mmap_region *memory_map __unused) { }
-#endif /*CFG_VIRTUALIZATION*/
+static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
+				    paddr_t secmem0_base __unused,
+				    paddr_size_t secmem0_size __unused,
+				    paddr_t secmem1_base __unused,
+				    paddr_size_t secmem1_size __unused) { }
+#endif /*CFG_NS_VIRTUALIZATION*/
 
 #endif	/* KERNEL_VIRTUALIZATION_H */

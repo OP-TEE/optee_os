@@ -7,7 +7,6 @@
 #include <bitstring.h>
 #include <ffa.h>
 #include <initcall.h>
-#include <keep.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread_spmc.h>
@@ -41,7 +40,7 @@ static struct mobj_ffa_head shm_inactive_head =
 
 static unsigned int shm_lock = SPINLOCK_UNLOCK;
 
-const struct mobj_ops mobj_ffa_ops;
+static const struct mobj_ops mobj_ffa_ops;
 
 static struct mobj_ffa *to_mobj_ffa(struct mobj *mobj)
 {
@@ -216,7 +215,8 @@ TEE_Result mobj_ffa_add_pages_at(struct mobj_ffa *mf, unsigned int *idx,
 	if (ADD_OVERFLOW(*idx, num_pages, &n) || n > tot_page_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
+	if (!IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
+	    !core_pbuf_is(CORE_MEM_NON_SEC, pa, num_pages * SMALL_PAGE_SIZE))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (n = 0; n < num_pages; n++)
@@ -456,7 +456,6 @@ static TEE_Result ffa_get_pa(struct mobj *mobj, size_t offset,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(ffa_get_pa);
 
 static size_t ffa_get_phys_offs(struct mobj *mobj,
 				size_t granule __maybe_unused)
@@ -599,7 +598,8 @@ static TEE_Result mapped_shm_init(void)
 	if (!pool_start || !pool_end)
 		panic("Can't find region for shmem pool");
 
-	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end, SMALL_PAGE_SHIFT,
+	if (!tee_mm_init(&tee_mm_shm, pool_start, pool_end - pool_start,
+			 SMALL_PAGE_SHIFT,
 			 TEE_MM_POOL_NO_FLAGS))
 		panic("Could not create shmem pool");
 
@@ -608,12 +608,7 @@ static TEE_Result mapped_shm_init(void)
 	return TEE_SUCCESS;
 }
 
-/*
- * Note: this variable is weak just to ease breaking its dependency chain
- * when added to the unpaged area.
- */
-const struct mobj_ops mobj_ffa_ops
-__weak __relrodata_unpaged("mobj_ffa_ops") = {
+static const struct mobj_ops mobj_ffa_ops = {
 	.get_pa = ffa_get_pa,
 	.get_phys_offs = ffa_get_phys_offs,
 	.get_va = ffa_get_va,

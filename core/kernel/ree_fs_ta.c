@@ -37,12 +37,13 @@
 
 #include <assert.h>
 #include <crypto/crypto.h>
+#include <fault_mitigation.h>
 #include <initcall.h>
 #include <kernel/thread.h>
 #include <kernel/ts_store.h>
 #include <mm/core_memprot.h>
-#include <mm/tee_mm.h>
 #include <mm/mobj.h>
+#include <mm/tee_mm.h>
 #include <optee_rpc_cmd.h>
 #include <signed_hdr.h>
 #include <stdlib.h>
@@ -67,13 +68,118 @@ struct ree_fs_ta_handle {
 	struct shdr_encrypted_ta *ehdr;
 };
 
-struct ta_ver_db_hdr {
+struct ver_db_entry {
+	uint8_t uuid[sizeof(TEE_UUID)];
+	uint32_t version;
+};
+
+struct ver_db_hdr {
 	uint32_t db_version;
 	uint32_t nb_entries;
 };
 
-static const char ta_ver_db_obj_id[] = "ta_ver.db";
-static struct mutex ta_ver_db_mutex = MUTEX_INITIALIZER;
+static const char ta_ver_db[] = "ta_ver.db";
+static const char subkey_ver_db[] = "subkey_ver.db";
+static struct mutex ver_db_mutex = MUTEX_INITIALIZER;
+
+static TEE_Result check_update_version(const char *db_name,
+				       const uint8_t uuid[sizeof(TEE_UUID)],
+				       uint32_t version)
+{
+	struct ver_db_entry db_entry = { };
+	const struct tee_file_operations *ops = NULL;
+	struct tee_file_handle *fh = NULL;
+	TEE_Result res = TEE_SUCCESS;
+	bool entry_found = false;
+	size_t len = 0;
+	unsigned int i = 0;
+	struct ver_db_hdr db_hdr = { };
+	struct tee_pobj pobj = {
+		.obj_id = (void *)db_name,
+		.obj_id_len = strlen(db_name) + 1,
+	};
+
+	ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
+	if (!ops)
+		return TEE_SUCCESS; /* Compiled with no secure storage */
+
+	mutex_lock(&ver_db_mutex);
+
+	res = ops->open(&pobj, NULL, &fh);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		goto out;
+
+	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, 0, &fh);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		len = sizeof(db_hdr);
+
+		res = ops->read(fh, 0, &db_hdr, &len);
+		if (res != TEE_SUCCESS) {
+			goto out;
+		} else if (len != sizeof(db_hdr)) {
+			res = TEE_ERROR_BAD_STATE;
+			goto out;
+		}
+	}
+
+	for (i = 0; i < db_hdr.nb_entries; i++) {
+		len = sizeof(db_entry);
+
+		res = ops->read(fh, sizeof(db_hdr) + (i * len), &db_entry,
+				&len);
+		if (res != TEE_SUCCESS) {
+			goto out;
+		} else if (len != sizeof(db_entry)) {
+			res = TEE_ERROR_BAD_STATE;
+			goto out;
+		}
+
+		if (!memcmp(uuid, db_entry.uuid, sizeof(TEE_UUID))) {
+			entry_found = true;
+			break;
+		}
+	}
+
+	if (entry_found) {
+		if (db_entry.version > version) {
+			res = TEE_ERROR_ACCESS_CONFLICT;
+			goto out;
+		} else if (db_entry.version < version) {
+			memcpy(db_entry.uuid, uuid, sizeof(TEE_UUID));
+			db_entry.version = version;
+			len = sizeof(db_entry);
+			res = ops->write(fh, sizeof(db_hdr) + (i * len),
+					 &db_entry, len);
+			if (res != TEE_SUCCESS)
+				goto out;
+		}
+	} else {
+		memcpy(db_entry.uuid, uuid, sizeof(TEE_UUID));
+		db_entry.version = version;
+		len = sizeof(db_entry);
+		res = ops->write(fh, sizeof(db_hdr) + (db_hdr.nb_entries * len),
+				 &db_entry, len);
+		if (res != TEE_SUCCESS)
+			goto out;
+
+		db_hdr.nb_entries++;
+		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		if (res != TEE_SUCCESS)
+			goto out;
+	}
+
+out:
+	ops->close(&fh);
+	mutex_unlock(&ver_db_mutex);
+	return res;
+}
 
 /*
  * Load a TA via RPC with UUID defined by input param @uuid. The virtual
@@ -127,7 +233,9 @@ exit:
 static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 				 struct ts_store_handle **h)
 {
+	uint8_t next_uuid[sizeof(TEE_UUID)] = { };
 	struct ree_fs_ta_handle *handle;
+	uint8_t *next_uuid_ptr = NULL;
 	struct shdr *shdr = NULL;
 	struct mobj *mobj = NULL;
 	void *hash_ctx = NULL;
@@ -138,6 +246,9 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	struct shdr_bootstrap_ta *bs_hdr = NULL;
 	struct shdr_encrypted_ta *ehdr = NULL;
 	size_t shdr_sz = 0;
+	uint32_t max_depth = UINT32_MAX;
+	struct ftmn ftmn = { };
+	unsigned int incr0_count = 0;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
@@ -149,20 +260,101 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		goto error;
 
 	/* Make secure copy of signed header */
-	shdr = shdr_alloc_and_copy(ta, ta_size);
+	shdr = shdr_alloc_and_copy(0, ta, ta_size);
 	if (!shdr) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
 	}
 
 	/* Validate header signature */
-	res = shdr_verify_signature(shdr);
+	FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0, shdr_verify_signature, shdr);
+	incr0_count++;
 	if (res != TEE_SUCCESS)
 		goto error_free_payload;
+
+	shdr_sz = SHDR_GET_SIZE(shdr);
+	if (!shdr_sz) {
+		res = TEE_ERROR_SECURITY;
+		goto error_free_payload;
+	}
+	offs = shdr_sz;
+
+	while (shdr->img_type == SHDR_SUBKEY) {
+		struct shdr_pub_key pub_key = { };
+
+		if (offs > ta_size) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
+
+		res = shdr_load_pub_key(shdr, offs, (const void *)ta,
+					ta_size, next_uuid_ptr, max_depth,
+					&pub_key);
+		if (res)
+			goto error_free_payload;
+
+		if (ADD_OVERFLOW(offs, shdr->img_size, &offs) ||
+		    ADD_OVERFLOW(offs, pub_key.name_size, &offs) ||
+		    offs > ta_size) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
+		max_depth = pub_key.max_depth;
+		memcpy(next_uuid, pub_key.next_uuid, sizeof(TEE_UUID));
+		next_uuid_ptr = next_uuid;
+
+		res = check_update_version(subkey_ver_db, pub_key.uuid,
+					   pub_key.version);
+		if (res) {
+			res = TEE_ERROR_SECURITY;
+			shdr_free_pub_key(&pub_key);
+			goto error_free_payload;
+		}
+
+		shdr_free(shdr);
+		shdr = shdr_alloc_and_copy(offs, ta, ta_size);
+		res = TEE_ERROR_SECURITY;
+		if (shdr) {
+			FTMN_CALL_FUNC(res, &ftmn, FTMN_INCR0,
+				       shdr_verify_signature2, &pub_key, shdr);
+			incr0_count++;
+		}
+		shdr_free_pub_key(&pub_key);
+		if (res)
+			goto error_free_payload;
+
+		shdr_sz = SHDR_GET_SIZE(shdr);
+		if (!shdr_sz) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
+		offs += shdr_sz;
+		if (offs > ta_size) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
+	}
+
 	if (shdr->img_type != SHDR_TA && shdr->img_type != SHDR_BOOTSTRAP_TA &&
 	    shdr->img_type != SHDR_ENCRYPTED_TA) {
 		res = TEE_ERROR_SECURITY;
 		goto error_free_payload;
+	}
+
+	/*
+	 * If we're verifying this TA using a subkey, make sure that
+	 * the UUID of the TA belongs to the namespace defined by the subkey.
+	 * The namespace is defined as in RFC4122, that is, valid UUID
+	 * is calculated as a V5 UUID SHA-512(subkey UUID, "name string").
+	 */
+	if (next_uuid_ptr) {
+		TEE_UUID check_uuid = { };
+
+		tee_uuid_from_octets(&check_uuid, next_uuid_ptr);
+		if (memcmp(&check_uuid, uuid, sizeof(*uuid))) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_payload;
+		}
 	}
 
 	/*
@@ -179,12 +371,6 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	res = crypto_hash_update(hash_ctx, (uint8_t *)shdr, sizeof(*shdr));
 	if (res != TEE_SUCCESS)
 		goto error_free_hash;
-	shdr_sz = SHDR_GET_SIZE(shdr);
-	if (!shdr_sz) {
-		res = TEE_ERROR_SECURITY;
-		goto error_free_hash;
-	}
-	offs = shdr_sz;
 
 	if (shdr->img_type == SHDR_BOOTSTRAP_TA ||
 	    shdr->img_type == SHDR_ENCRYPTED_TA) {
@@ -245,6 +431,14 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 			goto error_free_hash;
 		}
 
+		/*
+		 * This is checked further down too, but we must sanity
+		 * check shdr->img_size before it's used below.
+		 */
+		if (ta_size != offs + ehdr_sz + shdr->img_size) {
+			res = TEE_ERROR_SECURITY;
+			goto error_free_hash;
+		}
 
 		ehdr = malloc(ehdr_sz);
 		if (!ehdr) {
@@ -252,7 +446,10 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 			goto error_free_hash;
 		}
 
-		memcpy(ehdr, ((uint8_t *)ta + offs), ehdr_sz);
+		*ehdr = img_ehdr;
+		memcpy((uint8_t *)ehdr + sizeof(img_ehdr),
+		       (uint8_t *)ta + offs + sizeof(img_ehdr),
+		       ehdr_sz - sizeof(img_ehdr));
 
 		res = crypto_hash_update(hash_ctx, (uint8_t *)ehdr, ehdr_sz);
 		if (res != TEE_SUCCESS)
@@ -279,6 +476,8 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 	handle->shdr = shdr;
 	handle->mobj = mobj;
 	*h = (struct ts_store_handle *)handle;
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR1,
+			       FTMN_STEP_COUNT(incr0_count), TEE_SUCCESS);
 	return TEE_SUCCESS;
 
 error_free_hash:
@@ -290,6 +489,9 @@ error:
 	free(bs_hdr);
 	shdr_free(shdr);
 	free(handle);
+	FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR1, res);
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR1,
+			       FTMN_STEP_COUNT(incr0_count, 1), res);
 	return res;
 }
 
@@ -331,103 +533,11 @@ static TEE_Result check_digest(struct ree_fs_ta_handle *h)
 		res = TEE_ERROR_SECURITY;
 		goto out;
 	}
-	if (memcmp(digest, SHDR_GET_HASH(h->shdr), h->shdr->hash_size))
+	if (FTMN_CALLEE_DONE_MEMCMP(memcmp, digest, SHDR_GET_HASH(h->shdr),
+				    h->shdr->hash_size))
 		res = TEE_ERROR_SECURITY;
 out:
 	free(digest);
-	return res;
-}
-
-static TEE_Result check_update_version(struct shdr_bootstrap_ta *hdr)
-{
-	struct shdr_bootstrap_ta hdr_entry = { };
-	const struct tee_file_operations *ops = NULL;
-	struct tee_file_handle *fh = NULL;
-	TEE_Result res = TEE_SUCCESS;
-	bool entry_found = false;
-	size_t len = 0;
-	unsigned int i = 0;
-	struct ta_ver_db_hdr db_hdr = { };
-	struct tee_pobj pobj = {
-		.obj_id = (void *)ta_ver_db_obj_id,
-		.obj_id_len = sizeof(ta_ver_db_obj_id)
-	};
-
-	ops = tee_svc_storage_file_ops(TEE_STORAGE_PRIVATE);
-	if (!ops)
-		return TEE_SUCCESS; /* Compiled with no secure storage */
-
-	mutex_lock(&ta_ver_db_mutex);
-
-	res = ops->open(&pobj, NULL, &fh);
-	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
-		goto out;
-
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, 0, &fh);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
-		if (res != TEE_SUCCESS)
-			goto out;
-	} else {
-		len = sizeof(db_hdr);
-
-		res = ops->read(fh, 0, &db_hdr, &len);
-		if (res != TEE_SUCCESS) {
-			goto out;
-		} else if (len != sizeof(db_hdr)) {
-			res = TEE_ERROR_BAD_STATE;
-			goto out;
-		}
-	}
-
-	for (i = 0; i < db_hdr.nb_entries; i++) {
-		len = sizeof(hdr_entry);
-
-		res = ops->read(fh, sizeof(db_hdr) + (i * len), &hdr_entry,
-				&len);
-		if (res != TEE_SUCCESS) {
-			goto out;
-		} else if (len != sizeof(hdr_entry)) {
-			res = TEE_ERROR_BAD_STATE;
-			goto out;
-		}
-
-		if (!memcmp(hdr->uuid, hdr_entry.uuid, sizeof(TEE_UUID))) {
-			entry_found = true;
-			break;
-		}
-	}
-
-	if (entry_found) {
-		if (hdr_entry.ta_version > hdr->ta_version) {
-			res = TEE_ERROR_ACCESS_CONFLICT;
-			goto out;
-		} else if (hdr_entry.ta_version < hdr->ta_version) {
-			len = sizeof(*hdr);
-			res = ops->write(fh, sizeof(db_hdr) + (i * len), hdr,
-					 len);
-			if (res != TEE_SUCCESS)
-				goto out;
-		}
-	} else {
-		len = sizeof(*hdr);
-		res = ops->write(fh, sizeof(db_hdr) + (db_hdr.nb_entries * len),
-				 hdr, len);
-		if (res != TEE_SUCCESS)
-			goto out;
-
-		db_hdr.nb_entries++;
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
-		if (res != TEE_SUCCESS)
-			goto out;
-	}
-
-out:
-	ops->close(&fh);
-	mutex_unlock(&ta_ver_db_mutex);
 	return res;
 }
 
@@ -512,7 +622,9 @@ static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 			return res;
 
 		if (handle->bs_hdr)
-			res = check_update_version(handle->bs_hdr);
+			res = check_update_version(ta_ver_db,
+						   handle->bs_hdr->uuid,
+						   handle->bs_hdr->ta_version);
 	}
 	return res;
 }
@@ -565,14 +677,21 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 			      struct ts_store_handle **h)
 {
 	struct buf_ree_fs_ta_handle *handle = NULL;
+	struct ftmn ftmn = { };
 	TEE_Result res = TEE_SUCCESS;
 
 	handle = calloc(1, sizeof(*handle));
 	if (!handle)
 		return TEE_ERROR_OUT_OF_MEMORY;
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("ree_fs_ta_open"));
 	res = ree_fs_ta_open(uuid, &handle->h);
+	if (!res)
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
+	FTMN_POP_LINKED_CALL(&ftmn);
 	if (res)
-		goto err2;
+		goto err_free_handle;
+	ftmn_checkpoint(&ftmn, FTMN_INCR1);
+
 	res = ree_fs_ta_get_size(handle->h, &handle->ta_size);
 	if (res)
 		goto err;
@@ -602,18 +721,26 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;
 	}
+
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("check_digest"));
 	res = ree_fs_ta_read(handle->h, handle->buf, handle->ta_size);
+	if (!res)
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
+	FTMN_POP_LINKED_CALL(&ftmn);
 	if (res)
 		goto err;
+	ftmn_checkpoint(&ftmn, FTMN_INCR1);
+
 	*h = (struct ts_store_handle *)handle;
+	ree_fs_ta_close(handle->h);
+	return ftmn_return_res(&ftmn, FTMN_STEP_COUNT(2, 2), TEE_SUCCESS);
+
 err:
 	ree_fs_ta_close(handle->h);
-err2:
-	if (res) {
-		tee_mm_free(handle->mm);
-		free(handle->tag);
-		free(handle);
-	}
+	tee_mm_free(handle->mm);
+	free(handle->tag);
+err_free_handle:
+	free(handle);
 	return res;
 }
 

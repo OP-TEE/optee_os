@@ -18,6 +18,8 @@
 	aliases {
 		ethernet0 = &ethernet0;
 		serial0 = &uart4;
+		serial1 = &usart3;
+		serial2 = &uart7;
 	};
 
 	chosen {
@@ -25,13 +27,16 @@
 	};
 };
 
-&rcc {
-	status = "okay";
-};
-
 &bsec {
 	board_id: board_id@ec {
 		reg = <0xec 0x4>;
 		st,non-secure-otp;
 	};
+	huk_otp: huk-otp@f0 {
+		reg = <0xf0 0x10>;
+	};
+};
+
+&rcc {
+	status = "okay";
 };

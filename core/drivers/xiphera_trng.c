@@ -37,34 +37,27 @@ static unsigned int trng_lock = SPINLOCK_UNLOCK;
 
 static vaddr_t xiphera_trng_base;
 
+static bool xiphera_trng_random_available(void)
+{
+	uint32_t status = 0;
+
+	status = io_read32(xiphera_trng_base + STATUS_REG);
+
+	return status == TRNG_NEW_RAND_AVAILABLE;
+}
+
 static uint32_t xiphera_trng_read32(void)
 {
 	uint32_t value = 0;
-	uint32_t exceptions = 0;
-	uint32_t status = 0;
 
-	exceptions = cpu_spin_lock_xsave(&trng_lock);
+	value = io_read32(xiphera_trng_base + RAND_REG);
 
-	while (true) {
-		/* Wait until we have value available */
-		status = io_read32(xiphera_trng_base + STATUS_REG);
-		if (status != TRNG_NEW_RAND_AVAILABLE)
-			continue;
-
-		value = io_read32(xiphera_trng_base + RAND_REG);
-
-		/*
-		 * Ack that RNG value has been consumed and trigger new one to
-		 * be generated
-		 */
-		io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_READ);
-		io_write32(xiphera_trng_base + CONTROL_REG,
-			   HOST_TO_TRNG_ENABLE);
-
-		break;
-	}
-
-	cpu_spin_unlock_xrestore(&trng_lock, exceptions);
+	/*
+	 * Ack that RNG value has been consumed and trigger new one to be
+	 * generated
+	 */
+	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_READ);
+	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_ENABLE);
 
 	return value;
 }
@@ -74,7 +67,7 @@ void plat_rng_init(void)
 {
 }
 
-TEE_Result crypto_rng_read(void *buf, size_t len)
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
 {
 	uint8_t *rngbuf = buf;
 	uint32_t val = 0;
@@ -84,31 +77,27 @@ TEE_Result crypto_rng_read(void *buf, size_t len)
 	assert(xiphera_trng_base);
 
 	while (len) {
-		val = xiphera_trng_read32();
-		len_to_copy = MIN(len, sizeof(uint32_t));
-		memcpy(rngbuf, &val, len_to_copy);
-		rngbuf += len_to_copy;
-		len -= len_to_copy;
+		uint32_t exceptions = cpu_spin_lock_xsave(&trng_lock);
+
+		if (xiphera_trng_random_available()) {
+			val = xiphera_trng_read32();
+
+			len_to_copy = MIN(len, sizeof(uint32_t));
+			memcpy(rngbuf, &val, len_to_copy);
+			rngbuf += len_to_copy;
+			len -= len_to_copy;
+		}
+
+		cpu_spin_unlock_xrestore(&trng_lock, exceptions);
 	}
 
 	return TEE_SUCCESS;
 }
 
-uint8_t hw_get_random_byte(void)
-{
-	uint8_t data = 0;
-
-	assert(xiphera_trng_base);
-
-	data = xiphera_trng_read32() & 0xFF;
-
-	return data;
-}
-
 static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 				     const void *compat_data __unused)
 {
-	int dt_status = _fdt_get_status(fdt, node);
+	int dt_status = fdt_get_status(fdt, node);
 	uint32_t status = 0;
 	size_t size = 0;
 
@@ -121,7 +110,7 @@ static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 		return TEE_ERROR_GENERIC;
 	}
 
-	if (dt_map_dev(fdt, node, &xiphera_trng_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &xiphera_trng_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	/*

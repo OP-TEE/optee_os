@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021, Arm Limited. All rights reserved.
+ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
  */
 
 #ifndef PLATFORM_CONFIG_H
@@ -11,15 +11,17 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT		64
 
-#if defined(PLATFORM_FLAVOR_tc0) || defined(PLATFORM_FLAVOR_tc1)
+#if (defined(PLATFORM_FLAVOR_tc0) ||	\
+	defined(PLATFORM_FLAVOR_tc1) ||	\
+	defined(PLATFORM_FLAVOR_tc2))
 #ifndef CFG_CORE_SEL2_SPMC
 #define GIC_BASE		0x30000000
 #define GICD_OFFSET		0x0
 #define GICC_OFFSET		0x0
 #endif
 
-#define UART0_BASE		0x7FF70000
-#define UART1_BASE		0x7FF80000
+#define UART0_BASE		0x2A410000
+#define UART1_BASE		0x2A400000
 
 #define CONSOLE_UART_BASE	UART0_BASE
 

@@ -57,9 +57,10 @@ struct drvcrypt_rsa_ssa {
 };
 
 /*
- * RSA Encrypt/Decript data
+ * RSA Encrypt/Decrypt data
  */
 struct drvcrypt_rsa_ed {
+	uint32_t algo;		     /* Operation algorithm */
 	enum drvcrypt_rsa_id rsa_id; /* RSA Algorithm Id */
 	uint32_t hash_algo;	     /* HASH Algorithm */
 	size_t digest_size;	     /* Hash Digest Size */
@@ -133,13 +134,25 @@ struct drvcrypt_secret_data {
 };
 
 /*
+ * Encrypt/Decrypt data
+ */
+struct drvcrypt_ecc_ed {
+	uint32_t algo;                  /* Operation algorithm */
+	void *key;                      /* Public or Private Key */
+	size_t size_sec;                /* Security size in bytes */
+	struct drvcrypt_buf plaintext;  /* Clear text message */
+	struct drvcrypt_buf ciphertext; /* Encrypted message */
+};
+
+/*
  * Crypto ECC driver operations
  */
 struct drvcrypt_ecc {
 	/* Allocates the ECC keypair */
-	TEE_Result (*alloc_keypair)(struct ecc_keypair *key, size_t size_bits);
+	TEE_Result (*alloc_keypair)(struct ecc_keypair *key, uint32_t type,
+				    size_t size_bits);
 	/* Allocates the ECC public key */
-	TEE_Result (*alloc_publickey)(struct ecc_public_key *key,
+	TEE_Result (*alloc_publickey)(struct ecc_public_key *key, uint32_t type,
 				      size_t size_bits);
 	/* Free ECC public key */
 	void (*free_publickey)(struct ecc_public_key *key);
@@ -151,6 +164,10 @@ struct drvcrypt_ecc {
 	TEE_Result (*verify)(struct drvcrypt_sign_data *sdata);
 	/* ECC Shared Secret */
 	TEE_Result (*shared_secret)(struct drvcrypt_secret_data *sdata);
+	/* ECC Encrypt */
+	TEE_Result (*encrypt)(struct drvcrypt_ecc_ed *cdata);
+	/* ECC Decrypt */
+	TEE_Result (*decrypt)(struct drvcrypt_ecc_ed *cdata);
 };
 
 /*

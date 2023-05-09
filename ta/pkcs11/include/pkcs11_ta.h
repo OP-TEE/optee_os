@@ -900,9 +900,28 @@ enum pkcs11_user_type {
  * Once TEE Identity based authentication is activated following operational
  * changes happen:
  * - PIN failure counters are disabled to prevent token authentication lockups
- * - Switching to different authentication mode needs C_InitToken()
  * - When C_Login() or so is performed actual PIN value is ignored and active
  *   client TEE Identity will be used
+ *
+ * After a successful call to C_InitToken(), one can switch authentication
+ * mode as user credentials have been cleared. After user credentials has been
+ * set authentication mode switching is protected.
+ *
+ * To switch the authentication mode from PIN to TEE Identity:
+ * - Make sure active TEE Identity is set for the TA connection
+ * - Login as SO so that PIN change affects SO
+ * - Call C_SetPIN() with empty PIN to capture current TEE Identity as SO
+ *   credential
+ * - Optional: Successive call to C_SetPIN() can be used for change to other
+ *   TEE Identity vs. current TA connection
+ *
+ * To switch the authentication mode from TEE Identity to PIN:
+ * - Make sure SO's TEE Identity is set for the TA connection
+ * - Login as SO so that PIN change affects SO
+ * - Call C_SetPIN() with any PIN that does not match TEE Identity PIN syntax
+ * - Optional: Successive call to C_SetPIN() can be used to change SO
+ *   credential to any valid PIN if there was collision with TEE Identity PIN
+ *   syntax
  *
  * Different types of TEE Identity authentication methods can be configured:
  * - Configured with C_InitToken(), C_InitPIN() or by C_SetPIN()
@@ -1169,6 +1188,7 @@ enum pkcs11_key_type {
 	PKCS11_CKK_DSA				= 0x001,
 	PKCS11_CKK_DH				= 0x002,
 	PKCS11_CKK_EC				= 0x003,
+	PKCS11_CKK_EDDSA			= 0x004,
 	PKCS11_CKK_GENERIC_SECRET		= 0x010,
 	PKCS11_CKK_AES				= 0x01f,
 	PKCS11_CKK_MD5_HMAC			= 0x027,
@@ -1177,6 +1197,7 @@ enum pkcs11_key_type {
 	PKCS11_CKK_SHA384_HMAC			= 0x02c,
 	PKCS11_CKK_SHA512_HMAC			= 0x02d,
 	PKCS11_CKK_SHA224_HMAC			= 0x02e,
+	PKCS11_CKK_EC_EDWARDS			= 0x040,
 	/* Vendor extension: reserved for undefined ID (~0U) */
 	PKCS11_CKK_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
@@ -1250,6 +1271,9 @@ enum pkcs11_mechanism_id {
 	PKCS11_CKM_ECDSA_SHA384			= 0x01045,
 	PKCS11_CKM_ECDSA_SHA512			= 0x01046,
 	PKCS11_CKM_ECDH1_DERIVE			= 0x01050,
+	PKCS11_CKM_RSA_AES_KEY_WRAP		= 0x01054,
+	PKCS11_CKM_EC_EDWARDS_KEY_PAIR_GEN	= 0x01055,
+	PKCS11_CKM_EDDSA			= 0x01057,
 	PKCS11_CKM_AES_KEY_GEN			= 0x01080,
 	PKCS11_CKM_AES_ECB			= 0x01081,
 	PKCS11_CKM_AES_CBC			= 0x01082,

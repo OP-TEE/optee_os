@@ -40,7 +40,8 @@ TEE_Result syscall_storage_start_enum(unsigned long obj_enum,
 			unsigned long storage_id);
 
 TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
-			TEE_ObjectInfo *info, void *obj_id, uint64_t *len);
+				     struct utee_object_info *info,
+				     void *obj_id, uint64_t *len);
 
 /*
  * Data Stream Access Functions

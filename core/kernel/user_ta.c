@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2015-2021 Linaro Limited
+ * Copyright (c) 2015-2022 Linaro Limited
  * Copyright (c) 2020, Arm Limited.
  */
 
@@ -14,6 +14,7 @@
 #include <kernel/ldelf_loader.h>
 #include <kernel/linker.h>
 #include <kernel/panic.h>
+#include <kernel/scall.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
@@ -37,7 +38,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <ta_pub_key.h>
-#include <tee/arch_svc.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
 #include <tee/tee_svc_cryp.h>
@@ -229,6 +229,13 @@ static void user_ta_enter_close_session(struct ts_session *s)
 		user_ta_enter(s, UTEE_ENTRY_FUNC_CLOSE_SESSION, 0);
 }
 
+#if defined(CFG_TA_STATS)
+static TEE_Result user_ta_enter_dump_memstats(struct ts_session *s)
+{
+	return user_ta_enter(s, UTEE_ENTRY_FUNC_DUMP_MEMSTATS, 0);
+}
+#endif
+
 static void dump_state_no_ldelf_dbg(struct user_ta_ctx *utc)
 {
 	user_mode_ctx_print_mappings(&utc->uctx);
@@ -337,7 +344,6 @@ static void user_ta_gprof_set_status(enum ts_gprof_status status)
 
 static void free_utc(struct user_ta_ctx *utc)
 {
-	tee_pager_rem_um_regions(&utc->uctx);
 
 	/*
 	 * Close sessions opened by this TA
@@ -378,13 +384,16 @@ const struct ts_ops user_ta_ops __weak __relrodata_unpaged("user_ta_ops") = {
 	.enter_open_session = user_ta_enter_open_session,
 	.enter_invoke_cmd = user_ta_enter_invoke_cmd,
 	.enter_close_session = user_ta_enter_close_session,
+#if defined(CFG_TA_STATS)
+	.dump_mem_stats = user_ta_enter_dump_memstats,
+#endif
 	.dump_state = user_ta_dump_state,
 #ifdef CFG_FTRACE_SUPPORT
 	.dump_ftrace = user_ta_dump_ftrace,
 #endif
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
-	.handle_svc = user_ta_handle_svc,
+	.handle_scall = scall_handle_user_ta,
 #ifdef CFG_TA_GPROF_SUPPORT
 	.gprof_set_status = user_ta_gprof_set_status,
 #endif
@@ -421,15 +430,12 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	if (!utc)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	utc->uctx.is_initializing = true;
 	TAILQ_INIT(&utc->open_sessions);
 	TAILQ_INIT(&utc->cryp_states);
 	TAILQ_INIT(&utc->objects);
 	TAILQ_INIT(&utc->storage_enums);
 	condvar_init(&utc->ta_ctx.busy_cv);
 	utc->ta_ctx.ref_count = 1;
-
-	utc->uctx.ts_ctx = &utc->ta_ctx.ts_ctx;
 
 	/*
 	 * Set context TA operation structure. It is required by generic
@@ -438,9 +444,10 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 	set_ta_ctx_ops(&utc->ta_ctx);
 
 	utc->ta_ctx.ts_ctx.uuid = *uuid;
-	res = vm_info_init(&utc->uctx);
+	res = vm_info_init(&utc->uctx, &utc->ta_ctx.ts_ctx);
 	if (res)
 		goto out;
+	utc->uctx.is_initializing = true;
 
 #ifdef CFG_TA_PAUTH
 	crypto_rng_read(&utc->uctx.keys, sizeof(utc->uctx.keys));
@@ -448,7 +455,7 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 
 	mutex_lock(&tee_ta_mutex);
 	s->ts_sess.ctx = &utc->ta_ctx.ts_ctx;
-	s->ts_sess.handle_svc = s->ts_sess.ctx->ops->handle_svc;
+	s->ts_sess.handle_scall = s->ts_sess.ctx->ops->handle_scall;
 	/*
 	 * Another thread trying to load this same TA may need to wait
 	 * until this context is fully initialized. This is needed to
@@ -486,7 +493,6 @@ TEE_Result tee_ta_init_user_ta_session(const TEE_UUID *uuid,
 out:
 	if (res) {
 		condvar_destroy(&utc->ta_ctx.busy_cv);
-		pgt_flush_ctx(&utc->ta_ctx.ts_ctx);
 		free_utc(utc);
 	}
 

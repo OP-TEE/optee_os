@@ -10,9 +10,8 @@
  * 7.18 interger types <stdint.h>
  */
 
-#ifndef STDINT_H
-#define STDINT_H
-#define _STDINT_H
+#ifndef __STDINT_H
+#define __STDINT_H
 
 /*
  * If compiler supplies neither __ILP32__ or __LP64__, try to figure it out
@@ -206,4 +205,4 @@ typedef uint64_t uintmax_t;
 #define INTMAX_C(v)	INT64_C(v)
 #define UINTMAX_C(v)	UINT64_C(v)
 
-#endif /* STDINT_H */
+#endif /* __STDINT_H */

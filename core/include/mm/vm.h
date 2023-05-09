@@ -10,7 +10,7 @@
 #include <kernel/user_ta.h>
 
 /* Allocate context resources like ASID and MMU table information */
-TEE_Result vm_info_init(struct user_mode_ctx *uctx);
+TEE_Result vm_info_init(struct user_mode_ctx *uctx, struct ts_ctx *ts_ctx);
 
 /* Release context resources like ASID */
 void vm_info_final(struct user_mode_ctx *uctx);

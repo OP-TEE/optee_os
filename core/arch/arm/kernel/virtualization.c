@@ -134,18 +134,38 @@ static struct tee_mmap_region *prepare_memory_map(paddr_t tee_data,
 	return map;
 }
 
-void virt_init_memory(struct tee_mmap_region *memory_map)
+void virt_init_memory(struct tee_mmap_region *memory_map, paddr_t secmem0_base,
+		      paddr_size_t secmem0_size, paddr_t secmem1_base,
+		      paddr_size_t secmem1_size)
 {
-	struct tee_mmap_region *map;
+	struct tee_mmap_region *map = NULL;
+	paddr_size_t size = secmem0_size;
+	paddr_t base = secmem0_base;
+
+	if (secmem1_size) {
+		assert(secmem0_base + secmem0_size <= secmem1_base);
+		size = secmem1_base + secmem1_size - base;
+	}
 
 	/* Init page pool that covers all secure RAM */
-	if (!tee_mm_init(&virt_mapper_pool, TEE_RAM_START,
-			 TA_RAM_START + TA_RAM_SIZE,
-			 SMALL_PAGE_SHIFT,
-			 TEE_MM_POOL_NEX_MALLOC))
+	if (!tee_mm_init(&virt_mapper_pool, base, size,
+			 SMALL_PAGE_SHIFT, TEE_MM_POOL_NEX_MALLOC))
 		panic("Can't create pool with free pages");
-	DMSG("Created virtual mapper pool from %x to %x",
-	     TEE_RAM_START, TA_RAM_START + TA_RAM_SIZE);
+	DMSG("Created virtual mapper pool from %"PRIxPA" to %"PRIxPA,
+	     base, base + size);
+
+	if (secmem1_size) {
+		/* Carve out an eventual gap between secmem0 and secmem1 */
+		base = secmem0_base + secmem0_size;
+		size = secmem1_base - base;
+		if (size) {
+			DMSG("Carving out gap between secmem0 and secmem1 (0x%"PRIxPA":0x%"PRIxPASZ")",
+			     base, size);
+			if (!tee_mm_alloc2(&virt_mapper_pool, base, size))
+				panic("Can't carve out secmem gap");
+		}
+	}
+
 
 	/* Carve out areas that are used by OP-TEE core */
 	for (map = memory_map; map->type != MEM_AREA_END; map++) {

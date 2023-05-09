@@ -34,6 +34,9 @@ include mk/$(COMPILER_$(sm)).mk
 
 cppflags$(sm)	:= $(cppflags$(ta-target)) $(CPPFLAGS_$(ta-target)) \
 			-I$(ta-dev-kit-dir$(sm))/include
+ifeq ($(CFG_TA_OPTEE_CORE_API_COMPAT_1_1),y)
+cppflags$(sm)	+= -D__OPTEE_CORE_API_COMPAT_1_1=1
+endif
 cflags$(sm)	:= $(cflags$(ta-target)) $(CFLAGS_$(ta-target))
 aflags$(sm)	:= $(aflags$(ta-target))
 
@@ -63,7 +66,7 @@ additional-compile-deps := $(ta_dev_kit-files-include)
 include mk/compile.mk
 # Install TA libraries before in-tree TAs can be linked
 additional-link-deps := $(ta_dev_kit-files-lib)
-include  ta/arch/$(ARCH)/link.mk
+include  ta/link.mk
 
 ta_dev_kit: $(out-dir)/export-$(ta-target)/ta/$(user-ta-uuid).ta
 

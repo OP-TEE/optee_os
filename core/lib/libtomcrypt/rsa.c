@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2014-2019, Linaro Limited
+ * Copyright (c) 2014-2019, 2022 Linaro Limited
  */
 
 #include <crypto/crypto.h>
+#include <crypto/crypto_impl.h>
+#include <fault_mitigation.h>
+#include <mempool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <tee_api_types.h>
 #include <tee_api_defines_extensions.h>
+#include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -35,6 +38,8 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 #endif
 #if defined(_CFG_CORE_LTC_MD5)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
+	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
 		*ltc_hashindex = find_hash("md5");
 		break;
 #endif
@@ -84,6 +89,10 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
 					    size_t key_size_bits __unused)
+__weak __alias("sw_crypto_acipher_alloc_rsa_keypair");
+
+TEE_Result sw_crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
+					       size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
@@ -109,8 +118,13 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+
 TEE_Result crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
 					       size_t key_size_bits __unused)
+__weak __alias("sw_crypto_acipher_alloc_rsa_public_key");
+
+TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
+						  size_t key_size_bits __unused)
 {
 	memset(s, 0, sizeof(*s));
 	if (!bn_alloc_max(&s->e))
@@ -123,7 +137,11 @@ err:
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
+
 void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
+__weak __alias("sw_crypto_acipher_free_rsa_public_key");
+
+void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
@@ -131,7 +149,11 @@ void crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 	crypto_bignum_free(s->e);
 }
 
+
 void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
+__weak __alias("sw_crypto_acipher_free_rsa_keypair");
+
+void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 {
 	if (!s)
 		return;
@@ -145,7 +167,12 @@ void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 	crypto_bignum_free(s->dq);
 }
 
-TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
+TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+				      size_t key_size)
+__weak __alias("sw_crypto_acipher_gen_rsa_key");
+
+TEE_Result sw_crypto_acipher_gen_rsa_key(struct rsa_keypair *key,
+					 size_t key_size)
 {
 	TEE_Result res;
 	rsa_key ltc_tmp_key;
@@ -191,7 +218,7 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	 * We know the upper bound though.
 	 */
 	blen = _CFG_CORE_LTC_BIGNUM_MAX_BITS / sizeof(uint8_t);
-	buf = malloc(blen);
+	buf = mempool_alloc(mempool_default, blen);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -232,15 +259,21 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 	memcpy(dst, (char *)buf + offset, *dst_len);
 
 out:
-	if (buf)
-		free(buf);
+	mempool_free(mempool_default, buf);
 
 	return res;
 }
 
 TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
-					   const uint8_t *src, size_t src_len,
-					   uint8_t *dst, size_t *dst_len)
+					   const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
+__weak __alias("sw_crypto_acipher_rsanopad_encrypt");
+
+TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -254,8 +287,15 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 }
 
 TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
-					   const uint8_t *src, size_t src_len,
-					   uint8_t *dst, size_t *dst_len)
+					   const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
+__weak __alias("sw_crypto_acipher_rsanopad_decrypt");
+
+TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
+					      const uint8_t *src,
+					      size_t src_len, uint8_t *dst,
+					      size_t *dst_len)
 {
 	TEE_Result res;
 	rsa_key ltc_key = { 0, };
@@ -276,10 +316,20 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	return res;
 }
 
-TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
-					const uint8_t *label, size_t label_len,
-					const uint8_t *src, size_t src_len,
-					uint8_t *dst, size_t *dst_len)
+TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo,
+					struct rsa_keypair *key,
+					const uint8_t *label,
+					size_t label_len, const uint8_t *src,
+					size_t src_len, uint8_t *dst,
+					size_t *dst_len)
+__weak __alias("sw_crypto_acipher_rsaes_decrypt");
+
+TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
+					   struct rsa_keypair *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
@@ -322,7 +372,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		ltc_rsa_algo = LTC_PKCS_1_OAEP;
 	}
 
-	buf = malloc(blen);
+	buf = mempool_alloc(mempool_default, blen);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
@@ -366,17 +416,25 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	memcpy(dst, buf, blen);
 
 out:
-	if (buf)
-		free(buf);
+	mempool_free(mempool_default, buf);
 
 	return res;
 }
 
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
-					const uint8_t *label, size_t label_len,
-					const uint8_t *src, size_t src_len,
-					uint8_t *dst, size_t *dst_len)
+					const uint8_t *label,
+					size_t label_len, const uint8_t *src,
+					size_t src_len, uint8_t *dst,
+					size_t *dst_len)
+__weak __alias("sw_crypto_acipher_rsaes_encrypt");
+
+TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
+					   struct rsa_public_key *key,
+					   const uint8_t *label,
+					   size_t label_len, const uint8_t *src,
+					   size_t src_len, uint8_t *dst,
+					   size_t *dst_len)
 {
 	TEE_Result res;
 	uint32_t mod_size;
@@ -433,6 +491,12 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 				      int salt_len, const uint8_t *msg,
 				      size_t msg_len, uint8_t *sig,
 				      size_t *sig_len)
+__weak __alias("sw_crypto_acipher_rsassa_sign");
+
+TEE_Result sw_crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
+					 int salt_len, const uint8_t *msg,
+					 size_t msg_len, uint8_t *sig,
+					 size_t *sig_len)
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
@@ -464,6 +528,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
@@ -525,6 +590,13 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 					int salt_len, const uint8_t *msg,
 					size_t msg_len, const uint8_t *sig,
 					size_t sig_len)
+__weak __alias("sw_crypto_acipher_rsassa_verify");
+
+TEE_Result sw_crypto_acipher_rsassa_verify(uint32_t algo,
+					   struct rsa_public_key *key,
+					   int salt_len, const uint8_t *msg,
+					   size_t msg_len, const uint8_t *sig,
+					   size_t sig_len)
 {
 	TEE_Result res;
 	uint32_t bigint_size;
@@ -535,6 +607,13 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		.e = key->e,
 		.N = key->n
 	};
+	struct ftmn   ftmn = { };
+
+	/*
+	 * The caller expects to call crypto_acipher_rsassa_verify(),
+	 * update the hash as needed.
+	 */
+	FTMN_CALLEE_SWAP_HASH(FTMN_FUNC_HASH("crypto_acipher_rsassa_verify"));
 
 	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 		res = tee_alg_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
@@ -573,6 +652,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 		break;
+	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
@@ -585,9 +665,18 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		goto err;
 	}
 
+	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("rsa_verify_hash_ex"));
 	ltc_res = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
 				     ltc_hashindex, salt_len, &stat, &ltc_key);
 	res = convert_ltc_verify_status(ltc_res, stat);
+	if (res)
+		FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR0, res);
+	else
+		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, 0);
+	FTMN_POP_LINKED_CALL(&ftmn);
+	FTMN_CALLEE_DONE_CHECK(&ftmn, FTMN_INCR0, FTMN_STEP_COUNT(1), res);
+	return res;
 err:
+	FTMN_CALLEE_DONE_NOT_ZERO(res);
 	return res;
 }

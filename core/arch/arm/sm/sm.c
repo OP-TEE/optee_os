@@ -93,6 +93,12 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 	sm_restore_unbanked_regs(&ctx->sec.ub_regs);
 
 	memcpy(&ctx->sec.r0, args, sizeof(*args));
+
+	if (IS_ENABLED(CFG_CORE_WORKAROUND_ARM_NMFI)) {
+		/* Make sure FIQ is masked when jumping to SMC entry. */
+		ctx->sec.mon_spsr |= CPSR_F;
+	}
+
 	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
 		ctx->sec.mon_lr = (uint32_t)vector_fast_smc_entry;
 	else

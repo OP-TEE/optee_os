@@ -13,6 +13,7 @@
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -252,7 +253,7 @@ static TEE_Result stm32_iwdg_parse_fdt(struct stm32_iwdg_device *iwdg,
 	struct dt_node_info dt_info = { };
 	const fdt32_t *cuint = NULL;
 
-	_fdt_fill_device_info(fdt, &dt_info, node);
+	fdt_fill_device_info(fdt, &dt_info, node);
 
 	if (dt_info.reg == DT_INFO_INVALID_REG ||
 	    dt_info.reg_size == DT_INFO_INVALID_REG_SIZE)

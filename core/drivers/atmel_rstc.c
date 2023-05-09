@@ -6,6 +6,9 @@
 #include <drivers/atmel_rstc.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
+#include <matrix.h>
+#include <sama5d2.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -43,7 +46,12 @@ static TEE_Result atmel_rstc_probe(const void *fdt, int node,
 {
 	size_t size = 0;
 
-	if (dt_map_dev(fdt, node, &rstc_base, &size) < 0)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	matrix_configure_periph_secure(AT91C_ID_SYS);
+
+	if (dt_map_dev(fdt, node, &rstc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;

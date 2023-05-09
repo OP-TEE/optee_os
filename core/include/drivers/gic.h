@@ -20,9 +20,9 @@
 #define GIC_PPI_BASE		U(16)
 #define GIC_SPI_BASE		U(32)
 
-#define GIC_SGI(x)		(x)
-#define GIC_PPI(x)		((x) + GIC_PPI_BASE)
-#define GIC_SPI(x)		((x) + GIC_SPI_BASE)
+#define GIC_SGI_TO_ITNUM(x)	(x)
+#define GIC_PPI_TO_ITNUM(x)	((x) + GIC_PPI_BASE)
+#define GIC_SPI_TO_ITNUM(x)	((x) + GIC_SPI_BASE)
 
 struct gic_data {
 	vaddr_t gicc_base;

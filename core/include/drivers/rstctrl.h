@@ -6,7 +6,6 @@
 #ifndef __DRIVERS_RSTCTRL_H
 #define __DRIVERS_RSTCTRL_H
 
-#include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <stdint.h>
 #include <tee_api_types.h>
@@ -153,6 +152,7 @@ static inline bool rstctrl_ops_is_valid(const struct rstctrl_ops *ops)
  *
  * Return TEE_SUCCESS in case of success
  * Return TEE_ERROR_DEFER_DRIVER_INIT if reset controller is not initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the resets property does not exist
  * Return a TEE_Result compliant code in case of error
  */
 static inline TEE_Result rstctrl_dt_get_by_index(const void *fdt,
@@ -189,6 +189,7 @@ static inline TEE_Result rstctrl_dt_get_by_index(const void *fdt __unused,
  *
  * Return TEE_SUCCESS in case of success
  * Return TEE_ERROR_DEFER_DRIVER_INIT if reset controller is not initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the reset-names property does not exist
  * Return a TEE_Result compliant code in case of error
  */
 TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,

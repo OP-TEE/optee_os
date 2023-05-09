@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2019, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
+ * Copyright 2022-2023 NXP
  */
 
 #ifndef __LDELF_H
@@ -32,6 +33,7 @@ struct ldelf_arg {
 	uint32_t is_32bit;
 	uint32_t flags;
 	uint64_t entry_func;
+	uint64_t load_addr;
 	uint64_t stack_ptr;
 	uint64_t dump_entry;
 	uint64_t ftrace_entry;
@@ -59,8 +61,13 @@ struct dump_entry_arg {
 			uint64_t sp;
 			uint64_t pc;
 		} arm64;
+		struct {
+			unsigned long fp;
+			unsigned long sp;
+			unsigned long pc;
+		} rv;
 	};
-	bool is_arm32;
+	bool is_32bit;
 	size_t num_maps;
 	struct dump_map {
 		vaddr_t va;
@@ -128,7 +135,7 @@ struct dl_entry_arg {
  * ldelf is loaded into memory by TEE Core. BSS is initialized and a
  * stack is allocated and supplied in SP register. A struct ldelf_arg
  * is placed in the stack and a pointer to the struct is provided in
- * r0/x0.
+ * r0/x0 on ARM and in a0/x10 on RISC-V.
  *
  * ldelf relocates itself to the address where it is loaded before the main
  * C routine is called.

@@ -5,8 +5,10 @@
 
 #include <compiler.h>
 #include <console.h>
+#include <drivers/cbmem_console.h>
 #include <drivers/serial.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
@@ -28,7 +30,7 @@ void __weak console_putc(int ch)
 
 void __weak console_flush(void)
 {
-	if (!serial_console)
+	if (!serial_console || !serial_console->ops->flush)
 		return;
 
 	serial_console->ops->flush(serial_console);
@@ -127,6 +129,10 @@ void configure_console_from_dt(void)
 	int offs;
 
 	fdt = get_dt();
+
+	if (IS_ENABLED(CFG_CBMEM_CONSOLE) && cbmem_console_init_from_dt(fdt))
+		return;
+
 	if (get_console_node_from_dt(fdt, &offs, &uart, &parms))
 		return;
 

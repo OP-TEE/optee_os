@@ -11,7 +11,8 @@
 
 struct user_ta_ctx;
 
-TEE_Result syscall_cryp_obj_get_info(unsigned long obj, TEE_ObjectInfo *info);
+TEE_Result syscall_cryp_obj_get_info(unsigned long obj,
+				     struct utee_object_info *info);
 TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
 			unsigned long usage);
 TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,

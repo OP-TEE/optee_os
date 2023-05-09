@@ -1439,7 +1439,7 @@ static int clk_stm32_parse_oscillator_fdt(const void *fdt, int node,
 			return ret;
 
 		if (strncmp(cchar, name, (size_t)ret) ||
-		    _fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
+		    fdt_get_status(fdt, subnode) == DT_STATUS_DISABLED)
 			continue;
 
 		cuint = fdt_getprop(fdt, subnode, "clock-frequency", &ret);
@@ -1457,8 +1457,8 @@ static int clk_stm32_parse_oscillator_fdt(const void *fdt, int node,
 		if (fdt_getprop(fdt, subnode, "st,css", NULL))
 			osci->css = true;
 
-		osci->drive = _fdt_read_uint32_default(fdt, subnode, "st,drive",
-						       LSEDRV_MEDIUM_HIGH);
+		osci->drive = fdt_read_uint32_default(fdt, subnode, "st,drive",
+						      LSEDRV_MEDIUM_HIGH);
 
 		return 0;
 	}
@@ -1498,13 +1498,13 @@ static int clk_stm32_load_vco_config_fdt(const void *fdt, int subnode,
 {
 	int ret = 0;
 
-	ret = _fdt_read_uint32_array(fdt, subnode, "divmn", vco->div_mn,
-				     PLL_DIV_MN_NB);
+	ret = fdt_read_uint32_array(fdt, subnode, "divmn", vco->div_mn,
+				    PLL_DIV_MN_NB);
 	if (ret != 0)
 		return ret;
 
-	ret = _fdt_read_uint32_array(fdt, subnode, "csg", vco->csg,
-				     PLL_CSG_NB);
+	ret = fdt_read_uint32_array(fdt, subnode, "csg", vco->csg,
+				    PLL_CSG_NB);
 
 	vco->csg_enabled = (ret == 0);
 
@@ -1517,9 +1517,9 @@ static int clk_stm32_load_vco_config_fdt(const void *fdt, int subnode,
 	vco->status = RCC_PLLNCR_DIVPEN | RCC_PLLNCR_DIVQEN |
 		      RCC_PLLNCR_DIVREN | RCC_PLLNCR_PLLON;
 
-	vco->frac = _fdt_read_uint32_default(fdt, subnode, "frac", 0);
+	vco->frac = fdt_read_uint32_default(fdt, subnode, "frac", 0);
 
-	vco->src = _fdt_read_uint32_default(fdt, subnode, "src", UINT32_MAX);
+	vco->src = fdt_read_uint32_default(fdt, subnode, "src", UINT32_MAX);
 
 	return 0;
 }
@@ -1527,8 +1527,8 @@ static int clk_stm32_load_vco_config_fdt(const void *fdt, int subnode,
 static int clk_stm32_load_output_config_fdt(const void *fdt, int subnode,
 					    struct stm32_pll_output *output)
 {
-	return _fdt_read_uint32_array(fdt, subnode, "st,pll_div_pqr",
-				      output->output, (int)PLL_DIV_PQR_NB);
+	return fdt_read_uint32_array(fdt, subnode, "st,pll_div_pqr",
+				     output->output, (int)PLL_DIV_PQR_NB);
 }
 
 static int clk_stm32_parse_pll_fdt(const void *fdt, int subnode,
@@ -1611,17 +1611,17 @@ static int stm32_clk_parse_fdt_opp(const void *fdt, int node,
 			panic();
 		}
 
-		opp_cfg->frq = _fdt_read_uint32_default(fdt, subnode,
-							"hz",
-							UINT32_MAX);
+		opp_cfg->frq = fdt_read_uint32_default(fdt, subnode,
+						       "hz",
+						       UINT32_MAX);
 
-		opp_cfg->src = _fdt_read_uint32_default(fdt, subnode,
-							"st,clksrc",
-							UINT32_MAX);
+		opp_cfg->src = fdt_read_uint32_default(fdt, subnode,
+						       "st,clksrc",
+						       UINT32_MAX);
 
-		opp_cfg->div = _fdt_read_uint32_default(fdt, subnode,
-							"st,clkdiv",
-							UINT32_MAX);
+		opp_cfg->div = fdt_read_uint32_default(fdt, subnode,
+						       "st,clkdiv",
+						       UINT32_MAX);
 
 		ret = clk_stm32_parse_pll_fdt(fdt, subnode, &opp_cfg->pll_cfg);
 		if (ret)

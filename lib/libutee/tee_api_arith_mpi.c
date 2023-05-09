@@ -13,7 +13,7 @@
 #include <utee_syscalls.h>
 #include <util.h>
 
-#define MPI_MEMPOOL_SIZE	(12 * 1024)
+#define MPI_MEMPOOL_SIZE	(14 * 1024)
 
 static void __noreturn api_panic(const char *func, int line, const char *msg)
 {
@@ -115,20 +115,30 @@ static void get_mpi(mbedtls_mpi *mpi, const TEE_BigInt *bigInt)
 	}
 }
 
-void TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
+void TEE_BigIntInit(TEE_BigInt *bigInt, size_t len)
 {
 	struct bigint_hdr *hdr = (struct bigint_hdr *)bigInt;
 
+	static_assert(MBEDTLS_MPI_MAX_LIMBS + BIGINT_HDR_SIZE_IN_U32 >=
+		      CFG_TA_BIGNUM_MAX_BITS / 32);
+
 	memset(bigInt, 0, len * sizeof(uint32_t));
 	hdr->sign = 1;
-	if ((len - BIGINT_HDR_SIZE_IN_U32) > MBEDTLS_MPI_MAX_LIMBS)
+
+	/* "gpd.tee.arith.maxBigIntSize" is assigned CFG_TA_BIGNUM_MAX_BITS */
+	if (len > CFG_TA_BIGNUM_MAX_BITS / 4)
 		API_PANIC("Too large bigint");
 	hdr->alloc_size = len - BIGINT_HDR_SIZE_IN_U32;
 }
 
+void __GP11_TEE_BigIntInit(TEE_BigInt *bigInt, uint32_t len)
+{
+	TEE_BigIntInit(bigInt, len);
+}
+
 TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 					    const uint8_t *buffer,
-					    uint32_t bufferLen, int32_t sign)
+					    size_t bufferLen, int32_t sign)
 {
 	TEE_Result res;
 	mbedtls_mpi mpi_dest;
@@ -151,7 +161,15 @@ TEE_Result TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
 	return res;
 }
 
-TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
+TEE_Result __GP11_TEE_BigIntConvertFromOctetString(TEE_BigInt *dest,
+						   const uint8_t *buffer,
+						   uint32_t bufferLen,
+						   int32_t sign)
+{
+	return TEE_BigIntConvertFromOctetString(dest, buffer, bufferLen, sign);
+}
+
+TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, size_t *bufferLen,
 					  const TEE_BigInt *bigInt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -170,6 +188,18 @@ TEE_Result TEE_BigIntConvertToOctetString(uint8_t *buffer, uint32_t *bufferLen,
 
 	mbedtls_mpi_free(&mpi);
 
+	return res;
+}
+
+TEE_Result __GP11_TEE_BigIntConvertToOctetString(uint8_t *buffer,
+						 uint32_t *bufferLen,
+						 const TEE_BigInt *bigInt)
+{
+	TEE_Result res = TEE_SUCCESS;
+	size_t l = *bufferLen;
+
+	res = TEE_BigIntConvertToOctetString(buffer, &l, bigInt);
+	*bufferLen = l;
 	return res;
 }
 
@@ -284,6 +314,12 @@ out:
 	mbedtls_mpi_free(&mpi_dest);
 }
 
+void __GP11_TEE_BigIntShiftRight(TEE_BigInt *dest, const TEE_BigInt *op,
+				 uint32_t bits)
+{
+	TEE_BigIntShiftRight(dest, op, bits);
+}
+
 bool TEE_BigIntGetBit(const TEE_BigInt *src, uint32_t bitIndex)
 {
 	bool rc;
@@ -310,6 +346,53 @@ uint32_t TEE_BigIntGetBitCount(const TEE_BigInt *src)
 	mbedtls_mpi_free(&mpi);
 
 	return rc;
+}
+
+TEE_Result TEE_BigIntSetBit(TEE_BigInt *op, uint32_t bitIndex, bool value)
+{
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_mpi mpi = { };
+	int rc = 0;
+
+	get_mpi(&mpi, op);
+
+	rc = mbedtls_mpi_set_bit(&mpi, bitIndex, value);
+	if (rc)
+		res = TEE_ERROR_OVERFLOW;
+	else
+		res = copy_mpi_to_bigint(&mpi, op);
+
+	mbedtls_mpi_free(&mpi);
+
+	return res;
+}
+
+TEE_Result TEE_BigIntAssign(TEE_BigInt *dest, const TEE_BigInt *src)
+{
+	const struct bigint_hdr *src_hdr = (struct bigint_hdr *)src;
+	struct bigint_hdr *dst_hdr = (struct bigint_hdr *)dest;
+
+	if (dst_hdr == src_hdr)
+		return TEE_SUCCESS;
+
+	if (dst_hdr->alloc_size < src_hdr->nblimbs)
+		return TEE_ERROR_OVERFLOW;
+
+	dst_hdr->nblimbs = src_hdr->nblimbs;
+	dst_hdr->sign = src_hdr->sign;
+	memcpy(dst_hdr + 1, src_hdr + 1, src_hdr->nblimbs * sizeof(uint32_t));
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result TEE_BigIntAbs(TEE_BigInt *dest, const TEE_BigInt *src)
+{
+	TEE_Result res = TEE_BigIntAssign(dest, src);
+
+	if (!res)
+		((struct bigint_hdr *)dest)->sign = 1;
+
+	return res;
 }
 
 static void bigint_binary(TEE_BigInt *dest, const TEE_BigInt *op1,
@@ -597,6 +680,52 @@ static bool mpi_is_even(mbedtls_mpi *x)
 	return !mpi_is_odd(x);
 }
 
+TEE_Result TEE_BigIntExpMod(TEE_BigInt *dest, const TEE_BigInt *op1,
+			    const TEE_BigInt *op2, const TEE_BigInt *n,
+			    const TEE_BigIntFMMContext *context __unused)
+{
+	TEE_Result res = TEE_SUCCESS;
+	mbedtls_mpi mpi_dest = { };
+	mbedtls_mpi mpi_op1 = { };
+	mbedtls_mpi mpi_op2 = { };
+	mbedtls_mpi mpi_n = { };
+	mbedtls_mpi *pop1 = &mpi_op1;
+	mbedtls_mpi *pop2 = &mpi_op2;
+
+	get_mpi(&mpi_dest, dest);
+	get_mpi(&mpi_n, n);
+	if (op1 == dest)
+		pop1 = &mpi_dest;
+	else
+		get_mpi(&mpi_op1, op1);
+
+	if (op2 == dest)
+		pop2 = &mpi_dest;
+	else if (op2 == op1)
+		pop2 = pop1;
+	else
+		get_mpi(&mpi_op2, op2);
+
+	if (mbedtls_mpi_cmp_int(&mpi_n, 2) <= 0)
+		API_PANIC("too small modulus");
+	if (!mpi_is_odd(&mpi_n)) {
+		res = TEE_ERROR_NOT_SUPPORTED;
+		goto out;
+	}
+
+	MPI_CHECK(mbedtls_mpi_exp_mod(&mpi_dest, pop1, pop2, &mpi_n, NULL));
+	MPI_CHECK(copy_mpi_to_bigint(&mpi_dest, dest));
+out:
+	mbedtls_mpi_free(&mpi_dest);
+	mbedtls_mpi_free(&mpi_n);
+	if (pop1 == &mpi_op1)
+		mbedtls_mpi_free(&mpi_op1);
+	if (pop2 == &mpi_op2)
+		mbedtls_mpi_free(&mpi_op2);
+
+	return res;
+}
+
 /*
  * Based on libmpa implementation __mpa_egcd(), modified to work with MPI
  * instead.
@@ -785,26 +914,54 @@ int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
  * own. Performance of RSA operations in TEE Internal API are not affected
  * by this.
  */
-void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len)
+void TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, size_t len)
 {
 	TEE_BigIntInit(bigIntFMM, len);
 }
 
+void __GP11_TEE_BigIntInitFMM(TEE_BigIntFMM *bigIntFMM, uint32_t len)
+{
+	TEE_BigIntInitFMM(bigIntFMM, len);
+}
+
 void TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context __unused,
-			      uint32_t len __unused,
+			      size_t len __unused,
 			      const TEE_BigInt *modulus __unused)
 {
 }
 
-uint32_t TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
+void __GP11_TEE_BigIntInitFMMContext(TEE_BigIntFMMContext *context,
+				     uint32_t len, const TEE_BigInt *modulus)
+{
+	TEE_BigIntInitFMMContext(context, len, modulus);
+}
+
+TEE_Result TEE_BigIntInitFMMContext1(TEE_BigIntFMMContext *context __unused,
+				     size_t len __unused,
+				     const TEE_BigInt *modulus __unused)
+{
+	return TEE_SUCCESS;
+}
+
+size_t TEE_BigIntFMMSizeInU32(size_t modulusSizeInBits)
 {
 	return TEE_BigIntSizeInU32(modulusSizeInBits);
 }
 
-uint32_t TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits __unused)
+uint32_t __GP11_TEE_BigIntFMMSizeInU32(uint32_t modulusSizeInBits)
+{
+	return TEE_BigIntFMMSizeInU32(modulusSizeInBits);
+}
+
+size_t TEE_BigIntFMMContextSizeInU32(size_t modulusSizeInBits __unused)
 {
 	/* Return something larger than 0 to keep malloc() and friends happy */
 	return 1;
+}
+
+uint32_t __GP11_TEE_BigIntFMMContextSizeInU32(uint32_t modulusSizeInBits)
+{
+	return TEE_BigIntFMMContextSizeInU32(modulusSizeInBits);
 }
 
 void TEE_BigIntConvertToFMM(TEE_BigIntFMM *dest, const TEE_BigInt *src,

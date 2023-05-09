@@ -49,7 +49,7 @@ static TEE_Result pta_wd_config(uint32_t param_types,
 
 	sp805_wdt_init(&wd_pd, SEC_WDT_BASE, SEC_WDT_CLK_HZ, timeout);
 
-	sp805_register_itr_handler(&wd_pd, GIC_SPI(SEC_WDT_INTR),
+	sp805_register_itr_handler(&wd_pd, GIC_SPI_TO_ITNUM(SEC_WDT_INTR),
 				   ITRF_TRIGGER_LEVEL, wd_isr_handler);
 	wd_pd.chip.ops->start(&wd_pd.chip);
 

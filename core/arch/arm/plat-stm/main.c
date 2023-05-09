@@ -80,7 +80,8 @@ void console_flush(void)
 	if (ns_resources_ready()) {
 		struct serial_chip *cons = &console_data.chip;
 
-		cons->ops->flush(cons);
+		if (cons->ops->flush)
+			cons->ops->flush(cons);
 	}
 }
 

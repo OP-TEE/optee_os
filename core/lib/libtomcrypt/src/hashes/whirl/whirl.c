@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
    @file whirl.c
@@ -36,7 +29,7 @@ const struct ltc_hash_descriptor whirlpool_desc =
 };
 
 /* the sboxes */
-#define __LTC_WHIRLTAB_C__
+#define LTC_WHIRLTAB_C
 #include "whirltab.c"
 
 /* get a_{i,j} */
@@ -54,9 +47,9 @@ const struct ltc_hash_descriptor whirlpool_desc =
     SB7(GB(a, i-7, 0)))
 
 #ifdef LTC_CLEAN_STACK
-static int _whirlpool_compress(hash_state *md, const unsigned char *buf)
+static int ss_whirlpool_compress(hash_state *md, const unsigned char *buf)
 #else
-static int whirlpool_compress(hash_state *md, const unsigned char *buf)
+static int s_whirlpool_compress(hash_state *md, const unsigned char *buf)
 #endif
 {
    ulong64 K[2][8], T[3][8];
@@ -110,10 +103,10 @@ static int whirlpool_compress(hash_state *md, const unsigned char *buf)
 
 
 #ifdef LTC_CLEAN_STACK
-static int whirlpool_compress(hash_state *md, const unsigned char *buf)
+static int s_whirlpool_compress(hash_state *md, const unsigned char *buf)
 {
    int err;
-   err = _whirlpool_compress(md, buf);
+   err = ss_whirlpool_compress(md, buf);
    burn_stack((5 * 8 * sizeof(ulong64)) + (2 * sizeof(int)));
    return err;
 }
@@ -139,7 +132,7 @@ int whirlpool_init(hash_state * md)
    @param inlen  The length of the data (octets)
    @return CRYPT_OK if successful
 */
-HASH_PROCESS(whirlpool_process, whirlpool_compress, whirlpool, 64)
+HASH_PROCESS(whirlpool_process, s_whirlpool_compress, whirlpool, 64)
 
 /**
    Terminate the hash to get the digest
@@ -172,7 +165,7 @@ int whirlpool_done(hash_state * md, unsigned char *out)
         while (md->whirlpool.curlen < 64) {
             md->whirlpool.buf[md->whirlpool.curlen++] = (unsigned char)0;
         }
-        whirlpool_compress(md, md->whirlpool.buf);
+        s_whirlpool_compress(md, md->whirlpool.buf);
         md->whirlpool.curlen = 0;
     }
 
@@ -183,7 +176,7 @@ int whirlpool_done(hash_state * md, unsigned char *out)
 
     /* store length */
     STORE64H(md->whirlpool.length, md->whirlpool.buf+56);
-    whirlpool_compress(md, md->whirlpool.buf);
+    s_whirlpool_compress(md, md->whirlpool.buf);
 
     /* copy output */
     for (i = 0; i < 8; i++) {
@@ -301,7 +294,3 @@ int  whirlpool_test(void)
 
 #endif
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

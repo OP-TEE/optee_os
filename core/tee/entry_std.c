@@ -254,7 +254,7 @@ static void cleanup_shm_refs(const uint64_t *saved_attr,
 {
 	size_t n;
 
-	for (n = 0; n < num_params; n++) {
+	for (n = 0; n < MIN((unsigned int)TEE_NUM_PARAMS, num_params); n++) {
 		switch (saved_attr[n]) {
 		case OPTEE_MSG_ATTR_TYPE_TMEM_INPUT:
 		case OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT:

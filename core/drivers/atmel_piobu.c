@@ -12,6 +12,7 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -357,7 +358,7 @@ static TEE_Result atmel_secumod_probe(const void *fdt, int node,
 	if (secumod_base)
 		return TEE_ERROR_GENERIC;
 
-	if (dt_map_dev(fdt, node, &secumod_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &secumod_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	secumod_hw_init(fdt, node);

@@ -344,7 +344,7 @@ static TEE_Result at91_pm_dt_dram_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (dt_map_dev(fdt, node, &soc_pm.ramc, &size) < 0)
+	if (dt_map_dev(fdt, node, &soc_pm.ramc, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
@@ -359,10 +359,10 @@ static TEE_Result at91_pm_backup_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (dt_map_dev(fdt, node, &soc_pm.sfrbu, &size) < 0)
+	if (dt_map_dev(fdt, node, &soc_pm.sfrbu, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
-	if (_fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) == DT_STATUS_OK_SEC)
 		matrix_configure_periph_secure(AT91C_ID_SFRBU);
 
 	return TEE_SUCCESS;
@@ -379,10 +379,11 @@ static TEE_Result at91_pm_sram_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_GENERIC;
 
-	if (dt_map_dev(fdt, node, &at91_suspend_sram_base, &size) < 0)
+	if (dt_map_dev(fdt, node, &at91_suspend_sram_base, &size,
+		       DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	at91_suspend_sram_pbase = virt_to_phys((void *)at91_suspend_sram_base);
@@ -412,10 +413,10 @@ static TEE_Result at91_securam_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_GENERIC;
 
-	if (dt_map_dev(fdt, node, &soc_pm.securam, &size) < 0)
+	if (dt_map_dev(fdt, node, &soc_pm.securam, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	res = clk_dt_get_by_index(fdt, node, 0, &clk);
@@ -434,10 +435,10 @@ static TEE_Result at91_securam_init(const void *fdt)
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	if (_fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
+	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_GENERIC;
 
-	if (dt_map_dev(fdt, node, &soc_pm.secumod, &size) < 0)
+	if (dt_map_dev(fdt, node, &soc_pm.secumod, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;

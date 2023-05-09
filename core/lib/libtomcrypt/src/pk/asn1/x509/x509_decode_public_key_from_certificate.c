@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -46,8 +39,9 @@ int x509_decode_public_key_from_certificate(const unsigned char *in, unsigned lo
    unsigned long tmpbuf_len, tmp_inlen;
    ltc_asn1_list *decoded_list = NULL, *l;
 
-   LTC_ARGCHK(in    != NULL);
-   LTC_ARGCHK(inlen != 0);
+   LTC_ARGCHK(in       != NULL);
+   LTC_ARGCHK(inlen    != 0);
+   LTC_ARGCHK(callback != NULL);
 
    tmpbuf_len = inlen;
    tmpbuf = XCALLOC(1, tmpbuf_len);
@@ -87,8 +81,8 @@ int x509_decode_public_key_from_certificate(const unsigned char *in, unsigned lo
                if ((l->type == LTC_ASN1_SEQUENCE)
                      && (l->data != NULL)
                      && LOOKS_LIKE_SPKI(l->child)) {
-                  if (algorithm == PKA_EC) {
-                     err = ecc_import_subject_public_key_info(l->data, l->size, ctx);
+                  if (algorithm == LTC_OID_EC) {
+                     err = callback(l->data, l->size, ctx);
                   } else {
                      err = x509_decode_subject_public_key_info(l->data, l->size,
                                                                algorithm, tmpbuf, &tmpbuf_len,
@@ -113,7 +107,3 @@ LBL_OUT:
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

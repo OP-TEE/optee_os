@@ -49,10 +49,6 @@
 #define TEE_LOAD_ADDR			TEE_RAM_START
 #endif
 
-#define TEE_RAM_VA_START		TEE_RAM_START
-#define TEE_TEXT_VA_START		(TEE_RAM_VA_START + \
-					 (TEE_LOAD_ADDR - TEE_RAM_START))
-
 #ifndef STACK_ALIGNMENT
 #define STACK_ALIGNMENT			(sizeof(long) * U(2))
 #endif
@@ -205,9 +201,10 @@ struct core_mmu_phys_mem {
 
 /* Same as register_phys_mem() but with PGDIR_SIZE granularity */
 #define register_phys_mem_pgdir(type, addr, size) \
-	register_phys_mem(type, ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
-		ROUNDUP(size + addr - ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
-			CORE_MMU_PGDIR_SIZE))
+	__register_memory(#addr, type, ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+			  ROUNDUP(size + addr - \
+					ROUNDDOWN(addr, CORE_MMU_PGDIR_SIZE), \
+				  CORE_MMU_PGDIR_SIZE), phys_mem_map)
 
 #ifdef CFG_SECURE_DATA_PATH
 #define register_sdp_mem(addr, size) \
@@ -289,7 +286,7 @@ bool core_mmu_prefer_tee_ram_at_top(paddr_t paddr);
  * v7 and LPAE MMUs
  *
  * This structure used mostly when virtualization is enabled.
- * When CFG_VIRTUALIZATION==n only default partition exists.
+ * When CFG_NS_VIRTUALIZATION==n only default partition exists.
  */
 struct mmu_partition;
 
@@ -374,7 +371,7 @@ struct core_mmu_table_info {
 	unsigned level;
 	unsigned shift;
 	unsigned num_entries;
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	struct mmu_partition *prtn;
 #endif
 };
@@ -604,7 +601,7 @@ void asid_free(unsigned int asid);
 struct mobj **core_sdp_mem_create_mobjs(void);
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 size_t core_mmu_get_total_pages_size(void);
 struct mmu_partition *core_alloc_mmu_prtn(void *tables);
 void core_free_mmu_prtn(struct mmu_partition *prtn);
@@ -642,6 +639,18 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 		return false;
 	return core_mmu_check_max_pa(end_pa);
 }
+
+/*
+ * core_mmu_get_secure_memory() - get physical secure memory range
+ * @base: base address of secure memory
+ * @size: size of secure memory
+ *
+ * The physical secure memory range returned covers at least the memory
+ * range used by OP-TEE Core, but may cover more memory depending on the
+ * configuration.
+ */
+void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size);
+
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */

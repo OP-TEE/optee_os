@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
    @file rc5.c
@@ -50,7 +43,7 @@ static const ulong32 stab[50] = {
     @return CRYPT_OK if successful
  */
 #ifdef LTC_CLEAN_STACK
-static int _rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
+static int s_rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 #else
 int rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 #endif
@@ -111,7 +104,7 @@ int rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_ke
 int rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_key *skey)
 {
    int x;
-   x = _rc5_setup(key, keylen, num_rounds, skey);
+   x = s_rc5_setup(key, keylen, num_rounds, skey);
    burn_stack(sizeof(ulong32) * 122 + sizeof(int));
    return x;
 }
@@ -125,7 +118,7 @@ int rc5_setup(const unsigned char *key, int keylen, int num_rounds, symmetric_ke
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
+static int s_rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #else
 int rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 #endif
@@ -136,6 +129,10 @@ int rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_
    LTC_ARGCHK(skey != NULL);
    LTC_ARGCHK(pt   != NULL);
    LTC_ARGCHK(ct   != NULL);
+
+   if (skey->rc5.rounds < 12 || skey->rc5.rounds > 24) {
+      return CRYPT_INVALID_ROUNDS;
+   }
 
    LOAD32L(A, &pt[0]);
    LOAD32L(B, &pt[4]);
@@ -167,7 +164,7 @@ int rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_
 #ifdef LTC_CLEAN_STACK
 int rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_key *skey)
 {
-   int err = _rc5_ecb_encrypt(pt, ct, skey);
+   int err = s_rc5_ecb_encrypt(pt, ct, skey);
    burn_stack(sizeof(ulong32) * 2 + sizeof(int));
    return err;
 }
@@ -181,7 +178,7 @@ int rc5_ecb_encrypt(const unsigned char *pt, unsigned char *ct, const symmetric_
   @return CRYPT_OK if successful
 */
 #ifdef LTC_CLEAN_STACK
-static int _rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
+static int s_rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #else
 int rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 #endif
@@ -192,6 +189,10 @@ int rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_
    LTC_ARGCHK(skey != NULL);
    LTC_ARGCHK(pt   != NULL);
    LTC_ARGCHK(ct   != NULL);
+
+   if (skey->rc5.rounds < 12 || skey->rc5.rounds > 24) {
+      return CRYPT_INVALID_ROUNDS;
+   }
 
    LOAD32L(A, &ct[0]);
    LOAD32L(B, &ct[4]);
@@ -224,7 +225,7 @@ int rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_
 #ifdef LTC_CLEAN_STACK
 int rc5_ecb_decrypt(const unsigned char *ct, unsigned char *pt, const symmetric_key *skey)
 {
-   int err = _rc5_ecb_decrypt(ct, pt, skey);
+   int err = s_rc5_ecb_decrypt(ct, pt, skey);
    burn_stack(sizeof(ulong32) * 2 + sizeof(int));
    return err;
 }
@@ -320,7 +321,3 @@ int rc5_keysize(int *keysize)
 
 
 
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

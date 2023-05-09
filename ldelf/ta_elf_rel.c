@@ -478,7 +478,7 @@ static void e32_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 	}
 }
 
-#ifdef ARM64
+#if defined(ARM64) || defined(RV64)
 static void e64_get_sym_name(const Elf64_Sym *sym_tab, size_t num_syms,
 			     const char *str_tab, size_t str_tab_size,
 			     Elf64_Rela *rela, const char **name,
@@ -518,6 +518,7 @@ static void e64_process_dyn_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	*where = val;
 }
 
+#ifdef ARM64
 static void e64_process_tls_tprel_rela(const Elf64_Sym *sym_tab,
 				       size_t num_syms, const char *str_tab,
 				       size_t str_tab_size, Elf64_Rela *rela,
@@ -570,6 +571,7 @@ static void e64_process_tlsdesc_rela(const Elf64_Sym *sym_tab, size_t num_syms,
 	e64_process_tls_tprel_rela(sym_tab, num_syms, str_tab, str_tab_size,
 				   rela, where + 1, elf);
 }
+#endif /*ARM64*/
 
 static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 {
@@ -652,6 +654,7 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 		where = (Elf64_Addr *)(elf->load_addr + rela->r_offset);
 
 		switch (ELF64_R_TYPE(rela->r_info)) {
+#ifdef ARM64
 		case R_AARCH64_NONE:
 			/*
 			 * One would expect linker prevents such useless entry
@@ -692,19 +695,41 @@ static void e64_relocate(struct ta_elf *elf, unsigned int rel_sidx)
 						 str_tab_size, rela, where,
 						 elf);
 			break;
+#endif /*ARM64*/
+#ifdef RV64
+		case R_RISCV_NONE:
+			/*
+			 * One would expect linker prevents such useless entry
+			 * in the relocation table. We still handle this type
+			 * here in case such entries exist.
+			 */
+			break;
+		case R_RISCV_RELATIVE:
+			*where = rela->r_addend + elf->load_addr;
+			break;
+		case R_RISCV_64:
+			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			*where += rela->r_addend;
+			break;
+		case R_RISCV_JUMP_SLOT:
+			e64_process_dyn_rela(sym_tab, num_syms, str_tab,
+					     str_tab_size, rela, where);
+			break;
+#endif /*RV64*/
 		default:
 			err(TEE_ERROR_BAD_FORMAT, "Unknown relocation type %zd",
 			     ELF64_R_TYPE(rela->r_info));
 		}
 	}
 }
-#else /*ARM64*/
+#else /*ARM64 || RV64*/
 static void __noreturn e64_relocate(struct ta_elf *elf __unused,
 				    unsigned int rel_sidx __unused)
 {
 	err(TEE_ERROR_NOT_SUPPORTED, "arm64 not supported");
 }
-#endif /*ARM64*/
+#endif /*ARM64 || RV64*/
 
 void ta_elf_relocate(struct ta_elf *elf)
 {

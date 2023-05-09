@@ -33,9 +33,43 @@ ifeq ($(CFG_CORE_RODATA_NOEXEC),y)
 $(call force,CFG_CORE_RWDATA_NOEXEC,y)
 endif
 
+CFG_MAX_CACHE_LINE_SHIFT ?= 6
+
+CFG_RISCV_SBI	 ?= n
+CFG_RISCV_M_MODE ?= y
+ifeq ($(CFG_RISCV_M_MODE),y)
+ifeq ($(CFG_RISCV_S_MODE),y)
+$(error CFG_RISCV_M_MODE and CFG_RISCV_S_MODE cannot be both 'y')
+else
+$(call force,CFG_RISCV_S_MODE,n)
+$(call force,CFG_RISCV_SBI,n)
+endif
+endif
+ifeq ($(CFG_RISCV_S_MODE),y)
+$(call force,CFG_RISCV_M_MODE,n)
+endif
+ifneq (y,$(call cfg-one-enabled,CFG_RISCV_M_MODE M CFG_RISCV_S_MODE))
+$(error Either CFG_RISCV_M_MODE or CFG_RISCV_S_MODE must be 'y')
+endif
+
+ifeq ($(CFG_RISCV_SBI_CONSOLE),y)
+$(call force,CFG_RISCV_SBI,y)
+endif
+
+# Disable unsupported and other arch-specific flags
+$(call force,CFG_CORE_FFA,n)
+$(call force,CFG_SECURE_PARTITION,n)
+$(call force,CFG_PAGED_USER_TA,n)
+$(call force,CFG_WITH_PAGER,n)
+$(call force,CFG_GIC,n)
+$(call force,CFG_ARM_GICV3,n)
+$(call force,CFG_WITH_VFP,n)
+$(call force,CFG_WITH_STMM_SP,n)
+$(call force,CFG_TA_BTI,n)
+
 core-platform-cppflags	+= -I$(arch-dir)/include
 core-platform-subdirs += \
-	$(addprefix $(arch-dir)/, kernel) $(platform-dir)
+	$(addprefix $(arch-dir)/, kernel mm tee) $(platform-dir)
 
 # more convenient to move it to platform instead
 rv64-platform-cppflags += -mcmodel=medany -march=rv64imafd -mabi=lp64d

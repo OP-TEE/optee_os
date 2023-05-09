@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 #include "tomcrypt_private.h"
 
 /**
@@ -154,7 +147,7 @@ int rc4_done(prng_state *prng)
   @param prng      The PRNG to export
   @return CRYPT_OK if successful
 */
-_LTC_PRNG_EXPORT(rc4)
+LTC_PRNG_EXPORT(rc4)
 
 /**
   Import a PRNG state
@@ -226,7 +219,3 @@ int rc4_test(void)
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

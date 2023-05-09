@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 /**
    @file ocb3_add_aad.c
@@ -22,7 +15,7 @@
    @param aad_block  [in] AAD data (block_len size)
    @return CRYPT_OK if successful
 */
-static int _ocb3_int_aad_add_block(ocb3_state *ocb, const unsigned char *aad_block)
+static int s_ocb3_int_aad_add_block(ocb3_state *ocb, const unsigned char *aad_block)
 {
    unsigned char tmp[MAXBLOCKSIZE];
    int err;
@@ -66,7 +59,7 @@ int ocb3_add_aad(ocb3_state *ocb, const unsigned char *aad, unsigned long aadlen
      ocb->adata_buffer_bytes += l;
 
      if (ocb->adata_buffer_bytes == ocb->block_len) {
-       if ((err = _ocb3_int_aad_add_block(ocb, ocb->adata_buffer)) != CRYPT_OK) {
+       if ((err = s_ocb3_int_aad_add_block(ocb, ocb->adata_buffer)) != CRYPT_OK) {
          return err;
        }
        ocb->adata_buffer_bytes = 0;
@@ -87,7 +80,7 @@ int ocb3_add_aad(ocb3_state *ocb, const unsigned char *aad, unsigned long aadlen
    last_block_len = datalen - full_blocks_len;
 
    for (x=0; x<full_blocks; x++) {
-     if ((err = _ocb3_int_aad_add_block(ocb, data+x*ocb->block_len)) != CRYPT_OK) {
+     if ((err = s_ocb3_int_aad_add_block(ocb, data+x*ocb->block_len)) != CRYPT_OK) {
        return err;
      }
    }
@@ -101,7 +94,3 @@ int ocb3_add_aad(ocb3_state *ocb, const unsigned char *aad, unsigned long aadlen
 }
 
 #endif
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

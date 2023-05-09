@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, Linaro Limited
- * Copyright (c) 2021, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 
 #include <arm32_macros.S>
@@ -12,6 +12,7 @@
 #include <kernel/asan.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/thread_private.h>
+#include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <sm/optee_smc.h>
 #include <sm/teesmc_opteed.h>
@@ -429,7 +430,7 @@ clear_bss:
 	cmp	r0, r1
 	bls	clear_bss
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Clear .nex_bss, this code obviously depends on the linker keeping
 	 * start/end of .bss at least 8 byte aligned.
@@ -510,12 +511,12 @@ shadow_stack_access_ok:
 
 #ifdef CFG_CORE_ASLR
 	/*
-	 * Process relocation information for updating with the new offset.
-	 * We're doing this now before MMU is enabled as some of the memory
-	 * will become write protected.
+	 * Process relocation information for updating with the virtual map
+	 * offset.  We're doing this now before MMU is enabled as some of
+	 * the memory will become write protected.
 	 */
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	/*
 	 * Update cached_mem_end address with load offset since it was
 	 * calculated before relocation.
@@ -538,7 +539,7 @@ shadow_stack_access_ok:
 	bl	console_init
 #endif
 
-#ifdef CFG_VIRTUALIZATION
+#ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
 	 * default_partition which has been relocated now to a different VA
@@ -549,7 +550,7 @@ shadow_stack_access_ok:
 	mov	r0, r4		/* pageable part address */
 	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
 	ldr	r0, =threads
 	ldr	r0, [r0, #THREAD_CTX_STACK_VA_END]
@@ -560,11 +561,19 @@ shadow_stack_access_ok:
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	mov	r0, r6		/* DT address */
+	mov	r1, #0		/* unused */
 	bl	boot_init_primary_late
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 	mov	sp, r9
+#endif
+
+#ifdef _CFG_CORE_STACK_PROTECTOR
+	/* Update stack canary value */
+	bl	plat_get_random_stack_canary
+	ldr	r1, =__stack_chk_guard
+	str	r0, [r1]
 #endif
 
 	/*
@@ -595,17 +604,17 @@ shadow_stack_access_ok:
 	 * next entry. Matches the thread_init_boot_thread() in
 	 * boot.c.
 	 */
-#ifndef CFG_VIRTUALIZATION
+#ifndef CFG_NS_VIRTUALIZATION
 	bl 	thread_clr_boot_thread
 #endif
 
 #ifdef CFG_CORE_FFA
 	ldr	r0, =cpu_on_handler
 	/*
-	 * Compensate for the load offset since cpu_on_handler() is
+	 * Compensate for the virtual map offset since cpu_on_handler() is
 	 * called with MMU off.
 	 */
-	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_LOAD_OFFSET
+	ldr	r1, boot_mmu_config + CORE_MMU_CONFIG_MAP_OFFSET
 	sub	r0, r0, r1
 	bl	thread_spmc_register_secondary_ep
 	b	thread_ffa_msg_wait
@@ -613,7 +622,7 @@ shadow_stack_access_ok:
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	ldr	r0, =boot_mmu_config
-	ldr	r0, [r0, #CORE_MMU_CONFIG_LOAD_OFFSET]
+	ldr	r0, [r0, #CORE_MMU_CONFIG_MAP_OFFSET]
 	ldr	r1, =thread_vector_table
 	/* Pass the vector address returned from main_init */
 	sub	r1, r1, r0
@@ -667,7 +676,7 @@ LOCAL_FUNC relocate , :
 	ldr	r2, [r12, #BOOT_EMBDATA_RELOC_OFFSET]
 	ldr	r3, [r12, #BOOT_EMBDATA_RELOC_LEN]
 
-	mov_imm	r1, TEE_RAM_START
+	mov_imm	r1, TEE_LOAD_ADDR
 	add	r2, r2, r12	/* start of relocations */
 	add	r3, r3, r2	/* end of relocations */
 
@@ -676,9 +685,9 @@ LOCAL_FUNC relocate , :
 	 * compressed format created by get_reloc_bin() in
 	 * scripts/gen_tee_bin.py
 	 *
-	 * All the R_ARM_RELATIVE relocations are translated into a list
-	 * list of 32-bit offsets from TEE_RAM_START. At each address a
-	 * 32-bit value pointed out which increased with the load offset.
+	 * All the R_ARM_RELATIVE relocations are translated into a list of
+	 * 32-bit offsets from TEE_LOAD_ADDR. At each address a 32-bit
+	 * value pointed out which increased with the load offset.
 	 */
 
 #ifdef CFG_WITH_PAGER

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2015-2020, Linaro Limited
+ * Copyright (c) 2015-2022, Linaro Limited
  */
 
 #include <arm64_macros.S>
@@ -35,24 +35,30 @@
 		b.eq	\label
 	.endm
 
-	.macro disable_pauth reg
-#ifdef	CFG_TA_PAUTH
+	.macro pauth_el0_to_el1 reg
+		/*
+		 * If pauth is only enabled in one of core or TA (xor) we
+		 * need to update sctlr.
+		 */
+#if (defined(CFG_TA_PAUTH) && !defined(CFG_CORE_PAUTH)) || \
+    (!defined(CFG_TA_PAUTH) && defined(CFG_CORE_PAUTH))
 		mrs	\reg, sctlr_el1
-		bic     \reg, \reg, #SCTLR_ENIA
-#ifdef CFG_TA_BTI
-		orr     \reg, \reg, #(SCTLR_BT0 | SCTLR_BT1)
-#endif
+		/* Flip the SCTLR_ENIA bit */
+		eor     \reg, \reg, #SCTLR_ENIA
 		msr	sctlr_el1, \reg
 #endif
 	.endm
 
-	.macro enable_pauth reg
-#ifdef	CFG_TA_PAUTH
+	.macro pauth_el1_to_el0 reg
+		/*
+		 * If pauth is only enabled in one of core or TA (xor) we
+		 * need to update sctlr.
+		 */
+#if (defined(CFG_TA_PAUTH) && !defined(CFG_CORE_PAUTH)) || \
+    (!defined(CFG_TA_PAUTH) && defined(CFG_CORE_PAUTH))
 		mrs	\reg, sctlr_el1
-		orr     \reg, \reg, #SCTLR_ENIA
-#ifdef CFG_TA_BTI
-		bic     \reg, \reg, #(SCTLR_BT0 | SCTLR_BT1)
-#endif
+		/* Flip the SCTLR_ENIA bit */
+		eor     \reg, \reg, #SCTLR_ENIA
 		msr	sctlr_el1, \reg
 #endif
 	.endm
@@ -67,20 +73,22 @@ FUNC thread_resume , :
 	ldr	x1, [x0, THREAD_CTX_REGS_TPIDR_EL0]
 	msr	tpidr_el0, x1
 
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	load_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+	write_apiakeyhi	x1
+	write_apiakeylo	x2
+#endif
 	b_if_spsr_is_el0 w3, 1f
 
+#if defined(CFG_CORE_PAUTH) || defined(CFG_TA_PAUTH)
+	/* SCTLR or the APIA key has changed */
+	isb
+#endif
 	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 	return_from_exception
 
 1:
-#ifdef	CFG_TA_PAUTH
-	/* Restore PAC keys before return to el0 */
-	load_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
-	write_apiakeyhi	x1
-	write_apiakeylo	x2
-#endif
-
 	load_xregs x0, THREAD_CTX_REGS_X1, 1, 3
 	ldr	x0, [x0, THREAD_CTX_REGS_X0]
 
@@ -88,6 +96,13 @@ FUNC thread_resume , :
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
 	b	eret_to_el0
 END_FUNC thread_resume
+
+#ifdef CFG_CORE_SEL2_SPMC
+FUNC thread_hvc , :
+	hvc	#0
+	ret
+END_FUNC thread_hvc
+#endif
 
 FUNC thread_smc , :
 	smc	#0
@@ -330,7 +345,7 @@ el0_sync_a64:
 	.balign	128, INV_INSN
 el0_irq_a64:
 	restore_mapping
-	disable_pauth x1
+	pauth_el0_to_el1 x1
 
 	b	elx_irq
 	check_vector_size el0_irq_a64
@@ -338,7 +353,7 @@ el0_irq_a64:
 	.balign	128, INV_INSN
 el0_fiq_a64:
 	restore_mapping
-	disable_pauth x1
+	pauth_el0_to_el1 x1
 
 	b	elx_fiq
 	check_vector_size el0_fiq_a64
@@ -613,7 +628,7 @@ wa_spectre_bhb_el0_serror_a32:
  * that it's always available.
  */
 eret_to_el0:
-	enable_pauth x1
+	pauth_el1_to_el0 x1
 
 #ifdef CFG_CORE_UNMAP_CORE_AT_EL0
 	/* Point to the vector into the reduced mapping */
@@ -779,40 +794,50 @@ thread_excp_vect_end:
 END_FUNC thread_excp_vect
 
 LOCAL_FUNC el0_svc , :
-	disable_pauth x1
+	pauth_el0_to_el1 x1
 	/* get pointer to current thread context in x0 */
 	get_thread_ctx sp, 0, 1, 2
 	mrs	x1, tpidr_el0
 	str	x1, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
 	/* load saved kernel sp */
-	ldr	x0, [x0, #THREAD_CTX_KERN_SP]
+	ldr	x3, [x0, #THREAD_CTX_KERN_SP]
 	/* Keep pointer to initial recod in x1 */
 	mov	x1, sp
 	/* Switch to SP_EL0 and restore kernel sp */
 	msr	spsel, #0
 	mov	x2, sp	/* Save SP_EL0 */
-	mov	sp, x0
+	mov	sp, x3
 
-	/* Make room for struct thread_svc_regs */
-	sub	sp, sp, #THREAD_SVC_REG_SIZE
-	stp	x30,x2, [sp, #THREAD_SVC_REG_X30]
+	/* Make room for struct thread_scall_regs */
+	sub	sp, sp, #THREAD_SCALL_REG_SIZE
+	stp	x30, x2, [sp, #THREAD_SCALL_REG_X30]
+
+#ifdef CFG_TA_PAUTH
+	/* Save APIAKEY */
+	read_apiakeyhi	x2
+	read_apiakeylo	x3
+	stp	x2, x3, [sp, #THREAD_SCALL_REG_APIAKEY_HI]
+#endif
+
+#ifdef CFG_CORE_PAUTH
+	ldp	x2, x3, [x0, #THREAD_CTX_KEYS]
+	write_apiakeyhi	x2
+	write_apiakeylo	x3
+#endif
+#if defined(CFG_CORE_PAUTH) || defined(CFG_TA_PAUTH)
+	/* SCTLR or the APIA key has changed */
+	isb
+#endif
 
 	/* Restore x0-x3 */
 	ldp	x2, x3, [x1, #THREAD_CORE_LOCAL_X2]
 	ldp	x0, x1, [x1, #THREAD_CORE_LOCAL_X0]
 
 	/* Prepare the argument for the handler */
-	store_xregs sp, THREAD_SVC_REG_X0, 0, 14
+	store_xregs sp, THREAD_SCALL_REG_X0, 0, 14
 	mrs	x0, elr_el1
 	mrs	x1, spsr_el1
-	store_xregs sp, THREAD_SVC_REG_ELR, 0, 1
-
-#ifdef CFG_TA_PAUTH
-	/* Save APIAKEY */
-	read_apiakeyhi	x0
-	read_apiakeylo	x1
-	store_xregs sp, THREAD_SVC_REG_APIAKEY_HI, 0, 1
-#endif
+	store_xregs sp, THREAD_SCALL_REG_ELR, 0, 1
 
 	mov	x0, sp
 
@@ -821,14 +846,14 @@ LOCAL_FUNC el0_svc , :
 	 * nothing left in sp_el1. Note that the SVC handler is excepted to
 	 * re-enable foreign interrupts by itself.
 	 */
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	msr	daifclr, #(DAIFBIT_IRQ | DAIFBIT_ABT | DAIFBIT_DBG)
 #else
 	msr	daifclr, #(DAIFBIT_FIQ | DAIFBIT_ABT | DAIFBIT_DBG)
 #endif
 
 	/* Call the handler */
-	bl	thread_svc_handler
+	bl	thread_scall_handler
 
 	/* Mask all maskable exceptions since we're switching back to sp_el1 */
 	msr	daifset, #DAIFBIT_ALL
@@ -842,35 +867,35 @@ LOCAL_FUNC el0_svc , :
 	msr	spsel, #1
 	get_thread_ctx sp, 0, 1, 2
 	msr	spsel, #0
-	add	x1, sp, #THREAD_SVC_REG_SIZE
+	add	x1, sp, #THREAD_SCALL_REG_SIZE
 	str	x1, [x0, #THREAD_CTX_KERN_SP]
 
 	/* Restore registers to the required state and return*/
 	ldr	x1, [x0, #THREAD_CTX_REGS_TPIDR_EL0]
 	msr	tpidr_el0, x1
-	load_xregs sp, THREAD_SVC_REG_ELR, 0, 1
+	load_xregs sp, THREAD_SCALL_REG_ELR, 0, 1
 	msr	elr_el1, x0
 	msr	spsr_el1, x1
-	load_xregs sp, THREAD_SVC_REG_X2, 2, 14
+	load_xregs sp, THREAD_SCALL_REG_X2, 2, 14
 	mov	x30, sp
-	ldr	x0, [x30, #THREAD_SVC_REG_SP_EL0]
+	ldr	x0, [x30, #THREAD_SCALL_REG_SP_EL0]
 	mov	sp, x0
 	b_if_spsr_is_el0 w1, 1f
-	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
-	ldr	x30, [x30, #THREAD_SVC_REG_X30]
+	ldp	x0, x1, [x30, THREAD_SCALL_REG_X0]
+	ldr	x30, [x30, #THREAD_SCALL_REG_X30]
 
 	return_from_exception
 
 1:
 #ifdef	CFG_TA_PAUTH
 	/* Restore APIAKEY */
-	load_xregs x30, THREAD_SVC_REG_APIAKEY_HI, 0, 1
+	load_xregs x30, THREAD_SCALL_REG_APIAKEY_HI, 0, 1
 	write_apiakeyhi	x0
 	write_apiakeylo	x1
 #endif
 
-	ldp	x0, x1, [x30, THREAD_SVC_REG_X0]
-	ldr	x30, [x30, #THREAD_SVC_REG_X30]
+	ldp	x0, x1, [x30, THREAD_SCALL_REG_X0]
+	ldr	x30, [x30, #THREAD_SCALL_REG_X30]
 
 	msr	spsel, #1
 	store_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
@@ -897,7 +922,7 @@ LOCAL_FUNC el1_sync_abort , :
 	b	.Lset_sp
 
 .Lsel_tmp_sp:
-	/* Select tmp stack */
+	/* We have an abort while using the abort stack, select tmp stack */
 	ldr	x2, [x0, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	orr	w1, w1, #THREAD_CLF_TMP	/* flags |= THREAD_CLF_TMP; */
 
@@ -919,8 +944,18 @@ LOCAL_FUNC el1_sync_abort , :
 	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X2]
 	store_xregs sp, THREAD_ABT_REG_X2, 2, 29
 	/* Store x30, elr_el1 */
-	mrs	x0, elr_el1
-	stp	x30, x0, [sp, #THREAD_ABT_REG_X30]
+	mrs	x1, elr_el1
+	stp	x30, x1, [sp, #THREAD_ABT_REG_X30]
+
+#if defined(CFG_CORE_PAUTH)
+	read_apiakeyhi	x2
+	read_apiakeylo	x3
+	stp	x2, x3, [sp, #THREAD_ABT_REGS_APIAKEY_HI]
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_KEYS]
+	write_apiakeyhi	x2
+	write_apiakeylo	x3
+	isb
+#endif
 
 	/*
 	 * Call handler
@@ -952,6 +987,13 @@ LOCAL_FUNC el1_sync_abort , :
 	lsr	w0, w0, #THREAD_CLF_SAVED_SHIFT
 	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
+#if defined(CFG_CORE_PAUTH)
+	ldp	x0, x1, [x3, #THREAD_ABT_REGS_APIAKEY_HI]
+	write_apiakeyhi	x0
+	write_apiakeylo	x1
+	isb
+#endif
+
 	/* Restore x0 to x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 3
 
@@ -961,7 +1003,7 @@ END_FUNC el1_sync_abort
 
 	/* sp_el0 in x3 */
 LOCAL_FUNC el0_sync_abort , :
-	disable_pauth x1
+	pauth_el0_to_el1 x1
 	/*
 	 * Update core local flags
 	 */
@@ -992,8 +1034,25 @@ LOCAL_FUNC el0_sync_abort , :
 	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_X2]
 	store_xregs sp, THREAD_ABT_REG_X2, 2, 29
 	/* Store x30, elr_el1 */
-	mrs	x0, elr_el1
-	stp	x30, x0, [sp, #THREAD_ABT_REG_X30]
+	mrs	x1, elr_el1
+	stp	x30, x1, [sp, #THREAD_ABT_REG_X30]
+
+#if defined(CFG_TA_PAUTH)
+	read_apiakeyhi	x2
+	read_apiakeylo	x3
+	stp	x2, x3, [sp, #THREAD_ABT_REGS_APIAKEY_HI]
+#endif
+
+#if defined(CFG_CORE_PAUTH)
+	ldp	x2, x3, [x0, #THREAD_CORE_LOCAL_KEYS]
+	write_apiakeyhi	x2
+	write_apiakeylo	x3
+#endif
+
+#if defined(CFG_CORE_PAUTH) || defined(CFG_TA_PAUTH)
+	/* SCTLR or the APIA key has changed */
+	isb
+#endif
 
 	/*
 	 * Call handler
@@ -1026,10 +1085,21 @@ LOCAL_FUNC el0_sync_abort , :
 	lsr	w1, w1, #THREAD_CLF_SAVED_SHIFT
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	ldp	x1, x2, [x3, #THREAD_ABT_REGS_APIAKEY_HI]
+	write_apiakeyhi	x1
+	write_apiakeylo	x2
+#endif
+
 	/* Restore x2 to x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
 
 	b_if_spsr_is_el0 w0, 1f
+
+#if defined(CFG_CORE_PAUTH)
+	/* the APIA key has changed */
+	isb
+#endif
 
 	/* Restore x0 to x1 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
@@ -1071,6 +1141,18 @@ END_FUNC el0_sync_abort
 	/* Save original x0..x3 */
 	store_xregs x0, THREAD_CTX_REGS_X0, 10, 13
 
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	/* Save APIAKEY */
+	read_apiakeyhi	x1
+	read_apiakeylo	x2
+	store_xregs x0, THREAD_CTX_REGS_APIAKEY_HI, 1, 2
+#endif
+#if defined(CFG_CORE_PAUTH)
+	ldp	x1, x2, [sp, #THREAD_CORE_LOCAL_KEYS]
+	write_apiakeyhi	x1
+	write_apiakeylo	x2
+	isb
+#endif
 	/* load tmp_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
 	/* Switch to SP_EL0 */
@@ -1122,12 +1204,23 @@ END_FUNC el0_sync_abort
  * 	uint64_t x[19 - 4]; x4..x18
  * 	uint64_t lr;
  * 	uint64_t sp_el0;
+ * #if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+ * 	uint64_t apiakey_hi;
+ * 	uint64_t apiakey_lo;
+ * #endif
  * };
  */
 #define ELX_NINTR_REC_X(x)		(8 * ((x) - 4))
 #define ELX_NINTR_REC_LR		(8 + ELX_NINTR_REC_X(19))
 #define ELX_NINTR_REC_SP_EL0		(8 + ELX_NINTR_REC_LR)
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+#define ELX_NINTR_REG_APIAKEY_HI	(8 + ELX_NINTR_REC_SP_EL0)
+#define ELX_NINTR_REG_APIAKEY_LO	(8 + ELX_NINTR_REG_APIAKEY_HI)
+#define ELX_NINTR_REC_SIZE		(8 + ELX_NINTR_REG_APIAKEY_LO)
+#else
 #define ELX_NINTR_REC_SIZE		(8 + ELX_NINTR_REC_SP_EL0)
+#endif
+
 
 /* The handler of native interrupt. */
 .macro native_intr_handler mode:req
@@ -1144,24 +1237,39 @@ END_FUNC el0_sync_abort
 	orr	w1, w1, #THREAD_CLF_TMP
 	str	w1, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
+	/*
+	 * Save registers on the temp stack that can be corrupted by a call
+	 * to a C function.
+	 *
+	 * Note that we're temporarily using x1 to access the temp stack
+	 * until we're ready to switch to sp_el0 and update sp.
+	 */
 	/* load tmp_stack_va_end */
 	ldr	x1, [sp, #THREAD_CORE_LOCAL_TMP_STACK_VA_END]
-	/* Keep original SP_EL0 */
+	/* Make room for struct elx_nintr_rec */
+	sub	x1, x1, #ELX_NINTR_REC_SIZE
+	/* Store lr and original sp_el0 */
 	mrs	x2, sp_el0
+	stp	x30, x2, [x1, #ELX_NINTR_REC_LR]
+	/* Store x4..x18 */
+	store_xregs x1, ELX_NINTR_REC_X(4), 4, 18
+
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	read_apiakeyhi	x2
+	read_apiakeylo	x3
+	stp	x2, x3, [x1, #ELX_NINTR_REG_APIAKEY_HI]
+#if defined(CFG_CORE_PAUTH)
+	ldp	x2, x3, [sp, #THREAD_CORE_LOCAL_KEYS]
+	write_apiakeyhi	x2
+	write_apiakeylo	x3
+#endif
+	/* SCTLR or the APIA key has changed */
+	isb
+#endif
+
 	/* Switch to SP_EL0 */
 	msr	spsel, #0
 	mov	sp, x1
-
-	/*
-	 * Save registers on stack that can be corrupted by a call to
-	 * a C function
-	 */
-	/* Make room for struct elx_nintr_rec */
-	sub	sp, sp, #ELX_NINTR_REC_SIZE
-	/* Store x4..x18 */
-	store_xregs sp, ELX_NINTR_REC_X(4), 4, 18
-	/* Store lr and original sp_el0 */
-	stp	x30, x2, [sp, #ELX_NINTR_REC_LR]
 
 	bl	thread_check_canaries
 	bl	itr_core_handler
@@ -1169,6 +1277,13 @@ END_FUNC el0_sync_abort
 	/*
 	 * Restore registers
 	 */
+
+#if defined(CFG_TA_PAUTH) || defined(CFG_CORE_PAUTH)
+	ldp	x0, x1, [sp, #ELX_NINTR_REG_APIAKEY_HI]
+	write_apiakeyhi	x0
+	write_apiakeylo	x1
+#endif
+
 	/* Restore x4..x18 */
 	load_xregs sp, ELX_NINTR_REC_X(4), 4, 18
 	/* Load  lr and original sp_el0 */
@@ -1184,9 +1299,15 @@ END_FUNC el0_sync_abort
 	str	w0, [sp, #THREAD_CORE_LOCAL_FLAGS]
 
 	mrs	x0, spsr_el1
+
 	/* Restore x2..x3 */
 	load_xregs sp, THREAD_CORE_LOCAL_X2, 2, 3
 	b_if_spsr_is_el0 w0, 1f
+
+#if defined(CFG_CORE_PAUTH)
+	/* APIA key has changed */
+	isb
+#endif
 
 	/* Restore x0..x1 */
 	load_xregs sp, THREAD_CORE_LOCAL_X0, 0, 1
@@ -1197,7 +1318,7 @@ END_FUNC el0_sync_abort
 .endm
 
 LOCAL_FUNC elx_irq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	native_intr_handler	irq
 #else
 	foreign_intr_handler	irq
@@ -1205,7 +1326,7 @@ LOCAL_FUNC elx_irq , :
 END_FUNC elx_irq
 
 LOCAL_FUNC elx_fiq , :
-#if defined(CFG_ARM_GICV3)
+#if defined(CFG_CORE_IRQ_IS_NATIVE_INTR)
 	foreign_intr_handler	fiq
 #else
 	native_intr_handler	fiq

@@ -1,18 +1,10 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
-/* LibTomCrypt, modular cryptographic library -- Tom St Denis
- *
- * LibTomCrypt is a library that provides various cryptographic
- * algorithms in a highly modular and flexible manner.
- *
- * The library is free for all purposes without any express
- * guarantee it works.
- */
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
 
 #ifdef LTC_HMAC
 typedef struct Hmac_state {
      hash_state     md;
      int            hash;
-     hash_state     hashstate;
      unsigned char  key[MAXBLOCKSIZE];
 } hmac_state;
 
@@ -27,7 +19,8 @@ int hmac_memory(int hash,
 int hmac_memory_multi(int hash,
                 const unsigned char *key,  unsigned long keylen,
                       unsigned char *out,  unsigned long *outlen,
-                const unsigned char *in,   unsigned long inlen, ...);
+                const unsigned char *in,   unsigned long inlen, ...)
+                LTC_NULL_TERMINATED;
 int hmac_file(int hash, const char *fname, const unsigned char *key,
               unsigned long keylen,
               unsigned char *out, unsigned long *outlen);
@@ -55,7 +48,8 @@ int omac_memory(int cipher,
 int omac_memory_multi(int cipher,
                 const unsigned char *key, unsigned long keylen,
                       unsigned char *out, unsigned long *outlen,
-                const unsigned char *in,  unsigned long inlen, ...);
+                const unsigned char *in,  unsigned long inlen, ...)
+                LTC_NULL_TERMINATED;
 int omac_file(int cipher,
               const unsigned char *key, unsigned long keylen,
               const          char *filename,
@@ -91,7 +85,8 @@ int pmac_memory(int cipher,
 int pmac_memory_multi(int cipher,
                 const unsigned char *key, unsigned long keylen,
                       unsigned char *out, unsigned long *outlen,
-                const unsigned char *in, unsigned long inlen, ...);
+                const unsigned char *in, unsigned long inlen, ...)
+                LTC_NULL_TERMINATED;
 
 int pmac_file(int cipher,
              const unsigned char *key, unsigned long keylen,
@@ -120,7 +115,10 @@ int poly1305_init(poly1305_state *st, const unsigned char *key, unsigned long ke
 int poly1305_process(poly1305_state *st, const unsigned char *in, unsigned long inlen);
 int poly1305_done(poly1305_state *st, unsigned char *mac, unsigned long *maclen);
 int poly1305_memory(const unsigned char *key, unsigned long keylen, const unsigned char *in, unsigned long inlen, unsigned char *mac, unsigned long *maclen);
-int poly1305_memory_multi(const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen, const unsigned char *in,  unsigned long inlen, ...);
+int poly1305_memory_multi(const unsigned char *key, unsigned long keylen,
+                                unsigned char *mac, unsigned long *maclen,
+                          const unsigned char *in,  unsigned long inlen, ...)
+                          LTC_NULL_TERMINATED;
 int poly1305_file(const char *fname, const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen);
 int poly1305_test(void);
 #endif /* LTC_POLY1305 */
@@ -131,7 +129,10 @@ int blake2smac_init(blake2smac_state *st, unsigned long outlen, const unsigned c
 int blake2smac_process(blake2smac_state *st, const unsigned char *in, unsigned long inlen);
 int blake2smac_done(blake2smac_state *st, unsigned char *mac, unsigned long *maclen);
 int blake2smac_memory(const unsigned char *key, unsigned long keylen, const unsigned char *in, unsigned long inlen, unsigned char *mac, unsigned long *maclen);
-int blake2smac_memory_multi(const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen, const unsigned char *in,  unsigned long inlen, ...);
+int blake2smac_memory_multi(const unsigned char *key, unsigned long keylen,
+                                  unsigned char *mac, unsigned long *maclen,
+                            const unsigned char *in,  unsigned long inlen, ...)
+                            LTC_NULL_TERMINATED;
 int blake2smac_file(const char *fname, const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen);
 int blake2smac_test(void);
 #endif /* LTC_BLAKE2SMAC */
@@ -142,7 +143,10 @@ int blake2bmac_init(blake2bmac_state *st, unsigned long outlen, const unsigned c
 int blake2bmac_process(blake2bmac_state *st, const unsigned char *in, unsigned long inlen);
 int blake2bmac_done(blake2bmac_state *st, unsigned char *mac, unsigned long *maclen);
 int blake2bmac_memory(const unsigned char *key, unsigned long keylen, const unsigned char *in, unsigned long inlen, unsigned char *mac, unsigned long *maclen);
-int blake2bmac_memory_multi(const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen, const unsigned char *in,  unsigned long inlen, ...);
+int blake2bmac_memory_multi(const unsigned char *key, unsigned long keylen,
+                                  unsigned char *mac, unsigned long *maclen,
+                            const unsigned char *in,  unsigned long inlen, ...)
+                            LTC_NULL_TERMINATED;
 int blake2bmac_file(const char *fname, const unsigned char *key, unsigned long keylen, unsigned char *mac, unsigned long *maclen);
 int blake2bmac_test(void);
 #endif /* LTC_BLAKE2BMAC */
@@ -194,7 +198,8 @@ int xcbc_memory(int cipher,
 int xcbc_memory_multi(int cipher,
                 const unsigned char *key, unsigned long keylen,
                       unsigned char *out, unsigned long *outlen,
-                const unsigned char *in,  unsigned long inlen, ...);
+                const unsigned char *in,  unsigned long inlen, ...)
+                LTC_NULL_TERMINATED;
 int xcbc_file(int cipher,
               const unsigned char *key, unsigned long keylen,
               const          char *filename,
@@ -228,7 +233,8 @@ int f9_memory(int cipher,
 int f9_memory_multi(int cipher,
                 const unsigned char *key, unsigned long keylen,
                       unsigned char *out, unsigned long *outlen,
-                const unsigned char *in,  unsigned long inlen, ...);
+                const unsigned char *in,  unsigned long inlen, ...)
+                LTC_NULL_TERMINATED;
 int f9_file(int cipher,
               const unsigned char *key, unsigned long keylen,
               const          char *fname,
@@ -403,7 +409,7 @@ int ocb3_test(void);
 typedef struct {
    symmetric_key       K;
    int                 cipher,               /* which cipher */
-                       taglen,               /* length of the tag */
+                       taglen,               /* length of the tag (encoded in M value) */
                        x;                    /* index in PAD */
 
    unsigned long       L,                    /* L value */
@@ -413,7 +419,7 @@ typedef struct {
                        current_aadlen,       /* length of the currently provided add */
                        noncelen;             /* length of the nonce */
 
-   unsigned char       PAD[16],
+   unsigned char       PAD[16],              /* flags | Nonce N | l(m) */
                        ctr[16],
                        CTRPAD[16],
                        CTRlen;
@@ -490,7 +496,7 @@ typedef struct {
 #ifdef LTC_GCM_TABLES
    unsigned char       PC[16][256][16]  /* 16 tables of 8x128 */
 #ifdef LTC_GCM_TABLES_SSE2
-__attribute__ ((aligned (16)))
+LTC_ALIGN(16)
 #endif
 ;
 #endif
@@ -559,7 +565,3 @@ int chacha20poly1305_memory(const unsigned char *key, unsigned long keylen,
 int chacha20poly1305_test(void);
 
 #endif /* LTC_CHACHA20POLY1305_MODE */
-
-/* ref:         $Format:%D$ */
-/* git commit:  $Format:%H$ */
-/* commit time: $Format:%ai$ */

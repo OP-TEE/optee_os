@@ -11,6 +11,13 @@
 /* Make stacks aligned to data cache line length */
 #define STACK_ALIGNMENT			32
 
+/* Translation table */
+#ifdef CFG_WITH_LPAE
+#define MAX_XLAT_TABLES			4
+#else
+#define MAX_XLAT_TABLES			8
+#endif
+
 /* SoC interface registers base address ranges */
 #define APB1_BASE			0x40000000
 #define APB1_SIZE			0x0001d000
@@ -58,6 +65,7 @@
 #define GPIOZ_BASE			0x54004000
 #define HASH1_BASE			0x54002000
 #define I2C4_BASE			0x5c002000
+#define I2C5_BASE			0x40015000
 #define I2C6_BASE			0x5c009000
 #define IWDG1_BASE			0x5c003000
 #define IWDG2_BASE			0x5a002000
@@ -108,21 +116,18 @@
 
 #define OTP_MAX_SIZE			(STM32MP1_OTP_MAX_ID + 1U)
 
-#define DATA0_OTP			0
-#define PART_NUMBER_OTP			1
-#define MONOTONIC_OTP			4
-#define NAND_OTP			9
-#define UID0_OTP			13
-#define UID1_OTP			14
-#define UID2_OTP			15
-#define HW2_OTP				18
+/* Bit map for BSEC word CFG0_OTP */
+#ifdef CFG_STM32MP13
+#define CFG0_OTP_CLOSED_DEVICE		U(0x3F)
+#endif
+#ifdef CFG_STM32MP15
+#define CFG0_OTP_CLOSED_DEVICE		BIT(6)
+#endif
 
 /* Bit map for BSEC word HW2_OTP */
 #define HW2_OTP_IWDG_HW_ENABLE_SHIFT	U(3)
 #define HW2_OTP_IWDG_FZ_STOP_SHIFT	U(5)
 #define HW2_OTP_IWDG_FZ_STANDBY_SHIFT	U(7)
-
-#define DATA0_OTP_SECURED_POS		6
 
 /* GIC resources */
 #define GIC_SIZE			0x2000
@@ -199,7 +204,11 @@
 #define USART6_BASE			UART6_BASE
 
 /* SYSRAM layout */
+#ifdef CFG_STM32MP13
+#define SYSRAM_SIZE			0x20000
+#else /* Assume CFG_STM32MP15 */
 #define SYSRAM_SIZE			0x40000
+#endif
 #define SYSRAM_NS_SIZE			(SYSRAM_SIZE - SYSRAM_SEC_SIZE)
 
 /* Non-secure SYSRAM must be above (higher addresses) secure SYSRAM */

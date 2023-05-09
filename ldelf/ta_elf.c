@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2019, Linaro Limited
- * Copyright (c) 2020, Arm Limited
+ * Copyright (c) 2020-2023, Arm Limited
  */
 
 #include <assert.h>
@@ -98,6 +98,7 @@ struct ta_elf *ta_elf_find_elf(const TEE_UUID *uuid)
 	return NULL;
 }
 
+#if defined(ARM32) || defined(ARM64)
 static TEE_Result e32_parse_ehdr(struct ta_elf *elf, Elf32_Ehdr *ehdr)
 {
 	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
@@ -156,6 +157,38 @@ static TEE_Result e64_parse_ehdr(struct ta_elf *elf __unused,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /*ARM64*/
+#endif /* ARM32 || ARM64 */
+
+#if defined(RV64)
+static TEE_Result e32_parse_ehdr(struct ta_elf *elf __unused,
+				 Elf32_Ehdr *ehdr __unused)
+{
+		return TEE_ERROR_BAD_FORMAT;
+}
+
+static TEE_Result e64_parse_ehdr(struct ta_elf *elf, Elf64_Ehdr *ehdr)
+{
+	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    ehdr->e_ident[EI_CLASS] != ELFCLASS64 ||
+	    ehdr->e_ident[EI_DATA] != ELFDATA2LSB ||
+	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
+	    ehdr->e_type != ET_DYN || ehdr->e_machine != EM_RISCV ||
+	    ehdr->e_phentsize != sizeof(Elf64_Phdr) ||
+	    ehdr->e_shentsize != sizeof(Elf64_Shdr))
+		return TEE_ERROR_BAD_FORMAT;
+
+	elf->is_32bit = false;
+	elf->e_entry = ehdr->e_entry;
+	elf->e_phoff = ehdr->e_phoff;
+	elf->e_shoff = ehdr->e_shoff;
+	elf->e_phnum = ehdr->e_phnum;
+	elf->e_shnum = ehdr->e_shnum;
+	elf->e_phentsize = ehdr->e_phentsize;
+	elf->e_shentsize = ehdr->e_shentsize;
+
+	return TEE_SUCCESS;
+}
+#endif /* RV64 */
 
 static void check_phdr_in_range(struct ta_elf *elf, unsigned int type,
 				vaddr_t addr, size_t memsz)
@@ -1241,7 +1274,7 @@ void ta_elf_load_main(const TEE_UUID *uuid, uint32_t *is_32bit, uint64_t *sp,
 	ta_stack_size = elf->head->stack_size;
 }
 
-void ta_elf_finalize_load_main(uint64_t *entry)
+void ta_elf_finalize_load_main(uint64_t *entry, uint64_t *load_addr)
 {
 	struct ta_elf *elf = TAILQ_FIRST(&main_elf_queue);
 	TEE_Result res = TEE_SUCCESS;
@@ -1259,6 +1292,8 @@ void ta_elf_finalize_load_main(uint64_t *entry)
 		*entry = elf->head->depr_entry;
 	else
 		*entry = elf->e_entry + elf->load_addr;
+
+	*load_addr = elf->load_addr;
 }
 
 

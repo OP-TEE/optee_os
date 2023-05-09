@@ -7,7 +7,7 @@ include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_ARM64_core = y
 endif #npcm845x
 CFG_USER_TA_TARGETS ?= ta_arm64
-$(call force,DEBUG,1)
+DEBUG ?= 1
 
 ifeq ($(platform-debugger-arm),1)
 # ARM debugger needs this
