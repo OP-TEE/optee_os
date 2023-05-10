@@ -20,7 +20,7 @@
  * DT_DRIVER_UART   UART driver currently designed for console means
  * DT_DRIVER_CLK    Clock controller using generic clock DT bindings
  * DT_DRIVER_RSTCTRL Reset controller using generic reset DT bindings
- * DT_DRIVER_I2C    I2C bus controlle using generic I2C bus DT bindings
+ * DT_DRIVER_I2C    I2C bus controller using generic I2C bus DT bindings
  * DT_DRIVER_GPIO   GPIO controller using generic GPIO DT bindings
  */
 enum dt_driver_type {
