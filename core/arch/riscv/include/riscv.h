@@ -80,6 +80,46 @@
 
 #ifndef __ASSEMBLER__
 
+#define read_csr(csr)							\
+	({								\
+		unsigned long __tmp;					\
+		asm volatile ("csrr %0, %1" : "=r"(__tmp) : "i"(csr));	\
+		__tmp;							\
+	})
+
+#define write_csr(csr, val)						\
+	({								\
+		asm volatile ("csrw %0, %1" : : "i"(csr), "rK"(val));	\
+	})
+
+#define swap_csr(csr, val)						\
+	({								\
+		unsigned long __tmp;					\
+		asm volatile ("csrrw %0, %1, %2"			\
+			      : "=r"(__tmp) : "i"(csr), "rK"(val));	\
+		__tmp;							\
+	})
+
+#define set_csr(csr, bit)						\
+	({								\
+		unsigned long __tmp;					\
+		asm volatile ("csrrs %0, %1, %2"			\
+			      : "=r"(__tmp) : "i"(csr), "rK"(bit));	\
+		__tmp;							\
+	})
+
+#define clear_csr(csr, bit)						\
+	({								\
+		unsigned long __tmp;					\
+		asm volatile ("csrrc %0, %1, %2"			\
+			      : "=r"(__tmp) : "i"(csr), "rK"(bit));	\
+		__tmp;							\
+	})
+
+#define rdtime() read_csr(CSR_TIME)
+#define rdcycle() read_csr(CSR_CYCLE)
+#define rdinstret() read_csr(CSR_INSTRET)
+
 static inline __noprof void mb(void)
 {
 	asm volatile ("fence" : : : "memory");
