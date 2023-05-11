@@ -73,7 +73,12 @@ static void stm32_gate_endisable(uint16_t gate_id, bool enable)
 			io_write32(addr, BIT(gate->bit_idx));
 		else
 			io_setbits32_stm32shregs(addr, BIT(gate->bit_idx));
+		/* Make sure the clock is enabled before returning to caller */
+		dsb();
 	} else {
+		/* Waiting pending operation before disabling clock */
+		dsb();
+
 		if (gate->set_clr)
 			io_write32(addr + RCC_MP_ENCLRR_OFFSET,
 				   BIT(gate->bit_idx));
