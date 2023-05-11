@@ -139,6 +139,9 @@ static TEE_Result stm32mp1_iocomp(void)
 
 	enable_io_compensation(SYSCFG_CMPCR);
 
+	/* Make sure the write above is visible */
+	dsb();
+
 	return TEE_SUCCESS;
 }
 
@@ -148,6 +151,9 @@ driver_init(stm32mp1_iocomp);
 void stm32mp_set_vddsd_comp_state(enum stm32mp13_vddsd_comp_id id, bool enable)
 {
 	int cmpcr_offset = 0;
+
+	/* Make sure the previous operations are visible */
+	dsb();
 
 	switch (id) {
 	case SYSCFG_IO_COMP_IDX_SD1:
@@ -164,12 +170,18 @@ void stm32mp_set_vddsd_comp_state(enum stm32mp13_vddsd_comp_id id, bool enable)
 		enable_io_compensation(cmpcr_offset);
 	else
 		disable_io_compensation(cmpcr_offset);
+
+	/* Make sure the write above is visible */
+	dsb();
 }
 
 void stm32mp_set_hslv_state(enum stm32mp13_hslv_id id, bool enable)
 {
 	size_t hslvenxr_offset = 0;
 	uint32_t hlvs_value = 0;
+
+	/* Make sure the previous operations are visible */
+	dsb();
 
 	assert(id < SYSCFG_HSLV_COUNT);
 
@@ -206,11 +218,15 @@ void stm32mp_enable_fixed_vdd_hslv(void)
 #ifdef CFG_STM32MP15
 void stm32mp_enable_fixed_vdd_hslv(void)
 {
+	dsb();
+
 	io_write32(get_syscfg_base() + SYSCFG_IOCTRLSETR,
 		   SYSCFG_IOCTRLSETR_HSLVEN_TRACE |
 		   SYSCFG_IOCTRLSETR_HSLVEN_QUADSPI |
 		   SYSCFG_IOCTRLSETR_HSLVEN_ETH |
 		   SYSCFG_IOCTRLSETR_HSLVEN_SDMMC |
 		   SYSCFG_IOCTRLSETR_HSLVEN_SPI);
+
+	dsb();
 }
 #endif
