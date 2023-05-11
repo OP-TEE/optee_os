@@ -9,6 +9,7 @@
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
+#include <memutils.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <stdint.h>
@@ -29,7 +30,6 @@
 
 #define ELE_CMD_SESSION_OPEN	    0x10
 #define ELE_CMD_SESSION_CLOSE	    0x11
-#define ELE_CMD_SESSION_DEVICE_INFO 0x16
 #define ELE_CMD_RNG_GET		    0xCD
 #define ELE_CMD_TRNG_STATE	    0xA4
 #define ELE_CMD_GET_INFO	    0xDA
@@ -52,28 +52,21 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MU_BASE, MU_SIZE);
 
-struct get_info_msg_rsp {
+struct get_info_rsp {
 	uint32_t rsp_code;
 	uint16_t soc_id;
 	uint16_t soc_rev;
 	uint16_t lifecycle;
-	uint16_t sssm_state;
+	uint8_t sssm_state;
+	uint8_t unused_1;
 	uint32_t uid[4];
 	uint32_t sha256_rom_patch[8];
-	uint32_t sha256_fw[8];
-} __packed;
-
-struct session_get_device_info_rsp {
-	uint32_t rsp_code;
-	uint32_t user_sab_id;
-	uint32_t chip_uid[4];
-	uint16_t chip_life_cycle;
-	uint16_t chip_monotonic_counter;
-	uint32_t ele_version;
-	uint32_t ele_version_ext;
-	uint8_t fips_mode;
-	uint8_t reserved[3];
-	uint32_t crc;
+	uint32_t sha256_firmware[8];
+	uint32_t oem_srkh[16];
+	uint8_t trng_state;
+	uint8_t csal_state;
+	uint8_t imem_state;
+	uint8_t unused_2;
 } __packed;
 
 struct response_code {
@@ -246,50 +239,11 @@ TEE_Result imx_ele_call(struct imx_mu_msg *msg)
 }
 
 /*
- * Get device information from EdgeLock Enclave
- *
- * @session_handle EdgeLock Enclave session handle
- * @rsp Device info
- */
-static TEE_Result
-imx_ele_session_get_device_info(uint32_t session_handle,
-				struct session_get_device_info_rsp *rsp)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct session_get_device_info_cmd {
-		uint32_t session_handle;
-	} cmd = {
-		.session_handle = session_handle,
-	};
-	struct imx_mu_msg msg = {
-		.header.version = ELE_VERSION_HSM,
-		.header.size = SIZE_MSG_32(cmd),
-		.header.tag = ELE_REQUEST_TAG,
-		.header.command = ELE_CMD_SESSION_DEVICE_INFO,
-	};
-
-	assert(rsp);
-
-	memcpy(msg.data.u8, &cmd, sizeof(cmd));
-
-	res = imx_ele_call(&msg);
-	if (res)
-		return res;
-
-	memcpy(rsp, msg.data.u32, sizeof(*rsp));
-
-	if (compute_crc(&msg) != rsp->crc)
-		return TEE_ERROR_CORRUPT_OBJECT;
-
-	return TEE_SUCCESS;
-}
-
-/*
  * Open a session with EdgeLock Enclave. It returns a session handle.
  *
  * @session_handle EdgeLock Enclave session handle
  */
-static TEE_Result imx_ele_session_open(uint32_t *session_handle)
+static TEE_Result __maybe_unused imx_ele_session_open(uint32_t *session_handle)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct open_session_cmd {
@@ -340,7 +294,7 @@ static TEE_Result imx_ele_session_open(uint32_t *session_handle)
  *
  * @session_handle EdgeLock Enclave session handle
  */
-static TEE_Result imx_ele_session_close(uint32_t session_handle)
+static TEE_Result __maybe_unused imx_ele_session_close(uint32_t session_handle)
 {
 	struct close_session_cmd {
 		uint32_t session_handle;
@@ -359,37 +313,65 @@ static TEE_Result imx_ele_session_close(uint32_t session_handle)
 	return imx_ele_call(&msg);
 }
 
-int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+static TEE_Result imx_ele_get_device_info(struct get_info_rsp *rsp)
 {
-	uint32_t session_handle = 0;
-	/*
-	 * The die ID must be cached because some board configuration prevents
-	 * the MU to be used by OPTEE at runtime.
-	 */
-	static struct session_get_device_info_rsp rsp;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct imx_ele_buf output = { };
+	struct {
+		uint32_t addr_msb;
+		uint32_t addr_lsb;
+		uint16_t size;
+	} __packed cmd = { };
+	struct imx_mu_msg msg = {
+		.header.version = ELE_VERSION_BASELINE,
+		.header.size = SIZE_MSG_32(cmd),
+		.header.tag = ELE_REQUEST_TAG,
+		.header.command = ELE_CMD_GET_INFO,
+	};
 
-	if (rsp.rsp_code)
+	if (!rsp)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = imx_ele_buf_alloc(&output, NULL, sizeof(*rsp));
+	if (res)
 		goto out;
 
-	if (imx_ele_session_open(&session_handle))
-		goto err;
+	cmd.addr_msb = output.paddr_msb;
+	cmd.addr_lsb = output.paddr_lsb;
+	cmd.size = sizeof(*rsp);
 
-	if (imx_ele_session_get_device_info(session_handle, &rsp))
-		goto err;
+	memcpy(msg.data.u8, &cmd, sizeof(cmd));
 
-	if (imx_ele_session_close(session_handle))
-		goto err;
+	res = imx_ele_call(&msg);
+	if (res)
+		goto out;
 
+	res = imx_ele_buf_copy(&output, (uint8_t *)rsp, sizeof(*rsp));
 out:
-	/*
-	 * In the device info array return by the ELE, the words 2, 3, 4 and 5
-	 * are the device UID.
-	 */
-	memcpy(buffer, rsp.chip_uid, MIN(sizeof(rsp.chip_uid), len));
+	imx_ele_buf_free(&output);
+
+	return res;
+}
+
+int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+{
+	static uint32_t uid[4];
+	static bool is_fetched;
+	struct get_info_rsp rsp = { };
+
+	assert(buffer && len);
+
+	if (!is_fetched) {
+		if (imx_ele_get_device_info(&rsp))
+			panic("Fail to get the device UID");
+
+		memcpy(uid, rsp.uid, MIN(sizeof(rsp.uid), len));
+		is_fetched = true;
+	}
+
+	memcpy(buffer, uid, MIN(sizeof(uid), len));
 
 	return 0;
-err:
-	panic("Fail to get the device UID");
 }
 
 #if defined(CFG_MX93) || defined(CFG_MX91)
