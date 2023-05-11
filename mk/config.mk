@@ -881,6 +881,10 @@ $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
 # OP-TEE core to provide reset controls on subsystems of the devices.
 CFG_DRIVERS_RSTCTRL ?= n
 
+# When enabled, CFG_DRIVERS_GPIO embeds a GPIO controller framework in
+# OP-TEE core to provide GPIO support for drivers.
+CFG_DRIVERS_GPIO ?= n
+
 # When enabled, CFG_DRIVERS_I2C provides I2C controller and devices support.
 CFG_DRIVERS_I2C ?= n
 
