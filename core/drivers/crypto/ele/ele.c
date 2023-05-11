@@ -375,14 +375,10 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 }
 
 #if defined(CFG_MX93) || defined(CFG_MX91)
-TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+static TEE_Result imx_ele_derive_key(const uint8_t *ctx, size_t ctx_size,
+				     uint8_t *key, size_t key_size)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const char pattern[16] __aligned(CACHELINE_SIZE) = "TEE_for_HUK_ELE";
-	static uint8_t key[CACHELINE_SIZE] __aligned(CACHELINE_SIZE);
-	static bool is_fetched;
-	uint32_t msb = 0;
-	uint32_t lsb = 0;
 	struct key_derive_cmd {
 		uint32_t key_addr_msb;
 		uint32_t key_addr_lsb;
@@ -398,38 +394,58 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		.header.tag = ELE_REQUEST_TAG,
 		.header.command = ELE_CMD_DERIVE_KEY,
 	};
+	struct imx_ele_buf ele_ctx = { };
+	struct imx_ele_buf ele_key = { };
 
-	if (is_fetched)
+	assert(ctx && key);
+
+	if (key_size != 16 && key_size != 32)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = imx_ele_buf_alloc(&ele_ctx, ctx, ctx_size);
+	if (res)
 		goto out;
 
-	/*
-	 * Intermediate msb and lsb values are needed. Directly using
-	 * key_addr_msb and key_addr_lsb might be unaligned because of the
-	 * __packed attribute of key_derive_cmd {}
-	 */
-	reg_pair_from_64((uint64_t)virt_to_phys(key), &msb, &lsb);
+	res = imx_ele_buf_alloc(&ele_key, key, key_size);
+	if (res)
+		goto out;
 
-	cmd.key_addr_lsb = lsb;
-	cmd.key_addr_msb = msb;
-	cmd.key_size = HW_UNIQUE_KEY_LENGTH;
+	cmd.key_addr_lsb = ele_key.paddr_lsb;
+	cmd.key_addr_msb = ele_key.paddr_msb;
+	cmd.key_size = key_size;
 
-	reg_pair_from_64((uint64_t)virt_to_phys((void *)pattern), &msb, &lsb);
-
-	cmd.ctx_addr_lsb = lsb;
-	cmd.ctx_addr_msb = msb;
-	cmd.ctx_size = sizeof(pattern);
+	cmd.ctx_addr_lsb = ele_ctx.paddr_lsb;
+	cmd.ctx_addr_msb = ele_ctx.paddr_msb;
+	cmd.ctx_size = ctx_size;
 
 	memcpy(msg.data.u8, &cmd, sizeof(cmd));
 	update_crc(&msg);
 
-	cache_operation(TEE_CACHEFLUSH, key, HW_UNIQUE_KEY_LENGTH);
-	cache_operation(TEE_CACHECLEAN, (void *)pattern, sizeof(pattern));
-
 	res = imx_ele_call(&msg);
 	if (res)
-		panic("failed to get the huk");
+		goto out;
 
-	cache_operation(TEE_CACHEINVALIDATE, key, HW_UNIQUE_KEY_LENGTH);
+	res = imx_ele_buf_copy(&ele_key, key, key_size);
+out:
+	imx_ele_buf_free(&ele_key);
+	imx_ele_buf_free(&ele_ctx);
+
+	return res;
+}
+
+TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+{
+	static const char pattern[] = "TEE_for_HUK_ELE";
+	static uint8_t key[HW_UNIQUE_KEY_LENGTH];
+	static bool is_fetched;
+
+	if (is_fetched)
+		goto out;
+
+	if (imx_ele_derive_key((const uint8_t *)pattern, sizeof(pattern), key,
+			       sizeof(key)))
+		panic("Fail to get HUK from ELE");
+
 	is_fetched = true;
 out:
 	memcpy(hwkey->data, key,
