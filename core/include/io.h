@@ -20,6 +20,25 @@
 #define READ_ONCE(p)		__compiler_atomic_load(&(p))
 #define WRITE_ONCE(p, v)	__compiler_atomic_store(&(p), (v))
 
+/*
+ *  IO port access primitives
+ *  -------------------------
+ *
+ * Arm A-profile cores don't have special IO access instructions.
+ * OP-TEE maps IO memory as device, shareable and bufferable but not cacheable.
+ *
+ * io_readX(), io_writeX() io_clr/setbitsX() functions do not guarantee
+ * that the IO request reached the device in the code order.
+ *
+ * The barrier version of each function - io_readX_barrier(), io_writeX_barier()
+ * and io_clr/setbitsX_barrier() - guarantee that IO access are
+ * observable for system (outer shareable):
+ * - Make sure the write above is visible
+ * - Make sure the read is performed
+ */
+#define __rmb()		dsb()
+#define __wmb()		dsb()
+
 static inline void io_write8(vaddr_t addr, uint8_t val)
 {
 	*(volatile uint8_t *)addr = val;
@@ -39,6 +58,11 @@ static inline void io_write64(vaddr_t addr, uint64_t val)
 {
 	*(volatile uint64_t *)addr = val;
 }
+
+#define io_write8_barrier(v, c)		({ __wmb(); io_write8(v, c); })
+#define io_write16_barrier(v, c)	({ __wmb(); io_write16(v, c); })
+#define io_write32_barrier(v, c)	({ __wmb(); io_write32(v, c); })
+#define io_write64_barrier(v, c)	({ __wmb(); io_write64(v, c); })
 
 static inline uint8_t io_read8(vaddr_t addr)
 {
@@ -60,6 +84,12 @@ static inline uint64_t io_read64(vaddr_t addr)
 	return *(volatile uint64_t *)addr;
 }
 
+#define io_read8_barrier(c)	({ uint8_t  __v = io_read8(c); __rmb(); __v; })
+#define io_read16_barrier(c)	({ uint16_t __v = io_read16(c); __rmb(); __v; })
+#define io_read32_barrier(c)	({ uint32_t __v = io_read32(c); __rmb(); __v; })
+#define io_read64_barrier(c)	\
+	({ uint64_t __v = io_read64(c); __rmb(); __v; })
+
 static inline void io_mask8(vaddr_t addr, uint8_t val, uint8_t mask)
 {
 	io_write8(addr, (io_read8(addr) & ~mask) | (val & mask));
@@ -74,6 +104,10 @@ static inline void io_mask32(vaddr_t addr, uint32_t val, uint32_t mask)
 {
 	io_write32(addr, (io_read32(addr) & ~mask) | (val & mask));
 }
+
+#define io_mask8_barrier(v, c, m)	({ __wmb(); io_mask8(v, c, m); })
+#define io_mask16_barrier(v, c, m)	({ __wmb(); io_mask16(v, c, m); })
+#define io_mask32_barrier(v, c, m)	({ __wmb(); io_mask32(v, c, m); })
 
 static inline uint64_t get_be64(const void *p)
 {
@@ -272,5 +306,17 @@ static inline void io_clrsetbits8(vaddr_t addr, uint8_t clear_mask,
 {
 	io_write8(addr, (io_read8(addr) & ~clear_mask) | set_mask);
 }
+
+#define io_setbits32_barrier(v, s)	({ __wmb(); io_setbits32(v, c); })
+#define io_clrbits32_barrier(v, c)	({ __wmb(); io_clrbits32(v, c); })
+#define io_clrsetbits32_barrier(v, c, s) \
+					({ __wmb(); io_clrsetbits32(v, c, s); })
+#define io_setbits16_barrier(v, s)	({ __wmb(); io_setbits16(v, c); })
+#define io_clrbits16_barrier(v, c)	({ __wmb(); io_clrbits16(v, c); })
+#define io_clrsetbits16_barrier(v, c, s) \
+					({ __wmb(); io_clrsetbits16(v, c, s); })
+#define io_setbits8_barrier(v, s)	({ __wmb(); io_setbits8(v, c); })
+#define io_clrbits8_barrier(v, c)	({ __wmb(); io_clrbits8(v, c); })
+#define io_clrsetbits8_barrier(v, c, s)	({ __wmb(); io_clrsetbits8(v, c, s); })
 
 #endif /*IO_H*/
