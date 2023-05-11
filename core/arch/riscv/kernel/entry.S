@@ -21,23 +21,27 @@
 	/*
 	 * Setup sp to point to the top of the tmp stack for the current CPU:
 	 * sp is assigned:
-	 * stack_tmp + cpu_id * stack_tmp_stride - STACK_TMP_GUARD
+	 * stack_tmp + (hartid + 1) * stack_tmp_stride - STACK_TMP_GUARD
 	 */
 .macro set_sp
 	/* Unsupported CPU, park it before it breaks something */
 	li	t1, CFG_TEE_CORE_NB_CORE
 	csrr	t0, CSR_XSCRATCH
 	bge	t0, t1, unhandled_cpu
-	la	t2, stack_tmp
+	addi	t0, t0, 1
 	lw	t1, stack_tmp_stride
 	/*
-	 * t0 is core pos + 1
-	 * t1 is value of stack_tmp_stride
-	 * t2 is value of stack_tmp
+	 * t0 = (hartid + 1)
+	 * t1 = value of stack_tmp_stride
+	 * value of stack_tmp_rel = stack_tmp - stack_tmp_rel - STACK_TMP_GUARD
+	 * sp = stack_tmp + (hartid + 1) * stack_tmp_stride - STACK_TMP_GUARD
+	 *    = stack_tmp_rel + (value of stack_tmp_rel) + (t0 * t1)
 	 */
-	mv	sp, t2
-	mul	t2, t1, t0
-	add	sp, sp, t2
+	mul	t1, t0, t1
+	la	t2, stack_tmp_rel
+	lw	t0, 0(t2)
+	add	t0, t0, t2
+	add	sp, t1, t0
 .endm
 
 .macro cpu_is_ready
