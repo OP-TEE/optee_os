@@ -322,6 +322,9 @@ struct ck_token *pkcs11_session2token(struct pkcs11_session *session)
 	return session->token;
 }
 
+/* Invalidate any handle referring the object since the object no more exists */
+void token_invalidate_object_handles(struct pkcs11_object *obj);
+
 /* Entry point for the TA commands */
 enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params);
 enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params);

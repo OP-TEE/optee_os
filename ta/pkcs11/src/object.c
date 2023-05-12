@@ -160,6 +160,8 @@ void destroy_object(struct pkcs11_session *session, struct pkcs11_object *obj,
 		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
 		cleanup_persistent_object(obj, session->token);
+
+		token_invalidate_object_handles(obj);
 	} else {
 		handle_put(get_object_handle_db(session),
 			   pkcs11_object2handle(obj, session));
