@@ -95,6 +95,18 @@ struct pkcs11_session *pkcs11_handle2session(uint32_t handle,
 	return handle_lookup(&client->session_handle_db, handle);
 }
 
+void token_invalidate_object_handles(struct pkcs11_object *obj)
+{
+	struct pkcs11_client *client = NULL;
+	uint32_t handle = 0;
+
+	TAILQ_FOREACH(client, &pkcs11_client_list, link) {
+		handle = handle_lookup_handle(&client->object_handle_db, obj);
+		if (handle)
+			handle_invalidate(&client->object_handle_db, handle);
+	}
+}
+
 struct pkcs11_client *register_client(void)
 {
 	struct pkcs11_client *client = NULL;
