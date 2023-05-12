@@ -23,6 +23,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
@@ -1095,6 +1096,8 @@ void __weak thread_scall_handler(struct thread_scall_regs *regs)
 	struct ts_session *sess = NULL;
 	uint32_t state = 0;
 
+	enter_user_access();
+
 	/* Enable native interrupts */
 	state = thread_get_exceptions();
 	thread_unmask_exceptions(state & ~THREAD_EXCP_NATIVE_INTR);
@@ -1119,6 +1122,8 @@ void __weak thread_scall_handler(struct thread_scall_regs *regs)
 		/* We're returning from __thread_enter_user_mode() */
 		setup_unwind_user_mode(regs);
 	}
+
+	exit_user_access();
 }
 
 #ifdef CFG_WITH_ARM_TRUSTED_FW

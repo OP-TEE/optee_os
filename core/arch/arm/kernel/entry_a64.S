@@ -51,6 +51,11 @@
 		ubfx	\reg, \reg, #ID_AA64PFR1_EL1_MTE_SHIFT, #4
 	.endm
 
+	.macro read_feat_pan reg
+		mrs	\reg, id_mmfr3_el1
+		ubfx	\reg, \reg, #ID_MMFR3_EL1_PAN_SHIFT, #4
+	.endm
+
 	.macro set_sctlr_el1
 		mrs	x0, sctlr_el1
 		orr	x0, x0, #SCTLR_I
@@ -143,6 +148,17 @@
 		isb
 	.endm
 
+	.macro init_pan
+		read_feat_pan x0
+		cmp	x0, #0
+		b.eq	1f
+		mrs	x0, sctlr_el1
+		bic	x0, x0, #SCTLR_SPAN
+		msr	sctlr_el1, x0
+		write_pan_enable
+	1:
+	.endm
+
 FUNC _start , :
 	/*
 	 * Register use:
@@ -172,6 +188,10 @@ FUNC _start , :
 	adr	x0, reset_vect_table
 	msr	vbar_el1, x0
 	isb
+
+#ifdef CFG_PAN
+	init_pan
+#endif
 
 	set_sctlr_el1
 	isb
@@ -598,6 +618,10 @@ FUNC cpu_on_handler , :
 
 	set_sctlr_el1
 	isb
+
+#ifdef CFG_PAN
+	init_pan
+#endif
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT
