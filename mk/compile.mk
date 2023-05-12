@@ -37,6 +37,8 @@ comp-cflags-warns-high = \
 	-Wwrite-strings \
 	-Wno-missing-field-initializers -Wno-format-zero-length \
 	-Wno-c2x-extensions
+comp-cflags-warns-high += $(call cc-option,-Wpacked-not-aligned)
+comp-cflags-warns-high += $(call cc-option,-Waddress-of-packed-member)
 ifeq ($(CFG_WARN_DECL_AFTER_STATEMENT),y)
 comp-cflags-warns-high += $(call cc-option,-Wdeclaration-after-statement)
 endif
