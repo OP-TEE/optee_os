@@ -47,4 +47,7 @@ void *handle_lookup(struct handle_db *db, uint32_t handle);
 /* Return the handle associated to a pointer if found, else return 0 */
 uint32_t handle_lookup_handle(struct handle_db *db, void *ptr);
 
+/* Invalidate the reference referred by an allocated handle */
+void handle_invalidate(struct handle_db *db, uint32_t handle);
+
 #endif /*PKCS11_TA_HANDLE_H*/
