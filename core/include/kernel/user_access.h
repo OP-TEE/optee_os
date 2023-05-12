@@ -7,6 +7,7 @@
 #define __KERNEL_USER_ACCESS_H
 
 #include <assert.h>
+#include <kernel/user_access_arch.h>
 #include <tee_api_types.h>
 #include <types_ext.h>
 

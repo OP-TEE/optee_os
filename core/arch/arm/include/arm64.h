@@ -271,6 +271,8 @@
 #define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC	U(0x4)
 #define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC_CMB	U(0x5)
 
+#define ID_MMFR3_EL1_PAN_SHIFT			U(16)
+
 #define GCR_EL1_RRND				BIT64(16)
 
 #ifndef __ASSEMBLER__
@@ -460,6 +462,21 @@ DEFINE_REG_WRITE_FUNC_(icc_eoir0, uint32_t, S3_0_c12_c8_1)
 DEFINE_REG_WRITE_FUNC_(icc_eoir1, uint32_t, S3_0_c12_c12_1)
 DEFINE_REG_WRITE_FUNC_(icc_igrpen0, uint32_t, S3_0_C12_C12_6)
 DEFINE_REG_WRITE_FUNC_(icc_igrpen1, uint32_t, S3_0_C12_C12_7)
+
+DEFINE_REG_WRITE_FUNC_(pan, uint64_t, S3_0_c4_c2_3)
+
+static inline void write_pan_enable(void)
+{
+	/* msr pan, #1 */
+	asm volatile("msr	S0_0_c4_c1_4, xzr" ::: "memory" );
+}
+
+static inline void write_pan_disable(void)
+{
+	/* msr pan, #0 */
+	asm volatile("msr	S0_0_c4_c0_4, xzr" ::: "memory" );
+}
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*ARM64_H*/

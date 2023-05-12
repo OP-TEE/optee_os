@@ -148,3 +148,18 @@
 	.macro write_apiakeyhi reg
 	msr	S3_0_c2_c1_1, \reg
 	.endm
+
+	.macro write_pan reg
+	/* msr pan, \reg */
+	msr	S3_0_c4_c2_3, \reg
+	.endm
+
+	.macro write_pan_enable
+	/* msr pan, #1 */
+	msr	S0_0_c4_c1_4, xzr
+	.endm
+
+	.macro write_pan_disable
+	/* msr pan, #0 */
+	msr	S0_0_c4_c0_4, xzr
+	.endm
