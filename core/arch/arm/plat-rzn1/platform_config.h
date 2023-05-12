@@ -11,7 +11,7 @@
 
 /* DRAM */
 #define DRAM_BASE			0x80000000
-#define DRAM_SIZE			0x10000000
+#define DRAM_SIZE			0x40000000 /* 1GB, and support 256MB */
 
 /* GIC */
 #define GIC_BASE			0x44100000
