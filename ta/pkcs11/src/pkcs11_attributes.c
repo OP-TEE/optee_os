@@ -906,6 +906,12 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 	return set_attributes_opt_or_null(out, temp, oon, oon_count);
 }
 
+static int mbd_rand(void *rng_state __unused, unsigned char *output, size_t len)
+{
+	TEE_GenerateRandom(output, len);
+	return 0;
+}
+
 static enum pkcs11_rc
 create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
 				     struct obj_attrs *temp,
@@ -913,6 +919,9 @@ create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
 {
 	struct mbedtls_ecp_keypair key_pair = { };
 	mbedtls_ecp_group_id ec_curve = MBEDTLS_ECP_DP_NONE;
+	mbedtls_ecp_group key_pair_grp = { };
+	mbedtls_ecp_point key_pair_Q = { };
+	mbedtls_mpi key_pair_d = { };
 	size_t buflen = 0;
 	uint8_t *buf = NULL;
 	size_t asnbuflen = 0;
@@ -978,6 +987,9 @@ create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
 	}
 
 	mbedtls_ecp_keypair_init(&key_pair);
+	mbedtls_ecp_group_init(&key_pair_grp);
+	mbedtls_mpi_init(&key_pair_d);
+	mbedtls_ecp_point_init(&key_pair_Q);
 
 	ret = mbedtls_ecp_read_key(ec_curve, &key_pair, a_ptr, a_size);
 	if (ret) {
@@ -986,26 +998,33 @@ create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
 		goto out;
 	}
 
-	ret = mbedtls_ecp_mul(&key_pair.grp, &key_pair.Q, &key_pair.d,
-			      &key_pair.grp.G, NULL, NULL);
+	ret = mbedtls_ecp_export(&key_pair, &key_pair_grp, &key_pair_d,
+				 &key_pair_Q);
+	if (ret) {
+		EMSG("Failed to export key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_mul(&key_pair_grp, &key_pair_Q, &key_pair_d,
+			      &key_pair_grp.G, mbd_rand, NULL);
 	if (ret) {
 		EMSG("Failed to create public key");
 		goto out;
 	}
 
-	ret = mbedtls_ecp_check_privkey(&key_pair.grp, &key_pair.d);
+	ret = mbedtls_ecp_check_privkey(&key_pair_grp, &key_pair_d);
 	if (ret) {
 		EMSG("Failed to verify private key");
 		goto out;
 	}
 
-	ret = mbedtls_ecp_check_pubkey(&key_pair.grp, &key_pair.Q);
+	ret = mbedtls_ecp_check_pubkey(&key_pair_grp, &key_pair_Q);
 	if (ret) {
 		EMSG("Failed to verify public key");
 		goto out;
 	}
 
-	ret = mbedtls_ecp_point_write_binary(&key_pair.grp, &key_pair.Q,
+	ret = mbedtls_ecp_point_write_binary(&key_pair_grp, &key_pair_Q,
 					     MBEDTLS_ECP_PF_UNCOMPRESSED,
 					     &buflen, NULL, 0);
 	if (ret != MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL) {
@@ -1029,7 +1048,7 @@ create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
 		goto out;
 	}
 
-	ret = mbedtls_ecp_point_write_binary(&key_pair.grp, &key_pair.Q,
+	ret = mbedtls_ecp_point_write_binary(&key_pair_grp, &key_pair_Q,
 					     MBEDTLS_ECP_PF_UNCOMPRESSED,
 					     &buflen, buf, buflen);
 	if (ret) {
@@ -1053,6 +1072,9 @@ out:
 	TEE_Free(asnbuf);
 	TEE_Free(buf);
 	mbedtls_ecp_keypair_free(&key_pair);
+	mbedtls_ecp_group_free(&key_pair_grp);
+	mbedtls_mpi_free(&key_pair_d);
+	mbedtls_ecp_point_free(&key_pair_Q);
 
 	return rc;
 }
@@ -2495,7 +2517,8 @@ static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
 	mbedtls_mpi_init(&p);
 	mbedtls_mpi_init(&q);
 
-	mbedtls_rc = mbedtls_pk_parse_key(&pk, data, key_size, NULL, 0);
+	mbedtls_rc = mbedtls_pk_parse_key(&pk, data, key_size,
+					  NULL, 0, mbd_rand, NULL);
 	if (mbedtls_rc) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
 		goto out;
