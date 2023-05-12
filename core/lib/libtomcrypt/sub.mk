@@ -148,6 +148,7 @@ srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
 srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c
+cppflags-mpi_desc.c-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
 endif
 
 srcs-y += tomcrypt.c
