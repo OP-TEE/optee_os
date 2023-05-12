@@ -67,11 +67,16 @@ uint32_t handle_get(struct handle_db *db, void *ptr)
 	return n;
 }
 
+static bool handle_is_valid(struct handle_db *db, uint32_t handle)
+{
+	return db && handle && handle < db->max_ptrs;
+}
+
 void *handle_put(struct handle_db *db, uint32_t handle)
 {
 	void *p = NULL;
 
-	if (!db || !handle || handle >= db->max_ptrs)
+	if (!handle_is_valid(db, handle))
 		return NULL;
 
 	p = db->ptrs[handle];
@@ -81,7 +86,7 @@ void *handle_put(struct handle_db *db, uint32_t handle)
 
 void *handle_lookup(struct handle_db *db, uint32_t handle)
 {
-	if (!db || !handle || handle >= db->max_ptrs)
+	if (!handle_is_valid(db, handle))
 		return NULL;
 
 	return db->ptrs[handle];
