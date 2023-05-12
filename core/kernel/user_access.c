@@ -138,6 +138,71 @@ void bb_reset(void)
 		uctx->bbuf_offs = 0;
 }
 
+TEE_Result clear_user(void *uaddr, size_t n)
+{
+	uint32_t flags = TEE_MEMORY_ACCESS_WRITE | TEE_MEMORY_ACCESS_ANY_OWNER;
+	TEE_Result res = TEE_SUCCESS;
+
+	uaddr = memtag_strip_tag(uaddr);
+	res = check_access(flags, uaddr, n);
+	if (res)
+		return res;
+
+	memset(uaddr, 0, n);
+
+	return TEE_SUCCESS;
+}
+
+size_t strnlen_user(const void *uaddr, size_t len)
+{
+	uint32_t flags = TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER;
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+
+	uaddr = memtag_strip_tag_const(uaddr);
+	res = check_access(flags, uaddr, len);
+	if (!res)
+		n = strnlen(uaddr, len);
+
+	return n;
+}
+
+TEE_Result bb_memdup_user(const void *src, size_t len, void **p)
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *buf = NULL;
+
+	buf = bb_alloc(len);
+	if (!buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = copy_from_user(buf, src, len);
+	if (res)
+		bb_free(buf, len);
+	else
+		*p = buf;
+
+	return res;
+}
+
+TEE_Result bb_memdup_user_private(const void *src, size_t len, void **p)
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *buf = NULL;
+
+	buf = bb_alloc(len);
+	if (!buf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = copy_from_user_private(buf, src, len);
+	if (res)
+		bb_free(buf, len);
+	else
+		*p = buf;
+
+	return res;
+}
+
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
 	uint32_t ref = kaddr_to_uref(kaddr);
