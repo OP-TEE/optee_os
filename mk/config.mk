@@ -943,6 +943,12 @@ ifeq (y-y,$(CFG_WITH_PAGER)-$(CFG_MEMTAG))
 $(error CFG_WITH_PAGER and CFG_MEMTAG are not compatible)
 endif
 
+# Privileged Access Never (PAN, part of the ARMv8.1 Extensiosn) can be
+# used to restrict accesses to unprivileged memory from privileged mode.
+CFG_PAN ?= n
+
+$(eval $(call cfg-depends-all,CFG_PAN,CFG_ARM64_core))
+
 # CFG_CORE_ASYNC_NOTIF is defined by the platform to enable support
 # for sending asynchronous notifications to normal world. Note that an
 # interrupt ID must be configurged by the platform too. Currently is only
