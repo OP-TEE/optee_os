@@ -17,6 +17,9 @@
  */
 #define HANDLE_DB_INITIAL_MAX_PTRS	4
 
+/* Specific pointer ~0 denotes a still allocated but invalid handle */
+#define INVALID_HANDLE_PTR	((void *)~0)
+
 void handle_db_init(struct handle_db *db)
 {
 	TEE_MemFill(db, 0, sizeof(*db));
@@ -37,7 +40,7 @@ uint32_t handle_get(struct handle_db *db, void *ptr)
 	void *p = NULL;
 	uint32_t new_max_ptrs = 0;
 
-	if (!db || !ptr)
+	if (!db || !ptr || ptr == INVALID_HANDLE_PTR)
 		return 0;
 
 	/* Try to find an empty location (index 0 is reserved as invalid) */
@@ -86,17 +89,28 @@ void *handle_put(struct handle_db *db, uint32_t handle)
 
 void *handle_lookup(struct handle_db *db, uint32_t handle)
 {
-	if (!handle_is_valid(db, handle))
+	if (!handle_is_valid(db, handle) ||
+	    db->ptrs[handle] == INVALID_HANDLE_PTR)
 		return NULL;
 
 	return db->ptrs[handle];
+}
+
+void handle_invalidate(struct handle_db *db, uint32_t handle)
+{
+	if (handle_is_valid(db, handle)) {
+		if (!db->ptrs[handle])
+			TEE_Panic(TEE_ERROR_GENERIC);
+
+		db->ptrs[handle] = INVALID_HANDLE_PTR;
+	}
 }
 
 uint32_t handle_lookup_handle(struct handle_db *db, void *ptr)
 {
 	uint32_t n = 0;
 
-	if (ptr) {
+	if (ptr && ptr != INVALID_HANDLE_PTR) {
 		for (n = 1; n < db->max_ptrs; n++)
 			if (db->ptrs[n] == ptr)
 				return n;
