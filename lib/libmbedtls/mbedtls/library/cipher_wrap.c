@@ -2071,6 +2071,11 @@ static void *kw_ctx_alloc(void)
     return ctx;
 }
 
+static void kw_ctx_clone(void *dst, const void *src)
+{
+    memcpy(dst, src, sizeof(mbedtls_nist_kw_context));
+}
+
 static void kw_ctx_free(void *ctx)
 {
     mbedtls_nist_kw_free(ctx);
@@ -2115,6 +2120,7 @@ static const mbedtls_cipher_base_t kw_aes_info = {
     kw_aes_setkey_wrap,
     kw_aes_setkey_unwrap,
     kw_ctx_alloc,
+    kw_ctx_clone,
     kw_ctx_free,
 };
 
