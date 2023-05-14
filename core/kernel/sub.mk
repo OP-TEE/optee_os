@@ -5,7 +5,6 @@ srcs-y += assert.c
 srcs-y += console.c
 srcs-$(CFG_DT) += dt.c
 srcs-$(CFG_DT) += dt_driver.c
-srcs-$(CFG_DT_DRIVER_EMBEDDED_TEST) += dt_driver_test.c
 srcs-y += pm.c
 srcs-y += handle.c
 srcs-y += interrupt.c
