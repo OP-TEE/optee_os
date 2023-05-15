@@ -5,7 +5,7 @@
 #ifndef _ELF_H_
 #define _ELF_H_
 
-#if defined(ARM32)
+#if defined(ARM32) || defined(RV32)
 
 #include <elf32.h>
 
@@ -33,7 +33,7 @@ typedef Elf32_Verneed Elf_Verneed;
 typedef Elf32_Vernaux Elf_Vernaux;
 typedef Elf32_Syminfo Elf_Syminfo;
 
-#elif defined(ARM64)
+#elif defined(ARM64) || defined(RV64)
 
 #include <elf64.h>
 
