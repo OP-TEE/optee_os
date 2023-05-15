@@ -1,0 +1,40 @@
+# Format of file
+# <reg-name> <CRn> <opc1> <CRm> <opc2> <Type> <Description>
+# lines beginning with '@' will be printed as additional comments
+
+@ Based on register description in
+@ ARM Generic Interrupt Controller
+@ Architecture Specification
+@ GIC architecture version 3.0 and version 4.0
+
+@ Table 8-7 Mapping of MCR and MRC to physical and virtual CPU interface registers, AArch32 state
+ICC_AP0R0   c12 0 c8  4 RW
+ICC_AP0R1   c12 0 c8  5 RW
+ICC_AP0R2   c12 0 c8  6 RW
+ICC_AP0R3   c12 0 c8  7 RW
+ICC_AP1R0   c12 0 c9  0 RW
+ICC_AP1R1   c12 0 c9  1 RW
+ICC_AP1R2   c12 0 c9  2 RW
+ICC_AP1R3   c12 0 c9  3 RW
+ICC_ASGI1R  -   1 c12 - WO
+ICC_BPR0    c12 0 c8  3 RW
+ICC_BPR1    c12 0 c12 3 RW
+ICC_CTLR    c12 0 c12 4 RW
+ICC_DIR     c12 0 c11 1 WO
+ICC_EOIR0   c12 0 c8  1 WO
+ICC_EOIR1   c12 0 c12 1 WO
+ICC_HPPIR0  c12 0 c8  2 RO
+ICC_HPPIR1  c12 0 c12 2 RO
+ICC_HSRE    c12 4 c9  5 RW
+ICC_IAR0    c12 0 c8  0 RO
+ICC_IAR1    c12 0 c12 0 RO
+ICC_IGRPEN0 c12 0 c12 6 RW
+ICC_IGRPEN1 c12 0 c12 7 RW
+ICC_MCTLR   c12 6 c12 4 RW
+ICC_MGRPEN1 c12 6 c12 7 RW
+ICC_MSRE    c12 6 c12 5 RW
+ICC_PMR     c4  0 c6  0 RW
+ICC_RPR     c12 0 c11 3 RO
+ICC_SGI0R   -   2 c12 - WO
+ICC_SGI1R   -   0 c12 - WO
+ICC_SRE     c12 0 c12 5 RW

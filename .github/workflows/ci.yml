@@ -1,0 +1,386 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  code_style:
+    name: Code style
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
+      - name: Update Git config
+        run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+      - name: Run checkpatch
+        shell: bash
+        run: |
+          # checkpatch task
+          set -e
+          git config --global --add safe.directory /__w/optee_os/optee_os
+          pushd . >/dev/null
+          mkdir -p /tmp/linux/scripts
+          cd /tmp/linux/scripts
+          wget --quiet https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/checkpatch.pl
+          chmod +x checkpatch.pl
+          wget --quiet https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/scripts/spelling.txt
+          echo "invalid.struct.name" >const_structs.checkpatch
+          export PATH=/tmp/linux/scripts:$PATH
+          popd >/dev/null
+          source scripts/checkpatch_inc.sh
+          function _do() { echo '>>' $*; $*; }
+          # Run checkpatch.pl:
+          # - on the tip of the branch only if we're not in a pull request
+          # - otherwise:
+          #   * on each commit in the development branch that is not in the target (merge to) branch
+          #   * on the global diff if the PR contains more than one commit (useful to check if fixup
+          #     commits do solve previous checkpatch errors)
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then \
+            _do checkpatch HEAD || failed=1; \
+          else \
+            for c in $(git rev-list HEAD^1..HEAD^2); do \
+              _do checkpatch $c || failed=1; \
+            done; \
+            if [ "$(git rev-list --count HEAD^1..HEAD^2)" -gt 1 ]; then \
+              _do checkdiff $(git rev-parse HEAD^1) $(git rev-parse HEAD^2) || failed=1; \
+            fi; \
+          fi
+          [ -z "$failed" ]
+      - name: Run pycodestyle
+        if: success() || failure()
+        run: |
+          # pycodestyle task
+          sudo -E bash -c "apt update -qq -y && apt install -qq -y pycodestyle"
+          pycodestyle scripts/*.py core/arch/arm/plat-stm32mp1/scripts/stm32image.py
+  builds:
+    name: make (multi-platform)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: builds-cache-${{ github.sha }}
+          restore-keys: |
+            builds-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # build task
+          set -e -v
+          export LC_ALL=C
+          export PATH=/usr/local/bin:$PATH  # clang
+          export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
+          export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
+          export CFG_DEBUG_INFO=n
+          export CFG_WERROR=y
+
+          function _make() { make -j$(nproc) -s O=out $*; }
+          function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
+          function download_scp_firmware() { git clone --single-branch https://github.com/ARM-software/SCP-firmware.git $HOME/scp-firmware || echo Nervermind; }
+
+          ccache -s -v
+          download_plug_and_trust
+          download_scp_firmware
+
+          _make
+          _make COMPILER=clang
+          _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
+          _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n CFG_ENABLE_EMBEDDED_TESTS=n
+          _make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_CORE_DEBUG_CHECK_STACKS=y
+          _make CFG_CORE_SANITIZE_KADDRESS=y
+          _make CFG_LOCKDEP=y
+          _make CFG_CRYPTO=n
+          _make CFG_CRYPTO_{AES,DES}=n
+          _make CFG_CRYPTO_{DSA,RSA,DH}=n
+          _make CFG_CRYPTO_{DSA,RSA,DH,ECC}=n
+          _make CFG_CRYPTO_{H,C,CBC_}MAC=n
+          _make CFG_CRYPTO_{G,C}CM=n
+          _make CFG_CRYPTO_{MD5,SHA{1,224,256,384,512,512_256}}=n
+          _make CFG_WITH_PAGER=y out/core/tee{,-pager,-pageable}.bin
+          _make CFG_WITH_PAGER=y CFG_CRYPTOLIB_NAME=mbedtls CFG_CRYPTOLIB_DIR=lib/libmbedtls
+          _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y
+          _make CFG_WITH_LPAE=y
+          _make CFG_CORE_PREALLOC_EL0_TBLS=y
+          _make CFG_RPMB_FS=y
+          _make CFG_RPMB_FS=y CFG_RPMB_TESTKEY=y
+          _make CFG_REE_FS=n CFG_RPMB_FS=y
+          _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=1 CFG_TEE_CORE_DEBUG=y CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
+          _make CFG_WITH_PAGER=y CFG_WITH_LPAE=y CFG_RPMB_FS=y CFG_DT=y CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n DEBUG=0
+          _make CFG_BUILT_IN_ARGS=y CFG_PAGEABLE_ADDR=0 CFG_NS_ENTRY_ADDR=0 CFG_DT_ADDR=0 CFG_DT=y
+          _make CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
+          _make CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
+          _make CFG_SECURE_DATA_PATH=y
+          _make CFG_REE_FS_TA_BUFFERED=y
+          _make CFG_WITH_USER_TA=n
+          _make CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          _make PLATFORM=vexpress-qemu_armv8a
+          _make PLATFORM=vexpress-qemu_armv8a COMPILER=clang
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_WITH_PAGER=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_FTRACE_SUPPORT=y CFG_ULIBS_MCOUNT=y CFG_ULIBS_SHARED=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_NS_VIRTUALIZATION=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
+          dd if=/dev/urandom of=BL32_AP_MM.fd bs=2621440 count=1 && _make PLATFORM=vexpress-qemu_armv8a CFG_STMM_PATH=BL32_AP_MM.fd CFG_RPMB_FS=y CFG_CORE_HEAP_SIZE=524288 CFG_TEE_RAM_VA_SIZE=0x00400000
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-qemu_armv8a CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          _make PLATFORM=stm-b2260
+          _make PLATFORM=stm-cannes
+          _make PLATFORM=stm32mp1
+          _make PLATFORM=stm32mp1-135F_DK
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          _make PLATFORM=vexpress-fvp
+          _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
+          _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
+          if [ -d $HOME/scp-firmware ]; then _make PLATFORM=vexpress-fvp CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          _make PLATFORM=vexpress-juno
+          _make PLATFORM=vexpress-juno CFG_ARM64_core=y
+          _make PLATFORM=hikey
+          _make PLATFORM=hikey CFG_ARM64_core=y
+          _make PLATFORM=mediatek-mt8173
+          _make PLATFORM=mediatek-mt8175
+          _make PLATFORM=mediatek-mt8183
+          _make PLATFORM=mediatek-mt8516
+          _make PLATFORM=imx-mx6ulevk
+          _make PLATFORM=imx-mx6ulevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          _make PLATFORM=imx-mx6ul9x9evk
+          _make PLATFORM=imx-mx6ullevk CFG_WITH_SOFTWARE_PRNG=n CFG_IMX_RNGB=y
+          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx6ullevk CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RNG,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
+          _make PLATFORM=imx-mx6ulzevk
+          _make PLATFORM=imx-mx6slevk
+          _make PLATFORM=imx-mx6sllevk
+          _make PLATFORM=imx-mx6sxsabreauto
+          _make PLATFORM=imx-mx6sxsabresd
+          _make PLATFORM=imx-mx6sxsabresd CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          _make PLATFORM=imx-mx6solosabresd
+          _make PLATFORM=imx-mx6solosabreauto
+          _make PLATFORM=imx-mx6sxsabreauto
+          _make PLATFORM=imx-mx6qsabrelite
+          _make PLATFORM=imx-mx6qsabresd
+          _make PLATFORM=imx-mx6qsabresd CFG_RPMB_FS=y
+          _make PLATFORM=imx-mx6qsabreauto
+          _make PLATFORM=imx-mx6qsabreauto CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          _make PLATFORM=imx-mx6qpsabreauto
+          _make PLATFORM=imx-mx6qpsabresd
+          _make PLATFORM=imx-mx6dlsabresd
+          _make PLATFORM=imx-mx6dlsabreauto
+          _make PLATFORM=imx-mx6dapalis
+          _make PLATFORM=imx-mx6qapalis
+          _make PLATFORM=imx-mx7dsabresd
+          _make PLATFORM=imx-mx7dsabresd CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          _make PLATFORM=imx-mx7ulpevk
+          _make PLATFORM=imx-mx8mmevk
+          _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          if [ -d $HOME/se050/plug-and-trust ]; then _make PLATFORM=imx-mx8mmevk CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y CFG_NXP_SE05X=y CFG_IMX_I2C=y CFG_STACK_{THREAD,TMP}_EXTRA=8192 CFG_CRYPTO_DRV_{CIPHER,ACIPHER}=y CFG_NXP_SE05X_RNG_DRV=n CFG_WITH_SOFTWARE_PRNG=n CFG_NXP_SE05X_{DIEID,RSA,ECC,CTR}_DRV=y CFG_NXP_SE05X_RSA_DRV_FALLBACK=y CFG_NXP_SE05X_ECC_DRV_FALLBACK=y CFG_NXP_SE05X_PLUG_AND_TRUST=$HOME/se050/plug-and-trust ; fi
+          _make PLATFORM=imx-mx8mnevk
+          _make PLATFORM=imx-mx8mqevk
+          _make PLATFORM=imx-mx8mpevk
+          _make PLATFORM=imx-mx8qxpmek
+          _make PLATFORM=imx-mx8qmmek
+          _make PLATFORM=imx-mx8dxlevk
+          _make PLATFORM=imx-mx8ulpevk
+          _make PLATFORM=imx-mx8ulpevk CFG_NXP_CAAM=y CFG_CRYPTO_DRIVER=y
+          _make PLATFORM=imx-mx93evk
+          _make PLATFORM=k3-j721e
+          _make PLATFORM=k3-j721e CFG_ARM64_core=y
+          _make PLATFORM=k3-j784s4
+          _make PLATFORM=k3-j784s4 CFG_ARM64_core=y
+          _make PLATFORM=k3-am65x
+          _make PLATFORM=k3-am65x CFG_ARM64_core=y
+          _make PLATFORM=k3-am64x
+          _make PLATFORM=k3-am64x CFG_ARM64_core=y
+          _make PLATFORM=k3-am62x
+          _make PLATFORM=k3-am62x CFG_ARM64_core=y
+          _make PLATFORM=ti-dra7xx out/core/tee{,-pager,-pageable}.bin
+          _make PLATFORM=ti-am57xx
+          _make PLATFORM=ti-am43xx
+          _make PLATFORM=sprd-sc9860
+          _make PLATFORM=sprd-sc9860 CFG_ARM64_core=y
+          _make PLATFORM=ls-ls1043ardb
+          _make PLATFORM=ls-ls1046ardb
+          _make PLATFORM=ls-ls1012ardb
+          _make PLATFORM=ls-ls1028ardb
+          _make PLATFORM=ls-ls1088ardb
+          _make PLATFORM=ls-ls2088ardb
+          _make PLATFORM=ls-lx2160ardb
+          _make PLATFORM=ls-lx2160aqds
+          _make PLATFORM=zynq7k-zc702
+          _make PLATFORM=zynqmp-zcu102
+          _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y
+          _make PLATFORM=zynqmp-zcu102 CFG_ARM64_core=y CFG_WITH_SOFTWARE_PRNG=n CFG_XIPHERA_TRNG=y CFG_ZYNQMP_HUK=y
+          _make PLATFORM=d02
+          _make PLATFORM=d02 CFG_ARM64_core=y
+          _make PLATFORM=rcar
+          _make PLATFORM=rzg
+          _make PLATFORM=rzg CFG_ARM64_core=y
+          _make PLATFORM=rpi3
+          _make PLATFORM=rpi3 CFG_ARM64_core=y
+          _make PLATFORM=hikey-hikey960
+          _make PLATFORM=hikey-hikey960 COMPILER=clang
+          _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y
+          _make PLATFORM=hikey-hikey960 CFG_ARM64_core=y COMPILER=clang
+          _make PLATFORM=hikey-hikey960 CFG_SECURE_DATA_PATH=n
+          _make PLATFORM=poplar
+          _make PLATFORM=poplar CFG_ARM64_core=y
+          _make PLATFORM=rockchip-rk322x
+          _make PLATFORM=rockchip-rk3399
+          _make PLATFORM=sam
+          _make PLATFORM=sam-sama5d27_wlsom1_ek
+          _make PLATFORM=marvell-armada7k8k
+          _make PLATFORM=marvell-armada3700
+          _make PLATFORM=marvell-otx2t96
+          _make PLATFORM=marvell-otx2f95
+          _make PLATFORM=marvell-otx2t98
+          _make PLATFORM=synquacer
+          _make PLATFORM=sunxi-bpi_zero
+          _make PLATFORM=sunxi-sun50i_a64
+          _make PLATFORM=bcm-ns3 CFG_ARM64_core=y
+          _make PLATFORM=hisilicon-hi3519av100_demo
+          _make PLATFORM=amlogic
+          _make PLATFORM=rzn1
+          _make PLATFORM=versal CFG_VERSAL_FPGA_DDR_ADDR=0x40000000
+          _make PLATFORM=corstone1000
+
+  QEMUv8_check:
+    name: make check (QEMUv8)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check
+          make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
+          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001
+
+  QEMUv8_Xen_check:
+    name: make check (QEMUv8, Xen)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_xen_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_xen_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check XEN_BOOT=y
+
+  QEMUv8_check_BTI_MTE_PAC:
+    name: make check (QEMUv8, BTI+MTE+PAC)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_bti_mte_pac-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_bti_mte_pac-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
+          export PATH=/usr/local/bin:$PATH
+          export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_USER_TA_TARGETS=ta_arm64
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          # TF-A v2.6 fails to build with the above toolchain so override it
+          export TF_A_EXPORTS="CROSS_COMPILE=${TOP}/toolchains/aarch64/bin/aarch64-linux-gnu-"
+          /root/get_optee_qemuv8.sh ${TOP}
+          # QEMU v7.2.0 has an issue with MTE
+          # https://github.com/OP-TEE/optee_os/issues/5759#issuecomment-1380590951
+          cd ${TOP}/qemu && git fetch github && git checkout 13356edb87
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
+          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
+
+  QEMUv8_check_rust:
+    name: make check-rust (QEMUv8)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_check_rust-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_check_rust-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check-rust task
+          set -e -v
+          export LC_ALL=C
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          # Without this line, the following one fails with "ld: cannot find -lteec" when building acipher-rs
+          make -j$(nproc)
+          make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust

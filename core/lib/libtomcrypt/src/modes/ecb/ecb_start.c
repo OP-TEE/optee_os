@@ -1,0 +1,36 @@
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
+#include "tomcrypt_private.h"
+
+/**
+   @file ecb_start.c
+   ECB implementation, start chain, Tom St Denis
+*/
+
+
+#ifdef LTC_ECB_MODE
+
+/**
+   Initialize a ECB context
+   @param cipher      The index of the cipher desired
+   @param key         The secret key
+   @param keylen      The length of the secret key (octets)
+   @param num_rounds  Number of rounds in the cipher desired (0 for default)
+   @param ecb         The ECB state to initialize
+   @return CRYPT_OK if successful
+*/
+int ecb_start(int cipher, const unsigned char *key, int keylen, int num_rounds, symmetric_ECB *ecb)
+{
+   int err;
+   LTC_ARGCHK(key != NULL);
+   LTC_ARGCHK(ecb != NULL);
+
+   if ((err = cipher_is_valid(cipher)) != CRYPT_OK) {
+      return err;
+   }
+   ecb->cipher = cipher;
+   ecb->blocklen = cipher_descriptor[cipher]->block_length;
+   return cipher_descriptor[cipher]->setup(key, keylen, num_rounds, &ecb->key);
+}
+
+#endif

@@ -1,0 +1,22 @@
+# Cancel previous CI workflows that are still running when a new one is
+# requested with the same ID. Happens when a branch is pushed to,
+# including when a PR is updated. It would be wasteful to leave CI
+# running on obsolete content.
+# See https://github.com/marketplace/actions/cancel-workflow-action#advanced-pull-requests-from-forks
+name: Cancel obsolete CI
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [requested]
+    branches-ignore: [master]
+permissions: {}
+jobs:
+  cancel:
+    permissions:
+      actions: write # to cancel/stop running workflows (styfle/cancel-workflow-action)
+    name: Cancel obsolete CI workflows
+    runs-on: ubuntu-latest
+    steps:
+    - uses: styfle/cancel-workflow-action@0.10.0
+      with:
+        workflow_id: ${{ github.event.workflow.id }}

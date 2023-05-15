@@ -1,0 +1,14 @@
+# Format of file
+# <reg-name> <CRn> <opc1> <CRm> <opc2> <Type> <Description>
+# lines beginning with '@' will be printed as additional comments
+
+@ Based on register description in
+@ ARM Architecture Reference Manual
+@ ARMv7-A and ARMv7-R edition
+@ Issue C.c
+@
+
+@ B8.2 Generic Timer registers summary
+CNTFRQ    c14 0 c0  0 RW Counter Frequency register
+CNTPCT    -   0 c14 - RO Physical Count register
+CNTVCT    -   1 c14 - RO Virtual Count register
