@@ -284,7 +284,7 @@ void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 #endif
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
-	itr_init(&gic_data.chip);
+	interrupt_main_init(&gic_data.chip);
 }
 
 static void gic_it_add(struct gic_data *gd, size_t it)

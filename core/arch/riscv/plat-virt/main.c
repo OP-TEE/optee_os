@@ -22,7 +22,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART0_BASE,
 void main_init_plic(void)
 {
 	plic_init(&plic_data, PLIC_BASE);
-	itr_init(&plic_data.chip);
+	interrupt_main_init(&plic_data.chip);
 }
 
 void main_secondary_init_plic(void)
