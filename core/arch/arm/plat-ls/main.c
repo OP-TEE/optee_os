@@ -212,14 +212,7 @@ void main_init_gic(void)
 	gic_base = GIC_BASE;
 #endif
 	get_gic_offset(&gicc_offset, &gicd_offset);
-
-#if defined(CFG_WITH_ARM_TRUSTED_FW)
-	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(gic_base + gicc_offset, gic_base + gicd_offset);
-#else
-	/* Initialize GIC */
 	gic_init(gic_base + gicc_offset, gic_base + gicd_offset);
-#endif
 }
 
 void main_secondary_init_gic(void)

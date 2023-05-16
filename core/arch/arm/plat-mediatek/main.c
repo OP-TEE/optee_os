@@ -27,7 +27,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE + GICC_OFFSET,
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 #endif
 

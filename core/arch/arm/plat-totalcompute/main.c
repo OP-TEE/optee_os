@@ -28,11 +28,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #ifndef CFG_CORE_SEL2_SPMC
 void main_init_gic(void)
 {
-	/*
-	 * On ARMv8, GIC configuration is initialized in ARM-TF
-	 * gicd base address is same as gicc_base.
-	 */
-	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICC_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICC_OFFSET);
 }
 #endif
 

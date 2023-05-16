@@ -74,5 +74,5 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(0, GICD_BASE);
+	gic_init(0, GICD_BASE);
 }

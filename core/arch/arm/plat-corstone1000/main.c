@@ -23,7 +23,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(GICC_BASE, GICD_BASE);
+	gic_init(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
