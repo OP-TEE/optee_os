@@ -23,7 +23,7 @@ static struct itr_chip *itr_chip __nex_bss;
 static SLIST_HEAD(, itr_handler) handlers __nex_data =
 	SLIST_HEAD_INITIALIZER(handlers);
 
-void itr_init(struct itr_chip *chip)
+void interrupt_main_init(struct itr_chip *chip)
 {
 	itr_chip = chip;
 }

@@ -295,7 +295,7 @@ TEE_Result atmel_saic_setup(void)
 	saic_init_external(fdt, node);
 	saic_init_hw();
 
-	itr_init(&saic_chip);
+	interrupt_main_init(&saic_chip);
 	saic_register_pm();
 
 	return TEE_SUCCESS;

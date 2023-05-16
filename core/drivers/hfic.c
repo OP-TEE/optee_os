@@ -70,7 +70,7 @@ static const struct itr_ops hfic_ops = {
 void hfic_init(void)
 {
 	hfic_data.chip.ops = &hfic_ops;
-	itr_init(&hfic_data.chip);
+	interrupt_main_init(&hfic_data.chip);
 }
 
 /* Override interrupt_main_handler() with driver implementation */

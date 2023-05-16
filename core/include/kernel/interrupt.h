@@ -57,7 +57,12 @@ struct itr_handler {
 	SLIST_ENTRY(itr_handler) link;
 };
 
-void itr_init(struct itr_chip *data);
+/*
+ * Initialise core interrupt controller driver
+ * @data Core controller main data reference to register
+ */
+void interrupt_main_init(struct itr_chip *data);
+
 void itr_handle(size_t it);
 
 #ifdef CFG_DT
