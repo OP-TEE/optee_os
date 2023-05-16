@@ -66,6 +66,8 @@ void init_tee_runtime(void)
 
 static void init_primary(unsigned long nsec_entry)
 {
+	thread_init_core_local_stacks();
+
 	/*
 	 * Mask asynchronous exceptions before switch to the thread vector
 	 * as the thread handler requires those to be masked while
