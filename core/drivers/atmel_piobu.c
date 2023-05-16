@@ -266,8 +266,20 @@ static struct itr_handler secumod_itr_handler = {
 
 static void secumod_interrupt_init(void)
 {
-	itr_add_type_prio(&secumod_itr_handler, IRQ_TYPE_LEVEL_HIGH, 7);
-	itr_enable(secumod_itr_handler.it);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = interrupt_add_handler_with_chip(interrupt_get_main_chip(),
+					      &secumod_itr_handler);
+	if (res)
+		panic();
+
+	res = interrupt_configure(secumod_itr_handler.chip,
+				  secumod_itr_handler.it,
+				  IRQ_TYPE_LEVEL_HIGH, 7);
+	if (res)
+		panic();
+
+	interrupt_enable(secumod_itr_handler.chip, secumod_itr_handler.it);
 }
 
 static void secumod_cfg_input_pio(uint8_t gpio_pin, uint32_t config)
