@@ -24,26 +24,20 @@
 #define GIC_PPI_TO_ITNUM(x)	((x) + GIC_PPI_BASE)
 #define GIC_SPI_TO_ITNUM(x)	((x) + GIC_SPI_BASE)
 
-struct gic_data {
-	vaddr_t gicc_base;
-	vaddr_t gicd_base;
-	size_t max_it;
-	struct itr_chip chip;
-};
-
 /*
  * The two gic_init_* functions initializes the struct gic_data which is
  * then used by the other functions.
  */
 
-void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa);
-/* initial base address only */
-void gic_init_base_addr(struct gic_data *gd, paddr_t gicc_base_pa,
-			paddr_t gicd_base_pa);
-/* initial cpu if only, mainly use for secondary cpu setup cpu interface */
-void gic_cpu_init(struct gic_data *gd);
+/* Initialize GIC */
+void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa);
 
-void gic_it_handle(struct gic_data *gd);
+/* Only set GIC base address */
+void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa);
 
-void gic_dump_state(struct gic_data *gd);
+/* Only initialize CPU GIC interface, mainly use for secondary CPUs */
+void gic_cpu_init(void);
+
+/* Print GIC state to console */
+void gic_dump_state(void);
 #endif /*__DRIVERS_GIC_H*/

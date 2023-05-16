@@ -7,6 +7,7 @@
 #include <arm.h>
 #include <assert.h>
 #include <config.h>
+#include <compiler.h>
 #include <drivers/gic.h>
 #include <keep.h>
 #include <kernel/dt.h>
@@ -72,6 +73,15 @@
 #define GICC_IAR_CPU_ID_MASK	0x7
 #define GICC_IAR_CPU_ID_SHIFT	10
 
+struct gic_data {
+	vaddr_t gicc_base;
+	vaddr_t gicd_base;
+	size_t max_it;
+	struct itr_chip chip;
+};
+
+static struct gic_data gic_data __nex_bss;
+
 static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
 		       uint32_t prio);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
@@ -135,8 +145,10 @@ out:
 	return ret;
 }
 
-void gic_cpu_init(struct gic_data *gd)
+void gic_cpu_init(void)
 {
+	struct gic_data *gd = &gic_data;
+
 #if defined(CFG_ARM_GICV3)
 	assert(gd->gicd_base);
 #else
@@ -166,11 +178,12 @@ void gic_cpu_init(struct gic_data *gd)
 #endif
 }
 
-void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 {
+	struct gic_data *gd = &gic_data;
 	size_t n;
 
-	gic_init_base_addr(gd, gicc_base_pa, gicd_base_pa);
+	gic_init_base_addr(gicc_base_pa, gicd_base_pa);
 
 	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
@@ -208,6 +221,8 @@ void gic_init(struct gic_data *gd, paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	io_setbits32(gd->gicd_base + GICD_CTLR,
 		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1);
 #endif
+
+	itr_init(&gic_data.chip);
 }
 
 static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
@@ -240,10 +255,9 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 	return it_num;
 }
 
-void gic_init_base_addr(struct gic_data *gd,
-			paddr_t gicc_base_pa __maybe_unused,
-			paddr_t gicd_base_pa)
+void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 {
+	struct gic_data *gd = &gic_data;
 	vaddr_t gicc_base = 0;
 	vaddr_t gicd_base = 0;
 
@@ -275,6 +289,8 @@ static void gic_it_add(struct gic_data *gd, size_t it)
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
+	assert(gd == &gic_data);
+
 	/* Disable the interrupt */
 	io_write32(gd->gicd_base + GICD_ICENABLER(idx), mask);
 	/* Make it non-pending */
@@ -296,6 +312,8 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 	vaddr_t itargetsr = gd->gicd_base +
 			    GICD_ITARGETSR(it / NUM_TARGETS_PER_REG);
 
+	assert(gd == &gic_data);
+
 	/* Assigned to group0 */
 	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
@@ -314,6 +332,8 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	size_t idx __maybe_unused = it / NUM_INTS_PER_REG;
 	uint32_t mask __maybe_unused = 1 << (it % NUM_INTS_PER_REG);
 
+	assert(gd == &gic_data);
+
 	/* Assigned to group0 */
 	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
@@ -329,6 +349,8 @@ static void gic_it_enable(struct gic_data *gd, size_t it)
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 	vaddr_t base = gd->gicd_base;
 
+	assert(gd == &gic_data);
+
 	/* Assigned to group0 */
 	assert(!(io_read32(base + GICD_IGROUPR(idx)) & mask));
 
@@ -341,6 +363,8 @@ static void gic_it_disable(struct gic_data *gd, size_t it)
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
 
+	assert(gd == &gic_data);
+
 	/* Assigned to group0 */
 	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
 
@@ -352,6 +376,8 @@ static void gic_it_set_pending(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = BIT32(it % NUM_INTS_PER_REG);
+
+	assert(gd == &gic_data);
 
 	/* Should be Peripheral Interrupt */
 	assert(it >= NUM_SGI);
@@ -369,6 +395,8 @@ static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
 	uint32_t mask = (mask_id | SHIFT_U32(mask_group, 15) |
 		SHIFT_U32(mask_cpu, 16));
 
+	assert(gd == &gic_data);
+
 	/* Should be Software Generated Interrupt */
 	assert(it < NUM_SGI);
 
@@ -378,6 +406,8 @@ static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
 
 static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 {
+	assert(gd == &gic_data);
+
 #if defined(CFG_ARM_GICV3)
 	return read_icc_iar1();
 #else
@@ -387,6 +417,8 @@ static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
 
 static void gic_write_eoir(struct gic_data *gd __maybe_unused, uint32_t eoir)
 {
+	assert(gd == &gic_data);
+
 #if defined(CFG_ARM_GICV3)
 	write_icc_eoir1(eoir);
 #else
@@ -398,6 +430,8 @@ static bool gic_it_is_enabled(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+
+	assert(gd == &gic_data);
 	return !!(io_read32(gd->gicd_base + GICD_ISENABLER(idx)) & mask);
 }
 
@@ -405,6 +439,8 @@ static bool __maybe_unused gic_it_get_group(struct gic_data *gd, size_t it)
 {
 	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+
+	assert(gd == &gic_data);
 	return !!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask);
 }
 
@@ -416,12 +452,14 @@ static uint32_t __maybe_unused gic_it_get_target(struct gic_data *gd, size_t it)
 	uint32_t target_mask = ITARGETSR_FIELD_MASK << target_shift;
 	uint32_t target = io_read32(gd->gicd_base + GICD_ITARGETSR(reg_idx));
 
+	assert(gd == &gic_data);
 	return (target & target_mask) >> target_shift;
 }
 
-void gic_dump_state(struct gic_data *gd)
+void gic_dump_state(void)
 {
-	int i;
+	struct gic_data *gd = &gic_data;
+	int i = 0;
 
 #if defined(CFG_ARM_GICV3)
 	DMSG("GICC_CTLR: 0x%x", read_icc_ctlr());
@@ -438,10 +476,11 @@ void gic_dump_state(struct gic_data *gd)
 	}
 }
 
-void gic_it_handle(struct gic_data *gd)
+static void __maybe_unused gic_native_itr_handler(void)
 {
-	uint32_t iar;
-	uint32_t id;
+	struct gic_data *gd = &gic_data;
+	uint32_t iar = 0;
+	uint32_t id = 0;
 
 	iar = gic_read_iar(gd);
 	id = iar & GICC_IAR_IT_ID_MASK;
@@ -454,11 +493,21 @@ void gic_it_handle(struct gic_data *gd)
 	gic_write_eoir(gd, iar);
 }
 
+#ifndef CFG_CORE_WORKAROUND_ARM_NMFI
+/* Override itr_core_handler() with core interrupt controller implementation */
+void itr_core_handler(void)
+{
+	gic_native_itr_handler();
+}
+#endif /*CFG_CORE_WORKAROUND_ARM_NMFI*/
+
 static void gic_op_add(struct itr_chip *chip, size_t it,
 		       uint32_t type __unused,
 		       uint32_t prio __unused)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	assert(gd == &gic_data);
 
 	if (it > gd->max_it)
 		panic();
@@ -473,6 +522,8 @@ static void gic_op_enable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
+	assert(gd == &gic_data);
+
 	if (it > gd->max_it)
 		panic();
 
@@ -483,6 +534,8 @@ static void gic_op_disable(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
+	assert(gd == &gic_data);
+
 	if (it > gd->max_it)
 		panic();
 
@@ -492,6 +545,8 @@ static void gic_op_disable(struct itr_chip *chip, size_t it)
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	assert(gd == &gic_data);
 
 	if (it > gd->max_it)
 		panic();
@@ -504,6 +559,8 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
+	assert(gd == &gic_data);
+
 	if (it > gd->max_it)
 		panic();
 
@@ -512,10 +569,13 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 	else
 		gic_it_raise_sgi(gd, it, cpu_mask, 0);
 }
+
 static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	assert(gd == &gic_data);
 
 	if (it > gd->max_it)
 		panic();

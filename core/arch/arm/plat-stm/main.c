@@ -9,7 +9,6 @@
 #include <drivers/stih_asc.h>
 #include <io.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tz_ssvce_pl310.h>
@@ -33,7 +32,6 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
-static struct gic_data gic_data;
 static struct stih_asc_pd console_data;
 
 #if defined(PLATFORM_FLAVOR_b2260)
@@ -136,16 +134,10 @@ void plat_primary_init_early(void)
 
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GIC_CPU_BASE, GIC_DIST_BASE);
-	itr_init(&gic_data.chip);
+	gic_init(GIC_CPU_BASE, GIC_DIST_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
-}
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
+	gic_cpu_init();
 }

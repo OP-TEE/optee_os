@@ -12,7 +12,6 @@
 #include <drivers/serial8250_uart.h>
 #include <drivers/ti_sci.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
@@ -21,7 +20,6 @@
 #include <stdint.h>
 #include <string_ext.h>
 
-static struct gic_data gic_data;
 static struct serial8250_uart_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GICC_SIZE);
@@ -38,18 +36,12 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(&gic_data, GICC_BASE, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init_base_addr(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
-}
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
+	gic_cpu_init();
 }
 
 void console_init(void)

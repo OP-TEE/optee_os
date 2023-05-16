@@ -17,7 +17,6 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
-#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -154,24 +153,16 @@ service_init_late(init_console_from_dt);
 /*
  * GIC init, used also for primary/secondary boot core wake completion
  */
-static struct gic_data gic_data;
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}
-
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	itr_init(&gic_data.chip);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 
 	stm32mp_register_online_cpu();
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 
 	stm32mp_register_online_cpu();
 }

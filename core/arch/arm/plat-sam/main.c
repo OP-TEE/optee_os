@@ -32,7 +32,6 @@
 #include <drivers/atmel_uart.h>
 #include <io.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/tz_ssvce_def.h>
@@ -337,11 +336,6 @@ static int matrix_init(void)
 void plat_primary_init_early(void)
 {
 	matrix_init();
-}
-
-void itr_core_handler(void)
-{
-	atmel_saic_it_handle();
 }
 
 void main_init_gic(void)

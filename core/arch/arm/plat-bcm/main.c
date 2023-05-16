@@ -8,14 +8,12 @@
 #include <drivers/gic.h>
 #include <drivers/serial8250_uart.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <platform_config.h>
 #include <stdint.h>
 
-static struct gic_data gic_data;
 struct serial8250_uart_data console_data;
 
 #ifdef BCM_DEVICE0_BASE
@@ -74,13 +72,7 @@ void console_init(void)
 		      CFG_BCM_ELOG_AP_UART_LOG_SIZE);
 }
 
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}
-
 void main_init_gic(void)
 {
-	gic_init_base_addr(&gic_data, 0, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init_base_addr(0, GICD_BASE);
 }
