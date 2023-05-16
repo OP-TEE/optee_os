@@ -64,11 +64,6 @@ int dt_get_irq_type_prio(const void *fdt, int node, uint32_t *type,
 }
 #endif
 
-void itr_handle(size_t it)
-{
-	interrupt_call_handlers(itr_main_chip, it);
-}
-
 struct itr_handler *itr_alloc_add_type_prio(size_t it, itr_handler_t handler,
 					    uint32_t flags, void *data,
 					    uint32_t type, uint32_t prio)

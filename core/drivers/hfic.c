@@ -85,7 +85,8 @@ void interrupt_main_handler(void)
 		return;
 	}
 
-	itr_handle(id);
+	interrupt_call_handlers(&hfic_data.chip, id);
+
 	res = thread_hvc(HF_INTERRUPT_DEACTIVATE, id, id, 0);
 	assert(!res);
 }
