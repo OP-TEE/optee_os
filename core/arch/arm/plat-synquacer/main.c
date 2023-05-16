@@ -37,8 +37,7 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	/* On ARMv8-A, GIC configuration is initialized in TF-A */
-	gic_init_base_addr(0, GIC_BASE + GICD_OFFSET);
+	gic_init(0, GIC_BASE + GICD_OFFSET);
 }
 
 static enum itr_return timer_itr_cb(struct itr_handler *h __unused)

@@ -48,8 +48,7 @@ register_ddr(DRAM2_BASE, DRAM2_SIZE);
 
 void main_init_gic(void)
 {
-	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
 void console_init(void)

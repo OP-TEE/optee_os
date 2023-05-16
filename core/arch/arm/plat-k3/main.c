@@ -36,7 +36,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(GICC_BASE, GICD_BASE);
+	gic_init(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)

@@ -178,13 +178,74 @@ void gic_cpu_init(void)
 #endif
 }
 
-void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
+			  uint32_t *prio)
+{
+	int it_num = DT_INFO_INVALID_INTERRUPT;
+
+	if (type)
+		*type = IRQ_TYPE_NONE;
+
+	if (prio)
+		*prio = 0;
+
+	if (!properties || count < 2)
+		return DT_INFO_INVALID_INTERRUPT;
+
+	it_num = fdt32_to_cpu(properties[1]);
+
+	switch (fdt32_to_cpu(properties[0])) {
+	case 1:
+		it_num += 16;
+		break;
+	case 0:
+		it_num += 32;
+		break;
+	default:
+		it_num = DT_INFO_INVALID_INTERRUPT;
+	}
+
+	return it_num;
+}
+
+static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 {
 	struct gic_data *gd = &gic_data;
-	size_t n;
+	vaddr_t gicc_base = 0;
+	vaddr_t gicd_base = 0;
+
+	assert(cpu_mmu_enabled());
+
+	gicd_base = core_mmu_get_va(gicd_base_pa, MEM_AREA_IO_SEC,
+				    GIC_DIST_REG_SIZE);
+	if (!gicd_base)
+		panic();
+
+	if (!IS_ENABLED(CFG_ARM_GICV3)) {
+		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
+					    GIC_CPU_REG_SIZE);
+		if (!gicc_base)
+			panic();
+	}
+
+	gd->gicc_base = gicc_base;
+	gd->gicd_base = gicd_base;
+	gd->max_it = probe_max_it(gicc_base, gicd_base);
+	gd->chip.ops = &gic_ops;
+
+	if (IS_ENABLED(CFG_DT))
+		gd->chip.dt_get_irq = gic_dt_get_irq;
+}
+
+void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+{
+	struct gic_data __maybe_unused *gd = &gic_data;
+	size_t __maybe_unused n = 0;
 
 	gic_init_base_addr(gicc_base_pa, gicd_base_pa);
 
+	/* GIC configuration is initialized from TF-A when embedded */
+#ifndef CFG_WITH_ARM_TRUSTED_FW
 	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
 		io_write32(gd->gicd_base + GICD_ICENABLER(n), 0xffffffff);
@@ -221,67 +282,9 @@ void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	io_setbits32(gd->gicd_base + GICD_CTLR,
 		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1);
 #endif
+#endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
 	itr_init(&gic_data.chip);
-}
-
-static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
-			  uint32_t *prio)
-{
-	int it_num = DT_INFO_INVALID_INTERRUPT;
-
-	if (type)
-		*type = IRQ_TYPE_NONE;
-
-	if (prio)
-		*prio = 0;
-
-	if (!properties || count < 2)
-		return DT_INFO_INVALID_INTERRUPT;
-
-	it_num = fdt32_to_cpu(properties[1]);
-
-	switch (fdt32_to_cpu(properties[0])) {
-	case 1:
-		it_num += 16;
-		break;
-	case 0:
-		it_num += 32;
-		break;
-	default:
-		it_num = DT_INFO_INVALID_INTERRUPT;
-	}
-
-	return it_num;
-}
-
-void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
-{
-	struct gic_data *gd = &gic_data;
-	vaddr_t gicc_base = 0;
-	vaddr_t gicd_base = 0;
-
-	assert(cpu_mmu_enabled());
-
-	gicd_base = core_mmu_get_va(gicd_base_pa, MEM_AREA_IO_SEC,
-				    GIC_DIST_REG_SIZE);
-	if (!gicd_base)
-		panic();
-
-	if (!IS_ENABLED(CFG_ARM_GICV3)) {
-		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
-					    GIC_CPU_REG_SIZE);
-		if (!gicc_base)
-			panic();
-	}
-
-	gd->gicc_base = gicc_base;
-	gd->gicd_base = gicd_base;
-	gd->max_it = probe_max_it(gicc_base, gicd_base);
-	gd->chip.ops = &gic_ops;
-
-	if (IS_ENABLED(CFG_DT))
-		gd->chip.dt_get_irq = gic_dt_get_irq;
 }
 
 static void gic_it_add(struct gic_data *gd, size_t it)

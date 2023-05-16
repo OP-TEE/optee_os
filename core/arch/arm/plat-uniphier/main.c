@@ -37,7 +37,7 @@ static struct serial8250_uart_data console_data;
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
 void console_init(void)

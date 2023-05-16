@@ -81,7 +81,7 @@ void main_init_gic(void)
 #endif
 	gicd_base = GIC_BASE + GICD_OFFSET;
 
-	gic_init_base_addr(gicc_base, gicd_base);
+	gic_init(gicc_base, gicd_base);
 }
 #endif
 
