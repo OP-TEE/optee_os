@@ -128,12 +128,6 @@ TEE_Result itr_chip_init(struct itr_chip *chip);
  */
 void interrupt_main_init(struct itr_chip *data);
 
-/*
- * Call handlers registered for that interrupt in core interrupt controller
- * @it Interrupt line number
- */
-void itr_handle(size_t it);
-
 /* Retrieve main interrupt controller reference */
 struct itr_chip *interrupt_get_main_chip(void);
 
