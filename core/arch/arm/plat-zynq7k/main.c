@@ -44,7 +44,6 @@
 #include <stdint.h>
 #include <tee/entry_fast.h>
 
-static struct gic_data gic_data;
 static struct cdns_uart_data console_data;
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
@@ -144,13 +143,12 @@ void arm_cl2_enable(vaddr_t pl310_base)
 
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-	itr_init(&gic_data.chip);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
 
 static vaddr_t slcr_access_range[] = {

@@ -50,7 +50,6 @@
 #include <kernel/tee_common_otp.h>
 #include <mm/core_mmu.h>
 
-static struct gic_data gic_data;
 #ifdef CFG_PL011
 static struct pl011_data console_data;
 #else
@@ -216,16 +215,14 @@ void main_init_gic(void)
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(&gic_data, gic_base + gicc_offset,
-			   gic_base + gicd_offset);
+	gic_init_base_addr(gic_base + gicc_offset, gic_base + gicd_offset);
 #else
 	/* Initialize GIC */
-	gic_init(&gic_data, gic_base + gicc_offset, gic_base + gicd_offset);
+	gic_init(gic_base + gicc_offset, gic_base + gicd_offset);
 #endif
-	itr_init(&gic_data.chip);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }

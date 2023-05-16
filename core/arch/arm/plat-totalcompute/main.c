@@ -9,16 +9,12 @@
 #include <drivers/pl011.h>
 #include <initcall.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 
-#ifndef CFG_CORE_SEL2_SPMC
-static struct gic_data gic_data __nex_bss;
-#endif
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
@@ -36,20 +32,9 @@ void main_init_gic(void)
 	 * On ARMv8, GIC configuration is initialized in ARM-TF
 	 * gicd base address is same as gicc_base.
 	 */
-	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
-			   GIC_BASE + GICC_OFFSET);
-	itr_init(&gic_data.chip);
+	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICC_OFFSET);
 }
 #endif
-
-void itr_core_handler(void)
-{
-#ifdef CFG_CORE_SEL2_SPMC
-	panic("Secure interrupt handler not defined");
-#else
-	gic_it_handle(&gic_data);
-#endif
-}
 
 void console_init(void)
 {

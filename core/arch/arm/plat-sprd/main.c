@@ -28,7 +28,6 @@
 
 #include <drivers/gic.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
@@ -46,17 +45,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			ROUNDDOWN(GIC_BASE + GICD_OFFSET, CORE_MMU_PGDIR_SIZE),
 			CORE_MMU_PGDIR_SIZE);
 
-static struct gic_data gic_data;
-
 void main_init_gic(void)
 {
-	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
-			   GIC_BASE + GICD_OFFSET);
-
-	itr_init(&gic_data.chip);
+	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}

@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <trace.h>
 
-static struct gic_data gic_data __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
@@ -24,18 +23,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 
 void main_init_gic(void)
 {
-	gic_init_base_addr(&gic_data, GICC_BASE, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init_base_addr(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
-}
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
+	gic_cpu_init();
 }
 
 void console_init(void)

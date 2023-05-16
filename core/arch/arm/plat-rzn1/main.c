@@ -10,7 +10,6 @@
 #include <drivers/ns16550.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -29,7 +28,6 @@
 /* Timeout waiting for Master Idle Request Acknowledge */
 #define IDLE_ACK_TIMEOUT_US		1000
 
-static struct gic_data gic_data;
 static struct ns16550_data console_data;
 
 register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
@@ -44,13 +42,12 @@ void console_init(void)
 
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GICC_BASE, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
 
 static TEE_Result rzn1_tz_init(void)

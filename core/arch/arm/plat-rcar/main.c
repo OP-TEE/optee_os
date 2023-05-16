@@ -60,7 +60,6 @@ register_ddr(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 #endif
 
 static struct scif_uart_data console_data __nex_bss;
-static struct gic_data gic_data __nex_bss;
 
 #ifdef PRR_BASE
 uint32_t rcar_prr_value __nex_bss;
@@ -90,17 +89,10 @@ unsigned long plat_get_aslr_seed(void)
 
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GICC_BASE, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}
-

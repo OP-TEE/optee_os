@@ -27,8 +27,6 @@
 #include <string.h>
 #include <trace.h>
 
-static struct gic_data gic_data __maybe_unused __nex_bss;
-static struct hfic_data hfic_data __maybe_unused __nex_bss;
 static struct pl011_data console_data __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
@@ -53,37 +51,24 @@ void main_init_gic(void)
 {
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* On ARMv8, GIC configuration is initialized in ARM-TF */
-	gic_init_base_addr(&gic_data, GIC_BASE + GICC_OFFSET,
-			   GIC_BASE + GICD_OFFSET);
+	gic_init_base_addr(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #else
-	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
-	itr_init(&gic_data.chip);
 }
 
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
 #endif
-
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}
 #endif /*CFG_GIC*/
 
 #ifdef CFG_CORE_HAFNIUM_INTC
 void main_init_gic(void)
 {
-	hfic_init(&hfic_data);
-	itr_init(&hfic_data.chip);
-}
-
-void itr_core_handler(void)
-{
-	hfic_it_handle(&hfic_data);
+	hfic_init();
 }
 #endif
 

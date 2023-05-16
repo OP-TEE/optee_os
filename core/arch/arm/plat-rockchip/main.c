@@ -14,8 +14,6 @@
 #include <platform_config.h>
 #include <stdint.h>
 
-static struct gic_data gic_data;
-
 #if defined(CFG_EARLY_CONSOLE)
 static struct serial8250_uart_data early_console_data;
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
@@ -26,13 +24,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 void main_init_gic(void)
 {
-	gic_init(&gic_data, GICC_BASE, GICD_BASE);
-	itr_init(&gic_data.chip);
+	gic_init(GICC_BASE, GICD_BASE);
 }
 
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
 
 void console_init(void)

@@ -35,13 +35,10 @@
 #include <imx.h>
 #include <io.h>
 #include <kernel/boot.h>
-#include <kernel/interrupt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <stdint.h>
-
-static struct gic_data gic_data __nex_bss;
 
 static struct imx_uart_data console_data __nex_bss;
 
@@ -101,11 +98,6 @@ register_ddr(CFG_DRAM_BASE, CFG_DDR_SIZE);
 register_ddr(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
 #endif
 
-void itr_core_handler(void)
-{
-	gic_it_handle(&gic_data);
-}
-
 void console_init(void)
 {
 #ifdef CONSOLE_UART_BASE
@@ -117,16 +109,15 @@ void console_init(void)
 void main_init_gic(void)
 {
 #ifdef GICD_BASE
-	gic_init(&gic_data, 0, GICD_BASE);
+	gic_init(0, GICD_BASE);
 #else
-	gic_init(&gic_data, GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
-	itr_init(&gic_data.chip);
 }
 
 #if CFG_TEE_CORE_NB_CORE > 1
 void main_secondary_init_gic(void)
 {
-	gic_cpu_init(&gic_data);
+	gic_cpu_init();
 }
 #endif

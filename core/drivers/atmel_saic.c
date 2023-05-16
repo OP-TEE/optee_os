@@ -43,7 +43,7 @@ static uint32_t saic_read_reg(uint32_t reg)
 	return io_read32(saic.base + reg);
 }
 
-void atmel_saic_it_handle(void)
+void itr_core_handler(void)
 {
 	uint32_t irqnr = saic_read_reg(AT91_AIC_IVR);
 

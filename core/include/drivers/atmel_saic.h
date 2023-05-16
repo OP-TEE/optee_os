@@ -41,8 +41,6 @@
 #define AT91_AIC_WPMR	0xe4
 #define AT91_AIC_WPSR	0xe8
 
-void atmel_saic_it_handle(void);
-
 TEE_Result atmel_saic_setup(void);
 
 #endif /*__DRIVERS_ATMEL_SAIC_H*/
