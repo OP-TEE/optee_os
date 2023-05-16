@@ -134,7 +134,7 @@ void itr_set_affinity(size_t it, uint8_t cpu_mask)
 }
 
 /* This function is supposed to be overridden in platform specific code */
-void __weak __noreturn itr_core_handler(void)
+void __weak __noreturn interrupt_main_handler(void)
 {
 	panic("Secure interrupt handler not defined");
 }

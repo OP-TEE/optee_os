@@ -1272,7 +1272,7 @@ END_FUNC el0_sync_abort
 	mov	sp, x1
 
 	bl	thread_check_canaries
-	bl	itr_core_handler
+	bl	interrupt_main_handler
 
 	/*
 	 * Restore registers

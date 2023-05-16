@@ -974,7 +974,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
-		itr_core_handler();
+		interrupt_main_handler();
 		spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
 		break;
 #ifdef ARM64

@@ -70,7 +70,7 @@ LOCAL_FUNC vector_fiq_entry , : , .identity_map
 	readjust_pc
 	/* Secure Monitor received a FIQ and passed control to us. */
 	bl	thread_check_canaries
-	bl	itr_core_handler
+	bl	interrupt_main_handler
 	ldr	x0, =TEESMC_OPTEED_RETURN_FIQ_DONE
 	smc	#0
 	/* SMC should not return */
