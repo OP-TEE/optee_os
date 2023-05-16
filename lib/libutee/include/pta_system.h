@@ -183,6 +183,8 @@
  */
 #define PTA_SYSTEM_DLSYM                11
 
+#define DLSYM_MAX_SYMBOL_LENGTH         1024
+
 /*
  * Retrieves a copy of the TPM Event log held in secure memory.
  *

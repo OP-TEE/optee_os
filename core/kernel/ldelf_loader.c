@@ -9,6 +9,7 @@
 #include <kernel/ldelf_loader.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/scall.h>
+#include <kernel/user_access.h>
 #include <ldelf.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
@@ -82,7 +83,11 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	vm_set_ctx(uctx->ts_ctx);
 
 	memcpy((void *)code_addr, ldelf_data, ldelf_code_size);
-	memcpy((void *)rw_addr, ldelf_data + ldelf_code_size, ldelf_data_size);
+
+	res = copy_to_user((void *)rw_addr, ldelf_data + ldelf_code_size,
+			   ldelf_data_size);
+	if (res)
+		return res;
 
 	prot = TEE_MATTR_URX;
 	if (IS_ENABLED(CFG_CORE_BTI))
@@ -110,9 +115,15 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	usr_stack = uctx->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct ldelf_arg *)usr_stack;
-	memset(arg, 0, sizeof(*arg));
-	arg->uuid = uctx->ts_ctx->uuid;
 	sess->handle_scall = scall_handle_ldelf;
+
+	res = clear_user(arg, sizeof(*arg));
+	if (res)
+		return res;
+
+	res = PUT_USER_SCALAR(uctx->ts_ctx->uuid, &arg->uuid);
+	if (res)
+		return res;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->entry_func,
@@ -347,6 +358,10 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 }
 #endif /*CFG_FTRACE_SUPPORT*/
 
+/*
+ * Note: The caller should make sure that `uuid` belongs to the core
+ * memory as we are not using user-access functions to access them.
+ */
 TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 			uint32_t flags)
 {
@@ -356,26 +371,20 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	struct ts_session *sess = NULL;
+	struct dl_entry_arg dl_entry_arg = { };
 
 	assert(uuid);
 
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_WRITE |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
+	dl_entry_arg.cmd = LDELF_DL_ENTRY_DLOPEN;
+	dl_entry_arg.dlopen.uuid = *uuid;
+	dl_entry_arg.dlopen.flags = flags;
 
-	memset(arg, 0, sizeof(*arg));
-	arg->cmd = LDELF_DL_ENTRY_DLOPEN;
-	arg->dlopen.uuid = *uuid;
-	arg->dlopen.flags = flags;
+	res = copy_to_user(arg, &dl_entry_arg, sizeof(*arg));
+	if (res)
+		return res;
 
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;
@@ -398,38 +407,39 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	return res;
 }
 
+/*
+ * Note: The caller should make sure that `uuid` ,`sym` and `val`
+ * belong to the core memory as we are not using user-access functions
+ * to access them.
+ *
+ * Also, this function assumes that the size of `sym` is `sym_len + 1`
+ * and the only NULL character in `sym` is `sym[sym_len]`, which should
+ * be taken care by the caller.
+ */
 TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
-		       const char *sym, size_t maxlen, vaddr_t *val)
+		       const char *sym, size_t sym_len, vaddr_t *val)
 {
 	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
-	size_t len = strnlen(sym, maxlen);
 	struct ts_session *sess = NULL;
+	struct dl_entry_arg dl_entry_arg = { };
 
-	if (len == maxlen)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
+	usr_stack -= ROUNDUP(sizeof(*arg) + sym_len + 1, STACK_ALIGNMENT);
 	arg = (struct dl_entry_arg *)usr_stack;
 
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_WRITE |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg) + len + 1);
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
+	dl_entry_arg.cmd = LDELF_DL_ENTRY_DLSYM;
+	dl_entry_arg.dlsym.uuid = *uuid;
 
-	memset(arg, 0, sizeof(*arg));
-	arg->cmd = LDELF_DL_ENTRY_DLSYM;
-	arg->dlsym.uuid = *uuid;
-	memcpy(arg->dlsym.symbol, sym, len);
-	arg->dlsym.symbol[len] = '\0';
+	res = copy_to_user(arg, &dl_entry_arg, sizeof(dl_entry_arg));
+	if (res)
+		return res;
+
+	res = copy_to_user(arg->dlsym.symbol, sym, sym_len + 1);
+	if (res)
+		return res;
 
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;

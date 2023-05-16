@@ -176,6 +176,7 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 	struct tee_obj *o = NULL;
+	void *oid_kbuf = NULL;
 
 	if (flags & ~valid_flags)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -190,17 +191,17 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto exit;
 	}
 
-	object_id = memtag_strip_tag(object_id);
 	if (object_id_len) {
-		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					     (uaddr_t)object_id, object_id_len);
-		if (res != TEE_SUCCESS)
-			goto err;
+		object_id = memtag_strip_tag(object_id);
+		res = memdup_user_private(object_id, object_id_len, &oid_kbuf);
+		if (res)
+			goto exit;
 	}
 
-	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, oid_kbuf,
 			   object_id_len, flags, TEE_POBJ_USAGE_OPEN, fops,
 			   &po);
+	free(oid_kbuf);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -326,6 +327,7 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 	struct tee_obj *o = NULL;
+	void *oid_kbuf = NULL;
 
 	if (flags & ~valid_flags)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -340,15 +342,15 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	data = memtag_strip_tag(data);
 
 	if (object_id_len) {
-		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					     (uaddr_t)object_id, object_id_len);
-		if (res != TEE_SUCCESS)
-			goto err;
+		res = memdup_user_private(object_id, object_id_len, &oid_kbuf);
+		if (res)
+			return res;
 	}
 
-	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, oid_kbuf,
 			   object_id_len, flags, TEE_POBJ_USAGE_CREATE,
 			   fops, &po);
+	free(oid_kbuf);
 	if (res != TEE_SUCCESS)
 		goto err;
 
@@ -493,6 +495,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	struct tee_obj *o = NULL;
 	char *new_file = NULL;
 	char *old_file = NULL;
+	void *oid_kbuf = NULL;
 
 	if (object_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -518,17 +521,17 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 
 	object_id = memtag_strip_tag(object_id);
 	if (object_id_len) {
-		res = vm_check_access_rights(&utc->uctx, TEE_MEMORY_ACCESS_READ,
-					     (uaddr_t)object_id, object_id_len);
-		if (res != TEE_SUCCESS)
+		res = memdup_user_private(object_id, object_id_len, &oid_kbuf);
+		if (res)
 			goto exit;
 	}
 
 	/* reserve dest name */
 	fops = o->pobj->fops;
-	res = tee_pobj_get((void *)&sess->ctx->uuid, object_id,
+	res = tee_pobj_get((void *)&sess->ctx->uuid, oid_kbuf,
 			   object_id_len, TEE_DATA_FLAG_ACCESS_WRITE_META,
 			   TEE_POBJ_USAGE_RENAME, fops, &po);
+	free(oid_kbuf);
 	if (res != TEE_SUCCESS)
 		goto exit;
 
@@ -642,6 +645,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_obj *o = NULL;
 	uint64_t l = 0;
+	struct utee_object_info buf = { };
 
 	res = tee_svc_storage_get_enum(utc, uref_to_vaddr(obj_enum), &e);
 	if (res != TEE_SUCCESS)
@@ -688,7 +692,7 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 	if (res != TEE_SUCCESS)
 		goto exit;
 
-	*info = (struct utee_object_info){
+	buf = (struct utee_object_info){
 		.obj_type = o->info.objectType,
 		.obj_size = o->info.objectSize,
 		.max_obj_size = o->info.maxObjectSize,
@@ -697,7 +701,13 @@ TEE_Result syscall_storage_next_enum(unsigned long obj_enum,
 		.data_pos = o->info.dataPosition,
 		.handle_flags = o->info.handleFlags,
 	};
-	memcpy(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
+	res = copy_to_user(info, &buf, sizeof(buf));
+	if (res)
+		goto exit;
+
+	res = copy_to_user(obj_id, o->pobj->obj_id, o->pobj->obj_id_len);
+	if (res)
+		goto exit;
 
 	l = o->pobj->obj_id_len;
 	res = copy_to_user_private(len, &l, sizeof(*len));

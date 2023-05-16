@@ -49,12 +49,26 @@
 #include <utee_defines.h>
 #include <util.h>
 
-static void init_utee_param(struct utee_params *up,
+static TEE_Result init_utee_param(struct utee_params *up,
 			const struct tee_ta_param *p, void *va[TEE_NUM_PARAMS])
 {
+	TEE_Result res = TEE_SUCCESS;
 	size_t n;
 
-	up->types = p->types;
+	/*
+	 * Note: The type of up->types is uint64_t, while the type of p->types
+	 * is uint32_t. To avoid potential uninitialized memory issue, first
+	 * clear 8 bytes (`&up->types`) first, and fill-in 4 bytes copied from
+	 * `p->types` there.
+	 */
+	res = clear_user(&up->types, sizeof(up->types));
+	if (res)
+		return res;
+
+	res = copy_to_user(&up->types, &p->types, sizeof(p->types));
+	if (res)
+		return res;
+
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uintptr_t a;
 		uintptr_t b;
@@ -77,9 +91,15 @@ static void init_utee_param(struct utee_params *up,
 			break;
 		}
 		/* See comment for struct utee_params in utee_types.h */
-		up->vals[n * 2] = a;
-		up->vals[n * 2 + 1] = b;
+		res = copy_to_user(&up->vals[n * 2], &a, sizeof(a));
+		if (res)
+			return res;
+		res = copy_to_user(&up->vals[n * 2 + 1], &b, sizeof(b));
+		if (res)
+			return res;
 	}
+
+	return TEE_SUCCESS;
 }
 
 static void update_from_utee_param(struct tee_ta_param *p,
@@ -159,9 +179,12 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	if (ta_sess->param)
-		init_utee_param(usr_params, ta_sess->param, param_va);
+		res = init_utee_param(usr_params, ta_sess->param, param_va);
 	else
-		memset(usr_params, 0, sizeof(*usr_params));
+		res = clear_user(usr_params, sizeof(*usr_params));
+
+	if (res)
+		goto out_pop_session;
 
 	res = thread_enter_user_mode(func, kaddr_to_uref(session),
 				     (vaddr_t)usr_params, cmd, usr_stack,
@@ -195,7 +218,7 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 		vm_clean_param(&utc->uctx);
 	}
 
-
+out_pop_session:
 	ts_sess = ts_pop_current_session();
 	assert(ts_sess == session);
 

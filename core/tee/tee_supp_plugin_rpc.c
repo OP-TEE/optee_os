@@ -15,6 +15,7 @@
 #include <tee/uuid.h>
 #include <trace.h>
 
+/* Note: Make sure `uuid` belong to the core memory. */
 TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 				      uint32_t sub_cmd, void *buf, size_t len,
 				      size_t *outlen)

@@ -13,6 +13,7 @@
 #include <kernel/tee_common.h>
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
@@ -322,10 +323,10 @@ TEE_Result vm_map_pad(struct user_mode_ctx *uctx, vaddr_t *va, size_t len,
 
 	reg->mobj = mobj_get(mobj);
 	reg->offset = offs;
-	reg->va = *va;
 	reg->size = ROUNDUP(len, SMALL_PAGE_SIZE);
 	reg->attr = attr | prot;
 	reg->flags = flags;
+	reg->va = *va;
 
 	res = umap_add_region(&uctx->vm_info, reg, pad_begin, pad_end, align);
 	if (res)
@@ -554,6 +555,10 @@ static bool cmp_region_for_remap(const struct vm_region *r0,
 	       r0->mobj == r->mobj && rn->offset == r->offset + r->size;
 }
 
+/*
+ * Note: `new_va` always belongs to userland. Therefore, it is safe to always
+ * use user-access functions to access `new_va` within this function.
+ */
 TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		    size_t len, size_t pad_begin, size_t pad_end)
 {
@@ -566,8 +571,13 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 	struct vm_region *r_first = NULL;
 	struct fobj *fobj = NULL;
 	vaddr_t next_va = 0;
+	vaddr_t vaddr = 0;
 
 	assert(thread_get_tsd()->ctx == uctx->ts_ctx);
+
+	res = GET_USER_SCALAR(vaddr, new_va);
+	if (res)
+		return res;
 
 	if (!len || ((len | old_va) & SMALL_PAGE_MASK))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -605,7 +615,7 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 			r->va = r_last->va + r_last->size;
 			res = umap_add_region(&uctx->vm_info, r, 0, 0, 0);
 		} else {
-			r->va = *new_va;
+			r->va = vaddr;
 			res = umap_add_region(&uctx->vm_info, r, pad_begin,
 					      pad_end + len - r->size, 0);
 		}
@@ -654,10 +664,13 @@ TEE_Result vm_remap(struct user_mode_ctx *uctx, vaddr_t *new_va, vaddr_t old_va,
 		}
 	}
 
+	res = PUT_USER_SCALAR(r_first->va, new_va);
+	if (res)
+		goto err_restore_map;
+
 	fobj_put(fobj);
 
 	vm_set_ctx(uctx->ts_ctx);
-	*new_va = r_first->va;
 
 	return TEE_SUCCESS;
 

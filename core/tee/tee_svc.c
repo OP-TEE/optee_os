@@ -18,6 +18,7 @@
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
 #include <mm/vm.h>
+#include <stdint.h>
 #include <stdlib_ext.h>
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
@@ -588,14 +589,19 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 				      struct utee_params *up)
 {
 	size_t n = 0;
-	uint32_t types = up->types;
+	uint64_t types = 0;
+
+	GET_USER_SCALAR(types, &up->types);
 
 	p->types = types;
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
-		uintptr_t a = up->vals[n * 2];
-		size_t b = up->vals[n * 2 + 1];
+		uint64_t a = 0;
+		uint64_t b = 0;
 		uint32_t flags = TEE_MEMORY_ACCESS_READ |
 				 TEE_MEMORY_ACCESS_ANY_OWNER;
+
+		GET_USER_SCALAR(a, &up->vals[n * 2]);
+		GET_USER_SCALAR(b, &up->vals[n * 2 + 1]);
 
 		switch (TEE_PARAM_TYPE_GET(types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
@@ -603,7 +609,8 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 			flags |= TEE_MEMORY_ACCESS_WRITE;
 			fallthrough;
 		case TEE_PARAM_TYPE_MEMREF_INPUT:
-			p->u[n].mem.offs = memtag_strip_tag_vaddr((void *)a);
+			p->u[n].mem.offs =
+				memtag_strip_tag_vaddr((void *)(uintptr_t)a);
 			p->u[n].mem.size = b;
 
 			if (!p->u[n].mem.offs) {
@@ -690,7 +697,7 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 
 	/* fill 'param' input struct with caller params description buffer */
 	if (!callee_params) {
-		memset(param, 0, sizeof(*param));
+		clear_user(param, sizeof(*param));
 	} else {
 		uint32_t flags = TEE_MEMORY_ACCESS_READ |
 				 TEE_MEMORY_ACCESS_WRITE |
@@ -815,9 +822,14 @@ static TEE_Result tee_svc_update_out_param(
 {
 	size_t n;
 	uint64_t *vals = usr_param->vals;
-	size_t sz = 0;
+	uint64_t sz = 0;
+	uint64_t in_sz = 0;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		TEE_Result res = TEE_SUCCESS;
+		uint64_t a = 0;
+		uint64_t b = 0;
+
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
@@ -828,10 +840,14 @@ static TEE_Result tee_svc_update_out_param(
 			 * size needs to be updated.
 			 */
 			sz = param->u[n].mem.size;
-			if (tmp_buf_va[n] && sz <= vals[n * 2 + 1]) {
+
+			res = GET_USER_SCALAR(in_sz, &vals[n * 2 + 1]);
+			if (res)
+				return res;
+
+			if (tmp_buf_va[n] && sz <= in_sz) {
 				void *src = tmp_buf_va[n];
 				void *dst = (void *)(uintptr_t)vals[n * 2];
-				TEE_Result res = TEE_SUCCESS;
 
 				/*
 				 * TA is allowed to return a size larger than
@@ -845,13 +861,24 @@ static TEE_Result tee_svc_update_out_param(
 						return res;
 				}
 			}
-			usr_param->vals[n * 2 + 1] = sz;
+			res = PUT_USER_SCALAR(sz, &usr_param->vals[n * 2 + 1]);
+			if (res)
+				return res;
+
 			break;
 
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			vals[n * 2] = param->u[n].val.a;
-			vals[n * 2 + 1] = param->u[n].val.b;
+			a = (uint64_t)param->u[n].val.a;
+			b = (uint64_t)param->u[n].val.b;
+
+			res = PUT_USER_SCALAR(a, &vals[n * 2]);
+			if (res)
+				return res;
+			res = PUT_USER_SCALAR(b, &vals[n * 2 + 1]);
+			if (res)
+				return res;
+
 			break;
 
 		default:

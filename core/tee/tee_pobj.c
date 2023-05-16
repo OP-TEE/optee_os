@@ -57,6 +57,7 @@ static TEE_Result tee_pobj_check_access(uint32_t oflags, uint32_t nflags)
 	return TEE_SUCCESS;
 }
 
+/* Note: Make sure `uuid` and `obj_id` belong to the core memory. */
 TEE_Result tee_pobj_get(TEE_UUID *uuid, void *obj_id, uint32_t obj_id_len,
 			uint32_t flags, enum tee_pobj_usage usage,
 			const struct tee_file_operations *fops,
