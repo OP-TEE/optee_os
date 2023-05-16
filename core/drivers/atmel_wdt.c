@@ -230,7 +230,8 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	uint32_t irq_type = 0;
 	uint32_t irq_prio = 0;
 	int it = DT_INFO_INVALID_INTERRUPT;
-	struct itr_handler *it_hdlr;
+	struct itr_handler *it_hdlr = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -247,10 +248,15 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	if (it == DT_INFO_INVALID_INTERRUPT)
 		goto err_free_wdt;
 
-	it_hdlr = itr_alloc_add_type_prio(it, &atmel_wdt_itr_cb, 0, wdt,
-					  irq_type, irq_prio);
-	if (!it_hdlr)
+	res = interrupt_alloc_add_handler(interrupt_get_main_chip(), it,
+					  atmel_wdt_itr_cb, 0, wdt, &it_hdlr);
+	if (res)
 		goto err_free_wdt;
+
+	res = interrupt_configure(interrupt_get_main_chip(), it, irq_type,
+				  irq_prio);
+	if (res)
+		goto err_free_itr_handler;
 
 	if (dt_map_dev(fdt, node, &wdt->base, &size, DT_MAP_AUTO) < 0)
 		goto err_free_itr_handler;
@@ -259,13 +265,13 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	wdt->mr = io_read32(wdt->base + WDT_MR) & WDT_MR_WDDIS;
 
 	atmel_wdt_init_hw(wdt);
-	itr_enable(it);
+	interrupt_enable(it_hdlr->chip, it_hdlr->it);
 	atmel_wdt_register_pm(wdt);
 
 	return watchdog_register(&wdt->chip);
 
 err_free_itr_handler:
-	itr_free(it_hdlr);
+	interrupt_remove_free_handler(it_hdlr);
 err_free_wdt:
 	free(wdt);
 
