@@ -468,7 +468,7 @@ END_FUNC thread_unwind_user_mode
 	.endif
 
 	bl	thread_check_canaries
-	bl	itr_core_handler
+	bl	interrupt_main_handler
 
 	mrs	r0, spsr
 	cmp_spsr_user_mode r0

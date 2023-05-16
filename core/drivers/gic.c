@@ -497,8 +497,8 @@ static void __maybe_unused gic_native_itr_handler(void)
 }
 
 #ifndef CFG_CORE_WORKAROUND_ARM_NMFI
-/* Override itr_core_handler() with core interrupt controller implementation */
-void itr_core_handler(void)
+/* Override interrupt_main_handler() with driver implementation */
+void interrupt_main_handler(void)
 {
 	gic_native_itr_handler();
 }

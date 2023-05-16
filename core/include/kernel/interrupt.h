@@ -113,7 +113,7 @@ void itr_set_affinity(size_t it, uint8_t cpu_mask);
  * received. The default function calls panic() immediately, platforms which
  * expects to receive secure interrupts should override this function.
  */
-void itr_core_handler(void);
+void interrupt_main_handler(void);
 
 static inline void itr_add(struct itr_handler *handler)
 {

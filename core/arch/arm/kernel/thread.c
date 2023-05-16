@@ -1163,7 +1163,7 @@ DECLARE_KEEP_PAGER(thread_system_reset_handler);
 #endif /*CFG_WITH_ARM_TRUSTED_FW*/
 
 #ifdef CFG_CORE_WORKAROUND_ARM_NMFI
-void __noreturn itr_core_handler(void)
+void __noreturn interrupt_main_handler(void)
 {
 	/*
 	 * Note: overrides the default implementation of this function so that

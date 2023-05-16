@@ -73,8 +73,8 @@ void hfic_init(void)
 	itr_init(&hfic_data.chip);
 }
 
-/* Override itr_core_handler() with core interrupt controller implementation */
-void itr_core_handler(void)
+/* Override interrupt_main_handler() with driver implementation */
+void interrupt_main_handler(void)
 {
 	uint32_t id = 0;
 	uint32_t res __maybe_unused = 0;
