@@ -505,7 +505,7 @@ static void __maybe_unused gic_native_itr_handler(void)
 	id = iar & GICC_IAR_IT_ID_MASK;
 
 	if (id <= gd->max_it)
-		itr_handle(id);
+		interrupt_call_handlers(&gd->chip, id);
 	else
 		DMSG("ignoring interrupt %" PRIu32, id);
 

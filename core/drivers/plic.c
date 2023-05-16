@@ -276,7 +276,7 @@ void plic_it_handle(void)
 	uint32_t id = plic_claim_interrupt(pd);
 
 	if (id <= pd->max_it)
-		itr_handle(id);
+		interrupt_call_handlers(&pd->chip, id);
 	else
 		DMSG("ignoring interrupt %" PRIu32, id);
 

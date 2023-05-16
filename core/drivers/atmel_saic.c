@@ -29,7 +29,7 @@ struct saic_data {
 	uint32_t external[SAMA5D2_AIC_MAX_IRQS32];
 };
 
-static struct saic_data saic = {0};
+static struct saic_data saic;
 
 static void saic_register_pm(void);
 
@@ -47,7 +47,7 @@ void interrupt_main_handler(void)
 {
 	uint32_t irqnr = saic_read_reg(AT91_AIC_IVR);
 
-	itr_handle(irqnr);
+	interrupt_call_handlers(&saic.chip, irqnr);
 	saic_write_reg(AT91_AIC_EOICR, 0);
 }
 
@@ -192,9 +192,11 @@ static int saic_dt_get_irq(const uint32_t *properties, int len,
 	return it;
 }
 
-struct itr_chip saic_chip = {
-	.ops = &saic_ops,
-	.dt_get_irq = &saic_dt_get_irq,
+static struct saic_data saic = {
+	.chip = {
+		.ops = &saic_ops,
+		.dt_get_irq = &saic_dt_get_irq,
+	},
 };
 
 static void saic_clear_aicredir(void)
@@ -297,7 +299,7 @@ TEE_Result atmel_saic_setup(void)
 	saic_init_external(fdt, node);
 	saic_init_hw();
 
-	interrupt_main_init(&saic_chip);
+	interrupt_main_init(&saic.chip);
 	saic_register_pm();
 
 	return TEE_SUCCESS;
