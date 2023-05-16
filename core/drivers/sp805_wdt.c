@@ -102,19 +102,21 @@ TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
 				      uint32_t itr_num, uint32_t itr_flags,
 				      sp805_itr_handler_func_t itr_handler)
 {
-	struct itr_handler *wdt_itr;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct itr_handler *wdt_itr = NULL;
 
 	assert(!pd->chip.wdt_itr);
 
-	wdt_itr = itr_alloc_add(itr_num, wdt_itr_cb,
-				itr_flags, &pd->chip);
-	if (!wdt_itr)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	res = interrupt_alloc_add_handler(interrupt_get_main_chip(), itr_num,
+					  wdt_itr_cb, itr_flags,
+					  &pd->chip, &wdt_itr);
+	if (res)
+		return res;
 
 	pd->itr_handler = itr_handler;
 	pd->chip.wdt_itr = wdt_itr;
 
-	itr_enable(wdt_itr->it);
+	interrupt_enable(wdt_itr->chip, wdt_itr->it);
 
 	return TEE_SUCCESS;
 }
