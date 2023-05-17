@@ -25,17 +25,6 @@ static inline void mbed_copy_mbedtls_aes_context(mbedtls_aes_context *dst,
 						 mbedtls_aes_context *src)
 {
 	*dst = *src;
-#if !defined(MBEDTLS_AES_ALT)
-#if defined(MBEDTLS_PADLOCK_C) && defined(MBEDTLS_PADLOCK_ALIGN16)
-	/*
-	 * This build configuration should not occur, but just in case error out
-	 * here. It needs special handling of the rk pointer, see
-	 * mbedtls_aes_setkey_enc().
-	 */
-#error Do not know how to copy mbedtls_aes_context::rk
-#endif
-	dst->rk = dst->buf;
-#endif
 }
 
 TEE_Result mbed_gen_random_upto(mbedtls_mpi *n, mbedtls_mpi *max);

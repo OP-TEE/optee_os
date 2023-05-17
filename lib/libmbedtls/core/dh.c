@@ -51,6 +51,7 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key,
 	mbedtls_dhm_context dhm;
 	unsigned char *buf = NULL;
 	size_t xbytes = 0;
+	size_t len = 0;
 
 	memset(&dhm, 0, sizeof(dhm));
 	mbedtls_dhm_init(&dhm);
@@ -58,24 +59,24 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key,
 	dhm.G = *(mbedtls_mpi *)key->g;
 	dhm.P = *(mbedtls_mpi *)key->p;
 
-	dhm.len = crypto_bignum_num_bytes(key->p);
-	if (key_size != 8 * dhm.len) {
+	len = mbedtls_dhm_get_len(&dhm);
+	if (key_size != 8 * len) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
 	}
 
 	if (xbits == 0)
-		xbytes = dhm.len;
+		xbytes = len;
 	else
 		xbytes = xbits / 8;
 
-	buf = malloc(dhm.len);
+	buf = malloc(len);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 	lmd_res = mbedtls_dhm_make_public(&dhm, (int)xbytes, buf,
-					  dhm.len, mbd_rand, NULL);
+					  len, mbd_rand, NULL);
 	if (lmd_res != 0) {
 		FMSG("mbedtls_dhm_make_public err, return is 0x%x", -lmd_res);
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -102,6 +103,7 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 	mbedtls_dhm_context dhm;
 	unsigned char *buf = NULL;
 	size_t olen = 0;
+	size_t len = 0;
 
 	memset(&dhm, 0, sizeof(dhm));
 	mbedtls_dhm_init(&dhm);
@@ -112,15 +114,15 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 	dhm.X = *(mbedtls_mpi *)private_key->x;
 	dhm.GY = *(mbedtls_mpi *)public_key;
 
-	dhm.len = crypto_bignum_num_bytes(private_key->p);
+	len = mbedtls_dhm_get_len(&dhm);
 
-	buf = malloc(dhm.len);
+	buf = malloc(len);
 	if (!buf) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto out;
 	}
 
-	lmd_res = mbedtls_dhm_calc_secret(&dhm, buf, dhm.len,
+	lmd_res = mbedtls_dhm_calc_secret(&dhm, buf, len,
 					  &olen, mbd_rand, NULL);
 	if (lmd_res != 0) {
 		FMSG("mbedtls_dhm_calc_secret failed, ret is 0x%x", -lmd_res);
