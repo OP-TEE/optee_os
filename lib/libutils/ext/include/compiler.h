@@ -276,4 +276,9 @@
 #define fallthrough do {} while (0) /* fallthrough */
 #endif
 
+#ifndef __clang__
+#define __no_stackprot __attribute__((__optimize__ ("-fno-stack-protector")))
+#else
+#define __no_stackprot
+#endif
 #endif /*COMPILER_H*/

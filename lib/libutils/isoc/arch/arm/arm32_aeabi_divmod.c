@@ -17,6 +17,8 @@
  *     unsigned denominator);
  */
 
+#include <compiler.h>
+
 /* struct qr - stores qutient/remainder to handle divmod EABI interfaces. */
 struct qr {
 	unsigned q;		/* computed quotient */
@@ -103,7 +105,7 @@ unsigned __aeabi_uidiv(unsigned numerator, unsigned denominator)
 	return qr.q;
 }
 
-unsigned __aeabi_uidivmod(unsigned numerator, unsigned denominator)
+unsigned __no_stackprot __aeabi_uidivmod(unsigned numerator, unsigned denominator)
 {
 	struct qr qr = { .q_n = 0, .r_n = 0 };
 
@@ -131,7 +133,7 @@ signed __aeabi_idiv(signed numerator, signed denominator)
 	return qr.q;
 }
 
-signed __aeabi_idivmod(signed numerator, signed denominator)
+signed __no_stackprot __aeabi_idivmod(signed numerator, signed denominator)
 {
 	struct qr qr = { .q_n = 0, .r_n = 0 };
 
