@@ -1,4 +1,4 @@
-_cc-option-supported = $(if $(shell $(CC$(sm)) $(1) -c -x c /dev/null -o /dev/null 2>/dev/null >/dev/null || echo "Not supported"),,1)
+_cc-option-supported = $(if $(shell $(CC$(sm)) -Werror $(1) -c -x c /dev/null -o /dev/null 2>/dev/null >/dev/null || echo "Not supported"),,1)
 _cc-opt-cached-var-name = $(subst =,~,$(strip cached-cc-option-$(1)-$(subst $(empty) $(empty),,$(CC$(sm)))))
 define _cc-option
 $(eval _var_name := $(call _cc-opt-cached-var-name,$(1)))
