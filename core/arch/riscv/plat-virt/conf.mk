@@ -18,6 +18,8 @@ $(call force,CFG_NUM_THREADS,1)
 $(call force,CFG_BOOT_SYNC_CPU,y)
 
 # RISC-V-specific flags
+rv64-platform-isa ?= rv64imafdc_zicsr_zifencei
+
 $(call force,CFG_RISCV_PLIC,y)
 $(call force,CFG_SBI_CONSOLE,n)
 $(call force,CFG_16550_UART,y)
