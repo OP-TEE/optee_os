@@ -75,8 +75,8 @@ TEE_Result clk_dt_get_by_name(const void *fdt, int nodeoffset,
  * description or NULL if invalid description in which case @res provides the
  * error code.
  */
-typedef struct clk *(*clk_dt_get_func)(struct dt_driver_phandle_args *args,
-				       void *data, TEE_Result *res);
+typedef struct clk *(*clk_dt_get_func)(struct dt_pargs *args, void *data,
+				       TEE_Result *res);
 
 /**
  * clk_dt_register_clk_provider - Register a clock provider
@@ -100,9 +100,8 @@ TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
  * clk_dt_get_simple_clk: simple clock matching function for single clock
  * providers
  */
-static inline
-struct clk *clk_dt_get_simple_clk(struct dt_driver_phandle_args *args __unused,
-				  void *data, TEE_Result *res)
+static inline struct clk *clk_dt_get_simple_clk(struct dt_pargs *args __unused,
+						void *data, TEE_Result *res)
 {
 	*res = TEE_SUCCESS;
 

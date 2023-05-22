@@ -78,13 +78,13 @@ struct dt_driver {
 struct dt_driver_provider;
 
 /**
- * struct dt_driver_phandle_args - Devicetree phandle arguments
+ * struct dt_pargs - Devicetree phandle arguments
  * @fdt: Device-tree to work on
  * @phandle_node: Node pointed by the specifier phandle
  * @args_count: Count of cells for the device
  * @args: Device consumer specifiers
  */
-struct dt_driver_phandle_args {
+struct dt_pargs {
 	const void *fdt;
 	int phandle_node;
 	int args_count;
@@ -106,8 +106,8 @@ struct dt_driver_phandle_args {
  * Return a device opaque reference, e.g. a struct clk pointer for a clock
  * driver, or NULL if not found in which case @res provides the error code.
  */
-typedef void *(*get_of_device_func)(struct dt_driver_phandle_args *parg,
-				    void *data, TEE_Result *res);
+typedef void *(*get_of_device_func)(struct dt_pargs *parg, void *data,
+				    TEE_Result *res);
 
 /**
  * dt_driver_register_provider - Register a driver provider

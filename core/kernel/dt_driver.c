@@ -240,7 +240,7 @@ static void *device_from_provider_prop(struct dt_driver_provider *prv,
 				       const void *fdt, int phandle_node,
 				       const uint32_t *prop, TEE_Result *res)
 {
-	struct dt_driver_phandle_args *pargs = NULL;
+	struct dt_pargs *pargs = NULL;
 	unsigned int n = 0;
 	void *device = NULL;
 

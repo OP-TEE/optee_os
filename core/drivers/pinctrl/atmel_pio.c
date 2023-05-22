@@ -76,7 +76,7 @@ static const struct pinctrl_ops pio_pinctrl_ops = {
 	.conf_free = pio_conf_free,
 };
 
-static struct pinconf *pio_pinctrl_dt_get(struct dt_driver_phandle_args *a,
+static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 					  void *data, TEE_Result *res)
 {
 	int i = 0;
@@ -94,7 +94,8 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_driver_phandle_args *a,
 	struct atmel_pio *atmel_pio = data;
 	struct atmel_pio_pin_conf *pio_conf = NULL;
 
-	prop = fdt_getprop(a->fdt, a->phandle_node, "pinmux", &prop_count);
+	prop = fdt_getprop(pargs->fdt, pargs->phandle_node, "pinmux",
+			   &prop_count);
 	if (!prop) {
 		*res = TEE_ERROR_ITEM_NOT_FOUND;
 		return NULL;

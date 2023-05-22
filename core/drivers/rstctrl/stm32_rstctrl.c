@@ -179,7 +179,7 @@ struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id)
 	return &rstline->rstctrl;
 }
 
-static struct rstctrl *stm32_rstctrl_get_dev(struct dt_driver_phandle_args *arg,
+static struct rstctrl *stm32_rstctrl_get_dev(struct dt_pargs *arg,
 					     void *priv_data __unused,
 					     TEE_Result *res)
 {
