@@ -80,7 +80,7 @@ TEE_Result pmc_clk_get(struct pmc_data *pmc, unsigned int type,
 	return TEE_SUCCESS;
 }
 
-struct clk *clk_dt_pmc_get(struct dt_driver_phandle_args *clkspec, void *data,
+struct clk *clk_dt_pmc_get(struct dt_pargs *clkspec, void *data,
 			   TEE_Result *res)
 {
 	unsigned int type = clkspec->args[0];

@@ -49,7 +49,7 @@ struct pinctrl_ops {
 	void (*conf_free)(struct pinconf *conf);
 };
 
-typedef struct pinconf *(*pinctrl_dt_get_func)(struct dt_driver_phandle_args *a,
+typedef struct pinconf *(*pinctrl_dt_get_func)(struct dt_pargs *pargs,
 					       void *data, TEE_Result *res);
 
 #ifdef CFG_DRIVERS_PINCTRL
