@@ -199,7 +199,7 @@ TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,
  * rstctrl_dt_get_func - Typedef of function to get reset controller from
  * devicetree properties
  *
- * @a: Pointer to devicetree description of the reset controller to parse
+ * @args: Pointer to devicetree description of the reset controller to parse
  * @data: Pointer to data given at rstctrl_dt_register_provider() call
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
@@ -210,7 +210,7 @@ TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,
  * the devicetree description or NULL if invalid description in which case
  * @res provides the error code.
  */
-typedef struct rstctrl *(*rstctrl_dt_get_func)(struct dt_driver_phandle_args *a,
+typedef struct rstctrl *(*rstctrl_dt_get_func)(struct dt_pargs *args,
 					       void *data, TEE_Result *res);
 
 /**

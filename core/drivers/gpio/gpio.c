@@ -11,12 +11,11 @@
 #include <tee_api_types.h>
 #include <util.h>
 
-struct gpio *gpio_dt_alloc_pin(struct dt_driver_phandle_args *a,
-			       TEE_Result *res)
+struct gpio *gpio_dt_alloc_pin(struct dt_pargs *pargs, TEE_Result *res)
 {
 	struct gpio *gpio = NULL;
 
-	if (a->args_count != 2) {
+	if (pargs->args_count != 2) {
 		*res = TEE_ERROR_BAD_PARAMETERS;
 		return NULL;
 	}
@@ -27,8 +26,8 @@ struct gpio *gpio_dt_alloc_pin(struct dt_driver_phandle_args *a,
 		return NULL;
 	}
 
-	gpio->pin = a->args[0];
-	gpio->dt_flags = a->args[1];
+	gpio->pin = pargs->args[0];
+	gpio->dt_flags = pargs->args[1];
 
 	*res = TEE_SUCCESS;
 	return gpio;

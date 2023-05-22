@@ -204,13 +204,13 @@ static const struct gpio_ops atmel_piobu_ops = {
 	.set_interrupt = secumod_gpio_set_interrupt,
 };
 
-static struct gpio *secumod_dt_get(struct dt_driver_phandle_args *a, void *data,
+static struct gpio *secumod_dt_get(struct dt_pargs *pargs, void *data,
 				   TEE_Result *res)
 {
 	struct gpio *gpio = NULL;
 	struct gpio_chip *chip = data;
 
-	gpio = gpio_dt_alloc_pin(a, res);
+	gpio = gpio_dt_alloc_pin(pargs, res);
 	if (*res)
 		return NULL;
 

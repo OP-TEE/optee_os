@@ -1499,7 +1499,7 @@ static TEE_Result register_stm32mp1_clocks(void)
 	return TEE_SUCCESS;
 }
 
-static struct clk *stm32mp1_clk_dt_get_clk(struct dt_driver_phandle_args *pargs,
+static struct clk *stm32mp1_clk_dt_get_clk(struct dt_pargs *pargs,
 					   void *data __unused, TEE_Result *res)
 {
 	unsigned long clock_id = pargs->args[0];

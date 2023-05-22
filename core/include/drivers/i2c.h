@@ -228,7 +228,7 @@ static inline TEE_Result i2c_dt_get_dev(const void *fdt __unused,
  * i2c_dt_get_func - Typedef of function to get I2C bus device from
  * devicetree properties
  *
- * @a: Pointer to devicetree description of the I2C bus device to parse
+ * @args: Pointer to devicetree description of the I2C bus device to parse
  * @data: Pointer to data given at i2c_dt_register_provider() call
  * @res: Output result code of the operation:
  *	TEE_SUCCESS in case of success
@@ -239,8 +239,8 @@ static inline TEE_Result i2c_dt_get_dev(const void *fdt __unused,
  * the devicetree description or NULL if invalid description in which case
  * @res provides the error code.
  */
-typedef struct i2c_dev *(*i2c_dt_get_func)(struct dt_driver_phandle_args *a,
-					   void *data, TEE_Result *res);
+typedef struct i2c_dev *(*i2c_dt_get_func)(struct dt_pargs *args, void *data,
+					   TEE_Result *res);
 
 /**
  * i2c_dt_register_provider - Register a I2C controller provider and add all the
