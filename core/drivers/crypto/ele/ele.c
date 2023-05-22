@@ -359,83 +359,6 @@ static TEE_Result imx_ele_session_close(uint32_t session_handle)
 	return imx_ele_call(&msg);
 }
 
-/*
- * Get the current state of the ELE TRNG
- */
-static TEE_Result imx_ele_rng_get_trng_state(void)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct rng_get_trng_state_msg_rsp {
-		uint32_t rsp_code;
-		uint8_t trng_state;
-		uint8_t csal_state;
-	} __packed rsp = { };
-	struct imx_mu_msg msg = {
-		.header.version = ELE_VERSION_BASELINE,
-		.header.size = 1,
-		.header.tag = ELE_REQUEST_TAG,
-		.header.command = ELE_CMD_TRNG_STATE,
-	};
-
-	res = imx_ele_call(&msg);
-	if (res)
-		return res;
-
-	memcpy(&rsp, msg.data.u8, sizeof(rsp));
-
-	if (rsp.trng_state != IMX_ELE_TRNG_STATUS_READY)
-		return TEE_ERROR_BUSY;
-	else
-		return TEE_SUCCESS;
-}
-
-unsigned long plat_get_aslr_seed(void)
-{
-	TEE_Result res = TEE_ERROR_GENERIC;
-	uint64_t timeout = timeout_init_us(10 * 1000);
-	struct rng_get_random_cmd {
-		uint32_t addr_msb;
-		uint32_t addr_lsb;
-		uint32_t size;
-		uint32_t crc;
-	} cmd = { };
-	struct imx_mu_msg msg = {
-		.header.version = ELE_VERSION_HSM,
-		.header.size = SIZE_MSG_32(cmd),
-		.header.tag = ELE_REQUEST_TAG,
-		.header.command = ELE_CMD_RNG_GET,
-	};
-	unsigned long aslr __aligned(CACHELINE_SIZE) = 0;
-
-	/*
-	 * This function can only be called when the MMU is off. No
-	 * virtual/physical address translation is performed, nor cache
-	 * maintenance.
-	 */
-	assert(!cpu_mmu_enabled());
-
-	reg_pair_from_64((uint64_t)&aslr, &cmd.addr_msb, &cmd.addr_lsb);
-	cmd.size = sizeof(aslr);
-
-	/*
-	 * Check the current TRNG state of the ELE. The TRNG must be
-	 * started with a command earlier in the boot to allow the TRNG
-	 * to generate enough entropy.
-	 */
-	while (imx_ele_rng_get_trng_state() == TEE_ERROR_BUSY)
-		if (timeout_elapsed(timeout))
-			panic("ELE RNG is busy");
-
-	memcpy(msg.data.u8, &cmd, sizeof(cmd));
-	update_crc(&msg);
-
-	res = imx_ele_call(&msg);
-	if (res)
-		panic("Cannot retrieve random data from ELE");
-
-	return aslr;
-}
-
 int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 {
 	uint32_t session_handle = 0;
@@ -531,5 +454,82 @@ out:
 	       MIN(sizeof(key), (size_t)HW_UNIQUE_KEY_LENGTH));
 
 	return TEE_SUCCESS;
+}
+
+/*
+ * Get the current state of the ELE TRNG
+ */
+static TEE_Result imx_ele_rng_get_trng_state(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct rng_get_trng_state_msg_rsp {
+		uint32_t rsp_code;
+		uint8_t trng_state;
+		uint8_t csal_state;
+	} __packed rsp = { };
+	struct imx_mu_msg msg = {
+		.header.version = ELE_VERSION_BASELINE,
+		.header.size = 1,
+		.header.tag = ELE_REQUEST_TAG,
+		.header.command = ELE_CMD_TRNG_STATE,
+	};
+
+	res = imx_ele_call(&msg);
+	if (res)
+		return res;
+
+	memcpy(&rsp, msg.data.u8, sizeof(rsp));
+
+	if (rsp.trng_state != IMX_ELE_TRNG_STATUS_READY)
+		return TEE_ERROR_BUSY;
+	else
+		return TEE_SUCCESS;
+}
+
+unsigned long plat_get_aslr_seed(void)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint64_t timeout = timeout_init_us(10 * 1000);
+	struct rng_get_random_cmd {
+		uint32_t addr_msb;
+		uint32_t addr_lsb;
+		uint32_t size;
+		uint32_t crc;
+	} cmd = { };
+	struct imx_mu_msg msg = {
+		.header.version = ELE_VERSION_HSM,
+		.header.size = SIZE_MSG_32(cmd),
+		.header.tag = ELE_REQUEST_TAG,
+		.header.command = ELE_CMD_RNG_GET,
+	};
+	unsigned long aslr __aligned(CACHELINE_SIZE) = 0;
+
+	/*
+	 * This function can only be called when the MMU is off. No
+	 * virtual/physical address translation is performed, nor cache
+	 * maintenance.
+	 */
+	assert(!cpu_mmu_enabled());
+
+	reg_pair_from_64((uint64_t)&aslr, &cmd.addr_msb, &cmd.addr_lsb);
+	cmd.size = sizeof(aslr);
+
+	/*
+	 * Check the current TRNG state of the ELE. The TRNG must be
+	 * started with a command earlier in the boot to allow the TRNG
+	 * to generate enough entropy.
+	 */
+	while (imx_ele_rng_get_trng_state() == TEE_ERROR_BUSY)
+		if (timeout_elapsed(timeout))
+			panic("ELE RNG is busy");
+
+	memcpy(msg.data.u8, &cmd, sizeof(cmd));
+	update_crc(&msg);
+
+	res = imx_ele_call(&msg);
+	if (res)
+		panic("Cannot retrieve random data from ELE");
+
+	return aslr;
 }
 #endif /* CFG_MX93 || CFG_MX91 */
