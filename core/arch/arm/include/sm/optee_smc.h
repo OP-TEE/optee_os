@@ -597,11 +597,15 @@
  *
  * Return codes:
  * PSCI_RET_SUCCESS - Command success
+ * PSCI_RET_DISABLED - The watchdog is not enabled
  *
  * Command SMCWD_GET_TIMELEFT : Get time left
  * [in]		a1	Set to 4
+ * [out]	a1	The timeout value in seconds before watchdog expires
  *
  * Return codes:
+ * PSCI_RET_SUCCESS - Command success
+ * PSCI_RET_DISABLED - The watchdog is not enabled
  * PSCI_RET_NOT_SUPPORTED - Function not supported
  *
  * Other commands
