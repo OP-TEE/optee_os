@@ -560,36 +560,59 @@
 #define OPTEE_SMC_FUNCID_CALL_WITH_REGD_ARG	U(19)
 
 /*
- * Access to the secure watchdog.
+ * Secure watchdog management service
  *
  * Call requests usage:
- * a0	SMC Function ID, OPTEE_SMC_WATCHDOG
- * a1	Watchdog command
- *	0 : Init watchdog
- *	1 : Set timeout
- *	2 : Enable watchdog
- *	3 : Ping the watchdog for refresh
- *	4 : Get time left
- * a2	if a1 == 1, the timeout value to set
- *	if a1 == 2, 0 to stop the watchdog, 1 to enable it.
- *	preserved otherwise
- * a3-6	Not used
- * a7	Hypervisor Client ID register
+ * [in]		a0	SMC Function ID, OPTEE_SMC_WATCHDOG
+ * [out]	a0	PSCI error code return
  *
- * Normal return register usage:
- * a0 PSCI_RET_SUCCESS
- * a1	if a1 == 0, the minimal timeout value supported by watchdog
- *	if a1 == 4, the remaining time before watchdog expires
- *	preserved otherwise.
- * a2	if a1 == 0, the maximum timeout value supported by watchdog
- *	preserved otherwise.
- * a3-7	Preserved
+ * Watchdog commands
+ * Command SMCWD_INIT : Watchdog initialization
+ * [in]		a1	Set to 0
+ * [out]	a1	The minimal timeout value in seconds supported
+ *		a2	The maximal timeout value in seconds supported
  *
- * Error return:
- * a0	PSCI_RET_NOT_SUPPORTED		Function not supported
- *	PSCI_RET_INVALID_PARAMETERS	Invalid arguments
- *	PSCI_RET_INTERNAL_FAILURE	Device error
- * a1-7 Preserved
+ * Return codes:
+ * PSCI_RET_SUCCESS - Command success
+ * PSCI_RET_INTERNAL_FAILURE - Initialization failure
+ *
+ * Command SMCWD_SET_TIMEOUT : Watchdog set timeout
+ * [in]		a1	Set to 1
+ *		a2	The timeout value in seconds to set
+ *
+ * Return codes:
+ * PSCI_RET_SUCCESS - Command success
+ * PSCI_RET_INVALID_PARAMETERS - Incorrect input param
+ *
+ * Command SMCWD_ENABLE : Watchdog enable
+ * [in]		a1	Set to 2
+ *		a2	Set to 0 to stop the watchdog, 1 to enable it
+ *
+ * Return codes:
+ * PSCI_RET_SUCCESS - Command success
+ * PSCI_RET_INVALID_PARAMETERS - Incorrect input param
+ *
+ * Command SMCWD_PET : Ping the watchdog for refresh
+ * [in]		a1	Set to 3
+ *
+ * Return codes:
+ * PSCI_RET_SUCCESS - Command success
+ *
+ * Command SMCWD_GET_TIMELEFT : Get time left
+ * [in]		a1	Set to 4
+ *
+ * Return codes:
+ * PSCI_RET_NOT_SUPPORTED - Function not supported
+ *
+ * Other commands
+ * [in]		a1	Other values
+ *
+ * Return codes:
+ * PSCI_RET_NOT_SUPPORTED - Function not supported
+ *
+ * a3-6		Not used
+ * a7		Hypervisor Client ID register
+ *
  *
  * By SMCCC convention:
  * PSCI_RET_SUCCESS, OPTEE_SMC_RETURN_OK and ARM_SMCCC_RET_SUCCESS
