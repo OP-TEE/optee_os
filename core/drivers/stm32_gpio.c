@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2021, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  *
  * STM32 GPIO driver is used as pin controller for stm32mp SoCs.
  * The driver API is defined in header file stm32_gpio.h.
@@ -19,6 +19,7 @@
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stm32_util.h>
+#include <sys/queue.h>
 #include <trace.h>
 #include <util.h>
 
@@ -48,7 +49,33 @@
 #define DT_GPIO_PIN_MASK	GENMASK_32(11, 8)
 #define DT_GPIO_MODE_MASK	GENMASK_32(7, 0)
 
+#define DT_GPIO_BANK_NAME0	"GPIOA"
+
+/**
+ * struct stm32_gpio_bank - GPIO bank instance
+ *
+ * @base: base address of the GPIO controller registers.
+ * @clock: clock identifier.
+ * @ngpios: number of GPIOs.
+ * @bank_id: Id of the bank.
+ * @lock: lock protecting the GPIO bank access.
+ * @sec_support: True if bank supports pin security protection, otherwise false
+ * @seccfgr: Secure configuration register value.
+ * @link: Link in bank list
+ */
+struct stm32_gpio_bank {
+	vaddr_t base;
+	struct clk *clock;
+	unsigned int ngpios;
+	unsigned int bank_id;
+	unsigned int lock;
+	STAILQ_ENTRY(stm32_gpio_bank) link;
+};
+
 static unsigned int gpio_lock;
+
+static STAILQ_HEAD(, stm32_gpio_bank) bank_list =
+		STAILQ_HEAD_INITIALIZER(bank_list);
 
 /* Save to output @cfg the current GPIO (@bank/@pin) configuration */
 static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
@@ -299,6 +326,153 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 	}
 
 	return (int)found;
+}
+
+/* Get bank ID from bank node property st,bank-name or panic on failure */
+static unsigned int dt_get_bank_id(const void *fdt, int node)
+{
+	const int dt_name_len = strlen(DT_GPIO_BANK_NAME0);
+	const fdt32_t *cuint = NULL;
+	int len = 0;
+
+	/* Parse "st,bank-name" to get its id (eg: GPIOA -> 0) */
+	cuint = fdt_getprop(fdt, node, "st,bank-name", &len);
+	if (!cuint || (len != dt_name_len + 1))
+		panic("Missing/wrong st,bank-name property");
+
+	if (strncmp((const char *)cuint, DT_GPIO_BANK_NAME0, dt_name_len - 1) ||
+	    strcmp((const char *)cuint, DT_GPIO_BANK_NAME0) < 0)
+		panic("Wrong st,bank-name property");
+
+	return (unsigned int)strcmp((const char *)cuint, DT_GPIO_BANK_NAME0);
+}
+
+/*
+ * Return whether or not the GPIO bank related to a DT node is already
+ * registered in the GPIO bank link.
+ */
+static bool bank_is_registered(const void *fdt, int node)
+{
+	unsigned int bank_id = dt_get_bank_id(fdt, node);
+	struct stm32_gpio_bank *bank = NULL;
+
+	STAILQ_FOREACH(bank, &bank_list, link)
+		if (bank->bank_id == bank_id)
+			return true;
+
+	return false;
+}
+
+/* Get GPIO bank information from the DT */
+static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
+				     const void *compat_data __unused,
+				     int range_offset,
+				     struct stm32_gpio_bank **out_bank)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct stm32_gpio_bank *bank = NULL;
+	const fdt32_t *cuint = NULL;
+	struct io_pa_va pa_va = { };
+	struct clk *clk = NULL;
+	size_t blen = 0;
+	paddr_t pa = 0;
+	int len = 0;
+	int i = 0;
+
+	assert(out_bank);
+
+	/* Probe deferrable devices first */
+	res = clk_dt_get_by_index(fdt, node, 0, &clk);
+	if (res)
+		return res;
+
+	bank = calloc(1, sizeof(*bank));
+	if (!bank)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	/*
+	 * Do not rely *only* on the "reg" property to get the address,
+	 * but consider also the "ranges" translation property
+	 */
+	pa = fdt_reg_base_address(fdt, node);
+	if (pa == DT_INFO_INVALID_REG)
+		panic("missing reg property");
+
+	pa_va.pa = pa + range_offset;
+
+	blen = fdt_reg_size(fdt, node);
+	if (blen == DT_INFO_INVALID_REG_SIZE)
+		panic("missing reg size property");
+
+	DMSG("Bank name %s", fdt_get_name(fdt, node, NULL));
+	bank->base = io_pa_or_va_secure(&pa_va, blen);
+	bank->bank_id = dt_get_bank_id(fdt, node);
+	bank->clock = clk;
+
+	/* Parse gpio-ranges with its 4 parameters */
+	cuint = fdt_getprop(fdt, node, "gpio-ranges", &len);
+	len /= sizeof(*cuint);
+	if (len % 4)
+		panic("wrong gpio-ranges syntax");
+
+	/* Get the last defined gpio line (offset + nb of pins) */
+	for (i = 0; i < len / 4; i++) {
+		bank->ngpios = MAX(bank->ngpios,
+				   (unsigned int)(fdt32_to_cpu(*(cuint + 1)) +
+						  fdt32_to_cpu(*(cuint + 3))));
+		cuint += 4;
+	}
+
+	*out_bank = bank;
+	return TEE_SUCCESS;
+}
+
+/* Parse a pinctrl node to register the GPIO banks it describes */
+static TEE_Result __unused dt_stm32_gpio_pinctrl(const void *fdt, int node,
+						 const void *compat_data)
+{
+	TEE_Result res = TEE_SUCCESS;
+	const fdt32_t *cuint = NULL;
+	int range_offs = 0;
+	int b_node = 0;
+	int len = 0;
+
+	/* Read the ranges property (for regs memory translation) */
+	cuint = fdt_getprop(fdt, node, "ranges", &len);
+	if (!cuint)
+		panic("missing ranges property");
+
+	len /= sizeof(*cuint);
+	if (len == 3)
+		range_offs = fdt32_to_cpu(*(cuint + 1)) - fdt32_to_cpu(*cuint);
+
+	fdt_for_each_subnode(b_node, fdt, node) {
+		cuint = fdt_getprop(fdt, b_node, "gpio-controller", &len);
+		if (cuint) {
+			/*
+			 * We found a property "gpio-controller" in the node:
+			 * the node is a GPIO bank description, add it to the
+			 * bank list.
+			 */
+			struct stm32_gpio_bank *bank = NULL;
+
+			if (fdt_get_status(fdt, b_node) == DT_STATUS_DISABLED ||
+			    bank_is_registered(fdt, b_node))
+				continue;
+
+			res = dt_stm32_gpio_bank(fdt, b_node, compat_data,
+						 range_offs, &bank);
+			if (res)
+				return res;
+
+			STAILQ_INSERT_TAIL(&bank_list, bank, link);
+		} else {
+			if (len != -FDT_ERR_NOTFOUND)
+				panic();
+		}
+	}
+
+	return TEE_SUCCESS;
 }
 
 int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int device_node,
