@@ -428,8 +428,8 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 }
 
 /* Parse a pinctrl node to register the GPIO banks it describes */
-static TEE_Result __unused dt_stm32_gpio_pinctrl(const void *fdt, int node,
-						 const void *compat_data)
+static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
+					const void *compat_data)
 {
 	TEE_Result res = TEE_SUCCESS;
 	const fdt32_t *cuint = NULL;
@@ -611,3 +611,24 @@ void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
 	clk_disable(clk);
 	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
+
+static TEE_Result stm32_pinctrl_probe(const void *fdt, int node,
+				      const void *compat_data)
+{
+	/* Register GPIO banks described in this pin control node */
+	return dt_stm32_gpio_pinctrl(fdt, node, compat_data);
+}
+
+static const struct dt_device_match stm32_pinctrl_match_table[] = {
+	{ .compatible = "st,stm32mp135-pinctrl" },
+	{ .compatible = "st,stm32mp157-pinctrl" },
+	{ .compatible = "st,stm32mp157-z-pinctrl" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_pinctrl_dt_driver) = {
+	.name = "stm32_gpio-pinctrl",
+	.type = DT_DRIVER_PINCTRL,
+	.match_table = stm32_pinctrl_match_table,
+	.probe = stm32_pinctrl_probe,
+};
