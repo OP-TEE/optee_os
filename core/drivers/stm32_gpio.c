@@ -231,6 +231,7 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 		uint32_t pin = 0;
 		uint32_t mode = 0;
 		uint32_t alternate = 0;
+		uint32_t odata = 0;
 		bool opendrain = false;
 
 		pincfg = fdt32_to_cpu(*cuint);
@@ -276,6 +277,18 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 		if (fdt_getprop(fdt, node, "drive-open-drain", NULL))
 			opendrain = true;
 
+		if (fdt_getprop(fdt, node, "output-high", NULL) &&
+		    mode == GPIO_MODE_INPUT) {
+			mode = GPIO_MODE_OUTPUT;
+			odata = 1;
+		}
+
+		if (fdt_getprop(fdt, node, "output-low", NULL) &&
+		    mode == GPIO_MODE_INPUT) {
+			mode = GPIO_MODE_OUTPUT;
+			odata = 0;
+		}
+
 		/* Check GPIO bank clock/base address against platform */
 		ckeck_gpio_bank(fdt, bank, pinctrl_node);
 
@@ -288,7 +301,7 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 			ref->active_cfg.otype = opendrain ? 1 : 0;
 			ref->active_cfg.ospeed = speed;
 			ref->active_cfg.pupd = pull;
-			ref->active_cfg.od = 0;
+			ref->active_cfg.od = odata;
 			ref->active_cfg.af = alternate;
 			/* Default to analog mode for standby state */
 			ref->standby_cfg.mode = GPIO_MODE_ANALOG;
