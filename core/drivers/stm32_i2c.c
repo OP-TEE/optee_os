@@ -12,6 +12,8 @@
 #include <arm.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/pinctrl.h>
+#include <drivers/stm32_gpio.h>
 #include <drivers/stm32_i2c.h>
 #include <io.h>
 #include <kernel/delay.h>
@@ -684,13 +686,19 @@ static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
 
 TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 					struct stm32_i2c_init_s *init,
+#ifdef CFG_DRIVERS_PINCTRL
+					struct pinctrl_state **pinctrl,
+					struct pinctrl_state **pinctrl_sleep
+#else
 					struct stm32_pinctrl **pinctrl,
-					size_t *pinctrl_count)
+					size_t *pinctrl_count
+#endif
+					)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const fdt32_t *cuint = NULL;
 	struct dt_node_info info = { .status = 0 };
-	int count = 0;
+	int __maybe_unused count = 0;
 
 	/* Default STM32 specific configs caller may need to overwrite */
 	memset(init, 0, sizeof(*init));
@@ -732,6 +740,22 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 		init->bus_rate = I2C_STANDARD_RATE;
 	}
 
+#ifdef CFG_DRIVERS_PINCTRL
+	if (pinctrl) {
+		res = pinctrl_get_state_by_name(fdt, node, "default", pinctrl);
+		if (res)
+			return res;
+	}
+
+	if (pinctrl_sleep) {
+		res = pinctrl_get_state_by_name(fdt, node, "sleep",
+						pinctrl_sleep);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			res = TEE_SUCCESS;
+		if (res)
+			return res;
+	}
+#else
 	count = stm32_pinctrl_fdt_get_pinctrl(fdt, node, NULL, 0);
 	if (count <= 0) {
 		*pinctrl = NULL;
@@ -752,6 +776,7 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 	*pinctrl_count = stm32_pinctrl_fdt_get_pinctrl(fdt, node,
 						       *pinctrl, count);
 	assert(*pinctrl_count == (unsigned int)count);
+#endif /*CFG_DRIVERS_PINCTRL*/
 
 	return TEE_SUCCESS;
 }
@@ -834,6 +859,10 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	if (rc)
 		DMSG("I2C analog filter error %d", rc);
 
+#ifdef CFG_DRIVERS_PINCTRL
+	if (IS_ENABLED(CFG_STM32MP13))
+		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
+#else
 	if (IS_ENABLED(CFG_STM32MP13)) {
 		size_t n = 0;
 
@@ -841,6 +870,7 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 			stm32_gpio_set_secure_cfg(hi2c->pinctrl[n].bank,
 						  hi2c->pinctrl[n].pin, true);
 	}
+#endif
 
 	clk_disable(hi2c->clock);
 
@@ -1531,7 +1561,12 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 	    (hi2c->i2c_state != I2C_STATE_SUSPENDED))
 		panic();
 
+#ifdef CFG_DRIVERS_PINCTRL
+	if (pinctrl_apply_state(hi2c->pinctrl))
+		panic();
+#else
 	stm32_pinctrl_load_active_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
+#endif
 
 	if (hi2c->i2c_state == I2C_STATE_RESET) {
 		/* There is no valid I2C configuration to be loaded yet */
@@ -1540,6 +1575,10 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 
 	restore_cfg(hi2c, &hi2c->sec_cfg);
 
+#ifdef CFG_DRIVERS_PINCTRL
+	if (IS_ENABLED(CFG_STM32MP13))
+		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
+#else
 	if (IS_ENABLED(CFG_STM32MP13)) {
 		size_t n = 0;
 
@@ -1547,6 +1586,7 @@ void stm32_i2c_resume(struct i2c_handle_s *hi2c)
 			stm32_gpio_set_secure_cfg(hi2c->pinctrl[n].bank,
 						  hi2c->pinctrl[n].pin, true);
 	}
+#endif
 
 	hi2c->i2c_state = I2C_STATE_READY;
 }
@@ -1560,7 +1600,13 @@ void stm32_i2c_suspend(struct i2c_handle_s *hi2c)
 		panic();
 
 	save_cfg(hi2c, &hi2c->sec_cfg);
+
+#ifdef CFG_DRIVERS_PINCTRL
+	if (hi2c->pinctrl_sleep && pinctrl_apply_state(hi2c->pinctrl_sleep))
+		panic();
+#else
 	stm32_pinctrl_load_standby_cfg(hi2c->pinctrl, hi2c->pinctrl_count);
+#endif
 
 	hi2c->i2c_state = I2C_STATE_SUSPENDED;
 }
