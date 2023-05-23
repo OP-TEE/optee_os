@@ -1,19 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2017-2019, STMicroelectronics
- *
- * STM32 GPIO driver relies on platform util fiunctions to get base address
- * and clock ID of the GPIO banks. The drvier API allows to retrieve pin muxing
- * configuration for given nodes and load them at runtime. A pin control
- * instance provide an active and a standby configuration. Pin onwer is
- * responsible to load to expected configuration during PM state transitions
- * as STM32 GPIO driver does no register callbacks to the PM framework.
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
 #ifndef DRIVERS_STM32_GPIO_H
 #define DRIVERS_STM32_GPIO_H
 
 #include <assert.h>
+#include <compiler.h>
+#include <drivers/pinctrl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -63,16 +58,22 @@ struct gpio_cfg {
  *
  * @bank: GPIO bank identifier as assigned by the platform
  * @pin: Pin number in the GPIO bank
+ * @cfg: Pin configuration
  * @active_cfg: Configuration in active state
  * @standby_cfg: Configuration in standby state
  */
 struct stm32_pinctrl {
 	uint8_t bank;
 	uint8_t pin;
+#ifdef CFG_DRIVERS_PINCTRL
+	struct gpio_cfg cfg;
+#else
 	struct gpio_cfg active_cfg;
 	struct gpio_cfg standby_cfg;
+#endif
 };
 
+#ifndef CFG_DRIVERS_PINCTRL
 /*
  * Apply series of pin muxing configuration, active state and standby state
  *
@@ -89,6 +90,7 @@ void stm32_pinctrl_load_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
  * @count: Number of entries in @pinctrl
  */
 void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
+#endif
 
 /*
  * Save pinctrl instances defined in DT node: identifiers and power states
