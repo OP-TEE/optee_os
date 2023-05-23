@@ -201,7 +201,7 @@ S:	Maintained
 F:	core/arch/arm/plat-imx/conf.mk
 
 PKCS#11 TA
-R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 R:	Ruchika Gupta <gupta.ruchika@gmail.com> [@ruchi393]
 R:	Vesa Jääskeläinen <vesa.jaaskelainen@vaisala.com> [@vesajaaskelainen]
 S:	Maintained
@@ -254,12 +254,12 @@ S:	Orphan
 F:	core/arch/arm/plat-sprd/
 
 STMicroelectronics b2260-h410, b2120-h310/h410
-R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
 STMicroelectronics stm32mp1
-R:	Etienne Carriere <etienne.carriere@st.com> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp1/
 F:	core/drivers/stm32_*
@@ -303,7 +303,7 @@ THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 M:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
-R:	Etienne Carriere <etienne.carriere@linaro.org> [@etienne-lms]
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	*
