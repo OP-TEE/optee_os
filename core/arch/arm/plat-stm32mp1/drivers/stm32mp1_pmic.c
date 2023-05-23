@@ -460,8 +460,13 @@ static void parse_regulator_fdt_nodes(void)
  * Return 0 on success, 1 if no PMIC node found and a negative value otherwise
  */
 static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
+#ifdef CFG_DRIVERS_PINCTRL
+			      struct pinctrl_state **pinctrl_active,
+			      struct pinctrl_state **pinctrl_sleep,
+#else
 			      struct stm32_pinctrl **pinctrl,
 			      size_t *pinctrl_count,
+#endif
 			      struct stm32_i2c_init_s *init)
 {
 	int pmic_node = 0;
@@ -493,9 +498,15 @@ static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
 	if (!i2c_info->reg)
 		return -FDT_ERR_NOTFOUND;
 
+#ifdef CFG_DRIVERS_PINCTRL
+	if (stm32_i2c_get_setup_from_fdt(fdt, i2c_node, init, pinctrl_active,
+					 pinctrl_sleep))
+		panic();
+#else
 	if (stm32_i2c_get_setup_from_fdt(fdt, i2c_node, init,
 					 pinctrl, pinctrl_count))
 		panic();
+#endif
 
 	return 0;
 }
@@ -510,17 +521,22 @@ static bool initialize_pmic_i2c(void)
 	int ret = 0;
 	struct dt_node_info i2c_info = { };
 	struct i2c_handle_s *i2c = &i2c_handle;
-	struct stm32_pinctrl *pinctrl = NULL;
-	size_t pin_count = 0;
 	struct stm32_i2c_init_s i2c_init = { };
 
-	ret = dt_pmic_i2c_config(&i2c_info, &pinctrl, &pin_count, &i2c_init);
+#ifdef CFG_DRIVERS_PINCTRL
+	if (dt_pmic_i2c_config(&i2c_info, &i2c->pinctrl, &i2c->pinctrl_sleep,
+			       &i2c_init))
+		panic();
+#else
+	ret = dt_pmic_i2c_config(&i2c_info, &i2c->pinctrl, &i2c->pinctrl_count,
+				 &i2c_init);
 	if (ret < 0) {
 		EMSG("I2C configuration failed %d", ret);
 		panic();
 	}
 	if (ret)
 		return false;
+#endif
 
 	/* Initialize PMIC I2C */
 	i2c->base.pa = i2c_info.reg;
@@ -532,9 +548,6 @@ static bool initialize_pmic_i2c(void)
 	i2c_init.own_address1 = pmic_i2c_addr;
 	i2c_init.analog_filter = true;
 	i2c_init.digital_filter_coef = 0;
-
-	i2c->pinctrl = pinctrl;
-	i2c->pinctrl_count = pin_count;
 
 	stm32mp_get_pmic();
 
@@ -586,26 +599,36 @@ void stm32mp_put_pmic(void)
 
 static void register_non_secure_pmic(void)
 {
-	size_t n = 0;
+	size_t __maybe_unused n = 0;
 
 	/* Allow this function to be called when STPMIC1 not used */
 	if (!i2c_handle.base.pa)
 		return;
 
+#ifdef CFG_DRIVERS_PINCTRL
+	stm32mp_register_non_secure_pinctrl(i2c_handle.pinctrl);
+	stm32mp_register_non_secure_pinctrl(i2c_handle.pinctrl_sleep);
+#else
 	for (n = 0; n < i2c_handle.pinctrl_count; n++)
 		stm32mp_register_non_secure_gpio(i2c_handle.pinctrl[n].bank,
 						 i2c_handle.pinctrl[n].pin);
+#endif
 
 	stm32mp_register_non_secure_periph_iomem(i2c_handle.base.pa);
 }
 
 static void register_secure_pmic(void)
 {
-	size_t n = 0;
+	size_t __maybe_unused n = 0;
 
+#ifdef CFG_DRIVERS_PINCTRL
+	stm32mp_register_secure_pinctrl(i2c_handle.pinctrl);
+	stm32mp_register_secure_pinctrl(i2c_handle.pinctrl_sleep);
+#else
 	for (n = 0; n < i2c_handle.pinctrl_count; n++)
 		stm32mp_register_secure_gpio(i2c_handle.pinctrl[n].bank,
 					     i2c_handle.pinctrl[n].pin);
+#endif
 
 	stm32mp_register_secure_periph_iomem(i2c_handle.base.pa);
 	register_pm_driver_cb(pmic_pm, NULL, "stm32mp1-pmic");

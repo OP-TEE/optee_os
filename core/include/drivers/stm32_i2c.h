@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
- * Copyright (c) 2017-2019, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
-#ifndef __STM32_I2C_H
-#define __STM32_I2C_H
+#ifndef DRIVERS_STM32_I2C_H
+#define DRIVERS_STM32_I2C_H
 
 #include <drivers/clk.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_gpio.h>
 #include <kernel/dt.h>
 #include <mm/core_memprot.h>
@@ -111,6 +112,10 @@ struct i2c_cfg {
  * @saved_timing: Saved timing value if already computed
  * @saved_frequency: Saved frequency value if already computed
  * @sec_cfg: I2C registers configuration storage
+ * Case CFG_DRIVERS_PINCTRL
+ * @pinctrl: Pin control configuration for the I2C bus in active state
+ * @pinctrl_sleep: Pin control configuration for the I2C bus in standby state
+ * Case !CFG_DRIVERS_PINCTRL
  * @pinctrl: PINCTRLs configuration for the I2C PINs
  * @pinctrl_count: Number of PINCTRLs elements
  */
@@ -124,8 +129,13 @@ struct i2c_handle_s {
 	uint32_t saved_timing;
 	unsigned long saved_frequency;
 	struct i2c_cfg sec_cfg;
+#ifdef CFG_DRIVERS_PINCTRL
+	struct pinctrl_state *pinctrl;
+	struct pinctrl_state *pinctrl_sleep;
+#else
 	struct stm32_pinctrl *pinctrl;
 	size_t pinctrl_count;
+#endif
 };
 
 /* STM32 specific defines */
@@ -135,6 +145,22 @@ struct i2c_handle_s {
 #define STM32_I2C_ANALOG_FILTER_DELAY_MAX	U(260)	/* ns */
 #define STM32_I2C_DIGITAL_FILTER_MAX		U(16)
 
+#ifdef CFG_DRIVERS_PINCTRL
+/*
+ * Fill struct stm32_i2c_init_s from DT content for a given I2C node
+ *
+ * @fdt: Reference to DT
+ * @node: Target I2C node in the DT
+ * @init: Output stm32_i2c_init_s structure
+ * @pinctrl_active: Output active I2C pinctrl state
+ * @pinctrl_sleep: Output suspended I2C pinctrl state
+ * Return a TEE_Result compliant value
+ */
+TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
+					struct stm32_i2c_init_s *init,
+					struct pinctrl_state **pinctrl_active,
+					struct pinctrl_state **pinctrl_sleep);
+#else
 /*
  * Fill struct stm32_i2c_init_s from DT content for a given I2C node
  *
@@ -149,6 +175,7 @@ TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 					struct stm32_i2c_init_s *init,
 					struct stm32_pinctrl **pinctrl,
 					size_t *pinctrl_count);
+#endif /*CFG_DRIVERS_PINCTRL*/
 
 /*
  * Initialize I2C bus handle from input configuration directives
@@ -265,4 +292,4 @@ static inline bool i2c_is_secure(struct i2c_handle_s *hi2c)
 	return hi2c->dt_status == DT_STATUS_OK_SEC;
 }
 
-#endif /* __STM32_I2C_H */
+#endif /* DRIVERS_STM32_I2C_H*/
