@@ -156,6 +156,176 @@ TEE_Result dt_driver_test_status(void)
 	return res;
 }
 
+static TEE_Result probe_test_clocks(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct clk *clk0 = NULL;
+	struct clk *clk1 = NULL;
+	struct clk *clk = NULL;
+
+	DT_TEST_MSG("Probe clocks");
+	dt_test_state.probe_clocks = IN_PROGRESS;
+
+	res = clk_dt_get_by_index(fdt, node, 0, &clk0);
+	if (res)
+		goto err;
+
+	res = clk_dt_get_by_index(fdt, node, 1, &clk1);
+	if (res)
+		goto err;
+
+	DT_TEST_MSG("Check valid clock references");
+
+	if (clk_enable(clk0)) {
+		DT_TEST_MSG("Can't enable %s", clk_get_name(clk0));
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+	clk_disable(clk0);
+
+	res = clk_dt_get_by_name(fdt, node, "clk0", &clk);
+	if (res || clk != clk0) {
+		DT_TEST_MSG("Unexpected clock reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = clk_dt_get_by_name(fdt, node, "clk1", &clk);
+	if (res || clk != clk1) {
+		DT_TEST_MSG("Unexpected clock reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	DT_TEST_MSG("Bad clock reference");
+
+	res = clk_dt_get_by_index(fdt, node, 3, &clk);
+	if (!res) {
+		DT_TEST_MSG("Unexpected clock found on invalid index");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = clk_dt_get_by_name(fdt, node, "clk2", &clk);
+	if (!res) {
+		DT_TEST_MSG("Unexpected clock found on invalid name");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	dt_test_state.probe_clocks = SUCCESS;
+	return TEE_SUCCESS;
+
+err:
+	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+		dt_test_state.probe_clocks = FAILED;
+
+	return res;
+}
+
+static TEE_Result probe_test_resets(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct rstctrl *rstctrl0 = NULL;
+	struct rstctrl *rstctrl1 = NULL;
+	struct rstctrl *rstctrl = NULL;
+
+	DT_TEST_MSG("Probe reset controllers");
+	dt_test_state.probe_resets = IN_PROGRESS;
+
+	res = rstctrl_dt_get_by_index(fdt, node, 0, &rstctrl0);
+	if (res)
+		goto err;
+
+	DT_TEST_MSG("Check valid reset controller");
+
+	if (rstctrl_assert(rstctrl0)) {
+		EMSG("Can't assert rstctrl %s", rstctrl_name(rstctrl0));
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = rstctrl_dt_get_by_name(fdt, node, "rst0", &rstctrl);
+	if (res)
+		goto err;
+
+	if (rstctrl != rstctrl0) {
+		EMSG("Unexpected reset controller reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = rstctrl_dt_get_by_name(fdt, node, "rst1", &rstctrl1);
+	if (res)
+		goto err;
+
+	if (!rstctrl1 || rstctrl1 == rstctrl0) {
+		EMSG("Unexpected reset controller reference");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	dt_test_state.probe_resets = SUCCESS;
+	return TEE_SUCCESS;
+
+err:
+	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+		dt_test_state.probe_resets = FAILED;
+
+	return res;
+}
+
+static TEE_Result probe_test_gpios(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct gpio *gpio = NULL;
+
+	DT_TEST_MSG("Probe GPIO controllers");
+	dt_test_state.probe_gpios = IN_PROGRESS;
+
+	res = gpio_dt_get_by_index(fdt, node, 0, "test", &gpio);
+	if (res)
+		goto err;
+
+	if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
+		EMSG("Unexpected gpio_get_direction() return value");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	/* GPIO is declared as ACTIVE_LOW in device-tree */
+	if (gpio_get_value(gpio) != GPIO_LEVEL_LOW) {
+		EMSG("Unexpected gpio_get_value() return value");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	res = gpio_dt_get_by_index(fdt, node, 1, "test", &gpio);
+	if (res)
+		goto err;
+
+	if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
+		EMSG("Unexpected gpio_get_direction() return value");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	if (gpio_get_value(gpio) != GPIO_LEVEL_HIGH) {
+		EMSG("Unexpected gpio_get_value() return value");
+		res = TEE_ERROR_GENERIC;
+		goto err;
+	}
+
+	dt_test_state.probe_gpios = SUCCESS;
+	return TEE_SUCCESS;
+
+err:
+	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+		dt_test_state.probe_gpios = FAILED;
+
+	return res;
+}
+
 /*
  * Consumer test driver: instance probed from the compatible
  * node parsed in the DT. It consumes emulated resource obtained
@@ -168,130 +338,21 @@ static TEE_Result dt_test_consumer_probe(const void *fdt, int node,
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (IS_ENABLED(CFG_DRIVERS_CLK)) {
-		struct clk *clk0 = NULL;
-		struct clk *clk1 = NULL;
-		struct clk *clk = NULL;
-
-		DT_TEST_MSG("Probe clocks");
-
-		res = clk_dt_get_by_index(fdt, node, 0, &clk0);
+		res = probe_test_clocks(fdt, node);
 		if (res)
 			goto err_probe;
-		res = clk_dt_get_by_index(fdt, node, 1, &clk1);
-		if (res)
-			goto err_probe;
-
-		DT_TEST_MSG("Check valid clock references");
-
-		if (clk_enable(clk0)) {
-			DT_TEST_MSG("Can't enable %s", clk_get_name(clk0));
-			return TEE_ERROR_GENERIC;
-		}
-		clk_disable(clk0);
-
-		res = clk_dt_get_by_name(fdt, node, "clk0", &clk);
-		if (res || clk != clk0) {
-			DT_TEST_MSG("Unexpected clock reference");
-			return TEE_ERROR_GENERIC;
-		}
-
-		res = clk_dt_get_by_name(fdt, node, "clk1", &clk);
-		if (res || clk != clk1) {
-			DT_TEST_MSG("Unexpected clock reference");
-			return TEE_ERROR_GENERIC;
-		}
-
-		DT_TEST_MSG("Bad clock reference");
-
-		res = clk_dt_get_by_index(fdt, node, 3, &clk);
-		if (!res) {
-			DT_TEST_MSG("Unexpected clock found on invalid index");
-			return TEE_ERROR_GENERIC;
-		}
-
-		res = clk_dt_get_by_name(fdt, node, "clk2", &clk);
-		if (!res) {
-			DT_TEST_MSG("Unexpected clock found on invalid name");
-			return TEE_ERROR_GENERIC;
-		}
-
-		dt_test_state.probe_clocks = SUCCESS;
 	}
 
 	if (IS_ENABLED(CFG_DRIVERS_RSTCTRL)) {
-		struct rstctrl *rstctrl0 = NULL;
-		struct rstctrl *rstctrl1 = NULL;
-		struct rstctrl *rstctrl = NULL;
-
-		DT_TEST_MSG("Probe reset controllers");
-
-		res = rstctrl_dt_get_by_index(fdt, node, 0, &rstctrl0);
+		res = probe_test_resets(fdt, node);
 		if (res)
 			goto err_probe;
-
-		DT_TEST_MSG("Check valid reset controller");
-
-		if (rstctrl_assert(rstctrl0)) {
-			EMSG("Can't assert rstctrl %s", rstctrl_name(rstctrl0));
-			return TEE_ERROR_GENERIC;
-		}
-
-		res = rstctrl_dt_get_by_name(fdt, node, "rst0", &rstctrl);
-		if (res)
-			return res;
-
-		if (rstctrl != rstctrl0) {
-			EMSG("Unexpected reset controller reference");
-			return TEE_ERROR_GENERIC;
-		}
-
-		res = rstctrl_dt_get_by_name(fdt, node, "rst1", &rstctrl1);
-		if (res)
-			goto err_probe;
-
-		if (!rstctrl1 || rstctrl1 == rstctrl0) {
-			EMSG("Unexpected reset controller reference");
-			return TEE_ERROR_GENERIC;
-		}
-
-		dt_test_state.probe_resets = SUCCESS;
 	}
 
 	if (IS_ENABLED(CFG_DRIVERS_GPIO)) {
-		struct gpio *gpio = NULL;
-
-		DT_TEST_MSG("Probe GPIO controllers");
-
-		res = gpio_dt_get_by_index(fdt, node, 0, "test", &gpio);
+		res = probe_test_gpios(fdt, node);
 		if (res)
 			goto err_probe;
-
-		if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
-			EMSG("Unexpected gpio_get_direction() return value");
-			return TEE_ERROR_GENERIC;
-		}
-
-		/* GPIO is declared as ACTIVE_LOW in device-tree */
-		if (gpio_get_value(gpio) != GPIO_LEVEL_LOW) {
-			EMSG("Unexpected gpio_get_value() return value");
-			return TEE_ERROR_GENERIC;
-		}
-
-		res = gpio_dt_get_by_index(fdt, node, 1, "test", &gpio);
-		if (res)
-			goto err_probe;
-
-		if (gpio_get_direction(gpio) != GPIO_DIR_IN) {
-			EMSG("Unexpected gpio_get_direction() return value");
-			return TEE_ERROR_GENERIC;
-		}
-
-		if (gpio_get_value(gpio) != GPIO_LEVEL_HIGH) {
-			EMSG("Unexpected gpio_get_value() return value");
-			return TEE_ERROR_GENERIC;
-		}
-
-		dt_test_state.probe_gpios = SUCCESS;
 	}
 
 	if (dt_test_state.probe_deferral != IN_PROGRESS) {
