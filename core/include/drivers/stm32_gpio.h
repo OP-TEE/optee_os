@@ -10,8 +10,8 @@
  * as STM32 GPIO driver does no register callbacks to the PM framework.
  */
 
-#ifndef __STM32_GPIO_H
-#define __STM32_GPIO_H
+#ifndef DRIVERS_STM32_GPIO_H
+#define DRIVERS_STM32_GPIO_H
 
 #include <assert.h>
 #include <stdbool.h>
@@ -181,4 +181,4 @@ static inline void stm32_gpio_set_secure_cfg(unsigned int bank __unused,
  */
 int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank);
 
-#endif /*__STM32_GPIO_H*/
+#endif /*DRIVERS_STM32_GPIO_H*/
