@@ -260,9 +260,6 @@ bool stm32mp_periph_is_secure(enum stm32mp_shres id);
 /* Return true if and only if GPIO bank @bank is registered as secure */
 bool stm32mp_gpio_bank_is_secure(unsigned int bank);
 
-/* Return true if and only if GPIO bank @bank is registered as shared */
-bool stm32mp_gpio_bank_is_shared(unsigned int bank);
-
 /* Return true if and only if GPIO bank @bank is registered as non-secure */
 bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 
@@ -308,11 +305,6 @@ static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
 static inline bool stm32mp_gpio_bank_is_secure(unsigned int bank __unused)
 {
 	return true;
-}
-
-static inline bool stm32mp_gpio_bank_is_shared(unsigned int bank __unused)
-{
-	return false;
 }
 
 static inline bool stm32mp_gpio_bank_is_non_secure(unsigned int bank __unused)
