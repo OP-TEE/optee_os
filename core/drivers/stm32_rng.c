@@ -213,8 +213,12 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 
 	/* RNG is ready: read up to 4 32bit words */
 	while (len) {
-		uint32_t data32 = io_read32(rng_base + RNG_DR);
+		uint32_t data32 = 0;
 		size_t sz = MIN(len, sizeof(uint32_t));
+
+		if (!(io_read32(rng_base + RNG_SR) & RNG_SR_DRDY))
+			break;
+		data32 = io_read32(rng_base + RNG_DR);
 
 		/* Late seed error case: DR being 0 is an error status */
 		if (!data32) {
@@ -227,7 +231,7 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 		len -= sz;
 	}
 
-	*size = req_size;
+	*size = req_size - len;
 
 	return TEE_SUCCESS;
 }
