@@ -22,7 +22,7 @@
 	.endm
 
 	FUNC _utee_panic, :
-	j	__utee_panic
+	tail	__utee_panic
 	END_FUNC _utee_panic
 
 #include <utee_syscalls_asm.S>
