@@ -238,7 +238,7 @@ static void thread_exception_handler(unsigned long cause,
 
 static void thread_irq_handler(void)
 {
-	itr_core_handler();
+	interrupt_main_handler();
 }
 
 static void thread_interrupt_handler(unsigned long cause,
