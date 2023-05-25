@@ -45,8 +45,6 @@ vaddr_t get_gicd_base(void);
  */
 vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
-unsigned int stm32_get_gpio_bank_clock(unsigned int bank);
-struct clk *stm32_get_gpio_bank_clk(unsigned int bank);
 
 /* Platform util for PMIC support */
 bool stm32mp_with_pmic(void);
