@@ -155,7 +155,6 @@ TEE_Result pinctrl_get_state_by_idx(const void *fdt __unused,
 static inline
 void pinctrl_free_state(struct pinctrl_state *state __unused)
 {
-	return TEE_ERROR_NOT_SUPPORTED;
 }
 
 static inline
