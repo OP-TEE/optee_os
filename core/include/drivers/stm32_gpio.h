@@ -67,32 +67,8 @@ struct gpio_cfg {
 struct stm32_pinctrl {
 	uint8_t bank;
 	uint8_t pin;
-#ifdef CFG_DRIVERS_PINCTRL
 	struct gpio_cfg cfg;
-#else
-	struct gpio_cfg active_cfg;
-	struct gpio_cfg standby_cfg;
-#endif
 };
-
-#ifndef CFG_DRIVERS_PINCTRL
-/*
- * Apply series of pin muxing configuration, active state and standby state
- *
- * @pinctrl: array of pinctrl references
- * @count: Number of entries in @pinctrl
- */
-void stm32_pinctrl_load_active_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
-void stm32_pinctrl_load_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
-
-/*
- * Save the current pin configuration as the standby state for a pin series
- *
- * @pinctrl: array of pinctrl references
- * @count: Number of entries in @pinctrl
- */
-void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
-#endif
 
 /*
  * Save pinctrl instances defined in DT node: identifiers and power states
@@ -125,14 +101,6 @@ int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int node,
  */
 void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin,
 			       bool secure);
-#else
-static inline void stm32_gpio_set_secure_cfg(unsigned int bank __unused,
-					     unsigned int pin __unused,
-					     bool secure __unused)
-{
-	assert(0);
-}
-#endif
 
 /*
  * Get the number of GPIO pins supported by a target GPIO bank
@@ -144,7 +112,6 @@ static inline void stm32_gpio_set_secure_cfg(unsigned int bank __unused,
  */
 int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank);
 
-#ifdef CFG_DRIVERS_PINCTRL
 /*
  * Configure pin muxing access permission: can be secure or not
  *
@@ -179,5 +146,5 @@ void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *p __unused,
 {
 	assert(!count);
 }
-#endif /*CFG_DRIVERS_PINCTRL*/
+#endif /*CFG_STM32_GPIO*/
 #endif /*DRIVERS_STM32_GPIO_H*/
