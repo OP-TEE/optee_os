@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2022, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
 #include <config.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32mp1_etzpc.h>
@@ -385,6 +386,54 @@ void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin)
 	default:
 		break;
 	}
+}
+
+void stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl)
+{
+	unsigned int *bank = NULL;
+	unsigned int *pin = NULL;
+	size_t count = 0;
+	size_t n = 0;
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, NULL, NULL, &count);
+	if (!count)
+		return;
+
+	bank = calloc(count, sizeof(*bank));
+	pin = calloc(count, sizeof(*pin));
+	if (!bank || !pin)
+		panic();
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, bank, pin, &count);
+	for (n = 0; n < count; n++)
+		stm32mp_register_secure_gpio(bank[n], pin[n]);
+
+	free(bank);
+	free(pin);
+}
+
+void stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl)
+{
+	unsigned int *bank = NULL;
+	unsigned int *pin = NULL;
+	size_t count = 0;
+	size_t n = 0;
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, NULL, NULL, &count);
+	if (!count)
+		return;
+
+	bank = calloc(count, sizeof(*bank));
+	pin = calloc(count, sizeof(*pin));
+	if (!bank || !pin)
+		panic();
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, bank, pin, &count);
+	for (n = 0; n < count; n++)
+		stm32mp_register_non_secure_gpio(bank[n], pin[n]);
+
+	free(bank);
+	free(pin);
 }
 
 static void lock_registering(void)

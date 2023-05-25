@@ -8,9 +8,11 @@
 
 #include <assert.h>
 #include <drivers/clk.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
+#include <tee_api_types.h>
 #include <types_ext.h>
 
 /* Backup registers and RAM utils */
@@ -255,6 +257,20 @@ void stm32mp_register_secure_gpio(unsigned int bank, unsigned int pin);
  */
 void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin);
 
+/*
+ * Register pin resource of a pin control state as a secure peripheral
+ * @bank: Bank of the target GPIO
+ * @pin: Bit position of the target GPIO in the bank
+ */
+void stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl);
+
+/*
+ * Register pin resource of a pin control state as a non-secure peripheral
+ * @bank: Bank of the target GPIO
+ * @pin: Bit position of the target GPIO in the bank
+ */
+void stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl);
+
 /* Return true if and only if resource @id is registered as secure */
 bool stm32mp_periph_is_secure(enum stm32mp_shres id);
 
@@ -295,6 +311,16 @@ static inline void stm32mp_register_secure_gpio(unsigned int bank __unused,
 
 static inline void stm32mp_register_non_secure_gpio(unsigned int bank __unused,
 						    unsigned int pin __unused)
+{
+}
+
+static inline void
+stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
+{
+}
+
+static inline void
+stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
 {
 }
 
