@@ -43,7 +43,6 @@ vaddr_t get_gicd_base(void);
  * check DT configuration matches platform implementation of the banks
  * description.
  */
-vaddr_t stm32_get_gpio_bank_base(unsigned int bank);
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 
 /* Platform util for PMIC support */
