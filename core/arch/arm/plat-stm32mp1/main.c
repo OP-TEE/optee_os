@@ -408,33 +408,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 	panic();
 }
 
-vaddr_t stm32_get_gpio_bank_base(unsigned int bank)
-{
-	static struct io_pa_va base = { .pa = GPIOA_BASE };
-
-	static_assert(GPIO_BANK_A == 0);
-	assert(bank_is_valid(bank));
-
-	if (IS_ENABLED(CFG_STM32MP15)) {
-		static struct io_pa_va zbase = { .pa = GPIOZ_BASE };
-
-		/* Get secure mapping address for GPIOZ */
-		if (bank == GPIO_BANK_Z)
-			return io_pa_or_va_secure(&zbase, GPIO_BANK_OFFSET);
-
-		/* Other are mapped non-secure */
-		return io_pa_or_va_nsec(&base, (bank + 1) * GPIO_BANK_OFFSET) +
-		       (bank * GPIO_BANK_OFFSET);
-	}
-
-	if (IS_ENABLED(CFG_STM32MP13))
-		return io_pa_or_va_secure(&base,
-					  (bank + 1) * GPIO_BANK_OFFSET) +
-		       (bank * GPIO_BANK_OFFSET);
-
-	panic();
-}
-
 unsigned int stm32_get_gpio_bank_offset(unsigned int bank)
 {
 	assert(bank_is_valid(bank));
