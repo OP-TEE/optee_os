@@ -8,7 +8,6 @@
 
 #include <drivers/clk.h>
 #include <drivers/pinctrl.h>
-#include <drivers/stm32_gpio.h>
 #include <drivers/serial.h>
 #include <io.h>
 #include <types_ext.h>
@@ -19,12 +18,7 @@ struct stm32_uart_pdata {
 	struct serial_chip chip;
 	bool secure;
 	struct clk *clock;
-#ifdef CFG_DRIVERS_PINCTRL
 	struct pinctrl_state *pinctrl;
-#else
-	struct stm32_pinctrl *pinctrl;
-	size_t pinctrl_count;
-#endif
 	struct pinctrl_state *pinctrl_sleep;
 };
 
