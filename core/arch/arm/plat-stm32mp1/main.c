@@ -445,28 +445,6 @@ unsigned int stm32_get_gpio_bank_offset(unsigned int bank)
 	return bank * GPIO_BANK_OFFSET;
 }
 
-unsigned int stm32_get_gpio_bank_clock(unsigned int bank)
-{
-	assert(bank_is_valid(bank));
-
-#ifdef CFG_STM32MP15
-	if (bank == GPIO_BANK_Z)
-		return GPIOZ;
-#endif
-
-	return GPIOA + bank;
-}
-
-struct clk *stm32_get_gpio_bank_clk(unsigned int bank)
-{
-	assert(bank_is_valid(bank));
-
-	if (!IS_ENABLED(CFG_DRIVERS_CLK))
-		return NULL;
-
-	return stm32mp_rcc_clock_id_to_clk(stm32_get_gpio_bank_clock(bank));
-}
-
 #ifdef CFG_STM32_IWDG
 TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 				     struct stm32_iwdg_otp_data *otp_data)
