@@ -77,13 +77,24 @@ static unsigned int gpio_lock;
 static STAILQ_HEAD(, stm32_gpio_bank) bank_list =
 		STAILQ_HEAD_INITIALIZER(bank_list);
 
-/* Save to output @cfg the current GPIO (@bank/@pin) configuration */
-static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
+static struct stm32_gpio_bank *stm32_gpio_get_bank(unsigned int bank_id)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	struct clk *clk = stm32_get_gpio_bank_clk(bank);
+	struct stm32_gpio_bank *bank = NULL;
 
-	clk_enable(clk);
+	STAILQ_FOREACH(bank, &bank_list, link)
+		if (bank_id == bank->bank_id)
+			return bank;
+
+	panic();
+}
+
+/* Save to output @cfg the current GPIO (@bank_id/@pin) configuration */
+static void get_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
+{
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
+
+	if (clk_enable(bank->clock))
+		panic();
 
 	/*
 	 * Save GPIO configuration bits spread over the few bank registers.
@@ -92,73 +103,74 @@ static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
 	 * 4bit fields are accessed at bit position being fourth the pin index
 	 * but accessed from 2 32bit registers at incremental addresses.
 	 */
-	cfg->mode = (io_read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
-		     GPIO_MODE_MASK;
+	cfg->mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >> (pin << 1)) &
+		    GPIO_MODE_MASK;
 
-	cfg->otype = (io_read32(base + GPIO_OTYPER_OFFSET) >> pin) & 1;
+	cfg->otype = (io_read32(bank->base + GPIO_OTYPER_OFFSET) >> pin) & 1;
 
-	cfg->ospeed = (io_read32(base +  GPIO_OSPEEDR_OFFSET) >> (pin << 1)) &
-		       GPIO_OSPEED_MASK;
+	cfg->ospeed = (io_read32(bank->base +  GPIO_OSPEEDR_OFFSET) >>
+		       (pin << 1)) & GPIO_OSPEED_MASK;
 
-	cfg->pupd = (io_read32(base +  GPIO_PUPDR_OFFSET) >> (pin << 1)) &
-		     GPIO_PUPD_PULL_MASK;
+	cfg->pupd = (io_read32(bank->base +  GPIO_PUPDR_OFFSET) >> (pin << 1)) &
+		    GPIO_PUPD_PULL_MASK;
 
-	cfg->od = (io_read32(base + GPIO_ODR_OFFSET) >> (pin << 1)) & 1;
+	cfg->od = (io_read32(bank->base + GPIO_ODR_OFFSET) >> (pin << 1)) & 1;
 
 	if (pin < GPIO_ALT_LOWER_LIMIT)
-		cfg->af = (io_read32(base + GPIO_AFRL_OFFSET) >> (pin << 2)) &
-			   GPIO_ALTERNATE_MASK;
+		cfg->af = (io_read32(bank->base + GPIO_AFRL_OFFSET) >>
+			   (pin << 2)) & GPIO_ALTERNATE_MASK;
 	else
-		cfg->af = (io_read32(base + GPIO_AFRH_OFFSET) >>
-			    ((pin - GPIO_ALT_LOWER_LIMIT) << 2)) &
-			   GPIO_ALTERNATE_MASK;
+		cfg->af = (io_read32(bank->base + GPIO_AFRH_OFFSET) >>
+			   ((pin - GPIO_ALT_LOWER_LIMIT) << 2)) &
+			  GPIO_ALTERNATE_MASK;
 
-	clk_disable(clk);
+	clk_disable(bank->clock);
 }
 
 /* Apply GPIO (@bank/@pin) configuration described by @cfg */
-static void set_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
+static void set_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	struct clk *clk = stm32_get_gpio_bank_clk(bank);
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
 	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
-	clk_enable(clk);
+	if (clk_enable(bank->clock))
+		panic();
 
 	/* Load GPIO MODE value, 2bit value shifted by twice the pin number */
-	io_clrsetbits32(base + GPIO_MODER_OFFSET,
+	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
 			GPIO_MODE_MASK << (pin << 1),
 			cfg->mode << (pin << 1));
 
 	/* Load GPIO Output TYPE value, 1bit shifted by pin number value */
-	io_clrsetbits32(base + GPIO_OTYPER_OFFSET, BIT(pin), cfg->otype << pin);
+	io_clrsetbits32(bank->base + GPIO_OTYPER_OFFSET, BIT(pin),
+			cfg->otype << pin);
 
 	/* Load GPIO Output Speed confguration, 2bit value */
-	io_clrsetbits32(base + GPIO_OSPEEDR_OFFSET,
+	io_clrsetbits32(bank->base + GPIO_OSPEEDR_OFFSET,
 			GPIO_OSPEED_MASK << (pin << 1),
 			cfg->ospeed << (pin << 1));
 
 	/* Load GPIO pull configuration, 2bit value */
-	io_clrsetbits32(base + GPIO_PUPDR_OFFSET, BIT(pin),
+	io_clrsetbits32(bank->base + GPIO_PUPDR_OFFSET, BIT(pin),
 			cfg->pupd << (pin << 1));
 
 	/* Load pin mux Alternate Function configuration, 4bit value */
 	if (pin < GPIO_ALT_LOWER_LIMIT) {
-		io_clrsetbits32(base + GPIO_AFRL_OFFSET,
+		io_clrsetbits32(bank->base + GPIO_AFRL_OFFSET,
 				GPIO_ALTERNATE_MASK << (pin << 2),
 				cfg->af << (pin << 2));
 	} else {
 		size_t shift = (pin - GPIO_ALT_LOWER_LIMIT) << 2;
 
-		io_clrsetbits32(base + GPIO_AFRH_OFFSET,
+		io_clrsetbits32(bank->base + GPIO_AFRH_OFFSET,
 				GPIO_ALTERNATE_MASK << shift,
 				cfg->af << shift);
 	}
 
 	/* Load GPIO Output direction confuguration, 1bit */
-	io_clrsetbits32(base + GPIO_ODR_OFFSET, BIT(pin), cfg->od << pin);
+	io_clrsetbits32(bank->base + GPIO_ODR_OFFSET, BIT(pin), cfg->od << pin);
 
-	clk_disable(clk);
+	clk_disable(bank->clock);
 	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
 
@@ -195,9 +207,7 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 	int pinctrl_subnode = 0;
 
 	fdt_for_each_subnode(pinctrl_subnode, fdt, pinctrl_node) {
-		TEE_Result res = TEE_ERROR_GENERIC;
 		const fdt32_t *cuint = NULL;
-		struct clk *clk = NULL;
 
 		if (fdt_getprop(fdt, pinctrl_subnode,
 				"gpio-controller", NULL) == NULL)
@@ -207,11 +217,6 @@ static void ckeck_gpio_bank(void *fdt, uint32_t bank, int pinctrl_node)
 		cuint = fdt_getprop(fdt, pinctrl_subnode, "reg", NULL);
 		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
 			continue;
-
-		/* Check bank clock matches platform assumptions */
-		res = clk_dt_get_by_index(fdt, pinctrl_subnode, 0, &clk);
-		if (res || clk != stm32_get_gpio_bank_clk(bank))
-			panic();
 
 		/* Check controller is enabled */
 		if (fdt_get_status(fdt, pinctrl_subnode) == DT_STATUS_DISABLED)
@@ -557,12 +562,12 @@ int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
 	return -1;
 }
 
-static __maybe_unused bool valid_gpio_config(unsigned int bank,
+static __maybe_unused bool valid_gpio_config(unsigned int bank_id,
 					     unsigned int pin, bool input)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	uint32_t mode = (io_read32(base + GPIO_MODER_OFFSET) >> (pin << 1)) &
-			GPIO_MODE_MASK;
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
+	uint32_t mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >>
+			 (pin << 1)) & GPIO_MODE_MASK;
 
 	if (pin > GPIO_PIN_MAX)
 		return false;
@@ -573,55 +578,57 @@ static __maybe_unused bool valid_gpio_config(unsigned int bank,
 		return mode == GPIO_MODE_OUTPUT;
 }
 
-int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin)
+int stm32_gpio_get_input_level(unsigned int bank_id, unsigned int pin)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	struct clk *clk = stm32_get_gpio_bank_clk(bank);
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
 	int rc = 0;
 
-	clk_enable(clk);
+	if (clk_enable(bank->clock))
+		panic();
 
-	assert(valid_gpio_config(bank, pin, true));
+	assert(valid_gpio_config(bank_id, pin, true));
 
-	if (io_read32(base + GPIO_IDR_OFFSET) == BIT(pin))
+	if (io_read32(bank->base + GPIO_IDR_OFFSET) == BIT(pin))
 		rc = 1;
 
-	clk_disable(clk);
+	clk_disable(bank->clock);
 
 	return rc;
 }
 
-void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int level)
+void stm32_gpio_set_output_level(unsigned int bank_id, unsigned int pin,
+				 int level)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	struct clk *clk = stm32_get_gpio_bank_clk(bank);
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
 
-	clk_enable(clk);
+	if (clk_enable(bank->clock))
+		panic();
 
-	assert(valid_gpio_config(bank, pin, false));
+	assert(valid_gpio_config(bank_id, pin, false));
 
 	if (level)
-		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin));
+		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(pin));
 	else
-		io_write32(base + GPIO_BSRR_OFFSET, BIT(pin + 16));
+		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(pin + 16));
 
-	clk_disable(clk);
+	clk_disable(bank->clock);
 }
 
-void stm32_gpio_set_secure_cfg(unsigned int bank, unsigned int pin, bool secure)
+void stm32_gpio_set_secure_cfg(unsigned int bank_id, unsigned int pin,
+			       bool secure)
 {
-	vaddr_t base = stm32_get_gpio_bank_base(bank);
-	struct clk *clk = stm32_get_gpio_bank_clk(bank);
+	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
 	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
-	clk_enable(clk);
+	if (clk_enable(bank->clock))
+		panic();
 
 	if (secure)
-		io_setbits32(base + GPIO_SECR_OFFSET, BIT(pin));
+		io_setbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
 	else
-		io_clrbits32(base + GPIO_SECR_OFFSET, BIT(pin));
+		io_clrbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
 
-	clk_disable(clk);
+	clk_disable(bank->clock);
 	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
 }
 
