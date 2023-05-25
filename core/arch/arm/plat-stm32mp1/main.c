@@ -8,6 +8,7 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
@@ -578,3 +579,6 @@ static TEE_Result init_debug(void)
 }
 early_init_late(init_debug);
 #endif /* CFG_STM32_DEBUG_ACCESS */
+
+/* Some generic resources need to be unpaged */
+DECLARE_KEEP_PAGER(pinctrl_apply_state);
