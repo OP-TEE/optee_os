@@ -6,6 +6,7 @@
  */
 
 #include <assert.h>
+#include <compiler.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/gpio.h>
@@ -55,6 +56,61 @@
 #define DT_GPIO_MODE_MASK	GENMASK_32(7, 0)
 
 #define DT_GPIO_BANK_NAME0	"GPIOA"
+
+#define GPIO_MODE_INPUT		0x0
+#define GPIO_MODE_OUTPUT	0x1
+#define GPIO_MODE_ALTERNATE	0x2
+#define GPIO_MODE_ANALOG	0x3
+
+#define GPIO_OTYPE_PUSH_PULL	0x0
+#define GPIO_OTYPE_OPEN_DRAIN	0x1
+
+#define GPIO_OSPEED_LOW		0x0
+#define GPIO_OSPEED_MEDIUM	0x1
+#define GPIO_OSPEED_HIGH	0x2
+#define GPIO_OSPEED_VERY_HIGH	0x3
+
+#define GPIO_PUPD_NO_PULL	0x0
+#define GPIO_PUPD_PULL_UP	0x1
+#define GPIO_PUPD_PULL_DOWN	0x2
+
+#define GPIO_OD_LEVEL_LOW	0x0
+#define GPIO_OD_LEVEL_HIGH	0x1
+
+/*
+ * GPIO configuration description structured as single 16bit word
+ * for efficient save/restore when GPIO pin suspends or resumes.
+ *
+ * @mode: One of GPIO_MODE_*
+ * @otype: One of GPIO_OTYPE_*
+ * @ospeed: One of GPIO_OSPEED_*
+ * @pupd: One of GPIO_PUPD_*
+ * @od: One of GPIO_OD_*
+ * @af: Alternate function numerical ID between 0 and 15
+ */
+struct gpio_cfg {
+	uint16_t mode:		2;
+	uint16_t otype:		1;
+	uint16_t ospeed:	2;
+	uint16_t pupd:		2;
+	uint16_t od:		1;
+	uint16_t af:		4;
+};
+
+/*
+ * Descrption of a pin and its 2 states muxing
+ *
+ * @bank: GPIO bank identifier as assigned by the platform
+ * @pin: Pin number in the GPIO bank
+ * @cfg: Pin configuration
+ * @active_cfg: Configuration in active state
+ * @standby_cfg: Configuration in standby state
+ */
+struct stm32_pinctrl {
+	uint8_t bank;
+	uint8_t pin;
+	struct gpio_cfg cfg;
+};
 
 /*
  * struct stm32_pinctrl_array - Array of pins in a pin control state
