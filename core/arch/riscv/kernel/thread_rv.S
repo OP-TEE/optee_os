@@ -48,6 +48,10 @@
 	store_xregs sp, THREAD_TRAP_REG_T0, REG_T0, REG_T2
 	store_xregs sp, THREAD_TRAP_REG_A0, REG_A0, REG_A7
 	store_xregs sp, THREAD_TRAP_REG_RA, REG_RA
+#if defined(CFG_UNWIND)
+	/* To unwind stack we need s0, which is frame pointer. */
+	store_xregs sp, THREAD_TRAP_REG_S0, REG_S0
+#endif
 
 	csrr	t0, CSR_XSTATUS
 	store_xregs sp, THREAD_TRAP_REG_STATUS, REG_T0
@@ -78,6 +82,10 @@
 	load_xregs sp, THREAD_TRAP_REG_A0, REG_A0, REG_A7
 	load_xregs sp, THREAD_TRAP_REG_T0, REG_T0, REG_T2
 	load_xregs sp, THREAD_TRAP_REG_T3, REG_T3, REG_T6
+#if defined(CFG_UNWIND)
+	/* To unwind stack we need s0, which is frame pointer. */
+	load_xregs sp, THREAD_TRAP_REG_S0, REG_S0
+#endif
 
 .if \mode == TRAP_MODE_USER
 	addi	gp, sp, THREAD_TRAP_REGS_SIZE
