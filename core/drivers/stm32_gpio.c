@@ -3,7 +3,6 @@
  * Copyright (c) 2017-2023, STMicroelectronics
  *
  * STM32 GPIO driver is used as pin controller for stm32mp SoCs.
- * The driver API is defined in header file stm32_gpio.h.
  */
 
 #include <assert.h>
@@ -23,6 +22,10 @@
 #include <sys/queue.h>
 #include <trace.h>
 #include <util.h>
+
+#ifndef CFG_DRIVERS_GPIO
+#error stm32_gpio driver expects CFG_DRIVERS_GPIO
+#endif
 
 #define GPIO_PIN_MAX		15
 
@@ -763,58 +766,6 @@ int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
 	}
 
 	return -1;
-}
-
-static __maybe_unused bool valid_gpio_config(unsigned int bank_id,
-					     unsigned int pin, bool input)
-{
-	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-	uint32_t mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >>
-			 (pin << 1)) & GPIO_MODE_MASK;
-
-	if (pin > GPIO_PIN_MAX)
-		return false;
-
-	if (input)
-		return mode == GPIO_MODE_INPUT;
-	else
-		return mode == GPIO_MODE_OUTPUT;
-}
-
-int stm32_gpio_get_input_level(unsigned int bank_id, unsigned int pin)
-{
-	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-	int rc = 0;
-
-	if (clk_enable(bank->clock))
-		panic();
-
-	assert(valid_gpio_config(bank_id, pin, true));
-
-	if (io_read32(bank->base + GPIO_IDR_OFFSET) == BIT(pin))
-		rc = 1;
-
-	clk_disable(bank->clock);
-
-	return rc;
-}
-
-void stm32_gpio_set_output_level(unsigned int bank_id, unsigned int pin,
-				 int level)
-{
-	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-
-	if (clk_enable(bank->clock))
-		panic();
-
-	assert(valid_gpio_config(bank_id, pin, false));
-
-	if (level)
-		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(pin));
-	else
-		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(pin + 16));
-
-	clk_disable(bank->clock);
 }
 
 void stm32_gpio_set_secure_cfg(unsigned int bank_id, unsigned int pin,
