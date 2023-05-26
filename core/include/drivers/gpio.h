@@ -55,16 +55,22 @@ struct gpio_chip {
 };
 
 struct gpio_ops {
+	/* Get GPIO direction current configuration */
 	enum gpio_dir (*get_direction)(struct gpio_chip *chip,
 				       unsigned int gpio_pin);
+	/* Set GPIO direction configuration */
 	void (*set_direction)(struct gpio_chip *chip, unsigned int gpio_pin,
 			      enum gpio_dir direction);
+	/* Get GPIO current level */
 	enum gpio_level (*get_value)(struct gpio_chip *chip,
 				     unsigned int gpio_pin);
+	/* Set GPIO level */
 	void (*set_value)(struct gpio_chip *chip, unsigned int gpio_pin,
 			  enum gpio_level value);
+	/* Get GPIO interrupt state */
 	enum gpio_interrupt (*get_interrupt)(struct gpio_chip *chip,
 					     unsigned int gpio_pin);
+	/* Enable or disable a GPIO interrupt */
 	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
 			      enum gpio_interrupt enable_disable);
 	/* Release GPIO resources */
