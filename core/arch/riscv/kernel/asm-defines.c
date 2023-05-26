@@ -60,6 +60,7 @@ DEFINES
 	DEFINE(THREAD_TRAP_REG_GP, offsetof(struct thread_trap_regs, gp));
 	DEFINE(THREAD_TRAP_REG_TP, offsetof(struct thread_trap_regs, tp));
 	DEFINE(THREAD_TRAP_REG_T0, offsetof(struct thread_trap_regs, t0));
+	DEFINE(THREAD_TRAP_REG_S0, offsetof(struct thread_trap_regs, s0));
 	DEFINE(THREAD_TRAP_REG_A0, offsetof(struct thread_trap_regs, a0));
 	DEFINE(THREAD_TRAP_REG_T3, offsetof(struct thread_trap_regs, t3));
 	DEFINE(THREAD_TRAP_REG_EPC, offsetof(struct thread_trap_regs, epc));
