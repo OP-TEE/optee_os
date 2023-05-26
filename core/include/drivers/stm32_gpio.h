@@ -111,47 +111,6 @@ void stm32_pinctrl_store_standby_cfg(struct stm32_pinctrl *pinctrl, size_t cnt);
 int stm32_pinctrl_fdt_get_pinctrl(void *fdt, int node,
 				  struct stm32_pinctrl *pinctrl, size_t count);
 
-/*
- * Set target output GPIO pin to high or low level
- *
- * @bank: GPIO bank identifier as assigned by the platform
- * @pin: GPIO pin position in the GPIO bank
- * @high: 1 to set GPIO to high level, 0 to set to GPIO low level
- */
-void stm32_gpio_set_output_level(unsigned int bank, unsigned int pin, int high);
-
-/*
- * Set output GPIO pin referenced by @pinctrl to high or low level
- *
- * @pinctrl: Reference to pinctrl
- * @high: 1 to set GPIO to high level, 0 to set to GPIO low level
- */
-static inline void stm32_pinctrl_set_gpio_level(struct stm32_pinctrl *pinctrl,
-						int high)
-{
-	stm32_gpio_set_output_level(pinctrl->bank, pinctrl->pin, high);
-}
-
-/*
- * Get input GPIO pin current level, high or low
- *
- * @bank: GPIO bank identifier as assigned by the platform
- * @pin: GPIO pin position in the GPIO bank
- * Return 1 if GPIO level is high, 0 if it is low
- */
-int stm32_gpio_get_input_level(unsigned int bank, unsigned int pin);
-
-/*
- * Set target output GPIO pin to high or low level
- *
- * @pinctrl: Reference to pinctrl
- * Return 1 if GPIO level is high, 0 if it is low
- */
-static inline int stm32_pinctrl_get_gpio_level(struct stm32_pinctrl *pinctrl)
-{
-	return stm32_gpio_get_input_level(pinctrl->bank, pinctrl->pin);
-}
-
 #ifdef CFG_STM32_GPIO
 /*
  * Configure pin muxing access permission: can be secure or not
