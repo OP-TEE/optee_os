@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/gpio.h>
 #include <drivers/stm32_gpio.h>
 #include <io.h>
 #include <kernel/dt.h>
@@ -56,6 +57,7 @@
  *
  * @base: base address of the GPIO controller registers.
  * @clock: clock identifier.
+ * @gpio_chip: GPIO chip reference for that GPIO bank
  * @ngpios: number of GPIOs.
  * @bank_id: Id of the bank.
  * @lock: lock protecting the GPIO bank access.
@@ -66,6 +68,7 @@
 struct stm32_gpio_bank {
 	vaddr_t base;
 	struct clk *clock;
+	struct gpio_chip gpio_chip;
 	unsigned int ngpios;
 	unsigned int bank_id;
 	unsigned int lock;
@@ -76,6 +79,118 @@ static unsigned int gpio_lock;
 
 static STAILQ_HEAD(, stm32_gpio_bank) bank_list =
 		STAILQ_HEAD_INITIALIZER(bank_list);
+
+static struct stm32_gpio_bank *gpio_chip_to_bank(struct gpio_chip *chip)
+{
+	return container_of(chip, struct stm32_gpio_bank, gpio_chip);
+}
+
+static enum gpio_level stm32_gpio_get_level(struct gpio_chip *chip,
+					    unsigned int gpio_pin)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	unsigned int reg_offset = 0;
+	unsigned int mode = 0;
+
+	assert(gpio_pin < bank->ngpios);
+
+	mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >> (gpio_pin << 1)) &
+	       GPIO_MODE_MASK;
+
+	switch (mode) {
+	case GPIO_MODE_INPUT:
+		reg_offset = GPIO_IDR_OFFSET;
+		break;
+	case GPIO_MODE_OUTPUT:
+		reg_offset = GPIO_ODR_OFFSET;
+		break;
+	default:
+		panic();
+	}
+
+	if (io_read32(bank->base + reg_offset) & BIT(gpio_pin))
+		return GPIO_LEVEL_HIGH;
+	else
+		return GPIO_LEVEL_LOW;
+}
+
+static void stm32_gpio_set_level(struct gpio_chip *chip, unsigned int gpio_pin,
+				 enum gpio_level level)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+
+	assert(gpio_pin < bank->ngpios);
+
+	if (level == GPIO_LEVEL_HIGH)
+		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(gpio_pin));
+	else
+		io_write32(bank->base + GPIO_BSRR_OFFSET, BIT(gpio_pin + 16));
+}
+
+static enum gpio_dir stm32_gpio_get_direction(struct gpio_chip *chip,
+					      unsigned int gpio_pin)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	uint32_t mode = 0;
+
+	assert(gpio_pin < bank->ngpios);
+
+	mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >> (gpio_pin << 1)) &
+	       GPIO_MODE_MASK;
+
+	switch (mode) {
+	case GPIO_MODE_INPUT:
+		return GPIO_DIR_IN;
+	case GPIO_MODE_OUTPUT:
+		return GPIO_DIR_OUT;
+	default:
+		panic();
+	}
+}
+
+static void stm32_gpio_set_direction(struct gpio_chip *chip,
+				     unsigned int gpio_pin,
+				     enum gpio_dir direction)
+{
+	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
+	uint32_t exceptions = 0;
+	uint32_t mode = 0;
+
+	assert(gpio_pin < bank->ngpios);
+
+	if (direction == GPIO_DIR_IN)
+		mode = GPIO_MODE_INPUT;
+	else
+		mode = GPIO_MODE_OUTPUT;
+
+	exceptions = cpu_spin_lock_xsave(&gpio_lock);
+	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
+			SHIFT_U32(GPIO_MODE_MASK, gpio_pin << 1),
+			SHIFT_U32(mode, gpio_pin << 1));
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
+}
+
+static bool is_stm32_gpio_chip(struct gpio_chip *chip);
+
+static void stm32_gpio_put_gpio(struct gpio_chip *chip __maybe_unused,
+				struct gpio *gpio)
+{
+	assert(is_stm32_gpio_chip(chip));
+	free(gpio);
+}
+
+static const struct gpio_ops stm32_gpio_ops = {
+	.get_direction = stm32_gpio_get_direction,
+	.set_direction = stm32_gpio_set_direction,
+	.get_value = stm32_gpio_get_level,
+	.set_value = stm32_gpio_set_level,
+	.put = stm32_gpio_put_gpio,
+};
+
+static bool __maybe_unused is_stm32_gpio_chip(struct gpio_chip *chip)
+{
+	return chip && chip->ops == &stm32_gpio_ops;
+}
 
 /* Save to output @cfg the current GPIO (@bank/@pin) configuration */
 static void get_gpio_cfg(uint32_t bank, uint32_t pin, struct gpio_cfg *cfg)
@@ -343,6 +458,65 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 	return (int)found;
 }
 
+static struct gpio *stm32_gpio_get_dt(struct dt_pargs *pargs,
+				      void *data, TEE_Result *res)
+{
+	struct stm32_gpio_bank *bank = data;
+	struct gpio *gpio = NULL;
+	unsigned int shift_1b = 0;
+	unsigned int shift_2b = 0;
+	uint32_t exceptions = 0;
+	uint32_t otype = 0;
+	uint32_t pupd = 0;
+	uint32_t mode = 0;
+
+	gpio = gpio_dt_alloc_pin(pargs, res);
+	if (*res)
+		return NULL;
+
+	if (gpio->pin >= bank->ngpios) {
+		DMSG("Invalid GPIO reference");
+		free(gpio);
+		return NULL;
+	}
+
+	shift_1b = gpio->pin;
+	shift_2b = SHIFT_U32(gpio->pin, 1);
+
+	if (gpio->dt_flags & GPIO_PULL_UP)
+		pupd = GPIO_PUPD_PULL_UP;
+	else if (gpio->dt_flags & GPIO_PULL_DOWN)
+		pupd = GPIO_PUPD_PULL_DOWN;
+	else
+		pupd = GPIO_PUPD_NO_PULL;
+
+	if (gpio->dt_flags & GPIO_LINE_OPEN_DRAIN)
+		otype = GPIO_OTYPE_OPEN_DRAIN;
+	else
+		otype = GPIO_OTYPE_PUSH_PULL;
+
+	exceptions = cpu_spin_lock_xsave(&gpio_lock);
+
+	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
+			SHIFT_U32(GPIO_MODE_MASK, shift_2b),
+			SHIFT_U32(mode, shift_2b));
+
+	io_clrsetbits32(bank->base + GPIO_OTYPER_OFFSET,
+			SHIFT_U32(GPIO_OTYPE_OPEN_DRAIN, shift_1b),
+			SHIFT_U32(otype, shift_1b));
+
+	io_clrsetbits32(bank->base + GPIO_PUPDR_OFFSET,
+			SHIFT_U32(GPIO_PUPD_PULL_MASK, shift_2b),
+			SHIFT_U32(pupd, shift_2b));
+
+	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
+
+	gpio->chip = &bank->gpio_chip;
+
+	*res = TEE_SUCCESS;
+	return gpio;
+}
+
 /* Get bank ID from bank node property st,bank-name or panic on failure */
 static unsigned int dt_get_bank_id(const void *fdt, int node)
 {
@@ -423,6 +597,7 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 	bank->base = io_pa_or_va_secure(&pa_va, blen);
 	bank->bank_id = dt_get_bank_id(fdt, node);
 	bank->clock = clk;
+	bank->gpio_chip.ops = &stm32_gpio_ops;
 
 	/* Parse gpio-ranges with its 4 parameters */
 	cuint = fdt_getprop(fdt, node, "gpio-ranges", &len);
@@ -479,6 +654,12 @@ static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 						 range_offs, &bank);
 			if (res)
 				return res;
+
+			/* Registering a provider should not defer probe */
+			res = gpio_register_provider(fdt, b_node,
+						     stm32_gpio_get_dt, bank);
+			if (res)
+				panic();
 
 			STAILQ_INSERT_TAIL(&bank_list, bank, link);
 		} else {
