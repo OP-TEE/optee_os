@@ -133,6 +133,24 @@ static inline __noprof unsigned long read_tp(void)
 	return tp;
 }
 
+static inline __noprof unsigned long read_fp(void)
+{
+	unsigned long fp = 0;
+
+	asm volatile ("mv %0, fp" : "=r" (fp));
+
+	return fp;
+}
+
+static inline __noprof unsigned long read_pc(void)
+{
+	unsigned long pc = 0;
+
+	asm volatile ("auipc %0, 0" : "=r" (pc));
+
+	return pc;
+}
+
 static inline __noprof void wfi(void)
 {
 	asm volatile ("wfi");
