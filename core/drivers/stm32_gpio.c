@@ -853,6 +853,29 @@ out:
 	*count = pin_count;
 }
 
+void stm32_pinctrl_set_secure_cfg(struct pinctrl_state *pinctrl, bool secure)
+{
+	size_t conf_index = 0;
+
+	if (!pinctrl)
+		return;
+
+	for (conf_index = 0; conf_index < pinctrl->conf_count; conf_index++) {
+		struct pinconf *pinconf = pinctrl->confs[conf_index];
+		struct stm32_pinctrl_array *ref = pinconf->priv;
+		struct stm32_pinctrl *pc = NULL;
+		size_t n = 0;
+
+		for (n = 0; n < ref->count; n++) {
+			if (pinconf->ops != &stm32_pinctrl_ops)
+				continue;
+
+			pc = ref->pinctrl + n;
+			stm32_gpio_set_secure_cfg(pc->bank, pc->pin, secure);
+		}
+	}
+}
+
 /* Allocate and return a pinctrl configuration from a DT reference */
 static struct pinconf *stm32_pinctrl_dt_get(struct dt_pargs *pargs,
 					    void *data __unused,

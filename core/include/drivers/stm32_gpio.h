@@ -146,6 +146,14 @@ int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank);
 
 #ifdef CFG_DRIVERS_PINCTRL
 /*
+ * Configure pin muxing access permission: can be secure or not
+ *
+ * @pinctrl: Pin control state where STM32_GPIO pin are to configure
+ * @secure: True if pin is secure, false otherwise
+ */
+void stm32_pinctrl_set_secure_cfg(struct pinctrl_state *pinctrl, bool secure);
+
+/*
  * Get the bank and pin indices related to a pin control state
  * @pinctrl: Pinctrl state
  * @bank: Output bank indices array or NULL
@@ -156,6 +164,13 @@ void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *pinctrl,
 				 unsigned int *bank, unsigned int *pin,
 				 unsigned int *count);
 #else
+static inline
+void stm32_pinctrl_set_secure_cfg(struct pinctrl_state *pinctrl __maybe_unused,
+				  bool secure __unused)
+{
+	assert(!pinctrl);
+}
+
 static inline
 void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *p __unused,
 				 unsigned int *bank __unused,
