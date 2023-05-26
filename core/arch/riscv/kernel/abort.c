@@ -30,13 +30,12 @@ enum fault_type {
 /* Kernel mode unwind */
 static void __print_stack_unwind(struct abort_info *ai)
 {
-	struct unwind_state_rv state = {
+	struct unwind_state_riscv state = {
 		.fp = ai->regs->s0,
-		.sp = ai->regs->sp,
 		.pc = ai->regs->epc,
 	};
 
-	print_stack_rv(&state, thread_stack_start(), thread_stack_size());
+	print_stack_riscv(&state, thread_stack_start(), thread_stack_size());
 }
 
 #else /* CFG_UNWIND */
