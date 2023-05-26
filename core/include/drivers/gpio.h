@@ -6,6 +6,7 @@
 #ifndef DRIVERS_GPIO_H
 #define DRIVERS_GPIO_H
 
+#include <assert.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <kernel/dt_driver.h>
 #include <stdint.h>
@@ -46,6 +47,9 @@ enum gpio_interrupt {
 	GPIO_INTERRUPT_ENABLE
 };
 
+struct gpio;
+struct gpio_ops;
+
 struct gpio_chip {
 	const struct gpio_ops *ops;
 };
@@ -63,6 +67,8 @@ struct gpio_ops {
 					     unsigned int gpio_pin);
 	void (*set_interrupt)(struct gpio_chip *chip, unsigned int gpio_pin,
 			      enum gpio_interrupt enable_disable);
+	/* Release GPIO resources */
+	void (*put)(struct gpio_chip *chip, struct gpio *gpio);
 };
 
 /*
@@ -111,6 +117,14 @@ static inline enum gpio_level gpio_get_value(struct gpio *gpio)
 		value = !value;
 
 	return value;
+}
+
+static inline void gpio_put(struct gpio *gpio)
+{
+	assert(!gpio || (gpio->chip && gpio->chip->ops));
+
+	if (gpio && gpio->chip->ops->put)
+		gpio->chip->ops->put(gpio->chip, gpio);
 }
 
 #if defined(CFG_DT) && defined(CFG_DRIVERS_GPIO)
