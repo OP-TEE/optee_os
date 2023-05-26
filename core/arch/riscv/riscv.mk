@@ -114,6 +114,11 @@ ifeq ($(CFG_CORE_ASLR),y)
 core-platform-cflags += -fpie
 endif
 
+ifeq ($(CFG_UNWIND),y)
+core-platform-cppflags += -fno-omit-frame-pointer
+core-platform-cflags += -fno-omit-frame-pointer
+endif
+
 ifeq ($(CFG_RV64_core),y)
 core-platform-cppflags += $(rv64-platform-cppflags)
 core-platform-cflags += $(rv64-platform-cflags)
