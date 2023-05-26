@@ -33,6 +33,8 @@
 #define GPIO_OD_LEVEL_LOW	0x0
 #define GPIO_OD_LEVEL_HIGH	0x1
 
+struct pinctrl_state;
+
 /*
  * GPIO configuration description structured as single 16bit word
  * for efficient save/restore when GPIO pin suspends or resumes.
@@ -142,4 +144,25 @@ static inline void stm32_gpio_set_secure_cfg(unsigned int bank __unused,
  */
 int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank);
 
+#ifdef CFG_DRIVERS_PINCTRL
+/*
+ * Get the bank and pin indices related to a pin control state
+ * @pinctrl: Pinctrl state
+ * @bank: Output bank indices array or NULL
+ * @pin: Output pin indices array or NULL
+ * @count: [in] Number of cells of @bank and @pin, [out] pin count in @pinctrl
+ */
+void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *pinctrl,
+				 unsigned int *bank, unsigned int *pin,
+				 unsigned int *count);
+#else
+static inline
+void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *p __unused,
+				 unsigned int *bank __unused,
+				 unsigned int *pin __unused,
+				 unsigned int *count __maybe_unused)
+{
+	assert(!count);
+}
+#endif /*CFG_DRIVERS_PINCTRL*/
 #endif /*DRIVERS_STM32_GPIO_H*/

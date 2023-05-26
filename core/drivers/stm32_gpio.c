@@ -816,6 +816,43 @@ static const struct pinctrl_ops stm32_pinctrl_ops = {
 
 DECLARE_KEEP_PAGER(stm32_pinctrl_ops);
 
+void stm32_gpio_pinctrl_bank_pin(struct pinctrl_state *pinctrl,
+				 unsigned int *bank, unsigned int *pin,
+				 unsigned int *count)
+{
+	size_t conf_index = 0;
+	size_t pin_count = 0;
+	size_t n = 0;
+
+	assert(count);
+	if (!pinctrl)
+		goto out;
+
+	for (conf_index = 0; conf_index < pinctrl->conf_count; conf_index++) {
+		struct pinconf *pinconf = pinctrl->confs[conf_index];
+		struct stm32_pinctrl_array *ref = pinconf->priv;
+
+		/* Consider only the stm32_gpio pins */
+		if (pinconf->ops != &stm32_pinctrl_ops)
+			continue;
+
+		if (bank || pin) {
+			for (n = 0; n < ref->count; n++) {
+				if (bank && pin_count <= *count)
+					bank[pin_count] = ref->pinctrl[n].bank;
+				if (pin && pin_count <= *count)
+					pin[pin_count] = ref->pinctrl[n].pin;
+				pin_count++;
+			}
+		} else {
+			pin_count += ref->count;
+		}
+	}
+
+out:
+	*count = pin_count;
+}
+
 /* Allocate and return a pinctrl configuration from a DT reference */
 static struct pinconf *stm32_pinctrl_dt_get(struct dt_pargs *pargs,
 					    void *data __unused,
