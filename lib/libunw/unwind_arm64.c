@@ -30,6 +30,7 @@
  */
 
 #include <compiler.h>
+#include <memtag.h>
 #include <string.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -80,13 +81,15 @@ bool unwind_stack_arm64(struct unwind_state_arm64 *frame,
 void print_stack_arm64(struct unwind_state_arm64 *state,
 		       vaddr_t stack, size_t stack_size)
 {
+	vaddr_t va = 0;
 	int width = 8;
 
 	trace_printf_helper_raw(TRACE_ERROR, true, "Call stack:");
 
 	ftrace_map_lr(&state->pc);
 	do {
-		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%0*"PRIx64,
-					width, state->pc);
+		va = memtag_strip_tag_vaddr((void *)state->pc);
+		trace_printf_helper_raw(TRACE_ERROR, true, " 0x%0*"PRIxVA,
+					width, va);
 	} while (unwind_stack_arm64(state, stack, stack_size));
 }
