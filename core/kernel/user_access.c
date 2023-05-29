@@ -51,8 +51,11 @@ TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)
 
 	uaddr = memtag_strip_tag_const(uaddr);
 	res = check_access(flags, uaddr, len);
-	if (!res)
+	if (!res) {
+		enter_user_access();
 		memcpy(kaddr, uaddr, len);
+		exit_user_access();
+	}
 
 	return res;
 }
@@ -64,8 +67,11 @@ TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
 
 	uaddr = memtag_strip_tag(uaddr);
 	res = check_access(flags, uaddr, len);
-	if (!res)
+	if (!res) {
+		enter_user_access();
 		memcpy(uaddr, kaddr, len);
+		exit_user_access();
+	}
 
 	return res;
 }
@@ -77,8 +83,11 @@ TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
 
 	uaddr = memtag_strip_tag_const(uaddr);
 	res = check_access(flags, uaddr, len);
-	if (!res)
+	if (!res) {
+		enter_user_access();
 		memcpy(kaddr, uaddr, len);
+		exit_user_access();
+	}
 
 	return res;
 }
@@ -90,8 +99,11 @@ TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
 
 	uaddr = memtag_strip_tag(uaddr);
 	res = check_access(flags, uaddr, len);
-	if (!res)
+	if (!res) {
+		enter_user_access();
 		memcpy(uaddr, kaddr, len);
+		exit_user_access();
+	}
 
 	return res;
 }
@@ -148,7 +160,9 @@ TEE_Result clear_user(void *uaddr, size_t n)
 	if (res)
 		return res;
 
+	enter_user_access();
 	memset(uaddr, 0, n);
+	exit_user_access();
 
 	return TEE_SUCCESS;
 }
@@ -161,8 +175,11 @@ size_t strnlen_user(const void *uaddr, size_t len)
 
 	uaddr = memtag_strip_tag_const(uaddr);
 	res = check_access(flags, uaddr, len);
-	if (!res)
+	if (!res) {
+		enter_user_access();
 		n = strnlen(uaddr, len);
+		exit_user_access();
+	}
 
 	return n;
 }
@@ -215,11 +232,19 @@ TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
 	res = check_access(flags, src, maxlen);
 	if (res)
 		return res;
+
+	enter_user_access();
 	l = strnlen(src, maxlen);
+	exit_user_access();
+
 	d = bb_alloc(l + 1);
 	if (!d)
 		return TEE_ERROR_OUT_OF_MEMORY;
+
+	enter_user_access();
 	memcpy(d, src, l);
+	exit_user_access();
+
 	d[l] = 0;
 
 	*dst = d;
