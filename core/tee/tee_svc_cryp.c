@@ -2953,12 +2953,16 @@ TEE_Result syscall_hash_update(unsigned long state, const void *chunk,
 
 	switch (TEE_ALG_GET_CLASS(cs->algo)) {
 	case TEE_OPERATION_DIGEST:
+		enter_user_access();
 		res = crypto_hash_update(cs->ctx, chunk, chunk_size);
+		exit_user_access();
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
 	case TEE_OPERATION_MAC:
+		enter_user_access();
 		res = crypto_mac_update(cs->ctx, chunk, chunk_size);
+		exit_user_access();
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -3021,8 +3025,10 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 	case TEE_OPERATION_DIGEST:
 		if (is_xof_algo(cs->algo)) {
 			if (chunk_size) {
+				enter_user_access();
 				res = crypto_hash_update(cs->ctx, chunk,
 							 chunk_size);
+				exit_user_access();
 				if (res)
 					return res;
 			}
@@ -3031,7 +3037,10 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 			 * hash_size is supposed to be unchanged for XOF
 			 * algorithms so return directly.
 			 */
-			return crypto_hash_final(cs->ctx, hash, hlen);
+			enter_user_access();
+			res = crypto_hash_final(cs->ctx, hash, hlen);
+			exit_user_access();
+			return res;
 		}
 
 		res = tee_alg_get_digest_size(cs->algo, &hash_size);
@@ -3043,12 +3052,16 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		}
 
 		if (chunk_size) {
+			enter_user_access();
 			res = crypto_hash_update(cs->ctx, chunk, chunk_size);
+			exit_user_access();
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
+		enter_user_access();
 		res = crypto_hash_final(cs->ctx, hash, hash_size);
+		exit_user_access();
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -3063,12 +3076,16 @@ TEE_Result syscall_hash_final(unsigned long state, const void *chunk,
 		}
 
 		if (chunk_size) {
+			enter_user_access();
 			res = crypto_mac_update(cs->ctx, chunk, chunk_size);
+			exit_user_access();
 			if (res != TEE_SUCCESS)
 				return res;
 		}
 
+		enter_user_access();
 		res = crypto_mac_final(cs->ctx, hash, hash_size);
+		exit_user_access();
 		if (res != TEE_SUCCESS)
 			return res;
 		break;
@@ -3187,8 +3204,10 @@ static TEE_Result tee_svc_cipher_update_helper(unsigned long state,
 
 	if (src_len > 0) {
 		/* Permit src_len == 0 to finalize the operation */
+		enter_user_access();
 		res = tee_do_cipher_update(cs->ctx, cs->algo, cs->mode,
 					   last_block, src, src_len, dst);
+		exit_user_access();
 	}
 
 	if (last_block && cs->ctx_finalize != NULL) {
@@ -3992,8 +4011,10 @@ TEE_Result syscall_authenc_update_aad(unsigned long state,
 	if (TEE_ALG_GET_CLASS(cs->algo) != TEE_OPERATION_AE)
 		return TEE_ERROR_BAD_STATE;
 
+	enter_user_access();
 	res = crypto_authenc_update_aad(cs->ctx, cs->mode, aad_data,
 					aad_data_len);
+	exit_user_access();
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -4047,8 +4068,10 @@ TEE_Result syscall_authenc_update_payload(unsigned long state,
 		goto out;
 	}
 
+	enter_user_access();
 	res = crypto_authenc_update_payload(cs->ctx, cs->mode, src_data,
 					    src_len, dst_data, &dlen);
+	exit_user_access();
 out:
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
 		TEE_Result res2 = put_user_u64(dst_len, dlen);
@@ -4129,8 +4152,10 @@ TEE_Result syscall_authenc_enc_final(unsigned long state, const void *src_data,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	enter_user_access();
 	res = crypto_authenc_enc_final(cs->ctx, src_data, src_len, dst_data,
 				       &dlen, tag, &tlen);
+	exit_user_access();
 
 out:
 	if (res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) {
@@ -4213,8 +4238,10 @@ TEE_Result syscall_authenc_dec_final(unsigned long state,
 	if (res != TEE_SUCCESS)
 		return res;
 
+	enter_user_access();
 	res = crypto_authenc_dec_final(cs->ctx, src_data, src_len, dst_data,
 				       &dlen, tag, tag_len);
+	exit_user_access();
 
 out:
 	if ((res == TEE_SUCCESS || res == TEE_ERROR_SHORT_BUFFER) &&
@@ -4314,13 +4341,17 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	switch (cs->algo) {
 	case TEE_ALG_RSA_NOPAD:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
+			enter_user_access();
 			res = crypto_acipher_rsanopad_encrypt(o->attr, src_data,
 							      src_len, dst_data,
 							      &dlen);
+			exit_user_access();
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
+			enter_user_access();
 			res = crypto_acipher_rsanopad_decrypt(o->attr, src_data,
 							      src_len, dst_data,
 							      &dlen);
+			exit_user_access();
 		} else {
 			/*
 			 * We will panic because "the mode is not compatible
@@ -4332,13 +4363,17 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 
 	case TEE_ALG_SM2_PKE:
 		if (cs->mode == TEE_MODE_ENCRYPT) {
+			enter_user_access();
 			res = crypto_acipher_sm2_pke_encrypt(o->attr, src_data,
 							     src_len, dst_data,
 							     &dlen);
+			exit_user_access();
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
+			enter_user_access();
 			res = crypto_acipher_sm2_pke_decrypt(o->attr, src_data,
 							     src_len, dst_data,
 							     &dlen);
+			exit_user_access();
 		} else {
 			res = TEE_ERROR_GENERIC;
 		}
@@ -4389,14 +4424,18 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 		}
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
+			enter_user_access();
 			res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
 							   label, label_len,
 							   src_data, src_len,
 							   dst_data, &dlen);
+			exit_user_access();
 		} else if (cs->mode == TEE_MODE_DECRYPT) {
+			enter_user_access();
 			res = crypto_acipher_rsaes_decrypt(
 					cs->algo, o->attr, label, label_len,
 					src_data, src_len, dst_data, &dlen);
+			exit_user_access();
 		} else {
 			res = TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -4422,22 +4461,28 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			break;
 		}
 		salt_len = pkcs1_get_salt_len(params, num_params, src_len);
+		enter_user_access();
 		res = crypto_acipher_rsassa_sign(cs->algo, o->attr, salt_len,
 						 src_data, src_len, dst_data,
 						 &dlen);
+		exit_user_access();
 		break;
 
 	case TEE_ALG_DSA_SHA1:
 	case TEE_ALG_DSA_SHA224:
 	case TEE_ALG_DSA_SHA256:
+		enter_user_access();
 		res = crypto_acipher_dsa_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);
+		exit_user_access();
 		break;
 
 	case TEE_ALG_ED25519:
+		enter_user_access();
 		res = tee_svc_obj_ed25519_sign(o->attr, src_data, src_len,
 					       dst_data, &dlen, params,
 					       num_params);
+		exit_user_access();
 		break;
 
 	case TEE_ALG_ECDSA_SHA1:
@@ -4446,8 +4491,10 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	case TEE_ALG_ECDSA_SHA384:
 	case TEE_ALG_ECDSA_SHA512:
 	case TEE_ALG_SM2_DSA_SM3:
+		enter_user_access();
 		res = crypto_acipher_ecc_sign(cs->algo, o->attr, src_data,
 					      src_len, dst_data, &dlen);
+		exit_user_access();
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -4539,9 +4586,11 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 			salt_len = pkcs1_get_salt_len(params, num_params,
 						      hash_size);
 		}
+		enter_user_access();
 		res = crypto_acipher_rsassa_verify(cs->algo, o->attr, salt_len,
 						   data, data_len, sig,
 						   sig_len);
+		exit_user_access();
 		break;
 
 	case TEE_MAIN_ALGO_DSA:
@@ -4582,20 +4631,26 @@ TEE_Result syscall_asymm_verify(unsigned long state,
 				break;
 			}
 		}
+		enter_user_access();
 		res = crypto_acipher_dsa_verify(cs->algo, o->attr, data,
 						data_len, sig, sig_len);
+		exit_user_access();
 		break;
 
 	case TEE_MAIN_ALGO_ED25519:
+		enter_user_access();
 		res = tee_svc_obj_ed25519_verify(o->attr, data,
 						 data_len, sig, sig_len,
 						 params, num_params);
+		exit_user_access();
 		break;
 
 	case TEE_MAIN_ALGO_ECDSA:
 	case TEE_MAIN_ALGO_SM2_DSA_SM3:
+		enter_user_access();
 		res = crypto_acipher_ecc_verify(cs->algo, o->attr, data,
 						data_len, sig, sig_len);
+		exit_user_access();
 		break;
 
 	default:
