@@ -43,8 +43,8 @@ nm) are used to extract the debug info. If the CROSS_COMPILE environment
 variable is set, it is used as a prefix to the binutils tools. That is, the
 script will invoke $(CROSS_COMPILE)addr2line etc. If it is not set however,
 the prefix will be determined automatically for each ELF file based on its
-architecture (arm-linux-gnueabihf-, aarch64-linux-gnu-). The resulting command
-is then expected to be found in the user's PATH.
+architecture. The resulting command is then expected to be found in the user's
+PATH.
 
 OP-TEE abort and panic messages are sent to the secure console. They look like
 the following:
@@ -170,6 +170,11 @@ class Symbolizer(object):
             self._arch = 'aarch64-linux-gnu-'
         elif b'ARM,' in output[0]:
             self._arch = 'arm-linux-gnueabihf-'
+        elif b'RISC-V,' in output[0]:
+            if b'32-bit' in output[0]:
+                self._arch = 'riscv32-unknown-linux-gnu-'
+            elif b'64-bit' in output[0]:
+                self._arch = 'riscv64-unknown-linux-gnu-'
 
     def arch_prefix(self, cmd, elf):
         self.set_arch(elf)
