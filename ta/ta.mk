@@ -183,7 +183,7 @@ $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/src)))
 
 # Copy keys
-ta-keys = keys/default_ta.pem
+ta-keys := $(TA_SIGN_KEY)
 $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 
