@@ -184,6 +184,12 @@ $(foreach f, $(ta-srcfiles), \
 
 # Copy keys
 ta-keys := $(TA_SIGN_KEY)
+# default_ta.pem is a symlink to default.pem, for backwards compatibility.
+# If default_ta.pem is used, copy both files.
+ifeq ($(TA_SIGN_KEY),keys/default_ta.pem)
+ta-keys += keys/default.pem
+endif
+
 $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 
