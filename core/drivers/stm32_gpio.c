@@ -266,33 +266,33 @@ static void set_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 
 	/* Load GPIO MODE value, 2bit value shifted by twice the pin number */
 	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
-			GPIO_MODE_MASK << (pin << 1),
-			cfg->mode << (pin << 1));
+			SHIFT_U32(GPIO_MODE_MASK, pin << 1),
+			SHIFT_U32(cfg->mode, pin << 1));
 
 	/* Load GPIO Output TYPE value, 1bit shifted by pin number value */
 	io_clrsetbits32(bank->base + GPIO_OTYPER_OFFSET, BIT(pin),
-			cfg->otype << pin);
+			SHIFT_U32(cfg->otype, pin));
 
 	/* Load GPIO Output Speed confguration, 2bit value */
 	io_clrsetbits32(bank->base + GPIO_OSPEEDR_OFFSET,
-			GPIO_OSPEED_MASK << (pin << 1),
-			cfg->ospeed << (pin << 1));
+			SHIFT_U32(GPIO_OSPEED_MASK, pin << 1),
+			SHIFT_U32(cfg->ospeed, pin << 1));
 
 	/* Load GPIO pull configuration, 2bit value */
 	io_clrsetbits32(bank->base + GPIO_PUPDR_OFFSET, BIT(pin),
-			cfg->pupd << (pin << 1));
+			SHIFT_U32(cfg->pupd, pin << 1));
 
 	/* Load pin mux Alternate Function configuration, 4bit value */
 	if (pin < GPIO_ALT_LOWER_LIMIT) {
 		io_clrsetbits32(bank->base + GPIO_AFRL_OFFSET,
-				GPIO_ALTERNATE_MASK << (pin << 2),
-				cfg->af << (pin << 2));
+				SHIFT_U32(GPIO_ALTERNATE_MASK, pin << 2),
+				SHIFT_U32(cfg->af, pin << 2));
 	} else {
 		size_t shift = (pin - GPIO_ALT_LOWER_LIMIT) << 2;
 
 		io_clrsetbits32(bank->base + GPIO_AFRH_OFFSET,
-				GPIO_ALTERNATE_MASK << shift,
-				cfg->af << shift);
+				SHIFT_U32(GPIO_ALTERNATE_MASK, shift),
+				SHIFT_U32(cfg->af, shift));
 	}
 
 	/* Load GPIO Output direction confuguration, 1bit */
