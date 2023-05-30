@@ -6,6 +6,7 @@
 #include <asm.S>
 #include <generated/asm-defines.h>
 #include <keep.h>
+#include <kernel/thread_private.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <riscv.h>
@@ -172,7 +173,30 @@ UNWIND(	.cantunwind)
 	set_satp
 
 	jal	boot_init_primary_early
+
+	/*
+	 * Before entering boot_init_primary_late(), we do these two steps:
+	 * 1. Save current sp to s2, and set sp as threads[0].stack_va_end
+	 * 2. Clear the flag which indicates usage of the temporary stack in the
+	 *    current hart's thread_core_local structure.
+	 */
+	mv	s2, sp
+	la	a0, threads
+	LDR	a0, THREAD_CTX_STACK_VA_END(a0)
+	mv	sp, a0
+	jal	thread_get_core_local
+	mv	s3, a0
+	STR	x0, THREAD_CORE_LOCAL_FLAGS(s3)
+
 	jal	boot_init_primary_late
+
+	/*
+	 * After returning from boot_init_primary_late(), the flag and sp are
+	 * restored.
+	 */
+	li	a0, THREAD_CLF_TMP
+	STR	a0, THREAD_CORE_LOCAL_FLAGS(s3)
+	mv	sp, s2
 
 	cpu_is_ready
 	flush_cpu_semaphores
