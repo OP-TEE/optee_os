@@ -9,6 +9,7 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/stm32_etzpc.h>
+#include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
