@@ -148,7 +148,7 @@ $(foreach f, $(libfiles), \
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
-	mk/cc-option.mk \
+	mk/cc-option.mk mk/macros.mk \
 	ta/link.mk ta/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 

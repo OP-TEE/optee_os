@@ -18,6 +18,7 @@ unexport MAKEFILE_LIST
 # nonzero status). Useful since a few recipes use shell redirection.
 .DELETE_ON_ERROR:
 
+include mk/macros.mk
 include mk/checkconf.mk
 
 .PHONY: all
