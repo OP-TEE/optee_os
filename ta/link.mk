@@ -47,6 +47,7 @@ ifeq ($(CFG_FTRACE_SUPPORT),y)
 endif
 	$(q)echo "trace_ext_prefix;" >>$@.tmp
 	$(q)echo "trace_level;" >>$@.tmp
+	$(q)echo "ta_head;" >>$@.tmp
 	$(q)echo "};" >>$@.tmp
 	$(q)$(call mv-if-changed,$@.tmp,$@)
 link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
