@@ -1195,6 +1195,8 @@ static void set_tls_offset(struct ta_elf *elf __unused) {}
 
 static void load_main(struct ta_elf *elf)
 {
+	vaddr_t va = 0;
+
 	init_elf(elf);
 	map_segments(elf);
 	populate_segments(elf);
@@ -1207,7 +1209,10 @@ static void load_main(struct ta_elf *elf)
 	if (elf->bti_enabled)
 		ta_elf_add_bti(elf);
 
-	elf->head = (struct ta_head *)elf->load_addr;
+	if (!ta_elf_resolve_sym("ta_head", &va, NULL, elf))
+		elf->head = (struct ta_head *)va;
+	else
+		elf->head = (struct ta_head *)elf->load_addr;
 	if (elf->head->depr_entry != UINT64_MAX) {
 		/*
 		 * Legacy TAs sets their entry point in ta_head. For
