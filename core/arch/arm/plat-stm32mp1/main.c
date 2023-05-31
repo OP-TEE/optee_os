@@ -47,11 +47,6 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB4_BASE, AHB4_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AHB5_BASE, AHB5_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
-#ifdef CFG_STM32MP1_SCMI_SHM_BASE
-register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
-		  CFG_STM32MP1_SCMI_SHM_SIZE);
-#endif
-
 register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
 #define _ID2STR(id)		(#id)

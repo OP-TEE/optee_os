@@ -75,6 +75,10 @@ struct stm32_scmi_voltd {
 
 };
 
+#if CFG_STM32MP1_SCMI_SHM_BASE
+register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
+		  CFG_STM32MP1_SCMI_SHM_SIZE);
+
 /* Locate all non-secure SMT message buffers in last page of SYSRAM */
 #define SMT_BUFFER_BASE		CFG_STM32MP1_SCMI_SHM_BASE
 
@@ -82,6 +86,7 @@ struct stm32_scmi_voltd {
 	CFG_STM32MP1_SCMI_SHM_BASE + CFG_STM32MP1_SCMI_SHM_SIZE)
 #error "SCMI shared memory mismatch"
 #endif
+#endif /*CFG_STM32MP1_SCMI_SHM_BASE*/
 
 #define CLOCK_CELL(_scmi_id, _id, _name, _init_enabled) \
 	[(_scmi_id)] = { \
@@ -264,8 +269,10 @@ struct channel_resources {
 static const struct channel_resources scmi_channel[] = {
 	[0] = {
 		.channel = &(struct scmi_msg_channel){
+#ifdef SMT_BUFFER_BASE
 			.shm_addr = { .pa = SMT_BUFFER_BASE },
 			.shm_size = SMT_BUF_SLOT_SIZE,
+#endif
 		},
 		.clock = stm32_scmi_clock,
 		.clock_count = ARRAY_SIZE(stm32_scmi_clock),
@@ -910,12 +917,17 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 		const struct channel_resources *res = scmi_channel + i;
 		struct scmi_msg_channel *chan = res->channel;
 
-		/* Enforce non-secure shm mapped as device memory */
-		chan->shm_addr.va = (vaddr_t)phys_to_virt(chan->shm_addr.pa,
-							  MEM_AREA_IO_NSEC, 1);
-		assert(chan->shm_addr.va);
+		if (chan->shm_addr.pa) {
+			struct io_pa_va *addr = &chan->shm_addr;
 
-		scmi_smt_init_agent_channel(chan);
+			/* Enforce non-secure shm mapped as device memory */
+			addr->va = (vaddr_t)phys_to_virt(addr->pa,
+							 MEM_AREA_IO_NSEC,
+							 chan->shm_size);
+			assert(addr->va);
+
+			scmi_smt_init_agent_channel(chan);
+		}
 
 		for (j = 0; j < res->clock_count; j++) {
 			struct stm32_scmi_clk *clk = &res->clock[j];
