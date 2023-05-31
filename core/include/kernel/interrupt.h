@@ -65,6 +65,9 @@ void interrupt_main_init(struct itr_chip *data);
 
 void itr_handle(size_t it);
 
+/* Retrieve main interrupt controller reference */
+struct itr_chip *interrupt_get_main_chip(void);
+
 #ifdef CFG_DT
 /*
  * Get the DT interrupt property at @node. In the DT an interrupt property can
