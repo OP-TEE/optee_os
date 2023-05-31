@@ -63,11 +63,12 @@ void stm32mp1_pwr_regulator_set_state(enum pwr_regulator id, bool enable)
 	assert(id < PWR_REGU_COUNT);
 
 	if (enable) {
-		uint64_t to = timeout_init_us(10 * 1000);
 		uint32_t ready_mask = pwr_regulators[id].cr3_ready_mask;
+		uint64_t to = 0;
 
 		io_setbits32(cr3, enable_mask);
 
+		to = timeout_init_us(10 * 1000);
 		while (!timeout_elapsed(to))
 			if (io_read32(cr3) & ready_mask)
 				break;
