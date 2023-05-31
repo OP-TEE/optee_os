@@ -21,6 +21,7 @@
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
+#include <kernel/tee_misc.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <sm/psci.h>
@@ -276,17 +277,147 @@ early_init_late(set_all_gpios_non_secure);
 #endif /* CFG_STM32_GPIO */
 #endif /* CFG_STM32MP13 */
 
+#ifdef CFG_STM32MP15
+/*
+ * This concerns OP-TEE pager for STM32MP1 to use secure internal
+ * RAMs to execute. TZSRAM refers the TZSRAM_BASE/TZSRAM_SIZE
+ * used in boot.c to locate secure unpaged memory.
+ *
+ * STM32MP15 variants embed 640kB of contiguous securable SRAMs
+ *
+ *  +--------------+ <-- SYSRAM_BASE
+ *  |              |     lower part can be assigned to secure world
+ *  | SYSRAM 256kB |     4kB granule boundary
+ *  |              |     upper part can be assigned to secure world
+ *  +--------------+ <-- SRAM1_BASE (= SYSRAM_BASE + SYSRAM_SIZE)
+    |              |     full range assigned to non-secure world or
+ *  | SRAM1  128kB |     to secure world, or to- Cortex-M4 exclusive access
+ *  +--------------+ <-- SRAM2_BASE (= SRAM1_BASE + SRAM1_SIZE)
+    |              |     full range assigned to non-secure world or
+ *  | SRAM2  128kB |     to secure world, or to- Cortex-M4 exclusive access
+ *  +--------------+ <-- SRAM3_BASE (= SRAM2_BASE + SRAM2_SIZE)
+    |              |     full range assigned to non-secure world or
+ *  | SRAM3   64kB |     to secure world, or to- Cortex-M4 exclusive access
+ *  +--------------+ <-- SRAM4_BASE (= SRAM3_BASE + SRAM3_SIZE)
+    |              |     full range assigned to non-secure world or
+ *  | SRAM4   64kB |     to secure world, or to- Cortex-M4 exclusive access
+ *  +--------------+ <-- SRAM4_BASE + SRAM4_SIZE
+ *
+ * If SRAMx memories are not used for the companion Cortex-M4
+ * processor, OP-TEE can use this memory.
+ *
+ * SYSRAM configuration for secure/non-secure boundaries requires the
+ * secure SYSRAM memory to start at the SYSRAM physical base address and grow
+ * from there while the non-secure SYSRAM range lies at SYSRAM end addresses
+ * with a 4KB page granule.
+ *
+ * SRAM1, SRAM2, SRAM3 and SRAM4 are independently assigned to secure world,
+ * to non-secure world or possibly to Cortex-M4 exclusive access. Each
+ * assignment covers the full related SRAMx memory range.
+ *
+ * Using non-secure SYSRAM or one of the SRAMx for SCMI message communication
+ * can be done using CFG_STM32MP1_SCMI_SHM_BASE/CFG_STM32MP1_SCMI_SHM_SIZE.
+ * This imposes related memory area is assigned to non-secure world.
+
+ * Using secure internal memories (SYSRAM and/or some SRAMx) with STM32MP15
+ * shall meet this constraints known the TZSRAM physical memory range shall
+ * be contiguous.
+ */
+
+#define SYSRAM_END			(SYSRAM_BASE + SYSRAM_SIZE)
+#define SYSRAM_SEC_END			(SYSRAM_BASE + SYSRAM_SEC_SIZE)
+#define SRAMS_END			(SRAM4_BASE + SRAM4_SIZE)
+#define SRAMS_START			SRAM1_BASE
+#define TZSRAM_END			(CFG_TZSRAM_START + CFG_TZSRAM_SIZE)
+
+#define SCMI_SHM_IS_IN_SRAMX	((CFG_STM32MP1_SCMI_SHM_BASE >= SRAM1_BASE) && \
+				 (CFG_STM32MP1_SCMI_SHM_BASE + \
+				  CFG_STM32MP1_SCMI_SHM_SIZE) <= SRAMS_END)
+
+#define TZSRAM_FITS_IN_SYSRAM_SEC	((CFG_TZSRAM_START >= SYSRAM_BASE) && \
+					 (TZSRAM_END <= SYSRAM_SEC_END))
+
+#define TZSRAM_FITS_IN_SYSRAM_AND_SRAMS	((CFG_TZSRAM_START >= SYSRAM_BASE) && \
+					 (CFG_TZSRAM_START < SYSRAM_END) && \
+					 (TZSRAM_END > SYSRAM_END) && \
+					 (TZSRAM_END <= SRAMS_END) && \
+					 (SYSRAM_SIZE == SYSRAM_SEC_SIZE))
+
+#define TZSRAM_FITS_IN_SRAMS	((CFG_TZSRAM_START >= SRAMS_START) && \
+				 (CFG_TZSRAM_START < SRAMS_END) && \
+				 (TZSRAM_END <= SRAMS_END))
+
+#define TZSRAM_IS_IN_DRAM	(CFG_TZSRAM_START >= CFG_DRAM_BASE)
+
+#ifdef CFG_WITH_PAGER
+/*
+ * At build time, we enforce that, when pager is used,
+ * either TZSRAM fully fits inside SYSRAM secure address range,
+ * or TZSRAM fully fits inside the full SYSRAM and spread inside SRAMx orderly,
+ * or TZSRAM fully fits some inside SRAMs address range,
+ * or TZSRAM is in DDR for debug and test purpose.
+ */
+static_assert(TZSRAM_FITS_IN_SYSRAM_SEC || TZSRAM_FITS_IN_SYSRAM_AND_SRAMS ||
+	      TZSRAM_FITS_IN_SRAMS || TZSRAM_IS_IN_DRAM);
+#endif
+
+#if TZSRAM_FITS_IN_SYSRAM_AND_SRAMS || TZSRAM_FITS_IN_SRAMS || \
+	SCMI_SHM_IS_IN_SRAMX
+/* At run time we enforce that SRAM1 to SRAM4 are properly assigned if used */
+static TEE_Result init_stm32mp15_secure_srams(void)
+{
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		if (core_is_buffer_intersect(CFG_TZSRAM_START, CFG_TZSRAM_SIZE,
+					     SRAM1_BASE, SRAM1_SIZE))
+			stm32mp_register_secure_periph_iomem(SRAM1_BASE);
+
+		if (core_is_buffer_intersect(CFG_TZSRAM_START, CFG_TZSRAM_SIZE,
+					     SRAM2_BASE, SRAM2_SIZE))
+			stm32mp_register_secure_periph_iomem(SRAM2_BASE);
+
+		if (core_is_buffer_intersect(CFG_TZSRAM_START, CFG_TZSRAM_SIZE,
+					     SRAM3_BASE, SRAM3_SIZE))
+			stm32mp_register_secure_periph_iomem(SRAM3_BASE);
+
+		if (core_is_buffer_intersect(CFG_TZSRAM_START, CFG_TZSRAM_SIZE,
+					     SRAM4_BASE, SRAM4_SIZE))
+			stm32mp_register_secure_periph_iomem(SRAM4_BASE);
+	}
+
+	if (SCMI_SHM_IS_IN_SRAMX) {
+		if (core_is_buffer_intersect(CFG_STM32MP1_SCMI_SHM_BASE,
+					     CFG_STM32MP1_SCMI_SHM_SIZE,
+					     SRAM1_BASE, SRAM1_SIZE))
+			stm32mp_register_non_secure_periph_iomem(SRAM1_BASE);
+
+		if (core_is_buffer_intersect(CFG_STM32MP1_SCMI_SHM_BASE,
+					     CFG_STM32MP1_SCMI_SHM_SIZE,
+					     SRAM2_BASE, SRAM2_SIZE))
+			stm32mp_register_non_secure_periph_iomem(SRAM2_BASE);
+
+		if (core_is_buffer_intersect(CFG_STM32MP1_SCMI_SHM_BASE,
+					     CFG_STM32MP1_SCMI_SHM_SIZE,
+					     SRAM3_BASE, SRAM3_SIZE))
+			stm32mp_register_non_secure_periph_iomem(SRAM3_BASE);
+
+		if (core_is_buffer_intersect(CFG_STM32MP1_SCMI_SHM_BASE,
+					     CFG_STM32MP1_SCMI_SHM_SIZE,
+					     SRAM4_BASE, SRAM4_SIZE))
+			stm32mp_register_non_secure_periph_iomem(SRAM4_BASE);
+	}
+
+	return TEE_SUCCESS;
+}
+
+service_init_late(init_stm32mp15_secure_srams);
+#endif /* TZSRAM_FITS_IN_SYSRAM_AND_SRAMS || TZSRAM_FITS_IN_SRAMS */
+#endif /* CFG_STM32MP15 && CFG_TZSRAM_START */
+
 static TEE_Result init_stm32mp1_drivers(void)
 {
 	/* Secure internal memories for the platform, once ETZPC is ready */
 	etzpc_configure_tzma(0, ETZPC_TZMA_ALL_SECURE);
 	etzpc_lock_tzma(0);
-
-#ifdef CFG_TZSRAM_START
-	COMPILE_TIME_ASSERT(((SYSRAM_BASE + SYSRAM_SIZE) <= CFG_TZSRAM_START) ||
-			    ((SYSRAM_BASE <= CFG_TZSRAM_START) &&
-			     (SYSRAM_SEC_SIZE >= CFG_TZSRAM_SIZE)));
-#endif /* CFG_TZSRAM_START */
 
 	etzpc_configure_tzma(1, SYSRAM_SEC_SIZE >> SMALL_PAGE_SHIFT);
 	etzpc_lock_tzma(1);
