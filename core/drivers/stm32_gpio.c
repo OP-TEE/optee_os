@@ -131,10 +131,11 @@ static void get_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 static void set_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 {
 	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = 0;
 
 	if (clk_enable(bank->clock))
 		panic();
+	exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	/* Load GPIO MODE value, 2bit value shifted by twice the pin number */
 	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
@@ -170,8 +171,8 @@ static void set_gpio_cfg(uint32_t bank_id, uint32_t pin, struct gpio_cfg *cfg)
 	/* Load GPIO Output direction confuguration, 1bit */
 	io_clrsetbits32(bank->base + GPIO_ODR_OFFSET, BIT(pin), cfg->od << pin);
 
-	clk_disable(bank->clock);
 	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
+	clk_disable(bank->clock);
 }
 
 void stm32_pinctrl_load_active_cfg(struct stm32_pinctrl *pinctrl, size_t cnt)
@@ -618,18 +619,19 @@ void stm32_gpio_set_secure_cfg(unsigned int bank_id, unsigned int pin,
 			       bool secure)
 {
 	struct stm32_gpio_bank *bank = stm32_gpio_get_bank(bank_id);
-	uint32_t exceptions = cpu_spin_lock_xsave(&gpio_lock);
+	uint32_t exceptions = 0;
 
 	if (clk_enable(bank->clock))
 		panic();
+	exceptions = cpu_spin_lock_xsave(&gpio_lock);
 
 	if (secure)
 		io_setbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
 	else
 		io_clrbits32(bank->base + GPIO_SECR_OFFSET, BIT(pin));
 
-	clk_disable(bank->clock);
 	cpu_spin_unlock_xrestore(&gpio_lock, exceptions);
+	clk_disable(bank->clock);
 }
 
 static TEE_Result stm32_pinctrl_probe(const void *fdt, int node,
