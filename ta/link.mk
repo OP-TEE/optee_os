@@ -37,17 +37,18 @@ endif
 link-ldflags += --as-needed # Do not add dependency on unused shlib
 link-ldflags += $(link-ldflags$(sm))
 
-$(link-out-dir$(sm))/dyn_list:
+$(link-out-dir$(sm))/dyn_list: FORCE
 	@$(cmd-echo-silent) '  GEN     $@'
 	$(q)mkdir -p $(dir $@)
-	$(q)echo "{" >$@
-	$(q)echo "__elf_phdr_info;" >>$@
+	$(q)echo "{" >$@.tmp
+	$(q)echo "__elf_phdr_info;" >>$@.tmp
 ifeq ($(CFG_FTRACE_SUPPORT),y)
-	$(q)echo "__ftrace_info;" >>$@
+	$(q)echo "__ftrace_info;" >>$@.tmp
 endif
-	$(q)echo "trace_ext_prefix;" >>$@
-	$(q)echo "trace_level;" >>$@
-	$(q)echo "};" >>$@
+	$(q)echo "trace_ext_prefix;" >>$@.tmp
+	$(q)echo "trace_level;" >>$@.tmp
+	$(q)echo "};" >>$@.tmp
+	$(q)$(call mv-if-changed,$@.tmp,$@)
 link-ldflags += --dynamic-list $(link-out-dir$(sm))/dyn_list
 dynlistdep = $(link-out-dir$(sm))/dyn_list
 cleanfiles += $(link-out-dir$(sm))/dyn_list
