@@ -31,6 +31,8 @@ TEE_Result notif_alloc_async_value(uint32_t *val)
 	uint32_t old_itr_status = 0;
 	int bit = 0;
 
+	assert(interrupt_can_raise_pi(interrupt_get_main_chip()));
+
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
 
 	if (!alloc_values_inited) {
@@ -93,6 +95,7 @@ out:
 void notif_send_async(uint32_t value)
 {
 	uint32_t old_itr_status = 0;
+	struct itr_chip *itr_chip = interrupt_get_main_chip();
 
 	static_assert(CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_PPI_BASE);
 
@@ -101,7 +104,7 @@ void notif_send_async(uint32_t value)
 
 	DMSG("0x%"PRIx32, value);
 	bit_set(notif_values, value);
-	itr_raise_pi(CFG_CORE_ASYNC_NOTIF_GIC_INTID);
+	interrupt_raise_pi(itr_chip, CFG_CORE_ASYNC_NOTIF_GIC_INTID);
 
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
 }
@@ -121,6 +124,8 @@ bool notif_async_is_started(void)
 void notif_register_driver(struct notif_driver *ndrv)
 {
 	uint32_t old_itr_status = 0;
+
+	assert(interrupt_can_raise_pi(interrupt_get_main_chip()));
 
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
 
