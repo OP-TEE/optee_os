@@ -293,7 +293,7 @@ R:	Volodymyr Babchuk <vlad.babchuk@gmail.com> [@lorc]
 S:	Maintained
 F:	core/arch/arm/kernel/virtualization.c
 
-Aspeed AST2600
+Aspeed AST2600, AST2700
 R:	Chia-Wei Wang <chiawei_wang@aspeedtech.com> [@ChiaweiW]
 R:	Neal Liu <neal_liu@aspeedtech.com> [@Neal-liu]
 S:	Maintained
