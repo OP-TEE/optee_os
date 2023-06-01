@@ -29,7 +29,7 @@
 static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 {
 	switch (algo) {
-#if defined(_CFG_CORE_LTC_SHA1)
+#if defined(_CFG_CORE_LTC_SHA1_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
@@ -43,28 +43,28 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		*ltc_hashindex = find_hash("md5");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA224)
+#if defined(_CFG_CORE_LTC_SHA224_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
 		*ltc_hashindex = find_hash("sha224");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA256)
+#if defined(_CFG_CORE_LTC_SHA256_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 		*ltc_hashindex = find_hash("sha256");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA384)
+#if defined(_CFG_CORE_LTC_SHA384_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 		*ltc_hashindex = find_hash("sha384");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA512)
+#if defined(_CFG_CORE_LTC_SHA512_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:

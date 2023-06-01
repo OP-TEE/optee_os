@@ -251,6 +251,10 @@ endif
 # libtomcrypt (LTC) specifics, phase #2
 ###############################################################
 
+_CFG_CORE_LTC_SHA1_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA1_DESC \
+						   _CFG_CORE_LTC_SHA1)
+_CFG_CORE_LTC_SHA224_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA224_DESC \
+						     _CFG_CORE_LTC_SHA224)
 _CFG_CORE_LTC_SHA256_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA256_DESC \
 						     _CFG_CORE_LTC_SHA224 \
 						     _CFG_CORE_LTC_SHA256)

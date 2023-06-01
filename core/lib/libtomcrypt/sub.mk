@@ -39,10 +39,10 @@ cppflags-lib-y += -DLTC_NO_HASHES
 ifeq ($(_CFG_CORE_LTC_MD5),y)
 	cppflags-lib-y += -DLTC_MD5
 endif
-ifeq ($(_CFG_CORE_LTC_SHA1),y)
+ifeq ($(_CFG_CORE_LTC_SHA1_DESC),y)
 	cppflags-lib-y += -DLTC_SHA1
 endif
-ifeq ($(_CFG_CORE_LTC_SHA224),y)
+ifeq ($(_CFG_CORE_LTC_SHA224_DESC),y)
 	cppflags-lib-y += -DLTC_SHA224
 endif
 ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
