@@ -93,6 +93,7 @@ out:
 void notif_send_async(uint32_t value)
 {
 	uint32_t old_itr_status = 0;
+	struct itr_chip *itr_chip = interrupt_get_main_chip();
 
 	static_assert(CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_PPI_BASE);
 
@@ -101,7 +102,7 @@ void notif_send_async(uint32_t value)
 
 	DMSG("0x%"PRIx32, value);
 	bit_set(notif_values, value);
-	itr_raise_pi(CFG_CORE_ASYNC_NOTIF_GIC_INTID);
+	itr_chip->ops->raise_pi(itr_chip, CFG_CORE_ASYNC_NOTIF_GIC_INTID);
 
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);
 }
