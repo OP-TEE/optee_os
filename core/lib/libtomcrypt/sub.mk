@@ -36,7 +36,7 @@ endif
 
 cppflags-lib-y += -DLTC_NO_HASHES
 
-ifeq ($(_CFG_CORE_LTC_MD5),y)
+ifeq ($(_CFG_CORE_LTC_MD5_DESC),y)
 	cppflags-lib-y += -DLTC_MD5
 endif
 ifeq ($(_CFG_CORE_LTC_SHA1_DESC),y)

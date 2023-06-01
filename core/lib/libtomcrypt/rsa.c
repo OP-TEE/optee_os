@@ -36,7 +36,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		*ltc_hashindex = find_hash("sha1");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_MD5)
+#if defined(_CFG_CORE_LTC_MD5_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:

@@ -1,4 +1,4 @@
-srcs-$(_CFG_CORE_LTC_MD5) += md5.c
+srcs-$(_CFG_CORE_LTC_MD5_DESC) += md5.c
 
 ifeq ($(_CFG_CORE_LTC_SHA1_DESC),y)
 ifneq ($(_CFG_CORE_LTC_SHA1_ACCEL),y)

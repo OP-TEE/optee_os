@@ -99,7 +99,7 @@ static void tee_ltc_reg_algs(void)
 	register_cipher(&des_desc);
 	register_cipher(&des3_desc);
 #endif
-#if defined(_CFG_CORE_LTC_MD5)
+#if defined(_CFG_CORE_LTC_MD5_DESC)
 	register_hash(&md5_desc);
 #endif
 #if defined(_CFG_CORE_LTC_SHA1) || defined(_CFG_CORE_LTC_SHA1_DESC)
