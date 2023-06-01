@@ -1106,6 +1106,47 @@ static void spmc_handle_version(struct thread_smc_args *args,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
+static void handle_console_log(struct thread_smc_args *args)
+{
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	size_t char_count = args->a1 & FFA_CONSOLE_LOG_CHAR_COUNT_MASK;
+	const void *reg_list[] = {
+		&args->a2, &args->a3, &args->a4,
+		&args->a5, &args->a6, &args->a7
+	};
+	char buffer[FFA_CONSOLE_LOG_64_MAX_MSG_LEN + 1] = { 0 };
+	size_t max_length = 0;
+	size_t reg_size = 0;
+	size_t n = 0;
+
+	if (args->a0 == FFA_CONSOLE_LOG_64) {
+		max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		reg_size = sizeof(uint64_t);
+	} else {
+		max_length = FFA_CONSOLE_LOG_32_MAX_MSG_LEN;
+		reg_size = sizeof(uint32_t);
+	}
+
+	if (char_count < 1 || char_count > max_length)
+		goto out;
+
+	for (n = 0; n < char_count; n += reg_size)
+		memcpy(buffer + n, reg_list[n / reg_size],
+		       MIN(char_count - n, reg_size));
+
+	buffer[char_count] = '\0';
+
+	trace_ext_puts(buffer);
+
+	ret_fid = FFA_SUCCESS_32;
+	ret_val = FFA_PARAM_MBZ;
+
+out:
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_val, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
 /*
  * FF-A messages handler for SP. Every messages for or from a SP is handled
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
@@ -1227,6 +1268,15 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			handle_mem_perm_set(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
+
+#ifdef ARM64
+		case FFA_CONSOLE_LOG_64:
+#endif
+		case FFA_CONSOLE_LOG_32:
+			handle_console_log(args);
+			sp_enter(args, caller_sp);
+			break;
+
 		default:
 			EMSG("Unhandled FFA function ID %#"PRIx32,
 			     (uint32_t)args->a0);
