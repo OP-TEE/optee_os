@@ -94,6 +94,8 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 
 static const struct itr_ops gic_ops = {
 	.add = gic_op_add,
+	.mask = gic_op_disable,
+	.unmask = gic_op_enable,
 	.enable = gic_op_enable,
 	.disable = gic_op_disable,
 	.raise_pi = gic_op_raise_pi,
