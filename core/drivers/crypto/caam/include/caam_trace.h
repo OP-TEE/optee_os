@@ -41,6 +41,7 @@
 #define DBG_TRACE_DH	 BIT32(13) /* DH trace */
 #define DBG_TRACE_DSA	 BIT32(14) /* DSA trace */
 #define DBG_TRACE_MP	 BIT32(15) /* MP trace */
+#define DBG_TRACE_SM	 BIT32(16) /* Secure Memory trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -320,6 +321,13 @@
 #define BLOB_TRACE(...)
 #define BLOB_DUMPDESC(desc)
 #define BLOB_DUMPBUF(...)
+#endif
+
+/* Secure Memory */
+#if CAAM_DBG_TRACE(SM)
+#define SM_TRACE DRV_TRACE
+#else
+#define SM_TRACE(...)
 #endif
 
 #endif /* CAAM_TRACE_H__ */

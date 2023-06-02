@@ -17,6 +17,7 @@
 #include <caam_mp.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
+#include <caam_sm.h>
 #include <drivers/imx_snvs.h>
 #include <initcall.h>
 #include <kernel/panic.h>
@@ -143,6 +144,13 @@ static TEE_Result crypto_driver_init(void)
 	/* Initialize the Manufacturing Protection Module */
 	retstatus = caam_mp_init(jrcfg.base);
 	if (retstatus != CAAM_NO_ERROR && retstatus != CAAM_NOT_SUPPORTED) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the secure memory */
+	retstatus = caam_sm_init(&jrcfg);
+	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;
 	}
