@@ -5,3 +5,20 @@
  */
 
 #include "stm32mp133.dtsi"
+
+/ {
+	soc {
+		etzpc: etzpc@5c007000 {
+			ltdc: display-controller@5a001000 {
+				compatible = "st,stm32-ltdc";
+				reg = <0x5a001000 0x400>;
+				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc LTDC_PX>;
+				clock-names = "lcd";
+				resets = <&rcc LTDC_R>;
+				status = "disabled";
+			};
+		};
+	};
+};

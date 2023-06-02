@@ -4,13 +4,31 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
-/ {
-	soc {
-		cryp: cryp@54002000 {
-			compatible = "st,stm32mp1-cryp";
-			reg = <0x54002000 0x400>;
-			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
+&etzpc {
+	cryp: crypto@54002000 {
+		compatible = "st,stm32mp1-cryp";
+		reg = <0x54002000 0x400>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CRYP1>;
+		resets = <&rcc CRYP1_R>;
+		status = "disabled";
+	};
+
+	saes: saes@54005000 {
+		compatible = "st,stm32mp13-saes";
+		reg = <0x54005000 0x400>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc SAES_K>;
+		resets = <&rcc SAES_R>;
+		status = "disabled";
+	};
+
+	pka: pka@54006000 {
+		compatible = "st,stm32mp13-pka64";
+		reg = <0x54006000 0x2000>;
+		interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc PKA>;
+		resets = <&rcc PKA_R>;
+		status = "disabled";
 	};
 };
