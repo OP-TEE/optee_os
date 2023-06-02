@@ -1538,6 +1538,8 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 }
 
 #ifdef CFG_UNWIND
+
+#if defined(ARM32) || defined(ARM64)
 /* Called by libunw */
 bool find_exidx(vaddr_t addr, vaddr_t *idx_start, vaddr_t *idx_end)
 {
@@ -1578,7 +1580,16 @@ void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc)
 
 	print_stack_arm64(&state, ta_stack, ta_stack_size);
 }
+#elif defined(RV32) || defined(RV64)
+void ta_elf_stack_trace_riscv(uint64_t fp, uint64_t pc)
+{
+	struct unwind_state_riscv state = { .fp = fp, .pc = pc };
+
+	print_stack_riscv(&state, ta_stack, ta_stack_size);
+}
 #endif
+
+#endif /* CFG_UNWIND */
 
 TEE_Result ta_elf_add_library(const TEE_UUID *uuid)
 {
