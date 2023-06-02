@@ -134,11 +134,14 @@ void ta_elf_print_mappings(void *pctx, print_func_t print_func,
 #ifdef CFG_UNWIND
 void ta_elf_stack_trace_a32(uint32_t regs[16]);
 void ta_elf_stack_trace_a64(uint64_t fp, uint64_t sp, uint64_t pc);
+void ta_elf_stack_trace_riscv(uint64_t fp, uint64_t pc);
 #else
 static inline void ta_elf_stack_trace_a32(uint32_t regs[16] __unused) { }
 static inline void ta_elf_stack_trace_a64(uint64_t fp __unused,
 					  uint64_t sp __unused,
 					  uint64_t pc __unused) { }
+static inline void ta_elf_stack_trace_riscv(uint64_t fp __unused,
+					    uint64_t pc __unused) { }
 #endif /*CFG_UNWIND*/
 
 TEE_Result ta_elf_resolve_sym(const char *name, vaddr_t *val,
