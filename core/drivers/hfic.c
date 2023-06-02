@@ -60,6 +60,8 @@ static void hfic_op_set_affinity(struct itr_chip *chip __unused,
 
 static const struct itr_ops hfic_ops = {
 	.add = hfic_op_add,
+	.mask = hfic_op_disable,
+	.unmask = hfic_op_enable,
 	.enable = hfic_op_enable,
 	.disable = hfic_op_disable,
 	.raise_pi = hfic_op_raise_pi,
