@@ -161,6 +161,7 @@ ta_rv32-platform-cflags += $(platform-cflags-debug-info)
 ta_rv32-platform-cflags += -fpic
 
 ifeq ($(CFG_UNWIND),y)
+ta_rv32-platform-cflags += -fno-omit-frame-pointer
 ta_rv32-platform-cflags += -funwind-tables
 endif
 ta_rv32-platform-aflags += $(platform-aflags-generic)
@@ -196,6 +197,9 @@ ta_rv64-platform-cflags += $(platform-cflags-optimization)
 ta_rv64-platform-cflags += $(platform-cflags-debug-info)
 ta_rv64-platform-cflags += -fpic
 ta_rv64-platform-cflags += $(rv64-platform-cflags-generic)
+ifeq ($(CFG_UNWIND),y)
+ta_rv64-platform-cflags += -fno-omit-frame-pointer
+endif
 ifeq ($(rv64-platform-hard-float-enabled),y)
 ta_rv64-platform-cflags += $(rv64-platform-cflags-hard-float)
 else
