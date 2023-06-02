@@ -634,7 +634,7 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 	DMSG("nvmem %s failed", name);
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
-};
+}
 
 TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 {
