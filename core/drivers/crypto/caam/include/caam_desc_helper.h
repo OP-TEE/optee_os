@@ -136,6 +136,14 @@ static inline void dump_desc(uint32_t *desc)
 	 LOAD_LENGTH(len))
 
 /*
+ * Load Immediate value of length len to register dst of class starting of
+ * register offset.
+ */
+#define LD_IMM_OFF(cla, dst, len, off)                                         \
+	(CMD_LOAD_TYPE | CMD_CLASS(cla) | CMD_IMM | LOAD_DST(dst) |            \
+	 LOAD_OFFSET(off) | LOAD_LENGTH(len))
+
+/*
  * Load Immediate value of length len to register dst w/o class
  */
 #define LD_NOCLASS_IMM(dst, len) LD_IMM(CLASS_NO, dst, len)

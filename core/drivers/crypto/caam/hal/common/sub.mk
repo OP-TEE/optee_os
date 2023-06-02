@@ -7,3 +7,4 @@ srcs-y += hal_cfg.c
 srcs-y += hal_rng.c
 srcs-y += hal_jr.c
 srcs-y += hal_ctrl.c
+srcs-$(CFG_NXP_CAAM_SM_DRV) += hal_sm.c
