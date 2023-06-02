@@ -38,4 +38,7 @@
 #define MPMR				0x0380
 #define MPMR_NB_REG			U(32)
 
+/* Secure Memory physical base address */
+#define JRX_SMVBAR(idx)			(0x0184 + (idx) * 8)
+
 #endif /* __CTRL_REGS_H__ */

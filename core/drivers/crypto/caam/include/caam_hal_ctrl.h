@@ -95,4 +95,14 @@ void caam_hal_ctrl_fill_mpmr(vaddr_t ctrl_addr, struct caambuf *msg_mpmr);
  */
 bool caam_hal_ctrl_is_mp_set(vaddr_t ctrl_addr);
 #endif /* CFG_NXP_CAAM_MP_DRV */
+
+#ifdef CFG_NXP_CAAM_SM_DRV
+/*
+ * Get the Secure Memory Virtual base address setup in the given job ring
+ *
+ * @ctrl_addr  Controller base address
+ * @jr_offset  Job ring offset
+ */
+vaddr_t caam_hal_ctrl_get_smvaddr(vaddr_t ctrl_addr, paddr_t jr_offset);
+#endif /* CFG_NXP_CAAM_SM_DRV */
 #endif /* __CAAM_HAL_CTRL_H__ */
