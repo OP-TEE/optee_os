@@ -149,6 +149,8 @@ static void saic_set_affinity(struct itr_chip *chip __unused,
 
 static const struct itr_ops saic_ops = {
 	.add = saic_add,
+	.mask = saic_disable,
+	.unmask = saic_enable,
 	.enable = saic_enable,
 	.disable = saic_disable,
 	.raise_pi = saic_raise_pi,
