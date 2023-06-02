@@ -75,7 +75,7 @@ $(call force, CFG_JR_INDEX,2)
 $(call force, CFG_JR_INT,146)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_JR_HAB_INDEX,0)
-caam-drivers += MP
+caam-drivers += MP DEK
 caam-crypto-drivers += RSA DSA ECC DH MATH
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8ulp-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
@@ -138,6 +138,11 @@ $(foreach drv, $(caam-drivers), $(eval CFG_NXP_CAAM_$(drv)_DRV ?= y))
 # Disable software RNG if CAAM RNG driver is enabled
 ifeq ($(CFG_NXP_CAAM_RNG_DRV), y)
 $(call force, CFG_WITH_SOFTWARE_PRNG,n,Mandated by CFG_NXP_CAAM_RNG_DRV)
+endif
+
+# DEK driver requires the SM driver to be enabled
+ifeq ($(CFG_NXP_CAAM_DEK_DRV), y)
+$(call force, CFG_NXP_CAAM_SM_DRV,y,Mandated by CFG_NXP_CAAM_DEK_DRV)
 endif
 
 ifeq ($(CFG_CRYPTO_DRIVER), y)
