@@ -193,7 +193,13 @@
 #define SAI1		160
 #define SAI2		161
 
-#define STM32MP1_LAST_CLK 162
+#define SPI1		162
+#define SPI2		163
+#define SPI3		164
+#define SPI4		165
+#define SPI5		166
+
+#define STM32MP1_LAST_CLK 167
 
 /* SCMI clock identifiers */
 #define CK_SCMI_HSE		0

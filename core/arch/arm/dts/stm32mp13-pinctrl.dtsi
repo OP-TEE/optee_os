@@ -16,6 +16,15 @@
 		};
 	};
 
+	rcc_mco_pins_a: rcc-pins-0 {
+		pins {
+			pinmux = <STM32_PINMUX('D', 7, AF0)>; /* RCC_MCO_1 */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <1>;
+		};
+	};
+
 	uart4_pins_a: uart4-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('D', 6, AF8)>; /* UART4_TX */
