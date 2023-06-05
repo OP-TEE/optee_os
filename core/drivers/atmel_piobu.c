@@ -268,14 +268,10 @@ static void secumod_interrupt_init(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	res = interrupt_add_handler_with_chip(interrupt_get_main_chip(),
-					      &secumod_itr_handler);
-	if (res)
-		panic();
+	secumod_itr_handler.chip = interrupt_get_main_chip();
 
-	res = interrupt_configure(secumod_itr_handler.chip,
-				  secumod_itr_handler.it,
-				  IRQ_TYPE_LEVEL_HIGH, 7);
+	res = interrupt_add_configure_handler(&secumod_itr_handler,
+					      IRQ_TYPE_LEVEL_HIGH, 7);
 	if (res)
 		panic();
 
