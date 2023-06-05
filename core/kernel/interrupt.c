@@ -90,8 +90,8 @@ void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num)
 	}
 
 	if (!was_handled) {
-		EMSG("Disable unhandled interrupt %s:%zu", chip->name, itr_num);
-		interrupt_disable(chip, itr_num);
+		EMSG("Mask unhandled interrupt %s:%zu", chip->name, itr_num);
+		interrupt_mask(chip, itr_num);
 	}
 }
 

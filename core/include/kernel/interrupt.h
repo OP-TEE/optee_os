@@ -182,7 +182,8 @@ void interrupt_main_handler(void);
  * @itr_num	Interrupt number
  *
  * This function is called from an interrupt context by a primary interrupt
- * handler. This function calls the handlers registered for that interrupt
+ * handler. This function calls the handlers registered for that interrupt.
+ * If interrupt is not handled, it is masked.
  */
 void interrupt_call_handlers(struct itr_chip *chip, size_t itr_num);
 
