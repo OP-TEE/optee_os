@@ -20,8 +20,9 @@
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
-#include <kernel/dt.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
@@ -310,35 +311,38 @@ static void init_device_from_hw_config(struct etzpc_instance *dev,
 	init_pm(dev);
 }
 
-void stm32_etzpc_init(paddr_t base)
+static TEE_Result stm32_etzpc_probe(const void *fdt, int node,
+				    const void *compat_data __unused)
 {
-	init_device_from_hw_config(&etzpc_dev, base);
-}
-
-static TEE_Result init_etzpc_from_dt(void)
-{
-	void *fdt = get_embedded_dt();
-	int node = fdt_node_offset_by_compatible(fdt, -1, ETZPC_COMPAT);
-	int status = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	paddr_t pbase = 0;
-
-	/* When using DT, expect one and only one instance, secure enabled */
-
-	if (node < 0)
-		panic();
-	assert(fdt_node_offset_by_compatible(fdt, node, ETZPC_COMPAT) < 0);
-
-	status = fdt_get_status(fdt, node);
-	if (!(status & DT_STATUS_OK_SEC))
-		panic();
+	int subnode = 0;
 
 	pbase = fdt_reg_base_address(fdt, node);
-	if (pbase == (paddr_t)-1)
+	if (pbase == DT_INFO_INVALID_REG)
 		panic();
 
 	init_device_from_hw_config(&etzpc_dev, pbase);
 
+	fdt_for_each_subnode(subnode, fdt, node) {
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed to add node %s to probe list: %#"PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			panic();
+		}
+	}
+
 	return TEE_SUCCESS;
 }
 
-service_init(init_etzpc_from_dt);
+static const struct dt_device_match etzpc_match_table[] = {
+	{ .compatible = "st,stm32-etzpc" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(etzpc_dt_driver) = {
+	.name = "stm32-etzpc",
+	.match_table = etzpc_match_table,
+	.probe = stm32_etzpc_probe,
+};
