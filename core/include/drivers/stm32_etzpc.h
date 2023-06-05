@@ -74,15 +74,4 @@ void etzpc_lock_tzma(uint32_t tzma_id);
  * Return true if TZMA is locked, false otherwise
  */
 bool etzpc_get_lock_tzma(uint32_t tzma_id);
-
-/*
- * Init the ETZPC device, nedded when not using the device tree
- * @base: ETZPC interface registers physcal base address
- */
-#ifdef CFG_STM32_ETZPC
-void stm32_etzpc_init(paddr_t base);
-#else
-static inline void stm32_etzpc_init(paddr_t __unused base) {}
-#endif
-
 #endif /*__STM32_ETZPC_H__*/
