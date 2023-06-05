@@ -56,12 +56,13 @@ void stm32mp_syscfg_enable_io_compensation(void)
 
 	timeout_ref = timeout_init_us(SYSCFG_CMPCR_READY_TIMEOUT_US);
 
-	while (!(io_read32(syscfg_base + SYSCFG_CMPCR) & SYSCFG_CMPCR_READY))
+	while (!(io_read32(syscfg_base + SYSCFG_CMPCR) & SYSCFG_CMPCR_READY)) {
 		if (timeout_elapsed(timeout_ref)) {
 			EMSG("IO compensation cell not ready");
 			/* Allow an almost silent failure here */
 			break;
 		}
+	}
 
 	io_clrbits32(syscfg_base + SYSCFG_CMPCR, SYSCFG_CMPCR_SW_CTRL);
 
