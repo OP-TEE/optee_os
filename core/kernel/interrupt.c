@@ -188,9 +188,8 @@ void interrupt_remove_free_handler(struct itr_handler *hdl)
 }
 
 #ifdef CFG_DT
-TEE_Result dt_register_interrupt_provider(const void *fdt, int node,
-					  dt_get_itr_func dt_get_itr,
-					  void *data)
+TEE_Result interrupt_register_provider(const void *fdt, int node,
+				       itr_dt_get_func dt_get_itr, void *data)
 {
 	return dt_driver_register_provider(fdt, node,
 					   (get_of_device_func)dt_get_itr,
@@ -287,7 +286,7 @@ TEE_Result dt_get_interrupt_by_index(const void *fdt, int node,
 		*chip = desc->chip;
 		*itr_num = desc->itr_num;
 
-		/* Balance malloc() or like from dt_get_itr_func callback */
+		/* Balance malloc() or like from itr_dt_get_func callback */
 		free(desc);
 	}
 
