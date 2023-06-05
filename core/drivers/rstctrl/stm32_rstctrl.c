@@ -5,8 +5,8 @@
  */
 
 #include <drivers/rstctrl.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp1_rcc.h>
-#include <dt-bindings/reset/stm32mp1-resets.h>
 #include <io.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
@@ -60,6 +60,7 @@ static TEE_Result reset_assert(struct rstctrl *rstctrl, unsigned int to_us)
 	uint32_t bit_mask = 0;
 	size_t offset = 0;
 
+#ifdef CFG_STM32MP15
 	switch (id) {
 	case MCU_HOLD_BOOT_R:
 		/*
@@ -76,6 +77,7 @@ static TEE_Result reset_assert(struct rstctrl *rstctrl, unsigned int to_us)
 	default:
 		break;
 	}
+#endif
 
 	offset = reset_id2reg_offset(id);
 	bit_mask = BIT(reset_id2reg_bit_pos(id));
@@ -103,6 +105,7 @@ static TEE_Result reset_deassert(struct rstctrl *rstctrl, unsigned int to_us)
 	uint32_t bit_mask = 0;
 	size_t offset = 0;
 
+#ifdef CFG_STM32MP15
 	switch (id) {
 	case MCU_HOLD_BOOT_R:
 		/*
@@ -118,6 +121,7 @@ static TEE_Result reset_deassert(struct rstctrl *rstctrl, unsigned int to_us)
 	default:
 		break;
 	}
+#endif
 
 	offset = reset_id2reg_offset(id) + RCC_MP_RSTCLRR_OFFSET;
 	bit_mask = BIT(reset_id2reg_bit_pos(id));
@@ -219,6 +223,7 @@ static TEE_Result stm32_rstctrl_provider_probe(const void *fdt, int offs,
 static const struct dt_device_match stm32_rstctrl_match_table[] = {
 	{ .compatible = "st,stm32mp1-rcc" },
 	{ .compatible = "st,stm32mp1-rcc-secure" },
+	{ .compatible = "st,stm32mp13-rcc" },
 	{ }
 };
 
