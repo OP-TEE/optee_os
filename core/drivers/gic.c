@@ -606,7 +606,7 @@ static struct itr_desc *dt_get_gic_chip_cb(struct dt_pargs *arg,
 		return NULL;
 	}
 
-	/* Allocate returned itr_desc as required by dt_get_itr_func type */
+	/* Allocate returned itr_desc as required by itr_dt_get_func type */
 	desc = calloc(1, sizeof(*desc));
 	if (!desc) {
 		*res = TEE_ERROR_OUT_OF_MEMORY;
@@ -624,8 +624,8 @@ static struct itr_desc *dt_get_gic_chip_cb(struct dt_pargs *arg,
 
 static TEE_Result gic_probe(const void *fdt, int offs, const void *cd __unused)
 {
-	if (dt_register_interrupt_provider(fdt, offs, dt_get_gic_chip_cb,
-					   &gic_data.chip))
+	if (interrupt_register_provider(fdt, offs, dt_get_gic_chip_cb,
+					&gic_data.chip))
 		panic();
 
 	return TEE_SUCCESS;
