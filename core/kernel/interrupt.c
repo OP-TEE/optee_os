@@ -169,7 +169,8 @@ TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
 	return TEE_SUCCESS;
 }
 
-TEE_Result interrupt_add_handler(struct itr_handler *hdl)
+TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
+					   uint32_t type, uint32_t prio)
 {
 	struct itr_handler *h = NULL;
 
@@ -180,7 +181,7 @@ TEE_Result interrupt_add_handler(struct itr_handler *hdl)
 		    (!(hdl->flags & ITRF_SHARED) || !(h->flags & ITRF_SHARED)))
 			return TEE_ERROR_GENERIC;
 
-	interrupt_configure(hdl->chip, hdl->it, IRQ_TYPE_NONE, 0);
+	interrupt_configure(hdl->chip, hdl->it, type, prio);
 
 	SLIST_INSERT_HEAD(&hdl->chip->handlers, hdl, link);
 
@@ -230,13 +231,7 @@ TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t itr_num,
 	if (!hdl)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	*hdl = (struct itr_handler){
-		.chip = chip,
-		.it = itr_num,
-		.handler = handler,
-		.flags = flags,
-		.data = data,
-	};
+	*hdl = ITR_HANDLER(chip, itr_num, flags, handler, data);
 
 	res = interrupt_add_handler(hdl);
 	if (res) {

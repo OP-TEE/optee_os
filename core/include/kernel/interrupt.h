@@ -283,10 +283,25 @@ TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
 			       uint32_t type, uint32_t prio);
 
 /*
+ * interrupt_add_and_configure_handler() - Register and configure a handler
+ * @hdl		Interrupt handler to register
+ * @type	Interrupt type (IRQ_TYPE_* defines) or IRQ_TYPE_NONE
+ * @prio	Interrupt priority or 0
+ */
+TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
+					   uint32_t type, uint32_t prio);
+
+/*
  * interrupt_add_handler() - Register an interrupt handler
  * @hdl		Interrupt handler to register
+ *
+ * This helper function assumes interrypt type is set to IRQ_TYPE_NONE
+ * and interrupt priority to 0.
  */
-TEE_Result interrupt_add_handler(struct itr_handler *hdl);
+static inline TEE_Result interrupt_add_handler(struct itr_handler *hdl)
+{
+	return interrupt_add_configure_handler(hdl, IRQ_TYPE_NONE, 0);
+}
 
 /*
  * interrupt_add_handler_with_chip() - Register an interrupt handler providing
@@ -326,7 +341,7 @@ TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t it_num,
 
 /*
  * interrupt_remove_free_handler() - Remove/free a registered interrupt handler
- * @hdl		Interrupt handlers
+ * @hdl		Interrupt handler to remove and free
  * This function is the counterpart of interrupt_alloc_add_handler().
  * This function may panic on non-NULL invalid @hdl reference.
  */
