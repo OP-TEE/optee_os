@@ -1289,6 +1289,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	ctx = to_sp_ctx(sess->ts_sess.ctx);
 	ts_push_current_session(&sess->ts_sess);
+	sess->is_initialized = false;
 
 	/*
 	 * Load relative memory regions must be handled before doing any other
@@ -1324,17 +1325,17 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 
 	ts_pop_current_session();
 
-	sess->is_initialized = false;
-	if (sp_enter(&args, sess)) {
-		vm_unmap(&ctx->uctx, va, sz);
-		return FFA_ABORTED;
+	res = sp_enter(&args, sess);
+	if (res) {
+		ts_push_current_session(&sess->ts_sess);
+		goto out;
 	}
 
 	spmc_sp_msg_handler(&args, sess);
 
+	ts_push_current_session(&sess->ts_sess);
 	sess->is_initialized = true;
 
-	ts_push_current_session(&sess->ts_sess);
 out:
 	/* Free the boot info page from the SP memory */
 	vm_unmap(&ctx->uctx, va, sz);
@@ -1345,7 +1346,7 @@ out:
 
 TEE_Result sp_enter(struct thread_smc_args *args, struct sp_session *sp)
 {
-	TEE_Result res = FFA_OK;
+	TEE_Result res = TEE_SUCCESS;
 	struct sp_ctx *ctx = to_sp_ctx(sp->ts_sess.ctx);
 
 	ctx->sp_regs.x[0] = args->a0;
