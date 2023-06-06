@@ -1499,23 +1499,23 @@ static TEE_Result register_stm32mp1_clocks(void)
 	return TEE_SUCCESS;
 }
 
-static struct clk *stm32mp1_clk_dt_get_clk(struct dt_pargs *pargs,
-					   void *data __unused, TEE_Result *res)
+static TEE_Result stm32mp1_clk_dt_get_clk(struct dt_pargs *pargs,
+					  void *data __unused,
+					  struct clk **out_clk)
 {
 	unsigned long clock_id = pargs->args[0];
 	struct clk *clk = NULL;
 
-	*res = TEE_ERROR_BAD_PARAMETERS;
-
 	if (pargs->args_count != 1)
-		return NULL;
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	clk = clock_id_to_clk(clock_id);
 	if (!clk)
-		return NULL;
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	*res = TEE_SUCCESS;
-	return clk;
+	*out_clk = clk;
+
+	return TEE_SUCCESS;
 }
 
 /* Non-null reference for compat data */

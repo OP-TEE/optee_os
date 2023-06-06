@@ -489,9 +489,10 @@ static int get_pinctrl_from_fdt(void *fdt, int node,
 	return (int)found;
 }
 
-static struct gpio *stm32_gpio_get_dt(struct dt_pargs *pargs,
-				      void *data, TEE_Result *res)
+static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
+				    struct gpio **out_gpio)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_gpio_bank *bank = data;
 	struct gpio *gpio = NULL;
 	unsigned int shift_1b = 0;
@@ -501,14 +502,14 @@ static struct gpio *stm32_gpio_get_dt(struct dt_pargs *pargs,
 	uint32_t pupd = 0;
 	uint32_t mode = 0;
 
-	gpio = gpio_dt_alloc_pin(pargs, res);
-	if (*res)
-		return NULL;
+	res = gpio_dt_alloc_pin(pargs, &gpio);
+	if (res)
+		return res;
 
 	if (gpio->pin >= bank->ngpios) {
 		DMSG("Invalid GPIO reference");
 		free(gpio);
-		return NULL;
+		return TEE_ERROR_GENERIC;
 	}
 
 	shift_1b = gpio->pin;
@@ -547,9 +548,9 @@ static struct gpio *stm32_gpio_get_dt(struct dt_pargs *pargs,
 
 	gpio->chip = &bank->gpio_chip;
 
-	*res = TEE_SUCCESS;
+	*out_gpio = gpio;
 
-	return gpio;
+	return TEE_SUCCESS;
 }
 
 /* Get bank ID from bank node property st,bank-name or panic on failure */

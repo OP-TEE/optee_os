@@ -66,46 +66,40 @@ TEE_Result clk_dt_get_by_name(const void *fdt, int nodeoffset,
  *
  * @args: Pointer to devicetree description of the clock to parse
  * @data: Pointer to data given at clk_dt_register_clk_provider() call
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if clock is not initialized
- *	Any TEE_Result compliant code in case of error.
- *
- * Returns a clk struct pointer pointing to a clock matching the devicetree
- * description or NULL if invalid description in which case @res provides the
- * error code.
+ * @clk: Output clock reference upon success
  */
-typedef struct clk *(*clk_dt_get_func)(struct dt_pargs *args, void *data,
-				       TEE_Result *res);
+typedef TEE_Result (*clk_dt_get_func)(struct dt_pargs *args, void *data,
+				      struct clk **out_clk);
 
 /**
  * clk_dt_register_clk_provider - Register a clock provider
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the clock
- * @get_dt_clk: Callback to match the devicetree clock with a clock struct
+ * @func: Callback to match the devicetree clock with a clock struct
  * @data: Data which will be passed to the get_dt_clk callback
  * Returns TEE_Result value
  */
-static inline
-TEE_Result clk_dt_register_clk_provider(const void *fdt, int nodeoffset,
-					clk_dt_get_func get_dt_clk, void *data)
+static inline TEE_Result clk_dt_register_clk_provider(const void *fdt,
+						      int nodeoffset,
+						      clk_dt_get_func func,
+						      void *data)
 {
 	return dt_driver_register_provider(fdt, nodeoffset,
-					   (get_of_device_func)get_dt_clk,
-					   data, DT_DRIVER_CLK);
+					   (get_of_device_func)func, data,
+					   DT_DRIVER_CLK);
 }
 
 /**
  * clk_dt_get_simple_clk: simple clock matching function for single clock
  * providers
  */
-static inline struct clk *clk_dt_get_simple_clk(struct dt_pargs *args __unused,
-						void *data, TEE_Result *res)
+static inline TEE_Result clk_dt_get_simple_clk(struct dt_pargs *args __unused,
+					       void *data, struct clk **out_clk)
 {
-	*res = TEE_SUCCESS;
+	*out_clk = data;
 
-	return data;
+	return TEE_SUCCESS;
 }
 
 #endif /* __DRIVERS_CLK_DT_H */

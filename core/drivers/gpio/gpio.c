@@ -11,26 +11,23 @@
 #include <tee_api_types.h>
 #include <util.h>
 
-struct gpio *gpio_dt_alloc_pin(struct dt_pargs *pargs, TEE_Result *res)
+TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **out_gpio)
 {
 	struct gpio *gpio = NULL;
 
-	if (pargs->args_count != 2) {
-		*res = TEE_ERROR_BAD_PARAMETERS;
-		return NULL;
-	}
+	if (pargs->args_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	gpio = calloc(1, sizeof(struct gpio));
-	if (!gpio) {
-		*res = TEE_ERROR_OUT_OF_MEMORY;
-		return NULL;
-	}
+	if (!gpio)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	gpio->pin = pargs->args[0];
 	gpio->dt_flags = pargs->args[1];
 
-	*res = TEE_SUCCESS;
-	return gpio;
+	*out_gpio = gpio;
+
+	return TEE_SUCCESS;
 }
 
 static char *gpio_get_dt_prop_name(const char *gpio_name)
@@ -53,15 +50,18 @@ TEE_Result gpio_dt_get_by_index(const void *fdt, int nodeoffset,
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	char *prop_name = NULL;
+	void *out_gpio = NULL;
 
 	prop_name = gpio_get_dt_prop_name(gpio_name);
 	if (!prop_name)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	*gpio = dt_driver_device_from_node_idx_prop(prop_name, fdt, nodeoffset,
-						    index, DT_DRIVER_GPIO,
-						    &res);
+	res = dt_driver_device_from_node_idx_prop(prop_name, fdt, nodeoffset,
+						  index, DT_DRIVER_GPIO,
+						  &out_gpio);
 	free(prop_name);
+	if (!res)
+		*gpio = out_gpio;
 
 	return res;
 }

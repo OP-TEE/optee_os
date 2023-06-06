@@ -76,9 +76,10 @@ static const struct pinctrl_ops pio_pinctrl_ops = {
 	.conf_free = pio_conf_free,
 };
 
-static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
-					  void *data, TEE_Result *res)
+static TEE_Result pio_pinctrl_dt_get(struct dt_pargs *pargs, void *data,
+				     struct pinconf **out_pinconf)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
 	int i = 0;
 	int func = 0;
 	int group = 0;
@@ -96,10 +97,8 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 
 	prop = fdt_getprop(pargs->fdt, pargs->phandle_node, "pinmux",
 			   &prop_count);
-	if (!prop) {
-		*res = TEE_ERROR_ITEM_NOT_FOUND;
-		return NULL;
-	}
+	if (!prop)
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	prop_count /= sizeof(uint32_t);
 	for (i = 0; i < prop_count; i++) {
@@ -115,8 +114,7 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 			if (group != pio_group) {
 				EMSG("Unexpected group %d vs %d", group,
 				     pio_group);
-				*res = TEE_ERROR_GENERIC;
-				return NULL;
+				return TEE_ERROR_GENERIC;
 			}
 		}
 
@@ -125,10 +123,10 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 
 	cfg = func;
 
-	*res = pinctrl_parse_dt_pin_modes(pargs->fdt, pargs->phandle_node,
-					  &cfg_modes);
-	if (*res)
-		return NULL;
+	res = pinctrl_parse_dt_pin_modes(pargs->fdt, pargs->phandle_node,
+					 &cfg_modes);
+	if (res)
+		return res;
 
 	for (i = 0; i < PINCTRL_DT_PROP_MAX; i++) {
 		if (!bit_test(cfg_modes, i))
@@ -154,10 +152,8 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 	free(cfg_modes);
 
 	pinconf = calloc(1, sizeof(*pinconf) + sizeof(*pio_conf));
-	if (!pinconf) {
-		*res = TEE_ERROR_OUT_OF_MEMORY;
-		return NULL;
-	}
+	if (!pinconf)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	pio_conf = (struct atmel_pio_pin_conf *)(pinconf + 1);
 
@@ -168,9 +164,9 @@ static struct pinconf *pio_pinctrl_dt_get(struct dt_pargs *pargs,
 	pinconf->priv = pio_conf;
 	pinconf->ops = &pio_pinctrl_ops;
 
-	*res = TEE_SUCCESS;
+	*out_pinconf = pinconf;
 
-	return pinconf;
+	return TEE_SUCCESS;
 }
 
 static void pio_init_hw(struct atmel_pio *pio)

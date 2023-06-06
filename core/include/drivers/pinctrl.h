@@ -49,8 +49,16 @@ struct pinctrl_ops {
 	void (*conf_free)(struct pinconf *conf);
 };
 
-typedef struct pinconf *(*pinctrl_dt_get_func)(struct dt_pargs *pargs,
-					       void *data, TEE_Result *res);
+/**
+ * pinctrl_dt_get_func - Typedef of function to get a pin configuration from
+ * a device tree property
+ *
+ * @args: Pointer to device tree phandle arguments of the pin control reference
+ * @data: Pointer to data given at pinctrl_register_provider() call
+ * @out_pinconf: Output pin configuration reference upon success
+ */
+typedef TEE_Result (*pinctrl_dt_get_func)(struct dt_pargs *pargs, void *data,
+					  struct pinconf **out_pinconf);
 
 #ifdef CFG_DRIVERS_PINCTRL
 /**
@@ -62,14 +70,14 @@ typedef struct pinconf *(*pinctrl_dt_get_func)(struct dt_pargs *pargs,
  * @data: Data which will be passed to the get_pinctrl callback
  * Return a TEE_Result compliant value
  */
-static inline
-TEE_Result pinctrl_register_provider(const void *fdt, int nodeoffset,
-				     pinctrl_dt_get_func get_pinctrl,
-				     void *data)
+static inline TEE_Result pinctrl_register_provider(const void *fdt,
+						   int nodeoffset,
+						   pinctrl_dt_get_func func,
+						   void *data)
 {
 	return dt_driver_register_provider(fdt, nodeoffset,
-					   (get_of_device_func)get_pinctrl,
-					   data, DT_DRIVER_PINCTRL);
+					   (get_of_device_func)func, data,
+					   DT_DRIVER_PINCTRL);
 }
 
 /**
@@ -125,11 +133,9 @@ TEE_Result pinctrl_apply_state(struct pinctrl_state *state);
 TEE_Result pinctrl_parse_dt_pin_modes(const void *fdt, int nodeoffset,
 				      bitstr_t **modes);
 #else /* CFG_DRIVERS_PINCTRL */
-static inline
-TEE_Result pinctrl_register_provider(const void *fdt __unused,
-				     int nodeoffset __unused,
-				     pinctrl_dt_get_func get_pinctrl __unused,
-				     void *data __unused)
+static inline TEE_Result
+pinctrl_register_provider(const void *fdt __unused, int nodeoffset __unused,
+			  get_of_device_func func __unused, void *data __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }

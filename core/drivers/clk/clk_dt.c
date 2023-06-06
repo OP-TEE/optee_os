@@ -32,10 +32,14 @@ static TEE_Result clk_dt_get_by_idx_prop(const char *prop_name, const void *fdt,
 					 struct clk **clk)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	void *out_clk = NULL;
 
-	*clk = dt_driver_device_from_node_idx_prop(prop_name, fdt, nodeoffset,
-						   clk_idx, DT_DRIVER_CLK,
-						   &res);
+	res = dt_driver_device_from_node_idx_prop(prop_name, fdt, nodeoffset,
+						  clk_idx, DT_DRIVER_CLK,
+						  &out_clk);
+	if (!res)
+		*clk = out_clk;
+
 	return res;
 }
 

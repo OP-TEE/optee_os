@@ -130,7 +130,7 @@ struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 				   unsigned int nperiph, unsigned int ngck,
 				   unsigned int npck);
 
-struct clk *clk_dt_pmc_get(struct dt_pargs *args, void *data, TEE_Result *res);
+TEE_Result clk_dt_pmc_get(struct dt_pargs *args, void *data, struct clk **clk);
 
 struct clk *pmc_clk_get_by_name(struct pmc_clk *clks, unsigned int nclk,
 				const char *name);
