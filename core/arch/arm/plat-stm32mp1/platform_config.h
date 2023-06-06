@@ -79,6 +79,12 @@
 #endif
 #define RTC_BASE			0x5c004000
 #define SPI6_BASE			0x5c001000
+#ifdef CFG_STM32MP15
+#define SRAM1_BASE			0x30000000
+#define SRAM2_BASE			0x30020000
+#define SRAM3_BASE			0x30040000
+#define SRAM4_BASE			0x30050000
+#endif
 #define SYSCFG_BASE			0x50020000
 #ifdef CFG_STM32MP13
 #define SYSRAM_BASE			0x2ffe0000
@@ -221,6 +227,13 @@
 #define SYSRAM_SEC_SIZE		(CFG_STM32MP1_SCMI_SHM_BASE - SYSRAM_BASE)
 #else
 #define SYSRAM_SEC_SIZE		SYSRAM_SIZE
+#endif
+
+#ifdef CFG_STM32MP15
+#define SRAM1_SIZE			0x20000
+#define SRAM2_SIZE			0x20000
+#define SRAM3_SIZE			0x10000
+#define SRAM4_SIZE			0x10000
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
