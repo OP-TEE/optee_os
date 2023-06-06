@@ -183,12 +183,16 @@ static inline TEE_Result i2c_smbus_raw(struct i2c_dev *i2c_dev,
  * Return a TEE_Result compliant code in case of error
  */
 static inline TEE_Result i2c_dt_get_dev(const void *fdt, int nodeoffset,
-					struct i2c_dev **i2c_dev)
+					struct i2c_dev **out_i2c_dev)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	void *i2c_dev = NULL;
 
-	*i2c_dev = dt_driver_device_from_parent(fdt, nodeoffset, DT_DRIVER_I2C,
-						&res);
+	res = dt_driver_device_from_parent(fdt, nodeoffset, DT_DRIVER_I2C,
+					   &i2c_dev);
+	if (!res)
+		*out_i2c_dev = i2c_dev;
+
 	return res;
 }
 #else
@@ -219,7 +223,6 @@ static inline TEE_Result i2c_dt_get_dev(const void *fdt __unused,
 					int nodeoffset __unused,
 					struct i2c_dev **i2c_dev)
 {
-	*i2c_dev = NULL;
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
@@ -230,17 +233,10 @@ static inline TEE_Result i2c_dt_get_dev(const void *fdt __unused,
  *
  * @args: Pointer to devicetree description of the I2C bus device to parse
  * @data: Pointer to data given at i2c_dt_register_provider() call
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if I2C controller is not initialized
- *	Any TEE_Result compliant code in case of error.
- *
- * Returns a struct i2c pointer pointing to a I2C bus device matching
- * the devicetree description or NULL if invalid description in which case
- * @res provides the error code.
+ * @out_device: Output pointer to I2C device upon success
  */
-typedef struct i2c_dev *(*i2c_dt_get_func)(struct dt_pargs *args, void *data,
-					   TEE_Result *res);
+typedef TEE_Result (*i2c_dt_get_func)(struct dt_pargs *args, void *data,
+				      struct i2c_dev **out_device);
 
 /**
  * i2c_dt_register_provider - Register a I2C controller provider and add all the
@@ -252,9 +248,9 @@ typedef struct i2c_dev *(*i2c_dt_get_func)(struct dt_pargs *args, void *data,
  * @data: Data which will be passed to the get_dt_i2c callback
  * Returns TEE_Result value
  */
-static inline
-TEE_Result i2c_register_provider(const void *fdt, int nodeoffset,
-				 i2c_dt_get_func get_dt_i2c, void *data)
+static inline TEE_Result i2c_register_provider(const void *fdt, int nodeoffset,
+					       i2c_dt_get_func get_dt_i2c,
+					       void *data)
 {
 	int subnode = -1;
 	TEE_Result res = TEE_ERROR_GENERIC;

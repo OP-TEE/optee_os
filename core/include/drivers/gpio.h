@@ -147,7 +147,7 @@ static inline void gpio_put(struct gpio *gpio)
  * the devicetree description or NULL if invalid description in which case
  * @res provides the error code.
  */
-struct gpio *gpio_dt_alloc_pin(struct dt_pargs *pargs, TEE_Result *res);
+TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs, struct gpio **gpio);
 
 /**
  * gpio_dt_get_by_index() - Get a GPIO controller at a specific index in
@@ -171,17 +171,15 @@ static inline TEE_Result gpio_dt_get_by_index(const void *fdt __unused,
 					      int nodeoffset __unused,
 					      unsigned int index  __unused,
 					      const char *gpio_name  __unused,
-					      struct gpio **gpio)
+					      struct gpio **gpio __unused)
 {
-	*gpio = NULL;
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline struct gpio *gpio_dt_alloc_pin(struct dt_pargs *pargs __unused,
-					     TEE_Result *res)
+static inline TEE_Result gpio_dt_alloc_pin(struct dt_pargs *pargs __unused,
+					   struct gpio **gpio __unused)
 {
-	*res = TEE_ERROR_NOT_SUPPORTED;
-	return NULL;
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /*CFG_DT*/
 
@@ -200,8 +198,8 @@ static inline struct gpio *gpio_dt_alloc_pin(struct dt_pargs *pargs __unused,
  * the devicetree description or NULL if invalid description in which case
  * @res provides the error code.
  */
-typedef struct gpio *(*gpio_dt_get_func)(struct dt_pargs *pargs, void *data,
-					 TEE_Result *res);
+typedef TEE_Result (*gpio_dt_get_func)(struct dt_pargs *pargs, void *data,
+				       struct gpio **out_gpio);
 
 /**
  * gpio_dt_register_provider() - Register a GPIO controller provider

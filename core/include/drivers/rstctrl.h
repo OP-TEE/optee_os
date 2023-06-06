@@ -158,22 +158,25 @@ static inline bool rstctrl_ops_is_valid(const struct rstctrl_ops *ops)
 static inline TEE_Result rstctrl_dt_get_by_index(const void *fdt,
 						 int nodeoffset,
 						 unsigned int index,
-						 struct rstctrl **rstctrl)
+						 struct rstctrl **out_rstctrl)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	void *rstctrl = NULL;
 
-	*rstctrl = dt_driver_device_from_node_idx_prop("resets", fdt,
-						       nodeoffset, index,
-						       DT_DRIVER_RSTCTRL, &res);
+	res = dt_driver_device_from_node_idx_prop("resets", fdt, nodeoffset,
+						  index, DT_DRIVER_RSTCTRL,
+						  &rstctrl);
+	if (!res)
+		*out_rstctrl = rstctrl;
+
 	return res;
 }
 #else
 static inline TEE_Result rstctrl_dt_get_by_index(const void *fdt __unused,
 						 int nodeoffset __unused,
 						 unsigned int index __unused,
-						 struct rstctrl **rstctrl)
+						 struct rstctrl **ctrl __unused)
 {
-	*rstctrl = NULL;
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /*CFG_DT*/
@@ -201,35 +204,28 @@ TEE_Result rstctrl_dt_get_by_name(const void *fdt, int nodeoffset,
  *
  * @args: Pointer to devicetree description of the reset controller to parse
  * @data: Pointer to data given at rstctrl_dt_register_provider() call
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if reset controller is not initialized
- *	Any TEE_Result compliant code in case of error.
- *
- * Returns a struct rstctrl pointer pointing to a reset controller matching
- * the devicetree description or NULL if invalid description in which case
- * @res provides the error code.
+ * @rstctrl: Output reset controller reference upon success
  */
-typedef struct rstctrl *(*rstctrl_dt_get_func)(struct dt_pargs *args,
-					       void *data, TEE_Result *res);
+typedef TEE_Result (*rstctrl_dt_get_func)(struct dt_pargs *args, void *data,
+					  struct rstctrl **out_rstctrl);
 
 /**
  * rstctrl_dt_register_provider - Register a reset controller provider
  *
  * @fdt: Device tree to work on
  * @nodeoffset: Node offset of the reset controller
- * @get_dt_rstctrl: Callback to match the reset controller with a struct rstctrl
+ * @func: Callback to match the reset controller with a struct rstctrl
  * @data: Data which will be passed to the get_dt_rstctrl callback
  * Returns TEE_Result value
  */
-static inline
-TEE_Result rstctrl_register_provider(const void *fdt, int nodeoffset,
-				     rstctrl_dt_get_func get_dt_rstctrl,
-				     void *data)
+static inline TEE_Result rstctrl_register_provider(const void *fdt,
+						   int nodeoffset,
+						   rstctrl_dt_get_func func,
+						   void *data)
 {
 	return dt_driver_register_provider(fdt, nodeoffset,
-					   (get_of_device_func)get_dt_rstctrl,
-					   data, DT_DRIVER_RSTCTRL);
+					   (get_of_device_func)func, data,
+					   DT_DRIVER_RSTCTRL);
 }
 #endif /* __DRIVERS_RSTCTRL_H */
 

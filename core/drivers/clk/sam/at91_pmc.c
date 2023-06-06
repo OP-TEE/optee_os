@@ -80,22 +80,17 @@ TEE_Result pmc_clk_get(struct pmc_data *pmc, unsigned int type,
 	return TEE_SUCCESS;
 }
 
-struct clk *clk_dt_pmc_get(struct dt_pargs *clkspec, void *data,
-			   TEE_Result *res)
+TEE_Result clk_dt_pmc_get(struct dt_pargs *clkspec, void *data,
+			  struct clk **out_clk)
 {
 	unsigned int type = clkspec->args[0];
 	unsigned int idx = clkspec->args[1];
 	struct pmc_data *pmc_data = data;
-	struct clk *clk = NULL;
 
-	if (clkspec->args_count != 2) {
-		*res = TEE_ERROR_BAD_PARAMETERS;
-		return NULL;
-	}
+	if (clkspec->args_count != 2)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	*res = pmc_clk_get(pmc_data, type, idx, &clk);
-
-	return clk;
+	return pmc_clk_get(pmc_data, type, idx, out_clk);
 }
 
 struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,

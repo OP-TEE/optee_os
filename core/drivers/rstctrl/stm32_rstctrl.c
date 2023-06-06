@@ -179,27 +179,25 @@ struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id)
 	return &rstline->rstctrl;
 }
 
-static struct rstctrl *stm32_rstctrl_get_dev(struct dt_pargs *arg,
-					     void *priv_data __unused,
-					     TEE_Result *res)
+static TEE_Result stm32_rstctrl_get_dev(struct dt_pargs *arg,
+					void *priv_data __unused,
+					struct rstctrl **out_device)
 {
 	struct stm32_rstline *stm32_rstline = NULL;
 	uintptr_t control_id = 0;
 
-	if (arg->args_count != 1) {
-		*res = TEE_ERROR_BAD_PARAMETERS;
-		return NULL;
-	}
+	if (arg->args_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
 	control_id = arg->args[0];
 
 	stm32_rstline = find_or_allocate_rstline(control_id);
-	if (!stm32_rstline) {
-		*res = TEE_ERROR_OUT_OF_MEMORY;
-		return NULL;
-	}
+	if (!stm32_rstline)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
-	*res = TEE_SUCCESS;
-	return &stm32_rstline->rstctrl;
+	*out_device = &stm32_rstline->rstctrl;
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result stm32_rstctrl_provider_probe(const void *fdt, int offs,
