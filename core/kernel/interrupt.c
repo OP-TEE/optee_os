@@ -110,10 +110,15 @@ TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
 
 	assert(hdl && hdl->chip->ops);
 
-	SLIST_FOREACH(h, &hdl->chip->handlers, link)
+	SLIST_FOREACH(h, &hdl->chip->handlers, link) {
 		if (h->it == hdl->it &&
-		    (!(hdl->flags & ITRF_SHARED) || !(h->flags & ITRF_SHARED)))
+		    (!(hdl->flags & ITRF_SHARED) ||
+		     !(h->flags & ITRF_SHARED))) {
+			EMSG("Shared and non-shared flags on interrupt %s#%zu",
+			     hdl->chip->name, hdl->it);
 			return TEE_ERROR_GENERIC;
+		}
+	}
 
 	interrupt_configure(hdl->chip, hdl->it, type, prio);
 
