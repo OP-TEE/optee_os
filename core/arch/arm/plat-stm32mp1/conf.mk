@@ -154,8 +154,17 @@ CFG_DRAM_SIZE    ?= 0x40000000
 # device memory mapped SRAM used for SCMI message transfers.
 # When CFG_STM32MP1_SCMI_SHM_BASE is set to 0, the platform uses OP-TEE
 # native shared memory for SCMI communication instead of SRAM.
-CFG_STM32MP1_SCMI_SHM_BASE ?= 0x2ffff000
-CFG_STM32MP1_SCMI_SHM_SIZE ?= 0x00001000
+#
+# When CFG_STM32MP1_SCMI_SHM_SYSRAM is enabled, OP-TEE uses the
+# last 4KB page of SYSRAM as SCMI shared memory. The switch is default
+# disabled.
+CFG_STM32MP1_SCMI_SHM_SYSRAM ?= n
+ifeq ($(CFG_STM32MP1_SCMI_SHM_SYSRAM),y)
+$(call force,CFG_STM32MP1_SCMI_SHM_BASE,0x2ffff000)
+else
+CFG_STM32MP1_SCMI_SHM_BASE ?= 0
+endif
+$(call force,CFG_STM32MP1_SCMI_SHM_SIZE,0x1000)
 
 ifeq ($(CFG_STM32MP15),y)
 CFG_TZDRAM_START ?= 0xfe000000
