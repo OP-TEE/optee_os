@@ -185,6 +185,27 @@
 				resets = <&rcc RNG_R>;
 				access-controllers = <&rifsc STM32MP25_RIFSC_RNG_ID>;
 			};
+
+			iwdg1: watchdog@44010000 {
+				compatible = "st,stm32mp1-iwdg";
+				reg = <0x44010000 0x400>;
+				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_IWDG1>, <&rcc LSI_CK>;
+				clock-names = "pclk", "lsi";
+				access-controllers = <&rifsc STM32MP25_RIFSC_IWDG1_ID>;
+				status = "disabled";
+			};
+
+			iwdg2: watchdog@44020000 {
+				compatible = "st,stm32mp1-iwdg";
+				reg = <0x44020000 0x400>;
+				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_IWDG2>, <&rcc LSI_CK>;
+				clock-names = "pclk", "lsi";
+				resets = <&rcc IWDG2_SYS_R>;
+				access-controllers = <&rifsc STM32MP25_RIFSC_IWDG2_ID>;
+				status = "disabled";
+			};
 		};
 
 		iac: iac@42090000 {
