@@ -325,7 +325,7 @@ void *dt_driver_device_from_node_idx_prop_phandle(const char *prop_name,
 
 	prop_index *= dt_driver_provider_cells(prv);
 	if (prop_index * sizeof(*prop) >= (size_t)len) {
-		*res = TEE_ERROR_GENERIC;
+		*res = TEE_ERROR_ITEM_NOT_FOUND;
 		return NULL;
 	}
 
