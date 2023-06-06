@@ -99,7 +99,9 @@ static enum gpio_level stm32_gpio_get_level(struct gpio_chip *chip,
 	unsigned int mode = 0;
 
 	assert(gpio_pin < bank->ngpios);
-	clk_enable(bank->clock);
+
+	if (clk_enable(bank->clock))
+		panic();
 
 	mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >> (gpio_pin << 1)) &
 	       GPIO_MODE_MASK;
@@ -131,7 +133,9 @@ static void stm32_gpio_set_level(struct gpio_chip *chip, unsigned int gpio_pin,
 	struct stm32_gpio_bank *bank = gpio_chip_to_bank(chip);
 
 	assert(gpio_pin < bank->ngpios);
-	clk_enable(bank->clock);
+
+	if (clk_enable(bank->clock))
+		panic();
 
 	assert(((io_read32(bank->base + GPIO_MODER_OFFSET) >>
 		 (gpio_pin << 1)) & GPIO_MODE_MASK) == GPIO_MODE_OUTPUT);
@@ -151,7 +155,9 @@ static enum gpio_dir stm32_gpio_get_direction(struct gpio_chip *chip,
 	uint32_t mode = 0;
 
 	assert(gpio_pin < bank->ngpios);
-	clk_enable(bank->clock);
+
+	if (clk_enable(bank->clock))
+		panic();
 
 	mode = (io_read32(bank->base + GPIO_MODER_OFFSET) >> (gpio_pin << 1)) &
 	       GPIO_MODE_MASK;
@@ -183,7 +189,8 @@ static void stm32_gpio_set_direction(struct gpio_chip *chip,
 	else
 		mode = GPIO_MODE_OUTPUT;
 
-	clk_enable(bank->clock);
+	if (clk_enable(bank->clock))
+		panic();
 	exceptions = cpu_spin_lock_xsave(&gpio_lock);
 	io_clrsetbits32(bank->base + GPIO_MODER_OFFSET,
 			SHIFT_U32(GPIO_MODE_MASK, gpio_pin << 1),
