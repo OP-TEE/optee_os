@@ -446,6 +446,14 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
+static void set_bank_gpio_non_secure(struct stm32_gpio_bank *bank)
+{
+	unsigned int pin = 0;
+
+	for (pin = 0; pin <= bank->ngpios; pin++)
+		stm32_gpio_set_secure_cfg(bank->bank_id, pin, false);
+}
+
 /* Parse a pinctrl node to register the GPIO banks it describes */
 static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 					const void *compat_data)
@@ -485,6 +493,9 @@ static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 				return res;
 
 			STAILQ_INSERT_TAIL(&bank_list, bank, link);
+
+			if (IS_ENABLED(CFG_STM32MP13))
+				set_bank_gpio_non_secure(bank);
 		} else {
 			if (len != -FDT_ERR_NOTFOUND)
 				panic();
