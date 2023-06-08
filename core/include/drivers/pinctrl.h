@@ -140,39 +140,34 @@ pinctrl_register_provider(const void *fdt __unused, int nodeoffset __unused,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline
-TEE_Result pinctrl_get_state_by_name(const void *fdt __unused,
-				     int nodeoffset __unused,
-				     const char *name __unused,
-				     struct pinctrl_state **state __unused)
+static inline TEE_Result
+pinctrl_get_state_by_name(const void *fdt __unused, int nodeoffset __unused,
+			  const char *name __unused,
+			  struct pinctrl_state **state __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline
-TEE_Result pinctrl_get_state_by_idx(const void *fdt __unused,
-				    int nodeoffset __unused,
-				    unsigned int pinctrl_id __unused,
-				    struct pinctrl_state **state __unused)
+static inline TEE_Result
+pinctrl_get_state_by_idx(const void *fdt __unused, int nodeoffset __unused,
+			 unsigned int pinctrl_id __unused,
+			 struct pinctrl_state **state __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline
-void pinctrl_free_state(struct pinctrl_state *state __unused)
+static inline void pinctrl_free_state(struct pinctrl_state *state __unused)
 {
 }
 
-static inline
-TEE_Result pinctrl_apply_state(struct pinctrl_state *state __unused)
+static inline TEE_Result pinctrl_apply_state(struct pinctrl_state *s __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
-static inline
-TEE_Result pinctrl_parse_dt_pin_modes(const void *fdt __unused,
-				      int nodeoffset __unused,
-				      bitstr_t **modes __unused)
+static inline TEE_Result pinctrl_parse_dt_pin_modes(const void *fdt __unused,
+						    int nodeoffset __unused,
+						    bitstr_t **modes __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
