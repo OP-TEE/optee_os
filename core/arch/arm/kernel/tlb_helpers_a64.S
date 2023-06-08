@@ -16,15 +16,15 @@ FUNC tlbi_all , :
 	ret
 END_FUNC tlbi_all
 
-/* void tlbi_mva_allasid(vaddr_t mva); */
-FUNC tlbi_mva_allasid , :
-	lsr	x0, x0, #TLBI_MVA_SHIFT
+/* void tlbi_va_allasid(vaddr_t va); */
+FUNC tlbi_va_allasid , :
+	lsr	x0, x0, #TLBI_VA_SHIFT
 	dsb	ishst		/* Sync with table update */
-	tlbi	vaae1is, x0	/* Invalidate tlb by mva in inner shareable */
+	tlbi	vaae1is, x0	/* Invalidate tlb by va in inner shareable */
 	dsb	ish		/* Sync with tlb invalidation completion */
 	isb			/* Sync execution on tlb update */
 	ret
-END_FUNC tlbi_mva_allasid
+END_FUNC tlbi_va_allasid
 
 /* void tlbi_asid(unsigned int asid); */
 FUNC tlbi_asid , :

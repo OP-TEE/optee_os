@@ -13,11 +13,11 @@ FUNC tlbi_all , :
 	ret
 END_FUNC tlbi_all
 
-/* void tlbi_mva_allasid(vaddr_t mva); */
-FUNC tlbi_mva_allasid , :
+/* void tlbi_va_allasid(vaddr_t va); */
+FUNC tlbi_va_allasid , :
 	sfence.vma	a0, zero
 	ret
-END_FUNC tlbi_mva_allasid
+END_FUNC tlbi_va_allasid
 
 /* void tlbi_asid(unsigned int asid); */
 FUNC tlbi_asid , :

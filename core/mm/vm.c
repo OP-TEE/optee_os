@@ -142,8 +142,8 @@ static void rem_um_region(struct user_mode_ctx *uctx, struct vm_region *r)
 		tee_pager_rem_um_region(uctx, r->va, r->size);
 	} else {
 		pgt_clear_range(uctx, r->va, r->va + r->size);
-		tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
-				    uctx->vm_info.asid);
+		tlbi_va_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
+				   uctx->vm_info.asid);
 	}
 
 	/*
@@ -778,8 +778,8 @@ TEE_Result vm_set_prot(struct user_mode_ctx *uctx, vaddr_t va, size_t len,
 			 * is needed. We also depend on the dsb() performed
 			 * as part of the TLB invalidation.
 			 */
-			tlbi_mva_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
-					    uctx->vm_info.asid);
+			tlbi_va_range_asid(r->va, r->size, SMALL_PAGE_SIZE,
+					   uctx->vm_info.asid);
 		}
 	}
 

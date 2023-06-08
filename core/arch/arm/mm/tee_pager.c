@@ -412,7 +412,7 @@ void tee_pager_set_alias_area(tee_mm_entry_t *mm)
 	}
 
 out:
-	tlbi_mva_range(smem, nbytes, SMALL_PAGE_SIZE);
+	tlbi_va_range(smem, nbytes, SMALL_PAGE_SIZE);
 }
 
 static size_t tbl_usage_count(struct core_mmu_table_info *ti)
@@ -470,11 +470,11 @@ static void tblidx_tlbi_entry(struct tblidx tblidx)
 	if (tblidx.pgt->ctx) {
 		uint32_t asid = to_user_mode_ctx(tblidx.pgt->ctx)->vm_info.asid;
 
-		tlbi_mva_asid(va, asid);
+		tlbi_va_asid(va, asid);
 		return;
 	}
 #endif
-	tlbi_mva_allasid(va);
+	tlbi_va_allasid(va);
 }
 
 static void pmem_assign_fobj_page(struct tee_pager_pmem *pmem,
@@ -1377,7 +1377,7 @@ static void pager_deploy_page(struct tee_pager_pmem *pmem,
 	if (!(attr_alias & TEE_MATTR_PW)) {
 		attr_alias |= TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
-		tlbi_mva_allasid((vaddr_t)va_alias);
+		tlbi_va_allasid((vaddr_t)va_alias);
 	}
 
 	asan_tag_access(va_alias, va_alias + SMALL_PAGE_SIZE);
@@ -1392,7 +1392,7 @@ static void pager_deploy_page(struct tee_pager_pmem *pmem,
 		/* Forbid write to aliases for read-only (maybe exec) pages */
 		attr_alias &= ~TEE_MATTR_PW;
 		core_mmu_set_entry(ti, idx_alias, pa_alias, attr_alias);
-		tlbi_mva_allasid((vaddr_t)va_alias);
+		tlbi_va_allasid((vaddr_t)va_alias);
 		break;
 	case PAGED_REGION_TYPE_RW:
 		TAILQ_INSERT_TAIL(&tee_pager_pmem_head, pmem, link);
@@ -1988,7 +1988,7 @@ void tee_pager_release_phys(void *addr, size_t size)
 	}
 
 	if (unmaped)
-		tlbi_mva_range(begin, end - begin, SMALL_PAGE_SIZE);
+		tlbi_va_range(begin, end - begin, SMALL_PAGE_SIZE);
 
 	pager_unlock(exceptions);
 }

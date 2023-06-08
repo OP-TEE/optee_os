@@ -567,18 +567,18 @@ struct tee_mmap_region *
 core_mmu_find_mapping_exclusive(enum teecore_memtypes type, size_t len);
 
 /*
- * tlbi_mva_range() - Invalidate TLB for virtual address range
+ * tlbi_va_range() - Invalidate TLB for virtual address range
  * @va:		start virtual address, must be a multiple of @granule
  * @len:	length in bytes of range, must be a multiple of @granule
  * @granule:	granularity of mapping, supported values are
  *		CORE_MMU_PGDIR_SIZE or SMALL_PAGE_SIZE. This value must
  *		match the actual mappings.
  */
-void tlbi_mva_range(vaddr_t va, size_t len, size_t granule);
+void tlbi_va_range(vaddr_t va, size_t len, size_t granule);
 
 /*
- * tlbi_mva_range_asid() - Invalidate TLB for virtual address range for
- *			   a specific ASID
+ * tlbi_va_range_asid() - Invalidate TLB for virtual address range for
+ *			  a specific ASID
  * @va:		start virtual address, must be a multiple of @granule
  * @len:	length in bytes of range, must be a multiple of @granule
  * @granule:	granularity of mapping, supported values are
@@ -586,7 +586,7 @@ void tlbi_mva_range(vaddr_t va, size_t len, size_t granule);
  *		match the actual mappings.
  * @asid:	Address space identifier
  */
-void tlbi_mva_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid);
+void tlbi_va_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid);
 
 /* Check cpu mmu enabled or not */
 bool cpu_mmu_enabled(void);

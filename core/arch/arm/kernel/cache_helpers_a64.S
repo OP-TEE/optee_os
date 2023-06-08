@@ -25,7 +25,7 @@
 /*
  * This macro can be used for implementing various data cache operations `op`
  */
-.macro do_dcache_maintenance_by_mva op
+.macro do_dcache_maintenance_by_va op
 	dcache_line_size x2, x3
 	add	x1, x0, x1
 	sub	x3, x2, #1
@@ -44,7 +44,7 @@ loop_\op:
 	 * ------------------------------------------
 	 */
 FUNC dcache_cleaninv_range , :
-	do_dcache_maintenance_by_mva civac
+	do_dcache_maintenance_by_va civac
 END_FUNC dcache_cleaninv_range
 
 	/* ------------------------------------------
@@ -53,7 +53,7 @@ END_FUNC dcache_cleaninv_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_clean_range , :
-	do_dcache_maintenance_by_mva cvac
+	do_dcache_maintenance_by_va cvac
 END_FUNC dcache_clean_range
 
 	/* ------------------------------------------
@@ -62,7 +62,7 @@ END_FUNC dcache_clean_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_inv_range , :
-	do_dcache_maintenance_by_mva ivac
+	do_dcache_maintenance_by_va ivac
 END_FUNC dcache_inv_range
 
 	/* ------------------------------------------
@@ -71,7 +71,7 @@ END_FUNC dcache_inv_range
 	 * ------------------------------------------
 	 */
 FUNC dcache_clean_range_pou , :
-	do_dcache_maintenance_by_mva cvau
+	do_dcache_maintenance_by_va cvau
 END_FUNC dcache_clean_range_pou
 
 	/* ---------------------------------------------------------------
