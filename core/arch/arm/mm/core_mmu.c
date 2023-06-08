@@ -31,14 +31,14 @@
 static bitstr_t bit_decl(g_asid, MMU_NUM_ASID_PAIRS) __nex_bss;
 static unsigned int g_asid_spinlock __nex_bss = SPINLOCK_UNLOCK;
 
-void tlbi_mva_range(vaddr_t va, size_t len, size_t granule)
+void tlbi_va_range(vaddr_t va, size_t len, size_t granule)
 {
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
 	dsb_ishst();
 	while (len) {
-		tlbi_mva_allasid_nosync(va);
+		tlbi_va_allasid_nosync(va);
 		len -= granule;
 		va += granule;
 	}
@@ -46,14 +46,14 @@ void tlbi_mva_range(vaddr_t va, size_t len, size_t granule)
 	isb();
 }
 
-void tlbi_mva_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid)
+void tlbi_va_range_asid(vaddr_t va, size_t len, size_t granule, uint32_t asid)
 {
 	assert(granule == CORE_MMU_PGDIR_SIZE || granule == SMALL_PAGE_SIZE);
 	assert(!(va & (granule - 1)) && !(len & (granule - 1)));
 
 	dsb_ishst();
 	while (len) {
-		tlbi_mva_asid_nosync(va, asid);
+		tlbi_va_asid_nosync(va, asid);
 		len -= granule;
 		va += granule;
 	}

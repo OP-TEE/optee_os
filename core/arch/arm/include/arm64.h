@@ -224,7 +224,7 @@
 #define PAR_PA_SHIFT		U(12)
 #define PAR_PA_MASK		(BIT64(36) - 1)
 
-#define TLBI_MVA_SHIFT		U(12)
+#define TLBI_VA_SHIFT		U(12)
 #define TLBI_ASID_SHIFT		U(48)
 #define TLBI_ASID_MASK		U(0xff)
 
@@ -338,14 +338,14 @@ static inline __noprof uint64_t read_pmu_ccnt(void)
 	return val;
 }
 
-static inline __noprof void tlbi_vaae1is(uint64_t mva)
+static inline __noprof void tlbi_vaae1is(uint64_t va)
 {
-	asm volatile ("tlbi	vaae1is, %0" : : "r" (mva));
+	asm volatile ("tlbi	vaae1is, %0" : : "r" (va));
 }
 
-static inline __noprof void tlbi_vale1is(uint64_t mva)
+static inline __noprof void tlbi_vale1is(uint64_t va)
 {
-	asm volatile ("tlbi	vale1is, %0" : : "r" (mva));
+	asm volatile ("tlbi	vale1is, %0" : : "r" (va));
 }
 
 /*
