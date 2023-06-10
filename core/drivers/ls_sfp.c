@@ -107,7 +107,7 @@ static TEE_Result ls_sfp_init(void)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
-	rc = dt_map_dev(fdt, node, &ctrl_base, &size);
+	rc = dt_map_dev(fdt, node, &ctrl_base, &size, DT_MAP_AUTO);
 	if (rc < 0) {
 		EMSG("Unable to get SFP virtual address - rc = 0x%#"PRIx32, rc);
 		return TEE_ERROR_GENERIC;
