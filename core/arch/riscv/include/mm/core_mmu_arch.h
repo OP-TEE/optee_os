@@ -128,6 +128,11 @@ static inline unsigned int core_mmu_get_va_width(void)
 {
 	return RISCV_MMU_VA_WIDTH;
 }
+
+static inline bool core_mmu_level_in_range(unsigned int level)
+{
+	return level <= CORE_MMU_BASE_TABLE_LEVEL;
+}
 #endif /*__ASSEMBLER__*/
 
 #endif /* __CORE_MMU_ARCH_H */
