@@ -210,6 +210,17 @@ static inline unsigned int core_mmu_get_va_width(void)
 	}
 	return 32;
 }
+
+static inline bool core_mmu_level_in_range(unsigned int level)
+{
+#if CORE_MMU_BASE_TABLE_LEVEL == 0
+	return level <= CORE_MMU_PGDIR_LEVEL;
+#else
+	return level >= CORE_MMU_BASE_TABLE_LEVEL &&
+	       level <= CORE_MMU_PGDIR_LEVEL;
+#endif
+}
+
 #endif /*__ASSEMBLER__*/
 
 #endif /* CORE_MMU_H */
