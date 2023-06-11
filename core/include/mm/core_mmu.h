@@ -375,6 +375,7 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map);
  * @table:	Pointer to translation table
  * @va_base:	VA base address of the transaltion table
  * @level:	Translation table level
+ * @next_level:	Finer grained translation table level according to @level.
  * @shift:	The shift of each entry in the table
  * @num_entries: Number of entries in this table.
  */
@@ -387,6 +388,7 @@ struct core_mmu_table_info {
 #endif
 	uint8_t level;
 	uint8_t shift;
+	uint8_t next_level;
 };
 
 /*
