@@ -381,12 +381,12 @@ void core_mmu_set_user_map(struct core_mmu_user_map *map);
 struct core_mmu_table_info {
 	void *table;
 	vaddr_t va_base;
-	unsigned level;
-	unsigned shift;
 	unsigned num_entries;
 #ifdef CFG_NS_VIRTUALIZATION
 	struct mmu_partition *prtn;
 #endif
+	uint8_t level;
+	uint8_t shift;
 };
 
 /*
