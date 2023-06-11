@@ -409,7 +409,7 @@ TEE_Result interrupt_register_provider(const void *fdt, int node,
  * @itr_num	Output interrupt number upon success
  *
  * Return TEE_SUCCESS in case of success
- * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt controller is not yet inited
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt driver is not yet initialized
  * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not reference target interrupt
  * Return any other TEE_Result compliant code in case of error
  */
@@ -427,7 +427,7 @@ TEE_Result dt_get_interrupt_by_index(const void *fdt, int node,
  * @itr_num	Output interrupt number upon success
  *
  * Return TEE_SUCCESS in case of success
- * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt controller is not yet inited
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt driver is not yet initialized
  * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not reference target interrupt
  * Return any other TEE_Result compliant code in case of error
  */

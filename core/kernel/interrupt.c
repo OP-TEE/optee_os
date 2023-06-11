@@ -275,7 +275,7 @@ TEE_Result interrupt_register_provider(const void *fdt, int node,
 }
 
 /*
- * Provide an itr_desc reference based on "interrupts" property bindings.
+ * Provides an itr_desc reference based on "interrupts" property bindings.
  * May return TEE_ERROR_DEFER_DRIVER_INIT if parent controller is found but
  * not yet initialized.
  */
@@ -324,7 +324,7 @@ static TEE_Result get_legacy_interrupt_by_index(const void *fdt, int node,
 }
 
 /*
- * Provide an itr_desc based on "interrupts-extended" property bindings.
+ * Provides an itr_desc based on "interrupts-extended" property bindings.
  * May return TEE_ERROR_DEFER_DRIVER_INIT if parent controller is found
  * but not yet initialized.
  * With this function, provider is expected to have allocated itr_desc
