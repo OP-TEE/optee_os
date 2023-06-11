@@ -948,6 +948,7 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		unsigned level, vaddr_t va_base, void *table)
 {
 	tbl_info->level = level;
+	tbl_info->next_level = level + 1;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
 	tbl_info->shift = XLAT_ADDR_SHIFT(level);
@@ -1028,6 +1029,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			tbl_info->table = tbl;
 			tbl_info->va_base = va_base;
 			tbl_info->level = level;
+			tbl_info->next_level = level + 1;
 			tbl_info->shift = level_size_shift;
 			tbl_info->num_entries = num_entries;
 #ifdef CFG_NS_VIRTUALIZATION

@@ -485,6 +485,7 @@ void core_mmu_set_info_table(struct core_mmu_table_info *tbl_info,
 		unsigned level, vaddr_t va_base, void *table)
 {
 	tbl_info->level = level;
+	tbl_info->next_level = level + 1;
 	tbl_info->table = table;
 	tbl_info->va_base = va_base;
 	assert(level <= 2);
