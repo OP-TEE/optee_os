@@ -1576,7 +1576,8 @@ static void *map_pa2va(struct tee_mmap_region *map, paddr_t pa, size_t len)
 /*
  * teecore gets some memory area definitions
  */
-void core_mmu_get_mem_by_type(unsigned int type, vaddr_t *s, vaddr_t *e)
+void core_mmu_get_mem_by_type(enum teecore_memtypes type, vaddr_t *s,
+			      vaddr_t *e)
 {
 	struct tee_mmap_region *map = find_map_by_type(type);
 
