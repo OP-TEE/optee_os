@@ -3,9 +3,13 @@
  * Copyright 2022-2023 NXP
  */
 
-#include <gen-asm-defines.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <gen-asm-defines.h>
+#include <kernel/boot.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <mm/core_mmu_arch.h>
 #include <types_ext.h>
 
 DEFINES
@@ -75,4 +79,9 @@ DEFINES
 	DEFINE(THREAD_SCALL_REG_SP, offsetof(struct thread_scall_regs, sp));
 	DEFINE(THREAD_SCALL_REG_A0, offsetof(struct thread_scall_regs, a0));
 	DEFINE(THREAD_SCALL_REGS_SIZE, sizeof(struct thread_scall_regs));
+
+	/* struct core_mmu_config */
+	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
+	DEFINE(CORE_MMU_CONFIG_SATP,
+	       offsetof(struct core_mmu_config, satp));
 }
