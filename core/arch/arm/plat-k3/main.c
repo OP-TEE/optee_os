@@ -4,8 +4,6 @@
  *	Andrew F. Davis <afd@ti.com>
  */
 
-#include <platform_config.h>
-
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/sec_proxy.h>
@@ -65,6 +63,7 @@ static TEE_Result init_ti_sci(void)
 
 	return TEE_SUCCESS;
 }
+
 service_init(init_ti_sci);
 
 static TEE_Result secure_boot_information(void)
