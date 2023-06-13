@@ -1,9 +1,9 @@
-$(call force,CFG_SCPFW_MOD_RESET_DOMAIN,y)
 $(call force,CFG_SCPFW_MOD_CLOCK,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_CLOCK,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_CONSOLE,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_MBX,y)
 $(call force,CFG_SCPFW_MOD_OPTEE_RESET,y)
+$(call force,CFG_SCPFW_MOD_RESET_DOMAIN,y)
 ifeq ($(CFG_STM32MP1_SCMI_SHM_SYSRAM),y)
 $(call force,CFG_SCPFW_MOD_OPTEE_SMT,y)
 else
