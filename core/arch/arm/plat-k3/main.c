@@ -67,6 +67,19 @@ static TEE_Result init_ti_sci(void)
 }
 service_init(init_ti_sci);
 
+static TEE_Result secure_boot_information(void)
+{
+	uint32_t swrev = 0;
+
+	if (!ti_sci_get_swrev(&swrev))
+		IMSG("Secure Board Configuration Software: Rev %"PRIu32,
+		     swrev);
+
+	return TEE_SUCCESS;
+}
+
+service_init_late(secure_boot_information);
+
 TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 {
 	uint8_t dkek[SA2UL_DKEK_KEY_LEN] = { };
