@@ -385,4 +385,43 @@ struct ti_sci_msg_resp_lock_otp_row {
 	struct ti_sci_msg_hdr hdr;
 } __packed;
 
+/**
+ * \brief OTP Revision Identifiers
+ */
+enum tisci_otp_revision_identifier {
+	/** Software Revision SBL */
+	OTP_REV_ID_SBL        = 0,
+	/** Software Revision SYSFW */
+	OTP_REV_ID_SYSFW      = 1,
+	/** Software Revision Secure Board Configuration */
+	OTP_REV_ID_SEC_BRDCFG = 2,
+};
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Request for reading the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ *		(Current support only for OTP_REV_ID_SEC_BRDCFG)
+ *
+ * Request for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_req_get_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t identifier;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Response for reading the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @swrev:	Decoded Sofrware Revision value from efuses
+ *
+ * Response for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_resp_get_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t swrev;
+} __packed;
+
 #endif

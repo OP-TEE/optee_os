@@ -162,6 +162,17 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 			uint8_t hw_read_lock, uint8_t row_soft_lock);
 
 /**
+ * ti_sci_get_swrev - Read Software Revision
+ * @swrev:	Software Revision
+ *
+ * Reads the software revision. The System Firmware currently supports reading
+ * only the software revision from the Secure Board Configuration.
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_get_swrev(uint32_t *swrev);
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message
