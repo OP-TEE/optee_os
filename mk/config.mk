@@ -570,25 +570,9 @@ CFG_TA_GPROF_SUPPORT ?= n
 # TA function tracing.
 # When this option is enabled, OP-TEE can execute Trusted Applications
 # instrumented with GCC's -pg flag and will output function tracing
-# information in ftrace.out format to /tmp/ftrace-<ta_uuid>.out (path is
-# defined in tee-supplicant)
+# information for all functions compiled with -pg to
+# /tmp/ftrace-<ta_uuid>.out (path is defined in tee-supplicant).
 CFG_FTRACE_SUPPORT ?= n
-
-# How to make room when the function tracing buffer is full?
-# 'shift': shift the previously stored data by the amount needed in order
-#    to always keep the latest logs (slower, especially with big buffer sizes)
-# 'wrap': discard the previous data and start at the beginning of the buffer
-#    again (fast, but can result in a mostly empty buffer)
-# 'stop': stop logging new data
-CFG_FTRACE_BUF_WHEN_FULL ?= shift
-$(call cfg-check-value,FTRACE_BUF_WHEN_FULL,shift stop wrap)
-$(call force,_CFG_FTRACE_BUF_WHEN_FULL_$(CFG_FTRACE_BUF_WHEN_FULL),y)
-
-# Function tracing: unit to be used when displaying durations
-#  0: always display durations in microseconds
-# >0: if duration is greater or equal to the specified value (in microseconds),
-#     display it in milliseconds
-CFG_FTRACE_US_MS ?= 10000
 
 # Core syscall function tracing.
 # When this option is enabled, OP-TEE core is instrumented with GCC's
