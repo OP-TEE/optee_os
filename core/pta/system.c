@@ -15,6 +15,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
 #include <kernel/ts_store.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <ldelf.h>
 #include <mm/file.h>
@@ -211,20 +212,23 @@ static TEE_Result system_dlopen(struct user_mode_ctx *uctx,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	TEE_UUID *uuid = NULL;
+	TEE_UUID uuid = { };
 	uint32_t flags = 0;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	uuid = params[0].memref.buffer;
-	if (!uuid || params[0].memref.size != sizeof(*uuid))
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
 
 	flags = params[1].value.a;
 
 	s = ts_pop_current_session();
-	res = ldelf_dlopen(uctx, uuid, flags);
+	res = ldelf_dlopen(uctx, &uuid, flags);
 	ts_push_current_session(s);
 
 	return res;
@@ -239,25 +243,30 @@ static TEE_Result system_dlsym(struct user_mode_ctx *uctx, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	const char *sym = NULL;
-	TEE_UUID *uuid = NULL;
-	size_t maxlen = 0;
+	char *sym = NULL;
+	TEE_UUID uuid = { };
+	size_t symlen = 0;
 	vaddr_t va = 0;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	uuid = params[0].memref.buffer;
-	if (!uuid || params[0].memref.size != sizeof(*uuid))
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	sym = params[1].memref.buffer;
-	if (!sym)
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
+
+	if (!params[1].memref.buffer)
 		return TEE_ERROR_BAD_PARAMETERS;
-	maxlen = params[1].memref.size;
+	res = bb_strndup_user(params[1].memref.buffer, params[1].memref.size,
+			      &sym, &symlen);
+	if (res)
+		return res;
 
 	s = ts_pop_current_session();
-	res = ldelf_dlsym(uctx, uuid, sym, maxlen, &va);
+	res = ldelf_dlsym(uctx, &uuid, sym, symlen, &va);
 	ts_push_current_session(s);
 
 	if (!res)

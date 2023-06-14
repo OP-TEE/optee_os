@@ -9,6 +9,7 @@
 #include <kernel/ldelf_loader.h>
 #include <kernel/ldelf_syscalls.h>
 #include <kernel/scall.h>
+#include <kernel/user_access.h>
 #include <ldelf.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
@@ -91,7 +92,11 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	vm_set_ctx(uctx->ts_ctx);
 
 	memcpy((void *)code_addr, ldelf_data, ldelf_code_size);
-	memcpy((void *)rw_addr, ldelf_data + ldelf_code_size, ldelf_data_size);
+
+	res = copy_to_user((void *)rw_addr, ldelf_data + ldelf_code_size,
+			   ldelf_data_size);
+	if (res)
+		return res;
 
 	prot = TEE_MATTR_URX;
 	if (IS_ENABLED(CFG_CORE_BTI))
@@ -119,9 +124,15 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	usr_stack = uctx->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
 	arg = (struct ldelf_arg *)usr_stack;
-	memset(arg, 0, sizeof(*arg));
-	arg->uuid = uctx->ts_ctx->uuid;
 	sess->handle_scall = scall_handle_ldelf;
+
+	res = clear_user(arg, sizeof(*arg));
+	if (res)
+		return res;
+
+	res = PUT_USER_SCALAR(uctx->ts_ctx->uuid, &arg->uuid);
+	if (res)
+		return res;
 
 	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
 				     usr_stack, uctx->entry_func,
@@ -183,27 +194,23 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 	struct thread_specific_data *tsd = thread_get_tsd();
 	struct ts_session *sess = NULL;
 	struct vm_region *r = NULL;
+	size_t arg_size = 0;
 	size_t n = 0;
 
 	TAILQ_FOREACH(r, &uctx->vm_info.regions, link)
 		if (r->attr & TEE_MATTR_URWX)
 			n++;
 
+	arg_size = ROUNDUP(sizeof(*arg) + n * sizeof(struct dump_map),
+			   STACK_ALIGNMENT);
+
 	usr_stack = uctx->ldelf_stack_ptr;
-	usr_stack -= ROUNDUP(sizeof(*arg) + n * sizeof(struct dump_map),
-			     STACK_ALIGNMENT);
-	arg = (struct dump_entry_arg *)usr_stack;
+	usr_stack -= arg_size;
 
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
-
-	memset(arg, 0, sizeof(*arg) + n * sizeof(struct dump_map));
+	arg = bb_alloc(arg_size);
+	if (!arg)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	memset(arg, 0, arg_size);
 
 	arg->num_maps = n;
 	n = 0;
@@ -279,10 +286,14 @@ TEE_Result ldelf_dump_state(struct user_mode_ctx *uctx)
 	arg->rv.sp = tsd->abort_regs.sp;
 #endif /*RV64||RV32*/
 
+	res = copy_to_user((void *)usr_stack, arg, arg_size);
+	if (res)
+		return res;
+
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;
 
-	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+	res = thread_enter_user_mode(usr_stack, 0, 0, 0,
 				     usr_stack, uctx->dump_entry_func,
 				     is_32bit, &panicked, &panic_code);
 
@@ -368,28 +379,25 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 
 	assert(uuid);
 
-	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
-	arg = (struct dl_entry_arg *)usr_stack;
-
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_WRITE |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
+	arg = bb_alloc(sizeof(*arg));
+	if (!arg)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memset(arg, 0, sizeof(*arg));
 	arg->cmd = LDELF_DL_ENTRY_DLOPEN;
 	arg->dlopen.uuid = *uuid;
 	arg->dlopen.flags = flags;
 
+	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
+
+	res = copy_to_user((void *)usr_stack, arg, sizeof(*arg));
+	if (res)
+		return res;
+
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;
 
-	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+	res = thread_enter_user_mode(usr_stack, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_32bit, &panicked, &panic_code);
 
@@ -408,42 +416,35 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 }
 
 TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
-		       const char *sym, size_t maxlen, vaddr_t *val)
+		       const char *sym, size_t symlen, vaddr_t *val)
 {
 	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *usr_arg = NULL;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
-	size_t len = strnlen(sym, maxlen);
 	struct ts_session *sess = NULL;
 
-	if (len == maxlen)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	usr_stack -= ROUNDUP(sizeof(*arg) + len + 1, STACK_ALIGNMENT);
-	arg = (struct dl_entry_arg *)usr_stack;
-
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_WRITE |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg) + len + 1);
-	if (res) {
-		EMSG("ldelf stack is inaccessible!");
-		return res;
-	}
-
+	usr_stack -= ROUNDUP(sizeof(*arg) + symlen + 1, STACK_ALIGNMENT);
+	usr_arg = (void *)usr_stack;
+	arg = bb_alloc(sizeof(*arg));
+	if (!arg)
+		return TEE_ERROR_OUT_OF_MEMORY;
 	memset(arg, 0, sizeof(*arg));
 	arg->cmd = LDELF_DL_ENTRY_DLSYM;
 	arg->dlsym.uuid = *uuid;
-	memcpy(arg->dlsym.symbol, sym, len);
-	arg->dlsym.symbol[len] = '\0';
+	res = copy_to_user(usr_arg, arg, sizeof(*arg));
+	if (res)
+		return res;
+	res = copy_to_user(usr_arg->dlsym.symbol, sym, symlen + 1);
+	if (res)
+		return res;
 
 	sess = ts_get_current_session();
 	sess->handle_scall = scall_handle_ldelf;
 
-	res = thread_enter_user_mode((vaddr_t)arg, 0, 0, 0,
+	res = thread_enter_user_mode((vaddr_t)usr_arg, 0, 0, 0,
 				     usr_stack, uctx->dl_entry_func,
 				     is_32bit, &panicked, &panic_code);
 
@@ -456,9 +457,13 @@ TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 		res = TEE_ERROR_TARGET_DEAD;
 	}
 	if (!res) {
-		res = arg->ret;
+		TEE_Result res2 = TEE_SUCCESS;
+
+		res2 = GET_USER_SCALAR(res, &usr_arg->ret);
+		if (res2)
+			res = res2;
 		if (!res)
-			*val = arg->dlsym.val;
+			res = GET_USER_SCALAR(*val, &usr_arg->dlsym.val);
 	}
 
 	return res;
