@@ -11,6 +11,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
 #include <kernel/pm.h>
 #include <matrix.h>
 #include <mm/core_mmu.h>
