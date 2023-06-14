@@ -364,24 +364,20 @@ void interrupt_remove_free_handler(struct itr_handler *hdl);
  *
  * @args	Reference to phandle arguments
  * @data	Pointer to data given at interrupt_register_provider() call
- * @res		Output result code of the operation:
- *		TEE_SUCCESS in case of success
- *		TEE_ERROR_DEFER_DRIVER_INIT if controller is not initialized
- *		Any TEE_Result compliant code in case of error.
+ * @out_itr_desc Output pointer to an allocated struct itr_desc upon success
+ * Return TEE_SUCCESS in case of success.
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if controller is not initialized.
+ * Return another TEE_Result code otherwise.
  *
- * Returns an allocated struct itr_desc pointer referencing to an interrupt
- * or NULL if invalid description in which case @res provides the error
- * code. The interrupt matches the reference found with properties of the
- * pointer FDT node.
+ * Upon success, struct itr_desc must point to memory allocated with malloc()
+ * or like as it is freed prior returning to caller function.
  *
  * Upon success, the interrupt is configured and consumer can add a handler
  * function to the interrupt. Yet, the interrupt is not enabled until consumer
  * calls interrupt_enable().
- * Upon success, struct itr_desc must point to memory allocated with malloc()
- * or like as it is freed prior returning to caller function.
  */
-typedef struct itr_desc *(*itr_dt_get_func)(struct dt_pargs *args, void *data,
-					    TEE_Result *res);
+typedef TEE_Result (*itr_dt_get_func)(struct dt_pargs *args, void *data,
+				      struct itr_desc **out_itr_desc);
 
 #ifdef CFG_DT
 /**

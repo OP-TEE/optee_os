@@ -281,11 +281,12 @@ TEE_Result interrupt_register_provider(const void *fdt, int node,
  */
 static TEE_Result get_legacy_interrupt_by_index(const void *fdt, int node,
 						unsigned int index,
-						struct itr_desc **desc)
+						struct itr_desc **out_desc)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	const uint32_t *prop = NULL;
 	uint32_t phandle = 0;
+	void *desc = NULL;
 	int pnode = 0;
 	int len = 0;
 
@@ -316,10 +317,13 @@ static TEE_Result get_legacy_interrupt_by_index(const void *fdt, int node,
 	phandle = fdt32_to_cpu(prop[0]);
 
 	/* Get interrupt chip/number from phandle and "interrupts" property */
-	*desc = dt_driver_device_from_node_idx_prop_phandle("interrupts", fdt,
-							    node, index,
-							    DT_DRIVER_INTERRUPT,
-							    phandle, &res);
+	res = dt_driver_device_from_node_idx_prop_phandle("interrupts", fdt,
+							  node, index,
+							  DT_DRIVER_INTERRUPT,
+							  phandle, desc);
+	if (!res)
+		*out_desc = desc;
+
 	return res;
 }
 
@@ -332,13 +336,16 @@ static TEE_Result get_legacy_interrupt_by_index(const void *fdt, int node,
  */
 static TEE_Result get_extended_interrupt_by_index(const void *fdt, int node,
 						  unsigned int index,
-						  struct itr_desc **desc)
+						  struct itr_desc **out_desc)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	void *desc = NULL;
 
-	*desc = dt_driver_device_from_node_idx_prop("interrupts-extended",
-						    fdt, node, index,
-						    DT_DRIVER_INTERRUPT, &res);
+	res = dt_driver_device_from_node_idx_prop("interrupts-extended",
+						  fdt, node, index,
+						  DT_DRIVER_INTERRUPT, desc);
+	if (!res)
+		*out_desc = desc;
 
 	return res;
 }
