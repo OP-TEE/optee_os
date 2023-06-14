@@ -68,11 +68,17 @@ service_init(init_ti_sci);
 
 static TEE_Result secure_boot_information(void)
 {
+	uint32_t keycnt = 0;
+	uint32_t keyrev = 0;
 	uint32_t swrev = 0;
 
 	if (!ti_sci_get_swrev(&swrev))
 		IMSG("Secure Board Configuration Software: Rev %"PRIu32,
 		     swrev);
+
+	if (!ti_sci_get_keycnt_keyrev(&keycnt, &keyrev))
+		IMSG("Secure Boot Keys: Count %"PRIu32 ", Rev %"PRIu32,
+		     keycnt, keyrev);
 
 	return TEE_SUCCESS;
 }
