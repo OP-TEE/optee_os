@@ -7,7 +7,6 @@
 #define __KERNEL_DT_H
 
 #include <compiler.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <scattered_array.h>
 #include <stdint.h>

@@ -6,6 +6,7 @@
 #define __KERNEL_INTERRUPT_H
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <kernel/dt_driver.h>
 #include <mm/core_memprot.h>
 #include <sys/queue.h>
 #include <tee_api_types.h>
@@ -73,6 +74,20 @@ struct itr_ops {
 			  uint32_t cpu_mask);
 	void (*set_affinity)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
+};
+
+/*
+ * struct itr_desc - Interrupt description
+ * @chip	Interrupt controller reference
+ * @itr_num	Interrupt number
+ *
+ * This struct is used for binding interrupt device data between
+ * drivers when using DT_DRIVERS means. See itr_dt_get_func type
+ * definition.
+ */
+struct itr_desc {
+	struct itr_chip *chip;
+	size_t itr_num;
 };
 
 /* Interrupt handler return value */
@@ -399,4 +414,110 @@ static inline TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip,
  * This function may panic on non-NULL invalid @hdl reference.
  */
 void interrupt_remove_free_handler(struct itr_handler *hdl);
+
+/*
+ * itr_dt_get_func - Typedef of function to get an interrupt in DT node
+ *
+ * @args	Reference to phandle arguments
+ * @data	Pointer to data given at interrupt_register_provider() call
+ * @itr_desc_p	Pointer to the struct itr_desc to fill
+ * Return TEE_SUCCESS in case of success.
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if controller is not initialized.
+ * Return another TEE_Result code otherwise.
+ *
+ * Upon success, the interrupt is configured and consumer can add a handler
+ * function to the interrupt. Yet, the interrupt is not enabled until consumer
+ * calls interrupt_enable().
+ */
+typedef TEE_Result (*itr_dt_get_func)(struct dt_pargs *args, void *data,
+				      struct itr_desc *itr_desc_p);
+
+#ifdef CFG_DT
+/**
+ * interrupt_register_provider() - Register an interrupt provider
+ *
+ * @fdt		Device tree to work on
+ * @node	Node offset of the interrupt controller in the DT
+ * @dt_get_itr	Callback to match the devicetree interrupt reference with
+ * @data	Data which will be passed to the get_dt_its callback
+ */
+TEE_Result interrupt_register_provider(const void *fdt, int node,
+				       itr_dt_get_func dt_get_itr, void *data);
+
+/**
+ * interrupt_dt_get_by_index() - Get an interrupt from DT by interrupt index
+ *
+ * Interrupt index (@index) refers to the index of the target interrupt to be
+ * retrieved as DT binding property "interrupts" may define several
+ * interrupts.
+ *
+ * @fdt		Device tree to work on
+ * @node	Node offset of the subnode containing interrupt(s) references
+ * @index	Index in "interrupts" or "extended-interrupts" property list
+ * @chip	Output interrupt controller reference upon success
+ * @itr_num	Output interrupt number upon success
+ *
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt driver is not yet initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not reference target interrupt
+ * Return any other TEE_Result compliant code in case of error
+ */
+TEE_Result interrupt_dt_get_by_index(const void *fdt, int node,
+				     unsigned int index, struct itr_chip **chip,
+				     size_t *itr_num);
+
+/**
+ * interrupt_dt_get_by_name() - Get an interrupt from DT by interrupt name
+ *
+ * @fdt		Device tree to work on
+ * @node	Node offset of the subnode containing interrupt(s) references
+ * @name	Name identifier used in "interrupt-names" property
+ * @chip	Output interrupt controller reference upon success
+ * @itr_num	Output interrupt number upon success
+ *
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_DEFER_DRIVER_INIT if interrupt driver is not yet initialized
+ * Return TEE_ERROR_ITEM_NOT_FOUND if the DT does not reference target interrupt
+ * Return any other TEE_Result compliant code in case of error
+ */
+TEE_Result interrupt_dt_get_by_name(const void *fdt, int node, const char *name,
+				    struct itr_chip **chip, size_t *itr_num);
+#else
+static inline TEE_Result interrupt_register_provider(const void *dt __unused,
+						     int node __unused,
+						     itr_dt_get_func f __unused,
+						     void *data __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result interrupt_dt_get_by_index(const void *fdt __unused,
+						   int node __unused,
+						   unsigned int index __unused,
+						   struct itr_chip **c __unused,
+						   size_t *itr_num __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result interrupt_dt_get_by_name(const void *fdt __unused,
+						  int node __unused,
+						  const char *name __unused,
+						  struct itr_chip **ch __unused,
+						  size_t *itr_num __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif /*CFG_DT*/
+
+/*
+ * Helper function for when caller retrieves the first interrupt defined
+ * in "interrupts" or "extended-interrupts" DT binding property list.
+ */
+static inline TEE_Result interrupt_dt_get(const void *fdt, int node,
+					  struct itr_chip **chip,
+					  size_t *itr_num)
+{
+	return interrupt_dt_get_by_index(fdt, node, 0, chip, itr_num);
+}
 #endif /*__KERNEL_INTERRUPT_H*/
