@@ -14,6 +14,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
+#include <kernel/user_access.h>
 #include <kernel/user_ta.h>
 #include <ldelf.h>
 #include <mm/vm.h>
@@ -211,6 +212,7 @@ bool scall_handle_user_ta(struct thread_scall_regs *regs)
 	size_t max_args = 0;
 	syscall_t scf = NULL;
 
+	bb_reset();
 	scall_get_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);
@@ -257,6 +259,7 @@ bool scall_handle_ldelf(struct thread_scall_regs *regs)
 	size_t max_args = 0;
 	syscall_t scf = NULL;
 
+	bb_reset();
 	scall_get_max_args(regs, &scn, &max_args);
 
 	trace_syscall(scn);

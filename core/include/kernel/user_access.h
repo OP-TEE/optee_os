@@ -31,6 +31,38 @@ static inline TEE_Result copy_from_user(void *kaddr __unused,
 
 #endif
 
+/*
+ * bb_alloc() - Allocate a bounce buffer
+ * @len:	Length of bounce buffer
+ *
+ * The bounce buffer is allocated from a per user TA context region reserved
+ * for bounce buffers. Buffers are allocated in a stack like fashion so
+ * only the last buffer can be free. Buffers generally don't have to be
+ * freed, all bounce buffer allocations are reset on each syscall entry.
+ *
+ * Return NULL on failure or a valid pointer on success.
+ */
+void *bb_alloc(size_t len);
+
+/*
+ * bb_free() - Free a bounce buffer
+ * @bb:		Buffer
+ * @len:	Length of buffer
+ *
+ * The bounce buffer is only freed if it is last on the stack of allocated
+ * bounce buffers. This function does normally not need to be called, see
+ * description of bb_alloc().
+ */
+void bb_free(void *bb, size_t len);
+
+/*
+ * bb_reset() - Reset bounce buffer allocation
+ *
+ * Resets the bounce buffer allocatation state, old pointers allocated
+ * with bb_alloc() should not be used any longer.
+ */
+void bb_reset(void);
+
 TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len);
 TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
