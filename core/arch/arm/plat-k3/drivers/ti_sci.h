@@ -173,6 +173,17 @@ int ti_sci_lock_otp_row(uint8_t row_idx, uint8_t hw_write_lock,
 int ti_sci_get_swrev(uint32_t *swrev);
 
 /**
+ * ti_sci_get_keycnt_keyrev - Read Key Count and Key Revision values
+ * @key_cnt:	Key Count
+ * @key_rev:	Key Revision
+ *
+ * Reads the Key Count and Key Revision in OTP
+ *
+ * Return: 0 if all goes well, else appropriate error message
+ */
+int ti_sci_get_keycnt_keyrev(uint32_t *key_cnt, uint32_t *key_rev);
+
+/**
  * ti_sci_init() - Basic initialization
  *
  * Return: 0 if all goes well, else appropriate error message

@@ -424,4 +424,29 @@ struct ti_sci_msq_resp_get_swrev {
 	uint32_t swrev;
 } __packed;
 
+/**
+ * struct ti_sci_msq_req_get_keycnt_keyrev - Request for reading the Key Count
+ * and Key Revision in OTP
+ * @hdr:	Generic header
+ *
+ * Request for TI_SCI_MSG_READ_KEYCNT_KEYREV
+ */
+struct ti_sci_msq_req_get_keycnt_keyrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Response for reading the Key Count and Key
+ * Revision in OTP
+ * @hdr:	Generic header
+ * @keycnt:	Key Count integer value
+ * @keyrev:	Key Revision integer value
+ *
+ * Response for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_resp_get_keycnt_keyrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t keycnt;
+	uint32_t keyrev;
+} __packed;
 #endif
