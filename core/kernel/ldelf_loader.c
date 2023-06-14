@@ -13,6 +13,8 @@
 #include <mm/mobj.h>
 #include <mm/vm.h>
 
+#define BOUNCE_BUFFER_SIZE	4096
+
 extern uint8_t ldelf_data[];
 extern const unsigned int ldelf_code_size;
 extern const unsigned int ldelf_data_size;
@@ -25,9 +27,8 @@ static const bool is_32bit = true;
 static const bool is_32bit;
 #endif
 
-static TEE_Result alloc_and_map_ldelf_fobj(struct user_mode_ctx *uctx,
-					   size_t sz, uint32_t prot,
-					   vaddr_t *va)
+static TEE_Result alloc_and_map_fobj(struct user_mode_ctx *uctx, size_t sz,
+				     uint32_t prot, uint32_t flags, vaddr_t *va)
 {
 	size_t num_pgs = ROUNDUP(sz, SMALL_PAGE_SIZE) / SMALL_PAGE_SIZE;
 	struct fobj *fobj = fobj_ta_mem_alloc(num_pgs);
@@ -38,8 +39,7 @@ static TEE_Result alloc_and_map_ldelf_fobj(struct user_mode_ctx *uctx,
 	fobj_put(fobj);
 	if (!mobj)
 		return TEE_ERROR_OUT_OF_MEMORY;
-	res = vm_map(uctx, va, num_pgs * SMALL_PAGE_SIZE,
-		     prot, VM_FLAG_LDELF, mobj, 0);
+	res = vm_map(uctx, va, num_pgs * SMALL_PAGE_SIZE, prot, flags, mobj, 0);
 	mobj_put(mobj);
 
 	return res;
@@ -56,26 +56,35 @@ TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx)
 	vaddr_t stack_addr = 0;
 	vaddr_t code_addr = 0;
 	vaddr_t rw_addr = 0;
+	vaddr_t bb_addr = 0;
 	uint32_t prot = 0;
 
 	uctx->is_32bit = is_32bit;
 
-	res = alloc_and_map_ldelf_fobj(uctx, LDELF_STACK_SIZE,
-				       TEE_MATTR_URW | TEE_MATTR_PRW,
-				       &stack_addr);
+	res = alloc_and_map_fobj(uctx, BOUNCE_BUFFER_SIZE, TEE_MATTR_PRW, 0,
+				 &bb_addr);
+	if (res)
+		return res;
+	uctx->bbuf = (void *)bb_addr;
+	uctx->bbuf_size = BOUNCE_BUFFER_SIZE;
+
+	res = alloc_and_map_fobj(uctx, LDELF_STACK_SIZE,
+				 TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
+				 &stack_addr);
 	if (res)
 		return res;
 	uctx->ldelf_stack_ptr = stack_addr + LDELF_STACK_SIZE;
 
-	res = alloc_and_map_ldelf_fobj(uctx, ldelf_code_size, TEE_MATTR_PRW,
-				       &code_addr);
+	res = alloc_and_map_fobj(uctx, ldelf_code_size, TEE_MATTR_PRW,
+				 VM_FLAG_LDELF, &code_addr);
 	if (res)
 		return res;
 	uctx->entry_func = code_addr + ldelf_entry;
 
 	rw_addr = ROUNDUP(code_addr + ldelf_code_size, SMALL_PAGE_SIZE);
-	res = alloc_and_map_ldelf_fobj(uctx, ldelf_data_size,
-				       TEE_MATTR_URW | TEE_MATTR_PRW, &rw_addr);
+	res = alloc_and_map_fobj(uctx, ldelf_data_size,
+				 TEE_MATTR_URW | TEE_MATTR_PRW, VM_FLAG_LDELF,
+				 &rw_addr);
 	if (res)
 		return res;
 
