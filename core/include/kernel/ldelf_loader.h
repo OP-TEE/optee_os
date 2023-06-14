@@ -19,6 +19,6 @@ TEE_Result ldelf_dump_ftrace(struct user_mode_ctx *uctx,
 TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 			uint32_t flags);
 TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
-		       const char *sym, size_t maxlen, vaddr_t *val);
+		       const char *sym, size_t symlen, vaddr_t *val);
 
 #endif /* KERNEL_LDELF_LOADER_H */
