@@ -589,8 +589,8 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 
 #ifdef CFG_DT
 /* Callback for "interrupt-extended" GIC interrupts in consumer DT nodes */
-static struct itr_desc *dt_get_gic_chip_cb(struct dt_pargs *arg,
-					   void *priv_data, TEE_Result *res)
+static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
+				     struct itr_desc **out_itr_desc)
 {
 	int itr_num = DT_INFO_INVALID_INTERRUPT;
 	struct itr_chip *chip = priv_data;
@@ -599,25 +599,22 @@ static struct itr_desc *dt_get_gic_chip_cb(struct dt_pargs *arg,
 	uint32_t prio = 0;
 
 	itr_num = gic_dt_get_irq(arg->args, arg->args_count, &type, &prio);
-	if (itr_num == DT_INFO_INVALID_INTERRUPT) {
-		*res = TEE_ERROR_GENERIC;
-		return NULL;
-	}
+	if (itr_num == DT_INFO_INVALID_INTERRUPT)
+		return TEE_ERROR_GENERIC;
 
 	/* Allocate returned itr_desc as required by itr_dt_get_func type */
 	desc = calloc(1, sizeof(*desc));
-	if (!desc) {
-		*res = TEE_ERROR_OUT_OF_MEMORY;
-		return NULL;
-	}
+	if (!desc)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	gic_op_add(chip, itr_num, type, prio);
 
 	desc->chip = chip;
 	desc->itr_num = itr_num;
 
-	*res = TEE_SUCCESS;
-	return desc;
+	*out_itr_desc = desc;
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result gic_probe(const void *fdt, int offs, const void *cd __unused)
