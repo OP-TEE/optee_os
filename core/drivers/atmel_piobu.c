@@ -13,6 +13,7 @@
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
