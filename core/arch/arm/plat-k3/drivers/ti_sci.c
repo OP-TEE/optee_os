@@ -454,6 +454,28 @@ int ti_sci_get_swrev(uint32_t *swrev)
 	return 0;
 }
 
+int ti_sci_get_keycnt_keyrev(uint32_t *key_cnt, uint32_t *key_rev)
+{
+	struct ti_sci_msq_req_get_keycnt_keyrev req = { };
+	struct ti_sci_msq_resp_get_keycnt_keyrev resp = { };
+	struct ti_sci_xfer xfer = { };
+	int ret = 0;
+
+	ret = ti_sci_setup_xfer(TI_SCI_MSG_READ_KEYCNT_KEYREV, 0,
+				&req, sizeof(req), &resp, sizeof(resp), &xfer);
+	if (ret)
+		return ret;
+
+	ret = ti_sci_do_xfer(&xfer);
+	if (ret)
+		return ret;
+
+	*key_cnt = resp.keycnt;
+	*key_rev = resp.keyrev;
+	memzero_explicit(&resp, sizeof(resp));
+	return 0;
+}
+
 int ti_sci_init(void)
 {
 	struct ti_sci_msg_resp_version rev_info = { };
