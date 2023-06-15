@@ -262,6 +262,8 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
+        if elf is None:
+            return ''
         cmd = self.arch_prefix('nm', elf)
         if not reladdr or not elf or not cmd:
             return ''
@@ -303,6 +305,8 @@ class Symbolizer(object):
         if elf_name is None:
             return ''
         elf = self.get_elf(elf_name)
+        if elf is None:
+            return ''
         cmd = self.arch_prefix('objdump', elf)
         if not reladdr or not elf or not cmd:
             return ''
