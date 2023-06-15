@@ -203,6 +203,30 @@ TEE_Result bb_memdup_user_private(const void *src, size_t len, void **p)
 	return res;
 }
 
+TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
+			   size_t *dstlen)
+{
+	uint32_t flags = TEE_MEMORY_ACCESS_READ | TEE_MEMORY_ACCESS_ANY_OWNER;
+	TEE_Result res = TEE_SUCCESS;
+	size_t l = 0;
+	char *d = NULL;
+
+	src = memtag_strip_tag_const(src);
+	res = check_access(flags, src, maxlen);
+	if (res)
+		return res;
+	l = strnlen(src, maxlen);
+	d = bb_alloc(l + 1);
+	if (!d)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	memcpy(d, src, l);
+	d[l] = 0;
+
+	*dst = d;
+	*dstlen = l;
+	return TEE_SUCCESS;
+}
+
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
 	uint32_t ref = kaddr_to_uref(kaddr);
