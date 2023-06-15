@@ -95,6 +95,24 @@ TEE_Result bb_memdup_user(const void *src, size_t len, void **p);
  */
 TEE_Result bb_memdup_user_private(const void *src, size_t len, void **p);
 
+/*
+ * bb_strndup_user() - Duplicate a user-space string into a bounce buffer
+ * @src:    Pointer to the user string to be duplicated.
+ * @maxlen: Maximum length of the user string
+ * @dst:    Holds duplicated string on success, or unchanged on failure.
+ * @dstlen: Length of string, excluding the terminating zero, returned in
+ *          @dst.
+ *
+ * Note that the returned buffer is allocated by bb_alloc() and normally
+ * doesn't have to be freed. But if it is to be freed the supplied length
+ * to bb_free() should be dstlen + 1.
+ *
+ * Return TEE_SUCCESS on success.
+ * Return TEE_ERROR_OUT_OF_MEMORY or TEE_ERROR_ACCESS_DENIED on error.
+ */
+TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
+			   size_t *dstlen);
+
 TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr);
 
 uint32_t kaddr_to_uref(void *kaddr);
