@@ -208,15 +208,12 @@ static TEE_Result check_no_error(uint32_t otp_id, bool check_disturbed)
 
 static TEE_Result power_up_safmem(void)
 {
-	uint64_t timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
+	uint64_t timeout_ref = 0;
 
 	io_mask32(bsec_base() + BSEC_OTP_CONF_OFF, BSEC_CONF_POWER_UP_MASK,
 		  BSEC_CONF_POWER_UP_MASK);
 
-	/*
-	 * If a timeout is detected, test the condition again to consider
-	 * cases where timeout is due to the executing TEE thread rescheduling.
-	 */
+	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
 		if (bsec_status() & BSEC_MODE_PWR)
 			break;
@@ -229,14 +226,11 @@ static TEE_Result power_up_safmem(void)
 
 static TEE_Result power_down_safmem(void)
 {
-	uint64_t timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
+	uint64_t timeout_ref = 0;
 
 	io_mask32(bsec_base() + BSEC_OTP_CONF_OFF, 0, BSEC_CONF_POWER_UP_MASK);
 
-	/*
-	 * If a timeout is detected, test the condition again to consider
-	 * cases where timeout is due to the executing TEE thread rescheduling.
-	 */
+	timeout_ref = timeout_init_us(BSEC_TIMEOUT_US);
 	while (!timeout_elapsed(timeout_ref))
 		if (!(bsec_status() & BSEC_MODE_PWR))
 			break;
