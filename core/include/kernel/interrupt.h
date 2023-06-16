@@ -259,6 +259,70 @@ static inline void interrupt_disable(struct itr_chip *chip, size_t itr_num)
 }
 
 /*
+ * interrupt_can_raise_pi() - Return whether controller embeds raise_pi
+ * @chip	Interrupt controller
+ */
+static inline bool interrupt_can_raise_pi(struct itr_chip *chip)
+{
+	return chip->ops->raise_pi;
+}
+
+/*
+ * interrupt_can_raise_sgi() - Return whether controller embeds raise_sgi
+ * @chip	Interrupt controller
+ */
+static inline bool interrupt_can_raise_sgi(struct itr_chip *chip)
+{
+	return chip->ops->raise_sgi;
+}
+
+/*
+ * interrupt_can_set_affinity() - Return whether controller embeds set_affinity
+ * @chip	Interrupt controller
+ */
+static inline bool interrupt_can_set_affinity(struct itr_chip *chip)
+{
+	return chip->ops->set_affinity;
+}
+
+/*
+ * interrupt_raise_pi() - Raise a peripheral interrupt of a controller
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number to raise
+ */
+static inline void interrupt_raise_pi(struct itr_chip *chip, size_t itr_num)
+{
+	assert(interrupt_can_raise_pi(chip));
+	chip->ops->raise_pi(chip, itr_num);
+}
+
+/*
+ * interrupt_raise_sgi() - Raise a software generiated interrupt of a controller
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number to raise
+ * @cpu_mask	Mask of the CPUs targeted by the interrupt
+ */
+static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
+				       uint8_t cpu_mask)
+{
+	assert(interrupt_can_raise_sgi(chip));
+	chip->ops->raise_sgi(chip, itr_num, cpu_mask);
+}
+
+/*
+ * interrupt_set_affinity() - Set CPU affinity for a controller interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number to raise
+ * @cpu_mask	Mask of the CPUs targeted by the interrupt
+ */
+static inline void interrupt_set_affinity(struct itr_chip *chip, size_t itr_num,
+					  uint8_t cpu_mask)
+{
+	assert(interrupt_can_set_affinity(chip));
+	chip->ops->set_affinity(chip, itr_num, cpu_mask);
+}
+
+/*
  * interrupt_configure() - Configure an interrupt in an interrupt controller
  * @chip	Interrupt controller
  * @itr_num	Interrupt number
