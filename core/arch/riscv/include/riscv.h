@@ -137,7 +137,7 @@ static inline __noprof unsigned long read_fp(void)
 {
 	unsigned long fp = 0;
 
-	asm volatile ("mv %0, fp" : "=r" (fp));
+	asm volatile ("mv %0, s0" : "=r" (fp));
 
 	return fp;
 }
