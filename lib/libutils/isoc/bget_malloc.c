@@ -960,7 +960,7 @@ bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,
 			return true;	/* Wrapping buffers, shouldn't happen */
 
 		if ((buf_start >= pool_start && buf_start < pool_end) ||
-		    (buf_end >= pool_start && buf_end < pool_end))
+		    (buf_end > pool_start && buf_end < pool_end))
 			return true;
 	}
 
