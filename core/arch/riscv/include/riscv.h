@@ -15,16 +15,6 @@
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
 
-#define REGOFF(x)			((x) * RISCV_XLEN_BYTES)
-
-#if __riscv_xlen == 32
-#define STR       sw
-#define LDR       lw
-#else
-#define STR       sd
-#define LDR       ld
-#endif
-
 /* Bind registers to their ABI names */
 #define REG_RA	1
 #define REG_SP	2
