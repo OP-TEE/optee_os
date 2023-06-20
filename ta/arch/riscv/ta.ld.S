@@ -8,6 +8,8 @@ OUTPUT_FORMAT("elf64-littleriscv")
 OUTPUT_ARCH(riscv)
 #endif
 
+#define MCOUNT_SYM _mcount
+
 #ifndef CFG_FTRACE_BUF_SIZE
 #define CFG_FTRACE_BUF_SIZE 2048
 #endif
