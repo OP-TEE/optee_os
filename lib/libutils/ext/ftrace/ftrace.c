@@ -13,13 +13,21 @@
 #include <assert.h>
 #include <user_ta_header.h>
 #if defined(__KERNEL__)
+#if defined(ARM32) || defined(ARM64)
 #include <arm.h>
+#elif defined(RV32) || defined(RV64)
+#include <riscv.h>
+#endif
 #include <kernel/panic.h>
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <mm/core_mmu.h>
 #else
+#if defined(ARM32) || defined(ARM64)
 #include <arm_user_sysreg.h>
+#elif defined(RV32) || defined(RV64)
+#include <riscv_user_sysreg.h>
+#endif
 #include <setjmp.h>
 #include <utee_syscalls.h>
 #endif
