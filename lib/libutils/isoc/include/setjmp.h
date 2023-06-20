@@ -52,12 +52,15 @@
 #define _JBLEN 22
 #define _JBTYPE long long
 #endif
+
+#if defined(RV64) || defined(RV32)
 /*
  * Callee preserved registers:
  * s0-s11, ra, sp
+ * One additional value used in case ftrace
+ * is enabled to restore ftrace return stack.
  */
-#if defined(RV64) || defined(RV32)
-#define _JBLEN 14
+#define _JBLEN 15
 #define _JBTYPE unsigned long
 #endif
 
