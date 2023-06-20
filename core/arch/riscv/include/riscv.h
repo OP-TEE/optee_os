@@ -374,6 +374,19 @@ static inline __noprof void uret(void)
 	asm volatile("uret");
 }
 
+__noprof uint64_t read_time(void);
+
+static inline __noprof uint64_t barrier_read_counter_timer(void)
+{
+	mb();	/* Get timer value after pending operations have completed */
+	return read_time();
+}
+
+static inline __noprof uint32_t read_cntfrq(void)
+{
+	return CFG_RISCV_MTIME_RATE;
+}
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*RISCV_H*/
