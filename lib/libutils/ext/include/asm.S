@@ -6,6 +6,8 @@
 
 #if defined(__aarch64__)
 #include <arm64_bti.S>
+#elif defined(__riscv)
+#include <riscv.S>
 #endif
 
 #if defined(__aarch64__) && ((defined(__KERNEL__) && defined(CFG_CORE_BTI)) || \
