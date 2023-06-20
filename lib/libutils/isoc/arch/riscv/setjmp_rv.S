@@ -1,18 +1,9 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright (c) 2023 Andes Technology Corporation
  * Copyright 2022-2023 NXP
  */
 #include <asm.S>
-
-#ifdef RV32
-#define STR       sw
-#define LDR       lw
-#define REGOFF(x) ((x) * 4)
-#else
-#define STR       sd
-#define LDR       ld
-#define REGOFF(x) ((x) * 8)
-#endif /*RV32*/
 
 /* int setjmp (jmp_buf) */
 FUNC setjmp , :
@@ -32,11 +23,23 @@ FUNC setjmp , :
 	STR	sp, REGOFF(13)(a0)
 #ifdef CFG_FTRACE_SUPPORT
 	addi	sp, sp, -16
-	STR	ra, (sp)
-	mov	x29, sp
-	addi	a0, a0, REGOFF(12)
-	jal	ftrace_setjmp
-	LDR	ra, (sp)
+#ifdef RV32
+	STR	ra, REGOFF(3)(sp)
+	STR	s0, REGOFF(2)(sp)
+#else
+	STR	ra, REGOFF(1)(sp)
+	STR	s0, REGOFF(0)(sp)
+#endif
+	addi	s0, sp, 16
+	addi	a0, a0, REGOFF(14)
+	call	ftrace_setjmp
+#ifdef RV32
+	LDR	s0, REGOFF(2)(sp)
+	LDR	ra, REGOFF(3)(sp)
+#else
+	LDR	s0, REGOFF(0)(sp)
+	LDR	ra, REGOFF(1)(sp)
+#endif
 	addi	sp, sp, 16
 #endif
 	li 	a0, 0
@@ -46,16 +49,19 @@ END_FUNC setjmp
 /* void longjmp (jmp_buf, int) __attribute__ ((noreturn)) */
 FUNC longjmp , :
 #ifdef CFG_FTRACE_SUPPORT
-	addi	sp, sp, -16
+	addi	sp, sp, -REGOFF(4)
 	STR	a0, REGOFF(0)(sp)
 	STR	a1, REGOFF(1)(sp)
-	STR	ra, REGOFF(2)(sp)
-	addi	a0, a0, REGOFF(12)
-	jal	ftrace_longjmp
+	STR	s0, REGOFF(2)(sp)
+	STR	ra, REGOFF(3)(sp)
+	addi	s0, sp, REGOFF(4)
+	addi	a0, a0, REGOFF(14)
+	call	ftrace_longjmp
 	LDR	a0, REGOFF(0)(sp)
 	LDR	a1, REGOFF(1)(sp)
-	LDR	ra, REGOFF(2)(sp)
-	addi	sp, sp, 16
+	LDR	s0, REGOFF(2)(sp)
+	LDR	ra, REGOFF(3)(sp)
+	addi	sp, sp, REGOFF(4)
 #endif
 	LDR	s0, REGOFF(0)(a0)
 	LDR	s1, REGOFF(1)(a0)
