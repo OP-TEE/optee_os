@@ -38,6 +38,8 @@ static TEE_Result system_rng_reseed(uint32_t param_types,
 {
 	size_t entropy_sz = 0;
 	uint8_t *entropy_input = NULL;
+	void *seed_bbuf = NULL;
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE,
@@ -51,8 +53,15 @@ static TEE_Result system_rng_reseed(uint32_t param_types,
 	if (!entropy_sz || !entropy_input)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	res = bb_memdup_user(entropy_input, entropy_sz, &seed_bbuf);
+	if (res)
+		return res;
+
 	crypto_rng_add_event(CRYPTO_RNG_SRC_NONSECURE, &system_pnum,
-			     entropy_input, entropy_sz);
+			     seed_bbuf, entropy_sz);
+
+	bb_free(seed_bbuf, entropy_sz);
+
 	return TEE_SUCCESS;
 }
 
@@ -64,6 +73,7 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *data = NULL;
 	uint32_t access_flags = 0;
+	void *subkey_bbuf = NULL;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
@@ -104,14 +114,28 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 	memcpy(data, &uctx->ts_ctx->uuid, sizeof(TEE_UUID));
 
 	/* Append the user provided data */
-	memcpy(data + sizeof(TEE_UUID), params[0].memref.buffer,
-	       params[0].memref.size);
+	res = copy_from_user(data + sizeof(TEE_UUID), params[0].memref.buffer,
+			     params[0].memref.size);
+	if (res)
+		goto out;
+
+	subkey_bbuf = bb_alloc(params[1].memref.size);
+	if (!subkey_bbuf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
 	res = huk_subkey_derive(HUK_SUBKEY_UNIQUE_TA, data, data_len,
-				params[1].memref.buffer,
-				params[1].memref.size);
-	free_wipe(data);
+				subkey_bbuf, params[1].memref.size);
+	if (res)
+		goto out;
 
+	res = copy_to_user(params[1].memref.buffer, subkey_bbuf,
+			   params[1].memref.size);
+
+out:
+	bb_free(subkey_bbuf, params[1].memref.size);
+	free_wipe(data);
 	return res;
 }
 
@@ -304,11 +328,19 @@ static TEE_Result system_supp_plugin_invoke(uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t outlen = 0;
+	TEE_UUID uuid = { };
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_invoke_supp_plugin_rpc(params[0].memref.buffer, /* uuid */
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
+
+	res = tee_invoke_supp_plugin_rpc(&uuid,
 					 params[1].value.a, /* cmd */
 					 params[1].value.b, /* sub_cmd */
 					 params[2].memref.buffer, /* data */
