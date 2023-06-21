@@ -587,13 +587,25 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 				      struct tee_ta_param *p,
 				      struct utee_params *up)
 {
+	TEE_Result res = TEE_SUCCESS;
 	size_t n = 0;
-	uint32_t types = up->types;
+	uint64_t types = 0;
+	struct utee_params *up_bbuf = NULL;
+
+	up_bbuf = bb_alloc(sizeof(struct utee_params));
+	if (!up_bbuf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = copy_from_user(up_bbuf, up, sizeof(struct utee_params));
+	if (res)
+		goto out;
+
+	types = up_bbuf->types;
 
 	p->types = types;
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
-		uintptr_t a = up->vals[n * 2];
-		size_t b = up->vals[n * 2 + 1];
+		uintptr_t a = up_bbuf->vals[n * 2];
+		size_t b = up_bbuf->vals[n * 2 + 1];
 		uint32_t flags = TEE_MEMORY_ACCESS_READ |
 				 TEE_MEMORY_ACCESS_ANY_OWNER;
 
@@ -608,16 +620,19 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 
 			if (!p->u[n].mem.offs) {
 				/* Allow NULL memrefs if of size 0 */
-				if (p->u[n].mem.size)
-					return TEE_ERROR_BAD_PARAMETERS;
+				if (p->u[n].mem.size) {
+					res = TEE_ERROR_BAD_PARAMETERS;
+					goto out;
+				}
 				p->u[n].mem.mobj = NULL;
 				break;
 			}
 
 			p->u[n].mem.mobj = &mobj_virt;
 
-			if (vm_check_access_rights(&utc->uctx, flags, a, b))
-				return TEE_ERROR_ACCESS_DENIED;
+			res = vm_check_access_rights(&utc->uctx, flags, a, b);
+			if (res)
+				goto out;
 			break;
 		case TEE_PARAM_TYPE_VALUE_INPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
@@ -630,7 +645,9 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 		}
 	}
 
-	return TEE_SUCCESS;
+out:
+	bb_free(up_bbuf, sizeof(struct utee_params));
+	return res;
 }
 
 static TEE_Result alloc_temp_sec_mem(size_t size, struct mobj **mobj,
@@ -813,11 +830,15 @@ static TEE_Result tee_svc_update_out_param(
 		size_t tmp_buf_size[TEE_NUM_PARAMS],
 		struct utee_params *usr_param)
 {
-	size_t n;
+	size_t n = 0;
 	uint64_t *vals = usr_param->vals;
-	size_t sz = 0;
+	uint64_t sz = 0;
+	uint64_t in_sz = 0;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
+		TEE_Result res = TEE_SUCCESS;
+		uint64_t val_buf[2] = { };
+
 		switch (TEE_PARAM_TYPE_GET(param->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
@@ -828,10 +849,18 @@ static TEE_Result tee_svc_update_out_param(
 			 * size needs to be updated.
 			 */
 			sz = param->u[n].mem.size;
-			if (tmp_buf_va[n] && sz <= vals[n * 2 + 1]) {
+
+			res = GET_USER_SCALAR(in_sz, &vals[n * 2 + 1]);
+			if (res)
+				return res;
+
+			if (tmp_buf_va[n] && sz <= in_sz) {
 				void *src = tmp_buf_va[n];
-				void *dst = (void *)(uintptr_t)vals[n * 2];
-				TEE_Result res = TEE_SUCCESS;
+				uint64_t dst = 0;
+
+				res = GET_USER_SCALAR(dst, &vals[n * 2]);
+				if (res)
+					return res;
 
 				/*
 				 * TA is allowed to return a size larger than
@@ -840,18 +869,28 @@ static TEE_Result tee_svc_update_out_param(
 				 * API spec.
 				 */
 				if (sz <= tmp_buf_size[n]) {
-					res = copy_to_user(dst, src, sz);
+					res = copy_to_user((void *)(vaddr_t)dst,
+							   src, sz);
 					if (res != TEE_SUCCESS)
 						return res;
 				}
 			}
-			usr_param->vals[n * 2 + 1] = sz;
+			res = PUT_USER_SCALAR(sz, &usr_param->vals[n * 2 + 1]);
+			if (res)
+				return res;
+
 			break;
 
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
-			vals[n * 2] = param->u[n].val.a;
-			vals[n * 2 + 1] = param->u[n].val.b;
+			val_buf[0] = param->u[n].val.a;
+			val_buf[1] = param->u[n].val.b;
+
+			res = copy_to_user(&vals[n * 2], val_buf,
+					   2 * sizeof(uint64_t));
+			if (res)
+				return res;
+
 			break;
 
 		default:
