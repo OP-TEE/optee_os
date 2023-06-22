@@ -227,9 +227,12 @@ void interrupt_remove_handler(struct itr_handler *hdl)
 	SLIST_REMOVE(&hdl->chip->handlers, hdl, itr_handler, link);
 }
 
-TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t itr_num,
-				       itr_handler_t handler, uint32_t flags,
-				       void *data, struct itr_handler **out_hdl)
+TEE_Result interrupt_alloc_add_conf_handler(struct itr_chip *chip,
+					    size_t itr_num,
+					    itr_handler_t handler,
+					    uint32_t flags, void *data,
+					    uint32_t type, uint32_t prio,
+					    struct itr_handler **out_hdl)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct itr_handler *hdl = NULL;
@@ -240,7 +243,7 @@ TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t itr_num,
 
 	*hdl = ITR_HANDLER(chip, itr_num, flags, handler, data);
 
-	res = interrupt_add_handler(hdl);
+	res = interrupt_add_configure_handler(hdl, type, prio);
 	if (res) {
 		free(hdl);
 		return res;

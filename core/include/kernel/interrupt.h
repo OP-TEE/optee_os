@@ -316,6 +316,24 @@ static inline TEE_Result interrupt_add_handler_with_chip(struct itr_chip *chip,
 void interrupt_remove_handler(struct itr_handler *hdl);
 
 /*
+ * interrupt_alloc_add_conf_handler() - Allocate, configure, register a handler
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number
+ * @handler	Interrupt handler to register
+ * @flags	Bitmask flag ITRF_*
+ * @data	Private data reference passed to @handler
+ * @type	Interrupt trigger type (IRQ_TYPE_* defines) or IRQ_TYPE_NONE
+ * @prio	Interrupt priority or 0
+ * @out_hdl	NULL or output pointer to allocated struct itr_handler
+ */
+TEE_Result interrupt_alloc_add_conf_handler(struct itr_chip *chip,
+					    size_t it_num,
+					    itr_handler_t handler,
+					    uint32_t flags, void *data,
+					    uint32_t type, uint32_t prio,
+					    struct itr_handler **out_hdl);
+
+/*
  * interrupt_alloc_add_handler() - Allocate and register an interrupt handler
  * @chip	Interrupt controller
  * @itr_num	Interrupt number
@@ -324,16 +342,23 @@ void interrupt_remove_handler(struct itr_handler *hdl);
  * @data	Private data reference passed to @handler
  * @out_hdl	NULL or output pointer to allocated struct itr_handler
  */
-TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip, size_t it_num,
-				       itr_handler_t handler, uint32_t flags,
-				       void *data,
-				       struct itr_handler **out_hdl);
+static inline TEE_Result interrupt_alloc_add_handler(struct itr_chip *chip,
+						     size_t it_num,
+						     itr_handler_t handler,
+						     uint32_t flags,
+						     void *data,
+						     struct itr_handler **hdl)
+{
+	return interrupt_alloc_add_conf_handler(chip, it_num, handler, flags,
+						data, IRQ_TYPE_NONE, 0, hdl);
+}
 
 /*
  * interrupt_remove_free_handler() - Remove/free a registered interrupt handler
  * @hdl		Interrupt handler to remove and free
  *
- * This function is the counterpart of interrupt_alloc_add_handler().
+ * This function is the counterpart of interrupt_alloc_add_handler()
+ * and interrupt_alloc_add_conf_handler().
  * This function may panic on non-NULL invalid @hdl reference.
  */
 void interrupt_remove_free_handler(struct itr_handler *hdl);
