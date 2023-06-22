@@ -677,6 +677,20 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 				w3 = FFA_INVALID_PARAMETERS;
 		}
 		break;
+	case FFA_MSG_SEND_VM_DESTROYED:
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			uint16_t guest_id = args->a5;
+			TEE_Result res = virt_guest_destroyed(guest_id);
+
+			w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+			w1 = swap_src_dst(args->a1);
+			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_DESTROYED;
+			if (res == TEE_SUCCESS)
+				w3 = FFA_OK;
+			else
+				w3 = FFA_INVALID_PARAMETERS;
+		}
+		break;
 	case FFA_MSG_VERSION_REQ:
 		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
 		w1 = swap_src_dst(args->a1);
