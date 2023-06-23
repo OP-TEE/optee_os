@@ -616,16 +616,39 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
  * @otp_id: BSEC base index for the OTP words
  * @bit_offset: Bit offset in the OTP word
  * @bit_len: Bit size of the OTP word
+ * @phandle: Associated phandle in embedded DTB
  */
 struct nvmem_layout {
 	char *name;
 	uint32_t otp_id;
 	uint8_t bit_offset;
 	size_t bit_len;
+	uint32_t phandle;
 };
 
 static struct nvmem_layout *nvmem_layout;
 static size_t nvmem_layout_count;
+
+static TEE_Result stm32_bsec_otp_setting(size_t i,
+					 uint32_t *otp_id,
+					 uint8_t *otp_bit_offset,
+					 size_t *otp_bit_len)
+{
+	if (otp_id)
+		*otp_id = nvmem_layout[i].otp_id;
+
+	if (otp_bit_offset)
+		*otp_bit_offset = nvmem_layout[i].bit_offset;
+
+	if (otp_bit_len)
+		*otp_bit_len = nvmem_layout[i].bit_len;
+
+	DMSG("nvmem[%zu] = %s at BSEC word %" PRIu32 " bits [%" PRIu8 " %zu]",
+	     i, nvmem_layout[i].name, nvmem_layout[i].otp_id,
+	     nvmem_layout[i].bit_offset, nvmem_layout[i].bit_len);
+
+	return TEE_SUCCESS;
+}
 
 TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 					       uint32_t *otp_id,
@@ -641,24 +664,34 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 		if (!nvmem_layout[i].name || strcmp(name, nvmem_layout[i].name))
 			continue;
 
-		if (otp_id)
-			*otp_id = nvmem_layout[i].otp_id;
-
-		if (otp_bit_offset)
-			*otp_bit_offset = nvmem_layout[i].bit_offset;
-
-		if (otp_bit_len)
-			*otp_bit_len = nvmem_layout[i].bit_len;
-
-		DMSG("nvmem[%d] = %s at BSEC word %" PRIu32
-		     " bits [%" PRIu8 " %zu]",
-		     i, name, nvmem_layout[i].otp_id,
-		     nvmem_layout[i].bit_offset, nvmem_layout[i].bit_len);
-
-		return TEE_SUCCESS;
+		return stm32_bsec_otp_setting(i, otp_id, otp_bit_offset,
+					      otp_bit_len);
 	}
 
 	DMSG("nvmem %s failed", name);
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
+					  uint32_t *otp_id,
+					  uint8_t *otp_bit_offset,
+					  size_t *otp_bit_len)
+{
+	size_t i = 0;
+
+	if (!phandle)
+		return TEE_ERROR_GENERIC;
+
+	for (i = 0; i < nvmem_layout_count; i++) {
+		if (nvmem_layout[i].phandle != phandle)
+			continue;
+
+		return stm32_bsec_otp_setting(i, otp_id, otp_bit_offset,
+					      otp_bit_len);
+	}
+
+	DMSG("nvmem %u not found", phandle);
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
@@ -815,6 +848,9 @@ static void save_dt_nvmem_layout(void *fdt, int bsec_node)
 		string = fdt_get_name(fdt, node, &len);
 		if (!string || !len)
 			continue;
+
+		layout_cell->phandle = fdt_get_phandle(fdt, node);
+		assert(layout_cell->phandle != (uint32_t)-1);
 
 		reg_offset = fdt_reg_base_address(fdt, node);
 		reg_length = fdt_reg_size(fdt, node);
