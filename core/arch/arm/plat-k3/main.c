@@ -49,6 +49,17 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
+static TEE_Result console_runtime(void)
+{
+	/* Console is only used for errors after this point */
+	if (IS_ENABLED(CFG_CONSOLE_RUNTIME))
+		trace_set_level(TRACE_ERROR);
+
+	return TEE_SUCCESS;
+}
+
+boot_final(console_runtime);
+
 static TEE_Result init_ti_sci(void)
 {
 	TEE_Result ret = TEE_SUCCESS;
