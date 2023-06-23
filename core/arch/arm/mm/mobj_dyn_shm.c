@@ -184,20 +184,10 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 	uint32_t exceptions = 0;
 	size_t sz = 0;
 
-	while (true) {
-		if (refcount_inc(&r->mapcount))
-			return TEE_SUCCESS;
+	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
 
-		exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
-
-		if (!refcount_val(&r->mapcount))
-			break; /* continue to reinitialize */
-		/*
-		 * If another thread beat us to initialize mapcount,
-		 * restart to make sure we still increase it.
-		 */
-		cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
-	}
+	if (refcount_inc(&r->mapcount))
+		goto out;
 
 	/*
 	 * If we have beated another thread calling mobj_reg_shm_dec_map()
@@ -233,14 +223,15 @@ static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 	struct mobj_reg_shm *r = to_mobj_reg_shm(mobj);
 	uint32_t exceptions = 0;
 
-	if (!refcount_dec(&r->mapcount))
-		return TEE_SUCCESS;
-
 	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	if (!refcount_dec(&r->mapcount))
+		goto out;
 
 	if (!refcount_val(&r->mapcount))
 		reg_shm_unmap_helper(r);
 
+out:
 	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
 
 	return TEE_SUCCESS;
