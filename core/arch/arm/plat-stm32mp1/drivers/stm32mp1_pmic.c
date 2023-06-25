@@ -3,7 +3,9 @@
  * Copyright (c) 2017-2023, STMicroelectronics
  */
 
+#include <assert.h>
 #include <drivers/i2c.h>
+#include <drivers/regulator.h>
 #include <drivers/stm32_i2c.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stpmic1.h>
@@ -32,6 +34,24 @@
 
 #define PMIC_REGU_COUNT			14
 
+enum {
+	PMIC_REGU_FLAG_MASK_RESET = 0,
+	PMIC_REGU_FLAG_COUNT
+};
+
+static_assert(IS_ENABLED(CFG_DRIVERS_REGULATOR));
+static_assert(PMIC_REGU_FLAG_COUNT <= UINT_MAX);
+
+/*
+ * struct pmic_regulator_data - Platform specific data
+ * @flags: Flags for platform property to apply
+ * @regu_name: Regulator name ID in stpmic1 driver
+ */
+struct pmic_regulator_data {
+	unsigned int flags;
+	char *regu_name;
+};
+
 /* Expect a single PMIC instance */
 static struct i2c_handle_s *i2c_handle;
 static uint32_t pmic_i2c_addr;
@@ -56,104 +76,18 @@ static bool dt_pmic_is_secure(void)
 	       i2c_handle->dt_status == DT_STATUS_OK_SEC;
 }
 
-/*
- * struct regu_bo_config - Boot on configuration for a regulator
- * @flags: Operations expected when entering a low power sequence
- * @cfg: Boot-on configuration to apply during low power sequences
- */
-struct regu_bo_config {
-	uint8_t flags;
-	struct stpmic1_bo_cfg cfg;
-};
-
-#define REGU_BO_FLAG_ENABLE_REGU		BIT(0)
-#define REGU_BO_FLAG_SET_VOLTAGE		BIT(1)
-#define REGU_BO_FLAG_PULL_DOWN			BIT(2)
-#define REGU_BO_FLAG_MASK_RESET			BIT(3)
-
-static struct regu_bo_config *regu_bo_config;
-static size_t regu_bo_count;
-
-/* boot-on mandatory? if so: caller panic() on error status */
-static void dt_get_regu_boot_on_config(const void *fdt, const char *regu_name,
-				       int regu_node)
+static void priv_dt_properties(const void *fdt, int regu_node,
+			       struct pmic_regulator_data *priv)
 {
-	const fdt32_t *cuint = NULL;
-	struct regu_bo_config regu_cfg = { };
-	uint16_t mv = 0;
+	const char *name = fdt_get_name(fdt, regu_node, NULL);
 
-	if ((!fdt_getprop(fdt, regu_node, "regulator-boot-on", NULL)) &&
-	    (!fdt_getprop(fdt, regu_node, "regulator-always-on", NULL)))
-		return;
-
-	regu_cfg.flags |= REGU_BO_FLAG_ENABLE_REGU;
-	if (stpmic1_bo_enable_cfg(regu_name, &regu_cfg.cfg)) {
-		EMSG("PMIC regulator %s not supported", regu_name);
-		panic();
-	}
-
-	if (fdt_getprop(fdt, regu_node, "regulator-pull-down", NULL)) {
-		if (stpmic1_bo_pull_down_cfg(regu_name, &regu_cfg.cfg)) {
-			DMSG("No pull down mode for regu %s", regu_name);
-			panic();
-		}
-		regu_cfg.flags |= REGU_BO_FLAG_PULL_DOWN;
-	}
-
-	if (fdt_getprop(fdt, regu_node, "st,mask-reset", NULL)) {
-		if (stpmic1_bo_mask_reset_cfg(regu_name, &regu_cfg.cfg)) {
-			DMSG("No reset mode for regu %s", regu_name);
-			panic();
-		}
-		regu_cfg.flags |= REGU_BO_FLAG_MASK_RESET;
-	}
-
-	cuint = fdt_getprop(fdt, regu_node,
-			    "regulator-min-microvolt", NULL);
-	if (cuint) {
-		/* DT uses microvolts and driver awaits millivolts */
-		mv = fdt32_to_cpu(*cuint) / 1000;
-
-		if (stpmic1_bo_voltage_cfg(regu_name, mv, &regu_cfg.cfg))
-			DMSG("Ignore regulator-min-microvolt for %s",
-			     regu_name);
-		else
-			regu_cfg.flags |= REGU_BO_FLAG_SET_VOLTAGE;
-	}
-
-	/* Save config in the Boot On configuration list */
-	regu_bo_count++;
-	regu_bo_config = realloc(regu_bo_config,
-				 regu_bo_count * sizeof(regu_cfg));
-	if (!regu_bo_config)
+	assert(name);
+	priv->regu_name = strdup(name);
+	if (!priv->regu_name)
 		panic();
 
-	regu_bo_config[regu_bo_count - 1] = regu_cfg;
-}
-
-void stm32mp_pmic_apply_boot_on_config(void)
-{
-	size_t i = 0;
-
-	for (i = 0; i < regu_bo_count; i++) {
-		struct regu_bo_config *regu_cfg = &regu_bo_config[i];
-
-		if (regu_cfg->flags & REGU_BO_FLAG_SET_VOLTAGE)
-			if (stpmic1_bo_voltage_unpg(&regu_cfg->cfg))
-				panic();
-
-		if (regu_cfg->flags & REGU_BO_FLAG_ENABLE_REGU)
-			if (stpmic1_bo_enable_unpg(&regu_cfg->cfg))
-				panic();
-
-		if (regu_cfg->flags & REGU_BO_FLAG_PULL_DOWN)
-			if (stpmic1_bo_pull_down_unpg(&regu_cfg->cfg))
-				panic();
-
-		if (regu_cfg->flags & REGU_BO_FLAG_MASK_RESET)
-			if (stpmic1_bo_mask_reset_unpg(&regu_cfg->cfg))
-				panic();
-	}
+	if (fdt_getprop(fdt, regu_node, "st,mask-reset", NULL))
+		priv->flags |= PMIC_REGU_FLAG_MASK_RESET;
 }
 
 /*
@@ -383,13 +317,195 @@ static void register_nsec_regu(const char *name_ref)
 	assert(stm32mp_nsec_can_access_pmic_regu(name_ref));
 }
 
+static TEE_Result pmic_set_state(struct regulator *regulator, bool enable)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+	int ret = 0;
+
+	stm32mp_get_pmic();
+
+	if (enable)
+		ret = stpmic1_regulator_enable(priv->regu_name);
+	else
+		ret = stpmic1_regulator_disable(priv->regu_name);
+
+	stm32mp_put_pmic();
+
+	if (ret)
+		return TEE_ERROR_GENERIC;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_get_state(struct regulator *regulator, bool *enabled)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+
+	stm32mp_get_pmic();
+	*enabled = stpmic1_is_regulator_enabled(priv->regu_name);
+	stm32mp_put_pmic();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_get_voltage(struct regulator *regulator, int *level_uv)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+	int rc = 0;
+
+	stm32mp_get_pmic();
+	rc = stpmic1_regulator_voltage_get(priv->regu_name);
+	stm32mp_put_pmic();
+
+	if (rc < 0)
+		return TEE_ERROR_GENERIC;
+
+	*level_uv = rc * 1000;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_set_voltage(struct regulator *regulator, int level_uv)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+	unsigned int level_mv = level_uv / 1000;
+	int rc = 0;
+
+	if (level_mv > UINT16_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	stm32mp_get_pmic();
+	rc = stpmic1_regulator_voltage_set(priv->regu_name, level_mv);
+	stm32mp_put_pmic();
+
+	if (rc)
+		return TEE_ERROR_GENERIC;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_regu_init(struct regulator *regulator,
+				 const void *fdt __unused, int node __unused)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+	struct stpmic1_bo_cfg cfg = { };
+
+	if (!priv->flags)
+		return TEE_SUCCESS;
+
+	stm32mp_get_pmic();
+
+	if (priv->flags & PMIC_REGU_FLAG_MASK_RESET) {
+		if (stpmic1_bo_mask_reset_cfg(priv->regu_name, &cfg) ||
+		    stpmic1_bo_mask_reset_unpg(&cfg)) {
+			EMSG("Mask reset failed for %s", priv->regu_name);
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	if (regulator->flags & REGULATOR_PULL_DOWN) {
+		if (stpmic1_bo_pull_down_cfg(priv->regu_name, &cfg) ||
+		    stpmic1_bo_pull_down_unpg(&cfg)) {
+			EMSG("Pull down failed for %s", priv->regu_name);
+			return TEE_ERROR_GENERIC;
+		}
+	}
+
+	stm32mp_put_pmic();
+
+	return TEE_SUCCESS;
+}
+
+static const struct regulator_ops pmic_regu_ops = {
+	.set_state = pmic_set_state,
+	.get_state = pmic_get_state,
+	.set_voltage = pmic_set_voltage,
+	.get_voltage = pmic_get_voltage,
+	.supplied_init = pmic_regu_init,
+};
+DECLARE_KEEP_PAGER(pmic_regu_ops);
+
+static const struct regulator_ops pmic_sw_ops = {
+	.set_state = pmic_set_state,
+	.get_state = pmic_get_state,
+	.supplied_init = pmic_regu_init,
+};
+DECLARE_KEEP_PAGER(pmic_sw_ops);
+
+/*
+ * STPMIC1 regulator names, used in the DT as regulator node name and
+ * provider node <name>-supply property,
+ */
+static const char * const pmic_regu_name_ids[] = {
+	"buck1", "buck2", "buck3", "buck4",
+	"ldo1", "ldo2", "ldo3", "ldo4", "ldo5", "ldo6",
+	"vref_ddr", "boost", "pwr_sw1", "pwr_sw2"
+};
+
+/* Preallocated regulator instances */
+static struct regulator pmic_regulators[ARRAY_SIZE(pmic_regu_name_ids)];
+static struct pmic_regulator_data pmic_regu_cfg[ARRAY_SIZE(pmic_regu_name_ids)];
+
+struct regulator *stm32mp_pmic_get_regulator(const char *name)
+{
+	size_t i = 0;
+
+	if (!name)
+		return NULL;
+
+	for (i = 0; i < ARRAY_SIZE(pmic_regu_name_ids); i++)
+		if (!strcmp(pmic_regu_name_ids[i], name) &&
+		    pmic_regulators[i].ops)
+			return pmic_regulators + i;
+
+	return NULL;
+}
+
+static TEE_Result register_pmic_regulator(const void *fdt,
+					  const char *regu_name, int regu_node,
+					  int regulators_node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct regu_dt_desc desc = { };
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(pmic_regu_name_ids); i++)
+		if (!strcmp(pmic_regu_name_ids[i], regu_name))
+			break;
+	if (i >= ARRAY_SIZE(pmic_regu_name_ids)) {
+		EMSG("Unknown regulator name %s", regu_name);
+		panic();
+	}
+
+	desc = (struct regu_dt_desc){
+		.name = pmic_regu_name_ids[i],
+		.supply_name = pmic_regu_name_ids[i],
+		.regulator = pmic_regulators + i,
+		.priv = pmic_regu_cfg + i,
+	};
+
+	priv_dt_properties(fdt, regu_node, pmic_regu_cfg + i);
+
+	/*
+	 * pwr_sw1 and pwr_sw2 are regulator switches hence have no
+	 * set_voltage.get_voltage handler.
+	 */
+	if (!strncmp(regu_name, "pwr_sw", 6))
+		desc.ops = &pmic_sw_ops;
+	else
+		desc.ops = &pmic_regu_ops;
+
+	res = regulator_dt_register(fdt, regu_node, regulators_node, &desc);
+	if (res)
+		EMSG("Failed to register %s, error: %#"PRIx32, regu_name, res);
+
+	return res;
+}
+
 static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 {
 	int regulators_node = 0;
 	int regu_node = 0;
-
-	/* Expected called once */
-	assert(!regu_bo_config && !regu_bo_count);
 
 	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
 	if (regulators_node < 0)
@@ -400,6 +516,7 @@ static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 		const char *regu_name = NULL;
 		size_t n = 0;
 
+		assert(status >= 0);
 		if (status == DT_STATUS_DISABLED)
 			continue;
 
@@ -410,11 +527,13 @@ static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 		if (status & DT_STATUS_OK_NSEC)
 			register_nsec_regu(regu_name);
 
-		dt_get_regu_boot_on_config(fdt, regu_name, regu_node);
-
 		for (n = 0; n < ARRAY_SIZE(regu_lp_state); n++)
 			dt_get_regu_low_power_config(fdt, regu_name, regu_node,
 						     regu_lp_state[n].name);
+
+		if (register_pmic_regulator(fdt, regu_name, regu_node,
+					    regulators_node))
+			panic();
 	}
 
 	if (save_cpu_supply_name())
@@ -518,7 +637,7 @@ static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 		panic("Failed to access PMIC");
 
 	DMSG("PMIC version = 0x%02lx", pmic_version);
-	stpmic1_dump_regulators();
+	stm32mp_put_pmic();
 
 	if (dt_pmic_is_secure())
 		register_secure_pmic();
@@ -526,8 +645,6 @@ static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 		register_non_secure_pmic();
 
 	parse_regulator_fdt_nodes(fdt, pmic_node);
-
-	stm32mp_put_pmic();
 
 	return TEE_SUCCESS;
 }
