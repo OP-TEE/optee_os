@@ -221,31 +221,6 @@ _CFG_CORE_LTC_SHA3_ACCEL := $(CFG_CORE_CRYPTO_SHA3_ACCEL)
 endif
 
 ###############################################################
-# mbedtls specifics
-###############################################################
-
-ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
-# mbedtls has to be complemented with some algorithms by LTC
-# Specify the algorithms here
-_CFG_CORE_LTC_DSA := $(CFG_CRYPTO_DSA)
-_CFG_CORE_LTC_MPI := $(CFG_CRYPTO_DSA)
-_CFG_CORE_LTC_SHA256_DESC := $(CFG_CRYPTO_DSA)
-_CFG_CORE_LTC_SHA384_DESC := $(CFG_CRYPTO_DSA)
-_CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
-_CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
-_CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
-_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
-_CFG_CORE_LTC_X25519 := $(CFG_CRYPTO_X25519)
-_CFG_CORE_LTC_ED25519 := $(CFG_CRYPTO_ED25519)
-_CFG_CORE_LTC_SHA3_224 := $(CFG_CRYPTO_SHA3_224)
-_CFG_CORE_LTC_SHA3_256 := $(CFG_CRYPTO_SHA3_256)
-_CFG_CORE_LTC_SHA3_384 := $(CFG_CRYPTO_SHA3_384)
-_CFG_CORE_LTC_SHA3_512 := $(CFG_CRYPTO_SHA3_512)
-_CFG_CORE_LTC_SHAKE128 := $(CFG_CRYPTO_SHAKE128)
-_CFG_CORE_LTC_SHAKE256 := $(CFG_CRYPTO_SHAKE256)
-endif
-
-###############################################################
 # libtomcrypt (LTC) specifics, phase #2
 ###############################################################
 
