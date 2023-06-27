@@ -79,7 +79,7 @@ include core/core.mk
 
 # Platform/arch config is supposed to assign the targets
 ta-targets ?= invalid
-default-user-ta-target ?= $(firstword $(ta-targets))
+$(call force,default-user-ta-target,$(firstword $(ta-targets)))
 
 ifeq ($(CFG_WITH_USER_TA),y)
 include ldelf/ldelf.mk
