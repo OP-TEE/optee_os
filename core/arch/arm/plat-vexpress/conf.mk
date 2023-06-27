@@ -23,7 +23,7 @@ endif #juno
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 CFG_ARM64_core ?= y
-default-user-ta-target ?= ta_arm64
+supported-ta-targets ?= ta_arm64 ta_arm32
 endif
 
 
