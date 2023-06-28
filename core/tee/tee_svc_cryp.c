@@ -4257,14 +4257,14 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 				if (params[n].content.ref.length !=
 				    sizeof(hash)) {
 					res = TEE_ERROR_BAD_PARAMETERS;
-					break;
+					goto out;
 				}
 				memcpy(&hash, params[n].content.ref.buffer,
 				       sizeof(hash));
 				if (hash !=
 				    TEE_INTERNAL_HASH_TO_ALGO(cs->algo)) {
 					res = TEE_ERROR_NOT_SUPPORTED;
-					break;
+					goto out;
 				}
 			}
 		}
