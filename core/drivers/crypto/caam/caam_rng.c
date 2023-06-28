@@ -567,6 +567,27 @@ enum caam_status caam_rng_init(vaddr_t ctrl_addr)
 }
 
 #ifdef CFG_NXP_CAAM_RNG_DRV
+#ifdef CFG_WITH_SOFTWARE_PRNG
+void plat_rng_init(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t buf[64] = { };
+
+	res = do_rng_read(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to read RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	RNG_TRACE("PRNG seeded from CAAM");
+}
+#else /* !CFG_WITH_SOFTWARE_PRNG */
 TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 {
 	if (!buf)
@@ -578,4 +599,5 @@ TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 void plat_rng_init(void)
 {
 }
-#endif
+#endif /* CFG_WITH_SOFTWARE_PRNG */
+#endif /* CFG_NXP_CAAM_RNG_DRV */
