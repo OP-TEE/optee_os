@@ -143,9 +143,9 @@ CFG_CAAM_JR_DISABLE_NODE ?= y
 # Enable CAAM non-crypto drivers
 $(foreach drv, $(caam-drivers), $(eval CFG_NXP_CAAM_$(drv)_DRV ?= y))
 
-# Disable software RNG if CAAM RNG driver is enabled
+# Prefer CAAM HWRNG over PRNG seeded by CAAM
 ifeq ($(CFG_NXP_CAAM_RNG_DRV), y)
-$(call force, CFG_WITH_SOFTWARE_PRNG,n,Mandated by CFG_NXP_CAAM_RNG_DRV)
+CFG_WITH_SOFTWARE_PRNG ?= n
 endif
 
 # DEK driver requires the SM driver to be enabled
