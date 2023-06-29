@@ -465,13 +465,13 @@ int32_t plat_scmi_clock_set_state(unsigned int channel_id, unsigned int scmi_id,
 
 	if (enable_not_disable) {
 		if (!clock->enabled) {
-			DMSG("SCMI clock %u enable", scmi_id);
+			FMSG("SCMI clock %u enable", scmi_id);
 			clk_enable(clock->clk);
 			clock->enabled = true;
 		}
 	} else {
 		if (clock->enabled) {
-			DMSG("SCMI clock %u disable", scmi_id);
+			FMSG("SCMI clock %u disable", scmi_id);
 			clk_disable(clock->clk);
 			clock->enabled = false;
 		}
@@ -539,7 +539,7 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	if (state)
 		return SCMI_NOT_SUPPORTED;
 
-	DMSG("SCMI reset %u cycle", scmi_id);
+	FMSG("SCMI reset %u cycle", scmi_id);
 
 	if (rstctrl_assert_to(rd->rstctrl, TIMEOUT_US_1MS))
 		return SCMI_HARDWARE_ERROR;
@@ -564,10 +564,10 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 	assert(rd->rstctrl);
 
 	if (assert_not_deassert) {
-		DMSG("SCMI reset %u set", scmi_id);
+		FMSG("SCMI reset %u set", scmi_id);
 		res = rstctrl_assert(rd->rstctrl);
 	} else {
-		DMSG("SCMI reset %u release", scmi_id);
+		FMSG("SCMI reset %u release", scmi_id);
 		res = rstctrl_deassert(rd->rstctrl);
 	}
 
@@ -679,7 +679,7 @@ static void pwr_set_state(struct stm32_scmi_voltd *voltd, bool enable)
 {
 	enum pwr_regulator regu_id = pwr_scmi_to_regu_id(voltd);
 
-	DMSG("%sable PWR %s (was %s)", enable ? "En" : "Dis", voltd->name,
+	FMSG("%sable PWR %s (was %s)", enable ? "En" : "Dis", voltd->name,
 	     stm32mp1_pwr_regulator_is_enabled(regu_id) ? "on" : "off");
 
 	stm32mp1_pwr_regulator_set_state(regu_id, enable);
@@ -747,7 +747,7 @@ static int32_t pmic_set_level(struct stm32_scmi_voltd *voltd, long level_uv)
 
 	level_mv = (unsigned int)level_uv / 1000;
 
-	DMSG("Set STPMIC1 regulator %s level to %dmV", voltd->name, level_mv);
+	FMSG("Set STPMIC1 regulator %s level to %dmV", voltd->name, level_mv);
 
 	stm32mp_get_pmic();
 	rc = stpmic1_regulator_voltage_set(voltd->priv_id, level_mv);
@@ -782,7 +782,7 @@ static int32_t pmic_set_state(struct stm32_scmi_voltd *voltd, bool enable)
 
 	stm32mp_get_pmic();
 
-	DMSG("%sable STPMIC1 %s (was %s)", enable ? "En" : "Dis", voltd->name,
+	FMSG("%sable STPMIC1 %s (was %s)", enable ? "En" : "Dis", voltd->name,
 	     stpmic1_is_regulator_enabled(voltd->priv_id) ? "on" : "off");
 
 	if (enable)
