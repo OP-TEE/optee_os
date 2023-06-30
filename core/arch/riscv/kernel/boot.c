@@ -43,6 +43,43 @@ static struct dt_descriptor external_dt __nex_bss;
 #endif
 
 #if defined(CFG_DT)
+void *get_external_dt(void)
+{
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
+	assert(cpu_mmu_enabled());
+	return external_dt.blob;
+}
+
+static TEE_Result release_external_dt(void)
+{
+	int ret = 0;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return TEE_SUCCESS;
+
+	if (!external_dt.blob)
+		return TEE_SUCCESS;
+
+	ret = fdt_pack(external_dt.blob);
+	if (ret < 0) {
+		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
+		     virt_to_phys(external_dt.blob), ret);
+		panic();
+	}
+
+	if (core_mmu_remove_mapping(MEM_AREA_EXT_DT, external_dt.blob,
+				    CFG_DTB_MAX_SIZE))
+		panic("Failed to remove temporary Device Tree mapping");
+
+	/* External DTB no more reached, reset pointer to invalid */
+	external_dt.blob = NULL;
+
+	return TEE_SUCCESS;
+}
+boot_final(release_external_dt);
+
 #ifdef _CFG_USE_DTB_OVERLAY
 static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 {
@@ -122,6 +159,11 @@ static void update_external_dt(void)
 
 }
 #else /*CFG_DT*/
+void *get_external_dt(void)
+{
+	return NULL;
+}
+
 static void init_external_dt(unsigned long phys_dt __unused)
 {
 }
