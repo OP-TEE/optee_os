@@ -126,6 +126,26 @@ static TEE_Result release_external_dt(void)
 boot_final(release_external_dt);
 
 #ifdef _CFG_USE_DTB_OVERLAY
+static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
+{
+	char frag[32];
+	int offs;
+	int ret;
+
+	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	offs = fdt_add_subnode(dt->blob, ioffs, frag);
+	if (offs < 0)
+		return offs;
+
+	dt->frag_id += 1;
+
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
+	if (ret < 0)
+		return -1;
+
+	return fdt_add_subnode(dt->blob, offs, "__overlay__");
+}
+
 static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 {
 	int fragment;
@@ -141,12 +161,115 @@ static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 	return fdt_create_empty_tree(dt->blob, dt_size);
 }
 #else
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
+{
+	return offs;
+}
+
 static int init_dt_overlay(struct dt_descriptor *dt __unused,
 			   int dt_size __unused)
 {
 	return 0;
 }
 #endif /* _CFG_USE_DTB_OVERLAY */
+
+static int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
+			       const char *subnode)
+{
+	int offs;
+
+	offs = fdt_path_offset(dt->blob, path);
+	if (offs < 0)
+		return -1;
+	offs = add_dt_overlay_fragment(dt, offs);
+	if (offs < 0)
+		return -1;
+	offs = fdt_add_subnode(dt->blob, offs, subnode);
+	if (offs < 0)
+		return -1;
+	return offs;
+}
+
+static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
+{
+	if (cell_size == 1) {
+		fdt32_t v = cpu_to_fdt32((uint32_t)val);
+
+		memcpy(data, &v, sizeof(v));
+	} else {
+		fdt64_t v = cpu_to_fdt64(val);
+
+		memcpy(data, &v, sizeof(v));
+	}
+}
+
+static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
+			       paddr_t pa, size_t size)
+{
+	int offs = 0;
+	int ret = 0;
+	int addr_size = -1;
+	int len_size = -1;
+	bool found = true;
+	char subnode_name[80] = { 0 };
+
+	offs = fdt_path_offset(dt->blob, "/reserved-memory");
+
+	if (offs < 0) {
+		found = false;
+		offs = 0;
+	}
+
+	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
+		len_size = sizeof(paddr_t) / sizeof(uint32_t);
+		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+	} else {
+		len_size = fdt_size_cells(dt->blob, offs);
+		if (len_size < 0)
+			return -1;
+		addr_size = fdt_address_cells(dt->blob, offs);
+		if (addr_size < 0)
+			return -1;
+	}
+
+	if (!found) {
+		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
+		if (offs < 0)
+			return -1;
+		ret = fdt_setprop_cell(dt->blob, offs, "#address-cells",
+				       addr_size);
+		if (ret < 0)
+			return -1;
+		ret = fdt_setprop_cell(dt->blob, offs, "#size-cells", len_size);
+		if (ret < 0)
+			return -1;
+		ret = fdt_setprop(dt->blob, offs, "ranges", NULL, 0);
+		if (ret < 0)
+			return -1;
+	}
+
+	ret = snprintf(subnode_name, sizeof(subnode_name),
+		       "%s@%" PRIxPA, name, pa);
+	if (ret < 0 || ret >= (int)sizeof(subnode_name))
+		DMSG("truncated node \"%s@%" PRIxPA"\"", name, pa);
+	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
+	if (offs >= 0) {
+		uint32_t data[FDT_MAX_NCELLS * 2];
+
+		set_dt_val(data, addr_size, pa);
+		set_dt_val(data + addr_size, len_size, size);
+		ret = fdt_setprop(dt->blob, offs, "reg", data,
+				  sizeof(uint32_t) * (addr_size + len_size));
+		if (ret < 0)
+			return -1;
+		ret = fdt_setprop(dt->blob, offs, "no-map", NULL, 0);
+		if (ret < 0)
+			return -1;
+	} else {
+		return -1;
+	}
+	return 0;
+}
 
 static void init_external_dt(unsigned long phys_dt)
 {
@@ -192,6 +315,12 @@ static void init_external_dt(unsigned long phys_dt)
 	IMSG("Non-secure external DT found");
 }
 
+static int mark_tddram_as_reserved(struct dt_descriptor *dt)
+{
+	return add_res_mem_dt_node(dt, "optee_core", CFG_TDDRAM_START,
+				   CFG_TDDRAM_SIZE);
+}
+
 static void update_external_dt(void)
 {
 	struct dt_descriptor *dt = &external_dt;
@@ -202,6 +331,8 @@ static void update_external_dt(void)
 	if (!dt->blob)
 		return;
 
+	if (mark_tddram_as_reserved(dt))
+		panic("Failed to config secure memory");
 }
 #else /*CFG_DT*/
 void *get_external_dt(void)
