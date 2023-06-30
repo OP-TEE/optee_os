@@ -42,6 +42,31 @@ struct dt_descriptor {
 static struct dt_descriptor external_dt __nex_bss;
 #endif
 
+#if defined(CFG_EMBED_DTB)
+void *get_embedded_dt(void)
+{
+	static bool checked;
+
+	assert(cpu_mmu_enabled());
+
+	if (!checked) {
+		IMSG("Embedded DTB found");
+
+		if (fdt_check_header(embedded_secure_dtb))
+			panic("Invalid embedded DTB");
+
+		checked = true;
+	}
+
+	return embedded_secure_dtb;
+}
+#else
+void *get_embedded_dt(void)
+{
+	return NULL;
+}
+#endif /*CFG_EMBED_DTB*/
+
 #if defined(CFG_DT)
 void *get_external_dt(void)
 {
