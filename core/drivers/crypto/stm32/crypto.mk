@@ -10,7 +10,7 @@ ifeq ($(CFG_STM32_CRYPTO_DRIVER),y)
 $(call force,CFG_CRYPTO_DRIVER,y)
 CFG_CRYPTO_DRIVER_DEBUG ?= 0
 
-ifeq ($(CFG_STM32_CRYP),y)
+ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_SAES),y)
 $(call force,CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_STM32_CRYP)
 endif
 
