@@ -123,6 +123,14 @@
 .endm
 
 FUNC _start , :
+	/*
+	 * Register use:
+	 * a0	- if non-NULL holds the hart ID
+	 * a1	- if non-NULL holds the system DTB address
+	 *
+	 * CSR_XSCRATCH - saved a0
+	 * s1 - saved a1
+	 */
 .option push
 .option norelax
 	la	gp, __global_pointer$
@@ -131,6 +139,11 @@ FUNC _start , :
 	csrr	a0, CSR_MHARTID
 #endif
 	csrw	CSR_XSCRATCH, a0
+#if defined(CFG_DT_ADDR)
+	li	s1, CFG_DT_ADDR
+#else
+	mv	s1, a1		/* Save DT address */
+#endif
 	bnez	a0, reset_secondary
 	jal	reset_primary
 	j	.
@@ -188,6 +201,8 @@ UNWIND(	.cantunwind)
 	mv	s3, a0
 	STR	x0, THREAD_CORE_LOCAL_FLAGS(s3)
 
+	mv	a0, s1		/* DT address */
+	mv	a1, x0		/* unused */
 	jal	boot_init_primary_late
 
 	/*
