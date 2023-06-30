@@ -87,7 +87,7 @@ static TEE_Result platform_banner(void)
 	return TEE_SUCCESS;
 }
 
-#if defined(CFG_RPMB_FS)
+#if defined(CFG_RPMB_FS) && !defined(CFG_RPMB_TESTKEY)
 bool plat_rpmb_key_is_ready(void)
 {
 	vaddr_t plm_rtca = (vaddr_t)phys_to_virt(PLM_RTCA, MEM_AREA_IO_SEC,
