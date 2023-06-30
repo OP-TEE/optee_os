@@ -17,20 +17,32 @@
 /* IPI targets */
 #define IPI_ID_PMC	1
 #define IPI_ID_0	2
-#define IPI_ID_RPU0	3
-#define IPI_ID_RPU1	4
+#define IPI_ID_1	3
+#define IPI_ID_2	4
 #define IPI_ID_3	5
 #define IPI_ID_4	6
 #define IPI_ID_5	7
 
 /* Buffers */
+#if defined(PLATFORM_FLAVOR_net)
+#define IPI_BUFFER_BASEADDR		0xEB3F0000
+#else
 #define IPI_BUFFER_BASEADDR		0xFF3F0000
+#endif
+#define IPI_BUFFER_PMC_BASE		(IPI_BUFFER_BASEADDR + 0x200)
 #define IPI_BUFFER_APU_ID_0_BASE	(IPI_BUFFER_BASEADDR + 0x400)
+#define IPI_BUFFER_APU_ID_1_BASE	(IPI_BUFFER_BASEADDR + 0x600)
+#define IPI_BUFFER_APU_ID_2_BASE	(IPI_BUFFER_BASEADDR + 0x800)
 #define IPI_BUFFER_APU_ID_3_BASE	(IPI_BUFFER_BASEADDR + 0xA00)
 #define IPI_BUFFER_APU_ID_4_BASE	(IPI_BUFFER_BASEADDR + 0xC00)
 #define IPI_BUFFER_APU_ID_5_BASE	(IPI_BUFFER_BASEADDR + 0xE00)
-#define IPI_BUFFER_PMC_BASE		(IPI_BUFFER_BASEADDR + 0x200)
+
+#if defined(PLATFORM_FLAVOR_net)
+#define IPI_BUFFER_TARGET_APU_OFFSET	0x1C0
+#else
 #define IPI_BUFFER_TARGET_APU_OFFSET	0x80
+#endif
+
 #define IPI_BUFFER_TARGET_PMC_OFFSET	0x40
 #define IPI_BUFFER_REQ_OFFSET		0x0
 #define IPI_BUFFER_RESP_OFFSET		0x20
@@ -61,9 +73,9 @@ static struct versal_ipi {
 	void *rsp;
 	void *req;
 } ipi = {
-	.buf = IPI_BUFFER_APU_ID_3_BASE,
+	.buf = IPI_BUFFER_APU_ID_5_BASE,
 	.rmt = IPI_ID_PMC,
-	.lcl = IPI_ID_3,
+	.lcl = IPI_ID_5,
 };
 
 static const char *const nvm_id[] = {
@@ -344,7 +356,17 @@ static TEE_Result versal_mbox_init(void)
 		ipi.buf = IPI_BUFFER_APU_ID_0_BASE;
 		ipi.lcl = IPI_ID_0;
 		break;
+	case 1:
+		ipi.buf = IPI_BUFFER_APU_ID_1_BASE;
+		ipi.lcl = IPI_ID_1;
+		break;
+	case 2:
+		ipi.buf = IPI_BUFFER_APU_ID_2_BASE;
+		ipi.lcl = IPI_ID_2;
+		break;
 	case 3:
+		ipi.buf = IPI_BUFFER_APU_ID_3_BASE;
+		ipi.lcl = IPI_ID_3;
 		break;
 	case 4:
 		ipi.buf = IPI_BUFFER_APU_ID_4_BASE;
