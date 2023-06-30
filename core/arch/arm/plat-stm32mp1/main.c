@@ -212,7 +212,7 @@ static TEE_Result set_etzpc_secure_configuration(void)
 	/* RNG is secure */
 	config_lock_decprot(STM32MP1_ETZPC_RNG_ID, ETZPC_DECPROT_S_RW);
 	/* SAES is secure */
-	config_lock_decprot(STM32MP1_ETZPC_SAES_ID, ETZPC_DECPROT_NS_RW);
+	config_lock_decprot(STM32MP1_ETZPC_SAES_ID, ETZPC_DECPROT_S_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SDMMC1_ID, ETZPC_DECPROT_NS_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SDMMC2_ID, ETZPC_DECPROT_NS_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SPI4_ID, ETZPC_DECPROT_NS_RW);
