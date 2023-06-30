@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (c) 2023 Andes Technology Corporation
  * Copyright 2022-2023 NXP
  */
 
@@ -9,10 +10,12 @@
 #include <console.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/tee_mm.h>
@@ -30,6 +33,103 @@ paddr_t start_addr;
 unsigned long boot_args[4];
 
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
+
+#ifdef CFG_DT
+struct dt_descriptor {
+	void *blob;
+};
+
+static struct dt_descriptor external_dt __nex_bss;
+#endif
+
+#if defined(CFG_DT)
+#ifdef _CFG_USE_DTB_OVERLAY
+static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
+{
+	int fragment;
+
+	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
+		if (!fdt_check_header(dt->blob)) {
+			fdt_for_each_subnode(fragment, dt->blob, 0)
+				dt->frag_id += 1;
+			return 0;
+		}
+	}
+
+	return fdt_create_empty_tree(dt->blob, dt_size);
+}
+#else
+static int init_dt_overlay(struct dt_descriptor *dt __unused,
+			   int dt_size __unused)
+{
+	return 0;
+}
+#endif /* _CFG_USE_DTB_OVERLAY */
+
+static void init_external_dt(unsigned long phys_dt)
+{
+	struct dt_descriptor *dt = &external_dt;
+	void *fdt;
+	int ret;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
+	if (!phys_dt) {
+		/*
+		 * No need to panic as we're not using the DT in OP-TEE
+		 * yet, we're only adding some nodes for normal world use.
+		 * This makes the switch to using DT easier as we can boot
+		 * a newer OP-TEE with older boot loaders. Once we start to
+		 * initialize devices based on DT we'll likely panic
+		 * instead of returning here.
+		 */
+		IMSG("No non-secure external DT");
+		return;
+	}
+
+	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE);
+	if (!fdt)
+		panic("Failed to map external DTB");
+
+	dt->blob = fdt;
+
+	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Device Tree Overlay init fail @ %#lx: error %d", phys_dt,
+		     ret);
+		panic();
+	}
+
+	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
+		panic();
+	}
+
+	IMSG("Non-secure external DT found");
+}
+
+static void update_external_dt(void)
+{
+	struct dt_descriptor *dt = &external_dt;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
+	if (!dt->blob)
+		return;
+
+}
+#else /*CFG_DT*/
+static void init_external_dt(unsigned long phys_dt __unused)
+{
+}
+
+static void update_external_dt(void)
+{
+}
+#endif /*!CFG_DT*/
 
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
@@ -110,6 +210,9 @@ void boot_init_primary_early(unsigned long pageable_part __unused,
 void boot_init_primary_late(unsigned long fdt __unused,
 			    unsigned long tos_fw_config __unused)
 {
+	init_external_dt(fdt);
+	update_external_dt();
+
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_WARN_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
