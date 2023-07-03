@@ -40,8 +40,8 @@ static void ecc_free_public_key(struct ecc_public_key *s)
 	if (!s)
 		return;
 
-	crypto_bignum_free(s->x);
-	crypto_bignum_free(s->y);
+	crypto_bignum_free(&s->x);
+	crypto_bignum_free(&s->y);
 }
 
 static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
@@ -461,8 +461,8 @@ TEE_Result crypto_asym_alloc_ecc_keypair(struct ecc_keypair *s,
 	return TEE_SUCCESS;
 
 err:
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->x);
+	crypto_bignum_free(&s->d);
+	crypto_bignum_free(&s->x);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -558,7 +558,7 @@ TEE_Result crypto_asym_alloc_ecc_public_key(struct ecc_public_key *s,
 	return TEE_SUCCESS;
 
 err:
-	crypto_bignum_free(s->x);
+	crypto_bignum_free(&s->x);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }

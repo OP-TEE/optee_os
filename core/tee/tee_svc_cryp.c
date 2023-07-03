@@ -899,8 +899,7 @@ static void op_attr_bignum_free(void *attr)
 {
 	struct bignum **bn = attr;
 
-	crypto_bignum_free(*bn);
-	*bn = NULL;
+	crypto_bignum_free(bn);
 }
 
 static TEE_Result op_attr_value_from_user(void *attr, const void *buffer,
@@ -3557,8 +3556,8 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 		} else {
 			res = TEE_ERROR_OUT_OF_MEMORY;
 		}
-		crypto_bignum_free(pub);
-		crypto_bignum_free(ss);
+		crypto_bignum_free(&pub);
+		crypto_bignum_free(&ss);
 	} else if (cs->algo == TEE_ALG_ECDH_DERIVE_SHARED_SECRET) {
 		uint32_t curve = ((struct ecc_keypair *)ko->attr)->curve;
 		struct ecc_public_key key_public = { };

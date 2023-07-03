@@ -98,7 +98,7 @@ size_t crypto_bignum_num_bytes(struct bignum *a);
 size_t crypto_bignum_num_bits(struct bignum *a);
 void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to);
 void crypto_bignum_copy(struct bignum *to, const struct bignum *from);
-void crypto_bignum_free(struct bignum *a);
+void crypto_bignum_free(struct bignum **a);
 void crypto_bignum_clear(struct bignum *a);
 
 /* return -1 if a<b, 0 if a==b, +1 if a>b */

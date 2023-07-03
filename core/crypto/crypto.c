@@ -528,9 +528,9 @@ void crypto_bignum_copy(struct bignum *to __unused,
 	bignum_cant_happen();
 }
 
-void crypto_bignum_free(struct bignum *a)
+void crypto_bignum_free(struct bignum **a)
 {
-	if (a)
+	if (a && *a)
 		panic();
 }
 
