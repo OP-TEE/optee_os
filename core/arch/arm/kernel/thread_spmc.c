@@ -1756,6 +1756,8 @@ static uint32_t get_ffa_version(uint32_t my_version)
 }
 
 static void *spmc_retrieve_req(uint64_t cookie,
+			       uint32_t *total_length,
+			       uint32_t *fragment_length,
 			       struct ffa_mem_transaction_x *trans)
 {
 	struct ffa_mem_access *acc_descr_array = NULL;
@@ -1823,6 +1825,9 @@ static void *spmc_retrieve_req(uint64_t cookie,
 		return NULL;
 	}
 
+	*total_length = args.a1;
+	*fragment_length = args.a2;
+
 	return my_rxtx.rx;
 }
 
@@ -1843,25 +1848,49 @@ void thread_spmc_relinquish(uint64_t cookie)
 		EMSG("Failed to relinquish cookie %#"PRIx64, cookie);
 }
 
-static int set_pages(struct ffa_address_range *regions,
-		     unsigned int num_regions, unsigned int num_pages,
-		     struct mobj_ffa *mf)
+static int add_pages_at(struct ffa_address_range *regions,
+			unsigned int num_regions, unsigned int *idx,
+			struct mobj_ffa *mf)
 {
 	unsigned int n = 0;
-	unsigned int idx = 0;
 
 	for (n = 0; n < num_regions; n++) {
 		unsigned int page_count = READ_ONCE(regions[n].page_count);
 		uint64_t addr = READ_ONCE(regions[n].address);
 
-		if (mobj_ffa_add_pages_at(mf, &idx, addr, page_count))
+		if (mobj_ffa_add_pages_at(mf, idx, addr, page_count))
 			return FFA_INVALID_PARAMETERS;
 	}
 
-	if (idx != num_pages)
-		return FFA_INVALID_PARAMETERS;
-
 	return 0;
+}
+
+static void *spmc_frag_retrieve(uint64_t cookie,
+				uint32_t next_frag_offset,
+				uint32_t *fragment_length)
+{
+	struct thread_smc_args args = {
+		.a0 = FFA_MEM_FRAG_RX,
+		.a1 = (uint32_t)(cookie),        /* handle high addr */
+		.a2 = (uint32_t)(cookie >> 32),  /* handle low addr */
+		.a3 = next_frag_offset,          /* offset */
+		/* w4 MBZ since we're a virtual instance */
+	};
+
+	thread_smccc(&args);
+	if (args.a0 != FFA_MEM_FRAG_TX) {
+		if (args.a0 == FFA_ERROR)
+			EMSG("Failed to fetch cookie %#"PRIx64
+			     " error code %#"PRIx64, cookie, args.a2);
+		else
+			EMSG("Failed to fetch cookie %#"PRIx64" a0 %#"PRIx64,
+			     cookie, args.a0);
+		return NULL;
+	}
+
+	*fragment_length = args.a3;
+
+	return my_rxtx.rx;
 }
 
 struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
@@ -1873,21 +1902,19 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 	struct mobj_ffa *mf = NULL;
 	unsigned int num_pages = 0;
 	unsigned int offs = 0;
+	unsigned int range_count = 0;
+	uint32_t length = 0;
+	uint32_t frag_length = 0;
+	uint64_t handle = 0;
+	unsigned int idx = 0;
 	void *buf = NULL;
 	struct thread_smc_args ffa_rx_release_args = {
 		.a0 = FFA_RX_RELEASE
 	};
 
-	/*
-	 * OP-TEE is only supporting a single mem_region while the
-	 * specification allows for more than one.
-	 */
-	buf = spmc_retrieve_req(cookie, &retrieve_desc);
-	if (!buf) {
-		EMSG("Failed to retrieve cookie from rx buffer %#"PRIx64,
-		     cookie);
+	buf = spmc_retrieve_req(cookie, &length, &frag_length, &retrieve_desc);
+	if (!buf)
 		return NULL;
-	}
 
 	descr_array = (void *)((vaddr_t)buf + retrieve_desc.mem_access_offs);
 	offs = READ_ONCE(descr_array->region_offs);
@@ -1898,16 +1925,38 @@ struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie)
 	if (!mf)
 		goto out;
 
-	if (set_pages(descr->address_range_array,
-		      READ_ONCE(descr->address_range_count), num_pages, mf)) {
-		mobj_ffa_spmc_delete(mf);
+	offs += offsetof(struct ffa_mem_region, address_range_array);
+	if (frag_length > MIN(length, my_rxtx.size) || frag_length < offs)
+		goto err;
+
+	range_count = (frag_length - offs) / sizeof(struct ffa_address_range);
+	if (add_pages_at(descr->address_range_array, range_count, &idx, mf))
+		goto err;
+
+	/* Retrieve the remaining fragments. */
+	offs = frag_length;
+	handle = retrieve_desc.global_handle;
+	while (offs < length) {
+		buf = spmc_frag_retrieve(handle, offs, &frag_length);
+		if (!buf || frag_length > my_rxtx.size)
+			goto err;
+
+		DMSG("Retrieve next fragment at offset %#x", offs);
+		range_count = frag_length / sizeof(struct ffa_address_range);
+		if (add_pages_at(buf, range_count, &idx, mf))
+			goto err;
+		offs += frag_length;
+		thread_smccc(&ffa_rx_release_args);
+	}
+
+	if (idx == num_pages) {
+		ret = mf;
 		goto out;
 	}
 
-	ret = mf;
-
+err:
+	mobj_ffa_spmc_delete(mf);
 out:
-	/* Release RX buffer after the mem retrieve request. */
 	thread_smccc(&ffa_rx_release_args);
 
 	return ret;
