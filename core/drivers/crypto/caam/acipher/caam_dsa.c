@@ -309,10 +309,10 @@ static TEE_Result do_allocate_keypair(struct dsa_keypair *key, size_t l_bits,
 err:
 	DSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->g);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
-	crypto_bignum_free(key->x);
+	crypto_bignum_free(&key->g);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->q);
+	crypto_bignum_free(&key->x);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -358,9 +358,9 @@ static TEE_Result do_allocate_publickey(struct dsa_public_key *key,
 err:
 	DSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->g);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
+	crypto_bignum_free(&key->g);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->q);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }

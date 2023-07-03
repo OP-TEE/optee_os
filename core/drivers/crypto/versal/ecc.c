@@ -271,9 +271,9 @@ static TEE_Result sign(uint32_t algo, struct ecc_keypair *key,
 
 	versal_mbox_alloc(bytes, NULL, &k);
 	crypto_bignum_bn2bin_eswap(key->curve, ephemeral.d, k.buf);
-	crypto_bignum_free(ephemeral.d);
-	crypto_bignum_free(ephemeral.x);
-	crypto_bignum_free(ephemeral.y);
+	crypto_bignum_free(&ephemeral.d);
+	crypto_bignum_free(&ephemeral.x);
+	crypto_bignum_free(&ephemeral.y);
 
 	/* Private key*/
 	versal_mbox_alloc(bytes, NULL, &d);

@@ -185,7 +185,7 @@ TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->e);
+	crypto_bignum_free(&s->e);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -196,8 +196,8 @@ void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->e);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->e);
 }
 
 void crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
@@ -207,14 +207,14 @@ void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 {
 	if (!s)
 		return;
-	crypto_bignum_free(s->e);
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->qp);
-	crypto_bignum_free(s->dp);
-	crypto_bignum_free(s->dq);
+	crypto_bignum_free(&s->e);
+	crypto_bignum_free(&s->d);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
+	crypto_bignum_free(&s->qp);
+	crypto_bignum_free(&s->dp);
+	crypto_bignum_free(&s->dq);
 }
 
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key,

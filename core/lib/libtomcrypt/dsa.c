@@ -30,10 +30,10 @@ TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->g);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->y);
+	crypto_bignum_free(&s->g);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
+	crypto_bignum_free(&s->y);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -52,9 +52,9 @@ TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->g);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
+	crypto_bignum_free(&s->g);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 

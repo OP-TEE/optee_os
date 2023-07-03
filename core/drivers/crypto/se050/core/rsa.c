@@ -537,14 +537,14 @@ static TEE_Result do_alloc_keypair(struct rsa_keypair *s,
 
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->e);
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->qp);
-	crypto_bignum_free(s->dp);
-	crypto_bignum_free(s->dq);
+	crypto_bignum_free(&s->e);
+	crypto_bignum_free(&s->d);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
+	crypto_bignum_free(&s->qp);
+	crypto_bignum_free(&s->dp);
+	crypto_bignum_free(&s->dq);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -556,7 +556,7 @@ static TEE_Result do_alloc_publickey(struct rsa_public_key *s,
 	if (!bn_alloc_max(&s->e))
 		return TEE_ERROR_OUT_OF_MEMORY;
 	if (!bn_alloc_max(&s->n)) {
-		crypto_bignum_free(s->e);
+		crypto_bignum_free(&s->e);
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -566,8 +566,8 @@ static TEE_Result do_alloc_publickey(struct rsa_public_key *s,
 static void do_free_publickey(struct rsa_public_key *s)
 {
 	if (s) {
-		crypto_bignum_free(s->n);
-		crypto_bignum_free(s->e);
+		crypto_bignum_free(&s->n);
+		crypto_bignum_free(&s->e);
 	}
 }
 
@@ -587,14 +587,14 @@ static void do_free_keypair(struct rsa_keypair *s)
 			sss_se05x_key_store_erase_key(se050_kstore, &k_object);
 	}
 
-	crypto_bignum_free(s->e);
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->qp);
-	crypto_bignum_free(s->dp);
-	crypto_bignum_free(s->dq);
+	crypto_bignum_free(&s->e);
+	crypto_bignum_free(&s->d);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
+	crypto_bignum_free(&s->qp);
+	crypto_bignum_free(&s->dp);
+	crypto_bignum_free(&s->dq);
 }
 
 static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t kb)
