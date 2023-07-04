@@ -134,8 +134,6 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 	uint32_t frag_len = args->a2;
 	uint64_t global_handle = 0;
 	int res = FFA_OK;
-	uint32_t ret_w2 = 0;
-	uint32_t ret_w3 = 0;
 
 	cpu_spin_lock(&rxtx->spinlock);
 
@@ -151,9 +149,8 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 		res = spmc_sp_add_share(&mem_trans, rxtx, tot_len,
 					&global_handle, owner_sp);
 	if (!res) {
-		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
-		args->a3 = ret_w3;
-		args->a2 = ret_w2;
+		args->a3 = high32_from_64(global_handle);
+		args->a2 = low32_from_64(global_handle);
 		args->a1 = FFA_PARAM_MBZ;
 		args->a0 = FFA_SUCCESS_32;
 	} else {
