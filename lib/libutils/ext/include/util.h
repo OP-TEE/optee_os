@@ -166,11 +166,21 @@ static inline uint64_t reg_pair_to_64(uint32_t reg0, uint32_t reg1)
 	return (uint64_t)reg0 << 32 | reg1;
 }
 
+static inline uint32_t high32_from_64(uint64_t val)
+{
+	return val >> 32;
+}
+
+static inline uint32_t low32_from_64(uint64_t val)
+{
+	return val;
+}
+
 static inline void reg_pair_from_64(uint64_t val, uint32_t *reg0,
 				    uint32_t *reg1)
 {
-	*reg0 = val >> 32;
-	*reg1 = val;
+	*reg0 = high32_from_64(val);
+	*reg1 = low32_from_64(val);
 }
 
 /* Get and set bit fields  */
