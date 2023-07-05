@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (c) 2023 Andes Technology Corporation
  * Copyright 2022-2023 NXP
  */
 
@@ -9,6 +10,7 @@
 #include <console.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -30,6 +32,29 @@ paddr_t start_addr;
 unsigned long boot_args[4];
 
 uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
+
+#if defined(CFG_DT)
+static int mark_tddram_as_reserved(struct dt_descriptor *dt)
+{
+	return add_res_mem_dt_node(dt, "optee_core", CFG_TDDRAM_START,
+				   CFG_TDDRAM_SIZE);
+}
+
+static void update_external_dt(void)
+{
+	struct dt_descriptor *dt = get_external_dt_desc();
+
+	if (!dt || !dt->blob)
+		return;
+
+	if (mark_tddram_as_reserved(dt))
+		panic("Failed to config secure memory");
+}
+#else /*CFG_DT*/
+static void update_external_dt(void)
+{
+}
+#endif /*!CFG_DT*/
 
 void init_sec_mon(unsigned long nsec_entry __maybe_unused)
 {
@@ -107,9 +132,12 @@ void boot_init_primary_early(unsigned long pageable_part __unused,
 	init_primary(e);
 }
 
-void boot_init_primary_late(unsigned long fdt __unused,
+void boot_init_primary_late(unsigned long fdt,
 			    unsigned long tos_fw_config __unused)
 {
+	init_external_dt(fdt);
+	update_external_dt();
+
 	IMSG("OP-TEE version: %s", core_v_str);
 	if (IS_ENABLED(CFG_WARN_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
