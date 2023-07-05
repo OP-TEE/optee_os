@@ -79,14 +79,6 @@ DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
 #ifdef CFG_DT
-struct dt_descriptor {
-	void *blob;
-#ifdef _CFG_USE_DTB_OVERLAY
-	int frag_id;
-#endif
-};
-
-static struct dt_descriptor external_dt __nex_bss;
 #ifdef CFG_CORE_SEL1_SPMC
 static struct dt_descriptor tos_fw_config_dt __nex_bss;
 #endif
@@ -630,154 +622,7 @@ static void init_runtime(unsigned long pageable_part __unused)
 }
 #endif
 
-void *get_dt(void)
-{
-	void *fdt = get_embedded_dt();
-
-	if (!fdt)
-		fdt = get_external_dt();
-
-	return fdt;
-}
-
-void *get_secure_dt(void)
-{
-	void *fdt = get_embedded_dt();
-
-	if (!fdt && IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
-		fdt = get_external_dt();
-
-	return fdt;
-}
-
-#if defined(CFG_EMBED_DTB)
-void *get_embedded_dt(void)
-{
-	static bool checked;
-
-	assert(cpu_mmu_enabled());
-
-	if (!checked) {
-		IMSG("Embedded DTB found");
-
-		if (fdt_check_header(embedded_secure_dtb))
-			panic("Invalid embedded DTB");
-
-		checked = true;
-	}
-
-	return embedded_secure_dtb;
-}
-#else
-void *get_embedded_dt(void)
-{
-	return NULL;
-}
-#endif /*CFG_EMBED_DTB*/
-
 #if defined(CFG_DT)
-void *get_external_dt(void)
-{
-	if (!IS_ENABLED(CFG_EXTERNAL_DT))
-		return NULL;
-
-	assert(cpu_mmu_enabled());
-	return external_dt.blob;
-}
-
-static TEE_Result release_external_dt(void)
-{
-	int ret = 0;
-
-	if (!IS_ENABLED(CFG_EXTERNAL_DT))
-		return TEE_SUCCESS;
-
-	if (!external_dt.blob)
-		return TEE_SUCCESS;
-
-	ret = fdt_pack(external_dt.blob);
-	if (ret < 0) {
-		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
-		     virt_to_phys(external_dt.blob), ret);
-		panic();
-	}
-
-	if (core_mmu_remove_mapping(MEM_AREA_EXT_DT, external_dt.blob,
-				    CFG_DTB_MAX_SIZE))
-		panic("Failed to remove temporary Device Tree mapping");
-
-	/* External DTB no more reached, reset pointer to invalid */
-	external_dt.blob = NULL;
-
-	return TEE_SUCCESS;
-}
-boot_final(release_external_dt);
-
-#ifdef _CFG_USE_DTB_OVERLAY
-static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
-{
-	char frag[32];
-	int offs;
-	int ret;
-
-	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
-	offs = fdt_add_subnode(dt->blob, ioffs, frag);
-	if (offs < 0)
-		return offs;
-
-	dt->frag_id += 1;
-
-	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
-	if (ret < 0)
-		return -1;
-
-	return fdt_add_subnode(dt->blob, offs, "__overlay__");
-}
-
-static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
-{
-	int fragment;
-
-	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
-		if (!fdt_check_header(dt->blob)) {
-			fdt_for_each_subnode(fragment, dt->blob, 0)
-				dt->frag_id += 1;
-			return 0;
-		}
-	}
-
-	return fdt_create_empty_tree(dt->blob, dt_size);
-}
-#else
-static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
-{
-	return offs;
-}
-
-static int init_dt_overlay(struct dt_descriptor *dt __unused,
-			   int dt_size __unused)
-{
-	return 0;
-}
-#endif /* _CFG_USE_DTB_OVERLAY */
-
-static int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
-			       const char *subnode)
-{
-	int offs;
-
-	offs = fdt_path_offset(dt->blob, path);
-	if (offs < 0)
-		return -1;
-	offs = add_dt_overlay_fragment(dt, offs);
-	if (offs < 0)
-		return -1;
-	offs = fdt_add_subnode(dt->blob, offs, subnode);
-	if (offs < 0)
-		return -1;
-	return offs;
-}
-
 static int add_optee_dt_node(struct dt_descriptor *dt)
 {
 	int offs;
@@ -954,87 +799,6 @@ static int config_psci(struct dt_descriptor *dt __unused)
 }
 #endif /*CFG_PSCI_ARM32*/
 
-static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
-{
-	if (cell_size == 1) {
-		fdt32_t v = cpu_to_fdt32((uint32_t)val);
-
-		memcpy(data, &v, sizeof(v));
-	} else {
-		fdt64_t v = cpu_to_fdt64(val);
-
-		memcpy(data, &v, sizeof(v));
-	}
-}
-
-static int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
-			       paddr_t pa, size_t size)
-{
-	int offs = 0;
-	int ret = 0;
-	int addr_size = -1;
-	int len_size = -1;
-	bool found = true;
-	char subnode_name[80] = { 0 };
-
-	offs = fdt_path_offset(dt->blob, "/reserved-memory");
-
-	if (offs < 0) {
-		found = false;
-		offs = 0;
-	}
-
-	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
-		len_size = sizeof(paddr_t) / sizeof(uint32_t);
-		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
-	} else {
-		len_size = fdt_size_cells(dt->blob, offs);
-		if (len_size < 0)
-			return -1;
-		addr_size = fdt_address_cells(dt->blob, offs);
-		if (addr_size < 0)
-			return -1;
-	}
-
-	if (!found) {
-		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
-		if (offs < 0)
-			return -1;
-		ret = fdt_setprop_cell(dt->blob, offs, "#address-cells",
-				       addr_size);
-		if (ret < 0)
-			return -1;
-		ret = fdt_setprop_cell(dt->blob, offs, "#size-cells", len_size);
-		if (ret < 0)
-			return -1;
-		ret = fdt_setprop(dt->blob, offs, "ranges", NULL, 0);
-		if (ret < 0)
-			return -1;
-	}
-
-	ret = snprintf(subnode_name, sizeof(subnode_name),
-		       "%s@%" PRIxPA, name, pa);
-	if (ret < 0 || ret >= (int)sizeof(subnode_name))
-		DMSG("truncated node \"%s@%" PRIxPA"\"", name, pa);
-	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
-	if (offs >= 0) {
-		uint32_t data[FDT_MAX_NCELLS * 2];
-
-		set_dt_val(data, addr_size, pa);
-		set_dt_val(data + addr_size, len_size, size);
-		ret = fdt_setprop(dt->blob, offs, "reg", data,
-				  sizeof(uint32_t) * (addr_size + len_size));
-		if (ret < 0)
-			return -1;
-		ret = fdt_setprop(dt->blob, offs, "no-map", NULL, 0);
-		if (ret < 0)
-			return -1;
-	} else {
-		return -1;
-	}
-	return 0;
-}
-
 #ifdef CFG_CORE_DYN_SHM
 static uint64_t get_dt_val_and_advance(const void *data, size_t *offs,
 				       uint32_t cell_size)
@@ -1162,50 +926,6 @@ static int mark_static_shm_as_reserved(struct dt_descriptor *dt)
 }
 #endif /*CFG_CORE_RESERVED_SHM*/
 
-static void init_external_dt(unsigned long phys_dt)
-{
-	struct dt_descriptor *dt = &external_dt;
-	void *fdt;
-	int ret;
-
-	if (!IS_ENABLED(CFG_EXTERNAL_DT))
-		return;
-
-	if (!phys_dt) {
-		/*
-		 * No need to panic as we're not using the DT in OP-TEE
-		 * yet, we're only adding some nodes for normal world use.
-		 * This makes the switch to using DT easier as we can boot
-		 * a newer OP-TEE with older boot loaders. Once we start to
-		 * initialize devices based on DT we'll likely panic
-		 * instead of returning here.
-		 */
-		IMSG("No non-secure external DT");
-		return;
-	}
-
-	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE);
-	if (!fdt)
-		panic("Failed to map external DTB");
-
-	dt->blob = fdt;
-
-	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
-	if (ret < 0) {
-		EMSG("Device Tree Overlay init fail @ %#lx: error %d", phys_dt,
-		     ret);
-		panic();
-	}
-
-	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
-	if (ret < 0) {
-		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
-		panic();
-	}
-
-	IMSG("Non-secure external DT found");
-}
-
 static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 {
 	return add_res_mem_dt_node(dt, "optee_core", CFG_TZDRAM_START,
@@ -1214,12 +934,9 @@ static int mark_tzdram_as_reserved(struct dt_descriptor *dt)
 
 static void update_external_dt(void)
 {
-	struct dt_descriptor *dt = &external_dt;
+	struct dt_descriptor *dt = get_external_dt_desc();
 
-	if (!IS_ENABLED(CFG_EXTERNAL_DT))
-		return;
-
-	if (!dt->blob)
+	if (!dt || !dt->blob)
 		return;
 
 	if (!IS_ENABLED(CFG_CORE_FFA) && add_optee_dt_node(dt))
@@ -1237,15 +954,6 @@ static void update_external_dt(void)
 		panic("Failed to config secure memory");
 }
 #else /*CFG_DT*/
-void *get_external_dt(void)
-{
-	return NULL;
-}
-
-static void init_external_dt(unsigned long phys_dt __unused)
-{
-}
-
 static void update_external_dt(void)
 {
 }
