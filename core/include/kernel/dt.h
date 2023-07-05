@@ -284,8 +284,8 @@ void *get_external_dt(void);
  * @path:	Path to the parent node.
  * @subnode:	Name of the child node.
  *
- * Returns the offset of the child node in DTB on success or a negative value
- * upon error.
+ * Returns the offset of the child node in DTB on success or a negative libfdt
+ * error number.
  */
 int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 			const char *subnode);
@@ -297,7 +297,7 @@ int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
  * @pa:		Physical address of specific reserved memory region.
  * @size:	Size of specific reserved memory region.
  *
- * Returns 0 if succeeds, otherwise -1.
+ * Returns 0 if succeeds, otherwise a negative libfdt error number.
  */
 int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 			paddr_t pa, size_t size);

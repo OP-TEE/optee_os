@@ -491,9 +491,9 @@ void *get_embedded_dt(void)
 #ifdef _CFG_USE_DTB_OVERLAY
 static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 {
-	char frag[32];
-	int offs;
-	int ret;
+	char frag[32] = { };
+	int offs = 0;
+	int ret = 0;
 
 	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
 	offs = fdt_add_subnode(dt->blob, ioffs, frag);
@@ -504,14 +504,14 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 
 	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
 	if (ret < 0)
-		return -1;
+		return ret;
 
 	return fdt_add_subnode(dt->blob, offs, "__overlay__");
 }
 
 static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
 {
-	int fragment;
+	int fragment = 0;
 
 	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
 		if (!fdt_check_header(dt->blob)) {
@@ -547,8 +547,8 @@ struct dt_descriptor *get_external_dt_desc(void)
 void init_external_dt(unsigned long phys_dt)
 {
 	struct dt_descriptor *dt = &external_dt;
-	void *fdt;
-	int ret;
+	void *fdt = NULL;
+	int ret = 0;
 
 	if (!IS_ENABLED(CFG_EXTERNAL_DT))
 		return;
@@ -629,18 +629,15 @@ boot_final(release_external_dt);
 int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
 			const char *subnode)
 {
-	int offs;
+	int offs = 0;
 
 	offs = fdt_path_offset(dt->blob, path);
 	if (offs < 0)
-		return -1;
+		return offs;
 	offs = add_dt_overlay_fragment(dt, offs);
 	if (offs < 0)
-		return -1;
-	offs = fdt_add_subnode(dt->blob, offs, subnode);
-	if (offs < 0)
-		return -1;
-	return offs;
+		return offs;
+	return fdt_add_subnode(dt->blob, offs, subnode);
 }
 
 static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
@@ -664,7 +661,7 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	int addr_size = -1;
 	int len_size = -1;
 	bool found = true;
-	char subnode_name[80] = { 0 };
+	char subnode_name[80] = { };
 
 	offs = fdt_path_offset(dt->blob, "/reserved-memory");
 
@@ -679,26 +676,26 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 	} else {
 		len_size = fdt_size_cells(dt->blob, offs);
 		if (len_size < 0)
-			return -1;
+			return len_size;
 		addr_size = fdt_address_cells(dt->blob, offs);
 		if (addr_size < 0)
-			return -1;
+			return addr_size;
 	}
 
 	if (!found) {
 		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
 		if (offs < 0)
-			return -1;
+			return offs;
 		ret = fdt_setprop_cell(dt->blob, offs, "#address-cells",
 				       addr_size);
 		if (ret < 0)
-			return -1;
+			return ret;
 		ret = fdt_setprop_cell(dt->blob, offs, "#size-cells", len_size);
 		if (ret < 0)
-			return -1;
+			return ret;
 		ret = fdt_setprop(dt->blob, offs, "ranges", NULL, 0);
 		if (ret < 0)
-			return -1;
+			return ret;
 	}
 
 	ret = snprintf(subnode_name, sizeof(subnode_name),
@@ -707,19 +704,19 @@ int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
 		DMSG("truncated node \"%s@%" PRIxPA"\"", name, pa);
 	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
 	if (offs >= 0) {
-		uint32_t data[FDT_MAX_NCELLS * 2];
+		uint32_t data[FDT_MAX_NCELLS * 2] = { };
 
 		set_dt_val(data, addr_size, pa);
 		set_dt_val(data + addr_size, len_size, size);
 		ret = fdt_setprop(dt->blob, offs, "reg", data,
 				  sizeof(uint32_t) * (addr_size + len_size));
 		if (ret < 0)
-			return -1;
+			return ret;
 		ret = fdt_setprop(dt->blob, offs, "no-map", NULL, 0);
 		if (ret < 0)
-			return -1;
+			return ret;
 	} else {
-		return -1;
+		return offs;
 	}
 	return 0;
 }
