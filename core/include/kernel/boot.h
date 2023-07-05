@@ -40,7 +40,6 @@ struct boot_embdata {
 	uint32_t reloc_len;
 };
 
-extern uint8_t embedded_secure_dtb[];
 extern const struct core_mmu_config boot_mmu_config;
 
 /* @nsec_entry is unused if using CFG_WITH_ARM_TRUSTED_FW */
@@ -92,26 +91,6 @@ int boot_core_release(size_t core_idx, paddr_t entry);
 struct ns_entry_context *boot_core_hpen(void);
 #endif
 
-/* Returns embedded DTB if present, then external DTB if found, then NULL */
-void *get_dt(void);
-
-/*
- * get_secure_dt() - returns secure DTB for drivers
- *
- * Returns device tree that is considered secure for drivers to use.
- *
- * 1. Returns embedded DTB if available,
- * 2. Secure external DTB if available,
- * 3. If neither then NULL
- */
-void *get_secure_dt(void);
-
-/* Returns embedded DTB location if present, otherwise NULL */
-void *get_embedded_dt(void);
-
-/* Returns external DTB if present, otherwise NULL */
-void *get_external_dt(void);
-
 /* Returns TOS_FW_CONFIG DTB if present, otherwise NULL */
 void *get_tos_fw_config_dt(void);
 
@@ -122,11 +101,5 @@ void *get_tos_fw_config_dt(void);
  * This function has a __weak default implementation.
  */
 unsigned long get_aslr_seed(void *fdt);
-
-/* Returns true if passed DTB is same as Embedded DTB, otherwise false */
-static inline bool is_embedded_dt(void *fdt)
-{
-	return fdt && fdt == get_embedded_dt();
-}
 
 #endif /* __KERNEL_BOOT_H */
