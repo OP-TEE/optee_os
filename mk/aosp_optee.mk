@@ -108,14 +108,14 @@ endif
 ifneq (false,$(INCLUDE_FOR_BUILD_TA))
 include $(CLEAR_VARS)
 
+define ta_class
+$(if $(filter %.ta,$1),EXECUTABLES,STATIC_LIBRARIES)
+endef
+
 LOCAL_MODULE := $(local_module)
 LOCAL_PREBUILT_MODULE_FILE := $(OPTEE_TA_OUT_DIR)/$(LOCAL_MODULE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/lib/optee_armtz
-ifneq ($(filter %.ta, $(local_module)),)
-LOCAL_MODULE_CLASS := EXECUTABLES
-else
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-endif
+LOCAL_MODULE_CLASS := $(call ta_class,$(local_module))
 LOCAL_MODULE_TAGS := optional
 LOCAL_REQUIRED_MODULES := $(local_module_deps)
 
@@ -125,6 +125,11 @@ $(LOCAL_PREBUILT_MODULE_FILE): $(TA_TMP_FILE)
 	@mkdir -p $(dir $@)
 	cp -vf $< $@
 
+TA_TMP_FILE_DEPS :=
+ifneq ($(local_module_deps),)
+$(foreach dep, $(local_module_deps), $(eval TA_TMP_FILE_DEPS += $(call intermediates-dir-for,$(call ta_class,$(dep)),$(dep))/$(dep)))
+endif
+$(TA_TMP_FILE): $(TA_TMP_FILE_DEPS)
 $(TA_TMP_FILE): PRIVATE_TA_SRC_DIR := $(LOCAL_PATH)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_FILE := $(TA_TMP_FILE)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_DIR := $(TA_TMP_DIR)
