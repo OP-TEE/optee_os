@@ -296,6 +296,11 @@ static inline __noprof void dsb_ishst(void)
 	asm volatile ("dsb ishst" : : : "memory");
 }
 
+static inline __noprof void dsb_osh(void)
+{
+	asm volatile ("dsb osh" : : : "memory");
+}
+
 static inline __noprof void sev(void)
 {
 	asm volatile ("sev" : : : "memory");
