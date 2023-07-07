@@ -11,11 +11,13 @@
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/huk_subkey.h>
 #include <kernel/mutex.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdint.h>
 #include <stm32_util.h>
+#include <string_ext.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -235,6 +237,22 @@ static void clear_computation_completed(uintptr_t base)
 	io_setbits32(base + _SAES_ICR, _SAES_I_CC);
 }
 
+static TEE_Result wait_key_valid(vaddr_t base)
+{
+	uint64_t timeout_ref = timeout_init_us(SAES_TIMEOUT_US);
+
+	while (!(io_read32(base + _SAES_SR) & _SAES_SR_KEYVALID))
+		if (timeout_elapsed(timeout_ref))
+			break;
+
+	if (!(io_read32(base + _SAES_SR) & _SAES_SR_KEYVALID)) {
+		DMSG("CCF timeout");
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result saes_start(struct stm32_saes_context *ctx)
 {
 	uint64_t timeout_ref = 0;
@@ -325,6 +343,8 @@ static void saes_write_key(struct stm32_saes_context *ctx)
 
 static TEE_Result saes_prepare_key(struct stm32_saes_context *ctx)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
+
 	/* Disable the SAES peripheral */
 	io_clrbits32(ctx->base + _SAES_CR, _SAES_CR_EN);
 
@@ -336,14 +356,16 @@ static TEE_Result saes_prepare_key(struct stm32_saes_context *ctx)
 
 	saes_write_key(ctx);
 
+	res = wait_key_valid(ctx->base);
+	if (res)
+		return res;
+
 	/*
 	 * For ECB/CBC decryption, key preparation mode must be selected
 	 * to populate the key.
 	 */
 	if ((IS_CHAINING_MODE(ECB, ctx->cr) ||
 	     IS_CHAINING_MODE(CBC, ctx->cr)) && is_decrypt(ctx->cr)) {
-		TEE_Result res = TEE_SUCCESS;
-
 		/* Select Mode 2 */
 		io_clrsetbits32(ctx->base + _SAES_CR, _SAES_CR_MODE_MASK,
 				SHIFT_U32(_SAES_CR_MODE_KEYPREP,
@@ -1090,6 +1112,236 @@ out:
 
 	mutex_unlock(ctx->lock);
 
+	return res;
+}
+
+static void xor_block(uint8_t *b1, uint8_t *b2, size_t size)
+{
+	size_t i = 0;
+
+	for (i = 0; i < size; i++)
+		b1[i] ^= b2[i];
+}
+
+static TEE_Result stm32_saes_cmac_prf_128(struct stm32_saes_context *ctx,
+					  enum stm32_saes_key_selection key_sel,
+					  const void *key, size_t key_size,
+					  uint8_t *data, size_t data_size,
+					  uint8_t *out)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t block[AES_BLOCK_SIZE] = { };
+	uint8_t k1[AES_BLOCK_SIZE] = { };
+	uint8_t k2[AES_BLOCK_SIZE] = { };
+	uint8_t l[AES_BLOCK_SIZE] = { };
+	size_t processed = 0;
+	uint8_t bit = 0;
+	int i = 0;
+
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* Get K1 and K2 */
+	res = stm32_saes_init(ctx, false, STM32_SAES_MODE_ECB, key_sel,
+			      key, key_size, NULL, 0);
+	if (res)
+		return res;
+
+	res = stm32_saes_update(ctx, true, l, l, sizeof(l));
+	if (res)
+		return res;
+
+	/* MSB(L) == 0 => K1 = L << 1 */
+	bit = 0;
+	for (i = sizeof(l) - 1; i >= 0; i--) {
+		k1[i] = (l[i] << 1) | bit;
+		bit = (l[i] & 0x80) >> 7;
+	}
+	/* MSB(L) == 1 => K1 = (L << 1) XOR const_Rb */
+	if ((l[0] & 0x80))
+		k1[sizeof(k1) - 1] = k1[sizeof(k1) - 1] ^ 0x87;
+
+	/* MSB(K1) == 0 => K2 = K1 << 1 */
+	bit = 0;
+	for (i = sizeof(k1) - 1; i >= 0; i--) {
+		k2[i] = (k1[i] << 1) | bit;
+		bit = (k1[i] & 0x80) >> 7;
+	}
+
+	/* MSB(K1) == 1 => K2 = (K1 << 1) XOR const_Rb */
+	if ((k1[0] & 0x80))
+		k2[sizeof(k2) - 1] = k2[sizeof(k2) - 1] ^ 0x87;
+
+	if (data_size > AES_BLOCK_SIZE) {
+		uint8_t *data_out = NULL;
+
+		/* All block but last in CBC mode */
+		res = stm32_saes_init(ctx, false, STM32_SAES_MODE_CBC,
+				      key_sel, key, key_size, block,
+				      sizeof(block));
+		if (res)
+			return res;
+
+		processed = ROUNDDOWN(data_size - 1, AES_BLOCK_SIZE);
+		data_out = malloc(processed);
+		if (!data_out)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		res = stm32_saes_update(ctx, true, data, data_out, processed);
+		if (!res) {
+			/* Copy last out block or keep block as { 0 } */
+			memcpy(block, data_out + processed - AES_BLOCK_SIZE,
+			       AES_BLOCK_SIZE);
+		}
+
+		free(data_out);
+
+		if (res)
+			return res;
+	}
+
+	/* Manage last block */
+	xor_block(block, data + processed, data_size - processed);
+	if (data_size - processed == AES_BLOCK_SIZE) {
+		xor_block(block, k1, AES_BLOCK_SIZE);
+	} else {
+		/* xor with padding = 0b100... */
+		block[data_size - processed] ^= 0x80;
+		xor_block(block, k2, AES_BLOCK_SIZE);
+	}
+
+	/*
+	 * AES last block.
+	 * We need to use same chaining mode to keep same key if DHUK is
+	 * selected so we reuse l as a zero initialized IV.
+	 */
+	memset(l, 0, sizeof(l));
+	res = stm32_saes_init(ctx, false, STM32_SAES_MODE_CBC, key_sel, key,
+			      key_size, l, sizeof(l));
+	if (res)
+		return res;
+
+	return stm32_saes_update(ctx, true, block, out, AES_BLOCK_SIZE);
+}
+
+TEE_Result stm32_saes_kdf(struct stm32_saes_context *ctx,
+			  enum stm32_saes_key_selection key_sel,
+			  const void *key, size_t key_size,
+			  const void *input, size_t input_size,
+			  uint8_t *subkey, size_t subkey_size)
+
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t index = 0;
+	uint32_t index_be = 0;
+	uint8_t *data = NULL;
+	size_t data_index = 0;
+	size_t subkey_index = 0;
+	size_t data_size = input_size + sizeof(index_be);
+	uint8_t cmac[AES_BLOCK_SIZE] = { };
+
+	if (!ctx || !input || !input_size)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* For each K(i) we will add an index */
+	data = malloc(data_size);
+	if (!data)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	data_index = 0;
+	index_be = TEE_U32_TO_BIG_ENDIAN(index);
+	memcpy(data + data_index, &index_be, sizeof(index_be));
+	data_index += sizeof(index_be);
+	memcpy(data + data_index, input, input_size);
+	data_index += input_size;
+
+	/* K(i) computation. */
+	index = 0;
+	while (subkey_index < subkey_size) {
+		index++;
+		index_be = TEE_U32_TO_BIG_ENDIAN(index);
+		memcpy(data, &index_be, sizeof(index_be));
+
+		res = stm32_saes_cmac_prf_128(ctx, key_sel, key, key_size,
+					      data, data_size, cmac);
+		if (res)
+			goto out;
+
+		memcpy(subkey + subkey_index, cmac,
+		       MIN(subkey_size - subkey_index, sizeof(cmac)));
+		subkey_index += sizeof(cmac);
+	}
+
+out:
+	free(data);
+	if (res)
+		memzero_explicit(subkey, subkey_size);
+
+	return res;
+}
+
+/* Implement hardware HUK derivation using SAES resources */
+TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
+			     const void *const_data, size_t const_data_len,
+			     uint8_t *subkey, size_t subkey_len)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *input = NULL;
+	size_t input_index = 0;
+	size_t subkey_bitlen = 0;
+	struct stm32_saes_context ctx = { };
+	uint8_t separator = 0;
+
+	/* Check if driver is probed */
+	if (!saes_pdata.base) {
+		return __huk_subkey_derive(usage, const_data, const_data_len,
+					   subkey, subkey_len);
+	}
+
+	input = malloc(const_data_len + sizeof(separator) + sizeof(usage) +
+		       sizeof(subkey_bitlen) + AES_BLOCK_SIZE);
+	if (!input)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	input_index = 0;
+	if (const_data) {
+		memcpy(input + input_index, const_data, const_data_len);
+		input_index += const_data_len;
+
+		memcpy(input + input_index, &separator, sizeof(separator));
+		input_index += sizeof(separator);
+	}
+
+	memcpy(input + input_index, &usage, sizeof(usage));
+	input_index += sizeof(usage);
+
+	/*
+	 * We should add the subkey_len in bits at end of input.
+	 * And we choose to put in a MSB first uint32_t.
+	 */
+	subkey_bitlen = TEE_U32_TO_BIG_ENDIAN(subkey_len * INT8_BIT);
+	memcpy(input + input_index, &subkey_bitlen, sizeof(subkey_bitlen));
+	input_index += sizeof(subkey_bitlen);
+
+	/*
+	 * We get K(0) to avoid some key control attack
+	 * and store it at end of input.
+	 */
+	res = stm32_saes_cmac_prf_128(&ctx, STM32_SAES_KEY_DHU, NULL,
+				      AES_KEYSIZE_128,
+				      input, input_index,
+				      input + input_index);
+	if (res)
+		goto out;
+
+	/* We just added K(0) to input */
+	input_index += AES_BLOCK_SIZE;
+
+	res = stm32_saes_kdf(&ctx, STM32_SAES_KEY_DHU, NULL, AES_KEYSIZE_128,
+			     input, input_index, subkey, subkey_len);
+
+out:
+	free(input);
 	return res;
 }
 
