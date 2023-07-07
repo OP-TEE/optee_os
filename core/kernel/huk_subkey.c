@@ -58,9 +58,9 @@ static TEE_Result huk_compat(void *ctx, enum huk_subkey_usage usage)
 }
 #endif /*CFG_CORE_HUK_SUBKEY_COMPAT*/
 
-TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
-			     const void *const_data, size_t const_data_len,
-			     uint8_t *subkey, size_t subkey_len)
+TEE_Result __huk_subkey_derive(enum huk_subkey_usage usage,
+			       const void *const_data, size_t const_data_len,
+			       uint8_t *subkey, size_t subkey_len)
 {
 	void *ctx = NULL;
 	struct tee_hw_unique_key huk = { };
@@ -105,3 +105,8 @@ out:
 	crypto_mac_free_ctx(ctx);
 	return res;
 }
+
+TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
+			     const void *const_data, size_t const_data_len,
+			     uint8_t *subkey, size_t subkey_len)
+__weak __alias("__huk_subkey_derive");
