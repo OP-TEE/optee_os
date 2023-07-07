@@ -58,4 +58,11 @@ TEE_Result stm32_saes_update_load(struct stm32_saes_context *ctx,
 				  uint8_t *data_out, size_t data_len);
 TEE_Result stm32_saes_final(struct stm32_saes_context *ctx, uint8_t *tag,
 			    size_t tag_len);
+
+TEE_Result stm32_saes_kdf(struct stm32_saes_context *ctx,
+			  enum stm32_saes_key_selection key_sel,
+			  const void *key, size_t key_size,
+			  const void *input, size_t input_size,
+			  uint8_t *subkey, size_t subkey_size);
+
 #endif
