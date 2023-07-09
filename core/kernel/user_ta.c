@@ -97,27 +97,38 @@ static TEE_Result init_utee_param(struct utee_params *up,
 }
 
 static void update_from_utee_param(struct tee_ta_param *p,
-			const struct utee_params *up)
+				   const struct utee_params *up)
 {
-	size_t n;
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+	struct utee_params *up_bbuf = NULL;
+	void *bbuf = NULL;
+
+	res = bb_memdup_user(up, sizeof(*up), &bbuf);
+	if (res)
+		return;
+
+	up_bbuf = bbuf;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			/* See comment for struct utee_params in utee_types.h */
-			p->u[n].mem.size = up->vals[n * 2 + 1];
+			p->u[n].mem.size = up_bbuf->vals[n * 2 + 1];
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
 			/* See comment for struct utee_params in utee_types.h */
-			p->u[n].val.a = up->vals[n * 2];
-			p->u[n].val.b = up->vals[n * 2 + 1];
+			p->u[n].val.a = up_bbuf->vals[n * 2];
+			p->u[n].val.b = up_bbuf->vals[n * 2 + 1];
 			break;
 		default:
 			break;
 		}
 	}
+
+	bb_free(bbuf, sizeof(*up));
 }
 
 static bool inc_recursion(void)
