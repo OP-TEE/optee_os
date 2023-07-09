@@ -120,6 +120,8 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
 	uaddr_t usr_stack = 0;
+	struct ldelf_arg *arg_bbuf = NULL;
+	void *bbuf = NULL;
 
 	usr_stack = uctx->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
@@ -152,34 +154,35 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 		return res;
 	}
 
-	res = vm_check_access_rights(uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)arg, sizeof(*arg));
+	res = bb_memdup_user(arg, sizeof(*arg), &bbuf);
 	if (res)
 		return res;
+
+	arg_bbuf = bbuf;
 
 	if (is_user_ta_ctx(uctx->ts_ctx)) {
 		/*
 		 * This is already checked by the elf loader, but since it runs
 		 * in user mode we're not trusting it entirely.
 		 */
-		if (arg->flags & ~TA_FLAGS_MASK)
+		if (arg_bbuf->flags & ~TA_FLAGS_MASK)
 			return TEE_ERROR_BAD_FORMAT;
 
-		to_user_ta_ctx(uctx->ts_ctx)->ta_ctx.flags = arg->flags;
+		to_user_ta_ctx(uctx->ts_ctx)->ta_ctx.flags = arg_bbuf->flags;
 	}
 
-	uctx->is_32bit = arg->is_32bit;
-	uctx->entry_func = arg->entry_func;
-	uctx->load_addr = arg->load_addr;
-	uctx->stack_ptr = arg->stack_ptr;
-	uctx->dump_entry_func = arg->dump_entry;
+	uctx->is_32bit = arg_bbuf->is_32bit;
+	uctx->entry_func = arg_bbuf->entry_func;
+	uctx->load_addr = arg_bbuf->load_addr;
+	uctx->stack_ptr = arg_bbuf->stack_ptr;
+	uctx->dump_entry_func = arg_bbuf->dump_entry;
 #ifdef CFG_FTRACE_SUPPORT
-	uctx->ftrace_entry_func = arg->ftrace_entry;
-	sess->fbuf = arg->fbuf;
+	uctx->ftrace_entry_func = arg_bbuf->ftrace_entry;
+	sess->fbuf = arg_bbuf->fbuf;
 #endif
-	uctx->dl_entry_func = arg->dl_entry;
+	uctx->dl_entry_func = arg_bbuf->dl_entry;
+
+	bb_free(bbuf, sizeof(*arg));
 
 	return TEE_SUCCESS;
 }
