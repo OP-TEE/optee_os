@@ -93,13 +93,6 @@
 	 DSPI_CTAR_P_DT(3) | DSPI_CTAR_CS_SCK(15) | DSPI_CTAR_A_SCK(15) | \
 	 DSPI_CTAR_A_DT(15))
 
-/* SPI mode flags */
-#define SPI_CPHA      BIT(0) /* clock phase */
-#define SPI_CPOL      BIT(1) /* clock polarity */
-#define SPI_CS_HIGH   BIT(2) /* CS active high */
-#define SPI_LSB_FIRST BIT(3) /* per-word bits-on-wire */
-#define SPI_CONT      BIT(4) /* Continuous CS mode */
-
 /* default SCK frequency, unit: HZ */
 #define PLATFORM_CLK          650000000
 #define DSPI_DEFAULT_SCK_FREQ 10000000
