@@ -2246,7 +2246,11 @@ tee_svc_obj_generate_key_x448(struct tee_obj *o,
 
 	tee_x448_key = (struct montgomery_keypair *)o->attr;
 
+<<<<<<< HEAD
 	res = crypto_acipher_gen_x448_key(tee_x448_key, key_size);
+=======
+	res = crypto_acipher_gen_x448_key(tee_x25519_key, key_size);
+>>>>>>> 3ab2a6743045a56111020e1287939e83fa8d672b
 	if (res != TEE_SUCCESS)
 		return res;
 
