@@ -115,12 +115,8 @@ FUNC spmc_sp_thread_entry , :
 END_FUNC spmc_sp_thread_entry
 #endif
 
-/* void thread_rpc(struct thread_rpc_arg *rpc_arg) */
-FUNC thread_rpc , :
-	/* Read daif and create an SPSR */
-	mrs	x1, daif
-	orr	x1, x1, #(SPSR_64_MODE_EL1 << SPSR_64_MODE_EL_SHIFT)
-
+/* void thread_rpc_spsr(uint32_t rv[THREAD_RPC_NUM_ARGS], uint64_t spsr) */
+FUNC thread_rpc_spsr , :
 	/* Mask all maskable exceptions before switching to temporary stack */
 	msr	daifset, #DAIFBIT_ALL
 	push	x0, xzr
@@ -176,7 +172,7 @@ FUNC thread_rpc , :
 	pop	x16, xzr	/* Get pointer to rv[] */
 	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
-END_FUNC thread_rpc
+END_FUNC thread_rpc_spsr
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)
