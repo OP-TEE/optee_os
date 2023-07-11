@@ -82,6 +82,8 @@
 #define SPSR_64_DAIF_SHIFT	U(6)
 #define SPSR_64_DAIF_MASK	U(0xf)
 
+#define SPSR_64_PAN		BIT64(22)
+
 #define SPSR_32_AIF_SHIFT	U(6)
 #define SPSR_32_AIF_MASK	U(0x7)
 
@@ -464,6 +466,7 @@ DEFINE_REG_WRITE_FUNC_(icc_igrpen0, uint32_t, S3_0_C12_C12_6)
 DEFINE_REG_WRITE_FUNC_(icc_igrpen1, uint32_t, S3_0_C12_C12_7)
 
 DEFINE_REG_WRITE_FUNC_(pan, uint64_t, S3_0_c4_c2_3)
+DEFINE_REG_READ_FUNC_(pan, uint64_t, S3_0_c4_c2_3)
 
 static inline void write_pan_enable(void)
 {
