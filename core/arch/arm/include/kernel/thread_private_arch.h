@@ -191,13 +191,18 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
 
 /*
- * Suspends current thread and temorarily exits to non-secure world.
- * This function returns later when non-secure world returns.
+ * The thread_rpc() function suspends current thread and temporarily exits
+ * to non-secure world.  This function returns later when non-secure world
+ * returns.
  *
  * The purpose of this function is to request services from non-secure
  * world.
  */
 #define THREAD_RPC_NUM_ARGS     4
+#ifdef ARM64
+void thread_rpc_spsr(uint32_t rv[THREAD_RPC_NUM_ARGS], uint64_t spsr);
+void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+
 #ifdef CFG_CORE_FFA
 struct thread_rpc_arg {
 	union {
@@ -216,8 +221,18 @@ struct thread_rpc_arg {
 	};
 };
 
-void thread_rpc(struct thread_rpc_arg *rpc_arg);
+static inline void thread_rpc(struct thread_rpc_arg *rpc_arg)
+{
+	__thread_rpc(rpc_arg->pad);
+}
 #else
+static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
+{
+	__thread_rpc(rv);
+}
+#endif
+#endif
+#ifdef ARM32
 void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
 #endif
 
