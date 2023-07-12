@@ -375,6 +375,7 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 {
 	uaddr_t usr_stack = uctx->ldelf_stack_ptr;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dl_entry_arg *usr_arg = NULL;
 	struct dl_entry_arg *arg = NULL;
 	uint32_t panic_code = 0;
 	uint32_t panicked = 0;
@@ -392,8 +393,9 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 	arg->dlopen.flags = flags;
 
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
+	usr_arg = (void *)usr_stack;
 
-	res = copy_to_user((void *)usr_stack, arg, sizeof(*arg));
+	res = copy_to_user(usr_arg, arg, sizeof(*arg));
 	if (res)
 		return res;
 
@@ -412,8 +414,13 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 		abort_print_current_ts();
 		res = TEE_ERROR_TARGET_DEAD;
 	}
-	if (!res)
-		res = arg->ret;
+	if (!res) {
+		TEE_Result res2 = TEE_SUCCESS;
+
+		res2 = GET_USER_SCALAR(res, &usr_arg->ret);
+		if (res2)
+			res = res2;
+	}
 
 	return res;
 }
