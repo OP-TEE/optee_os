@@ -34,7 +34,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Wait @us microseconds actively polling on architecture timer */
 void udelay(uint32_t us);
-void mdelay(uint32_t ms);
 
+/* Wait @ms milliseconds actively polling on architecture timer */
+void mdelay(uint32_t ms);
 #endif
