@@ -89,6 +89,14 @@ CFG_TEE_TA_LOG_LEVEL ?= 1
 # CFG_TEE_TA_LOG_LEVEL. Otherwise, they are not output at all
 CFG_TEE_CORE_TA_TRACE ?= y
 
+# By default, OP-TEE masks interrupts when emitting console trace messages
+# and uses a spinlock to prevent they intertwine.
+# When CFG_CONSOLE_MASK_INTERRUPTS is disabled, OP-TEE only attempts,
+# when possible, to withhold trace message evictions to prevent they
+# intertwine. However, trace mesasges from atomic contexts may still be
+# inserted into or even interleaved with non-atomic trace messages.
+CFG_CONSOLE_MASK_INTERRUPTS ?= y
+
 # If y, enable the memory leak detection feature in the bget memory allocator.
 # When this feature is enabled, calling mdbg_check(1) will print a list of all
 # the currently allocated buffers and the location of the allocation (file and
