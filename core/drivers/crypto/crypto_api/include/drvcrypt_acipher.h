@@ -157,7 +157,7 @@ struct drvcrypt_ecc {
 	/* Free ECC public key */
 	void (*free_publickey)(struct ecc_public_key *key);
 	/* Generates the ECC keypair */
-	TEE_Result (*gen_keypair)(struct ecc_keypair *key, size_t size_bytes);
+	TEE_Result (*gen_keypair)(struct ecc_keypair *key, size_t size_bits);
 	/* ECC Sign a message and returns the signature */
 	TEE_Result (*sign)(struct drvcrypt_sign_data *sdata);
 	/* ECC Verify a message's signature */
