@@ -12,10 +12,8 @@ static bool timer_running;
 
 void generic_timer_start(uint32_t time_ms)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	uint32_t exceptions = cpu_spin_lock_xsave(&timer_lock);
 	uint32_t timer_ticks = 0;
-
-	cpu_spin_lock(&timer_lock);
 
 	if (timer_running == true)
 		goto exit;
@@ -30,23 +28,19 @@ void generic_timer_start(uint32_t time_ms)
 	timer_running = true;
 
 exit:
-	cpu_spin_unlock(&timer_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&timer_lock, exceptions);
 }
 
 void generic_timer_stop(void)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-
-	cpu_spin_lock(&timer_lock);
+	uint32_t exceptions = cpu_spin_lock_xsave(&timer_lock);
 
 	/* Disable the timer */
 	write_cntps_ctl(0);
 
 	timer_running = false;
 
-	cpu_spin_unlock(&timer_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&timer_lock, exceptions);
 }
 
 void generic_timer_handler(uint32_t time_ms)
