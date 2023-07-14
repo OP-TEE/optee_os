@@ -437,14 +437,14 @@ const struct tee_cryp_obj_type_attrs tee_cryp_obj_x25519_keypair_attrs[] = {
 	.attr_id = TEE_ATTR_X25519_PRIVATE_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
 	.ops_index = ATTR_OPS_INDEX_25519,
-	RAW_DATA(struct x25519_keypair, priv)
+	RAW_DATA(struct montgomery_keypair, priv)
 	},
 
 	{
 	.attr_id = TEE_ATTR_X25519_PUBLIC_VALUE,
 	.flags = TEE_TYPE_ATTR_REQUIRED,
 	.ops_index = ATTR_OPS_INDEX_25519,
-	RAW_DATA(struct x25519_keypair, pub)
+	RAW_DATA(struct montgomery_keypair, pub)
 	},
 };
 
@@ -635,7 +635,7 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	     tee_cryp_obj_sm2_keypair_attrs),
 
 	PROP(TEE_TYPE_X25519_KEYPAIR, 1, 256, 256,
-	     sizeof(struct x25519_keypair),
+	     sizeof(struct montgomery_keypair),
 	     tee_cryp_obj_x25519_keypair_attrs),
 
 	PROP(TEE_TYPE_ED25519_PUBLIC_KEY, 1, 256, 256,
@@ -2186,7 +2186,7 @@ tee_svc_obj_generate_key_x25519(struct tee_obj *o,
 				uint32_t param_count)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
-	struct x25519_keypair *tee_x25519_key = NULL;
+	struct montgomery_keypair *tee_x25519_key = NULL;
 
 	/* Copy the present attributes into the obj before starting */
 	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
@@ -2194,7 +2194,7 @@ tee_svc_obj_generate_key_x25519(struct tee_obj *o,
 	if (res != TEE_SUCCESS)
 		return res;
 
-	tee_x25519_key = (struct x25519_keypair *)o->attr;
+	tee_x25519_key = (struct montgomery_keypair *)o->attr;
 
 	res = crypto_acipher_gen_x25519_key(tee_x25519_key, key_size);
 	if (res != TEE_SUCCESS)
