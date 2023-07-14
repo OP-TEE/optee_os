@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
 #include <stddef.h>
@@ -16,7 +17,8 @@
 #include <trace.h>
 
 TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
-				      uint32_t sub_cmd, void *buf, size_t len,
+				      uint32_t sub_cmd, void *buf_core,
+				      void *buf_user, size_t len,
 				      size_t *outlen)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -35,7 +37,8 @@ TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 	 */
 	COMPILE_TIME_ASSERT(sizeof(TEE_UUID) == sizeof(uuid_words));
 
-	if (!uuid || (len && !buf) || (!len && buf))
+	if (!uuid || (len && !buf_core && !buf_user) ||
+	    (!len && (buf_core || buf_user)) || (buf_core && buf_user))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (len) {
@@ -51,7 +54,13 @@ TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 			goto out;
 		}
 
-		memcpy(va, buf, len);
+		if (buf_core)
+			memcpy(va, buf_core, len);
+		if (buf_user) {
+			res = copy_from_user(va, buf_user, len);
+			if (res)
+				goto out;
+		}
 	}
 
 	tee_uuid_to_octets((uint8_t *)uuid_words, uuid);
@@ -67,8 +76,12 @@ TEE_Result tee_invoke_supp_plugin_rpc(const TEE_UUID *uuid, uint32_t cmd,
 	if (outlen)
 		*outlen = params[2].u.value.b;
 
-	if (len && outlen && *outlen)
-		memcpy(buf, va, *outlen <= len ? *outlen : len);
+	if (len && outlen && *outlen) {
+		if (buf_core)
+			memcpy(buf_core, va, *outlen <= len ? *outlen : len);
+		if (buf_user)
+			res = copy_to_user(buf_user, va, len);
+	}
 
 out:
 	if (len)
