@@ -343,6 +343,7 @@ static TEE_Result system_supp_plugin_invoke(uint32_t param_types,
 	res = tee_invoke_supp_plugin_rpc(&uuid,
 					 params[1].value.a, /* cmd */
 					 params[1].value.b, /* sub_cmd */
+					 NULL,
 					 params[2].memref.buffer, /* data */
 					 params[2].memref.size, /* in len */
 					 &outlen);
