@@ -46,6 +46,7 @@
 #define TEE_MAIN_ALGO_X25519     0x44 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_SHAKE128   0xC3 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_SHAKE256   0xC4 /* OP-TEE extension */
+#define TEE_MAIN_ALGO_X448	0xC5 /* OP-TEE extension */
 
 
 #define TEE_CHAIN_MODE_ECB_NOPAD        0x0
@@ -105,6 +106,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 		return TEE_MAIN_ALGO_SHAKE128;
 	case TEE_ALG_SHAKE256:
 		return TEE_MAIN_ALGO_SHAKE256;
+	case TEE_ALG_X448:
+		return TEE_MAIN_ALGO_X448;
 	default:
 		break;
 	}

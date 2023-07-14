@@ -210,6 +210,8 @@ TEE_Result crypto_acipher_alloc_ecc_keypair(struct ecc_keypair *s,
 void crypto_acipher_free_ecc_public_key(struct ecc_public_key *s);
 TEE_Result crypto_acipher_alloc_x25519_keypair(struct montgomery_keypair *s,
 					       size_t key_size_bits);
+TEE_Result crypto_acipher_alloc_x448_keypair(struct montgomery_keypair *s,
+					     size_t key_size_bits);
 TEE_Result crypto_acipher_alloc_ed25519_keypair(struct ed25519_keypair *s,
 						size_t key_size_bits);
 TEE_Result
@@ -226,6 +228,8 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key, size_t key_size);
 TEE_Result crypto_acipher_gen_x25519_key(struct montgomery_keypair *key,
 					 size_t key_size);
+TEE_Result crypto_acipher_gen_x448_key(struct montgomery_keypair *key,
+				       size_t key_size);
 TEE_Result crypto_acipher_gen_ed25519_key(struct ed25519_keypair *key,
 					  size_t key_size);
 TEE_Result crypto_acipher_ed25519_sign(struct ed25519_keypair *key,
@@ -298,6 +302,10 @@ TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
 					  uint8_t *dst, size_t *dst_len);
 TEE_Result crypto_acipher_x25519_shared_secret(struct montgomery_keypair
 					       *private_key,
+					       void *public_key, void *secret,
+					       unsigned long *secret_len);
+TEE_Result crypto_acipher_x448_shared_secret(struct montgomery_keypair
+						       *private_key,
 					       void *public_key, void *secret,
 					       unsigned long *secret_len);
 
