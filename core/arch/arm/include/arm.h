@@ -160,6 +160,16 @@ static inline unsigned int feat_mte_implemented(void)
 #endif
 }
 
+static inline unsigned int feat_pan_implemented(void)
+{
+#ifdef ARM32
+	return 0;
+#else
+	return (read_id_aa64mmfr1_el1() >> ID_AA64MMFR1_EL1_PAN_SHIFT) &
+	       ID_AA64MMFR1_EL1_PAN_MASK;
+#endif
+}
+
 static inline bool feat_crc32_implemented(void)
 {
 #ifdef ARM32
