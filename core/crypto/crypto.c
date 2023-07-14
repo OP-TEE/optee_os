@@ -859,6 +859,31 @@ TEE_Result crypto_acipher_x25519_shared_secret(struct montgomery_keypair
 }
 #endif
 
+#if !defined(CFG_CRYPTO_X448)
+TEE_Result crypto_acipher_alloc_x448_keypair(struct montgomery_keypair *key
+						       __unused,
+					       size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_gen_x448_key(struct montgomery_keypair *key __unused,
+				       size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_x448_shared_secret(struct montgomery_keypair
+					     *private_key __unused,
+					     void *public_key __unused,
+					     void *secret __unused,
+					     unsigned long
+					     *secret_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
 #if !defined(CFG_CRYPTO_ED25519)
 TEE_Result crypto_acipher_alloc_ed25519_keypair(struct ed25519_keypair *key
 								 __unused,

@@ -82,9 +82,11 @@ struct tee_cryp_obj_secret {
 #define ATTR_OPS_INDEX_VALUE      2
     /* Convert to/from curve25519 attribute depending on direction */
 #define ATTR_OPS_INDEX_25519      3
+#define ATTR_OPS_INDEX_448       4
 
     /* Curve25519 key bytes size is always 32 bytes*/
 #define KEY_SIZE_BYTES_25519 UL(32)
+#define KEY_SIZE_BYTES_448 UL(56)
     /* TEE Internal Core API v1.3.1, Table 6-8 */
 #define TEE_ED25519_CTX_MAX_LENGTH 255
 
@@ -449,6 +451,23 @@ const struct tee_cryp_obj_type_attrs tee_cryp_obj_x25519_keypair_attrs[] = {
 };
 
 static
+const struct tee_cryp_obj_type_attrs tee_cryp_obj_x448_keypair_attrs[] = {
+	{
+	.attr_id = TEE_ATTR_X448_PRIVATE_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_448,
+	RAW_DATA(struct montgomery_keypair, priv)
+	},
+
+	{
+	.attr_id = TEE_ATTR_X448_PUBLIC_VALUE,
+	.flags = TEE_TYPE_ATTR_REQUIRED,
+	.ops_index = ATTR_OPS_INDEX_448,
+	RAW_DATA(struct montgomery_keypair, pub)
+	},
+};
+
+static
 const struct tee_cryp_obj_type_attrs tee_cryp_obj_ed25519_pub_key_attrs[] = {
 	{
 	.attr_id = TEE_ATTR_ED25519_PUBLIC_VALUE,
@@ -637,6 +656,10 @@ static const struct tee_cryp_obj_type_props tee_cryp_obj_props[] = {
 	PROP(TEE_TYPE_X25519_KEYPAIR, 1, 256, 256,
 	     sizeof(struct montgomery_keypair),
 	     tee_cryp_obj_x25519_keypair_attrs),
+
+	PROP(TEE_TYPE_X448_KEYPAIR, 1, 448, 448,
+	     sizeof(struct montgomery_keypair),
+	     tee_cryp_obj_x448_keypair_attrs),
 
 	PROP(TEE_TYPE_ED25519_PUBLIC_KEY, 1, 256, 256,
 	     sizeof(struct ed25519_public_key),
@@ -1433,6 +1456,9 @@ TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src)
 		} else if (o->info.objectType == TEE_TYPE_X25519_PUBLIC_KEY) {
 			if (src->info.objectType != TEE_TYPE_X25519_KEYPAIR)
 				return TEE_ERROR_BAD_PARAMETERS;
+		} else if (o->info.objectType == TEE_TYPE_X448_PUBLIC_KEY) {
+			if (src->info.objectType != TEE_TYPE_X448_KEYPAIR)
+				return TEE_ERROR_BAD_PARAMETERS;
 		} else {
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
@@ -1565,6 +1591,10 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 	case TEE_TYPE_X25519_KEYPAIR:
 		res = crypto_acipher_alloc_x25519_keypair(o->attr,
 							  max_key_size);
+		break;
+	case TEE_TYPE_X448_KEYPAIR:
+		res = crypto_acipher_alloc_x448_keypair(o->attr,
+							max_key_size);
 		break;
 	case TEE_TYPE_ED25519_KEYPAIR:
 		res = crypto_acipher_alloc_ed25519_keypair(o->attr,
@@ -2207,6 +2237,32 @@ tee_svc_obj_generate_key_x25519(struct tee_obj *o,
 }
 
 static TEE_Result
+tee_svc_obj_generate_key_x448(struct tee_obj *o,
+			      const struct tee_cryp_obj_type_props *type_props,
+			      uint32_t key_size, const TEE_Attribute *params,
+			      uint32_t param_count)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct montgomery_keypair *tee_x448_key = NULL;
+
+	/* Copy the present attributes into the obj before starting */
+	res = tee_svc_cryp_obj_populate_type(o, type_props, params,
+					     param_count);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	tee_x448_key = (struct montgomery_keypair *)o->attr;
+	res = crypto_acipher_gen_x448_key(tee_x448_key, key_size);
+	if (res != TEE_SUCCESS)
+		return res;
+
+	set_attribute(o, type_props, TEE_ATTR_X448_PRIVATE_VALUE);
+	set_attribute(o, type_props, TEE_ATTR_X448_PUBLIC_VALUE);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
 tee_svc_obj_generate_key_ed25519(struct tee_obj *o,
 				 const struct tee_cryp_obj_type_props
 							*type_props,
@@ -2464,6 +2520,12 @@ TEE_Result syscall_obj_generate_key(unsigned long obj, unsigned long key_size,
 		if (res != TEE_SUCCESS)
 			goto out;
 		break;
+	case TEE_TYPE_X448_KEYPAIR:
+		res = tee_svc_obj_generate_key_x448(o, type_props, key_size,
+						    params, param_count);
+		if (res != TEE_SUCCESS)
+			goto out;
+		break;
 
 	case TEE_TYPE_ED25519_KEYPAIR:
 		res = tee_svc_obj_generate_key_ed25519(o, type_props, key_size,
@@ -2648,6 +2710,9 @@ static TEE_Result tee_svc_cryp_check_key_type(const struct tee_obj *o,
 #endif
 	case TEE_MAIN_ALGO_X25519:
 		req_key_type = TEE_TYPE_X25519_KEYPAIR;
+		break;
+	case TEE_MAIN_ALGO_X448:
+		req_key_type = TEE_TYPE_X448_KEYPAIR;
 		break;
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -3912,6 +3977,48 @@ TEE_Result syscall_cryp_derive_key(unsigned long state,
 							  x25519_pub_key,
 							  pt_secret,
 							  &pt_secret_len);
+
+		if (res == TEE_SUCCESS) {
+			sk->key_size = pt_secret_len;
+			so->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
+			set_attribute(so, type_props, TEE_ATTR_SECRET_VALUE);
+		}
+	}
+#endif
+#if defined(CFG_CRYPTO_X448)
+	else if (cs->algo == TEE_ALG_X448) {
+		uint8_t *x448_pub_key = NULL;
+		uint8_t *pt_secret = NULL;
+		unsigned long pt_secret_len = 0;
+		void *bbuf = NULL;
+
+		if (param_count != 1 ||
+		    params[0].attributeID != TEE_ATTR_X448_PUBLIC_VALUE) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		/* X448 public key size is 56 bytes */
+		if (params[0].content.ref.length != KEY_SIZE_BYTES_448) {
+			res = TEE_ERROR_BAD_PARAMETERS;
+			goto out;
+		}
+
+		res = bb_memdup_user(params[0].content.ref.buffer,
+				     params[0].content.ref.length,
+				     &bbuf);
+		if (res)
+			goto out;
+
+		/* Set the public key */
+		x448_pub_key = bbuf;
+
+		pt_secret = (uint8_t *)(sk + 1);
+		pt_secret_len = sk->alloc_size;
+		res = crypto_acipher_x448_shared_secret(ko->attr,
+							x448_pub_key,
+							pt_secret,
+							&pt_secret_len);
 
 		if (res == TEE_SUCCESS) {
 			sk->key_size = pt_secret_len;
