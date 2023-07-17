@@ -543,7 +543,7 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 	if (res)
 		goto exit;
 
-	res = tee_pobj_rename(o->pobj, object_id, object_id_len);
+	res = tee_pobj_rename(o->pobj, po->obj_id, po->obj_id_len);
 
 exit:
 	tee_pobj_release(po);
