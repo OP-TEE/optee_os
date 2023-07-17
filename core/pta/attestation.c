@@ -232,7 +232,7 @@ static TEE_Result sec_storage_obj_read(TEE_UUID *uuid, uint32_t storage_id,
 		goto out;
 
 	read_len = *len;
-	res = po->fops->read(fh, offset, data, &read_len);
+	res = po->fops->read(fh, offset, data, NULL, &read_len);
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
 		EMSG("Object corrupt");
 		po->fops->remove(po);
@@ -273,10 +273,10 @@ static TEE_Result sec_storage_obj_write(TEE_UUID *uuid, uint32_t storage_id,
 
 	res = po->fops->open(po, NULL, &fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = po->fops->create(po, false, NULL, 0, NULL, 0, NULL, 0,
-				       &fh);
+		res = po->fops->create(po, false, NULL, 0, NULL, 0,
+				       NULL, NULL, 0, &fh);
 	if (!res) {
-		res = po->fops->write(fh, offset, data, len);
+		res = po->fops->write(fh, offset, data, NULL, len);
 		po->fops->close(&fh);
 	}
 

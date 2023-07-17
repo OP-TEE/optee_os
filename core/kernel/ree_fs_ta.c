@@ -110,17 +110,18 @@ static TEE_Result check_update_version(const char *db_name,
 		goto out;
 
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, 0, &fh);
+		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, NULL,
+				   0, &fh);
 		if (res != TEE_SUCCESS)
 			goto out;
 
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
 		if (res != TEE_SUCCESS)
 			goto out;
 	} else {
 		len = sizeof(db_hdr);
 
-		res = ops->read(fh, 0, &db_hdr, &len);
+		res = ops->read(fh, 0, &db_hdr, NULL, &len);
 		if (res != TEE_SUCCESS) {
 			goto out;
 		} else if (len != sizeof(db_hdr)) {
@@ -133,7 +134,7 @@ static TEE_Result check_update_version(const char *db_name,
 		len = sizeof(db_entry);
 
 		res = ops->read(fh, sizeof(db_hdr) + (i * len), &db_entry,
-				&len);
+				NULL, &len);
 		if (res != TEE_SUCCESS) {
 			goto out;
 		} else if (len != sizeof(db_entry)) {
@@ -156,7 +157,7 @@ static TEE_Result check_update_version(const char *db_name,
 			db_entry.version = version;
 			len = sizeof(db_entry);
 			res = ops->write(fh, sizeof(db_hdr) + (i * len),
-					 &db_entry, len);
+					 &db_entry, NULL, len);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -165,12 +166,12 @@ static TEE_Result check_update_version(const char *db_name,
 		db_entry.version = version;
 		len = sizeof(db_entry);
 		res = ops->write(fh, sizeof(db_hdr) + (db_hdr.nb_entries * len),
-				 &db_entry, len);
+				 &db_entry, NULL, len);
 		if (res != TEE_SUCCESS)
 			goto out;
 
 		db_hdr.nb_entries++;
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
