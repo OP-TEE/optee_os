@@ -194,7 +194,7 @@ static TEE_Result read_ent(struct tee_tadb_dir *db, size_t idx,
 			   struct tadb_entry *entry)
 {
 	size_t l = sizeof(*entry);
-	TEE_Result res = db->ops->read(db->fh, idx * l, entry, &l);
+	TEE_Result res = db->ops->read(db->fh, idx * l, entry, NULL, &l);
 
 	if (!res && l != sizeof(*entry))
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -207,7 +207,7 @@ static TEE_Result write_ent(struct tee_tadb_dir *db, size_t idx,
 {
 	const size_t l = sizeof(*entry);
 
-	return db->ops->write(db->fh, idx * l, entry, l);
+	return db->ops->write(db->fh, idx * l, entry, NULL, l);
 }
 
 static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
@@ -226,8 +226,8 @@ static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
 
 	res = db->ops->open(&po, NULL, &db->fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = db->ops->create(&po, false, NULL, 0, NULL, 0, NULL, 0,
-				      &db->fh);
+		res = db->ops->create(&po, false, NULL, 0, NULL, 0,
+				      NULL, NULL, 0, &db->fh);
 
 	if (res)
 		free(db);

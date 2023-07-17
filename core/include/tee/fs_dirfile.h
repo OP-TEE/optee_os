@@ -38,8 +38,8 @@ struct tee_fs_dirfile_operations {
 			   struct tee_fs_dirfile_fileh *dfh,
 			   struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle *fh);
-	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
-			   void *buf, size_t *len);
+	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos, void *buf,
+			   size_t *len);
 	TEE_Result (*write)(struct tee_file_handle *fh, size_t pos,
 			    const void *buf, size_t len);
 	TEE_Result (*commit_writes)(struct tee_file_handle *fh, uint8_t *hash);

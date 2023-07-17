@@ -15,6 +15,7 @@
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
@@ -2384,11 +2385,14 @@ static void rpmb_fs_close(struct tee_file_handle **tfh)
 }
 
 static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, size_t pos,
-			       void *buf, size_t *len)
+			       void *buf_core, void *buf_user, size_t *len)
 {
 	TEE_Result res;
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
 	size_t size = *len;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
 
 	if (!size)
 		return TEE_SUCCESS;
@@ -2408,11 +2412,28 @@ static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, size_t pos,
 
 	size = MIN(size, fh->fat_entry.data_size - pos);
 	if (size) {
-		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
-				    fh->fat_entry.start_address + pos, buf,
-				    size, fh->fat_entry.fek, fh->uuid);
-		if (res != TEE_SUCCESS)
-			goto out;
+		if (buf_core) {
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
+					    fh->fat_entry.start_address + pos,
+					    buf_core, size, fh->fat_entry.fek,
+					    fh->uuid);
+			if (res != TEE_SUCCESS)
+				goto out;
+		} else if (buf_user) {
+			uint32_t f = TEE_MEMORY_ACCESS_WRITE;
+
+			res = check_user_access(f, buf_user, size);
+			if (res)
+				goto out;
+			enter_user_access();
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
+					    fh->fat_entry.start_address + pos,
+					    buf_user, size, fh->fat_entry.fek,
+					    fh->uuid);
+			exit_user_access();
+			if (res)
+				goto out;
+		}
 	}
 	*len = size;
 
@@ -2586,13 +2607,33 @@ out:
 }
 
 static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
-				const void *buf, size_t size)
+				const void *buf_core, const void *buf_user,
+				size_t size)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
+
+	if (!size)
+		return TEE_SUCCESS;
 
 	mutex_lock(&rpmb_mutex);
-	res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh, pos,
-				      buf, size);
+	if (buf_core) {
+		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
+					      pos, buf_core, size);
+	} else if (buf_user) {
+		uint32_t f = TEE_MEMORY_ACCESS_READ;
+
+		res = check_user_access(f, buf_user, size);
+		if (res)
+			goto out;
+		enter_user_access();
+		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
+					      pos, buf_user, size);
+		exit_user_access();
+	}
+out:
 	mutex_unlock(&rpmb_mutex);
 
 	return res;
@@ -2979,12 +3020,16 @@ static TEE_Result rpmb_fs_open(struct tee_pobj *po, size_t *size,
 static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 				 const void *head, size_t head_size,
 				 const void *attr, size_t attr_size,
-				 const void *data, size_t data_size,
+				 const void *data_core, const void *data_user,
+				 size_t data_size,
 				 struct tee_file_handle **ret_fh)
 {
 	TEE_Result res;
 	size_t pos = 0;
 	struct rpmb_file_handle *fh = alloc_file_handle(po, po->temporary);
+
+	/* One of data_core and data_user must be NULL */
+	assert(!data_core || !data_user);
 
 	if (!fh)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -3008,10 +3053,26 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 		pos += attr_size;
 	}
 
-	if (data && data_size) {
-		res = rpmb_fs_write_primitive(fh, pos, data, data_size);
-		if (res)
-			goto out;
+	if (data_size) {
+		if (data_core) {
+			res = rpmb_fs_write_primitive(fh, pos, data_core,
+						      data_size);
+			if (res)
+				goto out;
+		} else if (data_user) {
+			uint32_t f = TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER;
+
+			res = check_user_access(f, data_user, data_size);
+			if (res)
+				goto out;
+			enter_user_access();
+			res = rpmb_fs_write_primitive(fh, pos, data_user,
+						      data_size);
+			exit_user_access();
+			if (res)
+				goto out;
+		}
 	}
 
 	if (po->temporary) {

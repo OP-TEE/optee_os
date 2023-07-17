@@ -113,8 +113,8 @@ static TEE_Result write_dent(struct tee_fs_dirfile_dirh *dirh, size_t n,
 {
 	TEE_Result res;
 
-	res = dirh->fops->write(dirh->fh, sizeof(*dent) * n,
-				dent, sizeof(*dent));
+	res = dirh->fops->write(dirh->fh, sizeof(*dent) * n, dent,
+				sizeof(*dent));
 	if (!res && n >= dirh->ndents)
 		dirh->ndents = n + 1;
 

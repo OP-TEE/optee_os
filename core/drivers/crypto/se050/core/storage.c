@@ -38,7 +38,8 @@ TEE_Result crypto_storage_obj_del(struct tee_obj *o)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	/* Read the object into memory */
-	ret = o->pobj->fops->read(o->fh, o->info.dataPosition, data, &len);
+	ret = o->pobj->fops->read(o->fh, o->info.dataPosition,
+				  data, NULL, &len);
 	if (ret) {
 		EMSG("se05x: can not read the object prior removal");
 		free(data);

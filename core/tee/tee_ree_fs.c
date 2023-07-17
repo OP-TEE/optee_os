@@ -8,6 +8,7 @@
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
@@ -62,13 +63,15 @@ static void put_tmp_block(void *tmp_block)
 }
 
 static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
-				     const void *buf, size_t len)
+				     const void *buf_core,
+				     const void *buf_user, size_t len)
 {
 	TEE_Result res;
 	size_t start_block_num = pos_to_block_num(pos);
 	size_t end_block_num = pos_to_block_num(pos + len - 1);
 	size_t remain_bytes = len;
-	uint8_t *data_ptr = (uint8_t *)buf;
+	uint8_t *data_core_ptr = (uint8_t *)buf_core;
+	uint8_t *data_user_ptr = (uint8_t *)buf_user;
 	uint8_t *block;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
 
@@ -101,18 +104,26 @@ static TEE_Result out_of_place_write(struct tee_fs_fd *fdp, size_t pos,
 			memset(block, 0, BLOCK_SIZE);
 		}
 
-		if (data_ptr)
-			memcpy(block + offset, data_ptr, size_to_write);
-		else
+		if (data_core_ptr) {
+			memcpy(block + offset, data_core_ptr, size_to_write);
+		} else if (data_user_ptr) {
+			res = copy_from_user(block + offset, data_user_ptr,
+					     size_to_write);
+			if (res)
+				return res;
+		} else {
 			memset(block + offset, 0, size_to_write);
+		}
 
 		res = tee_fs_htree_write_block(&fdp->ht, start_block_num,
 					       block);
 		if (res != TEE_SUCCESS)
 			goto exit;
 
-		if (data_ptr)
-			data_ptr += size_to_write;
+		if (data_core_ptr)
+			data_core_ptr += size_to_write;
+		if (data_user_ptr)
+			data_user_ptr += size_to_write;
 		remain_bytes -= size_to_write;
 		start_block_num++;
 		pos += size_to_write;
@@ -265,7 +276,8 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 	if ((size_t)new_file_len > meta->length) {
 		size_t ext_len = new_file_len - meta->length;
 
-		res = out_of_place_write(fdp, meta->length, NULL, ext_len);
+		res = out_of_place_write(fdp, meta->length, NULL, NULL,
+					 ext_len);
 		if (res != TEE_SUCCESS)
 			return res;
 	} else {
@@ -296,16 +308,21 @@ static TEE_Result ree_fs_ftruncate_internal(struct tee_fs_fd *fdp,
 }
 
 static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
-					void *buf, size_t *len)
+					void *buf_core, void *buf_user,
+					size_t *len)
 {
 	TEE_Result res;
 	int start_block_num;
 	int end_block_num;
 	size_t remain_bytes;
-	uint8_t *data_ptr = buf;
+	uint8_t *data_core_ptr = buf_core;
+	uint8_t *data_user_ptr = buf_user;
 	uint8_t *block = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 	struct tee_fs_htree_meta *meta = tee_fs_htree_get_meta(fdp->ht);
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
 
 	remain_bytes = *len;
 	if ((pos + remain_bytes) < remain_bytes || pos > meta->length)
@@ -340,9 +357,17 @@ static TEE_Result ree_fs_read_primitive(struct tee_file_handle *fh, size_t pos,
 		if (res != TEE_SUCCESS)
 			goto exit;
 
-		memcpy(data_ptr, block + offset, size_to_read);
+		if (data_core_ptr) {
+			memcpy(data_core_ptr, block + offset, size_to_read);
+			data_core_ptr += size_to_read;
+		} else if (data_user_ptr) {
+			res = copy_to_user(data_user_ptr, block + offset,
+					   size_to_read);
+			if (res)
+				goto exit;
+			data_user_ptr += size_to_read;
+		}
 
-		data_ptr += size_to_read;
 		remain_bytes -= size_to_read;
 		pos += size_to_read;
 
@@ -356,23 +381,27 @@ exit:
 }
 
 static TEE_Result ree_fs_read(struct tee_file_handle *fh, size_t pos,
-			      void *buf, size_t *len)
+			      void *buf_core, void *buf_user, size_t *len)
 {
 	TEE_Result res;
 
 	mutex_lock(&ree_fs_mutex);
-	res = ree_fs_read_primitive(fh, pos, buf, len);
+	res = ree_fs_read_primitive(fh, pos, buf_core, buf_user, len);
 	mutex_unlock(&ree_fs_mutex);
 
 	return res;
 }
 
 static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
-					 const void *buf, size_t len)
+					 const void *buf_core,
+					 const void *buf_user, size_t len)
 {
 	TEE_Result res;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 	size_t file_size;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
 
 	if (!len)
 		return TEE_SUCCESS;
@@ -388,7 +417,7 @@ static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
 			return res;
 	}
 
-	return out_of_place_write(fdp, pos, buf, len);
+	return out_of_place_write(fdp, pos, buf_core, buf_user, len);
 }
 
 static TEE_Result ree_fs_open_primitive(bool create, uint8_t *hash,
@@ -461,11 +490,23 @@ static TEE_Result ree_dirf_commit_writes(struct tee_file_handle *fh,
 	return res;
 }
 
+static TEE_Result dirf_read(struct tee_file_handle *fh, size_t pos, void *buf,
+			    size_t *len)
+{
+	return ree_fs_read_primitive(fh, pos, buf, NULL, len);
+}
+
+static TEE_Result dirf_write(struct tee_file_handle *fh, size_t pos,
+			     const void *buf, size_t len)
+{
+	return ree_fs_write_primitive(fh, pos, buf, NULL, len);
+}
+
 static const struct tee_fs_dirfile_operations ree_dirf_ops = {
 	.open = ree_fs_open_primitive,
 	.close = ree_fs_close_primitive,
-	.read = ree_fs_read_primitive,
-	.write = ree_fs_write_primitive,
+	.read = dirf_read,
+	.write = dirf_write,
 	.commit_writes = ree_dirf_commit_writes,
 };
 
@@ -486,7 +527,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (!res) {
 		size_t l = sizeof(hash);
 
-		res = rpmb_fs_ops.read(ree_fs_rpmb_fh, 0, hash, &l);
+		res = rpmb_fs_ops.read(ree_fs_rpmb_fh, 0, hash, NULL, &l);
 		if (res)
 			return res;
 		if (l == sizeof(hash))
@@ -534,7 +575,7 @@ static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
 	res = tee_fs_dirfile_commit_writes(dirh, hash);
 	if (res)
 		return res;
-	return rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, sizeof(hash));
+	return rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, NULL, sizeof(hash));
 }
 
 static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
@@ -705,14 +746,17 @@ static void ree_fs_close(struct tee_file_handle **fh)
 static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 				const void *head, size_t head_size,
 				const void *attr, size_t attr_size,
-				const void *data, size_t data_size,
-				struct tee_file_handle **fh)
+				const void *data_core, const void *data_user,
+				size_t data_size, struct tee_file_handle **fh)
 {
 	struct tee_fs_fd *fdp;
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct tee_fs_dirfile_fileh dfh;
 	TEE_Result res;
 	size_t pos = 0;
+
+	/* One of data_core and data_user must be NULL */
+	assert(!data_core || !data_user);
 
 	*fh = NULL;
 	mutex_lock(&ree_fs_mutex);
@@ -730,21 +774,22 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 		goto out;
 
 	if (head && head_size) {
-		res = ree_fs_write_primitive(*fh, pos, head, head_size);
+		res = ree_fs_write_primitive(*fh, pos, head, NULL, head_size);
 		if (res)
 			goto out;
 		pos += head_size;
 	}
 
 	if (attr && attr_size) {
-		res = ree_fs_write_primitive(*fh, pos, attr, attr_size);
+		res = ree_fs_write_primitive(*fh, pos, attr, NULL, attr_size);
 		if (res)
 			goto out;
 		pos += attr_size;
 	}
 
-	if (data && data_size) {
-		res = ree_fs_write_primitive(*fh, pos, data, data_size);
+	if ((data_core || data_user) && data_size) {
+		res = ree_fs_write_primitive(*fh, pos, data_core, data_user,
+					     data_size);
 		if (res)
 			goto out;
 	}
@@ -770,11 +815,15 @@ out:
 }
 
 static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
-			       const void *buf, size_t len)
+			       const void *buf_core, const void *buf_user,
+			       size_t len)
 {
 	TEE_Result res;
 	struct tee_fs_dirfile_dirh *dirh = NULL;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
 
 	mutex_lock(&ree_fs_mutex);
 
@@ -782,7 +831,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	if (res)
 		goto out;
 
-	res = ree_fs_write_primitive(fh, pos, buf, len);
+	res = ree_fs_write_primitive(fh, pos, buf_core, buf_user, len);
 	if (res)
 		goto out;
 

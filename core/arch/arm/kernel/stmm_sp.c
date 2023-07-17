@@ -649,7 +649,6 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
-	struct stmm_ctx *spc = NULL;
 	struct tee_pobj *po = NULL;
 	size_t file_size = 0;
 	size_t read_len = 0;
@@ -662,13 +661,6 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	sess = ts_get_current_session();
-	spc = to_stmm_ctx(sess->ctx);
-	res = vm_check_access_rights(&spc->uctx,
-				     TEE_MEMORY_ACCESS_WRITE |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)data, len);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_pobj_get(&sess->ctx->uuid, obj_id, obj_id_len, flags,
 			   false, fops, &po);
@@ -680,7 +672,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 		goto out;
 
 	read_len = len;
-	res = po->fops->read(fh, offset, data, &read_len);
+	res = po->fops->read(fh, offset, NULL, data, &read_len);
 	if (res == TEE_ERROR_CORRUPT_OBJECT) {
 		EMSG("Object corrupt");
 		po->fops->remove(po);
@@ -709,7 +701,6 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	const struct tee_file_operations *fops = NULL;
 	struct ts_session *sess = NULL;
 	struct tee_file_handle *fh = NULL;
-	struct stmm_ctx *spc = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	struct tee_pobj *po = NULL;
 
@@ -721,13 +712,6 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	sess = ts_get_current_session();
-	spc = to_stmm_ctx(sess->ctx);
-	res = vm_check_access_rights(&spc->uctx,
-				     TEE_MEMORY_ACCESS_READ |
-				     TEE_MEMORY_ACCESS_ANY_OWNER,
-				     (uaddr_t)data, len);
-	if (res != TEE_SUCCESS)
-		return res;
 
 	res = tee_pobj_get(&sess->ctx->uuid, obj_id, obj_id_len, flags,
 			   false, fops, &po);
@@ -736,10 +720,10 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 
 	res = po->fops->open(po, NULL, &fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = po->fops->create(po, false, NULL, 0, NULL, 0, NULL, 0,
-				       &fh);
+		res = po->fops->create(po, false, NULL, 0, NULL, 0,
+				       NULL, NULL, 0, &fh);
 	if (res == TEE_SUCCESS) {
-		res = po->fops->write(fh, offset, data, len);
+		res = po->fops->write(fh, offset, NULL, data, len);
 		po->fops->close(&fh);
 	}
 
