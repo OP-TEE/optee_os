@@ -12,9 +12,17 @@
 #include <types_ext.h>
 
 #ifdef CFG_WITH_USER_TA
+TEE_Result check_user_access(uint32_t flags, const void *uaddr, size_t len);
 TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len);
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len);
 #else
+static inline TEE_Result check_user_access(uint32_t flags __unused,
+					   const void *uaddr __unused,
+					   size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static inline TEE_Result copy_from_user_private(void *kaddr __unused,
 						const void *uaddr __unused,
 						size_t len __unused)
