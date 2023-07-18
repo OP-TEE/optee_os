@@ -10,6 +10,7 @@
 #include <kernel/scall.h>
 #include <kernel/thread.h>
 #include <kernel/trace_ta.h>
+#include <kernel/user_access.h>
 #include <kernel/user_ta.h>
 #include <mm/vm.h>
 #include <riscv.h>
@@ -23,15 +24,29 @@
 static void save_panic_regs_rv_ta(struct thread_specific_data *tsd,
 				  unsigned long *pushed)
 {
+	TEE_Result res = TEE_SUCCESS;
+	unsigned long s0 = 0;
+	unsigned long epc = 0;
+#if defined(RV32)
+	unsigned long *stack_s0 = &pushed[2];
+	unsigned long *stack_epc = &pushed[3];
+#elif defined(RV64)
+	unsigned long *stack_s0 = &pushed[0];
+	unsigned long *stack_epc = &pushed[1];
+#endif
+
+	res = GET_USER_SCALAR(s0, stack_s0);
+	if (res)
+		s0 = 0;
+
+	res = GET_USER_SCALAR(epc, stack_epc);
+	if (res)
+		epc = 0;
+
 	tsd->abort_regs = (struct thread_abort_regs){
 		.sp = (unsigned long)pushed,
-#if defined(RV32)
-		.s0 = pushed[2],
-		.epc = pushed[3],
-#elif defined(RV64)
-		.s0 = pushed[0],
-		.epc = pushed[1],
-#endif
+		.s0 = s0,
+		.epc = epc,
 	};
 }
 
