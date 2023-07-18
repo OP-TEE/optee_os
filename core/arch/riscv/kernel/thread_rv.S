@@ -316,19 +316,24 @@ END_FUNC thread_resume
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :
 	 /* Use stack for temporary storage */
-	addi	sp, sp, -16
+	addi	sp, sp, -REGOFF(4)
 
 	/* Read xSTATUS */
 	csrr	a1, CSR_XSTATUS
 
+	/* Mask all maskable exceptions before switching to temporary stack */
+	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
+
 	/* Save return address xSTATUS and pointer to rv */
 	STR	a0, REGOFF(0)(sp)
 	STR	a1, REGOFF(1)(sp)
-	STR	ra, REGOFF(2)(sp)
+	STR	s0, REGOFF(2)(sp)
+	STR	ra, REGOFF(3)(sp)
+	addi	s0, sp, REGOFF(4)
 
 	/* Save thread state */
 	jal	thread_get_ctx_regs
-	store_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_SP
+	store_xregs a0, THREAD_CTX_REG_SP, REG_SP
 	store_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
 	store_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
 
@@ -336,26 +341,26 @@ FUNC thread_rpc , :
 	jal	thread_get_tmp_sp
 
 	/* Get pointer to rv */
-	LDR	s0, REGOFF(0)(sp)
+	LDR	s1, REGOFF(0)(sp)
 
 	/* xSTATUS to restore */
 	LDR	a1, REGOFF(1)(sp)
 	/* Switch to tmp stack */
 	mv	sp, a0
 
-	/* Early load rv[] into s1-s3 */
-	lw	s1, 0(s0)
-	lw	s2, 4(s0)
-	lw	s3, 8(s0)
+	/* Early load rv[] into s2-s4 */
+	lw	s2, 0(s1)
+	lw	s3, 4(s1)
+	lw	s4, 8(s1)
 
 	li	a0, THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	la	a2, .thread_rpc_return
 	jal	thread_state_suspend
 
 	mv	a4, a0	/* thread index */
-	mv	a1, s1	/* rv[0] */
-	mv	a2, s2	/* rv[1] */
-	mv	a3, s3	/* rv[2] */
+	mv	a1, s2	/* rv[0] */
+	mv	a2, s3	/* rv[1] */
+	mv	a3, s4	/* rv[2] */
 	li	a0, TEESMC_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
@@ -376,9 +381,14 @@ FUNC thread_rpc , :
 	sw	a2, 8(a4)
 	sw	a3, 12(a4)
 
-	/* Pop return address from stack */
-	LDR	ra, REGOFF(2)(sp)
+	/* Pop saved XSTATUS from stack */
+	LDR	s0, REGOFF(1)(sp)
+	csrw	CSR_XSTATUS, s0
 
-	addi	sp, sp, 16
+	/* Pop return address and s0 from stack */
+	LDR	ra, REGOFF(3)(sp)
+	LDR	s0, REGOFF(2)(sp)
+
+	addi	sp, sp, REGOFF(4)
 	ret
 END_FUNC thread_rpc
