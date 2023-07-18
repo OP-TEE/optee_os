@@ -565,8 +565,13 @@ void thread_init_per_cpu(void)
 	 * and kernel traps.
 	 */
 	write_csr(CSR_XSCRATCH, 0);
-	/* Allow access to user pages */
+#ifndef CFG_PAN
+	/*
+	 * Allow access to user pages. When CFG_PAN is enabled, the SUM bit will
+	 * be set and clear at runtime when necessary.
+	 */
 	set_csr(CSR_XSTATUS, CSR_XSTATUS_SUM);
+#endif
 }
 
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,

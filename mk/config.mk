@@ -933,9 +933,10 @@ endif
 
 # Privileged Access Never (PAN, part of the ARMv8.1 Extensions) can be
 # used to restrict accesses to unprivileged memory from privileged mode.
+# For RISC-V architecture, CSR {m|s}status.SUM bit is used to implement PAN.
 CFG_PAN ?= n
 
-$(eval $(call cfg-depends-all,CFG_PAN,CFG_ARM64_core))
+$(eval $(call cfg-depends-one,CFG_PAN,CFG_ARM64_core CFG_RV64_core CFG_RV32_core))
 
 # CFG_CORE_ASYNC_NOTIF is defined by the platform to enable support
 # for sending asynchronous notifications to normal world. Note that an
