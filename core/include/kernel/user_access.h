@@ -15,6 +15,8 @@
 TEE_Result check_user_access(uint32_t flags, const void *uaddr, size_t len);
 TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len);
 TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len);
+TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len);
+TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len);
 #else
 static inline TEE_Result check_user_access(uint32_t flags __unused,
 					   const void *uaddr __unused,
@@ -37,6 +39,19 @@ static inline TEE_Result copy_from_user(void *kaddr __unused,
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 
+static inline TEE_Result copy_to_user_private(void *uaddr __unused,
+					      const void *kaddr __unused,
+					      size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result copy_to_user(void *uaddr __unused,
+				      const void *kaddr __unused,
+				      size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
 #endif
 
 /*
@@ -70,9 +85,6 @@ void bb_free(void *bb, size_t len);
  * with bb_alloc() should not be used any longer.
  */
 void bb_reset(void);
-
-TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len);
-TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len);
 
 TEE_Result clear_user(void *uaddr, size_t n);
 
