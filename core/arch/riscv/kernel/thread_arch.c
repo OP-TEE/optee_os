@@ -477,7 +477,7 @@ void thread_state_free(void)
 	thread_unlock_global();
 }
 
-int thread_state_suspend(uint32_t flags, uint32_t status, vaddr_t pc)
+int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
@@ -572,7 +572,7 @@ void thread_init_per_cpu(void)
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 			 unsigned long a1, unsigned long a2, unsigned long a3,
 			 unsigned long user_sp, unsigned long entry_func,
-			 uint32_t status,
+			 unsigned long status,
 			 struct thread_pauth_keys *keys __unused)
 {
 	*regs = (struct thread_ctx_regs){
@@ -594,7 +594,7 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 				uint32_t *exit_status0,
 				uint32_t *exit_status1)
 {
-	uint32_t status = 0;
+	unsigned long status = 0;
 	uint32_t exceptions = 0;
 	uint32_t rc = 0;
 	struct thread_ctx_regs *regs = NULL;
@@ -603,8 +603,9 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
-	status = CSR_XSTATUS_SUM | CSR_XSTATUS_PIE;
-	set_field_u64(status, CSR_XSTATUS_SPP, PRV_U);
+	status = read_csr(CSR_XSTATUS);
+	status |= CSR_XSTATUS_PIE;	/* Previous interrupt is enabled */
+	status = set_field_u64(status, CSR_XSTATUS_SPP, PRV_U);
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
 	thread_unmask_exceptions(exceptions);
