@@ -34,7 +34,7 @@ static struct user_mode_ctx *get_current_uctx(void)
 	return to_user_mode_ctx(s->ctx);
 }
 
-static TEE_Result check_access(uint32_t flags, const void *uaddr, size_t len)
+TEE_Result check_user_access(uint32_t flags, const void *uaddr, size_t len)
 {
 	struct user_mode_ctx *uctx = get_current_uctx();
 
@@ -50,7 +50,7 @@ TEE_Result copy_from_user(void *kaddr, const void *uaddr, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 
 	uaddr = memtag_strip_tag_const(uaddr);
-	res = check_access(flags, uaddr, len);
+	res = check_user_access(flags, uaddr, len);
 	if (!res) {
 		enter_user_access();
 		memcpy(kaddr, uaddr, len);
@@ -66,7 +66,7 @@ TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 
 	uaddr = memtag_strip_tag(uaddr);
-	res = check_access(flags, uaddr, len);
+	res = check_user_access(flags, uaddr, len);
 	if (!res) {
 		enter_user_access();
 		memcpy(uaddr, kaddr, len);
@@ -82,7 +82,7 @@ TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 
 	uaddr = memtag_strip_tag_const(uaddr);
-	res = check_access(flags, uaddr, len);
+	res = check_user_access(flags, uaddr, len);
 	if (!res) {
 		enter_user_access();
 		memcpy(kaddr, uaddr, len);
@@ -98,7 +98,7 @@ TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 
 	uaddr = memtag_strip_tag(uaddr);
-	res = check_access(flags, uaddr, len);
+	res = check_user_access(flags, uaddr, len);
 	if (!res) {
 		enter_user_access();
 		memcpy(uaddr, kaddr, len);
@@ -156,7 +156,7 @@ TEE_Result clear_user(void *uaddr, size_t n)
 	TEE_Result res = TEE_SUCCESS;
 
 	uaddr = memtag_strip_tag(uaddr);
-	res = check_access(flags, uaddr, n);
+	res = check_user_access(flags, uaddr, n);
 	if (res)
 		return res;
 
@@ -174,7 +174,7 @@ size_t strnlen_user(const void *uaddr, size_t len)
 	size_t n = 0;
 
 	uaddr = memtag_strip_tag_const(uaddr);
-	res = check_access(flags, uaddr, len);
+	res = check_user_access(flags, uaddr, len);
 	if (!res) {
 		enter_user_access();
 		n = strnlen(uaddr, len);
@@ -229,7 +229,7 @@ TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
 	char *d = NULL;
 
 	src = memtag_strip_tag_const(src);
-	res = check_access(flags, src, maxlen);
+	res = check_user_access(flags, src, maxlen);
 	if (res)
 		return res;
 
