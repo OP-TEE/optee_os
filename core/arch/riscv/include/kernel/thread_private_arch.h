@@ -62,7 +62,7 @@ void thread_trap_vect_end(void);
 /*
  * Private functions made available for thread_rv.S
  */
-int thread_state_suspend(uint32_t flags, uint32_t status, vaddr_t pc);
+int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc);
 void thread_resume(struct thread_ctx_regs *regs);
 uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
 				  uint32_t *exit_status0,
