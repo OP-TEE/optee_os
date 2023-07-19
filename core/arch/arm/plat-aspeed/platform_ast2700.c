@@ -18,12 +18,12 @@ register_ddr(CFG_DRAM_BASE, CFG_DRAM_SIZE);
 
 static struct serial8250_uart_data console_data;
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(0, GICD_BASE);
 }
 
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }

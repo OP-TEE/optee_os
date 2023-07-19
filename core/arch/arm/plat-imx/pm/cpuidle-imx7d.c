@@ -214,11 +214,11 @@ int imx7d_lowpower_idle(uint32_t power_state __unused,
 		if (!get_core_pos())
 			plat_primary_init_early();
 
-		main_init_gic();
+		primary_init_intc();
 		gic_inited = 1;
 		DMSG("=== Back from Suspended ===\n");
 	} else {
-		main_secondary_init_gic();
+		main_secondary_init_intc();
 		gic_inited = 0;
 	}
 

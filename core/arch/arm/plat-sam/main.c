@@ -338,7 +338,7 @@ void plat_primary_init_early(void)
 	matrix_init();
 }
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	if (atmel_saic_setup())
 		panic("Failed to init interrupts\n");

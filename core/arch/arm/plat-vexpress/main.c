@@ -47,13 +47,13 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }
@@ -61,7 +61,7 @@ void main_secondary_init_gic(void)
 #endif /*CFG_GIC*/
 
 #ifdef CFG_CORE_HAFNIUM_INTC
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	hfic_init();
 }

@@ -40,12 +40,12 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }

@@ -95,12 +95,12 @@ __weak void plat_primary_init_early(void)
 DECLARE_KEEP_PAGER(plat_primary_init_early);
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void main_init_gic(void)
+__weak void primary_init_intc(void)
 {
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void main_secondary_init_gic(void)
+__weak void main_secondary_init_intc(void)
 {
 }
 
@@ -1199,7 +1199,7 @@ void __weak boot_init_primary_late(unsigned long fdt,
 			IMSG("WARNING: This ARM core does not have NMFI enabled, no need for workaround");
 	}
 
-	main_init_gic();
+	primary_init_intc();
 	init_vfp_nsec();
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
 		IMSG("Initializing virtualization support");
@@ -1227,7 +1227,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	secondary_init_cntfrq();
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	main_secondary_init_gic();
+	main_secondary_init_intc();
 	init_vfp_sec();
 	init_vfp_nsec();
 
