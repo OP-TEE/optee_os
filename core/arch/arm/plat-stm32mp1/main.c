@@ -150,14 +150,14 @@ service_init_late(init_console_from_dt);
 /*
  * GIC init, used also for primary/secondary boot core wake completion
  */
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 
 	stm32mp_register_online_cpu();
 }
 
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 

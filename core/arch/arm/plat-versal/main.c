@@ -46,7 +46,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 register_ddr(DRAM2_BASE, DRAM2_SIZE);
 #endif
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }

@@ -58,8 +58,8 @@ unsigned long boot_cpu_on_handler(unsigned long a0, unsigned long a1);
 void boot_init_secondary(unsigned long nsec_entry);
 #endif
 
-void main_init_gic(void);
-void main_secondary_init_gic(void);
+void primary_init_intc(void);
+void main_secondary_init_intc(void);
 
 void init_sec_mon(unsigned long nsec_entry);
 void init_tee_runtime(void);

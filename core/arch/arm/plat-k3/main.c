@@ -32,12 +32,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SEC_PROXY_RT_BASE, SEC_PROXY_RT_SIZE);
 register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }

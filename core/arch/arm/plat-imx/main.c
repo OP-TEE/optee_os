@@ -106,7 +106,7 @@ void console_init(void)
 #endif
 }
 
-void main_init_gic(void)
+void primary_init_intc(void)
 {
 #ifdef GICD_BASE
 	gic_init(0, GICD_BASE);
@@ -116,7 +116,7 @@ void main_init_gic(void)
 }
 
 #if CFG_TEE_CORE_NB_CORE > 1
-void main_secondary_init_gic(void)
+void main_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }
