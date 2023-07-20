@@ -35,6 +35,13 @@ endif
 
 CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
+# CFG_WITH_LPAE is ARM-related flag, however, it is used by core code.
+# In order to maintain the code logic, we set it when CFG_CORE_LARGE_PHYS_ADDR is set.
+# Platform configuration should accordingly set CFG_CORE_LARGE_PHYS_ADDR or not.
+ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
+$(call force,CFG_WITH_LPAE,y)
+endif
+
 CFG_RISCV_SBI	 ?= n
 CFG_RISCV_M_MODE ?= y
 ifeq ($(CFG_RISCV_M_MODE),y)
