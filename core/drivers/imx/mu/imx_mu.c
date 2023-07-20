@@ -66,7 +66,7 @@ static TEE_Result imx_mu_receive_msg(vaddr_t base, struct imx_mu_msg *msg)
 		return TEE_ERROR_BAD_FORMAT;
 	}
 
-	nb_channel = imx_mu_plat_get_rx_channel();
+	nb_channel = imx_mu_plat_get_rx_channel(base);
 
 	for (count = 1; count < msg->header.size; count++) {
 		res = imx_mu_plat_receive(base, count % nb_channel,
@@ -103,7 +103,7 @@ static TEE_Result imx_mu_send_msg(vaddr_t base, struct imx_mu_msg *msg)
 	if (res)
 		return res;
 
-	nb_channel = imx_mu_plat_get_tx_channel();
+	nb_channel = imx_mu_plat_get_tx_channel(base);
 
 	for (count = 1; count < msg->header.size; count++) {
 		res = imx_mu_plat_send(base, count % nb_channel,
