@@ -754,12 +754,16 @@ static bool addr_is_in_no_share_heap(void *p)
 void *TEE_Realloc(void *buffer, size_t newSize)
 {
 	if (!newSize) {
-		TEE_Free(buffer);
+		void *ret = NULL;
 
 		if (addr_is_in_no_share_heap(buffer))
-			return TEE_NULL_SIZED_NO_SHARE_VA;
+			ret = TEE_NULL_SIZED_NO_SHARE_VA;
 		else
-			return TEE_NULL_SIZED_VA;
+			ret = TEE_NULL_SIZED_VA;
+
+		TEE_Free(buffer);
+
+		return ret;
 	}
 
 	if (buffer == TEE_NULL_SIZED_VA)
