@@ -356,7 +356,7 @@ static void entry_open_session(struct optee_msg_arg *arg, uint32_t num_params)
 	struct tee_ta_session *s = NULL;
 	TEE_Identity clnt_id;
 	TEE_UUID uuid;
-	struct tee_ta_param param;
+	struct tee_ta_param param = { };
 	size_t num_meta;
 	uint64_t saved_attr[TEE_NUM_PARAMS] = { 0 };
 
