@@ -201,7 +201,7 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 {
 	TEE_Result res;
 	size_t l;
-	enum user_ta_prop_type type;
+	enum user_ta_prop_type type = USER_TA_PROP_TYPE_INVALID;
 	void *tmp_buf = 0;
 	uint32_t tmp_len;
 	uint32_t uint32_val;
