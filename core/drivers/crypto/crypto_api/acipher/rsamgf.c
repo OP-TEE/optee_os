@@ -29,7 +29,7 @@ TEE_Result drvcrypt_rsa_mgf1(struct drvcrypt_rsa_mgf *mgf_data)
 	lastBlock_size = mgf_data->mask.length % mgf_data->digest_size;
 	if (lastBlock_size) {
 		/* Allocate a digest buffer for the last block */
-		tmpdigest = malloc(mgf_data->digest_size);
+		tmpdigest = calloc(1, mgf_data->digest_size);
 		if (!tmpdigest)
 			return TEE_ERROR_OUT_OF_MEMORY;
 	}
