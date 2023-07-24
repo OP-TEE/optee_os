@@ -131,6 +131,7 @@ enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_STRING,	/* zero terminated string of char */
 	USER_TA_PROP_TYPE_BINARY_BLOCK,	/* zero terminated base64 coded string */
 	USER_TA_PROP_TYPE_U64,	/* uint64_t */
+	USER_TA_PROP_TYPE_INVALID,	/* invalid value */
 };
 
 struct user_ta_property {
