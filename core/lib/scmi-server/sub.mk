@@ -86,6 +86,9 @@ cppflags-lib-$(CFG_SCPFW_CLOCK_TREE_MGMT) += -DBUILD_HAS_CLOCK_TREE_MGMT
 
 cppflags-lib-$(CFG_SCPFW_SCMI_PERF_FAST_CHANNELS) += -DBUILD_HAS_SCMI_PERF_FAST_CHANNELS
 
+cppflags-lib-$(CFG_SCPFW_SCMI_PERF_PROTOCOL_OPS) \
+	+= -DBUILD_HAS_SCMI_PERF_PROTOCOL_OPS
+
 cppflags-lib-$(CFG_SCPFW_SCMI_SENSOR_EVENTS) += -DBUILD_HAS_SCMI_SENSOR_EVENTS
 cppflags-lib-$(CFG_SCPFW_SCMI_SENSOR_V2) += -DBUILD_HAS_SCMI_SENSOR_V2 \
 					    -DBUILD_HAS_SENSOR_TIMESTAMP \
@@ -148,6 +151,21 @@ ifneq (,$$(wildcard $(scpfw-path)/$3/$2/include/*))
 incdirs_ext-y += $(scpfw-path)/$3/$2/include
 endif
 srcs-$(CFG_SCPFW_MOD_$4) += $(scpfw-path)/$3/$2/src/mod_$1.c
+
+# SCMI_Perf in SCP-firmware has components that can be added conditionally at
+# build time.
+ifeq ($(1), scmi_perf)
+
+ifeq ($(CFG_SCPFW_SCMI_PERF_PROTOCOL_OPS),y)
+srcs-$(CFG_SCPFW_MOD_SCMI_PERF) += $(scpfw-path)/$3/$2/src/scmi_perf_protocol_ops.c
+endif
+
+ifeq ($(CFG_SCPFW_SCMI_PERF_FAST_CHANNELS),y)
+srcs-$(CFG_SCPFW_MOD_SCMI_PERF) += $(scpfw-path)/$3/$2/src/scmi_perf_fastchannels.c
+endif
+
+endif
+
 cflags-lib-$(CFG_SCPFW_MOD_$4) += -DBUILD_HAS_MOD_$4
 endef
 
