@@ -506,7 +506,7 @@ static TEE_Result find_ent(struct tee_tadb_dir *db, const TEE_UUID *uuid,
 	 * with TEE_ERROR_ITEM_NOT_FOUND.
 	 */
 	for (idx = 0;; idx++) {
-		struct tadb_entry entry;
+		struct tadb_entry entry = { };
 
 		res = read_ent(db, idx, &entry);
 		if (res) {

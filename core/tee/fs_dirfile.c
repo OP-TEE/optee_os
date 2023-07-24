@@ -138,7 +138,7 @@ TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
 		goto out;
 
 	for (n = 0;; n++) {
-		struct dirfile_entry dent;
+		struct dirfile_entry dent = { };
 
 		res = read_dent(dirh, n, &dent);
 		if (res) {
@@ -289,7 +289,7 @@ TEE_Result tee_fs_dirfile_rename(struct tee_fs_dirfile_dirh *dirh,
 				 const void *oid, size_t oidlen)
 {
 	TEE_Result res;
-	struct dirfile_entry dent;
+	struct dirfile_entry dent = { };
 
 	if (oidlen > sizeof(dent.oid))
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -324,7 +324,7 @@ TEE_Result tee_fs_dirfile_remove(struct tee_fs_dirfile_dirh *dirh,
 				 const struct tee_fs_dirfile_fileh *dfh)
 {
 	TEE_Result res;
-	struct dirfile_entry dent;
+	struct dirfile_entry dent = { };
 	uint32_t file_number;
 
 	res = read_dent(dirh, dfh->idx, &dent);
@@ -350,7 +350,7 @@ TEE_Result tee_fs_dirfile_update_hash(struct tee_fs_dirfile_dirh *dirh,
 				      const struct tee_fs_dirfile_fileh *dfh)
 {
 	TEE_Result res;
-	struct dirfile_entry dent;
+	struct dirfile_entry dent = { };
 
 	res = read_dent(dirh, dfh->idx, &dent);
 	if (res)
