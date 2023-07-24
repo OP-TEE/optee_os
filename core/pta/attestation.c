@@ -56,9 +56,11 @@ static TEE_Result generate_key(void)
 
 	res = allocate_key();
 	if (res)
-		return res;
+		goto err;
 
-	crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key->e);
+	res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key->e);
+	if (res)
+		goto err;
 
 	/*
 	 * For security reasons, the RSA modulus size has to be at least the
@@ -68,9 +70,12 @@ static TEE_Result generate_key(void)
 	COMPILE_TIME_ASSERT(CFG_ATTESTATION_PTA_KEY_SIZE >=
 			    TEE_SHA256_HASH_SIZE);
 	res = crypto_acipher_gen_rsa_key(key, CFG_ATTESTATION_PTA_KEY_SIZE);
-	if (res)
-		free_key();
+	if (!res)
+		goto out;
 
+err:
+	free_key();
+out:
 	return res;
 }
 
