@@ -71,7 +71,4 @@ struct ls_dspi_data {
  */
 TEE_Result ls_dspi_init(struct ls_dspi_data *dspi_data);
 
-/* Flush RX and TX FIFO */
-void dspi_flush_fifo(struct ls_dspi_data *dspi_data);
-
 #endif /* __DRIVERS_LS_DSPI_H */

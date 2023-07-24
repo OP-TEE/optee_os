@@ -375,7 +375,7 @@ static void ls_dspi_end(struct spi_chip *chip)
  * Clear RX and TX FIFO
  * dspi_data:   DSPI controller chip instance
  */
-void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
+static void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
 {
 	unsigned int mcr_val = 0;
 
