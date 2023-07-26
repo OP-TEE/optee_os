@@ -483,10 +483,11 @@ static TEE_Result sign_buffer(uint8_t *buf, size_t buf_sz, uint8_t *nonce,
  */
 static bool is_region_valid(struct vm_region *r)
 {
-	uint32_t skip_flags = VM_FLAG_EPHEMERAL | VM_FLAG_PERMANENT |
-			      VM_FLAG_LDELF;
+	uint32_t dontwant = VM_FLAG_EPHEMERAL | VM_FLAG_PERMANENT |
+			    VM_FLAG_LDELF;
+	uint32_t want = VM_FLAG_READONLY;
 
-	return !(r->flags & skip_flags || r->attr & TEE_MATTR_UW);
+	return ((r->flags & want) == want && !(r->flags & dontwant));
 }
 
 /*
