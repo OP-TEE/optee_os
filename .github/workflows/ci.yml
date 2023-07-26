@@ -274,6 +274,8 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           WD=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
