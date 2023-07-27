@@ -1917,6 +1917,9 @@ bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	enum pkcs11_class_id key_class = get_class(obj->attributes);
 
+	if (attribute_is_hidden(req_attr))
+		return false;
+
 	if (key_class != PKCS11_CKO_SECRET_KEY &&
 	    key_class != PKCS11_CKO_PRIVATE_KEY)
 		return true;
@@ -2178,6 +2181,10 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 
 		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
 		len = sizeof(cli_ref) + cli_ref.size;
+
+		/* Protect hidden attributes */
+		if (attribute_is_hidden(&cli_ref))
+			return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
 
 		/*
 		 * Check 1 - Check if attribute belongs to the object

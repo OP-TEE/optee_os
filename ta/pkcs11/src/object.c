@@ -833,6 +833,15 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 
 		len = sizeof(*cli_ref) + cli_head.size;
 
+		/* Treat hidden attributes as missing attributes */
+		if (attribute_is_hidden(&cli_head)) {
+			cli_head.size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			TEE_MemMove(&cli_ref->size, &cli_head.size,
+				    sizeof(cli_head.size));
+			attr_type_invalid = 1;
+			continue;
+		}
+
 		/* We don't support getting value of indirect templates */
 		if (pkcs11_attr_has_indirect_attributes(cli_head.id)) {
 			attr_type_invalid = 1;

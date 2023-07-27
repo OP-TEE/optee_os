@@ -1065,6 +1065,14 @@ struct pkcs11_attribute_head {
 #define PKCS11_CKA_OPTEE_FLAGS_MASK	(PKCS11_CKA_VENDOR_DEFINED | \
 					 0x00FF0000UL)
 
+/**
+ * PKCS11_CKA_OPTEE_FLAGS_HIDDEN defines attribute that will not be exported
+ * from PKCS11 TA to its client. From client application point of view the
+ * attribute does not exist.
+ */
+#define PKCS11_CKA_OPTEE_FLAGS_HIDDEN	(PKCS11_CKA_VENDOR_DEFINED | \
+					 0x00010000UL)
+
 /*
  * Attribute identification IDs as of v2.40 excluding deprecated IDs.
  * Valid values for struct pkcs11_attribute_head::id
