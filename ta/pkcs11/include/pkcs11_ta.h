@@ -1039,6 +1039,12 @@ struct pkcs11_attribute_head {
 	uint8_t data[];
 };
 
+/**
+ * The PKCS11_CKF_ARRAY_ATTRIBUTE flag identifies an attribute which
+ * consists of an array of values.
+ */
+#define PKCS11_CKF_ARRAY_ATTRIBUTE	0x40000000UL
+
 /*
  * Attribute identification IDs as of v2.40 excluding deprecated IDs.
  * Valid values for struct pkcs11_attribute_head::id
@@ -1110,13 +1116,12 @@ enum pkcs11_attr_id {
 	PKCS11_CKA_EC_POINT			= 0x0181,
 	PKCS11_CKA_ALWAYS_AUTHENTICATE		= 0x0202,
 	PKCS11_CKA_WRAP_WITH_TRUSTED		= 0x0210,
-	/*
-	 * The leading 4 comes from the PKCS#11 spec or:ing with
-	 * CKF_ARRAY_ATTRIBUTE = 0x40000000.
-	 */
-	PKCS11_CKA_WRAP_TEMPLATE		= 0x40000211,
-	PKCS11_CKA_UNWRAP_TEMPLATE		= 0x40000212,
-	PKCS11_CKA_DERIVE_TEMPLATE		= 0x40000213,
+	PKCS11_CKA_WRAP_TEMPLATE		= PKCS11_CKF_ARRAY_ATTRIBUTE |
+						  0x0211,
+	PKCS11_CKA_UNWRAP_TEMPLATE		= PKCS11_CKF_ARRAY_ATTRIBUTE |
+						  0x0212,
+	PKCS11_CKA_DERIVE_TEMPLATE		= PKCS11_CKF_ARRAY_ATTRIBUTE |
+						  0x0213,
 	PKCS11_CKA_OTP_FORMAT			= 0x0220,
 	PKCS11_CKA_OTP_LENGTH			= 0x0221,
 	PKCS11_CKA_OTP_TIME_INTERVAL		= 0x0222,
@@ -1151,11 +1156,9 @@ enum pkcs11_attr_id {
 	PKCS11_CKA_REQUIRED_CMS_ATTRIBUTES	= 0x0501,
 	PKCS11_CKA_DEFAULT_CMS_ATTRIBUTES	= 0x0502,
 	PKCS11_CKA_SUPPORTED_CMS_ATTRIBUTES	= 0x0503,
-	/*
-	 * The leading 4 comes from the PKCS#11 spec or:ing with
-	 * CKF_ARRAY_ATTRIBUTE = 0x40000000.
+	PKCS11_CKA_ALLOWED_MECHANISMS		= PKCS11_CKF_ARRAY_ATTRIBUTE |
+						  0x0600,
 	 */
-	PKCS11_CKA_ALLOWED_MECHANISMS		= 0x40000600,
 	/* Vendor extension: reserved for undefined ID (~0U) */
 	PKCS11_CKA_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };
