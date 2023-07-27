@@ -1039,11 +1039,31 @@ struct pkcs11_attribute_head {
 	uint8_t data[];
 };
 
+#define PKCS11_CKA_VENDOR_DEFINED	0x80000000UL
+
 /**
  * The PKCS11_CKF_ARRAY_ATTRIBUTE flag identifies an attribute which
  * consists of an array of values.
  */
 #define PKCS11_CKF_ARRAY_ATTRIBUTE	0x40000000UL
+
+/*
+ * OP-TEE's vendor specific PKCS#11 attribute allocation
+ *
+ * bit 31 - PKCS11_CKA_VENDOR_DEFINED
+ * bit 30 - PKCS11_CKF_ARRAY_ATTRIBUTE - works like in normal attributes
+ * bit 24-29 - reserved in case PKCS#11 standard starts to use them
+ * bit 16-23 - allocated for OP-TEE attribute flags
+ * bit 0-15 - allocated for attribute identifier
+ */
+
+/* OP-TEE attribute flags */
+
+/**
+ * Flags mask for checking if OP-TEE attribute flags are set.
+ */
+#define PKCS11_CKA_OPTEE_FLAGS_MASK	(PKCS11_CKA_VENDOR_DEFINED | \
+					 0x00FF0000UL)
 
 /*
  * Attribute identification IDs as of v2.40 excluding deprecated IDs.
