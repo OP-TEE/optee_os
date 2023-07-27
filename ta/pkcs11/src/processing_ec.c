@@ -388,14 +388,29 @@ enum pkcs11_rc load_tee_ec_key_attrs(TEE_Attribute **tee_attrs,
 				       obj, PKCS11_CKA_VALUE))
 			count++;
 
+		/*
+		 * Standard does not have CKA_EC_POINT for EC private keys
+		 * but that is required by TEE internal API. First try to get
+		 * hidden EC POINT and for backwards compatibility then try to
+		 * get CKA_EC_POINT value.
+		 */
+
 		if (pkcs2tee_load_attr(&attrs[count],
 				       TEE_ATTR_ECC_PUBLIC_VALUE_X,
-				       obj, PKCS11_CKA_EC_POINT))
+				       obj, PKCS11_CKA_OPTEE_HIDDEN_EC_POINT))
+			count++;
+		else if (pkcs2tee_load_attr(&attrs[count],
+					    TEE_ATTR_ECC_PUBLIC_VALUE_X,
+					    obj, PKCS11_CKA_EC_POINT))
 			count++;
 
 		if (pkcs2tee_load_attr(&attrs[count],
 				       TEE_ATTR_ECC_PUBLIC_VALUE_Y,
-				       obj, PKCS11_CKA_EC_POINT))
+				       obj, PKCS11_CKA_OPTEE_HIDDEN_EC_POINT))
+			count++;
+		else if (pkcs2tee_load_attr(&attrs[count],
+					    TEE_ATTR_ECC_PUBLIC_VALUE_Y,
+					    obj, PKCS11_CKA_EC_POINT))
 			count++;
 
 		if (count == 4)
@@ -549,11 +564,13 @@ static enum pkcs11_rc tee2pkcs_ec_attributes(struct obj_attrs **pub_head,
 	TEE_MemMove(ecpoint + hsize + psize + poffset, y_ptr, y_size);
 
 	/*
-	 * Add EC_POINT on both private and public key objects as
+	 * Add PKCS11_CKA_OPTEE_HIDDEN_EC_POINT to private key object and
+	 * standard PKCS11_CKA_EC_POINT to public key objects as
 	 * TEE_PopulateTransientObject requires public x/y values
 	 * for TEE_TYPE_ECDSA_KEYPAIR.
 	 */
-	rc = add_attribute(priv_head, PKCS11_CKA_EC_POINT, ecpoint, dersize);
+	rc = add_attribute(priv_head, PKCS11_CKA_OPTEE_HIDDEN_EC_POINT,
+			   ecpoint, dersize);
 	if (rc)
 		goto ecpoint_cleanup;
 
