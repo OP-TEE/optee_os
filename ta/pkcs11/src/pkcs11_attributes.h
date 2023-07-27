@@ -7,6 +7,7 @@
 #define PKCS11_TA_PKCS11_ATTRIBUTES_H
 
 #include <inttypes.h>
+#include <pkcs11_ta.h>
 
 #include "serializer.h"
 
@@ -161,6 +162,12 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 				   enum pkcs11_mechanism_id mechanism_type,
 				   enum processing_func function,
 				   enum processing_step step);
+
+static inline bool attribute_is_hidden(struct pkcs11_attribute_head *req_attr)
+{
+	return (req_attr->id & PKCS11_CKA_OPTEE_FLAGS_HIDDEN) ==
+		PKCS11_CKA_OPTEE_FLAGS_HIDDEN;
+}
 
 bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 			     struct pkcs11_object *obj);
