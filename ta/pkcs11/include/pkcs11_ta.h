@@ -1186,7 +1186,19 @@ enum pkcs11_attr_id {
 	PKCS11_CKA_SUPPORTED_CMS_ATTRIBUTES	= 0x0503,
 	PKCS11_CKA_ALLOWED_MECHANISMS		= PKCS11_CKF_ARRAY_ATTRIBUTE |
 						  0x0600,
+
+	/* Vendor specific attributes */
+
+	/**
+	 * TEE Internal API requires to have EC public key information
+	 * available for private key operations. As EC private key object
+	 * should not include CKA_EC_POINT include hidden one so that it does
+	 * not need to be calculated on each operation.
 	 */
+	PKCS11_CKA_OPTEE_HIDDEN_EC_POINT = PKCS11_CKA_VENDOR_DEFINED |
+					   PKCS11_CKA_OPTEE_FLAGS_HIDDEN |
+					   0x0000,
+
 	/* Vendor extension: reserved for undefined ID (~0U) */
 	PKCS11_CKA_UNDEFINED_ID			= PKCS11_UNDEFINED_ID,
 };

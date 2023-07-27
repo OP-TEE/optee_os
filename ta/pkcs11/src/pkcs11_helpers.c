@@ -97,6 +97,7 @@ static const struct attr_size attr_ids[] = {
 	PKCS11_ID_SZ(PKCS11_CKA_ALWAYS_AUTHENTICATE, 1),
 	PKCS11_ID_SZ(PKCS11_CKA_WRAP_WITH_TRUSTED, 1),
 	/* Specific PKCS11 TA internal attribute ID */
+	PKCS11_ID_SZ(PKCS11_CKA_OPTEE_HIDDEN_EC_POINT, 0),
 	PKCS11_ID_SZ(PKCS11_CKA_UNDEFINED_ID, 0),
 };
 
@@ -575,16 +576,26 @@ bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 
 		data32 = (ec_params2tee_keysize(a_ptr, a_size) + 7) / 8;
 
-		if (get_attribute_ptr(obj->attributes, PKCS11_CKA_EC_POINT,
+		/*
+		 * For private keys we need EC public key for TEE operations so
+		 * first try to get hidden EC POINT and as backwards
+		 * compatibility also check for CKA_EC_POINT.
+		 *
+		 * For public keys we only have CKA_EC_POINT but there is no
+		 * harm to check for hidden one too.
+		 */
+		if (get_attribute_ptr(obj->attributes,
+				      PKCS11_CKA_OPTEE_HIDDEN_EC_POINT,
 				      &a_ptr, &a_size)) {
-			/*
-			 * Public X/Y is required for both TEE keypair and
-			 * public key, so abort if EC_POINT is not provided
-			 * during object import.
-			 */
-
-			EMSG("Missing EC_POINT attribute");
-			return false;
+			if (get_attribute_ptr(obj->attributes,
+					      PKCS11_CKA_EC_POINT,
+					      &a_ptr, &a_size)) {
+				/*
+				 * Without EC public key we cannot proceed.
+				 */
+				EMSG("Missing EC_POINT attribute");
+				return false;
+			}
 		}
 
 		der_ptr = (uint8_t *)a_ptr;
