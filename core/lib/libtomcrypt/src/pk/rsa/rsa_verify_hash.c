@@ -180,6 +180,16 @@ int rsa_verify_hash_ex(const unsigned char *sig,            unsigned long  sigle
       inc1 = 1;
     }
 
+    if (!*stat) {
+      /*
+       * The call to ftmn_set_check_res_memcmp() above might have failed,
+       * since memcmp() may set any non-zero result force it 1 to match the
+       * check with FTMN_CALLEE_DONE_CHECK() below.
+       */
+      FTMN_SET_CHECK_RES_NOT_ZERO(&ftmn, FTMN_INCR1, 1);
+      inc1++;
+    }
+
 #ifdef LTC_CLEAN_STACK
     zeromem(out, outlen);
 #endif
