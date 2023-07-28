@@ -1351,9 +1351,6 @@ enum pkcs11_rc check_created_attrs_against_token(struct pkcs11_session *session,
 		return PKCS11_CKR_SESSION_READ_ONLY;
 	}
 
-	/*
-	 * TODO: START_DATE and END_DATE: complies with current time?
-	 */
 	return PKCS11_CKR_OK;
 }
 
