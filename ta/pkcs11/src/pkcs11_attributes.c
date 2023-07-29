@@ -5,6 +5,8 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <mbedtls/asn1write.h>
+#include <mbedtls/ecp.h>
 #include <mbedtls/pk.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
@@ -19,6 +21,7 @@
 #include "pkcs11_attributes.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 #include "sanitize_object.h"
 #include "serializer.h"
 #include "token_capabilities.h"
@@ -904,6 +907,176 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 }
 
 static enum pkcs11_rc
+create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
+				     struct obj_attrs *temp,
+				     enum processing_func function)
+{
+	struct mbedtls_ecp_keypair key_pair = { };
+	mbedtls_ecp_group_id ec_curve = MBEDTLS_ECP_DP_NONE;
+	size_t buflen = 0;
+	uint8_t *buf = NULL;
+	size_t asnbuflen = 0;
+	uint8_t *asnbuf = NULL;
+	uint8_t *ptr = NULL;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	int tee_size = 0;
+	int tee_curve = 0;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+	int ret = 0;
+
+	if (function != PKCS11_FUNCTION_IMPORT)
+		return PKCS11_CKR_OK;
+
+	/*
+	 * TEE internal API requires that for private key operations there
+	 * needs to be also public key available.
+	 *
+	 * Generate hidden EC point from private key.
+	 */
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_EC_PARAMS,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No EC_PARAMS attribute found in private key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	/* Just valdiate that curve is found */
+	tee_size = ec_params2tee_keysize(a_ptr, a_size);
+	if (!tee_size) {
+		EMSG("Unsupported EC_PARAMS curve");
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
+	}
+
+	tee_curve = ec_params2tee_curve(a_ptr, a_size);
+
+	switch (tee_curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		ec_curve = MBEDTLS_ECP_DP_SECP192R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		ec_curve = MBEDTLS_ECP_DP_SECP224R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		ec_curve = MBEDTLS_ECP_DP_SECP256R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		ec_curve = MBEDTLS_ECP_DP_SECP384R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		ec_curve = MBEDTLS_ECP_DP_SECP521R1;
+		break;
+	default:
+		EMSG("Failed to map EC_PARAMS to supported curve");
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
+	}
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_VALUE,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No VALUE attribute found in private key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	mbedtls_ecp_keypair_init(&key_pair);
+
+	ret = mbedtls_ecp_read_key(ec_curve, &key_pair, a_ptr, a_size);
+	if (ret) {
+		EMSG("Failed to parse CKA_VALUE");
+		rc = PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+		goto out;
+	}
+
+	ret = mbedtls_ecp_mul(&key_pair.grp, &key_pair.Q, &key_pair.d,
+			      &key_pair.grp.G, NULL, NULL);
+	if (ret) {
+		EMSG("Failed to create public key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_check_privkey(&key_pair.grp, &key_pair.d);
+	if (ret) {
+		EMSG("Failed to verify private key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_check_pubkey(&key_pair.grp, &key_pair.Q);
+	if (ret) {
+		EMSG("Failed to verify public key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_point_write_binary(&key_pair.grp, &key_pair.Q,
+					     MBEDTLS_ECP_PF_UNCOMPRESSED,
+					     &buflen, NULL, 0);
+	if (ret != MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL) {
+		EMSG("Failed to determine size of binary public key");
+		goto out;
+	}
+
+	buf = TEE_Malloc(buflen, TEE_MALLOC_FILL_ZERO);
+	if (!buf) {
+		EMSG("Failed to allocate memory for public key");
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	asnbuflen = 1 /* octet string */ + 5 /* length */ + buflen;
+
+	asnbuf = TEE_Malloc(asnbuflen, TEE_MALLOC_FILL_ZERO);
+	if (!asnbuf) {
+		EMSG("Failed to allocate memory for public key");
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	ret = mbedtls_ecp_point_write_binary(&key_pair.grp, &key_pair.Q,
+					     MBEDTLS_ECP_PF_UNCOMPRESSED,
+					     &buflen, buf, buflen);
+	if (ret) {
+		EMSG("Failed to write binary public key");
+		goto out;
+	}
+
+	/* Note: ASN.1 writing works backwards */
+	ptr = asnbuf + asnbuflen;
+
+	ret = mbedtls_asn1_write_octet_string(&ptr, asnbuf, buf, buflen);
+	if (ret < 0) {
+		EMSG("Failed to write asn1 public key");
+		goto out;
+	}
+
+	rc = add_attribute(out, PKCS11_CKA_OPTEE_HIDDEN_EC_POINT, ptr,
+			   (size_t)ret);
+
+out:
+	TEE_Free(asnbuf);
+	TEE_Free(buf);
+	mbedtls_ecp_keypair_free(&key_pair);
+
+	return rc;
+}
+
+static enum pkcs11_rc
+create_priv_key_hidden_attributes(struct obj_attrs **out,
+				  struct obj_attrs *temp,
+				  enum processing_func function)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	switch (get_key_type(*out)) {
+	case PKCS11_CKK_EC:
+		rc = create_ec_priv_key_hidden_attributes(out, temp, function);
+		break;
+	default:
+		/* no-op */
+		break;
+	}
+
+	return rc;
+}
+
+static enum pkcs11_rc
 sanitize_symm_key_attributes(struct obj_attrs **temp,
 			     enum processing_func function)
 {
@@ -1175,6 +1348,9 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		break;
 	case PKCS11_CKO_PRIVATE_KEY:
 		rc = create_priv_key_attributes(&attrs, temp);
+		if (rc)
+			goto out;
+		rc = create_priv_key_hidden_attributes(&attrs, temp, function);
 		break;
 	default:
 		DMSG("Invalid object class %#"PRIx32"/%s",
