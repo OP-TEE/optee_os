@@ -794,6 +794,52 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 	return set_attributes_opt_or_null(out, temp, oon, oon_count);
 }
 
+static enum pkcs11_rc
+create_pub_key_rsa_generated_attributes(struct obj_attrs **out,
+					struct obj_attrs *temp,
+					enum processing_func function)
+{
+	uint32_t key_bits = 0;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+
+	if (function != PKCS11_FUNCTION_IMPORT)
+		return PKCS11_CKR_OK;
+
+	/* Calculate CKA_MODULUS_BITS */
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_MODULUS,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No CKA_MODULUS attribute found in public key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	key_bits = a_size * 8;
+
+	return add_attribute(out, PKCS11_CKA_MODULUS_BITS, &key_bits,
+			     sizeof(key_bits));
+}
+
+static enum pkcs11_rc
+create_pub_key_generated_attributes(struct obj_attrs **out,
+				    struct obj_attrs *temp,
+				    enum processing_func function)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	switch (get_key_type(*out)) {
+	case PKCS11_CKK_RSA:
+		rc = create_pub_key_rsa_generated_attributes(out, temp,
+							     function);
+		break;
+	default:
+		/* no-op */
+		break;
+	}
+
+	return rc;
+}
+
 static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 						 struct obj_attrs *temp)
 {
@@ -1122,6 +1168,10 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		break;
 	case PKCS11_CKO_PUBLIC_KEY:
 		rc = create_pub_key_attributes(&attrs, temp, function);
+		if (rc)
+			goto out;
+		rc = create_pub_key_generated_attributes(&attrs, temp,
+							 function);
 		break;
 	case PKCS11_CKO_PRIVATE_KEY:
 		rc = create_priv_key_attributes(&attrs, temp);
