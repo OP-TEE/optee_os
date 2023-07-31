@@ -65,7 +65,7 @@ void primary_init_intc(void)
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
-void main_secondary_init_intc(void)
+void boot_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }

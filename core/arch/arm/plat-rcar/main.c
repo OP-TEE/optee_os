@@ -92,7 +92,7 @@ void primary_init_intc(void)
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void main_secondary_init_intc(void)
+void boot_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }
