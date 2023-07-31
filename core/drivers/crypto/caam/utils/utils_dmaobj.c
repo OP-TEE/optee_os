@@ -658,14 +658,14 @@ TEE_Result caam_dmaobj_init_input(struct caamdmaobj *obj, const void *data,
 
 	if (!data || !length || !obj) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		goto err;
 	}
 
 	obj->orig.paddr = virt_to_phys((void *)data);
 	if (!obj->orig.paddr) {
 		DMAOBJ_TRACE("Object virtual address error");
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		goto err;
 	}
 
 	obj->orig.data = (void *)data;
@@ -674,9 +674,14 @@ TEE_Result caam_dmaobj_init_input(struct caamdmaobj *obj, const void *data,
 		obj->orig.nocache = 1;
 
 	ret = allocate_private(obj, DMAOBJ_INPUT);
-	if (!ret)
-		ret = check_buffer_boundary(obj, &obj->orig, obj->orig.length);
+	if (ret)
+		goto err;
 
+	ret = check_buffer_boundary(obj, &obj->orig, obj->orig.length);
+
+	goto out;
+err:
+	caam_dmaobj_free(obj);
 out:
 	DMAOBJ_TRACE("Object returns 0x%" PRIx32, ret);
 	return ret;
@@ -723,14 +728,14 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 
 	ret = allocate_private(obj, DMAOBJ_OUTPUT);
 	if (ret)
-		goto out;
+		goto err;
 
 	if (data) {
 		obj->orig.paddr = virt_to_phys((void *)data);
 		if (!obj->orig.paddr) {
 			DMAOBJ_TRACE("Object virtual address error");
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto out;
+			goto err;
 		}
 
 		obj->orig.data = (void *)data;
@@ -741,7 +746,7 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 		ret = check_buffer_boundary(obj, &obj->orig,
 					    MIN(min_length, obj->orig.length));
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	if (length < min_length || !data) {
@@ -752,7 +757,7 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 		entry = dmalist_add_entry(obj->priv, &newbuf);
 		if (!entry) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+			goto err;
 		}
 
 		/* Add the additional size in the DMA buffer length */
@@ -763,7 +768,10 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 	}
 
 	ret = TEE_SUCCESS;
+	goto out;
 
+err:
+	caam_dmaobj_free(obj);
 out:
 	DMAOBJ_TRACE("Object returns 0x%" PRIx32, ret);
 	return ret;
