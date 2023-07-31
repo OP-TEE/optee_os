@@ -218,7 +218,7 @@ int imx7d_lowpower_idle(uint32_t power_state __unused,
 		gic_inited = 1;
 		DMSG("=== Back from Suspended ===\n");
 	} else {
-		main_secondary_init_intc();
+		boot_secondary_init_intc();
 		gic_inited = 0;
 	}
 

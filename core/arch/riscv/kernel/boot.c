@@ -120,7 +120,7 @@ __weak void primary_init_intc(void)
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void secondary_init_intc(void)
+__weak void boot_secondary_init_intc(void)
 {
 }
 
@@ -171,7 +171,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	secondary_init_intc();
+	boot_secondary_init_intc();
 
 	IMSG("Secondary CPU %zu initialized", pos);
 }

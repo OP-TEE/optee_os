@@ -158,7 +158,7 @@ void primary_init_intc(void)
 	stm32mp_register_online_cpu();
 }
 
-void main_secondary_init_intc(void)
+void boot_secondary_init_intc(void)
 {
 	gic_cpu_init();
 

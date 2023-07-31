@@ -53,7 +53,7 @@ void primary_init_intc(void)
 }
 
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
-void main_secondary_init_intc(void)
+void boot_secondary_init_intc(void)
 {
 	gic_cpu_init();
 }

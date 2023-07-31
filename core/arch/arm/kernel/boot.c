@@ -100,7 +100,7 @@ __weak void primary_init_intc(void)
 }
 
 /* May be overridden in plat-$(PLATFORM)/main.c */
-__weak void main_secondary_init_intc(void)
+__weak void boot_secondary_init_intc(void)
 {
 }
 
@@ -1227,7 +1227,7 @@ static void init_secondary_helper(unsigned long nsec_entry)
 	secondary_init_cntfrq();
 	thread_init_per_cpu();
 	init_sec_mon(nsec_entry);
-	main_secondary_init_intc();
+	boot_secondary_init_intc();
 	init_vfp_sec();
 	init_vfp_nsec();
 
