@@ -8,6 +8,7 @@
 #include <kernel/linker.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/ts_store.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <mm/file.h>
 #include <pta_attestation.h>
@@ -545,6 +546,8 @@ static TEE_Result hash_regions(struct vm_info *vm_info, uint8_t *hash)
 		if (is_region_valid(r))
 			regions[i++] = r;
 
+	enter_user_access();
+
 	/*
 	 * Sort regions so that they are in a consistent order even when TA ASLR
 	 * is enabled.
@@ -557,8 +560,13 @@ static TEE_Result hash_regions(struct vm_info *vm_info, uint8_t *hash)
 		DMSG("va %p size %zu", (void *)r->va, r->size);
 		res = crypto_hash_update(ctx, (uint8_t *)r->va, r->size);
 		if (res)
-			goto out;
+			break;
 	}
+
+	exit_user_access();
+
+	if (res)
+		goto out;
 
 	res = crypto_hash_final(ctx, hash, TEE_SHA256_HASH_SIZE);
 out:
@@ -751,19 +759,37 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 uint32_t param_types,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	TEE_Result res2 = TEE_ERROR_GENERIC;
+	TEE_Param bparams[TEE_NUM_PARAMS] = { };
+	TEE_Param *eparams = NULL;
+
+	res = to_bounce_params(param_types, params, bparams, &eparams);
+	if (res)
+		return res;
+
 	switch (cmd_id) {
 	case PTA_ATTESTATION_GET_PUBKEY:
-		return cmd_get_pubkey(param_types, params);
+		res = cmd_get_pubkey(param_types, eparams);
+		break;
 	case PTA_ATTESTATION_GET_TA_SHDR_DIGEST:
-		return cmd_get_ta_shdr_digest(param_types, params);
+		res = cmd_get_ta_shdr_digest(param_types, eparams);
+		break;
 	case PTA_ATTESTATION_HASH_TA_MEMORY:
-		return cmd_hash_ta_memory(param_types, params);
+		res = cmd_hash_ta_memory(param_types, eparams);
+		break;
 	case PTA_ATTESTATION_HASH_TEE_MEMORY:
-		return cmd_hash_tee_memory(param_types, params);
+		res = cmd_hash_tee_memory(param_types, eparams);
+		break;
 	default:
 		break;
 	}
-	return TEE_ERROR_BAD_PARAMETERS;
+
+	res2 = from_bounce_params(param_types, params, bparams, eparams);
+	if (!res && res2)
+		res = res2;
+
+	return res;
 }
 
 pseudo_ta_register(.uuid = PTA_ATTESTATION_UUID, .name = PTA_NAME,
