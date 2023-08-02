@@ -1043,3 +1043,8 @@ CFG_TA_OPTEE_CORE_API_COMPAT_1_1 ?= n
 #              - PerInstance/AttestationTest#
 # Note that this violates GP requirements of HMAC size range.
 CFG_HMAC_64_1024_RANGE ?= n
+
+# Enable a hardware pbkdf2 function
+# By default use standard pbkdf2 implementation
+CFG_CRYPTO_HW_PBKDF2 ?= n
+$(eval $(call cfg-depends-all,CFG_CRYPTO_HW_PBKDF2,CFG_CRYPTO_PBKDF2))
