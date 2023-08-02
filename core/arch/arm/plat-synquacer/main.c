@@ -35,7 +35,7 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(0, GIC_BASE + GICD_OFFSET);
 }

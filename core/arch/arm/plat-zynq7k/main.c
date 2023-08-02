@@ -141,7 +141,7 @@ void arm_cl2_enable(vaddr_t pl310_base)
 		write_actlr(read_actlr() | (1 << 3));
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }

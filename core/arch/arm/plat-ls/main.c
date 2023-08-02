@@ -199,7 +199,7 @@ static void get_gic_offset(uint32_t *offsetc, uint32_t *offsetd)
 #endif
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	paddr_t gic_base = 0;
 	uint32_t gicc_offset = 0;

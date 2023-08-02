@@ -60,7 +60,7 @@ register_ddr(CFG_DRAM_BASE, CFG_DRAM_SIZE);
 
 static struct serial8250_uart_data console_data;
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }

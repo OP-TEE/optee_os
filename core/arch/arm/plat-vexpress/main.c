@@ -47,7 +47,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
@@ -61,7 +61,7 @@ void boot_secondary_init_intc(void)
 #endif /*CFG_GIC*/
 
 #ifdef CFG_CORE_HAFNIUM_INTC
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	hfic_init();
 }

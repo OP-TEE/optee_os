@@ -123,7 +123,7 @@ static inline void tzpc_init(void)
 #endif /* SUNXI_TZPC_BASE */
 
 #ifndef CFG_WITH_ARM_TRUSTED_FW
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
