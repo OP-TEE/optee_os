@@ -106,7 +106,7 @@ void console_init(void)
 #endif
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 #ifdef GICD_BASE
 	gic_init(0, GICD_BASE);

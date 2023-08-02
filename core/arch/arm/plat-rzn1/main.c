@@ -40,7 +40,7 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }

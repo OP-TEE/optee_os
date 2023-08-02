@@ -39,7 +39,7 @@ static void print_version(void)
 	IMSG(COLOR_NORMAL);
 }
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	if (IS_ENABLED(CFG_NPCM_DEBUG))
 		print_version();

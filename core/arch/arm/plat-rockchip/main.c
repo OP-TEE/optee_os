@@ -22,7 +22,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
-void primary_init_intc(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }

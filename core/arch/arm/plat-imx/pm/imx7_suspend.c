@@ -63,7 +63,7 @@ int imx7_cpu_suspend(uint32_t power_state __unused, uintptr_t entry,
 	/* Set entry for back to Linux */
 	nsec->mon_lr = (uint32_t)entry;
 
-	primary_init_intc();
+	boot_primary_init_intc();
 
 	DMSG("=== Back from Suspended ===\n");
 
