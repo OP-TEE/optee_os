@@ -320,6 +320,37 @@ jobs:
 
           make -j$(nproc) check XEN_BOOT=y
 
+  QEMUv8_Hafnium_check:
+    name: make check (QEMUv8, Hafnium)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_hafnium_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_hafnium_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check SPMC_AT_EL=2
+
   QEMUv8_check_BTI_MTE_PAC:
     name: make check (QEMUv8, BTI+MTE+PAC)
     runs-on: ubuntu-latest
