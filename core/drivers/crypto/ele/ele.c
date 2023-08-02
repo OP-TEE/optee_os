@@ -37,18 +37,9 @@
 
 #define IMX_ELE_TRNG_STATUS_READY 0x3
 
-#define ELE_MU_ID  0x2
 #define ELE_MU_IRQ 0x0
 
-#if defined(CFG_MX8ULP)
-#define ELE_MU_DID 0x7
 #define CACHELINE_SIZE 64
-#elif defined(CFG_MX93) || defined(CFG_MX91)
-#define ELE_MU_DID 0x3
-#define CACHELINE_SIZE 64
-#else
-#error "Platform DID is not defined"
-#endif
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, MU_BASE, MU_SIZE);
 
@@ -247,21 +238,19 @@ static TEE_Result __maybe_unused imx_ele_session_open(uint32_t *session_handle)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct open_session_cmd {
-		uint8_t mu_id;
+		uint8_t rsvd1;
 		uint8_t interrupt_num;
-		uint8_t tz;
-		uint8_t did;
+		uint16_t rsvd2;
 		uint8_t priority;
 		uint8_t op_mode;
-		uint16_t reserved;
+		uint16_t rsvd3;
 	} __packed cmd = {
-		.mu_id = ELE_MU_ID,
+		.rsvd1 = 0,
 		.interrupt_num = ELE_MU_IRQ,
-		.tz = 0,
-		.did = ELE_MU_DID,
+		.rsvd2 = 0,
 		.priority = 0,
 		.op_mode = 0,
-		.reserved = 0,
+		.rsvd3 = 0,
 	};
 	struct open_session_rsp {
 		uint32_t rsp_code;
