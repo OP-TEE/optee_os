@@ -131,6 +131,24 @@
 #define PLAT_MARVELL_FUSF_FUSE_BASE		0x87E004000000ll
 #define PLAT_MARVELL_FUSF_HUK_OFFSET		(0x90)
 
+#elif defined(PLATFORM_FLAVOR_cn10ka) || defined(PLATFORM_FLAVOR_cn10kb) || \
+	defined(PLATFORM_FLAVOR_cnf10ka) || defined(PLATFORM_FLAVOR_cnf10kb)
+/*
+ * cn10k specifics.
+ */
+
+/* GICv3 */
+#define GIC_BASE		0x801000000000ll
+#define GICD_OFFSET		0x0
+
+#define GICD_BASE		(GIC_BASE + GICD_OFFSET)
+
+/* UART */
+#define PLAT_MARVELL_BOOT_UART_BASE		0x87E028000000ll
+#define PLAT_MARVELL_BOOT_UART_CLK_IN_HZ	16666656
+#define MARVELL_CONSOLE_BAUDRATE		115200
+#define CONSOLE_UART_BASE			PLAT_MARVELL_BOOT_UART_BASE
+
 #else
 #error "Unknown platform flavor"
 #endif

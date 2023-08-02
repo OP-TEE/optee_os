@@ -240,6 +240,10 @@ jobs:
           _make PLATFORM=marvell-otx2t96
           _make PLATFORM=marvell-otx2f95
           _make PLATFORM=marvell-otx2t98
+          _make PLATFORM=marvell-cn10ka
+          _make PLATFORM=marvell-cn10kb
+          _make PLATFORM=marvell-cnf10ka
+          _make PLATFORM=marvell-cnf10kb
           _make PLATFORM=synquacer
           _make PLATFORM=sunxi-bpi_zero
           _make PLATFORM=sunxi-sun50i_a64
