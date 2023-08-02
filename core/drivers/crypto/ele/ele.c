@@ -34,6 +34,7 @@
 #define ELE_CMD_TRNG_STATE	    0xA4
 #define ELE_CMD_GET_INFO	    0xDA
 #define ELE_CMD_DERIVE_KEY	    0xA9
+#define ELE_CMD_SAB_INIT	    0x17
 
 #define IMX_ELE_TRNG_STATUS_READY 0x3
 
@@ -362,6 +363,23 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
 
 	return 0;
 }
+
+/*
+ * Initialize EdgeLock Enclave services
+ */
+static TEE_Result imx_ele_sab_init(void)
+{
+	struct imx_mu_msg msg = {
+		.header.version = ELE_VERSION_HSM,
+		.header.size = 1,
+		.header.tag = ELE_REQUEST_TAG,
+		.header.command = ELE_CMD_SAB_INIT,
+	};
+
+	return imx_ele_call(&msg);
+}
+
+driver_init(imx_ele_sab_init);
 
 #if defined(CFG_MX93) || defined(CFG_MX91)
 static TEE_Result imx_ele_derive_key(const uint8_t *ctx, size_t ctx_size,
