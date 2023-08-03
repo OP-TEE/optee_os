@@ -9,6 +9,7 @@
 #include <kernel/panic.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_access.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <stdlib.h>
@@ -326,4 +327,96 @@ TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 	DMSG("%s : %pUl", stc->pseudo_ta->name, (void *)&ctx->ts_ctx.uuid);
 
 	return TEE_SUCCESS;
+}
+
+TEE_Result to_bounce_params(uint32_t param_types,
+			    TEE_Param params[TEE_NUM_PARAMS],
+			    TEE_Param bparams[TEE_NUM_PARAMS],
+			    TEE_Param **oparams)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	void *kptr = NULL;
+	void *uptr = NULL;
+	size_t size = 0;
+	int i = 0;
+
+	if (!is_caller_ta_with_pan()) {
+		*oparams = params;
+		return TEE_SUCCESS;
+	}
+
+	for (i = 0; i < TEE_NUM_PARAMS; i++) {
+		switch (TEE_PARAM_TYPE_GET(param_types, i)) {
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			size = params[i].memref.size;
+			uptr = params[i].memref.buffer;
+			kptr = bb_alloc(size);
+			if (!kptr)
+				return TEE_ERROR_OUT_OF_MEMORY;
+			bparams[i].memref.buffer = kptr;
+			bparams[i].memref.size = size;
+			break;
+		default:
+			break;
+		}
+		switch (TEE_PARAM_TYPE_GET(param_types, i)) {
+		case TEE_PARAM_TYPE_MEMREF_INPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			res = copy_from_user(kptr, uptr, size);
+			if (res)
+				return res;
+			break;
+		case TEE_PARAM_TYPE_VALUE_INPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			bparams[i].value.a = params[i].value.a;
+			bparams[i].value.b = params[i].value.b;
+			break;
+		default:
+			break;
+		}
+	}
+	*oparams = bparams;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result from_bounce_params(uint32_t param_types,
+			      TEE_Param params[TEE_NUM_PARAMS],
+			      TEE_Param bparams[TEE_NUM_PARAMS],
+			      TEE_Param *eparams)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	void *kptr = NULL;
+	void *uptr = NULL;
+	size_t size = 0;
+	int i = 0;
+
+	if (eparams == params)
+		return TEE_SUCCESS;
+
+	for (i = 0; i < TEE_NUM_PARAMS; i++) {
+		switch (TEE_PARAM_TYPE_GET(param_types, i)) {
+		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
+		case TEE_PARAM_TYPE_MEMREF_INOUT:
+			uptr = params[i].memref.buffer;
+			kptr = bparams[i].memref.buffer;
+			size = bparams[i].memref.size;
+			res = copy_to_user(uptr, kptr, size);
+			if (res)
+				return res;
+			params[i].memref.size = size;
+			break;
+		case TEE_PARAM_TYPE_VALUE_OUTPUT:
+		case TEE_PARAM_TYPE_VALUE_INOUT:
+			params[i].value.a = bparams[i].value.a;
+			params[i].value.b = bparams[i].value.b;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return res;
 }
