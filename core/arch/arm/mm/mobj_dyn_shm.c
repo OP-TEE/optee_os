@@ -25,9 +25,18 @@ static struct condvar shm_cv = CONDVAR_INITIALIZER;
 static size_t shm_release_waiters;
 
 /*
- * mobj_reg_shm implementation. Describes shared memory provided by normal world
+ * struct mobj_reg_shm - Describe a shared memory registered by normal world
+ * @mobj: Memory object instance
+ * @next: Reference in mobj_reg_shm list
+ * @cookie: Non-secure world reference for the memory object
+ * @mm: Active memory mapping (upon ::releasing) or NULL (lock protected)
+ * @page_offset: Byte offset in first mapped page.
+ * @mapcount: Mapping/unmapping requests reference counter
+ * @guarded: Set at instance very creation, released once object is finalized
+ * @releasing: When set, final object release under process
+ * @release_frees: When set, release by cookie can operate/complete
+ * @pages: Array of the registered shared memory physical pages list
  */
-
 struct mobj_reg_shm {
 	struct mobj mobj;
 	SLIST_ENTRY(mobj_reg_shm) next;
