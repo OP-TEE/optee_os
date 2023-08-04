@@ -29,7 +29,9 @@
 
 	/* Save user thread pointer and load kernel thread pointer */
 	store_xregs sp, THREAD_TRAP_REG_TP, REG_TP
-	load_xregs sp, (THREAD_TRAP_REGS_SIZE - RISCV_XLEN_BYTES), REG_TP
+	addi	tp, sp, THREAD_TRAP_REGS_SIZE
+	/* Now tp is at struct thread_user_mode_rec, which has kernel tp */
+	load_xregs tp, THREAD_USER_MODE_REC_X4, REG_TP
 
 	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
 
@@ -89,8 +91,6 @@
 
 .if \mode == TRAP_MODE_USER
 	addi	gp, sp, THREAD_TRAP_REGS_SIZE
-
-	store_xregs gp, REGOFF(-1), REG_TP
 	csrw	CSR_XSCRATCH, gp
 
 	load_xregs sp, THREAD_TRAP_REG_TP, REG_TP
@@ -221,13 +221,6 @@ FUNC __thread_enter_user_mode , :
 	 * thread_trap_vect() uses correct stack pointer.
 	 */
 	csrw	CSR_XSCRATCH, sp
-
-	/*
-	 * Save kernel thread pointer below of the kernel stack pointer
-	 * to enure that thread_trap_vect() uses correct tp when traps
-	 * come from user.
-	 */
-	store_xregs sp, REGOFF(-1), REG_TP
 
 	/* Set user status */
 	load_xregs a0, THREAD_CTX_REG_STATUS, REG_S0

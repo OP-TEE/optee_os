@@ -52,6 +52,8 @@ DEFINES
 	       offsetof(struct thread_user_mode_rec, ctx_regs_ptr));
 	DEFINE(THREAD_USER_MODE_REC_X1,
 	       offsetof(struct thread_user_mode_rec, x[0]));
+	DEFINE(THREAD_USER_MODE_REC_X4,
+	       offsetof(struct thread_user_mode_rec, x[3]));
 	DEFINE(THREAD_USER_MODE_REC_X8,
 	       offsetof(struct thread_user_mode_rec, x[4]));
 	DEFINE(THREAD_USER_MODE_REC_X18,
