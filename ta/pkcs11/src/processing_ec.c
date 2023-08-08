@@ -434,6 +434,17 @@ enum pkcs11_rc pkcs2tee_algo_ecdsa(uint32_t *tee_id,
 		return PKCS11_CKR_GENERAL_ERROR;
 	}
 
+#if defined(TEE_ALG_ECDSA_SHA256) && (TEE_ALG_ECDSA_SHA256 == TEE_ALG_ECDSA_P256)
+	if ((*tee_id == TEE_ALG_ECDSA_SHA1)   ||
+		(*tee_id == TEE_ALG_ECDSA_SHA224) ||
+		(*tee_id == TEE_ALG_ECDSA_SHA256) ||
+		(*tee_id == TEE_ALG_ECDSA_SHA384) ||
+		(*tee_id == TEE_ALG_ECDSA_SHA512)) {
+			return PKCS11_CKR_OK;
+	} else
+		return PKCS11_CKR_GENERAL_ERROR;
+#endif
+
 	/*
 	 * TODO: Fixing this in a way to support also other EC curves would
 	 * require OP-TEE to be updated for newer version of GlobalPlatform API
@@ -829,6 +840,11 @@ size_t ecdsa_get_input_max_byte_size(TEE_OperationHandle op)
 	TEE_OperationInfo info = { };
 
 	TEE_GetOperationInfo(op, &info);
+
+#if defined(TEE_ALG_ECDSA_SHA256) && (TEE_ALG_ECDSA_SHA256 == TEE_ALG_ECDSA_P256)
+	/* the value returned from this function should depend on key size */
+	return ((info.maxKeySize)/8 + (info.maxKeySize)%8);
+#endif
 
 	switch (info.algorithm) {
 	case TEE_ALG_ECDSA_P192:
