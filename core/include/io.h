@@ -40,6 +40,17 @@ static inline void io_write64(vaddr_t addr, uint64_t val)
 	*(volatile uint64_t *)addr = val;
 }
 
+static inline void write_64bit_pair(uintptr_t addr, uint64_t val_l,
+				    uint64_t val_h)
+{
+	/* 128bits should be written to hardware at one time */
+	asm volatile ("stp %1, %2, %0\n"
+		      "dmb oshst\n"
+		      : "=Q"(*((char *)addr))
+		      : "r"(val_l), "r"(val_h)
+		      : "memory");
+}
+
 static inline uint8_t io_read8(vaddr_t addr)
 {
 	return *(volatile uint8_t *)addr;
