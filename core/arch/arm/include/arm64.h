@@ -364,6 +364,13 @@ static inline __noprof void tlbi_vale1is(uint64_t va)
 	asm volatile ("tlbi	vale1is, %0" : : "r" (va));
 }
 
+static inline void write_64bit_pair(uint64_t dst, uint64_t hi, uint64_t lo)
+{
+	/* 128bits should be written to hardware at one time */
+	asm volatile ("stp %1, %0, [%2]" : :
+		      "r" (hi), "r" (lo), "r" (dst) : "memory");
+}
+
 /*
  * Templates for register read/write functions based on mrs/msr
  */
