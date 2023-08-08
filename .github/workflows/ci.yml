@@ -81,7 +81,9 @@ jobs:
 
           function _make() { make -j$(nproc) -s O=out $*; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
-          function download_scp_firmware() { git clone --single-branch https://github.com/ARM-software/SCP-firmware.git $HOME/scp-firmware || echo Nervermind; }
+
+          #Temporarily disabled
+          function download_scp_firmware() { echo "download_scp_firmware skipped"; }
 
           ccache -s -v
           download_plug_and_trust
