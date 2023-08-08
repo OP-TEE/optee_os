@@ -555,8 +555,12 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 		return TEE_ERROR_TARGET_DEAD;
 	}
 
-	/* Make the SP ready for its first run */
-	s->state = sp_idle;
+	/*
+	 * Make the SP ready for its first run.
+	 * Set state to busy to prevent other endpoints from sending messages to
+	 * the SP before its boot phase is done.
+	 */
+	s->state = sp_busy;
 	s->caller_id = 0;
 	sp_init_set_registers(ctx);
 	memcpy(&s->ffa_uuid, ffa_uuid, sizeof(*ffa_uuid));
