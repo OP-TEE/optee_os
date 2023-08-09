@@ -29,7 +29,46 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
+#include <mm/core_memprot.h>
+#include <stdint.h>
 #include <tee_api_types.h>
+
+#define SECURITY_TYPE_AS	1
+#define SECURITY_TYPE_NS	2
+#define SECURITY_TYPE_PS	3
+
+#define MATRIX_SPSELR_COUNT	3
+#define MATRIX_SLAVE_COUNT	15
+
+#ifdef CFG_PM_ARM32
+struct matrix_state {
+	uint32_t spselr[MATRIX_SPSELR_COUNT];
+	uint32_t ssr[MATRIX_SLAVE_COUNT];
+	uint32_t srtsr[MATRIX_SLAVE_COUNT];
+	uint32_t sassr[MATRIX_SLAVE_COUNT];
+	uint32_t meier;
+	uint32_t meimr;
+};
+#endif
+
+struct matrix {
+	unsigned int matrix;
+	struct io_pa_va p;
+#ifdef CFG_PM_ARM32
+	struct matrix_state state;
+#endif
+};
+
+struct peri_security {
+	unsigned int peri_id;
+	unsigned int matrix;
+	unsigned int security_type;
+	paddr_t addr;
+};
+
+struct peri_security *peri_security_get(unsigned int idx);
+struct matrix *matrix_get(unsigned int idx);
+vaddr_t matrix_base(unsigned int matrix);
 
 void matrix_write_protect_enable(unsigned int matrix_base);
 void matrix_write_protect_disable(unsigned int matrix_base);
@@ -43,8 +82,5 @@ int matrix_configure_periph_non_secure(unsigned int *peri_id_array,
 				       unsigned int size);
 int matrix_configure_periph_secure(unsigned int peri_id);
 TEE_Result matrix_dt_get_id(const void *fdt, int node, unsigned int *id);
-
-vaddr_t matrix32_base(void);
-vaddr_t matrix64_base(void);
 
 #endif /* #ifndef MATRIX_H */
