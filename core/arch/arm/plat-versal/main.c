@@ -62,8 +62,8 @@ static TEE_Result platform_banner(void)
 {
 	vaddr_t plm_rtca = (vaddr_t)phys_to_virt(PLM_RTCA, MEM_AREA_IO_SEC,
 						 PLM_RTCA_LEN);
-	const char *ahwrot_str = "OFF";
-	const char *shwrot_str = "OFF";
+	const char __maybe_unused *ahwrot_str = "OFF";
+	const char __maybe_unused *shwrot_str = "OFF";
 	uint8_t version = 0;
 
 	assert(plm_rtca);
