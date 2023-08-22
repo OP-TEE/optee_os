@@ -1242,6 +1242,7 @@ static TEE_Result tee_rpmb_read(uint16_t dev_id, uint32_t addr, uint8_t *data,
 	rawdata.msg_type = msg_type;
 	rawdata.nonce = nonce;
 	rawdata.blk_idx = &blk_idx;
+	rawdata.block_count = &blkcnt;
 	res = tee_rpmb_req_pack(req, &rawdata, 1, dev_id, NULL, NULL);
 	if (res != TEE_SUCCESS)
 		goto func_exit;
