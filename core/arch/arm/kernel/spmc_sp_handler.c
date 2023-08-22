@@ -27,7 +27,13 @@ void spmc_sp_start_thread(struct thread_smc_args *args)
 static void ffa_set_error(struct thread_smc_args *args, uint32_t error)
 {
 	args->a0 = FFA_ERROR;
+	args->a1 = FFA_PARAM_MBZ;
 	args->a2 = error;
+	args->a3 = FFA_PARAM_MBZ;
+	args->a4 = FFA_PARAM_MBZ;
+	args->a5 = FFA_PARAM_MBZ;
+	args->a6 = FFA_PARAM_MBZ;
+	args->a7 = FFA_PARAM_MBZ;
 }
 
 static void ffa_success(struct thread_smc_args *args)
