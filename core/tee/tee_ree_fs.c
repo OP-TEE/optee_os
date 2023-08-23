@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <config.h>
 #include <kernel/mutex.h>
+#include <kernel/nv_counter.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/user_access.h>
@@ -421,6 +422,7 @@ static TEE_Result ree_fs_write_primitive(struct tee_file_handle *fh, size_t pos,
 }
 
 static TEE_Result ree_fs_open_primitive(bool create, uint8_t *hash,
+					uint32_t min_counter,
 					const TEE_UUID *uuid,
 					struct tee_fs_dirfile_fileh *dfh,
 					struct tee_file_handle **fh)
@@ -443,8 +445,8 @@ static TEE_Result ree_fs_open_primitive(bool create, uint8_t *hash,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = tee_fs_htree_open(create, hash, uuid, &ree_fs_storage_ops,
-				fdp, &fdp->ht);
+	res = tee_fs_htree_open(create, hash, min_counter, uuid,
+				&ree_fs_storage_ops, fdp, &fdp->ht);
 out:
 	if (res == TEE_SUCCESS) {
 		if (dfh)
@@ -477,12 +479,12 @@ static void ree_fs_close_primitive(struct tee_file_handle *fh)
 }
 
 static TEE_Result ree_dirf_commit_writes(struct tee_file_handle *fh,
-					 uint8_t *hash)
+					 uint8_t *hash, uint32_t *counter)
 {
 	TEE_Result res;
 	struct tee_fs_fd *fdp = (struct tee_fs_fd *)fh;
 
-	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, counter);
 
 	if (!res && hash)
 		memcpy(hash, fdp->dfh.hash, sizeof(fdp->dfh.hash));
@@ -538,7 +540,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 	if (res)
 		return res;
 
-	res = tee_fs_dirfile_open(false, hashp, &ree_dirf_ops, dirh);
+	res = tee_fs_dirfile_open(false, hashp, 0, &ree_dirf_ops, dirh);
 
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		if (hashp) {
@@ -557,7 +559,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 			}
 		}
 
-		res = tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+		res = tee_fs_dirfile_open(true, NULL, 0, &ree_dirf_ops, dirh);
 	}
 
 out:
@@ -572,7 +574,7 @@ static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
 	TEE_Result res;
 	uint8_t hash[TEE_FS_HTREE_HASH_SIZE];
 
-	res = tee_fs_dirfile_commit_writes(dirh, hash);
+	res = tee_fs_dirfile_commit_writes(dirh, hash, NULL);
 	if (res)
 		return res;
 	return rpmb_fs_ops.write(ree_fs_rpmb_fh, 0, hash, NULL, sizeof(hash));
@@ -588,18 +590,59 @@ static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
 #else /*!CFG_REE_FS_INTEGRITY_RPMB*/
 static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t min_counter = 0;
 
-	res = tee_fs_dirfile_open(false, NULL, &ree_dirf_ops, dirh);
-	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		return tee_fs_dirfile_open(true, NULL, &ree_dirf_ops, dirh);
+	res = nv_counter_get_ree_fs(&min_counter);
+	if (res) {
+		static bool once;
+
+		if (res != TEE_ERROR_NOT_IMPLEMENTED ||
+		    !IS_ENABLED(CFG_WARN_INSECURE))
+			return res;
+
+		if (!once) {
+			IMSG("WARNING (insecure configuration): Failed to get monotonic counter for REE FS, using 0");
+			once = true;
+		}
+		min_counter = 0;
+	}
+	res = tee_fs_dirfile_open(false, NULL, min_counter, &ree_dirf_ops,
+				  dirh);
+	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		if (min_counter) {
+			if (!IS_ENABLED(CFG_REE_FS_ALLOW_RESET)) {
+				DMSG("dirf.db file not found");
+				return TEE_ERROR_SECURITY;
+			}
+			DMSG("dirf.db not found, initializing with a non-zero monotonic counter");
+		}
+		return tee_fs_dirfile_open(true, NULL, min_counter,
+					   &ree_dirf_ops, dirh);
+	}
 
 	return res;
 }
 
 static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
 {
-	return tee_fs_dirfile_commit_writes(dirh, NULL);
+	TEE_Result res = TEE_SUCCESS;
+	uint32_t counter = 0;
+
+	res = tee_fs_dirfile_commit_writes(dirh, NULL, &counter);
+	if (res)
+		return res;
+	res = nv_counter_incr_ree_fs_to(counter);
+	if (res == TEE_ERROR_NOT_IMPLEMENTED && IS_ENABLED(CFG_WARN_INSECURE)) {
+		static bool once;
+
+		if (!once) {
+			IMSG("WARNING (insecure configuration): Failed to commit dirh counter %"PRIu32, counter);
+			once = true;
+		}
+		return TEE_SUCCESS;
+	}
+	return res;
 }
 
 static void close_dirh(struct tee_fs_dirfile_dirh **dirh)
@@ -673,7 +716,7 @@ static TEE_Result ree_fs_open(struct tee_pobj *po, size_t *size,
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res = ree_fs_open_primitive(false, dfh.hash, &po->uuid, &dfh, fh);
+	res = ree_fs_open_primitive(false, dfh.hash, 0, &po->uuid, &dfh, fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		/*
 		 * If the object isn't found someone has tampered with it,
@@ -769,7 +812,7 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 	if (res)
 		goto out;
 
-	res = ree_fs_open_primitive(true, dfh.hash, &po->uuid, &dfh, fh);
+	res = ree_fs_open_primitive(true, dfh.hash, 0, &po->uuid, &dfh, fh);
 	if (res)
 		goto out;
 
@@ -795,7 +838,7 @@ static TEE_Result ree_fs_create(struct tee_pobj *po, bool overwrite,
 	}
 
 	fdp = (struct tee_fs_fd *)*fh;
-	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, NULL);
 	if (res)
 		goto out;
 
@@ -835,7 +878,7 @@ static TEE_Result ree_fs_write(struct tee_file_handle *fh, size_t pos,
 	if (res)
 		goto out;
 
-	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, NULL);
 	if (res)
 		goto out;
 
@@ -955,7 +998,7 @@ static TEE_Result ree_fs_truncate(struct tee_file_handle *fh, size_t len)
 	if (res)
 		goto out;
 
-	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash);
+	res = tee_fs_htree_sync_to_storage(&fdp->ht, fdp->dfh.hash, NULL);
 	if (res)
 		goto out;
 

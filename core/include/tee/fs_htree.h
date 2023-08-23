@@ -104,13 +104,15 @@ struct tee_fs_htree;
  * @create:	true if a new hash tree is to be created, else the hash tree
  *		is read in and verified
  * @hash:	hash of root node, ignored if NULL
+ * @min_counter: the smallest accepted value in struct htree_image.counter
  * @uuid:	uuid of requesting TA, may be NULL if not from a TA
  * @stor:	storage description
  * @stor_aux:	auxilary pointer supplied to callbacks in struct
  *		tee_fs_htree_storage
  * @ht:		returned hash tree on success
  */
-TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, const TEE_UUID *uuid,
+TEE_Result tee_fs_htree_open(bool create, uint8_t *hash, uint32_t min_counter,
+			     const TEE_UUID *uuid,
 			     const struct tee_fs_htree_storage *stor,
 			     void *stor_aux, struct tee_fs_htree **ht);
 /**
@@ -135,11 +137,12 @@ void tee_fs_htree_meta_set_dirty(struct tee_fs_htree *ht);
  * tee_fs_htree_sync_to_storage() - synchronize hash tree to storage
  * @ht:		hash tree
  * @hash:	hash of root node is copied to this if not NULL
+ * @counter:	ever increasing version counter is copied to this if not NULL
  *
  * Frees the hash tree and sets *ht to NULL on failure and returns an error code
  */
 TEE_Result tee_fs_htree_sync_to_storage(struct tee_fs_htree **ht,
-					uint8_t *hash);
+					uint8_t *hash, uint32_t *counter);
 
 /**
  * tee_fs_htree_truncate() - truncate a hash tree
