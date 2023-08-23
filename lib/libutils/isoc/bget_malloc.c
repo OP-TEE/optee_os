@@ -507,13 +507,13 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 		bufsize old_sz = bget_buf_size(old_ptr);
 
 		if (old_sz < s) {
-			memcpy(p, old_ptr, old_sz);
+			memcpy_unchecked(p, old_ptr, old_sz);
 #ifndef __KERNEL__
 			/* User space reallocations are always zeroed */
-			memset((uint8_t *)p + old_sz, 0, s - old_sz);
+			memset_unchecked((uint8_t *)p + old_sz, 0, s - old_sz);
 #endif
 		} else {
-			memcpy(p, old_ptr, s);
+			memcpy_unchecked(p, old_ptr, s);
 		}
 
 		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
