@@ -354,7 +354,7 @@ CFG_REE_FS_TA ?= y
 CFG_REE_FS_TA_BUFFERED ?= n
 $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 
-# When CFG_REE_FS=y and CFG_RPMB_FS=y:
+# When CFG_REE_FS=y:
 # Allow secure storage in the REE FS to be entirely deleted without causing
 # anti-rollback errors. That is, rm /data/tee/dirf.db or rm -rf /data/tee (or
 # whatever path is configured in tee-supplicant as CFG_TEE_FS_PARENT_PATH)
