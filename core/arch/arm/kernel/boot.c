@@ -299,8 +299,10 @@ static void init_asan(void)
 	asan_tag_access(__pageable_start, __pageable_end);
 #endif /*CFG_WITH_PAGER*/
 	asan_tag_access(__nozi_start, __nozi_end);
+#ifdef ARM32
 	asan_tag_access(__exidx_start, __exidx_end);
 	asan_tag_access(__extab_start, __extab_end);
+#endif
 
 	init_run_constructors();
 
