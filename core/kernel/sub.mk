@@ -57,3 +57,4 @@ ifeq ($(CFG_SYSCALL_FTRACE),y)
 # So profiling this file could create an incorrect cyclic behaviour.
 cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
 endif
+srcs-y += nv_counter.c
