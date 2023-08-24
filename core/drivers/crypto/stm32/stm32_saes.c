@@ -1388,8 +1388,8 @@ static TEE_Result stm32_saes_probe(const void *fdt, int node,
 	if (clk_enable(saes_pdata.clk))
 		panic();
 
-	/* External reset of SAES */
 	if (saes_pdata.reset) {
+		/* External reset of SAES */
 		if (rstctrl_assert_to(saes_pdata.reset, TIMEOUT_US_1MS))
 			panic();
 
@@ -1397,12 +1397,12 @@ static TEE_Result stm32_saes_probe(const void *fdt, int node,
 
 		if (rstctrl_deassert_to(saes_pdata.reset, TIMEOUT_US_1MS))
 			panic();
+	} else {
+		/* Internal reset of SAES */
+		io_setbits32(saes_pdata.base + _SAES_CR, _SAES_CR_IPRST);
+		udelay(SAES_RESET_DELAY);
+		io_clrbits32(saes_pdata.base + _SAES_CR, _SAES_CR_IPRST);
 	}
-
-	/* Internal reset of SAES */
-	io_setbits32(saes_pdata.base + _SAES_CR, _SAES_CR_IPRST);
-	udelay(SAES_RESET_DELAY);
-	io_clrbits32(saes_pdata.base + _SAES_CR, _SAES_CR_IPRST);
 
 	if (IS_ENABLED(CFG_CRYPTO_DRV_CIPHER)) {
 		res = stm32_register_cipher(SAES_IP);
