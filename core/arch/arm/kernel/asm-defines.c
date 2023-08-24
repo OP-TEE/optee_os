@@ -7,6 +7,7 @@
 #include <kernel/boot.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <mm/core_mmu_arch.h>
 #include <sm/pm.h>
 #include <sm/sm.h>
 #include <types_ext.h>
@@ -157,4 +158,13 @@ DEFINES
 	       offsetof(struct boot_embdata, reloc_offset));
 	DEFINE(BOOT_EMBDATA_RELOC_LEN,
 	       offsetof(struct boot_embdata, reloc_len));
+
+#ifdef CORE_MMU_BASE_TABLE_OFFSET
+	/*
+	 * This define is too complex to be used as an argument for the
+	 * macros add_imm and sub_imm so evaluate it here.
+	 */
+	DEFINE(__CORE_MMU_BASE_TABLE_OFFSET, CORE_MMU_BASE_TABLE_OFFSET);
+#endif
+
 }
