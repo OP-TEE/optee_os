@@ -828,7 +828,7 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 
 	if (args->a2 != FFA_PARAM_MBZ) {
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
-		return NULL;
+		return caller_sp;
 	}
 
 	res = ffa_get_dst(args, caller_sp, &dst);
@@ -840,7 +840,13 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 	if (!dst) {
 		EMSG("Request to normal world not supported");
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
-		return NULL;
+		return caller_sp;
+	}
+
+	if (dst == caller_sp) {
+		EMSG("Cannot send message to own ID");
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
+		return caller_sp;
 	}
 
 	cpu_spin_lock(&dst->spinlock);
@@ -892,7 +898,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_args *args,
 		return caller_sp;
 	}
 
-	if (caller_sp->state != sp_busy) {
+	if (dst && dst->state != sp_busy) {
 		EMSG("SP is not waiting for a request");
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return caller_sp;
@@ -930,27 +936,19 @@ static struct sp_session *
 ffa_handle_sp_error(struct thread_smc_args *args,
 		    struct sp_session *caller_sp)
 {
-	struct sp_session *dst = NULL;
-
-	dst = sp_get_session(FFA_DST(args->a1));
-
-	/* FFA_ERROR Came from Noral World */
-	if (caller_sp)
-		caller_sp->state = sp_idle;
-
-	/* If dst == NULL send message to Normal World */
-	if (dst && sp_enter(args, dst)) {
+	/* If caller_sp == NULL send message to Normal World */
+	if (caller_sp && sp_enter(args, caller_sp)) {
 		/*
 		 * We can not return the error. Unwind the call chain with one
 		 * link. Set the state of the SP to dead.
 		 */
-		dst->state = sp_dead;
+		caller_sp->state = sp_dead;
 		/* Create error. */
-		ffa_set_error(args, FFA_DENIED);
-		return  sp_get_session(dst->caller_id);
+		ffa_set_error(args, FFA_ABORTED);
+		return  sp_get_session(caller_sp->caller_id);
 	}
 
-	return dst;
+	return caller_sp;
 }
 
 static void handle_features(struct thread_smc_args *args)
