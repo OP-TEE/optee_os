@@ -444,6 +444,10 @@ CFG_CORE_SANITIZE_UNDEFINED ?= n
 # default
 CFG_CORE_SANITIZE_KADDRESS ?= n
 
+ifeq (y-y,$(CFG_CORE_SANITIZE_KADDRESS)-$(CFG_CORE_ASLR))
+$(error CFG_CORE_SANITIZE_KADDRESS and CFG_CORE_ASLR are not compatible)
+endif
+
 # Add stack guards before/after stacks and periodically check them
 CFG_WITH_STACK_CANARIES ?= y
 
