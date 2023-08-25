@@ -102,13 +102,10 @@ static void update_from_utee_param(struct tee_ta_param *p,
 	TEE_Result res = TEE_SUCCESS;
 	size_t n = 0;
 	struct utee_params *up_bbuf = NULL;
-	void *bbuf = NULL;
 
-	res = bb_memdup_user(up, sizeof(*up), &bbuf);
+	res = BB_MEMDUP_USER(up, sizeof(*up), &up_bbuf);
 	if (res)
 		return;
-
-	up_bbuf = bbuf;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
@@ -128,7 +125,7 @@ static void update_from_utee_param(struct tee_ta_param *p,
 		}
 	}
 
-	bb_free(bbuf, sizeof(*up));
+	bb_free(up_bbuf, sizeof(*up));
 }
 
 static bool inc_recursion(void)

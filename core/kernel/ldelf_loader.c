@@ -121,7 +121,6 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 	uint32_t panicked = 0;
 	uaddr_t usr_stack = 0;
 	struct ldelf_arg *arg_bbuf = NULL;
-	void *bbuf = NULL;
 
 	usr_stack = uctx->ldelf_stack_ptr;
 	usr_stack -= ROUNDUP(sizeof(*arg), STACK_ALIGNMENT);
@@ -154,11 +153,9 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 		return res;
 	}
 
-	res = bb_memdup_user(arg, sizeof(*arg), &bbuf);
+	res = BB_MEMDUP_USER(arg, sizeof(*arg), &arg_bbuf);
 	if (res)
 		return res;
-
-	arg_bbuf = bbuf;
 
 	if (is_user_ta_ctx(uctx->ts_ctx)) {
 		/*
@@ -182,7 +179,7 @@ TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
 #endif
 	uctx->dl_entry_func = arg_bbuf->dl_entry;
 
-	bb_free(bbuf, sizeof(*arg));
+	bb_free(arg_bbuf, sizeof(*arg));
 
 	return TEE_SUCCESS;
 }
