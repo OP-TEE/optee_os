@@ -272,15 +272,11 @@ bool scall_handle_ldelf(struct thread_scall_regs *regs)
 
 	scf = get_ldelf_syscall_func(scn);
 
-	enter_user_access();
-
 	ftrace_syscall_enter(scn);
 
 	scall_set_retval(regs, scall_do_call(regs, scf));
 
 	ftrace_syscall_leave();
-
-	exit_user_access();
 
 	/*
 	 * Return true if we're to return to user mode,
