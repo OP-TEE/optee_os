@@ -206,7 +206,7 @@ TEE_Result ldelf_syscall_close_bin(unsigned long handle)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (binh->offs_bytes < binh->size_bytes)
-		res = binh->op->read(binh->h, NULL,
+		res = binh->op->read(binh->h, NULL, NULL,
 				     binh->size_bytes - binh->offs_bytes);
 
 	bin_close(binh);
@@ -219,8 +219,9 @@ TEE_Result ldelf_syscall_close_bin(unsigned long handle)
 	return res;
 }
 
-static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
-			       size_t offs_bytes, size_t num_bytes)
+static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va_core,
+			       vaddr_t va_user, size_t offs_bytes,
+			       size_t num_bytes)
 {
 	TEE_Result res = TEE_SUCCESS;
 	size_t next_offs = 0;
@@ -232,7 +233,7 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (offs_bytes > binh->offs_bytes) {
-		res = binh->op->read(binh->h, NULL,
+		res = binh->op->read(binh->h, NULL, NULL,
 				     offs_bytes - binh->offs_bytes);
 		if (res)
 			return res;
@@ -242,13 +243,22 @@ static TEE_Result binh_copy_to(struct bin_handle *binh, vaddr_t va,
 	if (next_offs > binh->size_bytes) {
 		size_t rb = binh->size_bytes - binh->offs_bytes;
 
-		res = binh->op->read(binh->h, (void *)va, rb);
+		res = binh->op->read(binh->h, (void *)va_core,
+				     (void *)va_user, rb);
 		if (res)
 			return res;
-		memset((uint8_t *)va + rb, 0, num_bytes - rb);
+		if (va_core)
+			memset((uint8_t *)va_core + rb, 0, num_bytes - rb);
+		if (va_user) {
+			res = clear_user((uint8_t *)va_user + rb,
+					 num_bytes - rb);
+			if (res)
+				return res;
+		}
 		binh->offs_bytes = binh->size_bytes;
 	} else {
-		res = binh->op->read(binh->h, (void *)va, num_bytes);
+		res = binh->op->read(binh->h, (void *)va_core,
+				     (void *)va_user, num_bytes);
 		if (res)
 			return res;
 		binh->offs_bytes = next_offs;
@@ -378,7 +388,7 @@ TEE_Result ldelf_syscall_map_bin(vaddr_t *va, size_t num_bytes,
 		mobj_put(mobj);
 		if (res)
 			goto err;
-		res = binh_copy_to(binh, *va, offs_bytes, num_bytes);
+		res = binh_copy_to(binh, *va, 0, offs_bytes, num_bytes);
 		if (res)
 			goto err_unmap_va;
 		res = vm_set_prot(uctx, *va, num_rounded_bytes,
@@ -443,7 +453,7 @@ TEE_Result ldelf_syscall_copy_from_bin(void *dst, size_t offs, size_t num_bytes,
 	if (!binh)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	return binh_copy_to(binh, (vaddr_t)dst, offs, num_bytes);
+	return binh_copy_to(binh, 0, (vaddr_t)dst, offs, num_bytes);
 }
 
 TEE_Result ldelf_syscall_set_prot(unsigned long va, size_t num_bytes,

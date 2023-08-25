@@ -22,7 +22,8 @@ struct embedded_ts {
 
 struct ts_store_handle;
 
-TEE_Result emb_ts_read(struct ts_store_handle *h, void *data, size_t len);
+TEE_Result emb_ts_read(struct ts_store_handle *h, void *data_core,
+		       void *data_user, size_t len);
 void emb_ts_close(struct ts_store_handle *h);
 
 TEE_Result emb_ts_open(const TEE_UUID *uuid,
