@@ -8,6 +8,7 @@
 #include <crypto/crypto.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
 #include <stdio.h>
@@ -719,43 +720,54 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	return res;
 }
 
-TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
+TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf_core,
+			    void *buf_user, size_t *len)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	const size_t sz = ta->entry.prop.custom_size + ta->entry.prop.bin_size;
 	size_t l = MIN(*len, sz - ta->pos);
+	size_t bb_len = MIN(1024U, l);
+	size_t num_bytes = 0;
+	size_t dst_len = 0;
+	void *dst = NULL;
+	void *bb = NULL;
 
 	res = ta_load(ta);
 	if (res)
 		return res;
 
-	if (buf) {
-		res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
-					  ta->ta_buf + ta->pos, l, buf);
-		if (res)
-			return res;
+	if (buf_core) {
+		dst = buf_core;
+		dst_len = l;
 	} else {
-		size_t num_bytes = 0;
-		size_t b_size = MIN(256U, l);
-		uint8_t *b = malloc(b_size);
-
-		if (!b)
+		bb = bb_alloc(bb_len);
+		if (!bb)
 			return TEE_ERROR_OUT_OF_MEMORY;
+		dst = bb;
+		dst_len = bb_len;
+	}
 
-		while (num_bytes < l) {
-			size_t n = MIN(b_size, l - num_bytes);
+	/*
+	 * This loop will only run once if buf_core is non-NULL, but as
+	 * many times as needed if the bounce buffer bb is used. That's why
+	 * dst doesn't need to be updated in the loop.
+	 */
+	while (num_bytes < l) {
+		size_t n = MIN(dst_len, l - num_bytes);
 
-			res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
-						  ta->ta_buf + ta->pos +
-							num_bytes, n, b);
-			if (res)
-				break;
-			num_bytes += n;
-		}
-
-		free(b);
+		res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
+					  ta->ta_buf + ta->pos + num_bytes,
+					  n, dst);
 		if (res)
-			return res;
+			goto out;
+
+		if (buf_user) {
+			res = copy_to_user((uint8_t *)buf_user + num_bytes,
+					   dst, n);
+			if (res)
+				goto out;
+		}
+		num_bytes += n;
 	}
 
 	ta->pos += l;
@@ -768,7 +780,9 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 			return res;
 	}
 	*len = l;
-	return TEE_SUCCESS;
+out:
+	bb_free(bb, bb_len);
+	return res;
 }
 
 void tee_tadb_ta_close(struct tee_tadb_ta_read *ta)

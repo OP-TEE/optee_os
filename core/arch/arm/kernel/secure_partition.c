@@ -471,7 +471,7 @@ static TEE_Result load_binary_sp(struct ts_session *s,
 		goto err_free_mobj;
 
 	/* Read SP binary into the previously mapped memory area */
-	res = store_ops->read(handle, (void *)va, bin_size);
+	res = store_ops->read(handle, NULL, (void *)va, bin_size);
 	if (res)
 		goto err_unmap;
 
