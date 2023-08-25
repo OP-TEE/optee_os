@@ -1860,24 +1860,6 @@ static TEE_Result get_ec_key_size(uint32_t curve, size_t *key_size)
 	return TEE_SUCCESS;
 }
 
-static size_t get_used_bits(const TEE_Attribute *a)
-{
-	TEE_Result res = TEE_SUCCESS;
-	int nbits = a->content.ref.length * 8;
-	int v = 0;
-	void *bbuf = NULL;
-
-	res = bb_memdup_user(a->content.ref.buffer, a->content.ref.length,
-			     &bbuf);
-	if (res)
-		return 0;
-
-	bit_ffs(bbuf, nbits, &v);
-
-	bb_free(bbuf, a->content.ref.length);
-	return nbits - v;
-}
-
 static TEE_Result tee_svc_cryp_obj_populate_type(
 		struct tee_obj *o,
 		const struct tee_cryp_obj_type_props *type_props,
@@ -1955,7 +1937,8 @@ static TEE_Result tee_svc_cryp_obj_populate_type(
 		 */
 		if (type_props->type_attrs[idx].flags &
 		    TEE_TYPE_ATTR_BIGNUM_MAXBITS) {
-			if (get_used_bits(attrs + n) > o->info.maxObjectSize)
+			if (crypto_bignum_num_bits(*(struct bignum **)attr) >
+			    o->info.maxObjectSize)
 				return TEE_ERROR_BAD_STATE;
 		}
 	}
