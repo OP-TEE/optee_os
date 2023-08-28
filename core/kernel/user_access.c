@@ -108,6 +108,25 @@ TEE_Result copy_to_user_private(void *uaddr, const void *kaddr, size_t len)
 	return res;
 }
 
+static void *maybe_tag_bb(void *buf, size_t sz)
+{
+	static_assert(MEMTAG_GRANULE_SIZE <= BB_ALIGNMENT);
+
+	if (!MEMTAG_IS_ENABLED)
+		return buf;
+
+	assert(!((vaddr_t)buf % MEMTAG_GRANULE_SIZE));
+	return memtag_set_random_tags(buf, ROUNDUP(sz, MEMTAG_GRANULE_SIZE));
+}
+
+static void maybe_untag_bb(void *buf, size_t sz)
+{
+	if (MEMTAG_IS_ENABLED) {
+		assert(!((vaddr_t)buf % MEMTAG_GRANULE_SIZE));
+		memtag_set_tags(buf, ROUNDUP(sz, MEMTAG_GRANULE_SIZE), 0);
+	}
+}
+
 void *bb_alloc(size_t len)
 {
 	struct user_mode_ctx *uctx = get_current_uctx();
@@ -116,7 +135,7 @@ void *bb_alloc(size_t len)
 
 	if (uctx && !ADD_OVERFLOW(uctx->bbuf_offs, len, &offs) &&
 	    offs <= uctx->bbuf_size) {
-		bb = uctx->bbuf + uctx->bbuf_offs;
+		bb = maybe_tag_bb(uctx->bbuf + uctx->bbuf_offs, len);
 		uctx->bbuf_offs = ROUNDUP(offs, BB_ALIGNMENT);
 	}
 	return bb;
@@ -129,6 +148,12 @@ static void bb_free_helper(struct user_mode_ctx *uctx, vaddr_t bb, size_t len)
 	if (bb >= bbuf && IS_ALIGNED(bb, BB_ALIGNMENT)) {
 		size_t prev_offs = bb - bbuf;
 
+		/*
+		 * Even if we can't update offset we can still invalidate
+		 * the memory allocation.
+		 */
+		maybe_untag_bb((void *)bb, len);
+
 		if (prev_offs + ROUNDUP(len, BB_ALIGNMENT) == uctx->bbuf_offs)
 			uctx->bbuf_offs = prev_offs;
 	}
@@ -139,15 +164,22 @@ void bb_free(void *bb, size_t len)
 	struct user_mode_ctx *uctx = get_current_uctx();
 
 	if (uctx)
-		bb_free_helper(uctx, (vaddr_t)bb, len);
+		bb_free_helper(uctx, memtag_strip_tag_vaddr(bb), len);
 }
 
 void bb_reset(void)
 {
 	struct user_mode_ctx *uctx = get_current_uctx();
 
-	if (uctx)
+	if (uctx) {
+		/*
+		 * Only the part up to the offset have been allocated, so
+		 * no need to clear tags beyond that.
+		 */
+		maybe_untag_bb(uctx->bbuf, uctx->bbuf_offs);
+
 		uctx->bbuf_offs = 0;
+	}
 }
 
 TEE_Result clear_user(void *uaddr, size_t n)
