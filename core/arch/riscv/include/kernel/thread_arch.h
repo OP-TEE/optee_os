@@ -37,8 +37,8 @@ struct thread_core_local {
 struct thread_user_vfp_state {
 };
 
-struct thread_smc_args {
-	unsigned long a0;	/* SBI function ID */
+struct thread_abi_args {
+	unsigned long a0;	/* ABI function ID */
 	unsigned long a1;	/* Parameter */
 	unsigned long a2;	/* Parameter */
 	unsigned long a3;	/* Thread ID when returning from RPC */
