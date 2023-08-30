@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2023 NXP
  *
  * Peng Fan <peng.fan@nxp.com>
  */
@@ -12,6 +13,7 @@
 #include <imx.h>
 #include <imx-regs.h>
 #include <kernel/boot.h>
+#include <kernel/delay_arch.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
@@ -52,60 +54,37 @@ uint32_t psci_version(void)
 }
 
 #ifdef CFG_BOOT_SECONDARY_REQUEST
-int psci_cpu_on(uint32_t core_idx, uint32_t entry,
-		uint32_t context_id)
+int psci_cpu_on(uint32_t core_idx, uint32_t entry, uint32_t context_id)
 {
-	uint32_t val;
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
-
-	if (!va)
-		EMSG("No SRC mapping\n");
-
-	if ((core_idx == 0) || (core_idx >= CFG_TEE_CORE_NB_CORE))
+	if (core_idx == 0 || core_idx >= CFG_TEE_CORE_NB_CORE)
 		return PSCI_RET_INVALID_PARAMETERS;
 
 	/* set secondary cores' NS entry addresses */
 	boot_set_core_ns_entry(core_idx, entry, context_id);
-
-	val = virt_to_phys((void *)TEE_LOAD_ADDR);
+	imx_set_src_gpr_entry(core_idx, virt_to_phys((void *)TEE_LOAD_ADDR));
 
 #ifdef CFG_MX7
-	io_write32(va + SRC_GPR1_MX7 + core_idx * 8, val);
-
 	imx_gpcv2_set_core1_pup_by_software();
-
-	/* release secondary core */
-	val = io_read32(va + SRC_A7RCR1);
-	val |=  BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET +
-			(core_idx - 1));
-	io_write32(va + SRC_A7RCR1, val);
+	imx_src_release_secondary_core(core_idx);
 #else
-	/* boot secondary cores from OP-TEE load address */
-	io_write32(va + SRC_GPR1 + core_idx * 8, val);
-
-	/* release secondary core */
-	val = io_read32(va + SRC_SCR);
-	val |=  BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + (core_idx - 1));
-	val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + (core_idx - 1));
-	io_write32(va + SRC_SCR, val);
-
-	imx_set_src_gpr(core_idx, 0);
+	imx_src_release_secondary_core(core_idx);
+	imx_set_src_gpr_arg(core_idx, 0);
 #endif /* CFG_MX7 */
+
+	IMSG("psci on ok");
 
 	return PSCI_RET_SUCCESS;
 }
 
 int __noreturn psci_cpu_off(void)
 {
-	uint32_t core_id;
+	uint32_t core_id = get_core_pos();
 
-	core_id = get_core_pos();
-
-	DMSG("core_id: %" PRIu32, core_id);
+	IMSG("core_id: %" PRIu32, core_id);
 
 	psci_armv7_cpu_off();
 
-	imx_set_src_gpr(core_id, UINT32_MAX);
+	imx_set_src_gpr_arg(core_id, UINT32_MAX);
 
 	thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -116,48 +95,25 @@ int __noreturn psci_cpu_off(void)
 int psci_affinity_info(uint32_t affinity,
 		       uint32_t lowest_affnity_level __unused)
 {
-	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
 	vaddr_t gpr5 = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC,
 				       IOMUXC_GPR5_OFFSET + sizeof(uint32_t)) +
 				       IOMUXC_GPR5_OFFSET;
-	uint32_t cpu, val;
-	bool wfi;
+	uint32_t cpu = affinity;
+	bool wfi = true;
 
-	cpu = affinity;
-
-	if (soc_is_imx7ds())
-		wfi = true;
-	else
+	if (!soc_is_imx7ds())
 		wfi = io_read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
 
-	if ((imx_get_src_gpr(cpu) == 0) || !wfi)
+	if (imx_get_src_gpr_arg(cpu) == 0 || !wfi)
 		return PSCI_AFFINITY_LEVEL_ON;
 
-	DMSG("cpu: %" PRIu32 "GPR: %" PRIx32, cpu, imx_get_src_gpr(cpu));
-	/*
-	 * Wait secondary cpus ready to be killed
-	 * TODO: Change to non dead loop
-	 */
-	if (soc_is_imx7ds()) {
-		while (io_read32(va + SRC_GPR1_MX7 + cpu * 8 + 4) != UINT_MAX)
-			;
+	DMSG("cpu: %" PRIu32 "GPR: %" PRIx32, cpu, imx_get_src_gpr_arg(cpu));
 
-		val = io_read32(va + SRC_A7RCR1);
-		val &=  ~BIT32(SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET + (cpu - 1));
-		io_write32(va + SRC_A7RCR1, val);
-	} else {
-		while (io_read32(va + SRC_GPR1 + cpu * 8 + 4) != UINT32_MAX)
-			;
+	while (imx_get_src_gpr_arg(cpu) != UINT_MAX)
+		;
 
-		/* Kill cpu */
-		val = io_read32(va + SRC_SCR);
-		val &= ~BIT32(SRC_SCR_CORE1_ENABLE_OFFSET + cpu - 1);
-		val |=  BIT32(SRC_SCR_CORE1_RST_OFFSET + cpu - 1);
-		io_write32(va + SRC_SCR, val);
-	}
-
-	/* Clean arg */
-	imx_set_src_gpr(cpu, 0);
+	imx_src_shutdown_core(cpu);
+	imx_set_src_gpr_arg(cpu, 0);
 
 	return PSCI_AFFINITY_LEVEL_OFF;
 }
