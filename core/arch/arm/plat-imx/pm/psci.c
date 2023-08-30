@@ -29,6 +29,10 @@
 
 #include "local.h"
 
+#define IOMUXC_GPR5_OFFSET 0x14
+
+#define ARM_WFI_STAT_MASK(n) BIT(n)
+
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {

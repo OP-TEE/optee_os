@@ -48,24 +48,4 @@
 #else
 #error "CFG_MX* not defined"
 #endif
-
-#define IOMUXC_GPR4_OFFSET	0x10
-#define IOMUXC_GPR5_OFFSET	0x14
-#define ARM_WFI_STAT_MASK(n)	BIT(n)
-
-#define ARM_WFI_STAT_MASK_7D(n)	BIT(25 + ((n) & 1))
-
-#define WCR_OFF				0
-
-/* GPC V2 */
-#define GPC_PGC_C1			0x840
-#define GPC_PGC_C1_PUPSCR		0x844
-
-#define GPC_PGC_PCG_MASK		BIT(0)
-
-#define GPC_CPU_PGC_SW_PUP_REQ		0xf0
-#define GPC_PU_PGC_SW_PUP_REQ		0xf8
-#define GPC_CPU_PGC_SW_PDN_REQ		0xfc
-#define GPC_PU_PGC_SW_PDN_REQ		0x104
-#define GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK BIT(1)
 #endif
