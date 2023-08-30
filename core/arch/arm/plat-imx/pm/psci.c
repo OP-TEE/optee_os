@@ -24,6 +24,8 @@
 #include <tee/entry_std.h>
 #include <tee/entry_fast.h>
 
+#include "local.h"
+
 int psci_features(uint32_t psci_fid)
 {
 	switch (psci_fid) {

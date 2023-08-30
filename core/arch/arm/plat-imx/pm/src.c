@@ -8,6 +8,8 @@
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
 
+#include "local.h"
+
 uint32_t imx_get_src_gpr(int cpu)
 {
 	vaddr_t va = core_mmu_get_va(SRC_BASE, MEM_AREA_IO_SEC, 1);
