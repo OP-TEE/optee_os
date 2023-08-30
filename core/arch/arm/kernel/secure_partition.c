@@ -170,17 +170,23 @@ bool sp_has_exclusive_access(struct sp_mem_map_region *mem,
 	return !sp_mem_is_shared(mem);
 }
 
-static uint16_t new_session_id(struct sp_sessions_head *open_sessions)
+static TEE_Result new_session_id(uint16_t *endpoint_id)
 {
-	struct sp_session *last = NULL;
-	uint16_t id = SPMC_ENDPOINT_ID + 1;
+	struct sp_session *session = NULL;
 
-	last = TAILQ_LAST(open_sessions, sp_sessions_head);
-	if (last)
-		id = last->endpoint_id + 1;
+	*endpoint_id = SPMC_ENDPOINT_ID;
 
-	assert(id > SPMC_ENDPOINT_ID);
-	return id;
+	/* Find the first available endpoint id */
+	do {
+		if (*endpoint_id == UINT16_MAX)
+			return TEE_ERROR_BAD_FORMAT;
+
+		(*endpoint_id)++;
+
+		session = sp_get_session(*endpoint_id);
+	} while (session);
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result sp_create_ctx(const TEE_UUID *bin_uuid, struct sp_session *s)
@@ -210,8 +216,32 @@ err:
 	return res;
 }
 
+/*
+ * Insert a new sp_session to the sessions list, so that it is ordered
+ * by boot_order.
+ */
+static void insert_session_ordered(struct sp_sessions_head *open_sessions,
+				   struct sp_session *session)
+{
+	struct sp_session *s = NULL;
+
+	if (!open_sessions || !session)
+		return;
+
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		if (s->boot_order > session->boot_order)
+			break;
+	}
+
+	if (!s)
+		TAILQ_INSERT_TAIL(open_sessions, session, link);
+	else
+		TAILQ_INSERT_BEFORE(s, session, link);
+}
+
 static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
 				    const TEE_UUID *bin_uuid,
+				    const uint32_t boot_order,
 				    struct sp_session **sess)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -220,18 +250,18 @@ static TEE_Result sp_create_session(struct sp_sessions_head *open_sessions,
 	if (!s)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	s->endpoint_id = new_session_id(open_sessions);
-	if (!s->endpoint_id) {
-		res = TEE_ERROR_OVERFLOW;
+	s->boot_order = boot_order;
+
+	res = new_session_id(&s->endpoint_id);
+	if (res)
 		goto err;
-	}
 
 	DMSG("Loading Secure Partition %pUl", (void *)bin_uuid);
 	res = sp_create_ctx(bin_uuid, s);
 	if (res)
 		goto err;
 
-	TAILQ_INSERT_TAIL(open_sessions, s, link);
+	insert_session_ordered(open_sessions, s);
 	*sess = s;
 	return TEE_SUCCESS;
 
@@ -348,6 +378,24 @@ static TEE_Result sp_dt_get_u32(const void *fdt, int node, const char *property,
 		return TEE_ERROR_BAD_FORMAT;
 
 	*value = fdt32_to_cpu(*p);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result sp_dt_get_u16(const void *fdt, int node, const char *property,
+				uint16_t *value)
+{
+	const fdt16_t *p = NULL;
+	int len = 0;
+
+	p = fdt_getprop(fdt, node, property, &len);
+	if (!p)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (len != sizeof(*p))
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value = fdt16_to_cpu(*p);
 
 	return TEE_SUCCESS;
 }
@@ -532,6 +580,7 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 				  struct sp_sessions_head *open_sessions,
 				  const TEE_UUID *ffa_uuid,
 				  const TEE_UUID *bin_uuid,
+				  const uint32_t boot_order,
 				  const void *fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -542,7 +591,7 @@ static TEE_Result sp_open_session(struct sp_session **sess,
 	if (!find_secure_partition(bin_uuid))
 		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	res = sp_create_session(open_sessions, bin_uuid, &s);
+	res = sp_create_session(open_sessions, bin_uuid, boot_order, &s);
 	if (res != TEE_SUCCESS) {
 		DMSG("sp_create_session failed %#"PRIx32, res);
 		return res;
@@ -1364,18 +1413,31 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 	TEE_Result res = TEE_SUCCESS;
 	struct sp_session *sess = NULL;
 	TEE_UUID ffa_uuid = {};
+	uint16_t boot_order = 0;
+	uint32_t boot_order_arg = 0;
 
 	res = fdt_get_uuid(fdt, &ffa_uuid);
 	if (res)
 		return res;
 
+	res = sp_dt_get_u16(fdt, 0, "boot-order", &boot_order);
+	if (res == TEE_SUCCESS) {
+		boot_order_arg = boot_order;
+	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
+		boot_order_arg = UINT32_MAX;
+	} else {
+		EMSG("Failed reading boot-order property err:%#"PRIx32, res);
+		return res;
+	}
+
 	res = sp_open_session(&sess,
 			      &open_sp_sessions,
-			      &ffa_uuid, bin_uuid, fdt);
+			      &ffa_uuid, bin_uuid, boot_order_arg, fdt);
 	if (res)
 		return res;
 
 	sess->fdt = fdt;
+
 	res = read_manifest_endpoint_id(sess);
 	if (res)
 		return res;
@@ -1775,6 +1837,7 @@ static TEE_Result sp_init_all(void)
 	const struct fip_sp *fip_sp = NULL;
 	char __maybe_unused msg[60] = { '\0', };
 	struct sp_session *s = NULL;
+	struct sp_session *prev_sp = NULL;
 
 	for_each_secure_partition(sp) {
 		if (sp->image.uncompressed_size)
@@ -1822,8 +1885,27 @@ static TEE_Result sp_init_all(void)
 	 */
 	fip_sp_deinit_all();
 
+	/*
+	 * Now that all SPs are loaded, check through the boot order values,
+	 * and warn in case there is a non-unique value.
+	 */
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		/* User specified boot-order values are uint16 */
+		if (s->boot_order > UINT16_MAX)
+			break;
+
+		if (prev_sp && prev_sp->boot_order == s->boot_order)
+			IMSG("WARNING: duplicated boot-order (%pUl vs %pUl)",
+			     &prev_sp->ts_sess.ctx->uuid,
+			     &s->ts_sess.ctx->uuid);
+
+		prev_sp = s;
+	}
+
 	/* Continue the initialization and run the SP */
 	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		DMSG("Starting SP: 0x%"PRIx16, s->endpoint_id);
+
 		res = sp_first_run(s);
 		if (res != TEE_SUCCESS) {
 			EMSG("Failed starting SP(0x%"PRIx16") err:%#"PRIx32,
