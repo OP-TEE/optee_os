@@ -10,7 +10,6 @@
 #include <drivers/imx_wdog.h>
 #include <io.h>
 #include <imx.h>
-#include <imx_pm.h>
 #include <imx-regs.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
@@ -177,63 +176,6 @@ void __noreturn psci_system_off(void)
 
 	while (1)
 		;
-}
-
-__weak int imx7d_lowpower_idle(uint32_t power_state __unused,
-			uintptr_t entry __unused,
-			uint32_t context_id __unused,
-			struct sm_nsec_ctx *nsec __unused)
-{
-	return 0;
-}
-
-__weak int imx7_cpu_suspend(uint32_t power_state __unused,
-			    uintptr_t entry __unused,
-			    uint32_t context_id __unused,
-			    struct sm_nsec_ctx *nsec __unused)
-{
-	return 0;
-}
-
-int psci_cpu_suspend(uint32_t power_state,
-		     uintptr_t entry, uint32_t context_id __unused,
-		     struct sm_nsec_ctx *nsec)
-{
-	uint32_t id, type;
-	int ret = PSCI_RET_INVALID_PARAMETERS;
-
-	id = power_state & PSCI_POWER_STATE_ID_MASK;
-	type = (power_state & PSCI_POWER_STATE_TYPE_MASK) >>
-		PSCI_POWER_STATE_TYPE_SHIFT;
-
-	if ((type != PSCI_POWER_STATE_TYPE_POWER_DOWN) &&
-	    (type != PSCI_POWER_STATE_TYPE_STANDBY)) {
-		DMSG("Not supported %x\n", type);
-		return ret;
-	}
-
-	/*
-	 * ID 0 means suspend
-	 * ID 1 means low power idle
-	 * TODO: follow PSCI StateID sample encoding.
-	 */
-	DMSG("ID = %d\n", id);
-	if (id == 1) {
-		if (soc_is_imx7ds())
-			return imx7d_lowpower_idle(power_state, entry,
-						   context_id, nsec);
-		return ret;
-	} else if (id == 0) {
-		if (soc_is_imx7ds()) {
-			return imx7_cpu_suspend(power_state, entry,
-						context_id, nsec);
-		}
-		return ret;
-	}
-
-	DMSG("ID %d not supported\n", id);
-
-	return ret;
 }
 
 void __noreturn psci_system_reset(void)
