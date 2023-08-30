@@ -3,7 +3,7 @@
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
  * Copyright (c) 2016, Wind River Systems.
  * All rights reserved.
- * Copyright 2019 NXP
+ * Copyright 2019, 2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,19 +54,6 @@
 #define ARM_WFI_STAT_MASK(n)	BIT(n)
 
 #define ARM_WFI_STAT_MASK_7D(n)	BIT(25 + ((n) & 1))
-
-#define SRC_SCR				0x000
-#define SRC_GPR1			0x020
-#define SRC_GPR2			0x024
-#define SRC_SCR_CORE1_RST_OFFSET	14
-#define SRC_SCR_CORE1_ENABLE_OFFSET	22
-#define SRC_SCR_CPU_ENABLE_ALL		SHIFT_U32(0x7, 22)
-
-#define SRC_GPR1_MX7			0x074
-#define SRC_A7RCR0			0x004
-#define SRC_A7RCR1			0x008
-#define SRC_A7RCR0_A7_CORE_RESET0_OFFSET	0
-#define SRC_A7RCR1_A7_CORE1_ENABLE_OFFSET	1
 
 #define SNVS_LPCR_OFF			0x38
 #define SNVS_LPCR_TOP_MASK		BIT(6)

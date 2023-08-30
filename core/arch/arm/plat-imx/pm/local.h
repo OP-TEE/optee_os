@@ -6,14 +6,39 @@
 #include <stdint.h>
 
 /*
- * Read the SRC GPR register for the given core number
+ * Read the SRC GPR ARG register for the given core number
  * @cpu	Core number
  */
-uint32_t imx_get_src_gpr(int cpu);
+uint32_t imx_get_src_gpr_arg(unsigned int cpu);
 
 /*
- * Set the SRC GPR register for the given core number
+ * Set the SRC GPR ARG register for the given core number
  * @cpu	Core number
  * @val	Register value to set
  */
-void imx_set_src_gpr(int cpu, uint32_t val);
+void imx_set_src_gpr_arg(unsigned int cpu, uint32_t val);
+
+/*
+ * Read the SRC GPR ENTRY register for the given core number
+ * @cpu	Core number
+ */
+uint32_t imx_get_src_gpr_entry(unsigned int cpu);
+
+/*
+ * Set the SRC GPR ENTRY register for the given core number
+ * @cpu	Core number
+ * @val	Register value to set
+ */
+void imx_set_src_gpr_entry(unsigned int cpu, uint32_t val);
+
+/*
+ * Release the given core
+ * @cpu Core number
+ */
+void imx_src_release_secondary_core(unsigned int cpu);
+
+/*
+ * Shutdown the given core
+ * @cpu Core number
+ */
+void imx_src_shutdown_core(unsigned int cpu);
