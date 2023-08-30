@@ -8,6 +8,7 @@
 
 #include <console.h>
 #include <drivers/imx_uart.h>
+#include <drivers/imx_snvs.h>
 #include <drivers/imx_wdog.h>
 #include <io.h>
 #include <imx.h>
@@ -122,14 +123,9 @@ int psci_affinity_info(uint32_t affinity,
 void __noreturn psci_system_off(void)
 {
 #ifndef CFG_MX7ULP
-	vaddr_t snvs_base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC, 1);
-
-	io_write32(snvs_base + SNVS_LPCR_OFF,
-		   SNVS_LPCR_TOP_MASK |
-		   SNVS_LPCR_DP_EN_MASK |
-		   SNVS_LPCR_SRTC_ENV_MASK);
-	dsb();
+	imx_snvs_shutdown();
 #endif
+	dsb();
 
 	while (1)
 		;

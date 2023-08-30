@@ -55,11 +55,6 @@
 
 #define ARM_WFI_STAT_MASK_7D(n)	BIT(25 + ((n) & 1))
 
-#define SNVS_LPCR_OFF			0x38
-#define SNVS_LPCR_TOP_MASK		BIT(6)
-#define SNVS_LPCR_DP_EN_MASK		BIT(5)
-#define SNVS_LPCR_SRTC_ENV_MASK		1
-
 #define WCR_OFF				0
 
 /* GPC V2 */
