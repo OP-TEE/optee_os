@@ -11,6 +11,16 @@
 #include <platform_config.h>
 #include <stdint.h>
 
+#define GPC_PGC_C1			0x840
+#define GPC_PGC_C1_PUPSCR		0x844
+#define GPC_PGC_PCG_MASK		BIT(0)
+
+#define GPC_CPU_PGC_SW_PUP_REQ		0xf0
+#define GPC_PU_PGC_SW_PUP_REQ		0xf8
+#define GPC_CPU_PGC_SW_PDN_REQ		0xfc
+#define GPC_PU_PGC_SW_PDN_REQ		0x104
+#define GPC_PGC_SW_PDN_PUP_REQ_CORE1_MASK BIT(1)
+
 static vaddr_t gpc_base(void)
 {
 	return core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC, 1);
