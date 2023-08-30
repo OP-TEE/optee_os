@@ -25,6 +25,7 @@ struct sp_session {
 	enum sp_status state;
 	uint16_t endpoint_id;
 	uint16_t caller_id;
+	uint32_t boot_order;
 	struct ts_session ts_sess;
 	unsigned int spinlock;
 	const void *fdt;
