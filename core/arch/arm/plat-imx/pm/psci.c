@@ -30,7 +30,6 @@ int psci_features(uint32_t psci_fid)
 	case ARM_SMCCC_VERSION:
 	case PSCI_PSCI_FEATURES:
 	case PSCI_VERSION:
-	case PSCI_CPU_SUSPEND:
 	case PSCI_CPU_OFF:
 #ifdef CFG_BOOT_SECONDARY_REQUEST
 	case PSCI_CPU_ON:
