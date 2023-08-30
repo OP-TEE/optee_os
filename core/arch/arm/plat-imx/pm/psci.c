@@ -95,14 +95,14 @@ int __noreturn psci_cpu_off(void)
 int psci_affinity_info(uint32_t affinity,
 		       uint32_t lowest_affnity_level __unused)
 {
-	vaddr_t gpr5 = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC,
-				       IOMUXC_GPR5_OFFSET + sizeof(uint32_t)) +
-				       IOMUXC_GPR5_OFFSET;
+	vaddr_t base = core_mmu_get_va(IOMUXC_BASE, MEM_AREA_IO_SEC,
+				       IOMUXC_SIZE);
 	uint32_t cpu = affinity;
 	bool wfi = true;
 
 	if (!soc_is_imx7ds())
-		wfi = io_read32(gpr5) & ARM_WFI_STAT_MASK(cpu);
+		wfi = io_read32(base + IOMUXC_GPR5_OFFSET) &
+		      ARM_WFI_STAT_MASK(cpu);
 
 	if (imx_get_src_gpr_arg(cpu) == 0 || !wfi)
 		return PSCI_AFFINITY_LEVEL_ON;
