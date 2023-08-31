@@ -949,9 +949,6 @@ do_copy:
 	for (; idx < obj->sgtbuf.number; idx++) {
 		struct sgtdata *sgtdata = &priv->sgtdata[idx];
 
-		if (!sgtdata)
-			break;
-
 		if (!sgtdata->orig)
 			continue;
 
