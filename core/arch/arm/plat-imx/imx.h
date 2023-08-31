@@ -49,9 +49,5 @@ uint32_t imx_soc_type(void);
 uint32_t imx_soc_rev_major(void);
 uint32_t imx_soc_rev_minor(void);
 uint32_t imx_get_digprog(void);
-void imx_gpcv2_set_core1_pdn_by_software(void);
-void imx_gpcv2_set_core1_pup_by_software(void);
-void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset);
-
 #endif /* __ASSEMBLER__ */
 #endif
