@@ -26,7 +26,7 @@ static vaddr_t gpc_base(void)
 	return core_mmu_get_va(GPC_BASE, MEM_AREA_IO_SEC, 1);
 }
 
-void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset)
+static void imx_gpcv2_set_core_pgc(bool enable, uint32_t offset)
 {
 	uint32_t val = io_read32(gpc_base() + offset) & (~GPC_PGC_PCG_MASK);
 
