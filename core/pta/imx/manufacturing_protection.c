@@ -95,6 +95,9 @@ pta_mp_open_session(uint32_t param_types __unused,
 {
 	struct ts_session *s = NULL;
 
+	if (IS_ENABLED(CFG_NXP_CAAM_MP_NO_ACCESS_CTRL))
+		return TEE_SUCCESS;
+
 	s = ts_get_calling_session();
 	if (!s || !is_user_ta_ctx(s->ctx))
 		return TEE_ERROR_ACCESS_DENIED;
