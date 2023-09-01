@@ -180,6 +180,8 @@ void *mempool_calloc(struct mempool *pool, size_t nmemb, size_t size)
 
 void mempool_free(struct mempool *pool, void *ptr)
 {
-	raw_free(ptr, pool->mctx, false /*!wipe*/);
-	put_pool(pool);
+	if (ptr) {
+		raw_free(ptr, pool->mctx, false /*!wipe*/);
+		put_pool(pool);
+	}
 }
