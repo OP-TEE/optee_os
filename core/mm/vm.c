@@ -1135,10 +1135,11 @@ void vm_info_final(struct user_mode_ctx *uctx)
 	tlbi_asid(uctx->vm_info.asid);
 
 	asid_free(uctx->vm_info.asid);
+	uctx->vm_info.asid = 0;
+
 	while (!TAILQ_EMPTY(&uctx->vm_info.regions))
 		umap_remove_region(&uctx->vm_info,
 				   TAILQ_FIRST(&uctx->vm_info.regions));
-	memset(&uctx->vm_info, 0, sizeof(uctx->vm_info));
 }
 
 /* return true only if buffer fits inside TA private memory */
