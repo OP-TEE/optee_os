@@ -167,6 +167,13 @@ void bb_free(void *bb, size_t len)
 		bb_free_helper(uctx, memtag_strip_tag_vaddr(bb), len);
 }
 
+void bb_free_wipe(void *bb, size_t len)
+{
+	if (bb)
+		memset(bb, 0, len);
+	bb_free(bb, len);
+}
+
 void bb_reset(void)
 {
 	struct user_mode_ctx *uctx = get_current_uctx();

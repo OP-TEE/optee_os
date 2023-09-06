@@ -79,6 +79,16 @@ void *bb_alloc(size_t len);
 void bb_free(void *bb, size_t len);
 
 /*
+ * bb_free_wipe() - Wipe and free a bounce buffer
+ * @bb:		Buffer
+ * @len:	Length of buffer
+ *
+ * The bounce buffer is always wiped if @bb is non-NULL, but only freed if
+ * it is last on the stack of allocated bounce buffers.
+ */
+void bb_free_wipe(void *bb, size_t len);
+
+/*
  * bb_reset() - Reset bounce buffer allocation
  *
  * Resets the bounce buffer allocatation state, old pointers allocated
