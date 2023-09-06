@@ -31,6 +31,10 @@ static struct regulator_property flag_prop[] = {
 		.name = "regulator-always-on",
 		.flag = REGULATOR_ALWAYS_ON,
 	},
+	{
+		.name = "regulator-pull-down",
+		.flag = REGULATOR_PULL_DOWN,
+	},
 };
 
 /*

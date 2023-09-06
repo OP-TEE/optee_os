@@ -20,10 +20,15 @@
  * REGUL_ALWAYS_ON
  * Regulator should never be disabled. Relates to device tree binding
  * property regulator-always-on.
+ *
+ * REGULATOR_PULL_DOWN:
+ * Enables pull down mode of regulator when enabled.
+ * Relates to device tree binding property regulator-pull-down.
  */
 #define REGULATOR_ALWAYS_ON	BIT(0)
+#define REGULATOR_PULL_DOWN	BIT(1)
 
-#define REGULATOR_FLAGS_MASK	REGULATOR_ALWAYS_ON
+#define REGULATOR_FLAGS_MASK	(REGULATOR_ALWAYS_ON | REGULATOR_PULL_DOWN)
 
 struct regulator_ops;
 
