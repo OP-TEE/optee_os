@@ -596,8 +596,13 @@ void stpmic1_regulator_levels_mv(const char *name,
 
 	assert(regul);
 
-	if (levels_count)
+	if (levels_count) {
 		*levels_count = regul->voltage_table_size;
+
+		/* Remove last cell 0xFFFF that is not a voltage level */
+		if (regul->voltage_table == ldo3_voltage_table)
+			(*levels_count)--;
+	}
 
 	if (levels)
 		*levels = regul->voltage_table;
