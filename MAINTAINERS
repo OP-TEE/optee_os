@@ -181,6 +181,16 @@ S:	Maintained
 F:	core/arch/arm/plat-imx/
 F:	core/arch/arm/plat-imx/registers
 F:	core/drivers/crypto/caam/
+F:	core/drivers/imx/
+F:	core/drivers/imx_csu.c
+F:	core/drivers/imx_ele.c
+F:	core/drivers/imx_lpuart.c
+F:	core/drivers/imx_ocotp.c
+F:	core/drivers/imx_sc_api.c
+F:	core/drivers/imx_scu.c
+F:	core/drivers/imx_snvs.c
+F:	core/drivers/imx_uart.c
+F:	core/drivers/imx_wdog.c
 
 Clock driver framework
 R:	Clement Leger <clement.leger@bootlin.com> [@clementleger]
