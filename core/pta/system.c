@@ -107,7 +107,7 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 	if (ADD_OVERFLOW(data_len, params[0].memref.size, &data_len))
 		return TEE_ERROR_SECURITY;
 
-	data = calloc(data_len, 1);
+	data = bb_alloc(data_len);
 	if (!data)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
@@ -134,8 +134,8 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 			   params[1].memref.size);
 
 out:
-	bb_free(subkey_bbuf, params[1].memref.size);
-	free_wipe(data);
+	bb_free_wipe(subkey_bbuf, params[1].memref.size);
+	bb_free_wipe(data, data_len);
 	return res;
 }
 
