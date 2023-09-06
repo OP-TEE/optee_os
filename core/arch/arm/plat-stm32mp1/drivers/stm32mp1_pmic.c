@@ -21,6 +21,7 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
@@ -46,10 +47,12 @@ static_assert(PMIC_REGU_FLAG_COUNT <= UINT_MAX);
  * struct pmic_regulator_data - Platform specific data
  * @flags: Flags for platform property to apply
  * @regu_name: Regulator name ID in stpmic1 driver
+ * @supported_voltages: Supported levels description or NULL is not yet built
  */
 struct pmic_regulator_data {
 	unsigned int flags;
 	char *regu_name;
+	struct regulator_voltages *voltages;
 };
 
 /* Expect a single PMIC instance */
@@ -384,6 +387,83 @@ static TEE_Result pmic_set_voltage(struct regulator *regulator, int level_uv)
 	return TEE_SUCCESS;
 }
 
+static int cmp_int_value(const void *a, const void *b)
+{
+	const int *ia = a;
+	const int *ib = b;
+
+	return CMP_TRILEAN(*ia, *ib);
+}
+
+static size_t refine_levels_array(struct regulator_voltages *voltages)
+{
+	int *levels_uv = voltages->entries;
+	size_t count = voltages->num_levels;
+	size_t n = 0;
+	size_t m = 0;
+
+	/* We need to sort the array has STPMIC1 driver does not */
+	qsort(levels_uv, count, sizeof(*levels_uv), cmp_int_value);
+
+	/* Remove duplicates and return optimized count */
+	for (n = 1; n < count; n++) {
+		if (levels_uv[m] != levels_uv[n]) {
+			if (m + 1 != n)
+				levels_uv[m + 1] = levels_uv[n];
+			m++;
+		}
+	}
+
+	return m + 1;
+}
+
+static TEE_Result pmic_list_voltages(struct regulator *regulator,
+				     struct regulator_voltages **out_voltages)
+{
+	struct pmic_regulator_data *priv = regulator->priv;
+
+	if (!priv->voltages) {
+		struct regulator_voltages *voltages_s = NULL;
+		struct regulator_voltages *voltages = NULL;
+		const uint16_t *level_ref = NULL;
+		size_t level_count = 0;
+		size_t n = 0;
+
+		/*
+		 * Allocate and build a consised and ordered voltage list
+		 * based on the voltage list provided by stpmic1 driver.
+		 */
+		stpmic1_regulator_levels_mv(priv->regu_name, &level_ref,
+					    &level_count);
+
+		voltages = calloc(1, sizeof(*voltages) +
+				     sizeof(*voltages->entries) * level_count);
+		if (!voltages)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		for (n = 0; n < level_count; n++)
+			voltages->entries[n] = level_ref[n] * 1000;
+
+		voltages->num_levels = level_count;
+		level_count = refine_levels_array(voltages);
+
+		voltages_s = realloc(voltages,
+				     sizeof(*voltages) +
+				     sizeof(*voltages->entries) * level_count);
+		if (!voltages_s) {
+			free(voltages);
+			return TEE_ERROR_OUT_OF_MEMORY;
+		}
+
+		voltages_s->type = VOLTAGE_TYPE_FULL_LIST;
+		voltages_s->num_levels = level_count;
+		priv->voltages = voltages_s;
+	}
+
+	*out_voltages = priv->voltages;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result pmic_regu_init(struct regulator *regulator,
 				 const void *fdt __unused, int node __unused)
 {
@@ -421,6 +501,7 @@ static const struct regulator_ops pmic_regu_ops = {
 	.get_state = pmic_get_state,
 	.set_voltage = pmic_set_voltage,
 	.get_voltage = pmic_get_voltage,
+	.supported_voltages = pmic_list_voltages,
 	.supplied_init = pmic_regu_init,
 };
 DECLARE_KEEP_PAGER(pmic_regu_ops);
@@ -445,6 +526,23 @@ static const char * const pmic_regu_name_ids[] = {
 /* Preallocated regulator instances */
 static struct regulator pmic_regulators[ARRAY_SIZE(pmic_regu_name_ids)];
 static struct pmic_regulator_data pmic_regu_cfg[ARRAY_SIZE(pmic_regu_name_ids)];
+
+static TEE_Result release_voltage_lists(void)
+{
+	size_t n = 0;
+
+	/* Voltage list will be rebuilt at runtime if needed at least once */
+	for (n = 0; n < ARRAY_SIZE(pmic_regulators); n++) {
+		struct pmic_regulator_data *priv = pmic_regulators[n].priv;
+
+		if (priv && priv->voltages)
+			free(priv->voltages);
+	}
+
+	return TEE_SUCCESS;
+}
+
+release_init_resource(release_voltage_lists);
 
 struct regulator *stm32mp_pmic_get_regulator(const char *name)
 {
