@@ -637,62 +637,6 @@ static enum pwr_regulator pwr_scmi_to_regu_id(struct stm32_scmi_voltd *voltd)
 	panic();
 }
 
-static int32_t pwr_describe_levels(struct stm32_scmi_voltd *voltd,
-				   size_t start_index, long *microvolt,
-				   size_t *nb_elts)
-{
-	if (start_index)
-		return SCMI_INVALID_PARAMETERS;
-
-	if (!microvolt) {
-		*nb_elts = 1;
-		return SCMI_SUCCESS;
-	}
-
-	if (*nb_elts < 1)
-		return SCMI_GENERIC_ERROR;
-
-	*nb_elts = 1;
-	*microvolt = regulator_get_voltage(voltd->regulator);
-
-	return SCMI_SUCCESS;
-}
-
-static int32_t pmic_describe_levels(struct stm32_scmi_voltd *voltd,
-				    size_t start_index, long *microvolt,
-				    size_t *nb_elts)
-{
-	const uint16_t *levels = NULL;
-	size_t full_count = 0;
-	size_t out_count = 0;
-	size_t i = 0;
-
-	if (!stm32mp_nsec_can_access_pmic_regu(voltd->priv_id))
-		return SCMI_DENIED;
-
-	stpmic1_regulator_levels_mv(voltd->priv_id, &levels, &full_count);
-
-	if (!microvolt) {
-		*nb_elts = full_count - start_index;
-		return SCMI_SUCCESS;
-	}
-
-	if (SUB_OVERFLOW(full_count, start_index, &out_count))
-		return SCMI_GENERIC_ERROR;
-
-	out_count = MIN(out_count, *nb_elts);
-
-	FMSG("%zu levels: start %zu requested %zu output %zu",
-	     full_count, start_index, *nb_elts, out_count);
-
-	for (i = 0; i < out_count; i++)
-		microvolt[i] = levels[start_index + i] * 1000;
-
-	*nb_elts = out_count;
-
-	return SCMI_SUCCESS;
-}
-
 static long stub_get_level_uv(struct stm32_scmi_voltd *voltd)
 {
 	if (!strcmp(voltd->priv_id, STUB_SDMMC1_IO_NAME_ID) ||
@@ -730,18 +674,120 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 	if (!voltd)
 		return SCMI_NOT_FOUND;
 
+	if (voltd->regulator) {
+		struct regulator_voltages *voltages = NULL;
+		TEE_Result res = TEE_ERROR_GENERIC;
+		int *ref = NULL;
+		size_t ref_count = 0;
+		size_t n = 0;
+
+		res = regulator_supported_voltages(voltd->regulator, &voltages);
+		if (res == TEE_ERROR_NOT_SUPPORTED)
+			return SCMI_NOT_SUPPORTED;
+		if (res)
+			return SCMI_GENERIC_ERROR;
+		if (!voltages || voltages->type != VOLTAGE_TYPE_FULL_LIST) {
+			/*
+			 * Triplet min/max/step description. Caller should use
+			 * plat_scmi_voltd_levels_by_step().
+			 */
+			return SCMI_NOT_SUPPORTED;
+		}
+
+		ref = voltages->entries;
+		ref_count = voltages->num_levels;
+
+		/* Bound according to regulator registered min/max levels */
+		for (n = ref_count; n > 0; n--)
+			if (voltages->entries[n - 1] > voltd->regulator->max_uv)
+				ref_count--;
+		for (n = 0; n < ref_count; n++)
+			if (voltages->entries[n] >= voltd->regulator->min_uv)
+				break;
+
+		if (n == ref_count) {
+			DMSG("Voltage list out of regulator %s level bounds",
+			     regulator_name(voltd->regulator));
+			return SCMI_GENERIC_ERROR;
+		}
+
+		if (start_index >= ref_count)
+			return SCMI_OUT_OF_RANGE;
+
+		if (!*nb_elts) {
+			*nb_elts = ref_count - start_index;
+			return SCMI_SUCCESS;
+		}
+
+		for (n = 0; n < *nb_elts; n++)
+			levels[n] = ref[start_index + n];
+
+		return SCMI_SUCCESS;
+	}
+
 	switch (voltd->priv_dev) {
-	case VOLTD_PWR:
-		return pwr_describe_levels(voltd, start_index, levels, nb_elts);
-	case VOLTD_PMIC:
-		return pmic_describe_levels(voltd, start_index, levels,
-					    nb_elts);
 	case VOLTD_STUB:
 		return stub_describe_levels(voltd, start_index, levels,
 					    nb_elts);
 	default:
 		return SCMI_GENERIC_ERROR;
 	}
+}
+
+int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
+				       unsigned int scmi_id, long *min_max_step)
+{
+	struct stm32_scmi_voltd *voltd = find_voltd(channel_id, scmi_id);
+
+	if (!voltd)
+		return SCMI_NOT_FOUND;
+
+	if (voltd->regulator) {
+		struct regulator_voltages *voltages = NULL;
+		TEE_Result res = TEE_ERROR_GENERIC;
+		int ref_min = 0;
+		int ref_max = 0;
+		int ref_step = 0;
+
+		res = regulator_supported_voltages(voltd->regulator, &voltages);
+		if (res == TEE_ERROR_NOT_SUPPORTED)
+			return SCMI_NOT_SUPPORTED;
+		if (res)
+			return SCMI_GENERIC_ERROR;
+		if (!voltages || voltages->type != VOLTAGE_TYPE_INCREMENT) {
+			/*
+			 * Triplet min/max/step description. Caller should use
+			 * plat_scmi_voltd_levels_by_step().
+			 */
+			return SCMI_NOT_SUPPORTED;
+		}
+
+		ref_min = voltages->entries[0];
+		ref_max = voltages->entries[1];
+		ref_step = voltages->entries[2];
+
+		if (ref_min < voltd->regulator->min_uv) {
+			int diff = voltd->regulator->min_uv - ref_min;
+			int incr = DIV_ROUND_UP(diff, ref_step);
+
+			ref_min += ref_step * incr;
+		}
+
+		if (ref_max > voltd->regulator->max_uv) {
+			int diff = ref_max - voltd->regulator->max_uv;
+			int decr = diff / ref_step;
+
+			ref_max -= ref_step * decr;
+		}
+
+		min_max_step[0] = ref_min;
+		min_max_step[1] = ref_max;
+		min_max_step[2] = ref_step;
+
+		return SCMI_SUCCESS;
+	}
+
+	return SCMI_NOT_SUPPORTED;
 }
 
 int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
