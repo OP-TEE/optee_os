@@ -18,8 +18,10 @@
 
 /* Regulator should never be disabled. DT property: regulator-always-on */
 #define REGULATOR_ALWAYS_ON	BIT(0)
+/* Enables pull down mode. DT property: regulator-pull-down */
+#define REGULATOR_PULL_DOWN	BIT(1)
 
-#define REGULATOR_FLAGS_MASK	REGULATOR_ALWAYS_ON
+#define REGULATOR_FLAGS_MASK	(REGULATOR_ALWAYS_ON | REGULATOR_PULL_DOWN)
 
 struct regulator_ops;
 
