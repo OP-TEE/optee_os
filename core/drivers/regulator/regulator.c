@@ -212,6 +212,81 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 	return TEE_SUCCESS;
 }
 
+TEE_Result regulator_supported_voltages(struct regulator *regulator,
+					int **levels_uv, size_t *count)
+{
+	assert(regulator && levels_uv && count);
+
+	if (regulator->ops->supported_voltages) {
+		TEE_Result res = TEE_ERROR_GENERIC;
+		size_t ref_count = 0;
+		int *ref = NULL;
+		size_t n = 0;
+
+		res = regulator->ops->supported_voltages(regulator, &ref,
+							 &ref_count);
+		if (res == TEE_ERROR_NOT_SUPPORTED)
+			goto out_fallback;
+		if (res)
+			return res;
+
+		if (!ref_count) {
+			/* Bound by step description with registered min/max */
+			int ref_min = ref[0];
+			int ref_max = ref[1];
+			int ref_step = ref[2];
+
+			if (ref_min < regulator->min_uv) {
+				int diff = regulator->min_uv - ref_min;
+				int incr = DIV_ROUND_UP(diff, ref_step);
+
+				ref_min += ref_step * incr;
+			}
+
+			if (ref_max > regulator->max_uv) {
+				int diff = ref_max - regulator->max_uv;
+				int decr = diff / ref_step;
+
+				ref_max -= ref_step * decr;
+			}
+
+			regulator->levels_fallback[0] = ref_min;
+			regulator->levels_fallback[1] = ref_max;
+			regulator->levels_fallback[2] = ref_step;
+			regulator->levels_count_fallback = 0;
+
+			goto out_fallback;
+		}
+
+		/* Bound level array with registered min/max */
+
+		for (n = ref_count; n > 0; n--) {
+			if (ref[n - 1] <= regulator->max_uv)
+				break;
+			ref_count--;
+		}
+
+		for (n = 0; n < ref_count; n++)
+			if (ref[n] >= regulator->min_uv)
+				break;
+		if (count)
+			*count = ref_count - n;
+		if (levels_uv)
+			*levels_uv = ref + n;
+
+		return TEE_SUCCESS;
+	}
+
+out_fallback:
+	if (count)
+		*count = regulator->levels_count_fallback;
+
+	if (levels_uv)
+		*levels_uv = regulator->levels_fallback;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result regulator_register(struct regulator *regulator)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -241,6 +316,17 @@ TEE_Result regulator_register(struct regulator *regulator)
 		res = regulator_set_voltage(regulator, min_uv);
 		if (res)
 			return res;
+	}
+
+	/* Preset voltage list in case ops::supported_voltages is NULL */
+	if (regulator->min_uv == regulator->max_uv) {
+		regulator->levels_fallback[0] = regulator->min_uv;
+		regulator->levels_count_fallback = 1;
+	} else {
+		regulator->levels_fallback[0] = regulator->min_uv;
+		regulator->levels_fallback[1] = regulator->max_uv;
+		regulator->levels_fallback[2] = 1;
+		regulator->levels_count_fallback = 0;
 	}
 
 	/* Unbalanced enable refcount to keep always-on regulators enabled */

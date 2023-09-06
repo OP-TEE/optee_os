@@ -39,6 +39,8 @@ struct regulator_ops;
  * @flags: REGULATOR_* property flags
  * @refcount: Regulator enable request reference counter
  * @lock: Mutex for concurrent access protection
+ * @levels_fallback: Fallback when ops::supported_voltages is NULL
+ * @levels_count_fallback: Fallback when ops::supported_voltages is NULL
  * @link: Link in initialized regulator list
  */
 struct regulator {
@@ -54,6 +56,8 @@ struct regulator {
 	unsigned int flags;
 	unsigned int refcount;
 	struct mutex lock;
+	int levels_fallback[3];
+	size_t levels_count_fallback;
 	SLIST_ENTRY(regulator) link;
 };
 
@@ -64,12 +68,18 @@ struct regulator {
  * @get_state: Get regulator effective state
  * @set_voltage: Set voltage level in microvolt (uV)
  * @get_voltage: Get current voltage in microvolt (uV)
+ * @supported_voltages: Get an array of supported levels in microvolt (uV)
+ *      When successful, @count is the number of cells in @levels_us
+ *      or @count is 0 when @levels_us is a 3 cells array [min, max, step],
+ *      in microvolt, for linear incremental level lists.
  */
 struct regulator_ops {
 	TEE_Result (*set_state)(struct regulator *r, bool enabled);
 	TEE_Result (*get_state)(struct regulator *r, bool *enabled);
 	TEE_Result (*set_voltage)(struct regulator *r, int level_uv);
 	TEE_Result (*get_voltage)(struct regulator *r, int *level_uv);
+	TEE_Result (*supported_voltages)(struct regulator *r, int **levels_uv,
+					 size_t *count);
 };
 
 #ifdef CFG_DRIVERS_REGULATOR
@@ -190,4 +200,19 @@ static inline void regulator_get_range(struct regulator *regulator, int *min_uv,
 	if (max_uv)
 		*max_uv = regulator->max_uv;
 }
+
+/*
+ * regulator_supported_voltages() - Get regulator supported levels in microvolt
+ * @regulator: Regulator reference
+ * @levels_uv: Output array of ordered supported voltage levels from min to max,
+ *         in microvolt when @count is not 0. Output 3-cell array storing min,
+ *         max and level step of linear incremental level values.
+ * @count: Number of cells of @levels_uv or 0 when @level_uv is a 3 cell array
+ *         with min, max and level step values.
+ *
+ * Return TEE_ERROR_SHORT_BUFFER is @count is smaller than @levels_uv required
+ * size.
+ */
+TEE_Result regulator_supported_voltages(struct regulator *regulator,
+					int **levels_uv, size_t *count);
 #endif /* DRIVERS_REGULATOR_H */
