@@ -40,6 +40,37 @@ struct regu_dt_desc {
 };
 
 /*
+ * Defines the format of struct voltages::entries
+ *
+ * If regulator_voltages::type is VOLTAGE_TYPE_FULL_LIST, then
+ * regulator_voltages@entries stores regulator_voltages::num_levels cells,
+ * listing supported voltage levels in uV from lowest to highest value.
+ *
+ * If regulator_voltages::type is VOLTAGE_TYPE_INCREMENT, then
+ * regulator_voltages::entries stores 3 cells: min level, max level and
+ * level increment step, all in uV. When so, regulator_voltages::num_levels
+ * is meaningless.
+ */
+enum voltage_type {
+	VOLTAGE_TYPE_INVALID = 0,
+	VOLTAGE_TYPE_FULL_LIST, /* extensive list in uV */
+	VOLTAGE_TYPE_INCREMENT  /* min, max, increment (in uV) */
+};
+
+/*
+ * struct regulator_voltages - Voltage levels description
+ * @type: Type of level description
+ * @num_levels: Number of cells of @entries when @type is VOLTAGE_TYPE_FULL_LIST
+ * @entries: Voltage level information in uV
+ *
+ */
+struct regulator_voltages {
+	enum voltage_type type;
+	size_t num_levels;
+	int entries[];
+};
+
+/*
  * struct regulator - A regulator instance
  * @ops: Operation handlers for the regulator
  * @supply: Regulator supply reference or NULL if none
@@ -51,6 +82,7 @@ struct regu_dt_desc {
  * @flags: REGULATOR_* property flags
  * @refcount: Regulator enable request reference counter
  * @lock: Mutex for concurrent access protection
+ * @voltages_fallback: Default supported voltage range description
  * @link: Link in initialized regulator list
  */
 struct regulator {
@@ -66,6 +98,11 @@ struct regulator {
 	unsigned int flags;
 	unsigned int refcount;
 	struct mutex lock;	/* Concurrent access protection */
+	struct voltages_fallback {
+		struct regulator_voltages desc;
+		int levels[3];
+	} voltages_fallback;
+	size_t levels_count_fallback;
 	SLIST_ENTRY(regulator) link;
 };
 
@@ -76,6 +113,7 @@ struct regulator {
  * @get_state: Get regulator effective state
  * @set_voltage: Set voltage level in microvolt (uV)
  * @get_voltage: Get current voltage in microvolt (uV)
+ * @supported_voltages: Get supported levels description
  * @supplied_init: Optional, finalize initialization once supply is ready
  */
 struct regulator_ops {
@@ -83,6 +121,8 @@ struct regulator_ops {
 	TEE_Result (*get_state)(struct regulator *r, bool *enabled);
 	TEE_Result (*set_voltage)(struct regulator *r, int level_uv);
 	TEE_Result (*get_voltage)(struct regulator *r, int *level_uv);
+	TEE_Result (*supported_voltages)(struct regulator *r,
+					 struct regulator_voltages **voltages);
 	TEE_Result (*supplied_init)(struct regulator *r, const void *fdt,
 				    int node);
 };
@@ -241,4 +281,12 @@ static inline void regulator_get_range(struct regulator *regulator, int *min_uv,
 	if (max_uv)
 		*max_uv = regulator->max_uv;
 }
+
+/*
+ * regulator_supported_voltages() - Get regulator supported levels in microvolt
+ * @regulator: Regulator reference
+ * @voltages: Output description supported voltage levels
+ */
+TEE_Result regulator_supported_voltages(struct regulator *regulator,
+					struct regulator_voltages **voltages);
 #endif /* DRIVERS_REGULATOR_H */

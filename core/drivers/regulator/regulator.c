@@ -212,6 +212,26 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 	return TEE_SUCCESS;
 }
 
+TEE_Result regulator_supported_voltages(struct regulator *regulator,
+					struct regulator_voltages **voltages)
+{
+	assert(regulator && voltages);
+
+	if (regulator->ops->supported_voltages) {
+		TEE_Result res = TEE_ERROR_GENERIC;
+
+		res = regulator->ops->supported_voltages(regulator, voltages);
+		if (res == TEE_SUCCESS)
+			return TEE_SUCCESS;
+		if (res != TEE_ERROR_NOT_SUPPORTED)
+			return res;
+	}
+
+	*voltages = &regulator->voltages_fallback.desc;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result regulator_register(struct regulator *regulator)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -248,6 +268,18 @@ TEE_Result regulator_register(struct regulator *regulator)
 		res = regulator_refcnt_enable(regulator);
 		if (res)
 			return res;
+	}
+
+	/* Preset voltage list in case ops::supported_voltages is NULL */
+	if (regulator->min_uv == regulator->max_uv) {
+		regulator->voltages_fallback.desc.type = VOLTAGE_TYPE_FULL_LIST;
+		regulator->voltages_fallback.desc.num_levels = 1;
+		regulator->voltages_fallback.levels[0] = regulator->min_uv;
+	} else {
+		regulator->voltages_fallback.desc.type = VOLTAGE_TYPE_INCREMENT;
+		regulator->voltages_fallback.levels[0] = regulator->min_uv;
+		regulator->voltages_fallback.levels[1] = regulator->max_uv;
+		regulator->voltages_fallback.levels[2] = 1;
 	}
 
 	SLIST_INSERT_HEAD(&regulator_device_list, regulator, link);
