@@ -191,13 +191,9 @@ TEE_Result syscall_storage_obj_open(unsigned long storage_id, void *object_id,
 		goto exit;
 	}
 
-	object_id = memtag_strip_tag(object_id);
-	if (object_id_len) {
-		res = bb_memdup_user_private(object_id, object_id_len,
-					     &oid_bbuf);
-		if (res)
-			goto exit;
-	}
+	res = bb_memdup_user_private(object_id, object_id_len, &oid_bbuf);
+	if (res)
+		goto exit;
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, oid_bbuf,
 			   object_id_len, flags, TEE_POBJ_USAGE_OPEN, fops,
@@ -346,12 +342,9 @@ TEE_Result syscall_storage_obj_create(unsigned long storage_id, void *object_id,
 	if (len && !data)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (object_id_len) {
-		res = bb_memdup_user_private(object_id, object_id_len,
-					     &oid_bbuf);
-		if (res)
-			return res;
-	}
+	res = bb_memdup_user_private(object_id, object_id_len, &oid_bbuf);
+	if (res)
+		return res;
 
 	res = tee_pobj_get((void *)&sess->ctx->uuid, oid_bbuf,
 			   object_id_len, flags, TEE_POBJ_USAGE_CREATE,
@@ -508,13 +501,9 @@ TEE_Result syscall_storage_obj_rename(unsigned long obj, void *object_id,
 		goto exit;
 	}
 
-	object_id = memtag_strip_tag(object_id);
-	if (object_id_len) {
-		res = bb_memdup_user_private(object_id, object_id_len,
-					     &oid_bbuf);
-		if (res)
-			goto exit;
-	}
+	res = bb_memdup_user_private(object_id, object_id_len, &oid_bbuf);
+	if (res)
+		goto exit;
 
 	/* reserve dest name */
 	fops = o->pobj->fops;
