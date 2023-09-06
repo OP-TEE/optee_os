@@ -212,6 +212,9 @@ size_t strnlen_user(const void *uaddr, size_t len)
 	TEE_Result res = TEE_SUCCESS;
 	size_t n = 0;
 
+	if (!len)
+		return 0;
+
 	uaddr = memtag_strip_tag_const(uaddr);
 	res = check_user_access(flags, uaddr, len);
 	if (!res) {
@@ -223,7 +226,10 @@ size_t strnlen_user(const void *uaddr, size_t len)
 	return n;
 }
 
-TEE_Result bb_memdup_user(const void *src, size_t len, void **p)
+static TEE_Result __bb_memdup_user(TEE_Result (*copy_func)(void *uaddr,
+							   const void *kaddr,
+							   size_t len),
+				   const void *src, size_t len, void **p)
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
@@ -232,7 +238,9 @@ TEE_Result bb_memdup_user(const void *src, size_t len, void **p)
 	if (!buf)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	res = copy_from_user(buf, src, len);
+	if (len)
+		res = copy_func(buf, src, len);
+
 	if (res)
 		bb_free(buf, len);
 	else
@@ -241,22 +249,14 @@ TEE_Result bb_memdup_user(const void *src, size_t len, void **p)
 	return res;
 }
 
+TEE_Result bb_memdup_user(const void *src, size_t len, void **p)
+{
+	return __bb_memdup_user(copy_from_user, src, len, p);
+}
+
 TEE_Result bb_memdup_user_private(const void *src, size_t len, void **p)
 {
-	TEE_Result res = TEE_SUCCESS;
-	void *buf = NULL;
-
-	buf = bb_alloc(len);
-	if (!buf)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = copy_from_user_private(buf, src, len);
-	if (res)
-		bb_free(buf, len);
-	else
-		*p = buf;
-
-	return res;
+	return __bb_memdup_user(copy_from_user_private, src, len, p);
 }
 
 TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
@@ -268,21 +268,25 @@ TEE_Result bb_strndup_user(const char *src, size_t maxlen, char **dst,
 	char *d = NULL;
 
 	src = memtag_strip_tag_const(src);
-	res = check_user_access(flags, src, maxlen);
-	if (res)
-		return res;
+	if (maxlen) {
+		res = check_user_access(flags, src, maxlen);
+		if (res)
+			return res;
 
-	enter_user_access();
-	l = strnlen(src, maxlen);
-	exit_user_access();
+		enter_user_access();
+		l = strnlen(src, maxlen);
+		exit_user_access();
+	}
 
 	d = bb_alloc(l + 1);
 	if (!d)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	enter_user_access();
-	memcpy(d, src, l);
-	exit_user_access();
+	if (l) {
+		enter_user_access();
+		memcpy(d, src, l);
+		exit_user_access();
+	}
 
 	d[l] = 0;
 
