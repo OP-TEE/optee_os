@@ -803,9 +803,8 @@ static TEE_Result probe_dt_drivers(void)
 	if (res || !TAILQ_EMPTY(&dt_driver_failed_list)) {
 		EMSG("Probe sequence result: %#"PRIx32, res);
 		print_probe_list(fdt);
-	}
-	if (res)
 		panic();
+	}
 
 	return TEE_SUCCESS;
 }
