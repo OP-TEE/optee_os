@@ -592,11 +592,7 @@ static TEE_Result utee_param_to_param(struct user_ta_ctx *utc,
 	uint64_t types = 0;
 	struct utee_params *up_bbuf = NULL;
 
-	up_bbuf = bb_alloc(sizeof(struct utee_params));
-	if (!up_bbuf)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	res = copy_from_user(up_bbuf, up, sizeof(struct utee_params));
+	res = BB_MEMDUP_USER(up, sizeof(*up), &up_bbuf);
 	if (res)
 		goto out;
 
