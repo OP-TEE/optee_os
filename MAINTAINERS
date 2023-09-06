@@ -174,7 +174,6 @@ F:	core/drivers/ls_dspi.c
 
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
-R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
 R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
 R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
 S:	Maintained
