@@ -3,6 +3,7 @@
  * Copyright (C) 2023, STMicroelectronics
  */
 
+#include <assert.h>
 #include <elf_parser.h>
 #include <remoteproc_pta.h>
 #include <string.h>
@@ -168,6 +169,8 @@ struct remoteproc_sig_algo {
  * @fw_img_sz:   Byte size of the firmware image
  * @hash_table:  Location of a copy of the segment's hash table
  * @nb_segment:  number of segment to load
+ * @rsc_pa:      Physical address of the firmware resource table
+ * @rsc_size:    Byte size of the firmware resource table
  * @state:       Remote-processor state
  * @hw_fmt:      Image format capabilities of the remoteproc PTA
  * @hw_img_prot: Image protection capabilities of the remoteproc PTA
@@ -182,6 +185,8 @@ struct remoteproc_context {
 	size_t fw_img_sz;
 	struct remoteproc_segment *hash_table;
 	uint32_t nb_segment;
+	paddr_t rsc_pa;
+	size_t rsc_size;
 	enum remoteproc_state state;
 	uint32_t hw_fmt;
 	uint32_t hw_img_prot;
@@ -531,6 +536,68 @@ free_sec_cpy:
 	return res;
 }
 
+static paddr_t remoteproc_da_to_pa(uint32_t da, size_t size,
+				   struct remoteproc_context *ctx)
+{
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_VALUE_OUTPUT);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	paddr_t pa = 0;
+
+	/*
+	 * The ELF file contains remote processor device addresses, that refer
+	 * to the remote processor memory space.
+	 * A translation is needed to get the corresponding physical address.
+	 */
+
+	params[0].value.a = ctx->rproc_id;
+	params[1].value.a = da;
+	params[2].value.a = size;
+
+	res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_RPROC_FIRMWARE_DA_TO_PA,
+				  param_types, params, NULL);
+	if (res != TEE_SUCCESS) {
+		EMSG("Failed to translate device address %#"PRIx32, da);
+		return 0;
+	}
+
+	pa = (paddr_t)reg_pair_to_64(params[3].value.b, params[3].value.a);
+
+	/* Assert that the pa address is not 0 */
+	assert(pa);
+
+	return pa;
+}
+
+static TEE_Result remoteproc_parse_rsc_table(struct remoteproc_context *ctx,
+					     uint8_t *fw_img, size_t fw_img_sz,
+					     paddr_t *rsc_pa,
+					     size_t *rsc_size)
+{
+	uint32_t da = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	Elf32_Word size = 0;
+
+	res = e32_parser_find_rsc_table(fw_img, fw_img_sz, &da, &size);
+	if (res)
+		return res;
+
+	DMSG("Resource table device address %#"PRIx32" size %#"PRIx32,
+	     da, size);
+
+	*rsc_pa = remoteproc_da_to_pa(da, size, ctx);
+	if (!*rsc_pa)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	*rsc_size = size;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result get_hash_table(struct remoteproc_context *ctx)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -715,6 +782,8 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 	uint8_t *tlv = NULL;
 	int32_t offset = 0;
 	size_t length = 0;
+	paddr_t rsc_pa = 0;
+	size_t rsc_size = 0;
 
 	res = e32_parse_ehdr(ctx->fw_img, ctx->fw_img_sz);
 	if (res) {
@@ -742,6 +811,13 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 		goto out;
 	}
 
+	/*
+	 * Initialize resource table with zero. These values will be returned if
+	 * no optional resource table is found in images.
+	 */
+	ctx->rsc_pa = 0;
+	ctx->rsc_size = 0;
+
 	for (i = 0; i < num_img; i++) {
 		res = get_tlv_images_type(ctx, num_img, i, &img_type);
 		if (res)
@@ -760,6 +836,32 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 		if (res)
 			goto out;
 
+		/* Take opportunity to get the resource table address */
+		res = remoteproc_parse_rsc_table(ctx, ctx->fw_img + offset,
+						 img_size, &rsc_pa, &rsc_size);
+		if (res != TEE_SUCCESS && res != TEE_ERROR_NO_DATA)
+			goto out;
+
+		if (res == TEE_SUCCESS) {
+			/*
+			 * Only one resource table is supported, check that no
+			 * other one has been declared in a previously loaded
+			 * firmware.
+			 */
+			if (ctx->rsc_pa || ctx->rsc_size) {
+				EMSG("More than one resource table found");
+				res = TEE_ERROR_BAD_FORMAT;
+				goto out;
+			}
+			ctx->rsc_pa = rsc_pa;
+			ctx->rsc_size = rsc_size;
+		} else {
+			/*
+			 * No resource table found. Force to TEE_SUCCESS as the
+			 * resource table is optional.
+			 */
+			res = TEE_SUCCESS;
+		}
 		offset += img_size;
 	}
 
@@ -904,6 +1006,33 @@ static TEE_Result remoteproc_stop_fw(uint32_t pt,
 	return res;
 }
 
+static TEE_Result remoteproc_get_rsc_table(uint32_t pt,
+					   TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_VALUE_OUTPUT,
+						TEE_PARAM_TYPE_NONE);
+	struct remoteproc_context *ctx = NULL;
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ctx = remoteproc_find_firmware(params[0].value.a);
+	if (!ctx)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (ctx->state == REMOTEPROC_OFF)
+		return TEE_ERROR_BAD_STATE;
+
+	reg_pair_from_64((uint64_t)ctx->rsc_pa,
+			 &params[1].value.b, &params[1].value.a);
+	reg_pair_from_64((uint64_t)ctx->rsc_size,
+			 &params[2].value.b, &params[2].value.a);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -965,7 +1094,7 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd_id,
 	case TA_RPROC_CMD_STOP_FW:
 		return remoteproc_stop_fw(pt, params);
 	case TA_RPROC_CMD_GET_RSC_TABLE:
-		return TEE_ERROR_NOT_IMPLEMENTED;
+		return remoteproc_get_rsc_table(pt, params);
 	case TA_RPROC_CMD_GET_COREDUMP:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	default:
