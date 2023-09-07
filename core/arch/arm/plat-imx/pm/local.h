@@ -44,11 +44,6 @@ void imx_src_release_secondary_core(unsigned int cpu);
 void imx_src_shutdown_core(unsigned int cpu);
 
 /*
- * GPC Core 1 power up
- */
-void imx_gpcv2_set_core1_pdn_by_software(void);
-
-/*
  * GPC Core 1 power down
  */
 void imx_gpcv2_set_core1_pup_by_software(void);
