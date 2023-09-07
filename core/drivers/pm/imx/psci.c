@@ -6,31 +6,21 @@
  * Peng Fan <peng.fan@nxp.com>
  */
 
-#include <console.h>
-#include <drivers/imx_uart.h>
 #include <drivers/imx_snvs.h>
 #include <drivers/imx_wdog.h>
 #include <io.h>
 #include <imx.h>
-#include <imx-regs.h>
 #include <kernel/boot.h>
-#include <kernel/delay_arch.h>
 #include <kernel/misc.h>
-#include <kernel/panic.h>
 #include <mm/core_mmu.h>
 #include <mm/core_memprot.h>
-#include <platform_config.h>
 #include <stdint.h>
-#include <sm/optee_smc.h>
 #include <sm/psci.h>
 #include <sm/std_smc.h>
-#include <tee/entry_std.h>
-#include <tee/entry_fast.h>
 
 #include "local.h"
 
 #define IOMUXC_GPR5_OFFSET 0x14
-
 #define ARM_WFI_STAT_MASK(n) BIT(n)
 
 int psci_features(uint32_t psci_fid)
