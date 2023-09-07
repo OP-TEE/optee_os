@@ -1137,3 +1137,7 @@ $(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_GIC))
 # use that. Provides easier configuration of virtual platforms where the
 # maximal PA can vary.
 CFG_AUTO_MAX_PA_BITS ?= n
+
+# CFG_DRIVERS_REMOTEPROC, when enabled, embeds support for remote processor
+# management including generic DT bindings for the configuration.
+CFG_DRIVERS_REMOTEPROC ?= n
