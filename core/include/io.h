@@ -273,4 +273,22 @@ static inline void io_clrsetbits8(vaddr_t addr, uint8_t clear_mask,
 	io_write8(addr, (io_read8(addr) & ~clear_mask) | set_mask);
 }
 
+#define readl_poll_timeout(addr, val, cond, delay_us, timeout_us) \
+({ \
+	uint64_t timeout = 0; \
+	uint64_t _delay_us = delay_us; \
+	bool flag = false; \
+	\
+	while (timeout < (timeout_us)) { \
+		(val) = io_read32(addr); \
+		if (cond) { \
+			flag = true; \
+			break; \
+		} \
+		timeout += (_delay_us); \
+		udelay(_delay_us); \
+	} \
+	(flag) ? HISI_QM_DRVCRYPT_NO_ERR : HISI_QM_DRVCRYPT_ETMOUT; \
+})
+
 #endif /*IO_H*/
