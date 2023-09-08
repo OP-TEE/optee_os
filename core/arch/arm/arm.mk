@@ -125,9 +125,9 @@ $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 endif
 
-ifeq ($(CFG_CORE_SEL2_SPMC),y)
+ifeq ($(CFG_CORE_FFA),y)
 ifneq ($(CFG_DT),y)
-$(error CFG_CORE_SEL2_SPMC depends on CFG_DT)
+$(error CFG_CORE_FFA depends on CFG_DT)
 endif
 endif
 

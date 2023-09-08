@@ -312,7 +312,7 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
-#if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
+#if defined(CFG_CORE_SEL2_SPMC)
 	mov	x0, x19		/* boot info */
 	bl	boot_save_boot_info
 #endif
