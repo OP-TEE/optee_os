@@ -469,6 +469,7 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
 			break;
 		case MEM_AREA_EXT_DT:
+		case MEM_AREA_MANIFEST_DT:
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
 		case MEM_AREA_TS_VASPACE:
@@ -755,6 +756,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_NSEC_SHM:
 	case MEM_AREA_NEX_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
+	case MEM_AREA_MANIFEST_DT:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
 	case MEM_AREA_EXT_DT:
 		/*
 		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
@@ -1383,6 +1386,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_EXT_DT:
+		case MEM_AREA_MANIFEST_DT:
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
