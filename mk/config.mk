@@ -483,7 +483,8 @@ CFG_STACK_TMP_EXTRA ?= 0
 ifneq ($(strip $(CFG_EMBED_DTB_SOURCE_FILE)),)
 CFG_EMBED_DTB ?= y
 endif
-ifeq ($(filter y,$(CFG_EMBED_DTB) $(CFG_CORE_SEL2_SPMC) ),y)
+ifeq ($(filter y,$(CFG_EMBED_DTB) $(CFG_CORE_SEL1_SPMC) $(CFG_CORE_SEL2_SPMC) \
+		 $(CFG_CORE_EL3_SPMC)),y)
 $(call force,CFG_DT,y)
 endif
 CFG_EMBED_DTB ?= n

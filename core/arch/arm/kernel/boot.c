@@ -78,7 +78,7 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
-#ifdef CFG_CORE_SEL1_SPMC
+#ifdef CFG_CORE_FFA
 static void *manifest_dt __nex_bss;
 #endif
 
@@ -967,7 +967,7 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 #endif /*CFG_CORE_DYN_SHM*/
 #endif /*!CFG_DT*/
 
-#if defined(CFG_CORE_SEL1_SPMC) || defined(CFG_CORE_SEL2_SPMC)
+#if defined(CFG_CORE_FFA)
 void *get_manifest_dt(void)
 {
 	return manifest_dt;
@@ -1021,7 +1021,7 @@ void *get_manifest_dt(void)
 static void init_manifest_dt(unsigned long pa __unused)
 {
 }
-#endif /*CFG_CORE_SEL1_SPMC && CFG_DT*/
+#endif /*CFG_CORE_FFA*/
 
 #ifdef CFG_CORE_DYN_SHM
 static void discover_nsec_memory(void)
@@ -1365,7 +1365,7 @@ unsigned long __weak get_aslr_seed(void *fdt __unused)
 #endif /*!CFG_DT*/
 #endif /*CFG_CORE_ASLR*/
 
-#if defined(CFG_CORE_SEL2_SPMC)
+#if defined(CFG_CORE_FFA)
 static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 {
 	struct ffa_boot_info_1_1 *desc = NULL;
@@ -1453,4 +1453,4 @@ void __weak boot_save_boot_info(void *boot_info)
 		core_mmu_set_secure_memory(base, size);
 	}
 }
-#endif /*CFG_CORE_SEL2_SPMC */
+#endif /*CFG_CORE_FFA*/
