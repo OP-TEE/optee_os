@@ -30,7 +30,11 @@
 #define PLATFORM_CONFIG_H
 
 #include <mm/generic_ram_layout.h>
+#if defined(PLATFORM_FLAVOR_sama7g54_ek)
+#include <sama7g5.h>
+#else
 #include <sama5d2.h>
+#endif
 
 #define STACK_ALIGNMENT       64
 
@@ -41,6 +45,23 @@
 #error "LPAE not supported"
 #endif
 
+#if defined(PLATFORM_FLAVOR_sama7g54_ek)
+#define CONSOLE_UART_BASE   (FLEXCOM3_BASE_ADDRESS + 0x200)
+#define SFR_BASE            SFR_BASE_ADDRESS
+#define AT91C_BASE_TC0      TC0_BASE_ADDRESS
+#define AT91C_ID_TC0        ID_TC0_CHANNEL0
+#define AT91C_ID_TC1        ID_TC1_CHANNEL0
+#define AT91C_ID_SYS        ID_RSTC
+#define AT91C_ID_PIOA       ID_PIOA
+#define AT91C_ID_PIOB       ID_PIOB
+#define AT91C_ID_PIOC       ID_PIOC
+#define AT91C_ID_PIOD       ID_PIOD
+#define AT91C_ID_WDT        ID_DWDT_SW
+#define AT91C_ID_TRNG       ID_TRNG
+#define AT91C_ID_SECUMOD    ID_SECUMOD
+#define AT91C_ID_SFR        ID_SFR
+#define AT91C_ID_SFRBU      ID_SFRBU
+#else
 #if defined(PLATFORM_FLAVOR_sama5d27_wlsom1_ek)
 #define CONSOLE_UART_BASE     AT91C_BASE_UART0
 #else
@@ -49,6 +70,7 @@
 
 #define PL310_BASE          (AT91C_BASE_L2CC)
 #define SFR_BASE            (AT91C_BASE_SFR)
+#endif
 
 /*
  * PL310 Auxiliary Control Register
