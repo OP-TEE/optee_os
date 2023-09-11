@@ -888,11 +888,17 @@ CFG_DRIVERS_PINCTRL ?= n
 #
 # When enabled, CFG_REGULATOR_FIXED embeds a voltage regulator driver for
 # DT compatible "regulator-fixed" devices.
+#
+# When enabled, CFG_REGULATOR_GPIO embeds a voltage regulator driver for
+# DT compatible "regulator-gpio" devices.
 CFG_DRIVERS_REGULATOR ?= n
 CFG_REGULATOR_FIXED ?= n
+CFG_REGULATOR_GPIO ?= n
 
 $(eval $(call cfg-enable-all-depends,CFG_REGULATOR_FIXED, \
 	 CFG_DRIVERS_REGULATOR CFG_DT))
+$(eval $(call cfg-enable-all-depends,CFG_REGULATOR_GPIO, \
+	 CFG_DRIVERS_REGULATOR CFG_DT CFG_DRIVERS_GPIO))
 
 # The purpose of this flag is to show a print when booting up the device that
 # indicates whether the board runs a standard developer configuration or not.
