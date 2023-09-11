@@ -50,7 +50,12 @@
 #define TCB_WPMR		0xe4
 #define  TCB_WPMR_WAKEY		0x54494d
 
+#ifdef CFG_SAMA7G5
+static const char * const tcb_clocks[] = {
+	"t0_clk", "t1_clk", "t2_clk", "slow_clk"};
+#else
 static const char * const tcb_clocks[] = { "t0_clk", "gclk", "slow_clk" };
+#endif
 static vaddr_t tcb_base;
 static uint32_t tcb_rate;
 
