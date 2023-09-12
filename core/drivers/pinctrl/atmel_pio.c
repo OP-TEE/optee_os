@@ -178,8 +178,11 @@ static void pio_init_hw(struct atmel_pio *pio)
 		pio_write(pio, PIO_SIONR(PIO_GROUP_COUNT), GENMASK_32(31, 0));
 }
 
+/* Non-null reference for compat data */
+static const uint8_t has_pioe;
+
 static TEE_Result pio_node_probe(const void *fdt, int node,
-				 const void *compat_data __unused)
+				 const void *compat_data)
 {
 	size_t size = 0;
 	struct clk *clk = NULL;
@@ -209,6 +212,9 @@ static TEE_Result pio_node_probe(const void *fdt, int node,
 	matrix_configure_periph_secure(AT91C_ID_PIOC);
 	matrix_configure_periph_secure(AT91C_ID_PIOD);
 
+	if (compat_data == &has_pioe)
+		matrix_configure_periph_secure(AT91C_ID_PIOD + 1);
+
 	pio_init_hw(pio);
 
 	res = pinctrl_register_provider(fdt, node, pio_pinctrl_dt_get, pio);
@@ -227,6 +233,10 @@ free_pio:
 
 static const struct dt_device_match atmel_pio_match_table[] = {
 	{ .compatible = "atmel,sama5d2-pinctrl" },
+	{
+		.compatible = "microchip,sama7g5-pinctrl",
+		.compat_data = &has_pioe,
+	},
 	{ }
 };
 
