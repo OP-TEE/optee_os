@@ -56,4 +56,15 @@ static TEE_Result sckc_pmc_setup(const void *fdt __unused, int offs,
 	return TEE_SUCCESS;
 }
 
-CLK_DT_DECLARE(at91_sckc, "atmel,sama5d4-sckc", sckc_pmc_setup);
+static const struct dt_device_match at91_sckc_match_table[] = {
+	{ .compatible = "atmel,sama5d4-sckc" },
+	{ .compatible = "microchip,sama7g5-sckc" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(at91_sckc_dt_driver) = {
+	.name = "at91_sckc",
+	.type = DT_DRIVER_CLK,
+	.match_table = at91_sckc_match_table,
+	.probe = sckc_pmc_setup,
+};
