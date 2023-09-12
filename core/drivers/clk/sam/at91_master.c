@@ -15,6 +15,7 @@
 #define MASTER_PRES_MAX		MASTER_PRES_MASK
 #define MASTER_DIV_SHIFT	8
 #define MASTER_DIV_MASK		0x7
+#define MASTER_MAX_ID		4 /* Total 5 MCK clocks for SAMA7G5 */
 
 struct clk_master {
 	vaddr_t base;
@@ -24,6 +25,8 @@ struct clk_master {
 	uint32_t mckr;
 	int chg_pid;
 	uint8_t div;
+	uint8_t id; /* ID of MCK clocks for SAMA7G5, MCK0 ~ MCK4 */
+	uint8_t parent; /* the source clock for SAMA7G5 MCKx */
 };
 
 static bool clk_master_ready(struct clk_master *master)
@@ -179,3 +182,126 @@ const struct clk_master_layout at91sam9x5_master_layout = {
 	.pres_shift = 4,
 	.offset = AT91_PMC_MCKR,
 };
+
+static size_t clk_sama7g5_master_get_parent(struct clk *hw)
+{
+	struct clk_master *master = hw->priv;
+	size_t i = 0;
+
+	for (i = 0; i < hw->num_parents; i++)
+		if (master->mux_table[i] == master->parent)
+			return i;
+
+	panic("Can't get correct parent of clock");
+}
+
+static TEE_Result clk_sama7g5_master_set_parent(struct clk *hw, size_t index)
+{
+	struct clk_master *master = hw->priv;
+
+	if (index >= hw->num_parents)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	master->parent = master->mux_table[index];
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result clk_sama7g5_master_set_rate(struct clk *hw,
+					      unsigned long rate,
+					      unsigned long parent_rate)
+{
+	struct clk_master *master = hw->priv;
+	unsigned long div = 0;
+
+	div = UDIV_ROUND_NEAREST(parent_rate, rate);
+	if (div > (1 << (MASTER_PRES_MAX - 1)) ||
+	    (!IS_POWER_OF_TWO(div) && div != 3))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/*
+	 * Divisor Value: Select the division ratio to be applied to the
+	 * selected clock to generate the corresponding MCKx.
+	 *  Value  |    Description
+	 *    0    | Selected clock divided by 1
+	 *    1    | Selected clock divided by 2
+	 *    2    | Selected clock divided by 4
+	 *    3    | Selected clock divided by 8
+	 *    4    | Selected clock divided by 16
+	 *    5    | Selected clock divided by 32
+	 *    6    | Selected clock divided by 64
+	 *    7    | Selected clock divided by 3
+	 */
+	if (div == 3)
+		master->div = MASTER_PRES_MAX;
+	else
+		master->div = ffs(div) - 1;
+
+	return TEE_SUCCESS;
+}
+
+static unsigned long clk_sama7g5_master_get_rate(struct clk *hw,
+						 unsigned long parent_rate)
+{
+	struct clk_master *master = hw->priv;
+	unsigned long rate = parent_rate >> master->div;
+
+	if (master->div == 7)
+		rate = parent_rate / 3;
+
+	return rate;
+}
+
+static const struct clk_ops sama7g5_master_ops = {
+	.set_rate = clk_sama7g5_master_set_rate,
+	.get_rate = clk_sama7g5_master_get_rate,
+	.get_parent = clk_sama7g5_master_get_parent,
+	.set_parent = clk_sama7g5_master_set_parent,
+};
+
+struct clk *at91_clk_sama7g5_register_master(struct pmc_data *pmc,
+					     const char *name,
+					     int num_parents,
+					     struct clk **parent,
+					     uint32_t *mux_table,
+					     uint8_t id,
+					     int chg_pid)
+{
+	struct clk_master *master = NULL;
+	struct clk *hw = NULL;
+	unsigned int val = 0;
+
+	if (!name || !num_parents || !parent || !mux_table ||
+	    id > MASTER_MAX_ID)
+		return NULL;
+
+	master = calloc(1, sizeof(*master));
+	if (!master)
+		return NULL;
+
+	hw = clk_alloc(name, &sama7g5_master_ops, parent, num_parents);
+	if (!hw) {
+		free(master);
+		return NULL;
+	}
+
+	hw->priv = master;
+	master->base = pmc->base;
+	master->id = id;
+	master->chg_pid = chg_pid;
+	master->mux_table = mux_table;
+
+	io_write32(master->base + AT91_PMC_MCR_V2, master->id);
+	val = io_read32(master->base + AT91_PMC_MCR_V2);
+	master->parent = (val & AT91_PMC_MCR_V2_CSS_MASK) >>
+			 AT91_PMC_MCR_V2_CSS_SHIFT;
+	master->div = (val & AT91_PMC_MCR_V2_DIV_MASK) >> MASTER_DIV_SHIFT;
+
+	if (clk_register(hw)) {
+		clk_free(hw);
+		free(master);
+		return NULL;
+	}
+
+	return hw;
+}

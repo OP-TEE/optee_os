@@ -186,6 +186,17 @@ at91_clk_register_master_div(struct pmc_data *pmc,
 			     const struct clk_master_layout *layout,
 			     const struct clk_master_charac *charac);
 
+/*
+ * @mux_table: when @mux_table is not NULL it shall hold @num_parents cells
+ */
+struct clk *at91_clk_sama7g5_register_master(struct pmc_data *pmc,
+					     const char *name,
+					     int num_parents,
+					     struct clk **parent,
+					     uint32_t *mux_table,
+					     uint8_t id,
+					     int chg_pid);
+
 /* H32MX */
 struct clk *
 at91_clk_register_h32mx(struct pmc_data *pmc, const char *name,
