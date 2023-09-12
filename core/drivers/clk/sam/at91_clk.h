@@ -158,6 +158,23 @@ struct clk *
 at91_clk_register_plldiv(struct pmc_data *pmc, const char *name,
 			 struct clk *parent);
 
+struct clk *sam9x60_clk_register_frac_pll(struct pmc_data *pmc,
+					  const char *name,
+					  struct clk *parent,
+					  uint8_t id,
+					  const struct clk_pll_charac *charac,
+					  const struct clk_pll_layout *layout,
+					  uint32_t flags);
+
+struct clk *sam9x60_clk_register_div_pll(struct pmc_data *pmc,
+					 const char *name,
+					 struct clk *parent,
+					 uint8_t id,
+					 const struct clk_pll_charac *charac,
+					 const struct clk_pll_layout *layout,
+					 uint32_t flags,
+					 uint32_t safe_div);
+
 /* UTMI */
 struct clk *
 at91_clk_register_utmi(struct pmc_data *pmc, const char *name,
