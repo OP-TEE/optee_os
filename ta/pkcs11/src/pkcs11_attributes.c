@@ -2146,8 +2146,7 @@ static bool attribute_is_modifiable(struct pkcs11_session *session,
 			return true;
 		break;
 	case PKCS11_CKO_DATA:
-		/* None of the data object attributes are modifiable */
-		return false;
+		return true;
 	case PKCS11_CKO_CERTIFICATE:
 		return attr_is_modifiable_certificate(req_attr, session, obj);
 	default:
