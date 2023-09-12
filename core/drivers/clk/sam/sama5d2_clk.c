@@ -572,7 +572,7 @@ static TEE_Result pmc_setup(const void *fdt, int nodeoffset,
 		clk = at91_clk_register_generated(pmc,
 						  &sama5d2_pcr_layout,
 						  sam_clk->n,
-						  parents, 6,
+						  parents, NULL, 6,
 						  sam_clk->id,
 						  &sama5d2_gck[i].r,
 						  sama5d2_gck[i].chg_pid);
