@@ -76,13 +76,474 @@ const uint8_t *plat_scmi_protocol_list(unsigned int channel_id __unused)
 	return plat_protocol_list;
 }
 
-struct sama5d2_pmc_clk {
+struct sam_pmc_clk {
 	unsigned int scmi_id;
 	unsigned int pmc_type;
 	unsigned int pmc_id;
 };
 
-static const struct sama5d2_pmc_clk pmc_clks[] = {
+#ifdef CFG_SAMA7G5
+static const struct sam_pmc_clk pmc_clks[] = {
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_MCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_MCK
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_UTMI,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_UTMI
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_CPUPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_CPUPLL
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_MAIN,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_MAIN
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_SYSPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_SYSPLL
+	},
+
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_AUDIOPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_AUDIOPMCPLL
+	},
+
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_MCK_PRES,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_MCK_PRES
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_DDRPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_DDRPLL
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_IMGPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_IMGPLL
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_CORE_ETHPLLCK,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_ETHPLL
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_UTMI1,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_UTMI1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_UTMI2,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_UTMI2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_UTMI3,
+		.pmc_type = PMC_TYPE_CORE,
+		.pmc_id = PMC_UTMI3
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK0,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 8
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK1,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 9
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK2,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 10
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK3,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 11
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK4,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 12
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK5,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 13
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK6,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 14
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_SYSTEM_PCK7,
+		.pmc_type = PMC_TYPE_SYSTEM,
+		.pmc_id = 15
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_MACB0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_GMAC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_MACB0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_GMAC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_MACB0_TSU,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_GMAC0_TSU
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_TDES_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_TDES
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_HSMC_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_HSMC
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_PIOA_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_PIOA
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX2_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX3_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM3
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX4_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM4
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX5_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM5
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX6_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM6
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX7_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM7
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX8_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM8
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX9_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM9
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX10_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM10
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_FLX11_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_FLEXCOM11
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_TCB0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_TC0_CHANNEL0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_TCB1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_TC1_CHANNEL0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_PWM_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_PWM
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_ADC_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_ADC
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_UHPHS_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_UHPHS
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_UDPHSA_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_UDPHSA
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_UDPHSB_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_UDPHSB
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SSC0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SSC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SSC1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SSC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_TRNG_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_TRNG
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_PDMC0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_PDMC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_PDMC1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_PDMC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SECURAM_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SECURAM
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_I2S0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_I2SMCC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_I2S1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_I2SMCC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN2_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN3_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN3
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN4_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN4
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_CAN5_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_MCAN5
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_DMA0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_XDMAC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_DMA1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_XDMAC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_DMA2_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_XDMAC2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SPDIFRX_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SPDIFRX
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SPDIFTX_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SPDIFTX
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_SPDIFRX_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_SPDIFRX
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_SPDIFTX_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_SPDIFTX
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_AES_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_AES
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_AESB_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_TZAESBASC
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SHA_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SHA
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SDMMC0_HCLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SDMMC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SDMMC1_HCLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SDMMC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_SDMMC2_HCLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_SDMMC2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_ISC_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_ISC
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_QSPI0_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_QSPI0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_PERIPH_QSPI1_CLK,
+		.pmc_type = PMC_TYPE_PERIPHERAL,
+		.pmc_id = ID_QSPI1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_QSPI0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_QSPI0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_QSPI1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_QSPI1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_SDMMC0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_SDMMC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_SDMMC1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_SDMMC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_SDMMC2_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_SDMMC2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_TCB0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_TC0_CHANNEL0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_TCB1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_TC1_CHANNEL0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_I2S0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_I2SMCC0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_I2S1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_I2SMCC1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN0_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN0
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN1_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN1
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN2_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN2
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN3_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN3
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN4_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN4
+	},
+	{
+		.scmi_id = AT91_SCMI_CLK_GCK_CAN5_GCLK,
+		.pmc_type = PMC_TYPE_GCK,
+		.pmc_id = ID_MCAN5
+	},
+};
+#else
+static const struct sam_pmc_clk pmc_clks[] = {
 	{
 		.scmi_id = AT91_SCMI_CLK_CORE_MCK,
 		.pmc_type = PMC_TYPE_CORE,
@@ -489,13 +950,14 @@ static const struct sama5d2_pmc_clk pmc_clks[] = {
 		.pmc_id = 2
 	},
 };
+#endif
 
 static TEE_Result sam_init_scmi_clk(void)
 {
 	unsigned int i = 0;
 	struct clk *clk = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
-	const struct sama5d2_pmc_clk *pmc_clk = NULL;
+	const struct sam_pmc_clk *pmc_clk = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(pmc_clks); i++) {
 		pmc_clk = &pmc_clks[i];
