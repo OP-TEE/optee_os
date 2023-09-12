@@ -886,7 +886,14 @@ CFG_DRIVERS_PINCTRL ?= n
 # When enabled, CFG_DRIVERS_REGULATOR embeds a voltage regulator framework in
 # OP-TEE core to provide drivers a common regulator interface and describe
 # the regulators dependencies using an embedded device tree.
+#
+# When enabled, CFG_REGULATOR_FIXED embeds a voltage regulator driver for
+# DT compatible "regulator-fixed" devices.
 CFG_DRIVERS_REGULATOR ?= n
+CFG_REGULATOR_FIXED ?= n
+
+$(eval $(call cfg-enable-all-depends,CFG_REGULATOR_FIXED, \
+	 CFG_DRIVERS_REGULATOR CFG_DT))
 
 # The purpose of this flag is to show a print when booting up the device that
 # indicates whether the board runs a standard developer configuration or not.
