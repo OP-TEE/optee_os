@@ -38,9 +38,15 @@
 #define PMC_IMGPLL		(PMC_MAIN + 4)
 #define PMC_BAUDPLL		(PMC_MAIN + 5)
 #define PMC_AUDIOPMCPLL		(PMC_MAIN + 6)
-#define PMC_AUDIOIOPLL		(PMC_MAIN + 7)
-#define PMC_ETHPLL		(PMC_MAIN + 8)
-#define PMC_CPU			(PMC_MAIN + 9)
+/* Reserved for PMC_MCK_PRES */
+#define PMC_AUDIOIOPLL		(PMC_MAIN + 8)
+#define PMC_ETHPLL		(PMC_MAIN + 9)
+#define PMC_MCK1		(PMC_MAIN + 10)
+/* Reserved for MCK2, MCK3, MCK4 */
+#define PMC_UTMI1		(PMC_MAIN + 14)
+#define PMC_UTMI2		(PMC_MAIN + 15)
+#define PMC_UTMI3		(PMC_MAIN + 16)
+#define PMC_SAMA7G5_CORE_CLK_COUNT	(PMC_MAIN + 17)
 
 #define AT91_SCMI_CLK_CORE_MCK		0
 #define AT91_SCMI_CLK_CORE_UTMI		1
