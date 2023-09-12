@@ -389,22 +389,38 @@ static void gic_it_set_pending(struct gic_data *gd, size_t it)
 	io_write32(gd->gicd_base + GICD_ISPENDR(idx), mask);
 }
 
-static void gic_it_raise_sgi(struct gic_data *gd, size_t it,
-		uint8_t cpu_mask, uint8_t group)
+static void gic_it_raise_sgi(struct gic_data *gd __maybe_unused, size_t it,
+			     uint8_t cpu_mask, uint8_t group)
 {
+#if defined(CFG_ARM_GICV3)
+	/* Only support sending SGI to the cores in the same cluster now */
+	uint32_t mask_id = it & 0xf;
+	uint32_t mask_cpu = cpu_mask & 0xff;
+	uint64_t mpidr = read_mpidr();
+	uint64_t mask_aff1 = (mpidr & MPIDR_AFF1_MASK) >> MPIDR_AFF1_SHIFT;
+	uint64_t mask_aff2 = (mpidr & MPIDR_AFF2_MASK) >> MPIDR_AFF2_SHIFT;
+	uint64_t mask_aff3 = (mpidr & MPIDR_AFF3_MASK) >> MPIDR_AFF3_SHIFT;
+	uint64_t mask = (mask_cpu |
+			SHIFT_U64(mask_aff1, 16) |
+			SHIFT_U64(mask_id, 24)   |
+			SHIFT_U64(mask_aff2, 32) |
+			SHIFT_U64(mask_aff3, 48));
+
+	/* Raise the interrupt */
+	if (group)
+		write_icc_asgi1r(mask);
+	else
+		write_icc_sgi1r(mask);
+#else
 	uint32_t mask_id = it & 0xf;
 	uint32_t mask_group = group & 0x1;
 	uint32_t mask_cpu = cpu_mask & 0xff;
 	uint32_t mask = (mask_id | SHIFT_U32(mask_group, 15) |
 		SHIFT_U32(mask_cpu, 16));
 
-	assert(gd == &gic_data);
-
-	/* Should be Software Generated Interrupt */
-	assert(it < NUM_SGI);
-
 	/* Raise the interrupt */
 	io_write32(gd->gicd_base + GICD_SGIR, mask);
+#endif
 }
 
 static uint32_t gic_read_iar(struct gic_data *gd __maybe_unused)
@@ -563,6 +579,9 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
 
 	assert(gd == &gic_data);
+
+	/* Should be Software Generated Interrupt */
+	assert(it < NUM_SGI);
 
 	if (it > gd->max_it)
 		panic();
