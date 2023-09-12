@@ -882,6 +882,10 @@ CFG_DRIVERS_I2C ?= n
 # on device-tree.
 CFG_DRIVERS_PINCTRL ?= n
 
+# When enabled, CFG_DRIVERS_REGULATOR embeds a voltage regulator framework in
+# OP-TEE core to provide drivers a common regulator interface.
+CFG_DRIVERS_REGULATOR ?= n
+
 # The purpose of this flag is to show a print when booting up the device that
 # indicates whether the board runs a standard developer configuration or not.
 # A developer configuration doesn't necessarily has to be secure. The intention

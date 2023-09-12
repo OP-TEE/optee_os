@@ -1,0 +1,1 @@
+srcs-y += regulator.c
