@@ -29,7 +29,7 @@ void __section(".text.dummy.call_finalcalls") call_finalcalls(void)
 
 void __section(".text.dummy.boot_init_primary_late")
 boot_init_primary_late(unsigned long fdt __unused,
-		       unsigned long tos_fw_config __unused)
+		       unsigned long manifest_dt __unused)
 {
 }
 

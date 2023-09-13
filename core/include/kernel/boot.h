@@ -45,7 +45,7 @@ extern const struct core_mmu_config boot_mmu_config;
 /* @nsec_entry is unused if using CFG_WITH_ARM_TRUSTED_FW */
 void boot_init_primary_early(unsigned long pageable_part,
 			     unsigned long nsec_entry);
-void boot_init_primary_late(unsigned long fdt, unsigned long tos_fw_config);
+void boot_init_primary_late(unsigned long fdt, unsigned long manifest);
 void boot_init_memtag(void);
 void boot_save_boot_info(void *boot_info);
 
@@ -91,8 +91,8 @@ int boot_core_release(size_t core_idx, paddr_t entry);
 struct ns_entry_context *boot_core_hpen(void);
 #endif
 
-/* Returns TOS_FW_CONFIG DTB if present, otherwise NULL */
-void *get_tos_fw_config_dt(void);
+/* Returns TOS_FW_CONFIG DTB or SP manifest DTB if present, otherwise NULL */
+void *get_manifest_dt(void);
 
 /*
  * get_aslr_seed() - return a random seed for core ASLR
