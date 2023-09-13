@@ -120,10 +120,12 @@ void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size)
 	*size = secure_only[0].size;
 }
 
-#ifdef CFG_CORE_PHYS_RELOCATABLE
 void core_mmu_set_secure_memory(paddr_t base, size_t size)
 {
+#ifdef CFG_CORE_PHYS_RELOCATABLE
 	static_assert(ARRAY_SIZE(secure_only) == 1);
+#endif
+	runtime_assert(IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE));
 	assert(!secure_only[0].size);
 	assert(base && size);
 
@@ -131,7 +133,6 @@ void core_mmu_set_secure_memory(paddr_t base, size_t size)
 	secure_only[0].paddr = base;
 	secure_only[0].size = size;
 }
-#endif
 
 void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 {
