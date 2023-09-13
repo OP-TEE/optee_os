@@ -730,7 +730,7 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 		return stub_describe_levels(voltd, start_index, levels,
 					    nb_elts);
 	default:
-		return SCMI_GENERIC_ERROR;
+		return SCMI_DENIED;
 	}
 }
 
@@ -808,7 +808,7 @@ int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
 		*level_uv = stub_get_level_uv(voltd);
 		return SCMI_SUCCESS;
 	default:
-		return SCMI_GENERIC_ERROR;
+		return SCMI_DENIED;
 	}
 }
 
@@ -837,7 +837,7 @@ int32_t plat_scmi_voltd_set_level(unsigned int channel_id, unsigned int scmi_id,
 	case VOLTD_STUB:
 		return SCMI_SUCCESS;
 	default:
-		return SCMI_GENERIC_ERROR;
+		return SCMI_DENIED;
 	}
 }
 
@@ -859,12 +859,11 @@ int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
 	}
 
 	switch (voltd->priv_dev) {
-	case VOLTD_PWR:
 	case VOLTD_STUB:
 		*config = SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON;
 		return SCMI_SUCCESS;
 	default:
-		return SCMI_GENERIC_ERROR;
+		return SCMI_DENIED;
 	}
 }
 
@@ -903,7 +902,7 @@ int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 	case VOLTD_STUB:
 		return SCMI_SUCCESS;
 	default:
-		return SCMI_GENERIC_ERROR;
+		return SCMI_DENIED;
 	}
 }
 
