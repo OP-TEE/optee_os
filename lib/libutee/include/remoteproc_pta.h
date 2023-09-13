@@ -163,4 +163,15 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
  */
 #define PTA_RPROC_VERIFY_DIGEST		8
 
+/*
+ * Provide platform parameter in Type-Length-Value format
+ *
+ * Return TEE_SUCCESS if the TLV is valid, else an error
+ *
+ * [in]  params[0].value.a:     Unique 32bit firmware identifier
+ * [in]  params[1].value.a:     16bit Type identifier
+ * [in]  params[2].memref:      Value associated to the type ID
+ */
+#define PTA_RPROC_TLV_PARAM		9
+
 #endif /* __REMOTEPROC_PTA_H */

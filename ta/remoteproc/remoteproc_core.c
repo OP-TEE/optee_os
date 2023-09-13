@@ -477,6 +477,51 @@ static TEE_Result get_rproc_pta_capabilities(struct remoteproc_context *ctx)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result remoteproc_set_platform_tlv(struct remoteproc_context *ctx)
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_MEMREF_INPUT,
+						TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	struct remoteproc_fw_hdr *hdr = (void *)ctx->sec_cpy;
+	uint8_t *p_tlv = NULL;
+	uint8_t *p_end_tlv = NULL;
+	uint32_t tlv_type = 0;
+	uint32_t tlv_length = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	p_tlv = (void *)FW_TLV_PTR(ctx->sec_cpy, hdr);
+	p_end_tlv = p_tlv + ctx->tlvs_sz;
+
+	params[0].value.a = ctx->fw_id;
+
+	/* Parse the TLV area */
+	while (p_tlv < p_end_tlv) {
+		tlv_type = LE32_TO_CPU(p_tlv);
+		tlv_length = LE32_TO_CPU(&p_tlv[RPROC_TLV_LENGTH_OF]);
+		DMSG("tlv_type %#x , length %#x found ", tlv_type, tlv_length);
+		if (tlv_type >= RPROC_PLAT_TLV_TYPE_MIN &&
+		    tlv_type < RPROC_PLAT_TLV_TYPE_MAX) {
+			params[1].value.a = tlv_type;
+			params[2].memref.size = tlv_length;
+			params[2].memref.buffer = &p_tlv[RPROC_TLV_VALUE_OF];
+
+			res = TEE_InvokeTACommand(pta_session,
+						  TEE_TIMEOUT_INFINITE,
+						  PTA_RPROC_TLV_PARAM,
+						  exp_pt, params, NULL);
+			if (res)
+				return res;
+		}
+
+		p_tlv += U64_ALIGN_SZ(sizeof(struct remoteproc_tlv) +
+				      tlv_length);
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 					     uint8_t *fw_orig,
 					     uint32_t fw_orig_size)
@@ -511,6 +556,10 @@ static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 	ctx->tlvs = FW_TLV_PTR(ctx->sec_cpy, hdr);
 
 	res = remoteproc_verify_signature(ctx);
+	if (res)
+		goto free_sec_cpy;
+
+	res = remoteproc_set_platform_tlv(ctx);
 	if (res)
 		goto free_sec_cpy;
 
