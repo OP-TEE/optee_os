@@ -78,10 +78,8 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
-#ifdef CFG_DT
 #ifdef CFG_CORE_SEL1_SPMC
 static void *manifest_dt __nex_bss;
-#endif
 #endif
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
@@ -969,7 +967,7 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 #endif /*CFG_CORE_DYN_SHM*/
 #endif /*!CFG_DT*/
 
-#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_DT)
+#if defined(CFG_CORE_SEL1_SPMC) || defined(CFG_CORE_SEL2_SPMC)
 void *get_manifest_dt(void)
 {
 	return manifest_dt;
@@ -1176,6 +1174,12 @@ void __weak boot_init_primary_late(unsigned long fdt,
 				   unsigned long manifest)
 {
 	init_external_dt(fdt);
+	/*
+	 * With an SPMC at S-EL2 we have saved the physical fdt address
+	 * from the passed boot info.
+	 */
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		manifest = (unsigned long)get_manifest_dt();
 	init_manifest_dt(manifest);
 #ifdef CFG_CORE_SEL1_SPMC
 	tpm_map_log_area(get_manifest_dt());
@@ -1361,7 +1365,7 @@ unsigned long __weak get_aslr_seed(void *fdt __unused)
 #endif /*!CFG_DT*/
 #endif /*CFG_CORE_ASLR*/
 
-#if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
+#if defined(CFG_CORE_SEL2_SPMC)
 static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 {
 	struct ffa_boot_info_1_1 *desc = NULL;
@@ -1439,12 +1443,14 @@ static void get_sec_mem_from_manifest(void *fdt, paddr_t *base, size_t *size)
 
 void __weak boot_save_boot_info(void *boot_info)
 {
-	void *fdt = NULL;
 	paddr_t base = 0;
 	size_t size = 0;
 
-	fdt = get_fdt_from_boot_info(boot_info);
-	get_sec_mem_from_manifest(fdt, &base, &size);
-	core_mmu_set_secure_memory(base, size);
+	manifest_dt = get_fdt_from_boot_info(boot_info);
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
+	    IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
+		get_sec_mem_from_manifest(manifest_dt, &base, &size);
+		core_mmu_set_secure_memory(base, size);
+	}
 }
-#endif /*CFG_CORE_SEL2_SPMC && CFG_CORE_PHYS_RELOCATABLE*/
+#endif /*CFG_CORE_SEL2_SPMC */
