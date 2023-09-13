@@ -125,6 +125,12 @@ $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 endif
 
+ifeq ($(CFG_CORE_SEL2_SPMC),y)
+ifneq ($(CFG_DT),y)
+$(error CFG_CORE_SEL2_SPMC depends on CFG_DT)
+endif
+endif
+
 ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_PHYS_RELOCATABLE and CFG_WITH_PAGER are not compatible)
 endif
