@@ -80,7 +80,7 @@ DECLARE_KEEP_PAGER(sem_cpu_sync);
 
 #ifdef CFG_DT
 #ifdef CFG_CORE_SEL1_SPMC
-static struct dt_descriptor manifest_dt __nex_bss;
+static void *manifest_dt __nex_bss;
 #endif
 #endif
 
@@ -972,33 +972,26 @@ static struct core_mmu_phys_mem *get_nsec_memory(void *fdt __unused,
 #if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_DT)
 void *get_manifest_dt(void)
 {
-	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
-		return NULL;
-
-	assert(cpu_mmu_enabled());
-
-	return manifest_dt.blob;
+	return manifest_dt;
 }
 
 static void init_manifest_dt(unsigned long pa)
 {
-	struct dt_descriptor *dt = &manifest_dt;
 	void *fdt = NULL;
 	int ret = 0;
 
-	if (!IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+	if (!pa) {
+		EMSG("No manifest DT found");
 		return;
+	}
 
-	if (!pa)
-		panic("No manifest DT found");
-
-	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, pa, CFG_DTB_MAX_SIZE);
+	fdt = core_mmu_add_mapping(MEM_AREA_MANIFEST_DT, pa, CFG_DTB_MAX_SIZE);
 	if (!fdt)
 		panic("Failed to map manifest DT");
 
-	dt->blob = fdt;
+	manifest_dt = fdt;
 
-	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	ret = fdt_check_full(fdt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
 		EMSG("Invalid manifest Device Tree at %#lx: error %d", pa, ret);
 		panic();
@@ -1006,6 +999,21 @@ static void init_manifest_dt(unsigned long pa)
 
 	IMSG("manifest DT found");
 }
+
+static TEE_Result release_manifest_dt(void)
+{
+	if (!manifest_dt)
+		return TEE_SUCCESS;
+
+	if (core_mmu_remove_mapping(MEM_AREA_MANIFEST_DT, manifest_dt,
+				    CFG_DTB_MAX_SIZE))
+		panic("Failed to remove temporary manifest DT mapping");
+	manifest_dt = NULL;
+
+	return TEE_SUCCESS;
+}
+
+boot_final(release_manifest_dt);
 #else
 void *get_manifest_dt(void)
 {
