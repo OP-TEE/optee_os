@@ -110,6 +110,7 @@ static void assert_type_is_valid(enum dt_driver_type type)
 	case DT_DRIVER_I2C:
 	case DT_DRIVER_PINCTRL:
 	case DT_DRIVER_INTERRUPT:
+	case DT_DRIVER_REGULATOR:
 		return;
 	default:
 		assert(0);
@@ -196,6 +197,7 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
 		cells_name = "#gpio-cells";
 		break;
 	case DT_DRIVER_I2C:
+	case DT_DRIVER_REGULATOR:
 		return 0;
 	default:
 		panic();

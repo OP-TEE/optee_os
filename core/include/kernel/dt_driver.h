@@ -24,6 +24,7 @@
  * DT_DRIVER_GPIO   GPIO controller using generic GPIO DT bindings
  * DT_DRIVER_PINCTRL Pin controller using generic reset DT bindings
  * DT_DRIVER_INTERRUPT Interrupt controller using generic DT bindings
+ * DT_DRIVER_REGULATOR Voltage regulator controller using generic DT bindings
  */
 enum dt_driver_type {
 	DT_DRIVER_NOTYPE,
@@ -34,6 +35,7 @@ enum dt_driver_type {
 	DT_DRIVER_GPIO,
 	DT_DRIVER_PINCTRL,
 	DT_DRIVER_INTERRUPT,
+	DT_DRIVER_REGULATOR,
 };
 
 /*
