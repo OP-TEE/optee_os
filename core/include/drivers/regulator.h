@@ -24,6 +24,22 @@
 struct regulator_ops;
 
 /*
+ * struct regu_dt_desc - Regulator description passed to regulator_dt_register()
+ * @priv: Regulator driver private data
+ * @name: Regulator string name for debug purpose
+ * @supply_name: Regulator supply name for node property *-supply or NULL
+ * @ops: Operation handlers for the regulator
+ * @regulator: Pointer to preallocated regulator or NULL if none
+ */
+struct regu_dt_desc {
+	void *priv;
+	char *name;
+	const char *supply_name;
+	const struct regulator_ops *ops;
+	struct regulator *regulator;
+};
+
+/*
  * struct regulator - A regulator instance
  * @ops: Operation handlers for the regulator
  * @supply: Regulator supply reference or NULL if none
@@ -60,12 +76,15 @@ struct regulator {
  * @get_state: Get regulator effective state
  * @set_voltage: Set voltage level in microvolt (uV)
  * @get_voltage: Get current voltage in microvolt (uV)
+ * @supplied_init: Optional, finalize initialization once supply is ready
  */
 struct regulator_ops {
 	TEE_Result (*set_state)(struct regulator *r, bool enabled);
 	TEE_Result (*get_state)(struct regulator *r, bool *enabled);
 	TEE_Result (*set_voltage)(struct regulator *r, int level_uv);
 	TEE_Result (*get_voltage)(struct regulator *r, int *level_uv);
+	TEE_Result (*supplied_init)(struct regulator *r, const void *fdt,
+				    int node);
 };
 
 #ifdef CFG_DRIVERS_REGULATOR
@@ -134,6 +153,42 @@ static inline void regulator_print_state(const char *message __unused)
 {
 }
 #endif /*CFG_DRIVERS_REGULATOR*/
+
+#if defined(CFG_DRIVERS_REGULATOR) && defined(CFG_DT)
+/*
+ * regulator_dt_register() - Register a regulator to related to a DT node
+ * @fdt: FDT to work on
+ * @node: DT node of the regulator exposed by regulator driver
+ * @provider_node: Node where xxx-supply property is found or -1 if no supply.
+ * @desc: Description of the regulator to register
+ *
+ * This function registers and initializes a regulator instance once its supply
+ * if found, if any. Regulators registered with this function can be found by
+ * their consumer drivers using API function regulator_dt_get_supply() or like.
+ *
+ * Return TEE_SUCCESS in case of success
+ * Return TEE_ERROR_OUT_OF_MEMORY if failed on memory allocation
+ * Return any other TEE_Result compliant code in case of error
+ */
+TEE_Result regulator_dt_register(const void *fdt, int node, int provider_node,
+				 const struct regu_dt_desc *desc);
+#else
+static inline TEE_Result regulator_dt_get_supply(const void *fdt __unused,
+						 int node __unused,
+						 const char *supply __unused,
+						 struct regulator **r __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result
+regulator_dt_register(const void *fdt __unused, int node __unused,
+		      int provider_node __unused,
+		      const struct regu_dt_desc *d __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif /* CFG_DRIVERS_REGULATOR && CFG_DT */
 
 /*
  * regulator_name() - Return regulator name or NULL
