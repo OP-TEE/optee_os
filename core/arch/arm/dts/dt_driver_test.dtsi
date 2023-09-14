@@ -17,6 +17,10 @@
 		reset-names = "rst0", "rst1";
 		test-gpios = <&dt_test_provider 1 GPIO_ACTIVE_LOW>,
 			     <&dt_test_provider 2 GPIO_PULL_UP>;
+
+		test1-supply = <&dt_test_regulator_test1>;
+		test2-supply = <&dt_test_regulator_test2>;
+		regu_gpio-supply = <&dt_test_regulator_gpio>;
 	};
 
 	/*
@@ -44,12 +48,58 @@
 						#reset-cells = <1>;
 						#gpio-cells = <2>;
 					};
+
+					dt_test_regulator_test1: dt-test-regulator@1 {
+						compatible = "linaro,dt-test-regulator";
+						reg = <1>;
+						regulator-name = "regu-test1";
+						regulator-min-microvolt = <100>;
+						regulator-max-microvolt = <1000000>;
+						test-supply = <&dt_test_regulator_fixed>;
+					};
+
+					dt_test_regulator_test2: dt-test-regulator@2 {
+						compatible = "linaro,dt-test-regulator";
+						reg = <2>;
+						regulator-name = "regu-test2";
+						regulator-min-microvolt = <300000>;
+						regulator-max-microvolt = <700000>;
+						test-supply = <&dt_test_regulator_gpio>;
+					};
 				};
 			};
 		};
 	};
 
+	dt_test_regulator_gpio: dt-test-regulator-gpio {
+		compatible = "regulator-gpio";
+		regulator-name = "regu-gpio";
+		gpios = <&dt_test_gpio4regu_provider 2 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <400000>;
+		regulator-max-microvolt = <800000>;
+		states = <400000 1>, <800000 0>;
+		enable-gpios = <&dt_test_gpio4regu_provider 1 GPIO_ACTIVE_LOW>;
+		enable-active-high;	/* Shall override GPIO_ACTIVE_LOW above */
+		startup-delay-us = <30000>;
+	};
+
+	dt_test_regulator_fixed: dt-test-regulator-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "regu-fixed";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		gpios = <&dt_test_gpio4regu_provider 0 GPIO_ACTIVE_HIGH>;
+		/* Absence of enable-active-high means is enable-gpios is active low */
+		startup-delay-us = <20000>;
+		off-on-delay-us = <10000>;
+	};
+
 	dt-test-crypt-consumer {
 		compatible = "linaro,dt-test-crypt-consumer";
+	};
+
+	dt_test_gpio4regu_provider: dt-test-gpio4regu-provider {
+		compatible = "linaro,dt-test-gpio4regu";
+		#gpio-cells = <2>;
 	};
 };

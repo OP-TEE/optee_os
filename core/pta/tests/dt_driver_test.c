@@ -12,9 +12,11 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/gpio.h>
+#include <drivers/regulator.h>
 #include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <kernel/dt_driver.h>
+#include <kernel/delay.h>
 #include <libfdt.h>
 #include <malloc.h>
 #include <sys/queue.h>
@@ -35,6 +37,7 @@ struct dt_test_state {
 	enum dt_test_sid probe_deferral;
 	enum dt_test_sid probe_clocks;
 	enum dt_test_sid probe_gpios;
+	enum dt_test_sid probe_regulators;
 	enum dt_test_sid probe_resets;
 	enum dt_test_sid crypto_dependencies;
 };
@@ -115,6 +118,8 @@ static TEE_Result dt_test_release(void)
 		    dt_test_str_sid[dt_test_state.probe_clocks]);
 	DT_TEST_MSG("GPIO ctrl probe: %s",
 		    dt_test_str_sid[dt_test_state.probe_gpios]);
+	DT_TEST_MSG("Regulator probe: %s",
+		    dt_test_str_sid[dt_test_state.probe_regulators]);
 	DT_TEST_MSG("Reset ctrl probe: %s",
 		    dt_test_str_sid[dt_test_state.probe_resets]);
 	DT_TEST_MSG("Crypto deps.: %s",
@@ -141,6 +146,11 @@ TEE_Result dt_driver_test_status(void)
 	if (IS_ENABLED(CFG_DRIVERS_GPIOS) &&
 	    dt_test_state.probe_gpios != SUCCESS) {
 		EMSG("GPIO controllers probing test failed");
+		res = TEE_ERROR_GENERIC;
+	}
+	if (IS_ENABLED(CFG_DRIVERS_REGULATOR) &&
+	    dt_test_state.probe_regulators != SUCCESS) {
+		EMSG("Regulator probing test failed");
 		res = TEE_ERROR_GENERIC;
 	}
 	if (IS_ENABLED(CFG_DRIVERS_RSTCTRL) &&
@@ -326,6 +336,415 @@ err:
 	return res;
 }
 
+/* IDs used for GPIOs that control some regulators */
+#define DT_TEST_GPIO4REGU_FIXED_ENABLE	0
+#define DT_TEST_GPIO4REGU_GPIO_ENABLE	1
+#define DT_TEST_GPIO4REGU_GPIO_VOLTAGE	2
+#define DT_TEST_GPIO4REGU_PIN_COUNT	3
+
+#if defined(CFG_DRIVERS_REGULATOR) && defined(CFG_DRIVERS_GPIO)
+/* Helper to check states of GPIOs that control some regulators */
+static void gpio4regu_get_state(unsigned int pin_id, enum gpio_dir *direction,
+				enum gpio_level *level);
+#else
+static void gpio4regu_get_state(unsigned int pin_id __unused,
+				enum gpio_dir *direction __unused,
+				enum gpio_level *level __unused)
+{
+}
+#endif
+
+static TEE_Result probe_test_regulator_test1(const void *fdt, int node)
+{
+	enum gpio_level gpio_level = GPIO_LEVEL_LOW;
+	enum gpio_dir gpio_dir = GPIO_DIR_IN;
+	struct regulator *regu_test1 = NULL;
+	struct regulator *regu_fixed = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint64_t timeout = 0;
+	int min_level_uv = 0;
+	int max_level_uv = 0;
+	int level_uv = 0;
+
+	res = regulator_dt_get_supply(fdt, node, "test1", &regu_test1);
+	if (res)
+		return res;
+
+	/* Check voltage level for regulator test1 */
+	regulator_get_range(regu_test1, &min_level_uv, &max_level_uv);
+	if (min_level_uv != 100 || max_level_uv != 1000000) {
+		EMSG("Unexpected range [%d %d] for regulator test1",
+		     min_level_uv, max_level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	level_uv = regulator_get_voltage(regu_test1);
+	if (level_uv != 100) {
+		EMSG("Unexpected voltage level %d for regulator test1",
+		     level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_test1, 1);
+	if (!res) {
+		EMSG("Setting voltage to 1uV should fail for regulator test1");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_test1, 2000000);
+	if (!res) {
+		EMSG("Setting voltage to 2V should fail for regulator test1");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_test1, 500000);
+	if (res) {
+		EMSG("Set voltage failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	/* Voltage level for regulator test1 supply (is a regulator-fixed) */
+	regu_fixed = regu_test1->supply;
+	if (!regu_fixed) {
+		EMSG("Regulator test1 should have a supply");
+		return TEE_ERROR_GENERIC;
+	}
+
+	regulator_get_range(regu_test1->supply, &min_level_uv, &max_level_uv);
+	if (min_level_uv != 1000000 || max_level_uv != 1000000) {
+		EMSG("Unexpected range [%d %d] for regulator test1",
+		     min_level_uv, max_level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	level_uv = regulator_get_voltage(regu_test1->supply);
+	if (level_uv != 1000000) {
+		EMSG("Unexpected voltage level %duV for regulator test1",
+		     level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Tests below expect GPIO are supported */
+	if (!IS_ENABLED(CFG_DRIVERS_GPIO))
+		return TEE_SUCCESS;
+
+	/*
+	 * Enabling regulator test1 should last at least 20ms due
+	 * to supply enable delay (only when CFG_DRIVERS_GPIO is enabled)
+	 */
+	timeout = timeout_init_us(20000);
+
+	res = regulator_enable(regu_test1);
+	if (res) {
+		EMSG("Enable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	if (!timeout_elapsed(timeout)) {
+		EMSG("Set test1 voltage is too fast: %dus < 20ms",
+		     timeout_elapsed_us(timeout) + 20000);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/*
+	 * Re-enabling regulator test1 after it's been disabled should last
+	 * 30ms (10ms off/on delay + 20ms enable delay)
+	 */
+	res = regulator_disable(regu_test1);
+	if (res) {
+		EMSG("Disable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	/*
+	 * Give 10us tolerance to compensate time between regulator_disable()
+	 * completion and timeout_init_us() completion.
+	 */
+	timeout = timeout_init_us(30000 - 10);
+
+	res = regulator_enable(regu_test1);
+	if (res) {
+		EMSG("Enable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	if (!timeout_elapsed(timeout)) {
+		EMSG("Enable regulator test1 is too fast: %dus < 30ms",
+		     timeout_elapsed_us(timeout) + 30000);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/*
+	 * Check GPIO level when test1 and its supply are enabled and disable.
+	 * Note the GPIO used is active low.
+	 */
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_FIXED_ENABLE, &gpio_dir, NULL);
+	if (gpio_dir != GPIO_DIR_OUT) {
+		EMSG("Unexpected state of GPIO used for test1 supply");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_disable(regu_test1);
+	if (res) {
+		EMSG("Disable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_FIXED_ENABLE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_HIGH) {
+		EMSG("GPIO used for regulator test1 supply should be high");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_enable(regu_test1);
+	if (res) {
+		EMSG("Enable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_FIXED_ENABLE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_LOW) {
+		EMSG("GPIO used for regulator test1 supply should be low");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_disable(regu_test1);
+	if (res) {
+		EMSG("Disable failed for regulator test1: %#"PRIx32, res);
+		return res;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_FIXED_ENABLE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_HIGH) {
+		EMSG("GPIO used for regulator test1 supply should be high");
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result probe_test_regulator_test2(const void *fdt, int node)
+{
+	enum gpio_level gpio_level = GPIO_LEVEL_LOW;
+	enum gpio_dir gpio_dir = GPIO_DIR_IN;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct regulator *regu_test2 = NULL;
+	uint64_t timeout = 0;
+	int min_level_uv = 0;
+	int max_level_uv = 0;
+	int level_uv = 0;
+
+	/*
+	 * Test regulator test2 and its regulator GPIO supply
+	 */
+	res = regulator_dt_get_supply(fdt, node, "test2", &regu_test2);
+	if (res)
+		return res;
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_ENABLE, &gpio_dir, NULL);
+	if (gpio_dir != GPIO_DIR_OUT) {
+		EMSG("Unexpected direction of GPIO used for test2 supply");
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Check voltage level for regulator test2 */
+	regulator_get_range(regu_test2, &min_level_uv, &max_level_uv);
+	if (min_level_uv != 300000 || max_level_uv != 700000) {
+		EMSG("Unexpected range [%d %d] for regulator test2",
+		     min_level_uv, max_level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	level_uv = regulator_get_voltage(regu_test2);
+	if (level_uv != 300000) {
+		EMSG("Unexpected voltage level %d for regulator test2",
+		     level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_test2, 200000);
+	if (!res) {
+		EMSG("Setting voltage to 1uV should fail for regulator test2");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_test2, 500000);
+	if (res) {
+		EMSG("Set voltage failed for regulator test2: %#"PRIx32, res);
+		return res;
+	}
+
+	level_uv = regulator_get_voltage(regu_test2);
+	if (level_uv != 500000) {
+		EMSG("Unexpected voltage level %duV for regulator test2",
+		     level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Enabling regulator test2 should last at least 15ms */
+	timeout = timeout_init_us(15000);
+
+	res = regulator_enable(regu_test2);
+	if (res) {
+		EMSG("Enable failed for regulator gpio: %#"PRIx32, res);
+		return res;
+	}
+
+	if (!timeout_elapsed(timeout)) {
+		EMSG("Set regulator voltage level is too fast: %dus < 15ms",
+		     timeout_elapsed_us(timeout) + 15000);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Supply enable GPIO absolute level shall be low (it's active-high) */
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_ENABLE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_HIGH) {
+		EMSG("GPIO used for test2 supply should be high");
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result probe_test_regulator_gpio(const void *fdt, int node)
+{
+	enum gpio_level gpio_level = GPIO_LEVEL_LOW;
+	enum gpio_dir gpio_dir = GPIO_DIR_IN;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct regulator *regu_gpio = NULL;
+	int min_level_uv = 0;
+	int max_level_uv = 0;
+	int level_uv = 0;
+
+	/*
+	 * Test regulator test2 and its regulator GPIO supply
+	 */
+	res = regulator_dt_get_supply(fdt, node, "regu_gpio", &regu_gpio);
+	if (res)
+		return res;
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_VOLTAGE, &gpio_dir, NULL);
+	if (gpio_dir != GPIO_DIR_OUT) {
+		EMSG("Bad direction of GPIO for regulator enable");
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Check voltage level for regulator test2 */
+	regulator_get_range(regu_gpio, &min_level_uv, &max_level_uv);
+	if (min_level_uv != 400000 || max_level_uv != 800000) {
+		EMSG("Unexpected range [%d %d] for regulator gpio",
+		     min_level_uv, max_level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	level_uv = regulator_get_voltage(regu_gpio);
+	if (level_uv != 400000 && level_uv != 800000) {
+		EMSG("Unexpected voltage level %d for regulator gpio",
+		     level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_VOLTAGE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_LOW) {
+		EMSG("Unexpected state of regulator GPIO, should be low");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_gpio, 200000);
+	if (!res) {
+		EMSG("Set voltage level to 1uV should fail for regulator gpio");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_gpio, 800000);
+	if (res) {
+		EMSG("Set voltage failed for regulator gpio: %#"PRIx32, res);
+		return res;
+	}
+
+	level_uv = regulator_get_voltage(regu_gpio);
+	if (level_uv != 800000) {
+		EMSG("Unexpected voltage %duV for regulator gpio", level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_VOLTAGE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_LOW) {
+		EMSG("Unexpected state of regulator GPIO, should be low");
+		return TEE_ERROR_GENERIC;
+	}
+
+	res = regulator_set_voltage(regu_gpio, 400000);
+	if (res) {
+		EMSG("Set voltage failed for regulator gpio: %#"PRIx32, res);
+		return res;
+	}
+
+	level_uv = regulator_get_voltage(regu_gpio);
+	if (level_uv != 400000) {
+		EMSG("Unexpected voltage %duV for regulator gpio", level_uv);
+		return TEE_ERROR_GENERIC;
+	}
+
+	gpio4regu_get_state(DT_TEST_GPIO4REGU_GPIO_VOLTAGE, NULL, &gpio_level);
+	if (gpio_level != GPIO_LEVEL_HIGH) {
+		EMSG("Unexpected state of regulator GPIO, should be high");
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result probe_test_regulators(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct regulator __maybe_unused *regulator = NULL;
+
+	DT_TEST_MSG("Probe regulator test");
+
+	dt_test_state.probe_regulators = IN_PROGRESS;
+
+	/* First probe both test regualtors */
+	res = regulator_dt_get_supply(fdt, node, "test1", &regulator);
+	if (res)
+		goto err_or_defer;
+
+	if (IS_ENABLED(CFG_REGULATOR_GPIO)) {
+		res = regulator_dt_get_supply(fdt, node, "test2", &regulator);
+		if (res)
+			goto err_or_defer;
+	}
+
+	res = probe_test_regulator_test1(fdt, node);
+	if (res)
+		goto err;
+
+	if (IS_ENABLED(CFG_REGULATOR_GPIO)) {
+		res = probe_test_regulator_test2(fdt, node);
+		if (res)
+			goto err;
+
+		res = probe_test_regulator_gpio(fdt, node);
+		if (res)
+			goto err;
+	}
+
+	dt_test_state.probe_regulators = SUCCESS;
+
+	return TEE_SUCCESS;
+
+err:
+	if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
+		EMSG("Unexpected driver initialization deferral");
+		res = TEE_ERROR_GENERIC;
+	}
+err_or_defer:
+	if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+		dt_test_state.probe_regulators = FAILED;
+
+	return res;
+}
+
 /*
  * Consumer test driver: instance probed from the compatible
  * node parsed in the DT. It consumes emulated resource obtained
@@ -351,6 +770,12 @@ static TEE_Result dt_test_consumer_probe(const void *fdt, int node,
 
 	if (IS_ENABLED(CFG_DRIVERS_GPIO)) {
 		res = probe_test_gpios(fdt, node);
+		if (res)
+			goto err_probe;
+	}
+
+	if (IS_ENABLED(CFG_DRIVERS_REGULATOR)) {
+		res = probe_test_regulators(fdt, node);
 		if (res)
 			goto err_probe;
 	}
@@ -766,3 +1191,217 @@ static TEE_Result dt_test_gpio_provider_probe(const void *fdt, int offs,
 GPIO_DT_DECLARE(dt_test_gpio_provider, "linaro,dt-test-provider",
 		dt_test_gpio_provider_probe);
 #endif /* CFG_DRIVERS_GPIO */
+
+#ifdef CFG_DRIVERS_REGULATOR
+
+/* Testing regulator-gpio and regulator-fixed drivers depend on GPIO support */
+#ifdef CFG_DRIVERS_GPIO
+struct dt_test_gpio4regu_pin {
+	enum gpio_level level;
+	enum gpio_dir dir;
+};
+
+struct dt_test_gpio4regu_chip {
+	struct dt_test_gpio4regu_pin pin[DT_TEST_GPIO4REGU_PIN_COUNT];
+	struct gpio_chip gpio_chip;
+};
+
+static struct dt_test_gpio4regu_chip *gpio4regu_chip;
+
+static void gpio4regu_get_state(unsigned int pin_id, enum gpio_dir *direction,
+				enum gpio_level *level)
+{
+	if (!gpio4regu_chip || pin_id >= DT_TEST_GPIO4REGU_PIN_COUNT)
+		panic();
+
+	if (direction)
+		*direction = gpio4regu_chip->pin[pin_id].dir;
+	if (level)
+		*level = gpio4regu_chip->pin[pin_id].level;
+}
+
+static struct dt_test_gpio4regu_pin *to_gpio4regu_pin(struct gpio_chip *chip,
+						      unsigned int gpio_pin)
+{
+	struct dt_test_gpio4regu_chip *dev = NULL;
+
+	if (gpio_pin >= DT_TEST_GPIO4REGU_PIN_COUNT)
+		panic("Invalid GPIO pin");
+
+	dev = container_of(chip, struct dt_test_gpio4regu_chip, gpio_chip);
+
+	return dev->pin + gpio_pin;
+}
+
+static enum gpio_dir dt_test_gpio4regu_get_dir(struct gpio_chip *chip,
+					       unsigned int gpio_pin)
+{
+	struct dt_test_gpio4regu_pin *dtg = to_gpio4regu_pin(chip, gpio_pin);
+
+	return dtg->dir;
+}
+
+static void dt_test_gpio4regu_set_dir(struct gpio_chip *chip,
+				      unsigned int gpio_pin,
+				      enum gpio_dir direction)
+{
+	struct dt_test_gpio4regu_pin *dtg = to_gpio4regu_pin(chip, gpio_pin);
+
+	dtg->dir = direction;
+}
+
+static enum gpio_level dt_test_gpio4regu_get_value(struct gpio_chip *chip,
+						   unsigned int gpio_pin)
+{
+	struct dt_test_gpio4regu_pin *dtg = to_gpio4regu_pin(chip, gpio_pin);
+
+	return dtg->level;
+}
+
+static void dt_test_gpio4regu_set_value(struct gpio_chip *chip,
+					unsigned int gpio_pin,
+					enum gpio_level value)
+{
+	struct dt_test_gpio4regu_pin *dtg = to_gpio4regu_pin(chip, gpio_pin);
+
+	dtg->level = value;
+}
+
+static const struct gpio_ops dt_test_gpio4regu_ops = {
+	.get_direction = dt_test_gpio4regu_get_dir,
+	.set_direction = dt_test_gpio4regu_set_dir,
+	.get_value = dt_test_gpio4regu_get_value,
+	.set_value = dt_test_gpio4regu_set_value,
+};
+
+static TEE_Result dt_test_gpio4regu_get_dt(struct dt_pargs *args, void *data,
+					   struct gpio **out_device)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct dt_test_gpio4regu_chip *chip = data;
+	struct gpio *gpio = NULL;
+
+	res = gpio_dt_alloc_pin(args, &gpio);
+	if (res)
+		return res;
+
+	if (gpio->pin > DT_TEST_GPIO4REGU_PIN_COUNT) {
+		EMSG("Unexpected pin value %u", gpio->pin);
+		return TEE_ERROR_GENERIC;
+	}
+
+	gpio->chip = &chip->gpio_chip;
+
+	*out_device = gpio;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result dt_test_gpio4regu_provider_probe(const void *fdt, int offs,
+						   const void *data __unused)
+{
+	struct dt_test_gpio4regu_chip *chip = NULL;
+
+	DT_TEST_MSG("Register GPIO chip for regulators");
+
+	chip = dt_test_alloc(sizeof(*chip));
+	if (!chip)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	chip->gpio_chip.ops = &dt_test_gpio4regu_ops;
+
+	/* Save reference to ease test implementation */
+	gpio4regu_chip = chip;
+
+	return gpio_register_provider(fdt, offs, dt_test_gpio4regu_get_dt,
+				      chip);
+}
+
+GPIO_DT_DECLARE(dt_test_gpio4regu_provider, "linaro,dt-test-gpio4regu",
+		dt_test_gpio4regu_provider_probe);
+#endif /* CFG_DRIVERS_GPIO */
+
+struct dt_test_regulator {
+	bool enabled;
+	int level_uv;
+};
+
+static TEE_Result dt_test_regulator_set_state(struct regulator *regulator,
+					      bool enable)
+{
+	struct dt_test_regulator *regu = regulator->priv;
+
+	regu->enabled = enable;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result dt_test_regulator_read_state(struct regulator *regulator,
+					       bool *enabled)
+{
+	struct dt_test_regulator *regu = regulator->priv;
+
+	*enabled = regu->enabled;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result dt_test_regulator_set_voltage(struct regulator *regulator,
+						int level_uv)
+{
+	struct dt_test_regulator *regu = regulator->priv;
+
+	regu->level_uv = level_uv;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result dt_test_regulator_read_voltage(struct regulator *regulator,
+						 int *level_uv)
+{
+	struct dt_test_regulator *regu = regulator->priv;
+
+	*level_uv = regu->level_uv;
+
+	return TEE_SUCCESS;
+}
+
+static const struct regulator_ops dt_test_regulator_ops = {
+	.set_state = dt_test_regulator_set_state,
+	.get_state = dt_test_regulator_read_state,
+	.set_voltage = dt_test_regulator_set_voltage,
+	.get_voltage = dt_test_regulator_read_voltage,
+};
+
+static TEE_Result dt_test_regulator_probe(const void *fdt, int offs,
+					  const void *data __unused)
+{
+	struct dt_test_regulator *test_regulator = NULL;
+	struct regu_dt_desc desc = { };
+
+	DT_TEST_MSG("Register regulators");
+
+	test_regulator = dt_test_alloc(sizeof(*test_regulator));
+	if (!test_regulator)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	desc = (struct regu_dt_desc){
+		.ops = &dt_test_regulator_ops,
+		.supply_name = "test",
+		.priv = test_regulator,
+	};
+
+	return regulator_dt_register(fdt, offs, offs, &desc);
+}
+
+static const struct dt_device_match dt_test_regulator_match_table[] = {
+	{ .compatible = "linaro,dt-test-regulator" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(dt_test_regulator_dt_driver) = {
+	.name = "dt-test-regulator-provider",
+	.match_table = dt_test_regulator_match_table,
+	.probe = dt_test_regulator_probe,
+};
+#endif /* CFG_DRIVERS_REGULATOR */
