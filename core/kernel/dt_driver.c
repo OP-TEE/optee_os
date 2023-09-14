@@ -218,6 +218,11 @@ unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv)
 	return prv->provider_cells;
 }
 
+void *dt_driver_provider_priv_data(struct dt_driver_provider *prv)
+{
+	return prv->priv_data;
+}
+
 struct dt_driver_provider *
 dt_driver_get_provider_by_node(int nodeoffset, enum dt_driver_type type)
 {
