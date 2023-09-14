@@ -225,6 +225,11 @@ dt_driver_get_provider_by_phandle(uint32_t phandle, enum dt_driver_type type);
 unsigned int dt_driver_provider_cells(struct dt_driver_provider *prv);
 
 /*
+ * Return provider private data registered by dt_driver_register_provider()
+ */
+void *dt_driver_provider_priv_data(struct dt_driver_provider *prv);
+
+/*
  * dt_driver_probe_device_by_node - Probe matching driver to create a device
  *	from a FDT node
  *
