@@ -884,7 +884,8 @@ CFG_DRIVERS_I2C ?= n
 CFG_DRIVERS_PINCTRL ?= n
 
 # When enabled, CFG_DRIVERS_REGULATOR embeds a voltage regulator framework in
-# OP-TEE core to provide drivers a common regulator interface.
+# OP-TEE core to provide drivers a common regulator interface and describe
+# the regulators dependencies using an embedded device tree.
 CFG_DRIVERS_REGULATOR ?= n
 
 # The purpose of this flag is to show a print when booting up the device that
