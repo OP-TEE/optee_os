@@ -49,4 +49,10 @@ static inline bool timeout_elapsed(uint64_t expire)
 	return barrier_read_counter_timer() > expire;
 }
 
+static inline int timeout_elapsed_us(uint64_t expire)
+{
+	long long c = (barrier_read_counter_timer() - expire) * 1000000ULL;
+
+	return (int)(c / read_cntfrq());
+}
 #endif
