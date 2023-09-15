@@ -57,22 +57,8 @@
 	defined(PLATFORM_FLAVOR_zc1751_dc2) || \
 	defined(PLATFORM_FLAVOR_zcu102) || \
 	defined(PLATFORM_FLAVOR_zcu104) || \
-	defined(PLATFORM_FLAVOR_zcu106)
-
-#define GIC_BASE		0xF9010000
-#define UART0_BASE		0xFF000000
-#define UART1_BASE		0xFF010000
-
-#define IT_UART0		53
-#define IT_UART1		54
-
-#define UART0_CLK_IN_HZ		100000000
-#define UART1_CLK_IN_HZ		100000000
-
-#define GICD_OFFSET		0
-#define GICC_OFFSET		0x10000
-
-#elif defined(PLATFORM_FLAVOR_ultra96)
+	defined(PLATFORM_FLAVOR_zcu106) || \
+	defined(PLATFORM_FLAVOR_ultra96)
 
 #define GIC_BASE		0xF9010000
 #define UART0_BASE		0xFF000000
