@@ -79,6 +79,13 @@ endif
 # Otherwise, you need to implement hw_get_random_bytes() for your platform
 CFG_WITH_SOFTWARE_PRNG ?= y
 
+# Define the maximum size, in bits, for big numbers in the TEE core (privileged
+# layer).
+# This value is an upper limit for the key size in any cryptographic algorithm
+# implemented by the TEE core.
+# Set this to a lower value to reduce the memory footprint.
+CFG_CORE_BIGNUM_MAX_BITS ?= 4096
+
 ifeq ($(CFG_WITH_PAGER),y)
 ifneq ($(CFG_CRYPTO_SHA256),y)
 $(warning Warning: Enabling CFG_CRYPTO_SHA256 [required by CFG_WITH_PAGER])
