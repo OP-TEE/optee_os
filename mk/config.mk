@@ -495,6 +495,16 @@ ifeq ($(CFG_MAP_EXT_DT_SECURE),y)
 $(call force,CFG_DT,y)
 endif
 
+# This option enables OP-TEE to support boot arguments handover via Transfer
+# List defined in Firmware Handoff specification.
+# This feature requires the support of Device Tree.
+CFG_TRANSFER_LIST ?= n
+ifeq ($(CFG_TRANSFER_LIST),y)
+$(call force,CFG_DT,y)
+$(call force,CFG_EXTERNAL_DT,y)
+$(call force,CFG_MAP_EXT_DT_SECURE,y)
+endif
+
 # Maximum size of the Device Tree Blob, has to be large enough to allow
 # editing of the supplied DTB.
 CFG_DTB_MAX_SIZE ?= 0x10000
