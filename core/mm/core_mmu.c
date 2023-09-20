@@ -759,6 +759,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 		return attr | TEE_MATTR_PRW | cached;
 	case MEM_AREA_MANIFEST_DT:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
+	case MEM_AREA_TRANSFER_LIST:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
 		/*
 		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
@@ -1434,6 +1436,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_EXT_DT:
 		case MEM_AREA_MANIFEST_DT:
+		case MEM_AREA_TRANSFER_LIST:
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
