@@ -32,6 +32,8 @@
 #include <util.h>
 #include <zlib.h>
 
+#define BOUNCE_BUFFER_SIZE		4096
+
 #define SP_MANIFEST_ATTR_READ		BIT(0)
 #define SP_MANIFEST_ATTR_WRITE		BIT(1)
 #define SP_MANIFEST_ATTR_EXEC		BIT(2)
@@ -408,10 +410,13 @@ static TEE_Result load_binary_sp(struct ts_session *s,
 				 struct user_mode_ctx *uctx)
 {
 	size_t bin_size = 0, bin_size_rounded = 0, bin_page_count = 0;
+	size_t bb_size = ROUNDUP(BOUNCE_BUFFER_SIZE, SMALL_PAGE_SIZE);
+	size_t bb_num_pages = bb_size / SMALL_PAGE_SIZE;
 	const struct ts_store_ops *store_ops = NULL;
 	struct ts_store_handle *handle = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	tee_mm_entry_t *mm = NULL;
+	struct fobj *fobj = NULL;
 	struct mobj *mobj = NULL;
 	uaddr_t base_addr = 0;
 	uint32_t vm_flags = 0;
@@ -422,6 +427,21 @@ static TEE_Result load_binary_sp(struct ts_session *s,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	DMSG("Loading raw binary format SP %pUl", &uctx->ts_ctx->uuid);
+
+	/* Initialize the bounce buffer */
+	fobj = fobj_sec_mem_alloc(bb_num_pages);
+	mobj = mobj_with_fobj_alloc(fobj, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
+	fobj_put(fobj);
+	if (!mobj)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = vm_map(uctx, &va, bb_size, TEE_MATTR_PRW, 0, mobj, 0);
+	mobj_put(mobj);
+	if (res)
+		return res;
+
+	uctx->bbuf = (uint8_t *)va;
+	uctx->bbuf_size = BOUNCE_BUFFER_SIZE;
 
 	vm_set_ctx(uctx->ts_ctx);
 
@@ -465,6 +485,7 @@ static TEE_Result load_binary_sp(struct ts_session *s,
 		goto err_free_mobj;
 
 	/* Map memory area for the SP binary */
+	va = 0;
 	res = vm_map(uctx, &va, bin_size_rounded, TEE_MATTR_URWX,
 		     vm_flags, mobj, 0);
 	if (res)
