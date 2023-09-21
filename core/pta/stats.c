@@ -3,14 +3,15 @@
  * Copyright (c) 2015, Linaro Limited
  */
 #include <compiler.h>
-#include <stdio.h>
-#include <trace.h>
 #include <kernel/pseudo_ta.h>
-#include <mm/tee_pager.h>
+#include <kernel/tee_time.h>
+#include <malloc.h>
 #include <mm/tee_mm.h>
+#include <mm/tee_pager.h>
+#include <stdio.h>
 #include <string.h>
 #include <string_ext.h>
-#include <malloc.h>
+#include <trace.h>
 
 #define TA_NAME		"stats.ta"
 
@@ -37,6 +38,16 @@
  * uint32_t    Biggest byte size which allocation succeeded
  */
 #define STATS_CMD_TA_STATS		3
+
+/*
+ * STATS_CMD_GET_TIME - Get both REE time and TEE time
+ *
+ * [out]    value[0].a        REE time as seen by OP-TEE in seconds
+ * [out]    value[0].b        REE time as seen by OP-TEE, milliseconds part
+ * [out]    value[1].a        TEE system time in seconds
+ * [out]    value[1].b        TEE system time, milliseconds part
+ */
+#define STATS_CMD_GET_TIME		4
 
 #define STATS_NB_POOLS			4
 
@@ -175,6 +186,29 @@ static TEE_Result get_user_ta_stats(uint32_t type,
 	return res;
 }
 
+static TEE_Result get_system_time(uint32_t type,
+				  TEE_Param p[TEE_NUM_PARAMS])
+{
+	TEE_Time ree_time = { };
+	TEE_Time tee_time = { };
+
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
+			    TEE_PARAM_TYPE_VALUE_OUTPUT,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE) != type)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	tee_time_get_sys_time(&tee_time);
+	tee_time_get_ree_time(&ree_time);
+
+	p[0].value.a = ree_time.seconds;
+	p[0].value.b = ree_time.millis;
+	p[1].value.a = tee_time.seconds;
+	p[1].value.b = tee_time.millis;
+
+	return TEE_SUCCESS;
+}
+
 /*
  * Trusted Application Entry Points
  */
@@ -192,6 +226,8 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_memleak_stats(ptypes, params);
 	case STATS_CMD_TA_STATS:
 		return get_user_ta_stats(ptypes, params);
+	case STATS_CMD_GET_TIME:
+		return get_system_time(ptypes, params);
 	default:
 		break;
 	}
