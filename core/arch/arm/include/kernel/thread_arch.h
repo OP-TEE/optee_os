@@ -64,6 +64,9 @@ struct thread_core_local {
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
 #endif
+#ifdef CFG_FAULT_MITIGATION
+	struct ftmn_func_arg *ftmn_arg;
+#endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_vector_table {
