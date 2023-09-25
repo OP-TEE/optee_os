@@ -119,9 +119,6 @@ class TLV():
         self.buf = bytearray()
         self.tlvs = {}
 
-    def __len__(self):
-        return TLV_INFO_SIZE + len(self.buf)
-
     def add(self, kind, payload):
         """
         Add a TLV record. Argument type is either the type scalar ID or a
