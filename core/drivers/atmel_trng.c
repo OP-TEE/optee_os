@@ -110,6 +110,7 @@ static TEE_Result trng_node_probe(const void *fdt, int node,
 
 static const struct dt_device_match atmel_trng_match_table[] = {
 	{ .compatible = "atmel,at91sam9g45-trng" },
+	{ .compatible = "microchip,sama7g5-trng" },
 	{ }
 };
 
