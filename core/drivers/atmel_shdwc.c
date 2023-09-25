@@ -14,7 +14,7 @@
 #include <kernel/thread.h>
 #include <libfdt.h>
 #include <matrix.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 #include <stdbool.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>

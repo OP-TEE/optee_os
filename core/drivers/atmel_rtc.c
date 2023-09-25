@@ -13,7 +13,7 @@
 #include <kernel/dt_driver.h>
 #include <matrix.h>
 #include <mm/core_memprot.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 
 #define RTC_VAL(reg, val)	(((val) >> RTC_## reg ## _SHIFT) & \
 				 RTC_## reg ##_MASK)

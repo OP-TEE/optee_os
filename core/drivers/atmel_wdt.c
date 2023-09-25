@@ -15,7 +15,7 @@
 #include <kernel/pm.h>
 #include <matrix.h>
 #include <mm/core_mmu.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 #include <tee_api_types.h>
 
 #define WDT_CR			0x0
