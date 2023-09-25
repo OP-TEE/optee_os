@@ -8,7 +8,7 @@
 #include <kernel/dt_driver.h>
 #include <malloc.h>
 #include <matrix.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 #include <string.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>

@@ -11,7 +11,7 @@
 #include <kernel/time_source.h>
 #include <libfdt.h>
 #include <matrix.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 #include <tee_api_defines.h>
 
 #define TCB_CHAN(chan)		((chan) * 0x40)

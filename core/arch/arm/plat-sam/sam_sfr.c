@@ -12,7 +12,7 @@
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <sam_sfr.h>
-#include <sama5d2.h>
+#include <platform_config.h>
 #include <types_ext.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SFR_BASE, CORE_MMU_PGDIR_SIZE);
