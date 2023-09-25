@@ -40,8 +40,11 @@ void __noreturn atmel_rstc_reset(void)
 		;
 }
 
+/* Non-null reference for compat data */
+static const uint8_t rstc_always_secure;
+
 static TEE_Result atmel_rstc_probe(const void *fdt, int node,
-				   const void *compat_data __unused)
+				   const void *compat_data)
 
 {
 	size_t size = 0;
@@ -49,7 +52,8 @@ static TEE_Result atmel_rstc_probe(const void *fdt, int node,
 	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	matrix_configure_periph_secure(AT91C_ID_SYS);
+	if (compat_data != &rstc_always_secure)
+		matrix_configure_periph_secure(AT91C_ID_SYS);
 
 	if (dt_map_dev(fdt, node, &rstc_base, &size, DT_MAP_AUTO) < 0)
 		return TEE_ERROR_GENERIC;
@@ -59,6 +63,10 @@ static TEE_Result atmel_rstc_probe(const void *fdt, int node,
 
 static const struct dt_device_match atmel_rstc_match_table[] = {
 	{ .compatible = "atmel,sama5d3-rstc" },
+	{
+		.compatible = "microchip,sama7g5-rstc",
+		.compat_data = &rstc_always_secure,
+	},
 	{ }
 };
 
