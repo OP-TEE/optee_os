@@ -36,7 +36,7 @@ struct clk *pmc_clk_get_by_name(struct pmc_clk *clks, unsigned int nclk,
 	unsigned int i = 0;
 
 	for (i = 0; i < nclk; i++)
-		if (strcmp(clks[i].clk->name, name) == 0)
+		if (clks[i].clk && strcmp(clks[i].clk->name, name) == 0)
 			return clks[i].clk;
 
 	return NULL;
