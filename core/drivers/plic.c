@@ -220,6 +220,8 @@ static size_t probe_max_it(vaddr_t plic_base __unused)
 
 static const struct itr_ops plic_ops = {
 	.add = plic_op_add,
+	.mask = plic_op_disable,
+	.unmask = plic_op_enable,
 	.enable = plic_op_enable,
 	.disable = plic_op_disable,
 	.raise_pi = plic_op_raise_pi,
