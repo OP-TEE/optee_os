@@ -12,6 +12,9 @@
 #include <platform_config.h>
 #include <riscv.h>
 #include <riscv_macros.S>
+#include <tee/optee_abi.h>
+#include <tee/teeabi_opteed.h>
+#include <tee/teeabi_opteed_macros.h>
 
 .section .data
 .balign 4
@@ -219,7 +222,10 @@ UNWIND(	.cantunwind)
 	wait_secondary
 
 	jal	thread_clr_boot_thread
-	j	mu_service
+
+	li	a0, TEEABI_OPTEED_RETURN_ENTRY_DONE
+	la	a1, thread_vector_table
+	j	teeabi_return_to_ree
 END_FUNC reset_primary
 
 LOCAL_FUNC reset_secondary , : , .identity_map
