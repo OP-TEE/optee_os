@@ -14,18 +14,6 @@
 #include <tee/teeabi_opteed.h>
 #include <tee/teeabi_opteed_macros.h>
 
-/*
- * Implement based on the transport method used to communicate between
- * untrusted domain and trusted domain. It could be an SBI/ECALL-based to
- * a security monitor running in M-Mode and panic or messaging-based across
- * domains where we return to a messaging callback which parses and handles
- * messages.
- */
-LOCAL_FUNC thread_return_from_nsec_call , :
-	/* Implement */
-	j	.
-END_FUNC thread_return_from_nsec_call
-
 FUNC thread_std_abi_entry , :
 	jal	__thread_std_abi_entry
 
@@ -53,7 +41,7 @@ FUNC thread_std_abi_entry , :
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
-	jal	thread_return_from_nsec_call
+	jal	teeabi_return_to_ree
 END_FUNC thread_std_abi_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
@@ -107,7 +95,7 @@ FUNC thread_rpc , :
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
-	jal	thread_return_from_nsec_call
+	jal	teeabi_return_to_ree
 .thread_rpc_return:
 	/*
 	 * Jumps here from thread_resume() above when RPC has returned.
