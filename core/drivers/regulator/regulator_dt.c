@@ -85,6 +85,29 @@ static TEE_Result get_supply_phandle(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
+TEE_Result regulator_dt_get_supply(const void *fdt, int node,
+				   const char *supply_name,
+				   struct regulator **regulator)
+{
+	struct dt_driver_provider *provider = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t supply_phandle = 0;
+
+	res = get_supply_phandle(fdt, node, supply_name, &supply_phandle);
+	if (res)
+		return res;
+
+	provider = dt_driver_get_provider_by_phandle(supply_phandle,
+						     DT_DRIVER_REGULATOR);
+	if (!provider)
+		return TEE_ERROR_DEFER_DRIVER_INIT;
+
+	*regulator = dt_driver_provider_priv_data(provider);
+	assert(*regulator);
+
+	return TEE_SUCCESS;
+}
+
 /* Helper function to register a regulator provider instance */
 static TEE_Result regulator_register_provider(const void *fdt, int node,
 					      struct regulator *regulator)

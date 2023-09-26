@@ -156,6 +156,23 @@ static inline void regulator_print_state(const char *message __unused)
 
 #if defined(CFG_DRIVERS_REGULATOR) && defined(CFG_DT)
 /*
+ * regulator_dt_get_supply() - Get a regulator supply from name and DT node
+ * @fdt: FDT to work on
+ * @node: DT node of the regulator consumer
+ * @supply_name: Name of the supply in DT property xxx-supply
+ * @regulator: Output regulator upon success
+ *
+ * Upon success, this function provides the pointer to regulator
+ * defined by DT binding property @name-supply phandle reference.
+ *
+ * This function returns TEE_ERROR_DEFER_DRIVER_INIT if supply exists but is
+ * not yet initialized.
+ */
+TEE_Result regulator_dt_get_supply(const void *fdt, int node,
+				   const char *supply_name,
+				   struct regulator **regulator);
+
+/*
  * regulator_dt_register() - Register a regulator to related to a DT node
  * @fdt: FDT to work on
  * @node: DT node of the regulator exposed by regulator driver
