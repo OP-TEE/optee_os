@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
+ * Copyright (c) 2023 Andes Technology Corporation
  * Copyright 2022 NXP
  */
 
+#include <kernel/panic.h>
 #include <riscv.h>
 #include <sbi.h>
+#include <tee/optee_abi.h>
+#include <tee/teeabi.h>
+#include <tee/teeabi_opteed.h>
+#include <tee/teeabi_opteed_macros.h>
 
 struct sbiret {
 	long error;
@@ -41,4 +47,17 @@ int sbi_boot_hart(uint32_t hart_id, paddr_t start_addr, unsigned long arg)
 	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, hart_id, start_addr, arg);
 
 	return ret.error;
+}
+
+void __noreturn __naked teeabi_return_to_ree(unsigned long arg0,
+					     unsigned long arg1,
+					     unsigned long arg2,
+					     unsigned long arg3,
+					     unsigned long arg4,
+					     unsigned long arg5)
+{
+	_sbi_ecall(SBI_EXT_TEE, 0, arg0, arg1, arg2, arg3, arg4, arg5);
+
+	/* Should not be here. */
+	panic();
 }
