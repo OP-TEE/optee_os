@@ -547,8 +547,8 @@ struct dt_descriptor *get_external_dt_desc(void)
 void init_external_dt(unsigned long phys_dt)
 {
 	struct dt_descriptor *dt = &external_dt;
-	void *fdt = NULL;
 	int ret = 0;
+	enum teecore_memtypes mtype = MEM_AREA_MAXTYPE;
 
 	if (!IS_ENABLED(CFG_EXTERNAL_DT))
 		return;
@@ -566,11 +566,22 @@ void init_external_dt(unsigned long phys_dt)
 		return;
 	}
 
-	fdt = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt, CFG_DTB_MAX_SIZE);
-	if (!fdt)
-		panic("Failed to map external DTB");
-
-	dt->blob = fdt;
+	mtype = core_mmu_get_type_by_pa(phys_dt);
+	if (mtype == MEM_AREA_MAXTYPE) {
+		/* Map the DTB if it is not yet mapped */
+		dt->blob = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt,
+						CFG_DTB_MAX_SIZE);
+		if (!dt->blob)
+			panic("Failed to map external DTB");
+	} else {
+		/* Get the DTB address if already mapped in a memory area */
+		dt->blob = phys_to_virt(phys_dt, mtype, CFG_DTB_MAX_SIZE);
+		if (!dt->blob) {
+			EMSG("Failed to get a mapped external DTB for PA %#lx",
+			     phys_dt);
+			panic();
+		}
+	}
 
 	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
@@ -579,7 +590,7 @@ void init_external_dt(unsigned long phys_dt)
 		panic();
 	}
 
-	ret = fdt_open_into(fdt, fdt, CFG_DTB_MAX_SIZE);
+	ret = fdt_open_into(dt->blob, dt->blob, CFG_DTB_MAX_SIZE);
 	if (ret < 0) {
 		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
 		panic();
@@ -600,11 +611,20 @@ void *get_external_dt(void)
 static TEE_Result release_external_dt(void)
 {
 	int ret = 0;
+	paddr_t pa_dt = 0;
 
 	if (!IS_ENABLED(CFG_EXTERNAL_DT))
 		return TEE_SUCCESS;
 
 	if (!external_dt.blob)
+		return TEE_SUCCESS;
+
+	pa_dt = virt_to_phys(external_dt.blob);
+	/*
+	 * Skip packing and un-mapping operations if the external DTB is mapped
+	 * in a different memory area
+	 */
+	if (core_mmu_get_type_by_pa(pa_dt) != MEM_AREA_EXT_DT)
 		return TEE_SUCCESS;
 
 	ret = fdt_pack(external_dt.blob);

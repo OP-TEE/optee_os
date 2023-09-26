@@ -15,6 +15,7 @@
 #include <ffa.h>
 #include <initcall.h>
 #include <inttypes.h>
+#include <io.h>
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
@@ -25,6 +26,7 @@
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
 #include <kernel/tpm.h>
+#include <kernel/transfer_list.h>
 #include <libfdt.h>
 #include <malloc.h>
 #include <memtag.h>
@@ -82,6 +84,8 @@ static void *manifest_dt __nex_bss;
 static unsigned long boot_arg_fdt __nex_bss;
 static unsigned long boot_arg_nsec_entry __nex_bss;
 static unsigned long boot_arg_pageable_part __nex_bss;
+static unsigned long boot_arg_transfer_list __nex_bss;
+static struct transfer_list_header *mapped_tl __nex_bss;
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
 static uint32_t cntfrq;
@@ -1252,13 +1256,52 @@ void __weak boot_init_primary_early(void)
 {
 	unsigned long pageable_part = 0;
 	unsigned long e = PADDR_INVALID;
+	struct transfer_list_entry *tl_e = NULL;
 
 	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
 		e = boot_arg_nsec_entry;
-	if (IS_ENABLED(CFG_WITH_PAGER))
-		pageable_part = boot_arg_pageable_part;
+
+	if (IS_ENABLED(CFG_TRANSFER_LIST) && boot_arg_transfer_list) {
+		/* map and save the TL */
+		mapped_tl = transfer_list_map(boot_arg_transfer_list);
+		if (!mapped_tl)
+			panic("Failed to map transfer list");
+		tl_e = transfer_list_find(mapped_tl, TL_TAG_OPTEE_PAGABLE_PART);
+	}
+
+	if (IS_ENABLED(CFG_WITH_PAGER)) {
+		if (IS_ENABLED(CFG_TRANSFER_LIST) && tl_e)
+			pageable_part =
+				get_le64(transfer_list_entry_data(tl_e));
+		else
+			pageable_part = boot_arg_pageable_part;
+	}
 
 	init_primary(pageable_part, e);
+}
+
+static void boot_save_transfer_list(unsigned long zero_reg,
+				    unsigned long transfer_list,
+				    unsigned long fdt)
+{
+	struct transfer_list_header *tl = (void *)transfer_list;
+	struct transfer_list_entry *tl_e = NULL;
+
+	if (zero_reg != 0)
+		panic("Incorrect transfer list register convention");
+
+	if (!IS_ALIGNED_WITH_TYPE(transfer_list, struct transfer_list_header) ||
+	    !IS_ALIGNED(transfer_list, TL_ALIGNMENT_FROM_ORDER(tl->alignment)))
+		panic("Transfer list base address is not aligned");
+
+	if (transfer_list_check_header(tl) == TL_OPS_NONE)
+		panic("Invalid transfer list");
+
+	tl_e = transfer_list_find(tl, TL_TAG_FDT);
+	if (fdt != (unsigned long)transfer_list_entry_data(tl_e))
+		panic("DT does not match to the DT entry of the TL");
+
+	boot_arg_transfer_list = transfer_list;
 }
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
@@ -1441,13 +1484,14 @@ static void get_sec_mem_from_manifest(void *fdt, paddr_t *base, size_t *size)
 	*size = num;
 }
 
-void __weak boot_save_args(unsigned long a0, unsigned long a1 __unused,
-			   unsigned long a2 __maybe_unused,
-			   unsigned long a3 __unused,
+void __weak boot_save_args(unsigned long a0, unsigned long a1,
+			   unsigned long a2, unsigned long a3,
 			   unsigned long a4 __maybe_unused)
 {
 	/*
 	 * Register use:
+	 *
+	 * Scenario A: Default arguments
 	 * a0   - CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=n:
 	 *        if non-NULL holds the TOS FW config [1] address
 	 *      - CFG_CORE_FFA=y &&
@@ -1471,7 +1515,30 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1 __unused,
 	 * here. This is also called Manifest DT, related to the Manifest DT
 	 * passed in the FF-A Boot Information Blob, but with a different
 	 * compatible string.
+
+	 * Scenario B: FW Handoff via Transfer List
+	 * Note: FF-A and non-secure entry are not yet supported with
+	 *       Transfer List
+	 * a0	- DTB address or 0 (AArch64)
+	 *	- must be 0 (AArch32)
+	 * a1	- TRANSFER_LIST_SIGNATURE | REG_CONVENTION_VER_MASK
+	 * a2	- must be 0 (AArch64)
+	 *	- DTB address or 0 (AArch32)
+	 * a3	- Transfer list base address
+	 * a4	- Not used
 	 */
+
+	if (IS_ENABLED(CFG_TRANSFER_LIST) &&
+	    a1 == (TRANSFER_LIST_SIGNATURE | REG_CONVENTION_VER_MASK)) {
+		if (IS_ENABLED(CFG_ARM64_core)) {
+			boot_save_transfer_list(a2, a3, a0);
+			boot_arg_fdt = a0;
+		} else {
+			boot_save_transfer_list(a0, a3, a2);
+			boot_arg_fdt = a2;
+		}
+		return;
+	}
 
 	if (!IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
 #if defined(CFG_DT_ADDR)
@@ -1512,3 +1579,41 @@ void __weak boot_save_args(unsigned long a0, unsigned long a1 __unused,
 		}
 	}
 }
+
+#if defined(CFG_TRANSFER_LIST)
+static TEE_Result release_transfer_list(void)
+{
+	struct dt_descriptor *dt = get_external_dt_desc();
+
+	if (!mapped_tl)
+		return TEE_SUCCESS;
+
+	if (dt) {
+		int ret = 0;
+		struct transfer_list_entry *tl_e = NULL;
+
+		/*
+		 * Pack the DTB and update the transfer list before un-mapping
+		 */
+		ret = fdt_pack(dt->blob);
+		if (ret < 0) {
+			EMSG("Failed to pack Device Tree at 0x%" PRIxPA
+			     ": error %d", virt_to_phys(dt->blob), ret);
+			panic();
+		}
+
+		tl_e = transfer_list_find(mapped_tl, TL_TAG_FDT);
+		assert(dt->blob == transfer_list_entry_data(tl_e));
+		transfer_list_set_data_size(mapped_tl, tl_e,
+					    fdt_totalsize(dt->blob));
+		dt->blob = NULL;
+	}
+
+	transfer_list_unmap_sync(mapped_tl);
+	mapped_tl = NULL;
+
+	return TEE_SUCCESS;
+}
+
+boot_final(release_transfer_list);
+#endif
