@@ -52,6 +52,14 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, PLIC_BASE, PLIC_REG_SIZE);
 
+struct plic_data {
+	vaddr_t plic_base;
+	size_t max_it;
+	struct itr_chip chip;
+};
+
+static struct plic_data plic_data __nex_bss;
+
 /*
  * We assume that each hart has M-mode and S-mode, so the contexts look like:
  * PLIC context 0 is hart 0 M-mode
@@ -219,7 +227,7 @@ static const struct itr_ops plic_ops = {
 	.set_affinity = plic_op_set_affinity,
 };
 
-void plic_init_base_addr(struct plic_data *pd, paddr_t plic_base_pa)
+static void plic_init_base_addr(struct plic_data *pd, paddr_t plic_base_pa)
 {
 	vaddr_t plic_base = 0;
 
@@ -238,13 +246,14 @@ void plic_init_base_addr(struct plic_data *pd, paddr_t plic_base_pa)
 		pd->chip.dt_get_irq = plic_dt_get_irq;
 }
 
-void plic_hart_init(struct plic_data *pd __unused)
+void plic_hart_init(void)
 {
 	/* TODO: To be called by secondary harts */
 }
 
-void plic_init(struct plic_data *pd, paddr_t plic_base_pa)
+void plic_init(paddr_t plic_base_pa)
 {
+	struct plic_data *pd = &plic_data;
 	size_t n = 0;
 
 	plic_init_base_addr(pd, plic_base_pa);
@@ -255,10 +264,13 @@ void plic_init(struct plic_data *pd, paddr_t plic_base_pa)
 	}
 
 	plic_set_threshold(pd, 0);
+
+	interrupt_main_init(&plic_data.chip);
 }
 
-void plic_it_handle(struct plic_data *pd)
+void plic_it_handle(void)
 {
+	struct plic_data *pd = &plic_data;
 	uint32_t id = plic_claim_interrupt(pd);
 
 	if (id <= pd->max_it)

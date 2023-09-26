@@ -10,7 +10,6 @@
 #include <kernel/tee_common_otp.h>
 #include <platform_config.h>
 
-static struct plic_data plic_data __nex_bss;
 static struct ns16550_data console_data __nex_bss;
 
 register_ddr(DRAM_BASE, DRAM_SIZE);
@@ -21,13 +20,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, UART0_BASE,
 #ifdef CFG_RISCV_PLIC
 void boot_primary_init_intc(void)
 {
-	plic_init(&plic_data, PLIC_BASE);
-	interrupt_main_init(&plic_data.chip);
+	plic_init(PLIC_BASE);
 }
 
 void boot_secondary_init_intc(void)
 {
-	plic_hart_init(&plic_data);
+	plic_hart_init();
 }
 #endif /* CFG_RISCV_PLIC */
 
@@ -40,5 +38,5 @@ void console_init(void)
 void interrupt_main_handler(void)
 {
 	if (IS_ENABLED(CFG_RISCV_PLIC))
-		plic_it_handle(&plic_data);
+		plic_it_handle();
 }
