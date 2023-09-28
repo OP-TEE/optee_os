@@ -46,9 +46,7 @@ static void lock_regulator(struct regulator *regulator)
 
 static void unlock_regulator(struct regulator *regulator)
 {
-	if (IS_ENABLED(CFG_ARM32_core) &&
-	    !IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW) &&
-	    thread_get_id_may_fail() == THREAD_ID_INVALID) {
+	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
 		/* Path for PM sequences when with local Monitor */
 		return;
 	}
@@ -211,7 +209,7 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 
 	regulator->cur_uv = level_uv;
 
-	return res;
+	return TEE_SUCCESS;
 }
 
 TEE_Result regulator_register(struct regulator *regulator)
