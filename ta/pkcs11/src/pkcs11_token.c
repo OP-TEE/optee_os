@@ -1192,12 +1192,14 @@ static enum pkcs11_rc check_user_pin(struct pkcs11_session *session,
 	struct token_persistent_main *db = token->db_main;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 
+	if (!(db->flags & PKCS11_CKFT_USER_PIN_INITIALIZED))
+		return PKCS11_CKR_USER_PIN_NOT_INITIALIZED;
+
 	if (IS_ENABLED(CFG_PKCS11_TA_AUTH_TEE_IDENTITY) &&
 	    db->flags & PKCS11_CKFT_PROTECTED_AUTHENTICATION_PATH)
 		return verify_identity_auth(token, PKCS11_CKU_USER);
 
-	if (!db->user_pin_salt)
-		return PKCS11_CKR_USER_PIN_NOT_INITIALIZED;
+	assert(db->user_pin_salt);
 
 	if (db->flags & PKCS11_CKFT_USER_PIN_LOCKED)
 		return PKCS11_CKR_PIN_LOCKED;
