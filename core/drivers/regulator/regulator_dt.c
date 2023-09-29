@@ -17,6 +17,23 @@
 #include <util.h>
 
 /*
+ * struct regulator_property - DT binding boolean property names
+ * @name: Property name in the regulator DT node
+ * @flag: Mask of the related REGULATOR_* boolean property
+ */
+struct regulator_property {
+	const char *name;
+	unsigned int flag;
+};
+
+static struct regulator_property flag_prop[] = {
+	{
+		.name = "regulator-always-on",
+		.flag = REGULATOR_ALWAYS_ON,
+	},
+};
+
+/*
  * struct pending_regu - Regulators waiting for their supply to be ready
  *
  * @fdt: DT to work on
@@ -218,6 +235,7 @@ static TEE_Result add_to_pending_list(const void *fdt, int node,
 static TEE_Result parse_dt(const void *fdt, int node,
 			   struct regulator *regulator)
 {
+	struct regulator_property *fp = NULL;
 	const fdt32_t *cuint = NULL;
 	int len = 0;
 
@@ -233,6 +251,10 @@ static TEE_Result parse_dt(const void *fdt, int node,
 		if (!regulator->name)
 			return TEE_ERROR_OUT_OF_MEMORY;
 	}
+
+	for (fp = flag_prop; fp < (flag_prop + ARRAY_SIZE(flag_prop)); fp++)
+		if (fdt_getprop(fdt, node, fp->name, NULL))
+			regulator->flags |= fp->flag;
 
 	cuint = fdt_getprop(fdt, node, "regulator-min-microvolt", &len);
 	if (cuint && len == sizeof(*cuint))
