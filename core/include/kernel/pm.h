@@ -30,6 +30,12 @@
 #define PM_HINT_PLATFORM_STATE_MASK	GENMASK_32(31, 16)
 #define PM_HINT_PLATFORM_STATE_SHIFT	U(16)
 
+#define PM_HINT_STATE(_x)		((_x) & ~PM_HINT_PLATFORM_STATE_MASK)
+#define PM_HINT_PLATFORM_STATE(_x) \
+	(((_x) & PM_HINT_PLATFORM_STATE_MASK) >> PM_HINT_PLATFORM_STATE_SHIFT)
+
+#define PM_HINT_IS_STATE(_x, _name) ((_x) & PM_HINT_ ## _name ## _STATE)
+
 /*
  * PM_OP_SUSPEND: platform is suspending to a target low power state
  * PM_OP_RESUME: platform is resuming from low power state
