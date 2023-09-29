@@ -102,6 +102,7 @@ $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_STM32_SHARED_IO,y)
+$(call force,CFG_REGULATOR_FIXED,y)
 
 ifeq ($(CFG_STM32MP13),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
