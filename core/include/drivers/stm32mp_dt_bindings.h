@@ -35,9 +35,12 @@
 #endif
 
 #ifdef CFG_STM32MP21
+#include <dt-bindings/clock/st,stm32mp21-rcc.h>
+#include <dt-bindings/clock/stm32mp21-clksrc.h>
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp21-rifsc.h>
 #include <dt-bindings/firewall/stm32mp25-risaf.h>
+#include <dt-bindings/reset/st,stm32mp21-rcc.h>
 #include <dt-bindings/tamper/st,stm32mp21-tamp.h>
 #endif
 
