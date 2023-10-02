@@ -47,7 +47,8 @@ void boot_init_primary_early(unsigned long pageable_part,
 			     unsigned long nsec_entry);
 void boot_init_primary_late(unsigned long fdt, unsigned long manifest);
 void boot_init_memtag(void);
-void boot_save_boot_info(void *boot_info);
+void boot_save_args(unsigned long a0, unsigned long a1, unsigned long a2,
+		    unsigned long a3, unsigned long a4);
 
 void __panic_at_smc_return(void) __noreturn;
 

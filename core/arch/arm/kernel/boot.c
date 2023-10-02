@@ -78,9 +78,10 @@ uint32_t sem_cpu_sync[CFG_TEE_CORE_NB_CORE];
 DECLARE_KEEP_PAGER(sem_cpu_sync);
 #endif
 
-#ifdef CFG_CORE_FFA
 static void *manifest_dt __nex_bss;
-#endif
+static unsigned long boot_arg_fdt __nex_bss;
+static unsigned long boot_arg_nsec_entry __nex_bss;
+static unsigned long boot_arg_pageable_part __nex_bss;
 
 #ifdef CFG_SECONDARY_INIT_CNTFRQ
 static uint32_t cntfrq;
@@ -973,8 +974,9 @@ void *get_manifest_dt(void)
 	return manifest_dt;
 }
 
-static void init_manifest_dt(unsigned long pa)
+static void reinit_manifest_dt(void)
 {
+	paddr_t pa = (unsigned long)manifest_dt;
 	void *fdt = NULL;
 	int ret = 0;
 
@@ -1018,7 +1020,7 @@ void *get_manifest_dt(void)
 	return NULL;
 }
 
-static void init_manifest_dt(unsigned long pa __unused)
+static void reinit_manifest_dt(void)
 {
 }
 #endif /*CFG_CORE_FFA*/
@@ -1170,17 +1172,11 @@ static bool cpu_nmfi_enabled(void)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
  */
-void __weak boot_init_primary_late(unsigned long fdt,
-				   unsigned long manifest)
+void __weak boot_init_primary_late(unsigned long fdt __unused,
+				   unsigned long manifest __unused)
 {
-	init_external_dt(fdt);
-	/*
-	 * With an SPMC at S-EL2 or EL3 we have saved the physical fdt
-	 * address from the passed boot info.
-	 */
-	if (IS_ENABLED(CFG_CORE_SEL2_SPMC) || IS_ENABLED(CFG_CORE_EL3_SPMC))
-		manifest = (unsigned long)get_manifest_dt();
-	init_manifest_dt(manifest);
+	init_external_dt(boot_arg_fdt);
+	reinit_manifest_dt();
 #ifdef CFG_CORE_SEL1_SPMC
 	tpm_map_log_area(get_manifest_dt());
 #else
@@ -1253,13 +1249,14 @@ static void init_secondary_helper(unsigned long nsec_entry)
  * the unpaged area so that it lies in the init area.
  */
 void __weak boot_init_primary_early(unsigned long pageable_part,
-				    unsigned long nsec_entry __maybe_unused)
+				    unsigned long nsec_entry __unused)
 {
 	unsigned long e = PADDR_INVALID;
 
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-	e = nsec_entry;
-#endif
+	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
+		e = boot_arg_nsec_entry;
+	if (IS_ENABLED(CFG_WITH_PAGER))
+		pageable_part = boot_arg_pageable_part;
 
 	init_primary(pageable_part, e);
 }
@@ -1328,6 +1325,11 @@ unsigned long __weak get_aslr_seed(void *fdt)
 	int offs = 0;
 	int len = 0;
 
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		fdt = NULL;
+	else
+		fdt = (void *)boot_arg_fdt;
+
 	if (!fdt) {
 		DMSG("No fdt");
 		goto err;
@@ -1365,7 +1367,6 @@ unsigned long __weak get_aslr_seed(void *fdt __unused)
 #endif /*!CFG_DT*/
 #endif /*CFG_CORE_ASLR*/
 
-#if defined(CFG_CORE_FFA)
 static void *get_fdt_from_boot_info(struct ffa_boot_info_header_1_1 *hdr)
 {
 	struct ffa_boot_info_1_1 *desc = NULL;
@@ -1441,16 +1442,74 @@ static void get_sec_mem_from_manifest(void *fdt, paddr_t *base, size_t *size)
 	*size = num;
 }
 
-void __weak boot_save_boot_info(void *boot_info)
+void __weak boot_save_args(unsigned long a0, unsigned long a1 __unused,
+			   unsigned long a2 __maybe_unused,
+			   unsigned long a3 __unused,
+			   unsigned long a4 __maybe_unused)
 {
-	paddr_t base = 0;
-	size_t size = 0;
+	/*
+	 * Register use:
+	 * a0   - CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=n:
+	 *        if non-NULL holds the TOS FW config [1] address
+	 *      - CFG_CORE_FFA=y &&
+		  (CFG_CORE_SEL2_SPMC=y || CFG_CORE_EL3_SPMC=y):
+	 *        address of FF-A Boot Information Blob
+	 *      - CFG_CORE_FFA=n:
+	 *        if non-NULL holds the pagable part address
+	 * a1	- CFG_WITH_ARM_TRUSTED_FW=n (Armv7):
+	 *	  Armv7 standard bootarg #1 (kept track of in entry_a32.S)
+	 * a2   - CFG_CORE_SEL2_SPMC=n:
+	 *        if non-NULL holds the system DTB address
+	 *	- CFG_WITH_ARM_TRUSTED_FW=n (Armv7):
+	 *	  Armv7 standard bootarg #2 (system DTB address, kept track
+	 *	  of in entry_a32.S)
+	 * a3	- Not used
+	 * a4	- CFG_WITH_ARM_TRUSTED_FW=n:
+	 *	  Non-secure entry address
+	 *
+	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
+	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
+	 * here. This is also called Manifest DT, related to the Manifest DT
+	 * passed in the FF-A Boot Information Blob, but with a different
+	 * compatible string.
+	 */
 
-	manifest_dt = get_fdt_from_boot_info(boot_info);
-	if (IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
-	    IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
-		get_sec_mem_from_manifest(manifest_dt, &base, &size);
-		core_mmu_set_secure_memory(base, size);
+	if (!IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+#if defined(CFG_DT_ADDR)
+		boot_arg_fdt = CFG_DT_ADDR;
+#else
+		boot_arg_fdt = a2;
+#endif
+	}
+
+	if (IS_ENABLED(CFG_CORE_FFA)) {
+		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) ||
+		    IS_ENABLED(CFG_CORE_EL3_SPMC))
+			manifest_dt = get_fdt_from_boot_info((void *)a0);
+		else
+			manifest_dt = (void *)a0;
+		if (IS_ENABLED(CFG_CORE_SEL2_SPMC) &&
+		    IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE)) {
+			paddr_t base = 0;
+			size_t size = 0;
+
+			get_sec_mem_from_manifest(manifest_dt, &base, &size);
+			core_mmu_set_secure_memory(base, size);
+		}
+	} else {
+		if (IS_ENABLED(CFG_WITH_PAGER)) {
+#if defined(CFG_PAGEABLE_ADDR)
+			boot_arg_pageable_part = CFG_PAGEABLE_ADDR;
+#else
+			boot_arg_pageable_part = a0;
+#endif
+		}
+		if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW)) {
+#if defined(CFG_NS_ENTRY_ADDR)
+			boot_arg_nsec_entry = CFG_NS_ENTRY_ADDR;
+#else
+			boot_arg_nsec_entry = a4;
+#endif
+		}
 	}
 }
-#endif /*CFG_CORE_FFA*/
