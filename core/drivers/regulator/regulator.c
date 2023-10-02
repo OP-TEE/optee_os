@@ -108,9 +108,6 @@ TEE_Result regulator_enable(struct regulator *regulator)
 	assert(regulator);
 	FMSG("%s", regulator_name(regulator));
 
-	if (regulator_is_always_on(regulator))
-		return TEE_SUCCESS;
-
 	return regulator_refcnt_enable(regulator);
 }
 
@@ -155,9 +152,6 @@ TEE_Result regulator_disable(struct regulator *regulator)
 {
 	assert(regulator);
 	FMSG("%s", regulator_name(regulator));
-
-	if (regulator_is_always_on(regulator))
-		return TEE_SUCCESS;
 
 	return regulator_refcnt_disable(regulator);
 }
@@ -258,7 +252,7 @@ void regulator_print_state(const char *message __maybe_unused)
 	DMSG("name     use\ten\tuV\tmin\tmax\tsupply");
 
 	SLIST_FOREACH(regulator, &regulator_device_list, link)
-		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%#x\t%s\n",
+		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%s\n",
 		     regulator->name, regulator->refcount,
 		     regulator_is_enabled(regulator),
 		     regulator_get_voltage(regulator),
