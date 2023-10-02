@@ -108,6 +108,9 @@ TEE_Result regulator_enable(struct regulator *regulator)
 	assert(regulator);
 	FMSG("%s", regulator_name(regulator));
 
+	if (regulator_is_always_on(regulator))
+		return TEE_SUCCESS;
+
 	return regulator_refcnt_enable(regulator);
 }
 
@@ -152,6 +155,9 @@ TEE_Result regulator_disable(struct regulator *regulator)
 {
 	assert(regulator);
 	FMSG("%s", regulator_name(regulator));
+
+	if (regulator_is_always_on(regulator))
+		return TEE_SUCCESS;
 
 	return regulator_refcnt_disable(regulator);
 }
@@ -213,7 +219,8 @@ TEE_Result regulator_register(struct regulator *regulator)
 	int max_uv = 0;
 	int uv = 0;
 
-	if (!regulator || !regulator->ops)
+	if (!regulator || !regulator->ops ||
+	    regulator->flags & ~REGULATOR_FLAGS_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	regulator_get_range(regulator, &min_uv, &max_uv);
@@ -236,6 +243,13 @@ TEE_Result regulator_register(struct regulator *regulator)
 			return res;
 	}
 
+	/* Unbalanced enable refcount to keep always-on regulators enabled */
+	if (regulator_is_always_on(regulator)) {
+		res = regulator_refcnt_enable(regulator);
+		if (res)
+			return res;
+	}
+
 	SLIST_INSERT_HEAD(&regulator_device_list, regulator, link);
 
 	return TEE_SUCCESS;
@@ -249,14 +263,14 @@ void regulator_print_state(const char *message __maybe_unused)
 	struct regulator *regulator = NULL;
 
 	DMSG("Regulator state: %s", message);
-	DMSG("name     use\ten\tuV\tmin\tmax\tsupply");
+	DMSG("name     use\ten\tuV\tmin\tmax\tflags\tsupply");
 
 	SLIST_FOREACH(regulator, &regulator_device_list, link)
-		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%s\n",
+		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%#x\t%s\n",
 		     regulator->name, regulator->refcount,
 		     regulator_is_enabled(regulator),
 		     regulator_get_voltage(regulator),
-		     regulator->min_uv, regulator->max_uv,
+		     regulator->min_uv, regulator->max_uv, regulator->flags,
 		     regulator->supply ? regulator_name(regulator->supply) :
 		     "<none>");
 }

@@ -12,6 +12,14 @@
 #include <tee_api_types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <util.h>
+
+/* Regulator property flags: related to device tree binding properties */
+
+/* Regulator should never be disabled. DT property: regulator-always-on */
+#define REGULATOR_ALWAYS_ON	BIT(0)
+
+#define REGULATOR_FLAGS_MASK	REGULATOR_ALWAYS_ON
 
 struct regulator_ops;
 
@@ -24,6 +32,7 @@ struct regulator_ops;
  * @min_uv: Min possible voltage level in microvolt (uV)
  * @max_uv: Max possible voltage level in microvolt (uV)
  * @cur_uv: Current voltage level in microvolt (uV)
+ * @flags: REGULATOR_* property flags
  * @refcount: Regulator enable request reference counter
  * @lock: Mutex for concurrent access protection
  * @link: Link in initialized regulator list
@@ -38,6 +47,7 @@ struct regulator {
 	int max_uv;
 	/* Fields internal to regulator framework */
 	int cur_uv;
+	unsigned int flags;
 	unsigned int refcount;
 	struct mutex lock;	/* Concurrent access protection */
 	SLIST_ENTRY(regulator) link;
@@ -132,6 +142,15 @@ static inline void regulator_print_state(const char *message __unused)
 static inline const char *regulator_name(struct regulator *regulator)
 {
 	return regulator->name;
+}
+
+/*
+ * regulator_is_always_on() - Return the state of REGULATOR_ALWAYS_ON flag
+ * @regulator: Regulator reference
+ */
+static inline bool regulator_is_always_on(struct regulator *regulator)
+{
+	return regulator->flags & REGULATOR_ALWAYS_ON;
 }
 
 /*
