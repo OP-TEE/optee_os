@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2023 NXP
  *
  */
 
@@ -9,6 +9,7 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <mm/core_memprot.h>
 
 struct csu_setting {
@@ -97,7 +98,7 @@ static void rngb_configure(vaddr_t csu_base)
 	io_mask32(csu_base + csu_index * 4, 0x330000, 0xFF0000);
 }
 
-static TEE_Result csu_init(void)
+static TEE_Result csu_configure(void)
 {
 	vaddr_t csu_base;
 	vaddr_t offset;
@@ -149,6 +150,24 @@ static TEE_Result csu_init(void)
 		io_write32(csu_base + CSU_SA, csu_config->sa->access_value);
 		io_setbits32(csu_base + CSU_SA, csu_config->sa->lock_value);
 	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
+pm_enter_resume(enum pm_op op, uint32_t pm_hint __unused,
+		const struct pm_callback_handle *pm_handle __unused)
+{
+	if (op == PM_OP_RESUME)
+		csu_configure();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result csu_init(void)
+{
+	csu_configure();
+	register_pm_driver_cb(pm_enter_resume, NULL, "imx-csu");
 
 	return TEE_SUCCESS;
 }
