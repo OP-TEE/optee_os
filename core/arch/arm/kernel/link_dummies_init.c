@@ -7,7 +7,9 @@
 #include <mm/core_mmu.h>
 
 void __section(".text.dummy.boot_save_boot_info")
-boot_save_boot_info(void *boot_info __unused)
+boot_save_args(unsigned long a0 __unused, unsigned long a1 __unused,
+	       unsigned long a2 __unused, unsigned long a3 __unused,
+	       unsigned long a4 __unused)
 {
 }
 
