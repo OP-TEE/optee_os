@@ -24,6 +24,9 @@
 #ifndef __noreturn
 #define __noreturn	__attribute__((__noreturn__))
 #endif
+#ifndef __naked
+#define __naked		__attribute__((naked))
+#endif
 #define __pure		__attribute__((pure))
 #define __aligned(x)	__attribute__((aligned(x)))
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
