@@ -308,6 +308,15 @@ R:	Neal Liu <neal_liu@aspeedtech.com> [@Neal-liu]
 S:	Maintained
 F:	core/arch/arm/plat-aspeed/
 
+RISC-V
+R:	Marouene Boubakri <marouene.boubakri@nxp.com> [@maroueneboubakri]
+S:	Maintained
+F:	core/arch/riscv/
+F:	lib/libutee/arch/riscv/
+F:	lib/libutils/ext/arch/riscv/
+F:	lib/libutils/isoc/arch/riscv/
+F:	ta/arch/riscv/
+
 THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]
 M:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
