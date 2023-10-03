@@ -1175,10 +1175,10 @@ void __weak boot_init_primary_late(unsigned long fdt,
 {
 	init_external_dt(fdt);
 	/*
-	 * With an SPMC at S-EL2 we have saved the physical fdt address
-	 * from the passed boot info.
+	 * With an SPMC at S-EL2 or EL3 we have saved the physical fdt
+	 * address from the passed boot info.
 	 */
-	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC) || IS_ENABLED(CFG_CORE_EL3_SPMC))
 		manifest = (unsigned long)get_manifest_dt();
 	init_manifest_dt(manifest);
 #ifdef CFG_CORE_SEL1_SPMC
