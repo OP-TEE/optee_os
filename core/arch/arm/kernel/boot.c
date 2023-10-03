@@ -1248,9 +1248,9 @@ static void init_secondary_helper(unsigned long nsec_entry)
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area so that it lies in the init area.
  */
-void __weak boot_init_primary_early(unsigned long pageable_part,
-				    unsigned long nsec_entry __unused)
+void __weak boot_init_primary_early(void)
 {
+	unsigned long pageable_part = 0;
 	unsigned long e = PADDR_INVALID;
 
 	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
