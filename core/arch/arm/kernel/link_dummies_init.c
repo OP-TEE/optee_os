@@ -26,7 +26,6 @@ core_init_mmu_map(unsigned long seed __unused,
 }
 
 void __section(".text.dummy.boot_init_primary_early")
-boot_init_primary_early(unsigned long pageable_part __unused,
-			unsigned long nsec_entry __unused)
+boot_init_primary_early(void)
 {
 }

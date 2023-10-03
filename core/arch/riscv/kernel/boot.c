@@ -124,8 +124,7 @@ __weak void boot_secondary_init_intc(void)
 {
 }
 
-void boot_init_primary_early(unsigned long pageable_part __unused,
-			     unsigned long nsec_entry __unused)
+void boot_init_primary_early(void)
 {
 	unsigned long e = PADDR_INVALID;
 
