@@ -1318,16 +1318,15 @@ struct ns_entry_context *boot_core_hpen(void)
 
 #if defined(CFG_CORE_ASLR)
 #if defined(CFG_DT)
-unsigned long __weak get_aslr_seed(void *fdt)
+unsigned long __weak get_aslr_seed(void)
 {
+	void *fdt = NULL;
 	int rc = 0;
 	const uint64_t *seed = NULL;
 	int offs = 0;
 	int len = 0;
 
-	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
-		fdt = NULL;
-	else
+	if (!IS_ENABLED(CFG_CORE_SEL2_SPMC))
 		fdt = (void *)boot_arg_fdt;
 
 	if (!fdt) {
@@ -1359,7 +1358,7 @@ err:
 	return plat_get_aslr_seed();
 }
 #else /*!CFG_DT*/
-unsigned long __weak get_aslr_seed(void *fdt __unused)
+unsigned long __weak get_aslr_seed(void)
 {
 	/* Try platform implementation */
 	return plat_get_aslr_seed();
