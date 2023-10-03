@@ -14,7 +14,7 @@ boot_save_args(unsigned long a0 __unused, unsigned long a1 __unused,
 }
 
 unsigned long __section(".text.dummy.get_aslr_seed")
-get_aslr_seed(void *fdt __unused)
+get_aslr_seed(void)
 {
 	return 0;
 }

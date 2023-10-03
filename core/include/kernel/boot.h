@@ -97,10 +97,9 @@ void *get_manifest_dt(void);
 
 /*
  * get_aslr_seed() - return a random seed for core ASLR
- * @fdt:	Pointer to a device tree if CFG_DT_ADDR=y
  *
  * This function has a __weak default implementation.
  */
-unsigned long get_aslr_seed(void *fdt);
+unsigned long get_aslr_seed(void);
 
 #endif /* __KERNEL_BOOT_H */
