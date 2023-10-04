@@ -361,7 +361,7 @@ static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,
 
 static bool is_from_user(unsigned long status)
 {
-	return status & CSR_XSTATUS_SPP;
+	return (status & CSR_XSTATUS_SPP) == 0;
 }
 
 #ifdef CFG_SYSCALL_FTRACE
