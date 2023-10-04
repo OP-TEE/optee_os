@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2021, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
+#include <drivers/i2c.h>
 #include <drivers/stm32_i2c.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stpmic1.h>
@@ -44,16 +45,6 @@ bool stm32mp_with_pmic(void)
 	return pmic_status > 0;
 }
 
-static int dt_get_pmic_node(void *fdt)
-{
-	static int node = -FDT_ERR_BADOFFSET;
-
-	if (node == -FDT_ERR_BADOFFSET)
-		node = fdt_node_offset_by_compatible(fdt, -1, "st,stpmic1");
-
-	return node;
-}
-
 static void init_pmic_state(const void *fdt, int pmic_node)
 {
 	pmic_status = fdt_get_status(fdt, pmic_node);
@@ -84,7 +75,7 @@ static struct regu_bo_config *regu_bo_config;
 static size_t regu_bo_count;
 
 /* boot-on mandatory? if so: caller panic() on error status */
-static void dt_get_regu_boot_on_config(void *fdt, const char *regu_name,
+static void dt_get_regu_boot_on_config(const void *fdt, const char *regu_name,
 				       int regu_node)
 {
 	const fdt32_t *cuint = NULL;
@@ -218,7 +209,7 @@ static unsigned int regu_lp_state2idx(const char *name)
 	panic();
 }
 
-static void dt_get_regu_low_power_config(void *fdt, const char *regu_name,
+static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
 					 int regu_node, const char *lp_state)
 {
 	unsigned int state_idx = regu_lp_state2idx(lp_state);
@@ -392,23 +383,13 @@ static void register_nsec_regu(const char *name_ref)
 	assert(stm32mp_nsec_can_access_pmic_regu(name_ref));
 }
 
-static void parse_regulator_fdt_nodes(void)
+static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 {
-	int pmic_node = 0;
 	int regulators_node = 0;
 	int regu_node = 0;
-	void *fdt = NULL;
 
 	/* Expected called once */
 	assert(!regu_bo_config && !regu_bo_count);
-
-	fdt = get_embedded_dt();
-	if (!fdt)
-		panic();
-
-	pmic_node = dt_get_pmic_node(fdt);
-	if (pmic_node < 0)
-		panic();
 
 	regulators_node = fdt_subnode_offset(fdt, pmic_node, "regulators");
 	if (regulators_node < 0)
@@ -441,99 +422,35 @@ static void parse_regulator_fdt_nodes(void)
 }
 
 /*
- * Get PMIC and its I2C bus configuration from the device tree.
- * Return 0 on success, 1 if no PMIC node found and a negative value otherwise
- */
-static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
-			      struct pinctrl_state **pinctrl_active,
-			      struct pinctrl_state **pinctrl_sleep,
-			      struct stm32_i2c_init_s *init)
-{
-	int pmic_node = 0;
-	int i2c_node = 0;
-	void *fdt = NULL;
-	const fdt32_t *cuint = NULL;
-
-	fdt = get_embedded_dt();
-	if (!fdt)
-		return -FDT_ERR_NOTFOUND;
-
-	pmic_node = dt_get_pmic_node(fdt);
-	if (pmic_node < 0)
-		return 1;
-
-	init_pmic_state(fdt, pmic_node);
-	if (pmic_status == DT_STATUS_DISABLED)
-		return 1;
-
-	cuint = fdt_getprop(fdt, pmic_node, "reg", NULL);
-	if (!cuint)
-		return -FDT_ERR_NOTFOUND;
-
-	pmic_i2c_addr = fdt32_to_cpu(*cuint) << 1;
-	if (pmic_i2c_addr > UINT16_MAX)
-		return -FDT_ERR_BADVALUE;
-
-	i2c_node = fdt_parent_offset(fdt, pmic_node);
-	if (i2c_node < 0)
-		return -FDT_ERR_NOTFOUND;
-
-	fdt_fill_device_info(fdt, i2c_info, i2c_node);
-	if (!i2c_info->reg)
-		return -FDT_ERR_NOTFOUND;
-
-	if (stm32_i2c_get_setup_from_fdt(fdt, i2c_node, init, pinctrl_active,
-					 pinctrl_sleep))
-		panic();
-
-	return 0;
-}
-
-/*
  * PMIC and resource initialization
  */
 
-/* Return true if PMIC is available, false if not found, panics on errors */
-static bool initialize_pmic_i2c(void)
+static void initialize_pmic_i2c(const void *fdt, int pmic_node)
 {
-	int ret = 0;
-	struct dt_node_info i2c_info = { };
-	struct i2c_handle_s *i2c = i2c_handle;
-	struct stm32_i2c_init_s i2c_init = { };
+	const fdt32_t *cuint = NULL;
 
-	if (dt_pmic_i2c_config(&i2c_info, &i2c->pinctrl, &i2c->pinctrl_sleep,
-			       &i2c_init))
-		panic();
-
-	/* Initialize PMIC I2C */
-	i2c->base.pa = i2c_info.reg;
-	i2c->base.va = (vaddr_t)phys_to_virt(i2c->base.pa, MEM_AREA_IO_SEC, 1);
-	assert(i2c->base.va);
-	i2c->dt_status = i2c_info.status;
-	i2c->clock = i2c_init.clock;
-	i2c->i2c_state = I2C_STATE_RESET;
-	i2c_init.own_address1 = pmic_i2c_addr;
-	i2c_init.analog_filter = true;
-	i2c_init.digital_filter_coef = 0;
-
-	stm32mp_get_pmic();
-
-	ret = stm32_i2c_init(i2c, &i2c_init);
-	if (ret) {
-		EMSG("I2C init 0x%" PRIxPA ": %d", i2c_info.reg, ret);
+	cuint = fdt_getprop(fdt, pmic_node, "reg", NULL);
+	if (!cuint) {
+		EMSG("PMIC configuration failed on reg property");
 		panic();
 	}
 
-	if (!stm32_i2c_is_device_ready(i2c, pmic_i2c_addr,
+	pmic_i2c_addr = fdt32_to_cpu(*cuint) << 1;
+	if (pmic_i2c_addr > UINT16_MAX) {
+		EMSG("PMIC configuration failed on i2c address translation");
+		panic();
+	}
+
+	stm32mp_get_pmic();
+
+	if (!stm32_i2c_is_device_ready(i2c_handle, pmic_i2c_addr,
 				       PMIC_I2C_TRIALS,
 				       PMIC_I2C_TIMEOUT_BUSY_MS))
 		panic();
 
-	stpmic1_bind_i2c(i2c, pmic_i2c_addr);
+	stpmic1_bind_i2c(i2c_handle, pmic_i2c_addr);
 
 	stm32mp_put_pmic();
-
-	return true;
 }
 
 /*
@@ -587,19 +504,13 @@ static void register_secure_pmic(void)
 	register_pm_driver_cb(pmic_pm, NULL, "stm32mp1-pmic");
 }
 
-static TEE_Result initialize_pmic(void)
+static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 {
 	unsigned long pmic_version = 0;
 
-	i2c_handle = calloc(1, sizeof(*i2c_handle));
-	if (!i2c_handle)
-		panic();
+	init_pmic_state(fdt, pmic_node);
 
-	if (!initialize_pmic_i2c()) {
-		DMSG("No PMIC");
-		register_non_secure_pmic();
-		return TEE_SUCCESS;
-	}
+	initialize_pmic_i2c(fdt, pmic_node);
 
 	stm32mp_get_pmic();
 
@@ -614,10 +525,43 @@ static TEE_Result initialize_pmic(void)
 	else
 		register_non_secure_pmic();
 
-	parse_regulator_fdt_nodes();
+	parse_regulator_fdt_nodes(fdt, pmic_node);
 
 	stm32mp_put_pmic();
 
 	return TEE_SUCCESS;
 }
-driver_init(initialize_pmic);
+
+static TEE_Result stm32_pmic_probe(const void *fdt, int node,
+				   const void *compat_data __unused)
+{
+	struct stm32_i2c_dev *stm32_i2c_dev = NULL;
+	struct i2c_dev *i2c_dev = NULL;
+	TEE_Result res = TEE_SUCCESS;
+
+	res = i2c_dt_get_dev(fdt, node, &i2c_dev);
+	if (res)
+		return res;
+
+	stm32_i2c_dev = container_of(i2c_dev, struct stm32_i2c_dev, i2c_dev);
+	i2c_handle = stm32_i2c_dev->handle;
+
+	res = initialize_pmic(fdt, node);
+	if (res) {
+		DMSG("Unexpectedly failed to get I2C bus: %#"PRIx32, res);
+		panic();
+	}
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match stm32_pmic_match_table[] = {
+	{ .compatible = "st,stpmic1" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_pmic_dt_driver) = {
+	.name = "st,stpmic1",
+	.match_table = stm32_pmic_match_table,
+	.probe = stm32_pmic_probe,
+};
