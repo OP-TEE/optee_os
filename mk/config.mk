@@ -120,8 +120,8 @@ CFG_OS_REV_REPORTS_GIT_SHA1 ?= y
 # we might be outside of a Git environment, or the tree may have been cloned
 # with limited depth not including any tag, so there is really no guarantee
 # that TEE_IMPL_VERSION contains the major and minor revision numbers.
-CFG_OPTEE_REVISION_MAJOR ?= 3
-CFG_OPTEE_REVISION_MINOR ?= 22
+CFG_OPTEE_REVISION_MAJOR ?= 4
+CFG_OPTEE_REVISION_MINOR ?= 0
 CFG_OPTEE_REVISION_EXTRA ?=
 
 # Trusted OS implementation version
