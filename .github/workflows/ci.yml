@@ -235,6 +235,7 @@ jobs:
           _make PLATFORM=rockchip-rk322x
           _make PLATFORM=rockchip-rk3399
           _make PLATFORM=sam
+          _make PLATFORM=sam-sama5d27_som1_ek
           _make PLATFORM=sam-sama5d27_wlsom1_ek
           _make PLATFORM=marvell-armada7k8k
           _make PLATFORM=marvell-armada3700
