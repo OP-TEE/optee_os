@@ -34,13 +34,14 @@
 /* Expect a single PMIC instance */
 static struct i2c_handle_s i2c_handle;
 static uint32_t pmic_i2c_addr;
+static int pmic_status = -1;
 
 /* CPU voltage supplier if found */
 static char cpu_supply_name[PMIC_REGU_SUPPLY_NAME_LEN];
 
 bool stm32mp_with_pmic(void)
 {
-	return i2c_handle.dt_status & DT_STATUS_OK_SEC;
+	return pmic_status > 0;
 }
 
 static int dt_get_pmic_node(void *fdt)
@@ -53,25 +54,14 @@ static int dt_get_pmic_node(void *fdt)
 	return node;
 }
 
-static int dt_pmic_status(void)
+static void init_pmic_state(const void *fdt, int pmic_node)
 {
-	void *fdt = get_embedded_dt();
-
-	if (fdt) {
-		int node = dt_get_pmic_node(fdt);
-
-		if (node > 0)
-			return fdt_get_status(fdt, node);
-	}
-
-	return -1;
+	pmic_status = fdt_get_status(fdt, pmic_node);
 }
 
 static bool dt_pmic_is_secure(void)
 {
-	int status = dt_pmic_status();
-
-	return status == DT_STATUS_OK_SEC &&
+	return stm32mp_with_pmic() &&
 	       i2c_handle.dt_status == DT_STATUS_OK_SEC;
 }
 
@@ -470,6 +460,10 @@ static int dt_pmic_i2c_config(struct dt_node_info *i2c_info,
 
 	pmic_node = dt_get_pmic_node(fdt);
 	if (pmic_node < 0)
+		return 1;
+
+	init_pmic_state(fdt, pmic_node);
+	if (pmic_status == DT_STATUS_DISABLED)
 		return 1;
 
 	cuint = fdt_getprop(fdt, pmic_node, "reg", NULL);
