@@ -67,11 +67,6 @@ static int dt_pmic_status(void)
 	return -1;
 }
 
-int stm32mp_dt_pmic_status(void)
-{
-	return dt_pmic_status();
-}
-
 static bool dt_pmic_is_secure(void)
 {
 	int status = dt_pmic_status();
