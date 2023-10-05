@@ -141,6 +141,10 @@ DEFINES
 		offsetof(struct thread_core_local, flags));
 	DEFINE(THREAD_CORE_LOCAL_ABT_STACK_VA_END,
 		offsetof(struct thread_core_local, abt_stack_va_end));
+#if defined(ARM64) && defined(CFG_CORE_FFA)
+	DEFINE(THREAD_CORE_LOCAL_DIRECT_RESP_FID,
+	       offsetof(struct thread_core_local, direct_resp_fid));
+#endif
 
 	DEFINE(STACK_TMP_GUARD, STACK_CANARY_SIZE / 2 + STACK_TMP_OFFS);
 
