@@ -11,6 +11,7 @@
 #include <drivers/gic.h>
 #include <keep.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
@@ -656,3 +657,64 @@ static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 
 	gic_it_set_cpu_mask(gd, it, cpu_mask);
 }
+
+#ifdef CFG_DT
+/* Callback for "interrupts" and "interrupts-extended" DT node properties */
+static TEE_Result dt_get_gic_chip_cb(struct dt_pargs *arg, void *priv_data,
+				     struct itr_desc *itr_desc)
+{
+	int itr_num = DT_INFO_INVALID_INTERRUPT;
+	struct itr_chip *chip = priv_data;
+	uint32_t phandle_args[2] = { };
+	uint32_t type = 0;
+	uint32_t prio = 0;
+
+	assert(arg && itr_desc);
+
+	/*
+	 * gic_dt_get_irq() expects phandle arguments passed are still in DT
+	 * format (big-endian) whereas struct dt_pargs carries converted
+	 * formats. Therefore swap again phandle arguments. gic_dt_get_irq()
+	 * consumes only the 2 first arguments.
+	 */
+	if (arg->args_count < 2)
+		return TEE_ERROR_GENERIC;
+	phandle_args[0] = cpu_to_fdt32(arg->args[0]);
+	phandle_args[1] = cpu_to_fdt32(arg->args[1]);
+
+	itr_num = gic_dt_get_irq((const void *)phandle_args, 2, &type, &prio);
+	if (itr_num == DT_INFO_INVALID_INTERRUPT)
+		return TEE_ERROR_GENERIC;
+
+	gic_op_add(chip, itr_num, type, prio);
+
+	itr_desc->chip = chip;
+	itr_desc->itr_num = itr_num;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result gic_probe(const void *fdt, int offs, const void *cd __unused)
+{
+	if (interrupt_register_provider(fdt, offs, dt_get_gic_chip_cb,
+					&gic_data.chip))
+		panic();
+
+	return TEE_SUCCESS;
+}
+
+static const struct dt_device_match gic_match_table[] = {
+	{ .compatible = "arm,cortex-a15-gic" },
+	{ .compatible = "arm,cortex-a7-gic" },
+	{ .compatible = "arm,cortex-a5-gic" },
+	{ .compatible = "arm,cortex-a9-gic" },
+	{ .compatible = "arm,gic-400" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(gic_dt_driver) = {
+	.name = "gic",
+	.match_table = gic_match_table,
+	.probe = gic_probe,
+};
+#endif /*CFG_DT*/
