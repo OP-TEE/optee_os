@@ -7,8 +7,10 @@
 #define DRIVERS_STM32_I2C_H
 
 #include <drivers/clk.h>
+#include <drivers/i2c.h>
 #include <drivers/pinctrl.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,8 +29,7 @@
 #define I2C_FAST_PLUS_RATE	U(1000000)
 
 /*
- * Initialization configuration structure for the STM32 I2C bus.
- * Refer to the SoC Reference Manual for more details on configuration items.
+ * struct stm32_i2c_init_s - STM32 I2C configuration data
  *
  * @dt_status: non-secure/secure status read from DT
  * @pbase: I2C interface base address
@@ -67,8 +68,8 @@ struct stm32_i2c_init_s {
 };
 
 enum i2c_state_e {
-	I2C_STATE_RESET,		/* Not yet initialized */
-	I2C_STATE_READY,		/* Ready for use */
+	I2C_STATE_RESET,	/* Not yet initialized */
+	I2C_STATE_READY,	/* Ready for use */
 	I2C_STATE_BUSY,		/* Internal process ongoing */
 	I2C_STATE_BUSY_TX,	/* Data Transmission ongoing */
 	I2C_STATE_BUSY_RX,	/* Data Reception ongoing */
@@ -77,7 +78,7 @@ enum i2c_state_e {
 
 enum i2c_mode_e {
 	I2C_MODE_NONE,		/* No active communication */
-	I2C_MODE_MASTER,		/* Communication in Master Mode */
+	I2C_MODE_MASTER,	/* Communication in Master Mode */
 	I2C_MODE_SLAVE,		/* Communication in Slave Mode */
 	I2C_MODE_MEM,		/* Communication in Memory Mode */
 };
@@ -126,6 +127,18 @@ struct i2c_handle_s {
 	struct i2c_cfg sec_cfg;
 	struct pinctrl_state *pinctrl;
 	struct pinctrl_state *pinctrl_sleep;
+};
+
+/*
+ * struct stm32_i2c_dev - Bus consumer device over an STM32 I2C bus
+ * @i2c_dev: I2C consumer instance
+ * @i2c_ctrl: I2C bus control operation
+ * @handle: Handle on a single STM32 I2C bus interface
+ */
+struct stm32_i2c_dev {
+	struct i2c_dev i2c_dev;
+	struct i2c_ctrl i2c_ctrl;
+	struct i2c_handle_s *handle;
 };
 
 /* STM32 specific defines */
