@@ -134,13 +134,13 @@ DEFINES
 
 	/* struct thread_core_local */
 	DEFINE(THREAD_CORE_LOCAL_TMP_STACK_VA_END,
-		offsetof(struct thread_core_local, tmp_stack_va_end));
+	       offsetof(struct thread_core_local, tmp_stack_va_end));
 	DEFINE(THREAD_CORE_LOCAL_CURR_THREAD,
-		offsetof(struct thread_core_local, curr_thread));
+	       offsetof(struct thread_core_local, curr_thread));
 	DEFINE(THREAD_CORE_LOCAL_FLAGS,
-		offsetof(struct thread_core_local, flags));
+	       offsetof(struct thread_core_local, flags));
 	DEFINE(THREAD_CORE_LOCAL_ABT_STACK_VA_END,
-		offsetof(struct thread_core_local, abt_stack_va_end));
+	       offsetof(struct thread_core_local, abt_stack_va_end));
 #if defined(ARM64) && defined(CFG_CORE_FFA)
 	DEFINE(THREAD_CORE_LOCAL_DIRECT_RESP_FID,
 	       offsetof(struct thread_core_local, direct_resp_fid));
