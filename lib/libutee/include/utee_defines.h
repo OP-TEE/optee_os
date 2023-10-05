@@ -302,12 +302,18 @@ static inline size_t __tee_alg_get_digest_size(uint32_t algo)
 #endif
 
 /* If we we're on a big endian platform we'll have to update these */
-#define TEE_U64_FROM_BIG_ENDIAN(x)  TEE_U64_BSWAP(x)
-#define TEE_U32_FROM_BIG_ENDIAN(x)  TEE_U32_BSWAP(x)
-#define TEE_U16_FROM_BIG_ENDIAN(x)  TEE_U16_BSWAP(x)
-#define TEE_U64_TO_BIG_ENDIAN(x)    TEE_U64_BSWAP(x)
-#define TEE_U32_TO_BIG_ENDIAN(x)    TEE_U32_BSWAP(x)
-#define TEE_U16_TO_BIG_ENDIAN(x)    TEE_U16_BSWAP(x)
+#define TEE_U64_FROM_LITTLE_ENDIAN(x)  ((uint64_t)(x))
+#define TEE_U32_FROM_LITTLE_ENDIAN(x)  ((uint32_t)(x))
+#define TEE_U16_FROM_LITTLE_ENDIAN(x)  ((uint16_t)(x))
+#define TEE_U64_TO_LITTLE_ENDIAN(x)    ((uint64_t)(x))
+#define TEE_U32_TO_LITTLE_ENDIAN(x)    ((uint32_t)(x))
+#define TEE_U16_TO_LITTLE_ENDIAN(x)    ((uint16_t)(x))
+#define TEE_U64_FROM_BIG_ENDIAN(x)     TEE_U64_BSWAP(x)
+#define TEE_U32_FROM_BIG_ENDIAN(x)     TEE_U32_BSWAP(x)
+#define TEE_U16_FROM_BIG_ENDIAN(x)     TEE_U16_BSWAP(x)
+#define TEE_U64_TO_BIG_ENDIAN(x)       TEE_U64_BSWAP(x)
+#define TEE_U32_TO_BIG_ENDIAN(x)       TEE_U32_BSWAP(x)
+#define TEE_U16_TO_BIG_ENDIAN(x)       TEE_U16_BSWAP(x)
 
 #define TEE_TIME_MILLIS_BASE    1000
 
