@@ -144,6 +144,14 @@ struct stm32_gpio_bank {
 	STAILQ_ENTRY(stm32_gpio_bank) link;
 };
 
+/*
+ * Compatibility information of supported banks
+ * @gpioz True if bank is a GPIOZ bank
+ */
+struct bank_compat {
+	bool gpioz;
+};
+
 static unsigned int gpio_lock;
 
 static STAILQ_HEAD(, stm32_gpio_bank) bank_list =
@@ -596,10 +604,11 @@ static bool bank_is_registered(const void *fdt, int node)
 
 /* Get GPIO bank information from the DT */
 static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
-				     const void *compat_data __unused,
+				     const void *compat_data,
 				     int range_offset,
 				     struct stm32_gpio_bank **out_bank)
 {
+	const struct bank_compat *compat = compat_data;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct stm32_gpio_bank *bank = NULL;
 	const fdt32_t *cuint = NULL;
@@ -654,6 +663,9 @@ static TEE_Result dt_stm32_gpio_bank(const void *fdt, int node,
 						  fdt32_to_cpu(*(cuint + 3))));
 		cuint += 4;
 	}
+
+	if (compat->gpioz)
+		stm32mp_register_gpioz_pin_count(bank->ngpios);
 
 	*out_bank = bank;
 	return TEE_SUCCESS;
@@ -936,9 +948,19 @@ static TEE_Result stm32_pinctrl_probe(const void *fdt, int node,
 }
 
 static const struct dt_device_match stm32_pinctrl_match_table[] = {
-	{ .compatible = "st,stm32mp135-pinctrl" },
-	{ .compatible = "st,stm32mp157-pinctrl" },
-	{ .compatible = "st,stm32mp157-z-pinctrl" },
+	{
+		.compatible = "st,stm32mp135-pinctrl",
+		.compat_data = &(struct bank_compat){ },
+
+	},
+	{
+		.compatible = "st,stm32mp157-pinctrl",
+		.compat_data = &(struct bank_compat){ },
+	},
+	{
+		.compatible = "st,stm32mp157-z-pinctrl",
+		.compat_data = &(struct bank_compat){ .gpioz = true, },
+	},
 	{ }
 };
 
