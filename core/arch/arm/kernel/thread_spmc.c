@@ -23,6 +23,7 @@
 #include <optee_ffa.h>
 #include <optee_msg.h>
 #include <optee_rpc_cmd.h>
+#include <sm/optee_smc.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <tee/entry_std.h>
@@ -179,6 +180,7 @@ static void handle_features(struct thread_smc_args *args)
 	case FFA_SPM_ID_GET:
 	case FFA_MEM_FRAG_TX:
 	case FFA_MEM_RECLAIM:
+	case FFA_MSG_SEND_DIRECT_REQ_64:
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 	case FFA_INTERRUPT:
 	case FFA_PARTITION_INFO_GET:
@@ -580,11 +582,17 @@ out:
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
-static void handle_yielding_call(struct thread_smc_args *args)
+static void handle_yielding_call(struct thread_smc_args *args,
+				 uint32_t direct_resp_fid)
 {
 	TEE_Result res = 0;
 
 	thread_check_canaries();
+
+#ifdef ARM64
+	/* Saving this for an eventual RPC */
+	thread_get_core_local()->direct_resp_fid = direct_resp_fid;
+#endif
 
 	if (args->a3 == OPTEE_FFA_YIELDING_CALL_RESUME) {
 		/* Note connection to struct thread_rpc_arg::ret */
@@ -596,8 +604,8 @@ static void handle_yielding_call(struct thread_smc_args *args)
 				     args->a6, args->a7);
 		res = TEE_ERROR_BUSY;
 	}
-	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-		      swap_src_dst(args->a1), 0, res, 0, 0);
+	spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1),
+		      0, res, 0, 0);
 }
 
 static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
@@ -619,30 +627,27 @@ static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
 	}
 }
 
-static void handle_blocking_call(struct thread_smc_args *args)
+static void handle_blocking_call(struct thread_smc_args *args,
+				 uint32_t direct_resp_fid)
 {
 	switch (args->a3) {
 	case OPTEE_FFA_GET_API_VERSION:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      OPTEE_FFA_VERSION_MAJOR, OPTEE_FFA_VERSION_MINOR,
 			      0);
 		break;
 	case OPTEE_FFA_GET_OS_VERSION:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      CFG_OPTEE_REVISION_MAJOR,
 			      CFG_OPTEE_REVISION_MINOR, TEE_IMPL_GIT_SHA1);
 		break;
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0, 0,
-			      THREAD_RPC_MAX_NUM_PARAMS,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
+			      0, THREAD_RPC_MAX_NUM_PARAMS,
 			      OPTEE_FFA_SEC_CAP_ARG_OFFSET);
 		break;
 	case OPTEE_FFA_UNREGISTER_SHM:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      handle_unregister_shm(args->a4, args->a5), 0, 0);
 		break;
 	default:
@@ -653,7 +658,8 @@ static void handle_blocking_call(struct thread_smc_args *args)
 }
 
 static void handle_framework_direct_request(struct thread_smc_args *args,
-					    struct ffa_rxtx *rxtx)
+					    struct ffa_rxtx *rxtx,
+					    uint32_t direct_resp_fid)
 {
 	uint32_t w0 = FFA_ERROR;
 	uint32_t w1 = FFA_PARAM_MBZ;
@@ -666,7 +672,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 			uint16_t guest_id = args->a5;
 			TEE_Result res = virt_guest_created(guest_id);
 
-			w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+			w0 = direct_resp_fid;
 			w1 = swap_src_dst(args->a1);
 			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_CREATED;
 			if (res == TEE_SUCCESS)
@@ -682,7 +688,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 			uint16_t guest_id = args->a5;
 			TEE_Result res = virt_guest_destroyed(guest_id);
 
-			w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+			w0 = direct_resp_fid;
 			w1 = swap_src_dst(args->a1);
 			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_DESTROYED;
 			if (res == TEE_SUCCESS)
@@ -692,7 +698,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 		}
 		break;
 	case FFA_MSG_VERSION_REQ:
-		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+		w0 = direct_resp_fid;
 		w1 = swap_src_dst(args->a1);
 		w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_VERSION_RESP;
 		w3 = spmc_exchange_version(args->a3, rxtx);
@@ -706,29 +712,35 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 static void handle_direct_request(struct thread_smc_args *args,
 				  struct ffa_rxtx *rxtx)
 {
+	uint32_t direct_resp_fid = 0;
+
 	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
 	    FFA_DST(args->a1) != my_endpoint_id) {
 		spmc_sp_start_thread(args);
 		return;
 	}
 
+	if (OPTEE_SMC_IS_64(args->a0))
+		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_64;
+	else
+		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_32;
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
-		handle_framework_direct_request(args, rxtx);
+		handle_framework_direct_request(args, rxtx, direct_resp_fid);
 		return;
 	}
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
 	    virt_set_guest(get_sender_id(args->a1))) {
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      TEE_ERROR_ITEM_NOT_FOUND, 0, 0);
 		return;
 	}
 
 	if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
-		handle_yielding_call(args);
+		handle_yielding_call(args, direct_resp_fid);
 	else
-		handle_blocking_call(args);
+		handle_blocking_call(args, direct_resp_fid);
 
 	/*
 	 * Note that handle_yielding_call() typically only returns if a

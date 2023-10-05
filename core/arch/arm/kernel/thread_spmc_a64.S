@@ -42,7 +42,9 @@ END_FUNC thread_ffa_msg_wait
 
 	/* Caller provides x1, x3-x7 params */
 LOCAL_FUNC ffa_msg_send_direct_resp , :
-	mov_imm	x0, FFA_MSG_SEND_DIRECT_RESP_32		/* FID */
+	msr	spsel, #1
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_DIRECT_RESP_FID]
+	msr	spsel, #0
 	mov	x2, #FFA_PARAM_MBZ			/* RES MBZ */
 
 .ffa_msg_loop:
@@ -149,14 +151,12 @@ FUNC thread_rpc_spsr , :
 	adr	x2, .thread_rpc_return
 	mov	w0, #THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	bl	thread_state_suspend
-	mov	w7, w0		/* Supply thread index */
-	ldr	w0, =FFA_MSG_SEND_DIRECT_RESP_32
 	mov	w1, w21
-	mov	w2, #FFA_PARAM_MBZ
 	mov	w3, #0		/* Error code = 0 */
 	mov	w4, w22
 	mov	w5, w23
 	mov	w6, w24
+	mov	w7, w0		/* Supply thread index */
 	b	ffa_msg_send_direct_resp
 
 .thread_rpc_return:
@@ -203,7 +203,6 @@ FUNC thread_foreign_intr_exit , :
 	and     w2, w2, #THREAD_FLAGS_FFA_ONLY
 	cbnz	w2, thread_ffa_interrupt
 #endif /* CFG_SECURE_PARTITION */
-	mov	x2, #FFA_PARAM_MBZ
 	mov	w3, #FFA_PARAM_MBZ
 	mov	w4, #OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT
 	mov	x5, #FFA_PARAM_MBZ
