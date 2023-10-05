@@ -144,22 +144,12 @@ static unsigned int get_gpioz_nbpin(void)
 	return gpioz_nbpin;
 }
 
-static TEE_Result set_gpioz_nbpin_from_dt(void)
+void stm32mp_register_gpioz_pin_count(size_t count)
 {
-	void *fdt = get_embedded_dt();
-	int node = fdt_node_offset_by_compatible(fdt, -1,
-						 "st,stm32mp157-z-pinctrl");
-	int count = stm32_get_gpio_count(fdt, node, GPIO_BANK_Z);
-
-	if (count < 0 || count > STM32MP1_GPIOZ_PIN_MAX_COUNT)
-		panic();
+	assert(gpioz_nbpin == -1);
 
 	gpioz_nbpin = count;
-
-	return TEE_SUCCESS;
 }
-/* Get GPIOZ pin count before drivers initialization, hence service_init() */
-service_init(set_gpioz_nbpin_from_dt);
 
 static void register_periph(enum stm32mp_shres id, enum shres_state state)
 {

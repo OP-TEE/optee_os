@@ -283,6 +283,9 @@ bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 /* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
 void stm32mp_register_clock_parents_secure(unsigned long clock_id);
 
+/* Register number of pins in the GPIOZ bank */
+void stm32mp_register_gpioz_pin_count(size_t count);
+
 #else /* CFG_STM32MP1_SHARED_RESOURCES */
 
 static inline void stm32mp_register_secure_periph(enum stm32mp_shres id
@@ -344,5 +347,8 @@ static inline void stm32mp_register_clock_parents_secure(unsigned long clock_id
 {
 }
 
+static inline void stm32mp_register_gpioz_pin_count(size_t count __unused)
+{
+}
 #endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/
