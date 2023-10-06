@@ -125,7 +125,7 @@ static TEE_Result invoke_command(void *sess_ctx __unused, uint32_t cmd_id,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
 	switch (cmd_id) {
-	case PTA_IMX_MP_CMD_DEK_GENERATE:
+	case PTA_IMX_DEK_BLOB_CMD_GENERATE:
 		return cmd_dek_generate(param_types, params);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
