@@ -9,9 +9,9 @@
 #include <drivers/stpmic1_regulator.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
-#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
@@ -32,7 +32,7 @@
 #define PMIC_REGU_COUNT			14
 
 /* Expect a single PMIC instance */
-static struct i2c_handle_s i2c_handle;
+static struct i2c_handle_s *i2c_handle;
 static uint32_t pmic_i2c_addr;
 static int pmic_status = -1;
 
@@ -62,7 +62,7 @@ static void init_pmic_state(const void *fdt, int pmic_node)
 static bool dt_pmic_is_secure(void)
 {
 	return stm32mp_with_pmic() &&
-	       i2c_handle.dt_status == DT_STATUS_OK_SEC;
+	       i2c_handle->dt_status == DT_STATUS_OK_SEC;
 }
 
 /*
@@ -498,7 +498,7 @@ static bool initialize_pmic_i2c(void)
 {
 	int ret = 0;
 	struct dt_node_info i2c_info = { };
-	struct i2c_handle_s *i2c = &i2c_handle;
+	struct i2c_handle_s *i2c = i2c_handle;
 	struct stm32_i2c_init_s i2c_init = { };
 
 	if (dt_pmic_i2c_config(&i2c_info, &i2c->pinctrl, &i2c->pinctrl_sleep,
@@ -545,9 +545,9 @@ static TEE_Result pmic_pm(enum pm_op op, uint32_t pm_hint __unused,
 			  const struct pm_callback_handle *pm_handle __unused)
 {
 	if (op == PM_OP_SUSPEND)
-		stm32_i2c_suspend(&i2c_handle);
+		stm32_i2c_suspend(i2c_handle);
 	else
-		stm32_i2c_resume(&i2c_handle);
+		stm32_i2c_resume(i2c_handle);
 
 	return TEE_SUCCESS;
 }
@@ -556,44 +556,44 @@ DECLARE_KEEP_PAGER(pmic_pm);
 /* stm32mp_get/put_pmic allows secure atomic sequences to use non secure PMIC */
 void stm32mp_get_pmic(void)
 {
-	stm32_i2c_resume(&i2c_handle);
+	stm32_i2c_resume(i2c_handle);
 }
 
 void stm32mp_put_pmic(void)
 {
-	stm32_i2c_suspend(&i2c_handle);
+	stm32_i2c_suspend(i2c_handle);
 }
 
 static void register_non_secure_pmic(void)
 {
-	size_t __maybe_unused n = 0;
-
 	/* Allow this function to be called when STPMIC1 not used */
-	if (!i2c_handle.base.pa)
+	if (!i2c_handle->base.pa)
 		return;
 
-	stm32mp_register_non_secure_pinctrl(i2c_handle.pinctrl);
-	if (i2c_handle.pinctrl_sleep)
-		stm32mp_register_non_secure_pinctrl(i2c_handle.pinctrl_sleep);
+	stm32mp_register_non_secure_pinctrl(i2c_handle->pinctrl);
+	if (i2c_handle->pinctrl_sleep)
+		stm32mp_register_non_secure_pinctrl(i2c_handle->pinctrl_sleep);
 
-	stm32mp_register_non_secure_periph_iomem(i2c_handle.base.pa);
+	stm32mp_register_non_secure_periph_iomem(i2c_handle->base.pa);
 }
 
 static void register_secure_pmic(void)
 {
-	size_t __maybe_unused n = 0;
+	stm32mp_register_secure_pinctrl(i2c_handle->pinctrl);
+	if (i2c_handle->pinctrl_sleep)
+		stm32mp_register_secure_pinctrl(i2c_handle->pinctrl_sleep);
 
-	stm32mp_register_secure_pinctrl(i2c_handle.pinctrl);
-	if (i2c_handle.pinctrl_sleep)
-		stm32mp_register_secure_pinctrl(i2c_handle.pinctrl_sleep);
-
-	stm32mp_register_secure_periph_iomem(i2c_handle.base.pa);
+	stm32mp_register_secure_periph_iomem(i2c_handle->base.pa);
 	register_pm_driver_cb(pmic_pm, NULL, "stm32mp1-pmic");
 }
 
 static TEE_Result initialize_pmic(void)
 {
 	unsigned long pmic_version = 0;
+
+	i2c_handle = calloc(1, sizeof(*i2c_handle));
+	if (!i2c_handle)
+		panic();
 
 	if (!initialize_pmic_i2c()) {
 		DMSG("No PMIC");
