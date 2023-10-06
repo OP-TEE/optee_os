@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021-2022, Arm Limited
+ * Copyright (c) 2021-2023, Arm Limited
  */
 #include <assert.h>
 #include <bench.h>
@@ -768,7 +768,6 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 {
 	uint64_t handle = reg_pair_to_64(args->a2, args->a1);
 	uint32_t flags = args->a3;
-	uint32_t endpoint = 0;
 	struct sp_mem *smem = NULL;
 	struct sp_mem_receiver *receiver  = NULL;
 	uint32_t exceptions = 0;
@@ -777,12 +776,12 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 	if (!smem)
 		return false;
 
-	if (caller_sp)
-		endpoint = caller_sp->endpoint_id;
-
-	/* Make sure that the caller is the owner of the share */
-	if (smem->sender_id != endpoint) {
-		ffa_set_error(args, FFA_DENIED);
+	/*
+	 * If the caller is an SP, make sure that it is the owner of the share.
+	 * If the call comes from NWd this is ensured by the hypervisor.
+	 */
+	if (caller_sp && caller_sp->endpoint_id != smem->sender_id) {
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return true;
 	}
 
