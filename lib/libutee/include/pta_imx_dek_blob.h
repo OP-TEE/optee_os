@@ -11,6 +11,6 @@
 		{0x84, 0x37, 0xf2, 0xf5, 0x35, 0xc0, 0xbd, 0x92} }
 
 /* HAB DEK Blob encapsulation */
-#define PTA_IMX_MP_CMD_DEK_GENERATE	0
+#define PTA_IMX_DEK_BLOB_CMD_GENERATE 0
 
 #endif /* __PTA_IMX_DEK_BLOB_H__ */
