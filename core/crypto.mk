@@ -234,7 +234,9 @@ _CFG_CORE_LTC_SHA384_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
 _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
-_CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
+_CFG_CORE_LTC_AES := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM \
+					     CFG_CRYPTO_AES)
+_CFG_CORE_LTC_AES_ACCEL := $(CFG_CORE_CRYPTO_AES_ACCEL)
 _CFG_CORE_LTC_X25519 := $(CFG_CRYPTO_X25519)
 _CFG_CORE_LTC_ED25519 := $(CFG_CRYPTO_ED25519)
 _CFG_CORE_LTC_SHA3_224 := $(CFG_CRYPTO_SHA3_224)
@@ -249,6 +251,12 @@ endif
 # libtomcrypt (LTC) specifics, phase #2
 ###############################################################
 
+_CFG_CORE_LTC_MD5_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_MD5_DESC \
+						  _CFG_CORE_LTC_MD5)
+_CFG_CORE_LTC_SHA1_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA1_DESC \
+						   _CFG_CORE_LTC_SHA1)
+_CFG_CORE_LTC_SHA224_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA224_DESC \
+						     _CFG_CORE_LTC_SHA224)
 _CFG_CORE_LTC_SHA256_DESC := $(call cfg-one-enabled, _CFG_CORE_LTC_SHA256_DESC \
 						     _CFG_CORE_LTC_SHA224 \
 						     _CFG_CORE_LTC_SHA256)

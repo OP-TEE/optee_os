@@ -13,50 +13,6 @@
 #include <mbedtls/platform_util.h>
 #include <string.h>
 
-TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
-				     void *enc_key, size_t enc_keylen,
-				     unsigned int *rounds)
-{
-#if defined(MBEDTLS_AES_ALT)
-	return crypto_accel_aes_expand_keys(key, key_len, enc_key, NULL,
-					    enc_keylen, rounds);
-#else
-	mbedtls_aes_context ctx;
-
-	memset(&ctx, 0, sizeof(ctx));
-	mbedtls_aes_init(&ctx);
-	if (mbedtls_aes_setkey_enc(&ctx, key, key_len * 8) != 0)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (enc_keylen > sizeof(ctx.buf))
-		return TEE_ERROR_BAD_PARAMETERS;
-	memcpy(enc_key, ctx.buf, enc_keylen);
-	*rounds = ctx.nr;
-	mbedtls_aes_free(&ctx);
-	return TEE_SUCCESS;
-#endif
-}
-
-void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __maybe_unused,
-			  unsigned int rounds, const void *src, void *dst)
-{
-#if defined(MBEDTLS_AES_ALT)
-	crypto_accel_aes_ecb_enc(dst, src, enc_key, rounds, 1);
-#else
-	mbedtls_aes_context ctx;
-
-	memset(&ctx, 0, sizeof(ctx));
-	mbedtls_aes_init(&ctx);
-	if (enc_keylen > sizeof(ctx.buf))
-		panic();
-	memcpy(ctx.buf, enc_key, enc_keylen);
-	ctx.rk = ctx.buf;
-	ctx.nr = rounds;
-	mbedtls_aes_encrypt(&ctx, src, dst);
-	mbedtls_aes_free(&ctx);
-#endif
-}
-
 #if defined(MBEDTLS_AES_ALT)
 void mbedtls_aes_init(mbedtls_aes_context *ctx)
 {
