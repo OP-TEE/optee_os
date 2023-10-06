@@ -33,6 +33,8 @@
 #include <io.h>
 #include <types_ext.h>
 
+#define NS16550_UART_REG_SIZE	0x1000
+
 #define IO_WIDTH_U8		0
 #define IO_WIDTH_U32		1
 
