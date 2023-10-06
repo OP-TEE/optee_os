@@ -889,14 +889,15 @@ static int rng_read(void *ignored __unused, unsigned char *buf, size_t blen)
 }
 
 int32_t TEE_BigIntIsProbablePrime(const TEE_BigInt *op,
-				  uint32_t confidenceLevel __unused)
+				  uint32_t confidenceLevel)
 {
 	int rc;
 	mbedtls_mpi mpi_op;
 
 	get_mpi(&mpi_op, op);
 
-	rc = mbedtls_mpi_is_prime(&mpi_op, rng_read, NULL);
+	rc = mbedtls_mpi_is_prime_ext(&mpi_op, MAX(confidenceLevel, 80U),
+				      rng_read, NULL);
 
 	mbedtls_mpi_free(&mpi_op);
 
