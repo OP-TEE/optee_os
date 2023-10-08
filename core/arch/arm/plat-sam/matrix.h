@@ -31,13 +31,13 @@
 
 #include <tee_api_types.h>
 
-extern void matrix_write_protect_enable(unsigned int matrix_base);
-extern void matrix_write_protect_disable(unsigned int matrix_base);
-extern void matrix_configure_slave_security(unsigned int matrix_base,
-				unsigned int slave,
-				unsigned int srtop_setting,
-				unsigned int srsplit_setting,
-				unsigned int ssr_setting);
+void matrix_write_protect_enable(unsigned int matrix_base);
+void matrix_write_protect_disable(unsigned int matrix_base);
+void matrix_configure_slave_security(unsigned int matrix_base,
+				     unsigned int slave,
+				     unsigned int srtop_setting,
+				     unsigned int srsplit_setting,
+				     unsigned int ssr_setting);
 
 int matrix_configure_periph_non_secure(unsigned int *peri_id_array,
 				       unsigned int size);
