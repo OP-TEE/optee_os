@@ -346,6 +346,25 @@ static inline TEE_Result interrupt_add_handler(struct itr_handler *hdl)
 }
 
 /*
+ * interrupt_create_handler() - Allocate/register an interrupt callback handler
+ * @itr_chip Interrupt chip obtained from dt_get_interrupt_by_*()
+ * @itr_num Interrupt number obtained from dt_get_interrupt_by_*()
+ * @callback Callback handler function
+ * @priv Private dat to pssa to @callback
+ * @flags INTERRUPT_FLAGS_* or 0
+ * @out_hdl Output allocated and registered handler or NULL
+ *
+ * This function  differs from interrupt_add_handler() in that the
+ * interrupt is not reconfigured. interrupt_create_handler() expects
+ * @itr_desc was obtained from a call to dt_get_interrupt_by_index()
+ * or dt_get_interrupt_by_name(). That call configured the interrupt.
+ */
+TEE_Result interrupt_create_handler(struct itr_chip *itr_chip, size_t itr_num,
+				    itr_handler_t callback, void *priv,
+				    uint32_t flags,
+				    struct itr_handler **out_hdl);
+
+/*
  * interrupt_add_handler_with_chip() - Register an interrupt handler providing
  *	the interrupt chip reference in specific argument @chip.
  * @chip	Interrupt controller
