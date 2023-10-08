@@ -104,8 +104,9 @@ TEE_Result interrupt_configure(struct itr_chip *chip, size_t itr_num,
 	return TEE_SUCCESS;
 }
 
-TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
-					   uint32_t type, uint32_t prio)
+static TEE_Result add_configure_handler(struct itr_handler *hdl,
+					uint32_t type, uint32_t prio,
+					bool configure)
 {
 	struct itr_handler *h = NULL;
 
@@ -122,9 +123,48 @@ TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
 		}
 	}
 
-	interrupt_configure(hdl->chip, hdl->it, type, prio);
+	if (configure)
+		interrupt_configure(hdl->chip, hdl->it, type, prio);
 
 	SLIST_INSERT_HEAD(&hdl->chip->handlers, hdl, link);
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result interrupt_add_configure_handler(struct itr_handler *hdl,
+					   uint32_t type, uint32_t prio)
+{
+	return add_configure_handler(hdl, type, prio, true /* configure */);
+}
+
+TEE_Result interrupt_create_handler(struct itr_chip *itr_chip, size_t itr_num,
+				    itr_handler_t callback, void *priv,
+				    uint32_t flags,
+				    struct itr_handler **out_hdl)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct itr_handler *itr_hdl = NULL;
+
+	itr_hdl = calloc(1, sizeof(*itr_hdl));
+	if (!itr_hdl)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	*itr_hdl = (struct itr_handler){
+		.chip = itr_chip,
+		.it = itr_num,
+		.flags = flags,
+		.handler = callback,
+		.data = priv,
+	};
+
+	res = add_configure_handler(itr_hdl, 0, 0, false /* configure */);
+	if (res) {
+		free(itr_hdl);
+		return res;
+	}
+
+	if (out_hdl)
+		*out_hdl = itr_hdl;
 
 	return TEE_SUCCESS;
 }
