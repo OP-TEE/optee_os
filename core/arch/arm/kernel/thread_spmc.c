@@ -1340,7 +1340,11 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
 		interrupt_main_handler();
-		spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
+		if (IS_ENABLED(CFG_CORE_SEL1_SPMC))
+			spmc_set_args(args, FFA_NORMAL_WORLD_RESUME, 0, 0, 0,
+				      0, 0);
+		else
+			spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
 		break;
 #ifdef ARM64
 	case FFA_MSG_SEND_DIRECT_REQ_64:
