@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <tee_api_defines_extensions.h>
 #include <util.h>
 
 /*
