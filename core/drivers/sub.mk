@@ -77,6 +77,7 @@ srcs-$(CFG_VERSAL_PUF) += versal_puf.c
 srcs-$(CFG_VERSAL_HUK) += versal_huk.c
 srcs-$(CFG_CBMEM_CONSOLE) += cbmem_console.c
 srcs-$(CFG_RISCV_PLIC) += plic.c
+srcs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisi_trng.c
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
 subdirs-$(CFG_DRIVERS_CLK) += clk
