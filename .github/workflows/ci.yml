@@ -427,6 +427,4 @@ jobs:
           ln -s ${WD} ${TOP}/optee_os
           cd ${TOP}/build
 
-          # Without this line, the following one fails with "ld: cannot find -lteec" when building acipher-rs
-          make -j$(nproc)
           make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust
