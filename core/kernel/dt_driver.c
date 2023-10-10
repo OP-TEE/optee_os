@@ -264,7 +264,7 @@ static TEE_Result device_from_provider_prop(struct dt_driver_provider *prv,
 	pargs->phandle_node = phandle_node;
 	pargs->args_count = prv->provider_cells;
 	for (n = 0; n < prv->provider_cells; n++)
-		pargs->args[n] = fdt32_to_cpu(prop[n + 1]);
+		pargs->args[n] = fdt32_to_cpu(prop[n]);
 
 	res = prv->get_of_device(pargs, prv->priv_data, device);
 
@@ -394,6 +394,9 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
 			idx += sizeof(phandle) + prv_cells * sizeof(uint32_t);
 			continue;
 		}
+
+		/* Skip property cell with the phandle, already handled */
+		idx32++;
 
 		return device_from_provider_prop(prv, fdt, phandle_node,
 						 prop + idx32, device);
