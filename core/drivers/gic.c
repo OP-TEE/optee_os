@@ -6,6 +6,7 @@
 
 #include <arm.h>
 #include <assert.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <config.h>
 #include <compiler.h>
 #include <drivers/gic.h>
@@ -208,10 +209,10 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 	it_num = fdt32_to_cpu(properties[1]);
 
 	switch (fdt32_to_cpu(properties[0])) {
-	case 1:
+	case GIC_PPI:
 		it_num += 16;
 		break;
-	case 0:
+	case GIC_SPI:
 		it_num += 32;
 		break;
 	default:
