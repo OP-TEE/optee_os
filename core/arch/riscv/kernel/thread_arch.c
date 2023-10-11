@@ -32,6 +32,15 @@
 #include <trace.h>
 #include <util.h>
 
+/*
+ * This function is called as a guard after each ABI call which is not
+ * supposed to return.
+ */
+void __noreturn __panic_at_abi_return(void)
+{
+	panic();
+}
+
 uint32_t __nostackcheck thread_get_exceptions(void)
 {
 	return read_csr(CSR_XIE) & THREAD_EXCP_ALL;

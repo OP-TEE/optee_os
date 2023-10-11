@@ -59,6 +59,8 @@ void thread_init_tvec(void);
 void thread_trap_vect(void);
 void thread_trap_vect_end(void);
 
+void __panic_at_abi_return(void);
+
 /*
  * Assembly function as the first function in a thread.  Handles a stdcall,
  * a0-a3 holds the parameters. Hands over to __thread_std_abi_entry() when
