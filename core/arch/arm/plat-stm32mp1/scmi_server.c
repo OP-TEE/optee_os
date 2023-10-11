@@ -114,7 +114,6 @@ register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
 		.priv_id = (_priv_id), \
 		.priv_dev = (_dev_id), \
 		.name = (_name), \
-		.state = false, \
 	}
 
 #ifdef CFG_STM32MP13
@@ -927,7 +926,7 @@ static void get_voltd_regulator(struct stm32_scmi_voltd *voltd)
 		break;
 	}
 
-	if (voltd->regulator && voltd->state)
+	if (voltd->regulator && voltd->regulator->flags & REGULATOR_BOOT_ON)
 		regulator_enable(voltd->regulator);
 }
 
