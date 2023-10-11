@@ -653,7 +653,8 @@ static void handle_blocking_call(struct thread_smc_args *args,
 	default:
 		EMSG("Unhandled blocking service ID %#"PRIx32,
 		     (uint32_t)args->a3);
-		panic();
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
+			      TEE_ERROR_BAD_PARAMETERS, 0, 0);
 	}
 }
 
