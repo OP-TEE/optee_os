@@ -86,4 +86,8 @@ DEFINES
 	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
 	DEFINE(CORE_MMU_CONFIG_SATP,
 	       offsetof(struct core_mmu_config, satp));
+
+	/* struct thread_abi_args */
+	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
+	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
 }
