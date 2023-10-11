@@ -116,3 +116,7 @@ endif
 ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
 endif
+
+ifeq ($(CFG_STM32_SERC),y)
+$(call force,CFG_EXTERNAL_ABORT_PLAT_HANDLER,y)
+endif
