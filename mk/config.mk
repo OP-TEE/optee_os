@@ -1282,3 +1282,8 @@ $(call force,CFG_DYN_CONFIG,n,conflicts with CFG_WITH_PAGER)
 else
 CFG_DYN_CONFIG ?= $(CFG_BOOT_MEM)
 endif
+
+# CFG_EXTERNAL_ABORT_PLAT_HANDLER is used to implement platform-specific
+# handling of external abort implementing the plat_external_abort_handler()
+# function.
+CFG_EXTERNAL_ABORT_PLAT_HANDLER ?= n
