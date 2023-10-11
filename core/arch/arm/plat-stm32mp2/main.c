@@ -7,8 +7,10 @@
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/stm32_rif.h>
+#include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>
 #include <initcall.h>
+#include <kernel/abort.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
@@ -171,4 +173,10 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 		return true;
 
 	return false;
+}
+
+void plat_abort_handler(struct thread_abort_regs *regs __unused)
+{
+	/* If fault is ignored, it could be due to a SERC event */
+	stm32_serc_handle_ilac();
 }
