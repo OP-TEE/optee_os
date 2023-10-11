@@ -149,3 +149,67 @@ FUNC thread_rpc , :
 	addi	sp, sp, REGOFF(4)
 	ret
 END_FUNC thread_rpc
+
+LOCAL_FUNC vector_std_abi_entry, : , .identity_map
+	jal	thread_handle_std_abi
+	/*
+	 * Normally thread_handle_std_abi() should return via
+	 * thread_exit(), thread_rpc(), but if thread_handle_std_abi()
+	 * hasn't switched stack (error detected) it will do a normal "C"
+	 * return.
+	 */
+	/* Restore thread_handle_std_abi() return value */
+	mv	a1, a0
+	li	a2, 0
+	li	a3, 0
+	li	a4, 0
+	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
+
+	/* Return to untrusted domain */
+	j	thread_return_to_ree
+END_FUNC vector_std_abi_entry
+
+LOCAL_FUNC vector_fast_abi_entry , : , .identity_map
+	addi    sp, sp, -THREAD_ABI_ARGS_SIZE
+	store_xregs sp, THREAD_ABI_ARGS_A0, REG_A0, REG_A7
+	mv      a0, sp
+	jal	thread_handle_fast_abi
+	load_xregs sp, THREAD_ABI_ARGS_A0, REG_A1, REG_A7
+	addi    sp, sp, THREAD_ABI_ARGS_SIZE
+
+	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
+	/* Return to untrusted domain */
+	j	thread_return_to_ree
+END_FUNC vector_fast_abi_entry
+
+LOCAL_FUNC vector_fiq_entry , : , .identity_map
+	/* Secure Monitor received a FIQ and passed control to us. */
+	jal	interrupt_main_handler
+
+	li	a0, TEEABI_OPTEED_RETURN_FIQ_DONE
+	/* Return to untrusted domain */
+	j	thread_return_to_ree
+END_FUNC vector_fiq_entry
+
+/*
+ * Vector table supplied to M-mode secure monitor (e.g., openSBI) at
+ * initialization.
+ *
+ * Note that M-mode secure monitor depends on the layout of this vector table,
+ * any change in layout has to be synced with M-mode secure monitor.
+ */
+FUNC thread_vector_table , : , .identity_map, , nobti
+	.option push
+	.option norvc
+	j   vector_std_abi_entry
+	j   vector_fast_abi_entry
+	j   .
+	j   .
+	j   .
+	j   .
+	j   vector_fiq_entry
+	j   .
+	j   .
+	.option pop
+END_FUNC thread_vector_table
+DECLARE_KEEP_PAGER thread_vector_table
