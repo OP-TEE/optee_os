@@ -853,7 +853,10 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fsr)
 	case (1 << 10) | 0x6:
 		/* DFSR[10,3:0] 0b10110 Async external abort (DFSR only) */
 		return CORE_MMU_FAULT_ASYNC_EXTERNAL;
-
+	case 0x8: /* DFSR[10,3:0] 0b01000 Sync external abort, not on table */
+	case 0xc: /* DFSR[10,3:0] 0b01100 Sync external abort, on table, L1 */
+	case 0xe: /* DFSR[10,3:0] 0b01110 Sync external abort, on table, L2 */
+		return CORE_MMU_FAULT_SYNC_EXTERNAL;
 	default:
 		return CORE_MMU_FAULT_OTHER;
 	}

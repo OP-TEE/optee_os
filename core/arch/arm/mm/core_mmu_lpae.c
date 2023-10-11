@@ -1443,10 +1443,15 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 	assert(fault_descr & FSR_LPAE);
 
 	switch (fault_descr & FSR_STATUS_MASK) {
-	case 0x21: /* b100001 Alignment fault */
-		return CORE_MMU_FAULT_ALIGNMENT;
+	case 0x10: /* b010000 Synchronous extern abort, not on table walk */
+	case 0x15: /* b010101 Synchronous extern abort, on table walk L1 */
+	case 0x16: /* b010110 Synchronous extern abort, on table walk L2 */
+	case 0x17: /* b010111 Synchronous extern abort, on table walk L3 */
+		return CORE_MMU_FAULT_SYNC_EXTERNAL;
 	case 0x11: /* b010001 Asynchronous extern abort (DFSR only) */
 		return CORE_MMU_FAULT_ASYNC_EXTERNAL;
+	case 0x21: /* b100001 Alignment fault */
+		return CORE_MMU_FAULT_ALIGNMENT;
 	case 0x12: /* b100010 Debug event */
 		return CORE_MMU_FAULT_DEBUG_EVENT;
 	default:
@@ -1558,6 +1563,14 @@ enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
 			return CORE_MMU_FAULT_ALIGNMENT;
 		case ESR_FSC_TAG_CHECK:
 			return CORE_MMU_FAULT_TAG_CHECK;
+		case ESR_FSC_SEA_NTT:
+		case ESR_FSC_SEA_TT_SUB_L2:
+		case ESR_FSC_SEA_TT_SUB_L1:
+		case ESR_FSC_SEA_TT_L0:
+		case ESR_FSC_SEA_TT_L1:
+		case ESR_FSC_SEA_TT_L2:
+		case ESR_FSC_SEA_TT_L3:
+			return CORE_MMU_FAULT_SYNC_EXTERNAL;
 		default:
 			return CORE_MMU_FAULT_OTHER;
 		}
