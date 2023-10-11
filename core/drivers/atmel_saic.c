@@ -130,32 +130,12 @@ static void saic_disable(struct itr_chip *chip __unused, size_t it)
 	saic_write_reg(AT91_AIC_IDCR, 1);
 }
 
-static void saic_raise_pi(struct itr_chip *chip __unused, size_t it __unused)
-{
-	panic();
-}
-
-static void saic_raise_sgi(struct itr_chip *chip __unused, size_t it __unused,
-			   uint8_t cpu_mask __unused)
-{
-	panic();
-}
-
-static void saic_set_affinity(struct itr_chip *chip __unused,
-			      size_t it __unused, uint8_t cpu_mask __unused)
-{
-	panic();
-}
-
 static const struct itr_ops saic_ops = {
 	.add = saic_add,
 	.mask = saic_disable,
 	.unmask = saic_enable,
 	.enable = saic_enable,
 	.disable = saic_disable,
-	.raise_pi = saic_raise_pi,
-	.raise_sgi = saic_raise_sgi,
-	.set_affinity = saic_set_affinity,
 };
 
 static int saic_dt_get_irq(const uint32_t *properties, int len,
