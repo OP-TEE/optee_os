@@ -20,8 +20,15 @@
 #define REGULATOR_ALWAYS_ON	BIT(0)
 /* Enables pull down mode. DT property: regulator-pull-down */
 #define REGULATOR_PULL_DOWN	BIT(1)
+/*
+ * It's expected that this regulator was left on by the bootloader.
+ * The core shouldn't prevent it from being turned off later.
+ * DT property: regulator-boot-on
+ */
+#define REGULATOR_BOOT_ON	BIT(2)
 
-#define REGULATOR_FLAGS_MASK	(REGULATOR_ALWAYS_ON | REGULATOR_PULL_DOWN)
+#define REGULATOR_FLAGS_MASK	(REGULATOR_ALWAYS_ON | REGULATOR_PULL_DOWN | \
+				 REGULATOR_BOOT_ON)
 
 struct regulator_ops;
 
