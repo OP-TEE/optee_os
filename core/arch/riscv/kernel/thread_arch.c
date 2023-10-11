@@ -41,9 +41,12 @@ void __noreturn __panic_at_abi_return(void)
 	panic();
 }
 
+/* This function returns current masked exception bits. */
 uint32_t __nostackcheck thread_get_exceptions(void)
 {
-	return read_csr(CSR_XIE) & THREAD_EXCP_ALL;
+	uint32_t xie = read_csr(CSR_XIE) & THREAD_EXCP_ALL;
+
+	return xie ^ THREAD_EXCP_ALL;
 }
 
 void __nostackcheck thread_set_exceptions(uint32_t exceptions)
@@ -51,6 +54,18 @@ void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 	/* Foreign interrupts must not be unmasked while holding a spinlock */
 	if (!(exceptions & THREAD_EXCP_FOREIGN_INTR))
 		assert_have_no_spinlock();
+
+	/*
+	 * In ARM, the bits in DAIF register are used to mask the exceptions.
+	 * While in RISC-V, the bits in CSR XIE are used to enable(unmask)
+	 * corresponding interrupt sources. To not modify the function of
+	 * thread_set_exceptions(), we should "invert" the bits in "exceptions".
+	 * The corresponding bits in "exceptions" will be inverted so they will
+	 * be cleared when we write the final value into CSR XIE. So that we
+	 * can mask those exceptions.
+	 */
+	exceptions &= THREAD_EXCP_ALL;
+	exceptions ^= THREAD_EXCP_ALL;
 
 	barrier();
 	write_csr(CSR_XIE, exceptions);
