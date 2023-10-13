@@ -13,6 +13,7 @@ srcs-$(CFG_APDU_PTA) += apdu.c
 srcs-$(CFG_SCMI_PTA) += scmi.c
 srcs-$(CFG_HWRNG_PTA) += hwrng.c
 srcs-$(CFG_RTC_PTA) += rtc.c
+srcs-$(CFG_WIDEVINE_PTA) += widevine.c
 
 subdirs-y += bcm
 subdirs-y += stm32mp
