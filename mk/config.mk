@@ -1149,3 +1149,13 @@ CFG_DRIVERS_REMOTEPROC ?= n
 # CFG_REMOTEPROC_PTA, when enabled, embeds remote processor management PTA
 # service.
 CFG_REMOTEPROC_PTA ?= n
+
+# When enabled, CFG_WIDEVINE_HUK uses the widevine HUK provided by secure
+# DTB as OP-TEE HUK.
+CFG_WIDEVINE_HUK ?= n
+$(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
+
+# When enabled, CFG_WIDEVINE_PTA embeds a PTA that exposes the keys under
+# DT node "/options/op-tee/widevine" to some specific TAs.
+CFG_WIDEVINE_PTA ?= n
+$(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
