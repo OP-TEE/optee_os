@@ -1135,7 +1135,7 @@ void tee_ta_ftrace_update_times_resume(void)
 }
 #endif
 
-bool is_ta_ctx(struct ts_ctx *ctx)
+bool __noprof is_ta_ctx(struct ts_ctx *ctx)
 {
 	return is_user_ta_ctx(ctx) || is_pseudo_ta_ctx(ctx);
 }

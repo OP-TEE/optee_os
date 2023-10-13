@@ -54,6 +54,9 @@ static __noprof struct ftrace_buf *get_fbuf(void)
 	if (!s || tsd->ctx != s->ctx)
 		return NULL;
 
+	if (!is_ta_ctx(s->ctx) || to_ta_ctx(s->ctx)->panicked)
+		return NULL;
+
 	if (s->fbuf && s->fbuf->syscall_trace_enabled &&
 	    !s->fbuf->syscall_trace_suspended)
 		return s->fbuf;
