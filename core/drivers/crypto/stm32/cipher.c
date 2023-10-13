@@ -171,7 +171,7 @@ static TEE_Result alloc_cryp_ctx(void **ctx, enum stm32_cryp_algo_mode algo)
 	if (!c)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	DMSG("Using CRYP %d", algo);
+	FMSG("Using CRYP %d", algo);
 	c->ip_ctx.cryp.algo = algo;
 	c->ops = &cryp_ops;
 	*ctx = &c->c_ctx;
@@ -186,7 +186,7 @@ static TEE_Result alloc_saes_ctx(void **ctx, enum stm32_saes_chaining_mode algo)
 	if (!c)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	DMSG("Using SAES %d", algo);
+	FMSG("Using SAES %d", algo);
 	c->ip_ctx.saes.algo = algo;
 	c->ops = &saes_ops;
 	*ctx = &c->c_ctx;
