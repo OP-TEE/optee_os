@@ -441,7 +441,7 @@ static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 	ctx->ts_ctx.ops = &user_ta_ops;
 }
 
-bool is_user_ta_ctx(struct ts_ctx *ctx)
+bool __noprof is_user_ta_ctx(struct ts_ctx *ctx)
 {
 	return ctx && ctx->ops == &user_ta_ops;
 }

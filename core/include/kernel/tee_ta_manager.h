@@ -162,7 +162,7 @@ bool is_ta_ctx(struct ts_ctx *ctx);
 
 struct tee_ta_session *to_ta_session(struct ts_session *sess);
 
-static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
+static inline struct tee_ta_ctx *__noprof to_ta_ctx(struct ts_ctx *ctx)
 {
 	assert(is_ta_ctx(ctx));
 	return container_of(ctx, struct tee_ta_ctx, ts_ctx);

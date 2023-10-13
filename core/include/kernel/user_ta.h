@@ -45,7 +45,7 @@ struct user_ta_ctx {
 #ifdef CFG_WITH_USER_TA
 bool is_user_ta_ctx(struct ts_ctx *ctx);
 #else
-static inline bool is_user_ta_ctx(struct ts_ctx *ctx __unused)
+static inline bool __noprof is_user_ta_ctx(struct ts_ctx *ctx __unused)
 {
 	return false;
 }
