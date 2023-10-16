@@ -2,6 +2,9 @@
 /*
  * Copyright (c) 2017-2023, Linaro Limited
  */
+#ifndef __SM_PSCI_H
+#define __SM_PSCI_H
+
 #include <kernel/thread.h>
 #include <sm/sm.h>
 #include <stdint.h>
@@ -83,3 +86,4 @@ int psci_stat_count(uint32_t cpu_id, uint32_t power_state);
 void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec);
 
 void psci_armv7_cpu_off(void);
+#endif /* __SM_PSCI_H */
