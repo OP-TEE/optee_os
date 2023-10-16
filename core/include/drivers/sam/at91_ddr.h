@@ -6,8 +6,8 @@
  *	Nicolas Ferre <nicolas.ferre@atmel.com>
  */
 
-#ifndef AT91_DDRSDR_H
-#define AT91_DDRSDR_H
+#ifndef __DRIVERS_SAM_AT91_DDRSDR_H
+#define __DRIVERS_SAM_AT91_DDRSDR_H
 
 /* Mode Register */
 #define AT91_DDRSDRC_MR				0x00

@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2022, STMicroelectronics
  */
-#ifndef STM32MP_DT_BINDINGS_H
-#define STM32MP_DT_BINDINGS_H
+#ifndef __DRIVERS_STM32MP_DT_BINDINGS_H
+#define __DRIVERS_STM32MP_DT_BINDINGS_H
 
 #ifdef CFG_STM32MP13
 #include <dt-bindings/clock/stm32mp13-clks.h>
@@ -18,4 +18,4 @@
 #include <dt-bindings/reset/stm32mp1-resets.h>
 #endif
 
-#endif /* STM32MP_DT_BINDINGS_H */
+#endif /* __DRIVERS_STM32MP_DT_BINDINGS_H */

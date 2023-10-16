@@ -4,8 +4,8 @@
  * Copyright (c) 2017, Linaro Limited
  */
 
-#ifndef TLB_HELPERS_H
-#define TLB_HELPERS_H
+#ifndef __KERNEL_TLB_HELPERS_H
+#define __KERNEL_TLB_HELPERS_H
 
 #include <arm.h>
 
@@ -48,4 +48,4 @@ static inline void tlbi_va_asid(vaddr_t va, uint32_t asid)
 }
 #endif /*!__ASSEMBLER__*/
 
-#endif /* TLB_HELPERS_H */
+#endif /* __KERNEL_TLB_HELPERS_H */

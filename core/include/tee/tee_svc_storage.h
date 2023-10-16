@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_SVC_STORAGE_H
-#define TEE_SVC_STORAGE_H
+#ifndef __TEE_TEE_SVC_STORAGE_H
+#define __TEE_TEE_SVC_STORAGE_H
 
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
@@ -61,4 +61,4 @@ void tee_svc_storage_close_all_enum(struct user_ta_ctx *utc);
 
 void tee_svc_storage_init(void);
 
-#endif /* TEE_SVC_STORAGE_H */
+#endif /* __TEE_TEE_SVC_STORAGE_H */

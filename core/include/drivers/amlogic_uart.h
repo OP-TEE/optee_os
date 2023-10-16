@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
-#ifndef AMLOGIC_UART_H
-#define AMLOGIC_UART_H
+#ifndef __DRIVERS_AMLOGIC_UART_H
+#define __DRIVERS_AMLOGIC_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -13,4 +13,4 @@ struct amlogic_uart_data {
 
 void amlogic_uart_init(struct amlogic_uart_data *pd, paddr_t base);
 
-#endif /* AMLOGIC_UART_H */
+#endif /* __DRIVERS_AMLOGIC_UART_H */

@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef CORE_MMU_H
-#define CORE_MMU_H
+#ifndef __MM_CORE_MMU_H
+#define __MM_CORE_MMU_H
 
 #ifndef __ASSEMBLER__
 #include <assert.h>
@@ -689,4 +689,4 @@ void core_mmu_get_ta_range(paddr_t *base, size_t *size);
 
 #endif /*__ASSEMBLER__*/
 
-#endif /* CORE_MMU_H */
+#endif /* __MM_CORE_MMU_H */

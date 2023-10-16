@@ -5,8 +5,8 @@
  * Copyright (c) 2020, Arm Limited
  */
 
-#ifndef TEE_TA_MANAGER_H
-#define TEE_TA_MANAGER_H
+#ifndef __KERNEL_TEE_TA_MANAGER_H
+#define __KERNEL_TEE_TA_MANAGER_H
 
 #include <assert.h>
 #include <kernel/mutex.h>

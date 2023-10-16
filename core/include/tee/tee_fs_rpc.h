@@ -7,8 +7,8 @@
  * Interface with tee-supplicant for file operations
  */
 
-#ifndef TEE_FS_RPC_H
-#define TEE_FS_RPC_H
+#ifndef __TEE_TEE_FS_RPC_H
+#define __TEE_TEE_FS_RPC_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -46,4 +46,4 @@ TEE_Result tee_fs_rpc_write_final(struct tee_fs_rpc_operation *op);
 TEE_Result tee_fs_rpc_truncate(uint32_t id, int fd, size_t len);
 TEE_Result tee_fs_rpc_remove_dfh(uint32_t id,
 				 const struct tee_fs_dirfile_fileh *dfh);
-#endif /* TEE_FS_RPC_H */
+#endif /* __TEE_TEE_FS_RPC_H */

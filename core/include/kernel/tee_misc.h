@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TEE_MISC_H
-#define TEE_MISC_H
+#ifndef __KERNEL_TEE_MISC_H
+#define __KERNEL_TEE_MISC_H
 
 #include <types_ext.h>
 
@@ -68,4 +68,4 @@ bool core_is_buffer_intersect(paddr_t b, paddr_size_t bl,
  */
 void *alloc_cache_aligned(size_t size);
 
-#endif /* TEE_MISC_H */
+#endif /* __KERNEL_TEE_MISC_H */

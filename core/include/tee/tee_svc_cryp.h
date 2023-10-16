@@ -2,8 +2,8 @@
 /*
 * Copyright (c) 2014, STMicroelectronics International N.V.
 */
-#ifndef TEE_SVC_CRYP_H
-#define TEE_SVC_CRYP_H
+#ifndef __TEE_TEE_SVC_CRYP_H
+#define __TEE_TEE_SVC_CRYP_H
 
 #include <tee_api_types.h>
 #include <utee_types.h>
@@ -93,4 +93,4 @@ TEE_Result tee_obj_attr_from_binary(struct tee_obj *o, const void *data,
 				    size_t data_len);
 TEE_Result tee_obj_attr_copy_from(struct tee_obj *o, const struct tee_obj *src);
 
-#endif /* TEE_SVC_CRYP_H */
+#endif /* __TEE_TEE_SVC_CRYP_H */

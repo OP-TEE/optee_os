@@ -3,8 +3,8 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#ifndef TEESMC_OPTEED_H
-#define TEESMC_OPTEED_H
+#ifndef __SM_TEESMC_OPTEED_H
+#define __SM_TEESMC_OPTEED_H
 
 /*
  * This file specify SMC function IDs used when returning from TEE to the
@@ -117,4 +117,4 @@
 #define TEESMC_OPTEED_RETURN_SYSTEM_RESET_DONE \
 	TEESMC_OPTEED_RV(TEESMC_OPTEED_FUNCID_RETURN_SYSTEM_RESET_DONE)
 
-#endif /*TEESMC_OPTEED_H*/
+#endif /*__SM_TEESMC_OPTEED_H*/

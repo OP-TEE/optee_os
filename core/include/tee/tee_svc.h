@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TEE_SVC_H
-#define TEE_SVC_H
+#ifndef __TEE_TEE_SVC_H
+#define __TEE_TEE_SVC_H
 
 #include <kernel/ts_manager.h>
 #include <stdint.h>
@@ -74,4 +74,4 @@ TEE_Result syscall_wait(unsigned long timeout);
 TEE_Result syscall_get_time(unsigned long cat, TEE_Time *time);
 TEE_Result syscall_set_ta_time(const TEE_Time *time);
 
-#endif /* TEE_SVC_H */
+#endif /* __TEE_TEE_SVC_H */

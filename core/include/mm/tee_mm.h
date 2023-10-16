@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_MM_H
-#define TEE_MM_H
+#ifndef __MM_TEE_MM_H
+#define __MM_TEE_MM_H
 
 #include <malloc.h>
 #include <types_ext.h>

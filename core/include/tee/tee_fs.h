@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_FS_H
-#define TEE_FS_H
+#ifndef __TEE_TEE_FS_H
+#define __TEE_TEE_FS_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -99,4 +99,4 @@ tee_svc_storage_file_ops(uint32_t storage_id)
 	}
 }
 
-#endif /*TEE_FS_H*/
+#endif /*__TEE_TEE_FS_H*/

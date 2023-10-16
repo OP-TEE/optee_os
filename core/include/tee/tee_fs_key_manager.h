@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  */
 
-#ifndef TEE_FS_KEY_MANAGER_H
-#define TEE_FS_KEY_MANAGER_H
+#ifndef __TEE_TEE_FS_KEY_MANAGER_H
+#define __TEE_TEE_FS_KEY_MANAGER_H
 
 #include <tee_api_types.h>
 #include <utee_defines.h>

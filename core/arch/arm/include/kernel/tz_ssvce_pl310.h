@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TZ_SSVCE_PL310_H
-#define TZ_SSVCE_PL310_H
+#ifndef __KERNEL_TZ_SSVCE_PL310_H
+#define __KERNEL_TZ_SSVCE_PL310_H
 
 #include <util.h>
 #include <kernel/tz_ssvce_def.h>
@@ -21,4 +21,4 @@ void arm_cl2_cleanbypa(vaddr_t pl310_base, paddr_t start, paddr_t end);
 void arm_cl2_invbypa(vaddr_t pl310_base, paddr_t start, paddr_t end);
 void arm_cl2_cleaninvbypa(vaddr_t pl310_base, paddr_t start, paddr_t end);
 
-#endif /* TZ_SSVCE_PL310_H */
+#endif /* __KERNEL_TZ_SSVCE_PL310_H */

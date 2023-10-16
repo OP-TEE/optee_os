@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef IMX_UART_H
-#define IMX_UART_H
+#ifndef __DRIVERS_IMX_UART_H
+#define __DRIVERS_IMX_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -39,4 +39,4 @@ struct imx_uart_data {
 
 void imx_uart_init(struct imx_uart_data *pd, paddr_t base);
 
-#endif /* IMX_UART_H */
+#endif /* __DRIVERS_IMX_UART_H */

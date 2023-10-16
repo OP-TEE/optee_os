@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2020, Linaro Limited
  */
 
-#ifndef __GHASH_CE_CORE_H
-#define __GHASH_CE_CORE_H
+#ifndef __CRYPTO_GHASH_CE_CORE_H
+#define __CRYPTO_GHASH_CE_CORE_H
 
 #include <inttypes.h>
 
@@ -40,4 +40,4 @@ uint32_t pmull_gcm_aes_sub(uint32_t input);
 
 void pmull_gcm_encrypt_block(uint8_t dst[], const uint8_t src[], int rounds);
 
-#endif /*__GHASH_CE_CORE_H*/
+#endif /*__CRYPTO_GHASH_CE_CORE_H*/

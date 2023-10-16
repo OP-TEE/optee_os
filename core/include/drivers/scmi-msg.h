@@ -4,8 +4,8 @@
  * Copyright (c) 2019-2021, Linaro Limited
  */
 
-#ifndef SCMI_MSG_H
-#define SCMI_MSG_H
+#ifndef __DRIVERS_SCMI_MSG_H
+#define __DRIVERS_SCMI_MSG_H
 
 #include <compiler.h>
 #include <kernel/panic.h>
@@ -408,4 +408,4 @@ int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
 int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 				   unsigned int scmi_id, uint32_t config);
 
-#endif /* SCMI_MSG_H */
+#endif /* __DRIVERS_SCMI_MSG_H */

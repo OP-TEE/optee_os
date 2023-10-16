@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TZ_SSVCE_DEF_H
-#define TZ_SSVCE_DEF_H
+#ifndef __KERNEL_TZ_SSVCE_DEF_H
+#define __KERNEL_TZ_SSVCE_DEF_H
 
 #include <stdint.h>
 #include <util.h>
@@ -125,4 +125,4 @@
  */
 #define CORE_ICC_ICCPMR	U(0x0004)
 
-#endif /* TZ_SSVCE_DEF_H */
+#endif /* __KERNEL_TZ_SSVCE_DEF_H */

@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TEE_COMMON_OTP_H
-#define TEE_COMMON_OTP_H
+#ifndef __KERNEL_TEE_COMMON_OTP_H
+#define __KERNEL_TEE_COMMON_OTP_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -20,4 +20,4 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len);
 TEE_Result tee_otp_get_ta_enc_key(uint32_t key_type, uint8_t *buffer,
 				  size_t len);
 
-#endif /* TEE_COMMON_OTP_H */
+#endif /* __KERNEL_TEE_COMMON_OTP_H */

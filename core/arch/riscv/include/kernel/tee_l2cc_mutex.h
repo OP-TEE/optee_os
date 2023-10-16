@@ -2,7 +2,7 @@
 /*
  * Copyright 2022 NXP
  */
-#ifndef TEE_L2CC_MUTEX_H
-#define TEE_L2CC_MUTEX_H
+#ifndef __KERNEL_TEE_L2CC_MUTEX_H
+#define __KERNEL_TEE_L2CC_MUTEX_H
 
-#endif /* TEE_L2CC_MUTEX_H */
+#endif /* __KERNEL_TEE_L2CC_MUTEX_H */
