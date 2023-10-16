@@ -3,8 +3,8 @@
  * Copyright 2022-2023 NXP
  */
 
-#ifndef RISCV_H
-#define RISCV_H
+#ifndef __RISCV_H
+#define __RISCV_H
 
 #include <compiler.h>
 #include <encoding.h>
@@ -389,4 +389,4 @@ static inline __noprof uint32_t read_cntfrq(void)
 
 #endif /*__ASSEMBLER__*/
 
-#endif /*RISCV_H*/
+#endif /*__RISCV_H*/

@@ -26,8 +26,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KERNEL_MSG_PARAM_H
-#define KERNEL_MSG_PARAM_H
+#ifndef __KERNEL_MSG_PARAM_H
+#define __KERNEL_MSG_PARAM_H
 
 #include <compiler.h>
 #include <kernel/msg_param.h>
@@ -81,4 +81,4 @@ static inline bool msg_param_attr_is_tmem(uint64_t attr)
 	}
 }
 
-#endif	/*KERNEL_MSG_PARAM_H*/
+#endif	/*__KERNEL_MSG_PARAM_H*/

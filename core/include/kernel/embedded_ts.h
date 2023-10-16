@@ -3,8 +3,8 @@
  * Copyright (c) 2017, Linaro Limited
  * Copyright (c) 2020, Arm Limited.
  */
-#ifndef KERNEL_EMBEDDED_TS_H
-#define KERNEL_EMBEDDED_TS_H
+#ifndef __KERNEL_EMBEDDED_TS_H
+#define __KERNEL_EMBEDDED_TS_H
 
 #include <compiler.h>
 #include <kernel/linker.h>
@@ -33,5 +33,5 @@ TEE_Result emb_ts_open(const TEE_UUID *uuid,
 TEE_Result emb_ts_get_size(const struct ts_store_handle *h, size_t *size);
 TEE_Result emb_ts_get_tag(const struct ts_store_handle *h,
 			  uint8_t *tag, unsigned int *tag_len);
-#endif /* KERNEL_EMBEDDED_TS_H */
+#endif /* __KERNEL_EMBEDDED_TS_H */
 

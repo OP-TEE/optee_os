@@ -3,8 +3,8 @@
  * Copyright 2019 Broadcom.
  */
 
-#ifndef DRIVERS_WDT_H
-#define DRIVERS_WDT_H
+#ifndef __DRIVERS_WDT_H
+#define __DRIVERS_WDT_H
 
 #include <assert.h>
 #include <kernel/interrupt.h>
@@ -117,4 +117,4 @@ enum sm_handler_ret wdt_sm_handler(struct thread_smc_args *args __unused)
 }
 #endif
 
-#endif /* DRIVERS_WDT_H */
+#endif /* __DRIVERS_WDT_H */

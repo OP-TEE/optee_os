@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014-2017, Linaro Limited
  */
-#ifndef KERNEL_MUTEX_H
-#define KERNEL_MUTEX_H
+#ifndef __KERNEL_MUTEX_H
+#define __KERNEL_MUTEX_H
 
 #include <kernel/refcount.h>
 #include <kernel/wait_queue.h>
@@ -101,5 +101,5 @@ void condvar_broadcast(struct condvar *cv);
 void condvar_wait(struct condvar *cv, struct mutex *m);
 #endif
 
-#endif /*KERNEL_MUTEX_H*/
+#endif /*__KERNEL_MUTEX_H*/
 

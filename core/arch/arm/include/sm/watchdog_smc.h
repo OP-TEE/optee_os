@@ -2,8 +2,8 @@
 /*
  * Copyright (C) STMicroelectronics 2023
  */
-#ifndef SM_WATCHDOG_SMC_H
-#define SM_WATCHDOG_SMC_H
+#ifndef __SM_WATCHDOG_SMC_H
+#define __SM_WATCHDOG_SMC_H
 
 /*
  * This file describes the secure watchdog management service.
@@ -78,4 +78,4 @@
  * a7		Hypervisor Client ID register
  */
 
-#endif /* SM_WATCHDOG_SMC_H */
+#endif /* __SM_WATCHDOG_SMC_H */

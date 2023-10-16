@@ -4,8 +4,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef MM_TEE_PAGER_H
-#define MM_TEE_PAGER_H
+#ifndef __MM_TEE_PAGER_H
+#define __MM_TEE_PAGER_H
 
 #include <kernel/abort.h>
 #include <kernel/panic.h>

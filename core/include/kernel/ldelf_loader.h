@@ -7,8 +7,8 @@
 #include <kernel/user_mode_ctx.h>
 #include <tee_api_types.h>
 
-#ifndef KERNEL_LDELF_LOADER_H
-#define KERNEL_LDELF_LOADER_H
+#ifndef __KERNEL_LDELF_LOADER_H
+#define __KERNEL_LDELF_LOADER_H
 
 TEE_Result ldelf_load_ldelf(struct user_mode_ctx *uctx);
 TEE_Result ldelf_init_with_ldelf(struct ts_session *sess,
@@ -21,4 +21,4 @@ TEE_Result ldelf_dlopen(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 TEE_Result ldelf_dlsym(struct user_mode_ctx *uctx, TEE_UUID *uuid,
 		       const char *sym, size_t symlen, vaddr_t *val);
 
-#endif /* KERNEL_LDELF_LOADER_H */
+#endif /* __KERNEL_LDELF_LOADER_H */

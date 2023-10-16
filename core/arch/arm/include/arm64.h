@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2023, Arm Limited
  */
-#ifndef ARM64_H
-#define ARM64_H
+#ifndef __ARM64_H
+#define __ARM64_H
 
 #include <compiler.h>
 #include <sys/cdefs.h>
@@ -504,5 +504,5 @@ static inline void write_pan_disable(void)
 
 #endif /*__ASSEMBLER__*/
 
-#endif /*ARM64_H*/
+#endif /*__ARM64_H*/
 

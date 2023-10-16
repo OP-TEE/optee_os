@@ -3,8 +3,8 @@
  * Copyright (c) 2016-2021, Linaro Limited
  */
 
-#ifndef KERNEL_DT_H
-#define KERNEL_DT_H
+#ifndef __KERNEL_DT_H
+#define __KERNEL_DT_H
 
 #include <compiler.h>
 #include <kernel/interrupt.h>
@@ -445,4 +445,4 @@ static inline int add_res_mem_dt_node(struct dt_descriptor *dt __unused,
 }
 
 #endif /* !CFG_DT */
-#endif /* KERNEL_DT_H */
+#endif /* __KERNEL_DT_H */

@@ -5,8 +5,8 @@
  * Copyright (c) 2020-2021, Arm Limited
  */
 
-#ifndef KERNEL_THREAD_H
-#define KERNEL_THREAD_H
+#ifndef __KERNEL_THREAD_H
+#define __KERNEL_THREAD_H
 
 #ifndef __ASSEMBLER__
 #include <types_ext.h>
@@ -396,4 +396,4 @@ void *thread_rpc_shm_cache_alloc(enum thread_shm_cache_user user,
 
 #endif /*__ASSEMBLER__*/
 
-#endif /*KERNEL_THREAD_H*/
+#endif /*__KERNEL_THREAD_H*/

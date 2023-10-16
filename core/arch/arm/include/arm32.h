@@ -4,8 +4,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef ARM32_H
-#define ARM32_H
+#ifndef __ARM32_H
+#define __ARM32_H
 
 #include <compiler.h>
 #include <sys/cdefs.h>
@@ -278,4 +278,4 @@ static __always_inline __noprof uint32_t read_r7(void)
 
 #endif /*__ASSEMBLER__*/
 
-#endif /*ARM32_H*/
+#endif /*__ARM32_H*/

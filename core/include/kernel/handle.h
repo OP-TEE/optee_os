@@ -3,8 +3,8 @@
  * Copyright (c) 2014, Linaro Limited
  * Copyright (c) 2020, Arm Limited
  */
-#ifndef KERNEL_HANDLE_H
-#define KERNEL_HANDLE_H
+#ifndef __KERNEL_HANDLE_H
+#define __KERNEL_HANDLE_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -49,4 +49,4 @@ void *handle_put(struct handle_db *db, int handle);
  */
 void *handle_lookup(struct handle_db *db, int handle);
 
-#endif /*KERNEL_HANDLE_H*/
+#endif /*__KERNEL_HANDLE_H*/

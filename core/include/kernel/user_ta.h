@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2020, Arm Limited
  */
-#ifndef KERNEL_USER_TA_H
-#define KERNEL_USER_TA_H
+#ifndef __KERNEL_USER_TA_H
+#define __KERNEL_USER_TA_H
 
 #include <assert.h>
 #include <kernel/tee_ta_manager.h>
@@ -70,4 +70,4 @@ static inline TEE_Result tee_ta_init_user_ta_session(
 #endif
 
 
-#endif /*KERNEL_USER_TA_H*/
+#endif /*__KERNEL_USER_TA_H*/
