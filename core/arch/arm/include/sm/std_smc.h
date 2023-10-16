@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2017-2023, Linaro Limited
  */
-#ifndef __STD_SMC_H__
-#define __STD_SMC_H__
+#ifndef __SM_STD_SMC_H__
+#define __SM_STD_SMC_H__
 
 #include <sm/sm.h>
 

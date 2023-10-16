@@ -25,8 +25,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __IMX_WDOG_H
-#define __IMX_WDOG_H
+#ifndef __DRIVERS_IMX_WDOG_H
+#define __DRIVERS_IMX_WDOG_H
 
 #include <compiler.h>
 

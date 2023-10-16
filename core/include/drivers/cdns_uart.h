@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef CDNS_UART_H
-#define CDNS_UART_H
+#ifndef __DRIVERS_CDNS_UART_H
+#define __DRIVERS_CDNS_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -40,4 +40,4 @@ struct cdns_uart_data {
 void cdns_uart_init(struct cdns_uart_data *pd, paddr_t base, uint32_t uart_clk,
 		uint32_t baud_rate);
 
-#endif /* CDNS_UART_H */
+#endif /* __DRIVERS_CDNS_UART_H */

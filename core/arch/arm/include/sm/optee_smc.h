@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015-2021, Linaro Limited
  */
-#ifndef OPTEE_SMC_H
-#define OPTEE_SMC_H
+#ifndef __SM_OPTEE_SMC_H
+#define __SM_OPTEE_SMC_H
 
 #include <stdint.h>
 
@@ -705,4 +705,4 @@
 	((((ret) & OPTEE_SMC_RETURN_RPC_PREFIX_MASK) == \
 		OPTEE_SMC_RETURN_RPC_PREFIX)))
 
-#endif /* OPTEE_SMC_H */
+#endif /* __SM_OPTEE_SMC_H */

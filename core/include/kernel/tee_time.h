@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_TIME_H
-#define TEE_TIME_H
+#ifndef __KERNEL_TEE_TIME_H
+#define __KERNEL_TEE_TIME_H
 
 #include "tee_api_types.h"
 

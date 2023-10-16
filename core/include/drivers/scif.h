@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SCIF_H
-#define SCIF_H
+#ifndef __DRIVERS_SCIF_H
+#define __DRIVERS_SCIF_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -41,4 +41,4 @@ struct scif_uart_data {
 
 void scif_uart_init(struct scif_uart_data *pd, paddr_t base);
 
-#endif /* SCIF */
+#endif /* __DRIVERS_SCIF_H */

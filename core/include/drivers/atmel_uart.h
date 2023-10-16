@@ -25,8 +25,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ATMEL_UART_H
-#define ATMEL_UART_H
+#ifndef __DRIVERS_ATMEL_UART_H
+#define __DRIVERS_ATMEL_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -38,4 +38,4 @@ struct atmel_uart_data {
 
 void atmel_uart_init(struct atmel_uart_data *pd, paddr_t base);
 
-#endif /* ATMEL_UART_H */
+#endif /* __DRIVERS_ATMEL_UART_H */

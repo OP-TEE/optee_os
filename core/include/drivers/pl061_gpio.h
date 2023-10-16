@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
-#ifndef __PL061_GPIO_H__
-#define __PL061_GPIO_H__
+#ifndef __DRIVERS_PL061_GPIO_H
+#define __DRIVERS_PL061_GPIO_H
 
 #include <drivers/gpio.h>
 #include <types_ext.h>
@@ -26,4 +26,4 @@ enum pl061_mode_control pl061_get_mode_control(unsigned int gpio_pin);
 void pl061_set_mode_control(unsigned int gpio_pin,
 	enum pl061_mode_control hw_sw);
 
-#endif	/* __PL061_GPIO_H__ */
+#endif	/* __DRIVERS_PL061_GPIO_H */

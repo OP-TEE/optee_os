@@ -4,8 +4,8 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#ifndef TEEABI_OPTEED_H
-#define TEEABI_OPTEED_H
+#ifndef __TEE_TEEABI_OPTEED_H
+#define __TEE_TEEABI_OPTEED_H
 
 /*
  * This file specify ABI function IDs used when returning from TEE to the
@@ -108,4 +108,4 @@
 #define TEEABI_OPTEED_RETURN_SYSTEM_RESET_DONE \
 	TEEABI_OPTEED_RV(TEEABI_OPTEED_FUNCID_RETURN_SYSTEM_RESET_DONE)
 
-#endif /*TEEABI_OPTEED_H*/
+#endif /*__TEE_TEEABI_OPTEED_H*/

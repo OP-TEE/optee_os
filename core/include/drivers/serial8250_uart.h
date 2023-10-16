@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#ifndef SERIAL8250_UART_H
-#define SERIAL8250_UART_H
+#ifndef __DRIVERS_SERIAL8250_UART_H
+#define __DRIVERS_SERIAL8250_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -18,5 +18,5 @@ struct serial8250_uart_data {
 void serial8250_uart_init(struct serial8250_uart_data *pd, paddr_t base,
 			  uint32_t uart_clk, uint32_t baud_rate);
 
-#endif /* SERIAL8250_UART_H */
+#endif /* __DRIVERS_SERIAL8250_UART_H */
 

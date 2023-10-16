@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TEE_MMU_H
-#define TEE_MMU_H
+#ifndef __MM_VM_H
+#define __MM_VM_H
 
 #include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
@@ -97,4 +97,4 @@ void vm_set_ctx(struct ts_ctx *ctx);
 
 struct mobj *vm_get_mobj(struct user_mode_ctx *uctx, vaddr_t va, size_t *len,
 			 uint16_t *prot, size_t *offs);
-#endif /*TEE_MMU_H*/
+#endif /*__MM_VM_H*/

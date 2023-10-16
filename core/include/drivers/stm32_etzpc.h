@@ -4,8 +4,8 @@
  * Copyright (c) 2018-2019, STMicroelectronics
  */
 
-#ifndef __STM32_ETZPC_H__
-#define __STM32_ETZPC_H__
+#ifndef __DRIVERS_STM32_ETZPC_H
+#define __DRIVERS_STM32_ETZPC_H
 
 #include <util.h>
 #include <types_ext.h>
@@ -74,4 +74,4 @@ void etzpc_lock_tzma(uint32_t tzma_id);
  * Return true if TZMA is locked, false otherwise
  */
 bool etzpc_get_lock_tzma(uint32_t tzma_id);
-#endif /*__STM32_ETZPC_H__*/
+#endif /*__DRIVERS_STM32_ETZPC_H*/

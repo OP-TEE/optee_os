@@ -52,4 +52,4 @@ TEE_Result caam_mp_sign(uint8_t *data, size_t *data_size, uint8_t *sig,
 TEE_Result caam_dek_generate(const uint8_t *payload, size_t payload_size,
 			     uint8_t *dek, size_t dek_size);
 #endif /* CFG_NXP_CAAM_DEK_DRV */
-#endif /* __CAAM_EXTENSION_H__ */
+#endif /* __DRIVERS_CAAM_EXTENSION_H__ */

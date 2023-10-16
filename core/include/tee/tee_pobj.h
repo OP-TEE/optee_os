@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_POBJ_H
-#define TEE_POBJ_H
+#ifndef __TEE_TEE_POBJ_H
+#define __TEE_TEE_POBJ_H
 
 #include <stdint.h>
 #include <sys/queue.h>

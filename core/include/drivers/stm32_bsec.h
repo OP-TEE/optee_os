@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2022, STMicroelectronics
  */
 
-#ifndef __STM32_BSEC_H
-#define __STM32_BSEC_H
+#ifndef __DRIVERS_STM32_BSEC_H
+#define __DRIVERS_STM32_BSEC_H
 
 #include <compiler.h>
 #include <stdint.h>
@@ -199,4 +199,4 @@ TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
  */
 TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *sec_state);
 
-#endif /*__STM32_BSEC_H*/
+#endif /*__DRIVERS_STM32_BSEC_H*/

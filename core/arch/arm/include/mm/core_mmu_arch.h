@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef __CORE_MMU_ARCH_H
-#define __CORE_MMU_ARCH_H
+#ifndef __MM_CORE_MMU_ARCH_H
+#define __MM_CORE_MMU_ARCH_H
 
 #ifndef __ASSEMBLER__
 #include <arm.h>
@@ -223,4 +223,4 @@ static inline bool core_mmu_level_in_range(unsigned int level)
 
 #endif /*__ASSEMBLER__*/
 
-#endif /* CORE_MMU_H */
+#endif /* __MM_CORE_MMU_ARCH_H */

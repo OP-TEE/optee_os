@@ -2,8 +2,8 @@
 /*
  * Copyright 2022-2023 NXP
  */
-#ifndef __CORE_MMU_ARCH_H
-#define __CORE_MMU_ARCH_H
+#ifndef __MM_CORE_MMU_ARCH_H
+#define __MM_CORE_MMU_ARCH_H
 
 #ifndef __ASSEMBLER__
 #include <assert.h>
@@ -150,4 +150,4 @@ static inline bool core_mmu_level_in_range(unsigned int level)
 }
 #endif /*__ASSEMBLER__*/
 
-#endif /* __CORE_MMU_ARCH_H */
+#endif /* __MM_CORE_MMU_ARCH_H */

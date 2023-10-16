@@ -5,8 +5,8 @@
  * Copyright (c) 2021, STMicroelectronics
  */
 
-#ifndef __DT_DRIVER_H
-#define __DT_DRIVER_H
+#ifndef __KERNEL_DT_DRIVER_H
+#define __KERNEL_DT_DRIVER_H
 
 #include <kernel/dt.h>
 #include <stdint.h>
@@ -278,5 +278,4 @@ static inline TEE_Result dt_driver_test_status(void)
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 #endif
-
-#endif /* __DT_DRIVER_H */
+#endif /* __KERNEL_DT_DRIVER_H */

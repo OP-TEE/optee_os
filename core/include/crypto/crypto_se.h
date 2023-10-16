@@ -10,8 +10,8 @@
   * These requests shall be handled in the secure element normally placed on
   * a serial communication bus (SPI, I2C).
   */
-#ifndef __CRYPTO_SE_H
-#define __CRYPTO_SE_H
+#ifndef __CRYPTO_CRYPTO_SE_H
+#define __CRYPTO_CRYPTO_SE_H
 
 #include <tee_api_types.h>
 

@@ -3,8 +3,8 @@
  * Copyright 2023 NXP
  * Copyright (c) 2015-2021, Linaro Limited
  */
-#ifndef OPTEE_ABI_H
-#define OPTEE_ABI_H
+#ifndef __TEE_OPTEE_ABI_H
+#define __TEE_OPTEE_ABI_H
 
 #include <stdint.h>
 
@@ -702,4 +702,4 @@
 	((((ret) & OPTEE_ABI_RETURN_RPC_PREFIX_MASK) == \
 		OPTEE_ABI_RETURN_RPC_PREFIX))); })
 
-#endif /* OPTEE_ABI_H */
+#endif /* __TEE_OPTEE_ABI_H */

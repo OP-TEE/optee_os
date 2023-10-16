@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015-2019, Arm Limited and Contributors. All rights reserved.
  */
-#ifndef SCMI_MSG_SCMI_H
-#define SCMI_MSG_SCMI_H
+#ifndef __DRIVERS_SCMI_MSG_SCMI_H
+#define __DRIVERS_SCMI_MSG_SCMI_H
 
 #define SCMI_PROTOCOL_ID_BASE			0x10
 #define SCMI_PROTOCOL_ID_POWER_DOMAIN		0x11
@@ -27,4 +27,4 @@
 #define SCMI_HARDWARE_ERROR		(-9)
 #define SCMI_PROTOCOL_ERROR		(-10)
 
-#endif /* SCMI_MSG_SCMI_H */
+#endif /* __DRIVERS_SCMI_MSG_SCMI_H */
