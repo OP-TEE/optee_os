@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2014, Linaro Limited
  */
+#ifndef __KERNEL_TIME_SOURCE_H
+#define __KERNEL_TIME_SOURCE_H
 
 #include <kernel/tee_time.h>
 
@@ -18,3 +20,4 @@ void time_source_init(void);
 	}
 
 extern struct time_source _time_source;
+#endif /*__KERNEL_TIME_SOURCE_H*/
