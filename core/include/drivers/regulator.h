@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2023, STMicroelectronics
  */
-#ifndef DRIVERS_REGULATOR_H
-#define DRIVERS_REGULATOR_H
+#ifndef __DRIVERS_REGULATOR_H
+#define __DRIVERS_REGULATOR_H
 
 #include <assert.h>
 #include <bitstring.h>
@@ -315,4 +315,4 @@ static inline void regulator_get_range(struct regulator *regulator, int *min_uv,
  */
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
 					struct regulator_voltages **voltages);
-#endif /* DRIVERS_REGULATOR_H */
+#endif /* __DRIVERS_REGULATOR_H */

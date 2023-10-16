@@ -3,8 +3,8 @@
  * Copyright 2022 NXP
  */
 
-#ifndef SBI_H
-#define SBI_H
+#ifndef __SBI_H
+#define __SBI_H
 
 #if defined(CFG_RISCV_SBI)
 
@@ -44,4 +44,4 @@ int sbi_boot_hart(uint32_t hart_id, paddr_t start_addr, unsigned long arg);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/
-#endif /*SBI_H*/
+#endif /*__SBI_H*/

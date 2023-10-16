@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2019-2023, Arm Limited. All rights reserved.
  */
-#ifndef ARM_H
-#define ARM_H
+#ifndef __ARM_H
+#define __ARM_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -200,4 +200,4 @@ static inline bool feat_pauth_is_implemented(void)
 
 #endif
 
-#endif /*ARM_H*/
+#endif /*__ARM_H*/

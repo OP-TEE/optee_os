@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014-2019, Linaro Limited
  */
-#ifndef IO_H
-#define IO_H
+#ifndef __IO_H
+#define __IO_H
 
 #include <compiler.h>
 #include <stdint.h>
@@ -300,4 +300,4 @@ static inline void io_clrsetbits8(vaddr_t addr, uint8_t clear_mask,
 		!(_cond); \
 	})
 
-#endif /*IO_H*/
+#endif /*__IO_H*/

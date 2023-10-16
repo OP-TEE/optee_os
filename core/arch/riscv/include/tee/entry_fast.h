@@ -5,8 +5,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_ENTRY_FAST_H
-#define TEE_ENTRY_FAST_H
+#ifndef __TEE_ENTRY_FAST_H
+#define __TEE_ENTRY_FAST_H
 
 #include <kernel/thread.h>
 
@@ -31,4 +31,4 @@ size_t tee_entry_generic_get_api_call_count(void);
 void tee_entry_fast(struct thread_abi_args *args);
 void __tee_entry_fast(struct thread_abi_args *args);
 
-#endif /* TEE_ENTRY_FAST_H */
+#endif /* __TEE_ENTRY_FAST_H */

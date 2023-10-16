@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2023, STMicroelectronics
  */
 
-#ifndef DRIVERS_STM32_I2C_H
-#define DRIVERS_STM32_I2C_H
+#ifndef __DRIVERS_STM32_I2C_H
+#define __DRIVERS_STM32_I2C_H
 
 #include <drivers/clk.h>
 #include <drivers/i2c.h>
@@ -278,4 +278,4 @@ static inline bool i2c_is_secure(struct i2c_handle_s *hi2c)
 	return hi2c->dt_status == DT_STATUS_OK_SEC;
 }
 
-#endif /* DRIVERS_STM32_I2C_H*/
+#endif /* __DRIVERS_STM32_I2C_H*/

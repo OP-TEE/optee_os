@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#ifndef KERNEL_PSEUDO_TA_H
-#define KERNEL_PSEUDO_TA_H
+#ifndef __KERNEL_PSEUDO_TA_H
+#define __KERNEL_PSEUDO_TA_H
 
 #include <assert.h>
 #include <compiler.h>
@@ -95,5 +95,5 @@ TEE_Result from_bounce_params(uint32_t param_types,
 			      TEE_Param bparams[TEE_NUM_PARAMS],
 			      TEE_Param *eparams);
 
-#endif /* KERNEL_PSEUDO_TA_H */
+#endif /* __KERNEL_PSEUDO_TA_H */
 

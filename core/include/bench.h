@@ -3,8 +3,8 @@
  * Copyright (c) 2017, Linaro Limited
  */
 
-#ifndef BENCH_H
-#define BENCH_H
+#ifndef __BENCH_H
+#define __BENCH_H
 
 #include <inttypes.h>
 #include <mm/core_memprot.h>
@@ -57,4 +57,4 @@ void bm_timestamp(void);
 static inline void bm_timestamp(void) {}
 #endif /* CFG_TEE_BENCHMARK */
 
-#endif /* BENCH_H */
+#endif /* __BENCH_H */

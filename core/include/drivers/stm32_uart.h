@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2023, STMicroelectronics
  */
 
-#ifndef DRIVERS_STM32_UART_H
-#define DRIVERS_STM32_UART_H
+#ifndef __DRIVERS_STM32_UART_H
+#define __DRIVERS_STM32_UART_H
 
 #include <drivers/clk.h>
 #include <drivers/pinctrl.h>
@@ -42,4 +42,4 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base);
  */
 struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node);
 
-#endif /*DRIVERS_STM32_UART_H*/
+#endif /*__DRIVERS_STM32_UART_H*/

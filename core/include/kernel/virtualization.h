@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /* Copyright (c) 2018, EPAM Systems. All rights reserved. */
 
-#ifndef KERNEL_VIRTUALIZATION_H
-#define KERNEL_VIRTUALIZATION_H
+#ifndef __KERNEL_VIRTUALIZATION_H
+#define __KERNEL_VIRTUALIZATION_H
 
 #include <mm/core_mmu.h>
 #include <stdbool.h>
@@ -135,4 +135,4 @@ static inline uint16_t virt_find_guest_by_cookie(uint64_t cookie __unused)
 { return 0; }
 #endif
 
-#endif	/* KERNEL_VIRTUALIZATION_H */
+#endif	/* __KERNEL_VIRTUALIZATION_H */

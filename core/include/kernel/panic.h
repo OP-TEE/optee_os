@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef KERNEL_PANIC_H
-#define KERNEL_PANIC_H
+#ifndef __KERNEL_PANIC_H
+#define __KERNEL_PANIC_H
 
 #include <compiler.h>
 
@@ -39,4 +39,4 @@ void __do_panic(const char *file, const int line, const char *func,
  */
 void cpu_idle(void);
 
-#endif /*KERNEL_PANIC_H*/
+#endif /*__KERNEL_PANIC_H*/

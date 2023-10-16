@@ -3,8 +3,8 @@
  * Copyright (c) 2018-2022, STMicroelectronics - All Rights Reserved
  */
 
-#ifndef DRIVERS_STM32_IWDG_H
-#define DRIVERS_STM32_IWDG_H
+#ifndef __DRIVERS_STM32_IWDG_H
+#define __DRIVERS_STM32_IWDG_H
 
 #include <stdbool.h>
 
@@ -30,4 +30,4 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 /* Refresh all registered IWDG watchdog instance */
 void stm32_iwdg_refresh(void);
 
-#endif /*DRIVERS_STM32_IWDG_H*/
+#endif /*__DRIVERS_STM32_IWDG_H*/

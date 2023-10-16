@@ -3,8 +3,8 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#ifndef INITCALL_H
-#define INITCALL_H
+#ifndef __INITCALL_H
+#define __INITCALL_H
 
 #include <scattered_array.h>
 #include <tee_api_types.h>
