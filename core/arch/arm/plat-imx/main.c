@@ -33,7 +33,6 @@
 #include <drivers/gic.h>
 #include <drivers/imx_uart.h>
 #include <imx.h>
-#include <io.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
