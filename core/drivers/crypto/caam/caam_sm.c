@@ -8,7 +8,6 @@
 #include <caam_jr.h>
 #include <caam_status.h>
 #include <caam_sm.h>
-#include <caam_utils_status.h>
 #include <tee_api_defines.h>
 
 /*
