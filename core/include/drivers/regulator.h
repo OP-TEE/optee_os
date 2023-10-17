@@ -42,7 +42,7 @@ struct regulator_ops;
  */
 struct regu_dt_desc {
 	void *priv;
-	char *name;
+	const char *name;
 	const char *supply_name;
 	const struct regulator_ops *ops;
 	struct regulator *regulator;
