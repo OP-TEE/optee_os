@@ -1832,7 +1832,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 			     cookie, args.a0);
 		return NULL;
 	}
-	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.tx,
+	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.rx,
 				       my_rxtx.size, trans);
 	if (rc) {
 		EMSG("Memory transaction failure for cookie %#"PRIx64" rc %d",
