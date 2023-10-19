@@ -700,11 +700,13 @@ static TEE_Result tee_svc_copy_param(struct ts_session *sess,
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			va = (void *)param->u[n].mem.offs;
 			s = param->u[n].mem.size;
-			if (!va) {
-				if (s)
-					return TEE_ERROR_BAD_PARAMETERS;
+			if (!s) {
+				param->u[n].mem.mobj = NULL;
 				break;
 			}
+			if (!va)
+				return TEE_ERROR_BAD_PARAMETERS;
+
 			/* uTA cannot expose its private memory */
 			if (vm_buf_is_inside_um_private(&utc->uctx, va, s))
 				return TEE_ERROR_BAD_PARAMETERS;
