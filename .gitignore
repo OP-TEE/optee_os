@@ -1,4 +1,5 @@
 .cproject
+compile_commands.json
 cscope.*
 tags
 TAGS

@@ -109,6 +109,7 @@ clean:
 	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then $(RMDIR) $$dirs; fi
 	@if [ "$(out-dir)" != "$(O)" ]; then $(cmd-echo-silent) '  CLEAN   $(O)'; fi
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
+	${q}rm -f compile_commands.json
 
 .PHONY: cscope
 cscope:
