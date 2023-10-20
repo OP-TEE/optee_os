@@ -140,7 +140,7 @@ TEE_Result versal_write_fpga(paddr_t pa)
 	cmd.data[1] = PDI_SRC_DDR;
 	reg_pair_from_64(pa, &cmd.data[2], &cmd.data[3]);
 
-	if (versal_mbox_notify(&cmd, NULL, NULL))
+	if (versal_mbox_notify_pmc(&cmd, NULL, NULL))
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
@@ -199,7 +199,7 @@ static TEE_Result versal_check_pm_abi(void)
 	}
 
 	cmd.data[0] = PM_API_ID(PM_GET_API_VERSION);
-	if (versal_mbox_notify(&cmd, &rsp, NULL))
+	if (versal_mbox_notify_pmc(&cmd, &rsp, NULL))
 		return TEE_ERROR_GENERIC;
 
 	major = rsp.data[1] & 0xFFFF;
