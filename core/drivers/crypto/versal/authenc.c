@@ -343,7 +343,9 @@ static TEE_Result do_init(struct drvcrypt_authenc_init *dinit)
 	}
 
 	/* Write the key */
-	versal_mbox_alloc(dinit->key.length, dinit->key.data, &key);
+	ret = versal_mbox_alloc(dinit->key.length, dinit->key.data, &key);
+	if (ret)
+		return ret;
 
 	arg.data[arg.dlen++] = key_len;
 	arg.data[arg.dlen++] = engine.key_src;
@@ -358,8 +360,12 @@ static TEE_Result do_init(struct drvcrypt_authenc_init *dinit)
 	memset(&arg, 0, sizeof(arg));
 
 	/* Send the initialization structure */
-	versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
-	versal_mbox_alloc(dinit->nonce.length, dinit->nonce.data, &nonce);
+	ret = versal_mbox_alloc(sizeof(*init), NULL, &init_buf);
+	if (ret)
+		goto error;
+	ret = versal_mbox_alloc(dinit->nonce.length, dinit->nonce.data, &nonce);
+	if (ret)
+		goto error;
 
 	init = init_buf.buf;
 	init->iv_addr = virt_to_phys(nonce.buf);
@@ -400,9 +406,9 @@ static TEE_Result do_init(struct drvcrypt_authenc_init *dinit)
 
 	return TEE_SUCCESS;
 error:
-	free(key.buf);
-	free(init_buf.buf);
-	free(nonce.buf);
+	versal_mbox_free(&nonce);
+	versal_mbox_free(&init_buf);
+	versal_mbox_free(&key);
 
 	return ret;
 }
@@ -427,7 +433,9 @@ static TEE_Result do_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 	if (engine.state == FINALIZED)
 		do_replay();
 
-	versal_mbox_alloc(dupdate->aad.length, dupdate->aad.data, &p);
+	ret = versal_mbox_alloc(dupdate->aad.length, dupdate->aad.data, &p);
+	if (ret)
+		return ret;
 
 	arg.data[arg.dlen++] = p.len % 16 ? p.alloc_len : p.len;
 	arg.ibuf[0].mem = p;
@@ -455,7 +463,7 @@ static TEE_Result do_update_aad(struct drvcrypt_authenc_update_aad *dupdate)
 
 	return TEE_SUCCESS;
 error:
-	free(p.buf);
+	versal_mbox_free(&p);
 	return ret;
 }
 
@@ -481,9 +489,15 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	versal_mbox_alloc(dupdate->src.length, dupdate->src.data, &p);
-	versal_mbox_alloc(dupdate->dst.length, NULL, &q);
-	versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
+	ret = versal_mbox_alloc(dupdate->src.length, dupdate->src.data, &p);
+	if (ret)
+		return ret;
+	ret = versal_mbox_alloc(dupdate->dst.length, NULL, &q);
+	if (ret)
+		goto out;
+	ret = versal_mbox_alloc(sizeof(*input), NULL, &input_cmd);
+	if (ret)
+		goto out;
 
 	input = input_cmd.buf;
 	input->input_addr = virt_to_phys(p.buf);
@@ -528,9 +542,9 @@ update_payload(struct drvcrypt_authenc_update_payload *dupdate, bool is_last)
 		return TEE_SUCCESS;
 	}
 out:
-	free(p.buf);
-	free(q.buf);
-	free(input_cmd.buf);
+	versal_mbox_free(&input_cmd);
+	versal_mbox_free(&q);
+	versal_mbox_free(&p);
 
 	return ret;
 }
@@ -594,7 +608,9 @@ static TEE_Result do_enc_final(struct drvcrypt_authenc_final *dfinal)
 
 	memcpy(dfinal->dst.data, last.dst.data, dfinal->dst.length);
 
-	versal_mbox_alloc(GCM_TAG_LEN, NULL, &p);
+	ret = versal_mbox_alloc(GCM_TAG_LEN, NULL, &p);
+	if (ret)
+		return ret;
 
 	arg.ibuf[0].mem = p;
 	if (versal_crypto_request(VERSAL_AES_ENCRYPT_FINAL, &arg, &err)) {
@@ -606,7 +622,7 @@ static TEE_Result do_enc_final(struct drvcrypt_authenc_final *dfinal)
 	memcpy(dfinal->tag.data, p.buf, GCM_TAG_LEN);
 	dfinal->tag.length = GCM_TAG_LEN;
 out:
-	free(p.buf);
+	versal_mbox_free(&p);
 
 	if (refcount_val(&engine.refc) > 1)
 		engine.state = FINALIZED;
@@ -646,7 +662,10 @@ static TEE_Result do_dec_final(struct drvcrypt_authenc_final *dfinal)
 	if (ret)
 		return ret;
 
-	versal_mbox_alloc(dfinal->tag.length, dfinal->tag.data, &p);
+	ret = versal_mbox_alloc(dfinal->tag.length, dfinal->tag.data, &p);
+	if (ret)
+		return ret;
+
 	arg.ibuf[0].mem = p;
 
 	if (versal_crypto_request(VERSAL_AES_DECRYPT_FINAL, &arg, &err)) {
@@ -659,7 +678,7 @@ static TEE_Result do_dec_final(struct drvcrypt_authenc_final *dfinal)
 	memcpy(dfinal->tag.data, p.buf, GCM_TAG_LEN);
 	dfinal->tag.length = GCM_TAG_LEN;
 out:
-	free(p.buf);
+	versal_mbox_free(&p);
 
 	if (refcount_val(&engine.refc) > 1)
 		engine.state = FINALIZED;
@@ -687,19 +706,19 @@ static void do_free(void *ctx)
 		release = true;
 		refcount_set(&engine.refc, 1);
 		engine.state = READY;
-		free(engine.init.init_buf.buf);
-		free(engine.init.nonce.buf);
-		free(engine.init.key.buf);
+		versal_mbox_free(&engine.init.init_buf);
+		versal_mbox_free(&engine.init.nonce);
+		versal_mbox_free(&engine.init.key);
 		memset(&engine.init, 0, sizeof(engine.init));
 		STAILQ_FOREACH_SAFE(node, &engine.replay_list, link, next) {
 			STAILQ_REMOVE(&engine.replay_list, node,
 				      versal_node, link);
 			if (node->is_aad) {
-				free(node->aad.mem.buf);
+				versal_mbox_free(&node->aad.mem);
 			} else {
-				free(node->payload.dst.buf);
-				free(node->payload.src.buf);
-				free(node->payload.input_cmd.buf);
+				versal_mbox_free(&node->payload.dst);
+				versal_mbox_free(&node->payload.src);
+				versal_mbox_free(&node->payload.input_cmd);
 			}
 			free(node);
 		}

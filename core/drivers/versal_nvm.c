@@ -151,7 +151,7 @@ static TEE_Result efuse_req(enum versal_nvm_api_id efuse,
 	if (ret)
 		return ret;
 
-	ret = versal_mbox_notify(&cmd, NULL, NULL);
+	ret = versal_mbox_notify_pmc(&cmd, NULL, NULL);
 	if (ret)
 		EMSG("Mailbox error");
 

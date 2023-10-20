@@ -68,6 +68,9 @@ else
 CFG_VERSAL_MBOX_IPI_ID ?= 3
 endif
 
+# IPI timeout in microseconds
+CFG_VERSAL_MBOX_TIMEOUT ?= 100000
+
 # PM driver
 CFG_VERSAL_PM ?= y
 

@@ -28,15 +28,20 @@ static TEE_Result input_plaintext(const uint8_t *src, size_t src_len)
 	while (src_len && !ret) {
 		len = MIN(src_len, SMALL_PAGE_SIZE);
 		src_len -= len;
-		versal_mbox_alloc(len, src + i * SMALL_PAGE_SIZE, &p);
+		ret = versal_mbox_alloc(len, src + i * SMALL_PAGE_SIZE, &p);
+		if (ret)
+			return ret;
 
 		arg.data[0] = first | VERSAL_SHA3_384_NEXT_PACKET | len;
 		arg.ibuf[0].mem = p;
 		ret = versal_crypto_request(VERSAL_SHA3_UPDATE, &arg, NULL);
-		if (ret)
+		if (ret) {
 			EMSG("VERSAL_SHA3_UPDATE [%ld, len = %zu]", i, len);
+			versal_mbox_free(&p);
+			break;
+		}
 
-		free(p.buf);
+		versal_mbox_free(&p);
 		first = 0;
 		i++;
 	}
@@ -50,7 +55,9 @@ static TEE_Result get_ciphertext(uint8_t *dst, size_t dst_len)
 	struct versal_mbox_mem p = { };
 	TEE_Result ret = TEE_SUCCESS;
 
-	versal_mbox_alloc(TEE_SHA384_HASH_SIZE, NULL, &p);
+	ret = versal_mbox_alloc(TEE_SHA384_HASH_SIZE, NULL, &p);
+	if (ret)
+		return ret;
 
 	arg.ibuf[0].mem = p;
 	ret = versal_crypto_request(VERSAL_SHA3_UPDATE, &arg, NULL);
@@ -59,7 +66,7 @@ static TEE_Result get_ciphertext(uint8_t *dst, size_t dst_len)
 	else
 		EMSG("VERSAL_SHA3_UPDATE final");
 
-	free(p.buf);
+	versal_mbox_free(&p);
 
 	return ret;
 }

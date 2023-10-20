@@ -44,7 +44,7 @@ static TEE_Result versal_sha3_request(enum versal_crypto_api id,
 		cmd.ibuf[0].mem = arg->ibuf[0].mem;
 	}
 
-	return versal_mbox_notify(&cmd, NULL, NULL);
+	return versal_mbox_notify_pmc(&cmd, NULL, NULL);
 }
 
 static TEE_Result versal_aes_update_aad_request(enum versal_crypto_api id,
@@ -63,7 +63,7 @@ static TEE_Result versal_aes_update_aad_request(enum versal_crypto_api id,
 
 	cmd.ibuf[0].mem = arg->ibuf[0].mem;
 
-	return versal_mbox_notify(&cmd, NULL, NULL);
+	return versal_mbox_notify_pmc(&cmd, NULL, NULL);
 }
 
 TEE_Result versal_crypto_request(enum versal_crypto_api id,
@@ -106,5 +106,5 @@ cache:
 	for (i = 0; i < VERSAL_MAX_IPI_BUF; i++)
 		cmd.ibuf[i].mem = arg->ibuf[i].mem;
 notify:
-	return versal_mbox_notify(&cmd, NULL, err);
+	return versal_mbox_notify_pmc(&cmd, NULL, err);
 }
