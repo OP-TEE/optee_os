@@ -30,7 +30,12 @@
  */
 
 /* Initialize GIC */
-void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa);
+void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
+		 paddr_t gicr_base_pa);
+static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+{
+	gic_init_v3(gicc_base_pa, gicd_base_pa, 0);
+}
 
 /* Only initialize CPU GIC interface, mainly use for secondary CPUs */
 void gic_cpu_init(void);
