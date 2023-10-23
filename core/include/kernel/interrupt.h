@@ -15,6 +15,11 @@
 #define ITRF_TRIGGER_LEVEL	BIT(0)
 #define ITRF_SHARED		BIT(1)
 
+/* Forward the interrupt only to the current CPU */
+#define ITR_CPU_MASK_TO_THIS_CPU	BIT(31)
+/* Forward the interrupt to all CPUs except the current CPU */
+#define ITR_CPU_MASK_TO_OTHER_CPUS	BIT(30)
+
 struct itr_handler;
 
 /*
@@ -65,7 +70,7 @@ struct itr_ops {
 	void (*unmask)(struct itr_chip *chip, size_t it);
 	void (*raise_pi)(struct itr_chip *chip, size_t it);
 	void (*raise_sgi)(struct itr_chip *chip, size_t it,
-		uint8_t cpu_mask);
+			  uint32_t cpu_mask);
 	void (*set_affinity)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
 };
@@ -266,10 +271,12 @@ static inline void interrupt_raise_pi(struct itr_chip *chip, size_t itr_num)
  * interrupt_raise_sgi() - Raise a software generiated interrupt of a controller
  * @chip	Interrupt controller
  * @itr_num	Interrupt number to raise
- * @cpu_mask	Mask of the CPUs targeted by the interrupt
+ * @cpu_mask:	A bitfield of CPUs to forward the interrupt to, unless
+ *		ITR_CPU_MASK_TO_THIS_CPU or ITR_CPU_MASK_TO_OTHER_CPUS
+ *		(mutually exclusive) are set.
  */
 static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
-				       uint8_t cpu_mask)
+				       uint32_t cpu_mask)
 {
 	assert(interrupt_can_raise_sgi(chip));
 	chip->ops->raise_sgi(chip, itr_num, cpu_mask);
