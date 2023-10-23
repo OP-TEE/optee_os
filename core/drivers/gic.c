@@ -1,26 +1,27 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2017, Linaro Limited
+ * Copyright (c) 2016-2017, 2023 Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
 #include <arm.h>
 #include <assert.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <config.h>
 #include <compiler.h>
+#include <config.h>
 #include <drivers/gic.h>
+#include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
-#include <libfdt.h>
-#include <util.h>
-#include <io.h>
 #include <trace.h>
+#include <util.h>
 
 /* Offsets from gic.gicc_base */
 #define GICC_CTLR		(0x000)
@@ -30,7 +31,6 @@
 
 #define GICC_CTLR_ENABLEGRP0	(1 << 0)
 #define GICC_CTLR_ENABLEGRP1	(1 << 1)
-#define GICD_CTLR_ENABLEGRP1S	(1 << 2)
 #define GICC_CTLR_FIQEN		(1 << 3)
 
 /* Offsets from gic.gicd_base */
@@ -53,8 +53,26 @@
 #define GICD_PIDR2		(0xFE8)
 #endif
 
-#define GICD_CTLR_ENABLEGRP0	(1 << 0)
-#define GICD_CTLR_ENABLEGRP1	(1 << 1)
+#define GICD_CTLR_ENABLEGRP0	BIT32(0)
+#define GICD_CTLR_ENABLEGRP1NS	BIT32(1)
+#define GICD_CTLR_ENABLEGRP1S	BIT32(2)
+#define GICD_CTLR_ARE_S		BIT32(4)
+#define GICD_CTLR_ARE_NS	BIT32(5)
+
+/* Offsets from gic.gicr_base[core_pos] */
+#define GICR_V3_PCPUBASE_SIZE	(2 * 64 * 1024)
+#define GICR_SGI_BASE_OFFSET	(64 * 1024)
+#define GICR_CTLR		(0x00)
+#define GICR_TYPER		(0x08)
+
+#define GICR_IGROUPR0		(GICR_SGI_BASE_OFFSET + 0x080)
+#define GICR_IGRPMODR0		(GICR_SGI_BASE_OFFSET + 0xD00)
+
+#define GICR_TYPER_LAST		BIT64(4)
+#define GICR_TYPER_AFF3_SHIFT	56
+#define GICR_TYPER_AFF2_SHIFT	48
+#define GICR_TYPER_AFF1_SHIFT	40
+#define GICR_TYPER_AFF0_SHIFT	32
 
 /* GICD IDR2 name differs on GICv3 and GICv2 but uses same bit map */
 #define GICD_PIDR2_ARCHREV_SHIFT	4
@@ -99,7 +117,12 @@
 struct gic_data {
 	vaddr_t gicc_base;
 	vaddr_t gicd_base;
+#if defined(CFG_ARM_GICV3)
+	vaddr_t gicr_base[CFG_TEE_CORE_NB_CORE];
+#endif
 	size_t max_it;
+	uint32_t per_cpu_group_status;
+	uint32_t per_cpu_group_modifier;
 	struct itr_chip chip;
 };
 
@@ -126,6 +149,15 @@ static const struct itr_ops gic_ops = {
 	.set_affinity = gic_op_set_affinity,
 };
 DECLARE_KEEP_PAGER(gic_ops);
+
+static vaddr_t __maybe_unused get_gicr_base(struct gic_data *gd __maybe_unused)
+{
+#if defined(CFG_ARM_GICV3)
+	return gd->gicr_base[get_core_pos()];
+#else
+	return 0;
+#endif
+}
 
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
@@ -180,14 +212,10 @@ void gic_cpu_init(void)
 	assert(gd->gicd_base && gd->gicc_base);
 #endif
 
-	/* per-CPU interrupts config:
-	 * ID0-ID7(SGI)   for Non-secure interrupts
-	 * ID8-ID15(SGI)  for Secure interrupts.
-	 * All PPI config as Non-secure interrupts.
-	 */
-	io_write32(gd->gicd_base + GICD_IGROUPR(0), 0xffff00ff);
+	io_write32(gd->gicd_base + GICD_IGROUPR(0), gd->per_cpu_group_status);
 
-	/* Set the priority mask to permit Non-secure interrupts, and to
+	/*
+	 * Set the priority mask to permit Non-secure interrupts, and to
 	 * allow the Non-secure world to adjust the priority mask itself
 	 */
 #if defined(CFG_ARM_GICV3)
@@ -233,7 +261,49 @@ static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
 	return it_num;
 }
 
-static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+static void __maybe_unused probe_redist_base_addrs(vaddr_t *gicr_base_addrs,
+						   paddr_t gicr_base_pa)
+{
+	size_t sz = GICR_V3_PCPUBASE_SIZE;
+	paddr_t pa = gicr_base_pa;
+	size_t core_pos = 0;
+	uint64_t mt_bit = 0;
+	uint64_t mpidr = 0;
+	uint64_t tv = 0;
+	vaddr_t va = 0;
+
+#ifdef ARM64
+	mt_bit = read_mpidr_el1() & MPIDR_MT_MASK;
+#endif
+	do {
+		va = core_mmu_get_va(pa, MEM_AREA_IO_SEC, sz);
+		if (!va)
+			panic();
+		tv = io_read64(va + GICR_TYPER);
+
+		/*
+		 * Extract an mpidr from the Type register to calculate the
+		 * core position of this redistributer instance.
+		 */
+		mpidr = mt_bit;
+		mpidr |= SHIFT_U64((tv >> GICR_TYPER_AFF3_SHIFT) &
+				   MPIDR_AFFLVL_MASK, MPIDR_AFF3_SHIFT);
+		mpidr |= (tv >> GICR_TYPER_AFF0_SHIFT) &
+			 (MPIDR_AFF0_MASK | MPIDR_AFF1_MASK | MPIDR_AFF2_MASK);
+		core_pos = get_core_pos_mpidr(mpidr);
+		if (core_pos < CFG_TEE_CORE_NB_CORE) {
+			DMSG("GICR_BASE[%zu] at %#"PRIxVA, core_pos, va);
+			gicr_base_addrs[core_pos] = va;
+		} else {
+			EMSG("Skipping too large core_pos %zu from GICR_TYPER",
+			     core_pos);
+		}
+		pa += sz;
+	} while (!(tv & GICR_TYPER_LAST));
+}
+
+static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
+			       paddr_t gicr_base_pa __maybe_unused)
 {
 	struct gic_data *gd = &gic_data;
 	vaddr_t gicc_base = 0;
@@ -264,21 +334,45 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	gd->gicc_base = gicc_base;
 	gd->gicd_base = gicd_base;
 	gd->max_it = probe_max_it(gicc_base, gicd_base);
+#if defined(CFG_ARM_GICV3)
+	probe_redist_base_addrs(gd->gicr_base, gicr_base_pa);
+#endif
 	gd->chip.ops = &gic_ops;
 
 	if (IS_ENABLED(CFG_DT))
 		gd->chip.dt_get_irq = gic_dt_get_irq;
 }
 
-void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
+		 paddr_t gicr_base_pa)
 {
 	struct gic_data __maybe_unused *gd = &gic_data;
 	size_t __maybe_unused n = 0;
 
-	gic_init_base_addr(gicc_base_pa, gicd_base_pa);
+	gic_init_base_addr(gicc_base_pa, gicd_base_pa, gicr_base_pa);
 
+#if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* GIC configuration is initialized from TF-A when embedded */
-#ifndef CFG_WITH_ARM_TRUSTED_FW
+	if (io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S) {
+		vaddr_t gicr_base = get_gicr_base(gd);
+
+		if (!gicr_base)
+			panic("GICR_BASE missing for affinity routing");
+		/* Secure affinity routing enabled */
+		gd->per_cpu_group_status = io_read32(gicr_base + GICR_IGROUPR0);
+		gd->per_cpu_group_modifier = io_read32(gicr_base +
+						       GICR_IGRPMODR0);
+	} else {
+		/* Legacy operation with secure affinity routing disabled */
+		gd->per_cpu_group_status = io_read32(gd->gicd_base +
+						     GICD_IGROUPR(0));
+		gd->per_cpu_group_modifier = ~gd->per_cpu_group_status;
+	}
+#else /*!CFG_WITH_ARM_TRUSTED_FW*/
+	/*
+	 * Without TF-A, GIC is always configured in for legacy operation
+	 * with secure affinity routing disabled.
+	 */
 	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Disable interrupts */
 		io_write32(gd->gicd_base + GICD_ICENABLER(n), 0xffffffff);
@@ -293,7 +387,10 @@ void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 			 * ID8-ID15(SGI)  for Secure interrupts.
 			 * All PPI config as Non-secure interrupts.
 			 */
-			io_write32(gd->gicd_base + GICD_IGROUPR(n), 0xffff00ff);
+			gd->per_cpu_group_status = 0xffff00ff;
+			gd->per_cpu_group_modifier = ~gd->per_cpu_group_status;
+			io_write32(gd->gicd_base + GICD_IGROUPR(n),
+				   gd->per_cpu_group_status);
 		} else {
 			io_write32(gd->gicd_base + GICD_IGROUPR(n), 0xffffffff);
 		}
@@ -313,9 +410,9 @@ void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	io_write32(gd->gicc_base + GICC_CTLR, GICC_CTLR_FIQEN |
 		   GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1);
 	io_setbits32(gd->gicd_base + GICD_CTLR,
-		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1);
+		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1NS);
 #endif
-#endif /*CFG_WITH_ARM_TRUSTED_FW*/
+#endif /*!CFG_WITH_ARM_TRUSTED_FW*/
 
 	interrupt_main_init(&gic_data.chip);
 }
@@ -655,9 +752,6 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 
 	/* Should be Software Generated Interrupt */
 	assert(it < NUM_SGI);
-
-	if (it > gd->max_it)
-		panic();
 
 	if (it < NUM_NS_SGI)
 		gic_it_raise_sgi(gd, it, cpu_mask, 1);
