@@ -302,17 +302,45 @@ void thread_trap_handler(long cause, unsigned long epc __unused,
 		thread_exception_handler(cause, regs);
 }
 
+unsigned long xstatus_for_xret(uint8_t pie, uint8_t pp)
+{
+	unsigned long xstatus = read_csr(CSR_XSTATUS);
+
+	assert(pp == PRV_M || pp == PRV_S || pp == PRV_U);
+
+#ifdef RV32
+	xstatus = set_field_u32(xstatus, CSR_XSTATUS_IE, 0);
+	xstatus = set_field_u32(xstatus, CSR_XSTATUS_PIE, pie);
+	xstatus = set_field_u32(xstatus, CSR_XSTATUS_SPP, pp);
+#else	/* RV64 */
+	xstatus = set_field_u64(xstatus, CSR_XSTATUS_IE, 0);
+	xstatus = set_field_u64(xstatus, CSR_XSTATUS_PIE, pie);
+	xstatus = set_field_u64(xstatus, CSR_XSTATUS_SPP, pp);
+#endif
+
+	return xstatus;
+}
+
 static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 		      uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5,
 		      uint32_t a6, uint32_t a7, void *pc)
 {
-	thread->regs.ra = (uintptr_t)pc;
+	memset(&thread->regs, 0, sizeof(thread->regs));
+
+	thread->regs.epc = (uintptr_t)pc;
 
 	/* Set up xstatus */
-	thread->regs.status = read_csr(CSR_XSTATUS);
+	thread->regs.status = xstatus_for_xret(true, PRV_S);
+
+	/* Enable native interrupt */
+	thread->regs.ie = THREAD_EXCP_NATIVE_INTR;
 
 	/* Reinitialize stack pointer */
 	thread->regs.sp = thread->stack_va_end;
+
+	/* Set up GP and TP */
+	thread->regs.gp = read_gp();
+	thread->regs.tp = read_tp();
 
 	/*
 	 * Copy arguments into context. This will make the
@@ -462,6 +490,13 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 		tee_ta_update_session_utime_resume();
 
 	/*
+	 * We may resume thread at another hart, so we need to re-assign value
+	 * of tp to be current hart's thread_core_local.
+	 */
+	if (!is_user_mode(&threads[n].regs))
+		threads[n].regs.tp = read_tp();
+
+	/*
 	 * Return from RPC to request service of a foreign interrupt must not
 	 * get parameters from non-secure world.
 	 */
@@ -526,7 +561,7 @@ int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 	assert(threads[ct].state == THREAD_STATE_ACTIVE);
 	threads[ct].flags |= flags;
 	threads[ct].regs.status = status;
-	threads[ct].regs.ra = pc;
+	threads[ct].regs.epc = pc;
 	threads[ct].state = THREAD_STATE_SUSPENDED;
 
 	threads[ct].have_user_map = core_mmu_user_mapping_is_active();

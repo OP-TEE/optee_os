@@ -23,6 +23,11 @@
 2:
 .endm
 
+.macro b_if_prev_priv_is_u reg, label
+	andi	\reg, \reg, CSR_XSTATUS_SPP
+	beqz	\reg, \label
+.endm
+
 .macro save_regs, mode
 	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
 .if \mode == TRAP_MODE_USER
@@ -249,16 +254,37 @@ END_FUNC __thread_enter_user_mode
 
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
-	/*
-	 * Restore all registers assuming that GP
-	 * and TP were not changed.
-	 */
-	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_SP
+	/* Disable global interrupts first */
+	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
+
+	/* Restore epc */
+	load_xregs a0, THREAD_CTX_REG_EPC, REG_T0
+	csrw	CSR_XEPC, t0
+
+	/* Restore ie */
+	load_xregs a0, THREAD_CTX_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+
+	/* Restore status */
+	load_xregs a0, THREAD_CTX_REG_STATUS, REG_T0
+	csrw	CSR_XSTATUS, t0
+
+	/* Check if previous privilege mode by status.SPP */
+	b_if_prev_priv_is_u t0, 1f
+	/* Set scratch as zero to indicate that we are in kernel mode */
+	csrw	CSR_XSCRATCH, zero
+	j	2f
+1:
+	/* Resume to U-mode, set scratch as tp to be used in the trap handler */
+	csrw	CSR_XSCRATCH, tp
+2:
+	/* Restore all general-purpose registers */
+	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP
 	load_xregs a0, THREAD_CTX_REG_T0, REG_T0, REG_T2
 	load_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
 	load_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
 	load_xregs a0, THREAD_CTX_REG_T3, REG_T3, REG_T6
 	load_xregs a0, THREAD_CTX_REG_A0, REG_A0, REG_A7
-	store_xregs tp, THREAD_CORE_LOCAL_X10, REG_A0, REG_A1
-	ret
+
+	XRET
 END_FUNC thread_resume

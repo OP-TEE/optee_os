@@ -124,7 +124,7 @@ struct thread_trap_regs {
 	unsigned long t6;
 	unsigned long epc;
 	unsigned long status;
-	unsigned long satp;
+	unsigned long ie;
 } __aligned(16);
 
 struct thread_scall_regs {
@@ -175,7 +175,9 @@ struct thread_ctx_regs {
 	unsigned long t4;
 	unsigned long t5;
 	unsigned long t6;
+	unsigned long epc;
 	unsigned long status;
+	unsigned long ie;
 };
 
 struct user_mode_ctx;

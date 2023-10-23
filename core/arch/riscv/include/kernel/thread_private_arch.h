@@ -65,6 +65,9 @@ void thread_return_to_udomain(unsigned long arg0, unsigned long arg1,
 
 void __panic_at_abi_return(void);
 
+/* Helper function to prepare CSR status for exception return */
+unsigned long xstatus_for_xret(uint8_t pie, uint8_t pp);
+
 /*
  * Assembly function as the first function in a thread.  Handles a stdcall,
  * a0-a3 holds the parameters. Hands over to __thread_std_abi_entry() when

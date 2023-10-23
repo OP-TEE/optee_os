@@ -115,6 +115,14 @@ static inline __noprof void mb(void)
 	asm volatile ("fence" : : : "memory");
 }
 
+static inline __noprof unsigned long read_gp(void)
+{
+	unsigned long gp = 0;
+
+	asm volatile("mv %0, gp" : "=&r"(gp));
+	return gp;
+}
+
 static inline __noprof unsigned long read_tp(void)
 {
 	unsigned long tp = 0;
