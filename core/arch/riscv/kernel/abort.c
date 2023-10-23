@@ -238,7 +238,7 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	ai->regs->a2 = 0xdeadbeef;
 	ai->regs->ra = (vaddr_t)thread_unwind_user_mode;
 	ai->regs->sp = thread_get_saved_thread_sp();
-	ai->regs->status = read_csr(CSR_XSTATUS);
+	ai->regs->status = xstatus_for_xret(true, PRV_S);
 
 	thread_exit_user_mode(ai->regs->a0, ai->regs->a1, ai->regs->a2,
 			      ai->regs->a3, ai->regs->sp, ai->regs->ra,
