@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2021, Arm Limited.
+ * Copyright (c) 2023, Linaro Limited
  */
 #ifndef __KERNEL_THREAD_SPMC_H
 #define __KERNEL_THREAD_SPMC_H
 
+#include <compiler.h>
 #include <ffa.h>
+#include <kernel/panic.h>
 #include <kernel/thread.h>
 
 /* FF-A endpoint base ID when OP-TEE is used as a S-EL1 endpoint */
@@ -37,7 +40,14 @@ TEE_Result spmc_fill_partition_entry(uint32_t ffa_vers, void *buf, size_t blen,
 int spmc_read_mem_transaction(uint32_t ffa_vers, void *buf, size_t blen,
 			      struct ffa_mem_transaction_x *trans);
 
-#if !defined(CFG_CORE_SEL1_SPMC)
+#if defined(CFG_CORE_SEL1_SPMC)
+void thread_spmc_set_async_notif_intid(int intid);
+#else
+static inline void __noreturn
+thread_spmc_set_async_notif_intid(int intid __unused)
+{
+	panic();
+}
 struct mobj_ffa *thread_spmc_populate_mobj_from_rx(uint64_t cookie);
 void thread_spmc_relinquish(uint64_t memory_region_handle);
 #endif
