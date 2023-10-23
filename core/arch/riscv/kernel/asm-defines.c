@@ -32,7 +32,8 @@ DEFINES
 	       offsetof(struct thread_core_local, flags));
 	DEFINE(THREAD_CORE_LOCAL_ABT_STACK_VA_END,
 	       offsetof(struct thread_core_local, abt_stack_va_end));
-	DEFINE(THREAD_CORE_LOCAL_X10, offsetof(struct thread_core_local, x[0]));
+	DEFINE(THREAD_CORE_LOCAL_X0, offsetof(struct thread_core_local, x[0]));
+	DEFINE(THREAD_CORE_LOCAL_X1, offsetof(struct thread_core_local, x[1]));
 
 	DEFINE(STACK_TMP_GUARD, STACK_CANARY_SIZE / 2 + STACK_TMP_OFFS);
 
@@ -74,6 +75,7 @@ DEFINES
 	DEFINE(THREAD_TRAP_REG_EPC, offsetof(struct thread_trap_regs, epc));
 	DEFINE(THREAD_TRAP_REG_STATUS,
 	       offsetof(struct thread_trap_regs, status));
+	DEFINE(THREAD_TRAP_REG_IE, offsetof(struct thread_trap_regs, ie));
 	DEFINE(THREAD_TRAP_REGS_SIZE, sizeof(struct thread_trap_regs));
 
 	/* struct thread_scall_regs */

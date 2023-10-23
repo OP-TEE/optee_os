@@ -29,15 +29,24 @@
 .endm
 
 .macro save_regs, mode
-	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
 .if \mode == TRAP_MODE_USER
+	/* Save user sp, a0, a1 into temporary spaces of thread_core_local */
+	store_xregs tp, THREAD_CORE_LOCAL_X0, REG_SP
+	store_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+	/* Load and set kernel sp from thread context */
+	get_thread_ctx a0, a1
+	load_xregs a0, THREAD_CTX_KERN_SP, REG_SP
+	/* Now sp is kernel sp, create stack frame to save user context */
+	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
 
-	/* Save user thread pointer and load kernel thread pointer */
-	store_xregs sp, THREAD_TRAP_REG_TP, REG_TP
-	addi	tp, sp, THREAD_TRAP_REGS_SIZE
-	/* Now tp is at struct thread_user_mode_rec, which has kernel tp */
-	load_xregs tp, THREAD_USER_MODE_REC_X4, REG_TP
+	/* Save user sp */
+	load_xregs tp, THREAD_CORE_LOCAL_X0, REG_A0
+	store_xregs sp, THREAD_TRAP_REG_SP, REG_A0
 
+	/* Restore user a0, a1 which can be saved later */
+	load_xregs tp, THREAD_CORE_LOCAL_X1, REG_A0, REG_A1
+
+	/* Save user gp */
 	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
 
 	/*
@@ -45,11 +54,17 @@
 	 * exception thread_trap_vect() knows that it is emitted from kernel.
 	 */
 	csrrw	gp, CSR_XSCRATCH, zero
-	store_xregs sp, THREAD_TRAP_REG_SP, REG_GP
+	/* Save user tp we previously swapped into CSR_XSCRATCH */
+	store_xregs sp, THREAD_TRAP_REG_TP, REG_GP
 .option push
 .option norelax
 	la	gp, __global_pointer$
 .option pop
+.else
+	/* sp is kernel sp */
+	addi	sp, sp, -THREAD_TRAP_REGS_SIZE
+	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
+	store_xregs sp, THREAD_TRAP_REG_SP, REG_SP
 .endif
 	store_xregs sp, THREAD_TRAP_REG_T3, REG_T3, REG_T6
 	store_xregs sp, THREAD_TRAP_REG_T0, REG_T0, REG_T2
@@ -59,6 +74,12 @@
 	/* To unwind stack we need s0, which is frame pointer. */
 	store_xregs sp, THREAD_TRAP_REG_S0, REG_S0
 #endif
+
+	csrr	t0, CSR_XIE
+	store_xregs sp, THREAD_TRAP_REG_IE, REG_T0
+
+	/* Mask all interrupts */
+	csrw	CSR_XIE, x0
 
 	csrr	t0, CSR_XSTATUS
 	store_xregs sp, THREAD_TRAP_REG_STATUS, REG_T0
@@ -82,6 +103,9 @@
 	load_xregs sp, THREAD_TRAP_REG_EPC, REG_T0
 	csrw	CSR_XEPC, t0
 
+	load_xregs sp, THREAD_TRAP_REG_IE, REG_T0
+	csrw	CSR_XIE, t0
+
 	load_xregs sp, THREAD_TRAP_REG_STATUS, REG_T0
 	csrw	CSR_XSTATUS, t0
 
@@ -95,14 +119,16 @@
 #endif
 
 .if \mode == TRAP_MODE_USER
-	addi	gp, sp, THREAD_TRAP_REGS_SIZE
-	csrw	CSR_XSCRATCH, gp
+	/* Set scratch as thread_core_local */
+	csrw	CSR_XSCRATCH, tp
 
 	load_xregs sp, THREAD_TRAP_REG_TP, REG_TP
 	load_xregs sp, THREAD_TRAP_REG_GP, REG_GP
 	load_xregs sp, THREAD_TRAP_REG_SP, REG_SP
 
 .else
+	load_xregs sp, THREAD_TRAP_REG_GP, REG_GP
+	load_xregs sp, THREAD_TRAP_REG_SP, REG_SP
 	addi	sp, sp, THREAD_TRAP_REGS_SIZE
 .endif
 .endm
@@ -114,11 +140,13 @@ FUNC __get_core_pos , : , .identity_map
 END_FUNC __get_core_pos
 
 FUNC thread_trap_vect , :
-	csrrw	sp, CSR_XSCRATCH, sp
-	bnez	sp, 0f
-	csrrw	sp, CSR_XSCRATCH, sp
+	csrrw	tp, CSR_XSCRATCH, tp
+	bnez	tp, 0f
+	/* Read tp back */
+	csrrw	tp, CSR_XSCRATCH, tp
 	j	trap_from_kernel
 0:
+	/* Now tp is thread_core_local */
 	j	trap_from_user
 thread_trap_vect_end:
 END_FUNC thread_trap_vect
