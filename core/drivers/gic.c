@@ -67,6 +67,8 @@
 
 #define GICR_IGROUPR0		(GICR_SGI_BASE_OFFSET + 0x080)
 #define GICR_IGRPMODR0		(GICR_SGI_BASE_OFFSET + 0xD00)
+#define GICR_ICENABLER0		(GICR_SGI_BASE_OFFSET + 0x180)
+#define GICR_ICPENDR0		(GICR_SGI_BASE_OFFSET + 0x280)
 
 #define GICR_TYPER_LAST		BIT64(4)
 #define GICR_TYPER_AFF3_SHIFT	56
@@ -202,6 +204,85 @@ out:
 	return ret;
 }
 
+static void gicv3_sync_sgi_config(struct gic_data *gd)
+{
+	vaddr_t gicr_base = get_gicr_base(gd);
+	bool need_sync = false;
+	uint32_t gmod0 = 0;
+	uint32_t grp0 = 0;
+	size_t n = 0;
+
+	if (!gicr_base)
+		panic("GICR_BASE missing for affinity routing");
+
+	grp0 = io_read32(gicr_base + GICR_IGROUPR0);
+	gmod0 = io_read32(gicr_base + GICR_IGRPMODR0);
+	for (n = GIC_SGI_SEC_BASE; n <= GIC_SGI_SEC_MAX; n++) {
+		/* Ignore matching bits */
+		if (!(BIT32(n) & (grp0 ^ gd->per_cpu_group_status)) &&
+		    !(BIT32(n) & (gmod0 ^ gd->per_cpu_group_modifier)))
+			continue;
+		/*
+		 * SGI-n differs from primary CPU configuration,
+		 * let's sync up.
+		 */
+		need_sync = true;
+
+		/* Disable interrupt */
+		io_write32(gicr_base + GICR_ICENABLER0, BIT32(n));
+
+		/* Make interrupt non-pending */
+		io_write32(gicr_base + GICR_ICPENDR0, BIT32(n));
+
+		if (BIT32(n) & gd->per_cpu_group_status)
+			grp0 |= BIT32(n);
+		else
+			grp0 &= ~BIT32(n);
+		if (BIT32(n) & gd->per_cpu_group_modifier)
+			gmod0 |= BIT32(n);
+		else
+			gmod0 &= ~BIT32(n);
+	}
+
+	if (need_sync) {
+		io_write32(gicr_base + GICR_IGROUPR0, grp0);
+		io_write32(gicr_base + GICR_IGRPMODR0, gmod0);
+	}
+}
+
+static void gic_legacy_sync_sgi_config(struct gic_data *gd)
+{
+	bool need_sync = false;
+	uint32_t grp0 = 0;
+	size_t n = 0;
+
+	grp0 = io_read32(gd->gicd_base + GICD_IGROUPR(0));
+	for (n = GIC_SGI_SEC_BASE; n <= GIC_SGI_SEC_MAX; n++) {
+		/* Ignore matching bits */
+		if (!(BIT32(n) & (grp0 ^ gd->per_cpu_group_status)))
+			continue;
+		/*
+		 * SGI-n differs from primary CPU configuration,
+		 * let's sync up.
+		 */
+		need_sync = true;
+
+		/* Disable interrupt */
+		io_write32(gd->gicd_base + GICD_ICENABLER(0), BIT(n));
+
+		/* Make interrupt non-pending */
+		io_write32(gd->gicd_base + GICD_ICPENDR(0), BIT(n));
+
+		if (BIT32(n) & gd->per_cpu_group_status)
+			grp0 |= BIT32(n);
+		else
+			grp0 &= ~BIT32(n);
+	}
+
+	if (need_sync)
+		io_write32(gd->gicd_base + GICD_IGROUPR(0), grp0);
+}
+
 static void init_gic_per_cpu(struct gic_data *gd)
 {
 	io_write32(gd->gicd_base + GICD_IGROUPR(0), gd->per_cpu_group_status);
@@ -233,9 +314,23 @@ void gic_init_per_cpu(void)
 	assert(gd->gicd_base && gd->gicc_base);
 #endif
 
-	/* GIC is already configured in TF-A configurations */
-	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
+	if (IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW)) {
+		/*
+		 * GIC is already initialized by TF-A, we only need to
+		 * handle eventual SGI configuration changes.
+		 */
+		if (IS_ENABLED(CFG_ARM_GICV3) &&
+		    io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S)
+			gicv3_sync_sgi_config(gd);
+		else
+			gic_legacy_sync_sgi_config(gd);
+	} else {
+		/*
+		 * Non-TF-A case where all CPU specific configuration
+		 * of GIC must be done here.
+		 */
 		init_gic_per_cpu(gd);
+	}
 }
 
 void gic_cpu_init(void)
@@ -250,6 +345,46 @@ void gic_cpu_init(void)
 	IMSG("%s is deprecated, please use gic_init_per_cpu()", __func__);
 
 	init_gic_per_cpu(gd);
+}
+
+void gic_init_donate_sgi_to_ns(size_t it)
+{
+	struct gic_data *gd = &gic_data;
+
+	assert(it >= GIC_SGI_SEC_BASE && it <= GIC_SGI_SEC_MAX);
+
+	/* Assert it's secure to start with. */
+	assert(!(gd->per_cpu_group_status & BIT32(it)) &&
+	       (gd->per_cpu_group_modifier & BIT32(it)));
+
+	gd->per_cpu_group_modifier &= ~BIT32(it);
+	gd->per_cpu_group_status |= BIT32(it);
+
+	if (IS_ENABLED(CFG_ARM_GICV3) &&
+	    (io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S)) {
+		vaddr_t gicr_base = get_gicr_base(gd);
+
+		/* Disable interrupt */
+		io_write32(gicr_base + GICR_ICENABLER0, BIT32(it));
+
+		/* Make interrupt non-pending */
+		io_write32(gicr_base + GICR_ICPENDR0, BIT32(it));
+
+		/* Make it to non-secure */
+		io_write32(gicr_base + GICR_IGROUPR0, gd->per_cpu_group_status);
+		io_write32(gicr_base + GICR_IGRPMODR0,
+			   gd->per_cpu_group_modifier);
+	} else {
+		/* Disable interrupt */
+		io_write32(gd->gicd_base + GICD_ICENABLER(0), BIT(it));
+
+		/* Make interrupt non-pending */
+		io_write32(gd->gicd_base + GICD_ICPENDR(0), BIT(it));
+
+		/* Make it to non-secure */
+		io_write32(gd->gicd_base + GICD_IGROUPR(0),
+			   gd->per_cpu_group_status);
+	}
 }
 
 static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
@@ -551,7 +686,7 @@ static void assert_cpu_mask_is_valid(uint32_t cpu_mask)
 }
 
 static void gic_it_raise_sgi(struct gic_data *gd __maybe_unused, size_t it,
-			     uint32_t cpu_mask, uint8_t group)
+			     uint32_t cpu_mask, bool ns)
 {
 #if defined(CFG_ARM_GICV3)
 	uint32_t mask_id = it & 0xf;
@@ -586,13 +721,13 @@ static void gic_it_raise_sgi(struct gic_data *gd __maybe_unused, size_t it,
 	}
 
 	/* Raise the interrupt */
-	if (group)
+	if (ns)
 		write_icc_asgi1r(mask);
 	else
 		write_icc_sgi1r(mask);
 #else
 	uint32_t mask_id = it & GICD_SGIR_SIGINTID_MASK;
-	uint32_t mask_group = group & 0x1;
+	uint32_t mask_group = ns;
 	uint32_t mask = mask_id;
 
 	assert_cpu_mask_is_valid(cpu_mask);
@@ -768,16 +903,15 @@ static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 			     uint32_t cpu_mask)
 {
 	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+	bool ns = false;
 
 	assert(gd == &gic_data);
 
 	/* Should be Software Generated Interrupt */
 	assert(it < NUM_SGI);
 
-	if (it < NUM_NS_SGI)
-		gic_it_raise_sgi(gd, it, cpu_mask, 1);
-	else
-		gic_it_raise_sgi(gd, it, cpu_mask, 0);
+	ns = BIT32(it) & gd->per_cpu_group_status;
+	gic_it_raise_sgi(gd, it, cpu_mask, ns);
 }
 
 static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
