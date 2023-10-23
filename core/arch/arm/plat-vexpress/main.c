@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2020, Linaro Limited
+ * Copyright (c) 2016-2023, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
 #include <arm.h>
+#include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/hfic.h>
@@ -19,6 +20,7 @@
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_time.h>
+#include <kernel/thread_spmc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -58,6 +60,11 @@ void boot_primary_init_intc(void)
 #else
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 #endif
+	if (IS_ENABLED(CFG_CORE_SEL1_SPMC) &&
+	    IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		gic_init_donate_sgi_to_ns(GIC_SGI_SEC_BASE);
+		thread_spmc_set_async_notif_intid(GIC_SGI_SEC_BASE);
+	}
 }
 
 void boot_secondary_init_intc(void)
