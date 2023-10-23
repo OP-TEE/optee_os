@@ -3,7 +3,6 @@
  * Copyright (c) 2021-2023, Linaro Limited
  */
 
-#include <kernel/interrupt.h>
 #include <kernel/mutex.h>
 #include <kernel/notif.h>
 #include <kernel/spinlock.h>
@@ -36,8 +35,6 @@ bool notif_async_is_started(void)
 void notif_register_driver(struct notif_driver *ndrv)
 {
 	uint32_t old_itr_status = 0;
-
-	assert(interrupt_can_raise_pi(interrupt_get_main_chip()));
 
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
 
