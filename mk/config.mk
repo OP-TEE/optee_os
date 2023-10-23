@@ -1002,11 +1002,19 @@ CFG_PAN ?= n
 
 $(eval $(call cfg-depends-one,CFG_PAN,CFG_ARM64_core CFG_RV64_core CFG_RV32_core))
 
+ifeq ($(filter y, $(CFG_CORE_SEL1_SPMC) $(CFG_CORE_SEL2_SPMC) \
+		  $(CFG_CORE_EL3_SPMC)),y)
+# FF-A case, handled via the FF-A ABI
+CFG_CORE_ASYNC_NOTIF ?= y
+$(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,n)
+else
 # CFG_CORE_ASYNC_NOTIF is defined by the platform to enable support
-# for sending asynchronous notifications to normal world. Note that an
-# interrupt ID must be configurged by the platform too. Currently is only
+# for sending asynchronous notifications to normal world.
+# Interrupt ID must be configurged by the platform too. Currently is only
 # CFG_CORE_ASYNC_NOTIF_GIC_INTID defined.
 CFG_CORE_ASYNC_NOTIF ?= n
+$(call force,_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL,$(CFG_CORE_ASYNC_NOTIF))
+endif
 
 $(eval $(call cfg-enable-all-depends,CFG_MEMPOOL_REPORT_LAST_OFFSET, \
 	 CFG_WITH_STATS))

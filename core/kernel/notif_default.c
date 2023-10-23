@@ -3,10 +3,12 @@
  * Copyright (c) 2021-2023, Linaro Limited
  */
 
+#include <assert.h>
 #include <bitstring.h>
-#include <drivers/gic.h>
+#include <kernel/interrupt.h>
 #include <kernel/notif.h>
 #include <kernel/spinlock.h>
+#include <trace.h>
 #include <types_ext.h>
 
 static bitstr_t bit_decl(notif_values, NOTIF_ASYNC_VALUE_MAX + 1);
@@ -84,8 +86,6 @@ void notif_send_async(uint32_t value)
 {
 	uint32_t old_itr_status = 0;
 	struct itr_chip *itr_chip = interrupt_get_main_chip();
-
-	static_assert(CFG_CORE_ASYNC_NOTIF_GIC_INTID >= GIC_PPI_BASE);
 
 	assert(value <= NOTIF_ASYNC_VALUE_MAX);
 	old_itr_status = cpu_spin_lock_xsave(&notif_default_lock);
