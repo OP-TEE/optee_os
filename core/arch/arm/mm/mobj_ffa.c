@@ -423,7 +423,17 @@ TEE_Result mobj_ffa_unregister_by_cookie(uint64_t cookie)
 	}
 #if defined(CFG_CORE_SEL1_SPMC)
 	if (!mf->registered_by_cookie) {
-		EMSG("cookie %#"PRIx64" not registered", cookie);
+		/*
+		 * This is expected behaviour if the normal world has
+		 * registered the memory but OP-TEE has not yet used the
+		 * corresponding cookie with mobj_ffa_get_by_cookie(). It
+		 * can be non-trivial for the normal world to predict if
+		 * the cookie really has been used or not. So even if we
+		 * return it as an error it will be ignored by
+		 * handle_unregister_shm().
+		 */
+		EMSG("cookie %#"PRIx64" not registered refs %u:%u",
+		     cookie, refcount_val(&mf->mobj.refc), mf->inactive_refs);
 		res = TEE_ERROR_ITEM_NOT_FOUND;
 		goto out;
 	}
