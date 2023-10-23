@@ -159,17 +159,11 @@ FUNC thread_unwind_user_mode , :
 	/* Restore kernel callee regs */
 	mv	a1, sp
 
-	load_xregs a1, THREAD_USER_MODE_REC_X1, REG_RA, REG_TP
+	load_xregs a1, THREAD_USER_MODE_REC_X1, REG_RA, REG_GP
 	load_xregs a1, THREAD_USER_MODE_REC_X8, REG_S0, REG_S1
 	load_xregs a1, THREAD_USER_MODE_REC_X18, REG_S2, REG_S11
 
 	add	sp, sp, THREAD_USER_MODE_REC_SIZE
-
-	/*
-	 * Zeroize xSCRATCH to indicate to thread_trap_vect()
-	 * that we are executing in kernel.
-	 */
-	csrw	CSR_XSCRATCH, zero
 
 	/* Return from the call of thread_enter_user_mode() */
 	ret
@@ -188,9 +182,22 @@ FUNC thread_exit_user_mode , :
 	/* Set xSTATUS */
 	csrw	CSR_XSTATUS, a6
 
-	/* Set return address thread_unwind_user_mode() */
-	mv	ra, a5
-	ret
+	/*
+	 * Zeroize xSCRATCH to indicate to thread_trap_vect()
+	 * that we are executing in kernel.
+	 */
+	csrw	CSR_XSCRATCH, zero
+
+	/*
+	 * Mask all interrupts first. Interrupts will be unmasked after
+	 * returning from __thread_enter_user_mode().
+	 */
+	csrw	CSR_XIE, zero
+
+	/* Set epc as thread_unwind_user_mode() */
+	csrw	CSR_XEPC, a5
+
+	XRET
 END_FUNC thread_exit_user_mode
 
 /*
@@ -199,12 +206,15 @@ END_FUNC thread_exit_user_mode
  *				     uint32_t *exit_status1);
  */
 FUNC __thread_enter_user_mode , :
+	/* Disable kernel mode exceptions first */
+	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
+
 	/*
 	 * Create and fill in the struct thread_user_mode_rec
 	 */
 	addi	sp, sp, -THREAD_USER_MODE_REC_SIZE
 	store_xregs sp, THREAD_USER_MODE_REC_CTX_REGS_PTR, REG_A0, REG_A2
-	store_xregs sp, THREAD_USER_MODE_REC_X1, REG_RA, REG_TP
+	store_xregs sp, THREAD_USER_MODE_REC_X1, REG_RA, REG_GP
 	store_xregs sp, THREAD_USER_MODE_REC_X8, REG_S0, REG_S1
 	store_xregs sp, THREAD_USER_MODE_REC_X18, REG_S2, REG_S11
 
@@ -222,20 +232,18 @@ FUNC __thread_enter_user_mode , :
 
 	store_xregs s0, THREAD_CTX_KERN_SP, REG_SP
 	/*
-	 * Save kernel stack pointer in xSCRATCH to ensure that
-	 * thread_trap_vect() uses correct stack pointer.
+	 * Save thread_core_local in xSCRATCH to ensure that thread_trap_vect()
+	 * uses correct core local structure.
 	 */
-	csrw	CSR_XSCRATCH, sp
+	csrw	CSR_XSCRATCH, tp
+
+	/* Set user ie */
+	load_xregs a0, THREAD_CTX_REG_IE, REG_S0
+	csrw	CSR_XIE, s0
 
 	/* Set user status */
 	load_xregs a0, THREAD_CTX_REG_STATUS, REG_S0
 	csrw	CSR_XSTATUS, s0
-
-	/*
-	 * Save the values for a1 and a2 in struct thread_core_local to be
-	 * restored later just before the xRET.
-	 */
-	store_xregs tp, THREAD_CORE_LOCAL_X10, REG_A1, REG_A2
 
 	/* Load the rest of the general purpose registers */
 	load_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP

@@ -99,7 +99,7 @@ static void thread_lazy_restore_ns_vfp(void)
 static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 {
 	regs->ra = (uintptr_t)thread_unwind_user_mode;
-	regs->status = read_csr(CSR_XSTATUS);
+	regs->status = xstatus_for_xret(true, PRV_S);
 	regs->sp = thread_get_saved_thread_sp();
 }
 
@@ -637,7 +637,7 @@ void thread_init_per_cpu(void)
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 			 unsigned long a1, unsigned long a2, unsigned long a3,
 			 unsigned long user_sp, unsigned long entry_func,
-			 unsigned long status,
+			 unsigned long status, unsigned long ie,
 			 struct thread_pauth_keys *keys __unused)
 {
 	*regs = (struct thread_ctx_regs){
@@ -645,9 +645,11 @@ static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 		.a1 = a1,
 		.a2 = a2,
 		.a3 = a3,
+		.s0 = 0,
 		.sp = user_sp,
 		.ra = entry_func,
-		.status = status
+		.status = status,
+		.ie = ie,
 	};
 }
 
@@ -660,18 +662,25 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 				uint32_t *exit_status1)
 {
 	unsigned long status = 0;
+	unsigned long ie = 0;
 	uint32_t exceptions = 0;
 	uint32_t rc = 0;
 	struct thread_ctx_regs *regs = NULL;
 
 	tee_ta_update_session_utime_resume();
 
+	/* Read current interrupt masks */
+	ie = read_csr(CSR_XIE);
+
+	/*
+	 * Mask all exceptions, the CSR_XSTATUS.IE will be set from
+	 * setup_unwind_user_mode() after exiting.
+	 */
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
-	status = read_csr(CSR_XSTATUS);
-	status |= CSR_XSTATUS_PIE;	/* Previous interrupt is enabled */
-	status = set_field_u64(status, CSR_XSTATUS_SPP, PRV_U);
-	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, NULL);
+	status = xstatus_for_xret(true, PRV_U);
+	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, ie,
+		     NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
 	thread_unmask_exceptions(exceptions);
 
