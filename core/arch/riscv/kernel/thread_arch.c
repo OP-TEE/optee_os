@@ -686,3 +686,8 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 
 	return rc;
 }
+
+void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
+{
+	thread_rpc_xstatus(rv, xstatus_for_xret(false, PRV_S));
+}
