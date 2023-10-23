@@ -46,8 +46,19 @@
 #define GICD_IGROUPMODR(n)	(0xd00 + (n) * 4)
 #define GICD_SGIR		(0xF00)
 
+#ifdef CFG_ARM_GICV3
+#define GICD_PIDR2		(0xFFE8)
+#else
+/* Called ICPIDR2 in GICv2 specification */
+#define GICD_PIDR2		(0xFE8)
+#endif
+
 #define GICD_CTLR_ENABLEGRP0	(1 << 0)
 #define GICD_CTLR_ENABLEGRP1	(1 << 1)
+
+/* GICD IDR2 name differs on GICv3 and GICv2 but uses same bit map */
+#define GICD_PIDR2_ARCHREV_SHIFT	4
+#define GICD_PIDR2_ARCHREV_MASK		0xF
 
 /* Number of Private Peripheral Interrupt */
 #define NUM_PPI	32
@@ -227,6 +238,7 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	struct gic_data *gd = &gic_data;
 	vaddr_t gicc_base = 0;
 	vaddr_t gicd_base = 0;
+	uint32_t vers __maybe_unused = 0;
 
 	assert(cpu_mmu_enabled());
 
@@ -235,7 +247,14 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	if (!gicd_base)
 		panic();
 
-	if (!IS_ENABLED(CFG_ARM_GICV3)) {
+	vers = io_read32(gicd_base + GICD_PIDR2);
+	vers >>= GICD_PIDR2_ARCHREV_SHIFT;
+	vers &= GICD_PIDR2_ARCHREV_MASK;
+
+	if (IS_ENABLED(CFG_ARM_GICV3)) {
+		assert(vers == 3);
+	} else {
+		assert(vers == 2);
 		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
 					    GIC_CPU_REG_SIZE);
 		if (!gicc_base)
