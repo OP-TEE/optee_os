@@ -423,6 +423,7 @@ void asid_free(unsigned int asid)
 
 bool arch_va2pa_helper(void *va, paddr_t *pa)
 {
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	vaddr_t vaddr = (vaddr_t)va;
 	struct mmu_pgt *pgt = NULL;
 	struct mmu_pte *pte = NULL;
@@ -439,10 +440,12 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 		pte = core_mmu_table_get_entry(pgt, idx);
 
 		if (core_mmu_entry_is_invalid(pte)) {
+			thread_unmask_exceptions(exceptions);
 			return false;
 		} else if (core_mmu_entry_is_leaf(pte)) {
 			*pa = pte_to_pa(pte) |
 			      (vaddr & (BIT64(RISCV_PGSHIFT) - 1));
+			thread_unmask_exceptions(exceptions);
 			return true;
 		}
 
@@ -450,6 +453,7 @@ bool arch_va2pa_helper(void *va, paddr_t *pa)
 				   MEM_AREA_TEE_RAM_RW_DATA, sizeof(*pgt));
 	}
 
+	thread_unmask_exceptions(exceptions);
 	return false;
 }
 
@@ -462,6 +466,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 			 unsigned int max_level,
 			 struct core_mmu_table_info *tbl_info)
 {
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	struct mmu_pgt *pgt = NULL;
 	struct mmu_pte *pte = NULL;
 	unsigned int level = CORE_MMU_BASE_TABLE_LEVEL;
@@ -496,6 +501,7 @@ bool core_mmu_find_table(struct mmu_partition *prtn, vaddr_t va,
 		level--;
 	}
 out:
+	thread_unmask_exceptions(exceptions);
 	return ret;
 }
 
