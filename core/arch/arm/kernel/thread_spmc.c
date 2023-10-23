@@ -1368,6 +1368,18 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		handle_mem_frag_tx(args, &my_rxtx);
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
+	case FFA_ERROR:
+		EMSG("Cannot handle FFA_ERROR(%d)", (int)args->a2);
+		if (!IS_ENABLED(CFG_CORE_SEL1_SPMC)) {
+			/*
+			 * The SPMC will return an FFA_ERROR back so better
+			 * panic() now than flooding the log.
+			 */
+			panic("FFA_ERROR from SPMC is fatal");
+		}
+		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
+			      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+		break;
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);
 		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
