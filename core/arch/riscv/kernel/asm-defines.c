@@ -38,6 +38,8 @@ DEFINES
 
 	/* struct thread_ctx_regs */
 	DEFINE(THREAD_CTX_REG_STATUS, offsetof(struct thread_ctx_regs, status));
+	DEFINE(THREAD_CTX_REG_EPC, offsetof(struct thread_ctx_regs, epc));
+	DEFINE(THREAD_CTX_REG_IE, offsetof(struct thread_ctx_regs, ie));
 	DEFINE(THREAD_CTX_REG_RA, offsetof(struct thread_ctx_regs, ra));
 	DEFINE(THREAD_CTX_REG_SP, offsetof(struct thread_ctx_regs, sp));
 	DEFINE(THREAD_CTX_REG_T0, offsetof(struct thread_ctx_regs, t0));
