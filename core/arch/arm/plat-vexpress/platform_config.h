@@ -126,15 +126,17 @@
 
 #define GICD_OFFSET		0
 #define GICC_OFFSET		0x10000
+#ifdef CFG_ARM_GICV3
+#define GIC_REDIST_BASE		0x080A0000
+#define GIC_REDIST_SIZE		0x00F60000
+#endif
 
 #else
 #error "Unknown platform flavor"
 #endif
 
-#ifdef GIC_BASE
 #define GICD_BASE		(GIC_BASE + GICD_OFFSET)
 #define GICC_BASE		(GIC_BASE + GICC_OFFSET)
-#endif
 
 #ifndef UART_BAUDRATE
 #define UART_BAUDRATE		115200

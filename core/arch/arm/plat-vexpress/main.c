@@ -44,12 +44,20 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 #ifdef CFG_GIC
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
+#ifdef GIC_REDIST_BASE
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_REDIST_BASE, GIC_REDIST_SIZE);
+#endif
 
 void boot_primary_init_intc(void)
 {
+#ifdef GIC_REDIST_BASE
+	gic_init_v3(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET,
+		    GIC_REDIST_BASE);
+#else
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+#endif
 }
 
 #if !defined(CFG_WITH_ARM_TRUSTED_FW)
