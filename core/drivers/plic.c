@@ -275,7 +275,7 @@ void plic_it_handle(void)
 	struct plic_data *pd = &plic_data;
 	uint32_t id = plic_claim_interrupt(pd);
 
-	if (id <= pd->max_it)
+	if (id > 0 && id <= pd->max_it)
 		interrupt_call_handlers(&pd->chip, id);
 	else
 		DMSG("ignoring interrupt %" PRIu32, id);
