@@ -107,7 +107,14 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5);
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
-void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+void thread_rpc_xstatus(uint32_t rv[THREAD_RPC_NUM_ARGS], unsigned long status);
+void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]);
+
+static inline void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
+{
+	__thread_rpc(rv);
+}
+
 void thread_scall_handler(struct thread_scall_regs *regs);
 void thread_exit_user_mode(unsigned long a0, unsigned long a1,
 			   unsigned long a2, unsigned long a3,

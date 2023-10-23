@@ -70,27 +70,35 @@ FUNC thread_std_abi_entry , :
 	jal	thread_return_to_udomain
 END_FUNC thread_std_abi_entry
 
-/* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
-FUNC thread_rpc , :
+/*
+ * void thread_rpc_xstatus(uint32_t rv[THREAD_RPC_NUM_ARGS],
+ *                         unsigned long status);
+ */
+FUNC thread_rpc_xstatus , :
 	 /* Use stack for temporary storage */
-	addi	sp, sp, -REGOFF(4)
+	addi	sp, sp, -REGOFF(8)
 
 	/* Read xSTATUS */
-	csrr	a1, CSR_XSTATUS
+	csrr	a2, CSR_XSTATUS
 
 	/* Mask all maskable exceptions before switching to temporary stack */
-	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
+	csrw	CSR_XIE, x0
 
 	/* Save return address xSTATUS and pointer to rv */
 	STR	a0, REGOFF(0)(sp)
 	STR	a1, REGOFF(1)(sp)
 	STR	s0, REGOFF(2)(sp)
 	STR	ra, REGOFF(3)(sp)
-	addi	s0, sp, REGOFF(4)
+	STR	a2, REGOFF(4)(sp)
+#ifdef CFG_UNWIND
+	addi	s0, sp, REGOFF(8)
+#endif
 
 	/* Save thread state */
 	jal	thread_get_ctx_regs
-	store_xregs a0, THREAD_CTX_REG_SP, REG_SP
+	LDR	ra, REGOFF(3)(sp)
+	/* Save ra, sp, gp, tp, and s0~s11 */
+	store_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_TP
 	store_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
 	store_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
 
@@ -139,16 +147,16 @@ FUNC thread_rpc , :
 	sw	a3, 12(a4)
 
 	/* Pop saved XSTATUS from stack */
-	LDR	s0, REGOFF(1)(sp)
+	LDR	s0, REGOFF(4)(sp)
 	csrw	CSR_XSTATUS, s0
 
-	/* Pop return address and s0 from stack */
-	LDR	ra, REGOFF(3)(sp)
+	/* Pop s0 from stack */
 	LDR	s0, REGOFF(2)(sp)
 
-	addi	sp, sp, REGOFF(4)
+	addi	sp, sp, REGOFF(8)
 	ret
-END_FUNC thread_rpc
+END_FUNC thread_rpc_xstatus
+DECLARE_KEEP_PAGER thread_rpc_xstatus
 
 LOCAL_FUNC vector_std_abi_entry, : , .identity_map
 	jal	thread_handle_std_abi
