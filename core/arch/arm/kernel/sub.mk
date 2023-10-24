@@ -24,7 +24,6 @@ endif
 ifeq ($(CFG_CORE_FFA),y)
 srcs-y += thread_spmc.c
 cppflags-thread_spmc.c-y += -DTEE_IMPL_GIT_SHA1=$(TEE_IMPL_GIT_SHA1)
-srcs-$(CFG_ARM32_core) += thread_spmc_a32.S
 srcs-$(CFG_ARM64_core) += thread_spmc_a64.S
 else
 srcs-y += thread_optee_smc.c
