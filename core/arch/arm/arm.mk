@@ -129,6 +129,9 @@ ifeq ($(CFG_CORE_FFA),y)
 ifneq ($(CFG_DT),y)
 $(error CFG_CORE_FFA depends on CFG_DT)
 endif
+ifneq ($(CFG_ARM64_core),y)
+$(error CFG_CORE_FFA depends on CFG_ARM64_core)
+endif
 endif
 
 ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
