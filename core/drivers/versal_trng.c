@@ -65,11 +65,8 @@
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
+#include <drivers/versal_trng.h>
 #include <drivers/versal_mbox.h>
-
-#ifndef CFG_VERSAL_RNG_PLM
-#define TRNG_BASE            0xF1230000
-#define TRNG_SIZE            0x10000
 
 #define TRNG_STATUS			0x04
 #define TRNG_STATUS_QCNT_SHIFT		9
@@ -137,86 +134,11 @@
 #define PRNGMODE_GEN		TRNG_CTRL_PRNGMODE_MASK
 #define RESET_DELAY		10
 #define TRNG_SEC_STRENGTH_LEN	32
-#define TRNG_PERS_STR_REGS	12
-#define TRNG_PERS_STR_LEN	48
 #define TRNG_SEED_REGS		12
-#define TRNG_SEED_LEN		48
 #define TRNG_GEN_LEN		32
-#define RAND_BUF_LEN		4
 #define BYTES_PER_BLOCK		16
 #define ALL_A_PATTERN_32	0xAAAAAAAA
 #define ALL_5_PATTERN_32	0x55555555
-
-/* Derivative function helper macros */
-#define DF_SEED			0
-#define DF_RAND			1
-#define DF_IP_IV_LEN		4
-#define DF_PAD_DATA_LEN		8
-#define MAX_PRE_DF_LEN		160
-#define MAX_PRE_DF_LEN_WORDS	40
-#define DF_PERS_STR_LEN		TRNG_PERS_STR_LEN
-#define DF_PAD_VAL		0x80
-#define DF_KEY_LEN		32
-#define BLK_SIZE		16
-#define MAX_ROUNDS		14
-
-enum trng_status {
-	TRNG_UNINITIALIZED = 0,
-	TRNG_HEALTHY,
-	TRNG_ERROR,
-	TRNG_CATASTROPHIC
-};
-
-enum trng_mode {
-	TRNG_HRNG = 0,
-	TRNG_DRNG,
-	TRNG_PTRNG
-};
-
-struct trng_cfg {
-	paddr_t base;
-	vaddr_t addr;
-	size_t len;
-};
-
-struct trng_usr_cfg {
-	enum trng_mode mode;
-	uint64_t seed_life;      /* number of TRNG requests per seed */
-	bool predict_en;         /* enable prediction resistance     */
-	bool pstr_en;            /* enable personalization string    */
-	uint32_t pstr[TRNG_PERS_STR_REGS];
-	bool iseed_en;           /* enable an initial seed           */
-	uint32_t init_seed[MAX_PRE_DF_LEN_WORDS];
-	uint32_t df_disable;     /* disable the derivative function  */
-	uint32_t dfmul;          /* derivative function multiplier   */
-};
-
-struct trng_stats {
-	uint64_t bytes;
-	uint64_t bytes_reseed;
-	uint64_t elapsed_seed_life;
-};
-
-/* block cipher derivative function algorithm */
-struct trng_dfin {
-	uint32_t ivc[DF_IP_IV_LEN];
-	uint32_t val1;
-	uint32_t val2;
-	uint8_t entropy[MAX_PRE_DF_LEN];    /* input entropy                */
-	uint8_t pstr[DF_PERS_STR_LEN];      /* personalization string       */
-	uint8_t pad_data[DF_PAD_DATA_LEN];  /* pad to multiples of 16 bytes*/
-};
-
-struct versal_trng {
-	struct trng_cfg cfg;
-	struct trng_usr_cfg usr_cfg;
-	struct trng_stats stats;
-	enum trng_status status;
-	uint32_t buf[RAND_BUF_LEN];   /* buffer of random bits      */
-	size_t len;
-	struct trng_dfin dfin;
-	uint8_t dfout[TRNG_SEED_LEN]; /* output of the DF operation */
-};
 
 /* Derivative function variables */
 static unsigned char sbx1[256];
@@ -1064,25 +986,21 @@ error:
 	return TEE_ERROR_GENERIC;
 }
 
-static struct versal_trng versal_trng = {
-	.cfg.base = TRNG_BASE,
-	.cfg.len = TRNG_SIZE,
-};
-
-TEE_Result hw_get_random_bytes(void *buf, size_t len)
+TEE_Result versal_trng_get_random_bytes(struct versal_trng *trng,
+					void *buf, size_t len)
 {
 	uint8_t random[TRNG_SEC_STRENGTH_LEN] = { 0 };
 	uint8_t *p = buf;
 	size_t i = 0;
 
 	for (i = 0; i < len / TRNG_SEC_STRENGTH_LEN; i++) {
-		if (trng_generate(&versal_trng, p + i * TRNG_SEC_STRENGTH_LEN,
+		if (trng_generate(trng, p + i * TRNG_SEC_STRENGTH_LEN,
 				  TRNG_SEC_STRENGTH_LEN, false))
 			panic();
 	}
 
 	if (len % TRNG_SEC_STRENGTH_LEN) {
-		if (trng_generate(&versal_trng, random, TRNG_SEC_STRENGTH_LEN,
+		if (trng_generate(trng, random, TRNG_SEC_STRENGTH_LEN,
 				  false))
 			panic();
 		memcpy(p + i * TRNG_SEC_STRENGTH_LEN, random,
@@ -1092,8 +1010,52 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	return TEE_SUCCESS;
 }
 
-void plat_rng_init(void)
+TEE_Result versal_trng_hw_init(struct versal_trng *trng,
+			       struct trng_usr_cfg *usr_cfg)
 {
+	trng->cfg.addr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
+						       trng->cfg.base,
+						       trng->cfg.len);
+	if (!trng->cfg.addr) {
+		EMSG("Failed to map TRNG");
+		panic();
+	}
+
+	if (trng_kat_test(trng)) {
+		EMSG("KAT Failed");
+		panic();
+	}
+
+	if (trng_health_test(trng)) {
+		EMSG("RunHealthTest Failed");
+		panic();
+	}
+
+	if (trng_instantiate(trng, usr_cfg)) {
+		EMSG("Driver instantiation Failed");
+		panic();
+	}
+
+	if (trng_reseed(trng, NULL, usr_cfg->dfmul)) {
+		EMSG("Reseed Failed");
+		panic();
+	}
+
+	return TEE_SUCCESS;
+}
+
+#ifndef CFG_VERSAL_RNG_PLM
+#define TRNG_BASE            0xF1230000
+#define TRNG_SIZE            0x10000
+
+static struct versal_trng versal_trng = {
+	.cfg.base = TRNG_BASE,
+	.cfg.len = TRNG_SIZE,
+};
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	return versal_trng_get_random_bytes(&versal_trng, buf, len);
 }
 
 static TEE_Result trng_hrng_mode_init(void)
@@ -1106,6 +1068,7 @@ static TEE_Result trng_hrng_mode_init(void)
 		0xBC, 0x23, 0x18, 0x15, 0xCB, 0xB8, 0xA6, 0x3E,
 		0x83, 0xB8, 0x4A, 0xFE, 0x38, 0xFC, 0x25, 0x87,
 	};
+
 	/* configure in hybrid mode with derivative function enabled */
 	struct trng_usr_cfg usr_cfg = {
 		.mode = TRNG_HRNG,
@@ -1118,39 +1081,11 @@ static TEE_Result trng_hrng_mode_init(void)
 	};
 
 	memcpy(usr_cfg.pstr, pers_str, TRNG_PERS_STR_LEN);
-	versal_trng.cfg.addr = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_SEC,
-						     versal_trng.cfg.base,
-						     versal_trng.cfg.len);
-	if (!versal_trng.cfg.addr) {
-		EMSG("Failed to map TRNG");
-		panic();
-	}
 
-	if (trng_kat_test(&versal_trng)) {
-		EMSG("KAT Failed");
-		panic();
-	}
-
-	if (trng_health_test(&versal_trng)) {
-		EMSG("RunHealthTest Failed");
-		panic();
-	}
-
-	if (trng_instantiate(&versal_trng, &usr_cfg)) {
-		EMSG("Driver instantiation Failed");
-		panic();
-	}
-
-	if (trng_reseed(&versal_trng, NULL, usr_cfg.dfmul)) {
-		EMSG("Reseed Failed");
-		panic();
-	}
-
-	return TEE_SUCCESS;
+	return versal_trng_hw_init(&versal_trng, &usr_cfg);
 }
 
 driver_init(trng_hrng_mode_init);
-
 #else
 #define SEC_MODULE_SHIFT 8
 #define SEC_MODULE_ID 5
@@ -1215,8 +1150,8 @@ out:
 	versal_mbox_free(&p);
 	return ret;
 }
+#endif
 
 void plat_rng_init(void)
 {
 }
-#endif
