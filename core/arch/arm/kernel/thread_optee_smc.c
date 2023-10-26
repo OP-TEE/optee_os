@@ -681,14 +681,6 @@ struct mobj *thread_rpc_alloc_payload(size_t size)
 
 struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
 {
-	/*
-	 * Error out early since kernel private dynamic shared memory
-	 * allocations don't currently use the `OPTEE_MSG_ATTR_NONCONTIG` bit
-	 * and therefore cannot be larger than a page.
-	 */
-	if (IS_ENABLED(CFG_CORE_DYN_SHM) && size > SMALL_PAGE_SIZE)
-		return NULL;
-
 	return thread_rpc_alloc(size, 8, OPTEE_RPC_SHM_TYPE_KERNEL);
 }
 
