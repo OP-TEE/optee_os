@@ -267,13 +267,24 @@ R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
+STMicroelectronics drivers
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+S:	Maintained
+F:	core/drivers/stm32_*
+
 STMicroelectronics stm32mp1
 R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp1/
-F:	core/drivers/stm32_*
 F:	core/drivers/stm32mp15_huk.c
 F:	core/drivers/stpmic1.c
+
+STMicroelectronics stm32mp2
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+S:	Maintained
+F:	core/arch/arm/plat-stm32mp2/*
 
 Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x, J721E, J784S4, AM64x, AM62x
 R:	Andrew Davis <afd@ti.com> [@glneo]
