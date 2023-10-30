@@ -8,6 +8,12 @@
 
 #include <compiler.h>
 
+/*
+ * Platform can define a panic sequence to trap cpu/reset core or system
+ * after eventual debug trace.
+ */
+void plat_panic(void);
+
 /* debug disabled => __FILE__, ... and panic message are not built. */
 #if defined(CFG_TEE_CORE_DEBUG)
 #define __panic(str)	__do_panic(__FILE__, __LINE__, __func__, str)

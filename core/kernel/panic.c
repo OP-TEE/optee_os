@@ -7,6 +7,7 @@
 #include <kernel/panic.h>
 #include <kernel/thread.h>
 #include <kernel/unwind.h>
+#include <stdbool.h>
 #include <trace.h>
 
 void __do_panic(const char *file __maybe_unused,
@@ -16,8 +17,6 @@ void __do_panic(const char *file __maybe_unused,
 {
 	/* disable prehemption */
 	(void)thread_mask_exceptions(THREAD_EXCP_ALL);
-
-	/* TODO: notify other cores */
 
 	/* trace: Panic ['panic-string-message' ]at FILE:LINE [<FUNCTION>]" */
 	if (!file && !func && !msg)
@@ -29,11 +28,19 @@ void __do_panic(const char *file __maybe_unused,
 			 func ? "<" : "", func ? func : "", func ? ">" : "");
 
 	print_kernel_stack();
-	/* abort current execution */
-	while (1)
+	plat_panic();
+
+	EMSG("Platform failed to abort execution");
+	while (true)
 		cpu_idle();
 }
 
 void __weak cpu_idle(void)
 {
+}
+
+void __weak __noreturn plat_panic(void)
+{
+	while (true)
+		cpu_idle();
 }
