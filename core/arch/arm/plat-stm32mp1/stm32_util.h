@@ -31,21 +31,6 @@ vaddr_t stm32_rcc_base(void);
 /* Platform util for the GIC */
 vaddr_t get_gicd_base(void);
 
-/*
- * Platform util functions for the GPIO driver
- * @bank: Target GPIO bank ID as per DT bindings
- *
- * Platform shall implement these functions to provide to stm32_gpio
- * driver the resource reference for a target GPIO bank. That are
- * memory mapped interface base address, interface offset (see below)
- * and clock identifier.
- *
- * stm32_get_gpio_bank_offset() returns a bank offset that is used to
- * check DT configuration matches platform implementation of the banks
- * description.
- */
-unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
-
 /* Platform util for PMIC support */
 bool stm32mp_with_pmic(void);
 

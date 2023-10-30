@@ -736,33 +736,6 @@ static TEE_Result dt_stm32_gpio_pinctrl(const void *fdt, int node,
 	return TEE_SUCCESS;
 }
 
-
-int stm32_get_gpio_count(void *fdt, int pinctrl_node, unsigned int bank)
-{
-	int node = 0;
-	const fdt32_t *cuint = NULL;
-
-	fdt_for_each_subnode(node, fdt, pinctrl_node) {
-		if (!fdt_getprop(fdt, node, "gpio-controller", NULL))
-			continue;
-
-		cuint = fdt_getprop(fdt, node, "reg", NULL);
-		if (!cuint)
-			continue;
-
-		if (fdt32_to_cpu(*cuint) != stm32_get_gpio_bank_offset(bank))
-			continue;
-
-		cuint = fdt_getprop(fdt, node, "ngpios", NULL);
-		if (!cuint)
-			panic();
-
-		return (int)fdt32_to_cpu(*cuint);
-	}
-
-	return -1;
-}
-
 void stm32_gpio_set_secure_cfg(unsigned int bank_id, unsigned int pin,
 			       bool secure)
 {

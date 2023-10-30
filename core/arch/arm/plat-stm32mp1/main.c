@@ -500,16 +500,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 	panic();
 }
 
-unsigned int stm32_get_gpio_bank_offset(unsigned int bank)
-{
-	assert(bank_is_valid(bank));
-
-	if (bank == GPIO_BANK_Z)
-		return 0;
-
-	return bank * GPIO_BANK_OFFSET;
-}
-
 #ifdef CFG_STM32_IWDG
 TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 				     struct stm32_iwdg_otp_data *otp_data)
