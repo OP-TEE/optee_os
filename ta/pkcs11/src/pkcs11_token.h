@@ -87,19 +87,38 @@ struct token_persistent_objs {
 };
 
 /*
- * Runtime state of the token, complies with pkcs11
+ * Runtime state of the slot, complies with pkcs11
  *
+ * @id - the id of this slot
+ * @slot_info - the associated pkcs11 slot info
+ * @token - the token associated with this slot
+ * @next_slot - the next slot in the list of slots
+ *
+ */
+struct ck_slot {
+	unsigned int id;
+	struct pkcs11_slot_info *slot_info;
+	struct ck_token *token;
+	SLIST_ENTRY(ck_slot) next_slot;
+};
+
+
+/*
+ * Runtime state of the token
+ *
+ * @slot - the slot associated with this token
+ * @token_info - the associated pkcs11 token info
  * @state - Pkcs11 login is public, user, SO or custom
- * @session_count - Counter for opened Pkcs11 sessions
- * @rw_session_count - Count for opened Pkcs11 read/write sessions
  * @object_list - List of the objects owned by the token
  * @db_main - Volatile copy of the persistent main database
  * @db_objs - Volatile copy of the persistent object database
+ *
+ * A token is always fixed to the same slot, unlike when using e.g. smartcards
  */
 struct ck_token {
+	struct ck_slot *slot;
+	struct pkcs11_token_info *token_info;
 	enum pkcs11_token_state state;
-	uint32_t session_count;
-	uint32_t rw_session_count;
 	struct object_list object_list;
 	/* Copy in RAM of the persistent database */
 	struct token_persistent_main *db_main;
@@ -201,6 +220,12 @@ struct ck_token *get_token(unsigned int token_id);
 
 /* Return token identified from token instance address */
 unsigned int get_token_id(struct ck_token *token);
+
+/* Speculation safe lookup of slot instance from slot identifier */
+struct ck_slot *get_slot(unsigned int slot_id);
+
+/* Return token identified from slot instance address */
+unsigned int get_slot_id(struct ck_slot *slot);
 
 /* Return client's (shared) object handle database associated with session */
 struct handle_db *get_object_handle_db(struct pkcs11_session *session);

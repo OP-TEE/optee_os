@@ -44,28 +44,66 @@ struct pkcs11_client {
 	struct handle_db object_handle_db;
 };
 
-/* Static allocation of tokens runtime instances (reset to 0 at load) */
-struct ck_token ck_token[TOKEN_COUNT];
+
+SLIST_HEAD(slot_list, ck_slot);
+struct slot_list slot_list;
+unsigned int slot_count = 0;
 
 static struct client_list pkcs11_client_list =
 	TAILQ_HEAD_INITIALIZER(pkcs11_client_list);
 
 static void close_ck_session(struct pkcs11_session *session);
 
-struct ck_token *get_token(unsigned int token_id)
+struct ck_token *get_token(unsigned int slot_id)
 {
-	if (token_id < TOKEN_COUNT)
-		return &ck_token[confine_array_index(token_id, TOKEN_COUNT)];
+	struct ck_slot *slot;
+
+	SLIST_FOREACH(slot, &slot_list, next_slot) {
+		if (slot->id == slot_id) {
+			return slot->token;
+		}
+	}
 
 	return NULL;
 }
 
 unsigned int get_token_id(struct ck_token *token)
 {
-	ptrdiff_t id = token - ck_token;
+	struct ck_slot *cslot;
 
-	assert(id >= 0 && id < TOKEN_COUNT);
-	return id;
+	SLIST_FOREACH(cslot, &slot_list, next_slot) {
+		if (cslot->token == token) {
+			return cslot->id;
+		}
+	}
+	TEE_Panic(TEE_ERROR_ITEM_NOT_FOUND);
+	return 0;
+}
+
+struct ck_slot *get_slot(unsigned int slot_id)
+{
+	struct ck_slot *slot;
+
+	SLIST_FOREACH(slot, &slot_list, next_slot) {
+		if (slot->id == slot_id) {
+			return slot;
+		}
+	}
+
+	return NULL;
+}
+
+unsigned int get_slot_id(struct ck_slot *slot)
+{
+	struct ck_slot *cslot;
+
+	SLIST_FOREACH(cslot, &slot_list, next_slot) {
+		if (cslot == slot) {
+			return cslot->id;
+		}
+	}
+	TEE_Panic(TEE_ERROR_ITEM_NOT_FOUND);
+	return 0;
 }
 
 struct handle_db *get_object_handle_db(struct pkcs11_session *session)
@@ -152,33 +190,151 @@ static TEE_Result pkcs11_token_init(unsigned int id)
 	if (token->state == PKCS11_TOKEN_RESET) {
 		/* As per PKCS#11 spec, token resets to read/write state */
 		token->state = PKCS11_TOKEN_READ_WRITE;
-		token->session_count = 0;
-		token->rw_session_count = 0;
+		token->token_info->session_count = 0;
+		token->token_info->rw_session_count = 0;
 	}
 
 	return TEE_SUCCESS;
+}
+
+static void pad_str(uint8_t *str, size_t size)
+{
+	int n = strnlen((char *)str, size);
+
+	TEE_MemFill(str + n, ' ', size - n);
+}
+
+static void set_slot_description(struct pkcs11_slot_info *info)
+{
+	char desc[sizeof(info->slot_description) + 1] = { 0 };
+	TEE_UUID dev_id = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+	int n = 0;
+
+	res = TEE_GetPropertyAsUUID(TEE_PROPSET_TEE_IMPLEMENTATION,
+				    "gpd.tee.deviceID", &dev_id);
+	if (res == TEE_SUCCESS) {
+		n = snprintk(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - TEE UUID %pUl", (void *)&dev_id);
+	} else {
+		n = snprintf(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+			     " - No TEE UUID");
+	}
+	if (n < 0 || n >= (int)sizeof(desc))
+		TEE_Panic(0);
+
+	TEE_MemMove(info->slot_description, desc, n);
+	pad_str(info->slot_description, sizeof(info->slot_description));
+}
+
+static enum pkcs11_rc ck_slot_terminate(struct ck_slot *slot)
+{
+	TEE_Free(slot->token->token_info);
+	TEE_Free(slot->token);
+	TEE_Free(slot->slot_info);
+	TEE_Free(slot);
+
+	return PKCS11_CKR_OK;
+}
+
+static enum pkcs11_rc ck_slot_initialize(struct ck_slot **slot)
+{
+	struct ck_token *token = NULL;
+	struct pkcs11_slot_info slot_info = {
+		.slot_description = PKCS11_SLOT_DESCRIPTION,
+		.manufacturer_id = PKCS11_SLOT_MANUFACTURER,
+		.flags = PKCS11_CKFS_TOKEN_PRESENT,
+		.hardware_version = PKCS11_SLOT_HW_VERSION,
+		.firmware_version = PKCS11_SLOT_FW_VERSION,
+	};
+	struct pkcs11_token_info token_info = {
+		.manufacturer_id = PKCS11_TOKEN_MANUFACTURER,
+		.model = PKCS11_TOKEN_MODEL,
+		.max_session_count = UINT32_MAX,
+		.max_rw_session_count = UINT32_MAX,
+		.max_pin_len = PKCS11_TOKEN_PIN_SIZE_MAX,
+		.min_pin_len = PKCS11_TOKEN_PIN_SIZE_MIN,
+		.total_public_memory = UINT32_MAX,
+		.free_public_memory = UINT32_MAX,
+		.total_private_memory = UINT32_MAX,
+		.free_private_memory = UINT32_MAX,
+		.hardware_version = PKCS11_TOKEN_HW_VERSION,
+		.firmware_version = PKCS11_TOKEN_FW_VERSION,
+	};
+
+	*slot = TEE_Malloc(sizeof(struct ck_slot), TEE_MALLOC_FILL_ZERO);
+	if (!(*slot))
+		return PKCS11_CKR_DEVICE_MEMORY;
+	token = TEE_Malloc(sizeof(struct ck_token), TEE_MALLOC_FILL_ZERO);
+	if (!token)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	(*slot)->slot_info = TEE_Malloc(sizeof(struct pkcs11_slot_info), TEE_MALLOC_FILL_ZERO);
+	if (!(*slot)->slot_info)
+		return PKCS11_CKR_DEVICE_MEMORY;
+	token->token_info = TEE_Malloc(sizeof(struct pkcs11_token_info), TEE_MALLOC_FILL_ZERO);
+	if (!token->token_info)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	// Link the slot and token together
+	(*slot)->token = token;
+	token->slot = *slot;
+
+	// Fill in the token_info and slot_info
+	memcpy((*slot)->slot_info, &slot_info, sizeof(struct pkcs11_slot_info));
+	memcpy(token->token_info, &token_info, sizeof(struct pkcs11_token_info));
+
+	set_slot_description((*slot)->slot_info);
+
+	return PKCS11_CKR_OK;
+}
+
+void pkcs11_deinit(void)
+{
+	struct ck_slot *slot;
+
+	// Close all tokens and free all memory
+	while (!SLIST_EMPTY(&slot_list)) {
+		slot = SLIST_FIRST(&slot_list);
+		SLIST_REMOVE_HEAD(&slot_list, next_slot);
+		close_persistent_db(slot->token);
+		ck_slot_terminate(slot);
+	}
 }
 
 TEE_Result pkcs11_init(void)
 {
 	unsigned int id = 0;
 	TEE_Result ret = TEE_ERROR_GENERIC;
+	struct ck_slot *slot;
 
+	SLIST_INIT(&slot_list);
+
+	// Initialize all slots and tokens for persistent objects
 	for (id = 0; id < TOKEN_COUNT; id++) {
+		slot = NULL;
+		ck_slot_initialize(&slot);
+		if (!slot) {
+			ret = TEE_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		// Indicate that these are HW slots
+		slot->slot_info->flags |= PKCS11_CKFS_HW_SLOT;
+
+		slot->id = id;
+		SLIST_INSERT_HEAD(&slot_list, slot, next_slot);
+		slot_count++;
+
 		ret = pkcs11_token_init(id);
 		if (ret)
-			break;
+			goto err;
 	}
 
 	return ret;
-}
-
-void pkcs11_deinit(void)
-{
-	unsigned int id = 0;
-
-	for (id = 0; id < TOKEN_COUNT; id++)
-		close_persistent_db(get_token(id));
+err:
+	pkcs11_deinit();
+	return ret;
 }
 
 /*
@@ -250,8 +406,8 @@ enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
 	TEE_Param *out = params + 2;
-	uint32_t token_id = 0;
-	const size_t out_size = sizeof(token_id) * TOKEN_COUNT;
+	uint32_t slot_id = 0;
+	const size_t out_size = sizeof(slot_id) * slot_count;
 	uint8_t *id = NULL;
 
 	if (ptypes != exp_pt ||
@@ -267,43 +423,13 @@ enum pkcs11_rc entry_ck_slot_list(uint32_t ptypes, TEE_Param *params)
 			return PKCS11_CKR_OK;
 	}
 
-	for (token_id = 0, id = out->memref.buffer; token_id < TOKEN_COUNT;
-	     token_id++, id += sizeof(token_id))
-		TEE_MemMove(id, &token_id, sizeof(token_id));
+	for (slot_id = 0, id = out->memref.buffer; slot_id < slot_count;
+	     slot_id++, id += sizeof(slot_id))
+		TEE_MemMove(id, &slot_id, sizeof(slot_id));
 
 	out->memref.size = out_size;
 
 	return PKCS11_CKR_OK;
-}
-
-static void pad_str(uint8_t *str, size_t size)
-{
-	int n = strnlen((char *)str, size);
-
-	TEE_MemFill(str + n, ' ', size - n);
-}
-
-static void set_token_description(struct pkcs11_slot_info *info)
-{
-	char desc[sizeof(info->slot_description) + 1] = { 0 };
-	TEE_UUID dev_id = { };
-	TEE_Result res = TEE_ERROR_GENERIC;
-	int n = 0;
-
-	res = TEE_GetPropertyAsUUID(TEE_PROPSET_TEE_IMPLEMENTATION,
-				    "gpd.tee.deviceID", &dev_id);
-	if (res == TEE_SUCCESS) {
-		n = snprintk(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
-			     " - TEE UUID %pUl", (void *)&dev_id);
-	} else {
-		n = snprintf(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
-			     " - No TEE UUID");
-	}
-	if (n < 0 || n >= (int)sizeof(desc))
-		TEE_Panic(0);
-
-	TEE_MemMove(info->slot_description, desc, n);
-	pad_str(info->slot_description, sizeof(info->slot_description));
 }
 
 enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
@@ -316,41 +442,34 @@ enum pkcs11_rc entry_ck_slot_info(uint32_t ptypes, TEE_Param *params)
 	TEE_Param *out = params + 2;
 	enum pkcs11_rc rc = PKCS11_CKR_OK;
 	struct serialargs ctrlargs = { };
-	uint32_t token_id = 0;
-	struct pkcs11_slot_info info = {
-		.slot_description = PKCS11_SLOT_DESCRIPTION,
-		.manufacturer_id = PKCS11_SLOT_MANUFACTURER,
-		.flags = PKCS11_CKFS_TOKEN_PRESENT,
-		.hardware_version = PKCS11_SLOT_HW_VERSION,
-		.firmware_version = PKCS11_SLOT_FW_VERSION,
-	};
+	uint32_t slot_id = 0;
+	struct ck_slot *slot = NULL;
+	struct pkcs11_slot_info *info = NULL;
 
-	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_DESCRIPTION) <=
-			    sizeof(info.slot_description));
-	COMPILE_TIME_ASSERT(sizeof(PKCS11_SLOT_MANUFACTURER) <=
-			    sizeof(info.manufacturer_id));
-
-	if (ptypes != exp_pt || out->memref.size != sizeof(info))
+	if (ptypes != exp_pt || out->memref.size != sizeof(struct pkcs11_slot_info))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &token_id, sizeof(token_id));
+	rc = serialargs_get(&ctrlargs, &slot_id, sizeof(slot_id));
 	if (rc)
 		return rc;
 
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	if (!get_token(token_id))
+	slot = get_slot(slot_id);
+	if (!slot)
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	set_token_description(&info);
+	info = slot->slot_info;
+	if (!info)
+		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
+	pad_str(info->manufacturer_id, sizeof(info->manufacturer_id));
 
-	out->memref.size = sizeof(info);
-	TEE_MemMove(out->memref.buffer, &info, out->memref.size);
+	out->memref.size = sizeof(struct pkcs11_slot_info);
+	TEE_MemMove(out->memref.buffer, info, out->memref.size);
 
 	return PKCS11_CKR_OK;
 }
@@ -367,24 +486,11 @@ enum pkcs11_rc entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 	struct serialargs ctrlargs = { };
 	uint32_t token_id = 0;
 	struct ck_token *token = NULL;
-	struct pkcs11_token_info info = {
-		.manufacturer_id = PKCS11_TOKEN_MANUFACTURER,
-		.model = PKCS11_TOKEN_MODEL,
-		.max_session_count = UINT32_MAX,
-		.max_rw_session_count = UINT32_MAX,
-		.max_pin_len = PKCS11_TOKEN_PIN_SIZE_MAX,
-		.min_pin_len = PKCS11_TOKEN_PIN_SIZE_MIN,
-		.total_public_memory = UINT32_MAX,
-		.free_public_memory = UINT32_MAX,
-		.total_private_memory = UINT32_MAX,
-		.free_private_memory = UINT32_MAX,
-		.hardware_version = PKCS11_TOKEN_HW_VERSION,
-		.firmware_version = PKCS11_TOKEN_FW_VERSION,
-	};
-	char sn[sizeof(info.serial_number) + 1] = { 0 };
+	struct pkcs11_token_info *info = NULL;
+	char sn[PKCS11_TOKEN_SERIALNUM_SIZE + 1] = { 0 };
 	int n = 0;
 
-	if (ptypes != exp_pt || out->memref.size != sizeof(info))
+	if (ptypes != exp_pt || out->memref.size != sizeof(struct pkcs11_token_info))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
@@ -400,24 +506,28 @@ enum pkcs11_rc entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 	if (!token)
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
-	pad_str(info.manufacturer_id, sizeof(info.manufacturer_id));
-	pad_str(info.model, sizeof(info.model));
+	info = token->token_info;
+	if (!info)
+		return PKCS11_CKR_SLOT_ID_INVALID;
+
+	pad_str(info->manufacturer_id, sizeof(info->manufacturer_id));
+	pad_str(info->model, sizeof(info->model));
 
 	n = snprintf(sn, sizeof(sn), "%0*"PRIu32,
-		     (int)sizeof(info.serial_number), token_id);
-	if (n != (int)sizeof(info.serial_number))
+		     (int)sizeof(info->serial_number), token_id);
+	if (n != (int)sizeof(info->serial_number))
 		TEE_Panic(0);
 
-	TEE_MemMove(info.serial_number, sn, sizeof(info.serial_number));
-	pad_str(info.serial_number, sizeof(info.serial_number));
+	TEE_MemMove(info->serial_number, sn, sizeof(info->serial_number));
+	pad_str(info->serial_number, sizeof(info->serial_number));
 
-	TEE_MemMove(info.label, token->db_main->label, sizeof(info.label));
+	TEE_MemMove(info->label, token->db_main->label, sizeof(info->label));
 
-	info.flags = token->db_main->flags;
-	info.session_count = token->session_count;
-	info.rw_session_count = token->rw_session_count;
+	info->flags = token->db_main->flags;
+	info->session_count = token->token_info->session_count;
+	info->rw_session_count = token->token_info->rw_session_count;
 
-	TEE_MemMove(out->memref.buffer, &info, sizeof(info));
+	TEE_MemMove(out->memref.buffer, info, sizeof(struct pkcs11_token_info));
 
 	return PKCS11_CKR_OK;
 }
@@ -671,9 +781,9 @@ enum pkcs11_rc entry_ck_open_session(struct pkcs11_client *client,
 
 	TAILQ_INSERT_HEAD(&client->session_list, session, link);
 
-	session->token->session_count++;
+	session->token->token_info->session_count++;
 	if (!readonly)
-		session->token->rw_session_count++;
+		session->token->token_info->rw_session_count++;
 
 	TEE_MemMove(out->memref.buffer, &session->handle,
 		    sizeof(session->handle));
@@ -696,9 +806,9 @@ static void close_ck_session(struct pkcs11_session *session)
 	TAILQ_REMOVE(&session->client->session_list, session, link);
 	handle_put(&session->client->session_handle_db, session->handle);
 
-	session->token->session_count--;
+	session->token->token_info->session_count--;
 	if (pkcs11_session_is_read_write(session))
-		session->token->rw_session_count--;
+		session->token->token_info->rw_session_count--;
 
 	DMSG("Close PKCS11 session %"PRIu32, session->handle);
 
@@ -802,7 +912,7 @@ enum pkcs11_rc entry_ck_session_info(struct pkcs11_client *client,
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	info.slot_id = get_token_id(session->token);
+	info.slot_id = get_slot_id(session->token->slot);
 	info.state = session->state;
 	if (pkcs11_session_is_read_write(session))
 		info.flags |= PKCS11_CKFSS_RW_SESSION;
@@ -827,7 +937,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 	struct serialargs ctrlargs = { };
 	struct ck_token *token = NULL;
 	TEE_Param *ctrl = params;
-	uint32_t token_id = 0;
+	uint32_t slot_id = 0;
 	uint32_t pin_size = 0;
 	void *pin = NULL;
 	struct pkcs11_object *obj = NULL;
@@ -837,7 +947,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 
 	serialargs_init(&ctrlargs, ctrl->memref.buffer, ctrl->memref.size);
 
-	rc = serialargs_get(&ctrlargs, &token_id, sizeof(uint32_t));
+	rc = serialargs_get(&ctrlargs, &slot_id, sizeof(uint32_t));
 	if (rc)
 		return rc;
 
@@ -856,12 +966,12 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 	if (serialargs_remaining_bytes(&ctrlargs))
 		return PKCS11_CKR_ARGUMENTS_BAD;
 
-	token = get_token(token_id);
+	token = get_token(slot_id);
 	if (!token)
 		return PKCS11_CKR_SLOT_ID_INVALID;
 
 	if (token->db_main->flags & PKCS11_CKFT_SO_PIN_LOCKED) {
-		IMSG("Token %"PRIu32": SO PIN locked", token_id);
+		IMSG("Token %"PRIu32": SO PIN locked", slot_id);
 		return PKCS11_CKR_PIN_LOCKED;
 	}
 
@@ -964,7 +1074,7 @@ inited:
 		cleanup_persistent_object(obj, token);
 	}
 
-	IMSG("PKCS11 token %"PRIu32": initialized", token_id);
+	IMSG("PKCS11 token %"PRIu32": initialized", slot_id);
 
 	return PKCS11_CKR_OK;
 }

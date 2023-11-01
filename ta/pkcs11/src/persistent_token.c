@@ -575,9 +575,9 @@ out:
  * Return the token instance, either initialized from reset or initialized
  * from the token persistent state if found.
  */
-struct ck_token *init_persistent_db(unsigned int token_id)
+struct ck_token *init_persistent_db(unsigned int slot_id)
 {
-	struct ck_token *token = get_token(token_id);
+	struct ck_token *token = get_token(slot_id);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	TEE_ObjectHandle db_hdl = TEE_HANDLE_NULL;
 	/* Copy persistent database: main db and object db */
@@ -601,7 +601,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 		size_t size = 0;
 		size_t idx = 0;
 
-		IMSG("PKCS11 token %u: load db", token_id);
+		IMSG("PKCS11 slot %u: load db", slot_id);
 
 		size = sizeof(*db_main);
 		res = TEE_ReadObjectData(db_hdl, db_main, size, &size);
@@ -649,7 +649,7 @@ struct ck_token *init_persistent_db(unsigned int token_id)
 	} else if (res == TEE_ERROR_ITEM_NOT_FOUND) {
 		char file[PERSISTENT_OBJECT_ID_LEN] = { };
 
-		IMSG("PKCS11 token %u: init db", token_id);
+		IMSG("PKCS11 slot %u: init db", slot_id);
 
 		TEE_MemFill(db_main, 0, sizeof(*db_main));
 		TEE_MemFill(db_main->label, '*', sizeof(db_main->label));
