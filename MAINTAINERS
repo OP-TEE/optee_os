@@ -62,6 +62,12 @@ R:	Amit Singh Tomar <amittomer25@gmail.com> [@Amit-Radur]
 S:	Maintained
 F:	core/arch/arm/plat-sunxi/
 
+AMD Versal Gen 2
+R:	Michal Simek <michal.simek@amd.com> [@michalsimek]
+R:	Akshay Belsare <akshay.belsare@amd.com> [@Akshay-Belsare]
+S:	Maintained
+F:	core/arch/arm/plat-versal2/
+
 AmLogic AXG (A113D)
 R:	Carlo Caione <ccaione@baylibre.com> [@carlocaione]
 S:	Maintained
