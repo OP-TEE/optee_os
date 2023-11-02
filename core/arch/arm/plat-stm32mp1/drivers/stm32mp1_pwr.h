@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2018-2019, STMicroelectronics
+ * Copyright (c) 2018-2023, STMicroelectronics
  */
 
 #ifndef __STM32MP1_PWR_H
@@ -16,6 +16,14 @@
 #define PWR_MPUCR_OFF		0x10
 #define PWR_WKUPCR_OFF		0x20
 #define PWR_MPUWKUPENR_OFF	0x28
+
+/* CR3 register bitfield for STM32MP13 variants */
+#define PWR_CR3_VDDSD1EN	BIT(13)
+#define PWR_CR3_VDDSD1RDY	BIT(14)
+#define PWR_CR3_VDDSD2EN	BIT(15)
+#define PWR_CR3_VDDSD2RDY	BIT(16)
+#define PWR_CR3_VDDSD1VALID	BIT(22)
+#define PWR_CR3_VDDSD2VALID	BIT(23)
 
 #define PWR_OFFSET_MASK		0x3fUL
 
