@@ -627,28 +627,29 @@ static void stm32mp_dump_core_registers(bool panicking)
 	if (panicking)
 		display = true;
 
-	if (!display || !sm_nsec_ctx)
+	if (!display) {
+		cpu_spin_unlock(&lock);
 		return;
+	}
 
 	DMSG("CPU : %zu\n", get_core_pos());
 
 	reg = (uint32_t *)&sm_nsec_ctx->ub_regs.usr_sp;
 
 	for (i = U(0); i < ARRAY_SIZE(dump_table); i++)
-		DMSG("%10s : %#8x\n", dump_table[i], reg[i]);
+		DMSG("%10s : %#8"PRIx32, dump_table[i], reg[i]);
 
 	cpu_spin_unlock(&lock);
 }
 DECLARE_KEEP_PAGER(stm32mp_dump_core_registers);
 #else
-static inline void stm32mp_dump_core_registers(bool panicking __unused) { }
-#endif
+static void stm32mp_dump_core_registers(bool panicking __unused) { }
+#endif /* TRACE_LEVEL >= TRACE_DEBUG */
 
 #define ARM_CNTXCTL_IMASK	BIT(1)
 
 static void stm32mp_mask_timer(void)
 {
-	/* Mask timer interrupts */
 	write_cntp_ctl(read_cntp_ctl() | ARM_CNTXCTL_IMASK);
 	write_cntv_ctl(read_cntv_ctl() | ARM_CNTXCTL_IMASK);
 }
@@ -676,17 +677,16 @@ DECLARE_KEEP_PAGER(sgi9_reset_handler);
 
 void __noreturn plat_panic(void)
 {
-	struct itr_chip *itr_chip = interrupt_get_main_chip();
-
 	stm32mp_mask_timer();
 
 	if (CFG_TEE_CORE_NB_CORE > 1) {
+		struct itr_chip *itr_chip = interrupt_get_main_chip();
 		uint32_t target_mask = 0;
 
-		if (get_core_pos() == 0)
-			target_mask = TARGET_CPU1_GIC_MASK;
-		else
+		if (get_core_pos())
 			target_mask = TARGET_CPU0_GIC_MASK;
+		else
+			target_mask = TARGET_CPU1_GIC_MASK;
 
 		interrupt_raise_sgi(itr_chip, GIC_SEC_SGI_1, target_mask);
 	}
@@ -704,9 +704,12 @@ static TEE_Result setup_multi_core_panic(void)
 	if (CFG_TEE_CORE_NB_CORE < 2)
 		return TEE_SUCCESS;
 
-	interrupt_add_handler_with_chip(itr_chip, &sgi9_reset_handler);
+	if (interrupt_add_handler_with_chip(itr_chip, &sgi9_reset_handler))
+		panic();
+
 	interrupt_enable(itr_chip, sgi9_reset_handler.it);
 
 	return TEE_SUCCESS;
 }
+
 service_init(setup_multi_core_panic);
