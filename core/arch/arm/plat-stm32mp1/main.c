@@ -19,6 +19,7 @@
 #include <io.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
@@ -584,3 +585,128 @@ early_init_late(init_debug);
 
 /* Some generic resources need to be unpaged */
 DECLARE_KEEP_PAGER(pinctrl_apply_state);
+
+#if TRACE_LEVEL >= TRACE_DEBUG
+static const char *const dump_table[] = {
+	"usr_sp",
+	"usr_lr",
+	"irq_spsr",
+	"irq_sp",
+	"irq_lr",
+	"fiq_spsr",
+	"fiq_sp",
+	"fiq_lr",
+	"svc_spsr",
+	"svc_sp",
+	"svc_lr",
+	"abt_spsr",
+	"abt_sp",
+	"abt_lr",
+	"und_spsr",
+	"und_sp",
+	"und_lr",
+#ifdef CFG_SM_NO_CYCLE_COUNTING
+	"pmcr",
+#endif
+#ifdef CFG_FTRACE_SUPPORT
+	"cntkctl",
+	"pad"
+#endif
+};
+
+static void stm32mp_dump_core_registers(bool panicking)
+{
+	struct sm_nsec_ctx *sm_nsec_ctx = sm_get_nsec_ctx();
+	static unsigned int lock = SPINLOCK_UNLOCK;
+	bool display = false;
+	uint32_t *reg = NULL;
+	size_t i = U(0);
+
+	cpu_spin_lock(&lock);
+
+	if (panicking)
+		display = true;
+
+	if (!display || !sm_nsec_ctx)
+		return;
+
+	DMSG("CPU : %zu\n", get_core_pos());
+
+	reg = (uint32_t *)&sm_nsec_ctx->ub_regs.usr_sp;
+
+	for (i = U(0); i < ARRAY_SIZE(dump_table); i++)
+		DMSG("%10s : %#8x\n", dump_table[i], reg[i]);
+
+	cpu_spin_unlock(&lock);
+}
+DECLARE_KEEP_PAGER(stm32mp_dump_core_registers);
+#else
+static inline void stm32mp_dump_core_registers(bool panicking __unused) { }
+#endif
+
+#define ARM_CNTXCTL_IMASK	BIT(1)
+
+static void stm32mp_mask_timer(void)
+{
+	/* Mask timer interrupts */
+	write_cntp_ctl(read_cntp_ctl() | ARM_CNTXCTL_IMASK);
+	write_cntv_ctl(read_cntv_ctl() | ARM_CNTXCTL_IMASK);
+}
+
+/* SGI9 (secure SGI 1) informs targeted CPU it should abort execution */
+static enum itr_return sgi9_it_handler(struct itr_handler *hdl  __unused)
+{
+	DMSG("Halting CPU %u", get_core_pos());
+
+	stm32mp_mask_timer();
+
+	stm32mp_dump_core_registers(true);
+
+	while (true)
+		cpu_idle();
+
+	return ITRR_HANDLED;
+}
+
+static struct itr_handler sgi9_reset_handler = {
+	.it = GIC_SEC_SGI_1,
+	.handler = sgi9_it_handler,
+};
+DECLARE_KEEP_PAGER(sgi9_reset_handler);
+
+void __noreturn plat_panic(void)
+{
+	struct itr_chip *itr_chip = interrupt_get_main_chip();
+
+	stm32mp_mask_timer();
+
+	if (CFG_TEE_CORE_NB_CORE > 1) {
+		uint32_t target_mask = 0;
+
+		if (get_core_pos() == 0)
+			target_mask = TARGET_CPU1_GIC_MASK;
+		else
+			target_mask = TARGET_CPU0_GIC_MASK;
+
+		interrupt_raise_sgi(itr_chip, GIC_SEC_SGI_1, target_mask);
+	}
+
+	stm32mp_dump_core_registers(true);
+
+	while (true)
+		cpu_idle();
+}
+
+static TEE_Result setup_multi_core_panic(void)
+{
+	struct itr_chip *itr_chip = interrupt_get_main_chip();
+
+	if (CFG_TEE_CORE_NB_CORE < 2)
+		return TEE_SUCCESS;
+
+	interrupt_add_handler_with_chip(itr_chip, &sgi9_reset_handler);
+	interrupt_enable(itr_chip, sgi9_reset_handler.it);
+
+	return TEE_SUCCESS;
+}
+service_init(setup_multi_core_panic);
