@@ -116,6 +116,7 @@ $(call force,CFG_STM32_VREFBUF,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
+$(call force,CFG_STM32MP13_REGULATOR_IOD,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
 CFG_EXTERNAL_DT ?= n
