@@ -71,7 +71,7 @@ caam-crypto-drivers += RSA DSA ECC DH MATH
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8dxl-flavorlist)))
 $(call force, CFG_CAAM_SIZE_ALIGN,4)
 $(call force, CFG_JR_BLOCK_SIZE,0x10000)
-$(call force, CFG_JR_INDEX,2)
+$(call force, CFG_JR_INDEX,3)
 $(call force, CFG_JR_INT,355)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_CAAM_JR_DISABLE_NODE,n)
