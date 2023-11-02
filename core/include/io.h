@@ -6,6 +6,7 @@
 #define __IO_H
 
 #include <compiler.h>
+#include <kernel/delay.h>
 #include <stdint.h>
 #include <types_ext.h>
 #include <utee_defines.h>
