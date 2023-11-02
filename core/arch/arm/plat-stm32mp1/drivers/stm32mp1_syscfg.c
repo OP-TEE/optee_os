@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2019-2022, STMicroelectronics
+ * Copyright (c) 2019-2023, STMicroelectronics
  */
 
 #include <drivers/clk.h>
@@ -16,8 +16,8 @@
 /*
  * SYSCFG register offsets (base relative)
  */
-#define SYSCFG_CMPCR				0x20U
-#define SYSCFG_CMPENSETR			0x24U
+#define SYSCFG_CMPCR				U(0x20)
+#define SYSCFG_CMPENSETR			U(0x24)
 
 /*
  * SYSCFG_CMPCR Register
@@ -25,11 +25,11 @@
 #define SYSCFG_CMPCR_SW_CTRL			BIT(1)
 #define SYSCFG_CMPCR_READY			BIT(8)
 #define SYSCFG_CMPCR_RANSRC			GENMASK_32(19, 16)
-#define SYSCFG_CMPCR_RANSRC_SHIFT		16
+#define SYSCFG_CMPCR_RANSRC_SHIFT		U(16)
 #define SYSCFG_CMPCR_RAPSRC			GENMASK_32(23, 20)
-#define SYSCFG_CMPCR_ANSRC_SHIFT		24
+#define SYSCFG_CMPCR_ANSRC_SHIFT		U(24)
 
-#define SYSCFG_CMPCR_READY_TIMEOUT_US		1000U
+#define SYSCFG_CMPCR_READY_TIMEOUT_US		U(1000)
 
 /*
  * SYSCFG_CMPENSETR Register
