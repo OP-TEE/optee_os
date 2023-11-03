@@ -3,8 +3,10 @@
  * Copyright (c) 2019-2023, STMicroelectronics
  */
 
+#include <config.h>
 #include <drivers/clk.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#include <drivers/stm32mp1_syscfg.h>
 #include <initcall.h>
 #include <kernel/delay.h>
 #include <mm/core_memprot.h>
@@ -18,6 +20,8 @@
  */
 #define SYSCFG_CMPCR				U(0x20)
 #define SYSCFG_CMPENSETR			U(0x24)
+#define SYSCFG_CMPSD1CR				U(0x30)
+#define SYSCFG_CMPSD2CR				U(0x40)
 #define SYSCFG_IOSIZE				U(0x400)
 
 /*
@@ -32,6 +36,9 @@
 
 #define SYSCFG_CMPCR_READY_TIMEOUT_US		U(1000)
 
+#define CMPENSETR_OFFSET			U(0x4)
+#define CMPENCLRR_OFFSET			U(0x8)
+
 /*
  * SYSCFG_CMPENSETR Register
  */
@@ -44,60 +51,84 @@ static vaddr_t get_syscfg_base(void)
 	return io_pa_or_va(&base, SYSCFG_IOSIZE);
 }
 
-void stm32mp_syscfg_enable_io_compensation(void)
+static void enable_io_compensation(int cmpcr_offset)
 {
-	vaddr_t syscfg_base = get_syscfg_base();
-	uint64_t timeout_ref = 0;
-
-	if (clk_enable(stm32mp_rcc_clock_id_to_clk(CK_CSI)) ||
-	    clk_enable(stm32mp_rcc_clock_id_to_clk(SYSCFG)))
-		panic();
-
-	io_setbits32(syscfg_base + SYSCFG_CMPENSETR, SYSCFG_CMPENSETR_MPU_EN);
-
-	timeout_ref = timeout_init_us(SYSCFG_CMPCR_READY_TIMEOUT_US);
-
-	while (!(io_read32(syscfg_base + SYSCFG_CMPCR) & SYSCFG_CMPCR_READY)) {
-		if (timeout_elapsed(timeout_ref)) {
-			EMSG("IO compensation cell not ready");
-			/* Allow an almost silent failure here */
-			break;
-		}
-	}
-
-	io_clrbits32(syscfg_base + SYSCFG_CMPCR, SYSCFG_CMPCR_SW_CTRL);
-
-	DMSG("SYSCFG.cmpcr = %#"PRIx32, io_read32(syscfg_base + SYSCFG_CMPCR));
-}
-
-void stm32mp_syscfg_disable_io_compensation(void)
-{
-	vaddr_t syscfg_base = get_syscfg_base();
+	vaddr_t cmpcr_va = get_syscfg_base() + cmpcr_offset;
 	uint32_t value = 0;
 
-	value = io_read32(syscfg_base + SYSCFG_CMPCR) >>
-		SYSCFG_CMPCR_ANSRC_SHIFT;
+	if (io_read32(cmpcr_va) & SYSCFG_CMPCR_READY)
+		return;
 
-	io_clrbits32(syscfg_base + SYSCFG_CMPCR,
-		     SYSCFG_CMPCR_RANSRC | SYSCFG_CMPCR_RAPSRC);
+	io_setbits32(cmpcr_va + CMPENSETR_OFFSET, SYSCFG_CMPENSETR_MPU_EN);
 
-	value = io_read32(syscfg_base + SYSCFG_CMPCR) |
-		(value << SYSCFG_CMPCR_RANSRC_SHIFT);
+	if (IO_READ32_POLL_TIMEOUT(cmpcr_va, value, value & SYSCFG_CMPCR_READY,
+				   0, SYSCFG_CMPCR_READY_TIMEOUT_US)) {
+		/* Allow an almost silent failure here */
+		EMSG("IO compensation cell not ready");
+	}
 
-	io_write32(syscfg_base + SYSCFG_CMPCR, value | SYSCFG_CMPCR_SW_CTRL);
+	io_clrbits32(cmpcr_va, SYSCFG_CMPCR_SW_CTRL);
 
-	DMSG("SYSCFG.cmpcr = %#"PRIx32, io_read32(syscfg_base + SYSCFG_CMPCR));
+	DMSG("SYSCFG.cmpcr = %#"PRIx32, io_read32(cmpcr_va));
+}
 
-	io_clrbits32(syscfg_base + SYSCFG_CMPENSETR, SYSCFG_CMPENSETR_MPU_EN);
+static __maybe_unused void disable_io_compensation(int cmpcr_offset)
+{
+	vaddr_t cmpcr_base = get_syscfg_base() + cmpcr_offset;
+	uint32_t value_cmpcr = 0;
+	uint32_t apsrc_ansrc = 0;
+	uint32_t value_cmpcr2 = 0;
 
-	clk_disable(stm32mp_rcc_clock_id_to_clk(CK_CSI));
-	clk_disable(stm32mp_rcc_clock_id_to_clk(SYSCFG));
+	value_cmpcr = io_read32(cmpcr_base);
+	value_cmpcr2 = io_read32(cmpcr_base + CMPENSETR_OFFSET);
+	if (!(value_cmpcr & SYSCFG_CMPCR_READY &&
+	      value_cmpcr2 & SYSCFG_CMPENSETR_MPU_EN))
+		return;
+
+	/* Copy apsrc / ansrc in ransrc /rapsrc */
+	apsrc_ansrc = value_cmpcr >> SYSCFG_CMPCR_ANSRC_SHIFT;
+	value_cmpcr &= ~(SYSCFG_CMPCR_RANSRC | SYSCFG_CMPCR_RAPSRC);
+	value_cmpcr |= SHIFT_U32(apsrc_ansrc, SYSCFG_CMPCR_RANSRC_SHIFT);
+
+	io_write32(cmpcr_base, value_cmpcr | SYSCFG_CMPCR_SW_CTRL);
+
+	DMSG("SYSCFG.cmpcr = %#"PRIx32, io_read32(cmpcr_base));
+
+	io_setbits32(cmpcr_base + CMPENCLRR_OFFSET, SYSCFG_CMPENSETR_MPU_EN);
 }
 
 static TEE_Result stm32mp1_iocomp(void)
 {
-	stm32mp_syscfg_enable_io_compensation();
+	if (clk_enable(stm32mp_rcc_clock_id_to_clk(CK_CSI)) ||
+	    clk_enable(stm32mp_rcc_clock_id_to_clk(SYSCFG)))
+		panic();
+
+	enable_io_compensation(SYSCFG_CMPCR);
 
 	return TEE_SUCCESS;
 }
+
 driver_init(stm32mp1_iocomp);
+
+#ifdef CFG_STM32MP13
+void stm32mp_set_vddsd_comp_state(enum stm32mp13_vddsd_comp_id id, bool enable)
+{
+	int cmpcr_offset = 0;
+
+	switch (id) {
+	case SYSCFG_IO_COMP_IDX_SD1:
+		cmpcr_offset = SYSCFG_CMPSD1CR;
+		break;
+	case SYSCFG_IO_COMP_IDX_SD2:
+		cmpcr_offset = SYSCFG_CMPSD2CR;
+		break;
+	default:
+		panic();
+	}
+
+	if (enable)
+		enable_io_compensation(cmpcr_offset);
+	else
+		disable_io_compensation(cmpcr_offset);
+}
+#endif /* CFG_STM32MP13 */
