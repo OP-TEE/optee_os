@@ -32,6 +32,11 @@ basis (R:).
 
 ----------
 
+AOSP build
+R:	Tadd Kao <tadd.kao@mediatek.com> [@taddk]
+S:	Maintained
+F:	mk/aosp_optee.mk
+
 ARM Foundation FVP
 R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 S:	Maintained
