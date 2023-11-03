@@ -14,6 +14,7 @@
 #include <drivers/stm32_vrefbuf.h>
 #include <drivers/stm32mp1_pmic.h>
 #include <drivers/stm32mp1_pwr.h>
+#include <drivers/stm32mp13_regulator_iod.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
 #include <drivers/stm32mp_dt_bindings.h>
@@ -63,8 +64,7 @@ enum voltd_device {
 	VOLTD_PWR,
 	VOLTD_PMIC,
 	VOLTD_VREFBUF,
-	/* Stub regulator until regulator framework is merged */
-	VOLTD_STUB,
+	VOLTD_IOD,
 };
 
 /*
@@ -122,8 +122,8 @@ register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
 #define VOLTD_CELL_PWR(_scmi_id, _priv_id, _name) \
 	VOLTD_CELL((_scmi_id), VOLTD_PWR, (_priv_id), NULL, (_name))
 
-#define VOLTD_CELL_STUB(_scmi_id, _priv_id, _name) \
-	VOLTD_CELL((_scmi_id), VOLTD_STUB, (_priv_id), NULL, (_name))
+#define VOLTD_CELL_IOD(_scmi_id, _priv_id, _name) \
+	VOLTD_CELL((_scmi_id), VOLTD_IOD, (_priv_id), NULL, (_name))
 
 #define VOLTD_CELL_VREFBUF(_scmi_id, _name) \
 	VOLTD_CELL((_scmi_id), VOLTD_VREFBUF, 0, NULL, (_name))
@@ -221,8 +221,8 @@ struct stm32_scmi_voltd scmi_voltage_domain[] = {
 	VOLTD_CELL_PWR(VOLTD_SCMI_REG11, PWR_REG11, "reg11"),
 	VOLTD_CELL_PWR(VOLTD_SCMI_REG18, PWR_REG18, "reg18"),
 	VOLTD_CELL_PWR(VOLTD_SCMI_USB33, PWR_USB33, "usb33"),
-	VOLTD_CELL_STUB(VOLTD_SCMI_SDMMC1_IO, 1, "sdmmc1"),
-	VOLTD_CELL_STUB(VOLTD_SCMI_SDMMC2_IO, 2, "sdmmc2"),
+	VOLTD_CELL_IOD(VOLTD_SCMI_SDMMC1_IO, IOD_SDMMC1, "sdmmc1"),
+	VOLTD_CELL_IOD(VOLTD_SCMI_SDMMC2_IO, IOD_SDMMC2, "sdmmc2"),
 	VOLTD_CELL_VREFBUF(VOLTD_SCMI_VREFBUF, "vrefbuf"),
 	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK1, "buck1", "buck1"),
 	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK2, "buck2", "buck2"),
@@ -624,35 +624,6 @@ const char *plat_scmi_voltd_get_name(unsigned int channel_id,
 	return voltd->name;
 }
 
-static long stub_get_level_uv(struct stm32_scmi_voltd *voltd)
-{
-	switch (voltd->priv_id) {
-	case 1:
-	case 2:
-		return 3300000;
-	default:
-		panic();
-	}
-}
-
-static int32_t stub_describe_levels(struct stm32_scmi_voltd *voltd __unused,
-				    size_t start_index, long *microvolt,
-				    size_t *nb_elts)
-{
-	if (start_index)
-		return SCMI_INVALID_PARAMETERS;
-
-	if (!microvolt || !*nb_elts) {
-		*nb_elts = 1;
-		return SCMI_SUCCESS;
-	}
-
-	microvolt[0] = stub_get_level_uv(voltd);
-	*nb_elts = 1;
-
-	return SCMI_SUCCESS;
-}
-
 int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 				     unsigned int scmi_id, size_t start_index,
 				     long *levels, size_t *nb_elts)
@@ -714,13 +685,7 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 		return SCMI_SUCCESS;
 	}
 
-	switch (voltd->priv_dev) {
-	case VOLTD_STUB:
-		return stub_describe_levels(voltd, start_index, levels,
-					    nb_elts);
-	default:
-		return SCMI_DENIED;
-	}
+	return SCMI_DENIED;
 }
 
 int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
@@ -792,13 +757,7 @@ int32_t plat_scmi_voltd_get_level(unsigned int channel_id, unsigned int scmi_id,
 		return SCMI_SUCCESS;
 	}
 
-	switch (voltd->priv_dev) {
-	case VOLTD_STUB:
-		*level_uv = stub_get_level_uv(voltd);
-		return SCMI_SUCCESS;
-	default:
-		return SCMI_DENIED;
-	}
+	return SCMI_DENIED;
 }
 
 int32_t plat_scmi_voltd_set_level(unsigned int channel_id, unsigned int scmi_id,
@@ -822,12 +781,7 @@ int32_t plat_scmi_voltd_set_level(unsigned int channel_id, unsigned int scmi_id,
 			return SCMI_SUCCESS;
 	}
 
-	switch (voltd->priv_dev) {
-	case VOLTD_STUB:
-		return SCMI_SUCCESS;
-	default:
-		return SCMI_DENIED;
-	}
+	return SCMI_DENIED;
 }
 
 int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
@@ -847,13 +801,7 @@ int32_t plat_scmi_voltd_get_config(unsigned int channel_id,
 		return SCMI_SUCCESS;
 	}
 
-	switch (voltd->priv_dev) {
-	case VOLTD_STUB:
-		*config = SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON;
-		return SCMI_SUCCESS;
-	default:
-		return SCMI_DENIED;
-	}
+	return SCMI_DENIED;
 }
 
 int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
@@ -889,12 +837,7 @@ int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 		return SCMI_SUCCESS;
 	}
 
-	switch (voltd->priv_dev) {
-	case VOLTD_STUB:
-		return SCMI_SUCCESS;
-	default:
-		return SCMI_DENIED;
-	}
+	return SCMI_DENIED;
 }
 
 static void get_voltd_regulator(struct stm32_scmi_voltd *voltd)
@@ -909,7 +852,8 @@ static void get_voltd_regulator(struct stm32_scmi_voltd *voltd)
 	case VOLTD_VREFBUF:
 		voltd->regulator = stm32_vrefbuf_regulator();
 		break;
-	case VOLTD_STUB:
+	case VOLTD_IOD:
+		voltd->regulator = stm32mp1_get_iod_regulator(voltd->priv_id);
 		break;
 	default:
 		break;
