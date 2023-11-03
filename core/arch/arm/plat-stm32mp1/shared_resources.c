@@ -692,8 +692,12 @@ static void check_rcc_secure_configuration(void)
 		}
 	}
 
-	if (have_error)
-		panic();
+	if (have_error) {
+		if (IS_ENABLED(CFG_INSECURE))
+			EMSG("WARNING: CFG_INSECURE allows insecure RCC configuration");
+		else
+			panic();
+	}
 }
 
 static void set_gpio_secure_configuration(void)
