@@ -102,13 +102,13 @@ struct dt_pargs {
  *
  * @parg: phandle argument(s) referencing the device in the FDT.
  * @data: driver private data registered in struct dt_driver.
- * @res: Output result code of the operation:
- *	TEE_SUCCESS in case of success
- *	TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
- *	Any TEE_Result compliant code in case of error.
+ * @out_device: output device reference upon success, e.g. a struct clk
+ *	pointer for a clock driver.
  *
- * Return a device opaque reference, e.g. a struct clk pointer for a clock
- * driver, or NULL if not found in which case @res provides the error code.
+ * Return code:
+ * TEE_SUCCESS in case of success
+ * TEE_ERROR_DEFER_DRIVER_INIT if device driver is not yet initialized
+ * Any TEE_Result compliant code in case of error.
  */
 typedef TEE_Result (*get_of_device_func)(struct dt_pargs *parg, void *data,
 					 void **out_device);
@@ -163,7 +163,7 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
  * @fdt: FDT base address
  * @nodeoffset: node offset in the FDT
  * @type: Driver type
- * @dout_device: output device opaque reference upon success, for example
+ * @out_device: output device opaque reference upon success, for example
  *	a struct i2c_dev pointer for a I2C bus driver
  *
  * Return code:
