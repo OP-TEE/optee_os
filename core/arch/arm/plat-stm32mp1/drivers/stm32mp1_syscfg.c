@@ -18,6 +18,7 @@
  */
 #define SYSCFG_CMPCR				U(0x20)
 #define SYSCFG_CMPENSETR			U(0x24)
+#define SYSCFG_IOSIZE				U(0x400)
 
 /*
  * SYSCFG_CMPCR Register
@@ -38,9 +39,9 @@
 
 static vaddr_t get_syscfg_base(void)
 {
-	struct io_pa_va base = { .pa = SYSCFG_BASE };
+	static struct io_pa_va base = { .pa = SYSCFG_BASE };
 
-	return io_pa_or_va(&base, 1);
+	return io_pa_or_va(&base, SYSCFG_IOSIZE);
 }
 
 void stm32mp_syscfg_enable_io_compensation(void)
