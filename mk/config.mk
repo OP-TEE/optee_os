@@ -543,6 +543,10 @@ CFG_DRIVERS_CLK_EARLY_PROBE ?= n
 $(call force,CFG_DRIVERS_DT_RECURSIVE_PROBE,n,Mandated by CFG_DT_DRIVER_EMBEDDED_TEST)
 endif
 
+# CFG_WITH_STATS when enabled embeds PTA statistics service to allow non-secure
+# clients to retrieve debug and statistics information on core and loaded TAs.
+CFG_WITH_STATS ?= n
+
 # CFG_DRIVERS_DT_RECURSIVE_PROBE when enabled forces a recursive subnode
 # parsing in the embedded DTB for driver probing. The alternative is
 # an exploration based on compatible drivers found. It is default disabled.
