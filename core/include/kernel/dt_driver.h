@@ -102,7 +102,7 @@ struct dt_pargs {
  *
  * @parg: phandle argument(s) referencing the device in the FDT.
  * @data: driver private data registered in struct dt_driver.
- * @out_device: output device reference upon success, e.g. a struct clk
+ * @device_ref: output device reference upon success, e.g. a struct clk
  *	pointer for a clock driver.
  *
  * Return code:
@@ -111,7 +111,7 @@ struct dt_pargs {
  * Any TEE_Result compliant code in case of error.
  */
 typedef TEE_Result (*get_of_device_func)(struct dt_pargs *parg, void *data,
-					 void **out_device);
+					 void *device_ref);
 
 /**
  * dt_driver_register_provider - Register a driver provider
@@ -139,7 +139,7 @@ TEE_Result dt_driver_register_provider(const void *fdt, int nodeoffset,
  * @nodeoffset: node offset in the FDT
  * @prop_idx: index of the phandle data in the property
  * @type: Driver type
- * @out_device: output device opaque reference upon support, for example
+ * @device_ref: output device opaque reference upon support, for example
  *	a struct clk pointer for a clock driver.
 
  * Return code:
@@ -153,7 +153,7 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
 					       const void *fdt, int nodeoffset,
 					       unsigned int prop_idx,
 					       enum dt_driver_type type,
-					       void **out_device);
+					       void *device_ref);
 
 /*
  * dt_driver_device_from_parent - Return a device instance based on the parent.
@@ -163,7 +163,7 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
  * @fdt: FDT base address
  * @nodeoffset: node offset in the FDT
  * @type: Driver type
- * @out_device: output device opaque reference upon success, for example
+ * @device_ref: output device opaque reference upon success, for example
  *	a struct i2c_dev pointer for a I2C bus driver
  *
  * Return code:
@@ -173,7 +173,7 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
  */
 TEE_Result dt_driver_device_from_parent(const void *fdt, int nodeoffset,
 					enum dt_driver_type type,
-					void **out_device);
+					void *device_ref);
 
 /*
  * dt_driver_device_from_node_idx_prop_phandle() - Same as
@@ -190,7 +190,7 @@ TEE_Result dt_driver_device_from_node_idx_prop_phandle(const char *prop_name,
 						       unsigned int prop_index,
 						       enum dt_driver_type type,
 						       uint32_t phandle,
-						       void **out_device);
+						       void *device_ref);
 
 /*
  * dt_driver_get_crypto() - Request crypto support for driver initialization
