@@ -271,14 +271,10 @@ static TEE_Result stm32mp1_pwr_regu_probe(const void *fdt, int node,
 			panic();
 		}
 
-		if (IS_ENABLED(CFG_DRIVERS_REGULATOR)) {
-			res = regulator_dt_register(fdt, subnode, node,
-						    dt_desc + n);
-			if (res) {
-				EMSG("Can't register %s: %#"PRIx32, node_name,
-				     res);
-				panic();
-			}
+		res = regulator_dt_register(fdt, subnode, node, dt_desc + n);
+		if (res) {
+			EMSG("Can't register %s: %#"PRIx32, node_name, res);
+			panic();
 		}
 	}
 
