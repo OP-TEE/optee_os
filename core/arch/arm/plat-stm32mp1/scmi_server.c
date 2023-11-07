@@ -70,14 +70,16 @@ enum voltd_device {
 /*
  * struct stm32_scmi_voltd - Data for the exposed voltage domains
  * @name: Power regulator string ID exposed to channel
- * @priv_id: Internal string ID for the regulator
+ * @priv_name: Internal string ID for the PMIC regulators
+ * @priv_id: Internal ID for the regulator aside PMIC ones
  * @priv_dev: Internal ID for the device implementing the regulator
  * @regulator: Regulator controller device
  * @state: State of the SCMI voltage domain (true: enable, false: disable)
  */
 struct stm32_scmi_voltd {
 	const char *name;
-	const char *priv_id;
+	const char *priv_name;
+	unsigned int priv_id;
 	enum voltd_device priv_dev;
 	struct regulator *regulator;
 	bool state;
@@ -109,12 +111,25 @@ register_phys_mem(MEM_AREA_IO_NSEC, CFG_STM32MP1_SCMI_SHM_BASE,
 		.name = (_name), \
 	}
 
-#define VOLTD_CELL(_scmi_id, _dev_id, _priv_id, _name) \
+#define VOLTD_CELL(_scmi_id, _dev_id, _priv_id, _priv_name, _name) \
 	[(_scmi_id)] = { \
+		.priv_name = (_priv_name), \
 		.priv_id = (_priv_id), \
 		.priv_dev = (_dev_id), \
 		.name = (_name), \
 	}
+
+#define VOLTD_CELL_PWR(_scmi_id, _priv_id, _name) \
+	VOLTD_CELL((_scmi_id), VOLTD_PWR, (_priv_id), NULL, (_name))
+
+#define VOLTD_CELL_STUB(_scmi_id, _priv_id, _name) \
+	VOLTD_CELL((_scmi_id), VOLTD_STUB, (_priv_id), NULL, (_name))
+
+#define VOLTD_CELL_VREFBUF(_scmi_id, _name) \
+	VOLTD_CELL((_scmi_id), VOLTD_VREFBUF, 0, NULL, (_name))
+
+#define VOLTD_CELL_PMIC(_scmi_id, _priv_name, _name) \
+	VOLTD_CELL((_scmi_id), VOLTD_PMIC, 0, (_priv_name), (_name))
 
 #ifdef CFG_STM32MP13
 static struct stm32_scmi_clk stm32_scmi_clock[] = {
@@ -201,65 +216,50 @@ static struct stm32_scmi_rd stm32_scmi_reset_domain[] = {
 };
 #endif
 
-#define PWR_REG11_NAME_ID		"0"
-#define PWR_REG18_NAME_ID		"1"
-#define PWR_USB33_NAME_ID		"2"
-
-#define STUB_SDMMC1_IO_NAME_ID		"sdmmc1"
-#define STUB_SDMMC2_IO_NAME_ID		"sdmmc2"
-
 #ifdef CFG_STM32MP13
 struct stm32_scmi_voltd scmi_voltage_domain[] = {
-	VOLTD_CELL(VOLTD_SCMI_REG11, VOLTD_PWR, PWR_REG11_NAME_ID, "reg11"),
-	VOLTD_CELL(VOLTD_SCMI_REG18, VOLTD_PWR, PWR_REG18_NAME_ID, "reg18"),
-	VOLTD_CELL(VOLTD_SCMI_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
-	VOLTD_CELL(VOLTD_SCMI_SDMMC1_IO, VOLTD_STUB, STUB_SDMMC1_IO_NAME_ID,
-		   "sdmmc1"),
-	VOLTD_CELL(VOLTD_SCMI_SDMMC2_IO, VOLTD_STUB, STUB_SDMMC2_IO_NAME_ID,
-		   "sdmmc2"),
-	VOLTD_CELL(VOLTD_SCMI_VREFBUF, VOLTD_VREFBUF, "vrefbuf", "vrefbuf"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK1, VOLTD_PMIC, "buck1", "buck1"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK2, VOLTD_PMIC, "buck2", "buck2"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK3, VOLTD_PMIC, "buck3", "buck3"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK4, VOLTD_PMIC, "buck4", "buck4"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO1, VOLTD_PMIC, "ldo1", "ldo1"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO2, VOLTD_PMIC, "ldo2", "ldo2"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO3, VOLTD_PMIC, "ldo3", "ldo3"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO4, VOLTD_PMIC, "ldo4", "ldo4"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO5, VOLTD_PMIC, "ldo5", "ldo5"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO6, VOLTD_PMIC, "ldo6", "ldo6"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_VREFDDR, VOLTD_PMIC, "vref_ddr",
-		   "vref_ddr"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BOOST, VOLTD_PMIC, "boost", "bst_out"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW1, VOLTD_PMIC, "pwr_sw1",
-		   "pwr_sw1"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW2, VOLTD_PMIC, "pwr_sw2",
-		   "pwr_sw2"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_REG11, PWR_REG11, "reg11"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_REG18, PWR_REG18, "reg18"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_USB33, PWR_USB33, "usb33"),
+	VOLTD_CELL_STUB(VOLTD_SCMI_SDMMC1_IO, 1, "sdmmc1"),
+	VOLTD_CELL_STUB(VOLTD_SCMI_SDMMC2_IO, 2, "sdmmc2"),
+	VOLTD_CELL_VREFBUF(VOLTD_SCMI_VREFBUF, "vrefbuf"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK1, "buck1", "buck1"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK2, "buck2", "buck2"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK3, "buck3", "buck3"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK4, "buck4", "buck4"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO1, "ldo1", "ldo1"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO2, "ldo2", "ldo2"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO3, "ldo3", "ldo3"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO4, "ldo4", "ldo4"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO5, "ldo5", "ldo5"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO6, "ldo6", "ldo6"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_VREFDDR, "vref_ddr", "vref_ddr"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BOOST, "boost", "bst_out"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_PWR_SW1, "pwr_sw1", "pwr_sw1"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_PWR_SW2, "pwr_sw2", "pwr_sw2"),
 };
 #endif
 
 #ifdef CFG_STM32MP15
 struct stm32_scmi_voltd scmi_voltage_domain[] = {
-	VOLTD_CELL(VOLTD_SCMI_REG11, VOLTD_PWR, PWR_REG11_NAME_ID, "reg11"),
-	VOLTD_CELL(VOLTD_SCMI_REG18, VOLTD_PWR, PWR_REG18_NAME_ID, "reg18"),
-	VOLTD_CELL(VOLTD_SCMI_USB33, VOLTD_PWR, PWR_USB33_NAME_ID, "usb33"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK1, VOLTD_PMIC, "buck1", "vddcore"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK2, VOLTD_PMIC, "buck2", "vdd_ddr"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK3, VOLTD_PMIC, "buck3", "vdd"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BUCK4, VOLTD_PMIC, "buck4", "v3v3"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO1, VOLTD_PMIC, "ldo1", "v1v8_audio"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO2, VOLTD_PMIC, "ldo2", "v3v3_hdmi"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO3, VOLTD_PMIC, "ldo3", "vtt_ddr"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO4, VOLTD_PMIC, "ldo4", "vdd_usb"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO5, VOLTD_PMIC, "ldo5", "vdda"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_LDO6, VOLTD_PMIC, "ldo6", "v1v2_hdmi"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_VREFDDR, VOLTD_PMIC, "vref_ddr",
-		   "vref_ddr"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_BOOST, VOLTD_PMIC, "boost", "bst_out"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW1, VOLTD_PMIC, "pwr_sw1",
-		   "vbus_otg"),
-	VOLTD_CELL(VOLTD_SCMI_STPMIC1_PWR_SW2, VOLTD_PMIC, "pwr_sw2",
-		   "vbus_sw"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_REG11, PWR_REG11, "reg11"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_REG18, PWR_REG18, "reg18"),
+	VOLTD_CELL_PWR(VOLTD_SCMI_USB33, PWR_USB33, "usb33"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK1, "buck1", "vddcore"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK2, "buck2", "vdd_ddr"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK3, "buck3", "vdd"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BUCK4, "buck4", "v3v3"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO1, "ldo1", "v1v8_audio"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO2, "ldo2", "v3v3_hdmi"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO3, "ldo3", "vtt_ddr"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO4, "ldo4", "vdd_usb"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO5, "ldo5", "vdda"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_LDO6, "ldo6", "v1v2_hdmi"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_VREFDDR, "vref_ddr", "vref_ddr"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_BOOST, "boost", "bst_out"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_PWR_SW1, "pwr_sw1", "vbus_otg"),
+	VOLTD_CELL_PMIC(VOLTD_SCMI_STPMIC1_PWR_SW2, "pwr_sw2", "vbus_sw"),
 };
 #endif
 
@@ -624,25 +624,15 @@ const char *plat_scmi_voltd_get_name(unsigned int channel_id,
 	return voltd->name;
 }
 
-static enum pwr_regulator pwr_scmi_to_regu_id(struct stm32_scmi_voltd *voltd)
-{
-	if (!strcmp(voltd->priv_id, PWR_REG11_NAME_ID))
-		return PWR_REG11;
-	if (!strcmp(voltd->priv_id, PWR_REG18_NAME_ID))
-		return PWR_REG18;
-	if (!strcmp(voltd->priv_id, PWR_USB33_NAME_ID))
-		return PWR_USB33;
-
-	panic();
-}
-
 static long stub_get_level_uv(struct stm32_scmi_voltd *voltd)
 {
-	if (!strcmp(voltd->priv_id, STUB_SDMMC1_IO_NAME_ID) ||
-	    !strcmp(voltd->priv_id, STUB_SDMMC2_IO_NAME_ID))
+	switch (voltd->priv_id) {
+	case 1:
+	case 2:
 		return 3300000;
-
-	panic();
+	default:
+		panic();
+	}
 }
 
 static int32_t stub_describe_levels(struct stm32_scmi_voltd *voltd __unused,
@@ -909,15 +899,12 @@ int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 
 static void get_voltd_regulator(struct stm32_scmi_voltd *voltd)
 {
-	enum pwr_regulator regu_id = PWR_REGU_COUNT;
-
 	switch (voltd->priv_dev) {
 	case VOLTD_PWR:
-		regu_id = pwr_scmi_to_regu_id(voltd);
-		voltd->regulator = stm32mp1_pwr_get_regulator(regu_id);
+		voltd->regulator = stm32mp1_pwr_get_regulator(voltd->priv_id);
 		break;
 	case VOLTD_PMIC:
-		voltd->regulator = stm32mp_pmic_get_regulator(voltd->priv_id);
+		voltd->regulator = stm32mp_pmic_get_regulator(voltd->priv_name);
 		break;
 	case VOLTD_VREFBUF:
 		voltd->regulator = stm32_vrefbuf_regulator();
