@@ -128,6 +128,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_NS_VIRTUALIZATION=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TRANSFER_LIST=y CFG_MAP_EXT_DT_SECURE=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL2_SPMC=y CFG_CORE_PHYS_RELOCATABLE=y CFG_TZDRAM_START=0x0d304000 CFG_TZDRAM_SIZE=0x00cfc000
           _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
