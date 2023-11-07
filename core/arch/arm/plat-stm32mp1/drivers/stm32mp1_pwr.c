@@ -105,19 +105,17 @@ static TEE_Result stm32mp1_pwr_regu_set_state(struct regulator *regu,
 {
 	const struct pwr_regu_desc *desc = regu->priv;
 	uintptr_t cr3 = stm32_pwr_base() + PWR_CR3_OFF;
-	uint64_t to = 0;
 
 	assert(desc);
 
 	if (enable) {
+		uint32_t value = 0;
+
 		io_setbits32_stm32shregs(cr3, desc->cr3_enable_mask);
 
-		to = timeout_init_us(TIMEOUT_US_10MS);
-		while (!timeout_elapsed(to))
-			if (io_read32(cr3) & desc->cr3_ready_mask)
-				break;
-
-		if (!(io_read32(cr3) & desc->cr3_ready_mask))
+		if (IO_READ32_POLL_TIMEOUT(cr3, value,
+					   value & desc->cr3_ready_mask,
+					   0, TIMEOUT_US_10MS))
 			return TEE_ERROR_GENERIC;
 	} else {
 		io_clrbits32_stm32shregs(cr3, desc->cr3_enable_mask);
