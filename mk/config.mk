@@ -1077,3 +1077,10 @@ CFG_HMAC_64_1024_RANGE ?= n
 # By default use standard pbkdf2 implementation
 CFG_CRYPTO_HW_PBKDF2 ?= n
 $(eval $(call cfg-depends-all,CFG_CRYPTO_HW_PBKDF2,CFG_CRYPTO_PBKDF2))
+
+# CFG_HALT_CORES_ON_PANIC, when enabled, makes any call to panic() halt the
+# other cores. The feature currently relies on GIC device to trap the other
+# cores using an SGI interrupt specified by CFG_HALT_CORES_ON_PANIC_SGI.
+CFG_HALT_CORES_ON_PANIC ?= n
+CFG_HALT_CORES_ON_PANIC_SGI ?= 15
+$(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_GIC))
