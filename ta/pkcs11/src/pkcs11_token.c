@@ -180,7 +180,7 @@ void unregister_client(struct pkcs11_client *client)
 	TEE_Free(client);
 }
 
-static TEE_Result pkcs11_token_init(unsigned int id)
+static TEE_Result pkcs11_persistent_token_init(unsigned int id)
 {
 	struct ck_token *token = init_persistent_db(id);
 
@@ -306,6 +306,7 @@ TEE_Result pkcs11_init(void)
 {
 	unsigned int id = 0;
 	TEE_Result ret = TEE_ERROR_GENERIC;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	struct ck_slot *slot;
 
 	SLIST_INIT(&slot_list);
@@ -326,9 +327,26 @@ TEE_Result pkcs11_init(void)
 		SLIST_INSERT_HEAD(&slot_list, slot, next_slot);
 		slot_count++;
 
-		ret = pkcs11_token_init(id);
+		ret = pkcs11_persistent_token_init(id);
 		if (ret)
 			goto err;
+	}
+
+	// Initialize one slot for Transient Objects
+	slot = NULL;
+	ck_slot_initialize(&slot);
+	if (!slot) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
+	slot->id = id;
+	SLIST_INSERT_HEAD(&slot_list, slot,  next_slot);
+	slot_count++;
+
+	rc = init_transient_db(slot->token);
+	if (rc != PKCS11_CKR_OK) {
+		ret = TEE_ERROR_GENERIC;
+		goto err;
 	}
 
 	return ret;
@@ -522,7 +540,6 @@ enum pkcs11_rc entry_ck_token_info(uint32_t ptypes, TEE_Param *params)
 	pad_str(info->serial_number, sizeof(info->serial_number));
 
 	TEE_MemMove(info->label, token->db_main->label, sizeof(info->label));
-
 	info->flags = token->db_main->flags;
 	info->session_count = token->token_info->session_count;
 	info->rw_session_count = token->token_info->rw_session_count;
@@ -975,6 +992,7 @@ enum pkcs11_rc entry_ck_token_initialize(uint32_t ptypes, TEE_Param *params)
 		return PKCS11_CKR_PIN_LOCKED;
 	}
 
+
 	/* Check there's no open session on this token */
 	TAILQ_FOREACH(client, &pkcs11_client_list, link)
 		TAILQ_FOREACH(sess, &client->session_list, link)
@@ -1060,18 +1078,20 @@ inited:
 				   PKCS11_CKFT_USER_PIN_LOCKED |
 				   PKCS11_CKFT_USER_PIN_TO_BE_CHANGED);
 
-	update_persistent_db(token);
+	if (token->slot->slot_info->flags & PKCS11_CKFS_HW_SLOT) {
+		update_persistent_db(token);
 
-	/* Remove all persistent objects */
-	while (!LIST_EMPTY(&token->object_list)) {
-		obj = LIST_FIRST(&token->object_list);
+		/* Remove all persistent objects */
+		while (!LIST_EMPTY(&token->object_list)) {
+			obj = LIST_FIRST(&token->object_list);
 
-		/* Try twice otherwise panic! */
-		if (unregister_persistent_object(token, obj->uuid) &&
-		    unregister_persistent_object(token, obj->uuid))
-			TEE_Panic(0);
+			/* Try twice otherwise panic! */
+			if (unregister_persistent_object(token, obj->uuid) &&
+				unregister_persistent_object(token, obj->uuid))
+				TEE_Panic(0);
 
-		cleanup_persistent_object(obj, token);
+			cleanup_persistent_object(obj, token);
+		}
 	}
 
 	IMSG("PKCS11 token %"PRIu32": initialized", slot_id);
@@ -1189,7 +1209,9 @@ update_db:
 	token->db_main->flags &= ~flags_clear;
 	token->db_main->flags |= flags_set;
 
-	update_persistent_db(token);
+	if (token->slot->slot_info->flags & PKCS11_CKFS_HW_SLOT) {
+		update_persistent_db(token);
+	}
 
 	return PKCS11_CKR_OK;
 }

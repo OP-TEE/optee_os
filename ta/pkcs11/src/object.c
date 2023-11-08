@@ -17,6 +17,7 @@
 #include "pkcs11_token.h"
 #include "sanitize_object.h"
 #include "serializer.h"
+#include "processing.h"
 
 /*
  * Temporary list used to register allocated struct pkcs11_object instances
@@ -249,26 +250,77 @@ enum pkcs11_rc create_object(void *sess, struct obj_attrs *head,
 		uint32_t tee_obj_flags = TEE_DATA_FLAG_ACCESS_READ |
 					 TEE_DATA_FLAG_ACCESS_WRITE |
 					 TEE_DATA_FLAG_ACCESS_WRITE_META;
+		size_t object_size = 0;
+		uint32_t tee_key_type = 0;
+		enum pkcs11_key_type type = get_key_type(obj->attributes);
+		TEE_Attribute *tee_attrs = NULL;
+		size_t tee_attrs_count = 0;
 
-		rc = create_object_uuid(get_session_token(session), obj);
-		if (rc)
-			goto err;
+		// Persistent vs transient object
+		if (get_session_token(session)->slot->slot_info->flags & PKCS11_CKFS_HW_SLOT) {
+			rc = create_object_uuid(get_session_token(session), obj);
+			if (rc)
+				goto err;
 
-		res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
-						 obj->uuid, sizeof(TEE_UUID),
-						 tee_obj_flags,
-						 TEE_HANDLE_NULL,
-						 obj->attributes, size,
-						 &obj->attribs_hdl);
-		if (res) {
-			rc = tee2pkcs_error(res);
-			goto err;
+			res = TEE_CreatePersistentObject(TEE_STORAGE_PRIVATE,
+							 obj->uuid, sizeof(TEE_UUID),
+							 tee_obj_flags,
+							 TEE_HANDLE_NULL,
+							 obj->attributes, size,
+							 &obj->attribs_hdl);
+			if (res) {
+				rc = tee2pkcs_error(res);
+				goto err;
+			}
+
+			rc = register_persistent_object(get_session_token(session),
+							obj->uuid);
+			if (rc)
+				goto err;
+		} else {
+			object_size = get_object_key_bit_size(obj);
+			if (!object_size)
+				return PKCS11_CKR_GENERAL_ERROR;
+
+			rc = pkcs2tee_object_type(&tee_key_type, obj, PKCS11_FUNCTION_UNKNOWN);
+			if (rc)
+				return rc;
+
+			res = TEE_AllocateTransientObject(tee_key_type, object_size,
+							  &obj->key_handle);
+			if (res != TEE_SUCCESS) {
+				rc = tee2pkcs_error(res);
+				goto err;
+			}
+
+			switch (type) {
+				case PKCS11_CKK_RSA:
+					rc = load_tee_rsa_key_attrs(&tee_attrs, &tee_attrs_count, obj);
+					break;
+				case PKCS11_CKK_EC:
+					rc = load_tee_ec_key_attrs(&tee_attrs, &tee_attrs_count, obj);
+					break;
+				case PKCS11_CKK_EC_EDWARDS:
+					rc = load_tee_eddsa_key_attrs(&tee_attrs, &tee_attrs_count, obj);
+					break;
+				case PKCS11_CKK_AES:
+					rc = load_tee_aes_key_attrs(&tee_attrs, &tee_attrs_count, obj);
+					break;
+				default:
+					rc = PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+					break;
+			}
+			if (rc) {
+				EMSG("Failed to extract key material from object");
+				goto err;
+			}
+
+			res = TEE_PopulateTransientObject(obj->key_handle, tee_attrs, tee_attrs_count);
+			if (res != TEE_SUCCESS) {
+				rc = tee2pkcs_error(res);
+				goto err;
+			}
 		}
-
-		rc = register_persistent_object(get_session_token(session),
-						obj->uuid);
-		if (rc)
-			goto err;
 
 		TEE_CloseObject(obj->attribs_hdl);
 		obj->attribs_hdl = TEE_HANDLE_NULL;

@@ -235,6 +235,9 @@ struct ck_token *init_persistent_db(unsigned int token_id);
 void update_persistent_db(struct ck_token *token);
 void close_persistent_db(struct ck_token *token);
 
+/* Access to transient database */
+enum pkcs11_rc init_transient_db(struct ck_token *token);
+
 /* Load and release persistent object attributes in memory */
 enum pkcs11_rc load_persistent_object_attributes(struct pkcs11_object *obj);
 void release_persistent_object_attributes(struct pkcs11_object *obj);
