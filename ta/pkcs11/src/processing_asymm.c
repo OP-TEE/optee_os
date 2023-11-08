@@ -157,56 +157,6 @@ pkcs2tee_algorithm(uint32_t *tee_id, uint32_t *tee_hash_id,
 	return rc;
 }
 
-static enum pkcs11_rc pkcs2tee_key_type(uint32_t *tee_type,
-					struct pkcs11_object *obj,
-					enum processing_func function)
-{
-	enum pkcs11_class_id class = get_class(obj->attributes);
-	enum pkcs11_key_type type = get_key_type(obj->attributes);
-
-	switch (class) {
-	case PKCS11_CKO_PUBLIC_KEY:
-	case PKCS11_CKO_PRIVATE_KEY:
-		break;
-	default:
-		TEE_Panic(class);
-		break;
-	}
-
-	switch (type) {
-	case PKCS11_CKK_EC:
-		if (class == PKCS11_CKO_PRIVATE_KEY) {
-			if (function == PKCS11_FUNCTION_DERIVE)
-				*tee_type = TEE_TYPE_ECDH_KEYPAIR;
-			else
-				*tee_type = TEE_TYPE_ECDSA_KEYPAIR;
-		} else {
-			if (function == PKCS11_FUNCTION_DERIVE)
-				*tee_type = TEE_TYPE_ECDH_PUBLIC_KEY;
-			else
-				*tee_type = TEE_TYPE_ECDSA_PUBLIC_KEY;
-		}
-		break;
-	case PKCS11_CKK_RSA:
-		if (class == PKCS11_CKO_PRIVATE_KEY)
-			*tee_type = TEE_TYPE_RSA_KEYPAIR;
-		else
-			*tee_type = TEE_TYPE_RSA_PUBLIC_KEY;
-		break;
-	case PKCS11_CKK_EC_EDWARDS:
-		if (class == PKCS11_CKO_PRIVATE_KEY)
-			*tee_type = TEE_TYPE_ED25519_KEYPAIR;
-		else
-			*tee_type = TEE_TYPE_ED25519_PUBLIC_KEY;
-		break;
-	default:
-		TEE_Panic(type);
-		break;
-	}
-
-	return PKCS11_CKR_OK;
-}
-
 static enum pkcs11_rc
 allocate_tee_operation(struct pkcs11_session *session,
 		       enum processing_func function,
@@ -315,7 +265,7 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 		obj->key_handle = TEE_HANDLE_NULL;
 	}
 
-	rc = pkcs2tee_key_type(&obj->key_type, obj, function);
+	rc = pkcs2tee_object_type(&obj->key_type, obj, function);
 	if (rc)
 		return rc;
 

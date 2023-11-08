@@ -545,6 +545,61 @@ int pkcs11_attr2boolprop_shift(uint32_t attr)
 	return -1;
 }
 
+// Missing TEE_TYPE_DES, TEE_TYPE_DES3, TEE_TYPE_DSA_PUBLIC_KEY, TEE_TYPE_DSA_KEYPAIR, TEE_TYPE_DH_KEYPAIR,
+//  TEE_TYPE_X25519_PUBLIC_KEY, TEE_TYPE_X25519_KEYPAIR, TEE_TYPE_SM2_DSA_PUBLIC_KEY, TEE_TYPE_SM2_DSA_KEYPAIR,
+//  TEE_TYPE_SM2_KEP_PUBLIC_KEY, TEE_TYPE_SM2_KEP_KEYPAIR, TEE_TYPE_SM2_PKE_PUBLIC_KEY, TEE_TYPE_SM2_PKE_KEYPAIR,
+//  TEE_TYPE_SM4, TEE_TYPE_HMAC_SM3, TEE_TYPE_DATA
+static const struct {
+	enum pkcs11_class_id class_id;
+	enum pkcs11_key_type key_type;
+	enum processing_func function;
+	uint32_t tee_id;
+} pkcs2tee_object_types[] = {
+	// Symmetric
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_AES,             PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_AES },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_GENERIC_SECRET,  PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_GENERIC_SECRET },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_MD5_HMAC,        PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_MD5 },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_SHA_1_HMAC,      PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_SHA1 },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_SHA224_HMAC,     PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_SHA224 },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_SHA256_HMAC,     PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_SHA256 },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_SHA384_HMAC,     PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_SHA384 },
+	{ PKCS11_CKO_SECRET_KEY,    PKCS11_CKK_SHA512_HMAC,     PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_HMAC_SHA512 },
+	// Private
+	{ PKCS11_CKO_PRIVATE_KEY,   PKCS11_CKK_EC,              PKCS11_FUNCTION_DERIVE,     TEE_TYPE_ECDH_KEYPAIR },
+	{ PKCS11_CKO_PRIVATE_KEY,   PKCS11_CKK_EC,              PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_ECDSA_KEYPAIR },
+	{ PKCS11_CKO_PRIVATE_KEY,   PKCS11_CKK_RSA,             PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_RSA_KEYPAIR },
+	{ PKCS11_CKO_PRIVATE_KEY,   PKCS11_CKK_EC_EDWARDS,      PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_ED25519_KEYPAIR },
+	// Public
+	{ PKCS11_CKO_PUBLIC_KEY,    PKCS11_CKK_EC,              PKCS11_FUNCTION_DERIVE,     TEE_TYPE_ECDH_PUBLIC_KEY },
+	{ PKCS11_CKO_PUBLIC_KEY,    PKCS11_CKK_EC,              PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_ECDSA_PUBLIC_KEY },
+	{ PKCS11_CKO_PUBLIC_KEY,    PKCS11_CKK_RSA,             PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_RSA_PUBLIC_KEY },
+	{ PKCS11_CKO_PUBLIC_KEY,    PKCS11_CKK_EC_EDWARDS,      PKCS11_FUNCTION_UNKNOWN,    TEE_TYPE_ED25519_PUBLIC_KEY },
+};
+
+enum pkcs11_rc pkcs2tee_object_type(uint32_t *tee_type,
+					struct pkcs11_object *obj,
+					enum processing_func function)
+{
+	size_t n;
+	enum pkcs11_class_id class = get_class(obj->attributes);
+	enum pkcs11_key_type type = get_key_type(obj->attributes);
+
+	// Only a DERIVE mechanism can impact the object type (for EC)
+	if (function != PKCS11_FUNCTION_DERIVE) {
+		function = PKCS11_FUNCTION_UNKNOWN;
+	}
+
+	for (n = 0; n < ARRAY_SIZE(pkcs2tee_object_types); n++) {
+		if (pkcs2tee_object_types[n].class_id == class && pkcs2tee_object_types[n].key_type == type &&
+				pkcs2tee_object_types[n].function == function) {
+			*tee_type = pkcs2tee_object_types[n].tee_id;
+			return PKCS11_CKR_OK;
+		}
+	}
+
+	return PKCS11_RV_NOT_FOUND;
+}
+
 /* Initialize a TEE attribute for a target PKCS11 TA attribute in an object */
 bool pkcs2tee_load_attr(TEE_Attribute *tee_ref, uint32_t tee_id,
 			struct pkcs11_object *obj,

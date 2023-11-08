@@ -58,6 +58,11 @@ bool key_type_is_asymm_key(uint32_t key_type_id);
 /* Boolprop flag shift position if @attribute_id is boolean, else -1 */
 int pkcs11_attr2boolprop_shift(uint32_t attribute_id);
 
+/* Convert PKCS11 key information into a TEE Object Type */
+enum pkcs11_rc pkcs2tee_object_type(uint32_t *tee_type,
+					struct pkcs11_object *obj,
+					enum processing_func function);
+
 /* Convert PKCS11 TA function ID into a TEE crypto operation mode */
 void pkcs2tee_mode(uint32_t *tee_id, enum processing_func function);
 

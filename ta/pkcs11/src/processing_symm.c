@@ -98,37 +98,6 @@ pkcs2tee_algorithm(uint32_t *tee_id, struct pkcs11_attribute_head *proc_params)
 	return PKCS11_RV_NOT_IMPLEMENTED;
 }
 
-static enum pkcs11_rc pkcs2tee_key_type(uint32_t *tee_type,
-					struct pkcs11_object *obj)
-{
-	static const struct {
-		enum pkcs11_key_type key_type;
-		uint32_t tee_id;
-	} pkcs2tee_key_type[] = {
-		{ PKCS11_CKK_AES, TEE_TYPE_AES },
-		{ PKCS11_CKK_GENERIC_SECRET, TEE_TYPE_GENERIC_SECRET },
-		{ PKCS11_CKK_MD5_HMAC, TEE_TYPE_HMAC_MD5 },
-		{ PKCS11_CKK_SHA_1_HMAC, TEE_TYPE_HMAC_SHA1 },
-		{ PKCS11_CKK_SHA224_HMAC, TEE_TYPE_HMAC_SHA224 },
-		{ PKCS11_CKK_SHA256_HMAC, TEE_TYPE_HMAC_SHA256 },
-		{ PKCS11_CKK_SHA384_HMAC, TEE_TYPE_HMAC_SHA384 },
-		{ PKCS11_CKK_SHA512_HMAC, TEE_TYPE_HMAC_SHA512 },
-	};
-	size_t n = 0;
-	enum pkcs11_key_type key_type = get_key_type(obj->attributes);
-
-	assert(get_class(obj->attributes) == PKCS11_CKO_SECRET_KEY);
-
-	for (n = 0; n < ARRAY_SIZE(pkcs2tee_key_type); n++) {
-		if (pkcs2tee_key_type[n].key_type == key_type) {
-			*tee_type = pkcs2tee_key_type[n].tee_id;
-			return PKCS11_CKR_OK;
-		}
-	}
-
-	return PKCS11_RV_NOT_FOUND;
-}
-
 static enum pkcs11_rc pkcsmech2tee_key_type(uint32_t *tee_type,
 					    enum pkcs11_mechanism_id mech_id)
 {
@@ -347,7 +316,7 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 			rc = pkcsmech2tee_key_type(&tee_key_type,
 						   proc_params->id);
 		else
-			rc = pkcs2tee_key_type(&tee_key_type, obj);
+			rc = pkcs2tee_object_type(&tee_key_type, obj, PKCS11_FUNCTION_UNKNOWN);
 
 		if (rc)
 			return rc;
@@ -374,7 +343,7 @@ static enum pkcs11_rc load_tee_key(struct pkcs11_session *session,
 		break;
 
 	default:
-		rc = pkcs2tee_key_type(&tee_key_type, obj);
+		rc = pkcs2tee_object_type(&tee_key_type, obj, PKCS11_FUNCTION_UNKNOWN);
 		if (rc)
 			return rc;
 
