@@ -228,8 +228,8 @@ static TEE_Result sec_storage_obj_read(TEE_UUID *uuid, uint32_t storage_id,
 	if (obj_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_pobj_get(uuid, (void *)obj_id, obj_id_len, flags, false, fops,
-			   &po);
+	res = tee_pobj_get(uuid, (void *)obj_id, obj_id_len, flags,
+			   TEE_POBJ_USAGE_OPEN, fops, &po);
 	if (res)
 		return res;
 
@@ -272,8 +272,8 @@ static TEE_Result sec_storage_obj_write(TEE_UUID *uuid, uint32_t storage_id,
 	if (obj_id_len > TEE_OBJECT_ID_MAX_LEN)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_pobj_get(uuid, (void *)obj_id, obj_id_len, flags, false,
-			   fops, &po);
+	res = tee_pobj_get(uuid, (void *)obj_id, obj_id_len, flags,
+			   TEE_POBJ_USAGE_OPEN, fops, &po);
 	if (res)
 		return res;
 
