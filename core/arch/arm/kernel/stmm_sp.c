@@ -663,7 +663,7 @@ static TEE_Result sec_storage_obj_read(unsigned long storage_id, char *obj_id,
 	sess = ts_get_current_session();
 
 	res = tee_pobj_get(&sess->ctx->uuid, obj_id, obj_id_len, flags,
-			   false, fops, &po);
+			   TEE_POBJ_USAGE_OPEN, fops, &po);
 	if (res != TEE_SUCCESS)
 		return res;
 
@@ -714,7 +714,7 @@ static TEE_Result sec_storage_obj_write(unsigned long storage_id, char *obj_id,
 	sess = ts_get_current_session();
 
 	res = tee_pobj_get(&sess->ctx->uuid, obj_id, obj_id_len, flags,
-			   false, fops, &po);
+			   TEE_POBJ_USAGE_OPEN, fops, &po);
 	if (res != TEE_SUCCESS)
 		return res;
 
