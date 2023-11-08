@@ -162,6 +162,10 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 				      void *proc_params, size_t params_size);
 
+enum pkcs11_rc load_tee_aes_key_attrs(TEE_Attribute **tee_attrs,
+					size_t *tee_count,
+					struct pkcs11_object *obj);
+
 enum pkcs11_rc derive_key_by_symm_enc(struct pkcs11_session *session,
 				      void **out_buf, uint32_t *out_sz);
 

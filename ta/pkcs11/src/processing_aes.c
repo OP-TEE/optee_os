@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <compiler.h>
 #include <tee_internal_api.h>
+#include <tee_internal_api_extensions.h>
 #include <trace.h>
 #include <util.h>
 
@@ -49,4 +50,32 @@ enum pkcs11_rc tee_init_ctr_operation(struct active_processing *processing,
 	TEE_CipherInit(processing->tee_op_handle, counter_bits, 16);
 
 	return PKCS11_CKR_OK;
+}
+
+enum pkcs11_rc load_tee_aes_key_attrs(TEE_Attribute **tee_attrs,
+					size_t *tee_count,
+					struct pkcs11_object *obj)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Attribute *attrs = NULL;
+
+	attrs = TEE_Malloc(1 * sizeof(TEE_Attribute),
+			   TEE_USER_MEM_HINT_NO_FILL_ZERO);
+	if (!attrs)
+		return PKCS11_CKR_DEVICE_MEMORY;
+
+	rc = pkcs2tee_load_attr(attrs, TEE_ATTR_SECRET_VALUE,
+				obj, PKCS11_CKA_VALUE);
+	if (rc != PKCS11_CKR_OK) {
+		goto error;
+	}
+
+	*tee_attrs = attrs;
+	*tee_count = 1;
+
+out:
+	return rc;
+error:
+	TEE_Free(attrs);
+	goto out;
 }
