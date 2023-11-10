@@ -148,7 +148,12 @@ FUNC _start , :
 #else
 	mv	s1, a1		/* Save device tree address into s1 */
 #endif
-	bnez	a0, reset_secondary
+
+	/* Only first hart who wins lottery runs the primary boot sequence. */
+	la	a3, hart_lottery
+	li	a2, 1
+	amoadd.w a3, a2, (a3)
+	bnez	a3, reset_secondary
 	jal	reset_primary
 	j	.
 END_FUNC _start
@@ -245,6 +250,13 @@ LOCAL_FUNC unhandled_cpu , :
 	wfi
 	j	unhandled_cpu
 END_FUNC unhandled_cpu
+
+	.section .identity_map.data
+	.balign	8
+LOCAL_DATA hart_lottery , :
+	/* The hart who first increments this variable will be primary hart. */
+	.word	0
+END_DATA hart_lottery
 
 #ifdef CFG_BOOT_SYNC_CPU
 LOCAL_DATA sem_cpu_sync_start , :
