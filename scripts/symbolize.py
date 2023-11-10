@@ -19,7 +19,7 @@ TEE_LOAD_ADDR_RE = re.compile(r'TEE load address @ (?P<load_addr>0x[0-9a-f]+)')
 # This gets the address from lines looking like this:
 # E/TC:0  0x001044a8
 STACK_ADDR_RE = re.compile(
-    r'[UEIDFM]/(TC|LD):(\?*|[0-9]*) [0-9]* +(?P<addr>0x[0-9a-f]+)')
+    r'[UEIDFM]/(TC|LD):([0-9]+ )?(\?*|[0-9]*) [0-9]* +(?P<addr>0x[0-9a-f]+)')
 ABORT_ADDR_RE = re.compile(r'-abort at address (?P<addr>0x[0-9a-f]+)')
 TA_PANIC_RE = re.compile(r'TA panicked with code (?P<code>0x[0-9a-f]+)')
 REGION_RE = re.compile(r'region +[0-9]+: va (?P<addr>0x[0-9a-f]+) '

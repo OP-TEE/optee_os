@@ -8,6 +8,7 @@
 #include <kernel/misc.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
+#include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 
 const char trace_ext_prefix[] = "TC";
@@ -60,4 +61,9 @@ int trace_ext_get_core_id(void)
 		return get_core_pos();
 	else
 		return -1;
+}
+
+int trace_ext_get_guest_id(void)
+{
+	return virt_get_current_guest_id();
 }
