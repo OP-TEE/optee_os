@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <kernel/boot.h>
@@ -22,7 +23,11 @@ static TEE_Result get_freq_from_dt(void)
 	if (!fdt)
 		panic();
 
-	node = fdt_node_offset_by_compatible(fdt, -1, "arm,cortex-a5");
+	if (IS_ENABLED(CFG_SAMA7G5))
+		node = fdt_node_offset_by_compatible(fdt, -1, "arm,cortex-a7");
+	else
+		node = fdt_node_offset_by_compatible(fdt, -1, "arm,cortex-a5");
+
 	if (!node)
 		panic();
 
