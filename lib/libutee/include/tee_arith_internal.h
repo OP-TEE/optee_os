@@ -22,12 +22,6 @@
  */
 #define TEE_MATHAPI_EXPORT
 
-/*
- * The modes for String Conversion
- */
-#define TEE_STRING_MODE_HEX_UC MPA_STRING_MODE_HEX_UC
-#define TEE_STRING_MODE_HEX_LC MPA_STRING_MODE_HEX_UC
-
 /*------------------------------------------------------------
  *
  *  Define IN, OUT, INBUF and OUTBUF to keep format from the spec.

@@ -726,10 +726,6 @@ out:
 	return res;
 }
 
-/*
- * Based on libmpa implementation __mpa_egcd(), modified to work with MPI
- * instead.
- */
 static void mpi_egcd(mbedtls_mpi *gcd, mbedtls_mpi *a, mbedtls_mpi *b,
 		     mbedtls_mpi *x_in, mbedtls_mpi *y_in)
 {
