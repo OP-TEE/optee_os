@@ -694,13 +694,16 @@ struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
 
 void thread_rpc_free_kernel_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL, mobj_get_cookie(mobj), mobj);
+	if (mobj)
+		thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL,
+				mobj_get_cookie(mobj), mobj);
 }
 
 void thread_rpc_free_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
-			mobj);
+	if (mobj)
+		thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
+				mobj);
 }
 
 struct mobj *thread_rpc_alloc_global_payload(size_t size)
