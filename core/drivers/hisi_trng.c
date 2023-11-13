@@ -30,7 +30,7 @@ static TEE_Result trng_read(uint32_t *val)
 	exceptions = cpu_spin_lock_xsave(&trng_lock);
 	if (IO_READ32_POLL_TIMEOUT(trng_dev->base + HTRNG_RANDATA_REG,
 				   val, val, POLL_PERIOD, POLL_TIMEOUT)) {
-		EMSG("Hardware busy.");
+		EMSG("Hardware busy");
 		ret = TEE_ERROR_BUSY;
 	}
 	cpu_spin_unlock_xrestore(&trng_lock, exceptions);
@@ -45,12 +45,12 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	uint32_t val = 0;
 
 	if (!trng_dev) {
-		EMSG("No valid TRNG device.");
+		EMSG("No valid TRNG device");
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
 	if (!buf || !len) {
-		EMSG("Invalid input parameter.");
+		EMSG("Invalid input parameter");
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
@@ -71,22 +71,22 @@ static TEE_Result trng_init(void)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
 
-	IMSG("TRNG driver init start.");
+	DMSG("TRNG driver init start");
 	trng_dev = calloc(1, sizeof(struct hisi_trng));
 	if (!trng_dev) {
-		EMSG("Fail to calloc trng device.");
+		EMSG("Fail to calloc trng device");
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
 	trng->base = (vaddr_t)phys_to_virt_io(HISI_TRNG_BASE, HISI_TRNG_SIZE);
 	if (!trng_dev->base) {
-		EMSG("Fail to get trng io_base.");
+		EMSG("Fail to get trng io_base");
 		free(trng_dev);
 		trng_dev = NULL;
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
-	DMSG("TRNG driver init done.");
+	DMSG("TRNG driver init done");
 
 	return TEE_SUCCESS;
 }
