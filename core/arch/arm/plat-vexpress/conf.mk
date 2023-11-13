@@ -63,6 +63,7 @@ $(call force,CFG_GIC,y)
 endif
 
 ifeq ($(PLATFORM_FLAVOR),fvp)
+CFG_HALT_CORES_ON_PANIC ?= y
 CFG_TEE_CORE_NB_CORE = 8
 ifeq ($(CFG_CORE_SEL2_SPMC),y)
 CFG_TZDRAM_START ?= 0x06281000
@@ -82,6 +83,7 @@ endif
 endif
 
 ifeq ($(PLATFORM_FLAVOR),juno)
+CFG_HALT_CORES_ON_PANIC ?= y
 CFG_TEE_CORE_NB_CORE = 6
 CFG_TZDRAM_START ?= 0xff000000
 CFG_TZDRAM_SIZE  ?= 0x00ff8000
@@ -96,6 +98,7 @@ CFG_WITH_SOFTWARE_PRNG ?= n
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_virt)
+CFG_HALT_CORES_ON_PANIC ?= y
 CFG_TEE_CORE_NB_CORE = 4
 # [0e00.0000 0e0f.ffff] is reserved to early boot
 CFG_TZDRAM_START ?= 0x0e100000
@@ -123,6 +126,7 @@ CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 219
 endif
 
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
+CFG_HALT_CORES_ON_PANIC ?= y
 CFG_TEE_CORE_NB_CORE = 4
 ifneq ($(CFG_CORE_SEL2_SPMC),y)
 # [0e00.0000 0e0f.ffff] is reserved to early boot
