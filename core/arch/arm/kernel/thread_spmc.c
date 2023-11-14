@@ -1302,7 +1302,7 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 	virt_unset_guest();
 
 out:
-	spmc_set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
 #endif
 
