@@ -598,7 +598,7 @@ static TEE_Result open_dirh(struct tee_fs_dirfile_dirh **dirh)
 		static bool once;
 
 		if (res != TEE_ERROR_NOT_IMPLEMENTED ||
-		    !IS_ENABLED(CFG_WARN_INSECURE))
+		    !IS_ENABLED(CFG_INSECURE))
 			return res;
 
 		if (!once) {
@@ -633,7 +633,7 @@ static TEE_Result commit_dirh_writes(struct tee_fs_dirfile_dirh *dirh)
 	if (res)
 		return res;
 	res = nv_counter_incr_ree_fs_to(counter);
-	if (res == TEE_ERROR_NOT_IMPLEMENTED && IS_ENABLED(CFG_WARN_INSECURE)) {
+	if (res == TEE_ERROR_NOT_IMPLEMENTED && IS_ENABLED(CFG_INSECURE)) {
 		static bool once;
 
 		if (!once) {
