@@ -909,15 +909,26 @@ CFG_REGULATOR_FIXED ?= n
 $(eval $(call cfg-enable-all-depends,CFG_REGULATOR_FIXED, \
 	 CFG_DRIVERS_REGULATOR CFG_DT))
 
-# The purpose of this flag is to show a print when booting up the device that
-# indicates whether the board runs a standard developer configuration or not.
-# A developer configuration doesn't necessarily has to be secure. The intention
+# When enabled, CFG_INSECURE permits insecure configuration of OP-TEE core
+# and shows a print (info level) when booting up the device that
+# indicates that the board runs a standard developer configuration.
+#
+# A developer configuration doesn't necessarily have to be secure. The intention
 # is that the one making products based on OP-TEE should override this flag in
 # plat-xxx/conf.mk for the platform they're basing their products on after
 # they've finalized implementing stubbed functionality (see OP-TEE
 # documentation/Porting guidelines) as well as vendor specific security
 # configuration.
-CFG_WARN_INSECURE ?= y
+#
+# CFG_WARN_INSECURE served the same purpose as CFG_INSECURE but is deprecated.
+ifneq (undefined,$(flavor CFG_WARN_INSECURE))
+$(info WARNING: CFG_WARN_INSECURE is deprecated, use CFG_INSECURE instead)
+CFG_INSECURE ?= $(CFG_WARN_INSECURE)
+ifneq ($(CFG_INSECURE),$(CFG_WARN_INSECURE))
+$(error Inconsistent CFG_INSECURE=$(CFG_INSECURE) and CFG_WARN_INSECURE=$(CFG_WARN_INSECURE))
+endif
+endif # CFG_WARN_INSECURE defined
+CFG_INSECURE ?= y
 
 # Enables warnings for declarations mixed with statements
 CFG_WARN_DECL_AFTER_STATEMENT ?= y

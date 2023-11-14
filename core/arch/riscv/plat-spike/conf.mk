@@ -67,7 +67,7 @@ $(call force,CFG_SECSTOR_TA,n)
 $(call force,CFG_SHOW_CONF_ON_BOOT,n)
 $(call force,CFG_SYSCALL_WRAPPERS_MCOUNT,n)
 $(call force,CFG_BOOT_SYNC_CPU,y)
-$(call force,CFG_WARN_INSECURE,y)
+$(call force,CFG_INSECURE,y)
 $(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
 CFG_RISCV_MTIME_RATE ?= 10000000
 CFG_TDDRAM_START ?= 0xbdb00000

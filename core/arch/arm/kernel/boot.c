@@ -1191,7 +1191,7 @@ void __weak boot_init_primary_late(unsigned long fdt __unused,
 	configure_console_from_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
-	if (IS_ENABLED(CFG_WARN_INSECURE)) {
+	if (IS_ENABLED(CFG_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
 	}
