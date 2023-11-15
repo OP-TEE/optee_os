@@ -875,26 +875,28 @@ int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 		return SCMI_NOT_FOUND;
 
 	if (voltd->regulator) {
-		TEE_Result res = TEE_ERROR_GENERIC;
+		switch (config) {
+		case SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON:
+			if (!voltd->state) {
+				if (regulator_enable(voltd->regulator))
+					return SCMI_GENERIC_ERROR;
 
-		if (config == SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_ON &&
-		    !voltd->state) {
-			res = regulator_enable(voltd->regulator);
-			if (!res)
 				voltd->state = true;
-		} else if (config == SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_OFF &&
-			 voltd->state) {
-			res = regulator_disable(voltd->regulator);
-			if (!res)
+			}
+			break;
+		case SCMI_VOLTAGE_DOMAIN_CONFIG_ARCH_OFF:
+			if (voltd->state) {
+				if (regulator_disable(voltd->regulator))
+					return SCMI_GENERIC_ERROR;
+
 				voltd->state = false;
-		} else {
-			res = TEE_ERROR_GENERIC;
+			}
+			break;
+		default:
+			return SCMI_GENERIC_ERROR;
 		}
 
-		if (res)
-			return SCMI_GENERIC_ERROR;
-		else
-			return SCMI_SUCCESS;
+		return SCMI_SUCCESS;
 	}
 
 	switch (voltd->priv_dev) {
