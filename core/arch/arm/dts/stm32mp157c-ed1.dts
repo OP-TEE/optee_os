@@ -338,6 +338,7 @@
 };
 
 &rcc {
+	compatible = "st,stm32mp1-rcc-secure";
 	status = "okay";
 };
 
