@@ -489,6 +489,11 @@
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
 };
 
+&rcc {
+	compatible = "st,stm32mp1-rcc-secure";
+	status = "okay";
+};
+
 &rng1 {
 	status = "okay";
 };
