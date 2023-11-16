@@ -253,6 +253,7 @@
 			vdd_usb: ldo4 {
 				regulator-name = "vdd_usb";
 				interrupts = <IT_CURLIM_LDO4 0>;
+				regulator-always-on;
 			};
 
 			vdd_sd: ldo5 {
