@@ -893,7 +893,7 @@ int32_t plat_scmi_voltd_set_config(unsigned int channel_id,
 			}
 			break;
 		default:
-			return SCMI_GENERIC_ERROR;
+			return SCMI_INVALID_PARAMETERS;
 		}
 
 		return SCMI_SUCCESS;
