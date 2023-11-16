@@ -173,6 +173,20 @@ enum pkcs11_rc unwrap_key_by_symm(struct pkcs11_session *session, void *data,
 				  uint32_t data_sz, void **out_buf,
 				  uint32_t *out_sz);
 
+enum pkcs11_rc tee_ae_decrypt_update(struct pkcs11_session *session,
+				     void *in, size_t in_size);
+
+enum pkcs11_rc tee_ae_decrypt_final(struct pkcs11_session *session,
+				    void *out, size_t *out_size);
+
+enum pkcs11_rc tee_ae_encrypt_final(struct pkcs11_session *session,
+				    void *out, size_t *out_size);
+
+void tee_release_gcm_operation(struct pkcs11_session *session);
+
+enum pkcs11_rc tee_init_gcm_operation(struct pkcs11_session *session,
+				      void *proc_params, size_t params_size);
+
 /* Digest specific functions */
 bool processing_is_tee_digest(enum pkcs11_mechanism_id mecha_id);
 
