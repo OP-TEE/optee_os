@@ -267,13 +267,14 @@ struct dt_descriptor *get_external_dt_desc(void);
 /*
  * init_external_dt() - Initialize the external DTB located at given address.
  * @phys_dt:	Physical address where the external DTB located.
+ * @dt_sz:	Maximum size of the external DTB.
  *
  * Initialize the external DTB.
  *
  * 1. Add MMU mapping of the external DTB,
  * 2. Initialize device tree overlay
  */
-void init_external_dt(unsigned long phys_dt);
+void init_external_dt(unsigned long phys_dt, size_t dt_sz);
 
 /* Returns external DTB if present, otherwise NULL */
 void *get_external_dt(void);
@@ -420,7 +421,8 @@ static inline struct dt_descriptor *get_external_dt_desc(void)
 	return NULL;
 }
 
-static inline void init_external_dt(unsigned long phys_dt __unused)
+static inline void init_external_dt(unsigned long phys_dt __unused,
+				    size_t dt_sz __unused)
 {
 }
 

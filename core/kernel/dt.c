@@ -544,7 +544,7 @@ struct dt_descriptor *get_external_dt_desc(void)
 	return &external_dt;
 }
 
-void init_external_dt(unsigned long phys_dt)
+void init_external_dt(unsigned long phys_dt, size_t dt_sz)
 {
 	struct dt_descriptor *dt = &external_dt;
 	int ret = 0;
@@ -553,7 +553,7 @@ void init_external_dt(unsigned long phys_dt)
 	if (!IS_ENABLED(CFG_EXTERNAL_DT))
 		return;
 
-	if (!phys_dt) {
+	if (!phys_dt || !dt_sz) {
 		/*
 		 * No need to panic as we're not using the DT in OP-TEE
 		 * yet, we're only adding some nodes for normal world use.
@@ -570,12 +570,12 @@ void init_external_dt(unsigned long phys_dt)
 	if (mtype == MEM_AREA_MAXTYPE) {
 		/* Map the DTB if it is not yet mapped */
 		dt->blob = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt,
-						CFG_DTB_MAX_SIZE);
+						dt_sz);
 		if (!dt->blob)
 			panic("Failed to map external DTB");
 	} else {
 		/* Get the DTB address if already mapped in a memory area */
-		dt->blob = phys_to_virt(phys_dt, mtype, CFG_DTB_MAX_SIZE);
+		dt->blob = phys_to_virt(phys_dt, mtype, dt_sz);
 		if (!dt->blob) {
 			EMSG("Failed to get a mapped external DTB for PA %#lx",
 			     phys_dt);
@@ -583,14 +583,14 @@ void init_external_dt(unsigned long phys_dt)
 		}
 	}
 
-	ret = init_dt_overlay(dt, CFG_DTB_MAX_SIZE);
+	ret = init_dt_overlay(dt, dt_sz);
 	if (ret < 0) {
 		EMSG("Device Tree Overlay init fail @ %#lx: error %d", phys_dt,
 		     ret);
 		panic();
 	}
 
-	ret = fdt_open_into(dt->blob, dt->blob, CFG_DTB_MAX_SIZE);
+	ret = fdt_open_into(dt->blob, dt->blob, dt_sz);
 	if (ret < 0) {
 		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
 		panic();
