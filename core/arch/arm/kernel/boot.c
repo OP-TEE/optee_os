@@ -1179,7 +1179,7 @@ static bool cpu_nmfi_enabled(void)
 void __weak boot_init_primary_late(unsigned long fdt __unused,
 				   unsigned long manifest __unused)
 {
-	init_external_dt(boot_arg_fdt);
+	init_external_dt(boot_arg_fdt, CFG_DTB_MAX_SIZE);
 	reinit_manifest_dt();
 #ifdef CFG_CORE_SEL1_SPMC
 	tpm_map_log_area(get_manifest_dt());

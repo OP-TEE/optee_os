@@ -134,7 +134,7 @@ void boot_init_primary_early(void)
 void boot_init_primary_late(unsigned long fdt,
 			    unsigned long tos_fw_config __unused)
 {
-	init_external_dt(fdt);
+	init_external_dt(fdt, CFG_DTB_MAX_SIZE);
 	update_external_dt();
 
 	IMSG("OP-TEE version: %s", core_v_str);
