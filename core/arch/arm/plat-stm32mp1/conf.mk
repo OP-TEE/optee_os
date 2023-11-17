@@ -152,6 +152,12 @@ CFG_CORE_ASLR ?= n
 CFG_STM32MP_REMOTEPROC ?= n
 CFG_DRIVERS_REMOTEPROC ?= $(CFG_STM32MP_REMOTEPROC)
 CFG_REMOTEPROC_PTA ?= $(CFG_STM32MP_REMOTEPROC)
+ifeq ($(CFG_REMOTEPROC_PTA),y)
+# Remoteproc early TA for coprocessor firmware management in boot stages
+CFG_IN_TREE_EARLY_TAS += remoteproc/80a4c275-0a47-4905-8285-1486a9771a08
+# Embed public part of this key in OP-TEE OS
+RPROC_SIGN_KEY ?= keys/default.pem
+endif
 
 ifneq ($(CFG_WITH_LPAE),y)
 # Without LPAE, default TEE virtual address range is 1MB, we need at least 2MB.
