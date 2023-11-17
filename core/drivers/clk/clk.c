@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2021, Bootlin
+ * Copyright (c) 2023, STMicroelectronics
  */
 
+#include <config.h>
 #include <drivers/clk.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
@@ -10,9 +12,14 @@
 #include <libfdt.h>
 #include <malloc.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /* Global clock tree lock */
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+static STAILQ_HEAD(, clk) clock_list = STAILQ_HEAD_INITIALIZER(clock_list);
+#endif
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
@@ -100,6 +107,10 @@ TEE_Result clk_register(struct clk *clk)
 
 	clk_init_parent(clk);
 	clk_compute_rate_no_lock(clk);
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	STAILQ_INSERT_TAIL(&clock_list, clk, link);
+#endif
 
 	DMSG("Registered clock %s, freq %lu", clk->name, clk_get_rate(clk));
 
@@ -309,4 +320,98 @@ TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return clk->ops->get_rates_array(clk, start_index, rates, nb_elts);
+}
+
+/* Return updated message buffer position of NULL on failure */
+static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
+{
+	va_list ap = { };
+	int max_len = end - cur;
+	int ret = 0;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(cur, max_len, fmt, ap);
+	va_end(ap);
+
+	if (ret < 0 || ret >= max_len)
+		return NULL;
+
+	return cur + ret;
+}
+
+static void __maybe_unused print_clock(struct clk *clk, int indent)
+{
+	static const char * const rate_unit[] = { "Hz", "kHz", "MHz", "GHz" };
+	int max_unit = ARRAY_SIZE(rate_unit);
+	unsigned long rate = 0;
+	char msg_buf[128] = { };
+	char *msg_end = msg_buf + sizeof(msg_buf);
+	char *msg = msg_buf;
+	int n = 0;
+
+	/*
+	 * Currently prints the clock state based on the clock refcount.
+	 * A future change could print the hardware clock state when
+	 * related clock driver provides a struct clk_ops::is_enabled handler
+	 */
+
+	if (indent) {
+		for (n = 0; n < indent - 1; n++) {
+			msg = add_msg(msg, msg_end, "|   ");
+			if (!msg)
+				goto out;
+		}
+
+		msg = add_msg(msg, msg_end, "+-- ");
+		if (!msg)
+			goto out;
+	}
+
+	rate = clk_get_rate(clk);
+	for (n = 1; rate && !(rate % 1000) && n < max_unit; n++)
+		rate /= 1000;
+
+	msg = add_msg(msg, msg_end, "%s \t(%3s / refcnt %u / %ld %s)",
+		      clk_get_name(clk),
+		      refcount_val(&clk->enabled_count) ? "on " : "off",
+		      refcount_val(&clk->enabled_count),
+		      rate, rate_unit[n - 1]);
+	if (!msg)
+		goto out;
+
+out:
+	if (!msg)
+		snprintf(msg_end - 4, 4, "...");
+
+	IMSG("%s", msg_buf);
+}
+
+static void print_clock_subtree(struct clk *clk_root __maybe_unused,
+				int indent __maybe_unused)
+{
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	struct clk *clk = NULL;
+
+	STAILQ_FOREACH(clk, &clock_list, link) {
+		if (clk_get_parent(clk) == clk_root) {
+			print_clock(clk, indent + 1);
+			print_clock_subtree(clk, indent + 1);
+			if (indent == -1)
+				IMSG("%s", "");
+		}
+	}
+#endif
+}
+
+void clk_print_tree(void)
+{
+	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE)) {
+		uint32_t exceptions = 0;
+
+		exceptions = cpu_spin_lock_xsave(&clk_lock);
+		IMSG("Clock tree summary");
+		IMSG("%s", "");
+		print_clock_subtree(NULL, -1);
+		cpu_spin_unlock_xrestore(&clk_lock, exceptions);
+	}
 }

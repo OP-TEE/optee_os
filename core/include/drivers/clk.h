@@ -8,6 +8,7 @@
 
 #include <kernel/refcount.h>
 #include <stdint.h>
+#include <sys/queue.h>
 #include <tee_api_types.h>
 
 /* Flags for clock */
@@ -26,6 +27,7 @@
  * @enabled_count: Enable/disable reference counter
  * @num_parents: Number of parents
  * @parents: Array of possible parents of the clock
+ * @link: Link the clock list
  */
 struct clk {
 	const char *name;
@@ -35,6 +37,9 @@ struct clk {
 	unsigned long rate;
 	unsigned int flags;
 	struct refcount enabled_count;
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	STAILQ_ENTRY(clk) link;
+#endif
 	size_t num_parents;
 	struct clk *parents[];
 };
@@ -193,5 +198,8 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
  */
 TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 			       unsigned long *rates, size_t *nb_elts);
+
+/* Print current clock tree summary on output console (info trace level) */
+void clk_print_tree(void);
 
 #endif /* __DRIVERS_CLK_H */

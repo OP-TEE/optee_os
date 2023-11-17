@@ -886,10 +886,13 @@ CFG_PREALLOC_RPC_CACHE ?= y
 # CFG_DRIVERS_CLK_DT embeds devicetree clock parsing support
 # CFG_DRIVERS_CLK_FIXED add support for "fixed-clock" compatible clocks
 # CFG_DRIVERS_CLK_EARLY_PROBE makes clocks probed at early_init initcall level.
+# CFG_DRIVERS_CLK_PRINT_TREE embeds a helper function to print the clock tree
+# state on OP-TEE core console with the info trace level.
 CFG_DRIVERS_CLK ?= n
 CFG_DRIVERS_CLK_DT ?= $(call cfg-all-enabled,CFG_DRIVERS_CLK CFG_DT)
 CFG_DRIVERS_CLK_FIXED ?= $(CFG_DRIVERS_CLK_DT)
 CFG_DRIVERS_CLK_EARLY_PROBE ?= $(CFG_DRIVERS_CLK_DT)
+CFG_DRIVERS_CLK_PRINT_TREE ?= n
 
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_DT,CFG_DRIVERS_CLK CFG_DT))
 $(eval $(call cfg-depends-all,CFG_DRIVERS_CLK_FIXED,CFG_DRIVERS_CLK_DT))
