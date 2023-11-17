@@ -115,7 +115,7 @@ ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # This is unfortunately currently not possible to do in make so we have to
 # calculate it offline, there's some asserts in
 # core/arch/arm/kernel/generic_boot.c to check that we got it right
-CFG_ASAN_SHADOW_OFFSET = 0xc6a71c0
+CFG_ASAN_SHADOW_OFFSET ?= 0xc6a71c0
 endif
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_PSCI_ARM32,y)
@@ -140,7 +140,7 @@ CFG_SHMEM_SIZE  ?= 0x00200000
 CFG_TEE_SDP_MEM_SIZE ?= 0x00400000
 ifeq ($(CFG_CORE_SANITIZE_KADDRESS),y)
 # See comment above
-CFG_ASAN_SHADOW_OFFSET = 0xc6a71c0
+CFG_ASAN_SHADOW_OFFSET ?= 0xc6a71c0
 endif
 endif
 $(call force,CFG_DT,y)
