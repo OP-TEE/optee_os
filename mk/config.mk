@@ -731,9 +731,20 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 # that would set = n.
 $(call force,CFG_CORE_MBEDTLS_MPI,y)
 
-# Enable virtualization support. OP-TEE will not work without compatible
-# hypervisor if this option is enabled.
+# When enabled, CFG_NS_VIRTUALIZATION embeds support for virtualization in
+# the non-secure world. OP-TEE will not work without a compatible hypervisor
+# in the non-secure world if this option is enabled.
+#
+# CFG_VIRTUALIZATION served the same purpose as CFG_NS_VIRTUALIZATION but is
+# deprecated as the configuration switch name was ambiguous regarding which
+# world has virtualization enabled.
+ifneq (undefined,$(flavor CFG_VIRTUALIZATION))
+$(info WARNING: CFG_VIRTUALIZATION is deprecated, use CFG_NS_VIRTUALIZATION instead)
 CFG_NS_VIRTUALIZATION ?= $(CFG_VIRTUALIZATION)
+ifneq ($(CFG_NS_VIRTUALIZATION),$(CFG_VIRTUALIZATION))
+$(error Inconsistent CFG_NS_VIRTUALIZATION=$(CFG_NS_VIRTUALIZATION) and CFG_VIRTUALIZATION=$(CFG_VIRTUALIZATION))
+endif
+endif # CFG_VIRTUALIZATION defined
 CFG_NS_VIRTUALIZATION ?= n
 
 ifeq ($(CFG_NS_VIRTUALIZATION),y)
