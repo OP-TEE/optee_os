@@ -8,9 +8,10 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <rng_support.h>
+#include <string.h>
 
 #define HTRNG_RANDATA_REG 0xF0
-#define HTRNG_BYTES 4
+#define HTRNG_BYTES 4U
 
 #define POLL_PERIOD 10
 #define POLL_TIMEOUT 1000
@@ -29,7 +30,7 @@ static TEE_Result trng_read(uint32_t *val)
 
 	exceptions = cpu_spin_lock_xsave(&trng_lock);
 	if (IO_READ32_POLL_TIMEOUT(trng_dev->base + HTRNG_RANDATA_REG,
-				   val, val, POLL_PERIOD, POLL_TIMEOUT)) {
+				   *val, *val, POLL_PERIOD, POLL_TIMEOUT)) {
 		EMSG("Hardware busy");
 		ret = TEE_ERROR_BUSY;
 	}
@@ -43,6 +44,7 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	TEE_Result ret = TEE_ERROR_GENERIC;
 	size_t current_len = 0;
 	uint32_t val = 0;
+	size_t size = 0;
 
 	if (!trng_dev) {
 		EMSG("No valid TRNG device");
@@ -69,8 +71,6 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 static TEE_Result trng_init(void)
 {
-	TEE_Result ret = TEE_ERROR_GENERIC;
-
 	DMSG("TRNG driver init start");
 	trng_dev = calloc(1, sizeof(struct hisi_trng));
 	if (!trng_dev) {
@@ -78,7 +78,8 @@ static TEE_Result trng_init(void)
 		return TEE_ERROR_OUT_OF_MEMORY;
 	}
 
-	trng->base = (vaddr_t)phys_to_virt_io(HISI_TRNG_BASE, HISI_TRNG_SIZE);
+	trng_dev->base = (vaddr_t)phys_to_virt_io(HISI_TRNG_BASE,
+						  HISI_TRNG_SIZE);
 	if (!trng_dev->base) {
 		EMSG("Fail to get trng io_base");
 		free(trng_dev);
