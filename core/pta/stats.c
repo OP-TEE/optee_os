@@ -3,6 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  */
 #include <compiler.h>
+#include <drivers/clk.h>
+#include <drivers/regulator.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tee_time.h>
 #include <malloc.h>
@@ -50,6 +52,16 @@
 #define STATS_CMD_GET_TIME		4
 
 #define STATS_NB_POOLS			4
+
+/*
+ * STATS_CMD_PRINT_DRIVERS_INFO - Print device drivers information to console
+ *
+ * [in]    value[0].a        Target driver, one of STATS_DRIVER_TYPE_*
+ */
+#define STATS_CMD_PRINT_DRIVERS_INFO	5
+
+#define STATS_DRIVER_TYPE_CLOCK		0
+#define STATS_DRIVER_TYPE_REGULATOR	1
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
@@ -209,6 +221,28 @@ static TEE_Result get_system_time(uint32_t type,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_drivers_info(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
+{
+	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE,
+			    TEE_PARAM_TYPE_NONE) != type)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	switch (p[0].value.a) {
+	case STATS_DRIVER_TYPE_CLOCK:
+		clk_print_tree();
+		break;
+	case STATS_DRIVER_TYPE_REGULATOR:
+		regulator_print_tree();
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
 /*
  * Trusted Application Entry Points
  */
@@ -228,6 +262,8 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_user_ta_stats(ptypes, params);
 	case STATS_CMD_GET_TIME:
 		return get_system_time(ptypes, params);
+	case STATS_CMD_PRINT_DRIVERS_INFO:
+		return get_drivers_info(ptypes, params);
 	default:
 		break;
 	}
