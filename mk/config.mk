@@ -359,7 +359,9 @@ $(eval $(call cfg-depends-all,CFG_REE_FS_TA_BUFFERED,CFG_REE_FS_TA))
 # anti-rollback errors. That is, rm /data/tee/dirf.db or rm -rf /data/tee (or
 # whatever path is configured in tee-supplicant as CFG_TEE_FS_PARENT_PATH)
 # can be used to reset the secure storage to a clean, empty state.
-# Typically used for testing only since it weakens storage security.
+# Intended to be used for testing only since it weakens storage security.
+# Warning: If enabled for release build then it will break rollback protection
+# of TAs and the entire REE FS secure storage.
 CFG_REE_FS_ALLOW_RESET ?= n
 
 # Support for loading user TAs from a special section in the TEE binary.
