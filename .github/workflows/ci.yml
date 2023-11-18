@@ -260,6 +260,7 @@ jobs:
           _make PLATFORM=versal CFG_VERSAL_FPGA_DDR_ADDR=0x40000000
           _make PLATFORM=corstone1000
           _make PLATFORM=nuvoton
+          _make PLATFORM=d06
 
   QEMUv8_check:
     name: make check (QEMUv8)
