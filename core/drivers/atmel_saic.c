@@ -269,7 +269,7 @@ TEE_Result atmel_saic_setup(void)
 
 	ret = dt_map_dev(fdt, node, &saic.base, &size, DT_MAP_AUTO);
 	if (ret) {
-		EMSG("Failed to map SAIC\n");
+		EMSG("Failed to map SAIC");
 		return TEE_ERROR_GENERIC;
 	}
 

@@ -181,7 +181,7 @@ static TEE_Result invoke_command(void *session_context __unused,
 		res = pta_gpio_get(param_types, params);
 		break;
 	default:
-		EMSG("cmd: %d Not supported %s\n", cmd_id, GPIO_TA_NAME);
+		EMSG("cmd: %d Not supported %s", cmd_id, GPIO_TA_NAME);
 		res = TEE_ERROR_NOT_SUPPORTED;
 		break;
 	}

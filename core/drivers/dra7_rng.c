@@ -92,7 +92,7 @@ static void dra7_rng_read64(uint32_t *low_word, uint32_t *high_word)
 			/* Clear the shutdown overflow event */
 			io_write32(rng + RNG_INTACK, SHUTDOWN_OFLO);
 
-			DMSG("Fixed FRO shutdown\n");
+			DMSG("Fixed FRO shutdown");
 		}
 	}
 	/* Read random value */

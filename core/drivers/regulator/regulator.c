@@ -298,7 +298,7 @@ void regulator_print_state(const char *message __maybe_unused)
 	DMSG("name     use\ten\tuV\tmin\tmax\tflags\tsupply");
 
 	SLIST_FOREACH(regulator, &regulator_device_list, link)
-		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%#x\t%s\n",
+		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%#x\t%s",
 		     regulator->name, regulator->refcount,
 		     regulator_is_enabled(regulator),
 		     regulator_get_voltage(regulator),

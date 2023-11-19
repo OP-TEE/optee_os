@@ -80,7 +80,7 @@ static void spi_test_with_manual_cs_control(void)
 	DMSG("Set CS callback");
 	pd.cs_control = PL022_CS_CTRL_MANUAL;
 
-	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
+	DMSG("spi_base: 0x%" PRIxVA, spi_base);
 	DMSG("Configure SPI");
 	pd.base = spi_base;
 	pd.clk_hz = SPI_CLK_HZ;
@@ -170,7 +170,7 @@ static void spi_test_with_registered_cs_cb(void)
 	pd.cs_data.cs_cb = spi_cs_callback;
 	pd.cs_control = PL022_CS_CTRL_CB;
 
-	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
+	DMSG("spi_base: 0x%" PRIxVA, spi_base);
 	DMSG("Configure SPI");
 	pd.base = spi_base;
 	pd.clk_hz = SPI_CLK_HZ;
@@ -215,7 +215,7 @@ static void spi_test_with_builtin_cs_control(void)
 
 	spi_set_cs_mux(PINMUX_GPIO);
 
-	DMSG("gpio6_base: 0x%" PRIxVA "\n", gpio6_base);
+	DMSG("gpio6_base: 0x%" PRIxVA, gpio6_base);
 	DMSG("Configure GPIO");
 	pl061_init(&pd061);
 	pl061_register(gpio6_base, 6);
@@ -226,7 +226,7 @@ static void spi_test_with_builtin_cs_control(void)
 	pd022.cs_data.gpio_data.pin_num = GPIO6_2;
 	pd022.cs_control = PL022_CS_CTRL_AUTO_GPIO;
 
-	DMSG("spi_base: 0x%" PRIxVA "\n", spi_base);
+	DMSG("spi_base: 0x%" PRIxVA, spi_base);
 	DMSG("Configure SPI");
 	pd022.base = spi_base;
 	pd022.clk_hz = SPI_CLK_HZ;

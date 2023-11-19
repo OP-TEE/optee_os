@@ -76,7 +76,7 @@ static TEE_Result bcm_hwrng_init(void)
 
 	bcm_hwrng_reset();
 
-	DMSG("bcm_hwrng init done\n");
+	DMSG("bcm_hwrng init done");
 	return TEE_SUCCESS;
 }
 

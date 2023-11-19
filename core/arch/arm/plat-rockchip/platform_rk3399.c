@@ -32,7 +32,7 @@ int platform_secure_ddr_region(int rgn, paddr_t st, size_t sz)
 	assert(st % SIZE_M(1) == 0);
 	assert(ed % SIZE_M(1) == 0);
 
-	DMSG("protecting region %d: 0x%lx-0x%lx\n", rgn, st, ed);
+	DMSG("protecting region %d: 0x%lx-0x%lx", rgn, st, ed);
 
 	/* Set ddr region addr start */
 	io_write32(sgrf_base + SGRF_DDRRGN_CON0_16(rgn),

@@ -711,7 +711,7 @@ static void gen_mdbg_check(struct malloc_ctx *ctx, int bufdump)
 			if (!fname)
 				fname = "unknown";
 
-			IMSG("buffer: %d bytes %s:%d\n",
+			IMSG("buffer: %d bytes %s:%d",
 				hdr->pl_size, fname, hdr->line);
 		}
 	}

@@ -132,7 +132,7 @@ TEE_Result i2c_init(struct ls_i2c_data *i2c_data)
 	 */
 	fdt = get_embedded_dt();
 	if (!fdt) {
-		EMSG("Unable to get the Embedded DTB, I2C init failed\n");
+		EMSG("Unable to get the Embedded DTB, I2C init failed");
 		return TEE_ERROR_GENERIC;
 	}
 

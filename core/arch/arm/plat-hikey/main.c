@@ -60,14 +60,14 @@ void spi_init(void)
 	vaddr_t pmx1_base = core_mmu_get_va(PMX1_BASE, MEM_AREA_IO_NSEC,
 					    PMX1_REG_SIZE);
 
-	DMSG("take SPI0 out of reset\n");
+	DMSG("take SPI0 out of reset");
 	shifted_val = PERI_RST3_SSP;
 	/*
 	 * no need to read PERI_SC_PERIPH_RSTDIS3 first
 	 * as all the bits are processed and cleared after writing
 	 */
 	io_write32(peri_base + PERI_SC_PERIPH_RSTDIS3, shifted_val);
-	DMSG("PERI_SC_PERIPH_RSTDIS3: 0x%x\n",
+	DMSG("PERI_SC_PERIPH_RSTDIS3: 0x%x",
 		io_read32(peri_base + PERI_SC_PERIPH_RSTDIS3));
 
 	/*
@@ -77,19 +77,19 @@ void spi_init(void)
 	do {
 		read_val = io_read32(peri_base + PERI_SC_PERIPH_RSTSTAT3);
 	} while (read_val & shifted_val);
-	DMSG("PERI_SC_PERIPH_RSTSTAT3: 0x%x\n", read_val);
+	DMSG("PERI_SC_PERIPH_RSTSTAT3: 0x%x", read_val);
 
-	DMSG("enable SPI clock\n");
+	DMSG("enable SPI clock");
 	/*
 	 * no need to read PERI_SC_PERIPH_CLKEN3 first
 	 * as all the bits are processed and cleared after writing
 	 */
 	shifted_val = PERI_CLK3_SSP;
 	io_write32(peri_base + PERI_SC_PERIPH_CLKEN3, shifted_val);
-	DMSG("PERI_SC_PERIPH_CLKEN3: 0x%x\n",
+	DMSG("PERI_SC_PERIPH_CLKEN3: 0x%x",
 		io_read32(peri_base + PERI_SC_PERIPH_CLKEN3));
 
-	DMSG("PERI_SC_PERIPH_CLKSTAT3: 0x%x\n",
+	DMSG("PERI_SC_PERIPH_CLKSTAT3: 0x%x",
 		io_read32(peri_base + PERI_SC_PERIPH_CLKSTAT3));
 
 	/*
@@ -101,13 +101,13 @@ void spi_init(void)
 	 * transfer.
 	 * ref: http://infocenter.arm.com/help/topic/com.arm.doc.ddi0194h/CJACFAFG.html
 	 */
-	DMSG("configure gpio6 pins 0-3 as SPI\n");
+	DMSG("configure gpio6 pins 0-3 as SPI");
 	io_write32(pmx0_base + PMX0_IOMG104, PINMUX_SPI);
 	io_write32(pmx0_base + PMX0_IOMG105, PINMUX_SPI);
 	io_write32(pmx0_base + PMX0_IOMG106, PINMUX_SPI);
 	io_write32(pmx0_base + PMX0_IOMG107, PINMUX_SPI);
 
-	DMSG("configure gpio6 pins 0-3 as nopull\n");
+	DMSG("configure gpio6 pins 0-3 as nopull");
 	io_write32(pmx1_base + PMX1_IOCG104, PINCFG_NOPULL);
 	io_write32(pmx1_base + PMX1_IOCG105, PINCFG_NOPULL);
 	io_write32(pmx1_base + PMX1_IOCG106, PINCFG_NOPULL);
@@ -124,7 +124,7 @@ static TEE_Result peripherals_init(void)
 	vaddr_t pmussi_base = core_mmu_get_va(PMUSSI_BASE, MEM_AREA_IO_NSEC,
 					      PMUSSI_REG_SIZE);
 
-	DMSG("enable LD021_1V8 source (pin 35) on LS connector\n");
+	DMSG("enable LD021_1V8 source (pin 35) on LS connector");
 	/*
 	 * Mezzanine cards usually use this to source level shifters for
 	 * UART, GPIO, SPI, I2C, etc so if not enabled, connected
