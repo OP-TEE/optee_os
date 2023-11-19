@@ -51,7 +51,7 @@ static int read_dt_tpm_log_info(void *fdt, int node, paddr_t *buf,
 		err = fdt_setprop(fdt, node, dt_tpm_event_log_addr, &zero_addr,
 				  sizeof(uint32_t) * 2);
 		if (err < 0) {
-			EMSG("Error setting property DTB to zero\n");
+			EMSG("Error setting property DTB to zero");
 			return err;
 		}
 	}

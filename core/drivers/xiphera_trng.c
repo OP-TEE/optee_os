@@ -134,7 +134,7 @@ static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 		udelay(200);
 		status = io_read32(xiphera_trng_base + STATUS_REG);
 		if (status != TRNG_ACK_RESET) {
-			EMSG("Failed to reset TRNG\n");
+			EMSG("Failed to reset TRNG");
 			return TEE_ERROR_GENERIC;
 		}
 	}
@@ -159,17 +159,17 @@ static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 		 * in debugging TRNG implementation in FPGA
 		 */
 		if (status == TRNG_FAILED_STARTUP) {
-			EMSG("Startup tests have failed\n");
+			EMSG("Startup tests have failed");
 			return TEE_ERROR_GENERIC;
 		}
 
-		EMSG("Startup tests yielded no response -> TRNG stuck\n");
+		EMSG("Startup tests yielded no response -> TRNG stuck");
 		return TEE_ERROR_GENERIC;
 	}
 
 	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_ACK_ZEROIZE);
 
-	DMSG("TRNG initialized\n");
+	DMSG("TRNG initialized");
 
 	return TEE_SUCCESS;
 }

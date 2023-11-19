@@ -547,7 +547,7 @@ static TEE_Result get_info_from_device_tree(struct ls_dspi_data *dspi_data)
 	 */
 	fdt = get_dt();
 	if (!fdt) {
-		EMSG("Unable to get DTB, DSPI init failed\n");
+		EMSG("Unable to get DTB, DSPI init failed");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 

@@ -228,7 +228,7 @@ static TEE_Result ecc_sign(uint32_t algo, struct ecc_keypair *key,
 					 mbedtls_mpi_size(&s));
 		res = TEE_SUCCESS;
 	} else {
-		FMSG("mbedtls_ecdsa_sign failed, returned 0x%x\n", -lmd_res);
+		FMSG("mbedtls_ecdsa_sign failed, returned 0x%x", -lmd_res);
 		res = TEE_ERROR_GENERIC;
 	}
 out:
