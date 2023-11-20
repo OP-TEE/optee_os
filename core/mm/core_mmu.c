@@ -596,7 +596,6 @@ static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
 
 /* Check special memories comply with registered memories */
 static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
-				     size_t len,
 				     const struct core_mmu_phys_mem *start,
 				     const struct core_mmu_phys_mem *end,
 				     const char *area_name __maybe_unused)
@@ -604,7 +603,6 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	const struct core_mmu_phys_mem *mem;
 	const struct core_mmu_phys_mem *mem2;
 	struct tee_mmap_region *mmap;
-	size_t n;
 
 	if (start == end) {
 		DMSG("No %s memory area defined", area_name);
@@ -632,7 +630,7 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	 * This is called before reserved VA space is loaded in mem_map.
 	 */
 	for (mem = start; mem < end; mem++) {
-		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
+		for (mmap = mem_map; mmap->type != MEM_AREA_END; mmap++) {
 			if (core_is_buffer_intersect(mem->addr, mem->size,
 						     mmap->pa, mmap->size)) {
 				MSG_MEM_INSTERSECT(mem->addr, mem->size,
@@ -1079,8 +1077,7 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 	}
 
 	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
-		verify_special_mem_areas(memory_map, num_elems,
-					 phys_sdp_mem_begin,
+		verify_special_mem_areas(memory_map, phys_sdp_mem_begin,
 					 phys_sdp_mem_end, "SDP");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
