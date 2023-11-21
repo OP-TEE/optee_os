@@ -922,7 +922,11 @@ CFG_DRIVERS_PINCTRL ?= n
 #
 # When enabled, CFG_REGULATOR_GPIO embeds a voltage regulator driver for
 # DT compatible "regulator-gpio" devices.
+#
+# CFG_DRIVERS_REGULATOR_PRINT_TREE embeds a helper function to print the
+# regulator tree state on OP-TEE core console with the info trace level.
 CFG_DRIVERS_REGULATOR ?= n
+CFG_DRIVERS_REGULATOR_PRINT_TREE ?= n
 CFG_REGULATOR_FIXED ?= n
 CFG_REGULATOR_GPIO ?= n
 

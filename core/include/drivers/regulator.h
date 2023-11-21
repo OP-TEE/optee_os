@@ -315,4 +315,8 @@ static inline void regulator_get_range(struct regulator *regulator, int *min_uv,
  */
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
 					struct regulator_voltages **voltages);
+
+/* Print current regulator tree summary to output console  (info trace level) */
+void regulator_print_tree(void);
+
 #endif /* __DRIVERS_REGULATOR_H */
