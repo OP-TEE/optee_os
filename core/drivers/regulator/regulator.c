@@ -288,26 +288,6 @@ TEE_Result regulator_register(struct regulator *regulator)
 }
 
 /*
- * Log regulators state
- */
-void regulator_print_state(const char *message __maybe_unused)
-{
-	struct regulator *regulator = NULL;
-
-	DMSG("Regulator state: %s", message);
-	DMSG("name     use\ten\tuV\tmin\tmax\tflags\tsupply");
-
-	SLIST_FOREACH(regulator, &regulator_device_list, link)
-		DMSG("%8s %u\t%d\t%d\t%d\t%d\t%#x\t%s",
-		     regulator->name, regulator->refcount,
-		     regulator_is_enabled(regulator),
-		     regulator_get_voltage(regulator),
-		     regulator->min_uv, regulator->max_uv, regulator->flags,
-		     regulator->supply ? regulator_name(regulator->supply) :
-		     "<none>");
-}
-
-/*
  * Clean-up regulators that are not used.
  */
 static TEE_Result regulator_core_cleanup(void)
@@ -323,9 +303,187 @@ static TEE_Result regulator_core_cleanup(void)
 		}
 	}
 
-	regulator_print_state(__func__);
+	regulator_print_tree();
 
 	return TEE_SUCCESS;
 }
 
 release_init_resource(regulator_core_cleanup);
+
+/* Return updated message buffer position of NULL on failure */
+static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
+{
+	va_list ap = { };
+	int max_len = end - cur;
+	int ret = 0;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(cur, max_len, fmt, ap);
+	va_end(ap);
+
+	if (ret < 0 || ret >= max_len)
+		return NULL;
+
+	return cur + ret;
+}
+
+static struct regulator *find_next_regulator(struct regulator *parent,
+					     struct regulator *sibling)
+{
+	struct regulator *regulator = NULL;
+
+	if (sibling)
+		regulator = SLIST_NEXT(sibling, link);
+	else
+		regulator = SLIST_FIRST(&regulator_device_list);
+
+	while (regulator && regulator->supply != parent)
+		regulator = SLIST_NEXT(regulator, link);
+
+	return regulator;
+}
+
+/* Regulator is the last supplied one by its supply in the registered list */
+static bool regulator_is_supply_last_supplied(struct regulator *regulator)
+{
+	return !find_next_regulator(regulator->supply, regulator);
+}
+
+/* Supply last node may already be printed for indentation level @cur_indent */
+static bool indent_with_empty_string(struct regulator *node_regulator,
+				     int node_indent, int cur_indent)
+{
+	struct regulator *r = node_regulator;
+	int n = 0;
+
+	/* Find supply at indentation level @node_indent - @cur_indent - 1 */
+	for (n = 0; n < node_indent - cur_indent - 1; n++)
+		r = r->supply;
+
+	return regulator_is_supply_last_supplied(r);
+}
+
+static void __maybe_unused print_regulator(struct regulator *regulator,
+					   int indent)
+{
+	static const char * const level_unit[] = { "uV", "mV", "V" };
+	int max_unit = ARRAY_SIZE(level_unit);
+	int level_max = 0;
+	int level_min = 0;
+	int level_cur = 0;
+	char msg_buf[128] = { };
+	char *msg_end = msg_buf + sizeof(msg_buf);
+	char *msg = msg_buf;
+	int n_max = 0;
+	int n_min = 0;
+	int n_cur = 0;
+	int n = 0;
+
+	if (indent) {
+		/* Indent for root clock level */
+		msg = add_msg(msg, msg_end, "   ");
+		if (!msg)
+			goto out;
+
+		/* Indent for root supply to regulator supply levels */
+		for (n = 0; n < indent - 1; n++) {
+			if (indent_with_empty_string(regulator, indent, n))
+				msg = add_msg(msg, msg_end, "    ");
+			else
+				msg = add_msg(msg, msg_end, "|   ");
+			if (!msg)
+				goto out;
+		}
+
+		/* Regulator indentation */
+		if (regulator_is_supply_last_supplied(regulator))
+			msg = add_msg(msg, msg_end, "`-- ");
+		else
+			msg = add_msg(msg, msg_end, "|-- ");
+
+		if (!msg)
+			goto out;
+	} else {
+		/* Root supply indentation */
+		msg = add_msg(msg, msg_end, "o- ");
+	}
+
+	regulator_get_range(regulator, &level_min, &level_max);
+	level_cur = regulator_get_voltage(regulator);
+
+	for (n_cur = 1; !(level_cur % 1000) && n_cur < max_unit; n_cur++)
+		level_cur /= 1000;
+	for (n_max = 1; !(level_max % 1000) && n_max < max_unit; n_max++)
+		level_max /= 1000;
+	for (n_min = 1; !(level_min % 1000) && n_min < max_unit; n_min++)
+		level_min /= 1000;
+
+	msg = add_msg(msg, msg_end, "%s \t(%3s / refcnt %u / flags %#"PRIx32
+		      " / %d %s ", regulator_name(regulator),
+		      regulator_is_enabled(regulator) ? "on " : "off",
+		      regulator->refcount, regulator->flags,
+		      level_cur, level_unit[n_cur - 1]);
+	if (!msg)
+		goto out;
+
+	if (level_min == level_max)
+		msg = add_msg(msg, msg_end, "fixed)");
+	else if (level_max == INT_MAX)
+		msg = add_msg(msg, msg_end, "[%d %s .. MAX])",
+			      level_min, level_unit[n_min - 1]);
+	else
+		msg = add_msg(msg, msg_end, "[%d %s .. %d %s])",
+			      level_min, level_unit[n_min - 1],
+			      level_max, level_unit[n_max - 1]);
+
+out:
+	if (!msg)
+		snprintf(msg_end - 4, 4, "...");
+
+	DMSG("%s", msg_buf);
+}
+
+static void print_tree(void)
+{
+	struct regulator *regulator = NULL;
+	struct regulator *parent = NULL;
+	struct regulator *next = NULL;
+	int indent = -1;
+
+	while (true) {
+		next = find_next_regulator(parent, regulator);
+		if (next) {
+			print_regulator(next, indent + 1);
+			/* Enter the subtree of the next regulator */
+			parent = next;
+			indent++;
+			regulator = NULL;
+		} else {
+			/*
+			 * We've processed all children at this level.
+			 * If parent is NULL we're at the top and are done.
+			 */
+			if (!parent)
+				break;
+			/*
+			 * Move up one level to resume with the next
+			 * regulator of the parent.
+			 */
+			regulator = parent;
+			parent = regulator->supply;
+			indent--;
+		}
+	}
+}
+
+void regulator_print_tree(void)
+{
+	if (IS_ENABLED(CFG_DRIVERS_REGULATOR_PRINT_TREE) &&
+	    TRACE_LEVEL >= TRACE_DEBUG) {
+		DMSG("Regulator tree summary");
+		if (SLIST_EMPTY(&regulator_device_list))
+			DMSG("-- No registered regulator");
+		else
+			print_tree();
+	}
+}
