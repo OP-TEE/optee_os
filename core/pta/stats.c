@@ -53,7 +53,7 @@
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
-	struct malloc_stats *stats;
+	struct pta_stats_alloc *stats;
 	uint32_t size_to_retrieve;
 	uint32_t pool_id;
 	uint32_t i;
@@ -63,7 +63,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	 *   - 0 means all the pools to be retrieved
 	 *   - 1..n means pool id
 	 * p[0].value.b = 0 if no reset of the stats
-	 * p[1].memref.buffer = output buffer to struct malloc_stats
+	 * p[1].memref.buffer = output buffer to struct pta_stats_alloc
 	 */
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 			    TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -76,7 +76,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	if (pool_id > STATS_NB_POOLS)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	size_to_retrieve = sizeof(struct malloc_stats);
+	size_to_retrieve = sizeof(struct pta_stats_alloc);
 	if (!pool_id)
 		size_to_retrieve *= STATS_NB_POOLS;
 

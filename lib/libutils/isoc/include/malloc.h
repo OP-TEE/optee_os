@@ -85,7 +85,7 @@ void malloc_add_pool(void *buf, size_t len);
  */
 
 #define TEE_ALLOCATOR_DESC_LENGTH 32
-struct malloc_stats {
+struct pta_stats_alloc {
 	char desc[TEE_ALLOCATOR_DESC_LENGTH];
 	uint32_t allocated;               /* Bytes currently allocated */
 	uint32_t max_allocated;           /* Tracks max value of allocated */
@@ -95,7 +95,7 @@ struct malloc_stats {
 	uint32_t biggest_alloc_fail_used; /* Alloc bytes when above occurred */
 };
 
-void malloc_get_stats(struct malloc_stats *stats);
+void malloc_get_stats(struct pta_stats_alloc *stats);
 void malloc_reset_stats(void);
 #endif /* CFG_WITH_STATS */
 
@@ -142,7 +142,7 @@ void nex_malloc_add_pool(void *buf, size_t len);
  * Get/reset allocation statistics
  */
 
-void nex_malloc_get_stats(struct malloc_stats *stats);
+void nex_malloc_get_stats(struct pta_stats_alloc *stats);
 void nex_malloc_reset_stats(void);
 
 #endif	/* CFG_WITH_STATS */
@@ -174,7 +174,8 @@ bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,
 bool raw_malloc_buffer_is_within_alloced(struct malloc_ctx *ctx,
 					 void *buf, size_t len);
 #ifdef CFG_WITH_STATS
-void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats);
+void raw_malloc_get_stats(struct malloc_ctx *ctx,
+			  struct pta_stats_alloc *stats);
 #endif
 
 #endif /* __MALLOC_H */
