@@ -25,11 +25,11 @@
 #define GIC_SPI_TO_ITNUM(x)	((x) + GIC_SPI_BASE)
 
 /*
- * The two gic_init_* functions initializes the struct gic_data which is
- * then used by the other functions.
+ * The two gic_init() and gic_init_v3() functions initializes the struct
+ * gic_data which is then used by the other functions. These two functions
+ * also initializes the GIC and are only supposed to be called from the
+ * primary boot CPU.
  */
-
-/* Initialize GIC */
 void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 		 paddr_t gicr_base_pa);
 static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
@@ -37,7 +37,18 @@ static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
 	gic_init_v3(gicc_base_pa, gicd_base_pa, 0);
 }
 
-/* Only initialize CPU GIC interface, mainly use for secondary CPUs */
+/*
+ * Does per-CPU specific GIC initialization, should be called by all
+ * secondary CPUs when booting.
+ */
+void gic_init_per_cpu(void);
+
+/*
+ * Only initialize CPU GIC interface, mainly use for secondary CPUs in
+ * non-TF-A configurations.
+ *
+ * This function is deprecated, please use gic_init_per_cpu() instead.
+ */
 void gic_cpu_init(void);
 
 /* Print GIC state to console */
