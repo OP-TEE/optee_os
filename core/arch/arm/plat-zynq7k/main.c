@@ -148,7 +148,7 @@ void boot_primary_init_intc(void)
 
 void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }
 
 static vaddr_t slcr_access_range[] = {
