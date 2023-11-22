@@ -60,12 +60,10 @@ void boot_primary_init_intc(void)
 #endif
 }
 
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
 void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }
-#endif
 #endif /*CFG_GIC*/
 
 #ifdef CFG_CORE_HAFNIUM_INTC
