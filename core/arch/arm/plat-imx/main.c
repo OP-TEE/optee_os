@@ -117,6 +117,6 @@ void boot_primary_init_intc(void)
 #if CFG_TEE_CORE_NB_CORE > 1
 void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }
 #endif
