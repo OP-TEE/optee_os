@@ -41,7 +41,7 @@ struct tee_ta_dump_stats {
 	TEE_UUID uuid;
 	uint32_t panicked;	/* True if TA has panicked */
 	uint32_t sess_num;	/* Number of opened session */
-	struct malloc_stats heap;
+	struct pta_stats_alloc heap;
 };
 
 struct tee_ta_dump_ctx {

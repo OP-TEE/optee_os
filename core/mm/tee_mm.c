@@ -104,7 +104,7 @@ static size_t tee_mm_stats_allocated(tee_mm_pool_t *pool)
 	return sz << pool->shift;
 }
 
-void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct malloc_stats *stats,
+void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct pta_stats_alloc *stats,
 			   bool reset)
 {
 	uint32_t exceptions;

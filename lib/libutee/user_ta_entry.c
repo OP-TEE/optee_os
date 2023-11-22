@@ -392,7 +392,7 @@ static TEE_Result entry_dump_memstats(unsigned long session_id __unused,
 {
 	uint32_t param_types = 0;
 	TEE_Param params[TEE_NUM_PARAMS] = { };
-	struct malloc_stats stats = { };
+	struct pta_stats_alloc stats = { };
 
 	from_utee_params(params, &param_types, up);
 	ta_header_save_params(param_types, params);

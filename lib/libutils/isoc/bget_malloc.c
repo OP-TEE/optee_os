@@ -135,7 +135,7 @@ struct malloc_ctx {
 	struct malloc_pool *pool;
 	size_t pool_len;
 #ifdef BufStats
-	struct malloc_stats mstats;
+	struct pta_stats_alloc mstats;
 #endif
 #ifdef __KERNEL__
 	unsigned int spinlock;
@@ -308,7 +308,7 @@ void malloc_reset_stats(void)
 }
 
 static void gen_malloc_get_stats(struct malloc_ctx *ctx,
-				 struct malloc_stats *stats)
+				 struct pta_stats_alloc *stats)
 {
 	uint32_t exceptions = malloc_lock(ctx);
 
@@ -316,7 +316,7 @@ static void gen_malloc_get_stats(struct malloc_ctx *ctx,
 	malloc_unlock(ctx, exceptions);
 }
 
-void malloc_get_stats(struct malloc_stats *stats)
+void malloc_get_stats(struct pta_stats_alloc *stats)
 {
 	gen_malloc_get_stats(&malloc_ctx, stats);
 }
@@ -996,7 +996,7 @@ bool raw_malloc_buffer_is_within_alloced(struct malloc_ctx *ctx,
 }
 
 #ifdef CFG_WITH_STATS
-void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats)
+void raw_malloc_get_stats(struct malloc_ctx *ctx, struct pta_stats_alloc *stats)
 {
 	memcpy_unchecked(stats, &ctx->mstats, sizeof(*stats));
 	stats->allocated = ctx->poolset.totalloc;
@@ -1130,7 +1130,7 @@ void nex_malloc_reset_stats(void)
 	gen_malloc_reset_stats(&nex_malloc_ctx);
 }
 
-void nex_malloc_get_stats(struct malloc_stats *stats)
+void nex_malloc_get_stats(struct pta_stats_alloc *stats)
 {
 	gen_malloc_get_stats(&nex_malloc_ctx, stats);
 }
