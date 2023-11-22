@@ -202,16 +202,8 @@ out:
 	return ret;
 }
 
-void gic_cpu_init(void)
+static void init_gic_per_cpu(struct gic_data *gd)
 {
-	struct gic_data *gd = &gic_data;
-
-#if defined(CFG_ARM_GICV3)
-	assert(gd->gicd_base);
-#else
-	assert(gd->gicd_base && gd->gicc_base);
-#endif
-
 	io_write32(gd->gicd_base + GICD_IGROUPR(0), gd->per_cpu_group_status);
 
 	/*
@@ -229,6 +221,35 @@ void gic_cpu_init(void)
 		   GICC_CTLR_ENABLEGRP0 | GICC_CTLR_ENABLEGRP1 |
 		   GICC_CTLR_FIQEN);
 #endif
+}
+
+void gic_init_per_cpu(void)
+{
+	struct gic_data *gd = &gic_data;
+
+#if defined(CFG_ARM_GICV3)
+	assert(gd->gicd_base);
+#else
+	assert(gd->gicd_base && gd->gicc_base);
+#endif
+
+	/* GIC is already configured in TF-A configurations */
+	if (!IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW))
+		init_gic_per_cpu(gd);
+}
+
+void gic_cpu_init(void)
+{
+	struct gic_data *gd = &gic_data;
+
+#if defined(CFG_ARM_GICV3)
+	assert(gd->gicd_base);
+#else
+	assert(gd->gicd_base && gd->gicc_base);
+#endif
+	IMSG("%s is deprecated, please use gic_init_per_cpu()", __func__);
+
+	init_gic_per_cpu(gd);
 }
 
 static int gic_dt_get_irq(const uint32_t *properties, int count, uint32_t *type,
