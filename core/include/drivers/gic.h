@@ -54,14 +54,6 @@ void gic_init_donate_sgi_to_ns(size_t it);
  */
 void gic_init_per_cpu(void);
 
-/*
- * Only initialize CPU GIC interface, mainly use for secondary CPUs in
- * non-TF-A configurations.
- *
- * This function is deprecated, please use gic_init_per_cpu() instead.
- */
-void gic_cpu_init(void);
-
 /* Print GIC state to console */
 void gic_dump_state(void);
 #endif /*__DRIVERS_GIC_H*/

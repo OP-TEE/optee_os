@@ -342,20 +342,6 @@ void gic_init_per_cpu(void)
 	}
 }
 
-void gic_cpu_init(void)
-{
-	struct gic_data *gd = &gic_data;
-
-#if defined(CFG_ARM_GICV3)
-	assert(gd->gicd_base);
-#else
-	assert(gd->gicd_base && gd->gicc_base);
-#endif
-	IMSG("%s is deprecated, please use gic_init_per_cpu()", __func__);
-
-	init_gic_per_cpu(gd);
-}
-
 void gic_init_donate_sgi_to_ns(size_t it)
 {
 	struct gic_data *gd = &gic_data;
