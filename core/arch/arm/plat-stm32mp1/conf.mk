@@ -303,6 +303,8 @@ endif
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
+CFG_DRIVERS_CLK_PRINT_TREE ?= $(CFG_WITH_STATS)
+CFG_DRIVERS_REGULATOR_PRINT_TREE ?= $(CFG_WITH_STATS)
 
 # Enable OTP update with BSEC driver
 CFG_STM32_BSEC_WRITE ?= y
