@@ -54,11 +54,11 @@
 #define STATS_NB_POOLS			4
 
 /*
- * STATS_CMD_PRINT_DRIVERS_INFO - Print device drivers information to console
+ * STATS_CMD_PRINT_DRIVER_INFO - Print device drivers information to console
  *
  * [in]    value[0].a        Target driver, one of STATS_DRIVER_TYPE_*
  */
-#define STATS_CMD_PRINT_DRIVERS_INFO	5
+#define STATS_CMD_PRINT_DRIVER_INFO	5
 
 #define STATS_DRIVER_TYPE_CLOCK		0
 #define STATS_DRIVER_TYPE_REGULATOR	1
@@ -262,7 +262,7 @@ static TEE_Result invoke_command(void *psess __unused,
 		return get_user_ta_stats(ptypes, params);
 	case STATS_CMD_GET_TIME:
 		return get_system_time(ptypes, params);
-	case STATS_CMD_PRINT_DRIVERS_INFO:
+	case STATS_CMD_PRINT_DRIVER_INFO:
 		return print_drivers_info(ptypes, params);
 	default:
 		break;
