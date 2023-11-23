@@ -67,16 +67,14 @@ enum voltage_type {
 };
 
 /*
- * struct regulator_voltages - Voltage levels description
+ * struct regulator_voltages_desc - Voltage levels description
  * @type: Type of level description
- * @num_levels: Number of cells of @entries when @type is VOLTAGE_TYPE_FULL_LIST
- * @entries: Voltage level information in uV
+ * @num_levels: Number of voltage levels when @type is VOLTAGE_TYPE_FULL_LIST
  *
  */
-struct regulator_voltages {
+struct regulator_voltages_desc {
 	enum voltage_type type;
 	size_t num_levels;
-	int entries[];
 };
 
 /*
@@ -108,7 +106,7 @@ struct regulator {
 	unsigned int refcount;
 	struct mutex lock;	/* Concurrent access protection */
 	struct voltages_fallback {
-		struct regulator_voltages desc;
+		struct regulator_voltages_desc desc;
 		int levels[3];
 	} voltages_fallback;
 	size_t levels_count_fallback;
@@ -131,7 +129,8 @@ struct regulator_ops {
 	TEE_Result (*set_voltage)(struct regulator *r, int level_uv);
 	TEE_Result (*get_voltage)(struct regulator *r, int *level_uv);
 	TEE_Result (*supported_voltages)(struct regulator *r,
-					 struct regulator_voltages **voltages);
+					 struct regulator_voltages_desc **desc,
+					 const int **levels);
 	TEE_Result (*supplied_init)(struct regulator *r, const void *fdt,
 				    int node);
 };
@@ -311,10 +310,18 @@ static inline void regulator_get_range(struct regulator *regulator, int *min_uv,
 /*
  * regulator_supported_voltages() - Get regulator supported levels in microvolt
  * @regulator: Regulator reference
- * @voltages: Output description supported voltage levels
+ * @desc: Output reference to supported voltage levels description
+ * @levels: Output reference to voltage level array, in microvolts
+ *
+ * When @desc->type is VOLTAGE_TYPE_FULL_LIST, number of cells of @*levels
+ * is defined by @desc->num_levels, each cell being a level in microvolts (uV).
+ * When @desc->type is VOLTAGE_TYPE_INCREMENT, @levels has 3 cells:
+ * @levels[0] is the min voltage level, @levels[1] is the max level, @levels[2]
+ * is the incremental level step, all in microvolts (uV).
  */
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
-					struct regulator_voltages **voltages);
+					struct regulator_voltages_desc **desc,
+					const int **levels);
 
 /* Print current regulator tree summary to console with debug trace level */
 #ifdef CFG_DRIVERS_REGULATOR

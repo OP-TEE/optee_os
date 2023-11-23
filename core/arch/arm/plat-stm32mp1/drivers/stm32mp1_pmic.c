@@ -47,12 +47,14 @@ static_assert(PMIC_REGU_FLAG_COUNT <= UINT_MAX);
  * struct pmic_regulator_data - Platform specific data
  * @flags: Flags for platform property to apply
  * @regu_name: Regulator name ID in stpmic1 driver
- * @supported_voltages: Supported levels description or NULL is not yet built
+ * @voltages_desc: Supported levels description
+ * @voltages_level: Pointer to supported levels or NULL if not yet allocated
  */
 struct pmic_regulator_data {
 	unsigned int flags;
 	char *regu_name;
-	struct regulator_voltages *voltages;
+	struct regulator_voltages_desc voltages_desc;
+	int *voltages_level;
 };
 
 /* Expect a single PMIC instance */
@@ -395,10 +397,8 @@ static int cmp_int_value(const void *a, const void *b)
 	return CMP_TRILEAN(*ia, *ib);
 }
 
-static size_t refine_levels_array(struct regulator_voltages *voltages)
+static size_t refine_levels_array(size_t count, int *levels_uv)
 {
-	int *levels_uv = voltages->entries;
-	size_t count = voltages->num_levels;
 	size_t n = 0;
 	size_t m = 0;
 
@@ -418,15 +418,16 @@ static size_t refine_levels_array(struct regulator_voltages *voltages)
 }
 
 static TEE_Result pmic_list_voltages(struct regulator *regulator,
-				     struct regulator_voltages **out_voltages)
+				     struct regulator_voltages_desc **out_desc,
+				     const int **out_levels)
 {
 	struct pmic_regulator_data *priv = regulator->priv;
 
-	if (!priv->voltages) {
-		struct regulator_voltages *voltages_s = NULL;
-		struct regulator_voltages *voltages = NULL;
+	if (!priv->voltages_level) {
 		const uint16_t *level_ref = NULL;
 		size_t level_count = 0;
+		int *levels2 = NULL;
+		int *levels = NULL;
 		size_t n = 0;
 
 		/*
@@ -436,30 +437,28 @@ static TEE_Result pmic_list_voltages(struct regulator *regulator,
 		stpmic1_regulator_levels_mv(priv->regu_name, &level_ref,
 					    &level_count);
 
-		voltages = calloc(1, sizeof(*voltages) +
-				     sizeof(*voltages->entries) * level_count);
-		if (!voltages)
+		levels = calloc(level_count, sizeof(*levels));
+		if (!levels)
 			return TEE_ERROR_OUT_OF_MEMORY;
 		for (n = 0; n < level_count; n++)
-			voltages->entries[n] = level_ref[n] * 1000;
+			levels[n] = level_ref[n] * 1000;
 
-		voltages->num_levels = level_count;
-		level_count = refine_levels_array(voltages);
+		level_count = refine_levels_array(level_count, levels);
 
-		voltages_s = realloc(voltages,
-				     sizeof(*voltages) +
-				     sizeof(*voltages->entries) * level_count);
-		if (!voltages_s) {
-			free(voltages);
+		/* Shrink levels array to not waste heap memory */
+		levels2 = realloc(levels, sizeof(*levels) * level_count);
+		if (!levels2) {
+			free(levels);
 			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 
-		voltages_s->type = VOLTAGE_TYPE_FULL_LIST;
-		voltages_s->num_levels = level_count;
-		priv->voltages = voltages_s;
+		priv->voltages_desc.type = VOLTAGE_TYPE_FULL_LIST;
+		priv->voltages_desc.num_levels = level_count;
+		priv->voltages_level = levels2;
 	}
 
-	*out_voltages = priv->voltages;
+	*out_desc = &priv->voltages_desc;
+	*out_levels = priv->voltages_level;
 
 	return TEE_SUCCESS;
 }
@@ -535,8 +534,8 @@ static TEE_Result release_voltage_lists(void)
 	for (n = 0; n < ARRAY_SIZE(pmic_regulators); n++) {
 		struct pmic_regulator_data *priv = pmic_regulators[n].priv;
 
-		if (priv && priv->voltages)
-			free(priv->voltages);
+		if (priv && priv->voltages_level)
+			free(priv->voltages_level);
 	}
 
 	return TEE_SUCCESS;

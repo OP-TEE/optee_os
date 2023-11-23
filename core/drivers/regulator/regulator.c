@@ -213,21 +213,24 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 }
 
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
-					struct regulator_voltages **voltages)
+					struct regulator_voltages_desc **desc,
+					const int **levels)
 {
-	assert(regulator && voltages);
+	assert(regulator && desc && levels);
 
 	if (regulator->ops->supported_voltages) {
 		TEE_Result res = TEE_ERROR_GENERIC;
 
-		res = regulator->ops->supported_voltages(regulator, voltages);
+		res = regulator->ops->supported_voltages(regulator, desc,
+							 levels);
 		if (res == TEE_SUCCESS)
 			return TEE_SUCCESS;
 		if (res != TEE_ERROR_NOT_SUPPORTED)
 			return res;
 	}
 
-	*voltages = &regulator->voltages_fallback.desc;
+	*desc = &regulator->voltages_fallback.desc;
+	*levels = regulator->voltages_fallback.levels;
 
 	return TEE_SUCCESS;
 }
