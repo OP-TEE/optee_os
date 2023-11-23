@@ -53,10 +53,10 @@
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
-	struct pta_stats_alloc *stats;
-	uint32_t size_to_retrieve;
-	uint32_t pool_id;
-	uint32_t i;
+	struct pta_stats_alloc *stats = NULL;
+	uint32_t size_to_retrieve = 0;
+	uint32_t pool_id = 0;
+	uint32_t i = 0;
 
 	/*
 	 * p[0].value.a = pool id (from 0 to n)
@@ -130,7 +130,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
-	struct tee_pager_stats stats;
+	struct tee_pager_stats stats = { };
 
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
 			    TEE_PARAM_TYPE_VALUE_OUTPUT,
