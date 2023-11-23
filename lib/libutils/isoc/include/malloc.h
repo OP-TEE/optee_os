@@ -5,6 +5,7 @@
 #ifndef __MALLOC_H
 #define __MALLOC_H
 
+#include <pta_stats.h>
 #include <stddef.h>
 #include <types_ext.h>
 
@@ -80,21 +81,7 @@ bool malloc_buffer_overlaps_heap(void *buf, size_t len);
 void malloc_add_pool(void *buf, size_t len);
 
 #ifdef CFG_WITH_STATS
-/*
- * Get/reset allocation statistics
- */
-
-#define TEE_ALLOCATOR_DESC_LENGTH 32
-struct pta_stats_alloc {
-	char desc[TEE_ALLOCATOR_DESC_LENGTH];
-	uint32_t allocated;               /* Bytes currently allocated */
-	uint32_t max_allocated;           /* Tracks max value of allocated */
-	uint32_t size;                    /* Total size for this allocator */
-	uint32_t num_alloc_fail;          /* Number of failed alloc requests */
-	uint32_t biggest_alloc_fail;      /* Size of biggest failed alloc */
-	uint32_t biggest_alloc_fail_used; /* Alloc bytes when above occurred */
-};
-
+/* Get/reset allocation statistics */
 void malloc_get_stats(struct pta_stats_alloc *stats);
 void malloc_reset_stats(void);
 #endif /* CFG_WITH_STATS */

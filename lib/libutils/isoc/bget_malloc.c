@@ -82,6 +82,7 @@
 #include <config.h>
 #include <malloc.h>
 #include <memtag.h>
+#include <pta_stats.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib_ext.h>

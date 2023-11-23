@@ -7,6 +7,7 @@
 #define __MM_TEE_MM_H
 
 #include <malloc.h>
+#include <pta_stats.h>
 #include <types_ext.h>
 
 /* Define to indicate default pool initiation */
