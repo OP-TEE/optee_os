@@ -8,6 +8,7 @@
 #include <kernel/tee_common.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
+#include <pta_stats.h>
 #include <trace.h>
 #include <util.h>
 

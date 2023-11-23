@@ -21,6 +21,7 @@
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/vm.h>
+#include <pta_stats.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,12 +38,6 @@
 
 #if defined(CFG_TA_STATS)
 #define MAX_DUMP_SESS_NUM	(16)
-struct pta_stats_ta {
-	TEE_UUID uuid;
-	uint32_t panicked;	/* True if TA has panicked */
-	uint32_t sess_num;	/* Number of opened session */
-	struct pta_stats_alloc heap;
-};
 
 struct tee_ta_dump_ctx {
 	TEE_UUID uuid;

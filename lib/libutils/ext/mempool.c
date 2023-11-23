@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <malloc.h>
 #include <mempool.h>
+#include <pta_stats.h>
 #include <string.h>
 #include <util.h>
 

@@ -43,7 +43,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	size_to_retrieve = sizeof(struct pta_stats_alloc);
-	if (!pool_id)
+	if (pool_id == ALLOC_ID_ALL)
 		size_to_retrieve *= STATS_NB_POOLS;
 
 	if (p[1].memref.size < size_to_retrieve) {
@@ -53,30 +53,30 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	p[1].memref.size = size_to_retrieve;
 	stats = p[1].memref.buffer;
 
-	for (i = 1; i <= STATS_NB_POOLS; i++) {
-		if ((pool_id) && (i != pool_id))
+	for (i = ALLOC_ID_HEAP; i <= STATS_NB_POOLS; i++) {
+		if (pool_id != ALLOC_ID_ALL && i != pool_id)
 			continue;
 
 		switch (i) {
-		case 1:
+		case ALLOC_ID_HEAP:
 			malloc_get_stats(stats);
 			strlcpy(stats->desc, "Heap", sizeof(stats->desc));
 			if (p[0].value.b)
 				malloc_reset_stats();
 			break;
 
-		case 2:
+		case ALLOC_ID_PUBLIC_DDR:
 			EMSG("public DDR not managed by secure side anymore");
 			break;
 
-		case 3:
+		case ALLOC_ID_TA_RAM:
 			tee_mm_get_pool_stats(&tee_mm_sec_ddr, stats,
 					      !!p[0].value.b);
 			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			break;
 
 #ifdef CFG_NS_VIRTUALIZATION
-		case 4:
+		case ALLOC_ID_NEXUS_HEAP:
 			nex_malloc_get_stats(stats);
 			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));
 			if (p[0].value.b)
