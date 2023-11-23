@@ -15,8 +15,6 @@
 #include <tee_api_types.h>
 #include <trace.h>
 
-#define TA_NAME		"stats.ta"
-
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
 	struct pta_stats_alloc *stats = NULL;
@@ -200,6 +198,6 @@ static TEE_Result invoke_command(void *psess __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-pseudo_ta_register(.uuid = STATS_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = STATS_UUID, .name = "stats.pta",
 		   .flags = PTA_DEFAULT_FLAGS,
 		   .invoke_command_entry_point = invoke_command);
