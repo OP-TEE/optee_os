@@ -23,6 +23,9 @@
 #include <string.h>
 #include <util.h>
 
+/* Max number of recursive calls to print_regulator_subtree() */
+#define REGULATOR_PRINT_TREE_MAX_RECURSION	32
+
 static SLIST_HEAD(, regulator) regulator_device_list =
 	SLIST_HEAD_INITIALIZER(regulator);
 
@@ -401,14 +404,20 @@ out:
 	IMSG("%s", msg_buf);
 }
 
-static void print_regulator_subtree(struct regulator *root __maybe_unused,
+static void print_regulator_subtree(struct regulator *parent __maybe_unused,
 				    int indent __maybe_unused)
 {
 #ifdef CFG_DRIVERS_REGULATOR_PRINT_TREE
 	struct regulator *regulator = NULL;
 
+	if (indent == REGULATOR_PRINT_TREE_MAX_RECURSION) {
+		EMSG("Abort regulator subtree loop, %d recursive calls reached",
+		     REGULATOR_PRINT_TREE_MAX_RECURSION);
+		return;
+	}
+
 	SLIST_FOREACH(regulator, &regulator_device_list, link) {
-		if (regulator->supply == root) {
+		if (regulator->supply == parent) {
 			print_regulator(regulator, indent + 1);
 			print_regulator_subtree(regulator, indent + 1);
 			if (indent == -1)
