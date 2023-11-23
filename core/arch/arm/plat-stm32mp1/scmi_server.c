@@ -646,7 +646,8 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 			return SCMI_NOT_SUPPORTED;
 		if (res)
 			return SCMI_GENERIC_ERROR;
-		if (!voltages || voltages->type != VOLTAGE_TYPE_FULL_LIST) {
+		if (!voltages ||
+		    voltages->hdr.type != VOLTAGE_TYPE_FULL_LIST) {
 			/*
 			 * Triplet min/max/step description. Caller should use
 			 * plat_scmi_voltd_levels_by_step().
@@ -655,7 +656,7 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 		}
 
 		ref = voltages->entries;
-		ref_count = voltages->num_levels;
+		ref_count = voltages->hdr.num_levels;
 
 		/* Bound according to regulator registered min/max levels */
 		for (n = ref_count; n > 0; n--)
@@ -708,7 +709,8 @@ int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
 			return SCMI_NOT_SUPPORTED;
 		if (res)
 			return SCMI_GENERIC_ERROR;
-		if (!voltages || voltages->type != VOLTAGE_TYPE_INCREMENT) {
+		if (!voltages ||
+		    voltages->hdr.type != VOLTAGE_TYPE_INCREMENT) {
 			/*
 			 * Triplet min/max/step description. Caller should use
 			 * plat_scmi_voltd_levels_by_step().

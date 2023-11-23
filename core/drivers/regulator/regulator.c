@@ -215,6 +215,15 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
 					struct regulator_voltages **voltages)
 {
+	struct voltages_fallback __unused fb = { };
+
+	/* struct voltages_fallback and struct voltages_fallback must match */
+	static_assert(!offsetof(struct voltages_fallback, hdr) &&
+		      !offsetof(struct voltages_fallback, hdr) &&
+		      offsetof(struct voltages_fallback, entries) ==
+		      offsetof(struct voltages_fallback, entries) &&
+		      sizeof(*fb.entries) == sizeof(*(*voltages)->entries));
+
 	assert(regulator && voltages);
 
 	if (regulator->ops->supported_voltages) {
@@ -227,13 +236,14 @@ TEE_Result regulator_supported_voltages(struct regulator *regulator,
 			return res;
 	}
 
-	*voltages = &regulator->voltages_fallback.desc;
+	*voltages = (void *)(vaddr_t)&regulator->voltages_fallback;
 
 	return TEE_SUCCESS;
 }
 
 TEE_Result regulator_register(struct regulator *regulator)
 {
+	struct regulator_voltages __unused voltages = { };
 	TEE_Result res = TEE_SUCCESS;
 	int min_uv = 0;
 	int max_uv = 0;
@@ -272,14 +282,14 @@ TEE_Result regulator_register(struct regulator *regulator)
 
 	/* Preset voltage list in case ops::supported_voltages is NULL */
 	if (regulator->min_uv == regulator->max_uv) {
-		regulator->voltages_fallback.desc.type = VOLTAGE_TYPE_FULL_LIST;
-		regulator->voltages_fallback.desc.num_levels = 1;
-		regulator->voltages_fallback.levels[0] = regulator->min_uv;
+		regulator->voltages_fallback.hdr.type = VOLTAGE_TYPE_FULL_LIST;
+		regulator->voltages_fallback.hdr.num_levels = 1;
+		regulator->voltages_fallback.entries[0] = regulator->min_uv;
 	} else {
-		regulator->voltages_fallback.desc.type = VOLTAGE_TYPE_INCREMENT;
-		regulator->voltages_fallback.levels[0] = regulator->min_uv;
-		regulator->voltages_fallback.levels[1] = regulator->max_uv;
-		regulator->voltages_fallback.levels[2] = 1;
+		regulator->voltages_fallback.hdr.type = VOLTAGE_TYPE_INCREMENT;
+		regulator->voltages_fallback.entries[0] = regulator->min_uv;
+		regulator->voltages_fallback.entries[1] = regulator->max_uv;
+		regulator->voltages_fallback.entries[2] = 1;
 	}
 
 	SLIST_INSERT_HEAD(&regulator_device_list, regulator, link);

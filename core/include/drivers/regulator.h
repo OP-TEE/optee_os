@@ -49,16 +49,16 @@ struct regu_dt_desc {
 };
 
 /*
- * Defines the format of struct voltages::entries
+ * Defines the format of struct regulator_voltages::entries
+ * and struct voltages_fallback::entries.
  *
- * If regulator_voltages::type is VOLTAGE_TYPE_FULL_LIST, then
- * regulator_voltages@entries stores regulator_voltages::num_levels cells,
+ * If regulator_voltages_desc::type is VOLTAGE_TYPE_FULL_LIST, then
+ * @entries cell stores regulator_voltages_desc::num_levels cells,
  * listing supported voltage levels in uV from lowest to highest value.
  *
- * If regulator_voltages::type is VOLTAGE_TYPE_INCREMENT, then
- * regulator_voltages::entries stores 3 cells: min level, max level and
- * level increment step, all in uV. When so, regulator_voltages::num_levels
- * is meaningless.
+ * If regulator_voltages_desc::type is VOLTAGE_TYPE_INCREMENT, then
+ * @entries stores 3 cells: min level, max level and level increment
+ * step, all in uV. When so, regulator_voltages::num_levels is meaningless.
  */
 enum voltage_type {
 	VOLTAGE_TYPE_INVALID = 0,
@@ -67,16 +67,33 @@ enum voltage_type {
 };
 
 /*
- * struct regulator_voltages - Voltage levels description
+ * struct regulator_voltages_hdr - Voltage levels description header
  * @type: Type of level description
- * @num_levels: Number of cells of @entries when @type is VOLTAGE_TYPE_FULL_LIST
- * @entries: Voltage level information in uV
- *
+ * @num_levels: Number levels described when @type is VOLTAGE_TYPE_FULL_LIST
  */
-struct regulator_voltages {
+struct regulator_voltages_hdr {
 	enum voltage_type type;
 	size_t num_levels;
+};
+
+/*
+ * struct regulator_voltages - Variable sized voltage levels description
+ * @hdr: Header of voltage levels description
+ * @entries: Voltage level information in uV
+ */
+struct regulator_voltages {
+	struct regulator_voltages_hdr hdr;
 	int entries[];
+};
+
+/*
+ * struct struct voltages_fallback - Default Voltage levels description
+ * @hdr: Header of fallback voltage levels description
+ * @entries: Voltage level information in uV
+ */
+struct voltages_fallback {
+	struct regulator_voltages_hdr hdr;
+	int entries[3];
 };
 
 /*
@@ -107,10 +124,7 @@ struct regulator {
 	unsigned int flags;
 	unsigned int refcount;
 	struct mutex lock;	/* Concurrent access protection */
-	struct voltages_fallback {
-		struct regulator_voltages desc;
-		int levels[3];
-	} voltages_fallback;
+	struct voltages_fallback voltages_fallback;
 	size_t levels_count_fallback;
 	SLIST_ENTRY(regulator) link;
 };

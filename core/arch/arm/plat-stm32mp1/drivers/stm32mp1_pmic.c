@@ -398,7 +398,7 @@ static int cmp_int_value(const void *a, const void *b)
 static size_t refine_levels_array(struct regulator_voltages *voltages)
 {
 	int *levels_uv = voltages->entries;
-	size_t count = voltages->num_levels;
+	size_t count = voltages->hdr.num_levels;
 	size_t n = 0;
 	size_t m = 0;
 
@@ -443,7 +443,7 @@ static TEE_Result pmic_list_voltages(struct regulator *regulator,
 		for (n = 0; n < level_count; n++)
 			voltages->entries[n] = level_ref[n] * 1000;
 
-		voltages->num_levels = level_count;
+		voltages->hdr.num_levels = level_count;
 		level_count = refine_levels_array(voltages);
 
 		voltages_s = realloc(voltages,
@@ -454,8 +454,8 @@ static TEE_Result pmic_list_voltages(struct regulator *regulator,
 			return TEE_ERROR_OUT_OF_MEMORY;
 		}
 
-		voltages_s->type = VOLTAGE_TYPE_FULL_LIST;
-		voltages_s->num_levels = level_count;
+		voltages_s->hdr.type = VOLTAGE_TYPE_FULL_LIST;
+		voltages_s->hdr.num_levels = level_count;
 		priv->voltages = voltages_s;
 	}
 
