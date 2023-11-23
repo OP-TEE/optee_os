@@ -14,6 +14,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
+/* Max number of recursive calls to print_clock_subtree() */
+#define CLK_PRINT_TREE_MAX_RECURSION	32
+
 /* Global clock tree lock */
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
 
@@ -391,6 +394,12 @@ static void print_clock_subtree(struct clk *clk_root __maybe_unused,
 {
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
 	struct clk *clk = NULL;
+
+	if (indent == CLK_PRINT_TREE_MAX_RECURSION) {
+		EMSG("Abort clk subtree loop, %d recursive calls reached",
+		     CLK_PRINT_TREE_MAX_RECURSION);
+		return;
+	}
 
 	STAILQ_FOREACH(clk, &clock_list, link) {
 		if (clk_get_parent(clk) == clk_root) {
