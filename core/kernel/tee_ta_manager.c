@@ -37,7 +37,7 @@
 
 #if defined(CFG_TA_STATS)
 #define MAX_DUMP_SESS_NUM	(16)
-struct tee_ta_dump_stats {
+struct pta_stats_ta {
 	TEE_UUID uuid;
 	uint32_t panicked;	/* True if TA has panicked */
 	uint32_t sess_num;	/* Number of opened session */
@@ -879,7 +879,7 @@ static void init_dump_ctx(struct tee_ta_dump_ctx *dump_ctx)
 }
 
 static TEE_Result dump_ta_stats(struct tee_ta_dump_ctx *dump_ctx,
-				struct tee_ta_dump_stats *dump_stats,
+				struct pta_stats_ta *dump_stats,
 				size_t ta_count)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -892,7 +892,7 @@ static TEE_Result dump_ta_stats(struct tee_ta_dump_ctx *dump_ctx,
 	nsec_sessions_list_head(&open_sessions);
 
 	for (i = 0; i < ta_count; i++) {
-		struct tee_ta_dump_stats *stats = &dump_stats[i];
+		struct pta_stats_ta *stats = &dump_stats[i];
 
 		memcpy(&stats->uuid, &dump_ctx[i].uuid,
 		       sizeof(dump_ctx[i].uuid));
@@ -932,7 +932,7 @@ static TEE_Result dump_ta_stats(struct tee_ta_dump_ctx *dump_ctx,
 TEE_Result tee_ta_instance_stats(void *buf, size_t *buf_size)
 {
 	TEE_Result res = TEE_SUCCESS;
-	struct tee_ta_dump_stats *dump_stats = NULL;
+	struct pta_stats_ta *dump_stats = NULL;
 	struct tee_ta_dump_ctx *dump_ctx = NULL;
 	struct tee_ta_ctx *ctx = NULL;
 	size_t sz = 0;
@@ -948,7 +948,7 @@ TEE_Result tee_ta_instance_stats(void *buf, size_t *buf_size)
 		if (is_user_ta_ctx(&ctx->ts_ctx))
 			ta_count++;
 
-	sz = sizeof(struct tee_ta_dump_stats) * ta_count;
+	sz = sizeof(struct pta_stats_ta) * ta_count;
 	if (!sz) {
 		/* sz = 0 means there is no UTA, return no item found. */
 		res = TEE_ERROR_ITEM_NOT_FOUND;
@@ -964,7 +964,7 @@ TEE_Result tee_ta_instance_stats(void *buf, size_t *buf_size)
 		DMSG("Data alignment");
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
-		dump_stats = (struct tee_ta_dump_stats *)buf;
+		dump_stats = (struct pta_stats_ta *)buf;
 		dump_ctx = malloc(sizeof(struct tee_ta_dump_ctx) * ta_count);
 		if (!dump_ctx)
 			res = TEE_ERROR_OUT_OF_MEMORY;
