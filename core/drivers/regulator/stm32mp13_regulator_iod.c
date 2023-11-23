@@ -173,10 +173,11 @@ static TEE_Result iod_set_voltage(struct regulator *regu, int level_uv)
 }
 
 static TEE_Result iod_list_voltages(struct regulator *regu,
-				    struct regulator_voltages **voltages)
+				    struct regulator_voltages_desc **desc,
+				    const int **levels)
 {
 	/* Return supply voltage list */
-	return regulator_supported_voltages(regu->supply, voltages);
+	return regulator_supported_voltages(regu->supply, desc, levels);
 }
 
 /*
