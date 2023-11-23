@@ -200,6 +200,11 @@ TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 			       unsigned long *rates, size_t *nb_elts);
 
 /* Print current clock tree summary on output console (info trace level) */
+#ifdef CFG_DRIVERS_CLK
 void clk_print_tree(void);
-
+#else
+static inline void clk_print_tree(void)
+{
+}
+#endif /* CFG_DRIVERS_CLK */
 #endif /* __DRIVERS_CLK_H */
