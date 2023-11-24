@@ -18,7 +18,7 @@
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
 
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
-static STAILQ_HEAD(, clk) clock_list = STAILQ_HEAD_INITIALIZER(clock_list);
+static SLIST_HEAD(, clk) clock_list = SLIST_HEAD_INITIALIZER(clock_list);
 #endif
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
@@ -109,7 +109,7 @@ TEE_Result clk_register(struct clk *clk)
 	clk_compute_rate_no_lock(clk);
 
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
-	STAILQ_INSERT_TAIL(&clock_list, clk, link);
+	SLIST_INSERT_HEAD(&clock_list, clk, link);
 #endif
 
 	DMSG("Registered clock %s, freq %lu", clk->name, clk_get_rate(clk));
@@ -392,7 +392,7 @@ static void print_clock_subtree(struct clk *clk_root __maybe_unused,
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
 	struct clk *clk = NULL;
 
-	STAILQ_FOREACH(clk, &clock_list, link) {
+	SLIST_FOREACH(clk, &clock_list, link) {
 		if (clk_get_parent(clk) == clk_root) {
 			print_clock(clk, indent + 1);
 			print_clock_subtree(clk, indent + 1);

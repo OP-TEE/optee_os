@@ -38,7 +38,7 @@ struct clk {
 	unsigned int flags;
 	struct refcount enabled_count;
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
-	STAILQ_ENTRY(clk) link;
+	SLIST_ENTRY(clk) link;
 #endif
 	size_t num_parents;
 	struct clk *parents[];
