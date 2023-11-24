@@ -148,6 +148,11 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 	void *gpio_ref = &gpio;
 	int len = 0;
 
+	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
+						  DT_DRIVER_GPIO, gpio_ref);
+	if (res)
+		return res;
+
 	/*
 	 * DT bindings allows more than 1 GPIO to control more than
 	 * 2 voltage levels. As it's not used so far in known platforms
@@ -160,11 +165,6 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 		EMSG("Multiple GPIOs not supported for level control");
 		return TEE_ERROR_GENERIC;
 	}
-
-	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
-						  DT_DRIVER_GPIO, gpio_ref);
-	if (res)
-		return res;
 
 	cuint = fdt_getprop(fdt, node, "states", &len);
 	if (!cuint || len != 4 * sizeof(fdt32_t)) {
