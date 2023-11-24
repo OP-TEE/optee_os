@@ -40,11 +40,12 @@ static struct itr_handler tzc_itr_handler = {
 };
 DECLARE_KEEP_PAGER(tzc_itr_handler);
 
-static bool tzc_region_is_non_secure(unsigned int i, vaddr_t base, size_t size)
+static bool tzc_region_is_non_secure(unsigned int i, uint64_t pa, size_t size)
 {
 	struct tzc_region_config region_cfg = { };
 	uint32_t ns_cpu_mask = TZC_REGION_ACCESS_RDWR(STM32MP1_TZC_A7_ID);
 	uint32_t filters_mask = TZC_FILTERS_MASK;
+	vaddr_t base = pa;
 
 	if (tzc_get_region_config(i, &region_cfg))
 		panic();
