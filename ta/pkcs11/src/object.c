@@ -352,6 +352,11 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&head);
+	if (rc)
+		goto out;
+
 	/*
 	 * Check target object attributes match target processing
 	 * Check target object attributes match token state
@@ -1064,6 +1069,11 @@ enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&obj->attributes);
+	if (rc)
+		goto out;
+
 	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
 		rc = update_persistent_object_attributes(obj);
 		if (rc)
@@ -1213,6 +1223,11 @@ enum pkcs11_rc entry_copy_object(struct pkcs11_client *client, uint32_t ptypes,
 	 * given by the callee
 	 */
 	rc = modify_attributes_list(&head_new, head);
+	if (rc)
+		goto out;
+
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&head_new);
 	if (rc)
 		goto out;
 

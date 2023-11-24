@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <inttypes.h>
 #include <mbedtls/asn1write.h>
 #include <mbedtls/ecp.h>
@@ -355,8 +356,12 @@ static const uint32_t pkcs11_certificate_boolprops[] = {
 };
 
 static const uint32_t pkcs11_certificate_optional[] = {
-	PKCS11_CKA_CERTIFICATE_CATEGORY, PKCS11_CKA_CHECK_VALUE,
-	PKCS11_CKA_START_DATE, PKCS11_CKA_END_DATE, PKCS11_CKA_PUBLIC_KEY_INFO,
+	PKCS11_CKA_CERTIFICATE_CATEGORY, PKCS11_CKA_START_DATE,
+	PKCS11_CKA_END_DATE, PKCS11_CKA_PUBLIC_KEY_INFO,
+#ifdef CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE
+	/* Consider KCV attribute only when supported */
+	PKCS11_CKA_CHECK_VALUE,
+#endif
 };
 
 /*
@@ -404,6 +409,10 @@ static const uint32_t symm_key_opt_or_null[] = {
 
 static const uint32_t symm_key_optional[] = {
 	PKCS11_CKA_VALUE_LEN,
+#ifdef CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE
+	/* Consider KCV attribute only when supported */
+	PKCS11_CKA_CHECK_VALUE,
+#endif
 };
 
 /* PKCS#11 specification for any asymmetric public key (+any_key_xxx) */
@@ -2173,6 +2182,7 @@ static bool attr_is_modifiable_secret_key(struct pkcs11_attribute_head *attr,
 	case PKCS11_CKA_VERIFY:
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
+	case PKCS11_CKA_CHECK_VALUE:
 		return true;
 	/* Can't be modified once set to CK_FALSE - 12 in Table 10 */
 	case PKCS11_CKA_EXTRACTABLE:
@@ -2478,7 +2488,11 @@ static enum pkcs11_rc set_secret_key_data(struct obj_attrs **head, void *data,
 	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
 		return PKCS11_CKR_GENERAL_ERROR;
 
-	return add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
+	rc = add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
+	if (rc)
+		return rc;
+
+	return set_check_value_attr(head);
 }
 
 static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
@@ -2826,4 +2840,198 @@ enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,
 		return set_attribute(priv_head, PKCS11_CKA_ID, id1, id1_size);
 	else
 		return set_attribute(pub_head, PKCS11_CKA_ID, id2, id2_size);
+}
+
+/*
+ * The key check value is derived from the object by taking the first
+ * three bytes of the SHA-1 hash of the object's CKA_VALUE attribute.
+ */
+static enum pkcs11_rc compute_check_value_with_sha1(void *key,
+						    uint32_t key_size,
+						    void *kcv)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_OperationHandle op = TEE_HANDLE_NULL;
+	size_t buf_size = TEE_MAX_HASH_SIZE;
+	uint8_t *buf = NULL;
+
+	assert(key && kcv);
+
+	res = TEE_AllocateOperation(&op, TEE_ALG_SHA1, TEE_MODE_DIGEST, 0);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	buf = TEE_Malloc(buf_size, TEE_MALLOC_FILL_ZERO);
+	if (!buf) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	res = TEE_DigestDoFinal(op, key, key_size, buf, &buf_size);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_MemMove(kcv, buf, PKCS11_CKA_CHECK_VALUE_SIZE);
+
+out:
+	TEE_Free(buf);
+	TEE_FreeOperation(op);
+
+	return rc;
+}
+
+/*
+ * The key check value that is calculated as follows:
+ * 1) Take a buffer of the cipher block size of binary zeros (0x00).
+ * 2) Encrypt this block in ECB mode.
+ * 3) Take the first three bytes of cipher text as the check value.
+ */
+static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
+						   void *kcv)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_OperationHandle op = TEE_HANDLE_NULL;
+	TEE_ObjectHandle hkey = TEE_HANDLE_NULL;
+	TEE_Attribute attr = { };
+	uint8_t *buf = NULL;
+	size_t buf_size = 0;
+
+	assert(key && kcv);
+
+	res = TEE_AllocateOperation(&op, TEE_ALG_AES_ECB_NOPAD,
+				    TEE_MODE_ENCRYPT, key_size * 8);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	res = TEE_AllocateTransientObject(TEE_TYPE_AES, key_size * 8, &hkey);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	attr.attributeID = TEE_ATTR_SECRET_VALUE;
+	attr.content.ref.buffer = key;
+	attr.content.ref.length = key_size;
+
+	res = TEE_PopulateTransientObject(hkey, &attr, 1);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	res = TEE_SetOperationKey(op, hkey);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_CipherInit(op, NULL, 0);
+
+	buf_size = key_size;
+	buf = TEE_Malloc(buf_size, TEE_MALLOC_FILL_ZERO);
+	if (!buf) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	res = TEE_CipherDoFinal(op, buf, buf_size, buf, &buf_size);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_MemMove(kcv, buf, PKCS11_CKA_CHECK_VALUE_SIZE);
+
+out:
+	TEE_Free(buf);
+	TEE_FreeTransientObject(hkey);
+	TEE_FreeOperation(op);
+
+	return rc;
+}
+
+enum pkcs11_rc set_check_value_attr(struct obj_attrs **head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t val_len = 0;
+	uint32_t kcv2_len = 0;
+	void *val = NULL;
+	uint8_t kcv[PKCS11_CKA_CHECK_VALUE_SIZE] = { };
+	void *kcv2 = NULL;
+
+	assert(head && *head);
+
+	if (!IS_ENABLED(CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE))
+		return PKCS11_CKR_OK;
+
+	switch (get_class(*head)) {
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_CERTIFICATE:
+		break;
+	default:
+		return PKCS11_CKR_ARGUMENTS_BAD;
+	}
+
+	/* Check whether CKA_CHECK_VALUE has been provided in the template */
+	rc = get_attribute_ptr(*head, PKCS11_CKA_CHECK_VALUE, &kcv2, &kcv2_len);
+
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	/*
+	 * The generation of the KCV may be prevented by the application
+	 * supplying the attribute in the template as a no-value (0 length)
+	 * entry.
+	 */
+	if (rc == PKCS11_CKR_OK && !kcv2_len)
+		return PKCS11_CKR_OK;
+
+	if (rc == PKCS11_CKR_OK && kcv2_len != PKCS11_CKA_CHECK_VALUE_SIZE)
+		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+
+	/* Get key CKA_VALUE */
+	rc = get_attribute_ptr(*head, PKCS11_CKA_VALUE, &val, &val_len);
+	if (rc)
+		return rc;
+
+	if (get_class(*head) == PKCS11_CKO_SECRET_KEY) {
+		switch (get_key_type(*head)) {
+		case PKCS11_CKK_AES:
+			rc = compute_check_value_with_ecb(val, val_len, kcv);
+			break;
+		case PKCS11_CKK_GENERIC_SECRET:
+		case PKCS11_CKK_MD5_HMAC:
+		case PKCS11_CKK_SHA_1_HMAC:
+		case PKCS11_CKK_SHA256_HMAC:
+		case PKCS11_CKK_SHA384_HMAC:
+		case PKCS11_CKK_SHA512_HMAC:
+		case PKCS11_CKK_SHA224_HMAC:
+			rc = compute_check_value_with_sha1(val, val_len, kcv);
+			break;
+		default:
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			break;
+		}
+	} else {
+		rc = compute_check_value_with_sha1(val, val_len, kcv);
+	}
+
+	if (rc)
+		return rc;
+
+	/*
+	 * If the computed KCV does not match the provided one
+	 * then return CKR_ATTRIBUTE_VALUE_INVALID
+	 */
+	if (kcv2_len) {
+		/* Provided KCV value shall match the computed one */
+		if (TEE_MemCompare(kcv2, kcv, PKCS11_CKA_CHECK_VALUE_SIZE))
+			rc = PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+	} else {
+		rc = add_attribute(head, PKCS11_CKA_CHECK_VALUE, kcv,
+				   PKCS11_CKA_CHECK_VALUE_SIZE);
+	}
+
+	return rc;
 }
