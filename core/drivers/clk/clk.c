@@ -49,7 +49,7 @@ void clk_free(struct clk *clk)
 
 static bool __maybe_unused clk_check(struct clk *clk)
 {
-	if (!clk->ops)
+	if (!clk || !clk->ops)
 		return false;
 
 	if (clk->ops->set_parent && !clk->ops->get_parent)
