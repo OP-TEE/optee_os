@@ -339,7 +339,43 @@ static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
 	return cur + ret;
 }
 
-static void __maybe_unused print_clock(struct clk *clk, int indent)
+static struct clk *find_next_clk(struct clk *parent __maybe_unused,
+				 struct clk *sibling __maybe_unused)
+{
+	struct clk *clk = NULL;
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	if (sibling)
+		clk = SLIST_NEXT(sibling, link);
+	else
+		clk = SLIST_FIRST(&clock_list);
+
+	while (clk && clk->parent != parent)
+		clk = SLIST_NEXT(clk, link);
+#endif
+
+	return clk;
+}
+
+static bool clk_is_parent_last_child(struct clk *clk)
+{
+	return !find_next_clk(clk->parent, clk);
+}
+
+static bool indent_last_node_already_found(struct clk *node_clk,
+					   int node_indent, int cur_indent)
+{
+	struct clk *clk = node_clk;
+	int n = 0;
+
+	/* Find parent clock at level @node_indent - @cur_indent - 1 */
+	for (n = 0; n < node_indent - cur_indent - 1; n++)
+		clk = clk->parent;
+
+	return clk_is_parent_last_child(clk);
+}
+
+static void __maybe_unused print_clk(struct clk *clk, int indent)
 {
 	static const char * const rate_unit[] = { "Hz", "kHz", "MHz", "GHz" };
 	int max_unit = ARRAY_SIZE(rate_unit);
@@ -356,16 +392,33 @@ static void __maybe_unused print_clock(struct clk *clk, int indent)
 	 */
 
 	if (indent) {
+		/* Indent for root clock level */
+		msg = add_msg(msg, msg_end, "   ");
+		if (!msg)
+			goto out;
+
+		/* Indent for root parent to clock parent levels */
 		for (n = 0; n < indent - 1; n++) {
-			msg = add_msg(msg, msg_end, "|   ");
+			if (indent_last_node_already_found(clk, indent, n))
+				msg = add_msg(msg, msg_end, "    ");
+			else
+				msg = add_msg(msg, msg_end, "|   ");
+
 			if (!msg)
 				goto out;
 		}
 
-		msg = add_msg(msg, msg_end, "+-- ");
-		if (!msg)
-			goto out;
+		/* Clock indentation */
+		if (clk_is_parent_last_child(clk))
+			msg = add_msg(msg, msg_end, "`-- ");
+		else
+			msg = add_msg(msg, msg_end, "|-- ");
+	} else {
+		/* Root clock indentation */
+		msg = add_msg(msg, msg_end, "o- ");
 	}
+	if (!msg)
+		goto out;
 
 	rate = clk_get_rate(clk);
 	for (n = 1; rate && !(rate % 1000) && n < max_unit; n++)
@@ -386,21 +439,44 @@ out:
 	IMSG("%s", msg_buf);
 }
 
-static void print_clock_subtree(struct clk *clk_root __maybe_unused,
-				int indent __maybe_unused)
+static void print_tree(void)
 {
-#ifdef CFG_DRIVERS_CLK_PRINT_TREE
 	struct clk *clk = NULL;
+	struct clk *parent = NULL;
+	struct clk *next = NULL;
+	int indent = -1;
 
-	SLIST_FOREACH(clk, &clock_list, link) {
-		if (clk_get_parent(clk) == clk_root) {
-			print_clock(clk, indent + 1);
-			print_clock_subtree(clk, indent + 1);
-			if (indent == -1)
-				IMSG("%s", "");
-		}
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	if (SLIST_EMPTY(&clock_list)) {
+		IMSG("-- No registered clock");
+		return;
 	}
 #endif
+
+	while (true) {
+		next = find_next_clk(parent, clk);
+		if (next) {
+			print_clk(next, indent + 1);
+			/* Enter the subtree of the next clock */
+			parent = next;
+			indent++;
+			clk = NULL;
+		} else {
+			/*
+			 * We've processed all children at this level.
+			 * If parent is NULL we're at the top and are done.
+			 */
+			if (!parent)
+				break;
+			/*
+			 * Move up one level to resume with the next
+			 * child clock of the parent.
+			 */
+			clk = parent;
+			parent = clk->parent;
+			indent--;
+		}
+	}
 }
 
 void clk_print_tree(void)
@@ -409,9 +485,8 @@ void clk_print_tree(void)
 		uint32_t exceptions = 0;
 
 		exceptions = cpu_spin_lock_xsave(&clk_lock);
-		IMSG("Clock tree summary");
-		IMSG("%s", "");
-		print_clock_subtree(NULL, -1);
+		IMSG("Clock tree summary:");
+		print_tree();
 		cpu_spin_unlock_xrestore(&clk_lock, exceptions);
 	}
 }
