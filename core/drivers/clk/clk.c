@@ -482,11 +482,7 @@ static void print_tree(void)
 void clk_print_tree(void)
 {
 	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE)) {
-		uint32_t exceptions = 0;
-
-		exceptions = cpu_spin_lock_xsave(&clk_lock);
-		IMSG("Clock tree summary:");
+		IMSG("Clock tree summary (informative):");
 		print_tree();
-		cpu_spin_unlock_xrestore(&clk_lock, exceptions);
 	}
 }
