@@ -18,6 +18,7 @@ struct tee_pobj {
 	void *obj_id;
 	uint32_t obj_id_len;
 	uint32_t flags;
+	uint32_t obj_info_usage;
 	bool temporary;	/* can be changed while creating == true */
 	bool creating;	/* can only be changed with mutex held */
 	/* Filesystem handling this object */
@@ -42,5 +43,12 @@ TEE_Result tee_pobj_release(struct tee_pobj *obj);
 
 TEE_Result tee_pobj_rename(struct tee_pobj *obj, void *obj_id,
 			   uint32_t obj_id_len);
+
+/*
+ * Locks and unlocks a mutex intended to protect the obj_info_usage field
+ * in struct tee_pobj.
+ */
+void tee_pobj_lock_usage(struct tee_pobj *obj);
+void tee_pobj_unlock_usage(struct tee_pobj *obj);
 
 #endif
