@@ -436,7 +436,7 @@ out:
 	if (!msg)
 		snprintf(msg_end - 4, 4, "...");
 
-	IMSG("%s", msg_buf);
+	DMSG("%s", msg_buf);
 }
 
 static void print_tree(void)
@@ -448,7 +448,7 @@ static void print_tree(void)
 
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
 	if (SLIST_EMPTY(&clock_list)) {
-		IMSG("-- No registered clock");
+		DMSG("-- No registered clock");
 		return;
 	}
 #endif
@@ -481,8 +481,9 @@ static void print_tree(void)
 
 void clk_print_tree(void)
 {
-	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE)) {
-		IMSG("Clock tree summary (informative):");
+	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE) &&
+	    TRACE_LEVEL >= TRACE_DEBUG) {
+		DMSG("Clock tree summary (informative):");
 		print_tree();
 	}
 }
