@@ -18,6 +18,8 @@ CFG_TZDRAM_START ?= 0xb0000000
 CFG_TZDRAM_SIZE ?= 0x1000000
 
 CFG_CORE_RESERVED_SHM ?= n
+
+arm32-platform-cflags += -mfpu=vfpv3-d16
 else ifeq ($(PLATFORM_FLAVOR),ast2700)
 include core/arch/arm/cpu/cortex-armv8-0.mk
 
