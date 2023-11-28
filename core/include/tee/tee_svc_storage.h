@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
+ * Copyright (c) 2023, Linaro Limited
  */
 
 #ifndef __TEE_TEE_SVC_STORAGE_H
 #define __TEE_TEE_SVC_STORAGE_H
 
-#include <tee_api_types.h>
 #include <kernel/tee_ta_manager.h>
+#include <tee_api_types.h>
 #include <tee/tee_fs.h>
+#include <tee/tee_obj.h>
 
 /*
  * Persistant Object Functions
@@ -58,6 +60,7 @@ TEE_Result syscall_storage_obj_seek(unsigned long obj, int32_t offset,
 				    unsigned long whence);
 
 void tee_svc_storage_close_all_enum(struct user_ta_ctx *utc);
+TEE_Result tee_svc_storage_write_usage(struct tee_obj *o, uint32_t usage);
 
 void tee_svc_storage_init(void);
 

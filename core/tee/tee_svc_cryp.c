@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020, 2022 Linaro Limited
+ * Copyright (c) 2020, 2022-2023 Linaro Limited
  * Copyright (c) 2022, Technology Innovation Institute (TII)
  */
 
@@ -22,7 +22,9 @@
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_obj.h>
+#include <tee/tee_pobj.h>
 #include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc_storage.h>
 #include <tee/tee_svc.h>
 #include <trace.h>
 #include <utee_defines.h>
@@ -1184,7 +1186,13 @@ TEE_Result syscall_cryp_obj_get_info(unsigned long obj,
 	o_info.obj_type = o->info.objectType;
 	o_info.obj_size = o->info.objectSize;
 	o_info.max_obj_size = o->info.maxObjectSize;
-	o_info.obj_usage = o->info.objectUsage;
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		tee_pobj_lock_usage(o->pobj);
+		o_info.obj_usage = o->pobj->obj_info_usage;
+		tee_pobj_unlock_usage(o->pobj);
+	} else {
+		o_info.obj_usage = o->info.objectUsage;
+	}
 	o_info.data_size = o->info.dataSize;
 	o_info.data_pos = o->info.dataPosition;
 	o_info.handle_flags = o->info.handleFlags;
@@ -1202,12 +1210,22 @@ TEE_Result syscall_cryp_obj_restrict_usage(unsigned long obj,
 	struct tee_obj *o = NULL;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
-	if (res != TEE_SUCCESS)
-		goto exit;
+	if (res)
+		return res;
 
-	o->info.objectUsage &= usage;
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		uint32_t new_usage = 0;
 
-exit:
+		tee_pobj_lock_usage(o->pobj);
+		new_usage = o->pobj->obj_info_usage & usage;
+		res = tee_svc_storage_write_usage(o, new_usage);
+		if (!res)
+			o->pobj->obj_info_usage = new_usage;
+		tee_pobj_unlock_usage(o->pobj);
+	} else {
+		o->info.objectUsage &= usage;
+	}
+
 	return res;
 }
 
@@ -1271,6 +1289,7 @@ TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 	int idx = 0;
 	const struct attr_ops *ops = NULL;
 	void *attr = NULL;
+	uint32_t obj_usage = 0;
 
 	res = tee_obj_get(to_user_ta_ctx(sess->ctx), uref_to_vaddr(obj), &o);
 	if (res != TEE_SUCCESS)
@@ -1281,9 +1300,17 @@ TEE_Result syscall_cryp_obj_get_attr(unsigned long obj, unsigned long attr_id,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Check that getting the attribute is allowed */
-	if (!(attr_id & TEE_ATTR_FLAG_PUBLIC) &&
-	    !(o->info.objectUsage & TEE_USAGE_EXTRACTABLE))
-		return TEE_ERROR_BAD_PARAMETERS;
+	if (!(attr_id & TEE_ATTR_FLAG_PUBLIC)) {
+		if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+			tee_pobj_lock_usage(o->pobj);
+			obj_usage = o->pobj->obj_info_usage;
+			tee_pobj_unlock_usage(o->pobj);
+		} else {
+			obj_usage = o->info.objectUsage;
+		}
+		if (!(obj_usage & TEE_USAGE_EXTRACTABLE))
+			return TEE_ERROR_BAD_PARAMETERS;
+	}
 
 	type_props = tee_svc_find_type_props(o->info.objectType);
 	if (!type_props) {
@@ -1619,7 +1646,10 @@ TEE_Result tee_obj_set_type(struct tee_obj *o, uint32_t obj_type,
 
 	o->info.objectType = obj_type;
 	o->info.maxObjectSize = max_key_size;
-	o->info.objectUsage = TEE_USAGE_DEFAULT;
+	if (o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT)
+		o->pobj->obj_info_usage = TEE_USAGE_DEFAULT;
+	else
+		o->info.objectUsage = TEE_USAGE_DEFAULT;
 
 	return TEE_SUCCESS;
 }
@@ -2040,7 +2070,13 @@ TEE_Result syscall_cryp_obj_copy(unsigned long dst, unsigned long src)
 
 	dst_o->info.handleFlags |= TEE_HANDLE_FLAG_INITIALIZED;
 	dst_o->info.objectSize = src_o->info.objectSize;
-	dst_o->info.objectUsage = src_o->info.objectUsage;
+	if (src_o->info.handleFlags & TEE_HANDLE_FLAG_PERSISTENT) {
+		tee_pobj_lock_usage(src_o->pobj);
+		dst_o->info.objectUsage = src_o->pobj->obj_info_usage;
+		tee_pobj_unlock_usage(src_o->pobj);
+	} else {
+		dst_o->info.objectUsage = src_o->info.objectUsage;
+	}
 	return TEE_SUCCESS;
 }
 
