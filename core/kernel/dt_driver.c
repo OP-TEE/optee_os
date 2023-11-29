@@ -383,20 +383,44 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
 				return TEE_ERROR_GENERIC;
 
 			prv = dt_driver_get_provider_by_node(nodeoffset, type);
-			if (!prv)
-				return TEE_ERROR_DEFER_DRIVER_INIT;
 		} else {
 			prv = dt_driver_get_provider_by_phandle(phandle, type);
-			if (!prv)
-				return TEE_ERROR_DEFER_DRIVER_INIT;
 		}
 
-		prv_cells = dt_driver_provider_cells(prv);
+		if (prv) {
+			prv_cells = dt_driver_provider_cells(prv);
+		} else if (prop_idx) {
+			/*
+			 * When we need to skip another provider phandle
+			 * arguments cells (aka when prop_idx != 0), we don't
+			 * really need the skipped provider to be already
+			 * registered, we can look straight in its DT node.
+			 */
+			phandle_node = fdt_node_offset_by_phandle(fdt, phandle);
+			if (phandle_node < 0) {
+				DMSG("Can't find node for phandle %"PRIu32,
+				     phandle);
+				return TEE_ERROR_GENERIC;
+			}
+
+			prv_cells = fdt_get_dt_driver_cells(fdt, phandle_node,
+							    type);
+			if (prv_cells < 0) {
+				DMSG("Can't find cells count on node %s: %d",
+				     fdt_get_name(fdt, phandle_node, NULL),
+				     prv_cells);
+				return TEE_ERROR_GENERIC;
+			}
+		}
+
 		if (prop_idx) {
 			prop_idx--;
 			idx += sizeof(phandle) + prv_cells * sizeof(uint32_t);
 			continue;
 		}
+
+		if (!prv)
+			return TEE_ERROR_DEFER_DRIVER_INIT;
 
 		/* Skip property cell with the phandle, already handled */
 		idx32++;
