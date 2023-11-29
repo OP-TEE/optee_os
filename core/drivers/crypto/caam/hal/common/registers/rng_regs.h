@@ -115,5 +115,7 @@
 #define RNG_STA_SKVN		BIT32(30)
 #define RNG_STA_IF1			BIT32(1)
 #define RNG_STA_IF0			BIT32(0)
+#define RNG_STA_PR0			BIT32(4)
+#define RNG_STA_PR1			BIT32(5)
 
 #endif /* __RNG_REGS_H__ */
