@@ -62,6 +62,16 @@ bool caam_hal_rng_key_loaded(vaddr_t baseaddr)
 	return io_caam_read32(baseaddr + RNG_STA) & RNG_STA_SKVN;
 }
 
+bool caam_hal_rng_pr_enabled(vaddr_t baseaddr)
+{
+	uint32_t bitmask = RNG_STA_PR0;
+
+	if (caam_hal_rng_get_nb_sh(baseaddr) > 1)
+		bitmask |= RNG_STA_PR1;
+
+	return (io_caam_read32(baseaddr + RNG_STA) & bitmask) == bitmask;
+}
+
 enum caam_status caam_hal_rng_kick(vaddr_t baseaddr, uint32_t inc_delay)
 {
 	uint32_t val = 0;
