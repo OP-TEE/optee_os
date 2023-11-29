@@ -125,6 +125,12 @@ struct mobj *msg_param_mobj_from_noncontig(paddr_t buf_ptr, size_t size,
 	page_offset = buf_ptr & SMALL_PAGE_MASK;
 	if (ADD_OVERFLOW(size, page_offset, &size_plus_offs))
 		return NULL;
+
+	if (!size_plus_offs) {
+		EMSG("Cannot allocate null-sized shared memory");
+		return NULL;
+	}
+
 	num_pages = (size_plus_offs - 1) / SMALL_PAGE_SIZE + 1;
 	if (MUL_OVERFLOW(num_pages, sizeof(paddr_t), &msize))
 		return NULL;
