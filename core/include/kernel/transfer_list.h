@@ -6,7 +6,7 @@
 #ifndef __KERNEL_TRANSFER_LIST_H
 #define __KERNEL_TRANSFER_LIST_H
 
-#define TRANSFER_LIST_SIGNATURE		U(0x006ed0ff)
+#define TRANSFER_LIST_SIGNATURE		U(0x4a0fb10b)
 #define TRANSFER_LIST_VERSION		U(0x0001)
 
 /*
@@ -23,6 +23,8 @@
  * Set to 1 for both AArch64 and AArch32 according to fw handoff spec v0.9
  */
 #define REG_CONVENTION_VER_MASK BIT(24)
+
+#define TL_FLAGS_HAS_CHECKSUM BIT(0)
 
 /* Transfer list operation codes */
 #define TL_OPS_NONE	U(0) /* invalid for any operation */
@@ -54,6 +56,7 @@ struct transfer_list_header {
 	uint8_t alignment;	/* max alignment of transfer entry data */
 	uint32_t size;		/* TL header + all transfer entries */
 	uint32_t max_size;
+	uint32_t flags;
 	/*
 	 * Commented out element used to visualize dynamic part of the
 	 * data structure.
