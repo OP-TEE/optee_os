@@ -750,12 +750,22 @@
 					reg = <0x0 0x4>;
 					bits = <0 7>;
 				};
+
+				sfc_dr0: cell@20 {
+					reg = <0x20 0x4>;
+				};
 			};
 
 			die_id: die_id {
 				compatible = "optee,nvmem-die-id";
 				nvmem-cells = <&sfc_kr>;
 				nvmem-cell-names = "die_id";
+			};
+
+			huk: huk {
+				compatible = "optee,nvmem-huk";
+				nvmem-cells = <&sfc_dr0>;
+				nvmem-cell-names = "hw_unique_key";
 			};
 
 			i2s0: i2s@f8050000 {
