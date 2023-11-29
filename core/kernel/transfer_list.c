@@ -101,6 +101,7 @@ void transfer_list_dump(struct transfer_list_header *tl)
 	DMSG("alignment  %#"PRIx8, tl->alignment);
 	DMSG("size       %#"PRIx32, tl->size);
 	DMSG("max_size   %#"PRIx32, tl->max_size);
+	DMSG("flags      %#"PRIx32, tl->flags);
 	while (true) {
 		tl_e = transfer_list_next(tl, tl_e);
 		if (!tl_e)
@@ -145,6 +146,7 @@ struct transfer_list_header *transfer_list_init(paddr_t pa, size_t max_size)
 	tl->alignment = TRANSFER_LIST_INIT_MAX_ALIGN; /* initial max align */
 	tl->size = sizeof(*tl); /* initial size is the size of header */
 	tl->max_size = max_size;
+	tl->flags = TL_FLAGS_HAS_CHECKSUM;
 
 	transfer_list_update_checksum(tl);
 
@@ -298,9 +300,6 @@ static uint8_t calc_byte_sum(const struct transfer_list_header *tl)
 	uint8_t cs = 0;
 	size_t n = 0;
 
-	if (!tl)
-		return 0;
-
 	for (n = 0; n < tl->size; n++)
 		cs += b[n];
 
@@ -316,7 +315,7 @@ void transfer_list_update_checksum(struct transfer_list_header *tl)
 {
 	uint8_t cs = 0;
 
-	if (!tl)
+	if (!tl || !(tl->flags & TL_FLAGS_HAS_CHECKSUM))
 		return;
 
 	cs = calc_byte_sum(tl);
@@ -333,6 +332,12 @@ void transfer_list_update_checksum(struct transfer_list_header *tl)
  ******************************************************************************/
 bool transfer_list_verify_checksum(const struct transfer_list_header *tl)
 {
+	if (!tl)
+		return false;
+
+	if (!(tl->flags & TL_FLAGS_HAS_CHECKSUM))
+		return true;
+
 	return !calc_byte_sum(tl);
 }
 
