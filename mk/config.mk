@@ -499,6 +499,9 @@ endif
 
 # This option enables OP-TEE to support boot arguments handover via Transfer
 # List defined in Firmware Handoff specification.
+# Note: This is an experimental feature and incompatible ABI changes can be
+# expected. It should be off by default until Firmware Handoff specification
+# has a stable release.
 # This feature requires the support of Device Tree.
 CFG_TRANSFER_LIST ?= n
 ifeq ($(CFG_TRANSFER_LIST),y)
