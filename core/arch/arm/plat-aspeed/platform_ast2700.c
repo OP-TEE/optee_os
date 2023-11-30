@@ -13,6 +13,7 @@
 
 register_phys_mem(MEM_AREA_IO_SEC, UART_BASE, SMALL_PAGE_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
+register_phys_mem(MEM_AREA_IO_SEC, GICR_BASE, GICR_SIZE);
 
 register_ddr(CFG_DRAM_BASE, CFG_DRAM_SIZE);
 
@@ -20,7 +21,7 @@ static struct serial8250_uart_data console_data;
 
 void boot_primary_init_intc(void)
 {
-	gic_init(0, GICD_BASE);
+	gic_init_v3(0, GICD_BASE, GICR_BASE);
 }
 
 void boot_secondary_init_intc(void)
