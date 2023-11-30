@@ -161,6 +161,12 @@ static vaddr_t __maybe_unused get_gicr_base(struct gic_data *gd __maybe_unused)
 #endif
 }
 
+static bool affinity_routing_is_enabled(struct gic_data *gd)
+{
+	return IS_ENABLED(CFG_ARM_GICV3) &&
+	       io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S;
+}
+
 static size_t probe_max_it(vaddr_t gicc_base __maybe_unused, vaddr_t gicd_base)
 {
 	int i;
@@ -212,8 +218,12 @@ static void gicv3_sync_sgi_config(struct gic_data *gd)
 	uint32_t grp0 = 0;
 	size_t n = 0;
 
+	/*
+	 * If gicr_base isn't available there's no need to synchronize SGI
+	 * configuration since gic_init_donate_sgi_to_ns() would panic.
+	 */
 	if (!gicr_base)
-		panic("GICR_BASE missing for affinity routing");
+		return;
 
 	grp0 = io_read32(gicr_base + GICR_IGROUPR0);
 	gmod0 = io_read32(gicr_base + GICR_IGRPMODR0);
@@ -319,8 +329,7 @@ void gic_init_per_cpu(void)
 		 * GIC is already initialized by TF-A, we only need to
 		 * handle eventual SGI configuration changes.
 		 */
-		if (IS_ENABLED(CFG_ARM_GICV3) &&
-		    io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S)
+		if (affinity_routing_is_enabled(gd))
 			gicv3_sync_sgi_config(gd);
 		else
 			gic_legacy_sync_sgi_config(gd);
@@ -360,9 +369,11 @@ void gic_init_donate_sgi_to_ns(size_t it)
 	gd->per_cpu_group_modifier &= ~BIT32(it);
 	gd->per_cpu_group_status |= BIT32(it);
 
-	if (IS_ENABLED(CFG_ARM_GICV3) &&
-	    (io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S)) {
+	if (affinity_routing_is_enabled(gd)) {
 		vaddr_t gicr_base = get_gicr_base(gd);
+
+		if (!gicr_base)
+			panic("GICR_BASE missing");
 
 		/* Disable interrupt */
 		io_write32(gicr_base + GICR_ICENABLER0, BIT32(it));
@@ -491,7 +502,8 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	gd->gicd_base = gicd_base;
 	gd->max_it = probe_max_it(gicc_base, gicd_base);
 #if defined(CFG_ARM_GICV3)
-	probe_redist_base_addrs(gd->gicr_base, gicr_base_pa);
+	if (affinity_routing_is_enabled(gd) && gicr_base_pa)
+		probe_redist_base_addrs(gd->gicr_base, gicr_base_pa);
 #endif
 	gd->chip.ops = &gic_ops;
 
@@ -509,15 +521,21 @@ void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* GIC configuration is initialized from TF-A when embedded */
-	if (io_read32(gd->gicd_base + GICD_CTLR) & GICD_CTLR_ARE_S) {
+	if (affinity_routing_is_enabled(gd)) {
+		/* Secure affinity routing enabled */
 		vaddr_t gicr_base = get_gicr_base(gd);
 
-		if (!gicr_base)
-			panic("GICR_BASE missing for affinity routing");
-		/* Secure affinity routing enabled */
-		gd->per_cpu_group_status = io_read32(gicr_base + GICR_IGROUPR0);
-		gd->per_cpu_group_modifier = io_read32(gicr_base +
-						       GICR_IGRPMODR0);
+		if (gicr_base) {
+			gd->per_cpu_group_status = io_read32(gicr_base +
+							     GICR_IGROUPR0);
+			gd->per_cpu_group_modifier = io_read32(gicr_base +
+							       GICR_IGRPMODR0);
+		} else {
+			IMSG("GIC redistributor base address not provided");
+			IMSG("Assuming default GIC group status and modifier");
+			gd->per_cpu_group_status = 0xffff00ff;
+			gd->per_cpu_group_modifier = ~gd->per_cpu_group_status;
+		}
 	} else {
 		/* Legacy operation with secure affinity routing disabled */
 		gd->per_cpu_group_status = io_read32(gd->gicd_base +
