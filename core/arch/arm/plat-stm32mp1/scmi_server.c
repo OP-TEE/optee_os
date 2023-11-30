@@ -637,7 +637,6 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 	if (voltd->regulator) {
 		struct regulator_voltages_desc *desc = NULL;
 		TEE_Result res = TEE_ERROR_GENERIC;
-		size_t ref_count = 0;
 		const int *levels = NULL;
 		size_t n = 0;
 
@@ -655,30 +654,15 @@ int32_t plat_scmi_voltd_levels_array(unsigned int channel_id,
 			return SCMI_NOT_SUPPORTED;
 		}
 
-		ref_count = desc->num_levels;
-
-		/* Bound according to regulator registered min/max levels */
-		for (n = ref_count; n > 0; n--)
-			if (levels[n - 1] > voltd->regulator->max_uv)
-				ref_count--;
-		for (n = 0; n < ref_count; n++)
-			if (levels[n] >= voltd->regulator->min_uv)
-				break;
-
-		if (n == ref_count) {
-			DMSG("Voltage list out of regulator %s level bounds",
-			     regulator_name(voltd->regulator));
-			return SCMI_GENERIC_ERROR;
-		}
-
-		if (start_index >= ref_count)
+		if (start_index >= desc->num_levels)
 			return SCMI_OUT_OF_RANGE;
 
 		if (!*nb_elts) {
-			*nb_elts = ref_count - start_index;
+			*nb_elts = desc->num_levels - start_index;
 			return SCMI_SUCCESS;
 		}
 
+		*nb_elts = MIN(*nb_elts, desc->num_levels - start_index);
 		for (n = 0; n < *nb_elts; n++)
 			out_levels[n] = levels[start_index + n];
 
@@ -700,9 +684,6 @@ int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
 		struct regulator_voltages_desc *desc = NULL;
 		TEE_Result res = TEE_ERROR_GENERIC;
 		const int *levels = NULL;
-		int ref_min = 0;
-		int ref_max = 0;
-		int ref_step = 0;
 
 		res = regulator_supported_voltages(voltd->regulator, &desc,
 						   &levels);
@@ -718,27 +699,9 @@ int32_t plat_scmi_voltd_levels_by_step(unsigned int channel_id,
 			return SCMI_NOT_SUPPORTED;
 		}
 
-		ref_min = levels[0];
-		ref_max = levels[1];
-		ref_step = levels[2];
-
-		if (ref_min < voltd->regulator->min_uv) {
-			int diff = voltd->regulator->min_uv - ref_min;
-			int incr = DIV_ROUND_UP(diff, ref_step);
-
-			ref_min += ref_step * incr;
-		}
-
-		if (ref_max > voltd->regulator->max_uv) {
-			int diff = ref_max - voltd->regulator->max_uv;
-			int decr = diff / ref_step;
-
-			ref_max -= ref_step * decr;
-		}
-
-		min_max_step[0] = ref_min;
-		min_max_step[1] = ref_max;
-		min_max_step[2] = ref_step;
+		min_max_step[0] = levels[0];
+		min_max_step[1] = levels[1];
+		min_max_step[2] = levels[2];
 
 		return SCMI_SUCCESS;
 	}
