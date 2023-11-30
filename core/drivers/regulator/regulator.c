@@ -223,14 +223,19 @@ TEE_Result regulator_supported_voltages(struct regulator *regulator,
 
 		res = regulator->ops->supported_voltages(regulator, desc,
 							 levels);
-		if (res == TEE_SUCCESS)
-			return TEE_SUCCESS;
 		if (res != TEE_ERROR_NOT_SUPPORTED)
 			return res;
+	} else {
+		*desc = &regulator->voltages_fallback.desc;
+		*levels = regulator->voltages_fallback.levels;
 	}
 
-	*desc = &regulator->voltages_fallback.desc;
-	*levels = regulator->voltages_fallback.levels;
+	assert(((*desc)->type == VOLTAGE_TYPE_FULL_LIST &&
+		(*levels)[0] >= regulator->min_uv && (*desc)->num_levels &&
+		(*levels)[(*desc)->num_levels - 1] <= regulator->max_uv) ||
+	       ((*desc)->type == VOLTAGE_TYPE_INCREMENT &&
+		(*levels)[0] >= regulator->min_uv &&
+		(*levels)[1] <= regulator->max_uv));
 
 	return TEE_SUCCESS;
 }
