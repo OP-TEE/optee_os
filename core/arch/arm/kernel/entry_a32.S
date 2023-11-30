@@ -880,7 +880,7 @@ UNWIND(	.cantunwind)
 	bl	boot_core_hpen
 	ldm	r0, {r0, r6}
 #else
-	mov	r0, r5		/* ns-entry address */
+	mov	r0, r8		/* ns-entry address */
 	mov	r6, #0
 #endif
 	bl	boot_init_secondary
