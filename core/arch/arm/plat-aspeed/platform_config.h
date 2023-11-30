@@ -26,6 +26,7 @@
 #elif defined(PLATFORM_FLAVOR_ast2700)
 #define GICD_BASE		0x12200000
 #define GICR_BASE		0x12280000
+#define GICR_SIZE		0x100000
 
 #define UART_BASE		0x14c33000
 #define UART12_BASE		(UART_BASE + 0xb00)
