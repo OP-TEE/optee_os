@@ -214,36 +214,41 @@ static TEE_Result vrefbuf_list_voltages(struct regulator *regulator __unused,
 	struct vrefbuf_regul *vr = regulator_to_vr(regulator);
 	const int *levels_ref = vr->compat->voltages;
 
-	if (!vr->voltages_desc.type) {
-		size_t num_levels = ARRAY_SIZE(vr->compat->voltages);
-		unsigned int index_high = num_levels - 1;
-		unsigned int index_low = 0;
-		unsigned int count = 0;
-		unsigned int n = 0;
-
-		for (n = 0; n <= index_high; n++)
-			if (vr->compat->voltages[n] >= regulator->min_uv)
-				break;
-		if (n > index_high)
-			return TEE_ERROR_GENERIC;
-		index_low = n;
-
-		for (n = index_high; n >= index_low; n--)
-			if (vr->compat->voltages[n] <= regulator->max_uv)
-				break;
-		if (n < index_low)
-			return TEE_ERROR_GENERIC;
-		index_high = n;
-
-		count = index_high - index_low + 1;
-
-		vr->voltages_desc.type = VOLTAGE_TYPE_FULL_LIST;
-		vr->voltages_desc.num_levels = count;
-		vr->voltages_start_index = index_low;
-	}
-
 	*desc = &vr->voltages_desc;
 	*levels = levels_ref + vr->voltages_start_index;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result set_voltages_desc(struct regulator *regulator)
+{
+	struct vrefbuf_regul *vr = regulator_to_vr(regulator);
+	size_t num_levels = ARRAY_SIZE(vr->compat->voltages);
+	int index_high = num_levels - 1;
+	int index_low = 0;
+	int n = 0;
+
+	vr->voltages_desc.type = VOLTAGE_TYPE_FULL_LIST;
+
+	for (n = 0; n <= index_high; n++)
+		if (vr->compat->voltages[n] >= regulator->min_uv)
+			break;
+	if (n > index_high)
+		return TEE_ERROR_GENERIC;
+	index_low = n;
+
+	for (n = index_high; n >= index_low; n--)
+		if (vr->compat->voltages[n] <= regulator->max_uv)
+			break;
+	if (n < index_low)
+		return TEE_ERROR_GENERIC;
+	index_high = n;
+
+	assert(index_high - index_low + 1 >= 0 && index_low >= 0);
+
+	vr->voltages_desc.type = VOLTAGE_TYPE_FULL_LIST;
+	vr->voltages_desc.num_levels = index_high - index_low + 1;
+	vr->voltages_start_index = index_low;
 
 	return TEE_SUCCESS;
 }
@@ -291,6 +296,12 @@ static TEE_Result stm32_vrefbuf_init(struct regulator *regulator,
 				     const void *fdt __unused,
 				     int node __unused)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = set_voltages_desc(regulator);
+	if (res)
+		return res;
+
 	register_pm_driver_cb(stm32_vrefbuf_pm, regulator, "stm32-vrefbuf");
 
 	return TEE_SUCCESS;
