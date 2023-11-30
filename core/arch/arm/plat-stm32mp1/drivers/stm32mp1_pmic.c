@@ -397,7 +397,8 @@ static int cmp_int_value(const void *a, const void *b)
 	return CMP_TRILEAN(*ia, *ib);
 }
 
-static size_t refine_levels_array(size_t count, int *levels_uv)
+static size_t refine_levels_array(size_t count, int *levels_uv,
+				  int min_uv, int max_uv)
 {
 	size_t n = 0;
 	size_t m = 0;
@@ -413,8 +414,21 @@ static size_t refine_levels_array(size_t count, int *levels_uv)
 			m++;
 		}
 	}
+	count = m + 1;
 
-	return m + 1;
+	for (n = count; n; n--)
+		if (levels_uv[n - 1] <= max_uv)
+			break;
+	count = n;
+
+	for (n = 0; n < count; n++)
+		if (levels_uv[n] >= min_uv)
+			break;
+	count -= n;
+
+	memmove(levels_uv, levels_uv + n, count * sizeof(*levels_uv));
+
+	return count;
 }
 
 static TEE_Result pmic_list_voltages(struct regulator *regulator,
@@ -443,7 +457,9 @@ static TEE_Result pmic_list_voltages(struct regulator *regulator,
 		for (n = 0; n < level_count; n++)
 			levels[n] = level_ref[n] * 1000;
 
-		level_count = refine_levels_array(level_count, levels);
+		level_count = refine_levels_array(level_count, levels,
+						  regulator->min_uv,
+						  regulator->max_uv);
 
 		/* Shrink levels array to not waste heap memory */
 		levels2 = realloc(levels, sizeof(*levels) * level_count);
