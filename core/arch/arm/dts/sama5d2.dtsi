@@ -745,6 +745,17 @@
 				secure-status = "okay";
 				#address-cells = <1>;
 				#size-cells = <1>;
+
+				sfc_kr: cell@0 {
+					reg = <0x0 0x4>;
+					bits = <0 7>;
+				};
+			};
+
+			die_id: die_id {
+				compatible = "optee,nvmem-die-id";
+				nvmem-cells = <&sfc_kr>;
+				nvmem-cell-names = "die_id";
 			};
 
 			i2s0: i2s@f8050000 {
