@@ -491,7 +491,7 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	if (IS_ENABLED(CFG_ARM_GICV3)) {
 		assert(vers == 3);
 	} else {
-		assert(vers == 2);
+		assert(vers == 2 || vers == 1);
 		gicc_base = core_mmu_get_va(gicc_base_pa, MEM_AREA_IO_SEC,
 					    GIC_CPU_REG_SIZE);
 		if (!gicc_base)
