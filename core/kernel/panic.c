@@ -34,9 +34,13 @@ DECLARE_KEEP_PAGER(multi_core_panic_handler);
 
 static void notify_other_cores(void)
 {
-	interrupt_raise_sgi(interrupt_get_main_chip(),
-			    CFG_HALT_CORES_ON_PANIC_SGI,
-			    ITR_CPU_MASK_TO_OTHER_CPUS);
+	struct itr_chip *chip = interrupt_get_main_chip_may_fail();
+
+	if (chip)
+		interrupt_raise_sgi(chip, CFG_HALT_CORES_ON_PANIC_SGI,
+				    ITR_CPU_MASK_TO_OTHER_CPUS);
+	else
+		EMSG("Can't notify other cores, main interrupt chip not set");
 }
 
 static TEE_Result init_multi_core_panic_handler(void)
