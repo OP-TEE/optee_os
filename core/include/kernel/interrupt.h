@@ -150,6 +150,8 @@ void interrupt_main_init(struct itr_chip *data);
 
 /* Retrieve main interrupt controller reference */
 struct itr_chip *interrupt_get_main_chip(void);
+/* Retrieve main interrupt controller reference, or NULL on failure */
+struct itr_chip *interrupt_get_main_chip_may_fail(void);
 
 #ifdef CFG_DT
 /*
