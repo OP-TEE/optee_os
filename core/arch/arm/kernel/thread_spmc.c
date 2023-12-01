@@ -1517,7 +1517,7 @@ static void handle_notification_get(struct thread_smc_args *args)
 		w2 = 0;
 		goto out;
 	}
-	vm_id = FFA_SRC(args->a1);
+	vm_id = FFA_DST(args->a1);
 
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
