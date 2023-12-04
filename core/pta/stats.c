@@ -8,62 +8,26 @@
 #include <malloc.h>
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
+#include <pta_stats.h>
 #include <stdio.h>
 #include <string.h>
 #include <string_ext.h>
+#include <tee_api_types.h>
 #include <trace.h>
-
-#define TA_NAME		"stats.ta"
-
-#define STATS_UUID \
-		{ 0xd96a5b40, 0xe2c7, 0xb1af, \
-			{ 0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1b } }
-
-#define STATS_CMD_PAGER_STATS		0
-#define STATS_CMD_ALLOC_STATS		1
-#define STATS_CMD_MEMLEAK_STATS		2
-/*
- * UTEE_ENTRY_FUNC_DUMP_MEMSTATS
- * [out]    memref[0]        Array of context information of loaded TAs
- *
- * Each cell of the TA information array contains:
- * TEE_UUID    TA UUID
- * uint32_t    Non zero if TA panicked, 0 otherwise
- * uint32_t    Number of sessions opened by the TA
- * uint32_t    Byte size currently allocated in TA heap
- * uint32_t    Max bytes allocated since last stats reset
- * uint32_t    TA heap pool byte size
- * uint32_t    Number of failed allocation requests
- * uint32_t    Biggest byte size which allocation failed
- * uint32_t    Biggest byte size which allocation succeeded
- */
-#define STATS_CMD_TA_STATS		3
-
-/*
- * STATS_CMD_GET_TIME - Get both REE time and TEE time
- *
- * [out]    value[0].a        REE time as seen by OP-TEE in seconds
- * [out]    value[0].b        REE time as seen by OP-TEE, milliseconds part
- * [out]    value[1].a        TEE system time in seconds
- * [out]    value[1].b        TEE system time, milliseconds part
- */
-#define STATS_CMD_GET_TIME		4
-
-#define STATS_NB_POOLS			4
 
 static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
-	struct malloc_stats *stats;
-	uint32_t size_to_retrieve;
-	uint32_t pool_id;
-	uint32_t i;
+	struct pta_stats_alloc *stats = NULL;
+	uint32_t size_to_retrieve = 0;
+	uint32_t pool_id = 0;
+	uint32_t i = 0;
 
 	/*
 	 * p[0].value.a = pool id (from 0 to n)
 	 *   - 0 means all the pools to be retrieved
 	 *   - 1..n means pool id
 	 * p[0].value.b = 0 if no reset of the stats
-	 * p[1].memref.buffer = output buffer to struct malloc_stats
+	 * p[1].memref.buffer = output buffer to struct pta_stats_alloc
 	 */
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 			    TEE_PARAM_TYPE_MEMREF_OUTPUT,
@@ -76,8 +40,8 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	if (pool_id > STATS_NB_POOLS)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	size_to_retrieve = sizeof(struct malloc_stats);
-	if (!pool_id)
+	size_to_retrieve = sizeof(struct pta_stats_alloc);
+	if (pool_id == ALLOC_ID_ALL)
 		size_to_retrieve *= STATS_NB_POOLS;
 
 	if (p[1].memref.size < size_to_retrieve) {
@@ -87,30 +51,30 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 	p[1].memref.size = size_to_retrieve;
 	stats = p[1].memref.buffer;
 
-	for (i = 1; i <= STATS_NB_POOLS; i++) {
-		if ((pool_id) && (i != pool_id))
+	for (i = ALLOC_ID_HEAP; i <= STATS_NB_POOLS; i++) {
+		if (pool_id != ALLOC_ID_ALL && i != pool_id)
 			continue;
 
 		switch (i) {
-		case 1:
+		case ALLOC_ID_HEAP:
 			malloc_get_stats(stats);
 			strlcpy(stats->desc, "Heap", sizeof(stats->desc));
 			if (p[0].value.b)
 				malloc_reset_stats();
 			break;
 
-		case 2:
+		case ALLOC_ID_PUBLIC_DDR:
 			EMSG("public DDR not managed by secure side anymore");
 			break;
 
-		case 3:
+		case ALLOC_ID_TA_RAM:
 			tee_mm_get_pool_stats(&tee_mm_sec_ddr, stats,
 					      !!p[0].value.b);
 			strlcpy(stats->desc, "Secure DDR", sizeof(stats->desc));
 			break;
 
 #ifdef CFG_NS_VIRTUALIZATION
-		case 4:
+		case ALLOC_ID_NEXUS_HEAP:
 			nex_malloc_get_stats(stats);
 			strlcpy(stats->desc, "KHeap", sizeof(stats->desc));
 			if (p[0].value.b)
@@ -130,7 +94,7 @@ static TEE_Result get_alloc_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 
 static TEE_Result get_pager_stats(uint32_t type, TEE_Param p[TEE_NUM_PARAMS])
 {
-	struct tee_pager_stats stats;
+	struct tee_pager_stats stats = { };
 
 	if (TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_OUTPUT,
 			    TEE_PARAM_TYPE_VALUE_OUTPUT,
@@ -234,6 +198,6 @@ static TEE_Result invoke_command(void *psess __unused,
 	return TEE_ERROR_BAD_PARAMETERS;
 }
 
-pseudo_ta_register(.uuid = STATS_UUID, .name = TA_NAME,
+pseudo_ta_register(.uuid = STATS_UUID, .name = "stats.pta",
 		   .flags = PTA_DEFAULT_FLAGS,
 		   .invoke_command_entry_point = invoke_command);

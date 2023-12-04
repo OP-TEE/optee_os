@@ -46,6 +46,11 @@ struct itr_chip *interrupt_get_main_chip(void)
 	return itr_main_chip;
 }
 
+struct itr_chip *interrupt_get_main_chip_may_fail(void)
+{
+	return itr_main_chip;
+}
+
 #ifdef CFG_DT
 int dt_get_irq_type_prio(const void *fdt, int node, uint32_t *type,
 			 uint32_t *prio)
