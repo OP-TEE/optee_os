@@ -134,6 +134,7 @@ struct hisi_qp {
 	uint16_t sq_tail;
 	uint16_t cq_head;
 	bool cqc_phase;
+	bool used;
 
 	void *sqe;
 	struct qm_cqe *cqe;

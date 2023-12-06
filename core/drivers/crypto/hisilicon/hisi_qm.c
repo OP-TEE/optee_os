@@ -606,6 +606,8 @@ static enum hisi_drv_status qm_cqc_cfg(struct hisi_qp *qp)
 struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, uint8_t sq_type)
 {
 	struct hisi_qp *qp = NULL;
+	int cur_idx = 0;
+	uint32_t i = 0;
 
 	mutex_lock(&qm->qp_lock);
 	if (qm->qp_in_used == qm->qp_num) {
@@ -613,12 +615,16 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, uint8_t sq_type)
 		goto err_proc;
 	}
 
-	if (qm->qp_idx == qm->qp_num - 1)
-		qm->qp_idx = 0;
-	else
-		qm->qp_idx++;
+	for (i = 0; i < qm->qp_num; i++) {
+		cur_idx = (qm->qp_idx + i) % qm->qp_num;
+		if (!qm->qp_array[cur_idx].used) {
+			qm->qp_array[cur_idx].used = true;
+			qm->qp_idx = cur_idx + 1;
+			break;
+		}
+	}
 
-	qp = &qm->qp_array[qm->qp_idx];
+	qp = qm->qp_array + cur_idx;
 	memset(qp->cqe, 0, sizeof(struct qm_cqe) * HISI_QM_Q_DEPTH);
 	qp->sq_type = sq_type;
 	qp->sq_tail = 0;
@@ -658,6 +664,7 @@ void hisi_qm_release_qp(struct hisi_qp *qp)
 	qm = qp->qm;
 	mutex_lock(&qm->qp_lock);
 	qm->qp_in_used--;
+	qp->used = false;
 	mutex_unlock(&qm->qp_lock);
 }
 
