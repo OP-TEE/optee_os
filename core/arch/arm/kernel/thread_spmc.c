@@ -501,6 +501,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t ret_fid = FFA_ERROR;
+	uint32_t fpi_size = 0;
 	uint32_t rc = 0;
 	bool count_only = args->a5 & FFA_PARTITION_INFO_GET_COUNT_FLAG;
 
@@ -574,7 +575,11 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	ret_fid = FFA_SUCCESS_32;
 
 out:
-	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+	if (ret_fid == FFA_SUCCESS_32 && !count_only &&
+	    rxtx->ffa_vers >= FFA_VERSION_1_1)
+		fpi_size = sizeof(struct ffa_partition_info_x) + FFA_UUID_SIZE;
+
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, fpi_size,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 	if (!count_only) {
 		rxtx->tx_is_mine = false;
