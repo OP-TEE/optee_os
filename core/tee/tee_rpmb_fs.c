@@ -75,7 +75,7 @@ struct rpmb_fat_entry {
 	uint32_t start_address;
 	uint32_t data_size;
 	uint32_t flags;
-	uint32_t write_counter;
+	uint32_t unused;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	char filename[TEE_RPMB_FS_FILENAME_LENGTH];
 };
@@ -1519,35 +1519,6 @@ func_exit:
 }
 
 /*
- * Read the RPMB write counter.
- *
- * @dev_id     Device ID of the eMMC device.
- * @counter    Pointer to the counter.
- */
-static TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id,
-					     uint32_t *counter)
-{
-	TEE_Result res = TEE_SUCCESS;
-
-	if (!counter)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (rpmb_dead)
-		return TEE_ERROR_COMMUNICATION;
-
-	if (!rpmb_ctx || !rpmb_ctx->wr_cnt_synced) {
-		res = tee_rpmb_init(dev_id);
-		if (res != TEE_SUCCESS)
-			goto func_exit;
-	}
-
-	*counter = rpmb_ctx->wr_cnt;
-
-func_exit:
-	return res;
-}
-
-/*
  * Read the RPMB max block.
  *
  * @dev_id     Device ID of the eMMC device.
@@ -1986,8 +1957,7 @@ static struct rpmb_file_handle *alloc_file_handle(struct tee_pobj *po,
 /**
  * write_fat_entry: Store info in a fat_entry to RPMB.
  */
-static TEE_Result write_fat_entry(struct rpmb_file_handle *fh,
-				  bool update_write_counter)
+static TEE_Result write_fat_entry(struct rpmb_file_handle *fh)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -2000,13 +1970,6 @@ static TEE_Result write_fat_entry(struct rpmb_file_handle *fh,
 	if (fh->rpmb_fat_address % sizeof(struct rpmb_fat_entry) != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
-	}
-
-	if (update_write_counter) {
-		res = tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
-						 &fh->fat_entry.write_counter);
-		if (res)
-			goto out;
 	}
 
 	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, fh->rpmb_fat_address,
@@ -2114,15 +2077,10 @@ static TEE_Result rpmb_fs_setup(void)
 	fh->rpmb_fat_address = partition_data->fat_start_address;
 
 	/* Write init FAT entry and partition data to RPMB. */
-	res = write_fat_entry(fh, true);
+	res = write_fat_entry(fh);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res =
-	    tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
-				       &partition_data->write_counter);
-	if (res != TEE_SUCCESS)
-		goto out;
 	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
@@ -2277,7 +2235,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 			memset(&last_fh, 0, sizeof(last_fh));
 			last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
 			last_fh.rpmb_fat_address = fat_address;
-			res = write_fat_entry(&last_fh, true);
+			res = write_fat_entry(&last_fh);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -2364,7 +2322,7 @@ static TEE_Result rpmb_fs_open_internal(struct rpmb_file_handle *fh,
 			     (void *)fh->fat_entry.fek);
 			DHEXDUMP(fh->fat_entry.fek, sizeof(fh->fat_entry.fek));
 
-			res = write_fat_entry(fh, true);
+			res = write_fat_entry(fh);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -2595,7 +2553,7 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 			fh->fat_entry.data_size = new_size;
 			fh->fat_entry.start_address = new_fat_entry;
 
-			res = write_fat_entry(fh, true);
+			res = write_fat_entry(fh);
 		}
 	}
 
@@ -2649,7 +2607,7 @@ static TEE_Result rpmb_fs_remove_internal(struct rpmb_file_handle *fh)
 
 	/* Clear this file entry. */
 	memset(&fh->fat_entry, 0, sizeof(struct rpmb_fat_entry));
-	return write_fat_entry(fh, false);
+	return write_fat_entry(fh);
 }
 
 static TEE_Result rpmb_fs_remove(struct tee_pobj *po)
@@ -2714,7 +2672,7 @@ static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
 
 		/* Clear this file entry. */
 		memset(&fh_new->fat_entry, 0, sizeof(struct rpmb_fat_entry));
-		res = write_fat_entry(fh_new, false);
+		res = write_fat_entry(fh_new);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
@@ -2723,7 +2681,7 @@ static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
 	memcpy(fh_old->fat_entry.filename, fh_new->filename,
 	       strlen(fh_new->filename));
 
-	res = write_fat_entry(fh_old, false);
+	res = write_fat_entry(fh_old);
 
 out:
 	free(fh_old);
@@ -2815,7 +2773,7 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 	/* fh->pos is unchanged */
 	fh->fat_entry.data_size = newsize;
 	fh->fat_entry.start_address = newaddr;
-	res = write_fat_entry(fh, true);
+	res = write_fat_entry(fh);
 
 out:
 	mutex_unlock(&rpmb_mutex);
