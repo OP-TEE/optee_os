@@ -7,10 +7,26 @@
 #include <compiler.h>
 #include <config.h>
 #include <drivers/hfic.h>
-#include <hafnium.h>
 #include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <kernel/thread.h>
+
+/*
+ * For documentation of the paravirtualized interface see:
+ * https://hafnium.readthedocs.io/en/latest/design/secure-partition-manager.html#paravirtualized-interfaces
+ */
+
+#define HF_INTERRUPT_ENABLE	0xff03
+#define HF_INTERRUPT_GET	0xff04
+#define HF_INTERRUPT_DEACTIVATE	0xff08
+
+#define HF_INVALID_INTID	0xffffffff
+#define HF_MANAGED_EXIT_INTID	4
+
+#define HF_INTERRUPT_TYPE_IRQ	0
+#define HF_INTERRUPT_TYPE_FIQ	1
+#define HF_ENABLE		1
+#define HF_DISABLE		0
 
 struct hfic_data {
 	struct itr_chip chip;
