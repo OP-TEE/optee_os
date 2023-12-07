@@ -19,6 +19,7 @@
 #define HF_INTERRUPT_ENABLE	0xff03
 #define HF_INTERRUPT_GET	0xff04
 #define HF_INTERRUPT_DEACTIVATE	0xff08
+#define HF_INTERRUPT_RECONFIGURE 0xff09
 
 #define HF_INVALID_INTID	0xffffffff
 #define HF_MANAGED_EXIT_INTID	4
@@ -28,18 +29,16 @@
 #define HF_ENABLE		1
 #define HF_DISABLE		0
 
+#define HF_INT_RECONFIGURE_STATUS 2
+
 struct hfic_data {
 	struct itr_chip chip;
 };
 
 static struct hfic_data hfic_data __nex_bss;
 
-static void hfic_op_add(struct itr_chip *chip __unused, size_t it __unused,
+static void hfic_op_add(struct itr_chip *chip __unused, size_t it,
 			uint32_t type __unused, uint32_t prio __unused)
-{
-}
-
-static void hfic_op_enable(struct itr_chip *chip __unused, size_t it)
 {
 	uint32_t res __maybe_unused = 0;
 
@@ -48,12 +47,21 @@ static void hfic_op_enable(struct itr_chip *chip __unused, size_t it)
 	assert(!res);
 }
 
+static void hfic_op_enable(struct itr_chip *chip __unused, size_t it)
+{
+	uint32_t res __maybe_unused = 0;
+
+	res = thread_hvc(HF_INTERRUPT_RECONFIGURE, it,
+			 HF_INT_RECONFIGURE_STATUS, HF_ENABLE);
+	assert(!res);
+}
+
 static void hfic_op_disable(struct itr_chip *chip __unused, size_t it)
 {
 	uint32_t res __maybe_unused = 0;
 
-	res = thread_hvc(HF_INTERRUPT_ENABLE, it, HF_DISABLE,
-			 HF_INTERRUPT_TYPE_IRQ);
+	res = thread_hvc(HF_INTERRUPT_RECONFIGURE, it,
+			 HF_INT_RECONFIGURE_STATUS, HF_DISABLE);
 	assert(!res);
 }
 
