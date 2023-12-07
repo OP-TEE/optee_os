@@ -4,6 +4,8 @@ $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_TEE_CORE_DEBUG,n)
 $(call force,CFG_CORE_DYN_SHM,n)
 
+CFG_DT ?= y
+
 # Crypto flags
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 
