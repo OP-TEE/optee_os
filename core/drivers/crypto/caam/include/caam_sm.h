@@ -61,7 +61,8 @@ caam_sm_set_access_perm(const struct caam_sm_page_desc *page_desc,
  *
  * @sm_page_descriptor    Secure Memory page
  */
-TEE_Result caam_sm_free(const struct caam_sm_page_desc *sm_page_descriptor);
+enum caam_status
+caam_sm_free(const struct caam_sm_page_desc *sm_page_descriptor);
 
 #else
 static inline enum caam_status caam_sm_init(struct caam_jrcfg *jrcfg __unused)
