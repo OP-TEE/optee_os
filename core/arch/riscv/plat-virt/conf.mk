@@ -20,11 +20,14 @@ $(call force,CFG_BOOT_SYNC_CPU,y)
 # RISC-V-specific flags
 rv64-platform-isa ?= rv64imafdc_zicsr_zifencei
 
+$(call force,CFG_RISCV_M_MODE,n)
+$(call force,CFG_RISCV_S_MODE,y)
 $(call force,CFG_RISCV_PLIC,y)
 $(call force,CFG_SBI_CONSOLE,n)
 $(call force,CFG_16550_UART,y)
 $(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
 CFG_RISCV_MTIME_RATE ?= 10000000
+CFG_RISCV_SBI ?= y
 
 # TA-related flags
 supported-ta-targets = ta_rv64
