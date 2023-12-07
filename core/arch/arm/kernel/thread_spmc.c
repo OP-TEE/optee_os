@@ -1623,7 +1623,6 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
-		interrupt_main_handler();
 		if (IS_ENABLED(CFG_CORE_SEL1_SPMC))
 			spmc_set_args(args, FFA_NORMAL_WORLD_RESUME, 0, 0, 0,
 				      0, 0);

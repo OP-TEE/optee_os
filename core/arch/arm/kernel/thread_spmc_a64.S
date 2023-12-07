@@ -48,8 +48,13 @@ LOCAL_FUNC ffa_msg_send_direct_resp , :
 	mov	x2, #FFA_PARAM_MBZ			/* RES MBZ */
 
 .ffa_msg_loop:
-	/* Invoke SMC with caller provided parameters */
+	/*
+	 * Native interrupts unmasked while invoking SMC with caller
+	 * provided parameters.
+	 */
+	msr	daifclr, #DAIFBIT_NATIVE_INTR
 	smc	#0
+	msr	daifset, #DAIFBIT_NATIVE_INTR
 
 	/* Store the parameters as struct thread_smc_args on stack */
 	sub	sp, sp, #THREAD_SMC_ARGS_SIZE
