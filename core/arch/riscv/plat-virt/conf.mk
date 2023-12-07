@@ -13,8 +13,8 @@ $(call force,CFG_WITH_STACK_CANARIES,n)
 $(call force,CFG_CORE_SANITIZE_KADDRESS,n)
 
 # Hart-related flags
-$(call force,CFG_TEE_CORE_NB_CORE,1)
-$(call force,CFG_NUM_THREADS,1)
+CFG_TEE_CORE_NB_CORE ?= 1
+CFG_NUM_THREADS ?= 1
 $(call force,CFG_BOOT_SYNC_CPU,y)
 
 # RISC-V-specific flags
