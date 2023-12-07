@@ -117,7 +117,8 @@
  *
  * Call register usage:
  * w3:    Service ID, OPTEE_FFA_ENABLE_ASYNC_NOTIF
- * w4:	  Notification value to request bottom half processing
+ * w4:	  Notification value to request bottom half processing, should be
+ *	  less than OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE
  * w5-w7: Not used (MBZ)
  *
  * Return register usage:
@@ -125,6 +126,8 @@
  * w4-w7: Not used (MBZ)
  */
 #define OPTEE_FFA_ENABLE_ASYNC_NOTIF	OPTEE_FFA_BLOCKING_CALL(5)
+
+#define OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE	64
 
 /*
  * Call with struct optee_msg_arg as argument in the supplied shared memory

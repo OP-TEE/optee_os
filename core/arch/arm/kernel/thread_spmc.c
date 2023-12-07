@@ -154,6 +154,53 @@ uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 	return rxtx->ffa_vers;
 }
 
+static bool is_ffa_success(uint32_t fid)
+{
+#ifdef ARM64
+	if (fid == FFA_SUCCESS_64)
+		return true;
+#endif
+	return fid == FFA_SUCCESS_32;
+}
+
+static int32_t get_ffa_ret_code(const struct thread_smc_args *args)
+{
+	if (is_ffa_success(args->a0))
+		return FFA_OK;
+	if (args->a0 == FFA_ERROR && args->a2)
+		return args->a2;
+	return FFA_NOT_SUPPORTED;
+}
+
+static int ffa_simple_call(uint32_t fid, unsigned long a1, unsigned long a2,
+			   unsigned long a3, unsigned long a4)
+{
+	struct thread_smc_args args = {
+		.a0 = fid,
+		.a1 = a1,
+		.a2 = a2,
+		.a3 = a3,
+		.a4 = a4,
+	};
+
+	thread_smccc(&args);
+
+	return get_ffa_ret_code(&args);
+}
+
+static int __maybe_unused ffa_features(uint32_t id)
+{
+	return ffa_simple_call(FFA_FEATURES, id, 0, 0, 0);
+}
+
+static int __maybe_unused ffa_set_notification(uint16_t dst, uint16_t src,
+					       uint32_t flags, uint64_t bitmap)
+{
+	return ffa_simple_call(FFA_NOTIFICATION_SET,
+			       SHIFT_U32(src, 16) | dst, flags,
+			       low32_from_64(bitmap), high32_from_64(bitmap));
+}
+
 #if defined(CFG_CORE_SEL1_SPMC)
 static void handle_features(struct thread_smc_args *args)
 {
@@ -626,6 +673,11 @@ static uint32_t spmc_enable_async_notif(uint32_t bottom_half_value,
 		 */
 		EMSG("Asynchronous notifications are not ready");
 		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (bottom_half_value >= OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE) {
+		EMSG("Invalid bottom half value %"PRIu32, bottom_half_value);
+		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
@@ -1584,9 +1636,20 @@ void notif_send_async(uint32_t value)
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
 }
 #else
-void __noreturn notif_send_async(uint32_t value __unused)
+void notif_send_async(uint32_t value)
 {
-	panic();
+	/* global notification, delay notification interrupt */
+	uint32_t flags = BIT32(1);
+	int res = 0;
+
+	assert(value == NOTIF_VALUE_DO_BOTTOM_HALF && spmc_notif_is_ready &&
+	       do_bottom_half_value >= 0);
+	res = ffa_set_notification(notif_vm_id, my_endpoint_id, flags,
+				   BIT64(do_bottom_half_value));
+	if (res) {
+		EMSG("notification set failed with error %d", res);
+		panic();
+	}
 }
 #endif
 
@@ -2026,15 +2089,6 @@ static TEE_Result spmc_init(void)
 	return TEE_SUCCESS;
 }
 #else /* !defined(CFG_CORE_SEL1_SPMC) */
-static bool is_ffa_success(uint32_t fid)
-{
-#ifdef ARM64
-	if (fid == FFA_SUCCESS_64)
-		return true;
-#endif
-	return fid == FFA_SUCCESS_32;
-}
-
 static void spmc_rxtx_map(struct ffa_rxtx *rxtx)
 {
 	struct thread_smc_args args = {
@@ -2277,6 +2331,11 @@ static TEE_Result spmc_init(void)
 	spmc_rxtx_map(&my_rxtx);
 	my_endpoint_id = get_my_id();
 	DMSG("My endpoint ID %#x", my_endpoint_id);
+
+	if (!ffa_features(FFA_NOTIFICATION_SET)) {
+		spmc_notif_is_ready = true;
+		DMSG("Asynchronous notifications are ready");
+	}
 
 	return TEE_SUCCESS;
 }
