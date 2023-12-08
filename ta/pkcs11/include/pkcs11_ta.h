@@ -937,7 +937,7 @@ enum pkcs11_user_type {
  * - PIN value: group:<client UUID string>
  *   - TEE group login with client UUID matching group credentials
  * - PIN value: ta:<client UUID string>
- *   - TEE trusted app login with client UUID matching TA UUID
+ *   - TEE trusted application login with client UUID matching TA UUID
  */
 
 /* Keywords for protected authenticated path PIN parser */
