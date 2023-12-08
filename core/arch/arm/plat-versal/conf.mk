@@ -74,12 +74,17 @@ CFG_VERSAL_MBOX_TIMEOUT ?= 100000
 # PM driver
 CFG_VERSAL_PM ?= y
 
+# TRNG driver
 $(call force, CFG_VERSAL_RNG_DRV,y)
 $(call force, CFG_WITH_SOFTWARE_PRNG,n)
 
+ifeq ($(PLATFORM_FLAVOR),net)
+$(call force,CFG_VERSAL_RNG_PLM,y)
+else
 # TRNG configuration
 CFG_VERSAL_TRNG_SEED_LIFE ?= 3
 CFG_VERSAL_TRNG_DF_MUL ?= 2
+endif
 
 # eFuse and BBRAM driver
 $(call force, CFG_VERSAL_NVM,y)

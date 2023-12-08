@@ -58,13 +58,16 @@
 #include <kernel/delay.h>
 #include <kernel/panic.h>
 #include <mm/core_mmu.h>
+#include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <rng_support.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee/tee_cryp_utl.h>
 #include <trace.h>
+#include <drivers/versal_mbox.h>
 
+#ifndef CFG_VERSAL_RNG_PLM
 #define TRNG_BASE            0xF1230000
 #define TRNG_SIZE            0x10000
 
@@ -1147,3 +1150,73 @@ static TEE_Result trng_hrng_mode_init(void)
 }
 
 driver_init(trng_hrng_mode_init);
+
+#else
+#define SEC_MODULE_SHIFT 8
+#define SEC_MODULE_ID 5
+
+#define CRYPTO_API_ID(__x) (SHIFT_U32(SEC_MODULE_ID, SEC_MODULE_SHIFT) | (__x))
+
+#define VERSAL_TRNG_GENERATE 22
+
+#define VERSAL_TRNG_SEC_STRENGTH_IN_BYTES 32
+
+TEE_Result hw_get_random_bytes(void *buf, size_t len)
+{
+	uint32_t a = 0;
+	uint32_t b = 0;
+	struct versal_ipi_cmd cmd = { };
+	struct versal_mbox_mem p = { };
+	TEE_Result ret = TEE_SUCCESS;
+	uint32_t status = 0;
+	uint32_t offset = 0;
+
+	ret = versal_mbox_alloc(len, NULL, &p);
+	if (ret)
+		return ret;
+
+	cmd.data[0] = CRYPTO_API_ID(VERSAL_TRNG_GENERATE);
+	cmd.ibuf[0].mem = p;
+
+	while (len > VERSAL_TRNG_SEC_STRENGTH_IN_BYTES) {
+		reg_pair_from_64(virt_to_phys(p.buf) + offset, &b, &a);
+
+		cmd.data[1] = a;
+		cmd.data[2] = b;
+		cmd.data[3] = (uint32_t)VERSAL_TRNG_SEC_STRENGTH_IN_BYTES;
+
+		ret = versal_mbox_notify_pmc(&cmd, NULL, &status);
+		if (!ret) {
+			memcpy((uint8_t *)buf + offset,
+			       (uint8_t *)p.buf + offset,
+			       VERSAL_TRNG_SEC_STRENGTH_IN_BYTES);
+		} else {
+			DMSG("Getting randomness returned 0x%" PRIx32, status);
+			goto out;
+		}
+
+		offset += VERSAL_TRNG_SEC_STRENGTH_IN_BYTES;
+		len -= VERSAL_TRNG_SEC_STRENGTH_IN_BYTES;
+	}
+
+	reg_pair_from_64(virt_to_phys(p.buf) + offset, &b, &a);
+
+	cmd.data[1] = a;
+	cmd.data[2] = b;
+	cmd.data[3] = (uint32_t)len;
+
+	ret = versal_mbox_notify_pmc(&cmd, NULL, &status);
+	if (!ret)
+		memcpy((uint8_t *)buf + offset, (uint8_t *)p.buf + offset, len);
+	else
+		DMSG("Getting randomness returned 0x%" PRIx32, status);
+
+out:
+	versal_mbox_free(&p);
+	return ret;
+}
+
+void plat_rng_init(void)
+{
+}
+#endif
