@@ -193,6 +193,9 @@ enum pkcs11_rc setup_identity_auth_from_pin(struct ck_token *token,
 		} else if (strstr(acl_string, PKCS11_AUTH_TEE_IDENTITY_GROUP) ==
 			   acl_string) {
 			identity.login = TEE_LOGIN_GROUP;
+		} else if (strstr(acl_string, PKCS11_AUTH_TEE_IDENTITY_TA) ==
+			   acl_string) {
+			identity.login = TEE_LOGIN_TRUSTED_APP;
 		} else {
 			EMSG("Invalid PIN ACL string - login");
 			TEE_Free(acl_string);

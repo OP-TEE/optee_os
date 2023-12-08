@@ -936,12 +936,15 @@ enum pkcs11_user_type {
  *   - TEE user login with client UUID matching user credentials
  * - PIN value: group:<client UUID string>
  *   - TEE group login with client UUID matching group credentials
+ * - PIN value: ta:<client UUID string>
+ *   - TEE trusted app login with client UUID matching TA UUID
  */
 
 /* Keywords for protected authenticated path PIN parser */
 #define PKCS11_AUTH_TEE_IDENTITY_PUBLIC	"public"
 #define PKCS11_AUTH_TEE_IDENTITY_USER	"user:"
 #define PKCS11_AUTH_TEE_IDENTITY_GROUP	"group:"
+#define PKCS11_AUTH_TEE_IDENTITY_TA 	"ta:"
 
 /*
  * Values for 32bit session flags argument to PKCS11_CMD_OPEN_SESSION
