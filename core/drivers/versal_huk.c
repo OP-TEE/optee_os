@@ -14,7 +14,7 @@
 #include <kernel/tee_common_otp.h>
 #include <mm/core_memprot.h>
 #include <string_ext.h>
-#include <tee/tee_cryp_utl.h>
+#include <tee/tee_cryp_hkdf.h>
 #include <trace.h>
 #include <utee_defines.h>
 
@@ -341,8 +341,15 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 		goto cleanup;
 	}
 
-	if (tee_hash_createdigest(TEE_ALG_SHA256, enc_data, sizeof(enc_data),
-				  huk.key, sizeof(huk.key))) {
+	/*
+	 * Use RFC 5869 HKDF to derive a key from HUK-seed:
+	 *   HUK-seed = AES-GCM-encrypt(K, DNA)
+	 * where K is either PUF KEK or eFuse User Keys 0 or 1
+	 *
+	 * HKDF salt and info are set empty for now
+	 */
+	if (tee_cryp_hkdf(TEE_MAIN_ALGO_SHA256, enc_data, sizeof(enc_data),
+			  NULL, 0, NULL, 0, huk.key, sizeof(huk.key))) {
 		ret = TEE_ERROR_GENERIC;
 		goto cleanup;
 	}
