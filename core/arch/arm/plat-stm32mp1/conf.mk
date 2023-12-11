@@ -2,11 +2,18 @@ PLATFORM_FLAVOR ?= 157C_DK2
 
 # 1GB and 512MB DDR targets do not locate secure DDR at the same place.
 flavor_dts_file-157A_DHCOR_AVENGER96 = stm32mp157a-dhcor-avenger96.dts
-flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
 flavor_dts_file-157C_DHCOM_PDK2 = stm32mp157c-dhcom-pdk2.dts
+ifeq (y,$(CFG_STM32MP1_RCC_SECURE))
+flavor_dts_file-157A_DK1 = stm32mp157a-dk1-scmi.dts
+flavor_dts_file-157C_DK2 = stm32mp157c-dk2-scmi.dts
+flavor_dts_file-157C_ED1 = stm32mp157c-ed1-scmi.dts
+flavor_dts_file-157C_EV1 = stm32mp157c-ev1-scmi.dts
+else
+flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
 flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
 flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
 flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
+endif
 
 flavor_dts_file-135F_DK = stm32mp135f-dk.dts
 

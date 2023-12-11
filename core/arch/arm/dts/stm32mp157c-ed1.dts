@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
- * Author: Ludovic Barre <ludovic.barre@st.com> for STMicroelectronics.
+ * Copyright (C) STMicroelectronics 2017, 2023
  */
 /dts-v1/;
 
@@ -338,7 +337,7 @@
 };
 
 &rcc {
-	compatible = "st,stm32mp1-rcc-secure";
+	compatible = "st,stm32mp1-rcc";
 	status = "okay";
 };
 

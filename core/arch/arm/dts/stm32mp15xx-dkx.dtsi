@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
- * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
+ * Copyright (C) STMicroelectronics 2019, 2023
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -490,7 +489,7 @@
 };
 
 &rcc {
-	compatible = "st,stm32mp1-rcc-secure";
+	compatible = "st,stm32mp1-rcc";
 	status = "okay";
 };
 
