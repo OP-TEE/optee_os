@@ -5,17 +5,25 @@ flavor_dts_file-157C_DHCOM_PDK2 = stm32mp157c-dhcom-pdk2.dts
 flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
 flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
 flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
+flavor_dts_file-157A_DK1_SCMI = stm32mp157a-dk1-scmi.dts
+flavor_dts_file-157C_DK2_SCMI = stm32mp157c-dk2-scmi.dts
+flavor_dts_file-157C_ED1_SCMI = stm32mp157c-ed1-scmi.dts
+flavor_dts_file-157F_EV1_SCMI = stm32mp157c-ev1-scmi.dts
 
 flavor_dts_file-135F_DK = stm32mp135f-dk.dts
 
 flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2) \
+		       $(flavor_dts_file-157C_DK2_SCMI) \
 		       $(flavor_dts_file-135F_DK)
 
-flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
+flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1) \
+			  $(flavor_dts_file-157A_DK1_SCMI)
 
 flavorlist-cryp-1G = $(flavor_dts_file-157C_DHCOM_PDK2) \
 		     $(flavor_dts_file-157C_ED1) \
-		     $(flavor_dts_file-157C_EV1)
+		     $(flavor_dts_file-157C_EV1) \
+		     $(flavor_dts_file-157C_ED1_SCMI) \
+		     $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-no_cryp-1G = $(flavor_dts_file-157A_DHCOR_AVENGER96)
 
@@ -31,14 +39,22 @@ flavorlist-1G = $(flavorlist-cryp-1G) \
 flavorlist-MP15-HUK-DT = $(flavor_dts_file-157A_DK1) \
 			 $(flavor_dts_file-157C_DK2) \
 			 $(flavor_dts_file-157C_ED1) \
-			 $(flavor_dts_file-157C_EV1)
+			 $(flavor_dts_file-157C_EV1) \
+			 $(flavor_dts_file-157A_DK1_SCMI) \
+			 $(flavor_dts_file-157C_DK2_SCMI) \
+			 $(flavor_dts_file-157C_ED1_SCMI) \
+			 $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-MP15 = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 		  $(flavor_dts_file-157A_DK1) \
 		  $(flavor_dts_file-157C_DHCOM_PDK2) \
 		  $(flavor_dts_file-157C_DK2) \
 		  $(flavor_dts_file-157C_ED1) \
-		  $(flavor_dts_file-157C_EV1)
+		  $(flavor_dts_file-157C_EV1) \
+		  $(flavor_dts_file-157A_DK1_SCMI) \
+		  $(flavor_dts_file-157C_DK2_SCMI) \
+		  $(flavor_dts_file-157C_ED1_SCMI) \
+		  $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-MP13 = $(flavor_dts_file-135F_DK)
 
