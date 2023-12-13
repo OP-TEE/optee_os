@@ -1132,3 +1132,8 @@ $(eval $(call cfg-depends-all,CFG_CRYPTO_HW_PBKDF2,CFG_CRYPTO_PBKDF2))
 CFG_HALT_CORES_ON_PANIC ?= n
 CFG_HALT_CORES_ON_PANIC_SGI ?= 15
 $(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_GIC))
+
+# Enable automatic discovery of maximal PA supported by the hardware and
+# use that. Provides easier configuration of virtual platforms where the
+# maximal PA can vary.
+CFG_AUTO_MAX_PA_BITS ?= n

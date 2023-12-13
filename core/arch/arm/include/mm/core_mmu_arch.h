@@ -175,10 +175,14 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 /* Do section mapping, not support on LPAE */
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
 
+#if defined(ARM64)
+unsigned int core_mmu_arm64_get_pa_width(void);
+#endif
+
 static inline bool core_mmu_check_max_pa(paddr_t pa __maybe_unused)
 {
 #if defined(ARM64)
-	return pa <= (BIT64(CFG_CORE_ARM64_PA_BITS) - 1);
+	return pa <= (BIT64(core_mmu_arm64_get_pa_width()) - 1);
 #elif defined(CFG_CORE_LARGE_PHYS_ADDR)
 	return pa <= (BIT64(40) - 1);
 #else
