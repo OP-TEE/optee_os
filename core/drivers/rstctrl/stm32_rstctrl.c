@@ -40,6 +40,7 @@ stm32_rstline *find_or_allocate_rstline(unsigned int binding_id,
 		assert(pdata->get_rstctrl_ops);
 
 		stm32_rstline->id = binding_id;
+		stm32_rstline->data = pdata;
 		stm32_rstline->rstctrl.ops = pdata->get_rstctrl_ops(binding_id);
 
 		SLIST_INSERT_HEAD(&stm32_rst_list, stm32_rstline, link);
