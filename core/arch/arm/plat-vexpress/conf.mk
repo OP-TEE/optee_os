@@ -77,6 +77,7 @@ CFG_SHMEM_SIZE   ?= 0x00200000
 # DRAM1 is defined above 4G
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
+CFG_AUTO_MAX_PA_BITS ?= y
 ifeq ($(CFG_SCMI_SCPFW),y)
 $(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
 endif
@@ -128,6 +129,7 @@ endif
 ifeq ($(PLATFORM_FLAVOR),qemu_armv8a)
 CFG_HALT_CORES_ON_PANIC ?= y
 CFG_TEE_CORE_NB_CORE ?= 4
+CFG_AUTO_MAX_PA_BITS ?= y
 ifneq ($(CFG_CORE_SEL2_SPMC),y)
 # [0e00.0000 0e0f.ffff] is reserved to early boot
 CFG_TZDRAM_START ?= 0x0e100000
