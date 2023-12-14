@@ -117,4 +117,6 @@ ifneq ($(CFG_VERSAL_HUK_KEY),$(filter 6 7 11 12,$(firstword $(CFG_VERSAL_HUK_KEY
 $(error Invalid value: CFG_VERSAL_HUK_KEY=$(CFG_VERSAL_HUK_KEY))
 endif
 
+CFG_VERSAL_FPGA_LOADER_PTA ?= y
+
 CFG_CORE_HEAP_SIZE ?= 262144
