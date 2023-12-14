@@ -8,6 +8,7 @@
 
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
@@ -80,6 +81,18 @@
 		reg = <0xf0 0x4>;
 		st,non-secure-otp;
 	};
+};
+
+&gpiob {
+	st,protreg = <TZPROT(9)>;
+};
+
+&gpiod {
+	st,protreg = <TZPROT(7)>;
+};
+
+&gpioe {
+	st,protreg = <TZPROT(15)>;
 };
 
 &i2c4 {
