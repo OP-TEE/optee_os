@@ -188,6 +188,23 @@ static struct stm32_iwdg_device *wdt_chip_to_iwdg(struct wdt_chip *chip)
 	return container_of(chip, struct stm32_iwdg_device, wdt_chip);
 }
 
+static TEE_Result iwdg_wdt_init(struct wdt_chip *chip,
+				unsigned long *min_timeout,
+				unsigned long *max_timeout)
+{
+	struct stm32_iwdg_device *iwdg = wdt_chip_to_iwdg(chip);
+	unsigned long rate = clk_get_rate(iwdg->clk_lsi);
+
+	if (!rate)
+		return TEE_ERROR_GENERIC;
+
+	/* Be safe and expect any counter to be above 2 */
+	*min_timeout = 3 * IWDG_PRESCALER_256 / rate;
+	*max_timeout = (IWDG_CNT_MASK + 1) * IWDG_PRESCALER_256 / rate;
+
+	return TEE_SUCCESS;
+}
+
 static void iwdg_wdt_start(struct wdt_chip *chip)
 {
 	struct stm32_iwdg_device *iwdg = wdt_chip_to_iwdg(chip);
@@ -227,6 +244,7 @@ static TEE_Result iwdg_wdt_set_timeout(struct wdt_chip *chip,
 }
 
 static const struct wdt_ops stm32_iwdg_ops = {
+	.init = iwdg_wdt_init,
 	.start = iwdg_wdt_start,
 	.ping = iwdg_wdt_refresh,
 	.set_timeout = iwdg_wdt_set_timeout,
