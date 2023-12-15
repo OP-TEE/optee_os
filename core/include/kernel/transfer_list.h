@@ -57,6 +57,7 @@ struct transfer_list_header {
 	uint32_t size;		/* TL header + all transfer entries */
 	uint32_t max_size;
 	uint32_t flags;
+	uint32_t reserved;	/* spare bytes */
 	/*
 	 * Commented out element used to visualize dynamic part of the
 	 * data structure.
