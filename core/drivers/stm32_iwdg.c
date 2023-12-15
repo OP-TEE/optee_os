@@ -134,7 +134,7 @@ static TEE_Result iwdg_wait_sync(struct stm32_iwdg_device *iwdg)
 		if (timeout_elapsed(timeout_ref))
 			break;
 
-	if (!(io_read32(iwdg_base + IWDG_SR_OFFSET) & IWDG_SR_UPDATE_MASK))
+	if (io_read32(iwdg_base + IWDG_SR_OFFSET) & IWDG_SR_UPDATE_MASK)
 		return TEE_ERROR_GENERIC;
 
 	return TEE_SUCCESS;
