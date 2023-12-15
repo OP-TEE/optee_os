@@ -2979,7 +2979,7 @@ enum pkcs11_rc set_check_value_attr(struct obj_attrs **head)
 		return PKCS11_CKR_OK;
 
 	if (rc == PKCS11_CKR_OK && kcv2_len != PKCS11_CKA_CHECK_VALUE_SIZE)
-		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+		return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
 
 	/* Get key CKA_VALUE */
 	rc = get_attribute_ptr(*head, PKCS11_CKA_VALUE, &val, &val_len);
