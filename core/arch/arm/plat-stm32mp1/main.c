@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2017-2024, STMicroelectronics
+ * Copyright (c) 2017-2025, STMicroelectronics
  * Copyright (c) 2016-2018, Linaro Limited
  */
 
@@ -12,7 +12,6 @@
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
 #include <drivers/stm32_gpio.h>
-#include <drivers/stm32_iwdg.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP15
@@ -513,46 +512,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 
 	panic();
 }
-
-#ifdef CFG_STM32_IWDG
-TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
-				     struct stm32_iwdg_otp_data *otp_data)
-{
-	unsigned int idx = 0;
-	uint32_t otp_id = 0;
-	size_t bit_len = 0;
-	uint8_t bit_offset = 0;
-	uint32_t otp_value = 0;
-
-	switch (pbase) {
-	case IWDG1_BASE:
-		idx = 0;
-		break;
-	case IWDG2_BASE:
-		idx = 1;
-		break;
-	default:
-		panic();
-	}
-
-	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_offset,
-						&bit_len) ||
-	    bit_len != 32 || bit_offset != 0)
-		panic();
-
-	if (stm32_bsec_read_otp(&otp_value, otp_id))
-		panic();
-
-	otp_data->hw_enabled = otp_value &
-			       BIT(idx + HW2_OTP_IWDG_HW_ENABLE_SHIFT);
-	otp_data->disable_on_stop = otp_value &
-				    BIT(idx + HW2_OTP_IWDG_FZ_STOP_SHIFT);
-	otp_data->disable_on_standby = otp_value &
-				       BIT(idx + HW2_OTP_IWDG_FZ_STANDBY_SHIFT);
-
-	return TEE_SUCCESS;
-}
-#endif /*CFG_STM32_IWDG*/
 
 #ifdef CFG_STM32_DEBUG_ACCESS
 static TEE_Result init_debug(void)
