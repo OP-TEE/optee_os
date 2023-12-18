@@ -675,7 +675,7 @@ static void set_bank_gpio_non_secure(struct stm32_gpio_bank *bank)
 {
 	unsigned int pin = 0;
 
-	for (pin = 0; pin <= bank->ngpios; pin++)
+	for (pin = 0; pin < bank->ngpios; pin++)
 		stm32_gpio_set_secure_cfg(bank->bank_id, pin, false);
 }
 
