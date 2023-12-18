@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
-#include <drivers/stm32_iwdg.h>
 #include <drivers/wdt.h>
 #include <io.h>
 #include <keep.h>
@@ -64,15 +63,9 @@
 
 /*
  * Values for struct stm32_iwdg_device::flags
- * IWDG_FLAGS_HW_ENABLED                Watchdog is enabled by BootROM
- * IWDG_FLAGS_DISABLE_ON_STOP           Watchdog is freezed in SoC STOP mode
- * IWDG_FLAGS_DISABLE_ON_STANDBY        Watchdog is freezed in SoC STANDBY mode
  * IWDG_FLAGS_ENABLED			Watchdog has been enabled
  */
-#define IWDG_FLAGS_HW_ENABLED			BIT(0)
-#define IWDG_FLAGS_DISABLE_ON_STOP		BIT(1)
-#define IWDG_FLAGS_DISABLE_ON_STANDBY		BIT(2)
-#define IWDG_FLAGS_ENABLED			BIT(3)
+#define IWDG_FLAGS_ENABLED			BIT(0)
 
 /*
  * IWDG watch instance data
@@ -283,24 +276,6 @@ static TEE_Result stm32_iwdg_parse_fdt(struct stm32_iwdg_device *iwdg,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	/* DT can specify low power cases */
-	if (!fdt_getprop(fdt, node, "stm32,enable-on-stop", NULL))
-		iwdg->flags |= IWDG_FLAGS_DISABLE_ON_STOP;
-
-	if (!fdt_getprop(fdt, node, "stm32,enable-on-standby", NULL))
-		iwdg->flags |= IWDG_FLAGS_DISABLE_ON_STANDBY;
-
-	return TEE_SUCCESS;
-}
-
-/* Platform should override this function to provide IWDG fuses configuration */
-TEE_Result __weak stm32_get_iwdg_otp_config(paddr_t pbase __unused,
-					    struct stm32_iwdg_otp_data *otp_d)
-{
-	otp_d->hw_enabled = false;
-	otp_d->disable_on_stop = false;
-	otp_d->disable_on_standby = false;
-
 	return TEE_SUCCESS;
 }
 
@@ -340,32 +315,17 @@ static void iwdg_wdt_get_version_and_status(struct stm32_iwdg_device *iwdg)
 static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 				   const void *fdt, int node)
 {
-	struct stm32_iwdg_otp_data otp_data = { };
 	TEE_Result res = TEE_SUCCESS;
 
 	res = stm32_iwdg_parse_fdt(iwdg, fdt, node);
 	if (res)
 		return res;
 
-	res = stm32_get_iwdg_otp_config(iwdg->base.pa, &otp_data);
-	if (res)
-		return res;
-
-	if (otp_data.hw_enabled)
-		iwdg->flags |= IWDG_FLAGS_HW_ENABLED;
-	if (otp_data.disable_on_stop)
-		iwdg->flags |= IWDG_FLAGS_DISABLE_ON_STOP;
-	if (otp_data.disable_on_standby)
-		iwdg->flags |= IWDG_FLAGS_DISABLE_ON_STANDBY;
-
 	/* Enable watchdog source and bus clocks once for all */
 	clk_enable(iwdg->clk_lsi);
 	clk_enable(iwdg->clk_pclk);
 
 	iwdg_wdt_get_version_and_status(iwdg);
-
-	if (otp_data.hw_enabled)
-		iwdg_wdt_set_enabled(iwdg);
 
 	if (iwdg_wdt_is_enabled(iwdg)) {
 		/* Configure timeout if watchdog is already enabled */
