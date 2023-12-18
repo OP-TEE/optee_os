@@ -150,8 +150,6 @@ static TEE_Result configure_timeout(struct stm32_iwdg_device *iwdg)
 	if (!rlr_value)
 		return TEE_ERROR_GENERIC;
 
-	clk_enable(iwdg->clk_pclk);
-
 	io_write32(iwdg_base + IWDG_KR_OFFSET, IWDG_KR_ACCESS_KEY);
 	io_write32(iwdg_base + IWDG_PR_OFFSET, IWDG_PR_DIV_256);
 	io_write32(iwdg_base + IWDG_RLR_OFFSET, rlr_value);
@@ -159,25 +157,19 @@ static TEE_Result configure_timeout(struct stm32_iwdg_device *iwdg)
 
 	res = iwdg_wait_sync(iwdg);
 
-	clk_disable(iwdg->clk_pclk);
-
 	return res;
 }
 
 static void iwdg_start(struct stm32_iwdg_device *iwdg)
 {
-	clk_enable(iwdg->clk_pclk);
 	io_write32(get_base(iwdg) + IWDG_KR_OFFSET, IWDG_KR_START_KEY);
-	clk_disable(iwdg->clk_pclk);
 
 	iwdg->flags |= IWDG_FLAGS_ENABLED;
 }
 
 static void iwdg_refresh(struct stm32_iwdg_device *iwdg)
 {
-	clk_enable(iwdg->clk_pclk);
 	io_write32(get_base(iwdg) + IWDG_KR_OFFSET, IWDG_KR_RELOAD_KEY);
-	clk_disable(iwdg->clk_pclk);
 }
 
 /* Operators for watchdog OP-TEE interface */
@@ -340,8 +332,9 @@ static TEE_Result stm32_iwdg_setup(struct stm32_iwdg_device *iwdg,
 	if (otp_data.disable_on_standby)
 		iwdg->flags |= IWDG_FLAGS_DISABLE_ON_STANDBY;
 
-	/* Enable watchdog source clock once for all */
+	/* Enable watchdog source and bus clocks once for all */
 	clk_enable(iwdg->clk_lsi);
+	clk_enable(iwdg->clk_pclk);
 
 	if (otp_data.hw_enabled) {
 		iwdg->flags |= IWDG_FLAGS_ENABLED;
