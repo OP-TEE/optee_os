@@ -26,8 +26,4 @@ struct stm32_iwdg_otp_data {
  */
 TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 				     struct stm32_iwdg_otp_data *otp_data);
-
-/* Refresh all registered IWDG watchdog instance */
-void stm32_iwdg_refresh(void);
-
 #endif /*__DRIVERS_STM32_IWDG_H*/

@@ -90,8 +90,6 @@ struct stm32_iwdg_device {
 	SLIST_ENTRY(stm32_iwdg_device) link;
 };
 
-static unsigned int iwdg_lock = SPINLOCK_UNLOCK;
-
 static SLIST_HEAD(iwdg_dev_list_head, stm32_iwdg_device) iwdg_dev_list =
 	SLIST_HEAD_INITIALIZER(iwdg_dev_list_head);
 
@@ -250,18 +248,6 @@ static const struct wdt_ops stm32_iwdg_ops = {
 	.set_timeout = iwdg_wdt_set_timeout,
 };
 DECLARE_KEEP_PAGER(stm32_iwdg_ops);
-
-/* Refresh all registered watchdogs */
-void stm32_iwdg_refresh(void)
-{
-	struct stm32_iwdg_device *iwdg = NULL;
-	uint32_t exceptions = cpu_spin_lock_xsave(&iwdg_lock);
-
-	SLIST_FOREACH(iwdg, &iwdg_dev_list, link)
-		iwdg_refresh(iwdg);
-
-	cpu_spin_unlock_xrestore(&iwdg_lock, exceptions);
-}
 
 /* Driver initialization */
 static TEE_Result stm32_iwdg_parse_fdt(struct stm32_iwdg_device *iwdg,
