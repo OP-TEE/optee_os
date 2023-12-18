@@ -1,3 +1,5 @@
+PLATFORM_FLAVOR ?= 157C_DK2
+
 # 1GB and 512MB DDR targets do not locate secure DDR at the same place.
 flavor_dts_file-157A_DHCOR_AVENGER96 = stm32mp157a-dhcor-avenger96.dts
 flavor_dts_file-157A_DK1 = stm32mp157a-dk1.dts
@@ -8,68 +10,55 @@ flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
 
 flavor_dts_file-135F_DK = stm32mp135f-dk.dts
 
-flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2) \
-		       $(flavor_dts_file-135F_DK)
+flavorlist-cryp-512M = 157C_DK2 135F_DK
 
-flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
+flavorlist-no_cryp-512M = 157A_DK1
 
-flavorlist-cryp-1G = $(flavor_dts_file-157C_DHCOM_PDK2) \
-		     $(flavor_dts_file-157C_ED1) \
-		     $(flavor_dts_file-157C_EV1)
+flavorlist-cryp-1G = 157C_DHCOM_PDK2 157C_ED1 157C_EV1
 
-flavorlist-no_cryp-1G = $(flavor_dts_file-157A_DHCOR_AVENGER96)
+flavorlist-no_cryp-1G = 157A_DHCOR_AVENGER96
 
 flavorlist-no_cryp = $(flavorlist-no_cryp-512M) \
-		  $(flavorlist-no_cryp-1G)
+		     $(flavorlist-no_cryp-1G)
 
 flavorlist-512M = $(flavorlist-cryp-512M) \
 		  $(flavorlist-no_cryp-512M)
 
 flavorlist-1G = $(flavorlist-cryp-1G) \
-		  $(flavorlist-no_cryp-1G)
+		$(flavorlist-no_cryp-1G)
 
-flavorlist-MP15-HUK-DT = $(flavor_dts_file-157A_DK1) \
-			 $(flavor_dts_file-157C_DK2) \
-			 $(flavor_dts_file-157C_ED1) \
-			 $(flavor_dts_file-157C_EV1)
+flavorlist-MP15-HUK-DT = 157A_DK1 157C_DK2 157C_ED1 157C_EV1
 
-flavorlist-MP15 = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
-		  $(flavor_dts_file-157A_DK1) \
-		  $(flavor_dts_file-157C_DHCOM_PDK2) \
-		  $(flavor_dts_file-157C_DK2) \
-		  $(flavor_dts_file-157C_ED1) \
-		  $(flavor_dts_file-157C_EV1)
+flavorlist-MP15 = 157A_DHCOR_AVENGER96 157A_DK1 157C_DHCOM_PDK2 157C_DK2 \
+		  157C_ED1 157C_EV1
 
-flavorlist-MP13 = $(flavor_dts_file-135F_DK)
+flavorlist-MP13 = 135F_DK
 
-ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
 endif
 CFG_EMBED_DTB_SOURCE_FILE ?= $(flavor_dts_file-$(PLATFORM_FLAVOR))
-endif
-CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp157c-dk2.dts
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
 $(call force,CFG_STM32_SAES,n)
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_rng)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-no_rng)),)
 $(call force,CFG_HWRNG_PTA,n)
 $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15-HUK-DT)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-MP15-HUK-DT)),)
 CFG_STM32MP15_HUK ?= y
 CFG_STM32_HUK_FROM_DT ?= y
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP13)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-MP13)),)
 $(call force,CFG_STM32MP13,y)
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-MP15)),)
 $(call force,CFG_STM32MP15,y)
 endif
 
@@ -154,7 +143,7 @@ ifneq ($(CFG_WITH_LPAE),y)
 CFG_TEE_RAM_VA_SIZE ?= 0x00200000
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-512M)),)
+ifneq ($(filter $(PLATFORM_FLAVOR),$(flavorlist-512M)),)
 CFG_TZDRAM_START ?= 0xde000000
 CFG_DRAM_SIZE    ?= 0x20000000
 endif
