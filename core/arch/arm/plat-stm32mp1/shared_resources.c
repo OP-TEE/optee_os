@@ -658,12 +658,13 @@ static void set_etzpc_secure_configuration(void)
 }
 #endif
 
-static void check_rcc_secure_configuration(void)
+static void rcc_secure_configuration(void)
 {
 	bool secure = stm32_rcc_is_secure();
 	bool mckprot = stm32_rcc_is_mckprot();
 	enum stm32mp_shres id = STM32MP1_SHRES_COUNT;
-	bool have_error = false;
+	bool need_secure = false;
+	bool need_mckprot = false;
 	uint32_t state = 0;
 
 	if (stm32_bsec_get_state(&state))
@@ -683,20 +684,25 @@ static void check_rcc_secure_configuration(void)
 		    id == STM32MP1_SHRES_SRAM4)
 			continue;
 
-		if ((mckprot_resource(id) && !mckprot) || !secure) {
-			EMSG("RCC %s MCKPROT %s and %s (%u) secure",
-			      secure ? "secure" : "non-secure",
-			      mckprot ? "set" : "not set",
-			      shres2str_id(id), id);
-			have_error = true;
-		}
+		need_secure = true;
+		if (mckprot_resource(id))
+			need_mckprot = true;
+
+		if (!secure || (need_mckprot && !mckprot))
+			EMSG("Error RCC TZEN=%u MCKPROT=%u and %s (%u) secure",
+			     secure, mckprot, shres2str_id(id), id);
 	}
 
-	if (have_error) {
+	if ((need_secure && !secure) || (need_mckprot && !mckprot)) {
 		if (IS_ENABLED(CFG_INSECURE))
 			EMSG("WARNING: CFG_INSECURE allows insecure RCC configuration");
 		else
 			panic();
+	}
+
+	if (!need_mckprot && mckprot) {
+		DMSG("Disable RCC MCKPROT");
+		stm32_rcc_set_mckprot(false);
 	}
 }
 
@@ -741,7 +747,7 @@ static TEE_Result stm32mp1_init_final_shres(void)
 		register_pm_driver_cb(gpioz_pm, NULL,
 				      "stm32mp1-shared-resources");
 	}
-	check_rcc_secure_configuration();
+	rcc_secure_configuration();
 
 	return TEE_SUCCESS;
 }
