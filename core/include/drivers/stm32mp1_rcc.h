@@ -561,6 +561,17 @@ static inline bool stm32_rcc_is_mckprot(void)
 {
 	return io_read32(stm32_rcc_base() + RCC_TZCR) & RCC_TZCR_MCKPROT;
 }
+
+static inline void stm32_rcc_set_mckprot(bool enable)
+{
+	vaddr_t tzcr_reg = stm32_rcc_base() + RCC_TZCR;
+
+	if (enable)
+		io_setbits32(tzcr_reg, RCC_TZCR_MCKPROT);
+	else
+		io_clrbits32(tzcr_reg, RCC_TZCR_MCKPROT);
+}
+
 #endif /*__ASSEMBLER__*/
 
 #endif /*__DRIVERS_STM32MP1_RCC_H__*/
