@@ -14,7 +14,7 @@
 #include <kernel/thread.h>
 #include <optee_ffa.h>
 
-#if CFG_SECURE_PARTITION
+#ifdef CFG_SECURE_PARTITION
 LOCAL_FUNC thread_ffa_interrupt , :
 	mov_imm	x0, FFA_INTERRUPT		/* FID */
 	/* X1: Endpoint/vCPU IDs is set by caller */
@@ -197,7 +197,7 @@ FUNC thread_foreign_intr_exit , :
 	adr_l	x2, threads
 	madd	x2, x1, x0, x2
 	ldr	w1, [x2, #THREAD_CTX_TSD_RPC_TARGET_INFO]
-#if CFG_SECURE_PARTITION
+#ifdef CFG_SECURE_PARTITION
 	/* load threads[w0].flags into w2 */
 	ldr	w2, [x2, #THREAD_CTX_FLAGS]
 	and     w2, w2, #THREAD_FLAGS_FFA_ONLY
