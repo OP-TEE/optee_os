@@ -60,7 +60,7 @@ static struct stm32_uart_pdata console_data;
 
 void console_init(void)
 {
-#if CFG_STM32_UART
+#ifdef CFG_STM32_UART
 	/* Early console initialization before MMU setup */
 	struct uart {
 		paddr_t pa;
