@@ -20,6 +20,7 @@ ifeq ($(CFG_NXP_CAAM),y)
 # DBG_DH     BIT32(13) // DH Trace
 # DBG_DSA    BIT32(14) // DSA trace
 # DBG_MP     BIT32(15) // MP trace
+# DBG_AE     BIT32(17) // AE trace
 CFG_DBG_CAAM_TRACE ?= 0x2
 CFG_DBG_CAAM_DESC ?= 0x0
 CFG_DBG_CAAM_BUF ?= 0x0
@@ -28,7 +29,7 @@ CFG_DBG_CAAM_BUF ?= 0x0
 caam-drivers = RNG BLOB
 
 # CAAM default drivers connected to the HW crypto API
-caam-crypto-drivers = CIPHER HASH HMAC CMAC
+caam-crypto-drivers = CIPHER HASH HMAC CMAC AE
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),ls1012ardb ls1043ardb ls1046ardb))
 $(call force, CFG_CAAM_BIG_ENDIAN,y)
@@ -185,6 +186,11 @@ endif
 # Enable CIPHER crypto driver
 ifeq ($(CFG_NXP_CAAM_CIPHER_DRV), y)
 $(call force, CFG_CRYPTO_DRV_CIPHER,y,Mandated by CFG_NXP_CAAM_CIPHER_DRV)
+endif
+
+# Enable AE crypto driver
+ifeq ($(CFG_NXP_CAAM_AE_DRV), y)
+$(call force, CFG_CRYPTO_DRV_AUTHENC,y,Mandated by CFG_NXP_CAAM_AE_DRV)
 endif
 
 # Enable HASH crypto driver
