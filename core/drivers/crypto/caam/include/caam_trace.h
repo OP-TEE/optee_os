@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2019-2021, 2023 NXP
+ * Copyright 2019-2021, 2023-2024 NXP
  *
  * Brief   CAAM driver trace include file.
  *         Definition of the internal driver trace macros.
@@ -43,6 +43,7 @@
 #define DBG_TRACE_MP	 BIT32(15) /* MP trace */
 #define DBG_TRACE_SM	 BIT32(16) /* Secure Memory trace */
 #define DBG_TRACE_KEY	 BIT32(17) /* KEY trace */
+#define DBG_TRACE_AE	 BIT32(18) /* AE trace */
 
 /* HAL */
 #if CAAM_DBG_TRACE(HAL)
@@ -352,6 +353,29 @@
 #define SM_TRACE DRV_TRACE
 #else
 #define SM_TRACE(...)
+#endif
+
+/* Cipher AE */
+#if CAAM_DBG_TRACE(AE)
+#define AE_TRACE DRV_TRACE
+#if CAAM_DBG_DESC(AE)
+#define AE_DUMPDESC(desc)                                              \
+	do {                                                           \
+		AE_TRACE("AE Descriptor");                             \
+		DRV_DUMPDESC(desc);                                    \
+	} while (0)
+#else
+#define AE_DUMPDESC(...)
+#endif
+#if CAAM_DBG_BUF(AE)
+#define AE_DUMPBUF DRV_DUMPBUF
+#else
+#define AE_DUMPBUF(...)
+#endif
+#else
+#define AE_TRACE(...)
+#define AE_DUMPDESC(...)
+#define AE_DUMPBUF(...)
 #endif
 
 #endif /* CAAM_TRACE_H__ */
