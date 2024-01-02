@@ -88,12 +88,6 @@ struct serc_device {
 
 static struct serc_device serc_dev;
 
-static __noreturn void access_violation_action(void)
-{
-	DMSG("Ooops...");
-	panic();
-}
-
 static void stm32_serc_get_hwdata(void)
 {
 	struct stm32_serc_platdata *pdata = &serc_dev.pdata;
@@ -177,8 +171,11 @@ static void stm32_serc_handle_ilac(void)
 		}
 	}
 
-	if (do_panic)
-		access_violation_action();
+	if (do_panic) {
+		stm32_rif_access_violation_action();
+		if (IS_ENABLED(CFG_STM32_PANIC_ON_SERC_EVENT))
+			panic();
+	}
 }
 
 static enum itr_return stm32_serc_itr(struct itr_handler *h __unused)

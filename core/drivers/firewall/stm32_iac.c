@@ -135,12 +135,6 @@ static TEE_Result stm32_iac_parse_fdt(void)
 	return TEE_SUCCESS;
 }
 
-static __noreturn void access_violation_action(void)
-{
-	DMSG("Ooops...");
-	panic();
-}
-
 static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 {
 	struct iac_driver_data *ddata = iac_dev.ddata;
@@ -179,8 +173,11 @@ static enum itr_return stm32_iac_itr(struct itr_handler *h __unused)
 		}
 	}
 
-	if (do_panic)
-		access_violation_action();
+	if (do_panic) {
+		stm32_rif_access_violation_action();
+		if (IS_ENABLED(CFG_STM32_PANIC_ON_IAC_EVENT))
+			panic();
+	}
 
 	return ITRR_HANDLED;
 }
