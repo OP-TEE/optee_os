@@ -1,8 +1,10 @@
 flavor_dts_file-215F_DK = stm32mp215f-dk.dts
+flavor_dts_file-257F_DK = stm32mp257f-dk.dts
 flavor_dts_file-257F_EV1 = stm32mp257f-ev1.dts
 
 flavorlist-MP21 = $(flavor_dts_file-215F_DK)
-flavorlist-MP25 = $(flavor_dts_file-257F_EV1)
+flavorlist-MP25 = $(flavor_dts_file-257F_DK) \
+		  $(flavor_dts_file-257F_EV1)
 
 # List of all DTS for this PLATFORM
 ALL_DTS = $(flavorlist-MP21) $(flavorlist-MP25)
