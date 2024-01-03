@@ -373,6 +373,19 @@ static inline void write_64bit_pair(uint64_t dst, uint64_t hi, uint64_t lo)
 		      "r" (hi), "r" (lo), "r" (dst) : "memory");
 }
 
+static inline void read_64bit_pair(uint64_t src, uint64_t *hi, uint64_t *lo)
+{
+	uint64_t tmp0 = 0;
+	uint64_t tmp1 = 0;
+
+	/* 128bits should be read from hardware at one time */
+	asm volatile ("ldp %0, %1, [%2]\n" : "=&r"(tmp0), "=&r"(tmp1) :
+		      "r"(src) : "memory");
+
+	*lo = tmp0;
+	*hi = tmp1;
+}
+
 /*
  * Templates for register read/write functions based on mrs/msr
  */
