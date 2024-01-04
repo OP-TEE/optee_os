@@ -117,7 +117,7 @@ static inline __noprof void mb(void)
 
 static inline __noprof unsigned long read_tp(void)
 {
-	unsigned long tp;
+	unsigned long tp = 0;
 
 	asm volatile("mv %0, tp" : "=&r"(tp));
 	return tp;
