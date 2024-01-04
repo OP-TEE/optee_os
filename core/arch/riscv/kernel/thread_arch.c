@@ -14,6 +14,7 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
