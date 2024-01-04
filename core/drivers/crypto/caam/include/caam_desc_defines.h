@@ -329,6 +329,7 @@
  * ECC Protocol Information
  */
 #define PROT_PK_MSG(type)	SHIFT_U32(PROT_PK_MSG_##type, 10)
+#define PROT_PK_MSG_MES_REP	0
 #define PROT_PK_MSG_HASHED	2
 #define PROT_PK_TYPE(type)	SHIFT_U32(PROT_PK_##type, 1)
 #define PROT_PK_DL		0
