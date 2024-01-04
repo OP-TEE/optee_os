@@ -197,7 +197,7 @@ static void plic_op_raise_pi(struct itr_chip *chip, size_t it)
 }
 
 static void plic_op_raise_sgi(struct itr_chip *chip __unused,
-			      size_t it __unused, uint8_t cpu_mask __unused)
+			      size_t it __unused, uint32_t cpu_mask __unused)
 {
 }
 
