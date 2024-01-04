@@ -83,6 +83,11 @@ $(call force, CFG_JR_INDEX,2)
 $(call force, CFG_JR_INT,146)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_JR_HAB_INDEX,0)
+# There is a limitation on i.MX8M platforms regarding ECDSA Sign/Verify
+# Size of Class 2 Context register is 40bytes, because of which sign/verify
+# of a hash of more than 40bytes fails. So a workaround is implemented for
+# this issue, controlled by CFG_NXP_CAAM_C2_CTX_REG_WA flag.
+$(call force, CFG_NXP_CAAM_C2_CTX_REG_WA,y)
 caam-drivers += MP DEK
 caam-crypto-drivers += RSA DSA ECC DH MATH
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8ulp-flavorlist)))
