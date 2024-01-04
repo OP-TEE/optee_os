@@ -423,7 +423,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata)
 	/* Message length */
 	caam_desc_add_word(desc, sdata->message.length);
 
-	caam_desc_add_word(desc, DSA_SIGN(ECC));
+	caam_desc_add_word(desc, DSA_SIGN(ECC, HASHED));
 
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
@@ -559,7 +559,7 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata)
 	/* Message length */
 	caam_desc_add_word(desc, sdata->message.length);
 
-	caam_desc_add_word(desc, DSA_VERIFY(ECC));
+	caam_desc_add_word(desc, DSA_VERIFY(ECC, HASHED));
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
 
