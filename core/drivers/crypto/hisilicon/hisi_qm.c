@@ -24,6 +24,10 @@
 #define QM_MB_OP_SHIFT		14
 #define QM_MB_OP_WR		0
 #define QM_MB_OP_RD		1
+#define QM_MB_STATUS_MASK	GENMASK_32(12, 9)
+#define QM_MB_WAIT_READY_CNT	10
+#define QM_MB_WAIT_MAX_CNT	21000
+#define QM_MB_WAIT_PERIOD	200
 /* XQC_VFT */
 #define QM_VFT_CFG_OP_ENABLE	0x100054
 #define QM_VFT_CFG_OP_WR	0x100058
@@ -143,49 +147,109 @@ static void qm_db(struct hisi_qm *qm, uint16_t qn, uint8_t cmd, uint16_t index,
 	io_write64(qm->io_base + QM_DOORBELL_SQ_CQ_BASE, doorbell);
 }
 
-static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
-{
-	uint32_t val = 0;
-
-	/* Return 0 mailbox ready, HISI_QM_DRVCRYPT_ETMOUT hardware timeout */
-	if (IO_READ32_POLL_TIMEOUT(qm->io_base + QM_MAILBOX_BASE, val,
-				   !(val & QM_MB_BUSY_BIT), POLL_PERIOD,
-				   POLL_TIMEOUT)) {
-		return HISI_QM_DRVCRYPT_ETMOUT;
-	}
-
-	return HISI_QM_DRVCRYPT_NO_ERR;
-}
-
 static void qm_mb_write(struct hisi_qm *qm, struct qm_mailbox *mb)
 {
 	vaddr_t dst = qm->io_base + QM_MAILBOX_BASE;
 
-	write_64bit_pair(dst, mb->x[0], mb->x[1]);
+	write_64bit_pair(dst, mb->x[1], mb->x[0]);
+	dsb_osh();
 }
 
-static enum hisi_drv_status qm_mb(struct hisi_qm *qm, uint8_t cmd,
-				  vaddr_t dma_addr, uint16_t qn, uint8_t op)
+static void qm_mb_read(struct hisi_qm *qm, struct qm_mailbox *mb)
+{
+	vaddr_t mb_base = qm->io_base + QM_MAILBOX_BASE;
+
+	read_64bit_pair(mb_base, mb->x + 1, mb->x);
+	dsb_osh();
+}
+
+static enum hisi_drv_status qm_wait_mb_ready(struct hisi_qm *qm)
 {
 	struct qm_mailbox mb = { };
+	uint32_t timeout = 0;
 
-	mb.w0 = cmd | SHIFT_U32(op, QM_MB_OP_SHIFT) |
-		BIT32(QM_MB_BUSY_SHIFT);
-	mb.queue = qn;
-	reg_pair_from_64(dma_addr, &mb.base_h, &mb.base_l);
-	mb.token = 0;
-
-	if (qm_wait_mb_ready(qm)) {
-		EMSG("QM mailbox is busy");
-		return HISI_QM_DRVCRYPT_EBUSY;
+	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_READY_CNT);
+	while (!timeout_elapsed(timeout)) {
+		/* 128 bits should be read from hardware at one time*/
+		qm_mb_read(qm, &mb);
+		if (!(mb.w0 & QM_MB_BUSY_BIT))
+			return HISI_QM_DRVCRYPT_NO_ERR;
 	}
 
-	qm_mb_write(qm, &mb);
+	EMSG("QM mailbox is busy to start!");
 
-	if (qm_wait_mb_ready(qm)) {
-		EMSG("QM mailbox operation timeout");
-		return HISI_QM_DRVCRYPT_EBUSY;
+	return HISI_QM_DRVCRYPT_EBUSY;
+}
+
+static enum hisi_drv_status qm_wait_mb_finish(struct hisi_qm *qm,
+					      struct qm_mailbox *mb)
+{
+	uint32_t timeout = 0;
+
+	timeout = timeout_init_us(QM_MB_WAIT_PERIOD * QM_MB_WAIT_MAX_CNT);
+	while (!timeout_elapsed(timeout)) {
+		qm_mb_read(qm, mb);
+		if (!(mb->w0 & QM_MB_BUSY_BIT)) {
+			if (mb->w0 & QM_MB_STATUS_MASK) {
+				EMSG("QM mailbox operation failed!");
+				return HISI_QM_DRVCRYPT_EIO;
+			} else {
+				return HISI_QM_DRVCRYPT_NO_ERR;
+			}
+		}
 	}
+
+	return HISI_QM_DRVCRYPT_ETMOUT;
+}
+
+static void qm_mb_init(struct qm_mailbox *mb, uint8_t cmd, uint64_t base,
+		       uint16_t qnum, uint8_t op)
+{
+	mb->w0 = cmd | SHIFT_U32(op, QM_MB_OP_SHIFT) |  QM_MB_BUSY_BIT;
+	mb->queue = qnum;
+	reg_pair_from_64(base, &mb->base_h, &mb->base_l);
+	mb->token = 0;
+}
+
+static enum hisi_drv_status qm_mb_nolock(struct hisi_qm *qm,
+					 struct qm_mailbox *mb)
+{
+	if (qm_wait_mb_ready(qm))
+		return HISI_QM_DRVCRYPT_EBUSY;
+
+	qm_mb_write(qm, mb);
+
+	return qm_wait_mb_finish(qm, mb);
+}
+
+static enum hisi_drv_status hisi_qm_mb_write(struct hisi_qm *qm, uint8_t cmd,
+					     uintptr_t dma_addr, uint16_t qnum)
+{
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+	struct qm_mailbox mb = { };
+
+	qm_mb_init(&mb, cmd, dma_addr, qnum, QM_MB_OP_WR);
+	mutex_lock(&qm->mailbox_lock);
+	ret = qm_mb_nolock(qm, &mb);
+	mutex_unlock(&qm->mailbox_lock);
+
+	return ret;
+}
+
+static enum hisi_drv_status hisi_qm_mb_read(struct hisi_qm *qm, uint64_t *base,
+					    uint8_t cmd, uint16_t qnum)
+{
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+	struct qm_mailbox mb = { };
+
+	qm_mb_init(&mb, cmd, 0, qnum, QM_MB_OP_RD);
+	mutex_lock(&qm->mailbox_lock);
+	ret = qm_mb_nolock(qm, &mb);
+	mutex_unlock(&qm->mailbox_lock);
+	if (ret)
+		return ret;
+
+	reg_pair_from_64(*base, &mb.base_h, &mb.base_l);
 
 	return HISI_QM_DRVCRYPT_NO_ERR;
 }
@@ -276,11 +340,10 @@ static enum hisi_drv_status qm_get_vft(struct hisi_qm *qm, uint32_t *base,
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 	uint64_t sqc_vft = 0;
 
-	ret = qm_mb(qm, QM_MB_CMD_SQC_VFT, 0, 0, QM_MB_OP_RD);
+	ret = hisi_qm_mb_read(qm, &sqc_vft, QM_MB_CMD_SQC_VFT, 0);
 	if (ret)
 		return ret;
 
-	sqc_vft = io_read64(qm->io_base + QM_MAILBOX_DATA_ADDR_L);
 	*base = (sqc_vft >> QM_SQC_VFT_START_SQN_SHIFT) & QM_SQC_VFT_BASE_MASK;
 	*num = ((sqc_vft >> QM_SQC_VFT_SQ_NUM_SHIFT) & QM_SQC_VFT_NUM_MASK) + 1;
 
@@ -415,6 +478,7 @@ enum hisi_drv_status hisi_qm_init(struct hisi_qm *qm)
 	qm->qp_in_used = 0;
 	qm->qp_idx = 0;
 	mutex_init(&qm->qp_lock);
+	mutex_init(&qm->mailbox_lock);
 
 	return HISI_QM_DRVCRYPT_NO_ERR;
 }
@@ -436,6 +500,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	qm_cache_writeback(qm);
 	qm_free(qm);
 	mutex_destroy(&qm->qp_lock);
+	mutex_destroy(&qm->mailbox_lock);
 }
 
 static enum hisi_drv_status qm_hw_mem_reset(struct hisi_qm *qm)
@@ -506,13 +571,13 @@ enum hisi_drv_status hisi_qm_start(struct hisi_qm *qm)
 		}
 	}
 
-	ret = qm_mb(qm, QM_MB_CMD_SQC_BT, qm->sqc_dma, 0, QM_MB_OP_WR);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_SQC_BT, qm->sqc_dma, 0);
 	if (ret) {
 		EMSG("Fail to set sqc_bt");
 		return ret;
 	}
 
-	ret = qm_mb(qm, QM_MB_CMD_CQC_BT, qm->cqc_dma, 0, QM_MB_OP_WR);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_CQC_BT, qm->cqc_dma, 0);
 	if (ret) {
 		EMSG("Fail to set cqc_bt");
 		return ret;
@@ -571,7 +636,7 @@ static enum hisi_drv_status qm_sqc_cfg(struct hisi_qp *qp)
 	sqc->w13 = BIT32(QM_SQ_ORDER_SHIFT) |
 		   SHIFT_U32(qp->sq_type, QM_SQ_TYPE_SHIFT);
 
-	ret = qm_mb(qm, QM_MB_CMD_SQC, sqc_dma, qp->qp_id, QM_MB_OP_WR);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_SQC, sqc_dma, qp->qp_id);
 	free(sqc);
 
 	return ret;
@@ -597,7 +662,7 @@ static enum hisi_drv_status qm_cqc_cfg(struct hisi_qp *qp)
 	cqc->rand_data = QM_DB_RAND_DATA;
 	cqc->dw6 = PHASE_DEFAULT_VAL;
 
-	ret = qm_mb(qm, QM_MB_CMD_CQC, cqc_dma, qp->qp_id, QM_MB_OP_WR);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_CQC, cqc_dma, qp->qp_id);
 	free(cqc);
 
 	return ret;
@@ -770,29 +835,29 @@ static void qm_dfx_dump(struct hisi_qm *qm)
 enum hisi_drv_status hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
-	uint32_t cnt = 0;
+	uint32_t timeout = 0;
 
 	if (!qp) {
 		EMSG("QP is NULL");
 		return HISI_QM_DRVCRYPT_EINVAL;
 	}
 
-	while (true) {
+	timeout = timeout_init_us(QM_SINGLE_WAIT_TIME *
+				  HISI_QM_RECV_SYNC_TIMEOUT);
+	while (!timeout_elapsed(timeout)) {
 		ret = hisi_qp_recv(qp, msg);
-		if (ret == HISI_QM_DRVCRYPT_NO_ERR) {
-			cnt++;
-			if (cnt > HISI_QM_RECV_SYNC_TIMEOUT) {
-				EMSG("QM recv task timeout");
+		if (ret) {
+			if (ret != HISI_QM_DRVCRYPT_RECV_DONE) {
+				EMSG("QM recv task error");
 				qm_dfx_dump(qp->qm);
-				return HISI_QM_DRVCRYPT_ETMOUT;
-			}
-		} else {
-			if (ret == HISI_QM_DRVCRYPT_RECV_DONE)
+				return ret;
+			} else {
 				return HISI_QM_DRVCRYPT_NO_ERR;
-
-			EMSG("QM recv task error");
-			qm_dfx_dump(qp->qm);
-			return ret;
+			}
 		}
 	}
+
+	EMSG("QM recv task timeout");
+	qm_dfx_dump(qp->qm);
+	return HISI_QM_DRVCRYPT_ETMOUT;
 }

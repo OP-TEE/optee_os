@@ -34,9 +34,11 @@
 #define HISI_QM_REVISON_ID_MASK GENMASK_32(7, 0)
 #define POLL_PERIOD 10
 #define POLL_TIMEOUT 1000
-#define HISI_QM_RECV_SYNC_TIMEOUT 0xfffffff
+#define HISI_QM_RECV_SYNC_TIMEOUT 0xfffff
 #define HISI_QM_ALIGN128 128
 #define HISI_QM_ALIGN32 32
+#define QM_SINGLE_WAIT_TIME 5
+#define ADDR_U64(upper, lower) ((uint64_t)(upper) << 32 | (lower))
 
 enum qm_fun_type {
 	HISI_QM_HW_PF,
@@ -164,6 +166,7 @@ struct hisi_qm {
 	uint32_t qp_idx;
 	struct hisi_qp *qp_array;
 	struct mutex qp_lock; /* protect the qp instance */
+	struct mutex mailbox_lock;
 
 	enum hisi_drv_status (*dev_status_check)(struct hisi_qm *qm);
 };
