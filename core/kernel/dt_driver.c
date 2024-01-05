@@ -266,8 +266,10 @@ static TEE_Result device_from_provider_prop(struct dt_driver_provider *prv,
 	pargs->fdt = fdt;
 	pargs->phandle_node = phandle_node;
 	pargs->args_count = prv->provider_cells;
-	for (n = 0; n < prv->provider_cells; n++)
+	for (n = 0; n < prv->provider_cells; n++) {
+		assert(prop);
 		pargs->args[n] = fdt32_to_cpu(prop[n]);
+	}
 
 	res = prv->get_of_device(pargs, prv->priv_data, device_ref);
 
