@@ -494,7 +494,10 @@ static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
 	int offs = 0;
 	int ret = 0;
 
-	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	ret = snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	if (ret < 0 || (size_t)ret >= sizeof(frag))
+		return -1;
+
 	offs = fdt_add_subnode(dt->blob, ioffs, frag);
 	if (offs < 0)
 		return offs;
