@@ -968,6 +968,8 @@ static void collect_device_mem_ranges(struct tee_mmap_region *memory_map,
 	int subnode = 0;
 	int node = 0;
 
+	assert(fdt);
+
 	node = fdt_node_offset_by_compatible(fdt, 0, compatible);
 	if (node < 0)
 		return;
