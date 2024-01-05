@@ -2133,7 +2133,10 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
 		if (res)
 			return res;
 	} else {
-		crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key->e);
+		res = crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e),
+					   key->e);
+		if (res)
+			return res;
 	}
 	res = crypto_acipher_gen_rsa_key(key, key_size);
 	if (res != TEE_SUCCESS)
