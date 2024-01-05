@@ -1061,13 +1061,17 @@ static void add_deps_from_segment(struct ta_elf *elf, unsigned int type,
 	check_range(elf, ".dynstr/STRTAB", str_tab, str_tab_sz);
 
 	for (n = 0; n < num_dyns; n++) {
+		TEE_Result res = TEE_SUCCESS;
+
 		read_dyn(elf, addr, n, &tag, &val);
 		if (tag != DT_NEEDED)
 			continue;
 		if (val >= str_tab_sz)
 			err(TEE_ERROR_BAD_FORMAT,
 			    "Offset into .dynstr/STRTAB out of range");
-		tee_uuid_from_str(&uuid, str_tab + val);
+		res = tee_uuid_from_str(&uuid, str_tab + val);
+		if (res)
+			err(res, "Fail to get UUID from string");
 		queue_elf(&uuid);
 	}
 }
