@@ -2539,6 +2539,11 @@ static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
 	}
 
 	rsa = mbedtls_pk_rsa(pk);
+	if (!rsa) {
+		rc = PKCS11_CKR_GENERAL_ERROR;
+		goto out;
+	}
+
 	mbedtls_rc = mbedtls_rsa_export(rsa, &n, &p, &q, &d, &e);
 	if (mbedtls_rc) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
@@ -2730,6 +2735,11 @@ encode_rsa_private_key_der(struct obj_attrs *head, void **data, uint32_t *sz)
 		goto out;
 
 	rsa = mbedtls_pk_rsa(pk);
+	if (!rsa) {
+		rc = PKCS11_CKR_GENERAL_ERROR;
+		goto out;
+	}
+
 	mbedtls_rc = mbedtls_rsa_import_raw(rsa, n, n_len, p, p_len,
 					    q, q_len, d, d_len, e, e_len);
 	if (mbedtls_rc) {
