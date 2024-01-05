@@ -20,7 +20,7 @@ subdirs-y += stm32mp
 subdirs-y += imx
 subdirs-y += k3
 
-ifeq ($(CFG_RPROC_PTA),y)
+ifeq ($(CFG_REMOTEPROC_PTA),y)
 gensrcs-y += rproc_pub_key
 produce-rproc_pub_key = rproc_pub_key.c
 depends-rproc_pub_key = $(RPROC_SIGN_KEY) scripts/pem_to_pub_c.py
