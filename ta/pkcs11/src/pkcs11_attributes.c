@@ -2913,9 +2913,7 @@ static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
 	if (rc != PKCS11_CKR_OK)
 		goto out;
 
-	attr.attributeID = TEE_ATTR_SECRET_VALUE;
-	attr.content.ref.buffer = key;
-	attr.content.ref.length = key_size;
+	TEE_InitRefAttribute(&attr, TEE_ATTR_SECRET_VALUE, key, key_size);
 
 	res = TEE_PopulateTransientObject(hkey, &attr, 1);
 	rc = tee2pkcs_error(res);
