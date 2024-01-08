@@ -388,6 +388,12 @@ free_sqe:
 	return ret;
 }
 
+static void hisi_qm_free_xqc(struct qm_xqc *xqc)
+{
+	free(xqc->cqc);
+	free(xqc->sqc);
+}
+
 static void qm_free(struct hisi_qm *qm)
 {
 	unsigned int i = 0;
@@ -396,43 +402,64 @@ static void qm_free(struct hisi_qm *qm)
 		qp_free(qm, i);
 
 	free(qm->qp_array);
-	free(qm->sqc);
-	free(qm->cqc);
+	hisi_qm_free_xqc(&qm->xqc);
+	hisi_qm_free_xqc(&qm->cfg_xqc);
+}
+
+static enum hisi_drv_status hisi_qm_alloc_xqc(struct qm_xqc *xqc,
+					      uint32_t qp_num)
+{
+	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
+	size_t sqc_size = 0;
+	size_t cqc_size = 0;
+
+	sqc_size = sizeof(struct qm_sqc) * qp_num;
+	cqc_size = sizeof(struct qm_cqc) * qp_num;
+
+	xqc->sqc = memalign(HISI_QM_ALIGN32, sqc_size);
+	if (!xqc->sqc) {
+		EMSG("Fail to malloc sqc");
+		return HISI_QM_DRVCRYPT_ENOMEM;
+	}
+	memset(xqc->sqc, 0, sqc_size);
+	xqc->sqc_dma = virt_to_phys(xqc->sqc);
+
+	xqc->cqc = memalign(HISI_QM_ALIGN32, cqc_size);
+	if (!xqc->cqc) {
+		EMSG("Fail to malloc cqc");
+		ret = HISI_QM_DRVCRYPT_ENOMEM;
+		goto free_sqc;
+	}
+	memset(xqc->cqc, 0, cqc_size);
+	xqc->cqc_dma = virt_to_phys(xqc->cqc);
+
+	return HISI_QM_DRVCRYPT_NO_ERR;
+
+	free(xqc->cqc);
+free_sqc:
+	free(xqc->sqc);
+	return ret;
 }
 
 static enum hisi_drv_status qm_alloc(struct hisi_qm *qm)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
-	size_t sqc_size = 0;
-	size_t cqc_size = 0;
-	unsigned int i = 0;
-	int j = 0;
+	int32_t j;
+	uint32_t i;
 
-	sqc_size = sizeof(struct qm_sqc) * qm->qp_num;
-	cqc_size = sizeof(struct qm_cqc) * qm->qp_num;
+	ret = hisi_qm_alloc_xqc(&qm->xqc, qm->qp_num);
+	if (ret)
+		return ret;
 
-	qm->sqc = memalign(HISI_QM_ALIGN32, sqc_size);
-	if (!qm->sqc) {
-		EMSG("Fail to malloc sqc");
-		return HISI_QM_DRVCRYPT_ENOMEM;
-	}
-	memset(qm->sqc, 0, sqc_size);
-	qm->sqc_dma = virt_to_phys(qm->sqc);
-
-	qm->cqc = memalign(HISI_QM_ALIGN32, cqc_size);
-	if (!qm->cqc) {
-		EMSG("Fail to malloc cqc");
-		ret = HISI_QM_DRVCRYPT_ENOMEM;
-		goto free_sqc;
-	}
-	memset(qm->cqc, 0, cqc_size);
-	qm->cqc_dma = virt_to_phys(qm->cqc);
+	ret = hisi_qm_alloc_xqc(&qm->cfg_xqc, 1);
+	if (ret)
+		goto free_xqc;
 
 	qm->qp_array = calloc(qm->qp_num, sizeof(struct hisi_qp));
 	if (!qm->qp_array) {
 		EMSG("Fail to malloc qp_array");
 		ret = HISI_QM_DRVCRYPT_ENOMEM;
-		goto free_cqc;
+		goto free_cfg_xqc;
 	}
 
 	for (i = 0; i < qm->qp_num; i++) {
@@ -447,10 +474,10 @@ free_qp_mem:
 	for (j = (int)i - 1; j >= 0; j--)
 		qp_free(qm, j);
 	free(qm->qp_array);
-free_cqc:
-	free(qm->cqc);
-free_sqc:
-	free(qm->sqc);
+free_cfg_xqc:
+	hisi_qm_free_xqc(&qm->cfg_xqc);
+free_xqc:
+	hisi_qm_free_xqc(&qm->xqc);
 	return ret;
 }
 
@@ -571,13 +598,13 @@ enum hisi_drv_status hisi_qm_start(struct hisi_qm *qm)
 		}
 	}
 
-	ret = hisi_qm_mb_write(qm, QM_MB_CMD_SQC_BT, qm->sqc_dma, 0);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_SQC_BT, qm->xqc.sqc_dma, 0);
 	if (ret) {
 		EMSG("Fail to set sqc_bt");
 		return ret;
 	}
 
-	ret = hisi_qm_mb_write(qm, QM_MB_CMD_CQC_BT, qm->cqc_dma, 0);
+	ret = hisi_qm_mb_write(qm, QM_MB_CMD_CQC_BT, qm->xqc.cqc_dma, 0);
 	if (ret) {
 		EMSG("Fail to set cqc_bt");
 		return ret;
@@ -618,15 +645,10 @@ static enum hisi_drv_status qm_sqc_cfg(struct hisi_qp *qp)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 	struct hisi_qm *qm = qp->qm;
-	struct qm_sqc *sqc = NULL;
-	paddr_t sqc_dma = 0;
+	struct qm_sqc *sqc = qm->cfg_xqc.sqc;
+	struct qm_mailbox mb = { };
 
-	sqc = memalign(HISI_QM_ALIGN32, sizeof(struct qm_sqc));
-	if (!sqc)
-		return HISI_QM_DRVCRYPT_ENOMEM;
-
-	sqc_dma = virt_to_phys(sqc);
-
+	mutex_lock(&qm->mailbox_lock);
 	memset(sqc, 0, sizeof(struct qm_sqc));
 	reg_pair_from_64(qp->sqe_dma, &sqc->base_h, &sqc->base_l);
 	sqc->dw3 = (HISI_QM_Q_DEPTH - 1) |
@@ -636,8 +658,10 @@ static enum hisi_drv_status qm_sqc_cfg(struct hisi_qp *qp)
 	sqc->w13 = BIT32(QM_SQ_ORDER_SHIFT) |
 		   SHIFT_U32(qp->sq_type, QM_SQ_TYPE_SHIFT);
 
-	ret = hisi_qm_mb_write(qm, QM_MB_CMD_SQC, sqc_dma, qp->qp_id);
-	free(sqc);
+	qm_mb_init(&mb, QM_MB_CMD_SQC, qm->cfg_xqc.sqc_dma, qp->qp_id,
+		   QM_MB_OP_WR);
+	ret = qm_mb_nolock(qm, &mb);
+	mutex_unlock(&qm->mailbox_lock);
 
 	return ret;
 }
@@ -646,15 +670,10 @@ static enum hisi_drv_status qm_cqc_cfg(struct hisi_qp *qp)
 {
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 	struct hisi_qm *qm = qp->qm;
-	struct qm_cqc *cqc = NULL;
-	paddr_t cqc_dma = 0;
+	struct qm_cqc *cqc = qm->cfg_xqc.cqc;
+	struct qm_mailbox mb = { };
 
-	cqc = memalign(HISI_QM_ALIGN32, sizeof(struct qm_cqc));
-	if (!cqc)
-		return HISI_QM_DRVCRYPT_ENOMEM;
-
-	cqc_dma = virt_to_phys(cqc);
-
+	mutex_lock(&qm->mailbox_lock);
 	memset(cqc, 0, sizeof(struct qm_cqc));
 	reg_pair_from_64(qp->cqe_dma, &cqc->base_h, &cqc->base_l);
 	cqc->dw3 = (HISI_QM_Q_DEPTH - 1) |
@@ -662,8 +681,10 @@ static enum hisi_drv_status qm_cqc_cfg(struct hisi_qp *qp)
 	cqc->rand_data = QM_DB_RAND_DATA;
 	cqc->dw6 = PHASE_DEFAULT_VAL;
 
-	ret = hisi_qm_mb_write(qm, QM_MB_CMD_CQC, cqc_dma, qp->qp_id);
-	free(cqc);
+	qm_mb_init(&mb, QM_MB_CMD_CQC, qm->cfg_xqc.cqc_dma, qp->qp_id,
+		   QM_MB_OP_WR);
+	ret = qm_mb_nolock(qm, &mb);
+	mutex_unlock(&qm->mailbox_lock);
 
 	return ret;
 }
