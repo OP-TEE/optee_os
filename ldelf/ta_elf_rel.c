@@ -282,7 +282,7 @@ static void resolve_sym(const char *name, vaddr_t *val, struct ta_elf **mod,
 	if (res) {
 		if (err_if_not_found)
 			err(res, "Symbol %s not found", name);
-		else
+		else if (val)
 			*val = 0;
 	}
 }
