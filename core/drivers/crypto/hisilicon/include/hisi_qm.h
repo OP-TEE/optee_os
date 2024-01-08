@@ -147,6 +147,13 @@ struct hisi_qp {
 	enum hisi_drv_status (*parse_sqe)(void *sqe, void *msg);
 };
 
+struct qm_xqc {
+	struct qm_sqc *sqc;
+	struct qm_cqc *cqc;
+	paddr_t sqc_dma;
+	paddr_t cqc_dma;
+};
+
 struct hisi_qm {
 	enum qm_fun_type fun_type;
 	vaddr_t io_base;
@@ -154,10 +161,8 @@ struct hisi_qm {
 	uint32_t vfs_num;
 	uint32_t version;
 
-	struct qm_sqc *sqc;
-	struct qm_cqc *cqc;
-	paddr_t sqc_dma;
-	paddr_t cqc_dma;
+	struct qm_xqc xqc;
+	struct qm_xqc cfg_xqc;
 	uint32_t sqe_size;
 	uint32_t sqe_log2_size;
 	uint32_t qp_base;
