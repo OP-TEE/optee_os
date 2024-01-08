@@ -2962,7 +2962,8 @@ enum pkcs11_rc set_check_value_attr(struct obj_attrs **head)
 	case PKCS11_CKO_CERTIFICATE:
 		break;
 	default:
-		return PKCS11_CKR_ARGUMENTS_BAD;
+		/* Nothing to do */
+		return PKCS11_CKR_OK;
 	}
 
 	/* Check whether CKA_CHECK_VALUE has been provided in the template */
