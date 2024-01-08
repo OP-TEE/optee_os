@@ -2897,8 +2897,8 @@ static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
 	TEE_OperationHandle op = TEE_HANDLE_NULL;
 	TEE_ObjectHandle hkey = TEE_HANDLE_NULL;
 	TEE_Attribute attr = { };
-	uint8_t *buf = NULL;
-	size_t buf_size = 0;
+	uint8_t buf[TEE_AES_BLOCK_SIZE] = { };
+	size_t buf_size = sizeof(buf);
 
 	assert(key && kcv);
 
@@ -2929,13 +2929,6 @@ static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
 
 	TEE_CipherInit(op, NULL, 0);
 
-	buf_size = key_size;
-	buf = TEE_Malloc(buf_size, TEE_MALLOC_FILL_ZERO);
-	if (!buf) {
-		rc = PKCS11_CKR_DEVICE_MEMORY;
-		goto out;
-	}
-
 	res = TEE_CipherDoFinal(op, buf, buf_size, buf, &buf_size);
 	rc = tee2pkcs_error(res);
 	if (rc != PKCS11_CKR_OK)
@@ -2944,7 +2937,6 @@ static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
 	TEE_MemMove(kcv, buf, PKCS11_CKA_CHECK_VALUE_SIZE);
 
 out:
-	TEE_Free(buf);
 	TEE_FreeTransientObject(hkey);
 	TEE_FreeOperation(op);
 
