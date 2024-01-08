@@ -11,7 +11,7 @@ CFG_PKCS11_TA_HEAP_SIZE ?= (32 * 1024)
 CFG_PKCS11_TA_TOKEN_COUNT ?= 3
 
 # When enabled, embed support for object checksum value computation
-CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= n
+CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
 
 global-incdirs-y += include
 global-incdirs-y += src
