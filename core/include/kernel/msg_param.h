@@ -30,7 +30,6 @@
 #define __KERNEL_MSG_PARAM_H
 
 #include <compiler.h>
-#include <kernel/msg_param.h>
 #include <mm/mobj.h>
 #include <optee_msg.h>
 #include <stdio.h>
