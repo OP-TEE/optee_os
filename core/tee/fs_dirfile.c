@@ -369,7 +369,7 @@ TEE_Result tee_fs_dirfile_get_next(struct tee_fs_dirfile_dirh *dirh,
 {
 	TEE_Result res;
 	int i = *idx + 1;
-	struct dirfile_entry dent;
+	struct dirfile_entry dent = { };
 
 	if (i < 0)
 		i = 0;

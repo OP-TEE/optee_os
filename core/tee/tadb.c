@@ -335,7 +335,7 @@ static TEE_Result populate_files(struct tee_tadb_dir *db)
 	 * unexpected side effects.
 	 */
 	for (idx = 0;; idx++) {
-		struct tadb_entry entry;
+		struct tadb_entry entry = { };
 
 		res = read_ent(db, idx, &entry);
 		if (res) {
