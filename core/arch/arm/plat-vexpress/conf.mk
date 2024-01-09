@@ -81,6 +81,9 @@ CFG_AUTO_MAX_PA_BITS ?= y
 ifeq ($(CFG_SCMI_SCPFW),y)
 $(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
 endif
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 9
+endif
 endif
 
 ifeq ($(PLATFORM_FLAVOR),juno)
@@ -150,9 +153,14 @@ CFG_DTB_MAX_SIZE ?= 0x100000
 ifeq ($(CFG_SCMI_SCPFW),y)
 $(call force,CFG_SCMI_SCPFW_PRODUCT,optee-fvp)
 endif
+
 CFG_CORE_ASYNC_NOTIF ?= y
+ifeq ($(CFG_CORE_SEL1_SPMC),y)
+CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 8
+else ifneq ($(CFG_CORE_SEL2_SPMC),y)
 CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 219
 endif
+endif #PLATFORM_FLAVOR==qemu_armv8a
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),qemu_virt qemu_armv8a))
 CFG_DT_DRIVER_EMBEDDED_TEST ?= y

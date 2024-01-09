@@ -62,8 +62,11 @@ void boot_primary_init_intc(void)
 #endif
 	if (IS_ENABLED(CFG_CORE_SEL1_SPMC) &&
 	    IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
-		gic_init_donate_sgi_to_ns(GIC_SGI_SEC_BASE);
-		thread_spmc_set_async_notif_intid(GIC_SGI_SEC_BASE);
+		size_t it = CFG_CORE_ASYNC_NOTIF_GIC_INTID;
+
+		if (it >= GIC_SGI_SEC_BASE && it <= GIC_SGI_SEC_MAX)
+			gic_init_donate_sgi_to_ns(it);
+		thread_spmc_set_async_notif_intid(it);
 	}
 }
 
