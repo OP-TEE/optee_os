@@ -96,6 +96,10 @@
 
 #define GICC_OFFSET		0x0
 #define GICD_OFFSET		0x3000000
+#ifdef CFG_ARM_GICV3
+#define GIC_REDIST_BASE		0x2F100000
+#define GIC_REDIST_SIZE		0x00100000
+#endif
 
 #elif defined(PLATFORM_FLAVOR_juno)
 /*
