@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021-2023, Arm Limited
+ * Copyright (c) 2021-2024, Arm Limited
  */
 #include <assert.h>
 #include <bench.h>
@@ -500,6 +500,8 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	if (ffa_vers <= FFA_VERSION_1_0) {
 		struct ffa_mem_transaction_1_0 *d_ds = dst_buffer;
 
+		memset(d_ds, 0, sizeof(*d_ds));
+
 		off = sizeof(*d_ds);
 		mem_acc = d_ds->mem_access_array;
 
@@ -511,6 +513,8 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		d_ds->mem_access_count = 1;
 	} else {
 		struct ffa_mem_transaction_1_1 *d_ds = dst_buffer;
+
+		memset(d_ds, 0, sizeof(*d_ds));
 
 		off = sizeof(*d_ds);
 		mem_acc = (void *)(d_ds + 1);
@@ -533,6 +537,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	       sizeof(struct ffa_mem_access_perm));
 
 	/* Copy the mem_region_descr */
+	memset(dst_region, 0, sizeof(*dst_region));
 	dst_region->address_range_count = 0;
 	dst_region->total_page_count = 0;
 
