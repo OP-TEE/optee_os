@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <config.h>
 #include <confine_array_index.h>
-#include <ctype.h>
 #include <elf32.h>
 #include <elf64.h>
 #include <elf_common.h>
