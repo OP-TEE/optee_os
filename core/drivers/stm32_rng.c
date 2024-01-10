@@ -56,12 +56,14 @@
 #define RNG_MAX_NOISE_CLK_FREQ	U(3000000)
 
 struct stm32_rng_driver_data {
+	unsigned long nb_clock;
 	bool has_cond_reset;
 };
 
 struct stm32_rng_instance {
 	struct io_pa_va base;
 	struct clk *clock;
+	struct clk *bus_clock;
 	struct rstctrl *rstctrl;
 	const struct stm32_rng_driver_data *ddata;
 	unsigned int lock;
@@ -322,6 +324,14 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 	if (rc)
 		return rc;
 
+	if (stm32_rng->bus_clock) {
+		rc = clk_enable(stm32_rng->bus_clock);
+		if (rc) {
+			clk_disable(stm32_rng->clock);
+			return rc;
+		}
+	}
+
 	rng_base = get_base();
 
 	/* Arm timeout */
@@ -360,6 +370,8 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 out:
 	assert(!rc || rc == TEE_ERROR_GENERIC);
 	clk_disable(stm32_rng->clock);
+	if (stm32_rng->bus_clock)
+		clk_disable(stm32_rng->bus_clock);
 
 	return rc;
 }
@@ -435,12 +447,22 @@ stm32_rng_pm(enum pm_op op, unsigned int pm_hint __unused,
 	if (res)
 		return res;
 
+	if (stm32_rng->bus_clock) {
+		res = clk_enable(stm32_rng->bus_clock);
+		if (res) {
+			clk_disable(stm32_rng->clock);
+			return res;
+		}
+	}
+
 	if (op == PM_OP_SUSPEND)
 		pm_cr = io_read32(get_base() + RNG_CR);
 	else
 		res = stm32_rng_pm_resume(pm_cr);
 
 	clk_disable(stm32_rng->clock);
+	if (stm32_rng->bus_clock)
+		clk_disable(stm32_rng->bus_clock);
 
 	return res;
 }
@@ -464,9 +486,21 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
-	res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
-	if (res)
-		return res;
+	if (stm32_rng->ddata->nb_clock > 1) {
+		res = clk_dt_get_by_name(fdt, node, "rng_clk",
+					 &stm32_rng->clock);
+		if (res)
+			return res;
+
+		res = clk_dt_get_by_name(fdt, node, "rng_hclk",
+					 &stm32_rng->bus_clock);
+		if (res)
+			return res;
+	} else {
+		res = clk_dt_get_by_index(fdt, node, 0, &stm32_rng->clock);
+		if (res)
+			return res;
+	}
 
 	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
 		stm32_rng->clock_error = true;
@@ -501,6 +535,14 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	if (res)
 		goto err;
 
+	if (stm32_rng->bus_clock) {
+		res = clk_enable(stm32_rng->bus_clock);
+		if (res) {
+			clk_disable(stm32_rng->clock);
+			goto err;
+		}
+	}
+
 	if (stm32_rng->rstctrl &&
 	    rstctrl_assert_to(stm32_rng->rstctrl, RNG_RESET_TIMEOUT_US)) {
 		res = TEE_ERROR_GENERIC;
@@ -518,6 +560,8 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 		goto err_clk;
 
 	clk_disable(stm32_rng->clock);
+	if (stm32_rng->bus_clock)
+		clk_disable(stm32_rng->bus_clock);
 
 	if (stm32_rng->release_post_boot)
 		stm32mp_register_non_secure_periph_iomem(stm32_rng->base.pa);
@@ -530,6 +574,8 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 
 err_clk:
 	clk_disable(stm32_rng->clock);
+	if (stm32_rng->bus_clock)
+		clk_disable(stm32_rng->bus_clock);
 err:
 	free(stm32_rng);
 	stm32_rng = NULL;
@@ -538,17 +584,31 @@ err:
 }
 
 static const struct stm32_rng_driver_data mp13_data[] = {
-	{ .has_cond_reset = true },
+	{
+		.nb_clock = 1,
+		.has_cond_reset = true,
+	},
 };
 
 static const struct stm32_rng_driver_data mp15_data[] = {
-	{ .has_cond_reset = false },
+	{
+		.nb_clock = 1,
+		.has_cond_reset = false,
+	},
 };
 DECLARE_KEEP_PAGER(mp15_data);
+
+static const struct stm32_rng_driver_data mp25_data[] = {
+	{
+		.nb_clock = 2,
+		.has_cond_reset = true,
+	},
+};
 
 static const struct dt_device_match rng_match_table[] = {
 	{ .compatible = "st,stm32-rng", .compat_data = &mp15_data },
 	{ .compatible = "st,stm32mp13-rng", .compat_data = &mp13_data },
+	{ .compatible = "st,stm32mp25-rng", .compat_data = &mp25_data },
 	{ }
 };
 
