@@ -312,7 +312,10 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	clk_enable(stm32_rng->clock);
+	rc = clk_enable(stm32_rng->clock);
+	if (rc)
+		return rc;
+
 	rng_base = get_base();
 
 	/* Arm timeout */
