@@ -310,7 +310,7 @@ uint32_t kaddr_to_uref(void *kaddr)
 
 		uref -= VCORE_START_VA;
 		assert(uref < (UINT32_MAX >> MEMTAG_TAG_WIDTH));
-		uref |= memtag_get_tag(kaddr) << uref_tag_shift;
+		uref |= (vaddr_t)memtag_get_tag(kaddr) << uref_tag_shift;
 		return uref;
 	}
 
