@@ -64,9 +64,8 @@
 #define RNG_CONFIG_MASK		(RNG_CR_ENTROPY_SRC_MASK | RNG_CR_CED | \
 				 RNG_CR_CLKDIV)
 
-#define RNG_MAX_NOISE_CLK_FREQ	U(3000000)
-
 struct stm32_rng_driver_data {
+	unsigned long max_noise_clk_freq;
 	unsigned long nb_clock;
 	uint32_t cr;
 	uint32_t nscr;
@@ -272,7 +271,7 @@ static uint32_t stm32_rng_clock_freq_restrain(void)
 	 * No need to handle the case when clock-div > 0xF as it is physically
 	 * impossible
 	 */
-	while ((clock_rate >> clock_div) > RNG_MAX_NOISE_CLK_FREQ)
+	while ((clock_rate >> clock_div) > dev->ddata->max_noise_clk_freq)
 		clock_div++;
 
 	DMSG("RNG clk rate : %lu", clk_get_rate(dev->clock) >> clock_div);
@@ -682,6 +681,7 @@ err:
 
 static const struct stm32_rng_driver_data mp13_data[] = {
 	{
+		.max_noise_clk_freq = U(48000000),
 		.nb_clock = 1,
 		.has_cond_reset = true,
 		.has_power_optim = true,
@@ -693,6 +693,7 @@ static const struct stm32_rng_driver_data mp13_data[] = {
 
 static const struct stm32_rng_driver_data mp15_data[] = {
 	{
+		.max_noise_clk_freq = U(48000000),
 		.nb_clock = 1,
 		.has_cond_reset = false,
 		.has_power_optim = false,
@@ -702,6 +703,7 @@ DECLARE_KEEP_PAGER(mp15_data);
 
 static const struct stm32_rng_driver_data mp25_data[] = {
 	{
+		.max_noise_clk_freq = U(48000000),
 		.nb_clock = 2,
 		.has_cond_reset = true,
 		.has_power_optim = true,
