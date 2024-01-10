@@ -155,6 +155,7 @@ static TEE_Result get_user_ta_stats(uint32_t type,
 static TEE_Result get_system_time(uint32_t type,
 				  TEE_Param p[TEE_NUM_PARAMS])
 {
+	TEE_Result ret = TEE_ERROR_GENERIC;
 	TEE_Time ree_time = { };
 	TEE_Time tee_time = { };
 
@@ -164,8 +165,13 @@ static TEE_Result get_system_time(uint32_t type,
 			    TEE_PARAM_TYPE_NONE) != type)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	tee_time_get_sys_time(&tee_time);
-	tee_time_get_ree_time(&ree_time);
+	ret = tee_time_get_sys_time(&tee_time);
+	if (ret)
+		return ret;
+
+	ret = tee_time_get_ree_time(&ree_time);
+	if (ret)
+		return ret;
 
 	p[0].value.a = ree_time.seconds;
 	p[0].value.b = ree_time.millis;
