@@ -678,7 +678,8 @@ static int add_optee_dt_node(struct dt_descriptor *dt)
 		uint32_t val[3] = { };
 
 		/* PPI are visible only in current CPU cluster */
-		static_assert(!CFG_CORE_ASYNC_NOTIF_GIC_INTID ||
+		static_assert(IS_ENABLED(CFG_CORE_FFA) ||
+			      !CFG_CORE_ASYNC_NOTIF_GIC_INTID ||
 			      (CFG_CORE_ASYNC_NOTIF_GIC_INTID >=
 			       GIC_SPI_BASE) ||
 			      ((CFG_TEE_CORE_NB_CORE <= 8) &&
