@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tee/tee_pobj.h>
-#include <trace.h>
 
 static TAILQ_HEAD(tee_pobjs, tee_pobj) tee_pobjs =
 		TAILQ_HEAD_INITIALIZER(tee_pobjs);

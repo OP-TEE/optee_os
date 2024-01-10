@@ -9,7 +9,6 @@
 #include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <kernel/tee_time.h>
-#include <rng_support.h>
 #include <stdlib.h>
 #include <string_ext.h>
 #include <string.h>

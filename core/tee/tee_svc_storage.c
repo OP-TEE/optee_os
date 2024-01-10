@@ -20,7 +20,6 @@
 #include <tee/tee_obj.h>
 #include <tee/tee_pobj.h>
 #include <tee/tee_svc_cryp.h>
-#include <tee/tee_svc.h>
 #include <tee/tee_svc_storage.h>
 #include <trace.h>
 

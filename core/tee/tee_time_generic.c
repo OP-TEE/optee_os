@@ -7,7 +7,6 @@
 #include <kernel/tee_time.h>
 #include <string.h>
 #include <stdlib.h>
-#include <trace.h>
 #include <utee_defines.h>
 
 struct tee_ta_time_offs {

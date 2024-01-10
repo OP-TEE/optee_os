@@ -12,7 +12,6 @@
 #include <mm/core_mmu.h>
 #include <optee_rpc_cmd.h>
 #include <stdlib.h>
-#include <string.h>
 
 struct time_source _time_source;
 

@@ -11,7 +11,6 @@
 #include <crypto/crypto_impl.h>
 #include <kernel/panic.h>
 #include <stdlib.h>
-#include <string.h>
 #include <utee_defines.h>
 
 TEE_Result crypto_hash_alloc_ctx(void **ctx, uint32_t algo)

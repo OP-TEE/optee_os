@@ -13,9 +13,7 @@
 #include <kernel/user_mode_ctx.h>
 #include <memtag.h>
 #include <mm/core_mmu.h>
-#include <mm/mobj.h>
 #include <mm/tee_pager.h>
-#include <tee/tee_svc.h>
 #include <trace.h>
 #include <unw/unwind.h>
 

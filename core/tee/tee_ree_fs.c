@@ -14,9 +14,7 @@
 #include <mm/core_memprot.h>
 #include <mm/tee_pager.h>
 #include <optee_rpc_cmd.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string_ext.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <tee/fs_dirfile.h>

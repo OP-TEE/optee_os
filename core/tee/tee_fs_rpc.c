@@ -9,13 +9,9 @@
 #include <mm/core_memprot.h>
 #include <optee_rpc_cmd.h>
 #include <stdlib.h>
-#include <string_ext.h>
-#include <string.h>
 #include <tee/fs_dirfile.h>
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
-#include <tee/tee_pobj.h>
-#include <tee/tee_svc_storage.h>
 #include <trace.h>
 #include <util.h>
 

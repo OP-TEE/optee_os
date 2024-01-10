@@ -13,7 +13,6 @@
 #include <mm/fobj.h>
 #include <mm/mobj.h>
 #include <tee_api_types.h>
-#include <tee/entry_std.h>
 
 void __section(".text.dummy.call_preinitcalls") call_preinitcalls(void)
 {

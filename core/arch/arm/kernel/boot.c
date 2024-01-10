@@ -36,7 +36,6 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <sm/psci.h>
-#include <stdio.h>
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>

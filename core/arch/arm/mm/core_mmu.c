@@ -11,7 +11,6 @@
 #include <kernel/cache_helpers.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_l2cc_mutex.h>
-#include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/tz_ssvce_pl310.h>
 #include <mm/core_memprot.h>

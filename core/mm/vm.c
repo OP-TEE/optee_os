@@ -14,7 +14,6 @@
 #include <kernel/tee_misc.h>
 #include <kernel/tlb_helpers.h>
 #include <kernel/user_mode_ctx.h>
-#include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>

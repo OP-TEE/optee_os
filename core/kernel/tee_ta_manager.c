@@ -22,14 +22,11 @@
 #include <mm/mobj.h>
 #include <mm/vm.h>
 #include <pta_stats.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
 #include <tee/tee_obj.h>
-#include <tee/tee_svc_cryp.h>
-#include <tee/tee_svc_storage.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
