@@ -11,7 +11,6 @@
 #include <mbedtls/pk.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
-#include <string_ext.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_internal_api.h>
 #include <trace.h>

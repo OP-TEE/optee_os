@@ -11,7 +11,6 @@
 #include <string.h>
 #include <string_ext.h>
 #include <tee_internal_api.h>
-#include <tee_internal_api_extensions.h>
 #include <trace.h>
 #include <util.h>
 

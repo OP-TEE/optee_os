@@ -6,7 +6,6 @@
 #include <tee_internal_api_extensions.h>
 
 #include <string.h>
-#include <util.h>
 
 #define DEFAULT_LOCK_STATE	0
 
