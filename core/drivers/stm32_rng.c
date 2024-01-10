@@ -463,7 +463,7 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 }
 
 static TEE_Result stm32_rng_probe(const void *fdt, int offs,
-				  const void *compat_data __unused)
+				  const void *compat_data)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
