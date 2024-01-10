@@ -46,6 +46,7 @@ CFG_NUM_THREADS ?= 5
 CFG_TEE_CORE_NB_CORE ?= 2
 
 CFG_STM32_GPIO ?= y
+CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
@@ -59,3 +60,11 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 2
 
 # Default disable external DT support
 CFG_EXTERNAL_DT ?= n
+
+# Default enable HWRNG PTA support
+CFG_HWRNG_PTA ?= y
+ifeq ($(CFG_HWRNG_PTA),y)
+$(call force,CFG_STM32_RNG,y,Required by CFG_HWRNG_PTA)
+$(call force,CFG_WITH_SOFTWARE_PRNG,n,Required by CFG_HWRNG_PTA)
+CFG_HWRNG_QUALITY ?= 1024
+endif
