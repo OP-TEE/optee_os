@@ -213,6 +213,12 @@ static uint8_t mattr_to_perms(unsigned level __maybe_unused,
 	if (attr & TEE_MATTR_PX)
 		perms |= PTE_X | PTE_R;
 
+	if (attr & (TEE_MATTR_UR | TEE_MATTR_PR))
+		perms |= PTE_A;
+
+	if (attr & (TEE_MATTR_UW | TEE_MATTR_PW))
+		perms |= PTE_D;
+
 	if (attr & TEE_MATTR_GLOBAL)
 		perms |= PTE_G;
 
