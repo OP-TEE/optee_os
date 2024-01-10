@@ -18,15 +18,12 @@
 #include <kernel/misc.h>
 #include <kernel/notif.h>
 #include <kernel/panic.h>
-#include <kernel/spinlock.h>
-#include <kernel/tee_time.h>
 #include <kernel/thread_spmc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
 #include <sm/psci.h>
 #include <stdint.h>
-#include <string.h>
 #include <trace.h>
 
 static struct pl011_data console_data __nex_bss;
