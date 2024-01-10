@@ -8,8 +8,6 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <kernel/wait_queue.h>
-#include <optee_rpc_cmd.h>
-#include <string.h>
 #include <tee_api_defines.h>
 #include <trace.h>
 #include <types_ext.h>

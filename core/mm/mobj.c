@@ -12,11 +12,9 @@
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
-#include <kernel/tee_misc.h>
 #include <mm/core_mmu.h>
 #include <mm/mobj.h>
 #include <mm/tee_pager.h>
-#include <mm/vm.h>
 #include <optee_msg.h>
 #include <stdlib.h>
 #include <tee_api_types.h>

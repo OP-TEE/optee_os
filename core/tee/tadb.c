@@ -18,7 +18,6 @@
 #include <tee/tee_fs.h>
 #include <tee/tee_fs_rpc.h>
 #include <tee/tee_pobj.h>
-#include <tee/tee_svc_storage.h>
 #include <utee_defines.h>
 
 #define TADB_MAX_BUFFER_SIZE	(64U * 1024)

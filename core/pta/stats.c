@@ -11,7 +11,6 @@
 #include <mm/tee_mm.h>
 #include <mm/tee_pager.h>
 #include <pta_stats.h>
-#include <stdio.h>
 #include <string.h>
 #include <string_ext.h>
 #include <tee_api_types.h>

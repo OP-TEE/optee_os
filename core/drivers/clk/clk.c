@@ -9,7 +9,6 @@
 #include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
-#include <libfdt.h>
 #include <malloc.h>
 #include <stddef.h>
 #include <stdio.h>

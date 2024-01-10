@@ -7,7 +7,6 @@
 #include <libfdt.h>
 #include <stdio.h>
 #include <tee_api_defines.h>
-#include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
 #include <util.h>
 

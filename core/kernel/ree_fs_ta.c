@@ -52,7 +52,6 @@
 #include <tee_api_defines_extensions.h>
 #include <tee_api_types.h>
 #include <tee/tee_pobj.h>
-#include <tee/tee_svc_storage.h>
 #include <tee/tee_ta_enc_manager.h>
 #include <tee/uuid.h>
 #include <utee_defines.h>

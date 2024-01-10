@@ -7,28 +7,22 @@
 
 #include <assert.h>
 #include <crypto/crypto.h>
-#include <kernel/handle.h>
 #include <kernel/huk_subkey.h>
 #include <kernel/ldelf_loader.h>
-#include <kernel/misc.h>
 #include <kernel/msg_param.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
-#include <kernel/ts_store.h>
 #include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
-#include <ldelf.h>
 #include <mm/file.h>
 #include <mm/fobj.h>
 #include <mm/vm.h>
 #include <pta_system.h>
-#include <stdlib_ext.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tee_api_defines_extensions.h>
 #include <tee_api_defines.h>
 #include <tee/tee_supp_plugin_rpc.h>
-#include <tee/uuid.h>
 #include <util.h>
 
 static unsigned int system_pnum;

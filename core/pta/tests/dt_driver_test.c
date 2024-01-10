@@ -15,7 +15,6 @@
 #include <drivers/rstctrl.h>
 #include <initcall.h>
 #include <kernel/dt_driver.h>
-#include <libfdt.h>
 #include <malloc.h>
 #include <sys/queue.h>
 #include <tee_api_defines_extensions.h>

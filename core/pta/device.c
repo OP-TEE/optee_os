@@ -15,7 +15,6 @@
 #include <kernel/stmm_sp.h>
 #include <kernel/tee_ta_manager.h>
 #include <pta_device.h>
-#include <string.h>
 #include <tee/uuid.h>
 #include <user_ta_header.h>
 

@@ -5,7 +5,6 @@
 
 #include <compiler.h>
 #include <crypto/crypto.h>
-#include <kernel/tee_time.h>
 #include <pta_invoke_tests.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>

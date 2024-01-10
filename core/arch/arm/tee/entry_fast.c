@@ -7,14 +7,12 @@
 #include <config.h>
 #include <drivers/wdt.h>
 #include <kernel/boot.h>
-#include <kernel/misc.h>
 #include <kernel/notif.h>
 #include <kernel/tee_l2cc_mutex.h>
 #include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
-#include <sm/watchdog_smc.h>
 #include <tee/entry_fast.h>
 
 #ifdef CFG_CORE_RESERVED_SHM

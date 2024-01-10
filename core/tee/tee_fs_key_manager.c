@@ -20,7 +20,6 @@
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/huk_subkey.h>
-#include <kernel/panic.h>
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_ta_manager.h>
 #include <stdlib.h>
