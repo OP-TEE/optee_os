@@ -152,10 +152,8 @@ static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
 		res = scmi_server_msg_process_thread(channel_id, in_buf,
 						     in_size, out_buf,
 						     &out_size);
-		if (!res) {
+		if (!res)
 			params[2].memref.size = (uint32_t)out_size;
-			IMSG("scmi optee shm: out %zu", out_size);
-		}
 
 		return res;
 	}
