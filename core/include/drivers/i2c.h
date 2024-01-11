@@ -221,7 +221,7 @@ static inline TEE_Result i2c_smbus_raw(struct i2c_dev *i2c_dev __unused,
 
 static inline TEE_Result i2c_dt_get_dev(const void *fdt __unused,
 					int nodeoffset __unused,
-					struct i2c_dev **i2c_dev)
+					struct i2c_dev **i2c_dev __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
 }
