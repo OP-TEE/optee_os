@@ -61,7 +61,7 @@
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 
-static unsigned int rng_lock = SPINLOCK_UNLOCK;
+static struct mutex fifo_lock = MUTEX_INITIALIZER;
 static vaddr_t rng;
 
 static bool sa2ul_rng_is_enabled(void)
@@ -133,7 +133,7 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	size_t buffer_pos = 0;
 
 	while (buffer_pos < len) {
-		uint32_t exceptions = cpu_spin_lock_xsave(&rng_lock);
+		mutex_lock(&fifo_lock);
 
 		/* Refill our FIFO */
 		if (fifo_pos == 0)
@@ -143,7 +143,7 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 		buffer[buffer_pos++] = fifo.byte[fifo_pos++];
 		fifo_pos %= 16;
 
-		cpu_spin_unlock_xrestore(&rng_lock, exceptions);
+		mutex_unlock(&fifo_lock);
 	}
 
 	return TEE_SUCCESS;
