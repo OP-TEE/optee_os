@@ -129,6 +129,11 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,n,Required by CFG_HWRNG_PTA)
 CFG_HWRNG_QUALITY ?= 1024
 endif
 
+# Watchdog SMC service to non-secure world
+CFG_WDT ?= $(CFG_STM32_IWDG)
+CFG_WDT_SM_HANDLER ?= $(CFG_WDT)
+CFG_WDT_SM_HANDLER_ID ?= 0xbc000000
+
 # Enable reset control
 ifeq ($(CFG_STM32MP21_RSTCTRL),y)
 $(call force,CFG_DRIVERS_RSTCTRL,y)
