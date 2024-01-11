@@ -67,6 +67,10 @@
 #define QM_CACHE_CFG		0x4893
 #define QM_CACHE_WB_START	0x204
 #define QM_CACHE_WB_DONE	0x208
+#define QM_PM_CTRL0		0x100148
+#define QM_IDLE_DISABLE		BIT(9)
+#define QM_DB_TIMEOUT_CFG	0x100074
+#define QM_DB_TIMEOUT_SET	0x1fffff
 /* XQC shift */
 #define QM_SQ_SQE_SIZE_SHIFT	12
 #define QM_SQ_ORDER_SHIFT	4
@@ -617,10 +621,21 @@ enum hisi_drv_status hisi_qm_start(struct hisi_qm *qm)
 	return HISI_QM_DRVCRYPT_NO_ERR;
 }
 
+static void qm_disable_clock_gate(struct hisi_qm *qm)
+
+{
+	if (qm->version == HISI_QM_HW_V2)
+		return;
+
+	io_setbits32(qm->io_base + QM_PM_CTRL0, QM_IDLE_DISABLE);
+}
+
 void hisi_qm_dev_init(struct hisi_qm *qm)
 {
 	if (qm->fun_type == HISI_QM_HW_VF)
 		return;
+
+	qm_disable_clock_gate(qm);
 
 	/* QM user domain */
 	io_write32(qm->io_base + QM_ARUSER_M_CFG_1, QM_AXUSER_CFG);
@@ -639,6 +654,8 @@ void hisi_qm_dev_init(struct hisi_qm *qm)
 	/* Disable QM ras */
 	io_write32(qm->io_base + HISI_QM_ABNML_INT_MASK,
 		   HISI_QM_ABNML_INT_MASK_CFG);
+	/* Set doorbell timeout to QM_DB_TIMEOUT_SET ns */
+	io_write32(qm->io_base + QM_DB_TIMEOUT_CFG, QM_DB_TIMEOUT_SET);
 }
 
 static enum hisi_drv_status qm_sqc_cfg(struct hisi_qp *qp)
