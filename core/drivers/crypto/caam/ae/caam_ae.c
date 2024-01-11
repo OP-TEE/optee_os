@@ -26,6 +26,15 @@
  * Constants definition of the AES algorithm
  */
 static const struct cipheralg aes_alg[] = {
+	[TEE_CHAIN_MODE_CCM] = {
+		.type = OP_ALGO(AES) | ALGO_AAI(AES_CCM),
+		.size_block = TEE_AES_BLOCK_SIZE,
+		.size_ctx = 7 * sizeof(uint64_t),
+		.ctx_offset = 0,
+		.def_key = { .min = 16, .max = 32, .mod = 8 },
+		.initialize = caam_ae_initialize_ccm,
+		.final = caam_ae_final_ccm,
+	},
 	[TEE_CHAIN_MODE_GCM] = {
 		.type = OP_ALGO(AES) | ALGO_AAI(AES_GCM),
 		.size_block = TEE_AES_BLOCK_SIZE,

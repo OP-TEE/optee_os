@@ -75,4 +75,18 @@ TEE_Result caam_ae_initialize_gcm(struct drvcrypt_authenc_init *dinit);
  */
 TEE_Result caam_ae_final_gcm(struct drvcrypt_authenc_final *dfinal);
 
+/*
+ * Initialization of the AES CCM operation
+ *
+ * @dinit  Data initialization object
+ */
+TEE_Result caam_ae_initialize_ccm(struct drvcrypt_authenc_init *dinit);
+
+/*
+ * Finalize the AES CCM operation
+ *
+ * @dfinal  Last data object
+ */
+TEE_Result caam_ae_final_ccm(struct drvcrypt_authenc_final *dfinal);
+
 #endif /* __LOCAL_H__ */
