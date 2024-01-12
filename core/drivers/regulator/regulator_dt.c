@@ -315,6 +315,14 @@ static TEE_Result parse_dt(const void *fdt, int node,
 		regulator->max_uv = INT_MAX;
 	}
 
+	cuint = fdt_getprop(fdt, node, "regulator-ramp-delay", NULL);
+	if (cuint) {
+		regulator->ramp_delay_uv_per_us = fdt32_to_cpu(*cuint);
+		FMSG("%s: ramp delay = %"PRIu32" (uV/us)",
+		     regulator_name(regulator),
+		     regulator->ramp_delay_uv_per_us);
+	}
+
 	return TEE_SUCCESS;
 }
 
