@@ -16,10 +16,10 @@
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_i2c.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
-#include <kernel/boot.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <stdbool.h>
