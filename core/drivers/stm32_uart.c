@@ -39,12 +39,12 @@
  * Bit 5 RXNE: Read data register not empty/RXFIFO not empty
  * Bit 6 TC: Transmission complete
  * Bit 7 TXE/TXFNF: Transmit data register empty/TXFIFO not full
- * Bit 27 TXFE: TXFIFO threshold reached
+ * Bit 23 TXFE: TXFIFO empty
  */
 #define USART_ISR_RXNE_RXFNE		BIT(5)
 #define USART_ISR_TC			BIT(6)
 #define USART_ISR_TXE_TXFNF		BIT(7)
-#define USART_ISR_TXFE			BIT(27)
+#define USART_ISR_TXFE			BIT(23)
 
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
