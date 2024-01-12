@@ -73,6 +73,8 @@ static TEE_Result regulator_refcnt_enable(struct regulator *regulator)
 
 			return res;
 		}
+
+		udelay(regulator->enable_ramp_delay_us);
 	}
 
 	regulator->refcount++;
