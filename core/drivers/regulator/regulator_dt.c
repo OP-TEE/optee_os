@@ -323,6 +323,14 @@ static TEE_Result parse_dt(const void *fdt, int node,
 		     regulator->ramp_delay_uv_per_us);
 	}
 
+	cuint = fdt_getprop(fdt, node, "regulator-enable-ramp-delay", NULL);
+	if (cuint) {
+		regulator->enable_ramp_delay_us = fdt32_to_cpu(*cuint);
+		FMSG("%s: enable ramp delay = %u (us)",
+		     regulator_name(regulator),
+		     regulator->enable_ramp_delay_us);
+	}
+
 	return TEE_SUCCESS;
 }
 
