@@ -209,6 +209,20 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 		return res;
 	}
 
+	if (regulator->ramp_delay_uv_per_us) {
+		unsigned int d = 0;
+
+		if (cur_uv > level_uv)
+			d = cur_uv - level_uv;
+		else
+			d = level_uv - cur_uv;
+
+		d /= regulator->ramp_delay_uv_per_us;
+
+		FMSG("%s %"PRIu32"uS", regulator_name(regulator), d);
+		udelay(d);
+	}
+
 	return TEE_SUCCESS;
 }
 
