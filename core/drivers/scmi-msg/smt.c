@@ -97,7 +97,7 @@ void scmi_entry_smt(unsigned int channel_id, uint32_t *payload_buf)
 			  sizeof(smt_hdr->message_header);
 
 	if (in_payload_size > SCMI_SEC_PAYLOAD_SIZE) {
-		DMSG("SCMI payload too big %u", in_payload_size);
+		DMSG("SCMI payload too big %zu", in_payload_size);
 		goto out;
 	}
 
