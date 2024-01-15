@@ -225,7 +225,7 @@ UNWIND(	.cantunwind)
 
 	li	a0, TEEABI_OPTEED_RETURN_ENTRY_DONE
 	la	a1, thread_vector_table
-	j	thread_return_to_ree
+	j	thread_return_to_udomain
 END_FUNC reset_primary
 
 LOCAL_FUNC reset_secondary , : , .identity_map
