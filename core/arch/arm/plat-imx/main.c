@@ -41,7 +41,7 @@
 
 static struct imx_uart_data console_data __nex_bss;
 
-#ifdef CONSOLE_UART_BASE
+#if (CONSOLE_UART_BASE != 0)
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
 #endif
@@ -99,10 +99,13 @@ register_ddr(CFG_NSEC_DDR_1_BASE, CFG_NSEC_DDR_1_SIZE);
 
 void plat_console_init(void)
 {
-#ifdef CONSOLE_UART_BASE
-	imx_uart_init(&console_data, CONSOLE_UART_BASE);
+	paddr_t base = CONSOLE_UART_BASE;
+
+	if (base == 0)
+		return;
+
+	imx_uart_init(&console_data, base);
 	register_serial_console(&console_data.chip);
-#endif
 }
 
 void boot_primary_init_intc(void)
