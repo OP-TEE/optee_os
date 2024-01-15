@@ -260,7 +260,8 @@ typedef struct {
 #define	EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
 
 /* e_flags for EM_ARM */
-#define EF_ARM_ABI_VERSION	0x05000000	/* ABI version 5 */
+#define EF_ARM_ABI_UNKNOWN	0x00000000
+#define EF_ARM_ABI_V5		0x05000000	/* ABI version 5 */
 #define EF_ARM_ABIMASK		0xFF000000
 #define EF_ARM_BE8		0x00800000
 #define EF_ARM_ABI_FLOAT_HARD	0x00000400	/* ABI version 5 and later */

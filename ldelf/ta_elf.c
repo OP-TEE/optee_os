@@ -104,14 +104,22 @@ static TEE_Result e32_parse_ehdr(struct ta_elf *elf, Elf32_Ehdr *ehdr)
 	if (ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
 	    ehdr->e_ident[EI_CLASS] != ELFCLASS32 ||
 	    ehdr->e_ident[EI_DATA] != ELFDATA2LSB ||
-	    ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE ||
+	    (ehdr->e_ident[EI_OSABI] != ELFOSABI_NONE &&
+	     ehdr->e_ident[EI_OSABI] != ELFOSABI_ARM) ||
 	    ehdr->e_type != ET_DYN || ehdr->e_machine != EM_ARM ||
-	    (ehdr->e_flags & EF_ARM_ABIMASK) != EF_ARM_ABI_VERSION ||
 #ifndef CFG_WITH_VFP
 	    (ehdr->e_flags & EF_ARM_ABI_FLOAT_HARD) ||
 #endif
 	    ehdr->e_phentsize != sizeof(Elf32_Phdr) ||
 	    ehdr->e_shentsize != sizeof(Elf32_Shdr))
+		return TEE_ERROR_BAD_FORMAT;
+
+	if (ehdr->e_ident[EI_OSABI] == ELFOSABI_NONE &&
+	    (ehdr->e_flags & EF_ARM_ABIMASK) != EF_ARM_ABI_V5)
+		return TEE_ERROR_BAD_FORMAT;
+
+	if (ehdr->e_ident[EI_OSABI] == ELFOSABI_ARM &&
+	    (ehdr->e_flags & EF_ARM_ABIMASK) != EF_ARM_ABI_UNKNOWN)
 		return TEE_ERROR_BAD_FORMAT;
 
 	elf->is_32bit = true;
