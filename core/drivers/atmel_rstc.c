@@ -18,6 +18,9 @@
 #define AT91_RSTC_CR_PROCRST	BIT32(0)
 #define AT91_RSTC_CR_PERRST	BIT32(2)
 
+#define AT91_RSTC_GRSTR		0xE4
+#define AT91_RSTC_GRSTR_USB(x)	SHIFT_U32(1, 4 + (x))
+
 static vaddr_t rstc_base;
 
 bool atmel_rstc_available(void)
@@ -38,6 +41,19 @@ void __noreturn atmel_rstc_reset(void)
 	 */
 	while (true)
 		;
+}
+
+void sam_rstc_usb_por(unsigned char id, bool enable)
+{
+	if (!atmel_rstc_available())
+		panic();
+
+	if (enable)
+		io_setbits32(rstc_base + AT91_RSTC_GRSTR,
+			     AT91_RSTC_GRSTR_USB(id));
+	else
+		io_clrbits32(rstc_base + AT91_RSTC_GRSTR,
+			     AT91_RSTC_GRSTR_USB(id));
 }
 
 /* Non-null reference for compat data */
