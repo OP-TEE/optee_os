@@ -105,14 +105,15 @@ static const struct clk_ops utmi_ops = {
 	.get_rate = clk_utmi_get_rate,
 };
 
-struct clk *
-at91_clk_register_utmi(struct pmc_data *pmc, const char *name,
-		       struct clk *parent)
+static struct clk *at91_clk_register_utmi_internal(struct pmc_data *pmc,
+						   const char *name,
+						   const struct clk_ops *ops,
+						   struct clk *parent)
 {
 	struct clk_utmi *utmi = NULL;
 	struct clk *clk = NULL;
 
-	clk = clk_alloc(name, &utmi_ops, &parent, 1);
+	clk = clk_alloc(name, ops, &parent, 1);
 	if (!clk)
 		return NULL;
 
@@ -135,4 +136,58 @@ at91_clk_register_utmi(struct pmc_data *pmc, const char *name,
 	}
 
 	return clk;
+}
+
+struct clk *at91_clk_register_utmi(struct pmc_data *pmc,
+				   const char *name,
+				   struct clk *parent)
+{
+	return at91_clk_register_utmi_internal(pmc, name, &utmi_ops, parent);
+}
+
+static TEE_Result clk_utmi_sama7g5_prepare(struct clk *clk)
+{
+	struct clk *clk_parent = NULL;
+	struct clk_utmi *utmi = clk->priv;
+	unsigned long parent_rate = 0;
+	uint32_t val = 0;
+
+	clk_parent = clk_get_parent(clk);
+	parent_rate = clk_get_rate(clk_parent);
+
+	switch (parent_rate) {
+	case 16000000:
+		val = 0;
+		break;
+	case 20000000:
+		val = 2;
+		break;
+	case 24000000:
+		val = 3;
+		break;
+	case 32000000:
+		val = 5;
+		break;
+	default:
+		EMSG("UTMICK: unsupported main_xtal rate");
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	io_clrsetbits32(utmi->pmc_base + AT91_PMC_XTALF, AT91_PMC_XTALF_XTALF,
+			val);
+
+	return TEE_SUCCESS;
+}
+
+static const struct clk_ops sama7g5_utmi_ops = {
+	.enable = clk_utmi_sama7g5_prepare,
+	.get_rate = clk_utmi_get_rate,
+};
+
+struct clk *at91_clk_sama7g5_register_utmi(struct pmc_data *pmc,
+					   const char *name,
+					   struct clk *parent)
+{
+	return at91_clk_register_utmi_internal(pmc, name, &sama7g5_utmi_ops,
+					       parent);
 }
