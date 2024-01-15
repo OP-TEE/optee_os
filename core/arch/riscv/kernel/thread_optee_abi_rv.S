@@ -23,11 +23,11 @@
  * domains where we return to a messaging callback which parses and handles
  * messages.
  *
- * void thread_return_to_ree(unsigned long arg0, unsigned long arg1,
- *                           unsigned long arg2, unsigned long arg3,
- *                           unsigned long arg4, unsigned long arg5);
+ * void thread_return_to_udomain(unsigned long arg0, unsigned long arg1,
+ *                               unsigned long arg2, unsigned long arg3,
+ *                               unsigned long arg4, unsigned long arg5);
  */
-FUNC thread_return_to_ree , :
+FUNC thread_return_to_udomain , :
 	/* Caller should provide arguments in a0~a5 */
 #if defined(CFG_RISCV_SBI)
 	li	a7, SBI_EXT_TEE		/* extension ID */
@@ -38,7 +38,7 @@ FUNC thread_return_to_ree , :
 #endif
 	/* ABI to REE should not return */
 	panic_at_abi_return
-END_FUNC thread_return_to_ree
+END_FUNC thread_return_to_udomain
 
 FUNC thread_std_abi_entry , :
 	jal	__thread_std_abi_entry
@@ -67,7 +67,7 @@ FUNC thread_std_abi_entry , :
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
-	jal	thread_return_to_ree
+	jal	thread_return_to_udomain
 END_FUNC thread_std_abi_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
@@ -121,7 +121,7 @@ FUNC thread_rpc , :
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
-	jal	thread_return_to_ree
+	jal	thread_return_to_udomain
 .thread_rpc_return:
 	/*
 	 * Jumps here from thread_resume() above when RPC has returned.
@@ -166,7 +166,7 @@ LOCAL_FUNC vector_std_abi_entry, : , .identity_map
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 
 	/* Return to untrusted domain */
-	j	thread_return_to_ree
+	j	thread_return_to_udomain
 END_FUNC vector_std_abi_entry
 
 LOCAL_FUNC vector_fast_abi_entry , : , .identity_map
@@ -179,7 +179,7 @@ LOCAL_FUNC vector_fast_abi_entry , : , .identity_map
 
 	li	a0, TEEABI_OPTEED_RETURN_CALL_DONE
 	/* Return to untrusted domain */
-	j	thread_return_to_ree
+	j	thread_return_to_udomain
 END_FUNC vector_fast_abi_entry
 
 LOCAL_FUNC vector_fiq_entry , : , .identity_map
@@ -188,7 +188,7 @@ LOCAL_FUNC vector_fiq_entry , : , .identity_map
 
 	li	a0, TEEABI_OPTEED_RETURN_FIQ_DONE
 	/* Return to untrusted domain */
-	j	thread_return_to_ree
+	j	thread_return_to_udomain
 END_FUNC vector_fiq_entry
 
 /*
