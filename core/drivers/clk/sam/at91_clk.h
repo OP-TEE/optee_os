@@ -163,6 +163,10 @@ struct clk *
 at91_clk_register_utmi(struct pmc_data *pmc, const char *name,
 		       struct clk *parent);
 
+struct clk *at91_clk_sama7g5_register_utmi(struct pmc_data *pmc,
+					   const char *name,
+					   struct clk *parent);
+
 /* Master */
 struct clk *
 at91_clk_register_master_pres(struct pmc_data *pmc,
