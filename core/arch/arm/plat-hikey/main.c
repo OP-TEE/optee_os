@@ -33,12 +33,12 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, PMX1_BASE, PMX1_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, GPIO6_BASE, PL061_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, SPI_BASE, PL022_REG_SIZE);
 #endif
-register_dynamic_shm(DRAM0_BASE, DRAM0_SIZE_NSEC);
+register_ddr(DRAM0_BASE, DRAM0_SIZE_NSEC);
 #ifdef DRAM1_SIZE_NSEC
-register_dynamic_shm(DRAM1_BASE, DRAM1_SIZE_NSEC);
+register_ddr(DRAM1_BASE, DRAM1_SIZE_NSEC);
 #endif
 #ifdef DRAM2_SIZE_NSEC
-register_dynamic_shm(DRAM2_BASE, DRAM2_SIZE_NSEC);
+register_ddr(DRAM2_BASE, DRAM2_SIZE_NSEC);
 #endif
 
 void console_init(void)
