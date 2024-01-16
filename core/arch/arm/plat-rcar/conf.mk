@@ -24,11 +24,14 @@ CFG_TEE_RAM_VA_SIZE ?= 0x100000
 supported-ta-targets = ta_arm64
 
 ifeq ($(CFG_RCAR_GEN3), y)
+CFG_DT ?= y
+ifeq ($(CFG_RCAR_GEN3_HWRNG), y)
+$(warning "Warning: Use of HWRNG can cause crashes on some Renesas SoCs")
 CFG_WITH_SOFTWARE_PRNG ?= n
 CFG_HWRNG_QUALITY ?= 1024
 CFG_HWRNG_PTA ?= y
-CFG_DT ?= y
 $(call force,CFG_RCAR_ROMAPI, y)
+endif
 endif
 
 ifeq ($(CFG_RCAR_GEN4), y)
