@@ -121,6 +121,7 @@ uint32_t plat_rom_getrndvector(uint8_t rndbuff[PLAT_RND_VECTOR_SZ],
 			       uint8_t *scratch, uint32_t scratch_sz)
 {
 	uint32_t ret = -1;
+	int try = 0;
 	paddr_t func_addr = romapi_getrndvector[get_api_table_index()];
 	paddr_t rndbuff_pa = va2pa(rndbuff);
 	paddr_t scratch_pa = va2pa(scratch);
@@ -129,7 +130,13 @@ uint32_t plat_rom_getrndvector(uint8_t rndbuff[PLAT_RND_VECTOR_SZ],
 	assert(rndbuff_pa % RCAR_CACHE_LINE_SZ == 0);
 	assert(scratch_pa % RCAR_CACHE_LINE_SZ == 0);
 
-	ret = plat_call_romapi(func_addr, rndbuff_pa, scratch_pa, scratch_sz);
+	while (try++ < 3) {
+		ret = plat_call_romapi(func_addr, rndbuff_pa, scratch_pa,
+				       scratch_sz);
+		if (ret == 0)
+			break;
+		IMSG("ROM_GetRndVector() returned "PRIx32, ret);
+	}
 
 	/*
 	 * ROM code is called with MMU turned off, so any accesses to rndbuff
