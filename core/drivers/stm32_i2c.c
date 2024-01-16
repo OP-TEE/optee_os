@@ -821,6 +821,9 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 
 	clk_disable(hi2c->clock);
 
+	if (hi2c->pinctrl && pinctrl_apply_state(hi2c->pinctrl))
+		return -1;
+
 	return 0;
 }
 
