@@ -657,17 +657,11 @@ static int i2c_setup_timing(struct i2c_handle_s *hi2c,
  * Configure I2C Analog noise filter.
  * @hi2c: I2C handle structure
  * @analog_filter_on: True if enabling analog filter, false otherwise
- * Return 0 on success or a negative value
  */
-static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
-				    bool analog_filter_on)
+static void i2c_config_analog_filter(struct i2c_handle_s *hi2c,
+				     bool analog_filter_on)
 {
 	vaddr_t base = get_base(hi2c);
-
-	if (hi2c->i2c_state != I2C_STATE_READY)
-		return -1;
-
-	hi2c->i2c_state = I2C_STATE_BUSY;
 
 	/* Disable the selected I2C peripheral */
 	io_clrbits32(base + I2C_CR1, I2C_CR1_PE);
@@ -681,10 +675,6 @@ static int i2c_config_analog_filter(struct i2c_handle_s *hi2c,
 
 	/* Enable the selected I2C peripheral */
 	io_setbits32(base + I2C_CR1, I2C_CR1_PE);
-
-	hi2c->i2c_state = I2C_STATE_READY;
-
-	return 0;
 }
 
 TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
@@ -824,16 +814,14 @@ int stm32_i2c_init(struct i2c_handle_s *hi2c,
 	hi2c->i2c_err = I2C_ERROR_NONE;
 	hi2c->i2c_state = I2C_STATE_READY;
 
-	rc = i2c_config_analog_filter(hi2c, init_data->analog_filter);
-	if (rc)
-		DMSG("I2C analog filter error %d", rc);
+	i2c_config_analog_filter(hi2c, init_data->analog_filter);
 
 	if (IS_ENABLED(CFG_STM32MP13))
 		stm32_pinctrl_set_secure_cfg(hi2c->pinctrl, true);
 
 	clk_disable(hi2c->clock);
 
-	return rc;
+	return 0;
 }
 
 /* I2C transmit (TX) data register flush sequence */
