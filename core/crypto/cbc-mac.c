@@ -83,7 +83,7 @@ static TEE_Result crypto_cbc_mac_update(struct crypto_mac_ctx *ctx,
 	nblocks = MIN(len / mc->block_len,
 		      (size_t)CFG_CRYPTO_CBC_MAC_BUNDLE_BLOCKS);
 	if (nblocks > 1)
-		out_tmp = malloc(nblocks * mc->block_len);
+		out_tmp = calloc(nblocks, mc->block_len);
 
 	while (len >= mc->block_len) {
 		nblocks = MIN(len / mc->block_len,

@@ -52,13 +52,14 @@ static TEE_Result mbed_hmac_final(struct crypto_mac_ctx *ctx, uint8_t *digest,
 				  size_t len)
 {
 	struct mbed_hmac_ctx *c = to_hmac_ctx(ctx);
-	size_t hmac_size = mbedtls_md_get_size(c->md_ctx.md_info);
 	uint8_t block_digest[TEE_MAX_HASH_SIZE] = { 0 };
 	uint8_t *tmp_digest = NULL;
+	size_t hmac_size = 0;
 
 	if (len == 0)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	hmac_size = mbedtls_md_get_size(mbedtls_md_info_from_ctx(&c->md_ctx));
 	if (hmac_size > len) {
 		if (hmac_size > sizeof(block_digest))
 			return TEE_ERROR_BAD_STATE;

@@ -60,6 +60,7 @@ struct rngdata {
 struct rng_privdata {
 	vaddr_t baseaddr;                       /* RNG base address */
 	bool instantiated;                      /* RNG instantiated */
+	bool pr_enabled;			/* RNG prediction resistance */
 	struct rngdata databuf[RNG_DATABUF_NB]; /* RNG Data generation */
 	uint8_t dataidx;                        /* Current RNG Data buffer */
 };
@@ -158,6 +159,10 @@ static enum caam_status prepare_gen_desc(struct rngdata *rng)
 {
 	paddr_t paddr = 0;
 	uint32_t *desc = NULL;
+	uint32_t op = RNG_GEN_DATA;
+
+	if (rng_privdata->pr_enabled)
+		op |= ALGO_RNG_PR;
 
 	/* Convert the buffer virtual address to physical address */
 	paddr = virt_to_phys(rng->data);
@@ -168,7 +173,7 @@ static enum caam_status prepare_gen_desc(struct rngdata *rng)
 
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
-	caam_desc_add_word(desc, RNG_GEN_DATA);
+	caam_desc_add_word(desc, op);
 	caam_desc_add_word(desc, FIFO_ST(RNG_TO_MEM, rng->size));
 	caam_desc_add_ptr(desc, paddr);
 
@@ -523,8 +528,14 @@ enum caam_status caam_rng_instantiation(void)
 	} while (retstatus == CAAM_NO_ERROR);
 
 end_inst:
-	if (retstatus == CAAM_NO_ERROR)
+	if (retstatus == CAAM_NO_ERROR) {
 		rng_privdata->instantiated = true;
+		rng_privdata->pr_enabled =
+			caam_hal_rng_pr_enabled(rng_privdata->baseaddr);
+
+		RNG_TRACE("RNG prediction resistance is %sabled",
+			  rng_privdata->pr_enabled ? "en" : "dis");
+	}
 
 	caam_free_desc(&desc);
 
@@ -556,6 +567,27 @@ enum caam_status caam_rng_init(vaddr_t ctrl_addr)
 }
 
 #ifdef CFG_NXP_CAAM_RNG_DRV
+#ifdef CFG_WITH_SOFTWARE_PRNG
+void plat_rng_init(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	uint8_t buf[64] = { };
+
+	res = do_rng_read(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to read RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	res = crypto_rng_init(buf, sizeof(buf));
+	if (res) {
+		EMSG("Failed to initialize RNG: %#" PRIx32, res);
+		panic();
+	}
+
+	RNG_TRACE("PRNG seeded from CAAM");
+}
+#else /* !CFG_WITH_SOFTWARE_PRNG */
 TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 {
 	if (!buf)
@@ -567,4 +599,5 @@ TEE_Result hw_get_random_bytes(void *buf, size_t blen)
 void plat_rng_init(void)
 {
 }
-#endif
+#endif /* CFG_WITH_SOFTWARE_PRNG */
+#endif /* CFG_NXP_CAAM_RNG_DRV */

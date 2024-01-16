@@ -3,10 +3,11 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_MM_H
-#define TEE_MM_H
+#ifndef __MM_TEE_MM_H
+#define __MM_TEE_MM_H
 
 #include <malloc.h>
+#include <pta_stats.h>
 #include <types_ext.h>
 
 /* Define to indicate default pool initiation */
@@ -112,7 +113,7 @@ bool tee_mm_addr_is_within_range(const tee_mm_pool_t *pool, paddr_t addr);
 bool tee_mm_is_empty(tee_mm_pool_t *pool);
 
 #ifdef CFG_WITH_STATS
-void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct malloc_stats *stats,
+void tee_mm_get_pool_stats(tee_mm_pool_t *pool, struct pta_stats_alloc *stats,
 			   bool reset);
 #endif
 

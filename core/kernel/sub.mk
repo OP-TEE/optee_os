@@ -39,6 +39,7 @@ srcs-y += mutex.c
 srcs-$(CFG_LOCKDEP) += mutex_lockdep.c
 srcs-y += wait_queue.c
 srcs-y += notif.c
+srcs-$(_CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL) += notif_default.c
 srcs-y += thread.c
 
 ifeq ($(CFG_WITH_USER_TA),y)
@@ -51,9 +52,12 @@ endif
 srcs-$(CFG_EMBEDDED_TS) += embedded_ts.c
 srcs-y += pseudo_ta.c
 
+srcs-$(CFG_TRANSFER_LIST) += transfer_list.c
+
 ifeq ($(CFG_SYSCALL_FTRACE),y)
 # We would not like to profile spin_lock_debug.c file as it provides
 # common APIs that are needed for ftrace framework to trace syscalls.
 # So profiling this file could create an incorrect cyclic behaviour.
 cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
 endif
+srcs-y += nv_counter.c

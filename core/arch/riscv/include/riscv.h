@@ -3,8 +3,8 @@
  * Copyright 2022-2023 NXP
  */
 
-#ifndef RISCV_H
-#define RISCV_H
+#ifndef __RISCV_H
+#define __RISCV_H
 
 #include <compiler.h>
 #include <encoding.h>
@@ -14,16 +14,6 @@
 
 #define RISCV_XLEN_BITS		(__riscv_xlen)
 #define RISCV_XLEN_BYTES	(__riscv_xlen / 8)
-
-#define REGOFF(x)			((x) * RISCV_XLEN_BYTES)
-
-#if __riscv_xlen == 32
-#define STR       sw
-#define LDR       lw
-#else
-#define STR       sd
-#define LDR       ld
-#endif
 
 /* Bind registers to their ABI names */
 #define REG_RA	1
@@ -127,7 +117,7 @@ static inline __noprof void mb(void)
 
 static inline __noprof unsigned long read_tp(void)
 {
-	unsigned long tp;
+	unsigned long tp = 0;
 
 	asm volatile("mv %0, tp" : "=&r"(tp));
 	return tp;
@@ -137,7 +127,7 @@ static inline __noprof unsigned long read_fp(void)
 {
 	unsigned long fp = 0;
 
-	asm volatile ("mv %0, fp" : "=r" (fp));
+	asm volatile ("mv %0, s0" : "=r" (fp));
 
 	return fp;
 }
@@ -384,6 +374,19 @@ static inline __noprof void uret(void)
 	asm volatile("uret");
 }
 
+__noprof uint64_t read_time(void);
+
+static inline __noprof uint64_t barrier_read_counter_timer(void)
+{
+	mb();	/* Get timer value after pending operations have completed */
+	return read_time();
+}
+
+static inline __noprof uint32_t read_cntfrq(void)
+{
+	return CFG_RISCV_MTIME_RATE;
+}
+
 #endif /*__ASSEMBLER__*/
 
-#endif /*RISCV_H*/
+#endif /*__RISCV_H*/

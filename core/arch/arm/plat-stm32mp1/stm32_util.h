@@ -8,41 +8,21 @@
 
 #include <assert.h>
 #include <drivers/clk.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
 #include <kernel/panic.h>
 #include <stdint.h>
+#include <tee_api_types.h>
 #include <types_ext.h>
 
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
-
-/*
- * SYSCFG IO compensation.
- * These functions assume non-secure world is suspended.
- */
-void stm32mp_syscfg_enable_io_compensation(void);
-void stm32mp_syscfg_disable_io_compensation(void);
 
 /* Platform util for the RCC drivers */
 vaddr_t stm32_rcc_base(void);
 
 /* Platform util for the GIC */
 vaddr_t get_gicd_base(void);
-
-/*
- * Platform util functions for the GPIO driver
- * @bank: Target GPIO bank ID as per DT bindings
- *
- * Platform shall implement these functions to provide to stm32_gpio
- * driver the resource reference for a target GPIO bank. That are
- * memory mapped interface base address, interface offset (see below)
- * and clock identifier.
- *
- * stm32_get_gpio_bank_offset() returns a bank offset that is used to
- * check DT configuration matches platform implementation of the banks
- * description.
- */
-unsigned int stm32_get_gpio_bank_offset(unsigned int bank);
 
 /* Platform util for PMIC support */
 bool stm32mp_with_pmic(void);
@@ -255,6 +235,20 @@ void stm32mp_register_secure_gpio(unsigned int bank, unsigned int pin);
  */
 void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin);
 
+/*
+ * Register pin resource of a pin control state as a secure peripheral
+ * @bank: Bank of the target GPIO
+ * @pin: Bit position of the target GPIO in the bank
+ */
+void stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl);
+
+/*
+ * Register pin resource of a pin control state as a non-secure peripheral
+ * @bank: Bank of the target GPIO
+ * @pin: Bit position of the target GPIO in the bank
+ */
+void stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl);
+
 /* Return true if and only if resource @id is registered as secure */
 bool stm32mp_periph_is_secure(enum stm32mp_shres id);
 
@@ -266,6 +260,9 @@ bool stm32mp_gpio_bank_is_non_secure(unsigned int bank);
 
 /* Register parent clocks of @clock (ID used in clock DT bindings) as secure */
 void stm32mp_register_clock_parents_secure(unsigned long clock_id);
+
+/* Register number of pins in the GPIOZ bank */
+void stm32mp_register_gpioz_pin_count(size_t count);
 
 #else /* CFG_STM32MP1_SHARED_RESOURCES */
 
@@ -298,6 +295,16 @@ static inline void stm32mp_register_non_secure_gpio(unsigned int bank __unused,
 {
 }
 
+static inline void
+stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
+{
+}
+
+static inline void
+stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl __unused)
+{
+}
+
 static inline bool stm32mp_periph_is_secure(enum stm32mp_shres id __unused)
 {
 	return true;
@@ -318,5 +325,8 @@ static inline void stm32mp_register_clock_parents_secure(unsigned long clock_id
 {
 }
 
+static inline void stm32mp_register_gpioz_pin_count(size_t count __unused)
+{
+}
 #endif /* CFG_STM32MP1_SHARED_RESOURCES */
 #endif /*__STM32_UTIL_H__*/

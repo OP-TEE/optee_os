@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2020 Pengutronix
  * Rouven Czerwinski <entwicklung@pengutronix.de>
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #include <drivers/imx_snvs.h>
@@ -18,6 +18,7 @@
 #define SNVS_HPCOMR 0x04
 #define SNVS_HPSR   0x14
 #define SNVS_LPLR   0x34
+#define SNVS_LPCR   0x38
 #define SNVS_LPMKCR 0x3C
 
 #define HPSR_SSM_ST_MASK  GENMASK_32(11, 8)
@@ -37,6 +38,10 @@
 #define SNVS_HPCOMR_NPSWA_EN BIT32(31)
 
 #define SNVS_LPMKCR_MKCR_MKS_SEL GENMASK_32(1, 0)
+
+#define SNVS_LPCR_TOP_MASK	BIT(6)
+#define SNVS_LPCR_DP_EN_MASK	BIT(5)
+#define SNVS_LPCR_SRTC_ENV_MASK	BIT(1)
 
 enum snvs_ssm_mode {
 	SNVS_SSM_MODE_INIT,
@@ -189,4 +194,14 @@ TEE_Result imx_snvs_set_master_otpmk(void)
 	set_mks_otpmk();
 
 	return TEE_SUCCESS;
+}
+
+void imx_snvs_shutdown(void)
+{
+	vaddr_t base = core_mmu_get_va(SNVS_BASE, MEM_AREA_IO_SEC, SNVS_SIZE);
+
+	io_write32(base + SNVS_LPCR,
+		   SNVS_LPCR_TOP_MASK |
+		   SNVS_LPCR_DP_EN_MASK |
+		   SNVS_LPCR_SRTC_ENV_MASK);
 }

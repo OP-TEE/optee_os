@@ -82,7 +82,7 @@ after_resume:
 	mov	r0, r5
 	bl	init_sec_mon
 
-	bl	main_init_gic
+	bl	boot_primary_init_intc
 
 	mov	r0, #TEESMC_OPTEED_RETURN_ENTRY_DONE
 	mov	r1, #0

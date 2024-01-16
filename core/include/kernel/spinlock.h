@@ -4,8 +4,8 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
-#ifndef KERNEL_SPINLOCK_H
-#define KERNEL_SPINLOCK_H
+#ifndef __KERNEL_SPINLOCK_H
+#define __KERNEL_SPINLOCK_H
 
 #define SPINLOCK_LOCK       1
 #define SPINLOCK_UNLOCK     0
@@ -129,4 +129,4 @@ static inline void cpu_spin_unlock_xrestore(unsigned int *lock,
 }
 #endif /* __ASSEMBLER__ */
 
-#endif /* KERNEL_SPINLOCK_H */
+#endif /* __KERNEL_SPINLOCK_H */

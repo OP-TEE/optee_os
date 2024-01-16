@@ -133,7 +133,7 @@
 #endif
 #endif
 
-#if defined(CFG_TZSRAM_START)
+#if defined(CFG_WITH_PAGER) && defined(CFG_TZSRAM_START)
 #define TZSRAM_BASE		CFG_TZSRAM_START
 #define TZSRAM_SIZE		CFG_TZSRAM_SIZE
 #endif

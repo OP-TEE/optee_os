@@ -4,8 +4,8 @@
  * Copyright (c) 2020, Huawei Technologies Co., Ltd
  */
 
-#ifndef KERNEL_UNWIND
-#define KERNEL_UNWIND
+#ifndef __KERNEL_UNWIND
+#define __KERNEL_UNWIND
 
 #include <types_ext.h>
 
@@ -27,4 +27,4 @@ static inline void *unw_get_kernel_stack(void)
 }
 #endif /* CFG_UNWIND  */
 
-#endif /*KERNEL_UNWIND*/
+#endif /*__KERNEL_UNWIND*/

@@ -7,12 +7,14 @@
 #include <mm/core_mmu.h>
 
 void __section(".text.dummy.boot_save_boot_info")
-boot_save_boot_info(void *boot_info __unused)
+boot_save_args(unsigned long a0 __unused, unsigned long a1 __unused,
+	       unsigned long a2 __unused, unsigned long a3 __unused,
+	       unsigned long a4 __unused)
 {
 }
 
 unsigned long __section(".text.dummy.get_aslr_seed")
-get_aslr_seed(void *fdt __unused)
+get_aslr_seed(void)
 {
 	return 0;
 }
@@ -24,7 +26,6 @@ core_init_mmu_map(unsigned long seed __unused,
 }
 
 void __section(".text.dummy.boot_init_primary_early")
-boot_init_primary_early(unsigned long pageable_part __unused,
-			unsigned long nsec_entry __unused)
+boot_init_primary_early(void)
 {
 }

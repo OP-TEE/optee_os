@@ -1,5 +1,9 @@
-#ifndef __STD_SMC_H__
-#define __STD_SMC_H__
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2017-2023, Linaro Limited
+ */
+#ifndef __SM_STD_SMC_H__
+#define __SM_STD_SMC_H__
 
 #include <sm/sm.h>
 

@@ -22,11 +22,7 @@
 #ifndef MBEDTLS_PLATFORM_TIME_H
 #define MBEDTLS_PLATFORM_TIME_H
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "mbedtls/build_info.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +43,7 @@ typedef time_t mbedtls_time_t;
  * The function pointers for time
  */
 #if defined(MBEDTLS_PLATFORM_TIME_ALT)
-extern mbedtls_time_t (*mbedtls_time)( mbedtls_time_t* time );
+extern mbedtls_time_t (*mbedtls_time)(mbedtls_time_t *time);
 
 /**
  * \brief   Set your own time function pointer
@@ -56,7 +52,7 @@ extern mbedtls_time_t (*mbedtls_time)( mbedtls_time_t* time );
  *
  * \return              0
  */
-int mbedtls_platform_set_time( mbedtls_time_t (*time_func)( mbedtls_time_t* time ) );
+int mbedtls_platform_set_time(mbedtls_time_t (*time_func)(mbedtls_time_t *time));
 #else
 #if defined(MBEDTLS_PLATFORM_TIME_MACRO)
 #define mbedtls_time    MBEDTLS_PLATFORM_TIME_MACRO

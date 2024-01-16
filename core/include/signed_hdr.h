@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#ifndef SIGNED_HDR_H
-#define SIGNED_HDR_H
+#ifndef __SIGNED_HDR_H
+#define __SIGNED_HDR_H
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -225,4 +225,4 @@ TEE_Result shdr_verify_signature2(struct shdr_pub_key *key,
  */
 TEE_Result shdr_verify_signature(const struct shdr *shdr);
 
-#endif /*SIGNED_HDR_H*/
+#endif /*__SIGNED_HDR_H*/

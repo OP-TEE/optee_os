@@ -14,6 +14,7 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -32,9 +33,21 @@
 #include <trace.h>
 #include <util.h>
 
+/*
+ * This function is called as a guard after each ABI call which is not
+ * supposed to return.
+ */
+void __noreturn __panic_at_abi_return(void)
+{
+	panic();
+}
+
+/* This function returns current masked exception bits. */
 uint32_t __nostackcheck thread_get_exceptions(void)
 {
-	return read_csr(CSR_XIE) & THREAD_EXCP_ALL;
+	uint32_t xie = read_csr(CSR_XIE) & THREAD_EXCP_ALL;
+
+	return xie ^ THREAD_EXCP_ALL;
 }
 
 void __nostackcheck thread_set_exceptions(uint32_t exceptions)
@@ -42,6 +55,18 @@ void __nostackcheck thread_set_exceptions(uint32_t exceptions)
 	/* Foreign interrupts must not be unmasked while holding a spinlock */
 	if (!(exceptions & THREAD_EXCP_FOREIGN_INTR))
 		assert_have_no_spinlock();
+
+	/*
+	 * In ARM, the bits in DAIF register are used to mask the exceptions.
+	 * While in RISC-V, the bits in CSR XIE are used to enable(unmask)
+	 * corresponding interrupt sources. To not modify the function of
+	 * thread_set_exceptions(), we should "invert" the bits in "exceptions".
+	 * The corresponding bits in "exceptions" will be inverted so they will
+	 * be cleared when we write the final value into CSR XIE. So that we
+	 * can mask those exceptions.
+	 */
+	exceptions &= THREAD_EXCP_ALL;
+	exceptions ^= THREAD_EXCP_ALL;
 
 	barrier();
 	write_csr(CSR_XIE, exceptions);
@@ -347,7 +372,7 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5)
 {
 	__thread_alloc_and_run(a0, a1, a2, a3, a4, a5, 0, 0,
-			       thread_std_smc_entry);
+			       thread_std_abi_entry);
 }
 
 static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,
@@ -361,7 +386,7 @@ static void copy_a0_to_a3(struct thread_ctx_regs *regs, uint32_t a0,
 
 static bool is_from_user(unsigned long status)
 {
-	return status & CSR_XSTATUS_SPP;
+	return (status & CSR_XSTATUS_SPP) == 0;
 }
 
 #ifdef CFG_SYSCALL_FTRACE
@@ -477,7 +502,7 @@ void thread_state_free(void)
 	thread_unlock_global();
 }
 
-int thread_state_suspend(uint32_t flags, uint32_t status, vaddr_t pc)
+int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc)
 {
 	struct thread_core_local *l = thread_get_core_local();
 	int ct = l->curr_thread;
@@ -565,14 +590,19 @@ void thread_init_per_cpu(void)
 	 * and kernel traps.
 	 */
 	write_csr(CSR_XSCRATCH, 0);
-	/* Allow access to user pages */
+#ifndef CFG_PAN
+	/*
+	 * Allow access to user pages. When CFG_PAN is enabled, the SUM bit will
+	 * be set and clear at runtime when necessary.
+	 */
 	set_csr(CSR_XSTATUS, CSR_XSTATUS_SUM);
+#endif
 }
 
 static void set_ctx_regs(struct thread_ctx_regs *regs, unsigned long a0,
 			 unsigned long a1, unsigned long a2, unsigned long a3,
 			 unsigned long user_sp, unsigned long entry_func,
-			 uint32_t status,
+			 unsigned long status,
 			 struct thread_pauth_keys *keys __unused)
 {
 	*regs = (struct thread_ctx_regs){
@@ -594,7 +624,7 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 				uint32_t *exit_status0,
 				uint32_t *exit_status1)
 {
-	uint32_t status = 0;
+	unsigned long status = 0;
 	uint32_t exceptions = 0;
 	uint32_t rc = 0;
 	struct thread_ctx_regs *regs = NULL;
@@ -603,8 +633,9 @@ uint32_t thread_enter_user_mode(unsigned long a0, unsigned long a1,
 
 	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 	regs = thread_get_ctx_regs();
-	status = CSR_XSTATUS_SUM | CSR_XSTATUS_PIE;
-	set_field_u64(status, CSR_XSTATUS_SPP, PRV_U);
+	status = read_csr(CSR_XSTATUS);
+	status |= CSR_XSTATUS_PIE;	/* Previous interrupt is enabled */
+	status = set_field_u64(status, CSR_XSTATUS_SPP, PRV_U);
 	set_ctx_regs(regs, a0, a1, a2, a3, user_sp, entry_func, status, NULL);
 	rc = __thread_enter_user_mode(regs, exit_status0, exit_status1);
 	thread_unmask_exceptions(exceptions);

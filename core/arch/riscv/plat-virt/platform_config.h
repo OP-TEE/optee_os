@@ -27,8 +27,8 @@
 /* PLIC */
 #ifndef PLIC_BASE
 #define PLIC_BASE		0x0c000000
-#define PLIC_REG_SIZE		0x1000
-#define PLIC_NUM_SOURCES	0x7f
+#define PLIC_REG_SIZE		0x600000
+#define PLIC_NUM_SOURCES	0x5f
 #endif
 
 /* UART */

@@ -39,6 +39,9 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,n)
 $(call force,CFG_TZDRAM_START,0x20000000)
 $(call force,CFG_TZDRAM_SIZE,0x800000)
 
+# This value is forced because this feature isn't used by SAM platforms.
+$(call force,CFG_EXTERNAL_DT,n)
+
 CFG_MMAP_REGIONS ?= 24
 
 CFG_SHMEM_START  ?= 0x21000000
@@ -108,3 +111,6 @@ $(call force,CFG_SCMI_MSG_CLOCK,y)
 $(call force,CFG_SCMI_MSG_USE_CLK,y)
 $(call force,CFG_SCMI_MSG_SMT_FASTCALL_ENTRY,y)
 endif
+
+CFG_DRIVERS_NVMEM ?= y
+CFG_ATMEL_SFC ?= y

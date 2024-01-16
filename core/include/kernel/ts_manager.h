@@ -39,6 +39,23 @@ enum ts_gprof_status {
 	TS_GPROF_RESUME,
 };
 
+/*
+ * struct ts_ops - Trusted Service operations
+ * The operations below are called when:
+ * @enter_open_session():	opening a session to the service
+ * @enter_invoke_cmd():		invoking a command in the service
+ * @enter_close_session():	closing a session to the service
+ * @dump_mem_stats():		dumping heap state of the service
+ * @dump_state():		dumping active memory mappings
+ * @dump_ftrace():		dumping the ftrace data via RPC
+ * @release_state():		the service has panicked and as much state
+ *				as possible need to be released
+ * @destroy():			freeing the struct ts_ctx removing all
+ *				trace of the service
+ * @get_instance_id():		a unique ID of the service is needed
+ * @handle_scall():		handling a syscall from the service
+ * @gprof_set_status():		updating the gprof status of the service
+ */
 struct ts_ops {
 	TEE_Result (*enter_open_session)(struct ts_session *s);
 	TEE_Result (*enter_invoke_cmd)(struct ts_session *s, uint32_t cmd);
@@ -48,6 +65,7 @@ struct ts_ops {
 #endif
 	void (*dump_state)(struct ts_ctx *ctx);
 	void (*dump_ftrace)(struct ts_ctx *ctx);
+	void (*release_state)(struct ts_ctx *ctx);
 	void (*destroy)(struct ts_ctx *ctx);
 	uint32_t (*get_instance_id)(struct ts_ctx *ctx);
 	bool (*handle_scall)(struct thread_scall_regs *regs);

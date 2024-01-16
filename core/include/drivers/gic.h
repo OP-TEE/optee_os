@@ -25,15 +25,34 @@
 #define GIC_SPI_TO_ITNUM(x)	((x) + GIC_SPI_BASE)
 
 /*
- * The two gic_init_* functions initializes the struct gic_data which is
- * then used by the other functions.
+ * Default lowest ID for secure SGIs, note that this does not account for
+ * interrupts donated to non-secure world with gic_init_donate_sgi_to_ns().
  */
+#define GIC_SGI_SEC_BASE	8
+/* Max ID for secure SGIs */
+#define GIC_SGI_SEC_MAX		15
 
-/* Initialize GIC */
-void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa);
+/*
+ * The two gic_init() and gic_init_v3() functions initializes the struct
+ * gic_data which is then used by the other functions. These two functions
+ * also initializes the GIC and are only supposed to be called from the
+ * primary boot CPU.
+ */
+void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
+		 paddr_t gicr_base_pa);
+static inline void gic_init(paddr_t gicc_base_pa, paddr_t gicd_base_pa)
+{
+	gic_init_v3(gicc_base_pa, gicd_base_pa, 0);
+}
 
-/* Only initialize CPU GIC interface, mainly use for secondary CPUs */
-void gic_cpu_init(void);
+/* Donates one of the secure SGIs to normal world */
+void gic_init_donate_sgi_to_ns(size_t it);
+
+/*
+ * Does per-CPU specific GIC initialization, should be called by all
+ * secondary CPUs when booting.
+ */
+void gic_init_per_cpu(void);
 
 /* Print GIC state to console */
 void gic_dump_state(void);

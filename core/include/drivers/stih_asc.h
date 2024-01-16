@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2017, Linaro Limited
  */
-#ifndef STIH_ASC_H
-#define STIH_ASC_H
+#ifndef __DRIVERS_STIH_ASC_H
+#define __DRIVERS_STIH_ASC_H
 
 #include <drivers/serial.h>
 #include <types_ext.h>
@@ -17,5 +17,5 @@ struct stih_asc_pd {
 
 void stih_asc_init(struct stih_asc_pd *pb, vaddr_t base);
 
-#endif /* STIH_ASC_H */
+#endif /* __DRIVERS_STIH_ASC_H */
 

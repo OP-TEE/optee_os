@@ -264,6 +264,10 @@ bool attributes_match_reference(struct obj_attrs *candidate,
 
 		TEE_MemMove(&pkcs11_ref, ref_attr, sizeof(pkcs11_ref));
 
+		/* Hidden attributes cannot be matched */
+		if (attribute_is_hidden(&pkcs11_ref))
+			return false;
+
 		rc = get_attribute_ptr(candidate, pkcs11_ref.id, &value, &size);
 
 		if (rc || !value || size != pkcs11_ref.size ||

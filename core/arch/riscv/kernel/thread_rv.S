@@ -29,7 +29,9 @@
 
 	/* Save user thread pointer and load kernel thread pointer */
 	store_xregs sp, THREAD_TRAP_REG_TP, REG_TP
-	load_xregs sp, (THREAD_TRAP_REGS_SIZE - RISCV_XLEN_BYTES), REG_TP
+	addi	tp, sp, THREAD_TRAP_REGS_SIZE
+	/* Now tp is at struct thread_user_mode_rec, which has kernel tp */
+	load_xregs tp, THREAD_USER_MODE_REC_X4, REG_TP
 
 	store_xregs sp, THREAD_TRAP_REG_GP, REG_GP
 
@@ -89,8 +91,6 @@
 
 .if \mode == TRAP_MODE_USER
 	addi	gp, sp, THREAD_TRAP_REGS_SIZE
-
-	store_xregs gp, REGOFF(-1), REG_TP
 	csrw	CSR_XSCRATCH, gp
 
 	load_xregs sp, THREAD_TRAP_REG_TP, REG_TP
@@ -222,13 +222,6 @@ FUNC __thread_enter_user_mode , :
 	 */
 	csrw	CSR_XSCRATCH, sp
 
-	/*
-	 * Save kernel thread pointer below of the kernel stack pointer
-	 * to enure that thread_trap_vect() uses correct tp when traps
-	 * come from user.
-	 */
-	store_xregs sp, REGOFF(-1), REG_TP
-
 	/* Set user status */
 	load_xregs a0, THREAD_CTX_REG_STATUS, REG_S0
 	csrw	CSR_XSTATUS, s0
@@ -254,49 +247,6 @@ FUNC __thread_enter_user_mode , :
 	XRET
 END_FUNC __thread_enter_user_mode
 
-/*
- * Implement based on the transport method used to communicate between
- * untrusted domain and trusted domain. It could be an SBI/ECALL-based to
- * a security monitor running in M-Mode and panic or messaging-based across
- * domains where we return to a messaging callback which parses and handles
- * messages.
- */
-LOCAL_FUNC thread_return_from_nsec_call , :
-	/* Implement */
-	j	.
-END_FUNC thread_return_from_nsec_call
-
-
-FUNC thread_std_smc_entry , :
-	jal	__thread_std_smc_entry
-
-	/* Save return value */
-	mv	s0, a0
-
-	/* Disable all interrupts */
-	csrc	CSR_XSTATUS, CSR_XSTATUS_IE
-
-	/* Switch to temporary stack */
-	jal	thread_get_tmp_sp
-	mv	sp, a0
-
-	/*
-	 * We are returning from thread_alloc_and_run()
-	 * set thread state as free
-	 */
-	jal	thread_state_free
-
-	/* Restore __thread_std_smc_entry() return value */
-	mv	a1, s0
-	li	a2, 0
-	li	a3, 0
-	li	a4, 0
-	li	a0, TEESMC_OPTEED_RETURN_CALL_DONE
-
-	/* Return to untrusted domain */
-	jal	thread_return_from_nsec_call
-END_FUNC thread_std_smc_entry
-
 /* void thread_resume(struct thread_ctx_regs *regs) */
 FUNC thread_resume , :
 	/*
@@ -312,73 +262,3 @@ FUNC thread_resume , :
 	store_xregs tp, THREAD_CORE_LOCAL_X10, REG_A0, REG_A1
 	ret
 END_FUNC thread_resume
-
-/* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
-FUNC thread_rpc , :
-	 /* Use stack for temporary storage */
-	addi	sp, sp, -16
-
-	/* Read xSTATUS */
-	csrr	a1, CSR_XSTATUS
-
-	/* Save return address xSTATUS and pointer to rv */
-	STR	a0, REGOFF(0)(sp)
-	STR	a1, REGOFF(1)(sp)
-	STR	ra, REGOFF(2)(sp)
-
-	/* Save thread state */
-	jal	thread_get_ctx_regs
-	store_xregs a0, THREAD_CTX_REG_RA, REG_RA, REG_SP
-	store_xregs a0, THREAD_CTX_REG_S0, REG_S0, REG_S1
-	store_xregs a0, THREAD_CTX_REG_S2, REG_S2, REG_S11
-
-	/* Get to tmp stack */
-	jal	thread_get_tmp_sp
-
-	/* Get pointer to rv */
-	LDR	s0, REGOFF(0)(sp)
-
-	/* xSTATUS to restore */
-	LDR	a1, REGOFF(1)(sp)
-	/* Switch to tmp stack */
-	mv	sp, a0
-
-	/* Early load rv[] into s1-s3 */
-	lw	s1, 0(s0)
-	lw	s2, 4(s0)
-	lw	s3, 8(s0)
-
-	li	a0, THREAD_FLAGS_COPY_ARGS_ON_RETURN
-	la	a2, .thread_rpc_return
-	jal	thread_state_suspend
-
-	mv	a4, a0	/* thread index */
-	mv	a1, s1	/* rv[0] */
-	mv	a2, s2	/* rv[1] */
-	mv	a3, s3	/* rv[2] */
-	li	a0, TEESMC_OPTEED_RETURN_CALL_DONE
-
-	/* Return to untrusted domain */
-	jal	thread_return_from_nsec_call
-.thread_rpc_return:
-	/*
-	 * Jumps here from thread_resume() above when RPC has returned.
-	 * At this point has the stack pointer been restored to the value
-	 * stored in THREAD_CTX above.
-	 */
-
-	/* Get pointer to rv[] */
-	LDR	a4, REGOFF(0)(sp)
-
-	/* Store a0-a3 into rv[] */
-	sw	a0, 0(a4)
-	sw	a1, 4(a4)
-	sw	a2, 8(a4)
-	sw	a3, 12(a4)
-
-	/* Pop return address from stack */
-	LDR	ra, REGOFF(2)(sp)
-
-	addi	sp, sp, 16
-	ret
-END_FUNC thread_rpc

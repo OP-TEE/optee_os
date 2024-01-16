@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#ifndef KERNEL_WAIT_QUEUE_H
-#define KERNEL_WAIT_QUEUE_H
+#ifndef __KERNEL_WAIT_QUEUE_H
+#define __KERNEL_WAIT_QUEUE_H
 
 #include <types_ext.h>
 #include <sys/queue.h>
@@ -60,5 +60,5 @@ void wq_promote_condvar(struct wait_queue *wq, struct condvar *cv,
 			int lineno);
 bool wq_have_condvar(struct wait_queue *wq, struct condvar *cv);
 
-#endif /*KERNEL_WAIT_QUEUE_H*/
+#endif /*__KERNEL_WAIT_QUEUE_H*/
 

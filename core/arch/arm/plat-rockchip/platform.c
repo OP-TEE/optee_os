@@ -19,7 +19,7 @@ int __weak platform_secure_ddr_region(int rgn __maybe_unused,
 				      paddr_t st __maybe_unused,
 				      size_t sz __maybe_unused)
 {
-	MSG("Not protecting region %d: 0x%lx-0x%lx\n", rgn, st, st + sz);
+	MSG("Not protecting region %d: 0x%lx-0x%lx", rgn, st, st + sz);
 
 	return 0;
 }

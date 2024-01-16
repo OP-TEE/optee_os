@@ -13,6 +13,7 @@
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -267,8 +268,16 @@ static struct itr_handler secumod_itr_handler = {
 
 static void secumod_interrupt_init(void)
 {
-	itr_add_type_prio(&secumod_itr_handler, IRQ_TYPE_LEVEL_HIGH, 7);
-	itr_enable(secumod_itr_handler.it);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	secumod_itr_handler.chip = interrupt_get_main_chip();
+
+	res = interrupt_add_configure_handler(&secumod_itr_handler,
+					      IRQ_TYPE_LEVEL_HIGH, 7);
+	if (res)
+		panic();
+
+	interrupt_enable(secumod_itr_handler.chip, secumod_itr_handler.it);
 }
 
 static void secumod_cfg_input_pio(uint8_t gpio_pin, uint32_t config)

@@ -46,6 +46,7 @@
 #define TEE_MAIN_ALGO_X25519     0x44 /* Not in v1.2 spec */
 #define TEE_MAIN_ALGO_SHAKE128   0xC3 /* OP-TEE extension */
 #define TEE_MAIN_ALGO_SHAKE256   0xC4 /* OP-TEE extension */
+#define TEE_MAIN_ALGO_X448	 0x49
 
 
 #define TEE_CHAIN_MODE_ECB_NOPAD        0x0
@@ -105,6 +106,8 @@ static inline uint32_t __tee_alg_get_main_alg(uint32_t algo)
 		return TEE_MAIN_ALGO_SHAKE128;
 	case TEE_ALG_SHAKE256:
 		return TEE_MAIN_ALGO_SHAKE256;
+	case TEE_ALG_X448:
+		return TEE_MAIN_ALGO_X448;
 	default:
 		break;
 	}
@@ -299,12 +302,18 @@ static inline size_t __tee_alg_get_digest_size(uint32_t algo)
 #endif
 
 /* If we we're on a big endian platform we'll have to update these */
-#define TEE_U64_FROM_BIG_ENDIAN(x)  TEE_U64_BSWAP(x)
-#define TEE_U32_FROM_BIG_ENDIAN(x)  TEE_U32_BSWAP(x)
-#define TEE_U16_FROM_BIG_ENDIAN(x)  TEE_U16_BSWAP(x)
-#define TEE_U64_TO_BIG_ENDIAN(x)    TEE_U64_BSWAP(x)
-#define TEE_U32_TO_BIG_ENDIAN(x)    TEE_U32_BSWAP(x)
-#define TEE_U16_TO_BIG_ENDIAN(x)    TEE_U16_BSWAP(x)
+#define TEE_U64_FROM_LITTLE_ENDIAN(x)  ((uint64_t)(x))
+#define TEE_U32_FROM_LITTLE_ENDIAN(x)  ((uint32_t)(x))
+#define TEE_U16_FROM_LITTLE_ENDIAN(x)  ((uint16_t)(x))
+#define TEE_U64_TO_LITTLE_ENDIAN(x)    ((uint64_t)(x))
+#define TEE_U32_TO_LITTLE_ENDIAN(x)    ((uint32_t)(x))
+#define TEE_U16_TO_LITTLE_ENDIAN(x)    ((uint16_t)(x))
+#define TEE_U64_FROM_BIG_ENDIAN(x)     TEE_U64_BSWAP(x)
+#define TEE_U32_FROM_BIG_ENDIAN(x)     TEE_U32_BSWAP(x)
+#define TEE_U16_FROM_BIG_ENDIAN(x)     TEE_U16_BSWAP(x)
+#define TEE_U64_TO_BIG_ENDIAN(x)       TEE_U64_BSWAP(x)
+#define TEE_U32_TO_BIG_ENDIAN(x)       TEE_U32_BSWAP(x)
+#define TEE_U16_TO_BIG_ENDIAN(x)       TEE_U16_BSWAP(x)
 
 #define TEE_TIME_MILLIS_BASE    1000
 

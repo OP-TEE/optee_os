@@ -3,8 +3,8 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#ifndef CONSOLE_H
-#define CONSOLE_H
+#ifndef __CONSOLE_H
+#define __CONSOLE_H
 
 #include <compiler.h>
 #include <tee_api_types.h>
@@ -51,5 +51,5 @@ static inline void configure_console_from_dt(void)
 {}
 #endif /* !CFG_DT */
 
-#endif /* CONSOLE_H */
+#endif /* __CONSOLE_H */
 

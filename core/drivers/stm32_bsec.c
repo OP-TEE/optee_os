@@ -94,6 +94,14 @@
 #define BSEC_MODE_PWR			BIT(5)
 #define BSEC_MODE_CLOSED		BIT(8)
 
+/* BSEC_DEBUG bitfields */
+#ifdef CFG_STM32MP13
+#define BSEC_DEN_ALL_MSK		(GENMASK_32(11, 10) | GENMASK_32(8, 1))
+#endif
+#ifdef CFG_STM32MP15
+#define BSEC_DEN_ALL_MSK		GENMASK_32(11, 1)
+#endif
+
 /*
  * OTP Lock services definition
  * Value must corresponding to the bit position in the register
@@ -171,13 +179,16 @@ static bool state_is_closed_mode(void)
 	uint32_t otp_cfg = 0;
 	uint32_t close_mode = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t __maybe_unused sz = 0;
+	uint8_t __maybe_unused offset = 0;
 
 	if (IS_ENABLED(CFG_STM32MP13))
 		return bsec_status() & BSEC_MODE_CLOSED;
 
-	res = stm32_bsec_find_otp_in_nvmem_layout("cfg0_otp", &otp_cfg, NULL);
-	if (res)
-		panic("CFG0 OTP not found");
+	res = stm32_bsec_find_otp_in_nvmem_layout("cfg0_otp", &otp_cfg,
+						  &offset, &sz);
+	if (res || sz != 8 || offset)
+		panic("CFG0 OTP not found or invalid");
 
 	if (stm32_bsec_read_otp(&close_mode, otp_cfg))
 		panic("Unable to read OTP");
@@ -393,7 +404,6 @@ out:
 
 	return result;
 }
-#endif /*CFG_STM32_BSEC_WRITE*/
 
 TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id)
 {
@@ -468,20 +478,23 @@ out:
 
 	return result;
 }
+#endif /*CFG_STM32_BSEC_WRITE*/
 
 TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 {
 	TEE_Result result = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
 
+	assert(!(value & ~BSEC_DEN_ALL_MSK));
+
 	if (state_is_invalid_mode())
 		return TEE_ERROR_SECURITY;
 
 	exceptions = bsec_lock();
 
-	io_write32(bsec_base() + BSEC_DEN_OFF, value);
+	io_clrsetbits32(bsec_base() + BSEC_DEN_OFF, BSEC_DEN_ALL_MSK, value);
 
-	if ((io_read32(bsec_base() + BSEC_DEN_OFF) ^ value) == 0U)
+	if (stm32_bsec_read_debug_conf() == value)
 		result = TEE_SUCCESS;
 
 	bsec_unlock(exceptions);
@@ -491,7 +504,7 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 
 uint32_t stm32_bsec_read_debug_conf(void)
 {
-	return io_read32(bsec_base() + BSEC_DEN_OFF);
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
 }
 
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
@@ -597,17 +610,49 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id)
 	       nsec_access_granted(otp_id - otp_upper_base());
 }
 
+/*
+ * struct nvmem_layout - NVMEM cell description
+ * @name: Name of the nvmem node in the DT
+ * @otp_id: BSEC base index for the OTP words
+ * @bit_offset: Bit offset in the OTP word
+ * @bit_len: Bit size of the OTP word
+ * @phandle: Associated phandle in embedded DTB
+ */
 struct nvmem_layout {
 	char *name;
 	uint32_t otp_id;
+	uint8_t bit_offset;
 	size_t bit_len;
+	uint32_t phandle;
 };
 
 static struct nvmem_layout *nvmem_layout;
 static size_t nvmem_layout_count;
 
+static TEE_Result stm32_bsec_otp_setting(size_t i,
+					 uint32_t *otp_id,
+					 uint8_t *otp_bit_offset,
+					 size_t *otp_bit_len)
+{
+	if (otp_id)
+		*otp_id = nvmem_layout[i].otp_id;
+
+	if (otp_bit_offset)
+		*otp_bit_offset = nvmem_layout[i].bit_offset;
+
+	if (otp_bit_len)
+		*otp_bit_len = nvmem_layout[i].bit_len;
+
+	DMSG("nvmem[%zu] = %s at BSEC word %" PRIu32 " bits [%" PRIu8 " %zu]",
+	     i, nvmem_layout[i].name, nvmem_layout[i].otp_id,
+	     nvmem_layout[i].bit_offset, nvmem_layout[i].bit_len);
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 					       uint32_t *otp_id,
+					       uint8_t *otp_bit_offset,
 					       size_t *otp_bit_len)
 {
 	size_t i = 0;
@@ -619,22 +664,37 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 		if (!nvmem_layout[i].name || strcmp(name, nvmem_layout[i].name))
 			continue;
 
-		if (otp_id)
-			*otp_id = nvmem_layout[i].otp_id;
-
-		if (otp_bit_len)
-			*otp_bit_len = nvmem_layout[i].bit_len;
-
-		DMSG("nvmem %s = %zu: %"PRId32" %zu", name, i,
-		     nvmem_layout[i].otp_id, nvmem_layout[i].bit_len);
-
-		return TEE_SUCCESS;
+		return stm32_bsec_otp_setting(i, otp_id, otp_bit_offset,
+					      otp_bit_len);
 	}
 
 	DMSG("nvmem %s failed", name);
 
 	return TEE_ERROR_ITEM_NOT_FOUND;
-};
+}
+
+TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
+					  uint32_t *otp_id,
+					  uint8_t *otp_bit_offset,
+					  size_t *otp_bit_len)
+{
+	size_t i = 0;
+
+	if (!phandle)
+		return TEE_ERROR_GENERIC;
+
+	for (i = 0; i < nvmem_layout_count; i++) {
+		if (nvmem_layout[i].phandle != phandle)
+			continue;
+
+		return stm32_bsec_otp_setting(i, otp_id, otp_bit_offset,
+					      otp_bit_len);
+	}
+
+	DMSG("nvmem %u not found", phandle);
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
 
 TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 {
@@ -783,10 +843,14 @@ static void save_dt_nvmem_layout(void *fdt, int bsec_node)
 		const char *s = NULL;
 		int len = 0;
 		struct nvmem_layout *layout_cell = &nvmem_layout[cell_cnt];
+		uint32_t bits[2] = { };
 
 		string = fdt_get_name(fdt, node, &len);
 		if (!string || !len)
 			continue;
+
+		layout_cell->phandle = fdt_get_phandle(fdt, node);
+		assert(layout_cell->phandle != (uint32_t)-1);
 
 		reg_offset = fdt_reg_base_address(fdt, node);
 		reg_length = fdt_reg_size(fdt, node);
@@ -797,12 +861,15 @@ static void save_dt_nvmem_layout(void *fdt, int bsec_node)
 			continue;
 		}
 
-		if (reg_offset % sizeof(uint32_t)) {
-			DMSG("Misaligned nvmem %s: ignored", string);
-			continue;
-		}
 		layout_cell->otp_id = reg_offset / sizeof(uint32_t);
+		layout_cell->bit_offset = (reg_offset % sizeof(uint32_t)) *
+					  CHAR_BIT;
 		layout_cell->bit_len = reg_length * CHAR_BIT;
+
+		if (!fdt_read_uint32_array(fdt, node, "bits", bits, 2)) {
+			layout_cell->bit_offset += bits[0];
+			layout_cell->bit_len = bits[1];
+		}
 
 		s = strchr(string, '@');
 		if (s)
@@ -812,9 +879,10 @@ static void save_dt_nvmem_layout(void *fdt, int bsec_node)
 		if (!layout_cell->name)
 			panic();
 		cell_cnt++;
-		DMSG("nvmem[%d] = %s %"PRId32" %zu", cell_cnt,
-		     layout_cell->name, layout_cell->otp_id,
-		     layout_cell->bit_len);
+		DMSG("nvmem[%d] = %s at BSEC word %" PRIu32
+		     " bits [%" PRIu8 " %zu]",
+		     cell_cnt, layout_cell->name, layout_cell->otp_id,
+		     layout_cell->bit_offset, layout_cell->bit_len);
 	}
 
 	if (cell_cnt != cell_max) {

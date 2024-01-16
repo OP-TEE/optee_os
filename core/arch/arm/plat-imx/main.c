@@ -33,7 +33,6 @@
 #include <drivers/gic.h>
 #include <drivers/imx_uart.h>
 #include <imx.h>
-#include <io.h>
 #include <kernel/boot.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -106,7 +105,7 @@ void console_init(void)
 #endif
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 #ifdef GICD_BASE
 	gic_init(0, GICD_BASE);
@@ -116,8 +115,8 @@ void main_init_gic(void)
 }
 
 #if CFG_TEE_CORE_NB_CORE > 1
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }
 #endif

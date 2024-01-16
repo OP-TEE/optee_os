@@ -72,7 +72,7 @@ void console_init(void)
 		      CFG_BCM_ELOG_AP_UART_LOG_SIZE);
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(0, GICD_BASE);
 }

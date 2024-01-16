@@ -54,6 +54,12 @@
 			no-map;
 		};
 
+		ipc_shmem: ipc-shmem@1004f000 {
+			compatible = "shared-dma-pool";
+			reg = <0x10048000 0x8000>;
+			no-map;
+		};
+
 		mcuram: mcuram@30000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x30000000 0x40000>;
@@ -253,6 +259,7 @@
 			vdd_usb: ldo4 {
 				regulator-name = "vdd_usb";
 				interrupts = <IT_CURLIM_LDO4 0>;
+				regulator-always-on;
 			};
 
 			vdd_sd: ldo5 {
@@ -313,17 +320,17 @@
 
 &iwdg1 {
 	timeout-sec = <32>;
+	status = "okay";
 };
 
 &iwdg2 {
 	timeout-sec = <32>;
-	status = "okay";
-	secure-status = "disabled";
+	status = "disabled";
 };
 
 &m4_rproc {
 	memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
-			<&vdev0vring1>, <&vdev0buffer>;
+			<&vdev0vring1>, <&vdev0buffer>, <&ipc_shmem>;
 	mboxes = <&ipcc 0>, <&ipcc 1>, <&ipcc 2>, <&ipcc 3>;
 	mbox-names = "vq0", "vq1", "shutdown", "detach";
 	interrupt-parent = <&exti>;
@@ -337,6 +344,7 @@
 };
 
 &rcc {
+	compatible = "st,stm32mp1-rcc";
 	status = "okay";
 };
 

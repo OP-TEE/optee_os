@@ -200,7 +200,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 	}
 
 	/*
-	 * If we have beated another thread calling mobj_reg_shm_dec_map()
+	 * If we have beaten another thread calling mobj_reg_shm_dec_map()
 	 * to get the lock we need only to reinitialize mapcount to 1.
 	 */
 	if (!r->mm) {
@@ -238,7 +238,14 @@ static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 
 	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
 
-	if (!refcount_val(&r->mapcount))
+	/*
+	 * Check that another thread hasn't been able to:
+	 * - increase the mapcount
+	 * - or, increase the mapcount, decrease it again, and set r->mm to
+	 *   NULL
+	 * before we acquired the spinlock
+	 */
+	if (!refcount_val(&r->mapcount) && r->mm)
 		reg_shm_unmap_helper(r);
 
 	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);

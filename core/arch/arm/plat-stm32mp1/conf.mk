@@ -5,17 +5,25 @@ flavor_dts_file-157C_DHCOM_PDK2 = stm32mp157c-dhcom-pdk2.dts
 flavor_dts_file-157C_DK2 = stm32mp157c-dk2.dts
 flavor_dts_file-157C_ED1 = stm32mp157c-ed1.dts
 flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
+flavor_dts_file-157A_DK1_SCMI = stm32mp157a-dk1-scmi.dts
+flavor_dts_file-157C_DK2_SCMI = stm32mp157c-dk2-scmi.dts
+flavor_dts_file-157C_ED1_SCMI = stm32mp157c-ed1-scmi.dts
+flavor_dts_file-157F_EV1_SCMI = stm32mp157c-ev1-scmi.dts
 
 flavor_dts_file-135F_DK = stm32mp135f-dk.dts
 
 flavorlist-cryp-512M = $(flavor_dts_file-157C_DK2) \
+		       $(flavor_dts_file-157C_DK2_SCMI) \
 		       $(flavor_dts_file-135F_DK)
 
-flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1)
+flavorlist-no_cryp-512M = $(flavor_dts_file-157A_DK1) \
+			  $(flavor_dts_file-157A_DK1_SCMI)
 
 flavorlist-cryp-1G = $(flavor_dts_file-157C_DHCOM_PDK2) \
 		     $(flavor_dts_file-157C_ED1) \
-		     $(flavor_dts_file-157C_EV1)
+		     $(flavor_dts_file-157C_EV1) \
+		     $(flavor_dts_file-157C_ED1_SCMI) \
+		     $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-no_cryp-1G = $(flavor_dts_file-157A_DHCOR_AVENGER96)
 
@@ -31,14 +39,22 @@ flavorlist-1G = $(flavorlist-cryp-1G) \
 flavorlist-MP15-HUK-DT = $(flavor_dts_file-157A_DK1) \
 			 $(flavor_dts_file-157C_DK2) \
 			 $(flavor_dts_file-157C_ED1) \
-			 $(flavor_dts_file-157C_EV1)
+			 $(flavor_dts_file-157C_EV1) \
+			 $(flavor_dts_file-157A_DK1_SCMI) \
+			 $(flavor_dts_file-157C_DK2_SCMI) \
+			 $(flavor_dts_file-157C_ED1_SCMI) \
+			 $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-MP15 = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 		  $(flavor_dts_file-157A_DK1) \
 		  $(flavor_dts_file-157C_DHCOM_PDK2) \
 		  $(flavor_dts_file-157C_DK2) \
 		  $(flavor_dts_file-157C_ED1) \
-		  $(flavor_dts_file-157C_EV1)
+		  $(flavor_dts_file-157C_EV1) \
+		  $(flavor_dts_file-157A_DK1_SCMI) \
+		  $(flavor_dts_file-157C_DK2_SCMI) \
+		  $(flavor_dts_file-157C_ED1_SCMI) \
+		  $(flavor_dts_file-157C_EV1_SCMI)
 
 flavorlist-MP13 = $(flavor_dts_file-135F_DK)
 
@@ -52,6 +68,7 @@ CFG_EMBED_DTB_SOURCE_FILE ?= stm32mp157c-dk2.dts
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_cryp)),)
 $(call force,CFG_STM32_CRYP,n)
+$(call force,CFG_STM32_SAES,n)
 endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-no_rng)),)
@@ -93,37 +110,46 @@ include core/arch/arm/cpu/cortex-a7.mk
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_DRIVERS_GPIO,y)
+$(call force,CFG_DRIVERS_PINCTRL,y)
+$(call force,CFG_DRIVERS_REGULATOR,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PSCI_ARM32,y)
+$(call force,CFG_REGULATOR_FIXED,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 
 ifeq ($(CFG_STM32MP13),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,n)
+$(call force,CFG_CORE_ASYNC_NOTIF,y)
+$(call force,CFG_CORE_ASYNC_NOTIF_GIC_INTID,31)
 $(call force,CFG_CORE_RESERVED_SHM,n)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,n)
 $(call force,CFG_STM32_GPIO,y)
+$(call force,CFG_STM32_VREFBUF,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,n)
 $(call force,CFG_STM32MP13_CLK,y)
+$(call force,CFG_STM32MP13_REGULATOR_IOD,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
 CFG_EXTERNAL_DT ?= n
 CFG_STM32MP_OPP_COUNT ?= 2
-CFG_STM32MP1_SCMI_SHM_SYSRAM ?= y
 CFG_WITH_PAGER ?= n
 endif # CFG_STM32MP13
 
 ifeq ($(CFG_STM32MP15),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
+$(call force,CFG_HALT_CORES_ON_PANIC_SGI,15)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_STM32MP1_SHARED_RESOURCES,y)
+$(call force,CFG_STM32_SAES,n)
 $(call force,CFG_STM32MP15_CLK,y)
-CFG_CORE_RESERVED_SHM ?= y
+CFG_CORE_RESERVED_SHM ?= n
+CFG_HALT_CORES_ON_PANIC ?= y
 CFG_EXTERNAL_DT ?= y
 CFG_STM32_BSEC_SIP ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
@@ -138,6 +164,16 @@ CFG_WITH_LPAE ?= y
 CFG_MMAP_REGIONS ?= 23
 CFG_DTB_MAX_SIZE ?= (256 * 1024)
 CFG_CORE_ASLR ?= n
+
+CFG_STM32MP_REMOTEPROC ?= n
+CFG_DRIVERS_REMOTEPROC ?= $(CFG_STM32MP_REMOTEPROC)
+CFG_REMOTEPROC_PTA ?= $(CFG_STM32MP_REMOTEPROC)
+ifeq ($(CFG_REMOTEPROC_PTA),y)
+# Remoteproc early TA for coprocessor firmware management in boot stages
+CFG_IN_TREE_EARLY_TAS += remoteproc/80a4c275-0a47-4905-8285-1486a9771a08
+# Embed public part of this key in OP-TEE OS
+RPROC_SIGN_KEY ?= keys/default.pem
+endif
 
 ifneq ($(CFG_WITH_LPAE),y)
 # Without LPAE, default TEE virtual address range is 1MB, we need at least 2MB.
@@ -194,10 +230,14 @@ CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
+CFG_STM32_SAES ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
+
+CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
+CFG_REGULATOR_GPIO ?= $(CFG_STM32_GPIO)
 
 CFG_WITH_SOFTWARE_PRNG ?= n
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
@@ -209,8 +249,8 @@ $(call force,CFG_STM32_I2C,y)
 $(call force,CFG_STM32_GPIO,y)
 endif
 
-# if any crypto driver is enabled, enable the crypto-framework layer
-ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP),y)
+# If any crypto driver is enabled, enable the crypto-framework layer
+ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_SAES),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
@@ -218,6 +258,8 @@ CFG_DRIVERS_RSTCTRL ?= $(CFG_STM32_RSTCTRL)
 $(eval $(call cfg-depends-all,CFG_STM32_RSTCTRL,CFG_DRIVERS_RSTCTRL))
 
 CFG_WDT ?= $(CFG_STM32_IWDG)
+CFG_WDT_SM_HANDLER ?= $(CFG_WDT)
+CFG_WDT_SM_HANDLER_ID ?= 0xbc000000
 
 # Platform specific configuration
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y

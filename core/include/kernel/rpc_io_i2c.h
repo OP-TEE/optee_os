@@ -3,8 +3,8 @@
  * Copyright (c) 2020 Foundries Ltd <jorge@foundries.io>
  */
 
-#ifndef __RPC_IO_I2C_H
-#define __RPC_IO_I2C_H
+#ifndef __KERNEL_RPC_IO_I2C_H
+#define __KERNEL_RPC_IO_I2C_H
 
 #include <optee_rpc_cmd.h>
 #include <tee_api_types.h>
@@ -35,4 +35,4 @@ struct rpc_i2c_request {
 
 TEE_Result rpc_io_i2c_transfer(struct rpc_i2c_request *p, size_t *bytes);
 
-#endif /* __RPC_IO_I2C_H */
+#endif /* __KERNEL_RPC_IO_I2C_H */

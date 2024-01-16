@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <mm/mobj.h>
 #include <kernel/pseudo_ta.h>
+#include <kernel/user_access.h>
 #include <optee_rpc_cmd.h>
 #include <pta_socket.h>
 #include <string.h>
@@ -40,7 +41,10 @@ static TEE_Result socket_open(uint32_t instance_id, uint32_t param_types,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(va, params[1].memref.buffer, params[1].memref.size);
+	res = copy_from_user(va, params[1].memref.buffer,
+			     params[1].memref.size);
+	if (res)
+		return res;
 
 	tpm[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_OPEN, instance_id, 0);
 	tpm[1] = THREAD_PARAM_VALUE(IN,
@@ -102,7 +106,10 @@ static TEE_Result socket_send(uint32_t instance_id, uint32_t param_types,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(va, params[1].memref.buffer, params[1].memref.size);
+	res = copy_from_user(va, params[1].memref.buffer,
+			     params[1].memref.size);
+	if (res)
+		return res;
 
 	tpm[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_SEND, instance_id,
 				    params[0].value.a /* handle */);
@@ -149,9 +156,15 @@ static TEE_Result socket_recv(uint32_t instance_id, uint32_t param_types,
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
 
-	if (params[1].memref.size)
-		memcpy(params[1].memref.buffer, va,
-		       MIN(params[1].memref.size, tpm[1].u.memref.size));
+	if (params[1].memref.size) {
+		TEE_Result res2 = TEE_SUCCESS;
+
+		res2 = copy_to_user(params[1].memref.buffer, va,
+				    MIN(params[1].memref.size,
+					tpm[1].u.memref.size));
+		if (res2)
+			return res2;
+	}
 	params[1].memref.size = tpm[1].u.memref.size;
 
 	return res;
@@ -181,7 +194,10 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 	if (!va)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	memcpy(va, params[1].memref.buffer, params[1].memref.size);
+	res = copy_from_user(va, params[1].memref.buffer,
+			     params[1].memref.size);
+	if (res)
+		return res;
 
 	tpm[0] = THREAD_PARAM_VALUE(IN, OPTEE_RPC_SOCKET_IOCTL, instance_id,
 				    params[0].value.a /* handle */);
@@ -190,8 +206,14 @@ static TEE_Result socket_ioctl(uint32_t instance_id, uint32_t param_types,
 				    0, 0);
 
 	res = thread_rpc_cmd(OPTEE_RPC_CMD_SOCKET, 3, tpm);
-	if (tpm[1].u.memref.size <= params[1].memref.size)
-		memcpy(params[1].memref.buffer, va, tpm[1].u.memref.size);
+	if (tpm[1].u.memref.size <= params[1].memref.size) {
+		TEE_Result res2 = TEE_SUCCESS;
+
+		res2 = copy_to_user(params[1].memref.buffer, va,
+				    tpm[1].u.memref.size);
+		if (res2)
+			return res2;
+	}
 
 	params[1].memref.size = tpm[1].u.memref.size;
 

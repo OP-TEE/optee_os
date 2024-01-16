@@ -135,8 +135,10 @@ TEE_Result caam_mp_export_publickey(uint8_t *pubkey, size_t *size)
 		pdb_sgt_flag = PROT_MP_PUBK_SGT;
 
 	desc = caam_calloc_desc(MP_PUB_DESC_ENTRIES);
-	if (!desc)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (!desc) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
 	caam_desc_init(desc);
 	caam_desc_add_word(desc, DESC_HEADER(0));
@@ -169,6 +171,7 @@ TEE_Result caam_mp_export_publickey(uint8_t *pubkey, size_t *size)
 		ret = job_status_to_tee_result(jobctx.status);
 	}
 
+out:
 	caam_dmaobj_free(&reskey);
 	caam_free_desc(&desc);
 

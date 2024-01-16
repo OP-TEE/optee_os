@@ -132,6 +132,8 @@ static void raise_sgi0_as_secure(void)
 
 static void release_secondary_early_hpen(size_t __unused pos)
 {
+	struct itr_chip *itr_chip = interrupt_get_main_chip();
+
 	/* Need to send SIG#0 over Group0 after individual core 1 reset */
 	raise_sgi0_as_secure();
 	udelay(20);
@@ -142,7 +144,7 @@ static void release_secondary_early_hpen(size_t __unused pos)
 		   BOOT_API_A7_CORE1_MAGIC_NUMBER);
 
 	dsb_ishst();
-	itr_raise_sgi(GIC_SEC_SGI_0, TARGET_CPU1_GIC_MASK);
+	interrupt_raise_sgi(itr_chip, GIC_SEC_SGI_0, TARGET_CPU1_GIC_MASK);
 }
 
 /* Override default psci_cpu_on() with platform specific sequence */

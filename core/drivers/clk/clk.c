@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2021, Bootlin
+ * Copyright (c) 2023, STMicroelectronics
  */
 
+#include <config.h>
 #include <drivers/clk.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
@@ -10,9 +12,14 @@
 #include <libfdt.h>
 #include <malloc.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /* Global clock tree lock */
 static unsigned int clk_lock = SPINLOCK_UNLOCK;
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+static SLIST_HEAD(, clk) clock_list = SLIST_HEAD_INITIALIZER(clock_list);
+#endif
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
@@ -42,7 +49,7 @@ void clk_free(struct clk *clk)
 
 static bool __maybe_unused clk_check(struct clk *clk)
 {
-	if (!clk->ops)
+	if (!clk || !clk->ops)
 		return false;
 
 	if (clk->ops->set_parent && !clk->ops->get_parent)
@@ -100,6 +107,10 @@ TEE_Result clk_register(struct clk *clk)
 
 	clk_init_parent(clk);
 	clk_compute_rate_no_lock(clk);
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	SLIST_INSERT_HEAD(&clock_list, clk, link);
+#endif
 
 	DMSG("Registered clock %s, freq %lu", clk->name, clk_get_rate(clk));
 
@@ -309,4 +320,170 @@ TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return clk->ops->get_rates_array(clk, start_index, rates, nb_elts);
+}
+
+/* Return updated message buffer position of NULL on failure */
+static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
+{
+	va_list ap = { };
+	int max_len = end - cur;
+	int ret = 0;
+
+	va_start(ap, fmt);
+	ret = vsnprintf(cur, max_len, fmt, ap);
+	va_end(ap);
+
+	if (ret < 0 || ret >= max_len)
+		return NULL;
+
+	return cur + ret;
+}
+
+static struct clk *find_next_clk(struct clk *parent __maybe_unused,
+				 struct clk *sibling __maybe_unused)
+{
+	struct clk *clk = NULL;
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	if (sibling)
+		clk = SLIST_NEXT(sibling, link);
+	else
+		clk = SLIST_FIRST(&clock_list);
+
+	while (clk && clk->parent != parent)
+		clk = SLIST_NEXT(clk, link);
+#endif
+
+	return clk;
+}
+
+static bool clk_is_parent_last_child(struct clk *clk)
+{
+	return !find_next_clk(clk->parent, clk);
+}
+
+static bool indent_last_node_already_found(struct clk *node_clk,
+					   int node_indent, int cur_indent)
+{
+	struct clk *clk = node_clk;
+	int n = 0;
+
+	/* Find parent clock at level @node_indent - @cur_indent - 1 */
+	for (n = 0; n < node_indent - cur_indent - 1; n++)
+		clk = clk->parent;
+
+	return clk_is_parent_last_child(clk);
+}
+
+static void __maybe_unused print_clk(struct clk *clk, int indent)
+{
+	static const char * const rate_unit[] = { "Hz", "kHz", "MHz", "GHz" };
+	int max_unit = ARRAY_SIZE(rate_unit);
+	unsigned long rate = 0;
+	char msg_buf[128] = { };
+	char *msg_end = msg_buf + sizeof(msg_buf);
+	char *msg = msg_buf;
+	int n = 0;
+
+	/*
+	 * Currently prints the clock state based on the clock refcount.
+	 * A future change could print the hardware clock state when
+	 * related clock driver provides a struct clk_ops::is_enabled handler
+	 */
+
+	if (indent) {
+		/* Indent for root clock level */
+		msg = add_msg(msg, msg_end, "   ");
+		if (!msg)
+			goto out;
+
+		/* Indent for root parent to clock parent levels */
+		for (n = 0; n < indent - 1; n++) {
+			if (indent_last_node_already_found(clk, indent, n))
+				msg = add_msg(msg, msg_end, "    ");
+			else
+				msg = add_msg(msg, msg_end, "|   ");
+
+			if (!msg)
+				goto out;
+		}
+
+		/* Clock indentation */
+		if (clk_is_parent_last_child(clk))
+			msg = add_msg(msg, msg_end, "`-- ");
+		else
+			msg = add_msg(msg, msg_end, "|-- ");
+	} else {
+		/* Root clock indentation */
+		msg = add_msg(msg, msg_end, "o- ");
+	}
+	if (!msg)
+		goto out;
+
+	rate = clk_get_rate(clk);
+	for (n = 1; rate && !(rate % 1000) && n < max_unit; n++)
+		rate /= 1000;
+
+	msg = add_msg(msg, msg_end, "%s \t(%3s / refcnt %u / %ld %s)",
+		      clk_get_name(clk),
+		      refcount_val(&clk->enabled_count) ? "on " : "off",
+		      refcount_val(&clk->enabled_count),
+		      rate, rate_unit[n - 1]);
+	if (!msg)
+		goto out;
+
+out:
+	if (!msg)
+		snprintf(msg_end - 4, 4, "...");
+
+	DMSG("%s", msg_buf);
+}
+
+static void print_tree(void)
+{
+	struct clk *clk = NULL;
+	struct clk *parent = NULL;
+	struct clk *next = NULL;
+	int indent = -1;
+
+#ifdef CFG_DRIVERS_CLK_PRINT_TREE
+	if (SLIST_EMPTY(&clock_list)) {
+		DMSG("-- No registered clock");
+		return;
+	}
+#endif
+
+	while (true) {
+		next = find_next_clk(parent, clk);
+		if (next) {
+			print_clk(next, indent + 1);
+			/* Enter the subtree of the next clock */
+			parent = next;
+			indent++;
+			clk = NULL;
+		} else {
+			/*
+			 * We've processed all children at this level.
+			 * If parent is NULL we're at the top and are done.
+			 */
+			if (!parent)
+				break;
+			/*
+			 * Move up one level to resume with the next
+			 * child clock of the parent.
+			 */
+			clk = parent;
+			parent = clk->parent;
+			indent--;
+		}
+	}
+}
+
+void clk_print_tree(void)
+{
+	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE) &&
+	    TRACE_LEVEL >= TRACE_DEBUG) {
+		DMSG("Clock tree summary (informative):");
+		print_tree();
+	}
 }

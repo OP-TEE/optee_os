@@ -120,10 +120,12 @@ void core_mmu_get_secure_memory(paddr_t *base, paddr_size_t *size)
 	*size = secure_only[0].size;
 }
 
-#ifdef CFG_CORE_PHYS_RELOCATABLE
 void core_mmu_set_secure_memory(paddr_t base, size_t size)
 {
+#ifdef CFG_CORE_PHYS_RELOCATABLE
 	static_assert(ARRAY_SIZE(secure_only) == 1);
+#endif
+	runtime_assert(IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE));
 	assert(!secure_only[0].size);
 	assert(base && size);
 
@@ -131,7 +133,6 @@ void core_mmu_set_secure_memory(paddr_t base, size_t size)
 	secure_only[0].paddr = base;
 	secure_only[0].size = size;
 }
-#endif
 
 void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 {
@@ -469,6 +470,8 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 			carve_out_phys_mem(&m, &num_elems, map->pa, map->size);
 			break;
 		case MEM_AREA_EXT_DT:
+		case MEM_AREA_MANIFEST_DT:
+		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
 		case MEM_AREA_TS_VASPACE:
@@ -594,7 +597,6 @@ static bool pbuf_is_sdp_mem(paddr_t pbuf __unused, size_t len __unused)
 
 /* Check special memories comply with registered memories */
 static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
-				     size_t len,
 				     const struct core_mmu_phys_mem *start,
 				     const struct core_mmu_phys_mem *end,
 				     const char *area_name __maybe_unused)
@@ -602,7 +604,6 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	const struct core_mmu_phys_mem *mem;
 	const struct core_mmu_phys_mem *mem2;
 	struct tee_mmap_region *mmap;
-	size_t n;
 
 	if (start == end) {
 		DMSG("No %s memory area defined", area_name);
@@ -630,7 +631,7 @@ static void verify_special_mem_areas(struct tee_mmap_region *mem_map,
 	 * This is called before reserved VA space is loaded in mem_map.
 	 */
 	for (mem = start; mem < end; mem++) {
-		for (mmap = mem_map, n = 0; n < len; mmap++, n++) {
+		for (mmap = mem_map; mmap->type != MEM_AREA_END; mmap++) {
 			if (core_is_buffer_intersect(mem->addr, mem->size,
 						     mmap->pa, mmap->size)) {
 				MSG_MEM_INSTERSECT(mem->addr, mem->size,
@@ -755,6 +756,10 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_NSEC_SHM:
 	case MEM_AREA_NEX_NSEC_SHM:
 		return attr | TEE_MATTR_PRW | cached;
+	case MEM_AREA_MANIFEST_DT:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
+	case MEM_AREA_TRANSFER_LIST:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
 	case MEM_AREA_EXT_DT:
 		/*
 		 * If CFG_MAP_EXT_DT_SECURE is enabled map the external device
@@ -774,6 +779,8 @@ uint32_t core_mmu_type_to_attr(enum teecore_memtypes t)
 	case MEM_AREA_RAM_SEC:
 	case MEM_AREA_SEC_RAM_OVERALL:
 		return attr | TEE_MATTR_SECURE | TEE_MATTR_PRW | cached;
+	case MEM_AREA_ROM_SEC:
+		return attr | TEE_MATTR_SECURE | TEE_MATTR_PR | cached;
 	case MEM_AREA_RES_VASPACE:
 	case MEM_AREA_SHM_VASPACE:
 		return 0;
@@ -950,6 +957,48 @@ static void check_sec_nsec_mem_config(void)
 	}
 }
 
+static void collect_device_mem_ranges(struct tee_mmap_region *memory_map,
+				      size_t num_elems, size_t *last)
+{
+	const char *compatible = "arm,ffa-manifest-device-regions";
+	void *fdt = get_manifest_dt();
+	const char *name = NULL;
+	uint64_t page_count = 0;
+	uint64_t base = 0;
+	int subnode = 0;
+	int node = 0;
+
+	node = fdt_node_offset_by_compatible(fdt, 0, compatible);
+	if (node < 0)
+		return;
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		name = fdt_get_name(fdt, subnode, NULL);
+		if (!name)
+			continue;
+
+		if (dt_getprop_as_number(fdt, subnode, "base-address",
+					 &base)) {
+			EMSG("Mandatory field is missing: base-address");
+			continue;
+		}
+
+		if (base & SMALL_PAGE_MASK) {
+			EMSG("base-address is not page aligned");
+			continue;
+		}
+
+		if (dt_getprop_as_number(fdt, subnode, "pages-count",
+					 &page_count)) {
+			EMSG("Mandatory field is missing: pages-count");
+			continue;
+		}
+
+		add_phys_mem(memory_map, num_elems, name, MEM_AREA_IO_SEC,
+			     base, base + page_count * SMALL_PAGE_SIZE, last);
+	}
+}
+
 static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 				 size_t num_elems)
 {
@@ -1016,6 +1065,10 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 
 #undef ADD_PHYS_MEM
 
+	/* Collect device memory info from SP manifest */
+	if (IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		collect_device_mem_ranges(memory_map, num_elems, &last);
+
 	for (mem = phys_mem_map_begin; mem < phys_mem_map_end; mem++) {
 		/* Only unmapped virtual range may have a null phys addr */
 		assert(mem->addr || !core_mmu_type_to_attr(mem->type));
@@ -1025,8 +1078,7 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 	}
 
 	if (IS_ENABLED(CFG_SECURE_DATA_PATH))
-		verify_special_mem_areas(memory_map, num_elems,
-					 phys_sdp_mem_begin,
+		verify_special_mem_areas(memory_map, phys_sdp_mem_begin,
 					 phys_sdp_mem_end, "SDP");
 
 	add_va_space(memory_map, num_elems, MEM_AREA_RES_VASPACE,
@@ -1383,6 +1435,8 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_IO_SEC:
 		case MEM_AREA_IO_NSEC:
 		case MEM_AREA_EXT_DT:
+		case MEM_AREA_MANIFEST_DT:
+		case MEM_AREA_TRANSFER_LIST:
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
 		case MEM_AREA_RES_VASPACE:

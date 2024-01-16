@@ -14,4 +14,9 @@
 #define HTIF_BASE	0x40008000
 #endif
 
+/* CLINT */
+#ifndef CLINT_BASE
+#define CLINT_BASE	0x02000000
+#endif
+
 #endif

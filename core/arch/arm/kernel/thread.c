@@ -14,6 +14,7 @@
 #include <keep.h>
 #include <kernel/asan.h>
 #include <kernel/boot.h>
+#include <kernel/interrupt.h>
 #include <kernel/linker.h>
 #include <kernel/lockdep.h>
 #include <kernel/misc.h>
@@ -23,6 +24,7 @@
 #include <kernel/tee_ta_manager.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
@@ -411,6 +413,22 @@ void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 }
 
 #ifdef ARM64
+static uint64_t spsr_from_pstate(void)
+{
+	uint64_t spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
+
+	spsr |= read_daif();
+	if (IS_ENABLED(CFG_PAN) && feat_pan_implemented() && read_pan())
+		spsr |= SPSR_64_PAN;
+
+	return spsr;
+}
+
+void __thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS])
+{
+	thread_rpc_spsr(rv, spsr_from_pstate());
+}
+
 vaddr_t thread_get_saved_thread_sp(void)
 {
 	struct thread_core_local *l = thread_get_core_local();
@@ -1071,8 +1089,7 @@ static void setup_unwind_user_mode(struct thread_scall_regs *regs)
 #endif
 #ifdef ARM64
 	regs->elr = (uintptr_t)thread_unwind_user_mode;
-	regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, 0);
-	regs->spsr |= read_daif();
+	regs->spsr = spsr_from_pstate();
 	/*
 	 * Regs is the value of stack pointer before calling the SVC
 	 * handler.  By the addition matches for the reserved space at the

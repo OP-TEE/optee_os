@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_FS_H
-#define TEE_FS_H
+#ifndef __TEE_TEE_FS_H
+#define __TEE_TEE_FS_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,13 +34,14 @@ struct tee_file_operations {
 	TEE_Result (*create)(struct tee_pobj *po, bool overwrite,
 			     const void *head, size_t head_size,
 			     const void *attr, size_t attr_size,
-			     const void *data, size_t data_size,
-			     struct tee_file_handle **fh);
+			     const void *data_core, const void *data_user,
+			     size_t data_size, struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle **fh);
 	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
-			   void *buf, size_t *len);
+			   void *buf_core, void *buf_user, size_t *len);
 	TEE_Result (*write)(struct tee_file_handle *fh, size_t pos,
-			    const void *buf, size_t len);
+			    const void *buf_core, const void *buf_user,
+			    size_t len);
 	TEE_Result (*rename)(struct tee_pobj *old_po, struct tee_pobj *new_po,
 			     bool overwrite);
 	TEE_Result (*remove)(struct tee_pobj *po);
@@ -98,4 +99,4 @@ tee_svc_storage_file_ops(uint32_t storage_id)
 	}
 }
 
-#endif /*TEE_FS_H*/
+#endif /*__TEE_TEE_FS_H*/

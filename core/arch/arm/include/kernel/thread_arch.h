@@ -58,11 +58,18 @@ struct thread_core_local {
 #ifdef CFG_TEE_CORE_DEBUG
 	unsigned int locked_count; /* Number of spinlocks held */
 #endif
+#if defined(ARM64) && defined(CFG_CORE_FFA)
+	/* Function ID to use for a direct response, 32-bit vs 64-bit */
+	uint32_t direct_resp_fid;
+#endif
 #if defined(ARM64) && defined(CFG_CORE_WORKAROUND_SPECTRE_BP_SEC)
 	uint8_t bhb_loop_count;
 #endif
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
+#endif
+#ifdef CFG_FAULT_MITIGATION
+	struct ftmn_func_arg *ftmn_arg;
 #endif
 } THREAD_CORE_LOCAL_ALIGNED;
 

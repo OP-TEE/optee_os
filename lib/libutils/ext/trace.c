@@ -7,12 +7,13 @@
 #include <platform_config.h>
 #endif
 
+#include <config.h>
 #include <printk.h>
 #include <stdarg.h>
 #include <string.h>
 #include <trace.h>
-#include <util.h>
 #include <types_ext.h>
+#include <util.h>
 
 #if (TRACE_LEVEL < TRACE_MIN) || (TRACE_LEVEL > TRACE_MAX)
 #error "Invalid value of TRACE_LEVEL"
@@ -91,8 +92,23 @@ static int print_core_id(char *buf, size_t bs)
 	else
 		return snprintk(buf, bs, "%s ", qm);
 }
+
+static int print_guest_id(char *buf, size_t bs)
+{
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		return snprintk(buf, bs, "%d ", trace_ext_get_guest_id());
+	else
+		return 0;
+
+
+}
 #else  /* defined(__KERNEL__) */
 static int print_core_id(char *buf __unused, size_t bs __unused)
+{
+	return 0;
+}
+
+static int print_guest_id(char *buf __unused, size_t bs __unused)
 {
 	return 0;
 }
@@ -133,6 +149,12 @@ void trace_vprintf(const char *function, int line, int level, bool level_ok,
 	boffs += res;
 
 	if (level_ok && (BIT(level) & CFG_MSG_LONG_PREFIX_MASK)) {
+		/* Print the current guest ID or 0 for Nexus */
+		res = print_guest_id(buf + boffs, sizeof(buf) - boffs);
+		if (res < 0)
+			return;
+		boffs += res;
+
 		/* Print the core ID if in atomic context  */
 		res = print_core_id(buf + boffs, sizeof(buf) - boffs);
 		if (res < 0)

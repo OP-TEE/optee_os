@@ -279,9 +279,15 @@ static TEE_Result init_rng(void)
 		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CLKDIV,
 				clock_div << RNG_CR_CLKDIV_SHIFT);
 
-		/* No need to wait for RNG_CR_CONDRST toggle as we enable clk */
 		io_clrsetbits32(rng_base + RNG_CR, RNG_CR_CONDRST,
 				RNG_CR_RNGEN);
+
+		timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
+		while (io_read32(rng_base + RNG_CR) & RNG_CR_CONDRST)
+			if (timeout_elapsed(timeout_ref))
+				break;
+		if (io_read32(rng_base + RNG_CR) & RNG_CR_CONDRST)
+			panic();
 	} else {
 		io_setbits32(rng_base + RNG_CR, RNG_CR_RNGEN | cr_ced_mask);
 	}
@@ -312,7 +318,10 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
-	clk_enable(stm32_rng->clock);
+	rc = clk_enable(stm32_rng->clock);
+	if (rc)
+		return rc;
+
 	rng_base = get_base();
 
 	/* Arm timeout */
@@ -388,14 +397,24 @@ static TEE_Result stm32_rng_pm_resume(uint32_t pm_cr)
 	io_write32(base + RNG_SR, 0);
 
 	if (stm32_rng->ddata->has_cond_reset) {
+		uint64_t timeout_ref = 0;
+
 		/*
-		 * Correct configuration in bits [29:4] must be set in the same
-		 * access that set RNG_CR_CONDRST bit. Else config setting is
-		 * not taken into account.
+		 * Configuration must be set in the same access that sets
+		 * RNG_CR_CONDRST bit. Otherwise, the configuration setting is
+		 * not taken into account. CONFIGLOCK bit is always cleared in
+		 * this configuration.
 		 */
 		io_write32(base + RNG_CR, pm_cr | RNG_CR_CONDRST);
 
 		io_clrsetbits32(base + RNG_CR, RNG_CR_CONDRST, RNG_CR_RNGEN);
+
+		timeout_ref = timeout_init_us(RNG_READY_TIMEOUT_US);
+		while (io_read32(base + RNG_CR) & RNG_CR_CONDRST)
+			if (timeout_elapsed(timeout_ref))
+				break;
+		if (io_read32(base + RNG_CR) & RNG_CR_CONDRST)
+			panic();
 	} else {
 		io_write32(base + RNG_CR, RNG_CR_RNGEN | pm_cr);
 	}
@@ -460,7 +479,7 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 }
 
 static TEE_Result stm32_rng_probe(const void *fdt, int offs,
-				  const void *compat_data __unused)
+				  const void *compat_data)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 

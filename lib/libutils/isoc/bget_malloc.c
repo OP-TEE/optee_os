@@ -82,6 +82,7 @@
 #include <config.h>
 #include <malloc.h>
 #include <memtag.h>
+#include <pta_stats.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib_ext.h>
@@ -135,7 +136,7 @@ struct malloc_ctx {
 	struct malloc_pool *pool;
 	size_t pool_len;
 #ifdef BufStats
-	struct malloc_stats mstats;
+	struct pta_stats_alloc mstats;
 #endif
 #ifdef __KERNEL__
 	unsigned int spinlock;
@@ -308,7 +309,7 @@ void malloc_reset_stats(void)
 }
 
 static void gen_malloc_get_stats(struct malloc_ctx *ctx,
-				 struct malloc_stats *stats)
+				 struct pta_stats_alloc *stats)
 {
 	uint32_t exceptions = malloc_lock(ctx);
 
@@ -316,7 +317,7 @@ static void gen_malloc_get_stats(struct malloc_ctx *ctx,
 	malloc_unlock(ctx, exceptions);
 }
 
-void malloc_get_stats(struct malloc_stats *stats)
+void malloc_get_stats(struct pta_stats_alloc *stats)
 {
 	gen_malloc_get_stats(&malloc_ctx, stats);
 }
@@ -507,13 +508,13 @@ void *raw_realloc(void *ptr, size_t hdr_size, size_t ftr_size,
 		bufsize old_sz = bget_buf_size(old_ptr);
 
 		if (old_sz < s) {
-			memcpy(p, old_ptr, old_sz);
+			memcpy_unchecked(p, old_ptr, old_sz);
 #ifndef __KERNEL__
 			/* User space reallocations are always zeroed */
-			memset((uint8_t *)p + old_sz, 0, s - old_sz);
+			memset_unchecked((uint8_t *)p + old_sz, 0, s - old_sz);
 #endif
 		} else {
-			memcpy(p, old_ptr, s);
+			memcpy_unchecked(p, old_ptr, s);
 		}
 
 		brel(old_ptr, &ctx->poolset, false /*!wipe*/);
@@ -711,7 +712,7 @@ static void gen_mdbg_check(struct malloc_ctx *ctx, int bufdump)
 			if (!fname)
 				fname = "unknown";
 
-			IMSG("buffer: %d bytes %s:%d\n",
+			IMSG("buffer: %d bytes %s:%d",
 				hdr->pl_size, fname, hdr->line);
 		}
 	}
@@ -960,7 +961,7 @@ bool raw_malloc_buffer_overlaps_heap(struct malloc_ctx *ctx,
 			return true;	/* Wrapping buffers, shouldn't happen */
 
 		if ((buf_start >= pool_start && buf_start < pool_end) ||
-		    (buf_end >= pool_start && buf_end < pool_end))
+		    (buf_end > pool_start && buf_end < pool_end))
 			return true;
 	}
 
@@ -996,7 +997,7 @@ bool raw_malloc_buffer_is_within_alloced(struct malloc_ctx *ctx,
 }
 
 #ifdef CFG_WITH_STATS
-void raw_malloc_get_stats(struct malloc_ctx *ctx, struct malloc_stats *stats)
+void raw_malloc_get_stats(struct malloc_ctx *ctx, struct pta_stats_alloc *stats)
 {
 	memcpy_unchecked(stats, &ctx->mstats, sizeof(*stats));
 	stats->allocated = ctx->poolset.totalloc;
@@ -1130,7 +1131,7 @@ void nex_malloc_reset_stats(void)
 	gen_malloc_reset_stats(&nex_malloc_ctx);
 }
 
-void nex_malloc_get_stats(struct malloc_stats *stats)
+void nex_malloc_get_stats(struct pta_stats_alloc *stats)
 {
 	gen_malloc_get_stats(&nex_malloc_ctx, stats);
 }

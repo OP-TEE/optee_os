@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2020-2021 NXP
+ * Copyright 2020-2021, 2023 NXP
  *
  * CAAM DMA data object utilities.
  */
@@ -658,14 +658,14 @@ TEE_Result caam_dmaobj_init_input(struct caamdmaobj *obj, const void *data,
 
 	if (!data || !length || !obj) {
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		goto err;
 	}
 
 	obj->orig.paddr = virt_to_phys((void *)data);
 	if (!obj->orig.paddr) {
 		DMAOBJ_TRACE("Object virtual address error");
 		ret = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
+		goto err;
 	}
 
 	obj->orig.data = (void *)data;
@@ -674,9 +674,14 @@ TEE_Result caam_dmaobj_init_input(struct caamdmaobj *obj, const void *data,
 		obj->orig.nocache = 1;
 
 	ret = allocate_private(obj, DMAOBJ_INPUT);
-	if (!ret)
-		ret = check_buffer_boundary(obj, &obj->orig, obj->orig.length);
+	if (ret)
+		goto err;
 
+	ret = check_buffer_boundary(obj, &obj->orig, obj->orig.length);
+
+	goto out;
+err:
+	caam_dmaobj_free(obj);
 out:
 	DMAOBJ_TRACE("Object returns 0x%" PRIx32, ret);
 	return ret;
@@ -690,20 +695,25 @@ TEE_Result caam_dmaobj_input_sgtbuf(struct caamdmaobj *obj, const void *data,
 
 	ret = caam_dmaobj_init_input(obj, data, length);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = caam_dmaobj_prepare(obj, NULL, length);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = caam_dmaobj_sgtbuf_build(obj, &size_done, 0, length);
 	if (ret)
-		return ret;
+		goto err;
 
-	if (size_done != length)
-		return TEE_ERROR_OUT_OF_MEMORY;
+	if (size_done != length) {
+		ret = TEE_ERROR_OUT_OF_MEMORY;
+		goto err;
+	}
 
 	return TEE_SUCCESS;
+err:
+	caam_dmaobj_free(obj);
+	return ret;
 }
 
 TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
@@ -723,14 +733,14 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 
 	ret = allocate_private(obj, DMAOBJ_OUTPUT);
 	if (ret)
-		goto out;
+		goto err;
 
 	if (data) {
 		obj->orig.paddr = virt_to_phys((void *)data);
 		if (!obj->orig.paddr) {
 			DMAOBJ_TRACE("Object virtual address error");
 			ret = TEE_ERROR_BAD_PARAMETERS;
-			goto out;
+			goto err;
 		}
 
 		obj->orig.data = (void *)data;
@@ -741,7 +751,7 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 		ret = check_buffer_boundary(obj, &obj->orig,
 					    MIN(min_length, obj->orig.length));
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	if (length < min_length || !data) {
@@ -752,7 +762,7 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 		entry = dmalist_add_entry(obj->priv, &newbuf);
 		if (!entry) {
 			ret = TEE_ERROR_OUT_OF_MEMORY;
-			goto out;
+			goto err;
 		}
 
 		/* Add the additional size in the DMA buffer length */
@@ -763,7 +773,10 @@ TEE_Result caam_dmaobj_init_output(struct caamdmaobj *obj, void *data,
 	}
 
 	ret = TEE_SUCCESS;
+	goto out;
 
+err:
+	caam_dmaobj_free(obj);
 out:
 	DMAOBJ_TRACE("Object returns 0x%" PRIx32, ret);
 	return ret;
@@ -870,9 +883,6 @@ size_t caam_dmaobj_copy_to_orig(struct caamdmaobj *obj)
 	for (idx = 0; idx < obj->sgtbuf.number; idx++) {
 		struct sgtdata *sgtdata = &priv->sgtdata[idx];
 
-		if (!sgtdata)
-			break;
-
 		copy_size = MIN(dst_rlen, sgtdata->length);
 		if (sgtdata->orig != sgtdata->dma && sgtdata->orig) {
 			copy_size = MIN(dst_rlen, sgtdata->length);
@@ -906,10 +916,7 @@ size_t caam_dmaobj_copy_ltrim_to_orig(struct caamdmaobj *obj)
 
 	/* Parse the SGT data list to discard leading zeros */
 	for (idx = 0; idx < obj->sgtbuf.number; idx++) {
-		struct sgtdata *sgtdata = priv->sgtdata + idx;
-
-		if (!sgtdata)
-			break;
+		struct sgtdata *sgtdata = &priv->sgtdata[idx];
 
 		if (!sgtdata->orig)
 			continue;
@@ -941,9 +948,6 @@ do_copy:
 	 */
 	for (; idx < obj->sgtbuf.number; idx++) {
 		struct sgtdata *sgtdata = &priv->sgtdata[idx];
-
-		if (!sgtdata)
-			break;
 
 		if (!sgtdata->orig)
 			continue;

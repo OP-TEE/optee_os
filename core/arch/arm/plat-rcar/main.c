@@ -87,12 +87,12 @@ unsigned long plat_get_aslr_seed(void)
 }
 #endif
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }

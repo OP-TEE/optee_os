@@ -359,6 +359,7 @@ static void handle_user_mode_panic(struct abort_info *ai)
 {
 	struct thread_ctx *tc __maybe_unused = NULL;
 	uint32_t daif = 0;
+	uint32_t pan_bit = 0;
 
 	/*
 	 * It was a user exception, stop user execution and return
@@ -380,9 +381,12 @@ static void handle_user_mode_panic(struct abort_info *ai)
 	ai->regs->apiakey_lo = tc->keys.apia_lo;
 #endif
 
+	if (IS_ENABLED(CFG_PAN) && feat_pan_implemented() && read_pan())
+		pan_bit = SPSR_64_PAN;
 	daif = (ai->regs->spsr >> SPSR_32_AIF_SHIFT) & SPSR_32_AIF_MASK;
 	/* XXX what about DAIF_D? */
-	ai->regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, daif);
+	ai->regs->spsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0, daif) |
+			 pan_bit;
 }
 #endif /*ARM64*/
 

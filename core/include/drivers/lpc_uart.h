@@ -3,8 +3,8 @@
  * Copyright (c) 2022, HiSilicon Limited
  */
 
-#ifndef LPC_UART_H
-#define LPC_UART_H
+#ifndef __DRIVERS_LPC_UART_H
+#define __DRIVERS_LPC_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -50,4 +50,4 @@ struct lpc_uart_data {
 void lpc_uart_init(struct lpc_uart_data *pd, paddr_t base,
 		   uint32_t uart_clk, uint32_t baud_rate);
 
-#endif /* LPC_UART_H */
+#endif /* __DRIVERS_LPC_UART_H */

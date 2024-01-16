@@ -2,8 +2,8 @@
 /*
  * Copyright 2020 NXP
  */
-#ifndef __IMX_DCP_H__
-#define __IMX_DCP_H__
+#ifndef __DRIVERS_IMX_DCP_H
+#define __DRIVERS_IMX_DCP_H
 
 #include <compiler.h>
 #include <tee_api_types.h>
@@ -192,4 +192,4 @@ static inline TEE_Result dcp_vbase(vaddr_t *base __unused)
 }
 #endif /* CFG_DT */
 
-#endif /* __IMX_DCP_H__ */
+#endif /* __DRIVERS_IMX_DCP_H */

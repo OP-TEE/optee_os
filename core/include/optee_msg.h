@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2015-2020, Linaro Limited
  */
-#ifndef _OPTEE_MSG_H
-#define _OPTEE_MSG_H
+#ifndef __OPTEE_MSG_H
+#define __OPTEE_MSG_H
 
 #include <compiler.h>
 #include <types_ext.h>
@@ -342,4 +342,4 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_STOP_ASYNC_NOTIF	U(7)
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	U(0x0004)
 
-#endif /* _OPTEE_MSG_H */
+#endif /* __OPTEE_MSG_H */

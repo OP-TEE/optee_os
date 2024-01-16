@@ -5,6 +5,7 @@
  */
 
 #include <config.h>
+#include <drivers/wdt.h>
 #include <kernel/boot.h>
 #include <kernel/misc.h>
 #include <kernel/notif.h>
@@ -13,6 +14,7 @@
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
 #include <sm/optee_smc.h>
+#include <sm/watchdog_smc.h>
 #include <tee/entry_fast.h>
 
 #ifdef CFG_CORE_RESERVED_SHM
@@ -217,6 +219,15 @@ static void get_async_notif_value(struct thread_smc_args *args)
 		args->a2 |= OPTEE_SMC_ASYNC_NOTIF_PENDING;
 }
 
+static void tee_entry_watchdog(struct thread_smc_args *args)
+{
+#if defined(CFG_WDT_SM_HANDLER)
+	__wdt_sm_handler(args);
+#else
+	args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+#endif
+}
+
 /*
  * If tee_entry_fast() is overridden, it's still supposed to call this
  * function.
@@ -289,6 +300,11 @@ void __tee_entry_fast(struct thread_smc_args *args)
 			get_async_notif_value(args);
 		else
 			args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
+		break;
+
+	/* Watchdog entry if handler ID is defined in TOS range */
+	case CFG_WDT_SM_HANDLER_ID:
+		tee_entry_watchdog(args);
 		break;
 
 	default:

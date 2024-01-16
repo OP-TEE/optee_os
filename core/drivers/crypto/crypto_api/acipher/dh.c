@@ -71,7 +71,7 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 	dh = drvcrypt_get_ops(CRYPTO_DH);
 	if (dh) {
 		/* Allocate the binary Secret buffer */
-		sdata.secret.length = crypto_bignum_num_bytes(public_key);
+		sdata.secret.length = crypto_bignum_num_bytes(private_key->p);
 		secret_buf = malloc(sdata.secret.length);
 		if (!secret_buf)
 			return TEE_ERROR_OUT_OF_MEMORY;

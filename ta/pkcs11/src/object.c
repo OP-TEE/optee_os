@@ -352,6 +352,11 @@ enum pkcs11_rc entry_create_object(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&head);
+	if (rc)
+		goto out;
+
 	/*
 	 * Check target object attributes match target processing
 	 * Check target object attributes match token state
@@ -833,6 +838,15 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 
 		len = sizeof(*cli_ref) + cli_head.size;
 
+		/* Treat hidden attributes as missing attributes */
+		if (attribute_is_hidden(&cli_head)) {
+			cli_head.size = PKCS11_CK_UNAVAILABLE_INFORMATION;
+			TEE_MemMove(&cli_ref->size, &cli_head.size,
+				    sizeof(cli_head.size));
+			attr_type_invalid = 1;
+			continue;
+		}
+
 		/* We don't support getting value of indirect templates */
 		if (pkcs11_attr_has_indirect_attributes(cli_head.id)) {
 			attr_type_invalid = 1;
@@ -974,6 +988,8 @@ enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
 	size_t template_size = 0;
 	struct pkcs11_object *obj = NULL;
 	struct obj_attrs *head = NULL;
+	struct obj_attrs *head_new = NULL;
+	struct obj_attrs *head_old = NULL;
 	uint32_t object_handle = 0;
 	enum processing_func function = PKCS11_FUNCTION_MODIFY;
 
@@ -1047,25 +1063,50 @@ enum pkcs11_rc entry_set_attribute_value(struct pkcs11_client *client,
 	if (rc)
 		goto out;
 
+	/* Create new object attributes to modify */
+	template_size = sizeof(*obj->attributes) + obj->attributes->attrs_size;
+	head_new = TEE_Malloc(template_size, TEE_MALLOC_FILL_ZERO);
+	if (!head_new) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	TEE_MemMove(head_new, obj->attributes, template_size);
+
 	/*
 	 * All checks complete. The attributes in @head have been checked and
 	 * can now be used to set/modify the object attributes.
 	 */
-	rc = modify_attributes_list(&obj->attributes, head);
+	rc = modify_attributes_list(&head_new, head);
 	if (rc)
 		goto out;
 
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&head_new);
+	if (rc)
+		goto out;
+
+	/* Update the object */
+	head_old = obj->attributes;
+	obj->attributes = head_new;
+	head_new = NULL;
+
 	if (get_bool(obj->attributes, PKCS11_CKA_TOKEN)) {
 		rc = update_persistent_object_attributes(obj);
-		if (rc)
+		if (rc) {
+			obj->attributes = head_old;
 			goto out;
+		}
 	}
+
+	TEE_Free(head_old);
 
 	DMSG("PKCS11 session %"PRIu32": set attributes %#"PRIx32,
 	     session->handle, object_handle);
 
 out:
 	TEE_Free(head);
+	TEE_Free(head_new);
 	TEE_Free(template);
 	return rc;
 }
@@ -1204,6 +1245,11 @@ enum pkcs11_rc entry_copy_object(struct pkcs11_client *client, uint32_t ptypes,
 	 * given by the callee
 	 */
 	rc = modify_attributes_list(&head_new, head);
+	if (rc)
+		goto out;
+
+	/* Set key check value attribute */
+	rc = set_check_value_attr(&head_new);
 	if (rc)
 		goto out;
 

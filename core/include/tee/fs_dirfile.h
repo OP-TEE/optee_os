@@ -34,15 +34,17 @@ struct tee_fs_dirfile_fileh {
  * @commit_writes:	commits changes since the file was opened
  */
 struct tee_fs_dirfile_operations {
-	TEE_Result (*open)(bool create, uint8_t *hash, const TEE_UUID *uuid,
+	TEE_Result (*open)(bool create, uint8_t *hash, uint32_t min_counter,
+			   const TEE_UUID *uuid,
 			   struct tee_fs_dirfile_fileh *dfh,
 			   struct tee_file_handle **fh);
 	void (*close)(struct tee_file_handle *fh);
-	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos,
-			   void *buf, size_t *len);
+	TEE_Result (*read)(struct tee_file_handle *fh, size_t pos, void *buf,
+			   size_t *len);
 	TEE_Result (*write)(struct tee_file_handle *fh, size_t pos,
 			    const void *buf, size_t len);
-	TEE_Result (*commit_writes)(struct tee_file_handle *fh, uint8_t *hash);
+	TEE_Result (*commit_writes)(struct tee_file_handle *fh, uint8_t *hash,
+				    uint32_t *counter);
 };
 
 /**
@@ -50,10 +52,11 @@ struct tee_fs_dirfile_operations {
  * @create:	true if a new dirfile is to be created, else the dirfile
  *		is read opened and verified
  * @hash:	hash of underlying file
+ * @min_counter: the smallest accepted value in struct htree_image.counter
  * @fops:	file interface
  * @dirh:	returned dirfile handle
  */
-TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash,
+TEE_Result tee_fs_dirfile_open(bool create, uint8_t *hash, uint32_t min_counter,
 			       const struct tee_fs_dirfile_operations *fops,
 			       struct tee_fs_dirfile_dirh **dirh);
 /**
@@ -69,9 +72,10 @@ void tee_fs_dirfile_close(struct tee_fs_dirfile_dirh *dirh);
  * tee_fs_dirfile_commit_writes() - commit updates of dirfile
  * @dirh:	dirfile handle
  * @hash:	hash of underlying file is copied here if not NULL
+ * @counter:	version counter of underlying file is copied here if not NULL
  */
 TEE_Result tee_fs_dirfile_commit_writes(struct tee_fs_dirfile_dirh *dirh,
-					uint8_t *hash);
+					uint8_t *hash, uint32_t *counter);
 
 /**
  * tee_fs_dirfile_get_tmp() - get a temporary file handle

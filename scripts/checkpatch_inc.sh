@@ -23,7 +23,7 @@ function _checkpatch() {
 				typedefs_opt="";
 		# Ignore NOT_UNIFIED_DIFF in case patch has no diff
 		# (e.g., all paths filtered out)
-		$CHECKPATCH $CHECKPATCH_OPT $typedefs_opt -
+		eval "$CHECKPATCH $CHECKPATCH_OPT $typedefs_opt -"
 }
 
 function checkpatch() {

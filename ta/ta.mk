@@ -148,7 +148,7 @@ $(foreach f, $(libfiles), \
 
 # Copy .mk files
 ta-mkfiles = mk/compile.mk mk/subdir.mk mk/gcc.mk mk/clang.mk mk/cleandirs.mk \
-	mk/cc-option.mk \
+	mk/cc-option.mk mk/macros.mk \
 	ta/link.mk ta/link_shlib.mk \
 	ta/mk/ta_dev_kit.mk
 
@@ -190,7 +190,8 @@ $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 
 # Copy the scripts
-ta-scripts = scripts/sign_encrypt.py scripts/symbolize.py
+ta-scripts = scripts/sign_encrypt.py scripts/symbolize.py \
+       scripts/sign_rproc_fw.py scripts/ftrace_format.py
 $(foreach f, $(ta-scripts), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/scripts)))
 

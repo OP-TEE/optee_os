@@ -3,11 +3,10 @@
  * Copyright (c) 2016-2021, Linaro Limited
  */
 
-#ifndef KERNEL_DT_H
-#define KERNEL_DT_H
+#ifndef __KERNEL_DT_H
+#define __KERNEL_DT_H
 
 #include <compiler.h>
-#include <kernel/interrupt.h>
 #include <kernel/panic.h>
 #include <scattered_array.h>
 #include <stdint.h>
@@ -72,6 +71,20 @@ enum dt_map_dev_directive {
 	DT_MAP_SECURE,
 	DT_MAP_NON_SECURE
 };
+
+/*
+ * struct dt_descriptor - Descriptor of the device tree
+ * @blob: Pointer to the device tree binary
+ * @frag_id: Used ID of fragments for device tree overlay
+ */
+struct dt_descriptor {
+	void *blob;
+#ifdef _CFG_USE_DTB_OVERLAY
+	int frag_id;
+#endif
+};
+
+extern uint8_t embedded_secure_dtb[];
 
 /*
  * dt_getprop_as_number() - get a DT property a unsigned number
@@ -224,6 +237,71 @@ int fdt_get_reg_props_by_index(const void *fdt, int node, int index,
 int fdt_get_reg_props_by_name(const void *fdt, int node, const char *name,
 			      paddr_t *base, size_t *size);
 
+/* Returns embedded DTB if present, then external DTB if found, then NULL */
+void *get_dt(void);
+
+/*
+ * get_secure_dt() - returns secure DTB for drivers
+ *
+ * Returns device tree that is considered secure for drivers to use.
+ *
+ * 1. Returns embedded DTB if available,
+ * 2. Secure external DTB if available,
+ * 3. If neither then NULL
+ */
+void *get_secure_dt(void);
+
+/* Returns embedded DTB location if present, otherwise NULL */
+void *get_embedded_dt(void);
+
+/* Returns true if passed DTB is same as Embedded DTB, otherwise false */
+static inline bool is_embedded_dt(void *fdt)
+{
+	return fdt && fdt == get_embedded_dt();
+}
+
+/* Returns DTB descriptor of the external DTB if present, otherwise NULL */
+struct dt_descriptor *get_external_dt_desc(void);
+
+/*
+ * init_external_dt() - Initialize the external DTB located at given address.
+ * @phys_dt:	Physical address where the external DTB located.
+ * @dt_sz:	Maximum size of the external DTB.
+ *
+ * Initialize the external DTB.
+ *
+ * 1. Add MMU mapping of the external DTB,
+ * 2. Initialize device tree overlay
+ */
+void init_external_dt(unsigned long phys_dt, size_t dt_sz);
+
+/* Returns external DTB if present, otherwise NULL */
+void *get_external_dt(void);
+
+/*
+ * add_dt_path_subnode() - Add new child node into a parent node.
+ * @dt:		Pointer to a device tree descriptor which has DTB.
+ * @path:	Path to the parent node.
+ * @subnode:	Name of the child node.
+ *
+ * Returns the offset of the child node in DTB on success or a negative libfdt
+ * error number.
+ */
+int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
+			const char *subnode);
+
+/*
+ * add_res_mem_dt_node() - Create "reserved-memory" parent and child nodes.
+ * @dt:		Pointer to a device tree descriptor which has DTB.
+ * @name:	Name of the child node.
+ * @pa:		Physical address of specific reserved memory region.
+ * @size:	Size of specific reserved memory region.
+ *
+ * Returns 0 if succeeds, otherwise a negative libfdt error number.
+ */
+int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
+			paddr_t pa, size_t size);
+
 #else /* !CFG_DT */
 
 static inline const struct dt_driver *dt_find_compatible_driver(
@@ -317,5 +395,55 @@ static inline int fdt_get_reg_props_by_name(const void *fdt __unused,
 	return -1;
 }
 
+static inline void *get_dt(void)
+{
+	return NULL;
+}
+
+static inline void *get_secure_dt(void)
+{
+	return NULL;
+}
+
+static inline void *get_embedded_dt(void)
+{
+	return NULL;
+}
+
+static inline bool is_embedded_dt(void *fdt __unused)
+{
+	return false;
+}
+
+static inline struct dt_descriptor *get_external_dt_desc(void)
+{
+	return NULL;
+}
+
+static inline void init_external_dt(unsigned long phys_dt __unused,
+				    size_t dt_sz __unused)
+{
+}
+
+static inline void *get_external_dt(void)
+{
+	return NULL;
+}
+
+static inline int add_dt_path_subnode(struct dt_descriptor *dt __unused,
+				      const char *path __unused,
+				      const char *subnode __unused)
+{
+	return -1;
+}
+
+static inline int add_res_mem_dt_node(struct dt_descriptor *dt __unused,
+				      const char *name __unused,
+				      paddr_t pa __unused,
+				      size_t size __unused)
+{
+	return -1;
+}
+
 #endif /* !CFG_DT */
-#endif /* KERNEL_DT_H */
+#endif /* __KERNEL_DT_H */

@@ -14,7 +14,7 @@
 #include <kernel/thread.h>
 #include <optee_ffa.h>
 
-#if CFG_SECURE_PARTITION
+#ifdef CFG_SECURE_PARTITION
 LOCAL_FUNC thread_ffa_interrupt , :
 	mov_imm	x0, FFA_INTERRUPT		/* FID */
 	/* X1: Endpoint/vCPU IDs is set by caller */
@@ -42,7 +42,9 @@ END_FUNC thread_ffa_msg_wait
 
 	/* Caller provides x1, x3-x7 params */
 LOCAL_FUNC ffa_msg_send_direct_resp , :
-	mov_imm	x0, FFA_MSG_SEND_DIRECT_RESP_32		/* FID */
+	msr	spsel, #1
+	ldr	w0, [sp, #THREAD_CORE_LOCAL_DIRECT_RESP_FID]
+	msr	spsel, #0
 	mov	x2, #FFA_PARAM_MBZ			/* RES MBZ */
 
 .ffa_msg_loop:
@@ -115,12 +117,8 @@ FUNC spmc_sp_thread_entry , :
 END_FUNC spmc_sp_thread_entry
 #endif
 
-/* void thread_rpc(struct thread_rpc_arg *rpc_arg) */
-FUNC thread_rpc , :
-	/* Read daif and create an SPSR */
-	mrs	x1, daif
-	orr	x1, x1, #(SPSR_64_MODE_EL1 << SPSR_64_MODE_EL_SHIFT)
-
+/* void thread_rpc_spsr(uint32_t rv[THREAD_RPC_NUM_ARGS], uint64_t spsr) */
+FUNC thread_rpc_spsr , :
 	/* Mask all maskable exceptions before switching to temporary stack */
 	msr	daifset, #DAIFBIT_ALL
 	push	x0, xzr
@@ -153,14 +151,12 @@ FUNC thread_rpc , :
 	adr	x2, .thread_rpc_return
 	mov	w0, #THREAD_FLAGS_COPY_ARGS_ON_RETURN
 	bl	thread_state_suspend
-	mov	w7, w0		/* Supply thread index */
-	ldr	w0, =FFA_MSG_SEND_DIRECT_RESP_32
 	mov	w1, w21
-	mov	w2, #FFA_PARAM_MBZ
 	mov	w3, #0		/* Error code = 0 */
 	mov	w4, w22
 	mov	w5, w23
 	mov	w6, w24
+	mov	w7, w0		/* Supply thread index */
 	b	ffa_msg_send_direct_resp
 
 .thread_rpc_return:
@@ -176,7 +172,7 @@ FUNC thread_rpc , :
 	pop	x16, xzr	/* Get pointer to rv[] */
 	store_wregs x16, 0, 0, 3	/* Store w0-w3 into rv[] */
 	ret
-END_FUNC thread_rpc
+END_FUNC thread_rpc_spsr
 
 /*
  * void thread_foreign_intr_exit(uint32_t thread_index)
@@ -201,13 +197,12 @@ FUNC thread_foreign_intr_exit , :
 	adr_l	x2, threads
 	madd	x2, x1, x0, x2
 	ldr	w1, [x2, #THREAD_CTX_TSD_RPC_TARGET_INFO]
-#if CFG_SECURE_PARTITION
+#ifdef CFG_SECURE_PARTITION
 	/* load threads[w0].flags into w2 */
 	ldr	w2, [x2, #THREAD_CTX_FLAGS]
 	and     w2, w2, #THREAD_FLAGS_FFA_ONLY
 	cbnz	w2, thread_ffa_interrupt
 #endif /* CFG_SECURE_PARTITION */
-	mov	x2, #FFA_PARAM_MBZ
 	mov	w3, #FFA_PARAM_MBZ
 	mov	w4, #OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT
 	mov	x5, #FFA_PARAM_MBZ

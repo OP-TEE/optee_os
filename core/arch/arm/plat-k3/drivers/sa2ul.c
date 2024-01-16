@@ -28,9 +28,10 @@
 #define FW_ENABLE_REGION        0x0a
 #define FW_BACKGROUND_REGION    BIT(8)
 #define FW_BIG_ARM_PRIVID       0x01
+#define FW_TIFS_PRIVID          0xca
 #define FW_WILDCARD_PRIVID      0xc3
-#define FW_SECURE_ONLY          GENMASK_32(8, 0)
-#define FW_NON_SECURE           GENMASK_32(16, 0)
+#define FW_SECURE_ONLY          GENMASK_32(7, 0)
+#define FW_NON_SECURE           GENMASK_32(15, 0)
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SA2UL_BASE, SA2UL_REG_SIZE);
 
@@ -46,6 +47,7 @@ static TEE_Result sa2ul_init(void)
 	uint16_t owner_permission_bits = 0;
 	uint32_t control = 0;
 	uint32_t permissions[FWL_MAX_PRIVID_SLOTS] = { };
+	uint32_t num_perm = 0;
 	uint64_t start_address = 0;
 	uint64_t end_address = 0;
 	uint32_t val = 0;
@@ -116,10 +118,13 @@ static TEE_Result sa2ul_init(void)
 
 	/* Modify TRNG firewall to block all others access */
 	control = FW_ENABLE_REGION;
-	permissions[0] = (FW_BIG_ARM_PRIVID << 16) | FW_SECURE_ONLY;
 	start_address = RNG_BASE;
 	end_address = RNG_BASE + RNG_REG_SIZE - 1;
-	ret = ti_sci_set_fwl_region(fwl_id, rng_region, 1,
+	permissions[num_perm++] = (FW_BIG_ARM_PRIVID << 16) | FW_SECURE_ONLY;
+#if defined(PLATFORM_FLAVOR_am62x)
+	permissions[num_perm++] = (FW_TIFS_PRIVID << 16) | FW_NON_SECURE;
+#endif
+	ret = ti_sci_set_fwl_region(fwl_id, rng_region, num_perm,
 				    control, permissions,
 				    start_address, end_address);
 	if (ret) {

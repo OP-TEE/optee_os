@@ -7,6 +7,8 @@ all:
 include $(ta-dev-kit-dir)/mk/conf.mk
 ta-dev-kit-dir$(sm) := $(ta-dev-kit-dir)
 
+include $(ta-dev-kit-dir$(sm))/mk/macros.mk
+
 ifneq (1, $(words $(BINARY) $(LIBNAME) $(SHLIBNAME)))
 $(error You must specify exactly one of BINARY, LIBNAME or SHLIBNAME)
 endif

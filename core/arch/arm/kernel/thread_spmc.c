@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2021, Linaro Limited.
+ * Copyright (c) 2020-2023, Linaro Limited.
  * Copyright (c) 2019-2021, Arm Limited. All rights reserved.
  */
 
@@ -9,6 +9,7 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/interrupt.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
@@ -23,6 +24,7 @@
 #include <optee_ffa.h>
 #include <optee_msg.h>
 #include <optee_rpc_cmd.h>
+#include <sm/optee_smc.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <tee/entry_std.h>
@@ -44,6 +46,11 @@ struct mem_frag_state {
 	SLIST_ENTRY(mem_frag_state) link;
 };
 #endif
+
+static unsigned int spmc_notif_lock = SPINLOCK_UNLOCK;
+static int do_bottom_half_value = -1;
+static uint16_t notif_vm_id;
+static bool spmc_notif_is_ready;
 
 /* Initialized in spmc_init() below */
 static uint16_t my_endpoint_id __nex_bss;
@@ -95,6 +102,11 @@ static bool is_nw_buf(struct ffa_rxtx *rxtx)
 
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
+
+static uint64_t notif_pending_bitmap;
+static uint64_t notif_bound_bitmap;
+static bool notif_vm_id_valid;
+static int notif_intid = -1;
 #else
 static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
 static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
@@ -145,10 +157,17 @@ uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 #if defined(CFG_CORE_SEL1_SPMC)
 static void handle_features(struct thread_smc_args *args)
 {
-	uint32_t ret_fid = 0;
-	uint32_t ret_w2 = FFA_PARAM_MBZ;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t ret_w2 = FFA_NOT_SUPPORTED;
 
 	switch (args->a1) {
+	case FFA_FEATURE_SCHEDULE_RECV_INTR:
+		if (spmc_notif_is_ready) {
+			ret_fid = FFA_SUCCESS_32;
+			ret_w2 = notif_intid;
+		}
+		break;
+
 #ifdef ARM64
 	case FFA_RXTX_MAP_64:
 #endif
@@ -179,17 +198,27 @@ static void handle_features(struct thread_smc_args *args)
 	case FFA_SPM_ID_GET:
 	case FFA_MEM_FRAG_TX:
 	case FFA_MEM_RECLAIM:
+	case FFA_MSG_SEND_DIRECT_REQ_64:
 	case FFA_MSG_SEND_DIRECT_REQ_32:
 	case FFA_INTERRUPT:
 	case FFA_PARTITION_INFO_GET:
 	case FFA_RXTX_UNMAP:
 	case FFA_RX_RELEASE:
 	case FFA_FEATURE_MANAGED_EXIT_INTR:
+	case FFA_NOTIFICATION_BITMAP_CREATE:
+	case FFA_NOTIFICATION_BITMAP_DESTROY:
+	case FFA_NOTIFICATION_BIND:
+	case FFA_NOTIFICATION_UNBIND:
+	case FFA_NOTIFICATION_SET:
+	case FFA_NOTIFICATION_GET:
+	case FFA_NOTIFICATION_INFO_GET_32:
+#ifdef ARM64
+	case FFA_NOTIFICATION_INFO_GET_64:
+#endif
 		ret_fid = FFA_SUCCESS_32;
+		ret_w2 = FFA_PARAM_MBZ;
 		break;
 	default:
-		ret_fid = FFA_ERROR;
-		ret_w2 = FFA_NOT_SUPPORTED;
 		break;
 	}
 
@@ -472,6 +501,7 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint32_t ret_fid = FFA_ERROR;
+	uint32_t fpi_size = 0;
 	uint32_t rc = 0;
 	bool count_only = args->a5 & FFA_PARTITION_INFO_GET_COUNT_FLAG;
 
@@ -545,7 +575,11 @@ void spmc_handle_partition_info_get(struct thread_smc_args *args,
 	ret_fid = FFA_SUCCESS_32;
 
 out:
-	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
+	if (ret_fid == FFA_SUCCESS_32 && !count_only &&
+	    rxtx->ffa_vers >= FFA_VERSION_1_1)
+		fpi_size = sizeof(struct ffa_partition_info_x) + FFA_UUID_SIZE;
+
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, fpi_size,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 	if (!count_only) {
 		rxtx->tx_is_mine = false;
@@ -580,11 +614,41 @@ out:
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
-static void handle_yielding_call(struct thread_smc_args *args)
+static uint32_t spmc_enable_async_notif(uint32_t bottom_half_value,
+					uint16_t vm_id)
+{
+	uint32_t old_itr_status = 0;
+
+	if (!spmc_notif_is_ready) {
+		/*
+		 * This should never happen, not if normal world respects the
+		 * exchanged capabilities.
+		 */
+		EMSG("Asynchronous notifications are not ready");
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+	do_bottom_half_value = bottom_half_value;
+	if (!IS_ENABLED(CFG_CORE_SEL1_SPMC))
+		notif_vm_id = vm_id;
+	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+
+	notif_deliver_atomic_event(NOTIF_EVENT_STARTED);
+	return TEE_SUCCESS;
+}
+
+static void handle_yielding_call(struct thread_smc_args *args,
+				 uint32_t direct_resp_fid)
 {
 	TEE_Result res = 0;
 
 	thread_check_canaries();
+
+#ifdef ARM64
+	/* Saving this for an eventual RPC */
+	thread_get_core_local()->direct_resp_fid = direct_resp_fid;
+#endif
 
 	if (args->a3 == OPTEE_FFA_YIELDING_CALL_RESUME) {
 		/* Note connection to struct thread_rpc_arg::ret */
@@ -596,8 +660,8 @@ static void handle_yielding_call(struct thread_smc_args *args)
 				     args->a6, args->a7);
 		res = TEE_ERROR_BUSY;
 	}
-	spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-		      swap_src_dst(args->a1), 0, res, 0, 0);
+	spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1),
+		      0, res, 0, 0);
 }
 
 static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
@@ -619,41 +683,52 @@ static uint32_t handle_unregister_shm(uint32_t a4, uint32_t a5)
 	}
 }
 
-static void handle_blocking_call(struct thread_smc_args *args)
+static void handle_blocking_call(struct thread_smc_args *args,
+				 uint32_t direct_resp_fid)
 {
+	uint32_t sec_caps = 0;
+
 	switch (args->a3) {
 	case OPTEE_FFA_GET_API_VERSION:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      OPTEE_FFA_VERSION_MAJOR, OPTEE_FFA_VERSION_MINOR,
 			      0);
 		break;
 	case OPTEE_FFA_GET_OS_VERSION:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      CFG_OPTEE_REVISION_MAJOR,
 			      CFG_OPTEE_REVISION_MINOR, TEE_IMPL_GIT_SHA1);
 		break;
 	case OPTEE_FFA_EXCHANGE_CAPABILITIES:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
+		sec_caps = OPTEE_FFA_SEC_CAP_ARG_OFFSET;
+		if (spmc_notif_is_ready)
+			sec_caps |= OPTEE_FFA_SEC_CAP_ASYNC_NOTIF;
+		spmc_set_args(args, direct_resp_fid,
 			      swap_src_dst(args->a1), 0, 0,
-			      THREAD_RPC_MAX_NUM_PARAMS,
-			      OPTEE_FFA_SEC_CAP_ARG_OFFSET);
+			      THREAD_RPC_MAX_NUM_PARAMS, sec_caps);
 		break;
 	case OPTEE_FFA_UNREGISTER_SHM:
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      handle_unregister_shm(args->a4, args->a5), 0, 0);
+		break;
+	case OPTEE_FFA_ENABLE_ASYNC_NOTIF:
+		spmc_set_args(args, direct_resp_fid,
+			      swap_src_dst(args->a1), 0,
+			      spmc_enable_async_notif(args->a4,
+						      FFA_SRC(args->a1)),
+			      0, 0);
 		break;
 	default:
 		EMSG("Unhandled blocking service ID %#"PRIx32,
 		     (uint32_t)args->a3);
-		panic();
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
+			      TEE_ERROR_BAD_PARAMETERS, 0, 0);
 	}
 }
 
 static void handle_framework_direct_request(struct thread_smc_args *args,
-					    struct ffa_rxtx *rxtx)
+					    struct ffa_rxtx *rxtx,
+					    uint32_t direct_resp_fid)
 {
 	uint32_t w0 = FFA_ERROR;
 	uint32_t w1 = FFA_PARAM_MBZ;
@@ -666,7 +741,7 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 			uint16_t guest_id = args->a5;
 			TEE_Result res = virt_guest_created(guest_id);
 
-			w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+			w0 = direct_resp_fid;
 			w1 = swap_src_dst(args->a1);
 			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_CREATED;
 			if (res == TEE_SUCCESS)
@@ -677,8 +752,22 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 				w3 = FFA_INVALID_PARAMETERS;
 		}
 		break;
+	case FFA_MSG_SEND_VM_DESTROYED:
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			uint16_t guest_id = args->a5;
+			TEE_Result res = virt_guest_destroyed(guest_id);
+
+			w0 = direct_resp_fid;
+			w1 = swap_src_dst(args->a1);
+			w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_RESP_VM_DESTROYED;
+			if (res == TEE_SUCCESS)
+				w3 = FFA_OK;
+			else
+				w3 = FFA_INVALID_PARAMETERS;
+		}
+		break;
 	case FFA_MSG_VERSION_REQ:
-		w0 = FFA_MSG_SEND_DIRECT_RESP_32;
+		w0 = direct_resp_fid;
 		w1 = swap_src_dst(args->a1);
 		w2 = FFA_MSG_FLAG_FRAMEWORK | FFA_MSG_VERSION_RESP;
 		w3 = spmc_exchange_version(args->a3, rxtx);
@@ -692,29 +781,35 @@ static void handle_framework_direct_request(struct thread_smc_args *args,
 static void handle_direct_request(struct thread_smc_args *args,
 				  struct ffa_rxtx *rxtx)
 {
+	uint32_t direct_resp_fid = 0;
+
 	if (IS_ENABLED(CFG_SECURE_PARTITION) &&
 	    FFA_DST(args->a1) != my_endpoint_id) {
 		spmc_sp_start_thread(args);
 		return;
 	}
 
+	if (OPTEE_SMC_IS_64(args->a0))
+		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_64;
+	else
+		direct_resp_fid = FFA_MSG_SEND_DIRECT_RESP_32;
+
 	if (args->a2 & FFA_MSG_FLAG_FRAMEWORK) {
-		handle_framework_direct_request(args, rxtx);
+		handle_framework_direct_request(args, rxtx, direct_resp_fid);
 		return;
 	}
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
 	    virt_set_guest(get_sender_id(args->a1))) {
-		spmc_set_args(args, FFA_MSG_SEND_DIRECT_RESP_32,
-			      swap_src_dst(args->a1), 0,
+		spmc_set_args(args, direct_resp_fid, swap_src_dst(args->a1), 0,
 			      TEE_ERROR_ITEM_NOT_FOUND, 0, 0);
 		return;
 	}
 
 	if (args->a3 & BIT32(OPTEE_FFA_YIELDING_CALL_BIT))
-		handle_yielding_call(args);
+		handle_yielding_call(args, direct_resp_fid);
 	else
-		handle_blocking_call(args);
+		handle_blocking_call(args, direct_resp_fid);
 
 	/*
 	 * Note that handle_yielding_call() typically only returns if a
@@ -1275,7 +1370,223 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 	virt_unset_guest();
 
 out:
-	spmc_set_args(args, ret_fid, ret_val, 0, 0, 0, 0);
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+}
+
+static void handle_notification_bitmap_create(struct thread_smc_args *args)
+{
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t old_itr_status = 0;
+
+	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	    !args->a5 && !args->a6 && !args->a7) {
+		uint16_t vm_id = args->a1;
+
+		old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+
+		if (notif_vm_id_valid) {
+			if (vm_id == notif_vm_id)
+				ret_val = FFA_DENIED;
+			else
+				ret_val = FFA_NO_MEMORY;
+		} else {
+			notif_vm_id = vm_id;
+			notif_vm_id_valid = true;
+			ret_val = FFA_OK;
+			ret_fid = FFA_SUCCESS_32;
+		}
+
+		cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+	}
+
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+}
+
+static void handle_notification_bitmap_destroy(struct thread_smc_args *args)
+{
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t old_itr_status = 0;
+
+	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
+	    !args->a5 && !args->a6 && !args->a7) {
+		uint16_t vm_id = args->a1;
+
+		old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+
+		if (notif_vm_id_valid && vm_id == notif_vm_id) {
+			if (notif_pending_bitmap || notif_bound_bitmap) {
+				ret_val = FFA_DENIED;
+			} else {
+				notif_vm_id_valid = false;
+				ret_val = FFA_OK;
+				ret_fid = FFA_SUCCESS_32;
+			}
+		}
+
+		cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+	}
+
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+}
+
+static void handle_notification_bind(struct thread_smc_args *args)
+{
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t old_itr_status = 0;
+	uint64_t bitmap = 0;
+	uint16_t vm_id = 0;
+
+	if (args->a5 || args->a6 || args->a7)
+		goto out;
+	if (args->a2) {
+		/* We only deal with global notifications for now */
+		ret_val = FFA_NOT_SUPPORTED;
+		goto out;
+	}
+
+	/* The destination of the eventual notification */
+	vm_id = FFA_DST(args->a1);
+	bitmap = reg_pair_to_64(args->a4, args->a3);
+
+	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+
+	if (notif_vm_id_valid && vm_id == notif_vm_id) {
+		if (bitmap & notif_bound_bitmap) {
+			ret_val = FFA_DENIED;
+		} else {
+			notif_bound_bitmap |= bitmap;
+			ret_val = FFA_OK;
+			ret_fid = FFA_SUCCESS_32;
+		}
+	}
+
+	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out:
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+}
+
+static void handle_notification_unbind(struct thread_smc_args *args)
+{
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t old_itr_status = 0;
+	uint64_t bitmap = 0;
+	uint16_t vm_id = 0;
+
+	if (args->a2 || args->a5 || args->a6 || args->a7)
+		goto out;
+
+	/* The destination of the eventual notification */
+	vm_id = FFA_DST(args->a1);
+	bitmap = reg_pair_to_64(args->a4, args->a3);
+
+	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+
+	if (notif_vm_id_valid && vm_id == notif_vm_id) {
+		/*
+		 * Spec says:
+		 * At least one notification is bound to another Sender or
+		 * is currently pending.
+		 *
+		 * Not sure what the intention is.
+		 */
+		if (bitmap & notif_pending_bitmap) {
+			ret_val = FFA_DENIED;
+		} else {
+			notif_bound_bitmap &= ~bitmap;
+			ret_val = FFA_OK;
+			ret_fid = FFA_SUCCESS_32;
+		}
+	}
+
+	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out:
+	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+}
+
+static void handle_notification_get(struct thread_smc_args *args)
+{
+	uint32_t w2 = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t old_itr_status = 0;
+	uint16_t vm_id = 0;
+	uint32_t w3 = 0;
+
+	if (args->a5 || args->a6 || args->a7)
+		goto out;
+	if (!(args->a2 & 0x1)) {
+		ret_fid = FFA_SUCCESS_32;
+		w2 = 0;
+		goto out;
+	}
+	vm_id = FFA_DST(args->a1);
+
+	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+
+	if (notif_vm_id_valid && vm_id == notif_vm_id) {
+		reg_pair_from_64(notif_pending_bitmap, &w3, &w2);
+		notif_pending_bitmap = 0;
+		ret_fid = FFA_SUCCESS_32;
+	}
+
+	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out:
+	spmc_set_args(args, ret_fid, 0, w2, w3, 0, 0);
+}
+
+static void handle_notification_info_get(struct thread_smc_args *args)
+{
+	uint32_t w2 = FFA_INVALID_PARAMETERS;
+	uint32_t ret_fid = FFA_ERROR;
+
+	if (args->a1 || args->a2 || args->a3 || args->a4 || args->a5 ||
+	    args->a6 || args->a7)
+		goto out;
+
+	if (OPTEE_SMC_IS_64(args->a0))
+		ret_fid = FFA_SUCCESS_64;
+	else
+		ret_fid = FFA_SUCCESS_32;
+
+	/*
+	 * Note, we're only supporting physical OS kernel in normal world
+	 * with Global Notifications.
+	 * So one list of ID list registers (BIT[11:7])
+	 * and one count of IDs (BIT[13:12] + 1)
+	 * and the VM is always 0.
+	 */
+	w2 = SHIFT_U32(1, 7);
+out:
+	spmc_set_args(args, ret_fid, 0, w2, 0, 0, 0);
+}
+
+void thread_spmc_set_async_notif_intid(int intid)
+{
+	assert(interrupt_can_raise_sgi(interrupt_get_main_chip()));
+	notif_intid = intid;
+	spmc_notif_is_ready = true;
+	DMSG("Asynchronous notifications are ready");
+}
+
+void notif_send_async(uint32_t value)
+{
+	uint32_t old_itr_status = 0;
+
+	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+	assert(value == NOTIF_VALUE_DO_BOTTOM_HALF && spmc_notif_is_ready &&
+	       do_bottom_half_value >= 0 && notif_intid >= 0);
+	notif_pending_bitmap |= BIT64(do_bottom_half_value);
+	interrupt_raise_sgi(interrupt_get_main_chip(), notif_intid,
+			    ITR_CPU_MASK_TO_THIS_CPU);
+	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+}
+#else
+void __noreturn notif_send_async(uint32_t value __unused)
+{
+	panic();
 }
 #endif
 
@@ -1313,7 +1624,11 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 #endif /*CFG_CORE_SEL1_SPMC*/
 	case FFA_INTERRUPT:
 		interrupt_main_handler();
-		spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
+		if (IS_ENABLED(CFG_CORE_SEL1_SPMC))
+			spmc_set_args(args, FFA_NORMAL_WORLD_RESUME, 0, 0, 0,
+				      0, 0);
+		else
+			spmc_set_args(args, FFA_MSG_WAIT, 0, 0, 0, 0, 0);
 		break;
 #ifdef ARM64
 	case FFA_MSG_SEND_DIRECT_REQ_64:
@@ -1336,7 +1651,40 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 	case FFA_MEM_FRAG_TX:
 		handle_mem_frag_tx(args, &my_rxtx);
 		break;
+	case FFA_NOTIFICATION_BITMAP_CREATE:
+		handle_notification_bitmap_create(args);
+		break;
+	case FFA_NOTIFICATION_BITMAP_DESTROY:
+		handle_notification_bitmap_destroy(args);
+		break;
+	case FFA_NOTIFICATION_BIND:
+		handle_notification_bind(args);
+		break;
+	case FFA_NOTIFICATION_UNBIND:
+		handle_notification_unbind(args);
+		break;
+	case FFA_NOTIFICATION_GET:
+		handle_notification_get(args);
+		break;
+#ifdef ARM64
+	case FFA_NOTIFICATION_INFO_GET_64:
+#endif
+	case FFA_NOTIFICATION_INFO_GET_32:
+		handle_notification_info_get(args);
+		break;
 #endif /*CFG_CORE_SEL1_SPMC*/
+	case FFA_ERROR:
+		EMSG("Cannot handle FFA_ERROR(%d)", (int)args->a2);
+		if (!IS_ENABLED(CFG_CORE_SEL1_SPMC)) {
+			/*
+			 * The SPMC will return an FFA_ERROR back so better
+			 * panic() now than flooding the log.
+			 */
+			panic("FFA_ERROR from SPMC is fatal");
+		}
+		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
+			      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+		break;
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);
 		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
@@ -1623,13 +1971,16 @@ struct mobj *thread_rpc_alloc_kernel_payload(size_t size)
 
 void thread_rpc_free_kernel_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL, mobj_get_cookie(mobj), mobj);
+	if (mobj)
+		thread_rpc_free(OPTEE_RPC_SHM_TYPE_KERNEL,
+				mobj_get_cookie(mobj), mobj);
 }
 
 void thread_rpc_free_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
-			mobj);
+	if (mobj)
+		thread_rpc_free(OPTEE_RPC_SHM_TYPE_APPL, mobj_get_cookie(mobj),
+				mobj);
 }
 
 struct mobj *thread_rpc_alloc_global_payload(size_t size)
@@ -1639,8 +1990,9 @@ struct mobj *thread_rpc_alloc_global_payload(size_t size)
 
 void thread_rpc_free_global_payload(struct mobj *mobj)
 {
-	thread_rpc_free(OPTEE_RPC_SHM_TYPE_GLOBAL, mobj_get_cookie(mobj),
-			mobj);
+	if (mobj)
+		thread_rpc_free(OPTEE_RPC_SHM_TYPE_GLOBAL,
+				mobj_get_cookie(mobj), mobj);
 }
 
 void thread_spmc_register_secondary_ep(vaddr_t ep)
@@ -1801,7 +2153,7 @@ static void *spmc_retrieve_req(uint64_t cookie,
 			     cookie, args.a0);
 		return NULL;
 	}
-	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.tx,
+	rc = spmc_read_mem_transaction(my_rxtx.ffa_vers, my_rxtx.rx,
 				       my_rxtx.size, trans);
 	if (rc) {
 		EMSG("Memory transaction failure for cookie %#"PRIx64" rc %d",

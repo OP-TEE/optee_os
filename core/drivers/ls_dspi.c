@@ -93,13 +93,6 @@
 	 DSPI_CTAR_P_DT(3) | DSPI_CTAR_CS_SCK(15) | DSPI_CTAR_A_SCK(15) | \
 	 DSPI_CTAR_A_DT(15))
 
-/* SPI mode flags */
-#define SPI_CPHA      BIT(0) /* clock phase */
-#define SPI_CPOL      BIT(1) /* clock polarity */
-#define SPI_CS_HIGH   BIT(2) /* CS active high */
-#define SPI_LSB_FIRST BIT(3) /* per-word bits-on-wire */
-#define SPI_CONT      BIT(4) /* Continuous CS mode */
-
 /* default SCK frequency, unit: HZ */
 #define PLATFORM_CLK          650000000
 #define DSPI_DEFAULT_SCK_FREQ 10000000
@@ -382,7 +375,7 @@ static void ls_dspi_end(struct spi_chip *chip)
  * Clear RX and TX FIFO
  * dspi_data:   DSPI controller chip instance
  */
-void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
+static void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
 {
 	unsigned int mcr_val = 0;
 
@@ -391,6 +384,18 @@ void dspi_flush_fifo(struct ls_dspi_data *dspi_data)
 	mcr_val |= (DSPI_MCR_CTXF | DSPI_MCR_CRXF);
 
 	io_write32(dspi_data->base + DSPI_MCR, mcr_val);
+}
+
+/*
+ * Flush DSPI module
+ * chip:	spi_chip instance
+ */
+static void ls_dspi_flush(struct spi_chip *chip)
+{
+	struct ls_dspi_data *data = container_of(chip, struct ls_dspi_data,
+						  chip);
+
+	dspi_flush_fifo(data);
 }
 
 /*
@@ -542,7 +547,7 @@ static TEE_Result get_info_from_device_tree(struct ls_dspi_data *dspi_data)
 	 */
 	fdt = get_dt();
 	if (!fdt) {
-		EMSG("Unable to get DTB, DSPI init failed\n");
+		EMSG("Unable to get DTB, DSPI init failed");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
@@ -585,6 +590,7 @@ static const struct spi_ops ls_dspi_ops = {
 	.txrx8 = ls_dspi_txrx8,
 	.txrx16 = ls_dspi_txrx16,
 	.end = ls_dspi_end,
+	.flushfifo = ls_dspi_flush,
 };
 DECLARE_KEEP_PAGER(ls_dspi_ops);
 

@@ -503,6 +503,15 @@ static TEE_Result do_update_cmac(struct drvcrypt_cipher_update *dupdate)
 			if (ret)
 				goto end_cmac;
 
+			/*
+			 * Need to re-adjust the length of the data if the
+			 * posted data block is not empty and the SGT/Buffer
+			 * is part of the full input data to do.
+			 */
+			if (ctx->blockbuf.filled && size_done < size_todo) {
+				size_done -= ctx->blockbuf.filled;
+				src.sgtbuf.length = size_done;
+			}
 			CIPHER_TRACE("Do input %zu bytes, offset %zu",
 				     size_done, offset);
 

@@ -4,6 +4,8 @@
  */
 
 #include <assert.h>
+#include <config.h>
+#include <initcall.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
@@ -11,8 +13,11 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <stdio.h>
 #include <string.h>
 #include <trace.h>
+
+static struct dt_descriptor external_dt __nex_bss;
 
 const struct dt_driver *dt_find_compatible_driver(const void *fdt, int offs)
 {
@@ -436,4 +441,302 @@ int dt_getprop_as_number(const void *fdt, int nodeoffset, const char *name,
 	default:
 		return -FDT_ERR_BADVALUE;
 	}
+}
+
+void *get_dt(void)
+{
+	void *fdt = get_embedded_dt();
+
+	if (!fdt)
+		fdt = get_external_dt();
+
+	return fdt;
+}
+
+void *get_secure_dt(void)
+{
+	void *fdt = get_embedded_dt();
+
+	if (!fdt && IS_ENABLED(CFG_MAP_EXT_DT_SECURE))
+		fdt = get_external_dt();
+
+	return fdt;
+}
+
+#if defined(CFG_EMBED_DTB)
+void *get_embedded_dt(void)
+{
+	static bool checked;
+
+	assert(cpu_mmu_enabled());
+
+	if (!checked) {
+		IMSG("Embedded DTB found");
+
+		if (fdt_check_header(embedded_secure_dtb))
+			panic("Invalid embedded DTB");
+
+		checked = true;
+	}
+
+	return embedded_secure_dtb;
+}
+#else
+void *get_embedded_dt(void)
+{
+	return NULL;
+}
+#endif /*CFG_EMBED_DTB*/
+
+#ifdef _CFG_USE_DTB_OVERLAY
+static int add_dt_overlay_fragment(struct dt_descriptor *dt, int ioffs)
+{
+	char frag[32] = { };
+	int offs = 0;
+	int ret = 0;
+
+	snprintf(frag, sizeof(frag), "fragment@%d", dt->frag_id);
+	offs = fdt_add_subnode(dt->blob, ioffs, frag);
+	if (offs < 0)
+		return offs;
+
+	dt->frag_id += 1;
+
+	ret = fdt_setprop_string(dt->blob, offs, "target-path", "/");
+	if (ret < 0)
+		return ret;
+
+	return fdt_add_subnode(dt->blob, offs, "__overlay__");
+}
+
+static int init_dt_overlay(struct dt_descriptor *dt, int __maybe_unused dt_size)
+{
+	int fragment = 0;
+
+	if (IS_ENABLED(CFG_EXTERNAL_DTB_OVERLAY)) {
+		if (!fdt_check_header(dt->blob)) {
+			fdt_for_each_subnode(fragment, dt->blob, 0)
+				dt->frag_id += 1;
+			return 0;
+		}
+	}
+
+	return fdt_create_empty_tree(dt->blob, dt_size);
+}
+#else
+static int add_dt_overlay_fragment(struct dt_descriptor *dt __unused, int offs)
+{
+	return offs;
+}
+
+static int init_dt_overlay(struct dt_descriptor *dt __unused,
+			   int dt_size __unused)
+{
+	return 0;
+}
+#endif /* _CFG_USE_DTB_OVERLAY */
+
+struct dt_descriptor *get_external_dt_desc(void)
+{
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
+	return &external_dt;
+}
+
+void init_external_dt(unsigned long phys_dt, size_t dt_sz)
+{
+	struct dt_descriptor *dt = &external_dt;
+	int ret = 0;
+	enum teecore_memtypes mtype = MEM_AREA_MAXTYPE;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return;
+
+	if (!phys_dt || !dt_sz) {
+		/*
+		 * No need to panic as we're not using the DT in OP-TEE
+		 * yet, we're only adding some nodes for normal world use.
+		 * This makes the switch to using DT easier as we can boot
+		 * a newer OP-TEE with older boot loaders. Once we start to
+		 * initialize devices based on DT we'll likely panic
+		 * instead of returning here.
+		 */
+		IMSG("No non-secure external DT");
+		return;
+	}
+
+	mtype = core_mmu_get_type_by_pa(phys_dt);
+	if (mtype == MEM_AREA_MAXTYPE) {
+		/* Map the DTB if it is not yet mapped */
+		dt->blob = core_mmu_add_mapping(MEM_AREA_EXT_DT, phys_dt,
+						dt_sz);
+		if (!dt->blob)
+			panic("Failed to map external DTB");
+	} else {
+		/* Get the DTB address if already mapped in a memory area */
+		dt->blob = phys_to_virt(phys_dt, mtype, dt_sz);
+		if (!dt->blob) {
+			EMSG("Failed to get a mapped external DTB for PA %#lx",
+			     phys_dt);
+			panic();
+		}
+	}
+
+	ret = init_dt_overlay(dt, dt_sz);
+	if (ret < 0) {
+		EMSG("Device Tree Overlay init fail @ %#lx: error %d", phys_dt,
+		     ret);
+		panic();
+	}
+
+	ret = fdt_open_into(dt->blob, dt->blob, dt_sz);
+	if (ret < 0) {
+		EMSG("Invalid Device Tree at %#lx: error %d", phys_dt, ret);
+		panic();
+	}
+
+	IMSG("Non-secure external DT found");
+}
+
+void *get_external_dt(void)
+{
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return NULL;
+
+	assert(cpu_mmu_enabled());
+	return external_dt.blob;
+}
+
+static TEE_Result release_external_dt(void)
+{
+	int ret = 0;
+	paddr_t pa_dt = 0;
+
+	if (!IS_ENABLED(CFG_EXTERNAL_DT))
+		return TEE_SUCCESS;
+
+	if (!external_dt.blob)
+		return TEE_SUCCESS;
+
+	pa_dt = virt_to_phys(external_dt.blob);
+	/*
+	 * Skip packing and un-mapping operations if the external DTB is mapped
+	 * in a different memory area
+	 */
+	if (core_mmu_get_type_by_pa(pa_dt) != MEM_AREA_EXT_DT)
+		return TEE_SUCCESS;
+
+	ret = fdt_pack(external_dt.blob);
+	if (ret < 0) {
+		EMSG("Failed to pack Device Tree at 0x%" PRIxPA ": error %d",
+		     virt_to_phys(external_dt.blob), ret);
+		panic();
+	}
+
+	if (core_mmu_remove_mapping(MEM_AREA_EXT_DT, external_dt.blob,
+				    CFG_DTB_MAX_SIZE))
+		panic("Failed to remove temporary Device Tree mapping");
+
+	/* External DTB no more reached, reset pointer to invalid */
+	external_dt.blob = NULL;
+
+	return TEE_SUCCESS;
+}
+
+boot_final(release_external_dt);
+
+int add_dt_path_subnode(struct dt_descriptor *dt, const char *path,
+			const char *subnode)
+{
+	int offs = 0;
+
+	offs = fdt_path_offset(dt->blob, path);
+	if (offs < 0)
+		return offs;
+	offs = add_dt_overlay_fragment(dt, offs);
+	if (offs < 0)
+		return offs;
+	return fdt_add_subnode(dt->blob, offs, subnode);
+}
+
+static void set_dt_val(void *data, uint32_t cell_size, uint64_t val)
+{
+	if (cell_size == 1) {
+		fdt32_t v = cpu_to_fdt32((uint32_t)val);
+
+		memcpy(data, &v, sizeof(v));
+	} else {
+		fdt64_t v = cpu_to_fdt64(val);
+
+		memcpy(data, &v, sizeof(v));
+	}
+}
+
+int add_res_mem_dt_node(struct dt_descriptor *dt, const char *name,
+			paddr_t pa, size_t size)
+{
+	int offs = 0;
+	int ret = 0;
+	int addr_size = -1;
+	int len_size = -1;
+	bool found = true;
+	char subnode_name[80] = { };
+
+	offs = fdt_path_offset(dt->blob, "/reserved-memory");
+
+	if (offs < 0) {
+		found = false;
+		offs = 0;
+	}
+
+	if (IS_ENABLED2(_CFG_USE_DTB_OVERLAY)) {
+		len_size = sizeof(paddr_t) / sizeof(uint32_t);
+		addr_size = sizeof(paddr_t) / sizeof(uint32_t);
+	} else {
+		len_size = fdt_size_cells(dt->blob, offs);
+		if (len_size < 0)
+			return len_size;
+		addr_size = fdt_address_cells(dt->blob, offs);
+		if (addr_size < 0)
+			return addr_size;
+	}
+
+	if (!found) {
+		offs = add_dt_path_subnode(dt, "/", "reserved-memory");
+		if (offs < 0)
+			return offs;
+		ret = fdt_setprop_cell(dt->blob, offs, "#address-cells",
+				       addr_size);
+		if (ret < 0)
+			return ret;
+		ret = fdt_setprop_cell(dt->blob, offs, "#size-cells", len_size);
+		if (ret < 0)
+			return ret;
+		ret = fdt_setprop(dt->blob, offs, "ranges", NULL, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = snprintf(subnode_name, sizeof(subnode_name),
+		       "%s@%" PRIxPA, name, pa);
+	if (ret < 0 || ret >= (int)sizeof(subnode_name))
+		DMSG("truncated node \"%s@%" PRIxPA"\"", name, pa);
+	offs = fdt_add_subnode(dt->blob, offs, subnode_name);
+	if (offs >= 0) {
+		uint32_t data[FDT_MAX_NCELLS * 2] = { };
+
+		set_dt_val(data, addr_size, pa);
+		set_dt_val(data + addr_size, len_size, size);
+		ret = fdt_setprop(dt->blob, offs, "reg", data,
+				  sizeof(uint32_t) * (addr_size + len_size));
+		if (ret < 0)
+			return ret;
+		ret = fdt_setprop(dt->blob, offs, "no-map", NULL, 0);
+		if (ret < 0)
+			return ret;
+	} else {
+		return offs;
+	}
+	return 0;
 }

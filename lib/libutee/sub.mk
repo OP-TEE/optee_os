@@ -9,6 +9,7 @@ ifneq ($(sm),ldelf)
 srcs-y += base64.c
 srcs-y += tee_api.c
 srcs-y += tee_api_arith_mpi.c
+cppflags-tee_api_arith_mpi.c-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
 srcs-y += tee_api_objects.c
 srcs-y += tee_api_operations.c
 srcs-y += tee_api_panic.c

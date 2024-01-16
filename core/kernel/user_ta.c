@@ -49,12 +49,20 @@
 #include <utee_defines.h>
 #include <util.h>
 
-static void init_utee_param(struct utee_params *up,
-			const struct tee_ta_param *p, void *va[TEE_NUM_PARAMS])
+static TEE_Result init_utee_param(struct utee_params *up,
+				  const struct tee_ta_param *p,
+				  void *va[TEE_NUM_PARAMS])
 {
-	size_t n;
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+	struct utee_params *up_bbuf = NULL;
 
-	up->types = p->types;
+	up_bbuf = bb_alloc(sizeof(struct utee_params));
+	if (!up_bbuf)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	up_bbuf->types = p->types;
+
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		uintptr_t a;
 		uintptr_t b;
@@ -77,33 +85,47 @@ static void init_utee_param(struct utee_params *up,
 			break;
 		}
 		/* See comment for struct utee_params in utee_types.h */
-		up->vals[n * 2] = a;
-		up->vals[n * 2 + 1] = b;
+		up_bbuf->vals[n * 2] = a;
+		up_bbuf->vals[n * 2 + 1] = b;
 	}
+
+	res = copy_to_user(up, up_bbuf, sizeof(struct utee_params));
+
+	bb_free(up_bbuf, sizeof(struct utee_params));
+
+	return res;
 }
 
 static void update_from_utee_param(struct tee_ta_param *p,
-			const struct utee_params *up)
+				   const struct utee_params *up)
 {
-	size_t n;
+	TEE_Result res = TEE_SUCCESS;
+	size_t n = 0;
+	struct utee_params *up_bbuf = NULL;
+
+	res = BB_MEMDUP_USER(up, sizeof(*up), &up_bbuf);
+	if (res)
+		return;
 
 	for (n = 0; n < TEE_NUM_PARAMS; n++) {
 		switch (TEE_PARAM_TYPE_GET(p->types, n)) {
 		case TEE_PARAM_TYPE_MEMREF_OUTPUT:
 		case TEE_PARAM_TYPE_MEMREF_INOUT:
 			/* See comment for struct utee_params in utee_types.h */
-			p->u[n].mem.size = up->vals[n * 2 + 1];
+			p->u[n].mem.size = up_bbuf->vals[n * 2 + 1];
 			break;
 		case TEE_PARAM_TYPE_VALUE_OUTPUT:
 		case TEE_PARAM_TYPE_VALUE_INOUT:
 			/* See comment for struct utee_params in utee_types.h */
-			p->u[n].val.a = up->vals[n * 2];
-			p->u[n].val.b = up->vals[n * 2 + 1];
+			p->u[n].val.a = up_bbuf->vals[n * 2];
+			p->u[n].val.b = up_bbuf->vals[n * 2 + 1];
 			break;
 		default:
 			break;
 		}
 	}
+
+	bb_free(up_bbuf, sizeof(*up));
 }
 
 static bool inc_recursion(void)
@@ -159,9 +181,12 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	usr_stack -= ROUNDUP(sizeof(struct utee_params), STACK_ALIGNMENT);
 	usr_params = (struct utee_params *)usr_stack;
 	if (ta_sess->param)
-		init_utee_param(usr_params, ta_sess->param, param_va);
+		res = init_utee_param(usr_params, ta_sess->param, param_va);
 	else
-		memset(usr_params, 0, sizeof(*usr_params));
+		res = clear_user(usr_params, sizeof(*usr_params));
+
+	if (res)
+		goto out_pop_session;
 
 	res = thread_enter_user_mode(func, kaddr_to_uref(session),
 				     (vaddr_t)usr_params, cmd, usr_stack,
@@ -187,15 +212,16 @@ static TEE_Result user_ta_enter(struct ts_session *session,
 	if (ta_sess->param) {
 		/* Copy out value results */
 		update_from_utee_param(ta_sess->param, usr_params);
+	}
 
+out_pop_session:
+	if (ta_sess->param) {
 		/*
 		 * Clear out the parameter mappings added with
 		 * vm_clean_param() above.
 		 */
 		vm_clean_param(&utc->uctx);
 	}
-
-
 	ts_sess = ts_pop_current_session();
 	assert(ts_sess == session);
 
@@ -342,9 +368,9 @@ static void user_ta_gprof_set_status(enum ts_gprof_status status)
 }
 #endif /*CFG_TA_GPROF_SUPPORT*/
 
-static void free_utc(struct user_ta_ctx *utc)
-{
 
+static void release_utc_state(struct user_ta_ctx *utc)
+{
 	/*
 	 * Close sessions opened by this TA
 	 * Note that tee_ta_close_session() removes the item
@@ -363,7 +389,17 @@ static void free_utc(struct user_ta_ctx *utc)
 	tee_obj_close_all(utc);
 	/* Free emums created by this TA */
 	tee_svc_storage_close_all_enum(utc);
+}
+
+static void free_utc(struct user_ta_ctx *utc)
+{
+	release_utc_state(utc);
 	free(utc);
+}
+
+static void user_ta_release_state(struct ts_ctx *ctx)
+{
+	release_utc_state(to_user_ta_ctx(ctx));
 }
 
 static void user_ta_ctx_destroy(struct ts_ctx *ctx)
@@ -391,6 +427,7 @@ const struct ts_ops user_ta_ops __weak __relrodata_unpaged("user_ta_ops") = {
 #ifdef CFG_FTRACE_SUPPORT
 	.dump_ftrace = user_ta_dump_ftrace,
 #endif
+	.release_state = user_ta_release_state,
 	.destroy = user_ta_ctx_destroy,
 	.get_instance_id = user_ta_get_instance_id,
 	.handle_scall = scall_handle_user_ta,
@@ -404,7 +441,7 @@ static void set_ta_ctx_ops(struct tee_ta_ctx *ctx)
 	ctx->ts_ctx.ops = &user_ta_ops;
 }
 
-bool is_user_ta_ctx(struct ts_ctx *ctx)
+bool __noprof is_user_ta_ctx(struct ts_ctx *ctx)
 {
 	return ctx && ctx->ops == &user_ta_ops;
 }

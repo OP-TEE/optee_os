@@ -737,6 +737,16 @@
 				secure-status = "okay";
 			};
 
+			sfc: sfc@f804c000 {
+				compatible = "atmel,sama5d2-sfc";
+				reg = <0xf804c000 0x64>;
+				read-only;
+				status = "disabled";
+				secure-status = "okay";
+				#address-cells = <1>;
+				#size-cells = <1>;
+			};
+
 			i2s0: i2s@f8050000 {
 				compatible = "atmel,sama5d2-i2s";
 				reg = <0xf8050000 0x100>;

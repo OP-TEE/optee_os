@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2016, Linaro Limited
  */
-#ifndef MM_PGT_CACHE_H
-#define MM_PGT_CACHE_H
+#ifndef __MM_PGT_CACHE_H
+#define __MM_PGT_CACHE_H
 
 #ifdef CFG_WITH_LPAE
 #define PGT_SIZE	(4 * 1024)
@@ -136,4 +136,4 @@ static inline void pgt_set_used_entries(struct pgt *pgt __unused,
 
 #endif
 
-#endif /*MM_PGT_CACHE_H*/
+#endif /*__MM_PGT_CACHE_H*/

@@ -40,14 +40,14 @@ void console_init(void)
 	register_serial_console(&console_data.chip);
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }
 
 static TEE_Result rzn1_tz_init(void)

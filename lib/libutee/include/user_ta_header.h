@@ -67,12 +67,13 @@ struct ftrace_buf {
 	uint32_t lr_idx;	/* lr index used for stack unwinding */
 	uint64_t begin_time[FTRACE_RETFUNC_DEPTH]; /* Timestamp */
 	uint64_t suspend_time;	/* Suspend timestamp */
-	uint32_t curr_size;	/* Size of ftrace buffer */
+	uint32_t curr_idx;	/* Current entry in the (circular) buffer */
 	uint32_t max_size;	/* Max allowed size of ftrace buffer */
 	uint32_t head_off;	/* Ftrace buffer header offset */
 	uint32_t buf_off;	/* Ftrace buffer offset */
 	bool syscall_trace_enabled; /* Some syscalls are never traced */
 	bool syscall_trace_suspended; /* By foreign interrupt or RPC */
+	bool overflow;		/* Circular buffer has wrapped */
 };
 
 /* Defined by the linker script */
@@ -130,6 +131,7 @@ enum user_ta_prop_type {
 	USER_TA_PROP_TYPE_STRING,	/* zero terminated string of char */
 	USER_TA_PROP_TYPE_BINARY_BLOCK,	/* zero terminated base64 coded string */
 	USER_TA_PROP_TYPE_U64,	/* uint64_t */
+	USER_TA_PROP_TYPE_INVALID,	/* invalid value */
 };
 
 struct user_ta_property {

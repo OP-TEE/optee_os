@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2022, STMicroelectronics
  */
 
-#ifndef __STM32_BSEC_H
-#define __STM32_BSEC_H
+#ifndef __DRIVERS_STM32_BSEC_H
+#define __DRIVERS_STM32_BSEC_H
 
 #include <compiler.h>
 #include <stdint.h>
@@ -82,7 +82,14 @@ static inline TEE_Result stm32_bsec_program_otp(uint32_t value __unused,
  * @otp_id: OTP number
  * Return a TEE_Result compliant return value
  */
+#ifdef CFG_STM32_BSEC_WRITE
 TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id);
+#else
+static inline TEE_Result stm32_bsec_permanent_lock_otp(uint32_t otp_id __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /*
  * Enable/disable debug service
@@ -163,12 +170,27 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
  * Find and get OTP location from its name.
  * @name: sub-node name to look up.
  * @otp_id: pointer to output OTP number or NULL.
+ * @otp_bit_offset: pointer to output OTP bit offset in the NVMEM cell or NULL.
  * @otp_bit_len: pointer to output OTP length in bits or NULL.
  * Return a TEE_Result compliant status
  */
 TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
 					       uint32_t *otp_id,
+					       uint8_t *otp_bit_offset,
 					       size_t *otp_bit_len);
+
+/*
+ * Find and get OTP location from its phandle.
+ * @phandle: node phandle to look up.
+ * @otp_id: pointer to read OTP number or NULL.
+ * @otp_bit_offset: pointer to read offset in OTP in bits or NULL.
+ * @otp_bit_len: pointer to read OTP length in bits or NULL.
+ * Return a TEE_Result compliant status
+ */
+TEE_Result stm32_bsec_find_otp_by_phandle(const uint32_t phandle,
+					  uint32_t *otp_id,
+					  uint8_t *otp_bit_offset,
+					  size_t *otp_bit_len);
 
 /*
  * Get BSEC global sec state.
@@ -177,4 +199,4 @@ TEE_Result stm32_bsec_find_otp_in_nvmem_layout(const char *name,
  */
 TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *sec_state);
 
-#endif /*__STM32_BSEC_H*/
+#endif /*__DRIVERS_STM32_BSEC_H*/

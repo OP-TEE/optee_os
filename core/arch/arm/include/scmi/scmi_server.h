@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2019-2022, Linaro Limited
  */
-#ifndef SCMI_SERVER_H
-#define SCMI_SERVER_H
+#ifndef __SCMI_SCMI_SERVER_H
+#define __SCMI_SCMI_SERVER_H
 
 #include <tee_api_types.h>
 #include <types_ext.h>
@@ -70,4 +70,4 @@ static inline int scmi_server_get_channels_count(void)
 	return 0;
 }
 #endif /* CFG_SCMI_SCPFW */
-#endif /* SCMI_SERVER_H */
+#endif /* __SCMI_SCMI_SERVER_H */

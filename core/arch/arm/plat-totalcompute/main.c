@@ -26,7 +26,7 @@ register_ddr(DRAM0_BASE, DRAM0_SIZE);
 register_ddr(DRAM1_BASE, DRAM1_SIZE);
 
 #ifndef CFG_CORE_SEL2_SPMC
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICC_OFFSET);
 }

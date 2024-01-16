@@ -68,3 +68,11 @@
 		bnez	a1, 1b
 		add	\reg_res, \reg_res, a0
 	.endm
+
+	.macro panic_at_abi_return
+#if defined(CFG_TEE_CORE_DEBUG)
+		jal	__panic_at_abi_return
+#else
+		j	.
+#endif
+	.endm

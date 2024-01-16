@@ -32,6 +32,11 @@ basis (R:).
 
 ----------
 
+AOSP build
+R:	Tadd Kao <tadd.kao@mediatek.com> [@taddk]
+S:	Maintained
+F:	mk/aosp_optee.mk
+
 ARM Foundation FVP
 R:	Jens Wiklander <jens.wiklander@linaro.org> [@jenswi-linaro]
 S:	Maintained
@@ -43,7 +48,7 @@ S:	Maintained
 F:	core/arch/arm/plat-vexpress/
 
 ARM Corstone1000
-R:	Vishnu Banavath <vishnu.banavath@arm.com> [@vishnu-banavath]
+R:	Emekcan.Aras@arm.com <emekcan.aras@arm.com> [@ememarar]
 S:	Maintained
 F:	core/arch/arm/plat-corstone1000/
 
@@ -142,7 +147,7 @@ R:	Jerome Forissier <jerome.forissier@linaro.org> [@jforissier]
 S:	Maintained
 F:	core/arch/arm/plat-hisilicon
 
-Marvell Armada 70x0, Armada 80x0, Armada 3700, OcteonTX2 CN96XX, OcteonTX2 CFN95XX, OcteonTX2 CN98XX
+Marvell Armada 70x0, Armada 80x0, Armada 3700, OcteonTX2 CN96XX, OcteonTX2 CFN95XX, OcteonTX2 CN98XX, CN10K
 R:	Tao Lu <taolu@marvell.com> [@taovcu]
 S:	Maintained
 F:	core/arch/arm/plat-marvell/
@@ -174,13 +179,22 @@ F:	core/drivers/ls_dspi.c
 
 NXP (Freescale) i.MX family
 R:	Peng Fan <peng.fan@nxp.com> [@MrVan]
-R:	Cedric Neveux <cedric.neveux@nxp.com> [@cneveux]
 R:	Silvano Di Ninno <silvano.dininno@nxp.com> [@sdininno]
 R:	Clement Faure <clement.faure@nxp.com> [@clementfaure]
 S:	Maintained
 F:	core/arch/arm/plat-imx/
 F:	core/arch/arm/plat-imx/registers
 F:	core/drivers/crypto/caam/
+F:	core/drivers/imx/
+F:	core/drivers/imx_csu.c
+F:	core/drivers/imx_ele.c
+F:	core/drivers/imx_lpuart.c
+F:	core/drivers/imx_ocotp.c
+F:	core/drivers/imx_sc_api.c
+F:	core/drivers/imx_scu.c
+F:	core/drivers/imx_snvs.c
+F:	core/drivers/imx_uart.c
+F:	core/drivers/imx_wdog.c
 
 Clock driver framework
 R:	Clement Leger <clement.leger@bootlin.com> [@clementleger]
@@ -258,13 +272,24 @@ R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm/
 
+STMicroelectronics drivers
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+S:	Maintained
+F:	core/drivers/stm32_*
+
 STMicroelectronics stm32mp1
 R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
 S:	Maintained
 F:	core/arch/arm/plat-stm32mp1/
-F:	core/drivers/stm32_*
 F:	core/drivers/stm32mp15_huk.c
 F:	core/drivers/stpmic1.c
+
+STMicroelectronics stm32mp2
+R:	Etienne Carriere <etienne.carriere@foss.st.com> [@etienne-lms]
+R:	Gatien Chevallier <gatien.chevallier@foss.st.com> [@GseoC]
+S:	Maintained
+F:	core/arch/arm/plat-stm32mp2/*
 
 Texas Instruments AM43xx, AM57xx, DRA7xx, AM65x, J721E, J784S4, AM64x, AM62x
 R:	Andrew Davis <afd@ti.com> [@glneo]
@@ -298,6 +323,15 @@ R:	Chia-Wei Wang <chiawei_wang@aspeedtech.com> [@ChiaweiW]
 R:	Neal Liu <neal_liu@aspeedtech.com> [@Neal-liu]
 S:	Maintained
 F:	core/arch/arm/plat-aspeed/
+
+RISC-V
+R:	Marouene Boubakri <marouene.boubakri@nxp.com> [@maroueneboubakri]
+S:	Maintained
+F:	core/arch/riscv/
+F:	lib/libutee/arch/riscv/
+F:	lib/libutils/ext/arch/riscv/
+F:	lib/libutils/isoc/arch/riscv/
+F:	ta/arch/riscv/
 
 THE REST
 M:	Joakim Bech <joakim.bech@linaro.org> [@jbech-linaro]

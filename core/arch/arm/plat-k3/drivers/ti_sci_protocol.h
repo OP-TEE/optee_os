@@ -27,6 +27,12 @@
 #define TI_SCI_MSG_WRITE_OTP_ROW         0x9023
 #define TI_SCI_MSG_LOCK_OTP_ROW          0x9024
 
+/* OTP Revision Read/Write Message Description */
+#define TI_SCI_MSG_WRITE_SWREV           0x9032
+#define TI_SCI_MSG_READ_SWREV            0x9033
+#define TI_SCI_MSG_READ_KEYCNT_KEYREV    0x9034
+#define TI_SCI_MSG_WRITE_KEYREV          0x9035
+
 /**
  * struct ti_sci_secure_msg_hdr - Secure Message Header for All messages
  *				 and responses
@@ -379,4 +385,68 @@ struct ti_sci_msg_resp_lock_otp_row {
 	struct ti_sci_msg_hdr hdr;
 } __packed;
 
+/**
+ * \brief OTP Revision Identifiers
+ */
+enum tisci_otp_revision_identifier {
+	/** Software Revision SBL */
+	OTP_REV_ID_SBL        = 0,
+	/** Software Revision SYSFW */
+	OTP_REV_ID_SYSFW      = 1,
+	/** Software Revision Secure Board Configuration */
+	OTP_REV_ID_SEC_BRDCFG = 2,
+};
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Request for reading the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @identifier: One of the entries from enum tisci_otp_revision_identifier
+ *		(Current support only for OTP_REV_ID_SEC_BRDCFG)
+ *
+ * Request for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_req_get_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint8_t identifier;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Response for reading the Software Revision
+ * in OTP
+ * @hdr:	Generic header
+ * @swrev:	Decoded Sofrware Revision value from efuses
+ *
+ * Response for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_resp_get_swrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t swrev;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_keycnt_keyrev - Request for reading the Key Count
+ * and Key Revision in OTP
+ * @hdr:	Generic header
+ *
+ * Request for TI_SCI_MSG_READ_KEYCNT_KEYREV
+ */
+struct ti_sci_msq_req_get_keycnt_keyrev {
+	struct ti_sci_msg_hdr hdr;
+} __packed;
+
+/**
+ * struct ti_sci_msq_req_get_swrev - Response for reading the Key Count and Key
+ * Revision in OTP
+ * @hdr:	Generic header
+ * @keycnt:	Key Count integer value
+ * @keyrev:	Key Revision integer value
+ *
+ * Response for TI_SCI_MSG_READ_SWREV
+ */
+struct ti_sci_msq_resp_get_keycnt_keyrev {
+	struct ti_sci_msg_hdr hdr;
+	uint32_t keycnt;
+	uint32_t keyrev;
+} __packed;
 #endif

@@ -184,7 +184,7 @@ static void __maybe_unused smccc_trng_print_info(void)
 	thread_smccc(&args);
 	assert(args.a0 != ARM_SMCCC_RET_TRNG_NOT_SUPPORTED);
 
-	DMSG("SMCCC TRNG v%u.%u, UUID %08lx-%04lx-%04lx-%04lx-%04lx%08lx\n",
+	DMSG("SMCCC TRNG v%u.%u, UUID %08lx-%04lx-%04lx-%04lx-%04lx%08lx",
 	     major, minor, (unsigned long)args.a0, (unsigned long)args.a1 >> 16,
 	     (unsigned long)args.a1 & GENMASK_32(16, 0),
 	     (unsigned long)args.a2 >> 16,

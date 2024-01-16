@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef CORE_MMU_H
-#define CORE_MMU_H
+#ifndef __MM_CORE_MMU_H
+#define __MM_CORE_MMU_H
 
 #ifndef __ASSEMBLER__
 #include <assert.h>
@@ -73,9 +73,12 @@
  * MEM_AREA_NEX_NSEC_SHM: nexus non-secure shared RAM between NSec and TEE.
  * MEM_AREA_RAM_NSEC: NonSecure RAM storing data
  * MEM_AREA_RAM_SEC:  Secure RAM storing some secrets
+ * MEM_AREA_ROM_SEC:  Secure read only memory storing some secrets
  * MEM_AREA_IO_NSEC:  NonSecure HW mapped registers
  * MEM_AREA_IO_SEC:   Secure HW mapped registers
  * MEM_AREA_EXT_DT:   Memory loads external device tree
+ * MEM_AREA_MANIFEST_DT: Memory loads manifest device tree
+ * MEM_AREA_TRANSFER_LIST: Memory area mapped for Transfer List
  * MEM_AREA_RES_VASPACE: Reserved virtual memory space
  * MEM_AREA_SHM_VASPACE: Virtual memory space for dynamic shared memory buffers
  * MEM_AREA_TS_VASPACE: TS va space, only used with phys_to_virt()
@@ -101,9 +104,12 @@ enum teecore_memtypes {
 	MEM_AREA_NEX_NSEC_SHM,
 	MEM_AREA_RAM_NSEC,
 	MEM_AREA_RAM_SEC,
+	MEM_AREA_ROM_SEC,
 	MEM_AREA_IO_NSEC,
 	MEM_AREA_IO_SEC,
 	MEM_AREA_EXT_DT,
+	MEM_AREA_MANIFEST_DT,
+	MEM_AREA_TRANSFER_LIST,
 	MEM_AREA_RES_VASPACE,
 	MEM_AREA_SHM_VASPACE,
 	MEM_AREA_TS_VASPACE,
@@ -134,9 +140,12 @@ static inline const char *teecore_memtype_name(enum teecore_memtypes type)
 		[MEM_AREA_NEX_NSEC_SHM] = "NEX_NSEC_SHM",
 		[MEM_AREA_RAM_NSEC] = "RAM_NSEC",
 		[MEM_AREA_RAM_SEC] = "RAM_SEC",
+		[MEM_AREA_ROM_SEC] = "ROM_SEC",
 		[MEM_AREA_IO_NSEC] = "IO_NSEC",
 		[MEM_AREA_IO_SEC] = "IO_SEC",
 		[MEM_AREA_EXT_DT] = "EXT_DT",
+		[MEM_AREA_MANIFEST_DT] = "MANIFEST_DT",
+		[MEM_AREA_TRANSFER_LIST] = "TRANSFER_LIST",
 		[MEM_AREA_RES_VASPACE] = "RES_VASPACE",
 		[MEM_AREA_SHM_VASPACE] = "SHM_VASPACE",
 		[MEM_AREA_TS_VASPACE] = "TS_VASPACE",
@@ -655,7 +664,6 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
 	return core_mmu_check_max_pa(end_pa);
 }
 
-#ifdef CFG_CORE_PHYS_RELOCATABLE
 /*
  * core_mmu_set_secure_memory() - set physical secure memory range
  * @base: base address of secure memory
@@ -666,7 +674,6 @@ static inline bool core_mmu_check_end_pa(paddr_t pa, size_t len)
  * the translation tables can be initialized and the MMU enabled.
  */
 void core_mmu_set_secure_memory(paddr_t base, size_t size);
-#endif
 
 /*
  * core_mmu_get_secure_memory() - get physical secure memory range
@@ -688,4 +695,4 @@ void core_mmu_get_ta_range(paddr_t *base, size_t *size);
 
 #endif /*__ASSEMBLER__*/
 
-#endif /* CORE_MMU_H */
+#endif /* __MM_CORE_MMU_H */

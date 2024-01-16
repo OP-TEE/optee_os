@@ -86,14 +86,14 @@ static uint8_t caam_era;
  */
 static void do_free_keypair(struct rsa_keypair *key)
 {
-	crypto_bignum_free(key->e);
-	crypto_bignum_free(key->d);
-	crypto_bignum_free(key->n);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
-	crypto_bignum_free(key->qp);
-	crypto_bignum_free(key->dp);
-	crypto_bignum_free(key->dq);
+	crypto_bignum_free(&key->e);
+	crypto_bignum_free(&key->d);
+	crypto_bignum_free(&key->n);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->q);
+	crypto_bignum_free(&key->qp);
+	crypto_bignum_free(&key->dp);
+	crypto_bignum_free(&key->dq);
 }
 
 /*
@@ -435,8 +435,8 @@ static TEE_Result do_allocate_publickey(struct rsa_public_key *key,
 err_alloc_publickey:
 	RSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->e);
-	crypto_bignum_free(key->n);
+	crypto_bignum_free(&key->e);
+	crypto_bignum_free(&key->n);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -448,8 +448,8 @@ err_alloc_publickey:
  */
 static void do_free_publickey(struct rsa_public_key *key)
 {
-	crypto_bignum_free(key->e);
-	crypto_bignum_free(key->n);
+	crypto_bignum_free(&key->e);
+	crypto_bignum_free(&key->n);
 }
 
 /*

@@ -68,6 +68,14 @@ $(call force, CFG_JR_INDEX,3)
 $(call force, CFG_JR_INT,486)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 caam-crypto-drivers += RSA DSA ECC DH MATH
+else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8dxl-flavorlist)))
+$(call force, CFG_CAAM_SIZE_ALIGN,4)
+$(call force, CFG_JR_BLOCK_SIZE,0x10000)
+$(call force, CFG_JR_INDEX,3)
+$(call force, CFG_JR_INT,356)
+$(call force, CFG_NXP_CAAM_SGT_V1,y)
+$(call force, CFG_CAAM_JR_DISABLE_NODE,n)
+caam-crypto-drivers += RSA DSA ECC DH MATH
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mm-flavorlist) $(mx8mn-flavorlist) \
 	$(mx8mp-flavorlist) $(mx8mq-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
@@ -75,7 +83,12 @@ $(call force, CFG_JR_INDEX,2)
 $(call force, CFG_JR_INT,146)
 $(call force, CFG_NXP_CAAM_SGT_V1,y)
 $(call force, CFG_JR_HAB_INDEX,0)
-caam-drivers += MP
+# There is a limitation on i.MX8M platforms regarding ECDSA Sign/Verify
+# Size of Class 2 Context register is 40bytes, because of which sign/verify
+# of a hash of more than 40bytes fails. So a workaround is implemented for
+# this issue, controlled by CFG_NXP_CAAM_C2_CTX_REG_WA flag.
+$(call force, CFG_NXP_CAAM_C2_CTX_REG_WA,y)
+caam-drivers += MP DEK
 caam-crypto-drivers += RSA DSA ECC DH MATH
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8ulp-flavorlist)))
 $(call force, CFG_JR_BLOCK_SIZE,0x1000)
@@ -135,9 +148,14 @@ CFG_CAAM_JR_DISABLE_NODE ?= y
 # Enable CAAM non-crypto drivers
 $(foreach drv, $(caam-drivers), $(eval CFG_NXP_CAAM_$(drv)_DRV ?= y))
 
-# Disable software RNG if CAAM RNG driver is enabled
+# Prefer CAAM HWRNG over PRNG seeded by CAAM
 ifeq ($(CFG_NXP_CAAM_RNG_DRV), y)
-$(call force, CFG_WITH_SOFTWARE_PRNG,n,Mandated by CFG_NXP_CAAM_RNG_DRV)
+CFG_WITH_SOFTWARE_PRNG ?= n
+endif
+
+# DEK driver requires the SM driver to be enabled
+ifeq ($(CFG_NXP_CAAM_DEK_DRV), y)
+$(call force, CFG_NXP_CAAM_SM_DRV,y,Mandated by CFG_NXP_CAAM_DEK_DRV)
 endif
 
 ifeq ($(CFG_CRYPTO_DRIVER), y)

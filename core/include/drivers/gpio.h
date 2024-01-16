@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  */
 
-#ifndef DRIVERS_GPIO_H
-#define DRIVERS_GPIO_H
+#ifndef __DRIVERS_GPIO_H
+#define __DRIVERS_GPIO_H
 
 #include <assert.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -219,4 +219,4 @@ static inline TEE_Result gpio_register_provider(const void *fdt, int nodeoffset,
 					   data, DT_DRIVER_GPIO);
 }
 
-#endif	/* DRIVERS_GPIO_H */
+#endif	/* __DRIVERS_GPIO_H */

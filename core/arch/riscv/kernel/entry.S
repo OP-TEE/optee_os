@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright (c) 2023 Andes Technology Corporation
  * Copyright 2022-2023 NXP
  */
 
@@ -11,6 +12,9 @@
 #include <platform_config.h>
 #include <riscv.h>
 #include <riscv_macros.S>
+#include <tee/optee_abi.h>
+#include <tee/teeabi_opteed.h>
+#include <tee/teeabi_opteed_macros.h>
 
 .section .data
 .balign 4
@@ -123,6 +127,14 @@
 .endm
 
 FUNC _start , :
+	/*
+	 * Register usage:
+	 * a0	- if non-NULL holds the hart ID
+	 * a1	- if non-NULL holds the system DTB address
+	 *
+	 * CSR_XSCRATCH - saved a0
+	 * s1 - saved a1
+	 */
 .option push
 .option norelax
 	la	gp, __global_pointer$
@@ -131,6 +143,11 @@ FUNC _start , :
 	csrr	a0, CSR_MHARTID
 #endif
 	csrw	CSR_XSCRATCH, a0
+#if defined(CFG_DT_ADDR)
+	li	s1, CFG_DT_ADDR
+#else
+	mv	s1, a1		/* Save device tree address into s1 */
+#endif
 	bnez	a0, reset_secondary
 	jal	reset_primary
 	j	.
@@ -188,6 +205,8 @@ UNWIND(	.cantunwind)
 	mv	s3, a0
 	STR	x0, THREAD_CORE_LOCAL_FLAGS(s3)
 
+	mv	a0, s1		/* s1 contains saved device tree address */
+	mv	a1, x0		/* unused */
 	jal	boot_init_primary_late
 
 	/*
@@ -203,7 +222,10 @@ UNWIND(	.cantunwind)
 	wait_secondary
 
 	jal	thread_clr_boot_thread
-	j	mu_service
+
+	li	a0, TEEABI_OPTEED_RETURN_ENTRY_DONE
+	la	a1, thread_vector_table
+	j	thread_return_to_ree
 END_FUNC reset_primary
 
 LOCAL_FUNC reset_secondary , : , .identity_map

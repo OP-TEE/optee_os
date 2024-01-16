@@ -3,8 +3,8 @@
  * Copyright 2019 Broadcom.
  */
 
-#ifndef BCM_SOTP_H
-#define BCM_SOTP_H
+#ifndef __DRIVERS_BCM_SOTP_H
+#define __DRIVERS_BCM_SOTP_H
 
 #include <stdint.h>
 #include <tee_api.h>

@@ -22,7 +22,7 @@ static TEE_Result secstor_ta_open(const TEE_UUID *uuid,
 	prop = tee_tadb_ta_get_property(ta);
 
 	l = prop->custom_size;
-	res = tee_tadb_ta_read(ta, NULL, &l);
+	res = tee_tadb_ta_read(ta, NULL, NULL, &l);
 	if (res)
 		goto err;
 	if (l != prop->custom_size) {
@@ -55,12 +55,12 @@ static TEE_Result secstor_ta_get_tag(const struct ts_store_handle *h,
 	return tee_tadb_get_tag((struct tee_tadb_ta_read *)h, tag, tag_len);
 }
 
-static TEE_Result secstor_ta_read(struct ts_store_handle *h, void *data,
-				  size_t len)
+static TEE_Result secstor_ta_read(struct ts_store_handle *h, void *data_core,
+				  void *data_user, size_t len)
 {
 	struct tee_tadb_ta_read *ta = (struct tee_tadb_ta_read *)h;
 	size_t l = len;
-	TEE_Result res = tee_tadb_ta_read(ta, data, &l);
+	TEE_Result res = tee_tadb_ta_read(ta, data_core, data_user, &l);
 
 	if (res)
 		return res;

@@ -132,12 +132,12 @@ void plat_primary_init_early(void)
 		io_write32(GIC_DIST_BASE + GIC_DIST_ISR1 + i, 0xFFFFFFFF);
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_CPU_BASE, GIC_DIST_BASE);
 }
 
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }

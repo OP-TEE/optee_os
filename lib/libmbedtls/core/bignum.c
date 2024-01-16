@@ -87,10 +87,13 @@ struct bignum *crypto_bignum_allocate(size_t size_bits)
 	return (struct bignum *)bn;
 }
 
-void crypto_bignum_free(struct bignum *s)
+void crypto_bignum_free(struct bignum **s)
 {
-	mbedtls_mpi_free((mbedtls_mpi *)s);
-	free(s);
+	assert(s);
+
+	mbedtls_mpi_free((mbedtls_mpi *)*s);
+	free(*s);
+	*s = NULL;
 }
 
 void crypto_bignum_clear(struct bignum *s)

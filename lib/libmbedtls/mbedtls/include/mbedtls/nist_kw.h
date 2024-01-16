@@ -34,12 +34,9 @@
 
 #ifndef MBEDTLS_NIST_KW_H
 #define MBEDTLS_NIST_KW_H
+#include "mbedtls/private_access.h"
 
-#if !defined(MBEDTLS_CONFIG_FILE)
-#include "mbedtls/config.h"
-#else
-#include MBEDTLS_CONFIG_FILE
-#endif
+#include "mbedtls/build_info.h"
 
 #include "mbedtls/cipher.h"
 
@@ -47,8 +44,7 @@
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     MBEDTLS_KW_MODE_KW = 0,
     MBEDTLS_KW_MODE_KWP = 1
 } mbedtls_nist_kw_mode_t;
@@ -65,7 +61,7 @@ typedef enum
  *           Don't make any assumptions on this context!
  */
 typedef struct {
-    mbedtls_cipher_context_t cipher_ctx;    /*!< The cipher context used. */
+    mbedtls_cipher_context_t MBEDTLS_PRIVATE(cipher_ctx);    /*!< The cipher context used. */
 } mbedtls_nist_kw_context;
 
 #else  /* MBEDTLS_NIST_key wrapping_ALT */
@@ -80,7 +76,7 @@ typedef struct {
  * \param ctx       The key wrapping context to initialize.
  *
  */
-void mbedtls_nist_kw_init( mbedtls_nist_kw_context *ctx );
+void mbedtls_nist_kw_init(mbedtls_nist_kw_context *ctx);
 
 /**
  * \brief           This function initializes the key wrapping context set in the
@@ -98,11 +94,11 @@ void mbedtls_nist_kw_init( mbedtls_nist_kw_context *ctx );
  *                  which are not supported.
  * \return          cipher-specific error code on failure of the underlying cipher.
  */
-int mbedtls_nist_kw_setkey( mbedtls_nist_kw_context *ctx,
-                            mbedtls_cipher_id_t cipher,
-                            const unsigned char *key,
-                            unsigned int keybits,
-                            const int is_wrap );
+int mbedtls_nist_kw_setkey(mbedtls_nist_kw_context *ctx,
+                           mbedtls_cipher_id_t cipher,
+                           const unsigned char *key,
+                           unsigned int keybits,
+                           const int is_wrap);
 
 /**
  * \brief   This function releases and clears the specified key wrapping context
@@ -110,7 +106,7 @@ int mbedtls_nist_kw_setkey( mbedtls_nist_kw_context *ctx,
  *
  * \param ctx       The key wrapping context to clear.
  */
-void mbedtls_nist_kw_free( mbedtls_nist_kw_context *ctx );
+void mbedtls_nist_kw_free(mbedtls_nist_kw_context *ctx);
 
 /**
  * \brief           This function encrypts a buffer using key wrapping.
@@ -133,9 +129,9 @@ void mbedtls_nist_kw_free( mbedtls_nist_kw_context *ctx );
  * \return          \c MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA for invalid input length.
  * \return          cipher-specific error code on failure of the underlying cipher.
  */
-int mbedtls_nist_kw_wrap( mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t mode,
-                          const unsigned char *input, size_t in_len,
-                          unsigned char *output, size_t* out_len, size_t out_size );
+int mbedtls_nist_kw_wrap(mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t mode,
+                         const unsigned char *input, size_t in_len,
+                         unsigned char *output, size_t *out_len, size_t out_size);
 
 /**
  * \brief           This function decrypts a buffer using key wrapping.
@@ -160,9 +156,9 @@ int mbedtls_nist_kw_wrap( mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t m
  * \return          \c MBEDTLS_ERR_CIPHER_AUTH_FAILED for verification failure of the ciphertext.
  * \return          cipher-specific error code on failure of the underlying cipher.
  */
-int mbedtls_nist_kw_unwrap( mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t mode,
-                            const unsigned char *input, size_t in_len,
-                            unsigned char *output, size_t* out_len, size_t out_size);
+int mbedtls_nist_kw_unwrap(mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t mode,
+                           const unsigned char *input, size_t in_len,
+                           unsigned char *output, size_t *out_len, size_t out_size);
 
 
 #if defined(MBEDTLS_SELF_TEST) && defined(MBEDTLS_AES_C)
@@ -172,7 +168,7 @@ int mbedtls_nist_kw_unwrap( mbedtls_nist_kw_context *ctx, mbedtls_nist_kw_mode_t
  * \return         \c 0 on success.
  * \return         \c 1 on failure.
  */
-int mbedtls_nist_kw_self_test( int verbose );
+int mbedtls_nist_kw_self_test(int verbose);
 #endif /* MBEDTLS_SELF_TEST && MBEDTLS_AES_C */
 
 #ifdef __cplusplus

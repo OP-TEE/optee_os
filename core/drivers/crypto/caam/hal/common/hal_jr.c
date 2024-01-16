@@ -50,7 +50,7 @@ enum caam_status caam_hal_jr_reset(vaddr_t baseaddr)
 	} while ((reg_val == JRINTR_HALT_ONGOING) && --timeout);
 
 	if (!timeout || reg_val != JRINTR_HALT_DONE) {
-		EMSG("Failed to flush job ring\n");
+		EMSG("Failed to flush job ring");
 		return CAAM_FAILURE;
 	}
 
@@ -63,7 +63,7 @@ enum caam_status caam_hal_jr_reset(vaddr_t baseaddr)
 	} while ((reg_val & JRX_JRCR_RESET) && --timeout);
 
 	if (!timeout) {
-		EMSG("Failed to reset job ring\n");
+		EMSG("Failed to reset job ring");
 		return CAAM_FAILURE;
 	}
 

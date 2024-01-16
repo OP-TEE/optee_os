@@ -10,6 +10,9 @@ CFG_PKCS11_TA_HEAP_SIZE ?= (32 * 1024)
 # Defines the number of PKCS11 token implemented by the PKCS11 TA
 CFG_PKCS11_TA_TOKEN_COUNT ?= 3
 
+# When enabled, embed support for object checksum value computation
+CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE ?= y
+
 global-incdirs-y += include
 global-incdirs-y += src
 subdirs-y += src

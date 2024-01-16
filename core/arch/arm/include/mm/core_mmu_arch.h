@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef __CORE_MMU_ARCH_H
-#define __CORE_MMU_ARCH_H
+#ifndef __MM_CORE_MMU_ARCH_H
+#define __MM_CORE_MMU_ARCH_H
 
 #ifndef __ASSEMBLER__
 #include <arm.h>
@@ -175,10 +175,14 @@ static inline TEE_Result cache_op_outer(enum cache_op op __unused,
 /* Do section mapping, not support on LPAE */
 void map_memarea_sections(const struct tee_mmap_region *mm, uint32_t *ttb);
 
+#if defined(ARM64)
+unsigned int core_mmu_arm64_get_pa_width(void);
+#endif
+
 static inline bool core_mmu_check_max_pa(paddr_t pa __maybe_unused)
 {
 #if defined(ARM64)
-	return pa <= (BIT64(CFG_CORE_ARM64_PA_BITS) - 1);
+	return pa <= (BIT64(core_mmu_arm64_get_pa_width()) - 1);
 #elif defined(CFG_CORE_LARGE_PHYS_ADDR)
 	return pa <= (BIT64(40) - 1);
 #else
@@ -223,4 +227,4 @@ static inline bool core_mmu_level_in_range(unsigned int level)
 
 #endif /*__ASSEMBLER__*/
 
-#endif /* CORE_MMU_H */
+#endif /* __MM_CORE_MMU_ARCH_H */

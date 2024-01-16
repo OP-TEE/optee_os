@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef KERNEL_MISC_H
-#define KERNEL_MISC_H
+#ifndef __KERNEL_MISC_H
+#define __KERNEL_MISC_H
 
 #include <assert.h>
 #include <kernel/misc_arch.h>
@@ -23,4 +23,4 @@ static inline size_t __noprof get_core_pos(void)
 	return __get_core_pos();
 }
 
-#endif /*KERNEL_MISC_H*/
+#endif /*__KERNEL_MISC_H*/

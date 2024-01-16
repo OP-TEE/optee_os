@@ -40,12 +40,17 @@ struct ts_store_ops {
 	 * unless an error occurs. Therefore, an implementation may rely on the
 	 * condition (current offset == total size) to detect the last call to
 	 * this function.
-	 * @data: pointer to secure memory where the TS bytes should be copied.
-	 * If @data == NULL and @len != 0, the function should just skip @len
-	 * bytes.
+	 * @data_core: pointer to secure memory where the TS bytes should be
+	 *             copied.
+	 * @data_user: pointer to user memory where the TS bytes should be
+	 *             copied.
+	 * At least one of @data_core and @data_user are normally NULL, but
+	 * both are also permitted to be non-NULL.
+	 * If @data_core == NULL and @data_user == NULL and @len != 0, the
+	 * function should just skip @len bytes.
 	 */
-	TEE_Result (*read)(struct ts_store_handle *h, void *data,
-			   size_t len);
+	TEE_Result (*read)(struct ts_store_handle *h, void *data_core,
+			   void *data_user, size_t len);
 	/*
 	 * Close a TS handle. Do nothing if @h == NULL.
 	 */

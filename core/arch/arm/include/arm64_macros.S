@@ -116,6 +116,24 @@
 		movk    \_reg, :abs_g0_nc:\_val
 	.endm
 
+	.macro add_imm _reg, _val
+	.if ((\_val) > 0xfff)
+		add	\_reg, \_reg, ((\_val) >> 12), LSL #12
+	.endif
+	.if (((\_val) & 0xfff) > 0)
+		add	\_reg, \_reg, ((\_val) & 0xfff)
+	.endif
+	.endm
+
+	.macro sub_imm _reg, _val
+	.if ((\_val) > 0xfff)
+		sub	\_reg, \_reg, ((\_val) >> 12), LSL #12
+	.endif
+	.if (((\_val) & 0xfff) > 0)
+		sub	\_reg, \_reg, ((\_val) & 0xfff)
+	.endif
+	.endm
+
 	/*
 	 * Load address of <sym> into <reg>, <sym> being in the range
 	 * +/- 4GB of the PC (note that 'adr reg, sym' is limited to +/- 1MB).
@@ -147,4 +165,19 @@
 
 	.macro write_apiakeyhi reg
 	msr	S3_0_c2_c1_1, \reg
+	.endm
+
+	.macro write_pan reg
+	/* msr pan, \reg */
+	msr	S3_0_c4_c2_3, \reg
+	.endm
+
+	.macro write_pan_enable
+	/* msr pan, #1 */
+	msr	S0_0_c4_c1_4, xzr
+	.endm
+
+	.macro write_pan_disable
+	/* msr pan, #0 */
+	msr	S0_0_c4_c0_4, xzr
 	.endm

@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2023
+ */
+/dts-v1/;
+
+#include "stm32mp157c-ed1.dts"
+
+/ {
+	model = "STMicroelectronics STM32MP157C SCMI eval daughter";
+	compatible = "st,stm32mp157c-ed1-scmi", "st,stm32mp157";
+};
+
+&iwdg1 {
+	timeout-sec = <32>;
+};
+
+&iwdg2 {
+	timeout-sec = <32>;
+	status = "okay";
+	secure-status = "disabled";
+};
+
+&rcc {
+	compatible = "st,stm32mp1-rcc-secure";
+	status = "okay";
+};

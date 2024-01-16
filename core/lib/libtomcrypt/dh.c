@@ -28,10 +28,10 @@ TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->g);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->y);
-	crypto_bignum_free(s->x);
+	crypto_bignum_free(&s->g);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->y);
+	crypto_bignum_free(&s->x);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 

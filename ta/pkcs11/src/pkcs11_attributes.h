@@ -7,8 +7,12 @@
 #define PKCS11_TA_PKCS11_ATTRIBUTES_H
 
 #include <inttypes.h>
+#include <pkcs11_ta.h>
 
 #include "serializer.h"
+
+/* The key check value (KCV) attribute for objects is 3 bytes */
+#define PKCS11_CKA_CHECK_VALUE_SIZE	U(3)
 
 struct obj_attrs;
 struct pkcs11_object;
@@ -162,6 +166,12 @@ check_mechanism_against_processing(struct pkcs11_session *session,
 				   enum processing_func function,
 				   enum processing_step step);
 
+static inline bool attribute_is_hidden(struct pkcs11_attribute_head *req_attr)
+{
+	return (req_attr->id & PKCS11_CKA_OPTEE_FLAGS_HIDDEN) ==
+		PKCS11_CKA_OPTEE_FLAGS_HIDDEN;
+}
+
 bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 			     struct pkcs11_object *obj);
 
@@ -207,5 +217,11 @@ enum pkcs11_rc alloc_key_data_to_wrap(struct obj_attrs *head, void **data,
  */
 enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,
 					struct obj_attrs **priv_head);
+/*
+ * Check an object's check value (Checksum)
+ * @head: Object attribute where to find KCV to be checked
+ * Return a pkcs11_rv compliant value
+ */
+enum pkcs11_rc set_check_value_attr(struct obj_attrs **head);
 
 #endif /*PKCS11_TA_PKCS11_ATTRIBUTES_H*/

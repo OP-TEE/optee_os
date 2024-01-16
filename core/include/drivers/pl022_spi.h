@@ -4,8 +4,8 @@
  *
  */
 
-#ifndef __PL022_SPI_H__
-#define __PL022_SPI_H__
+#ifndef __DRIVERS_PL022_SPI_H
+#define __DRIVERS_PL022_SPI_H
 
 #include <drivers/gpio.h>
 #include <spi.h>
@@ -42,5 +42,5 @@ struct pl022_data {
 
 void pl022_init(struct pl022_data *pd);
 
-#endif	/* __PL022_SPI_H__ */
+#endif	/* __DRIVERS_PL022_SPI_H */
 

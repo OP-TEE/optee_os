@@ -329,6 +329,7 @@
  * ECC Protocol Information
  */
 #define PROT_PK_MSG(type)	SHIFT_U32(PROT_PK_MSG_##type, 10)
+#define PROT_PK_MSG_MES_REP	0
 #define PROT_PK_MSG_HASHED	2
 #define PROT_PK_TYPE(type)	SHIFT_U32(PROT_PK_##type, 1)
 #define PROT_PK_DL		0
@@ -340,6 +341,7 @@
 #define PROT_BLOB_FMT_MSTR		BIT32(1)
 #define PROT_BLOB_TYPE(type)		SHIFT_U32(1, PROT_BLOB_TYPE_##type)
 #define PROT_BLOB_TYPE_BLACK_KEY	2
+#define PROT_BLOB_SEC_MEM		BIT32(3)
 #define PROT_BLOB_EKT			8
 #define PROT_BLOB_INFO(aes)		SHIFT_U32(PROT_BLOB_AES_##aes, \
 						PROT_BLOB_EKT)

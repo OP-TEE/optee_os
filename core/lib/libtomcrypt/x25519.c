@@ -16,7 +16,7 @@
 /* X25519 key is an octet string of 32 bytes */
 #define X25519_KEY_SIZE_BYTES UL(32)
 
-TEE_Result crypto_acipher_alloc_x25519_keypair(struct x25519_keypair *key,
+TEE_Result crypto_acipher_alloc_x25519_keypair(struct montgomery_keypair *key,
 					       size_t key_size)
 {
 	size_t key_size_bytes = key_size / 8;
@@ -41,7 +41,7 @@ TEE_Result crypto_acipher_alloc_x25519_keypair(struct x25519_keypair *key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_gen_x25519_key(struct x25519_keypair *key,
+TEE_Result crypto_acipher_gen_x25519_key(struct montgomery_keypair *key,
 					 size_t key_size)
 {
 	curve25519_key ltc_tmp_key = { };
@@ -65,7 +65,7 @@ TEE_Result crypto_acipher_gen_x25519_key(struct x25519_keypair *key,
 	return TEE_SUCCESS;
 }
 
-TEE_Result crypto_acipher_x25519_shared_secret(struct x25519_keypair
+TEE_Result crypto_acipher_x25519_shared_secret(struct montgomery_keypair
 					       *private_key,
 					       void *public_key,
 					       void *secret,

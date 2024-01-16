@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
- * Copyright (c) 2017-2019, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
-#ifndef __STM32_I2C_H
-#define __STM32_I2C_H
+#ifndef __DRIVERS_STM32_I2C_H
+#define __DRIVERS_STM32_I2C_H
 
 #include <drivers/clk.h>
-#include <drivers/stm32_gpio.h>
+#include <drivers/i2c.h>
+#include <drivers/pinctrl.h>
 #include <kernel/dt.h>
+#include <kernel/dt_driver.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -27,8 +29,7 @@
 #define I2C_FAST_PLUS_RATE	U(1000000)
 
 /*
- * Initialization configuration structure for the STM32 I2C bus.
- * Refer to the SoC Reference Manual for more details on configuration items.
+ * struct stm32_i2c_init_s - STM32 I2C configuration data
  *
  * @dt_status: non-secure/secure status read from DT
  * @pbase: I2C interface base address
@@ -67,8 +68,8 @@ struct stm32_i2c_init_s {
 };
 
 enum i2c_state_e {
-	I2C_STATE_RESET,		/* Not yet initialized */
-	I2C_STATE_READY,		/* Ready for use */
+	I2C_STATE_RESET,	/* Not yet initialized */
+	I2C_STATE_READY,	/* Ready for use */
 	I2C_STATE_BUSY,		/* Internal process ongoing */
 	I2C_STATE_BUSY_TX,	/* Data Transmission ongoing */
 	I2C_STATE_BUSY_RX,	/* Data Reception ongoing */
@@ -77,7 +78,7 @@ enum i2c_state_e {
 
 enum i2c_mode_e {
 	I2C_MODE_NONE,		/* No active communication */
-	I2C_MODE_MASTER,		/* Communication in Master Mode */
+	I2C_MODE_MASTER,	/* Communication in Master Mode */
 	I2C_MODE_SLAVE,		/* Communication in Slave Mode */
 	I2C_MODE_MEM,		/* Communication in Memory Mode */
 };
@@ -111,8 +112,8 @@ struct i2c_cfg {
  * @saved_timing: Saved timing value if already computed
  * @saved_frequency: Saved frequency value if already computed
  * @sec_cfg: I2C registers configuration storage
- * @pinctrl: PINCTRLs configuration for the I2C PINs
- * @pinctrl_count: Number of PINCTRLs elements
+ * @pinctrl: Pin control configuration for the I2C bus in active state
+ * @pinctrl_sleep: Pin control configuration for the I2C bus in standby state
  */
 struct i2c_handle_s {
 	struct io_pa_va base;
@@ -124,8 +125,20 @@ struct i2c_handle_s {
 	uint32_t saved_timing;
 	unsigned long saved_frequency;
 	struct i2c_cfg sec_cfg;
-	struct stm32_pinctrl *pinctrl;
-	size_t pinctrl_count;
+	struct pinctrl_state *pinctrl;
+	struct pinctrl_state *pinctrl_sleep;
+};
+
+/*
+ * struct stm32_i2c_dev - Bus consumer device over an STM32 I2C bus
+ * @i2c_dev: I2C consumer instance
+ * @i2c_ctrl: I2C bus control operation
+ * @handle: Handle on a single STM32 I2C bus interface
+ */
+struct stm32_i2c_dev {
+	struct i2c_dev i2c_dev;
+	struct i2c_ctrl i2c_ctrl;
+	struct i2c_handle_s *handle;
 };
 
 /* STM32 specific defines */
@@ -141,14 +154,14 @@ struct i2c_handle_s {
  * @fdt: Reference to DT
  * @node: Target I2C node in the DT
  * @init: Output stm32_i2c_init_s structure
- * @pinctrl: Reference to output pinctrl array
- * @pinctrl_count: Input @pinctrl array size, output expected size upon success
+ * @pinctrl_active: Output active I2C pinctrl state
+ * @pinctrl_sleep: Output suspended I2C pinctrl state
  * Return a TEE_Result compliant value
  */
 TEE_Result stm32_i2c_get_setup_from_fdt(void *fdt, int node,
 					struct stm32_i2c_init_s *init,
-					struct stm32_pinctrl **pinctrl,
-					size_t *pinctrl_count);
+					struct pinctrl_state **pinctrl_active,
+					struct pinctrl_state **pinctrl_sleep);
 
 /*
  * Initialize I2C bus handle from input configuration directives
@@ -265,4 +278,4 @@ static inline bool i2c_is_secure(struct i2c_handle_s *hi2c)
 	return hi2c->dt_status == DT_STATUS_OK_SEC;
 }
 
-#endif /* __STM32_I2C_H */
+#endif /* __DRIVERS_STM32_I2C_H*/

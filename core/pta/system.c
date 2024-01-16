@@ -15,6 +15,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/tpm.h>
 #include <kernel/ts_store.h>
+#include <kernel/user_access.h>
 #include <kernel/user_mode_ctx.h>
 #include <ldelf.h>
 #include <mm/file.h>
@@ -37,6 +38,8 @@ static TEE_Result system_rng_reseed(uint32_t param_types,
 {
 	size_t entropy_sz = 0;
 	uint8_t *entropy_input = NULL;
+	void *seed_bbuf = NULL;
+	TEE_Result res = TEE_SUCCESS;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_NONE,
 					  TEE_PARAM_TYPE_NONE,
@@ -50,8 +53,15 @@ static TEE_Result system_rng_reseed(uint32_t param_types,
 	if (!entropy_sz || !entropy_input)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	res = bb_memdup_user(entropy_input, entropy_sz, &seed_bbuf);
+	if (res)
+		return res;
+
 	crypto_rng_add_event(CRYPTO_RNG_SRC_NONSECURE, &system_pnum,
-			     entropy_input, entropy_sz);
+			     seed_bbuf, entropy_sz);
+
+	bb_free(seed_bbuf, entropy_sz);
+
 	return TEE_SUCCESS;
 }
 
@@ -63,6 +73,7 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *data = NULL;
 	uint32_t access_flags = 0;
+	void *subkey_bbuf = NULL;
 	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
 					  TEE_PARAM_TYPE_MEMREF_OUTPUT,
 					  TEE_PARAM_TYPE_NONE,
@@ -96,21 +107,35 @@ static TEE_Result system_derive_ta_unique_key(struct user_mode_ctx *uctx,
 	if (ADD_OVERFLOW(data_len, params[0].memref.size, &data_len))
 		return TEE_ERROR_SECURITY;
 
-	data = calloc(data_len, 1);
+	data = bb_alloc(data_len);
 	if (!data)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	memcpy(data, &uctx->ts_ctx->uuid, sizeof(TEE_UUID));
 
 	/* Append the user provided data */
-	memcpy(data + sizeof(TEE_UUID), params[0].memref.buffer,
-	       params[0].memref.size);
+	res = copy_from_user(data + sizeof(TEE_UUID), params[0].memref.buffer,
+			     params[0].memref.size);
+	if (res)
+		goto out;
+
+	subkey_bbuf = bb_alloc(params[1].memref.size);
+	if (!subkey_bbuf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
 
 	res = huk_subkey_derive(HUK_SUBKEY_UNIQUE_TA, data, data_len,
-				params[1].memref.buffer,
-				params[1].memref.size);
-	free_wipe(data);
+				subkey_bbuf, params[1].memref.size);
+	if (res)
+		goto out;
 
+	res = copy_to_user(params[1].memref.buffer, subkey_bbuf,
+			   params[1].memref.size);
+
+out:
+	bb_free_wipe(subkey_bbuf, params[1].memref.size);
+	bb_free_wipe(data, data_len);
 	return res;
 }
 
@@ -211,20 +236,23 @@ static TEE_Result system_dlopen(struct user_mode_ctx *uctx,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	TEE_UUID *uuid = NULL;
+	TEE_UUID uuid = { };
 	uint32_t flags = 0;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	uuid = params[0].memref.buffer;
-	if (!uuid || params[0].memref.size != sizeof(*uuid))
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
 
 	flags = params[1].value.a;
 
 	s = ts_pop_current_session();
-	res = ldelf_dlopen(uctx, uuid, flags);
+	res = ldelf_dlopen(uctx, &uuid, flags);
 	ts_push_current_session(s);
 
 	return res;
@@ -239,25 +267,30 @@ static TEE_Result system_dlsym(struct user_mode_ctx *uctx, uint32_t param_types,
 					  TEE_PARAM_TYPE_NONE);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct ts_session *s = NULL;
-	const char *sym = NULL;
-	TEE_UUID *uuid = NULL;
-	size_t maxlen = 0;
+	char *sym = NULL;
+	TEE_UUID uuid = { };
+	size_t symlen = 0;
 	vaddr_t va = 0;
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	uuid = params[0].memref.buffer;
-	if (!uuid || params[0].memref.size != sizeof(*uuid))
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	sym = params[1].memref.buffer;
-	if (!sym)
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
+
+	if (!params[1].memref.buffer)
 		return TEE_ERROR_BAD_PARAMETERS;
-	maxlen = params[1].memref.size;
+	res = bb_strndup_user(params[1].memref.buffer, params[1].memref.size,
+			      &sym, &symlen);
+	if (res)
+		return res;
 
 	s = ts_pop_current_session();
-	res = ldelf_dlsym(uctx, uuid, sym, maxlen, &va);
+	res = ldelf_dlsym(uctx, &uuid, sym, symlen, &va);
 	ts_push_current_session(s);
 
 	if (!res)
@@ -295,13 +328,22 @@ static TEE_Result system_supp_plugin_invoke(uint32_t param_types,
 					  TEE_PARAM_TYPE_VALUE_OUTPUT);
 	TEE_Result res = TEE_ERROR_GENERIC;
 	size_t outlen = 0;
+	TEE_UUID uuid = { };
 
 	if (exp_pt != param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	res = tee_invoke_supp_plugin_rpc(params[0].memref.buffer, /* uuid */
+	if (!params[0].memref.buffer || params[0].memref.size != sizeof(uuid))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = copy_from_user(&uuid, params[0].memref.buffer, sizeof(uuid));
+	if (res)
+		return res;
+
+	res = tee_invoke_supp_plugin_rpc(&uuid,
 					 params[1].value.a, /* cmd */
 					 params[1].value.b, /* sub_cmd */
+					 NULL,
 					 params[2].memref.buffer, /* data */
 					 params[2].memref.size, /* in len */
 					 &outlen);

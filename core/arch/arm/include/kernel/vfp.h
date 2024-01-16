@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  */
 
-#ifndef KERNEL_VFP_H
-#define KERNEL_VFP_H
+#ifndef __KERNEL_VFP_H
+#define __KERNEL_VFP_H
 
 #include <types_ext.h>
 #include <compiler.h>
@@ -103,4 +103,4 @@ void vfp_lazy_save_state_final(struct vfp_state *state, bool force_save);
  */
 void vfp_lazy_restore_state(struct vfp_state *state, bool full_state);
 
-#endif /*KERNEL_VFP_H*/
+#endif /*__KERNEL_VFP_H*/

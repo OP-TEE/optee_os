@@ -71,7 +71,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, CORE_MMU_PGDIR_SIZE);
 #endif
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	paddr_t gicd_base = 0;
 	paddr_t gicc_base = 0;

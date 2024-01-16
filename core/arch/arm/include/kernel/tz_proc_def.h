@@ -3,6 +3,9 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
+#ifndef __KERNEL_TZ_PROC_DEF_H
+#define __KERNEL_TZ_PROC_DEF_H
+
 #include <stdint.h>
 
 /*
@@ -89,3 +92,5 @@
 #define LINE_FIELD_OVERFLOW      U(13)
 /* start of way number field offset in way/index format */
 #define WAY_FIELD_OFFSET         U(30)
+
+#endif /*__KERNEL_TZ_PROC_DEF_H*/

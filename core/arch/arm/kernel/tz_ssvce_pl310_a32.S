@@ -222,3 +222,14 @@ FUNC arm_cl2_cleaninvbypa , :
 	b	_arm_cl2_xxxbypa
 END_FUNC arm_cl2_cleaninvbypa
 
+/*
+ * __weak vaddr_t pl310_nsbase(void);
+ * return the non-secure PL310 base address
+ *
+ * Weak implementation to preserve the previous behavior where only the
+ * secure PL310 base address was returned. Up to the platform to map
+ * and return non-secure PL310 base address.
+ */
+WEAK_FUNC pl310_nsbase , :
+	b	pl310_base
+END_FUNC pl310_nsbase

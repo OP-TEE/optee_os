@@ -25,20 +25,6 @@
 #include "stm32_cryp.h"
 #include "common.h"
 
-#define INT8_BIT			8U
-#define AES_BLOCK_SIZE_BIT		128U
-#define AES_BLOCK_SIZE			(AES_BLOCK_SIZE_BIT / INT8_BIT)
-#define AES_BLOCK_NB_U32		(AES_BLOCK_SIZE / sizeof(uint32_t))
-#define DES_BLOCK_SIZE_BIT		64U
-#define DES_BLOCK_SIZE			(DES_BLOCK_SIZE_BIT / INT8_BIT)
-#define DES_BLOCK_NB_U32		(DES_BLOCK_SIZE / sizeof(uint32_t))
-#define MAX_BLOCK_SIZE_BIT		AES_BLOCK_SIZE_BIT
-#define MAX_BLOCK_SIZE			AES_BLOCK_SIZE
-#define MAX_BLOCK_NB_U32		AES_BLOCK_NB_U32
-#define AES_KEYSIZE_128			16U
-#define AES_KEYSIZE_192			24U
-#define AES_KEYSIZE_256			32U
-
 /* CRYP control register */
 #define _CRYP_CR			0x0U
 /* CRYP status register */
@@ -168,8 +154,8 @@
 #define _CRYP_VERR_OFF			0U
 
 /*
- * Macro to manage bit manipulation when we work on local variable
- * before writing only once to the real register.
+ * Macro to manage bit manipulation when we work on a local variable
+ * before writing only once to the hardware register.
  */
 #define CLRBITS(v, bits)		((v) &= ~(bits))
 #define SETBITS(v, bits)		((v) |= (bits))
@@ -184,9 +170,6 @@
 
 #define GET_ALGOMODE(cr) \
 	(((cr) & _CRYP_CR_ALGOMODE_MSK) >> _CRYP_CR_ALGOMODE_OFF)
-
-#define TOBE32(x)			TEE_U32_BSWAP(x)
-#define FROMBE32(x)			TEE_U32_BSWAP(x)
 
 static struct stm32_cryp_platdata cryp_pdata;
 static struct mutex cryp_lock = MUTEX_INITIALIZER;
@@ -712,9 +695,9 @@ TEE_Result stm32_cryp_init(struct stm32_cryp_context *ctx, bool is_dec,
 	/*
 	 * We will use HW Byte swap (_CRYP_CR_DATATYPE_BYTE) for data.
 	 * So we won't need to
-	 * TOBE32(data) before write to DIN
+	 * TEE_U32_TO_BIG_ENDIAN(data) before write to DIN register
 	 * nor
-	 * FROMBE32 after reading from DOUT.
+	 * TEE_U32_FROM_BIG_ENDIAN after reading from DOUT register.
 	 */
 	clrsetbits(&ctx->cr, _CRYP_CR_DATATYPE_MSK,
 		   _CRYP_CR_DATATYPE_BYTE << _CRYP_CR_DATATYPE_OFF);
@@ -751,7 +734,7 @@ TEE_Result stm32_cryp_init(struct stm32_cryp_context *ctx, bool is_dec,
 	/* Save key in HW order */
 	ctx->key_size = key_size;
 	for (i = 0; i < key_size / sizeof(uint32_t); i++)
-		ctx->key[i] = TOBE32(key_u32[i]);
+		ctx->key[i] = TEE_U32_TO_BIG_ENDIAN(key_u32[i]);
 
 	/* Save IV */
 	if (algo_mode_needs_iv(ctx->cr)) {
@@ -763,7 +746,7 @@ TEE_Result stm32_cryp_init(struct stm32_cryp_context *ctx, bool is_dec,
 		 * IV registers
 		 */
 		for (i = 0; i < ctx->block_u32; i++)
-			ctx->iv[i] = TOBE32(iv_u32[i]);
+			ctx->iv[i] = TEE_U32_TO_BIG_ENDIAN(iv_u32[i]);
 	}
 
 	/* Reset suspend registers */
@@ -1296,7 +1279,7 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 	}
 
 	if (IS_ENABLED(CFG_CRYPTO_DRV_CIPHER)) {
-		res = stm32_register_cipher();
+		res = stm32_register_cipher(CRYP_IP);
 		if (res) {
 			EMSG("Failed to register to cipher: %#"PRIx32, res);
 			panic();

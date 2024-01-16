@@ -195,10 +195,10 @@ static TEE_Result do_allocate_keypair(struct dh_keypair *key, size_t size_bits)
 err:
 	DH_TRACE("Allocation error");
 
-	crypto_bignum_free(key->g);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->x);
-	crypto_bignum_free(key->y);
+	crypto_bignum_free(&key->g);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->x);
+	crypto_bignum_free(&key->y);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }

@@ -35,6 +35,13 @@ endif
 
 CFG_MAX_CACHE_LINE_SHIFT ?= 6
 
+# CFG_WITH_LPAE is ARM-related flag, however, it is used by core code.
+# In order to maintain the code logic, we set it when CFG_CORE_LARGE_PHYS_ADDR is set.
+# Platform configuration should accordingly set CFG_CORE_LARGE_PHYS_ADDR or not.
+ifeq ($(CFG_CORE_LARGE_PHYS_ADDR),y)
+$(call force,CFG_WITH_LPAE,y)
+endif
+
 CFG_RISCV_SBI	 ?= n
 CFG_RISCV_M_MODE ?= y
 ifeq ($(CFG_RISCV_M_MODE),y)
@@ -161,6 +168,7 @@ ta_rv32-platform-cflags += $(platform-cflags-debug-info)
 ta_rv32-platform-cflags += -fpic
 
 ifeq ($(CFG_UNWIND),y)
+ta_rv32-platform-cflags += -fno-omit-frame-pointer
 ta_rv32-platform-cflags += -funwind-tables
 endif
 ta_rv32-platform-aflags += $(platform-aflags-generic)
@@ -196,6 +204,9 @@ ta_rv64-platform-cflags += $(platform-cflags-optimization)
 ta_rv64-platform-cflags += $(platform-cflags-debug-info)
 ta_rv64-platform-cflags += -fpic
 ta_rv64-platform-cflags += $(rv64-platform-cflags-generic)
+ifeq ($(CFG_UNWIND),y)
+ta_rv64-platform-cflags += -fno-omit-frame-pointer
+endif
 ifeq ($(rv64-platform-hard-float-enabled),y)
 ta_rv64-platform-cflags += $(rv64-platform-cflags-hard-float)
 else

@@ -41,6 +41,7 @@
 #include <initcall.h>
 #include <kernel/thread.h>
 #include <kernel/ts_store.h>
+#include <kernel/user_access.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
 #include <mm/tee_mm.h>
@@ -110,17 +111,18 @@ static TEE_Result check_update_version(const char *db_name,
 		goto out;
 
 	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, 0, &fh);
+		res = ops->create(&pobj, false, NULL, 0, NULL, 0, NULL, NULL,
+				   0, &fh);
 		if (res != TEE_SUCCESS)
 			goto out;
 
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
 		if (res != TEE_SUCCESS)
 			goto out;
 	} else {
 		len = sizeof(db_hdr);
 
-		res = ops->read(fh, 0, &db_hdr, &len);
+		res = ops->read(fh, 0, &db_hdr, NULL, &len);
 		if (res != TEE_SUCCESS) {
 			goto out;
 		} else if (len != sizeof(db_hdr)) {
@@ -133,7 +135,7 @@ static TEE_Result check_update_version(const char *db_name,
 		len = sizeof(db_entry);
 
 		res = ops->read(fh, sizeof(db_hdr) + (i * len), &db_entry,
-				&len);
+				NULL, &len);
 		if (res != TEE_SUCCESS) {
 			goto out;
 		} else if (len != sizeof(db_entry)) {
@@ -156,7 +158,7 @@ static TEE_Result check_update_version(const char *db_name,
 			db_entry.version = version;
 			len = sizeof(db_entry);
 			res = ops->write(fh, sizeof(db_hdr) + (i * len),
-					 &db_entry, len);
+					 &db_entry, NULL, len);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -165,12 +167,12 @@ static TEE_Result check_update_version(const char *db_name,
 		db_entry.version = version;
 		len = sizeof(db_entry);
 		res = ops->write(fh, sizeof(db_hdr) + (db_hdr.nb_entries * len),
-				 &db_entry, len);
+				 &db_entry, NULL, len);
 		if (res != TEE_SUCCESS)
 			goto out;
 
 		db_hdr.nb_entries++;
-		res = ops->write(fh, 0, &db_hdr, sizeof(db_hdr));
+		res = ops->write(fh, 0, &db_hdr, NULL, sizeof(db_hdr));
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
@@ -541,64 +543,68 @@ out:
 	return res;
 }
 
-static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
-				 size_t len)
+static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data_core,
+				 void *data_user, size_t len)
 {
 	struct ree_fs_ta_handle *handle = (struct ree_fs_ta_handle *)h;
-
 	uint8_t *src = (uint8_t *)handle->nw_ta + handle->offs;
+	size_t bb_len = MIN(1024U, len);
 	size_t next_offs = 0;
-	uint8_t *dst = src;
 	TEE_Result res = TEE_SUCCESS;
+	size_t num_bytes = 0;
+	size_t dst_len = 0;
+	void *dst = NULL;
+	void *bb = NULL;
+
 
 	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
 	    next_offs > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
-		if (data) {
-			dst = data; /* Hash secure buffer */
-			res = tee_ta_decrypt_update(handle->enc_ctx, dst, src,
-						    len);
-			if (res != TEE_SUCCESS)
-				return TEE_ERROR_SECURITY;
-		} else {
-			size_t num_bytes = 0;
-			size_t b_size = MIN(1024U, len);
-			uint8_t *b = malloc(b_size);
-
-			if (!b)
-				return TEE_ERROR_OUT_OF_MEMORY;
-
-			dst = NULL;
-			while (num_bytes < len) {
-				size_t n = MIN(b_size, len - num_bytes);
-
-				res = tee_ta_decrypt_update(handle->enc_ctx, b,
-							    src + num_bytes, n);
-				if (res)
-					break;
-				num_bytes += n;
-
-				res = crypto_hash_update(handle->hash_ctx, b,
-							 n);
-				if (res)
-					break;
-			}
-
-			free(b);
-			if (res != TEE_SUCCESS)
-				return TEE_ERROR_SECURITY;
-		}
-	} else if (data) {
-		dst = data; /* Hash secure buffer (shm might be modified) */
-		memcpy(dst, src, len);
+	if (data_core) {
+		dst = data_core;
+		dst_len = len;
+	} else {
+		bb = bb_alloc(bb_len);
+		if (!bb)
+			return TEE_ERROR_OUT_OF_MEMORY;
+		dst = bb;
+		dst_len = bb_len;
 	}
 
-	if (dst) {
-		res = crypto_hash_update(handle->hash_ctx, dst, len);
-		if (res != TEE_SUCCESS)
-			return TEE_ERROR_SECURITY;
+	/*
+	 * This loop will only run once if data_core is non-NULL, but as
+	 * many times as needed if the bounce buffer bb is used. That's why
+	 * dst doesn't need to be updated in the loop.
+	 */
+	while (num_bytes < len) {
+		size_t n = MIN(dst_len, len - num_bytes);
+
+		if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
+			res = tee_ta_decrypt_update(handle->enc_ctx, dst,
+						    src + num_bytes, n);
+			if (res) {
+				res = TEE_ERROR_SECURITY;
+				goto out;
+			}
+		} else {
+			memcpy(dst, src + num_bytes, n);
+		}
+
+		res = crypto_hash_update(handle->hash_ctx, dst, n);
+		if (res) {
+			res = TEE_ERROR_SECURITY;
+			goto out;
+		}
+		if (data_user) {
+			res = copy_to_user((uint8_t *)data_user + num_bytes,
+					   dst, n);
+			if (res) {
+				res = TEE_ERROR_SECURITY;
+				goto out;
+			}
+		}
+		num_bytes += n;
 	}
 
 	handle->offs = next_offs;
@@ -610,8 +616,10 @@ static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 			 */
 			res = tee_ta_decrypt_final(handle->enc_ctx,
 						   handle->ehdr, NULL, NULL, 0);
-			if (res != TEE_SUCCESS)
-				return TEE_ERROR_SECURITY;
+			if (res != TEE_SUCCESS) {
+				res = TEE_ERROR_SECURITY;
+				goto out;
+			}
 		}
 		/*
 		 * Last read: time to check if our digest matches the expected
@@ -619,13 +627,15 @@ static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 		 */
 		res = check_digest(handle);
 		if (res != TEE_SUCCESS)
-			return res;
+			goto out;
 
 		if (handle->bs_hdr)
 			res = check_update_version(ta_ver_db,
 						   handle->bs_hdr->uuid,
 						   handle->bs_hdr->ta_version);
 	}
+out:
+	bb_free(bb, bb_len);
 	return res;
 }
 
@@ -723,7 +733,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	}
 
 	FTMN_PUSH_LINKED_CALL(&ftmn, FTMN_FUNC_HASH("check_digest"));
-	res = ree_fs_ta_read(handle->h, handle->buf, handle->ta_size);
+	res = ree_fs_ta_read(handle->h, handle->buf, NULL, handle->ta_size);
 	if (!res)
 		FTMN_SET_CHECK_RES_FROM_CALL(&ftmn, FTMN_INCR0, res);
 	FTMN_POP_LINKED_CALL(&ftmn);
@@ -753,19 +763,25 @@ static TEE_Result buf_ta_get_size(const struct ts_store_handle *h,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result buf_ta_read(struct ts_store_handle *h, void *data,
-			      size_t len)
+static TEE_Result buf_ta_read(struct ts_store_handle *h, void *data_core,
+			      void *data_user, size_t len)
 {
 	struct buf_ree_fs_ta_handle *handle = (struct buf_ree_fs_ta_handle *)h;
 	uint8_t *src = handle->buf + handle->offs;
+	TEE_Result res = TEE_SUCCESS;
 	size_t next_offs = 0;
 
 	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
 	    next_offs > handle->ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (data)
-		memcpy(data, src, len);
+	if (data_core)
+		memcpy(data_core, src, len);
+	if (data_user) {
+		res = copy_to_user(data_user, src, len);
+		if (res)
+			return res;
+	}
 	handle->offs = next_offs;
 	return TEE_SUCCESS;
 }

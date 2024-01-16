@@ -11,8 +11,10 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/interrupt.h>
 #include <kernel/pm.h>
 #include <matrix.h>
+#include <mm/core_mmu.h>
 #include <sama5d2.h>
 #include <tee_api_types.h>
 
@@ -229,7 +231,8 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 	uint32_t irq_type = 0;
 	uint32_t irq_prio = 0;
 	int it = DT_INFO_INVALID_INTERRUPT;
-	struct itr_handler *it_hdlr;
+	struct itr_handler *it_hdlr = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (fdt_get_status(fdt, node) != DT_STATUS_OK_SEC)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -244,28 +247,37 @@ static TEE_Result wdt_node_probe(const void *fdt, int node,
 
 	it = dt_get_irq_type_prio(fdt, node, &irq_type, &irq_prio);
 	if (it == DT_INFO_INVALID_INTERRUPT)
-		goto err_free_wdt;
+		goto err_free;
 
-	it_hdlr = itr_alloc_add_type_prio(it, &atmel_wdt_itr_cb, 0, wdt,
-					  irq_type, irq_prio);
-	if (!it_hdlr)
-		goto err_free_wdt;
+	res = interrupt_alloc_add_conf_handler(interrupt_get_main_chip(),
+					       it, atmel_wdt_itr_cb, 0, wdt,
+					       irq_type, irq_prio, &it_hdlr);
+	if (res)
+		goto err_free;
 
 	if (dt_map_dev(fdt, node, &wdt->base, &size, DT_MAP_AUTO) < 0)
-		goto err_free_itr_handler;
+		goto err_remove_handler;
 
 	/* Get current state of the watchdog */
 	wdt->mr = io_read32(wdt->base + WDT_MR) & WDT_MR_WDDIS;
 
 	atmel_wdt_init_hw(wdt);
-	itr_enable(it);
+	interrupt_enable(it_hdlr->chip, it_hdlr->it);
+
+	res = watchdog_register(&wdt->chip);
+	if (res)
+		goto err_disable_unmap;
+
 	atmel_wdt_register_pm(wdt);
 
-	return watchdog_register(&wdt->chip);
+	return TEE_SUCCESS;
 
-err_free_itr_handler:
-	itr_free(it_hdlr);
-err_free_wdt:
+err_disable_unmap:
+	interrupt_disable(it_hdlr->chip, it_hdlr->it);
+	core_mmu_remove_mapping(MEM_AREA_IO_SEC, (void *)wdt->base, size);
+err_remove_handler:
+	interrupt_remove_free_handler(it_hdlr);
+err_free:
 	free(wdt);
 
 	return TEE_ERROR_GENERIC;

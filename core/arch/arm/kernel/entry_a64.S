@@ -51,6 +51,11 @@
 		ubfx	\reg, \reg, #ID_AA64PFR1_EL1_MTE_SHIFT, #4
 	.endm
 
+	.macro read_feat_pan reg
+		mrs	\reg, id_mmfr3_el1
+		ubfx	\reg, \reg, #ID_MMFR3_EL1_PAN_SHIFT, #4
+	.endm
+
 	.macro set_sctlr_el1
 		mrs	x0, sctlr_el1
 		orr	x0, x0, #SCTLR_I
@@ -143,35 +148,34 @@
 		isb
 	.endm
 
+	.macro init_pan
+		read_feat_pan x0
+		cmp	x0, #0
+		b.eq	1f
+		mrs	x0, sctlr_el1
+		bic	x0, x0, #SCTLR_SPAN
+		msr	sctlr_el1, x0
+		write_pan_enable
+	1:
+	.endm
+
 FUNC _start , :
 	/*
-	 * Register use:
-	 * x0	- CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=n:
-	 *	  if non-NULL holds the TOS FW config [1] address
-	 *	- CFG_CORE_FFA=y && CFG_CORE_SEL2_SPMC=y:
-	 *	  address of FF-A Boot Information Blob
-	 *	- CFG_CORE_FFA=n:
-	 *	  if non-NULL holds the pagable part address
-	 * x2	- CFG_CORE_SEL2_SPMC=n:
-	 *	  if non-NULL holds the system DTB address
-	 *
-	 * x19 - saved x0
-	 * x20 - saved x2
-	 *
-	 * [1] A TF-A concept: TOS_FW_CONFIG - Trusted OS Firmware
-	 * configuration file. Used by Trusted OS (BL32), that is, OP-TEE
-	 * here.
+	 * Temporary copy of boot argument registers, will be passed to
+	 * boot_save_args() further down.
 	 */
 	mov	x19, x0
-#if defined(CFG_DT_ADDR)
-	ldr     x20, =CFG_DT_ADDR
-#else
-	mov	x20, x2		/* Save DT address */
-#endif
+	mov	x20, x1
+	mov	x21, x2
+	mov	x22, x3
 
 	adr	x0, reset_vect_table
 	msr	vbar_el1, x0
 	isb
+
+#ifdef CFG_PAN
+	init_pan
+#endif
 
 	set_sctlr_el1
 	isb
@@ -292,10 +296,12 @@ clear_nex_bss:
 	/* Enable Console */
 	bl	console_init
 
-#if defined(CFG_CORE_SEL2_SPMC) && defined(CFG_CORE_PHYS_RELOCATABLE)
-	mov	x0, x19		/* boot info */
-	bl	boot_save_boot_info
-#endif
+	mov	x0, x19
+	mov	x1, x20
+	mov	x2, x21
+	mov	x3, x22
+	mov	x4, xzr
+	bl	boot_save_args
 
 #ifdef CFG_MEMTAG
 	/*
@@ -307,7 +313,6 @@ clear_nex_bss:
 #endif
 
 #ifdef CFG_CORE_ASLR
-	mov	x0, x20		/* DT address */
 	bl	get_aslr_seed
 #else
 	mov	x0, #0
@@ -356,12 +361,6 @@ clear_nex_bss:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
-#ifdef CFG_CORE_SEL1_SPMC
-	mov	x0, xzr		/* pager not used */
-#else
-	mov	x0, x19		/* pagable part address */
-#endif
-	mov	x1, #-1
 	bl	boot_init_primary_early
 
 #ifdef CFG_MEMTAG
@@ -369,19 +368,13 @@ clear_nex_bss:
 #endif
 
 #ifndef CFG_NS_VIRTUALIZATION
-	mov	x21, sp
+	mov	x23, sp
 	adr_l	x0, threads
 	ldr	x0, [x0, #THREAD_CTX_STACK_VA_END]
 	mov	sp, x0
 	bl	thread_get_core_local
-	mov	x22, x0
-	str	wzr, [x22, #THREAD_CORE_LOCAL_FLAGS]
-#endif
-	mov	x0, x20		/* DT address also known as HW_CONFIG */
-#ifdef CFG_CORE_SEL1_SPMC
-	mov	x1, x19		/* TOS_FW_CONFIG DT address */
-#else
-	mov	x1, xzr		/* unused */
+	mov	x24, x0
+	str	wzr, [x24, #THREAD_CORE_LOCAL_FLAGS]
 #endif
 	bl	boot_init_primary_late
 #ifdef CFG_CORE_PAUTH
@@ -390,15 +383,21 @@ clear_nex_bss:
 
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	x0, #THREAD_CLF_TMP
-	str     w0, [x22, #THREAD_CORE_LOCAL_FLAGS]
-	mov	sp, x21
+	str     w0, [x24, #THREAD_CORE_LOCAL_FLAGS]
+	mov	sp, x23
 #endif
 
 #ifdef _CFG_CORE_STACK_PROTECTOR
 	/* Update stack canary value */
-	bl	plat_get_random_stack_canary
+	sub	sp, sp, #0x10
+	mov	x0, sp
+	mov	x1, #1
+	mov	x2, #0x8
+	bl	plat_get_random_stack_canaries
+	ldr	x0, [sp]
 	adr_l	x5, __stack_chk_guard
 	str	x0, [x5]
+	add	sp, sp, #0x10
 #endif
 
 	/*
@@ -598,6 +597,10 @@ FUNC cpu_on_handler , :
 
 	set_sctlr_el1
 	isb
+
+#ifdef CFG_PAN
+	init_pan
+#endif
 
 	/* Enable aborts now that we can receive exceptions */
 	msr	daifclr, #DAIFBIT_ABT

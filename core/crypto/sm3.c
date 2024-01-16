@@ -50,6 +50,20 @@ void sm3_init(struct sm3_context *ctx)
 	ctx->state[7] = 0xB0FB0E4E;
 }
 
+#define SHL(x, n)	((x) << (n))
+
+static uint32_t rotl(uint32_t val, int shift)
+{
+	shift &= 0x1F;
+
+	if (shift == 0)
+		return val;
+
+	return SHL(val, shift) | (val >> (32 - shift));
+}
+
+#define ROTL(x, n)	rotl((x), (n))
+
 static void __maybe_unused sm3_process(struct sm3_context *ctx,
 				       const uint8_t data[64])
 {
@@ -86,9 +100,6 @@ static void __maybe_unused sm3_process(struct sm3_context *ctx,
 
 #define GG0(x, y, z)	((x) ^ (y) ^ (z))
 #define GG1(x, y, z)	(((x) & (y)) | ((~(x)) & (z)))
-
-#define SHL(x, n)	((x) << (n))
-#define ROTL(x, n)	(SHL((x), (n) & 0x1F) | ((x) >> (32 - ((n) & 0x1F))))
 
 #define P0(x)	((x) ^ ROTL((x), 9) ^ ROTL((x), 17))
 #define P1(x)	((x) ^ ROTL((x), 15) ^ ROTL((x), 23))

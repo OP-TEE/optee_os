@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) STMicroelectronics 2021-2022 - All Rights Reserved
+ * Copyright (C) STMicroelectronics 2021-2023 - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
@@ -8,6 +8,7 @@
 
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
@@ -80,6 +81,18 @@
 		reg = <0xf0 0x4>;
 		st,non-secure-otp;
 	};
+};
+
+&gpiob {
+	st,protreg = <TZPROT(9)>;
+};
+
+&gpiod {
+	st,protreg = <TZPROT(7)>;
+};
+
+&gpioe {
+	st,protreg = <TZPROT(15)>;
 };
 
 &i2c4 {
@@ -444,6 +457,14 @@
 
 &saes {
 	status = "okay";
+};
+
+&sdmmc1_io {
+	vddsd1-supply = <&vdd>;
+};
+
+&sdmmc2_io {
+	vddsd2-supply = <&vdd>;
 };
 
 &uart4 {

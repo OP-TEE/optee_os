@@ -351,13 +351,13 @@ static TEE_Result get_open_session_meta(size_t num_params,
 
 static void entry_open_session(struct optee_msg_arg *arg, uint32_t num_params)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	TEE_ErrorOrigin err_orig = TEE_ORIGIN_TEE;
 	struct tee_ta_session *s = NULL;
-	TEE_Identity clnt_id;
-	TEE_UUID uuid;
-	struct tee_ta_param param;
-	size_t num_meta;
+	TEE_Identity clnt_id = { };
+	TEE_UUID uuid = { };
+	struct tee_ta_param param = { };
+	size_t num_meta = 0;
 	uint64_t saved_attr[TEE_NUM_PARAMS] = { 0 };
 
 	res = get_open_session_meta(num_params, arg->params, &num_meta, &uuid,

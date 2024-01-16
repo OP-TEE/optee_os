@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2021-2022, Arm Limited
+ * Copyright (c) 2021-2024, Arm Limited
  */
 #include <assert.h>
 #include <bench.h>
@@ -27,7 +27,13 @@ void spmc_sp_start_thread(struct thread_smc_args *args)
 static void ffa_set_error(struct thread_smc_args *args, uint32_t error)
 {
 	args->a0 = FFA_ERROR;
+	args->a1 = FFA_PARAM_MBZ;
 	args->a2 = error;
+	args->a3 = FFA_PARAM_MBZ;
+	args->a4 = FFA_PARAM_MBZ;
+	args->a5 = FFA_PARAM_MBZ;
+	args->a6 = FFA_PARAM_MBZ;
+	args->a7 = FFA_PARAM_MBZ;
 }
 
 static void ffa_success(struct thread_smc_args *args)
@@ -134,8 +140,6 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 	uint32_t frag_len = args->a2;
 	uint64_t global_handle = 0;
 	int res = FFA_OK;
-	uint32_t ret_w2 = 0;
-	uint32_t ret_w3 = 0;
 
 	cpu_spin_lock(&rxtx->spinlock);
 
@@ -151,9 +155,8 @@ static void spmc_sp_handle_mem_share(struct thread_smc_args *args,
 		res = spmc_sp_add_share(&mem_trans, rxtx, tot_len,
 					&global_handle, owner_sp);
 	if (!res) {
-		reg_pair_from_64(global_handle, &ret_w3, &ret_w2);
-		args->a3 = ret_w3;
-		args->a2 = ret_w2;
+		args->a3 = high32_from_64(global_handle);
+		args->a2 = low32_from_64(global_handle);
 		args->a1 = FFA_PARAM_MBZ;
 		args->a0 = FFA_SUCCESS_32;
 	} else {
@@ -497,6 +500,8 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	if (ffa_vers <= FFA_VERSION_1_0) {
 		struct ffa_mem_transaction_1_0 *d_ds = dst_buffer;
 
+		memset(d_ds, 0, sizeof(*d_ds));
+
 		off = sizeof(*d_ds);
 		mem_acc = d_ds->mem_access_array;
 
@@ -508,6 +513,8 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 		d_ds->mem_access_count = 1;
 	} else {
 		struct ffa_mem_transaction_1_1 *d_ds = dst_buffer;
+
+		memset(d_ds, 0, sizeof(*d_ds));
 
 		off = sizeof(*d_ds);
 		mem_acc = (void *)(d_ds + 1);
@@ -530,6 +537,7 @@ static void create_retrieve_response(uint32_t ffa_vers, void *dst_buffer,
 	       sizeof(struct ffa_mem_access_perm));
 
 	/* Copy the mem_region_descr */
+	memset(dst_region, 0, sizeof(*dst_region));
 	dst_region->address_range_count = 0;
 	dst_region->total_page_count = 0;
 
@@ -765,7 +773,6 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 {
 	uint64_t handle = reg_pair_to_64(args->a2, args->a1);
 	uint32_t flags = args->a3;
-	uint32_t endpoint = 0;
 	struct sp_mem *smem = NULL;
 	struct sp_mem_receiver *receiver  = NULL;
 	uint32_t exceptions = 0;
@@ -774,12 +781,12 @@ bool ffa_mem_reclaim(struct thread_smc_args *args,
 	if (!smem)
 		return false;
 
-	if (caller_sp)
-		endpoint = caller_sp->endpoint_id;
-
-	/* Make sure that the caller is the owner of the share */
-	if (smem->sender_id != endpoint) {
-		ffa_set_error(args, FFA_DENIED);
+	/*
+	 * If the caller is an SP, make sure that it is the owner of the share.
+	 * If the call comes from NWd this is ensured by the hypervisor.
+	 */
+	if (caller_sp && caller_sp->endpoint_id != smem->sender_id) {
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return true;
 	}
 
@@ -825,7 +832,7 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 
 	if (args->a2 != FFA_PARAM_MBZ) {
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
-		return NULL;
+		return caller_sp;
 	}
 
 	res = ffa_get_dst(args, caller_sp, &dst);
@@ -837,7 +844,13 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 	if (!dst) {
 		EMSG("Request to normal world not supported");
 		ffa_set_error(args, FFA_NOT_SUPPORTED);
-		return NULL;
+		return caller_sp;
+	}
+
+	if (dst == caller_sp) {
+		EMSG("Cannot send message to own ID");
+		ffa_set_error(args, FFA_INVALID_PARAMETERS);
+		return caller_sp;
 	}
 
 	cpu_spin_lock(&dst->spinlock);
@@ -889,7 +902,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_args *args,
 		return caller_sp;
 	}
 
-	if (caller_sp->state != sp_busy) {
+	if (dst && dst->state != sp_busy) {
 		EMSG("SP is not waiting for a request");
 		ffa_set_error(args, FFA_INVALID_PARAMETERS);
 		return caller_sp;
@@ -927,27 +940,19 @@ static struct sp_session *
 ffa_handle_sp_error(struct thread_smc_args *args,
 		    struct sp_session *caller_sp)
 {
-	struct sp_session *dst = NULL;
-
-	dst = sp_get_session(FFA_DST(args->a1));
-
-	/* FFA_ERROR Came from Noral World */
-	if (caller_sp)
-		caller_sp->state = sp_idle;
-
-	/* If dst == NULL send message to Normal World */
-	if (dst && sp_enter(args, dst)) {
+	/* If caller_sp == NULL send message to Normal World */
+	if (caller_sp && sp_enter(args, caller_sp)) {
 		/*
 		 * We can not return the error. Unwind the call chain with one
 		 * link. Set the state of the SP to dead.
 		 */
-		dst->state = sp_dead;
+		caller_sp->state = sp_dead;
 		/* Create error. */
-		ffa_set_error(args, FFA_DENIED);
-		return  sp_get_session(dst->caller_id);
+		ffa_set_error(args, FFA_ABORTED);
+		return  sp_get_session(caller_sp->caller_id);
 	}
 
-	return dst;
+	return caller_sp;
 }
 
 static void handle_features(struct thread_smc_args *args)
@@ -1106,6 +1111,47 @@ static void spmc_handle_version(struct thread_smc_args *args,
 		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
 }
 
+static void handle_console_log(struct thread_smc_args *args)
+{
+	uint32_t ret_fid = FFA_ERROR;
+	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	size_t char_count = args->a1 & FFA_CONSOLE_LOG_CHAR_COUNT_MASK;
+	const void *reg_list[] = {
+		&args->a2, &args->a3, &args->a4,
+		&args->a5, &args->a6, &args->a7
+	};
+	char buffer[FFA_CONSOLE_LOG_64_MAX_MSG_LEN + 1] = { 0 };
+	size_t max_length = 0;
+	size_t reg_size = 0;
+	size_t n = 0;
+
+	if (args->a0 == FFA_CONSOLE_LOG_64) {
+		max_length = FFA_CONSOLE_LOG_64_MAX_MSG_LEN;
+		reg_size = sizeof(uint64_t);
+	} else {
+		max_length = FFA_CONSOLE_LOG_32_MAX_MSG_LEN;
+		reg_size = sizeof(uint32_t);
+	}
+
+	if (char_count < 1 || char_count > max_length)
+		goto out;
+
+	for (n = 0; n < char_count; n += reg_size)
+		memcpy(buffer + n, reg_list[n / reg_size],
+		       MIN(char_count - n, reg_size));
+
+	buffer[char_count] = '\0';
+
+	trace_ext_puts(buffer);
+
+	ret_fid = FFA_SUCCESS_32;
+	ret_val = FFA_PARAM_MBZ;
+
+out:
+	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, ret_val, FFA_PARAM_MBZ,
+		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+}
+
 /*
  * FF-A messages handler for SP. Every messages for or from a SP is handled
  * here. This is the entry of the sp_spmc kernel thread. The caller_sp is set
@@ -1227,6 +1273,15 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 			handle_mem_perm_set(args, caller_sp);
 			sp_enter(args, caller_sp);
 			break;
+
+#ifdef ARM64
+		case FFA_CONSOLE_LOG_64:
+#endif
+		case FFA_CONSOLE_LOG_32:
+			handle_console_log(args);
+			sp_enter(args, caller_sp);
+			break;
+
 		default:
 			EMSG("Unhandled FFA function ID %#"PRIx32,
 			     (uint32_t)args->a0);

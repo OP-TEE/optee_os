@@ -5,8 +5,8 @@
  * Copyright (c) 2020, Arm Limited
  */
 
-#ifndef TEE_TA_MANAGER_H
-#define TEE_TA_MANAGER_H
+#ifndef __KERNEL_TEE_TA_MANAGER_H
+#define __KERNEL_TEE_TA_MANAGER_H
 
 #include <assert.h>
 #include <kernel/mutex.h>
@@ -73,6 +73,7 @@ struct tee_ta_ctx {
 	uint32_t panic_code;	/* Code supplied for panic */
 	uint32_t ref_count;	/* Reference counter for multi session TA */
 	bool busy;		/* Context is busy and cannot be entered */
+	bool is_releasing;	/* Context is about to be released */
 	struct condvar busy_cv;	/* CV used when context is busy */
 };
 
@@ -161,7 +162,7 @@ bool is_ta_ctx(struct ts_ctx *ctx);
 
 struct tee_ta_session *to_ta_session(struct ts_session *sess);
 
-static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
+static inline struct tee_ta_ctx *__noprof to_ta_ctx(struct ts_ctx *ctx)
 {
 	assert(is_ta_ctx(ctx));
 	return container_of(ctx, struct tee_ta_ctx, ts_ctx);

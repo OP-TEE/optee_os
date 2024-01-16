@@ -8,6 +8,7 @@
 #include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_iwdg.h>
@@ -150,16 +151,16 @@ service_init_late(init_console_from_dt);
 /*
  * GIC init, used also for primary/secondary boot core wake completion
  */
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 
 	stm32mp_register_online_cpu();
 }
 
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 
 	stm32mp_register_online_cpu();
 }
@@ -211,7 +212,7 @@ static TEE_Result set_etzpc_secure_configuration(void)
 	/* RNG is secure */
 	config_lock_decprot(STM32MP1_ETZPC_RNG_ID, ETZPC_DECPROT_S_RW);
 	/* SAES is secure */
-	config_lock_decprot(STM32MP1_ETZPC_SAES_ID, ETZPC_DECPROT_NS_RW);
+	config_lock_decprot(STM32MP1_ETZPC_SAES_ID, ETZPC_DECPROT_S_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SDMMC1_ID, ETZPC_DECPROT_NS_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SDMMC2_ID, ETZPC_DECPROT_NS_RW);
 	config_lock_decprot(STM32MP1_ETZPC_SPI4_ID, ETZPC_DECPROT_NS_RW);
@@ -499,16 +500,6 @@ static bool __maybe_unused bank_is_valid(unsigned int bank)
 	panic();
 }
 
-unsigned int stm32_get_gpio_bank_offset(unsigned int bank)
-{
-	assert(bank_is_valid(bank));
-
-	if (bank == GPIO_BANK_Z)
-		return 0;
-
-	return bank * GPIO_BANK_OFFSET;
-}
-
 #ifdef CFG_STM32_IWDG
 TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 				     struct stm32_iwdg_otp_data *otp_data)
@@ -516,6 +507,7 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 	unsigned int idx = 0;
 	uint32_t otp_id = 0;
 	size_t bit_len = 0;
+	uint8_t bit_offset = 0;
 	uint32_t otp_value = 0;
 
 	switch (pbase) {
@@ -529,8 +521,9 @@ TEE_Result stm32_get_iwdg_otp_config(paddr_t pbase,
 		panic();
 	}
 
-	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_len) ||
-	    bit_len != 32)
+	if (stm32_bsec_find_otp_in_nvmem_layout("hw2_otp", &otp_id, &bit_offset,
+						&bit_len) ||
+	    bit_len != 32 || bit_offset != 0)
 		panic();
 
 	if (stm32_bsec_read_otp(&otp_value, otp_id))
@@ -560,7 +553,7 @@ static TEE_Result init_debug(void)
 		return res;
 
 	if (state != BSEC_STATE_SEC_CLOSED && conf) {
-		if (IS_ENABLED(CFG_WARN_INSECURE))
+		if (IS_ENABLED(CFG_INSECURE))
 			IMSG("WARNING: All debug accesses are allowed");
 
 		res = stm32_bsec_write_debug_conf(conf | BSEC_DEBUG_ALL);
@@ -578,3 +571,6 @@ static TEE_Result init_debug(void)
 }
 early_init_late(init_debug);
 #endif /* CFG_STM32_DEBUG_ACCESS */
+
+/* Some generic resources need to be unpaged */
+DECLARE_KEEP_PAGER(pinctrl_apply_state);

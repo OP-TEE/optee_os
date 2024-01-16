@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2020, Linaro Limited
+ * Copyright (c) 2016-2023, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
 #include <arm.h>
+#include <config.h>
 #include <console.h>
 #include <drivers/gic.h>
 #include <drivers/hfic.h>
@@ -19,6 +20,7 @@
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_time.h>
+#include <kernel/thread_spmc.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -44,24 +46,38 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE);
 #endif
 
 #ifdef CFG_GIC
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_CPU_REG_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICD_BASE, GIC_DIST_REG_SIZE);
-register_phys_mem_pgdir(MEM_AREA_IO_SEC, GICC_BASE, GIC_DIST_REG_SIZE);
-
-void main_init_gic(void)
-{
-	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
-}
-
-#if !defined(CFG_WITH_ARM_TRUSTED_FW)
-void main_secondary_init_gic(void)
-{
-	gic_cpu_init();
-}
+#ifdef GIC_REDIST_BASE
+register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_REDIST_BASE, GIC_REDIST_SIZE);
 #endif
+
+void boot_primary_init_intc(void)
+{
+#ifdef GIC_REDIST_BASE
+	gic_init_v3(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET,
+		    GIC_REDIST_BASE);
+#else
+	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
+#endif
+	if (IS_ENABLED(CFG_CORE_SEL1_SPMC) &&
+	    IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		size_t it = CFG_CORE_ASYNC_NOTIF_GIC_INTID;
+
+		if (it >= GIC_SGI_SEC_BASE && it <= GIC_SGI_SEC_MAX)
+			gic_init_donate_sgi_to_ns(it);
+		thread_spmc_set_async_notif_intid(it);
+	}
+}
+
+void boot_secondary_init_intc(void)
+{
+	gic_init_per_cpu();
+}
 #endif /*CFG_GIC*/
 
 #ifdef CFG_CORE_HAFNIUM_INTC
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	hfic_init();
 }
@@ -101,14 +117,14 @@ static void read_console(void)
 	}
 }
 
-static enum itr_return console_itr_cb(struct itr_handler *h __maybe_unused)
+static enum itr_return console_itr_cb(struct itr_handler *hdl)
 {
 	if (notif_async_is_started()) {
 		/*
 		 * Asynchronous notifications are enabled, lets read from
 		 * uart in the bottom half instead.
 		 */
-		itr_disable(IT_CONSOLE_UART);
+		interrupt_disable(hdl->chip, hdl->it);
 		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF);
 	} else {
 		read_console();
@@ -136,11 +152,11 @@ static void yielding_console_notif(struct notif_driver *ndrv __unused,
 	switch (ev) {
 	case NOTIF_EVENT_DO_BOTTOM_HALF:
 		read_console();
-		itr_enable(IT_CONSOLE_UART);
+		interrupt_enable(console_itr.chip, console_itr.it);
 		break;
 	case NOTIF_EVENT_STOPPED:
 		DMSG("Asynchronous notifications stopped");
-		itr_enable(IT_CONSOLE_UART);
+		interrupt_enable(console_itr.chip, console_itr.it);
 		break;
 	default:
 		EMSG("Unknown event %d", (int)ev);
@@ -154,8 +170,15 @@ struct notif_driver console_notif = {
 
 static TEE_Result init_console_itr(void)
 {
-	itr_add(&console_itr);
-	itr_enable(IT_CONSOLE_UART);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = interrupt_add_handler_with_chip(interrupt_get_main_chip(),
+					      &console_itr);
+	if (res)
+		return res;
+
+	interrupt_enable(console_itr.chip, console_itr.it);
+
 	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
 		notif_register_driver(&console_notif);
 	return TEE_SUCCESS;

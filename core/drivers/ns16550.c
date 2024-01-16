@@ -43,14 +43,21 @@
 #define UART_SPR	0x7
 
 /* uart status register bits */
+#define UART_LSR_DR	0x01 /* DATA Ready */
 #define UART_LSR_THRE	0x20 /* Transmit-hold-register empty */
+
+static vaddr_t chip_to_base_and_data(struct serial_chip *chip,
+				     struct ns16550_data **pd)
+{
+	*pd = container_of(chip, struct ns16550_data, chip);
+
+	return io_pa_or_va(&(*pd)->base, NS16550_UART_REG_SIZE);
+}
 
 static void ns16550_flush(struct serial_chip *chip)
 {
-	struct ns16550_data *pd =
-		container_of(chip, struct ns16550_data, chip);
-	vaddr_t base = io_pa_or_va(&pd->base,
-				   (UART_LSR << pd->reg_shift) + pd->io_width);
+	struct ns16550_data *pd = NULL;
+	vaddr_t base = chip_to_base_and_data(chip, &pd);
 
 	while ((serial_in(base + (UART_LSR << pd->reg_shift), pd->io_width) &
 		UART_LSR_THRE) == 0)
@@ -59,10 +66,8 @@ static void ns16550_flush(struct serial_chip *chip)
 
 static void ns16550_putc(struct serial_chip *chip, int ch)
 {
-	struct ns16550_data *pd =
-		container_of(chip, struct ns16550_data, chip);
-	vaddr_t base = io_pa_or_va(&pd->base, (UART_THR << pd->reg_shift) +
-					       pd->io_width);
+	struct ns16550_data *pd = NULL;
+	vaddr_t base = chip_to_base_and_data(chip, &pd);
 
 	ns16550_flush(chip);
 
@@ -70,9 +75,34 @@ static void ns16550_putc(struct serial_chip *chip, int ch)
 	serial_out(base + (UART_THR << pd->reg_shift), pd->io_width, ch);
 }
 
+static bool ns16550_have_rx_data(struct serial_chip *chip)
+{
+	struct ns16550_data *pd = NULL;
+	vaddr_t base = chip_to_base_and_data(chip, &pd);
+
+	return serial_in(base + (UART_LSR << pd->reg_shift), pd->io_width) &
+	       UART_LSR_DR;
+}
+
+static int ns16550_getchar(struct serial_chip *chip)
+{
+	struct ns16550_data *pd = NULL;
+	vaddr_t base = chip_to_base_and_data(chip, &pd);
+
+	while (!ns16550_have_rx_data(chip)) {
+		/* Data is not ready, waiting again */
+		;
+	}
+
+	return serial_in(base + (UART_RBR << pd->reg_shift), pd->io_width) &
+	       0xFF;
+}
+
 static const struct serial_ops ns16550_ops = {
 	.flush = ns16550_flush,
 	.putc = ns16550_putc,
+	.getchar = ns16550_getchar,
+	.have_rx_data = ns16550_have_rx_data,
 };
 DECLARE_KEEP_PAGER(ns16550_ops);
 

@@ -55,7 +55,13 @@ ABS_OPTEE_TA_OUT_DIR ?= $(ABS_OPTEE_OUT_DIR)/ta
 # depends on platform and its OP-TEE word-size.
 OPTEE_OS_OUT_DIR ?= $(OPTEE_OUT_DIR)/arm-plat-$(OPTEE_PLATFORM)
 ABS_OPTEE_OS_OUT_DIR := $(ABS_OPTEE_OUT_DIR)/arm-plat-$(OPTEE_PLATFORM)
-TA_DEV_KIT_DIR := $(ABS_OPTEE_OS_OUT_DIR)/export-${OPTEE_TA_TARGETS}
+ifneq ($(local_optee_ta_target),)
+TA_TARGET := $(local_optee_ta_target)
+else
+TA_TARGET := $(OPTEE_TA_TARGETS)
+endif
+TA_DEV_KIT_DIR := $(OPTEE_OS_OUT_DIR)/export-$(TA_TARGET)
+ABS_TA_DEV_KIT_DIR := $(ABS_OPTEE_OS_OUT_DIR)/export-$(TA_TARGET)
 
 CROSS_COMPILE64 ?= $(TOP_ROOT_ABS)/$(TARGET_TOOLS_PREFIX)
 CROSS_COMPILE_LINE := CROSS_COMPILE64="$(CROSS_COMPILE64)"
@@ -67,6 +73,10 @@ endif
 OPTEE_BIN := $(OPTEE_OS_OUT_DIR)/core/tee.bin
 
 $(OPTEE_BIN) : $(sort $(shell find -L $(OPTEE_OS_DIR)))
+
+OPTEE_TA_DEV_KIT_MK := $(TA_DEV_KIT_DIR)/mk/ta_dev_kit.mk
+
+$(OPTEE_TA_DEV_KIT_MK) : $(sort $(shell find -L $(OPTEE_OS_DIR)))
 
 ###########################################################
 ## define making rules for $(OPTEE_BIN) target, and add  ##
@@ -94,6 +104,27 @@ $(OPTEE_BIN):
 
 endif
 
+###########################################################
+## similar to the $(OPTEE_BIN) target above, use condition
+## check to make $(OPTEE_TA_DEV_KIT_MK) for different ta
+## targets only be defined once
+###########################################################
+ifeq ($(filter $(TA_TARGET),$(BUILD_TA_DEV_KIT_DEFINED)),)
+BUILD_TA_DEV_KIT_DEFINED := $(TA_TARGET) $(BUILD_TA_DEV_KIT_DEFINED)
+$(OPTEE_TA_DEV_KIT_MK): PRIVATE_TA_TARGET := $(TA_TARGET)
+$(OPTEE_TA_DEV_KIT_MK):
+	@echo "Start building ta_dev_kit ($(PRIVATE_TA_TARGET))..."
+	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(OPTEE_OS_DIR) \
+		O=$(ABS_OPTEE_OS_OUT_DIR) \
+		CFG_USER_TA_TARGETS=$(PRIVATE_TA_TARGET) \
+		CFG_ARM64_core=$(OPTEE_CFG_ARM64_CORE) \
+		PLATFORM=$(OPTEE_PLATFORM) \
+		PLATFORM_FLAVOR=$(OPTEE_PLATFORM_FLAVOR) \
+		$(CROSS_COMPILE_LINE) \
+		$(OPTEE_EXTRA_FLAGS) ta_dev_kit
+	@echo "Finished building ta_dev_kit ($(PRIVATE_TA_TARGET))..."
+endif
+
 ##########################################################
 ## Lines for building TAs automatically                 ##
 ## will only be included in Android.mk for TAs          ##
@@ -103,38 +134,62 @@ endif
 ifneq (false,$(INCLUDE_FOR_BUILD_TA))
 include $(CLEAR_VARS)
 
+define ta_class
+$(if $(filter %.ta,$1),EXECUTABLES,STATIC_LIBRARIES)
+endef
+
 LOCAL_MODULE := $(local_module)
 LOCAL_PREBUILT_MODULE_FILE := $(OPTEE_TA_OUT_DIR)/$(LOCAL_MODULE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/lib/optee_armtz
-ifneq ($(filter %.ta, $(local_module)),)
-LOCAL_MODULE_CLASS := EXECUTABLES
-else
-LOCAL_MODULE_CLASS := STATIC_LIBRARIES
-endif
+LOCAL_MODULE_CLASS := $(call ta_class,$(local_module))
 LOCAL_MODULE_TAGS := optional
+LOCAL_REQUIRED_MODULES := $(local_module_deps)
 
-TA_TMP_DIR := $(subst /,_,$(LOCAL_PATH))
+TA_TMP_DIR := $(addsuffix _$(TA_TARGET), $(subst /,_,$(LOCAL_PATH)))
 TA_TMP_FILE := $(OPTEE_TA_OUT_DIR)/$(TA_TMP_DIR)/$(LOCAL_MODULE)
 $(LOCAL_PREBUILT_MODULE_FILE): $(TA_TMP_FILE)
 	@mkdir -p $(dir $@)
 	cp -vf $< $@
 
 TA_TMP_FILE_DEPS :=
-ifneq ($(local_module_deps), )
-$(foreach dep,$(local_module_deps), $(eval TA_TMP_FILE_DEPS += $(TARGET_OUT_VENDOR)/lib/optee_armtz/$(dep)))
+ifneq ($(local_module_deps),)
+$(foreach dep, $(local_module_deps), $(eval TA_TMP_FILE_DEPS += $(call intermediates-dir-for,$(call ta_class,$(dep)),$(dep))/$(dep)))
 endif
 $(TA_TMP_FILE): $(TA_TMP_FILE_DEPS)
 $(TA_TMP_FILE): PRIVATE_TA_SRC_DIR := $(LOCAL_PATH)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_FILE := $(TA_TMP_FILE)
 $(TA_TMP_FILE): PRIVATE_TA_TMP_DIR := $(TA_TMP_DIR)
-$(TA_TMP_FILE): $(OPTEE_BIN)
+$(TA_TMP_FILE): PRIVATE_TA_DEV_KIT_DIR := $(ABS_TA_DEV_KIT_DIR)
+$(TA_TMP_FILE): $(OPTEE_TA_DEV_KIT_MK)
 	@echo "Start building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 	+$(HOST_MAKE) -C $(TOP_ROOT_ABS)/$(PRIVATE_TA_SRC_DIR) O=$(ABS_OPTEE_TA_OUT_DIR)/$(PRIVATE_TA_TMP_DIR) \
-		TA_DEV_KIT_DIR=$(TA_DEV_KIT_DIR) \
+		TA_DEV_KIT_DIR=$(PRIVATE_TA_DEV_KIT_DIR) \
 		$(CROSS_COMPILE_LINE) \
 		$(OPTEE_EXTRA_TA_FLAGS)
 	@echo "Finished building TA for $(PRIVATE_TA_SRC_DIR) $(PRIVATE_TA_TMP_FILE)..."
 
 include $(BUILD_PREBUILT)
+
+# To get ta elf files for early-ta,
+# copy them to $(PRODUCT_OUT)/unsigned/ on host
+ifeq ($(call ta_class,$(local_module)),EXECUTABLES)
+include $(CLEAR_VARS)
+LOCAL_MODULE := $(local_module).unsigned
+LOCAL_PREBUILT_MODULE_FILE := $(OPTEE_TA_OUT_DIR)/$(LOCAL_MODULE)
+LOCAL_MODULE_PATH := $(PRODUCT_OUT)/unsigned
+LOCAL_MODULE_CLASS := $(call ta_class,$(local_module))
+LOCAL_MODULE_TAGS := optional
+
+TA_TMP_STRIPPED_ELF_FILE := $(patsubst %.ta,%.stripped.elf,$(TA_TMP_FILE))
+$(TA_TMP_STRIPPED_ELF_FILE): $(TA_TMP_FILE)
+
+$(LOCAL_PREBUILT_MODULE_FILE): $(TA_TMP_STRIPPED_ELF_FILE)
+	@mkdir -p $(dir $@)
+	cp -vf $< $@
+
+include $(BUILD_PREBUILT)
+endif  # to get ta elf files for early-ta
+
 local_module_deps :=
+local_optee_ta_target :=
 endif

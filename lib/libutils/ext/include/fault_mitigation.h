@@ -250,7 +250,10 @@ extern struct ftmn_func_arg *__ftmn_global_func_arg;
 static inline struct ftmn_func_arg **__ftmn_get_tsd_func_arg_pp(void)
 {
 #if defined(CFG_FAULT_MITIGATION) && defined(__KERNEL__)
-	return &thread_get_tsd()->ftmn_arg;
+	if (thread_get_id_may_fail() >= 0)
+		return &thread_get_tsd()->ftmn_arg;
+	else
+		return &thread_get_core_local()->ftmn_arg;
 #elif defined(CFG_FAULT_MITIGATION)
 	return &__ftmn_global_func_arg;
 #else

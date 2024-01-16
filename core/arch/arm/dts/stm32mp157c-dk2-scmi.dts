@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) STMicroelectronics 2023
+ */
+
+/dts-v1/;
+
+#include "stm32mp157c-dk2.dts"
+
+/ {
+	model = "STMicroelectronics STM32MP157C-DK2 SCMI Discovery Board";
+	compatible = "st,stm32mp157c-dk2-scmi", "st,stm32mp157";
+};
+
+&rcc {
+	compatible = "st,stm32mp1-rcc-secure";
+	status = "okay";
+};

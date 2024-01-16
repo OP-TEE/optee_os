@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2022, STMicroelectronics
+ * Copyright (c) 2017-2023, STMicroelectronics
  */
 
 #include <config.h>
+#include <drivers/pinctrl.h>
 #include <drivers/stm32_etzpc.h>
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32mp1_etzpc.h>
@@ -13,6 +14,7 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
@@ -142,22 +144,12 @@ static unsigned int get_gpioz_nbpin(void)
 	return gpioz_nbpin;
 }
 
-static TEE_Result set_gpioz_nbpin_from_dt(void)
+void stm32mp_register_gpioz_pin_count(size_t count)
 {
-	void *fdt = get_embedded_dt();
-	int node = fdt_node_offset_by_compatible(fdt, -1,
-						 "st,stm32mp157-z-pinctrl");
-	int count = stm32_get_gpio_count(fdt, node, GPIO_BANK_Z);
-
-	if (count < 0 || count > STM32MP1_GPIOZ_PIN_MAX_COUNT)
-		panic();
+	assert(gpioz_nbpin == -1);
 
 	gpioz_nbpin = count;
-
-	return TEE_SUCCESS;
 }
-/* Get GPIOZ pin count before drivers initialization, hence service_init() */
-service_init(set_gpioz_nbpin_from_dt);
 
 static void register_periph(enum stm32mp_shres id, enum shres_state state)
 {
@@ -384,6 +376,54 @@ void stm32mp_register_non_secure_gpio(unsigned int bank, unsigned int pin)
 	default:
 		break;
 	}
+}
+
+void stm32mp_register_secure_pinctrl(struct pinctrl_state *pinctrl)
+{
+	unsigned int *bank = NULL;
+	unsigned int *pin = NULL;
+	size_t count = 0;
+	size_t n = 0;
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, NULL, NULL, &count);
+	if (!count)
+		return;
+
+	bank = calloc(count, sizeof(*bank));
+	pin = calloc(count, sizeof(*pin));
+	if (!bank || !pin)
+		panic();
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, bank, pin, &count);
+	for (n = 0; n < count; n++)
+		stm32mp_register_secure_gpio(bank[n], pin[n]);
+
+	free(bank);
+	free(pin);
+}
+
+void stm32mp_register_non_secure_pinctrl(struct pinctrl_state *pinctrl)
+{
+	unsigned int *bank = NULL;
+	unsigned int *pin = NULL;
+	size_t count = 0;
+	size_t n = 0;
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, NULL, NULL, &count);
+	if (!count)
+		return;
+
+	bank = calloc(count, sizeof(*bank));
+	pin = calloc(count, sizeof(*pin));
+	if (!bank || !pin)
+		panic();
+
+	stm32_gpio_pinctrl_bank_pin(pinctrl, bank, pin, &count);
+	for (n = 0; n < count; n++)
+		stm32mp_register_non_secure_gpio(bank[n], pin[n]);
+
+	free(bank);
+	free(pin);
 }
 
 static void lock_registering(void)
@@ -652,8 +692,12 @@ static void check_rcc_secure_configuration(void)
 		}
 	}
 
-	if (have_error)
-		panic();
+	if (have_error) {
+		if (IS_ENABLED(CFG_INSECURE))
+			EMSG("WARNING: CFG_INSECURE allows insecure RCC configuration");
+		else
+			panic();
+	}
 }
 
 static void set_gpio_secure_configuration(void)

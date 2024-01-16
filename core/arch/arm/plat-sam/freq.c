@@ -7,6 +7,7 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
 

@@ -199,7 +199,7 @@ static void get_gic_offset(uint32_t *offsetc, uint32_t *offsetd)
 #endif
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	paddr_t gic_base = 0;
 	uint32_t gicc_offset = 0;
@@ -215,7 +215,7 @@ void main_init_gic(void)
 	gic_init(gic_base + gicc_offset, gic_base + gicd_offset);
 }
 
-void main_secondary_init_gic(void)
+void boot_secondary_init_intc(void)
 {
-	gic_cpu_init();
+	gic_init_per_cpu();
 }

@@ -29,42 +29,42 @@
 static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 {
 	switch (algo) {
-#if defined(_CFG_CORE_LTC_SHA1)
+#if defined(_CFG_CORE_LTC_SHA1_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
 		*ltc_hashindex = find_hash("sha1");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_MD5)
+#if defined(_CFG_CORE_LTC_MD5_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
 		*ltc_hashindex = find_hash("md5");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA224)
+#if defined(_CFG_CORE_LTC_SHA224_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
 		*ltc_hashindex = find_hash("sha224");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA256)
+#if defined(_CFG_CORE_LTC_SHA256_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
 		*ltc_hashindex = find_hash("sha256");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA384)
+#if defined(_CFG_CORE_LTC_SHA384_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
 		*ltc_hashindex = find_hash("sha384");
 		break;
 #endif
-#if defined(_CFG_CORE_LTC_SHA512)
+#if defined(_CFG_CORE_LTC_SHA512_DESC)
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
@@ -133,7 +133,7 @@ TEE_Result sw_crypto_acipher_alloc_rsa_public_key(struct rsa_public_key *s,
 		goto err;
 	return TEE_SUCCESS;
 err:
-	crypto_bignum_free(s->e);
+	crypto_bignum_free(&s->e);
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
 
@@ -145,8 +145,8 @@ void sw_crypto_acipher_free_rsa_public_key(struct rsa_public_key *s)
 {
 	if (!s)
 		return;
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->e);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->e);
 }
 
 
@@ -157,14 +157,14 @@ void sw_crypto_acipher_free_rsa_keypair(struct rsa_keypair *s)
 {
 	if (!s)
 		return;
-	crypto_bignum_free(s->e);
-	crypto_bignum_free(s->d);
-	crypto_bignum_free(s->n);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->qp);
-	crypto_bignum_free(s->dp);
-	crypto_bignum_free(s->dq);
+	crypto_bignum_free(&s->e);
+	crypto_bignum_free(&s->d);
+	crypto_bignum_free(&s->n);
+	crypto_bignum_free(&s->p);
+	crypto_bignum_free(&s->q);
+	crypto_bignum_free(&s->qp);
+	crypto_bignum_free(&s->dp);
+	crypto_bignum_free(&s->dq);
 }
 
 TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key,

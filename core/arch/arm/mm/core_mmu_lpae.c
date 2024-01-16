@@ -141,6 +141,7 @@
 #define TCR_PS_BITS_4TB		(0x3)
 #define TCR_PS_BITS_16TB	(0x4)
 #define TCR_PS_BITS_256TB	(0x5)
+#define TCR_PS_BITS_4PB		(0x6)
 
 #define UNSET_DESC		((uint64_t)-1)
 
@@ -866,7 +867,7 @@ void core_init_mmu_regs(struct core_mmu_config *cfg)
 #endif /*ARM32*/
 
 #ifdef ARM64
-static unsigned int get_physical_addr_size_bits(void)
+static unsigned int get_hard_coded_pa_size_bits(void)
 {
 	/*
 	 * Intermediate Physical Address Size.
@@ -876,10 +877,10 @@ static unsigned int get_physical_addr_size_bits(void)
 	 * 0b011      42 bits, 4TB.
 	 * 0b100      44 bits, 16TB.
 	 * 0b101      48 bits, 256TB.
-	 * 0b110      52 bits, 4PB (not supported)
+	 * 0b110      52 bits, 4PB
 	 */
-
-	COMPILE_TIME_ASSERT(CFG_CORE_ARM64_PA_BITS >= 32);
+	static_assert(CFG_CORE_ARM64_PA_BITS >= 32);
+	static_assert(CFG_CORE_ARM64_PA_BITS <= 52);
 
 	if (CFG_CORE_ARM64_PA_BITS <= 32)
 		return TCR_PS_BITS_4GB;
@@ -896,10 +897,34 @@ static unsigned int get_physical_addr_size_bits(void)
 	if (CFG_CORE_ARM64_PA_BITS <= 44)
 		return TCR_PS_BITS_16TB;
 
-	/* Physical address can't exceed 48 bits */
-	COMPILE_TIME_ASSERT(CFG_CORE_ARM64_PA_BITS <= 48);
+	if (CFG_CORE_ARM64_PA_BITS <= 48)
+		return TCR_PS_BITS_256TB;
+
 	/* CFG_CORE_ARM64_PA_BITS <= 48 */
-	return TCR_PS_BITS_256TB;
+	return TCR_PS_BITS_4PB;
+}
+
+static unsigned int get_physical_addr_size_bits(void)
+{
+	const unsigned int size_bits = read_id_aa64mmfr0_el1() &
+				       ID_AA64MMFR0_EL1_PARANGE_MASK;
+	unsigned int b = 0;
+
+	if (IS_ENABLED(CFG_AUTO_MAX_PA_BITS))
+		return size_bits;
+
+	b = get_hard_coded_pa_size_bits();
+	assert(b <= size_bits);
+	return b;
+}
+
+unsigned int core_mmu_arm64_get_pa_width(void)
+{
+	const uint8_t map[] = { 32, 36, 40, 42, 44, 48, 52, };
+	unsigned int size_bits = get_physical_addr_size_bits();
+
+	size_bits = MIN(size_bits, ARRAY_SIZE(map) - 1);
+	return map[size_bits];
 }
 
 void core_init_mmu_regs(struct core_mmu_config *cfg)

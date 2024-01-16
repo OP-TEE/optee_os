@@ -266,7 +266,7 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 	aux->data_len = 0;
 	memset(aux->data, 0xce, aux->data_alloced);
 
-	res = tee_fs_htree_open(true, hash, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(true, hash, 0, uuid, &test_htree_ops, aux, &ht);
 	CHECK_RES(res, goto out);
 
 	/*
@@ -305,7 +305,7 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 	 * Sync the changes of the nodes to memory, verify that all
 	 * blocks are read back as expected.
 	 */
-	res = tee_fs_htree_sync_to_storage(&ht, hash);
+	res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
 	CHECK_RES(res, goto out);
 
 	res = do_range(read_block, &ht, 0, num_blocks, salt);
@@ -315,7 +315,8 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 	 * Close and reopen the hash-tree
 	 */
 	tee_fs_htree_close(&ht);
-	res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(false, hash, 0, uuid, &test_htree_ops, aux,
+				&ht);
 	CHECK_RES(res, goto out);
 
 	/*
@@ -363,7 +364,8 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 	 * and verify that recent changes indeed was discarded.
 	 */
 	tee_fs_htree_close(&ht);
-	res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(false, hash, 0, uuid, &test_htree_ops, aux,
+				&ht);
 	CHECK_RES(res, goto out);
 
 	res = do_range(read_block, &ht, 0, num_blocks, salt);
@@ -375,7 +377,8 @@ static TEE_Result htree_test_rewrite(struct test_aux *aux, size_t num_blocks,
 	 * tee_fs_htree_image.
 	 */
 	tee_fs_htree_close(&ht);
-	res = tee_fs_htree_open(false, NULL, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(false, NULL, 0, uuid, &test_htree_ops, aux,
+				&ht);
 	CHECK_RES(res, goto out);
 
 	res = do_range(read_block, &ht, 0, num_blocks, salt);
@@ -498,7 +501,7 @@ static TEE_Result test_corrupt_type(const TEE_UUID *uuid, uint8_t *hash,
 		 * tee_fs_htree_open() errors in block is detected when
 		 * actually read by do_range(read_block)
 		 */
-		res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops,
+		res = tee_fs_htree_open(false, hash, 0, uuid, &test_htree_ops,
 					&aux2, &ht);
 		if (!res) {
 			res = do_range(read_block, &ht, 0, num_blocks, 1);
@@ -572,16 +575,17 @@ static TEE_Result test_corrupt(size_t num_blocks)
 	memset(aux->data, 0xce, aux->data_alloced);
 
 	/* Write the object and close it */
-	res = tee_fs_htree_open(true, hash, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(true, hash, 0, uuid, &test_htree_ops, aux, &ht);
 	CHECK_RES(res, goto out);
 	res = do_range(write_block, &ht, 0, num_blocks, 1);
 	CHECK_RES(res, goto out);
-	res = tee_fs_htree_sync_to_storage(&ht, hash);
+	res = tee_fs_htree_sync_to_storage(&ht, hash, NULL);
 	CHECK_RES(res, goto out);
 	tee_fs_htree_close(&ht);
 
 	/* Verify that the object can be read correctly */
-	res = tee_fs_htree_open(false, hash, uuid, &test_htree_ops, aux, &ht);
+	res = tee_fs_htree_open(false, hash, 0, uuid, &test_htree_ops, aux,
+				&ht);
 	CHECK_RES(res, goto out);
 	res = do_range(read_block, &ht, 0, num_blocks, 1);
 	CHECK_RES(res, goto out);

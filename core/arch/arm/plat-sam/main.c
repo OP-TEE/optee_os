@@ -44,6 +44,457 @@
 #include <sm/optee_smc.h>
 #include <tz_matrix.h>
 
+#define MATRIX_AXIMX   1
+#define MATRIX_H64MX   2
+#define MATRIX_H32MX   3
+
+static struct matrix matrixes[] = {
+	{
+		.matrix = MATRIX_H64MX,
+		.p = { .pa = AT91C_BASE_MATRIX64 }
+	},
+	{
+		.matrix = MATRIX_H32MX,
+		.p = { .pa = AT91C_BASE_MATRIX32, }
+	}
+};
+
+static struct peri_security peri_security_array[] = {
+	{
+		.peri_id = AT91C_ID_PMC,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PMC,
+	},
+	{
+		.peri_id = AT91C_ID_ARM,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_PIT,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PITC,
+	},
+	{
+		.peri_id = AT91C_ID_WDT,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_WDT,
+	},
+	{
+		.peri_id = AT91C_ID_GMAC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_GMAC,
+	},
+	{
+		.peri_id = AT91C_ID_XDMAC0,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_XDMAC0,
+	},
+	{
+		.peri_id = AT91C_ID_XDMAC1,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_XDMAC1,
+	},
+	{
+		.peri_id = AT91C_ID_ICM,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ICM,
+	},
+	{
+		.peri_id = AT91C_ID_AES,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_AES,
+	},
+	{
+		.peri_id = AT91C_ID_AESB,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_AESB,
+	},
+	{
+		.peri_id = AT91C_ID_TDES,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TDES,
+	},
+	{
+		.peri_id = AT91C_ID_SHA,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SHA,
+	},
+	{
+		.peri_id = AT91C_ID_MPDDRC,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_MPDDRC,
+	},
+	{
+		.peri_id = AT91C_ID_MATRIX1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_MATRIX32,
+	},
+	{
+		.peri_id = AT91C_ID_MATRIX0,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_MATRIX64,
+	},
+	{
+		.peri_id = AT91C_ID_SECUMOD,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SECUMOD,
+	},
+	{
+		.peri_id = AT91C_ID_HSMC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_HSMC,
+	},
+	{
+		.peri_id = AT91C_ID_PIOA,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOA,
+	},
+	{
+		.peri_id = AT91C_ID_FLEXCOM0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM0,
+	},
+	{
+		.peri_id = AT91C_ID_FLEXCOM1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM1,
+	},
+	{
+		.peri_id = AT91C_ID_FLEXCOM2,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM2,
+	},
+	{
+		.peri_id = AT91C_ID_FLEXCOM3,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM3,
+	},
+	{
+		.peri_id = AT91C_ID_FLEXCOM4,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_FLEXCOM4,
+	},
+	{
+		.peri_id = AT91C_ID_UART0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART0,
+	},
+	{
+		.peri_id = AT91C_ID_UART1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART1,
+	},
+	{
+		.peri_id = AT91C_ID_UART2,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART2,
+	},
+	{
+		.peri_id = AT91C_ID_UART3,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART3,
+	},
+	{
+		.peri_id = AT91C_ID_UART4,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UART4,
+	},
+	{
+		.peri_id = AT91C_ID_TWI0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TWI0,
+	},
+	{
+		.peri_id = AT91C_ID_TWI1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TWI1,
+	},
+	{
+		.peri_id = AT91C_ID_SDMMC0,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SDHC0,
+	},
+	{
+		.peri_id = AT91C_ID_SDMMC1,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SDHC1,
+	},
+	{
+		.peri_id = AT91C_ID_SPI0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SPI0,
+	},
+	{
+		.peri_id = AT91C_ID_SPI1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SPI1,
+	},
+	{
+		.peri_id = AT91C_ID_TC0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TC0,
+	},
+	{
+		.peri_id = AT91C_ID_TC1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TC1,
+	},
+	{
+		.peri_id = AT91C_ID_PWM,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PWMC,
+	},
+	{
+		.peri_id = AT91C_ID_ADC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ADC,
+	},
+	{
+		.peri_id = AT91C_ID_UHPHS,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_UDPHS,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_UDPHS,
+	},
+	{
+		.peri_id = AT91C_ID_SSC0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SSC0,
+	},
+	{
+		.peri_id = AT91C_ID_SSC1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SSC1,
+	},
+	{
+		.peri_id = AT91C_ID_LCDC,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_LCDC,
+	},
+	{
+		.peri_id = AT91C_ID_ISI,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_HXISI,
+	},
+	{
+		.peri_id = AT91C_ID_TRNG,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_TRNG,
+	},
+	{
+		.peri_id = AT91C_ID_PDMIC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_PDMIC,
+	},
+	{
+		.peri_id = AT91C_ID_IRQ,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_NS,
+	},
+	{
+		.peri_id = AT91C_ID_SFC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFC,
+	},
+	{
+		.peri_id = AT91C_ID_SECURAM,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SECURAM,
+	},
+	{
+		.peri_id = AT91C_ID_QSPI0,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_QSPI0,
+	},
+	{
+		.peri_id = AT91C_ID_QSPI1,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_QSPI1,
+	},
+	{
+		.peri_id = AT91C_ID_I2SC0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_I2SC0,
+	},
+	{
+		.peri_id = AT91C_ID_I2SC1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_I2SC1,
+	},
+	{
+		.peri_id = AT91C_ID_CAN0_INT0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_CAN1_INT0,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_CLASSD,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_CLASSD,
+	},
+	{
+		.peri_id = AT91C_ID_SFR,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFR,
+	},
+	{
+		.peri_id = AT91C_ID_SAIC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_SAIC,
+	},
+	{
+		.peri_id = AT91C_ID_AIC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_NS,
+		.addr = AT91C_BASE_AIC,
+	},
+	{
+		.peri_id = AT91C_ID_L2CC,
+		.matrix = MATRIX_H64MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_L2CC,
+	},
+	{
+		.peri_id = AT91C_ID_CAN0_INT1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_CAN1_INT1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_GMAC_Q1,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_GMAC_Q2,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_PIOB,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOB,
+	},
+	{
+		.peri_id = AT91C_ID_PIOC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOC,
+	},
+	{
+		.peri_id = AT91C_ID_PIOD,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_AS,
+		.addr = AT91C_BASE_PIOD,
+	},
+	{
+		.peri_id = AT91C_ID_SDMMC0_TIMER,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_SDMMC1_TIMER,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+	},
+	{
+		.peri_id = AT91C_ID_SYS,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SYSC,
+	},
+	{
+		.peri_id = AT91C_ID_ACC,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_ACC,
+	},
+	{
+		.peri_id = AT91C_ID_RXLP,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_RXLP,
+	},
+	{
+		.peri_id = AT91C_ID_SFRBU,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_SFRBU,
+	},
+	{
+		.peri_id = AT91C_ID_CHIPID,
+		.matrix = MATRIX_H32MX,
+		.security_type = SECURITY_TYPE_PS,
+		.addr = AT91C_BASE_CHIPID,
+	},
+};
+
 static struct atmel_uart_data console_data;
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
@@ -59,30 +510,24 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX32,
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, AT91C_BASE_MATRIX64,
 			CORE_MMU_PGDIR_SIZE);
 
-vaddr_t matrix32_base(void)
+struct peri_security *peri_security_get(unsigned int idx)
 {
-	static void *va;
+	struct peri_security *p = NULL;
 
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(AT91C_BASE_MATRIX32, MEM_AREA_IO_SEC,
-					  1);
-		return (vaddr_t)va;
-	}
-	return AT91C_BASE_MATRIX32;
+	if (idx < ARRAY_SIZE(peri_security_array))
+		p = &peri_security_array[idx];
+
+	return p;
 }
 
-vaddr_t matrix64_base(void)
+struct matrix *matrix_get(unsigned int idx)
 {
-	static void *va;
+	struct matrix *pmatrix = NULL;
 
-	if (cpu_mmu_enabled()) {
-		if (!va)
-			va = phys_to_virt(AT91C_BASE_MATRIX64, MEM_AREA_IO_SEC,
-					  1);
-		return (vaddr_t)va;
-	}
-	return AT91C_BASE_MATRIX64;
+	if (idx < ARRAY_SIZE(matrixes))
+		pmatrix = &matrixes[idx];
+
+	return pmatrix;
 }
 
 static void matrix_configure_slave_h64mx(void)
@@ -108,7 +553,7 @@ static void matrix_configure_slave_h64mx(void)
 			| MATRIX_RDNSECH_NS(2)
 			| MATRIX_WRNSECH_NS(1)
 			| MATRIX_WRNSECH_NS(2));
-	matrix_configure_slave_security(matrix64_base(),
+	matrix_configure_slave_security(matrix_base(MATRIX_H64MX),
 					H64MX_SLAVE_PERI_BRIDGE,
 					srtop_setting,
 					sasplit_setting,
@@ -142,11 +587,11 @@ static void matrix_configure_slave_h64mx(void)
 			| MATRIX_WRNSECH_NS(3));
 	/* DDR port 0 not used from NWd */
 	for (ddr_port = 1; ddr_port < 8; ddr_port++) {
-		matrix_configure_slave_security(matrix64_base(),
-					(H64MX_SLAVE_DDR2_PORT_0 + ddr_port),
-					srtop_setting,
-					sasplit_setting,
-					ssr_setting);
+		matrix_configure_slave_security(matrix_base(MATRIX_H64MX),
+						H64MX_SLAVE_DDR2_PORT_0 +
+						ddr_port, srtop_setting,
+						sasplit_setting,
+						ssr_setting);
 	}
 
 	/*
@@ -158,7 +603,7 @@ static void matrix_configure_slave_h64mx(void)
 	sasplit_setting = MATRIX_SASPLIT(0, MATRIX_SRTOP_VALUE_64K);
 	ssr_setting = (MATRIX_LANSECH_S(0) | MATRIX_RDNSECH_S(0) |
 		       MATRIX_WRNSECH_S(0));
-	matrix_configure_slave_security(matrix64_base(),
+	matrix_configure_slave_security(matrix_base(MATRIX_H64MX),
 					H64MX_SLAVE_INTERNAL_SRAM,
 					srtop_setting, sasplit_setting,
 					ssr_setting);
@@ -172,10 +617,12 @@ static void matrix_configure_slave_h64mx(void)
 	ssr_setting = MATRIX_LANSECH_NS(0) | MATRIX_RDNSECH_NS(0) |
 		      MATRIX_WRNSECH_NS(0);
 
-	matrix_configure_slave_security(matrix64_base(), H64MX_SLAVE_QSPI0,
+	matrix_configure_slave_security(matrix_base(MATRIX_H64MX),
+					H64MX_SLAVE_QSPI0,
 					srtop_setting, sasplit_setting,
 					ssr_setting);
-	matrix_configure_slave_security(matrix64_base(), H64MX_SLAVE_QSPI1,
+	matrix_configure_slave_security(matrix_base(MATRIX_H64MX),
+					H64MX_SLAVE_QSPI1,
 					srtop_setting, sasplit_setting,
 					ssr_setting);
 	/* 14:  AESB: Default */
@@ -210,7 +657,7 @@ static void matrix_configure_slave_h32mx(void)
 	ssr_setting |= (MATRIX_LANSECH_NS(7)
 			| MATRIX_RDNSECH_NS(7)
 			| MATRIX_WRNSECH_NS(7));
-	matrix_configure_slave_security(matrix32_base(),
+	matrix_configure_slave_security(matrix_base(MATRIX_H32MX),
 					H32MX_EXTERNAL_EBI,
 					srtop_setting,
 					sasplit_setting,
@@ -222,7 +669,7 @@ static void matrix_configure_slave_h32mx(void)
 	ssr_setting = (MATRIX_LANSECH_NS(0)
 			| MATRIX_RDNSECH_NS(0)
 			| MATRIX_WRNSECH_NS(0));
-	matrix_configure_slave_security(matrix32_base(),
+	matrix_configure_slave_security(matrix_base(MATRIX_H32MX),
 					H32MX_NFC_SRAM,
 					srtop_setting,
 					sasplit_setting,
@@ -248,7 +695,7 @@ static void matrix_configure_slave_h32mx(void)
 			| MATRIX_WRNSECH_NS(0)
 			| MATRIX_WRNSECH_NS(1)
 			| MATRIX_WRNSECH_NS(2));
-	matrix_configure_slave_security(matrix32_base(),
+	matrix_configure_slave_security(matrix_base(MATRIX_H32MX),
 					H32MX_USB,
 					srtop_setting,
 					sasplit_setting,
@@ -323,8 +770,8 @@ static unsigned int security_ps_peri_id[] = {
 
 static int matrix_init(void)
 {
-	matrix_write_protect_disable(matrix64_base());
-	matrix_write_protect_disable(matrix32_base());
+	matrix_write_protect_disable(matrix_base(MATRIX_H64MX));
+	matrix_write_protect_disable(matrix_base(MATRIX_H32MX));
 
 	matrix_configure_slave_h64mx();
 	matrix_configure_slave_h32mx();
@@ -338,7 +785,7 @@ void plat_primary_init_early(void)
 	matrix_init();
 }
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	if (atmel_saic_setup())
 		panic("Failed to init interrupts\n");

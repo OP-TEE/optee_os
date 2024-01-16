@@ -4,7 +4,10 @@
  */
 
 #include <assert.h>
+#include <config.h>
 #include <inttypes.h>
+#include <mbedtls/asn1write.h>
+#include <mbedtls/ecp.h>
 #include <mbedtls/pk.h>
 #include <pkcs11_ta.h>
 #include <stdlib.h>
@@ -19,6 +22,7 @@
 #include "pkcs11_attributes.h"
 #include "pkcs11_helpers.h"
 #include "pkcs11_token.h"
+#include "processing.h"
 #include "sanitize_object.h"
 #include "serializer.h"
 #include "token_capabilities.h"
@@ -352,8 +356,12 @@ static const uint32_t pkcs11_certificate_boolprops[] = {
 };
 
 static const uint32_t pkcs11_certificate_optional[] = {
-	PKCS11_CKA_CERTIFICATE_CATEGORY, PKCS11_CKA_CHECK_VALUE,
-	PKCS11_CKA_START_DATE, PKCS11_CKA_END_DATE, PKCS11_CKA_PUBLIC_KEY_INFO,
+	PKCS11_CKA_CERTIFICATE_CATEGORY, PKCS11_CKA_START_DATE,
+	PKCS11_CKA_END_DATE, PKCS11_CKA_PUBLIC_KEY_INFO,
+#ifdef CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE
+	/* Consider KCV attribute only when supported */
+	PKCS11_CKA_CHECK_VALUE,
+#endif
 };
 
 /*
@@ -401,6 +409,10 @@ static const uint32_t symm_key_opt_or_null[] = {
 
 static const uint32_t symm_key_optional[] = {
 	PKCS11_CKA_VALUE_LEN,
+#ifdef CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE
+	/* Consider KCV attribute only when supported */
+	PKCS11_CKA_CHECK_VALUE,
+#endif
 };
 
 /* PKCS#11 specification for any asymmetric public key (+any_key_xxx) */
@@ -794,6 +806,52 @@ static enum pkcs11_rc create_pub_key_attributes(struct obj_attrs **out,
 	return set_attributes_opt_or_null(out, temp, oon, oon_count);
 }
 
+static enum pkcs11_rc
+create_pub_key_rsa_generated_attributes(struct obj_attrs **out,
+					struct obj_attrs *temp,
+					enum processing_func function)
+{
+	uint32_t key_bits = 0;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+
+	if (function != PKCS11_FUNCTION_IMPORT)
+		return PKCS11_CKR_OK;
+
+	/* Calculate CKA_MODULUS_BITS */
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_MODULUS,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No CKA_MODULUS attribute found in public key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	key_bits = a_size * 8;
+
+	return add_attribute(out, PKCS11_CKA_MODULUS_BITS, &key_bits,
+			     sizeof(key_bits));
+}
+
+static enum pkcs11_rc
+create_pub_key_generated_attributes(struct obj_attrs **out,
+				    struct obj_attrs *temp,
+				    enum processing_func function)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	switch (get_key_type(*out)) {
+	case PKCS11_CKK_RSA:
+		rc = create_pub_key_rsa_generated_attributes(out, temp,
+							     function);
+		break;
+	default:
+		/* no-op */
+		break;
+	}
+
+	return rc;
+}
+
 static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 						 struct obj_attrs *temp)
 {
@@ -855,6 +913,198 @@ static enum pkcs11_rc create_priv_key_attributes(struct obj_attrs **out,
 		return rc;
 
 	return set_attributes_opt_or_null(out, temp, oon, oon_count);
+}
+
+static int mbd_rand(void *rng_state __unused, unsigned char *output, size_t len)
+{
+	TEE_GenerateRandom(output, len);
+	return 0;
+}
+
+static enum pkcs11_rc
+create_ec_priv_key_hidden_attributes(struct obj_attrs **out,
+				     struct obj_attrs *temp,
+				     enum processing_func function)
+{
+	struct mbedtls_ecp_keypair key_pair = { };
+	mbedtls_ecp_group_id ec_curve = MBEDTLS_ECP_DP_NONE;
+	mbedtls_ecp_group key_pair_grp = { };
+	mbedtls_ecp_point key_pair_Q = { };
+	mbedtls_mpi key_pair_d = { };
+	size_t buflen = 0;
+	uint8_t *buf = NULL;
+	size_t asnbuflen = 0;
+	uint8_t *asnbuf = NULL;
+	uint8_t *ptr = NULL;
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	int tee_size = 0;
+	int tee_curve = 0;
+	void *a_ptr = NULL;
+	uint32_t a_size = 0;
+	int ret = 0;
+
+	if (function != PKCS11_FUNCTION_IMPORT)
+		return PKCS11_CKR_OK;
+
+	/*
+	 * TEE internal API requires that for private key operations there
+	 * needs to be also public key available.
+	 *
+	 * Generate hidden EC point from private key.
+	 */
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_EC_PARAMS,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No EC_PARAMS attribute found in private key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	/* Just valdiate that curve is found */
+	tee_size = ec_params2tee_keysize(a_ptr, a_size);
+	if (!tee_size) {
+		EMSG("Unsupported EC_PARAMS curve");
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
+	}
+
+	tee_curve = ec_params2tee_curve(a_ptr, a_size);
+
+	switch (tee_curve) {
+	case TEE_ECC_CURVE_NIST_P192:
+		ec_curve = MBEDTLS_ECP_DP_SECP192R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P224:
+		ec_curve = MBEDTLS_ECP_DP_SECP224R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P256:
+		ec_curve = MBEDTLS_ECP_DP_SECP256R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P384:
+		ec_curve = MBEDTLS_ECP_DP_SECP384R1;
+		break;
+	case TEE_ECC_CURVE_NIST_P521:
+		ec_curve = MBEDTLS_ECP_DP_SECP521R1;
+		break;
+	default:
+		EMSG("Failed to map EC_PARAMS to supported curve");
+		return PKCS11_CKR_CURVE_NOT_SUPPORTED;
+	}
+
+	if (get_attribute_ptr(temp, PKCS11_CKA_VALUE,
+			      &a_ptr, &a_size) || !a_ptr) {
+		EMSG("No VALUE attribute found in private key");
+		return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+	}
+
+	mbedtls_ecp_keypair_init(&key_pair);
+	mbedtls_ecp_group_init(&key_pair_grp);
+	mbedtls_mpi_init(&key_pair_d);
+	mbedtls_ecp_point_init(&key_pair_Q);
+
+	ret = mbedtls_ecp_read_key(ec_curve, &key_pair, a_ptr, a_size);
+	if (ret) {
+		EMSG("Failed to parse CKA_VALUE");
+		rc = PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+		goto out;
+	}
+
+	ret = mbedtls_ecp_export(&key_pair, &key_pair_grp, &key_pair_d,
+				 &key_pair_Q);
+	if (ret) {
+		EMSG("Failed to export key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_mul(&key_pair_grp, &key_pair_Q, &key_pair_d,
+			      &key_pair_grp.G, mbd_rand, NULL);
+	if (ret) {
+		EMSG("Failed to create public key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_check_privkey(&key_pair_grp, &key_pair_d);
+	if (ret) {
+		EMSG("Failed to verify private key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_check_pubkey(&key_pair_grp, &key_pair_Q);
+	if (ret) {
+		EMSG("Failed to verify public key");
+		goto out;
+	}
+
+	ret = mbedtls_ecp_point_write_binary(&key_pair_grp, &key_pair_Q,
+					     MBEDTLS_ECP_PF_UNCOMPRESSED,
+					     &buflen, NULL, 0);
+	if (ret != MBEDTLS_ERR_ECP_BUFFER_TOO_SMALL) {
+		EMSG("Failed to determine size of binary public key");
+		goto out;
+	}
+
+	buf = TEE_Malloc(buflen, TEE_MALLOC_FILL_ZERO);
+	if (!buf) {
+		EMSG("Failed to allocate memory for public key");
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	asnbuflen = 1 /* octet string */ + 5 /* length */ + buflen;
+
+	asnbuf = TEE_Malloc(asnbuflen, TEE_MALLOC_FILL_ZERO);
+	if (!asnbuf) {
+		EMSG("Failed to allocate memory for public key");
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	ret = mbedtls_ecp_point_write_binary(&key_pair_grp, &key_pair_Q,
+					     MBEDTLS_ECP_PF_UNCOMPRESSED,
+					     &buflen, buf, buflen);
+	if (ret) {
+		EMSG("Failed to write binary public key");
+		goto out;
+	}
+
+	/* Note: ASN.1 writing works backwards */
+	ptr = asnbuf + asnbuflen;
+
+	ret = mbedtls_asn1_write_octet_string(&ptr, asnbuf, buf, buflen);
+	if (ret < 0) {
+		EMSG("Failed to write asn1 public key");
+		goto out;
+	}
+
+	rc = add_attribute(out, PKCS11_CKA_OPTEE_HIDDEN_EC_POINT, ptr,
+			   (size_t)ret);
+
+out:
+	TEE_Free(asnbuf);
+	TEE_Free(buf);
+	mbedtls_ecp_keypair_free(&key_pair);
+	mbedtls_ecp_group_free(&key_pair_grp);
+	mbedtls_mpi_free(&key_pair_d);
+	mbedtls_ecp_point_free(&key_pair_Q);
+
+	return rc;
+}
+
+static enum pkcs11_rc
+create_priv_key_hidden_attributes(struct obj_attrs **out,
+				  struct obj_attrs *temp,
+				  enum processing_func function)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_OK;
+
+	switch (get_key_type(*out)) {
+	case PKCS11_CKK_EC:
+		rc = create_ec_priv_key_hidden_attributes(out, temp, function);
+		break;
+	default:
+		/* no-op */
+		break;
+	}
+
+	return rc;
 }
 
 static enum pkcs11_rc
@@ -1122,9 +1372,16 @@ create_attributes_from_template(struct obj_attrs **out, void *template,
 		break;
 	case PKCS11_CKO_PUBLIC_KEY:
 		rc = create_pub_key_attributes(&attrs, temp, function);
+		if (rc)
+			goto out;
+		rc = create_pub_key_generated_attributes(&attrs, temp,
+							 function);
 		break;
 	case PKCS11_CKO_PRIVATE_KEY:
 		rc = create_priv_key_attributes(&attrs, temp);
+		if (rc)
+			goto out;
+		rc = create_priv_key_hidden_attributes(&attrs, temp, function);
 		break;
 	default:
 		DMSG("Invalid object class %#"PRIx32"/%s",
@@ -1351,9 +1608,6 @@ enum pkcs11_rc check_created_attrs_against_token(struct pkcs11_session *session,
 		return PKCS11_CKR_SESSION_READ_ONLY;
 	}
 
-	/*
-	 * TODO: START_DATE and END_DATE: complies with current time?
-	 */
 	return PKCS11_CKR_OK;
 }
 
@@ -1870,6 +2124,9 @@ bool attribute_is_exportable(struct pkcs11_attribute_head *req_attr,
 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
 	enum pkcs11_class_id key_class = get_class(obj->attributes);
 
+	if (attribute_is_hidden(req_attr))
+		return false;
+
 	if (key_class != PKCS11_CKO_SECRET_KEY &&
 	    key_class != PKCS11_CKO_PRIVATE_KEY)
 		return true;
@@ -1925,6 +2182,7 @@ static bool attr_is_modifiable_secret_key(struct pkcs11_attribute_head *attr,
 	case PKCS11_CKA_VERIFY:
 	case PKCS11_CKA_WRAP:
 	case PKCS11_CKA_UNWRAP:
+	case PKCS11_CKA_CHECK_VALUE:
 		return true;
 	/* Can't be modified once set to CK_FALSE - 12 in Table 10 */
 	case PKCS11_CKA_EXTRACTABLE:
@@ -2132,6 +2390,10 @@ enum pkcs11_rc check_attrs_against_modification(struct pkcs11_session *session,
 		TEE_MemMove(&cli_ref, cur, sizeof(cli_ref));
 		len = sizeof(cli_ref) + cli_ref.size;
 
+		/* Protect hidden attributes */
+		if (attribute_is_hidden(&cli_ref))
+			return PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
+
 		/*
 		 * Check 1 - Check if attribute belongs to the object
 		 * The obj->attributes has all the attributes in
@@ -2226,7 +2488,11 @@ static enum pkcs11_rc set_secret_key_data(struct obj_attrs **head, void *data,
 	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
 		return PKCS11_CKR_GENERAL_ERROR;
 
-	return add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
+	rc = add_attribute(head, PKCS11_CKA_VALUE, data, key_length);
+	if (rc)
+		return rc;
+
+	return set_check_value_attr(head);
 }
 
 static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
@@ -2265,7 +2531,8 @@ static enum pkcs11_rc set_private_key_data_rsa(struct obj_attrs **head,
 	mbedtls_mpi_init(&p);
 	mbedtls_mpi_init(&q);
 
-	mbedtls_rc = mbedtls_pk_parse_key(&pk, data, key_size, NULL, 0);
+	mbedtls_rc = mbedtls_pk_parse_key(&pk, data, key_size,
+					  NULL, 0, mbd_rand, NULL);
 	if (mbedtls_rc) {
 		rc = PKCS11_CKR_ARGUMENTS_BAD;
 		goto out;
@@ -2573,4 +2840,189 @@ enum pkcs11_rc add_missing_attribute_id(struct obj_attrs **pub_head,
 		return set_attribute(priv_head, PKCS11_CKA_ID, id1, id1_size);
 	else
 		return set_attribute(pub_head, PKCS11_CKA_ID, id2, id2_size);
+}
+
+/*
+ * The key check value is derived from the object by taking the first
+ * three bytes of the SHA-1 hash of the object's CKA_VALUE attribute.
+ */
+static enum pkcs11_rc compute_check_value_with_sha1(void *key,
+						    uint32_t key_size,
+						    void *kcv)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_OperationHandle op = TEE_HANDLE_NULL;
+	size_t buf_size = TEE_MAX_HASH_SIZE;
+	uint8_t *buf = NULL;
+
+	assert(key && kcv);
+
+	res = TEE_AllocateOperation(&op, TEE_ALG_SHA1, TEE_MODE_DIGEST, 0);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	buf = TEE_Malloc(buf_size, TEE_MALLOC_FILL_ZERO);
+	if (!buf) {
+		rc = PKCS11_CKR_DEVICE_MEMORY;
+		goto out;
+	}
+
+	res = TEE_DigestDoFinal(op, key, key_size, buf, &buf_size);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_MemMove(kcv, buf, PKCS11_CKA_CHECK_VALUE_SIZE);
+
+out:
+	TEE_Free(buf);
+	TEE_FreeOperation(op);
+
+	return rc;
+}
+
+/*
+ * The key check value that is calculated as follows:
+ * 1) Take a buffer of the cipher block size of binary zeros (0x00).
+ * 2) Encrypt this block in ECB mode.
+ * 3) Take the first three bytes of cipher text as the check value.
+ */
+static enum pkcs11_rc compute_check_value_with_ecb(void *key, uint32_t key_size,
+						   void *kcv)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_OperationHandle op = TEE_HANDLE_NULL;
+	TEE_ObjectHandle hkey = TEE_HANDLE_NULL;
+	TEE_Attribute attr = { };
+	uint8_t buf[TEE_AES_BLOCK_SIZE] = { };
+	size_t buf_size = sizeof(buf);
+
+	assert(key && kcv);
+
+	res = TEE_AllocateOperation(&op, TEE_ALG_AES_ECB_NOPAD,
+				    TEE_MODE_ENCRYPT, key_size * 8);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	res = TEE_AllocateTransientObject(TEE_TYPE_AES, key_size * 8, &hkey);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_InitRefAttribute(&attr, TEE_ATTR_SECRET_VALUE, key, key_size);
+
+	res = TEE_PopulateTransientObject(hkey, &attr, 1);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	res = TEE_SetOperationKey(op, hkey);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_CipherInit(op, NULL, 0);
+
+	res = TEE_CipherDoFinal(op, buf, buf_size, buf, &buf_size);
+	rc = tee2pkcs_error(res);
+	if (rc != PKCS11_CKR_OK)
+		goto out;
+
+	TEE_MemMove(kcv, buf, PKCS11_CKA_CHECK_VALUE_SIZE);
+
+out:
+	TEE_FreeTransientObject(hkey);
+	TEE_FreeOperation(op);
+
+	return rc;
+}
+
+enum pkcs11_rc set_check_value_attr(struct obj_attrs **head)
+{
+	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+	uint32_t val_len = 0;
+	uint32_t kcv2_len = 0;
+	void *val = NULL;
+	uint8_t kcv[PKCS11_CKA_CHECK_VALUE_SIZE] = { };
+	void *kcv2 = NULL;
+
+	assert(head && *head);
+
+	if (!IS_ENABLED(CFG_PKCS11_TA_CHECK_VALUE_ATTRIBUTE))
+		return PKCS11_CKR_OK;
+
+	switch (get_class(*head)) {
+	case PKCS11_CKO_SECRET_KEY:
+	case PKCS11_CKO_CERTIFICATE:
+		break;
+	default:
+		/* Nothing to do */
+		return PKCS11_CKR_OK;
+	}
+
+	/* Check whether CKA_CHECK_VALUE has been provided in the template */
+	rc = get_attribute_ptr(*head, PKCS11_CKA_CHECK_VALUE, &kcv2, &kcv2_len);
+
+	if (rc != PKCS11_CKR_OK && rc != PKCS11_RV_NOT_FOUND)
+		return PKCS11_CKR_GENERAL_ERROR;
+
+	/*
+	 * The generation of the KCV may be prevented by the application
+	 * supplying the attribute in the template as a no-value (0 length)
+	 * entry.
+	 */
+	if (rc == PKCS11_CKR_OK && !kcv2_len)
+		return PKCS11_CKR_OK;
+
+	if (rc == PKCS11_CKR_OK && kcv2_len != PKCS11_CKA_CHECK_VALUE_SIZE)
+		return PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+
+	/* Get key CKA_VALUE */
+	rc = get_attribute_ptr(*head, PKCS11_CKA_VALUE, &val, &val_len);
+	if (rc)
+		return rc;
+
+	if (get_class(*head) == PKCS11_CKO_SECRET_KEY) {
+		switch (get_key_type(*head)) {
+		case PKCS11_CKK_AES:
+			rc = compute_check_value_with_ecb(val, val_len, kcv);
+			break;
+		case PKCS11_CKK_GENERIC_SECRET:
+		case PKCS11_CKK_MD5_HMAC:
+		case PKCS11_CKK_SHA_1_HMAC:
+		case PKCS11_CKK_SHA256_HMAC:
+		case PKCS11_CKK_SHA384_HMAC:
+		case PKCS11_CKK_SHA512_HMAC:
+		case PKCS11_CKK_SHA224_HMAC:
+			rc = compute_check_value_with_sha1(val, val_len, kcv);
+			break;
+		default:
+			rc = PKCS11_CKR_TEMPLATE_INCONSISTENT;
+			break;
+		}
+	} else {
+		rc = compute_check_value_with_sha1(val, val_len, kcv);
+	}
+
+	if (rc)
+		return rc;
+
+	/*
+	 * If the computed KCV does not match the provided one
+	 * then return CKR_ATTRIBUTE_VALUE_INVALID
+	 */
+	if (kcv2_len) {
+		/* Provided KCV value shall match the computed one */
+		if (TEE_MemCompare(kcv2, kcv, PKCS11_CKA_CHECK_VALUE_SIZE))
+			rc = PKCS11_CKR_ATTRIBUTE_VALUE_INVALID;
+	} else {
+		rc = add_attribute(head, PKCS11_CKA_CHECK_VALUE, kcv,
+				   PKCS11_CKA_CHECK_VALUE_SIZE);
+	}
+
+	return rc;
 }

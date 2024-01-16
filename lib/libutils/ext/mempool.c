@@ -9,6 +9,7 @@
 #include <compiler.h>
 #include <malloc.h>
 #include <mempool.h>
+#include <pta_stats.h>
 #include <string.h>
 #include <util.h>
 
@@ -146,7 +147,7 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 	p = raw_malloc(0, 0, size, pool->mctx);
 	if (p) {
 #ifdef CFG_MEMPOOL_REPORT_LAST_OFFSET
-		struct malloc_stats stats = { };
+		struct pta_stats_alloc stats = { };
 
 		raw_malloc_get_stats(pool->mctx, &stats);
 		if (stats.max_allocated > pool->max_allocated) {
@@ -180,6 +181,8 @@ void *mempool_calloc(struct mempool *pool, size_t nmemb, size_t size)
 
 void mempool_free(struct mempool *pool, void *ptr)
 {
-	raw_free(ptr, pool->mctx, false /*!wipe*/);
-	put_pool(pool);
+	if (ptr) {
+		raw_free(ptr, pool->mctx, false /*!wipe*/);
+		put_pool(pool);
+	}
 }

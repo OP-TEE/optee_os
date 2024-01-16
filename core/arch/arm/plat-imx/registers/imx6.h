@@ -77,7 +77,6 @@
 
 #define SCU_BASE			0x00A00000
 #define PL310_BASE			0x00A02000
-#define SRC_BASE			0x020D8000
 #define IRAM_BASE			0x00900000
 
 #define OCOTP_BASE			0x021BC000

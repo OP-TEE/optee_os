@@ -32,13 +32,16 @@ struct thread_core_local {
 #ifdef CFG_CORE_DEBUG_CHECK_STACKS
 	bool stackcheck_recursion;
 #endif
+#ifdef CFG_FAULT_MITIGATION
+	struct ftmn_func_arg *ftmn_arg;
+#endif
 } THREAD_CORE_LOCAL_ALIGNED;
 
 struct thread_user_vfp_state {
 };
 
-struct thread_smc_args {
-	unsigned long a0;	/* SBI function ID */
+struct thread_abi_args {
+	unsigned long a0;	/* ABI function ID */
 	unsigned long a1;	/* Parameter */
 	unsigned long a2;	/* Parameter */
 	unsigned long a3;	/* Thread ID when returning from RPC */

@@ -528,9 +528,9 @@ void crypto_bignum_copy(struct bignum *to __unused,
 	bignum_cant_happen();
 }
 
-void crypto_bignum_free(struct bignum *a)
+void crypto_bignum_free(struct bignum **a)
 {
-	if (a)
+	if (a && *a)
 		panic();
 }
 
@@ -834,25 +834,51 @@ TEE_Result crypto_acipher_sm2_kep_derive(struct ecc_keypair *my_key __unused,
 #endif
 
 #if !defined(CFG_CRYPTO_X25519)
-TEE_Result crypto_acipher_alloc_x25519_keypair(struct x25519_keypair *key
+TEE_Result crypto_acipher_alloc_x25519_keypair(struct montgomery_keypair *key
 								__unused,
 					       size_t key_size_bits __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-TEE_Result crypto_acipher_gen_x25519_key(struct x25519_keypair *key __unused,
+TEE_Result crypto_acipher_gen_x25519_key(struct montgomery_keypair
+					 *key __unused,
 					 size_t key_size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
-TEE_Result crypto_acipher_x25519_shared_secret(struct x25519_keypair
+TEE_Result crypto_acipher_x25519_shared_secret(struct montgomery_keypair
 					       *private_key __unused,
 					       void *public_key __unused,
 					       void *secret __unused,
 					       unsigned long
 					       *secret_len __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+#endif
+
+#if !defined(CFG_CRYPTO_X448)
+TEE_Result crypto_acipher_alloc_x448_keypair(struct montgomery_keypair *key
+						       __unused,
+					       size_t key_size_bits __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_gen_x448_key(struct montgomery_keypair *key __unused,
+				       size_t key_size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+TEE_Result crypto_acipher_x448_shared_secret(struct montgomery_keypair
+					     *private_key __unused,
+					     void *public_key __unused,
+					     void *secret __unused,
+					     unsigned long
+					     *secret_len __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }

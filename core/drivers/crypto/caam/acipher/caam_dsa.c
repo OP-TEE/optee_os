@@ -309,10 +309,10 @@ static TEE_Result do_allocate_keypair(struct dsa_keypair *key, size_t l_bits,
 err:
 	DSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->g);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
-	crypto_bignum_free(key->x);
+	crypto_bignum_free(&key->g);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->q);
+	crypto_bignum_free(&key->x);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -358,9 +358,9 @@ static TEE_Result do_allocate_publickey(struct dsa_public_key *key,
 err:
 	DSA_TRACE("Allocation error");
 
-	crypto_bignum_free(key->g);
-	crypto_bignum_free(key->p);
-	crypto_bignum_free(key->q);
+	crypto_bignum_free(&key->g);
+	crypto_bignum_free(&key->p);
+	crypto_bignum_free(&key->q);
 
 	return TEE_ERROR_OUT_OF_MEMORY;
 }
@@ -579,7 +579,7 @@ static TEE_Result do_sign(struct drvcrypt_sign_data *sdata, size_t l_bytes,
 	/* Message length */
 	caam_desc_add_word(desc, sdata->message.length);
 
-	caam_desc_add_word(desc, DSA_SIGN(DL));
+	caam_desc_add_word(desc, DSA_SIGN(DL, HASHED));
 
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
@@ -721,7 +721,7 @@ static TEE_Result do_verify(struct drvcrypt_sign_data *sdata, size_t l_bytes,
 	/* Message length */
 	caam_desc_add_word(desc, sdata->message.length);
 
-	caam_desc_add_word(desc, DSA_VERIFY(DL));
+	caam_desc_add_word(desc, DSA_VERIFY(DL, HASHED));
 	desclen = caam_desc_get_len(desc);
 	caam_desc_update_hdr(desc, DESC_HEADER_IDX(desclen, desclen - 1));
 

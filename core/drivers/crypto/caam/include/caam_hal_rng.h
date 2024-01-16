@@ -40,6 +40,13 @@ uint32_t caam_hal_rng_get_sh_status(vaddr_t baseaddr);
 bool caam_hal_rng_key_loaded(vaddr_t baseaddr);
 
 /*
+ * Returns true if the RNG was initialized for prediction resistance
+ *
+ * @baseaddr  RNG Base Address
+ */
+bool caam_hal_rng_pr_enabled(vaddr_t baseaddr);
+
+/*
  * Configures the RNG entropy delay
  *
  * @baseaddr   RNG Base Address

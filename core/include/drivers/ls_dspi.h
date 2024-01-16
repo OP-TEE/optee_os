@@ -27,6 +27,13 @@
 #define DSPI_CTAR_A_DT(x)    (((x) & 0x0F) << 4)	/* DT [24-27] */
 #define DSPI_CTAR_BR(x)	     ((x) & 0x0F)	/* Baud Rate Scaler [28-31] */
 
+/* SPI mode flags */
+#define SPI_CPHA      BIT(0) /* clock phase */
+#define SPI_CPOL      BIT(1) /* clock polarity */
+#define SPI_CS_HIGH   BIT(2) /* CS active high */
+#define SPI_LSB_FIRST BIT(3) /* per-word bits-on-wire */
+#define SPI_CONT      BIT(4) /* Continuous CS mode */
+
 /*
  * struct ls_dspi_data describes DSPI controller chip instance
  * The structure contains below members:
@@ -63,8 +70,5 @@ struct ls_dspi_data {
  * dspi_data:	DSPI controller chip instance
  */
 TEE_Result ls_dspi_init(struct ls_dspi_data *dspi_data);
-
-/* Flush RX and TX FIFO */
-void dspi_flush_fifo(struct ls_dspi_data *dspi_data);
 
 #endif /* __DRIVERS_LS_DSPI_H */

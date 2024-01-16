@@ -78,6 +78,7 @@ mx8qm-flavorlist = \
 
 mx8qx-flavorlist = \
 	mx8qxpmek \
+	mx8dxmek \
 
 mx8dxl-flavorlist = \
 	mx8dxlevk \
@@ -207,7 +208,6 @@ CFG_IMX_LPUART ?= y
 CFG_DRAM_BASE ?= 0x80000000
 $(call force,CFG_TEE_CORE_NB_CORE,2)
 $(call force,CFG_IMX_OCOTP,n)
-$(call force,CFG_NXP_CAAM,n)
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8ulp-flavorlist)))
 $(call force,CFG_MX8ULP,y)
 $(call force,CFG_ARM64_core,y)
@@ -399,9 +399,18 @@ CFG_NSEC_DDR_1_SIZE  ?= 0x380000000UL
 CFG_CORE_ARM64_PA_BITS ?= 40
 endif
 
+ifneq (,$(filter $(PLATFORM_FLAVOR),mx8dxmek))
+CFG_DDR_SIZE ?= 0x40000000
+CFG_UART_BASE ?= UART0_BASE
+$(call force,CFG_MX8DX,y)
+endif
+
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8dxlevk))
 CFG_DDR_SIZE ?= 0x40000000
 CFG_UART_BASE ?= UART0_BASE
+CFG_NSEC_DDR_1_BASE ?= 0x800000000UL
+CFG_NSEC_DDR_1_SIZE ?= 0x400000000UL
+CFG_CORE_ARM64_PA_BITS ?= 40
 endif
 
 ifneq (,$(filter $(PLATFORM_FLAVOR),mx8ulpevk))
@@ -491,6 +500,12 @@ CFG_SHMEM_SIZE ?= 0x00200000
 CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - $(CFG_TZDRAM_SIZE) - $(CFG_SHMEM_SIZE) + $(CFG_DDR_SIZE))
 CFG_SHMEM_START ?= ($(CFG_TZDRAM_START) + $(CFG_TZDRAM_SIZE))
 
+# Enable embedded tests by default
+CFG_ENABLE_EMBEDDED_TESTS ?= y
+
+# Set default heap size for imx platforms to 128k
+CFG_CORE_HEAP_SIZE ?= 131072
+
 CFG_CRYPTO_SIZE_OPTIMIZATION ?= n
 CFG_MMAP_REGIONS ?= 24
 
@@ -500,6 +515,7 @@ $(call force,CFG_IMX_OCOTP,n)
 endif
 CFG_IMX_OCOTP ?= y
 CFG_IMX_DIGPROG ?= y
+CFG_PKCS11_TA ?= y
 
 # Almost all platforms include CAAM HW Modules, except the
 # ones forced to be disabled

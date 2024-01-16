@@ -3,9 +3,13 @@
  * Copyright 2022-2023 NXP
  */
 
-#include <gen-asm-defines.h>
 #include <kernel/thread.h>
 #include <kernel/thread_private.h>
+#include <gen-asm-defines.h>
+#include <kernel/boot.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
+#include <mm/core_mmu_arch.h>
 #include <types_ext.h>
 
 DEFINES
@@ -48,6 +52,8 @@ DEFINES
 	       offsetof(struct thread_user_mode_rec, ctx_regs_ptr));
 	DEFINE(THREAD_USER_MODE_REC_X1,
 	       offsetof(struct thread_user_mode_rec, x[0]));
+	DEFINE(THREAD_USER_MODE_REC_X4,
+	       offsetof(struct thread_user_mode_rec, x[3]));
 	DEFINE(THREAD_USER_MODE_REC_X8,
 	       offsetof(struct thread_user_mode_rec, x[4]));
 	DEFINE(THREAD_USER_MODE_REC_X18,
@@ -75,4 +81,13 @@ DEFINES
 	DEFINE(THREAD_SCALL_REG_SP, offsetof(struct thread_scall_regs, sp));
 	DEFINE(THREAD_SCALL_REG_A0, offsetof(struct thread_scall_regs, a0));
 	DEFINE(THREAD_SCALL_REGS_SIZE, sizeof(struct thread_scall_regs));
+
+	/* struct core_mmu_config */
+	DEFINE(CORE_MMU_CONFIG_SIZE, sizeof(struct core_mmu_config));
+	DEFINE(CORE_MMU_CONFIG_SATP,
+	       offsetof(struct core_mmu_config, satp));
+
+	/* struct thread_abi_args */
+	DEFINE(THREAD_ABI_ARGS_A0, offsetof(struct thread_abi_args, a0));
+	DEFINE(THREAD_ABI_ARGS_SIZE, sizeof(struct thread_abi_args));
 }

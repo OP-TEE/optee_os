@@ -4,8 +4,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_ENTRY_STD_H
-#define TEE_ENTRY_STD_H
+#ifndef __TEE_ENTRY_STD_H
+#define __TEE_ENTRY_STD_H
 
 #include <kernel/thread.h>
 #include <optee_msg.h>
@@ -23,4 +23,4 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params);
 /* Get list head for sessions opened from non-secure */
 void nsec_sessions_list_head(struct tee_ta_session_head **open_sessions);
 
-#endif /* TEE_ENTRY_STD_H */
+#endif /* __TEE_ENTRY_STD_H */

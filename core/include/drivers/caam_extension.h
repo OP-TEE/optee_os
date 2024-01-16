@@ -42,4 +42,14 @@ TEE_Result caam_mp_export_publickey(uint8_t *pubkey, size_t *size);
 TEE_Result caam_mp_sign(uint8_t *data, size_t *data_size, uint8_t *sig,
 			size_t *sig_size);
 #endif /* CFG_NXP_CAAM_MP_DRV */
-#endif /* __CAAM_EXTENSION_H__ */
+
+#ifdef CFG_NXP_CAAM_DEK_DRV
+/*
+ * Data encryption key generation using CAAM Secure Memory.
+ *
+ * @blob_data  [in/out] Blob data
+ */
+TEE_Result caam_dek_generate(const uint8_t *payload, size_t payload_size,
+			     uint8_t *dek, size_t dek_size);
+#endif /* CFG_NXP_CAAM_DEK_DRV */
+#endif /* __DRIVERS_CAAM_EXTENSION_H__ */

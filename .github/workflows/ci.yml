@@ -81,7 +81,8 @@ jobs:
 
           function _make() { make -j$(nproc) -s O=out $*; }
           function download_plug_and_trust() { mkdir -p $HOME/se050 && git clone --single-branch -b v0.4.2 https://github.com/foundriesio/plug-and-trust $HOME/se050/plug-and-trust || (rm -rf $HOME/se050 ; echo Nervermind); }
-          function download_scp_firmware() { git clone --single-branch https://github.com/ARM-software/SCP-firmware.git $HOME/scp-firmware || echo Nervermind; }
+
+          function download_scp_firmware() { git clone --depth 1 https://github.com/ARM-software/SCP-firmware.git -b v2.13.0 $HOME/scp-firmware || echo Nervermind; }
 
           ccache -s -v
           download_plug_and_trust
@@ -92,7 +93,7 @@ jobs:
           _make CFG_TEE_CORE_LOG_LEVEL=4 CFG_TEE_CORE_DEBUG=y CFG_TEE_TA_LOG_LEVEL=4 CFG_CC_OPT_LEVEL=0 CFG_DEBUG_INFO=y
           _make CFG_TEE_CORE_LOG_LEVEL=0 CFG_TEE_CORE_DEBUG=n CFG_TEE_TA_LOG_LEVEL=0 CFG_DEBUG_INFO=n CFG_ENABLE_EMBEDDED_TESTS=n
           _make CFG_TEE_CORE_MALLOC_DEBUG=y CFG_CORE_DEBUG_CHECK_STACKS=y
-          _make CFG_CORE_SANITIZE_KADDRESS=y
+          _make CFG_CORE_SANITIZE_KADDRESS=y CFG_CORE_ASLR=n
           _make CFG_LOCKDEP=y
           _make CFG_CRYPTO=n
           _make CFG_CRYPTO_{AES,DES}=n
@@ -127,6 +128,7 @@ jobs:
           _make PLATFORM=vexpress-qemu_armv8a CFG_TA_GPROF_SUPPORT=y CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y CFG_ULIBS_MCOUNT=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_NS_VIRTUALIZATION=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_PREALLOC_EL0_TBLS=y
+          _make PLATFORM=vexpress-qemu_armv8a CFG_TRANSFER_LIST=y CFG_MAP_EXT_DT_SECURE=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL1_SPMC=y
           _make PLATFORM=vexpress-qemu_armv8a CFG_CORE_SEL2_SPMC=y CFG_CORE_PHYS_RELOCATABLE=y CFG_TZDRAM_START=0x0d304000 CFG_TZDRAM_SIZE=0x00cfc000
           _make PLATFORM=vexpress-qemu_armv8a CFG_{ATTESTATION,DEVICE_ENUM,RTC,SCMI,SECSTOR_TA_MGT}_PTA=y CFG_WITH_STATS=y CFG_TA_STATS=y
@@ -136,8 +138,10 @@ jobs:
           _make PLATFORM=stm-b2260
           _make PLATFORM=stm-cannes
           _make PLATFORM=stm32mp1
-          _make PLATFORM=stm32mp1-135F_DK
+          _make PLATFORM=stm32mp1-135F_DK CFG_DRIVERS_CLK_PRINT_TREE=y CFG_DRIVERS_REGULATOR_PRINT_TREE=y
+          _make PLATFORM=stm32mp1-135F_DK COMPILER=clang
           if [ -d $HOME/scp-firmware ]; then _make PLATFORM=stm32mp1-157C_DK2 CFG_SCMI_SCPFW=y CFG_SCP_FIRMWARE=$HOME/scp-firmware; fi
+          _make PLATFORM=stm32mp2
           _make PLATFORM=vexpress-fvp
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y
           _make PLATFORM=vexpress-fvp CFG_ARM64_core=y CFG_CORE_SEL1_SPMC=y CFG_SECURE_PARTITION=y
@@ -185,6 +189,7 @@ jobs:
           _make PLATFORM=imx-mx8mqevk
           _make PLATFORM=imx-mx8mpevk
           _make PLATFORM=imx-mx8qxpmek
+          _make PLATFORM=imx-mx8dxmek
           _make PLATFORM=imx-mx8qmmek
           _make PLATFORM=imx-mx8dxlevk
           _make PLATFORM=imx-mx8ulpevk
@@ -234,12 +239,18 @@ jobs:
           _make PLATFORM=rockchip-rk322x
           _make PLATFORM=rockchip-rk3399
           _make PLATFORM=sam
+          _make PLATFORM=sam-sama5d2_xplained
+          _make PLATFORM=sam-sama5d27_som1_ek
           _make PLATFORM=sam-sama5d27_wlsom1_ek
           _make PLATFORM=marvell-armada7k8k
           _make PLATFORM=marvell-armada3700
           _make PLATFORM=marvell-otx2t96
           _make PLATFORM=marvell-otx2f95
           _make PLATFORM=marvell-otx2t98
+          _make PLATFORM=marvell-cn10ka
+          _make PLATFORM=marvell-cn10kb
+          _make PLATFORM=marvell-cnf10ka
+          _make PLATFORM=marvell-cnf10kb
           _make PLATFORM=synquacer
           _make PLATFORM=sunxi-bpi_zero
           _make PLATFORM=sunxi-sun50i_a64
@@ -250,6 +261,7 @@ jobs:
           _make PLATFORM=versal CFG_VERSAL_FPGA_DDR_ADDR=0x40000000
           _make PLATFORM=corstone1000
           _make PLATFORM=nuvoton
+          _make PLATFORM=d06
 
   QEMUv8_check:
     name: make check (QEMUv8)
@@ -272,6 +284,8 @@ jobs:
           export LC_ALL=C
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
+          export CFG_ATTESTATION_PTA=y
+          export CFG_ATTESTATION_PTA_KEY_SIZE=1024
           WD=$(pwd)
           cd ..
           TOP=$(pwd)/optee_repo_qemu_v8
@@ -283,6 +297,7 @@ jobs:
           make -j$(nproc) check
           make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
           make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001
+          make -j$(nproc) check CFG_PAN=y
 
   QEMUv8_Xen_check:
     name: make check (QEMUv8, Xen)
@@ -314,6 +329,39 @@ jobs:
           cd ${TOP}/build
 
           make -j$(nproc) check XEN_BOOT=y
+
+  QEMUv8_Hafnium_check:
+    name: make check (QEMUv8, Hafnium)
+    runs-on: ubuntu-latest
+    container: jforissier/optee_os_ci:qemuv8_check2
+    steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
+      - name: Restore build cache
+        uses: actions/cache@v3
+        with:
+          path: /github/home/.cache/ccache
+          key: qemuv8_hafnium_check-cache-${{ github.sha }}
+          restore-keys: |
+            qemuv8_hafnium_check-cache-
+      - name: Checkout
+        uses: actions/checkout@v3
+      - shell: bash
+        run: |
+          # make check task
+          set -e -v
+          export LC_ALL=C
+          export CFG_TEE_CORE_LOG_LEVEL=0
+          export BR2_CCACHE_DIR=/github/home/.cache/ccache
+          WD=$(pwd)
+          cd ..
+          TOP=$(pwd)/optee_repo_qemu_v8
+          /root/get_optee_qemuv8.sh ${TOP}
+          mv ${TOP}/optee_os ${TOP}/optee_os_old
+          ln -s ${WD} ${TOP}/optee_os
+          cd ${TOP}/build
+
+          make -j$(nproc) check SPMC_AT_EL=2
 
   QEMUv8_check_BTI_MTE_PAC:
     name: make check (QEMUv8, BTI+MTE+PAC)
@@ -361,6 +409,8 @@ jobs:
     runs-on: ubuntu-latest
     container: jforissier/optee_os_ci:qemuv8_check2
     steps:
+      - name: Remove /__t/*
+        run: rm -rf /__t/*
       - name: Restore build cache
         uses: actions/cache@v3
         with:
@@ -384,6 +434,4 @@ jobs:
           ln -s ${WD} ${TOP}/optee_os
           cd ${TOP}/build
 
-          # Without this line, the following one fails with "ld: cannot find -lteec" when building acipher-rs
-          make -j$(nproc)
           make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust

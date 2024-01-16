@@ -3,8 +3,8 @@
  * Copyright (c) 2019, Linaro Limited
  */
 
-#ifndef TEE_TA_ENC_MANAGER_H
-#define TEE_TA_ENC_MANAGER_H
+#ifndef __TEE_TEE_TA_ENC_MANAGER_H
+#define __TEE_TEE_TA_ENC_MANAGER_H
 
 #include <signed_hdr.h>
 #include <tee_api_types.h>

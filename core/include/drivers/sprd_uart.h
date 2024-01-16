@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SPRD_UART_H
-#define SPRD_UART_H
+#ifndef __DRIVERS_SPRD_UART_H
+#define __DRIVERS_SPRD_UART_H
 
 #include <types_ext.h>
 #include <drivers/serial.h>
@@ -39,5 +39,5 @@ struct sprd_uart_data {
 
 void sprd_uart_init(struct sprd_uart_data *pd, paddr_t base);
 
-#endif /* SPRD_UART_H */
+#endif /* __DRIVERS_SPRD_UART_H */
 

@@ -4,6 +4,7 @@
  *
  * Brief   CAAM Global Controller.
  */
+#include <assert.h>
 #include <caam_acipher.h>
 #include <caam_cipher.h>
 #include <caam_common.h>
@@ -16,10 +17,19 @@
 #include <caam_mp.h>
 #include <caam_pwr.h>
 #include <caam_rng.h>
+#include <caam_sm.h>
 #include <drivers/imx_snvs.h>
 #include <initcall.h>
 #include <kernel/panic.h>
 #include <tee_api_types.h>
+
+/*
+ * If the CAAM DMA only supports 32 bits physical addresses, OPTEE must
+ * be located within the 32 bits address space.
+ */
+#ifndef CFG_CAAM_64BIT
+static_assert((CFG_TZDRAM_START + CFG_TZDRAM_SIZE) < UINT32_MAX);
+#endif
 
 /* Crypto driver initialization */
 static TEE_Result crypto_driver_init(void)
@@ -134,6 +144,13 @@ static TEE_Result crypto_driver_init(void)
 	/* Initialize the Manufacturing Protection Module */
 	retstatus = caam_mp_init(jrcfg.base);
 	if (retstatus != CAAM_NO_ERROR && retstatus != CAAM_NOT_SUPPORTED) {
+		retresult = TEE_ERROR_GENERIC;
+		goto exit_init;
+	}
+
+	/* Initialize the secure memory */
+	retstatus = caam_sm_init(&jrcfg);
+	if (retstatus != CAAM_NO_ERROR) {
 		retresult = TEE_ERROR_GENERIC;
 		goto exit_init;
 	}

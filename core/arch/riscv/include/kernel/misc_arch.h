@@ -3,7 +3,7 @@
  * Copyright 2022 NXP
  */
 
-#ifndef KERNEL_MISC_ARCH_H
-#define KERNEL_MISC_ARCH_H
+#ifndef __KERNEL_MISC_ARCH_H
+#define __KERNEL_MISC_ARCH_H
 
-#endif /*KERNEL_MISC_ARCH_H*/
+#endif /*__KERNEL_MISC_ARCH_H*/

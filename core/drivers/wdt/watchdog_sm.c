@@ -7,14 +7,7 @@
 #include <kernel/spinlock.h>
 #include <sm/optee_smc.h>
 #include <sm/psci.h>
-
-enum smcwd_call {
-	SMCWD_INIT		= 0,
-	SMCWD_SET_TIMEOUT	= 1,
-	SMCWD_ENABLE		= 2,
-	SMCWD_PET		= 3,
-	SMCWD_GET_TIMELEFT	= 4,
-};
+#include <sm/watchdog_smc.h>
 
 static unsigned long wdt_min_timeout;
 static unsigned long wdt_max_timeout;

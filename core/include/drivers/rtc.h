@@ -3,8 +3,8 @@
  * Copyright 2022 Microchip.
  */
 
-#ifndef DRIVERS_RTC_H
-#define DRIVERS_RTC_H
+#ifndef __DRIVERS_RTC_H
+#define __DRIVERS_RTC_H
 
 #include <tee_api_types.h>
 #include <util.h>
@@ -127,4 +127,4 @@ static inline TEE_Result rtc_set_offset(long offset __unused)
 	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif
-#endif /* DRIVERS_RTC_H */
+#endif /* __DRIVERS_RTC_H */

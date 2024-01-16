@@ -45,7 +45,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC,
 			ROUNDDOWN(GIC_BASE + GICD_OFFSET, CORE_MMU_PGDIR_SIZE),
 			CORE_MMU_PGDIR_SIZE);
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }

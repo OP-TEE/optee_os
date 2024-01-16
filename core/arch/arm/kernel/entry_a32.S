@@ -163,51 +163,6 @@ END_FUNC reset_vect_table
 		write_sctlr r0
 	.endm
 
-#if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_WITH_ARM_TRUSTED_FW)
-	/*
-	 * With OP-TEE as SPMC at S-EL1 the SPMD (SPD_spmd) in TF-A passes
-	 * the DTB in r0, pagable part in r1, and the rest of the registers
-	 * are unused
-	 *
-	 * Save boot arguments passed
-	 * entry r0, saved r6: device tree address
-	 * entry r1, saved r4: pagestore
-	 * saved r5, r7: Zero
-	 */
-	.macro bootargs_entry
-	mov	r6, r0
-	mov	r4, r1
-	mov	r5, #0
-	mov	r7, #0
-	.endm
-#else
-	/*
-	 * Save boot arguments
-	 * entry r0, saved r4: pagestore
-	 * entry r1, saved r7: (ARMv7 standard bootarg #1)
-	 * entry r2, saved r6: device tree address, (ARMv7 standard bootarg #2)
-	 * entry lr, saved r5: non-secure entry address (ARMv7 bootarg #0)
-	 */
-	.macro bootargs_entry
-#if defined(CFG_NS_ENTRY_ADDR)
-	ldr	r5, =CFG_NS_ENTRY_ADDR
-#else
-	mov	r5, lr
-#endif
-#if defined(CFG_PAGEABLE_ADDR)
-	ldr	r4, =CFG_PAGEABLE_ADDR
-#else
-	mov	r4, r0
-#endif
-#if defined(CFG_DT_ADDR)
-	ldr	r6, =CFG_DT_ADDR
-#else
-	mov	r6, r2
-#endif
-	mov	r7, r1
-	.endm
-#endif
-
 	.macro maybe_init_spectre_workaround
 #if !defined(CFG_WITH_ARM_TRUSTED_FW) && \
     (defined(CFG_CORE_WORKAROUND_SPECTRE_BP) || \
@@ -239,8 +194,15 @@ END_FUNC reset_vect_table
 
 FUNC _start , :
 UNWIND(	.cantunwind)
-
-	bootargs_entry
+	/*
+	 * Temporary copy of boot argument registers, will be passed to
+	 * boot_save_args() further down.
+	 */
+	mov	r4, r0
+	mov	r5, r1
+	mov	r6, r2
+	mov	r7, r3
+	mov	r8, lr
 
 	/*
 	 * 32bit entry is expected to execute Supervisor mode,
@@ -365,7 +327,7 @@ DECLARE_KEEP_INIT _start
 LOCAL_FUNC reset_primary , : , .identity_map
 UNWIND(	.cantunwind)
 
-	/* preserve r4-r7: bootargs */
+	/* preserve r4-r8: bootargs */
 
 #ifdef CFG_WITH_PAGER
 	/*
@@ -390,8 +352,8 @@ UNWIND(	.cantunwind)
 	str	r0, cached_mem_end
 	ldr	r2, =__init_start
 copy_init:
-	ldmdb	r1!, {r3, r8-r12}
-	stmdb	r0!, {r3, r8-r12}
+	ldmdb	r1!, {r3, r9-r12}
+	stmdb	r0!, {r3, r9-r12}
 	cmp	r0, r2
 	bgt	copy_init
 #else
@@ -411,8 +373,8 @@ copy_init:
 	ldr	r2, =__end
 
 copy_init:
-	ldmdb	r1!, {r3, r8-r12}
-	stmdb	r0!, {r3, r8-r12}
+	ldmdb	r1!, {r3, r9-r12}
+	stmdb	r0!, {r3, r9-r12}
 	cmp	r0, r2
 	bgt	copy_init
 #endif
@@ -480,6 +442,16 @@ shadow_stack_access_ok:
 	/* Enable Console */
 	bl	console_init
 
+	mov	r0, r8
+	mov	r1, #0
+	push	{r0, r1}
+	mov	r0, r4
+	mov	r1, r5
+	mov	r2, r6
+	mov	r3, r7
+	bl	boot_save_args
+	add	sp, sp, #(2 * 4)
+
 #ifdef CFG_PL310
 	bl	pl310_base
 	bl	arm_cl2_config
@@ -500,7 +472,6 @@ shadow_stack_access_ok:
 #endif
 
 #ifdef CFG_CORE_ASLR
-	mov	r0, r6
 	bl	get_aslr_seed
 #else
 	mov	r0, #0
@@ -547,8 +518,6 @@ shadow_stack_access_ok:
 	bl	core_mmu_set_default_prtn_tbl
 #endif
 
-	mov	r0, r4		/* pageable part address */
-	mov	r1, r5		/* ns-entry address */
 	bl	boot_init_primary_early
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r9, sp
@@ -560,8 +529,6 @@ shadow_stack_access_ok:
 	mov	r0, #0
 	str	r0, [r8, #THREAD_CORE_LOCAL_FLAGS]
 #endif
-	mov	r0, r6		/* DT address */
-	mov	r1, #0		/* unused */
 	bl	boot_init_primary_late
 #ifndef CFG_NS_VIRTUALIZATION
 	mov	r0, #THREAD_CLF_TMP
@@ -571,9 +538,15 @@ shadow_stack_access_ok:
 
 #ifdef _CFG_CORE_STACK_PROTECTOR
 	/* Update stack canary value */
-	bl	plat_get_random_stack_canary
+	sub	sp, sp, #0x8
+	mov	r0, sp
+	mov	r1, #1
+	mov	r2, #0x4
+	bl	plat_get_random_stack_canaries
+	ldr	r0, [sp]
 	ldr	r1, =__stack_chk_guard
 	str	r0, [r1]
+	add	sp, sp, #0x8
 #endif
 
 	/*
@@ -627,10 +600,10 @@ shadow_stack_access_ok:
 	/* Pass the vector address returned from main_init */
 	sub	r1, r1, r0
 #else
-	/* realy standard bootarg #1 and #2 to non secure entry */
+	/* Relay standard bootarg #1 and #2 to non-secure entry */
 	mov	r4, #0
 	mov	r3, r6		/* std bootarg #2 for register R2 */
-	mov	r2, r7		/* std bootarg #1 for register R1 */
+	mov	r2, r5		/* std bootarg #1 for register R1 */
 	mov	r1, #0
 #endif /* CFG_WITH_ARM_TRUSTED_FW */
 
@@ -907,7 +880,7 @@ UNWIND(	.cantunwind)
 	bl	boot_core_hpen
 	ldm	r0, {r0, r6}
 #else
-	mov	r0, r5		/* ns-entry address */
+	mov	r0, r8		/* ns-entry address */
 	mov	r6, #0
 #endif
 	bl	boot_init_secondary

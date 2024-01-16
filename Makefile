@@ -18,6 +18,7 @@ unexport MAKEFILE_LIST
 # nonzero status). Useful since a few recipes use shell redirection.
 .DELETE_ON_ERROR:
 
+include mk/macros.mk
 include mk/checkconf.mk
 
 .PHONY: all
@@ -79,7 +80,7 @@ include core/core.mk
 
 # Platform/arch config is supposed to assign the targets
 ta-targets ?= invalid
-default-user-ta-target ?= $(firstword $(ta-targets))
+$(call force,default-user-ta-target,$(firstword $(ta-targets)))
 
 ifeq ($(CFG_WITH_USER_TA),y)
 include ldelf/ldelf.mk
@@ -108,6 +109,7 @@ clean:
 	${q}dirs="$(call cleandirs-for-rmdir)"; if [ "$$dirs" ]; then $(RMDIR) $$dirs; fi
 	@if [ "$(out-dir)" != "$(O)" ]; then $(cmd-echo-silent) '  CLEAN   $(O)'; fi
 	${q}if [ -d "$(O)" ]; then $(RMDIR) $(O); fi
+	${q}rm -f compile_commands.json
 
 .PHONY: cscope
 cscope:

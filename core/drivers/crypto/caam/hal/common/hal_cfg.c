@@ -11,6 +11,7 @@
 #include <caam_jr.h>
 #include <config.h>
 #include <kernel/boot.h>
+#include <kernel/dt.h>
 #include <mm/core_memprot.h>
 #include <registers/jr_regs.h>
 

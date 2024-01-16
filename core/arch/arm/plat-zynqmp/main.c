@@ -75,7 +75,7 @@ register_ddr(DRAM1_BASE, CFG_DDR_SIZE - 0x80000000);
 register_ddr(DRAM0_BASE, CFG_DDR_SIZE);
 #endif
 
-void main_init_gic(void)
+void boot_primary_init_intc(void)
 {
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }

@@ -59,10 +59,40 @@ void thread_init_tvec(void);
 void thread_trap_vect(void);
 void thread_trap_vect_end(void);
 
+void thread_return_to_ree(unsigned long arg0, unsigned long arg1,
+			  unsigned long arg2, unsigned long arg3,
+			  unsigned long arg4, unsigned long arg5);
+
+void __panic_at_abi_return(void);
+
+/*
+ * Assembly function as the first function in a thread.  Handles a stdcall,
+ * a0-a3 holds the parameters. Hands over to __thread_std_abi_entry() when
+ * everything is set up and does some post processing once
+ * __thread_std_abi_entry() returns.
+ */
+void thread_std_abi_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			  uint32_t a4, uint32_t a5);
+uint32_t __thread_std_abi_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+				uint32_t a3, uint32_t a4, uint32_t a5);
+/*
+ * Called from assembly only, vector_fast_abi_entry(). Handles a fast ABI
+ * by dispatching it to the registered fast ABI handler.
+ */
+void thread_handle_fast_abi(struct thread_abi_args *args);
+
+/*
+ * Called from assembly only, vector_std_abi_entry(). Handles a std ABI by
+ * dispatching it to the registered std ABI handler.
+ */
+uint32_t thread_handle_std_abi(uint32_t a0, uint32_t a1, uint32_t a2,
+			       uint32_t a3, uint32_t a4, uint32_t a5,
+			       uint32_t a6, uint32_t a7);
+
 /*
  * Private functions made available for thread_rv.S
  */
-int thread_state_suspend(uint32_t flags, uint32_t status, vaddr_t pc);
+int thread_state_suspend(uint32_t flags, unsigned long status, vaddr_t pc);
 void thread_resume(struct thread_ctx_regs *regs);
 uint32_t __thread_enter_user_mode(struct thread_ctx_regs *regs,
 				  uint32_t *exit_status0,

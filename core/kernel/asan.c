@@ -135,7 +135,7 @@ void asan_tag_heap_free(const void *begin, const void *end)
 			      va_range_to_shadow_size(begin, end));
 }
 
-void *asan_memset_unchecked(void *s, int c, size_t n)
+__inhibit_loop_to_libcall void *asan_memset_unchecked(void *s, int c, size_t n)
 {
 	uint8_t *b = s;
 	size_t m;
@@ -146,6 +146,7 @@ void *asan_memset_unchecked(void *s, int c, size_t n)
 	return s;
 }
 
+__inhibit_loop_to_libcall
 void *asan_memcpy_unchecked(void *__restrict dst, const void *__restrict src,
 			    size_t len)
 {

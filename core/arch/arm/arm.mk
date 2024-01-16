@@ -125,6 +125,15 @@ $(call force,CFG_CORE_SEL2_SPMC,n)
 $(call force,CFG_CORE_SEL1_SPMC,n)
 endif
 
+ifeq ($(CFG_CORE_FFA),y)
+ifneq ($(CFG_DT),y)
+$(error CFG_CORE_FFA depends on CFG_DT)
+endif
+ifneq ($(CFG_ARM64_core),y)
+$(error CFG_CORE_FFA depends on CFG_ARM64_core)
+endif
+endif
+
 ifeq ($(CFG_CORE_PHYS_RELOCATABLE)-$(CFG_WITH_PAGER),y-y)
 $(error CFG_CORE_PHYS_RELOCATABLE and CFG_WITH_PAGER are not compatible)
 endif
@@ -173,7 +182,8 @@ CFG_SM_NO_CYCLE_COUNTING ?= y
 # CFG_CORE_ASYNC_NOTIF_GIC_INTID is defined by the platform to some free
 # interrupt. Setting it to a non-zero number enables support for using an
 # Arm-GIC to notify normal world. This config variable should use a value
-# larger the 32 to make it of the type SPI.
+# larger or equal to 24 to make it of the type SPI or PPI (secure PPI
+# only).
 # Note that asynchronous notifactions must be enabled with
 # CFG_CORE_ASYNC_NOTIF=y for this variable to be used.
 CFG_CORE_ASYNC_NOTIF_GIC_INTID ?= 0

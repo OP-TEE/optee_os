@@ -12,7 +12,7 @@
  * Symbols exported by the link script.
  */
 
-#ifdef __arm__
+#ifdef ARM32
 
 /*
  * These addresses will be the start or end of the exception binary search

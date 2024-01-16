@@ -8,6 +8,7 @@
 #include <crypto/crypto.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mm/mobj.h>
 #include <optee_rpc_cmd.h>
 #include <stdio.h>
@@ -194,7 +195,7 @@ static TEE_Result read_ent(struct tee_tadb_dir *db, size_t idx,
 			   struct tadb_entry *entry)
 {
 	size_t l = sizeof(*entry);
-	TEE_Result res = db->ops->read(db->fh, idx * l, entry, &l);
+	TEE_Result res = db->ops->read(db->fh, idx * l, entry, NULL, &l);
 
 	if (!res && l != sizeof(*entry))
 		return TEE_ERROR_ITEM_NOT_FOUND;
@@ -207,7 +208,7 @@ static TEE_Result write_ent(struct tee_tadb_dir *db, size_t idx,
 {
 	const size_t l = sizeof(*entry);
 
-	return db->ops->write(db->fh, idx * l, entry, l);
+	return db->ops->write(db->fh, idx * l, entry, NULL, l);
 }
 
 static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
@@ -226,8 +227,8 @@ static TEE_Result tadb_open(struct tee_tadb_dir **db_ret)
 
 	res = db->ops->open(&po, NULL, &db->fh);
 	if (res == TEE_ERROR_ITEM_NOT_FOUND)
-		res = db->ops->create(&po, false, NULL, 0, NULL, 0, NULL, 0,
-				      &db->fh);
+		res = db->ops->create(&po, false, NULL, 0, NULL, 0,
+				      NULL, NULL, 0, &db->fh);
 
 	if (res)
 		free(db);
@@ -506,7 +507,7 @@ static TEE_Result find_ent(struct tee_tadb_dir *db, const TEE_UUID *uuid,
 	 * with TEE_ERROR_ITEM_NOT_FOUND.
 	 */
 	for (idx = 0;; idx++) {
-		struct tadb_entry entry;
+		struct tadb_entry entry = { };
 
 		res = read_ent(db, idx, &entry);
 		if (res) {
@@ -719,43 +720,54 @@ static TEE_Result ta_load(struct tee_tadb_ta_read *ta)
 	return res;
 }
 
-TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
+TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf_core,
+			    void *buf_user, size_t *len)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	const size_t sz = ta->entry.prop.custom_size + ta->entry.prop.bin_size;
 	size_t l = MIN(*len, sz - ta->pos);
+	size_t bb_len = MIN(1024U, l);
+	size_t num_bytes = 0;
+	size_t dst_len = 0;
+	void *dst = NULL;
+	void *bb = NULL;
 
 	res = ta_load(ta);
 	if (res)
 		return res;
 
-	if (buf) {
-		res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
-					  ta->ta_buf + ta->pos, l, buf);
-		if (res)
-			return res;
+	if (buf_core) {
+		dst = buf_core;
+		dst_len = l;
 	} else {
-		size_t num_bytes = 0;
-		size_t b_size = MIN(256U, l);
-		uint8_t *b = malloc(b_size);
-
-		if (!b)
+		bb = bb_alloc(bb_len);
+		if (!bb)
 			return TEE_ERROR_OUT_OF_MEMORY;
+		dst = bb;
+		dst_len = bb_len;
+	}
 
-		while (num_bytes < l) {
-			size_t n = MIN(b_size, l - num_bytes);
+	/*
+	 * This loop will only run once if buf_core is non-NULL, but as
+	 * many times as needed if the bounce buffer bb is used. That's why
+	 * dst doesn't need to be updated in the loop.
+	 */
+	while (num_bytes < l) {
+		size_t n = MIN(dst_len, l - num_bytes);
 
-			res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
-						  ta->ta_buf + ta->pos +
-							num_bytes, n, b);
-			if (res)
-				break;
-			num_bytes += n;
-		}
-
-		free(b);
+		res = tadb_update_payload(ta->ctx, TEE_MODE_DECRYPT,
+					  ta->ta_buf + ta->pos + num_bytes,
+					  n, dst);
 		if (res)
-			return res;
+			goto out;
+
+		if (buf_user) {
+			res = copy_to_user((uint8_t *)buf_user + num_bytes,
+					   dst, n);
+			if (res)
+				goto out;
+		}
+		num_bytes += n;
 	}
 
 	ta->pos += l;
@@ -768,7 +780,9 @@ TEE_Result tee_tadb_ta_read(struct tee_tadb_ta_read *ta, void *buf, size_t *len)
 			return res;
 	}
 	*len = l;
-	return TEE_SUCCESS;
+out:
+	bb_free(bb, bb_len);
+	return res;
 }
 
 void tee_tadb_ta_close(struct tee_tadb_ta_read *ta)

@@ -2,12 +2,14 @@
 /*
  * Copyright (c) 2015, Linaro Limited
  */
-#ifndef KERNEL_PSEUDO_TA_H
-#define KERNEL_PSEUDO_TA_H
+#ifndef __KERNEL_PSEUDO_TA_H
+#define __KERNEL_PSEUDO_TA_H
 
 #include <assert.h>
 #include <compiler.h>
+#include <config.h>
 #include <kernel/tee_ta_manager.h>
+#include <kernel/user_ta.h>
 #include <scattered_array.h>
 #include <tee_api_types.h>
 #include <user_ta_header.h>
@@ -60,5 +62,38 @@ static inline struct pseudo_ta_ctx *to_pseudo_ta_ctx(struct ts_ctx *ctx)
 TEE_Result tee_ta_init_pseudo_ta_session(const TEE_UUID *uuid,
 			struct tee_ta_session *s);
 
-#endif /* KERNEL_PSEUDO_TA_H */
+/*
+ * Helper functions for PTAs to support calls from a TA when CFG_PAN=y
+ */
+
+static inline bool is_caller_ta_with_pan(void)
+{
+	struct ts_session *s = NULL;
+
+	if (!IS_ENABLED(CFG_PAN))
+		return false;
+	s = ts_get_calling_session();
+	return s && is_user_ta_ctx(s->ctx);
+}
+
+/*
+ * If caller is a TA and PAN is enabled, allocate bounce buffers for each
+ * memref in @params and build @bparams, then make *@oparams point to @bparams.
+ * Otherwise just make *@oparams point to @params.
+ */
+TEE_Result to_bounce_params(uint32_t param_types,
+			    TEE_Param params[TEE_NUM_PARAMS],
+			    TEE_Param bparams[TEE_NUM_PARAMS],
+			    TEE_Param **oparams);
+
+/*
+ * If @eparams == @bparams, copy data from @bparams to @params. Otherwise, do
+ * nothing.
+ */
+TEE_Result from_bounce_params(uint32_t param_types,
+			      TEE_Param params[TEE_NUM_PARAMS],
+			      TEE_Param bparams[TEE_NUM_PARAMS],
+			      TEE_Param *eparams);
+
+#endif /* __KERNEL_PSEUDO_TA_H */
 

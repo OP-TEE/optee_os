@@ -281,4 +281,7 @@
 #else
 #define __no_stackprot
 #endif
+
+#define __inhibit_loop_to_libcall \
+	__attribute__ ((__optimize__ ("-fno-tree-loop-distribute-patterns")))
 #endif /*COMPILER_H*/

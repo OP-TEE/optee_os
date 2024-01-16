@@ -3,8 +3,8 @@
  * Copyright (c) 2016, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef CORE_MEMPROT_H
-#define CORE_MEMPROT_H
+#ifndef __MM_CORE_MEMPROT_H
+#define __MM_CORE_MEMPROT_H
 
 #include <mm/core_mmu.h>
 #include <types_ext.h>
@@ -115,4 +115,4 @@ vaddr_t io_pa_or_va_secure(struct io_pa_va *p, size_t len);
 vaddr_t io_pa_or_va_nsec(struct io_pa_va *p, size_t len);
 vaddr_t io_pa_or_va(struct io_pa_va *p, size_t len);
 
-#endif /* CORE_MEMPROT_H */
+#endif /* __MM_CORE_MEMPROT_H */

@@ -3,8 +3,8 @@
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
-#ifndef TEE_OBJ_H
-#define TEE_OBJ_H
+#ifndef __TEE_TEE_OBJ_H
+#define __TEE_TEE_OBJ_H
 
 #include <kernel/tee_ta_manager.h>
 #include <sys/queue.h>

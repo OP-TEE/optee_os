@@ -15,6 +15,7 @@
 #include <kernel/tee_common_otp.h>
 #include <kernel/tee_misc.h>
 #include <kernel/thread.h>
+#include <kernel/user_access.h>
 #include <mempool.h>
 #include <mm/core_memprot.h>
 #include <mm/mobj.h>
@@ -74,7 +75,7 @@ struct rpmb_fat_entry {
 	uint32_t start_address;
 	uint32_t data_size;
 	uint32_t flags;
-	uint32_t write_counter;
+	uint32_t unused;
 	uint8_t fek[TEE_FS_KM_FEK_SIZE];
 	char filename[TEE_RPMB_FS_FILENAME_LENGTH];
 };
@@ -1518,35 +1519,6 @@ func_exit:
 }
 
 /*
- * Read the RPMB write counter.
- *
- * @dev_id     Device ID of the eMMC device.
- * @counter    Pointer to the counter.
- */
-static TEE_Result tee_rpmb_get_write_counter(uint16_t dev_id,
-					     uint32_t *counter)
-{
-	TEE_Result res = TEE_SUCCESS;
-
-	if (!counter)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	if (rpmb_dead)
-		return TEE_ERROR_COMMUNICATION;
-
-	if (!rpmb_ctx || !rpmb_ctx->wr_cnt_synced) {
-		res = tee_rpmb_init(dev_id);
-		if (res != TEE_SUCCESS)
-			goto func_exit;
-	}
-
-	*counter = rpmb_ctx->wr_cnt;
-
-func_exit:
-	return res;
-}
-
-/*
  * Read the RPMB max block.
  *
  * @dev_id     Device ID of the eMMC device.
@@ -1985,8 +1957,7 @@ static struct rpmb_file_handle *alloc_file_handle(struct tee_pobj *po,
 /**
  * write_fat_entry: Store info in a fat_entry to RPMB.
  */
-static TEE_Result write_fat_entry(struct rpmb_file_handle *fh,
-				  bool update_write_counter)
+static TEE_Result write_fat_entry(struct rpmb_file_handle *fh)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
@@ -1999,13 +1970,6 @@ static TEE_Result write_fat_entry(struct rpmb_file_handle *fh,
 	if (fh->rpmb_fat_address % sizeof(struct rpmb_fat_entry) != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
-	}
-
-	if (update_write_counter) {
-		res = tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
-						 &fh->fat_entry.write_counter);
-		if (res)
-			goto out;
 	}
 
 	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, fh->rpmb_fat_address,
@@ -2113,15 +2077,10 @@ static TEE_Result rpmb_fs_setup(void)
 	fh->rpmb_fat_address = partition_data->fat_start_address;
 
 	/* Write init FAT entry and partition data to RPMB. */
-	res = write_fat_entry(fh, true);
+	res = write_fat_entry(fh);
 	if (res != TEE_SUCCESS)
 		goto out;
 
-	res =
-	    tee_rpmb_get_write_counter(CFG_RPMB_FS_DEV_ID,
-				       &partition_data->write_counter);
-	if (res != TEE_SUCCESS)
-		goto out;
 	res = tee_rpmb_write(CFG_RPMB_FS_DEV_ID, RPMB_STORAGE_START_ADDRESS,
 			     (uint8_t *)partition_data,
 			     sizeof(struct rpmb_fs_partition), NULL, NULL);
@@ -2276,7 +2235,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
 			memset(&last_fh, 0, sizeof(last_fh));
 			last_fh.fat_entry.flags = FILE_IS_LAST_ENTRY;
 			last_fh.rpmb_fat_address = fat_address;
-			res = write_fat_entry(&last_fh, true);
+			res = write_fat_entry(&last_fh);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -2363,7 +2322,7 @@ static TEE_Result rpmb_fs_open_internal(struct rpmb_file_handle *fh,
 			     (void *)fh->fat_entry.fek);
 			DHEXDUMP(fh->fat_entry.fek, sizeof(fh->fat_entry.fek));
 
-			res = write_fat_entry(fh, true);
+			res = write_fat_entry(fh);
 			if (res != TEE_SUCCESS)
 				goto out;
 		}
@@ -2384,11 +2343,14 @@ static void rpmb_fs_close(struct tee_file_handle **tfh)
 }
 
 static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, size_t pos,
-			       void *buf, size_t *len)
+			       void *buf_core, void *buf_user, size_t *len)
 {
 	TEE_Result res;
 	struct rpmb_file_handle *fh = (struct rpmb_file_handle *)tfh;
 	size_t size = *len;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
 
 	if (!size)
 		return TEE_SUCCESS;
@@ -2408,11 +2370,28 @@ static TEE_Result rpmb_fs_read(struct tee_file_handle *tfh, size_t pos,
 
 	size = MIN(size, fh->fat_entry.data_size - pos);
 	if (size) {
-		res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
-				    fh->fat_entry.start_address + pos, buf,
-				    size, fh->fat_entry.fek, fh->uuid);
-		if (res != TEE_SUCCESS)
-			goto out;
+		if (buf_core) {
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
+					    fh->fat_entry.start_address + pos,
+					    buf_core, size, fh->fat_entry.fek,
+					    fh->uuid);
+			if (res != TEE_SUCCESS)
+				goto out;
+		} else if (buf_user) {
+			uint32_t f = TEE_MEMORY_ACCESS_WRITE;
+
+			res = check_user_access(f, buf_user, size);
+			if (res)
+				goto out;
+			enter_user_access();
+			res = tee_rpmb_read(CFG_RPMB_FS_DEV_ID,
+					    fh->fat_entry.start_address + pos,
+					    buf_user, size, fh->fat_entry.fek,
+					    fh->uuid);
+			exit_user_access();
+			if (res)
+				goto out;
+		}
 	}
 	*len = size;
 
@@ -2574,7 +2553,7 @@ static TEE_Result rpmb_fs_write_primitive(struct rpmb_file_handle *fh,
 			fh->fat_entry.data_size = new_size;
 			fh->fat_entry.start_address = new_fat_entry;
 
-			res = write_fat_entry(fh, true);
+			res = write_fat_entry(fh);
 		}
 	}
 
@@ -2586,13 +2565,33 @@ out:
 }
 
 static TEE_Result rpmb_fs_write(struct tee_file_handle *tfh, size_t pos,
-				const void *buf, size_t size)
+				const void *buf_core, const void *buf_user,
+				size_t size)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
+
+	/* One of buf_core and buf_user must be NULL */
+	assert(!buf_core || !buf_user);
+
+	if (!size)
+		return TEE_SUCCESS;
 
 	mutex_lock(&rpmb_mutex);
-	res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh, pos,
-				      buf, size);
+	if (buf_core) {
+		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
+					      pos, buf_core, size);
+	} else if (buf_user) {
+		uint32_t f = TEE_MEMORY_ACCESS_READ;
+
+		res = check_user_access(f, buf_user, size);
+		if (res)
+			goto out;
+		enter_user_access();
+		res = rpmb_fs_write_primitive((struct rpmb_file_handle *)tfh,
+					      pos, buf_user, size);
+		exit_user_access();
+	}
+out:
 	mutex_unlock(&rpmb_mutex);
 
 	return res;
@@ -2608,7 +2607,7 @@ static TEE_Result rpmb_fs_remove_internal(struct rpmb_file_handle *fh)
 
 	/* Clear this file entry. */
 	memset(&fh->fat_entry, 0, sizeof(struct rpmb_fat_entry));
-	return write_fat_entry(fh, false);
+	return write_fat_entry(fh);
 }
 
 static TEE_Result rpmb_fs_remove(struct tee_pobj *po)
@@ -2673,7 +2672,7 @@ static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
 
 		/* Clear this file entry. */
 		memset(&fh_new->fat_entry, 0, sizeof(struct rpmb_fat_entry));
-		res = write_fat_entry(fh_new, false);
+		res = write_fat_entry(fh_new);
 		if (res != TEE_SUCCESS)
 			goto out;
 	}
@@ -2682,7 +2681,7 @@ static  TEE_Result rpmb_fs_rename_internal(struct tee_pobj *old,
 	memcpy(fh_old->fat_entry.filename, fh_new->filename,
 	       strlen(fh_new->filename));
 
-	res = write_fat_entry(fh_old, false);
+	res = write_fat_entry(fh_old);
 
 out:
 	free(fh_old);
@@ -2774,7 +2773,7 @@ static TEE_Result rpmb_fs_truncate(struct tee_file_handle *tfh, size_t length)
 	/* fh->pos is unchanged */
 	fh->fat_entry.data_size = newsize;
 	fh->fat_entry.start_address = newaddr;
-	res = write_fat_entry(fh, true);
+	res = write_fat_entry(fh);
 
 out:
 	mutex_unlock(&rpmb_mutex);
@@ -2979,12 +2978,16 @@ static TEE_Result rpmb_fs_open(struct tee_pobj *po, size_t *size,
 static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 				 const void *head, size_t head_size,
 				 const void *attr, size_t attr_size,
-				 const void *data, size_t data_size,
+				 const void *data_core, const void *data_user,
+				 size_t data_size,
 				 struct tee_file_handle **ret_fh)
 {
 	TEE_Result res;
 	size_t pos = 0;
 	struct rpmb_file_handle *fh = alloc_file_handle(po, po->temporary);
+
+	/* One of data_core and data_user must be NULL */
+	assert(!data_core || !data_user);
 
 	if (!fh)
 		return TEE_ERROR_OUT_OF_MEMORY;
@@ -3008,10 +3011,26 @@ static TEE_Result rpmb_fs_create(struct tee_pobj *po, bool overwrite,
 		pos += attr_size;
 	}
 
-	if (data && data_size) {
-		res = rpmb_fs_write_primitive(fh, pos, data, data_size);
-		if (res)
-			goto out;
+	if (data_size) {
+		if (data_core) {
+			res = rpmb_fs_write_primitive(fh, pos, data_core,
+						      data_size);
+			if (res)
+				goto out;
+		} else if (data_user) {
+			uint32_t f = TEE_MEMORY_ACCESS_READ |
+				     TEE_MEMORY_ACCESS_ANY_OWNER;
+
+			res = check_user_access(f, data_user, data_size);
+			if (res)
+				goto out;
+			enter_user_access();
+			res = rpmb_fs_write_primitive(fh, pos, data_user,
+						      data_size);
+			exit_user_access();
+			if (res)
+				goto out;
+		}
 	}
 
 	if (po->temporary) {

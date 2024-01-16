@@ -49,12 +49,18 @@ enum huk_subkey_usage {
  *
  * Returns a subkey derived from the hardware unique key. Given the same
  * input the same subkey is returned each time.
+ * Function huk_subkey_derive() is __weak to allow platform specific
+ * implementation.
+ * __huk_subkey_derive() implements the default behavior of HUK derivation.
  *
  * Return TEE_SUCCES on success or an error code on failure.
  */
 TEE_Result huk_subkey_derive(enum huk_subkey_usage usage,
 			     const void *const_data, size_t const_data_len,
 			     uint8_t *subkey, size_t subkey_len);
+TEE_Result __huk_subkey_derive(enum huk_subkey_usage usage,
+			       const void *const_data, size_t const_data_len,
+			       uint8_t *subkey, size_t subkey_len);
 
 
 #endif /*__KERNEL_HUK_SUBKEY_H*/

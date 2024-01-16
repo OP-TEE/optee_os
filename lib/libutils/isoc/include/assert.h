@@ -20,11 +20,30 @@ static inline void __noreturn _assert_trap(const char *expr_str,
 	_assert_break();
 }
 
+static inline void _runtime_assert_trap(const char *expr_str, const char *file,
+					const int line, const char *func)
+{
+	volatile bool do_break = true;
+
+	_assert_log(expr_str, file, line, func);
+	if (do_break)
+		_assert_break();
+}
+
+/*
+ * runtime_assert() behaves as assert() except that it doesn't tell the
+ * compiler it will never return. This can be used to avoid the warning:
+ * error: function might be candidate for attribute ‘noreturn’
+ */
 #ifdef NDEBUG
 #define assert(expr)	((void)0)
+#define runtime_assert(expr)	((void)0)
 #else
 #define assert(expr)	\
 	((expr) ? (void)0 : _assert_trap(#expr, __FILE__, __LINE__, __func__))
+#define runtime_assert(expr)	\
+	((expr) ? (void)0 : \
+		_runtime_assert_trap(#expr, __FILE__, __LINE__, __func__))
 #endif
 
 /* This macro is deprecated, please use static_assert instead */

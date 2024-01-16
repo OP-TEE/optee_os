@@ -3,8 +3,8 @@
  * Copyright (c) 2016-2018, STMicroelectronics - All Rights Reserved
  */
 
-#ifndef __STPMIC1_H__
-#define __STPMIC1_H__
+#ifndef __DRIVERS_STPMIC1_H
+#define __DRIVERS_STPMIC1_H
 
 #include <drivers/stm32_i2c.h>
 #include <util.h>
@@ -241,4 +241,4 @@ int stpmic1_lp_voltage_cfg(const char *name, uint16_t millivolts,
 			   struct stpmic1_lp_cfg *cfg);
 int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg);
 
-#endif /*__STPMIC1_H__*/
+#endif /*__DRIVERS_STPMIC1_H*/

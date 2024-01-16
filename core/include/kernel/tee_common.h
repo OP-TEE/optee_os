@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
-#ifndef TEE_COMMON_H
-#define TEE_COMMON_H
+#ifndef __KERNEL_TEE_COMMON_H
+#define __KERNEL_TEE_COMMON_H
 
 #include <stdlib.h>
 
@@ -35,4 +35,4 @@ void tee_mtime_perftest(void);
 #define tee_mtime_perftest()  do { } while (0)
 #endif
 
-#endif /* TEE_COMMON_H */
+#endif /* __KERNEL_TEE_COMMON_H */

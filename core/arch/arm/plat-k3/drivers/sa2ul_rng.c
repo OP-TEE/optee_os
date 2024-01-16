@@ -64,9 +64,35 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, RNG_BASE, RNG_REG_SIZE);
 static unsigned int rng_lock = SPINLOCK_UNLOCK;
 static vaddr_t rng;
 
+static bool sa2ul_rng_is_enabled(void)
+{
+	return io_read32(rng + RNG_CONTROL) & ENABLE_TRNG;
+}
+
+static void sa2ul_rng_init_seq(void)
+{
+	uint32_t val = 0;
+
+	/* Ensure initial latency */
+	val |= RNG_CONFIG_MIN_REFIL_CYCLES << RNG_CONFIG_MIN_REFIL_CYCLES_SHIFT;
+	val |= RNG_CONFIG_MAX_REFIL_CYCLES << RNG_CONFIG_MAX_REFIL_CYCLES_SHIFT;
+	io_write32(rng + RNG_CONFIG, val);
+
+	/* Configure the desired FROs */
+	io_write32(rng + RNG_FRODETUNE, 0x0);
+
+	/* Enable all FROs */
+	io_write32(rng + RNG_FROENABLE, 0xffffff);
+
+	io_write32(rng + RNG_CONTROL, ENABLE_TRNG);
+}
+
 static void sa2ul_rng_read128(uint32_t *word0, uint32_t *word1,
 			      uint32_t *word2, uint32_t *word3)
 {
+	if (!sa2ul_rng_is_enabled())
+		sa2ul_rng_init_seq();
+
 	/* Is the result ready (available)? */
 	while (!(io_read32(rng + RNG_STATUS) & RNG_READY)) {
 		/* Is the shutdown threshold reached? */
@@ -125,22 +151,9 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 
 TEE_Result sa2ul_rng_init(void)
 {
-	uint32_t val = 0;
-
 	rng = (vaddr_t)phys_to_virt(RNG_BASE, MEM_AREA_IO_SEC, RNG_REG_SIZE);
 
-	/* Ensure initial latency */
-	val |= RNG_CONFIG_MIN_REFIL_CYCLES << RNG_CONFIG_MIN_REFIL_CYCLES_SHIFT;
-	val |= RNG_CONFIG_MAX_REFIL_CYCLES << RNG_CONFIG_MAX_REFIL_CYCLES_SHIFT;
-	io_write32(rng + RNG_CONFIG, val);
-
-	/* Configure the desired FROs */
-	io_write32(rng + RNG_FRODETUNE, 0x0);
-
-	/* Enable all FROs */
-	io_write32(rng + RNG_FROENABLE, 0xffffff);
-
-	io_write32(rng + RNG_CONTROL, ENABLE_TRNG);
+	sa2ul_rng_init_seq();
 
 	IMSG("SA2UL TRNG initialized");
 

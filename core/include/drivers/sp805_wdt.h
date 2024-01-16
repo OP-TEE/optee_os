@@ -3,8 +3,8 @@
  * Copyright 2019 Broadcom.
  */
 
-#ifndef SP805_WDT_H
-#define SP805_WDT_H
+#ifndef __DRIVERS_SP805_WDT_H
+#define __DRIVERS_SP805_WDT_H
 
 #include <drivers/wdt.h>
 #include <kernel/interrupt.h>
@@ -66,4 +66,4 @@ TEE_Result sp805_register_itr_handler(struct sp805_wdt_data *pd,
 				      uint32_t itr_num, uint32_t itr_flag,
 				      sp805_itr_handler_func_t itr_handler);
 
-#endif /* SP805_WDT_H */
+#endif /* __DRIVERS_SP805_WDT_H */

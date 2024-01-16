@@ -3,8 +3,8 @@
  * Copyright (c) 2015, Linaro Limited
  * Copyright (c) 2019-2023, Arm Limited. All rights reserved.
  */
-#ifndef ARM_H
-#define ARM_H
+#ifndef __ARM_H
+#define __ARM_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -56,13 +56,15 @@
 
 /* MPIDR definitions */
 #define MPIDR_AFFINITY_BITS	U(8)
-#define MPIDR_AFFLVL_MASK	U(0xff)
+#define MPIDR_AFFLVL_MASK	ULL(0xff)
 #define MPIDR_AFF0_SHIFT	U(0)
 #define MPIDR_AFF0_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF0_SHIFT)
 #define MPIDR_AFF1_SHIFT	U(8)
 #define MPIDR_AFF1_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF1_SHIFT)
 #define MPIDR_AFF2_SHIFT	U(16)
 #define MPIDR_AFF2_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF2_SHIFT)
+#define MPIDR_AFF3_SHIFT	U(32)
+#define MPIDR_AFF3_MASK		(MPIDR_AFFLVL_MASK << MPIDR_AFF3_SHIFT)
 
 #define MPIDR_MT_SHIFT		U(24)
 #define MPIDR_MT_MASK		BIT(MPIDR_MT_SHIFT)
@@ -160,6 +162,16 @@ static inline unsigned int feat_mte_implemented(void)
 #endif
 }
 
+static inline unsigned int feat_pan_implemented(void)
+{
+#ifdef ARM32
+	return 0;
+#else
+	return (read_id_aa64mmfr1_el1() >> ID_AA64MMFR1_EL1_PAN_SHIFT) &
+	       ID_AA64MMFR1_EL1_PAN_MASK;
+#endif
+}
+
 static inline bool feat_crc32_implemented(void)
 {
 #ifdef ARM32
@@ -188,4 +200,4 @@ static inline bool feat_pauth_is_implemented(void)
 
 #endif
 
-#endif /*ARM_H*/
+#endif /*__ARM_H*/

@@ -14,10 +14,13 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_ARM_GICV3,y)
-$(call force,CFG_CORE_CLUSTER_SHIFT,1)
 $(call force,CFG_CORE_LARGE_PHYS_ADDR,y)
 $(call force,CFG_K3_OTP_KEYWRITING,y)
 $(call force,CFG_CORE_ARM64_PA_BITS,36)
+
+ifneq (,$(filter ${PLATFORM_FLAVOR},am65x))
+$(call force,CFG_CORE_CLUSTER_SHIFT,1)
+endif
 
 ifneq (,$(filter ${PLATFORM_FLAVOR},am65x j721e j784s4 am64x am62x))
 CFG_WITH_SOFTWARE_PRNG ?= n

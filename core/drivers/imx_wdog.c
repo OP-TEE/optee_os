@@ -47,7 +47,7 @@ void imx_wdog_restart(bool external_reset __maybe_unused)
 	uint32_t val = 0;
 
 	if (!wdog_base) {
-		EMSG("No wdog mapped\n");
+		EMSG("No wdog mapped");
 		panic();
 	}
 
@@ -67,7 +67,7 @@ void imx_wdog_restart(bool external_reset __maybe_unused)
 	else
 		val = 0x24;
 
-	DMSG("val %x\n", val);
+	DMSG("val %x", val);
 
 	io_write16(wdog_base + WDT_WCR, val);
 	dsb();
@@ -105,7 +105,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 
 	fdt = get_dt();
 	if (!fdt) {
-		EMSG("No DTB\n");
+		EMSG("No DTB");
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
 
@@ -131,7 +131,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 	}
 
 	if (!found_off) {
-		EMSG("No Watchdog found in DTB\n");
+		EMSG("No Watchdog found in DTB");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 
@@ -139,7 +139,7 @@ static TEE_Result imx_wdog_base(vaddr_t *wdog_vbase)
 					"fsl,ext-reset-output");
 
 	if (dt_map_dev(fdt, found_off, &vbase, &sz, DT_MAP_AUTO) < 0) {
-		EMSG("Failed to map Watchdog\n");
+		EMSG("Failed to map Watchdog");
 		return TEE_ERROR_ITEM_NOT_FOUND;
 	}
 

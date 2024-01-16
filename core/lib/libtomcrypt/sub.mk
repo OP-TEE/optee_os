@@ -36,13 +36,13 @@ endif
 
 cppflags-lib-y += -DLTC_NO_HASHES
 
-ifeq ($(_CFG_CORE_LTC_MD5),y)
+ifeq ($(_CFG_CORE_LTC_MD5_DESC),y)
 	cppflags-lib-y += -DLTC_MD5
 endif
-ifeq ($(_CFG_CORE_LTC_SHA1),y)
+ifeq ($(_CFG_CORE_LTC_SHA1_DESC),y)
 	cppflags-lib-y += -DLTC_SHA1
 endif
-ifeq ($(_CFG_CORE_LTC_SHA224),y)
+ifeq ($(_CFG_CORE_LTC_SHA224_DESC),y)
 	cppflags-lib-y += -DLTC_SHA224
 endif
 ifeq ($(_CFG_CORE_LTC_SHA256_DESC),y)
@@ -148,6 +148,7 @@ srcs-$(_CFG_CORE_LTC_X25519) += x25519.c
 srcs-$(_CFG_CORE_LTC_ED25519) += ed25519.c
 ifeq ($(_CFG_CORE_LTC_ACIPHER),y)
 srcs-y += mpi_desc.c
+cppflags-mpi_desc.c-y += -DMBEDTLS_ALLOW_PRIVATE_ACCESS
 endif
 
 srcs-y += tomcrypt.c

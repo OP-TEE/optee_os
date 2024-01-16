@@ -3,8 +3,8 @@
  * Copyright (c) 2014, Linaro Limited
  */
 
-#ifndef TEE_CRYP_UTL_H
-#define TEE_CRYP_UTL_H
+#ifndef __TEE_TEE_CRYP_UTL_H
+#define __TEE_TEE_CRYP_UTL_H
 
 #include <tee_api_types.h>
 #include <crypto/crypto.h>

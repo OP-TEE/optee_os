@@ -199,14 +199,14 @@ TEE_Result TEE_GetPropertyAsString(TEE_PropSetHandle propsetOrEnumerator,
 				   const char *name, char *value,
 				   size_t *value_len)
 {
-	TEE_Result res;
-	size_t l;
-	enum user_ta_prop_type type;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t l = 0;
+	enum user_ta_prop_type type = USER_TA_PROP_TYPE_INVALID;
 	void *tmp_buf = 0;
-	uint32_t tmp_len;
-	uint32_t uint32_val;
-	bool bool_val;
-	TEE_Identity *p_identity_val;
+	uint32_t tmp_len = 0;
+	uint32_t uint32_val = 0;
+	bool bool_val = false;
+	TEE_Identity *p_identity_val = NULL;
 
 	if (is_propset_pseudo_handle(propsetOrEnumerator))
 		__utee_check_instring_annotation(name);

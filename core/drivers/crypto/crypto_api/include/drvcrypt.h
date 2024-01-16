@@ -55,6 +55,8 @@ enum drvcrypt_algo_id {
 	CRYPTO_MATH,	 /* Mathematical driver */
 	CRYPTO_CIPHER,   /* Cipher driver */
 	CRYPTO_ECC,      /* Asymmetric ECC driver */
+	CRYPTO_X25519,   /* Asymmetric X25519 driver */
+	CRYPTO_X448,    /* Asymmetric X448 driver */
 	CRYPTO_DH,       /* Asymmetric DH driver */
 	CRYPTO_DSA,	 /* Asymmetric DSA driver */
 	CRYPTO_AUTHENC,  /* Authenticated Encryption driver */

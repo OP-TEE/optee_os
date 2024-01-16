@@ -187,7 +187,7 @@ static TEE_Result get_info_from_device_tree(struct ls_gpio_chip_data *gpio_data)
 	 */
 	fdt = get_embedded_dt();
 	if (!fdt) {
-		EMSG("Unable to get the Embedded DTB, GPIO init failed\n");
+		EMSG("Unable to get the Embedded DTB, GPIO init failed");
 		return TEE_ERROR_GENERIC;
 	}
 
