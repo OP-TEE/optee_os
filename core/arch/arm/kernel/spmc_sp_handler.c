@@ -3,7 +3,6 @@
  * Copyright (c) 2021-2024, Arm Limited
  */
 #include <assert.h>
-#include <bench.h>
 #include <io.h>
 #include <kernel/panic.h>
 #include <kernel/secure_partition.h>

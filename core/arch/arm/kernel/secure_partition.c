@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2020-2024, Arm Limited.
  */
-#include <bench.h>
 #include <crypto/crypto.h>
 #include <initcall.h>
 #include <kernel/boot.h>
@@ -1616,8 +1615,6 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 	uint32_t panicked = false;
 	uint32_t panic_code = 0;
 
-	bm_timestamp();
-
 	sp_regs = &ctx->sp_regs;
 	ts_push_current_session(s);
 
@@ -1660,8 +1657,6 @@ static TEE_Result sp_enter_invoke_cmd(struct ts_session *s,
 
 	sess = ts_pop_current_session();
 	assert(sess == s);
-
-	bm_timestamp();
 
 	return res;
 }

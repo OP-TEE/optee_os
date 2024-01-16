@@ -5,7 +5,6 @@
  */
 
 #include <assert.h>
-#include <bench.h>
 #include <compiler.h>
 #include <initcall.h>
 #include <io.h>
@@ -425,8 +424,6 @@ static void entry_invoke_command(struct optee_msg_arg *arg, uint32_t num_params)
 	struct tee_ta_param param = { 0 };
 	uint64_t saved_attr[TEE_NUM_PARAMS] = { 0 };
 
-	bm_timestamp();
-
 	res = copy_in_params(arg->params, num_params, &param, saved_attr);
 	if (res != TEE_SUCCESS)
 		goto out;
@@ -439,8 +436,6 @@ static void entry_invoke_command(struct optee_msg_arg *arg, uint32_t num_params)
 
 	res = tee_ta_invoke_command(&err_orig, s, NSAPP_IDENTITY,
 				    TEE_TIMEOUT_INFINITE, arg->func, &param);
-
-	bm_timestamp();
 
 	tee_ta_put_session(s);
 
