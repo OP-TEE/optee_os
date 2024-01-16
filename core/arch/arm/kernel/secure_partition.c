@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2020-2023, Arm Limited.
+ * Copyright (c) 2020-2024, Arm Limited.
  */
 #include <bench.h>
 #include <crypto/crypto.h>
@@ -734,20 +734,16 @@ static void fill_boot_info_1_1(vaddr_t buf, const void *fdt)
 
 static TEE_Result create_and_map_boot_info(struct sp_ctx *ctx, const void *fdt,
 					   struct thread_smc_args *args,
-					   vaddr_t *va, size_t *mapped_size)
+					   vaddr_t *va, size_t *mapped_size,
+					   uint32_t sp_ffa_version)
 {
 	size_t total_size = ROUNDUP(CFG_SP_INIT_INFO_MAX_SIZE, SMALL_PAGE_SIZE);
 	size_t num_pages = total_size / SMALL_PAGE_SIZE;
 	uint32_t perm = TEE_MATTR_UR | TEE_MATTR_PRW;
 	TEE_Result res = TEE_SUCCESS;
-	uint32_t sp_ffa_version = 0;
 	struct fobj *f = NULL;
 	struct mobj *m = NULL;
 	uint32_t info_reg = 0;
-
-	res = sp_dt_get_u32(fdt, 0, "ffa-version", &sp_ffa_version);
-	if (res)
-		return res;
 
 	f = fobj_sec_mem_alloc(num_pages);
 	m = mobj_with_fobj_alloc(f, NULL, TEE_MATTR_MEM_TYPE_TAGGED);
@@ -1408,6 +1404,27 @@ static TEE_Result read_ns_interrupts_action(const void *fdt,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result read_ffa_version(const void *fdt, struct sp_session *s)
+{
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+	uint32_t ffa_version = 0;
+
+	res = sp_dt_get_u32(fdt, 0, "ffa-version", &ffa_version);
+	if (res) {
+		EMSG("Mandatory property is missing: ffa-version");
+		return res;
+	}
+
+	if (ffa_version != FFA_VERSION_1_0 && ffa_version != FFA_VERSION_1_1) {
+		EMSG("Invalid FF-A version value: 0x%08"PRIx32, ffa_version);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	s->rxtx.ffa_vers = ffa_version;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -1444,6 +1461,10 @@ static TEE_Result sp_init_uuid(const TEE_UUID *bin_uuid, const void * const fdt)
 	DMSG("endpoint is 0x%"PRIx16, sess->endpoint_id);
 
 	res = read_ns_interrupts_action(fdt, sess);
+	if (res)
+		return res;
+
+	res = read_ffa_version(fdt, sess);
 	if (res)
 		return res;
 
@@ -1497,7 +1518,7 @@ static TEE_Result sp_first_run(struct sp_session *sess)
 		goto out;
 
 	res = create_and_map_boot_info(ctx, fdt_copy, &args, &boot_info_va,
-				       &boot_info_size);
+				       &boot_info_size, sess->rxtx.ffa_vers);
 	if (res)
 		goto out;
 
