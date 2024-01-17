@@ -382,8 +382,6 @@ TEE_Result virt_set_guest(uint16_t guest_id)
 	}
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
-	if (guest_id == HYP_CLNT_ID)
-		return TEE_SUCCESS;
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
