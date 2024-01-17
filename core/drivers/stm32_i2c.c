@@ -1645,8 +1645,7 @@ static TEE_Result stm32_i2c_probe(const void *fdt, int node,
 	init_data.analog_filter = true;
 	init_data.digital_filter_coef = 0;
 
-	res = stm32_i2c_init(i2c_handle_p, &init_data);
-	if (res)
+	if (stm32_i2c_init(i2c_handle_p, &init_data))
 		panic("Couldn't initialise I2C");
 
 	res = i2c_register_provider(fdt, node, stm32_get_i2c_dev, i2c_handle_p);
