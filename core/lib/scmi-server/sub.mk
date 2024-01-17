@@ -209,7 +209,13 @@ $(eval $(call scpfw-embed-optee-module,reset))
 $(eval $(call scpfw-embed-optee-module,smt))
 
 srcs-$(CFG_SCPFW_MOD_CLOCK) += $(scpfw-path)/module/clock/src/clock_tree_management.c
-srcs-$(CFG_SCPFW_MOD_POWER_DOMAIN) += $(scpfw-path)/module/power_domain/src/power_domain_utils.c
+srcs-$(CFG_SCPFW_MOD_POWER_DOMAIN) += \
+	$(scpfw-path)/module/power_domain/src/power_domain_utils.c \
+	$(scpfw-path)/module/power_domain/src/power_domain_state_checks.c
+ifeq ($(CFG_SCPFW_NOTIFICATION),y)
+srcs-$(CFG_SCPFW_MOD_POWER_DOMAIN) += \
+	$(scpfw-path)/module/power_domain/src/power_domain_notifications.c
+endif
 srcs-$(CFG_SCPFW_MOD_SCMI) += $(scpfw-path)/module/scmi/src/mod_scmi_base.c
 srcs-$(CFG_SCPFW_MOD_SCMI_SENSOR) += $(scpfw-path)/module/scmi_sensor/src/mod_scmi_ext_attrib.c
 srcs-$(CFG_SCPFW_MOD_SENSOR) += $(scpfw-path)/module/sensor/src/sensor_extended.c
