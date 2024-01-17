@@ -34,7 +34,7 @@ void thread_handle_fast_smc(struct thread_smc_args *args)
 	thread_check_canaries();
 
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
-	    virt_set_guest(args->a7)) {
+	    virt_set_guest(args->a7) && args->a7 != HYP_CLNT_ID) {
 		args->a0 = OPTEE_SMC_RETURN_ENOTAVAIL;
 		goto out;
 	}
