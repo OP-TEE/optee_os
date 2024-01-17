@@ -501,6 +501,72 @@
 #define load_no_speculate_cmp(__ptr, __low, __high, __failval, __cmpptr) \
   (__load_no_speculate (__ptr, __low, __high, __failval, __cmpptr))
 
+#elif defined(RV32) || defined(RV64)
+
+#define __load_no_speculate1(__ptr, __low, __high, __failval, __cmpptr, __sz) \
+(__extension__ ({                                                             \
+  __typeof__ (0 + (*(__ptr)))  __nln_val;                                     \
+      asm volatile (                                                          \
+      "fence\trw,rw\n\t"                                                      \
+      "fence.i\n\t"                                                           \
+      "fence\tr,r\n\t"                                                        \
+      "l" __sz "\t%[__v], %[__p]\n"                                           \
+      /* The value we have loaded. */                                         \
+      : [__v] "=&r" (__nln_val)                                               \
+      :                                                                       \
+      /* The memory location from which we will load. */                      \
+      [__p] "m" (*(__ptr))                                                    \
+      : );                                                                    \
+  (__typeof__ (*(__ptr))) __nln_val;                                          \
+}))
+
+#define __load_no_speculate(__ptr, __low, __high, __failval, __cmpptr)  \
+(__extension__ ({                                                       \
+  __typeof__ (0 + *(__ptr)) __nl_val;                                   \
+                                                                        \
+  switch (sizeof(*(__ptr))) {                                           \
+    case 1:                                                             \
+      __nl_val = __load_no_speculate1 (__ptr, __low, __high,            \
+                                       __failval, __cmpptr, "b");       \
+      break;                                                            \
+    case 2:                                                             \
+      __nl_val = __load_no_speculate1 (__ptr, __low, __high,            \
+                                       __failval, __cmpptr, "h");       \
+      break;                                                            \
+    case 4:                                                             \
+      __nl_val = __load_no_speculate1 (__ptr, __low, __high,            \
+                                       __failval, __cmpptr, "w");       \
+      break;                                                            \
+    case 8:                                                             \
+      __nl_val = __load_no_speculate1 (__ptr, __low, __high,            \
+                                       __failval, __cmpptr, "d");       \
+      break;                                                            \
+    default:                                                            \
+      {                                                                 \
+        char __static_assert_no_speculate_load_size_too_big             \
+                [sizeof (__nl_val) > 8 ? -1 : 1] __UNUSED;              \
+        break;                                                          \
+      }                                                                 \
+  }                                                                     \
+                                                                        \
+  (__typeof__ (*(__ptr))) __nl_val;                                     \
+}))
+
+#define load_no_speculate(__ptr, __low, __high)                         \
+(__extension__ ({                                                       \
+  __typeof__ ((__ptr)) __ptr_once = (__ptr);                            \
+  __load_no_speculate (__ptr_once, __low, __high, 0, __ptr_once);       \
+}))
+
+#define load_no_speculate_fail(__ptr, __low, __high, __failval)           \
+(__extension__ ({                                                         \
+  __typeof__ ((__ptr)) __ptr_once = (__ptr);                              \
+  __load_no_speculate (__ptr_once, __low, __high, __failval, __ptr_once); \
+}))
+
+#define load_no_speculate_cmp(__ptr, __low, __high, __failval, __cmpptr)  \
+  (__load_no_speculate (__ptr, __low, __high, __failval, __cmpptr))
+
 #else
 #error "No fallback provided for load_no_speculate"
 #endif
