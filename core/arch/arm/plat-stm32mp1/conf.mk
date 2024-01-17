@@ -8,7 +8,7 @@ flavor_dts_file-157C_EV1 = stm32mp157c-ev1.dts
 flavor_dts_file-157A_DK1_SCMI = stm32mp157a-dk1-scmi.dts
 flavor_dts_file-157C_DK2_SCMI = stm32mp157c-dk2-scmi.dts
 flavor_dts_file-157C_ED1_SCMI = stm32mp157c-ed1-scmi.dts
-flavor_dts_file-157F_EV1_SCMI = stm32mp157c-ev1-scmi.dts
+flavor_dts_file-157C_EV1_SCMI = stm32mp157c-ev1-scmi.dts
 
 flavor_dts_file-135F_DK = stm32mp135f-dk.dts
 
