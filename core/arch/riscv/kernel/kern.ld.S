@@ -152,12 +152,15 @@ SECTIONS
 		 * from __global_pointer$.
 		 */
 		PROVIDE(__global_pointer$ = . + 0x800 );
+		*(.sdata .sdata.* .gnu.linkonce.s.*)
 	}
 
 	/* uninitialized data */
 	.bss : {
 		__data_end = .;
 		__bss_start = .;
+		*(.sbss .sbss.*)
+		*(.gnu.linkonce.sb.*)
 		*(.bss .bss.*)
 		*(.gnu.linkonce.b.*)
 		*(COMMON)
