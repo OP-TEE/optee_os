@@ -143,10 +143,19 @@ static enum caam_ecc_curve get_caam_curve(uint32_t tee_curve)
  * @size_bits  Key size in bits
  */
 static TEE_Result do_allocate_keypair(struct ecc_keypair *key,
-				      uint32_t type __unused,
+				      uint32_t type,
 				      size_t size_bits)
 {
 	ECC_TRACE("Allocate Keypair of %zu bits", size_bits);
+
+	switch (type) {
+	case TEE_TYPE_SM2_PKE_KEYPAIR:
+	case TEE_TYPE_SM2_DSA_KEYPAIR:
+		/* Software fallback */
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	default:
+		break;
+	}
 
 	/* Initialize the key fields to NULL */
 	memset(key, 0, sizeof(*key));
@@ -184,10 +193,19 @@ err:
  * @size_bits  Key size in bits
  */
 static TEE_Result do_allocate_publickey(struct ecc_public_key *key,
-					uint32_t type __unused,
+					uint32_t type,
 					size_t size_bits)
 {
 	ECC_TRACE("Allocate Public Key of %zu bits", size_bits);
+
+	switch (type) {
+	case TEE_TYPE_SM2_PKE_PUBLIC_KEY:
+	case TEE_TYPE_SM2_DSA_PUBLIC_KEY:
+		/* Software fallback */
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	default:
+		break;
+	}
 
 	/* Initialize the key fields to NULL */
 	memset(key, 0, sizeof(*key));

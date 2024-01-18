@@ -205,12 +205,5 @@ ifeq ($(call cfg-one-enabled,CFG_CRYPTO_DRV_RSA CFG_CRYPTO_DRV_ECC \
 $(call force, CFG_CRYPTO_DRV_ACIPHER,y,Mandated by CFG_CRYPTO_DRV_{RSA|ECC|DSA|DH})
 endif
 
-# Disable SM2 as it is not supported by the CAAM driver
-ifeq ($(CFG_NXP_CAAM_ECC_DRV),y)
-$(call force,CFG_CRYPTO_SM2_PKE,n)
-$(call force,CFG_CRYPTO_SM2_KEP,n)
-$(call force,CFG_CRYPTO_SM2_DSA,n)
-endif
-
 endif # CFG_CRYPTO_DRIVER
 endif # CFG_NXP_CAAM
