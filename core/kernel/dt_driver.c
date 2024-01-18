@@ -440,6 +440,46 @@ TEE_Result dt_driver_device_from_node_idx_prop(const char *prop_name,
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }
 
+TEE_Result dt_driver_count_devices(const char *prop_name, const void *fdt,
+				   int nodeoffs, enum dt_driver_type type,
+				   size_t *nb_element)
+{
+	int len = 0;
+	int idx = 0;
+	int idx32 = 0;
+	int prv_cells = 0;
+	uint32_t phandle = 0;
+	const uint32_t *prop = NULL;
+	struct dt_driver_provider *prv = NULL;
+
+	assert(nb_element);
+
+	*nb_element = 0;
+
+	prop = fdt_getprop(fdt, nodeoffs, prop_name, &len);
+	if (!prop) {
+		DMSG("Property %s missing in node %s", prop_name,
+		     fdt_get_name(fdt, nodeoffs, NULL));
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	while (idx < len) {
+		idx32 = idx / sizeof(uint32_t);
+		phandle = fdt32_to_cpu(prop[idx32]);
+
+		prv = dt_driver_get_provider_by_phandle(phandle, type);
+		if (!prv)
+			return TEE_ERROR_DEFER_DRIVER_INIT;
+
+		prv_cells = dt_driver_provider_cells(prv);
+		*nb_element += 1;
+		idx += sizeof(phandle) + prv_cells * sizeof(uint32_t);
+	}
+	assert(idx == len);
+
+	return TEE_SUCCESS;
+}
+
 static void __maybe_unused print_probe_list(const void *fdt __maybe_unused)
 {
 	struct dt_driver_probe *elt = NULL;

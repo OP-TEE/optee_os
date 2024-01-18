@@ -197,6 +197,27 @@ TEE_Result dt_driver_device_from_node_idx_prop_phandle(const char *prop_name,
 						       void *device_ref);
 
 /*
+ * dt_driver_count_devices() - Get the number of elements of a given type
+ * referring to a provider in a property.
+ *
+ * @prop_name: DT property name, e.g. "clocks" for clock resources
+ * @fdt: FDT base address
+ * @nodeoffs: Node offset in the FDT
+ * @type: Driver type
+ * @nb_element: Output number of elements referenced by the property
+
+ * Return code:
+ * TEE_SUCCESS in case of success.
+ * TEE_ERROR_ITEM_NOT_FOUND if @prop_name does not match a property name
+ * TEE_ERROR_DEFER_DRIVER_INIT if at least one of the provider driver
+ * referenced in the property is not yet initialized.
+ * Any TEE_Result compliant code in case of error.
+ */
+TEE_Result dt_driver_count_devices(const char *prop_name, const void *fdt,
+				   int nodeoffs, enum dt_driver_type type,
+				   size_t *nb_element);
+
+/*
  * dt_driver_get_crypto() - Request crypto support for driver initialization
  *
  * Return TEE_SUCCESS if cryptography services are initialized, otherwise return
