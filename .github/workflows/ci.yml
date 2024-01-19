@@ -282,6 +282,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
+          export PATH=/github/home/.cargo/bin:$PATH
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           export CFG_ATTESTATION_PTA=y
@@ -296,7 +297,8 @@ jobs:
 
           make -j$(nproc) check
           make -j$(nproc) check CFG_CRYPTO_WITH_CE82=y
-          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001
+          # Rust is disabled because signature_verification-rs hangs with this OP-TEE configuration
+          make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n
           make -j$(nproc) check CFG_PAN=y
 
   QEMUv8_Xen_check:
@@ -318,6 +320,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
+          export PATH=/github/home/.cargo/bin:$PATH
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
@@ -351,6 +354,7 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
+          export PATH=/github/home/.cargo/bin:$PATH
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
@@ -384,6 +388,7 @@ jobs:
           export LC_ALL=C
           # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
           export PATH=/usr/local/bin:$PATH
+          export PATH=/github/home/.cargo/bin:$PATH
           export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
@@ -402,36 +407,5 @@ jobs:
           cd ${TOP}/build
 
           # xtest 1031 is excluded because 1031.4 (C++ exception from shared library) fails with this cross-compiler
-          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y XTEST_ARGS="-x 1031" check
-
-  QEMUv8_check_rust:
-    name: make check-rust (QEMUv8)
-    runs-on: ubuntu-latest
-    container: jforissier/optee_os_ci:qemuv8_check2
-    steps:
-      - name: Remove /__t/*
-        run: rm -rf /__t/*
-      - name: Restore build cache
-        uses: actions/cache@v3
-        with:
-          path: /github/home/.cache/ccache
-          key: qemuv8_check_rust-cache-${{ github.sha }}
-          restore-keys: |
-            qemuv8_check_rust-cache-
-      - name: Checkout
-        uses: actions/checkout@v3
-      - shell: bash
-        run: |
-          # make check-rust task
-          set -e -v
-          export LC_ALL=C
-          export BR2_CCACHE_DIR=/github/home/.cache/ccache
-          WD=$(pwd)
-          cd ..
-          TOP=$(pwd)/optee_repo_qemu_v8
-          /root/get_optee_qemuv8.sh ${TOP}
-          mv ${TOP}/optee_os ${TOP}/optee_os_old
-          ln -s ${WD} ${TOP}/optee_os
-          cd ${TOP}/build
-
-          make -j$(nproc) OPTEE_RUST_ENABLE=y check-rust
+          # Rust is disabled because of a link error in the examples with this toolchain
+          make -j$(nproc) CFG_CORE_BTI=y CFG_TA_BTI=y MEMTAG=y PAUTH=y RUST_ENABLE=n XTEST_ARGS="-x 1031" check
