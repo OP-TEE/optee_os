@@ -792,6 +792,7 @@ static void handle_blocking_call(struct thread_smc_args *args,
 		sec_caps = OPTEE_FFA_SEC_CAP_ARG_OFFSET;
 		if (spmc_notif_is_ready)
 			sec_caps |= OPTEE_FFA_SEC_CAP_ASYNC_NOTIF;
+		sec_caps |= OPTEE_FFA_SEC_CAP_RPMB_PROBE;
 		spmc_set_args(args, direct_resp_fid,
 			      swap_src_dst(args->a1), 0, 0,
 			      THREAD_RPC_MAX_NUM_PARAMS, sec_caps);

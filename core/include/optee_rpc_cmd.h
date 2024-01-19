@@ -181,6 +181,44 @@
 #define OPTEE_RPC_I2C_FLAGS_TEN_BIT	BIT(0)
 
 /*
+ * Reset RPMB probing
+ *
+ * Releases a possibly already used RPMB device and starts over searching
+ * for RPMB devices. Returns the kind of shared memory to use in subsequent
+ * OPTEE_RPC_CMD_RPMB_PROBE_NEXT and OPTEE_RPC_CMD_RPMB_FRAMES calls.
+ *
+ * [out]    value[0].a	    OPTEE_RPC_SHM_TYPE_*, the parameter for
+ *			    OPTEE_RPC_CMD_SHM_ALLOC
+ */
+#define OPTEE_RPC_CMD_RPMB_PROBE_RESET	U(22)
+
+/*
+ * Probe next RPMB device
+ *
+ * value[0].a indicates kind of RPMB device found, currently is only
+ * OPTEE_RPC_RPMB_EMMC supported. If another kind of RPMB device is found
+ * it will have a new unique value in value[0].a and the other
+ * out-parameters will be defined specifically for that device.
+ *
+ * If an eMMC/RPMB partition is found:
+ * [out]    value[0].a	    OPTEE_RPC_RPMB_EMMC
+ * [out]    value[0].b	    EXT CSD-slice 168 "RPMB Size"
+ * [out]    value[0].c	    EXT CSD-slice 222 "Reliable Write Sector Count"
+ * [out]    memref[1]       Buffer with the raw CID
+ */
+#define OPTEE_RPC_CMD_RPMB_PROBE_NEXT	U(23)
+
+#define OPTEE_RPC_RPMB_EMMC		U(0)
+
+/*
+ * Replay Protected Memory Block access
+ *
+ * [in]     memref[0]	    Frames to device
+ * [out]    memref[1]	    Frames from device
+ */
+#define OPTEE_RPC_CMD_RPMB_FRAMES	U(24)
+
+/*
  * Definition of protocol for command OPTEE_RPC_CMD_FS
  */
 
