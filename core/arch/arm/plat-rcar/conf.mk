@@ -37,6 +37,7 @@ endif
 ifeq ($(CFG_RCAR_GEN4), y)
 # 1xx - for SCIFxx
 # 2xx - for HSCIFxx
+CFG_TZDRAM_SIZE	= 0x2200000
 CFG_RCAR_UART ?= 200
 $(call force,CFG_RCAR_ROMAPI, n)
 $(call force,CFG_CORE_CLUSTER_SHIFT, 1)
