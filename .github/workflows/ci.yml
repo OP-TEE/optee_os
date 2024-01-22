@@ -282,7 +282,6 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export PATH=/github/home/.cargo/bin:$PATH
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
           export CFG_ATTESTATION_PTA=y
@@ -320,7 +319,6 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export PATH=/github/home/.cargo/bin:$PATH
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
@@ -354,7 +352,6 @@ jobs:
           # make check task
           set -e -v
           export LC_ALL=C
-          export PATH=/github/home/.cargo/bin:$PATH
           export CFG_TEE_CORE_LOG_LEVEL=0
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           WD=$(pwd)
@@ -388,7 +385,6 @@ jobs:
           export LC_ALL=C
           # The BTI-enabled toolchain is aarch64-unknown-linux-uclibc-gcc in /usr/local/bin
           export PATH=/usr/local/bin:$PATH
-          export PATH=/github/home/.cargo/bin:$PATH
           export AARCH64_CROSS_COMPILE=aarch64-unknown-linux-uclibc-
           export BR2_CCACHE_DIR=/github/home/.cache/ccache
           export CFG_TEE_CORE_LOG_LEVEL=0
