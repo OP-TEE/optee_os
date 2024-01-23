@@ -117,19 +117,25 @@ out:
 }
 #endif /*CFG_CORE_ASYNC_NOTIF*/
 
-static TEE_Result notif_rpc(uint32_t func, uint32_t value)
+static TEE_Result notif_rpc(uint32_t func, uint32_t value1, uint32_t value2)
 {
-	struct thread_param params = THREAD_PARAM_VALUE(IN, func, value, 0);
+	struct thread_param params =
+		THREAD_PARAM_VALUE(IN, func, value1, value2);
 
 	return thread_rpc_cmd(OPTEE_RPC_CMD_NOTIFICATION, 1, &params);
 }
 
 TEE_Result notif_wait(uint32_t value)
 {
-	return notif_rpc(OPTEE_RPC_NOTIFICATION_WAIT, value);
+	return notif_rpc(OPTEE_RPC_NOTIFICATION_WAIT, value, 0);
 }
 
 TEE_Result notif_send_sync(uint32_t value)
 {
-	return notif_rpc(OPTEE_RPC_NOTIFICATION_SEND, value);
+	return notif_rpc(OPTEE_RPC_NOTIFICATION_SEND, value, 0);
+}
+
+TEE_Result notif_wait_timeout(uint32_t value, uint32_t timeout_ms)
+{
+	return notif_rpc(OPTEE_RPC_NOTIFICATION_WAIT, value, timeout_ms);
 }
