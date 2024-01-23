@@ -30,6 +30,7 @@ $(call force,CFG_16550_UART,y)
 $(call force,CFG_RISCV_TIME_SOURCE_RDTIME,y)
 CFG_RISCV_MTIME_RATE ?= 10000000
 CFG_RISCV_SBI ?= y
+CFG_RISCV_WITH_M_MODE_SM ?= y
 
 # TA-related flags
 supported-ta-targets = ta_rv64
