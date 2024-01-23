@@ -65,10 +65,12 @@
  * Waiting on notification
  * [in]    value[0].a	    OPTEE_RPC_NOTIFICATION_WAIT
  * [in]    value[0].b	    notification value
+ * [in]    value[0].c	    timeout in millisecond or 0 if no timeout
  *
  * Sending a synchronous notification
  * [in]    value[0].a	    OPTEE_RPC_NOTIFICATION_SEND
  * [in]    value[0].b	    notification value
+ * [in]    value[0].c	    shall be 0, reserved for future evolution
  */
 #define OPTEE_RPC_CMD_NOTIFICATION	U(4)
 #define OPTEE_RPC_NOTIFICATION_WAIT	U(0)
