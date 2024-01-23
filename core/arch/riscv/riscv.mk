@@ -63,6 +63,13 @@ ifeq ($(CFG_RISCV_SBI_CONSOLE),y)
 $(call force,CFG_RISCV_SBI,y)
 endif
 
+# 'y' to let M-mode secure monitor handle the communication between OP-TEE OS
+# and untrusted domain.
+CFG_RISCV_WITH_M_MODE_SM ?= n
+ifeq ($(CFG_RISCV_WITH_M_MODE_SM),y)
+$(call force,CFG_RISCV_SBI,y)
+endif
+
 # Disable unsupported and other arch-specific flags
 $(call force,CFG_CORE_FFA,n)
 $(call force,CFG_SECURE_PARTITION,n)
