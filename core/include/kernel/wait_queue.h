@@ -5,6 +5,7 @@
 #ifndef __KERNEL_WAIT_QUEUE_H
 #define __KERNEL_WAIT_QUEUE_H
 
+#include <tee_api_types.h>
 #include <types_ext.h>
 #include <sys/queue.h>
 
@@ -44,9 +45,10 @@ static inline void wq_wait_init(struct wait_queue *wq,
 	wq_wait_init_condvar(wq, wqe, NULL, wait_read);
 }
 
-/* Waits for the wait queue element to the awakened. */
-void wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
-		   const void *sync_obj, const char *fname, int lineno);
+/* Waits for the wait queue element to be awakened or timed out */
+TEE_Result wq_wait_final(struct wait_queue *wq, struct wait_queue_elem *wqe,
+			 uint32_t timeout_ms, const void *sync_obj,
+			 const char *fname, int lineno);
 
 /* Wakes up the first wait queue element in the wait queue, if there is one */
 void wq_wake_next(struct wait_queue *wq, const void *sync_obj,
