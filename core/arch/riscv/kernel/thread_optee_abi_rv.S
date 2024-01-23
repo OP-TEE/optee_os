@@ -29,7 +29,7 @@
  */
 FUNC thread_return_to_udomain , :
 	/* Caller should provide arguments in a0~a5 */
-#if defined(CFG_RISCV_SBI)
+#if defined(CFG_RISCV_WITH_M_MODE_SM)
 	li	a7, SBI_EXT_TEE		/* extension ID */
 	li	a6, 0			/* function ID (unused) */
 	ecall
