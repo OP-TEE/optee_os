@@ -62,7 +62,10 @@ bool caam_hal_rng_key_loaded(vaddr_t baseaddr)
 	return io_caam_read32(baseaddr + RNG_STA) & RNG_STA_SKVN;
 }
 
-bool caam_hal_rng_pr_enabled(vaddr_t baseaddr)
+/*
+ * This function will be overridden for i.MX8QX and i.MX8DX platforms.
+ */
+bool __weak caam_hal_rng_pr_enabled(vaddr_t baseaddr)
 {
 	uint32_t bitmask = RNG_STA_PR0;
 
