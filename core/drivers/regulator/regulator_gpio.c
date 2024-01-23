@@ -20,14 +20,16 @@ static_assert(GPIO_LEVEL_HIGH == 1 && GPIO_LEVEL_LOW == 0);
  * @enable_gpio: GPIO for the enable state of the regulator or NULL if always on
  * @enable_delay: Time (in microsecond) for the regulator to get enabled
  * @voltage_gpio: GPIO for the voltage level selection
+ * @levels_desc: Supported voltage levels description
  * @voltage_levels_uv: 2 cells array supported voltage levels, increasing order
- * @voltage_level_high: True if higher voltage level relates to active high GPIO
+ * @voltage_level_high: True if higher voltage level relates to GPIO state 1
  */
 struct regulator_gpio {
 	struct regulator regulator;
 	struct gpio *enable_gpio;
 	unsigned int enable_delay;
 	struct gpio *voltage_gpio;
+	struct regulator_voltages_desc levels_desc;
 	int voltage_levels_uv[2];
 	bool voltage_level_high;
 };
@@ -72,13 +74,19 @@ static TEE_Result regulator_gpio_set_voltage(struct regulator *regulator,
 					     int level_uv)
 {
 	struct regulator_gpio *regu = regulator_priv(regulator);
+	enum gpio_level value = GPIO_LEVEL_LOW;
 
 	if (level_uv == regu->voltage_levels_uv[0])
-		gpio_set_value(regu->voltage_gpio, GPIO_LEVEL_LOW);
+		value = GPIO_LEVEL_LOW;
 	else if (level_uv == regu->voltage_levels_uv[1])
-		gpio_set_value(regu->voltage_gpio, GPIO_LEVEL_HIGH);
+		value = GPIO_LEVEL_HIGH;
 	else
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!regu->voltage_level_high)
+		value = !value;
+
+	gpio_set_value(regu->voltage_gpio, value);
 
 	return TEE_SUCCESS;
 }
@@ -87,8 +95,24 @@ static TEE_Result regulator_gpio_read_voltage(struct regulator *regulator,
 					      int *level_uv)
 {
 	struct regulator_gpio *regu = regulator_priv(regulator);
+	enum gpio_level value = gpio_get_value(regu->voltage_gpio);
 
-	*level_uv = regu->voltage_levels_uv[gpio_get_value(regu->voltage_gpio)];
+	if (!regu->voltage_level_high)
+		value = !value;
+
+	*level_uv = regu->voltage_levels_uv[value];
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result regulator_gpio_voltages(struct regulator *regulator,
+					  struct regulator_voltages_desc **desc,
+					  const int **levels)
+{
+	struct regulator_gpio *regu = regulator_priv(regulator);
+
+	*desc = &regu->levels_desc;
+	*levels = regu->voltage_levels_uv;
 
 	return TEE_SUCCESS;
 }
@@ -98,6 +122,7 @@ static const struct regulator_ops regulator_gpio_ops = {
 	.get_state = regulator_gpio_read_state,
 	.set_voltage = regulator_gpio_set_voltage,
 	.get_voltage = regulator_gpio_read_voltage,
+	.supported_voltages = regulator_gpio_voltages,
 };
 
 static TEE_Result get_enable_gpio(const void *fdt, int node,
@@ -146,6 +171,8 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 	const fdt32_t *cuint = NULL;
 	struct gpio *gpio = NULL;
 	void *gpio_ref = &gpio;
+	int level0 = 0;
+	int level1 = 0;
 	int len = 0;
 
 	res = dt_driver_device_from_node_idx_prop("gpios", fdt, node, 0,
@@ -175,13 +202,25 @@ static TEE_Result get_voltage_level_gpio(const void *fdt, int node,
 
 	if (fdt32_to_cpu(*(cuint + 1))) {
 		assert(!fdt32_to_cpu(*(cuint + 3)));
-		regu->voltage_levels_uv[0] = fdt32_to_cpu(*(cuint + 2));
-		regu->voltage_levels_uv[1] = fdt32_to_cpu(*(cuint));
+		level1 = fdt32_to_cpu(*(cuint));
+		level0 = fdt32_to_cpu(*(cuint + 2));
 	} else {
 		assert(fdt32_to_cpu(*(cuint + 3)) == 1);
-		regu->voltage_levels_uv[0] = fdt32_to_cpu(*(cuint));
-		regu->voltage_levels_uv[1] = fdt32_to_cpu(*(cuint + 2));
+		level0 = fdt32_to_cpu(*(cuint));
+		level1 = fdt32_to_cpu(*(cuint + 2));
+	}
+
+	/* Get the 2 supported levels in increasing order */
+	regu->levels_desc.type = VOLTAGE_TYPE_FULL_LIST;
+	regu->levels_desc.num_levels = 2;
+	if (level0 < level1) {
+		regu->voltage_levels_uv[0] = level0;
+		regu->voltage_levels_uv[1] = level1;
 		regu->voltage_level_high = true;
+	} else {
+		regu->voltage_levels_uv[0] = level1;
+		regu->voltage_levels_uv[1] = level0;
+		regu->voltage_level_high = false;
 	}
 
 	gpio_set_direction(gpio, GPIO_DIR_OUT);
