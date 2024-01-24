@@ -95,12 +95,21 @@ TEE_Result versal_sha3_384(const uint8_t *src, size_t src_len,
 
 static TEE_Result versal_sha3_384_init(void)
 {
+	uint32_t err = 0;
 	struct versal_cmd_args arg = { };
 	TEE_Result ret = TEE_SUCCESS;
 
-	ret = versal_crypto_request(VERSAL_SHA3_KAT, &arg, NULL);
+	arg.data[0] = VERSAL_SHA3_KAT;
+	arg.dlen = 1;
+
+	ret = versal_crypto_request(VERSAL_KAT, &arg, &err);
 	if (!ret)
 		engine_ready = true;
+
+	if (err) {
+		DMSG("SHA3 KAT returned 0x%" PRIx32, err);
+		return TEE_ERROR_GENERIC;
+	}
 
 	return ret;
 }
