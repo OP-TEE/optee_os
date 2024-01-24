@@ -359,10 +359,31 @@ static struct drvcrypt_rsa driver_rsa = {
 
 static TEE_Result rsa_init(void)
 {
+	uint32_t err = 0;
 	struct versal_cmd_args arg = { };
 
-	if (versal_crypto_request(VERSAL_RSA_KAT, &arg, NULL))
+	arg.data[arg.dlen++] = VERSAL_RSA_PUB_ENC_KAT;
+
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err))
 		return TEE_ERROR_GENERIC;
+
+	if (err) {
+		DMSG("RSA_PUB_ENC_KAT returned 0x%" PRIx32, err);
+		return TEE_ERROR_GENERIC;
+	}
+
+	/* Clear previous request */
+	arg.dlen = 0;
+
+	arg.data[arg.dlen++] = VERSAL_RSA_PRIVATE_DEC_KAT;
+
+	if (versal_crypto_request(VERSAL_KAT, &arg, &err))
+		return TEE_ERROR_GENERIC;
+
+	if (err) {
+		DMSG("RSA_PRIVATE_DEC_KAT returned 0x%" PRIx32, err);
+		return TEE_ERROR_GENERIC;
+	}
 
 	return drvcrypt_register_rsa(&driver_rsa);
 }
