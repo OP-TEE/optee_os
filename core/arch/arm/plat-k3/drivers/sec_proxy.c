@@ -213,7 +213,7 @@ TEE_Result k3_sec_proxy_recv(struct k3_sec_proxy_msg *msg)
 
 		i = msg->len - trail_bytes;
 		while (trail_bytes--) {
-			msg->buf[i] = data_trail & 0xff;
+			msg->buf[i++] = data_trail & 0xff;
 			data_trail >>= 8;
 		}
 	}
