@@ -92,6 +92,7 @@
 		ranges = <0x0 0x0 0x0 0x80000000>;
 
 		rifsc: rifsc@42080000 {
+			compatible = "st,stm32mp25-rifsc";
 			reg = <0x42080000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
