@@ -54,6 +54,7 @@ CFG_STM32_RNG ?= y
 CFG_STM32_UART ?= y
 
 # Default enable some test facitilites
+CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
 
 # Default disable ASLR
