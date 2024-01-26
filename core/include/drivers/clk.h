@@ -68,6 +68,7 @@ struct clk_duty_cycle {
  * @set_rate: Set the clock rate
  * @get_rate: Get the clock rate
  * @get_rates_array: Get the supported clock rates as array
+ * @get_rates_steps: Get support clock rates by min/max/step representation
  * @get_duty_cycle: Get duty cytcle of the clock
  */
 struct clk_ops {
@@ -81,6 +82,8 @@ struct clk_ops {
 				  unsigned long parent_rate);
 	TEE_Result (*get_rates_array)(struct clk *clk, size_t start_index,
 				      unsigned long *rates, size_t *nb_elts);
+	TEE_Result (*get_rates_steps)(struct clk *clk, unsigned long *min,
+				      unsigned long *max, unsigned long *step);
 	TEE_Result (*get_duty_cycle)(struct clk *clk,
 				     struct clk_duty_cycle *duty_cycle);
 };
@@ -215,6 +218,18 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
  */
 TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 			       unsigned long *rates, size_t *nb_elts);
+
+/**
+ * clk_get_rates_steps - Get supported rates as min/max/step triplet
+ *
+ * @clk: Clock for which the rates are requested
+ * @min: Output min supported rate in Hz
+ * @max: Output max supported rate in Hz
+ * @step: Output rate step in Hz
+ * Returns a TEE_Result compliant value
+ */
+TEE_Result clk_get_rates_steps(struct clk *clk, unsigned long *min,
+			       unsigned long *max, unsigned long *step);
 
 /**
  * clk_get_duty_cycle - Get clock duty cycle
