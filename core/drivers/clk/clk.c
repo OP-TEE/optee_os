@@ -284,8 +284,15 @@ static TEE_Result clk_set_parent_no_lock(struct clk *clk, struct clk *parent,
 
 	was_enabled = clk_is_enabled_no_lock(clk);
 	/* Call is needed to decrement refcount on current parent tree */
-	if (was_enabled)
+	if (was_enabled) {
+		if (clk->flags & CLK_SET_PARENT_PRE_ENABLE) {
+			res = clk_enable_no_lock(parent);
+			if (res)
+				return res;
+		}
+
 		clk_disable_no_lock(clk);
+	}
 
 	res = clk->ops->set_parent(clk, pidx);
 	if (res)
@@ -302,6 +309,11 @@ out:
 		res = clk_enable_no_lock(clk);
 		if (res)
 			panic("Failed to re-enable clock after setting parent");
+
+		if (clk->flags & CLK_SET_PARENT_PRE_ENABLE) {
+			/* Balance refcount when new parent was pre-enabled */
+			clk_disable_no_lock(parent);
+		}
 	}
 
 	return res;
