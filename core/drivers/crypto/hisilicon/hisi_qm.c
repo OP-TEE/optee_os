@@ -322,11 +322,6 @@ static enum hisi_drv_status qm_set_xqc_vft(struct hisi_qm *qm,
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 	int i = 0;
 
-	if (!num) {
-		EMSG("Invalid sq num");
-		return HISI_QM_DRVCRYPT_EINVAL;
-	}
-
 	for (i = QM_SQC_VFT; i <= QM_CQC_VFT; i++) {
 		ret = qm_set_vft_common(qm, i, function, base, num);
 		if (ret) {
@@ -736,18 +731,20 @@ struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, uint8_t sq_type)
 
 	if (qm_sqc_cfg(qp)) {
 		EMSG("Fail to set qp[%"PRIu32"] sqc", qp->qp_id);
-		goto err_proc;
+		goto err_qp_release;
 	}
 
 	if (qm_cqc_cfg(qp)) {
 		EMSG("Fail to set qp[%"PRIu32"] cqc", qp->qp_id);
-		goto err_proc;
+		goto err_qp_release;
 	}
 
 	qm->qp_in_used++;
 	mutex_unlock(&qm->qp_lock);
 	return qp;
 
+err_qp_release:
+	qp->used = false;
 err_proc:
 	qp->sq_type = 0;
 	qp->cqc_phase = false;
@@ -875,8 +872,8 @@ enum hisi_drv_status hisi_qp_recv_sync(struct hisi_qp *qp, void *msg)
 	enum hisi_drv_status ret = HISI_QM_DRVCRYPT_NO_ERR;
 	uint32_t timeout = 0;
 
-	if (!qp) {
-		EMSG("QP is NULL");
+	if (!qp || !qp->qm || !msg) {
+		EMSG("Invalid qp recv sync parameters");
 		return HISI_QM_DRVCRYPT_EINVAL;
 	}
 
