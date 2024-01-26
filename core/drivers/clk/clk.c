@@ -327,6 +327,9 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
 	if (clk->ops->get_duty_cycle)
 		return clk->ops->get_duty_cycle(clk, duty_cycle);
 
+	if (clk->parent && (clk->flags & CLK_DUTY_CYCLE_PARENT))
+		return clk_get_duty_cycle(clk->parent, duty_cycle);
+
 	/* Default set 50% duty cycle */
 	duty_cycle->num = 1;
 	duty_cycle->den = 2;
