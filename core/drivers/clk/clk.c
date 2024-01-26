@@ -205,9 +205,19 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 	if (clk->parent)
 		parent_rate = clk_get_rate(clk->parent);
 
-	res = clk->ops->set_rate(clk, rate, parent_rate);
-	if (res)
-		return res;
+	assert(!(clk->flags & CLK_SET_RATE_PARENT) || clk->parent);
+	if (clk->flags & CLK_SET_RATE_PARENT) {
+		res = clk_set_rate_no_lock(clk->parent, rate);
+		if (res)
+			return res;
+		rate = clk_get_rate(clk->parent);
+	}
+
+	if (clk->ops->set_rate) {
+		res = clk->ops->set_rate(clk, rate, parent_rate);
+		if (res)
+			return res;
+	}
 
 	clk_compute_rate_no_lock(clk);
 
@@ -218,9 +228,6 @@ TEE_Result clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	uint32_t exceptions = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
-
-	if (!clk->ops->set_rate)
-		return TEE_ERROR_NOT_SUPPORTED;
 
 	exceptions =  cpu_spin_lock_xsave(&clk_lock);
 
