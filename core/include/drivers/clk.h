@@ -45,6 +45,17 @@ struct clk {
 };
 
 /**
+ * struct clk_duty_cycle - Encoding the duty cycle ratio of a clock
+ *
+ * @num:	Numerator of the duty cycle ratio
+ * @den:	Denominator of the duty cycle ratio
+ */
+struct clk_duty_cycle {
+	unsigned int num;
+	unsigned int den;
+};
+
+/**
  * struct clk_ops
  *
  * @enable: Enable the clock
@@ -54,6 +65,7 @@ struct clk {
  * @set_rate: Set the clock rate
  * @get_rate: Get the clock rate
  * @get_rates_array: Get the supported clock rates as array
+ * @get_duty_cycle: Get duty cytcle of the clock
  */
 struct clk_ops {
 	TEE_Result (*enable)(struct clk *clk);
@@ -66,6 +78,8 @@ struct clk_ops {
 				  unsigned long parent_rate);
 	TEE_Result (*get_rates_array)(struct clk *clk, size_t start_index,
 				      unsigned long *rates, size_t *nb_elts);
+	TEE_Result (*get_duty_cycle)(struct clk *clk,
+				     struct clk_duty_cycle *duty_cycle);
 };
 
 /**
@@ -198,6 +212,16 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
  */
 TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 			       unsigned long *rates, size_t *nb_elts);
+
+/**
+ * clk_get_duty_cycle - Get clock duty cycle
+ *
+ * @clk: Clock for which the duty cycle is requested
+ * @duty: Output duty cycle info
+ * Return a TEE_Result compliant value
+ */
+TEE_Result clk_get_duty_cycle(struct clk *clk,
+			      struct clk_duty_cycle *duty_cycle);
 
 /* Print current clock tree summary to output console with debug trace level */
 #ifdef CFG_DRIVERS_CLK

@@ -321,6 +321,19 @@ TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 	return clk->ops->get_rates_array(clk, start_index, rates, nb_elts);
 }
 
+TEE_Result clk_get_duty_cycle(struct clk *clk,
+			      struct clk_duty_cycle *duty_cycle)
+{
+	if (clk->ops->get_duty_cycle)
+		return clk->ops->get_duty_cycle(clk, duty_cycle);
+
+	/* Default set 50% duty cycle */
+	duty_cycle->num = 1;
+	duty_cycle->den = 2;
+
+	return TEE_SUCCESS;
+}
+
 /* Return updated message buffer position of NULL on failure */
 static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
 {
