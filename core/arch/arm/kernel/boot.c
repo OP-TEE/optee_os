@@ -188,6 +188,59 @@ static void init_vfp_nsec(void)
 }
 #endif
 
+static void check_crypto_extensions(void)
+{
+	bool ce_supported = true;
+
+	if (!feat_aes_implemented() &&
+	    IS_ENABLED(CFG_CRYPTO_AES_ARM_CE)) {
+		EMSG("AES instructions are not supported");
+		ce_supported = false;
+	}
+
+	if (!feat_sha1_implemented() &&
+	    IS_ENABLED(CFG_CRYPTO_SHA1_ARM_CE)) {
+		EMSG("SHA1 instructions are not supported");
+		ce_supported = false;
+	}
+
+	if (!feat_sha256_implemented() &&
+	    IS_ENABLED(CFG_CRYPTO_SHA256_ARM_CE)) {
+		EMSG("SHA256 instructions are not supported");
+		ce_supported = false;
+	}
+
+	/* Check aarch64 specific instructions */
+	if (IS_ENABLED(CFG_ARM64_core)) {
+		if (!feat_sha512_implemented() &&
+		    IS_ENABLED(CFG_CRYPTO_SHA512_ARM_CE)) {
+			EMSG("SHA512 instructions are not supported");
+			ce_supported = false;
+		}
+
+		if (!feat_sha3_implemented() &&
+		    IS_ENABLED(CFG_CRYPTO_SHA3_ARM_CE)) {
+			EMSG("SHA3 instructions are not supported");
+			ce_supported = false;
+		}
+
+		if (!feat_sm3_implemented() &&
+		    IS_ENABLED(CFG_CRYPTO_SM3_ARM_CE)) {
+			EMSG("SM3 instructions are not supported");
+			ce_supported = false;
+		}
+
+		if (!feat_sm4_implemented() &&
+		    IS_ENABLED(CFG_CRYPTO_SM4_ARM_CE)) {
+			EMSG("SM4 instructions are not supported");
+			ce_supported = false;
+		}
+	}
+
+	if (!ce_supported)
+		panic("HW doesn't support CE instructions");
+}
+
 #if defined(CFG_WITH_VFP)
 
 #ifdef ARM32
@@ -1148,6 +1201,10 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	thread_set_exceptions(THREAD_EXCP_ALL);
 	primary_save_cntfrq();
 	init_vfp_sec();
+
+	if (IS_ENABLED(CFG_CRYPTO_WITH_CE))
+		check_crypto_extensions();
+
 	/*
 	 * Pager: init_runtime() calls thread_kernel_enable_vfp() so we must
 	 * set a current thread right now to avoid a chicken-and-egg problem
