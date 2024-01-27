@@ -76,6 +76,12 @@
 #define MPIDR_AARCH32_AFF_MASK	(MPIDR_AFF0_MASK | MPIDR_AFF1_MASK | \
 				 MPIDR_AFF2_MASK)
 
+/* ID_ISAR5 Cryptography Extension masks */
+#define ID_ISAR5_AES		GENMASK_32(7, 4)
+#define ID_ISAR5_SHA1		GENMASK_32(11, 8)
+#define ID_ISAR5_SHA2		GENMASK_32(15, 12)
+#define ID_ISAR5_CRC32		GENMASK_32(19, 16)
+
 /* CLIDR definitions */
 #define CLIDR_LOUIS_SHIFT	U(21)
 #define CLIDR_LOC_SHIFT		U(24)
