@@ -39,8 +39,9 @@ $(call force,CFG_CORE_HAS_GENERIC_TIMER,n)
 $(call force,CFG_TZDRAM_START,0x20000000)
 $(call force,CFG_TZDRAM_SIZE,0x800000)
 
-# This value is forced because this feature isn't used by SAM platforms.
+# This value is forced because these feature aren't used by SAM platforms.
 $(call force,CFG_EXTERNAL_DT,n)
+$(call force,CFG_CORE_DYN_SHM,n)
 
 CFG_MMAP_REGIONS ?= 24
 
