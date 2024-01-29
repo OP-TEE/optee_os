@@ -136,6 +136,7 @@
  * FIFO LOAD Command fields
  */
 #define CMD_FIFO_LOAD_TYPE	CMD_TYPE(0x04)
+#define CMD_SEQ_FIFO_LOAD_TYPE  CMD_TYPE(0x05)
 
 /* Extended Length */
 #define FIFO_LOAD_EXT		BIT32(22)
