@@ -18,6 +18,9 @@
  * CFG_SHMEM_SIZE
  *
  * Optional directives:
+ * CFG_SCMI_SHMEM_START Sets the address of SCMI static shared memory.
+ * CFG_SCMI_SHMEM_SIZE  Sets the byte size of SCMI static shared memory.
+ *
  * CFG_TEE_LOAD_ADDR	If defined sets TEE_LOAD_ADDR. If not, TEE_LOAD_ADDR
  *			is set by the platform or defaults to TEE_RAM_START.
  * CFG_TEE_RAM_VA_SIZE	Some platforms may have specific needs
@@ -40,6 +43,9 @@
  * TA_RAM_SIZE		TA contexts/pagestore RAM byte size
  * TEE_SHMEM_START	Non-secure static shared memory physical base address
  * TEE_SHMEM_SIZE	Non-secure static shared memory byte size
+ * TEE_SCMI_SHMEM_START	Non-secure SCMI static shared memory physical base
+ *                      address
+ * TEE_SCMI_SHMEM_SIZE	Non-secure SCMI static shared memory byte size
  *
  * TZDRAM_BASE		Main/external secure RAM base address
  * TZDRAM_SIZE		Main/external secure RAM byte size
@@ -73,6 +79,11 @@
  *  | Non-secure static SHM            |
  *  +----------------------------------+ <-- CFG_SHMEM_START + CFG_SHMEM_SIZE
  *
+ *  +----------------------------------+ <-- CFG_SCMI_SHMEM_START
+ *  | Non-secure static SCMI SHM       |
+ *  +----------------------------------+ <-- CFG_SCMI_SHMEM_START
+ *                                           + CFG_SCMI_SHMEM_SIZE
+ *
  * ----------------------------------------------------------------------------
  * TEE RAM layout with CFG_WITH_PAGER=y and undefined CFG_TZSRAM_START/_SIZE
  *
@@ -91,6 +102,10 @@
  *  | Non-secure static SHM            |   |
  *  +----------------------------------+   v CFG_SHMEM_SIZE
  *
+ *  +----------------------------------+ <-- CFG_SCMI_SHMEM_START
+ *  | Non-secure static SCMI SHM       |   |
+ *  +----------------------------------+   v CFG_SCMI_SHMEM_SIZE
+ *
  * ----------------------------------------------------------------------------
  * TEE RAM layout with CFG_WITH_PAGER=y and define CFG_TZSRAM_START/_SIZE
  *
@@ -108,6 +123,11 @@
  *  +----------------------------------+ <-- CFG_SHMEM_START
  *  | Non-secure static SHM            |   |
  *  +----------------------------------+   v CFG_SHMEM_SIZE
+ *
+ *  +----------------------------------+ <-- CFG_SCMI_SHMEM_START
+ *  | Non-secure static SCMI SHM       |   |
+ *  +----------------------------------+   v CFG_SCMI_SHMEM_SIZE
+ *
  */
 
 #ifdef CFG_TEE_LOAD_ADDR
@@ -130,6 +150,17 @@
 #define TEE_SHMEM_START		CFG_SHMEM_START
 #ifndef CFG_SHMEM_SIZE
 #error CFG_SHMEM_START mandates CFG_SHMEM_SIZE
+#endif
+#endif
+
+#ifdef CFG_SCMI_SHMEM_SIZE
+#define TEE_SCMI_SHMEM_SIZE		CFG_SCMI_SHMEM_SIZE
+#endif
+
+#ifdef CFG_SCMI_SHMEM_START
+#define TEE_SCMI_SHMEM_START		CFG_SCMI_SHMEM_START
+#ifndef CFG_SCMI_SHMEM_SIZE
+#error CFG_SCMI_SHMEM_START mandates CFG_SCMI_SHMEM_SIZE
 #endif
 #endif
 
@@ -181,4 +212,3 @@
 #endif
 
 #endif /*__MM_GENERIC_RAM_LAYOUT_H*/
-

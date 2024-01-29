@@ -12,9 +12,9 @@
 #include <initcall.h>
 #include <tee_api_defines.h>
 
-static_assert(SMT_BUF_SLOT_SIZE <= CFG_SCMI_SHMEM_SIZE);
+static_assert(SMT_BUF_SLOT_SIZE <= TEE_SCMI_SHMEM_SIZE);
 
-register_phys_mem(MEM_AREA_IO_NSEC, CFG_SCMI_SHMEM_START, CFG_SCMI_SHMEM_SIZE);
+register_phys_mem(MEM_AREA_IO_NSEC, TEE_SCMI_SHMEM_START, TEE_SCMI_SHMEM_SIZE);
 
 struct channel_resources {
 	struct scmi_msg_channel *channel;
@@ -23,7 +23,7 @@ struct channel_resources {
 static const struct channel_resources scmi_channel[] = {
 	[0] = {
 		.channel = &(struct scmi_msg_channel){
-			.shm_addr = { .pa = CFG_SCMI_SHMEM_START },
+			.shm_addr = { .pa = TEE_SCMI_SHMEM_START },
 			.shm_size = SMT_BUF_SLOT_SIZE,
 		},
 	},
