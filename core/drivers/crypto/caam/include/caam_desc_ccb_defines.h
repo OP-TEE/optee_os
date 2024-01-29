@@ -13,8 +13,13 @@
 
 /* CCB Clear Written Register */
 #define CLR_WR_IFIFO_NFIFO BIT32(31)
+#define CLR_WR_RST_C1_CHA  BIT32(29)
 #define CLR_WR_RST_C2_CHA  BIT32(28)
+#define CLR_WR_RST_C1_DNE  BIT32(27)
+#define CLR_WR_RST_C2_CTX  BIT32(21)
 #define CLR_WR_RST_C2_DSZ  BIT32(18)
+#define CLR_WR_RST_C1_DSZ  BIT32(2)
+#define CLR_WR_RST_C1_MDE  BIT32(0)
 
 /* CCB NFIFO */
 #define NFIFO_CLASS(cla)       SHIFT_U32(NFIFO_CLASS_##cla & 0x3, 30)
@@ -31,6 +36,7 @@
 #define NFIFO_STYPE_PAD        0x2
 
 #define NFIFO_DTYPE(data)      SHIFT_U32(NFIFO_DTYPE_##data & 0xF, 20)
+#define NFIFO_DTYPE_AAD        0x1
 #define NFIFO_DTYPE_MSG        0xF
 #define NFIFO_DTYPE_PKHA_N     0x8
 #define NFIFO_DTYPE_PKHA_A     0xC
