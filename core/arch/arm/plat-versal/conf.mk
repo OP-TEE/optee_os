@@ -87,7 +87,11 @@ CFG_VERSAL_TRNG_SEED_LIFE ?= 3
 CFG_VERSAL_TRNG_DF_MUL ?= 2
 
 # eFuse and BBRAM driver
+ifeq ($(PLATFORM_FLAVOR),net)
+$(call force, CFG_VERSAL_NET_NVM,y)
+else
 $(call force, CFG_VERSAL_NVM,y)
+endif
 
 # Crypto driver
 CFG_VERSAL_CRYPTO_DRIVER ?= y
@@ -113,6 +117,7 @@ CFG_VERSAL_SHA3_384 ?= y
 CFG_VERSAL_PUF ?= y
 
 # Enable Hardware Unique Key driver
+CFG_VERSAL_DUMMY_DNA ?= n
 CFG_VERSAL_HUK ?= y
 # AES-GCM supported key sources for HUK:
 #     6  : eFUSE USR 0

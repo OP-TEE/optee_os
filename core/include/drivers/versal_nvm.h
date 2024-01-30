@@ -14,7 +14,12 @@
 
 #define PUF_EFUSES_WORDS		(128)
 #define PUF_SYN_DATA_WORDS		(127)
+
+#if defined(PLATFORM_FLAVOR_net)
+#define EFUSE_MAX_USER_FUSES		(48)
+#else
 #define EFUSE_MAX_USER_FUSES		(64)
+#endif
 
 #define EFUSE_OFFCHIP_REVOCATION_ID_LEN	(4)
 #define EFUSE_REVOCATION_ID_LEN		(4)
@@ -22,6 +27,7 @@
 #define EFUSE_DNA_LEN			(16)
 #define EFUSE_PPK_LEN			(32)
 #define EFUSE_IV_LEN			(12)
+#define EFUSE_AES_KEY_LEN		(32)
 
 enum versal_nvm_iv_type {
 	EFUSE_META_HEADER_IV_RANGE = 0,
@@ -36,6 +42,14 @@ enum versal_nvm_ppk_type {
 	EFUSE_PPK2
 };
 
+/*
+ * The Versal Net PLM API expects efuse values between 1 and 256 rather than
+ * the enumeration values defined for the original Versal port.
+ */
+#if defined(PLATFORM_FLAVOR_net)
+#define VERSAL_NET_REVOKE_EFUSE_MIN	1
+#define VERSAL_NET_REVOKE_EFUSE_MAX	256
+#else
 enum versal_nvm_revocation_id {
 	EFUSE_REVOCATION_ID_0 = 0,
 	EFUSE_REVOCATION_ID_1,
@@ -58,6 +72,7 @@ enum versal_nvm_offchip_id {
 	EFUSE_OFFCHIP_REVOKE_ID_6,
 	EFUSE_OFFCHIP_REVOKE_ID_7
 };
+#endif
 
 /*
  * All structures mapped to the PLM processor must be address_and_size aligned
@@ -243,18 +258,25 @@ TEE_Result versal_efuse_write_glitch_cfg(struct versal_efuse_glitch_cfg_bits
 TEE_Result versal_efuse_write_boot_env(struct versal_efuse_boot_env_ctrl_bits
 				       *p);
 TEE_Result versal_efuse_write_sec_misc1(struct versal_efuse_sec_misc1_bits *p);
+#if defined(PLATFORM_FLAVOR_net)
+TEE_Result versal_efuse_write_offchip_ids(uint32_t id);
+TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
+					       uint32_t id);
+TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len, uint32_t id);
+#else
 TEE_Result versal_efuse_write_offchip_ids(struct versal_efuse_offchip_ids *p);
-TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type);
-TEE_Result versal_efuse_write_revoke_id(uint32_t id);
+TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
+					       enum versal_nvm_offchip_id id);
 TEE_Result versal_efuse_read_revoke_id(uint32_t *buf, size_t len,
 				       enum versal_nvm_revocation_id id);
+#endif
+TEE_Result versal_efuse_write_revoke_ppk(enum versal_nvm_ppk_type type);
+TEE_Result versal_efuse_write_revoke_id(uint32_t id);
 TEE_Result versal_efuse_read_misc_ctrl(struct versal_efuse_misc_ctrl_bits *buf);
 TEE_Result versal_efuse_read_sec_ctrl(struct versal_efuse_sec_ctrl_bits *buf);
 TEE_Result versal_efuse_read_sec_misc1(struct versal_efuse_sec_misc1_bits *buf);
 TEE_Result
 versal_efuse_read_boot_env_ctrl(struct versal_efuse_boot_env_ctrl_bits *buf);
-TEE_Result versal_efuse_read_offchip_revoke_id(uint32_t *buf, size_t len,
-					       enum versal_nvm_offchip_id id);
 TEE_Result versal_efuse_read_dec_only(uint32_t *buf, size_t len);
 TEE_Result versal_efuse_read_puf_sec_ctrl(struct versal_efuse_puf_sec_ctrl_bits
 					  *buf);

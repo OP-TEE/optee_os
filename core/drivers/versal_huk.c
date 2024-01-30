@@ -108,6 +108,13 @@ struct versal_aes_init {
 		0xa1, 0x33, \
 	}
 
+#ifdef CFG_VERSAL_DUMMY_DNA
+static uint8_t dummy_dna[EFUSE_DNA_LEN] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+};
+#endif
+
 static bool versal_persistent_key(enum versal_aes_key_src src, bool *secure)
 {
 	struct versal_efuse_puf_sec_ctrl_bits puf_ctrl = { };
@@ -326,8 +333,12 @@ TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
 	if (huk.ready)
 		goto out;
 
+#ifdef CFG_VERSAL_DUMMY_DNA
+	memcpy(dna, dummy_dna, EFUSE_DNA_LEN);
+#else
 	if (versal_efuse_read_dna(dna, sizeof(dna)))
 		return TEE_ERROR_GENERIC;
+#endif
 
 	if (versal_sha3_384((uint8_t *)dna, sizeof(dna), sha, sizeof(sha))) {
 		ret = TEE_ERROR_GENERIC;
