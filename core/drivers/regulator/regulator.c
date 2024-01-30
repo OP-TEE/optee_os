@@ -181,9 +181,27 @@ bool regulator_is_enabled(struct regulator *regulator)
 	return !res && enabled;
 }
 
+int regulator_get_voltage(struct regulator *regulator)
+{
+	TEE_Result res = TEE_SUCCESS;
+	int level_uv = regulator->min_uv;
+
+	if (regulator->ops->get_voltage) {
+		res = regulator->ops->get_voltage(regulator, &level_uv);
+		if (res) {
+			EMSG("%s get_voltage failed with %#"PRIx32,
+			     regulator_name(regulator), res);
+			level_uv = 0;
+		}
+	}
+
+	return level_uv;
+}
+
 TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	int cur_uv = 0;
 
 	assert(regulator);
 	FMSG("%s %duV", regulator_name(regulator), level_uv);
@@ -191,7 +209,8 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 	if (level_uv < regulator->min_uv || level_uv > regulator->max_uv)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (level_uv == regulator->cur_uv)
+	cur_uv = regulator_get_voltage(regulator);
+	if (level_uv == cur_uv)
 		return TEE_SUCCESS;
 
 	if (!regulator->ops->set_voltage)
@@ -206,8 +225,6 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 		     regulator_name(regulator), res);
 		return res;
 	}
-
-	regulator->cur_uv = level_uv;
 
 	return TEE_SUCCESS;
 }
@@ -256,14 +273,7 @@ TEE_Result regulator_register(struct regulator *regulator)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* Sanitize regulator effective level */
-	if (regulator->ops->get_voltage) {
-		res = regulator->ops->get_voltage(regulator, &uv);
-		if (res)
-			return res;
-	} else {
-		uv = min_uv;
-	}
-	regulator->cur_uv = uv;
+	uv = regulator_get_voltage(regulator);
 
 	if (uv < min_uv || uv > max_uv) {
 		res = regulator_set_voltage(regulator, min_uv);
