@@ -106,6 +106,7 @@ CFG_VERSAL_SHA3_384 ?= y
 CFG_VERSAL_PUF ?= y
 
 # Enable Hardware Unique Key driver
+CFG_VERSAL_DUMMY_DNA ?= n
 CFG_VERSAL_HUK ?= y
 # AES-GCM supported key sources for HUK:
 #     6  : eFUSE USR 0
