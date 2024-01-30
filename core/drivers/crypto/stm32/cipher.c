@@ -149,13 +149,6 @@ static void stm32_cipher_final(void *ctx __unused)
 {
 }
 
-static void stm32_cipher_free(void *ctx)
-{
-	struct stm32_cipher_ctx *c = to_stm32_cipher_ctx(ctx);
-
-	free(c);
-}
-
 static void stm32_cipher_copy_state(void *dst_ctx, void *src_ctx)
 {
 	struct stm32_cipher_ctx *src = to_stm32_cipher_ctx(src_ctx);
@@ -179,27 +172,6 @@ static TEE_Result alloc_cryp_ctx(void **ctx, enum stm32_cryp_algo_mode algo)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result alloc_saes_ctx(void **ctx, enum stm32_saes_chaining_mode algo)
-{
-	struct stm32_cipher_ctx *c = calloc(1, sizeof(*c));
-
-	if (!c)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
-	FMSG("Using SAES %d", algo);
-	c->ip_ctx.saes.algo = algo;
-	c->ops = &saes_ops;
-	*ctx = &c->c_ctx;
-
-	return TEE_SUCCESS;
-}
-
-/*
- * Allocate the SW cipher data context for CRYP peripheral.
- *
- * @ctx   [out] Caller context variable
- * @algo  Algorithm ID of the context
- */
 static TEE_Result stm32_cryp_cipher_allocate(void **ctx, uint32_t algo)
 {
 	/*
@@ -225,12 +197,21 @@ static TEE_Result stm32_cryp_cipher_allocate(void **ctx, uint32_t algo)
 	}
 }
 
-/*
- * Allocate the SW cipher data context for SAES peripheral.
- *
- * @ctx   [out] Caller context variable
- * @algo  Algorithm ID of the context
- */
+static TEE_Result alloc_saes_ctx(void **ctx, enum stm32_saes_chaining_mode algo)
+{
+	struct stm32_cipher_ctx *c = calloc(1, sizeof(*c));
+
+	if (!c)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	FMSG("Using SAES %d", algo);
+	c->ip_ctx.saes.algo = algo;
+	c->ops = &saes_ops;
+	*ctx = &c->c_ctx;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_saes_cipher_allocate(void **ctx, uint32_t algo)
 {
 	/*
@@ -246,6 +227,13 @@ static TEE_Result stm32_saes_cipher_allocate(void **ctx, uint32_t algo)
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
+}
+
+static void stm32_cipher_free(void *ctx)
+{
+	struct stm32_cipher_ctx *c = to_stm32_cipher_ctx(ctx);
+
+	free(c);
 }
 
 static struct drvcrypt_cipher driver_cipher_cryp = {
