@@ -249,21 +249,21 @@ static TEE_Result stm32_saes_cipher_allocate(void **ctx, uint32_t algo)
 }
 
 static struct drvcrypt_cipher driver_cipher_cryp = {
-	.alloc_ctx = &stm32_cryp_cipher_allocate,
-	.free_ctx = &stm32_cipher_free,
-	.init = &stm32_cipher_initialize,
-	.update = &stm32_cipher_update,
-	.final = &stm32_cipher_final,
-	.copy_state = &stm32_cipher_copy_state,
+	.alloc_ctx = stm32_cryp_cipher_allocate,
+	.free_ctx = stm32_cipher_free,
+	.init = stm32_cipher_initialize,
+	.update = stm32_cipher_update,
+	.final = stm32_cipher_final,
+	.copy_state = stm32_cipher_copy_state,
 };
 
 static struct drvcrypt_cipher driver_cipher_saes = {
-	.alloc_ctx = &stm32_saes_cipher_allocate,
-	.free_ctx = &stm32_cipher_free,
-	.init = &stm32_cipher_initialize,
-	.update = &stm32_cipher_update,
-	.final = &stm32_cipher_final,
-	.copy_state = &stm32_cipher_copy_state,
+	.alloc_ctx = stm32_saes_cipher_allocate,
+	.free_ctx = stm32_cipher_free,
+	.init = stm32_cipher_initialize,
+	.update = stm32_cipher_update,
+	.final = stm32_cipher_final,
+	.copy_state = stm32_cipher_copy_state,
 };
 
 TEE_Result stm32_register_cipher(enum stm32_cipher_ip_id cipher_ip)
