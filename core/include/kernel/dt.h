@@ -86,6 +86,7 @@ struct dt_descriptor {
 
 extern uint8_t embedded_secure_dtb[];
 
+#ifdef CFG_DT
 /*
  * dt_getprop_as_number() - get a DT property a unsigned number
  * @fdt: DT base address
@@ -100,7 +101,6 @@ extern uint8_t embedded_secure_dtb[];
 int dt_getprop_as_number(const void *fdt, int nodeoffset, const char *name,
 			 uint64_t *num);
 
-#ifdef CFG_DT
 /*
  * Find a driver that is suitable for the given DT node, that is, with
  * a matching "compatible" property.
@@ -391,6 +391,14 @@ static inline int fdt_get_reg_props_by_name(const void *fdt __unused,
 					    const char *name __unused,
 					    paddr_t *base __unused,
 					    size_t *size __unused)
+{
+	return -1;
+}
+
+static inline int dt_getprop_as_number(const void *fdt __unused,
+				       int nodeoffset __unused,
+				       const char *name __unused,
+				       uint64_t *num __unused)
 {
 	return -1;
 }
