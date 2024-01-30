@@ -463,7 +463,7 @@ crypto_asym_alloc_ecc_public_key(struct ecc_public_key *key __unused,
 }
 
 static inline const struct crypto_ecc_keypair_ops *
-crypto_asym_get_keypair_ops(uint32_t key_type __unused)
+crypto_asym_get_ecc_keypair_ops(uint32_t key_type __unused)
 {
 	return NULL;
 }
