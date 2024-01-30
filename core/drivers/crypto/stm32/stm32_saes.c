@@ -1428,5 +1428,5 @@ static const struct dt_device_match saes_match_table[] = {
 DEFINE_DT_DRIVER(stm32_saes_dt_driver) = {
 	.name = "stm32-saes",
 	.match_table = saes_match_table,
-	.probe = &stm32_saes_probe,
+	.probe = stm32_saes_probe,
 };

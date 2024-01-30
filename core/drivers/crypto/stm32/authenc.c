@@ -355,15 +355,15 @@ static TEE_Result stm32_ae_allocate(void **ctx, uint32_t algo)
  * Registration of the Authenc Driver
  */
 static struct drvcrypt_authenc driver_authenc = {
-	.alloc_ctx = &stm32_ae_allocate,
-	.free_ctx = &stm32_ae_free,
-	.init = &stm32_ae_initialize,
-	.update_aad = &stm32_ae_update_aad,
-	.update_payload = &stm32_ae_update_payload,
-	.enc_final = &stm32_ae_enc_final,
-	.dec_final = &stm32_ae_dec_final,
-	.final = &stm32_ae_final,
-	.copy_state = &stm32_ae_copy_state,
+	.alloc_ctx = stm32_ae_allocate,
+	.free_ctx = stm32_ae_free,
+	.init = stm32_ae_initialize,
+	.update_aad = stm32_ae_update_aad,
+	.update_payload = stm32_ae_update_payload,
+	.enc_final = stm32_ae_enc_final,
+	.dec_final = stm32_ae_dec_final,
+	.final = stm32_ae_final,
+	.copy_state = stm32_ae_copy_state,
 };
 
 TEE_Result stm32_register_authenc(void)
