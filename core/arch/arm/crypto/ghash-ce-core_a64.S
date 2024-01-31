@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020 Linaro Limited
+ * Copyright (c) 2020, 2024 Linaro Limited
  * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
@@ -11,11 +11,10 @@
 #define CPU_LE(x...)	x
 
 /*
- * If the lower half of CTR is initialized with zeroes or a low value we
- * can expect that the upper half will remain unchanged. As an optimization
- * make the code to increase the upper half optional.
+ * Only increase the lowest quarter, that is, 32-bits of the counter. If
+ * it wraps it must not propagate into the upper bits.
  */
-#define INC_HALF_CTR	0
+#define INC_QUART_CTR	1
 
 	SHASH		.req	v0
 	SHASH2		.req	v1
@@ -412,7 +411,7 @@ END_FUNC pmull_ghash_update_p8
 	ld1		{SHASH.2d}, [x4], #16
 	ld1		{HH.2d}, [x4]
 	ld1		{XL.2d}, [x1]
-#if INC_HALF_CTR
+#if INC_QUART_CTR
 	ldr		x8, [x5, #8]			// load lower counter
 #else
 	ldp		x9, x8, [x5]			// load counter
@@ -422,7 +421,7 @@ END_FUNC pmull_ghash_update_p8
 	trn1		SHASH2.2d, SHASH.2d, HH.2d
 	trn2		T1.2d, SHASH.2d, HH.2d
 CPU_LE(	rev		x8, x8		)
-#if !INC_HALF_CTR
+#if !INC_QUART_CTR
 CPU_LE(	rev		x9, x9		)
 #endif
 	shl		MASK.2d, MASK.2d, #57
@@ -437,10 +436,13 @@ CPU_LE(	rev		x9, x9		)
 
 0:	ld1		{INP0.16b-INP1.16b}, [x3], #32
 
-#if INC_HALF_CTR
+#if INC_QUART_CTR
+	lsr		x12, x8, #32		// Save the upper 32 bits
 	rev		x9, x8
-	add		x11, x8, #1
-	add		x8, x8, #2
+	add		w11, w8, #1
+	add		w8, w8, #2
+	add		x11, x11, x12, lsl #32	// Restore the upper 32 bits
+	add		x8, x8, x12, lsl #32
 #endif
 
 	.if		\enc == 1
@@ -450,7 +452,7 @@ CPU_LE(	rev		x9, x9		)
 
 	sub		w0, w0, #2
 
-#if INC_HALF_CTR
+#if INC_QUART_CTR
 	ld1		{KS0.8b}, [x5]			// load upper counter
 	rev		x11, x11
 	mov		KS1.8b, KS0.8b
@@ -563,11 +565,11 @@ CPU_LE(	rev		x9, x9		)
 	cbnz		w0, 0b
 
 CPU_LE(	rev		x8, x8		)
-#if !INC_HALF_CTR
+#if !INC_QUART_CTR
 CPU_LE(	rev		x9, x9		)
 #endif
 	st1		{XL.2d}, [x1]
-#if INC_HALF_CTR
+#if INC_QUART_CTR
 	str		x8, [x5, #8]			// store lower counter
 #else
 	stp		x9, x8, [x5]			// store counter
