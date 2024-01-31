@@ -470,6 +470,8 @@ DEFINE_REG_READ_FUNC_(cntps_ctl, uint32_t, cntps_ctl_el1)
 DEFINE_REG_WRITE_FUNC_(cntps_ctl, uint32_t, cntps_ctl_el1)
 DEFINE_REG_READ_FUNC_(cntps_tval, uint32_t, cntps_tval_el1)
 DEFINE_REG_WRITE_FUNC_(cntps_tval, uint32_t, cntps_tval_el1)
+DEFINE_REG_READ_FUNC_(cntps_cval, uint64_t, cntps_cval_el1)
+DEFINE_REG_WRITE_FUNC_(cntps_cval, uint64_t, cntps_cval_el1)
 
 DEFINE_REG_READ_FUNC_(pmccntr, uint64_t, pmccntr_el0)
 
