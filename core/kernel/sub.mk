@@ -63,3 +63,4 @@ ifeq ($(CFG_SYSCALL_FTRACE),y)
 cflags-remove-spin_lock_debug.c-$(CFG_TEE_CORE_DEBUG) += -pg
 endif
 srcs-y += nv_counter.c
+srcs-y += callout.c
