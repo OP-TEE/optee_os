@@ -1793,6 +1793,29 @@ static const struct clk_ops clk_stm32_pll_ops = {
 	.disable	= clk_stm32_pll_disable,
 };
 
+static TEE_Result
+clk_stm32_composite_get_duty_cycle(struct clk *clk,
+				   struct clk_duty_cycle *duty_cycle)
+{
+	struct clk_stm32_composite_cfg *cfg = clk->priv;
+	uint32_t val = stm32_div_get_value(cfg->div_id);
+
+	duty_cycle->num = (val + 1) / 2;
+	duty_cycle->den = val + 1;
+
+	return TEE_SUCCESS;
+}
+
+static const struct clk_ops clk_stm32_composite_duty_cycle_ops = {
+	.get_parent	= clk_stm32_composite_get_parent,
+	.set_parent	= clk_stm32_composite_set_parent,
+	.get_rate	= clk_stm32_composite_get_rate,
+	.set_rate	= clk_stm32_composite_set_rate,
+	.enable		= clk_stm32_composite_gate_enable,
+	.disable	= clk_stm32_composite_gate_disable,
+	.get_duty_cycle	= clk_stm32_composite_get_duty_cycle,
+};
+
 static struct
 stm32_clk_opp_cfg *clk_stm32_get_opp_config(struct stm32_clk_opp_cfg *opp_cfg,
 					    unsigned long rate)
@@ -1963,7 +1986,7 @@ const struct clk_ops ck_timer_ops = {
 #define STM32_PLL_OUPUT(_name, _nb_parents, _parents, _flags,\
 			_gate_id, _div_id, _mux_id)\
 	struct clk _name = {\
-		.ops	= &clk_stm32_composite_ops,\
+		.ops	= &clk_stm32_composite_duty_cycle_ops,\
 		.priv	= &(struct clk_stm32_composite_cfg) {\
 			.gate_id	= (_gate_id),\
 			.div_id		= (_div_id),\
