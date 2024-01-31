@@ -7,6 +7,7 @@
 #include <crypto/crypto.h>
 #include <crypto/crypto_impl.h>
 #include <stdlib.h>
+#include <string_ext.h>
 #include <string.h>
 #include <tee_api_types.h>
 #include <tomcrypt_private.h>
