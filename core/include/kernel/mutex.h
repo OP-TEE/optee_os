@@ -95,10 +95,26 @@ void condvar_broadcast_debug(struct condvar *cv, const char *fname, int lineno);
 void condvar_wait_debug(struct condvar *cv, struct mutex *m,
 			const char *fname, int lineno);
 #define condvar_wait(cv, m) condvar_wait_debug((cv), (m), __FILE__, __LINE__)
+
+/*
+ * Return TEE_ERROR_TIMEOUT if the normal world returns before
+ * the condvar has been signaled.
+ */
+TEE_Result condvar_wait_timeout_debug(struct condvar *cv, struct mutex *m,
+				      uint32_t timeout_ms, const char *fname,
+				      int lineno);
+#define condvar_wait_timeout(cv, m, timeout_ms) \
+	condvar_wait_timeout_debug((cv), (m), (timeout_ms), __FILE__, __LINE__)
 #else
 void condvar_signal(struct condvar *cv);
 void condvar_broadcast(struct condvar *cv);
 void condvar_wait(struct condvar *cv, struct mutex *m);
+/*
+ * Return TEE_ERROR_TIMEOUT if the normal world returns before
+ * the condvar has been signaled.
+ */
+TEE_Result condvar_wait_timeout(struct condvar *cv, struct mutex *m,
+				uint32_t timeout_ms);
 #endif
 
 #endif /*__KERNEL_MUTEX_H*/
