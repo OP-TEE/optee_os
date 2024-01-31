@@ -13,7 +13,7 @@ static bool timer_running;
 void generic_timer_start(uint32_t time_ms)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	uint32_t timer_ticks;
+	uint32_t timer_ticks = 0;
 
 	cpu_spin_lock(&timer_lock);
 
@@ -21,7 +21,7 @@ void generic_timer_start(uint32_t time_ms)
 		goto exit;
 
 	/* The timer will fire time_ms from now */
-	timer_ticks = (read_cntfrq() * time_ms) / 1000;
+	timer_ticks = ((uint64_t)read_cntfrq() * time_ms) / 1000;
 	write_cntps_tval(timer_ticks);
 
 	/* Enable the secure physical timer */
@@ -51,7 +51,7 @@ void generic_timer_stop(void)
 
 void generic_timer_handler(uint32_t time_ms)
 {
-	uint32_t timer_ticks;
+	uint32_t timer_ticks = 0;
 
 	/* Ensure that the timer did assert the interrupt */
 	assert((read_cntps_ctl() >> 2));
@@ -60,7 +60,7 @@ void generic_timer_handler(uint32_t time_ms)
 	write_cntps_ctl(0);
 
 	/* Reconfigure timer to fire time_ms from now */
-	timer_ticks = (read_cntfrq() * time_ms) / 1000;
+	timer_ticks = ((uint64_t)read_cntfrq() * time_ms) / 1000;
 	write_cntps_tval(timer_ticks);
 
 	/* Enable the secure physical timer */
