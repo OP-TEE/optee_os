@@ -1750,7 +1750,7 @@ static unsigned long clk_stm32_pll_get_rate(struct clk *clk,
 		fvco = (unsigned long)(prate * (divn + 1U) / (divm + 1U));
 	}
 
-	return fvco;
+	return UDIV_ROUND_NEAREST(fvco, 100000) * 100000;
 };
 
 static bool clk_stm32_pll_is_enabled(struct clk *clk)
