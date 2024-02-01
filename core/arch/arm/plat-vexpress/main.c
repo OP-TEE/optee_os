@@ -19,6 +19,7 @@
 #include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/thread_spmc.h>
+#include <kernel/timer.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -256,3 +257,14 @@ int psci_cpu_on(uint32_t core_id, uint32_t entry, uint32_t context_id)
 	return PSCI_RET_SUCCESS;
 }
 #endif /*PLATFORM_FLAVOR_qemu_virt*/
+
+#if defined(IT_SEC_PHY_TIMER) && !defined(CFG_CORE_SEL2_SPMC)
+static TEE_Result init_callout_service(void)
+{
+	timer_init_callout_service(interrupt_get_main_chip(), IT_SEC_PHY_TIMER);
+
+	return TEE_SUCCESS;
+}
+
+nex_early_init(init_callout_service);
+#endif
