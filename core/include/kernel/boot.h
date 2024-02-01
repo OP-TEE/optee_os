@@ -45,6 +45,7 @@ extern const struct core_mmu_config boot_mmu_config;
 void boot_init_primary_early(void);
 void boot_init_primary_late(unsigned long fdt, unsigned long manifest);
 void boot_init_memtag(void);
+void boot_clear_memtag(void);
 void boot_save_args(unsigned long a0, unsigned long a1, unsigned long a2,
 		    unsigned long a3, unsigned long a4);
 
