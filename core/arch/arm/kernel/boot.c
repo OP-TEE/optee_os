@@ -374,12 +374,28 @@ static void init_asan(void)
 /* Called from entry_a64.S only when MEMTAG is configured */
 void boot_init_memtag(void)
 {
-	paddr_t base = 0;
-	paddr_size_t size = 0;
-
 	memtag_init_ops(feat_mte_implemented());
-	core_mmu_get_secure_memory(&base, &size);
-	memtag_set_tags((void *)(vaddr_t)base, size, 0);
+}
+
+/* Called from entry_a64.S only when MEMTAG is configured */
+void boot_clear_memtag(void)
+{
+	enum teecore_memtypes mtypes[] = {
+		MEM_AREA_TEE_RAM, MEM_AREA_TEE_RAM_RW, MEM_AREA_NEX_RAM_RO,
+		MEM_AREA_NEX_RAM_RW, MEM_AREA_TEE_ASAN, MEM_AREA_TA_RAM
+	};
+	vaddr_t s = 0;
+	vaddr_t e = 0;
+	size_t n = 0;
+
+	for (n = 0; n < ARRAY_SIZE(mtypes); n++) {
+		core_mmu_get_mem_by_type(mtypes[n], &s, &e);
+		if (e > s) {
+			DMSG("Clearing tags for VA %#"PRIxVA"..%#"PRIxVA,
+			     s, e - 1);
+			memtag_set_tags((void *)s, e - s, 0);
+		}
+	}
 }
 #endif
 

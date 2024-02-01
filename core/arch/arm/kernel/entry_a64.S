@@ -353,6 +353,10 @@ clear_nex_bss:
 	bl	console_init
 #endif
 
+#ifdef CFG_MEMTAG
+	bl	boot_clear_memtag
+#endif
+
 #ifdef CFG_NS_VIRTUALIZATION
 	/*
 	 * Initialize partition tables for each partition to
