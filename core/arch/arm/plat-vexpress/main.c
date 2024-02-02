@@ -114,14 +114,14 @@ static void read_console(void)
 	}
 }
 
-static enum itr_return console_itr_cb(struct itr_handler *hdl)
+static enum itr_return console_itr_cb(struct itr_handler *hdl __unused)
 {
 	if (notif_async_is_started()) {
 		/*
 		 * Asynchronous notifications are enabled, lets read from
 		 * uart in the bottom half instead.
 		 */
-		interrupt_disable(hdl->chip, hdl->it);
+		console_data.chip.ops->rx_intr_disable(&console_data.chip);
 		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF);
 	} else {
 		read_console();
@@ -149,11 +149,11 @@ static void yielding_console_notif(struct notif_driver *ndrv __unused,
 	switch (ev) {
 	case NOTIF_EVENT_DO_BOTTOM_HALF:
 		read_console();
-		interrupt_enable(console_itr.chip, console_itr.it);
+		console_data.chip.ops->rx_intr_enable(&console_data.chip);
 		break;
 	case NOTIF_EVENT_STOPPED:
 		DMSG("Asynchronous notifications stopped");
-		interrupt_enable(console_itr.chip, console_itr.it);
+		console_data.chip.ops->rx_intr_enable(&console_data.chip);
 		break;
 	default:
 		EMSG("Unknown event %d", (int)ev);
@@ -168,6 +168,8 @@ struct notif_driver console_notif = {
 static TEE_Result init_console_itr(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
+	bool have_itr_ctrl = console_data.chip.ops->rx_intr_enable &&
+			     console_data.chip.ops->rx_intr_disable;
 
 	res = interrupt_add_handler_with_chip(interrupt_get_main_chip(),
 					      &console_itr);
@@ -176,7 +178,7 @@ static TEE_Result init_console_itr(void)
 
 	interrupt_enable(console_itr.chip, console_itr.it);
 
-	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF) && have_itr_ctrl)
 		notif_register_driver(&console_notif);
 	return TEE_SUCCESS;
 }
