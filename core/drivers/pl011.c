@@ -5,9 +5,11 @@
 #include <assert.h>
 #include <drivers/pl011.h>
 #include <io.h>
+#include <util.h>
 #include <keep.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
+#include <kernel/spinlock.h>
 #include <stdlib.h>
 #include <trace.h>
 #include <types_ext.h>
@@ -127,11 +129,27 @@ static void pl011_putc(struct serial_chip *chip, int ch)
 	io_write32(base + UART_DR, ch);
 }
 
+static void pl011_rx_intr_enable(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	io_write32(base + UART_IMSC, UART_IMSC_RXIM);
+}
+
+static void pl011_rx_intr_disable(struct serial_chip *chip)
+{
+	vaddr_t base = chip_to_base(chip);
+
+	io_write32(base + UART_IMSC, 0);
+}
+
 static const struct serial_ops pl011_ops = {
 	.flush = pl011_flush,
 	.getchar = pl011_getchar,
 	.have_rx_data = pl011_have_rx_data,
 	.putc = pl011_putc,
+	.rx_intr_enable = pl011_rx_intr_enable,
+	.rx_intr_disable = pl011_rx_intr_disable,
 };
 DECLARE_KEEP_PAGER(pl011_ops);
 
@@ -160,8 +178,8 @@ void pl011_init(struct pl011_data *pd, paddr_t pbase, uint32_t uart_clk,
 	/* Configure TX to 8 bits, 1 stop bit, no parity, fifo disabled. */
 	io_write32(base + UART_LCR_H, UART_LCRH_WLEN_8);
 
-	/* Enable interrupts for receive and receive timeout */
-	io_write32(base + UART_IMSC, UART_IMSC_RXIM | UART_IMSC_RTIM);
+	/* Enable receive interrupt */
+	io_write32(base + UART_IMSC, UART_IMSC_RXIM);
 
 	/* Enable UART and RX/TX */
 	io_write32(base + UART_CR, UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE);
