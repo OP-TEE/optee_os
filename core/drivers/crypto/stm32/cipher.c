@@ -87,6 +87,11 @@ static TEE_Result cryp_update(union ip_ctx *ip_ctx, bool last_block,
 	return stm32_cryp_update(&ip_ctx->cryp.ctx, last_block, src, dst, len);
 }
 
+static const struct ip_cipher_ops cryp_ops = {
+	.init = cryp_init,
+	.update = cryp_update,
+};
+
 static TEE_Result saes_init(union ip_ctx *ip_ctx, bool is_decrypt,
 			    const uint8_t *key, size_t key_len,
 			    const uint8_t *iv, size_t iv_len)
@@ -109,12 +114,7 @@ static TEE_Result saes_update(union ip_ctx *ip_ctx, bool last_block,
 	return stm32_saes_update(&ip_ctx->saes.ctx, last_block, src, dst, len);
 }
 
-const struct ip_cipher_ops cryp_ops = {
-	.init = cryp_init,
-	.update = cryp_update,
-};
-
-const struct ip_cipher_ops saes_ops = {
+static const struct ip_cipher_ops saes_ops = {
 	.init = saes_init,
 	.update = saes_update,
 };
