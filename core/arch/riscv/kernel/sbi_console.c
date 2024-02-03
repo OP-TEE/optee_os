@@ -19,19 +19,25 @@ struct sbi_console_data {
 };
 
 static struct sbi_console_data console_data __nex_bss;
+static struct serial_ops sbi_console_ops __nex_bss;
 
-static void sbi_console_putc(struct serial_chip *chip __unused,
-			     int ch)
+static void sbi_console_putc_legacy(struct serial_chip *chip __unused, int ch)
 {
 	sbi_console_putchar(ch);
 }
 
-static const struct serial_ops sbi_console_ops = {
-	.putc = sbi_console_putc,
-};
+static void sbi_console_putc(struct serial_chip *chip __unused, int ch)
+{
+	sbi_dbcn_write_byte(ch);
+}
 
 static void sbi_console_init(struct sbi_console_data *pd)
 {
+	if (sbi_probe_extension(SBI_EXT_DBCN))
+		sbi_console_ops.putc = sbi_console_putc;
+	else
+		sbi_console_ops.putc = sbi_console_putc_legacy;
+
 	pd->chip.ops = &sbi_console_ops;
 }
 

@@ -21,10 +21,23 @@
 
 /* SBI Extension IDs */
 #define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01
+#define SBI_EXT_BASE			0x10
 #define SBI_EXT_HSM			0x48534D
+#define SBI_EXT_DBCN			0x4442434E
 #define SBI_EXT_TEE			0x544545
 
 #ifndef __ASSEMBLER__
+
+/* SBI function IDs for Base extension */
+enum sbi_ext_base_fid {
+	SBI_EXT_BASE_GET_SPEC_VERSION = 0,
+	SBI_EXT_BASE_GET_IMP_ID,
+	SBI_EXT_BASE_GET_IMP_VERSION,
+	SBI_EXT_BASE_PROBE_EXT,
+	SBI_EXT_BASE_GET_MVENDORID,
+	SBI_EXT_BASE_GET_MARCHID,
+	SBI_EXT_BASE_GET_MIMPID,
+};
 
 /* SBI function IDs for HSM extension */
 enum sbi_ext_hsm_fid {
@@ -34,6 +47,13 @@ enum sbi_ext_hsm_fid {
 	SBI_EXT_HSM_HART_SUSPEND,
 };
 
+/* SBI function IDs for Debug Console extension */
+enum sbi_ext_dbcn_fid {
+	SBI_EXT_DBCN_CONSOLE_WRITE = 0,
+	SBI_EXT_DBCN_CONSOLE_READ = 1,
+	SBI_EXT_DBCN_CONSOLE_WRITE_BYTE = 2,
+};
+
 #include <compiler.h>
 #include <encoding.h>
 #include <stdint.h>
@@ -41,7 +61,9 @@ enum sbi_ext_hsm_fid {
 #include <types_ext.h>
 #include <util.h>
 
+int sbi_probe_extension(int extid);
 void sbi_console_putchar(int ch);
+int sbi_dbcn_write_byte(unsigned char ch);
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
 
 #endif /*__ASSEMBLER__*/
