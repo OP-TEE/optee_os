@@ -34,11 +34,12 @@ void sbi_console_putchar(int ch)
 	sbi_ecall(SBI_EXT_0_1_CONSOLE_PUTCHAR, (unsigned long)ch);
 }
 
-int sbi_boot_hart(uint32_t hart_id, paddr_t start_addr, unsigned long arg)
+int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg)
 {
-	struct sbiret ret;
+	struct sbiret ret = { };
 
-	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, hart_id, start_addr, arg);
+	ret = sbi_ecall(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, hartid, start_addr,
+			arg);
 
 	return ret.error;
 }

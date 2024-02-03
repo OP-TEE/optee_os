@@ -24,13 +24,15 @@
 #define SBI_EXT_HSM			0x48534D
 #define SBI_EXT_TEE			0x544545
 
-/* SBI function IDs for HSM extension */
-#define SBI_EXT_HSM_HART_START		U(0)
-#define SBI_EXT_HSM_HART_STOP		U(1)
-#define SBI_EXT_HSM_HART_GET_STATUS	U(2)
-#define SBI_EXT_HSM_HART_SUSPEND	U(3)
-
 #ifndef __ASSEMBLER__
+
+/* SBI function IDs for HSM extension */
+enum sbi_ext_hsm_fid {
+	SBI_EXT_HSM_HART_START = 0,
+	SBI_EXT_HSM_HART_STOP,
+	SBI_EXT_HSM_HART_GET_STATUS,
+	SBI_EXT_HSM_HART_SUSPEND,
+};
 
 #include <compiler.h>
 #include <encoding.h>
@@ -40,7 +42,7 @@
 #include <util.h>
 
 void sbi_console_putchar(int ch);
-int sbi_boot_hart(uint32_t hart_id, paddr_t start_addr, unsigned long arg);
+int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg);
 
 #endif /*__ASSEMBLER__*/
 #endif /*defined(CFG_RISCV_SBI)*/

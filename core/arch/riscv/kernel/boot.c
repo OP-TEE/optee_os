@@ -70,7 +70,7 @@ static void start_secondary_cores(void)
 
 	for (i = 0; i < CFG_TEE_CORE_NB_CORE; i++)
 		if (i != pos && IS_ENABLED(CFG_RISCV_SBI) &&
-		    sbi_boot_hart(i, start_addr, i))
+		    sbi_hsm_hart_start(i, start_addr, i))
 			EMSG("Error starting secondary hart %zu", i);
 }
 #endif
