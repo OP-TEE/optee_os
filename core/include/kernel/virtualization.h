@@ -159,6 +159,35 @@ struct guest_partition *virt_get_guest(uint16_t guest_id);
  */
 void virt_put_guest(struct guest_partition *prtn);
 
+/**
+ * virt_add_guest_spec_data() - add guest specific data
+ * @data_id:      assigned id for the guest specific data
+ * @data_size:    size of the guest specific data
+ * @data_destroy: function to destroy the guest specific data when the
+ *                guest is destroyed, does not free the data itself
+ *
+ * Assigns a new data ID returned in @data_id and records the associated
+ * @data_size size and destructor function @data_destroy.
+ *
+ * To keep things simple, this function is only to be called before exiting
+ * to the normal world for the first time, that is, while we're single
+ * threaded and only have one partition.
+ */
+TEE_Result virt_add_guest_spec_data(unsigned int *data_id, size_t data_size,
+				    void (*data_destroy)(void *data));
+
+/*
+ * virt_get_guest_spec_data() - get guest specific data
+ * @prtn: guest partition
+ * @data_id:  previously assigned ID for the data
+ *
+ * Returns the preallocated guest specific data of the partition with the
+ * ID of @guest_id, will only return NULL for an unrecognized @data_id or
+ * NULL @prtn.
+ */
+void *virt_get_guest_spec_data(struct guest_partition *prtn,
+			       unsigned int data_id);
+
 #else
 static inline TEE_Result virt_guest_created(uint16_t guest_id __unused)
 { return TEE_ERROR_NOT_SUPPORTED; }
@@ -198,6 +227,21 @@ virt_next_guest(struct guest_partition *prtn __unused)
 	return NULL;
 }
 static inline void virt_put_guest(struct guest_partition *prtn __unused) { }
+static inline TEE_Result
+virt_add_guest_spec_data(unsigned int *data_id __unused,
+			 size_t data_size __unused,
+			 void (*data_destroy)(void *data) __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline void *
+virt_get_guest_spec_data(struct guest_partition *prtn __unused,
+			 unsigned int data_id __unused)
+{
+	return NULL;
+}
+
 #endif /*CFG_NS_VIRTUALIZATION*/
 
 #if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_NS_VIRTUALIZATION)

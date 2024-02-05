@@ -38,6 +38,15 @@ tee_mm_pool_t virt_mapper_pool __nex_bss;
 /* Memory used by OP-TEE core */
 struct tee_mmap_region *kmemory_map __nex_bss;
 
+struct guest_spec_data {
+	size_t size;
+	void (*destroy)(void *data);
+};
+
+static bool add_disabled __nex_bss;
+static unsigned gsd_count __nex_bss;
+static struct guest_spec_data *gsd_array __nex_bss;
+
 struct guest_partition {
 	LIST_ENTRY(guest_partition) link;
 	struct mmu_partition *mmu_prtn;
@@ -56,6 +65,7 @@ struct guest_partition {
 	uint8_t cookie_count;
 	bitstr_t bit_decl(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT);
 #endif
+	void **data_array;
 };
 
 struct guest_partition *current_partition[CFG_TEE_CORE_NB_CORE] __nex_bss;
@@ -291,6 +301,40 @@ err:
 	return res;
 }
 
+static void destroy_gsd(struct guest_partition *prtn, bool free_only)
+{
+	size_t n = 0;
+
+	for (n = 0; n < gsd_count; n++) {
+		if (!free_only && prtn->data_array[n] && gsd_array[n].destroy)
+			gsd_array[n].destroy(prtn->data_array[n]);
+		nex_free(prtn->data_array[n]);
+	}
+	nex_free(prtn->data_array);
+	prtn->data_array = NULL;
+}
+
+static TEE_Result alloc_gsd(struct guest_partition *prtn)
+{
+	unsigned int n = 0;
+
+	if (!gsd_count)
+		return TEE_SUCCESS;
+
+	prtn->data_array = nex_calloc(gsd_count, sizeof(void *));
+	if (!prtn->data_array)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	for (n = 0; n < gsd_count; n++) {
+		prtn->data_array[n] = nex_calloc(1, gsd_array[n].size);
+		if (!prtn->data_array[n]) {
+			destroy_gsd(prtn, true /*free_only*/);
+			return TEE_ERROR_OUT_OF_MEMORY;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
 TEE_Result virt_guest_created(uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;
@@ -301,12 +345,16 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	if (!prtn)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	res = alloc_gsd(prtn);
+	if (res)
+		goto err_free_prtn;
+
 	prtn->id = guest_id;
 	mutex_init(&prtn->mutex);
 	refcount_set(&prtn->refc, 1);
 	res = configure_guest_prtn_mem(prtn);
 	if (res)
-		goto err_free_prtn;
+		goto err_free_gsd;
 
 	set_current_prtn(prtn);
 
@@ -326,6 +374,8 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 
 	return TEE_SUCCESS;
 
+err_free_gsd:
+	destroy_gsd(prtn, true /*free_only*/);
 err_free_prtn:
 	nex_free(prtn);
 	return res;
@@ -436,6 +486,7 @@ void virt_put_guest(struct guest_partition *prtn)
 		}
 		cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
+		destroy_gsd(prtn, false /*!free_only*/);
 		tee_mm_free(prtn->tee_ram);
 		prtn->tee_ram = NULL;
 		tee_mm_free(prtn->ta_ram);
@@ -687,3 +738,49 @@ TEE_Result virt_reclaim_cookie_from_destroyed_guest(uint16_t guest_id,
 	return res;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
+
+TEE_Result virt_add_guest_spec_data(unsigned int *data_id, size_t data_size,
+				    void (*data_destroy)(void *data))
+{
+	void *p = NULL;
+
+	/*
+	 * This function only executes successfully in a single threaded
+	 * environment before exiting to the normal world the first time.
+	 * If add_disabled is true, it means we're not in this environment
+	 * any longer.
+	 */
+
+	if (add_disabled)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	p = nex_realloc(gsd_array, sizeof(*gsd_array) * (gsd_count + 1));
+	if (!p)
+		return TEE_ERROR_OUT_OF_MEMORY;
+	gsd_array = p;
+
+	gsd_array[gsd_count] = (struct guest_spec_data){
+		.size = data_size,
+		.destroy = data_destroy,
+	};
+	*data_id = gsd_count + 1;
+	gsd_count++;
+	return TEE_SUCCESS;
+}
+
+void *virt_get_guest_spec_data(struct guest_partition *prtn,
+			       unsigned int data_id)
+{
+	assert(data_id);
+	if (!data_id || !prtn || data_id > gsd_count)
+		return NULL;
+	return prtn->data_array[data_id - 1];
+}
+
+static TEE_Result virt_disable_add(void)
+{
+	add_disabled = true;
+
+	return TEE_SUCCESS;
+}
+nex_release_init_resource(virt_disable_add);
