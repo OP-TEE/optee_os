@@ -10,6 +10,7 @@
 #include <kernel/linker.h>
 #include <kernel/misc.h>
 #include <kernel/mutex.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
@@ -57,6 +58,7 @@ struct guest_partition {
 	tee_mm_entry_t *ta_ram;
 	tee_mm_entry_t *tables;
 	bool runtime_initialized;
+	bool got_guest_destroyed;
 	bool shutting_down;
 	uint16_t id;
 	struct refcount refc;
@@ -512,14 +514,24 @@ TEE_Result virt_guest_destroyed(uint16_t guest_id)
 	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 
 	prtn = find_guest_by_id_unlocked(guest_id);
-	if (prtn)
-		prtn->shutting_down = true;
+	if (prtn && !prtn->got_guest_destroyed)
+		prtn->got_guest_destroyed = true;
+	else
+		prtn = NULL;
 
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
-	virt_put_guest(prtn);
-	if (!prtn)
+	if (prtn) {
+		notif_deliver_atomic_event(NOTIF_EVENT_SHUTDOWN, prtn->id);
+
+		exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
+		prtn->shutting_down = true;
+		cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+
+		virt_put_guest(prtn);
+	} else {
 		EMSG("Client with id %d is not found", guest_id);
+	}
 
 	return TEE_SUCCESS;
 }

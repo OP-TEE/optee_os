@@ -690,7 +690,7 @@ static uint32_t spmc_enable_async_notif(uint32_t bottom_half_value,
 		notif_vm_id = vm_id;
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
 
-	notif_deliver_atomic_event(NOTIF_EVENT_STARTED);
+	notif_deliver_atomic_event(NOTIF_EVENT_STARTED, 0);
 	return TEE_SUCCESS;
 }
 
@@ -1655,7 +1655,7 @@ void thread_spmc_set_async_notif_intid(int intid)
 	DMSG("Asynchronous notifications are ready");
 }
 
-void notif_send_async(uint32_t value)
+void notif_send_async(uint32_t value, uint16_t guest_id __unused)
 {
 	uint32_t old_itr_status = 0;
 
@@ -1668,7 +1668,7 @@ void notif_send_async(uint32_t value)
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
 }
 #else
-void notif_send_async(uint32_t value)
+void notif_send_async(uint32_t value, uint16_t guest_id __unused)
 {
 	/* global notification, delay notification interrupt */
 	uint32_t flags = BIT32(1);

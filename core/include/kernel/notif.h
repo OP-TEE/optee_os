@@ -64,6 +64,7 @@ enum notif_event {
 	NOTIF_EVENT_STARTED,
 	NOTIF_EVENT_DO_BOTTOM_HALF,
 	NOTIF_EVENT_STOPPED,
+	NOTIF_EVENT_SHUTDOWN,
 };
 
 /*
@@ -78,21 +79,27 @@ enum notif_event {
  * A atomic context means that interrupts are masked and a common spinlock
  * is held. Calls via @atomic_cb are only atomic with regards to each
  * other, other CPUs may execute yielding calls or even receive interrupts.
+ * If CFG_NS_VIRTUALIZATION=y then code is executing in Nexus context
+ * without a partition activated, the @guest_id triggering the event is
+ * instead supplied as an argument to the callback. The @guest_id should be
+ * ignored if CFG_NS_VIRTUALIZATION isn't enabled.
  *
  * A yielding context means that the function is executing in a normal
  * threaded context allowing RPC and synchronization with other thread
- * using mutexes and condition variables.
+ * using mutexes and condition variables. If CFG_NS_VIRTUALIZATION=y then
+ * is a partition matching the guest or VM that triggered the event.
  */
 struct notif_driver {
-	void (*atomic_cb)(struct notif_driver *ndrv, enum notif_event ev);
+	void (*atomic_cb)(struct notif_driver *ndrv, enum notif_event ev,
+			  uint16_t guest_id);
 	void (*yielding_cb)(struct notif_driver *ndrv, enum notif_event ev);
 	SLIST_ENTRY(notif_driver) link;
 };
 
 #if defined(CFG_CORE_ASYNC_NOTIF)
-bool notif_async_is_started(void);
+bool notif_async_is_started(uint16_t guest_id);
 #else
-static inline bool notif_async_is_started(void)
+static inline bool notif_async_is_started(uint16_t guest_id __unused)
 {
 	return false;
 }
@@ -115,9 +122,10 @@ TEE_Result notif_wait_timeout(uint32_t value, uint32_t timeout_ms);
  * Send an asynchronous value, note that it must be <= NOTIF_ASYNC_VALUE_MAX
  */
 #if defined(CFG_CORE_ASYNC_NOTIF)
-void notif_send_async(uint32_t value);
+void notif_send_async(uint32_t value, uint16_t guest_id);
 #else
-static inline void notif_send_async(uint32_t value __unused)
+static inline void notif_send_async(uint32_t value __unused,
+				    uint16_t guest_id __unused)
 {
 }
 #endif
@@ -157,17 +165,14 @@ static inline uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 }
 #endif
 
-/*
- * These are called from yielding calls
- */
 #if defined(CFG_CORE_ASYNC_NOTIF)
-void notif_deliver_atomic_event(enum notif_event ev);
+void notif_deliver_atomic_event(enum notif_event ev, uint16_t guest_id);
 void notif_deliver_event(enum notif_event ev);
 #else
-static inline void notif_deliver_atomic_event(enum notif_event ev __unused)
+static inline void notif_deliver_atomic_event(enum notif_event ev __unused,
+					      uint16_t guest_id __unused)
 {
 }
-
 static inline void notif_deliver_event(enum notif_event ev __unused)
 {
 }
