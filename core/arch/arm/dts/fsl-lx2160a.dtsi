@@ -416,6 +416,12 @@
 		reg = <0x00000000 0x80000000 0 0x80000000>;
 	};
 
+	memory@2080000000 {
+		// DRAM space - 1, size : 126 GB DRAM
+		device_type = "memory";
+		reg = <0x00000020 0x80000000 0x0000001F 0x80000000>;
+	};
+
 	ddr1: memory-controller@1080000 {
 		compatible = "fsl,qoriq-memory-controller";
 		reg = <0x0 0x1080000 0x0 0x1000>;
