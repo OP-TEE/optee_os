@@ -82,12 +82,12 @@ out:
 	return res;
 }
 
-void notif_send_async(uint32_t value)
+void notif_send_async(uint32_t value, uint16_t guest_id __maybe_unused)
 {
 	uint32_t old_itr_status = 0;
 	struct itr_chip *itr_chip = interrupt_get_main_chip();
 
-	assert(value <= NOTIF_ASYNC_VALUE_MAX);
+	assert(value <= NOTIF_ASYNC_VALUE_MAX && !guest_id);
 	old_itr_status = cpu_spin_lock_xsave(&notif_default_lock);
 
 	bit_set(notif_values, value);
