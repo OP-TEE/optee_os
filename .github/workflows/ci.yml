@@ -9,7 +9,7 @@ jobs:
     container: jforissier/optee_os_ci
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history so checkpatch can check commit IDs in commit messages
       - name: Update Git config
@@ -67,7 +67,7 @@ jobs:
           restore-keys: |
             builds-cache-
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - shell: bash
         run: |
           # build task
@@ -276,7 +276,7 @@ jobs:
           restore-keys: |
             qemuv8_check-cache-
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - shell: bash
         run: |
           # make check task
@@ -315,7 +315,7 @@ jobs:
           restore-keys: |
             qemuv8_xen_check-cache-
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - shell: bash
         run: |
           # make check task
@@ -348,7 +348,7 @@ jobs:
           restore-keys: |
             qemuv8_hafnium_check-cache-
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - shell: bash
         run: |
           # make check task
@@ -379,7 +379,7 @@ jobs:
           restore-keys: |
             qemuv8_check_bti_mte_pac-cache-
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - shell: bash
         run: |
           # make check task
