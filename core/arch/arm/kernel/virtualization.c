@@ -467,8 +467,9 @@ TEE_Result virt_add_cookie_to_current_guest(uint64_t cookie)
 {
 	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
 	struct guest_partition *prtn = NULL;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	uint32_t exceptions = 0;
 
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 	if (find_prtn_cookie(cookie, NULL))
 		goto out;
 
@@ -479,37 +480,39 @@ TEE_Result virt_add_cookie_to_current_guest(uint64_t cookie)
 		res = TEE_SUCCESS;
 	}
 out:
-	thread_unmask_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
 	return res;
 }
 
 void virt_remove_cookie(uint64_t cookie)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct guest_partition *prtn = NULL;
+	uint32_t exceptions = 0;
 	int i = 0;
 
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 	prtn = find_prtn_cookie(cookie, &i);
 	if (prtn) {
 		memmove(prtn->cookies + i, prtn->cookies + i + 1,
 			sizeof(uint64_t) * (prtn->cookie_count - i - 1));
 		prtn->cookie_count--;
 	}
-	thread_unmask_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 }
 
 uint16_t virt_find_guest_by_cookie(uint64_t cookie)
 {
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
 	struct guest_partition *prtn = NULL;
+	uint32_t exceptions = 0;
 	uint16_t ret = 0;
 
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
 	prtn = find_prtn_cookie(cookie, NULL);
 	if (prtn)
 		ret = prtn->id;
 
-	thread_unmask_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
 	return ret;
 }
