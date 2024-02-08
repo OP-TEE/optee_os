@@ -47,10 +47,21 @@ struct mem_frag_state {
 };
 #endif
 
-static unsigned int spmc_notif_lock = SPINLOCK_UNLOCK;
-static int do_bottom_half_value = -1;
-static uint16_t notif_vm_id;
-static bool spmc_notif_is_ready;
+struct notif_vm_bitmap {
+	bool initialized;
+	int do_bottom_half_value;
+	uint64_t pending;
+	uint64_t bound;
+};
+
+static unsigned int spmc_notif_lock __nex_data = SPINLOCK_UNLOCK;
+static bool spmc_notif_is_ready __nex_bss;
+static int notif_intid __nex_data __maybe_unused = -1;
+
+/* Id used to look up the guest specific struct notif_vm_bitmap */
+static unsigned int notif_vm_bitmap_id __nex_bss;
+/* Notification state when ns-virtualization isn't enabled */
+static struct notif_vm_bitmap default_notif_vm_bitmap;
 
 /* Initialized in spmc_init() below */
 uint16_t optee_endpoint_id __nex_bss;
@@ -105,10 +116,6 @@ static bool is_nw_buf(struct ffa_rxtx *rxtx)
 static SLIST_HEAD(mem_frag_state_head, mem_frag_state) frag_state_head =
 	SLIST_HEAD_INITIALIZER(&frag_state_head);
 
-static uint64_t notif_pending_bitmap;
-static uint64_t notif_bound_bitmap;
-static bool notif_vm_id_valid;
-static int notif_intid = -1;
 #else
 static uint8_t __rx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
 static uint8_t __tx_buf[SMALL_PAGE_SIZE] __aligned(SMALL_PAGE_SIZE);
@@ -665,10 +672,27 @@ out:
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
+static struct notif_vm_bitmap *get_notif_vm_bitmap(struct guest_partition *prtn,
+						   uint16_t vm_id)
+{
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+		if (!prtn)
+			return NULL;
+		assert(vm_id == virt_get_guest_id(prtn));
+		return virt_get_guest_spec_data(prtn, notif_vm_bitmap_id);
+	}
+	if (vm_id)
+		return NULL;
+	return &default_notif_vm_bitmap;
+}
+
 static uint32_t spmc_enable_async_notif(uint32_t bottom_half_value,
 					uint16_t vm_id)
 {
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	uint32_t old_itr_status = 0;
+	uint32_t res = 0;
 
 	if (!spmc_notif_is_ready) {
 		/*
@@ -684,14 +708,22 @@ static uint32_t spmc_enable_async_notif(uint32_t bottom_half_value,
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
+	prtn = virt_get_guest(vm_id);
+	nvb = get_notif_vm_bitmap(prtn, vm_id);
+	if (!nvb) {
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
-	do_bottom_half_value = bottom_half_value;
-	if (!IS_ENABLED(CFG_CORE_SEL1_SPMC))
-		notif_vm_id = vm_id;
+	nvb->do_bottom_half_value = bottom_half_value;
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
 
-	notif_deliver_atomic_event(NOTIF_EVENT_STARTED, 0);
-	return TEE_SUCCESS;
+	notif_deliver_atomic_event(NOTIF_EVENT_STARTED, vm_id);
+	res = TEE_SUCCESS;
+out:
+	virt_put_guest(prtn);
+	return res;
 }
 
 static void handle_yielding_call(struct thread_smc_args *args,
@@ -1465,23 +1497,32 @@ static void handle_notification_bitmap_create(struct thread_smc_args *args)
 
 	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
+		struct guest_partition *prtn = NULL;
+		struct notif_vm_bitmap *nvb = NULL;
 		uint16_t vm_id = args->a1;
+
+		prtn = virt_get_guest(vm_id);
+		nvb = get_notif_vm_bitmap(prtn, vm_id);
+		if (!nvb) {
+			ret_val = FFA_INVALID_PARAMETERS;
+			goto out_virt_put;
+		}
 
 		old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
-		if (notif_vm_id_valid) {
-			if (vm_id == notif_vm_id)
-				ret_val = FFA_DENIED;
-			else
-				ret_val = FFA_NO_MEMORY;
-		} else {
-			notif_vm_id = vm_id;
-			notif_vm_id_valid = true;
-			ret_val = FFA_OK;
-			ret_fid = FFA_SUCCESS_32;
+		if (nvb->initialized) {
+			ret_val = FFA_DENIED;
+			goto out_unlock;
 		}
 
+		nvb->initialized = true;
+		nvb->do_bottom_half_value = -1;
+		ret_val = FFA_OK;
+		ret_fid = FFA_SUCCESS_32;
+out_unlock:
 		cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out_virt_put:
+		virt_put_guest(prtn);
 	}
 
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
@@ -1495,21 +1536,31 @@ static void handle_notification_bitmap_destroy(struct thread_smc_args *args)
 
 	if (!FFA_TARGET_INFO_GET_SP_ID(args->a1) && !args->a3 && !args->a4 &&
 	    !args->a5 && !args->a6 && !args->a7) {
+		struct guest_partition *prtn = NULL;
+		struct notif_vm_bitmap *nvb = NULL;
 		uint16_t vm_id = args->a1;
+
+		prtn = virt_get_guest(vm_id);
+		nvb = get_notif_vm_bitmap(prtn, vm_id);
+		if (!nvb) {
+			ret_val = FFA_INVALID_PARAMETERS;
+			goto out_virt_put;
+		}
 
 		old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
-		if (notif_vm_id_valid && vm_id == notif_vm_id) {
-			if (notif_pending_bitmap || notif_bound_bitmap) {
-				ret_val = FFA_DENIED;
-			} else {
-				notif_vm_id_valid = false;
-				ret_val = FFA_OK;
-				ret_fid = FFA_SUCCESS_32;
-			}
+		if (nvb->pending || nvb->bound) {
+			ret_val = FFA_DENIED;
+			goto out_unlock;
 		}
 
+		memset(nvb, 0, sizeof(*nvb));
+		ret_val = FFA_OK;
+		ret_fid = FFA_SUCCESS_32;
+out_unlock:
 		cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out_virt_put:
+		virt_put_guest(prtn);
 	}
 
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
@@ -1518,6 +1569,8 @@ static void handle_notification_bitmap_destroy(struct thread_smc_args *args)
 static void handle_notification_bind(struct thread_smc_args *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 	uint64_t bitmap = 0;
@@ -1526,8 +1579,8 @@ static void handle_notification_bind(struct thread_smc_args *args)
 	if (args->a5 || args->a6 || args->a7)
 		goto out;
 	if (args->a2) {
-		/* We only deal with global notifications for now */
-		ret_val = FFA_NOT_SUPPORTED;
+		/* We only deal with global notifications */
+		ret_val = FFA_DENIED;
 		goto out;
 	}
 
@@ -1535,19 +1588,26 @@ static void handle_notification_bind(struct thread_smc_args *args)
 	vm_id = FFA_DST(args->a1);
 	bitmap = reg_pair_to_64(args->a4, args->a3);
 
+	prtn = virt_get_guest(vm_id);
+	nvb = get_notif_vm_bitmap(prtn, vm_id);
+	if (!nvb) {
+		ret_val = FFA_INVALID_PARAMETERS;
+		goto out_virt_put;
+	}
+
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
-	if (notif_vm_id_valid && vm_id == notif_vm_id) {
-		if (bitmap & notif_bound_bitmap) {
-			ret_val = FFA_DENIED;
-		} else {
-			notif_bound_bitmap |= bitmap;
-			ret_val = FFA_OK;
-			ret_fid = FFA_SUCCESS_32;
-		}
+	if ((bitmap & nvb->bound)) {
+		ret_val = FFA_DENIED;
+	} else {
+		nvb->bound |= bitmap;
+		ret_val = FFA_OK;
+		ret_fid = FFA_SUCCESS_32;
 	}
 
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out_virt_put:
+	virt_put_guest(prtn);
 out:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
@@ -1555,6 +1615,8 @@ out:
 static void handle_notification_unbind(struct thread_smc_args *args)
 {
 	uint32_t ret_val = FFA_INVALID_PARAMETERS;
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 	uint64_t bitmap = 0;
@@ -1567,26 +1629,26 @@ static void handle_notification_unbind(struct thread_smc_args *args)
 	vm_id = FFA_DST(args->a1);
 	bitmap = reg_pair_to_64(args->a4, args->a3);
 
+	prtn = virt_get_guest(vm_id);
+	nvb = get_notif_vm_bitmap(prtn, vm_id);
+	if (!nvb) {
+		ret_val = FFA_INVALID_PARAMETERS;
+		goto out_virt_put;
+	}
+
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
-	if (notif_vm_id_valid && vm_id == notif_vm_id) {
-		/*
-		 * Spec says:
-		 * At least one notification is bound to another Sender or
-		 * is currently pending.
-		 *
-		 * Not sure what the intention is.
-		 */
-		if (bitmap & notif_pending_bitmap) {
-			ret_val = FFA_DENIED;
-		} else {
-			notif_bound_bitmap &= ~bitmap;
-			ret_val = FFA_OK;
-			ret_fid = FFA_SUCCESS_32;
-		}
+	if (bitmap & nvb->pending) {
+		ret_val = FFA_DENIED;
+	} else {
+		nvb->bound &= ~bitmap;
+		ret_val = FFA_OK;
+		ret_fid = FFA_SUCCESS_32;
 	}
 
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out_virt_put:
+	virt_put_guest(prtn);
 out:
 	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
 }
@@ -1594,6 +1656,8 @@ out:
 static void handle_notification_get(struct thread_smc_args *args)
 {
 	uint32_t w2 = FFA_INVALID_PARAMETERS;
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	uint32_t ret_fid = FFA_ERROR;
 	uint32_t old_itr_status = 0;
 	uint16_t vm_id = 0;
@@ -1608,43 +1672,197 @@ static void handle_notification_get(struct thread_smc_args *args)
 	}
 	vm_id = FFA_DST(args->a1);
 
+	prtn = virt_get_guest(vm_id);
+	nvb = get_notif_vm_bitmap(prtn, vm_id);
+	if (!nvb)
+		goto out_virt_put;
+
 	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
 
-	if (notif_vm_id_valid && vm_id == notif_vm_id) {
-		reg_pair_from_64(notif_pending_bitmap, &w3, &w2);
-		notif_pending_bitmap = 0;
-		ret_fid = FFA_SUCCESS_32;
-	}
+	reg_pair_from_64(nvb->pending, &w3, &w2);
+	nvb->pending = 0;
+	ret_fid = FFA_SUCCESS_32;
 
 	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+out_virt_put:
+	virt_put_guest(prtn);
 out:
 	spmc_set_args(args, ret_fid, 0, w2, w3, 0, 0);
 }
 
+struct notif_info_get_state {
+	struct thread_smc_args *args;
+	unsigned int ids_per_reg;
+	unsigned int ids_count;
+	unsigned int id_pos;
+	unsigned int count;
+	unsigned int max_list_count;
+	unsigned int list_count;
+};
+
+static unsigned long get_smc_arg(struct thread_smc_args *args, unsigned int idx)
+{
+	switch (idx) {
+	case 0:
+		return args->a0;
+	case 1:
+		return args->a1;
+	case 2:
+		return args->a2;
+	case 3:
+		return args->a3;
+	case 4:
+		return args->a4;
+	case 5:
+		return args->a5;
+	case 6:
+		return args->a6;
+	case 7:
+		return args->a7;
+	default:
+		assert(0);
+		return 0;
+	}
+}
+
+static void set_smc_arg(struct thread_smc_args *args, unsigned int idx,
+			unsigned long val)
+{
+	switch (idx) {
+	case 0:
+		args->a0 = val;
+		break;
+	case 1:
+		args->a1 = val;
+		break;
+	case 2:
+		args->a2 = val;
+		break;
+	case 3:
+		args->a3 = val;
+		break;
+	case 4:
+		args->a4 = val;
+		break;
+	case 5:
+		args->a5 = val;
+		break;
+	case 6:
+		args->a6 = val;
+		break;
+	case 7:
+		args->a7 = val;
+		break;
+	default:
+		assert(0);
+	}
+}
+
+static bool add_id_in_regs(struct notif_info_get_state *state,
+			   uint16_t id)
+{
+	unsigned int reg_idx = state->id_pos / state->ids_per_reg + 3;
+	unsigned int reg_shift = (state->id_pos % state->ids_per_reg) * 16;
+	unsigned long v;
+
+	if (reg_idx > 7)
+		return false;
+
+	v = get_smc_arg(state->args, reg_idx);
+	v &= ~(0xffffUL << reg_shift);
+	v |= (unsigned long)id << reg_shift;
+	set_smc_arg(state->args, reg_idx, v);
+
+	state->id_pos++;
+	state->count++;
+	return true;
+}
+
+static bool add_id_count(struct notif_info_get_state *state)
+{
+	assert(state->list_count < state->max_list_count &&
+	       state->count >= 1 && state->count <= 4);
+
+	state->ids_count |= (state->count - 1) << (state->list_count * 2 + 12);
+	state->list_count++;
+	state->count = 0;
+
+	return state->list_count < state->max_list_count;
+}
+
+static bool add_nvb_to_state(struct notif_info_get_state *state,
+			     uint16_t guest_id, struct notif_vm_bitmap *nvb)
+{
+	if (!nvb->pending)
+		return true;
+	/*
+	 * Add only the guest_id, meaning a global notification for this
+	 * guest.
+	 *
+	 * If notifications for one or more specific vCPUs we'd add those
+	 * before calling add_id_count(), but that's not supported.
+	 */
+	return add_id_in_regs(state, guest_id) && add_id_count(state);
+}
+
 static void handle_notification_info_get(struct thread_smc_args *args)
 {
-	uint32_t w2 = FFA_INVALID_PARAMETERS;
-	uint32_t ret_fid = FFA_ERROR;
+	struct notif_info_get_state state = { .args = args };
+	uint32_t ffa_res = FFA_INVALID_PARAMETERS;
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
+	uint32_t more_pending_flag = 0;
+	uint32_t itr_state = 0;
+	uint16_t guest_id = 0;
 
 	if (args->a1 || args->a2 || args->a3 || args->a4 || args->a5 ||
 	    args->a6 || args->a7)
-		goto out;
+		goto err;
 
-	if (OPTEE_SMC_IS_64(args->a0))
-		ret_fid = FFA_SUCCESS_64;
-	else
-		ret_fid = FFA_SUCCESS_32;
+	if (OPTEE_SMC_IS_64(args->a0)) {
+		spmc_set_args(args, FFA_SUCCESS_64, 0, 0, 0, 0, 0);
+		state.ids_per_reg = 4;
+		state.max_list_count = 31;
+	} else {
+		spmc_set_args(args, FFA_SUCCESS_32, 0, 0, 0, 0, 0);
+		state.ids_per_reg = 2;
+		state.max_list_count = 15;
+	}
 
-	/*
-	 * Note, we're only supporting physical OS kernel in normal world
-	 * with Global Notifications.
-	 * So one list of ID list registers (BIT[11:7])
-	 * and one count of IDs (BIT[13:12] + 1)
-	 * and the VM is always 0.
-	 */
-	w2 = SHIFT_U32(1, 7);
-out:
-	spmc_set_args(args, ret_fid, 0, w2, 0, 0, 0);
+	while (true) {
+		/*
+		 * With NS-Virtualization we need to go through all
+		 * partitions to collect the notification bitmaps, without
+		 * we just check the only notification bitmap we have.
+		 */
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+			prtn = virt_next_guest(prtn);
+			if (!prtn)
+				break;
+			guest_id = virt_get_guest_id(prtn);
+		}
+		nvb = get_notif_vm_bitmap(prtn, guest_id);
+
+		itr_state = cpu_spin_lock_xsave(&spmc_notif_lock);
+		if (!add_nvb_to_state(&state, guest_id, nvb))
+			more_pending_flag = BIT(0);
+		cpu_spin_unlock_xrestore(&spmc_notif_lock, itr_state);
+
+		if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) || more_pending_flag)
+			break;
+	}
+	virt_put_guest(prtn);
+
+	if (!state.id_pos) {
+		ffa_res = FFA_NO_DATA;
+		goto err;
+	}
+	args->a2 = (state.list_count << FFA_NOTIF_INFO_GET_ID_COUNT_SHIFT) |
+		   (state.ids_count << FFA_NOTIF_INFO_GET_ID_LIST_SHIFT) |
+		   more_pending_flag;
+	return;
+err:
+	spmc_set_args(args, FFA_ERROR, 0, ffa_res, 0, 0, 0);
 }
 
 void thread_spmc_set_async_notif_intid(int intid)
@@ -1655,33 +1873,52 @@ void thread_spmc_set_async_notif_intid(int intid)
 	DMSG("Asynchronous notifications are ready");
 }
 
-void notif_send_async(uint32_t value, uint16_t guest_id __unused)
+void notif_send_async(uint32_t value, uint16_t guest_id)
 {
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	uint32_t old_itr_status = 0;
 
-	old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
-	assert(value == NOTIF_VALUE_DO_BOTTOM_HALF && spmc_notif_is_ready &&
-	       do_bottom_half_value >= 0 && notif_intid >= 0);
-	notif_pending_bitmap |= BIT64(do_bottom_half_value);
-	interrupt_raise_sgi(interrupt_get_main_chip(), notif_intid,
-			    ITR_CPU_MASK_TO_THIS_CPU);
-	cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+	prtn = virt_get_guest(guest_id);
+	nvb = get_notif_vm_bitmap(prtn, guest_id);
+
+	if (nvb) {
+		old_itr_status = cpu_spin_lock_xsave(&spmc_notif_lock);
+		assert(value == NOTIF_VALUE_DO_BOTTOM_HALF &&
+		       spmc_notif_is_ready && nvb->do_bottom_half_value >= 0 &&
+		       notif_intid >= 0);
+		nvb->pending |= BIT64(nvb->do_bottom_half_value);
+		interrupt_raise_sgi(interrupt_get_main_chip(), notif_intid,
+				    ITR_CPU_MASK_TO_THIS_CPU);
+		cpu_spin_unlock_xrestore(&spmc_notif_lock, old_itr_status);
+	}
+
+	virt_put_guest(prtn);
 }
 #else
-void notif_send_async(uint32_t value, uint16_t guest_id __unused)
+void notif_send_async(uint32_t value, uint16_t guest_id)
 {
+	struct guest_partition *prtn = NULL;
+	struct notif_vm_bitmap *nvb = NULL;
 	/* global notification, delay notification interrupt */
 	uint32_t flags = BIT32(1);
 	int res = 0;
 
-	assert(value == NOTIF_VALUE_DO_BOTTOM_HALF && spmc_notif_is_ready &&
-	       do_bottom_half_value >= 0);
-	res = ffa_set_notification(notif_vm_id, optee_endpoint_id, flags,
-				   BIT64(do_bottom_half_value));
-	if (res) {
-		EMSG("notification set failed with error %d", res);
-		panic();
+	prtn = virt_get_guest(guest_id);
+	nvb = get_notif_vm_bitmap(prtn, guest_id);
+
+	if (nvb) {
+		assert(value == NOTIF_VALUE_DO_BOTTOM_HALF &&
+		       spmc_notif_is_ready && nvb->do_bottom_half_value >= 0);
+		res = ffa_set_notification(guest_id, optee_endpoint_id, flags,
+					   BIT64(nvb->do_bottom_half_value));
+		if (res) {
+			EMSG("notification set failed with error %d", res);
+			panic();
+		}
 	}
+
+	virt_put_guest(prtn);
 }
 #endif
 
@@ -2148,6 +2385,10 @@ static uint16_t ffa_spm_id_get(void)
 #if defined(CFG_CORE_SEL1_SPMC)
 static TEE_Result spmc_init(void)
 {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+	    virt_add_guest_spec_data(&notif_vm_bitmap_id,
+				     sizeof(struct notif_vm_bitmap), NULL))
+		panic("virt_add_guest_spec_data");
 	spmd_id = ffa_spm_id_get();
 	DMSG("SPMD ID %#"PRIx16, spmd_id);
 
@@ -2413,15 +2654,4 @@ static TEE_Result spmc_init(void)
 }
 #endif /* !defined(CFG_CORE_SEL1_SPMC) */
 
-/*
- * boot_final() is always done before exiting at end of boot
- * initialization.  In case of virtualization the init-calls are done only
- * once a OP-TEE partition has been created. So with virtualization we have
- * to initialize via boot_final() to make sure we have a value assigned
- * before it's used the first time.
- */
-#ifdef CFG_NS_VIRTUALIZATION
-boot_final(spmc_init);
-#else
-service_init(spmc_init);
-#endif
+nex_service_init(spmc_init);
