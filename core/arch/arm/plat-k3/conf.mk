@@ -1,6 +1,7 @@
 CFG_WITH_STATS ?= y
 CFG_CRYPTO_WITH_CE ?= y
 CFG_CONSOLE_UART ?= 0
+CFG_WITH_SOFTWARE_PRNG ?= n
 
 CFG_TZDRAM_START ?= 0x9e800000
 CFG_TZDRAM_SIZE ?= 0x01400000 # 20MB
@@ -20,12 +21,6 @@ $(call force,CFG_CORE_ARM64_PA_BITS,36)
 
 ifneq (,$(filter ${PLATFORM_FLAVOR},am65x))
 $(call force,CFG_CORE_CLUSTER_SHIFT,1)
-endif
-
-ifneq (,$(filter ${PLATFORM_FLAVOR},am65x j721e j784s4 am64x am62x))
-CFG_WITH_SOFTWARE_PRNG ?= n
-else
-$(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
