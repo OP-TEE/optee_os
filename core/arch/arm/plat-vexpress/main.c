@@ -18,8 +18,10 @@
 #include <kernel/misc.h>
 #include <kernel/notif.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/timer.h>
+#include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
 #include <platform_config.h>
@@ -28,6 +30,8 @@
 #include <trace.h>
 
 static struct pl011_data console_data __nex_bss;
+static uint16_t console_notif_vm_id __nex_bss;
+static uint16_t console_notif_backup_vm_id __nex_bss;
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 #if defined(PLATFORM_FLAVOR_fvp)
@@ -90,7 +94,6 @@ void plat_console_init(void)
 
 #if (defined(CFG_GIC) || defined(CFG_CORE_HAFNIUM_INTC)) && \
 	defined(IT_CONSOLE_UART) && \
-	!defined(CFG_NS_VIRTUALIZATION) && \
 	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2)) && \
 	!defined(CFG_SEMIHOSTING_CONSOLE) && \
 	!defined(CFG_FFA_CONSOLE)
@@ -117,22 +120,30 @@ static void read_console(void)
 	}
 }
 
+static uint16_t get_console_notif_vm_id(void)
+{
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		return console_notif_vm_id;
+	return 0;
+}
+
 static enum itr_return console_itr_cb(struct itr_handler *hdl __unused)
 {
-	if (notif_async_is_started()) {
+	if (notif_async_is_started(get_console_notif_vm_id())) {
 		/*
 		 * Asynchronous notifications are enabled, lets read from
 		 * uart in the bottom half instead.
 		 */
 		console_data.chip.ops->rx_intr_disable(&console_data.chip);
-		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF);
+		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF,
+				 get_console_notif_vm_id());
 	} else {
 		read_console();
 	}
 	return ITRR_HANDLED;
 }
 
-static struct itr_handler console_itr = {
+static struct itr_handler console_itr __nex_data = {
 	.it = IT_CONSOLE_UART,
 	.flags = ITRF_TRIGGER_LEVEL,
 	.handler = console_itr_cb,
@@ -140,9 +151,24 @@ static struct itr_handler console_itr = {
 DECLARE_KEEP_PAGER(console_itr);
 
 static void atomic_console_notif(struct notif_driver *ndrv __unused,
-				 enum notif_event ev __maybe_unused)
+				 enum notif_event ev, uint16_t vm_id)
 {
-	DMSG("Asynchronous notifications started, event %d", (int)ev);
+	switch (ev) {
+	case NOTIF_EVENT_STARTED:
+		DMSG("Asynchronous notifications started, event %d (vm %#"PRIx16")",
+		     (int)ev, vm_id);
+		break;
+	case NOTIF_EVENT_SHUTDOWN:
+		DMSG("Shutting down partition, event %d (vm %#"PRIx16")",
+		     (int)ev, vm_id);
+		if (vm_id == console_notif_backup_vm_id)
+			console_notif_backup_vm_id = 0;
+		if (vm_id == console_notif_vm_id)
+			console_notif_vm_id = console_notif_backup_vm_id;
+		break;
+	default:
+		EMSG("Unknown event %d", (int)ev);
+	}
 }
 DECLARE_KEEP_PAGER(atomic_console_notif);
 
@@ -151,6 +177,9 @@ static void yielding_console_notif(struct notif_driver *ndrv __unused,
 {
 	switch (ev) {
 	case NOTIF_EVENT_DO_BOTTOM_HALF:
+		if (IS_ENABLED(CFG_NS_VIRTUALIZATION) &&
+		    console_notif_vm_id != virt_get_current_guest_id())
+			break;
 		read_console();
 		console_data.chip.ops->rx_intr_enable(&console_data.chip);
 		break;
@@ -163,7 +192,8 @@ static void yielding_console_notif(struct notif_driver *ndrv __unused,
 	}
 }
 
-struct notif_driver console_notif = {
+static unsigned int console_notif_lock __nex_bss __maybe_unused;
+static struct notif_driver console_notif __nex_data = {
 	.atomic_cb = atomic_console_notif,
 	.yielding_cb = yielding_console_notif,
 };
@@ -185,7 +215,23 @@ static TEE_Result init_console_itr(void)
 		notif_register_driver(&console_notif);
 	return TEE_SUCCESS;
 }
-driver_init(init_console_itr);
+nex_driver_init(init_console_itr);
+
+#ifdef CFG_NS_VIRTUALIZATION
+static TEE_Result claim_console(void)
+{
+	uint32_t state = cpu_spin_lock_xsave(&console_notif_lock);
+
+	console_notif_vm_id = virt_get_current_guest_id();
+	if (!console_notif_backup_vm_id)
+		console_notif_backup_vm_id = console_notif_vm_id;
+
+	cpu_spin_unlock_xrestore(&console_notif_lock, state);
+
+	return TEE_SUCCESS;
+}
+driver_init(claim_console);
+#endif
 #endif
 
 #ifdef CFG_TZC400
