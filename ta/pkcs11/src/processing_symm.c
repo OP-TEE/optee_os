@@ -841,7 +841,7 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 	/*
 	 * Finalize (PKCS11_FUNC_STEP_ONESHOT/_FINAL) operation
 	 */
-	switch (session->processing->mecha_type) {
+	switch (proc->mecha_type) {
 	case PKCS11_CKM_AES_CMAC:
 	case PKCS11_CKM_MD5_HMAC:
 	case PKCS11_CKM_SHA_1_HMAC:
@@ -880,8 +880,8 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 	case PKCS11_CKM_SHA256_HMAC_GENERAL:
 	case PKCS11_CKM_SHA384_HMAC_GENERAL:
 	case PKCS11_CKM_SHA512_HMAC_GENERAL:
-		assert(session->processing->extra_ctx);
-		hmac_len = *(uint32_t *)session->processing->extra_ctx;
+		assert(proc->extra_ctx);
+		hmac_len = *(uint32_t *)proc->extra_ctx;
 
 		switch (function) {
 		case PKCS11_FUNCTION_SIGN:
