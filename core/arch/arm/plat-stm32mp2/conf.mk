@@ -150,6 +150,7 @@ endif
 # Enable RTC
 ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
+$(call force,CFG_RTC_PTA,y)
 endif
 
 ifeq ($(CFG_STM32_SERC),y)
