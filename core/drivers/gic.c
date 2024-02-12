@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright (c) 2016-2017, 2023 Linaro Limited
+ * Copyright (c) 2016-2017, 2023-2024 Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
  */
 
 #include <arm.h>
 #include <assert.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <compiler.h>
 #include <config.h>
 #include <drivers/gic.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <initcall.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/dt.h>
@@ -69,6 +70,11 @@
 #define GICR_IGRPMODR0		(GICR_SGI_BASE_OFFSET + 0xD00)
 #define GICR_ICENABLER0		(GICR_SGI_BASE_OFFSET + 0x180)
 #define GICR_ICPENDR0		(GICR_SGI_BASE_OFFSET + 0x280)
+#define GICR_ISENABLER0		(GICR_SGI_BASE_OFFSET + 0x100)
+#define GICR_ICFGR0		(GICR_SGI_BASE_OFFSET + 0xC00)
+#define GICR_ICFGR1		(GICR_SGI_BASE_OFFSET + 0xC04)
+#define GICR_IPRIORITYR(n)	(GICR_SGI_BASE_OFFSET + 0x400 + (n) * 4)
+
 
 #define GICR_TYPER_LAST		BIT64(4)
 #define GICR_TYPER_AFF3_SHIFT	56
@@ -125,9 +131,11 @@ struct gic_data {
 	size_t max_it;
 	uint32_t per_cpu_group_status;
 	uint32_t per_cpu_group_modifier;
+	uint32_t per_cpu_enable;
 	struct itr_chip chip;
 };
 
+static bool gic_primary_done __nex_bss;
 static struct gic_data gic_data __nex_bss;
 
 static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
@@ -210,7 +218,7 @@ out:
 	return ret;
 }
 
-static void gicv3_sync_sgi_config(struct gic_data *gd)
+static void gicv3_sync_redist_config(struct gic_data *gd)
 {
 	vaddr_t gicr_base = get_gicr_base(gd);
 	bool need_sync = false;
@@ -227,13 +235,13 @@ static void gicv3_sync_sgi_config(struct gic_data *gd)
 
 	grp0 = io_read32(gicr_base + GICR_IGROUPR0);
 	gmod0 = io_read32(gicr_base + GICR_IGRPMODR0);
-	for (n = GIC_SGI_SEC_BASE; n <= GIC_SGI_SEC_MAX; n++) {
+	for (n = GIC_SGI_SEC_BASE; n < GIC_SPI_BASE; n++) {
 		/* Ignore matching bits */
 		if (!(BIT32(n) & (grp0 ^ gd->per_cpu_group_status)) &&
 		    !(BIT32(n) & (gmod0 ^ gd->per_cpu_group_modifier)))
 			continue;
 		/*
-		 * SGI-n differs from primary CPU configuration,
+		 * SGI/PPI-n differs from primary CPU configuration,
 		 * let's sync up.
 		 */
 		need_sync = true;
@@ -257,22 +265,23 @@ static void gicv3_sync_sgi_config(struct gic_data *gd)
 	if (need_sync) {
 		io_write32(gicr_base + GICR_IGROUPR0, grp0);
 		io_write32(gicr_base + GICR_IGRPMODR0, gmod0);
+		io_write32(gicr_base + GICR_ISENABLER0, gd->per_cpu_enable);
 	}
 }
 
-static void gic_legacy_sync_sgi_config(struct gic_data *gd)
+static void gic_legacy_sync_dist_config(struct gic_data *gd)
 {
 	bool need_sync = false;
 	uint32_t grp0 = 0;
 	size_t n = 0;
 
 	grp0 = io_read32(gd->gicd_base + GICD_IGROUPR(0));
-	for (n = GIC_SGI_SEC_BASE; n <= GIC_SGI_SEC_MAX; n++) {
+	for (n = GIC_SGI_SEC_BASE; n < GIC_SPI_BASE; n++) {
 		/* Ignore matching bits */
 		if (!(BIT32(n) & (grp0 ^ gd->per_cpu_group_status)))
 			continue;
 		/*
-		 * SGI-n differs from primary CPU configuration,
+		 * SGI/PPI-n differs from primary CPU configuration,
 		 * let's sync up.
 		 */
 		need_sync = true;
@@ -289,8 +298,11 @@ static void gic_legacy_sync_sgi_config(struct gic_data *gd)
 			grp0 &= ~BIT32(n);
 	}
 
-	if (need_sync)
+	if (need_sync) {
 		io_write32(gd->gicd_base + GICD_IGROUPR(0), grp0);
+		io_write32(gd->gicd_base + GICD_ISENABLER(0),
+			   gd->per_cpu_enable);
+	}
 }
 
 static void init_gic_per_cpu(struct gic_data *gd)
@@ -327,12 +339,12 @@ void gic_init_per_cpu(void)
 	if (IS_ENABLED(CFG_WITH_ARM_TRUSTED_FW)) {
 		/*
 		 * GIC is already initialized by TF-A, we only need to
-		 * handle eventual SGI configuration changes.
+		 * handle eventual SGI or PPI configuration changes.
 		 */
 		if (affinity_routing_is_enabled(gd))
-			gicv3_sync_sgi_config(gd);
+			gicv3_sync_redist_config(gd);
 		else
-			gic_legacy_sync_sgi_config(gd);
+			gic_legacy_sync_dist_config(gd);
 	} else {
 		/*
 		 * Non-TF-A case where all CPU specific configuration
@@ -861,10 +873,37 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 	if (it > gd->max_it)
 		panic();
 
-	gic_it_add(gd, it);
-	/* Set the CPU mask to deliver interrupts to any online core */
-	gic_it_set_cpu_mask(gd, it, 0xff);
-	gic_it_set_prio(gd, it, 0x1);
+	if (it < GIC_SPI_BASE) {
+		if (gic_primary_done)
+			panic("Cannot add SGI or PPI after boot");
+
+		/* Assign it to Secure Group 1, G1S */
+		gd->per_cpu_group_modifier |= BIT32(it);
+		gd->per_cpu_group_status &= ~BIT32(it);
+	}
+
+	if (it < GIC_SPI_BASE && affinity_routing_is_enabled(gd)) {
+		vaddr_t gicr_base = get_gicr_base(gd);
+
+		if (!gicr_base)
+			panic("GICR_BASE missing");
+
+		/* Disable interrupt */
+		io_write32(gicr_base + GICR_ICENABLER0, BIT32(it));
+
+		/* Make interrupt non-pending */
+		io_write32(gicr_base + GICR_ICPENDR0, BIT32(it));
+
+		/* Make it to Secure */
+		io_write32(gicr_base + GICR_IGROUPR0, gd->per_cpu_group_status);
+		io_write32(gicr_base + GICR_IGRPMODR0,
+			   gd->per_cpu_group_modifier);
+	} else {
+		gic_it_add(gd, it);
+		/* Set the CPU mask to deliver interrupts to any online core */
+		gic_it_set_cpu_mask(gd, it, 0xff);
+		gic_it_set_prio(gd, it, 0x1);
+	}
 }
 
 static void gic_op_enable(struct itr_chip *chip, size_t it)
@@ -876,7 +915,22 @@ static void gic_op_enable(struct itr_chip *chip, size_t it)
 	if (it > gd->max_it)
 		panic();
 
-	gic_it_enable(gd, it);
+	if (it < GIC_SPI_BASE)
+		gd->per_cpu_enable |= BIT(it);
+
+	if (it < GIC_SPI_BASE && affinity_routing_is_enabled(gd)) {
+		vaddr_t gicr_base = get_gicr_base(gd);
+
+		if (!gicr_base)
+			panic("GICR_BASE missing");
+
+		/* Assigned to G1S */
+		assert(gd->per_cpu_group_modifier & BIT(it) &&
+		       !(gd->per_cpu_group_status & BIT(it)));
+		io_write32(gicr_base + GICR_ISENABLER0, gd->per_cpu_enable);
+	} else {
+		gic_it_enable(gd, it);
+	}
 }
 
 static void gic_op_disable(struct itr_chip *chip, size_t it)
@@ -991,3 +1045,11 @@ DEFINE_DT_DRIVER(gic_dt_driver) = {
 	.probe = gic_probe,
 };
 #endif /*CFG_DT*/
+
+static TEE_Result gic_set_primary_done(void)
+{
+	gic_primary_done = true;
+	return TEE_SUCCESS;
+}
+
+nex_release_init_resource(gic_set_primary_done);
