@@ -1396,8 +1396,14 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 			guest_id = (cookie >> FFA_MEMORY_HANDLE_PRTN_SHIFT) &
 				   FFA_MEMORY_HANDLE_PRTN_MASK;
 		}
-		if (!guest_id || virt_set_guest(guest_id))
+		if (!guest_id)
 			goto out;
+		if (virt_set_guest(guest_id)) {
+			if (!virt_reclaim_cookie_from_destroyed_guest(guest_id,
+								      cookie))
+				rc = FFA_OK;
+			goto out;
+		}
 	}
 
 	switch (mobj_ffa_sel1_spmc_reclaim(cookie)) {
