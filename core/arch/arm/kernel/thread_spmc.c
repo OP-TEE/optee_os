@@ -138,6 +138,14 @@ void spmc_set_args(struct thread_smc_args *args, uint32_t fid, uint32_t src_dst,
 					  .a5 = w5, };
 }
 
+static void set_simple_ret_val(struct thread_smc_args *args, int ffa_ret)
+{
+	if (ffa_ret)
+		spmc_set_args(args, FFA_ERROR, 0, ffa_ret, 0, 0, 0);
+	else
+		spmc_set_args(args, FFA_SUCCESS_32, 0, 0, 0, 0, 0);
+}
+
 uint32_t spmc_exchange_version(uint32_t vers, struct ffa_rxtx *rxtx)
 {
 	/*
@@ -313,7 +321,6 @@ static void unmap_buf(void *va, size_t sz)
 void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
 	int rc = 0;
-	uint32_t ret_fid = FFA_ERROR;
 	unsigned int sz = 0;
 	paddr_t rx_pa = 0;
 	paddr_t tx_pa = 0;
@@ -415,18 +422,15 @@ void spmc_handle_rxtx_map(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 
 	rxtx->size = sz;
 	rxtx->tx_is_mine = true;
-	ret_fid = FFA_SUCCESS_32;
 	DMSG("Mapped tx %#"PRIxPA" size %#x @ %p", tx_pa, sz, tx);
 	DMSG("Mapped rx %#"PRIxPA" size %#x @ %p", rx_pa, sz, rx);
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
-	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	set_simple_ret_val(args, rc);
 }
 
 void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
-	uint32_t ret_fid = FFA_ERROR;
 	int rc = FFA_INVALID_PARAMETERS;
 
 	cpu_spin_lock(&rxtx->spinlock);
@@ -442,33 +446,27 @@ void spmc_handle_rxtx_unmap(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 	rxtx->size = 0;
 	rxtx->rx = NULL;
 	rxtx->tx = NULL;
-	ret_fid = FFA_SUCCESS_32;
 	rc = 0;
 out:
 	cpu_spin_unlock(&rxtx->spinlock);
-	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	set_simple_ret_val(args, rc);
 }
 
 void spmc_handle_rx_release(struct thread_smc_args *args, struct ffa_rxtx *rxtx)
 {
-	uint32_t ret_fid = 0;
 	int rc = 0;
 
 	cpu_spin_lock(&rxtx->spinlock);
 	/* The senders RX is our TX */
 	if (!rxtx->size || rxtx->tx_is_mine) {
-		ret_fid = FFA_ERROR;
 		rc = FFA_DENIED;
 	} else {
-		ret_fid = FFA_SUCCESS_32;
 		rc = 0;
 		rxtx->tx_is_mine = true;
 	}
 	cpu_spin_unlock(&rxtx->spinlock);
 
-	spmc_set_args(args, ret_fid, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	set_simple_ret_val(args, rc);
 }
 
 static bool is_nil_uuid(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3)
@@ -656,8 +654,7 @@ static void spmc_handle_run(struct thread_smc_args *args)
 	rc = FFA_INVALID_PARAMETERS;
 
 out:
-	spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, rc, FFA_PARAM_MBZ,
-		      FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+	set_simple_ret_val(args, rc);
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
 
@@ -1383,8 +1380,7 @@ out_set_rc:
 
 static void handle_mem_reclaim(struct thread_smc_args *args)
 {
-	uint32_t ret_val = FFA_INVALID_PARAMETERS;
-	uint32_t ret_fid = FFA_ERROR;
+	int rc = FFA_INVALID_PARAMETERS;
 	uint64_t cookie = 0;
 
 	if (args->a3 || args->a4 || args->a5 || args->a6 || args->a7)
@@ -1406,23 +1402,22 @@ static void handle_mem_reclaim(struct thread_smc_args *args)
 
 	switch (mobj_ffa_sel1_spmc_reclaim(cookie)) {
 	case TEE_SUCCESS:
-		ret_fid = FFA_SUCCESS_32;
-		ret_val = 0;
+		rc = FFA_OK;
 		break;
 	case TEE_ERROR_ITEM_NOT_FOUND:
 		DMSG("cookie %#"PRIx64" not found", cookie);
-		ret_val = FFA_INVALID_PARAMETERS;
+		rc = FFA_INVALID_PARAMETERS;
 		break;
 	default:
 		DMSG("cookie %#"PRIx64" busy", cookie);
-		ret_val = FFA_DENIED;
+		rc = FFA_DENIED;
 		break;
 	}
 
 	virt_unset_guest();
 
 out:
-	spmc_set_args(args, ret_fid, 0, ret_val, 0, 0, 0);
+	set_simple_ret_val(args, rc);
 }
 
 static void handle_notification_bitmap_create(struct thread_smc_args *args)
@@ -1749,8 +1744,7 @@ void thread_spmc_msg_recv(struct thread_smc_args *args)
 		break;
 	default:
 		EMSG("Unhandled FFA function ID %#"PRIx32, (uint32_t)args->a0);
-		spmc_set_args(args, FFA_ERROR, FFA_PARAM_MBZ, FFA_NOT_SUPPORTED,
-			      FFA_PARAM_MBZ, FFA_PARAM_MBZ, FFA_PARAM_MBZ);
+		set_simple_ret_val(args, FFA_NOT_SUPPORTED);
 	}
 }
 
