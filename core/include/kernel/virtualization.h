@@ -128,6 +128,8 @@ void virt_remove_cookie(uint64_t cookie);
 uint16_t virt_find_guest_by_cookie(uint64_t cookie);
 bitstr_t *virt_get_shm_bits(void);
 
+TEE_Result virt_reclaim_cookie_from_destroyed_guest(uint16_t guest_id,
+						    uint64_t cookie);
 #else
 static inline TEE_Result
 virt_add_cookie_to_current_guest(uint64_t cookie __unused)
@@ -136,6 +138,10 @@ static inline void virt_remove_cookie(uint64_t cookie __unused) { }
 static inline uint16_t virt_find_guest_by_cookie(uint64_t cookie __unused)
 { return 0; }
 static inline bitstr_t *virt_get_shm_bits(void) { return NULL; }
+static inline TEE_Result
+virt_reclaim_cookie_from_destroyed_guest(uint16_t guest_id __unused,
+					 uint64_t cookie __unused)
+{ return TEE_ERROR_NOT_SUPPORTED; }
 #endif
 
 #endif	/* __KERNEL_VIRTUALIZATION_H */

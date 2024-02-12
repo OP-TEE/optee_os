@@ -23,10 +23,14 @@
 #include <string.h>
 #include <util.h>
 
+LIST_HEAD(prtn_list_head, guest_partition);
+
 static unsigned int prtn_list_lock __nex_data = SPINLOCK_UNLOCK;
 
-static LIST_HEAD(prtn_list_head, guest_partition) prtn_list __nex_data =
-	LIST_HEAD_INITIALIZER(prtn_list_head);
+static struct prtn_list_head prtn_list __nex_data =
+	LIST_HEAD_INITIALIZER(prtn_list);
+static struct prtn_list_head prtn_destroy_list __nex_data =
+	LIST_HEAD_INITIALIZER(prtn_destroy_list);
 
 /* Free pages used for guest partitions */
 tee_mm_pool_t virt_mapper_pool __nex_bss;
@@ -324,10 +328,26 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	return TEE_SUCCESS;
 }
 
+static bool
+prtn_have_remaining_resources(struct guest_partition *prtn __maybe_unused)
+{
+#ifdef CFG_CORE_SEL1_SPMC
+	int i = 0;
+
+	if (prtn->cookie_count)
+		return true;
+	bit_ffs(prtn->shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT, &i);
+	return i >= 0;
+#else
+	return false;
+#endif
+}
+
 TEE_Result virt_guest_destroyed(uint16_t guest_id)
 {
-	struct guest_partition *prtn;
-	uint32_t exceptions;
+	struct guest_partition *prtn = NULL;
+	uint32_t exceptions = 0;
+	bool do_free = true;
 
 	IMSG("Removing guest %d", guest_id);
 
@@ -335,25 +355,40 @@ TEE_Result virt_guest_destroyed(uint16_t guest_id)
 
 	LIST_FOREACH(prtn, &prtn_list, link) {
 		if (prtn->id == guest_id) {
+			if (!refcount_dec(&prtn->refc)) {
+				EMSG("Guest thread(s) is still running. refc = %d",
+				     refcount_val(&prtn->refc));
+				panic();
+			}
 			LIST_REMOVE(prtn, link);
+			if (prtn_have_remaining_resources(prtn)) {
+				LIST_INSERT_HEAD(&prtn_destroy_list, prtn,
+						 link);
+				/*
+				 * Delay the nex_free() until
+				 * virt_reclaim_cookie_from_destroyed_guest()
+				 * is done with this partition.
+				 */
+				do_free = false;
+			}
 			break;
 		}
 	}
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
 	if (prtn) {
-		if (!refcount_dec(&prtn->refc)) {
-			EMSG("Guest thread(s) is still running. refc = %d",
-			     refcount_val(&prtn->refc));
-			panic();
-		}
-
 		tee_mm_free(prtn->tee_ram);
+		prtn->tee_ram = NULL;
 		tee_mm_free(prtn->ta_ram);
+		prtn->ta_ram = NULL;
 		tee_mm_free(prtn->tables);
+		prtn->tables = NULL;
 		core_free_mmu_prtn(prtn->mmu_prtn);
+		prtn->mmu_prtn = NULL;
 		nex_free(prtn->memory_map);
-		nex_free(prtn);
+		prtn->memory_map = NULL;
+		if (do_free)
+			nex_free(prtn);
 	} else
 		EMSG("Client with id %d is not found", guest_id);
 
@@ -525,5 +560,62 @@ uint16_t virt_find_guest_by_cookie(uint64_t cookie)
 bitstr_t *virt_get_shm_bits(void)
 {
 	return get_current_prtn()->shm_bits;
+}
+
+static TEE_Result reclaim_cookie(struct guest_partition *prtn, uint64_t cookie)
+{
+	if (cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT) {
+		size_t n = 0;
+
+		for (n = 0; n < prtn->cookie_count; n++) {
+			if (prtn->cookies[n] == cookie) {
+				memmove(prtn->cookies + n,
+					prtn->cookies + n + 1,
+					sizeof(uint64_t) *
+						(prtn->cookie_count - n - 1));
+				prtn->cookie_count--;
+				return TEE_SUCCESS;
+			}
+		}
+	} else {
+		uint64_t mask = FFA_MEMORY_HANDLE_NON_SECURE_BIT |
+				SHIFT_U64(FFA_MEMORY_HANDLE_PRTN_MASK,
+					  FFA_MEMORY_HANDLE_PRTN_SHIFT);
+		int64_t i = cookie & ~mask;
+
+		if (i >= 0 && i < SPMC_CORE_SEL1_MAX_SHM_COUNT &&
+		    bit_test(prtn->shm_bits, i)) {
+			bit_clear(prtn->shm_bits, i);
+			return TEE_SUCCESS;
+		}
+	}
+
+	return TEE_ERROR_ITEM_NOT_FOUND;
+}
+
+TEE_Result virt_reclaim_cookie_from_destroyed_guest(uint16_t guest_id,
+						    uint64_t cookie)
+
+{
+	struct guest_partition *prtn = NULL;
+	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
+	LIST_FOREACH(prtn, &prtn_destroy_list, link) {
+		if (prtn->id == guest_id) {
+			res = reclaim_cookie(prtn, cookie);
+			if (prtn_have_remaining_resources(prtn))
+				prtn = NULL;
+			else
+				LIST_REMOVE(prtn, link);
+			break;
+		}
+	}
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+
+	nex_free(prtn);
+
+	return res;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
