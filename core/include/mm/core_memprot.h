@@ -97,8 +97,31 @@ paddr_t virt_to_phys(void *va);
  */
 vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type, size_t len);
 
-/* Return true if @va relates to a unpaged section else false */
-bool is_unpaged(void *va);
+/*
+ * is_unpaged() - report unpaged status of an address
+ * @va:		virtual address
+ *
+ * Returns true if the @va is non-NULL and is in the unpaged area if paging
+ * is enabled, else false.
+ */
+#ifdef CFG_WITH_PAGER
+bool is_unpaged(const void *va);
+#else
+static inline bool is_unpaged(const void *va) { return va; }
+#endif
+
+/*
+ * is_nexus() - report nexus status of an address
+ * @va:		virtual address
+ *
+ * Returns true if the @va is non-NULL and is in the nexus memory area
+ * if ns-virtualization is enabled, else false.
+ */
+#ifdef CFG_NS_VIRTUALIZATION
+bool is_nexus(const void *va);
+#else
+static inline bool is_nexus(const void *va) { return va; }
+#endif
 
 struct io_pa_va {
 	paddr_t pa;
