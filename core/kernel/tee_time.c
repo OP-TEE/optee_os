@@ -13,7 +13,7 @@
 #include <optee_rpc_cmd.h>
 #include <stdlib.h>
 
-struct time_source _time_source;
+struct time_source _time_source __nex_bss;
 
 static TEE_Result register_time_source(void)
 {
@@ -21,7 +21,7 @@ static TEE_Result register_time_source(void)
 
 	return TEE_SUCCESS;
 }
-early_init(register_time_source);
+nex_early_init(register_time_source);
 
 TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
