@@ -58,7 +58,7 @@ static TEE_Result init_multi_core_panic_handler(void)
 	return TEE_SUCCESS;
 }
 
-boot_final(init_multi_core_panic_handler);
+nex_driver_init_late(init_multi_core_panic_handler);
 
 void __do_panic(const char *file __maybe_unused,
 		const int line __maybe_unused,
