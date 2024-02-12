@@ -75,6 +75,7 @@
 #define GICR_ICFGR1		(GICR_SGI_BASE_OFFSET + 0xC04)
 #define GICR_IPRIORITYR(n)	(GICR_SGI_BASE_OFFSET + 0x400 + (n) * 4)
 
+#define GICR_CTLR_RWP		BIT32(3)
 
 #define GICR_TYPER_LAST		BIT64(4)
 #define GICR_TYPER_AFF3_SHIFT	56
@@ -218,6 +219,20 @@ out:
 	return ret;
 }
 
+static void gicr_wait_for_pending_write(vaddr_t gicr_base)
+{
+	/*
+	 * Wait for changes to
+	 * - GICR_ICENABLER0
+	 * - GICR_CTLR.DPG1S
+	 * - GICR_CTLR.DPG1NS
+	 * - GICR_CTLR.DPG0
+	 * to be visible to all agents in the system.
+	 */
+	while (io_read32(gicr_base + GICR_CTLR) & GICR_CTLR_RWP)
+		;
+}
+
 static void gicv3_sync_redist_config(struct gic_data *gd)
 {
 	vaddr_t gicr_base = get_gicr_base(gd);
@@ -248,6 +263,9 @@ static void gicv3_sync_redist_config(struct gic_data *gd)
 
 		/* Disable interrupt */
 		io_write32(gicr_base + GICR_ICENABLER0, BIT32(n));
+
+		/* Wait for the write to GICR_ICENABLER0 to propagate */
+		gicr_wait_for_pending_write(gicr_base);
 
 		/* Make interrupt non-pending */
 		io_write32(gicr_base + GICR_ICPENDR0, BIT32(n));
@@ -375,6 +393,9 @@ void gic_init_donate_sgi_to_ns(size_t it)
 
 		/* Disable interrupt */
 		io_write32(gicr_base + GICR_ICENABLER0, BIT32(it));
+
+		/* Wait for the write to GICR_ICENABLER0 to propagate */
+		gicr_wait_for_pending_write(gicr_base);
 
 		/* Make interrupt non-pending */
 		io_write32(gicr_base + GICR_ICPENDR0, BIT32(it));
@@ -890,6 +911,9 @@ static void gic_op_add(struct itr_chip *chip, size_t it,
 
 		/* Disable interrupt */
 		io_write32(gicr_base + GICR_ICENABLER0, BIT32(it));
+
+		/* Wait for the write to GICR_ICENABLER0 to propagate */
+		gicr_wait_for_pending_write(gicr_base);
 
 		/* Make interrupt non-pending */
 		io_write32(gicr_base + GICR_ICPENDR0, BIT32(it));
