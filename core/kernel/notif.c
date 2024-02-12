@@ -7,16 +7,17 @@
 #include <kernel/notif.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
+#include <mm/core_memprot.h>
 #include <optee_rpc_cmd.h>
 #include <types_ext.h>
 
 #if defined(CFG_CORE_ASYNC_NOTIF)
 static struct mutex notif_mutex = MUTEX_INITIALIZER;
-static unsigned int notif_lock = SPINLOCK_UNLOCK;
+static unsigned int notif_lock __nex_data = SPINLOCK_UNLOCK;
 static bool notif_started;
 
 SLIST_HEAD(notif_driver_head, notif_driver);
-static struct notif_driver_head notif_driver_head =
+static struct notif_driver_head notif_driver_head __nex_data =
 	SLIST_HEAD_INITIALIZER(&notif_driver_head);
 
 
@@ -35,6 +36,8 @@ bool notif_async_is_started(void)
 void notif_register_driver(struct notif_driver *ndrv)
 {
 	uint32_t old_itr_status = 0;
+
+	assert(is_nexus(ndrv));
 
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
 
