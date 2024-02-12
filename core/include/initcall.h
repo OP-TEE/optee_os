@@ -66,9 +66,9 @@ struct initcall {
  *  | At the end of boot_init_primary_late() just before the print:     |
  *  | "Primary CPU switching to normal world boot"                      |
  *  +-------------------------------+-----------------------------------+
- *  | 1. call_preinitcalls()        | In the nexus                      |
+ *  | 1. call_preinitcalls()        | In the nexus, final calls         |
  *  | 2. call_initcalls()           +-----------------------------------+
- *  | 3. call_finalcalls()          | 1. call_finalcalls()              |
+ *  | 3. call_finalcalls()          | 1. boot_final() / nex_*init*()    |
  *  +-------------------------------+-----------------------------------+
  *  | "Primary CPU switching to normal world boot" is printed           |
  *  +-------------------------------+-----------------------------------+
@@ -100,6 +100,31 @@ struct initcall {
 #define release_init_resource(fn)	__define_initcall(init, 7, fn)
 
 #define boot_final(fn)			__define_initcall(final, 1, fn)
+
+/*
+ * These nex_* init-calls are provided for drivers and services that reside
+ * in the nexus in case of virtualization. The init-calls are performed
+ * before exiting to the non-secure world at the end of boot
+ * initialization. In case of virtualization the init-calls are based on
+ * final calls, while otherwise are the same as the non-nex counterpart.
+ */
+#ifdef CFG_NS_VIRTUALIZATION
+#define nex_early_init(fn)		boot_final(fn)
+#define nex_early_init_late(fn)		__define_initcall(final, 2, fn)
+#define nex_service_init(fn)		__define_initcall(final, 3, fn)
+#define nex_service_init_late(fn)	__define_initcall(final, 4, fn)
+#define nex_driver_init(fn)		__define_initcall(final, 5, fn)
+#define nex_driver_init_late(fn)	__define_initcall(final, 6, fn)
+#define nex_release_init_resource(fn)	__define_initcall(final, 7, fn)
+#else
+#define nex_early_init(fn)		early_init(fn)
+#define nex_early_init_late(fn)		early_init_late(fn)
+#define nex_service_init(fn)		service_init(fn)
+#define nex_service_init_late(fn)	service_init_late(fn)
+#define nex_driver_init(fn)		driver_init(fn)
+#define nex_driver_init_late(fn)	driver_init_late(fn)
+#define nex_release_init_resource(fn)	release_init_resource(fn)
+#endif
 
 void call_preinitcalls(void);
 void call_initcalls(void);
