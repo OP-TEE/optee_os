@@ -26,7 +26,7 @@ multi_core_panic_it_handler(struct itr_handler *hdl __unused)
 		cpu_idle();
 }
 
-static struct itr_handler multi_core_panic_handler = {
+static struct itr_handler multi_core_panic_handler __nex_data = {
 	.it = CFG_HALT_CORES_ON_PANIC_SGI,
 	.handler = multi_core_panic_it_handler,
 };
