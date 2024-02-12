@@ -2451,16 +2451,20 @@ vaddr_t core_mmu_get_va(paddr_t pa, enum teecore_memtypes type, size_t len)
 }
 
 #ifdef CFG_WITH_PAGER
-bool is_unpaged(void *va)
+bool is_unpaged(const void *va)
 {
 	vaddr_t v = (vaddr_t)va;
 
 	return v >= VCORE_START_VA && v < get_linear_map_end_va();
 }
-#else
-bool is_unpaged(void *va __unused)
+#endif
+
+#ifdef CFG_NS_VIRTUALIZATION
+bool is_nexus(const void *va)
 {
-	return true;
+	vaddr_t v = (vaddr_t)va;
+
+	return v >= VCORE_START_VA && v < VCORE_NEX_RW_PA + VCORE_NEX_RW_SZ;
 }
 #endif
 
