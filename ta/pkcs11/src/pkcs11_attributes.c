@@ -1945,6 +1945,7 @@ check_parent_attrs_against_processing(enum pkcs11_mechanism_id proc_id,
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
+	case PKCS11_CKM_AES_GCM:
 	case PKCS11_CKM_AES_CMAC:
 	case PKCS11_CKM_AES_CMAC_GENERAL:
 		if (key_class == PKCS11_CKO_SECRET_KEY &&

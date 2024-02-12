@@ -48,6 +48,7 @@ bool processing_is_tee_symm(enum pkcs11_mechanism_id proc_id)
 	case PKCS11_CKM_AES_CBC:
 	case PKCS11_CKM_AES_CTS:
 	case PKCS11_CKM_AES_CTR:
+	case PKCS11_CKM_AES_GCM:
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		return true;
@@ -70,6 +71,7 @@ pkcs2tee_algorithm(uint32_t *tee_id, struct pkcs11_attribute_head *proc_params)
 		{ PKCS11_CKM_AES_CBC_ENCRYPT_DATA, TEE_ALG_AES_CBC_NOPAD },
 		{ PKCS11_CKM_AES_CTR, TEE_ALG_AES_CTR },
 		{ PKCS11_CKM_AES_CTS, TEE_ALG_AES_CTS },
+		{ PKCS11_CKM_AES_GCM, TEE_ALG_AES_GCM },
 		{ PKCS11_CKM_AES_CMAC, TEE_ALG_AES_CMAC },
 		{ PKCS11_CKM_AES_CMAC_GENERAL, TEE_ALG_AES_CMAC },
 		/* HMAC flavors */
@@ -207,7 +209,8 @@ allocate_tee_operation(struct pkcs11_session *session,
 	uint32_t min_key_size = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	assert(session->processing->tee_op_handle == TEE_HANDLE_NULL);
+	assert(session->processing->tee_op_handle == TEE_HANDLE_NULL &&
+	       session->processing->tee_op_handle2 == TEE_HANDLE_NULL);
 
 	if (pkcs2tee_algorithm(&algo, params))
 		return PKCS11_CKR_FUNCTION_FAILED;
@@ -262,6 +265,20 @@ allocate_tee_operation(struct pkcs11_session *session,
 
 	if (res == TEE_ERROR_NOT_SUPPORTED)
 		return PKCS11_CKR_MECHANISM_INVALID;
+
+	if (res == TEE_SUCCESS || params->id == PKCS11_CKM_AES_GCM) {
+		/*
+		 * Allocate a 2nd operation handler to save the operation state
+		 * on AES GCM one-shot processing that queries the output
+		 * buffer size. This is needed as we will need to reset and
+		 * re-init the TEE operation once we report the expected output
+		 * buffer size to client that we call again the AE processing
+		 * function.
+		 */
+		TEE_OperationHandle *hdl = &session->processing->tee_op_handle2;
+
+		res = TEE_AllocateOperation(hdl, algo, mode, size);
+	}
 
 	return tee2pkcs_error(res);
 }
@@ -595,6 +612,11 @@ init_tee_operation(struct pkcs11_session *session,
 					    proc_params->data,
 					    proc_params->size);
 		break;
+	case PKCS11_CKM_AES_GCM:
+		rc = tee_init_gcm_operation(session,
+					    proc_params->data,
+					    proc_params->size);
+		break;
 	case PKCS11_CKM_AES_ECB_ENCRYPT_DATA:
 	case PKCS11_CKM_AES_CBC_ENCRYPT_DATA:
 		rc = tee_init_derive_symm(session->processing, proc_params);
@@ -726,6 +748,7 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 	uint32_t hmac_len = 0;
 	uint8_t computed_mac[TEE_MAX_HASH_SIZE] = { 0 };
 	size_t computed_mac_size = TEE_MAX_HASH_SIZE;
+	size_t ae_out_size = 0;
 
 	if (TEE_PARAM_TYPE_GET(ptypes, 1) == TEE_PARAM_TYPE_MEMREF_INPUT) {
 		in_buf = params[1].memref.buffer;
@@ -742,6 +765,7 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 	if (TEE_PARAM_TYPE_GET(ptypes, 2) == TEE_PARAM_TYPE_MEMREF_OUTPUT) {
 		out_buf = params[2].memref.buffer;
 		out_size = params[2].memref.size;
+		ae_out_size = out_size;
 		if (out_size && !out_buf)
 			return PKCS11_CKR_ARGUMENTS_BAD;
 	}
@@ -829,7 +853,44 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 			break;
 		}
 		break;
+	case PKCS11_CKM_AES_GCM:
+		if (step == PKCS11_FUNC_STEP_FINAL)
+			break;
 
+		switch (function) {
+		case PKCS11_FUNCTION_ENCRYPT:
+			res = TEE_AEUpdate(proc->tee_op_handle,
+					   in_buf, in_size, out_buf, &out_size);
+
+			output_data = true;
+			rc = tee2pkcs_error(res);
+			if (rc && rc != PKCS11_CKR_BUFFER_TOO_SMALL)
+				return rc;
+			if (step == PKCS11_FUNC_STEP_ONESHOT) {
+				if (rc == PKCS11_CKR_BUFFER_TOO_SMALL) {
+					/* Return output data size incl. tag*/
+					out_size += 16;
+					goto out;
+				}
+				out_buf = (char *)out_buf + out_size;
+				/* Remaining space for the tag data */
+				ae_out_size -= out_size;
+			}
+			break;
+		case PKCS11_FUNCTION_DECRYPT:
+			rc = tee_ae_decrypt_update(session, in_buf, in_size);
+			assert(rc != PKCS11_CKR_BUFFER_TOO_SMALL);
+			if (rc)
+				return rc;
+			/* Do not output decrypted data until tag is verified */
+			out_size = 0;
+			output_data = true;
+			break;
+		default:
+			TEE_Panic(function);
+			break;
+		}
+		break;
 	default:
 		TEE_Panic(proc->mecha_type);
 		break;
@@ -961,6 +1022,43 @@ enum pkcs11_rc step_symm_operation(struct pkcs11_session *session,
 		default:
 			TEE_Panic(function);
 			break;
+		}
+		break;
+	case PKCS11_CKM_AES_GCM:
+		switch (function) {
+		case PKCS11_FUNCTION_ENCRYPT:
+			rc = tee_ae_encrypt_final(session, out_buf,
+						  &ae_out_size);
+			output_data = true;
+			if (step == PKCS11_FUNC_STEP_ONESHOT)
+				out_size += ae_out_size;
+			else
+				out_size = ae_out_size;
+			break;
+		case PKCS11_FUNCTION_DECRYPT:
+			/* Now we're ready to reveal data */
+			out_size = ae_out_size;
+			rc = tee_ae_decrypt_final(session, out_buf, &out_size);
+			output_data = true;
+			break;
+		default:
+			TEE_Panic(function);
+			break;
+		}
+
+		if (step == PKCS11_FUNC_STEP_ONESHOT &&
+		    rc == PKCS11_CKR_BUFFER_TOO_SMALL) {
+			enum pkcs11_rc rc2 = PKCS11_CKR_OK;
+
+			/*
+			 * Change operation state to its initial state
+			 * as client will likely request again the
+			 * one-shot processing but possibly with
+			 * different input data.
+			 */
+			rc2 = tee_ae_reinit_gcm_operation(session);
+			if (rc2)
+				return rc2;
 		}
 		break;
 	default:
