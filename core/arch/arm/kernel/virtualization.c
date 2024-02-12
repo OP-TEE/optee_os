@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/* Copyright (c) 2018, EPAM Systems. All rights reserved. */
+/*
+ * Copyright (c) 2018, EPAM Systems. All rights reserved.
+ * Copyright (c) 2023, Linaro Limited
+ */
 
 #include <compiler.h>
-#include <platform_config.h>
 #include <kernel/boot.h>
 #include <kernel/linker.h>
-#include <kernel/mutex.h>
 #include <kernel/misc.h>
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread_spmc.h>
 #include <kernel/virtualization.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
@@ -43,7 +46,7 @@ struct guest_partition {
 	uint16_t id;
 	struct refcount refc;
 #ifdef CFG_CORE_SEL1_SPMC
-	uint64_t cookies[64];
+	uint64_t cookies[SPMC_CORE_SEL1_MAX_SHM_COUNT];
 	uint8_t cookie_count;
 #endif
 };

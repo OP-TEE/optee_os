@@ -14,6 +14,8 @@
 /* FF-A endpoint base ID when OP-TEE is used as a S-EL1 endpoint */
 #define SPMC_ENDPOINT_ID        0x8001
 
+#define SPMC_CORE_SEL1_MAX_SHM_COUNT	64
+
 struct ffa_rxtx {
 	void *rx;
 	void *tx;

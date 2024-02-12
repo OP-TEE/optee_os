@@ -91,8 +91,7 @@ struct mobj_ffa {
 SLIST_HEAD(mobj_ffa_head, mobj_ffa);
 
 #ifdef CFG_CORE_SEL1_SPMC
-#define NUM_SHMS	64
-static bitstr_t bit_decl(shm_bits, NUM_SHMS);
+static bitstr_t bit_decl(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT);
 #endif
 
 static struct mobj_ffa_head shm_head = SLIST_HEAD_INITIALIZER(shm_head);
@@ -172,7 +171,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 	}
 
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
-	bit_ffc(shm_bits, NUM_SHMS, &i);
+	bit_ffc(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT, &i);
 	if (i != -1) {
 		bit_set(shm_bits, i);
 		mf->cookie = i;
@@ -266,7 +265,7 @@ void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 			mask |= SHIFT_U64(FFA_MEMORY_HANDLE_PRTN_MASK,
 					  FFA_MEMORY_HANDLE_PRTN_SHIFT);
 		i = mf->cookie & ~mask;
-		assert(i >= 0 && i < NUM_SHMS);
+		assert(i >= 0 && i < SPMC_CORE_SEL1_MAX_SHM_COUNT);
 
 		exceptions = cpu_spin_lock_xsave(&shm_lock);
 		assert(bit_test(shm_bits, i));
