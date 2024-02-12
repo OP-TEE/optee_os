@@ -4,6 +4,7 @@
 #ifndef __KERNEL_VIRTUALIZATION_H
 #define __KERNEL_VIRTUALIZATION_H
 
+#include <bitstring.h>
 #include <mm/core_mmu.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -125,6 +126,7 @@ static inline uint16_t virt_get_current_guest_id(void) { return 0; }
 TEE_Result virt_add_cookie_to_current_guest(uint64_t cookie);
 void virt_remove_cookie(uint64_t cookie);
 uint16_t virt_find_guest_by_cookie(uint64_t cookie);
+bitstr_t *virt_get_shm_bits(void);
 
 #else
 static inline TEE_Result
@@ -133,6 +135,7 @@ virt_add_cookie_to_current_guest(uint64_t cookie __unused)
 static inline void virt_remove_cookie(uint64_t cookie __unused) { }
 static inline uint16_t virt_find_guest_by_cookie(uint64_t cookie __unused)
 { return 0; }
+static inline bitstr_t *virt_get_shm_bits(void) { return NULL; }
 #endif
 
 #endif	/* __KERNEL_VIRTUALIZATION_H */

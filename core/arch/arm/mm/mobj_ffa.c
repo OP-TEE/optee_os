@@ -91,7 +91,19 @@ struct mobj_ffa {
 SLIST_HEAD(mobj_ffa_head, mobj_ffa);
 
 #ifdef CFG_CORE_SEL1_SPMC
-static bitstr_t bit_decl(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT);
+#ifdef CFG_NS_VIRTUALIZATION
+static bitstr_t *get_shm_bits(void)
+{
+	return virt_get_shm_bits();
+}
+#else
+static bitstr_t bit_decl(__shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT);
+
+static bitstr_t *get_shm_bits(void)
+{
+	return __shm_bits;
+}
+#endif
 #endif
 
 static struct mobj_ffa_head shm_head = SLIST_HEAD_INITIALIZER(shm_head);
@@ -148,6 +160,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 					unsigned int num_pages)
 {
 	struct mobj_ffa *mf = NULL;
+	bitstr_t *shm_bits = NULL;
 	uint32_t exceptions = 0;
 	int i = 0;
 
@@ -170,6 +183,7 @@ struct mobj_ffa *mobj_ffa_sel1_spmc_new(uint64_t cookie,
 		return mf;
 	}
 
+	shm_bits = get_shm_bits();
 	exceptions = cpu_spin_lock_xsave(&shm_lock);
 	bit_ffc(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT, &i);
 	if (i != -1) {
@@ -258,6 +272,7 @@ void mobj_ffa_sel1_spmc_delete(struct mobj_ffa *mf)
 	if (!IS_ENABLED(CFG_NS_VIRTUALIZATION) ||
 	    !(mf->cookie & FFA_MEMORY_HANDLE_HYPERVISOR_BIT)) {
 		uint64_t mask = FFA_MEMORY_HANDLE_NON_SECURE_BIT;
+		bitstr_t *shm_bits = get_shm_bits();
 		uint32_t exceptions = 0;
 		int64_t i = 0;
 

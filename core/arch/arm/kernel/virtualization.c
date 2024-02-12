@@ -4,6 +4,7 @@
  * Copyright (c) 2023, Linaro Limited
  */
 
+#include <bitstring.h>
 #include <compiler.h>
 #include <kernel/boot.h>
 #include <kernel/linker.h>
@@ -48,6 +49,7 @@ struct guest_partition {
 #ifdef CFG_CORE_SEL1_SPMC
 	uint64_t cookies[SPMC_CORE_SEL1_MAX_SHM_COUNT];
 	uint8_t cookie_count;
+	bitstr_t bit_decl(shm_bits, SPMC_CORE_SEL1_MAX_SHM_COUNT);
 #endif
 };
 
@@ -518,5 +520,10 @@ uint16_t virt_find_guest_by_cookie(uint64_t cookie)
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
 	return ret;
+}
+
+bitstr_t *virt_get_shm_bits(void)
+{
+	return get_current_prtn()->shm_bits;
 }
 #endif /*CFG_CORE_SEL1_SPMC*/
