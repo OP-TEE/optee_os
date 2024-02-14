@@ -80,8 +80,8 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 		return ret;
 
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->n, key.buf);
-	crypto_bignum_bn2bin_pad(RSA_MAX_PUB_EXP_LEN,
-				 p->e, (uint8_t *)key.buf + RSA_MAX_MOD_LEN);
+	crypto_bignum_bn2bin_pad(RSA_MAX_PUB_EXP_LEN, p->e,
+				 (uint8_t *)key.buf + rsa_data->key.n_size);
 
 	ret = versal_mbox_alloc(rsa_data->message.length,
 				rsa_data->message.data, &msg);
@@ -183,7 +183,7 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->n, key.buf);
 	crypto_bignum_bn2bin_pad(rsa_data->key.n_size, p->d,
-				 (uint8_t *)key.buf + RSA_MAX_MOD_LEN);
+				 (uint8_t *)key.buf + rsa_data->key.n_size);
 
 	ret = versal_mbox_alloc(rsa_data->cipher.length, rsa_data->cipher.data,
 				&cipher);
