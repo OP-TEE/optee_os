@@ -222,7 +222,7 @@ allocate_tee_operation(struct pkcs11_session *session,
 	struct active_processing *processing = session->processing;
 
 	assert(processing->tee_op_handle == TEE_HANDLE_NULL);
-	assert(processing->tee_hash_op_handle == TEE_HANDLE_NULL);
+	assert(processing->tee_op_handle2 == TEE_HANDLE_NULL);
 
 	if (pkcs2tee_algorithm(&algo, &hash_algo, function, params, obj))
 		return PKCS11_CKR_FUNCTION_FAILED;
@@ -232,7 +232,7 @@ allocate_tee_operation(struct pkcs11_session *session,
 	if (hash_algo) {
 		pkcs2tee_mode(&hash_mode, PKCS11_FUNCTION_DIGEST);
 
-		res = TEE_AllocateOperation(&processing->tee_hash_op_handle,
+		res = TEE_AllocateOperation(&processing->tee_op_handle2,
 					    hash_algo, hash_mode, 0);
 		if (res) {
 			EMSG("TEE_AllocateOp. failed %#"PRIx32" %#"PRIx32,
@@ -255,9 +255,9 @@ allocate_tee_operation(struct pkcs11_session *session,
 		return PKCS11_CKR_MECHANISM_INVALID;
 
 	if (res != TEE_SUCCESS &&
-	    processing->tee_hash_op_handle != TEE_HANDLE_NULL) {
-		TEE_FreeOperation(session->processing->tee_hash_op_handle);
-		processing->tee_hash_op_handle = TEE_HANDLE_NULL;
+	    processing->tee_op_handle2 != TEE_HANDLE_NULL) {
+		TEE_FreeOperation(session->processing->tee_op_handle2);
+		processing->tee_op_handle2 = TEE_HANDLE_NULL;
 		processing->tee_hash_algo = 0;
 	}
 
@@ -610,10 +610,9 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 		case PKCS11_CKM_SHA256_RSA_PKCS_PSS:
 		case PKCS11_CKM_SHA384_RSA_PKCS_PSS:
 		case PKCS11_CKM_SHA512_RSA_PKCS_PSS:
-			assert(proc->tee_hash_op_handle != TEE_HANDLE_NULL);
+			assert(proc->tee_op_handle2 != TEE_HANDLE_NULL);
 
-			TEE_DigestUpdate(proc->tee_hash_op_handle, in_buf,
-					 in_size);
+			TEE_DigestUpdate(proc->tee_op_handle2, in_buf, in_size);
 			rc = PKCS11_CKR_OK;
 			break;
 		default:
@@ -649,16 +648,15 @@ enum pkcs11_rc step_asymm_operation(struct pkcs11_session *session,
 	case PKCS11_CKM_SHA256_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA384_RSA_PKCS_PSS:
 	case PKCS11_CKM_SHA512_RSA_PKCS_PSS:
-		assert(proc->tee_hash_op_handle != TEE_HANDLE_NULL);
+		assert(proc->tee_op_handle2 != TEE_HANDLE_NULL);
 
 		hash_size = TEE_ALG_GET_DIGEST_SIZE(proc->tee_hash_algo);
 		hash_buf = TEE_Malloc(hash_size, 0);
 		if (!hash_buf)
 			return PKCS11_CKR_DEVICE_MEMORY;
 
-		res = TEE_DigestDoFinal(proc->tee_hash_op_handle,
-					in_buf, in_size, hash_buf,
-					&hash_size);
+		res = TEE_DigestDoFinal(proc->tee_op_handle2, in_buf, in_size,
+					hash_buf, &hash_size);
 
 		rc = tee2pkcs_error(res);
 		if (rc != PKCS11_CKR_OK)

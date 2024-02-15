@@ -112,12 +112,6 @@ void release_active_processing(struct pkcs11_session *session)
 		break;
 	}
 
-	if (session->processing->tee_hash_op_handle != TEE_HANDLE_NULL) {
-		TEE_FreeOperation(session->processing->tee_hash_op_handle);
-		session->processing->tee_hash_op_handle = TEE_HANDLE_NULL;
-		session->processing->tee_hash_algo = 0;
-	}
-
 	if (session->processing->tee_op_handle != TEE_HANDLE_NULL) {
 		TEE_FreeOperation(session->processing->tee_op_handle);
 		session->processing->tee_op_handle = TEE_HANDLE_NULL;
