@@ -230,7 +230,7 @@ enum pkcs11_rc set_processing_state(struct pkcs11_session *session,
 	proc->step = PKCS11_FUNC_STEP_INIT;
 	proc->tee_op_handle = TEE_HANDLE_NULL;
 	proc->tee_hash_algo = 0;
-	proc->tee_hash_op_handle = TEE_HANDLE_NULL;
+	proc->tee_op_handle2 = TEE_HANDLE_NULL;
 
 	if (obj1 && get_bool(obj1->attributes, PKCS11_CKA_ALWAYS_AUTHENTICATE))
 		proc->always_authen = true;
