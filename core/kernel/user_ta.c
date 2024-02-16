@@ -223,11 +223,12 @@ out:
 	dec_recursion();
 out_clr_cancel:
 	/*
-	 * Clear the cancel state now that the user TA has returned. The next
+	 * Reset the cancel state now that the user TA has returned. The next
 	 * time the TA will be invoked will be with a new operation and should
 	 * not have an old cancellation pending.
 	 */
 	ta_sess->cancel = false;
+	ta_sess->cancel_mask = true;
 
 	return res;
 }
