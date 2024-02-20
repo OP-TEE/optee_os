@@ -138,16 +138,6 @@
 #define RIFSC_RIMU_GLOCK			1
 #define RIFSC_RISUP_GLOCK			2
 
-#define RIFPROT(rifid, sem_list, lock, sec, priv, scid, sem_en, cfen) \
-	(((rifid) << RIFSC_RISC_PER_ID_SHIFT) | \
-	 ((sem_list) << RIFSC_RISC_SEML_SHIFT) | \
-	 ((lock) << RIFSC_RISC_LOCK_SHIFT) | \
-	 ((priv) << RIFSC_RISC_PRIV_SHIFT) | \
-	 ((sec) << RIFSC_RISC_SEC_SHIFT) | \
-	 ((scid) << RIFSC_RISC_SCID_SHIFT) | \
-	 ((sem_en) << RIFSC_RISC_SEM_EN_SHIFT) | \
-	 ((cfen) << RIFSC_RISC_CFEN_SHIFT))
-
 /* masters ID */
 #define RIMU_ID(idx)		(idx)
 
