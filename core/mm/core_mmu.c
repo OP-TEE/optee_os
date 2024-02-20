@@ -1441,6 +1441,7 @@ static void check_mem_map(struct tee_mmap_region *map)
 		case MEM_AREA_TRANSFER_LIST:
 		case MEM_AREA_RAM_SEC:
 		case MEM_AREA_RAM_NSEC:
+		case MEM_AREA_ROM_SEC:
 		case MEM_AREA_RES_VASPACE:
 		case MEM_AREA_SHM_VASPACE:
 		case MEM_AREA_PAGER_VASPACE:
