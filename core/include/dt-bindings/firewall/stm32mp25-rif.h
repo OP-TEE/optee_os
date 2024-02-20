@@ -89,4 +89,24 @@
 
 #define RIF_TAMP_RESOURCE(x)	(x)
 
+#define RISC_CFEN_SHIFT			0
+#define RISC_SEM_EN_SHIFT		1
+#define RISC_SCID_SHIFT			4
+#define RISC_SEC_SHIFT			8
+#define RISC_PRIV_SHIFT			9
+#define RISC_LOCK_SHIFT			10
+#define RISC_SEML_SHIFT			16
+#define RISC_PER_ID_SHIFT		24
+#define RISC_PERx_CID_SHIFT		0
+
+#define RIFPROT(rifid, sem_list, lock, sec, priv, scid, sem_en, cfen) \
+	(((rifid) << RISC_PER_ID_SHIFT) | \
+	 ((sem_list) << RISC_SEML_SHIFT) | \
+	 ((lock) << RISC_LOCK_SHIFT) | \
+	 ((priv) << RISC_PRIV_SHIFT) | \
+	 ((sec) << RISC_SEC_SHIFT) | \
+	 ((scid) << RISC_SCID_SHIFT) | \
+	 ((sem_en) << RISC_SEM_EN_SHIFT) | \
+	 ((cfen) << RISC_CFEN_SHIFT))
+
 #endif /* _DT_BINDINGS_FIREWALL_STM32MP25_RIF_H */
