@@ -235,6 +235,7 @@ CFG_STM32_BSEC ?= y
 CFG_STM32_CRYP ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
+CFG_STM32_HASH ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
 CFG_STM32_PKA ?= y
@@ -261,7 +262,10 @@ $(call force,CFG_STM32_GPIO,y)
 endif
 
 # If any crypto driver is enabled, enable the crypto-framework layer
-ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_PKA CFG_STM32_SAES),y)
+ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP \
+	                      CFG_STM32_HASH \
+	                      CFG_STM32_PKA  \
+	                      CFG_STM32_SAES),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
