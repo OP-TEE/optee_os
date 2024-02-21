@@ -12,6 +12,7 @@ srcs-y += thread_arch.c
 srcs-y += arch_scall_rv.S
 srcs-y += arch_scall.c
 srcs-$(CFG_UNWIND) += unwind_rv.c
+srcs-$(CFG_SEMIHOSTING) += semihosting_rv.S
 srcs-y += thread_optee_abi.c
 srcs-y += thread_optee_abi_rv.S
 asm-defines-y += asm-defines.c
