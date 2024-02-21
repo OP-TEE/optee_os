@@ -79,6 +79,7 @@ srcs-$(CFG_CBMEM_CONSOLE) += cbmem_console.c
 srcs-$(CFG_RISCV_PLIC) += plic.c
 srcs-$(CFG_HISILICON_CRYPTO_DRIVER) += hisi_trng.c
 srcs-$(CFG_WIDEVINE_HUK) += widevine_huk.c
+srcs-$(CFG_SEMIHOSTING_CONSOLE) += semihosting_console.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt

@@ -1159,6 +1159,20 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 
+# CFG_SEMIHOSTING_CONSOLE, when enabled, embeds a semihosting console driver.
+# When CFG_SEMIHOSTING_CONSOLE_FILE=NULL, OP-TEE console reads/writes
+# trace messages from/to the debug terminal of the semihosting host computer.
+# When CFG_SEMIHOSTING_CONSOLE_FILE="{your_log_file}", OP-TEE console
+# outputs trace messages to that file. Output to "optee.log" by default.
+CFG_SEMIHOSTING_CONSOLE ?= n
+ifeq ($(CFG_SEMIHOSTING_CONSOLE),y)
+$(call force,CFG_SEMIHOSTING,y)
+endif
+CFG_SEMIHOSTING_CONSOLE_FILE ?= "optee.log"
+ifeq ($(CFG_SEMIHOSTING_CONSOLE_FILE),)
+$(error CFG_SEMIHOSTING_CONSOLE_FILE cannot be empty)
+endif
+
 # Semihosting is a debugging mechanism that enables code running on an embedded
 # system (also called the target) to communicate with and use the I/O of the
 # host computer.
