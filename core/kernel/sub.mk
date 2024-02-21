@@ -54,6 +54,8 @@ srcs-y += pseudo_ta.c
 
 srcs-$(CFG_TRANSFER_LIST) += transfer_list.c
 
+srcs-$(CFG_SEMIHOSTING) += semihosting.c
+
 ifeq ($(CFG_SYSCALL_FTRACE),y)
 # We would not like to profile spin_lock_debug.c file as it provides
 # common APIs that are needed for ftrace framework to trace syscalls.

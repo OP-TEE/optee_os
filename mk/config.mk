@@ -1158,3 +1158,8 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
 # DT node "/options/op-tee/widevine" to some specific TAs.
 CFG_WIDEVINE_PTA ?= n
 $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
+
+# Semihosting is a debugging mechanism that enables code running on an embedded
+# system (also called the target) to communicate with and use the I/O of the
+# host computer.
+CFG_SEMIHOSTING ?= n
