@@ -183,8 +183,7 @@ static inline bool feat_crc32_implemented(void)
 #ifdef ARM32
 	return false;
 #else
-	return ((read_id_aa64isar0_el1() >> ID_AA64ISAR0_EL1_CRC32_SHIFT) &
-		ID_AA64ISAR0_EL1_CRC32_MASK) == FEAT_CRC32_IMPLEMENTED;
+	return read_id_aa64isar0_el1() & ID_AA64ISAR0_CRC32;
 #endif
 }
 
