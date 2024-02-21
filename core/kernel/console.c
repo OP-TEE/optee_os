@@ -6,6 +6,7 @@
 #include <compiler.h>
 #include <console.h>
 #include <drivers/cbmem_console.h>
+#include <drivers/semihosting_console.h>
 #include <drivers/serial.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
@@ -24,7 +25,10 @@ __weak void plat_console_init(void)
 
 void console_init(void)
 {
-	plat_console_init();
+	if (IS_ENABLED(CFG_SEMIHOSTING_CONSOLE))
+		semihosting_console_init(CFG_SEMIHOSTING_CONSOLE_FILE);
+	else
+		plat_console_init();
 }
 
 void __weak console_putc(int ch)
