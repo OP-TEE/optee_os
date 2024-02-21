@@ -181,7 +181,7 @@ static inline unsigned int feat_pan_implemented(void)
 static inline bool feat_crc32_implemented(void)
 {
 #ifdef ARM32
-	return false;
+	return read_id_isar5() & ID_ISAR5_CRC32;
 #else
 	return read_id_aa64isar0_el1() & ID_AA64ISAR0_CRC32;
 #endif
