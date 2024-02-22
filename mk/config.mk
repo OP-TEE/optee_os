@@ -17,9 +17,15 @@
 # (CFG_* variables only).
 
 # Cross-compiler prefix and suffix
+ifeq ($(ARCH),arm)
 CROSS_COMPILE ?= arm-linux-gnueabihf-
-CROSS_COMPILE32 ?= $(CROSS_COMPILE)
 CROSS_COMPILE64 ?= aarch64-linux-gnu-
+endif
+ifeq ($(ARCH),riscv)
+CROSS_COMPILE ?= riscv-linux-gnu-
+CROSS_COMPILE64 ?= riscv64-linux-gnu-
+endif
+CROSS_COMPILE32 ?= $(CROSS_COMPILE)
 COMPILER ?= gcc
 
 # For convenience
