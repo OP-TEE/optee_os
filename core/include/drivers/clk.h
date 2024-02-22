@@ -60,7 +60,7 @@ struct clk_duty_cycle {
 };
 
 /**
- * struct clk_ops
+ * struct clk_ops - Clock operations
  *
  * @enable: Enable the clock
  * @disable: Disable the clock
@@ -90,7 +90,7 @@ struct clk_ops {
 };
 
 /**
- * Return the clock name
+ * clk_get_name() - Return the clock name
  *
  * @clk: Clock for which the name is needed
  * Return a const char * pointing to the clock name
@@ -101,7 +101,7 @@ static inline const char *clk_get_name(struct clk *clk)
 }
 
 /**
- * clk_alloc - Allocate a clock structure
+ * clk_alloc() - Allocate a clock structure
  *
  * @name: Clock name
  * @ops: Clock operations
@@ -114,14 +114,14 @@ struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count);
 
 /**
- * clk_free - Free a clock structure
+ * clk_free() - Free a clock structure
  *
  * @clk: Clock to be freed or NULL
  */
 void clk_free(struct clk *clk);
 
 /**
- * clk_register - Register a clock within the clock framework
+ * clk_register() - Register a clock within the clock framework
  *
  * @clk: Clock struct to be registered
  * Return a TEE_Result compliant value
@@ -129,7 +129,7 @@ void clk_free(struct clk *clk);
 TEE_Result clk_register(struct clk *clk);
 
 /**
- * clk_get_rate - Get clock rate
+ * clk_get_rate() - Get clock rate
  *
  * @clk: Clock for which the rate is needed
  * Return the clock rate in Hz
@@ -137,7 +137,7 @@ TEE_Result clk_register(struct clk *clk);
 unsigned long clk_get_rate(struct clk *clk);
 
 /**
- * clk_set_rate - Set a clock rate
+ * clk_set_rate() - Set a clock rate
  *
  * @clk: Clock to be set with the rate
  * @rate: Rate to set in Hz
@@ -146,7 +146,7 @@ unsigned long clk_get_rate(struct clk *clk);
 TEE_Result clk_set_rate(struct clk *clk, unsigned long rate);
 
 /**
- * clk_enable - Enable a clock and its ascendance
+ * clk_enable() - Enable a clock and its ascendance
  *
  * @clk: Clock to be enabled
  * Return a TEE_Result compliant value
@@ -154,14 +154,14 @@ TEE_Result clk_set_rate(struct clk *clk, unsigned long rate);
 TEE_Result clk_enable(struct clk *clk);
 
 /**
- * clk_disable - Disable a clock
+ * clk_disable() - Disable a clock
  *
  * @clk: Clock to be disabled
  */
 void clk_disable(struct clk *clk);
 
 /**
- * clk_is_enabled - Informative state on the clock
+ * clk_is_enabled() - Informative state on the clock
  *
  * This function is useful during specific system sequences where core
  * executes atomically (primary core boot, some low power sequences).
@@ -171,7 +171,7 @@ void clk_disable(struct clk *clk);
 bool clk_is_enabled(struct clk *clk);
 
 /**
- * clk_get_parent - Get the current clock parent
+ * clk_get_parent() - Get the current clock parent
  *
  * @clk: Clock for which the parent is needed
  * Return the clock parent or NULL if there is no parent
@@ -179,7 +179,7 @@ bool clk_is_enabled(struct clk *clk);
 struct clk *clk_get_parent(struct clk *clk);
 
 /**
- * clk_get_num_parents - Get the number of parents for a clock
+ * clk_get_num_parents() - Get the number of parents for a clock
  *
  * @clk: Clock for which the number of parents is needed
  * Return the number of parents
@@ -190,7 +190,7 @@ static inline size_t clk_get_num_parents(struct clk *clk)
 }
 
 /**
- * Get a clock parent by its index
+ * clk_get_parent_by_index() - Get a clock parent by its index
  *
  * @clk: Clock for which the parent is needed
  * @pidx: Parent index for the clock
@@ -199,7 +199,7 @@ static inline size_t clk_get_num_parents(struct clk *clk)
 struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx);
 
 /**
- * clk_set_parent - Set the current clock parent
+ * clk_set_parent() - Set the current clock parent
  *
  * @clk: Clock for which the parent should be set
  * @parent: Parent clock to set
@@ -208,7 +208,7 @@ struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx);
 TEE_Result clk_set_parent(struct clk *clk, struct clk *parent);
 
 /**
- * clk_get_rates_array - Get supported rates as an array
+ * clk_get_rates_array() - Get supported rates as an array
  *
  * @clk: Clock for which the rates are requested
  * @start_index: start index of requested rates
@@ -221,7 +221,7 @@ TEE_Result clk_get_rates_array(struct clk *clk, size_t start_index,
 			       unsigned long *rates, size_t *nb_elts);
 
 /**
- * clk_get_rates_steps - Get supported rates as min/max/step triplet
+ * clk_get_rates_steps() - Get supported rates as min/max/step triplet
  *
  * @clk: Clock for which the rates are requested
  * @min: Output min supported rate in Hz
@@ -233,7 +233,7 @@ TEE_Result clk_get_rates_steps(struct clk *clk, unsigned long *min,
 			       unsigned long *max, unsigned long *step);
 
 /**
- * clk_get_duty_cycle - Get clock duty cycle
+ * clk_get_duty_cycle() - Get clock duty cycle
  *
  * @clk: Clock for which the duty cycle is requested
  * @duty: Output duty cycle info
@@ -242,8 +242,12 @@ TEE_Result clk_get_rates_steps(struct clk *clk, unsigned long *min,
 TEE_Result clk_get_duty_cycle(struct clk *clk,
 			      struct clk_duty_cycle *duty_cycle);
 
-/* Print current clock tree summary to output console with debug trace level */
 #ifdef CFG_DRIVERS_CLK
+/**
+ * clk_print_tree() - Print current clock tree summary to output console
+ *
+ * The clock is printed with the debug trace level.
+ */
 void clk_print_tree(void);
 #else
 static inline void clk_print_tree(void)
