@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2021, 2024 NXP
  *
  * Implementation of Cipher functions
  */
@@ -115,33 +115,6 @@ static const struct cipheralg des3_alg[] = {
 		.update = do_update_cipher,
 	},
 };
-
-/*
- * Allocate context data and copy input data into
- *
- * @dst  [out] Destination data to allocate and fill
- * @src  Source of data to copy
- */
-static enum caam_status copy_ctx_data(struct caambuf *dst,
-				      struct drvcrypt_buf *src)
-{
-	enum caam_status ret = CAAM_OUT_MEMORY;
-
-	if (!dst->data) {
-		/* Allocate the destination buffer */
-		ret = caam_alloc_align_buf(dst, src->length);
-		if (ret != CAAM_NO_ERROR)
-			return CAAM_OUT_MEMORY;
-	}
-
-	/* Do the copy */
-	memcpy(dst->data, src->data, dst->length);
-
-	/* Push data to physical memory */
-	cache_operation(TEE_CACHEFLUSH, dst->data, dst->length);
-
-	return CAAM_NO_ERROR;
-}
 
 /*
  * Verify the input key size with the requirements
@@ -384,38 +357,21 @@ void caam_cipher_copy_state(void *dst_ctx, void *src_ctx)
 		caam_cpy_block_src(&dst->blockbuf, &srcdata, 0);
 	}
 
-	if (src->key1.length) {
-		struct drvcrypt_buf key1 = {
-			.data = src->key1.data,
-			.length = src->key1.length
-		};
-		copy_ctx_data(&dst->key1, &key1);
-	}
+	if (src->key1.length)
+		caam_cpy_buf_src(&dst->key1, src->key1.data, src->key1.length);
 
-	if (src->key2.length) {
-		struct drvcrypt_buf key2 = {
-			.data = src->key2.data,
-			.length = src->key2.length
-		};
-		copy_ctx_data(&dst->key2, &key2);
-	}
+	if (src->key2.length)
+		caam_cpy_buf_src(&dst->key2, src->key2.data, src->key2.length);
 
 	if (src->ctx.length) {
-		struct drvcrypt_buf ctx = {
-			.data = src->ctx.data,
-			.length = src->ctx.length
-		};
-		cache_operation(TEE_CACHEINVALIDATE, ctx.data, ctx.length);
-		copy_ctx_data(&dst->ctx, &ctx);
+		cache_operation(TEE_CACHEINVALIDATE, src->ctx.data,
+				src->ctx.length);
+		caam_cpy_buf_src(&dst->ctx, src->ctx.data, src->ctx.length);
 	}
 
-	if (src->tweak.length) {
-		struct drvcrypt_buf tweak = {
-			.data = src->tweak.data,
-			.length = src->tweak.length
-		};
-		copy_ctx_data(&dst->tweak, &tweak);
-	}
+	if (src->tweak.length)
+		caam_cpy_buf_src(&dst->tweak, src->tweak.data,
+				 src->tweak.length);
 }
 
 TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
@@ -444,7 +400,9 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 		}
 
 		/* Copy the key 1 */
-		retstatus = copy_ctx_data(&cipherdata->key1, &dinit->key1);
+		retstatus = caam_cpy_buf_src(&cipherdata->key1,
+					     dinit->key1.data,
+					     dinit->key1.length);
 		CIPHER_TRACE("Copy Key 1 returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -464,7 +422,9 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 		}
 
 		/* Copy the key 2 */
-		retstatus = copy_ctx_data(&cipherdata->key2, &dinit->key2);
+		retstatus = caam_cpy_buf_src(&cipherdata->key2,
+					     dinit->key2.data,
+					     dinit->key2.length);
 		CIPHER_TRACE("Copy Key 2 returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -488,7 +448,8 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 			     alg->size_ctx);
 
 		/* Copy the IV into the context register */
-		retstatus = copy_ctx_data(&cipherdata->ctx, &dinit->iv);
+		retstatus = caam_cpy_buf_src(&cipherdata->ctx, dinit->iv.data,
+					     dinit->iv.length);
 		CIPHER_TRACE("Copy IV returned 0x%" PRIx32, retstatus);
 
 		if (retstatus != CAAM_NO_ERROR) {
@@ -506,8 +467,9 @@ TEE_Result caam_cipher_initialize(struct drvcrypt_cipher_init *dinit)
 			}
 
 			/* Copy the tweak */
-			retstatus = copy_ctx_data(&cipherdata->tweak,
-						  &dinit->iv);
+			retstatus = caam_cpy_buf_src(&cipherdata->tweak,
+						     dinit->iv.data,
+						     dinit->iv.length);
 			CIPHER_TRACE("Copy Tweak returned 0x%" PRIx32,
 				     retstatus);
 

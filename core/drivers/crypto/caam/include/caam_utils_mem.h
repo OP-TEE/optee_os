@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright 2018-2021 NXP
+ * Copyright 2018-2021, 2024 NXP
  *
  * Brief   Memory management utilities.
  *         Primitive to allocate, free memory.
@@ -95,7 +95,7 @@ void caam_free_buf(struct caambuf *buf);
 
 /*
  * Copy source data into the block buffer. Allocate block buffer if
- * it's not defined.
+ * it's not already allocated.
  *
  * @block  [in/out] Block buffer information. Return buffer filled.
  * @src    Source to copy
@@ -103,6 +103,17 @@ void caam_free_buf(struct caambuf *buf);
  */
 enum caam_status caam_cpy_block_src(struct caamblock *block,
 				    struct caambuf *src, size_t offset);
+
+/*
+ * Copy source data into the buffer. Allocate buffer if
+ * it's not already allocated.
+ *
+ * @dst         [out] Destination data to allocate and fill
+ * @src_data    Source to copy
+ * @src_length  Length to copy
+ */
+enum caam_status caam_cpy_buf_src(struct caambuf *dst, uint8_t *src_data,
+				  size_t src_length);
 
 /*
  * Return the number of Physical Areas used by the buffer @buf.
