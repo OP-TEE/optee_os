@@ -52,6 +52,9 @@ srcs-$(CFG_ARM64_core) += unwind_arm64.c
 endif
 
 srcs-$(CFG_NS_VIRTUALIZATION) += virtualization.c
+ifeq ($(CFG_SEMIHOSTING),y)
+srcs-$(CFG_ARM64_core) += semihosting_a64.S
+endif
 
 srcs-y += link_dummies_paged.c
 srcs-y += link_dummies_init.c
