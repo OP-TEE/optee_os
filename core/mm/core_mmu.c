@@ -153,9 +153,14 @@ void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 
 		assert(secure_only[0].size >
 		       load_offs + TEE_RAM_VA_SIZE + TEE_SDP_TEST_MEM_SIZE);
+#ifdef CFG_CORE_SEL2_SPMC
 		b = secure_only[0].paddr + load_offs + TEE_RAM_VA_SIZE;
 		s = secure_only[0].size - load_offs - TEE_RAM_VA_SIZE -
 		    TEE_SDP_TEST_MEM_SIZE;
+#else
+		b = secure_only[0].paddr;
+		s = secure_only[0].size - TEE_SDP_TEST_MEM_SIZE;
+#endif
 	} else {
 		assert(secure_only[1].size > TEE_SDP_TEST_MEM_SIZE);
 		b = secure_only[1].paddr;
@@ -1803,6 +1808,7 @@ static bool can_map_at_level(paddr_t paddr, vaddr_t vaddr,
 	return true;
 }
 
+/* FIXME(efficiency): Skip creating redundant mapping. */
 void core_mmu_map_region(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 {
 	struct core_mmu_table_info tbl_info;
@@ -2558,6 +2564,7 @@ void core_mmu_init_ta_ram(void)
 	vaddr_t e = 0;
 	paddr_t ps = 0;
 	size_t size = 0;
+	tee_mm_entry_t *unused __unused = NULL;
 
 	/*
 	 * Get virtual addr/size of RAM where TA are loaded/executedNSec
@@ -2586,4 +2593,11 @@ void core_mmu_init_ta_ram(void)
 	tee_mm_final(&tee_mm_sec_ddr);
 	tee_mm_init(&tee_mm_sec_ddr, ps, size, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
+
+	/*
+	 * FIXME(correctness): this entry should not be counted as valid
+	 * memory entry by memory usage monitor.
+	 */
+	unused = tee_mm_alloc2(&tee_mm_sec_ddr, core_mmu_tee_load_pa,
+			       CORE_MMU_PGDIR_SIZE);
 }
