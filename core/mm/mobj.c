@@ -22,6 +22,7 @@
 #include <util.h>
 
 struct mobj *mobj_sec_ddr;
+struct mobj *mobj_sec_ddr_extra;
 struct mobj *mobj_tee_ram_rx;
 struct mobj *mobj_tee_ram_rw;
 
@@ -504,6 +505,15 @@ static TEE_Result mobj_init(void)
 				       CORE_MEM_TA_RAM);
 	if (!mobj_sec_ddr)
 		panic("Failed to register secure ta ram");
+
+	if (tee_mm_sec_ddr_extra.lo) {
+		mobj_sec_ddr_extra = mobj_phys_alloc(tee_mm_sec_ddr_extra.lo,
+						     tee_mm_sec_ddr_extra.size,
+						     TEE_MATTR_MEM_TYPE_CACHED,
+						     CORE_MEM_TA_RAM);
+		if (!mobj_sec_ddr_extra)
+			panic("Failed to register extra TA ram");
+	}
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
 		mobj_tee_ram_rx = mobj_phys_init(0,

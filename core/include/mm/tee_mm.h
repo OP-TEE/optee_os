@@ -41,6 +41,9 @@ typedef struct _tee_mm_pool_t tee_mm_pool_t;
 /* Physical Secure DDR pool */
 extern tee_mm_pool_t tee_mm_sec_ddr;
 
+/* Extra physical Secure DDR pool */
+extern tee_mm_pool_t tee_mm_sec_ddr_extra;
+
 /* Virtual eSRAM pool */
 extern tee_mm_pool_t tee_mm_vcore;
 
@@ -83,6 +86,9 @@ void tee_mm_final(tee_mm_pool_t *pool);
  * the tee_mm_free function.
  */
 tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size);
+
+/* Allocate memory from secure memory */
+tee_mm_entry_t *tee_mm_alloc_sec_mem(size_t size);
 
 /* Allocate supplied memory range if it's free */
 tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size);

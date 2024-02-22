@@ -719,7 +719,7 @@ static TEE_Result buf_ta_open(const TEE_UUID *uuid,
 	if (res)
 		goto err;
 
-	handle->mm = tee_mm_alloc(&tee_mm_sec_ddr, handle->ta_size);
+	handle->mm = tee_mm_alloc_sec_mem(handle->ta_size);
 	if (!handle->mm) {
 		res = TEE_ERROR_OUT_OF_MEMORY;
 		goto err;

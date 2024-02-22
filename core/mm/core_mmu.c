@@ -153,9 +153,23 @@ void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 
 		assert(secure_only[0].size >
 		       load_offs + TEE_RAM_VA_SIZE + TEE_SDP_TEST_MEM_SIZE);
-		b = secure_only[0].paddr + load_offs + TEE_RAM_VA_SIZE;
-		s = secure_only[0].size - load_offs - TEE_RAM_VA_SIZE -
-		    TEE_SDP_TEST_MEM_SIZE;
+		if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+		    !IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+			/*
+			 * When CFG_CORE_PHYS_RELOCATABLE is enabled but
+			 * CFG_CORE_SEL2_SPMC is not, we first register the
+			 * whole secure DRAM as TA RAM so that we can use
+			 * the memory below the physical load offset as
+			 * TA RAM. Overlapped region with TEE RAM will be
+			 * invalidated by `core_mmu_init_ta_ram()`.
+			 */
+			b = secure_only[0].paddr;
+			s = secure_only[0].size - TEE_SDP_TEST_MEM_SIZE;
+		} else {
+			b = secure_only[0].paddr + load_offs + TEE_RAM_VA_SIZE;
+			s = secure_only[0].size - load_offs - TEE_RAM_VA_SIZE -
+			    TEE_SDP_TEST_MEM_SIZE;
+		}
 	} else {
 		assert(secure_only[1].size > TEE_SDP_TEST_MEM_SIZE);
 		b = secure_only[1].paddr;
@@ -1005,8 +1019,14 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 				 size_t num_elems)
 {
 	const struct core_mmu_phys_mem *mem = NULL;
-	vaddr_t ram_start = secure_only[0].paddr;
+	vaddr_t tee_ram_start = 0;
 	size_t last = 0;
+
+	if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+	    !IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		tee_ram_start = core_mmu_tee_load_pa;
+	else
+		tee_ram_start = secure_only[0].paddr;
 
 
 #define ADD_PHYS_MEM(_type, _addr, _size) \
@@ -1014,8 +1034,8 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 			     (_addr), (_size),  &last)
 
 	if (IS_ENABLED(CFG_CORE_RWDATA_NOEXEC)) {
-		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, ram_start,
-			     VCORE_UNPG_RX_PA - ram_start);
+		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, tee_ram_start,
+			     VCORE_UNPG_RX_PA - tee_ram_start);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RX, VCORE_UNPG_RX_PA,
 			     VCORE_UNPG_RX_SZ);
 		ADD_PHYS_MEM(MEM_AREA_TEE_RAM_RO, VCORE_UNPG_RO_PA,
@@ -1053,7 +1073,31 @@ static size_t collect_mem_ranges(struct tee_mmap_region *memory_map,
 		size_t ta_size = 0;
 
 		core_mmu_get_ta_range(&ta_base, &ta_size);
-		ADD_PHYS_MEM(MEM_AREA_TA_RAM, ta_base, ta_size);
+
+		/*
+		 * When CFG_CORE_PHYS_RELOCATABLE, TEE can be loaded in the
+		 * middle of the secure DRAM, rather than the secure DRAM base.
+		 * As a result, there may be up to two remaining memory regions
+		 * (i.e., one in the front and one in the back), which can be
+		 * used for TA RAM.
+		 *
+		 * When the TEE is loaded at the secure DRAM base or at the top,
+		 * then either one of the below `ADD_PHYS_MEM()` can result in
+		 * an empty memory region.
+		 */
+		if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+		    !IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+			ADD_PHYS_MEM(MEM_AREA_TA_RAM, ta_base,
+				     core_mmu_tee_load_pa - ta_base);
+
+			ADD_PHYS_MEM(MEM_AREA_TA_RAM,
+				     core_mmu_tee_load_pa + TEE_RAM_VA_SIZE,
+				     ta_size -
+				     (core_mmu_tee_load_pa - ta_base) -
+				     TEE_RAM_VA_SIZE);
+		} else {
+			ADD_PHYS_MEM(MEM_AREA_TA_RAM, ta_base, ta_size);
+		}
 	}
 
 	if (IS_ENABLED(CFG_CORE_SANITIZE_KADDRESS) &&
@@ -1350,12 +1394,18 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 	 */
 	vaddr_t id_map_start = (vaddr_t)__identity_map_init_start;
 	vaddr_t id_map_end = (vaddr_t)__identity_map_init_end;
-	vaddr_t start_addr = secure_only[0].paddr;
+	vaddr_t tee_start_addr = 0;
 	unsigned long offs = 0;
 	size_t last = 0;
 
 	last = collect_mem_ranges(memory_map, num_elems);
 	assign_mem_granularity(memory_map);
+
+	if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+	    !IS_ENABLED(CFG_CORE_SEL2_SPMC))
+		tee_start_addr = core_mmu_tee_load_pa;
+	else
+		tee_start_addr = secure_only[0].paddr;
 
 	/*
 	 * To ease mapping and lower use of xlat tables, sort mapping
@@ -1368,7 +1418,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 		add_pager_vaspace(memory_map, num_elems, &last);
 
 	if (IS_ENABLED(CFG_CORE_ASLR) && seed) {
-		vaddr_t base_addr = start_addr + seed;
+		vaddr_t base_addr = tee_start_addr + seed;
 		const unsigned int va_width = core_mmu_get_va_width();
 		const vaddr_t va_mask = GENMASK_64(va_width - 1,
 						   SMALL_PAGE_SHIFT);
@@ -1382,7 +1432,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 			if (assign_mem_va(ba, memory_map) &&
 			    mem_map_add_id_map(memory_map, num_elems, &last,
 					       id_map_start, id_map_end)) {
-				offs = ba - start_addr;
+				offs = ba - tee_start_addr;
 				DMSG("Mapping core at %#"PRIxVA" offs %#lx",
 				     ba, offs);
 				goto out;
@@ -1393,7 +1443,7 @@ static unsigned long init_mem_map(struct tee_mmap_region *memory_map,
 		EMSG("Failed to map core with seed %#lx", seed);
 	}
 
-	if (!assign_mem_va(start_addr, memory_map))
+	if (!assign_mem_va(tee_start_addr, memory_map))
 		panic();
 
 out:
@@ -2552,6 +2602,27 @@ static TEE_Result teecore_init_pub_ram(void)
 early_init(teecore_init_pub_ram);
 #endif /*CFG_CORE_RESERVED_SHM*/
 
+static bool get_extra_ta_ram(vaddr_t *s, vaddr_t *e)
+{
+	struct tee_mmap_region *map = NULL;
+	struct tee_mmap_region *lower_ta_ram = NULL;
+
+	for (map = get_memory_map(); !core_mmap_is_end_of_table(map); map++) {
+		if (map->type == MEM_AREA_TA_RAM) {
+			if (!lower_ta_ram) {
+				lower_ta_ram = map;
+				continue;
+			} else {
+				*s = map->va;
+				*e = map->va + map->size;
+				break;
+			}
+		}
+	}
+
+	return lower_ta_ram != map && map->type == MEM_AREA_TA_RAM;
+}
+
 void core_mmu_init_ta_ram(void)
 {
 	vaddr_t s = 0;
@@ -2586,4 +2657,29 @@ void core_mmu_init_ta_ram(void)
 	tee_mm_final(&tee_mm_sec_ddr);
 	tee_mm_init(&tee_mm_sec_ddr, ps, size, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
+
+	if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+	    !IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+		if (!tee_mm_is_empty(&tee_mm_sec_ddr_extra))
+			panic("Extra TA RAM pool is not empty");
+
+		if (!get_extra_ta_ram(&s, &e))
+			return;
+
+		ps = virt_to_phys((void *)s);
+		size = e - s;
+
+		if (!ps || (ps & CORE_MMU_USER_CODE_MASK) ||
+		    !size || (size & CORE_MMU_USER_CODE_MASK))
+			panic("invalid Extra TA RAM");
+
+		/* extra check: we could rely on core_mmu_get_mem_by_type() */
+		if (!tee_pbuf_is_sec(ps, size))
+			panic("Extra TA RAM is not secure");
+
+		/* remove previous config and init Extra TA ddr memory pool */
+		tee_mm_final(&tee_mm_sec_ddr_extra);
+		tee_mm_init(&tee_mm_sec_ddr_extra, ps, size,
+			    CORE_MMU_USER_CODE_SHIFT, TEE_MM_POOL_NO_FLAGS);
+	}
 }

@@ -759,7 +759,7 @@ struct fobj *fobj_sec_mem_alloc(unsigned int num_pages)
 	if (MUL_OVERFLOW(num_pages, SMALL_PAGE_SIZE, &size))
 		goto err;
 
-	f->mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	f->mm = tee_mm_alloc_sec_mem(size);
 	if (!f->mm)
 		goto err;
 

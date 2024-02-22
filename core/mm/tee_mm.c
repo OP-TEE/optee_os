@@ -225,6 +225,17 @@ err:
 	return NULL;
 }
 
+tee_mm_entry_t* tee_mm_alloc_sec_mem(size_t size)
+{
+	tee_mm_entry_t *mm = NULL;
+
+	mm = tee_mm_alloc(&tee_mm_sec_ddr, size);
+	if (!mm)
+		return tee_mm_alloc(&tee_mm_sec_ddr_extra, size);
+
+	return mm;
+}
+
 static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
 			      paddr_t offslo, paddr_t offshi)
 {
@@ -356,6 +367,9 @@ bool tee_mm_is_empty(tee_mm_pool_t *pool)
 
 /* Physical Secure DDR pool */
 tee_mm_pool_t tee_mm_sec_ddr;
+
+/* Extra physical Secure DDR pool */
+tee_mm_pool_t tee_mm_sec_ddr_extra;
 
 /* Virtual eSRAM pool */
 tee_mm_pool_t tee_mm_vcore;
