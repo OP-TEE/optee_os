@@ -146,7 +146,7 @@ void core_mmu_get_ta_range(paddr_t *base, size_t *size)
 #else
 	static_assert(ARRAY_SIZE(secure_only) <= 2);
 	if (ARRAY_SIZE(secure_only) == 1) {
-		vaddr_t load_offs = 0;
+		vaddr_t load_offs __maybe_unused = 0;
 
 		assert(core_mmu_tee_load_pa >= secure_only[0].paddr);
 		load_offs = core_mmu_tee_load_pa - secure_only[0].paddr;
