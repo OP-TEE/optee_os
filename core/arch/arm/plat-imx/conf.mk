@@ -164,24 +164,28 @@ else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mq-flavorlist)))
 $(call force,CFG_MX8MQ,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
+$(call force,CFG_TZC380,y)
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mm-flavorlist)))
 $(call force,CFG_MX8MM,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
+$(call force,CFG_TZC380,y)
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mn-flavorlist)))
 $(call force,CFG_MX8MN,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
+$(call force,CFG_TZC380,y)
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8mp-flavorlist)))
 $(call force,CFG_MX8MP,y)
 $(call force,CFG_MX8M,y)
 $(call force,CFG_ARM64_core,y)
+$(call force,CFG_TZC380,y)
 CFG_DRAM_BASE ?= 0x40000000
 CFG_TEE_CORE_NB_CORE ?= 4
 else ifneq (,$(filter $(PLATFORM_FLAVOR),$(mx8qm-flavorlist)))
@@ -534,4 +538,3 @@ CFG_IMX_CAAM ?= y
 endif
 
 endif
-
