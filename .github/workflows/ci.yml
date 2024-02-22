@@ -74,8 +74,6 @@ jobs:
           set -e -v
           export LC_ALL=C
           export PATH=/usr/local/bin:$PATH  # clang
-          export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
-          export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
           export CFG_DEBUG_INFO=n
           export CFG_WERROR=y
 
@@ -87,6 +85,9 @@ jobs:
           ccache -s -v
           download_plug_and_trust
           download_scp_firmware
+
+          export CROSS_COMPILE32="ccache arm-linux-gnueabihf-"
+          export CROSS_COMPILE64="ccache aarch64-linux-gnu-"
 
           _make
           _make COMPILER=clang
@@ -262,6 +263,12 @@ jobs:
           _make PLATFORM=corstone1000
           _make PLATFORM=nuvoton
           _make PLATFORM=d06
+
+          export ARCH=riscv
+          unset CROSS_COMPILE32
+          export CROSS_COMPILE64="ccache riscv64-linux-gnu-"
+
+          _make PLATFORM=virt
 
   QEMUv8_check:
     name: make check (QEMUv8)
