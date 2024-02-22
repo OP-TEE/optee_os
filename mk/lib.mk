@@ -40,8 +40,10 @@ endif
 cleanfiles	:= $(lib-libfile) $(lib-shlibfile) $(lib-shlibstrippedfile) $(lib-shlibtafile) $(lib-libuuidln) $(cleanfiles)
 libfiles	:= $(lib-libfile) $(lib-shlibfile) $(lib-shlibstrippedfile) $(lib-shlibtafile) $(lib-libuuidln) $(libfiles)
 libdirs 	:= $(out-dir)/$(base-prefix)$(libdir) $(libdirs)
+ifneq (,$(objs))
 libnames	:= $(libname) $(libnames)
 libdeps		:= $(lib-libfile) $(libdeps)
+endif
 
 SIGN = scripts/sign_encrypt.py
 TA_SIGN_KEY ?= keys/default_ta.pem
