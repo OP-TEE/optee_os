@@ -152,6 +152,7 @@ $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,n)
 $(call force,CFG_HALT_CORES_ON_PANIC_SGI,15)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
+$(call force,CFG_STM32_PKA,n)
 $(call force,CFG_STM32_SAES,n)
 $(call force,CFG_STM32MP1_RSTCTRL,y)
 $(call force,CFG_STM32MP15_CLK,y)
@@ -236,6 +237,7 @@ CFG_STM32_ETZPC ?= y
 CFG_STM32_GPIO ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
+CFG_STM32_PKA ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
 CFG_STM32_RTC ?= y
@@ -259,7 +261,7 @@ $(call force,CFG_STM32_GPIO,y)
 endif
 
 # If any crypto driver is enabled, enable the crypto-framework layer
-ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_SAES),y)
+ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_PKA CFG_STM32_SAES),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
