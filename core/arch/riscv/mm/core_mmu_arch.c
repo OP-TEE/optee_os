@@ -113,15 +113,23 @@ static bool __maybe_unused core_mmu_entry_is_branch(struct mmu_pte *pte)
 	return !core_mmu_entry_is_leaf(pte);
 }
 
-static unsigned long core_mmu_pte_create(unsigned long ppn, uint8_t perm)
+static unsigned long core_mmu_pte_create(unsigned long ppn, uint8_t pte_bits)
 {
-	return SHIFT_U64(ppn, PTE_PPN_SHIFT) | PTE_V | perm;
+	/*
+	 * This function may be called from core_mmu_set_entry(). There is a
+	 * case that MM core wants to clear PTE by calling core_mmu_set_entry()
+	 * with zero physical address and zero memory attributes, which turns
+	 * @ppn and @pte_bits in this function to be both zero. In this case, we
+	 * should create zero PTE without setting its V bit.
+	 */
+
+	return SHIFT_U64(ppn, PTE_PPN_SHIFT) | pte_bits;
 }
 
 static unsigned long core_mmu_ptp_create(unsigned long ppn)
 {
-	/* set perms to 0 since core_mmu_pte_create() already adds PTE_V */
-	return core_mmu_pte_create(ppn, 0);
+	/* Set V bit to create PTE points to next level of the page table. */
+	return core_mmu_pte_create(ppn, PTE_V);
 }
 
 static unsigned long core_mmu_pte_ppn(struct mmu_pte *pte)
