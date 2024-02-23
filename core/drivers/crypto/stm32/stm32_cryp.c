@@ -325,9 +325,11 @@ static TEE_Result __must_check read_block(struct stm32_cryp_context *ctx,
 static void cryp_end(struct stm32_cryp_context *ctx, TEE_Result prev_error)
 {
 	if (prev_error) {
-		if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+		if (cryp_pdata.reset &&
+		    rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 			panic();
-		if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+		if (cryp_pdata.reset &&
+		    rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 			panic();
 	}
 
@@ -1248,7 +1250,7 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 		return res;
 
 	res = rstctrl_dt_get_by_index(fdt, node, 0, &rstctrl);
-	if (res)
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
 	cryp_pdata.clock = clk;
@@ -1264,10 +1266,10 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 	if (clk_enable(cryp_pdata.clock))
 		panic();
 
-	if (rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+	if (rstctrl && rstctrl_assert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
 
-	if (rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
+	if (rstctrl && rstctrl_deassert_to(cryp_pdata.reset, TIMEOUT_US_1MS))
 		panic();
 
 	if (IS_ENABLED(CFG_CRYPTO_DRV_AUTHENC)) {
