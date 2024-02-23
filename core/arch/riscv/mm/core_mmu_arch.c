@@ -188,41 +188,40 @@ static unsigned long pte_to_mattr(unsigned level __maybe_unused,
 	return mattr;
 }
 
-static uint8_t mattr_to_perms(unsigned level __maybe_unused,
-			      uint32_t attr)
+static uint8_t mattr_to_pte_bits(unsigned level __maybe_unused, uint32_t attr)
 {
-	unsigned long perms = 0;
+	unsigned long pte_bits = 0;
 
 	if (attr & TEE_MATTR_TABLE)
 		return PTE_V;
 
 	if (attr & TEE_MATTR_VALID_BLOCK)
-		perms |= PTE_V;
+		pte_bits |= PTE_V;
 
 	if (attr & TEE_MATTR_UR)
-		perms |= PTE_R | PTE_U;
+		pte_bits |= PTE_R | PTE_U;
 	if (attr & TEE_MATTR_UW)
-		perms |= PTE_W | PTE_U;
+		pte_bits |= PTE_W | PTE_U;
 	if (attr & TEE_MATTR_UX)
-		perms |= PTE_X | PTE_U;
+		pte_bits |= PTE_X | PTE_U;
 
 	if (attr & TEE_MATTR_PR)
-		perms |= PTE_R;
+		pte_bits |= PTE_R;
 	if (attr & TEE_MATTR_PW)
-		perms |= PTE_W | PTE_R;
+		pte_bits |= PTE_W | PTE_R;
 	if (attr & TEE_MATTR_PX)
-		perms |= PTE_X | PTE_R;
+		pte_bits |= PTE_X | PTE_R;
 
 	if (attr & (TEE_MATTR_UR | TEE_MATTR_PR))
-		perms |= PTE_A;
+		pte_bits |= PTE_A;
 
 	if (attr & (TEE_MATTR_UW | TEE_MATTR_PW))
-		perms |= PTE_D;
+		pte_bits |= PTE_D;
 
 	if (attr & TEE_MATTR_GLOBAL)
-		perms |= PTE_G;
+		pte_bits |= PTE_G;
 
-	return perms;
+	return pte_bits;
 }
 
 static unsigned int core_mmu_pgt_idx(vaddr_t va, unsigned int level)
@@ -554,9 +553,9 @@ void core_mmu_set_entry_primitive(void *table, size_t level, size_t idx,
 {
 	struct mmu_pgt *pgt = (struct mmu_pgt *)table;
 	struct mmu_pte *pte = core_mmu_table_get_entry(pgt, idx);
-	uint8_t perms = mattr_to_perms(level, attr);
+	uint8_t pte_bits = mattr_to_pte_bits(level, attr);
 
-	core_mmu_entry_set(pte, core_mmu_pte_create(pa_to_ppn(pa), perms));
+	core_mmu_entry_set(pte, core_mmu_pte_create(pa_to_ppn(pa), pte_bits));
 }
 
 static void set_user_va_idx(struct mmu_partition *prtn)
