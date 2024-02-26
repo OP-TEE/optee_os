@@ -7,6 +7,7 @@
 #include <bitstring.h>
 #include <config.h>
 #include <kernel/cache_helpers.h>
+#include <kernel/misc.h>
 #include <kernel/panic.h>
 #include <kernel/spinlock.h>
 #include <kernel/tee_l2cc_mutex.h>
@@ -48,7 +49,7 @@ struct mmu_pgt {
 
 #define RISCV_MMU_PGT_SIZE	(sizeof(struct mmu_pgt))
 
-static struct mmu_pgt root_pgt
+static struct mmu_pgt root_pgt[CFG_TEE_CORE_NB_CORE]
 	__aligned(RISCV_PGSIZE)
 	__section(".nozi.mmu.root_pgt");
 
@@ -69,7 +70,7 @@ struct mmu_partition {
 };
 
 static struct mmu_partition default_partition __nex_data  = {
-	.root_pgt = &root_pgt,
+	.root_pgt = root_pgt,
 	.pool_pgts = pool_pgts,
 	.user_pgts = user_pgts,
 	.pgts_used = 0,
@@ -246,7 +247,7 @@ static struct mmu_partition *core_mmu_get_prtn(void)
 
 static struct mmu_pgt *core_mmu_get_root_pgt_va(struct mmu_partition *prtn)
 {
-	return prtn->root_pgt;
+	return prtn->root_pgt + get_core_pos();
 }
 
 static struct mmu_pgt *core_mmu_get_ta_pgt_va(struct mmu_partition *prtn)
@@ -300,12 +301,25 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	size_t n = 0;
 	void *pgt = core_mmu_get_root_pgt_va(prtn);
 
+	/* Clear table before using it. */
+	memset(prtn->root_pgt, 0, RISCV_MMU_PGT_SIZE * CFG_TEE_CORE_NB_CORE);
 	memset(pgt, 0, RISCV_MMU_PGT_SIZE);
 	memset(prtn->pool_pgts, 0, RISCV_MMU_MAX_PGTS * RISCV_MMU_PGT_SIZE);
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
 		if (!core_mmu_is_dynamic_vaspace(mm + n))
 			core_mmu_map_region(prtn, mm + n);
+
+	/*
+	 * Primary mapping table is ready at index `get_core_pos()`
+	 * whose value may not be ZERO. Take this index as copy source.
+	 */
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++) {
+		if (n != get_core_pos())
+			memcpy(&prtn->root_pgt[n],
+			       &prtn->root_pgt[get_core_pos()],
+			       RISCV_MMU_PGT_SIZE);
+	}
 }
 
 void tlbi_va_range(vaddr_t va, size_t len,
