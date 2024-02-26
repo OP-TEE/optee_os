@@ -21,7 +21,8 @@ struct _tee_mm_entry_t {
 	struct _tee_mm_pool_t *pool;
 	struct _tee_mm_entry_t *next;
 	uint32_t offset;	/* offset in pages/sections */
-	uint32_t size;		/* size in pages/sections */
+	uint32_t size:31;		/* size in pages/sections */
+	uint32_t valid:1;
 };
 typedef struct _tee_mm_entry_t tee_mm_entry_t;
 
@@ -86,6 +87,9 @@ tee_mm_entry_t *tee_mm_alloc(tee_mm_pool_t *pool, size_t size);
 
 /* Allocate supplied memory range if it's free */
 tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size);
+
+/* Invalidate supplied memory range */
+void tee_mm_invalidate(tee_mm_pool_t *pool, paddr_t base, size_t size);
 
 /*
  * Frees the entry in the paged virtual address space pointed to by the

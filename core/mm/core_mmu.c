@@ -2594,10 +2594,9 @@ void core_mmu_init_ta_ram(void)
 	tee_mm_init(&tee_mm_sec_ddr, ps, size, CORE_MMU_USER_CODE_SHIFT,
 		    TEE_MM_POOL_NO_FLAGS);
 
-	/*
-	 * FIXME(correctness): this entry should not be counted as valid
-	 * memory entry by memory usage monitor.
-	 */
-	unused = tee_mm_alloc2(&tee_mm_sec_ddr, core_mmu_tee_load_pa,
-			       CORE_MMU_PGDIR_SIZE);
+	if (IS_ENABLED(CFG_CORE_PHYS_RELOCATABLE) &&
+	    !IS_ENABLED(CFG_CORE_SEL2_SPMC)) {
+		tee_mm_invalidate(&tee_mm_sec_ddr, core_mmu_tee_load_pa,
+				  TEE_RAM_VA_SIZE);
+	}
 }

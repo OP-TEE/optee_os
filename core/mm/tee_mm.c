@@ -98,7 +98,9 @@ static size_t tee_mm_stats_allocated(tee_mm_pool_t *pool)
 
 	entry = pool->entry;
 	while (entry) {
-		sz += entry->size;
+		if (entry->valid)
+			sz += entry->size;
+
 		entry = entry->next;
 	}
 
@@ -246,7 +248,8 @@ static inline bool fit_in_gap(tee_mm_pool_t *pool, tee_mm_entry_t *e,
 	return true;
 }
 
-tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
+static tee_mm_entry_t *tee_mm_claim(tee_mm_pool_t *pool, paddr_t base,
+				    size_t size, bool valid)
 {
 	tee_mm_entry_t *entry;
 	paddr_t offslo;
@@ -291,6 +294,7 @@ tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
 	mm->offset = offslo;
 	mm->size = offshi - offslo;
 	mm->pool = pool;
+	mm->valid = valid;
 
 	update_max_allocated(pool);
 	cpu_spin_unlock_xrestore(&pool->lock, exceptions);
@@ -299,6 +303,16 @@ err:
 	cpu_spin_unlock_xrestore(&pool->lock, exceptions);
 	pfree(pool, mm);
 	return NULL;
+}
+
+tee_mm_entry_t *tee_mm_alloc2(tee_mm_pool_t *pool, paddr_t base, size_t size)
+{
+	return tee_mm_claim(pool, base, size, true);
+}
+
+void tee_mm_invalidate(tee_mm_pool_t *pool, paddr_t base, size_t size)
+{
+	(void)tee_mm_claim(pool, base, size, false);
 }
 
 void tee_mm_free(tee_mm_entry_t *p)
