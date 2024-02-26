@@ -352,6 +352,13 @@ static void get_prtn(struct guest_partition *prtn)
 		panic();
 }
 
+uint16_t virt_get_guest_id(struct guest_partition *prtn)
+{
+	if (!prtn)
+		return 0;
+	return prtn->id;
+}
+
 static struct guest_partition *find_guest_by_id_unlocked(uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;
