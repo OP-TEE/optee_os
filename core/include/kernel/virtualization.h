@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
-/* Copyright (c) 2018, EPAM Systems. All rights reserved. */
+/*
+ * Copyright (c) 2018, EPAM Systems. All rights reserved.
+ * Copyright (c) 2024, Linaro Limited
+ */
 
 #ifndef __KERNEL_VIRTUALIZATION_H
 #define __KERNEL_VIRTUALIZATION_H
@@ -11,6 +14,8 @@
 #include <tee_api_types.h>
 
 #define HYP_CLNT_ID 0
+
+struct guest_partition;
 
 #if defined(CFG_NS_VIRTUALIZATION)
 /**
@@ -99,6 +104,25 @@ void virt_get_ta_ram(vaddr_t *start, vaddr_t *end);
  */
 uint16_t virt_get_current_guest_id(void);
 
+/**
+ * virt_get_guest() - increase reference to a guest partition
+ * @guest_id:     ID of the guest partition to find
+ *
+ * Each successful call to this function must be matched by a call to
+ * virt_put_guest() in order to decrease the reference counter again.
+ *
+ * Return a pointer to the guest partition on success or NULL on failure
+ */
+struct guest_partition *virt_get_guest(uint16_t guest_id);
+
+/**
+ * virt_put_guest() - decrease reference to a guest partition
+ * @prtn:       Guest partition
+ *
+ * Does nothing if @prtn is NULL.
+ */
+void virt_put_guest(struct guest_partition *prtn);
+
 #else
 static inline TEE_Result virt_guest_created(uint16_t guest_id __unused)
 { return TEE_ERROR_NOT_SUPPORTED; }
@@ -120,6 +144,12 @@ static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
 				    paddr_t secmem1_base __unused,
 				    paddr_size_t secmem1_size __unused) { }
 static inline uint16_t virt_get_current_guest_id(void) { return 0; }
+
+static inline struct guest_partition *virt_get_guest(uint16_t guest_id __unused)
+{
+	return NULL;
+}
+static inline void virt_put_guest(struct guest_partition *prtn __unused) { }
 #endif /*CFG_NS_VIRTUALIZATION*/
 
 #if defined(CFG_CORE_SEL1_SPMC) && defined(CFG_NS_VIRTUALIZATION)
