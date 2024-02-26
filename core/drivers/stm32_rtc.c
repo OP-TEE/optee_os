@@ -6,6 +6,7 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rtc.h>
+#include <drivers/stm32_rtc.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_rtc.h>
 #include <io.h>
@@ -15,6 +16,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -200,6 +202,7 @@ struct rtc_compat {
  * @itr_handler: Interrupt handler
  * @notif_id: Notification ID
  * @wait_alarm_return_status: Status of the wait alarm thread
+ * @rtc: information for OP-TEE RTC device
  */
 struct rtc_device {
 	struct io_pa_va base;
@@ -216,6 +219,7 @@ struct rtc_device {
 	struct itr_handler *itr_handler;
 	uint32_t notif_id;
 	enum rtc_wait_alarm_status wait_alarm_return_status;
+	struct rtc *rtc;
 };
 
 /* Expect a single RTC instance */
@@ -426,18 +430,17 @@ static TEE_Result parse_dt(const void *fdt, int node)
 	if (res)
 		return res;
 
-	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_DRIVERS_RTC)) {
-		res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip,
-				       &rtc_dev.itr_num);
-		if (res)
-			return res;
-		res = interrupt_create_handler(rtc_dev.itr_chip,
-					       rtc_dev.itr_num,
-					       stm32_rtc_it_handler,
-					       &rtc_dev, 0,
-					       &rtc_dev.itr_handler);
-		if (res)
-			return res;
+	res = interrupt_dt_get(fdt, node, &rtc_dev.itr_chip,
+			       &rtc_dev.itr_num);
+	if (res != TEE_SUCCESS && res != TEE_ERROR_ITEM_NOT_FOUND)
+		return res;
+
+	if (fdt_getprop(fdt, node, "wakeup-source", NULL)) {
+		if (res != TEE_ERROR_ITEM_NOT_FOUND &&
+		    interrupt_can_set_wake(rtc_dev.itr_chip))
+			rtc_dev.rtc->is_wakeup_source = true;
+		else
+			DMSG("RTC wakeup source ignored");
 	}
 
 	if (!rtc_dev.compat->has_rif_support)
@@ -993,6 +996,17 @@ stm32_rtc_wait_alarm(struct rtc *rtc __unused,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result stm32_rtc_set_alarm_wakeup_status(struct rtc *rtc __unused,
+						    bool status)
+{
+	if (!rtc_dev.rtc->is_wakeup_source)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	interrupt_set_wake(rtc_dev.itr_chip, rtc_dev.itr_num, status);
+
+	return TEE_SUCCESS;
+}
+
 static const struct rtc_ops stm32_rtc_ops = {
 	.get_time = stm32_rtc_get_time,
 	.set_time = stm32_rtc_set_time,
@@ -1001,6 +1015,7 @@ static const struct rtc_ops stm32_rtc_ops = {
 	.enable_alarm = stm32_rtc_enable_alarm,
 	.wait_alarm = stm32_rtc_wait_alarm,
 	.cancel_wait = stm32_rtc_cancel_wait_alarm,
+	.set_alarm_wakeup_status = stm32_rtc_set_alarm_wakeup_status,
 };
 
 static struct rtc stm32_rtc = {
@@ -1016,6 +1031,7 @@ static TEE_Result stm32_rtc_probe(const void *fdt, int node,
 	bool is_tdcid = false;
 
 	rtc_dev.compat = compat_data;
+	rtc_dev.rtc = &stm32_rtc;
 
 	if (rtc_dev.compat->has_rif_support) {
 		res = stm32_rifsc_check_tdcid(&is_tdcid);
@@ -1062,21 +1078,30 @@ static TEE_Result stm32_rtc_probe(const void *fdt, int node,
 	rtc_register(&stm32_rtc);
 
 	if (IS_ENABLED(CFG_RTC_PTA) && IS_ENABLED(CFG_CORE_ASYNC_NOTIF) &&
-	    rtc_dev.is_secured) {
+	    rtc_dev.is_secured && rtc_dev.itr_chip) {
 		res = notif_alloc_async_value(&rtc_dev.notif_id);
 		if (res)
 			return res;
 
+		res = interrupt_create_handler(rtc_dev.itr_chip,
+					       rtc_dev.itr_num,
+					       stm32_rtc_it_handler,
+					       &rtc_dev, 0,
+					       &rtc_dev.itr_handler);
+		if (res)
+			goto out_rtc_secured_and_itr_chip;
+
 		/* Unbalanced clock enable to ensure IRQ interface is alive */
 		res = clk_enable(rtc_dev.pclk);
 		if (res)
-			goto out_rtc_secured;
+			goto out_rtc_secured_and_itr_chip;
 
 		interrupt_enable(rtc_dev.itr_chip, rtc_dev.itr_num);
 
 		return TEE_SUCCESS;
 
-out_rtc_secured:
+out_rtc_secured_and_itr_chip:
+		interrupt_remove_handler(rtc_dev.itr_handler);
 		notif_free_async_value(rtc_dev.notif_id);
 		return res;
 	}
