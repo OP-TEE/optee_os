@@ -294,6 +294,11 @@ static TEE_Result stm32_alloc_keypair(struct ecc_keypair *s, uint32_t type,
 	if (!s)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_KEYPAIR &&
+	    type != TEE_TYPE_ECDH_KEYPAIR)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
 	DMSG("Using PKA");
 	memset(s, 0, sizeof(*s));
 
@@ -322,6 +327,11 @@ static TEE_Result stm32_alloc_publickey(struct ecc_public_key *s, uint32_t type,
 {
 	if (!s)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* This driver only supports ECDH/ECDSA */
+	if (type != TEE_TYPE_ECDSA_KEYPAIR &&
+	    type != TEE_TYPE_ECDH_KEYPAIR)
+		return TEE_ERROR_NOT_IMPLEMENTED;
 
 	memset(s, 0, sizeof(*s));
 
