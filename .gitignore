@@ -1,8 +1,8 @@
-.cproject
-compile_commands.json
-cscope.*
-tags
-TAGS
-out
-.project
+/.cproject
+/compile_commands.json
+/cscope.*
+/tags
+/TAGS
+/out
+/.project
 *.swp
