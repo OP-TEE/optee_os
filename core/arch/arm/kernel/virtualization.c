@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2018, EPAM Systems. All rights reserved.
- * Copyright (c) 2023, Linaro Limited
+ * Copyright (c) 2023-2024, Linaro Limited
  */
 
 #include <bitstring.h>
@@ -48,6 +48,7 @@ struct guest_partition {
 	tee_mm_entry_t *ta_ram;
 	tee_mm_entry_t *tables;
 	bool runtime_initialized;
+	bool shutting_down;
 	uint16_t id;
 	struct refcount refc;
 #ifdef CFG_CORE_SEL1_SPMC
@@ -304,10 +305,8 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	mutex_init(&prtn->mutex);
 	refcount_set(&prtn->refc, 1);
 	res = configure_guest_prtn_mem(prtn);
-	if (res) {
-		nex_free(prtn);
-		return res;
-	}
+	if (res)
+		goto err_free_prtn;
 
 	set_current_prtn(prtn);
 
@@ -326,6 +325,10 @@ TEE_Result virt_guest_created(uint16_t guest_id)
 	core_mmu_set_default_prtn();
 
 	return TEE_SUCCESS;
+
+err_free_prtn:
+	nex_free(prtn);
+	return res;
 }
 
 static bool
@@ -343,40 +346,58 @@ prtn_have_remaining_resources(struct guest_partition *prtn __maybe_unused)
 #endif
 }
 
-TEE_Result virt_guest_destroyed(uint16_t guest_id)
+static void get_prtn(struct guest_partition *prtn)
+{
+	if (!refcount_inc(&prtn->refc))
+		panic();
+}
+
+static struct guest_partition *find_guest_by_id_unlocked(uint16_t guest_id)
+{
+	struct guest_partition *prtn = NULL;
+
+	LIST_FOREACH(prtn, &prtn_list, link)
+		if (!prtn->shutting_down && prtn->id == guest_id)
+			return prtn;
+
+	return NULL;
+}
+
+struct guest_partition *virt_get_guest(uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;
 	uint32_t exceptions = 0;
-	bool do_free = true;
-
-	IMSG("Removing guest %d", guest_id);
 
 	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
-
-	LIST_FOREACH(prtn, &prtn_list, link) {
-		if (prtn->id == guest_id) {
-			if (!refcount_dec(&prtn->refc)) {
-				EMSG("Guest thread(s) is still running. refc = %d",
-				     refcount_val(&prtn->refc));
-				panic();
-			}
-			LIST_REMOVE(prtn, link);
-			if (prtn_have_remaining_resources(prtn)) {
-				LIST_INSERT_HEAD(&prtn_destroy_list, prtn,
-						 link);
-				/*
-				 * Delay the nex_free() until
-				 * virt_reclaim_cookie_from_destroyed_guest()
-				 * is done with this partition.
-				 */
-				do_free = false;
-			}
-			break;
-		}
-	}
+	prtn = find_guest_by_id_unlocked(guest_id);
+	if (prtn)
+		get_prtn(prtn);
 	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
 
-	if (prtn) {
+	return prtn;
+}
+
+void virt_put_guest(struct guest_partition *prtn)
+{
+	if (prtn && refcount_dec(&prtn->refc)) {
+		uint32_t exceptions = 0;
+		bool do_free = true;
+
+		assert(prtn->shutting_down);
+
+		exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
+		LIST_REMOVE(prtn, link);
+		if (prtn_have_remaining_resources(prtn)) {
+			LIST_INSERT_HEAD(&prtn_destroy_list, prtn, link);
+			/*
+			 * Delay the nex_free() until
+			 * virt_reclaim_cookie_from_destroyed_guest()
+			 * is done with this partition.
+			 */
+			do_free = false;
+		}
+		cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+
 		tee_mm_free(prtn->tee_ram);
 		prtn->tee_ram = NULL;
 		tee_mm_free(prtn->ta_ram);
@@ -389,7 +410,26 @@ TEE_Result virt_guest_destroyed(uint16_t guest_id)
 		prtn->memory_map = NULL;
 		if (do_free)
 			nex_free(prtn);
-	} else
+	}
+}
+
+TEE_Result virt_guest_destroyed(uint16_t guest_id)
+{
+	struct guest_partition *prtn = NULL;
+	uint32_t exceptions = 0;
+
+	IMSG("Removing guest %"PRId16, guest_id);
+
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
+
+	prtn = find_guest_by_id_unlocked(guest_id);
+	if (prtn)
+		prtn->shutting_down = true;
+
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+
+	virt_put_guest(prtn);
+	if (!prtn)
 		EMSG("Client with id %d is not found", guest_id);
 
 	return TEE_SUCCESS;
@@ -397,10 +437,7 @@ TEE_Result virt_guest_destroyed(uint16_t guest_id)
 
 TEE_Result virt_set_guest(uint16_t guest_id)
 {
-	struct guest_partition *prtn;
-	uint32_t exceptions;
-
-	prtn = get_current_prtn();
+	struct guest_partition *prtn = get_current_prtn();
 
 	/* This can be true only if we return from IRQ RPC */
 	if (prtn && prtn->id == guest_id)
@@ -409,20 +446,14 @@ TEE_Result virt_set_guest(uint16_t guest_id)
 	if (prtn)
 		panic("Virtual guest partition is already set");
 
-	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
-	LIST_FOREACH(prtn, &prtn_list, link) {
-		if (prtn->id == guest_id) {
-			set_current_prtn(prtn);
-			core_mmu_set_prtn(prtn->mmu_prtn);
-			refcount_inc(&prtn->refc);
-			cpu_spin_unlock_xrestore(&prtn_list_lock,
-						 exceptions);
-			return TEE_SUCCESS;
-		}
-	}
-	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+	prtn = virt_get_guest(guest_id);
+	if (!prtn)
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
-	return TEE_ERROR_ITEM_NOT_FOUND;
+	set_current_prtn(prtn);
+	core_mmu_set_prtn(prtn->mmu_prtn);
+
+	return TEE_SUCCESS;
 }
 
 void virt_unset_guest(void)
@@ -434,8 +465,7 @@ void virt_unset_guest(void)
 
 	set_current_prtn(NULL);
 	core_mmu_set_default_prtn();
-	if (refcount_dec(&prtn->refc))
-		panic();
+	virt_put_guest(prtn);
 }
 
 void virt_on_stdcall(void)
