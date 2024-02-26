@@ -370,6 +370,28 @@ static struct guest_partition *find_guest_by_id_unlocked(uint16_t guest_id)
 	return NULL;
 }
 
+struct guest_partition *virt_next_guest(struct guest_partition *prtn)
+{
+	struct guest_partition *ret = NULL;
+	uint32_t exceptions = 0;
+
+	exceptions = cpu_spin_lock_xsave(&prtn_list_lock);
+	if (prtn)
+		ret = LIST_NEXT(prtn, link);
+	else
+		ret = LIST_FIRST(&prtn_list);
+
+	while (ret && ret->shutting_down)
+		ret = LIST_NEXT(prtn, link);
+	if (ret)
+		get_prtn(ret);
+	cpu_spin_unlock_xrestore(&prtn_list_lock, exceptions);
+
+	virt_put_guest(prtn);
+
+	return ret;
+}
+
 struct guest_partition *virt_get_current_guest(void)
 {
 	struct guest_partition *prtn = get_current_prtn();
