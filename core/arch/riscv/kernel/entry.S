@@ -71,9 +71,21 @@
 .endm
 
 .macro set_satp
+	/*
+	 * a0 = hartid
+	 * a1 = address of boot_mmu_config.satp[0]
+	 * a2 = size of CSR SATP
+	 *
+	 * This hart's SATP is of value (a1 + (a0 * a2)).
+	 */
+	csrr	a0, CSR_XSCRATCH
 	la	a1, boot_mmu_config
-	LDR	a0, CORE_MMU_CONFIG_SATP(a1)
-	csrw	CSR_SATP, a0
+	addi	a1, a1, CORE_MMU_CONFIG_SATP
+	li	a2, CORE_MMU_CONFIG_SATP_SIZE
+	mul	a0, a0, a2
+	add	a1, a1, a0
+	LDR	a2, 0(a1)
+	csrw	CSR_SATP, a2
 	sfence.vma	zero, zero
 .endm
 

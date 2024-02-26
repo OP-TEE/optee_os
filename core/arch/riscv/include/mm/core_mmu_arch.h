@@ -105,7 +105,7 @@
 #ifndef __ASSEMBLER__
 
 struct core_mmu_config {
-	unsigned long satp;
+	unsigned long satp[CFG_TEE_CORE_NB_CORE];
 	uint32_t map_offset;
 };
 

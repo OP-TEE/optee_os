@@ -738,10 +738,11 @@ void core_init_mmu(struct tee_mmap_region *mm)
 
 void core_init_mmu_regs(struct core_mmu_config *cfg)
 {
-	struct mmu_partition *prtn = core_mmu_get_prtn();
+	struct mmu_partition *p = core_mmu_get_prtn();
+	unsigned int n = 0;
 
-	cfg->satp = core_mmu_pgt_to_satp(prtn->asid,
-					 core_mmu_get_root_pgt_va(prtn));
+	for (n = 0; n < CFG_TEE_CORE_NB_CORE; n++)
+		cfg->satp[n] = core_mmu_pgt_to_satp(p->asid, p->root_pgt + n);
 }
 
 enum core_mmu_fault core_mmu_get_fault_type(uint32_t fault_descr)
