@@ -112,6 +112,24 @@ uint16_t virt_get_current_guest_id(void);
  */
 uint16_t virt_get_guest_id(struct guest_partition *prtn);
 
+/*
+ * virt_next_guest() - iterate over guest partitions
+ * @prtn:       Guest partition to start from
+ *
+ * Iterates of the guest partitions, if @prtn is NULL the first partition
+ * is returned. If there are none or no next partition NULL is returned.
+ *
+ * The supplied @prtn has its reference counter decreased with
+ * virt_put_guest() before returning the next partition. A returned
+ * partition has its reference counter increased before being returned.
+ *
+ * If virt_next_guest() is called in sequence until it returns NULL, all
+ * reference counters are restored, but if the sequence is stopped earlier
+ * it's the callers responsibility to call virt_put_guest() on the last
+ * returned partition.
+ */
+struct guest_partition *virt_next_guest(struct guest_partition *prtn);
+
 /**
  * virt_get_current_guest() - increase reference to current guest partition
  *
@@ -171,6 +189,11 @@ static inline struct guest_partition *virt_get_current_guest(void)
 	return NULL;
 }
 static inline struct guest_partition *virt_get_guest(uint16_t guest_id __unused)
+{
+	return NULL;
+}
+static inline struct guest_partition *
+virt_next_guest(struct guest_partition *prtn __unused)
 {
 	return NULL;
 }
