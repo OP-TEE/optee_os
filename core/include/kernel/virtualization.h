@@ -105,6 +105,16 @@ void virt_get_ta_ram(vaddr_t *start, vaddr_t *end);
 uint16_t virt_get_current_guest_id(void);
 
 /**
+ * virt_get_current_guest() - increase reference to current guest partition
+ *
+ * Each successful call to this function must be matched by a call to
+ * virt_put_guest() in order to decrease the reference counter again.
+ *
+ * Return a pointer to the guest partition on success or NULL on failure
+ */
+struct guest_partition *virt_get_current_guest(void);
+
+/**
  * virt_get_guest() - increase reference to a guest partition
  * @guest_id:     ID of the guest partition to find
  *
@@ -145,6 +155,10 @@ static inline void virt_init_memory(struct tee_mmap_region *memory_map __unused,
 				    paddr_size_t secmem1_size __unused) { }
 static inline uint16_t virt_get_current_guest_id(void) { return 0; }
 
+static inline struct guest_partition *virt_get_current_guest(void)
+{
+	return NULL;
+}
 static inline struct guest_partition *virt_get_guest(uint16_t guest_id __unused)
 {
 	return NULL;

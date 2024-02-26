@@ -363,6 +363,15 @@ static struct guest_partition *find_guest_by_id_unlocked(uint16_t guest_id)
 	return NULL;
 }
 
+struct guest_partition *virt_get_current_guest(void)
+{
+	struct guest_partition *prtn = get_current_prtn();
+
+	if (prtn)
+		get_prtn(prtn);
+	return prtn;
+}
+
 struct guest_partition *virt_get_guest(uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;
