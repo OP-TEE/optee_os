@@ -16,7 +16,7 @@ static struct hi16xx_uart_data console_data;
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE,
 			HI16XX_UART_REG_SIZE);
 
-void console_init(void)
+void plat_console_init(void)
 {
 	hi16xx_uart_init(&console_data, CONSOLE_UART_BASE,
 			 CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);

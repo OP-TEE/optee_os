@@ -108,7 +108,7 @@ void init_sec_mon(unsigned long nsec_entry)
 	memcpy(plat_huk, plat_boot_args->huk, sizeof(plat_boot_args->huk));
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);

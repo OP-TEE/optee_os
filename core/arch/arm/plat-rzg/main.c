@@ -28,7 +28,7 @@ register_dynamic_shm(NSEC_DDR_3_BASE, NSEC_DDR_3_SIZE);
 
 static struct scif_uart_data console_data __nex_bss;
 
-void console_init(void)
+void plat_console_init(void)
 {
 	scif_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);

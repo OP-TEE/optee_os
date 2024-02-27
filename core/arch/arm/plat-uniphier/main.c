@@ -40,7 +40,7 @@ void boot_primary_init_intc(void)
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 	/* Init UART */
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,

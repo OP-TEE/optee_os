@@ -13,7 +13,7 @@ static struct amlogic_uart_data console_data;
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, CONSOLE_UART_BASE,
 			CORE_MMU_PGDIR_SIZE);
 
-void console_init(void)
+void plat_console_init(void)
 {
 	amlogic_uart_init(&console_data, CONSOLE_UART_BASE);
 	register_serial_console(&console_data.chip);

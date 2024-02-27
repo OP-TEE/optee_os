@@ -34,7 +34,7 @@ register_phys_mem(MEM_AREA_IO_SEC, GIC_BASE, CORE_MMU_PGDIR_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, PERIPH_REG_BASE, CORE_MMU_PGDIR_SIZE);
 register_ddr(DRAM_BASE, DRAM_SIZE);
 
-void console_init(void)
+void plat_console_init(void)
 {
 	ns16550_init(&console_data, CONSOLE_UART_BASE, IO_WIDTH_U32, 2);
 	register_serial_console(&console_data.chip);

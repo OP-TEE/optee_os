@@ -17,6 +17,16 @@
 
 static struct serial_chip *serial_console __nex_bss;
 
+/* May be overridden by platform */
+__weak void plat_console_init(void)
+{
+}
+
+void console_init(void)
+{
+	plat_console_init();
+}
+
 void __weak console_putc(int ch)
 {
 	if (!serial_console)

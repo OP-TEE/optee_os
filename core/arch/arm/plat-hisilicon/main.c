@@ -24,7 +24,7 @@ register_phys_mem(MEM_AREA_IO_SEC, CPU_CRG_BASE, CPU_CRG_SIZE);
 register_phys_mem(MEM_AREA_IO_SEC, SYS_CTRL_BASE, SYS_CTRL_SIZE);
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE,
 		CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);

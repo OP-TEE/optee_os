@@ -58,7 +58,7 @@ service_init(platform_banner);
  */
 static struct stm32_uart_pdata console_data;
 
-void console_init(void)
+void plat_console_init(void)
 {
 #ifdef CFG_STM32_UART
 	/* Early console initialization before MMU setup */
