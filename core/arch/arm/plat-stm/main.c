@@ -56,7 +56,7 @@ TEE_Result tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 }
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 	stih_asc_init(&console_data, UART_CONSOLE_BASE);
 }

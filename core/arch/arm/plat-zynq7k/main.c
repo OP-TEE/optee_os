@@ -89,7 +89,7 @@ void plat_primary_init_early(void)
 	io_write32(SLCR_LOCK, SLCR_LOCK_MAGIC);
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 	cdns_uart_init(&console_data, CONSOLE_UART_BASE, 0, 0);
 	register_serial_console(&console_data.chip);

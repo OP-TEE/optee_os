@@ -13,7 +13,7 @@
 #ifdef CFG_RISCV_M_MODE
 static struct htif_console_data console_data __nex_bss;
 
-void console_init(void)
+void plat_console_init(void)
 {
 #ifdef HTIF_BASE
 	htif_console_init(&console_data, HTIF_BASE);

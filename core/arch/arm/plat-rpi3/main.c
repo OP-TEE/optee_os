@@ -39,7 +39,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 
 static struct serial8250_uart_data console_data;
 
-void console_init(void)
+void plat_console_init(void)
 {
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);

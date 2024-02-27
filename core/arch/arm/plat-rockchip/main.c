@@ -32,7 +32,7 @@ void boot_secondary_init_intc(void)
 	gic_init_per_cpu();
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 #if defined(CFG_EARLY_CONSOLE)
 	/*

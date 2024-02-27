@@ -41,7 +41,7 @@ register_ddr(DRAM1_BASE, DRAM1_SIZE_NSEC);
 register_ddr(DRAM2_BASE, DRAM2_SIZE_NSEC);
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
 		   CONSOLE_BAUDRATE);

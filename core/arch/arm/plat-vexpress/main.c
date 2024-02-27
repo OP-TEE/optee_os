@@ -80,7 +80,7 @@ void boot_primary_init_intc(void)
 }
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE, CONSOLE_UART_CLK_IN_HZ,
 		   CONSOLE_BAUDRATE);

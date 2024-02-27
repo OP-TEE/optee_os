@@ -55,7 +55,7 @@ static void sbi_console_init(struct sbi_console_data *pd)
 	pd->chip.ops = &sbi_console_ops;
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 	sbi_console_init(&console_data);
 	register_serial_console(&console_data.chip);

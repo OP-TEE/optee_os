@@ -60,7 +60,7 @@ void boot_primary_init_intc(void)
 	gic_init(GICC_BASE, GICD_BASE);
 }
 
-void console_init(void)
+void plat_console_init(void)
 {
 	ns16550_init(&console_data, CONSOLE_UART_BASE, IO_WIDTH_U32, 2);
 	register_serial_console(&console_data.chip);

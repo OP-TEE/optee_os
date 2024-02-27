@@ -112,7 +112,7 @@ void plat_primary_init_early(void)
 }
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 #ifdef CFG_PL011
 	/*

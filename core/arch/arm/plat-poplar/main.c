@@ -20,7 +20,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC, CONSOLE_UART_BASE, PL011_REG_SIZE);
 /* for dynamic shared memory */
 register_dynamic_shm(DRAM0_BASE_NSEC, DRAM0_SIZE_NSEC);
 
-void console_init(void)
+void plat_console_init(void)
 {
 	pl011_init(&console_data, CONSOLE_UART_BASE,
 		CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);

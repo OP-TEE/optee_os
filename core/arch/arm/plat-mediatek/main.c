@@ -33,7 +33,7 @@ void boot_primary_init_intc(void)
 }
 #endif
 
-void console_init(void)
+void plat_console_init(void)
 {
 	if (CFG_TEE_CORE_LOG_LEVEL != 0) {
 		serial8250_uart_init(&console_data, CONSOLE_UART_BASE,

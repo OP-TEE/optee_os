@@ -29,7 +29,7 @@ void boot_secondary_init_intc(void)
 }
 #endif /* CFG_RISCV_PLIC */
 
-void console_init(void)
+void plat_console_init(void)
 {
 	ns16550_init(&console_data, UART0_BASE, IO_WIDTH_U8, 0);
 	register_serial_console(&console_data.chip);
