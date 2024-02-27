@@ -90,7 +90,8 @@ void plat_console_init(void)
 #if (defined(CFG_GIC) || defined(CFG_CORE_HAFNIUM_INTC)) && \
 	defined(IT_CONSOLE_UART) && \
 	!defined(CFG_NS_VIRTUALIZATION) && \
-	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2))
+	!(defined(CFG_WITH_ARM_TRUSTED_FW) && defined(CFG_ARM_GICV2)) && \
+	!defined(CFG_SEMIHOSTING_CONSOLE)
 /*
  * This cannot be enabled with TF-A and GICv3 because TF-A then need to
  * assign the interrupt number of the UART to OP-TEE (S-EL1). Currently
