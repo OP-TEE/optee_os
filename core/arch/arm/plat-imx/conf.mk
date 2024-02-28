@@ -556,6 +556,28 @@ CFG_HWSUPP_MEM_PERM_WXN = n
 CFG_IMX_WDOG ?= y
 endif
 
+ifeq ($(filter y, $(CFG_MX6QP) $(CFG_MX6Q) $(CFG_MX6D) $(CFG_MX6DL) $(CFG_MX6S) $(CFG_MX6ULL)), y)
+# Reference manual says: OTP Bank 4 Word 6 (HW Capabilities) (OCOTP_GP1)
+CFG_IMX_OCOTP_RPMB_WRITTEN_BANK  ?= 4
+CFG_IMX_OCOTP_RPMB_WRITTEN_WORD  ?= 6
+CFG_IMX_OCOTP_RPMB_WRITTEN_BIT   ?= 0
+CFG_IMX_OCOTP_RPMB_WRITTEN_WRITE ?= n
+endif
+
+ifeq ($(filter y, $(CFG_MX93)), y)
+CFG_IMX_OCOTP_RPMB_WRITTEN_BANK  ?= 47
+CFG_IMX_OCOTP_RPMB_WRITTEN_WORD  ?= 0
+CFG_IMX_OCOTP_RPMB_WRITTEN_BIT   ?= 0
+CFG_IMX_OCOTP_RPMB_WRITTEN_WRITE ?= n
+endif
+
+ifeq ($(filter y, $(CFG_MX8M)), y)
+CFG_IMX_OCOTP_RPMB_WRITTEN_BANK  ?= 14
+CFG_IMX_OCOTP_RPMB_WRITTEN_WORD  ?= 0
+CFG_IMX_OCOTP_RPMB_WRITTEN_BIT   ?= 0
+CFG_IMX_OCOTP_RPMB_WRITTEN_WRITE ?= n
+endif
+
 ifeq ($(CFG_ARM64_core),y)
 # arm-v8 platforms
 include core/arch/arm/cpu/cortex-armv8-0.mk
