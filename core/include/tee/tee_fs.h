@@ -73,6 +73,13 @@ TEE_Result rpmb_mem_stats(struct pta_stats_alloc *stats, bool reset);
  * prevent a RPMB key write in the wrong state.
  */
 bool plat_rpmb_key_is_ready(void);
+
+/**
+ * Weak function which can be overridden by platforms to indicate that the RPMB
+ * key was written. Defaults to false, platforms can return true to prevent a
+ * writing the RPMB key twice.
+ */
+bool plat_rpmb_key_was_written(void);
 #else
 static inline TEE_Result tee_rpmb_reinit(void)
 {

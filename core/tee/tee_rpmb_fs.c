@@ -1087,6 +1087,11 @@ static TEE_Result tee_rpmb_write_and_verify_key(void)
 		return TEE_ERROR_BAD_STATE;
 	}
 
+	if (plat_rpmb_key_was_written()) {
+		EMSG("Key already written, abort RPMB write and verify key");
+		return TEE_ERROR_BAD_STATE;
+	}
+
 	DMSG("RPMB INIT: Writing Key value:");
 	DHEXDUMP(rpmb_ctx->key, RPMB_KEY_MAC_SIZE);
 
@@ -3173,6 +3178,11 @@ TEE_Result tee_rpmb_fs_raw_open(const char *fname, bool create,
 bool __weak plat_rpmb_key_is_ready(void)
 {
 	return true;
+}
+
+bool __weak plat_rpmb_key_was_written(void)
+{
+	return false;
 }
 
 #ifdef CFG_WITH_STATS
