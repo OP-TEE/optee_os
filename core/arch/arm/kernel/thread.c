@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2016-2022, Linaro Limited
  * Copyright (c) 2014, STMicroelectronics International N.V.
- * Copyright (c) 2020-2021, Arm Limited
+ * Copyright (c) 2020-2024, Arm Limited
  */
 
 #include <platform_config.h>
@@ -276,6 +276,14 @@ void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)
 	__thread_alloc_and_run(args->a0, args->a1, args->a2, args->a3, args->a4,
 			       args->a5, args->a6, args->a7,
 			       spmc_sp_thread_entry, THREAD_FLAGS_FFA_ONLY);
+}
+
+void thread_sp_alloc_and_run_interrupt_handler(struct thread_smc_args *args,
+					       uint64_t *lr_sp)
+{
+	__thread_alloc_and_run((uintptr_t)args, (uintptr_t)lr_sp, 0, 0, 0, 0, 0,
+			       0, spmc_sp_interrupt_handler_entry,
+			       THREAD_FLAGS_FFA_ONLY);
 }
 #endif
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2021, Arm Limited.
+ * Copyright (c) 2021-2024, Arm Limited.
  */
 #ifndef __KERNEL_SPMC_SP_HANDLER_H
 #define __KERNEL_SPMC_SP_HANDLER_H
@@ -15,6 +15,8 @@
 #define FFA_SRC(x)	(((x) >> 16) & UINT16_MAX)
 
 void spmc_sp_thread_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3);
+void spmc_sp_interrupt_handler_entry(struct thread_smc_args *args,
+				     uint64_t *lr_sp);
 void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp);
 bool ffa_mem_reclaim(struct thread_smc_args *args,
