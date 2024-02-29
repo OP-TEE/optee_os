@@ -7,18 +7,29 @@
 #include <config.h>
 #include <drivers/clk.h>
 #include <kernel/boot.h>
+#include <kernel/mutex_pm_aware.h>
 #include <kernel/panic.h>
-#include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <malloc.h>
 #include <stddef.h>
 #include <stdio.h>
 
-/* Global clock tree lock */
-static unsigned int clk_lock = SPINLOCK_UNLOCK;
+/* Global clock tree access protection complying the power state transitions */
+static struct mutex_pm_aware mu = MUTEX_PM_AWARE_INITIALIZER;
 
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
 static SLIST_HEAD(, clk) clock_list = SLIST_HEAD_INITIALIZER(clock_list);
 #endif
+
+static void lock_clk(void)
+{
+	mutex_pm_aware_lock(&mu);
+}
+
+static void unlock_clk(void)
+{
+	mutex_pm_aware_unlock(&mu);
+}
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
 		      struct clk **parent_clks, size_t parent_count)
@@ -173,23 +184,20 @@ static TEE_Result clk_enable_no_lock(struct clk *clk)
 
 TEE_Result clk_enable(struct clk *clk)
 {
-	uint32_t exceptions = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	exceptions = cpu_spin_lock_xsave(&clk_lock);
+	lock_clk();
 	res = clk_enable_no_lock(clk);
-	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
+	unlock_clk();
 
 	return res;
 }
 
 void clk_disable(struct clk *clk)
 {
-	uint32_t exceptions = 0;
-
-	exceptions = cpu_spin_lock_xsave(&clk_lock);
+	lock_clk();
 	clk_disable_no_lock(clk);
-	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
+	unlock_clk();
 }
 
 unsigned long clk_get_rate(struct clk *clk)
@@ -236,17 +244,16 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 
 TEE_Result clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	uint32_t exceptions = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	exceptions =  cpu_spin_lock_xsave(&clk_lock);
+	lock_clk();
 
 	if (clk->flags & CLK_SET_RATE_GATE && clk_is_enabled_no_lock(clk))
 		res = TEE_ERROR_BAD_STATE;
 	else
 		res = clk_set_rate_no_lock(clk, rate);
 
-	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
+	unlock_clk();
 
 	return res;
 }
@@ -322,13 +329,12 @@ out:
 TEE_Result clk_set_parent(struct clk *clk, struct clk *parent)
 {
 	size_t pidx = 0;
-	uint32_t exceptions = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (clk_get_parent_idx(clk, parent, &pidx) || !clk->ops->set_parent)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	exceptions = cpu_spin_lock_xsave(&clk_lock);
+	lock_clk();
 	if (clk->flags & CLK_SET_PARENT_GATE && clk_is_enabled_no_lock(clk)) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
@@ -336,7 +342,7 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent)
 
 	res = clk_set_parent_no_lock(clk, parent, pidx);
 out:
-	cpu_spin_unlock_xrestore(&clk_lock, exceptions);
+	unlock_clk();
 
 	return res;
 }

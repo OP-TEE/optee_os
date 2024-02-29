@@ -71,6 +71,10 @@ struct clk_duty_cycle {
  * @get_rates_array: Get the supported clock rates as array
  * @get_rates_steps: Get support clock rates by min/max/step representation
  * @get_duty_cycle: Get duty cytcle of the clock
+ *
+ * All clock operations are expected to execute in a interruptible thread
+ * context at the exclusion of power management sequence where non secure
+ * world is not operating (power off, suspend, resume).
  */
 struct clk_ops {
 	TEE_Result (*enable)(struct clk *clk);
