@@ -69,6 +69,46 @@ static unsigned int reg_shm_map_lock = SPINLOCK_UNLOCK;
 
 static struct mobj_reg_shm *to_mobj_reg_shm(struct mobj *mobj);
 
+static uint32_t lock_reg_shm_slist(void)
+{
+	uint32_t exceptions = 0;
+
+	if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK))
+		thread_spin_lock(&reg_shm_slist_lock);
+	else
+		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+
+	return exceptions;
+}
+
+static void unlock_reg_shm_slist(uint32_t exceptions)
+{
+	if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK))
+		thread_spin_unlock(&reg_shm_slist_lock);
+	else
+		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+}
+
+static uint32_t lock_reg_shm_map(void)
+{
+	uint32_t exceptions = 0;
+
+	if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK))
+		thread_spin_lock(&reg_shm_map_lock);
+	else
+		exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+
+	return exceptions;
+}
+
+static void unlock_reg_shm_map(uint32_t exceptions)
+{
+	if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK))
+		thread_spin_unlock(&reg_shm_map_lock);
+	else
+		cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+}
+
 static TEE_Result mobj_reg_shm_get_pa(struct mobj *mobj, size_t offst,
 				      size_t granule, paddr_t *pa)
 {
@@ -120,21 +160,38 @@ static void *mobj_reg_shm_get_va(struct mobj *mobj, size_t offst, size_t len)
 
 static void reg_shm_unmap_helper(struct mobj_reg_shm *r)
 {
+	size_t burst_pages = r->mm->size;
+	size_t burst_count = 1;
+	vaddr_t va = 0;
+	size_t i = 0;
+
 	assert(r->mm);
 	assert(r->mm->pool->shift == SMALL_PAGE_SHIFT);
-	core_mmu_unmap_pages(tee_mm_get_smem(r->mm), r->mm->size);
+
+	if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK)) {
+		/*
+		 * Unmap pages one by one to prevent masking interrupts
+		 * over a potentially long period of time.
+		 */
+		burst_pages = 1;
+		burst_count = r->mm->size;
+	}
+
+	va = tee_mm_get_smem(r->mm);
+	for (i = 0; i < burst_count; i++)
+		core_mmu_unmap_pages(va + i * SMALL_PAGE_SIZE, burst_pages);
 	tee_mm_free(r->mm);
 	r->mm = NULL;
 }
 
 static void reg_shm_free_helper(struct mobj_reg_shm *mobj_reg_shm)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+	uint32_t exceptions = lock_reg_shm_map();
 
 	if (mobj_reg_shm->mm)
 		reg_shm_unmap_helper(mobj_reg_shm);
 
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+	unlock_reg_shm_map(exceptions);
 
 	SLIST_REMOVE(&reg_shm_list, mobj_reg_shm, mobj_reg_shm, next);
 	free(mobj_reg_shm);
@@ -153,17 +210,17 @@ static void mobj_reg_shm_free(struct mobj *mobj)
 		 * unless mobj_reg_shm_release_by_cookie() is waiting for
 		 * the mobj to be released.
 		 */
-		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		exceptions = lock_reg_shm_slist();
 		reg_shm_free_helper(r);
-		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+		unlock_reg_shm_slist(exceptions);
 	} else {
 		/*
 		 * We've reached the point where an unguarded reg shm can
 		 * be released by cookie. Notify eventual waiters.
 		 */
-		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		exceptions = lock_reg_shm_slist();
 		r->release_frees = true;
-		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+		unlock_reg_shm_slist(exceptions);
 
 		mutex_lock(&shm_mu);
 		if (shm_release_waiters)
@@ -194,7 +251,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 		if (refcount_inc(&r->mapcount))
 			return TEE_SUCCESS;
 
-		exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+		exceptions = lock_reg_shm_map();
 
 		if (!refcount_val(&r->mapcount))
 			break; /* continue to reinitialize */
@@ -202,7 +259,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 		 * If another thread beat us to initialize mapcount,
 		 * restart to make sure we still increase it.
 		 */
-		cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+		unlock_reg_shm_map(exceptions);
 	}
 
 	/*
@@ -210,6 +267,11 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 	 * to get the lock we need only to reinitialize mapcount to 1.
 	 */
 	if (!r->mm) {
+		size_t burst_pages = 0;
+		size_t burst_count = 0;
+		vaddr_t va = 0;
+		size_t i = 0;
+
 		sz = ROUNDUP(mobj->size + r->page_offset, SMALL_PAGE_SIZE);
 		r->mm = tee_mm_alloc(&tee_mm_shm, sz);
 		if (!r->mm) {
@@ -217,10 +279,30 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 			goto out;
 		}
 
-		res = core_mmu_map_pages(tee_mm_get_smem(r->mm), r->pages,
-					 sz / SMALL_PAGE_SIZE,
-					 MEM_AREA_NSEC_SHM);
+		if (IS_ENABLED(CFG_DYN_SHM_INTERRUPTIBLE_LOCK)) {
+			/*
+			 * Map pages one by one to prevent masking interrupts
+			 * over a potentially long period of time.
+			 */
+			burst_pages = 1;
+			burst_count = sz / SMALL_PAGE_SIZE;
+		} else {
+			burst_pages = r->mm->size;
+			burst_count = 1;
+		}
+
+		va = tee_mm_get_smem(r->mm);
+		for (i = 0; i < burst_count; i++) {
+			res = core_mmu_map_pages(va + i * SMALL_PAGE_SIZE,
+						 r->pages + i, burst_pages,
+						 MEM_AREA_NSEC_SHM);
+			if (res)
+				break;
+		}
 		if (res) {
+			for (; i; i--)
+				core_mmu_unmap_pages(va + i * SMALL_PAGE_SIZE,
+						     burst_pages);
 			tee_mm_free(r->mm);
 			r->mm = NULL;
 			goto out;
@@ -229,7 +311,7 @@ static TEE_Result mobj_reg_shm_inc_map(struct mobj *mobj)
 
 	refcount_set(&r->mapcount, 1);
 out:
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+	unlock_reg_shm_map(exceptions);
 
 	return res;
 }
@@ -242,7 +324,7 @@ static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 	if (!refcount_dec(&r->mapcount))
 		return TEE_SUCCESS;
 
-	exceptions = cpu_spin_lock_xsave(&reg_shm_map_lock);
+	exceptions = lock_reg_shm_map();
 
 	/*
 	 * Check that another thread hasn't been able to:
@@ -254,7 +336,7 @@ static TEE_Result mobj_reg_shm_dec_map(struct mobj *mobj)
 	if (!refcount_val(&r->mapcount) && r->mm)
 		reg_shm_unmap_helper(r);
 
-	cpu_spin_unlock_xrestore(&reg_shm_map_lock, exceptions);
+	unlock_reg_shm_map(exceptions);
 
 	return TEE_SUCCESS;
 }
@@ -344,9 +426,9 @@ struct mobj *mobj_reg_shm_alloc(paddr_t *pages, size_t num_pages,
 			goto err;
 	}
 
-	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	exceptions = lock_reg_shm_slist();
 	SLIST_INSERT_HEAD(&reg_shm_list, mobj_reg_shm, next);
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	unlock_reg_shm_slist(exceptions);
 
 	return &mobj_reg_shm->mobj;
 err:
@@ -356,10 +438,10 @@ err:
 
 void mobj_reg_shm_unguard(struct mobj *mobj)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	uint32_t exceptions = lock_reg_shm_slist();
 
 	to_mobj_reg_shm(mobj)->guarded = false;
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	unlock_reg_shm_slist(exceptions);
 }
 
 static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
@@ -375,10 +457,10 @@ static struct mobj_reg_shm *reg_shm_find_unlocked(uint64_t cookie)
 
 struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 {
-	uint32_t exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+	uint32_t exceptions = lock_reg_shm_slist();
 	struct mobj_reg_shm *r = reg_shm_find_unlocked(cookie);
 
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	unlock_reg_shm_slist(exceptions);
 	if (!r)
 		return NULL;
 
@@ -387,7 +469,7 @@ struct mobj *mobj_reg_shm_get_by_cookie(uint64_t cookie)
 
 TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 {
-	uint32_t exceptions = 0;
+	uint32_t exceptions = lock_reg_shm_slist();
 	struct mobj_reg_shm *r = NULL;
 
 	/*
@@ -396,14 +478,13 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	 * wrong cookie and perhaps a second time, regardless return
 	 * TEE_ERROR_BAD_PARAMETERS.
 	 */
-	exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
 	r = reg_shm_find_unlocked(cookie);
 	if (!r || r->guarded || r->releasing)
 		r = NULL;
 	else
 		r->releasing = true;
 
-	cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+	unlock_reg_shm_slist(exceptions);
 
 	if (!r)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -424,12 +505,12 @@ TEE_Result mobj_reg_shm_release_by_cookie(uint64_t cookie)
 	assert(shm_release_waiters);
 
 	while (true) {
-		exceptions = cpu_spin_lock_xsave(&reg_shm_slist_lock);
+		exceptions = lock_reg_shm_slist();
 		if (r->release_frees) {
 			reg_shm_free_helper(r);
 			r = NULL;
 		}
-		cpu_spin_unlock_xrestore(&reg_shm_slist_lock, exceptions);
+		unlock_reg_shm_slist(exceptions);
 
 		if (!r)
 			break;
