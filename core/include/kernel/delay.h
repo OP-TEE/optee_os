@@ -33,6 +33,28 @@
 #include <kernel/delay_arch.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <util.h>
+
+#ifdef CFG_CORE_HAS_GENERIC_TIMER
+/* Convert microsecond base delay @us into architecture time tick counts */
+static inline uint64_t delay_us2cnt(uint32_t us)
+{
+	return ((uint64_t)us * (uint64_t)delay_cnt_freq()) / ULL(1000000);
+}
+
+/* Return delay tick counter for a timeout expiration in @us microseconds */
+static inline uint64_t timeout_init_us(uint32_t us)
+{
+	return delay_cnt_read() + delay_us2cnt(us);
+}
+
+/* Check if timeout tick counter @expire from timeout_init_us() has expired */
+
+static inline bool timeout_elapsed(uint64_t expire)
+{
+	return delay_cnt_read() > expire;
+}
+#endif /*CFG_CORE_HAS_GENERIC_TIMER*/
 
 /* Wait @us microseconds actively polling on architecture timer */
 void udelay(uint32_t us);
