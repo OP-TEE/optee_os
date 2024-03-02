@@ -149,7 +149,7 @@ TEE_Result cache_op_outer(enum cache_op op, paddr_t pa, size_t len)
 	}
 
 	tee_l2cc_mutex_unlock();
-	thread_set_exceptions(exceptions);
+	thread_unmask_exceptions(exceptions);
 	return ret;
 }
 #endif /*CFG_PL310*/
