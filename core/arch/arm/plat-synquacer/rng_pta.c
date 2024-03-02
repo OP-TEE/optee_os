@@ -227,9 +227,9 @@ void rng_collect_entropy(void)
 	uint8_t i = 0;
 	void *vaddr = 0;
 	uint8_t pool_full = 0;
-	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+	uint32_t exceptions = 0;
 
-	cpu_spin_lock(&entropy_lock);
+	exceptions = cpu_spin_lock_xsave(&entropy_lock);
 
 	for (i = 0; i < NUM_SENSORS; i++) {
 		vaddr = phys_to_virt_io(THERMAL_SENSOR_BASE0 +
@@ -250,8 +250,7 @@ void rng_collect_entropy(void)
 	if (pool_full)
 		generic_timer_stop();
 
-	cpu_spin_unlock(&entropy_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&entropy_lock, exceptions);
 }
 
 static TEE_Result rng_get_entropy(uint32_t types,
@@ -280,8 +279,7 @@ static TEE_Result rng_get_entropy(uint32_t types,
 	if (!e)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
-	cpu_spin_lock(&entropy_lock);
+	exceptions = cpu_spin_lock_xsave(&entropy_lock);
 
 	/*
 	 * Report health test failure to normal world in case fail count
@@ -309,8 +307,7 @@ exit:
 	/* Enable timer FIQ to fetch entropy */
 	generic_timer_start(TIMER_PERIOD_MS);
 
-	cpu_spin_unlock(&entropy_lock);
-	thread_set_exceptions(exceptions);
+	cpu_spin_unlock_xrestore(&entropy_lock, exceptions);
 
 	return res;
 }
