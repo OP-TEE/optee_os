@@ -9,39 +9,49 @@
 #include <kernel/boot.h>
 #include <kernel/mutex.h>
 #include <kernel/panic.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <malloc.h>
 #include <stddef.h>
 #include <stdio.h>
 
-/* Global clock tree lock */
-static struct mutex clk_lock = MUTEX_INITIALIZER;
+/* Global clock tree lock/mutex */
+static struct mutex clk_mutex = MUTEX_INITIALIZER;
+static unsigned int clk_lock = SPINLOCK_UNLOCK;
 
 #ifdef CFG_DRIVERS_CLK_PRINT_TREE
 static SLIST_HEAD(, clk) clock_list = SLIST_HEAD_INITIALIZER(clock_list);
 #endif
 
-static void lock_clk_access(void)
+/*
+ * Clock operation may occur at runtime and during specific
+ * system power transition (PM power off, suspend and resume)
+ * that operate for example in fastcall SMC entries of the PSCI
+ * services where non-secure world is not operational. In these
+ * cases we cannot take a mutex and will expect the mutex is
+ * unlocked.
+ */
+static void lock_clk(void)
 {
-	/*
-	 * Clock operation may occur at runtime and during specific
-	 * system power transition (PM power off, suspend and resume)
-	 * that operate for example in fastcall SMC entries of the PSCI
-	 * services where non-secure world is not operational. In these
-	 * cases we cannot take a mutex and will expect the mutex is
-	 * unlocked.
-	 */
-	if (thread_get_id_may_fail() == THREAD_ID_INVALID)
-		assert(!clk_lock.state);
-	else
-		mutex_lock(&clk_lock);
+	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
+		if (!cpu_spin_trylock(&clk_lock) || clk_mutex.state)
+			panic();
+	} else {
+		mutex_lock(&clk_mutex);
+		if (clk_lock)
+			panic();
+	}
 }
 
-static void unlock_clk_access(void)
+static void unlock_clk(void)
 {
-	/* Mutex is not held PM sequences which execute in atomic context */
-	if (thread_get_id_may_fail() != THREAD_ID_INVALID)
-		mutex_unlock(&clk_lock);
+	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
+		assert(!clk_mutex.state);
+		cpu_spin_unlock(&clk_lock);
+	} else {
+		assert(!clk_lock);
+		mutex_unlock(&clk_mutex);
+	}
 }
 
 struct clk *clk_alloc(const char *name, const struct clk_ops *ops,
@@ -199,18 +209,18 @@ TEE_Result clk_enable(struct clk *clk)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	lock_clk_access();
+	lock_clk();
 	res = clk_enable_no_lock(clk);
-	unlock_clk_access();
+	unlock_clk();
 
 	return res;
 }
 
 void clk_disable(struct clk *clk)
 {
-	lock_clk_access();
+	lock_clk();
 	clk_disable_no_lock(clk);
-	unlock_clk_access();
+	unlock_clk();
 }
 
 unsigned long clk_get_rate(struct clk *clk)
@@ -259,14 +269,14 @@ TEE_Result clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	lock_clk_access();
+	lock_clk();
 
 	if (clk->flags & CLK_SET_RATE_GATE && clk_is_enabled_no_lock(clk))
 		res = TEE_ERROR_BAD_STATE;
 	else
 		res = clk_set_rate_no_lock(clk, rate);
 
-	unlock_clk_access();
+	unlock_clk();
 
 	return res;
 }
@@ -347,7 +357,7 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk_get_parent_idx(clk, parent, &pidx) || !clk->ops->set_parent)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	lock_clk_access();
+	lock_clk();
 	if (clk->flags & CLK_SET_PARENT_GATE && clk_is_enabled_no_lock(clk)) {
 		res = TEE_ERROR_BAD_STATE;
 		goto out;
@@ -355,7 +365,7 @@ TEE_Result clk_set_parent(struct clk *clk, struct clk *parent)
 
 	res = clk_set_parent_no_lock(clk, parent, pidx);
 out:
-	unlock_clk_access();
+	unlock_clk();
 
 	return res;
 }
