@@ -54,6 +54,13 @@ static inline bool timeout_elapsed(uint64_t expire)
 {
 	return delay_cnt_read() > expire;
 }
+
+/*
+ * Return the time in microseconds since/until timeout tick counter @expired,
+ * that was initialized with timeout_init_us() or like, has/will expire.
+ * A positive value means the timeout has expired and a negative one it has not.
+ */
+int timeout_elapsed_us(uint64_t expire);
 #endif /*CFG_CORE_HAS_GENERIC_TIMER*/
 
 /* Wait @us microseconds actively polling on architecture timer */
