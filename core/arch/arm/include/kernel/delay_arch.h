@@ -30,23 +30,18 @@
 #ifndef __KERNEL_DELAY_ARCH_H
 #define __KERNEL_DELAY_ARCH_H
 
+#ifdef CFG_CORE_HAS_GENERIC_TIMER
 #include <arm.h>
-#include <stdbool.h>
 #include <stdint.h>
 
-static inline uint64_t arm_cnt_us2cnt(uint32_t us)
+static inline unsigned int delay_cnt_freq(void)
 {
-	return ((uint64_t)us * (uint64_t)read_cntfrq()) / 1000000ULL;
+	return read_cntfrq();
 }
 
-static inline uint64_t timeout_init_us(uint32_t us)
+static inline uint64_t delay_cnt_read(void)
 {
-	return barrier_read_counter_timer() + arm_cnt_us2cnt(us);
+	return barrier_read_counter_timer();
 }
-
-static inline bool timeout_elapsed(uint64_t expire)
-{
-	return barrier_read_counter_timer() > expire;
-}
-
+#endif /* CFG_CORE_HAS_GENERIC_TIMER */
 #endif
