@@ -124,7 +124,7 @@ static unsigned int entropy_lock = SPINLOCK_UNLOCK;
 
 static void pool_add_entropy(uint8_t *entropy, uint32_t size)
 {
-	uint32_t copy_size;
+	uint32_t copy_size = 0;
 
 	if (entropy_size >= ENTROPY_POOL_SIZE)
 		return;
@@ -141,7 +141,7 @@ static void pool_add_entropy(uint8_t *entropy, uint32_t size)
 
 static void pool_get_entropy(uint8_t *buf, uint32_t size)
 {
-	uint32_t off;
+	uint32_t off = 0;
 
 	if (size > entropy_size)
 		return;
@@ -154,9 +154,11 @@ static void pool_get_entropy(uint8_t *buf, uint32_t size)
 
 static bool health_test(uint8_t sensor_id)
 {
-	uint32_t falling_edge_count = 0, rising_edge_count = 0;
-	uint32_t lo_edge_count, hi_edge_count;
-	uint32_t i;
+	uint32_t falling_edge_count = 0;
+	uint32_t rising_edge_count = 0;
+	uint32_t lo_edge_count = 0;
+	uint32_t hi_edge_count = 0;
+	uint32_t i = 0;
 
 	for (i = 0; i < (SENSOR_DATA_SIZE - 1); i++) {
 		if ((sensors_data[sensor_id][i] ^
@@ -179,10 +181,10 @@ static bool health_test(uint8_t sensor_id)
 
 static uint8_t pool_check_add_entropy(void)
 {
-	uint32_t i;
+	uint32_t i = 0;
 	uint8_t entropy_sha512_256[TEE_SHA256_HASH_SIZE];
 	uint8_t pool_status = 0;
-	TEE_Result res;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	for (i = 0; i < NUM_SENSORS; i++) {
 		/* Check if particular sensor data passes health test */
@@ -222,8 +224,9 @@ static uint8_t pool_check_add_entropy(void)
 
 void rng_collect_entropy(void)
 {
-	uint8_t i, pool_full = 0;
-	void *vaddr;
+	uint8_t i = 0;
+	void *vaddr = 0;
+	uint8_t pool_full = 0;
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
 	cpu_spin_lock(&entropy_lock);
@@ -255,8 +258,9 @@ static TEE_Result rng_get_entropy(uint32_t types,
 				  TEE_Param params[TEE_NUM_PARAMS])
 {
 	uint8_t *e = NULL;
-	uint32_t pool_size = 0, rq_size = 0;
-	uint32_t exceptions;
+	uint32_t rq_size = 0;
+	uint32_t pool_size = 0;
+	uint32_t exceptions = 0;
 	TEE_Result res = TEE_SUCCESS;
 
 	if (types != TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
