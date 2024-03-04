@@ -20,7 +20,7 @@
 #define SBI_ERR_ALREADY_STOPPED		-8
 
 /* SBI Extension IDs */
-#define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01, 0
+#define SBI_EXT_0_1_CONSOLE_PUTCHAR	0x01
 #define SBI_EXT_HSM			0x48534D
 #define SBI_EXT_TEE			0x544545
 
