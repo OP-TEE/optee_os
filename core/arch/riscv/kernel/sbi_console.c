@@ -19,9 +19,6 @@ struct sbi_console_data {
 };
 
 static struct sbi_console_data console_data __nex_bss;
-static void sbi_console_flush(struct serial_chip *chip __unused)
-{
-}
 
 static void sbi_console_putc(struct serial_chip *chip __unused,
 			     int ch)
@@ -30,7 +27,6 @@ static void sbi_console_putc(struct serial_chip *chip __unused,
 }
 
 static const struct serial_ops sbi_console_ops = {
-	.flush = sbi_console_flush,
 	.putc = sbi_console_putc,
 };
 
