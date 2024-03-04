@@ -445,4 +445,5 @@ CFG_STM32_ALLOW_UNSAFE_PROBE ?= n
 # Enable RTC
 ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
+$(call force,CFG_RTC_PTA,y)
 endif
