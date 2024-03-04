@@ -14,8 +14,6 @@
 #include <trace.h>
 #include <util.h>
 
-#ifdef CFG_RISCV_SBI_CONSOLE
-
 struct sbi_console_data {
 	struct serial_chip chip;
 };
@@ -60,6 +58,3 @@ void console_init(void)
 	sbi_console_init(&console_data);
 	register_serial_console(&console_data.chip);
 }
-
-#endif /*CFG_RISCV_SBI_CONSOLE*/
-
