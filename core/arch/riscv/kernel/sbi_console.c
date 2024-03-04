@@ -19,18 +19,6 @@ struct sbi_console_data {
 };
 
 static struct sbi_console_data console_data __nex_bss;
-static unsigned int sbi_console_global_lock __nex_bss = SPINLOCK_UNLOCK;
-
-static void sbi_console_lock_global(void)
-{
-	cpu_spin_lock(&sbi_console_global_lock);
-}
-
-static void sbi_console_unlock_global(void)
-{
-	cpu_spin_unlock(&sbi_console_global_lock);
-}
-
 static void sbi_console_flush(struct serial_chip *chip __unused)
 {
 }
@@ -38,9 +26,7 @@ static void sbi_console_flush(struct serial_chip *chip __unused)
 static void sbi_console_putc(struct serial_chip *chip __unused,
 			     int ch)
 {
-	sbi_console_lock_global();
 	sbi_console_putchar(ch);
-	sbi_console_unlock_global();
 }
 
 static const struct serial_ops sbi_console_ops = {
