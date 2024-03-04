@@ -29,9 +29,13 @@ struct sbiret {
 
 #define sbi_ecall(...) _sbi_ecall(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0)
 
+/**
+ * sbi_console_putchar() - Writes given character to the console device.
+ * @ch: The data to be written to the console.
+ */
 void sbi_console_putchar(int ch)
 {
-	sbi_ecall(SBI_EXT_0_1_CONSOLE_PUTCHAR, (unsigned long)ch);
+	sbi_ecall(SBI_EXT_0_1_CONSOLE_PUTCHAR, 0, ch);
 }
 
 int sbi_hsm_hart_start(uint32_t hartid, paddr_t start_addr, unsigned long arg)
