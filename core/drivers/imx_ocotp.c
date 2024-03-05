@@ -12,6 +12,7 @@
 #include <kernel/tee_common_otp.h>
 
 #define OCOTP_CTRL			0x0
+#define OCOTP_CTRL_CLR			0x8
 
 #if defined(CFG_MX8MP)
 #define OCOTP_CTRL_ERROR		BIT32(10)
@@ -103,7 +104,7 @@ TEE_Result imx_ocotp_read(unsigned int bank, unsigned int word, uint32_t *val)
 	ocotp_clock_enable();
 
 	/* Clear error bit */
-	io_clrbits32(g_base_addr + OCOTP_CTRL, OCOTP_CTRL_ERROR);
+	io_write32(g_base_addr + OCOTP_CTRL_CLR, OCOTP_CTRL_ERROR);
 
 	/* Wait for busy flag to be cleared */
 	ret = ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
