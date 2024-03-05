@@ -1118,6 +1118,12 @@ static TEE_Result tee_buffer_update(
 		l = ROUNDUP(op->buffer_offs + slen - buffer_size,
 				op->block_size);
 		l = MIN(op->buffer_offs, l);
+		/*
+		 * If we're buffering only a single block, process it
+		 * immediately.
+		 */
+		if (!op->buffer_two_blocks)
+			l = op->block_size;
 		tmp_dlen = dlen;
 		res = update_func(op->state, op->buffer, l, dst, &tmp_dlen);
 		if (res != TEE_SUCCESS)
