@@ -11,14 +11,20 @@
 #include <drivers/imx_ocotp.h>
 #include <kernel/tee_common_otp.h>
 
-#define OCOTP_CTRL		    0x0
-#define OCOTP_CTRL_ERROR	    BIT32(9)
-#define OCOTP_CTRL_BUSY		    BIT32(8)
+#define OCOTP_CTRL			0x0
+
+#if defined(CFG_MX8MP)
+#define OCOTP_CTRL_ERROR		BIT32(10)
+#define OCOTP_CTRL_BUSY			BIT32(9)
+#else
+#define OCOTP_CTRL_ERROR		BIT32(9)
+#define OCOTP_CTRL_BUSY			BIT32(8)
+#endif
 
 #if defined(CFG_MX6) || defined(CFG_MX7ULP)
-#define OCOTP_SHADOW_OFFSET(_b, _w) ((_b) * (0x80) + (_w) * (0x10) + 0x400)
+#define OCOTP_SHADOW_OFFSET(_b, _w)	((_b) * (0x80) + (_w) * (0x10) + 0x400)
 #else
-#define OCOTP_SHADOW_OFFSET(_b, _w) ((_b) * (0x40) + (_w) * (0x10) + 0x400)
+#define OCOTP_SHADOW_OFFSET(_b, _w)	((_b) * (0x40) + (_w) * (0x10) + 0x400)
 #endif
 
 struct ocotp_instance {
