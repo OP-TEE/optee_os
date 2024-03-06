@@ -93,7 +93,8 @@ static inline void cpu_spin_unlock(unsigned int *lock)
 	spinlock_count_decr();
 }
 
-static inline uint32_t cpu_spin_lock_xsave_no_dldetect(unsigned int *lock)
+static inline uint32_t __must_check
+cpu_spin_lock_xsave_no_dldetect(unsigned int *lock)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -105,9 +106,9 @@ static inline uint32_t cpu_spin_lock_xsave_no_dldetect(unsigned int *lock)
 #define cpu_spin_lock_xsave(lock) \
 	cpu_spin_lock_xsave_dldetect(__func__, __LINE__, lock)
 
-static inline uint32_t cpu_spin_lock_xsave_dldetect(const char *func,
-						    const int line,
-						    unsigned int *lock)
+static inline uint32_t __must_check
+cpu_spin_lock_xsave_dldetect(const char *func, const int line,
+			     unsigned int *lock)
 {
 	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
 
@@ -115,7 +116,7 @@ static inline uint32_t cpu_spin_lock_xsave_dldetect(const char *func,
 	return exceptions;
 }
 #else
-static inline uint32_t cpu_spin_lock_xsave(unsigned int *lock)
+static inline uint32_t __must_check cpu_spin_lock_xsave(unsigned int *lock)
 {
 	return cpu_spin_lock_xsave_no_dldetect(lock);
 }
