@@ -80,6 +80,12 @@ bool plat_rpmb_key_is_ready(void);
  * writing the RPMB key twice.
  */
 bool plat_rpmb_key_was_written(void);
+
+/**
+ * Weak function which can be overridden by platforms to get notified once the
+ * RPMB key was written. The res contains the key write and verify result.
+ */
+void plat_notify_tee_rpmb_key_write_key_post(TEE_Result res);
 #else
 static inline TEE_Result tee_rpmb_reinit(void)
 {

@@ -1100,6 +1100,9 @@ static TEE_Result tee_rpmb_write_and_verify_key(void)
 		DMSG("RPMB INIT: Verifying Key");
 		res = tee_rpmb_init_read_wr_cnt(&rpmb_ctx->wr_cnt);
 	}
+
+	plat_notify_tee_rpmb_key_write_key_post(res);
+
 	return res;
 }
 #else
@@ -3183,6 +3186,10 @@ bool __weak plat_rpmb_key_is_ready(void)
 bool __weak plat_rpmb_key_was_written(void)
 {
 	return false;
+}
+
+void __weak plat_notify_tee_rpmb_key_write_key_post(TEE_Result res)
+{
 }
 
 #ifdef CFG_WITH_STATS
