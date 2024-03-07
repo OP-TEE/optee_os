@@ -9,6 +9,7 @@
 #include <imx.h>
 #include <io.h>
 #include <drivers/imx_ocotp.h>
+#include <kernel/delay_arch.h>
 #include <kernel/tee_common_otp.h>
 
 #define OCOTP_CTRL			0x0
@@ -68,6 +69,21 @@ static inline void ocotp_clock_enable(void) { }
 #error "Platform not supported"
 #endif
 
+#if defined(CFG_MX8M)
+static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
+{
+	uint64_t timeout;
+
+	assert(g_base_addr);
+
+	timeout = timeout_init_us(20);
+	while (io_read32(g_base_addr + OCOTP_CTRL) & (mask))
+		if (timeout_elapsed(timeout))
+			return TEE_ERROR_BUSY;
+
+	return TEE_SUCCESS;
+}
+#else
 static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
 {
 	unsigned int loop = 0;
@@ -86,6 +102,7 @@ static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
 
 	return TEE_ERROR_BUSY;
 }
+#endif
 
 TEE_Result imx_ocotp_read(unsigned int bank, unsigned int word, uint32_t *val)
 {
