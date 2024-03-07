@@ -199,6 +199,7 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 
 TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 					const uint8_t *label, size_t label_len,
+					uint32_t mgf_algo,
 					const uint8_t *cipher,
 					size_t cipher_len, uint8_t *msg,
 					size_t *msg_len)
@@ -228,6 +229,12 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 
 			ret = tee_alg_get_digest_size(rsa_data.hash_algo,
 						      &rsa_data.digest_size);
+			if (ret != TEE_SUCCESS)
+				return ret;
+
+			rsa_data.mgf_algo = mgf_algo;
+			ret = tee_alg_get_digest_size(rsa_data.mgf_algo,
+						      &rsa_data.mgf_size);
 			if (ret != TEE_SUCCESS)
 				return ret;
 
@@ -261,6 +268,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
 					const uint8_t *label, size_t label_len,
+					uint32_t mgf_algo,
 					const uint8_t *msg, size_t msg_len,
 					uint8_t *cipher, size_t *cipher_len)
 {
@@ -321,6 +329,12 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 			if (msg_len >
 			    rsa_data.key.n_size - 2 * rsa_data.digest_size - 2)
 				return TEE_ERROR_BAD_PARAMETERS;
+
+			rsa_data.mgf_algo = mgf_algo;
+			ret = tee_alg_get_digest_size(rsa_data.mgf_algo,
+						      &rsa_data.mgf_size);
+			if (ret != TEE_SUCCESS)
+				return ret;
 
 			rsa_data.mgf = &drvcrypt_rsa_mgf1;
 		}

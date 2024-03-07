@@ -890,8 +890,8 @@ static TEE_Result do_oaep_decoding(struct drvcrypt_rsa_ed *rsa_data)
 	 *
 	 * Note: Use same buffer for seed and seedMask
 	 */
-	mgf_data.hash_algo = rsa_data->hash_algo;
-	mgf_data.digest_size = rsa_data->digest_size;
+	mgf_data.hash_algo = rsa_data->mgf_algo;
+	mgf_data.digest_size = rsa_data->mgf_size;
 	mgf_data.seed.data = maskedDB.data;
 	mgf_data.seed.length = maskedDB.length;
 	mgf_data.mask.data = seed.data;
@@ -1123,8 +1123,8 @@ static TEE_Result do_oaep_encoding(struct drvcrypt_rsa_ed *rsa_data)
 	 * Generate a Mask of the seed value
 	 * dbMask = MGF(seed, k - hLen - 1)
 	 */
-	mgf_data.hash_algo = rsa_data->hash_algo;
-	mgf_data.digest_size = rsa_data->digest_size;
+	mgf_data.hash_algo = rsa_data->mgf_algo;
+	mgf_data.digest_size = rsa_data->mgf_size;
 	mgf_data.seed.data = seed.data;
 	mgf_data.seed.length = seed.length;
 	mgf_data.mask.data = dbMask.data;

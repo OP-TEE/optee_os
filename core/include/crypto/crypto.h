@@ -261,11 +261,13 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 					   uint8_t *dst, size_t *dst_len);
 TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 					const uint8_t *label, size_t label_len,
+					uint32_t mgf_algo,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len);
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
 					const uint8_t *label, size_t label_len,
+					uint32_t mgf_algo,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len);
 /* RSA SSA sign/verify: if salt_len == -1, use default value */
