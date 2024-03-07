@@ -9,18 +9,35 @@
 #include <imx.h>
 #include <io.h>
 #include <drivers/imx_ocotp.h>
+#include <kernel/delay.h>
 #include <kernel/delay_arch.h>
 #include <kernel/tee_common_otp.h>
 
 #define OCOTP_CTRL			0x0
+#define OCOTP_CTRL_SET			0x4
 #define OCOTP_CTRL_CLR			0x8
+#define OCOTP_TIMING			0x10
+#define OCOTP_DATA			0x20
+
+#define OCOTP_CTRL_WR_UNLOCK_KEY	0x3E77
+
+#define OCOTP_TIMING_WAIT		GENMASK_32(27, 22)
+#define OCOTP_TIMING_STROBE_READ	GENMASK_32(21, 16)
+#define OCOTP_TIMING_RELAX		GENMASK_32(15, 12)
+#define OCOTP_TIMING_STROBE_PROG	GENMASK_32(11, 0)
 
 #if defined(CFG_MX8MP)
+#define OCOTP_CTRL_WR_UNLOCK		GENMASK_32(31, 16)
+#define OCOTP_CTRL_RELOAD_SHADOWS	BIT(11)
 #define OCOTP_CTRL_ERROR		BIT32(10)
 #define OCOTP_CTRL_BUSY			BIT32(9)
+#define OCOTP_CTRL_ADDR			GENMASK_32(8, 0)
 #else
+#define OCOTP_CTRL_WR_UNLOCK		GENMASK_32(31, 16)
+#define OCOTP_CTRL_RELOAD_SHADOWS	BIT(10)
 #define OCOTP_CTRL_ERROR		BIT32(9)
 #define OCOTP_CTRL_BUSY			BIT32(8)
+#define OCOTP_CTRL_ADDR			GENMASK_32(7, 0)
 #endif
 
 #if defined(CFG_MX6) || defined(CFG_MX7ULP)
@@ -29,10 +46,25 @@
 #define OCOTP_SHADOW_OFFSET(_b, _w)	((_b) * (0x40) + (_w) * (0x10) + 0x400)
 #endif
 
+#define OCOTP_ADDR(_b, _w)		(((_b) * (0x40) + (_w) * (0x10)) / 0x10)
+
+#define TIMING_STROBE_PROG_US		10	/* Min time to blow a fuse */
+#define TIMING_STROBE_READ_NS		37	/* Min time before read */
+#define TIMING_RELAX_NS			17
+
+#define ffs(x)	__builtin_ffs(x)
+#define field_prep(_mask, _val)  \
+	({ \
+		typeof(_mask) __mask = _mask; \
+		\
+		(((_val) << (ffs(__mask) - 1)) & (__mask)); \
+	})
+
 struct ocotp_instance {
 	unsigned char nb_banks;
 	unsigned char nb_words;
 	TEE_Result (*get_die_id)(uint64_t *ret_uid);
+	TEE_Result (*write_fuse)(unsigned int bank, unsigned int word, uint32_t val);
 };
 
 static vaddr_t g_base_addr;
@@ -76,7 +108,8 @@ static TEE_Result ocotp_ctrl_wait_for(uint32_t mask)
 
 	assert(g_base_addr);
 
-	timeout = timeout_init_us(20);
+	/* Shadow reload needs more time */
+	timeout = timeout_init_us(1000);
 	while (io_read32(g_base_addr + OCOTP_CTRL) & (mask))
 		if (timeout_elapsed(timeout))
 			return TEE_ERROR_BUSY;
@@ -138,6 +171,116 @@ out:
 	mutex_unlock(&fuse_read);
 
 	return ret;
+}
+
+TEE_Result imx_ocotp_write(unsigned int bank, unsigned int word, uint32_t val)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+
+	if (!val)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (bank > g_ocotp->nb_banks || word > g_ocotp->nb_words)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!g_ocotp->write_fuse)
+		return TEE_ERROR_NOT_IMPLEMENTED;
+
+	assert(g_base_addr && g_ocotp);
+
+	mutex_lock(&fuse_read);
+
+	ocotp_clock_enable();
+
+	/* Clear error bit */
+	io_write32(g_base_addr + OCOTP_CTRL_CLR, OCOTP_CTRL_ERROR);
+
+	/* Wait for busy flag to be cleared */
+	ret = ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
+	if (ret) {
+		EMSG("OCOTP is busy");
+		goto out;
+	}
+
+	ret = g_ocotp->write_fuse(bank, word, val);
+
+	io_write32(g_base_addr + OCOTP_CTRL_SET, OCOTP_CTRL_RELOAD_SHADOWS);
+	udelay(1);
+
+	ret = ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
+	if (ret) {
+		EMSG("OCOTP is busy");
+		goto out;
+	}
+
+	DMSG("OCOTP Bank %d Word %d Fuse 0x%" PRIx32, bank, word, val);
+out:
+	mutex_unlock(&fuse_read);
+
+	return ret;
+}
+
+static TEE_Result ocotp_mx8m_set_timing(void)
+{
+	uint32_t relax, strobe_read, strobe_prog;
+	uint32_t clk_rate;
+	uint32_t timing;
+
+	/* Assume the IPG_ROOT clock is running at 66.67 MHz */
+	clk_rate = 66666667;
+
+	relax = DIV_ROUND_UP(clk_rate * TIMING_RELAX_NS, 1000000000) - 1;
+
+	strobe_read = DIV_ROUND_UP(clk_rate * TIMING_STROBE_READ_NS, 1000000000);
+	strobe_read += 2 * (relax + 1) - 1;
+	strobe_prog = UDIV_ROUND_NEAREST(clk_rate * TIMING_STROBE_PROG_US, 1000000);
+	strobe_prog += 2 * (relax + 1) - 1;
+
+	timing = io_read32(g_base_addr + OCOTP_TIMING) & OCOTP_TIMING_WAIT;
+	timing |= field_prep(OCOTP_TIMING_RELAX, relax);
+	timing |= field_prep(OCOTP_TIMING_STROBE_READ, strobe_read);
+	timing |= field_prep(OCOTP_TIMING_STROBE_PROG, strobe_prog);
+
+	io_write32(g_base_addr + OCOTP_TIMING, timing);
+
+	return ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
+}
+
+static TEE_Result ocotp_mx8m_write_fuse(unsigned int bank, unsigned int word, uint32_t val)
+{
+	TEE_Result ret;
+	uint32_t reg;
+
+	ret = ocotp_mx8m_set_timing();
+	if (ret) {
+		EMSG("OCOTP set_timing failed");
+		return ret;
+	}
+
+	/* Control register */
+	reg = io_read32(g_base_addr + OCOTP_CTRL);
+	reg &= ~OCOTP_CTRL_ADDR;
+	reg |= field_prep(OCOTP_CTRL_ADDR, OCOTP_ADDR(bank, word));
+	reg |= field_prep(OCOTP_CTRL_WR_UNLOCK, OCOTP_CTRL_WR_UNLOCK_KEY);
+	io_write32(g_base_addr + OCOTP_CTRL, reg);
+
+	/* Clear error bit */
+	io_write32(g_base_addr + OCOTP_CTRL_CLR, OCOTP_CTRL_ERROR);
+
+	io_write32(g_base_addr + OCOTP_DATA, val);
+	ret = ocotp_ctrl_wait_for(OCOTP_CTRL_BUSY);
+	if (ret)
+		return ret;
+
+	/* Write postamble */
+	udelay(2000);
+
+	if (io_read32(g_base_addr + OCOTP_CTRL) & OCOTP_CTRL_ERROR) {
+		EMSG("OCOTP bad write status");
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result ocotp_get_die_id_mx7ulp(uint64_t *ret_uid)
@@ -248,12 +391,14 @@ static const struct ocotp_instance ocotp_imx8m = {
 	.nb_banks = 32,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_mx8m_write_fuse,
 };
 
 static const struct ocotp_instance ocotp_imx8mp = {
 	.nb_banks = 48,
 	.nb_words = 8,
 	.get_die_id = ocotp_get_die_id_mx,
+	.write_fuse = ocotp_mx8m_write_fuse,
 };
 
 int tee_otp_get_die_id(uint8_t *buffer, size_t len)
