@@ -90,7 +90,6 @@ void notif_send_async(uint32_t value)
 	assert(value <= NOTIF_ASYNC_VALUE_MAX);
 	old_itr_status = cpu_spin_lock_xsave(&notif_default_lock);
 
-	DMSG("0x%"PRIx32, value);
 	bit_set(notif_values, value);
 	interrupt_raise_pi(itr_chip, CFG_CORE_ASYNC_NOTIF_GIC_INTID);
 
