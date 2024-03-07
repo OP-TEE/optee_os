@@ -19,4 +19,13 @@
  * @[out]val Shadow register value
  */
 TEE_Result imx_ocotp_read(unsigned int bank, unsigned int word, uint32_t *val);
+
+/*
+ * Write OCOTP fuses
+ *
+ * @bank     Fuse bank number
+ * @word     Fuse word number
+ * @[in]val  Value to burn
+ */
+TEE_Result imx_ocotp_write(unsigned int bank, unsigned int word, uint32_t val);
 #endif /* __DRIVERS_IMX_OCOTP_H */
