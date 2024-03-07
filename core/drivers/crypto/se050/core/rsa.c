@@ -689,6 +689,7 @@ static TEE_Result encrypt_fallback(struct drvcrypt_rsa_ed *p)
 						       p->key.key,
 						       p->label.data,
 						       p->label.length,
+						       p->mgf_algo,
 						       p->message.data,
 						       p->message.length,
 						       p->cipher.data,
@@ -720,7 +721,8 @@ static TEE_Result do_encrypt(struct drvcrypt_rsa_ed *rsa_data)
 				  &rsa_data->cipher.length);
 
 	case DRVCRYPT_RSA_OAEP:
-		if (rsa_data->hash_algo != TEE_ALG_SHA1)
+		if (rsa_data->hash_algo != TEE_ALG_SHA1 ||
+		    rsa_data->hash_algo != rsa_data->mgf_algo)
 			return encrypt_fallback(rsa_data);
 
 		return encrypt_es(TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1,
@@ -764,6 +766,7 @@ static TEE_Result decrypt_fallback(struct drvcrypt_rsa_ed *p)
 						       p->key.key,
 						       p->label.data,
 						       p->label.length,
+						       p->mgf_algo,
 						       p->cipher.data,
 						       p->cipher.length,
 						       p->message.data,
@@ -798,7 +801,8 @@ static TEE_Result do_decrypt(struct drvcrypt_rsa_ed *rsa_data)
 				  &rsa_data->message.length);
 
 	case DRVCRYPT_RSA_OAEP:
-		if (rsa_data->hash_algo != TEE_ALG_SHA1)
+		if (rsa_data->hash_algo != TEE_ALG_SHA1 ||
+		    rsa_data->hash_algo != rsa_data->mgf_algo)
 			return decrypt_fallback(rsa_data);
 
 		return decrypt_es(TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1,

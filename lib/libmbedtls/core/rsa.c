@@ -437,6 +437,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo,
 					struct rsa_keypair *key,
 					const uint8_t *label __unused,
 					size_t label_len __unused,
+					uint32_t mgf_algo,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len)
 __weak __alias("sw_crypto_acipher_rsaes_decrypt");
@@ -445,6 +446,7 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 					   struct rsa_keypair *key,
 					   const uint8_t *label __unused,
 					   size_t label_len __unused,
+					   uint32_t mgf_algo,
 					   const uint8_t *src, size_t src_len,
 					   uint8_t *dst, size_t *dst_len)
 {
@@ -499,6 +501,11 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 			res = TEE_ERROR_NOT_SUPPORTED;
 			goto out;
 		}
+		if (md_algo != tee_algo_to_mbedtls_hash_algo(mgf_algo)) {
+			DMSG("Using a different MGF1 algorithm is not supported");
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto out;
+		}
 	}
 
 	mbedtls_rsa_set_padding(&rsa, lmd_padding, md_algo);
@@ -531,6 +538,7 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
 					const uint8_t *label __unused,
 					size_t label_len __unused,
+					uint32_t mgf_algo,
 					const uint8_t *src, size_t src_len,
 					uint8_t *dst, size_t *dst_len)
 __weak __alias("sw_crypto_acipher_rsaes_encrypt");
@@ -539,6 +547,7 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 					   struct rsa_public_key *key,
 					   const uint8_t *label __unused,
 					   size_t label_len __unused,
+					   uint32_t mgf_algo,
 					   const uint8_t *src, size_t src_len,
 					   uint8_t *dst, size_t *dst_len)
 {
@@ -582,7 +591,9 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	 */
 	if (algo != TEE_ALG_RSAES_PKCS1_V1_5) {
 		md_algo = tee_algo_to_mbedtls_hash_algo(algo);
-		if (md_algo == MBEDTLS_MD_NONE) {
+		/* Using a different MGF1 algorithm is not supported. */
+		if (md_algo == MBEDTLS_MD_NONE ||
+		    md_algo != tee_algo_to_mbedtls_hash_algo(mgf_algo)) {
 			res = TEE_ERROR_NOT_SUPPORTED;
 			goto out;
 		}

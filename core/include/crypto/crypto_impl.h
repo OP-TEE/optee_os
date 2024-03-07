@@ -532,14 +532,18 @@ TEE_Result sw_crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 					   struct rsa_keypair *key,
 					   const uint8_t *label,
-					   size_t label_len, const uint8_t *src,
+					   size_t label_len,
+					   uint32_t mgf_algo,
+					   const uint8_t *src,
 					   size_t src_len, uint8_t *dst,
 					   size_t *dst_len);
 
 TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 					   struct rsa_public_key *key,
 					   const uint8_t *label,
-					   size_t label_len, const uint8_t *src,
+					   size_t label_len,
+					   uint32_t mgf_algo,
+					   const uint8_t *src,
 					   size_t src_len, uint8_t *dst,
 					   size_t *dst_len);
 

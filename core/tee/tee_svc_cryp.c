@@ -4427,6 +4427,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 	int salt_len = 0;
 	TEE_Attribute *params = NULL;
 	size_t alloc_size = 0;
+	uint32_t mgf_algo = 0;
 
 	res = tee_svc_cryp_get_state(sess, uref_to_vaddr(state), &cs);
 	if (res != TEE_SUCCESS)
@@ -4526,41 +4527,33 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 				label_len = params[n].content.ref.length;
 				break;
 			}
-			/*
-			 * If the optional TEE_ATTR_RSA_OAEP_MGF_HASH is
-			 * provided for algorithm
-			 * TEE_ALG_RSAES_PKCS1_OAEP_MGF1_x it must match
-			 * the internal hash x since we don't support using
-			 * a different hash for MGF1 yet.
-			 */
+
 			if (cs->algo != TEE_ALG_RSAES_PKCS1_V1_5 &&
 			    params[n].attributeID ==
 			    TEE_ATTR_RSA_OAEP_MGF_HASH) {
-				uint32_t hash = 0;
 				void *buf = params[n].content.ref.buffer;
 
 				if (params[n].content.ref.length !=
-				    sizeof(hash)) {
+				    sizeof(mgf_algo)) {
 					res = TEE_ERROR_BAD_PARAMETERS;
 					goto out;
 				}
 
-				res = copy_from_user(&hash, buf, sizeof(hash));
+				res = copy_from_user(&mgf_algo, buf,
+						     sizeof(mgf_algo));
 				if (res)
 					goto out;
-
-				if (hash !=
-				    TEE_INTERNAL_HASH_TO_ALGO(cs->algo)) {
-					res = TEE_ERROR_NOT_SUPPORTED;
-					goto out;
-				}
 			}
 		}
+
+		if (!mgf_algo)
+			mgf_algo = TEE_INTERNAL_HASH_TO_ALGO(cs->algo);
 
 		if (cs->mode == TEE_MODE_ENCRYPT) {
 			enter_user_access();
 			res = crypto_acipher_rsaes_encrypt(cs->algo, o->attr,
 							   label, label_len,
+							   mgf_algo,
 							   src_data, src_len,
 							   dst_data, &dlen);
 			exit_user_access();
@@ -4568,6 +4561,7 @@ TEE_Result syscall_asymm_operate(unsigned long state,
 			enter_user_access();
 			res = crypto_acipher_rsaes_decrypt(
 					cs->algo, o->attr, label, label_len,
+					mgf_algo,
 					src_data, src_len, dst_data, &dlen);
 			exit_user_access();
 		} else {

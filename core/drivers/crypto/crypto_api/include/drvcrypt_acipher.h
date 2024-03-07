@@ -68,6 +68,8 @@ struct drvcrypt_rsa_ed {
 	struct drvcrypt_buf message; /* Message to encrypt or decrypted */
 	struct drvcrypt_buf cipher;  /* Cipher encrypted or to decrypt */
 	struct drvcrypt_buf label;   /* Additional Label (RSAES) */
+	uint32_t mgf_algo;           /* MGF1 hash algorithm (RSAES) */
+	size_t mgf_size;             /* MGF1 hash digest size (RSAES) */
 
 	/* RSA Mask Generation function */
 	TEE_Result (*mgf)(struct drvcrypt_rsa_mgf *mgf_data);

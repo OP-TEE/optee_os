@@ -30,6 +30,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 {
 	switch (algo) {
 #if defined(_CFG_CORE_LTC_SHA1_DESC)
+	case TEE_ALG_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA1:
@@ -37,6 +38,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		break;
 #endif
 #if defined(_CFG_CORE_LTC_MD5_DESC)
+	case TEE_ALG_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_MD5:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_MD5:
@@ -44,6 +46,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		break;
 #endif
 #if defined(_CFG_CORE_LTC_SHA224_DESC)
+	case TEE_ALG_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA224:
@@ -51,6 +54,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		break;
 #endif
 #if defined(_CFG_CORE_LTC_SHA256_DESC)
+	case TEE_ALG_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA256:
@@ -58,6 +62,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		break;
 #endif
 #if defined(_CFG_CORE_LTC_SHA384_DESC)
+	case TEE_ALG_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA384:
@@ -65,6 +70,7 @@ static TEE_Result tee_algo_to_ltc_hashindex(uint32_t algo, int *ltc_hashindex)
 		break;
 #endif
 #if defined(_CFG_CORE_LTC_SHA512_DESC)
+	case TEE_ALG_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
 	case TEE_ALG_RSAES_PKCS1_OAEP_MGF1_SHA512:
@@ -319,7 +325,9 @@ TEE_Result sw_crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo,
 					struct rsa_keypair *key,
 					const uint8_t *label,
-					size_t label_len, const uint8_t *src,
+					size_t label_len,
+					uint32_t mgf_algo,
+					const uint8_t *src,
 					size_t src_len, uint8_t *dst,
 					size_t *dst_len)
 __weak __alias("sw_crypto_acipher_rsaes_decrypt");
@@ -327,14 +335,16 @@ __weak __alias("sw_crypto_acipher_rsaes_decrypt");
 TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 					   struct rsa_keypair *key,
 					   const uint8_t *label,
-					   size_t label_len, const uint8_t *src,
+					   size_t label_len,
+					   uint32_t mgf_algo,
+					   const uint8_t *src,
 					   size_t src_len, uint8_t *dst,
 					   size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
 	unsigned long blen;
-	int ltc_hashindex, ltc_res, ltc_stat, ltc_rsa_algo;
+	int ltc_hashindex, ltc_mgfindex, ltc_res, ltc_stat, ltc_rsa_algo;
 	size_t mod_size;
 	rsa_key ltc_key = { 0, };
 
@@ -353,8 +363,18 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 	/* Get the algorithm */
 	res = tee_algo_to_ltc_hashindex(algo, &ltc_hashindex);
 	if (res != TEE_SUCCESS) {
-		EMSG("tee_algo_to_ltc_hashindex() returned %d", (int)res);
+		EMSG("tee_algo_to_ltc_hashindex() returned %#"PRIx32, res);
 		goto out;
+	}
+	if (algo != TEE_ALG_RSAES_PKCS1_V1_5) {
+		res = tee_algo_to_ltc_hashindex(mgf_algo, &ltc_mgfindex);
+		if (res != TEE_SUCCESS) {
+			EMSG("tee_algo_to_ltc_hashindex() returned %#"PRIx32"for mgf algo %#"PRIx32,
+				res, mgf_algo);
+			goto out;
+		}
+	} else {
+		ltc_mgfindex = -1;
 	}
 
 	/*
@@ -380,8 +400,8 @@ TEE_Result sw_crypto_acipher_rsaes_decrypt(uint32_t algo,
 
 	ltc_res = rsa_decrypt_key_ex(src, src_len, buf, &blen,
 				     ((label_len == 0) ? 0 : label), label_len,
-				     ltc_hashindex, -1, ltc_rsa_algo, &ltc_stat,
-				     &ltc_key);
+				     ltc_mgfindex, ltc_hashindex, ltc_rsa_algo,
+				     &ltc_stat, &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
@@ -424,7 +444,9 @@ out:
 TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 					struct rsa_public_key *key,
 					const uint8_t *label,
-					size_t label_len, const uint8_t *src,
+					size_t label_len,
+					uint32_t mgf_algo,
+					const uint8_t *src,
 					size_t src_len, uint8_t *dst,
 					size_t *dst_len)
 __weak __alias("sw_crypto_acipher_rsaes_encrypt");
@@ -432,13 +454,15 @@ __weak __alias("sw_crypto_acipher_rsaes_encrypt");
 TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 					   struct rsa_public_key *key,
 					   const uint8_t *label,
-					   size_t label_len, const uint8_t *src,
+					   size_t label_len,
+					   uint32_t mgf_algo,
+					   const uint8_t *src,
 					   size_t src_len, uint8_t *dst,
 					   size_t *dst_len)
 {
 	TEE_Result res;
 	uint32_t mod_size;
-	int ltc_hashindex, ltc_res, ltc_rsa_algo;
+	int ltc_hashindex, ltc_mgfindex, ltc_res, ltc_rsa_algo;
 	rsa_key ltc_key = {
 		.type = PK_PUBLIC,
 		.e = key->e,
@@ -458,6 +482,14 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	if (res != TEE_SUCCESS)
 		goto out;
 
+	if (algo != TEE_ALG_RSAES_PKCS1_V1_5) {
+		res = tee_algo_to_ltc_hashindex(mgf_algo, &ltc_mgfindex);
+		if (res != TEE_SUCCESS)
+			goto out;
+	} else {
+		ltc_mgfindex = -1;
+	}
+
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
 		ltc_rsa_algo = LTC_PKCS_1_V1_5;
 	else
@@ -466,7 +498,8 @@ TEE_Result sw_crypto_acipher_rsaes_encrypt(uint32_t algo,
 	ltc_res = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
 				     label_len, NULL, find_prng("prng_crypto"),
-				     ltc_hashindex, -1, ltc_rsa_algo, &ltc_key);
+				     ltc_mgfindex, ltc_hashindex, ltc_rsa_algo,
+				     &ltc_key);
 	switch (ltc_res) {
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
