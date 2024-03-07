@@ -16,6 +16,13 @@
 #include <optee_ffa.h>
 #include <string.h>
 
+struct sp_interrupt_context {
+	struct sp_interrupt interrupt;
+	struct thread_smc_args args;
+	struct sp_session *sp;
+	bool is_active;
+};
+
 static unsigned int mem_ref_lock = SPINLOCK_UNLOCK;
 
 void spmc_sp_start_thread(struct thread_smc_args *args)
@@ -928,8 +935,88 @@ ffa_handle_sp_direct_req(struct thread_smc_args *args,
 }
 
 static struct sp_session *
+sp_get_interrupt_or_set_idle(struct thread_smc_args *args,
+			     struct sp_session *caller_sp,
+			     struct sp_session *dst,
+			     struct sp_interrupt_context *ctx)
+{
+	cpu_spin_lock(&caller_sp->spinlock);
+	if (sp_pop_pending_interrupt(caller_sp, &ctx->interrupt)) {
+		/* There's a pending interrupt */
+		if (!ctx->is_active) {
+			/* Save non-interrupt context */
+			memcpy(&ctx->args, args, sizeof(ctx->args));
+			ctx->sp = dst;
+			ctx->is_active = true;
+		}
+
+		caller_sp->has_active_interrupt = true;
+
+		/* Stay in blocked state and send FFA_INTERRUPT to SP */
+		args->a0 = FFA_INTERRUPT;
+		args->a1 = 0;
+		args->a2 = ctx->interrupt.it;
+		args->a3 = 0;
+		args->a4 = 0;
+		args->a5 = 0;
+		args->a6 = 0;
+		args->a7 = 0;
+
+		dst = caller_sp;
+		caller_sp->state = sp_busy;
+	} else {
+		if (ctx->is_active) {
+			/* Restore original context */
+			memcpy(args, &ctx->args, sizeof(*args));
+			dst = ctx->sp;
+			ctx->is_active = false;
+
+			sp_unmask_interrupt(&ctx->interrupt);
+		}
+
+		caller_sp->has_active_interrupt = false;
+		caller_sp->state = sp_idle;
+	}
+	cpu_spin_unlock(&caller_sp->spinlock);
+
+	return dst;
+}
+
+static struct sp_session *handle_interrupt(struct thread_smc_args *args,
+					   struct sp_interrupt_context *ctx)
+{
+	struct sp_session *sp = NULL;
+
+	sp = sp_find_pending_interrupt(&ctx->interrupt);
+	if (!sp)
+		return NULL;
+
+	ctx->sp = NULL;
+	ctx->is_active = true;
+
+	sp->has_active_interrupt = true;
+
+	args->a0 = FFA_INTERRUPT;
+	args->a1 = 0;
+	args->a2 = ctx->interrupt.it;
+	args->a3 = 0;
+	args->a4 = 0;
+	args->a5 = 0;
+	args->a6 = 0;
+	args->a7 = 0;
+
+	DMSG("Sending interrupt %zu to SP: 0x%04x", ctx->interrupt.it,
+	     sp->endpoint_id);
+
+	sp_enter(args, sp);
+
+	return sp;
+}
+
+static struct sp_session *
 ffa_handle_sp_direct_resp(struct thread_smc_args *args,
-			  struct sp_session *caller_sp)
+			  struct sp_session *caller_sp,
+			  struct sp_interrupt_context *ctx)
 {
 	struct sp_session *dst = NULL;
 	TEE_Result res = FFA_OK;
@@ -961,9 +1048,7 @@ ffa_handle_sp_direct_resp(struct thread_smc_args *args,
 
 	caller_sp->caller_id = 0;
 
-	cpu_spin_lock(&caller_sp->spinlock);
-	caller_sp->state = sp_idle;
-	cpu_spin_unlock(&caller_sp->spinlock);
+	dst = sp_get_interrupt_or_set_idle(args, caller_sp, dst, ctx);
 
 	if (!dst) {
 		/* Send message back to the NW */
@@ -1199,6 +1284,8 @@ out:
 void spmc_sp_msg_handler(struct thread_smc_args *args,
 			 struct sp_session *caller_sp)
 {
+	struct sp_interrupt_context it_ctx = { 0 };
+
 	thread_check_canaries();
 	do {
 		switch (args->a0) {
@@ -1212,17 +1299,17 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_MSG_SEND_DIRECT_RESP_64:
 #endif
 		case FFA_MSG_SEND_DIRECT_RESP_32:
-			caller_sp = ffa_handle_sp_direct_resp(args, caller_sp);
+			caller_sp = ffa_handle_sp_direct_resp(args, caller_sp,
+							      &it_ctx);
 			break;
 		case FFA_ERROR:
 			caller_sp = ffa_handle_sp_error(args, caller_sp);
 			break;
 		case FFA_MSG_WAIT:
 			/* FFA_WAIT gives control back to NW */
-			cpu_spin_lock(&caller_sp->spinlock);
-			caller_sp->state = sp_idle;
-			cpu_spin_unlock(&caller_sp->spinlock);
-			caller_sp = NULL;
+			caller_sp = sp_get_interrupt_or_set_idle(args,
+								 caller_sp,
+								 NULL, &it_ctx);
 			break;
 #ifdef ARM64
 		case FFA_RXTX_MAP_64:
@@ -1319,6 +1406,18 @@ void spmc_sp_msg_handler(struct thread_smc_args *args,
 		case FFA_CONSOLE_LOG_32:
 			handle_console_log(args);
 			sp_enter(args, caller_sp);
+			break;
+
+		case FFA_INTERRUPT:
+			if (!caller_sp) {
+				/* SPMC scheduled interrupt */
+				caller_sp = handle_interrupt(args, &it_ctx);
+
+			} else {
+				/* SPs should not send FFA_INTERRUPT */
+				ffa_set_error(args, FFA_DENIED);
+				sp_enter(args, caller_sp);
+			}
 			break;
 
 		default:

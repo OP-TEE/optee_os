@@ -6,6 +6,7 @@
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/embedded_ts.h>
+#include <kernel/interrupt.h>
 #include <kernel/ldelf_loader.h>
 #include <kernel/secure_partition.h>
 #include <kernel/spinlock.h>
@@ -942,6 +943,68 @@ err_mm_free:
 	return res;
 }
 
+bool sp_pop_pending_interrupt(struct sp_session *s, struct sp_interrupt *it)
+{
+	if (!s->pending_interrupt_count)
+		return false;
+
+	*it = s->pending_interrupts[--s->pending_interrupt_count];
+	return true;
+}
+
+void sp_unmask_interrupt(struct sp_interrupt *it)
+{
+	interrupt_unmask(it->chip, it->it);
+}
+
+struct sp_session *sp_find_pending_interrupt(struct sp_interrupt *it)
+{
+	struct sp_session *s = NULL;
+
+	TAILQ_FOREACH(s, &open_sp_sessions, link) {
+		cpu_spin_lock(&s->spinlock);
+		if (s->state == sp_idle && sp_pop_pending_interrupt(s, it)) {
+			s->state = sp_busy;
+			cpu_spin_unlock(&s->spinlock);
+
+			return s;
+		}
+
+		cpu_spin_unlock(&s->spinlock);
+	}
+
+	return NULL;
+}
+
+static enum itr_return sp_interrupt_callback(struct itr_handler *h)
+{
+	struct sp_session *s = h->data;
+	struct sp_interrupt *it = NULL;
+
+	DMSG("SP interrupt: %ld 0x%04x", h->it, s->endpoint_id);
+
+	cpu_spin_lock(&s->spinlock);
+	/* Store the interrupt number in the SP's active interrupt list */
+	if (s->pending_interrupt_count < s->max_interrupt_count) {
+		it = &s->pending_interrupts[s->pending_interrupt_count++];
+
+		it->chip = h->chip;
+		it->it = h->it;
+	} else {
+		panic("Maximum number of active SP interrupts reached");
+	}
+	cpu_spin_unlock(&s->spinlock);
+
+	/*
+	 * The interrupt will be unmasked after calling the interrupt handler
+	 * of the SP.
+	 */
+	interrupt_mask(h->chip, h->it);
+
+	return ITRR_HANDLED;
+}
+DECLARE_KEEP_PAGER(sp_interrupt_callback);
+
 static TEE_Result handle_fdt_dev_regions(struct sp_ctx *ctx, void *fdt)
 {
 	int node = 0;
@@ -1591,13 +1654,19 @@ static void sp_cpsr_configure_foreign_interrupts(struct sp_session *s,
 						 struct ts_session *caller,
 						 uint64_t *cpsr)
 {
+	uint32_t ns_int_mode = s->ns_int_mode;
+
+	/* Disable foreign interrupt while handling a native interrupt */
+	if (s->has_active_interrupt)
+		ns_int_mode = SP_MANIFEST_NS_INT_QUEUED;
+
 	if (caller) {
 		struct sp_session *caller_sp = to_sp_session(caller);
 
 		s->ns_int_mode_inherited = MIN(caller_sp->ns_int_mode_inherited,
-					       s->ns_int_mode);
+					       ns_int_mode);
 	} else {
-		s->ns_int_mode_inherited = s->ns_int_mode;
+		s->ns_int_mode_inherited = ns_int_mode;
 	}
 
 	if (s->ns_int_mode_inherited == SP_MANIFEST_NS_INT_QUEUED)

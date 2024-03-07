@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2020-2023, Arm Limited.
+ * Copyright (c) 2020-2024, Arm Limited.
  */
 #ifndef __KERNEL_SECURE_PARTITION_H
 #define __KERNEL_SECURE_PARTITION_H
@@ -9,6 +9,7 @@
 #include <config.h>
 #include <ffa.h>
 #include <kernel/embedded_ts.h>
+#include <kernel/interrupt.h>
 #include <kernel/thread_spmc.h>
 #include <kernel/user_mode_ctx_struct.h>
 #include <mm/sp_mem.h>
@@ -19,6 +20,11 @@
 TAILQ_HEAD(sp_sessions_head, sp_session);
 
 enum sp_status { sp_idle, sp_busy, sp_preempted, sp_dead };
+
+struct sp_interrupt {
+	struct itr_chip *chip;
+	size_t it;
+};
 
 struct sp_session {
 	struct ffa_rxtx rxtx;
@@ -33,6 +39,10 @@ struct sp_session {
 	TEE_UUID ffa_uuid;
 	uint32_t ns_int_mode;
 	uint32_t ns_int_mode_inherited;
+	struct sp_interrupt *pending_interrupts;
+	size_t pending_interrupt_count;
+	size_t max_interrupt_count;
+	bool has_active_interrupt;
 	TAILQ_ENTRY(sp_session) link;
 };
 
@@ -82,6 +92,10 @@ TEE_Result sp_map_shared(struct sp_session *s,
 			 struct sp_mem *mem,
 			 uint64_t *va);
 TEE_Result sp_unmap_ffa_regions(struct sp_session *s, struct sp_mem *smem);
+
+bool sp_pop_pending_interrupt(struct sp_session *s, struct sp_interrupt *it);
+struct sp_session *sp_find_pending_interrupt(struct sp_interrupt *it);
+void sp_unmask_interrupt(struct sp_interrupt *it);
 
 #define for_each_secure_partition(_sp) \
 	SCATTERED_ARRAY_FOREACH(_sp, sp_images, struct sp_image)
