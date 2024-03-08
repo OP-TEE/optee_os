@@ -14,6 +14,7 @@
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/mutex.h>
+#include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdint.h>
@@ -1242,6 +1243,29 @@ out:
 	return res;
 }
 
+static TEE_Result stm32_cryp_pm(enum pm_op op, uint32_t pm_hint,
+				const struct pm_callback_handle *hdl __unused)
+{
+	switch (op) {
+	case PM_OP_SUSPEND:
+		clk_disable(cryp_pdata.clock);
+		return TEE_SUCCESS;
+	case PM_OP_RESUME:
+		if (clk_enable(cryp_pdata.clock))
+			panic();
+
+		if (PM_HINT_IS_STATE(pm_hint, CONTEXT) && stm32_cryp_reset())
+			panic();
+
+		return TEE_SUCCESS;
+	default:
+		/* Unexpected PM operation */
+		assert(0);
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+}
+DECLARE_KEEP_PAGER(stm32_cryp_pm);
+
 static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 				   const void *compt_data __unused)
 {
@@ -1295,6 +1319,8 @@ static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 			panic();
 		}
 	}
+
+	register_pm_core_service_cb(stm32_cryp_pm, NULL, "stm32-cryp");
 
 	return TEE_SUCCESS;
 }
