@@ -893,6 +893,10 @@ static TEE_Result remoteproc_load_fw(uint32_t pt,
 	if (!ctx)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	/* The firmware is already loaded, do nothing */
+	if (ctx->state == REMOTEPROC_LOADED)
+		return TEE_SUCCESS;
+
 	if (ctx->state != REMOTEPROC_OFF)
 		return TEE_ERROR_BAD_STATE;
 
