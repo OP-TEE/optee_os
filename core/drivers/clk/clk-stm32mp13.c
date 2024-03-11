@@ -2026,6 +2026,10 @@ static const struct clk_ops clk_stm32_oscillator_ops = {
 	.disable	= clk_stm32_oscillator_disable,
 };
 
+/*
+ * Each oscillator has 1 parent which reference is NULL here
+ * but set during initialization.
+ */
 #define STM32_OSCILLATOR(_name, _gate_id)\
 	struct clk _name = {\
 		.ops = &clk_stm32_oscillator_ops,\
@@ -2033,6 +2037,8 @@ static const struct clk_ops clk_stm32_oscillator_ops = {
 			.gate_id = (_gate_id),\
 		},\
 		.name = #_name,\
+		.num_parents = 1, \
+		.parents = { NULL }, \
 	}
 
 static STM32_OSCILLATOR(ck_hsi, GATE_HSI);
