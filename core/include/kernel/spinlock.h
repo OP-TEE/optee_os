@@ -42,6 +42,28 @@ static inline void cpu_spin_lock_no_dldetect(unsigned int *lock)
 	spinlock_count_incr();
 }
 
+static inline bool thread_spin_trylock(unsigned int *lock)
+{
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
+	return !__cpu_spin_trylock(lock);
+}
+
+/*
+ * To be used with lot of care: it is not recommended to spin in a thread
+ * context without masking foreign interrupts
+ */
+static inline void thread_spin_lock(unsigned int *lock)
+{
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
+	__cpu_spin_lock(lock);
+}
+
+static inline void thread_spin_unlock(unsigned int *lock)
+{
+	assert(thread_get_id_may_fail() != THREAD_ID_INVALID);
+	__cpu_spin_unlock(lock);
+}
+
 #ifdef CFG_TEE_CORE_DEBUG
 #define cpu_spin_lock(lock) \
 	cpu_spin_lock_dldetect(__func__, __LINE__, lock)
