@@ -13,8 +13,8 @@
 #ifndef __ASSEMBLER__
 #include <assert.h>
 #include <compiler.h>
-#include <stdbool.h>
 #include <kernel/thread.h>
+#include <stdbool.h>
 
 #ifdef CFG_TEE_CORE_DEBUG
 void spinlock_count_incr(void);
