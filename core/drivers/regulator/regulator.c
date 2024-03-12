@@ -11,7 +11,7 @@
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
-#include <kernel/mutex.h>
+#include <kernel/mutex_pm_aware.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <kernel/tee_time.h>
@@ -26,32 +26,15 @@
 static SLIST_HEAD(, regulator) regulator_device_list =
 	SLIST_HEAD_INITIALIZER(regulator);
 
+/* Access protection mutex complying the power state transitions context */
 static void lock_regulator(struct regulator *regulator)
 {
-	/*
-	 * Regulator operation may occur at runtime and during specific
-	 * system power transition: power off, PM suspend and resume.
-	 * These operate upon fastcall entries, under PSCI services
-	 * execution, where non-secure world is not operational. In these
-	 * cases we cannot take a mutex and will expect the mutex is
-	 * unlocked.
-	 */
-	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
-		assert(!regulator->lock.state);
-		return;
-	}
-
-	mutex_lock(&regulator->lock);
+	mutex_pm_aware_lock(&regulator->mutex);
 }
 
 static void unlock_regulator(struct regulator *regulator)
 {
-	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
-		/* Path for PM sequences when with local Monitor */
-		return;
-	}
-
-	mutex_unlock(&regulator->lock);
+	mutex_pm_aware_unlock(&regulator->mutex);
 }
 
 static TEE_Result set_state(struct regulator *regulator, bool on_not_off)
@@ -267,6 +250,8 @@ TEE_Result regulator_register(struct regulator *regulator)
 	if (!regulator || !regulator->ops ||
 	    regulator->flags & ~REGULATOR_FLAGS_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	mutex_pm_aware_init(&regulator->mutex);
 
 	regulator_get_range(regulator, &min_uv, &max_uv);
 	if (min_uv > max_uv)
