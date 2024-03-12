@@ -4,6 +4,7 @@
  */
 
 #include <kernel/mutex.h>
+#include <kernel/mutex_pm_aware.h>
 #include <kernel/panic.h>
 #include <kernel/refcount.h>
 #include <kernel/spinlock.h>
@@ -340,6 +341,39 @@ unsigned int mutex_get_recursive_lock_depth(struct recursive_mutex *m)
 	assert(m->owner == thread_get_id());
 
 	return refcount_val(&m->lock_depth);
+}
+
+void mutex_pm_aware_init(struct mutex_pm_aware *m)
+{
+	*m = (struct mutex_pm_aware)MUTEX_PM_AWARE_INITIALIZER;
+}
+
+void mutex_pm_aware_destroy(struct mutex_pm_aware *m)
+{
+	mutex_destroy(&m->mutex);
+}
+
+void mutex_pm_aware_lock(struct mutex_pm_aware *m)
+{
+	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
+		if (!cpu_spin_trylock(&m->lock) || m->mutex.state)
+			panic();
+	} else {
+		mutex_lock(&m->mutex);
+		if (!thread_spin_trylock(&m->lock))
+			panic();
+	}
+}
+
+void mutex_pm_aware_unlock(struct mutex_pm_aware *m)
+{
+	if (thread_get_id_may_fail() == THREAD_ID_INVALID) {
+		assert(!m->mutex.state);
+		cpu_spin_unlock(&m->lock);
+	} else {
+		thread_spin_unlock(&m->lock);
+		mutex_unlock(&m->mutex);
+	}
 }
 
 void condvar_init(struct condvar *cv)
