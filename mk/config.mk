@@ -1078,6 +1078,11 @@ CFG_WDT_SM_HANDLER_ID ?= 0x82003D06
 # the platform code
 CFG_CORE_HAS_GENERIC_TIMER ?= y
 
+# CFG_DYN_SHM_INTERRUPTIBLE_LOCK, when enabled, prevent potentially long
+# time windows during which interrupts are masked for dynamic shared memory
+# management.
+CFG_DYN_SHM_INTERRUPTIBLE_LOCK ?= n
+
 # Enable RTC API
 CFG_DRIVERS_RTC ?= n
 
