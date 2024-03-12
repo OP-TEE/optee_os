@@ -308,6 +308,7 @@ jobs:
           # Rust is disabled because signature_verification-rs hangs with this OP-TEE configuration
           make -j$(nproc) check CFG_FTRACE_SUPPORT=y CFG_SYSCALL_FTRACE=y XTEST_ARGS=regression_1001 RUST_ENABLE=n
           make -j$(nproc) check CFG_PAN=y
+          make -j$(nproc) check CFG_WITH_PAGER=y
 
   QEMUv8_Xen_check:
     name: make check (QEMUv8, Xen)
