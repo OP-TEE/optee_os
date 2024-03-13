@@ -58,6 +58,7 @@ static void wd_ndrv_atomic_cb(struct notif_driver *ndrv __unused,
 		}
 	}
 }
+DECLARE_KEEP_PAGER(wd_ndrv_atomic_cb);
 
 static void wd_ndrv_yielding_cb(struct notif_driver *ndrv __unused,
 				enum notif_event ev)
@@ -109,6 +110,7 @@ static bool periodic_callback(struct callout *co)
 
 	return true;
 }
+DECLARE_KEEP_PAGER(periodic_callback);
 
 static TEE_Result nex_init_periodic_callback(void)
 {

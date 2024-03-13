@@ -42,6 +42,7 @@ __relrodata_unpaged("timer_desc") = {
 	.get_now = timer_now,
 	.is_per_cpu = true,
 };
+DECLARE_KEEP_PAGER(timer_desc);
 
 static enum itr_return timer_itr_cb(struct itr_handler *h __unused)
 {
@@ -49,6 +50,7 @@ static enum itr_return timer_itr_cb(struct itr_handler *h __unused)
 
 	return ITRR_HANDLED;
 }
+DECLARE_KEEP_PAGER(timer_itr_cb);
 
 void timer_init_callout_service(struct itr_chip *itr_chip, size_t itr_number)
 {
