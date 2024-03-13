@@ -37,7 +37,7 @@ void notif_register_driver(struct notif_driver *ndrv)
 {
 	uint32_t old_itr_status = 0;
 
-	assert(is_nexus(ndrv));
+	assert(is_nexus(ndrv) && is_unpaged(ndrv->atomic_cb));
 
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
 
